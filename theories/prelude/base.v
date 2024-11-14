@@ -21,3 +21,4 @@ From stdpp Require Export base tactics countable.
 (* TODO: find a better solution *)
 (* see [https://gitlab.mpi-sws.org/iris/stdpp/-/issues/182] *)
 #[global] Remove Hints bool_countable fin_countable : typeclass_instances.
+
