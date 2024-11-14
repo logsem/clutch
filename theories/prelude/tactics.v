@@ -6,7 +6,9 @@ From iris.proofmode Require Import proofmode.
 
 Set Default Proof Using "Type*".
 
-(** * Tactics from Dimsum *)
+(** * Tactics from Dimsum 
+    https://gitlab.mpi-sws.org/iris/dimsum/-/tree/master?ref_type=heads
+*)
 (** 
     - inv_all
     - case_bool_decide (_)
