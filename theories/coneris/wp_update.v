@@ -240,11 +240,11 @@ End wp_update.
 
 Section state_update.
   Context `{!conerisGS Σ}.
-  Definition state_update_def E P:=
+  Definition state_update_def E1 E2 P:=
     (∀ σ1 ε1,
-       state_interp σ1 ∗ err_interp ε1 ={E, ∅}=∗
+       state_interp σ1 ∗ err_interp ε1 ={E1, ∅}=∗
        state_step_coupl σ1 ε1 (λ σ2 ε2,
-                                 |={∅, E}=> state_interp σ2 ∗ err_interp ε2 ∗ P
+                                 |={∅, E2}=> state_interp σ2 ∗ err_interp ε2 ∗ P
          )
     )%I.
   
@@ -254,7 +254,7 @@ Section state_update.
   Proof. rewrite -state_update_aux.(seal_eq) //. Qed.
 
   Lemma wp_update_state_update E P:
-    state_update E P -∗ wp_update E P.
+    state_update E E P -∗ wp_update E P.
   Proof.
     rewrite state_update_unseal/state_update_def.
     iIntros.
@@ -262,7 +262,7 @@ Section state_update.
   Qed.
 
   Lemma state_update_ret E P:
-    P -∗ state_update E P.
+    P -∗ state_update E E P.
   Proof. 
     rewrite state_update_unseal/state_update_def.
     iIntros.
@@ -274,11 +274,11 @@ Section state_update.
   Qed.
 
   Global Instance from_modal_state_update_state_update P E :
-    FromModal True modality_id (state_update E P) (state_update E P) P.
+    FromModal True modality_id (state_update E E P) (state_update E E P) P.
   Proof. iIntros (_) "HP /=". by iApply state_update_ret. Qed.
     
-  Lemma state_update_mono_fupd E1 E2 P:
-    E1 ⊆ E2 -> (|={E2,E1}=> state_update E1 (|={E1, E2}=> P)) -∗ state_update E2 P.
+  Lemma state_update_mono_fupd E1 E2 E3 P:
+    E1 ⊆ E2 -> (|={E2,E1}=> state_update E1 E3 P) -∗ state_update E2 E3 P.
   Proof.
     rewrite state_update_unseal/state_update_def.
     iIntros (Hsubseteq) "Hvs".
@@ -286,12 +286,12 @@ Section state_update.
     iMod ("Hvs" with "[$]") as ">?".
     iModIntro.
     iApply (state_step_coupl_mono with "[][$]").
-    iIntros (??) ">(?&?&>?)". by iFrame.
+    iIntros (??) ">(?&?&?)". by iFrame.
   Qed.
 
   
-  Lemma state_update_mono E P Q:
-    (P={E}=∗Q) -∗ state_update E P -∗ state_update E Q.
+  Lemma state_update_mono E1 E2 P Q:
+    (P={E2}=∗Q) -∗ state_update E1 E2 P -∗ state_update E1 E2 Q.
   Proof.
     rewrite state_update_unseal/state_update_def.
     iIntros "Hvs H".
@@ -305,20 +305,24 @@ Section state_update.
   Qed.
   
   Lemma state_update_mono_fupd' E1 E2 P:
-    E1 ⊆ E2 -> (state_update E1 P) -∗ state_update E2 P.
+    E1 ⊆ E2 -> (state_update E1 E1 P) -∗ state_update E2 E2 P.
   Proof.
-    iIntros.
+    iIntros (?) "H".
     iApply state_update_mono_fupd; first done.
     iApply fupd_mask_intro; first done.
     iIntros "Hclose".
-    iApply (state_update_mono with "[Hclose][$]").
+    rewrite state_update_unseal/state_update_def.
     iIntros.
+    iMod ("H" with "[$]") as "H".
     iModIntro.
+    iApply (state_step_coupl_bind with "[Hclose][$]").
+    iIntros (??) "H". iApply state_step_coupl_ret.
+    iMod "H".
     by iMod "Hclose".
   Qed.
   
-  Lemma state_update_fupd E P:
-    (|={E}=> state_update E P) -∗ state_update E P.
+  Lemma state_update_fupd E1 E2 P:
+    (|={E1}=> state_update E1 E2 P) -∗ state_update E1 E2 P.
   Proof.
     iIntros "H".
     iApply state_update_mono_fupd; first done.
@@ -329,7 +333,7 @@ Section state_update.
 
   
   Lemma state_update_epsilon_err E:
-    ⊢ state_update E (∃ ε, ⌜(0<ε)%R⌝ ∗ ↯ ε).
+    ⊢ state_update E E (∃ ε, ⌜(0<ε)%R⌝ ∗ ↯ ε).
   Proof.
     rewrite state_update_unseal/state_update_def.
     iIntros (? ε) "[Hstate Herr]".
@@ -349,8 +353,8 @@ Section state_update.
     lra.
   Qed.
   
-  Lemma state_update_fupd_change E1 E2 P Q:
-    (|={E1, E2}=> P) -∗ (P-∗ state_update E2 (|={E2, E1}=> Q)) -∗ state_update E1 Q.
+  Lemma state_update_fupd_change E1 E2 E3 P Q:
+    (|={E1, E2}=> P) -∗ (P-∗ state_update E2 E3 Q) -∗ state_update E1 E3 Q.
   Proof.
     iIntros "H1 H2".
     rewrite state_update_unseal/state_update_def.
@@ -360,12 +364,12 @@ Section state_update.
     iModIntro.
     iApply state_step_coupl_mono; last done.
     simpl.
-    iIntros (??) ">(?&?&>?)".
+    iIntros (??) ">(?&?&?)".
     by iFrame.
   Qed.
 
-  Global Instance elim_modal_bupd_state_update p E P Q :
-    ElimModal True p false (|==> P) P (state_update E Q) (state_update E Q).
+  Global Instance elim_modal_bupd_state_update p E1 E2 P Q :
+    ElimModal True p false (|==> P) P (state_update E1 E2 Q) (state_update E1 E2 Q).
   Proof.
     intros ?.
     rewrite bi.intuitionistically_if_elim/=.
@@ -376,10 +380,10 @@ Section state_update.
     by iApply "H2".
   Qed.
   
-  Global Instance elim_modal_fupd_state_update p E1 E2 P Q :
+  Global Instance elim_modal_fupd_state_update p E1 E2 E3 P Q :
     ElimModal (True) p false
             (|={E1,E2}=> P) P
-            (state_update E1 Q) (state_update E2 (|={E2, E1}=> Q)).
+            (state_update E1 E3 Q) (state_update E2 E3 Q).
   Proof.
     intros ?.
     rewrite bi.intuitionistically_if_elim/=.
@@ -387,8 +391,8 @@ Section state_update.
     iApply (state_update_fupd_change with "[$][$]").
   Qed.
   
-  Lemma state_update_bind E P Q:
-    state_update E P ∗ (P -∗ state_update E Q) ⊢ state_update E Q.
+  Lemma state_update_bind E1 E2 E3 P Q:
+    state_update E1 E2 P ∗ (P -∗ state_update E2 E3 Q) ⊢ state_update E1 E3 Q.
   Proof.
     rewrite state_update_unseal/state_update_def.
     iIntros "[H1 H2]" (??) "[??]".
@@ -401,26 +405,18 @@ Section state_update.
     by iMod ("H2" with "[$][$]").
   Qed.
 
-  Global Instance elim_modal_state_update_state_update p E1 E2 P Q :
-    ElimModal (E1 ⊆ E2) p false (state_update E1 Q) Q (state_update E2 P) (state_update E2 P).
+  Global Instance elim_modal_state_update_state_update p E1 E2 E3 P Q :
+    ElimModal (True) p false (state_update E1 E2 Q) Q (state_update E1 E3 P) (state_update E2 E3 P).
   Proof.
-    iIntros (?) "[H1 H2]".
+    iIntros (_) "[H1 H2]".
     rewrite bi.intuitionistically_if_elim.
     iApply state_update_mono_fupd; first exact.
     iApply fupd_mask_intro; first exact; iIntros "Hclose".
     iApply state_update_bind; iFrame.
-    iIntros.
-    iApply (state_update_fupd_change with "[$]").
-    iIntros.
-    iDestruct ("H2" with "[$]") as "H".
-    iApply (state_update_mono); last done.
-    iIntros.
-    iModIntro.
-    by iApply fupd_mask_intro_subseteq.
   Qed.
  
   Global Instance elim_modal_state_update_wp_update p E1 E2 P Q :
-    ElimModal (E1 ⊆ E2) p false (state_update E1 Q) Q (wp_update E2 P) (wp_update E2 P).
+    ElimModal (E1 ⊆ E2) p false (state_update E1 E1 Q) Q (wp_update E2 P) (wp_update E2 P).
   Proof.
     (* rewrite state_update_unseal/state_update_def. *)
     iIntros (?) "[H1 H2]".
@@ -435,41 +431,39 @@ Section state_update.
     - iDestruct (bi.intuitionistically_elim with "[$]") as "H1".
       iMod "H1".
       iMod "Hclose" as "_".
-      iModIntro.
-      by iApply fupd_mask_intro_subseteq.
+      by iModIntro.
     - iMod "H1".
       iMod "Hclose" as "_".
-      iModIntro.
-      by iApply fupd_mask_intro_subseteq.
+      by iModIntro.
   Qed.
   
   Global Instance elim_modal_state_update_wp e Φ p E1 E2 P :
-    ElimModal (E1 ⊆ E2) p false (state_update E1 P) P (WP e @ E2 {{ Φ }}) (WP e @ E2 {{ Φ }}).
+    ElimModal (E1 ⊆ E2) p false (state_update E1 E1 P) P (WP e @ E2 {{ Φ }}) (WP e @ E2 {{ Φ }}).
   Proof.
     destruct p.
     all: iIntros (?); simpl; iIntros "[H1 H2]".
     1: iDestruct (bi.intuitionistically_elim with "[$]") as "H1".
     all: iDestruct (state_update_mono_fupd with "[H1]") as "H1"; first exact;
       last (iDestruct (wp_update_state_update with "[$]") as "H1"; iMod "H1"; by iApply "H2").
-    all: iApply fupd_mask_intro; first exact; iIntros "Hclose"; iMod "H1"; iModIntro; by iMod "Hclose".
+    all: iApply fupd_mask_intro; first exact; iIntros "Hclose"; iMod "H1"; iMod "Hclose"; by iModIntro.
   Qed.
 
   Lemma state_update_wp E P e Φ:
-    (state_update E P) -∗ (P -∗ WP e @ E {{Φ}}) -∗ WP e @ E {{Φ}}.
+    (state_update E E P) -∗ (P -∗ WP e @ E {{Φ}}) -∗ WP e @ E {{Φ}}.
   Proof.
     iIntros ">? H".
     by iApply "H".
   Qed.
 
-  Global Instance is_except_0_state_update E Q : IsExcept0 (state_update E Q).
+  Global Instance is_except_0_state_update E1 E2 Q : IsExcept0 (state_update E1 E2 Q).
   Proof.
     rewrite /IsExcept0.
     iIntros.
-    iApply (state_update_fupd E Q). by rewrite -except_0_fupd -fupd_intro.
+    iApply (state_update_fupd E1 E2 Q). by rewrite -except_0_fupd -fupd_intro.
   Qed.
 
-  Lemma state_update_frame_l R E P :
-    R ∗ state_update E P ⊢ state_update E (P ∗ R).
+  Lemma state_update_frame_l R E1 E2 P :
+    R ∗ state_update E1 E2 P ⊢ state_update E1 E2 (P ∗ R).
   Proof.
     iIntros "[HR H]".
     iMod "H".
@@ -478,7 +472,7 @@ Section state_update.
   Qed.
 
   Global Instance frame_state_update p E R P Q:
-    Frame p R P Q → Frame p R (state_update E P) (state_update E Q).
+    Frame p R P Q → Frame p R (state_update E E P) (state_update E E Q).
   Proof.
     rewrite /Frame=> HR.
     rewrite state_update_frame_l.
@@ -488,7 +482,7 @@ Section state_update.
   Qed.
 
   Global Instance from_pure_bupd_state_update b E P φ :
-    FromPure b P φ → FromPure b (state_update E P) φ.
+    FromPure b P φ → FromPure b (state_update E E P) φ.
   Proof.
     rewrite /FromPure=> HP.
     iIntros "H !>".
@@ -496,7 +490,7 @@ Section state_update.
   Qed.
 
   Global Instance into_wand_state_update p q E R P Q :
-    IntoWand false false R P Q → IntoWand p q (state_update E R) (state_update E P) (state_update E Q).
+    IntoWand false false R P Q → IntoWand p q (state_update E E R) (state_update E E P) (state_update E E Q).
   Proof.
     rewrite /IntoWand /= => HR.
     rewrite !bi.intuitionistically_if_elim.
@@ -504,7 +498,7 @@ Section state_update.
   Qed.
 
   Global Instance into_wand_bupd_persistent_state_update p q E R P Q :
-    IntoWand false q R P Q → IntoWand p q (state_update E R) P (state_update E Q).
+    IntoWand false q R P Q → IntoWand p q (state_update E E R) P (state_update E E Q).
   Proof.
     rewrite /IntoWand /= => HR. rewrite bi.intuitionistically_if_elim.
     iIntros ">HR HP !>".
@@ -512,7 +506,7 @@ Section state_update.
   Qed.
 
   Global Instance into_wand_bupd_args_state_update p q E R P Q :
-    IntoWand p false R P Q → IntoWand' p q R (state_update E P) (state_update E Q).
+    IntoWand p false R P Q → IntoWand' p q R (state_update E E P) (state_update E E Q). 
   Proof.
     rewrite /IntoWand' /IntoWand /= => ->.
     rewrite bi.intuitionistically_if_elim.
@@ -523,7 +517,7 @@ Section state_update.
   Qed.
 
   Global Instance from_sep_bupd_state_update E P Q1 Q2 :
-    FromSep P Q1 Q2 → FromSep (state_update E P) (state_update E Q1) (state_update E Q2).
+    FromSep P Q1 Q2 → FromSep (state_update E E P) (state_update E E Q1) (state_update E E Q2).
   Proof.
     rewrite /FromSep=> HP.
     iIntros "[>HQ1 >HQ2] !>".
@@ -531,7 +525,7 @@ Section state_update.
   Qed.
 
   Global Instance from_exist_state_update {B} P E (Φ : B → iProp Σ) :
-    FromExist P Φ → FromExist (state_update E P) (λ b, state_update E (Φ b))%I.
+    FromExist P Φ → FromExist (state_update E E P) (λ b, state_update E E (Φ b))%I.
   Proof.
     rewrite /FromExist => HP.
     iIntros "[%x >Hx] !>".
@@ -539,7 +533,7 @@ Section state_update.
   Qed.
 
   Global Instance into_forall_state_update {B} P E (Φ : B → iProp Σ) :
-    IntoForall P Φ → IntoForall (state_update E P) (λ b, state_update E (Φ b))%I.
+    IntoForall P Φ → IntoForall (state_update E E P) (λ b, state_update E E (Φ b))%I.
   Proof.
     rewrite /IntoForall=>HP.
     iIntros "> H" (b) "!>".
@@ -547,32 +541,30 @@ Section state_update.
   Qed.
 
   Global Instance from_assumption_state_update p E P Q :
-    FromAssumption p P Q → KnownRFromAssumption p P (state_update E Q).
+    FromAssumption p P Q → KnownRFromAssumption p P (state_update E E Q).
   Proof. rewrite /KnownRFromAssumption /FromAssumption=>->. iApply state_update_ret. Qed.
 
 
   (** state_update works for allocation of invariants and ghost resources *)
   Lemma state_update_inv_alloc E P N:
-    ▷ P -∗ state_update E (inv N P).
+    ▷ P -∗ state_update E E (inv N P).
   Proof.
     iIntros "HP".
     by iMod (inv_alloc with "[$]").
   Qed.
 
   Lemma state_update_inv_acc P E I N:
-    ↑N ⊆ E -> inv N I -∗ (▷I -∗ state_update (E∖↑N) (P∗▷I)) -∗ state_update E P.
+    ↑N ⊆ E -> inv N I -∗ (▷I -∗ state_update (E∖↑N) (E∖↑N) (P∗▷I)) -∗ state_update E E P.
   Proof.
     iIntros (Hsubset) "#Hinv H".
     iInv "Hinv" as "?" "Hclose".
     iMod ("H" with "[$]") as "[??]".
-    iFrame. iMod ("Hclose" with "[$]") as "_".
-    iModIntro.
-    iApply fupd_mask_intro_subseteq; [set_solver|done].
+    iFrame. by iMod ("Hclose" with "[$]") as "_".
   Qed.
   
   Context {A : cmra} `{i : inG Σ A}.
   Lemma state_update_ra_alloc E (a:A):
-    ✓ a -> ⊢ state_update E (∃ γ, own γ a).
+    ✓ a -> ⊢ state_update E E (∃ γ, own γ a).
   Proof.
     iIntros "%H".
     by iMod (own_alloc).

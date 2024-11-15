@@ -122,7 +122,7 @@ Section impl3.
     is_counter3 N c γ1 -∗
     (∃ ls, ⌜filter filter_f ls = ns⌝ ∗ rand_tapes (L:=L) α (4, ls)) -∗
     ↯ ε  -∗
-    state_update E (∃ n, ↯ (ε2 n) ∗
+    state_update E E (∃ n, ↯ (ε2 n) ∗
                          (∃ ls, ⌜filter filter_f ls = (ns++[fin_to_nat n])⌝ ∗ rand_tapes (L:=L) α (4, ls))).
   Proof.
     iIntros (Hsubset Hpos Hineq) "#Hinv Hfrag Herr".

@@ -135,7 +135,7 @@ Section impl1.
     is_counter1 N c γ1 -∗
     rand_tapes (L:=L) α (3%nat, ns) -∗
     ↯ ε  -∗
-    state_update E (∃ n, ↯ (ε2 n) ∗ rand_tapes (L:=L) α (3%nat, ns++[fin_to_nat n])).
+    state_update E E (∃ n, ↯ (ε2 n) ∗ rand_tapes (L:=L) α (3%nat, ns++[fin_to_nat n])).
   Proof.
     iIntros (Hsubset Hpos Hineq) "#Hinv Hfrag Herr".
     iMod (rand_tapes_presample with "[$][$]") as "(%&$&$)"; try done.

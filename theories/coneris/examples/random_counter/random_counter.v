@@ -53,7 +53,7 @@ Class random_counter `{!conerisGS Σ} := RandCounter
   is_counter(L:=L) N c γ  -∗
   counter_tapes (L:=L) α (ns) -∗
   ↯ ε  -∗
-  state_update E (∃ n, ↯ (ε2 n) ∗ counter_tapes (L:=L) α (ns ++ [fin_to_nat n]));
+  state_update E E (∃ n, ↯ (ε2 n) ∗ counter_tapes (L:=L) α (ns ++ [fin_to_nat n]));
 
   counter_content_auth_exclusive {L : counterG Σ} γ z1 z2:
     counter_content_auth (L:=L) γ z1 -∗ counter_content_auth (L:=L) γ z2 -∗ False;
@@ -148,7 +148,6 @@ Section lemmas.
     - iDestruct "H" as "(%ε & %ε2 & Herr & %Hpos & %Hineq & Hrest)".
       iMod (counter_tapes_presample _ _ _ _ _ _ _ (λ x, ε2 (fin_to_nat x)) with "[//][$][$Herr]") as "(%n & Herr & ?)"; try done.
       { rewrite SeriesC_finite_foldr/=. lra. }
-      iModIntro.
       iMod (fupd_mask_frame _ (E) ∅ (E∖↑N) with "[Hrest Herr]") as "H"; first set_solver.
       + iMod ("Hrest" with "[$]") as "H". iModIntro.
         replace (_∖_∪_) with E; first (iModIntro; iExact "H").

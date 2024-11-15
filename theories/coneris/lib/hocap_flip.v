@@ -41,7 +41,7 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
     (* is_flip (L:=L) N γ -∗ *)
     flip_tapes (L:=L) α (ns) -∗
     ↯ ε  -∗
-    state_update E (∃ n, ↯ (ε2 n) ∗ flip_tapes (L:=L) α (ns ++ [n]));
+    state_update E E (∃ n, ↯ (ε2 n) ∗ flip_tapes (L:=L) α (ns ++ [n]));
 
   (** * Program specs *)
   (* flip_inv_create_spec {L : flipG Σ} N E: *)

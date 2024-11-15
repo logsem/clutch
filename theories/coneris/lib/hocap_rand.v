@@ -45,7 +45,7 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
   (* is_rand(L:=L) N γ -∗ *)
   rand_tapes (L:=L) α (tb, ns) -∗
   ↯ ε  -∗
-  state_update E (∃ n, ↯ (ε2 n) ∗ rand_tapes (L:=L) α (tb, ns ++ [fin_to_nat n]));
+  state_update E E (∃ n, ↯ (ε2 n) ∗ rand_tapes (L:=L) α (tb, ns ++ [fin_to_nat n]));
     
 
   (** * Program specs *)

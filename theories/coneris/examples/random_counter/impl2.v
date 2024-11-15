@@ -274,7 +274,7 @@ Section impl2.
     is_counter2 N c γ1  -∗
     (flip_tapes (L:=L) α (expander ns) ∗ ⌜Forall (λ x, x<4) ns⌝) -∗
     ↯ ε  -∗
-    state_update E (∃ n, ↯ (ε2 n) ∗
+    state_update E E (∃ n, ↯ (ε2 n) ∗
                          (flip_tapes (L:=L) α (expander (ns++[fin_to_nat n])) ∗ ⌜Forall (λ x, x<4) (ns++[fin_to_nat n])⌝)).
   Proof.
     iIntros (Hsubset Hpos Hineq) "#Hinv' [Hfrag %Hforall] Herr".

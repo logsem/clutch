@@ -1154,7 +1154,7 @@ Qed.
   Lemma state_update_presample_iterM_exp E α N ns p (ε1 : R) (ε2 : list (fin (S N)) → R) :
     (∀ n, 0<=ε2 n)%R ->
     (SeriesC (λ n, if (length n =? p) then (1/((S N)^ p)) * ε2 n else 0%R )<= ε1)%R →
-     α ↪N (N; ns) -∗ ↯ ε1 -∗ state_update E (∃ n, α ↪N (N; ns ++ (fin_to_nat <$> n)) ∗
+     α ↪N (N; ns) -∗ ↯ ε1 -∗ state_update E E (∃ n, α ↪N (N; ns ++ (fin_to_nat <$> n)) ∗
                                                   ↯ (ε2 n) ∗
                                                   ⌜length n = p⌝
                                ).
@@ -1196,7 +1196,7 @@ Qed.
   Lemma state_update_presample_exp E α N ns (ε1 : R) (ε2 : fin (S N) → R) :
     (∀ n, 0<=ε2 n)%R ->
     (SeriesC (λ n, 1 / (S N) * ε2 n)%R <= ε1)%R →
-    α ↪N (N; ns) -∗ ↯ ε1 -∗ state_update E (∃ n, α ↪N (N; ns ++ [fin_to_nat n]) ∗ ↯ (ε2 n)).
+    α ↪N (N; ns) -∗ ↯ ε1 -∗ state_update E E (∃ n, α ↪N (N; ns ++ [fin_to_nat n]) ∗ ↯ (ε2 n)).
   Proof.
     rewrite state_update_unseal/state_update_def.
     iIntros (Hpos Hsum) "Hα Hε".
