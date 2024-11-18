@@ -632,10 +632,6 @@ Inductive ectx_item :=
   | URandCtx
   | TickCtx.
 
-
-(* FIXME: Hide cosntructors, so that we don't need to mention base_lit *)
-
-
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   match Ki with
   | AppLCtx v2 => App e (of_val v2)
@@ -951,13 +947,13 @@ Qed.
 (* #[local] Open Scope R.  *)
 
 
-
+(*
 Section pointed_instances.
   Local Open Scope classical_set_scope.
 
   (* Fail Check (<<discr state>> : measurableType _).  *)
-  HB.instance Definition _ := gen_eqMixin state.
-  HB.instance Definition _ := gen_choiceMixin state.
+  (*  HB.instance Definition _ := gen_eqMixin state. *)
+  (*  HB.instance Definition _ := gen_choiceMixin state. *)
   (* HB.instance Definition _ := isPointed.Build state inhabitant. *)
   (* Check (<<discr state>> : measurableType _). *)
 
@@ -971,13 +967,16 @@ Section pointed_instances.
   (* Check (<<discr R>> : measurableType _). *)
 
 End pointed_instances.
-
+*)
 
 Section meas_semantics.
   Local Open Scope classical_set_scope.
   Local Open Scope expr_scope.
 
   Definition discr_cfg : measurableType _ := (<<discr expr>> * <<discr state>>)%type.
+
+  Definition fin_to_nat {N : nat} (x : 'I_(S N)) : Z.
+  Admitted.
 
   Definition head_stepM_def (c : discr_cfg) : giryM discr_cfg :=
     let (e1, σ1) := c in
@@ -1030,12 +1029,10 @@ Section meas_semantics.
           | None => giryM_zero
         end
     (* Uniform sampling from [0, 1 , ..., N] *)
-    | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) => giryM_zero (** TODO *)
-        (*
+    | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
         giryM_map
-          (m_discr (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt n, σ1) : discr_cfg)))
+          (m_discr (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt $ fin_to_nat n, σ1) : discr_cfg)))
           (giryM_unif (Z.to_nat N))
-         *)
     | AllocTape (Val (LitV (LitInt z))) =>
         let ι := fresh_loc σ1.(tapes) in
         giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := {| btape_tape := emptyTape ; btape_bound := (Z.to_nat z) |} ]> σ1) : discr_cfg)
@@ -1068,12 +1065,9 @@ Section meas_semantics.
             else
               (* Tape bounds do not match *)
               (* Do not advance the tape, but still generate a new sample *)
-              giryM_zero (** TODO *)
-              (*
               giryM_map
-                (m_discr (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt n, σ1) : discr_cfg)))
+                (m_discr (fun (n : 'I_(S (Z.to_nat N))) => (((Val $ LitV $ LitInt $ fin_to_nat n) : <<discr expr>>), σ1) : discr_cfg))
                 (giryM_unif (Z.to_nat N))
-              *)
         | None => giryM_zero
         end
     | AllocUTape =>
@@ -1111,6 +1105,8 @@ Section meas_semantics.
     | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : discr_cfg)
     | _ => giryM_zero
     end.
+
+  Check fun z => (Val $ LitV $ z : <<discr expr>>).
 
   (* I don't care if this this true; we will delete it soon and replace it with a proof for the real SA. *)
   Local Lemma head_stepM_def_measurable :
@@ -1235,14 +1231,12 @@ Inductive head_step_rel : expr -> state -> expr -> state → Prop :=
   b' = tapeAdvance b ->
   head_step_rel (Rand (Val (LitV (LitInt z))) (Val (LitV (LitLbl l)))) σ
     (Val $ LitV $ LitInt $ n) (state_upd_tapes <[l := {| btape_tape := b' ; btape_bound := N|}]> σ)
-(* TODO
 | RandTapeEmptyS l z N (n_nat : nat) (n_int : Z) σ :
   N = Z.to_nat z →
   Z.of_nat n_nat = n_int ->
   n_nat < N ->
   σ.(tapes) !! l = Some {| btape_tape := emptyTape; btape_bound := N |} →
-  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ  (Val $ LitV $ LitInt n_nat) σ
-*)
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ  (Val $ LitV $ LitInt $ n_int) σ
 | RandTapeOtherS l z M N b (n_nat : nat) (n_int : Z) σ :
   N = Z.to_nat z →
   Z.of_nat n_nat = n_int ->
@@ -1283,12 +1277,9 @@ Global Hint Constructors head_step_rel : head_step.
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV LitUnit))) _ _ _) =>
          eapply (RandNoTapeS _ _ 0%fin) : head_step.
-(* TODO *)
-(*
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
          eapply (RandTapeEmptyS _ _ _ 0%fin) : head_step.
-*)
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
          eapply (RandTapeOtherS _ _ _ _ _ 0%fin) : head_step.
