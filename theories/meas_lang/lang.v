@@ -1004,6 +1004,22 @@ Section meas_semantics.
   Definition urand_step : measurable_map ((R : realType) : measurableType _) cfg.
   Admitted.
 
+
+  Definition urand_tape_step : measurable_map ((R : realType) : measurableType _) cfg.
+  Admitted.
+
+    (* This funciton needs to do this: *)
+    (*
+(fun (u : R) =>
+                    (* Fill tape head with new sample *)
+                    let τ' := <[ (0 : nat) := Some u ]> τ in
+                    (* Advance tape *)
+                    let σ' := state_upd_utapes <[ l := (tapeAdvance τ') ]> σ1 in
+                    (* Return the update value an state *)
+                    ((Val $ LitV $ LitReal u, σ') : cfg))
+*)
+
+
   Definition head_stepM_def (c : cfg) : giryM cfg :=
     let (e1, σ1) := c in
     match e1 with
@@ -1113,15 +1129,7 @@ Section meas_semantics.
                 (giryM_ret R ((Val $ LitV $ LitReal u, σ') : cfg))
             | None =>
                 (* Head has no sample *)
-                giryM_map
-                  (m_discr (fun (u : R) =>
-                    (* Fill tape head with new sample *)
-                    let τ' := <[ (0 : nat) := Some u ]> τ in
-                    (* Advance tape *)
-                    let σ' := state_upd_utapes <[ l := (tapeAdvance τ') ]> σ1 in
-                    (* Return the update value an state *)
-                    ((Val $ LitV $ LitReal u, σ') : cfg)))
-                  giryM_zero (* FIXME: Implement uniform space over [0, 1] and change m_discr to new map *)
+                giryM_map urand_tape_step unif_base
             end
         | None => giryM_zero
         end
@@ -1129,14 +1137,12 @@ Section meas_semantics.
     | _ => giryM_zero
     end.
 
-  Check fun z => (Val $ LitV $ z : <<discr expr>>).
-
+  (** TODO: Can I prove a general lemma about "apply a measurable function to each constructor" instead? *)
   Local Lemma head_stepM_def_measurable :
     @measurable_fun _ _ cfg (giryM cfg) setT head_stepM_def.
   Proof.
     (* measurability, preimage_class_measurable_fun *)
     eapply measurability; first eauto.
-    (* Oops, this is using the wrong sigma algebra *)
   Admitted.
 
   HB.instance Definition _ :=
