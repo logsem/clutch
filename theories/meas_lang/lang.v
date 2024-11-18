@@ -1,7 +1,7 @@
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
 From stdpp Require Import base numbers binders strings gmap.
-From mathcomp.analysis Require Import reals measure itv lebesgue_measure.
+From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
 From iris.algebra Require Export ofe.
 From clutch.prelude Require Export stdpp_ext.
@@ -969,13 +969,39 @@ Section pointed_instances.
 End pointed_instances.
 *)
 
-Section meas_semantics.
+
+Definition fin_to_nat {N : nat} (x : 'I_(S N)) : Z.
+Admitted.
+
+Definition cfg : measurableType _ := (expr * state)%type.
+
+
+Section unif.
+  Local Open Scope ereal_scope.
   Local Open Scope classical_set_scope.
-  Local Open Scope expr_scope.
+  (* Uniform space over [0, 1]*)
+  Definition unif_base_def : measure _ R := uniform_prob (@Num.Internals.ltr01 R).
 
-  Definition cfg : measurableType _ := (expr * state)%type.
+  (*  Lemma unif_base_T : (unif_base_def setT <= 1%E)%E.
+  Proof. Admitted. *)
 
-  Definition fin_to_nat {N : nat} (x : 'I_(S N)) : Z.
+  (*  HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ unif_base_def. *)
+
+  (* unif_base is a subprobability distrubution over [0, 1] *)
+  Definition unif_base : subprobability ((R : realType) : measurableType _) R.
+  Admitted.
+
+  (*  Check unif_base : giryM ((R : realType) : measurableType _).  *)
+
+End unif.
+
+
+
+Section meas_semantics.
+  Local Open Scope ereal_scope.
+  Local Open Scope classical_set_scope.
+
+  Definition urand_step : measurable_map ((R : realType) : measurableType _) cfg.
   Admitted.
 
   Definition head_stepM_def (c : cfg) : giryM cfg :=
@@ -1074,10 +1100,7 @@ Section meas_semantics.
         let ι := fresh_loc σ1.(utapes) in
         giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : cfg)
     (* Urand with no tape *)
-    | URand (Val (LitV LitUnit)) =>
-        giryM_map
-          (m_discr (fun u => ((Val $ LitV $ LitReal u, σ1) : cfg)))
-          giryM_zero (* FIXME: Implement uniform space over [0, 1] and change m_discr to new map *)
+    | URand (Val (LitV LitUnit)) => giryM_map urand_step unif_base
     (* Urand with a tape *)
     | URand (Val (LitV (LitLbl l))) =>
         match σ1.(utapes) !! l with
