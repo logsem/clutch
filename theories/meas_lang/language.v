@@ -164,13 +164,10 @@ Section language.
     move=> HZ.
     apply Hs; clear Hs.
     move: HI.
-    (*
-    move /(_ (R Λ) _ (prim_step (e, σ)) giryM_zero).
-    rewrite /is_zero.
+    move /(_ _ _ (prim_step (e, σ)) giryM_zero).
+    unfold is_zero.
     move ->; try done.
   Qed.
-*)
-  Admitted.
 
   (*
   Lemma fill_step_inv e1' σ1 e2 σ2 `{!LanguageCtx K} :
