@@ -516,7 +516,6 @@ Definition to_val (e : expr) : option val :=
   end.
 
 
-
 Section state_algebra.
 
   Local Open Scope classical_set_scope.
@@ -594,16 +593,12 @@ Proof. by destruct v. Qed.
 Lemma of_to_val e v : to_val e = Some v → of_val v = e.
 Proof. destruct e=>//=. by intros [= <-]. Qed.
 
-(* FIXME
-Global Instance of_val_inj : Inj (=) (=) of_val.
+Global Instance of_val_inj {T1 T2 T3 T4 : Type} : Inj (=) (=) (@of_val T1 T2 T3 T4).
 Proof. intros ??. congruence. Qed.
-*)
 
-(*
 Global Instance state_inhabited : Inhabited state := populate {| heap := gmap_empty; tapes := gmap_empty; utapes := gmap_empty |}.
 Global Instance val_inhabited : Inhabited val := populate (LitV LitUnit).
 Global Instance expr_inhabited : Inhabited expr := populate (Val inhabitant).
-*)
 
 Canonical Structure stateO := leibnizO state.
 Canonical Structure locO := leibnizO loc.
