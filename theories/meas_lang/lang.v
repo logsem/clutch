@@ -641,7 +641,6 @@ Inductive ectx_item :=
 (* FIXME: Hide cosntructors, so that we don't need to mention base_lit *)
 
 
-(*
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   match Ki with
   | AppLCtx v2 => App e (of_val v2)
@@ -753,7 +752,7 @@ Definition un_op_eval (op : un_op) (v : val) : option val :=
   match op, v with
   | NegOp, LitV (LitBool b) => Some $ LitV $ LitBool (negb b)
   | NegOp, LitV (LitInt z) => Some $ LitV $ LitInt (Z.lnot z)
-  | MinusUnOp, LitV (LitInt z) => Some $ LitV $ LitInt (- z)
+  | MinusUnOp, LitV (LitInt z) => Some $ LitV $ LitInt (- z)%Z
   | MinusUnOp, LitV (LitReal r) => Some $ LitV $ LitReal (- r)%R
   | _, _ => None
   end.
@@ -964,7 +963,7 @@ Section pointed_instances.
   (* Fail Check (<<discr state>> : measurableType _).  *)
   HB.instance Definition _ := gen_eqMixin state.
   HB.instance Definition _ := gen_choiceMixin state.
-  HB.instance Definition _ := isPointed.Build state inhabitant.
+  (* HB.instance Definition _ := isPointed.Build state inhabitant. *)
   (* Check (<<discr state>> : measurableType _). *)
 
   (** cfg is pointed (automatic) *)
@@ -974,7 +973,7 @@ Section pointed_instances.
   (* Check (<<discr (state * loc)>> : measurableType _). *)
 
   (** R is pointed *)
-  Check (<<discr R>> : measurableType _).
+  (* Check (<<discr R>> : measurableType _). *)
 
 End pointed_instances.
 
@@ -1036,10 +1035,12 @@ Section meas_semantics.
           | None => giryM_zero
         end
     (* Uniform sampling from [0, 1 , ..., N] *)
-    | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
+    | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) => giryM_zero (** TODO *)
+        (*
         giryM_map
           (m_discr (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt n, σ1) : discr_cfg)))
           (giryM_unif (Z.to_nat N))
+         *)
     | AllocTape (Val (LitV (LitInt z))) =>
         let ι := fresh_loc σ1.(tapes) in
         giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := {| btape_tape := emptyTape ; btape_bound := (Z.to_nat z) |} ]> σ1) : discr_cfg)
@@ -1072,9 +1073,12 @@ Section meas_semantics.
             else
               (* Tape bounds do not match *)
               (* Do not advance the tape, but still generate a new sample *)
+              giryM_zero (** TODO *)
+              (*
               giryM_map
                 (m_discr (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt n, σ1) : discr_cfg)))
                 (giryM_unif (Z.to_nat N))
+              *)
         | None => giryM_zero
         end
     | AllocUTape =>
@@ -1236,12 +1240,14 @@ Inductive head_step_rel : expr -> state -> expr -> state → Prop :=
   b' = tapeAdvance b ->
   head_step_rel (Rand (Val (LitV (LitInt z))) (Val (LitV (LitLbl l)))) σ
     (Val $ LitV $ LitInt $ n) (state_upd_tapes <[l := {| btape_tape := b' ; btape_bound := N|}]> σ)
+(* TODO
 | RandTapeEmptyS l z N (n_nat : nat) (n_int : Z) σ :
   N = Z.to_nat z →
   Z.of_nat n_nat = n_int ->
   n_nat < N ->
   σ.(tapes) !! l = Some {| btape_tape := emptyTape; btape_bound := N |} →
-  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n_nat) σ
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ  (Val $ LitV $ LitInt n_nat) σ
+*)
 | RandTapeOtherS l z M N b (n_nat : nat) (n_int : Z) σ :
   N = Z.to_nat z →
   Z.of_nat n_nat = n_int ->
@@ -1282,9 +1288,12 @@ Global Hint Constructors head_step_rel : head_step.
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV LitUnit))) _ _ _) =>
          eapply (RandNoTapeS _ _ 0%fin) : head_step.
+(* TODO *)
+(*
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
          eapply (RandTapeEmptyS _ _ _ 0%fin) : head_step.
+*)
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
          eapply (RandTapeOtherS _ _ _ _ _ 0%fin) : head_step.
@@ -1407,24 +1416,28 @@ Proof. red; intro; eapply expr_ord_wf'; eauto. Defined.
 
 
 (* TODO: this proof is slow, but I do not see how to make it faster... *)
+(* TODO: Uncomment the slow proof *)
 Lemma decomp_expr_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e.
-Proof.
+Proof. Admitted.
+(*
   rewrite /expr_ord /decomp_item.
   destruct Ki ; repeat destruct_match ; intros [=] ; subst ; cbn ; lia.
-Qed.
+Qed. *)
 
 Lemma decomp_fill_item Ki e :
   to_val e = None → decomp_item (fill_item Ki e) = Some (Ki, e).
 Proof. destruct Ki ; simpl ; by repeat destruct_match. Qed.
 
 (* TODO: this proof is slow, but I do not see how to make it faster... *)
+(* TODO: Uncomment the slow proof *)
 Lemma decomp_fill_item_2 e e' Ki :
   decomp_item e = Some (Ki, e') → fill_item Ki e' = e ∧ to_val e' = None.
-Proof.
+Proof. Admitted.
+(*
   rewrite /decomp_item ;
     destruct e ; try done ;
     destruct Ki ; cbn ; repeat destruct_match ; intros [=] ; subst ; auto.
-Qed.
+Qed. *)
 
 Local Open Scope classical_set_scope.
 
@@ -1437,10 +1450,8 @@ Proof.
   split.
 Admitted.
 
-***)
 
 End meas_lang.
-(*
 
 (** Language *)
 
@@ -1451,4 +1462,3 @@ Canonical Structure meas_lang := MeasLanguageOfEctx meas_ectx_lang.
 
 (* Prefer meas_lang names over ectx_language names. *)
 Export meas_lang.
-*)
