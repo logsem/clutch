@@ -973,69 +973,69 @@ Section meas_semantics.
   Local Open Scope classical_set_scope.
   Local Open Scope expr_scope.
 
-  Definition discr_cfg : measurableType _ := (<<discr expr>> * <<discr state>>)%type.
+  Definition cfg : measurableType _ := (expr * state)%type.
 
   Definition fin_to_nat {N : nat} (x : 'I_(S N)) : Z.
   Admitted.
 
-  Definition head_stepM_def (c : discr_cfg) : giryM discr_cfg :=
+  Definition head_stepM_def (c : cfg) : giryM cfg :=
     let (e1, σ1) := c in
     match e1 with
     | Rec f x e =>
-        giryM_ret R ((Val $ RecV f x e, σ1) : discr_cfg)
+        giryM_ret R ((Val $ RecV f x e, σ1) : cfg)
     | Pair (Val v1) (Val v2) =>
-        giryM_ret R ((Val $ PairV v1 v2, σ1) : discr_cfg)
+        giryM_ret R ((Val $ PairV v1 v2, σ1) : cfg)
     | InjL (Val v) =>
-        giryM_ret R ((Val $ InjLV v, σ1) : discr_cfg)
+        giryM_ret R ((Val $ InjLV v, σ1) : cfg)
     | InjR (Val v) =>
-        giryM_ret R ((Val $ InjRV v, σ1) : discr_cfg)
+        giryM_ret R ((Val $ InjRV v, σ1) : cfg)
     | App (Val (RecV f x e1)) (Val v2) =>
-        giryM_ret R ((subst' x v2 (subst' f (RecV f x e1) e1) , σ1) : discr_cfg)
+        giryM_ret R ((subst' x v2 (subst' f (RecV f x e1) e1) , σ1) : cfg)
     | UnOp op (Val v) =>
         match un_op_eval op v with
-          | Some w => giryM_ret R ((Val w, σ1) : discr_cfg)
+          | Some w => giryM_ret R ((Val w, σ1) : cfg)
           | _ => giryM_zero
         end
     | BinOp op (Val v1) (Val v2) =>
         match bin_op_eval op v1 v2 with
-          | Some w => giryM_ret R ((Val w, σ1) : discr_cfg)
+          | Some w => giryM_ret R ((Val w, σ1) : cfg)
           | _ => giryM_zero
         end
     | If (Val (LitV (LitBool true))) e1 e2  =>
-        giryM_ret R ((e1 , σ1) : discr_cfg)
+        giryM_ret R ((e1 , σ1) : cfg)
     | If (Val (LitV (LitBool false))) e1 e2 =>
-        giryM_ret R ((e2 , σ1) : discr_cfg)
+        giryM_ret R ((e2 , σ1) : cfg)
     | Fst (Val (PairV v1 v2)) =>
-        giryM_ret R ((Val v1 , σ1) : discr_cfg) (* Syntax error when I remove the space between v1 and , *)
+        giryM_ret R ((Val v1 , σ1) : cfg) (* Syntax error when I remove the space between v1 and , *)
     | Snd (Val (PairV v1 v2)) =>
-        giryM_ret R ((Val v2, σ1) : discr_cfg)
+        giryM_ret R ((Val v2, σ1) : cfg)
     | Case (Val (InjLV v)) e1 e2 =>
-        giryM_ret R ((App e1 (Val v), σ1) : discr_cfg)
+        giryM_ret R ((App e1 (Val v), σ1) : cfg)
     | Case (Val (InjRV v)) e1 e2 =>
-        giryM_ret R ((App e2 (Val v), σ1) : discr_cfg)
+        giryM_ret R ((App e2 (Val v), σ1) : cfg)
     | AllocN (Val (LitV (LitInt N))) (Val v) =>
         let ℓ := fresh_loc σ1.(heap) in
         if bool_decide (0 < Z.to_nat N)%nat
-          then giryM_ret R ((Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1) : discr_cfg)
+          then giryM_ret R ((Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1) : cfg)
           else giryM_zero
     | Load (Val (LitV (LitLoc l))) =>
         match σ1.(heap) !! l with
-          | Some v => giryM_ret R ((Val v, σ1) : discr_cfg)
+          | Some v => giryM_ret R ((Val v, σ1) : cfg)
           | None => giryM_zero
         end
     | Store (Val (LitV (LitLoc l))) (Val w) =>
         match σ1.(heap) !! l with
-          | Some v => giryM_ret R ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : discr_cfg)
+          | Some v => giryM_ret R ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : cfg)
           | None => giryM_zero
         end
     (* Uniform sampling from [0, 1 , ..., N] *)
     | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
         giryM_map
-          (m_discr (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt $ fin_to_nat n, σ1) : discr_cfg)))
+          (m_discr (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt $ fin_to_nat n, σ1) : cfg)))
           (giryM_unif (Z.to_nat N))
     | AllocTape (Val (LitV (LitInt z))) =>
         let ι := fresh_loc σ1.(tapes) in
-        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := {| btape_tape := emptyTape ; btape_bound := (Z.to_nat z) |} ]> σ1) : discr_cfg)
+        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := {| btape_tape := emptyTape ; btape_bound := (Z.to_nat z) |} ]> σ1) : cfg)
     (* Rand with a tape *)
     | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) =>
         match σ1.(tapes) !! l with
@@ -1049,7 +1049,7 @@ Section meas_semantics.
               | Some v =>
                   (* There is a next value on the tape *)
                   let σ' := state_upd_tapes <[ l := {| btape_tape := (tapeAdvance τ); btape_bound := M |} ]> σ1 in
-                  (giryM_ret R ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : discr_cfg))
+                  (giryM_ret R ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : cfg))
               | None =>
                   (* Next slot on tape is empty *)
                   giryM_map
@@ -1059,25 +1059,25 @@ Section meas_semantics.
                        (* Advance the tape *)
                        let σ' := state_upd_tapes <[ l := {| btape_tape := (tapeAdvance τ'); btape_bound := M |} ]> σ1 in
                        (* Return the new sample and state *)
-                       ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : discr_cfg)))
+                       ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : cfg)))
                    (giryM_unif (Z.to_nat N))
               end
             else
               (* Tape bounds do not match *)
               (* Do not advance the tape, but still generate a new sample *)
               giryM_map
-                (m_discr (fun (n : 'I_(S (Z.to_nat N))) => (((Val $ LitV $ LitInt $ fin_to_nat n) : <<discr expr>>), σ1) : discr_cfg))
+                (m_discr (fun (n : 'I_(S (Z.to_nat N))) => (((Val $ LitV $ LitInt $ fin_to_nat n) : <<discr expr>>), σ1) : cfg))
                 (giryM_unif (Z.to_nat N))
         | None => giryM_zero
         end
     | AllocUTape =>
         let ι := fresh_loc σ1.(utapes) in
-        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : discr_cfg)
+        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : cfg)
     (* Urand with no tape *)
     | URand (Val (LitV LitUnit)) =>
         giryM_map
-          (m_discr (fun u => ((Val $ LitV $ LitReal u, σ1) : discr_cfg)))
-          giryM_zero
+          (m_discr (fun u => ((Val $ LitV $ LitReal u, σ1) : cfg)))
+          giryM_zero (* FIXME: Implement uniform space over [0, 1] and change m_discr to new map *)
     (* Urand with a tape *)
     | URand (Val (LitV (LitLbl l))) =>
         match σ1.(utapes) !! l with
@@ -1087,7 +1087,7 @@ Section meas_semantics.
             | Some u =>
                 (* Head has a sample *)
                 let σ' := state_upd_utapes <[ l := (tapeAdvance τ) ]> σ1 in
-                (giryM_ret R ((Val $ LitV $ LitReal u, σ') : discr_cfg))
+                (giryM_ret R ((Val $ LitV $ LitReal u, σ') : cfg))
             | None =>
                 (* Head has no sample *)
                 giryM_map
@@ -1097,26 +1097,29 @@ Section meas_semantics.
                     (* Advance tape *)
                     let σ' := state_upd_utapes <[ l := (tapeAdvance τ') ]> σ1 in
                     (* Return the update value an state *)
-                    ((Val $ LitV $ LitReal u, σ') : discr_cfg)))
-                  giryM_zero
+                    ((Val $ LitV $ LitReal u, σ') : cfg)))
+                  giryM_zero (* FIXME: Implement uniform space over [0, 1] and change m_discr to new map *)
             end
         | None => giryM_zero
         end
-    | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : discr_cfg)
+    | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : cfg)
     | _ => giryM_zero
     end.
 
   Check fun z => (Val $ LitV $ z : <<discr expr>>).
 
-  (* I don't care if this this true; we will delete it soon and replace it with a proof for the real SA. *)
   Local Lemma head_stepM_def_measurable :
-    @measurable_fun _ _ discr_cfg (giryM discr_cfg) setT head_stepM_def.
-  Proof. Admitted.
+    @measurable_fun _ _ cfg (giryM cfg) setT head_stepM_def.
+  Proof.
+    (* measurability, preimage_class_measurable_fun *)
+    eapply measurability; first eauto.
+    (* Oops, this is using the wrong sigma algebra *)
+  Admitted.
 
   HB.instance Definition _ :=
     isMeasurableMap.Build _ _ _ _ _ head_stepM_def_measurable.
 
-  Definition head_stepM : measurable_map (<<discr expr>> * <<discr state>>)%type (giryM (<<discr expr>> * <<discr state>>)%type) :=
+  Definition head_stepM : measurable_map cfg (giryM cfg) :=
     head_stepM_def.
 
 End meas_semantics.
@@ -1427,13 +1430,27 @@ Qed. *)
 
 Local Open Scope classical_set_scope.
 
-Definition fill_item_mf K := m_discr (fill_item K : <<discr expr>> -> <<discr expr>>).
+Definition fill_item_mf (K : ectx_item) : measurable_map expr expr.
+Admitted.
+(*   := m_discr (fill_item K : <<discr expr>> -> <<discr expr>>).  *)
 
 Definition meas_lang_mixin :
-  @MeasEctxiLanguageMixin _ _ _ <<discr expr>> <<discr val>> <<discr state>> ectx_item
+  @MeasEctxiLanguageMixin _ _ _ expr val state ectx_item
     of_val to_val fill_item_mf decomp_item expr_ord head_stepM_def.
 Proof.
   split.
+  - apply to_of_val.
+  - apply of_to_val.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
 Admitted.
 
 
