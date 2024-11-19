@@ -544,7 +544,17 @@ Section state_update.
     FromAssumption p P Q → KnownRFromAssumption p P (state_update E E Q).
   Proof. rewrite /KnownRFromAssumption /FromAssumption=>->. iApply state_update_ret. Qed.
 
-
+  Lemma pgl_wp_state_update Φ E e:
+    WP e @ E {{ λ x, state_update E E (Φ x) }} ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros.
+    rewrite state_update_unseal/state_update_def.
+    iApply (pgl_wp_strong_mono with "[$]"); first done.
+    iIntros (???) "(?&?&H)". 
+    iMod ("H" with "[$]").
+    by iModIntro.
+  Qed.
+  
   (** state_update works for allocation of invariants and ghost resources *)
   Lemma state_update_inv_alloc E P N:
     ▷ P -∗ state_update E E (inv N P).

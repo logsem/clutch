@@ -1038,9 +1038,9 @@ Qed.
 Lemma pgl_wp_strong_mono E1 E2 e Φ Ψ s :
   E1 ⊆ E2 →
   WP e @ s ; E1 {{ Φ }} -∗
-             (∀ σ1 ε1 v, state_interp σ1 ∗ err_interp ε1 ∗ Φ v -∗
+             (∀ σ1 ε1 v, state_interp σ1 ∗ err_interp ε1 ∗ Φ v ={E2, ∅}=∗
                          state_step_coupl σ1 ε1
-                           (λ σ2 ε2, |={E2}=> state_interp σ2 ∗ err_interp ε2 ∗ Ψ v)) -∗
+                           (λ σ2 ε2, |={∅, E2}=> state_interp σ2 ∗ err_interp ε2 ∗ Ψ v)) -∗
              WP e @ s ; E2 {{ Ψ }}.
 Proof.
   iIntros (HE) "H HΦ". iLöb as "IH" forall (e E1 E2 HE Φ Ψ).
@@ -1054,12 +1054,14 @@ Proof.
   destruct (con_prob_lang.to_val e) as [v|] eqn:?.
   { iApply fupd_state_step_coupl.
     iMod "H" as "(?&?&?)".
-    iApply fupd_mask_intro; [set_solver|]. iIntros "Hclose'".
+    iMod "Hclose" as "_".
     iSpecialize ("HΦ" with "[$]").
+    iMod "HΦ".
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
     iApply (state_step_coupl_bind with "[-HΦ] [$]").
     iIntros (??) "H".
     iApply state_step_coupl_ret.
-    iMod "Hclose'" as "_".
     by iMod "Hclose" as "_". }
   iApply state_step_coupl_ret.
   iApply (prog_coupl_mono with "[-H] H").
@@ -1083,6 +1085,8 @@ Proof.
   iApply (pgl_wp_strong_mono with "[$]"); first done.
   iIntros (???) "H".
   iApply state_step_coupl_ret.
+  iApply fupd_mask_intro; first set_solver.
+  iIntros ">Hclose".
   by iApply "Hw".
 Qed.
 
@@ -1115,6 +1119,8 @@ Lemma pgl_wp_fupd s E e Φ : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {
 Proof. iIntros "H". iApply (pgl_wp_strong_mono E with "H"); auto.
        iIntros (???) "(?&?&?)".
        iApply state_step_coupl_ret.
+       iApply fupd_mask_intro; first set_solver.
+       iIntros ">_".
        by iFrame.
 Qed.
 
@@ -1174,6 +1180,8 @@ Proof.
   iIntros (???) "(?&?&K)".
   iApply state_step_coupl_ret.
   iFrame.
+  iApply fupd_mask_intro; first set_solver.
+  iIntros ">_".
   by iApply "K".
 Qed.
 
@@ -1231,12 +1239,16 @@ Lemma pgl_wp_frame_l s E e Φ R : R ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ 
 Proof. iIntros "[? H]". iApply (pgl_wp_strong_mono with "H"); auto.
        iIntros (???) "(?&?&?)".
        iApply state_step_coupl_ret.
+       iApply fupd_mask_intro; first set_solver.
+       iIntros ">_".
        by iFrame.
 Qed.
 Lemma pgl_wp_frame_r s E e Φ R : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
 Proof. iIntros "[H ?]". iApply (pgl_wp_strong_mono with "H"); auto.
        iIntros (???) "(?&?&?)".
        iApply state_step_coupl_ret.
+       iApply fupd_mask_intro; first set_solver.
+       iIntros ">_".
        by iFrame.
 Qed.
 
@@ -1267,6 +1279,8 @@ Proof.
   iIntros "Hwp H". iApply (pgl_wp_strong_mono with "Hwp"); auto.
   iIntros (???) "(?&?&?)".
   iApply state_step_coupl_ret. iFrame.
+  iApply fupd_mask_intro; first set_solver.
+  iIntros ">_".
   by iApply "H".
 Qed.
 Lemma pgl_wp_wand_l s E e Φ Ψ :
@@ -1350,3 +1364,4 @@ Section proofmode_classes.
     iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
   Qed.
 End proofmode_classes.
+
