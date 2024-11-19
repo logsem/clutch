@@ -1019,6 +1019,58 @@ Section meas_semantics.
                     ((Val $ LitV $ LitReal u, σ') : cfg))
 *)
 
+  (* Apply a measurable function to every constructor *)
+  Definition cfg_app {d} {T : measurableType d}
+      (f_rec f_pair f_injL f_injR f_app f_unOp f_binOp f_ifT f_ifF f_fst
+       f_snd f_caseL f_caseR f_allocN f_load f_store f_rand_base
+       f_alloctape f_rand_tape f_urand_base f_ualloctape f_urand_tape f_tick : measurable_map cfg T)
+      (default : T) :
+      cfg -> T :=
+    fun c =>
+    let (e1, σ1) := c in
+    match e1 with
+    | Rec f x e                                             => f_rec c
+    | Pair (Val v1) (Val v2)                                => f_pair c
+    | InjL (Val v)                                          => f_injL c
+    | InjR (Val v)                                          => f_injR c
+    | App (Val (RecV f x e1)) (Val v2)                      => f_app c
+    | UnOp op (Val v)                                       => f_unOp c
+    | BinOp op (Val v1) (Val v2)                            => f_binOp c
+    | If (Val (LitV (LitBool true))) e1 e2                  => f_ifT c
+    | If (Val (LitV (LitBool false))) e1 e2                 => f_ifF c
+    | Fst (Val (PairV v1 v2))                               => f_fst c
+    | Snd (Val (PairV v1 v2))                               => f_snd c
+    | Case (Val (InjLV v)) e1 e2                            => f_caseL c
+    | Case (Val (InjRV v)) e1 e2                            => f_caseR c
+    | AllocN (Val (LitV (LitInt N))) (Val v)                => f_allocN c
+    | Load (Val (LitV (LitLoc l)))                          => f_load c
+    | Store (Val (LitV (LitLoc l))) (Val w)                 => f_store c
+    | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit))     => f_rand_base c
+    | AllocTape (Val (LitV (LitInt z)))                     => f_alloctape c
+    | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l)))  => f_rand_tape c
+    | AllocUTape                                            => f_alloctape c
+    | URand (Val (LitV LitUnit))                            => f_urand_base c
+    | URand (Val (LitV (LitLbl l)))                         => f_urand_tape c
+    | Tick (Val (LitV (LitInt n)))                          => f_tick c
+    | _                                                     => default
+    end.
+
+  Local Lemma cfg_app_measurable
+      (f_rec f_pair f_injL f_injR f_app f_unOp f_binOp f_ifT f_ifF f_fst
+       f_snd f_caseL f_caseR f_allocN f_load f_store f_rand_base
+       f_alloctape f_rand_tape f_urand_base f_ualloctape f_urand_tape f_tick : measurable_map cfg (giryM cfg))
+      (default : giryM cfg) :
+    @measurable_fun _ _ cfg (giryM cfg) setT (cfg_app f_rec f_pair f_injL f_injR f_app f_unOp f_binOp f_ifT f_ifF f_fst f_snd f_caseL f_caseR f_allocN f_load f_store f_rand_base f_alloctape f_rand_tape f_urand_base f_ualloctape f_urand_tape f_tick default).
+  Proof.
+    (* measurability, preimage_class_measurable_fun *)
+    eapply measurability; first eauto.
+    (* Possibly easier to rewrite head_stepM as a general function first *)
+    rewrite /preimage_class/=.
+    intros x Hx.
+
+
+  Admitted.
+
 
   Definition head_stepM_def (c : cfg) : giryM cfg :=
     let (e1, σ1) := c in
@@ -1143,6 +1195,9 @@ Section meas_semantics.
   Proof.
     (* measurability, preimage_class_measurable_fun *)
     eapply measurability; first eauto.
+    (* Possibly easier to rewrite head_stepM as a general function first *)
+    rewrite /preimage_class/=.
+    intros x Hx.
   Admitted.
 
   HB.instance Definition _ :=
