@@ -101,7 +101,6 @@ Section monad_laws.
     by rewrite integral_measure_zero.
   Qed.
 
-  Unset Printing Notations.
 
   (* FIXME: Express using nonnegative functions (I think they're in the hierarhy?) *)
   (* FIXME: giryM_integrate @ symbol *)
@@ -135,10 +134,12 @@ Section monad_laws.
     all: cycle 1.
     - by apply Hf.
     - intros x n' m' Hle.
-      (* See above *)
-      admit.
+      have HR := (@nd_nnsfun_approx _ _ _ _ HM _ Hfmf n' m' Hle).
+      unfold Order.le in HR.
+      simpl in HR.
+      unfold FunOrder.lef in HR.
+      by rewrite asboolE in HR.
     - by intros ??; apply Hf.
-    - by simpl.
     - by simpl.
 
     (* Rewrite the sintegral of nnsfun_approx into a sum (on the left?)*)
@@ -169,17 +170,57 @@ Section monad_laws.
       (* Check nd_nnsfun_approx.
       (* Search homomorphism_2 bigop.body. *) *)
 
+      (*
       (* Might need to do this directly.. I can't find any relevant theorems for this type of sum *)
       (* Surely this proof was done somewhere else so I'm confident it's possible. *)
       intros x y Hle.
+      have H1 : range (nnsfun_approx HM Hfmf x) = range (nnsfun_approx HM Hfmf y).
+      { unfold range.
+        simpl.
+        apply functional_extensionality.
+        intro r.
+        simpl.
+        rewrite nnsfun_approxE.
+        rewrite exists2E.
+        rewrite exists2E.
+        (* rewrite True_and. *)
+        apply propext.
+        split.
+        - intros [A [_ B]].
+          exists A.
+          rewrite True_and.
+          rewrite nnsfun_approxE.
+          rewrite <- B.
+          unfold approx.
+          admit.
+        - admit.
 
+        }
+
+      (*  Search "le" (\sum_(_ \in _) _)%E. *)
+      rewrite H1.
+      apply lee_fsum.
+      - (* Is this even true? *)
+        unfold range.
+        rewrite nnsfun_approxE.
+
+        admit.
+      - intros r Hr.
+
+        admit.
+       *)
+
+      intros x y Hle.
       admit.
+
+
     - (* Sequence is nonnegative *)
       intros n μ _.
       rewrite /= fsume_ge0 //=.
       intros i [t ? <-].
       apply mule_ge0.
-      + rewrite nnsfun_approxE.
+      +
+        rewrite nnsfun_approxE.
         rewrite /approx /=.
         (* How to lower bound these sums? *)
         admit.
@@ -205,11 +246,25 @@ Section monad_laws.
     (* Exchange finite sum with integral on the RHS (LHS seems harder) *)
     rewrite ge0_integral_fsum; first last.
     - (* Range of approximation is finite *)
+      rewrite nnsfun_approxE.
+      (* Is this even true? *)
+      unfold range.
+      unfold finite_set.
+      simpl.
+      exists n. (* Seems right but not 100% sure *)
+      simpl.
+      (* Check card_II.
+         Search card_eq mkset.
+         rewrite nnsfun_approxE. *)
       admit.
     - (* Argument is nonnegative *)
       intros n' μ _.
       apply mule_ge0.
-      + admit.
+      +
+        unfold Order.le.
+        simpl.
+        (* Oh no, this is not provable... *)
+        admit.
       + by apply @measure_ge0.
     - (* Argument is pointwise measurable. *)
       intro range_element.
@@ -227,6 +282,9 @@ Section monad_laws.
       + done.
       + by apply (@measurableT (@giryM_display R d1 T1) (@salgebraType (@giryType R d1 T1) (@giry_subbase R d1 T1))).
       + (* apply base_eval_measurable. *)
+        (*
+        Search integrable measurable.
+        Check base_eval_measurable. *)
         admit.
     - (* The bodies are the same *)
       apply functional_extensionality.
