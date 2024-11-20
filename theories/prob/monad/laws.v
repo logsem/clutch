@@ -101,6 +101,7 @@ Section monad_laws.
     by rewrite integral_measure_zero.
   Qed.
 
+  Unset Printing Notations.
 
   (* FIXME: Express using nonnegative functions (I think they're in the hierarhy?) *)
   (* FIXME: giryM_integrate @ symbol *)
@@ -117,8 +118,10 @@ Section monad_laws.
     - by apply Hf.
     - intros x t n' m' Hle.
       have HR := (@nd_nnsfun_approx _ _ _ _ HM _ x n' m' Hle).
-      (* apply Order.POrderTheory.leif_eq in HR. *)
-      admit.
+      unfold Order.le in HR.
+      simpl in HR.
+      unfold FunOrder.lef in HR.
+      by rewrite asboolE in HR.
     - by intros ???; apply Hf.
     - by intros; simpl.
     - by apply @measurable_mapP.
