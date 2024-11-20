@@ -160,14 +160,16 @@ Section language.
   Proof.
     intros Hs.
     rewrite fill_dmap; [| by eapply val_stuck].
-    pose HI := @inj_map_inj _ _ _ _ _ (fill_lift K) _.
+    pose HI := @inj_map_inj_eq  _ _ _ _ _ (fill_lift K) _.
     move=> HZ.
     apply Hs; clear Hs.
     move: HI.
     move /(_ _ _ (prim_step (e, σ)) giryM_zero).
     unfold is_zero.
     move ->; try done.
-  Qed.
+    rewrite giryM_map_zero.
+    unfold is_zero in HZ.
+    Abort.
 
   (*
   Lemma fill_step_inv e1' σ1 e2 σ2 `{!LanguageCtx K} :
