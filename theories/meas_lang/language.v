@@ -168,8 +168,8 @@ Section language.
     unfold is_zero.
     move ->; try done.
     rewrite giryM_map_zero.
-    unfold is_zero in HZ.
-    Abort.
+    apply HZ.
+  Qed.
 
   (*
   Lemma fill_step_inv e1' σ1 e2 σ2 `{!LanguageCtx K} :

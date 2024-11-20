@@ -514,18 +514,17 @@ Section is_zero.
   Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
 
 
-  Definition is_zero {d} {T : measurableType d} (s : giryM T) : Prop := s ≡μ giryM_zero.
+  Definition is_zero {d} {T : measurableType d} (s : giryM T) : Prop := s = giryM_zero.
 
 
   Lemma is_zero_map (μ : giryM T1) (f : measurable_map T1 T2) : is_zero μ -> is_zero (giryM_map f μ).
   Proof.
-    move=> HZ S HS.
-    rewrite giryM_map_eval/pushforward.
-    move: HZ.
-    move /(_ (f @^-1` S)) => HZ.
-    rewrite HZ; first by rewrite giryM_zero_eval giryM_zero_eval.
-    rewrite -(setTI (f @^-1` S)).
-    apply measurable_mapP; [by apply @measurableT | done].
+    move=> HZ.
+    unfold is_zero.
+    apply giryM_ext.
+    intro S.
+    rewrite giryM_map_eval/pushforward HZ.
+    by rewrite giryM_zero_eval giryM_zero_eval.
   Qed.
 
   Global Instance inj_map_inj_eq (f : measurable_map T1 T2) :
