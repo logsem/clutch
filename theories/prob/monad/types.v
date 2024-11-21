@@ -56,7 +56,6 @@ HB.structure Definition MeasurableMap {d1} {d2} T1 T2 :=
 
 (* FIXME: Builder for measurableFun to RealType? Or does this go automatically?  *)
 
-
 Section measurability_lemmas.
   Context {d1} {T1 : measurableType d1}.
   Context {d2} {T2 : measurableType d2}.

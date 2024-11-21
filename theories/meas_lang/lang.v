@@ -1018,7 +1018,7 @@ Section meas_semantics.
                     (* Return the update value an state *)
                     ((Val $ LitV $ LitReal u, σ') : cfg))
 *)
-
+(*
   (* Apply a measurable function to every constructor *)
   Definition cfg_app {d} {T : measurableType d}
       (f_rec f_pair f_injL f_injR f_app f_unOp f_binOp f_ifT f_ifF f_fst
@@ -1071,6 +1071,8 @@ Section meas_semantics.
 
   Admitted.
 
+  (* Going to use partition technique instead *)
+*)
 
   Definition head_stepM_def (c : cfg) : giryM cfg :=
     let (e1, σ1) := c in
