@@ -12,7 +12,8 @@ Section couplings.
   Context `{Countable A, Countable B, Countable A', Countable B'}.
   Context (μ1 : distr A) (μ2 : distr B) (S : A -> B -> Prop).
 
-  Definition ARcoupl (ε : R) :=
+  (* The M stands for multiplicative *)
+  Definition Mcoupl (ε : R) :=
     forall (f: A → R) (g: B -> R),
       (forall a, 0 <= f a <= 1) ->
       (forall b, 0 <= g b <= 1) ->
@@ -42,13 +43,13 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma ARcoupl_mono (μ1 μ1': distr A') (μ2 μ2': distr B') R R' ε ε':
+  Lemma Mcoupl_mono (μ1 μ1': distr A') (μ2 μ2': distr B') R R' ε ε':
     (∀ a, μ1 a = μ1' a) ->
     (∀ b, μ2 b = μ2' b) ->
     (∀ x y, R x y -> R' x y) ->
     (ε <= ε') ->
-    ARcoupl μ1 μ2 R ε ->
-    ARcoupl μ1' μ2' R' ε'.
+    Mcoupl μ1 μ2 R ε ->
+    Mcoupl μ1' μ2' R' ε'.
   Proof.
     intros Hμ1 Hμ2 HR Hε Hcoupl f g Hf Hg Hfg.
     specialize (Hcoupl f g Hf Hg).
@@ -62,19 +63,19 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma ARcoupl_mon_grading (μ1 : distr A') (μ2 : distr B') (R : A' → B' → Prop) ε1 ε2 :
+  Lemma Mcoupl_mon_grading (μ1 : distr A') (μ2 : distr B') (R : A' → B' → Prop) ε1 ε2 :
     (ε1 <= ε2) ->
-    ARcoupl μ1 μ2 R ε1 ->
-    ARcoupl μ1 μ2 R ε2.
+    Mcoupl μ1 μ2 R ε1 ->
+    Mcoupl μ1 μ2 R ε2.
   Proof.
     intros Hleq.
-    by apply ARcoupl_mono.
+    by apply Mcoupl_mono.
   Qed.
 
 
-  Lemma ARcoupl_dret (a : A) (b : B) (R : A → B → Prop) r :
+  Lemma Mcoupl_dret (a : A) (b : B) (R : A → B → Prop) r :
     0 <= r →
-    R a b → ARcoupl (dret a) (dret b) R r.
+    R a b → Mcoupl (dret a) (dret b) R r.
   Proof.
     intros Hr HR f g Hf Hg Hfg.
     assert (SeriesC (λ a0 : A, dret a a0 * f a0) = f a) as ->.
@@ -93,10 +94,10 @@ Section couplings_theory.
 
 
   (* The hypothesis (0 ≤ ε1) is not really needed, I just kept it for symmetry *)
-  Lemma ARcoupl_dbind (f : A → distr A') (g : B → distr B')
+  Lemma Mcoupl_dbind (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop) ε1 ε2 :
     (Rle 0 ε1) -> (Rle 0 ε2) ->
-    (∀ a b, R a b → ARcoupl (f a) (g b) S ε2) → ARcoupl μ1 μ2 R ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S (ε1 + ε2).
+    (∀ a b, R a b → Mcoupl (f a) (g b) S ε2) → Mcoupl μ1 μ2 R ε1 → Mcoupl (dbind f μ1) (dbind g μ2) S (ε1 + ε2).
   Proof.
     intros Hε1 Hε2 Hcoup_fg Hcoup_R h1 h2 Hh1pos Hh2pos Hh1h2S.
     rewrite /pmf/=/dbind_pmf.
@@ -202,7 +203,7 @@ Section couplings_theory.
         Now we instantiate the lifting definitions and use them to prove the
         inequalities
     *)
-    rewrite /ARcoupl in Hcoup_R.
+    rewrite /Mcoupl in Hcoup_R.
     apply Hcoup_R.
     + intro; split; series.
       apply (Rle_trans _ (SeriesC (f a))); auto.
@@ -227,14 +228,14 @@ Section couplings_theory.
    Qed.
 
 
-  Lemma ARcoupl_dbind' (ε1 ε2 ε : R) (f : A → distr A') (g : B → distr B')
+  Lemma Mcoupl_dbind' (ε1 ε2 ε : R) (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop) :
     (0 <= ε1) → (0 <= ε2) →
     ε = ε1 + ε2 →
-    (∀ a b, R a b → ARcoupl (f a) (g b) S ε2) →
-    ARcoupl μ1 μ2 R ε1 →
-    ARcoupl (dbind f μ1) (dbind g μ2) S ε.
-  Proof. intros ? ? ->. by eapply ARcoupl_dbind. Qed.
+    (∀ a b, R a b → Mcoupl (f a) (g b) S ε2) →
+    Mcoupl μ1 μ2 R ε1 →
+    Mcoupl (dbind f μ1) (dbind g μ2) S ε.
+  Proof. intros ? ? ->. by eapply Mcoupl_dbind. Qed.
 
 End couplings_theory.
 
