@@ -98,7 +98,6 @@ Section Lib.
 
   Lemma measurable_by_cover {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> T2)
       (F : sequences.sequence (set T1))
-      (Hrange : range f = setT)
       (Hmeas: forall i, measurable (F i))
       (Hcover : (\bigcup_i (F i)) = setT)
       (Hrestriction : forall i, measurable_fun (F i) (restrict (F i) f)) :
@@ -142,6 +141,92 @@ Section Lib.
     apply Hrestriction.
     - by apply Hmeas.
     - by trivial.
+  Qed.
+
+  (* Turn a list into a sequence, with setT as the default element *)
+  Fixpoint list_set_to_seq {T : Type} (L : list (set T)) : sequences.sequence (set T) :=
+    fun i =>
+      match L, i with
+      | (x :: xs), 0 => x
+      | (x :: xs), (S i) => list_set_to_seq xs i
+      | _, _ => set0
+      end.
+
+
+  Lemma measurable_restrict_set0 {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> T2) :
+       measurable_fun set0 (restrict set0 f).
+  Proof.
+    intros ???.
+    rewrite set0I.
+    by apply measurable0.
+  Qed.
+
+  Lemma measurable_by_cover_list {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> T2)
+      (L : list (set T1))
+      (Hmeas: List.Forall measurable L)
+      (Hcover : List.fold_right setU set0 L = setT)
+      (Hrestriction : List.Forall (fun l => measurable_fun l (restrict l f)) L) :
+      measurable_fun setT f.
+  Proof.
+    apply (@measurable_by_cover  _ _ _ _ f (list_set_to_seq L)).
+    - clear Hcover Hrestriction.
+      intro i.
+      generalize dependent L.
+      induction i.
+      + intros L H1.
+        destruct L.
+        * simpl list_set_to_seq.
+          by eapply @measurable0.
+        * simpl list_set_to_seq.
+          by apply List.Forall_inv in H1.
+      + intros L H1.
+        destruct L.
+        * simpl list_set_to_seq.
+          by eapply @measurable0.
+        * simpl list_set_to_seq.
+          apply IHi.
+          by apply List.Forall_inv_tail in H1.
+    - clear Hmeas Hrestriction.
+      rewrite <- Hcover.
+      clear Hcover.
+      induction L.
+      + unfold bigcup.
+        simpl.
+        apply functional_extensionality; intro x; apply propext; split; simpl; [|tauto].
+        intros [_ F].
+        done.
+      + rewrite list.foldr_cons.
+        rewrite <- IHL.
+        apply functional_extensionality.
+        intro x.
+        apply propext.
+        unfold bigcup.
+        simpl.
+        split.
+        * intros [A B].
+          destruct A; [by left|].
+          right.
+          by exists A.
+        * intros [A | [B C]].
+          -- by exists 0.
+          -- exists (B.+1); done.
+    - clear Hmeas Hcover.
+      intro i.
+      generalize dependent L.
+      induction i.
+      + intros L H1.
+        destruct L.
+        * simpl list_set_to_seq.
+          by apply measurable_restrict_set0.
+        * simpl list_set_to_seq.
+          by apply List.Forall_inv in H1.
+      + intros L H1.
+        destruct L.
+        * simpl list_set_to_seq.
+          by apply measurable_restrict_set0.
+        * simpl list_set_to_seq.
+          apply IHi.
+          by apply List.Forall_inv_tail in H1.
   Qed.
 
 End Lib.
