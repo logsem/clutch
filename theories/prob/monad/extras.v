@@ -32,7 +32,7 @@ Section Lib.
   Qed.
 
   (* I think that the injectivity requirement is not necessary? *)
-  Lemma measurable_by_cover {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> T2)
+  Lemma measurable_by_cover_inj {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> T2)
       (F : sequences.sequence (set T1))
       (Hrange : range f = setT)
       (HI : injective f)
@@ -92,7 +92,11 @@ Section Lib.
   Qed.
 
 
-  Lemma measurable_by_cover' {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> T2)
+  Lemma rest_map_lemma {T1 : Type} {T2 : pointedType} (t : T1) (X : set T1) (Ht : X t) (f : T1 -> T2) :
+    (f \_ X) t = f t.
+  Proof. by rewrite /restrict (mem_set Ht). Qed.
+
+  Lemma measurable_by_cover {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> T2)
       (F : sequences.sequence (set T1))
       (Hrange : range f = setT)
       (Hmeas: forall i, measurable (F i))
@@ -103,235 +107,47 @@ Section Lib.
     unfold measurable_fun.
     intros _ s Hs.
     rewrite setTI.
-    have Hinv : (f @^-1` s) = (\bigcup_i ((f \_ (F i)) @^-1` s)).
-    { Search "bigcup" preimage.
-      apply functional_extensionality.
-      intro x.
+    have preimage_lemma_1 : (f @^-1` s) = \bigcup_i ((F i) `&` ((f \_ (F i)) @^-1` s)).
+    { apply functional_extensionality.
+      intro t.
       apply propext.
       split.
       - intro H.
         unfold bigcup.
         simpl.
-        have Y : [set: T1] x by simpl.
-        rewrite <- Hcover in Y.
-        rewrite /bigcup/= in Y.
-        destruct Y as [i _ Hi].
+        have T : [set: T1] t by simpl.
+        rewrite <- Hcover in T.
+        unfold bigcup in T.
+        simpl in T.
+        destruct T as [i _ Hi].
         exists i; [done|].
-        unfold restrict.
-        have Hi' := Hi.
-        rewrite <- in_setE in Hi'.
-        rewrite Hi'.
-        unfold preimage  in H.
+        split; [done|].
+        rewrite (rest_map_lemma Hi f).
+        unfold preimage in H.
         simpl in H.
-        apply H.
+        by trivial.
       - intro H.
-        unfold preimage.
-        simpl.
-
-        (*
-        have Y : [set: T1] x by simpl.
-        rewrite <- Hcover in Y.
-        rewrite /bigcup/= in Y.
-        destruct Y as [i _ Hi].
-        *)
         unfold bigcup in H.
         simpl in H.
-        destruct H as [i _ Hi].
-        unfold restrict in Hi.
-
-
-
-
-        admit.
-    }
-    rewrite Hinv.
-    apply bigcupT_measurable.
-    intro i.
-    unfold measurable_fun in Hrestriction.
-    (* The preimage restricted to X is measurable *)
-    rewrite <- (setTI (_ @^-1` _)).
-    rewrite <- Hcover.
-    rewrite setI_bigcupl.
-    apply bigcupT_measurable.
-    intro j.
-    have Xi := Hrestriction i (Hmeas i) s Hs.
-    have Xj := Hrestriction j (Hmeas j) s Hs.
-
-
-
-    (*
-
-    (* Is this right? *)
-    have R : (f \_ (F i) @^-1` s) =  (F i `&` f \_ (F i) @^-1` s).
-    { apply functional_extensionality.
-      intro x.
-      apply propext.
-      split.
-      - simpl.
-        intro H.
-        (* Not true *)
-        admit.
-      -
-        admit.
-    }
-    rewrite R.
-    trivial.
-     *)
-  Admitted.
-
-  (* I think that the injectivity requirement is not necessary? *)
-  Lemma measurable_by_cover'' {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> T2)
-      (F : sequences.sequence (set T1))
-      (Hrange : range f = setT)
-      (Hmeas: forall i, measurable (F i))
-      (Hcover : (\bigcup_i (F i)) = setT)
-      (Hrestriction : forall i, measurable_fun (F i) (restrict (F i) f)) :
-      measurable_fun setT f.
-  Proof.
-    unfold measurable_fun.
-    intros _ s Hs.
-    (* stupid *)
-    have X1 : ([set: T1] `&` f @^-1` s) = ((\bigcup_i F i) `&` f @^-1` s).
-    { by rewrite Hcover. }
-    rewrite X1.
-    clear X1.
-    rewrite setI_bigcupl.
-    apply bigcupT_measurable.
-    intro i.
-
-    (*
-    rewrite <- Hcover.
-    rewrite setTI.
-    (* Rewrite s to be s intersect setT *)
-    rewrite <- (setTI s).
-     *)
-
-    (*
-    (* Rewrite setT to be union of B i *)
-    have Bcover : (\bigcup_i ((fun i => image (F i) f) i)) = (setT : set T2).
-    { rewrite <- image_bigcup.
-      rewrite Hcover.
-      apply Hrange. }
-    simpl.
-    rewrite <- Bcover.
-    rewrite setI_bigcupl.
-    rewrite preimage_bigcup.
-    apply bigcupT_measurable.
-    intro i.
-    unfold measurable_fun in Hrestriction.
-    unfold restrict in Hrestriction.
-*)
-
-
-    (*
-    have X := Hrestriction i (Hmeas i) s Hs.
-
-
-
-    have HR : (F i `&` (fun u : T1 => if u \in F i then f u else point) @^-1` s) = (f @^-1` ([set f x | x in F i] `&` s)).
-    { apply functional_extensionality.
-      intro t.
-      simpl.
-      (* This proof is terrible, but only because of their insistence on using reflection *)
-      pose K := ExcludedMiddle (F i t).
-      destruct K.
-      - have H' := H.
-        rewrite <- in_setE in H'.
-        rewrite H'.
-        apply propext.
-        split; last first.
-        - intros [H1 H2]; split; assumption.
-        - intros [H1 H2].
-          split; last assumption.
-          exists t; [assumption|reflexivity].
-      - rewrite (memNset H).
-        rewrite (notTE H).
-        rewrite (propext (base.False_and (s point))).
+        destruct H as [i _ [Hi H]].
+        rewrite (rest_map_lemma Hi f) in H.
+        unfold preimage.
         simpl.
-        apply propext.
-        split; first (intro K; destruct K).
-        intros [[t' Ht' Htt'] B].
-
-
-        admit.
-
+        by trivial.
     }
-    rewrite HR in X.
-    apply X.
-     *)
-  Admitted.
-
-  (* I think that the injectivity requirement is not necessary? *)
-  Lemma measurable_by_cover''' {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> T2)
-      (F : sequences.sequence (set T1))
-      (Hrange : range f = setT)
-      (Hmeas: forall i, measurable (F i))
-      (Hcover : (\bigcup_i (F i)) = setT)
-      (Hrestriction : forall i, measurable_fun (F i) (restrict (F i) f)) :
-      measurable_fun setT f.
-  Proof.
-    unfold measurable_fun.
-    intros _ s Hs.
-    rewrite setTI.
-
-    (* Rewrite s to be s intersect setT *)
-    rewrite <- (setTI s).
-    (* Rewrite setT to be union of B i *)
-    have Bcover : (\bigcup_i ((fun i => image (F i) f) i)) = (setT : set T2).
-    { rewrite <- image_bigcup.
-      rewrite Hcover.
-      apply Hrange. }
-    simpl.
-    rewrite <- Bcover.
-    rewrite setI_bigcupl.
-    rewrite preimage_bigcup.
+    rewrite preimage_lemma_1.
     apply bigcupT_measurable.
     intro i.
-    unfold measurable_fun in Hrestriction.
-    unfold restrict in Hrestriction.
-
-
-    (*
-    have X := Hrestriction i (Hmeas i) s Hs.
-    have HR : (F i `&` (fun u : T1 => if u \in F i then f u else point) @^-1` s) = (f @^-1` ([set f x | x in F i] `&` s)).
-    { apply functional_extensionality.
-      intro t.
-      simpl.
-      (* This proof is terrible, but only because of their insistence on using reflection *)
-      pose K := ExcludedMiddle (F i t).
-      destruct K.
-      - have H' := H.
-        rewrite <- in_setE in H'.
-        rewrite H'.
-        apply propext.
-        split; last first.
-        - intros [H1 H2]; split; assumption.
-        - intros [H1 H2].
-          split; last assumption.
-          exists t; [assumption|reflexivity].
-      - rewrite (memNset H).
-        rewrite (notTE H).
-        rewrite (propext (base.False_and (s point))).
-        simpl.
-        apply propext.
-        split; first (intro K; destruct K).
-        intros [[t' Ht' Htt'] B].
-        apply H.
-
-
-    }
-    rewrite HR in X.
-    apply X.
-  Qed. *)
-  Admitted.
-
-
-  (* I need an intersection sigma algebra *)
-
-
+    rewrite /measurable_fun in Hrestriction.
+    apply Hrestriction.
+    - by apply Hmeas.
+    - by trivial.
+  Qed.
 
 End Lib.
 
+
+(*
 Section subset_salgebra_instance.
 Local Open Scope classical_set_scope.
 
@@ -441,4 +257,5 @@ HB.instance Definition subset_algebra_mixin {A : set T1} (H : d1.-measurable A) 
     (@subset_algebra_set0)
     (@subset_algebra_setC)
     (@subset_algebra_bigcup).
+*)
 *)
