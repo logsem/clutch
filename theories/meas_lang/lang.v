@@ -9,7 +9,7 @@ From clutch.common Require Export locations.
 From clutch.meas_lang Require Import ectxi_language ectx_language.
 
 From Coq Require Export Reals.
-From clutch.prob.monad Require Export laws.
+From clutch.prob.monad Require Export laws extras.
 From mathcomp.analysis Require Export Rstruct.
 
 From mathcomp Require Import classical_sets.
@@ -1001,78 +1001,111 @@ Section meas_semantics.
   Local Open Scope ereal_scope.
   Local Open Scope classical_set_scope.
 
+  (** Break apart cover of cfg *)
+  (* TODO: Break up even finer, to handle the cfg-splitting for sampling in one step *)
+  Definition cover_rec             : set cfg := [set c | ∃ f x e σ,      c = (Rec f x e, σ) ].
+  Definition cover_pair            : set cfg := [set c | ∃ v1 v2 σ,      c = (Pair (Val v1) (Val v2), σ) ].
+  Definition cover_injL            : set cfg := [set c | ∃ v σ,          c = (InjL v, σ) ].
+  Definition cover_injR            : set cfg := [set c | ∃ v σ,          c = (InjR v, σ) ].
+  Definition cover_app             : set cfg := [set c | ∃ f x e1 v2 σ,  c = (App (Val (RecV f x e1)) (Val v2) , σ) ].
+  Definition cover_unop_ok         : set cfg := [set c | ∃ v op w σ,     c = (UnOp op (Val v), σ) /\ un_op_eval op v = Some w].
+  Definition cover_unop_stuck      : set cfg := [set c | ∃ v op σ,       c = (UnOp op (Val v), σ) /\ un_op_eval op v = None ].
+  Definition cover_binop_ok        : set cfg := [set c | ∃ v1 v2 op w σ, c = (BinOp op (Val v1) (Val v2), σ) /\ bin_op_eval op v1 v2 = Some w].
+  Definition cover_binop_stuck     : set cfg := [set c | ∃ v1 v2 op σ,   c = (BinOp op (Val v1) (Val v2), σ) /\ bin_op_eval op v1 v2 = None].
+  Definition cover_ifT             : set cfg := [set c | ∃ e1 e2 σ,      c = (If (Val (LitV (LitBool true))) e1 e2, σ) ].
+  Definition cover_ifF             : set cfg := [set c | ∃ e1 e2 σ,      c = (If (Val (LitV (LitBool false))) e1 e2, σ) ].
+  Definition cover_fst             : set cfg := [set c | ∃ v1 v2 σ,      c = (Fst (Val (PairV v1 v2)), σ) ].
+  Definition cover_snd             : set cfg := [set c | ∃ v1 v2 σ,      c = (Snd (Val (PairV v1 v2)), σ) ].
+  Definition cover_caseL           : set cfg := [set c | ∃ v e1 e2 σ,    c = (Case (Val (InjLV v)) e1 e2, σ) ].
+  Definition cover_caseR           : set cfg := [set c | ∃ v e1 e2 σ,    c = (Case (Val (InjRV v)) e1 e2, σ) ].
+  Definition cover_allocN_ok       : set cfg := [set c | ∃ N v σ,        c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = true].
+  Definition cover_allocN_stuck    : set cfg := [set c | ∃ N v σ,        c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = false].
+  Definition cover_load_ok         : set cfg := [set c | ∃ l w σ,        c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = Some w].
+  Definition cover_load_stuck      : set cfg := [set c | ∃ l σ,          c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = None].
+  Definition cover_store_ok        : set cfg := [set c | ∃ l w w' σ,     c = (Store (Val (LitV (LitLoc l))) (Val w), σ) /\ σ.(heap) !! l = Some w'].
+  Definition cover_store_stuck     : set cfg := [set c | ∃ l w σ,        c = (Store (Val (LitV (LitLoc l))) (Val w), σ) /\ σ.(heap) !! l = None ].
+  Definition cover_randE           : set cfg := [set c | ∃ N σ,          c = (Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)), σ) ].
+  Definition cover_alloctape       : set cfg := [set c | ∃ z σ,          c = (AllocTape (Val (LitV (LitInt z))), σ) ].
+  Definition cover_randT_notape    : set cfg := [set c | ∃ N l σ,        c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = None ].
+  Definition cover_randT_mismatch  : set cfg := [set c | ∃ N l b σ,      c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = false)].
+  Definition cover_randT_empty     : set cfg := [set c | ∃ N l b σ,      c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = true) /\ (b.(btape_tape) !! 0) = None].
+  Definition cover_randT           : set cfg := [set c | ∃ N l b n σ,      c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = true) /\ (b.(btape_tape) !! 0) = Some n].
+  Definition cover_allocutape      : set cfg := [set c | ∃ σ,            c = (AllocUTape, σ) ].
+  Definition cover_urandE          : set cfg := [set c | ∃ σ,            c = (URand (Val (LitV LitUnit)), σ) ].
+  Definition cover_urandT_notape   : set cfg := [set c | ∃ σ l,          c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = None ].
+  Definition cover_urandT_empty    : set cfg := [set c | ∃ σ l τ,          c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = Some τ /\ (τ !! 0) = None].
+  Definition cover_urandT          : set cfg := [set c | ∃ σ l τ v,          c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = Some τ /\ (τ !! 0) = Some v].
+  Definition cover_tick         : set cfg := [set c | ∃ σ n,          c = (Tick (Val (LitV (LitInt n))), σ) ].
+  Definition cover_maybe_stuck  : set cfg := setT.
+
+  Definition cfg_cover : list (set cfg) := [
+    cover_rec;
+    cover_pair;
+    cover_injL;
+    cover_injR;
+    cover_app;
+    cover_unop_ok;
+    cover_unop_stuck;
+    cover_binop_ok;
+    cover_binop_stuck;
+    cover_ifT;
+    cover_ifF;
+    cover_fst;
+    cover_snd;
+    cover_caseL;
+    cover_caseR;
+    cover_allocN_ok;
+    cover_allocN_stuck;
+    cover_load_ok;
+    cover_load_stuck;
+    cover_store_stuck;
+    cover_store_ok;
+    cover_randE;
+    cover_alloctape;
+    cover_randT_notape;
+    cover_randT_mismatch;
+    cover_randT_empty;
+    cover_randT;
+    cover_allocutape;
+    cover_urandE;
+    cover_urandT_notape;
+    cover_urandT_empty;
+    cover_urandT;
+    cover_tick;
+    cover_maybe_stuck
+  ].
+
+  Lemma cfg_cover_is_cover : List.fold_right setU set0 cfg_cover = setT.
+  Proof.  (* It contains cover_maybe_stuck = setT *) Admitted.
+
+
+
+
+
+
+  (* TODO: Factor out the individual step functions *)
   Definition urand_step : measurable_map ((R : realType) : measurableType _) cfg.
   Admitted.
 
 
   Definition urand_tape_step : measurable_map ((R : realType) : measurableType _) cfg.
   Admitted.
-
     (* This funciton needs to do this: *)
-    (*
-(fun (u : R) =>
-                    (* Fill tape head with new sample *)
-                    let τ' := <[ (0 : nat) := Some u ]> τ in
-                    (* Advance tape *)
-                    let σ' := state_upd_utapes <[ l := (tapeAdvance τ') ]> σ1 in
-                    (* Return the update value an state *)
-                    ((Val $ LitV $ LitReal u, σ') : cfg))
-*)
-(*
-  (* Apply a measurable function to every constructor *)
-  Definition cfg_app {d} {T : measurableType d}
-      (f_rec f_pair f_injL f_injR f_app f_unOp f_binOp f_ifT f_ifF f_fst
-       f_snd f_caseL f_caseR f_allocN f_load f_store f_rand_base
-       f_alloctape f_rand_tape f_urand_base f_ualloctape f_urand_tape f_tick : measurable_map cfg T)
-      (default : T) :
-      cfg -> T :=
-    fun c =>
-    let (e1, σ1) := c in
-    match e1 with
-    | Rec f x e                                             => f_rec c
-    | Pair (Val v1) (Val v2)                                => f_pair c
-    | InjL (Val v)                                          => f_injL c
-    | InjR (Val v)                                          => f_injR c
-    | App (Val (RecV f x e1)) (Val v2)                      => f_app c
-    | UnOp op (Val v)                                       => f_unOp c
-    | BinOp op (Val v1) (Val v2)                            => f_binOp c
-    | If (Val (LitV (LitBool true))) e1 e2                  => f_ifT c
-    | If (Val (LitV (LitBool false))) e1 e2                 => f_ifF c
-    | Fst (Val (PairV v1 v2))                               => f_fst c
-    | Snd (Val (PairV v1 v2))                               => f_snd c
-    | Case (Val (InjLV v)) e1 e2                            => f_caseL c
-    | Case (Val (InjRV v)) e1 e2                            => f_caseR c
-    | AllocN (Val (LitV (LitInt N))) (Val v)                => f_allocN c
-    | Load (Val (LitV (LitLoc l)))                          => f_load c
-    | Store (Val (LitV (LitLoc l))) (Val w)                 => f_store c
-    | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit))     => f_rand_base c
-    | AllocTape (Val (LitV (LitInt z)))                     => f_alloctape c
-    | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l)))  => f_rand_tape c
-    | AllocUTape                                            => f_alloctape c
-    | URand (Val (LitV LitUnit))                            => f_urand_base c
-    | URand (Val (LitV (LitLbl l)))                         => f_urand_tape c
-    | Tick (Val (LitV (LitInt n)))                          => f_tick c
-    | _                                                     => default
-    end.
-
-  Local Lemma cfg_app_measurable
-      (f_rec f_pair f_injL f_injR f_app f_unOp f_binOp f_ifT f_ifF f_fst
-       f_snd f_caseL f_caseR f_allocN f_load f_store f_rand_base
-       f_alloctape f_rand_tape f_urand_base f_ualloctape f_urand_tape f_tick : measurable_map cfg (giryM cfg))
-      (default : giryM cfg) :
-    @measurable_fun _ _ cfg (giryM cfg) setT (cfg_app f_rec f_pair f_injL f_injR f_app f_unOp f_binOp f_ifT f_ifF f_fst f_snd f_caseL f_caseR f_allocN f_load f_store f_rand_base f_alloctape f_rand_tape f_urand_base f_ualloctape f_urand_tape f_tick default).
-  Proof.
-    (* measurability, preimage_class_measurable_fun *)
-    eapply measurability; first eauto.
-    (* Possibly easier to rewrite head_stepM as a general function first *)
-    rewrite /preimage_class/=.
-    intros x Hx.
+    (* (fun (u : R) =>
+         (* Fill tape head with new sample *)
+         let τ' := <[ (0 : nat) := Some u ]> τ in
+         (* Advance tape *)
+         let σ' := state_upd_utapes <[ l := (tapeAdvance τ') ]> σ1 in
+         (* Return the update value an state *)
+         ((Val $ LitV $ LitReal u, σ') : cfg)) *)
 
 
-  Admitted.
+  (* TODO: Prove the measurability of each function when restructed to the cover set *)
+  (* Try to think of a general lemma? *)
+  (* May need to redefine point, not sure. *)
 
-  (* Going to use partition technique instead *)
-*)
+
+
 
   Definition head_stepM_def (c : cfg) : giryM cfg :=
     let (e1, σ1) := c in
@@ -1195,11 +1228,7 @@ Section meas_semantics.
   Local Lemma head_stepM_def_measurable :
     @measurable_fun _ _ cfg (giryM cfg) setT head_stepM_def.
   Proof.
-    (* measurability, preimage_class_measurable_fun *)
-    eapply measurability; first eauto.
-    (* Possibly easier to rewrite head_stepM as a general function first *)
-    rewrite /preimage_class/=.
-    intros x Hx.
+    Check measurable_by_cover_list.
   Admitted.
 
   HB.instance Definition _ :=
