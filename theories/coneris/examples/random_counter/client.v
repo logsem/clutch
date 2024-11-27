@@ -68,20 +68,30 @@ Section client.
   Context `{rc:random_counter} {L: counterG Σ}.
   Definition con_prog : expr :=
     let: "c" := new_counter #() in
-    (let: "lbl" := allocate_tape #() in
-     incr_counter_tape "c" "lbl" |||
+    ((let: "lbl" := allocate_tape #() in
+     incr_counter_tape "c" "lbl") |||
     let: "lbl" := allocate_tape #() in
     incr_counter_tape "c" "lbl"
     ) ;;
     read_counter "c"
-  . 
+  .
 
-  Context `{!conerisGS Σ, !spawnG Σ, !inG Σ (excl_authR (option natO)), !inG Σ (excl_authR (boolO))}.
+  Definition counter_nroot:=nroot.@"counter".
+
+  Context `{!spawnG Σ, !inG Σ (excl_authR (option natO)), !inG Σ (excl_authR (boolO))}.
   Lemma con_prog_spec:
     {{{ ↯ (1/16) }}}
       con_prog
       {{{ (n:nat), RET #n; ⌜(0<n)%nat⌝ }}}.
   Proof.
+    iIntros (Φ) "Hε HΦ".
+    rewrite /con_prog.
+    wp_apply (new_counter_spec _ counter_nroot with "[//]") as (c) "(%γ & #Hcounter & Hfrag)".
+    replace (1)%Qp with (1/2+1/2)%Qp; last compute_done.
+    replace 0%nat with (0+0)%nat by lia.
+    rewrite -counter_content_frag_combine.
+    iDestruct "Hfrag" as "[Hfrag1 Hfrag2]".
+    wp_pures.
   Admitted.
   
 End client.
