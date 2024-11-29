@@ -1029,14 +1029,14 @@ Section meas_semantics.
   Definition cover_randT_notape    : set cfg := [set c | ∃ N l σ,        c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = None ].
   Definition cover_randT_mismatch  : set cfg := [set c | ∃ N l b σ,      c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = false)].
   Definition cover_randT_empty     : set cfg := [set c | ∃ N l b σ,      c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = true) /\ (b.(btape_tape) !! 0) = None].
-  Definition cover_randT           : set cfg := [set c | ∃ N l b n σ,      c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = true) /\ (b.(btape_tape) !! 0) = Some n].
+  Definition cover_randT           : set cfg := [set c | ∃ N l b n σ,    c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = true) /\ (b.(btape_tape) !! 0) = Some n].
   Definition cover_allocutape      : set cfg := [set c | ∃ σ,            c = (AllocUTape, σ) ].
   Definition cover_urandE          : set cfg := [set c | ∃ σ,            c = (URand (Val (LitV LitUnit)), σ) ].
   Definition cover_urandT_notape   : set cfg := [set c | ∃ σ l,          c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = None ].
-  Definition cover_urandT_empty    : set cfg := [set c | ∃ σ l τ,          c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = Some τ /\ (τ !! 0) = None].
-  Definition cover_urandT          : set cfg := [set c | ∃ σ l τ v,          c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = Some τ /\ (τ !! 0) = Some v].
-  Definition cover_tick         : set cfg := [set c | ∃ σ n,          c = (Tick (Val (LitV (LitInt n))), σ) ].
-  Definition cover_maybe_stuck  : set cfg := setT.
+  Definition cover_urandT_empty    : set cfg := [set c | ∃ σ l τ,        c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = Some τ /\ (τ !! 0) = None].
+  Definition cover_urandT          : set cfg := [set c | ∃ σ l τ v,      c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = Some τ /\ (τ !! 0) = Some v].
+  Definition cover_tick            : set cfg := [set c | ∃ σ n,          c = (Tick (Val (LitV (LitInt n))), σ) ].
+  Definition cover_maybe_stuck     : set cfg := setT.
 
   Definition cfg_cover : list (set cfg) := [
     cover_rec;
@@ -1076,11 +1076,12 @@ Section meas_semantics.
   ].
 
   Lemma cfg_cover_is_cover : List.fold_right setU set0 cfg_cover = setT.
-  Proof.  (* It contains cover_maybe_stuck = setT *) Admitted.
-
-
-
-
+  Proof.
+    rewrite /cfg_cover/=/cover_maybe_stuck.
+    rewrite setTU.
+    repeat rewrite setUT.
+    done.
+  Qed.
 
 
   (* TODO: Factor out the individual step functions *)
