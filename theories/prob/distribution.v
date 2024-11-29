@@ -2319,8 +2319,8 @@ Section uniform_fin_lists.
 End uniform_fin_lists.
 
 Section laplace.
-  Definition laplace_f_nat (ε:nonnegreal) (n:nat) := exp (- INR n * ε).
-  Definition laplace_f (ε:nonnegreal) (z:Z) := laplace_f_nat ε (Z.to_nat (Z.abs z)).
+  Definition laplace_f_nat (ε:posreal) (n:nat) := exp (- INR n * ε).
+  Definition laplace_f (ε:posreal) (z:Z) := laplace_f_nat ε (Z.to_nat (Z.abs z)).
   
   Lemma laplace_f_nat_pos ε n: 0<=laplace_f_nat ε n.
   Proof.
@@ -2329,7 +2329,17 @@ Section laplace.
   
   Lemma ex_seriesC_laplace_f_nat ε: ex_seriesC (λ n, laplace_f_nat ε n).
   Proof.
-  Admitted.
+    rewrite /laplace_f_nat. eapply (ex_seriesC_ext (λ n, (exp (-ε)) ^ n)).
+    - intros.
+      rewrite exp_pow. f_equal. lra.
+    - rewrite -ex_seriesC_nat. apply ex_series_geom.
+      apply Rabs_def1.
+      + rewrite exp_Ropp.
+        rewrite -Rdiv_1_l. rewrite -Rdiv_lt_1; last apply exp_pos.
+        replace 1 with (exp 0); last apply exp_0.
+        apply exp_increasing. apply cond_pos. 
+      + trans 0; [lra|apply exp_pos].
+  Qed.
   
   Lemma ex_seriesC_laplace_f ε: ex_seriesC (λ z, laplace_f ε z).
   Proof.

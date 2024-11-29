@@ -448,3 +448,10 @@ Qed.
 Proof.
   intros ?? ?; eapply Series_ext; eauto.
 Qed.
+
+Lemma exp_pow x n: (exp x)^n = exp (x * INR n).
+Proof.
+  induction n.
+  - by rewrite Rmult_0_r exp_0/=.
+  - rewrite S_INR/=Rmult_plus_distr_l exp_plus IHn. rewrite Rmult_1_r. lra.
+Qed.
