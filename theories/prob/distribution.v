@@ -2402,7 +2402,7 @@ Section laplace.
         * apply ex_seriesC_scal_l, ex_seriesC_laplace_f_nat.
   Qed.
   
-  Program Definition laplace ε : distr (Z) :=
+  Program Definition laplace' ε : distr (Z) :=
     MkDistr (λ z, laplace_f ε z / SeriesC (λ z, laplace_f ε z)) _ _ _.
   Next Obligation.
     intros. rewrite /laplace_f.
@@ -2428,7 +2428,32 @@ Section laplace.
       - apply exp_pos.
       - intros; left. apply exp_pos.
       - apply ex_seriesC_laplace_f.
-  Qed. 
+  Qed.
+
+  Program Definition laplace ε m :distr (Z) :=
+    MkDistr (λ z, laplace' ε (z-m)%Z) _ _ _.
+  Next Obligation.
+    simpl; intros.
+    apply pmf_pos.
+  Qed.
+  Next Obligation.
+    intros.
+    pose (h:= (λ '(z1, z2), if bool_decide (z2 -z1 = m)%Z then laplace' ε z1 else 0)).
+    apply (ex_seriesC_ext (λ z2, SeriesC (λ z1, h (z1, z2)))).
+    { rewrite /h.
+      intros z2.
+      erewrite SeriesC_ext; first apply SeriesC_singleton_dependent.
+      simpl. intros; repeat case_bool_decide; try done; lia.
+    }
+    apply fubini_pos_seriesC_ex_double; rewrite /h.
+    - intros. case_bool_decide; [apply pmf_pos|done].
+    - intros. eapply ex_seriesC_ext; last apply (ex_seriesC_singleton (m+a)%Z).
+      intros. simpl. repeat case_bool_decide; try lia; done.
+    - eapply ex_seriesC_ext; last apply (pmf_ex_seriesC (laplace' ε)).
+      intros n.
+      erewrite SeriesC_ext; first by erewrite (SeriesC_singleton (n+m)%Z).
+      intros. simpl. repeat case_bool_decide; try lia; done.
+  Qed.
 End laplace.
 
 Ltac inv_distr :=
