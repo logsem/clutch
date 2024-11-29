@@ -2402,7 +2402,7 @@ Section laplace.
         * apply ex_seriesC_scal_l, ex_seriesC_laplace_f_nat.
   Qed.
   
-  Program Definition laplace' ε : distr (Z) :=
+  Program Definition laplace ε : distr (Z) :=
     MkDistr (λ z, laplace_f ε z / SeriesC (λ z, laplace_f ε z)) _ _ _.
   Next Obligation.
     intros. rewrite /laplace_f.
