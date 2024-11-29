@@ -2454,6 +2454,10 @@ Section laplace.
       erewrite SeriesC_ext; first by erewrite (SeriesC_singleton (n+m)%Z).
       intros. simpl. repeat case_bool_decide; try lia; done.
   Qed.
+  Next Obligation.
+    intros.
+    rewrite (SeriesC_ext _ (laplace' ε)).
+  Admitted.
 End laplace.
 
 Ltac inv_distr :=
