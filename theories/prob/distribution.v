@@ -2456,8 +2456,29 @@ Section laplace.
   Qed.
   Next Obligation.
     intros.
-    rewrite (SeriesC_ext _ (laplace' ε)).
-  Admitted.
+    pose (h:= (λ '(z1, z2), if bool_decide (z2 -z1 = m)%Z then laplace' ε z1 else 0)).
+    rewrite (SeriesC_ext _ (λ z, SeriesC (λ n, h (n,z)))).
+    - rewrite fubini_pos_seriesC.
+      + rewrite /h.
+        erewrite (SeriesC_ext _ (laplace' ε)).
+        * apply pmf_SeriesC.
+        * intros n.
+          erewrite (SeriesC_ext _ (λ b, if bool_decide (b=n+m)%Z then laplace' ε n else 0)); first by rewrite SeriesC_singleton.
+          intros. repeat case_bool_decide; try lia; done.
+      + rewrite /h. intros. case_bool_decide; last done.
+        apply pmf_pos.
+      + rewrite /h.
+        intros n. apply (ex_seriesC_ext (λ b, if bool_decide (b=n+m)%Z then laplace' ε n else 0));
+          last apply ex_seriesC_singleton.
+        intros. repeat case_bool_decide; try lia; done.
+      + rewrite /h.
+        apply (ex_seriesC_ext (laplace' ε)); last apply pmf_ex_seriesC.
+        intros n. erewrite (SeriesC_ext _ (λ b, if bool_decide (b=n+m)%Z then laplace' ε n else 0)); first by rewrite SeriesC_singleton.
+        intros. repeat case_bool_decide; try lia; done.
+    - intros n. rewrite /h.
+      erewrite (SeriesC_ext _ (λ b, if bool_decide (b=n-m)%Z then laplace' ε b else 0)); first by rewrite SeriesC_singleton_dependent.
+      intros. repeat case_bool_decide; try lia; done.
+  Qed.
 End laplace.
 
 Ltac inv_distr :=
