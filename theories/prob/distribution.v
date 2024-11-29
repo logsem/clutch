@@ -2449,6 +2449,7 @@ Ltac solve_distr :=
     | |- (dmap _ _).(pmf) _ > 0 =>
         apply dmap_pos; eexists; (split; [done|]); try done
     | |- (dunifP _).(pmf) _ > 0 => apply dunifP_pos
+    | |- (dunifv _ _).(pmf) _ > 0 => apply dunifv_pos
     end.
 
 Ltac solve_distr_mass :=
@@ -2458,6 +2459,7 @@ Ltac solve_distr_mass :=
   | |- SeriesC (dmap _ _).(pmf) = 1 => rewrite dmap_mass //
   | |- SeriesC (dunif _).(pmf) = 1 => rewrite dunif_mass //
   | |- SeriesC (dunifP _).(pmf) = 1 => rewrite dunifP_mass //
+  | |- SeriesC (dunifv _ _).(pmf) = 1 => rewrite dunifv_mass //
   end .
 
 Ltac inv_dzero :=
