@@ -2318,6 +2318,109 @@ Section uniform_fin_lists.
   
 End uniform_fin_lists.
 
+Section laplace.
+  Definition laplace_f_nat (ε:nonnegreal) (n:nat) := exp (- INR n * ε).
+  Definition laplace_f (ε:nonnegreal) (z:Z) := laplace_f_nat ε (Z.to_nat (Z.abs z)).
+  
+  Lemma laplace_f_nat_pos ε n: 0<=laplace_f_nat ε n.
+  Proof.
+    left. apply exp_pos.
+  Qed.
+  
+  Lemma ex_seriesC_laplace_f_nat ε: ex_seriesC (λ n, laplace_f_nat ε n).
+  Proof.
+  Admitted.
+  
+  Lemma ex_seriesC_laplace_f ε: ex_seriesC (λ z, laplace_f ε z).
+  Proof.
+    pose (h:=(λ '(n,z), if Z.to_nat (Z.abs z) =?  n then laplace_f_nat ε n else 0)).
+    apply (ex_seriesC_ext (λ z, SeriesC (λ n, h (n,z)))).
+    { rewrite /h.
+      intros z.
+      erewrite SeriesC_ext; first erewrite (SeriesC_singleton_dependent (Z.to_nat (Z.abs z)) (laplace_f_nat ε)); first done.
+      simpl.
+      intros n.
+      case_match eqn:H.
+      - apply Nat.eqb_eq in H. subst. by rewrite bool_decide_eq_true_2.
+      - apply Nat.eqb_neq in H. by rewrite bool_decide_eq_false_2.
+    }
+    apply fubini_pos_seriesC_ex_double.
+    - rewrite /h. intros. case_match; last done.
+      rewrite /laplace_f_nat. left. apply exp_pos.
+    - rewrite /h.
+      intros n.
+      destruct n.
+      + eapply ex_seriesC_ext; last apply (ex_seriesC_singleton 0%Z).
+        simpl.
+        intros z.
+        case_bool_decide; subst; simpl; first done.
+        case_match eqn :H'; last done.
+        apply Nat.eqb_eq in H'. lia.
+      + apply (ex_seriesC_ext (λ b, if bool_decide (b∈ [Z.of_nat (S n); (- (Z.of_nat (S n)))%Z]) then laplace_f_nat ε (S n) else 0)); last apply ex_seriesC_list.
+        intros. case_bool_decide as H.
+        * set_unfold. destruct H as [| [|[]]]; subst; simpl.
+          -- by rewrite -Zabs2Nat.abs_nat_spec Zabs2Nat.id/=Nat.eqb_refl.
+          -- by rewrite Z.abs_opp -Zabs2Nat.abs_nat_spec Zabs2Nat.id/=Nat.eqb_refl.
+        * case_match eqn:H'; last done.
+          exfalso. apply H.
+          apply Nat.eqb_eq in H'.
+          set_unfold. lia.
+    - rewrite /h.
+      apply (ex_seriesC_ext (λ n, if bool_decide (n=0)%nat then laplace_f_nat ε 0 else 2 * laplace_f_nat ε n)).
+      + intros.
+        case_bool_decide as H1.
+        * erewrite SeriesC_ext; first (erewrite (SeriesC_singleton 0%Z); first done).
+          intros z. simpl. subst.
+          case_bool_decide; subst; simpl; first done.
+          case_match eqn :H'; last done.
+          apply Nat.eqb_eq in H'. lia.
+        * erewrite (SeriesC_ext _ (λ b, if bool_decide (b∈ [Z.of_nat (n); (- (Z.of_nat (n)))%Z]) then laplace_f_nat ε (n) else 0)).
+          -- rewrite SeriesC_list/=.
+             ++ lra. 
+             ++ assert (Z.of_nat (n) ≠ -Z.of_nat (n))%Z by lia.
+                repeat constructor; set_solver.
+          -- intros. case_bool_decide as H.
+             ++ set_unfold. destruct H as [| [|[]]]; subst; simpl.
+                ** by rewrite -Zabs2Nat.abs_nat_spec Zabs2Nat.id/=Nat.eqb_refl.
+                ** by rewrite Z.abs_opp -Zabs2Nat.abs_nat_spec Zabs2Nat.id/=Nat.eqb_refl.
+             ++ case_match eqn:H'; last done.
+                exfalso. apply H.
+                apply Nat.eqb_eq in H'.
+                set_unfold. lia.
+      + apply (ex_seriesC_le _ (λ n, 2*laplace_f_nat ε n)).
+        * intros n. pose proof laplace_f_nat_pos ε n. case_bool_decide; split; subst; lra.
+        * apply ex_seriesC_scal_l, ex_seriesC_laplace_f_nat.
+  Qed.
+  
+  Program Definition laplace' ε : distr (Z) :=
+    MkDistr (λ z, laplace_f ε z / SeriesC (λ z, laplace_f ε z)) _ _ _.
+  Next Obligation.
+    intros. rewrite /laplace_f.
+    apply Rdiv_le_0_compat.
+    - left. apply exp_pos.
+    - eapply Rlt_le_trans; last eapply (SeriesC_ge_elem _ 0%Z).
+      + apply exp_pos.
+      + intros; left. apply exp_pos.
+      + apply ex_seriesC_laplace_f.
+  Qed.
+  Next Obligation.
+    intros.
+    setoid_rewrite Rdiv_def.
+    apply ex_seriesC_scal_r, ex_seriesC_laplace_f.
+  Qed.
+  Next Obligation.
+    intros.
+    setoid_rewrite Rdiv_def.
+    rewrite SeriesC_scal_r.
+    rewrite Rinv_r; first done.
+    assert (0<SeriesC (laplace_f ε)) as ?; last lra.
+    eapply Rlt_le_trans; last eapply (SeriesC_ge_elem _ 0%Z).
+      - apply exp_pos.
+      - intros; left. apply exp_pos.
+      - apply ex_seriesC_laplace_f.
+  Qed. 
+End laplace.
+
 Ltac inv_distr :=
   repeat
     match goal with
