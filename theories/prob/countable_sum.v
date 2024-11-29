@@ -1830,6 +1830,38 @@ End double.
 Section inj.
   Context `{Countable A, Countable B}.
 
+  Lemma ex_seriesC_inj (g : B->A) (f:A -> R) (Hinj:Inj (=) (=) g):
+    (∀ a, 0<=f a)->
+    ex_seriesC f -> ex_seriesC (λ b, f (g b)).
+  Proof.
+    intros ? H1.
+    pose (h:= (λ '(a, b), if bool_decide (g b = a) then f a else 0)).
+    apply (ex_seriesC_ext (λ z2, SeriesC (λ z1, h (z1, z2)))).
+    { rewrite /h.
+      intros z2.
+      erewrite SeriesC_ext; first apply SeriesC_singleton_dependent.
+      simpl. intros; repeat case_bool_decide; by simplify_eq.
+    }
+    apply fubini_pos_seriesC_ex_double; rewrite /h.
+    - intros. by case_bool_decide.
+    - intros.
+      destruct (@decide (∃ b, g b = a) (make_decision _)) as [(b&<-)|n].
+      + eapply ex_seriesC_ext; last apply (ex_seriesC_singleton b).
+        intros. simpl. repeat case_bool_decide; subst; by simplify_eq.
+      + eapply ex_seriesC_ext; last apply ex_seriesC_0.
+        intros. rewrite bool_decide_eq_false_2; first done.
+        intro. apply n. naive_solver.
+    - eapply (ex_seriesC_le _ f); last done.
+      intros a.
+      split; first apply SeriesC_ge_0'.
+      + intros. case_bool_decide; naive_solver.
+      + destruct (@decide (∃ b, g b = a) (make_decision _)) as [(b&<-)|n].
+        * erewrite SeriesC_ext; first by erewrite (SeriesC_singleton b).
+          intros. repeat case_bool_decide; naive_solver.
+        * erewrite SeriesC_ext; first by rewrite SeriesC_0.
+          simpl. intros. repeat case_bool_decide; naive_solver.
+  Qed.
+      
     (* A lemma about rearranging SeriesC along an injective function *)
 
   Lemma SeriesC_le_inj (f : B -> R) (h : A -> option B) :
