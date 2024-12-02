@@ -1,6 +1,7 @@
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
 From stdpp Require Import base numbers binders strings gmap.
+From mathcomp Require Import functions.
 From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
 From iris.algebra Require Export ofe.
@@ -13,6 +14,7 @@ From clutch.prob.monad Require Export laws extras.
 From mathcomp.analysis Require Export Rstruct.
 
 From mathcomp Require Import classical_sets.
+
 
 (* Fix giryM to be the giry type with stdlib-valued real numbers *)
 Notation giryM := (giryM (R := R)).
@@ -1038,6 +1040,42 @@ Section meas_semantics.
   Definition cover_tick            : set cfg := [set c | ∃ σ n,          c = (Tick (Val (LitV (LitInt n))), σ) ].
   Definition cover_maybe_stuck     : set cfg := setT.
 
+  (* The real version of a subset measure space. Unbundled because it confuses the hierarchy *)
+  Definition is_sub_measurable {d1} {T1 : measurableType d1} (E S : set T1) : Prop :=
+    [set (E `&` m) | m in (d1.-measurable : set (set T1))] S.
+  (* TODO: Prove measurable_space axioms for is_sub_measurable *)
+
+  Definition sub {T : Type} (E : set T) : Type := { x : T & E x }.
+
+  Definition to_ambient {T: Type} (E : set T) (X : set (sub E)) : set T := [set (projT1 x) | x in X].
+
+  Definition is_sub_measurable_ambient {d1} {T1 : measurableType d1} (E : set T1) (S : set (sub E)) : Prop :=
+    is_sub_measurable E (to_ambient E S).
+
+  (* f is a measurable function from the real subset measure space to T2. Unbundled because it confuses the hierarchy *)
+  Definition is_sub_measurable_out {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (E : set T1) (f : (sub E) -> T2) : Prop :=
+    forall S : set T2, d2.-measurable S -> is_sub_measurable_ambient E (preimage f S).
+
+  (* TODO: Replicate the proof of measurability into a generated set for our unbundled type *)
+  Definition sub_out_measurability {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+    (E : set T1) (f : (sub E) -> T2) (G : set (set T2)) :
+    d2.-measurable = <<s G>> ->
+    (forall g : set T2, G g -> is_sub_measurable_ambient E (preimage f g)) ->
+    is_sub_measurable_out E f.
+  Proof. Admitted.
+
+  (* f and g agree on E *)
+  Definition sub_fn_restricts (T1 T2 : Type) (E : set T1) (f : (sub E) -> T2) (g : T1 -> T2) : Prop :=
+    forall x : T1, forall H : E x, f (existT x H) = g x.
+
+  (* TODO: If a set is sub_measurable, and a function out of it is a sub-measurable function, the restriction to the set is mathcomp-measurable *)
+  Lemma mathcomp_restriction_is_measurable {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+    (E : set T1) (f : T1 -> T2) (g : sub E -> T2) :
+    (sub_fn_restricts T1 T2 E g f) ->
+    is_sub_measurable_out E g ->
+    @measurable_fun _ _ T1 T2 setT (f \_ E).
+  Proof. Admitted.
+
   Definition cfg_cover : list (set cfg) := [
     cover_rec;
     cover_pair;
@@ -1084,7 +1122,30 @@ Section meas_semantics.
   Qed.
 
 
-  (* TODO: Factor out the individual step functions *)
+  (** Prove that the cover is measurable *)
+  (* Do some of them by hand, and then try to factor out general lemmas *)
+  (* I'm most worried about the ones that go more than one layer deep *)
+
+
+  Lemma cover_rec_measurable : measurable cover_rec.
+  Proof.
+    rewrite measurable_prod_measurableType.
+    apply sub_gen_smallest.
+    simpl.
+    exists [set c | ∃ (f x0 : binder) (e : expr_pre), c = Rec f x0 e]; last first.
+    { exists setT; [eapply measurableT|].
+      rewrite /setX/cover_rec/= predeqE.
+      move=> [e σ] /=.
+      rewrite and_True.
+      admit. }
+
+  (* TODO: projections to be measurable, and binders to be countable. *)
+  (* Pull out the bunders to a countabke union *)
+  (* Then, this is the preimage of (setT : expr) under the measurable function Rec. *)
+  Admitted.
+
+
+  (* TODO: Factor out the individual step functions? *)
   Definition urand_step : measurable_map ((R : realType) : measurableType _) cfg.
   Admitted.
 
@@ -1224,6 +1285,17 @@ Section meas_semantics.
     | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : cfg)
     | _ => giryM_zero
     end.
+
+
+
+  (*
+  Lemma cover_rec_restrict : measurable_fun cover_rec (restrict cover_rec head_stepM_def).
+  Proof.
+    *)
+
+
+
+
 
   (** TODO: Can I prove a general lemma about "apply a measurable function to each constructor" instead? *)
   Local Lemma head_stepM_def_measurable :
