@@ -1,6 +1,6 @@
 From iris.algebra Require Import frac_auth.
 From iris.base_logic.lib Require Import invariants.
-From clutch.coneris Require Import coneris hocap_rand random_counter.
+From clutch.coneris Require Import coneris hocap_rand random_counter.random_counter.
 
 Set Default Proof Using "Type*".
 
