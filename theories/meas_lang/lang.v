@@ -50,6 +50,85 @@ HB.instance Definition _ := gen_eqMixin loc.
 HB.instance Definition _ := gen_choiceMixin loc.
 HB.instance Definition _ := isPointed.Build loc inhabitant.
 
+
+Section subspaces.
+  Local Open Scope classical_set_scope.
+
+  (** Mathcomp needs measurable spaces to be pointed
+      This means that we could only construct subset spaces for nonempty subsets
+      And this seems to confuse HB.
+
+      For now, it's easier to define is_sub_measurable as an unbundled type not
+      in the hierarchy, and re-prove the results we need about it. Many of them
+      can be copy-pasted.
+
+      The reason we want subspace measurability is to define the measurability of
+      projection functions and constructors. This allows us to prove that head_step
+      is measurable (in the HB sense). If we need these functions to be HB measurable
+      elsewhere, we may need to figure out how to get proper subset spaces in
+      the hierarchy.
+   *)
+
+
+  (* A set S is measurable in the space T1|_E *)
+  Definition sub_measurable {d1} {T1 : measurableType d1} (E S : set T1) : Prop :=
+    [set (E `&` m) | m in (d1.-measurable : set (set T1))] S.
+
+  Lemma sub_measurable0 {d1} {T1 : measurableType d1} (E : set T1) : sub_measurable E set0.
+  Proof. Admitted.
+
+  Lemma sub_measurableC {d1} {T1 : measurableType d1} (E S : set T1) :
+    sub_measurable E S -> sub_measurable E (E `\` S).
+  Proof. Admitted.
+
+  Lemma bigcup_sub_measurableC {d1} {T : measurableType d1} (E: set T) (F : sequences.sequence (set T)) (P : set nat) :
+    (∀ k : nat, P k → sub_measurable E (F k)) → sub_measurable E (\bigcup_(i in P) F i).
+  Proof. Admitted.
+
+  (*
+  Definition sub {T : Type} (E : set T) : Type := { x : T & E x }.
+
+  Definition to_ambient {T: Type} (E : set T) (X : set (sub E)) : set T := [set (projT1 x) | x in X].
+
+  Definition is_sub_measurable_ambient {d1} {T1 : measurableType d1} (E : set T1) (S : set (sub E)) : Prop :=
+    is_sub_measurable E (to_ambient E S).
+
+  (* f is a measurable function from the real subset measure space to T2. Unbundled because it confuses the hierarchy *)
+  Definition is_sub_measurable_out {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (E : set T1) (f : (sub E) -> T2) : Prop :=
+    forall S : set T2, d2.-measurable S -> is_sub_measurable_ambient E (preimage f S). *)
+
+
+
+  (* f and g agree on E
+  Definition sub_fn_restricts (T1 T2 : Type) (E : set T1) (f : (sub E) -> T2) (g : T1 -> T2) : Prop :=
+    forall x : T1, forall H : E x, f (existT x H) = g x.
+  *)
+
+  (* TODO: If a set is sub_measurable, and a function out of it is a sub-measurable function, the restriction to the set is mathcomp-measurable *)
+  Lemma mathcomp_restriction_is_measurable {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+    (E : set T1) (f : T1 -> T2) :
+    @measurable_fun _ _ T1 T2 E f ->
+    @measurable_fun _ _ T1 T2 setT (f \_ E).
+  Proof.
+    intro H.
+    unfold measurable_fun.
+    intros ? S SMeas.
+    rewrite setTI.
+    unfold restrict.
+    unfold preimage.
+    (* Cases based on if point is in s *)
+  Admitted.
+
+End subspaces.
+
+
+
+
+
+
+
+
+
 Module meas_lang.
 
 (* Type of base_lit, parameterized by leaf types *)
@@ -128,6 +207,7 @@ Section expr_algebra.
   Definition base_lit_S : Type := @base_lit_pre (set TZ) (set TB) (set TL) (set TR).
   Definition val_S      : Type := @val_pre      (set TZ) (set TB) (set TL) (set TR).
   Definition expr_S     : Type := @expr_pre     (set TZ) (set TB) (set TL) (set TR).
+
 
   Definition base_lit_T : Type := @base_lit_pre TZ TB TL TR.
   Definition val_T      : Type := @val_pre      TZ TB TL TR.
@@ -288,7 +368,90 @@ Section expr_algebra.
   Definition expr : measurableType expr_cyl.-sigma := expr_T.
   Definition val : measurableType val_cyl.-sigma := val_T.
 
+
+  (** Constructors for expressions with the fixed and measurable base types.
+      These are the ones you will want to use to construct programs 99% of the time. *)
+  Definition LitIntC  v : base_lit_T := LitInt v.
+  Definition LitBoolC v : base_lit_T := LitBool v.
+  Definition LitUnitC   : base_lit_T := LitUnit.
+  Definition LitLocC  v : base_lit_T := LitLoc v.
+  Definition LitLblC  v : base_lit_T := LitLbl v.
+  Definition LitRealC v : base_lit_T := LitReal v.
+
+  Definition ValC v           : expr_T := Val v.
+  Definition VarC x           : expr_T := Var x.
+  Definition RecC f x e       : expr_T := Rec f x e.
+  Definition AppC e1 e2       : expr_T := App e1 e2.
+  Definition UnOpC op e       : expr_T := UnOp op e.
+  Definition BinOpC op e1 e2  : expr_T := BinOp op e1 e2.
+  Definition IfC e0 e1 e2     : expr_T := If e0 e1 e2.
+  Definition PairC e1 e2      : expr_T := Pair e1 e2.
+  Definition FstC e1          : expr_T := Fst e1.
+  Definition SndC e1          : expr_T := Snd e1.
+  Definition InjLC e1         : expr_T := InjL e1.
+  Definition InjRC e1         : expr_T := InjR e1.
+  Definition CaseC e0 e1 e2   : expr_T := Case e0 e1 e2.
+  Definition AllocNC e1 e2    : expr_T := AllocN e1 e2.
+  Definition LoadC e          : expr_T := Load e.
+  Definition StoreC e1 e2     : expr_T := Store e1 e2.
+  Definition AllocTapeC e     : expr_T := AllocTape e.
+  Definition RandC e1 e2      : expr_T := Rand e1 e2.
+  Definition AllocUTapeC      : expr_T := AllocUTape.
+  Definition URandC e         : expr_T := URand e.
+  Definition TickC e          : expr_T := Tick e.
+
+  Definition LitVC b      : val_T  := LitV b.
+  Definition RecVC f x e  : val_T  := RecV f x e.
+  Definition PairVC v1 v2 : val_T  := PairV v1 v2.
+  Definition InjLVC v     : val_T  := InjLV v.
+  Definition InjRVC v     : val_T  := InjRV v.
+
 End expr_algebra.
+
+
+
+Section expr_measurability.
+  Local Open Scope classical_set_scope.
+  (** Measurability of the projection and constructor functions *)
+
+  (**  A cover of the expr type *)
+  Definition ecover_val : set expr := [set e  | ∃ v, e = ValC v].
+  Definition ecover_var : set expr := [set e  | ∃ s, e = VarC s].
+  Definition ecover_rec : set expr := [set e  | ∃ f x e, e = @RecC f x e].
+  (* TODO: The rest *)
+
+
+  (** Constructors: Each *C function is (.. * ... * ...) / expr -measurable *)
+
+  Lemma ValC_measurable : @measurable_fun _ _ val expr setT ValC.
+  Proof. Admitted.
+
+  (* TODO: The rest *)
+
+
+
+  (** Projections: Each projection function is a measurable_fun from the respective cover set
+      in expr to a product space. *)
+
+
+  Definition expr_shape : Type := @expr_pre () () () ().
+
+
+
+
+  (*
+   Search measurable "bigcup".
+  Check bigcup_measurable.
+  Unset Printing Notations.
+  Check (\bigcup_(i in _) _ i). *)
+  (* Needs a sequence.sequence to use measurabilility of bigcup *)
+  (* Sequence of shapes *)
+
+
+End expr_measurability.
+
+
+
 
 (**  General lemmas about tapes *)
 
@@ -982,18 +1145,7 @@ Section unif.
   Local Open Scope ereal_scope.
   Local Open Scope classical_set_scope.
   (* Uniform space over [0, 1]*)
-  Definition unif_base_def : measure _ R := uniform_prob (@Num.Internals.ltr01 R).
-
-  (*  Lemma unif_base_T : (unif_base_def setT <= 1%E)%E.
-  Proof. Admitted. *)
-
-  (*  HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ unif_base_def. *)
-
-  (* unif_base is a subprobability distrubution over [0, 1] *)
-  Definition unif_base : subprobability ((R : realType) : measurableType _) R.
-  Admitted.
-
-  (*  Check unif_base : giryM ((R : realType) : measurableType _).  *)
+  Definition unif_base : subprobability _ R := uniform_prob (@Num.Internals.ltr01 R).
 
 End unif.
 
@@ -1003,8 +1155,12 @@ Section meas_semantics.
   Local Open Scope ereal_scope.
   Local Open Scope classical_set_scope.
 
-  (** Break apart cover of cfg *)
-  (* TODO: Break up even finer, to handle the cfg-splitting for sampling in one step *)
+  (** Hierarchy sets that cover cfg.
+      The second block of sets are a cover cfg, which is slightly finer, and are used
+      to prove measurability of head_stepM.
+   *)
+
+
   Definition cover_rec             : set cfg := [set c | ∃ f x e σ,      c = (Rec f x e, σ) ].
   Definition cover_pair            : set cfg := [set c | ∃ v1 v2 σ,      c = (Pair (Val v1) (Val v2), σ) ].
   Definition cover_injL            : set cfg := [set c | ∃ v σ,          c = (InjL v, σ) ].
@@ -1040,41 +1196,6 @@ Section meas_semantics.
   Definition cover_tick            : set cfg := [set c | ∃ σ n,          c = (Tick (Val (LitV (LitInt n))), σ) ].
   Definition cover_maybe_stuck     : set cfg := setT.
 
-  (* The real version of a subset measure space. Unbundled because it confuses the hierarchy *)
-  Definition is_sub_measurable {d1} {T1 : measurableType d1} (E S : set T1) : Prop :=
-    [set (E `&` m) | m in (d1.-measurable : set (set T1))] S.
-  (* TODO: Prove measurable_space axioms for is_sub_measurable *)
-
-  Definition sub {T : Type} (E : set T) : Type := { x : T & E x }.
-
-  Definition to_ambient {T: Type} (E : set T) (X : set (sub E)) : set T := [set (projT1 x) | x in X].
-
-  Definition is_sub_measurable_ambient {d1} {T1 : measurableType d1} (E : set T1) (S : set (sub E)) : Prop :=
-    is_sub_measurable E (to_ambient E S).
-
-  (* f is a measurable function from the real subset measure space to T2. Unbundled because it confuses the hierarchy *)
-  Definition is_sub_measurable_out {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (E : set T1) (f : (sub E) -> T2) : Prop :=
-    forall S : set T2, d2.-measurable S -> is_sub_measurable_ambient E (preimage f S).
-
-  (* TODO: Replicate the proof of measurability into a generated set for our unbundled type *)
-  Definition sub_out_measurability {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
-    (E : set T1) (f : (sub E) -> T2) (G : set (set T2)) :
-    d2.-measurable = <<s G>> ->
-    (forall g : set T2, G g -> is_sub_measurable_ambient E (preimage f g)) ->
-    is_sub_measurable_out E f.
-  Proof. Admitted.
-
-  (* f and g agree on E *)
-  Definition sub_fn_restricts (T1 T2 : Type) (E : set T1) (f : (sub E) -> T2) (g : T1 -> T2) : Prop :=
-    forall x : T1, forall H : E x, f (existT x H) = g x.
-
-  (* TODO: If a set is sub_measurable, and a function out of it is a sub-measurable function, the restriction to the set is mathcomp-measurable *)
-  Lemma mathcomp_restriction_is_measurable {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
-    (E : set T1) (f : T1 -> T2) (g : sub E -> T2) :
-    (sub_fn_restricts T1 T2 E g f) ->
-    is_sub_measurable_out E g ->
-    @measurable_fun _ _ T1 T2 setT (f \_ E).
-  Proof. Admitted.
 
   Definition cfg_cover : list (set cfg) := [
     cover_rec;
@@ -1265,7 +1386,7 @@ Section meas_semantics.
         let ι := fresh_loc σ1.(utapes) in
         giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : cfg)
     (* Urand with no tape *)
-    | URand (Val (LitV LitUnit)) => giryM_map urand_step unif_base
+    | URand (Val (LitV LitUnit)) => giryM_zero (* FIXME giryM_map urand_step unif_base *)
     (* Urand with a tape *)
     | URand (Val (LitV (LitLbl l))) =>
         match σ1.(utapes) !! l with
@@ -1278,7 +1399,8 @@ Section meas_semantics.
                 (giryM_ret R ((Val $ LitV $ LitReal u, σ') : cfg))
             | None =>
                 (* Head has no sample *)
-                giryM_map urand_tape_step unif_base
+                giryM_zero
+                (* FIXME giryM_map urand_tape_step unif_base *)
             end
         | None => giryM_zero
         end
