@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         image:
-          - mathcomp/mathcomp:latest-coq-8.19
+          - mathcomp/mathcomp:2.2.0-coq-8.19
       max-parallel: 4
       # don't cancel all in-progress jobs if one matrix job fails:
       fail-fast: false
