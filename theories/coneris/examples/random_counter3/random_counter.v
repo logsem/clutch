@@ -66,7 +66,7 @@ Class random_counter `{!conerisGS Σ} := RandCounter
     {{{ c, RET c; ∃ γ1, is_counter (L:=L) N c γ1 ∗
                            counter_content_frag (L:=L) γ1 1%Qp 0%nat
     }}};
-  incr_counter_spec {L: counterG Σ} N E c γ1 (Q:nat->nat->iProp Σ)  :
+  incr_counter_spec {L: counterG Σ} N E c γ1 (Q:_->_->nat->nat->iProp Σ)  :
     ↑N⊆E ->
     {{{ is_counter (L:=L) N c γ1 ∗
         |={E,∅}=>
@@ -75,11 +75,11 @@ Class random_counter `{!conerisGS Σ} := RandCounter
               ⌜(SeriesC (λ n, 1 / 4 * ε2 n)%R <= ε)%R ⌝ ∗
               (∀ n, ↯ (ε2 n) ={∅, E}=∗
           (∀ (z:nat), counter_content_auth (L:=L) γ1 z ={E∖↑N}=∗
-                      counter_content_auth (L:=L) γ1 (z+n) ∗ Q z n)))
+                      counter_content_auth (L:=L) γ1 (z+n) ∗ Q ε ε2 z n)))
            
     }}}
       incr_counter c @ E
-                                 {{{ (z n:nat), RET (#z, #n); Q z n }}}; 
+                                 {{{ (z n:nat), RET (#z, #n); ∃ ε ε2, Q ε ε2 z n }}}; 
   read_counter_spec {L: counterG Σ} N E c γ1 Q:
     ↑N ⊆ E ->
     {{{  is_counter (L:=L) N c γ1 ∗
@@ -162,7 +162,7 @@ Section lemmas.
     iIntros (Hsubset Hpos Hineq Φ) "(#Hinv & Herr & Hcontent) HΦ".
     pose (ε2' := (λ x, if (x<=?3)%nat then ε2 x else 1%R)).
     wp_apply (incr_counter_spec _ _ _ _
-                (λ z' n , ⌜0<=n<4⌝ ∗ ⌜z<=z'⌝ ∗
+                (λ _ _ z' n , ⌜0<=n<4⌝ ∗ ⌜z<=z'⌝ ∗
                           ↯ (ε2 n) ∗
                                  counter_content_frag (L:=L) γ1 q (z+n)%nat
                 )%I
@@ -186,7 +186,6 @@ Section lemmas.
     - iIntros (z' n) "(% & % & Herr & Hfrag' )".
       iApply "HΦ".
       iFrame.
-      by iSplit.
   Qed.
   
 End lemmas.

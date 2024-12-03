@@ -127,7 +127,7 @@ Section impl3.
       rewrite /filter_f. lia.
   Qed.
   
-  Lemma incr_counter_spec3 N E c γ1 (Q:nat->nat->iProp Σ)  :
+  Lemma incr_counter_spec3 N E c γ1 (Q:_->_->nat->nat->iProp Σ)  :
     ↑N⊆E ->
     {{{ is_counter3 N c γ1 ∗
         |={E,∅}=>
@@ -136,11 +136,11 @@ Section impl3.
               ⌜(SeriesC (λ n, 1 / 4 * ε2 n)%R <= ε)%R ⌝ ∗
               (∀ n, ↯ (ε2 n) ={∅, E}=∗
           (∀ (z:nat), own γ1 (●F z) ={E∖↑N}=∗
-                    own γ1 (●F (z+n)%nat) ∗ Q z n)))
+                    own γ1 (●F (z+n)%nat) ∗ Q ε ε2 z n)))
            
     }}}
       incr_counter3 c @ E
-      {{{ (z n:nat), RET (#z, #n); Q z n }}}.
+      {{{ (z n:nat), RET (#z, #n); ∃ ε ε2, Q ε ε2 z n }}}.
   Proof.
     iIntros (Hsubset Φ) "(#Hinv & Hvs) HΦ".
     rewrite /incr_counter3.
@@ -149,8 +149,8 @@ Section impl3.
     do 3 wp_pure.
     iAssert (state_update E E (∃ n,
                    (∃ ls, ⌜filter filter_f ls = ([fin_to_nat n])⌝ ∗ rand_tapes (L:=L) α (4, ls)) ∗
-                                    (∀ z : nat, own γ1 (●F z) ={E ∖ ↑N}=∗ own γ1 (●F (z + n)) ∗ Q z n)
-            ))%I with "[Hvs Htape]" as ">(%n & Htape &Hvs)".
+                                 ∃ ε ε2,  (∀ z : nat, own γ1 (●F z) ={E ∖ ↑N}=∗ own γ1 (●F (z + n)) ∗ Q ε ε2 z n)
+            ))%I with "[Hvs Htape]" as ">(%n & Htape &%&%&Hvs)".
     { iMod "Hvs" as "(%&%&?&%&%&Hvs)".
       iMod (counter_tapes_presample3 with "[$][$Htape][$]") as "(%&?&?)"; [try done..|].
       iMod ("Hvs" with "[$]").

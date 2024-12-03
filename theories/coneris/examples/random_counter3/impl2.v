@@ -257,7 +257,7 @@ Section impl2.
         iPureIntro. constructor; [lia|constructor]. 
   Qed.
     
-Lemma incr_counter_spec2 N E c γ1 (Q:nat->nat->iProp Σ)  :
+Lemma incr_counter_spec2 N E c γ1 (Q:_-> _->nat->nat->iProp Σ)  :
     ↑N⊆E ->
     {{{ is_counter2 N c γ1 ∗
         |={E, ∅}=>
@@ -266,10 +266,10 @@ Lemma incr_counter_spec2 N E c γ1 (Q:nat->nat->iProp Σ)  :
               ⌜(SeriesC (λ n, 1 / 4 * ε2 n)%R <= ε)%R ⌝ ∗
               (∀ n, ↯ (ε2 n) ={∅, E}=∗
           (∀ (z:nat), own γ1 (●F z) ={E∖↑N}=∗
-                    own γ1 (●F (z+n)%nat) ∗ Q z n)))
+                    own γ1 (●F (z+n)%nat) ∗ Q ε ε2 z n)))
     }}}
       incr_counter2 c @ E
-      {{{ (z n:nat), RET (#z, #n); Q z n }}}.
+      {{{ (z n:nat), RET (#z, #n); ∃ ε ε2, Q ε ε2 z n }}}.
   Proof.
     iIntros (Hsubset Φ) "(#Hinv & Hvs) HΦ".
     rewrite /incr_counter2.
@@ -277,8 +277,8 @@ Lemma incr_counter_spec2 N E c γ1 (Q:nat->nat->iProp Σ)  :
     wp_apply flip_allocate_tape_spec as (α) "Htape"; first done.
     wp_pures.
     iAssert (state_update E E (∃ n, (flip_tapes (L:=L) α (expander ([fin_to_nat n])) ∗ ⌜Forall (λ x, x<4) ([fin_to_nat n])⌝) ∗
-                                    (∀ z : nat, own γ1 (●F z) ={E ∖ ↑N}=∗ own γ1 (●F (z + n)) ∗ Q z n)
-            ))%I with "[Hvs Htape]" as ">(%n & (Htape&%) &Hvs)".
+                              ∃ ε ε2, (∀ z : nat, own γ1 (●F z) ={E ∖ ↑N}=∗ own γ1 (●F (z + n)) ∗ Q ε ε2 z n)
+            ))%I with "[Hvs Htape]" as ">(%n & (Htape&%) &%&%&Hvs)".
     { iMod "Hvs" as "(%&%&?&%&%&Hvs)".
       iMod (counter_tapes_presample2 with "[$][Htape][$]") as "(%&?&(?&%))"; [try done..|].
       - simpl. iFrame. iPureIntro. by rewrite Forall_nil.

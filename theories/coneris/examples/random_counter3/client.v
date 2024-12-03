@@ -97,7 +97,7 @@ Section client.
     }
     wp_apply (wp_par (λ _, ∃ (n:nat), own γ1 (◯E (Some n)) ∗ counter_content_frag γ (1/2) n)%I
                 (λ _, ∃ (n:nat), own γ2 (◯E (Some n)) ∗ counter_content_frag γ (1/2) n)%I with "[Hfrag1 Hc1][Hfrag2 Hc2]").
-    - wp_apply (incr_counter_spec _ _ _ _ (λ _ _, ∃ n : nat, own γ1 (◯E (Some n)) ∗ counter_content_frag γ (1 / 2) n )%I with "[$Hcounter Hfrag1 Hc1]"); [done| |by iIntros].
+    - wp_apply (incr_counter_spec _ _ _ _ (λ _ _ _ _, ∃ n : nat, own γ1 (◯E (Some n)) ∗ counter_content_frag γ (1 / 2) n )%I with "[$Hcounter Hfrag1 Hc1]"); [done| |by iIntros (??) "(%&%&?)"].
       iInv "Hinv" as ">(%n1 & %n2 & Hauth1 & Hauth2 & Herr)" "Hvs". 
       iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
       iApply fupd_mask_intro; first set_solver.
@@ -142,7 +142,7 @@ Section client.
           -- iModIntro. iIntros (z) "Hauth".
              iMod (counter_content_update with "[$][$]") as "[$ ?]".
              by iFrame.
-    - wp_apply (incr_counter_spec _ _ _ _ (λ _ _, ∃ n : nat, own γ2 (◯E (Some n)) ∗ counter_content_frag γ (1 / 2) n )%I with "[$Hcounter Hfrag2 Hc2]"); [done| |by iIntros].
+    - wp_apply (incr_counter_spec _ _ _ _ (λ _ _ _ _, ∃ n : nat, own γ2 (◯E (Some n)) ∗ counter_content_frag γ (1 / 2) n )%I with "[$Hcounter Hfrag2 Hc2]"); [done| |by iIntros (??) "(%&%&?)"].
       iInv "Hinv" as ">(%n1 & %n2 & Hauth1 & Hauth2 & Herr)" "Hvs". 
       iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
       iApply fupd_mask_intro; first set_solver.
