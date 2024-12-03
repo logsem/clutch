@@ -288,7 +288,6 @@ Section state_update.
     iApply (state_step_coupl_mono with "[][$]").
     iIntros (??) ">(?&?&?)". by iFrame.
   Qed.
-
   
   Lemma state_update_mono E1 E2 P Q:
     (P={E2}=∗Q) -∗ state_update E1 E2 P -∗ state_update E1 E2 Q.
@@ -389,6 +388,20 @@ Section state_update.
     rewrite bi.intuitionistically_if_elim/=.
     iIntros "[??]".
     iApply (state_update_fupd_change with "[$][$]").
+  Qed.
+
+  
+  Lemma state_update_mask_intro E1 E2 P:
+    E2 ⊆ E1 -> (state_update E2 E1 emp -∗ P) -∗ state_update E1 E2 P.
+  Proof.
+    iIntros (?) "H".
+    iApply state_update_mono_fupd; first exact.
+    iApply fupd_mask_intro; first done.
+    iIntros "K".
+    iModIntro.
+    iApply "H".
+    iMod "K".
+    by iModIntro.
   Qed.
   
   Lemma state_update_bind E1 E2 E3 P Q:
@@ -570,6 +583,16 @@ Section state_update.
     iInv "Hinv" as "?" "Hclose".
     iMod ("H" with "[$]") as "[??]".
     iFrame. by iMod ("Hclose" with "[$]") as "_".
+  Qed.
+
+  Lemma state_update_inv_acc' E I N:
+    ↑N ⊆ E -> inv N I -∗ state_update E (E ∖↑N) (▷ I ∗ (▷ I -∗ state_update (E∖↑N) E True)).
+  Proof.
+    iIntros (Hsubset) "#Hinv".
+    iDestruct (inv_acc with "[$]") as ">(H&Hvs)"; first exact.
+    iModIntro. iFrame.
+    iIntros.
+    by iMod ("Hvs" with "[$]").
   Qed.
   
   Context {A : cmra} `{i : inG Σ A}.
