@@ -260,11 +260,11 @@ Section impl2.
 Lemma incr_counter_spec2 N E c γ1 (Q:nat->nat->iProp Σ)  :
     ↑N⊆E ->
     {{{ is_counter2 N c γ1 ∗
-        state_update E ∅
+        |={E, ∅}=>
           (∃ ε (ε2 : fin 4%nat -> R),
               ↯ ε ∗ ⌜(∀ x, 0<=ε2 x)%R⌝∗
               ⌜(SeriesC (λ n, 1 / 4 * ε2 n)%R <= ε)%R ⌝ ∗
-              (∀ n, ↯ (ε2 n) -∗ state_update ∅ E
+              (∀ n, ↯ (ε2 n) ={∅, E}=∗
           (∀ (z:nat), own γ1 (●F z) ={E∖↑N}=∗
                     own γ1 (●F (z+n)%nat) ∗ Q z n)))
     }}}

@@ -69,11 +69,11 @@ Class random_counter `{!conerisGS Σ} := RandCounter
   incr_counter_spec {L: counterG Σ} N E c γ1 (Q:nat->nat->iProp Σ)  :
     ↑N⊆E ->
     {{{ is_counter (L:=L) N c γ1 ∗
-        state_update E ∅
+        |={E,∅}=>
           (∃ ε (ε2 : fin 4%nat -> R),
               ↯ ε ∗ ⌜(∀ x, 0<=ε2 x)%R⌝∗
               ⌜(SeriesC (λ n, 1 / 4 * ε2 n)%R <= ε)%R ⌝ ∗
-              (∀ n, ↯ (ε2 n) -∗ state_update ∅ E
+              (∀ n, ↯ (ε2 n) ={∅, E}=∗
           (∀ (z:nat), counter_content_auth (L:=L) γ1 z ={E∖↑N}=∗
                       counter_content_auth (L:=L) γ1 (z+n) ∗ Q z n)))
            
@@ -169,7 +169,7 @@ Section lemmas.
                with "[-HΦ]").
     - done.
     - iSplit; first done.
-      iApply state_update_mask_intro; first set_solver.
+      iApply fupd_mask_intro; first set_solver.
       iIntros "Hclose".
       iFrame.
       iExists (λ x, ε2 (fin_to_nat x)); repeat iSplit; try done.
