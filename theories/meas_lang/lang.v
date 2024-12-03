@@ -15,6 +15,8 @@ From mathcomp.analysis Require Export Rstruct.
 
 From mathcomp Require Import classical_sets.
 
+Import Coq.Logic.FunctionalExtensionality.
+From clutch.prelude Require Import classical.
 
 (* Fix giryM to be the giry type with stdlib-valued real numbers *)
 Notation giryM := (giryM (R := R)).
@@ -106,7 +108,7 @@ Section subspaces.
 
   (* TODO: If a set is sub_measurable, and a function out of it is a sub-measurable function, the restriction to the set is mathcomp-measurable *)
   Lemma mathcomp_restriction_is_measurable {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
-    (E : set T1) (f : T1 -> T2) :
+    (E : set T1) (HE : d1.-measurable E) (f : T1 -> T2) :
     @measurable_fun _ _ T1 T2 E f ->
     @measurable_fun _ _ T1 T2 setT (f \_ E).
   Proof.
@@ -116,8 +118,46 @@ Section subspaces.
     rewrite setTI.
     unfold restrict.
     unfold preimage.
-    (* Cases based on if point is in s *)
-  Admitted.
+    unfold measurable_fun in H.
+    have H' := H HE S SMeas; clear H.
+    destruct (ExcludedMiddle (S point)).
+    - (* point is in S *)
+      suffices X : (~` E) `|` (E `&` f @^-1` S) = [set t | S (if t \in E then f t else point)].
+      { have H'' := measurableU _ _ (measurableC HE) H'.
+        rewrite X in H''.
+        by apply H''. }
+      apply functional_extensionality.
+      intro t.
+      simpl.
+      apply propext.
+      split.
+      + intros [ Ht | [Ht Hs] ].
+        * by rewrite (memNset Ht).
+        * by rewrite (mem_set Ht).
+      + intros HS.
+        destruct (ExcludedMiddle (E t)).
+        * right.
+          rewrite (mem_set H1) in HS.
+          split; done.
+        * by left.
+    - (* point is not in S, preimage is .... *)
+      suffices X : (E `&` f @^-1` S) = [set t | S (if t \in E then f t else point)].
+      { by rewrite X in H'; apply H'. }
+      apply functional_extensionality.
+      intro t.
+      simpl.
+      apply propext.
+      split.
+      + intros [Ht HS].
+        by rewrite (mem_set Ht).
+      + intros HS.
+        destruct (ExcludedMiddle (E t)).
+        * rewrite (mem_set H1) in HS.
+          split; done.
+        * exfalso.
+          apply H.
+          by rewrite (memNset H1) in HS.
+  Qed.
 
 End subspaces.
 
@@ -424,9 +464,74 @@ Section expr_measurability.
   (** Constructors: Each *C function is (.. * ... * ...) / expr -measurable *)
 
   Lemma ValC_measurable : @measurable_fun _ _ val expr setT ValC.
-  Proof. Admitted.
+  Proof.
+    (* Suffices to consider the preimages of cylinders *)
+    eapply measurability; [eauto|].
+    rewrite /preimage_class/subset.
+    move=> S /= [C HC <-]; clear S.
+    rewrite setTI.
+
+    (* If C is not (Val ...) , then the preimage is empty. *)
+    rewrite /expr_cyl/= in HC.
+    destruct HC as [D HD <-].
+
+    (* How to handle the other cases automatically?
+        - The preimage is set0
+        - set0 is measurable *)
+
+    (* Cases on D *)
+    destruct D; rewrite /preimage/=.
+    1: { (* Val case *)
+         unfold ValC.
+         (* v is a value with sets on the leaves
+            HD says the sets on the leaves are measurable *)
+         (* FIXME: Make these into more general lemmas. *)
+         (*
+         destruct v; simpl in HD.
+         - destruct l; simpl in HD.
+           admit.
+*)
+
+
+
+
+         (*
+         have X : [set t | (exists2 x : val_T, val_ST v x & Val x = Val t)] = setT.
+         { apply functional_extensionality.
+           intro x.
+           simpl.
+           apply propext.
+           split; [auto|].
+           move=> _.
+           admit. }
+        rewrite X.
+        clear X.
+        eapply @measurableT.
+        *)
+         admit.
+
+    }
+
+
+    2: {
+      unfold preimage.
+      simpl.
+
+      admit. }
+
+
+  Admitted.
 
   (* TODO: The rest *)
+
+
+
+
+
+
+
+
+
 
 
 
@@ -435,6 +540,15 @@ Section expr_measurability.
 
 
   Definition expr_shape : Type := @expr_pre () () () ().
+
+  (* TODO: a bijection between expr_shape and Nat (to define the sequence) *)
+
+
+  (* TODO: use inductive type instead? *)
+  Definition has_shape (e : expr) (shape : expr_shape) : Prop.
+  Admitted.
+
+  (* TODO: decompose a set of expr into a union over the set of shapes *)
 
 
 
