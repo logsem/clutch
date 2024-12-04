@@ -506,14 +506,45 @@ End expr_algebra.
 
 Section expr_measurability.
   Local Open Scope classical_set_scope.
+
+  Local Lemma MZ {d} {T : measurableType d} (S : set T)  : S = set0 -> measurable S.
+  Proof. move=>->; apply measurable0. Qed.
+
+
   (** Measurability of the projection and constructor functions *)
 
   (** Base_lit constructors, uncurried *)
   Lemma LitIntU_measurable : measurable_fun setT LitIntU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    1: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma LitBoolU_measurable : measurable_fun setT LitBoolU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    2: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   (*
   Lemma LitUnitU_measurable : measurable_fun setT LitUnitU.
@@ -521,19 +552,57 @@ Section expr_measurability.
   *)
 
   Lemma LitLocU_measurable : measurable_fun setT LitLocU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    4: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma LitLblU_measurable : measurable_fun setT LitLblU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    5: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma LitRealU_measurable : measurable_fun setT LitRealU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    6: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
 
   (** Expr Constructors: Each *C function is (.. * ... * ...) / expr -measurable *)
   Lemma ValU_measurable : measurable_fun setT ValU.
   Proof.
-    have MZ : forall S, S = set0 -> val_cyl.-sigma.-measurable S by move=>?->; apply measurable0.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
     move=> _ /= [? [D ? <-] <-]; rewrite setTI.
@@ -553,84 +622,394 @@ Section expr_measurability.
   Qed.
 
   Lemma VarU_measurable : measurable_fun setT VarU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    2: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma RecU_measurable : measurable_fun setT RecU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    3: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma AppU_measurable : measurable_fun setT AppU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    4: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma UnOpU_measurable : measurable_fun setT UnOpU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    5: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma BinOpU_measurable : measurable_fun setT BinOpU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    6: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma IfU_measurable : measurable_fun setT IfU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    7: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma PairU_measurable : measurable_fun setT PairU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    8: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma FstU_measurable : measurable_fun setT FstU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    9: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma SndU_measurable : measurable_fun setT SndU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    10: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma InjLU_measurable : measurable_fun setT InjLU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    11: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma InjRU_measurable : measurable_fun setT InjRU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    12: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma CaseU_measurable : measurable_fun setT CaseU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    13: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma AllocNU_measurable : measurable_fun setT AllocNU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    14: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma LoadU_measurable : measurable_fun setT LoadU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    15: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma StoreU_measurable : measurable_fun setT StoreU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    16: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma AllocTapeU_measurable : measurable_fun setT AllocTapeU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    18: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma RandU_measurable : measurable_fun setT RandU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    19: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   (*
   Lemma AllocUTapeU_measurable : measurable_fun setT AllocUTapeU.
-  Proof. Admitted.
   *)
 
   Lemma UrandU_measurable : measurable_fun setT UrandU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    20: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma TickU_measurable : measurable_fun setT TickU.
-  Proof. Admitted.
-
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    21: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   (** Val constructors *)
 
   Lemma LitVU_measurable : measurable_fun setT LitVU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    1: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma RecVU_measurable : measurable_fun setT RecVU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    2: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma PairVU_measurable : measurable_fun setT PairVU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    3: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma InjLVU_measurable : measurable_fun setT InjLVU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    4: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
   Lemma InjRVU_measurable : measurable_fun setT InjRVU.
-  Proof. Admitted.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/subset.
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    5: {
+      admit.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
+  Admitted.
 
 
 
