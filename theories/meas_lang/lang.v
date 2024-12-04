@@ -454,76 +454,96 @@ Section expr_measurability.
   Local Open Scope classical_set_scope.
   (** Measurability of the projection and constructor functions *)
 
-  (**  A cover of the expr type *)
-  Definition ecover_val : set expr := [set e  | ∃ v, e = ValC v].
-  Definition ecover_var : set expr := [set e  | ∃ s, e = VarC s].
-  Definition ecover_rec : set expr := [set e  | ∃ f x e, e = @RecC f x e].
-  (* TODO: The rest *)
 
 
-  (** Constructors: Each *C function is (.. * ... * ...) / expr -measurable *)
+  (** Base_lit constructors *)
+  Lemma LitIntC_measurable : @measurable_fun _ _ TZ base_lit setT LitIntC.
+  Proof. Admitted.
 
+
+
+  (*
+  Definition LitIntC  v : base_lit_T := LitInt v.
+  Definition LitBoolC v : base_lit_T := LitBool v.
+  Definition LitUnitC   : base_lit_T := LitUnit.
+  Definition LitLocC  v : base_lit_T := LitLoc v.
+  Definition LitLblC  v : base_lit_T := LitLbl v.
+  Definition LitRealC v : base_lit_T := LitReal v.
+*)
+
+
+
+
+  (** Expr Constructors: Each *C function is (.. * ... * ...) / expr -measurable *)
   Lemma ValC_measurable : @measurable_fun _ _ val expr setT ValC.
   Proof.
     have MZ : forall S, S = set0 -> val_cyl.-sigma.-measurable S by move=>?->; apply measurable0.
-    (* Suffices to consider the preimages of cylinders *)
-    eapply measurability; [eauto|].
+    eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> S /= [C HC <-]; clear S.
-    rewrite setTI.
-
-    (* If C is not (Val ...) , then the preimage is empty. *)
-    rewrite /expr_cyl/= in HC.
-    destruct HC as [D HD <-].
-
-    (* Cases on D *)
+    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
-    1: { (* Nontrivial case *)
-         (* The constructor is a generator pf the SA. *)
-         apply sub_sigma_algebra.
+    1: { apply sub_sigma_algebra.
          exists v; [done|].
          apply/seteqP; split=> x/=; [move=> ?; by exists x|].
          move=> [? ? H].
          inversion H as [H1].
          by rewrite <- H1.
       }
-      (* Trivial cases: The preimage along the constructor is zero *)
-      (* FIXME: Automation *)
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> H; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [? ? H]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [? ? H]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by rewrite /image3/=; move=> [? ? [? ? [? ? H]]]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [? ? H]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by rewrite /image3/=; move=> [? ? [? ? [? ? H]]]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [? ? H]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [? ? H]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [? ? H]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> H; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
-      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
-  Admitted.
+      all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+      all: try by move=> ?//.
+      all: try by move=> [?]//.
+      all: try by move=> [??[???]]//.
+      all: try by move=> [??[??[???]]]//.
+  Qed.
 
 
 
 
+
+
+  (*
+  Definition VarC x           : expr_T := Var x.
+  Definition RecC f x e       : expr_T := Rec f x e.
+  Definition AppC e1 e2       : expr_T := App e1 e2.
+  Definition UnOpC op e       : expr_T := UnOp op e.
+  Definition BinOpC op e1 e2  : expr_T := BinOp op e1 e2.
+  Definition IfC e0 e1 e2     : expr_T := If e0 e1 e2.
+  Definition PairC e1 e2      : expr_T := Pair e1 e2.
+  Definition FstC e1          : expr_T := Fst e1.
+  Definition SndC e1          : expr_T := Snd e1.
+  Definition InjLC e1         : expr_T := InjL e1.
+  Definition InjRC e1         : expr_T := InjR e1.
+  Definition CaseC e0 e1 e2   : expr_T := Case e0 e1 e2.
+  Definition AllocNC e1 e2    : expr_T := AllocN e1 e2.
+  Definition LoadC e          : expr_T := Load e.
+  Definition StoreC e1 e2     : expr_T := Store e1 e2.
+  Definition AllocTapeC e     : expr_T := AllocTape e.
+  Definition RandC e1 e2      : expr_T := Rand e1 e2.
+  Definition AllocUTapeC      : expr_T := AllocUTape.
+  Definition URandC e         : expr_T := URand e.
+  Definition TickC e          : expr_T := Tick e.
+*)
+
+
+  (** Val constructors *)
+
+  (*
+  Definition LitVC b      : val_T  := LitV b.
+  Definition RecVC f x e  : val_T  := RecV f x e.
+  Definition PairVC v1 v2 : val_T  := PairV v1 v2.
+  Definition InjLVC v     : val_T  := InjLV v.
+  Definition InjRVC v     : val_T  := InjRV v.
+  *)
+
+
+
+
+
+  (**  A cover of the expr type *)
+  Definition ecover_val : set expr := [set e  | ∃ v, e = ValC v].
+  Definition ecover_var : set expr := [set e  | ∃ s, e = VarC s].
+  Definition ecover_rec : set expr := [set e  | ∃ f x e, e = @RecC f x e].
   (* TODO: The rest *)
-
-
-
-
-
-
-
-
-
 
 
 
