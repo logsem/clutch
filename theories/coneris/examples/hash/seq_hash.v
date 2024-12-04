@@ -129,16 +129,16 @@ Section simple_bit_hash.
       eapply H2; [by erewrite elem_of_map_to_list|done].
   Qed.
 
-  Definition hashfun f m (tape_m: gmap loc _) γ: iProp Σ :=
+  Definition hashfun f m (tape_m: gmap _ _) γ: iProp Σ :=
     ∃ (hm : loc), ⌜ f = compute_hash_specialized #hm ⌝ ∗
                   map_list hm ((λ b, LitV (LitInt (Z.of_nat b))) <$> m) ∗
                   ⌜map_Forall (λ ind i, (0<= i <=val_size)%nat) m⌝ ∗
                   (* the tapes*)
                   ● ((λ x, (val_size, x))<$>tape_m) @ γ ∗
-                  [∗ map] α ↦ t ∈ tape_m,  rand_tapes (L:=L) #(LitLoc α) (val_size, t)
+                  [∗ map] α ↦ t ∈ tape_m,  rand_tapes (L:=L) α (val_size, t)
   .
 
-  Definition tape_m_elements (tape_m : gmap loc (list nat)) :=
+  Definition tape_m_elements (tape_m : gmap val (list nat)) :=
     concat (map_to_list tape_m).*2.
 
   Definition hash_tape α ns γ:=
@@ -300,13 +300,35 @@ Section simple_bit_hash.
   Lemma wp_hash_allocate_tape f m tape_m γ1 γ2 E:
     {{{ coll_free_hashfun f m tape_m γ1 γ2 }}}
       allocate_tape #() @ E
-      {{{ (α:loc), RET #α;
+      {{{ (α:val), RET α;
           coll_free_hashfun f m (<[α:=[]]> tape_m) γ1 γ2 ∗
           hash_tape α [] γ1
       }}}.
   Proof.
-    iIntros (Φ).
-  Admitted.
+    iIntros (Φ) "((%&->&Hmap&%Hforall &Hauth &Htapes)&Hview&%) HΦ".
+    rewrite /allocate_tape.
+    wp_pures.
+    iApply pgl_wp_fupd.
+    wp_apply (rand_allocate_tape_spec with "[//]") as (v) "Htape".
+    iApply "HΦ". rewrite /hash_tape.
+    iFrame.
+    iAssert (⌜((λ x : list nat, (val_size, x)) <$> tape_m) !! v = None⌝)%I as "%H0".
+    { rewrite lookup_fmap fmap_None.
+      destruct (tape_m!!v) eqn:K; last done.
+      rewrite big_sepM_lookup; last done.
+      iDestruct (rand_tapes_exclusive with "[$][$]") as "[]".
+    }
+    iMod (abstract_tapes_new with "[$]") as "[?$]"; first done.
+    iModIntro.
+    rewrite lookup_fmap fmap_None in H0.
+    rewrite big_sepM_insert; last done.
+    rewrite fmap_insert. iFrame.
+    repeat iSplit; try done.
+    iPureIntro.
+    rewrite /tape_m_elements.
+    eapply NoDup_Permutation_proper; last done.
+    by rewrite map_to_list_insert/=.
+  Qed.
   
   (* not the most general. Theoretically, you can even choose how to distribute the residue error*)
   Lemma coll_free_hash_presample f m tape_m γ1 γ2 α E ε ns:
@@ -326,7 +348,7 @@ Section simple_bit_hash.
     m !! n = None →
     {{{ coll_free_hashfun f m tape_m γ1 γ2 ∗ hash_tape α (x::xs) γ1
     }}}
-      f #n #α @ E
+      f #n α @ E
       {{{ RET #x; coll_free_hashfun f (<[ n := x ]>m) (<[α:=xs]> tape_m) γ1 γ2 ∗
                   hash_view_frag n x γ2 ∗
                   hash_tape α xs γ1
@@ -379,7 +401,7 @@ Section simple_bit_hash.
     - iPureIntro.
       eapply NoDup_Permutation_proper; last done.
       rewrite /tape_m_elements.
-      rewrite map_to_list_insert; last done.
+      rewrite (map_to_list_insert m); last done.
       erewrite <-insert_delete_insert.
       rewrite map_to_list_insert; last apply lookup_delete.
       replace tape_m with (<[α:=x::xs]> tape_m) at 2; last by apply insert_id.

@@ -6,9 +6,9 @@ From clutch.coneris Require Import coneris.
 Set Default Proof Using "Type*".
 
 Class abstract_tapesGS (Σ : gFunctors) := Abstract_tapesGS {
-  abstract_tapesGS_inG :: ghost_mapG Σ loc (nat*list nat)
+  abstract_tapesGS_inG :: ghost_mapG Σ val (nat*list nat)
                                          }.
-Definition abstract_tapesΣ := ghost_mapΣ loc (nat*list nat).
+Definition abstract_tapesΣ := ghost_mapΣ val (nat*list nat).
 
 Notation "α ◯↪N ( M ; ns ) @ γ":= (α ↪[ γ ] (M,ns))%I
                                     (at level 20, format "α ◯↪N ( M ; ns ) @ γ") : bi_scope.
