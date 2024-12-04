@@ -331,7 +331,7 @@ Section simple_bit_hash.
   Qed.
   
   (* not the most general. Theoretically, you can even choose how to distribute the residue error*)
-  Lemma coll_free_hash_presample f m tape_m γ1 γ2 α E ε ns:
+  Lemma coll_free_hash_presample f m tape_m γ1 γ2 α E (ε:nonnegreal) ns:
     coll_free_hashfun f m tape_m γ1 γ2 -∗
     hash_tape α ns γ1 -∗
     ↯ (nnreal_div (nnreal_nat (length (map_to_list m) + length (tape_m_elements tape_m))) (nnreal_nat(val_size+1))) -∗
@@ -342,6 +342,68 @@ Section simple_bit_hash.
           coll_free_hashfun f m (<[α:=ns++[n]]> tape_m) γ1 γ2
       ).
   Proof.
+    rewrite /hash_tape.
+    iIntros "((%&->&Hmap&%Hforall &Hauth &Htapes)&Hview&%) Hfrag Herr1 Herr2".
+    iDestruct (abstract_tapes_agree with "[$][$]") as "%Hlookup".
+    rewrite lookup_fmap fmap_Some in Hlookup.
+    destruct Hlookup as (?&?&?).
+    simplify_eq.
+    iAssert (⌜Forall (λ i, 0<=i<=val_size)%nat (tape_m_elements tape_m)⌝)%I as "%Hforall2".
+    { rewrite /tape_m_elements.
+      rewrite Forall_concat Forall_fmap.
+      iAssert (⌜Forall (uncurry (λ _ ns, Forall (λ i, 0<=i<=val_size)%nat ns)) (map_to_list tape_m)⌝)%I as "%K"; last first.
+      { iPureIntro.
+        eapply (List.Forall_impl); last done.
+        intros []. by simpl.
+      }
+      rewrite -map_Forall_to_list.
+      rewrite /map_Forall.
+      iIntros (?? Hlookup).
+      iDestruct (big_sepM_lookup with "[$]") as "?"; first apply Hlookup.
+      iDestruct (rand_tapes_valid with "[$]") as "%".
+      iPureIntro.
+      eapply Forall_impl; first done.
+      intros. simpl in *. lia.
+    }
+    iDestruct (big_sepM_insert_acc with "[$]") as "[Htapes1 Htapes2]"; first done.
+    iDestruct (ec_combine with "[$]") as "Herr".
+    pose (ε2 := (λ (x:fin (S val_size)), if bool_decide (fin_to_nat x ∈ tape_m_elements tape_m ++ (map_to_list m).*2)
+                         then 1 else ((nnreal_nat (val_size + 1) /
+        nnreal_nat (length (map_to_list m) + length (tape_m_elements tape_m)))%NNR * ε)
+    )%R).
+    iMod (rand_tapes_presample _ _ _ _ _ ε2 with "[$][$]") as "(%n&Herr&Htape)".
+    - intros. rewrite /ε2.
+      case_bool_decide; first lra.
+      apply Rmult_le_pos; apply cond_nonneg.
+    - rewrite /ε2.
+      rewrite SeriesC_scal_l.
+      erewrite (SeriesC_ext _ (λ x0 : fin (S val_size),
+                                 (if bool_decide ((fin_to_nat x0) ∉ tape_m_elements tape_m ++ (map_to_list m).*2)
+        then (nnreal_nat (val_size + 1) /
+                nnreal_nat (length (map_to_list m) + length (tape_m_elements tape_m)))%NNR * ε else 0)+
+               (if bool_decide ((fin_to_nat x0) ∈ tape_m_elements tape_m ++ (map_to_list m).*2)
+        then 1 else 0)))%R; last first.
+      { simpl. intros.
+        repeat case_bool_decide; try lra; naive_solver.
+      } 
+      admit.
+    - rewrite /ε2. case_bool_decide as H'; first by iDestruct (ec_contradict with "[$]") as "[]".
+      iMod (abstract_tapes_presample _ _ _ _ _ n with "[$][$]") as "[Hauth Hfrag]".
+      iDestruct ("Htapes2" with "[$]") as "$".
+      rewrite fmap_insert; iFrame.
+      iPureIntro; split; try done.
+      rewrite /tape_m_elements.
+      apply NoDup_Permutation_proper with (((fin_to_nat n)::tape_m_elements tape_m) ++ (map_to_list m).*2).
+      + apply Permutation_app_tail.
+        rewrite <-insert_delete_insert.
+        erewrite <-(insert_delete tape_m) at 2; last done.
+        rewrite /tape_m_elements.
+        rewrite !map_to_list_insert; try apply lookup_delete.
+        rewrite fmap_cons. simpl.
+        rewrite app_comm_cons. apply Permutation_app_tail.
+        by rewrite -Permutation_cons_append.
+      + rewrite -app_comm_cons.
+        by apply NoDup_cons.
   Admitted.
 
   Lemma wp_insert_no_coll E f m (n : nat) tape_m x xs γ1 γ2 α:
