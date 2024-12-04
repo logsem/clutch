@@ -465,6 +465,7 @@ Section expr_measurability.
 
   Lemma ValC_measurable : @measurable_fun _ _ val expr setT ValC.
   Proof.
+    have MZ : forall S, S = set0 -> val_cyl.-sigma.-measurable S by move=>?->; apply measurable0.
     (* Suffices to consider the preimages of cylinders *)
     eapply measurability; [eauto|].
     rewrite /preimage_class/subset.
@@ -475,52 +476,43 @@ Section expr_measurability.
     rewrite /expr_cyl/= in HC.
     destruct HC as [D HD <-].
 
-    (* How to handle the other cases automatically?
-        - The preimage is set0
-        - set0 is measurable *)
-
     (* Cases on D *)
     destruct D; rewrite /preimage/=.
-    1: { (* Val case *)
-         unfold ValC.
-         (* v is a value with sets on the leaves
-            HD says the sets on the leaves are measurable *)
-         (* FIXME: Make these into more general lemmas. *)
-         (*
-         destruct v; simpl in HD.
-         - destruct l; simpl in HD.
-           admit.
-*)
-
-
-
-
-         (*
-         have X : [set t | (exists2 x : val_T, val_ST v x & Val x = Val t)] = setT.
-         { apply functional_extensionality.
-           intro x.
-           simpl.
-           apply propext.
-           split; [auto|].
-           move=> _.
-           admit. }
-        rewrite X.
-        clear X.
-        eapply @measurableT.
-        *)
-         admit.
-
-    }
-
-
-    2: {
-      unfold preimage.
-      simpl.
-
-      admit. }
-
-
+    1: { (* Nontrivial case *)
+         (* The constructor is a generator pf the SA. *)
+         apply sub_sigma_algebra.
+         exists v; [done|].
+         apply/seteqP; split=> x/=; [move=> ?; by exists x|].
+         move=> [? ? H].
+         inversion H as [H1].
+         by rewrite <- H1.
+      }
+      (* Trivial cases: The preimage along the constructor is zero *)
+      (* FIXME: Automation *)
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> H; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [? ? H]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [? ? H]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by rewrite /image3/=; move=> [? ? [? ? [? ? H]]]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [? ? H]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by rewrite /image3/=; move=> [? ? [? ? [? ? H]]]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [? ? H]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [? ? H]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [? ? H]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> H; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
+      - apply MZ. apply /predeqP =>y /=; split; [| by move=>?]. by move=> [H]; inversion H.
   Admitted.
+
+
+
 
   (* TODO: The rest *)
 
