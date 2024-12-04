@@ -47,6 +47,11 @@ HB.instance Definition _ := gen_eqMixin Z.
 HB.instance Definition _ := gen_choiceMixin Z.
 HB.instance Definition _ := isPointed.Build Z inhabitant.
 
+(* Instances for binder *)
+HB.instance Definition _ := gen_eqMixin binder.
+HB.instance Definition _ := gen_choiceMixin binder.
+HB.instance Definition _ := isPointed.Build binder inhabitant.
+
 (* Instances for loc *)
 HB.instance Definition _ := gen_eqMixin loc.
 HB.instance Definition _ := gen_choiceMixin loc.
@@ -190,16 +195,17 @@ Inductive bin_op : Set :=
   | LeOp | LtOp | EqOp (* Relations *)
   | OffsetOp. (* Pointer offset *)
 
+Local Open Scope classical_set_scope.
 Inductive expr_pre {TZ TB TL TR : Type} :=
   (* Values *)
   | Val (v : val_pre)
   (* Base lambda calculus *)
-  | Var (x : string)
-  | Rec (f x : binder) (e : expr_pre)
+  | Var (x : <<discr binder>>)
+  | Rec (f x : <<discr binder>>) (e : expr_pre)
   | App (e1 e2 : expr_pre)
   (* Base types and their operations *)
-  | UnOp (op : un_op) (e : expr_pre)
-  | BinOp (op : bin_op) (e1 e2 : expr_pre)
+  | UnOp (op : <<discr un_op>>) (e : expr_pre)
+  | BinOp (op : <<discr bin_op>>) (e1 e2 : expr_pre)
   | If (e0 e1 e2 : expr_pre)
   (* Products *)
   | Pair (e1 e2 : expr_pre)
@@ -223,10 +229,21 @@ Inductive expr_pre {TZ TB TL TR : Type} :=
   | Tick (e : expr_pre )
 with val_pre {TZ TB TL TR : Type} :=
   | LitV (l : @base_lit_pre TZ TB TL TR)
-  | RecV (f x : binder) (e : expr_pre)
+  | RecV (f x : <<discr binder>>) (e : expr_pre)
   | PairV (v1 v2 : val_pre)
   | InjLV (v : val_pre)
   | InjRV (v : val_pre).
+
+
+(* Instances for un_op *)
+HB.instance Definition _ := gen_eqMixin un_op.
+HB.instance Definition _ := gen_choiceMixin un_op.
+HB.instance Definition _ := isPointed.Build un_op NegOp.
+
+(* Instances for bin_op *)
+HB.instance Definition _ := gen_eqMixin bin_op.
+HB.instance Definition _ := gen_choiceMixin bin_op.
+HB.instance Definition _ := isPointed.Build bin_op PlusOp.
 
 
 
@@ -409,8 +426,7 @@ Section expr_algebra.
   Definition val : measurableType val_cyl.-sigma := val_T.
 
 
-  (** Constructors for expressions with the fixed and measurable base types.
-      These are the ones you will want to use to construct programs 99% of the time. *)
+  (** Constructors for expressions with the fixed and measurable base types. *)
   Definition LitIntC  v : base_lit_T := LitInt v.
   Definition LitBoolC v : base_lit_T := LitBool v.
   Definition LitUnitC   : base_lit_T := LitUnit.
@@ -446,6 +462,44 @@ Section expr_algebra.
   Definition InjLVC v     : val_T  := InjLV v.
   Definition InjRVC v     : val_T  := InjRV v.
 
+
+
+  (** Uncurried form: These ones are measurable *)
+  Definition LitIntU  (v : TZ) := LitIntC v.
+  Definition LitBoolU (v : TB) := LitBoolC v.
+  Definition LitUnitU          := LitUnitC.
+  Definition LitLocU  (v : TL) := LitLocC v.
+  Definition LitLblU  (v : TL) := LitLblC v.
+  Definition LitRealU (v : TR) := LitRealC v.
+
+  Definition ValU (v : val)                                         := ValC v.
+  Definition VarU (v : <<discr binder>>)                            := VarC v.
+  Definition RecU (v : <<discr binder>> * <<discr binder>> * expr)  := RecC v.1.1 v.1.2 v.2.
+  Definition AppU (v : expr * expr)                                 := AppC v.1 v.2.
+  Definition UnOpU (v : <<discr un_op>> * expr)                     := UnOpC v.1 v.2.
+  Definition BinOpU (v : <<discr bin_op>> * expr * expr)            := BinOpC v.1.1 v.1.2 v.2.
+  Definition IfU (v : expr * expr * expr)                           := IfC v.1.1 v.1.2 v.2.
+  Definition PairU (v : expr * expr)                                := PairC v.1 v.2.
+  Definition FstU (v : expr)                                        := FstC v.
+  Definition SndU (v : expr)                                        := SndC v.
+  Definition InjLU (v : expr)                                       := InjLC v.
+  Definition InjRU (v : expr)                                       := InjRC v.
+  Definition CaseU (v : expr * expr * expr)                         := CaseC v.1.1 v.1.2 v.2.
+  Definition AllocNU (v : expr * expr)                              := AllocNC v.1 v.2.
+  Definition LoadU (v : expr)                                       := LoadC v.
+  Definition StoreU (v : expr * expr)                               := StoreC v.1 v.2.
+  Definition AllocTapeU (v : expr)                                  := AllocTapeC v.
+  Definition RandU (v : expr * expr)                                := RandC v.1 v.2.
+  Definition AllocUTapeU                                            := AllocUTapeC.
+  Definition UrandU (v : expr)                                      := URandC v.
+  Definition TickU (v : expr)                                       := TickC v.
+
+  Definition LitVU (v : base_lit)                                   := LitVC v.
+  Definition RecVU (v : <<discr binder>> * <<discr binder>> * expr) := RecC v.1.1 v.1.2 v.2.
+  Definition PairVU (v : val * val)                                 := PairVC v.1 v.2.
+  Definition InjLVU (v : val)                                       := InjLVC v.
+  Definition InjRVU (v : val)                                       := InjRVC v.
+
 End expr_algebra.
 
 
@@ -454,28 +508,30 @@ Section expr_measurability.
   Local Open Scope classical_set_scope.
   (** Measurability of the projection and constructor functions *)
 
+  (** Base_lit constructors, uncurried *)
+  Lemma LitIntU_measurable : measurable_fun setT LitIntU.
+  Proof. Admitted.
 
+  Lemma LitBoolU_measurable : measurable_fun setT LitBoolU.
+  Proof. Admitted.
 
-  (** Base_lit constructors *)
-  Lemma LitIntC_measurable : @measurable_fun _ _ TZ base_lit setT LitIntC.
+  (*
+  Lemma LitUnitU_measurable : measurable_fun setT LitUnitU.
+  Proof. Admitted.
+  *)
+
+  Lemma LitLocU_measurable : measurable_fun setT LitLocU.
+  Proof. Admitted.
+
+  Lemma LitLblU_measurable : measurable_fun setT LitLblU.
+  Proof. Admitted.
+
+  Lemma LitRealU_measurable : measurable_fun setT LitRealU.
   Proof. Admitted.
 
 
-
-  (*
-  Definition LitIntC  v : base_lit_T := LitInt v.
-  Definition LitBoolC v : base_lit_T := LitBool v.
-  Definition LitUnitC   : base_lit_T := LitUnit.
-  Definition LitLocC  v : base_lit_T := LitLoc v.
-  Definition LitLblC  v : base_lit_T := LitLbl v.
-  Definition LitRealC v : base_lit_T := LitReal v.
-*)
-
-
-
-
   (** Expr Constructors: Each *C function is (.. * ... * ...) / expr -measurable *)
-  Lemma ValC_measurable : @measurable_fun _ _ val expr setT ValC.
+  Lemma ValU_measurable : measurable_fun setT ValU.
   Proof.
     have MZ : forall S, S = set0 -> val_cyl.-sigma.-measurable S by move=>?->; apply measurable0.
     eapply measurability; [by eauto|].
@@ -488,52 +544,95 @@ Section expr_measurability.
          move=> [? ? H].
          inversion H as [H1].
          by rewrite <- H1.
-      }
-      all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-      all: try by move=> ?//.
-      all: try by move=> [?]//.
-      all: try by move=> [??[???]]//.
-      all: try by move=> [??[??[???]]]//.
+    }
+    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
+    all: try by move=> ?//.
+    all: try by move=> [?]//.
+    all: try by move=> [??[???]]//.
+    all: try by move=> [??[??[???]]]//.
   Qed.
 
+  Lemma VarU_measurable : measurable_fun setT VarU.
+  Proof. Admitted.
 
+  Lemma RecU_measurable : measurable_fun setT RecU.
+  Proof. Admitted.
 
+  Lemma AppU_measurable : measurable_fun setT AppU.
+  Proof. Admitted.
 
+  Lemma UnOpU_measurable : measurable_fun setT UnOpU.
+  Proof. Admitted.
 
+  Lemma BinOpU_measurable : measurable_fun setT BinOpU.
+  Proof. Admitted.
+
+  Lemma IfU_measurable : measurable_fun setT IfU.
+  Proof. Admitted.
+
+  Lemma PairU_measurable : measurable_fun setT PairU.
+  Proof. Admitted.
+
+  Lemma FstU_measurable : measurable_fun setT FstU.
+  Proof. Admitted.
+
+  Lemma SndU_measurable : measurable_fun setT SndU.
+  Proof. Admitted.
+
+  Lemma InjLU_measurable : measurable_fun setT InjLU.
+  Proof. Admitted.
+
+  Lemma InjRU_measurable : measurable_fun setT InjRU.
+  Proof. Admitted.
+
+  Lemma CaseU_measurable : measurable_fun setT CaseU.
+  Proof. Admitted.
+
+  Lemma AllocNU_measurable : measurable_fun setT AllocNU.
+  Proof. Admitted.
+
+  Lemma LoadU_measurable : measurable_fun setT LoadU.
+  Proof. Admitted.
+
+  Lemma StoreU_measurable : measurable_fun setT StoreU.
+  Proof. Admitted.
+
+  Lemma AllocTapeU_measurable : measurable_fun setT AllocTapeU.
+  Proof. Admitted.
+
+  Lemma RandU_measurable : measurable_fun setT RandU.
+  Proof. Admitted.
 
   (*
-  Definition VarC x           : expr_T := Var x.
-  Definition RecC f x e       : expr_T := Rec f x e.
-  Definition AppC e1 e2       : expr_T := App e1 e2.
-  Definition UnOpC op e       : expr_T := UnOp op e.
-  Definition BinOpC op e1 e2  : expr_T := BinOp op e1 e2.
-  Definition IfC e0 e1 e2     : expr_T := If e0 e1 e2.
-  Definition PairC e1 e2      : expr_T := Pair e1 e2.
-  Definition FstC e1          : expr_T := Fst e1.
-  Definition SndC e1          : expr_T := Snd e1.
-  Definition InjLC e1         : expr_T := InjL e1.
-  Definition InjRC e1         : expr_T := InjR e1.
-  Definition CaseC e0 e1 e2   : expr_T := Case e0 e1 e2.
-  Definition AllocNC e1 e2    : expr_T := AllocN e1 e2.
-  Definition LoadC e          : expr_T := Load e.
-  Definition StoreC e1 e2     : expr_T := Store e1 e2.
-  Definition AllocTapeC e     : expr_T := AllocTape e.
-  Definition RandC e1 e2      : expr_T := Rand e1 e2.
-  Definition AllocUTapeC      : expr_T := AllocUTape.
-  Definition URandC e         : expr_T := URand e.
-  Definition TickC e          : expr_T := Tick e.
-*)
+  Lemma AllocUTapeU_measurable : measurable_fun setT AllocUTapeU.
+  Proof. Admitted.
+  *)
+
+  Lemma UrandU_measurable : measurable_fun setT UrandU.
+  Proof. Admitted.
+
+  Lemma TickU_measurable : measurable_fun setT TickU.
+  Proof. Admitted.
 
 
   (** Val constructors *)
 
-  (*
-  Definition LitVC b      : val_T  := LitV b.
-  Definition RecVC f x e  : val_T  := RecV f x e.
-  Definition PairVC v1 v2 : val_T  := PairV v1 v2.
-  Definition InjLVC v     : val_T  := InjLV v.
-  Definition InjRVC v     : val_T  := InjRV v.
-  *)
+  Lemma LitVU_measurable : measurable_fun setT LitVU.
+  Proof. Admitted.
+
+  Lemma RecVU_measurable : measurable_fun setT RecVU.
+  Proof. Admitted.
+
+  Lemma PairVU_measurable : measurable_fun setT PairVU.
+  Proof. Admitted.
+
+  Lemma InjLVU_measurable : measurable_fun setT InjLVU.
+  Proof. Admitted.
+
+  Lemma InjRVU_measurable : measurable_fun setT InjRVU.
+  Proof. Admitted.
+
+
 
 
 
