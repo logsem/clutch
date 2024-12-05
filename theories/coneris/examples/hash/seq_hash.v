@@ -1,9 +1,9 @@
 From stdpp Require Export fin_maps.
 From iris.algebra Require Import excl_auth numbers gset_bij.
-From clutch.coneris Require Export coneris lib.map hocap_rand abstract_tape.
+From clutch.coneris Require Export coneris lib.map hocap_rand abstract_tape seq_hash_interface.
 Set Default Proof Using "Type*".
 
-Section simple_bit_hash.
+Section seq_hash_impl.
 
   Context `{Hcon:conerisGS Σ, r1:!@rand_spec Σ Hcon, L:!randG Σ,
               HinG: inG Σ (gset_bijR nat nat), HinG': abstract_tapesGS Σ}.
@@ -45,14 +45,6 @@ Section simple_bit_hash.
     λ: "_",
       rand_allocate_tape #val_size.
 
-  (* A hash function is collision free if the partial map it
-     implements is an injective function *)
-  Definition coll_free (m : gmap nat nat) :=
-    forall k1 k2,
-    is_Some (m !! k1) ->
-    is_Some (m !! k2) ->
-    m !!! k1 = m !!! k2 ->
-    k1 = k2.
   
   Definition hash_view_auth m γ := (own γ (gset_bij_auth (DfracOwn 1) (map_to_set pair m)))%I.
   Definition hash_view_frag k v γ := (own γ (gset_bij_elem k v)).
@@ -565,7 +557,7 @@ Section simple_bit_hash.
       simpl; by rewrite Permutation_middle.
   Qed.
 
-End simple_bit_hash.
+End seq_hash_impl.
 
 
 
