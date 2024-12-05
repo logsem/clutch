@@ -531,31 +531,6 @@ Section expr_measurability.
       apply (R _ _ _ _ H).
   Qed.
 
-  Local Lemma Prod3Decomp {T1 T2 T3 T : Type} (P1 : set T1) (P2 : set T2) (P3 : set T3) (FU : T1 * T2 * T3 -> T) :
-    (∀ {a b c d}, curry FU a b = curry FU c d -> b = d) ->
-    [set t | (exists2 x : T1, P1 x & exists2 y : T2, P2 y & exists2 z : T3, P3 z & (curry3 FU) x y z = FU t) ] =
-    [set t | (exists2 x : T1, P1 x & exists2 y : T2, True    & exists2 z : T3, True    & (curry3 FU) x y z = FU t) ] `&`
-    [set t | (exists2 x : T1, True    & exists2 y : T2, P2 y & exists2 z : T3, True    & (curry3 FU) x y z = FU t) ] `&`
-    [set t | (exists2 x : T1, True    & exists2 y : T2, True    & exists2 z : T3, P3 z & (curry3 FU) x y z = FU t) ].
-  Proof.
-    move=> R.
-    apply/seteqP; split=> x/=.
-    -
-
-      (*
-      move=> [a ? [b ? <-]].
-      split; (exists a; [done|]; exists b; done).
-    - move=> [[a ?] [b ?]] <- [c ? [d ?]] H.
-      exists c; [done|]; exists b; [done|].
-      rewrite <- H.
-      f_equal.
-      symmetry.
-      apply (R _ _ _ _ H).
-  Qed.
-*)
-      Admitted.
-
-
 
   (** Measurability of the projection and constructor functions *)
 
@@ -813,14 +788,49 @@ Section expr_measurability.
     move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     5: {
-      admit.
+      simpl.
+      suffices -> :
+        [set t | (exists2 x : expr_T, expr_ST D x & UnOp op x = UnOpU t)] =
+        [set t | exists x0 : expr_T, exists o, (expr_ST D x0 /\ UnOp o x0 = UnOpU t)] `&`
+        [set t | t.1 = op ].
+      { apply measurableI.
+        + rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+          apply sub_sigma_algebra.
+          simpl in HD.
+          simpl.
+          right.
+          exists (expr_ST D).
+          { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D. }
+          rewrite setTI /=.
+          apply/seteqP; split=> x/=.
+          + move=>?. exists x.2. exists x.1. split; [done|]. by intuition.
+          + move=> [? [? [? H]]].
+            inversion H.
+            by rewrite <- H2.
+        + rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+          apply sub_sigma_algebra.
+          simpl.
+          left.
+          exists [set op]. { by rewrite /measurable/=/discr_meas/=. }
+          by rewrite setTI /=. }
+      apply/seteqP; split=> y/=.
+      - move=> [a ? [-> Ha]]; split; [|done].
+        exists a. exists y.1. split; [done|].
+        by rewrite Ha //=.
+      - move=> [[a [? [? Ha]]] <-].
+        simpl in HD.
+        exists a; [done|].
+        destruct y; simpl.
+        rewrite /UnOpU/UnOpC/=.
+        f_equal.
+        inversion Ha. by intuition.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   Lemma BinOpU_measurable : measurable_fun setT BinOpU.
   Proof.
