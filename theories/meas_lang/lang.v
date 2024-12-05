@@ -508,7 +508,10 @@ Section expr_measurability.
   Local Open Scope classical_set_scope.
 
   Local Lemma MZ {d} {T : measurableType d} (S : set T)  : S = set0 -> measurable S.
-  Proof. move=>->; apply measurable0. Qed.
+  Proof. by move=>->; apply measurable0. Qed.
+
+  Local Lemma MT {d} {T : measurableType d} (S : set T)  : S = setT -> measurable S.
+  Proof. by move=>->; eapply @measurableT. Qed.
 
 
   (** Measurability of the projection and constructor functions *)
@@ -518,33 +521,41 @@ Section expr_measurability.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     1: {
-      admit.
+         suffices R : [set t | (exists2 x : <<discr Z >>, n x & LitInt x = LitIntU t)] = n.
+         { simpl in HD; by rewrite R. }
+         apply/seteqP; split=> x/=; [by move=> [v ?] [<-] |].
+         move=> ?.
+         by exists x.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   Lemma LitBoolU_measurable : measurable_fun setT LitBoolU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     2: {
-      admit.
+         suffices R : [set t | (exists2 x : <<discr _ >>, b x & LitBool x = LitBoolU t)] = b.
+         { simpl in HD; by rewrite R. }
+         apply/seteqP; split=> x/=; [by move=> [v ?] [<-] |].
+         move=> ?.
+         by exists x.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   (*
   Lemma LitUnitU_measurable : measurable_fun setT LitUnitU.
@@ -555,49 +566,61 @@ Section expr_measurability.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     4: {
-      admit.
+         suffices R : [set t | (exists2 x : <<discr _ >>, l x & LitLoc x = LitLocU t)] = l.
+         { simpl in HD; by rewrite R. }
+         apply/seteqP; split=> x/=; [by move=> [v ?] [<-] |].
+         move=> ?.
+         by exists x.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   Lemma LitLblU_measurable : measurable_fun setT LitLblU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     5: {
-      admit.
+         suffices R : [set t | (exists2 x : <<discr _ >>, l x & LitLbl x = LitLblU t)] = l.
+         { simpl in HD; by rewrite R. }
+         apply/seteqP; split=> x/=; [by move=> [v ?] [<-] |].
+         move=> ?.
+         by exists x.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   Lemma LitRealU_measurable : measurable_fun setT LitRealU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     6: {
-      admit.
+         suffices R : [set t | (exists2 x : R, r x & LitReal x = LitRealU t)] = r.
+         { simpl in HD; by rewrite R. }
+         apply/seteqP; split=> x/=; [by move=> [v ?] [<-] |].
+         move=> ?.
+         by exists x.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
 
   (** Expr Constructors: Each *C function is (.. * ... * ...) / expr -measurable *)
@@ -605,9 +628,10 @@ Section expr_measurability.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
-    1: { apply sub_sigma_algebra.
+    1: {
+         apply sub_sigma_algebra.
          exists v; [done|].
          apply/seteqP; split=> x/=; [move=> ?; by exists x|].
          move=> [? ? H].
@@ -625,23 +649,21 @@ Section expr_measurability.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
-    2: {
-      admit.
-    }
+    2: { by rewrite /measurable/=/discr_meas/=. }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   Lemma RecU_measurable : measurable_fun setT RecU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     3: {
       admit.
@@ -657,23 +679,72 @@ Section expr_measurability.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     4: {
-      admit.
+         simpl in HD.
+         destruct HD as [HD0 HD1].
+         (* FIXME: Simplify before continuing *)
+         suffices -> : [set t | (exists2 x : expr_T, expr_ST D1 x & exists2 y : expr_T, expr_ST D2 y & App x y = AppU t)] =
+                       [set t | (exists2 x : expr_T, True            & exists2 y : expr_T, expr_ST D2 y & App x y = AppU t)] `&`
+                       [set t | (exists2 x : expr_T, expr_ST D1 x & exists2 y : expr_T, True            & App x y = AppU t)].
+         { apply measurableI.
+           - rewrite /measurable/=.
+             apply sub_sigma_algebra.
+             rewrite /preimage_classes/preimage_class/preimage/=.
+             right.
+             exists (expr_ST D2).
+             { rewrite /measurable/=.
+               rewrite /expr_cyl.
+               apply sub_sigma_algebra.
+               simpl.
+               by exists D2.
+             }
+             rewrite setTI.
+             apply/seteqP; split=> x/=.
+             + move=> y.
+               exists x.1; [done|].
+               exists x.2; [done|].
+               done.
+             + move=> [x0 Hx0 [y0 Hy0] [? <-]].
+               done.
+           - rewrite /measurable/=.
+             apply sub_sigma_algebra.
+             rewrite /preimage_classes/preimage_class/preimage/=.
+             left.
+             exists (expr_ST D1).
+             { rewrite /measurable/=.
+               rewrite /expr_cyl.
+               apply sub_sigma_algebra.
+               simpl.
+               by exists D1.
+             }
+             rewrite setTI.
+             apply/seteqP; split=> x/=.
+             + move=> y.
+               exists x.1; [done|].
+               exists x.2; [done|].
+               done.
+             + by move=> [x0 ? [y0 ? [<- ?]]] //.
+         }
+         apply/seteqP; split=> x/=.
+         - move=> [a ? [b ? <-]].
+           split; (exists a; [done|]; exists b; done).
+         - move=> [[a ?] [b ? <-]] [c ? [d ?]] [<- ?].
+           exists c; [done|]; exists b; done.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   Lemma UnOpU_measurable : measurable_fun setT UnOpU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     5: {
       admit.
@@ -689,7 +760,7 @@ Section expr_measurability.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     6: {
       admit.
@@ -705,7 +776,7 @@ Section expr_measurability.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     7: {
       admit.
@@ -721,7 +792,7 @@ Section expr_measurability.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     8: {
       admit.
@@ -737,71 +808,99 @@ Section expr_measurability.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     9: {
-      admit.
+         apply sub_sigma_algebra.
+         rewrite /expr_cyl/=.
+         simpl in HD.
+         exists D; [done|].
+         apply/seteqP; split=> x/=; [move=>?; by exists x|].
+         move=> [? ? H].
+         inversion H as [H1].
+         by rewrite <- H1.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   Lemma SndU_measurable : measurable_fun setT SndU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     10: {
-      admit.
+         apply sub_sigma_algebra.
+         rewrite /expr_cyl/=.
+         simpl in HD.
+         exists D; [done|].
+         apply/seteqP; split=> x/=; [move=>?; by exists x|].
+         move=> [? ? H].
+         inversion H as [H1].
+         by rewrite <- H1.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   Lemma InjLU_measurable : measurable_fun setT InjLU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     11: {
-      admit.
+         apply sub_sigma_algebra.
+         rewrite /expr_cyl/=.
+         simpl in HD.
+         exists D; [done|].
+         apply/seteqP; split=> x/=; [move=>?; by exists x|].
+         move=> [? ? H].
+         inversion H as [H1].
+         by rewrite <- H1.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   Lemma InjRU_measurable : measurable_fun setT InjRU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     12: {
-      admit.
+         apply sub_sigma_algebra.
+         rewrite /expr_cyl/=.
+         simpl in HD.
+         exists D; [done|].
+         apply/seteqP; split=> x/=; [move=>?; by exists x|].
+         move=> [? ? H].
+         inversion H as [H1].
+         by rewrite <- H1.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   Lemma CaseU_measurable : measurable_fun setT CaseU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     13: {
       admit.
@@ -817,7 +916,7 @@ Section expr_measurability.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     14: {
       admit.
@@ -833,23 +932,30 @@ Section expr_measurability.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     15: {
-      admit.
+         apply sub_sigma_algebra.
+         rewrite /expr_cyl/=.
+         simpl in HD.
+         exists D; [done|].
+         apply/seteqP; split=> x/=; [move=>?; by exists x|].
+         move=> [? ? H].
+         inversion H as [H1].
+         by rewrite <- H1.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   Lemma StoreU_measurable : measurable_fun setT StoreU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     16: {
       admit.
@@ -865,25 +971,31 @@ Section expr_measurability.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
-    18: {
-      admit.
+    17: {
+         apply sub_sigma_algebra.
+         rewrite /expr_cyl/=.
+         exists D; [done|].
+         apply/seteqP; split=> x/=; [move=>?; by exists x|].
+         move=> [? ? H].
+         inversion H as [H1].
+         by rewrite <- H1.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   Lemma RandU_measurable : measurable_fun setT RandU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
-    19: {
+    18: {
       admit.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
@@ -901,33 +1013,45 @@ Section expr_measurability.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     20: {
-      admit.
+         apply sub_sigma_algebra.
+         rewrite /expr_cyl/=.
+         exists D; [done|].
+         apply/seteqP; split=> x/=; [move=>?; by exists x|].
+         move=> [? ? H].
+         inversion H as [H1].
+         by rewrite <- H1.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   Lemma TickU_measurable : measurable_fun setT TickU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     21: {
-      admit.
+         apply sub_sigma_algebra.
+         rewrite /expr_cyl/=.
+         exists D; [done|].
+         apply/seteqP; split=> x/=; [move=>?; by exists x|].
+         move=> [? ? H].
+         inversion H as [H1].
+         by rewrite <- H1.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   (** Val constructors *)
 
@@ -935,26 +1059,33 @@ Section expr_measurability.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     1: {
-      admit.
+         apply sub_sigma_algebra.
+         rewrite /base_lit_cyl/=.
+         exists l; [done|].
+         apply/seteqP; split=> x/=; [move=>?; by exists x|].
+         move=> [? ? H].
+         inversion H as [H1].
+         by rewrite <- H1.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   Lemma RecVU_measurable : measurable_fun setT RecVU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
-    2: {
+    3: {
       admit.
+
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
@@ -967,12 +1098,11 @@ Section expr_measurability.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     3: {
       admit.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
@@ -983,33 +1113,45 @@ Section expr_measurability.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     4: {
-      admit.
+         apply sub_sigma_algebra.
+         rewrite /base_lit_cyl/=.
+         exists D; [done|].
+         apply/seteqP; split=> x/=; [move=>?; by exists x|].
+         move=> [? ? H].
+         inversion H as [H1].
+         by rewrite <- H1.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   Lemma InjRVU_measurable : measurable_fun setT InjRVU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
-    move=> _ /= [? [D ? <-] <-]; rewrite setTI.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     5: {
-      admit.
+         apply sub_sigma_algebra.
+         rewrite /base_lit_cyl/=.
+         exists D; [done|].
+         apply/seteqP; split=> x/=; [move=>?; by exists x|].
+         move=> [? ? H].
+         inversion H as [H1].
+         by rewrite <- H1.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
 
 
@@ -1477,11 +1619,14 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
   | _              => None
   end.
 
+
+Definition binder_eq (b1 b2 : <<discr binder>> ) : bool. Admitted.
+
 (** Substitution *)
 Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   match e with
   | Val _ => e
-  | Var y => if decide (x = y) then Val v else Var y
+  | Var y =>  if (binder_eq x y) then Val v else Var y
   | Rec f y e =>
      Rec f y $ if decide (BNamed x ≠ f ∧ BNamed x ≠ y) then subst x v e else e
   | App e1 e2 => App (subst x v e1) (subst x v e2)
