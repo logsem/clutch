@@ -3,48 +3,9 @@ From iris.algebra Require Import excl_auth numbers gset_bij.
 From clutch.coneris Require Export coneris lib.map hocap_rand abstract_tape seq_hash_interface.
 Set Default Proof Using "Type*".
 
-Section seq_hash_impl.
-
-  Context `{Hcon:conerisGS Σ, r1:!@rand_spec Σ Hcon, L:!randG Σ,
-              HinG: inG Σ (gset_bijR nat nat), HinG': abstract_tapesGS Σ}.
-
-  Variable val_size : nat.
-
-  (* A hash function's internal state is a map from previously queried keys to their hash value *)
-  Definition init_hash_state : val := init_map.
-
-  (* To hash a value v, we check whether it is in the map (i.e. it has been previously hashed).
-     If it has we return the saved hash value, otherwise we draw a hash value and save it in the map *)
-  Definition compute_hash_specialized hm : val :=
-    λ: "v" "α",
-      match: get hm "v" with
-      | SOME "b" => "b"
-      | NONE =>
-          let: "b" := (rand_tape "α" #val_size) in
-          set hm "v" "b";;
-          "b"
-      end.
-  Definition compute_hash : val :=
-    λ: "hm" "v" "α",
-      match: get "hm" "v" with
-      | SOME "b" => "b"
-      | NONE =>
-          let: "b" := (rand_tape "α" #val_size) in
-          set "hm" "v" "b";;
-          "b"
-      end.
-
-  (* init_hash returns a hash as a function, basically wrapping the internal state
-     in the returned function *)
-  Definition init_hash : val :=
-    λ: "_",
-      let: "hm" := init_hash_state #() in
-      compute_hash "hm".
-
-  Definition allocate_tape : val :=
-    λ: "_",
-      rand_allocate_tape #val_size.
-
+Section hash_view_impl.
+  Context `{Hcon:conerisGS Σ, 
+              HinG: inG Σ (gset_bijR nat nat)}.
   
   Definition hash_view_auth m γ := (own γ (gset_bij_auth (DfracOwn 1) (map_to_set pair m)))%I.
   Definition hash_view_frag k v γ := (own γ (gset_bij_elem k v)).
@@ -120,6 +81,84 @@ Section seq_hash_impl.
       unfold not in H2.
       eapply H2; [by erewrite elem_of_map_to_list|done].
   Qed.
+End hash_view_impl.
+
+
+
+Class hvG1 Σ := {hvG1_gsetbijR :: inG Σ (gset_bijR nat nat)}. 
+Program Definition hv_impl `{!conerisGS Σ} : hash_view :=
+  {|
+    hvG := hvG1;
+    hv_name := gname;
+    hv_auth _ m γ := hash_view_auth m γ;
+    hv_frag _ k v γ := hash_view_frag k v γ
+  |}.
+Next Obligation.
+  rewrite /hash_view_auth.
+  iIntros. iApply own_alloc.
+  by rewrite gset_bij_auth_valid.
+Qed.
+Next Obligation.
+  simpl.
+  iIntros.
+  by iApply hash_view_auth_coll_free.
+Qed.
+Next Obligation.
+  simpl. iIntros.
+  by iApply hash_view_auth_duplicate_frag.
+Qed.
+Next Obligation.
+  simpl. iIntros.
+  by iApply hash_view_auth_frag_agree.
+Qed.
+Next Obligation.
+  simpl.
+  iIntros.
+  by iApply hash_view_auth_insert.
+Qed.
+
+Section seq_hash_impl.
+
+  Context `{Hcon:conerisGS Σ, r1:!@rand_spec Σ Hcon, L:!randG Σ,
+              hv1: !@hash_view Σ Hcon, L':!hvG Σ, HinG': abstract_tapesGS Σ}.
+
+  Variable val_size : nat.
+
+  (* A hash function's internal state is a map from previously queried keys to their hash value *)
+  Definition init_hash_state : val := init_map.
+
+  (* To hash a value v, we check whether it is in the map (i.e. it has been previously hashed).
+     If it has we return the saved hash value, otherwise we draw a hash value and save it in the map *)
+  Definition compute_hash_specialized hm : val :=
+    λ: "v" "α",
+      match: get hm "v" with
+      | SOME "b" => "b"
+      | NONE =>
+          let: "b" := (rand_tape "α" #val_size) in
+          set hm "v" "b";;
+          "b"
+      end.
+  Definition compute_hash : val :=
+    λ: "hm" "v" "α",
+      match: get "hm" "v" with
+      | SOME "b" => "b"
+      | NONE =>
+          let: "b" := (rand_tape "α" #val_size) in
+          set "hm" "v" "b";;
+          "b"
+      end.
+
+  (* init_hash returns a hash as a function, basically wrapping the internal state
+     in the returned function *)
+  Definition init_hash : val :=
+    λ: "_",
+      let: "hm" := init_hash_state #() in
+      compute_hash "hm".
+
+  Definition allocate_tape : val :=
+    λ: "_",
+      rand_allocate_tape #val_size.
+
 
   Definition hashfun f m (tape_m: gmap _ _) γ: iProp Σ :=
     ∃ (hm : loc), ⌜ f = compute_hash_specialized #hm ⌝ ∗
@@ -137,7 +176,7 @@ Section seq_hash_impl.
     (α ◯↪N (val_size; ns) @ γ)%I .
 
   Definition coll_free_hashfun f m tape_m γ1 γ2: iProp Σ :=
-    hashfun f m tape_m γ1 ∗ hash_view_auth m γ2 ∗
+    hashfun f m tape_m γ1 ∗ hv_auth (L:=L') m γ2 ∗
     ⌜NoDup (tape_m_elements tape_m ++ (map_to_list m).*2)⌝.
 
   Lemma coll_free_hashfun_implies_hashfun f m γ1 γ2 tape_m:
@@ -158,7 +197,7 @@ Section seq_hash_impl.
     coll_free_hashfun f m tape_m γ1 γ2-∗ ⌜coll_free m⌝.
   Proof.
     iIntros "(?&?&?)".
-    by iApply hash_view_auth_coll_free.
+    by iApply hv_auth_coll_free.
   Qed.
 
   Lemma hashfun_implies_bounded_range f m tape_m γ idx x:
@@ -187,11 +226,7 @@ Section seq_hash_impl.
     wp_apply (wp_init_map with "[//]").
     iIntros (?) "Hm". wp_pures.
     rewrite /compute_hash. wp_pures.
-    iAssert (|==> (∃ γ2, hash_view_auth ∅ γ2))%I as ">(%γ2 & Hview)".
-    { rewrite /hash_view_auth.
-      iApply own_alloc.
-      by rewrite gset_bij_auth_valid.
-    }
+    iDestruct hv_auth_init as ">(%γ2 & Hview)".
     iMod (abstract_tapes_alloc ∅) as "(%γ1&Htauth&Htape)".
     iApply "HΦ". repeat iModIntro. rewrite /coll_free_hashfun. iFrame.
     iModIntro. repeat iSplit; try done.
@@ -263,7 +298,7 @@ Section seq_hash_impl.
     m !! n = Some b →
     {{{ coll_free_hashfun f m tape_m γ1 γ2 }}}
       f #n #α @ E
-    {{{ RET #b; coll_free_hashfun f m tape_m γ1 γ2 ∗ hash_view_frag n b γ2 }}}.
+    {{{ RET #b; coll_free_hashfun f m tape_m γ1 γ2 ∗ hv_frag (L:=L') n b γ2 }}}.
   Proof.
     iIntros (Hlookup Φ) "(Hhash & Hauth & %) HΦ".
     iDestruct "Hhash" as (hm ->) "(H & Hbound&?&?)".
@@ -272,17 +307,17 @@ Section seq_hash_impl.
     wp_apply (wp_get with "[$]").
     iIntros (vret) "(Hhash&->)".
     rewrite lookup_fmap Hlookup /=. wp_pures.
-    iMod (hash_view_auth_duplicate_frag with "[$]") as "[??]"; first done.
+    iMod (hv_auth_duplicate_frag with "[$]") as "[??]"; first done.
     iModIntro. iApply "HΦ". by iFrame.
   Qed.
 
   Lemma wp_coll_free_hashfun_frag_prev E f m tape_m γ1 γ2 (n : nat) (b : nat) (α:loc) :
-    {{{ coll_free_hashfun f m tape_m γ1 γ2 ∗ hash_view_frag n b γ2}}}
+    {{{ coll_free_hashfun f m tape_m γ1 γ2 ∗ hv_frag (L:=L') n b γ2}}}
       f #n #α @ E
     {{{ RET #b; coll_free_hashfun f m tape_m γ1 γ2 }}}.
   Proof.
     iIntros (Φ) "[(Hhash &?&?) #Hfrag] HΦ".
-    iDestruct (hash_view_auth_frag_agree with "[$]") as "%".
+    iDestruct (hv_auth_frag_agree with "[$]") as "%".
     iApply (wp_coll_free_hashfun_prev with "[$]"); first done.
     iIntros "!> [??]".
     by iApply "HΦ".
@@ -495,7 +530,7 @@ Section seq_hash_impl.
     }}}
       f #n α @ E
       {{{ RET #x; coll_free_hashfun f (<[ n := x ]>m) (<[α:=xs]> tape_m) γ1 γ2 ∗
-                  hash_view_frag n x γ2 ∗
+                  hv_frag (L:=L') n x γ2 ∗
                   hash_tape α xs γ1
       }}}.
   Proof.
@@ -517,7 +552,7 @@ Section seq_hash_impl.
     wp_apply (wp_set with "Hhash").
     iIntros "Hlist".
     wp_pures.
-    iMod (hash_view_auth_insert _ _ x with "[$]") as "[??]".
+    iMod (hv_auth_insert _ _ x with "[$]") as "[??]".
     { done. }
     { rewrite NoDup_app in Hnodup.
       destruct Hnodup as (?&H1&?).
