@@ -337,13 +337,14 @@ Section simple_bit_hash.
     ↯ (nnreal_div (nnreal_nat (length (map_to_list m) + length (tape_m_elements tape_m))) (nnreal_nat(val_size+1))) -∗
     ↯ ε -∗
     state_update E E (∃ (n:nat),
-          ↯ ((nnreal_div (nnreal_nat(val_size+1)) (nnreal_nat (length (map_to_list m) + length (tape_m_elements tape_m)))) *ε) ∗
+          ↯ ((nnreal_div (nnreal_nat(val_size+1)) (nnreal_nat (S val_size - (length (map_to_list m) + length (tape_m_elements tape_m))))) *ε) ∗
           hash_tape α (ns++[n]) γ1 ∗
           coll_free_hashfun f m (<[α:=ns++[n]]> tape_m) γ1 γ2
       ).
   Proof.
     rewrite /hash_tape.
     iIntros "((%&->&Hmap&%Hforall &Hauth &Htapes)&Hview&%) Hfrag Herr1 Herr2".
+    iDestruct (ec_valid with "[$Herr1]") as "%Hineq".
     iDestruct (abstract_tapes_agree with "[$][$]") as "%Hlookup".
     rewrite lookup_fmap fmap_Some in Hlookup.
     destruct Hlookup as (?&?&?).
@@ -368,9 +369,9 @@ Section simple_bit_hash.
     iDestruct (big_sepM_insert_acc with "[$]") as "[Htapes1 Htapes2]"; first done.
     iDestruct (ec_combine with "[$]") as "Herr".
     pose (ε2 := (λ (x:fin (S val_size)), if bool_decide (fin_to_nat x ∈ tape_m_elements tape_m ++ (map_to_list m).*2)
-                         then 1 else ((nnreal_nat (val_size + 1) /
-        nnreal_nat (length (map_to_list m) + length (tape_m_elements tape_m)))%NNR * ε)
-    )%R).
+                                         then 1 else ((nnreal_nat (val_size + 1) /
+                                                         nnreal_nat (S val_size - (length (map_to_list m) + length (tape_m_elements tape_m))))%NNR * ε)
+                )%R).
     iMod (rand_tapes_presample _ _ _ _ _ ε2 with "[$][$]") as "(%n&Herr&Htape)".
     - intros. rewrite /ε2.
       case_bool_decide; first lra.
@@ -378,15 +379,105 @@ Section simple_bit_hash.
     - rewrite /ε2.
       rewrite SeriesC_scal_l.
       erewrite (SeriesC_ext _ (λ x0 : fin (S val_size),
-                                 (if bool_decide ((fin_to_nat x0) ∉ tape_m_elements tape_m ++ (map_to_list m).*2)
-        then (nnreal_nat (val_size + 1) /
-                nnreal_nat (length (map_to_list m) + length (tape_m_elements tape_m)))%NNR * ε else 0)+
-               (if bool_decide ((fin_to_nat x0) ∈ tape_m_elements tape_m ++ (map_to_list m).*2)
-        then 1 else 0)))%R; last first.
-      { simpl. intros.
-        repeat case_bool_decide; try lra; naive_solver.
-      } 
-      admit.
+                                 (if bool_decide ((fin_to_nat x0) ∈ elements ((set_seq 0 (val_size+1))∖(list_to_set  (tape_m_elements tape_m ++ (map_to_list m).*2)):gset _))
+                                  then (nnreal_nat (val_size + 1) /
+                                          nnreal_nat (S val_size-(length (map_to_list m) + length (tape_m_elements tape_m))))%NNR * ε else 0)+
+                                   (if bool_decide ((fin_to_nat x0) ∈ tape_m_elements tape_m ++ (map_to_list m).*2)
+                                    then 1 else 0)))%R; last first.
+      { simpl. intros n.
+        case_bool_decide as H1; case_bool_decide as H2; try lra.
+        - rewrite elem_of_elements elem_of_difference elem_of_list_to_set in H2.
+          naive_solver.
+        - rewrite elem_of_elements elem_of_difference elem_of_list_to_set in H2.
+          exfalso. apply H2; split; last done.
+          rewrite elem_of_set_seq.
+          pose proof fin_to_nat_lt n. lia.
+      }
+      rewrite SeriesC_plus; [|apply ex_seriesC_finite..]. rewrite  Rmult_plus_distr_l.
+      apply Rplus_le_compat.
+      + replace (SeriesC _) with (SeriesC (λ x:nat, if
+                                                    bool_decide
+                                                      (x
+                                                         ∈ elements
+                                                         (set_seq 0 (val_size + 1)
+                                                            ∖ list_to_set (tape_m_elements tape_m ++ (map_to_list m).*2):gset _))
+                                                  then
+                                                    (nnreal_nat (val_size + 1) /
+                                                       nnreal_nat (S val_size-(length (map_to_list m) + length (tape_m_elements tape_m))))%NNR * ε
+                                                  else 0))%R.
+        * rewrite SeriesC_list_2; last apply NoDup_elements.
+          rewrite -length_elements_size_gset size_difference.
+          -- rewrite size_set_seq size_list_to_set; last done.
+             rewrite app_length fmap_length S_INR/= plus_INR/=.
+             right. rewrite -!Rmult_assoc. rewrite (Rmult_comm _ (val_size+1)).
+             rewrite Rdiv_1_l Rmult_inv_r; last first.
+             { pose proof pos_INR val_size. lra. }
+             rewrite Rmult_1_l Rmult_comm -!Rmult_assoc.
+             replace (val_size + 1)%nat with (S val_size) by lia.
+             rewrite Nat.add_comm.
+             rewrite Rmult_inv_r; first lra.
+             replace 0%R with (INR 0) by done.
+             destruct Hineq as [Hineq1 Hineq2].
+             simpl in Hineq2.
+             rewrite -Rdiv_def Rcomplements.Rlt_div_l in Hineq2; last first.
+             { rewrite plus_INR. pose proof pos_INR val_size. simpl. lra. }
+             apply not_INR.
+             intro Hcontra.
+             assert (val_size + 1 <=(length (map_to_list m) + length (tape_m_elements tape_m)))%nat by lia.
+             apply le_INR in H1.
+             lra.
+          -- rewrite elem_of_subseteq.
+             intros y. rewrite elem_of_list_to_set elem_of_set_seq elem_of_app.
+             intros [H1|H1].
+             ++ rewrite Forall_forall in Hforall2.
+                apply Hforall2 in H1. lia.
+             ++ rewrite /map_Forall in Hforall.
+                rewrite elem_of_list_fmap in H1.
+                destruct H1 as ([]&->&H1).
+                rewrite elem_of_map_to_list in H1.
+                apply Hforall in H1. simpl. lia.
+        * set (f:=(λ x0 : nat,
+                     if
+                       bool_decide
+                         (x0 ∈ elements
+                            (set_seq 0 (val_size + 1) ∖ list_to_set (tape_m_elements tape_m ++ (map_to_list m).*2)))
+                     then
+                       (NNRbar_to_real
+                          (NNRbar.Finite
+                             (nnreal_nat (val_size + 1) /
+                                nnreal_nat (S val_size - (length (map_to_list m) + length (tape_m_elements tape_m))))%NNR) *
+                          NNRbar_to_real (NNRbar.Finite ε))%R
+                     else 0%R)).
+          erewrite (SeriesC_ext (λ _:fin _, _) (λ x, f (fin_to_nat x))).
+          -- rewrite -SeriesC_nat_bounded_fin.
+             apply SeriesC_ext.
+             intros. case_bool_decide; first done.
+             rewrite /f. rewrite bool_decide_eq_false_2; first done.
+             rewrite elem_of_elements elem_of_difference elem_of_set_seq. lia.
+          -- naive_solver.
+      + set (f:=(λ x0 : nat,
+                   if bool_decide ( x0 ∈ tape_m_elements tape_m ++ (map_to_list m).*2) then 1 else 0)%R).
+        erewrite (SeriesC_ext _ (λ x, f (fin_to_nat x))); last done.
+        rewrite -SeriesC_nat_bounded_fin.
+        erewrite (SeriesC_ext _ f).
+        -- rewrite /f. rewrite S_INR.
+           rewrite SeriesC_list_2; last done.
+           simpl.
+           rewrite app_length fmap_length. right. rewrite Nat.add_comm.
+           rewrite !plus_INR/=. lra.
+        -- rewrite /f.
+           intros. case_bool_decide; first done.
+           rewrite bool_decide_eq_false_2; first done.
+           rewrite elem_of_app.
+           intros [Hcontra|Hcontra].
+           ++ rewrite Forall_forall in Hforall2.
+              apply Hforall2 in Hcontra. lia.
+           ++ rewrite elem_of_list_fmap in Hcontra.
+              destruct Hcontra as ([]&->&Hcontra).
+              rewrite elem_of_map_to_list in Hcontra.
+              rewrite /map_Forall in Hforall.
+              apply Hforall in Hcontra. 
+              simpl in *. lia.
     - rewrite /ε2. case_bool_decide as H'; first by iDestruct (ec_contradict with "[$]") as "[]".
       iMod (abstract_tapes_presample _ _ _ _ _ n with "[$][$]") as "[Hauth Hfrag]".
       iDestruct ("Htapes2" with "[$]") as "$".
@@ -404,7 +495,7 @@ Section simple_bit_hash.
         by rewrite -Permutation_cons_append.
       + rewrite -app_comm_cons.
         by apply NoDup_cons.
-  Admitted.
+  Qed.
 
   Lemma wp_insert_no_coll E f m (n : nat) tape_m x xs γ1 γ2 α:
     m !! n = None →

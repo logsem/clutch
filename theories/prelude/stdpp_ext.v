@@ -1,4 +1,4 @@
-From stdpp Require Import countable fin_maps finite.
+From stdpp Require Import countable fin_maps finite gmap.
 From clutch.prelude Require Import classical.
 
 Section base.
@@ -388,6 +388,13 @@ Section list.
   Qed.
   
 End list.
+
+Section gset.
+  Context `{Countable A}.
+  Lemma length_elements_size_gset (s:gset A): size (s) = length (elements s).
+    done.
+  Qed.
+End gset. 
 
 Tactic Notation "case_match" "in" ident(H) "eqn" ":" ident(Hd) :=
   match type of H with
