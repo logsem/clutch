@@ -149,9 +149,19 @@ Section con_hash_impl.
       own γ4 (●E (length (map_to_list m) + length (tape_m_elements tape_m)))
   .
 
+  Definition abstract_con_hash_inv f l hm γ1 γ2 γ3 γ4:=
+    inv (nroot.@"con_hash_abstract") (abstract_con_hash f l hm γ1 γ2 γ3 γ4).
+
   Definition concrete_con_hash (hm:loc) (m:gmap nat nat) γ : iProp Σ:=
     map_list hm ((λ b, LitV (LitInt (Z.of_nat b))) <$> m) ∗
     own γ (◯E m).
+
+  Definition concrete_con_hash_inv hm l γ_lock γ:=
+    is_lock (L:=conhashG_lockG) γ_lock l (∃ m, concrete_con_hash hm m γ).
+
+  Definition con_hash_inv f l hm γ1 γ2 γ3 γ4 γ_lock :=
+    (abstract_con_hash_inv f l hm γ1 γ2 γ3 γ4 ∗
+    concrete_con_hash_inv hm l γ_lock γ3)%I.
 
 End con_hash_impl.
 
