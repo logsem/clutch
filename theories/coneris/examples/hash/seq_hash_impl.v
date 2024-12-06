@@ -1,6 +1,6 @@
 From stdpp Require Export fin_maps.
 From iris.algebra Require Import excl_auth numbers gset_bij.
-From clutch.coneris Require Export coneris lib.map hocap_rand abstract_tape hash_view_interface seq_hash_interface.
+From clutch.coneris Require Import coneris lib.map hocap_rand abstract_tape seq_hash_interface hash_view_interface.
 Set Default Proof Using "Type*".
 
 Section seq_hash_impl.
@@ -55,6 +55,8 @@ Section seq_hash_impl.
                   [∗ map] α ↦ t ∈ tape_m,  rand_tapes (L:=L) α (val_size, t)
   .
 
+  Definition tape_m_elements (tape_m : gmap val (list nat)) :=
+    concat (map_to_list tape_m).*2.
 
   Definition hash_tape α ns γ:=
     (α ◯↪N (val_size; ns) @ γ)%I .
