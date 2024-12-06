@@ -856,10 +856,26 @@ Section expr_measurability.
         destruct HD as [HD0 HD1].
         apply measurableI.
         apply measurableI.
-        -
-
-
-          admit.
+        - apply sub_sigma_algebra; rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+          left.
+          exists (setT `*` (expr_ST D1)).
+          { apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=.
+            right.
+            exists (expr_ST D1). { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D1.  }
+            rewrite setTI.
+            rewrite /setX/=.
+            apply/seteqP; split=> x/=; by intuition.
+          }
+          rewrite setTI.
+          apply/seteqP; split=> x/=.
+          + move=> [? ?].
+            exists x.1.2; [done|].
+            exists x.2; [done|].
+            exists x.1.1.
+            destruct x as [[??]?].
+            by intuition.
+          + move=> [??][??][?][?<-?].
+            by intuition.
         - apply sub_sigma_algebra; rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
           right.
           exists (expr_ST D2).
@@ -873,22 +889,47 @@ Section expr_measurability.
             destruct y as [yy yyy]; destruct yy; simpl.
             by rewrite /BinOpU/=.
           + by move=> [? _ [? ?]] [? [? ?]] <-.
-        - apply sub_sigma_algebra.
-
-          rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+        - apply sub_sigma_algebra; rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
           left.
-
-
-          admit.
+          exists ([set op] `*` setT).
+          { apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=.
+            left.
+            exists [set op]. { by rewrite /discr_meas/measurable/=/expr_cyl/=. }
+            rewrite setTI.
+            rewrite /setX/=.
+            apply/seteqP; split=> x/=; by intuition.
+          }
+          rewrite setTI.
+          apply/seteqP; split=> x/=.
+          + move=> [? ?]; done.
+          + by intuition.
       }
-      admit.
+      apply/seteqP; split=> y/=.
+      - move=> [? W][? Z][A B C].
+        rewrite B in W.
+        rewrite C in Z.
+        split; [split|].
+        + exists y.1.2; [done|]; exists y.2; [done|]; exists y.1.1; done.
+        + exists y.1.2; [done|]; exists y.2; [done|]; exists y.1.1; done.
+        + by intuition.
+      - move=> [[[? p][??]]].
+        move=> [?[? H1 ?]].
+        rewrite H1 in p.
+        move=> [??][? p2][?[?? H2]]Hop.
+        rewrite H2 in p2.
+        exists y.1.2; [done|].
+        exists y.2; [done|].
+        destruct y as [[??]?].
+        rewrite /BinOpU/BinOpC/=.
+        simpl in Hop.
+        by rewrite Hop.
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
     all: try by move=> [?]//.
     all: try by move=> [??[???]]//.
     all: try by move=> [??[??[???]]]//.
-  Admitted.
+  Qed.
 
   Lemma IfU_measurable : measurable_fun setT IfU.
   Proof.
