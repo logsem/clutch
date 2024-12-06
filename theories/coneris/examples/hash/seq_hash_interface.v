@@ -1,9 +1,7 @@
 From clutch.coneris Require Import coneris hash_view_interface.
 
 Set Default Proof Using "Type*".
-
-(** * TODO *)
-(** * For the hash with lock, the lock protects the hash table plus the authoritative part of the maps*)
+(** * Not that useful *)
 
 Definition tape_m_elements (tape_m : gmap val (list nat)) :=
     concat (map_to_list tape_m).*2.
