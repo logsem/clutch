@@ -1597,11 +1597,6 @@ Section expr_measurability.
   Qed.
 
 
-
-
-
-
-
   (**  A cover of the expr type *)
   Definition ecover_val : set expr := [set e  | ∃ v, e = ValC v].
   Definition ecover_var : set expr := [set e  | ∃ s, e = VarC s].
@@ -1613,15 +1608,54 @@ Section expr_measurability.
   (** Projections: Each projection function is a measurable_fun from the respective cover set
       in expr to a product space. *)
 
+  Definition base_lit_shape : Type := @base_lit_pre () () () ().
+  Definition val_shape      : Type := @val_pre () () () ().
+  Definition expr_shape     : Type := @expr_pre () () () ().
 
-  Definition expr_shape : Type := @expr_pre () () () ().
+  Inductive shape_base_lit : base_lit -> base_lit_shape -> Type :=
+  | sh_LitInt n  : shape_base_lit (LitInt n) (LitInt ())
+  | sh_LitBool b : shape_base_lit (LitBool b) (LitBool ())
+  | sh_LitUnit   : shape_base_lit LitUnit LitUnit
+  | sh_LitLoc l  : shape_base_lit (LitLoc l) (LitLoc ())
+  | sh_LitLbl l  : shape_base_lit (LitLbl l) (LitLbl ())
+  | sh_LitReal r : shape_base_lit (LitReal r) (LitReal ()).
 
-  (* TODO: a bijection between expr_shape and Nat (to define the sequence) *)
+
+  Inductive shape_expr : expr -> expr_shape -> Type :=
+  | sh_Val v s : shape_val v s -> shape_expr (Val v) (Val s)
+  | sh_Var x : shape_expr (Var x) (Var x)
+  | sh_Rec f x e s : shape_expr e s -> shape_expr (Rec f x e) (Rec f x s)
+  | sh_App e1 s1 e2 s2 : shape_expr e1 s1 -> shape_expr e2 s2 -> shape_expr (App e1 e2) (App s1 s2)
+  | sh_UnOp op e s : shape_expr e s -> shape_expr (UnOp op e) (UnOp op s)
+  | sh_BinOp op e1 s1 e2 s2 : shape_expr e1 s1 -> shape_expr e2 s2 -> shape_expr (BinOp op e1 e2) (BinOp op s1 s2)
+  | sh_If e1 s1 e2 s2 e3 s3 : shape_expr e1 s1 -> shape_expr e2 s2 -> shape_expr e3 s3 -> shape_expr (If e1 e2 e3) (If s1 s2 s3)
+  | sh_Pair e1 s1 e2 s2 : shape_expr e1 s1 -> shape_expr e2 s2 -> shape_expr (Pair e1 e2) (Pair s1 s2)
+  | sh_Fst e1 s1 : shape_expr e1 s1 -> shape_expr (Fst e1) (Fst s1)
+  | sh_Snd e1 s1 : shape_expr e1 s1 -> shape_expr (Snd e1) (Snd s1)
+  | sh_InjL e1 s1 : shape_expr e1 s1 -> shape_expr (InjL e1) (InjL s1)
+  | sh_InjR e1 s1 : shape_expr e1 s1 -> shape_expr (InjR e1) (InjR s1)
+  | sh_Case e1 s1 e2 s2 e3 s3 : shape_expr e1 s1 -> shape_expr e2 s2 -> shape_expr e3 s3 -> shape_expr (Case e1 e2 e3) (Case s1 s2 s3)
+  | sh_AllocN e1 s1 e2 s2 : shape_expr e1 s1 -> shape_expr e2 s2 -> shape_expr (AllocN e1 e2) (AllocN s1 s2)
+  | sh_Load e1 s1 : shape_expr e1 s1 -> shape_expr (Load e1) (Load s1)
+  | sh_Store e1 s1 e2 s2 : shape_expr e1 s1 -> shape_expr e2 s2 -> shape_expr (Store e1 e2) (Store s1 s2)
+  | sh_AllocTape e1 s1 : shape_expr e1 s1 -> shape_expr (AllocTape e1) (AllocTape s1)
+  | sh_Rand e1 s1 e2 s2 : shape_expr e1 s1 -> shape_expr e2 s2 -> shape_expr (Rand e1 e2) (Rand s1 s2)
+  | sh_AllocUTape : shape_expr AllocUTape AllocUTape
+  | sh_URand e1 s1 : shape_expr e1 s1 -> shape_expr (URand e1) (URand s1)
+  | sh_Tick e1 s1 : shape_expr e1 s1 -> shape_expr (Tick e1) (Tick s1)
+  with
+  shape_val : val -> val_shape -> Type :=
+  | sh_LitV v s : shape_base_lit v s -> shape_val (LitV v) (LitV s)
+  | sh_RecV f x e s : shape_expr e s -> shape_val (RecV f x e) (RecV f x s)
+  | sh_PairV e1 e2 s1 s2 : shape_val e1 s1 -> shape_val e2 s2 -> shape_val (PairV e1 e2) (PairV s1 s2)
+  | sh_InjLV e1 s1 : shape_val e1 s1 -> shape_val (InjLV e1) (InjLV s1).
+
+  (* Lemma: For all expr_shape, there exists an unique generator such that the set of all exprs with that shape
+            has that generator. *)
+
+  (* Lemma: There is a surjective sequence of expr_shapes *)
 
 
-  (* TODO: use inductive type instead? *)
-  Definition has_shape (e : expr) (shape : expr_shape) : Prop.
-  Admitted.
 
   (* TODO: decompose a set of expr into a union over the set of shapes *)
 
