@@ -1663,50 +1663,6 @@ Section expr_measurability.
   Definition val_shape      : Type := @val_pre () () () ().
   Definition expr_shape     : Type := @expr_pre () () () ().
 
-  (*
-  FIXME: Old version-- delete me if not used
-
-  Inductive shape_base_lit : base_lit -> base_lit_shape -> Prop :=
-  | sh_LitInt n  : shape_base_lit (LitInt n)  (LitInt ())
-  | sh_LitBool b : shape_base_lit (LitBool b) (LitBool ())
-  | sh_LitUnit   : shape_base_lit LitUnit     LitUnit
-  | sh_LitLoc l  : shape_base_lit (LitLoc l)  (LitLoc ())
-  | sh_LitLbl l  : shape_base_lit (LitLbl l)  (LitLbl ())
-  | sh_LitReal r : shape_base_lit (LitReal r) (LitReal ()).
-
-  Inductive shape_expr : expr -> expr_shape -> Prop :=
-  | sh_Val v s : shape_val v s -> shape_expr (Val v) (Val s)
-  | sh_Var x : shape_expr (Var x) (Var x)
-  | sh_Rec f x e s : shape_expr e s -> shape_expr (Rec f x e) (Rec f x s)
-  | sh_App e1 s1 e2 s2 : shape_expr e1 s1 -> shape_expr e2 s2 -> shape_expr (App e1 e2) (App s1 s2)
-  | sh_UnOp op e s : shape_expr e s -> shape_expr (UnOp op e) (UnOp op s)
-  | sh_BinOp op e1 s1 e2 s2 : shape_expr e1 s1 -> shape_expr e2 s2 -> shape_expr (BinOp op e1 e2) (BinOp op s1 s2)
-  | sh_If e1 s1 e2 s2 e3 s3 : shape_expr e1 s1 -> shape_expr e2 s2 -> shape_expr e3 s3 -> shape_expr (If e1 e2 e3) (If s1 s2 s3)
-  | sh_Pair e1 s1 e2 s2 : shape_expr e1 s1 -> shape_expr e2 s2 -> shape_expr (Pair e1 e2) (Pair s1 s2)
-  | sh_Fst e1 s1 : shape_expr e1 s1 -> shape_expr (Fst e1) (Fst s1)
-  | sh_Snd e1 s1 : shape_expr e1 s1 -> shape_expr (Snd e1) (Snd s1)
-  | sh_InjL e1 s1 : shape_expr e1 s1 -> shape_expr (InjL e1) (InjL s1)
-  | sh_InjR e1 s1 : shape_expr e1 s1 -> shape_expr (InjR e1) (InjR s1)
-  | sh_Case e1 s1 e2 s2 e3 s3 : shape_expr e1 s1 -> shape_expr e2 s2 -> shape_expr e3 s3 -> shape_expr (Case e1 e2 e3) (Case s1 s2 s3)
-  | sh_AllocN e1 s1 e2 s2 : shape_expr e1 s1 -> shape_expr e2 s2 -> shape_expr (AllocN e1 e2) (AllocN s1 s2)
-  | sh_Load e1 s1 : shape_expr e1 s1 -> shape_expr (Load e1) (Load s1)
-  | sh_Store e1 s1 e2 s2 : shape_expr e1 s1 -> shape_expr e2 s2 -> shape_expr (Store e1 e2) (Store s1 s2)
-  | sh_AllocTape e1 s1 : shape_expr e1 s1 -> shape_expr (AllocTape e1) (AllocTape s1)
-  | sh_Rand e1 s1 e2 s2 : shape_expr e1 s1 -> shape_expr e2 s2 -> shape_expr (Rand e1 e2) (Rand s1 s2)
-  | sh_AllocUTape : shape_expr AllocUTape AllocUTape
-  | sh_URand e1 s1 : shape_expr e1 s1 -> shape_expr (URand e1) (URand s1)
-  | sh_Tick e1 s1 : shape_expr e1 s1 -> shape_expr (Tick e1) (Tick s1)
-  with
-  shape_val : val -> val_shape -> Prop :=
-  | sh_LitV v s : shape_base_lit v s -> shape_val (LitV v) (LitV s)
-  | sh_RecV f x e s : shape_expr e s -> shape_val (RecV f x e) (RecV f x s)
-  | sh_PairV e1 e2 s1 s2 : shape_val e1 s1 -> shape_val e2 s2 -> shape_val (PairV e1 e2) (PairV s1 s2)
-  | sh_InjLV e1 s1 : shape_val e1 s1 -> shape_val (InjLV e1) (InjLV s1).
-
-  Scheme expr_shape_mut_ind := Induction for shape_expr Sort Prop
-      with val_shape_mut_ind := Induction for shape_val Sort Prop.
-   *)
-
 
    (** Get the shape of an expression *)
 
@@ -1732,6 +1688,27 @@ Section expr_measurability.
     expr_pre_F (cst setT) (cst setT) (cst setT) (cst setT) (cst setT).
 
 
+   Lemma gen_base_lit_generator s : base_lit_ML (gen_base_lit s).
+   Proof. Admitted.
+
+
+   (** gen-* are generators for their respective sigma algebras *)
+   (* TODO: base_lit and expr *)
+   Lemma gen_val_generator s : val_ML (gen_val s).
+   Proof.
+     induction s as [?|???| ? IHl ? IHr | ? IHv | ? IHv ].
+     - rewrite /gen_val/val_pre_F/=.
+       by apply (gen_base_lit_generator l).
+     - (* FIXME: I need mutual induction here*)
+       admit.
+     - by split; [apply IHl | apply IHr].
+     - by apply IHv.
+     - by apply IHv.
+  Admitted.
+
+
+
+
   (** The set of all expressions with a given shape is singly generated *)
 
   Lemma base_lit_shape_cyl (s : base_lit_shape) : [set e | shape_base_lit e = s] = base_lit_ST (gen_base_lit s).
@@ -1747,7 +1724,25 @@ Section expr_measurability.
   Qed.
 
   Lemma expr_shape_cyl (s : expr_shape) : [set e | shape_expr e = s] = expr_ST (gen_expr s).
-  Proof. Admitted.
+  Proof.
+    apply /predeqP =>b.
+    have D1 : [set e | shape_expr e = s] b -> expr_ST (gen_expr s) b.
+    { destruct b.
+      all: move=> H.
+      all: simpl in H.
+      all: destruct s as [?|?|???|??|??|???|???|??|?|?|?|?|???|??|?|??|?|??| |?|?].
+      all: rewrite /gen_expr/=.
+      all: try done.
+      all: admit.
+    }
+    have D2 : expr_ST (gen_expr s) b -> [set e | shape_expr e = s] b.
+    { all: move=> H.
+      all: destruct s as [?|?|???|??|??|???|???|??|?|?|?|?|???|??|?|??|?|??| |?|?].
+      all: simpl in H.
+      all: admit.
+    }
+    by split.
+  Admitted.
 
   Lemma val_shape_cyl (s : val_shape) : [set e | shape_val e = s] = val_ST (gen_val s).
   Proof. Admitted.
@@ -1783,7 +1778,7 @@ Section expr_measurability.
   Definition val_seq : sequences.sequence (set val) :=
     fun n => shape_val @^-1` [set val_shape_enum n].
 
-  Lemma base_lit_shape_decomp : (\bigcup_n base_lit_seq n) = setT.
+  Lemma base_lit_shape_decompT : (\bigcup_n base_lit_seq n) = setT.
   Proof.
     rewrite <- subTset => e He.
     case (base_lit_shape_enum_surj (shape_base_lit e)) as [n Hn].
@@ -1791,7 +1786,7 @@ Section expr_measurability.
     by rewrite /base_lit_seq Hn //=.
   Qed.
 
-  Lemma expr_shape_decomp : (\bigcup_n expr_seq n) = setT.
+  Lemma expr_shape_decompT: (\bigcup_n expr_seq n) = setT.
   Proof.
     rewrite <- subTset => e He.
     case (expr_shape_enum_surj (shape_expr e)) as [n Hn].
@@ -1799,13 +1794,23 @@ Section expr_measurability.
     by rewrite /expr_seq Hn //=.
   Qed.
 
-  Lemma val_shape_decomp : (\bigcup_n val_seq n) = setT.
+  Lemma val_shape_decompT : (\bigcup_n val_seq n) = setT.
   Proof.
     rewrite <- subTset => e He.
     case (val_shape_enum_surj (shape_val e)) as [n Hn].
     exists n; [done|].
     by rewrite /val_seq Hn //=.
   Qed.
+
+
+  Lemma base_lit_shape_decomp S : (\bigcup_n (S `&` base_lit_seq n)) = S.
+  Proof. by rewrite <- setI_bigcupr, base_lit_shape_decompT, setIT. Qed.
+
+  Lemma expr_shape_decomp S : (\bigcup_n (S `&` expr_seq n)) = S.
+  Proof. by rewrite <- setI_bigcupr, expr_shape_decompT, setIT. Qed.
+
+  Lemma val_shape_decomp S : (\bigcup_n (S `&` val_seq n)) = S.
+  Proof. by rewrite <- setI_bigcupr, val_shape_decompT, setIT. Qed.
 
 
   (**  A cover of the expr, val, and base_lit type, by constructor. *)
@@ -1830,18 +1835,18 @@ Section expr_measurability.
   Definition ecov_urand      : set expr     := [set e  | ∃ e,         e = URandC e].
   Definition ecov_tick       : set expr     := [set e  | ∃ e,         e = TickC e].
 
-  Definition vcov_lit        : set val      := [set e  | ∃ v,      e = LitVC v].
-  Definition vcov_rec        : set val      := [set e  | ∃ f x e0, e = RecVC f x e0].
-  Definition vcov_pair       : set val      := [set e  | ∃ v1 v2,  e = PairVC v1 v2].
-  Definition vcov_injlv      : set val      := [set e  | ∃ v,      e = InjLVC v].
-  Definition vcov_injrv      : set val      := [set e  | ∃ v,      e = InjRVC v].
+  Definition vcov_lit        : set val      := [set e  | ∃ v,         e = LitVC v].
+  Definition vcov_rec        : set val      := [set e  | ∃ f x e0,    e = RecVC f x e0].
+  Definition vcov_pair       : set val      := [set e  | ∃ v1 v2,     e = PairVC v1 v2].
+  Definition vcov_injlv      : set val      := [set e  | ∃ v,         e = InjLVC v].
+  Definition vcov_injrv      : set val      := [set e  | ∃ v,         e = InjRVC v].
 
-  Definition bcov_LitInt     : set base_lit := [set e  | ∃ v, e = LitIntC  v].
-  Definition bcov_LitBool    : set base_lit := [set e  | ∃ v, e = LitBoolC v].
-  Definition bcov_LitUnit    : set base_lit := [set e  |      e = LitUnitC  ].
-  Definition bcov_LitLoc     : set base_lit := [set e  | ∃ v, e = LitLoc   v].
-  Definition bcov_LitLbl     : set base_lit := [set e  | ∃ v, e = LitLbl   v].
-  Definition bcov_LitReal    : set base_lit := [set e  | ∃ v, e = LitReal  v].
+  Definition bcov_LitInt     : set base_lit := [set e  | ∃ v,         e = LitIntC  v].
+  Definition bcov_LitBool    : set base_lit := [set e  | ∃ v,         e = LitBoolC v].
+  Definition bcov_LitUnit    : set base_lit := [set e  |              e = LitUnitC  ].
+  Definition bcov_LitLoc     : set base_lit := [set e  | ∃ v,         e = LitLoc   v].
+  Definition bcov_LitLbl     : set base_lit := [set e  | ∃ v,         e = LitLbl   v].
+  Definition bcov_LitReal    : set base_lit := [set e  | ∃ v,         e = LitReal  v].
 
   (** Cover set measurability *)
   (* NOTE:
@@ -1870,7 +1875,34 @@ Section expr_measurability.
   Lemma bcov_LitLbl_meas  : measurable bcov_LitLbl.  Proof. Admitted.
   Lemma bcov_LitReal_meas : measurable bcov_LitReal. Proof. Admitted.
 
-  Lemma ecov_val_meas        : measurable ecov_val. Proof. Admitted.
+  Lemma ecov_val_meas : measurable ecov_val.
+  Proof.
+    rewrite /ecov_val.
+    have X : [set e | ∃ v : val_pre, e = ValC v] = [set ValC v | v in setT].
+    { admit. }
+    (* FIXME: Rewrite the cover to look like X if this works *)
+    rewrite X; clear X.
+
+    have Y : [set ValC v | v in setT] = \bigcup_n [set ValC x | x in (val_seq n)].
+    { (*  Check val_shape_decompT. *)
+      (* Can I skip this rewrite? *)
+      admit. }
+    rewrite Y; clear Y.
+
+    apply bigcup_measurable.
+    move=> k _.
+    (* Everything in (val_seq k) has the same shape *)
+    rewrite /val_seq/preimage/=.
+    rewrite (val_shape_cyl (val_shape_enum k)).
+
+    (* Use the shape as a generator *)
+    apply sub_sigma_algebra.
+    rewrite /expr_cyl/=.
+    exists (Val (gen_val (val_shape_enum k))); [ by apply gen_val_generator |].
+    by rewrite /=.
+  Admitted.
+
+
   Lemma ecov_var_meas        : measurable ecov_var. Proof. Admitted.
   Lemma ecov_rec_meas        : measurable ecov_rec. Proof. Admitted.
   Lemma ecov_app_meas        : measurable ecov_app. Proof. Admitted.
