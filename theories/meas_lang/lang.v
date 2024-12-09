@@ -1808,48 +1808,103 @@ Section expr_measurability.
   Qed.
 
 
-  (**  A cover of the expr type *)
-  Definition ecover_val : set expr := [set e  | ∃ v, e = ValC v].
-  Definition ecover_var : set expr := [set e  | ∃ s, e = VarC s].
-  Definition ecover_rec : set expr := [set e  | ∃ f x e, e = @RecC f x e].
-  (* TODO: The rest of val and expr *)
+  (**  A cover of the expr, val, and base_lit type, by constructor. *)
+  Definition ecov_val        : set expr     := [set e  | ∃ v,         e = ValC v].
+  Definition ecov_var        : set expr     := [set e  | ∃ s,         e = VarC s].
+  Definition ecov_rec        : set expr     := [set e  | ∃ f x e,     e = RecC f x e].
+  Definition ecov_app        : set expr     := [set e  | ∃ e1 e2,     e = AppC e1 e2].
+  Definition ecov_unop       : set expr     := [set e  | ∃ op e,      e = UnOpC op e].
+  Definition ecov_binop      : set expr     := [set e  | ∃ op e1 e2,  e = BinOpC op e1 e2].
+  Definition ecov_if         : set expr     := [set e  | ∃ e1 e2 e3,  e = IfC e1 e2 e3].
+  Definition ecov_pair       : set expr     := [set e  | ∃ e1 e2,     e = PairC e1 e2].
+  Definition ecov_fst        : set expr     := [set e  | ∃ e,         e = FstC e].
+  Definition ecov_snd        : set expr     := [set e  | ∃ e,         e = SndC e].
+  Definition ecov_injl       : set expr     := [set e  | ∃ e,         e = InjLC e].
+  Definition ecov_injr       : set expr     := [set e  | ∃ e,         e = InjRC e].
+  Definition ecov_alloc      : set expr     := [set e  | ∃ e1 e2,     e = AllocN e1 e2].
+  Definition ecov_load       : set expr     := [set e  | ∃ e,         e = LoadC e].
+  Definition ecov_store      : set expr     := [set e  | ∃ e1 e2,     e = StoreC e1 e2].
+  Definition ecov_alloctape  : set expr     := [set e  | ∃ e,         e = AllocTapeC e].
+  Definition ecov_rand       : set expr     := [set e  | ∃ e1 e2,     e = RandC e1 e2].
+  Definition ecov_allocutape : set expr     := [set e  |              e = AllocUTapeC].
+  Definition ecov_urand      : set expr     := [set e  | ∃ e,         e = URandC e].
+  Definition ecov_tick       : set expr     := [set e  | ∃ e,         e = TickC e].
 
-  Definition bcov_LitInt  : set base_lit := [set e  | ∃ v, e = LitIntC  v].
-  Definition bcov_LitBool : set base_lit := [set e  | ∃ v, e = LitBoolC v].
-  Definition bcov_LitUnit : set base_lit := [set e  |      e = LitUnitC  ].
-  Definition bcov_LitLoc  : set base_lit := [set e  | ∃ v, e = LitLoc   v].
-  Definition bcov_LitLbl  : set base_lit := [set e  | ∃ v, e = LitLbl   v].
-  Definition bcov_LitReal : set base_lit := [set e  | ∃ v, e = LitReal  v].
+  Definition vcov_lit        : set val      := [set e  | ∃ v,      e = LitVC v].
+  Definition vcov_rec        : set val      := [set e  | ∃ f x e0, e = RecVC f x e0].
+  Definition vcov_pair       : set val      := [set e  | ∃ v1 v2,  e = PairVC v1 v2].
+  Definition vcov_injlv      : set val      := [set e  | ∃ v,      e = InjLVC v].
+  Definition vcov_injrv      : set val      := [set e  | ∃ v,      e = InjRVC v].
+
+  Definition bcov_LitInt     : set base_lit := [set e  | ∃ v, e = LitIntC  v].
+  Definition bcov_LitBool    : set base_lit := [set e  | ∃ v, e = LitBoolC v].
+  Definition bcov_LitUnit    : set base_lit := [set e  |      e = LitUnitC  ].
+  Definition bcov_LitLoc     : set base_lit := [set e  | ∃ v, e = LitLoc   v].
+  Definition bcov_LitLbl     : set base_lit := [set e  | ∃ v, e = LitLbl   v].
+  Definition bcov_LitReal    : set base_lit := [set e  | ∃ v, e = LitReal  v].
+
+  (** Cover set measurability *)
+  (* NOTE:
+      I think that in principle we could have proven these by first showing a projection
+      function is measurable, and then showing that it is the preimage of setT. However,
+      for the indirect method we have to use (no restricted SA's) this does not work,
+      because (measurable_fun Dom) requires we show Dom is measurable a priori.
+   *)
+  (* Both will use the decomposition argument. *)
+  Lemma bcov_LitInt_meas  : measurable bcov_LitInt.
+  Proof.
+    apply sub_sigma_algebra.
+    rewrite /base_lit_cyl/=.
+    exists (LitInt setT).
+    { by rewrite /=/measurable/=/discr_meas/=. }
+    rewrite /bcov_LitInt/=.
+    apply /predeqP =>y /=.
+    split.
+    - by move=> [x??]; exists x.
+    - by move=> [x?]; exists x.
+  Qed.
+
+  Lemma bcov_LitBool_meas : measurable bcov_LitBool. Proof. Admitted.
+  Lemma bcov_LitUnit_meas : measurable bcov_LitUnit. Proof. Admitted.
+  Lemma bcov_LitLoc_meas  : measurable bcov_LitLoc.  Proof. Admitted.
+  Lemma bcov_LitLbl_meas  : measurable bcov_LitLbl.  Proof. Admitted.
+  Lemma bcov_LitReal_meas : measurable bcov_LitReal. Proof. Admitted.
+
+  (* TODO: Val and expr *)
 
 
   (** Projection functions *)
-
-  Definition base_lit_LitInt_𝜋V  (b : base_lit) : TZ := match b with | LitInt  v => v | _ => point end.
-  Definition base_lit_LitBool_𝜋V (b : base_lit) : TB := match b with | LitBool v => v | _ => point end.
-  Definition base_lit_LitLoc_𝜋V  (b : base_lit) : TL := match b with | LitLoc  v => v | _ => point end.
-  Definition base_lit_LitLbl_𝜋V  (b : base_lit) : TL := match b with | LitLbl  v => v | _ => point end.
-  Definition base_lit_LitReal_𝜋V (b : base_lit) : TR := match b with | LitReal v => v | _ => point end.
-  (* TODO: The rest of val and expr *)
+  Definition 𝜋_LitInt_z  (b : base_lit) : TZ := match b with | LitInt  v => v | _ => point end.
+  Definition 𝜋_LitBool_b (b : base_lit) : TB := match b with | LitBool v => v | _ => point end.
+  Definition 𝜋_LitLoc_l  (b : base_lit) : TL := match b with | LitLoc  v => v | _ => point end.
+  Definition 𝜋_LitLbl_l  (b : base_lit) : TL := match b with | LitLbl  v => v | _ => point end.
+  Definition 𝜋_LitReal_r (b : base_lit) : TR := match b with | LitReal v => v | _ => point end.
 
 
 
-  (** Projection measurability *)
-  Lemma base_lit_LitInt_𝜋V_meas : measurable_fun bcov_LitInt base_lit_LitInt_𝜋V.
+
+
+
+  (* TODO: Val and expr *)
+
+
+  (** Projection functions measurability *)
+  Lemma 𝜋_LitInt_z_meas : measurable_fun bcov_LitInt 𝜋_LitInt_z.
   Proof. Admitted.
 
-  Lemma base_lit_LitBool_𝜋V_meas : measurable_fun bcov_LitBool base_lit_LitBool_𝜋V.
+  Lemma 𝜋_LitBool_b_meas : measurable_fun bcov_LitBool 𝜋_LitBool_b.
   Proof. Admitted.
 
-  Lemma base_lit_LitLoc_𝜋V_meas : measurable_fun bcov_LitLoc base_lit_LitLoc_𝜋V.
+  Lemma 𝜋_LitLoc_l_meas : measurable_fun bcov_LitLoc 𝜋_LitLoc_l.
   Proof. Admitted.
 
-  Lemma base_lit_LitLbl_𝜋V_meas : measurable_fun bcov_LitLbl base_lit_LitLbl_𝜋V.
+  Lemma 𝜋_LitLbl_l_meas : measurable_fun bcov_LitLbl 𝜋_LitLbl_l.
   Proof. Admitted.
 
-  Lemma base_lit_LitReal_𝜋V_meas : measurable_fun bcov_LitReal base_lit_LitReal_𝜋V.
+  Lemma 𝜋_LitReal_r_meas : measurable_fun bcov_LitReal 𝜋_LitReal_r.
   Proof. Admitted.
 
-
+  (* TODO: Val and expr *)
 
 
 
