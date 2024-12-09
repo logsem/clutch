@@ -1870,7 +1870,33 @@ Section expr_measurability.
   Lemma bcov_LitLbl_meas  : measurable bcov_LitLbl.  Proof. Admitted.
   Lemma bcov_LitReal_meas : measurable bcov_LitReal. Proof. Admitted.
 
-  (* TODO: Val and expr *)
+  Lemma ecov_val_meas        : measurable ecov_val. Proof. Admitted.
+  Lemma ecov_var_meas        : measurable ecov_var. Proof. Admitted.
+  Lemma ecov_rec_meas        : measurable ecov_rec. Proof. Admitted.
+  Lemma ecov_app_meas        : measurable ecov_app. Proof. Admitted.
+  Lemma ecov_unop_meas       : measurable ecov_unop. Proof. Admitted.
+  Lemma ecov_binop_meas      : measurable ecov_binop. Proof. Admitted.
+  Lemma ecov_if_meas         : measurable ecov_if. Proof. Admitted.
+  Lemma ecov_pair_meas       : measurable ecov_pair. Proof. Admitted.
+  Lemma ecov_fst_meas        : measurable ecov_fst. Proof. Admitted.
+  Lemma ecov_snd_meas        : measurable ecov_snd. Proof. Admitted.
+  Lemma ecov_injl_meas       : measurable ecov_injl. Proof. Admitted.
+  Lemma ecov_injr_meas       : measurable ecov_injr. Proof. Admitted.
+  Lemma ecov_alloc_meas      : measurable ecov_alloc. Proof. Admitted.
+  Lemma ecov_load_meas       : measurable ecov_load. Proof. Admitted.
+  Lemma ecov_store_meas      : measurable ecov_store. Proof. Admitted.
+  Lemma ecov_alloctape_meas  : measurable ecov_alloctape. Proof. Admitted.
+  Lemma ecov_rand_meas       : measurable ecov_rand. Proof. Admitted.
+  Lemma ecov_allocutape_meas : measurable ecov_allocutape. Proof. Admitted.
+  Lemma ecov_urand_meas      : measurable ecov_urand. Proof. Admitted.
+  Lemma ecov_tick_meas       : measurable ecov_tick. Proof. Admitted.
+
+  Lemma vcov_lit_meas        : measurable vcov_lit. Proof. Admitted.
+  Lemma vcov_rec_meas        : measurable vcov_rec. Proof. Admitted.
+  Lemma vcov_pair_meas       : measurable vcov_pair. Proof. Admitted.
+  Lemma vcov_injlv_meas      : measurable vcov_injlv. Proof. Admitted.
+  Lemma vcov_injrv_meas      : measurable vcov_injrv. Proof. Admitted.
+
 
 
   (** Projection functions *)
@@ -1880,33 +1906,97 @@ Section expr_measurability.
   Definition 𝜋_LitLbl_l  (b : base_lit) : TL := match b with | LitLbl  v => v | _ => point end.
   Definition 𝜋_LitReal_r (b : base_lit) : TR := match b with | LitReal v => v | _ => point end.
 
+  Definition 𝜋_LitV_v    (v : val)      : base_lit         := match v with | LitV v => v | _ => point end.
+  Definition 𝜋_RecV_f    (v : val)      : <<discr binder>> := match v with | RecV f _ _ => f | _ => point end.
+  Definition 𝜋_RecV_x    (v : val)      : <<discr binder>> := match v with | RecV _ x _ => x | _ => point end.
+  Definition 𝜋_RecV_e    (v : val)      : expr             := match v with | RecV _ _ e => e | _ => point end.
+  Definition 𝜋_PairV_l   (v : val)      : val              := match v with | PairV r _ => r | _ => point end.
+  Definition 𝜋_PairV_r   (v : val)      : val              := match v with | PairV _ r => r | _ => point end.
+  Definition 𝜋_InjLV_v   (v : val)      : val              := match v with | InjLV r => r | _ => point end.
+  Definition 𝜋_InjRV_v   (v : val)      : val              := match v with | InjRV r => r | _ => point end.
 
 
-
-
-
-  (* TODO: Val and expr *)
+  Definition 𝜋_Val_v        (e : expr)     : val              := match e with | Val r => r | _ => point end.
+  Definition 𝜋_Var_v        (e : expr)     : <<discr binder>> := match e with | Var x => x | _ => point end.
+  Definition 𝜋_Rec_f        (e : expr)     : <<discr binder>> := match e with | Rec f _ _ => f | _ => point end.
+  Definition 𝜋_Rec_x        (e : expr)     : <<discr binder>> := match e with | Rec _ x _ => x | _ => point end.
+  Definition 𝜋_Rec_e        (e : expr)     : expr             := match e with | Rec _ _ e => e | _ => point end.
+  Definition 𝜋_UnOp_op      (e : expr)     : <<discr un_op>>  := match e with | UnOp op _ => op | _ => point end.
+  Definition 𝜋_UnOp_e       (e : expr)     : expr             := match e with | UnOp _  e => e | _ => point end.
+  Definition 𝜋_BinOp_op     (e : expr)     : <<discr bin_op>> := match e with | BinOp op _ _ => op | _ => point end.
+  Definition 𝜋_BinOp_l      (e : expr)     : expr             := match e with | BinOp _  e _ => e | _ => point end.
+  Definition 𝜋_BinOp_r      (e : expr)     : expr             := match e with | BinOp _  _ e => e | _ => point end.
+  Definition 𝜋_App_l        (e : expr)     : expr             := match e with | App e _ => e | _ => point end.
+  Definition 𝜋_App_r        (e : expr)     : expr             := match e with | App _ e => e | _ => point end.
+  Definition 𝜋_If_c         (e : expr)     : expr             := match e with | If e _ _ => e | _ => point end.
+  Definition 𝜋_If_l         (e : expr)     : expr             := match e with | If _ e _ => e | _ => point end.
+  Definition 𝜋_If_r         (e : expr)     : expr             := match e with | If _ _ e => e | _ => point end.
+  Definition 𝜋_Pair_l       (e : expr)     : expr             := match e with | Pair e _ => e | _ => point end.
+  Definition 𝜋_Pair_r       (e : expr)     : expr             := match e with | Pair _ e => e | _ => point end.
+  Definition 𝜋_Fst_e        (e : expr)     : expr             := match e with | Fst e => e | _ => point end.
+  Definition 𝜋_Snd_e        (e : expr)     : expr             := match e with | Snd e => e | _ => point end.
+  Definition 𝜋_InjL_e       (e : expr)     : expr             := match e with | InjL e => e | _ => point end.
+  Definition 𝜋_InjR_e       (e : expr)     : expr             := match e with | InjR e => e | _ => point end.
+  Definition 𝜋_AllocN_N     (e : expr)     : expr             := match e with | AllocN e _ => e | _ => point end.
+  Definition 𝜋_AllocN_e     (e : expr)     : expr             := match e with | AllocN _ e => e | _ => point end.
+  Definition 𝜋_Load_e       (e : expr)     : expr             := match e with | Load e => e | _ => point end.
+  Definition 𝜋_Store_l      (e : expr)     : expr             := match e with | Store e _ => e | _ => point end.
+  Definition 𝜋_Store_e      (e : expr)     : expr             := match e with | Store _ e => e | _ => point end.
+  Definition 𝜋_AllocTape_e  (e : expr)     : expr             := match e with | AllocTape e => e | _ => point end.
+  Definition 𝜋_Rand_t       (e : expr)     : expr             := match e with | Rand e _ => e | _ => point end.
+  Definition 𝜋_Rand_N       (e : expr)     : expr             := match e with | Rand _ e => e | _ => point end.
+  Definition 𝜋_URand_e      (e : expr)     : expr             := match e with | URand e => e | _ => point end.
+  Definition 𝜋_Tick_e       (e : expr)     : expr             := match e with | Tick e => e | _ => point end.
 
 
   (** Projection functions measurability *)
-  Lemma 𝜋_LitInt_z_meas : measurable_fun bcov_LitInt 𝜋_LitInt_z.
-  Proof. Admitted.
+  Lemma 𝜋_LitInt_z_meas  : measurable_fun bcov_LitInt 𝜋_LitInt_z. Proof. Admitted.
+  Lemma 𝜋_LitBool_b_meas : measurable_fun bcov_LitBool 𝜋_LitBool_b. Proof. Admitted.
+  Lemma 𝜋_LitLoc_l_meas  : measurable_fun bcov_LitLoc 𝜋_LitLoc_l. Proof. Admitted.
+  Lemma 𝜋_LitLbl_l_meas  : measurable_fun bcov_LitLbl 𝜋_LitLbl_l. Proof. Admitted.
+  Lemma 𝜋_LitReal_r_meas : measurable_fun bcov_LitReal 𝜋_LitReal_r. Proof. Admitted.
 
-  Lemma 𝜋_LitBool_b_meas : measurable_fun bcov_LitBool 𝜋_LitBool_b.
-  Proof. Admitted.
+  Lemma 𝜋_LitV_v_meas    : measurable_fun vcov_lit   𝜋_LitV_v. Proof. Admitted.
+  Lemma 𝜋_RecV_f_meas    : measurable_fun vcov_rec   𝜋_RecV_f. Proof. Admitted.
+  Lemma 𝜋_RecV_x_meas    : measurable_fun vcov_rec   𝜋_RecV_x. Proof. Admitted.
+  Lemma 𝜋_RecV_e_meas    : measurable_fun vcov_rec   𝜋_RecV_e. Proof. Admitted.
+  Lemma 𝜋_PairV_l_meas   : measurable_fun vcov_pair  𝜋_PairV_l. Proof. Admitted.
+  Lemma 𝜋_PairV_r_meas   : measurable_fun vcov_pair  𝜋_PairV_r. Proof. Admitted.
+  Lemma 𝜋_InjLV_v_meas   : measurable_fun vcov_injlv 𝜋_InjLV_v. Proof. Admitted.
+  Lemma 𝜋_InjRV_v_meas   : measurable_fun vcov_injrv 𝜋_InjLV_v. Proof. Admitted.
 
-  Lemma 𝜋_LitLoc_l_meas : measurable_fun bcov_LitLoc 𝜋_LitLoc_l.
-  Proof. Admitted.
-
-  Lemma 𝜋_LitLbl_l_meas : measurable_fun bcov_LitLbl 𝜋_LitLbl_l.
-  Proof. Admitted.
-
-  Lemma 𝜋_LitReal_r_meas : measurable_fun bcov_LitReal 𝜋_LitReal_r.
-  Proof. Admitted.
-
-  (* TODO: Val and expr *)
-
-
+  Lemma 𝜋_Val_v_meas         : measurable_fun ecov_val 𝜋_Val_v. Proof. Admitted.
+  Lemma 𝜋_Var_v_meas         : measurable_fun ecov_var 𝜋_Var_v. Proof. Admitted.
+  Lemma 𝜋_Rec_f_meas         : measurable_fun ecov_rec 𝜋_Rec_f. Proof. Admitted.
+  Lemma 𝜋_Rec_x_meas         : measurable_fun ecov_rec 𝜋_Rec_x. Proof. Admitted.
+  Lemma 𝜋_Rec_e_meas         : measurable_fun ecov_rec 𝜋_Rec_e. Proof. Admitted.
+  Lemma 𝜋_App_l_meas         : measurable_fun ecov_app 𝜋_App_l. Proof. Admitted.
+  Lemma 𝜋_App_r_meas         : measurable_fun ecov_app 𝜋_App_r. Proof. Admitted.
+  Lemma 𝜋_UnOp_op_meas       : measurable_fun ecov_unop 𝜋_UnOp_op. Proof. Admitted.
+  Lemma 𝜋_UnOp_e_meas        : measurable_fun ecov_unop 𝜋_UnOp_e. Proof. Admitted.
+  Lemma 𝜋_BinOp_op_meas      : measurable_fun ecov_binop 𝜋_BinOp_op. Proof. Admitted.
+  Lemma 𝜋_BinOp_l_meas       : measurable_fun ecov_binop 𝜋_BinOp_l. Proof. Admitted.
+  Lemma 𝜋_BinOp_r_meas       : measurable_fun ecov_binop 𝜋_BinOp_r. Proof. Admitted.
+  Lemma 𝜋_If_c_meas          : measurable_fun ecov_if 𝜋_If_c. Proof. Admitted.
+  Lemma 𝜋_If_l_meas          : measurable_fun ecov_if 𝜋_If_l. Proof. Admitted.
+  Lemma 𝜋_If_r_meas          : measurable_fun ecov_if 𝜋_If_r. Proof. Admitted.
+  Lemma 𝜋_Pair_l_meas        : measurable_fun ecov_pair 𝜋_Pair_l. Proof. Admitted.
+  Lemma 𝜋_Pair_r_meas        : measurable_fun ecov_pair 𝜋_Pair_r. Proof. Admitted.
+  Lemma 𝜋_Fst_e_meas         : measurable_fun ecov_fst 𝜋_Fst_e. Proof. Admitted.
+  Lemma 𝜋_Snd_e_meas         : measurable_fun ecov_snd 𝜋_Snd_e. Proof. Admitted.
+  Lemma 𝜋_InjL_e_meas        : measurable_fun ecov_injl 𝜋_InjL_e. Proof. Admitted.
+  Lemma 𝜋_InjR_e_meas        : measurable_fun ecov_injr 𝜋_InjR_e. Proof. Admitted.
+  Lemma 𝜋_AllocN_N_meas      : measurable_fun ecov_alloc 𝜋_AllocN_N. Proof. Admitted.
+  Lemma 𝜋_AllocN_e_meas      : measurable_fun ecov_alloc 𝜋_AllocN_e. Proof. Admitted.
+  Lemma 𝜋_Load_e_meas        : measurable_fun ecov_load 𝜋_Load_e. Proof. Admitted.
+  Lemma 𝜋_Store_l_meas       : measurable_fun ecov_store 𝜋_Store_l. Proof. Admitted.
+  Lemma 𝜋_Store_e_meas       : measurable_fun ecov_store 𝜋_Store_e. Proof. Admitted.
+  Lemma 𝜋_AllocTape_e_meas   : measurable_fun ecov_alloctape 𝜋_AllocTape_e. Proof. Admitted.
+  Lemma 𝜋_Rand_t_meas        : measurable_fun ecov_rand 𝜋_Rand_t. Proof. Admitted.
+  Lemma 𝜋_Rand_N_meas        : measurable_fun ecov_rand 𝜋_Rand_N. Proof. Admitted.
+  Lemma 𝜋_URand_e_meas       : measurable_fun ecov_urand 𝜋_URand_e. Proof. Admitted.
+  Lemma 𝜋_Tick_e_meas        : measurable_fun ecov_tick 𝜋_Tick_e. Proof. Admitted.
+  
 
 End expr_measurability.
 
