@@ -234,6 +234,8 @@ with val_pre {TZ TB TL TR : Type} :=
   | InjLV (v : val_pre)
   | InjRV (v : val_pre).
 
+Scheme expr_pre_mut := Induction for expr_pre Sort Type
+with val_pre_mut := Induction for val_pre Sort Type.
 
 Section functor.
 
@@ -1707,6 +1709,9 @@ Section expr_measurability.
   Admitted.
 
 
+   Lemma gen_expr_generator s : expr_ML (gen_expr s).
+   Proof. Admitted.
+
 
 
   (** The set of all expressions with a given shape is singly generated *)
@@ -1816,24 +1821,24 @@ Section expr_measurability.
   (**  A cover of the expr, val, and base_lit type, by constructor. *)
   Definition ecov_val        : set expr     := [set e  | ∃ v,         e = ValC v].
   Definition ecov_var        : set expr     := [set e  | ∃ s,         e = VarC s].
-  Definition ecov_rec        : set expr     := [set e  | ∃ f x e,     e = RecC f x e].
+  Definition ecov_rec        : set expr     := [set e  | ∃ f x b,     e = RecC f x b].
   Definition ecov_app        : set expr     := [set e  | ∃ e1 e2,     e = AppC e1 e2].
-  Definition ecov_unop       : set expr     := [set e  | ∃ op e,      e = UnOpC op e].
+  Definition ecov_unop       : set expr     := [set e  | ∃ op x,      e = UnOpC op x].
   Definition ecov_binop      : set expr     := [set e  | ∃ op e1 e2,  e = BinOpC op e1 e2].
   Definition ecov_if         : set expr     := [set e  | ∃ e1 e2 e3,  e = IfC e1 e2 e3].
   Definition ecov_pair       : set expr     := [set e  | ∃ e1 e2,     e = PairC e1 e2].
-  Definition ecov_fst        : set expr     := [set e  | ∃ e,         e = FstC e].
-  Definition ecov_snd        : set expr     := [set e  | ∃ e,         e = SndC e].
-  Definition ecov_injl       : set expr     := [set e  | ∃ e,         e = InjLC e].
-  Definition ecov_injr       : set expr     := [set e  | ∃ e,         e = InjRC e].
+  Definition ecov_fst        : set expr     := [set e  | ∃ x,         e = FstC x].
+  Definition ecov_snd        : set expr     := [set e  | ∃ x,         e = SndC x].
+  Definition ecov_injl       : set expr     := [set e  | ∃ x,         e = InjLC x].
+  Definition ecov_injr       : set expr     := [set e  | ∃ x,         e = InjRC x].
   Definition ecov_alloc      : set expr     := [set e  | ∃ e1 e2,     e = AllocN e1 e2].
-  Definition ecov_load       : set expr     := [set e  | ∃ e,         e = LoadC e].
+  Definition ecov_load       : set expr     := [set e  | ∃ x,         e = LoadC x].
   Definition ecov_store      : set expr     := [set e  | ∃ e1 e2,     e = StoreC e1 e2].
-  Definition ecov_alloctape  : set expr     := [set e  | ∃ e,         e = AllocTapeC e].
+  Definition ecov_alloctape  : set expr     := [set e  | ∃ x,         e = AllocTapeC x].
   Definition ecov_rand       : set expr     := [set e  | ∃ e1 e2,     e = RandC e1 e2].
   Definition ecov_allocutape : set expr     := [set e  |              e = AllocUTapeC].
-  Definition ecov_urand      : set expr     := [set e  | ∃ e,         e = URandC e].
-  Definition ecov_tick       : set expr     := [set e  | ∃ e,         e = TickC e].
+  Definition ecov_urand      : set expr     := [set e  | ∃ x,         e = URandC x].
+  Definition ecov_tick       : set expr     := [set e  | ∃ x,         e = TickC x].
 
   Definition vcov_lit        : set val      := [set e  | ∃ v,         e = LitVC v].
   Definition vcov_rec        : set val      := [set e  | ∃ f x e0,    e = RecVC f x e0].
@@ -1910,7 +1915,30 @@ Section expr_measurability.
   Lemma ecov_binop_meas      : measurable ecov_binop. Proof. Admitted.
   Lemma ecov_if_meas         : measurable ecov_if. Proof. Admitted.
   Lemma ecov_pair_meas       : measurable ecov_pair. Proof. Admitted.
-  Lemma ecov_fst_meas        : measurable ecov_fst. Proof. Admitted.
+  Lemma ecov_fst_meas        : measurable ecov_fst.
+  Proof.
+    rewrite /ecov_fst.
+    have X : [set e | ∃ x : expr_pre, e = FstC x] = [set FstC x | x in setT].
+    { admit. }
+    rewrite X; clear X.
+    have Y : [set FstC x | x in setT] = \bigcup_n [set FstC x | x in (expr_seq n)].
+    { admit. }
+    rewrite Y; clear Y.
+
+    apply bigcup_measurable.
+    move=> k _.
+    (* Everything in (val_seq k) has the same shape *)
+    rewrite /expr_seq/preimage/=.
+    rewrite (expr_shape_cyl (expr_shape_enum k)).
+
+    (* Use the shape as a generator *)
+    apply sub_sigma_algebra.
+    rewrite /expr_cyl/=.
+    exists (Fst (gen_expr (expr_shape_enum k))); [ by apply gen_expr_generator |].
+    by rewrite /=.
+  Admitted.
+
+
   Lemma ecov_snd_meas        : measurable ecov_snd. Proof. Admitted.
   Lemma ecov_injl_meas       : measurable ecov_injl. Proof. Admitted.
   Lemma ecov_injr_meas       : measurable ecov_injr. Proof. Admitted.
