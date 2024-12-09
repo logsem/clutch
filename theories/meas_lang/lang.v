@@ -235,6 +235,63 @@ with val_pre {TZ TB TL TR : Type} :=
   | InjRV (v : val_pre).
 
 
+Section functor.
+
+Context {TZ1 TB1 TL1 TR1 : Type}.
+Context {TZ2 TB2 TL2 TR2 : Type}.
+Variable FInt : TZ1 -> TZ2.
+Variable FBool : TB1 -> TB2.
+Variable FLoc : TL1 -> TL2.
+Variable FLbl : TL1 -> TL2.
+Variable FReal : TR1 -> TR2.
+
+Definition base_lit_pre_F (b : @base_lit_pre TZ1 TB1 TL1 TR1) : @base_lit_pre TZ2 TB2 TL2 TR2 :=
+  match b with
+  | LitInt n  => LitInt $ FInt n
+  | LitBool b => LitBool $ FBool b
+  | LitUnit   => LitUnit
+  | LitLoc l  => LitLoc $ FLoc l
+  | LitLbl l  => LitLbl $ FLbl l
+  | LitReal r => LitReal $ FReal r
+  end.
+
+Fixpoint expr_pre_F (e : @expr_pre TZ1 TB1 TL1 TR1) : @expr_pre TZ2 TB2 TL2 TR2 :=
+  match e with
+  | Val v          => Val (shape_pre_F v)
+  | Var x          => Var x
+  | Rec f x e      => Rec f x (expr_pre_F e)
+  | App e1 e2      => App (expr_pre_F e1) (expr_pre_F e2)
+  | UnOp op e      => UnOp op (expr_pre_F e)
+  | BinOp op e1 e2 => BinOp op (expr_pre_F e1) (expr_pre_F e2)
+  | If e1 e2 e3    => If (expr_pre_F e1) (expr_pre_F e2) (expr_pre_F e3)
+  | Pair e1 e2     => Pair (expr_pre_F e1) (expr_pre_F e2)
+  | Fst e          => Fst (expr_pre_F e)
+  | Snd e          => Snd (expr_pre_F e)
+  | InjL e         => InjL (expr_pre_F e)
+  | InjR e         => InjR (expr_pre_F e)
+  | Case e1 e2 e3  => Case (expr_pre_F e1) (expr_pre_F e2) (expr_pre_F e3)
+  | AllocN e1 e2   => AllocN (expr_pre_F e1) (expr_pre_F e2)
+  | Load e         => Load (expr_pre_F e)
+  | Store e1 e2    => Store (expr_pre_F e1) (expr_pre_F e2)
+  | AllocTape e    => AllocTape (expr_pre_F e)
+  | Rand e1 e2     => Rand (expr_pre_F e1) (expr_pre_F e2)
+  | AllocUTape     => AllocUTape
+  | URand e        => URand (expr_pre_F e)
+  | Tick e         => Tick (expr_pre_F e)
+  end with shape_pre_F (v : @val_pre TZ1 TB1 TL1 TR1) : @val_pre TZ2 TB2 TL2 TR2 :=
+  match v with
+  | LitV v         => LitV (base_lit_pre_F v)
+  | RecV f x e     => RecV f x (expr_pre_F e)
+  | PairV v1 v2    => PairV (shape_pre_F v1) (shape_pre_F v2)
+  | InjLV v1       => InjLV (shape_pre_F v1)
+  | InjRV v1       => InjRV (shape_pre_F v1)
+  end.
+End functor.
+
+
+
+
+
 (* Instances for un_op *)
 HB.instance Definition _ := gen_eqMixin un_op.
 HB.instance Definition _ := gen_choiceMixin un_op.
@@ -1614,14 +1671,16 @@ Section expr_measurability.
   Definition val_shape      : Type := @val_pre () () () ().
   Definition expr_shape     : Type := @expr_pre () () () ().
 
-  Inductive shape_base_lit : base_lit -> base_lit_shape -> Prop :=
-  | sh_LitInt n  : shape_base_lit (LitInt n) (LitInt ())
-  | sh_LitBool b : shape_base_lit (LitBool b) (LitBool ())
-  | sh_LitUnit   : shape_base_lit LitUnit LitUnit
-  | sh_LitLoc l  : shape_base_lit (LitLoc l) (LitLoc ())
-  | sh_LitLbl l  : shape_base_lit (LitLbl l) (LitLbl ())
-  | sh_LitReal r : shape_base_lit (LitReal r) (LitReal ()).
+  (*
+  FIXME: Old version-- delete me if not used
 
+  Inductive shape_base_lit : base_lit -> base_lit_shape -> Prop :=
+  | sh_LitInt n  : shape_base_lit (LitInt n)  (LitInt ())
+  | sh_LitBool b : shape_base_lit (LitBool b) (LitBool ())
+  | sh_LitUnit   : shape_base_lit LitUnit     LitUnit
+  | sh_LitLoc l  : shape_base_lit (LitLoc l)  (LitLoc ())
+  | sh_LitLbl l  : shape_base_lit (LitLbl l)  (LitLbl ())
+  | sh_LitReal r : shape_base_lit (LitReal r) (LitReal ()).
 
   Inductive shape_expr : expr -> expr_shape -> Prop :=
   | sh_Val v s : shape_val v s -> shape_expr (Val v) (Val s)
@@ -1654,20 +1713,115 @@ Section expr_measurability.
 
   Scheme expr_shape_mut_ind := Induction for shape_expr Sort Prop
       with val_shape_mut_ind := Induction for shape_val Sort Prop.
+   *)
+
+  (* FIXME: Define 4-functor *)
+
+  Definition shape_base_lit (b : base_lit) : base_lit_shape :=
+    match b with
+    | LitInt _  => LitInt ()
+    | LitBool _ => LitBool ()
+    | LitUnit   => LitUnit
+    | LitLoc _  => LitLoc ()
+    | LitLbl _  => LitLbl ()
+    | LitReal _ => LitReal ()
+    end.
+
+  Fixpoint shape_expr (e : expr) : expr_shape :=
+    match e with
+    | Val v          => Val (shape_val v)
+    | Var x          => Var x
+    | Rec f x e      => Rec f x (shape_expr e)
+    | App e1 e2      => App (shape_expr e1) (shape_expr e2)
+    | UnOp op e      => UnOp op (shape_expr e)
+    | BinOp op e1 e2 => BinOp op (shape_expr e1) (shape_expr e2)
+    | If e1 e2 e3    => If (shape_expr e1) (shape_expr e2) (shape_expr e3)
+    | Pair e1 e2     => Pair (shape_expr e1) (shape_expr e2)
+    | Fst e          => Fst (shape_expr e)
+    | Snd e          => Snd (shape_expr e)
+    | InjL e         => InjL (shape_expr e)
+    | InjR e         => InjR (shape_expr e)
+    | Case e1 e2 e3  => Case (shape_expr e1) (shape_expr e2) (shape_expr e3)
+    | AllocN e1 e2   => AllocN (shape_expr e1) (shape_expr e2)
+    | Load e         => Load (shape_expr e)
+    | Store e1 e2    => Store (shape_expr e1) (shape_expr e2)
+    | AllocTape e    => AllocTape (shape_expr e)
+    | Rand e1 e2     => Rand (shape_expr e1) (shape_expr e2)
+    | AllocUTape     => AllocUTape
+    | URand e        => URand (shape_expr e)
+    | Tick e         => Tick (shape_expr e)
+    end with shape_val (v : val) : val_shape :=
+    match v with
+    | LitV v         => LitV (shape_base_lit v)
+    | RecV f x e     => RecV f x (shape_expr e)
+    | PairV v1 v2    => PairV (shape_val v1) (shape_val v2)
+    | InjLV v1       => InjLV (shape_val v1)
+    | InjRV v1       => InjRV (shape_val v1)
+    end.
 
 
-  (** The set of terms with a given shape are a generator of the SA *)
-  (* Namely, a tree with setT on all leaves *)
+  Definition shape_gen_base_lit (b : base_lit) : base_lit_shape :=
+    match b with
+    | LitInt _  => LitInt ()
+    | LitBool _ => LitBool ()
+    | LitUnit   => LitUnit
+    | LitLoc _  => LitLoc ()
+    | LitLbl _  => LitLbl ()
+    | LitReal _ => LitReal ()
+    end.
+
+  Fixpoint shape_gen_expr (e : expr) : expr_shape :=
+    match e with
+    | Val v          => Val (shape_gen_val v)
+    | Var x          => Var x
+    | Rec f x e      => Rec f x (shape_gen_expr e)
+    | App e1 e2      => App (shape_gen_expr e1) (shape_gen_expr e2)
+    | UnOp op e      => UnOp op (shape_gen_expr e)
+    | BinOp op e1 e2 => BinOp op (shape_gen_expr e1) (shape_gen_expr e2)
+    | If e1 e2 e3    => If (shape_gen_expr e1) (shape_gen_expr e2) (shape_gen_expr e3)
+    | Pair e1 e2     => Pair (shape_gen_expr e1) (shape_gen_expr e2)
+    | Fst e          => Fst (shape_gen_expr e)
+    | Snd e          => Snd (shape_gen_expr e)
+    | InjL e         => InjL (shape_gen_expr e)
+    | InjR e         => InjR (shape_gen_expr e)
+    | Case e1 e2 e3  => Case (shape_gen_expr e1) (shape_gen_expr e2) (shape_gen_expr e3)
+    | AllocN e1 e2   => AllocN (shape_gen_expr e1) (shape_gen_expr e2)
+    | Load e         => Load (shape_gen_expr e)
+    | Store e1 e2    => Store (shape_gen_expr e1) (shape_gen_expr e2)
+    | AllocTape e    => AllocTape (shape_gen_expr e)
+    | Rand e1 e2     => Rand (shape_gen_expr e1) (shape_gen_expr e2)
+    | AllocUTape     => AllocUTape
+    | URand e        => URand (shape_gen_expr e)
+    | Tick e         => Tick (shape_gen_expr e)
+    end with shape_gen_val (v : val) : val_shape :=
+    match v with
+    | LitV v         => LitV (shape_gen_base_lit v)
+    | RecV f x e     => RecV f x (shape_gen_expr e)
+    | PairV v1 v2    => PairV (shape_gen_val v1) (shape_gen_val v2)
+    | InjLV v1       => InjLV (shape_gen_val v1)
+    | InjRV v1       => InjRV (shape_gen_val v1)
+    end.
 
 
-  Lemma expr_shape_cyl (s : expr_shape) : expr_cyl [set e | shape_expr e s].
+
+
+
+  (** The set of all expressions with a given shape is singly generated *)
+
+  Lemma base_lit_shape_cyl (s : base_lit_shape) :  exists generator : base_lit_S, [set e | shape_base_lit e = s] = base_lit_ST generator.
+  Proof.
+
+
+
+
+  Admitted.
+
+  Lemma expr_shape_cyl (s : expr_shape) : exists generator : expr_S, [set e | shape_expr e = s] = expr_ST generator.
   Proof. Admitted.
 
-  Lemma val_shape_cyl (s : val_shape) : val_cyl [set e | shape_val e s].
+  Lemma val_shape_cyl (s : val_shape) : exists generator : val_S, [set e | shape_val e = s] = val_ST generator.
   Proof. Admitted.
 
-  Lemma base_lit_shape_cyl (s : base_lit_shape) : base_lit_cyl [set e | shape_base_lit e s].
-  Proof. Admitted.
 
 
   (** Decompose the set of expressions into a countable union over expr_shape *)
@@ -1690,24 +1844,24 @@ Section expr_measurability.
   Lemma base_lit_shape_enum_surj (e : base_lit_shape) : exists n, base_lit_shape_enum n = e.
   Proof. Admitted.
 
-  Lemma shape_expr_surj (e : expr) : exists s, shape_expr e s.
+  Lemma shape_expr_surj (e : expr) : exists s, shape_expr e = s.
   Proof. Admitted.
 
-  Lemma shape_val_surj (e : val) : exists s, shape_val e s.
+  Lemma shape_val_surj (e : val) : exists s, shape_val e = s.
   Proof. Admitted.
 
-  Lemma shape_base_lit_surj (e : base_lit) : exists s, shape_base_lit e s.
+  Lemma shape_base_lit_surj (e : base_lit) : exists s, shape_base_lit e = s.
   Proof. Admitted.
-
-
-  Definition expr_seq : sequences.sequence (set expr) :=
-    fun n => [set e | shape_expr e (expr_shape_enum n)].
-
-  Definition val_seq : sequences.sequence (set val) :=
-    fun n => [set e | shape_val e (val_shape_enum n)].
 
   Definition base_lit_seq : sequences.sequence (set base_lit) :=
-    fun n => [set e | shape_base_lit e (base_lit_shape_enum n)].
+    fun n => shape_base_lit @^-1` [set base_lit_shape_enum n].
+
+  Definition expr_seq : sequences.sequence (set expr) :=
+    fun n => shape_expr @^-1` [set expr_shape_enum n].
+
+  Definition val_seq : sequences.sequence (set val) :=
+    fun n => shape_val @^-1` [set val_shape_enum n].
+
 
   Lemma expr_shape_decomp : (\bigcup_n expr_seq n) = setT.
   Proof.
@@ -1726,7 +1880,6 @@ Section expr_measurability.
     exists n; [done|].
     by rewrite /val_seq Hn //=.
   Qed.
-
 
   Lemma base_lit_shape_decomp : (\bigcup_n base_lit_seq n) = setT.
   Proof.
