@@ -464,7 +464,7 @@ Section expr_algebra.
 
 
 
-  (** Uncurried form: These ones are measurable *)
+  (** Uncurried form: These ones can be shown to be measurable directly *)
   Definition LitIntU  (v : TZ) := LitIntC v.
   Definition LitBoolU (v : TB) := LitBoolC v.
   Definition LitUnitU          := LitUnitC.
@@ -499,6 +499,8 @@ Section expr_algebra.
   Definition PairVU (v : val * val)                                 := PairVC v.1 v.2.
   Definition InjLVU (v : val)                                       := InjLVC v.
   Definition InjRVU (v : val)                                       := InjRVC v.
+
+  (** FIXME: Use measurable_uncurry to get measurability of the uncurried versions? *)
 
 End expr_algebra.
 
@@ -1612,7 +1614,7 @@ Section expr_measurability.
   Definition val_shape      : Type := @val_pre () () () ().
   Definition expr_shape     : Type := @expr_pre () () () ().
 
-  Inductive shape_base_lit : base_lit -> base_lit_shape -> Type :=
+  Inductive shape_base_lit : base_lit -> base_lit_shape -> Prop :=
   | sh_LitInt n  : shape_base_lit (LitInt n) (LitInt ())
   | sh_LitBool b : shape_base_lit (LitBool b) (LitBool ())
   | sh_LitUnit   : shape_base_lit LitUnit LitUnit
@@ -1621,7 +1623,7 @@ Section expr_measurability.
   | sh_LitReal r : shape_base_lit (LitReal r) (LitReal ()).
 
 
-  Inductive shape_expr : expr -> expr_shape -> Type :=
+  Inductive shape_expr : expr -> expr_shape -> Prop :=
   | sh_Val v s : shape_val v s -> shape_expr (Val v) (Val s)
   | sh_Var x : shape_expr (Var x) (Var x)
   | sh_Rec f x e s : shape_expr e s -> shape_expr (Rec f x e) (Rec f x s)
@@ -1644,31 +1646,103 @@ Section expr_measurability.
   | sh_URand e1 s1 : shape_expr e1 s1 -> shape_expr (URand e1) (URand s1)
   | sh_Tick e1 s1 : shape_expr e1 s1 -> shape_expr (Tick e1) (Tick s1)
   with
-  shape_val : val -> val_shape -> Type :=
+  shape_val : val -> val_shape -> Prop :=
   | sh_LitV v s : shape_base_lit v s -> shape_val (LitV v) (LitV s)
   | sh_RecV f x e s : shape_expr e s -> shape_val (RecV f x e) (RecV f x s)
   | sh_PairV e1 e2 s1 s2 : shape_val e1 s1 -> shape_val e2 s2 -> shape_val (PairV e1 e2) (PairV s1 s2)
   | sh_InjLV e1 s1 : shape_val e1 s1 -> shape_val (InjLV e1) (InjLV s1).
 
-  (* Lemma: For all expr_shape, there exists an unique generator such that the set of all exprs with that shape
-            has that generator. *)
-
-  (* Lemma: There is a surjective sequence of expr_shapes *)
+  Scheme expr_shape_mut_ind := Induction for shape_expr Sort Prop
+      with val_shape_mut_ind := Induction for shape_val Sort Prop.
 
 
-
-  (* TODO: decompose a set of expr into a union over the set of shapes *)
-
-
+  (** The set of terms with a given shape are a generator of the SA *)
+  (* Namely, a tree with setT on all leaves *)
 
 
-  (*
-   Search measurable "bigcup".
-  Check bigcup_measurable.
-  Unset Printing Notations.
-  Check (\bigcup_(i in _) _ i). *)
-  (* Needs a sequence.sequence to use measurabilility of bigcup *)
-  (* Sequence of shapes *)
+  Lemma expr_shape_cyl (s : expr_shape) : expr_cyl [set e | shape_expr e s].
+  Proof. Admitted.
+
+  Lemma val_shape_cyl (s : val_shape) : val_cyl [set e | shape_val e s].
+  Proof. Admitted.
+
+  Lemma base_lit_shape_cyl (s : base_lit_shape) : base_lit_cyl [set e | shape_base_lit e s].
+  Proof. Admitted.
+
+
+  (** Decompose the set of expressions into a countable union over expr_shape *)
+
+  Definition expr_shape_enum (n : nat) : expr_shape. Admitted.
+
+  Definition val_shape_enum (n : nat) : val_shape. Admitted.
+
+  Definition base_lit_shape_enum (n : nat) : base_lit_shape. Admitted.
+
+  (* I only need surjectivity to prove that I don't miss any trees, so I'll use a definition
+     of surjectivity appropriate for that (not the HB one, it gives us nothing) *)
+
+  Lemma expr_shape_enum_surj (e : expr_shape) : exists n, expr_shape_enum n = e.
+  Proof. Admitted.
+
+  Lemma val_shape_enum_surj (e : val_shape) : exists n, val_shape_enum n = e.
+  Proof. Admitted.
+
+  Lemma base_lit_shape_enum_surj (e : base_lit_shape) : exists n, base_lit_shape_enum n = e.
+  Proof. Admitted.
+
+  Lemma shape_expr_surj (e : expr) : exists s, shape_expr e s.
+  Proof. Admitted.
+
+  Lemma shape_val_surj (e : val) : exists s, shape_val e s.
+  Proof. Admitted.
+
+  Lemma shape_base_lit_surj (e : base_lit) : exists s, shape_base_lit e s.
+  Proof. Admitted.
+
+
+  Definition expr_seq : sequences.sequence (set expr) :=
+    fun n => [set e | shape_expr e (expr_shape_enum n)].
+
+  Definition val_seq : sequences.sequence (set val) :=
+    fun n => [set e | shape_val e (val_shape_enum n)].
+
+  Definition base_lit_seq : sequences.sequence (set base_lit) :=
+    fun n => [set e | shape_base_lit e (base_lit_shape_enum n)].
+
+  Lemma expr_shape_decomp : (\bigcup_n expr_seq n) = setT.
+  Proof.
+    rewrite <- subTset => e He.
+    case (shape_expr_surj e) as [s Hs].
+    case (expr_shape_enum_surj s) as [n Hn].
+    exists n; [done|].
+    by rewrite /expr_seq Hn //=.
+  Qed.
+
+  Lemma val_shape_decomp : (\bigcup_n val_seq n) = setT.
+  Proof.
+    rewrite <- subTset => e He.
+    case (shape_val_surj e) as [s Hs].
+    case (val_shape_enum_surj s) as [n Hn].
+    exists n; [done|].
+    by rewrite /val_seq Hn //=.
+  Qed.
+
+
+  Lemma base_lit_shape_decomp : (\bigcup_n base_lit_seq n) = setT.
+  Proof.
+    rewrite <- subTset => e He.
+    case (shape_base_lit_surj e) as [s Hs].
+    case (base_lit_shape_enum_surj s) as [n Hn].
+    exists n; [done|].
+    by rewrite /base_lit_seq Hn //=.
+  Qed.
+
+
+
+
+
+
+
 
 
 End expr_measurability.
