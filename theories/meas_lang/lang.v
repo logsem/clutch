@@ -1656,14 +1656,6 @@ Section expr_measurability.
   Qed.
 
 
-  (**  A cover of the expr type *)
-  Definition ecover_val : set expr := [set e  | ∃ v, e = ValC v].
-  Definition ecover_var : set expr := [set e  | ∃ s, e = VarC s].
-  Definition ecover_rec : set expr := [set e  | ∃ f x e, e = @RecC f x e].
-  (* TODO: The rest *)
-
-
-
   (** Projections: Each projection function is a measurable_fun from the respective cover set
       in expr to a product space. *)
 
@@ -1814,6 +1806,48 @@ Section expr_measurability.
     exists n; [done|].
     by rewrite /val_seq Hn //=.
   Qed.
+
+
+  (**  A cover of the expr type *)
+  Definition ecover_val : set expr := [set e  | ∃ v, e = ValC v].
+  Definition ecover_var : set expr := [set e  | ∃ s, e = VarC s].
+  Definition ecover_rec : set expr := [set e  | ∃ f x e, e = @RecC f x e].
+  (* TODO: The rest of val and expr *)
+
+  Definition bcov_LitInt  : set base_lit := [set e  | ∃ v, e = LitIntC  v].
+  Definition bcov_LitBool : set base_lit := [set e  | ∃ v, e = LitBoolC v].
+  Definition bcov_LitUnit : set base_lit := [set e  |      e = LitUnitC  ].
+  Definition bcov_LitLoc  : set base_lit := [set e  | ∃ v, e = LitLoc   v].
+  Definition bcov_LitLbl  : set base_lit := [set e  | ∃ v, e = LitLbl   v].
+  Definition bcov_LitReal : set base_lit := [set e  | ∃ v, e = LitReal  v].
+
+
+  (** Projection functions *)
+
+  Definition base_lit_LitInt_𝜋V  (b : base_lit) : TZ := match b with | LitInt  v => v | _ => point end.
+  Definition base_lit_LitBool_𝜋V (b : base_lit) : TB := match b with | LitBool v => v | _ => point end.
+  Definition base_lit_LitLoc_𝜋V  (b : base_lit) : TL := match b with | LitLoc  v => v | _ => point end.
+  Definition base_lit_LitLbl_𝜋V  (b : base_lit) : TL := match b with | LitLbl  v => v | _ => point end.
+  Definition base_lit_LitReal_𝜋V (b : base_lit) : TR := match b with | LitReal v => v | _ => point end.
+  (* TODO: The rest of val and expr *)
+
+
+
+  (** Projection measurability *)
+  Lemma base_lit_LitInt_𝜋V_meas : measurable_fun bcov_LitInt base_lit_LitInt_𝜋V.
+  Proof. Admitted.
+
+  Lemma base_lit_LitBool_𝜋V_meas : measurable_fun bcov_LitBool base_lit_LitBool_𝜋V.
+  Proof. Admitted.
+
+  Lemma base_lit_LitLoc_𝜋V_meas : measurable_fun bcov_LitLoc base_lit_LitLoc_𝜋V.
+  Proof. Admitted.
+
+  Lemma base_lit_LitLbl_𝜋V_meas : measurable_fun bcov_LitLbl base_lit_LitLbl_𝜋V.
+  Proof. Admitted.
+
+  Lemma base_lit_LitReal_𝜋V_meas : measurable_fun bcov_LitReal base_lit_LitReal_𝜋V.
+  Proof. Admitted.
 
 
 
