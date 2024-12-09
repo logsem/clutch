@@ -1743,7 +1743,16 @@ Section expr_measurability.
   (** The set of all expressions with a given shape is singly generated *)
 
   Lemma base_lit_shape_cyl (s : base_lit_shape) : [set e | shape_base_lit e = s] = base_lit_ST (gen_base_lit s).
-  Proof. Admitted.
+  Proof.
+    apply /predeqP =>b.
+    destruct b; simpl.
+    all: split; [ by move <-; rewrite //=; eexists _; eauto | ].
+    all: move=> H.
+    all: destruct s as [x|x| |x|x|x]; simpl in H.
+    all: try done.
+    all: try by destruct H as [? ?].
+    all: by destruct x.
+  Qed.
 
   Lemma expr_shape_cyl (s : expr_shape) : [set e | shape_expr e = s] = expr_ST (gen_expr s).
   Proof. Admitted.
