@@ -2079,7 +2079,61 @@ Section expr_measurability.
   Lemma 𝜋_RecV_f_meas    : measurable_fun vcov_rec   𝜋_RecV_f. Proof. Admitted.
   Lemma 𝜋_RecV_x_meas    : measurable_fun vcov_rec   𝜋_RecV_x. Proof. Admitted.
   Lemma 𝜋_RecV_e_meas    : measurable_fun vcov_rec   𝜋_RecV_e. Proof. Admitted.
-  Lemma 𝜋_PairV_l_meas   : measurable_fun vcov_pair  𝜋_PairV_l. Proof. Admitted.
+
+  Lemma 𝜋_PairV_l_meas   : measurable_fun vcov_pair  𝜋_PairV_l.
+  Proof.
+    eapply measurability; [by eauto|].
+    rewrite /preimage_class/=.
+    intros S.
+
+    rewrite <- bigcup_imset1; rewrite /bigcup/=.
+    rewrite /vcov_pair/setI/=.
+    move=> [SB + ->]; rewrite /val_cyl/=; move=> [C ? <-].
+
+    (* FIXME: This changes for each proof, how to make it as easy as possible? *)
+
+    (* Decompose the set of values on the right to get its generator? *)
+    have X : [set x | (∃ v1 v2 : val_pre, x = PairVC v1 v2) ∧ val_ST C (𝜋_PairV_l x)] =
+             \bigcup_n [set x | (∃ v1 v2 : val_pre, x = PairVC v1 v2 /\ (val_ST (gen_val (val_shape_enum n)) v2)) ∧
+                                val_ST C (𝜋_PairV_l x)].
+      { rewrite /bigcup/=.
+        apply /predeqP =>y /=.
+        split.
+        - move=> [[w[z ->]] +]; simpl; move=> ?.
+          destruct (val_shape_enum_surj (shape_val z)) as [i Hi].
+          exists i; [done|].
+          split; [|done].
+          exists w.
+          exists z.
+          split; [done|].
+          by rewrite <- val_shape_cyl; simpl.
+        - move=> [i _ [[w [z [-> ?]]] +]]; simpl; move=> ?.
+          split; [|done].
+          by eexists _; eexists _; eauto.
+    }
+    rewrite X; clear X.
+
+    apply bigcup_measurable.
+    move=> k _.
+
+    apply sub_sigma_algebra.
+    eexists (PairV C (gen_val (val_shape_enum k))).
+    { simpl. split; [done|]. by apply gen_val_generator. }
+
+    rewrite /setI/val_seq/preimage/=.
+    rewrite <- val_shape_cyl.
+
+    apply /predeqP =>y /=.
+    split.
+    - move=> [z ? [ w H <-]].
+      split.
+      + by eexists _; eexists _; eauto.
+      + by simpl.
+    - move=> [[w [z [-> ?]]] +]; simpl; move=> ?.
+      exists w; [done|].
+      exists z; done.
+  Qed.
+
   Lemma 𝜋_PairV_r_meas   : measurable_fun vcov_pair  𝜋_PairV_r. Proof. Admitted.
   Lemma 𝜋_InjLV_v_meas   : measurable_fun vcov_injlv 𝜋_InjLV_v. Proof. Admitted.
   Lemma 𝜋_InjRV_v_meas   : measurable_fun vcov_injrv 𝜋_InjLV_v. Proof. Admitted.
