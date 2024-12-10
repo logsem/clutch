@@ -688,9 +688,9 @@ Section expr_measurability.
 
   Lemma RecU_measurable : measurable_fun setT RecU.
   Proof.
-    eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
-    move=> S /= [X [D HD <-] <-]; rewrite setTI.
+    into_gen_measurable.
+    move=> ? [? [D H <-] <-] /=.
+    rewrite setTI.
     rewrite /preimage/=.
     destruct D.
     3: {
@@ -704,7 +704,7 @@ Section expr_measurability.
         - apply sub_sigma_algebra.
           rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
           right.
-          simpl in HD.
+          simpl in H.
           exists (expr_ST D).
           { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D. }
           rewrite setTI.
@@ -715,7 +715,7 @@ Section expr_measurability.
           + apply sub_sigma_algebra.
             rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
             left.
-            simpl in HD.
+            simpl in H.
             exists [set t | t.1 = f].
             { apply sub_sigma_algebra.
               simpl.
@@ -726,7 +726,7 @@ Section expr_measurability.
           + apply sub_sigma_algebra.
             rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
             left.
-            simpl in HD.
+            simpl in H.
             exists [set t | t.2 = x].
             { apply sub_sigma_algebra.
               simpl.
@@ -749,7 +749,7 @@ Section expr_measurability.
 
   Lemma AppU_measurable : measurable_fun setT AppU.
   Proof.
-    eapply measurability; [by eauto|].
+    into_gen_measurable.
     rewrite /preimage_class/subset.
     move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
@@ -1001,19 +1001,15 @@ Section expr_measurability.
          rewrite Prod2Decomp.
          { apply measurableI.
            - apply sub_sigma_algebra.
-             rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
              right.
-             exists (expr_ST D2).
-             { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D2. }
+             eexists _; [by apply sub_sigma_algebra; exists D2 |].
              rewrite setTI.
              apply/seteqP; split=> x/=.
              + by move=>?; exists x.1; [done|]; exists x.2; done.
              + by move=> [??[??][?<-]].
            - apply sub_sigma_algebra.
-             rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
              left.
-             exists (expr_ST D1).
-             { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D1. }
+             eexists _; [by apply sub_sigma_algebra; exists D1 |].
              rewrite setTI.
              apply/seteqP; split=> x/=.
              + by move=>?; exists x.1; [done|]; exists x.2; done.
