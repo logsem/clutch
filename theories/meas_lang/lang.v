@@ -602,6 +602,16 @@ Section expr_measurability.
 
 
 
+  (** The bulk of the trivial case work for the constructor measurability *)
+  Ltac ctor_triv_case :=
+    apply MZ; apply /predeqP =>y /=; split; [| by move=>?];
+    (by move=> ?//) +
+    (by move=> [?]//) +
+    (by move=> [??[???]]//) +
+    (by move=> [??[??[???]]]//).
+
+
+
   (** Measurability of the projection and constructor functions *)
 
   (** Base_lit constructors, uncurried *)
@@ -618,11 +628,7 @@ Section expr_measurability.
          move=> ?.
          by exists x.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma LitBoolU_measurable : measurable_fun setT LitBoolU.
@@ -638,11 +644,7 @@ Section expr_measurability.
          move=> ?.
          by exists x.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   (*
@@ -663,11 +665,7 @@ Section expr_measurability.
          move=> ?.
          by exists x.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma LitLblU_measurable : measurable_fun setT LitLblU.
@@ -683,11 +681,7 @@ Section expr_measurability.
          move=> ?.
          by exists x.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma LitRealU_measurable : measurable_fun setT LitRealU.
@@ -703,11 +697,7 @@ Section expr_measurability.
          move=> ?.
          by exists x.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
 
@@ -726,11 +716,7 @@ Section expr_measurability.
          inversion H as [H1].
          by rewrite <- H1.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma VarU_measurable : measurable_fun setT VarU.
@@ -740,11 +726,7 @@ Section expr_measurability.
     move=> S /= [X [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     2: { by rewrite /measurable/=/discr_meas/=. }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma RecU_measurable : measurable_fun setT RecU.
@@ -804,11 +786,7 @@ Section expr_measurability.
         exists e; [done|].
         by destruct y; rewrite <-He; simpl; intuition.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
 
@@ -844,11 +822,7 @@ Section expr_measurability.
         }
         by move=>????[??]//.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma UnOpU_measurable : measurable_fun setT UnOpU.
@@ -895,11 +869,7 @@ Section expr_measurability.
         f_equal.
         inversion Ha. by intuition.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma BinOpU_measurable : measurable_fun setT BinOpU.
@@ -986,11 +956,7 @@ Section expr_measurability.
         simpl in Hop.
         by rewrite Hop.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma IfU_measurable : measurable_fun setT IfU.
@@ -1063,11 +1029,7 @@ Section expr_measurability.
           by intuition.
         + by move=> [[??]?] [[??]?] [-> -> ->].
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma PairU_measurable : measurable_fun setT PairU.
@@ -1102,11 +1064,7 @@ Section expr_measurability.
         }
         by move=>????[??]//.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma FstU_measurable : measurable_fun setT FstU.
@@ -1125,11 +1083,7 @@ Section expr_measurability.
          inversion H as [H1].
          by rewrite <- H1.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma SndU_measurable : measurable_fun setT SndU.
@@ -1148,11 +1102,7 @@ Section expr_measurability.
          inversion H as [H1].
          by rewrite <- H1.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma InjLU_measurable : measurable_fun setT InjLU.
@@ -1171,11 +1121,7 @@ Section expr_measurability.
          inversion H as [H1].
          by rewrite <- H1.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma InjRU_measurable : measurable_fun setT InjRU.
@@ -1194,11 +1140,7 @@ Section expr_measurability.
          inversion H as [H1].
          by rewrite <- H1.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma CaseU_measurable : measurable_fun setT CaseU.
@@ -1271,11 +1213,7 @@ Section expr_measurability.
           by intuition.
         + by move=> [[??]?] [[??]?] [-> -> ->].
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma AllocNU_measurable : measurable_fun setT AllocNU.
@@ -1310,11 +1248,7 @@ Section expr_measurability.
         }
         by move=>????[??]//.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma LoadU_measurable : measurable_fun setT LoadU.
@@ -1333,11 +1267,7 @@ Section expr_measurability.
          inversion H as [H1].
          by rewrite <- H1.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma StoreU_measurable : measurable_fun setT StoreU.
@@ -1372,11 +1302,7 @@ Section expr_measurability.
         }
         by move=>????[??]//.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma AllocTapeU_measurable : measurable_fun setT AllocTapeU.
@@ -1394,11 +1320,7 @@ Section expr_measurability.
          inversion H as [H1].
          by rewrite <- H1.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma RandU_measurable : measurable_fun setT RandU.
@@ -1433,11 +1355,7 @@ Section expr_measurability.
         }
         by move=>????[??]//.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   (*
@@ -1459,11 +1377,7 @@ Section expr_measurability.
          inversion H as [H1].
          by rewrite <- H1.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma TickU_measurable : measurable_fun setT TickU.
@@ -1481,11 +1395,7 @@ Section expr_measurability.
          inversion H as [H1].
          by rewrite <- H1.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   (** Val constructors *)
@@ -1505,11 +1415,7 @@ Section expr_measurability.
          inversion H as [H1].
          by rewrite <- H1.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma RecVU_measurable : measurable_fun setT RecVU.
@@ -1570,11 +1476,7 @@ Section expr_measurability.
         + by rewrite H.
         + destruct y as [[??]?]; by rewrite /=.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma PairVU_measurable : measurable_fun setT PairVU.
@@ -1609,11 +1511,7 @@ Section expr_measurability.
         }
         by move=>????[??]//.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma InjLVU_measurable : measurable_fun setT InjLVU.
@@ -1631,11 +1529,7 @@ Section expr_measurability.
          inversion H as [H1].
          by rewrite <- H1.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
   Lemma InjRVU_measurable : measurable_fun setT InjRVU.
@@ -1653,11 +1547,7 @@ Section expr_measurability.
          inversion H as [H1].
          by rewrite <- H1.
     }
-    all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
-    all: try by move=> ?//.
-    all: try by move=> [?]//.
-    all: try by move=> [??[???]]//.
-    all: try by move=> [??[??[???]]]//.
+    all: by ctor_triv_case.
   Qed.
 
 
