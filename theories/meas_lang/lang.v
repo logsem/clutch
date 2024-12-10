@@ -2010,7 +2010,26 @@ Section expr_measurability.
 
 
   (** Projection functions measurability *)
-  Lemma 𝜋_LitInt_z_meas  : measurable_fun bcov_LitInt 𝜋_LitInt_z. Proof. Admitted.
+  Lemma 𝜋_LitInt_z_meas  : measurable_fun bcov_LitInt 𝜋_LitInt_z.
+  Proof.
+    intros _H S HS.
+    (* Set of base_lit values which...
+        - Are of the form LitIntC v
+        - Are in the preimage of S
+       This proof does not need a decomposition. *)
+    apply sub_sigma_algebra.
+    exists (LitInt S).
+    { by rewrite /base_lit_ML. }
+    rewrite /bcov_LitInt/preimage/setI/𝜋_LitInt_z/=.
+    apply /predeqP =>y /=.
+    split.
+    - move=> [x Hs <-].
+      split; [|done].
+      by exists x.
+    - move=> [[z ->]] /= ?.
+      exists z; done.
+  Qed.
+
   Lemma 𝜋_LitBool_b_meas : measurable_fun bcov_LitBool 𝜋_LitBool_b. Proof. Admitted.
   Lemma 𝜋_LitLoc_l_meas  : measurable_fun bcov_LitLoc 𝜋_LitLoc_l. Proof. Admitted.
   Lemma 𝜋_LitLbl_l_meas  : measurable_fun bcov_LitLbl 𝜋_LitLbl_l. Proof. Admitted.
