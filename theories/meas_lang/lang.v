@@ -593,11 +593,41 @@ Section expr_measurability.
   Qed.
 
   Local Lemma Prod3Decomp {T1 T2 T3 T : Type} (P1 : set T1) (P2 : set T2) (P3 : set T3) (FU : T1 * T2 * T3 -> T) :
+    (forall a b, FU a = FU b -> a = b) ->
     [set t | (exists2 x : T1, P1 x & exists2 y : T2, P2 y & exists2 z : T3, P3 z & (curry3 FU) x y z = FU t) ] =
     [set t | (exists2 x : T1, P1 x & exists2 y : T2, True    & exists2 z : T3, True    & (curry3 FU) x y z = FU t) ] `&`
     [set t | (exists2 x : T1, True    & exists2 y : T2, P2 y & exists2 z : T3, True    & (curry3 FU) x y z = FU t) ] `&`
     [set t | (exists2 x : T1, True    & exists2 y : T2, True    & exists2 z : T3, P3 z & (curry3 FU) x y z = FU t) ].
-  Proof. Admitted.
+  Proof.
+    move=> HI.
+    rewrite /setI/=.
+    apply/seteqP; split=> x/=.
+    { move=> [w ?] [y ?] [z ?] <- //=.
+      split.
+      split.
+      all: exists w; [done|].
+      all: exists y; [done|].
+      all: exists z; [done|].
+      all: done.
+    }
+    { move=> [[+ +]+].
+      move=> [y Hy] [? _] [? _] H1.
+      move=> [? _] [z Hz] [? _] H2.
+      move=> [? _] [? _] [w Hw] H3.
+      exists y; [done|].
+      exists z; [done|].
+      exists w; [done|].
+      apply HI in H1, H2, H3.
+      unfold curry3.
+      f_equal.
+      destruct x as [[? ?] ?].
+      inversion H1.
+      inversion H2.
+      inversion H3.
+      done.
+
+    }
+  Qed.
 
 
 
@@ -1060,6 +1090,7 @@ Section expr_measurability.
           by intuition.
         + move=> [??][??][??][??<-].
           by intuition.
+        + by move=> [[??]?] [[??]?] [-> -> ->].
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
@@ -1267,6 +1298,7 @@ Section expr_measurability.
           by intuition.
         + move=> [??][??][??][??<-].
           by intuition.
+        + by move=> [[??]?] [[??]?] [-> -> ->].
     }
     all: apply MZ; apply /predeqP =>y /=; split; [| by move=>?].
     all: try by move=> ?//.
@@ -1905,7 +1937,6 @@ Section expr_measurability.
     exists (Val (gen_val (val_shape_enum k))); [ by apply gen_val_generator |].
     by rewrite /=.
   Qed.
-
 
   Lemma ecov_var_meas        : measurable ecov_var. Proof. Admitted.
   Lemma ecov_rec_meas        : measurable ecov_rec. Proof. Admitted.
