@@ -1883,29 +1883,28 @@ Section expr_measurability.
   Lemma ecov_val_meas : measurable ecov_val.
   Proof.
     rewrite /ecov_val.
-    have X : [set e | ∃ v : val_pre, e = ValC v] = [set ValC v | v in setT].
-    { admit. }
-    (* FIXME: Rewrite the cover to look like X if this works *)
+    have X : [set e | ∃ v : val_pre, e = ValC v] = \bigcup_n [set ValC x | x in (val_seq n)].
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [v ->].
+        destruct (val_shape_enum_surj (shape_val v)) as [i Hi].
+        exists i; [done|].
+        exists v; [|done].
+        by rewrite /val_seq.
+      - move=> [? _] [x ?] <-.
+        by exists x.
+    }
     rewrite X; clear X.
-
-    have Y : [set ValC v | v in setT] = \bigcup_n [set ValC x | x in (val_seq n)].
-    { (*  Check val_shape_decompT. *)
-      (* Can I skip this rewrite? *)
-      admit. }
-    rewrite Y; clear Y.
-
     apply bigcup_measurable.
     move=> k _.
-    (* Everything in (val_seq k) has the same shape *)
     rewrite /val_seq/preimage/=.
     rewrite (val_shape_cyl (val_shape_enum k)).
-
-    (* Use the shape as a generator *)
     apply sub_sigma_algebra.
     rewrite /expr_cyl/=.
     exists (Val (gen_val (val_shape_enum k))); [ by apply gen_val_generator |].
     by rewrite /=.
-  Admitted.
+  Qed.
 
 
   Lemma ecov_var_meas        : measurable ecov_var. Proof. Admitted.
