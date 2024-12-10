@@ -602,7 +602,10 @@ Section expr_measurability.
 
 
 
-  (** The bulk of the trivial case work for the constructor measurability *)
+  (** The bulk of the trivial case work for the constructor measurability:
+      Proves
+        'measurable [set t | (exists2 x : ..., S x & A x = B t)]
+      when A and B are different constructors *)
   Ltac ctor_triv_case :=
     apply MZ; apply /predeqP =>y /=; split; [| by move=>?];
     (by move=> ?//) +
@@ -610,124 +613,78 @@ Section expr_measurability.
     (by move=> [??[???]]//) +
     (by move=> [??[??[???]]]//).
 
+  (** A function into a generated measurableType is a measurable function
+      when the preimages of the generators are measurable.  *)
+  Ltac into_gen_measurable := eapply measurability; [by eauto|].
+
+
+  Lemma eq_measurable {d} {T : measurableType d} (X Y : set T) :
+    d.-measurable X -> Y = X -> d.-measurable Y.
+  Proof. by move=>?->. Qed.
 
 
   (** Measurability of the projection and constructor functions *)
 
+  (*
+  Proof.
+    into_gen_measurable.
+    rewrite /preimage_class/subset.
+    move=> S /= [X [D HD <-] <-]; rewrite setTI.
+    destruct D; rewrite /preimage/=.
+    1: { eapply eq_measurable; [ by simpl in HD; apply HD | ].
+         rewrite /LitIntU/LitIntC/=.
+         apply /seteqP; split=> x/=; [ by move=>[v?][<-] |  by move=>?; exists x ].
+    }
+    all: by ctor_triv_case.
+  Qed.
+   *)
+
   (** Base_lit constructors, uncurried *)
   Lemma LitIntU_measurable : measurable_fun setT LitIntU.
-  Proof.
-    eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
-    move=> S /= [X [D HD <-] <-]; rewrite setTI.
-    destruct D; rewrite /preimage/=.
-    1: {
-         suffices R : [set t | (exists2 x : <<discr Z >>, n x & LitInt x = LitIntU t)] = n.
-         { simpl in HD; by rewrite R. }
-         apply/seteqP; split=> x/=; [by move=> [v ?] [<-] |].
-         move=> ?.
-         by exists x.
-    }
-    all: by ctor_triv_case.
-  Qed.
+  Proof. into_gen_measurable. by rewrite //=. Qed.
 
   Lemma LitBoolU_measurable : measurable_fun setT LitBoolU.
-  Proof.
-    eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
-    move=> S /= [X [D HD <-] <-]; rewrite setTI.
-    destruct D; rewrite /preimage/=.
-    2: {
-         suffices R : [set t | (exists2 x : <<discr _ >>, b x & LitBool x = LitBoolU t)] = b.
-         { simpl in HD; by rewrite R. }
-         apply/seteqP; split=> x/=; [by move=> [v ?] [<-] |].
-         move=> ?.
-         by exists x.
-    }
-    all: by ctor_triv_case.
-  Qed.
-
-  (*
-  Lemma LitUnitU_measurable : measurable_fun setT LitUnitU.
-  Proof. Admitted.
-  *)
+  Proof. into_gen_measurable. by rewrite //=. Qed.
 
   Lemma LitLocU_measurable : measurable_fun setT LitLocU.
-  Proof.
-    eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
-    move=> S /= [X [D HD <-] <-]; rewrite setTI.
-    destruct D; rewrite /preimage/=.
-    4: {
-         suffices R : [set t | (exists2 x : <<discr _ >>, l x & LitLoc x = LitLocU t)] = l.
-         { simpl in HD; by rewrite R. }
-         apply/seteqP; split=> x/=; [by move=> [v ?] [<-] |].
-         move=> ?.
-         by exists x.
-    }
-    all: by ctor_triv_case.
-  Qed.
+  Proof. into_gen_measurable. by rewrite //=. Qed.
 
   Lemma LitLblU_measurable : measurable_fun setT LitLblU.
-  Proof.
-    eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
-    move=> S /= [X [D HD <-] <-]; rewrite setTI.
-    destruct D; rewrite /preimage/=.
-    5: {
-         suffices R : [set t | (exists2 x : <<discr _ >>, l x & LitLbl x = LitLblU t)] = l.
-         { simpl in HD; by rewrite R. }
-         apply/seteqP; split=> x/=; [by move=> [v ?] [<-] |].
-         move=> ?.
-         by exists x.
-    }
-    all: by ctor_triv_case.
-  Qed.
+  Proof. into_gen_measurable. by rewrite //=. Qed.
 
   Lemma LitRealU_measurable : measurable_fun setT LitRealU.
   Proof.
-    eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
-    move=> S /= [X [D HD <-] <-]; rewrite setTI.
+    into_gen_measurable.
+    move=> ? [? [D H <-] <-] /=.
+    rewrite setTI.
     destruct D; rewrite /preimage/=.
-    6: {
-         suffices R : [set t | (exists2 x : R, r x & LitReal x = LitRealU t)] = r.
-         { simpl in HD; by rewrite R. }
-         apply/seteqP; split=> x/=; [by move=> [v ?] [<-] |].
-         move=> ?.
-         by exists x.
+    6: { simpl in H.
+         eapply eq_measurable; [ by apply H |].
+         apply/seteqP; split=>?//=.
+         - by move=>[??][<-].
+         - by move=>?; eexists _; eauto.
     }
     all: by ctor_triv_case.
   Qed.
-
 
   (** Expr Constructors: Each *C function is (.. * ... * ...) / expr -measurable *)
   Lemma ValU_measurable : measurable_fun setT ValU.
   Proof.
-    eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
-    move=> S /= [X [D HD <-] <-]; rewrite setTI.
+    into_gen_measurable.
+    move=> ? [? [D H <-] <-] /=.
+    rewrite setTI.
     destruct D; rewrite /preimage/=.
-    1: {
-         apply sub_sigma_algebra.
+    1: { apply sub_sigma_algebra.
          exists v; [done|].
-         apply/seteqP; split=> x/=; [move=> ?; by exists x|].
-         move=> [? ? H].
-         inversion H as [H1].
-         by rewrite <- H1.
+         apply/seteqP; split=>?//=.
+         - by move=>?; eexists _; eauto.
+         - by move=>[??[<-]].
     }
     all: by ctor_triv_case.
   Qed.
 
   Lemma VarU_measurable : measurable_fun setT VarU.
-  Proof.
-    eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
-    move=> S /= [X [D HD <-] <-]; rewrite setTI.
-    destruct D; rewrite /preimage/=.
-    2: { by rewrite /measurable/=/discr_meas/=. }
-    all: by ctor_triv_case.
-  Qed.
+  Proof. into_gen_measurable. by rewrite //=. Qed.
 
   Lemma RecU_measurable : measurable_fun setT RecU.
   Proof.
