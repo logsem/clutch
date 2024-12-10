@@ -40,7 +40,7 @@ Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.
 
 Global Instance classical_eq_dec {T : Type} : EqDecision T.
-Proof.  intros ? ?; apply ClassicalEpsilon.excluded_middle_informative. Defined.
+Proof. intros ??; apply ClassicalEpsilon.excluded_middle_informative. Defined.
 
 (* Instances for Z *)
 HB.instance Definition _ := gen_eqMixin Z.
@@ -76,7 +76,7 @@ Section subspaces.
       the hierarchy.
    *)
 
-
+  (*
   (* A set S is measurable in the space T1|_E *)
   Definition sub_measurable {d1} {T1 : measurableType d1} (E S : set T1) : Prop :=
     [set (E `&` m) | m in (d1.-measurable : set (set T1))] S.
@@ -91,31 +91,14 @@ Section subspaces.
   Lemma bigcup_sub_measurableC {d1} {T : measurableType d1} (E: set T) (F : sequences.sequence (set T)) (P : set nat) :
     (∀ k : nat, P k → sub_measurable E (F k)) → sub_measurable E (\bigcup_(i in P) F i).
   Proof. Admitted.
-
-  (*
-  Definition sub {T : Type} (E : set T) : Type := { x : T & E x }.
-
-  Definition to_ambient {T: Type} (E : set T) (X : set (sub E)) : set T := [set (projT1 x) | x in X].
-
-  Definition is_sub_measurable_ambient {d1} {T1 : measurableType d1} (E : set T1) (S : set (sub E)) : Prop :=
-    is_sub_measurable E (to_ambient E S).
-
-  (* f is a measurable function from the real subset measure space to T2. Unbundled because it confuses the hierarchy *)
-  Definition is_sub_measurable_out {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (E : set T1) (f : (sub E) -> T2) : Prop :=
-    forall S : set T2, d2.-measurable S -> is_sub_measurable_ambient E (preimage f S). *)
+   *)
 
 
-
-  (* f and g agree on E
-  Definition sub_fn_restricts (T1 T2 : Type) (E : set T1) (f : (sub E) -> T2) (g : T1 -> T2) : Prop :=
-    forall x : T1, forall H : E x, f (existT x H) = g x.
-  *)
-
-  (* TODO: If a set is sub_measurable, and a function out of it is a sub-measurable function, the restriction to the set is mathcomp-measurable *)
+  (** If a set is sub_measurable, and a function out of it is a sub-measurable function,
+      the restriction to the set is mathcomp-measurable *)
   Lemma mathcomp_restriction_is_measurable {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
     (E : set T1) (HE : d1.-measurable E) (f : T1 -> T2) :
-    @measurable_fun _ _ T1 T2 E f ->
-    @measurable_fun _ _ T1 T2 setT (f \_ E).
+    measurable_fun E f -> measurable_fun setT (f \_ E).
   Proof.
     intro H.
     unfold measurable_fun.
@@ -168,15 +151,9 @@ End subspaces.
 
 
 
-
-
-
-
-
-
 Module meas_lang.
 
-(* Type of base_lit, parameterized by leaf types *)
+(** A base_lit with leaves of type TZ/TB/TL/TR *)
 Inductive base_lit_pre {TZ TB TL TR : Type} : Type :=
   | LitInt  (n : TZ)
   | LitBool (b : TB)
@@ -195,6 +172,7 @@ Inductive bin_op : Set :=
   | LeOp | LtOp | EqOp (* Relations *)
   | OffsetOp. (* Pointer offset *)
 
+(** An expression and value with leaves of type TZ/TB/TL/TR *)
 Local Open Scope classical_set_scope.
 Inductive expr_pre {TZ TB TL TR : Type} :=
   (* Values *)
@@ -226,7 +204,7 @@ Inductive expr_pre {TZ TB TL TR : Type} :=
   | AllocUTape
   | URand (e : expr_pre)
   (* No-op operator used for cost *)
-  | Tick (e : expr_pre )
+  | Tick (e : expr_pre)
 with val_pre {TZ TB TL TR : Type} :=
   | LitV (l : @base_lit_pre TZ TB TL TR)
   | RecV (f x : <<discr binder>>) (e : expr_pre)
@@ -289,9 +267,6 @@ Fixpoint expr_pre_F (e : @expr_pre TZ1 TB1 TL1 TR1) : @expr_pre TZ2 TB2 TL2 TR2 
   | InjRV v1       => InjRV (val_pre_F v1)
   end.
 End functor.
-
-
-
 
 
 (* Instances for un_op *)
@@ -479,57 +454,57 @@ Section expr_algebra.
     (@sigma_algebra_bigcup _ setT expr_cyl).
 
 
-  (* User-facing types *)
+  (** User-facing measurableTypes for base_lit, expr, and val *)
   Definition base_lit : measurableType base_lit_cyl.-sigma := base_lit_T.
   Definition expr : measurableType expr_cyl.-sigma := expr_T.
   Definition val : measurableType val_cyl.-sigma := val_T.
 
 
   (** Constructors for expressions with the fixed and measurable base types. *)
-  Definition LitIntC  v : base_lit_T := LitInt v.
-  Definition LitBoolC v : base_lit_T := LitBool v.
-  Definition LitUnitC   : base_lit_T := LitUnit.
-  Definition LitLocC  v : base_lit_T := LitLoc v.
-  Definition LitLblC  v : base_lit_T := LitLbl v.
-  Definition LitRealC v : base_lit_T := LitReal v.
+  Definition LitIntC  v       : base_lit_T := LitInt v.
+  Definition LitBoolC v       : base_lit_T := LitBool v.
+  Definition LitUnitC         : base_lit_T := LitUnit.
+  Definition LitLocC  v       : base_lit_T := LitLoc v.
+  Definition LitLblC  v       : base_lit_T := LitLbl v.
+  Definition LitRealC v       : base_lit_T := LitReal v.
 
-  Definition ValC v           : expr_T := Val v.
-  Definition VarC x           : expr_T := Var x.
-  Definition RecC f x e       : expr_T := Rec f x e.
-  Definition AppC e1 e2       : expr_T := App e1 e2.
-  Definition UnOpC op e       : expr_T := UnOp op e.
-  Definition BinOpC op e1 e2  : expr_T := BinOp op e1 e2.
-  Definition IfC e0 e1 e2     : expr_T := If e0 e1 e2.
-  Definition PairC e1 e2      : expr_T := Pair e1 e2.
-  Definition FstC e1          : expr_T := Fst e1.
-  Definition SndC e1          : expr_T := Snd e1.
-  Definition InjLC e1         : expr_T := InjL e1.
-  Definition InjRC e1         : expr_T := InjR e1.
-  Definition CaseC e0 e1 e2   : expr_T := Case e0 e1 e2.
-  Definition AllocNC e1 e2    : expr_T := AllocN e1 e2.
-  Definition LoadC e          : expr_T := Load e.
-  Definition StoreC e1 e2     : expr_T := Store e1 e2.
-  Definition AllocTapeC e     : expr_T := AllocTape e.
-  Definition RandC e1 e2      : expr_T := Rand e1 e2.
-  Definition AllocUTapeC      : expr_T := AllocUTape.
-  Definition URandC e         : expr_T := URand e.
-  Definition TickC e          : expr_T := Tick e.
+  Definition ValC v           : expr_T     := Val v.
+  Definition VarC x           : expr_T     := Var x.
+  Definition RecC f x e       : expr_T     := Rec f x e.
+  Definition AppC e1 e2       : expr_T     := App e1 e2.
+  Definition UnOpC op e       : expr_T     := UnOp op e.
+  Definition BinOpC op e1 e2  : expr_T     := BinOp op e1 e2.
+  Definition IfC e0 e1 e2     : expr_T     := If e0 e1 e2.
+  Definition PairC e1 e2      : expr_T     := Pair e1 e2.
+  Definition FstC e1          : expr_T     := Fst e1.
+  Definition SndC e1          : expr_T     := Snd e1.
+  Definition InjLC e1         : expr_T     := InjL e1.
+  Definition InjRC e1         : expr_T     := InjR e1.
+  Definition CaseC e0 e1 e2   : expr_T     := Case e0 e1 e2.
+  Definition AllocNC e1 e2    : expr_T     := AllocN e1 e2.
+  Definition LoadC e          : expr_T     := Load e.
+  Definition StoreC e1 e2     : expr_T     := Store e1 e2.
+  Definition AllocTapeC e     : expr_T     := AllocTape e.
+  Definition RandC e1 e2      : expr_T     := Rand e1 e2.
+  Definition AllocUTapeC      : expr_T     := AllocUTape.
+  Definition URandC e         : expr_T     := URand e.
+  Definition TickC e          : expr_T     := Tick e.
 
-  Definition LitVC b      : val_T  := LitV b.
-  Definition RecVC f x e  : val_T  := RecV f x e.
-  Definition PairVC v1 v2 : val_T  := PairV v1 v2.
-  Definition InjLVC v     : val_T  := InjLV v.
-  Definition InjRVC v     : val_T  := InjRV v.
+  Definition LitVC b          : val_T      := LitV b.
+  Definition RecVC f x e      : val_T      := RecV f x e.
+  Definition PairVC v1 v2     : val_T      := PairV v1 v2.
+  Definition InjLVC v         : val_T      := InjLV v.
+  Definition InjRVC v         : val_T      := InjRV v.
 
 
 
   (** Uncurried form: These ones can be shown to be measurable directly *)
-  Definition LitIntU  (v : TZ) := LitIntC v.
-  Definition LitBoolU (v : TB) := LitBoolC v.
-  Definition LitUnitU          := LitUnitC.
-  Definition LitLocU  (v : TL) := LitLocC v.
-  Definition LitLblU  (v : TL) := LitLblC v.
-  Definition LitRealU (v : TR) := LitRealC v.
+  Definition LitIntU  (v : TZ)                                      := LitIntC v.
+  Definition LitBoolU (v : TB)                                      := LitBoolC v.
+  Definition LitUnitU                                               := LitUnitC.
+  Definition LitLocU  (v : TL)                                      := LitLocC v.
+  Definition LitLblU  (v : TL)                                      := LitLblC v.
+  Definition LitRealU (v : TR)                                      := LitRealC v.
 
   Definition ValU (v : val)                                         := ValC v.
   Definition VarU (v : <<discr binder>>)                            := VarC v.
@@ -559,10 +534,9 @@ Section expr_algebra.
   Definition InjLVU (v : val)                                       := InjLVC v.
   Definition InjRVU (v : val)                                       := InjRVC v.
 
-  (** FIXME: Use measurable_uncurry to get measurability of the uncurried versions? *)
+  (* Check measurable_uncurry. *)
 
 End expr_algebra.
-
 
 
 Section expr_measurability.
@@ -608,8 +582,7 @@ Section expr_measurability.
       all: exists w; [done|].
       all: exists y; [done|].
       all: exists z; [done|].
-      all: done.
-    }
+      all: done. }
     { move=> [[+ +]+].
       move=> [y Hy] [? _] [? _] H1.
       move=> [? _] [z Hz] [? _] H2.
@@ -624,9 +597,7 @@ Section expr_measurability.
       inversion H1.
       inversion H2.
       inversion H3.
-      done.
-
-    }
+      done. }
   Qed.
 
 
