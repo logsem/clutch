@@ -2286,8 +2286,7 @@ Section expr_measurability.
     by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
   Qed.
 
-
-  Lemma vcov_lit_meas        : measurable vcov_lit.
+  Lemma vcov_lit_meas : measurable vcov_lit.
   Proof.
     rewrite /vcov_lit.
     eapply (eq_measurable (\bigcup_n [set LitVC v | v in (base_lit_seq n)])); last first.
@@ -2309,8 +2308,63 @@ Section expr_measurability.
     by rewrite /base_lit_seq/preimage //= (base_lit_shape_cyl _).
   Qed.
 
-  Lemma vcov_rec_meas        : measurable vcov_rec. Proof. Admitted.
-  Lemma vcov_pair_meas       : measurable vcov_pair. Proof. Admitted.
+  Lemma vcov_rec_meas        : measurable vcov_rec.
+  Proof.
+    eapply (eq_measurable (\bigcup_i \bigcup_j \bigcup_k
+                             [set (RecVC (binder_enum j) (binder_enum k) e) | e in (expr_seq i)])); last first.
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [f][x][e]->.
+        destruct (binder_enum_surj f) as [? ?].
+        destruct (binder_enum_surj x) as [? ?].
+        destruct (expr_shape_enum_surj (shape_expr e)) as [?].
+        eexists _; [done|].
+        eexists _; [done|].
+        eexists _; [done|].
+        exists e; [ by rewrite //= |].
+        f_equal; done.
+      - move=> [??][??][??][??<-].
+        eexists _.
+        eexists _.
+        eexists _.
+        done.
+    }
+    apply bigcup_measurable; move=> i _.
+    apply bigcup_measurable; move=> j _.
+    apply bigcup_measurable; move=> k _.
+    apply sub_sigma_algebra.
+    eexists (RecV (binder_enum j) (binder_enum k) (gen_expr (expr_shape_enum i))); [ by apply gen_expr_generator |].
+    by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
+  Qed.
+
+  Lemma vcov_pair_meas       : measurable vcov_pair.
+  Proof.
+    eapply (eq_measurable (\bigcup_i \bigcup_j (image2 (val_seq i) (val_seq j) PairVC))); last first.
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [e0][e1]->.
+        destruct (val_shape_enum_surj (shape_val e0)) as [?].
+        destruct (val_shape_enum_surj (shape_val e1)) as [?].
+        eexists _; [done|].
+        eexists _; [done|].
+        exists e0; [ by rewrite //= |].
+        exists e1; [ by rewrite //= |].
+        f_equal; done.
+      - rewrite /image2//=.
+        move=> [??][??][??][??]<-.
+        eexists _.
+        eexists _.
+        done.
+    }
+    apply bigcup_measurable; move=> i _.
+    apply bigcup_measurable; move=> j _.
+    apply sub_sigma_algebra.
+    eexists (PairV (gen_val (val_shape_enum i)) (gen_val (val_shape_enum j))).
+    { rewrite //=. split. all: by apply gen_val_generator. }
+    by rewrite /val_seq/preimage //= (val_shape_cyl _) (val_shape_cyl _).
+  Qed.
 
   Lemma vcov_injlv_meas      : measurable vcov_injlv.
   Proof.
