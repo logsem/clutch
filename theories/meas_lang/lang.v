@@ -1903,56 +1903,6 @@ Section expr_measurability.
   Lemma 𝜋_RecV_x_meas    : measurable_fun vcov_rec   𝜋_RecV_x. Proof. Admitted.
   Lemma 𝜋_RecV_e_meas    : measurable_fun vcov_rec   𝜋_RecV_e. Proof. Admitted.
 
-
-  (*
-    have X : [set x | (∃ v1 v2 : val_pre, x = PairVC v1 v2) ∧ val_ST C (𝜋_PairV_l x)] =
-             \bigcup_n [set x | (∃ v1 v2 : val_pre, x = PairVC v1 v2 /\ (val_ST (gen_val (val_shape_enum n)) v2)) ∧
-                                val_ST C (𝜋_PairV_l x)].
-   *)
-
-  (*
-    have X : [set x | (∃ v1 v2 : val_pre, x = PairVC v1 v2) ∧ val_ST C (𝜋_PairV_l x)] =
-             \bigcup_n [set x | (∃ v1 v2 : val_pre, x = PairVC v1 v2 /\ (val_ST (gen_val (val_shape_enum n)) v2)) ∧
-                                val_ST C (𝜋_PairV_l x)].
-*)
-
-
-  Lemma conv_bigcup {T I : Type} {S : set T} {U : I -> set T} :
-    (forall t, S t = exists i, U i t) ->
-    S = [set t | (exists2 i : I, True & U i t )].
-  Proof.
-    move=> H.
-    apply /predeqP =>y /=.
-    split.
-    - rewrite H.
-      move=> [i ?].
-      exists i; done.
-    - move=> [i ? ?].
-      rewrite H.
-      by exists i.
-  Qed.
-
-  Lemma conv_ex_and_L {T I : Type} {R S : Prop} {P : I -> set T} {t : T} :
-    (S = ∃ i : I, P i t) ->
-    (S ∧ R) = ∃ i : I, (P i t ∧ R).
-  Proof.
-    move=>->.
-    apply propext; split.
-    - by move=>[[i ?] ?]; exists i.
-    - by move=>[i [? ?]]; split; [by exists i | done].
-  Qed.
-
-  (*
-  Lemma conv_ex_ignore {V I T : Type} {S : V -> Prop} { P : I -> set T} {t : T} :
-    (*  (S = ∃ i : I, P i t) -> *)
-    True ->
-    ((∃ v : V, S v) = (∃ i : I, ∃ v : V, P i t)).
-  Proof. Admitted.
-*)
-
-  Lemma X {T I: Type} {S : Prop} {t : T} : S = ∃ i : I, (fun _ _ => S) i t.
-  Proof. Admitted.
-
   Lemma 𝜋_PairV_l_meas : measurable_fun vcov_pair  𝜋_PairV_l.
   Proof.
     into_gen_measurable; move=> S.
@@ -1994,7 +1944,48 @@ Section expr_measurability.
       done.
   Qed.
 
-  Lemma 𝜋_PairV_r_meas   : measurable_fun vcov_pair  𝜋_PairV_r. Proof. Admitted.
+  Lemma 𝜋_PairV_r_meas   : measurable_fun vcov_pair  𝜋_PairV_r.
+  Proof.
+    into_gen_measurable; move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [C ? <-].
+    rewrite /vcov_pair/setI/=.
+    eapply (eq_measurable
+              (\bigcup_n [set x | (∃ v1 v2 : val_pre, x = PairVC v1 v2 /\
+                                             (val_ST (gen_val (val_shape_enum n)) v1)) ∧
+                                  val_ST C (𝜋_PairV_r x)])); last first.
+    { apply /predeqP =>y /=.
+      split.
+      - move=> [[z [? ->]] +] //=; move=> ?.
+        destruct (val_shape_enum_surj (shape_val z)).
+        eexists _; [done|].
+        split; [|done].
+        eexists _; eexists _; split; [done|].
+        by rewrite -val_shape_cyl.
+      - move=> [? _ [[? [? [-> ?]]] +]]; simpl; move=> ?.
+        split; [|done].
+        by eexists _; eexists _; eauto.
+    }
+
+    apply bigcup_measurable; move=> k _.
+    apply sub_sigma_algebra.
+    eexists (PairV (gen_val (val_shape_enum k)) C).
+    { split; [|done]. by apply gen_val_generator. }
+
+    apply /predeqP =>y /=.
+    split.
+    - move=> [? ? [ ? ? <-]].
+      split.
+      + by eexists _; eexists _; eauto.
+      + by simpl.
+    - move=> [[? [? [-> ?]]] +]; simpl; move=> ?.
+      eexists _; [done|].
+      eexists _; [done|].
+      done.
+  Qed.
+
+
   Lemma 𝜋_InjLV_v_meas   : measurable_fun vcov_injlv 𝜋_InjLV_v. Proof. Admitted.
   Lemma 𝜋_InjRV_v_meas   : measurable_fun vcov_injrv 𝜋_InjLV_v. Proof. Admitted.
 
