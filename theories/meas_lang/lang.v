@@ -1986,7 +1986,25 @@ Section expr_measurability.
   Qed.
 
 
-  Lemma 𝜋_InjLV_v_meas   : measurable_fun vcov_injlv 𝜋_InjLV_v. Proof. Admitted.
+  Lemma 𝜋_InjLV_v_meas   : measurable_fun vcov_injlv 𝜋_InjLV_v.
+  Proof.
+    into_gen_measurable; move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [C ? <-].
+
+    apply sub_sigma_algebra.
+    eexists (InjLV C). { simpl. assumption. }
+
+    apply /predeqP =>y /=.
+    split.
+    - move=> [z ? <-].
+      rewrite //=.
+      split; [by exists z|done].
+    - move=> [[z ->]] //=; move=> ?.
+      exists z; [done|done].
+  Qed.
+
   Lemma 𝜋_InjRV_v_meas   : measurable_fun vcov_injrv 𝜋_InjLV_v. Proof. Admitted.
 
   Lemma 𝜋_Val_v_meas         : measurable_fun ecov_val 𝜋_Val_v. Proof. Admitted.
