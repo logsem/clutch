@@ -1829,7 +1829,37 @@ Section expr_measurability.
     by rewrite /val_seq/preimage //= (val_shape_cyl _).
   Qed.
 
-  Lemma ecov_rec_meas        : measurable ecov_rec. Proof. Admitted.
+  Lemma ecov_rec_meas        : measurable ecov_rec.
+  Proof.
+    rewrite /ecov_rec.
+    eapply (eq_measurable (\bigcup_i \bigcup_j \bigcup_k
+                             [set (RecC (binder_enum j) (binder_enum k) e) | e in (expr_seq i)])); last first.
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [f][x][e]->.
+        destruct (binder_enum_surj f) as [? ?].
+        destruct (binder_enum_surj x) as [? ?].
+        destruct (expr_shape_enum_surj (shape_expr e)) as [?].
+        eexists _; [done|].
+        eexists _; [done|].
+        eexists _; [done|].
+        exists e; [ by rewrite //= |].
+        f_equal; done.
+      - move=> [??][??][??][??<-].
+        eexists _.
+        eexists _.
+        eexists _.
+        done.
+    }
+    apply bigcup_measurable; move=> i _.
+    apply bigcup_measurable; move=> j _.
+    apply bigcup_measurable; move=> k _.
+    apply sub_sigma_algebra.
+    eexists (Rec (binder_enum j) (binder_enum k) (gen_expr (expr_shape_enum i))); [ by apply gen_expr_generator |].
+    by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
+  Qed.
+
   Lemma ecov_app_meas        : measurable ecov_app. Proof. Admitted.
   Lemma ecov_unop_meas       : measurable ecov_unop. Proof. Admitted.
   Lemma ecov_binop_meas      : measurable ecov_binop. Proof. Admitted.
