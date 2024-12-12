@@ -1875,10 +1875,76 @@ Section expr_measurability.
       exists z; done.
   Qed.
 
-  Lemma 𝜋_LitBool_b_meas : measurable_fun bcov_LitBool 𝜋_LitBool_b. Proof. Admitted.
-  Lemma 𝜋_LitLoc_l_meas  : measurable_fun bcov_LitLoc 𝜋_LitLoc_l. Proof. Admitted.
-  Lemma 𝜋_LitLbl_l_meas  : measurable_fun bcov_LitLbl 𝜋_LitLbl_l. Proof. Admitted.
-  Lemma 𝜋_LitReal_r_meas : measurable_fun bcov_LitReal 𝜋_LitReal_r. Proof. Admitted.
+  Lemma 𝜋_LitBool_b_meas : measurable_fun bcov_LitBool 𝜋_LitBool_b.
+  Proof.
+    intros _H S HS.
+    apply sub_sigma_algebra.
+    exists (LitBool S).
+    { by rewrite /base_lit_ML. }
+    rewrite /bcov_LitInt/preimage/setI/𝜋_LitInt_z/=.
+    apply /predeqP =>y /=.
+    split.
+    - move=> [x Hs <-].
+      split; [|done].
+      by exists x.
+    - move=> [[z ->]] /= ?.
+      exists z; done.
+  Qed.
+
+
+  Lemma 𝜋_LitLoc_l_meas  : measurable_fun bcov_LitLoc 𝜋_LitLoc_l.
+  Proof.
+    intros _H S HS.
+    apply sub_sigma_algebra.
+    exists (LitLoc S).
+    { by rewrite /base_lit_ML. }
+    rewrite /bcov_LitInt/preimage/setI/𝜋_LitInt_z/=.
+    apply /predeqP =>y /=.
+    split.
+    - move=> [x Hs <-].
+      split; [|done].
+      by exists x.
+    - move=> [[z ->]] /= ?.
+      exists z; done.
+  Qed.
+
+  Lemma 𝜋_LitLbl_l_meas  : measurable_fun bcov_LitLbl 𝜋_LitLbl_l.
+  Proof.
+    intros _H S HS.
+    apply sub_sigma_algebra.
+    exists (LitLbl S).
+    { by rewrite /base_lit_ML. }
+    rewrite /bcov_LitInt/preimage/setI/𝜋_LitInt_z/=.
+    apply /predeqP =>y /=.
+    split.
+    - move=> [x Hs <-].
+      split; [|done].
+      by exists x.
+    - move=> [[z ->]] /= ?.
+      exists z; done.
+  Qed.
+
+  Lemma 𝜋_LitReal_r_meas : measurable_fun bcov_LitReal 𝜋_LitReal_r.
+  Proof.
+    intros _H S HS.
+    apply sub_sigma_algebra.
+    exists (LitReal S).
+    { by rewrite /base_lit_ML. }
+    rewrite /bcov_LitInt/preimage/setI/𝜋_LitInt_z/=.
+    apply /predeqP =>y /=.
+    split.
+    - move=> [x Hs <-].
+      split; [|done].
+      by exists x.
+    - move=> [[z ->]] /= ?.
+      exists z; done.
+  Qed.
+
+
+
+
+
+
 
   Lemma 𝜋_LitV_v_meas    : measurable_fun vcov_lit   𝜋_LitV_v.
   Proof.
@@ -2023,6 +2089,12 @@ Section expr_measurability.
     - move=> [[z ->]] //=; move=> ?.
       exists z; [done|done].
   Qed.
+
+
+
+
+
+
 
   Lemma 𝜋_Val_v_meas         : measurable_fun ecov_val 𝜋_Val_v. Proof. Admitted.
   Lemma 𝜋_Var_v_meas         : measurable_fun ecov_var 𝜋_Var_v. Proof. Admitted.
