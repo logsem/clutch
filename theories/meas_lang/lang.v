@@ -1610,6 +1610,10 @@ Section expr_measurability.
 
   Definition binder_enum (n : nat) : <<discr binder>>. Admitted.
 
+  Definition un_op_enum (n : nat) : <<discr un_op>>. Admitted.
+
+  Definition bin_op_enum (n : nat) : <<discr bin_op>>. Admitted.
+
   (* I only need surjectivity to prove that I don't miss any trees, so I'll use a definition
      of surjectivity appropriate for that (not the HB one, it gives us nothing) *)
 
@@ -1623,6 +1627,12 @@ Section expr_measurability.
   Proof. Admitted.
 
   Lemma binder_enum_surj (e : binder) : exists n, binder_enum n = e.
+  Proof. Admitted.
+
+  Lemma un_op_enum_surj (e : un_op) : exists n, un_op_enum n = e.
+  Proof. Admitted.
+
+  Lemma bin_op_enum_surj (e : bin_op) : exists n, bin_op_enum n = e.
   Proof. Admitted.
 
   Definition base_lit_seq : sequences.sequence (set base_lit) :=
@@ -1860,11 +1870,155 @@ Section expr_measurability.
     by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
   Qed.
 
-  Lemma ecov_app_meas        : measurable ecov_app. Proof. Admitted.
-  Lemma ecov_unop_meas       : measurable ecov_unop. Proof. Admitted.
-  Lemma ecov_binop_meas      : measurable ecov_binop. Proof. Admitted.
-  Lemma ecov_if_meas         : measurable ecov_if. Proof. Admitted.
-  Lemma ecov_pair_meas       : measurable ecov_pair. Proof. Admitted.
+  Lemma ecov_app_meas        : measurable ecov_app.
+  Proof.
+    rewrite /ecov_app.
+    eapply (eq_measurable (\bigcup_i \bigcup_j
+                             [set (AppC e1 e2) | e1 in (expr_seq i) & e2 in (expr_seq j)])); last first.
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [e1][e2]->.
+        destruct (expr_shape_enum_surj (shape_expr e1)) as [?].
+        destruct (expr_shape_enum_surj (shape_expr e2)) as [?].
+        eexists _; [done|].
+        eexists _; [done|].
+        eexists e1; [ by rewrite //= |].
+        eexists e2; [ by rewrite //= |].
+        f_equal; done.
+      - move=> [??][??][??][??]<-.
+        eexists _.
+        eexists _.
+        done.
+    }
+    apply bigcup_measurable; move=> i _.
+    apply bigcup_measurable; move=> j _.
+    apply sub_sigma_algebra.
+    eexists (App  (gen_expr (expr_shape_enum i)) (gen_expr (expr_shape_enum j))).
+    { rewrite //=. split; by apply gen_expr_generator. }
+    by rewrite /expr_seq/preimage //= (expr_shape_cyl _) (expr_shape_cyl _).
+  Qed.
+
+  Lemma ecov_unop_meas       : measurable ecov_unop.
+  Proof.
+    rewrite /ecov_unop.
+    eapply (eq_measurable (\bigcup_i \bigcup_j
+                             [set (UnOpC (un_op_enum i) e) | e in (expr_seq j)])); last first.
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [op][e]->.
+        destruct (un_op_enum_surj op) as [? ?].
+        destruct (expr_shape_enum_surj (shape_expr e)) as [?].
+        eexists _; [done|].
+        eexists _; [done|].
+        exists e; [ by rewrite //= |].
+        f_equal; done.
+      - move=> [??][??][??<-].
+        eexists _.
+        eexists _.
+        done.
+    }
+    apply bigcup_measurable; move=> i _.
+    apply bigcup_measurable; move=> j _.
+    apply sub_sigma_algebra.
+    eexists (UnOp (un_op_enum i) (gen_expr (expr_shape_enum j))).
+    { rewrite //=. by apply gen_expr_generator. }
+    by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
+  Qed.
+
+  Lemma ecov_binop_meas      : measurable ecov_binop.
+  Proof.
+    eapply (eq_measurable (\bigcup_i \bigcup_j \bigcup_k
+                             [set (BinOpC (bin_op_enum i) e1 e2) | e1 in (expr_seq j) & e2 in (expr_seq k) ])); last first.
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [op][e1][e2]->.
+        destruct (bin_op_enum_surj op) as [? ?].
+        destruct (expr_shape_enum_surj (shape_expr e1)) as [?].
+        destruct (expr_shape_enum_surj (shape_expr e2)) as [?].
+        eexists _; [done|].
+        eexists _; [done|].
+        eexists _; [done|].
+        exists e1; [ by rewrite //= |].
+        exists e2; [ by rewrite //= |].
+        f_equal; done.
+      - move=> [??][??][??][?][?][?][?]<-.
+        eexists _.
+        eexists _.
+        eexists _.
+        done.
+    }
+    apply bigcup_measurable; move=> i _.
+    apply bigcup_measurable; move=> j _.
+    apply bigcup_measurable; move=> k _.
+    apply sub_sigma_algebra.
+    eexists (BinOp (bin_op_enum i) (gen_expr (expr_shape_enum j)) (gen_expr (expr_shape_enum k))).
+    { rewrite //=. split; by apply gen_expr_generator. }
+    by rewrite /expr_seq/preimage //= (expr_shape_cyl _) (expr_shape_cyl _).
+  Qed.
+
+  Lemma ecov_if_meas         : measurable ecov_if.
+  Proof.
+    eapply (eq_measurable (\bigcup_i \bigcup_j \bigcup_k (image3 (expr_seq i) (expr_seq j) (expr_seq k) IfC))); last first.
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [e0][e1][e2]->.
+        destruct (expr_shape_enum_surj (shape_expr e0)) as [?].
+        destruct (expr_shape_enum_surj (shape_expr e1)) as [?].
+        destruct (expr_shape_enum_surj (shape_expr e2)) as [?].
+        eexists _; [done|].
+        eexists _; [done|].
+        eexists _; [done|].
+        exists e0; [ by rewrite //= |].
+        exists e1; [ by rewrite //= |].
+        exists e2; [ by rewrite //= |].
+        f_equal; done.
+      - rewrite /image3//=.
+        move=> [??][??][??][??][??][??]<-.
+        eexists _.
+        eexists _.
+        eexists _.
+        done.
+    }
+    apply bigcup_measurable; move=> i _.
+    apply bigcup_measurable; move=> j _.
+    apply bigcup_measurable; move=> k _.
+    apply sub_sigma_algebra.
+    eexists (If (gen_expr (expr_shape_enum i)) (gen_expr (expr_shape_enum j)) (gen_expr (expr_shape_enum k))).
+    { rewrite //=. split; last split. all: by apply gen_expr_generator. }
+    by rewrite /expr_seq/preimage //= (expr_shape_cyl _) (expr_shape_cyl _) (expr_shape_cyl _).
+  Qed.
+
+  Lemma ecov_pair_meas       : measurable ecov_pair.
+  Proof.
+    eapply (eq_measurable (\bigcup_i \bigcup_j (image2 (expr_seq i) (expr_seq j) PairC))); last first.
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [e0][e1]->.
+        destruct (expr_shape_enum_surj (shape_expr e0)) as [?].
+        destruct (expr_shape_enum_surj (shape_expr e1)) as [?].
+        eexists _; [done|].
+        eexists _; [done|].
+        exists e0; [ by rewrite //= |].
+        exists e1; [ by rewrite //= |].
+        f_equal; done.
+      - rewrite /image2//=.
+        move=> [??][??][??][??]<-.
+        eexists _.
+        eexists _.
+        done.
+    }
+    apply bigcup_measurable; move=> i _.
+    apply bigcup_measurable; move=> j _.
+    apply sub_sigma_algebra.
+    eexists (Pair (gen_expr (expr_shape_enum i)) (gen_expr (expr_shape_enum j))).
+    { rewrite //=. split. all: by apply gen_expr_generator. }
+    by rewrite /expr_seq/preimage //= (expr_shape_cyl _) (expr_shape_cyl _).
+  Qed.
 
   Lemma ecov_fst_meas        : measurable ecov_fst.
   Proof.
@@ -1954,7 +2108,33 @@ Section expr_measurability.
     by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
   Qed.
 
-  Lemma ecov_alloc_meas      : measurable ecov_alloc. Proof. Admitted.
+  Lemma ecov_alloc_meas      : measurable ecov_alloc.
+  Proof.
+    eapply (eq_measurable (\bigcup_i \bigcup_j (image2 (expr_seq i) (expr_seq j) AllocNC))); last first.
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [e0][e1]->.
+        destruct (expr_shape_enum_surj (shape_expr e0)) as [?].
+        destruct (expr_shape_enum_surj (shape_expr e1)) as [?].
+        eexists _; [done|].
+        eexists _; [done|].
+        exists e0; [ by rewrite //= |].
+        exists e1; [ by rewrite //= |].
+        f_equal; done.
+      - rewrite /image2//=.
+        move=> [??][??][??][??]<-.
+        eexists _.
+        eexists _.
+        done.
+    }
+    apply bigcup_measurable; move=> i _.
+    apply bigcup_measurable; move=> j _.
+    apply sub_sigma_algebra.
+    eexists (AllocN (gen_expr (expr_shape_enum i)) (gen_expr (expr_shape_enum j))).
+    { rewrite //=. split. all: by apply gen_expr_generator. }
+    by rewrite /expr_seq/preimage //= (expr_shape_cyl _) (expr_shape_cyl _).
+  Qed.
 
   Lemma ecov_load_meas       : measurable ecov_load.
   Proof.
@@ -1978,12 +2158,91 @@ Section expr_measurability.
     by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
   Qed.
 
-  Lemma ecov_store_meas      : measurable ecov_store. Proof. Admitted.
-  Lemma ecov_alloctape_meas  : measurable ecov_alloctape. Proof. Admitted.
-  Lemma ecov_rand_meas       : measurable ecov_rand. Proof. Admitted.
-  Lemma ecov_allocutape_meas : measurable ecov_allocutape. Proof. Admitted.
+  Lemma ecov_store_meas      : measurable ecov_store.
+  Proof.
+    eapply (eq_measurable (\bigcup_i \bigcup_j (image2 (expr_seq i) (expr_seq j) StoreC))); last first.
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [e0][e1]->.
+        destruct (expr_shape_enum_surj (shape_expr e0)) as [?].
+        destruct (expr_shape_enum_surj (shape_expr e1)) as [?].
+        eexists _; [done|].
+        eexists _; [done|].
+        exists e0; [ by rewrite //= |].
+        exists e1; [ by rewrite //= |].
+        f_equal; done.
+      - rewrite /image2//=.
+        move=> [??][??][??][??]<-.
+        eexists _.
+        eexists _.
+        done.
+    }
+    apply bigcup_measurable; move=> i _.
+    apply bigcup_measurable; move=> j _.
+    apply sub_sigma_algebra.
+    eexists (Store (gen_expr (expr_shape_enum i)) (gen_expr (expr_shape_enum j))).
+    { rewrite //=. split. all: by apply gen_expr_generator. }
+    by rewrite /expr_seq/preimage //= (expr_shape_cyl _) (expr_shape_cyl _).
+  Qed.
 
-  Lemma ecov_urand_meas      : measurable ecov_urand.
+  Lemma ecov_alloctape_meas  : measurable ecov_alloctape.
+  Proof.
+    eapply (eq_measurable (\bigcup_n [set AllocTapeC v | v in (expr_seq n)])); last first.
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [v ->].
+        destruct (expr_shape_enum_surj (shape_expr v)) as [? ?].
+        eexists _; [done|].
+        eexists _; [|done].
+        by rewrite //=.
+      - move=> [? _] [x ?] <-.
+        by eexists _.
+    }
+    apply bigcup_measurable.
+    move=> k _.
+    apply sub_sigma_algebra.
+    exists (AllocTape (gen_expr (expr_shape_enum k))); [ by apply gen_expr_generator |].
+    by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
+  Qed.
+
+  Lemma ecov_rand_meas       : measurable ecov_rand.
+  Proof.
+    eapply (eq_measurable (\bigcup_i \bigcup_j (image2 (expr_seq i) (expr_seq j) RandC))); last first.
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [e0][e1]->.
+        destruct (expr_shape_enum_surj (shape_expr e0)) as [?].
+        destruct (expr_shape_enum_surj (shape_expr e1)) as [?].
+        eexists _; [done|].
+        eexists _; [done|].
+        exists e0; [ by rewrite //= |].
+        exists e1; [ by rewrite //= |].
+        f_equal; done.
+      - rewrite /image2//=.
+        move=> [??][??][??][??]<-.
+        eexists _.
+        eexists _.
+        done.
+    }
+    apply bigcup_measurable; move=> i _.
+    apply bigcup_measurable; move=> j _.
+    apply sub_sigma_algebra.
+    eexists (Rand (gen_expr (expr_shape_enum i)) (gen_expr (expr_shape_enum j))).
+    { rewrite //=. split. all: by apply gen_expr_generator. }
+    by rewrite /expr_seq/preimage //= (expr_shape_cyl _) (expr_shape_cyl _).
+  Qed.
+
+  Lemma ecov_allocutape_meas : measurable ecov_allocutape.
+  Proof.
+    apply sub_sigma_algebra.
+    rewrite /ecov_allocutape /expr_cyl //=.
+    exists AllocUTape; by rewrite //=.
+  Qed.
+
+  Lemma ecov_urand_meas : measurable ecov_urand.
   Proof.
     rewrite /ecov_urand.
     eapply (eq_measurable (\bigcup_n [set URandC v | v in (expr_seq n)])); last first.
