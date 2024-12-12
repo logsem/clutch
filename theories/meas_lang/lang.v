@@ -1720,11 +1720,66 @@ Section expr_measurability.
     - by move=> [x?]; exists x.
   Qed.
 
-  Lemma bcov_LitBool_meas : measurable bcov_LitBool. Proof. Admitted.
-  Lemma bcov_LitUnit_meas : measurable bcov_LitUnit. Proof. Admitted.
-  Lemma bcov_LitLoc_meas  : measurable bcov_LitLoc.  Proof. Admitted.
-  Lemma bcov_LitLbl_meas  : measurable bcov_LitLbl.  Proof. Admitted.
-  Lemma bcov_LitReal_meas : measurable bcov_LitReal. Proof. Admitted.
+  Lemma bcov_LitBool_meas : measurable bcov_LitBool.
+  Proof.
+    apply sub_sigma_algebra.
+    rewrite /base_lit_cyl/=.
+    exists (LitBool setT).
+    { by rewrite /=/measurable/=/discr_meas/=. }
+    rewrite /bcov_LitBool/=.
+    apply /predeqP =>y /=.
+    split.
+    - by move=> [x??]; exists x.
+    - by move=> [x?]; exists x.
+  Qed.
+
+  Lemma bcov_LitUnit_meas : measurable bcov_LitUnit.
+  Proof.
+    apply sub_sigma_algebra.
+    rewrite /base_lit_cyl/=.
+    exists (LitUnit).
+    { by rewrite /=/measurable/=/discr_meas/=. }
+    rewrite /bcov_LitUnit//=.
+  Qed.
+
+  Lemma bcov_LitLoc_meas  : measurable bcov_LitLoc.
+  Proof.
+    apply sub_sigma_algebra.
+    rewrite /base_lit_cyl/=.
+    exists (LitLoc setT).
+    { by rewrite /=/measurable/=/discr_meas/=. }
+    rewrite /bcov_LitLoc/=.
+    apply /predeqP =>y /=.
+    split.
+    - by move=> [x??]; exists x.
+    - by move=> [x?]; exists x.
+  Qed.
+
+  Lemma bcov_LitLbl_meas  : measurable bcov_LitLbl.
+  Proof.
+    apply sub_sigma_algebra.
+    rewrite /base_lit_cyl/=.
+    exists (LitLbl setT).
+    { by rewrite /=/measurable/=/discr_meas/=. }
+    rewrite /bcov_LitLbl/=.
+    apply /predeqP =>y /=.
+    split.
+    - by move=> [x??]; exists x.
+    - by move=> [x?]; exists x.
+  Qed.
+
+  Lemma bcov_LitReal_meas : measurable bcov_LitReal.
+  Proof.
+    apply sub_sigma_algebra.
+    rewrite /base_lit_cyl/=.
+    exists (LitReal setT).
+    { by rewrite /=/measurable/=/measurableR/=. }
+    rewrite /bcov_LitReal/=.
+    apply /predeqP =>y /=.
+    split.
+    - by move=> [x??]; exists x.
+    - by move=> [x?]; exists x.
+  Qed.
 
   Lemma ecov_val_meas : measurable ecov_val.
   Proof.
