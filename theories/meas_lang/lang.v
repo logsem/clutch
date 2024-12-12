@@ -2005,7 +2005,24 @@ Section expr_measurability.
       exists z; [done|done].
   Qed.
 
-  Lemma 𝜋_InjRV_v_meas   : measurable_fun vcov_injrv 𝜋_InjLV_v. Proof. Admitted.
+  Lemma 𝜋_InjRV_v_meas   : measurable_fun vcov_injrv 𝜋_InjRV_v.
+  Proof.
+    into_gen_measurable; move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [C ? <-].
+
+    apply sub_sigma_algebra.
+    eexists (InjRV C). { simpl. assumption. }
+
+    apply /predeqP =>y /=.
+    split.
+    - move=> [? z <-].
+      rewrite //=.
+      split; [by eexists _|done].
+    - move=> [[z ->]] //=; move=> ?.
+      exists z; [done|done].
+  Qed.
 
   Lemma 𝜋_Val_v_meas         : measurable_fun ecov_val 𝜋_Val_v. Proof. Admitted.
   Lemma 𝜋_Var_v_meas         : measurable_fun ecov_var 𝜋_Var_v. Proof. Admitted.
