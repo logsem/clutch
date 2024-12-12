@@ -1608,6 +1608,8 @@ Section expr_measurability.
 
   Definition base_lit_shape_enum (n : nat) : base_lit_shape. Admitted.
 
+  Definition binder_enum (n : nat) : <<discr binder>>. Admitted.
+
   (* I only need surjectivity to prove that I don't miss any trees, so I'll use a definition
      of surjectivity appropriate for that (not the HB one, it gives us nothing) *)
 
@@ -1618,6 +1620,9 @@ Section expr_measurability.
   Proof. Admitted.
 
   Lemma base_lit_shape_enum_surj (e : base_lit_shape) : exists n, base_lit_shape_enum n = e.
+  Proof. Admitted.
+
+  Lemma binder_enum_surj (e : binder) : exists n, binder_enum n = e.
   Proof. Admitted.
 
   Definition base_lit_seq : sequences.sequence (set base_lit) :=
@@ -1803,7 +1808,27 @@ Section expr_measurability.
     by rewrite /val_seq/preimage //= (val_shape_cyl _).
   Qed.
 
-  Lemma ecov_var_meas        : measurable ecov_var. Proof. Admitted.
+  Lemma ecov_var_meas        : measurable ecov_var.
+  Proof.
+    rewrite /ecov_var.
+    eapply (eq_measurable (\bigcup_n [set VarC (binder_enum n)])); last first.
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [v ->].
+        destruct (binder_enum_surj v) as [? <-].
+        eexists _; [done|].
+        by rewrite //=.
+      - move=> [? _] ->.
+        by eexists _.
+    }
+    apply bigcup_measurable.
+    move=> k _.
+    apply sub_sigma_algebra.
+    exists (Var (binder_enum k)); [by rewrite //= |].
+    by rewrite /val_seq/preimage //= (val_shape_cyl _).
+  Qed.
+
   Lemma ecov_rec_meas        : measurable ecov_rec. Proof. Admitted.
   Lemma ecov_app_meas        : measurable ecov_app. Proof. Admitted.
   Lemma ecov_unop_meas       : measurable ecov_unop. Proof. Admitted.
