@@ -1810,6 +1810,7 @@ Section expr_measurability.
   Lemma ecov_binop_meas      : measurable ecov_binop. Proof. Admitted.
   Lemma ecov_if_meas         : measurable ecov_if. Proof. Admitted.
   Lemma ecov_pair_meas       : measurable ecov_pair. Proof. Admitted.
+
   Lemma ecov_fst_meas        : measurable ecov_fst.
   Proof.
     rewrite /ecov_fst.
@@ -1972,13 +1973,73 @@ Section expr_measurability.
   Qed.
 
 
+  Lemma vcov_lit_meas        : measurable vcov_lit.
+  Proof.
+    rewrite /vcov_lit.
+    eapply (eq_measurable (\bigcup_n [set LitVC v | v in (base_lit_seq n)])); last first.
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [v ->].
+        destruct (base_lit_shape_enum_surj (shape_base_lit v)) as [? ?].
+        eexists _; [done|].
+        eexists _; [|done].
+        by rewrite //=.
+      - move=> [? _] [x ?] <-.
+        by eexists _.
+    }
+    apply bigcup_measurable.
+    move=> k _.
+    apply sub_sigma_algebra.
+    exists (LitV (gen_base_lit (base_lit_shape_enum k))); [ by apply gen_base_lit_generator |].
+    by rewrite /base_lit_seq/preimage //= (base_lit_shape_cyl _).
+  Qed.
 
-  Lemma vcov_lit_meas        : measurable vcov_lit. Proof. Admitted.
   Lemma vcov_rec_meas        : measurable vcov_rec. Proof. Admitted.
   Lemma vcov_pair_meas       : measurable vcov_pair. Proof. Admitted.
-  Lemma vcov_injlv_meas      : measurable vcov_injlv. Proof. Admitted.
-  Lemma vcov_injrv_meas      : measurable vcov_injrv. Proof. Admitted.
 
+  Lemma vcov_injlv_meas      : measurable vcov_injlv.
+  Proof.
+    rewrite /vcov_injlv.
+    eapply (eq_measurable (\bigcup_n [set InjLVC v | v in (val_seq n)])); last first.
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [v ->].
+        destruct (val_shape_enum_surj (shape_val v)) as [? ?].
+        eexists _; [done|].
+        eexists _; [|done].
+        by rewrite //=.
+      - move=> [? _] [x ?] <-.
+        by eexists _.
+    }
+    apply bigcup_measurable.
+    move=> k _.
+    apply sub_sigma_algebra.
+    exists (InjLV (gen_val (val_shape_enum k))); [ by apply gen_val_generator |].
+    by rewrite /val_seq/preimage //= (val_shape_cyl _).
+  Qed.
+
+  Lemma vcov_injrv_meas      : measurable vcov_injrv.
+  Proof.
+    eapply (eq_measurable (\bigcup_n [set InjRVC v | v in (val_seq n)])); last first.
+    { rewrite /bigcup/=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [v ->].
+        destruct (val_shape_enum_surj (shape_val v)) as [? ?].
+        eexists _; [done|].
+        eexists _; [|done].
+        by rewrite //=.
+      - move=> [? _] [x ?] <-.
+        by eexists _.
+    }
+    apply bigcup_measurable.
+    move=> k _.
+    apply sub_sigma_algebra.
+    exists (InjRV (gen_val (val_shape_enum k))); [ by apply gen_val_generator |].
+    by rewrite /val_seq/preimage //= (val_shape_cyl _).
+  Qed.
 
 
   (** Projection functions *)
