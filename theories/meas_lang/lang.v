@@ -2115,8 +2115,90 @@ Section expr_measurability.
   Lemma 𝜋_Rec_f_meas         : measurable_fun ecov_rec 𝜋_Rec_f. Proof. Admitted.
   Lemma 𝜋_Rec_x_meas         : measurable_fun ecov_rec 𝜋_Rec_x. Proof. Admitted.
   Lemma 𝜋_Rec_e_meas         : measurable_fun ecov_rec 𝜋_Rec_e. Proof. Admitted.
-  Lemma 𝜋_App_l_meas         : measurable_fun ecov_app 𝜋_App_l. Proof. Admitted.
-  Lemma 𝜋_App_r_meas         : measurable_fun ecov_app 𝜋_App_r. Proof. Admitted.
+
+  Lemma 𝜋_App_l_meas         : measurable_fun ecov_app 𝜋_App_l.
+  Proof.
+    into_gen_measurable; move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [C ? <-].
+    rewrite /ecov_app/setI/=.
+    eapply (eq_measurable
+              (\bigcup_n [set x | (∃ e1 e2 : expr_pre, x = AppC e1 e2 /\
+                                             (expr_ST (gen_expr (expr_shape_enum n)) e2)) ∧
+                                  expr_ST C (𝜋_App_l x)])); last first.
+    { apply /predeqP =>y /=.
+      split.
+      - move=> [[? [z ->]] +]; simpl; move=> ?.
+        destruct (expr_shape_enum_surj (shape_expr z)).
+        eexists _; [done|].
+        split; [|done].
+        eexists _; eexists _; split; [done|].
+        by rewrite -expr_shape_cyl.
+      - move=> [? _ [[? [? [-> ?]]] +]]; simpl; move=> ?.
+        split; [|done].
+        by eexists _; eexists _; eauto.
+    }
+
+    apply bigcup_measurable; move=> k _.
+    apply sub_sigma_algebra.
+    eexists (App C (gen_expr (expr_shape_enum k))).
+    { split; [done|]. by apply gen_expr_generator. }
+
+    apply /predeqP =>y /=.
+    split.
+    - move=> [? ? [ ? ? <-]].
+      split.
+      + by eexists _; eexists _; eauto.
+      + by simpl.
+    - move=> [[? [? [-> ?]]] +]; simpl; move=> ?.
+      eexists _; [done|].
+      eexists _; [done|].
+      done.
+  Qed.
+
+  Lemma 𝜋_App_r_meas         : measurable_fun ecov_app 𝜋_App_r.
+  Proof.
+    into_gen_measurable; move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [C ? <-].
+    rewrite /ecov_app/setI/=.
+    eapply (eq_measurable
+              (\bigcup_n [set x | (∃ e1 e2 : expr_pre, x = AppC e1 e2 /\
+                                             (expr_ST (gen_expr (expr_shape_enum n)) e1)) ∧
+                                  expr_ST C (𝜋_App_r x)])); last first.
+    { apply /predeqP =>y /=.
+      split.
+      - move=> [[z [? ->]] +]; simpl; move=> ?.
+        destruct (expr_shape_enum_surj (shape_expr z)).
+        eexists _; [done|].
+        split; [|done].
+        eexists _; eexists _; split; [done|].
+        by rewrite -expr_shape_cyl.
+      - move=> [? _ [[? [? [-> ?]]] +]]; simpl; move=> ?.
+        split; [|done].
+        by eexists _; eexists _; eauto.
+    }
+
+    apply bigcup_measurable; move=> k _.
+    apply sub_sigma_algebra.
+    eexists (App (gen_expr (expr_shape_enum k)) C).
+    { split; [|done]. by apply gen_expr_generator. }
+
+    apply /predeqP =>y /=.
+    split.
+    - move=> [? ? [ ? ? <-]].
+      split.
+      + by eexists _; eexists _; eauto.
+      + by simpl.
+    - move=> [[? [? [-> ?]]] +]; simpl; move=> ?.
+      eexists _; [done|].
+      eexists _; [done|].
+      done.
+  Qed.
+
+
   Lemma 𝜋_UnOp_op_meas       : measurable_fun ecov_unop 𝜋_UnOp_op. Proof. Admitted.
   Lemma 𝜋_UnOp_e_meas        : measurable_fun ecov_unop 𝜋_UnOp_e. Proof. Admitted.
   Lemma 𝜋_BinOp_op_meas      : measurable_fun ecov_binop 𝜋_BinOp_op. Proof. Admitted.
@@ -2125,8 +2207,88 @@ Section expr_measurability.
   Lemma 𝜋_If_c_meas          : measurable_fun ecov_if 𝜋_If_c. Proof. Admitted.
   Lemma 𝜋_If_l_meas          : measurable_fun ecov_if 𝜋_If_l. Proof. Admitted.
   Lemma 𝜋_If_r_meas          : measurable_fun ecov_if 𝜋_If_r. Proof. Admitted.
-  Lemma 𝜋_Pair_l_meas        : measurable_fun ecov_pair 𝜋_Pair_l. Proof. Admitted.
-  Lemma 𝜋_Pair_r_meas        : measurable_fun ecov_pair 𝜋_Pair_r. Proof. Admitted.
+
+  Lemma 𝜋_Pair_l_meas        : measurable_fun ecov_pair 𝜋_Pair_l.
+  Proof.
+    into_gen_measurable; move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [C ? <-].
+    rewrite /ecov_pair/setI/=.
+    eapply (eq_measurable
+              (\bigcup_n [set x | (∃ e1 e2 : expr_pre, x = PairC e1 e2 /\
+                                             (expr_ST (gen_expr (expr_shape_enum n)) e2)) ∧
+                                  expr_ST C (𝜋_Pair_l x)])); last first.
+    { apply /predeqP =>y /=.
+      split.
+      - move=> [[? [z ->]] +]; simpl; move=> ?.
+        destruct (expr_shape_enum_surj (shape_expr z)).
+        eexists _; [done|].
+        split; [|done].
+        eexists _; eexists _; split; [done|].
+        by rewrite -expr_shape_cyl.
+      - move=> [? _ [[? [? [-> ?]]] +]]; simpl; move=> ?.
+        split; [|done].
+        by eexists _; eexists _; eauto.
+    }
+
+    apply bigcup_measurable; move=> k _.
+    apply sub_sigma_algebra.
+    eexists (Pair C (gen_expr (expr_shape_enum k))).
+    { split; [done|]. by apply gen_expr_generator. }
+
+    apply /predeqP =>y /=.
+    split.
+    - move=> [? ? [ ? ? <-]].
+      split.
+      + by eexists _; eexists _; eauto.
+      + by simpl.
+    - move=> [[? [? [-> ?]]] +]; simpl; move=> ?.
+      eexists _; [done|].
+      eexists _; [done|].
+      done.
+  Qed.
+
+  Lemma 𝜋_Pair_r_meas        : measurable_fun ecov_pair 𝜋_Pair_r.
+  Proof.
+    into_gen_measurable; move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [C ? <-].
+    rewrite /ecov_pair/setI/=.
+    eapply (eq_measurable
+              (\bigcup_n [set x | (∃ e1 e2 : expr_pre, x = PairC e1 e2 /\
+                                             (expr_ST (gen_expr (expr_shape_enum n)) e1)) ∧
+                                  expr_ST C (𝜋_Pair_r x)])); last first.
+    { apply /predeqP =>y /=.
+      split.
+      - move=> [[z [? ->]] +]; simpl; move=> ?.
+        destruct (expr_shape_enum_surj (shape_expr z)).
+        eexists _; [done|].
+        split; [|done].
+        eexists _; eexists _; split; [done|].
+        by rewrite -expr_shape_cyl.
+      - move=> [? _ [[? [? [-> ?]]] +]]; simpl; move=> ?.
+        split; [|done].
+        by eexists _; eexists _; eauto.
+    }
+
+    apply bigcup_measurable; move=> k _.
+    apply sub_sigma_algebra.
+    eexists (Pair (gen_expr (expr_shape_enum k)) C).
+    { split; [|done]. by apply gen_expr_generator. }
+
+    apply /predeqP =>y /=.
+    split.
+    - move=> [? ? [ ? ? <-]].
+      split.
+      + by eexists _; eexists _; eauto.
+      + by simpl.
+    - move=> [[? [? [-> ?]]] +]; simpl; move=> ?.
+      eexists _; [done|].
+      eexists _; [done|].
+      done.
+  Qed.
 
   Lemma 𝜋_Fst_e_meas         : measurable_fun ecov_fst 𝜋_Fst_e.
   Proof.
@@ -2206,6 +2368,7 @@ Section expr_measurability.
 
   Lemma 𝜋_AllocN_N_meas      : measurable_fun ecov_alloc 𝜋_AllocN_N. Proof. Admitted.
   Lemma 𝜋_AllocN_e_meas      : measurable_fun ecov_alloc 𝜋_AllocN_e. Proof. Admitted.
+
   Lemma 𝜋_Load_e_meas        : measurable_fun ecov_load 𝜋_Load_e.
   Proof.
     into_gen_measurable; move=> S.
@@ -2225,9 +2388,110 @@ Section expr_measurability.
       exists z; [done|done].
   Qed.
 
-  Lemma 𝜋_Store_l_meas       : measurable_fun ecov_store 𝜋_Store_l. Proof. Admitted.
-  Lemma 𝜋_Store_e_meas       : measurable_fun ecov_store 𝜋_Store_e. Proof. Admitted.
-  Lemma 𝜋_AllocTape_e_meas   : measurable_fun ecov_alloctape 𝜋_AllocTape_e. Proof. Admitted.
+  Lemma 𝜋_Store_l_meas       : measurable_fun ecov_store 𝜋_Store_l.
+  Proof.
+    into_gen_measurable; move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [C ? <-].
+    rewrite /ecov_store/setI/=.
+    eapply (eq_measurable
+              (\bigcup_n [set x | (∃ e1 e2 : expr_pre, x = StoreC e1 e2 /\
+                                             (expr_ST (gen_expr (expr_shape_enum n)) e2)) ∧
+                                  expr_ST C (𝜋_Store_l x)])); last first.
+    { apply /predeqP =>y /=.
+      split.
+      - move=> [[? [z ->]] +]; simpl; move=> ?.
+        destruct (expr_shape_enum_surj (shape_expr z)).
+        eexists _; [done|].
+        split; [|done].
+        eexists _; eexists _; split; [done|].
+        by rewrite -expr_shape_cyl.
+      - move=> [? _ [[? [? [-> ?]]] +]]; simpl; move=> ?.
+        split; [|done].
+        by eexists _; eexists _; eauto.
+    }
+
+    apply bigcup_measurable; move=> k _.
+    apply sub_sigma_algebra.
+    eexists (Store C (gen_expr (expr_shape_enum k))).
+    { split; [done|]. by apply gen_expr_generator. }
+
+    apply /predeqP =>y /=.
+    split.
+    - move=> [? ? [ ? ? <-]].
+      split.
+      + by eexists _; eexists _; eauto.
+      + by simpl.
+    - move=> [[? [? [-> ?]]] +]; simpl; move=> ?.
+      eexists _; [done|].
+      eexists _; [done|].
+      done.
+  Qed.
+
+  Lemma 𝜋_Store_e_meas       : measurable_fun ecov_store 𝜋_Store_e.
+  Proof.
+    into_gen_measurable; move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [C ? <-].
+    rewrite /ecov_store/setI/=.
+    eapply (eq_measurable
+              (\bigcup_n [set x | (∃ e1 e2 : expr_pre, x = StoreC e1 e2 /\
+                                             (expr_ST (gen_expr (expr_shape_enum n)) e1)) ∧
+                                  expr_ST C (𝜋_Store_e x)])); last first.
+    { apply /predeqP =>y /=.
+      split.
+      - move=> [[z [? ->]] +]; simpl; move=> ?.
+        destruct (expr_shape_enum_surj (shape_expr z)).
+        eexists _; [done|].
+        split; [|done].
+        eexists _; eexists _; split; [done|].
+        by rewrite -expr_shape_cyl.
+      - move=> [? _ [[? [? [-> ?]]] +]]; simpl; move=> ?.
+        split; [|done].
+        by eexists _; eexists _; eauto.
+    }
+
+    apply bigcup_measurable; move=> k _.
+    apply sub_sigma_algebra.
+    eexists (Store (gen_expr (expr_shape_enum k)) C).
+    { split; [|done]. by apply gen_expr_generator. }
+
+    apply /predeqP =>y /=.
+    split.
+    - move=> [? ? [ ? ? <-]].
+      split.
+      + by eexists _; eexists _; eauto.
+      + by simpl.
+    - move=> [[? [? [-> ?]]] +]; simpl; move=> ?.
+      eexists _; [done|].
+      eexists _; [done|].
+      done.
+  Qed.
+
+
+
+  Lemma 𝜋_AllocTape_e_meas   : measurable_fun ecov_alloctape 𝜋_AllocTape_e.
+  Proof.
+    into_gen_measurable; move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [C ? <-].
+
+    apply sub_sigma_algebra.
+    eexists (AllocTape C). { simpl. assumption. }
+
+    apply /predeqP =>y /=.
+    split.
+    - move=> [? z <-].
+      rewrite //=.
+      split; [by eexists _|done].
+    - move=> [[z ->]] //=; move=> ?.
+      exists z; [done|done].
+  Qed.
+
+
   Lemma 𝜋_Rand_t_meas        : measurable_fun ecov_rand 𝜋_Rand_t. Proof. Admitted.
   Lemma 𝜋_Rand_N_meas        : measurable_fun ecov_rand 𝜋_Rand_N. Proof. Admitted.
 
