@@ -1882,16 +1882,14 @@ Section expr_measurability.
 
   Lemma 𝜋_LitV_v_meas    : measurable_fun vcov_lit   𝜋_LitV_v.
   Proof.
-    eapply measurability; [by eauto|].
-    rewrite /preimage_class/=.
-    intros S.
-    rewrite <- bigcup_imset1; rewrite /bigcup/=.
-    rewrite /vcov_lit/setI/=.
-    move=> [SB + ->]; rewrite /base_lit_cyl/=; move=> [C ? <-].
-    apply sub_sigma_algebra.
-    eexists (LitV C).
-    { simpl. assumption. }
-    simpl.
+    into_gen_measurable; move=> S.                       (* codomain is generated SA *)
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.    (* Separate S into union of preimages *)
+    move=> [SB + ->].                                    (* Destruct facts about S *)
+    move=> [C ? <-].
+
+    apply sub_sigma_algebra.                             (* Preimage is a generator *)
+    eexists (LitV C). { simpl. assumption. }
+
     apply /predeqP =>y /=.
     split.
     - move=> [z ? <-].
@@ -1905,58 +1903,95 @@ Section expr_measurability.
   Lemma 𝜋_RecV_x_meas    : measurable_fun vcov_rec   𝜋_RecV_x. Proof. Admitted.
   Lemma 𝜋_RecV_e_meas    : measurable_fun vcov_rec   𝜋_RecV_e. Proof. Admitted.
 
-  Lemma 𝜋_PairV_l_meas   : measurable_fun vcov_pair  𝜋_PairV_l.
-  Proof.
-    eapply measurability; [by eauto|].
-    rewrite /preimage_class/=.
-    intros S.
 
-    rewrite <- bigcup_imset1; rewrite /bigcup/=.
-    rewrite /vcov_pair/setI/=.
-    move=> [SB + ->]; rewrite /val_cyl/=; move=> [C ? <-].
-
-    (* FIXME: This changes for each proof, how to make it as easy as possible? *)
-
-    (* Decompose the set of values on the right to get its generator? *)
+  (*
     have X : [set x | (∃ v1 v2 : val_pre, x = PairVC v1 v2) ∧ val_ST C (𝜋_PairV_l x)] =
              \bigcup_n [set x | (∃ v1 v2 : val_pre, x = PairVC v1 v2 /\ (val_ST (gen_val (val_shape_enum n)) v2)) ∧
                                 val_ST C (𝜋_PairV_l x)].
-      { rewrite /bigcup/=.
-        apply /predeqP =>y /=.
-        split.
-        - move=> [[w[z ->]] +]; simpl; move=> ?.
-          destruct (val_shape_enum_surj (shape_val z)) as [i Hi].
-          exists i; [done|].
-          split; [|done].
-          exists w.
-          exists z.
-          split; [done|].
-          by rewrite <- val_shape_cyl; simpl.
-        - move=> [i _ [[w [z [-> ?]]] +]]; simpl; move=> ?.
-          split; [|done].
-          by eexists _; eexists _; eauto.
-    }
-    rewrite X; clear X.
+   *)
 
-    apply bigcup_measurable.
-    move=> k _.
+  (*
+    have X : [set x | (∃ v1 v2 : val_pre, x = PairVC v1 v2) ∧ val_ST C (𝜋_PairV_l x)] =
+             \bigcup_n [set x | (∃ v1 v2 : val_pre, x = PairVC v1 v2 /\ (val_ST (gen_val (val_shape_enum n)) v2)) ∧
+                                val_ST C (𝜋_PairV_l x)].
+*)
 
-    apply sub_sigma_algebra.
-    eexists (PairV C (gen_val (val_shape_enum k))).
-    { simpl. split; [done|]. by apply gen_val_generator. }
 
-    rewrite /setI/val_seq/preimage/=.
-    rewrite <- val_shape_cyl.
-
+  Lemma conv_bigcup {T I : Type} {S : set T} {U : I -> set T} :
+    (forall t, S t = exists i, U i t) ->
+    S = [set t | (exists2 i : I, True & U i t )].
+  Proof.
+    move=> H.
     apply /predeqP =>y /=.
     split.
-    - move=> [z ? [ w H <-]].
+    - rewrite H.
+      move=> [i ?].
+      exists i; done.
+    - move=> [i ? ?].
+      rewrite H.
+      by exists i.
+  Qed.
+
+  Lemma conv_ex_and_L {T I : Type} {R S : Prop} {P : I -> set T} {t : T} :
+    (S = ∃ i : I, P i t) ->
+    (S ∧ R) = ∃ i : I, (P i t ∧ R).
+  Proof.
+    move=>->.
+    apply propext; split.
+    - by move=>[[i ?] ?]; exists i.
+    - by move=>[i [? ?]]; split; [by exists i | done].
+  Qed.
+
+  (*
+  Lemma conv_ex_ignore {V I T : Type} {S : V -> Prop} { P : I -> set T} {t : T} :
+    (*  (S = ∃ i : I, P i t) -> *)
+    True ->
+    ((∃ v : V, S v) = (∃ i : I, ∃ v : V, P i t)).
+  Proof. Admitted.
+*)
+
+  Lemma X {T I: Type} {S : Prop} {t : T} : S = ∃ i : I, (fun _ _ => S) i t.
+  Proof. Admitted.
+
+  Lemma 𝜋_PairV_l_meas : measurable_fun vcov_pair  𝜋_PairV_l.
+  Proof.
+    into_gen_measurable; move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [C ? <-].
+    rewrite /vcov_pair/setI/=.
+    eapply (eq_measurable
+              (\bigcup_n [set x | (∃ v1 v2 : val_pre, x = PairVC v1 v2 /\
+                                             (val_ST (gen_val (val_shape_enum n)) v2)) ∧
+                                  val_ST C (𝜋_PairV_l x)])); last first.
+    { apply /predeqP =>y /=.
+      split.
+      - move=> [[? [z ->]] +]; simpl; move=> ?.
+        destruct (val_shape_enum_surj (shape_val z)).
+        eexists _; [done|].
+        split; [|done].
+        eexists _; eexists _; split; [done|].
+        by rewrite -val_shape_cyl.
+      - move=> [? _ [[? [? [-> ?]]] +]]; simpl; move=> ?.
+        split; [|done].
+        by eexists _; eexists _; eauto.
+    }
+
+    apply bigcup_measurable; move=> k _.
+    apply sub_sigma_algebra.
+    eexists (PairV C (gen_val (val_shape_enum k))).
+    { split; [done|]. by apply gen_val_generator. }
+    
+    apply /predeqP =>y /=.
+    split.
+    - move=> [? ? [ ? ? <-]].
       split.
       + by eexists _; eexists _; eauto.
       + by simpl.
-    - move=> [[w [z [-> ?]]] +]; simpl; move=> ?.
-      exists w; [done|].
-      exists z; done.
+    - move=> [[? [? [-> ?]]] +]; simpl; move=> ?.
+      eexists _; [done|].
+      eexists _; [done|].
+      done.
   Qed.
 
   Lemma 𝜋_PairV_r_meas   : measurable_fun vcov_pair  𝜋_PairV_r. Proof. Admitted.
