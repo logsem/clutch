@@ -2753,7 +2753,55 @@ Section expr_measurability.
     eexists (Var b); by rewrite //=.
   Qed.
 
-  Lemma 𝜋_Rec_f_meas         : measurable_fun ecov_rec 𝜋_Rec_f. Proof. Admitted.
+  Lemma 𝜋_Rec_f_meas         : measurable_fun ecov_rec 𝜋_Rec_f.
+  Proof.
+    eapply (measurability binder_generated_by_singletons).
+    move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [b ->].
+
+    rewrite /ecov_rec.
+    rewrite /preimage/=/setI//=.
+
+    (* Simplify the projection preimage *)
+    apply (eq_measurable [set x | (∃ (x0 : <<discr binder >>) (b0 : expr_pre), x = RecC b x0 b0)]); last first.
+    { apply /predeqP =>y /=.
+      split.
+      - move=> [[?[?[?->]]]<-] //=.
+        by eexists _; eexists _.
+      - move=> [? [? ->]].
+        split; [|done].
+        by eexists _; eexists _; eexists _.
+    }
+
+    (* Split into countable union *)
+    apply (eq_measurable (\bigcup_i \bigcup_j
+                            [set (RecC b (binder_enum i) b0) |
+                              b0 in (expr_ST (gen_expr (expr_shape_enum j)) )])); last first.
+    { rewrite /bigcup//=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [x[e->]].
+        destruct (binder_enum_surj x) as [i Hi].
+        destruct (expr_shape_enum_surj (shape_expr e)) as [j Hj].
+        exists i; [done|].
+        exists j; [done|].
+        exists e.
+        - by rewrite -expr_shape_cyl //=.
+        - by rewrite -Hi.
+      - move=> [??][??][??]<-.
+        by eexists _; eexists _.
+    }
+    apply bigcup_measurable; move=> i _.
+    apply bigcup_measurable; move=> j _.
+    apply sub_sigma_algebra.
+    eexists (Rec b (binder_enum i) (gen_expr (expr_shape_enum j))).
+    { by apply gen_expr_generator. }
+    apply /predeqP =>y //=.
+  Qed.
+
+
   Lemma 𝜋_Rec_x_meas         : measurable_fun ecov_rec 𝜋_Rec_x. Proof. Admitted.
   Lemma 𝜋_Rec_e_meas         : measurable_fun ecov_rec 𝜋_Rec_e. Proof. Admitted.
 
