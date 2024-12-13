@@ -2809,7 +2809,47 @@ Section expr_measurability.
   Lemma 𝜋_RecV_e_meas    : measurable_fun vcov_rec   𝜋_RecV_e.
   Proof.
     into_gen_measurable; move=> S.
-  Admitted.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [C ? <-].
+    eapply (eq_measurable
+              (\bigcup_i \bigcup_j [set x | (∃ e0, x = RecVC (binder_enum i) (binder_enum j) e0 /\
+                                             expr_ST C (𝜋_RecV_e x))])); last first.
+    { apply /predeqP =>y /=.
+      split.
+      - rewrite /vcov_rec//=.
+        move=> [[f[x[e->]]]+]; rewrite //=; move=> ?.
+        rewrite /bigcup//=.
+        destruct (binder_enum_surj f) as [i <-].
+        destruct (binder_enum_surj x) as [j <-].
+        eexists i; [done|].
+        eexists j; [done|].
+        eexists e.
+        split; [|done].
+        by f_equal.
+      - rewrite /bigcup//=.
+        move=> [i?][j?][e[-> +]]; rewrite //=; move=>?.
+        split; [|done].
+        by eexists _; eexists _; eauto.
+    }
+
+    apply bigcup_measurable; move=> i _.
+    apply bigcup_measurable; move=> j _.
+    apply sub_sigma_algebra.
+    eexists (RecV (binder_enum i) (binder_enum j) C).
+    { by simpl. }
+
+    apply /predeqP =>y /=.
+    split.
+    - move=> [e?]<-.
+      eexists e; simpl.
+      split; [|by simpl].
+      by f_equal.
+    - move=> [?[->?]].
+      eexists _; [done|].
+      by f_equal.
+  Qed.
+
 
   Lemma 𝜋_PairV_l_meas : measurable_fun vcov_pair  𝜋_PairV_l.
   Proof.
