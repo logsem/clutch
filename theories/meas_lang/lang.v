@@ -2567,9 +2567,18 @@ Section expr_measurability.
       exists z; [done|done].
   Qed.
 
-  Lemma 𝜋_RecV_f_meas    : measurable_fun vcov_rec   𝜋_RecV_f. Proof. Admitted.
-  Lemma 𝜋_RecV_x_meas    : measurable_fun vcov_rec   𝜋_RecV_x. Proof. Admitted.
-  Lemma 𝜋_RecV_e_meas    : measurable_fun vcov_rec   𝜋_RecV_e. Proof. Admitted.
+  Lemma 𝜋_RecV_f_meas    : measurable_fun vcov_rec   𝜋_RecV_f.
+  Proof.
+  Admitted.
+
+  Lemma 𝜋_RecV_x_meas    : measurable_fun vcov_rec   𝜋_RecV_x.
+  Proof.
+  Admitted.
+
+  Lemma 𝜋_RecV_e_meas    : measurable_fun vcov_rec   𝜋_RecV_e.
+  Proof.
+    into_gen_measurable; move=> S.
+  Admitted.
 
   Lemma 𝜋_PairV_l_meas : measurable_fun vcov_pair  𝜋_PairV_l.
   Proof.
@@ -2713,7 +2722,37 @@ Section expr_measurability.
       exists z; [done|done].
   Qed.
 
-  Lemma 𝜋_Var_v_meas         : measurable_fun ecov_var 𝜋_Var_v. Proof. Admitted.
+  Definition binder_singletons : set (set <<discr binder>>) := fun S => exists b, S = [set b].
+
+  Lemma binder_generated_by_singletons : 'measurable = <<s binder_singletons >>.
+  Proof. Admitted.
+
+
+  Lemma 𝜋_Var_v_meas         : measurable_fun ecov_var 𝜋_Var_v.
+  Proof.
+    (** Instead of having spaces of binders (bad, would require major rework)
+        we use the fact that the measure space of binders is generated
+        by points *)
+    eapply (measurability binder_generated_by_singletons).
+    move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [b ->].
+
+    rewrite /ecov_var.
+    rewrite /preimage/=/setI//=.
+    apply (eq_measurable [set VarC b]); last first.
+    { apply /predeqP =>y /=.
+      split.
+      - by move=> [[? ->] <-] //=.
+      - move=>-> //=.
+        split; [|done].
+        by exists b.
+    }
+    apply sub_sigma_algebra.
+    eexists (Var b); by rewrite //=.
+  Qed.
+
   Lemma 𝜋_Rec_f_meas         : measurable_fun ecov_rec 𝜋_Rec_f. Proof. Admitted.
   Lemma 𝜋_Rec_x_meas         : measurable_fun ecov_rec 𝜋_Rec_x. Proof. Admitted.
   Lemma 𝜋_Rec_e_meas         : measurable_fun ecov_rec 𝜋_Rec_e. Proof. Admitted.
