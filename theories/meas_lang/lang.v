@@ -2754,14 +2754,112 @@ Section expr_measurability.
   Definition un_op_singletons : set (set <<discr un_op>>) := fun S => exists b, S = [set b].
   Definition bin_op_singletons : set (set <<discr bin_op>>) := fun S => exists b, S = [set b].
 
+  (* Not the best way to prove this. Use Countable instances instead of my custom enum functions. *)
+  (* The result is true for all countable discrete types. *)
   Lemma binder_generated_by_singletons : 'measurable = <<s binder_singletons >>.
-  Proof. Admitted.
+  Proof.
+    apply /predeqP =>y //=.
+    simpl in *.
+    split.
+    - move=> _.
+      have ->: y = \bigcup_i ([set (binder_enum i)] `&` y).
+      { rewrite /bigcup//=.
+        apply /predeqP =>z /=.
+        split.
+        - move=> ?.
+          destruct (binder_enum_surj z) as [i ?].
+          by exists i.
+        - by move=> [i ?][-> ?].
+      }
+      apply sigma_algebra_bigcup.
+      move=> i.
+      destruct (ExcludedMiddle (y (binder_enum i))).
+      + apply sub_sigma_algebra.
+        rewrite /binder_singletons/setI //=.
+        exists (binder_enum i).
+        apply /predeqP =>z /=.
+        split.
+        + by move=> [? ?].
+        + by move=>->.
+      + have -> : ([set binder_enum i] `&` y) = set0.
+        { rewrite /setI//=.
+        apply /predeqP =>z /=.
+        split.
+        + by move=>[-> ?].
+        + by move=>?. }
+        apply sigma_algebra0.
+    - move=> _. by rewrite /measurable/=/discr_meas/=.
+  Qed.
 
   Lemma un_op_generated_by_singletons : 'measurable = <<s un_op_singletons >>.
-  Proof. Admitted.
+  Proof.
+    apply /predeqP =>y //=.
+    simpl in *.
+    split.
+    - move=> _.
+      have ->: y = \bigcup_i ([set (un_op_enum i)] `&` y).
+      { rewrite /bigcup//=.
+        apply /predeqP =>z /=.
+        split.
+        - move=> ?.
+          destruct (un_op_enum_surj z) as [i ?].
+          by exists i.
+        - by move=> [i ?][-> ?].
+      }
+      apply sigma_algebra_bigcup.
+      move=> i.
+      destruct (ExcludedMiddle (y (un_op_enum i))).
+      + apply sub_sigma_algebra.
+        rewrite /binder_singletons/setI //=.
+        exists (un_op_enum i).
+        apply /predeqP =>z /=.
+        split.
+        + by move=> [? ?].
+        + by move=>->.
+      + have -> : ([set un_op_enum i] `&` y) = set0.
+        { rewrite /setI//=.
+        apply /predeqP =>z /=.
+        split.
+        + by move=>[-> ?].
+        + by move=>?. }
+        apply sigma_algebra0.
+    - move=> _. by rewrite /measurable/=/discr_meas/=.
+  Qed.
 
   Lemma bin_op_generated_by_singletons : 'measurable = <<s bin_op_singletons >>.
-  Proof. Admitted.
+  Proof.
+    apply /predeqP =>y //=.
+    simpl in *.
+    split.
+    - move=> _.
+      have ->: y = \bigcup_i ([set (bin_op_enum i)] `&` y).
+      { rewrite /bigcup//=.
+        apply /predeqP =>z /=.
+        split.
+        - move=> ?.
+          destruct (bin_op_enum_surj z) as [i ?].
+          by exists i.
+        - by move=> [i ?][-> ?].
+      }
+      apply sigma_algebra_bigcup.
+      move=> i.
+      destruct (ExcludedMiddle (y (bin_op_enum i))).
+      + apply sub_sigma_algebra.
+        rewrite /binder_singletons/setI //=.
+        exists (bin_op_enum i).
+        apply /predeqP =>z /=.
+        split.
+        + by move=> [? ?].
+        + by move=>->.
+      + have -> : ([set bin_op_enum i] `&` y) = set0.
+        { rewrite /setI//=.
+        apply /predeqP =>z /=.
+        split.
+        + by move=>[-> ?].
+        + by move=>?. }
+        apply sigma_algebra0.
+    - move=> _. by rewrite /measurable/=/discr_meas/=.
+  Qed.
 
 
   Lemma 𝜋_Var_v_meas         : measurable_fun ecov_var 𝜋_Var_v.
