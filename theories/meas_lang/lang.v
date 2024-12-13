@@ -3478,9 +3478,178 @@ Section expr_measurability.
       by f_equal.
   Qed.
 
-  Lemma 𝜋_If_c_meas          : measurable_fun ecov_if 𝜋_If_c. Proof. Admitted.
-  Lemma 𝜋_If_l_meas          : measurable_fun ecov_if 𝜋_If_l. Proof. Admitted.
-  Lemma 𝜋_If_r_meas          : measurable_fun ecov_if 𝜋_If_r. Proof. Admitted.
+  Lemma 𝜋_If_c_meas          : measurable_fun ecov_if 𝜋_If_c.
+  Proof.
+    into_gen_measurable; move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [C ? <-].
+    rewrite /ecov_if/setI/=.
+    eapply (eq_measurable
+              (\bigcup_i \bigcup_j
+                 [set x | (∃ e1 e2 e3 : expr_pre,
+                                      x = IfC e1 e2 e3 /\
+                                      (expr_ST (gen_expr (expr_shape_enum i)) e2) ∧
+                                      (expr_ST (gen_expr (expr_shape_enum j)) e3) ∧
+                                      expr_ST C (𝜋_If_c x))])); last first.
+    { apply /predeqP =>y /=.
+      split.
+      - move=>//=[+ Hm].
+        move=>[e1][e2][e3]Hy.
+        rewrite Hy//= in Hm; rewrite Hy.
+        destruct (expr_shape_enum_surj (shape_expr e2)) as [i Hi].
+        destruct (expr_shape_enum_surj (shape_expr e3)) as [j Hj].
+        rewrite /bigcup//=.
+        eexists i; [done|].
+        eexists j; [done|].
+        eexists _; eexists _; eexists _; split; [done|].
+        by rewrite Hi Hj -expr_shape_cyl -expr_shape_cyl //=.
+      - rewrite /bigcup//=.
+        move=> [i?][j?][e1[e2[e3[->[?[??]]]]]].
+        split; [|done].
+        by eexists _; eexists _; eauto.
+    }
+
+    apply bigcup_measurable; move=> i _.
+    apply bigcup_measurable; move=> j _.
+    apply sub_sigma_algebra.
+    eexists (If C (gen_expr (expr_shape_enum i)) (gen_expr (expr_shape_enum j))).
+    { split; last split.
+      - done.
+      - by apply gen_expr_generator.
+      - by apply gen_expr_generator.
+    }
+
+    apply /predeqP =>y /=.
+    split; rewrite /image3//=.
+    - move=> [x?][w?][z?]<-.
+      eexists x; eexists w; eexists z.
+      split; [done|].
+      split; [done|].
+      split; [done|].
+      by rewrite //=.
+    - move=> [?[?[?[->[?[??]]]]]] //=.
+      eexists _; [done|].
+      eexists _; [done|].
+      eexists _; [done|].
+      by rewrite //=.
+  Qed.
+
+
+
+  Lemma 𝜋_If_l_meas          : measurable_fun ecov_if 𝜋_If_l.
+  Proof.
+    into_gen_measurable; move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [C ? <-].
+    rewrite /ecov_if/setI/=.
+    eapply (eq_measurable
+              (\bigcup_i \bigcup_j
+                 [set x | (∃ e1 e2 e3 : expr_pre,
+                                      x = IfC e1 e2 e3 /\
+                                      (expr_ST (gen_expr (expr_shape_enum i)) e1) ∧
+                                      (expr_ST (gen_expr (expr_shape_enum j)) e3) ∧
+                                      expr_ST C (𝜋_If_l x))])); last first.
+    { apply /predeqP =>y /=.
+      split.
+      - move=>//=[+ Hm].
+        move=>[e1][e2][e3]Hy.
+        rewrite Hy//= in Hm; rewrite Hy.
+        destruct (expr_shape_enum_surj (shape_expr e1)) as [i Hi].
+        destruct (expr_shape_enum_surj (shape_expr e3)) as [j Hj].
+        rewrite /bigcup//=.
+        eexists i; [done|].
+        eexists j; [done|].
+        eexists _; eexists _; eexists _; split; [done|].
+        by rewrite Hi Hj -expr_shape_cyl -expr_shape_cyl //=.
+      - rewrite /bigcup//=.
+        move=> [i?][j?][e1[e2[e3[->[?[??]]]]]].
+        split; [|done].
+        by eexists _; eexists _; eauto.
+    }
+
+    apply bigcup_measurable; move=> i _.
+    apply bigcup_measurable; move=> j _.
+    apply sub_sigma_algebra.
+    eexists (If (gen_expr (expr_shape_enum i)) C (gen_expr (expr_shape_enum j))).
+    { split; last split.
+      - by apply gen_expr_generator.
+      - done.
+      - by apply gen_expr_generator.
+    }
+
+    apply /predeqP =>y /=.
+    split; rewrite /image3//=.
+    - move=> [x?][w?][z?]<-.
+      eexists x; eexists w; eexists z.
+      split; [done|].
+      split; [done|].
+      split; [done|].
+      by rewrite //=.
+    - move=> [?[?[?[->[?[??]]]]]] //=.
+      eexists _; [done|].
+      eexists _; [done|].
+      eexists _; [done|].
+      by rewrite //=.
+  Qed.
+
+  Lemma 𝜋_If_r_meas          : measurable_fun ecov_if 𝜋_If_r.
+  Proof.
+    into_gen_measurable; move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [C ? <-].
+    rewrite /ecov_if/setI/=.
+    eapply (eq_measurable
+              (\bigcup_i \bigcup_j
+                 [set x | (∃ e1 e2 e3 : expr_pre,
+                                      x = IfC e1 e2 e3 /\
+                                      (expr_ST (gen_expr (expr_shape_enum i)) e1) ∧
+                                      (expr_ST (gen_expr (expr_shape_enum j)) e2) ∧
+                                      expr_ST C (𝜋_If_r x))])); last first.
+    { apply /predeqP =>y /=.
+      split.
+      - move=>//=[+ Hm].
+        move=>[e1][e2][e3]Hy.
+        rewrite Hy//= in Hm; rewrite Hy.
+        destruct (expr_shape_enum_surj (shape_expr e1)) as [i Hi].
+        destruct (expr_shape_enum_surj (shape_expr e2)) as [j Hj].
+        rewrite /bigcup//=.
+        eexists i; [done|].
+        eexists j; [done|].
+        eexists _; eexists _; eexists _; split; [done|].
+        by rewrite Hi Hj -expr_shape_cyl -expr_shape_cyl //=.
+      - rewrite /bigcup//=.
+        move=> [i?][j?][e1[e2[e3[->[?[??]]]]]].
+        split; [|done].
+        by eexists _; eexists _; eauto.
+    }
+
+    apply bigcup_measurable; move=> i _.
+    apply bigcup_measurable; move=> j _.
+    apply sub_sigma_algebra.
+    eexists (If (gen_expr (expr_shape_enum i)) (gen_expr (expr_shape_enum j)) C).
+    { split; last split.
+      - by apply gen_expr_generator.
+      - by apply gen_expr_generator.
+      - done.
+    }
+
+    apply /predeqP =>y /=.
+    split; rewrite /image3//=.
+    - move=> [x?][w?][z?]<-.
+      eexists x; eexists w; eexists z.
+      split; [done|].
+      split; [done|].
+      split; [done|].
+      by rewrite //=.
+    - move=> [?[?[?[->[?[??]]]]]] //=.
+      eexists _; [done|].
+      eexists _; [done|].
+      eexists _; [done|].
+      by rewrite //=.
+  Qed.
 
   Lemma 𝜋_Pair_l_meas        : measurable_fun ecov_pair 𝜋_Pair_l.
   Proof.
