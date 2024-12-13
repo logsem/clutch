@@ -2944,10 +2944,51 @@ Section expr_measurability.
 
 
   Lemma 𝜋_UnOp_op_meas       : measurable_fun ecov_unop 𝜋_UnOp_op.
-  Proof. Admitted.
+  Proof.
+    rewrite //=.
+    eapply (measurability un_op_generated_by_singletons).
+    move=> S.
+    rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+    move=> [SB + ->].
+    move=> [b ->].
+
+    rewrite /ecov_binop.
+    rewrite /preimage/=/setI//=.
+
+    (* Simplify the projection preimage *)
+    apply (eq_measurable [set x | (∃ (x0 : expr_pre), x = UnOpC b x0)]); last first.
+    { apply /predeqP =>y /=.
+      split.
+      - move=> [[?[?->]]<-] //=.
+        by eexists _.
+      - move=> [? ->].
+        split; [|done].
+        by eexists _; eexists _.
+    }
+
+    (* Split into countable union *)
+    apply (eq_measurable (\bigcup_i
+                            [set (UnOpC b b0) |
+                              b0 in (expr_ST (gen_expr (expr_shape_enum i)))])); last first.
+    { rewrite /bigcup//=.
+      apply /predeqP =>y /=.
+      split.
+      - move=> [e0->].
+        destruct (expr_shape_enum_surj (shape_expr e0)) as [i Hi].
+        exists i; [done|].
+        eexists _; [by rewrite -expr_shape_cyl //=|].
+        done.
+      - move=> [??][??]<-.
+        by eexists _.
+    }
+    apply bigcup_measurable; move=> i _.
+    apply sub_sigma_algebra.
+    eexists (UnOp b (gen_expr (expr_shape_enum i))).
+    { by apply gen_expr_generator. }
+    apply /predeqP =>y //=.
+  Qed.
 
   Lemma 𝜋_UnOp_e_meas        : measurable_fun ecov_unop 𝜋_UnOp_e. Proof. Admitted.
-
 
   Lemma 𝜋_BinOp_op_meas      : measurable_fun ecov_binop 𝜋_BinOp_op.
   Proof.
