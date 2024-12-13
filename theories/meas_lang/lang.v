@@ -1608,11 +1608,35 @@ Section expr_measurability.
 
   Definition base_lit_shape_enum (n : nat) : base_lit_shape. Admitted.
 
-  Definition binder_enum (n : nat) : <<discr binder>>. Admitted.
+  Definition binder_enum (n : nat) : <<discr binder>> :=
+    match (decode $ Pos.of_nat n) with
+    | Some x => x
+    | None => point
+    end.
 
-  Definition un_op_enum (n : nat) : <<discr un_op>>. Admitted.
+  Definition un_op_enum (n : nat) : <<discr un_op>> :=
+    match n with
+    | 0 => NegOp
+    | _ => MinusUnOp
+    end.
 
-  Definition bin_op_enum (n : nat) : <<discr bin_op>>. Admitted.
+  Definition bin_op_enum (n : nat) : <<discr bin_op>> :=
+    match n with
+    | 0  => PlusOp
+    | 1  => MinusOp
+    | 2  => MultOp
+    | 3  => QuotOp
+    | 4  => RemOp
+    | 5  => AndOp
+    | 6  => OrOp
+    | 7  => XorOp
+    | 8  => ShiftLOp
+    | 9  => ShiftROp
+    | 10 => LeOp
+    | 11 => LtOp
+    | 12 => EqOp
+    | _ => OffsetOp
+    end.
 
   (* I only need surjectivity to prove that I don't miss any trees, so I'll use a definition
      of surjectivity appropriate for that (not the HB one, it gives us nothing) *)
@@ -1627,13 +1651,17 @@ Section expr_measurability.
   Proof. Admitted.
 
   Lemma binder_enum_surj (e : binder) : exists n, binder_enum n = e.
-  Proof. Admitted.
+  Proof. by eexists (Pos.to_nat (encode e)); rewrite /binder_enum Pos2Nat.id decode_encode //=. Qed.
 
   Lemma un_op_enum_surj (e : un_op) : exists n, un_op_enum n = e.
-  Proof. Admitted.
+  Proof. destruct e; by [ exists 0 | exists 1 ]. Qed.
 
   Lemma bin_op_enum_surj (e : bin_op) : exists n, bin_op_enum n = e.
-  Proof. Admitted.
+  Proof.
+    destruct e; by [ exists 0 | exists 1 | exists 2 | exists 3 | exists 4 |
+                     exists 5 | exists 6 | exists 7 | exists 8 | exists 9 |
+                     exists 10 | exists 11 | exists 12 | exists 13].
+  Qed.
 
   Definition base_lit_seq : sequences.sequence (set base_lit) :=
     fun n => shape_base_lit @^-1` [set base_lit_shape_enum n].
