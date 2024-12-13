@@ -212,8 +212,8 @@ with val_pre {TZ TB TL TR : Type} :=
   | InjLV (v : val_pre)
   | InjRV (v : val_pre).
 
-Scheme expr_pre_mut := Induction for expr_pre Sort Type
-with val_pre_mut := Induction for val_pre Sort Type.
+Scheme expr_pre_mut := Induction for expr_pre Sort Prop
+with val_pre_mut := Induction for val_pre Sort Prop.
 
 Section functor.
 
@@ -1537,31 +1537,28 @@ Section expr_measurability.
 
 
    Lemma gen_base_lit_generator s : base_lit_ML (gen_base_lit s).
-   Proof. Admitted.
-
+   Proof.
+     rewrite /base_lit_ML/gen_base_lit/base_lit_pre_F.
+     destruct s; try done; by eapply @measurableT.
+   Qed.
 
    (** gen-* are generators for their respective sigma algebras *)
-   (* TODO: base_lit and expr *)
    Lemma gen_val_generator s : val_ML (gen_val s).
    Proof.
-     induction s as [?|???| ? IHl ? IHr | ? IHv | ? IHv ].
-     - rewrite /gen_val/val_pre_F/=.
-       by apply (gen_base_lit_generator l).
-     - (* FIXME: I need mutual induction here*)
-       admit.
-     - by split; [apply IHl | apply IHr].
-     - by apply IHv.
-     - by apply IHv.
-  Admitted.
-
+     apply (val_pre_mut _ _ _ _ (fun s => expr_ML (gen_expr s)) (fun s => val_ML (gen_val s))).
+     all: try by move=>*//=.
+     by apply gen_base_lit_generator.
+   Qed.
 
    Lemma gen_expr_generator s : expr_ML (gen_expr s).
-   Proof. Admitted.
-
+   Proof.
+     apply (expr_pre_mut _ _ _ _ (fun s => expr_ML (gen_expr s)) (fun s => val_ML (gen_val s))).
+     all: try by move=>*//=.
+     by apply gen_base_lit_generator.
+   Qed.
 
 
   (** The set of all expressions with a given shape is singly generated *)
-
   Lemma base_lit_shape_cyl (s : base_lit_shape) : [set e | shape_base_lit e = s] = base_lit_ST (gen_base_lit s).
   Proof.
     apply /predeqP =>b.
