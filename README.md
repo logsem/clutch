@@ -7,7 +7,7 @@ All of the logics are built using the [Iris](https://iris-project.org) program l
 
 [**Approximate Relational Reasoning for Higher-Order Probabilistic Programs**](https://arxiv.org/abs/2407.14107)<br>
 *Philipp G. Haselwarter, Kwing Hei Li, Alejandro Aguirre, Simon Oddershede Gregersen, Joseph Tassarotti, Lars Birkedal*<br>
-arXiv:2407.14107
+In POPL 2025: ACM SIGPLAN Symposium on Principles of Programming Languages
 
 [**Tachis: Higher-Order Separation Logic with Credits for Expected Costs**](https://doi.org/10.1145/3689753)<br>
 *Philipp G. Haselwarter, Kwing Hei Li, Markus de Medeiros, Simon Oddershede Gregersen, Alejandro Aguirre, Joseph Tassarotti, Lars Birkedal*<br>
