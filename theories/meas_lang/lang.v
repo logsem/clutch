@@ -147,6 +147,21 @@ Section subspaces.
           by rewrite (memNset H1) in HS.
   Qed.
 
+
+  Lemma mathcomp_restriction_setT {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+    (E : set T1) (f : T1 -> T2) :
+    measurable_fun setT (f \_ E) -> measurable_fun E (f \_ E).
+  Proof.
+    move=> H ? Y ?.
+    apply measurableI; [done|].
+    unfold measurable_fun in H.
+    suffices W : d1.-measurable ([set: T1] `&` f \_ E @^-1` Y) by rewrite setTI in W.
+    apply H; [|done].
+    by eapply @measurableT.
+  Qed.
+
+
+
 End subspaces.
 
 
@@ -5097,23 +5112,42 @@ Section meas_semantics.
     | _ => giryM_zero
     end.
 
+  Lemma cfg_cover_measurable :
+      Forall (fun S => measurable S) cfg_cover.
+  Proof. Admitted.
 
-
-  (*
-  Lemma cover_rec_restrict : measurable_fun cover_rec (restrict cover_rec head_stepM_def).
+  Lemma head_stepM_def_restructed_measurable :
+      Forall (fun S => measurable_fun S head_stepM_def) cfg_cover.
   Proof.
-    *)
+  Admitted.
 
 
 
 
 
-  (** TODO: Can I prove a general lemma about "apply a measurable function to each constructor" instead? *)
+
   Local Lemma head_stepM_def_measurable :
     @measurable_fun _ _ cfg (giryM cfg) setT head_stepM_def.
   Proof.
-    Check measurable_by_cover_list.
-  Admitted.
+    apply (@measurable_by_cover_list _ _ _ _ head_stepM_def cfg_cover).
+    - by apply cfg_cover_measurable.
+    - by apply cfg_cover_is_cover.
+    - suffices HFdep :
+          (Forall (λ l : set cfg,
+                     elem_of_list l cfg_cover ->
+                     measurable_fun (T:=cfg) (U:=types.giryM cfg) l (head_stepM_def \_ l)) cfg_cover).
+      { apply Forall_forall.
+        intros x Hx.
+        by apply (iffLR (Forall_forall _ _) HFdep x Hx Hx).
+      }
+      eapply (Forall_impl _ _ _ head_stepM_def_restructed_measurable).
+      intros S H HS.
+      apply mathcomp_restriction_is_measurable in H; last first.
+      { eapply Forall_forall.
+        - by apply cfg_cover_measurable.
+        - by apply HS. }
+      by apply mathcomp_restriction_setT.
+  Qed.
 
   HB.instance Definition _ :=
     isMeasurableMap.Build _ _ _ _ _ head_stepM_def_measurable.
