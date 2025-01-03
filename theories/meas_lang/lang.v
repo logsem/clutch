@@ -5112,18 +5112,155 @@ Section meas_semantics.
     | _ => giryM_zero
     end.
 
+
   Lemma cfg_cover_measurable :
       Forall (fun S => measurable S) cfg_cover.
-  Proof. Admitted.
+  Proof.
+    repeat (try apply Forall_cons; split).
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+  Admitted.
 
-  Lemma head_stepM_def_restructed_measurable :
-      Forall (fun S => measurable_fun S head_stepM_def) cfg_cover.
+  (*
+  Lemma preimage_lemma {X : Type} (P : X -> Prop) : [set x | ∃ x, P x] = preimage P setT.
+  Proof.
+    rewrite /preimage/=.
+  Abort.
+   *)
+
+  Local Open Scope classical_set_scope.
+
+
+
+  (* Generic lifting of a curried constructor on expr to a curried constructor on states *)
+  Definition NonStatefulU {A : Type} (C : A -> expr) : (A * state) -> cfg := fun x => (C x.1, x.2).
+
+  Definition NonStatefulS {A : Type} (S : set A) : set (A * state) := [set x | S x.1].
+
+  Lemma NonStatefulU_meas {d} {A : measurableType d} (C : A -> expr) (S : set A) (H : measurable_fun S C) :
+      measurable_fun (NonStatefulS S) (NonStatefulU C).
   Proof.
   Admitted.
 
+  (*
+  Local Lemma preimage_lemma_4 {T T1 T2 T3 T4 : Type} (C : T1 -> T2 -> T3 -> T4 -> T) (P : T1 -> T2 -> T3 -> T4 -> Prop) :
+    [set x | ∃ v1 : T1, ∃ v2 : T2, ∃ v3 : T3, ∃ v4 : T4, x = C v1 v2 v3 v4 /\ P v1 v2 v3 v4 ] =
+    [set (uncurry4 C) v | v in uncurry4 P].
+  Proof.
+  Admitted.
+  *)
 
 
 
+
+    (*
+    [set x | ∃ (f x0 : <<discr binder >>) (e : expr_pre) (σ : state_pre),
+               x = (Rec f x0 e, σ) ∧ S (ret.giryM_ret_def (Val (RecV f x0 e), σ))]
+     *)
+  Lemma head_stepM_def_restructed_measurable :
+      Forall (fun S => measurable_fun S head_stepM_def) cfg_cover.
+  Proof.
+    repeat (try apply Forall_cons; split).
+    - (* Need simplify head_stepM given the domain *)
+
+      intros M S SM.
+      (* Simplify the preimage intersected with the cover *)
+      rewrite /cover_rec/preimage/setI/=.
+      (* Simplify the preimge further *)
+
+      (* TODO: Tactic-ify me *)
+      have HX :
+        [set x | (∃ (f x0 : <<discr binder >>) (e : expr_pre) (σ : state_pre), x = (Rec f x0 e, σ)) ∧ S (head_stepM_def x)] =
+        [set x | (∃ (f x0 : <<discr binder >>) (e : expr_pre) (σ : state_pre), x = (Rec f x0 e, σ) ∧ S (head_stepM_def (Rec f x0 e, σ)))].
+      { apply /predeqP =>y /=.
+        split.
+        - move=> [+].
+          (* TODO: Tactic to try as much as possible, but then, go back one step when it fails *)
+          do 4 (move=> [+]; move=> ?).
+          move=>->/=?.
+          repeat (eexists _).
+          by eauto.
+        - do 4 (move=> [+]; move=> ?).
+          move=> [->?].
+          repeat eexists.
+          by eauto.
+      }
+      rewrite HX; clear HX.
+      rewrite //=.
+
+      (* This thing has got to be the preimage of (NonStatefulU C) under... something *)
+
+      Check image setT (NonStatefulU RecU). (* This is the set of all terms that start with Rec *)
+      (* Now I want the set of all 4-tuples that satisfy S... *)
+
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+  Admitted.
 
 
   Local Lemma head_stepM_def_measurable :
