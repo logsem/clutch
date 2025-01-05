@@ -179,6 +179,16 @@ Section subspaces.
     by eapply @measurableT.
   Qed.
 
+  Lemma mathcomp_measurable_fun_restiction_setT {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+    (E : set T1) (HE : measurable E) (f : T1 -> T2) :
+    measurable_fun setT f -> measurable_fun E f.
+  Proof.
+    move=> H ???.
+    apply measurableI; [done|].
+    rewrite <- (setTI (_ @^-1` _) ).
+    by apply H.
+  Qed.
+
 
 
 End subspaces.
@@ -201,3 +211,31 @@ Ltac into_gen_measurable := eapply measurability; [by eauto|].
 
 Definition fin_to_nat {N : nat} (x : 'I_(S N)) : Z.
 Admitted.
+
+(** Strict generalization of the version in mathcomp *)
+Lemma prod_measurable_funP' {d d1 d2} {T : measurableType d} {T1 : measurableType d1} {T2 : measurableType d2}
+  (h : T -> T1 * T2) (S : set T) (HS : measurable S) :
+  measurable_fun S h <-> measurable_fun S (ssrfun.comp fst h) /\ measurable_fun S (ssrfun.comp snd h).
+Proof.
+  (* Proof: Conjugate by the restriction lemma, and apply the setT version *)
+  split.
+  - intro H.
+    apply (mathcomp_restriction_is_measurable S HS h) in H.
+    apply (prod_measurable_funP (h \_ S)) in H.
+    destruct H as [H1 H2].
+    by split; apply (mathcomp_restriction_measurable_of_measurable S HS); rewrite restrict_comp.
+  - intros [H1 H2].
+    eapply (mathcomp_restriction_is_measurable S HS _) in H1.
+    eapply (mathcomp_restriction_is_measurable S HS _) in H2.
+    rewrite restrict_comp in H1; [|done].
+    rewrite restrict_comp in H2; [|done].
+    have X := iffRL (prod_measurable_funP (h \_ S)) (conj H1 H2).
+    apply (mathcomp_restriction_measurable_of_measurable S HS _ X).
+Qed.
+
+(** Strict generalization of the version in mathcomp *)
+Lemma measurable_fun_prod' {d d1 d2} {T : measurableType d} {T1 : measurableType d1} {T2 : measurableType d2}
+  (f : T -> T1) (g : T -> T2) (S : set T) (HS : measurable S):
+  measurable_fun S f -> measurable_fun S g ->
+  measurable_fun S (fun x => (f x, g x)).
+Proof. by move=>??; exact/prod_measurable_funP'. Qed.
