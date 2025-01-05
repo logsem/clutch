@@ -440,165 +440,24 @@ Section meas_semantics.
 
 
 
+  (** Top-level functions *)
+  Definition head_stepM_rec : cfg -> giryM cfg :=
+    (ssrfun.comp (giryM_ret R) (NonStatefulU (ssrfun.comp ValU $ ssrfun.comp RecVU 𝜋_RecU))).
 
 
+  Definition head_stepM_def (c : cfg) : giryM cfg :=
+    let (e1, σ1) := c in
+    match e1 with
+    | Rec _ _ _ => head_stepM_rec c
+    | _ => giryM_zero
+    end.
 
 
-
-End meas_semantics.
-
-
-
-
-
-
-
-
-
-
-
-  (*
-
-  (* TODO: Factor out the individual step functions? *)
-  Definition urand_step : measurable_map ((R : realType) : measurableType _) cfg.
-  Admitted.
-
-
-  Definition urand_tape_step : measurable_map ((R : realType) : measurableType _) cfg.
-  Admitted.
-    (* This funciton needs to do this: *)
-    (* (fun (u : R) =>
-         (* Fill tape head with new sample *)
-         let τ' := <[ (0 : nat) := Some u ]> τ in
-         (* Advance tape *)
-         let σ' := state_upd_utapes <[ l := (tapeAdvance τ') ]> σ1 in
-         (* Return the update value an state *)
-         ((Val $ LitV $ LitReal u, σ') : cfg)) *)
-
-
-  (* TODO: Prove the measurability of each function when restructed to the cover set *)
-  (* Try to think of a general lemma? *)
-  (* May need to redefine point, not sure. *)
-
-
-
-
-  Lemma cfg_cover_measurable :
-      Forall (fun S => measurable S) cfg_cover.
+  (** Top-level functions measurabiilty *)
+  Lemma head_stepM_rec_meas : measurable_fun cover_rec head_stepM_def.
   Proof.
-    repeat (try apply Forall_cons; split).
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-  Admitted.
-
-  (*
-  Lemma preimage_lemma {X : Type} (P : X -> Prop) : [set x | ∃ x, P x] = preimage P setT.
-  Proof.
-    rewrite /preimage/=.
-  Abort.
-   *)
-
-  Local Open Scope classical_set_scope.
-
-
-
-
-  (*
-  Local Lemma preimage_lemma_4 {T T1 T2 T3 T4 : Type} (C : T1 -> T2 -> T3 -> T4 -> T) (P : T1 -> T2 -> T3 -> T4 -> Prop) :
-    [set x | ∃ v1 : T1, ∃ v2 : T2, ∃ v3 : T3, ∃ v4 : T4, x = C v1 v2 v3 v4 /\ P v1 v2 v3 v4 ] =
-    [set (uncurry4 C) v | v in uncurry4 P].
-  Proof.
-  Admitted.
-  *)
-
-
-
-
-    (*
-    [set x | ∃ (f x0 : <<discr binder >>) (e : expr_pre) (σ : state_pre),
-               x = (Rec f x0 e, σ) ∧ S (ret.giryM_ret_def (Val (RecV f x0 e), σ))]
-     *)
-
-  (*
-  Definition 𝜋_Rec_f        (e : expr)     : <<discr binder>> := match e with | Rec f _ _ => f | _ => point end.
-  Definition 𝜋_Rec_x        (e : expr)     : <<discr binder>> := match e with | Rec _ x _ => x | _ => point end.
-  Definition 𝜋_Rec_e        (e : expr)     : expr             := match e with | Rec _ _ e => e | _ => point end.
-  measurable_fun_prod
-  measurable_fst
-  measurable_snd
-   *)
-
-
-
-  (* Uncurried form of 𝜋_Rec* *)
-  Definition 𝜋_RecU (e : expr) : (<<discr binder>> * <<discr binder>> * expr)%type :=
-    ((fun e' => (𝜋_Rec_f e', 𝜋_Rec_x e')) e, 𝜋_Rec_e e).
-  Definition 𝜋_RecU_measurable : measurable_fun ecov_rec 𝜋_RecU.
-  Proof.
-    (* TODO: Tactic-ify
-       Note that measurable_fun_prod' gets stuck if you don't give it the types
-     *)
-    unfold 𝜋_RecU.
-    eapply (@measurable_fun_prod' _ _ _ expr (<<discr binder>> * <<discr binder>>)%type expr).
-    { (* TODO: Tactic-ify *) admit. }
-    - eapply (@measurable_fun_prod' _ _ _ expr <<discr binder>> <<discr binder>>).
-      { (* TODO: Tactic-ify *) admit. }
-      - apply 𝜋_Rec_f_meas.
-      - apply 𝜋_Rec_x_meas.
-    - apply 𝜋_Rec_e_meas.
-  Admitted.
-
-
-  (*  giryM_ret R ((Val $ RecV f x e, σ1) : cfg) *)
-  (* FIXME: How do I write this as a term? Inline that into head_stepM_meas_def. *)
-  Definition head_stepM_meas_def_Rec : cfg -> giryM cfg :=
-    ((giryM_ret R) ∘ NonStatefulU (ValU ∘ RecVU ∘ 𝜋_RecU)).
-
-  Lemma measurable_fun_compose' {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
-    (S : set T1) (HS : d1.-measurable S) (f : T1 -> T2) (g : T2 -> T3) :
-    measurable_fun S f -> measurable_fun setT g -> measurable_fun S (g ∘ f).
-  Proof. Admitted.
-
-
-
-  Lemma head_stepM_def_restructed_measurable :
-      Forall (fun S => measurable_fun S head_stepM_def) cfg_cover.
-  Proof.
-    repeat (try apply Forall_cons; split).
-    - eapply (mathcomp_measurable_fun_ext cover_rec _ head_stepM_meas_def_Rec head_stepM_def).
+  (* Old proof
+      eapply (mathcomp_measurable_fun_ext cover_rec _ head_stepM_meas_def_Rec head_stepM_def).
       - (* This function is measurable by construction *)
         unfold head_stepM_meas_def_Rec.
         eapply measurable_fun_compose'. { admit. }
@@ -616,42 +475,27 @@ End meas_semantics.
         rewrite /cover_rec/=.
         do 4 move=> [?+].
         by move=>->//=.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
+      *)
+  Admitted.
+
+
+  (**  Head step measurability *)
+  Lemma cfg_cover_measurable :
+      Forall (fun S => measurable S) cfg_cover.
+  Proof.
+    repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
     - admit.
     - admit.
   Admitted.
 
+
+  Lemma head_stepM_def_restricted_measurable :
+      Forall (fun S => measurable_fun S head_stepM_def) cfg_cover.
+  Proof.
+    repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
+    - admit.
+    - admit.
+  Admitted.
 
   Local Lemma head_stepM_def_measurable :
     @measurable_fun _ _ cfg (giryM cfg) setT head_stepM_def.
@@ -667,7 +511,7 @@ End meas_semantics.
         intros x Hx.
         by apply (iffLR (Forall_forall _ _) HFdep x Hx Hx).
       }
-      eapply (Forall_impl _ _ _ head_stepM_def_restructed_measurable).
+      eapply (Forall_impl _ _ _ head_stepM_def_restricted_measurable).
       intros S H HS.
       apply mathcomp_restriction_is_measurable in H; last first.
       { eapply Forall_forall.
@@ -683,6 +527,145 @@ End meas_semantics.
     head_stepM_def.
 
 End meas_semantics.
+
+
+(*
+  Definition head_stepM_def (c : cfg) : giryM cfg :=
+    let (e1, σ1) := c in
+    match e1 with
+    | Rec f x e =>
+        giryM_ret R ((Val $ RecV f x e, σ1) : cfg)
+    | Pair (Val v1) (Val v2) =>
+        giryM_ret R ((Val $ PairV v1 v2, σ1) : cfg)
+    | InjL (Val v) =>
+        giryM_ret R ((Val $ InjLV v, σ1) : cfg)
+    | InjR (Val v) =>
+        giryM_ret R ((Val $ InjRV v, σ1) : cfg)
+    | App (Val (RecV f x e1)) (Val v2) =>
+        giryM_ret R ((subst' x v2 (subst' f (RecV f x e1) e1) , σ1) : cfg)
+    | UnOp op (Val v) =>
+        match un_op_eval op v with
+          | Some w => giryM_ret R ((Val w, σ1) : cfg)
+          | _ => giryM_zero
+        end
+    | BinOp op (Val v1) (Val v2) =>
+        match bin_op_eval op v1 v2 with
+          | Some w => giryM_ret R ((Val w, σ1) : cfg)
+          | _ => giryM_zero
+        end
+    | If (Val (LitV (LitBool true))) e1 e2  =>
+        giryM_ret R ((e1 , σ1) : cfg)
+    | If (Val (LitV (LitBool false))) e1 e2 =>
+        giryM_ret R ((e2 , σ1) : cfg)
+    | Fst (Val (PairV v1 v2)) =>
+        giryM_ret R ((Val v1 , σ1) : cfg) (* Syntax error when I remove the space between v1 and , *)
+    | Snd (Val (PairV v1 v2)) =>
+        giryM_ret R ((Val v2, σ1) : cfg)
+    | Case (Val (InjLV v)) e1 e2 =>
+        giryM_ret R ((App e1 (Val v), σ1) : cfg)
+    | Case (Val (InjRV v)) e1 e2 =>
+        giryM_ret R ((App e2 (Val v), σ1) : cfg)
+    | AllocN (Val (LitV (LitInt N))) (Val v) =>
+        let ℓ := fresh_loc σ1.(heap) in
+        if bool_decide (0 < Z.to_nat N)%nat
+          then giryM_ret R ((Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1) : cfg)
+          else giryM_zero
+    | Load (Val (LitV (LitLoc l))) =>
+        match σ1.(heap) !! l with
+          | Some v => giryM_ret R ((Val v, σ1) : cfg)
+          | None => giryM_zero
+        end
+    | Store (Val (LitV (LitLoc l))) (Val w) =>
+        match σ1.(heap) !! l with
+          | Some v => giryM_ret R ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : cfg)
+          | None => giryM_zero
+        end
+    (* Uniform sampling from [0, 1 , ..., N] *)
+    | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
+        giryM_map
+          (m_discr (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt $ fin_to_nat n, σ1) : cfg)))
+          (giryM_unif (Z.to_nat N))
+    | AllocTape (Val (LitV (LitInt z))) =>
+        let ι := fresh_loc σ1.(tapes) in
+        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := {| btape_tape := emptyTape ; btape_bound := (Z.to_nat z) |} ]> σ1) : cfg)
+    (* Rand with a tape *)
+    | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) =>
+        match σ1.(tapes) !! l with
+        | Some btape =>
+            (* There exists a tape with label l *)
+            let τ := btape.(btape_tape) in
+            let M := btape.(btape_bound) in
+            if (bool_decide (M = Z.to_nat N)) then
+              (* Tape bounds match *)
+              match (τ !! 0) with
+              | Some v =>
+                  (* There is a next value on the tape *)
+                  let σ' := state_upd_tapes <[ l := {| btape_tape := (tapeAdvance τ); btape_bound := M |} ]> σ1 in
+                  (giryM_ret R ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : cfg))
+              | None =>
+                  (* Next slot on tape is empty *)
+                  giryM_map
+                    (m_discr (fun (v : 'I_(S (Z.to_nat N))) =>
+                       (* Fill the tape head with new sample *)
+                       let τ' := <[ (0 : nat) := Some (v : nat) ]> τ in
+                       (* Advance the tape *)
+                       let σ' := state_upd_tapes <[ l := {| btape_tape := (tapeAdvance τ'); btape_bound := M |} ]> σ1 in
+                       (* Return the new sample and state *)
+                       ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : cfg)))
+                   (giryM_unif (Z.to_nat N))
+              end
+            else
+              (* Tape bounds do not match *)
+              (* Do not advance the tape, but still generate a new sample *)
+              giryM_map
+                (m_discr (fun (n : 'I_(S (Z.to_nat N))) => (((Val $ LitV $ LitInt $ fin_to_nat n) : <<discr expr>>), σ1) : cfg))
+                (giryM_unif (Z.to_nat N))
+        | None => giryM_zero
+        end
+    | AllocUTape =>
+        let ι := fresh_loc σ1.(utapes) in
+        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : cfg)
+    (* Urand with no tape *)
+    | URand (Val (LitV LitUnit)) => giryM_zero (* FIXME giryM_map urand_step unif_base *)
+    (* Urand with a tape *)
+    | URand (Val (LitV (LitLbl l))) =>
+        match σ1.(utapes) !! l with
+        | Some τ =>
+            (* tape l is allocated *)
+            match (τ !! 0) with
+            | Some u =>
+                (* Head has a sample *)
+                let σ' := state_upd_utapes <[ l := (tapeAdvance τ) ]> σ1 in
+                (giryM_ret R ((Val $ LitV $ LitReal u, σ') : cfg))
+            | None =>
+                (* Head has no sample *)
+                giryM_zero
+                (* FIXME giryM_map urand_tape_step unif_base *)
+            end
+        | None => giryM_zero
+        end
+    | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : cfg)
+    | _ => giryM_zero
+    end.
+*)
+
+  (*
+
+
+  Definition urand_tape_step : measurable_map ((R : realType) : measurableType _) cfg.
+  Admitted.
+    (* This funciton needs to do this: *)
+    (* (fun (u : R) =>
+         (* Fill tape head with new sample *)
+         let τ' := <[ (0 : nat) := Some u ]> τ in
+         (* Advance tape *)
+         let σ' := state_upd_utapes <[ l := (tapeAdvance τ') ]> σ1 in
+         (* Return the update value an state *)
+         ((Val $ LitV $ LitReal u, σ') : cfg)) *)
+
+
+
+
 
 
 (*

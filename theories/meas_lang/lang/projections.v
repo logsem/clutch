@@ -24,6 +24,12 @@ Local Open Scope classical_set_scope.
         𝜋_k_x : T' -> T
       and a measurability lemma from the appropriate cover set S
         𝜋_k_x_meas : measurable_fun S 𝜋_k_x
+
+      For each constructor k, there is also an "uncurried form"
+        𝜋_kU : T' -> (... * ... * ...)%type
+      which packages all the projections into one product type. The corresponding
+      measurability proof is
+        𝜋_kU_meas : measurable_fun S 𝜋_k_x
 *)
 
 
@@ -77,7 +83,20 @@ Definition 𝜋_URand_e      (e : expr)     : expr             := match e with |
 Definition 𝜋_Tick_e       (e : expr)     : expr             := match e with | Tick e => e | _ => point end.
 
 
-(** Projection functions measurability *)
+
+(** Uncurred projections *)
+
+Definition 𝜋_RecU (e : expr) : (<<discr binder>> * <<discr binder>> * expr)%type :=
+  ((fun e' => (𝜋_Rec_f e', 𝜋_Rec_x e')) e, 𝜋_Rec_e e).
+
+
+
+
+
+
+
+
+(** Primitive Projection functions measurability *)
 Lemma 𝜋_LitInt_z_meas  : measurable_fun bcov_LitInt 𝜋_LitInt_z.
 Proof.
   intros _H S HS.
@@ -1603,4 +1622,27 @@ Proof.
     split; [by eexists _|done].
   - move=> [[z ->]] //=; move=> ?.
     exists z; [done|done].
+Qed.
+
+
+
+
+
+(**  Uncurried projection functions are measurable *)
+
+(** TODO: Tactic-ify this section before fully implementing it *)
+
+Definition 𝜋_RecU_measurable : measurable_fun ecov_rec 𝜋_RecU.
+Proof.
+  (* TODO: Tactic-ify
+     Note that measurable_fun_prod' gets stuck if you don't give it the types
+   *)
+  unfold 𝜋_RecU.
+  eapply (@measurable_fun_prod' _ _ _ expr (<<discr binder>> * <<discr binder>>)%type expr).
+  { by apply ecov_rec_meas. }
+  - eapply (@measurable_fun_prod' _ _ _ expr <<discr binder>> <<discr binder>>).
+    { by apply ecov_rec_meas. }
+    - by apply 𝜋_Rec_f_meas.
+    - by apply 𝜋_Rec_x_meas.
+  - by apply 𝜋_Rec_e_meas.
 Qed.
