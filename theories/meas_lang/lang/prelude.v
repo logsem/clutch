@@ -239,3 +239,25 @@ Lemma measurable_fun_prod' {d d1 d2} {T : measurableType d} {T1 : measurableType
   measurable_fun S f -> measurable_fun S g ->
   measurable_fun S (fun x => (f x, g x)).
 Proof. by move=>??; exact/prod_measurable_funP'. Qed.
+
+Lemma measurable_compT {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+       (f : T2 → T3) (E : set T1) (g : T1 → T2)
+       (HE : d1.-measurable E) (Hf : measurable_fun setT f)
+       (Hg : measurable_fun E g) : measurable_fun E (ssrfun.comp f g).
+Proof.
+  have MT : measurable (setT : set T2) by eauto.
+  by eapply (measurable_comp MT _ Hf Hg).
+  Unshelve.
+  by rewrite /subset//=.
+Qed.
+
+Lemma measurable_compT' {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+       (f : T2 → T3) (E : set T1) (g : T1 → T2)
+       (HE : d1.-measurable E) (Hf : measurable_fun setT f)
+       (Hg : measurable_fun E g) : measurable_fun E (ssrfun.comp f g).
+Proof.
+  have MT : measurable (setT : set T2) by eauto.
+  by eapply (measurable_comp MT _ Hf Hg).
+  Unshelve.
+  by rewrite /subset//=.
+Qed.

@@ -354,10 +354,9 @@ Section meas_semantics.
   Definition cover_urandT          : set cfg := [set c | ∃ σ l τ v,      c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = Some τ /\ (τ !! 0) = Some v].
   Definition cover_tick            : set cfg := [set c | ∃ σ n,          c = (Tick (Val (LitV (LitInt n))), σ) ].
   *)
-  Definition cover_maybe_stuck     : set cfg := setT.
 
-  Definition cfg_cover : list (set cfg) := [
-    cover_rec;
+  Definition cfg_cover_pre : list (set cfg) := [
+    cover_rec
     (*
     cover_pair;
     cover_injL;
@@ -392,25 +391,34 @@ Section meas_semantics.
     cover_urandT;
     cover_tick;
     *)
-    cover_maybe_stuck
   ].
+
+  Definition cover_maybe_stuck : set cfg. Admitted. (* compliment of union of cfg_cover_pre *)
+
+  Definition cfg_cover : list (set cfg) := cfg_cover_pre ++ [cover_maybe_stuck].
+
+
 
   (**The top-level cover is a cover *)
 
   Lemma cfg_cover_is_cover : List.fold_right setU set0 cfg_cover = setT.
   Proof.
+    (* FIXME
+
     rewrite /cfg_cover/=/cover_maybe_stuck.
     rewrite setTU.
     repeat rewrite setUT.
-    done.
-  Qed.
+    done. *)
+  Admitted.
 
   (** The top-level cover is measurable *)
   (* TODO: Register hint database for this *)
 
-  Lemma cover_rec_measurable : measurable cover_rec.
+  Lemma cover_rec_meas : measurable cover_rec.
   Proof. by apply NonStatefulS_measurable, ecov_rec_meas. Qed.
 
+  Lemma cover_maybe_stuck_meas : measurable cover_maybe_stuck.
+  Proof. Admitted.
 
   (**  Top-level functions *)
 
@@ -419,6 +427,8 @@ Section meas_semantics.
 
   (** NOTE!!! ssrfun.comp, measurable_comp *)
 
+
+    (* FIXME: use measurable_compT *)
   Lemma NonStatefulU_meas {d} {A : measurableType d} (C : A -> expr) (S : set A) (HS : measurable S)
       (HC : measurable_fun S C) : measurable_fun (NonStatefulS S) (NonStatefulU C).
   Proof.
@@ -439,43 +449,50 @@ Section meas_semantics.
   Qed.
 
 
-
   (** Top-level functions *)
   Definition head_stepM_rec : cfg -> giryM cfg :=
     (ssrfun.comp (giryM_ret R) (NonStatefulU (ssrfun.comp ValU $ ssrfun.comp RecVU 𝜋_RecU))).
+
+  Definition head_stepM_stuck : cfg -> giryM cfg :=
+    cst giryM_zero.
 
 
   Definition head_stepM_def (c : cfg) : giryM cfg :=
     let (e1, σ1) := c in
     match e1 with
     | Rec _ _ _ => head_stepM_rec c
-    | _ => giryM_zero
+    | _ => head_stepM_stuck c
     end.
 
 
   (** Top-level functions measurabiilty *)
   Lemma head_stepM_rec_meas : measurable_fun cover_rec head_stepM_def.
   Proof.
-  (* Old proof
-      eapply (mathcomp_measurable_fun_ext cover_rec _ head_stepM_meas_def_Rec head_stepM_def).
-      - (* This function is measurable by construction *)
-        unfold head_stepM_meas_def_Rec.
-        eapply measurable_fun_compose'. { admit. }
-        - have X : cover_rec = NonStatefulS ecov_rec. { admit. }
-          rewrite X; clear X.
-          apply NonStatefulU_meas.
-          eapply measurable_fun_compose'. { admit.  }
-          - apply 𝜋_RecU_measurable.
-          - eapply measurable_fun_compose'. { admit.  }
-            - apply RecVU_measurable.
-            - apply ValU_measurable.
-        - apply measurable_mapP.
-      - (* The two functions are equal on this set. *)
-        intros x.
-        rewrite /cover_rec/=.
-        do 4 move=> [?+].
-        by move=>->//=.
-      *)
+    eapply (mathcomp_measurable_fun_ext cover_rec cover_rec_meas head_stepM_rec head_stepM_def).
+    - (* The function is measurable by construction *)
+      rewrite /head_stepM_rec.
+      apply measurable_compT; first by apply cover_rec_meas.
+      { by apply measurable_mapP. }
+      apply NonStatefulU_meas; first by apply ecov_rec_meas.
+      apply measurable_compT; first by apply ecov_rec_meas.
+      { by apply ValU_measurable. }
+      apply measurable_compT; first by apply ecov_rec_meas.
+      { by apply RecVU_measurable. }
+      { by apply 𝜋_RecU_meas.  }
+    - (* The trick: the two functions are equal on this set. *)
+      move=>[??].
+      do 3 (move=>[+]; move=>?).
+      by move=>/=->/=.
+  Qed.
+
+
+  Lemma head_stepM_stuck_meas : measurable_fun cover_maybe_stuck head_stepM_def.
+  Proof.
+    (* TODO/FIXME: This is circular. To fix this, the maybe stuck case
+       will need to be the difference from all the other cases, and then we can
+       show that we land in the last case.
+
+       This will also change the is_cover proof (to be something like (U F) U (X - U F) = X) *)
   Admitted.
 
 
@@ -484,18 +501,17 @@ Section meas_semantics.
       Forall (fun S => measurable S) cfg_cover.
   Proof.
     repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
-    - admit.
-    - admit.
-  Admitted.
-
+    - by apply cover_rec_meas.
+    - by apply cover_maybe_stuck_meas.
+  Qed.
 
   Lemma head_stepM_def_restricted_measurable :
       Forall (fun S => measurable_fun S head_stepM_def) cfg_cover.
   Proof.
     repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
-    - admit.
-    - admit.
-  Admitted.
+    - by apply head_stepM_rec_meas.
+    - by apply head_stepM_stuck_meas.
+  Qed.
 
   Local Lemma head_stepM_def_measurable :
     @measurable_fun _ _ cfg (giryM cfg) setT head_stepM_def.

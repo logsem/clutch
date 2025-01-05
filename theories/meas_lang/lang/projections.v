@@ -1632,7 +1632,7 @@ Qed.
 
 (** TODO: Tactic-ify this section before fully implementing it *)
 
-Definition 𝜋_RecU_measurable : measurable_fun ecov_rec 𝜋_RecU.
+Definition 𝜋_RecU_meas : measurable_fun ecov_rec 𝜋_RecU.
 Proof.
   (* TODO: Tactic-ify
      Note that measurable_fun_prod' gets stuck if you don't give it the types
