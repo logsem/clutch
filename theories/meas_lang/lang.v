@@ -100,6 +100,45 @@ Section subspaces.
     (E : set T1) (HE : d1.-measurable E) (f : T1 -> T2) :
     measurable_fun E f -> measurable_fun setT (f \_ E).
   Proof.
+    move=> Hf.
+    have HT : d1.-measurable (setT : set T1) by eapply @measurableT.
+    apply (measurable_restrict f HE HT).
+    by rewrite setTI.
+  Qed.
+
+  Lemma mathcomp_restriction_measurable_of_measurable {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+    (E : set T1) (HE : d1.-measurable E) (f : T1 -> T2) :
+    measurable_fun setT (f \_ E) ->
+    measurable_fun E f.
+  Proof.
+    move=> Hf.
+    have HT : d1.-measurable (setT : set T1) by eapply @measurableT.
+    rewrite <- (@setTI _ E).
+    by apply <- (measurable_restrict f HE HT).
+  Qed.
+
+  Lemma mathcomp_measurable_fun_ext {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+     (E : set T1) (HE : d1.-measurable E) (f g : T1 -> T2) :
+     measurable_fun E f -> (∀ x, E x -> f x = g x) -> measurable_fun E g.
+  Proof.
+    intros H1 H2.
+    apply (mathcomp_restriction_measurable_of_measurable E HE).
+    apply (mathcomp_restriction_is_measurable E HE) in H1.
+    suffices HS : (f \_ E = g \_ E) by rewrite <-HS.
+    unfold restrict.
+    apply functional_extensionality.
+    intro x.
+    remember (x \in E) as D.
+    destruct D; [|done].
+    apply H2.
+    symmetry in HeqD.
+    have Z : is_true (x \in E) by auto.
+    by rewrite in_setE in Z.
+  Qed.
+
+
+
+  (*
     intro H.
     unfold measurable_fun.
     intros ? S SMeas.
@@ -145,7 +184,7 @@ Section subspaces.
         * exfalso.
           apply H.
           by rewrite (memNset H1) in HS.
-  Qed.
+    *)
 
 
   Lemma mathcomp_restriction_setT {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
@@ -544,7 +583,7 @@ Section expr_algebra.
   Definition TickU (v : expr)                                       := TickC v.
 
   Definition LitVU (v : base_lit)                                   := LitVC v.
-  Definition RecVU (v : <<discr binder>> * <<discr binder>> * expr) := RecC v.1.1 v.1.2 v.2.
+  Definition RecVU (v : <<discr binder>> * <<discr binder>> * expr) := RecVC v.1.1 v.1.2 v.2.
   Definition PairVU (v : val * val)                                 := PairVC v.1 v.2.
   Definition InjLVU (v : val)                                       := InjLVC v.
   Definition InjRVU (v : val)                                       := InjRVC v.
@@ -1388,6 +1427,8 @@ Section expr_measurability.
 
   Lemma RecVU_measurable : measurable_fun setT RecVU.
   Proof.
+    (* FIXME *)
+    (*
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
     move=> S /= [X [D HD <-] <-]; rewrite setTI.
@@ -1445,7 +1486,8 @@ Section expr_measurability.
         + destruct y as [[??]?]; by rewrite /=.
     }
     all: by ctor_triv_case.
-  Qed.
+    *)
+  Admitted.
 
   Lemma PairVU_measurable : measurable_fun setT PairVU.
   Proof.
@@ -5190,42 +5232,96 @@ Section meas_semantics.
     [set x | ∃ (f x0 : <<discr binder >>) (e : expr_pre) (σ : state_pre),
                x = (Rec f x0 e, σ) ∧ S (ret.giryM_ret_def (Val (RecV f x0 e), σ))]
      *)
+
+  (*
+  Definition 𝜋_Rec_f        (e : expr)     : <<discr binder>> := match e with | Rec f _ _ => f | _ => point end.
+  Definition 𝜋_Rec_x        (e : expr)     : <<discr binder>> := match e with | Rec _ x _ => x | _ => point end.
+  Definition 𝜋_Rec_e        (e : expr)     : expr             := match e with | Rec _ _ e => e | _ => point end.
+  measurable_fun_prod
+  measurable_fst
+  measurable_snd
+   *)
+
+
+(*
+Lemma prod_measurable_funP (h : T -> T1 * T2) : measurable_fun setT h <->
+  measurable_fun setT (fst \o h) /\ measurable_fun setT (snd \o h).
+Proof.
+apply: (@iff_trans _ (g_sigma_preimageU (fst \o h) (snd \o h) `<=` measurable)).
+- rewrite g_sigma_preimageU_comp; split=> [mf A [C HC <-]|f12]; first exact: mf.
+  by move=> _ A mA; apply: f12; exists A.
+- split => [h12|[mf1 mf2]].
+    split => _ A mA; apply: h12; apply: sub_sigma_algebra;
+    by [left; exists A|right; exists A].
+  apply: smallest_sub; first exact: sigma_algebra_measurable.
+  by rewrite subUset; split=> [|] A [C mC <-]; [exact: mf1|exact: mf2].
+Qed.
+*)
+
+
+(* TODO: Generalize product measurable_fun to work on subspaces, if it works *)
+Lemma measurable_fun_prod' {d d1 d2} {T : measurableType d} {T1 : measurableType d1} {T2 : measurableType d2}
+  (E : set T) (HE : measurable E) (f : T -> T1) (g : T -> T2) :
+  measurable_fun E f -> measurable_fun E g ->
+  measurable_fun E (fun x => (f x, g x)).
+Proof. Admitted.
+
+
+
+
+  (* Uncurried form of 𝜋_Rec* *)
+  Definition 𝜋_RecU (e : expr) : (<<discr binder>> * <<discr binder>> * expr)%type :=
+    ((fun e' => (𝜋_Rec_f e', 𝜋_Rec_x e')) e, 𝜋_Rec_e e).
+  Definition 𝜋_RecU_measurable : measurable_fun ecov_rec 𝜋_RecU.
+  Proof.
+    (* TODO: Tactic-ify
+       Note that measurable_fun_prod' gets stuck if you don't give it the types
+     *)
+    unfold 𝜋_RecU.
+    eapply (@measurable_fun_prod' _ _ _ expr (<<discr binder>> * <<discr binder>>)%type expr).
+    { (* TODO: Tactic-ify *) admit. }
+    - eapply (@measurable_fun_prod' _ _ _ expr <<discr binder>> <<discr binder>>).
+      { (* TODO: Tactic-ify *) admit. }
+      - apply 𝜋_Rec_f_meas.
+      - apply 𝜋_Rec_x_meas.
+    - apply 𝜋_Rec_e_meas.
+  Admitted.
+
+
+  (*  giryM_ret R ((Val $ RecV f x e, σ1) : cfg) *)
+  (* FIXME: How do I write this as a term? Inline that into head_stepM_meas_def. *)
+  Definition head_stepM_meas_def_Rec : cfg -> giryM cfg :=
+    ((giryM_ret R) ∘ NonStatefulU (ValU ∘ RecVU ∘ 𝜋_RecU)).
+
+  Lemma measurable_fun_compose' {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+    (S : set T1) (HS : d1.-measurable S) (f : T1 -> T2) (g : T2 -> T3) :
+    measurable_fun S f -> measurable_fun setT g -> measurable_fun S (g ∘ f).
+  Proof. Admitted.
+
+
+
   Lemma head_stepM_def_restructed_measurable :
       Forall (fun S => measurable_fun S head_stepM_def) cfg_cover.
   Proof.
     repeat (try apply Forall_cons; split).
-    - (* Need simplify head_stepM given the domain *)
-
-      intros M S SM.
-      (* Simplify the preimage intersected with the cover *)
-      rewrite /cover_rec/preimage/setI/=.
-      (* Simplify the preimge further *)
-
-      (* TODO: Tactic-ify me *)
-      have HX :
-        [set x | (∃ (f x0 : <<discr binder >>) (e : expr_pre) (σ : state_pre), x = (Rec f x0 e, σ)) ∧ S (head_stepM_def x)] =
-        [set x | (∃ (f x0 : <<discr binder >>) (e : expr_pre) (σ : state_pre), x = (Rec f x0 e, σ) ∧ S (head_stepM_def (Rec f x0 e, σ)))].
-      { apply /predeqP =>y /=.
-        split.
-        - move=> [+].
-          (* TODO: Tactic to try as much as possible, but then, go back one step when it fails *)
-          do 4 (move=> [+]; move=> ?).
-          move=>->/=?.
-          repeat (eexists _).
-          by eauto.
-        - do 4 (move=> [+]; move=> ?).
-          move=> [->?].
-          repeat eexists.
-          by eauto.
-      }
-      rewrite HX; clear HX.
-      rewrite //=.
-
-      (* This thing has got to be the preimage of (NonStatefulU C) under... something *)
-
-      Check image setT (NonStatefulU RecU). (* This is the set of all terms that start with Rec *)
-      (* Now I want the set of all 4-tuples that satisfy S... *)
-
+    - eapply (mathcomp_measurable_fun_ext cover_rec _ head_stepM_meas_def_Rec head_stepM_def).
+      - (* This function is measurable by construction *)
+        unfold head_stepM_meas_def_Rec.
+        eapply measurable_fun_compose'. { admit. }
+        - have X : cover_rec = NonStatefulS ecov_rec. { admit. }
+          rewrite X; clear X.
+          apply NonStatefulU_meas.
+          eapply measurable_fun_compose'. { admit.  }
+          - apply 𝜋_RecU_measurable.
+          - eapply measurable_fun_compose'. { admit.  }
+            - apply RecVU_measurable.
+            - apply ValU_measurable.
+        - apply measurable_mapP.
+      - (* The two functions are equal on this set. *)
+        intros x.
+        rewrite /cover_rec/=.
+        do 4 move=> [?+].
+        by move=>->//=.
     - admit.
     - admit.
     - admit.
