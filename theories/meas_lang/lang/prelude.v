@@ -18,6 +18,8 @@ From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
 
+Create HintDb measlang.
+
 (* Fix giryM to be the giry type with stdlib-valued real numbers *)
 Notation giryM := (giryM (R := R)).
 

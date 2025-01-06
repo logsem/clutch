@@ -83,11 +83,41 @@ Definition 𝜋_URand_e      (e : expr)     : expr             := match e with |
 Definition 𝜋_Tick_e       (e : expr)     : expr             := match e with | Tick e => e | _ => point end.
 
 
+Notation Package2 f g := (fun e => (f e, g e)).
+Notation Package3 f g h := (fun e => ((f e, g e), h e)).
 
 (** Uncurred projections *)
+Definition 𝜋_LitIntU := 𝜋_LitInt_z.
+Definition 𝜋_LitBoolU := 𝜋_LitBool_b.
+Definition 𝜋_LitLocU := 𝜋_LitLoc_l.
+Definition 𝜋_LitLblU := 𝜋_LitLbl_l.
+Definition 𝜋_LitRealU := 𝜋_LitReal_r.
 
-Definition 𝜋_RecU (e : expr) : (<<discr binder>> * <<discr binder>> * expr)%type :=
-  ((fun e' => (𝜋_Rec_f e', 𝜋_Rec_x e')) e, 𝜋_Rec_e e).
+Definition 𝜋_LitVU := 𝜋_LitV_v.
+Definition 𝜋_RecVU := Package3 𝜋_RecV_f 𝜋_RecV_x 𝜋_RecV_e.
+Definition 𝜋_PairVU := Package2 𝜋_PairV_l 𝜋_PairV_r.
+Definition 𝜋_InjLVU := 𝜋_InjLV_v.
+Definition 𝜋_InjRVU := 𝜋_InjRV_v.
+
+Definition 𝜋_ValU := 𝜋_Val_v.
+Definition 𝜋_VarU := 𝜋_Var_v.
+Definition 𝜋_RecU := Package3 𝜋_Rec_f 𝜋_Rec_x 𝜋_Rec_e.
+Definition 𝜋_UnOpU := Package2 𝜋_UnOp_op 𝜋_UnOp_e.
+Definition 𝜋_BinOpU := Package3 𝜋_BinOp_op 𝜋_BinOp_l 𝜋_BinOp_r.
+Definition 𝜋_AppU := Package2 𝜋_App_l 𝜋_App_r.
+Definition 𝜋_IfU := Package3 𝜋_If_c 𝜋_If_l 𝜋_If_r.
+Definition 𝜋_PairU := Package2 𝜋_Pair_l 𝜋_Pair_r.
+Definition 𝜋_InjLU := 𝜋_InjL_e.
+Definition 𝜋_InjRU := 𝜋_InjR_e.
+Definition 𝜋_AllocNU := Package2 𝜋_AllocN_N 𝜋_AllocN_e.
+Definition 𝜋_LoadU := 𝜋_Load_e.
+Definition 𝜋_StoreU := Package2 𝜋_Store_l 𝜋_Store_e.
+Definition 𝜋_AllocTapeU := 𝜋_AllocTape_e.
+Definition 𝜋_RandU := Package2 𝜋_Rand_t 𝜋_Rand_N.
+Definition 𝜋_URandU := 𝜋_URand_e.
+Definition 𝜋_TickU := 𝜋_Tick_e.
+
+
 
 
 
@@ -112,6 +142,7 @@ Proof.
   - move=> [[z ->]] /= ?.
     exists z; done.
 Qed.
+Hint Resolve 𝜋_LitInt_z_meas : measlang.
 
 Lemma 𝜋_LitBool_b_meas : measurable_fun bcov_LitBool 𝜋_LitBool_b.
 Proof.
@@ -128,7 +159,7 @@ Proof.
   - move=> [[z ->]] /= ?.
     exists z; done.
 Qed.
-
+Hint Resolve 𝜋_LitBool_b_meas : measlang.
 
 Lemma 𝜋_LitLoc_l_meas  : measurable_fun bcov_LitLoc 𝜋_LitLoc_l.
 Proof.
@@ -145,6 +176,7 @@ Proof.
   - move=> [[z ->]] /= ?.
     exists z; done.
 Qed.
+Hint Resolve 𝜋_LitLoc_l_meas : measlang.
 
 Lemma 𝜋_LitLbl_l_meas  : measurable_fun bcov_LitLbl 𝜋_LitLbl_l.
 Proof.
@@ -161,6 +193,7 @@ Proof.
   - move=> [[z ->]] /= ?.
     exists z; done.
 Qed.
+Hint Resolve 𝜋_LitLbl_l_meas : measlang.
 
 Lemma 𝜋_LitReal_r_meas : measurable_fun bcov_LitReal 𝜋_LitReal_r.
 Proof.
@@ -177,6 +210,7 @@ Proof.
   - move=> [[z ->]] /= ?.
     exists z; done.
 Qed.
+Hint Resolve 𝜋_LitReal_r_meas : measlang.
 
 
 Lemma 𝜋_LitV_v_meas    : measurable_fun vcov_lit   𝜋_LitV_v.
@@ -197,6 +231,7 @@ Proof.
   - move=> [[z ->]]; rewrite /𝜋_LitV_v/=; move=> ?.
     exists z; [done|done].
 Qed.
+Hint Resolve 𝜋_LitV_v_meas : measlang.
 
 Lemma 𝜋_RecV_f_meas    : measurable_fun vcov_rec   𝜋_RecV_f.
 Proof.
@@ -245,6 +280,7 @@ Proof.
   { by apply gen_expr_generator. }
   apply /predeqP =>y //=.
 Qed.
+Hint Resolve 𝜋_RecV_f_meas : measlang.
 
 Lemma 𝜋_RecV_x_meas    : measurable_fun vcov_rec   𝜋_RecV_x.
 Proof.
@@ -293,6 +329,7 @@ Proof.
   { by apply gen_expr_generator. }
   apply /predeqP =>y //=.
 Qed.
+Hint Resolve 𝜋_RecV_x_meas : measlang.
 
 Lemma 𝜋_RecV_e_meas    : measurable_fun vcov_rec   𝜋_RecV_e.
 Proof.
@@ -337,6 +374,7 @@ Proof.
     eexists _; [done|].
     by f_equal.
 Qed.
+Hint Resolve 𝜋_RecV_e_meas : measlang.
 
 
 Lemma 𝜋_PairV_l_meas : measurable_fun vcov_pair  𝜋_PairV_l.
@@ -379,6 +417,7 @@ Proof.
     eexists _; [done|].
     done.
 Qed.
+Hint Resolve 𝜋_PairV_l_meas : measlang.
 
 Lemma 𝜋_PairV_r_meas   : measurable_fun vcov_pair  𝜋_PairV_r.
 Proof.
@@ -420,6 +459,7 @@ Proof.
     eexists _; [done|].
     done.
 Qed.
+Hint Resolve 𝜋_PairV_r_meas : measlang.
 
 
 Lemma 𝜋_InjLV_v_meas   : measurable_fun vcov_injlv 𝜋_InjLV_v.
@@ -440,6 +480,7 @@ Proof.
   - move=> [[z ->]] //=; move=> ?.
     exists z; [done|done].
 Qed.
+Hint Resolve 𝜋_InjLV_v_meas : measlang.
 
 Lemma 𝜋_InjRV_v_meas   : measurable_fun vcov_injrv 𝜋_InjRV_v.
 Proof.
@@ -459,6 +500,7 @@ Proof.
   - move=> [[z ->]] //=; move=> ?.
     exists z; [done|done].
 Qed.
+Hint Resolve 𝜋_InjRV_v_meas : measlang.
 
 
 
@@ -480,6 +522,7 @@ Proof.
   - move=> [[z ->]] //=; move=> ?.
     exists z; [done|done].
 Qed.
+Hint Resolve 𝜋_Val_v_meas : measlang.
 
 
 Lemma 𝜋_Var_v_meas         : measurable_fun ecov_var 𝜋_Var_v.
@@ -506,6 +549,7 @@ Proof.
   apply sub_sigma_algebra.
   eexists (Var b); by rewrite //=.
 Qed.
+Hint Resolve 𝜋_Var_v_meas : measlang.
 
 Lemma 𝜋_Rec_f_meas         : measurable_fun ecov_rec 𝜋_Rec_f.
 Proof.
@@ -554,6 +598,7 @@ Proof.
   { by apply gen_expr_generator. }
   apply /predeqP =>y //=.
 Qed.
+Hint Resolve 𝜋_Rec_f_meas : measlang.
 
 Lemma 𝜋_Rec_x_meas         : measurable_fun ecov_rec 𝜋_Rec_x.
 Proof.
@@ -602,6 +647,7 @@ Proof.
   { by apply gen_expr_generator. }
   apply /predeqP =>y //=.
 Qed.
+Hint Resolve 𝜋_Rec_x_meas : measlang.
 
 
 Lemma 𝜋_Rec_e_meas         : measurable_fun ecov_rec 𝜋_Rec_e.
@@ -647,6 +693,7 @@ Proof.
     eexists _; [done|].
     by f_equal.
 Qed.
+Hint Resolve 𝜋_Rec_e_meas : measlang.
 
 Lemma 𝜋_App_l_meas         : measurable_fun ecov_app 𝜋_App_l.
 Proof.
@@ -688,6 +735,7 @@ Proof.
     eexists _; [done|].
     done.
 Qed.
+Hint Resolve 𝜋_App_l_meas : measlang.
 
 Lemma 𝜋_App_r_meas         : measurable_fun ecov_app 𝜋_App_r.
 Proof.
@@ -729,6 +777,7 @@ Proof.
     eexists _; [done|].
     done.
 Qed.
+Hint Resolve 𝜋_App_r_meas : measlang.
 
 
 Lemma 𝜋_UnOp_op_meas       : measurable_fun ecov_unop 𝜋_UnOp_op.
@@ -775,6 +824,7 @@ Proof.
   { by apply gen_expr_generator. }
   apply /predeqP =>y //=.
 Qed.
+Hint Resolve 𝜋_UnOp_op_meas : measlang.
 
 Lemma 𝜋_UnOp_e_meas        : measurable_fun ecov_unop 𝜋_UnOp_e.
 Proof.
@@ -816,6 +866,7 @@ Proof.
     eexists _; [done|].
     by f_equal.
 Qed.
+Hint Resolve 𝜋_UnOp_e_meas : measlang.
 
 Lemma 𝜋_BinOp_op_meas      : measurable_fun ecov_binop 𝜋_BinOp_op.
 Proof.
@@ -866,6 +917,7 @@ Proof.
   { split; by apply gen_expr_generator. }
   apply /predeqP =>y //=.
 Qed.
+Hint Resolve 𝜋_BinOp_op_meas : measlang.
 
 Lemma 𝜋_BinOp_l_meas       : measurable_fun ecov_binop 𝜋_BinOp_l.
 Proof.
@@ -915,6 +967,7 @@ Proof.
     eexists _; [done|].
     by f_equal.
 Qed.
+Hint Resolve 𝜋_BinOp_l_meas : measlang.
 
 
 Lemma 𝜋_BinOp_r_meas       : measurable_fun ecov_binop 𝜋_BinOp_r.
@@ -965,6 +1018,7 @@ Proof.
     eexists _; [done|].
     by f_equal.
 Qed.
+Hint Resolve 𝜋_BinOp_r_meas : measlang.
 
 Lemma 𝜋_If_c_meas          : measurable_fun ecov_if 𝜋_If_c.
 Proof.
@@ -1022,8 +1076,7 @@ Proof.
     eexists _; [done|].
     by rewrite //=.
 Qed.
-
-
+Hint Resolve 𝜋_If_c_meas : measlang.
 
 Lemma 𝜋_If_l_meas          : measurable_fun ecov_if 𝜋_If_l.
 Proof.
@@ -1081,6 +1134,7 @@ Proof.
     eexists _; [done|].
     by rewrite //=.
 Qed.
+Hint Resolve 𝜋_If_l_meas : measlang.
 
 Lemma 𝜋_If_r_meas          : measurable_fun ecov_if 𝜋_If_r.
 Proof.
@@ -1138,6 +1192,7 @@ Proof.
     eexists _; [done|].
     by rewrite //=.
 Qed.
+Hint Resolve 𝜋_If_r_meas : measlang.
 
 Lemma 𝜋_Pair_l_meas        : measurable_fun ecov_pair 𝜋_Pair_l.
 Proof.
@@ -1179,6 +1234,7 @@ Proof.
     eexists _; [done|].
     done.
 Qed.
+Hint Resolve 𝜋_Pair_l_meas : measlang.
 
 Lemma 𝜋_Pair_r_meas        : measurable_fun ecov_pair 𝜋_Pair_r.
 Proof.
@@ -1220,6 +1276,7 @@ Proof.
     eexists _; [done|].
     done.
 Qed.
+Hint Resolve 𝜋_Pair_r_meas : measlang.
 
 Lemma 𝜋_Fst_e_meas         : measurable_fun ecov_fst 𝜋_Fst_e.
 Proof.
@@ -1239,6 +1296,7 @@ Proof.
   - move=> [[z ->]] //=; move=> ?.
     exists z; [done|done].
 Qed.
+Hint Resolve 𝜋_Fst_e_meas : measlang.
 
 Lemma 𝜋_Snd_e_meas         : measurable_fun ecov_snd 𝜋_Snd_e.
 Proof.
@@ -1258,6 +1316,7 @@ Proof.
   - move=> [[z ->]] //=; move=> ?.
     exists z; [done|done].
 Qed.
+Hint Resolve 𝜋_Snd_e_meas : measlang.
 
 Lemma 𝜋_InjL_e_meas        : measurable_fun ecov_injl 𝜋_InjL_e.
 Proof.
@@ -1277,6 +1336,7 @@ Proof.
   - move=> [[z ->]] //=; move=> ?.
     exists z; [done|done].
 Qed.
+Hint Resolve 𝜋_InjL_e_meas : measlang.
 
 Lemma 𝜋_InjR_e_meas        : measurable_fun ecov_injr 𝜋_InjR_e.
 Proof.
@@ -1296,6 +1356,7 @@ Proof.
   - move=> [[z ->]] //=; move=> ?.
     exists z; [done|done].
 Qed.
+Hint Resolve 𝜋_InjR_e_meas : measlang.
 
 Lemma 𝜋_AllocN_N_meas      : measurable_fun ecov_alloc 𝜋_AllocN_N.
 Proof.
@@ -1337,6 +1398,7 @@ Proof.
     eexists _; [done|].
     done.
 Qed.
+Hint Resolve 𝜋_AllocN_N_meas : measlang.
 
 
 Lemma 𝜋_AllocN_e_meas      : measurable_fun ecov_alloc 𝜋_AllocN_e.
@@ -1379,6 +1441,7 @@ Proof.
     eexists _; [done|].
     done.
 Qed.
+Hint Resolve 𝜋_AllocN_e_meas : measlang.
 
 Lemma 𝜋_Load_e_meas        : measurable_fun ecov_load 𝜋_Load_e.
 Proof.
@@ -1398,6 +1461,7 @@ Proof.
   - move=> [[z ->]] //=; move=> ?.
     exists z; [done|done].
 Qed.
+Hint Resolve 𝜋_Load_e_meas : measlang.
 
 Lemma 𝜋_Store_l_meas       : measurable_fun ecov_store 𝜋_Store_l.
 Proof.
@@ -1439,6 +1503,7 @@ Proof.
     eexists _; [done|].
     done.
 Qed.
+Hint Resolve 𝜋_Store_l_meas : measlang.
 
 Lemma 𝜋_Store_e_meas       : measurable_fun ecov_store 𝜋_Store_e.
 Proof.
@@ -1480,8 +1545,7 @@ Proof.
     eexists _; [done|].
     done.
 Qed.
-
-
+Hint Resolve 𝜋_Store_e_meas : measlang.
 
 Lemma 𝜋_AllocTape_e_meas   : measurable_fun ecov_alloctape 𝜋_AllocTape_e.
 Proof.
@@ -1501,6 +1565,7 @@ Proof.
   - move=> [[z ->]] //=; move=> ?.
     exists z; [done|done].
 Qed.
+Hint Resolve 𝜋_AllocTape_e_meas : measlang.
 
 
 Lemma 𝜋_Rand_t_meas        : measurable_fun ecov_rand 𝜋_Rand_t.
@@ -1543,6 +1608,7 @@ Proof.
     eexists _; [done|].
     done.
 Qed.
+Hint Resolve 𝜋_Rand_t_meas : measlang.
 
 
 Lemma 𝜋_Rand_N_meas        : measurable_fun ecov_rand 𝜋_Rand_N.
@@ -1585,6 +1651,7 @@ Proof.
     eexists _; [done|].
     done.
 Qed.
+Hint Resolve 𝜋_Rand_N_meas : measlang.
 
 Lemma 𝜋_URand_e_meas       : measurable_fun ecov_urand 𝜋_URand_e.
 Proof.
@@ -1604,6 +1671,7 @@ Proof.
   - move=> [[z ->]] //=; move=> ?.
     exists z; [done|done].
 Qed.
+Hint Resolve 𝜋_URand_e_meas : measlang.
 
 Lemma 𝜋_Tick_e_meas        : measurable_fun ecov_tick 𝜋_Tick_e.
 Proof.
@@ -1623,6 +1691,7 @@ Proof.
   - move=> [[z ->]] //=; move=> ?.
     exists z; [done|done].
 Qed.
+Hint Resolve 𝜋_Tick_e_meas : measlang.
 
 
 
@@ -1631,6 +1700,40 @@ Qed.
 (**  Uncurried projection functions are measurable *)
 
 (** TODO: Tactic-ify this section before fully implementing it *)
+
+(*
+Definition 𝜋_LitIntU := 𝜋_LitInt_z.
+Definition 𝜋_LitBoolU := 𝜋_LitBool_b.
+Definition 𝜋_LitLocU := 𝜋_LitLoc_l.
+Definition 𝜋_LitLblU := 𝜋_LitLbl_l.
+Definition 𝜋_LitRealU := 𝜋_LitReal_r.
+
+Definition 𝜋_LitVU := 𝜋_LitV_v.
+Definition 𝜋_RecVU := Package3 𝜋_RecV_f 𝜋_RecV_x 𝜋_RecV_e.
+Definition 𝜋_PairVU := Package2 𝜋_PairV_l 𝜋_PairV_r.
+Definition 𝜋_InjLVU := 𝜋_InjLV_v.
+Definition 𝜋_InjRVU := 𝜋_InjRV_v.
+
+Definition 𝜋_ValU := 𝜋_Val_v.
+Definition 𝜋_VarU := 𝜋_Var_v.
+Definition 𝜋_RecU := Package3 𝜋_Rec_f 𝜋_Rec_x 𝜋_Rec_e.
+Definition 𝜋_UnOpU := Package2 𝜋_UnOp_op 𝜋_UnOp_e.
+Definition 𝜋_BinOpU := Package3 𝜋_BinOp_op 𝜋_BinOp_l 𝜋_BinOp_r.
+Definition 𝜋_AppU := Package2 𝜋_App_l 𝜋_App_r.
+Definition 𝜋_IfU := Package3 𝜋_If_c 𝜋_If_l 𝜋_If_r.
+Definition 𝜋_PairU := Package2 𝜋_Pair_l 𝜋_Pair_r.
+Definition 𝜋_InjLU := 𝜋_InjL_e.
+Definition 𝜋_InjRU := 𝜋_InjR_e.
+Definition 𝜋_AllocNU := Package2 𝜋_AllocN_N 𝜋_AllocN_e.
+Definition 𝜋_LoadU := 𝜋_Load_e.
+Definition 𝜋_StoreU := Package2 𝜋_Store_l 𝜋_Store_e.
+Definition 𝜋_AllocTapeU := 𝜋_AllocTape_e.
+Definition 𝜋_RandU := Package2 𝜋_Rand_t 𝜋_Rand_N.
+Definition 𝜋_URandU := 𝜋_URand_e.
+Definition 𝜋_TickU := 𝜋_Tick_e.
+ *)
+
+
 
 Definition 𝜋_RecU_meas : measurable_fun ecov_rec 𝜋_RecU.
 Proof.
@@ -1642,7 +1745,7 @@ Proof.
   { by apply ecov_rec_meas. }
   - eapply (@measurable_fun_prod' _ _ _ expr <<discr binder>> <<discr binder>>).
     { by apply ecov_rec_meas. }
-    - by apply 𝜋_Rec_f_meas.
-    - by apply 𝜋_Rec_x_meas.
-  - by apply 𝜋_Rec_e_meas.
+    - by eauto with measlang.
+    - by eauto with measlang.
+  - by eauto with measlang.
 Qed.

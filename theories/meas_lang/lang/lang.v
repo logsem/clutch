@@ -542,6 +542,7 @@ Section meas_semantics.
   Definition head_stepM : measurable_map cfg (giryM cfg) :=
     head_stepM_def.
 
+
 End meas_semantics.
 
 
@@ -664,6 +665,11 @@ End meas_semantics.
     | _ => giryM_zero
     end.
 *)
+
+
+
+
+
 
   (*
 
