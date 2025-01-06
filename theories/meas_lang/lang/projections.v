@@ -1699,41 +1699,6 @@ Hint Resolve 𝜋_Tick_e_meas : measlang.
 
 (**  Uncurried projection functions are measurable *)
 
-(** TODO: Tactic-ify this section before fully implementing it *)
-
-(*
-Definition 𝜋_LitIntU := 𝜋_LitInt_z.
-Definition 𝜋_LitBoolU := 𝜋_LitBool_b.
-Definition 𝜋_LitLocU := 𝜋_LitLoc_l.
-Definition 𝜋_LitLblU := 𝜋_LitLbl_l.
-Definition 𝜋_LitRealU := 𝜋_LitReal_r.
-
-Definition 𝜋_LitVU := 𝜋_LitV_v.
-Definition 𝜋_RecVU := Package3 𝜋_RecV_f 𝜋_RecV_x 𝜋_RecV_e.
-Definition 𝜋_PairVU := Package2 𝜋_PairV_l 𝜋_PairV_r.
-Definition 𝜋_InjLVU := 𝜋_InjLV_v.
-Definition 𝜋_InjRVU := 𝜋_InjRV_v.
-
-Definition 𝜋_ValU := 𝜋_Val_v.
-Definition 𝜋_VarU := 𝜋_Var_v.
-Definition 𝜋_RecU := Package3 𝜋_Rec_f 𝜋_Rec_x 𝜋_Rec_e.
-Definition 𝜋_UnOpU := Package2 𝜋_UnOp_op 𝜋_UnOp_e.
-Definition 𝜋_BinOpU := Package3 𝜋_BinOp_op 𝜋_BinOp_l 𝜋_BinOp_r.
-Definition 𝜋_AppU := Package2 𝜋_App_l 𝜋_App_r.
-Definition 𝜋_IfU := Package3 𝜋_If_c 𝜋_If_l 𝜋_If_r.
-Definition 𝜋_PairU := Package2 𝜋_Pair_l 𝜋_Pair_r.
-Definition 𝜋_InjLU := 𝜋_InjL_e.
-Definition 𝜋_InjRU := 𝜋_InjR_e.
-Definition 𝜋_AllocNU := Package2 𝜋_AllocN_N 𝜋_AllocN_e.
-Definition 𝜋_LoadU := 𝜋_Load_e.
-Definition 𝜋_StoreU := Package2 𝜋_Store_l 𝜋_Store_e.
-Definition 𝜋_AllocTapeU := 𝜋_AllocTape_e.
-Definition 𝜋_RandU := Package2 𝜋_Rand_t 𝜋_Rand_N.
-Definition 𝜋_URandU := 𝜋_URand_e.
-Definition 𝜋_TickU := 𝜋_Tick_e.
- *)
-
-
 (* NOTE (e)apply gets stuck when I don't specialze these lemmas *)
 
 Definition measurable_fun_prod'_expr :=
@@ -1745,9 +1710,116 @@ Definition measurable_fun_prod'_base_lit  :=
 
 Ltac solve_packaged_meas :=
   repeat
-    (try (apply measurable_fun_prod'_expr; try by eauto with measlang);
-     try (apply measurable_fun_prod'_val; try by eauto with measlang);
-     try (apply measurable_fun_prod'_expr; try by eauto with measlang)).
+    (try (apply measurable_fun_prod'_expr; try (by eauto with measlang));
+     try (apply measurable_fun_prod'_val;  try (by eauto with measlang));
+     try (apply measurable_fun_prod'_base_lit;  try (by eauto with measlang));
+     try (by eauto with measlang)).
+
+
+Definition 𝜋_LitIntU_meas : measurable_fun bcov_LitInt 𝜋_LitIntU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_LitIntU_meas : measlang.
+
+Definition 𝜋_LitBoolU_meas : measurable_fun bcov_LitBool 𝜋_LitBoolU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_LitBoolU_meas : measlang.
+
+Definition 𝜋_LitLocU_meas : measurable_fun bcov_LitLoc 𝜋_LitLocU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_LitLocU_meas : measlang.
+
+Definition 𝜋_LitLblU_meas : measurable_fun bcov_LitLbl 𝜋_LitLblU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_LitLblU_meas : measlang.
+
+Definition 𝜋_LitRealU_meas : measurable_fun bcov_LitReal 𝜋_LitRealU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_LitRealU_meas : measlang.
+
+Definition 𝜋_LitVU_meas : measurable_fun vcov_lit 𝜋_LitVU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_LitVU_meas : measlang.
+
+Definition 𝜋_RecVU_meas : measurable_fun vcov_rec 𝜋_RecVU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_RecVU_meas : measlang.
+
+Definition 𝜋_PairVU_meas : measurable_fun vcov_pair 𝜋_PairVU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_PairVU_meas : measlang.
+
+Definition 𝜋_InjLVU_meas : measurable_fun vcov_injlv 𝜋_InjLVU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_InjLVU_meas : measlang.
+
+Definition 𝜋_InjRVU_meas : measurable_fun vcov_injrv 𝜋_InjRVU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_InjRVU_meas : measlang.
+
+Definition 𝜋_ValU_meas : measurable_fun ecov_val 𝜋_ValU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_ValU_meas : measlang.
+
+Definition 𝜋_VarU_meas : measurable_fun ecov_var 𝜋_VarU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_VarU_meas : measlang.
 
 Definition 𝜋_RecU_meas : measurable_fun ecov_rec 𝜋_RecU.
 Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_RecU_meas : measlang.
+
+Definition 𝜋_UnOpU_meas : measurable_fun ecov_unop 𝜋_UnOpU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_UnOpU_meas : measlang.
+
+Definition 𝜋_BinOpU_meas : measurable_fun ecov_binop 𝜋_BinOpU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_BinOpU_meas : measlang.
+
+Definition 𝜋_AppU_meas : measurable_fun ecov_app 𝜋_AppU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_AppU_meas : measlang.
+
+Definition 𝜋_IfU_meas : measurable_fun ecov_if 𝜋_IfU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_IfU_meas : measlang.
+
+Definition 𝜋_PairU_meas : measurable_fun ecov_pair 𝜋_PairU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_PairU_meas : measlang.
+
+Definition 𝜋_InjLU_meas : measurable_fun ecov_injl 𝜋_InjLU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_InjLU_meas : measlang.
+
+Definition 𝜋_InjRU_meas : measurable_fun ecov_injr 𝜋_InjRU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_InjRU_meas : measlang.
+
+Definition 𝜋_AllocNU_meas : measurable_fun ecov_alloc 𝜋_AllocNU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_AllocNU_meas : measlang.
+
+Definition 𝜋_LoadU_meas : measurable_fun ecov_load 𝜋_LoadU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_LoadU_meas : measlang.
+
+Definition 𝜋_StoreU_meas : measurable_fun ecov_store 𝜋_StoreU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_StoreU_meas : measlang.
+
+Definition 𝜋_AllocTapeU_meas : measurable_fun ecov_alloctape 𝜋_AllocTapeU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_StoreU_meas : measlang.
+
+Definition 𝜋_RandU_meas : measurable_fun ecov_rand 𝜋_RandU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_RandU_meas : measlang.
+
+Definition 𝜋_URandU_meas : measurable_fun ecov_urand 𝜋_URandU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_URandU_meas : measlang.
+
+Definition 𝜋_Tick_meas : measurable_fun ecov_tick 𝜋_TickU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_Tick_meas : measlang.
