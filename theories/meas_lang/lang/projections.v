@@ -1734,18 +1734,20 @@ Definition 𝜋_TickU := 𝜋_Tick_e.
  *)
 
 
+(* NOTE (e)apply gets stuck when I don't specialze these lemmas *)
+
+Definition measurable_fun_prod'_expr :=
+  (fun {d1 d2 : measure_display} => (@measurable_fun_prod' _ d1 d2 expr)).
+Definition measurable_fun_prod'_val  :=
+  (fun {d1 d2 : measure_display} => (@measurable_fun_prod' _ d1 d2 val)).
+Definition measurable_fun_prod'_base_lit  :=
+  (fun {d1 d2 : measure_display} => (@measurable_fun_prod' _ d1 d2 val)).
+
+Ltac solve_packaged_meas :=
+  repeat
+    (try (apply measurable_fun_prod'_expr; try by eauto with measlang);
+     try (apply measurable_fun_prod'_val; try by eauto with measlang);
+     try (apply measurable_fun_prod'_expr; try by eauto with measlang)).
 
 Definition 𝜋_RecU_meas : measurable_fun ecov_rec 𝜋_RecU.
-Proof.
-  (* TODO: Tactic-ify
-     Note that measurable_fun_prod' gets stuck if you don't give it the types
-   *)
-  unfold 𝜋_RecU.
-  eapply (@measurable_fun_prod' _ _ _ expr (<<discr binder>> * <<discr binder>>)%type expr).
-  { by apply ecov_rec_meas. }
-  - eapply (@measurable_fun_prod' _ _ _ expr <<discr binder>> <<discr binder>>).
-    { by apply ecov_rec_meas. }
-    - by eauto with measlang.
-    - by eauto with measlang.
-  - by eauto with measlang.
-Qed.
+Proof. by solve_packaged_meas. Qed.
