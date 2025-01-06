@@ -83,6 +83,7 @@ Proof.
   - by move=> [x??]; exists x.
   - by move=> [x?]; exists x.
 Qed.
+Hint Resolve bcov_LitInt_meas : measlang.
 
 Lemma bcov_LitBool_meas : measurable bcov_LitBool.
 Proof.
@@ -96,6 +97,7 @@ Proof.
   - by move=> [x??]; exists x.
   - by move=> [x?]; exists x.
 Qed.
+Hint Resolve bcov_LitBool_meas : measlang.
 
 Lemma bcov_LitUnit_meas : measurable bcov_LitUnit.
 Proof.
@@ -105,6 +107,7 @@ Proof.
   { by rewrite /=/measurable/=/discr_meas/=. }
   rewrite /bcov_LitUnit//=.
 Qed.
+Hint Resolve bcov_LitUnit_meas : measlang.
 
 Lemma bcov_LitLoc_meas  : measurable bcov_LitLoc.
 Proof.
@@ -118,6 +121,7 @@ Proof.
   - by move=> [x??]; exists x.
   - by move=> [x?]; exists x.
 Qed.
+Hint Resolve bcov_LitLoc_meas : measlang.
 
 Lemma bcov_LitLbl_meas  : measurable bcov_LitLbl.
 Proof.
@@ -131,6 +135,7 @@ Proof.
   - by move=> [x??]; exists x.
   - by move=> [x?]; exists x.
 Qed.
+Hint Resolve bcov_LitLbl_meas : measlang.
 
 Lemma bcov_LitReal_meas : measurable bcov_LitReal.
 Proof.
@@ -144,6 +149,7 @@ Proof.
   - by move=> [x??]; exists x.
   - by move=> [x?]; exists x.
 Qed.
+Hint Resolve bcov_LitReal_meas : measlang.
 
 Lemma ecov_val_meas : measurable ecov_val.
 Proof.
@@ -166,6 +172,7 @@ Proof.
   exists (Val (gen_val (val_shape_enum k))); [ by apply gen_val_generator |].
   by rewrite /val_seq/preimage //= (val_shape_cyl _).
 Qed.
+Hint Resolve ecov_val_meas : measlang.
 
 Lemma ecov_var_meas        : measurable ecov_var.
 Proof.
@@ -187,6 +194,7 @@ Proof.
   exists (Var (binder_enum k)); [by rewrite //= |].
   by rewrite /val_seq/preimage //= (val_shape_cyl _).
 Qed.
+Hint Resolve ecov_var_meas : measlang.
 
 Lemma ecov_rec_meas        : measurable ecov_rec.
 Proof.
@@ -218,6 +226,7 @@ Proof.
   eexists (Rec (binder_enum j) (binder_enum k) (gen_expr (expr_shape_enum i))); [ by apply gen_expr_generator |].
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
 Qed.
+Hint Resolve ecov_rec_meas : measlang.
 
 Lemma ecov_app_meas        : measurable ecov_app.
 Proof.
@@ -247,6 +256,7 @@ Proof.
   { rewrite //=. split; by apply gen_expr_generator. }
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _) (expr_shape_cyl _).
 Qed.
+Hint Resolve ecov_app_meas : measlang.
 
 Lemma ecov_unop_meas       : measurable ecov_unop.
 Proof.
@@ -275,6 +285,7 @@ Proof.
   { rewrite //=. by apply gen_expr_generator. }
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
 Qed.
+Hint Resolve ecov_unop_meas : measlang.
 
 Lemma ecov_binop_meas      : measurable ecov_binop.
 Proof.
@@ -307,6 +318,7 @@ Proof.
   { rewrite //=. split; by apply gen_expr_generator. }
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _) (expr_shape_cyl _).
 Qed.
+Hint Resolve ecov_binop_meas : measlang.
 
 Lemma ecov_if_meas         : measurable ecov_if.
 Proof.
@@ -344,6 +356,7 @@ Proof.
   rewrite <-(expr_shape_cyl _).
   done.
 Qed.
+Hint Resolve ecov_if_meas : measlang.
 
 Lemma ecov_pair_meas       : measurable ecov_pair.
 Proof.
@@ -372,6 +385,7 @@ Proof.
   { rewrite //=. split. all: by apply gen_expr_generator. }
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _) (expr_shape_cyl _).
 Qed.
+Hint Resolve ecov_pair_meas : measlang.
 
 Lemma ecov_fst_meas        : measurable ecov_fst.
 Proof.
@@ -394,6 +408,7 @@ Proof.
   exists (Fst (gen_expr (expr_shape_enum k))); [ by apply gen_expr_generator |].
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
 Qed.
+Hint Resolve ecov_fst_meas : measlang.
 
 Lemma ecov_snd_meas        : measurable ecov_snd.
 Proof.
@@ -416,6 +431,7 @@ Proof.
   exists (Snd (gen_expr (expr_shape_enum k))); [ by apply gen_expr_generator |].
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
 Qed.
+Hint Resolve ecov_snd_meas : measlang.
 
 Lemma ecov_injl_meas       : measurable ecov_injl.
 Proof.
@@ -438,6 +454,7 @@ Proof.
   exists (InjL (gen_expr (expr_shape_enum k))); [ by apply gen_expr_generator |].
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
 Qed.
+Hint Resolve ecov_injl_meas : measlang.
 
 Lemma ecov_injr_meas       : measurable ecov_injr.
 Proof.
@@ -460,6 +477,7 @@ Proof.
   exists (InjR (gen_expr (expr_shape_enum k))); [ by apply gen_expr_generator |].
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
 Qed.
+Hint Resolve ecov_injr_meas : measlang.
 
 Lemma ecov_alloc_meas      : measurable ecov_alloc.
 Proof.
@@ -488,6 +506,7 @@ Proof.
   { rewrite //=. split. all: by apply gen_expr_generator. }
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _) (expr_shape_cyl _).
 Qed.
+Hint Resolve ecov_alloc_meas : measlang.
 
 Lemma ecov_load_meas       : measurable ecov_load.
 Proof.
@@ -510,6 +529,7 @@ Proof.
   exists (Load (gen_expr (expr_shape_enum k))); [ by apply gen_expr_generator |].
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
 Qed.
+Hint Resolve ecov_load_meas : measlang.
 
 Lemma ecov_store_meas      : measurable ecov_store.
 Proof.
@@ -538,6 +558,7 @@ Proof.
   { rewrite //=. split. all: by apply gen_expr_generator. }
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _) (expr_shape_cyl _).
 Qed.
+Hint Resolve ecov_store_meas : measlang.
 
 Lemma ecov_alloctape_meas  : measurable ecov_alloctape.
 Proof.
@@ -559,6 +580,7 @@ Proof.
   exists (AllocTape (gen_expr (expr_shape_enum k))); [ by apply gen_expr_generator |].
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
 Qed.
+Hint Resolve ecov_alloctape_meas : measlang.
 
 Lemma ecov_rand_meas       : measurable ecov_rand.
 Proof.
@@ -587,6 +609,7 @@ Proof.
   { rewrite //=. split. all: by apply gen_expr_generator. }
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _) (expr_shape_cyl _).
 Qed.
+Hint Resolve ecov_rand_meas : measlang.
 
 Lemma ecov_allocutape_meas : measurable ecov_allocutape.
 Proof.
@@ -594,6 +617,7 @@ Proof.
   rewrite /ecov_allocutape /expr_cyl //=.
   exists AllocUTape; by rewrite //=.
 Qed.
+Hint Resolve ecov_allocutape_meas : measlang.
 
 Lemma ecov_urand_meas : measurable ecov_urand.
 Proof.
@@ -616,6 +640,7 @@ Proof.
   exists (URand (gen_expr (expr_shape_enum k))); [ by apply gen_expr_generator |].
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
 Qed.
+Hint Resolve ecov_urand_meas : measlang.
 
 Lemma ecov_tick_meas       : measurable ecov_tick.
 Proof.
@@ -638,6 +663,7 @@ Proof.
   exists (Tick (gen_expr (expr_shape_enum k))); [ by apply gen_expr_generator |].
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
 Qed.
+Hint Resolve ecov_tick_meas : measlang.
 
 Lemma vcov_lit_meas : measurable vcov_lit.
 Proof.
@@ -660,6 +686,7 @@ Proof.
   exists (LitV (gen_base_lit (base_lit_shape_enum k))); [ by apply gen_base_lit_generator |].
   by rewrite /base_lit_seq/preimage //= (base_lit_shape_cyl _).
 Qed.
+Hint Resolve vcov_lit_meas : measlang.
 
 Lemma vcov_rec_meas        : measurable vcov_rec.
 Proof.
@@ -690,6 +717,7 @@ Proof.
   eexists (RecV (binder_enum j) (binder_enum k) (gen_expr (expr_shape_enum i))); [ by apply gen_expr_generator |].
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
 Qed.
+Hint Resolve vcov_rec_meas : measlang.
 
 Lemma vcov_pair_meas       : measurable vcov_pair.
 Proof.
@@ -718,6 +746,7 @@ Proof.
   { rewrite //=. split. all: by apply gen_val_generator. }
   by rewrite /val_seq/preimage //= (val_shape_cyl _) (val_shape_cyl _).
 Qed.
+Hint Resolve vcov_pair_meas : measlang.
 
 Lemma vcov_injlv_meas      : measurable vcov_injlv.
 Proof.
@@ -740,6 +769,7 @@ Proof.
   exists (InjLV (gen_val (val_shape_enum k))); [ by apply gen_val_generator |].
   by rewrite /val_seq/preimage //= (val_shape_cyl _).
 Qed.
+Hint Resolve vcov_injlv_meas : measlang.
 
 Lemma vcov_injrv_meas      : measurable vcov_injrv.
 Proof.
@@ -761,116 +791,6 @@ Proof.
   exists (InjRV (gen_val (val_shape_enum k))); [ by apply gen_val_generator |].
   by rewrite /val_seq/preimage //= (val_shape_cyl _).
 Qed.
+Hint Resolve vcov_injrv_meas : measlang.
 
 
-(**  Lemma about discrete spaces *)
-Definition binder_singletons : set (set <<discr binder>>) := fun S => exists b, S = [set b].
-Definition un_op_singletons : set (set <<discr un_op>>) := fun S => exists b, S = [set b].
-Definition bin_op_singletons : set (set <<discr bin_op>>) := fun S => exists b, S = [set b].
-
-(* Not the best way to prove this. Use Countable instances instead of my custom enum functions. *)
-(* The result is true for all countable discrete types. *)
-Lemma binder_generated_by_singletons : 'measurable = <<s binder_singletons >>.
-Proof.
-  apply /predeqP =>y //=.
-  simpl in *.
-  split.
-  - move=> _.
-    have ->: y = \bigcup_i ([set (binder_enum i)] `&` y).
-    { rewrite /bigcup//=.
-      apply /predeqP =>z /=.
-      split.
-      - move=> ?.
-        destruct (binder_enum_surj z) as [i ?].
-        by exists i.
-      - by move=> [i ?][-> ?].
-    }
-    apply sigma_algebra_bigcup.
-    move=> i.
-    destruct (ExcludedMiddle (y (binder_enum i))).
-    + apply sub_sigma_algebra.
-      rewrite /binder_singletons/setI //=.
-      exists (binder_enum i).
-      apply /predeqP =>z /=.
-      split.
-      + by move=> [? ?].
-      + by move=>->.
-    + have -> : ([set binder_enum i] `&` y) = set0.
-      { rewrite /setI//=.
-      apply /predeqP =>z /=.
-      split.
-      + by move=>[-> ?].
-      + by move=>?. }
-      apply sigma_algebra0.
-  - move=> _. by rewrite /measurable/=/discr_meas/=.
-Qed.
-
-Lemma un_op_generated_by_singletons : 'measurable = <<s un_op_singletons >>.
-Proof.
-  apply /predeqP =>y //=.
-  simpl in *.
-  split.
-  - move=> _.
-    have ->: y = \bigcup_i ([set (un_op_enum i)] `&` y).
-    { rewrite /bigcup//=.
-      apply /predeqP =>z /=.
-      split.
-      - move=> ?.
-        destruct (un_op_enum_surj z) as [i ?].
-        by exists i.
-      - by move=> [i ?][-> ?].
-    }
-    apply sigma_algebra_bigcup.
-    move=> i.
-    destruct (ExcludedMiddle (y (un_op_enum i))).
-    + apply sub_sigma_algebra.
-      rewrite /binder_singletons/setI //=.
-      exists (un_op_enum i).
-      apply /predeqP =>z /=.
-      split.
-      + by move=> [? ?].
-      + by move=>->.
-    + have -> : ([set un_op_enum i] `&` y) = set0.
-      { rewrite /setI//=.
-      apply /predeqP =>z /=.
-      split.
-      + by move=>[-> ?].
-      + by move=>?. }
-      apply sigma_algebra0.
-  - move=> _. by rewrite /measurable/=/discr_meas/=.
-Qed.
-
-Lemma bin_op_generated_by_singletons : 'measurable = <<s bin_op_singletons >>.
-Proof.
-  apply /predeqP =>y //=.
-  simpl in *.
-  split.
-  - move=> _.
-    have ->: y = \bigcup_i ([set (bin_op_enum i)] `&` y).
-    { rewrite /bigcup//=.
-      apply /predeqP =>z /=.
-      split.
-      - move=> ?.
-        destruct (bin_op_enum_surj z) as [i ?].
-        by exists i.
-      - by move=> [i ?][-> ?].
-    }
-    apply sigma_algebra_bigcup.
-    move=> i.
-    destruct (ExcludedMiddle (y (bin_op_enum i))).
-    + apply sub_sigma_algebra.
-      rewrite /binder_singletons/setI //=.
-      exists (bin_op_enum i).
-      apply /predeqP =>z /=.
-      split.
-      + by move=> [? ?].
-      + by move=>->.
-    + have -> : ([set bin_op_enum i] `&` y) = set0.
-      { rewrite /setI//=.
-      apply /predeqP =>z /=.
-      split.
-      + by move=>[-> ?].
-      + by move=>?. }
-      apply sigma_algebra0.
-  - move=> _. by rewrite /measurable/=/discr_meas/=.
-Qed.
