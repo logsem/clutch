@@ -320,11 +320,35 @@ Section meas_semantics.
 
   (**  The top-level cover for head_step *)
 
-  Definition cover_rec             : set cfg := NonStatefulS ecov_rec. (*[set c | ∃ f x e σ,      c = (Rec f x e, σ) ]. **)
+  (* [set c | ∃ f x e σ, c = (Rec f x e, σ) ]. *)
+  Definition cover_rec : set cfg :=
+    NonStatefulS ecov_rec.
+
+
+  (*[set c | ∃ v1 v2 σ, c = (Pair (Val v1) (Val v2), σ) ].*)
+  Program Definition cover_pair : set cfg :=
+    NonStatefulS $
+    setI ecov_pair $
+    preimage 𝜋_PairU $
+    (ecov_val `*` ecov_val).
+
+  (* [set c | ∃ v σ, c = (InjL (Val v), σ) ]. *)
+  Definition cover_injL : set cfg :=
+    NonStatefulS $
+    setI ecov_injl $
+    preimage 𝜋_InjLU $
+    ecov_val.
+
+
+  (* [set c | ∃ v σ, c = (InjR (Val v), σ) ]. *)
+  Definition cover_injR : set cfg :=
+    NonStatefulS $
+    setI ecov_injr $
+    preimage 𝜋_InjRU $
+    ecov_val.
+
+
   (*
-  Definition cover_pair            : set cfg := [set c | ∃ v1 v2 σ,      c = (Pair (Val v1) (Val v2), σ) ].
-  Definition cover_injL            : set cfg := [set c | ∃ v σ,          c = (InjL v, σ) ].
-  Definition cover_injR            : set cfg := [set c | ∃ v σ,          c = (InjR v, σ) ].
   Definition cover_app             : set cfg := [set c | ∃ f x e1 v2 σ,  c = (App (Val (RecV f x e1)) (Val v2) , σ) ].
   Definition cover_unop_ok         : set cfg := [set c | ∃ v op w σ,     c = (UnOp op (Val v), σ) /\ un_op_eval op v = Some w].
   Definition cover_unop_stuck      : set cfg := [set c | ∃ v op σ,       c = (UnOp op (Val v), σ) /\ un_op_eval op v = None ].
@@ -357,11 +381,11 @@ Section meas_semantics.
   *)
 
   Definition cfg_cover_pre : list (set cfg) := [
-    cover_rec
-    (*
+    cover_rec;
     cover_pair;
     cover_injL;
-    cover_injR;
+    cover_injR
+    (*
     cover_app;
     cover_unop_ok;
     cover_unop_stuck;
@@ -412,12 +436,35 @@ Section meas_semantics.
     done. *)
   Admitted.
 
+
   (** The top-level cover is measurable *)
-  (* TODO: Register hint database for this *)
 
   Lemma cover_rec_meas : measurable cover_rec.
-  Proof. by apply NonStatefulS_measurable, ecov_rec_meas. Qed.
+  Proof. by apply NonStatefulS_measurable; eauto with measlang. Qed.
   Hint Resolve cover_rec_meas : measlang.
+
+  Lemma cover_pair_meas : measurable cover_pair.
+  Proof.
+    apply NonStatefulS_measurable.
+    apply 𝜋_PairU_meas; eauto with measlang.
+    apply measurableX; by eauto with measlang.
+  Qed.
+  Hint Resolve cover_pair_meas : measlang.
+
+  Lemma cover_injL_meas : measurable cover_injL.
+  Proof.
+    apply NonStatefulS_measurable.
+    by apply 𝜋_InjLU_meas; eauto with measlang.
+  Qed.
+
+  Hint Resolve cover_injL_meas : measlang.
+
+  Lemma cover_injR_meas : measurable cover_injR.
+  Proof.
+    apply NonStatefulS_measurable.
+    by apply 𝜋_InjRU_meas; eauto with measlang.
+  Qed.
+  Hint Resolve cover_injR_meas : measlang.
 
   Lemma cover_maybe_stuck_meas : measurable cover_maybe_stuck.
   Proof. Admitted.
@@ -450,8 +497,41 @@ Section meas_semantics.
 
 
   (** Top-level functions *)
+  (* | Rec f x e => giryM_ret R ((Val $ RecV f x e, σ1) : cfg)  *)
   Definition head_stepM_rec : cfg -> giryM cfg :=
-    (ssrfun.comp (giryM_ret R) (NonStatefulU (ssrfun.comp ValU $ ssrfun.comp RecVU 𝜋_RecU))).
+    ssrfun.comp (giryM_ret R) $
+    NonStatefulU $
+    ssrfun.comp ValU $
+    ssrfun.comp RecVU 𝜋_RecU.
+
+  (* | Pair (Val v1) (Val v2) => giryM_ret R ((Val $ PairV v1 v2, σ1) : cfg)   *)
+  Definition head_stepM_pair : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    NonStatefulU $
+    ssrfun.comp ValU $
+    ssrfun.comp PairVU $
+    mProd
+      (ssrfun.comp 𝜋_Val_v 𝜋_Pair_l)
+      (ssrfun.comp 𝜋_Val_v $ 𝜋_Pair_r).
+
+  (* | InjL (Val v) => giryM_ret R ((Val $ InjLV v, σ1) : cfg) *)
+  Definition head_stepM_injL : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    NonStatefulU $
+    ssrfun.comp ValU $
+    ssrfun.comp InjLVU $
+    ssrfun.comp 𝜋_ValU $
+    𝜋_InjLU.
+
+  (* | InjR (Val v) => giryM_ret R ((Val $ InjRV v, σ1) : cfg) *)
+  Definition head_stepM_injR : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    NonStatefulU $
+    ssrfun.comp ValU $
+    ssrfun.comp InjRVU $
+    ssrfun.comp 𝜋_ValU $
+    𝜋_InjRU.
+
 
   Definition head_stepM_stuck : cfg -> giryM cfg :=
     cst giryM_zero.
@@ -460,23 +540,27 @@ Section meas_semantics.
   Definition head_stepM_def (c : cfg) : giryM cfg :=
     let (e1, σ1) := c in
     match e1 with
-    | Rec _ _ _ => head_stepM_rec c
-    | _ => head_stepM_stuck c
+    | Rec _ _ _            => head_stepM_rec c
+    | Pair (Val _) (Val _) => head_stepM_pair c
+    | InjL (Val _)         => head_stepM_injL c
+    | InjR (Val _)         => head_stepM_injR c
+    | _                    => head_stepM_stuck c
     end.
 
   Hint Resolve measurable_compT : measlang.
   Hint Resolve measurable_mapP : measlang.
 
+  (* Combining solve_packaged_meas and solve_toplevel_meas is too slow! *)
   Ltac solve_toplevel_meas :=
     repeat (
       try (apply measurable_compT);
       try (by eauto with measlang)
     ).
 
-  (** Top-level functions measurabiilty *)
+  (** Measurability of head_step restricted to the different sets in the cover *)
   Lemma head_stepM_rec_meas : measurable_fun cover_rec head_stepM_def.
   Proof.
-    eapply (mathcomp_measurable_fun_ext cover_rec cover_rec_meas head_stepM_rec head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_rec head_stepM_def).
     - solve_toplevel_meas.
       apply @NonStatefulU_meas; solve_toplevel_meas. (* How to integrate this into the tactic w/o stack overflow?*)
       (* Why do these not get applied form the hintdb? *)
@@ -486,7 +570,122 @@ Section meas_semantics.
       move=>[??].
       do 3 (move=>[+]; move=>?).
       by move=>/=->/=.
+    Unshelve. by eauto with measlang.
   Qed.
+  Hint Resolve head_stepM_rec_meas : measlang.
+
+
+  Lemma head_stepM_pair_meas : measurable_fun cover_pair head_stepM_def.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_pair head_stepM_def).
+    - (* FIXME: Duplicate proof from above *)
+      have S : expr_cyl.-sigma.-measurable (ecov_pair `&` 𝜋_PairU @^-1` (ecov_val `*` ecov_val)).
+      { apply 𝜋_PairU_meas; last apply measurableX; by eauto with measlang.  }
+      apply measurable_compT; try by eauto with measlang.
+      apply @NonStatefulU_meas; try done.
+      (*  solve_toplevel_meas. *)
+      (* FIXME: Remove whatever hint is making this overapproximate the cover set
+          I think it's measurable_compT, which we only want to use for certain compositions... *)
+      apply measurable_compT; try by eauto with measlang.
+      + by apply ValU_measurable.
+      apply measurable_compT; try by eauto with measlang.
+      + by apply PairVU_measurable.
+      apply measurable_fun_prod'_expr; try by eauto with measlang.
+      + eapply measurable_comp.
+        3: by apply 𝜋_Val_v_meas.
+        * by eauto with measlang.
+        * rewrite /subset//=.
+          move=>?[+[+[++]]].
+          move=>????<-.
+          by rewrite /ecov_val//=.
+        * rewrite <-(setIid ecov_pair).
+          rewrite <-setIA.
+          by apply measurable_fun_setI1; try by eauto with measlang.
+      + eapply measurable_comp.
+        3: { by apply 𝜋_Val_v_meas. }
+        * by eauto with measlang.
+        * rewrite /subset//=.
+          move=>?[+[+[++]]].
+          move=>????<-.
+          by rewrite /ecov_val//=.
+        * rewrite <-(setIid ecov_pair).
+          rewrite <-setIA.
+          by apply measurable_fun_setI1; try by eauto with measlang.
+        all: try (by eauto with measlang).
+    - move=>[e?].
+      move=>/=[+].
+      move=>[?[?+]].
+      move=>//=->//=.
+      move=>[++].
+      rewrite /ecov_val//=.
+      do 2 move=>[?->].
+      by rewrite //=.
+    Unshelve. by eauto with measlang.
+  Qed.
+  Hint Resolve head_stepM_pair_meas : measlang.
+
+  Lemma head_stepM_injL_meas : measurable_fun cover_injL head_stepM_def.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_injL head_stepM_def).
+    - apply measurable_compT; try by eauto with measlang.
+      have S : (expr_cyl.-sigma.-measurable (ecov_injl `&` 𝜋_InjLU @^-1` ecov_val)).
+      { apply 𝜋_InjLU_meas; by eauto with measlang. }
+      apply @NonStatefulU_meas; first done.
+      apply measurable_compT; try by eauto with measlang.
+      + by apply ValU_measurable.
+      apply measurable_compT; try by eauto with measlang.
+      + by apply InjLVU_measurable.
+      eapply measurable_comp.
+      3: { by apply 𝜋_Val_v_meas. }
+      * by eauto with measlang.
+      * rewrite /subset//=.
+        move=>?[+[+[++]]].
+        move=>???-><-.
+        by eexists _; eauto.
+      * rewrite <-(setIid ecov_injl).
+        rewrite <-setIA.
+        apply measurable_fun_setI1; try by eauto with measlang.
+    - move=>[e?].
+      move=>/=[+].
+      move=>[?+].
+      move=>//=->//=.
+      move=>[?->].
+      rewrite /ecov_val//=.
+    Unshelve. by eauto with measlang.
+  Qed.
+  Hint Resolve head_stepM_injL_meas : measlang.
+
+  Lemma head_stepM_injR_meas : measurable_fun cover_injR head_stepM_def.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_injR head_stepM_def).
+    - apply measurable_compT; try by eauto with measlang.
+      have S : (expr_cyl.-sigma.-measurable (ecov_injr `&` 𝜋_InjRU @^-1` ecov_val)).
+      { apply 𝜋_InjRU_meas; by eauto with measlang. }
+      apply @NonStatefulU_meas; first done.
+      apply measurable_compT; try by eauto with measlang.
+      + by apply ValU_measurable.
+      apply measurable_compT; try by eauto with measlang.
+      + by apply InjRVU_measurable.
+      eapply measurable_comp.
+      3: { by apply 𝜋_Val_v_meas. }
+      * by eauto with measlang.
+      * rewrite /subset//=.
+        move=>?[+[+[++]]].
+        move=>???-><-.
+        by eexists _; eauto.
+      * rewrite <-(setIid ecov_injr).
+        rewrite <-setIA.
+        apply measurable_fun_setI1; try by eauto with measlang.
+    - move=>[e?].
+      move=>/=[+].
+      move=>[?+].
+      move=>//=->//=.
+      move=>[?->].
+      rewrite /ecov_val//=.
+    Unshelve. by eauto with measlang.
+  Qed.
+  Hint Resolve head_stepM_injR_meas : measlang.
+
 
 
   Lemma head_stepM_stuck_meas : measurable_fun cover_maybe_stuck head_stepM_def.
@@ -505,6 +704,9 @@ Section meas_semantics.
   Proof.
     repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
     - by apply cover_rec_meas.
+    - by apply cover_pair_meas.
+    - by apply cover_injL_meas.
+    - by apply cover_injR_meas.
     - by apply cover_maybe_stuck_meas.
   Qed.
 
@@ -513,6 +715,9 @@ Section meas_semantics.
   Proof.
     repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
     - by apply head_stepM_rec_meas.
+    - by apply head_stepM_pair_meas.
+    - by apply head_stepM_injL_meas.
+    - by apply head_stepM_injR_meas.
     - by apply head_stepM_stuck_meas.
   Qed.
 
@@ -553,14 +758,7 @@ End meas_semantics.
   Definition head_stepM_def (c : cfg) : giryM cfg :=
     let (e1, σ1) := c in
     match e1 with
-    | Rec f x e =>
-        giryM_ret R ((Val $ RecV f x e, σ1) : cfg)
-    | Pair (Val v1) (Val v2) =>
-        giryM_ret R ((Val $ PairV v1 v2, σ1) : cfg)
-    | InjL (Val v) =>
-        giryM_ret R ((Val $ InjLV v, σ1) : cfg)
-    | InjR (Val v) =>
-        giryM_ret R ((Val $ InjRV v, σ1) : cfg)
+    | ...
     | App (Val (RecV f x e1)) (Val v2) =>
         giryM_ret R ((subst' x v2 (subst' f (RecV f x e1) e1) , σ1) : cfg)
     | UnOp op (Val v) =>

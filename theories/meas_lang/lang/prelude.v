@@ -242,6 +242,9 @@ Lemma measurable_fun_prod' {d d1 d2} {T : measurableType d} {T1 : measurableType
   measurable_fun S (fun x => (f x, g x)).
 Proof. by move=>??; exact/prod_measurable_funP'. Qed.
 
+Notation mProd f g := (fun x => (f x, g x)).
+
+
 Lemma measurable_compT {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
        (f : T2 → T3) (E : set T1) (g : T1 → T2)
        (HE : d1.-measurable E) (Hf : measurable_fun setT f)
@@ -263,3 +266,19 @@ Proof.
   Unshelve.
   by rewrite /subset//=.
 Qed.
+
+Lemma measurable_fun_setI1 {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+   (f : T1 -> T2) (S1 S2 : set T1) (MS1 : measurable S1) (MS2 : measurable S2) (MF : measurable_fun S1 f) :
+   measurable_fun (S1 `&` S2) f.
+Proof.
+  move=>???.
+  rewrite (setIC S1 S2); rewrite <-setIA.
+  apply measurableI; [done|].
+  apply MF; done.
+Qed.
+
+
+Lemma measurable_fun_setI2 {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+   (f : T1 -> T2) (S1 S2 : set T1) (MS1 : measurable S1) (MS2 : measurable S2) (MF : measurable_fun S2 f) :
+   measurable_fun (S1 `&` S2) f.
+Proof. by rewrite (setIC S1 S2); apply measurable_fun_setI1. Qed.
