@@ -315,6 +315,7 @@ Section meas_semantics.
     apply measurable_fst; [|done].
     by eapply @measurableT.
   Qed.
+  Hint Resolve NonStatefulS_measurable : measlang.
 
 
   (**  The top-level cover for head_step *)
@@ -416,6 +417,7 @@ Section meas_semantics.
 
   Lemma cover_rec_meas : measurable cover_rec.
   Proof. by apply NonStatefulS_measurable, ecov_rec_meas. Qed.
+  Hint Resolve cover_rec_meas : measlang.
 
   Lemma cover_maybe_stuck_meas : measurable cover_maybe_stuck.
   Proof. Admitted.
@@ -427,8 +429,6 @@ Section meas_semantics.
 
   (** NOTE!!! ssrfun.comp, measurable_comp *)
 
-
-    (* FIXME: use measurable_compT *)
   Lemma NonStatefulU_meas {d} {A : measurableType d} (C : A -> expr) (S : set A) (HS : measurable S)
       (HC : measurable_fun S C) : measurable_fun (NonStatefulS S) (NonStatefulU C).
   Proof.
@@ -464,21 +464,24 @@ Section meas_semantics.
     | _ => head_stepM_stuck c
     end.
 
+  Hint Resolve measurable_compT : measlang.
+  Hint Resolve measurable_mapP : measlang.
+
+  Ltac solve_toplevel_meas :=
+    repeat (
+      try (apply measurable_compT);
+      try (by eauto with measlang)
+    ).
 
   (** Top-level functions measurabiilty *)
   Lemma head_stepM_rec_meas : measurable_fun cover_rec head_stepM_def.
   Proof.
     eapply (mathcomp_measurable_fun_ext cover_rec cover_rec_meas head_stepM_rec head_stepM_def).
-    - (* The function is measurable by construction *)
-      rewrite /head_stepM_rec.
-      apply measurable_compT; first by apply cover_rec_meas.
-      { by apply measurable_mapP. }
-      apply NonStatefulU_meas; first by apply ecov_rec_meas.
-      apply measurable_compT; first by apply ecov_rec_meas.
-      { by apply ValU_measurable. }
-      apply measurable_compT; first by apply ecov_rec_meas.
-      { by apply RecVU_measurable. }
-      { by apply 𝜋_RecU_meas.  }
+    - solve_toplevel_meas.
+      apply @NonStatefulU_meas; solve_toplevel_meas. (* How to integrate this into the tactic w/o stack overflow?*)
+      (* Why do these not get applied form the hintdb? *)
+      - by apply ValU_measurable.
+      - by apply RecVU_measurable.
     - (* The trick: the two functions are equal on this set. *)
       move=>[??].
       do 3 (move=>[+]; move=>?).
