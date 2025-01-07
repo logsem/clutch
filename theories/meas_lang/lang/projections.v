@@ -71,6 +71,9 @@ Definition 𝜋_Fst_e        (e : expr)     : expr             := match e with |
 Definition 𝜋_Snd_e        (e : expr)     : expr             := match e with | Snd e => e | _ => point end.
 Definition 𝜋_InjL_e       (e : expr)     : expr             := match e with | InjL e => e | _ => point end.
 Definition 𝜋_InjR_e       (e : expr)     : expr             := match e with | InjR e => e | _ => point end.
+Definition 𝜋_Case_c       (e : expr)     : expr             := match e with | Case e _ _ => e | _ => point end.
+Definition 𝜋_Case_l       (e : expr)     : expr             := match e with | Case _ e _ => e | _ => point end.
+Definition 𝜋_Case_r       (e : expr)     : expr             := match e with | Case _ _ e => e | _ => point end.
 Definition 𝜋_AllocN_N     (e : expr)     : expr             := match e with | AllocN e _ => e | _ => point end.
 Definition 𝜋_AllocN_e     (e : expr)     : expr             := match e with | AllocN _ e => e | _ => point end.
 Definition 𝜋_Load_e       (e : expr)     : expr             := match e with | Load e => e | _ => point end.
@@ -109,6 +112,7 @@ Definition 𝜋_IfU := Package3 𝜋_If_c 𝜋_If_l 𝜋_If_r.
 Definition 𝜋_PairU := Package2 𝜋_Pair_l 𝜋_Pair_r.
 Definition 𝜋_InjLU := 𝜋_InjL_e.
 Definition 𝜋_InjRU := 𝜋_InjR_e.
+Definition 𝜋_CaseU := Package3 𝜋_Case_c 𝜋_Case_l 𝜋_Case_r.
 Definition 𝜋_AllocNU := Package2 𝜋_AllocN_N 𝜋_AllocN_e.
 Definition 𝜋_LoadU := 𝜋_Load_e.
 Definition 𝜋_StoreU := Package2 𝜋_Store_l 𝜋_Store_e.
@@ -1358,6 +1362,181 @@ Proof.
 Qed.
 Hint Resolve 𝜋_InjR_e_meas : measlang.
 
+
+Lemma 𝜋_Case_c_meas          : measurable_fun ecov_case 𝜋_Case_c.
+Proof.
+  into_gen_measurable; move=> S.
+  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  move=> [SB + ->].
+  move=> [C ? <-].
+  rewrite /ecov_case/setI/=.
+  eapply (eq_measurable
+            (\bigcup_i \bigcup_j
+               [set x | (∃ e1 e2 e3 : expr_pre,
+                                    x = CaseC e1 e2 e3 /\
+                                    (expr_ST (gen_expr (expr_shape_enum i)) e2) ∧
+                                    (expr_ST (gen_expr (expr_shape_enum j)) e3) ∧
+                                    expr_ST C (𝜋_Case_c x))])); last first.
+  { apply /predeqP =>y /=.
+    split.
+    - move=>//=[+ Hm].
+      move=>[e1][e2][e3]Hy.
+      rewrite Hy//= in Hm; rewrite Hy.
+      destruct (expr_shape_enum_surj (shape_expr e2)) as [i Hi].
+      destruct (expr_shape_enum_surj (shape_expr e3)) as [j Hj].
+      rewrite /bigcup//=.
+      eexists i; [done|].
+      eexists j; [done|].
+      eexists _; eexists _; eexists _; split; [done|].
+      by rewrite Hi Hj -expr_shape_cyl -expr_shape_cyl //=.
+    - rewrite /bigcup//=.
+      move=> [i?][j?][e1[e2[e3[->[?[??]]]]]].
+      split; [|done].
+      by eexists _; eexists _; eauto.
+  }
+
+  apply bigcup_measurable; move=> i _.
+  apply bigcup_measurable; move=> j _.
+  apply sub_sigma_algebra.
+  eexists (Case C (gen_expr (expr_shape_enum i)) (gen_expr (expr_shape_enum j))).
+  { split; last split.
+    - done.
+    - by apply gen_expr_generator.
+    - by apply gen_expr_generator.
+  }
+
+  apply /predeqP =>y /=.
+  split; rewrite /image3//=.
+  - move=> [x?][w?][z?]<-.
+    eexists x; eexists w; eexists z.
+    split; [done|].
+    split; [done|].
+    split; [done|].
+    by rewrite //=.
+  - move=> [?[?[?[->[?[??]]]]]] //=.
+    eexists _; [done|].
+    eexists _; [done|].
+    eexists _; [done|].
+    by rewrite //=.
+Qed.
+Hint Resolve 𝜋_Case_c_meas : measlang.
+
+Lemma 𝜋_Case_l_meas          : measurable_fun ecov_case 𝜋_Case_l.
+Proof.
+  into_gen_measurable; move=> S.
+  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  move=> [SB + ->].
+  move=> [C ? <-].
+  rewrite /ecov_if/setI/=.
+  eapply (eq_measurable
+            (\bigcup_i \bigcup_j
+               [set x | (∃ e1 e2 e3 : expr_pre,
+                                    x = CaseC e1 e2 e3 /\
+                                    (expr_ST (gen_expr (expr_shape_enum i)) e1) ∧
+                                    (expr_ST (gen_expr (expr_shape_enum j)) e3) ∧
+                                    expr_ST C (𝜋_Case_l x))])); last first.
+  { apply /predeqP =>y /=.
+    split.
+    - move=>//=[+ Hm].
+      move=>[e1][e2][e3]Hy.
+      rewrite Hy//= in Hm; rewrite Hy.
+      destruct (expr_shape_enum_surj (shape_expr e1)) as [i Hi].
+      destruct (expr_shape_enum_surj (shape_expr e3)) as [j Hj].
+      rewrite /bigcup//=.
+      eexists i; [done|].
+      eexists j; [done|].
+      eexists _; eexists _; eexists _; split; [done|].
+      by rewrite Hi Hj -expr_shape_cyl -expr_shape_cyl //=.
+    - rewrite /bigcup//=.
+      move=> [i?][j?][e1[e2[e3[->[?[??]]]]]].
+      split; [|done].
+      by eexists _; eexists _; eauto.
+  }
+
+  apply bigcup_measurable; move=> i _.
+  apply bigcup_measurable; move=> j _.
+  apply sub_sigma_algebra.
+  eexists (Case (gen_expr (expr_shape_enum i)) C (gen_expr (expr_shape_enum j))).
+  { split; last split.
+    - by apply gen_expr_generator.
+    - done.
+    - by apply gen_expr_generator.
+  }
+
+  apply /predeqP =>y /=.
+  split; rewrite /image3//=.
+  - move=> [x?][w?][z?]<-.
+    eexists x; eexists w; eexists z.
+    split; [done|].
+    split; [done|].
+    split; [done|].
+    by rewrite //=.
+  - move=> [?[?[?[->[?[??]]]]]] //=.
+    eexists _; [done|].
+    eexists _; [done|].
+    eexists _; [done|].
+    by rewrite //=.
+Qed.
+Hint Resolve 𝜋_Case_l_meas : measlang.
+
+Lemma 𝜋_Case_r_meas          : measurable_fun ecov_case 𝜋_Case_r.
+Proof.
+  into_gen_measurable; move=> S.
+  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  move=> [SB + ->].
+  move=> [C ? <-].
+  rewrite /ecov_case/setI/=.
+  eapply (eq_measurable
+            (\bigcup_i \bigcup_j
+               [set x | (∃ e1 e2 e3 : expr_pre,
+                                    x = CaseC e1 e2 e3 /\
+                                    (expr_ST (gen_expr (expr_shape_enum i)) e1) ∧
+                                    (expr_ST (gen_expr (expr_shape_enum j)) e2) ∧
+                                    expr_ST C (𝜋_Case_r x))])); last first.
+  { apply /predeqP =>y /=.
+    split.
+    - move=>//=[+ Hm].
+      move=>[e1][e2][e3]Hy.
+      rewrite Hy//= in Hm; rewrite Hy.
+      destruct (expr_shape_enum_surj (shape_expr e1)) as [i Hi].
+      destruct (expr_shape_enum_surj (shape_expr e2)) as [j Hj].
+      rewrite /bigcup//=.
+      eexists i; [done|].
+      eexists j; [done|].
+      eexists _; eexists _; eexists _; split; [done|].
+      by rewrite Hi Hj -expr_shape_cyl -expr_shape_cyl //=.
+    - rewrite /bigcup//=.
+      move=> [i?][j?][e1[e2[e3[->[?[??]]]]]].
+      split; [|done].
+      by eexists _; eexists _; eauto.
+  }
+
+  apply bigcup_measurable; move=> i _.
+  apply bigcup_measurable; move=> j _.
+  apply sub_sigma_algebra.
+  eexists (Case (gen_expr (expr_shape_enum i)) (gen_expr (expr_shape_enum j)) C).
+  { split; last split.
+    - by apply gen_expr_generator.
+    - by apply gen_expr_generator.
+    - done.
+  }
+
+  apply /predeqP =>y /=.
+  split; rewrite /image3//=.
+  - move=> [x?][w?][z?]<-.
+    eexists x; eexists w; eexists z.
+    split; [done|].
+    split; [done|].
+    split; [done|].
+    by rewrite //=.
+  - move=> [?[?[?[->[?[??]]]]]] //=.
+    eexists _; [done|].
+    eexists _; [done|].
+    eexists _; [done|].
+    by rewrite //=.
+Qed.
+Hint Resolve 𝜋_Case_r_meas : measlang.
+
 Lemma 𝜋_AllocN_N_meas      : measurable_fun ecov_alloc 𝜋_AllocN_N.
 Proof.
   into_gen_measurable; move=> S.
@@ -1795,6 +1974,10 @@ Hint Resolve 𝜋_InjLU_meas : measlang.
 Definition 𝜋_InjRU_meas : measurable_fun ecov_injr 𝜋_InjRU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_InjRU_meas : measlang.
+
+Definition 𝜋_CaseU_meas : measurable_fun ecov_case 𝜋_CaseU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_CaseU_meas : measlang.
 
 Definition 𝜋_AllocNU_meas : measurable_fun ecov_alloc 𝜋_AllocNU.
 Proof. by solve_packaged_meas. Qed.

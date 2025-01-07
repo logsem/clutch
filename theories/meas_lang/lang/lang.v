@@ -393,10 +393,22 @@ Section meas_semantics.
     vcov_pair.
 
   (* [set c | ∃ v e1 e2 σ, c = (Case (Val (InjLV v)) e1 e2, σ) ] *)
-   Definition cover_caseL : set cfg. Admitted.
+  Program Definition cover_caseL : set cfg :=
+    NonStatefulS $
+    setI ecov_case $
+    preimage 𝜋_Case_c $
+    setI ecov_val $
+    preimage 𝜋_Val_v $
+    vcov_injlv.
 
   (* [set c | ∃ v e1 e2 σ, c = (Case (Val (InjRV v)) e1 e2, σ) ] *)
-  Definition cover_caseR : set cfg. Admitted.
+  Definition cover_caseR : set cfg :=
+    NonStatefulS $
+    setI ecov_case $
+    preimage 𝜋_Case_c $
+    setI ecov_val $
+    preimage 𝜋_Val_v $
+    vcov_injrv.
 
   (* [set c | ∃ σ n, c = (Tick (Val (LitV (LitInt n))), σ) ]  *)
   Definition cover_tick : set cfg :=
@@ -565,12 +577,20 @@ Section meas_semantics.
 
   Lemma cover_caseL_meas : measurable cover_caseL.
   Proof.
-  Admitted.
+    apply NonStatefulS_measurable.
+    apply 𝜋_Case_c_meas; first by eauto with measlang.
+    apply 𝜋_Val_v_meas; first by eauto with measlang.
+    eauto with measlang.
+  Qed.
   Hint Resolve cover_caseL_meas : measlang.
 
   Lemma cover_caseR_meas : measurable cover_caseR.
   Proof.
-  Admitted.
+    apply NonStatefulS_measurable.
+    apply 𝜋_Case_c_meas; first by eauto with measlang.
+    apply 𝜋_Val_v_meas; first by eauto with measlang.
+    eauto with measlang.
+  Qed.
   Hint Resolve cover_caseR_meas : measlang.
 
   Lemma cover_tick_meas : measurable cover_tick.
@@ -590,8 +610,6 @@ Section meas_semantics.
 
   (* Generic lifting of a curried constructor on expr to a curried constructor on states *)
   Definition NonStatefulU {A : Type} (C : A -> expr) : (A * state) -> cfg := fun x => (C x.1, x.2).
-
-  (** NOTE!!! ssrfun.comp, measurable_comp *)
 
   Lemma NonStatefulU_meas {d} {A : measurableType d} (C : A -> expr) (S : set A) (HS : measurable S)
       (HC : measurable_fun S C) : measurable_fun (NonStatefulS S) (NonStatefulU C).
@@ -680,10 +698,29 @@ Section meas_semantics.
     𝜋_Snd_e.
 
   (* | Case (Val (InjLV v)) e1 e2 => giryM_ret R ((App e1 (Val v), σ1) : cfg) *)
-  Definition head_stepM_caseL : cfg -> giryM cfg. Admitted.
+  Program Definition head_stepM_caseL : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    NonStatefulU $
+    ssrfun.comp AppU $
+    mProd
+      𝜋_Case_l
+      ( ssrfun.comp ValU $
+        ssrfun.comp 𝜋_InjLV_v $
+        ssrfun.comp 𝜋_Val_v $
+        𝜋_Case_c ).
 
   (* | Case (Val (InjRV v)) e1 e2 => giryM_ret R ((App e2 (Val v), σ1) : cfg) *)
-  Definition head_stepM_caseR : cfg -> giryM cfg. Admitted.
+  Definition head_stepM_caseR : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    NonStatefulU $
+    ssrfun.comp AppU $
+    mProd
+      𝜋_Case_r
+      ( ssrfun.comp ValU $
+        ssrfun.comp 𝜋_InjRV_v $
+        ssrfun.comp 𝜋_Val_v $
+        𝜋_Case_c ).
+
 
   (* | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : cfg) *)
   Definition head_stepM_tick : cfg -> giryM cfg :=
@@ -983,11 +1020,89 @@ Section meas_semantics.
   Hint Resolve head_stepM_snd_meas : measlang.
 
   Lemma head_stepM_caseL_meas : measurable_fun cover_caseL head_stepM_def.
-  Proof. Admitted.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_caseL head_stepM_def).
+    - apply measurable_compT; try by eauto with measlang.
+      have S : expr_cyl.-sigma.-measurable (ecov_case `&` 𝜋_Case_c @^-1` (ecov_val `&` 𝜋_Val_v @^-1` vcov_injlv)).
+      { apply 𝜋_Case_c_meas; first by eauto with measlang.
+        apply 𝜋_Val_v_meas; first by eauto with measlang.
+        by eauto with measlang.
+      }
+      apply @NonStatefulU_meas; first done.
+      apply measurable_compT; try by eauto with measlang.
+      + by apply AppU_measurable.
+      apply measurable_fun_prod'_expr; try by eauto with measlang.
+      + rewrite <-(setIid ecov_case).
+        rewrite <-setIA.
+        apply measurable_fun_setI1; try by eauto with measlang.
+        apply measurable_compT; try by eauto with measlang.
+        + by apply ValU_measurable.
+        eapply measurable_comp.
+        3: { by apply 𝜋_InjLV_v_meas. }
+        * by eauto with measlang.
+        * rewrite /subset//=.
+          move=>?[+[+[++]]].
+          by move=>????<-//=.
+        eapply measurable_comp.
+        3: { by apply 𝜋_Val_v_meas. }
+        * by eauto with measlang.
+        * rewrite /subset//=.
+          move=>?[+[+[++]]].
+          by move=>????<-//=.
+        rewrite <-(setIid ecov_case).
+        rewrite <-setIA.
+        by apply measurable_fun_setI1; try by eauto with measlang.
+    - move=>[e?].
+      move=>/=[+]; move=>[?+].
+      move=>/=[?[?->]]/=.
+      move=>[[++][++]]//=.
+      do 2 move=>?//=->.
+      by move=>//=.
+    Unshelve. by eauto with measlang.
+  Qed.
   Hint Resolve head_stepM_caseL_meas : measlang.
 
   Lemma head_stepM_caseR_meas : measurable_fun cover_caseR head_stepM_def.
-  Proof. Admitted.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_caseR head_stepM_def).
+    - apply measurable_compT; try by eauto with measlang.
+      have S : expr_cyl.-sigma.-measurable (ecov_case `&` 𝜋_Case_c @^-1` (ecov_val `&` 𝜋_Val_v @^-1` vcov_injrv)).
+      { apply 𝜋_Case_c_meas; first by eauto with measlang.
+        apply 𝜋_Val_v_meas; first by eauto with measlang.
+        by eauto with measlang.
+      }
+      apply @NonStatefulU_meas; first done.
+      apply measurable_compT; try by eauto with measlang.
+      + by apply AppU_measurable.
+      apply measurable_fun_prod'_expr; try by eauto with measlang.
+      + rewrite <-(setIid ecov_case).
+        rewrite <-setIA.
+        apply measurable_fun_setI1; try by eauto with measlang.
+        apply measurable_compT; try by eauto with measlang.
+        + by apply ValU_measurable.
+        eapply measurable_comp.
+        3: { by apply 𝜋_InjRV_v_meas. }
+        * by eauto with measlang.
+        * rewrite /subset//=.
+          move=>?[+[+[++]]].
+          by move=>????<-//=.
+        eapply measurable_comp.
+        3: { by apply 𝜋_Val_v_meas. }
+        * by eauto with measlang.
+        * rewrite /subset//=.
+          move=>?[+[+[++]]].
+          by move=>????<-//=.
+        rewrite <-(setIid ecov_case).
+        rewrite <-setIA.
+        by apply measurable_fun_setI1; try by eauto with measlang.
+    - move=>[e?].
+      move=>/=[+]; move=>[?+].
+      move=>/=[?[?->]]/=.
+      move=>[[++][++]]//=.
+      do 2 move=>?//=->.
+      by move=>//=.
+    Unshelve. by eauto with measlang.
+  Qed.
   Hint Resolve head_stepM_caseR_meas : measlang.
 
   Lemma head_stepM_tick_meas : measurable_fun cover_tick head_stepM_def.

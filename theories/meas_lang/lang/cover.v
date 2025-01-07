@@ -42,6 +42,7 @@ Definition ecov_fst        : set expr     := [set e  | ∃ x,         e = FstC x
 Definition ecov_snd        : set expr     := [set e  | ∃ x,         e = SndC x].
 Definition ecov_injl       : set expr     := [set e  | ∃ x,         e = InjLC x].
 Definition ecov_injr       : set expr     := [set e  | ∃ x,         e = InjRC x].
+Definition ecov_case       : set expr     := [set e  | ∃ e1 e2 e3,  e = CaseC e1 e2 e3].
 Definition ecov_alloc      : set expr     := [set e  | ∃ e1 e2,     e = AllocN e1 e2].
 Definition ecov_load       : set expr     := [set e  | ∃ x,         e = LoadC x].
 Definition ecov_store      : set expr     := [set e  | ∃ e1 e2,     e = StoreC e1 e2].
@@ -478,6 +479,44 @@ Proof.
   by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
 Qed.
 Hint Resolve ecov_injr_meas : measlang.
+
+Lemma ecov_case_meas         : measurable ecov_case.
+Proof.
+  eapply (eq_measurable (\bigcup_i \bigcup_j \bigcup_k (image3 (expr_seq i) (expr_seq j) (expr_seq k) CaseC))); last first.
+  { rewrite /bigcup/=.
+    apply /predeqP =>y /=.
+    split.
+    - move=> [e0][e1][e2]->.
+      destruct (expr_shape_enum_surj (shape_expr e0)) as [?].
+      destruct (expr_shape_enum_surj (shape_expr e1)) as [?].
+      destruct (expr_shape_enum_surj (shape_expr e2)) as [?].
+      eexists _; [done|].
+      eexists _; [done|].
+      eexists _; [done|].
+      exists e0; [ by rewrite //= |].
+      exists e1; [ by rewrite //= |].
+      exists e2; [ by rewrite //= |].
+      f_equal; done.
+    - rewrite /image3//=.
+      move=> [??][??][??][??][??][??]<-.
+      eexists _.
+      eexists _.
+      eexists _.
+      done.
+  }
+  apply bigcup_measurable; move=> i _.
+  apply bigcup_measurable; move=> j _.
+  apply bigcup_measurable; move=> k _.
+  apply sub_sigma_algebra.
+  eexists (Case (gen_expr (expr_shape_enum i)) (gen_expr (expr_shape_enum j)) (gen_expr (expr_shape_enum k))).
+  { rewrite //=. split; last split. all: by apply gen_expr_generator. }
+  rewrite /expr_seq/preimage//=.
+  rewrite <-(expr_shape_cyl _).
+  rewrite <-(expr_shape_cyl _).
+  rewrite <-(expr_shape_cyl _).
+  done.
+Qed.
+Hint Resolve ecov_case_meas : measlang.
 
 Lemma ecov_alloc_meas      : measurable ecov_alloc.
 Proof.
