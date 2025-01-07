@@ -29,13 +29,13 @@ Definition expr_shape     : Type := @expr_pre () () () ().
 
 (** Get the shape of an expression *)
 
-Definition shape_base_lit : base_lit -> base_lit_shape :=
+Definition shape_base_lit {T1 T2 T3 T4} : @base_lit_pre T1 T2 T3 T4 -> base_lit_shape :=
  base_lit_pre_F (cst ()) (cst ()) (cst ()) (cst ()) (cst ()).
 
-Definition shape_val : val -> val_shape :=
+Definition shape_val {T1 T2 T3 T4} : @val_pre T1 T2 T3 T4 -> val_shape :=
  val_pre_F (cst ()) (cst ()) (cst ()) (cst ()) (cst ()).
 
-Definition shape_expr : expr -> expr_shape :=
+Definition shape_expr {T1 T2 T3 T4} : @expr_pre T1 T2 T3 T4 -> expr_shape :=
  expr_pre_F (cst ()) (cst ()) (cst ()) (cst ()) (cst ()).
 
 

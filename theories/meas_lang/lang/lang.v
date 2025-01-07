@@ -162,39 +162,6 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
   | _              => None
   end.
 
-
-Definition binder_eq (b1 b2 : <<discr binder>> ) : bool. Admitted.
-
-(** Substitution *)
-Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
-  match e with
-  | Val _ => e
-  | Var y =>  if (binder_eq x y) then Val v else Var y
-  | Rec f y e =>
-     Rec f y $ if decide (BNamed x ≠ f ∧ BNamed x ≠ y) then subst x v e else e
-  | App e1 e2 => App (subst x v e1) (subst x v e2)
-  | UnOp op e => UnOp op (subst x v e)
-  | BinOp op e1 e2 => BinOp op (subst x v e1) (subst x v e2)
-  | If e0 e1 e2 => If (subst x v e0) (subst x v e1) (subst x v e2)
-  | Pair e1 e2 => Pair (subst x v e1) (subst x v e2)
-  | Fst e => Fst (subst x v e)
-  | Snd e => Snd (subst x v e)
-  | InjL e => InjL (subst x v e)
-  | InjR e => InjR (subst x v e)
-  | Case e0 e1 e2 => Case (subst x v e0) (subst x v e1) (subst x v e2)
-  | AllocN e1 e2 => AllocN (subst x v e1) (subst x v e2)
-  | Load e => Load (subst x v e)
-  | Store e1 e2 => Store (subst x v e1) (subst x v e2)
-  | AllocTape e => AllocTape (subst x v e)
-  | AllocUTape => AllocUTape
-  | Rand e1 e2 => Rand (subst x v e1) (subst x v e2)
-  | URand e => URand (subst x v e)
-  | Tick e => Tick (subst x v e)
-  end.
-
-Definition subst' (mx : binder) (v : val) : expr → expr :=
-  match mx with BNamed x => subst x v | BAnon => λ x, x end.
-
 Definition un_op_eval (op : un_op) (v : val) : option val :=
   match op, v with
   | NegOp, LitV (LitBool b) => Some $ LitV $ LitBool (negb b)
@@ -733,6 +700,11 @@ Section meas_semantics.
   Definition head_stepM_stuck : cfg -> giryM cfg :=
     cst giryM_zero.
 
+  (* TODO: Eventually we could make this definition look less goofy?
+     The functions don't _need_ each case to be defeq to a measurable function,
+     since we're proving the restriction of head_stepM_def to every set in the cover
+     is propeq to measurable function instead (see: head_stepM_rec_meas).
+   *)
   Definition head_stepM_def (c : cfg) : giryM cfg :=
     let (e1, σ1) := c in
     match e1 with
