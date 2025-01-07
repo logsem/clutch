@@ -375,19 +375,39 @@ Section meas_semantics.
     [set false].
 
   (* [set c | ∃ v1 v2 σ, c = (Fst (Val (PairV v1 v2)), σ) ] *)
-  Definition cover_fst : set cfg. Admitted.
+  Definition cover_fst : set cfg :=
+    NonStatefulS $
+    setI ecov_fst $
+    preimage 𝜋_Fst_e $
+    setI ecov_val $
+    preimage 𝜋_Val_v $
+    vcov_pair.
 
   (* [set c | ∃ v1 v2 σ, c = (Snd (Val (PairV v1 v2)), σ) ] *)
-  Definition cover_snd : set cfg. Admitted.
+  Definition cover_snd : set cfg :=
+    NonStatefulS $
+    setI ecov_snd $
+    preimage 𝜋_Snd_e $
+    setI ecov_val $
+    preimage 𝜋_Val_v $
+    vcov_pair.
 
   (* [set c | ∃ v e1 e2 σ, c = (Case (Val (InjLV v)) e1 e2, σ) ] *)
-  Definition cover_caseL : set cfg. Admitted.
+   Definition cover_caseL : set cfg. Admitted.
 
   (* [set c | ∃ v e1 e2 σ, c = (Case (Val (InjRV v)) e1 e2, σ) ] *)
   Definition cover_caseR : set cfg. Admitted.
 
   (* [set c | ∃ σ n, c = (Tick (Val (LitV (LitInt n))), σ) ]  *)
-  Definition cover_tick : set cfg. Admitted.
+  Definition cover_tick : set cfg :=
+    NonStatefulS $
+    setI ecov_tick $
+    preimage 𝜋_Tick_e $
+    setI ecov_val $
+    preimage 𝜋_Val_v $
+    setI vcov_lit $
+    preimage 𝜋_LitV_v $
+    bcov_LitInt.
 
   (*
   Definition cover_app             : set cfg := [set c | ∃ f x e1 v2 σ,  c = (App (Val (RecV f x e1)) (Val v2) , σ) ].
@@ -527,12 +547,20 @@ Section meas_semantics.
 
   Lemma cover_fst_meas : measurable cover_fst.
   Proof.
-  Admitted.
+    apply NonStatefulS_measurable.
+    apply 𝜋_Fst_e_meas; first by eauto with measlang.
+    apply 𝜋_Val_v_meas; first by eauto with measlang.
+    eauto with measlang.
+  Qed.
   Hint Resolve cover_fst_meas : measlang.
 
   Lemma cover_snd_meas : measurable cover_snd.
   Proof.
-  Admitted.
+    apply NonStatefulS_measurable.
+    apply 𝜋_Snd_e_meas; first by eauto with measlang.
+    apply 𝜋_Val_v_meas; first by eauto with measlang.
+    eauto with measlang.
+  Qed.
   Hint Resolve cover_snd_meas : measlang.
 
   Lemma cover_caseL_meas : measurable cover_caseL.
@@ -547,9 +575,13 @@ Section meas_semantics.
 
   Lemma cover_tick_meas : measurable cover_tick.
   Proof.
-  Admitted.
+    apply NonStatefulS_measurable.
+    apply 𝜋_Tick_e_meas; first by eauto with measlang.
+    apply 𝜋_Val_v_meas; first by eauto with measlang.
+    apply 𝜋_LitV_v_meas; first by eauto with measlang.
+    eauto with measlang.
+  Qed.
   Hint Resolve cover_tick_meas : measlang.
-
 
   Lemma cover_maybe_stuck_meas : measurable cover_maybe_stuck.
   Proof. Admitted.
@@ -654,11 +686,15 @@ Section meas_semantics.
   Definition head_stepM_caseR : cfg -> giryM cfg. Admitted.
 
   (* | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : cfg) *)
-  Definition head_stepM_tick : cfg -> giryM cfg. Admitted.
+  Definition head_stepM_tick : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    NonStatefulU $
+    ssrfun.comp ValU $
+    ssrfun.comp LitVU $
+    cst LitUnit.
 
   Definition head_stepM_stuck : cfg -> giryM cfg :=
     cst giryM_zero.
-
 
   Definition head_stepM_def (c : cfg) : giryM cfg :=
     let (e1, σ1) := c in
@@ -670,7 +706,7 @@ Section meas_semantics.
     | If (Val (LitV (LitBool true))) _ _  => head_stepM_ifT c
     | If (Val (LitV (LitBool false))) _ _ => head_stepM_ifT c
     | Fst (Val (PairV _ _))               => head_stepM_fst c
-    | Snd (Val (PairV _ _))               => head_stepM_fst c
+    | Snd (Val (PairV _ _))               => head_stepM_snd c
     | Case (Val (InjLV _)) _ _            => head_stepM_caseL c
     | Case (Val (InjRV _)) _ _            => head_stepM_caseR c
     | Tick (Val (LitV (LitInt _)))        => head_stepM_tick c
@@ -871,11 +907,79 @@ Section meas_semantics.
   Hint Resolve head_stepM_ifF_meas : measlang.
 
   Lemma head_stepM_fst_meas : measurable_fun cover_fst head_stepM_def.
-  Proof. Admitted.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_fst head_stepM_def).
+    - apply measurable_compT; try by eauto with measlang.
+      have S : expr_cyl.-sigma.-measurable (ecov_fst `&` 𝜋_Fst_e @^-1` (ecov_val `&` 𝜋_Val_v @^-1` vcov_pair)).
+      { apply 𝜋_Fst_e_meas; first by eauto with measlang.
+        apply 𝜋_Val_v_meas; first by eauto with measlang.
+        by eauto with measlang. }
+      apply @NonStatefulU_meas; first done.
+      apply measurable_compT; try by eauto with measlang.
+      + by apply ValU_measurable.
+      eapply measurable_comp.
+      3: { by apply 𝜋_PairV_l_meas. }
+      * by eauto with measlang.
+      * rewrite /subset//=.
+        move=>?[+[+[++]]].
+        by move=>????<-//=.
+      eapply measurable_comp.
+      3: { by apply 𝜋_ValU_meas. }
+      * by eauto with measlang.
+      * rewrite /subset//=.
+        move=>?[+[+[++]]].
+        by move=>????<-//=.
+      * rewrite <-(setIid ecov_fst).
+        rewrite <-setIA.
+        apply measurable_fun_setI1; try by eauto with measlang.
+    - move=>[e?].
+      move=>/=[+]; move=>[?+].
+      move=>//=->.
+      move=>[++]/=.
+      move=>/=[+]; move=>?->.
+      move=>[+]/=; move=>?.
+      move=>[+]/=; move=>?.
+      by move=>->/=.
+    Unshelve. by eauto with measlang.
+  Qed.
   Hint Resolve head_stepM_fst_meas : measlang.
 
   Lemma head_stepM_snd_meas : measurable_fun cover_snd head_stepM_def.
-  Proof. Admitted.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_snd head_stepM_def).
+    - apply measurable_compT; try by eauto with measlang.
+      have S : expr_cyl.-sigma.-measurable (ecov_snd `&` 𝜋_Snd_e @^-1` (ecov_val `&` 𝜋_Val_v @^-1` vcov_pair)).
+      { apply 𝜋_Snd_e_meas; first by eauto with measlang.
+        apply 𝜋_Val_v_meas; first by eauto with measlang.
+        by eauto with measlang. }
+      apply @NonStatefulU_meas; first done.
+      apply measurable_compT; try by eauto with measlang.
+      + by apply ValU_measurable.
+      eapply measurable_comp.
+      3: { by apply 𝜋_PairV_r_meas. }
+      * by eauto with measlang.
+      * rewrite /subset//=.
+        move=>?[+[+[++]]].
+        by move=>????<-//=.
+      eapply measurable_comp.
+      3: { by apply 𝜋_ValU_meas. }
+      * by eauto with measlang.
+      * rewrite /subset//=.
+        move=>?[+[+[++]]].
+        by move=>????<-//=.
+      * rewrite <-(setIid ecov_snd).
+        rewrite <-setIA.
+        apply measurable_fun_setI1; try by eauto with measlang.
+    - move=>[e?].
+      move=>/=[+]; move=>[?+].
+      move=>//=->.
+      move=>[++]/=.
+      move=>/=[+]; move=>?->.
+      move=>[+]/=; move=>?.
+      move=>[+]/=; move=>?.
+      by move=>->/=.
+    Unshelve. by eauto with measlang.
+  Qed.
   Hint Resolve head_stepM_snd_meas : measlang.
 
   Lemma head_stepM_caseL_meas : measurable_fun cover_caseL head_stepM_def.
