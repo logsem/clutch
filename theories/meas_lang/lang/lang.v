@@ -339,7 +339,6 @@ Section meas_semantics.
     preimage 𝜋_InjLU $
     ecov_val.
 
-
   (* [set c | ∃ v σ, c = (InjR (Val v), σ) ]. *)
   Definition cover_injR : set cfg :=
     NonStatefulS $
@@ -347,6 +346,26 @@ Section meas_semantics.
     preimage 𝜋_InjRU $
     ecov_val.
 
+  (* [set c | ∃ e1 e2 σ, c = (If (Val (LitV (LitBool true))) e1 e2, σ) ]*)
+  Definition cover_ifT : set cfg. Admitted.
+
+  (* [set c | ∃ e1 e2 σ, c = (If (Val (LitV (LitBool false))) e1 e2, σ) ] *)
+  Definition cover_ifF : set cfg. Admitted.
+
+  (* [set c | ∃ v1 v2 σ, c = (Fst (Val (PairV v1 v2)), σ) ] *)
+  Definition cover_fst : set cfg. Admitted.
+
+  (* [set c | ∃ v1 v2 σ, c = (Snd (Val (PairV v1 v2)), σ) ] *)
+  Definition cover_snd : set cfg. Admitted.
+
+  (* [set c | ∃ v e1 e2 σ, c = (Case (Val (InjLV v)) e1 e2, σ) ] *)
+  Definition cover_caseL : set cfg. Admitted.
+
+  (* [set c | ∃ v e1 e2 σ, c = (Case (Val (InjRV v)) e1 e2, σ) ] *)
+  Definition cover_caseR : set cfg. Admitted.
+
+  (* [set c | ∃ σ n, c = (Tick (Val (LitV (LitInt n))), σ) ]  *)
+  Definition cover_tick : set cfg. Admitted.
 
   (*
   Definition cover_app             : set cfg := [set c | ∃ f x e1 v2 σ,  c = (App (Val (RecV f x e1)) (Val v2) , σ) ].
@@ -354,12 +373,6 @@ Section meas_semantics.
   Definition cover_unop_stuck      : set cfg := [set c | ∃ v op σ,       c = (UnOp op (Val v), σ) /\ un_op_eval op v = None ].
   Definition cover_binop_ok        : set cfg := [set c | ∃ v1 v2 op w σ, c = (BinOp op (Val v1) (Val v2), σ) /\ bin_op_eval op v1 v2 = Some w].
   Definition cover_binop_stuck     : set cfg := [set c | ∃ v1 v2 op σ,   c = (BinOp op (Val v1) (Val v2), σ) /\ bin_op_eval op v1 v2 = None].
-  Definition cover_ifT             : set cfg := [set c | ∃ e1 e2 σ,      c = (If (Val (LitV (LitBool true))) e1 e2, σ) ].
-  Definition cover_ifF             : set cfg := [set c | ∃ e1 e2 σ,      c = (If (Val (LitV (LitBool false))) e1 e2, σ) ].
-  Definition cover_fst             : set cfg := [set c | ∃ v1 v2 σ,      c = (Fst (Val (PairV v1 v2)), σ) ].
-  Definition cover_snd             : set cfg := [set c | ∃ v1 v2 σ,      c = (Snd (Val (PairV v1 v2)), σ) ].
-  Definition cover_caseL           : set cfg := [set c | ∃ v e1 e2 σ,    c = (Case (Val (InjLV v)) e1 e2, σ) ].
-  Definition cover_caseR           : set cfg := [set c | ∃ v e1 e2 σ,    c = (Case (Val (InjRV v)) e1 e2, σ) ].
   Definition cover_allocN_ok       : set cfg := [set c | ∃ N v σ,        c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = true].
   Definition cover_allocN_stuck    : set cfg := [set c | ∃ N v σ,        c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = false].
   Definition cover_load_ok         : set cfg := [set c | ∃ l w σ,        c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = Some w].
@@ -377,26 +390,27 @@ Section meas_semantics.
   Definition cover_urandT_notape   : set cfg := [set c | ∃ σ l,          c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = None ].
   Definition cover_urandT_empty    : set cfg := [set c | ∃ σ l τ,        c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = Some τ /\ (τ !! 0) = None].
   Definition cover_urandT          : set cfg := [set c | ∃ σ l τ v,      c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = Some τ /\ (τ !! 0) = Some v].
-  Definition cover_tick            : set cfg := [set c | ∃ σ n,          c = (Tick (Val (LitV (LitInt n))), σ) ].
   *)
 
   Definition cfg_cover_pre : list (set cfg) := [
     cover_rec;
     cover_pair;
     cover_injL;
-    cover_injR
+    cover_injR;
     (*
     cover_app;
     cover_unop_ok;
     cover_unop_stuck;
     cover_binop_ok;
     cover_binop_stuck;
+    *)
     cover_ifT;
     cover_ifF;
     cover_fst;
     cover_snd;
     cover_caseL;
     cover_caseR;
+    (*
     cover_allocN_ok;
     cover_allocN_stuck;
     cover_load_ok;
@@ -414,8 +428,8 @@ Section meas_semantics.
     cover_urandT_notape;
     cover_urandT_empty;
     cover_urandT;
-    cover_tick;
-    *)
+     *)
+    cover_tick
   ].
 
   Definition cover_maybe_stuck : set cfg. Admitted. (* compliment of union of cfg_cover_pre *)
@@ -465,6 +479,43 @@ Section meas_semantics.
     by apply 𝜋_InjRU_meas; eauto with measlang.
   Qed.
   Hint Resolve cover_injR_meas : measlang.
+
+
+  Lemma cover_ifT_meas : measurable cover_ifT.
+  Proof.
+  Admitted.
+  Hint Resolve cover_injR_meas : measlang.
+
+  Lemma cover_ifF_meas : measurable cover_ifF.
+  Proof.
+  Admitted.
+  Hint Resolve cover_injR_meas : measlang.
+
+  Lemma cover_fst_meas : measurable cover_fst.
+  Proof.
+  Admitted.
+  Hint Resolve cover_injR_meas : measlang.
+
+  Lemma cover_snd_meas : measurable cover_snd.
+  Proof.
+  Admitted.
+  Hint Resolve cover_injR_meas : measlang.
+
+  Lemma cover_caseL_meas : measurable cover_caseL.
+  Proof.
+  Admitted.
+  Hint Resolve cover_injR_meas : measlang.
+
+  Lemma cover_caseR_meas : measurable cover_caseR.
+  Proof.
+  Admitted.
+  Hint Resolve cover_injR_meas : measlang.
+
+  Lemma cover_tick_meas : measurable cover_tick.
+  Proof.
+  Admitted.
+  Hint Resolve cover_injR_meas : measlang.
+
 
   Lemma cover_maybe_stuck_meas : measurable cover_maybe_stuck.
   Proof. Admitted.
@@ -532,6 +583,44 @@ Section meas_semantics.
     ssrfun.comp 𝜋_ValU $
     𝜋_InjRU.
 
+  (* | If (Val (LitV (LitBool true))) e1 e2  => giryM_ret R ((e1 , σ1) : cfg) *)
+  Definition head_stepM_ifT : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    NonStatefulU $
+    𝜋_If_l.
+
+  (* | If (Val (LitV (LitBool false))) e1 e2 => giryM_ret R ((e2 , σ1) : cfg) *)
+  Definition head_stepM_ifF : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    NonStatefulU $
+    𝜋_If_r.
+
+  (* | Fst (Val (PairV v1 v2)) => giryM_ret R ((Val v1, σ1) : cfg) *)
+  Definition head_stepM_fst : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    NonStatefulU $
+    ssrfun.comp ValU $
+    ssrfun.comp 𝜋_PairV_l $
+    ssrfun.comp 𝜋_ValU $
+    𝜋_Fst_e.
+
+  (* | Snd (Val (PairV v1 v2)) => giryM_ret R ((Val v2, σ1) : cfg) *)
+  Definition head_stepM_snd : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    NonStatefulU $
+    ssrfun.comp ValU $
+    ssrfun.comp 𝜋_PairV_r $
+    ssrfun.comp 𝜋_ValU $
+    𝜋_Snd_e.
+
+  (* | Case (Val (InjLV v)) e1 e2 => giryM_ret R ((App e1 (Val v), σ1) : cfg) *)
+  Definition head_stepM_caseL : cfg -> giryM cfg. Admitted.
+
+  (* | Case (Val (InjRV v)) e1 e2 => giryM_ret R ((App e2 (Val v), σ1) : cfg) *)
+  Definition head_stepM_caseR : cfg -> giryM cfg. Admitted.
+
+  (* | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : cfg) *)
+  Definition head_stepM_tick : cfg -> giryM cfg. Admitted.
 
   Definition head_stepM_stuck : cfg -> giryM cfg :=
     cst giryM_zero.
@@ -686,7 +775,33 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_injR_meas : measlang.
 
+  Lemma head_stepM_ifT_meas : measurable_fun cover_ifT head_stepM_def.
+  Proof. Admitted.
+  Hint Resolve head_stepM_ifT_meas : measlang.
 
+  Lemma head_stepM_ifF_meas : measurable_fun cover_ifF head_stepM_def.
+  Proof. Admitted.
+  Hint Resolve head_stepM_ifF_meas : measlang.
+
+  Lemma head_stepM_fst_meas : measurable_fun cover_fst head_stepM_def.
+  Proof. Admitted.
+  Hint Resolve head_stepM_fst_meas : measlang.
+
+  Lemma head_stepM_snd_meas : measurable_fun cover_snd head_stepM_def.
+  Proof. Admitted.
+  Hint Resolve head_stepM_snd_meas : measlang.
+
+  Lemma head_stepM_caseL_meas : measurable_fun cover_caseL head_stepM_def.
+  Proof. Admitted.
+  Hint Resolve head_stepM_caseL_meas : measlang.
+
+  Lemma head_stepM_caseR_meas : measurable_fun cover_caseR head_stepM_def.
+  Proof. Admitted.
+  Hint Resolve head_stepM_caseR_meas : measlang.
+
+  Lemma head_stepM_tick_meas : measurable_fun cover_tick head_stepM_def.
+  Proof. Admitted.
+  Hint Resolve head_stepM_tick_meas : measlang.
 
   Lemma head_stepM_stuck_meas : measurable_fun cover_maybe_stuck head_stepM_def.
   Proof.
@@ -696,6 +811,7 @@ Section meas_semantics.
 
        This will also change the is_cover proof (to be something like (U F) U (X - U F) = X) *)
   Admitted.
+  Hint Resolve head_stepM_stuck_meas : measlang.
 
 
   (**  Head step measurability *)
@@ -707,6 +823,13 @@ Section meas_semantics.
     - by apply cover_pair_meas.
     - by apply cover_injL_meas.
     - by apply cover_injR_meas.
+    - by apply cover_ifT_meas.
+    - by apply cover_ifF_meas.
+    - by apply cover_fst_meas.
+    - by apply cover_snd_meas.
+    - by apply cover_caseL_meas.
+    - by apply cover_caseR_meas.
+    - by apply cover_tick_meas.
     - by apply cover_maybe_stuck_meas.
   Qed.
 
@@ -718,6 +841,13 @@ Section meas_semantics.
     - by apply head_stepM_pair_meas.
     - by apply head_stepM_injL_meas.
     - by apply head_stepM_injR_meas.
+    - by apply head_stepM_ifT_meas.
+    - by apply head_stepM_ifF_meas.
+    - by apply head_stepM_fst_meas.
+    - by apply head_stepM_snd_meas.
+    - by apply head_stepM_caseL_meas.
+    - by apply head_stepM_caseR_meas.
+    - by apply head_stepM_tick_meas.
     - by apply head_stepM_stuck_meas.
   Qed.
 
@@ -771,18 +901,6 @@ End meas_semantics.
           | Some w => giryM_ret R ((Val w, σ1) : cfg)
           | _ => giryM_zero
         end
-    | If (Val (LitV (LitBool true))) e1 e2  =>
-        giryM_ret R ((e1 , σ1) : cfg)
-    | If (Val (LitV (LitBool false))) e1 e2 =>
-        giryM_ret R ((e2 , σ1) : cfg)
-    | Fst (Val (PairV v1 v2)) =>
-        giryM_ret R ((Val v1 , σ1) : cfg) (* Syntax error when I remove the space between v1 and , *)
-    | Snd (Val (PairV v1 v2)) =>
-        giryM_ret R ((Val v2, σ1) : cfg)
-    | Case (Val (InjLV v)) e1 e2 =>
-        giryM_ret R ((App e1 (Val v), σ1) : cfg)
-    | Case (Val (InjRV v)) e1 e2 =>
-        giryM_ret R ((App e2 (Val v), σ1) : cfg)
     | AllocN (Val (LitV (LitInt N))) (Val v) =>
         let ℓ := fresh_loc σ1.(heap) in
         if bool_decide (0 < Z.to_nat N)%nat
@@ -862,8 +980,6 @@ End meas_semantics.
             end
         | None => giryM_zero
         end
-    | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : cfg)
-    | _ => giryM_zero
     end.
 *)
 
