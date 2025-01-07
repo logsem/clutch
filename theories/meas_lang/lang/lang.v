@@ -991,7 +991,29 @@ Section meas_semantics.
   Hint Resolve head_stepM_caseR_meas : measlang.
 
   Lemma head_stepM_tick_meas : measurable_fun cover_tick head_stepM_def.
-  Proof. Admitted.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_tick head_stepM_def).
+    - apply measurable_compT; try by eauto with measlang.
+      have S : expr_cyl.-sigma.-measurable (ecov_tick `&` 𝜋_Tick_e @^-1` (ecov_val `&` 𝜋_Val_v @^-1` (vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitInt))).
+      { apply 𝜋_Tick_e_meas; first by eauto with measlang.
+        apply 𝜋_Val_v_meas; first by eauto with measlang.
+        apply 𝜋_LitV_v_meas; first by eauto with measlang.
+        by eauto with measlang. }
+      apply @NonStatefulU_meas; first done.
+      apply measurable_compT; try by eauto with measlang.
+      + by apply ValU_measurable.
+      apply measurable_compT; try by eauto with measlang.
+      + by apply LitVU_measurable.
+    - move=>[e?].
+      move=>/=[+]; move=>[?+].
+      move=>//=->.
+      move=>[+[++]]/=.
+      move=>/=[+]; move=>?->.
+      move=>[+]/=; move=>?->.
+      move=>[+]/=; move=>?->.
+      by move=>//=.
+    Unshelve. by eauto with measlang.
+  Qed.
   Hint Resolve head_stepM_tick_meas : measlang.
 
   Lemma head_stepM_stuck_meas : measurable_fun cover_maybe_stuck head_stepM_def.
