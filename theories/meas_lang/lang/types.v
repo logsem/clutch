@@ -369,3 +369,6 @@ Definition RecVC f x e      : val_T      := RecV f x e.
 Definition PairVC v1 v2     : val_T      := PairV v1 v2.
 Definition InjLVC v         : val_T      := InjLV v.
 Definition InjRVC v         : val_T      := InjRV v.
+
+Global Instance val_inhabited : Inhabited val := populate (LitV LitUnit).
+Global Instance expr_inhabited : Inhabited expr := populate (Val inhabitant).

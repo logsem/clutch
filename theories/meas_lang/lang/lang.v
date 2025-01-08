@@ -15,7 +15,7 @@ From mathcomp.analysis Require Export Rstruct.
 From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
-From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state subst.
+From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state subst unop.
 (* From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
 From stdpp Require Import fin.
@@ -49,8 +49,6 @@ Global Instance of_val_inj {T1 T2 T3 T4 : Type} : Inj (=) (=) (@of_val T1 T2 T3 
 Proof. intros ??. congruence. Qed.
 
 Global Instance state_inhabited : Inhabited state := populate {| heap := gmap_empty; tapes := gmap_empty; utapes := gmap_empty |}.
-Global Instance val_inhabited : Inhabited val := populate (LitV LitUnit).
-Global Instance expr_inhabited : Inhabited expr := populate (Val inhabitant).
 
 Canonical Structure stateO := leibnizO state.
 Canonical Structure locO := leibnizO loc.
@@ -160,15 +158,6 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
   | URand e        => noval e URandCtx
   | Tick e         => noval e TickCtx
   | _              => None
-  end.
-
-Definition un_op_eval (op : un_op) (v : val) : option val :=
-  match op, v with
-  | NegOp, LitV (LitBool b) => Some $ LitV $ LitBool (negb b)
-  | NegOp, LitV (LitInt z) => Some $ LitV $ LitInt (Z.lnot z)
-  | MinusUnOp, LitV (LitInt z) => Some $ LitV $ LitInt (- z)%Z
-  | MinusUnOp, LitV (LitReal r) => Some $ LitV $ LitReal (- r)%R
-  | _, _ => None
   end.
 
 
@@ -742,36 +731,6 @@ Section meas_semantics.
        (ssrfun.comp 𝜋_Val_v $ 𝜋_App_l) (* RecV f x e1 *)
        (ssrfun.comp 𝜋_RecV_e $ ssrfun.comp 𝜋_Val_v $ 𝜋_App_l)))) (* e1 *).
 
-
-  (* Non-structural destructions:
-      - Define one function (destructor) that does the top-level nested match
-        and constructs a term of a product type.
-          -> measurable by composition
-      - Define another function (matcher) which does the non-structural match
-        and constructs giryM_cfg.
-          -> measurable by a cover argument
-    The top-level function is measurable by composition.
-
-    This is overkill for unop but will definitely not be overkill for the stateful operations
-
-    There's also the issue of managing monadic effects and state, but that's
-    sort of separate?
-   *)
-
-
-
-  Definition head_stepM_unop_destructor : expr -> (<<discr un_op>> * val)%type :=
-    (mProd
-      𝜋_UnOp_op
-      (ssrfun.comp 𝜋_Val_v 𝜋_UnOp_e)).
-
-  Definition head_stepM_unop_matcher (x : <<discr un_op>> * val) : giryM expr :=
-    match (un_op_eval x.1 x.2) with
-    | Some w => giryM_ret R (ValC w)
-    | None => giryM_zero
-    end.
-
-
   (* | UnOp op (Val v) =>
         match un_op_eval op v with
           | Some w => giryM_ret R ((Val w, σ1) : cfg)
@@ -783,34 +742,6 @@ Section meas_semantics.
 
   Definition head_stepM_binop : cfg -> giryM cfg.
   Admitted.
-
-(*  Plan: Split the implmenetation into a projection and two construction part(s)
-      Do a different construction part depending on if unop_ok
-
-  (* [set (op, Val v) | un_op_eval op v = Some _ ]*)
-  Definition unop_cover_ok : set (<<discr un_op >> * expr) :=
-    setI
-      (setX setT ecov_val)
-      [set x | ∃ w, un_op_eval x.1 (𝜋_Val_v x.2) = Some w ].
-
-  (* [set (op, Val v) | un_op_eval op v = Some _ ]*)
-  Definition unop_cover_stuck : set (<<discr un_op >> * expr) :=
-    setD
-      (setX setT ecov_val)
-      [set x | un_op_eval x.1 (𝜋_Val_v x.2) = None ].
-
-  (* [set c | ∃ v op w σ,     c = (UnOp op (Val v), σ) /\ un_op_eval op v = Some w] *)
-  Program Definition cover_unop_ok : set cfg :=
-    setI cover_unop_ok
-
-  (*
-     [set c | ∃ v op σ,       c = (UnOp op (Val v), σ) /\ un_op_eval op v = None ].
-     [set c | ∃ v1 v2 op w σ, c = (BinOp op (Val v1) (Val v2), σ) /\ bin_op_eval op v1 v2 = Some w].
-     [set c | ∃ v1 v2 op σ,   c = (BinOp op (Val v1) (Val v2), σ) /\ bin_op_eval op v1 v2 = None].
-   *)
-    _.
-   *)
-
 
   (* | If (Val (LitV (LitBool true))) e1 e2  => giryM_ret R ((e1 , σ1) : cfg) *)
   Definition head_stepM_ifT : cfg -> giryM cfg :=
@@ -1205,102 +1136,6 @@ Section meas_semantics.
     Unshelve. by eauto with measlang.
   Qed.
   Hint Resolve head_stepM_app_meas : measlang.
-
-
-
-  (** UnOp *)
-
-  Check cfg_cover.
-
-  Definition unop_matcher_cover : list (set (<<discr un_op>> * val)) :=
-    [ [set x | ∃ w, un_op_eval x.1 x.2 = Some w ];
-      [set x | un_op_eval x.1 x.2 = None ] ].
-
-  Lemma unop_matcher_cover_measurable :
-      Forall ((default_measure_display, val_cyl.-sigma).-prod.-measurable) unop_matcher_cover.
-  Proof.
-    repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
-    + admit.
-    + admit.
-  Admitted.
-
-  Lemma head_stepM_unop_matcher_restricted_measurable :
-      Forall (fun S => measurable_fun S head_stepM_unop_matcher) unop_matcher_cover.
-  Proof.
-    repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
-    + admit.
-    + admit.
-  Admitted.
-
-  Lemma head_stepM_matcher_meas : measurable_fun setT head_stepM_unop_matcher.
-  Proof.
-    apply (@measurable_by_cover_list _ _ _ _ head_stepM_unop_matcher unop_matcher_cover).
-    - by apply unop_matcher_cover_measurable.
-    - rewrite /unop_matcher_cover//=.
-      apply /predeqP =>y /=.
-      split.
-      + by move=>?.
-      + move=>_.
-        remember (un_op_eval y.1 y.2) as X.
-        rewrite -HeqX; clear HeqX.
-        destruct X; simpl.
-        * left; by eexists.
-        * by right; left.
-    - suffices HFdep : (Forall (λ l, elem_of_list l unop_matcher_cover ->
-                     measurable_fun  l (head_stepM_unop_matcher \_ l)) unop_matcher_cover).
-      { apply Forall_forall.
-        intros x Hx.
-        by apply (iffLR (Forall_forall _ _) HFdep x Hx Hx).
-      }
-      eapply (Forall_impl _ _ _ head_stepM_unop_matcher_restricted_measurable).
-      intros S H HS.
-      eapply @mathcomp_restriction_is_measurable in H; last first.
-     { eapply @Forall_forall; last by eapply HS.
-        by apply unop_matcher_cover_measurable. }
-      eapply @mathcomp_restriction_setT.
-      by eapply H.
-  Qed.
-
-  Definition head_stepM_unop_destructor_domain : set expr :=
-    setI ecov_unop $
-    preimage 𝜋_UnOpU $
-    setX setT ecov_val.
-
-  Lemma head_stepM_unop_destructor_domain_meas : measurable head_stepM_unop_destructor_domain.
-  Proof.
-    apply 𝜋_UnOpU_meas; try by eauto with measlang.
-    apply measurableX ; by eauto with measlang.
-  Qed.
-
-  Lemma head_stepM_destructor_meas :
-    measurable_fun head_stepM_unop_destructor_domain head_stepM_unop_destructor.
-  Proof.
-    apply measurable_fun_prod'_expr; first by apply head_stepM_unop_destructor_domain_meas.
-    rewrite /head_stepM_unop_destructor_domain.
-    rewrite <-(setIid ecov_unop).
-    rewrite <-setIA.
-    apply measurable_fun_setI1; try by eauto with measlang.
-    { apply 𝜋_UnOpU_meas; try by eauto with measlang.
-      apply measurableX ; by eauto with measlang. }
-    rewrite /head_stepM_unop_destructor_domain.
-    eapply measurable_comp.
-    3: { by eapply 𝜋_Val_v_meas. }
-    + by eauto with measlang.
-    + rewrite /subset//=.
-      move=>?[++].
-      move=>?[[+[++]]+].
-      move=>??->[++].
-      move=>_[++]//=.
-      move=>?//=.
-      move=>-><-//=.
-      rewrite /ecov_val//=.
-      by eexists.
-    rewrite <-(setIid ecov_unop).
-    rewrite <-setIA.
-    apply measurable_fun_setI1; try by eauto with measlang.
-    apply 𝜋_UnOpU_meas; try by eauto with measlang.
-    apply measurableX ; by eauto with measlang.
-  Qed.
 
   Lemma head_stepM_unop_meas : measurable_fun cover_unop head_stepM_def.
   Proof.
