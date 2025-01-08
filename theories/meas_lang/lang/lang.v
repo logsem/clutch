@@ -642,10 +642,7 @@ Section meas_semantics.
   Section MAddState.
     Definition mAddState_def (x : state) (e : expr) : cfg := (e, x).
     Lemma mAddState_def_measurable (x : state) : @measurable_fun _ _ expr cfg setT (mAddState_def x).
-    Proof.
-
-
-    Admitted.
+    Proof. apply measurable_fun_prod'_expr; done. Qed.
     HB.instance Definition _ (x : state) :=
       isMeasurableMap.Build _ _ expr cfg (mAddState_def x) (mAddState_def_measurable x).
   End MAddState.
@@ -656,9 +653,42 @@ Section meas_semantics.
   Definition PReaderMU {A : Type} (C : (A * state) -> giryM expr) (x : A * state) : giryM cfg
     := giryM_map (mAddState x.2) (C x).
 
+  (* If C is a measurable monaic function on A*state, its reader lifting is also measurable. *)
+  Lemma PReaderMU_meas {d} {A : measurableType d} (C : (A * state) -> giryM expr) (S : set (A * state))
+      (HS : measurable S) (HC : measurable_fun S C) : measurable_fun S (PReaderMU C).
+  Proof.
+    (* This definitely needs to be provable. I'm just not sure if the setT requirement in map will be good enough. *)
+    rewrite /PReaderMU.
+    move=> _ Y HY.
+    rewrite /preimage.
+    have HT1 : giryM_display.-measurable [set: types.giryM expr] by eauto.
+    have Measurable1 := @measurable_mapP _ _ _ _ (giryM_map (mAddState _)) (HT1 _) Y HY.
+    clear HT1.
+    have Measurable2 := HC HS.
+    clear HY.
+    (* Maybe some way to commute with map could do the reduction in this special case? *)
+
+    rewrite /preimage/setI//= in Measurable1, Measurable2; rewrite /preimage/setI//=.
+  Admitted.
+
+
   (* Generic lifting of a curried monadic function on expr to a monadic function on states *)
   Definition PNonStatefulMU {A : Type} (C : A -> giryM expr) : (A * state) -> giryM cfg
     := PReaderMU (ssrfun.comp C fst).
+
+  Lemma PNonStatefulMU_meas {d} {A : measurableType d} (C : A -> giryM expr) (S : set A)
+      (HS : measurable S) (HC : measurable_fun S C) : measurable_fun (NonStatefulS S) (PNonStatefulMU C).
+  Proof.
+    apply PReaderMU_meas.
+    { by apply NonStatefulS_measurable. }
+    eapply measurable_comp.
+    3: { by apply HC. }
+    * done.
+    * rewrite /subset/NonStatefulS//=.
+      by move=>?[+]; move=>[+]; move=>??//=?<-.
+    eapply @mathcomp_measurable_fun_restiction_setT; try by eauto with measlang.
+    by apply NonStatefulS_measurable.
+  Qed.
 
   (** Top-level functions *)
   (* | Rec f x e => giryM_ret R ((Val $ RecV f x e, σ1) : cfg)  *)
