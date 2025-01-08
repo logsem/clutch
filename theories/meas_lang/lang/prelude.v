@@ -244,7 +244,6 @@ Proof. by move=>??; exact/prod_measurable_funP'. Qed.
 
 Notation mProd f g := (fun x => (f x, g x)).
 
-
 Lemma measurable_compT {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
        (f : T2 → T3) (E : set T1) (g : T1 → T2)
        (HE : d1.-measurable E) (Hf : measurable_fun setT f)

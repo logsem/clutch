@@ -15,7 +15,7 @@ From mathcomp.analysis Require Export Rstruct.
 From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
-From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state.
+From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state subst.
 (* From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
 From stdpp Require Import fin.
@@ -315,8 +315,19 @@ Section meas_semantics.
     preimage 𝜋_InjRU $
     ecov_val.
 
+  (*  [set c | ∃ f x e1 v2 σ,  c = (App (Val (RecV f x e1)) (Val v2) , σ) ]. *)
+  Definition cover_app : set cfg :=
+    NonStatefulS $
+    setI ecov_app $
+    preimage 𝜋_AppU $
+    setX
+      ( setI ecov_val $
+        preimage 𝜋_Val_v $
+        vcov_rec )
+      ecov_val.
+
   (* [set c | ∃ e1 e2 σ, c = (If (Val (LitV (LitBool true))) e1 e2, σ) ]*)
-  Program Definition cover_ifT : set cfg :=
+  Definition cover_ifT : set cfg :=
     NonStatefulS $
     setI ecov_if $
     preimage 𝜋_If_c $
@@ -389,7 +400,6 @@ Section meas_semantics.
     bcov_LitInt.
 
   (*
-  Definition cover_app             : set cfg := [set c | ∃ f x e1 v2 σ,  c = (App (Val (RecV f x e1)) (Val v2) , σ) ].
   Definition cover_unop_ok         : set cfg := [set c | ∃ v op w σ,     c = (UnOp op (Val v), σ) /\ un_op_eval op v = Some w].
   Definition cover_unop_stuck      : set cfg := [set c | ∃ v op σ,       c = (UnOp op (Val v), σ) /\ un_op_eval op v = None ].
   Definition cover_binop_ok        : set cfg := [set c | ∃ v1 v2 op w σ, c = (BinOp op (Val v1) (Val v2), σ) /\ bin_op_eval op v1 v2 = Some w].
@@ -418,8 +428,9 @@ Section meas_semantics.
     cover_pair;
     cover_injL;
     cover_injR;
-    (*
     cover_app;
+
+    (*
     cover_unop_ok;
     cover_unop_stuck;
     cover_binop_ok;
@@ -501,6 +512,15 @@ Section meas_semantics.
   Qed.
   Hint Resolve cover_injR_meas : measlang.
 
+  Lemma cover_app_meas : measurable cover_app.
+  Proof.
+    apply NonStatefulS_measurable.
+    apply 𝜋_AppU_meas; eauto with measlang.
+    apply measurableX.
+    - by apply 𝜋_ValU_meas; eauto with measlang.
+    - by eauto with measlang.
+  Qed.
+  Hint Resolve cover_app_meas : measlang.
 
   Lemma cover_ifT_meas : measurable cover_ifT.
   Proof.
@@ -634,6 +654,22 @@ Section meas_semantics.
     ssrfun.comp 𝜋_ValU $
     𝜋_InjRU.
 
+  (* | App (Val (RecV f x e1)) (Val v2) => giryM_ret R ((subst' x v2 (subst' f (RecV f x e1) e1) , σ1) : cfg)  *)
+  Definition head_stepM_app : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    NonStatefulU $
+    ssrfun.comp substU' $ (* subst' ...  *)
+    mProd
+      (ssrfun.comp 𝜋_RecV_x $ ssrfun.comp 𝜋_Val_v $ 𝜋_App_l) (* x *)
+    (mProd
+      (ssrfun.comp 𝜋_Val_v $ 𝜋_App_r) (* v2 *)
+    (ssrfun.comp substU' $ (* subst' ...  *)
+    mProd
+      (ssrfun.comp 𝜋_RecV_f $ ssrfun.comp 𝜋_Val_v $ 𝜋_App_l) (* f *)
+    (mProd
+       (ssrfun.comp 𝜋_Val_v $ 𝜋_App_l) (* RecV f x e1 *)
+       (ssrfun.comp 𝜋_RecV_e $ ssrfun.comp 𝜋_Val_v $ 𝜋_App_l)))) (* e1 *).
+
   (* | If (Val (LitV (LitBool true))) e1 e2  => giryM_ret R ((e1 , σ1) : cfg) *)
   Definition head_stepM_ifT : cfg -> giryM cfg :=
     ssrfun.comp (giryM_ret R) $
@@ -712,6 +748,7 @@ Section meas_semantics.
     | Pair (Val _) (Val _)                => head_stepM_pair c
     | InjL (Val _)                        => head_stepM_injL c
     | InjR (Val _)                        => head_stepM_injR c
+    | App (Val (RecV _ _ _)) (Val _)      => head_stepM_app c
     | If (Val (LitV (LitBool true))) _ _  => head_stepM_ifT c
     | If (Val (LitV (LitBool false))) _ _ => head_stepM_ifT c
     | Fst (Val (PairV _ _))               => head_stepM_fst c
@@ -860,6 +897,170 @@ Section meas_semantics.
     Unshelve. by eauto with measlang.
   Qed.
   Hint Resolve head_stepM_injR_meas : measlang.
+
+  (* FIXME: Many of the subproofs here are repetitive *)
+  Lemma head_stepM_app_meas : measurable_fun cover_app head_stepM_def.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_app head_stepM_def).
+    - apply measurable_compT; try by eauto with measlang.
+      have S : expr_cyl.-sigma.-measurable (ecov_app `&` 𝜋_AppU @^-1` ((ecov_val `&` 𝜋_Val_v @^-1` vcov_rec) `*` ecov_val)).
+      { apply 𝜋_AppU_meas; try by eauto with measlang.
+        apply measurableX; by eauto with measlang. }
+      apply @NonStatefulU_meas; first done.
+      apply measurable_compT; try by eauto with measlang.
+      { by apply substU'_measurable. }
+      apply measurable_fun_prod'_expr; try by eauto with measlang.
+      { eapply measurable_comp.
+        3: { by eapply 𝜋_RecV_x_meas. }
+        * by eauto with measlang.
+        * rewrite /subset//=.
+          move=>?[+[+[++]]].
+          move=>?[+].
+          move=>?[+]; move=>?->//=.
+          move=>[[++]+]; move=>?->//=.
+          move=>[+[+[++]]]; move=>???->.
+          move=>[++]; move=>??.
+          move=><-//=.
+          rewrite/vcov_rec/RecVC//=.
+          by do 3 eexists.
+        rewrite <-(setIid ecov_app).
+        rewrite <-setIA.
+        apply measurable_fun_setI2; try by eauto with measlang.
+        eapply measurable_comp.
+        3: { by eapply 𝜋_Val_v_meas. }
+        * by eauto with measlang.
+        * rewrite /subset//=.
+          move=>?.
+          move=>[+[+[++]]].
+          move=>?.
+          move=> [+[++[++]]].
+          move=>??->//=.
+          move=>[++]; move=>?->//=.
+          move=>[+[+[++]]]; move=>???->.
+          move=>[++]; move=>??<-.
+          rewrite /ecov_val/ValC//=.
+          by eexists.
+        rewrite <-(setIid ecov_app).
+        rewrite <-setIA.
+        apply measurable_fun_setI1; try by eauto with measlang.
+      }
+      apply measurable_fun_prod'_expr; try by eauto with measlang.
+      { eapply measurable_comp.
+        3: { by eapply 𝜋_Val_v_meas. }
+        * by eauto with measlang.
+        * rewrite /subset//=.
+          move=>?.
+          move=>[+[+[++]]].
+          move=>?.
+          move=> [+[++[++]]].
+          move=>??->//=.
+          move=>[++]; move=>?->//=.
+          move=>[+[+[++]]]; move=>????.
+          by move=>?<-.
+        rewrite <-(setIid ecov_app).
+        rewrite <-setIA.
+        by apply measurable_fun_setI1; try by eauto with measlang.
+      }
+      apply measurable_compT; try by eauto with measlang.
+      { by apply substU'_measurable. }
+      apply measurable_fun_prod'_expr; try by eauto with measlang.
+      { eapply measurable_comp.
+        3: { by eapply 𝜋_RecV_f_meas. } (* FIXME: Literally one charachter changed between this an a prior case lol *)
+        * by eauto with measlang.
+        * rewrite /subset//=.
+          move=>?[+[+[++]]].
+          move=>?[+].
+          move=>?[+]; move=>?->//=.
+          move=>[[++]+]; move=>?->//=.
+          move=>[+[+[++]]]; move=>???->.
+          move=>[++]; move=>??.
+          move=><-//=.
+          rewrite/vcov_rec/RecVC//=.
+          by do 3 eexists.
+        rewrite <-(setIid ecov_app).
+        rewrite <-setIA.
+        apply measurable_fun_setI2; try by eauto with measlang.
+        eapply measurable_comp.
+        3: { by eapply 𝜋_Val_v_meas. }
+        * by eauto with measlang.
+        * rewrite /subset//=.
+          move=>?.
+          move=>[+[+[++]]].
+          move=>?.
+          move=> [+[++[++]]].
+          move=>??->//=.
+          move=>[++]; move=>?->//=.
+          move=>[+[+[++]]]; move=>???->.
+          move=>[++]; move=>??<-.
+          rewrite /ecov_val/ValC//=.
+          by eexists.
+        rewrite <-(setIid ecov_app).
+        rewrite <-setIA.
+        apply measurable_fun_setI1; try by eauto with measlang.
+      }
+      apply measurable_fun_prod'_expr; try by eauto with measlang.
+      { eapply measurable_comp.
+        3: { by eapply 𝜋_Val_v_meas. }
+        * by eauto with measlang.
+        * rewrite /subset//=.
+          move=>?.
+          move=>[+[+[++]]].
+          move=>?.
+          move=> [+[++[++]]].
+          move=>??->//=.
+          move=>[++]; move=>?->//=.
+          move=>[+[+[++]]]; move=>????.
+          move=>?<-.
+          rewrite /ecov_val/ValC//=.
+          by eexists.
+        rewrite <-(setIid ecov_app).
+        rewrite <-setIA.
+        by apply measurable_fun_setI1; try by eauto with measlang.
+      }
+      { eapply measurable_comp.
+        3: { by eapply 𝜋_RecV_e_meas. }
+        * by eauto with measlang.
+        * rewrite /subset//=.
+          move=>?[+[+[++]]].
+          move=>?[+].
+          move=>?[+]; move=>?->//=.
+          move=>[[++]+]; move=>?->//=.
+          move=>[+[+[++]]]; move=>???->.
+          move=>[++]; move=>??.
+          move=><-//=.
+          rewrite/vcov_rec/RecVC//=.
+          by do 3 eexists.
+       eapply measurable_comp.
+       3: { by eapply 𝜋_Val_v_meas. }
+       * by eauto with measlang.
+       * rewrite /subset//=.
+         move=>?.
+         move=>[+[+[++]]].
+         move=>?.
+         move=> [+[++[++]]].
+         move=>??->//=.
+         move=>[++]; move=>?->//=.
+         move=>[+[+[++]]]; move=>????.
+         move=>?<-.
+         rewrite /ecov_val/ValC//=.
+         by eexists.
+        rewrite <-(setIid ecov_app).
+        rewrite <-setIA.
+        by apply measurable_fun_setI1; try by eauto with measlang.
+      }
+    - move=>[e?].
+      move=>[[++]+].
+      move=>?[++]; move=>?//=->.
+      move=>[+[++]]//=.
+      move=>[++]//=; move=>[+].
+      move=>?//=->.
+      move=>[+[++]].
+      move=>??//=[+].
+      move=>?->//=.
+      by move=>?->//=.
+    Unshelve. by eauto with measlang.
+  Qed.
+  Hint Resolve head_stepM_app_meas : measlang.
 
   Lemma head_stepM_ifT_meas : measurable_fun cover_ifT head_stepM_def.
   Proof.
@@ -1123,6 +1324,7 @@ Section meas_semantics.
     - by apply cover_pair_meas.
     - by apply cover_injL_meas.
     - by apply cover_injR_meas.
+    - by apply cover_app_meas.
     - by apply cover_ifT_meas.
     - by apply cover_ifF_meas.
     - by apply cover_fst_meas.
@@ -1141,6 +1343,7 @@ Section meas_semantics.
     - by apply head_stepM_pair_meas.
     - by apply head_stepM_injL_meas.
     - by apply head_stepM_injR_meas.
+    - by apply head_stepM_app_meas.
     - by apply head_stepM_ifT_meas.
     - by apply head_stepM_ifF_meas.
     - by apply head_stepM_fst_meas.
@@ -1189,8 +1392,6 @@ End meas_semantics.
     let (e1, σ1) := c in
     match e1 with
     | ...
-    | App (Val (RecV f x e1)) (Val v2) =>
-        giryM_ret R ((subst' x v2 (subst' f (RecV f x e1) e1) , σ1) : cfg)
     | UnOp op (Val v) =>
         match un_op_eval op v with
           | Some w => giryM_ret R ((Val w, σ1) : cfg)
