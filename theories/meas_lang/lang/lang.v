@@ -778,7 +778,7 @@ Section meas_semantics.
           | _ => giryM_zero
         end
    *)
-  Program Definition head_stepM_unop : cfg -> giryM cfg :=
+  Definition head_stepM_unop : cfg -> giryM cfg :=
     PNonStatefulMU (ssrfun.comp head_stepM_unop_matcher head_stepM_unop_destructor).
 
   Definition head_stepM_binop : cfg -> giryM cfg.
@@ -1207,8 +1207,117 @@ Section meas_semantics.
   Hint Resolve head_stepM_app_meas : measlang.
 
 
+
+  (** UnOp *)
+
+  Check cfg_cover.
+
+  Definition unop_matcher_cover : list (set (<<discr un_op>> * val)) :=
+    [ [set x | ∃ w, un_op_eval x.1 x.2 = Some w ];
+      [set x | un_op_eval x.1 x.2 = None ] ].
+
+  Lemma unop_matcher_cover_measurable :
+      Forall ((default_measure_display, val_cyl.-sigma).-prod.-measurable) unop_matcher_cover.
+  Proof.
+    repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
+    + admit.
+    + admit.
+  Admitted.
+
+  Lemma head_stepM_unop_matcher_restricted_measurable :
+      Forall (fun S => measurable_fun S head_stepM_unop_matcher) unop_matcher_cover.
+  Proof.
+    repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
+    + admit.
+    + admit.
+  Admitted.
+
+  Lemma head_stepM_matcher_meas : measurable_fun setT head_stepM_unop_matcher.
+  Proof.
+    apply (@measurable_by_cover_list _ _ _ _ head_stepM_unop_matcher unop_matcher_cover).
+    - by apply unop_matcher_cover_measurable.
+    - rewrite /unop_matcher_cover//=.
+      apply /predeqP =>y /=.
+      split.
+      + by move=>?.
+      + move=>_.
+        remember (un_op_eval y.1 y.2) as X.
+        rewrite -HeqX; clear HeqX.
+        destruct X; simpl.
+        * left; by eexists.
+        * by right; left.
+    - suffices HFdep : (Forall (λ l, elem_of_list l unop_matcher_cover ->
+                     measurable_fun  l (head_stepM_unop_matcher \_ l)) unop_matcher_cover).
+      { apply Forall_forall.
+        intros x Hx.
+        by apply (iffLR (Forall_forall _ _) HFdep x Hx Hx).
+      }
+      eapply (Forall_impl _ _ _ head_stepM_unop_matcher_restricted_measurable).
+      intros S H HS.
+      eapply @mathcomp_restriction_is_measurable in H; last first.
+     { eapply @Forall_forall; last by eapply HS.
+        by apply unop_matcher_cover_measurable. }
+      eapply @mathcomp_restriction_setT.
+      by eapply H.
+  Qed.
+
+  Definition head_stepM_unop_destructor_domain : set expr :=
+    setI ecov_unop $
+    preimage 𝜋_UnOpU $
+    setX setT ecov_val.
+
+  Lemma head_stepM_unop_destructor_domain_meas : measurable head_stepM_unop_destructor_domain.
+  Proof.
+    apply 𝜋_UnOpU_meas; try by eauto with measlang.
+    apply measurableX ; by eauto with measlang.
+  Qed.
+
+  Lemma head_stepM_destructor_meas :
+    measurable_fun head_stepM_unop_destructor_domain head_stepM_unop_destructor.
+  Proof.
+    apply measurable_fun_prod'_expr; first by apply head_stepM_unop_destructor_domain_meas.
+    rewrite /head_stepM_unop_destructor_domain.
+    rewrite <-(setIid ecov_unop).
+    rewrite <-setIA.
+    apply measurable_fun_setI1; try by eauto with measlang.
+    { apply 𝜋_UnOpU_meas; try by eauto with measlang.
+      apply measurableX ; by eauto with measlang. }
+    rewrite /head_stepM_unop_destructor_domain.
+    eapply measurable_comp.
+    3: { by eapply 𝜋_Val_v_meas. }
+    + by eauto with measlang.
+    + rewrite /subset//=.
+      move=>?[++].
+      move=>?[[+[++]]+].
+      move=>??->[++].
+      move=>_[++]//=.
+      move=>?//=.
+      move=>-><-//=.
+      rewrite /ecov_val//=.
+      by eexists.
+    rewrite <-(setIid ecov_unop).
+    rewrite <-setIA.
+    apply measurable_fun_setI1; try by eauto with measlang.
+    apply 𝜋_UnOpU_meas; try by eauto with measlang.
+    apply measurableX ; by eauto with measlang.
+  Qed.
+
   Lemma head_stepM_unop_meas : measurable_fun cover_unop head_stepM_def.
-  Proof. Admitted.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_unop head_stepM_def).
+    - have S : expr_cyl.-sigma.-measurable (ecov_unop `&` 𝜋_UnOpU @^-1` ([set: <<discr un_op >>] `*` ecov_val)).
+      { apply 𝜋_UnOpU_meas; first by eauto with measlang. by apply measurableX; eauto with measlang. }
+      apply PNonStatefulMU_meas; [done|].
+      eapply measurable_compT; first done.
+      + by apply head_stepM_matcher_meas.
+      + by apply head_stepM_destructor_meas.
+    - move=> [e?].
+      move=>[[+[++]][+[++]]].
+      move=>??//=.
+      move=>->??//=.
+      by move=>->//=.
+    Unshelve. by eauto with measlang.
+  Qed.
   Hint Resolve head_stepM_unop_meas : measlang.
 
   Lemma head_stepM_binop_meas : measurable_fun cover_binop head_stepM_def.
