@@ -326,6 +326,20 @@ Section meas_semantics.
         vcov_rec )
       ecov_val.
 
+  (* [set c | ∃ v op w σ, c = (UnOp op (Val v), σ) *)
+  Definition cover_unop : set cfg :=
+    NonStatefulS $
+    setI ecov_unop $
+    preimage 𝜋_UnOpU $
+    setX setT ecov_val.
+
+  (* [set c | ∃ v op w σ, c = (BinOp (Val v1) (Val v2), σ) *)
+  Definition cover_binop : set cfg :=
+    NonStatefulS $
+    setI ecov_binop $
+    preimage 𝜋_BinOpU $
+    setX (setX setT ecov_val) ecov_val.
+
   (* [set c | ∃ e1 e2 σ, c = (If (Val (LitV (LitBool true))) e1 e2, σ) ]*)
   Definition cover_ifT : set cfg :=
     NonStatefulS $
@@ -400,10 +414,6 @@ Section meas_semantics.
     bcov_LitInt.
 
   (*
-  Definition cover_unop_ok         : set cfg := [set c | ∃ v op w σ,     c = (UnOp op (Val v), σ) /\ un_op_eval op v = Some w].
-  Definition cover_unop_stuck      : set cfg := [set c | ∃ v op σ,       c = (UnOp op (Val v), σ) /\ un_op_eval op v = None ].
-  Definition cover_binop_ok        : set cfg := [set c | ∃ v1 v2 op w σ, c = (BinOp op (Val v1) (Val v2), σ) /\ bin_op_eval op v1 v2 = Some w].
-  Definition cover_binop_stuck     : set cfg := [set c | ∃ v1 v2 op σ,   c = (BinOp op (Val v1) (Val v2), σ) /\ bin_op_eval op v1 v2 = None].
   Definition cover_allocN_ok       : set cfg := [set c | ∃ N v σ,        c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = true].
   Definition cover_allocN_stuck    : set cfg := [set c | ∃ N v σ,        c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = false].
   Definition cover_load_ok         : set cfg := [set c | ∃ l w σ,        c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = Some w].
@@ -429,13 +439,8 @@ Section meas_semantics.
     cover_injL;
     cover_injR;
     cover_app;
-
-    (*
-    cover_unop_ok;
-    cover_unop_stuck;
-    cover_binop_ok;
-    cover_binop_stuck;
-    *)
+    cover_unop;
+    cover_binop;
     cover_ifT;
     cover_ifF;
     cover_fst;
@@ -521,6 +526,23 @@ Section meas_semantics.
     - by eauto with measlang.
   Qed.
   Hint Resolve cover_app_meas : measlang.
+
+  Lemma cover_unop_meas : measurable cover_unop.
+  Proof.
+    apply NonStatefulS_measurable.
+    apply 𝜋_UnOpU_meas; eauto with measlang.
+    apply measurableX; by eauto with measlang.
+  Qed.
+  Hint Resolve cover_unop_meas : measlang.
+
+  Lemma cover_binop_meas : measurable cover_binop.
+  Proof.
+    apply NonStatefulS_measurable.
+    apply 𝜋_BinOpU_meas; eauto with measlang.
+    apply measurableX; try by eauto with measlang.
+    apply measurableX; try by eauto with measlang.
+  Qed.
+  Hint Resolve cover_binop_meas : measlang.
 
   Lemma cover_ifT_meas : measurable cover_ifT.
   Proof.
@@ -617,6 +639,26 @@ Section meas_semantics.
         by apply measurable_snd.
   Qed.
 
+  Section MAddState.
+    Definition mAddState_def (x : state) (e : expr) : cfg := (e, x).
+    Lemma mAddState_def_measurable (x : state) : @measurable_fun _ _ expr cfg setT (mAddState_def x).
+    Proof.
+
+
+    Admitted.
+    HB.instance Definition _ (x : state) :=
+      isMeasurableMap.Build _ _ expr cfg (mAddState_def x) (mAddState_def_measurable x).
+  End MAddState.
+
+  Definition mAddState (x : state) : measurable_map expr cfg := mAddState_def x.
+
+  (* Lift a monadic calculation returning exprs to a monadic function which returns cfg, with the state unchanged. *)
+  Definition PReaderMU {A : Type} (C : (A * state) -> giryM expr) (x : A * state) : giryM cfg
+    := giryM_map (mAddState x.2) (C x).
+
+  (* Generic lifting of a curried monadic function on expr to a monadic function on states *)
+  Definition PNonStatefulMU {A : Type} (C : A -> giryM expr) : (A * state) -> giryM cfg
+    := PReaderMU (ssrfun.comp C fst).
 
   (** Top-level functions *)
   (* | Rec f x e => giryM_ret R ((Val $ RecV f x e, σ1) : cfg)  *)
@@ -669,6 +711,76 @@ Section meas_semantics.
     (mProd
        (ssrfun.comp 𝜋_Val_v $ 𝜋_App_l) (* RecV f x e1 *)
        (ssrfun.comp 𝜋_RecV_e $ ssrfun.comp 𝜋_Val_v $ 𝜋_App_l)))) (* e1 *).
+
+
+  (* Non-structural destructions:
+      - Define one function (destructor) that does the top-level nested match
+        and constructs a term of a product type.
+          -> measurable by composition
+      - Define another function (matcher) which does the non-structural match
+        and constructs giryM_cfg.
+          -> measurable by a cover argument
+    The top-level function is measurable by composition.
+
+    This is overkill for unop but will definitely not be overkill for the stateful operations
+
+    There's also the issue of managing monadic effects and state, but that's
+    sort of separate?
+   *)
+
+
+
+  Definition head_stepM_unop_destructor : expr -> (<<discr un_op>> * val)%type :=
+    (mProd
+      𝜋_UnOp_op
+      (ssrfun.comp 𝜋_Val_v 𝜋_UnOp_e)).
+
+  Definition head_stepM_unop_matcher (x : <<discr un_op>> * val) : giryM expr :=
+    match (un_op_eval x.1 x.2) with
+    | Some w => giryM_ret R (ValC w)
+    | None => giryM_zero
+    end.
+
+
+  (* | UnOp op (Val v) =>
+        match un_op_eval op v with
+          | Some w => giryM_ret R ((Val w, σ1) : cfg)
+          | _ => giryM_zero
+        end
+   *)
+  Program Definition head_stepM_unop : cfg -> giryM cfg :=
+    PNonStatefulMU (ssrfun.comp head_stepM_unop_matcher head_stepM_unop_destructor).
+
+  Definition head_stepM_binop : cfg -> giryM cfg.
+  Admitted.
+
+(*  Plan: Split the implmenetation into a projection and two construction part(s)
+      Do a different construction part depending on if unop_ok
+
+  (* [set (op, Val v) | un_op_eval op v = Some _ ]*)
+  Definition unop_cover_ok : set (<<discr un_op >> * expr) :=
+    setI
+      (setX setT ecov_val)
+      [set x | ∃ w, un_op_eval x.1 (𝜋_Val_v x.2) = Some w ].
+
+  (* [set (op, Val v) | un_op_eval op v = Some _ ]*)
+  Definition unop_cover_stuck : set (<<discr un_op >> * expr) :=
+    setD
+      (setX setT ecov_val)
+      [set x | un_op_eval x.1 (𝜋_Val_v x.2) = None ].
+
+  (* [set c | ∃ v op w σ,     c = (UnOp op (Val v), σ) /\ un_op_eval op v = Some w] *)
+  Program Definition cover_unop_ok : set cfg :=
+    setI cover_unop_ok
+
+  (*
+     [set c | ∃ v op σ,       c = (UnOp op (Val v), σ) /\ un_op_eval op v = None ].
+     [set c | ∃ v1 v2 op w σ, c = (BinOp op (Val v1) (Val v2), σ) /\ bin_op_eval op v1 v2 = Some w].
+     [set c | ∃ v1 v2 op σ,   c = (BinOp op (Val v1) (Val v2), σ) /\ bin_op_eval op v1 v2 = None].
+   *)
+    _.
+   *)
+
 
   (* | If (Val (LitV (LitBool true))) e1 e2  => giryM_ret R ((e1 , σ1) : cfg) *)
   Definition head_stepM_ifT : cfg -> giryM cfg :=
@@ -749,6 +861,8 @@ Section meas_semantics.
     | InjL (Val _)                        => head_stepM_injL c
     | InjR (Val _)                        => head_stepM_injR c
     | App (Val (RecV _ _ _)) (Val _)      => head_stepM_app c
+    | UnOp _ (Val _)                      => head_stepM_unop c
+    | BinOp _ (Val _)(Val _)              => head_stepM_binop c
     | If (Val (LitV (LitBool true))) _ _  => head_stepM_ifT c
     | If (Val (LitV (LitBool false))) _ _ => head_stepM_ifT c
     | Fst (Val (PairV _ _))               => head_stepM_fst c
@@ -1062,6 +1176,15 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_app_meas : measlang.
 
+
+  Lemma head_stepM_unop_meas : measurable_fun cover_unop head_stepM_def.
+  Proof. Admitted.
+  Hint Resolve head_stepM_unop_meas : measlang.
+
+  Lemma head_stepM_binop_meas : measurable_fun cover_binop head_stepM_def.
+  Proof. Admitted.
+  Hint Resolve head_stepM_binop_meas : measlang.
+
   Lemma head_stepM_ifT_meas : measurable_fun cover_ifT head_stepM_def.
   Proof.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_ifT head_stepM_def).
@@ -1325,6 +1448,8 @@ Section meas_semantics.
     - by apply cover_injL_meas.
     - by apply cover_injR_meas.
     - by apply cover_app_meas.
+    - by apply cover_unop_meas.
+    - by apply cover_binop_meas.
     - by apply cover_ifT_meas.
     - by apply cover_ifF_meas.
     - by apply cover_fst_meas.
@@ -1344,6 +1469,8 @@ Section meas_semantics.
     - by apply head_stepM_injL_meas.
     - by apply head_stepM_injR_meas.
     - by apply head_stepM_app_meas.
+    - by apply head_stepM_unop_meas.
+    - by apply head_stepM_binop_meas.
     - by apply head_stepM_ifT_meas.
     - by apply head_stepM_ifF_meas.
     - by apply head_stepM_fst_meas.
@@ -1392,11 +1519,6 @@ End meas_semantics.
     let (e1, σ1) := c in
     match e1 with
     | ...
-    | UnOp op (Val v) =>
-        match un_op_eval op v with
-          | Some w => giryM_ret R ((Val w, σ1) : cfg)
-          | _ => giryM_zero
-        end
     | BinOp op (Val v1) (Val v2) =>
         match bin_op_eval op v1 v2 with
           | Some w => giryM_ret R ((Val w, σ1) : cfg)
