@@ -19,29 +19,16 @@ From clutch.meas_lang.lang Require Export prelude types constructors shapes cove
 
 Local Open Scope classical_set_scope.
 
-(* Non-structural destructions:
-    - Define one function (destructor) that does the top-level nested match
-      and constructs a term of a product type.
-        -> measurable by composition
-    - Define another function (matcher) which does the non-structural match
-      and constructs giryM_cfg.
-        -> measurable by a cover argument
-  The top-level function is measurable by composition.
+(*
 
-  This is overkill for unop but will definitely not be overkill for the stateful operations
 
-  There's also the issue of managing monadic effects and state, but that's
-  sort of separate?
- *)
+Definition is_unop :
 
-Definition un_op_eval (op : un_op) (v : val) : option val :=
-  match op, v with
-  | NegOp, LitV (LitBool b) => Some $ LitV $ LitBool (negb b)
-  | NegOp, LitV (LitInt z) => Some $ LitV $ LitInt (Z.lnot z)
-  | MinusUnOp, LitV (LitInt z) => Some $ LitV $ LitInt (- z)%Z
-  | MinusUnOp, LitV (LitReal r) => Some $ LitV $ LitReal (- r)%R
-  | _, _ => None
-  end.
+
+Definition unop_matcher_cover : list (set (<<discr un_op>> * val)) :=
+  [ [set x | ∃ w, un_op_eval x.1 x.2 = Some w ];
+    [set x | un_op_eval x.1 x.2 = None ] ].
+
 
 
 Definition head_stepM_unop_destructor : expr -> (<<discr un_op>> * val)%type :=
@@ -98,12 +85,6 @@ Definition head_stepM_unop_matcher (x : <<discr un_op>> * val) : giryM expr :=
     _.
    *)
 
-
-  (** UnOp *)
-
-  Definition unop_matcher_cover : list (set (<<discr un_op>> * val)) :=
-    [ [set x | ∃ w, un_op_eval x.1 x.2 = Some w ];
-      [set x | un_op_eval x.1 x.2 = None ] ].
 
   Lemma unop_matcher_cover_ok_meas :
     (default_measure_display, val_cyl.-sigma).-prod.-measurable ([set x | ∃ w : val, un_op_eval x.1 x.2 = Some w] : (set (<<discr un_op>> * val))).
@@ -212,3 +193,4 @@ Definition head_stepM_unop_matcher (x : <<discr un_op>> * val) : giryM expr :=
     apply 𝜋_UnOpU_meas; try by eauto with measlang.
     apply measurableX ; by eauto with measlang.
   Qed.
+*)

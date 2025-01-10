@@ -15,7 +15,7 @@ From mathcomp.analysis Require Export Rstruct.
 From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
-From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state subst unop.
+From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state subst.
 (* From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
 From stdpp Require Import fin.
@@ -160,6 +160,14 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
   | _              => None
   end.
 
+Definition un_op_eval (op : un_op) (v : val) : option val :=
+  match op, v with
+  | NegOp, LitV (LitBool b) => Some $ LitV $ LitBool (negb b)
+  | NegOp, LitV (LitInt z) => Some $ LitV $ LitInt (Z.lnot z)
+  | MinusUnOp, LitV (LitInt z) => Some $ LitV $ LitInt (- z)%Z
+  | MinusUnOp, LitV (LitReal r) => Some $ LitV $ LitReal (- r)%R
+  | _, _ => None
+  end.
 
 Definition bin_op_eval_int (op : bin_op) (n1 n2 : Z) : base_lit :=
   match op with
@@ -322,6 +330,30 @@ Section meas_semantics.
     preimage 𝜋_UnOpU $
     setX setT ecov_val.
 
+
+  (* TODO: Prove that the next 4 sets are measurable *)
+  Definition auxcov_unop_ok : set (<<discr un_op>> * val)%type :=
+    [set x | ∃ w, un_op_eval x.1 x.2 = Some w].
+
+  Definition cover_unop_ok : set cfg :=
+    setI cover_unop $
+    preimage fst $
+    preimage 𝜋_UnOpU $
+    preimage (mProd fst (ssrfun.comp 𝜋_Val_v snd)) $
+    auxcov_unop_ok.
+
+  Definition auxcov_unop_stuck : set (<<discr un_op>> * val)%type :=
+    [set x | un_op_eval x.1 x.2 = None].
+
+  Definition cover_unop_stuck : set cfg :=
+    setI cover_unop $
+    preimage fst $
+    preimage 𝜋_UnOpU $
+    preimage (mProd fst (ssrfun.comp 𝜋_Val_v snd)) $
+    auxcov_unop_stuck.
+
+
+
   (* [set c | ∃ v op w σ, c = (BinOp (Val v1) (Val v2), σ) *)
   Definition cover_binop : set cfg :=
     NonStatefulS $
@@ -428,7 +460,8 @@ Section meas_semantics.
     cover_injL;
     cover_injR;
     cover_app;
-    cover_unop;
+    cover_unop_ok;
+    cover_unop_stuck;
     cover_binop;
     cover_ifT;
     cover_ifF;
@@ -523,6 +556,15 @@ Section meas_semantics.
     apply measurableX; by eauto with measlang.
   Qed.
   Hint Resolve cover_unop_meas : measlang.
+
+
+  Lemma cover_unop_ok_meas : measurable cover_unop_ok.
+  Proof. Admitted.
+  Hint Resolve cover_unop_ok_meas : measlang.
+
+  Lemma cover_unop_stuck_meas : measurable cover_unop_stuck.
+  Proof. Admitted.
+  Hint Resolve cover_unop_stuck_meas : measlang.
 
   Lemma cover_binop_meas : measurable cover_binop.
   Proof.
@@ -737,8 +779,13 @@ Section meas_semantics.
           | _ => giryM_zero
         end
    *)
-  Definition head_stepM_unop : cfg -> giryM cfg :=
-    PNonStatefulMU (ssrfun.comp head_stepM_unop_matcher head_stepM_unop_destructor).
+
+  (* TODO : Use "unsafe" access of the maybe *)
+  Definition head_stepM_unop_ok : cfg -> giryM cfg.
+  Admitted.
+
+  Definition head_stepM_unop_stuck : cfg -> giryM cfg.
+  Admitted.
 
   Definition head_stepM_binop : cfg -> giryM cfg.
   Admitted.
@@ -822,7 +869,10 @@ Section meas_semantics.
     | InjL (Val _)                        => head_stepM_injL c
     | InjR (Val _)                        => head_stepM_injR c
     | App (Val (RecV _ _ _)) (Val _)      => head_stepM_app c
-    | UnOp _ (Val _)                      => head_stepM_unop c
+    | UnOp op (Val v)                     => match un_op_eval op v with
+                                               | Some _ => head_stepM_unop_ok c
+                                               | _ => head_stepM_unop_stuck c
+                                             end
     | BinOp _ (Val _)(Val _)              => head_stepM_binop c
     | If (Val (LitV (LitBool true))) _ _  => head_stepM_ifT c
     | If (Val (LitV (LitBool false))) _ _ => head_stepM_ifT c
@@ -1137,8 +1187,9 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_app_meas : measlang.
 
-  Lemma head_stepM_unop_meas : measurable_fun cover_unop head_stepM_def.
+  Lemma head_stepM_unop_ok_meas : measurable_fun cover_unop_ok head_stepM_def.
   Proof.
+    (*
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_unop head_stepM_def).
     - have S : expr_cyl.-sigma.-measurable (ecov_unop `&` 𝜋_UnOpU @^-1` ([set: <<discr un_op >>] `*` ecov_val)).
       { apply 𝜋_UnOpU_meas; first by eauto with measlang. by apply measurableX; eauto with measlang. }
@@ -1152,8 +1203,13 @@ Section meas_semantics.
       move=>->??//=.
       by move=>->//=.
     Unshelve. by eauto with measlang.
-  Qed.
-  Hint Resolve head_stepM_unop_meas : measlang.
+     *)
+  Admitted.
+  Hint Resolve head_stepM_unop_ok_meas : measlang.
+
+  Lemma head_stepM_unop_stuck_meas : measurable_fun cover_unop_stuck head_stepM_def.
+  Proof. Admitted.
+  Hint Resolve head_stepM_unop_stuck_meas : measlang.
 
   Lemma head_stepM_binop_meas : measurable_fun cover_binop head_stepM_def.
   Proof. Admitted.
@@ -1422,7 +1478,8 @@ Section meas_semantics.
     - by apply cover_injL_meas.
     - by apply cover_injR_meas.
     - by apply cover_app_meas.
-    - by apply cover_unop_meas.
+    - by apply cover_unop_ok_meas.
+    - by apply cover_unop_stuck_meas.
     - by apply cover_binop_meas.
     - by apply cover_ifT_meas.
     - by apply cover_ifF_meas.
@@ -1443,7 +1500,8 @@ Section meas_semantics.
     - by apply head_stepM_injL_meas.
     - by apply head_stepM_injR_meas.
     - by apply head_stepM_app_meas.
-    - by apply head_stepM_unop_meas.
+    - by apply head_stepM_unop_ok_meas.
+    - by apply head_stepM_unop_stuck_meas.
     - by apply head_stepM_binop_meas.
     - by apply head_stepM_ifT_meas.
     - by apply head_stepM_ifF_meas.
