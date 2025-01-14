@@ -97,7 +97,7 @@ Section client.
     }
     wp_apply (wp_par (λ _, ∃ (n:nat), own γ1 (◯E (Some n)) ∗ counter_content_frag γ (1/2) n)%I
                 (λ _, ∃ (n:nat), own γ2 (◯E (Some n)) ∗ counter_content_frag γ (1/2) n)%I with "[Hfrag1 Hc1][Hfrag2 Hc2]").
-    - wp_apply (incr_counter_spec _ _ _ _ (λ _ _ _ _, ∃ n : nat, own γ1 (◯E (Some n)) ∗ counter_content_frag γ (1 / 2) n )%I with "[$Hcounter Hfrag1 Hc1]"); [done| |by iIntros (??) "(%&%&?)"].
+    - wp_apply (incr_counter_spec _ _ _ _ (λ _ _ _ n, own γ1 (◯E (Some n)) ∗ counter_content_frag γ (1 / 2) n )%I with "[$Hcounter Hfrag1 Hc1]"); [done| |iIntros (??) "(%&%&?)"; iFrame].
       iInv "Hinv" as ">(%n1 & %n2 & Hauth1 & Hauth2 & Herr)" "Hvs". 
       iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
       iApply fupd_mask_intro; first set_solver.
@@ -110,12 +110,11 @@ Section client.
         * iIntros (n) "Herr".
           iMod (ghost_var_update _ (Some (fin_to_nat n)) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
           iMod "Hclose".
-          simpl. iFrame.
           iMod ("Hvs" with "[-Hfrag1 Hc1]"); iFrame.
           -- case_match; first done.
              destruct n as [|]; destruct n2 as [[]|]; simplify_eq.
           -- iModIntro. iIntros (z) "Hauth1".
-             iMod (counter_content_update with "[$][$]") as "[$ ?]".
+             iMod (counter_content_update _ _ z _ _ with "[$][$Hc1]") as "[$ ?]".
              by iFrame.
       + iDestruct "Herr" as "(%&Herr&->)/=". iFrame.
         iExists (λ x, if 0<? fin_to_nat x then 0%R else (Rpower 4 (1+(bool_to_nat (bool_decide (n2 = Some 0%nat)) - 2))))%R. repeat iSplit; try iPureIntro.
@@ -126,8 +125,7 @@ Section client.
           iMod (ghost_var_update _ (Some (fin_to_nat n)) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
           simpl. iFrame.
           iMod "Hclose".
-          simpl. iFrame.
-          iMod ("Hvs" with "[-Hfrag1 Hc1]"); iFrame.
+          iMod ("Hvs" with "[-Hc1]"); iFrame.
           -- case_match eqn:H0.
              ++ case_match; first done.
                 destruct (fin_to_nat n) as [|]; destruct n2 as [[|]|]; simplify_eq.
@@ -142,7 +140,7 @@ Section client.
           -- iModIntro. iIntros (z) "Hauth".
              iMod (counter_content_update with "[$][$]") as "[$ ?]".
              by iFrame.
-    - wp_apply (incr_counter_spec _ _ _ _ (λ _ _ _ _, ∃ n : nat, own γ2 (◯E (Some n)) ∗ counter_content_frag γ (1 / 2) n )%I with "[$Hcounter Hfrag2 Hc2]"); [done| |by iIntros (??) "(%&%&?)"].
+    - wp_apply (incr_counter_spec _ _ _ _ (λ _ _ _ n, own γ2 (◯E (Some n)) ∗ counter_content_frag γ (1 / 2) n )%I with "[$Hcounter Hfrag2 Hc2]"); [done| |iIntros (??) "(%&%&?)"; iFrame].
       iInv "Hinv" as ">(%n1 & %n2 & Hauth1 & Hauth2 & Herr)" "Hvs". 
       iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
       iApply fupd_mask_intro; first set_solver.
@@ -154,7 +152,6 @@ Section client.
         * iIntros (n) "Herr".
           iMod (ghost_var_update _ (Some (fin_to_nat n)) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]".
           iMod "Hclose".
-          simpl. iFrame.
           iMod ("Hvs" with "[-Hfrag2 Hc2]"); iFrame.
           -- case_match; first done.
              destruct n as [|]; destruct n1 as [[]|]; simplify_eq.
@@ -171,7 +168,7 @@ Section client.
           simpl. iFrame.
           iMod "Hclose".
           simpl. iFrame.
-          iMod ("Hvs" with "[-Hfrag2 Hc2]"); iFrame.
+          iMod ("Hvs" with "[-Hc2]"); iFrame.
           -- case_match eqn:H0.
              ++ case_match; first done.
                 destruct (fin_to_nat n) as [|]; destruct n1 as [[|]|]; simplify_eq.
