@@ -905,6 +905,7 @@
           by apply measurable_snd.
     Qed.
 
+    (*
     Section MAddState.
       Definition mAddState_def (x : state) (e : expr) : cfg := (e, x).
       Lemma mAddState_def_measurable (x : state) : @measurable_fun _ _ expr cfg setT (mAddState_def x).
@@ -955,6 +956,7 @@
     eapply @mathcomp_measurable_fun_restiction_setT; try by eauto with measlang.
     by apply NonStatefulS_measurable.
   Qed.
+     *)
 
   (** Top-level functions *)
   (* | Rec f x e => giryM_ret R ((Val $ RecV f x e, σ1) : cfg)  *)
