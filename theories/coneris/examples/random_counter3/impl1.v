@@ -8,7 +8,7 @@ Section impl1.
   Context `{H:conerisGS Σ, r1:@rand_spec Σ H, L:randG Σ, !inG Σ (frac_authR natR)}.
 
   Definition new_counter1 : val:= λ: "_", ref #0.
-  Definition incr_counter1 :val := λ: "l", let: "n" := rand_tape (rand_allocate_tape #3%nat) #3%nat in (FAA "l" "n", "n").
+  Definition incr_counter1 :val := λ: "l", let: "n" := rand #3%nat in (FAA "l" "n", "n").
   Definition read_counter1 : val := λ: "l", !"l".
   Class counterG1 Σ := CounterG1 { counterG1_randG : randG Σ;
                                    counterG1_frac_authR:: inG Σ (frac_authR natR) }.
@@ -81,20 +81,20 @@ Section impl1.
   (*   by iApply "HΦ". *)
   (* Qed. *)
 
-  Lemma counter_tapes_presample1 N E γ1 c α ε (ε2 : fin 4%nat -> R):
-    (∀ x, 0<=ε2 x)%R ->
-    (SeriesC (λ n, 1 / 4 * ε2 n)%R <= ε)%R ->
-    is_counter1 N c γ1 -∗
-    rand_tapes (L:=L) α (3%nat, []) -∗
-    ↯ ε  -∗
-    state_update E E (∃ n, ↯ (ε2 n) ∗ rand_tapes (L:=L) α (3%nat, [fin_to_nat n])).
-  Proof.
-    iIntros (Hpos Hineq) "#Hinv Hfrag Herr".
-    iMod (rand_tapes_presample with "[$][$]") as "(%&$&$)"; try done.
-    etrans; last exact.
-    apply Req_le.
-    apply SeriesC_ext; intros. simpl. lra.
-  Qed.
+  (* Lemma counter_tapes_presample1 N E γ1 c α ε (ε2 : fin 4%nat -> R): *)
+  (*   (∀ x, 0<=ε2 x)%R -> *)
+  (*   (SeriesC (λ n, 1 / 4 * ε2 n)%R <= ε)%R -> *)
+  (*   is_counter1 N c γ1 -∗ *)
+  (*   rand_tapes (L:=L) α (3%nat, []) -∗ *)
+  (*   ↯ ε  -∗ *)
+  (*   state_update E E (∃ n, ↯ (ε2 n) ∗ rand_tapes (L:=L) α (3%nat, [fin_to_nat n])). *)
+  (* Proof. *)
+  (*   iIntros (Hpos Hineq) "#Hinv Hfrag Herr". *)
+  (*   iMod (rand_tapes_presample with "[$][$]") as "(%&$&$)"; try done. *)
+  (*   etrans; last exact. *)
+  (*   apply Req_le. *)
+  (*   apply SeriesC_ext; intros. simpl. lra. *)
+  (* Qed. *)
 
 
   Lemma incr_counter_spec1 N E c γ1 (Q:_->_->nat->nat->iProp Σ)  :
@@ -114,17 +114,23 @@ Section impl1.
     iIntros (Hineq Φ) "[#Hinv Hvs] HΦ".
     rewrite /incr_counter1.
     wp_pures.
-    wp_apply (rand_allocate_tape_spec with "[//]") as (α) "Htape".
-    iAssert (state_update E E (∃ n, rand_tapes (L:=L) α (3%nat, [fin_to_nat n]) ∗
-                                   ∃ε ε2, (∀ z : nat, own γ1 (●F z) ={E ∖ ↑N}=∗ own γ1 (●F (z + n)) ∗ Q ε ε2 z n)
-            ))%I with "[Hvs Htape]" as ">(%n & Htape &%&%&Hvs)".
-    { iMod "Hvs" as "(%&%&?&%&%&Hvs)".
-      iMod (counter_tapes_presample1 with "[$][$][$]") as "(%&?&?)"; [done..|].
-      iMod ("Hvs" with "[$]").
-      iModIntro.
-      iFrame.
-    }
-    wp_apply (rand_tape_spec_some with "[$]") as "Htape".
+    (* wp_apply (rand_allocate_tape_spec with "[//]") as (α) "Htape". *)
+    (* iAssert (state_update E E (∃ n, rand_tapes (L:=L) α (3%nat, [fin_to_nat n]) ∗ *)
+    (*                                ∃ε ε2, (∀ z : nat, own γ1 (●F z) ={E ∖ ↑N}=∗ own γ1 (●F (z + n)) ∗ Q ε ε2 z n) *)
+    (*         ))%I with "[Hvs Htape]" as ">(%n & Htape &%&%&Hvs)". *)
+    (* { iMod "Hvs" as "(%&%&?&%&%&Hvs)". *)
+    (*   iMod (counter_tapes_presample1 with "[$][$][$]") as "(%&?&?)"; [done..|]. *)
+    (*   iMod ("Hvs" with "[$]"). *)
+    (*   iModIntro. *)
+    (*   iFrame. *)
+    (* } *)
+    wp_bind (rand _)%E.
+    iMod "Hvs" as "(%&%&?&%&%&Hvs)".
+    wp_apply (wp_couple_rand_adv_comp1' with "[$]"); [done|simpl|].
+    { replace (_+_+_+_)%R with 4%R; [done|lra]. }
+    iIntros.
+    iMod ("Hvs" with "[$]") as "Hvs".
+    iModIntro. 
     wp_pures.
     wp_bind (FAA _ _)%E.
     iInv "Hinv" as ">( %l & %z & -> & H5 & H6)" "Hclose".
