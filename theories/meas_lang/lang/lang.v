@@ -323,15 +323,13 @@
           vcov_rec )
         ecov_val.
 
-    (* [set c | ∃ v op w σ, c = (UnOp op (Val v), σ) *)
+    (* [set c | ∃ v op w σ, c = (UnOp op (Val v), σ)
     Definition cover_unop : set cfg :=
       NonStatefulS $
       setI ecov_unop $
       preimage 𝜋_UnOpU $
-      setX setT ecov_val.
+      setX setT ecov_val. *)
 
-
-    (* TODO: Prove that the next 4 sets are measurable *)
     Definition auxcov_unop_ok : set (<<discr un_op>> * val)%type :=
       [set x | ∃ w, un_op_eval x.1 x.2 = Some w].
 
@@ -359,12 +357,53 @@
       preimage (mProd fst (ssrfun.comp 𝜋_Val_v snd)) $
       auxcov_unop_stuck.
 
+
+
+    (*
     (* [set c | ∃ v op w σ, c = (BinOp (Val v1) (Val v2), σ) *)
     Definition cover_binop : set cfg :=
       NonStatefulS $
       setI ecov_binop $
       preimage 𝜋_BinOpU $
       setX (setX setT ecov_val) ecov_val.
+     *)
+
+    Definition auxcov_binop_ok : set (<<discr bin_op>> * val * val)%type :=
+      [set x | ∃ w, bin_op_eval x.1.1 x.1.2 x.2 = Some w].
+
+    Definition cover_binop_ok' : set expr :=
+      setI ecov_binop $
+      preimage 𝜋_BinOpU $
+      setI (setX (setX setT ecov_val) ecov_val) $
+      preimage
+        (mProd
+           (mProd
+              (ssrfun.comp fst fst)
+              (ssrfun.comp (ssrfun.comp 𝜋_Val_v snd) fst))
+           (ssrfun.comp 𝜋_Val_v snd)) $
+      auxcov_binop_ok.
+
+    Definition cover_binop_ok : set cfg :=
+      setI setT $
+      preimage fst $
+      cover_binop_ok'.
+
+    Definition auxcov_binop_stuck : set (<<discr bin_op>> * val * val)%type :=
+      [set x | bin_op_eval x.1.1 x.1.2 x.2 = None].
+
+    Definition cover_binop_stuck : set cfg :=
+      setI setT $
+      preimage fst $
+      setI ecov_binop $
+      preimage 𝜋_BinOpU $
+      setI (setX (setX setT ecov_val) ecov_val) $
+      preimage
+        (mProd
+           (mProd
+              (ssrfun.comp fst fst)
+              (ssrfun.comp (ssrfun.comp 𝜋_Val_v snd) fst))
+           (ssrfun.comp 𝜋_Val_v snd)) $
+      auxcov_binop_stuck.
 
     (* [set c | ∃ e1 e2 σ, c = (If (Val (LitV (LitBool true))) e1 e2, σ) ]*)
     Definition cover_ifT : set cfg :=
@@ -467,7 +506,8 @@
       cover_app;
       cover_unop_ok;
       cover_unop_stuck;
-      cover_binop;
+      cover_binop_ok;
+      cover_binop_stuck;
       cover_ifT;
       cover_ifF;
       cover_fst;
@@ -554,6 +594,7 @@
     Qed.
     Hint Resolve cover_app_meas : measlang.
 
+    (*
     Lemma cover_unop_meas : measurable cover_unop.
     Proof.
       apply NonStatefulS_measurable.
@@ -561,6 +602,7 @@
       apply measurableX; by eauto with measlang.
     Qed.
     Hint Resolve cover_unop_meas : measlang.
+*)
 
     Lemma auxcov_unop_ok_meas : measurable auxcov_unop_ok.
     Proof.
@@ -624,14 +666,149 @@
     Qed.
     Hint Resolve cover_unop_stuck_meas : measlang.
 
-    Lemma cover_binop_meas : measurable cover_binop.
+
+
+    Lemma auxcov_binop_ok_meas : measurable auxcov_binop_ok.
     Proof.
-      apply NonStatefulS_measurable.
+    Admitted.
+    Hint Resolve auxcov_binop_ok_meas : measlang.
+
+
+    Lemma cover_binop_ok'_meas : measurable cover_binop_ok'.
+    Proof.
       apply 𝜋_BinOpU_meas; eauto with measlang.
-      apply measurableX; try by eauto with measlang.
-      apply measurableX; try by eauto with measlang.
+      eapply (measurable_fun_prod'
+                (mProd (ssrfun.comp fst fst) (ssrfun.comp (ssrfun.comp 𝜋_Val_v snd) fst))
+                (ssrfun.comp 𝜋_Val_v snd)
+                (setX (setX setT ecov_val) ecov_val)).
+      1,4: try by (apply measurableX; try by eauto with measlang; apply measurableX; by eauto with measlang).
+      3: by eauto with measlang.
+      { have H := (measurable_fun_prod'
+                  (ssrfun.comp fst fst)
+                  (ssrfun.comp (ssrfun.comp 𝜋_Val_v snd) fst)
+                  (setT `*` ecov_val `*` ecov_val)).
+        apply H; clear H. (* Script hangs when I apply this directly *)
+        { by (apply measurableX; try by eauto with measlang; apply measurableX; by eauto with measlang). }
+        { eapply @mathcomp_measurable_fun_restiction_setT.
+          { by (apply measurableX; try by eauto with measlang; apply measurableX; by eauto with measlang). }
+          apply @measurable_compT.
+          { by apply @measurableT.}
+          { by apply measurable_fst. }
+          by apply @measurable_fst.
+        }
+        eapply (@measurable_comp _ _ _ _ _ _ (setX setT ecov_val)).
+        {  apply measurableX; by eauto with measlang. }
+        { rewrite /subset//=.
+          move=> [??[++]]//=.
+          move=> [[??]?]//=.
+          move=> [[??]?].
+          move=> [+].
+          by move=> ?<-//=. }
+        { eapply @measurable_comp.
+          3: { by apply 𝜋_Val_v_meas. }
+          { by eauto with measlang. }
+          { rewrite /subset//=.
+            move=>?[[??]]//=.
+            by move=>[??]<-//.
+          }
+          eapply @mathcomp_measurable_fun_restiction_setT.
+          { apply measurableX; by eauto with measlang. }
+          by apply @measurable_snd. }
+        { eapply @mathcomp_measurable_fun_restiction_setT.
+          { by (apply measurableX; try by eauto with measlang; apply measurableX; by eauto with measlang). }
+          by apply @measurable_fst. }
+      }
+      { eapply measurable_comp.
+        3: { by apply 𝜋_Val_v_meas. }
+        1: by eauto with measlang.
+        1: {
+          rewrite /subset//=.
+          move=>?[+[++]].
+          move=>[[??]?].
+          move=>[?[+]]//=.
+          move=>??.
+          by move=>?<-//.
+        }
+        { eapply @mathcomp_measurable_fun_restiction_setT.
+          { by (apply measurableX; try by eauto with measlang; apply measurableX; by eauto with measlang). }
+          { by apply @measurable_snd. }
+        }
+      }
     Qed.
-    Hint Resolve cover_binop_meas : measlang.
+    Hint Resolve cover_binop_ok'_meas : measlang.
+
+    Lemma cover_binop_ok_meas : measurable cover_binop_ok.
+    Proof. apply @measurable_fst; by eauto with measlang. Qed.
+    Hint Resolve cover_binop_ok_meas : measlang.
+
+    Lemma auxcov_binop_stuck_meas : measurable auxcov_binop_stuck.
+    Proof.
+    Admitted.
+    Hint Resolve auxcov_binop_stuck_meas : measlang.
+
+    Lemma cover_binop_stuck_meas : measurable cover_binop_stuck.
+    Proof.
+      apply @measurable_fst; first by eauto with measlang.
+      apply 𝜋_BinOpU_meas; eauto with measlang.
+      eapply (measurable_fun_prod'
+                (mProd (ssrfun.comp fst fst) (ssrfun.comp (ssrfun.comp 𝜋_Val_v snd) fst))
+                (ssrfun.comp 𝜋_Val_v snd)
+                (setX (setX setT ecov_val) ecov_val)).
+      1,4: try by (apply measurableX; try by eauto with measlang; apply measurableX; by eauto with measlang).
+      3: by eauto with measlang.
+      { have H := (measurable_fun_prod'
+                  (ssrfun.comp fst fst)
+                  (ssrfun.comp (ssrfun.comp 𝜋_Val_v snd) fst)
+                  (setT `*` ecov_val `*` ecov_val)).
+        apply H; clear H. (* Script hangs when I apply this directly *)
+        { by (apply measurableX; try by eauto with measlang; apply measurableX; by eauto with measlang). }
+        { eapply @mathcomp_measurable_fun_restiction_setT.
+          { by (apply measurableX; try by eauto with measlang; apply measurableX; by eauto with measlang). }
+          apply @measurable_compT.
+          { by apply @measurableT.}
+          { by apply measurable_fst. }
+          by apply @measurable_fst.
+        }
+        eapply (@measurable_comp _ _ _ _ _ _ (setX setT ecov_val)).
+        {  apply measurableX; by eauto with measlang. }
+        { rewrite /subset//=.
+          move=> [??[++]]//=.
+          move=> [[??]?]//=.
+          move=> [[??]?].
+          move=> [+].
+          by move=> ?<-//=. }
+        { eapply @measurable_comp.
+          3: { by apply 𝜋_Val_v_meas. }
+          { by eauto with measlang. }
+          { rewrite /subset//=.
+            move=>?[[??]]//=.
+            by move=>[??]<-//.
+          }
+          eapply @mathcomp_measurable_fun_restiction_setT.
+          { apply measurableX; by eauto with measlang. }
+          by apply @measurable_snd. }
+        { eapply @mathcomp_measurable_fun_restiction_setT.
+          { by (apply measurableX; try by eauto with measlang; apply measurableX; by eauto with measlang). }
+          by apply @measurable_fst. }
+      }
+      { eapply measurable_comp.
+        3: { by apply 𝜋_Val_v_meas. }
+        1: by eauto with measlang.
+        1: {
+          rewrite /subset//=.
+          move=>?[+[++]].
+          move=>[[??]?].
+          move=>[?[+]]//=.
+          move=>??.
+          by move=>?<-//.
+        }
+        { eapply @mathcomp_measurable_fun_restiction_setT.
+          { by (apply measurableX; try by eauto with measlang; apply measurableX; by eauto with measlang). }
+          { by apply @measurable_snd. }
+        }
+      }
+    Qed.
+    Hint Resolve cover_binop_stuck_meas : measlang.
 
     Lemma cover_ifT_meas : measurable cover_ifT.
     Proof.
@@ -857,12 +1034,35 @@
         fst )
       snd.
 
-
+  (* TODO: Delete *)
   Definition head_stepM_unop_stuck : cfg -> giryM cfg :=
     cst giryM_zero.
 
-  Definition head_stepM_binop : cfg -> giryM cfg.
-  Admitted.
+  Definition bin_op_evalC (x : (<<discr bin_op >> * val * val)%type) : val
+    := match (bin_op_eval x.1.1 x.1.2 x.2) with
+       | Some v => v
+       | None => inhabitant
+       end.
+
+  (* The function (on configurations) to do when the cfg is a BinOp that is valid *)
+  Definition head_stepM_binop_ok : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    mProd
+      ( ssrfun.comp ValU $
+        ssrfun.comp bin_op_evalC $
+        ssrfun.comp
+          (mProd
+              (mProd
+                 𝜋_BinOp_op
+                 (ssrfun.comp 𝜋_Val_v 𝜋_BinOp_l))
+              (ssrfun.comp 𝜋_Val_v 𝜋_BinOp_r)) $
+        fst )
+      snd.
+
+  (* TODO: Delete *)
+  Definition head_stepM_binop_stuck : cfg -> giryM cfg :=
+    cst giryM_zero.
+
 
   (* | If (Val (LitV (LitBool true))) e1 e2  => giryM_ret R ((e1 , σ1) : cfg) *)
   Definition head_stepM_ifT : cfg -> giryM cfg :=
@@ -947,7 +1147,10 @@
                                                | Some _ => head_stepM_unop_ok c
                                                | _ => head_stepM_unop_stuck c
                                              end
-    | BinOp _ (Val _)(Val _)              => head_stepM_binop c
+    | BinOp op (Val v1) (Val v2)          => match bin_op_eval op v1 v2 with
+                                              | Some _ => head_stepM_binop_ok c
+                                              | None => head_stepM_binop_stuck c
+                                             end
     | If (Val (LitV (LitBool true))) _ _  => head_stepM_ifT c
     | If (Val (LitV (LitBool false))) _ _ => head_stepM_ifT c
     | Fst (Val (PairV _ _))               => head_stepM_fst c
@@ -1361,9 +1564,130 @@
   Qed.
   Hint Resolve head_stepM_unop_stuck_meas : measlang.
 
-  Lemma head_stepM_binop_meas : measurable_fun cover_binop head_stepM_def.
-  Proof. Admitted.
-  Hint Resolve head_stepM_binop_meas : measlang.
+
+  Lemma bin_op_evalC_meas : measurable_fun auxcov_binop_ok bin_op_evalC.
+  Proof.
+  Admitted.
+  Hint Resolve bin_op_evalC_meas : measlang.
+
+  Lemma head_stepM_binop_ok_meas : measurable_fun cover_binop_ok head_stepM_def.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_binop_ok head_stepM_def).
+    - apply measurable_compT; try by eauto with measlang.
+      eapply (@measurable_fun_prod' _ _ _ _ _ _
+              (ssrfun.comp ValU (ssrfun.comp bin_op_evalC (ssrfun.comp (Package3 𝜋_BinOp_op (ssrfun.comp 𝜋_Val_v 𝜋_BinOp_l) (ssrfun.comp 𝜋_Val_v 𝜋_BinOp_r)) fst)))
+              snd).
+      { by eauto with measlang. }
+      2: { eapply @mathcomp_measurable_fun_restiction_setT.
+           - by eauto with measlang.
+           - by apply measurable_snd.
+      }
+      apply measurable_compT; try by eauto with measlang.
+      { by apply ValU_measurable. }
+      eapply @measurable_comp.
+      3: { by eapply bin_op_evalC_meas. }
+      + by eauto with measlang.
+      + rewrite /subset//=.
+        move=> [[??]?][[??]+]//=.
+        move=> [++]//=.
+        move=> ?[++]//=.
+        move=> [?[?[?+]]]//=.
+        move=>//=->//=.
+        move=> [[[?+]+]+]//=.
+        move=> [?->]//=.
+        move=> [?->]//=.
+        by move=> +<-//=.
+      eapply (@measurable_comp _ _ _ _ _ _ cover_binop_ok').
+      4: { eapply @mathcomp_measurable_fun_restiction_setT.
+           - by eauto with measlang.
+           - by apply measurable_fst.
+      }
+      { by eauto with measlang. }
+      { rewrite /subset//=.
+        move=>?[[??]+]//=.
+        move=>[++]//=.
+        move=>?.
+        by move=>+<-//=.
+      }
+      apply @measurable_fun_prod'.
+      { by eauto with measlang. }
+      { apply @measurable_fun_prod'.
+        { by eauto with measlang. }
+        { unfold cover_binop_ok'.
+          rewrite <-(setIid ecov_binop).
+          rewrite <-setIA.
+          by apply measurable_fun_setI1; try by eauto with measlang. }
+        { eapply @measurable_comp.
+          3: { by apply 𝜋_Val_v_meas. }
+          { by eauto with measlang. }
+          2: { rewrite /cover_binop_ok'.
+               rewrite <-(setIid ecov_binop).
+               rewrite <-setIA.
+               by apply measurable_fun_setI1; try by eauto with measlang. }
+          { rewrite /subset//=.
+            move=>?[++].
+            move=>?[++].
+            move=>[?[?[?+]]]//=.
+            move=>->//=.
+            move=>[[[?+]+][++]]//=.
+            move=>[?->]//=.
+            move=>[?->]//=.
+            move=>??<-//=.
+            rewrite /ecov_val//=.
+            by eexists _.
+          }
+        }
+      }
+      { eapply @measurable_comp.
+        3: { by apply 𝜋_Val_v_meas. }
+        { by eauto with measlang. }
+        { rewrite /subset//=.
+          move=>?[++].
+          move=>?+<-//=.
+          rewrite /ecov_val//=.
+          move=>[++]//=.
+          move=>[?[?[?+]]]//=.
+          move=>->//=.
+          by move=>[[[?+]+]+]//=.
+        }
+        rewrite /cover_binop_ok'.
+        rewrite <-(setIid ecov_binop).
+        rewrite <-setIA.
+        by apply measurable_fun_setI1; try by eauto with measlang.
+      }
+    - move=>[e?].
+      move=>[++].
+      move=>?//=.
+      move=>[++]//=.
+      move=>[+[+[++]]].
+      move=>???->//=.
+      move=>[[[?+]+]+].
+      move=>[?->]//=.
+      move=>[?->]//=.
+      by move=>[?->]//=.
+    Unshelve. by eauto with measlang.
+  Qed.
+  Hint Resolve head_stepM_binop_ok_meas : measlang.
+
+  Lemma head_stepM_binop_stuck_meas : measurable_fun cover_binop_stuck head_stepM_def.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_binop_stuck head_stepM_def).
+    - by apply measurable_cst.
+    - move=>[e?].
+      move=>[?+]//=.
+      move=>[++]//=.
+      move=>[++]//=.
+      move=>?[++]//=.
+      move=>?[?+]//=.
+      rewrite //=; move=>->//=.
+      move=>[[[?+]+]+]//=.
+      move=>[?+]//=; move=>->//=.
+      move=>[?+]//=; move=>->//=.
+      rewrite /auxcov_binop_stuck//=.
+      by move=>->.
+    Unshelve. by eauto with measlang.
+  Qed.
+  Hint Resolve head_stepM_binop_stuck_meas : measlang.
 
   Lemma head_stepM_ifT_meas : measurable_fun cover_ifT head_stepM_def.
   Proof.
@@ -1630,7 +1954,8 @@
     - by apply cover_app_meas.
     - by apply cover_unop_ok_meas.
     - by apply cover_unop_stuck_meas.
-    - by apply cover_binop_meas.
+    - by apply cover_binop_ok_meas.
+    - by apply cover_binop_stuck_meas.
     - by apply cover_ifT_meas.
     - by apply cover_ifF_meas.
     - by apply cover_fst_meas.
@@ -1652,7 +1977,8 @@
     - by apply head_stepM_app_meas.
     - by apply head_stepM_unop_ok_meas.
     - by apply head_stepM_unop_stuck_meas.
-    - by apply head_stepM_binop_meas.
+    - by apply head_stepM_binop_ok_meas.
+    - by apply head_stepM_binop_stuck_meas.
     - by apply head_stepM_ifT_meas.
     - by apply head_stepM_ifF_meas.
     - by apply head_stepM_fst_meas.
