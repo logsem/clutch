@@ -1,250 +1,250 @@
-(* TODO cleanup imports *)
-From HB Require Import structures.
-From Coq Require Import Logic.ClassicalEpsilon Psatz.
-From stdpp Require Import base numbers binders strings gmap.
-From mathcomp Require Import functions.
-From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
-From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
-From iris.algebra Require Export ofe.
-From clutch.prelude Require Export stdpp_ext.
-From clutch.common Require Export locations.
-From clutch.meas_lang Require Import ectxi_language ectx_language.
-From Coq Require Export Reals.
-From clutch.prob.monad Require Export laws extras.
-From mathcomp.analysis Require Export Rstruct.
-From mathcomp Require Import classical_sets.
-Import Coq.Logic.FunctionalExtensionality.
-From clutch.prelude Require Import classical.
-From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state subst.
-(* From Coq Require Import Reals Psatz.
-From stdpp Require Export binders strings.
-From stdpp Require Import fin.
-From stdpp Require Import gmap fin_maps countable fin.
-From clutch.prob Require Export distribution.
-From clutch.common Require Export language ectx_language ectxi_language locations.
-From iris.prelude Require Import options.
-From mathcomp Require Import ssrbool eqtype fintype choice all_algebra finmap.
-From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
-From mathcomp Require Import cardinality fsbigop.
-From mathcomp.analysis Require Import reals ereal signed normedtype sequences esum numfun measure lebesgue_measure lebesgue_integral. *)
+  (* TODO cleanup imports *)
+  From HB Require Import structures.
+  From Coq Require Import Logic.ClassicalEpsilon Psatz.
+  From stdpp Require Import base numbers binders strings gmap.
+  From mathcomp Require Import functions.
+  From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
+  From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
+  From iris.algebra Require Export ofe.
+  From clutch.prelude Require Export stdpp_ext.
+  From clutch.common Require Export locations.
+  From clutch.meas_lang Require Import ectxi_language ectx_language.
+  From Coq Require Export Reals.
+  From clutch.prob.monad Require Export laws extras.
+  From mathcomp.analysis Require Export Rstruct.
+  From mathcomp Require Import classical_sets.
+  Import Coq.Logic.FunctionalExtensionality.
+  From clutch.prelude Require Import classical.
+  From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state subst.
+  (* From Coq Require Import Reals Psatz.
+  From stdpp Require Export binders strings.
+  From stdpp Require Import fin.
+  From stdpp Require Import gmap fin_maps countable fin.
+  From clutch.prob Require Export distribution.
+  From clutch.common Require Export language ectx_language ectxi_language locations.
+  From iris.prelude Require Import options.
+  From mathcomp Require Import ssrbool eqtype fintype choice all_algebra finmap.
+  From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
+  From mathcomp Require Import cardinality fsbigop.
+  From mathcomp.analysis Require Import reals ereal signed normedtype sequences esum numfun measure lebesgue_measure lebesgue_integral. *)
 
-Local Open Scope classical_set_scope.
+  Local Open Scope classical_set_scope.
 
-Notation of_val := Val (only parsing).
+  Notation of_val := Val (only parsing).
 
-Definition to_val (e : expr) : option val :=
-  match e with
-  | Val v => Some v
-  | _ => None
-  end.
+  Definition to_val (e : expr) : option val :=
+    match e with
+    | Val v => Some v
+    | _ => None
+    end.
 
-(** Equality and other typeclass stuff *)
-Lemma to_of_val v : to_val (of_val v) = Some v.
-Proof. by destruct v. Qed.
+  (** Equality and other typeclass stuff *)
+  Lemma to_of_val v : to_val (of_val v) = Some v.
+  Proof. by destruct v. Qed.
 
-Lemma of_to_val e v : to_val e = Some v → of_val v = e.
-Proof. destruct e=>//=. by intros [= <-]. Qed.
+  Lemma of_to_val e v : to_val e = Some v → of_val v = e.
+  Proof. destruct e=>//=. by intros [= <-]. Qed.
 
-Global Instance of_val_inj {T1 T2 T3 T4 : Type} : Inj (=) (=) (@of_val T1 T2 T3 T4).
-Proof. intros ??. congruence. Qed.
+  Global Instance of_val_inj {T1 T2 T3 T4 : Type} : Inj (=) (=) (@of_val T1 T2 T3 T4).
+  Proof. intros ??. congruence. Qed.
 
-Global Instance state_inhabited : Inhabited state := populate {| heap := gmap_empty; tapes := gmap_empty; utapes := gmap_empty |}.
+  Global Instance state_inhabited : Inhabited state := populate {| heap := gmap_empty; tapes := gmap_empty; utapes := gmap_empty |}.
 
-Canonical Structure stateO := leibnizO state.
-Canonical Structure locO := leibnizO loc.
-Canonical Structure valO := leibnizO val.
-Canonical Structure exprO := leibnizO expr.
-
-
+  Canonical Structure stateO := leibnizO state.
+  Canonical Structure locO := leibnizO loc.
+  Canonical Structure valO := leibnizO val.
+  Canonical Structure exprO := leibnizO expr.
 
 
-(** Evaluation contexts *)
-Inductive ectx_item :=
-  | AppLCtx (v2 : val)
-  | AppRCtx (e1 : expr)
-  | UnOpCtx (op : un_op)
-  | BinOpLCtx (op : bin_op) (v2 : val)
-  | BinOpRCtx (op : bin_op) (e1 : expr)
-  | IfCtx (e1 e2 : expr)
-  | PairLCtx (v2 : val)
-  | PairRCtx (e1 : expr)
-  | FstCtx
-  | SndCtx
-  | InjLCtx
-  | InjRCtx
-  | CaseCtx (e1 : expr) (e2 : expr)
-  | AllocNLCtx (v2 : val)
-  | AllocNRCtx (e1 : expr)
-  | LoadCtx
-  | StoreLCtx (v2 : val)
-  | StoreRCtx (e1 : expr)
-  | AllocTapeCtx
-  | RandLCtx (v2 : val)
-  | RandRCtx (e1 : expr)
-  | URandCtx
-  | TickCtx.
-
-Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
-  match Ki with
-  | AppLCtx v2 => App e (of_val v2)
-  | AppRCtx e1 => App e1 e
-  | UnOpCtx op => UnOp op e
-  | BinOpLCtx op v2 => BinOp op e (Val v2)
-  | BinOpRCtx op e1 => BinOp op e1 e
-  | IfCtx e1 e2 => If e e1 e2
-  | PairLCtx v2 => Pair e (Val v2)
-  | PairRCtx e1 => Pair e1 e
-  | FstCtx => Fst e
-  | SndCtx => Snd e
-  | InjLCtx => InjL e
-  | InjRCtx => InjR e
-  | CaseCtx e1 e2 => Case e e1 e2
-  | AllocNLCtx v2 => AllocN e (Val v2)
-  | AllocNRCtx e1 => AllocN e1 e
-  | LoadCtx => Load e
-  | StoreLCtx v2 => Store e (Val v2)
-  | StoreRCtx e1 => Store e1 e
-  | AllocTapeCtx => AllocTape e
-  | RandLCtx v2 => Rand e (Val v2)
-  | RandRCtx e1 => Rand e1 e
-  | URandCtx => URand e
-  | TickCtx => Tick e
-  end.
-
-Definition decomp_item (e : expr) : option (ectx_item * expr) :=
-  let noval (e : expr) (ei : ectx_item) :=
-    match e with Val _ => None | _ => Some (ei, e) end in
-  match e with
-  | App e1 e2      =>
-      match e2 with
-      | (Val v)    => noval e1 (AppLCtx v)
-      | _          => Some (AppRCtx e1, e2)
-      end
-  | UnOp op e      => noval e (UnOpCtx op)
-  | BinOp op e1 e2 =>
-      match e2 with
-      | Val v      => noval e1 (BinOpLCtx op v)
-      | _          => Some (BinOpRCtx op e1, e2)
-      end
-  | If e0 e1 e2    => noval e0 (IfCtx e1 e2)
-  | Pair e1 e2     =>
-      match e2 with
-      | Val v      => noval e1 (PairLCtx v)
-      | _          => Some (PairRCtx e1, e2)
-      end
-  | Fst e          => noval e FstCtx
-  | Snd e          => noval e SndCtx
-  | InjL e         => noval e InjLCtx
-  | InjR e         => noval e InjRCtx
-  | Case e0 e1 e2  => noval e0 (CaseCtx e1 e2)
-  | AllocN e1 e2        =>
-      match e2 with
-      | Val v      => noval e1 (AllocNLCtx v)
-      | _          => Some (AllocNRCtx e1, e2)
-      end
-
-  | Load e         => noval e LoadCtx
-  | Store e1 e2    =>
-      match e2 with
-      | Val v      => noval e1 (StoreLCtx v)
-      | _          => Some (StoreRCtx e1, e2)
-      end
-  | AllocTape e    => noval e AllocTapeCtx
-  | Rand e1 e2     =>
-      match e2 with
-      | Val v      => noval e1 (RandLCtx v)
-      | _          => Some (RandRCtx e1, e2)
-      end
-  | URand e        => noval e URandCtx
-  | Tick e         => noval e TickCtx
-  | _              => None
-  end.
-
-Definition un_op_eval (op : un_op) (v : val) : option val :=
-  match op, v with
-  | NegOp, LitV (LitBool b) => Some $ LitV $ LitBool (negb b)
-  | NegOp, LitV (LitInt z) => Some $ LitV $ LitInt (Z.lnot z)
-  | MinusUnOp, LitV (LitInt z) => Some $ LitV $ LitInt (- z)%Z
-  | MinusUnOp, LitV (LitReal r) => Some $ LitV $ LitReal (- r)%R
-  | _, _ => None
-  end.
-
-Definition bin_op_eval_int (op : bin_op) (n1 n2 : Z) : base_lit :=
-  match op with
-  | PlusOp => LitInt (n1 + n2)
-  | MinusOp => LitInt (n1 - n2)
-  | MultOp => LitInt (n1 * n2)
-  | QuotOp => LitInt (n1 `quot` n2)
-  | RemOp => LitInt (n1 `rem` n2)
-  | AndOp => LitInt (Z.land n1 n2)
-  | OrOp => LitInt (Z.lor n1 n2)
-  | XorOp => LitInt (Z.lxor n1 n2)
-  | ShiftLOp => LitInt (n1 ≪ n2)
-  | ShiftROp => LitInt (n1 ≫ n2)
-  | LeOp => LitBool (bool_decide (n1 ≤ n2))
-  | LtOp => LitBool (bool_decide (n1 < n2))
-  | EqOp => LitBool (bool_decide (n1 = n2))
-  | OffsetOp => LitInt (n1 + n2) (* Treat offsets as ints *)
-  end%Z.
 
 
-Definition bin_op_eval_bool (op : bin_op) (b1 b2 : bool) : option base_lit :=
-  match op with
-  | PlusOp | MinusOp | MultOp | QuotOp | RemOp => None (* Arithmetic *)
-  | AndOp => Some (LitBool (b1 && b2))
-  | OrOp => Some (LitBool (b1 || b2))
-  | XorOp => Some (LitBool (xorb b1 b2))
-  | ShiftLOp | ShiftROp => None (* Shifts *)
-  | LeOp | LtOp => None (* InEquality *)
-  | EqOp => Some (LitBool (bool_decide (b1 = b2)))
-  | OffsetOp => None
-  end.
+  (** Evaluation contexts *)
+  Inductive ectx_item :=
+    | AppLCtx (v2 : val)
+    | AppRCtx (e1 : expr)
+    | UnOpCtx (op : un_op)
+    | BinOpLCtx (op : bin_op) (v2 : val)
+    | BinOpRCtx (op : bin_op) (e1 : expr)
+    | IfCtx (e1 e2 : expr)
+    | PairLCtx (v2 : val)
+    | PairRCtx (e1 : expr)
+    | FstCtx
+    | SndCtx
+    | InjLCtx
+    | InjRCtx
+    | CaseCtx (e1 : expr) (e2 : expr)
+    | AllocNLCtx (v2 : val)
+    | AllocNRCtx (e1 : expr)
+    | LoadCtx
+    | StoreLCtx (v2 : val)
+    | StoreRCtx (e1 : expr)
+    | AllocTapeCtx
+    | RandLCtx (v2 : val)
+    | RandRCtx (e1 : expr)
+    | URandCtx
+    | TickCtx.
 
-Definition bin_op_eval_loc (op : bin_op) (l1 : loc) (v2 : base_lit) : option base_lit :=
-  match op, v2 with
-  | OffsetOp, LitInt off => Some $ LitLoc (l1 +ₗ off)
-  | LeOp, LitLoc l2 => Some $ LitBool (bool_decide (l1 ≤ₗ l2))
-  | LtOp, LitLoc l2 => Some $ LitBool (bool_decide (l1 <ₗ l2))
-  | _, _ => None
-  end.
+  Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
+    match Ki with
+    | AppLCtx v2 => App e (of_val v2)
+    | AppRCtx e1 => App e1 e
+    | UnOpCtx op => UnOp op e
+    | BinOpLCtx op v2 => BinOp op e (Val v2)
+    | BinOpRCtx op e1 => BinOp op e1 e
+    | IfCtx e1 e2 => If e e1 e2
+    | PairLCtx v2 => Pair e (Val v2)
+    | PairRCtx e1 => Pair e1 e
+    | FstCtx => Fst e
+    | SndCtx => Snd e
+    | InjLCtx => InjL e
+    | InjRCtx => InjR e
+    | CaseCtx e1 e2 => Case e e1 e2
+    | AllocNLCtx v2 => AllocN e (Val v2)
+    | AllocNRCtx e1 => AllocN e1 e
+    | LoadCtx => Load e
+    | StoreLCtx v2 => Store e (Val v2)
+    | StoreRCtx e1 => Store e1 e
+    | AllocTapeCtx => AllocTape e
+    | RandLCtx v2 => Rand e (Val v2)
+    | RandRCtx e1 => Rand e1 e
+    | URandCtx => URand e
+    | TickCtx => Tick e
+    end.
 
-Definition bin_op_eval_real (op : bin_op) (r1 r2 : R) : option base_lit :=
-  match op with
-  | PlusOp => Some $ LitReal (r1 + r2)
-  | MinusOp => Some $ LitReal (r1 - r2)
-  | MultOp => Some $ LitReal (r1 * r2)
-  | LeOp => Some $ LitBool $ bool_decide $ classical.make_decision (r1 <= r2)%R
-  | LtOp => Some $ LitBool $ bool_decide $ classical.make_decision (r1 < r2)%R
-  | EqOp => Some $ LitBool $ bool_decide $ classical.make_decision (r1 = r2)%R
-  | _ => None
-  end%R.
+  Definition decomp_item (e : expr) : option (ectx_item * expr) :=
+    let noval (e : expr) (ei : ectx_item) :=
+      match e with Val _ => None | _ => Some (ei, e) end in
+    match e with
+    | App e1 e2      =>
+        match e2 with
+        | (Val v)    => noval e1 (AppLCtx v)
+        | _          => Some (AppRCtx e1, e2)
+        end
+    | UnOp op e      => noval e (UnOpCtx op)
+    | BinOp op e1 e2 =>
+        match e2 with
+        | Val v      => noval e1 (BinOpLCtx op v)
+        | _          => Some (BinOpRCtx op e1, e2)
+        end
+    | If e0 e1 e2    => noval e0 (IfCtx e1 e2)
+    | Pair e1 e2     =>
+        match e2 with
+        | Val v      => noval e1 (PairLCtx v)
+        | _          => Some (PairRCtx e1, e2)
+        end
+    | Fst e          => noval e FstCtx
+    | Snd e          => noval e SndCtx
+    | InjL e         => noval e InjLCtx
+    | InjR e         => noval e InjRCtx
+    | Case e0 e1 e2  => noval e0 (CaseCtx e1 e2)
+    | AllocN e1 e2        =>
+        match e2 with
+        | Val v      => noval e1 (AllocNLCtx v)
+        | _          => Some (AllocNRCtx e1, e2)
+        end
 
-Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
-  if decide (op = EqOp) then
-    if decide (v1 = v2) then
-      Some $ LitV $ LitBool $ bool_decide (v1 = v2)
-    else
-      None
-  else
-    match v1 , v2 with
-    | LitV (LitInt n1), LitV (LitInt n2) => Some $ LitV $ bin_op_eval_int op n1 n2
-    | LitV (LitReal r1), LitV (LitReal r2) => LitV <$> bin_op_eval_real op r1 r2
-    | LitV (LitBool b1), LitV (LitBool b2) => LitV <$> bin_op_eval_bool op b1 b2
-    | LitV (LitLoc l1), LitV v2 => LitV <$> bin_op_eval_loc op l1 v2
+    | Load e         => noval e LoadCtx
+    | Store e1 e2    =>
+        match e2 with
+        | Val v      => noval e1 (StoreLCtx v)
+        | _          => Some (StoreRCtx e1, e2)
+        end
+    | AllocTape e    => noval e AllocTapeCtx
+    | Rand e1 e2     =>
+        match e2 with
+        | Val v      => noval e1 (RandLCtx v)
+        | _          => Some (RandRCtx e1, e2)
+        end
+    | URand e        => noval e URandCtx
+    | Tick e         => noval e TickCtx
+    | _              => None
+    end.
+
+  Definition un_op_eval (op : un_op) (v : val) : option val :=
+    match op, v with
+    | NegOp, LitV (LitBool b) => Some $ LitV $ LitBool (negb b)
+    | NegOp, LitV (LitInt z) => Some $ LitV $ LitInt (Z.lnot z)
+    | MinusUnOp, LitV (LitInt z) => Some $ LitV $ LitInt (- z)%Z
+    | MinusUnOp, LitV (LitReal r) => Some $ LitV $ LitReal (- r)%R
     | _, _ => None
     end.
 
-(* #[local] Open Scope R.  *)
+  Definition bin_op_eval_int (op : bin_op) (n1 n2 : Z) : base_lit :=
+    match op with
+    | PlusOp => LitInt (n1 + n2)
+    | MinusOp => LitInt (n1 - n2)
+    | MultOp => LitInt (n1 * n2)
+    | QuotOp => LitInt (n1 `quot` n2)
+    | RemOp => LitInt (n1 `rem` n2)
+    | AndOp => LitInt (Z.land n1 n2)
+    | OrOp => LitInt (Z.lor n1 n2)
+    | XorOp => LitInt (Z.lxor n1 n2)
+    | ShiftLOp => LitInt (n1 ≪ n2)
+    | ShiftROp => LitInt (n1 ≫ n2)
+    | LeOp => LitBool (bool_decide (n1 ≤ n2))
+    | LtOp => LitBool (bool_decide (n1 < n2))
+    | EqOp => LitBool (bool_decide (n1 = n2))
+    | OffsetOp => LitInt (n1 + n2) (* Treat offsets as ints *)
+    end%Z.
 
 
-Definition cfg : measurableType _ := (expr * state)%type.
+  Definition bin_op_eval_bool (op : bin_op) (b1 b2 : bool) : option base_lit :=
+    match op with
+    | PlusOp | MinusOp | MultOp | QuotOp | RemOp => None (* Arithmetic *)
+    | AndOp => Some (LitBool (b1 && b2))
+    | OrOp => Some (LitBool (b1 || b2))
+    | XorOp => Some (LitBool (xorb b1 b2))
+    | ShiftLOp | ShiftROp => None (* Shifts *)
+    | LeOp | LtOp => None (* InEquality *)
+    | EqOp => Some (LitBool (bool_decide (b1 = b2)))
+    | OffsetOp => None
+    end.
 
-Section unif.
-  Local Open Scope ereal_scope.
-  Local Open Scope classical_set_scope.
-  (* Uniform space over [0, 1]*)
-  Definition unif_base : subprobability _ R := uniform_prob (@Num.Internals.ltr01 R).
-End unif.
+  Definition bin_op_eval_loc (op : bin_op) (l1 : loc) (v2 : base_lit) : option base_lit :=
+    match op, v2 with
+    | OffsetOp, LitInt off => Some $ LitLoc (l1 +ₗ off)
+    | LeOp, LitLoc l2 => Some $ LitBool (bool_decide (l1 ≤ₗ l2))
+    | LtOp, LitLoc l2 => Some $ LitBool (bool_decide (l1 <ₗ l2))
+    | _, _ => None
+    end.
+
+  Definition bin_op_eval_real (op : bin_op) (r1 r2 : R) : option base_lit :=
+    match op with
+    | PlusOp => Some $ LitReal (r1 + r2)
+    | MinusOp => Some $ LitReal (r1 - r2)
+    | MultOp => Some $ LitReal (r1 * r2)
+    | LeOp => Some $ LitBool $ bool_decide $ classical.make_decision (r1 <= r2)%R
+    | LtOp => Some $ LitBool $ bool_decide $ classical.make_decision (r1 < r2)%R
+    | EqOp => Some $ LitBool $ bool_decide $ classical.make_decision (r1 = r2)%R
+    | _ => None
+    end%R.
+
+  Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
+    if decide (op = EqOp) then
+      if decide (v1 = v2) then
+        Some $ LitV $ LitBool $ bool_decide (v1 = v2)
+      else
+        None
+    else
+      match v1 , v2 with
+      | LitV (LitInt n1), LitV (LitInt n2) => Some $ LitV $ bin_op_eval_int op n1 n2
+      | LitV (LitReal r1), LitV (LitReal r2) => LitV <$> bin_op_eval_real op r1 r2
+      | LitV (LitBool b1), LitV (LitBool b2) => LitV <$> bin_op_eval_bool op b1 b2
+      | LitV (LitLoc l1), LitV v2 => LitV <$> bin_op_eval_loc op l1 v2
+      | _, _ => None
+      end.
+
+  (* #[local] Open Scope R.  *)
+
+
+  Definition cfg : measurableType _ := (expr * state)%type.
+
+  Section unif.
+    Local Open Scope ereal_scope.
+    Local Open Scope classical_set_scope.
+    (* Uniform space over [0, 1]*)
+    Definition unif_base : subprobability _ R := uniform_prob (@Num.Internals.ltr01 R).
+  End unif.
 
 
 
@@ -254,453 +254,511 @@ End unif.
 
 
 
-Section meas_semantics.
-  Local Open Scope ereal_scope.
-  Local Open Scope classical_set_scope.
+  Section meas_semantics.
+    Local Open Scope ereal_scope.
+    Local Open Scope classical_set_scope.
 
-  (** The head_step relation
-        - Cover for the pattern match
-        - Function for each case (doesn't use pattern match)
-          - Measuability of each function on the cover
+    (** The head_step relation
+          - Cover for the pattern match
+          - Function for each case (doesn't use pattern match)
+            - Measuability of each function on the cover
 
-        Since the top-level cover is just pattern matching on expr, it's of the form
-          (measurable expr set, setT of states)
-        This means that I can define it in terms of generic lifts of ecov.
-   *)
+          Since the top-level cover is just pattern matching on expr, it's of the form
+            (measurable expr set, setT of states)
+          This means that I can define it in terms of generic lifts of ecov.
+    *)
 
-  (* Lift a set S to [ (s, σ) | s ∈ S, σ ∈ State ] *)
-  Definition NonStatefulS {A : Type} (S : set A) : set (A * state) := preimage fst S.
+    (* Lift a set S to [ (s, σ) | s ∈ S, σ ∈ State ] *)
+    Definition NonStatefulS {A : Type} (S : set A) : set (A * state) := preimage fst S.
 
-  Lemma NonStatefulS_measurable {d} {T : measurableType d} (S : set T) (HS : measurable S) :
-      measurable (NonStatefulS S).
-  Proof.
-    rewrite <- (setTI (NonStatefulS S)).
-    rewrite /NonStatefulS.
-    apply measurable_fst; [|done].
-    by eapply @measurableT.
-  Qed.
-  Hint Resolve NonStatefulS_measurable : measlang.
-
-
+    Lemma NonStatefulS_measurable {d} {T : measurableType d} (S : set T) (HS : measurable S) :
+        measurable (NonStatefulS S).
+    Proof.
+      rewrite <- (setTI (NonStatefulS S)).
+      rewrite /NonStatefulS.
+      apply measurable_fst; [|done].
+      by eapply @measurableT.
+    Qed.
+    Hint Resolve NonStatefulS_measurable : measlang.
 
 
 
-  (**  The top-level cover for head_step *)
 
-  (* [set c | ∃ f x e σ, c = (Rec f x e, σ) ]. *)
-  Definition cover_rec : set cfg :=
-    NonStatefulS ecov_rec.
 
-  (*[set c | ∃ v1 v2 σ, c = (Pair (Val v1) (Val v2), σ) ].*)
-  Program Definition cover_pair : set cfg :=
-    NonStatefulS $
-    setI ecov_pair $
-    preimage 𝜋_PairU $
-    (ecov_val `*` ecov_val).
+    (**  The top-level cover for head_step *)
 
-  (* [set c | ∃ v σ, c = (InjL (Val v), σ) ]. *)
-  Definition cover_injL : set cfg :=
-    NonStatefulS $
-    setI ecov_injl $
-    preimage 𝜋_InjLU $
-    ecov_val.
+    (* [set c | ∃ f x e σ, c = (Rec f x e, σ) ]. *)
+    Definition cover_rec : set cfg :=
+      NonStatefulS ecov_rec.
 
-  (* [set c | ∃ v σ, c = (InjR (Val v), σ) ]. *)
-  Definition cover_injR : set cfg :=
-    NonStatefulS $
-    setI ecov_injr $
-    preimage 𝜋_InjRU $
-    ecov_val.
+    (*[set c | ∃ v1 v2 σ, c = (Pair (Val v1) (Val v2), σ) ].*)
+    Program Definition cover_pair : set cfg :=
+      NonStatefulS $
+      setI ecov_pair $
+      preimage 𝜋_PairU $
+      (ecov_val `*` ecov_val).
 
-  (*  [set c | ∃ f x e1 v2 σ,  c = (App (Val (RecV f x e1)) (Val v2) , σ) ]. *)
-  Definition cover_app : set cfg :=
-    NonStatefulS $
-    setI ecov_app $
-    preimage 𝜋_AppU $
-    setX
-      ( setI ecov_val $
-        preimage 𝜋_Val_v $
-        vcov_rec )
+    (* [set c | ∃ v σ, c = (InjL (Val v), σ) ]. *)
+    Definition cover_injL : set cfg :=
+      NonStatefulS $
+      setI ecov_injl $
+      preimage 𝜋_InjLU $
       ecov_val.
 
-  (* [set c | ∃ v op w σ, c = (UnOp op (Val v), σ) *)
-  Definition cover_unop : set cfg :=
-    NonStatefulS $
-    setI ecov_unop $
-    preimage 𝜋_UnOpU $
-    setX setT ecov_val.
+    (* [set c | ∃ v σ, c = (InjR (Val v), σ) ]. *)
+    Definition cover_injR : set cfg :=
+      NonStatefulS $
+      setI ecov_injr $
+      preimage 𝜋_InjRU $
+      ecov_val.
+
+    (*  [set c | ∃ f x e1 v2 σ,  c = (App (Val (RecV f x e1)) (Val v2) , σ) ]. *)
+    Definition cover_app : set cfg :=
+      NonStatefulS $
+      setI ecov_app $
+      preimage 𝜋_AppU $
+      setX
+        ( setI ecov_val $
+          preimage 𝜋_Val_v $
+          vcov_rec )
+        ecov_val.
+
+    (* [set c | ∃ v op w σ, c = (UnOp op (Val v), σ) *)
+    Definition cover_unop : set cfg :=
+      NonStatefulS $
+      setI ecov_unop $
+      preimage 𝜋_UnOpU $
+      setX setT ecov_val.
 
 
-  (* TODO: Prove that the next 4 sets are measurable *)
-  Definition auxcov_unop_ok : set (<<discr un_op>> * val)%type :=
-    [set x | ∃ w, un_op_eval x.1 x.2 = Some w].
+    (* TODO: Prove that the next 4 sets are measurable *)
+    Definition auxcov_unop_ok : set (<<discr un_op>> * val)%type :=
+      [set x | ∃ w, un_op_eval x.1 x.2 = Some w].
 
-  Definition cover_unop_ok : set cfg :=
-    setI cover_unop $
-    preimage fst $
-    preimage 𝜋_UnOpU $
-    preimage (mProd fst (ssrfun.comp 𝜋_Val_v snd)) $
-    auxcov_unop_ok.
+    Definition cover_unop_ok' : set expr :=
+      setI ecov_unop $
+      preimage 𝜋_UnOpU $
+      setI (setX setT ecov_val) $
+      preimage (mProd fst (ssrfun.comp 𝜋_Val_v snd)) $
+      auxcov_unop_ok.
 
-  Definition auxcov_unop_stuck : set (<<discr un_op>> * val)%type :=
-    [set x | un_op_eval x.1 x.2 = None].
+    Definition cover_unop_ok : set cfg :=
+      setI setT $
+      preimage fst $
+      cover_unop_ok'.
 
-  Definition cover_unop_stuck : set cfg :=
-    setI cover_unop $
-    preimage fst $
-    preimage 𝜋_UnOpU $
-    preimage (mProd fst (ssrfun.comp 𝜋_Val_v snd)) $
-    auxcov_unop_stuck.
+    Definition auxcov_unop_stuck : set (<<discr un_op>> * val)%type :=
+      [set x | un_op_eval x.1 x.2 = None].
 
+    Definition cover_unop_stuck : set cfg :=
+      setI setT $
+      preimage fst $
+      setI ecov_unop $
+      preimage 𝜋_UnOpU $
+      setI (setX setT ecov_val) $
+      preimage (mProd fst (ssrfun.comp 𝜋_Val_v snd)) $
+      auxcov_unop_stuck.
 
+    (* [set c | ∃ v op w σ, c = (BinOp (Val v1) (Val v2), σ) *)
+    Definition cover_binop : set cfg :=
+      NonStatefulS $
+      setI ecov_binop $
+      preimage 𝜋_BinOpU $
+      setX (setX setT ecov_val) ecov_val.
 
-  (* [set c | ∃ v op w σ, c = (BinOp (Val v1) (Val v2), σ) *)
-  Definition cover_binop : set cfg :=
-    NonStatefulS $
-    setI ecov_binop $
-    preimage 𝜋_BinOpU $
-    setX (setX setT ecov_val) ecov_val.
+    (* [set c | ∃ e1 e2 σ, c = (If (Val (LitV (LitBool true))) e1 e2, σ) ]*)
+    Definition cover_ifT : set cfg :=
+      NonStatefulS $
+      setI ecov_if $
+      preimage 𝜋_If_c $
+      setI ecov_val $
+      preimage 𝜋_Val_v $
+      setI vcov_lit $
+      preimage 𝜋_LitV_v $
+      setI bcov_LitBool $
+      preimage 𝜋_LitBool_b $
+      [set true].
 
-  (* [set c | ∃ e1 e2 σ, c = (If (Val (LitV (LitBool true))) e1 e2, σ) ]*)
-  Definition cover_ifT : set cfg :=
-    NonStatefulS $
-    setI ecov_if $
-    preimage 𝜋_If_c $
-    setI ecov_val $
-    preimage 𝜋_Val_v $
-    setI vcov_lit $
-    preimage 𝜋_LitV_v $
-    setI bcov_LitBool $
-    preimage 𝜋_LitBool_b $
-    [set true].
+    (* [set c | ∃ e1 e2 σ, c = (If (Val (LitV (LitBool false))) e1 e2, σ) ] *)
+    Definition cover_ifF : set cfg :=
+      NonStatefulS $
+      setI ecov_if $
+      preimage 𝜋_If_c $
+      setI ecov_val $
+      preimage 𝜋_Val_v $
+      setI vcov_lit $
+      preimage 𝜋_LitV_v $
+      setI bcov_LitBool $
+      preimage 𝜋_LitBool_b $
+      [set false].
 
-  (* [set c | ∃ e1 e2 σ, c = (If (Val (LitV (LitBool false))) e1 e2, σ) ] *)
-  Definition cover_ifF : set cfg :=
-    NonStatefulS $
-    setI ecov_if $
-    preimage 𝜋_If_c $
-    setI ecov_val $
-    preimage 𝜋_Val_v $
-    setI vcov_lit $
-    preimage 𝜋_LitV_v $
-    setI bcov_LitBool $
-    preimage 𝜋_LitBool_b $
-    [set false].
+    (* [set c | ∃ v1 v2 σ, c = (Fst (Val (PairV v1 v2)), σ) ] *)
+    Definition cover_fst : set cfg :=
+      NonStatefulS $
+      setI ecov_fst $
+      preimage 𝜋_Fst_e $
+      setI ecov_val $
+      preimage 𝜋_Val_v $
+      vcov_pair.
 
-  (* [set c | ∃ v1 v2 σ, c = (Fst (Val (PairV v1 v2)), σ) ] *)
-  Definition cover_fst : set cfg :=
-    NonStatefulS $
-    setI ecov_fst $
-    preimage 𝜋_Fst_e $
-    setI ecov_val $
-    preimage 𝜋_Val_v $
-    vcov_pair.
+    (* [set c | ∃ v1 v2 σ, c = (Snd (Val (PairV v1 v2)), σ) ] *)
+    Definition cover_snd : set cfg :=
+      NonStatefulS $
+      setI ecov_snd $
+      preimage 𝜋_Snd_e $
+      setI ecov_val $
+      preimage 𝜋_Val_v $
+      vcov_pair.
 
-  (* [set c | ∃ v1 v2 σ, c = (Snd (Val (PairV v1 v2)), σ) ] *)
-  Definition cover_snd : set cfg :=
-    NonStatefulS $
-    setI ecov_snd $
-    preimage 𝜋_Snd_e $
-    setI ecov_val $
-    preimage 𝜋_Val_v $
-    vcov_pair.
+    (* [set c | ∃ v e1 e2 σ, c = (Case (Val (InjLV v)) e1 e2, σ) ] *)
+    Program Definition cover_caseL : set cfg :=
+      NonStatefulS $
+      setI ecov_case $
+      preimage 𝜋_Case_c $
+      setI ecov_val $
+      preimage 𝜋_Val_v $
+      vcov_injlv.
 
-  (* [set c | ∃ v e1 e2 σ, c = (Case (Val (InjLV v)) e1 e2, σ) ] *)
-  Program Definition cover_caseL : set cfg :=
-    NonStatefulS $
-    setI ecov_case $
-    preimage 𝜋_Case_c $
-    setI ecov_val $
-    preimage 𝜋_Val_v $
-    vcov_injlv.
+    (* [set c | ∃ v e1 e2 σ, c = (Case (Val (InjRV v)) e1 e2, σ) ] *)
+    Definition cover_caseR : set cfg :=
+      NonStatefulS $
+      setI ecov_case $
+      preimage 𝜋_Case_c $
+      setI ecov_val $
+      preimage 𝜋_Val_v $
+      vcov_injrv.
 
-  (* [set c | ∃ v e1 e2 σ, c = (Case (Val (InjRV v)) e1 e2, σ) ] *)
-  Definition cover_caseR : set cfg :=
-    NonStatefulS $
-    setI ecov_case $
-    preimage 𝜋_Case_c $
-    setI ecov_val $
-    preimage 𝜋_Val_v $
-    vcov_injrv.
+    (* [set c | ∃ σ n, c = (Tick (Val (LitV (LitInt n))), σ) ]  *)
+    Definition cover_tick : set cfg :=
+      NonStatefulS $
+      setI ecov_tick $
+      preimage 𝜋_Tick_e $
+      setI ecov_val $
+      preimage 𝜋_Val_v $
+      setI vcov_lit $
+      preimage 𝜋_LitV_v $
+      bcov_LitInt.
 
-  (* [set c | ∃ σ n, c = (Tick (Val (LitV (LitInt n))), σ) ]  *)
-  Definition cover_tick : set cfg :=
-    NonStatefulS $
-    setI ecov_tick $
-    preimage 𝜋_Tick_e $
-    setI ecov_val $
-    preimage 𝜋_Val_v $
-    setI vcov_lit $
-    preimage 𝜋_LitV_v $
-    bcov_LitInt.
-
-  (*
-  Definition cover_allocN_ok       : set cfg := [set c | ∃ N v σ,        c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = true].
-  Definition cover_allocN_stuck    : set cfg := [set c | ∃ N v σ,        c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = false].
-  Definition cover_load_ok         : set cfg := [set c | ∃ l w σ,        c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = Some w].
-  Definition cover_load_stuck      : set cfg := [set c | ∃ l σ,          c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = None].
-  Definition cover_store_ok        : set cfg := [set c | ∃ l w w' σ,     c = (Store (Val (LitV (LitLoc l))) (Val w), σ) /\ σ.(heap) !! l = Some w'].
-  Definition cover_store_stuck     : set cfg := [set c | ∃ l w σ,        c = (Store (Val (LitV (LitLoc l))) (Val w), σ) /\ σ.(heap) !! l = None ].
-  Definition cover_randE           : set cfg := [set c | ∃ N σ,          c = (Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)), σ) ].
-  Definition cover_alloctape       : set cfg := [set c | ∃ z σ,          c = (AllocTape (Val (LitV (LitInt z))), σ) ].
-  Definition cover_randT_notape    : set cfg := [set c | ∃ N l σ,        c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = None ].
-  Definition cover_randT_mismatch  : set cfg := [set c | ∃ N l b σ,      c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = false)].
-  Definition cover_randT_empty     : set cfg := [set c | ∃ N l b σ,      c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = true) /\ (b.(btape_tape) !! 0) = None].
-  Definition cover_randT           : set cfg := [set c | ∃ N l b n σ,    c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = true) /\ (b.(btape_tape) !! 0) = Some n].
-  Definition cover_allocutape      : set cfg := [set c | ∃ σ,            c = (AllocUTape, σ) ].
-  Definition cover_urandE          : set cfg := [set c | ∃ σ,            c = (URand (Val (LitV LitUnit)), σ) ].
-  Definition cover_urandT_notape   : set cfg := [set c | ∃ σ l,          c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = None ].
-  Definition cover_urandT_empty    : set cfg := [set c | ∃ σ l τ,        c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = Some τ /\ (τ !! 0) = None].
-  Definition cover_urandT          : set cfg := [set c | ∃ σ l τ v,      c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = Some τ /\ (τ !! 0) = Some v].
-  *)
-
-  Definition cfg_cover_pre : list (set cfg) := [
-    cover_rec;
-    cover_pair;
-    cover_injL;
-    cover_injR;
-    cover_app;
-    cover_unop_ok;
-    cover_unop_stuck;
-    cover_binop;
-    cover_ifT;
-    cover_ifF;
-    cover_fst;
-    cover_snd;
-    cover_caseL;
-    cover_caseR;
     (*
-    cover_allocN_ok;
-    cover_allocN_stuck;
-    cover_load_ok;
-    cover_load_stuck;
-    cover_store_stuck;
-    cover_store_ok;
-    cover_randE;
-    cover_alloctape;
-    cover_randT_notape;
-    cover_randT_mismatch;
-    cover_randT_empty;
-    cover_randT;
-    cover_allocutape;
-    cover_urandE;
-    cover_urandT_notape;
-    cover_urandT_empty;
-    cover_urandT;
-     *)
-    cover_tick
-  ].
+    Definition cover_allocN_ok       : set cfg := [set c | ∃ N v σ,        c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = true].
+    Definition cover_allocN_stuck    : set cfg := [set c | ∃ N v σ,        c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = false].
+    Definition cover_load_ok         : set cfg := [set c | ∃ l w σ,        c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = Some w].
+    Definition cover_load_stuck      : set cfg := [set c | ∃ l σ,          c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = None].
+    Definition cover_store_ok        : set cfg := [set c | ∃ l w w' σ,     c = (Store (Val (LitV (LitLoc l))) (Val w), σ) /\ σ.(heap) !! l = Some w'].
+    Definition cover_store_stuck     : set cfg := [set c | ∃ l w σ,        c = (Store (Val (LitV (LitLoc l))) (Val w), σ) /\ σ.(heap) !! l = None ].
+    Definition cover_randE           : set cfg := [set c | ∃ N σ,          c = (Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)), σ) ].
+    Definition cover_alloctape       : set cfg := [set c | ∃ z σ,          c = (AllocTape (Val (LitV (LitInt z))), σ) ].
+    Definition cover_randT_notape    : set cfg := [set c | ∃ N l σ,        c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = None ].
+    Definition cover_randT_mismatch  : set cfg := [set c | ∃ N l b σ,      c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = false)].
+    Definition cover_randT_empty     : set cfg := [set c | ∃ N l b σ,      c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = true) /\ (b.(btape_tape) !! 0) = None].
+    Definition cover_randT           : set cfg := [set c | ∃ N l b n σ,    c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = true) /\ (b.(btape_tape) !! 0) = Some n].
+    Definition cover_allocutape      : set cfg := [set c | ∃ σ,            c = (AllocUTape, σ) ].
+    Definition cover_urandE          : set cfg := [set c | ∃ σ,            c = (URand (Val (LitV LitUnit)), σ) ].
+    Definition cover_urandT_notape   : set cfg := [set c | ∃ σ l,          c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = None ].
+    Definition cover_urandT_empty    : set cfg := [set c | ∃ σ l τ,        c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = Some τ /\ (τ !! 0) = None].
+    Definition cover_urandT          : set cfg := [set c | ∃ σ l τ v,      c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = Some τ /\ (τ !! 0) = Some v].
+    *)
 
-  Definition cover_maybe_stuck : set cfg. Admitted. (* compliment of union of cfg_cover_pre *)
+    Definition cfg_cover_pre : list (set cfg) := [
+      cover_rec;
+      cover_pair;
+      cover_injL;
+      cover_injR;
+      cover_app;
+      cover_unop_ok;
+      cover_unop_stuck;
+      cover_binop;
+      cover_ifT;
+      cover_ifF;
+      cover_fst;
+      cover_snd;
+      cover_caseL;
+      cover_caseR;
+      (*
+      cover_allocN_ok;
+      cover_allocN_stuck;
+      cover_load_ok;
+      cover_load_stuck;
+      cover_store_stuck;
+      cover_store_ok;
+      cover_randE;
+      cover_alloctape;
+      cover_randT_notape;
+      cover_randT_mismatch;
+      cover_randT_empty;
+      cover_randT;
+      cover_allocutape;
+      cover_urandE;
+      cover_urandT_notape;
+      cover_urandT_empty;
+      cover_urandT;
+      *)
+      cover_tick
+    ].
 
-  Definition cfg_cover : list (set cfg) := cfg_cover_pre ++ [cover_maybe_stuck].
+    Definition cover_maybe_stuck : set cfg. Admitted. (* compliment of union of cfg_cover_pre *)
 
-
-
-  (**The top-level cover is a cover *)
-
-  Lemma cfg_cover_is_cover : List.fold_right setU set0 cfg_cover = setT.
-  Proof.
-    (* FIXME
-
-    rewrite /cfg_cover/=/cover_maybe_stuck.
-    rewrite setTU.
-    repeat rewrite setUT.
-    done. *)
-  Admitted.
-
-
-  (** The top-level cover is measurable *)
-
-  Lemma cover_rec_meas : measurable cover_rec.
-  Proof. by apply NonStatefulS_measurable; eauto with measlang. Qed.
-  Hint Resolve cover_rec_meas : measlang.
-
-  Lemma cover_pair_meas : measurable cover_pair.
-  Proof.
-    apply NonStatefulS_measurable.
-    apply 𝜋_PairU_meas; eauto with measlang.
-    apply measurableX; by eauto with measlang.
-  Qed.
-  Hint Resolve cover_pair_meas : measlang.
-
-  Lemma cover_injL_meas : measurable cover_injL.
-  Proof.
-    apply NonStatefulS_measurable.
-    by apply 𝜋_InjLU_meas; eauto with measlang.
-  Qed.
-
-  Hint Resolve cover_injL_meas : measlang.
-
-  Lemma cover_injR_meas : measurable cover_injR.
-  Proof.
-    apply NonStatefulS_measurable.
-    by apply 𝜋_InjRU_meas; eauto with measlang.
-  Qed.
-  Hint Resolve cover_injR_meas : measlang.
-
-  Lemma cover_app_meas : measurable cover_app.
-  Proof.
-    apply NonStatefulS_measurable.
-    apply 𝜋_AppU_meas; eauto with measlang.
-    apply measurableX.
-    - by apply 𝜋_ValU_meas; eauto with measlang.
-    - by eauto with measlang.
-  Qed.
-  Hint Resolve cover_app_meas : measlang.
-
-  Lemma cover_unop_meas : measurable cover_unop.
-  Proof.
-    apply NonStatefulS_measurable.
-    apply 𝜋_UnOpU_meas; eauto with measlang.
-    apply measurableX; by eauto with measlang.
-  Qed.
-  Hint Resolve cover_unop_meas : measlang.
+    Definition cfg_cover : list (set cfg) := cfg_cover_pre ++ [cover_maybe_stuck].
 
 
-  Lemma cover_unop_ok_meas : measurable cover_unop_ok.
-  Proof. Admitted.
-  Hint Resolve cover_unop_ok_meas : measlang.
 
-  Lemma cover_unop_stuck_meas : measurable cover_unop_stuck.
-  Proof. Admitted.
-  Hint Resolve cover_unop_stuck_meas : measlang.
+    (**The top-level cover is a cover *)
 
-  Lemma cover_binop_meas : measurable cover_binop.
-  Proof.
-    apply NonStatefulS_measurable.
-    apply 𝜋_BinOpU_meas; eauto with measlang.
-    apply measurableX; try by eauto with measlang.
-    apply measurableX; try by eauto with measlang.
-  Qed.
-  Hint Resolve cover_binop_meas : measlang.
+    Lemma cfg_cover_is_cover : List.fold_right setU set0 cfg_cover = setT.
+    Proof.
+      (* FIXME
 
-  Lemma cover_ifT_meas : measurable cover_ifT.
-  Proof.
-    apply NonStatefulS_measurable.
-    apply 𝜋_If_c_meas; first by eauto with measlang.
-    apply 𝜋_Val_v_meas; first by eauto with measlang.
-    apply 𝜋_LitV_v_meas; first by eauto with measlang.
-    apply 𝜋_LitBool_b_meas; first by eauto with measlang.
-    by rewrite /measurable/discr_meas//=.
-  Qed.
-  Hint Resolve cover_ifT_meas : measlang.
+      rewrite /cfg_cover/=/cover_maybe_stuck.
+      rewrite setTU.
+      repeat rewrite setUT.
+      done. *)
+    Admitted.
 
-  Lemma cover_ifF_meas : measurable cover_ifF.
-  Proof.
-    apply NonStatefulS_measurable.
-    apply 𝜋_If_c_meas; first by eauto with measlang.
-    apply 𝜋_Val_v_meas; first by eauto with measlang.
-    apply 𝜋_LitV_v_meas; first by eauto with measlang.
-    apply 𝜋_LitBool_b_meas; first by eauto with measlang.
-    by rewrite /measurable/discr_meas//=.
-  Qed.
-  Hint Resolve cover_ifF_meas : measlang.
 
-  Lemma cover_fst_meas : measurable cover_fst.
-  Proof.
-    apply NonStatefulS_measurable.
-    apply 𝜋_Fst_e_meas; first by eauto with measlang.
-    apply 𝜋_Val_v_meas; first by eauto with measlang.
-    eauto with measlang.
-  Qed.
-  Hint Resolve cover_fst_meas : measlang.
+    (** The top-level cover is measurable *)
 
-  Lemma cover_snd_meas : measurable cover_snd.
-  Proof.
-    apply NonStatefulS_measurable.
-    apply 𝜋_Snd_e_meas; first by eauto with measlang.
-    apply 𝜋_Val_v_meas; first by eauto with measlang.
-    eauto with measlang.
-  Qed.
-  Hint Resolve cover_snd_meas : measlang.
+    Lemma cover_rec_meas : measurable cover_rec.
+    Proof. by apply NonStatefulS_measurable; eauto with measlang. Qed.
+    Hint Resolve cover_rec_meas : measlang.
 
-  Lemma cover_caseL_meas : measurable cover_caseL.
-  Proof.
-    apply NonStatefulS_measurable.
-    apply 𝜋_Case_c_meas; first by eauto with measlang.
-    apply 𝜋_Val_v_meas; first by eauto with measlang.
-    eauto with measlang.
-  Qed.
-  Hint Resolve cover_caseL_meas : measlang.
+    Lemma cover_pair_meas : measurable cover_pair.
+    Proof.
+      apply NonStatefulS_measurable.
+      apply 𝜋_PairU_meas; eauto with measlang.
+      apply measurableX; by eauto with measlang.
+    Qed.
+    Hint Resolve cover_pair_meas : measlang.
 
-  Lemma cover_caseR_meas : measurable cover_caseR.
-  Proof.
-    apply NonStatefulS_measurable.
-    apply 𝜋_Case_c_meas; first by eauto with measlang.
-    apply 𝜋_Val_v_meas; first by eauto with measlang.
-    eauto with measlang.
-  Qed.
-  Hint Resolve cover_caseR_meas : measlang.
+    Lemma cover_injL_meas : measurable cover_injL.
+    Proof.
+      apply NonStatefulS_measurable.
+      by apply 𝜋_InjLU_meas; eauto with measlang.
+    Qed.
 
-  Lemma cover_tick_meas : measurable cover_tick.
-  Proof.
-    apply NonStatefulS_measurable.
-    apply 𝜋_Tick_e_meas; first by eauto with measlang.
-    apply 𝜋_Val_v_meas; first by eauto with measlang.
-    apply 𝜋_LitV_v_meas; first by eauto with measlang.
-    eauto with measlang.
-  Qed.
-  Hint Resolve cover_tick_meas : measlang.
+    Hint Resolve cover_injL_meas : measlang.
 
-  Lemma cover_maybe_stuck_meas : measurable cover_maybe_stuck.
-  Proof. Admitted.
+    Lemma cover_injR_meas : measurable cover_injR.
+    Proof.
+      apply NonStatefulS_measurable.
+      by apply 𝜋_InjRU_meas; eauto with measlang.
+    Qed.
+    Hint Resolve cover_injR_meas : measlang.
 
-  (**  Top-level functions *)
+    Lemma cover_app_meas : measurable cover_app.
+    Proof.
+      apply NonStatefulS_measurable.
+      apply 𝜋_AppU_meas; eauto with measlang.
+      apply measurableX.
+      - by apply 𝜋_ValU_meas; eauto with measlang.
+      - by eauto with measlang.
+    Qed.
+    Hint Resolve cover_app_meas : measlang.
 
-  (* Generic lifting of a curried constructor on expr to a curried constructor on states *)
-  Definition NonStatefulU {A : Type} (C : A -> expr) : (A * state) -> cfg := fun x => (C x.1, x.2).
+    Lemma cover_unop_meas : measurable cover_unop.
+    Proof.
+      apply NonStatefulS_measurable.
+      apply 𝜋_UnOpU_meas; eauto with measlang.
+      apply measurableX; by eauto with measlang.
+    Qed.
+    Hint Resolve cover_unop_meas : measlang.
 
-  Lemma NonStatefulU_meas {d} {A : measurableType d} (C : A -> expr) (S : set A) (HS : measurable S)
-      (HC : measurable_fun S C) : measurable_fun (NonStatefulS S) (NonStatefulU C).
-  Proof.
-    rewrite /NonStatefulU//=.
-    have H1 : measurable_fun (T:=A) (U:=A) S m_id.
-    { apply mathcomp_measurable_fun_restiction_setT; [done|].
-      by apply measurable_mapP.
-    }
-    apply (measurable_fun_prod' (ssrfun.comp C fst) snd (NonStatefulS S) (NonStatefulS_measurable S HS)).
-    - eapply measurable_comp.
-      3: { by apply HC. }
-      + by apply HS.
-      + by rewrite /NonStatefulS/preimage/subset//=; move=> t [??<-].
-      + apply (mathcomp_measurable_fun_restiction_setT (NonStatefulS S) (NonStatefulS_measurable S HS) fst).
-        by apply measurable_fst.
-    - apply (mathcomp_measurable_fun_restiction_setT (NonStatefulS S) (NonStatefulS_measurable S HS) snd).
-        by apply measurable_snd.
-  Qed.
+    Lemma auxcov_unop_ok_meas : measurable auxcov_unop_ok.
+    Proof.
+    Admitted.
+    Hint Resolve auxcov_unop_ok_meas : measlang.
 
-  Section MAddState.
-    Definition mAddState_def (x : state) (e : expr) : cfg := (e, x).
-    Lemma mAddState_def_measurable (x : state) : @measurable_fun _ _ expr cfg setT (mAddState_def x).
-    Proof. apply measurable_fun_prod'_expr; done. Qed.
-    HB.instance Definition _ (x : state) :=
-      isMeasurableMap.Build _ _ expr cfg (mAddState_def x) (mAddState_def_measurable x).
-  End MAddState.
 
-  Definition mAddState (x : state) : measurable_map expr cfg := mAddState_def x.
+    Lemma cover_unop_ok'_meas : measurable cover_unop_ok'.
+    Proof.
+      apply 𝜋_UnOpU_meas; eauto with measlang.
+      eapply (measurable_fun_prod' fst (ssrfun.comp 𝜋_Val_v snd) (setX (setT : set <<discr un_op>>) ecov_val)).
+      { apply measurableX; by eauto with measlang. }
+      { apply mathcomp_measurable_fun_restiction_setT.
+        { apply measurableX; by eauto with measlang. }
+        by apply measurable_fst. }
+      3: { by apply auxcov_unop_ok_meas. }
+      2: { apply measurableX; by eauto with measlang. }
+      eapply measurable_comp.
+      3: { by eapply 𝜋_Val_v_meas. }
+      - by apply ecov_val_meas.
+      - rewrite /subset//=.
+        by move=>?//=[?[??]]<-//=.
+      - eapply (mathcomp_measurable_fun_restiction_setT ([set: <<discr un_op >>] `*` ecov_val) _ snd).
+        simpl.
+        apply (@measurable_snd _ _ <<discr un_op>> expr).
+      Unshelve.
+      { apply measurableX; by eauto with measlang. }
+    Qed.
+    Hint Resolve cover_unop_ok'_meas : measlang.
 
-  (* Lift a monadic calculation returning exprs to a monadic function which returns cfg, with the state unchanged. *)
-  Definition PReaderMU {A : Type} (C : (A * state) -> giryM expr) (x : A * state) : giryM cfg
-    := giryM_map (mAddState x.2) (C x).
+    Lemma cover_unop_ok_meas : measurable cover_unop_ok.
+    Proof. apply @measurable_fst; by eauto with measlang. Qed.
+    Hint Resolve cover_unop_ok_meas : measlang.
 
-  (* If C is a measurable monaic function on A*state, its reader lifting is also measurable. *)
-  Lemma PReaderMU_meas {d} {A : measurableType d} (C : (A * state) -> giryM expr) (S : set (A * state))
-      (HS : measurable S) (HC : measurable_fun S C) : measurable_fun S (PReaderMU C).
-  Proof.
-    (* This definitely needs to be provable. I'm just not sure if the setT requirement in map will be good enough. *)
-    rewrite /PReaderMU.
-    move=> _ Y HY.
-    rewrite /preimage.
-    have HT1 : giryM_display.-measurable [set: types.giryM expr] by eauto.
-    have Measurable1 := @measurable_mapP _ _ _ _ (giryM_map (mAddState _)) (HT1 _) Y HY.
-    clear HT1.
-    have Measurable2 := HC HS.
-    clear HY.
-    (* Maybe some way to commute with map could do the reduction in this special case? *)
+    Lemma auxcov_unop_stuck_meas : measurable auxcov_unop_stuck.
+    Proof.
+    Admitted.
+    Hint Resolve auxcov_unop_stuck_meas : measlang.
 
-    rewrite /preimage/setI//= in Measurable1, Measurable2; rewrite /preimage/setI//=.
-  Admitted.
+    Lemma cover_unop_stuck_meas : measurable cover_unop_stuck.
+    Proof.
+      apply @measurable_fst; first by eauto with measlang.
+      apply 𝜋_UnOpU_meas; eauto with measlang.
+      eapply (measurable_fun_prod' fst (ssrfun.comp 𝜋_Val_v snd) (setX (setT : set <<discr un_op>>) ecov_val)).
+      { apply measurableX; by eauto with measlang. }
+      { apply mathcomp_measurable_fun_restiction_setT.
+        { apply measurableX; by eauto with measlang. }
+        by apply measurable_fst. }
+      3: { by apply auxcov_unop_stuck_meas. }
+      2: { apply measurableX; by eauto with measlang. }
+      eapply measurable_comp.
+      3: { by eapply 𝜋_Val_v_meas. }
+      - by apply ecov_val_meas.
+      - rewrite /subset//=.
+        by move=>?//=[?[??]]<-//=.
+      - eapply (mathcomp_measurable_fun_restiction_setT ([set: <<discr un_op >>] `*` ecov_val) _ snd).
+        simpl.
+        apply (@measurable_snd _ _ <<discr un_op>> expr).
+      Unshelve.
+      { apply measurableX; by eauto with measlang. }
+    Qed.
+    Hint Resolve cover_unop_stuck_meas : measlang.
+
+    Lemma cover_binop_meas : measurable cover_binop.
+    Proof.
+      apply NonStatefulS_measurable.
+      apply 𝜋_BinOpU_meas; eauto with measlang.
+      apply measurableX; try by eauto with measlang.
+      apply measurableX; try by eauto with measlang.
+    Qed.
+    Hint Resolve cover_binop_meas : measlang.
+
+    Lemma cover_ifT_meas : measurable cover_ifT.
+    Proof.
+      apply NonStatefulS_measurable.
+      apply 𝜋_If_c_meas; first by eauto with measlang.
+      apply 𝜋_Val_v_meas; first by eauto with measlang.
+      apply 𝜋_LitV_v_meas; first by eauto with measlang.
+      apply 𝜋_LitBool_b_meas; first by eauto with measlang.
+      by rewrite /measurable/discr_meas//=.
+    Qed.
+    Hint Resolve cover_ifT_meas : measlang.
+
+    Lemma cover_ifF_meas : measurable cover_ifF.
+    Proof.
+      apply NonStatefulS_measurable.
+      apply 𝜋_If_c_meas; first by eauto with measlang.
+      apply 𝜋_Val_v_meas; first by eauto with measlang.
+      apply 𝜋_LitV_v_meas; first by eauto with measlang.
+      apply 𝜋_LitBool_b_meas; first by eauto with measlang.
+      by rewrite /measurable/discr_meas//=.
+    Qed.
+    Hint Resolve cover_ifF_meas : measlang.
+
+    Lemma cover_fst_meas : measurable cover_fst.
+    Proof.
+      apply NonStatefulS_measurable.
+      apply 𝜋_Fst_e_meas; first by eauto with measlang.
+      apply 𝜋_Val_v_meas; first by eauto with measlang.
+      eauto with measlang.
+    Qed.
+    Hint Resolve cover_fst_meas : measlang.
+
+    Lemma cover_snd_meas : measurable cover_snd.
+    Proof.
+      apply NonStatefulS_measurable.
+      apply 𝜋_Snd_e_meas; first by eauto with measlang.
+      apply 𝜋_Val_v_meas; first by eauto with measlang.
+      eauto with measlang.
+    Qed.
+    Hint Resolve cover_snd_meas : measlang.
+
+    Lemma cover_caseL_meas : measurable cover_caseL.
+    Proof.
+      apply NonStatefulS_measurable.
+      apply 𝜋_Case_c_meas; first by eauto with measlang.
+      apply 𝜋_Val_v_meas; first by eauto with measlang.
+      eauto with measlang.
+    Qed.
+    Hint Resolve cover_caseL_meas : measlang.
+
+    Lemma cover_caseR_meas : measurable cover_caseR.
+    Proof.
+      apply NonStatefulS_measurable.
+      apply 𝜋_Case_c_meas; first by eauto with measlang.
+      apply 𝜋_Val_v_meas; first by eauto with measlang.
+      eauto with measlang.
+    Qed.
+    Hint Resolve cover_caseR_meas : measlang.
+
+    Lemma cover_tick_meas : measurable cover_tick.
+    Proof.
+      apply NonStatefulS_measurable.
+      apply 𝜋_Tick_e_meas; first by eauto with measlang.
+      apply 𝜋_Val_v_meas; first by eauto with measlang.
+      apply 𝜋_LitV_v_meas; first by eauto with measlang.
+      eauto with measlang.
+    Qed.
+    Hint Resolve cover_tick_meas : measlang.
+
+    Lemma cover_maybe_stuck_meas : measurable cover_maybe_stuck.
+    Proof. Admitted.
+
+    (**  Top-level functions *)
+
+    (* Generic lifting of a curried constructor on expr to a curried constructor on states *)
+    Definition NonStatefulU {A : Type} (C : A -> expr) : (A * state) -> cfg := fun x => (C x.1, x.2).
+
+    Lemma NonStatefulU_meas {d} {A : measurableType d} (C : A -> expr) (S : set A) (HS : measurable S)
+        (HC : measurable_fun S C) : measurable_fun (NonStatefulS S) (NonStatefulU C).
+    Proof.
+      rewrite /NonStatefulU//=.
+      have H1 : measurable_fun (T:=A) (U:=A) S m_id.
+      { apply mathcomp_measurable_fun_restiction_setT; [done|].
+        by apply measurable_mapP.
+      }
+      apply (measurable_fun_prod' (ssrfun.comp C fst) snd (NonStatefulS S) (NonStatefulS_measurable S HS)).
+      - eapply measurable_comp.
+        3: { by apply HC. }
+        + by apply HS.
+        + by rewrite /NonStatefulS/preimage/subset//=; move=> t [??<-].
+        + apply (mathcomp_measurable_fun_restiction_setT (NonStatefulS S) (NonStatefulS_measurable S HS) fst).
+          by apply measurable_fst.
+      - apply (mathcomp_measurable_fun_restiction_setT (NonStatefulS S) (NonStatefulS_measurable S HS) snd).
+          by apply measurable_snd.
+    Qed.
+
+    Section MAddState.
+      Definition mAddState_def (x : state) (e : expr) : cfg := (e, x).
+      Lemma mAddState_def_measurable (x : state) : @measurable_fun _ _ expr cfg setT (mAddState_def x).
+      Proof. apply measurable_fun_prod'_expr; done. Qed.
+      HB.instance Definition _ (x : state) :=
+        isMeasurableMap.Build _ _ expr cfg (mAddState_def x) (mAddState_def_measurable x).
+    End MAddState.
+
+    Definition mAddState (x : state) : measurable_map expr cfg := mAddState_def x.
+
+    (* Lift a monadic calculation returning exprs to a monadic function which returns cfg, with the state unchanged. *)
+    Definition PReaderMU {A : Type} (C : (A * state) -> giryM expr) (x : A * state) : giryM cfg
+      := giryM_map (mAddState x.2) (C x).
+
+    (* If C is a measurable monaic function on A*state, its reader lifting is also measurable. *)
+    Lemma PReaderMU_meas {d} {A : measurableType d} (C : (A * state) -> giryM expr) (S : set (A * state))
+        (HS : measurable S) (HC : measurable_fun S C) : measurable_fun S (PReaderMU C).
+    Proof.
+      (* This definitely needs to be provable. I'm just not sure if the setT requirement in map will be good enough. *)
+      rewrite /PReaderMU.
+      move=> _ Y HY.
+      rewrite /preimage.
+      have HT1 : giryM_display.-measurable [set: types.giryM expr] by eauto.
+      have Measurable1 := @measurable_mapP _ _ _ _ (giryM_map (mAddState _)) (HT1 _) Y HY.
+      clear HT1.
+      have Measurable2 := HC HS.
+      clear HY.
+      (* Maybe some way to commute with map could do the reduction in this special case? *)
+      rewrite /preimage/setI//= in Measurable1, Measurable2; rewrite /preimage/setI//=.
+
+    Admitted.
 
 
   (* Generic lifting of a curried monadic function on expr to a monadic function on states *)
@@ -780,12 +838,28 @@ Section meas_semantics.
         end
    *)
 
-  (* TODO : Use "unsafe" access of the maybe *)
-  Definition head_stepM_unop_ok : cfg -> giryM cfg.
-  Admitted.
+  Definition un_op_evalC (x : (<<discr un_op >> * val)%type) : val
+    := match (un_op_eval x.1 x.2) with
+       | Some v => v
+       | None => inhabitant
+       end.
 
-  Definition head_stepM_unop_stuck : cfg -> giryM cfg.
-  Admitted.
+  (* The function (on configurations) to do when the cfg is a UnOp that is valid *)
+  Definition head_stepM_unop_ok : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    mProd
+      ( ssrfun.comp ValU $
+        ssrfun.comp un_op_evalC $
+        ssrfun.comp
+          (mProd
+            𝜋_UnOp_op
+            (ssrfun.comp 𝜋_Val_v 𝜋_UnOp_e)) $
+        fst )
+      snd.
+
+
+  Definition head_stepM_unop_stuck : cfg -> giryM cfg :=
+    cst giryM_zero.
 
   Definition head_stepM_binop : cfg -> giryM cfg.
   Admitted.
@@ -821,7 +895,7 @@ Section meas_semantics.
     𝜋_Snd_e.
 
   (* | Case (Val (InjLV v)) e1 e2 => giryM_ret R ((App e1 (Val v), σ1) : cfg) *)
-  Program Definition head_stepM_caseL : cfg -> giryM cfg :=
+  Definition head_stepM_caseL : cfg -> giryM cfg :=
     ssrfun.comp (giryM_ret R) $
     NonStatefulU $
     ssrfun.comp AppU $
@@ -1187,28 +1261,104 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_app_meas : measlang.
 
+  Lemma un_op_evalC_meas : measurable_fun auxcov_unop_ok un_op_evalC.
+  Proof.
+  Admitted.
+  Hint Resolve un_op_evalC_meas : measlang.
+
   Lemma head_stepM_unop_ok_meas : measurable_fun cover_unop_ok head_stepM_def.
   Proof.
-    (*
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_unop head_stepM_def).
-    - have S : expr_cyl.-sigma.-measurable (ecov_unop `&` 𝜋_UnOpU @^-1` ([set: <<discr un_op >>] `*` ecov_val)).
-      { apply 𝜋_UnOpU_meas; first by eauto with measlang. by apply measurableX; eauto with measlang. }
-      apply PNonStatefulMU_meas; [done|].
-      eapply measurable_compT; first done.
-      + by apply head_stepM_matcher_meas.
-      + by apply head_stepM_destructor_meas.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_unop_ok head_stepM_def).
+    - apply measurable_compT; try by eauto with measlang.
+      eapply @measurable_fun_prod'.
+      { by eauto with measlang. }
+      2: { eapply @mathcomp_measurable_fun_restiction_setT.
+           - by eauto with measlang.
+           - by apply measurable_snd.
+      }
+      apply measurable_compT; try by eauto with measlang.
+      { by apply ValU_measurable. }
+      eapply @measurable_comp.
+      3: { by eapply un_op_evalC_meas. }
+      + by eauto with measlang.
+      + rewrite /subset//=.
+        move=>[??][[??]+]//=.
+        move=>[++]//=.
+        move=>?[++]//=.
+        move=>[?[+]]//=.
+        move=>?->//=.
+        move=>[[?+]+]//=.
+        move=>[?->]//=.
+        move=>[?+]//=.
+        rewrite//=.
+        move=>?<-.
+        rewrite /auxcov_unop_ok//=.
+        by eexists _.
+      apply (@measurable_comp _ _ _ _ _ _ cover_unop_ok').
+      { by eauto with measlang. }
+      { rewrite /subset/cover_unop_ok//=.
+        move=>?[++].
+        move=>?[?+].
+        by move=>?<-//.
+      }
+      2: { eapply @mathcomp_measurable_fun_restiction_setT.
+           - by eauto with measlang.
+           - by apply measurable_fst.
+      }
+      eapply @measurable_fun_prod'.
+      { by eauto with measlang. }
+      { unfold cover_unop_ok'.
+        rewrite <-(setIid ecov_unop).
+        rewrite <-setIA.
+        by apply measurable_fun_setI1; try by eauto with measlang. }
+      eapply @measurable_comp.
+      3: { by apply 𝜋_Val_v_meas. }
+      { by eauto with measlang. }
+      { rewrite /subset//=.
+        move=>?[++].
+        move=>?[++].
+        move=>[?[++]].
+        move=>?->//=.
+        move=>[[?+]+].
+        move=>[?+].
+        move=>->//=.
+        move=>[?+]//=.
+        simpl.
+        move=> ? <- //=.
+        rewrite /ecov_val//=.
+        by eexists.
+      }
+      { unfold cover_unop_ok'.
+        rewrite <-(setIid ecov_unop).
+        rewrite <-setIA.
+        by apply measurable_fun_setI1; try by eauto with measlang. }
     - move=> [e?].
-      move=>[[+[++]][+[++]]].
-      move=>??//=.
-      move=>->??//=.
+      move=>[?[+]]//=.
+      move=>[++]; move=>?//=.
+      move=>[?->].
+      move=>[[_[++]][++]]//=.
+      move=>?//=->.
+      move=>?//=.
       by move=>->//=.
     Unshelve. by eauto with measlang.
-     *)
-  Admitted.
+  Qed.
   Hint Resolve head_stepM_unop_ok_meas : measlang.
 
   Lemma head_stepM_unop_stuck_meas : measurable_fun cover_unop_stuck head_stepM_def.
-  Proof. Admitted.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_unop_stuck head_stepM_def).
+    - by apply measurable_cst.
+    - move=>[e?].
+      move=>[?[+]]//=.
+      move=>[?[++]]//=.
+      move=>?//=->.
+      move=>[[++]+]//=.
+      move=>?.
+      move=>[+]; move=>?//=->//=.
+      rewrite /auxcov_unop_stuck//=.
+      by move=>->//=.
+    Unshelve. by eauto with measlang.
+  Qed.
   Hint Resolve head_stepM_unop_stuck_meas : measlang.
 
   Lemma head_stepM_binop_meas : measurable_fun cover_binop head_stepM_def.
