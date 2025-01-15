@@ -30,6 +30,34 @@ From mathcomp.analysis Require Import reals ereal signed normedtype sequences es
 
 Local Open Scope classical_set_scope.
 
+(* Set Warnings "+spurious-ssr-injection". **)
+
+
+(* Really slow when I add it to mcrunch *)
+Ltac mcrunch_fst := apply measurable_fst_restriction; by eauto with measlang.
+
+Ltac mcrunch_snd := apply measurable_snd_restriction; by eauto with measlang.
+
+(** Wrapper around eauto for finishing tactics *)
+Ltac mcrunch := by eauto with measlang.
+
+(** For proving the measurability of a composition where the first composite function
+    can be solved by eauto on a set, and the measurability is not on the top set. *)
+Ltac mcrunch_comp :=
+  ( eapply @measurable_comp; [ | | by eauto with measlang | ]; try by eauto with measlang ).
+
+(** For proving the measurability of a composition by a constructor.
+    First argument is the constructor measurability proof. *)
+Ltac mcrunch_compC H :=
+  ( eapply @measurable_compT; [ by eauto with measlang | by apply H | ] ).
+
+(** Measurability of mprod
+    Doesn't always work, if it gets confused you need to unroll the arguments to
+    measurable_fun_prod' *)
+Ltac mcrunch_prod := ( eapply @measurable_fun_prod'; first by eauto with measlang ).
+
+
+
 Notation of_val := Val (only parsing).
 
 Definition to_val (e : expr) : option val :=
@@ -195,9 +223,6 @@ Section meas_semantics.
     by eapply @measurableT.
   Qed.
   Hint Resolve NonStatefulS_measurable : measlang.
-
-
-
 
 
   (**  The top-level cover for head_step *)
@@ -1692,72 +1717,49 @@ Qed.
   Qed.
   Hint Resolve head_stepM_binop_stuck_meas : measlang.
 
+
+  (** Useful for equality proofs *)
+  Ltac mdestruct := (repeat move=>[++]//=); move=>?//=->//=.
+
+
   (* TODO: Tactic-ify this *)
   Lemma head_stepM_load_ok_meas : measurable_fun cover_load_ok head_stepM_def.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_load_ok head_stepM_def).
-    - unfold head_stepM_load_ok.
-      unfold cover_load_ok.
-      apply measurable_compT; try by eauto with measlang.
-      eapply @measurable_fun_prod'.
-      { by eauto with measlang. }
-      { apply measurable_compT.
-        1: by eauto with measlang.
-        1: by apply ValU_measurable.
-        eapply @measurable_comp.
-        3: by eauto with measlang.
-        1: by eauto with measlang.
-        1: {
-          (* TODO: Refactor to primitives *)
-          rewrite /subset//=.
-          move=>?.
-          move=>[++]//=; move=>?.
-          repeat ((repeat move=>[++]//=); move=>?//=->//=).
-          move=>?//=.
-          rewrite /auxcov_load_ok//=.
-          move=>[++]//=; move=>?.
-          rewrite /aux_load_loc//=.
-          move=>?<-//=.
-          eexists _.
-          done.
-        }
-        eapply @measurable_fun_prod'.
-        { by eauto with measlang. }
-        { eapply @measurable_comp.
-          3: by eauto with measlang.
-          1: by eauto with measlang.
-          1: {
-            rewrite /subset//=.
-            move=>?.
-            move=>[++]//=; move=>?.
-            repeat ((repeat move=>[++]//=); move=>?//=->//=).
-            move=>?.
-            rewrite /auxcov_load_ok//=.
-            move=>[++]//=; move=>?.
-            rewrite /aux_load_loc//=.
-            move=>?<-//=.
-            rewrite /auxcov_load//=.
-            split; first by rewrite /ecov_load//=; eexists _.
-            split; first by rewrite /ecov_load//=; eexists _.
-            split; first rewrite /ecov_load//=; eexists _; done.
-          }
-          { eapply @mathcomp_measurable_fun_restiction_setT.
-            - by eauto with measlang.
-            - by apply measurable_fst. }
-        }
-        { eapply @mathcomp_measurable_fun_restiction_setT.
-          - by eauto with measlang.
-          - by apply measurable_snd. }
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_load_ok).
+    - mcrunch_comp.
+      mcrunch_prod.
+      2: mcrunch_snd.
+      mcrunch_compC ValU_measurable.
+      mcrunch_comp.
+      { rewrite /subset/auxcov_load_ok/aux_load_loc//=.
+        move=>[??].
+        do 4 (move=>[++]/=; move=>?//=; try move=>->//=).
+        move=>[+].
+        move=><-//=.
+        move=><-//=.
+        by eexists _.
       }
-      { eapply @mathcomp_measurable_fun_restiction_setT.
-        - by eauto with measlang.
-        - by apply measurable_snd.
+      mcrunch_prod; last by mcrunch_snd.
+      mcrunch_comp; last by mcrunch_fst.
+      { rewrite /subset//=.
+        move=>?.
+        move=>[++]//=; move=>?.
+        repeat ((repeat move=>[++]//=); move=>?//=->//=).
+        move=>?.
+        rewrite /auxcov_load_ok//=.
+        move=>[++]//=; move=>?.
+        rewrite /aux_load_loc//=.
+        move=>?<-//=.
+        rewrite /auxcov_load//=.
+        split; first by rewrite /ecov_load//=; eexists _.
+        split; first by rewrite /ecov_load//=; eexists _.
+        split; first rewrite /ecov_load//=; eexists _; done.
       }
     - move=>[??].
-      repeat ((repeat move=>[++]//=); move=>?//=->//=).
+      repeat mdestruct.
       move=>?//=.
       rewrite /auxcov_load_ok//=.
-      by repeat ((repeat move=>[++]//=); move=>?//=->//=).
+      by repeat mdestruct.
     Unshelve. by eauto with measlang.
   Qed.
   Hint Resolve head_stepM_load_ok_meas : measlang.

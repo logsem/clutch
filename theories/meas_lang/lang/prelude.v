@@ -281,3 +281,20 @@ Lemma measurable_fun_setI2 {d1 d2} {T1 : measurableType d1} {T2 : measurableType
    (f : T1 -> T2) (S1 S2 : set T1) (MS1 : measurable S1) (MS2 : measurable S2) (MF : measurable_fun S2 f) :
    measurable_fun (S1 `&` S2) f.
 Proof. by rewrite (setIC S1 S2); apply measurable_fun_setI1. Qed.
+
+
+Lemma measurable_fst_restriction {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} {S : set (T1 * T2)%type} (H : measurable S) :
+  measurable_fun S fst.
+Proof.
+  eapply @mathcomp_measurable_fun_restiction_setT.
+  - done.
+  - by apply measurable_fst.
+Qed.
+
+Lemma measurable_snd_restriction {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} {S : set (T1 * T2)%type} (H : measurable S) :
+  measurable_fun S snd.
+Proof.
+  eapply @mathcomp_measurable_fun_restiction_setT.
+  - done.
+  - by apply measurable_snd.
+Qed.
