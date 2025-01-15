@@ -316,7 +316,51 @@ Section meas_semantics.
     auxcov_binop_stuck.
 
 
-  (**  Load: (TODO: Move me) *)
+
+
+  (* [set e | ∃ N v, e = AllocN (Val (LitV (LitInt N))) (val v)] *)
+  Definition auxcov_allocN : set cfg  :=
+    setI setT $
+    preimage fst $
+    setI ecov_alloc $
+    preimage 𝜋_AllocNU $
+    setX
+      ( setI ecov_val $
+        preimage 𝜋_ValU $
+        setI vcov_lit $
+        preimage 𝜋_LitVU $
+        bcov_LitInt )
+      ecov_val.
+
+  Definition aux_allocN_Z : cfg -> <<discr Z>> :=
+    ssrfun.comp 𝜋_LitIntU $
+    ssrfun.comp 𝜋_LitVU $
+    ssrfun.comp 𝜋_ValU $
+    ssrfun.comp fst $
+    ssrfun.comp 𝜋_AllocNU $
+    fst.
+
+  Definition aux_allocN_v : cfg -> val :=
+    ssrfun.comp 𝜋_ValU $
+    ssrfun.comp snd $
+    ssrfun.comp 𝜋_AllocNU $
+    fst.
+
+  Definition aux_allocN_σ : cfg -> state :=
+    snd.
+
+  Definition aux_allocN : cfg -> (<<discr Z>> * val * state) :=
+    mProd (mProd aux_allocN_Z aux_allocN_v ) aux_allocN_σ.
+
+  (*  [set c | ∃ N v σ, c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = true]. *)
+  Definition cover_allocN_ok : set cfg :=
+    setI auxcov_allocN $ preimage aux_allocN auxcov_allocN_ok.
+
+  (* [set c | ∃ N v σ, c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = false].*)
+  Definition cover_allocN_stuck : set cfg :=
+    setI auxcov_allocN $ preimage aux_allocN auxcov_allocN_stuck.
+
+
   (* [set e | ∃ l e = (Load (Val (LitV (LitLoc l))))] *)
   Definition auxcov_load : set expr :=
     setI ecov_load $
@@ -327,10 +371,6 @@ Section meas_semantics.
     preimage 𝜋_LitVU $
     bcov_LitLoc.
 
-  Lemma auxcov_load_meas : measurable auxcov_load.
-  Proof. unfold auxcov_load. by eauto with measlang. Qed.
-  Hint Resolve auxcov_load_meas : measlang.
-
   (* Project down to the loc of a load expression *)
   Definition aux_load_loc : expr -> <<discr loc>> :=
     ssrfun.comp 𝜋_LitLocU $
@@ -338,70 +378,6 @@ Section meas_semantics.
     ssrfun.comp 𝜋_Val_v $
     𝜋_LoadU.
 
-  (* FIXME: Simplify  *)
-  Lemma aux_load_loc_meas : measurable_fun auxcov_load aux_load_loc.
-  Proof.
-    unfold aux_load_loc.
-    unfold auxcov_load.
-    eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_LitLocU).
-    3: by apply 𝜋_LitLocU_meas.
-    { by eauto with measlang. }
-    { rewrite /subset//=.
-      move=>?[++].
-      move=>?[++].
-      move=>[?->]//=.
-      move=>[++].
-      move=>[?->]//=.
-      move=>[++].
-      move=>[?->]//=.
-      by move=>?<-//.
-    }
-    eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_LitV_v).
-    3: by apply 𝜋_LitVU_meas.
-    { by eauto with measlang. }
-    { rewrite /subset//=.
-      move=>?[++].
-      move=>?[++].
-      move=>[?->]//=.
-      move=>[++].
-      move=>[?->]//=.
-      move=>[++].
-      move=>[?->]//=.
-      move=>[++].
-      move=>[?->]//=.
-      move=><-//.
-      rewrite /vcov_lit/LitVC//=.
-      by eexists _.
-    }
-    eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_Val_v).
-    3: by apply 𝜋_ValU_meas.
-    { by eauto with measlang. }
-    { rewrite /subset//=.
-      move=>?[++].
-      move=>?[++].
-      move=>[?->]//=.
-      move=>[++].
-      move=>[?->]//=.
-      move=>[++].
-      move=>[?->]//=.
-      move=>[++].
-      move=>[?->]//=.
-      move=><-//.
-      rewrite /vcov_lit/LitVC//=.
-      rewrite /ecov_val//=.
-      by eexists _.
-    }
-    rewrite <-(setIid ecov_load).
-    rewrite <-setIA.
-    by apply measurable_fun_setI1; try by eauto with measlang.
-  Qed.
-  Hint Resolve aux_load_loc_meas : measlang.
-
-
-  (*  [set c | ∃ N v σ,        c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = true]. *)
-  Definition cover_allocN_ok       : set cfg. Admitted.
-  (*[set c | ∃ N v σ,        c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = false].*)
-  Definition cover_allocN_stuck    : set cfg. Admitted.
 
   (* [set c | ∃ l w σ, c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = Some w]. *)
   Definition cover_load_ok : set cfg :=
@@ -785,15 +761,211 @@ Section meas_semantics.
   Qed.
   Hint Resolve cover_binop_stuck_meas : measlang.
 
+
+  Lemma auxcov_allocN_meas : measurable auxcov_allocN.
+  Proof.
+    apply @measurable_fst.
+    { by eauto with measlang. }
+    apply 𝜋_AllocNU_meas.
+    { by eauto with measlang. }
+    apply measurableX.
+    { by eauto with measlang. }
+    { by eauto with measlang. }
+  Qed.
+  Hint Resolve auxcov_allocN_meas : measlang.
+
+  Lemma aux_allocN_Z_meas : measurable_fun auxcov_allocN aux_allocN_Z.
+  Proof.
+    unfold aux_allocN_Z.
+    unfold auxcov_allocN.
+    eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_LitIntU).
+    3: by eauto with measlang.
+    1: by eauto with measlang.
+    { rewrite /subset//=.
+      move=>?.
+      repeat move=>[++]; move=>??//=.
+      repeat move=>[++]; move=>?//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>??//=.
+      rewrite /bcov_LitInt.
+      move=><-//=.
+      by eexists.
+    }
+    mcrunch_comp.
+    { rewrite /subset//=.
+      move=>?.
+      repeat move=>[++]; move=>??//=.
+      repeat move=>[++]; move=>?//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>??//=.
+      rewrite /vcov_lit.
+      move=><-//=.
+      by eexists.
+    }
+    mcrunch_comp.
+    {
+      move=>?.
+      repeat move=>[++]; move=>??//=.
+      repeat move=>[++]; move=>?//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>??//=.
+      rewrite /ecov_val.
+      move=><-//=.
+      by eexists.
+    }
+    mcrunch_comp.
+    mcrunch_comp.
+    {
+      move=>?.
+      repeat move=>[++]; move=>??//=.
+      repeat move=>[++]; move=>?//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      rewrite /ecov_alloc.
+      move=><-//=.
+      eexists _.
+      eexists _.
+      done.
+    }
+    mcrunch_fst.
+  Qed.
+  Hint Resolve aux_allocN_Z_meas : measlang.
+
+  Lemma aux_allocN_v_meas : measurable_fun auxcov_allocN aux_allocN_v.
+  Proof.
+    unfold aux_allocN_v.
+    unfold auxcov_allocN.
+    eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_ValU).
+    3: by eauto with measlang.
+    1: by eauto with measlang.
+    { rewrite /subset//=.
+      move=>?.
+      repeat move=>[++]; move=>??//=.
+      repeat move=>[++]; move=>?//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>??//=.
+      by move=>?<-//=.
+    }
+    mcrunch_comp.
+    mcrunch_comp.
+    { rewrite /subset//=.
+      move=>?.
+      repeat move=>[++]; move=>??//=.
+      repeat move=>[++]; move=>?//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      rewrite /ecov_alloc//=.
+      move=><-//=.
+      eexists.
+      by eexists.
+    }
+    mcrunch_fst.
+  Qed.
+  Hint Resolve aux_allocN_v_meas : measlang.
+
+  Lemma aux_allocN_σ_meas : measurable_fun auxcov_allocN aux_allocN_σ.
+  Proof. mcrunch_snd. Qed.
+  Hint Resolve aux_allocN_σ_meas : measlang.
+
+  Lemma aux_allocN_meas : measurable_fun auxcov_allocN aux_allocN.
+  Proof.
+    mcrunch_prod; try by eauto with measlang.
+    mcrunch_prod; by eauto with measlang.
+  Qed.
+  Hint Resolve aux_allocN_meas : measlang.
+
   Lemma cover_allocN_ok_meas : measurable cover_allocN_ok.
   Proof.
-  Admitted.
+    mcrunch_prod; try by eauto with measlang.
+    mcrunch_prod; by eauto with measlang.
+  Qed.
   Hint Resolve cover_allocN_ok_meas : measlang.
 
   Lemma cover_allocN_stuck_meas : measurable cover_allocN_stuck.
   Proof.
-  Admitted.
+    mcrunch_prod; try by eauto with measlang.
+    mcrunch_prod; by eauto with measlang.
+  Qed.
   Hint Resolve cover_allocN_stuck_meas : measlang.
+
+  Lemma auxcov_load_meas : measurable auxcov_load.
+  Proof. unfold auxcov_load. by eauto with measlang. Qed.
+  Hint Resolve auxcov_load_meas : measlang.
+
+  Lemma aux_load_loc_meas : measurable_fun auxcov_load aux_load_loc.
+  Proof.
+    unfold aux_load_loc.
+    unfold auxcov_load.
+    eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_LitLocU).
+    3: by apply 𝜋_LitLocU_meas.
+    { by eauto with measlang. }
+    { rewrite /subset//=.
+      move=>?[++].
+      move=>?[++].
+      move=>[?->]//=.
+      move=>[++].
+      move=>[?->]//=.
+      move=>[++].
+      move=>[?->]//=.
+      by move=>?<-//.
+    }
+    eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_LitV_v).
+    3: by apply 𝜋_LitVU_meas.
+    { by eauto with measlang. }
+    { rewrite /subset//=.
+      move=>?[++].
+      move=>?[++].
+      move=>[?->]//=.
+      move=>[++].
+      move=>[?->]//=.
+      move=>[++].
+      move=>[?->]//=.
+      move=>[++].
+      move=>[?->]//=.
+      move=><-//.
+      rewrite /vcov_lit/LitVC//=.
+      by eexists _.
+    }
+    eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_Val_v).
+    3: by apply 𝜋_ValU_meas.
+    { by eauto with measlang. }
+    { rewrite /subset//=.
+      move=>?[++].
+      move=>?[++].
+      move=>[?->]//=.
+      move=>[++].
+      move=>[?->]//=.
+      move=>[++].
+      move=>[?->]//=.
+      move=>[++].
+      move=>[?->]//=.
+      move=><-//.
+      rewrite /vcov_lit/LitVC//=.
+      rewrite /ecov_val//=.
+      by eexists _.
+    }
+    rewrite <-(setIid ecov_load).
+    rewrite <-setIA.
+    by apply measurable_fun_setI1; try by eauto with measlang.
+  Qed.
+  Hint Resolve aux_load_loc_meas : measlang.
 
   Lemma cover_load_ok_meas : measurable cover_load_ok.
   Proof.
@@ -968,7 +1140,7 @@ Section meas_semantics.
     (* Maybe some way to commute with map could do the reduction in this special case? *)
     rewrite /preimage/setI//= in Measurable1, Measurable2; rewrite /preimage/setI//=.
 
-  Admitted.
+  A dmitted.
 
 
 (* Generic lifting of a curried monadic function on expr to a monadic function on states *)
@@ -1087,7 +1259,6 @@ Qed.
 
 
   (*
-
     | AllocN (Val (LitV (LitInt N))) (Val v) =>
         if bool_decide (0 < Z.to_nat N)%nat
           then
@@ -1096,13 +1267,20 @@ Qed.
           else giryM_zero
 
    *)
-
-  Definition head_stepM_allocN_ok : cfg -> giryM cfg. Admitted.
+  Definition head_stepM_allocN_ok : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    mProd
+      (ssrfun.comp ValU $
+       ssrfun.comp LitVU $
+       ssrfun.comp LitLocU $
+       ssrfun.comp state_allocNCE $
+       aux_allocN)
+      (ssrfun.comp state_allocNCS $
+       aux_allocN).
 
   (* TODO: Delete *)
-  Definition head_stepM_allocN_stuck: cfg -> giryM cfg. Admitted.
-
-
+  Definition head_stepM_allocN_stuck: cfg -> giryM cfg :=
+    cst giryM_zero.
 
   (*
     | Load (Val (LitV (LitLoc l))) =>
@@ -1217,6 +1395,9 @@ Qed.
     | Snd (Val (PairV _ _))               => head_stepM_snd c
     | Case (Val (InjLV _)) _ _            => head_stepM_caseL c
     | Case (Val (InjRV _)) _ _            => head_stepM_caseR c
+    | AllocN (Val (LitV (LitInt N))) (Val v) => if bool_decide (0 < Z.to_nat N)%nat
+                                                  then head_stepM_allocN_ok c
+                                                  else head_stepM_allocN_stuck c
     | Load (Val (LitV (LitLoc l)))        => match σ1.(heap) !! l with
                                                | Some v => head_stepM_load_ok c
                                                | None => head_stepM_load_stuck c
@@ -1744,14 +1925,83 @@ Qed.
 
   Lemma head_stepM_allocN_ok_meas : measurable_fun cover_allocN_ok head_stepM_def.
   Proof.
-  Admitted.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_allocN_ok).
+    - mcrunch_comp.
+      mcrunch_prod.
+      { mcrunch_compC ValU_measurable.
+        mcrunch_compC LitVU_measurable.
+        mcrunch_compC LitLocU_measurable.
+        mcrunch_comp.
+        { rewrite /subset/cover_allocN_ok/auxcov_allocN_ok//=.
+          move=> [[??]?].
+          repeat move=>[++]; move=>??//=.
+          repeat move=>[++]; move=>?//=.
+          repeat move=>[++]; move=>?->//=.
+          repeat move=>[++]; move=>?->//=.
+          repeat move=>[++]; move=>?->//=.
+          repeat move=>[++]; move=>?->//=.
+          repeat move=>[++]; move=>?->//=.
+          repeat rewrite /aux_allocN_Z/aux_allocN_v/aux_allocN//=.
+          move=>?.
+          by move=>[<-??].
+        }
+        unfold cover_allocN_ok.
+        rewrite <-(setIid auxcov_allocN).
+        rewrite <-setIA.
+        apply (measurable_fun_setI1 aux_allocN auxcov_allocN); by eauto with measlang.
+      }
+      { mcrunch_comp.
+        { rewrite /subset/cover_allocN_ok/auxcov_allocN_ok//=.
+          move=> [[??]?].
+          repeat move=>[++]; move=>??//=.
+          repeat move=>[++]; move=>?//=.
+          repeat move=>[++]; move=>?->//=.
+          repeat move=>[++]; move=>?->//=.
+          repeat move=>[++]; move=>?->//=.
+          repeat move=>[++]; move=>?->//=.
+          repeat move=>[++]; move=>?->//=.
+          repeat rewrite /aux_allocN_Z/aux_allocN_v/aux_allocN//=.
+          move=>?.
+          by move=>[<-??].
+        }
+        unfold cover_allocN_ok.
+        rewrite <-(setIid auxcov_allocN).
+        rewrite <-setIA.
+        apply (measurable_fun_setI1 aux_allocN auxcov_allocN); by eauto with measlang.
+      }
+    - move=> [??].
+      repeat move=>[++]; move=>?//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat rewrite /auxcov_allocN_ok/aux_allocN_Z///=.
+      move=> H.
+      case_bool_decide; done.
+    Unshelve. by eauto with measlang.
+  Qed.
   Hint Resolve head_stepM_allocN_ok_meas : measlang.
 
   Lemma head_stepM_allocN_stuck_meas : measurable_fun cover_allocN_stuck head_stepM_def.
   Proof.
-  Admitted.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_allocN_stuck).
+    - by apply measurable_cst.
+    - move=> [??].
+      repeat move=>[++]; move=>?//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat rewrite /auxcov_allocN_stuck/aux_allocN_Z///=.
+      move=> H.
+      case_bool_decide; last done.
+      exfalso.
+      lia.
+    Unshelve. by eauto with measlang.
+  Qed.
   Hint Resolve head_stepM_allocN_stuck_meas : measlang.
-
 
   Lemma head_stepM_load_ok_meas : measurable_fun cover_load_ok head_stepM_def.
   Proof.
@@ -2238,7 +2488,7 @@ End meas_semantics.
 
 
   Definition urand_tape_step : measurable_map ((R : realType) : measurableType _) cfg.
-  Admitted.
+  A dmitted.
     (* This funciton needs to do this: *)
     (* (fun (u : R) =>
          (* Fill tape head with new sample *)
@@ -2535,7 +2785,7 @@ Proof. red; intro; eapply expr_ord_wf'; eauto. Defined.
 (* TODO: this proof is slow, but I do not see how to make it faster... *)
 (* TODO: Uncomment the slow proof *)
 Lemma decomp_expr_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e.
-Proof. Admitted.
+Proof. A dmitted.
 (*
   rewrite /expr_ord /decomp_item.
   destruct Ki ; repeat destruct_match ; intros [=] ; subst ; cbn ; lia.
@@ -2549,7 +2799,7 @@ Proof. destruct Ki ; simpl ; by repeat destruct_match. Qed.
 (* TODO: Uncomment the slow proof *)
 Lemma decomp_fill_item_2 e e' Ki :
   decomp_item e = Some (Ki, e') → fill_item Ki e' = e ∧ to_val e' = None.
-Proof. Admitted.
+Proof. A dmitted.
 (*
   rewrite /decomp_item ;
     destruct e ; try done ;
@@ -2559,7 +2809,7 @@ Qed. *)
 Local Open Scope classical_set_scope.
 
 Definition fill_item_mf (K : ectx_item) : measurable_map expr expr.
-Admitted.
+A dmitted.
 (*   := m_discr (fill_item K : <<discr expr>> -> <<discr expr>>).  *)
 
 Definition meas_lang_mixin :
@@ -2579,7 +2829,7 @@ Proof.
   - admit.
   - admit.
   - admit.
-Admitted.
+A dmitted.
 
 
 End meas_lang.
