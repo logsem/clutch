@@ -86,3 +86,45 @@ Lemma state_allocNCS_meas : measurable_fun auxcov_allocN_ok state_allocNCS.
 Proof.
 Admitted.
 Hint Resolve state_allocNCS_meas : measlang.
+
+
+(*
+    | Store (Val (LitV (LitLoc l))) (Val w) =>
+        match σ1.(heap) !! l with
+          | Some v => giryM_ret R ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : cfg)
+          | None => giryM_zero
+        end
+ *)
+
+
+(* store: the state part of the result *)
+Program Definition state_storeS (x : (<<discr loc>> * val * state)%type) : state :=
+  state_upd_heap <[x.1.1:=x.1.2]> x.2.
+
+(* store: the expression part of the result *)
+Definition state_storeE (x : (<<discr loc>> * val * state)%type) : expr :=
+  ValU $ LitV $ LitUnit.
+
+Definition auxcov_store_ok : set (<<discr loc>> * val * state)%type :=
+  [set x | ∃ w, x.2.(heap) !! x.1.1 = Some w ].
+
+Definition auxcov_store_stuck : set (<<discr loc>> * val * state)%type :=
+  [set x | x.2.(heap) !! x.1.1 = None ].
+
+Lemma auxcov_store_ok_meas : measurable auxcov_store_ok.
+Proof. Admitted.
+Hint Resolve auxcov_store_ok_meas : measlang.
+
+Lemma auxcov_store_stuck_meas : measurable auxcov_store_stuck.
+Proof. Admitted.
+Hint Resolve auxcov_store_stuck_meas : measlang.
+
+Lemma state_storeS_meas : measurable_fun auxcov_store_ok state_storeS.
+Proof.
+Admitted.
+Hint Resolve state_storeS_meas : measlang.
+
+Lemma state_storeE_meas : measurable_fun auxcov_store_ok state_storeE.
+Proof.
+Admitted.
+Hint Resolve state_storeE_meas : measlang.

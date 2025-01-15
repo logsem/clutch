@@ -378,6 +378,58 @@ Section meas_semantics.
     ssrfun.comp 𝜋_Val_v $
     𝜋_LoadU.
 
+(*
+    | Store (Val (LitV (LitLoc l))) (Val w) =>
+        match σ1.(heap) !! l with
+          | Some v => giryM_ret R ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : cfg)
+          | None => giryM_zero
+        end
+*)
+
+
+  (* [set e | ∃ N v, e = Store (Val (LitV (LitLoc L))) (val v)] *)
+  Definition auxcov_store : set cfg  :=
+    setI setT $
+    preimage fst $
+    setI ecov_store $
+    preimage 𝜋_StoreU $
+    setX
+      ( setI ecov_val $
+        preimage 𝜋_ValU $
+        setI vcov_lit $
+        preimage 𝜋_LitVU $
+        bcov_LitLbl )
+      ecov_val.
+
+
+  Definition aux_store_loc : cfg -> <<discr loc>> :=
+    ssrfun.comp 𝜋_LitLocU $
+    ssrfun.comp 𝜋_LitVU $
+    ssrfun.comp 𝜋_ValU $
+    ssrfun.comp fst $
+    ssrfun.comp 𝜋_StoreU $
+    fst.
+
+  Definition aux_store_v : cfg -> val :=
+    ssrfun.comp 𝜋_ValU $
+    ssrfun.comp snd $
+    ssrfun.comp 𝜋_StoreU $
+    fst.
+
+  Definition aux_store_σ : cfg -> state :=
+    snd.
+
+  Definition aux_store : cfg -> (<<discr loc>> * val * state) :=
+    mProd (mProd aux_store_loc aux_store_v ) aux_store_σ.
+
+  Definition cover_store_ok : set cfg :=
+    setI auxcov_store $ preimage aux_store auxcov_store_ok.
+
+  Definition cover_store_stuck : set cfg :=
+    setI auxcov_store $ preimage aux_store auxcov_store_stuck.
+
+
+
 
   (* [set c | ∃ l w σ, c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = Some w]. *)
   Definition cover_load_ok : set cfg :=
@@ -905,6 +957,7 @@ Section meas_semantics.
   Qed.
   Hint Resolve cover_allocN_stuck_meas : measlang.
 
+
   Lemma auxcov_load_meas : measurable auxcov_load.
   Proof. unfold auxcov_load. by eauto with measlang. Qed.
   Hint Resolve auxcov_load_meas : measlang.
@@ -1014,6 +1067,165 @@ Section meas_semantics.
     }
   Qed.
   Hint Resolve cover_load_stuck_meas : measlang.
+
+
+  Lemma auxcov_store_meas : measurable auxcov_store.
+  Proof.
+    apply @measurable_fst.
+    { by eauto with measlang. }
+    apply 𝜋_StoreU_meas.
+    { by eauto with measlang. }
+    apply measurableX.
+    { by eauto with measlang. }
+    { by eauto with measlang. }
+  Qed.
+  Hint Resolve auxcov_store_meas : measlang.
+
+
+
+
+
+  (*
+
+
+
+  Lemma aux_allocN_Z_meas : measurable_fun auxcov_allocN aux_allocN_Z.
+  Proof.
+    unfold aux_allocN_Z.
+    unfold auxcov_allocN.
+    eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_LitIntU).
+    3: by eauto with measlang.
+    1: by eauto with measlang.
+    { rewrite /subset//=.
+      move=>?.
+      repeat move=>[++]; move=>??//=.
+      repeat move=>[++]; move=>?//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>??//=.
+      rewrite /bcov_LitInt.
+      move=><-//=.
+      by eexists.
+    }
+    mcrunch_comp.
+    { rewrite /subset//=.
+      move=>?.
+      repeat move=>[++]; move=>??//=.
+      repeat move=>[++]; move=>?//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>??//=.
+      rewrite /vcov_lit.
+      move=><-//=.
+      by eexists.
+    }
+    mcrunch_comp.
+    {
+      move=>?.
+      repeat move=>[++]; move=>??//=.
+      repeat move=>[++]; move=>?//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>??//=.
+      rewrite /ecov_val.
+      move=><-//=.
+      by eexists.
+    }
+    mcrunch_comp.
+    mcrunch_comp.
+    {
+      move=>?.
+      repeat move=>[++]; move=>??//=.
+      repeat move=>[++]; move=>?//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      rewrite /ecov_alloc.
+      move=><-//=.
+      eexists _.
+      eexists _.
+      done.
+    }
+    mcrunch_fst.
+  Qed.
+  Hint Resolve aux_allocN_Z_meas : measlang.
+
+  Lemma aux_allocN_v_meas : measurable_fun auxcov_allocN aux_allocN_v.
+  Proof.
+    unfold aux_allocN_v.
+    unfold auxcov_allocN.
+    eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_ValU).
+    3: by eauto with measlang.
+    1: by eauto with measlang.
+    { rewrite /subset//=.
+      move=>?.
+      repeat move=>[++]; move=>??//=.
+      repeat move=>[++]; move=>?//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>??//=.
+      by move=>?<-//=.
+    }
+    mcrunch_comp.
+    mcrunch_comp.
+    { rewrite /subset//=.
+      move=>?.
+      repeat move=>[++]; move=>??//=.
+      repeat move=>[++]; move=>?//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; move=>?->//=.
+      rewrite /ecov_alloc//=.
+      move=><-//=.
+      eexists.
+      by eexists.
+    }
+    mcrunch_fst.
+  Qed.
+  Hint Resolve aux_allocN_v_meas : measlang.
+
+  Lemma aux_allocN_σ_meas : measurable_fun auxcov_allocN aux_allocN_σ.
+  Proof. mcrunch_snd. Qed.
+  Hint Resolve aux_allocN_σ_meas : measlang.
+
+  Lemma aux_allocN_meas : measurable_fun auxcov_allocN aux_allocN.
+  Proof.
+    mcrunch_prod; try by eauto with measlang.
+    mcrunch_prod; by eauto with measlang.
+  Qed.
+  Hint Resolve aux_allocN_meas : measlang.
+
+  Lemma cover_allocN_ok_meas : measurable cover_allocN_ok.
+  Proof.
+    mcrunch_prod; try by eauto with measlang.
+    mcrunch_prod; by eauto with measlang.
+  Qed.
+  Hint Resolve cover_allocN_ok_meas : measlang.
+
+  Lemma cover_allocN_stuck_meas : measurable cover_allocN_stuck.
+  Proof.
+    mcrunch_prod; try by eauto with measlang.
+    mcrunch_prod; by eauto with measlang.
+  Qed.
+  Hint Resolve cover_allocN_stuck_meas : measlang.
+
+   *)
+
+
+
+
+
   Lemma cover_ifT_meas : measurable cover_ifT.
   Proof.
     apply NonStatefulS_measurable.
@@ -2401,12 +2613,6 @@ End meas_semantics.
     let (e1, σ1) := c in
     match e1 with
     | ...
-    | AllocN (Val (LitV (LitInt N))) (Val v) =>
-        if bool_decide (0 < Z.to_nat N)%nat
-          then
-            let ℓ := fresh_loc σ1.(heap) in
-            giryM_ret R ((Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1) : cfg)
-          else giryM_zero
     | Store (Val (LitV (LitLoc l))) (Val w) =>
         match σ1.(heap) !! l with
           | Some v => giryM_ret R ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : cfg)
