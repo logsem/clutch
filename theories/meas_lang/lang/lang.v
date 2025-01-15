@@ -398,7 +398,7 @@ Section meas_semantics.
         preimage 𝜋_ValU $
         setI vcov_lit $
         preimage 𝜋_LitVU $
-        bcov_LitLbl )
+        bcov_LitLoc )
       ecov_val.
 
 
@@ -555,9 +555,9 @@ Section meas_semantics.
     cover_allocN_stuck;
     cover_load_ok;
     cover_load_stuck;
-    (*
-    cover_store_stuck;
     cover_store_ok;
+    cover_store_stuck;
+    (*
     cover_randE;
     cover_alloctape;
     cover_randT_notape;
@@ -1081,19 +1081,11 @@ Section meas_semantics.
   Qed.
   Hint Resolve auxcov_store_meas : measlang.
 
-
-
-
-
-  (*
-
-
-
-  Lemma aux_allocN_Z_meas : measurable_fun auxcov_allocN aux_allocN_Z.
+  Lemma aux_store_loc_meas : measurable_fun auxcov_store aux_store_loc.
   Proof.
-    unfold aux_allocN_Z.
-    unfold auxcov_allocN.
-    eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_LitIntU).
+    unfold aux_store_loc.
+    unfold auxcov_store.
+    eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_LitLocU).
     3: by eauto with measlang.
     1: by eauto with measlang.
     { rewrite /subset//=.
@@ -1105,7 +1097,7 @@ Section meas_semantics.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>??//=.
-      rewrite /bcov_LitInt.
+      rewrite /bcov_LitLoc.
       move=><-//=.
       by eexists.
     }
@@ -1156,12 +1148,12 @@ Section meas_semantics.
     }
     mcrunch_fst.
   Qed.
-  Hint Resolve aux_allocN_Z_meas : measlang.
+  Hint Resolve aux_store_loc_meas : measlang.
 
-  Lemma aux_allocN_v_meas : measurable_fun auxcov_allocN aux_allocN_v.
+  Lemma aux_store_v_meas : measurable_fun auxcov_store aux_store_v.
   Proof.
-    unfold aux_allocN_v.
-    unfold auxcov_allocN.
+    unfold aux_store_v.
+    unfold auxcov_store.
     eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_ValU).
     3: by eauto with measlang.
     1: by eauto with measlang.
@@ -1193,37 +1185,32 @@ Section meas_semantics.
     }
     mcrunch_fst.
   Qed.
-  Hint Resolve aux_allocN_v_meas : measlang.
+  Hint Resolve aux_store_v_meas : measlang.
 
-  Lemma aux_allocN_σ_meas : measurable_fun auxcov_allocN aux_allocN_σ.
+  Lemma aux_store_σ_meas : measurable_fun auxcov_store aux_store_σ.
   Proof. mcrunch_snd. Qed.
-  Hint Resolve aux_allocN_σ_meas : measlang.
+  Hint Resolve aux_store_σ_meas : measlang.
 
-  Lemma aux_allocN_meas : measurable_fun auxcov_allocN aux_allocN.
+  Lemma aux_store_meas : measurable_fun auxcov_store aux_store.
   Proof.
     mcrunch_prod; try by eauto with measlang.
     mcrunch_prod; by eauto with measlang.
   Qed.
-  Hint Resolve aux_allocN_meas : measlang.
+  Hint Resolve aux_store_meas : measlang.
 
-  Lemma cover_allocN_ok_meas : measurable cover_allocN_ok.
+  Lemma cover_store_ok_meas : measurable cover_store_ok.
   Proof.
     mcrunch_prod; try by eauto with measlang.
     mcrunch_prod; by eauto with measlang.
   Qed.
-  Hint Resolve cover_allocN_ok_meas : measlang.
+  Hint Resolve cover_store_ok_meas : measlang.
 
-  Lemma cover_allocN_stuck_meas : measurable cover_allocN_stuck.
+  Lemma cover_store_stuck_meas : measurable cover_store_stuck.
   Proof.
     mcrunch_prod; try by eauto with measlang.
     mcrunch_prod; by eauto with measlang.
   Qed.
-  Hint Resolve cover_allocN_stuck_meas : measlang.
-
-   *)
-
-
-
+  Hint Resolve cover_store_stuck_meas : measlang.
 
 
   Lemma cover_ifT_meas : measurable cover_ifT.
@@ -1513,6 +1500,15 @@ Qed.
   Definition head_stepM_load_stuck: cfg -> giryM cfg :=
     cst giryM_zero.
 
+  Definition head_stepM_store_ok : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    mProd
+      (ssrfun.comp state_storeE $ aux_store)
+      (ssrfun.comp state_storeS $ aux_store).
+
+  (* TODO: Delete *)
+  Definition head_stepM_store_stuck: cfg -> giryM cfg :=
+    cst giryM_zero.
 
   (* | If (Val (LitV (LitBool true))) e1 e2  => giryM_ret R ((e1 , σ1) : cfg) *)
   Definition head_stepM_ifT : cfg -> giryM cfg :=
@@ -1588,34 +1584,38 @@ Qed.
   Definition head_stepM_def (c : cfg) : giryM cfg :=
     let (e1, σ1) := c in
     match e1 with
-    | Rec _ _ _                           => head_stepM_rec c
-    | Pair (Val _) (Val _)                => head_stepM_pair c
-    | InjL (Val _)                        => head_stepM_injL c
-    | InjR (Val _)                        => head_stepM_injR c
-    | App (Val (RecV _ _ _)) (Val _)      => head_stepM_app c
-    | UnOp op (Val v)                     => match un_op_eval op v with
-                                               | Some _ => head_stepM_unop_ok c
-                                               | _ => head_stepM_unop_stuck c
-                                             end
-    | BinOp op (Val v1) (Val v2)          => match bin_op_eval op v1 v2 with
-                                              | Some _ => head_stepM_binop_ok c
-                                              | None => head_stepM_binop_stuck c
-                                             end
-    | If (Val (LitV (LitBool true))) _ _  => head_stepM_ifT c
-    | If (Val (LitV (LitBool false))) _ _ => head_stepM_ifT c
-    | Fst (Val (PairV _ _))               => head_stepM_fst c
-    | Snd (Val (PairV _ _))               => head_stepM_snd c
-    | Case (Val (InjLV _)) _ _            => head_stepM_caseL c
-    | Case (Val (InjRV _)) _ _            => head_stepM_caseR c
-    | AllocN (Val (LitV (LitInt N))) (Val v) => if bool_decide (0 < Z.to_nat N)%nat
-                                                  then head_stepM_allocN_ok c
-                                                  else head_stepM_allocN_stuck c
-    | Load (Val (LitV (LitLoc l)))        => match σ1.(heap) !! l with
-                                               | Some v => head_stepM_load_ok c
-                                               | None => head_stepM_load_stuck c
-                                              end
-    | Tick (Val (LitV (LitInt _)))        => head_stepM_tick c
-    | _                                   => head_stepM_stuck c
+    | Rec _ _ _                               => head_stepM_rec c
+    | Pair (Val _) (Val _)                    => head_stepM_pair c
+    | InjL (Val _)                            => head_stepM_injL c
+    | InjR (Val _)                            => head_stepM_injR c
+    | App (Val (RecV _ _ _)) (Val _)          => head_stepM_app c
+    | UnOp op (Val v)                         => match un_op_eval op v with
+                                                 | Some _ => head_stepM_unop_ok c
+                                                 | _ => head_stepM_unop_stuck c
+                                                 end
+    | BinOp op (Val v1) (Val v2)              => match bin_op_eval op v1 v2 with
+                                                 | Some _ => head_stepM_binop_ok c
+                                                 | None => head_stepM_binop_stuck c
+                                                end
+    | If (Val (LitV (LitBool true))) _ _      => head_stepM_ifT c
+    | If (Val (LitV (LitBool false))) _ _     => head_stepM_ifT c
+    | Fst (Val (PairV _ _))                   => head_stepM_fst c
+    | Snd (Val (PairV _ _))                   => head_stepM_snd c
+    | Case (Val (InjLV _)) _ _                => head_stepM_caseL c
+    | Case (Val (InjRV _)) _ _                => head_stepM_caseR c
+    | AllocN (Val (LitV (LitInt N))) (Val v)  => if bool_decide (0 < Z.to_nat N)%nat
+                                                 then head_stepM_allocN_ok c
+                                                 else head_stepM_allocN_stuck c
+    | Load (Val (LitV (LitLoc l)))            => match σ1.(heap) !! l with
+                                                 | Some v => head_stepM_load_ok c
+                                                 | None => head_stepM_load_stuck c
+                                                 end
+    | Store (Val (LitV (LitLoc l))) (Val v)   => match σ1.(heap) !! l with
+                                                 | Some v => head_stepM_store_ok c
+                                                 | None => head_stepM_store_stuck c
+                                                 end
+    | Tick (Val (LitV (LitInt _)))            => head_stepM_tick c
+    | _                                       => head_stepM_stuck c
     end.
 
   Hint Resolve measurable_compT : measlang.
@@ -2268,6 +2268,86 @@ Qed.
   Qed.
   Hint Resolve head_stepM_load_stuck_meas : measlang.
 
+  Lemma head_stepM_store_ok_meas : measurable_fun cover_store_ok head_stepM_def.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_store_ok).
+    - mcrunch_comp.
+      mcrunch_prod.
+      { mcrunch_comp.
+        { rewrite /subset/cover_store_ok/auxcov_store//=.
+          move=>[[??]?].
+          (repeat move=>[++]); move=>??//=.
+          (repeat move=>[++]); move=>?//=.
+          (repeat move=>[++]); move=>?->//=.
+          (repeat move=>[++]); move=>?->//=.
+          (repeat move=>[++]); move=>?->//=.
+          (repeat move=>[++]); move=>?->//=.
+          (repeat move=>[++]); move=>?->//=.
+          repeat (rewrite /auxcov_store_ok/aux_store_loc/aux_store/aux_store_v//=).
+          (repeat move=>[++]); move=>?//=.
+          move=>?.
+          move=>[+].
+          move=><-?<-.
+          by eexists _.
+        }
+        unfold cover_store_ok.
+        rewrite <-(setIid auxcov_store).
+        rewrite <-setIA.
+        apply (measurable_fun_setI1 aux_store auxcov_store); by eauto with measlang.
+      }
+      { mcrunch_comp.
+        { rewrite /subset/cover_store_ok/auxcov_store//=.
+          move=>[[??]?].
+          (repeat move=>[++]); move=>??//=.
+          (repeat move=>[++]); move=>?//=.
+          (repeat move=>[++]); move=>?->//=.
+          (repeat move=>[++]); move=>?->//=.
+          (repeat move=>[++]); move=>?->//=.
+          (repeat move=>[++]); move=>?->//=.
+          (repeat move=>[++]); move=>?->//=.
+          repeat (rewrite /auxcov_store_ok/aux_store_loc/aux_store/aux_store_v//=).
+          (repeat move=>[++]); move=>?//=.
+          move=>?.
+          move=>[+].
+          move=><-?<-.
+          by eexists _.
+        }
+        unfold cover_store_ok.
+        rewrite <-(setIid auxcov_store).
+        rewrite <-setIA.
+        apply (measurable_fun_setI1 aux_store auxcov_store); by eauto with measlang.
+      }
+    - move=>[e?].
+      (repeat move=>[++]); move=>?//=.
+      (repeat move=>[++]); move=>?->//=.
+      (repeat move=>[++]); move=>?->//=.
+      (repeat move=>[++]); move=>?->//=.
+      (repeat move=>[++]); move=>?->//=.
+      (repeat move=>[++]); move=>?->//=.
+      rewrite /auxcov_store_ok//=.
+      by (repeat move=>[++]); move=>?->//=.
+    Unshelve. by eauto with measlang.
+  Qed.
+  Hint Resolve head_stepM_store_ok_meas : measlang.
+
+  Lemma head_stepM_store_stuck_meas : measurable_fun cover_store_stuck head_stepM_def.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_store_stuck).
+    - by apply measurable_cst.
+    - move=>[e?].
+      (repeat move=>[++]); move=>?//=.
+      (repeat move=>[++]); move=>?->//=.
+      (repeat move=>[++]); move=>?->//=.
+      (repeat move=>[++]); move=>?->//=.
+      (repeat move=>[++]); move=>?->//=.
+      (repeat move=>[++]); move=>?->//=.
+      rewrite /auxcov_store_stuck//=.
+      by move=>->.
+    Unshelve. by eauto with measlang.
+  Qed.
+  Hint Resolve head_stepM_load_stuck_meas : measlang.
+
+
   Lemma head_stepM_ifT_meas : measurable_fun cover_ifT head_stepM_def.
   Proof.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_ifT head_stepM_def).
@@ -2545,6 +2625,8 @@ Qed.
     - by apply cover_allocN_stuck_meas.
     - by apply cover_load_ok_meas.
     - by apply cover_load_stuck_meas.
+    - by apply cover_store_ok_meas.
+    - by apply cover_store_stuck_meas.
     - by apply cover_tick_meas.
     - by apply cover_maybe_stuck_meas.
   Qed.
@@ -2572,6 +2654,8 @@ Qed.
     - by apply head_stepM_allocN_stuck_meas.
     - by apply head_stepM_load_ok_meas.
     - by apply head_stepM_load_stuck_meas.
+    - by apply head_stepM_store_ok_meas.
+    - by apply head_stepM_store_stuck_meas.
     - by apply head_stepM_tick_meas.
     - by apply head_stepM_stuck_meas.
   Qed.
