@@ -291,6 +291,70 @@ Section meas_semantics.
     auxcov_binop_stuck.
 
 
+  (**  Load: (TODO: Move me) *)
+  (* [set e | ∃ l e = (Load (Val (LitV (LitLoc l))))] *)
+  Definition auxcov_load : set expr :=
+    setI ecov_load $
+    preimage 𝜋_LoadU $
+    setI ecov_val $
+    preimage 𝜋_ValU $
+    setI vcov_lit $
+    preimage 𝜋_LitVU $
+    bcov_LitLoc.
+
+  Lemma auxcov_load_meas : measurable auxcov_load.
+  Proof. Admitted.
+  Hint Resolve auxcov_load_meas : measlang.
+
+  (* Project down to the loc of a load expression *)
+  Definition aux_load_loc : expr -> <<discr loc>> :=
+    ssrfun.comp 𝜋_LitLocU $
+    ssrfun.comp 𝜋_LitV_v $
+    ssrfun.comp 𝜋_Val_v $
+    𝜋_LoadU.
+
+  Lemma aux_load_loc_meas : measurable_fun auxcov_load aux_load_loc.
+  Proof. Admitted.
+  Hint Resolve aux_load_loc_meas : measlang.
+
+  (* [set c | ∃ l w σ, c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = Some w]. *)
+  Definition cover_load_ok : set cfg :=
+    setI (setX auxcov_load setT) $
+    preimage
+      (mProd (ssrfun.comp aux_load_loc fst) snd)
+      auxcov_load_ok.
+
+  (* [set c | ∃ l σ, c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = None]. *)
+  Definition cover_load_stuck : set cfg :=
+    setI (setX auxcov_load setT) $
+    preimage
+      (mProd (ssrfun.comp aux_load_loc fst) snd)
+      auxcov_load_stuck.
+
+  Lemma cover_load_ok_meas : measurable cover_load_ok.
+  Proof. Admitted.
+  Hint Resolve cover_load_ok_meas : measlang.
+
+  Lemma cover_load_stuck_meas : measurable cover_load_stuck.
+  Proof. Admitted.
+  Hint Resolve cover_load_stuck_meas : measlang.
+
+
+
+  (*
+    | Load (Val (LitV (LitLoc l))) =>
+        match σ1.(heap) !! l with
+          | Some v => giryM_ret R ((Val v, σ1) : cfg)
+          | None => giryM_zero
+        end
+   *)
+
+  Definition head_stepM_load_ok : cfg -> giryM cfg. Admitted.
+
+  Definition head_stepM_load_stuck: cfg -> giryM cfg. Admitted.
+
+
+
 
 
 
@@ -370,7 +434,6 @@ Section meas_semantics.
   (*
   Definition cover_allocN_ok       : set cfg := [set c | ∃ N v σ,        c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = true].
   Definition cover_allocN_stuck    : set cfg := [set c | ∃ N v σ,        c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = false].
-  Definition cover_load_ok         : set cfg := [set c | ∃ l w σ,        c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = Some w].
   Definition cover_load_stuck      : set cfg := [set c | ∃ l σ,          c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = None].
   Definition cover_store_ok        : set cfg := [set c | ∃ l w w' σ,     c = (Store (Val (LitV (LitLoc l))) (Val w), σ) /\ σ.(heap) !! l = Some w'].
   Definition cover_store_stuck     : set cfg := [set c | ∃ l w σ,        c = (Store (Val (LitV (LitLoc l))) (Val w), σ) /\ σ.(heap) !! l = None ].
@@ -406,8 +469,10 @@ Section meas_semantics.
     (*
     cover_allocN_ok;
     cover_allocN_stuck;
+    *)
     cover_load_ok;
     cover_load_stuck;
+    (*
     cover_store_stuck;
     cover_store_ok;
     cover_randE;
@@ -907,17 +972,6 @@ Qed.
   (* TODO: Delete *)
   Definition head_stepM_binop_stuck : cfg -> giryM cfg :=
     cst giryM_zero.
-
-
-  (*
-    | Load (Val (LitV (LitLoc l))) =>
-        match σ1.(heap) !! l with
-          | Some v => giryM_ret R ((Val v, σ1) : cfg)
-          | None => giryM_zero
-        end
-   *)
-
-  Definition head_stepM_load_ok : cfg -> giryM cfg. Admitted.
 
 
   (* | If (Val (LitV (LitBool true))) e1 e2  => giryM_ret R ((e1 , σ1) : cfg) *)
@@ -1534,6 +1588,18 @@ Qed.
   Qed.
   Hint Resolve head_stepM_binop_stuck_meas : measlang.
 
+  Lemma head_stepM_load_ok_meas : measurable_fun cover_load_ok head_stepM_def.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_load_ok head_stepM_def).
+  Admitted.
+  Hint Resolve head_stepM_load_ok_meas : measlang.
+
+  Lemma head_stepM_load_stuck_meas : measurable_fun cover_load_stuck head_stepM_def.
+  Proof.
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_load_stuck head_stepM_def).
+  Admitted.
+  Hint Resolve head_stepM_load_stuck_meas : measlang.
+
   Lemma head_stepM_ifT_meas : measurable_fun cover_ifT head_stepM_def.
   Proof.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_ifT head_stepM_def).
@@ -1807,6 +1873,8 @@ Qed.
     - by apply cover_snd_meas.
     - by apply cover_caseL_meas.
     - by apply cover_caseR_meas.
+    - by apply cover_load_ok_meas.
+    - by apply cover_load_stuck_meas.
     - by apply cover_tick_meas.
     - by apply cover_maybe_stuck_meas.
   Qed.
@@ -1830,6 +1898,8 @@ Qed.
     - by apply head_stepM_snd_meas.
     - by apply head_stepM_caseL_meas.
     - by apply head_stepM_caseR_meas.
+    - by apply head_stepM_load_ok_meas.
+    - by apply head_stepM_load_stuck_meas.
     - by apply head_stepM_tick_meas.
     - by apply head_stepM_stuck_meas.
   Qed.
