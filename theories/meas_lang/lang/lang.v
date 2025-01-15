@@ -303,7 +303,7 @@ Section meas_semantics.
     bcov_LitLoc.
 
   Lemma auxcov_load_meas : measurable auxcov_load.
-  Proof. Admitted.
+  Proof. unfold auxcov_load. by eauto with measlang. Qed.
   Hint Resolve auxcov_load_meas : measlang.
 
   (* Project down to the loc of a load expression *)
@@ -313,12 +313,67 @@ Section meas_semantics.
     ssrfun.comp 𝜋_Val_v $
     𝜋_LoadU.
 
+  (* FIXME: Simplify  *)
   Lemma aux_load_loc_meas : measurable_fun auxcov_load aux_load_loc.
-  Proof. Admitted.
+  Proof.
+    unfold aux_load_loc.
+    unfold auxcov_load.
+    eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_LitLocU).
+    3: by apply 𝜋_LitLocU_meas.
+    { by eauto with measlang. }
+    { rewrite /subset//=.
+      move=>?[++].
+      move=>?[++].
+      move=>[?->]//=.
+      move=>[++].
+      move=>[?->]//=.
+      move=>[++].
+      move=>[?->]//=.
+      by move=>?<-//.
+    }
+    eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_LitV_v).
+    3: by apply 𝜋_LitVU_meas.
+    { by eauto with measlang. }
+    { rewrite /subset//=.
+      move=>?[++].
+      move=>?[++].
+      move=>[?->]//=.
+      move=>[++].
+      move=>[?->]//=.
+      move=>[++].
+      move=>[?->]//=.
+      move=>[++].
+      move=>[?->]//=.
+      move=><-//.
+      rewrite /vcov_lit/LitVC//=.
+      by eexists _.
+    }
+    eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_Val_v).
+    3: by apply 𝜋_ValU_meas.
+    { by eauto with measlang. }
+    { rewrite /subset//=.
+      move=>?[++].
+      move=>?[++].
+      move=>[?->]//=.
+      move=>[++].
+      move=>[?->]//=.
+      move=>[++].
+      move=>[?->]//=.
+      move=>[++].
+      move=>[?->]//=.
+      move=><-//.
+      rewrite /vcov_lit/LitVC//=.
+      rewrite /ecov_val//=.
+      by eexists _.
+    }
+    rewrite <-(setIid ecov_load).
+    rewrite <-setIA.
+    by apply measurable_fun_setI1; try by eauto with measlang.
+  Qed.
   Hint Resolve aux_load_loc_meas : measlang.
 
   (* [set c | ∃ l w σ, c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = Some w]. *)
-  Definition cover_load_ok : set cfg :=
+  Program Definition cover_load_ok : set cfg :=
     setI (setX auxcov_load setT) $
     preimage
       (mProd (ssrfun.comp aux_load_loc fst) snd)
@@ -332,26 +387,52 @@ Section meas_semantics.
       auxcov_load_stuck.
 
   Lemma cover_load_ok_meas : measurable cover_load_ok.
-  Proof. Admitted.
+  Proof.
+    have S1 : (expr_cyl.-sigma, state_cyl.-sigma).-prod.-measurable (auxcov_load `*` [set: state]).
+    { by apply measurableX; eauto with measlang. }
+    apply (@measurable_fun_prod' _ _ _ _ _ _ (ssrfun.comp aux_load_loc fst) snd).
+    1, 4: done.
+    3: by eauto with measlang.
+    { eapply @measurable_comp.
+      3: by apply aux_load_loc_meas.
+      1: by eauto with measlang.
+      { rewrite /subset//=.
+        move=>?[+[++]].
+        by move=>???<-//. }
+      eapply @mathcomp_measurable_fun_restiction_setT.
+      { by eauto with measlang. }
+      { by apply measurable_fst. }
+    }
+    { eapply @mathcomp_measurable_fun_restiction_setT.
+      { by eauto with measlang. }
+      { by apply measurable_snd. }
+    }
+  Qed.
   Hint Resolve cover_load_ok_meas : measlang.
 
   Lemma cover_load_stuck_meas : measurable cover_load_stuck.
-  Proof. Admitted.
+  Proof.
+    have S1 : (expr_cyl.-sigma, state_cyl.-sigma).-prod.-measurable (auxcov_load `*` [set: state]).
+    { by apply measurableX; eauto with measlang. }
+    apply (@measurable_fun_prod' _ _ _ _ _ _ (ssrfun.comp aux_load_loc fst) snd).
+    1, 4: done.
+    3: eauto with measlang.
+    { eapply @measurable_comp.
+      3: by apply aux_load_loc_meas.
+      1: by eauto with measlang.
+      { rewrite /subset//=.
+        move=>?[+[++]].
+        by move=>???<-//. }
+      eapply @mathcomp_measurable_fun_restiction_setT.
+      { by eauto with measlang. }
+      { by apply measurable_fst. }
+    }
+    { eapply @mathcomp_measurable_fun_restiction_setT.
+      { by eauto with measlang. }
+      { by apply measurable_snd. }
+    }
+  Qed.
   Hint Resolve cover_load_stuck_meas : measlang.
-
-
-
-  (*
-    | Load (Val (LitV (LitLoc l))) =>
-        match σ1.(heap) !! l with
-          | Some v => giryM_ret R ((Val v, σ1) : cfg)
-          | None => giryM_zero
-        end
-   *)
-
-  Definition head_stepM_load_ok : cfg -> giryM cfg. Admitted.
-
-  Definition head_stepM_load_stuck: cfg -> giryM cfg. Admitted.
 
 
 
@@ -974,6 +1055,25 @@ Qed.
     cst giryM_zero.
 
 
+  (*
+    | Load (Val (LitV (LitLoc l))) =>
+        match σ1.(heap) !! l with
+          | Some v => giryM_ret R ((Val v, σ1) : cfg)
+          | None => giryM_zero
+        end
+   *)
+  Definition head_stepM_load_ok : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    mProd
+      ( ssrfun.comp ValU $
+        ssrfun.comp state_loadC $
+        (mProd (ssrfun.comp aux_load_loc fst) snd) )
+      snd.
+
+  Definition head_stepM_load_stuck: cfg -> giryM cfg :=
+    cst giryM_zero.
+
+
   (* | If (Val (LitV (LitBool true))) e1 e2  => giryM_ret R ((e1 , σ1) : cfg) *)
   Definition head_stepM_ifT : cfg -> giryM cfg :=
     ssrfun.comp (giryM_ret R) $
@@ -1067,6 +1167,10 @@ Qed.
     | Snd (Val (PairV _ _))               => head_stepM_snd c
     | Case (Val (InjLV _)) _ _            => head_stepM_caseL c
     | Case (Val (InjRV _)) _ _            => head_stepM_caseR c
+    | Load (Val (LitV (LitLoc l)))        => match σ1.(heap) !! l with
+                                               | Some v => head_stepM_load_ok c
+                                               | None => head_stepM_load_stuck c
+                                              end
     | Tick (Val (LitV (LitInt _)))        => head_stepM_tick c
     | _                                   => head_stepM_stuck c
     end.
@@ -1588,16 +1692,84 @@ Qed.
   Qed.
   Hint Resolve head_stepM_binop_stuck_meas : measlang.
 
+  (* TODO: Tactic-ify this *)
   Lemma head_stepM_load_ok_meas : measurable_fun cover_load_ok head_stepM_def.
   Proof.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_load_ok head_stepM_def).
-  Admitted.
+    - unfold head_stepM_load_ok.
+      unfold cover_load_ok.
+      apply measurable_compT; try by eauto with measlang.
+      eapply @measurable_fun_prod'.
+      { by eauto with measlang. }
+      { apply measurable_compT.
+        1: by eauto with measlang.
+        1: by apply ValU_measurable.
+        eapply @measurable_comp.
+        3: by eauto with measlang.
+        1: by eauto with measlang.
+        1: {
+          (* TODO: Refactor to primitives *)
+          rewrite /subset//=.
+          move=>?.
+          move=>[++]//=; move=>?.
+          repeat ((repeat move=>[++]//=); move=>?//=->//=).
+          move=>?//=.
+          rewrite /auxcov_load_ok//=.
+          move=>[++]//=; move=>?.
+          rewrite /aux_load_loc//=.
+          move=>?<-//=.
+          eexists _.
+          done.
+        }
+        eapply @measurable_fun_prod'.
+        { by eauto with measlang. }
+        { eapply @measurable_comp.
+          3: by eauto with measlang.
+          1: by eauto with measlang.
+          1: {
+            rewrite /subset//=.
+            move=>?.
+            move=>[++]//=; move=>?.
+            repeat ((repeat move=>[++]//=); move=>?//=->//=).
+            move=>?.
+            rewrite /auxcov_load_ok//=.
+            move=>[++]//=; move=>?.
+            rewrite /aux_load_loc//=.
+            move=>?<-//=.
+            rewrite /auxcov_load//=.
+            split; first by rewrite /ecov_load//=; eexists _.
+            split; first by rewrite /ecov_load//=; eexists _.
+            split; first rewrite /ecov_load//=; eexists _; done.
+          }
+          { eapply @mathcomp_measurable_fun_restiction_setT.
+            - by eauto with measlang.
+            - by apply measurable_fst. }
+        }
+        { eapply @mathcomp_measurable_fun_restiction_setT.
+          - by eauto with measlang.
+          - by apply measurable_snd. }
+      }
+      { eapply @mathcomp_measurable_fun_restiction_setT.
+        - by eauto with measlang.
+        - by apply measurable_snd.
+      }
+    - move=>[??].
+      repeat ((repeat move=>[++]//=); move=>?//=->//=).
+      move=>?//=.
+      rewrite /auxcov_load_ok//=.
+      by repeat ((repeat move=>[++]//=); move=>?//=->//=).
+    Unshelve. by eauto with measlang.
+  Qed.
   Hint Resolve head_stepM_load_ok_meas : measlang.
 
   Lemma head_stepM_load_stuck_meas : measurable_fun cover_load_stuck head_stepM_def.
   Proof.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_load_stuck head_stepM_def).
-  Admitted.
+    - by apply measurable_cst.
+    - move=>[e?].
+      by repeat ((repeat move=>[++]//=); move=>?//=->//=).
+    Unshelve. by eauto with measlang.
+  Qed.
   Hint Resolve head_stepM_load_stuck_meas : measlang.
 
   Lemma head_stepM_ifT_meas : measurable_fun cover_ifT head_stepM_def.
