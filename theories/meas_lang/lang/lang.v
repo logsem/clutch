@@ -15,7 +15,7 @@ From mathcomp.analysis Require Export Rstruct.
 From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
-From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state subst pureops.
+From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state subst pureops heapops.
 (* From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
 From stdpp Require Import fin.
@@ -276,7 +276,6 @@ Section meas_semantics.
     preimage fst $
     cover_binop_ok'.
 
-
   Definition cover_binop_stuck : set cfg :=
     setI setT $
     preimage fst $
@@ -290,6 +289,10 @@ Section meas_semantics.
             (ssrfun.comp (ssrfun.comp 𝜋_Val_v snd) fst))
          (ssrfun.comp 𝜋_Val_v snd)) $
     auxcov_binop_stuck.
+
+
+
+
 
   (* [set c | ∃ e1 e2 σ, c = (If (Val (LitV (LitBool true))) e1 e2, σ) ]*)
   Definition cover_ifT : set cfg :=
@@ -549,7 +552,7 @@ Section meas_semantics.
       { eapply @mathcomp_measurable_fun_restiction_setT.
         { by (apply measurableX; try by eauto with measlang; apply measurableX; by eauto with measlang). }
         apply @measurable_compT.
-        { by apply @measurableT.}
+        { by apply @measurableT. }
         { by apply measurable_fst. }
         by apply @measurable_fst.
       }
@@ -617,7 +620,7 @@ Section meas_semantics.
       { eapply @mathcomp_measurable_fun_restiction_setT.
         { by (apply measurableX; try by eauto with measlang; apply measurableX; by eauto with measlang). }
         apply @measurable_compT.
-        { by apply @measurableT.}
+        { by apply @measurableT. }
         { by apply measurable_fst. }
         by apply @measurable_fst.
       }
@@ -904,6 +907,17 @@ Qed.
   (* TODO: Delete *)
   Definition head_stepM_binop_stuck : cfg -> giryM cfg :=
     cst giryM_zero.
+
+
+  (*
+    | Load (Val (LitV (LitLoc l))) =>
+        match σ1.(heap) !! l with
+          | Some v => giryM_ret R ((Val v, σ1) : cfg)
+          | None => giryM_zero
+        end
+   *)
+
+  Definition head_stepM_load_ok : cfg -> giryM cfg. Admitted.
 
 
   (* | If (Val (LitV (LitBool true))) e1 e2  => giryM_ret R ((e1 , σ1) : cfg) *)
@@ -1858,21 +1872,11 @@ End meas_semantics.
     let (e1, σ1) := c in
     match e1 with
     | ...
-    | BinOp op (Val v1) (Val v2) =>
-        match bin_op_eval op v1 v2 with
-          | Some w => giryM_ret R ((Val w, σ1) : cfg)
-          | _ => giryM_zero
-        end
     | AllocN (Val (LitV (LitInt N))) (Val v) =>
         let ℓ := fresh_loc σ1.(heap) in
         if bool_decide (0 < Z.to_nat N)%nat
           then giryM_ret R ((Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1) : cfg)
           else giryM_zero
-    | Load (Val (LitV (LitLoc l))) =>
-        match σ1.(heap) !! l with
-          | Some v => giryM_ret R ((Val v, σ1) : cfg)
-          | None => giryM_zero
-        end
     | Store (Val (LitV (LitLoc l))) (Val w) =>
         match σ1.(heap) !! l with
           | Some v => giryM_ret R ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : cfg)
