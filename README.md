@@ -5,7 +5,7 @@ All of the logics are built using the [Iris](https://iris-project.org) program l
 
 ## Publications
 
-[**Approximate Relational Reasoning for Higher-Order Probabilistic Programs**](https://arxiv.org/abs/2407.14107)<br>
+[**Approximate Relational Reasoning for Higher-Order Probabilistic Programs**](https://dl.acm.org/doi/10.1145/3704877)<br>
 *Philipp G. Haselwarter, Kwing Hei Li, Alejandro Aguirre, Simon Oddershede Gregersen, Joseph Tassarotti, Lars Birkedal*<br>
 In POPL 2025: ACM SIGPLAN Symposium on Principles of Programming Languages
 
