@@ -319,6 +319,62 @@ Section simple_bit_hash.
         lia.
   Qed.
 
+
+  Lemma wp_insert_avoid_set_adv E f m (n : nat) (xs : gset nat) (ε εI εO : nonnegreal) :
+    m !! n = None →
+    (forall x : nat, x ∈ xs -> (x < S val_size)%nat) ->
+    (nonneg ε = εI * (size xs) / (val_size+1) + εO * (val_size +1 - size xs) / (val_size+1))%R ->
+    {{{ hashfun f m ∗ ↯ ε }}}
+      f #n @ E
+      {{{ (v : nat), RET #v; ⌜ (v < S val_size)%nat ⌝ ∗ hashfun f (<[ n := v ]>m) ∗
+                             ((⌜ v ∉ xs ⌝ ∗ ↯ εO ) ∨ (⌜ v ∈ xs ⌝ ∗ ↯ εI))
+      }}}.
+  Proof.
+    iIntros (Hlookup Hlt HεEq Φ) "(Hhash & Herr) HΦ".
+    iDestruct "Hhash" as (hm ->) "[H %Hbound]".
+    rewrite /compute_hash_specialized.
+    wp_pures.
+    wp_apply (wp_get with "[$]").
+    iIntros (vret) "(Hhash&->)".
+    rewrite lookup_fmap Hlookup /=. wp_pures.
+
+    wp_bind (rand _)%E.
+    wp_apply (wp_rand_err_set_in_out _ _ xs ε εI εO); auto.
+    - apply cond_nonneg.
+    - apply cond_nonneg.
+    - rewrite !match_nonneg_coercions.
+      rewrite HεEq /=.
+      rewrite -Rmult_plus_distr_r.
+      rewrite Rmult_assoc.
+      rewrite Rmult_inv_l; real_solver.
+    - iFrame.
+      iIntros "%x HK".
+      wp_pures.
+      wp_apply (wp_set with "Hhash").
+      iIntros "Hlist".
+      wp_pures.
+      iModIntro.
+      iApply "HΦ".
+      iFrame.
+      iSplitR.
+      {
+        iPureIntro.
+        apply fin_to_nat_lt.
+      }
+      rewrite /hashfun.
+      iExists hm.
+      iSplit; first auto.
+      iSplitL.
+      * rewrite fmap_insert //.
+      * iPureIntro.
+        apply map_Forall_insert_2; last done.
+        split.
+        ** lia.
+        ** pose proof (fin_to_nat_lt x).
+           lia.
+  Qed.
+
+
 End simple_bit_hash.
 
 

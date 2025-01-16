@@ -1,5 +1,5 @@
 (** * Union bound rules  *)
-From stdpp Require Import namespaces finite.
+From stdpp Require Import namespaces finite fin_sets.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.con_prob_lang Require Import notation tactics metatheory.
@@ -776,6 +776,71 @@ Proof.
       iPureIntro.
       apply not_Exists_Forall; auto.
       apply _.
+Qed.
+
+
+Lemma wp_rand_err_set_in_out (N : nat) (z : Z) (ns : gset nat) (ε εI εO : R) E Φ :
+  TCEq N (Z.to_nat z) →
+  (0<=εI)%R ->
+  (0<=εO)%R ->
+  (forall n, n ∈ ns -> n < S N) ->
+  (εI * (size ns) + εO * (N + 1 - size ns)  <= ε * (N + 1))%R ->
+  ↯ ε ∗
+    (∀ x : fin (S N),
+        (( ⌜ ¬ (fin_to_nat x ∈ ns) ⌝ ∗ ↯ εO ) ∨
+         ( ⌜ fin_to_nat x ∈ ns ⌝ ∗ ↯ εI ) -∗ Φ #x))
+    ⊢ WP rand #z @ E {{ Φ }}.
+Proof.
+  iIntros (HN HineqI HineqO Hlen Hleq) "[Herr Hwp]".
+  set (ε2 := (λ x : fin (S N), if bool_decide (fin_to_nat x ∈ ns) then εI else εO)).
+  wp_apply (wp_couple_rand_adv_comp1 _ _ _  (SeriesC (λ n : fin (S N), (1 / (N + 1) * ε2 n)%R)) ε2 with "[Herr]").
+  { intros. rewrite /ε2. by case_bool_decide. }
+  { rewrite S_INR. done. }
+  - iApply ec_weaken; auto.
+    simpl.
+    rewrite SeriesC_scal_l /ε2.
+    rewrite (SeriesC_ext _ (λ x : fin (S N),
+                   εI * (if bool_decide (fin_to_nat x ∈ ns) then 1 else 0) +
+                   εO * (if bool_decide (¬(fin_to_nat x ∈ ns)) then 1 else 0))%R); last first.
+    {
+      intro n.
+      case_bool_decide as HE ; case_bool_decide as HF; simpl.
+      - done.
+      - lra.
+      - lra.
+      - done.
+    }
+    rewrite SeriesC_plus; [ | apply ex_seriesC_finite | apply ex_seriesC_finite].
+    rewrite 2!SeriesC_scal_l.
+    rewrite /Rdiv Rmult_1_l.
+    rewrite Rmult_comm.
+    rewrite -Rdiv_def.
+    pose proof (pos_INR N).
+    split.
+    { apply Rmult_le_pos; [|real_solver].
+      apply Rplus_le_le_0_compat.
+      - apply Rmult_le_pos; [lra|].
+        apply SeriesC_ge_0; [|apply ex_seriesC_finite].
+        intros ?. case_bool_decide; lra.
+      - apply Rmult_le_pos; [lra|].
+        apply SeriesC_ge_0; [|apply ex_seriesC_finite].
+        intros ?. case_bool_decide; lra.
+    }
+
+    apply Rcomplements.Rle_div_l; [lra |].
+    rewrite SeriesC_fin_in_set; auto.
+    rewrite SeriesC_fin_not_in_set; auto.
+  - iIntros (n) "Herrn".
+    rewrite /ε2.
+    case_bool_decide.
+    + iApply "Hwp".
+      iRight.
+      iFrame.
+      done.
+    + iApply "Hwp".
+      iLeft.
+      iFrame.
+      done.
 Qed.
 
 Lemma wp_rand_err_filter_adv (N : nat) (z : Z) (P : nat -> bool) (ε0 : R) (ε1 : R) E Φ :

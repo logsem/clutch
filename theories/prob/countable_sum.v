@@ -1,7 +1,7 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Series Hierarchy Lim_seq Rbar Lub.
 From stdpp Require Import option.
-From stdpp Require Export countable finite gmap.
+From stdpp Require Export countable finite gmap fin_sets.
 From clutch.prelude Require Import base Reals_ext Coquelicot_ext Series_ext stdpp_ext classical fin uniform_list.
 Set Default Proof Using "Type*".
 Import Hierarchy.
@@ -2135,7 +2135,86 @@ Section Inj_finite.
           simpl. case_bool_decide; first done.
           exfalso; naive_solver.
   Qed.
-  
+
+
+  Lemma SeriesC_fin_in_set (N : nat) (ns : gset nat):
+    (forall x, x ∈ ns -> (x < S N)%nat ) ->
+    (SeriesC (λ x : fin (S N), if bool_decide (fin_to_nat x ∈ ns) then 1 else 0) = size ns).
+  Proof.
+    revert ns.
+    epose proof (set_ind
+                   (λ (s : gset nat), (forall x, x ∈ s -> ( x < S N)%nat ) ->
+                 (SeriesC (λ x : fin (S N), if bool_decide (fin_to_nat x ∈ s) then 1 else 0) = size s))).
+    apply H.
+    - solve_proper.
+    - intro Hlt.
+      rewrite size_empty.
+      apply SeriesC_0.
+      intro.
+      rewrite bool_decide_eq_false_2; auto.
+      set_solver.
+
+    - intros x ns HnElem Hseries Hlt.
+      rewrite size_union; [ | set_solver].
+      erewrite SeriesC_ext; last first.
+      + intros.
+        erewrite bool_decide_ext; [ | apply elem_of_union ].
+        done.
+        Unshelve. solve_decision.
+      + etrans.
+        * symmetry.
+          eapply is_seriesC_filter_union.
+          2: { apply SeriesC_correct, ex_seriesC_finite. }
+          intro; simpl; lra.
+        * rewrite size_singleton plus_INR /=.
+          assert (x < S N)%nat as Hxlt.
+          {
+            apply Hlt. set_solver.
+          }
+          rewrite {1}(SeriesC_ext _ (λ n, if bool_decide (n = (nat_to_fin Hxlt)) then 1 else 0));
+            last first.
+          {
+            intro n.
+            erewrite bool_decide_ext; [ | apply elem_of_singleton ].
+            case_bool_decide as Hnx ; simplify_eq.
+            - rewrite bool_decide_eq_true_2; auto.
+              by rewrite nat_to_fin_to_nat.
+            - rewrite bool_decide_eq_false_2; auto.
+              intros ->.
+              apply Hnx.
+              by rewrite fin_to_nat_to_fin.
+          }
+          rewrite SeriesC_singleton Hseries; [ | intros; apply Hlt; set_solver ].
+          rewrite SeriesC_0; [lra |].
+          intros.
+          rewrite bool_decide_eq_false_2; auto.
+          set_solver.
+       Unshelve. solve_decision.
+  Qed.
+
+
+  Lemma SeriesC_fin_not_in_set (N : nat) (ns : gset nat) :
+    (forall x, x ∈ ns -> (x < S N)%nat ) ->
+    (SeriesC (λ x : fin (S N), if bool_decide (fin_to_nat x ∉ ns) then 1 else 0) = (N + 1 - size ns))%R.
+  Proof.
+    intros Hlt.
+    apply Req_minus_r.
+    rewrite -(SeriesC_fin_in_set N); auto.
+    rewrite -SeriesC_plus; [ | apply ex_seriesC_finite | apply ex_seriesC_finite ].
+    erewrite (SeriesC_ext _ (λ _, 1)); last first.
+    {
+      intros.
+      case_bool_decide; case_bool_decide.
+      - set_solver.
+      - lra.
+      - lra.
+      - set_solver.
+    }
+    rewrite SeriesC_finite_mass fin_card S_INR.
+    lra.
+  Qed.
+
+
 End Inj_finite.
 
 
