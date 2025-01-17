@@ -6,8 +6,24 @@ From clutch.coneris.examples Require Import random_counter3.random_counter.
 Local Open Scope Z.
 
 Set Default Proof Using "Type*".
+
+Inductive T : Type :=
+| S0 :T
+| S1: forall (n:nat), T.
+
+Definition sampled s :=
+  match s with
+  | S0 => None
+  | S1 n => Some n
+  end.
+
+Definition one_positive n1 n2:=
+  bool_decide (∃ (n:nat), (n > 0)%nat /\ (sampled n1 = Some n \/ sampled n2 = Some n)).
+
+Canonical Structure TO := leibnizO T.
+
 Section lemmas.
-  Context `{!inG Σ (excl_authR (option natO))}.
+  Context `{!inG Σ (excl_authR TO)}.
 
   (* Helpful lemmas *)
   Lemma ghost_var_alloc b :
@@ -45,19 +61,13 @@ Section client.
     read_counter "c"
   .
 
-  Definition one_positive n1 n2:=
-    match (n1, n2) with
-    | (Some (S _), _) | (_, Some (S _)) => true
-    | _ => false
-    end.
-
   Definition counter_nroot:=nroot.@"counter".
   Definition inv_nroot:=nroot.@"inv".
   
-  Context `{!spawnG Σ, !inG Σ (excl_authR (option natO)), !inG Σ (excl_authR (boolO))}.
+  Context `{!spawnG Σ, !inG Σ (excl_authR (TO))}.
 
   Definition con_prog_inv (γ1 γ2: gname): iProp Σ :=
-    ∃ (n1 n2 : option nat) ,
+    ∃ (n1 n2 : T) ,
       let p:= one_positive n1 n2 in
       own γ1 (●E n1) ∗ own γ2 (●E n2) ∗
       if p
@@ -65,7 +75,7 @@ Section client.
       else
         ∃ (flip_num:nat),
           ↯ (Rpower 4%R (INR flip_num-2))%R ∗
-          ⌜(flip_num = bool_to_nat (bool_decide (n1=Some 0%nat)) +bool_to_nat (bool_decide (n2=Some 0%nat)))%nat⌝.
+          ⌜(flip_num = bool_to_nat (bool_decide (sampled n1=Some 0%nat)) +bool_to_nat (bool_decide (sampled n2=Some 0%nat)))%nat⌝.
 
   Lemma Rpower_4_2: (Rpower 4 2 = 16)%R.
   Proof.
@@ -77,8 +87,7 @@ Section client.
     {{{ ↯ (1/16) }}}
       con_prog
       {{{ (n:nat), RET #n; ⌜(0<n)%nat⌝ }}}.
-  Proof.
-    iIntros (Φ) "Hε HΦ".
+  Proof.iIntros (Φ) "Hε HΦ".
     rewrite /con_prog.
     wp_apply (new_counter_spec (L:=L) _ counter_nroot with "[//]") as (c) "(%γ & #Hcounter & Hfrag)".
     replace (1)%Qp with (1/2+1/2)%Qp; last compute_done.
@@ -86,51 +95,64 @@ Section client.
     rewrite -(counter_content_frag_combine).
     iDestruct "Hfrag" as "[Hc1 Hc2]".
     wp_pures.
-    iMod (ghost_var_alloc None) as (γ1) "[Hauth1 Hfrag1]".
-    iMod (ghost_var_alloc None) as (γ2) "[Hauth2 Hfrag2]".
+    iMod (ghost_var_alloc S0) as (γ1) "[Hauth1 Hfrag1]".
+    iMod (ghost_var_alloc S0) as (γ2) "[Hauth2 Hfrag2]".
     iMod (inv_alloc inv_nroot _ (con_prog_inv γ1 γ2) with "[Hauth1 Hauth2 Hε]") as "#Hinv".
-    { iModIntro. iFrame. iExists _. iSplit; last done.
+    { iModIntro. iFrame.
+      rewrite /one_positive. rewrite bool_decide_eq_false_2; last naive_solver.
+      iExists _. iSplit; last done.
       simpl. replace (0-2)%R with (-2)%R by lra.
       rewrite Rpower_Ropp Rpower_4_2.
       iApply (ec_eq with "[$]").
       lra.
     }
-    wp_apply (wp_par (λ _, ∃ (n:nat), own γ1 (◯E (Some n)) ∗ counter_content_frag γ (1/2) n)%I
-                (λ _, ∃ (n:nat), own γ2 (◯E (Some n)) ∗ counter_content_frag γ (1/2) n)%I with "[Hfrag1 Hc1][Hfrag2 Hc2]").
-    - wp_apply (incr_counter_spec _ _ _ _ (λ _ _ _ n, own γ1 (◯E (Some n)) ∗ counter_content_frag γ (1 / 2) n )%I with "[$Hcounter Hfrag1 Hc1]"); [done| |iIntros (??) "(%&%&?)"; iFrame].
+    wp_apply (wp_par (λ _, ∃ (n:nat), own γ1 (◯E (S1 n)) ∗ counter_content_frag γ (1/2) n)%I
+                (λ _, ∃ (n:nat), own γ2 (◯E (S1 n)) ∗ counter_content_frag γ (1/2) n)%I with "[Hfrag1 Hc1][Hfrag2 Hc2]").
+    - wp_apply (incr_counter_spec _ _ _ _ (λ _ _ _ n, own γ1 (◯E (S1 n)) ∗ counter_content_frag γ (1/2) n)%I with "[$Hcounter Hfrag1 Hc1]"); [done| |iIntros (??) "(%&%&?)"; iFrame].
       iInv "Hinv" as ">(%n1 & %n2 & Hauth1 & Hauth2 & Herr)" "Hvs". 
       iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
       iApply fupd_mask_intro; first set_solver.
       iIntros "Hclose".
       case_match eqn:H.
-      + iFrame. iExists  (λ _, 0%R).
-        repeat iSplit.
+      + iFrame. iExists (λ _, 0%R). repeat iSplit; try iPureIntro.
         * done.
-        * iPureIntro; rewrite SeriesC_0; intros; lra.
+        *  rewrite SeriesC_0; intros; lra.
         * iIntros (n) "Herr".
-          iMod (ghost_var_update _ (Some (fin_to_nat n)) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
+          iMod (ghost_var_update _ (S1 n) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
           iMod "Hclose".
           iMod ("Hvs" with "[-Hfrag1 Hc1]"); iFrame.
-          -- case_match; first done.
-             destruct n as [|]; destruct n2 as [[]|]; simplify_eq.
+          -- case_match eqn:H1; first done.
+             rewrite /one_positive in H H1.
+             apply bool_decide_eq_true_1 in H.
+             apply bool_decide_eq_false_1 in H1.
+             exfalso. naive_solver.
           -- iModIntro. iIntros (z) "Hauth1".
-             iMod (counter_content_update _ _ z _ _ with "[$][$Hc1]") as "[$ ?]".
+             iMod (counter_content_update with "[$][$]") as "[$ ?]".
              by iFrame.
       + iDestruct "Herr" as "(%&Herr&->)/=". iFrame.
-        iExists (λ x, if 0<? fin_to_nat x then 0%R else (Rpower 4 (1+(bool_to_nat (bool_decide (n2 = Some 0%nat)) - 2))))%R. repeat iSplit; try iPureIntro.
+        iExists (λ x, if 0<? fin_to_nat x then 0%R else (Rpower 4 (1+(bool_to_nat (bool_decide (sampled n2 = Some 0%nat)) - 2))))%R. repeat iSplit; try iPureIntro.
         * intros. case_match; first done. rewrite /Rpower. left. apply exp_pos.
         * rewrite SeriesC_finite_foldr/=.
           rewrite Rpower_plus Rpower_1; lra.
         * iIntros (n) "Herr".
-          iMod (ghost_var_update _ (Some (fin_to_nat n)) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
+          iMod (ghost_var_update _ (S1 (fin_to_nat n)) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
           simpl. iFrame.
           iMod "Hclose".
           iMod ("Hvs" with "[-Hc1]"); iFrame.
           -- case_match eqn:H0.
-             ++ case_match; first done.
-                destruct (fin_to_nat n) as [|]; destruct n2 as [[|]|]; simplify_eq.
+             ++ case_match eqn:H1; first done.
+                rewrite /one_positive in H1.
+                apply bool_decide_eq_false_1 in H1.
+                exfalso.
+                apply H1. eexists _. split; last by left. lia.
              ++ case_match.
-                { destruct (fin_to_nat n) as [|]; destruct n2 as [[|]|]; simplify_eq. }
+                { rewrite /one_positive in H H1.
+                  apply bool_decide_eq_false_1 in H.
+                  apply bool_decide_eq_true_1 in H1.
+                  exfalso. apply H.
+                  destruct H1 as (?&?&[|]); last naive_solver.
+                  simpl in *. simplify_eq. lia. 
+                }
                 iExists _. iSplit; last done.
                 iApply (ec_eq with "[$]").
                 f_equal.
@@ -140,7 +162,7 @@ Section client.
           -- iModIntro. iIntros (z) "Hauth".
              iMod (counter_content_update with "[$][$]") as "[$ ?]".
              by iFrame.
-    - wp_apply (incr_counter_spec _ _ _ _ (λ _ _ _ n, own γ2 (◯E (Some n)) ∗ counter_content_frag γ (1 / 2) n )%I with "[$Hcounter Hfrag2 Hc2]"); [done| |iIntros (??) "(%&%&?)"; iFrame].
+    - wp_apply (incr_counter_spec _ _ _ _ (λ _ _ _ n, own γ2 (◯E (S1 n)) ∗ counter_content_frag γ (1 / 2) n )%I with "[$Hcounter Hfrag2 Hc2]"); [done| |iIntros (??) "(%&%&?)"; iFrame].
       iInv "Hinv" as ">(%n1 & %n2 & Hauth1 & Hauth2 & Herr)" "Hvs". 
       iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
       iApply fupd_mask_intro; first set_solver.
@@ -150,30 +172,41 @@ Section client.
         * done.
         *  rewrite SeriesC_0; intros; lra.
         * iIntros (n) "Herr".
-          iMod (ghost_var_update _ (Some (fin_to_nat n)) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]".
+          iMod (ghost_var_update _ (S1 (fin_to_nat n)) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]".
           iMod "Hclose".
           iMod ("Hvs" with "[-Hfrag2 Hc2]"); iFrame.
-          -- case_match; first done.
-             destruct n as [|]; destruct n1 as [[]|]; simplify_eq.
+          -- case_match eqn:H1; first done.
+             rewrite /one_positive in H H1.
+             apply bool_decide_eq_true_1 in H.
+             apply bool_decide_eq_false_1 in H1.
+             exfalso. naive_solver.
           -- iModIntro. iIntros (z) "Hauth1".
              iMod (counter_content_update with "[$][$]") as "[$ ?]".
              by iFrame.
       + iDestruct "Herr" as "(%&Herr&->)/=". iFrame.
-        iExists (λ x, if 0<? fin_to_nat x then 0%R else (Rpower 4 (1+((bool_to_nat (bool_decide (n1 = Some 0)) + 0)%nat - 2))))%R. repeat iSplit; try iPureIntro.
+        iExists (λ x, if 0<? fin_to_nat x then 0%R else (Rpower 4 (1+((bool_to_nat (bool_decide (sampled n1 = Some 0)) + 0)%nat - 2))))%R. repeat iSplit; try iPureIntro.
         * intros. case_match; first done. rewrite /Rpower. left. apply exp_pos.
         * rewrite SeriesC_finite_foldr/=.
           rewrite Rpower_plus Rpower_1/=; lra.
         * iIntros (n) "Herr".
-          iMod (ghost_var_update _ (Some (fin_to_nat n)) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]".
+          iMod (ghost_var_update _ (S1 (fin_to_nat n)) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]".
           simpl. iFrame.
           iMod "Hclose".
           simpl. iFrame.
           iMod ("Hvs" with "[-Hc2]"); iFrame.
           -- case_match eqn:H0.
-             ++ case_match; first done.
-                destruct (fin_to_nat n) as [|]; destruct n1 as [[|]|]; simplify_eq.
+             ++ case_match eqn:H1; first done.
+                rewrite /one_positive in H1.
+                apply bool_decide_eq_false_1 in H1.
+                exfalso.
+                apply H1. eexists _. split; last by right. lia.
              ++ case_match.
-                { destruct (fin_to_nat n) as [|]; destruct n1 as [[|]|]; simplify_eq. }
+                { rewrite /one_positive in H H1.
+                  apply bool_decide_eq_false_1 in H.
+                  apply bool_decide_eq_true_1 in H1.
+                  exfalso. apply H.
+                  destruct H1 as (?&?&[|]); first naive_solver.
+                  simpl in *. simplify_eq. lia. }
                 iExists _. iSplit; last done.
                 iApply (ec_eq with "[$]").
                 f_equal.
@@ -194,6 +227,8 @@ Section client.
         iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
         rewrite /con_prog_inv.
         destruct n1, n2 as [|]; [simpl|simpl; iModIntro; iFrame; iSplitL "Herr"; iModIntro; try (iPureIntro; lia); done..]; last first.
+        rewrite /one_positive. rewrite bool_decide_eq_false_2; last first.
+        { intros (?&?&[|]); simpl in *; simplify_eq; lia. }
         iDestruct "Herr" as "(%&Herr&->)".
         simpl. replace (_+_-_)%R with 0%R by lra.
         rewrite Rpower_O; last lra.
@@ -207,6 +242,5 @@ Section client.
       iIntros.
       iApply "HΦ".
       iPureIntro; lia.
-  Qed.
-  
+  Qed.  
 End client.
