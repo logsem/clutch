@@ -256,6 +256,7 @@ Section complex.
   Qed.
 End complex.
 
+(** * This is the con_prog example in the paper of Coneris*)
 Definition two_die_prog' : expr :=
   let: "l" := ref #0 in
   ((if: #0 < rand #5
@@ -266,107 +267,6 @@ Definition two_die_prog' : expr :=
     then FAA "l" #1
     else #()));;
   !"l".
-
-(* Inductive ra_state:= *)
-(* |Start *)
-(* |Final *)
-(* |Invalid. *)
-
-(* Section ra_state. *)
-(*   Global Instance ra_state_equiv_instance: Equiv ra_state :=eq. *)
-(*   Global Instance ra_state_equiv_equivalence : Equivalence (≡@{ra_state}) := _. *)
-(*   Global Instance ra_state_leibniz_equiv : LeibnizEquiv ra_state := _. *)
-(*   Canonical ra_stateO := Ofe ra_state (discrete_ofe_mixin _). *)
-(*   Local Instance ra_state_op_instance : Op ra_state := λ s1 s2, *)
-(*                                                    match s1, s2 with *)
-(*                                                    | Final, Final => Final *)
-(*                                                    | _, _ => Invalid *)
-(*                                                    end. *)
-
-(*   Local Instance ra_state_pcore_instance : PCore ra_state := λ s, *)
-(*                                                          match s with *)
-(*                                                          | Start => None *)
-(*                                                          | _ => Some s *)
-(*                                                          end. *)
-
-(*   Local Instance ra_state_valid_instance : Valid ra_state := λ s, *)
-(*                                                          match s with *)
-(*                                                          | Start | Final => True *)
-(*                                                          | Invalid => False *)
-(*                                                          end. *)
-  
-(*   Lemma ra_state_ra_mixin : RAMixin ra_state. *)
-(*   Proof. *)
-(*     split. *)
-(*     - solve_proper. *)
-(*     - naive_solver. *)
-(*     - solve_proper. *)
-(*     - by intros [] [] []. *)
-(*     - by intros [] []. *)
-(*     - by intros [] []. *)
-(*     - by intros [] []. *)
-(*     - intros [] _ [] [[] ->] e; try done. *)
-(*       all: eexists; split; first done. *)
-(*       all: try by exists Invalid. *)
-(*                     by exists Final. *)
-(*                          - by intros [] []. *)
-(*   Qed. *)
-(*   Canonical Structure ra_stateR := discreteR ra_state ra_state_ra_mixin. *)
-
-(*   Global Instance ra_state_cmra_discrete : CmraDiscrete ra_state. *)
-(*   Proof. apply discrete_cmra_discrete. Qed. *)
-
-(* End ra_state. *)
-
-(* Global Instance Start_exclusive : Exclusive Start. *)
-(* Proof. by intros []. Qed. *)
-
-(* Global Instance Final_core_id : CoreId Final. *)
-(* Proof. red. done. Qed. *)
-
-(* Lemma ra_state_update s : s ~~> Final. *)
-(* Proof. *)
-(*   rewrite cmra_discrete_update. *)
-(*   intros mz H. *)
-(*   by destruct s, mz as [[| |]|]. *)
-(* Qed. *)
-
-(* Section properties. *)
-(*   Context `{!inG Σ ra_stateR}. *)
-  
-(* Lemma alloc_Start : ⊢ |==> ∃ γ, own γ Start. *)
-(* Proof. *)
-(*   iApply own_alloc. *)
-(*   done. *)
-(* Qed. *)
-
-(* Lemma ra_state_valid γ (s : ra_state) : own γ s ⊢ ⌜✓ s⌝. *)
-(* Proof. *)
-(*   iIntros "H". *)
-(*   iPoseProof (own_valid with "H") as "%H". *)
-(*   done. *)
-(* Qed. *)
-
-(* Lemma ra_state_bupd γ (s : ra_state) : own γ s ==∗ own γ Final. *)
-(* Proof. *)
-(*   iApply own_update. *)
-(*   apply ra_state_update. *)
-(* Qed. *)
-
-(* Lemma ra_state_contradict γ : own γ Start -∗ own γ Final -∗ False. *)
-(* Proof. *)
-(*   iIntros "H1 H2". *)
-(*   iCombine "H1 H2" gives "%K"; by cbv in K. *)
-(* Qed. *)
-
-(* Lemma ra_state_final γ s: own γ Final -∗ own γ s -∗ ⌜s=Final⌝. *)
-(* Proof. *)
-(*   iIntros "H1 H2". *)
-(*   destruct s; [|done|]. *)
-(*   all: iCombine "H1 H2" gives "%K"; by cbv in K. *)
-(* Qed. *)
-  
-(* End properties. *)
 
 Section simple'.
   Context `{!conerisGS Σ, !spawnG Σ, !inG Σ (excl_authR boolO)}.
@@ -432,34 +332,73 @@ Section simple'.
   Qed.
 End simple'.
 
+
+(** * This is the proof presented for the example con_prog in the paper of Coneris *)
+
+Inductive T : Type :=
+| S0 :T
+| S1: forall (n:nat), (n>0)%nat -> T
+| S2: forall (n:nat), T.
+
+Definition sampled s :=
+  match s with
+  | S0 => None
+  | S1 n _ => Some n
+  | S2 n => Some n
+  end.
+
+Definition one_positive n1 n2:=
+  bool_decide (∃ (n:nat), (n > 0)%nat /\ (sampled n1 = Some n \/ sampled n2 = Some n)).
+
+Definition added_1 s:=
+  bool_decide (∃ (n:nat), (n > 0)%nat /\ s=S2 n).
+
+Canonical Structure TO := leibnizO T.
+
+Section lemmasT.
+  Context `{!inG Σ (excl_authR TO)}.
+
+  (* Helpful lemmas *)
+  Lemma ghost_var_allocT b :
+    ⊢ |==> ∃ γ, own γ (●E b) ∗ own γ (◯E b).
+  Proof.
+    iMod (own_alloc (●E b ⋅ ◯E b)) as (γ) "[??]".
+    - by apply excl_auth_valid.
+    - by eauto with iFrame.
+  Qed.
+
+  Lemma ghost_var_agreeT γ b c :
+    own γ (●E b) -∗ own γ (◯E c) -∗ ⌜ b = c ⌝.
+  Proof.
+    iIntros "Hγ● Hγ◯".
+    by iCombine "Hγ● Hγ◯" gives %->%excl_auth_agree_L.
+  Qed.
+
+  Lemma ghost_var_updateT γ b' b c :
+    own γ (●E b) -∗ own γ (◯E c) ==∗ own γ (●E b') ∗ own γ (◯E b').
+  Proof.
+    iIntros "Hγ● Hγ◯".
+    iMod (own_update_2 _ _ _ (●E b' ⋅ ◯E b') with "Hγ● Hγ◯") as "[$$]".
+    { by apply excl_auth_update. }
+    done.
+  Qed.
+End lemmasT.
+
 Section complex'.
-  Context `{!conerisGS Σ, !spawnG Σ, !inG Σ (excl_authR (option natO)), !inG Σ (excl_authR (boolO))}.
+  Context `{!conerisGS Σ, !spawnG Σ, !inG Σ (excl_authR TO)}.
 
-  Definition one_positive n1 n2:=
-    match (n1, n2) with
-    | (Some (S _), _) | (_, Some (S _)) => true
-    | _ => false
-    end.
-
-  Definition added_1 s n:=
-    match (s, n) with
-    | (true, Some (S _)) | (true, None)=> true
-    | _ => false
-    end.
-
-  Definition parallel_add_inv' (γ1 γ2 γ3 γ4: gname) l: iProp Σ :=
-    ∃ (n1 n2 : option nat) (n:nat) s1 s2,
-      let p:= one_positive n1 n2 in
-      own γ1 (●E n1) ∗ own γ2 (●E n2) ∗
+  Definition parallel_add_inv' (γ1 γ2: gname) l: iProp Σ :=
+    ∃ (s1 s2 : T) (n:nat),
+      let p:= one_positive s1 s2 in
+      own γ1 (●E s1) ∗ own γ2 (●E s2) ∗
       l↦#n ∗
-      own γ3 (●E s1) ∗ own γ4 (●E s2) ∗
-      (if (added_1 s1 n1 || added_1 s2 n2) then ⌜(0<n)%nat⌝ else True) ∗
+      (if (added_1 s1 || added_1 s2) then ⌜(0<n)%nat⌝ else True) ∗
       if p
       then ↯ 0%R
       else
         ∃ (flip_num:nat),
           ↯ (Rpower 6%R (INR flip_num-2))%R ∗
-          ⌜(flip_num = bool_to_nat (bool_decide (n1=Some 0%nat)) +bool_to_nat (bool_decide (n2=Some 0%nat)))%nat⌝.
+          ⌜(flip_num = bool_to_nat (bool_decide (sampled s1=Some 0%nat)) +bool_to_nat (bool_decide (sampled s2=Some 0%nat)))%nat⌝.
   
   Lemma complex_parallel_add_spec':
     {{{ ↯ (1/36) }}}
@@ -467,86 +406,99 @@ Section complex'.
       {{{ (n:nat), RET #n; ⌜(0<n)%nat⌝ }}}.
   Proof.
     iIntros (Φ) "Herr HΦ".
-    iMod (ghost_var_alloc None) as (γ1) "[Hauth1 Hfrag1]".
-    iMod (ghost_var_alloc None) as (γ2) "[Hauth2 Hfrag2]".
-    iMod (ghost_var_alloc' false) as (γ1') "[Hauth1' Hfrag1']".
-    iMod (ghost_var_alloc' false) as (γ2') "[Hauth2' Hfrag2']".
+    iMod (ghost_var_allocT S0) as (γ1) "[Hauth1 Hfrag1]".
+    iMod (ghost_var_allocT S0) as (γ2) "[Hauth2 Hfrag2]".
     rewrite /two_die_prog'.
     wp_alloc l as "Hl".
     wp_pures.
-    iMod (inv_alloc nroot _ (parallel_add_inv' γ1 γ2 γ1' γ2' l) with "[Hauth1 Hauth2 Herr Hauth1' Hauth2' Hl]") as "#I".
+    iMod (inv_alloc nroot _ (parallel_add_inv' γ1 γ2 l) with "[Hauth1 Hauth2 Herr Hl]") as "#I".
     { iNext.
       iFrame.
       simpl.
       iExists 0%nat. iFrame.
-      iSplit; first done.
-      iExists _. iSplit; last done.
-      iApply (ec_eq with "[$]").
-      simpl.
-      replace (0-2)%R with (-2)%R by lra.
-      rewrite Rpower_Ropp.
-      rewrite Rdiv_1_l; f_equal.
-      rewrite /Rpower.
-      erewrite <-(exp_ln _); last lra.
-      f_equal.
-      replace (IPR 2) with (INR 2); last first.
-      { by rewrite -INR_IPR. }
-      erewrite <-ln_pow; [|lra].
-      f_equal. lra.
+      replace (added_1 _) with false; last first.
+      - rewrite /added_1. rewrite bool_decide_eq_false_2; first done.
+        naive_solver.
+      - iSplit; first done.
+        rewrite /one_positive.
+        rewrite bool_decide_eq_false_2; last naive_solver.
+        iExists _; iSplit; last done.
+        iApply (ec_eq with "[$]").
+        simpl.
+        replace (0-2)%R with (-2)%R by lra.
+        rewrite Rpower_Ropp.
+        rewrite Rdiv_1_l; f_equal.
+        rewrite /Rpower.
+        erewrite <-(exp_ln _); last lra.
+        f_equal.
+        replace (IPR 2) with (INR 2); last first.
+        { by rewrite -INR_IPR. }
+        erewrite <-ln_pow; [|lra].
+        f_equal. lra.
     }
-    wp_apply (wp_par (λ _, ∃ (n:nat), own γ1 (◯E (Some n)) ∗ own γ1' (◯E true))%I
-                (λ _, ∃ (n:nat), own γ2 (◯E (Some n)) ∗ own γ2' (◯E true))%I with "[Hfrag1 Hfrag1'][Hfrag2 Hfrag2']").
+    wp_apply (wp_par (λ _, ∃ (n:nat), own γ1 (◯E (S2 n)))%I
+                (λ _, ∃ (n:nat), own γ2 (◯E (S2 n)))%I with "[Hfrag1][Hfrag2]").
     - wp_bind (rand _)%E.
-      iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
-      iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
+      iInv "I" as ">(%s1&%s2&%n&Hauth1&Hauth2&Hl&H&Herr)" "Hclose".
+      iDestruct (ghost_var_agreeT with "[$Hauth1][$]") as "->".
       destruct (one_positive _ _) eqn:H1.
       + wp_apply (wp_rand with "[//]") as (x) "_".
-        iMod (ghost_var_update _ (Some (fin_to_nat x)) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
-        destruct n2 as [[|n2]|]; simplify_eq.
-        iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hra1 $Hra2 $Hl H Herr]") as "_".
-        { iNext.
-          case_match eqn:H2.
-          - rewrite orb_true_iff in H2. destruct H2 as [H2|H2].
-            + destruct s1; simplify_eq.
-              case_match; (iSplit; first done); by destruct x.
-            + rewrite H2. rewrite orb_true_r. iSplit; first done.
-              by destruct x.
-          - rewrite orb_false_iff in H2. destruct H2 as [H2 ->].
-            rewrite orb_false_r.
-            case_match; last (iSplit; first done); first destruct s1; simplify_eq.
-            by destruct x.
-        }
-        iModIntro.
-        wp_pures.
-        clear n n2 H1 s1 s2.
-        case_bool_decide as H2; wp_pures.
-        * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
-          iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
-          wp_faa.
-          iMod (ghost_var_update' _ true with "[$Hra1][$]") as "[Hra1 Hfrag1']".
-          iMod ("Hclose" with "[$Hauth1 $Hauth2 Hl Hra1 $Hra2 H Herr]") as "_".
-          { iExists (n+1)%nat. iFrame. rewrite Nat2Z.inj_add. iFrame.
-            iNext. destruct (added_1 true _||_); last done.
-            iPureIntro. lia.
-          }
-          by iFrame.
-        * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
-          iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
-          iMod (ghost_var_update' _ true with "[$Hra1][$]") as "[Hra1 Hfrag1']".
-          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl $Hra1 $Hra2 H $Herr]") as "_".
+        destruct (fin_to_nat x) as [|x'] eqn:Hx.
+        * iMod (ghost_var_updateT _ (S2 0%nat) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl H Herr]") as "_".
           { iNext.
-            case_match eqn :H1; first by case_match.
-            case_match eqn:H3; last done.
-            assert (fin_to_nat x=0)%nat as K by lia.
-            rewrite K in H1 H3.
-            destruct s1, s2, n2 as [[|]|]; simplify_eq. 
+            replace (added_1 S0) with false; last first.
+            { rewrite /added_1 bool_decide_eq_false_2; naive_solver. }
+            replace (added_1 (S2 0)) with false; last first.
+            { rewrite /added_1 bool_decide_eq_false_2; first done.
+              intros (?&?&?). simplify_eq. lia. }
+            rewrite !orb_false_l.
+            iFrame.
+            case_match eqn:H2; first done.
+            rewrite /one_positive in H1 H2.
+            apply bool_decide_eq_true_1 in H1.
+            apply bool_decide_eq_false_1 in H2.
+            exfalso.
+            apply H2. naive_solver.
           }
-          by iFrame.
+          iModIntro. wp_pures. by iFrame.
+        * iMod (ghost_var_updateT _ (S1 (S x') _) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl H Herr]") as "_".
+          { iNext.
+            replace (added_1 S0) with false; last first.
+            { rewrite /added_1 bool_decide_eq_false_2; naive_solver. }
+            replace (added_1 (S1 (S _) _)) with false; last first.
+            { rewrite /added_1 bool_decide_eq_false_2; naive_solver. }
+            rewrite !orb_false_l. iFrame.
+            case_match eqn:H2; first done.
+            rewrite /one_positive in H1 H2.
+            apply bool_decide_eq_true_1 in H1.
+            apply bool_decide_eq_false_1 in H2.
+            exfalso.
+            apply H2. naive_solver.
+          }
+          iModIntro. wp_pures.
+          clear s2 H1 n.
+          iInv "I" as ">(%s1&%s2&%n&Hauth1&Hauth2&Hl&H&Herr)" "Hclose".
+          iDestruct (ghost_var_agreeT with "[$Hauth1][$]") as "->".
+          wp_faa.
+          iMod (ghost_var_updateT _ (S2 (S x')) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
+          replace (_+_)%Z with (Z.of_nat (n+1)); last lia.
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl H Herr]") as "_"; last by iFrame.
+          iNext.
+          replace (added_1 (S2 _)) with true; last first.
+          { rewrite /added_1. rewrite bool_decide_eq_true_2; first done.
+            eexists _; split; last done. lia.
+          }
+          rewrite orb_true_l; iSplit; first (iPureIntro; lia).
+          rewrite /one_positive.
+          rewrite bool_decide_eq_true_2; first done.
+          eexists _; split; last by left. lia.
       + iDestruct "Herr" as "(%&Herr&->)".
         simpl.
         wp_apply (wp_couple_rand_adv_comp1' _ _ _ _
                     (λ x, if bool_decide(fin_to_nat x = 0)%nat
-                          then (Rpower 6 (bool_to_nat (bool_decide (n2 = Some 0%nat)) - 2 +1))
+                          then (Rpower 6 (bool_to_nat (bool_decide (sampled s2 = Some 0%nat)) - 2 +1))
                           else 0)%R with "[$]") as (x) "Herr".
         { intros. case_match; last done.
           rewrite /Rpower.
@@ -555,102 +507,123 @@ Section complex'.
         { rewrite SeriesC_finite_foldr. simpl.
           rewrite Rpower_plus Rpower_1; lra.
         }
-        iMod (ghost_var_update _ (Some (fin_to_nat x)) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
-        iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hra1 $Hra2 $Hl H Herr]") as "_".
-        { iNext.
-          iSplitL "H".
-          - case_match eqn:H2; first by case_match.
-            case_match eqn:H3; last done.
-            destruct s1, s2, (fin_to_nat x), n2 as [[|]|]; simplify_eq.
-          - case_bool_decide as K.
-            + case_match.
-              * iApply (ec_weaken with "[$]").
-                split; first done.
-                rewrite /Rpower.
-                apply Rlt_le, exp_pos.
-              * rewrite K. simpl.
-                iExists _; iSplit; last done. rewrite S_INR.
-                iApply (ec_eq with "[$]"). f_equal. lra.
-            + case_match; first done.
-              destruct (fin_to_nat x); simplify_eq.
-        }
-        iModIntro.
-        wp_pures.
-        clear n n2 H1 s1 s2.
-        case_bool_decide as H2; wp_pures.
-        * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
-          iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
-          wp_faa.
-          iMod (ghost_var_update' _ true with "[$Hra1][$]") as "[Hra1 Hfrag1']".
-          iMod ("Hclose" with "[$Hauth1 $Hauth2 Hl $Hra1 $Hra2 H Herr]") as "_".
-          { iExists (n+1)%nat. iFrame. rewrite Nat2Z.inj_add. iFrame.
-            iNext. destruct (added_1 true _||_); last done.
-            iPureIntro. lia.
-          }
-          by iFrame.
-        * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
-          iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
-          iMod (ghost_var_update' _ true with "[$Hra1][$]") as "[Hra1 Hfrag1']".
-          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl $Hra1 $Hra2 H $Herr]") as "_".
+        case_bool_decide as H2.
+        * iMod (ghost_var_updateT _ (S2 0%nat) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl H Herr]") as "_".
           { iNext.
-            case_match eqn :H1; first by case_match.
-            case_match eqn:H3; last done.
-            assert (fin_to_nat x=0)%nat as K by lia.
-            rewrite K in H1 H3.
-            destruct s1, s2, n2 as [[|]|]; simplify_eq. 
+            replace (added_1 S0) with false; last first.
+            { rewrite /added_1 bool_decide_eq_false_2; naive_solver. }
+            replace (added_1 (S2 0)) with false; last first.
+            { rewrite /added_1 bool_decide_eq_false_2; first done.
+              intros (?&?&?). simplify_eq. lia. }
+            rewrite !orb_false_l.
+            iFrame.
+            case_match eqn:H3.
+            - rewrite /one_positive in H1 H3.
+              apply bool_decide_eq_false_1 in H1.
+              apply bool_decide_eq_true in H3.
+              exfalso. apply H1.
+              destruct H3 as (?&[?[?|?]]); last naive_solver.
+              simpl in *. simplify_eq. lia.
+            - simpl. iExists _; iSplit; last done.
+              iApply ec_eq; last done.
+              f_equal. rewrite S_INR. lra.
           }
-          by iFrame.
+          iModIntro. rewrite H2. wp_pures. by iFrame.
+        * unshelve iMod (ghost_var_updateT _ (S1 (x) _) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]"; first lia.
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl H Herr]") as "_".
+          { iNext.
+            replace (added_1 S0) with false; last first.
+            { rewrite /added_1 bool_decide_eq_false_2; naive_solver. }
+            replace (added_1 (S1 _ _)) with false; last first.
+            { rewrite /added_1 bool_decide_eq_false_2; naive_solver. }
+            rewrite !orb_false_l. iFrame.
+            case_match eqn:H3; first done.
+            rewrite /one_positive in H3.
+            apply bool_decide_eq_false_1 in H3.
+            exfalso.
+            apply H3. eexists _. split; last by left. lia. 
+          }
+          iModIntro. wp_pures.
+          clear s2 H1 n.
+          rewrite bool_decide_eq_true_2; last lia.
+          wp_pures.
+          iInv "I" as ">(%s1&%s2&%n&Hauth1&Hauth2&Hl&H&Herr)" "Hclose".
+          iDestruct (ghost_var_agreeT with "[$Hauth1][$]") as "->".
+          wp_faa.
+          iMod (ghost_var_updateT _ (S2 (x)) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
+          replace (_+_)%Z with (Z.of_nat (n+1)); last lia.
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl H Herr]") as "_"; last by iFrame.
+          iNext.
+          replace (added_1 (S2 _)) with true; last first.
+          { rewrite /added_1. rewrite bool_decide_eq_true_2; first done.
+            eexists _; split; last done. lia.
+          }
+          rewrite orb_true_l; iSplit; first (iPureIntro; lia).
+          rewrite /one_positive.
+          rewrite bool_decide_eq_true_2; first done.
+          eexists _; split; last by left. lia.
     - wp_bind (rand _)%E.
-      iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
-      iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
+      iInv "I" as ">(%s1&%s2&%n&Hauth1&Hauth2&Hl&H&Herr)" "Hclose".
+      iDestruct (ghost_var_agreeT with "[$Hauth2][$]") as "->".
       destruct (one_positive _ _) eqn:H1.
       + wp_apply (wp_rand with "[//]") as (x) "_".
-        iMod (ghost_var_update _ (Some (fin_to_nat x)) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]".
-        destruct n1 as [[|n1]|]; simplify_eq.
-        iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hra1 $Hra2 $Hl H Herr]") as "_".
-        { iNext.
-          case_match eqn:H2.
-          - rewrite orb_true_iff in H2. destruct H2 as [H2|H2].
-            + destruct s1; simplify_eq.
-              case_match; (iSplit; first done); by destruct x.
-            + iSplitL "H"; first by case_match.
-              by simpl.
-          - rewrite orb_false_iff in H2. destruct H2 as [-> H2].
-            rewrite orb_false_l.
-            case_match; last (iSplit; first done); first destruct s2; simplify_eq.
-            by destruct x.
-        }
-        iModIntro.
-        wp_pures.
-        clear n n1 H1 s1 s2.
-        case_bool_decide as H2; wp_pures.
-        * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
-          iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
-          wp_faa.
-          iMod (ghost_var_update' _ true with "[$Hra2][$]") as "[Hra2 Hfrag2']".
-          iMod ("Hclose" with "[$Hauth1 $Hauth2 Hl $Hra2 $Hra1 H Herr]") as "_".
-          { iExists (n+1)%nat. iFrame. rewrite Nat2Z.inj_add. iFrame.
-            iNext. destruct (_||added_1 true _); last done.
-            iPureIntro. lia.
-          }
-          by iFrame.
-        * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
-          iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
-          iMod (ghost_var_update' _ true with "[$Hra2][$]") as "[Hra2 Hfrag2']".
-          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl $Hra2 $Hra1 H $Herr]") as "_".
+        destruct (fin_to_nat x) as [|x'] eqn:Hx.
+        * iMod (ghost_var_updateT _ (S2 0%nat) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl H Herr]") as "_".
           { iNext.
-            case_match eqn :H1; first by case_match.
-            case_match eqn:H3; last done.
-            assert (fin_to_nat x=0)%nat as K by lia.
-            rewrite K in H1 H3.
-            destruct s1, s2, n1 as [[|]|]; simplify_eq. 
+            replace (added_1 S0) with false; last first.
+            { rewrite /added_1 bool_decide_eq_false_2; naive_solver. }
+            replace (added_1 (S2 0)) with false; last first.
+            { rewrite /added_1 bool_decide_eq_false_2; first done.
+              intros (?&?&?). simplify_eq. lia. }
+            rewrite !orb_false_r.
+            iFrame.
+            case_match eqn:H2; first done.
+            rewrite /one_positive in H1 H2.
+            apply bool_decide_eq_true_1 in H1.
+            apply bool_decide_eq_false_1 in H2.
+            exfalso.
+            apply H2. naive_solver.
           }
-          by iFrame.
+          iModIntro. wp_pures. by iFrame.
+        * unshelve iMod (ghost_var_updateT _ (S1 (S x') _) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]"; first lia.
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl H Herr]") as "_".
+          { iNext.
+            replace (added_1 S0) with false; last first.
+            { rewrite /added_1 bool_decide_eq_false_2; naive_solver. }
+            replace (added_1 (S1 (S _) _)) with false; last first.
+            { rewrite /added_1 bool_decide_eq_false_2; naive_solver. }
+            rewrite !orb_false_r. iFrame.
+            case_match eqn:H2; first done.
+            rewrite /one_positive in H1 H2.
+            apply bool_decide_eq_true_1 in H1.
+            apply bool_decide_eq_false_1 in H2.
+            exfalso.
+            apply H2. naive_solver.
+          }
+          iModIntro. wp_pures.
+          clear s1 H1 n.
+          iInv "I" as ">(%s1&%s2&%n&Hauth1&Hauth2&Hl&H&Herr)" "Hclose".
+          iDestruct (ghost_var_agreeT with "[$Hauth2][$]") as "->".
+          wp_faa.
+          iMod (ghost_var_updateT _ (S2 (S x')) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]".
+          replace (_+_)%Z with (Z.of_nat (n+1)); last lia.
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl H Herr]") as "_"; last by iFrame.
+          iNext.
+          replace (added_1 (S2 _)) with true; last first.
+          { rewrite /added_1. rewrite bool_decide_eq_true_2; first done.
+            eexists _; split; last done. lia.
+          }
+          rewrite orb_true_r; iSplit; first (iPureIntro; lia).
+          rewrite /one_positive.
+          rewrite bool_decide_eq_true_2; first done.
+          eexists _; split; last by right. lia.
       + iDestruct "Herr" as "(%&Herr&->)".
         simpl.
         wp_apply (wp_couple_rand_adv_comp1' _ _ _ _
                     (λ x, if bool_decide(fin_to_nat x = 0)%nat
-                          then (Rpower 6 (bool_to_nat (bool_decide (n1 = Some 0%nat)) - 2 +1))
+                          then (Rpower 6 (bool_to_nat (bool_decide (sampled s1 = Some 0%nat)) - 2 +1))
                           else 0)%R with "[$]") as (x) "Herr".
         { intros. case_match; last done.
           rewrite /Rpower.
@@ -659,69 +632,93 @@ Section complex'.
         { rewrite SeriesC_finite_foldr. simpl.
           rewrite -plus_n_O Rpower_plus Rpower_1; lra. 
         }
-        iMod (ghost_var_update _ (Some (fin_to_nat x)) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]".
-        iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hra1 $Hra2 $Hl H Herr]") as "_".
-        { iNext.
-          iSplitL "H".
-          - case_match eqn:H2; first by case_match.
-            case_match eqn:H3; last done.
-            destruct s1, s2, (fin_to_nat x), n1 as [[|]|]; simplify_eq.
-          - case_bool_decide as K.
-            + case_match.
-              * iApply (ec_weaken with "[$]").
-                split; first done.
-                rewrite /Rpower.
-                apply Rlt_le, exp_pos.
-              * rewrite K. simpl.
-                iExists _; iSplit; last done. rewrite plus_INR. 
-                iApply (ec_eq with "[$]"). f_equal. simpl. lra.
-            + case_match; first done.
-              destruct n1 as [[|]|], (fin_to_nat x); simplify_eq.
-        }
-        iModIntro.
-        wp_pures.
-        clear n n1 H1 s1 s2.
-        case_bool_decide as H2; wp_pures.
-        * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
-          iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
-          wp_faa.
-          iMod (ghost_var_update' _ true with "[$Hra2][$]") as "[Hra2 Hfrag2']".
-          iMod ("Hclose" with "[$Hauth1 $Hauth2 Hl $Hra1 $Hra2 H Herr]") as "_".
-          { iExists (n+1)%nat. iFrame. rewrite Nat2Z.inj_add. iFrame.
-            iNext. destruct (_||added_1 true _); last done.
-            iPureIntro. lia.
-          }
-          by iFrame.
-        * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
-          iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
-          iMod (ghost_var_update' _ true with "[$Hra2][$]") as "[Hra2 Hfrag2']".
-          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl $Hra1 $Hra2 H $Herr]") as "_".
+        case_bool_decide as H2.
+        * iMod (ghost_var_updateT _ (S2 0%nat) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl H Herr]") as "_".
           { iNext.
-            case_match eqn :H1; first by case_match.
-            case_match eqn:H3; last done.
-            assert (fin_to_nat x=0)%nat as K by lia.
-            rewrite K in H1 H3.
-            destruct s1, s2, n1 as [[|]|]; simplify_eq. 
+            replace (added_1 S0) with false; last first.
+            { rewrite /added_1 bool_decide_eq_false_2; naive_solver. }
+            replace (added_1 (S2 0)) with false; last first.
+            { rewrite /added_1 bool_decide_eq_false_2; first done.
+              intros (?&?&?). simplify_eq. lia. }
+            rewrite !orb_false_r.
+            iFrame.
+            case_match eqn:H3.
+            - rewrite /one_positive in H1 H3.
+              apply bool_decide_eq_false_1 in H1.
+              apply bool_decide_eq_true in H3.
+              exfalso. apply H1.
+              destruct H3 as (?&[?[?|?]]); first naive_solver.
+              simpl in *. simplify_eq. lia.
+            - simpl. iExists _; iSplit; last done.
+              iApply ec_eq; last done.
+              f_equal. rewrite plus_INR. simpl. lra. 
           }
-          by iFrame.
-    - iIntros (??) "[(%n1&Hfrag1&Hfrag1') (%n2&Hfrag2&Hfrag2')]".
+          iModIntro. rewrite H2. wp_pures. by iFrame.
+        * unshelve iMod (ghost_var_updateT _ (S1 (x) _) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]"; first lia.
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl H Herr]") as "_".
+          { iNext.
+            replace (added_1 S0) with false; last first.
+            { rewrite /added_1 bool_decide_eq_false_2; naive_solver. }
+            replace (added_1 (S1 _ _)) with false; last first.
+            { rewrite /added_1 bool_decide_eq_false_2; naive_solver. }
+            rewrite !orb_false_r. iFrame.
+            case_match eqn:H3; first done.
+            rewrite /one_positive in H3.
+            apply bool_decide_eq_false_1 in H3.
+            exfalso.
+            apply H3. eexists _. split; last by right. lia. 
+          }
+          iModIntro. wp_pures.
+          clear s1 H1 n.
+          rewrite bool_decide_eq_true_2; last lia.
+          wp_pures.
+          iInv "I" as ">(%s1&%s2&%n&Hauth1&Hauth2&Hl&H&Herr)" "Hclose".
+          iDestruct (ghost_var_agreeT with "[$Hauth2][$]") as "->".
+          wp_faa.
+          iMod (ghost_var_updateT _ (S2 (x)) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]".
+          replace (_+_)%Z with (Z.of_nat (n+1)); last lia.
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl H Herr]") as "_"; last by iFrame.
+          iNext.
+          replace (added_1 (S2 _)) with true; last first.
+          { rewrite /added_1. rewrite bool_decide_eq_true_2; first done.
+            eexists _; split; last done. lia.
+          }
+          rewrite orb_true_r; iSplit; first (iPureIntro; lia).
+          rewrite /one_positive.
+          rewrite bool_decide_eq_true_2; first done.
+          eexists _; split; last by right. lia.
+    - iIntros (??) "[(%n1&Hfrag1) (%n2&Hfrag2)]".
       iNext.
       wp_pures.
-      iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
-      iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
-      iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
-      iDestruct (ghost_var_agree' with "[$Hra1][$]") as "->".
-      iDestruct (ghost_var_agree' with "[$Hra2][$]") as "->".
+      iInv "I" as ">(%s1&%s2&%n&Hauth1&Hauth2&Hl&H&Herr)" "Hclose".
+      iDestruct (ghost_var_agreeT with "[$Hauth1][$]") as "->".
+      iDestruct (ghost_var_agreeT with "[$Hauth2][$]") as "->".
       wp_load.
       iAssert (⌜(0<n)%nat⌝)%I as "%".
-      + destruct n1, n2; simpl; try done.
-        iDestruct "Herr" as "(%&Herr&->)".
-        iDestruct (ec_contradict with "[$]") as "[]".
-        simpl.
-        replace (_-_)%R with 0%R by lra.
-        rewrite Rpower_O; lra.
+      + case_match eqn:H; first done.
+        case_match eqn:H1.
+        * rewrite orb_false_iff in H. destruct H as [Ha Hb].
+          rewrite /added_1 in Ha Hb. apply bool_decide_eq_false_1 in Ha, Hb.
+          rewrite /one_positive in H1. apply bool_decide_eq_true_1 in H1.
+          exfalso. naive_solver.
+        * iDestruct "Herr" as "(%&Herr&->)".
+          iDestruct (ec_contradict with "[$]") as "[]".
+          rewrite !bool_decide_eq_true_2/=; last first.
+          -- destruct n1; first done.
+             rewrite orb_false_iff in H. destruct H as [Ha Hb].
+             rewrite /added_1 in Ha Hb. apply bool_decide_eq_false_1 in Ha, Hb.
+             exfalso. apply Ha. eexists _. split; last done. lia.
+          -- destruct n2; first done.
+             rewrite orb_false_iff in H. destruct H as [Ha Hb].
+             rewrite /added_1 in Ha Hb. apply bool_decide_eq_false_1 in Ha, Hb.
+             exfalso. apply Hb. eexists _. split; last done. lia.
+          -- replace (_+_-_)%R with 0%R; last lra.
+             rewrite Rpower_O; lra.
       + iMod ("Hclose" with "[$]") as "_".
         iApply "HΦ".
         by iPureIntro.
+        Unshelve.
+        all: lia.
   Qed.
 End complex'.
