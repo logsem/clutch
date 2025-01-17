@@ -87,7 +87,8 @@ Section client.
     {{{ ↯ (1/16) }}}
       con_prog
       {{{ (n:nat), RET #n; ⌜(0<n)%nat⌝ }}}.
-  Proof.iIntros (Φ) "Hε HΦ".
+  Proof.
+    iIntros (Φ) "Hε HΦ".
     rewrite /con_prog.
     wp_apply (new_counter_spec (L:=L) _ counter_nroot with "[//]") as (c) "(%γ & #Hcounter & Hfrag)".
     replace (1)%Qp with (1/2+1/2)%Qp; last compute_done.
