@@ -170,6 +170,20 @@ Section simple_bit_hash.
     by iApply (hashfun_implies_bounded_range with "[$]").
   Qed.
 
+  Lemma wp_init_hash_basic E :
+    {{{ True }}}
+      init_hash #() @ E
+    {{{ f, RET f; hashfun f ∅}}}.
+  Proof.
+    rewrite /init_hash.
+    iIntros (Φ) "_ HΦ".
+    wp_pures. rewrite /init_hash_state.
+    wp_apply (wp_init_map with "[//]").
+    iIntros (?) "Hm". wp_pures.
+    rewrite /compute_hash. wp_pures.
+    iApply "HΦ". iModIntro. rewrite /hashfun. by iFrame.
+  Qed.
+
   Lemma wp_init_hash E :
     {{{ True }}}
       init_hash #() @ E
@@ -317,6 +331,47 @@ Section simple_bit_hash.
       + lia.
       + pose proof (fin_to_nat_lt x).
         lia.
+  Qed.
+
+  Lemma wp_insert_basic E f m (n : nat)  :
+    m !! n = None →
+    {{{ hashfun f m }}}
+      f #n @ E
+      {{{ (v : nat), RET #v; ⌜ (v < S val_size)%nat ⌝ ∗ hashfun f (<[ n := v ]>m) }}}.
+  Proof.
+    iIntros (Hlookup Φ) "Hhash HΦ".
+    iDestruct "Hhash" as (hm ->) "[H %Hbound]".
+    rewrite /compute_hash_specialized.
+    wp_pures.
+    wp_apply (wp_get with "[$]").
+    iIntros (vret) "(Hhash&->)".
+    rewrite lookup_fmap Hlookup /=. wp_pures.
+    wp_bind (rand _)%E.
+    wp_apply (wp_rand); auto.
+    iIntros (x) "_".
+    wp_pures.
+    wp_apply (wp_set with "Hhash").
+    iIntros "Hlist".
+    wp_pures.
+    iModIntro.
+    iApply "HΦ".
+    iSplit.
+    {
+      iPureIntro.
+      apply fin_to_nat_lt.
+    }
+    iFrame.
+    rewrite /hashfun.
+    iExists hm.
+    iSplit; first auto.
+    iSplitL.
+    * rewrite fmap_insert //.
+    * iPureIntro.
+      apply map_Forall_insert_2; last done.
+      split.
+      ** lia.
+      ** pose proof (fin_to_nat_lt x).
+         lia.
   Qed.
 
 
