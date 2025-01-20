@@ -68,6 +68,12 @@ Next Obligation.
 Qed.
 Next Obligation.
   simpl.
+  iIntros (???????) "H1 H2".
+  rewrite /hash_view_frag.
+  by iCombine "H1 H2" gives "[? ->]".
+Qed.
+Next Obligation.
+  simpl.
   iIntros.
   by iApply hash_view_auth_insert.
 Qed.

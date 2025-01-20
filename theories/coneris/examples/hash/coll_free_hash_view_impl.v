@@ -114,6 +114,11 @@ Next Obligation.
   by iApply hash_view_auth_frag_agree.
 Qed.
 Next Obligation.
+  simpl. iIntros (????????) "H1 H2".
+  iCombine "H1 H2" gives "%H".
+  by apply gset_bij_elem_agree in H.
+Qed.
+Next Obligation.
   simpl.
   iIntros.
   by iApply hash_view_auth_insert.

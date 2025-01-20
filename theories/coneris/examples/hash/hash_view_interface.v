@@ -35,6 +35,8 @@ Class hash_view `{!conerisGS Σ} := Hash_View
   hv_auth_frag_agree {L:hvG Σ} m γ k v:
     hv_auth (L:=L) m γ  ∗ hv_frag (L:=L) k v γ -∗
     ⌜m!!k=Some v⌝;
+  hv_frag_frag_agree {L:hvG Σ} γ k v1 v2:
+    hv_frag (L:=L) k v1 γ -∗ hv_frag (L:=L) k v2 γ -∗ ⌜v1=v2⌝;
   hv_auth_insert {L:hvG Σ} m n x γ:
     m!!n=None ->
     hv_auth (L:=L) m γ ==∗

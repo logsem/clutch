@@ -1,5 +1,5 @@
 From iris.algebra Require Import excl_auth gmap.
-From clutch.coneris Require Import coneris hocap_rand lib.map hash_view_interface lock.
+From clutch.coneris Require Import coneris hocap_rand lib.map hash_view_interface lock con_hash_interface0.
 
 Set Default Proof Using "Type*".
 (* Concurrent hash impl*)
@@ -140,17 +140,18 @@ Section con_hash_impl.
 
   Definition hash_tape α t:=rand_tapes (L:=Hr) α (val_size, t).
   Definition con_hash_view k v γ := hv_frag (L:=Hhv) k v γ.
-  Definition abstract_con_hash (f:val) (l:val) (hm:loc) γ1 γ2 : iProp Σ :=
+  Definition abstract_con_hash (f:val) (l:val) (hm:val) γ1 γ2 : iProp Σ :=
     ∃ m,
-      ⌜f=compute_con_hash_specialized (l, #hm)%V⌝ ∗
+      ⌜f=compute_con_hash_specialized (l, hm)%V⌝ ∗
       hv_auth (L:=Hhv) m γ1 ∗
       own γ2 (●E m) 
   .
   Definition abstract_con_hash_inv f l hm γ1 γ2:=
     inv (nroot.@"con_hash_abstract") (abstract_con_hash f l hm γ1 γ2).
   
-  Definition concrete_con_hash (hm:loc) (m:gmap nat nat) γ : iProp Σ:=
-    map_list hm ((λ b, LitV (LitInt (Z.of_nat b))) <$> m) ∗
+  Definition concrete_con_hash (hm:val) (m:gmap nat nat) γ : iProp Σ:=
+    ∃ (hm':loc), ⌜hm=#hm'⌝ ∗
+    map_list hm' ((λ b, LitV (LitInt (Z.of_nat b))) <$> m) ∗
     own γ (◯E m).
 
   Definition concrete_con_hash_inv hm l γ_lock γ:=
@@ -193,7 +194,7 @@ Section con_hash_impl.
     iModIntro.
     rewrite /compute_con_hash_specialized.
     wp_pures.
-    wp_apply (acquire_spec with "Hcon") as "[Hl[% [Hm Hfrag]]]".
+    wp_apply (acquire_spec with "Hcon") as "[Hl[% (%&->&Hm&Hfrag)]]".
     wp_pures.
     rewrite /compute_hash.
     wp_pures.
@@ -208,7 +209,7 @@ Section con_hash_impl.
       iMod (hv_auth_duplicate_frag with "[$]") as "[H1 Hfrag']"; first done.
       iMod ("Hclose" with "[$H1 $H2]") as "_"; first done.
       iModIntro.
-      wp_apply (release_spec with "[$Hl $Hcon $Hfrag $Hm]") as "_".
+      wp_apply (release_spec with "[$Hl $Hcon $Hfrag $Hm]") as "_"; first done.
       wp_pures.
       iModIntro. iApply "HΦ".
       iFrame.
@@ -226,7 +227,7 @@ Section con_hash_impl.
       iModIntro.
       wp_pures.
       wp_apply (release_spec with "[$Hl $Hcon $Hfrag Hm]") as "_".
-      { by rewrite fmap_insert. }
+      { iExists _. iSplit; first done. by rewrite fmap_insert. }
       wp_pures.
       iApply "HΦ".
       iFrame. iLeft. by iFrame.
@@ -247,7 +248,7 @@ Section con_hash_impl.
     iModIntro.
     rewrite /compute_con_hash_specialized.
     wp_pures.
-    wp_apply (acquire_spec with "Hcon") as "[Hl[% [Hm Hfrag]]]".
+    wp_apply (acquire_spec with "Hcon") as "[Hl[% (%&->&Hm&Hfrag)]]".
     wp_pures.
     rewrite /compute_hash.
     wp_pures.
@@ -263,9 +264,9 @@ Section con_hash_impl.
       rewrite Hres in H. simplify_eq.
       iMod ("Hclose" with "[$H1 $H2]") as "_"; first done.
       iModIntro.
-      wp_apply (release_spec with "[$Hl $Hcon $Hfrag $Hm]") as "_".
-      wp_pures.
-      iModIntro. iApply "HΦ".
+      wp_apply (release_spec with "[$Hl $Hcon $Hfrag $Hm]") as "_"; first done.
+      wp_pures. iModIntro.
+      iApply "HΦ".
       iFrame. iExact "Hfragv".
     - iApply fupd_pgl_wp.
       iInv "Hab" as ">(%&->&H1&H2)" "Hclose".
@@ -274,6 +275,29 @@ Section con_hash_impl.
   Qed.
   
 
+  Program Definition con_hash_impl0 : con_hash0 val_size :=
+    {| init_hash0:=init_hash;
+      allocate_tape0:=allocate_tape;
+      compute_hash0:=compute_hash;
+
+      hash_view_gname:=_;
+      hash_map_gname:=gname;
+      hash_lock_gname:=_;
+      con_hash_inv0 := con_hash_inv;
+      hash_tape0:=hash_tape;
+      con_hash_view0:=con_hash_view;
+      con_hash_presample0 := con_hash_presample;
+      con_hash_spec0 := con_hash_spec;
+      con_hash_spec_hashed_before0 := con_hash_spec_hashed_before                
+    |}
+  .
+  Next Obligation.
+    iIntros.
+    rewrite /con_hash_inv.
+    by iApply hv_frag_frag_agree.
+  Qed.
+    
+  
   (* Definition tape_m_elements (tape_m : gmap val (list nat)) := *)
   (*   concat (map_to_list tape_m).*2. *)
   

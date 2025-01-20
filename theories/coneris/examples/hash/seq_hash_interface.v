@@ -26,8 +26,6 @@ Class seq_hash `{!conerisGS Σ} {h:hash_view} `{!hvG Σ} (val_size:nat):= Seq_Ha
   seq_hash_tape {L : seq_hashG Σ} (α:val) (ns:list nat) (γ: seq_hash_tape_gname) : iProp Σ;
   
   (** * General properties of the predicates *)
-  #[global] abstract_seq_hash_timeless {L : seq_hashG Σ} f m tape_m γ1 γ2 ::
-    Timeless (abstract_seq_hash (L:=L) f m tape_m γ1 γ2);
   (* #[global] concrete_seq_hash_timeless {L : seq_hashG Σ} f m :: *)
   (*   Timeless (concrete_seq_hash (L:=L) f m); *)
   #[global] seq_hash_tape_timeless {L : seq_hashG Σ} α ns γ ::
