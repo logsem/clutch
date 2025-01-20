@@ -110,18 +110,7 @@ Section con_hash_impl.
           "b"
       end.
 
-  (* init_hash returns a hash as a function, basically wrapping the internal state
-     in the returned function *)
-  Definition init_hash : val :=
-    λ: "_",
-      let: "hm" := init_hash_state #() in
-      let: "l" := newlock #() in
-      ("l", compute_hash "hm").
-
-  Definition allocate_tape : val :=
-    λ: "_",
-      rand_allocate_tape #val_size.
-
+  
   Definition compute_con_hash :val:=
     λ: "lhm" "v" "α",
       let, ("l", "hm") := "lhm" in
@@ -129,6 +118,19 @@ Section con_hash_impl.
       let: "output" := compute_hash "hm" "v" "α" in
       release "l";;
       "output".
+  
+  (* init_hash returns a hash as a function, basically wrapping the internal state
+     in the returned function *)
+  Definition init_hash : val :=
+    λ: "_",
+      let: "hm" := init_hash_state #() in
+      let: "l" := newlock #() in
+      compute_con_hash ("l", "hm").
+
+  Definition allocate_tape : val :=
+    λ: "_",
+      rand_allocate_tape #val_size.
+
 
   Definition compute_con_hash_specialized (lhm:val):val:=
     λ: "v" "α",
@@ -175,6 +177,41 @@ Section con_hash_impl.
     rewrite /hash_tape.
     iMod (rand_tapes_presample with "[$][$]"); [done..|].
     by iFrame.
+  Qed.
+
+  Lemma con_hash_init:
+    {{{ True }}}
+      init_hash #()
+      {{{ (f:val), RET f; ∃ l hm γ1 γ2 γ_lock, con_hash_inv f l hm γ1 γ2 γ_lock }}}.
+  Proof.
+    iIntros (Φ) "_ HΦ".
+    rewrite /init_hash.
+    wp_pures.
+    rewrite /con_hash_inv/abstract_con_hash_inv/abstract_con_hash/concrete_con_hash_inv/concrete_con_hash.
+    rewrite /init_hash_state.
+    wp_apply (wp_init_map with "[$]") as (l) "Hm".
+    wp_pures.
+    iMod (ghost_var_alloc ∅) as "[%γ2 [Hauth Hfrag]]".
+    wp_apply (newlock_spec with "[Hm Hfrag]") as (loc γ_lock) "#Hl"; last first.
+    - wp_pures. 
+      iMod hv_auth_init as "[%γ1 Hv]".
+      iMod (inv_alloc with "[Hauth Hv]") as "#Hinv"; last first.
+      + rewrite /compute_con_hash. wp_pures.  iApply "HΦ". by iFrame "Hinv Hl".
+      + rewrite /compute_con_hash_specialized. by iFrame.
+    - by iFrame.
+  Qed.
+
+  Lemma con_hash_alloc_tape:
+    {{{ True }}}
+      allocate_tape #()
+      {{{ (α: val), RET α; hash_tape α [] }}}.
+  Proof.
+    iIntros (Φ) "_ HΦ".
+    rewrite /allocate_tape.
+    wp_pures.
+    wp_apply (rand_allocate_tape_spec with "[//]") as (v) "?".
+    iApply "HΦ".
+    iFrame.
   Qed.
 
   Lemma con_hash_spec f l hm γ1 γ2 γlock α n ns (v:nat):
@@ -287,6 +324,8 @@ Section con_hash_impl.
       hash_tape0:=hash_tape;
       con_hash_view0:=con_hash_view;
       con_hash_presample0 := con_hash_presample;
+      con_hash_init0 := con_hash_init;
+      con_hash_alloc_tape0 := con_hash_alloc_tape;
       con_hash_spec0 := con_hash_spec;
       con_hash_spec_hashed_before0 := con_hash_spec_hashed_before                
     |}
