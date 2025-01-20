@@ -3,7 +3,9 @@ From iris.algebra Require Import excl_auth numbers gset_bij.
 From clutch.coneris Require Export coneris lib.map hocap_rand abstract_tape coll_free_hash_view_interface seq_hash_interface.
 Set Default Proof Using "Type*".
 
-(** test: a sequential hash implementation that the coll-free hash view interface*)
+(** test: a sequential hash implementation that the coll-free hash view interface
+    Not finished and should be deleted
+*)
 Section seq_hash_impl.
 
   Context `{Hcon:conerisGS Σ, r1:!@rand_spec Σ Hcon, L:!randG Σ,
@@ -480,6 +482,9 @@ Section seq_hash_impl.
 End seq_hash_impl.
 
 
+Class seq_hashG_impl `{conerisGS Σ, rand_spec}:= Seq_hashG_impl { seq_hashG_impl_rand: randG Σ;
+                                           seq_hashG_impl_abstract_tapesGS: abstract_tapesGS Σ
+                            }.
 
 (* Section amortized_hash. *)
 

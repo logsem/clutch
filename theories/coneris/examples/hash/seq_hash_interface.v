@@ -1,7 +1,7 @@
 From clutch.coneris Require Import coneris coll_free_hash_view_interface.
 
 Set Default Proof Using "Type*".
-(** * Not that useful *)
+(** * seq hash interface. Not completed. To be deleted *)
 
 Definition tape_m_elements (tape_m : gmap val (list nat)) :=
     concat (map_to_list tape_m).*2.
@@ -22,15 +22,20 @@ Class seq_hash `{!conerisGS Σ} {h:hash_view} `{!hvG Σ} (val_size:nat):= Seq_Ha
   
   (** * Predicates *)
   abstract_seq_hash {L : seq_hashG Σ} (f: val) (m:gmap nat nat) (tape_m : gmap val (list nat)) (γ1:seq_hash_tape_gname) (γ2: hv_name): iProp Σ;
-  concrete_seq_hash {L:seq_hashG Σ} (f:val) (m:gmap nat nat) : iProp Σ; 
+  (* concrete_seq_hash {L:seq_hashG Σ} (f:val) (m:gmap nat nat) : iProp Σ;  *)
   seq_hash_tape {L : seq_hashG Σ} (α:val) (ns:list nat) (γ: seq_hash_tape_gname) : iProp Σ;
+  
   (** * General properties of the predicates *)
   #[global] abstract_seq_hash_timeless {L : seq_hashG Σ} f m tape_m γ1 γ2 ::
     Timeless (abstract_seq_hash (L:=L) f m tape_m γ1 γ2);
-  #[global] concrete_seq_hash_timeless {L : seq_hashG Σ} f m ::
-    Timeless (concrete_seq_hash (L:=L) f m);
+  (* #[global] concrete_seq_hash_timeless {L : seq_hashG Σ} f m :: *)
+  (*   Timeless (concrete_seq_hash (L:=L) f m); *)
   #[global] seq_hash_tape_timeless {L : seq_hashG Σ} α ns γ ::
     Timeless (seq_hash_tape (L:=L) α ns γ);
+  abstract_seq_hash_coll_free {L : seq_hashG Σ} f m tape_m γ1 γ2:
+    abstract_seq_hash (L:=L) f m tape_m γ1 γ2 -∗ ⌜coll_free m⌝; 
+
+  
 
   seq_hash_presample {L : seq_hashG Σ} f m tape_m γ1 γ2 α E (ε:nonnegreal) ns:
     abstract_seq_hash (L:=L) f m tape_m γ1 γ2 -∗
