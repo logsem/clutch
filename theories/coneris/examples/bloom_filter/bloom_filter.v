@@ -15,7 +15,6 @@ Section bloom_filter.
 
   Context `{!conerisGS Σ, HinG: inG Σ (gset_bijR nat nat)}.
 
-  Search nonnegreal.
 
   Fixpoint fp_error (m l b : nat) : R :=
       (match m with
