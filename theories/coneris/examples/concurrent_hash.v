@@ -4,6 +4,10 @@ From clutch.coneris.lib Require Import list.
 
 Set Default Proof Using "Type*".
 
+(** This example uses the spec from hash.v to derive a concurrent hash with a simple lock 
+    To see a more modular (and structured) example of the hash, see the files in /examples/hash/
+*)
+
 Section concurrent_hash.
   Variable val_size : nat.
   Variable insert_num : nat.

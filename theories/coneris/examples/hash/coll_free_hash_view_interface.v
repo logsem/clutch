@@ -2,6 +2,8 @@ From clutch.coneris Require Import coneris.
 
 Set Default Proof Using "Type*".
 
+(** An interface of a collision-free hash view*)
+
 (* A hash function is collision free if the partial map it
      implements is an injective function *)
 Definition coll_free (m : gmap nat nat) :=

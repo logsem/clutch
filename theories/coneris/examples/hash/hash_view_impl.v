@@ -1,7 +1,9 @@
 From iris.algebra Require Import gset_bij.
-From clutch.coneris Require Export coneris hash_view_interface.
+From clutch.coneris Require Export coneris coll_free_hash_view_interface.
 
 Set Default Proof Using "Type*".
+
+(** An implementation of a collision-free hash view*)
 
 Section hash_view_impl.
   Context `{Hcon:conerisGS Σ, 

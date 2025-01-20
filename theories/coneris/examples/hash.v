@@ -4,6 +4,11 @@ From clutch.coneris Require Export coneris lib.map.
 Import Hierarchy.
 Set Default Proof Using "Type*".
 
+(** This example shows how to verify a simple sequential hash.
+    This spec can then be used to prove an amortized version.
+    To see a more modular (and structured) example, see the examples/hash/ folder
+*)
+
 Section simple_bit_hash.
 
   Context `{!conerisGS Σ, HinG: inG Σ (gset_bijR nat nat)}.
