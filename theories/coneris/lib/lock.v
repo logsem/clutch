@@ -42,7 +42,7 @@ Class lock := Lock {
   locked_exclusive `{!conerisGS Σ} {L : lockG Σ} γ :
     locked (L:=L) γ -∗ locked (L:=L) γ -∗ False;
   (** * Program specs *)
-  newlock_spec `{!conerisGS Σ} {L : lockG Σ} (R : iProp Σ) :
+  newlock_spec `{!conerisGS Σ} {L : lockG Σ} (R : iProp Σ):
     {{{ R }}} newlock #() {{{ lk γ, RET lk; is_lock (L:=L) γ lk R }}};
   acquire_spec `{!conerisGS Σ} {L : lockG Σ} γ lk R :
     {{{ is_lock (L:=L) γ lk R }}} acquire lk {{{ RET #(); locked (L:=L) γ ∗ R }}};

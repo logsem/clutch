@@ -2,6 +2,10 @@ From clutch.coneris Require Import coneris .
 
 Set Default Proof Using "Type*".
 
+(** This spec is not strong enough to say anything about how the value hashed must be somthing we presampled
+    For that info, please refer to interface1
+*)
+
 Class con_hash0 `{!conerisGS Σ} (val_size:nat):= Con_Hash0
 {
   (** * Operations *)
@@ -37,6 +41,8 @@ Class con_hash0 `{!conerisGS Σ} (val_size:nat):= Con_Hash0
     Persistent (con_hash_view0 v res γ);
   con_hash_view_frag_frag_agree k v1 v2 γ :
     con_hash_view0 k v1 γ -∗ con_hash_view0 k v2 γ -∗ ⌜v1=v2⌝; 
+  hash_tape_valid α ns:
+    hash_tape0 α ns -∗ ⌜Forall (λ x, x<=val_size)%nat ns⌝;
 
   con_hash_presample0 E (ε:nonnegreal) ns α (ε2 : fin (S val_size) → R) :
     (∀ x : fin (S val_size), (0 <= ε2 x)%R)->

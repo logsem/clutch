@@ -335,6 +335,11 @@ Section con_hash_impl.
     rewrite /con_hash_inv.
     by iApply hv_frag_frag_agree.
   Qed.
+  Next Obligation.
+    iIntros.
+    rewrite /hash_tape.
+    iApply (rand_tapes_valid with "[$]").
+  Qed.
     
   
   (* Definition tape_m_elements (tape_m : gmap val (list nat)) := *)
