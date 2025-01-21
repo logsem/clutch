@@ -15,7 +15,7 @@ From mathcomp.analysis Require Export Rstruct.
 From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
-From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state subst pureops heapops.
+From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state subst pureops heapops randops.
 (* From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
 From stdpp Require Import fin.
@@ -428,9 +428,6 @@ Section meas_semantics.
   Definition cover_store_stuck : set cfg :=
     setI auxcov_store $ preimage aux_store auxcov_store_stuck.
 
-
-
-
   (* [set c | ∃ l w σ, c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = Some w]. *)
   Definition cover_load_ok : set cfg :=
     setI (setX auxcov_load setT) $
@@ -507,6 +504,14 @@ Section meas_semantics.
     preimage 𝜋_Val_v $
     vcov_injrv.
 
+
+  (*  [set c | ∃ z σ,          c = (AllocTape (Val (LitV (LitInt z))), σ) ]. *)
+  Definition cover_allocTape : set cfg. Admitted.
+
+  (* [set c | ∃ σ,            c = (AllocUTape, σ) ] *)
+  Definition cover_allocUTape : set cfg. Admitted.
+
+
   (* [set c | ∃ σ n, c = (Tick (Val (LitV (LitInt n))), σ) ]  *)
   Definition cover_tick : set cfg :=
     NonStatefulS $
@@ -519,16 +524,11 @@ Section meas_semantics.
     bcov_LitInt.
 
   (*
-  Definition cover_load_stuck      : set cfg := [set c | ∃ l σ,          c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = None].
-  Definition cover_store_ok        : set cfg := [set c | ∃ l w w' σ,     c = (Store (Val (LitV (LitLoc l))) (Val w), σ) /\ σ.(heap) !! l = Some w'].
-  Definition cover_store_stuck     : set cfg := [set c | ∃ l w σ,        c = (Store (Val (LitV (LitLoc l))) (Val w), σ) /\ σ.(heap) !! l = None ].
   Definition cover_randE           : set cfg := [set c | ∃ N σ,          c = (Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)), σ) ].
-  Definition cover_alloctape       : set cfg := [set c | ∃ z σ,          c = (AllocTape (Val (LitV (LitInt z))), σ) ].
   Definition cover_randT_notape    : set cfg := [set c | ∃ N l σ,        c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = None ].
   Definition cover_randT_mismatch  : set cfg := [set c | ∃ N l b σ,      c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = false)].
   Definition cover_randT_empty     : set cfg := [set c | ∃ N l b σ,      c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = true) /\ (b.(btape_tape) !! 0) = None].
   Definition cover_randT           : set cfg := [set c | ∃ N l b n σ,    c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = true) /\ (b.(btape_tape) !! 0) = Some n].
-  Definition cover_allocutape      : set cfg := [set c | ∃ σ,            c = (AllocUTape, σ) ].
   Definition cover_urandE          : set cfg := [set c | ∃ σ,            c = (URand (Val (LitV LitUnit)), σ) ].
   Definition cover_urandT_notape   : set cfg := [set c | ∃ σ l,          c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = None ].
   Definition cover_urandT_empty    : set cfg := [set c | ∃ σ l τ,        c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = Some τ /\ (τ !! 0) = None].
@@ -557,14 +557,14 @@ Section meas_semantics.
     cover_load_stuck;
     cover_store_ok;
     cover_store_stuck;
+    cover_allocTape;
+    cover_allocUTape;
     (*
     cover_randE;
-    cover_alloctape;
     cover_randT_notape;
     cover_randT_mismatch;
     cover_randT_empty;
     cover_randT;
-    cover_allocutape;
     cover_urandE;
     cover_urandT_notape;
     cover_urandT_empty;
@@ -1271,6 +1271,14 @@ Section meas_semantics.
   Qed.
   Hint Resolve cover_caseR_meas : measlang.
 
+  Lemma cover_allocTape_meas : measurable cover_allocTape.
+  Proof. Admitted.
+  Hint Resolve cover_allocTape_meas : measlang.
+
+  Lemma cover_allocUTape_meas : measurable cover_allocUTape.
+  Proof. Admitted.
+  Hint Resolve cover_allocUTape_meas : measlang.
+
   Lemma cover_tick_meas : measurable cover_tick.
   Proof.
     apply NonStatefulS_measurable.
@@ -1307,59 +1315,6 @@ Section meas_semantics.
     - apply (mathcomp_measurable_fun_restiction_setT (NonStatefulS S) (NonStatefulS_measurable S HS) snd).
         by apply measurable_snd.
   Qed.
-
-  (*
-  Section MAddState.
-    Definition mAddState_def (x : state) (e : expr) : cfg := (e, x).
-    Lemma mAddState_def_measurable (x : state) : @measurable_fun _ _ expr cfg setT (mAddState_def x).
-    Proof. apply measurable_fun_prod'_expr; done. Qed.
-    HB.instance Definition _ (x : state) :=
-      isMeasurableMap.Build _ _ expr cfg (mAddState_def x) (mAddState_def_measurable x).
-  End MAddState.
-
-  Definition mAddState (x : state) : measurable_map expr cfg := mAddState_def x.
-
-  (* Lift a monadic calculation returning exprs to a monadic function which returns cfg, with the state unchanged. *)
-  Definition PReaderMU {A : Type} (C : (A * state) -> giryM expr) (x : A * state) : giryM cfg
-    := giryM_map (mAddState x.2) (C x).
-
-  (* If C is a measurable monaic function on A*state, its reader lifting is also measurable. *)
-  Lemma PReaderMU_meas {d} {A : measurableType d} (C : (A * state) -> giryM expr) (S : set (A * state))
-      (HS : measurable S) (HC : measurable_fun S C) : measurable_fun S (PReaderMU C).
-  Proof.
-    (* This definitely needs to be provable. I'm just not sure if the setT requirement in map will be good enough. *)
-    rewrite /PReaderMU.
-    move=> _ Y HY.
-    rewrite /preimage.
-    have HT1 : giryM_display.-measurable [set: types.giryM expr] by eauto.
-    have Measurable1 := @measurable_mapP _ _ _ _ (giryM_map (mAddState _)) (HT1 _) Y HY.
-    clear HT1.
-    have Measurable2 := HC HS.
-    clear HY.
-    (* Maybe some way to commute with map could do the reduction in this special case? *)
-    rewrite /preimage/setI//= in Measurable1, Measurable2; rewrite /preimage/setI//=.
-
-  A dmitted.
-
-
-(* Generic lifting of a curried monadic function on expr to a monadic function on states *)
-Definition PNonStatefulMU {A : Type} (C : A -> giryM expr) : (A * state) -> giryM cfg
-  := PReaderMU (ssrfun.comp C fst).
-
-Lemma PNonStatefulMU_meas {d} {A : measurableType d} (C : A -> giryM expr) (S : set A)
-    (HS : measurable S) (HC : measurable_fun S C) : measurable_fun (NonStatefulS S) (PNonStatefulMU C).
-Proof.
-  apply PReaderMU_meas.
-  { by apply NonStatefulS_measurable. }
-  eapply measurable_comp.
-  3: { by apply HC. }
-  * done.
-  * rewrite /subset/NonStatefulS//=.
-    by move=>?[+]; move=>[+]; move=>??//=?<-.
-  eapply @mathcomp_measurable_fun_restiction_setT; try by eauto with measlang.
-  by apply NonStatefulS_measurable.
-Qed.
-   *)
 
   (** Top-level functions *)
   (* | Rec f x e => giryM_ret R ((Val $ RecV f x e, σ1) : cfg)  *)
@@ -1564,6 +1519,19 @@ Qed.
         ssrfun.comp 𝜋_Val_v $
         𝜋_Case_c ).
 
+  (*
+    | AllocTape (Val (LitV (LitInt z))) =>
+        let ι := fresh_loc σ1.(tapes) in
+        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := {| btape_tape := emptyTape ; btape_bound := (Z.to_nat z) |} ]> σ1) : cfg)
+  *)
+  Definition head_stepM_allocTape : cfg -> giryM cfg. Admitted.
+
+  (*
+    | AllocUTape =>
+        let ι := fresh_loc σ1.(utapes) in
+        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : cfg)
+   *)
+  Definition head_stepM_allocUTape : cfg -> giryM cfg. Admitted.
 
   (* | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : cfg) *)
   Definition head_stepM_tick : cfg -> giryM cfg :=
@@ -1614,6 +1582,8 @@ Qed.
                                                  | Some v => head_stepM_store_ok c
                                                  | None => head_stepM_store_stuck c
                                                  end
+    | AllocTape (Val (LitV (LitInt z)))       => head_stepM_allocTape c
+    | AllocUTape                              => head_stepM_allocUTape c
     | Tick (Val (LitV (LitInt _)))            => head_stepM_tick c
     | _                                       => head_stepM_stuck c
     end.
@@ -2564,6 +2534,16 @@ Qed.
   Qed.
   Hint Resolve head_stepM_caseR_meas : measlang.
 
+  Lemma head_stepM_allocTape_meas : measurable_fun cover_allocTape head_stepM_def.
+  Proof.
+  Admitted.
+  Hint Resolve head_stepM_allocTape_meas : measlang.
+
+  Lemma head_stepM_allocUTape_meas : measurable_fun cover_allocUTape head_stepM_def.
+  Proof.
+  Admitted.
+  Hint Resolve head_stepM_allocUTape_meas : measlang.
+
   Lemma head_stepM_tick_meas : measurable_fun cover_tick head_stepM_def.
   Proof.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_tick head_stepM_def).
@@ -2627,6 +2607,8 @@ Qed.
     - by apply cover_load_stuck_meas.
     - by apply cover_store_ok_meas.
     - by apply cover_store_stuck_meas.
+    - by apply cover_allocTape_meas.
+    - by apply cover_allocUTape_meas.
     - by apply cover_tick_meas.
     - by apply cover_maybe_stuck_meas.
   Qed.
@@ -2656,6 +2638,8 @@ Qed.
     - by apply head_stepM_load_stuck_meas.
     - by apply head_stepM_store_ok_meas.
     - by apply head_stepM_store_stuck_meas.
+    - by apply head_stepM_allocTape_meas.
+    - by apply head_stepM_allocUTape_meas.
     - by apply head_stepM_tick_meas.
     - by apply head_stepM_stuck_meas.
   Qed.
@@ -2696,20 +2680,11 @@ End meas_semantics.
   Definition head_stepM_def (c : cfg) : giryM cfg :=
     let (e1, σ1) := c in
     match e1 with
-    | ...
-    | Store (Val (LitV (LitLoc l))) (Val w) =>
-        match σ1.(heap) !! l with
-          | Some v => giryM_ret R ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : cfg)
-          | None => giryM_zero
-        end
     (* Uniform sampling from [0, 1 , ..., N] *)
     | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
         giryM_map
           (m_discr (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt $ fin_to_nat n, σ1) : cfg)))
           (giryM_unif (Z.to_nat N))
-    | AllocTape (Val (LitV (LitInt z))) =>
-        let ι := fresh_loc σ1.(tapes) in
-        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := {| btape_tape := emptyTape ; btape_bound := (Z.to_nat z) |} ]> σ1) : cfg)
     (* Rand with a tape *)
     | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) =>
         match σ1.(tapes) !! l with
@@ -2744,9 +2719,6 @@ End meas_semantics.
                 (giryM_unif (Z.to_nat N))
         | None => giryM_zero
         end
-    | AllocUTape =>
-        let ι := fresh_loc σ1.(utapes) in
-        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : cfg)
     (* Urand with no tape *)
     | URand (Val (LitV LitUnit)) => giryM_zero (* FIXME giryM_map urand_step unif_base *)
     (* Urand with a tape *)
