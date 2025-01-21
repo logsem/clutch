@@ -32,7 +32,9 @@ Class con_hash0 `{!conerisGS Σ} (val_size:nat):= Con_Hash0
   #[global] con_hash_view_timeless v res γ ::
     Timeless (con_hash_view0 v res γ);
   #[global] con_hash_inv_persistent f l hm γ1 γ2 γ_lock ::
-   Persistent (con_hash_inv0 f l hm γ1 γ2 γ_lock);
+    Persistent (con_hash_inv0 f l hm γ1 γ2 γ_lock);
+  #[global] con_hash_view_persistent v res γ ::
+    Persistent (con_hash_view0 v res γ);
   con_hash_view_frag_frag_agree k v1 v2 γ :
     con_hash_view0 k v1 γ -∗ con_hash_view0 k v2 γ -∗ ⌜v1=v2⌝; 
 
