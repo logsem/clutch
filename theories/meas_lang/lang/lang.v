@@ -15,7 +15,7 @@ From mathcomp.analysis Require Export Rstruct.
 From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
-From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state subst pureops heapops randops.
+From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state subst pureops heapops randops cfg.
 (* From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
 From stdpp Require Import fin.
@@ -188,7 +188,6 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
   | _              => None
   end.
 
-Definition cfg : measurableType _ := (expr * state)%type.
 
 Section unif.
   Local Open Scope ereal_scope.
@@ -511,6 +510,15 @@ Section meas_semantics.
   (* [set c | ∃ σ,            c = (AllocUTape, σ) ] *)
   Definition cover_allocUTape : set cfg. Admitted.
 
+  (* Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) *)
+  Definition cover_rand : set cfg. Admitted.
+
+  (*  (URand (Val (LitV LitUnit)), σ) *)
+  Definition cover_urand : set cfg. Admitted.
+
+  Definition cover_randT : set cfg. Admitted.
+
+  Definition cover_urandT : set cfg. Admitted.
 
   (* [set c | ∃ σ n, c = (Tick (Val (LitV (LitInt n))), σ) ]  *)
   Definition cover_tick : set cfg :=
@@ -522,18 +530,6 @@ Section meas_semantics.
     setI vcov_lit $
     preimage 𝜋_LitV_v $
     bcov_LitInt.
-
-  (*
-  Definition cover_randE           : set cfg := [set c | ∃ N σ,          c = (Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)), σ) ].
-  Definition cover_randT_notape    : set cfg := [set c | ∃ N l σ,        c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = None ].
-  Definition cover_randT_mismatch  : set cfg := [set c | ∃ N l b σ,      c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = false)].
-  Definition cover_randT_empty     : set cfg := [set c | ∃ N l b σ,      c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = true) /\ (b.(btape_tape) !! 0) = None].
-  Definition cover_randT           : set cfg := [set c | ∃ N l b n σ,    c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = true) /\ (b.(btape_tape) !! 0) = Some n].
-  Definition cover_urandE          : set cfg := [set c | ∃ σ,            c = (URand (Val (LitV LitUnit)), σ) ].
-  Definition cover_urandT_notape   : set cfg := [set c | ∃ σ l,          c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = None ].
-  Definition cover_urandT_empty    : set cfg := [set c | ∃ σ l τ,        c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = Some τ /\ (τ !! 0) = None].
-  Definition cover_urandT          : set cfg := [set c | ∃ σ l τ v,      c = (URand (Val (LitV (LitLbl l))), σ) /\ σ.(utapes) !! l = Some τ /\ (τ !! 0) = Some v].
-  *)
 
   Definition cfg_cover_pre : list (set cfg) := [
     cover_rec;
@@ -559,24 +555,16 @@ Section meas_semantics.
     cover_store_stuck;
     cover_allocTape;
     cover_allocUTape;
-    (*
-    cover_randE;
-    cover_randT_notape;
-    cover_randT_mismatch;
-    cover_randT_empty;
+    cover_rand;
+    cover_urand;
     cover_randT;
-    cover_urandE;
-    cover_urandT_notape;
-    cover_urandT_empty;
     cover_urandT;
-    *)
     cover_tick
   ].
 
   Definition cover_maybe_stuck : set cfg. Admitted. (* compliment of union of cfg_cover_pre *)
 
   Definition cfg_cover : list (set cfg) := cfg_cover_pre ++ [cover_maybe_stuck].
-
 
 
   (**The top-level cover is a cover *)
@@ -1279,6 +1267,22 @@ Section meas_semantics.
   Proof. Admitted.
   Hint Resolve cover_allocUTape_meas : measlang.
 
+  Lemma cover_rand_meas : measurable cover_rand.
+  Proof. Admitted.
+  Hint Resolve cover_rand_meas : measlang.
+
+  Lemma cover_urand_meas : measurable cover_urand.
+  Proof. Admitted.
+  Hint Resolve cover_urand_meas : measlang.
+
+  Lemma cover_randT_meas : measurable cover_randT.
+  Proof. Admitted.
+  Hint Resolve cover_randT_meas : measlang.
+
+  Lemma cover_urandT_meas : measurable cover_urandT.
+  Proof. Admitted.
+  Hint Resolve cover_urandT_meas : measlang.
+
   Lemma cover_tick_meas : measurable cover_tick.
   Proof.
     apply NonStatefulS_measurable.
@@ -1533,6 +1537,31 @@ Section meas_semantics.
    *)
   Definition head_stepM_allocUTape : cfg -> giryM cfg. Admitted.
 
+
+
+  Definition head_stepM_aux_rand : cfg -> (<<discr Z>> * state)%type. Admitted.
+
+  Definition head_stepM_rand : cfg -> giryM cfg :=
+    ssrfun.comp rand_rand head_stepM_aux_rand.
+
+  Definition head_stepM_aux_urand : cfg -> state. Admitted.
+
+  Definition head_stepM_urand : cfg -> giryM cfg :=
+    ssrfun.comp rand_urand head_stepM_aux_urand.
+
+  Definition head_stepM_aux_randT : cfg -> (<<discr Z >> * <<discr loc >> * state)%type.
+  Admitted.
+
+  Definition head_stepM_randT : cfg -> giryM cfg :=
+    ssrfun.comp rand_randT head_stepM_aux_randT.
+
+  Definition head_stepM_aux_urandT : cfg -> (<<discr loc >> * state)%type.
+  Admitted.
+
+  Definition head_stepM_urandT : cfg -> giryM cfg :=
+    ssrfun.comp rand_urandT head_stepM_aux_urandT.
+
+
   (* | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : cfg) *)
   Definition head_stepM_tick : cfg -> giryM cfg :=
     ssrfun.comp (giryM_ret R) $
@@ -1552,40 +1581,44 @@ Section meas_semantics.
   Definition head_stepM_def (c : cfg) : giryM cfg :=
     let (e1, σ1) := c in
     match e1 with
-    | Rec _ _ _                               => head_stepM_rec c
-    | Pair (Val _) (Val _)                    => head_stepM_pair c
-    | InjL (Val _)                            => head_stepM_injL c
-    | InjR (Val _)                            => head_stepM_injR c
-    | App (Val (RecV _ _ _)) (Val _)          => head_stepM_app c
-    | UnOp op (Val v)                         => match un_op_eval op v with
-                                                 | Some _ => head_stepM_unop_ok c
-                                                 | _ => head_stepM_unop_stuck c
-                                                 end
-    | BinOp op (Val v1) (Val v2)              => match bin_op_eval op v1 v2 with
-                                                 | Some _ => head_stepM_binop_ok c
-                                                 | None => head_stepM_binop_stuck c
-                                                end
-    | If (Val (LitV (LitBool true))) _ _      => head_stepM_ifT c
-    | If (Val (LitV (LitBool false))) _ _     => head_stepM_ifT c
-    | Fst (Val (PairV _ _))                   => head_stepM_fst c
-    | Snd (Val (PairV _ _))                   => head_stepM_snd c
-    | Case (Val (InjLV _)) _ _                => head_stepM_caseL c
-    | Case (Val (InjRV _)) _ _                => head_stepM_caseR c
-    | AllocN (Val (LitV (LitInt N))) (Val v)  => if bool_decide (0 < Z.to_nat N)%nat
-                                                 then head_stepM_allocN_ok c
-                                                 else head_stepM_allocN_stuck c
-    | Load (Val (LitV (LitLoc l)))            => match σ1.(heap) !! l with
-                                                 | Some v => head_stepM_load_ok c
-                                                 | None => head_stepM_load_stuck c
-                                                 end
-    | Store (Val (LitV (LitLoc l))) (Val v)   => match σ1.(heap) !! l with
-                                                 | Some v => head_stepM_store_ok c
-                                                 | None => head_stepM_store_stuck c
-                                                 end
-    | AllocTape (Val (LitV (LitInt z)))       => head_stepM_allocTape c
-    | AllocUTape                              => head_stepM_allocUTape c
-    | Tick (Val (LitV (LitInt _)))            => head_stepM_tick c
-    | _                                       => head_stepM_stuck c
+    | Rec _ _ _                                            => head_stepM_rec c
+    | Pair (Val _) (Val _)                                 => head_stepM_pair c
+    | InjL (Val _)                                         => head_stepM_injL c
+    | InjR (Val _)                                         => head_stepM_injR c
+    | App (Val (RecV _ _ _)) (Val _)                       => head_stepM_app c
+    | UnOp op (Val v)                                      => match un_op_eval op v with
+                                                              | Some _ => head_stepM_unop_ok c
+                                                              | _ => head_stepM_unop_stuck c
+                                                              end
+    | BinOp op (Val v1) (Val v2)                           => match bin_op_eval op v1 v2 with
+                                                              | Some _ => head_stepM_binop_ok c
+                                                              | None => head_stepM_binop_stuck c
+                                                             end
+    | If (Val (LitV (LitBool true))) _ _                   => head_stepM_ifT c
+    | If (Val (LitV (LitBool false))) _ _                  => head_stepM_ifT c
+    | Fst (Val (PairV _ _))                                => head_stepM_fst c
+    | Snd (Val (PairV _ _))                                => head_stepM_snd c
+    | Case (Val (InjLV _)) _ _                             => head_stepM_caseL c
+    | Case (Val (InjRV _)) _ _                             => head_stepM_caseR c
+    | AllocN (Val (LitV (LitInt N))) (Val v)               => if bool_decide (0 < Z.to_nat N)%nat
+                                                              then head_stepM_allocN_ok c
+                                                              else head_stepM_allocN_stuck c
+    | Load (Val (LitV (LitLoc l)))                         => match σ1.(heap) !! l with
+                                                              | Some v => head_stepM_load_ok c
+                                                              | None => head_stepM_load_stuck c
+                                                              end
+    | Store (Val (LitV (LitLoc l))) (Val v)                => match σ1.(heap) !! l with
+                                                              | Some v => head_stepM_store_ok c
+                                                              | None => head_stepM_store_stuck c
+                                                              end
+    | AllocTape (Val (LitV (LitInt z)))                    => head_stepM_allocTape c
+    | AllocUTape                                           => head_stepM_allocUTape c
+    | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit))    => head_stepM_rand c
+    | URand (Val (LitV LitUnit))                           => head_stepM_urand c
+    | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) => head_stepM_randT c
+    | URand (Val (LitV (LitLbl l)))                        => head_stepM_urandT c
+    | Tick (Val (LitV (LitInt _)))                         => head_stepM_tick c
+    | _                                                    => head_stepM_stuck c
     end.
 
   Hint Resolve measurable_compT : measlang.
@@ -2544,6 +2577,26 @@ Section meas_semantics.
   Admitted.
   Hint Resolve head_stepM_allocUTape_meas : measlang.
 
+  Lemma head_stepM_rand_meas : measurable_fun cover_rand head_stepM_def.
+  Proof.
+  Admitted.
+  Hint Resolve head_stepM_rand_meas : measlang.
+
+  Lemma head_stepM_urand_meas : measurable_fun cover_urand head_stepM_def.
+  Proof.
+  Admitted.
+  Hint Resolve head_stepM_urand_meas : measlang.
+
+  Lemma head_stepM_randT_meas : measurable_fun cover_randT head_stepM_def.
+  Proof.
+  Admitted.
+  Hint Resolve head_stepM_randT_meas : measlang.
+
+  Lemma head_stepM_urandT_meas : measurable_fun cover_urandT head_stepM_def.
+  Proof.
+  Admitted.
+  Hint Resolve head_stepM_urandT_meas : measlang.
+
   Lemma head_stepM_tick_meas : measurable_fun cover_tick head_stepM_def.
   Proof.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_tick head_stepM_def).
@@ -2609,6 +2662,10 @@ Section meas_semantics.
     - by apply cover_store_stuck_meas.
     - by apply cover_allocTape_meas.
     - by apply cover_allocUTape_meas.
+    - by apply cover_rand_meas.
+    - by apply cover_urand_meas.
+    - by apply cover_randT_meas.
+    - by apply cover_urandT_meas.
     - by apply cover_tick_meas.
     - by apply cover_maybe_stuck_meas.
   Qed.
@@ -2640,6 +2697,10 @@ Section meas_semantics.
     - by apply head_stepM_store_stuck_meas.
     - by apply head_stepM_allocTape_meas.
     - by apply head_stepM_allocUTape_meas.
+    - by apply head_stepM_rand_meas.
+    - by apply head_stepM_urand_meas.
+    - by apply head_stepM_randT_meas.
+    - by apply head_stepM_urandT_meas.
     - by apply head_stepM_tick_meas.
     - by apply head_stepM_stuck_meas.
   Qed.
@@ -2685,6 +2746,8 @@ End meas_semantics.
         giryM_map
           (m_discr (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt $ fin_to_nat n, σ1) : cfg)))
           (giryM_unif (Z.to_nat N))
+    (* Urand with no tape *)
+    | URand (Val (LitV LitUnit)) => giryM_zero (* FIXME giryM_map urand_step unif_base *)
     (* Rand with a tape *)
     | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) =>
         match σ1.(tapes) !! l with
@@ -2719,8 +2782,6 @@ End meas_semantics.
                 (giryM_unif (Z.to_nat N))
         | None => giryM_zero
         end
-    (* Urand with no tape *)
-    | URand (Val (LitV LitUnit)) => giryM_zero (* FIXME giryM_map urand_step unif_base *)
     (* Urand with a tape *)
     | URand (Val (LitV (LitLbl l))) =>
         match σ1.(utapes) !! l with

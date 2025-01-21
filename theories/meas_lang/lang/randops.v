@@ -15,7 +15,7 @@ From mathcomp.analysis Require Export Rstruct.
 From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
-From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state.
+From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state cfg.
 
 Local Open Scope classical_set_scope.
 (*
@@ -50,122 +50,245 @@ Hint Resolve rand_allocUTapeE_meas : measlang.
 Lemma rand_allocUTapeS_meas : measurable_fun setT rand_allocUTapeS. Admitted.
 Hint Resolve rand_allocUTapeS_meas : measlang.
 
+(* Each random operation has a pure "core" that is mapped over a set of expressions.
+This gets lifted to a cfg -> giryM cfg by adding state, but state is not needed for rand or urand.
+ *)
 
-
-
-
-
-
-
+(**  Rand no tape *)
 
 (*
-Definition state_loadC (x : (<<discr loc>> * state)%type) : val :=
-  match (x.2.(heap) !! x.1)  with
-  | Some v => v
-  | None => inhabitant
-  end.
-
-Definition auxcov_load_ok : set (<<discr loc>> * state)%type :=
-  [set x | ∃ w, x.2.(heap) !! x.1 = Some w ].
-
-Definition auxcov_load_stuck : set (<<discr loc>> * state)%type :=
-  [set x | x.2.(heap) !! x.1 = None ].
-
-Lemma auxcov_load_ok_meas : measurable auxcov_load_ok.
-Proof. Admitted.
-Hint Resolve auxcov_load_ok_meas : measlang.
-
-Lemma auxcov_load_stuck_meas : measurable auxcov_load_stuck.
-Proof. Admitted.
-Hint Resolve auxcov_load_stuck_meas : measlang.
-
-Lemma state_loadC_meas : measurable_fun auxcov_load_ok state_loadC.
-Proof.
-Admitted.
-Hint Resolve state_loadC_meas : measlang.
-
-
+    | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
+        giryM_map
+          (m_discr (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt $ fin_to_nat n, σ1) : cfg)))
+          (giryM_unif (Z.to_nat N))
+*)
 (*
-    | AllocN (Val (LitV (LitInt N))) (Val v) =>
-        if bool_decide (0 < Z.to_nat N)%nat
-          then
-            let ℓ := fresh_loc σ1.(heap) in
-            giryM_ret R ((Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1) : cfg)
-          else giryM_zero
+Definition rand_rand_E (x : (<<discr Z>> * state)%type) : <<discr Z>>. Admitted.
+
+Definition rand_rand_S (x : (<<discr Z>> * state)%type) : state. Admitted.
+
+Lemma rand_rand_E_meas : measurable_fun setT rand_rand_E. Admitted.
+Hint Resolve rand_rand_E_meas : measlang.
+
+Lemma rand_rand_S_meas : measurable_fun setT rand_rand_S. Admitted.
+Hint Resolve rand_rand_S_meas : measlang.
 *)
 
-(* AllocN: the state part of the result *)
-Definition state_allocNCS (x : (<<discr Z>> * val * state)%type) : state :=
-  state_upd_heap_N (fresh_loc x.2.(heap)) (Z.to_nat x.1.1) x.1.2 x.2.
+Definition rand_rand (x : (<<discr Z>> * state)%type) : giryM cfg. Admitted.
 
-(* AllocN: the state part of the result *)
-Definition state_allocNCE (x : (<<discr Z>> * val * state)%type) : <<discr loc>> :=
-  (fresh_loc x.2.(heap)).
+Lemma rand_rand_meas : measurable_fun setT rand_rand. Admitted.
+Hint Resolve rand_rand_meas : measlang.
 
 
-Definition auxcov_allocN_ok : set (<<discr Z>> * val * state)%type :=
-  [set x | (0 < Z.to_nat x.1.1)%nat].
 
-Definition auxcov_allocN_stuck: set (<<discr Z>> * val * state)%type :=
-  [set x | (0 >= Z.to_nat x.1.1)%nat].
-
-Lemma auxcov_allocN_ok_meas : measurable auxcov_allocN_ok.
-Proof. Admitted.
-Hint Resolve auxcov_allocN_ok_meas : measlang.
-
-Lemma auxcov_allocN_stuck_meas : measurable auxcov_allocN_stuck.
-Proof. Admitted.
-Hint Resolve auxcov_allocN_stuck_meas : measlang.
-
-Lemma state_allocNCE_meas : measurable_fun auxcov_allocN_ok state_allocNCE.
-Proof.
-Admitted.
-Hint Resolve state_allocNCE_meas : measlang.
-
-Lemma state_allocNCS_meas : measurable_fun auxcov_allocN_ok state_allocNCS.
-Proof.
-Admitted.
-Hint Resolve state_allocNCS_meas : measlang.
-
+(**  URand no tape *)
 
 (*
-    | Store (Val (LitV (LitLoc l))) (Val w) =>
-        match σ1.(heap) !! l with
-          | Some v => giryM_ret R ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : cfg)
-          | None => giryM_zero
-        end
+    | URand (Val (LitV LitUnit)) => ??
+*)
+(*
+Definition rand_urand_E (x : (((R : realType) : measurableType _) * state)%type) : ((R : realType) : measurableType _). Admitted.
+
+Definition rand_urand_S (x : (((R : realType) : measurableType _) * state)%type) : state. Admitted.
+
+Lemma rand_urand_E_meas : measurable_fun setT rand_urand_E. Admitted.
+Hint Resolve rand_urand_E_meas : measlang.
+
+Lemma rand_urand_S_meas : measurable_fun setT rand_urand_S. Admitted.
+Hint Resolve rand_urand_S_meas : measlang.
+*)
+
+Definition rand_urand (x : state) : giryM cfg. Admitted.
+
+Lemma rand_urand_meas : measurable_fun setT rand_urand. Admitted.
+Hint Resolve rand_urand_meas : measlang.
+
+(**  Rand with tape *)
+(*
+  Definition cover_randE           : set cfg := [set c | ∃ N σ,          c = (Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)), σ) ].
+  Definition cover_randT_notape    : set cfg := [set c | ∃ N l σ,        c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = None ].
+  Definition cover_randT_mismatch  : set cfg := [set c | ∃ N l b σ,      c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = false)].
+  Definition cover_randT_empty     : set cfg := [set c | ∃ N l b σ,      c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = true) /\ (b.(btape_tape) !! 0) = None].
+  Definition cover_randT           : set cfg := [set c | ∃ N l b n σ,    c = (Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))), σ) /\ σ.(tapes) !! l = Some b /\ (bool_decide (b.(btape_bound) = Z.to_nat N) = true) /\ (b.(btape_tape) !! 0) = Some n].
  *)
 
 
-(* store: the state part of the result *)
-Program Definition state_storeS (x : (<<discr loc>> * val * state)%type) : state :=
-  state_upd_heap <[x.1.1:=x.1.2]> x.2.
+Definition auxcov_randT_noTape : set (<<discr Z>> * <<discr loc>> * state)%type :=
+  [set x | x.2.(tapes) !! x.1.2 = None ].
 
-(* store: the expression part of the result *)
-Definition state_storeE (x : (<<discr loc>> * val * state)%type) : expr :=
-  ValU $ LitV $ LitUnit.
+Definition auxcov_randT_boundMismatch : set (<<discr Z>> * <<discr loc>> * state)%type :=
+  [set x | ∃ b, x.2.(tapes) !! x.1.2 = Some b /\
+                (bool_decide (b.(btape_bound) = Z.to_nat x.1.1) = false) ].
 
-Definition auxcov_store_ok : set (<<discr loc>> * val * state)%type :=
-  [set x | ∃ w, x.2.(heap) !! x.1.1 = Some w ].
+Definition auxcov_randT_nextEmpty : set (<<discr Z>> * <<discr loc>> * state)%type :=
+  [set x | ∃ b, x.2.(tapes) !! x.1.2 = Some b /\
+            (bool_decide (b.(btape_bound) = Z.to_nat x.1.1) = false) /\
+            (b.(btape_tape) !! 0) = None ].
 
-Definition auxcov_store_stuck : set (<<discr loc>> * val * state)%type :=
-  [set x | x.2.(heap) !! x.1.1 = None ].
+Definition auxcov_randT_ok : set (<<discr Z>> * <<discr loc>> * state)%type :=
+  [set x | ∃ b, x.2.(tapes) !! x.1.2 = Some b /\
+            (bool_decide (b.(btape_bound) = Z.to_nat x.1.1) = false) /\
+            ∃ v, (b.(btape_tape) !! 0) = Some v ].
 
-Lemma auxcov_store_ok_meas : measurable auxcov_store_ok.
+
+Lemma auxcov_randT_noTape_meas : measurable auxcov_randT_noTape.
 Proof. Admitted.
-Hint Resolve auxcov_store_ok_meas : measlang.
+Hint Resolve auxcov_randT_noTape_meas : measlang.
 
-Lemma auxcov_store_stuck_meas : measurable auxcov_store_stuck.
+Lemma auxcov_randT_boundMismatch_meas : measurable auxcov_randT_boundMismatch.
 Proof. Admitted.
-Hint Resolve auxcov_store_stuck_meas : measlang.
+Hint Resolve auxcov_randT_boundMismatch_meas : measlang.
 
-Lemma state_storeS_meas : measurable_fun auxcov_store_ok state_storeS.
-Proof.
-Admitted.
-Hint Resolve state_storeS_meas : measlang.
+Lemma auxcov_randT_nextEmpty_meas : measurable auxcov_randT_nextEmpty.
+Proof. Admitted.
+Hint Resolve auxcov_randT_nextEmpty_meas : measlang.
 
-Lemma state_storeE_meas : measurable_fun auxcov_store_ok state_storeE.
-Proof.
-Admitted.
-Hint Resolve state_storeE_meas : measlang.
+Lemma auxcov_randT_ok_meas : measurable auxcov_randT_ok.
+Proof. Admitted.
+Hint Resolve auxcov_randT_ok_meas : measlang.
+
+Definition rand_randT_noTape (x : (<<discr Z>> * <<discr loc>> * state)%type) : giryM cfg :=
+  giryM_zero.
+
+(*
+giryM_map
+(m_discr (fun (n : 'I_(S (Z.to_nat N))) => (((Val $ LitV $ LitInt $ fin_to_nat n) : <<discr expr>>), σ1) : cfg))
+(giryM_unif (Z.to_nat N))
 *)
+Definition rand_randT_boundMismatch (x : (<<discr Z>> * <<discr loc>> * state)%type) : giryM cfg.
+Admitted.
+
+
+(*
+giryM_map
+  (m_discr (fun (v : 'I_(S (Z.to_nat N))) =>
+     (* Fill the tape head with new sample *)
+     let τ' := <[ (0 : nat) := Some (v : nat) ]> τ in
+     (* Advance the tape *)
+     let σ' := state_upd_tapes <[ l := {| btape_tape := (tapeAdvance τ'); btape_bound := M |} ]> σ1 in
+     (* Return the new sample and state *)
+     ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : cfg)))
+ (giryM_unif (Z.to_nat N))
+*)
+Definition rand_randT_nextEmpty (x : (<<discr Z>> * <<discr loc>> * state)%type) : giryM cfg.
+Admitted.
+
+(*
+let σ' := state_upd_tapes <[ l := {| btape_tape := (tapeAdvance τ); btape_bound := M |} ]> σ1 in
+(giryM_ret R ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : cfg))
+*)
+Definition rand_randT_ok (x : (<<discr Z>> * <<discr loc>> * state)%type) : giryM cfg.
+Admitted.
+
+Lemma randT_noTape_meas : measurable_fun auxcov_randT_noTape rand_randT_noTape.
+Proof. Admitted.
+Hint Resolve randT_noTape_meas : measlang.
+
+Lemma randT_boundMismatch_meas : measurable_fun auxcov_randT_boundMismatch rand_randT_boundMismatch.
+Proof. Admitted.
+Hint Resolve randT_boundMismatch_meas : measlang.
+
+Lemma randT_nextEmpty_meas : measurable_fun auxcov_randT_nextEmpty rand_randT_nextEmpty.
+Proof. Admitted.
+Hint Resolve randT_nextEmpty_meas : measlang.
+
+Lemma randT_ok_meas : measurable_fun auxcov_randT_ok rand_randT_ok.
+Proof. Admitted.
+Hint Resolve randT_ok_meas : measlang.
+
+Program Definition rand_randT (x : (<<discr Z>> * <<discr loc>> * state)%type) : giryM cfg :=
+  let N := x.1.1 in
+  let l := x.1.2 in
+  let σ1 := x.2 in
+  match σ1.(tapes) !! l with
+  | Some btape =>
+      (* There exists a tape with label l *)
+      let τ := btape.(btape_tape) in
+      let M := btape.(btape_bound) in
+      if (bool_decide (M = Z.to_nat N)) then
+        (* Tape bounds match *)
+        match (τ !! 0) with
+        | Some v => rand_randT_ok x
+        | None => rand_randT_nextEmpty x
+        end
+      else rand_randT_boundMismatch x
+        (* Tape bounds do not match *)
+        (* Do not advance the tape, but still generate a new sample *)
+  | None => rand_randT_noTape x
+  end.
+
+(* Covering argument *)
+Lemma rand_randT_meas : measurable_fun setT rand_randT.
+Proof. Admitted.
+Hint Resolve rand_randT_meas : measlang.
+
+
+(** Urand with tape *)
+
+
+Definition auxcov_urandT_noTape : set (<<discr loc>> * state)%type :=
+  [set x | x.2.(tapes) !! x.1 = None ].
+
+
+Definition auxcov_urandT_nextEmpty : set (<<discr loc>> * state)%type :=
+  [set x | ∃ b, x.2.(tapes) !! x.1 = Some b /\
+            (b.(btape_tape) !! 0) = None ].
+
+Definition auxcov_urandT_ok : set (<<discr loc>> * state)%type :=
+  [set x | ∃ b, x.2.(tapes) !! x.1 = Some b /\
+            ∃ v, (b.(btape_tape) !! 0) = Some v ].
+
+Lemma auxcov_urandT_noTape_meas : measurable auxcov_urandT_noTape.
+Proof. Admitted.
+Hint Resolve auxcov_urandT_noTape_meas : measlang.
+
+Lemma auxcov_urandT_nextEmpty_meas : measurable auxcov_urandT_nextEmpty.
+Proof. Admitted.
+Hint Resolve auxcov_urandT_nextEmpty_meas : measlang.
+
+Lemma auxcov_urandT_ok_meas : measurable auxcov_urandT_ok.
+Proof. Admitted.
+Hint Resolve auxcov_urandT_ok_meas : measlang.
+
+
+Definition rand_urandT_noTape (x : (<<discr loc>> * state)%type) : giryM cfg :=
+  giryM_zero.
+
+ (* giryM_map urand_tape_step unif_base *)
+Definition rand_urandT_nextEmpty (x : (<<discr loc>> * state)%type) : giryM cfg.
+Admitted.
+
+(*
+let σ' := state_upd_utapes <[ l := (tapeAdvance τ) ]> σ1 in
+(giryM_ret R ((Val $ LitV $ LitReal u, σ') : cfg))
+ *)
+Definition rand_urandT_ok (x : (<<discr loc>> * state)%type) : giryM cfg.
+Admitted.
+
+Lemma urandT_noTape_meas : measurable_fun auxcov_urandT_noTape rand_urandT_ok.
+Proof. Admitted.
+Hint Resolve urandT_noTape_meas : measlang.
+
+Lemma urandT_nextEmpty_meas : measurable_fun auxcov_urandT_nextEmpty rand_urandT_ok.
+Proof. Admitted.
+Hint Resolve urandT_nextEmpty_meas : measlang.
+
+Lemma urandT_ok_meas : measurable_fun auxcov_urandT_ok rand_urandT_ok.
+Proof. Admitted.
+Hint Resolve urandT_ok_meas : measlang.
+
+Definition rand_urandT (x : (<<discr loc>> * state)%type) : giryM cfg :=
+  let l := x.1 in
+  let σ1 := x.2 in
+  match σ1.(utapes) !! l with
+  | Some τ =>
+      match (τ !! 0) with
+      | Some u => rand_urandT_ok x
+      | None => rand_urandT_nextEmpty x
+      end
+  | None => rand_urandT_noTape x
+  end.
+
+Lemma rand_urandT_meas : measurable_fun setT rand_urandT.
+Proof. Admitted.
+Hint Resolve rand_urandT_meas : measlang.

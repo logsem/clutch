@@ -298,3 +298,25 @@ Proof.
   - done.
   - by apply measurable_snd.
 Qed.
+
+
+(* Extremely annoyingly, I need to redefine these so that they don't take measurable_maps as arguments.
+   This is because I'll only be able to give them a measurable_fun out of a particular set.
+ *)
+Definition giryM_map_def' {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+  (f : T1 -> T2) (m : giryM T1) : giryM T2. Admitted.
+
+Definition giryM_bind' {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+    (f : T1 -> (giryM T2)) : (giryM T1) -> (giryM T2)
+  := fun m => giryM_join_def' (giryM_map_def' f m).
+
+Definition bind_set {d1} {T1 : measurableType d1} (S : set T1) : set (giryM T1) :=
+  [set giryM_ret _ x | x in S].
+
+Lemma bind_set_meas d1 {T1 : measurableType d1} (S : set T1) (HS : d1.-measurable S) : measurable (bind_set S).
+Proof. Admitted.
+
+Definition giryM_bind'_measurable {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+      (S : set T1) (HS : d1.-measurable S) (f : T1 -> giryM T2) (Hf : measurable_fun S f) :
+      measurable_fun (bind_set S) (giryM_bind' f).
+Proof. Admitted.
