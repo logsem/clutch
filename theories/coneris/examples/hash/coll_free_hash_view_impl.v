@@ -30,12 +30,11 @@ Section hash_view_impl.
   Qed.
 
   Lemma hash_view_auth_duplicate_frag m n b γ2:
-    m!!n=Some b -> hash_view_auth m γ2 ==∗ hash_view_auth m γ2 ∗ hash_view_frag n b γ2.
+    m!!n=Some b -> hash_view_auth m γ2 -∗ hash_view_auth m γ2 ∗ hash_view_frag n b γ2.
   Proof.
     iIntros (Hsome) "Hauth".
     rewrite /hash_view_auth/hash_view_frag.
     rewrite -own_op.
-    iApply own_update; last done.
     rewrite -core_id_extract; first done.
     apply bij_view_included.
     rewrite elem_of_map_to_set.
@@ -95,6 +94,14 @@ Program Definition hv_impl `{!conerisGS Σ} : hash_view :=
     hv_auth _ m γ := hash_view_auth m γ;
     hv_frag _ k v γ := hash_view_frag k v γ
   |}.
+Next Obligation.
+  rewrite /hash_view_auth.
+  iIntros (??????) "H1 H2".
+  iCombine "H1 H2" gives "%H".
+  rewrite gset_bij_auth_dfrac_op_valid in H.
+  destruct H as [? _].
+  cbv in H. done.
+Qed.
 Next Obligation.
   rewrite /hash_view_auth.
   iIntros. iApply own_alloc.

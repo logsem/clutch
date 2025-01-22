@@ -319,7 +319,7 @@ Section con_hash_impl1.
       iApply fupd_pgl_wp.
       iInv "Hab" as ">(%&->&H1&H2&#Hfrag2)" "Hclose".
       iDestruct (ghost_var_agree with "[$][$]") as "->".
-      iMod (hv_auth_duplicate_frag with "[$]") as "[H1 Hfrag']"; first done.
+      iDestruct (hv_auth_duplicate_frag with "[$]") as "[H1 Hfrag']"; first done.
       iMod ("Hclose" with "[$H1 $H2]") as "_"; first by iSplit.
       iModIntro.
       wp_apply (release_spec with "[$Hl $Hcon $Hfrag $Hm]") as "_"; first done.

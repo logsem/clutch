@@ -141,15 +141,16 @@ Section con_hash_impl.
       "output".
 
   Definition hash_tape α t:=rand_tapes (L:=Hr) α (val_size, t).
-  Definition con_hash_view k v γ := hv_frag (L:=Hhv) k v γ.
+  Definition hash_auth m γ := hv_auth (L:=Hhv) m γ.
+  Definition hash_frag k v γ := hv_frag (L:=Hhv) k v γ.
   Definition abstract_con_hash (f:val) (l:val) (hm:val) γ1 γ2 : iProp Σ :=
     ∃ m,
       ⌜f=compute_con_hash_specialized (l, hm)%V⌝ ∗
       hv_auth (L:=Hhv) m γ1 ∗
       own γ2 (●E m) 
   .
-  Definition abstract_con_hash_inv f l hm γ1 γ2:=
-    inv (nroot.@"con_hash_abstract") (abstract_con_hash f l hm γ1 γ2).
+  Definition abstract_con_hash_inv N f l hm γ1 γ2:=
+    inv (N) (abstract_con_hash f l hm γ1 γ2).
   
   Definition concrete_con_hash (hm:val) (m:gmap nat nat) γ : iProp Σ:=
     ∃ (hm':loc), ⌜hm=#hm'⌝ ∗
@@ -159,10 +160,11 @@ Section con_hash_impl.
   Definition concrete_con_hash_inv hm l γ_lock γ:=
     is_lock (L:=Hl) γ_lock l (∃ m, concrete_con_hash hm m γ).
   
-  Definition con_hash_inv f l hm γ1 γ2 γ_lock:=
-    (abstract_con_hash_inv f l hm γ1 γ2  ∗
-     concrete_con_hash_inv hm l γ_lock γ2)%I.
+  Definition con_hash_inv N f l hm γ1 γ_lock:=
+    (∃ γ2, abstract_con_hash_inv N f l hm γ1 γ2  ∗
+           concrete_con_hash_inv hm l γ_lock γ2)%I.
 
+  
   Lemma con_hash_presample E (ε:nonnegreal) ns α (ε2 : fin (S val_size) → R):
     (∀ x : fin (S val_size), (0 <= ε2 x)%R)->
     (SeriesC (λ n : fin (S val_size), 1 / S val_size * ε2 n) <= ε)%R ->
@@ -179,10 +181,10 @@ Section con_hash_impl.
     by iFrame.
   Qed.
 
-  Lemma con_hash_init:
+  Lemma con_hash_init N:
     {{{ True }}}
       init_hash #()
-      {{{ (f:val), RET f; ∃ l hm γ1 γ2 γ_lock, con_hash_inv f l hm γ1 γ2 γ_lock }}}.
+      {{{ (f:val), RET f; ∃ l hm γ1 γ_lock, con_hash_inv N f l hm γ1 γ_lock }}}.
   Proof.
     iIntros (Φ) "_ HΦ".
     rewrite /init_hash.
@@ -214,16 +216,22 @@ Section con_hash_impl.
     iFrame.
   Qed.
 
-  Lemma con_hash_spec f l hm γ1 γ2 γlock α n ns (v:nat):
-    {{{ con_hash_inv f l hm γ1 γ2 γlock ∗ hash_tape α (n::ns) }}}
+  Lemma con_hash_spec N f l hm γ1 γlock α ns (v:nat) P Q:
+  {{{ con_hash_inv N f l hm γ1 γlock ∗ hash_tape α (ns) ∗
+      ( ∀ m, hash_auth m γ1 ={⊤∖↑N}=∗
+             match m!!v with
+             | Some res => hash_auth m γ1 ∗ P res
+             | None => ∃ n ns', ⌜n::ns'=ns⌝ ∗ hash_auth (<[v:=n]> m) γ1 ∗ Q
+             end                                        
+      )
+  }}}
       f #v α
-      {{{ (res:nat), RET (#res);  con_hash_view v res γ1 ∗
-                                (hash_tape α ns ∗ ⌜res=n⌝ ∨
-                                 hash_tape α (n::ns)
+      {{{ (res:nat), RET (#res);  (hash_tape α (ns) ∗ P res ∨
+                                 ∃ n ns', ⌜n::ns'=ns⌝ ∗ hash_tape α ns' ∗ ⌜res=n⌝ ∗ Q 
                                 )
       }}}.
   Proof.
-    iIntros (Φ) "[[#Hab #Hcon]Ht] HΦ".
+    iIntros (Φ) "((%γ2 & #Hab & #Hcon)& Ht & Hvs) HΦ".
     rewrite /abstract_con_hash_inv/concrete_con_hash_inv.
     iApply fupd_pgl_wp.
     iInv "Hab" as ">(%&->&H1&H2)" "Hclose".
@@ -243,23 +251,38 @@ Section con_hash_impl.
       iApply fupd_pgl_wp.
       iInv "Hab" as ">(%&->&H1&H2)" "Hclose".
       iDestruct (ghost_var_agree with "[$][$]") as "->".
-      iMod (hv_auth_duplicate_frag with "[$]") as "[H1 Hfrag']"; first done.
+      iMod ("Hvs" with "[$]") as "H".
+      rewrite Hres.
+      iDestruct "H" as "[H1 ?]".
       iMod ("Hclose" with "[$H1 $H2]") as "_"; first done.
       iModIntro.
       wp_apply (release_spec with "[$Hl $Hcon $Hfrag $Hm]") as "_"; first done.
       wp_pures.
       iModIntro. iApply "HΦ".
+      iLeft.
       iFrame.
     - wp_pures.
       rewrite /hash_tape.
+      destruct ns eqn : Hns.
+      { iApply fupd_pgl_wp.
+        iInv "Hab" as ">(%&->&H1&H2)" "Hclose".
+        iDestruct (ghost_var_agree with "[$][$]") as "->".
+        iMod ("Hvs" with "[$]") as "H".
+        rewrite Hres.
+        iDestruct "H" as "(%&%&%&?)".
+        simplify_eq.
+      }
       wp_apply (rand_tape_spec_some with "[$]") as "Ht".
       wp_pures.
       wp_apply (wp_set with "[$]") as "Hm".
       iApply fupd_pgl_wp.
       iInv "Hab" as ">(%&->&H1&H2)" "Hclose".
       iDestruct (ghost_var_agree with "[$][$]") as "->".
+      iMod ("Hvs" with "[$]") as "H".
+      rewrite Hres.
       iMod (ghost_var_update _ (<[v:=n]> _) with "[$][$]") as "[H2 Hfrag]".
-      iMod (hv_auth_insert with "[$]") as "[H1 Hfrag']"; first done.
+      iDestruct "H" as "(%&%&%&H1&?)".
+      simplify_eq.
       iMod ("Hclose" with "[$H1 $H2]") as "_"; first done.
       iModIntro.
       wp_pures.
@@ -267,49 +290,107 @@ Section con_hash_impl.
       { iExists _. iSplit; first done. by rewrite fmap_insert. }
       wp_pures.
       iApply "HΦ".
-      iFrame. iLeft. by iFrame.
+      iFrame. iRight. iFrame. iModIntro.
+      by iExists _. 
   Qed.
+    
 
-  Lemma con_hash_spec_hashed_before f l hm γ1 γ2 γlock α ns res (v:nat):
-    {{{ con_hash_inv f l hm γ1 γ2 γlock ∗ hash_tape α ns ∗ con_hash_view v res γ1}}}
-      f #v α
-      {{{ RET (#res);  con_hash_view v res γ1 ∗
-                       (hash_tape α ns)
-      }}}.
-  Proof.
-    iIntros (Φ) "[[#Hab #Hcon][Ht #Hfragv]] HΦ".
-    rewrite /abstract_con_hash_inv/concrete_con_hash_inv.
-    iApply fupd_pgl_wp.
-    iInv "Hab" as ">(%&->&H1&H2)" "Hclose".
-    iMod ("Hclose" with "[$H1 $H2]") as "_"; first done.
-    iModIntro.
-    rewrite /compute_con_hash_specialized.
-    wp_pures.
-    wp_apply (acquire_spec with "Hcon") as "[Hl[% (%&->&Hm&Hfrag)]]".
-    wp_pures.
-    rewrite /compute_hash.
-    wp_pures.
-    wp_apply (wp_get with "[$]") as (res') "[Hm ->]".
-    rewrite lookup_fmap.
-    destruct (_!!_) eqn:Hres; simpl.
-    - (* hashed before *)
-      wp_pures.
-      iApply fupd_pgl_wp.
-      iInv "Hab" as ">(%&->&H1&H2)" "Hclose".
-      iDestruct (ghost_var_agree with "[$][$]") as "->".
-      iDestruct (hv_auth_frag_agree with "[$]") as "%H".
-      rewrite Hres in H. simplify_eq.
-      iMod ("Hclose" with "[$H1 $H2]") as "_"; first done.
-      iModIntro.
-      wp_apply (release_spec with "[$Hl $Hcon $Hfrag $Hm]") as "_"; first done.
-      wp_pures. iModIntro.
-      iApply "HΦ".
-      iFrame. iExact "Hfragv".
-    - iApply fupd_pgl_wp.
-      iInv "Hab" as ">(%&->&H1&H2)" "Hclose".
-      iDestruct (ghost_var_agree with "[$][$]") as "->".
-      iDestruct (hv_auth_frag_agree with "[$]") as "%H". simplify_eq.
-  Qed.
+  (* Lemma con_hash_spec' N f l hm γ1 γlock α n ns (v:nat): *)
+  (*   {{{ con_hash_inv N f l hm γ1 γlock ∗ hash_tape α (n::ns) }}} *)
+  (*     f #v α *)
+  (*     {{{ (res:nat), RET (#res);  hash_frag v res γ1 ∗ *)
+  (*                               (hash_tape α ns ∗ ⌜res=n⌝ ∨ *)
+  (*                                hash_tape α (n::ns) *)
+  (*                               ) *)
+  (*     }}}. *)
+  (* Proof. *)
+  (*   iIntros (Φ) "[[#Hab #Hcon]Ht] HΦ". *)
+  (*   rewrite /abstract_con_hash_inv/concrete_con_hash_inv. *)
+  (*   iApply fupd_pgl_wp. *)
+  (*   iInv "Hab" as ">(%&->&H1&H2)" "Hclose". *)
+  (*   iMod ("Hclose" with "[$H1 $H2]") as "_"; first done. *)
+  (*   iModIntro. *)
+  (*   rewrite /compute_con_hash_specialized. *)
+  (*   wp_pures. *)
+  (*   wp_apply (acquire_spec with "Hcon") as "[Hl[% (%&->&Hm&Hfrag)]]". *)
+  (*   wp_pures. *)
+  (*   rewrite /compute_hash. *)
+  (*   wp_pures. *)
+  (*   wp_apply (wp_get with "[$]") as (res) "[Hm ->]". *)
+  (*   rewrite lookup_fmap. *)
+  (*   destruct (_!!_) eqn:Hres; simpl. *)
+  (*   - (* hashed before *) *)
+  (*     wp_pures. *)
+  (*     iApply fupd_pgl_wp. *)
+  (*     iInv "Hab" as ">(%&->&H1&H2)" "Hclose". *)
+  (*     iDestruct (ghost_var_agree with "[$][$]") as "->". *)
+  (*     iMod (hv_auth_duplicate_frag with "[$]") as "[H1 Hfrag']"; first done. *)
+  (*     iMod ("Hclose" with "[$H1 $H2]") as "_"; first done. *)
+  (*     iModIntro. *)
+  (*     wp_apply (release_spec with "[$Hl $Hcon $Hfrag $Hm]") as "_"; first done. *)
+  (*     wp_pures. *)
+  (*     iModIntro. iApply "HΦ". *)
+  (*     iFrame. *)
+  (*   - wp_pures. *)
+  (*     rewrite /hash_tape. *)
+  (*     wp_apply (rand_tape_spec_some with "[$]") as "Ht". *)
+  (*     wp_pures. *)
+  (*     wp_apply (wp_set with "[$]") as "Hm". *)
+  (*     iApply fupd_pgl_wp. *)
+  (*     iInv "Hab" as ">(%&->&H1&H2)" "Hclose". *)
+  (*     iDestruct (ghost_var_agree with "[$][$]") as "->". *)
+  (*     iMod (ghost_var_update _ (<[v:=n]> _) with "[$][$]") as "[H2 Hfrag]". *)
+  (*     iMod (hv_auth_insert with "[$]") as "[H1 Hfrag']"; first done. *)
+  (*     iMod ("Hclose" with "[$H1 $H2]") as "_"; first done. *)
+  (*     iModIntro. *)
+  (*     wp_pures. *)
+  (*     wp_apply (release_spec with "[$Hl $Hcon $Hfrag Hm]") as "_". *)
+  (*     { iExists _. iSplit; first done. by rewrite fmap_insert. } *)
+  (*     wp_pures. *)
+  (*     iApply "HΦ". *)
+  (*     iFrame. iLeft. by iFrame. *)
+  (* Qed. *)
+
+  (* Lemma con_hash_spec_hashed_before f l hm γ1 γ2 γlock α ns res (v:nat): *)
+  (*   {{{ con_hash_inv f l hm γ1 γ2 γlock ∗ hash_tape α ns ∗ hash_frag v res γ1}}} *)
+  (*     f #v α *)
+  (*     {{{ RET (#res);  hash_frag v res γ1 ∗ *)
+  (*                      (hash_tape α ns) *)
+  (*     }}}. *)
+  (* Proof. *)
+  (*   iIntros (Φ) "[[#Hab #Hcon][Ht #Hfragv]] HΦ". *)
+  (*   rewrite /abstract_con_hash_inv/concrete_con_hash_inv. *)
+  (*   iApply fupd_pgl_wp. *)
+  (*   iInv "Hab" as ">(%&->&H1&H2)" "Hclose". *)
+  (*   iMod ("Hclose" with "[$H1 $H2]") as "_"; first done. *)
+  (*   iModIntro. *)
+  (*   rewrite /compute_con_hash_specialized. *)
+  (*   wp_pures. *)
+  (*   wp_apply (acquire_spec with "Hcon") as "[Hl[% (%&->&Hm&Hfrag)]]". *)
+  (*   wp_pures. *)
+  (*   rewrite /compute_hash. *)
+  (*   wp_pures. *)
+  (*   wp_apply (wp_get with "[$]") as (res') "[Hm ->]". *)
+  (*   rewrite lookup_fmap. *)
+  (*   destruct (_!!_) eqn:Hres; simpl. *)
+  (*   - (* hashed before *) *)
+  (*     wp_pures. *)
+  (*     iApply fupd_pgl_wp. *)
+  (*     iInv "Hab" as ">(%&->&H1&H2)" "Hclose". *)
+  (*     iDestruct (ghost_var_agree with "[$][$]") as "->". *)
+  (*     iDestruct (hv_auth_frag_agree with "[$]") as "%H". *)
+  (*     rewrite Hres in H. simplify_eq. *)
+  (*     iMod ("Hclose" with "[$H1 $H2]") as "_"; first done. *)
+  (*     iModIntro. *)
+  (*     wp_apply (release_spec with "[$Hl $Hcon $Hfrag $Hm]") as "_"; first done. *)
+  (*     wp_pures. iModIntro. *)
+  (*     iApply "HΦ". *)
+  (*     iFrame. iExact "Hfragv". *)
+  (*   - iApply fupd_pgl_wp. *)
+  (*     iInv "Hab" as ">(%&->&H1&H2)" "Hclose". *)
+  (*     iDestruct (ghost_var_agree with "[$][$]") as "->". *)
+  (*     iDestruct (hv_auth_frag_agree with "[$]") as "%H". simplify_eq. *)
+  (* Qed. *)
   
 
   Program Definition con_hash_impl0 : con_hash0 val_size :=
@@ -318,27 +399,44 @@ Section con_hash_impl.
       compute_hash0:=compute_hash;
 
       hash_view_gname:=_;
-      hash_map_gname:=gname;
       hash_lock_gname:=_;
       con_hash_inv0 := con_hash_inv;
       hash_tape0:=hash_tape;
-      con_hash_view0:=con_hash_view;
+      hash_frag0:=hash_frag;
       con_hash_presample0 := con_hash_presample;
       con_hash_init0 := con_hash_init;
       con_hash_alloc_tape0 := con_hash_alloc_tape;
       con_hash_spec0 := con_hash_spec;
-      con_hash_spec_hashed_before0 := con_hash_spec_hashed_before                
     |}
   .
   Next Obligation.
     iIntros.
-    rewrite /con_hash_inv.
-    by iApply hv_frag_frag_agree.
+    rewrite /hash_tape.
+    iApply (rand_tapes_valid with "[$]").
+  Qed.
+  Next Obligation.
+    iIntros (???) "H1 H2".
+    rewrite /hash_auth.
+    iApply (hv_auth_exclusive with "[$][$]").
+  Qed.
+  Next Obligation.
+    rewrite /hash_auth /hash_frag.
+    iIntros. iApply (hv_auth_frag_agree with "[$]").
+  Qed.
+  Next Obligation.
+    rewrite /hash_frag.
+    iIntros.
+    by iApply (hv_frag_frag_agree).
   Qed.
   Next Obligation.
     iIntros.
-    rewrite /hash_tape.
-    iApply (rand_tapes_valid with "[$]").
+    rewrite /hash_auth/hash_frag.
+    iDestruct (hv_auth_duplicate_frag with "[$]") as "[??]"; first done.
+    iFrame.
+  Qed.
+  Next Obligation.
+    iIntros.
+    by iMod (hv_auth_insert with "[$]").
   Qed.
     
   

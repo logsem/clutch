@@ -15,7 +15,7 @@ Section hash_view_impl.
   Definition hash_view_frag k v γ := (k ↪[γ]□ v)%I.
   
   Lemma hash_view_auth_duplicate_frag m n b γ2:
-    m!!n=Some b -> hash_view_auth m γ2 ==∗ hash_view_auth m γ2 ∗ hash_view_frag n b γ2.
+    m!!n=Some b -> hash_view_auth m γ2 -∗ hash_view_auth m γ2 ∗ hash_view_frag n b γ2.
   Proof.
     iIntros (Hsome) "[Hauth #Hauth']".
     rewrite /hash_view_auth/hash_view_frag.
@@ -53,6 +53,12 @@ Program Definition hv_impl `{!conerisGS Σ} : hash_view :=
     hv_auth _ m γ := hash_view_auth m γ;
     hv_frag _ k v γ := hash_view_frag k v γ
   |}.
+Next Obligation.
+  rewrite /hash_view_auth.
+  iIntros (??????) "[H1 ?][H2?]".
+  iDestruct (ghost_map_auth_valid_2 with "[$][$]") as "[%%]".
+  done.
+Qed.
 Next Obligation.
   rewrite /hash_view_auth.
   iIntros. iMod ghost_map_alloc_empty as "[% ?]".

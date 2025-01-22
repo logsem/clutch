@@ -194,7 +194,7 @@ Section seq_hash_impl.
     wp_apply (wp_get with "[$]").
     iIntros (vret) "(Hhash&->)".
     rewrite lookup_fmap Hlookup /=. wp_pures.
-    iMod (hv_auth_duplicate_frag with "[$]") as "[??]"; first done.
+    iDestruct (hv_auth_duplicate_frag with "[$]") as "[??]"; first done.
     iModIntro. iApply "HΦ". by iFrame.
   Qed.
 
