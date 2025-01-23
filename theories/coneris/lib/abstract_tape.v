@@ -65,5 +65,22 @@ Section tapes_lemmas.
     iApply (tapeN_tapeN_contradict with "[$][$]").
   Qed. 
 
+  Lemma abstract_tapes_auth_exclusive m m' γ:
+    (● m @ γ) -∗ (● m' @ γ)-∗ False.
+  Proof.
+    iIntros "H1 H2".
+    iDestruct (ghost_map_auth_valid_2 with "[$][$]") as "%".
+    cbv in H.
+    destruct H. done.
+  Qed.
+  
+  Lemma abstract_tapes_frag_exclusive k N N' ns ns' γ:
+    (k ◯↪N (N; ns) @ γ) -∗ (k ◯↪N (N'; ns') @ γ)-∗ False.
+  Proof.
+    iIntros "H1 H2".
+    iCombine "H1 H2" gives "%".
+    cbv in H.
+    destruct H. done.
+  Qed.
   (** * TODO add*)
 End tapes_lemmas.
