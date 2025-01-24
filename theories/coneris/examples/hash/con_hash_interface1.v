@@ -62,6 +62,8 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
     hash_frag1 v res γ1 γ2 -∗ hash_set_frag1 res γ2 ;
   hash_tape_in_hash_set α ns γ γ':
   hash_tape1 α ns γ γ' -∗ [∗ list] n ∈ ns, hash_set_frag1 n γ;
+  hash_set_duplicate x s γ:
+  x∈s -> hash_set1 s γ -∗ hash_set_frag1 x γ;
   hash_set_frag_in_set s n γ:
   hash_set1 s γ -∗ hash_set_frag1 n γ -∗ ⌜n ∈ s⌝;
   hash_auth_insert m k v γ1 γ2:

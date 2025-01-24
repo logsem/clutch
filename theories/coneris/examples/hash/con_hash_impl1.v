@@ -379,6 +379,10 @@ Section con_hash_impl1.
     iIntros (????) "[? #$]".
   Qed.
   Next Obligation.
+    iIntros (????) "[?[_ #?]]".
+    by iApply (big_sepS_elem_of with "[$]").
+  Qed.
+  Next Obligation.
     iIntros (???) "[H1 ?]H2".
     iCombine "H1 H2" gives "%H".
     iPureIntro.
