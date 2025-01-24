@@ -374,16 +374,16 @@ Section con_hash_impl.
     iIntros (????) "[H1 ?] [H2 ?]".
     iApply (abstract_tapes_frag_exclusive with "[$][$]").
   Qed.
-  Next Obligation.
-    iIntros (???) "[??][??]".
-    iApply (abstract_tapes_auth_exclusive with "[$][$]").
-  Qed.
-  Next Obligation.
-    iIntros (????) "[??][??]".
-    iDestruct (abstract_tapes_agree with "[$][$]") as "%H".
-    rewrite lookup_fmap in H. apply fmap_Some_1 in H.
-    destruct H as (?&?&?). by simplify_eq.
-  Qed.
+  (* Next Obligation. *)
+  (*   iIntros (???) "[??][??]". *)
+  (*   iApply (abstract_tapes_auth_exclusive with "[$][$]"). *)
+  (* Qed. *)
+  (* Next Obligation. *)
+  (*   iIntros (????) "[??][??]". *)
+  (*   iDestruct (abstract_tapes_agree with "[$][$]") as "%H". *)
+  (*   rewrite lookup_fmap in H. apply fmap_Some_1 in H. *)
+  (*   destruct H as (?&?&?). by simplify_eq. *)
+  (* Qed. *)
   Next Obligation.
     iIntros (?????????) "[??][??]Herr".
     iDestruct (abstract_tapes_agree with "[$][$]") as "%H'".

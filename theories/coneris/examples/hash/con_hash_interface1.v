@@ -66,10 +66,10 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
   hash_set1 s γ -∗ hash_set_frag1 n γ -∗ ⌜n ∈ s⌝;
   hash_auth_insert m k v γ1 γ2:
     m!!k=None -> hash_set_frag1 v γ2 -∗ hash_auth1 m γ1 γ2 ==∗ hash_auth1 (<[k:=v]> m ) γ1 γ2;
-  hash_tape_auth_exclusive m m' γ2 γ3:
-    hash_tape_auth1 m γ2 γ3 -∗ hash_tape_auth1 m' γ2 γ3 -∗ False;
-  hash_tape_auth_frag_agree m α ns γ2 γ3:
-    hash_tape_auth1 m γ2 γ3 -∗ hash_tape1 α ns γ2 γ3 -∗ ⌜m!!α=Some ns⌝;
+  (* hash_tape_auth_exclusive m m' γ2 γ3: *)
+  (*   hash_tape_auth1 m γ2 γ3 -∗ hash_tape_auth1 m' γ2 γ3 -∗ False; *)
+  (* hash_tape_auth_frag_agree m α ns γ2 γ3: *)
+  (*   hash_tape_auth1 m γ2 γ3 -∗ hash_tape1 α ns γ2 γ3 -∗ ⌜m!!α=Some ns⌝; *)
   (* hash_tape_auth_insert m α γ2 γ3: *)
   (*   m!!α=None -> hash_tape_auth1 m γ2 γ3 ==∗ hash_tape_auth1 (<[α:=[]]> m) γ2 γ3 ∗ hash_tape1 α [] γ2 γ3; *)
   (* hash_tape_auth_frag_update m α ns n γ2 γ3: *)
@@ -124,7 +124,7 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
 
   con_hash_spec1 N f l hm P {HP: ∀ m m', Timeless (P m m')} γ1 γ2 γ3 γ_lock Q1 Q2 α ns (v:nat):
   {{{ con_hash_inv1 N f l hm P γ1 γ2 γ3 γ_lock ∗ hash_tape1 α (ns) γ2 γ3∗
-      ( ∀ m m', P m m' ∗ hash_auth1 m γ1 γ2 -∗ ⌜m'!!α=Some ns⌝ -∗ |={⊤∖↑N}=>
+      ( ∀ m m', P m m' -∗ hash_auth1 m γ1 γ2 -∗ ⌜m'!!α=Some ns⌝ -∗ |={⊤∖↑N}=>
              match m!!v with
              | Some res => P m m' ∗ hash_auth1 m γ1 γ2 ∗ Q1 res
              | None => ∃ n ns', ⌜n::ns'=ns⌝ ∗ P (<[v:=n]> m) (<[α:=ns']> m')∗ hash_auth1 (<[v:=n]> m) γ1 γ2  ∗ Q2
@@ -178,7 +178,7 @@ Section test.
     iIntros (Φ) "[#Hinv Ht] HΦ".
     iDestruct (hash_tape_in_hash_set with "[$]") as "#Hfrag".
     iApply (con_hash_spec1 _ _ _ _ _ _ _ _ _ (λ res, hash_frag1 v res γ1 γ2) (hash_frag1 v n γ1 γ2) with "[$Hinv $Ht]").
-    - iIntros (??) "[_ Hauth] %".
+    - iIntros (??) "_ Hauth %".
       case_match.
       + by iDestruct (hash_auth_duplicate with "[$]") as "#$"; first done.
       + iMod (hash_auth_insert with "[][$]") as "H"; first done; last first.
@@ -200,7 +200,7 @@ Section test.
     iIntros (Φ) "(#Hinv & Ht & #Hf) HΦ".
     iDestruct (hash_tape_in_hash_set with "[$]") as "#Hfrag".
     iApply (con_hash_spec1 _ _ _ _ _ _ _ _ _ (λ res' , ⌜res=res'⌝ ∗ hash_frag1 v res γ1 γ2)%I (False) with "[$Hinv $Ht]").
-    - iIntros (??) "[_ Hauth] %".
+    - iIntros (??) "_ Hauth %".
       case_match.
       + iDestruct (hash_auth_frag_agree with "[$][$]") as "%".
         simplify_eq. iDestruct (hash_auth_duplicate with "[$]") as "#$"; first done. by iFrame.

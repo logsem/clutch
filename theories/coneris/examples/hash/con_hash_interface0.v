@@ -45,10 +45,10 @@ Class con_hash0 `{!conerisGS Σ} (val_size:nat):= Con_Hash0
     hash_tape0 α ns γ-∗ ⌜Forall (λ x, x<=val_size)%nat ns⌝;
   hash_tape_exclusive α ns ns' γ:
     hash_tape0 α ns γ-∗ hash_tape0 α ns' γ-∗ False;
-  hash_tape_auth_exclusive m m' γ:
-    hash_tape_auth0 m γ -∗ hash_tape_auth0 m' γ -∗ False;
-  hash_tape_auth_frag_agree m α ns γ:
-    hash_tape_auth0 m γ  -∗ hash_tape0 α ns γ -∗ ⌜m!!α=Some ns⌝;
+  (* hash_tape_auth_exclusive m m' γ: *)
+  (*   hash_tape_auth0 m γ -∗ hash_tape_auth0 m' γ -∗ False; *)
+  (* hash_tape_auth_frag_agree m α ns γ: *)
+  (*   hash_tape_auth0 m γ  -∗ hash_tape0 α ns γ -∗ ⌜m!!α=Some ns⌝; *)
   (* hash_tape_auth_alloc m α γ: *)
   (*   m!!α=None -> hash_tape_auth0 m γ ==∗ hash_tape_auth0 (<[α:=[]]> m) γ ∗ hash_tape0 α [] γ; *)
   hash_tape_presample m γ α ns ε ε2 E:

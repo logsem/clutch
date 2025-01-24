@@ -300,7 +300,7 @@ Section con_hash_impl1.
 
   Lemma con_hash_spec N f l hm P {HP: ∀ m m', Timeless (P m m')} γ1 γ2 γ3 γ_lock Q1 Q2 α ns (v:nat):
   {{{ con_hash_inv N f l hm P γ1 γ2 γ3 γ_lock ∗ hash_tape α (ns) γ2 γ3∗
-      ( ∀ m m', P m m' ∗ hash_auth m γ1 γ2 -∗ ⌜m'!!α=Some ns⌝ -∗ |={⊤∖↑N}=>
+      ( ∀ m m', P m m' -∗ hash_auth m γ1 γ2 -∗ ⌜m'!!α=Some ns⌝ -∗ |={⊤∖↑N}=>
              match m!!v with
              | Some res => P m m' ∗ hash_auth m γ1 γ2 ∗ Q1 res
              | None => ∃ n ns', ⌜n::ns'=ns⌝ ∗ P (<[v:=n]> m) (<[α:=ns']> m')∗ hash_auth (<[v:=n]> m) γ1 γ2  ∗ Q2
@@ -316,7 +316,7 @@ Section con_hash_impl1.
     iIntros (Φ) "(#Hinv & [Htape #Hfrag] & Hvs) HΦ".
     iApply (con_hash_spec0 _ _ _ _ _ _ _ Q1 Q2 with "[$Hinv $Htape Hvs]").
     - iIntros (??) "(?&#?&?)%".
-      iMod ("Hvs" with "[$][//]") as "Hcont".
+      iMod ("Hvs" with "[$][$][//]") as "Hcont".
       case_match.
       + by iDestruct "Hcont" as "($&$&$)".
       + iDestruct "Hcont" as "(%&%&<-&$&$&$)".
@@ -391,14 +391,14 @@ Section con_hash_impl1.
     iModIntro.
     rewrite big_sepM_insert; last done. iFrame.
   Qed.
-  Next Obligation.
-    iIntros (????) "[H1 ?][ H2 ?]".
-    iApply (con_hash_interface0.hash_tape_auth_exclusive with "[$][$]").
-  Qed.
-  Next Obligation.
-    iIntros (?????) "[??][??]".
-    iApply (con_hash_interface0.hash_tape_auth_frag_agree with "[$][$]").
-  Qed.
+  (* Next Obligation. *)
+  (*   iIntros (????) "[H1 ?][ H2 ?]". *)
+  (*   iApply (con_hash_interface0.hash_tape_auth_exclusive with "[$][$]"). *)
+  (* Qed. *)
+  (* Next Obligation. *)
+  (*   iIntros (?????) "[??][??]". *)
+  (*   iApply (con_hash_interface0.hash_tape_auth_frag_agree with "[$][$]"). *)
+  (* Qed. *)
   Next Obligation.
     iIntros (??)"(?&%H&?)". iPureIntro. intros n H'.
     apply H in H'. lia.
