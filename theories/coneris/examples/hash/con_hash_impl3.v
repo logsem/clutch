@@ -113,9 +113,7 @@ Section con_hash_impl3.
     iIntros "Htauth Ht Herr Htoken (%&?&Hauth&Htokens&%H&?)".
     iDestruct (ec_combine with "[$]") as "Herr".
     rewrite /amortized_error/=H.
-    iAssert (↯ (s/(val_size+1)+(((max_hash_size-1) * (s+1))/2 - sum_n_m (λ x, INR x) 0%nat (s))%R / (val_size + 1))%R )%I with "[Herr]" as "Herr".
-    { iApply ec_eq; last done.
-      admit. }
+    
     iAssert (⌜s+1 <=max_hash_size⌝)%I as "%Hineq'".
     { iCombine "Htoken Htokens" as "H".
       iCombine "Hauth H" gives "H0".
@@ -123,6 +121,47 @@ Section con_hash_impl3.
       iDestruct "H0" as "[[% %H']_]". simpl in *.
       rewrite nat_op in H'. iPureIntro. lia.
     }
+    
+    iAssert (↯ (s/(val_size+1)+(((max_hash_size-1) * (s+1))/2 - sum_n_m (λ x, INR x) 0%nat (s))%R / (val_size + 1))%R )%I with "[Herr]" as "Herr".
+    { iApply ec_eq; last done.
+      remember (val_size + 1)%R as v.
+      remember (max_hash_size) as h.
+      assert (∀ x y, x/y = x*/y)%R as Hdiv.
+      { intros. lra. }
+      destruct s.
+      + simpl. rewrite sum_n_n. rewrite Rdiv_0_l Rmult_0_r.
+        replace (INR 0%nat) with 0%R; last done.
+        rewrite !Rminus_0_r.
+        replace (0/_/_)%R with 0%R; last lra.
+        rewrite !Rplus_0_l.
+        rewrite Rmult_1_r.
+        rewrite !Hdiv.
+        rewrite Rinv_mult.
+        lra.
+      + assert (forall k, S k - 1 = k)%nat as H' by lia.
+        rewrite !H'.
+        clear H'.
+        rewrite sum_n_Sm; last lia.
+        replace (Hierarchy.plus _ (INR (S s)))%R with ((sum_n_m (λ x : nat, INR x) 0 s) + (S s))%R by done.
+        rewrite !Hdiv.
+        rewrite !Rmult_minus_distr_r.
+        rewrite (Rmult_plus_distr_r (sum_n_m _ _ _)).
+        rewrite -!Rplus_assoc.
+        rewrite Ropp_plus_distr.
+        rewrite -!Rplus_assoc.
+        assert (((h - 1) * S s * / 2 * / v  + (h-1) * / (2 * v) )%R =
+                (S s * / v + (h -1)* (S s + 1) * / 2 * / v   + - (S s * / v))%R)%R; try lra.
+        assert ( (h-1) * S s * / 2 * / v + (h-1) * / (2 * v) = (h-1) * (S s+1) * / 2 * / v)%R; try lra.
+        replace (_*_*_*_)%R with ((h-1) * (S s) * /(2*v))%R; last first.
+        { rewrite Rinv_mult. lra. }
+        replace (_*_*_*_)%R with ((h-1) * (S(S s)) * /(2*v))%R; last first.
+        { rewrite Rinv_mult. rewrite S_INR. lra. }
+        rewrite -Rdiv_plus_distr.
+        rewrite Hdiv.
+        f_equal.
+        rewrite -{2}(Rmult_1_r (h-1)).
+        rewrite -Rmult_plus_distr_l.
+        f_equal. }
     iDestruct (ec_split with "[$]") as "[Herr ?]".
     { apply err_pos. }
     { pose proof  amortized_inequality (s+1) as K.
