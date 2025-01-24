@@ -251,6 +251,167 @@ Section con_hash_impl1.
     iFrame. iModIntro. by iSplit.
   Qed.
 
+  Lemma con_hash_init N P {HP: ∀ m m', Timeless (P m m')}:
+    {{{ P ∅ ∅ }}}
+      init_hash #()
+      {{{ (f:val), RET f; ∃ l hm γ1 γ2 γ3 γ_lock, con_hash_inv N f l hm P γ1 γ2 γ3 γ_lock ∗
+                                                  hash_set ∅ γ2
+      }}}.
+  Proof.
+    iIntros (Φ) "HP HΦ".
+    rewrite /init_hash.
+    iApply fupd_pgl_wp.
+    rewrite /hash_auth.
+    iMod (hv_auth_init) as "(%&H)".
+    iMod (ghost_map_alloc_empty) as "(%γ2 &H')".
+    iModIntro.
+    wp_apply (con_hash_init0 _ (λ (m : gmap nat nat) (m' : gmap val (list nat)), hash_auth m _ _ ∗
+                                                                           ([∗ map] ns ∈ m', [∗ list] x4 ∈ ns, hash_set_frag x4 γ2) ∗ P m m')%I with "[$HP $H]").
+    { by iSplit. }
+    rewrite /con_hash_inv.
+    iIntros (f) "(%&%&%&%&#Hinv)".
+    iApply "HΦ".
+    rewrite /hash_set.
+    rewrite gset_to_gmap_empty.
+    iFrame.
+    iFrame "Hinv".
+    by iSplit.
+  Qed.
+
+  Lemma con_hash_alloc_tape N f l hm P {HP: ∀ m m', Timeless (P m m')} γ1 γ2 γ3 γ_lock Q:
+  {{{ con_hash_inv N f l hm P γ1 γ2 γ3 γ_lock ∗
+      (∀ m m' α, P m m' -∗ ⌜α∉dom m'⌝ -∗ |={⊤∖↑N}=> P m (<[α:=[]]>m') ∗ Q α)
+  }}}
+      allocate_tape #()
+      {{{ (α: val), RET α; hash_tape α [] γ2 γ3 ∗ Q α }}}.
+  Proof.
+    iIntros (Φ) "[#Hinv Hvs] HΦ".
+    rewrite /allocate_tape.
+    wp_apply (con_hash_alloc_tape0 _ _ _ _ _ _ _ Q with "[Hvs $Hinv]").
+    - rewrite /hash_auth.
+      iIntros (???) "[[? #?][#? HP]] %".
+      iMod ("Hvs" with "[$][//]") as "[$$]".
+      iFrame. iModIntro. iSplit; first done.
+      rewrite big_sepM_insert; first repeat by iSplit.
+      by apply not_elem_of_dom_1.
+    - iIntros (?) "[??]".
+      iApply "HΦ". by iFrame.
+  Qed.
+
+  Lemma con_hash_spec N f l hm P {HP: ∀ m m', Timeless (P m m')} γ1 γ2 γ3 γ_lock Q1 Q2 α ns (v:nat):
+  {{{ con_hash_inv N f l hm P γ1 γ2 γ3 γ_lock ∗ hash_tape α (ns) γ2 γ3∗
+      ( ∀ m m', P m m' ∗ hash_auth m γ1 γ2 -∗ ⌜m'!!α=Some ns⌝ -∗ |={⊤∖↑N}=>
+             match m!!v with
+             | Some res => P m m' ∗ hash_auth m γ1 γ2 ∗ Q1 res
+             | None => ∃ n ns', ⌜n::ns'=ns⌝ ∗ P (<[v:=n]> m) (<[α:=ns']> m')∗ hash_auth (<[v:=n]> m) γ1 γ2  ∗ Q2
+             end                                        
+      )
+  }}}
+      f #v α
+      {{{ (res:nat), RET (#res);  (hash_tape α (ns) γ2 γ3 ∗ Q1 res ∨
+                                 ∃ n ns', ⌜n::ns'=ns⌝ ∗ hash_tape α ns' γ2 γ3 ∗ ⌜res=n⌝ ∗ Q2 
+                                )
+      }}}.
+  Proof.
+    iIntros (Φ) "(#Hinv & [Htape #Hfrag] & Hvs) HΦ".
+    iApply (con_hash_spec0 _ _ _ _ _ _ _ Q1 Q2 with "[$Hinv $Htape Hvs]").
+    - iIntros (??) "(?&#?&?)%".
+      iMod ("Hvs" with "[$][//]") as "Hcont".
+      case_match.
+      + by iDestruct "Hcont" as "($&$&$)".
+      + iDestruct "Hcont" as "(%&%&<-&$&$&$)".
+        iModIntro. repeat iSplit; try done.
+        iApply big_sepM_insert_2; last done.
+        rewrite big_sepL_cons.
+        iDestruct "Hfrag" as "[_ $]".
+    - iNext. iIntros (res) "[[??]|(%&%&<-&?&->&?)]"; iApply "HΦ".
+      + iLeft. by iFrame.
+      + iRight. iFrame. iExists _. repeat iSplit; try done.
+        rewrite big_sepL_cons.
+        iDestruct "Hfrag" as "[_ $]".
+  Qed.
+
+  
+  Program Definition con_hash_impl1 : con_hash1 val_size :=
+    {| init_hash1:=init_hash;
+      allocate_tape1:=allocate_tape;
+      compute_hash1:=compute_hash;
+
+      hash_view_gname:=_;
+      hash_set_gname:=_;
+      hash_lock_gname:=_;
+      
+      con_hash_inv1 := con_hash_inv;
+      hash_tape1:=hash_tape;
+      hash_frag1:=hash_frag;
+      hash_auth1:=hash_auth;
+      hash_set1:=hash_set;
+      hash_set_frag1:=hash_set_frag;
+      con_hash_interface1.hash_tape_presample := hash_tape_presample;
+      con_hash_presample1 := con_hash_presample;
+      con_hash_init1 := con_hash_init;
+      con_hash_alloc_tape1 := con_hash_alloc_tape;
+      con_hash_spec1:=con_hash_spec
+    |}
+  .
+  Next Obligation.
+    iIntros (????) "[??][??]".
+    iApply (hv_auth_exclusive with "[$][$]").
+  Qed.
+  Next Obligation.
+    iIntros (?????)"[??][??]".
+    iApply (hv_auth_frag_agree with "[$]").
+  Qed.
+  Next Obligation.
+    iIntros (??????) "[??]".
+    iDestruct (hv_auth_duplicate_frag with "[$]") as "[? $]"; first done.
+    by iApply (big_sepM_lookup with "[$]").
+  Qed.
+  Next Obligation.
+    rewrite /hash_frag.
+    iIntros (?????) "[??][??]".
+    by iDestruct (hv_frag_frag_agree with "[$][$]") as "->".
+  Qed.
+  Next Obligation.
+    iIntros (????) "[?$]".
+  Qed.
+  Next Obligation.
+    iIntros (????) "[? #$]".
+  Qed.
+  Next Obligation.
+    iIntros (???) "[H1 ?]H2".
+    iCombine "H1 H2" gives "%H".
+    iPureIntro.
+    rewrite lookup_gset_to_gmap_Some in H. naive_solver.
+  Qed.
+  Next Obligation.
+    iIntros (??????) "?[??]".
+    rewrite /hash_auth.
+    iMod (hv_auth_insert with "[$]") as "[$ ?]"; first done.
+    iModIntro.
+    rewrite big_sepM_insert; last done. iFrame.
+  Qed.
+  Next Obligation.
+    iIntros (????) "[H1 ?][ H2 ?]".
+    iApply (con_hash_interface0.hash_tape_auth_exclusive with "[$][$]").
+  Qed.
+  Next Obligation.
+    iIntros (?????) "[??][??]".
+    iApply (con_hash_interface0.hash_tape_auth_frag_agree with "[$][$]").
+  Qed.
+  Next Obligation.
+    iIntros (??)"(?&%H&?)". iPureIntro. intros n H'.
+    apply H in H'. lia.
+  Qed.
+  Next Obligation.
+    iIntros (????) "[??]".
+    by iApply con_hash_interface0.hash_tape_valid.
+  Qed.
+  Next Obligation.
+    iIntros (?????) "[H1 _] [H2 _]".
+    iApply (con_hash_interface0.hash_tape_exclusive with "[$][$]").
+  Qed.
+    
   (* Lemma con_hash_presample N f l hm P {HP: ∀ m m', Timeless (P m m')} γ1 γ2 γ_lock Q *)
   (*   E (ε εI εO:nonnegreal) ns α  s: *)
   (*   ↑N ⊆ E -> *)
@@ -403,76 +564,6 @@ Section con_hash_impl1.
   (* Qed.  *)
 
 
-  (* Program Definition con_hash_impl1 : con_hash1 val_size := *)
-  (*   {| init_hash1:=init_hash; *)
-  (*     allocate_tape1:=allocate_tape; *)
-  (*     compute_hash1:=compute_hash; *)
-
-  (*     hash_view_gname:=_; *)
-  (*     hash_set_gname:=_; *)
-  (*     hash_lock_gname:=_; *)
-      
-  (*     con_hash_inv1 := con_hash_inv; *)
-  (*     hash_tape1:=hash_tape; *)
-  (*     hash_frag1:=hash_frag; *)
-  (*     hash_auth1:=hash_auth; *)
-  (*     hash_set1:=hash_set; *)
-  (*     hash_set_frag1:=hash_set_frag; *)
-  (*     con_hash_presample1 := con_hash_presample; *)
-  (*     con_hash_init1 := con_hash_init; *)
-  (*     con_hash_alloc_tape1 := con_hash_alloc_tape; *)
-  (*     con_hash_spec1:=con_hash_spec *)
-  (*   |} *)
-  (* . *)
-  (* Next Obligation. *)
-  (*   iIntros (????) "[??][??]". *)
-  (*   iApply (hv_auth_exclusive with "[$][$]"). *)
-  (* Qed. *)
-  (* Next Obligation. *)
-  (*   iIntros (?????)"[??][??]". *)
-  (*   iApply (hv_auth_frag_agree with "[$]"). *)
-  (* Qed. *)
-  (* Next Obligation. *)
-  (*   iIntros (??????) "[??]". *)
-  (*   iDestruct (hv_auth_duplicate_frag with "[$]") as "[? $]"; first done. *)
-  (*   by iApply (big_sepM_lookup with "[$]"). *)
-  (* Qed. *)
-  (* Next Obligation. *)
-  (*   rewrite /hash_frag. *)
-  (*   iIntros (?????) "[??][??]". *)
-  (*   by iDestruct (hv_frag_frag_agree with "[$][$]") as "->". *)
-  (* Qed. *)
-  (* Next Obligation. *)
-  (*   iIntros (????) "[?$]". *)
-  (* Qed. *)
-  (* Next Obligation. *)
-  (*   iIntros (???) "[?#$]". *)
-  (* Qed. *)
-  (* Next Obligation. *)
-  (*   iIntros (???) "[H1 ?]H2". *)
-  (*   iCombine "H1 H2" gives "%H". *)
-  (*   iPureIntro. *)
-  (*   rewrite lookup_gset_to_gmap_Some in H. naive_solver. *)
-  (* Qed. *)
-  (* Next Obligation. *)
-  (*   iIntros (??????) "?[??]". *)
-  (*   rewrite /hash_auth. *)
-  (*   iMod (hv_auth_insert with "[$]") as "[$ ?]"; first done. *)
-  (*   iModIntro. *)
-  (*   rewrite big_sepM_insert; last done. iFrame. *)
-  (* Qed. *)
-  (* Next Obligation. *)
-  (*   iIntros (??)"(?&%H&?)". iPureIntro. intros n H'. *)
-  (*   apply H in H'. lia. *)
-  (* Qed. *)
-  (* Next Obligation. *)
-  (*   iIntros (???) "[??]". *)
-  (*   by iApply con_hash_interface0.hash_tape_valid. *)
-  (* Qed. *)
-  (* Next Obligation. *)
-  (*   iIntros (????) "[H1 _] [H2 _]". *)
-  (*   iApply (con_hash_interface0.hash_tape_exclusive with "[$][$]"). *)
-  (* Qed. *)
   
 End con_hash_impl1.
 
