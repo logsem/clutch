@@ -15,7 +15,7 @@ From mathcomp.analysis Require Export Rstruct.
 From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
-From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state subst pureops heapops randops cfg.
+From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state subst pureops heapops randops cfg fill.
 (* From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
 From stdpp Require Import fin.
@@ -56,25 +56,7 @@ Ltac mcrunch_compC H :=
     measurable_fun_prod' *)
 Ltac mcrunch_prod := ( eapply @measurable_fun_prod'; first by eauto with measlang ).
 
-
-
-Notation of_val := Val (only parsing).
-
-Definition to_val (e : expr) : option val :=
-  match e with
-  | Val v => Some v
-  | _ => None
-  end.
-
-(** Equality and other typeclass stuff *)
-Lemma to_of_val v : to_val (of_val v) = Some v.
-Proof. by destruct v. Qed.
-
-Lemma of_to_val e v : to_val e = Some v → of_val v = e.
-Proof. destruct e=>//=. by intros [= <-]. Qed.
-
-Global Instance of_val_inj {T1 T2 T3 T4 : Type} : Inj (=) (=) (@of_val T1 T2 T3 T4).
-Proof. intros ??. congruence. Qed.
+Module meas_lang.
 
 Global Instance state_inhabited : Inhabited state := populate {| heap := gmap_empty; tapes := gmap_empty; utapes := gmap_empty |}.
 
@@ -83,110 +65,6 @@ Canonical Structure locO := leibnizO loc.
 Canonical Structure valO := leibnizO val.
 Canonical Structure exprO := leibnizO expr.
 
-
-
-
-(** Evaluation contexts *)
-Inductive ectx_item :=
-  | AppLCtx (v2 : val)
-  | AppRCtx (e1 : expr)
-  | UnOpCtx (op : un_op)
-  | BinOpLCtx (op : bin_op) (v2 : val)
-  | BinOpRCtx (op : bin_op) (e1 : expr)
-  | IfCtx (e1 e2 : expr)
-  | PairLCtx (v2 : val)
-  | PairRCtx (e1 : expr)
-  | FstCtx
-  | SndCtx
-  | InjLCtx
-  | InjRCtx
-  | CaseCtx (e1 : expr) (e2 : expr)
-  | AllocNLCtx (v2 : val)
-  | AllocNRCtx (e1 : expr)
-  | LoadCtx
-  | StoreLCtx (v2 : val)
-  | StoreRCtx (e1 : expr)
-  | AllocTapeCtx
-  | RandLCtx (v2 : val)
-  | RandRCtx (e1 : expr)
-  | URandCtx
-  | TickCtx.
-
-Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
-  match Ki with
-  | AppLCtx v2 => App e (of_val v2)
-  | AppRCtx e1 => App e1 e
-  | UnOpCtx op => UnOp op e
-  | BinOpLCtx op v2 => BinOp op e (Val v2)
-  | BinOpRCtx op e1 => BinOp op e1 e
-  | IfCtx e1 e2 => If e e1 e2
-  | PairLCtx v2 => Pair e (Val v2)
-  | PairRCtx e1 => Pair e1 e
-  | FstCtx => Fst e
-  | SndCtx => Snd e
-  | InjLCtx => InjL e
-  | InjRCtx => InjR e
-  | CaseCtx e1 e2 => Case e e1 e2
-  | AllocNLCtx v2 => AllocN e (Val v2)
-  | AllocNRCtx e1 => AllocN e1 e
-  | LoadCtx => Load e
-  | StoreLCtx v2 => Store e (Val v2)
-  | StoreRCtx e1 => Store e1 e
-  | AllocTapeCtx => AllocTape e
-  | RandLCtx v2 => Rand e (Val v2)
-  | RandRCtx e1 => Rand e1 e
-  | URandCtx => URand e
-  | TickCtx => Tick e
-  end.
-
-Definition decomp_item (e : expr) : option (ectx_item * expr) :=
-  let noval (e : expr) (ei : ectx_item) :=
-    match e with Val _ => None | _ => Some (ei, e) end in
-  match e with
-  | App e1 e2      =>
-      match e2 with
-      | (Val v)    => noval e1 (AppLCtx v)
-      | _          => Some (AppRCtx e1, e2)
-      end
-  | UnOp op e      => noval e (UnOpCtx op)
-  | BinOp op e1 e2 =>
-      match e2 with
-      | Val v      => noval e1 (BinOpLCtx op v)
-      | _          => Some (BinOpRCtx op e1, e2)
-      end
-  | If e0 e1 e2    => noval e0 (IfCtx e1 e2)
-  | Pair e1 e2     =>
-      match e2 with
-      | Val v      => noval e1 (PairLCtx v)
-      | _          => Some (PairRCtx e1, e2)
-      end
-  | Fst e          => noval e FstCtx
-  | Snd e          => noval e SndCtx
-  | InjL e         => noval e InjLCtx
-  | InjR e         => noval e InjRCtx
-  | Case e0 e1 e2  => noval e0 (CaseCtx e1 e2)
-  | AllocN e1 e2        =>
-      match e2 with
-      | Val v      => noval e1 (AllocNLCtx v)
-      | _          => Some (AllocNRCtx e1, e2)
-      end
-
-  | Load e         => noval e LoadCtx
-  | Store e1 e2    =>
-      match e2 with
-      | Val v      => noval e1 (StoreLCtx v)
-      | _          => Some (StoreRCtx e1, e2)
-      end
-  | AllocTape e    => noval e AllocTapeCtx
-  | Rand e1 e2     =>
-      match e2 with
-      | Val v      => noval e1 (RandLCtx v)
-      | _          => Some (RandRCtx e1, e2)
-      end
-  | URand e        => noval e URandCtx
-  | Tick e         => noval e TickCtx
-  | _              => None
-  end.
 
 
 Section unif.
@@ -2737,81 +2615,10 @@ Section meas_semantics.
 
 End meas_semantics.
 
-(*
-  Definition head_stepM_def (c : cfg) : giryM cfg :=
-    let (e1, σ1) := c in
-    match e1 with
-    (* Uniform sampling from [0, 1 , ..., N] *)
-    | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
-        giryM_map
-          (m_discr (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt $ fin_to_nat n, σ1) : cfg)))
-          (giryM_unif (Z.to_nat N))
-    (* Urand with no tape *)
-    | URand (Val (LitV LitUnit)) => giryM_zero (* FIXME giryM_map urand_step unif_base *)
-    (* Rand with a tape *)
-    | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) =>
-        match σ1.(tapes) !! l with
-        | Some btape =>
-            (* There exists a tape with label l *)
-            let τ := btape.(btape_tape) in
-            let M := btape.(btape_bound) in
-            if (bool_decide (M = Z.to_nat N)) then
-              (* Tape bounds match *)
-              match (τ !! 0) with
-              | Some v =>
-                  (* There is a next value on the tape *)
-                  let σ' := state_upd_tapes <[ l := {| btape_tape := (tapeAdvance τ); btape_bound := M |} ]> σ1 in
-                  (giryM_ret R ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : cfg))
-              | None =>
-                  (* Next slot on tape is empty *)
-                  giryM_map
-                    (m_discr (fun (v : 'I_(S (Z.to_nat N))) =>
-                       (* Fill the tape head with new sample *)
-                       let τ' := <[ (0 : nat) := Some (v : nat) ]> τ in
-                       (* Advance the tape *)
-                       let σ' := state_upd_tapes <[ l := {| btape_tape := (tapeAdvance τ'); btape_bound := M |} ]> σ1 in
-                       (* Return the new sample and state *)
-                       ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : cfg)))
-                   (giryM_unif (Z.to_nat N))
-              end
-            else
-              (* Tape bounds do not match *)
-              (* Do not advance the tape, but still generate a new sample *)
-              giryM_map
-                (m_discr (fun (n : 'I_(S (Z.to_nat N))) => (((Val $ LitV $ LitInt $ fin_to_nat n) : <<discr expr>>), σ1) : cfg))
-                (giryM_unif (Z.to_nat N))
-        | None => giryM_zero
-        end
-    (* Urand with a tape *)
-    | URand (Val (LitV (LitLbl l))) =>
-        match σ1.(utapes) !! l with
-        | Some τ =>
-            (* tape l is allocated *)
-            match (τ !! 0) with
-            | Some u =>
-                (* Head has a sample *)
-                let σ' := state_upd_utapes <[ l := (tapeAdvance τ) ]> σ1 in
-                (giryM_ret R ((Val $ LitV $ LitReal u, σ') : cfg))
-            | None =>
-                (* Head has no sample *)
-                giryM_zero
-                (* FIXME giryM_map urand_tape_step unif_base *)
-            end
-        | None => giryM_zero
-        end
-    end.
-*)
-
-
-
-
-
-
   (*
 
 
   Definition urand_tape_step : measurable_map ((R : realType) : measurableType _) cfg.
-  A dmitted.
     (* This funciton needs to do this: *)
     (* (fun (u : R) =>
          (* Fill tape head with new sample *)
@@ -2820,6 +2627,12 @@ End meas_semantics.
          let σ' := state_upd_utapes <[ l := (tapeAdvance τ') ]> σ1 in
          (* Return the update value an state *)
          ((Val $ LitV $ LitReal u, σ') : cfg)) *)
+
+*)
+
+
+
+
 
 
 
@@ -2880,7 +2693,7 @@ Inductive head_step_rel : expr -> state -> expr -> state → Prop :=
 
 (* Pure reductions *)
 | BetaS f x e1 v2 e' σ :
-  e' = subst' x v2 (subst' f (RecV f x e1) e1) →
+  e' = subst x v2 (subst f (RecV f x e1) e1) →
   head_step_rel (App (Val $ RecV f x e1) (Val v2)) σ e' σ
 | UnOpS op v v' σ :
   un_op_eval op v = Some v' →
@@ -3066,74 +2879,6 @@ Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
   to_val e1 = None → to_val e2 = None →
   fill_item Ki1 e1 = fill_item Ki2 e2 → Ki1 = Ki2.
 Proof. destruct Ki2, Ki1; naive_solver eauto with f_equal. Qed.
-Fixpoint height (e : expr) : nat :=
-  match e with
-  | Val _ => 1
-  | Var _ => 1
-  | Rec _ _ e => 1 + height e
-  | App e1 e2 => 1 + height e1 + height e2
-  | UnOp _ e => 1 + height e
-  | BinOp _ e1 e2 => 1 + height e1 + height e2
-  | If e0 e1 e2 => 1 + height e0 + height e1 + height e2
-  | Pair e1 e2 => 1 + height e1 + height e2
-  | Fst e => 1 + height e
-  | Snd e => 1 + height e
-  | InjL e => 1 + height e
-  | InjR e => 1 + height e
-  | Case e0 e1 e2 => 1 + height e0 + height e1 + height e2
-  | AllocN e1 e2 => 1 + height e1 + height e2
-  | Load e => 1 + height e
-  | Store e1 e2 => 1 + height e1 + height e2
-  | AllocTape e => 1 + height e
-  | AllocUTape => 1
-  | Rand e1 e2 => 1 + height e1 + height e2
-  | URand e => 1 + height e
-  | Tick e => 1 + height e
-  end.
-
-Definition expr_ord (e1 e2 : expr) : Prop := (height e1 < height e2)%nat.
-
-Lemma expr_ord_wf' h e : (height e ≤ h)%nat → Acc expr_ord e.
-Proof.
-  rewrite /expr_ord. revert e; induction h.
-  { destruct e; simpl; lia. }
-  intros []; simpl;
-    constructor; simpl; intros []; eauto with lia.
-Defined.
-
-Lemma expr_ord_wf : well_founded expr_ord.
-Proof. red; intro; eapply expr_ord_wf'; eauto. Defined.
-
-
-(* TODO: this proof is slow, but I do not see how to make it faster... *)
-(* TODO: Uncomment the slow proof *)
-Lemma decomp_expr_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e.
-Proof. A dmitted.
-(*
-  rewrite /expr_ord /decomp_item.
-  destruct Ki ; repeat destruct_match ; intros [=] ; subst ; cbn ; lia.
-Qed. *)
-
-Lemma decomp_fill_item Ki e :
-  to_val e = None → decomp_item (fill_item Ki e) = Some (Ki, e).
-Proof. destruct Ki ; simpl ; by repeat destruct_match. Qed.
-
-(* TODO: this proof is slow, but I do not see how to make it faster... *)
-(* TODO: Uncomment the slow proof *)
-Lemma decomp_fill_item_2 e e' Ki :
-  decomp_item e = Some (Ki, e') → fill_item Ki e' = e ∧ to_val e' = None.
-Proof. A dmitted.
-(*
-  rewrite /decomp_item ;
-    destruct e ; try done ;
-    destruct Ki ; cbn ; repeat destruct_match ; intros [=] ; subst ; auto.
-Qed. *)
-
-Local Open Scope classical_set_scope.
-
-Definition fill_item_mf (K : ectx_item) : measurable_map expr expr.
-A dmitted.
-(*   := m_discr (fill_item K : <<discr expr>> -> <<discr expr>>).  *)
 
 Definition meas_lang_mixin :
   @MeasEctxiLanguageMixin _ _ _ expr val state ectx_item
@@ -3152,8 +2897,7 @@ Proof.
   - admit.
   - admit.
   - admit.
-A dmitted.
-
+Admitted.
 
 End meas_lang.
 
@@ -3166,4 +2910,3 @@ Canonical Structure meas_lang := MeasLanguageOfEctx meas_ectx_lang.
 
 (* Prefer meas_lang names over ectx_language names. *)
 Export meas_lang.
-*)

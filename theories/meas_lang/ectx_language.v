@@ -163,7 +163,6 @@ Section ectx_language.
   Definition head_stuck (e : expr Λ) (σ : state Λ) :=
     to_val e = None ∧ head_irreducible e σ.
 
-  (*
   (* All non-value redexes are at the root. In other words, all sub-redexes are
      values. *)
   Definition sub_redexes_are_values (e : expr Λ) :=
@@ -176,23 +175,40 @@ Section ectx_language.
     fill_lift (comp_ectx K1 K2) = fill_lift K1 ∘ fill_lift K2.
   Proof.
     extensionality ρ. destruct ρ.
+  Admitted.
+  (*
     rewrite /fill_lift -fill_comp //=.
-  Qed.
+  Qed.*)
 
   Lemma fill_lift_empty :
     fill_lift empty_ectx = (λ ρ, ρ).
   Proof.
     extensionality ρ. destruct ρ.
+    (*
     rewrite /fill_lift fill_empty //.
-  Qed.
+  Qed. *) Admitted.
 
+  (*
   Instance inj_fill (K : ectx Λ) : Inj eq eq (fill_lift K).
   Proof. intros [] [] [=<-%(inj _) ->]=>//. Qed.
 
-  Definition prim_step (e1 : expr Λ) (σ1 : state Λ) : distr (expr Λ * state Λ) :=
+   *)
+
+
+  (* TODO (Next: This thing needs to be measurable).
+     which means fill and decomp need to be measurable.
+
+   *)
+  Definition prim_step (e1 : (expr Λ * state Λ)%type) : giryM (expr Λ * state Λ)%type.
+  Admitted.
+
+  (*
+
     let '(K, e1') := decomp e1 in
     dmap (fill_lift K) (head_step e1' σ1).
 
+
+  (*
   Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.
   *)
@@ -443,11 +459,12 @@ Section ectx_language.
   Proof. apply: pure_exec_ctx. Qed.
 
  *)
+*)
 End ectx_language.
-
+(*
 Global Arguments ectx_lang : clear implicits.
 Coercion ectx_lang : meas_ectxLanguage >-> meas_language.
-
+*)
 (* This definition makes sure that the fields of the [language] record do not
 refer to the projections of the [ectxLanguage] record but to the actual fields
 of the [ectxLanguage] record. This is crucial for canonical structure search to
@@ -464,5 +481,3 @@ Next Obligation.
   destruct mix.
   split; try done.
 Defined.
-
-Global Arguments MeasLanguageOfEctx : simpl never.
