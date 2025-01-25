@@ -226,12 +226,164 @@ End ectx_item_algebra.
 Definition ectx_item : measurableType ectx_item_cyl.-sigma := 
 
 
+(** Constructors into the measurableType, curried  *)
+Definition AppLCtxC v2      : ectx_item := AppLCtx v2.
+Definition AppRCtxC e1      : ectx_item := AppRCtx e1.
+Definition UnOpCtxC op      : ectx_item := UnOpCtx op.
+Definition BinOpLCtxC op v2 : ectx_item := BinOpLCtx op v2.
+Definition BinOpRCtxC op e1 : ectx_item := BinOpRCtx op e1.
+Definition IfCtxC e1 e2     : ectx_item := IfCtx e1 e2.
+Definition PairLCtxC v2     : ectx_item := PairLCtx v2.
+Definition PairRCtxC e1     : ectx_item := PairRCtx e1.
+Definition FstCtxC          : ectx_item := FstCtx.
+Definition SndCtxC          : ectx_item := SndCtx.
+Definition InjLCtxC         : ectx_item := InjLCtx.
+Definition InjRCtxC         : ectx_item := InjRCtx.
+Definition CaseCtxC e1 e2   : ectx_item := CaseCtx e1 e2.
+Definition AllocNLCtxC v2   : ectx_item := AllocNLCtx v2.
+Definition AllocNRCtxC e1   : ectx_item := AllocNRCtx e1.
+Definition LoadCtxC         : ectx_item := LoadCtx.
+Definition StoreLCtxC v2    : ectx_item := StoreLCtx v2.
+Definition StoreRCtxC e1    : ectx_item := StoreRCtx e1.
+Definition AllocTapeCtxC    : ectx_item := AllocTapeCtx.
+Definition RandLCtxC v2     : ectx_item := RandLCtx v2.
+Definition RandRCtxC e1     : ectx_item := RandRCtx e1.
+Definition URandCtxC        : ectx_item := URandCtx.
+Definition TickCtxC         : ectx_item := TickCtx.
+
+(** Constructors into the measurableType, uncurried *)
+Definition AppLCtxU (v : val)                         := AppLCtxC v.
+Definition AppRCtxU (v : expr)                        := AppRCtxC v.
+Definition UnOpCtxU (v : <<discr un_op>>)             := UnOpCtxC v.
+Definition BinOpLCtxU (v : <<discr bin_op>> * val)    := BinOpLCtxC v.1 v.2.
+Definition BinOpRCtxU (v : <<discr bin_op>> * expr)   := BinOpRCtxC v.1 v.2.
+Definition IfCtxU (v : expr * expr)                   := IfCtxC v.1 v.2.
+Definition PairLCtxU (v : val)                        := PairLCtxC v.
+Definition PairRCtxU (v : expr)                       := PairRCtxC v.
+Definition FstCtxU                                    := FstCtxC.
+Definition SndCtxU                                    := SndCtxC.
+Definition InjLCtxU                                   := InjLCtxC.
+Definition InjRCtxU                                   := InjRCtxC.
+Definition CaseCtxU (v : expr * expr)                 := CaseCtxC v.1 v.2.
+Definition AllocNLCtxU (v : val)                      := AllocNLCtxC v.
+Definition AllocNRCtxU (v : expr)                     := AllocNRCtxC v.
+Definition LoadCtxU                                   := LoadCtxC.
+Definition StoreLCtxU (v : val)                       := StoreLCtxC v.
+Definition StoreRCtxU (v : expr)                      := StoreRCtxC v.
+Definition AllocTapeCtxU                              := AllocTapeCtxC.
+Definition RandLCtxU (v : val)                        := RandLCtxC v.
+Definition RandRCtxU (v : expr)                       := RandRCtxC v.
+Definition URandCtxU                                  := URandCtxC.
+Definition TickCtxU                                   := TickCtxC.
+
+
+Section ConstructorMeasurable.
+
+  Lemma AppLCtxU_measurable : measurable_fun setT AppLCtxU.
+  Proof. Admitted.
+  Hint Resolve AppLCtxU_measurable : measlang.
+
+  Lemma AppRCtxU_measurable : measurable_fun setT AppRCtxU.
+  Proof. Admitted.
+  Hint Resolve AppRCtxU_measurable : measlang.
+
+  Lemma UnOpCtxU_measurable : measurable_fun setT UnOpCtxU.
+  Proof. Admitted.
+  Hint Resolve UnOpCtxU_measurable : measlang.
+
+  Lemma BinOpLCtxU_measurable : measurable_fun setT BinOpLCtxU.
+  Proof. Admitted.
+  Hint Resolve BinOpLCtxU_measurable : measlang.
+
+  Lemma BinOpRCtxU_measurable : measurable_fun setT BinOpRCtxU.
+  Proof. Admitted.
+  Hint Resolve BinOpRCtxU_measurable : measlang.
+
+  Lemma IfCtxU_measurable : measurable_fun setT IfCtxU.
+  Proof. Admitted.
+  Hint Resolve IfCtxU_measurable : measlang.
+
+  Lemma PairLCtxU_measurable : measurable_fun setT PairLCtxU.
+  Proof. Admitted.
+  Hint Resolve PairLCtxU_measurable : measlang.
+
+  Lemma PairRCtxU_measurable : measurable_fun setT PairRCtxU.
+  Proof. Admitted.
+  Hint Resolve PairRCtxU_measurable : measlang.
+
+  Lemma CaseCtxU_measurable : measurable_fun setT CaseCtxU.
+  Proof. Admitted.
+  Hint Resolve CaseCtxU_measurable : measlang.
+
+  Lemma AllocNLCtxU_measurable : measurable_fun setT AllocNLCtxU.
+  Proof. Admitted.
+  Hint Resolve AllocNLCtxU_measurable : measlang.
+
+  Lemma AllocNRCtxU_measurable : measurable_fun setT AllocNRCtxU.
+  Proof. Admitted.
+  Hint Resolve AllocNRCtxU_measurable : measlang.
+
+  Lemma StoreLCtxU_measurable : measurable_fun setT StoreLCtxU.
+  Proof. Admitted.
+  Hint Resolve StoreLCtxU_measurable : measlang.
+
+  Lemma StoreRCtxU_measurable : measurable_fun setT StoreRCtxU.
+  Proof. Admitted.
+  Hint Resolve StoreRCtxU_measurable : measlang.
+
+  Lemma RandLCtxU_measurable : measurable_fun setT RandLCtxU.
+  Proof. Admitted.
+  Hint Resolve RandLCtxU_measurable : measlang.
+
+  Lemma RandRCtxU_measurable : measurable_fun setT RandRCtxU.
+  Proof. Admitted.
+  Hint Resolve RandRCtxU_measurable : measlang.
+
+End ConstructorMeasurable.
 
 
 
+Section Shapes.
+
+Definition ectx_item_shape : Type := @ectx_item_pre () () () ().
+
+Definition shape_ectx_item {T1 T2 T3 T4} : @ectx_item_pre T1 T2 T3 T4 -> ectx_item_shape :=
+ ectx_item_pre_F (cst ()) (cst ()) (cst ()) (cst ()) (cst ()).
+
+Definition gen_ectx_item : ectx_item_shape -> ectx_item_S :=
+ ectx_item_pre_F (cst setT) (cst setT) (cst setT) (cst setT) (cst setT).
+
+Lemma ectx_item_generator s : ectx_item_ML (gen_ectx_item s).
+Proof.
+  rewrite /ectx_item_ML/gen_ectx_item/ectx_item_pre_F.
+  destruct s; try done.
+  (* Apply the val and expr generator lemmas *)
+Admitted.
 
 
+Lemma ectx_item_shape_cyl (s : ectx_item_shape) : [set e | shape_ectx_item e = s] = ectx_item_ST (gen_ectx_item s).
+Proof. Admitted.
 
+Definition ectx_item_shape_enum (n : nat) : ectx_item_shape. Admitted.
+
+Lemma ectx_item_shape_enum_surj (e : ectx_item_shape) : exists n, ectx_item_shape_enum n = e.
+Proof. Admitted.
+
+Definition ectx_item_seq : sequences.sequence (set ectx_item) :=
+  fun n => shape_ectx_item @^-1` [set ectx_item_shape_enum n].
+
+Lemma ectx_item_shape_decompT: (\bigcup_n ectx_item_seq n) = setT.
+Proof.
+  rewrite <- subTset => e He.
+  case (ectx_item_shape_enum_surj (shape_ectx_item e)) as [n Hn].
+  exists n; [done|].
+  by rewrite /ectx_item_seq Hn //=.
+Qed.
+
+Lemma ectx_item_shape_decomp S : (\bigcup_n (S `&` ectx_item_seq n)) = S.
+Proof. by rewrite <- setI_bigcupr, ectx_item_shape_decompT, setIT. Qed.
+
+End Shapes.
 
 
 
