@@ -18,15 +18,26 @@ From clutch.prelude Require Import classical.
 From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state cfg.
 
 Local Open Scope classical_set_scope.
+
+Section unif.
+  Local Open Scope ereal_scope.
+  Local Open Scope classical_set_scope.
+  (* Uniform space over [0, 1]*)
+  Definition unif_base : subprobability _ R := uniform_prob (@Num.Internals.ltr01 R).
+End unif.
+
+
 (*
     | AllocTape (Val (LitV (LitInt z))) =>
         let ι := fresh_loc σ1.(tapes) in
         giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := {| btape_tape := emptyTape ; btape_bound := (Z.to_nat z) |} ]> σ1) : cfg)
 *)
 
-Definition rand_allocTapeE (x : (<<discr Z>> * state)%type) : <<discr loc>>. Admitted.
+Definition rand_allocTapeE (x : (<<discr Z>> * state)%type) : <<discr loc>> :=
+  fresh_loc x.2.(tapes).
 
-Definition rand_allocTapeS (x : (<<discr Z>> * state)%type) : state. Admitted.
+Definition rand_allocTapeS (x : (<<discr Z>> * state)%type) : state :=
+  state_upd_tapes <[ (fresh_loc x.2.(tapes)) := {| btape_tape := emptyTape ; btape_bound := Z.to_nat x.1 |} ]> x.2.
 
 Lemma rand_allocTapeE_meas : measurable_fun setT rand_allocTapeE. Admitted.
 Hint Resolve rand_allocTapeE_meas : measlang.
@@ -40,9 +51,11 @@ Hint Resolve rand_allocTapeS_meas : measlang.
         giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : cfg)
 *)
 
-Definition rand_allocUTapeE (x : state) : <<discr loc>>. Admitted.
+Definition rand_allocUTapeE (x : state) : <<discr loc>> :=
+  fresh_loc x.(utapes).
 
-Definition rand_allocUTapeS (x : state) : state. Admitted.
+Definition rand_allocUTapeS (x : state) : state :=
+  state_upd_utapes <[ (fresh_loc x.(utapes)) := emptyTape ]> x.
 
 Lemma rand_allocUTapeE_meas : measurable_fun setT rand_allocUTapeE. Admitted.
 Hint Resolve rand_allocUTapeE_meas : measlang.
@@ -74,7 +87,38 @@ Lemma rand_rand_S_meas : measurable_fun setT rand_rand_S. Admitted.
 Hint Resolve rand_rand_S_meas : measlang.
 *)
 
-Definition rand_rand (x : (<<discr Z>> * state)%type) : giryM cfg. Admitted.
+Definition giryM_unif' (m : TZ) : giryM <<discr TZ>>. Admitted.
+
+
+Definition rand_rand : (<<discr Z>> * state)%type -> giryM cfg. Admitted.
+
+  (*
+  ssrfun.comp
+    (giryM_map_def' (giryM_unif _))
+    (mProd
+      fst
+      (mProd
+        (ssrfun.comp ValU $
+         ssrfun.comp LitVU $
+         ssrfun.comp LitInt $
+         fst)
+        snd)).
+
+  Need the unif space to also depend on the argument... hm
+
+   *)
+
+
+
+(*
+
+(ssrfun.comp giryM_unif' fst
+  giryM_map_def'
+    (mProd
+      (fun _ => _)
+      (fun _ => x.2))
+    (giryM_unif (Z.to_nat x.1)).
+*)
 
 Lemma rand_rand_meas : measurable_fun setT rand_rand. Admitted.
 Hint Resolve rand_rand_meas : measlang.
@@ -98,7 +142,11 @@ Lemma rand_urand_S_meas : measurable_fun setT rand_urand_S. Admitted.
 Hint Resolve rand_urand_S_meas : measlang.
 *)
 
-Definition rand_urand (x : state) : giryM cfg. Admitted.
+Definition rand_urand : state -> giryM cfg. Admitted.
+  (* (giryM R, state) -> giryM cfg
+  ssrfun.comp (giryM_map_def' unif_base) $
+  (* sta te -> (giryM R, state)*)
+  _. *)
 
 Lemma rand_urand_meas : measurable_fun setT rand_urand. Admitted.
 Hint Resolve rand_urand_meas : measlang.

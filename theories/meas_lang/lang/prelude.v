@@ -304,11 +304,11 @@ Qed.
    This is because I'll only be able to give them a measurable_fun out of a particular set.
  *)
 Definition giryM_map_def' {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
-  (f : T1 -> T2) (m : giryM T1) : giryM T2. Admitted.
+  (m : giryM T1) (f : T1 -> T2) : giryM T2. Admitted.
 
 Definition giryM_bind' {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
     (f : T1 -> (giryM T2)) : (giryM T1) -> (giryM T2)
-  := fun m => giryM_join_def' (giryM_map_def' f m).
+  := fun m => giryM_join_def' (giryM_map_def' m f).
 
 Definition bind_set {d1} {T1 : measurableType d1} (S : set T1) : set (giryM T1) :=
   [set giryM_ret _ x | x in S].

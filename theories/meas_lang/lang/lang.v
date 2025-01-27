@@ -66,14 +66,6 @@ Canonical Structure valO := leibnizO val.
 Canonical Structure exprO := leibnizO expr.
 
 
-
-Section unif.
-  Local Open Scope ereal_scope.
-  Local Open Scope classical_set_scope.
-  (* Uniform space over [0, 1]*)
-  Definition unif_base : subprobability _ R := uniform_prob (@Num.Internals.ltr01 R).
-End unif.
-
 Section meas_semantics.
   Local Open Scope ereal_scope.
   Local Open Scope classical_set_scope.
