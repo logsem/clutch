@@ -1401,44 +1401,98 @@ Section meas_semantics.
         ssrfun.comp 𝜋_Val_v $
         𝜋_Case_c ).
 
+
+  Definition head_stepM_allocTape_aux : cfg -> (<<discr Z>> * state)%type :=
+    mProd
+      (ssrfun.comp 𝜋_LitInt_z $
+       ssrfun.comp 𝜋_LitV_v $
+       ssrfun.comp 𝜋_Val_v $
+       ssrfun.comp 𝜋_AllocTape_e $
+       fst)
+      snd.
   (*
     | AllocTape (Val (LitV (LitInt z))) =>
         let ι := fresh_loc σ1.(tapes) in
         giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := {| btape_tape := emptyTape ; btape_bound := (Z.to_nat z) |} ]> σ1) : cfg)
+      destruct and apply RandAllcoTapeE/S
   *)
-  Definition head_stepM_allocTape : cfg -> giryM cfg. Admitted.
+  Definition head_stepM_allocTape : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    mProd
+      (ssrfun.comp ValU $
+       ssrfun.comp LitVU $
+       ssrfun.comp LitLblU $
+       ssrfun.comp rand_allocTapeE $
+       head_stepM_allocTape_aux)
+      (ssrfun.comp rand_allocTapeS $
+       head_stepM_allocTape_aux).
 
   (*
     | AllocUTape =>
         let ι := fresh_loc σ1.(utapes) in
         giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : cfg)
    *)
-  Definition head_stepM_allocUTape : cfg -> giryM cfg. Admitted.
+  Definition head_stepM_allocUTape : cfg -> giryM cfg :=
+    ssrfun.comp (giryM_ret R) $
+    mProd
+      (ssrfun.comp ValU $
+       ssrfun.comp LitVU $
+       ssrfun.comp LitLblU $
+       ssrfun.comp rand_allocUTapeE $
+       snd)
+      (ssrfun.comp rand_allocUTapeS $
+       snd).
 
-
-
-  Definition head_stepM_aux_rand : cfg -> (<<discr Z>> * state)%type. Admitted.
+  (* Rand (Val (LitInt N)) (Val LitUnit) -> ... *)
+  Definition head_stepM_aux_rand : cfg -> (<<discr Z>> * state)%type :=
+    mProd
+      (ssrfun.comp 𝜋_LitInt_z $
+       ssrfun.comp 𝜋_LitV_v $
+       ssrfun.comp 𝜋_Val_v $
+       ssrfun.comp 𝜋_Rand_N $
+       fst)
+      snd.
 
   Definition head_stepM_rand : cfg -> giryM cfg :=
     ssrfun.comp rand_rand head_stepM_aux_rand.
 
-  Definition head_stepM_aux_urand : cfg -> state. Admitted.
+  Definition head_stepM_aux_urand : cfg -> state :=
+    snd.
 
   Definition head_stepM_urand : cfg -> giryM cfg :=
     ssrfun.comp rand_urand head_stepM_aux_urand.
 
-  Definition head_stepM_aux_randT : cfg -> (<<discr Z >> * <<discr loc >> * state)%type.
-  Admitted.
+  (* Rand (Val (LitInt N)) (Val (LitLbl t)) -> ... *)
+  Definition head_stepM_aux_randT : cfg -> (<<discr Z >> * <<discr loc >> * state)%type :=
+    mProd
+      (mProd
+        (ssrfun.comp 𝜋_LitInt_z $
+         ssrfun.comp 𝜋_LitV_v $
+         ssrfun.comp 𝜋_Val_v $
+         ssrfun.comp 𝜋_Rand_N $
+         fst)
+        (ssrfun.comp 𝜋_LitLbl_l $
+         ssrfun.comp 𝜋_LitV_v $
+         ssrfun.comp 𝜋_Val_v $
+         ssrfun.comp 𝜋_Rand_t $
+         fst))
+      snd.
 
   Definition head_stepM_randT : cfg -> giryM cfg :=
     ssrfun.comp rand_randT head_stepM_aux_randT.
 
-  Definition head_stepM_aux_urandT : cfg -> (<<discr loc >> * state)%type.
-  Admitted.
+  (* URand  (Val (LitLbl t)) -> ... *)
+  Definition head_stepM_aux_urandT : cfg -> (<<discr loc >> * state)%type :=
+    mProd
+      (ssrfun.comp 𝜋_LitLbl_l $
+       ssrfun.comp 𝜋_LitV_v $
+       ssrfun.comp 𝜋_Val_v $
+       ssrfun.comp 𝜋_URand_e $
+       fst)
+      snd.
 
   Definition head_stepM_urandT : cfg -> giryM cfg :=
     ssrfun.comp rand_urandT head_stepM_aux_urandT.
-
 
   (* | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : cfg) *)
   Definition head_stepM_tick : cfg -> giryM cfg :=

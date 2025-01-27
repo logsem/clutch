@@ -619,8 +619,6 @@ End Projection_measurability.
 
 
 
-
-
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   match Ki with
   | AppLCtx v2 => App e (of_val v2)

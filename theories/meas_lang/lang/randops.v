@@ -42,7 +42,7 @@ Hint Resolve rand_allocTapeS_meas : measlang.
 
 Definition rand_allocUTapeE (x : state) : <<discr loc>>. Admitted.
 
-Definition rand_allocUTapeS (x : <<discr Z>>) : state. Admitted.
+Definition rand_allocUTapeS (x : state) : state. Admitted.
 
 Lemma rand_allocUTapeE_meas : measurable_fun setT rand_allocUTapeE. Admitted.
 Hint Resolve rand_allocUTapeE_meas : measlang.
