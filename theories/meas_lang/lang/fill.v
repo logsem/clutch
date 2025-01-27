@@ -223,7 +223,7 @@ Section ectx_item_algebra.
 
 End ectx_item_algebra.
 
-Definition ectx_item : measurableType ectx_item_cyl.-sigma := 
+Definition ectx_item : measurableType ectx_item_cyl.-sigma := ectx_item_T.
 
 
 (** Constructors into the measurableType, curried  *)
@@ -386,8 +386,235 @@ Proof. by rewrite <- setI_bigcupr, ectx_item_shape_decompT, setIT. Qed.
 End Shapes.
 
 
+Section Projections.
+
+Definition 𝜋_AppLCtx_v      (k : ectx_item) : val := match k with | AppLCtx v => v | _ => point end.
+Definition 𝜋_AppRCtx_e      (k : ectx_item) : expr := match k with | AppRCtx v => v | _ => point end.
+Definition 𝜋_UnOpCtx_op     (k : ectx_item) : <<discr un_op>> := match k with | UnOpCtx v => v | _ => point end.
+Definition 𝜋_BinOpLCtx_op   (k : ectx_item) : <<discr bin_op>>:= match k with | BinOpLCtx v _ => v | _ => point end.
+Definition 𝜋_BinOpLCtx_v    (k : ectx_item) : val := match k with | BinOpLCtx _ v => v | _ => point end.
+Definition 𝜋_BinOpRCtx_op   (k : ectx_item) : <<discr bin_op>>:= match k with | BinOpRCtx v _ => v | _ => point end.
+Definition 𝜋_BinOpRCtx_v    (k : ectx_item) : expr := match k with | BinOpRCtx _ v => v | _ => point end.
+Definition 𝜋_IfCtx_l        (k : ectx_item) : expr := match k with | IfCtx v _ => v | _ => point end.
+Definition 𝜋_IfCtx_r        (k : ectx_item) : expr := match k with | IfCtx _ v => v | _ => point end.
+Definition 𝜋_PairLCtx_v     (k : ectx_item) : val := match k with | PairLCtx v => v | _ => point end.
+Definition 𝜋_PairRCtx_e     (k : ectx_item) : expr := match k with | PairRCtx v => v | _ => point end.
+Definition 𝜋_CaseCtx_l      (k : ectx_item) : expr := match k with | CaseCtx v _ => v | _ => point end.
+Definition 𝜋_CaseCtx_r      (k : ectx_item) : expr := match k with | CaseCtx _ v => v | _ => point end.
+Definition 𝜋_AllocNLCtx_v   (k : ectx_item) : val := match k with | AllocNLCtx v => v | _ => point end.
+Definition 𝜋_AllocNRCtx_e   (k : ectx_item) : expr := match k with | AllocNRCtx v => v | _ => point end.
+Definition 𝜋_StoreLCtx_v    (k : ectx_item) : val := match k with | StoreLCtx v => v | _ => point end.
+Definition 𝜋_StoreRCtx_e    (k : ectx_item) : expr := match k with | StoreRCtx v => v | _ => point end.
+Definition 𝜋_RandLCtx_v     (k : ectx_item) : val := match k with | RandLCtx v => v | _ => point end.
+Definition 𝜋_RandRCtx_e     (k : ectx_item) : expr := match k with | RandRCtx v => v | _ => point end.
+
+End Projections.
 
 
+Section Cover.
+
+Definition ectx_item_cov_AppLCtx      : set ectx_item := [set e | ∃ x, e = AppLCtx x].
+Definition ectx_item_cov_AppRCtx      : set ectx_item := [set e | ∃ x, e = AppLCtx x].
+Definition ectx_item_cov_UnOpCtx      : set ectx_item := [set e | ∃ x, e = UnOpCtx x].
+Definition ectx_item_cov_BinOpLCtx    : set ectx_item := [set e | ∃ x y, e = BinOpLCtx x y].
+Definition ectx_item_cov_BinOpRCtx    : set ectx_item := [set e | ∃ x y, e = BinOpRCtx x y].
+Definition ectx_item_cov_IfCtx        : set ectx_item := [set e | ∃ x y, e = IfCtx x y].
+Definition ectx_item_cov_PairLCtx     : set ectx_item := [set e | ∃ x, e = PairLCtx x].
+Definition ectx_item_cov_PairRCtx     : set ectx_item := [set e | ∃ x, e = PairRCtx x].
+Definition ectx_item_cov_FstCtx       : set ectx_item := [set FstCtx].
+Definition ectx_item_cov_SndCtx       : set ectx_item := [set SndCtx].
+Definition ectx_item_cov_InjLCtx      : set ectx_item := [set InjLCtx].
+Definition ectx_item_cov_InjRCtx      : set ectx_item := [set InjRCtx].
+Definition ectx_item_cov_CaseCtx      : set ectx_item := [set e | ∃ x y, e = CaseCtx x y].
+Definition ectx_item_cov_AllocNLCtx   : set ectx_item := [set e | ∃ x, e = AllocNLCtx x].
+Definition ectx_item_cov_AllocNRCtx   : set ectx_item := [set e | ∃ x, e = AllocNRCtx x].
+Definition ectx_item_cov_LoadCtx      : set ectx_item := [set LoadCtx].
+Definition ectx_item_cov_StoreLCtx    : set ectx_item := [set e | ∃ x, e = StoreLCtx x].
+Definition ectx_item_cov_StoreRCtx    : set ectx_item := [set e | ∃ x, e = StoreRCtx x].
+Definition ectx_item_cov_AllocTapeCtx : set ectx_item := [set AllocTapeCtx].
+Definition ectx_item_cov_RandLCtx     : set ectx_item := [set e | ∃ x, e = RandLCtx x].
+Definition ectx_item_cov_RandRCtx     : set ectx_item := [set e | ∃ x, e = RandRCtx x].
+Definition ectx_item_cov_URandCtx     : set ectx_item := [set URandCtx].
+Definition ectx_item_cov_TickCtx      : set ectx_item := [set TickCtx].
+
+
+Lemma ectx_item_cov_AppLCtx_meas      : measurable ectx_item_cov_AppLCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_AppLCtx_meas      : measlang.
+
+Lemma ectx_item_cov_AppRCtx_meas      : measurable ectx_item_cov_AppRCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_AppRCtx_meas      : measlang.
+
+Lemma ectx_item_cov_UnOpCtx_meas      : measurable ectx_item_cov_UnOpCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_UnOpCtx_meas      : measlang.
+
+Lemma ectx_item_cov_BinOpLCtx_meas    : measurable ectx_item_cov_BinOpLCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_BinOpLCtx_meas    : measlang.
+
+Lemma ectx_item_cov_BinOpRCtx_meas    : measurable ectx_item_cov_BinOpRCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_BinOpRCtx_meas    : measlang.
+
+Lemma ectx_item_cov_IfCtx_meas        : measurable ectx_item_cov_IfCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_IfCtx_meas        : measlang.
+
+Lemma ectx_item_cov_PairLCtx_meas     : measurable ectx_item_cov_PairLCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_PairLCtx_meas     : measlang.
+
+Lemma ectx_item_cov_PairRCtx_meas     : measurable ectx_item_cov_PairRCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_PairRCtx_meas     : measlang.
+
+Lemma ectx_item_cov_FstCtx_meas       : measurable ectx_item_cov_FstCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_FstCtx_meas       : measlang.
+
+Lemma ectx_item_cov_SndCtx_meas       : measurable ectx_item_cov_SndCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_SndCtx_meas       : measlang.
+
+Lemma ectx_item_cov_InjLCtx_meas      : measurable ectx_item_cov_InjLCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_InjLCtx_meas      : measlang.
+
+Lemma ectx_item_cov_InjRCtx_meas      : measurable ectx_item_cov_InjRCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_InjRCtx_meas      : measlang.
+
+Lemma ectx_item_cov_CaseCtx_meas      : measurable ectx_item_cov_CaseCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_CaseCtx_meas      : measlang.
+
+Lemma ectx_item_cov_AllocNLCtx_meas   : measurable ectx_item_cov_AllocNLCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_AllocNLCtx_meas   : measlang.
+
+Lemma ectx_item_cov_AllocNRCtx_meas   : measurable ectx_item_cov_AllocNRCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_AllocNRCtx_meas   : measlang.
+
+Lemma ectx_item_cov_LoadCtx_meas      : measurable ectx_item_cov_LoadCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_LoadCtx_meas      : measlang.
+
+Lemma ectx_item_cov_StoreLCtx_meas    : measurable ectx_item_cov_StoreLCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_StoreLCtx_meas    : measlang.
+
+Lemma ectx_item_cov_StoreRCtx_meas    : measurable ectx_item_cov_StoreRCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_StoreRCtx_meas    : measlang.
+
+Lemma ectx_item_cov_AllocTapeCtx_meas : measurable ectx_item_cov_AllocTapeCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_AllocTapeCtx_meas : measlang.
+
+Lemma ectx_item_cov_RandLCtx_meas     : measurable ectx_item_cov_RandLCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_RandLCtx_meas     : measlang.
+
+Lemma ectx_item_cov_RandRCtx_meas     : measurable ectx_item_cov_RandRCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_RandRCtx_meas     : measlang.
+
+Lemma ectx_item_cov_URandCtx_meas     : measurable ectx_item_cov_URandCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_URandCtx_meas     : measlang.
+
+Lemma ectx_item_cov_TickCtx_meas      : measurable ectx_item_cov_TickCtx.
+Proof. Admitted.
+Hint Resolve ectx_item_cov_TickCtx_meas      : measlang.
+
+End Cover.
+
+
+Section Projection_measurability.
+
+Lemma 𝜋_AppLCtx_v_meas    : measurable_fun ectx_item_cov_AppLCtx 𝜋_AppLCtx_v.
+Proof. Admitted.
+Hint Resolve 𝜋_AppLCtx_v_meas    : measlang.
+
+Lemma 𝜋_AppRCtx_e_meas    : measurable_fun ectx_item_cov_AppRCtx 𝜋_AppRCtx_e.
+Proof. Admitted.
+Hint Resolve 𝜋_AppRCtx_e_meas    : measlang.
+
+Lemma 𝜋_UnOpCtx_op_meas   : measurable_fun ectx_item_cov_UnOpCtx 𝜋_UnOpCtx_op.
+Proof. Admitted.
+Hint Resolve 𝜋_UnOpCtx_op_meas   : measlang.
+
+Lemma 𝜋_BinOpLCtx_op_meas : measurable_fun ectx_item_cov_BinOpLCtx 𝜋_BinOpLCtx_op.
+Proof. Admitted.
+Hint Resolve 𝜋_BinOpLCtx_op_meas : measlang.
+
+Lemma 𝜋_BinOpLCtx_v_meas  : measurable_fun ectx_item_cov_BinOpLCtx 𝜋_BinOpLCtx_v.
+Proof. Admitted.
+Hint Resolve 𝜋_BinOpLCtx_v_meas  : measlang.
+
+Lemma 𝜋_BinOpRCtx_op_meas : measurable_fun ectx_item_cov_BinOpRCtx 𝜋_BinOpRCtx_op.
+Proof. Admitted.
+Hint Resolve 𝜋_BinOpRCtx_op_meas : measlang.
+
+Lemma 𝜋_BinOpRCtx_v_meas  : measurable_fun ectx_item_cov_BinOpRCtx 𝜋_BinOpRCtx_v.
+Proof. Admitted.
+Hint Resolve 𝜋_BinOpRCtx_v_meas  : measlang.
+
+Lemma 𝜋_IfCtx_l_meas      : measurable_fun ectx_item_cov_IfCtx 𝜋_IfCtx_l.
+Proof. Admitted.
+Hint Resolve 𝜋_IfCtx_l_meas      : measlang.
+
+Lemma 𝜋_IfCtx_r_meas      : measurable_fun ectx_item_cov_IfCtx 𝜋_IfCtx_l.
+Proof. Admitted.
+Hint Resolve 𝜋_IfCtx_r_meas      : measlang.
+
+Lemma 𝜋_PairLCtx_v_meas   : measurable_fun ectx_item_cov_PairLCtx 𝜋_PairLCtx_v.
+Proof. Admitted.
+Hint Resolve 𝜋_PairLCtx_v_meas   : measlang.
+
+Lemma 𝜋_PairRCtx_e_meas   : measurable_fun ectx_item_cov_PairRCtx 𝜋_PairRCtx_e.
+Proof. Admitted.
+Hint Resolve 𝜋_PairRCtx_e_meas   : measlang.
+
+Lemma 𝜋_CaseCtx_l_meas    : measurable_fun ectx_item_cov_CaseCtx 𝜋_CaseCtx_l.
+Proof. Admitted.
+Hint Resolve 𝜋_CaseCtx_l_meas    : measlang.
+
+Lemma 𝜋_CaseCtx_r_meas    : measurable_fun ectx_item_cov_CaseCtx 𝜋_CaseCtx_r.
+Proof. Admitted.
+Hint Resolve 𝜋_CaseCtx_r_meas    : measlang.
+
+Lemma 𝜋_AllocNLCtx_v_meas : measurable_fun ectx_item_cov_AllocNLCtx 𝜋_AllocNLCtx_v.
+Proof. Admitted.
+Hint Resolve 𝜋_AllocNLCtx_v_meas : measlang.
+
+Lemma 𝜋_AllocNRCtx_e_meas : measurable_fun ectx_item_cov_AllocNRCtx 𝜋_AllocNRCtx_e.
+Proof. Admitted.
+Hint Resolve 𝜋_AllocNRCtx_e_meas : measlang.
+
+Lemma 𝜋_StoreLCtx_v_meas  : measurable_fun ectx_item_cov_StoreLCtx 𝜋_StoreLCtx_v.
+Proof. Admitted.
+Hint Resolve 𝜋_StoreLCtx_v_meas  : measlang.
+
+Lemma 𝜋_StoreRCtx_e_meas  : measurable_fun ectx_item_cov_StoreRCtx 𝜋_StoreRCtx_e.
+Proof. Admitted.
+Hint Resolve 𝜋_StoreRCtx_e_meas  : measlang.
+
+Lemma 𝜋_RandLCtx_v_meas   : measurable_fun ectx_item_cov_RandLCtx 𝜋_RandLCtx_v.
+Proof. Admitted.
+Hint Resolve 𝜋_RandLCtx_v_meas   : measlang.
+
+Lemma 𝜋_RandRCtx_e_meas   : measurable_fun ectx_item_cov_RandRCtx 𝜋_RandRCtx_e.
+Proof. Admitted.
+Hint Resolve 𝜋_RandRCtx_e_meas   : measlang.
+
+End Projection_measurability.
+
+(** Since the pattern matching for fill is so simple, we don't need to define an
+ aux cover for it. *)
 
 
 
