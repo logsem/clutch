@@ -44,8 +44,10 @@ Section con_hash_impl2.
   Definition con_hash_inv N f l hm (P:gmap nat nat -> gmap val (list nat) -> iProp Σ) {HP: ∀ m m', Timeless (P m m')} γ1 γ2 γ_tape γ4 γ5 γ_lock:=
     con_hash_inv1 N f l hm (λ m m', hv_auth (L:=Hhv) m γ4 ∗ ([∗ map] v∈m, (v ↪[γ5] ())) ∗ P m m')%I γ1 γ2  γ_tape γ_lock.
 
-  Lemma hash_tape_presample m γ γ_set γ_set' α ns s (ε εO:nonnegreal) E:
-    (INR s + εO * (val_size + 1 - INR s) <= ε * (val_size + 1))%R ->
+  Lemma hash_tape_presample N f l hm P {HP: ∀ m m', Timeless (P m m')} m γ_hv γ_set γ_hv' γ γ_set' γ_lock α ns s (ε εO:nonnegreal) E:
+  ↑(N.@"rand")⊆E ->
+  (INR s + εO * (val_size + 1 - INR s) <= ε * (val_size + 1))%R ->
+  con_hash_inv N f l hm P γ_hv γ_set γ γ_hv' γ_set' γ_lock -∗
     hash_tape_auth m γ_set γ -∗ hash_tape α ns γ_set γ-∗ ↯ ε -∗
     hash_set s γ_set γ_set'-∗
     state_update E E (∃ (n:fin(S val_size)), 
@@ -56,8 +58,9 @@ Section con_hash_impl2.
       ).
   Proof.
     rewrite /hash_tape_auth/hash_tape/hash_set/hash_set_frag.
-    iIntros (Hineq) "Htauth Ht Herr (%s' & <- & Hset & Hset')".
-    iMod (con_hash_interface1.hash_tape_presample _ _ _ _ _ _ _ 1%NNR with "[$][$][$][$]") as "Hcont".
+    iIntros (Hsubset Hineq) "#Hinv Htauth Ht Herr (%s' & <- & Hset & Hset')".
+    iMod (con_hash_interface1.hash_tape_presample _ _ _ _ _ _ _ _ _ _ _ _ _ _ 1%NNR with "[//][$][$][$][$]") as "Hcont".
+    { done. }
     { simpl. erewrite Rmult_1_l. done. }
     iDestruct ("Hcont" ) as "(%&[(%&?&?)|(%&?&?)]&$&$)".
     { by iDestruct (ec_contradict with "[$]") as "%". }
@@ -71,18 +74,18 @@ Section con_hash_impl2.
     - iApply (hash_set_duplicate); last done. set_solver.
   Qed.
     
-  Lemma con_hash_presample N f l hm P {HP: ∀ m m', Timeless (P m m')} γ_hv γ_set γ_tape γ_hv' γ_set' γ_lock Q
+  Lemma con_hash_presample  N f l hm P {HP: ∀ m m', Timeless (P m m')} γ_hv γ_set γ_tape γ_hv' γ_set' γ_lock Q
     E  :
-    ↑N ⊆ E ->
+    ↑(N.@"hash") ⊆ E ->
     con_hash_inv N f l hm P γ_hv γ_set γ_tape γ_hv' γ_set' γ_lock -∗
     (∀ m m', P m m'  -∗
              hash_tape_auth m' γ_set γ_tape -∗
-             state_update (E∖↑N) (E∖↑N)
+             state_update (E∖↑(N.@"hash")) (E∖↑(N.@"hash"))
              (∃ m'', P m m'' ∗ hash_tape_auth m'' γ_set γ_tape ∗ Q m m' m'')
     ) -∗
     state_update E E (
         ∃ m m' m'', Q m m' m''
-      ).
+      ) .
   Proof.
     iIntros (Hsubset) "#Hinv Hvs".
     iMod (con_hash_presample1 with "[//][-]"); first done; last done.

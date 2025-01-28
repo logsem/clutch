@@ -165,8 +165,10 @@ Section con_hash_impl1.
     iApply (hash_set_frag_in_set with "[$][$]").
   Qed.
 
-  Lemma hash_tape_presample m γ γ_set α ns s (ε εI εO:nonnegreal) E:
-    (εI * (size s) + εO * (val_size + 1 - size s) <= ε * (val_size + 1))%R ->
+  Lemma hash_tape_presample N f l hm P {HP: ∀ m m', Timeless (P m m')} m γ_hv γ_set γ γ_lock α ns s (ε εI εO:nonnegreal) E:
+  ↑(N.@"rand")⊆E ->
+  (εI * (size s) + εO * (val_size + 1 - size s) <= ε * (val_size + 1))%R ->
+  con_hash_inv N f l hm P γ_hv γ_set γ γ_lock -∗
     hash_tape_auth m γ_set γ -∗ hash_tape α ns γ_set γ -∗ ↯ ε -∗
     hash_set s γ_set -∗
     state_update E E (∃ (n:fin(S val_size)), 
@@ -177,9 +179,10 @@ Section con_hash_impl1.
           hash_tape α (ns++[fin_to_nat n]) γ_set γ
       ).
   Proof.
-    iIntros (Hineq) "[Htauth #?] [Ht #?] Herr (Hs&%&#?)".
+    iIntros (Hsubset Hineq) "#Hinv [Htauth #?] [Ht #?] Herr (Hs&%&#?)".
     pose (ε2 (x:fin (S val_size)):= if bool_decide (fin_to_nat x ∈s) then nonneg εI else nonneg εO).
-    iMod (con_hash_interface0.hash_tape_presample _ _ _ _ _ ε2 with "[$][$][$]") as "(%&Herr&Htauth&Ht)".
+    iMod (con_hash_interface0.hash_tape_presample _ _ _ _ _ _ _ _ _ _ _ ε2 with "[//][$][$][$]") as "(%&Herr&Htauth&Ht)".
+    - done.
     - intros. rewrite /ε2. case_bool_decide; apply cond_nonneg.
     - rewrite /ε2.
       (** copied from error rules *)
@@ -232,11 +235,11 @@ Section con_hash_impl1.
 
   Lemma con_hash_presample  N f l hm P {HP: ∀ m m', Timeless (P m m')} γ_hv γ_set γ_tape γ_lock Q
     E  :
-    ↑N ⊆ E ->
+    ↑(N.@"hash") ⊆ E ->
     con_hash_inv N f l hm P γ_hv γ_set γ_tape γ_lock -∗
     (∀ m m', P m m'  -∗
              hash_tape_auth m' γ_set γ_tape -∗
-             state_update (E∖↑N) (E∖↑N)
+             state_update (E∖↑(N.@"hash")) (E∖↑(N.@"hash"))
              (∃ m'', P m m'' ∗ hash_tape_auth m'' γ_set γ_tape ∗ Q m m' m'')
     ) -∗
     state_update E E (

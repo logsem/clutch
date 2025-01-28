@@ -51,9 +51,11 @@ Class con_hash0 `{!conerisGS Σ} (val_size:nat):= Con_Hash0
   (*   hash_tape_auth0 m γ  -∗ hash_tape0 α ns γ -∗ ⌜m!!α=Some ns⌝; *)
   (* hash_tape_auth_alloc m α γ: *)
   (*   m!!α=None -> hash_tape_auth0 m γ ==∗ hash_tape_auth0 (<[α:=[]]> m) γ ∗ hash_tape0 α [] γ; *)
-  hash_tape_presample m γ α ns ε ε2 E:
+  hash_tape_presample N m γ γ_lock f l hm P {HP: ∀ m m', Timeless (P m m')} α ns ε ε2 E:
+  ↑(N.@"rand")⊆E ->
     (∀ x : fin (S val_size), (0 <= ε2 x)%R)->
     (SeriesC (λ n : fin (S val_size), 1 / S val_size * ε2 n) <= ε)%R ->
+    con_hash_inv0 N f l hm P γ γ_lock -∗
     hash_tape_auth0 m γ -∗ hash_tape0 α ns γ -∗ ↯ ε -∗
     state_update E E (∃ n, 
           ↯ (ε2 n) ∗
@@ -73,11 +75,11 @@ Class con_hash0 `{!conerisGS Σ} (val_size:nat):= Con_Hash0
 
   con_hash_presample0 N f l hm P {HP: ∀ m m', Timeless (P m m')} γ γ_lock Q
     E  :
-    ↑N ⊆ E ->
+    ↑(N.@"hash") ⊆ E ->
     con_hash_inv0 N f l hm P γ γ_lock -∗
     (∀ m m', P m m'  -∗
              hash_tape_auth0 m' γ -∗
-             state_update (E∖↑N) (E∖↑N)
+             state_update (E∖↑(N.@"hash")) (E∖↑(N.@"hash"))
              (∃ m'', P m m'' ∗ hash_tape_auth0 m'' γ ∗ Q m m' m'')
     ) -∗
     state_update E E (

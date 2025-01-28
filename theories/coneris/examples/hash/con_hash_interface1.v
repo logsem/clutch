@@ -85,8 +85,10 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
       hash_tape1 α ns γ2 γ3-∗ hash_tape1 α ns' γ2 γ3 -∗ False;
 
   
-  hash_tape_presample m γ γ_set α ns s (ε εI εO:nonnegreal) E:
-    (εI * (size s) + εO * (val_size + 1 - size s) <= ε * (val_size + 1))%R ->
+  hash_tape_presample N f l hm P {HP: ∀ m m', Timeless (P m m')} m γ_hv γ_set γ γ_lock α ns s (ε εI εO:nonnegreal) E:
+  ↑(N.@"rand")⊆E ->
+  (εI * (size s) + εO * (val_size + 1 - size s) <= ε * (val_size + 1))%R ->
+  con_hash_inv1 N f l hm P γ_hv γ_set γ γ_lock -∗
     hash_tape_auth1 m γ_set γ -∗ hash_tape1 α ns γ_set γ -∗ ↯ ε -∗
     hash_set1 s γ_set -∗
     state_update E E (∃ (n:fin(S val_size)), 
@@ -99,11 +101,11 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
 
   con_hash_presample1  N f l hm P {HP: ∀ m m', Timeless (P m m')} γ_hv γ_set γ_tape γ_lock Q
     E  :
-    ↑N ⊆ E ->
+    ↑(N.@"hash") ⊆ E ->
     con_hash_inv1 N f l hm P γ_hv γ_set γ_tape γ_lock -∗
     (∀ m m', P m m'  -∗
              hash_tape_auth1 m' γ_set γ_tape -∗
-             state_update (E∖↑N) (E∖↑N)
+             state_update (E∖↑(N.@"hash")) (E∖↑(N.@"hash"))
              (∃ m'', P m m'' ∗ hash_tape_auth1 m'' γ_set γ_tape ∗ Q m m' m'')
     ) -∗
     state_update E E (
@@ -158,12 +160,16 @@ Section test.
       ).
   Proof.
     iIntros (Hsubset Hineq) "#Hinv Ht Herr Hs".
-    iMod (con_hash_presample1 _ _ _ _ _ _ _ _ _
+    iMod (con_hash_presample1 _ _ _ _ _ _ _ _ _ 
             (λ m m' m'', (∃ n : fin (S val_size), hash_tape1 α (ns ++ [fin_to_nat n]) γ2 γ3 ∗
-                                                  (⌜fin_to_nat n ∈ s⌝ ∗ hash_set1 s γ2 ∗ ↯ εI ∨ ⌜fin_to_nat n ∉ s⌝ ∗ hash_set1 (s ∪ {[fin_to_nat n]}) γ2 ∗ ↯ εO)))%I with "[//][-]") as "Hcont"; first done.
+                                                  (⌜fin_to_nat n ∈ s⌝ ∗ hash_set1 s γ2 ∗ ↯ εI ∨ ⌜fin_to_nat n ∉ s⌝ ∗ hash_set1 (s ∪ {[fin_to_nat n]}) γ2 ∗ ↯ εO)))%I with "[//][-]") as "Hcont".
+    - by apply nclose_subseteq'.
     - iIntros (_ ?) "_ Hauth".
-      iMod (hash_tape_presample with "[$][$][$][$]") as "(%&?&$&$)"; first done.
-      by iFrame.
+      iMod (hash_tape_presample with "[//][$][$][$][$]") as "(%&?&$&$)".
+      + apply subseteq_difference_r; last by apply nclose_subseteq'.
+        by apply ndot_ne_disjoint.
+      + done.
+      + by iFrame.
     - iDestruct "Hcont" as "(%&%&%&%&$&[(%&?&?)|(%&?&?)])"; iModIntro; [iLeft|iRight]; by iFrame.
   Qed.
   

@@ -111,7 +111,9 @@ Class con_hash3 `{!conerisGS Σ} (val_size:nat) (max_hash_size:nat) (Hpos:0<max_
   hash_token3 (n+n') γ6 ⊣⊢hash_token3 n γ6 ∗ hash_token3 n' γ6;
 
   
-  hash_tape_presample m γ γ_set γ_set' γ6 α ns s E:
+  hash_tape_presample N f l hm P {HP: ∀ m m', Timeless (P m m')} m γ_hv γ_set γ_hv' γ_token γ γ6 γ_set' γ_lock α ns s E:
+  ↑(N.@"rand")⊆E ->
+  con_hash_inv3 N f l hm P γ_hv γ_set γ γ_hv' γ_set' γ_token γ_lock -∗
   hash_tape_auth3 m γ_set γ -∗
   hash_tape3 α ns γ_set γ-∗
   ↯ (amortized_error val_size max_hash_size Hpos) -∗
@@ -125,12 +127,12 @@ Class con_hash3 `{!conerisGS Σ} (val_size:nat) (max_hash_size:nat) (Hpos:0<max_
 
   con_hash_presample3  N f l hm P {HP: ∀ m m', Timeless (P m m')} γ_hv γ_set γ_tape γ_hv' γ_set' γ_token γ_lock Q
     E  :
-    ↑N ⊆ E ->
+    ↑(N) ⊆ E ->
     con_hash_inv3 N f l hm P γ_hv γ_set γ_tape γ_hv' γ_set' γ_token γ_lock -∗
     (∀ m m' s, P m m'  -∗
                hash_set3 s γ_set γ_set' γ_token -∗
              hash_tape_auth3 m' γ_set γ_tape -∗
-             state_update (E∖↑N) (E∖↑N)
+             state_update (E∖↑(N.@"err")∖↑(N.@"hash")) (E∖↑(N.@"err")∖↑(N.@"hash"))
              (∃ m'' s', P m m'' ∗ hash_tape_auth3 m'' γ_set γ_tape ∗ hash_set3 s' γ_set γ_set' γ_token ∗ Q m m' m'' s')
     ) -∗
     state_update E E (
@@ -192,9 +194,13 @@ Section test.
     iIntros (Hsubset) "#Hinv [Ht Hfrag] Herr Htoken".
     iMod (con_hash_presample3 _ _ _ _ _ _ _ _ _ _ _ _
             (λ m m' m'' _, (∃ n : fin (S val_size), hash_tape3 α (ns ++ [fin_to_nat n]) γ2 γ3 ∗
-                                                   hash_set_frag3 (fin_to_nat n) _ _))%I with "[//][-Hfrag]") as "Hcont"; first done.
+                                                    hash_set_frag3 (fin_to_nat n) _ _))%I with "[//][-Hfrag]") as "Hcont".
+    - done. 
     - iIntros (???) "_ Hs Hauth".
-      by iMod (hash_tape_presample with "[$][$][$][$][$]") as "(%&$&$&$&$)".
+      iMod (hash_tape_presample with "[//][$][$][$][$][$]") as "(%&$&$&$&$)".
+      + repeat apply subseteq_difference_r; last by apply nclose_subseteq'.
+        all: by apply ndot_ne_disjoint.
+      + done.
     - iFrame. iDestruct "Hcont" as "(%&%&%&%&%&$&$)". by iModIntro.
   Qed.
   
