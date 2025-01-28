@@ -223,6 +223,8 @@ Section ectx_item_algebra.
 
 End ectx_item_algebra.
 
+
+
 Definition ectx_item : measurableType ectx_item_cyl.-sigma := ectx_item_T.
 
 
@@ -903,10 +905,86 @@ Definition fill_item : measurable_map (ectx_item * expr)%type expr :=
 
 
 
+(* MS on Option *)
+(* noval (measurable fun ) *)
+
+Section Option.
+Context {d1} {T1 : measurableType d1}.
+
+Definition option_S : Type := option (set T1).
+Definition option_T : Type := option T1.
+Fixpoint option_ST (k : option_S) : set option_T :=
+  match k with
+  | None => [set None]
+  | Some s => image Some s
+  end.
+Definition option_ML : set option_S :=
+  fun k =>
+    match k with
+    | None => True
+    | Some s => d1.-measurable s
+    end.
+
+Definition option_cyl : set (set option_T) := image option_ML option_ST.
+
+HB.instance Definition _ := gen_eqMixin option_T.
+HB.instance Definition _ := gen_choiceMixin option_T.
+HB.instance Definition _ := isPointed.Build option_T None.
+
+(* FIXME: Remove *)
+Local Lemma option_meas_obligation :
+  ∀ A : set option_T, <<s option_cyl>> A → <<s option_cyl >> (~` A).
+Proof. eapply sigma_algebraC. Qed.
+
+HB.instance Definition _ := @isMeasurable.Build
+  (sigma_display option_cyl)
+  option_T
+  <<s option_cyl>>
+  (@sigma_algebra0 _ setT option_cyl)
+  option_meas_obligation
+  (@sigma_algebra_bigcup _ setT option_cyl).
+
+End Option.
+
+Definition MOption {d1} (T : measurableType d1) : measurableType (@option_cyl d1 T).-sigma := option_T.
+
+Definition MNone {d1} {T : measurableType d1} : MOption T := None.
+Definition MSome {d1} {T : measurableType d1} : T -> MOption T := Some.
+
+Lemma MSome_measurable {d1} {T : measurableType d1} : measurable_fun setT (MSome : T -> MOption T).
+Proof. Admitted.
+Hint Resolve MSome_measurable : measlang.
+
+(* Shapes? *)
+
+Definition 𝜋_MSome_v {d1} {T : measurableType d1} (k : MOption T) : T := match k with | Some v => v | _ => point end.
+Definition MOption_cov_Some {d1} {T : measurableType d1} : set (MOption T) := [set e | ∃ x, e = Some x].
+Definition MOption_cov_None {d1} {T : measurableType d1} : set (MOption T) := [set e | e = None].
+Lemma MOption_cov_Some_meas {d1} {T : measurableType d1} : measurable (MOption_cov_Some : set (MOption T)).
+Proof. Admitted.
+Hint Resolve MOption_cov_Some_meas : measlang.
+Lemma MOption_cov_None_meas {d1} {T : measurableType d1} : measurable (MOption_cov_None : set (MOption T)).
+Proof. Admitted.
+Hint Resolve MOption_cov_None_meas : measlang.
 
 
 
-Definition decomp_item (e : expr) : option (ectx_item * expr) :=
+Definition noval (x : expr * ectx_item) : MOption (ectx_item * expr)%type :=
+  match x.1 with
+  | Val _ => None
+  | _ => Some (snd x, fst x)
+  end.
+
+Lemma noval_measurable : measurable_fun setT noval.
+Proof. Admitted.
+Hint Resolve noval_measurable : measlang.
+
+
+
+Definition decomp_item_cover : list (set expr) := [].
+
+Definition decomp_item (e : expr) : option (ectx_item * expr). Admitted.
+(*
   let noval (e : expr) (ei : ectx_item) :=
     match e with Val _ => None | _ => Some (ei, e) end in
   match e with
@@ -954,6 +1032,7 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
   | Tick e         => noval e TickCtx
   | _              => None
   end.
+*)
 
 Fixpoint height (e : expr) : nat :=
   match e with
