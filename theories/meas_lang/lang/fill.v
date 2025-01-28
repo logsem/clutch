@@ -21,7 +21,7 @@ From clutch.meas_lang.lang Require Export prelude types constructors shapes cove
 
 Local Open Scope classical_set_scope.
 
-Notation of_val := Val (only parsing).
+Notation of_val := ValC (only parsing).
 
 Definition to_val (e : expr) : option val :=
   match e with
@@ -29,8 +29,8 @@ Definition to_val (e : expr) : option val :=
   | _ => None
   end.
 
-Global Instance of_val_inj {T1 T2 T3 T4 : Type} : Inj (=) (=) (@of_val T1 T2 T3 T4).
-Proof. intros ??. congruence. Qed.
+Global Instance of_val_inj : Inj (=) (=) (@of_val).
+Proof. intros ?? H. by inversion H. Qed.
 
 (** Equality and other typeclass stuff *)
 Lemma to_of_val v : to_val (of_val v) = Some v.
@@ -394,7 +394,7 @@ Definition 𝜋_UnOpCtx_op     (k : ectx_item) : <<discr un_op>> := match k with
 Definition 𝜋_BinOpLCtx_op   (k : ectx_item) : <<discr bin_op>>:= match k with | BinOpLCtx v _ => v | _ => point end.
 Definition 𝜋_BinOpLCtx_v    (k : ectx_item) : val := match k with | BinOpLCtx _ v => v | _ => point end.
 Definition 𝜋_BinOpRCtx_op   (k : ectx_item) : <<discr bin_op>>:= match k with | BinOpRCtx v _ => v | _ => point end.
-Definition 𝜋_BinOpRCtx_v    (k : ectx_item) : expr := match k with | BinOpRCtx _ v => v | _ => point end.
+Definition 𝜋_BinOpRCtx_e    (k : ectx_item) : expr := match k with | BinOpRCtx _ v => v | _ => point end.
 Definition 𝜋_IfCtx_l        (k : ectx_item) : expr := match k with | IfCtx v _ => v | _ => point end.
 Definition 𝜋_IfCtx_r        (k : ectx_item) : expr := match k with | IfCtx _ v => v | _ => point end.
 Definition 𝜋_PairLCtx_v     (k : ectx_item) : val := match k with | PairLCtx v => v | _ => point end.
@@ -559,9 +559,9 @@ Lemma 𝜋_BinOpRCtx_op_meas : measurable_fun ectx_item_cov_BinOpRCtx 𝜋_BinOp
 Proof. Admitted.
 Hint Resolve 𝜋_BinOpRCtx_op_meas : measlang.
 
-Lemma 𝜋_BinOpRCtx_v_meas  : measurable_fun ectx_item_cov_BinOpRCtx 𝜋_BinOpRCtx_v.
+Lemma 𝜋_BinOpRCtx_e_meas  : measurable_fun ectx_item_cov_BinOpRCtx 𝜋_BinOpRCtx_e.
 Proof. Admitted.
-Hint Resolve 𝜋_BinOpRCtx_v_meas  : measlang.
+Hint Resolve 𝜋_BinOpRCtx_e_meas  : measlang.
 
 Lemma 𝜋_IfCtx_l_meas      : measurable_fun ectx_item_cov_IfCtx 𝜋_IfCtx_l.
 Proof. Admitted.
@@ -613,38 +613,298 @@ Hint Resolve 𝜋_RandRCtx_e_meas   : measlang.
 
 End Projection_measurability.
 
-(** Since the pattern matching for fill is so simple, we don't need to define an
- aux cover for it. *)
 
 
+Definition fill_item_AppLCtx      : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp AppU $
+  mProd snd (ssrfun.comp ValU $ ssrfun.comp 𝜋_AppLCtx_v $ fst).
+
+Definition fill_item_AppRCtx      : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp AppU $
+  mProd (ssrfun.comp 𝜋_AppRCtx_e fst) snd.
+
+Definition fill_item_UnOpCtx      : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp UnOpU $
+  mProd (ssrfun.comp 𝜋_UnOpCtx_op fst) snd.
+
+ Definition fill_item_BinOpLCtx    : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp BinOpU $
+  mProd
+    (mProd
+      (ssrfun.comp 𝜋_BinOpLCtx_op $ fst)
+      snd)
+    (ssrfun.comp ValU $ ssrfun.comp 𝜋_BinOpLCtx_v $ fst).
+
+Definition fill_item_BinOpRCtx    : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp BinOpU $
+  mProd
+    (mProd
+      (ssrfun.comp 𝜋_BinOpLCtx_op $ fst)
+      (ssrfun.comp 𝜋_BinOpRCtx_e $ fst))
+    snd.
+
+Definition fill_item_IfCtx        : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp IfU $
+  mProd (mProd snd (ssrfun.comp 𝜋_IfCtx_l fst)) (ssrfun.comp 𝜋_IfCtx_r fst).
+
+Definition fill_item_PairLCtx     : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp PairU $
+  mProd
+    snd
+    (ssrfun.comp ValU $ ssrfun.comp 𝜋_PairLCtx_v $ fst).
+
+Definition fill_item_PairRCtx     : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp PairU $
+  mProd
+    (ssrfun.comp 𝜋_PairRCtx_e $ fst)
+    snd.
+
+Definition fill_item_FstCtx       : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp FstU snd.
+
+Definition fill_item_SndCtx       : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp SndU snd.
+
+Definition fill_item_InjLCtx      : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp InjLU snd.
+
+Definition fill_item_InjRCtx      : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp InjRU snd.
+
+Definition fill_item_CaseCtx      : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp CaseU $
+  mProd (mProd snd (ssrfun.comp 𝜋_CaseCtx_l fst)) (ssrfun.comp 𝜋_CaseCtx_r fst).
+
+Definition fill_item_AllocNLCtx   : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp AllocNU $
+  mProd
+    snd
+    (ssrfun.comp ValU $ ssrfun.comp 𝜋_AllocNLCtx_v $ fst).
+
+Definition fill_item_AllocNRCtx   : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp AllocNU $
+  mProd
+    (ssrfun.comp 𝜋_AllocNRCtx_e $ fst)
+    snd.
+
+Definition fill_item_LoadCtx      : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp LoadU $ snd.
+
+Definition fill_item_StoreLCtx    : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp StoreU $
+  mProd
+    snd
+    (ssrfun.comp ValU $ ssrfun.comp 𝜋_StoreLCtx_v $ fst).
+
+Definition fill_item_StoreRCtx    : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp StoreU $
+  mProd
+    (ssrfun.comp 𝜋_StoreRCtx_e $ fst)
+    snd.
+
+Definition fill_item_AllocTapeCtx : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp AllocTapeU $ snd.
+
+Definition fill_item_RandLCtx     : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp RandU $
+  mProd
+    snd
+    (ssrfun.comp ValU $ ssrfun.comp 𝜋_RandLCtx_v $ fst).
+
+Definition fill_item_RandRCtx     : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp RandU $
+  mProd
+    (ssrfun.comp 𝜋_RandRCtx_e $ fst)
+    snd.
+
+Definition fill_item_URandCtx     : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp UrandU $ snd.
+
+Definition fill_item_TickCtx      : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp TickU $ snd.
+
+Lemma fill_item_AppLCtx_meas      : measurable_fun (setX ectx_item_cov_AppLCtx      setT) fill_item_AppLCtx.
+Proof. Admitted.
+Lemma fill_item_AppRCtx_meas      : measurable_fun (setX ectx_item_cov_AppRCtx      setT) fill_item_AppRCtx.
+Proof. Admitted.
+Lemma fill_item_UnOpCtx_meas      : measurable_fun (setX ectx_item_cov_UnOpCtx      setT) fill_item_UnOpCtx.
+Proof. Admitted.
+Lemma fill_item_BinOpLCtx_meas    : measurable_fun (setX ectx_item_cov_BinOpLCtx    setT) fill_item_BinOpLCtx.
+Proof. Admitted.
+Lemma fill_item_BinOpRCtx_meas    : measurable_fun (setX ectx_item_cov_BinOpRCtx    setT) fill_item_BinOpRCtx.
+Proof. Admitted.
+Lemma fill_item_IfCtx_meas        : measurable_fun (setX ectx_item_cov_IfCtx        setT) fill_item_IfCtx.
+Proof. Admitted.
+Lemma fill_item_PairLCtx_meas     : measurable_fun (setX ectx_item_cov_PairLCtx     setT) fill_item_PairLCtx.
+Proof. Admitted.
+Lemma fill_item_PairRCtx_meas     : measurable_fun (setX ectx_item_cov_PairRCtx     setT) fill_item_PairRCtx.
+Proof. Admitted.
+Lemma fill_item_FstCtx_meas       : measurable_fun (setX ectx_item_cov_FstCtx       setT) fill_item_FstCtx.
+Proof. Admitted.
+Lemma fill_item_SndCtx_meas       : measurable_fun (setX ectx_item_cov_SndCtx       setT) fill_item_SndCtx.
+Proof. Admitted.
+Lemma fill_item_InjLCtx_meas      : measurable_fun (setX ectx_item_cov_InjLCtx      setT) fill_item_InjLCtx.
+Proof. Admitted.
+Lemma fill_item_InjRCtx_meas      : measurable_fun (setX ectx_item_cov_InjRCtx      setT) fill_item_InjRCtx.
+Proof. Admitted.
+Lemma fill_item_CaseCtx_meas      : measurable_fun (setX ectx_item_cov_CaseCtx      setT) fill_item_CaseCtx.
+Proof. Admitted.
+Lemma fill_item_AllocNLCtx_meas   : measurable_fun (setX ectx_item_cov_AllocNLCtx   setT) fill_item_AllocNLCtx.
+Proof. Admitted.
+Lemma fill_item_AllocNRCtx_meas   : measurable_fun (setX ectx_item_cov_AllocNRCtx   setT) fill_item_AllocNRCtx.
+Proof. Admitted.
+Lemma fill_item_LoadCtx_meas      : measurable_fun (setX ectx_item_cov_LoadCtx      setT) fill_item_LoadCtx.
+Proof. Admitted.
+Lemma fill_item_StoreLCtx_meas    : measurable_fun (setX ectx_item_cov_StoreLCtx    setT) fill_item_StoreLCtx.
+Proof. Admitted.
+Lemma fill_item_StoreRCtx_meas    : measurable_fun (setX ectx_item_cov_StoreRCtx    setT) fill_item_StoreRCtx.
+Proof. Admitted.
+Lemma fill_item_AllocTapeCtx_meas : measurable_fun (setX ectx_item_cov_AllocTapeCtx setT) fill_item_AllocTapeCtx.
+Proof. Admitted.
+Lemma fill_item_RandLCtx_meas     : measurable_fun (setX ectx_item_cov_RandLCtx     setT) fill_item_RandLCtx.
+Proof. Admitted.
+Lemma fill_item_RandRCtx_meas     : measurable_fun (setX ectx_item_cov_RandRCtx     setT) fill_item_RandRCtx.
+Proof. Admitted.
+Lemma fill_item_URandCtx_meas     : measurable_fun (setX ectx_item_cov_URandCtx     setT) fill_item_URandCtx.
+Proof. Admitted.
+Lemma fill_item_TickCtx_meas      : measurable_fun (setX ectx_item_cov_TickCtx      setT) fill_item_TickCtx.
+Proof. Admitted.
+
+Hint Resolve fill_item_AppLCtx_meas      : measlang.
+Hint Resolve fill_item_AppRCtx_meas      : measlang.
+Hint Resolve fill_item_UnOpCtx_meas      : measlang.
+Hint Resolve fill_item_BinOpLCtx_meas    : measlang.
+Hint Resolve fill_item_BinOpRCtx_meas    : measlang.
+Hint Resolve fill_item_IfCtx_meas        : measlang.
+Hint Resolve fill_item_PairLCtx_meas     : measlang.
+Hint Resolve fill_item_PairRCtx_meas     : measlang.
+Hint Resolve fill_item_FstCtx_meas       : measlang.
+Hint Resolve fill_item_SndCtx_meas       : measlang.
+Hint Resolve fill_item_InjLCtx_meas      : measlang.
+Hint Resolve fill_item_InjRCtx_meas      : measlang.
+Hint Resolve fill_item_CaseCtx_meas      : measlang.
+Hint Resolve fill_item_AllocNLCtx_meas   : measlang.
+Hint Resolve fill_item_AllocNRCtx_meas   : measlang.
+Hint Resolve fill_item_LoadCtx_meas      : measlang.
+Hint Resolve fill_item_StoreLCtx_meas    : measlang.
+Hint Resolve fill_item_StoreRCtx_meas    : measlang.
+Hint Resolve fill_item_AllocTapeCtx_meas : measlang.
+Hint Resolve fill_item_RandLCtx_meas     : measlang.
+Hint Resolve fill_item_RandRCtx_meas     : measlang.
+Hint Resolve fill_item_URandCtx_meas     : measlang.
+Hint Resolve fill_item_TickCtx_meas      : measlang.
 
 
-Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
-  match Ki with
-  | AppLCtx v2 => App e (of_val v2)
-  | AppRCtx e1 => App e1 e
-  | UnOpCtx op => UnOp op e
-  | BinOpLCtx op v2 => BinOp op e (Val v2)
-  | BinOpRCtx op e1 => BinOp op e1 e
-  | IfCtx e1 e2 => If e e1 e2
-  | PairLCtx v2 => Pair e (Val v2)
-  | PairRCtx e1 => Pair e1 e
-  | FstCtx => Fst e
-  | SndCtx => Snd e
-  | InjLCtx => InjL e
-  | InjRCtx => InjR e
-  | CaseCtx e1 e2 => Case e e1 e2
-  | AllocNLCtx v2 => AllocN e (Val v2)
-  | AllocNRCtx e1 => AllocN e1 e
-  | LoadCtx => Load e
-  | StoreLCtx v2 => Store e (Val v2)
-  | StoreRCtx e1 => Store e1 e
-  | AllocTapeCtx => AllocTape e
-  | RandLCtx v2 => Rand e (Val v2)
-  | RandRCtx e1 => Rand e1 e
-  | URandCtx => URand e
-  | TickCtx => Tick e
+Definition fill_item_cover : list (set (ectx_item * expr)%type) := [
+(setX ectx_item_cov_AppLCtx      setT);
+(setX ectx_item_cov_AppRCtx      setT);
+(setX ectx_item_cov_UnOpCtx      setT);
+(setX ectx_item_cov_BinOpLCtx    setT);
+(setX ectx_item_cov_BinOpRCtx    setT);
+(setX ectx_item_cov_IfCtx        setT);
+(setX ectx_item_cov_PairLCtx     setT);
+(setX ectx_item_cov_PairRCtx     setT);
+(setX ectx_item_cov_FstCtx       setT);
+(setX ectx_item_cov_SndCtx       setT);
+(setX ectx_item_cov_InjLCtx      setT);
+(setX ectx_item_cov_InjRCtx      setT);
+(setX ectx_item_cov_CaseCtx      setT);
+(setX ectx_item_cov_AllocNLCtx   setT);
+(setX ectx_item_cov_AllocNRCtx   setT);
+(setX ectx_item_cov_LoadCtx      setT);
+(setX ectx_item_cov_StoreLCtx    setT);
+(setX ectx_item_cov_StoreRCtx    setT);
+(setX ectx_item_cov_AllocTapeCtx setT);
+(setX ectx_item_cov_RandLCtx     setT);
+(setX ectx_item_cov_RandRCtx     setT);
+(setX ectx_item_cov_URandCtx     setT);
+(setX ectx_item_cov_TickCtx      setT) ].
+
+Definition fill_item_def (x : (ectx_item * expr)%type) : expr :=
+  match x.1 with
+  | AppLCtx v2      => fill_item_AppLCtx x
+  | AppRCtx e1      => fill_item_AppRCtx x
+  | UnOpCtx op      => fill_item_UnOpCtx x
+  | BinOpLCtx op v2 => fill_item_BinOpLCtx x
+  | BinOpRCtx op e1 => fill_item_BinOpRCtx x
+  | IfCtx e1 e2     => fill_item_IfCtx x
+  | PairLCtx v2     => fill_item_PairLCtx x
+  | PairRCtx e1     => fill_item_PairRCtx x
+  | FstCtx          => fill_item_FstCtx x
+  | SndCtx          => fill_item_SndCtx x
+  | InjLCtx         => fill_item_InjLCtx x
+  | InjRCtx         => fill_item_InjRCtx x
+  | CaseCtx e1 e2   => fill_item_CaseCtx x
+  | AllocNLCtx v2   => fill_item_AllocNLCtx x
+  | AllocNRCtx e1   => fill_item_AllocNRCtx x
+  | LoadCtx         => fill_item_LoadCtx x
+  | StoreLCtx v2    => fill_item_StoreLCtx x
+  | StoreRCtx e1    => fill_item_StoreRCtx x
+  | AllocTapeCtx    => fill_item_AllocTapeCtx x
+  | RandLCtx v2     => fill_item_RandLCtx x
+  | RandRCtx e1     => fill_item_RandRCtx x
+  | URandCtx        => fill_item_URandCtx x
+  | TickCtx         => fill_item_TickCtx x
   end.
+
+
+Lemma fill_item_cover_measurable :
+  Forall ((ectx_item_cyl.-sigma, expr_cyl.-sigma).-prod.-measurable) fill_item_cover.
+Proof.
+  repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
+Admitted.
+
+Lemma fill_item_cover_is_cover :
+  foldr setU set0 fill_item_cover = setT.
+Proof. Admitted.
+
+
+Lemma fill_item_def_restricted_measurable :
+    Forall (fun S => measurable_fun S fill_item_def) fill_item_cover.
+Proof.
+  repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
+  (* Maybe tweak my lemmas above so that they restrict from fill_item_def? *)
+  (* Maybe all: eapply measurable_ext might work? *)
+Admitted.
+
+
+
+Local Lemma fill_item_def_measurable :
+  @measurable_fun _ _ (ectx_item * expr)%type expr setT fill_item_def.
+Proof.
+  apply (@measurable_by_cover_list _ _ _ _ fill_item_def fill_item_cover).
+  - by apply fill_item_cover_measurable.
+  - by apply fill_item_cover_is_cover.
+  - suffices HFdep :
+        (Forall (λ l : set (ectx_item * expr)%type,
+                   elem_of_list l fill_item_cover ->
+                   measurable_fun l (fill_item_def \_ l)) fill_item_cover).
+    { apply Forall_forall.
+      intros x Hx.
+      by apply (iffLR (Forall_forall _ _) HFdep x Hx Hx).
+    }
+    eapply (Forall_impl _ _ _ fill_item_def_restricted_measurable).
+    intros S H HS.
+    (*
+    eapply mathcomp_restriction_is_measurable in H; last first.
+    { eapply Forall_forall.
+      - by eapply fill_item_cover_measurable.
+      - by apply HS. }
+    by apply mathcomp_restriction_setT.
+*)
+Admitted.
+
+HB.instance Definition _ :=
+  isMeasurableMap.Build _ _ _ _ _ fill_item_def_measurable.
+
+Definition fill_item : measurable_map (ectx_item * expr)%type expr :=
+  fill_item_def.
+
+
+
+
+
+
 
 Definition decomp_item (e : expr) : option (ectx_item * expr) :=
   let noval (e : expr) (ei : ectx_item) :=
@@ -746,11 +1006,13 @@ Proof. Admitted.
 Qed. *)
 
 Lemma decomp_fill_item Ki e :
-  to_val e = None → decomp_item (fill_item Ki e) = Some (Ki, e).
-Proof. destruct Ki ; simpl ; by repeat destruct_match. Qed.
+  to_val e = None → decomp_item (fill_item (Ki, e)) = Some (Ki, e).
+Proof. Admitted.
+(*  Proof. destruct Ki ; simpl ; by repeat destruct_match. Qed. *)
 
 (* TODO: this proof is slow, but I do not see how to make it faster... *)
 (* TODO: Uncomment the slow proof *)
+(*
 Lemma decomp_fill_item_2 e e' Ki :
   decomp_item e = Some (Ki, e') → fill_item Ki e' = e ∧ to_val e' = None.
 Proof. Admitted.
@@ -759,7 +1021,7 @@ Proof. Admitted.
     destruct e ; try done ;
     destruct Ki ; cbn ; repeat destruct_match ; intros [=] ; subst ; auto.
 Qed. *)
-
+*)
 Local Open Scope classical_set_scope.
 
 
