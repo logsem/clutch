@@ -87,66 +87,47 @@ Lemma rand_rand_S_meas : measurable_fun setT rand_rand_S. Admitted.
 Hint Resolve rand_rand_S_meas : measlang.
 *)
 
-Definition giryM_unif' (m : TZ) : giryM <<discr TZ>>. Admitted.
+Definition giryM_unif' : TZ -> giryM <<discr TZ>>. Admitted.
 
+(* TODO: Somehow, I need to prove that this is measurable. Is it?
 
-Definition rand_rand : (<<discr Z>> * state)%type -> giryM cfg. Admitted.
+Feels that it should be derivable from the measurability of bind, but I'd need a slightly
+different definition for that.
+ *)
+Definition giryM_ap {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} :
+  (giryM T1 * giryM T2)%type -> giryM (T1 * T2)%type :=
+  fun X => giryM_bind' (fun x => giryM_bind' (fun y => giryM_ret _ (x, y)) X.2) X.1.
 
-  (*
-  ssrfun.comp
-    (giryM_map_def' (giryM_unif _))
-    (mProd
-      fst
-      (mProd
-        (ssrfun.comp ValU $
-         ssrfun.comp LitVU $
-         ssrfun.comp LitInt $
-         fst)
-        snd)).
+Definition rand_rand_aux : <<discr TZ>> -> giryM expr :=
+  m_discr (fun z =>
+    giryM_map_def' (giryM_unif' (Z.to_nat z)) $
+    ssrfun.comp ValU $
+    ssrfun.comp LitVU $
+    LitIntU).
 
-  Need the unif space to also depend on the argument... hm
-
-   *)
-
-
-
-(*
-
-(ssrfun.comp giryM_unif' fst
-  giryM_map_def'
-    (mProd
-      (fun _ => _)
-      (fun _ => x.2))
-    (giryM_unif (Z.to_nat x.1)).
-*)
+Definition rand_rand : (<<discr Z>> * state)%type -> giryM cfg :=
+  ssrfun.comp giryM_ap $
+  mProd
+    (ssrfun.comp rand_rand_aux fst)
+    (ssrfun.comp (giryM_ret _) snd).
 
 Lemma rand_rand_meas : measurable_fun setT rand_rand. Admitted.
 Hint Resolve rand_rand_meas : measlang.
 
-
-
 (**  URand no tape *)
 
-(*
-    | URand (Val (LitV LitUnit)) => ??
-*)
-(*
-Definition rand_urand_E (x : (((R : realType) : measurableType _) * state)%type) : ((R : realType) : measurableType _). Admitted.
+(** Uniform distrubtion over real number literal expressions on the interval *)
+Definition rand_urand_aux : giryM expr :=
+  giryM_map_def' unif_base $
+  ssrfun.comp ValU $
+  ssrfun.comp LitVU $
+  LitRealU.
 
-Definition rand_urand_S (x : (((R : realType) : measurableType _) * state)%type) : state. Admitted.
+(* My life would be way easier if I could go from (giryM X * giryM Y) to giryM (X * Y)*)
+Definition rand_urand : state -> giryM cfg :=
+  ssrfun.comp giryM_ap  $
+  mProd (cst $ rand_urand_aux) (giryM_ret _).
 
-Lemma rand_urand_E_meas : measurable_fun setT rand_urand_E. Admitted.
-Hint Resolve rand_urand_E_meas : measlang.
-
-Lemma rand_urand_S_meas : measurable_fun setT rand_urand_S. Admitted.
-Hint Resolve rand_urand_S_meas : measlang.
-*)
-
-Definition rand_urand : state -> giryM cfg. Admitted.
-  (* (giryM R, state) -> giryM cfg
-  ssrfun.comp (giryM_map_def' unif_base) $
-  (* sta te -> (giryM R, state)*)
-  _. *)
 
 Lemma rand_urand_meas : measurable_fun setT rand_urand. Admitted.
 Hint Resolve rand_urand_meas : measlang.
@@ -203,8 +184,9 @@ giryM_map
 (m_discr (fun (n : 'I_(S (Z.to_nat N))) => (((Val $ LitV $ LitInt $ fin_to_nat n) : <<discr expr>>), σ1) : cfg))
 (giryM_unif (Z.to_nat N))
 *)
-Definition rand_randT_boundMismatch (x : (<<discr Z>> * <<discr loc>> * state)%type) : giryM cfg.
-Admitted.
+Definition rand_randT_boundMismatch : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg :=
+  ssrfun.comp rand_rand $
+  mProd (ssrfun.comp fst fst) snd.
 
 
 (*
@@ -218,15 +200,55 @@ giryM_map
      ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : cfg)))
  (giryM_unif (Z.to_nat N))
 *)
-Definition rand_randT_nextEmpty (x : (<<discr Z>> * <<discr loc>> * state)%type) : giryM cfg.
+
+(* Uniform distribution over the states with loc with one sample on the end *)
+Definition tape_sample : (<<discr Z>> * <<discr loc>> * state)%type -> giryM state.
+Admitted.
+
+Definition tape_advance : (<<discr loc>> * state)%type -> state.
+Admitted.
+
+Definition tape_read : (<<discr loc>> * state)%type -> TZ.
 Admitted.
 
 (*
 let σ' := state_upd_tapes <[ l := {| btape_tape := (tapeAdvance τ); btape_bound := M |} ]> σ1 in
 (giryM_ret R ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : cfg))
 *)
-Definition rand_randT_ok (x : (<<discr Z>> * <<discr loc>> * state)%type) : giryM cfg.
+Program Definition rand_randT_ok : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg :=
+  ssrfun.comp giryM_ap $
+  mProd
+    ( ssrfun.comp (giryM_ret _) $
+      ssrfun.comp ValU $
+      ssrfun.comp LitVU $
+      ssrfun.comp LitInt $
+      ssrfun.comp tape_read $
+      mProd (ssrfun.comp snd fst) snd )
+    ( ssrfun.comp (giryM_ret _) snd ).
+
+
+Definition rand_randT_nextEmpty : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg.
 Admitted.
+
+  (*
+
+  ssrfun.comp
+  _.
+Admitted.
+
+  ssrfun.comp giryM_ap $
+  mProd
+    (* The uniform distribution on the next integer *)
+    (ssrfun.comp (m_discr (fun z =>
+      giryM_map_def' (giryM_unif' (Z.to_nat z)) $
+      ssrfun.comp ValU $
+      ssrfun.comp LitVU $
+      LitIntU)) $
+     ssrfun.comp fst $
+     fst)
+    (* The uniform distribution over next tape states *)
+    _.
+*)
 
 Lemma randT_noTape_meas : measurable_fun auxcov_randT_noTape rand_randT_noTape.
 Proof. Admitted.
