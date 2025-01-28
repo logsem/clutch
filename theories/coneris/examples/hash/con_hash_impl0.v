@@ -1,5 +1,5 @@
 From iris.algebra Require Import excl_auth gmap.
-From clutch.coneris Require Import coneris abstract_tape hocap_rand' lib.map lock con_hash_interface0.
+From clutch.coneris Require Import coneris abstract_tape hocap_rand_alt lib.map lock con_hash_interface0.
 
 Set Default Proof Using "Type*".
 (* Concurrent hash impl*)
