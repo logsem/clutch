@@ -15,47 +15,199 @@ Section bloom_filter.
 
   Context `{!conerisGS Σ, HinG: inG Σ (gset_bijR nat nat)}.
 
+  (* Probability of false positive of one insertion after hashing m elements into a
+     Bloom filter containing b bits set to 1 *)
 
-  Fixpoint fp_error (m l b : nat) : R :=
+  Fixpoint fp_error (m b : nat) : R :=
+    if bool_decide (b >= filter_size + 1) then 1 else
       (match m with
-      | 0 => let fix fp_error_Z (l b : nat) : R :=
-              match l with
-              | 0 => pow (b/(filter_size + 1)) num_hash
-              | S l' => (b / (filter_size + 1)) * fp_error_Z l' b + ((filter_size + 1 - b) / (filter_size + 1)) * fp_error_Z l' (S b)
-              end
-              in fp_error_Z l b
-      | S m' => let fix fp_error_m (l b : nat) : R :=
-                 match l with
-                 | 0 => fp_error m' num_hash b
-                 | S l' => (b / (filter_size + 1)) * fp_error_m l' b + ((filter_size + 1 - b) / (filter_size + 1)) * fp_error_m l' (S b)
-                 end
-               in fp_error_m l b
+      | 0 => pow (b/(filter_size + 1)) num_hash
+      | S m' => (b / (filter_size + 1)) * fp_error m' b + ((filter_size + 1 - b) / (filter_size + 1)) * fp_error m' (S b)
        end)%R.
 
 
-  Lemma fp_error_Z_Z (m b : nat) : fp_error 0 0 b = pow (b/(filter_size + 1)) num_hash.
+  Lemma pow_le_1_compat (x : R) (n : nat):
+    (0 <= x <= 1)%R → 0 ≤ n → (0 <= x ^ n <= 1)%R.
   Proof.
-    done.
+    intros Hx Hn.
+    destruct (le_lt_eq_dec _ _ Hn) as [Hn_lt | <-]; last first.
+    {
+      rewrite pow_O; lra.
+    }
+    destruct (decide (x < 1)%R) as [H | H].
+    - split.
+      + apply pow_le; lra.
+      + left.
+        apply pow_lt_1_compat; auto.
+        lra.
+    - split.
+      + apply pow_le; lra.
+      + apply Rnot_gt_le in H.
+        assert (x = 1) as ->.
+        * destruct Hx.
+          apply Rle_antisym; auto.
+        * rewrite pow1; lra.
   Qed.
 
-  Lemma fp_error_S_Z (m b : nat) : fp_error (S m) 0 b = fp_error m num_hash b.
+  Lemma convex_sum_conv (x a b : R) :
+    (0 <= x <= 1)%R ->
+    (a <= b)%R ->
+    (a <= x * a + (1-x)*b <= b)%R.
   Proof.
-    done.
+    intros Hx Hab.
+    split.
+    - assert (a = x * a + (1 - x) * a)%R as Haux.
+      {
+        real_solver.
+      }
+      rewrite {1}Haux.
+      apply Rplus_le_compat_l.
+      real_solver.
+    - assert (b = x * b + (1 - x) * b)%R as Haux.
+      {
+        real_solver.
+      }
+      rewrite {2}Haux.
+      apply Rplus_le_compat_r.
+      real_solver.
   Qed.
 
-  Lemma fp_error_m_S (m l b : nat) :
-    fp_error m (S l) b = ((b / (filter_size + 1)) * fp_error m l b + ((filter_size + 1 - b) / (filter_size + 1)) * fp_error m l (S b))%R.
+
+  Lemma convex_sum_conv_alt (x a a' b b' : R) :
+    (0 <= x <= 1)%R ->
+    (a <= a' <= b)%R ->
+    (a <= b' <= b)%R ->
+    (a <= x * a' + (1-x)*b' <= b)%R.
   Proof.
-    destruct m; done.
+    intros Hx Ha' Hb'.
+    destruct (Rle_lt_dec a' b').
+    - split.
+      + transitivity a'; [lra|].
+        apply convex_sum_conv; auto.
+      + transitivity b'; [|lra].
+        apply convex_sum_conv; auto.
+    - set (y := (1-x)%R).
+      replace x with (1-y)%R; last first.
+      {
+        rewrite /y. lra.
+      }
+      rewrite Rplus_comm.
+      split.
+      + transitivity b'; [lra|].
+        apply convex_sum_conv; [|lra].
+        rewrite /y; lra.
+      + transitivity a'; [|lra].
+        apply convex_sum_conv; [|lra].
+        rewrite /y; lra.
+   Qed.
+
+
+  Lemma fp_error_max (m b : nat) :
+    (filter_size + 1 ≤ b) ->
+    fp_error m b = 1.
+  Proof.
+    intros Hb.
+    destruct m; simpl.
+    - case_bool_decide; done.
+    - case_bool_decide; done.
   Qed.
 
-  Lemma fp_error_weaken (m l b : nat) :
-    (fp_error 0 0 b <= fp_error m l b)%R.
-  Admitted.
 
-  Lemma fp_error_nonneg (m l b : nat) :
-    (0 <= fp_error m l b)%R.
-  Admitted.
+  Lemma fp_error_bounded (m b : nat) :
+    (0 <= fp_error m b <= 1)%R.
+  Proof.
+    revert b.
+    induction m; intros b.
+    - simpl.
+      case_bool_decide as H; [lra |].
+      split.
+      + apply pow_le.
+        apply Rcomplements.Rdiv_le_0_compat; real_solver.
+      + apply pow_le_1_compat; [|lia].
+        split.
+        * apply Rcomplements.Rdiv_le_0_compat; real_solver.
+        * apply not_ge in H.
+          apply (Rcomplements.Rdiv_le_1 b); [real_solver |].
+          left.
+          apply lt_INR in H.
+          rewrite plus_INR /= in H.
+          real_solver.
+   - simpl.
+     case_bool_decide as H; [lra |].
+     replace ((filter_size + 1 - b) / (filter_size + 1))%R with
+       ( 1 - b / (filter_size + 1))%R; last first.
+     {
+       rewrite {2}/Rdiv.
+       rewrite (Rmult_plus_distr_r).
+       rewrite Rmult_inv_r; [real_solver |].
+       pose proof (pos_INR filter_size).
+       lra.
+     }
+     apply (convex_sum_conv_alt); auto.
+     split.
+     + apply Rcomplements.Rdiv_le_0_compat; real_solver.
+     + apply (Rcomplements.Rdiv_le_1 b); [real_solver |].
+       apply not_ge in H.
+       apply lt_INR in H.
+       rewrite plus_INR /= in H.
+       real_solver.
+  Qed.
+
+
+
+
+
+  Lemma fp_error_weaken (m b : nat):
+    (fp_error 0 b <= fp_error m b)%R.
+  Proof.
+    revert b.
+    induction m; intros b; [lra |].
+    pose proof (IHm (S b)) as H2.
+    assert (fp_error 0 b <= fp_error 0 (S b))%R as H3.
+    {
+      rewrite /fp_error.
+      case_bool_decide as H4; case_bool_decide as H5.
+      - lra.
+      - lia.
+      - apply not_ge in H4.
+        apply pow_le_1_compat; [|lia].
+        split.
+        * apply Rcomplements.Rdiv_le_0_compat; real_solver.
+        * apply (Rcomplements.Rdiv_le_1 b); [real_solver |].
+          left.
+          apply lt_INR in H4.
+          rewrite plus_INR /= in H4.
+          real_solver.
+      - apply pow_incr.
+        split.
+        * apply Rcomplements.Rdiv_le_0_compat; real_solver.
+        * apply Rmult_le_compat_r; real_solver.
+    }
+    rewrite {2}/fp_error.
+    case_bool_decide as H.
+    - apply fp_error_bounded.
+    - fold fp_error.
+      replace (fp_error 0 b) with
+        (b / (filter_size + 1) * fp_error 0 b + (filter_size + 1 - b) / (filter_size + 1) * fp_error 0 b)%R; last first.
+      {
+        rewrite -Rmult_plus_distr_r
+         -Rmult_plus_distr_r
+         Rplus_comm
+         -Rplus_minus_swap
+         Rplus_minus_r.
+        rewrite Rmult_inv_r; real_solver.
+      }
+      apply Rplus_le_compat.
+      + apply Rmult_le_compat_l; auto.
+        apply Rcomplements.Rdiv_le_0_compat; real_solver.
+      + apply Rmult_le_compat_l; [|lra].
+        apply Rcomplements.Rdiv_le_0_compat; [|real_solver].
+        apply not_ge in H.
+        apply lt_INR in H.
+        rewrite plus_INR /= in H.
+        real_solver.
+  Qed.
+
 
 
 
@@ -86,12 +238,13 @@ Section bloom_filter.
 
   Definition is_bloom_filter (l : loc) (els : gset nat) (rem : nat) : iProp Σ :=
     ∃ hfuns hs ms a arr (idxs : gset nat),
-      ↯ (fp_error rem 0 (size idxs)) ∗
+      ↯ (fp_error (num_hash * rem) (size idxs)) ∗
       l ↦ (hfuns, LitV (LitLoc a))%V ∗
         ⌜ is_list_HO hs hfuns ⌝ ∗
         ⌜ length hs = num_hash ⌝ ∗
         ([∗ list] k↦h;m ∈ hs;ms, hashfun filter_size h m) ∗
         ⌜ length arr = S filter_size ⌝ ∗
+        ⌜ size idxs ≤ filter_size + 1 ⌝ ∗
         (a ↦∗ arr) ∗
         ⌜ Forall (λ m, els = dom m) ms ⌝ ∗
         ⌜ forall e, e ∈ els -> Forall (λ m, (m !!! e) ∈ idxs ) ms ⌝ ∗
@@ -103,13 +256,14 @@ Section bloom_filter.
   Definition is_bloom_filter_partial (l : loc) (e_new : nat)
     (els : gset nat) (rem : nat) hs_new hs_old a : iProp Σ :=
     ∃ hfuns ms_new ms_old arr (idxs : gset nat),
-      ↯ (fp_error rem (length hs_old) (size idxs)) ∗
+      ↯ (fp_error ((num_hash)*rem + (length hs_old)) (size idxs)) ∗
       l ↦ (hfuns, LitV (LitLoc a))%V ∗
         ⌜ is_list_HO (hs_new ++ hs_old) hfuns ⌝ ∗
         ⌜ length (hs_new ++ hs_old) = num_hash ⌝ ∗
         ([∗ list] k↦h;m ∈ hs_new;ms_new, hashfun filter_size h m) ∗
         ([∗ list] k↦h;m ∈ hs_old;ms_old, hashfun filter_size h m) ∗
         ⌜ length arr = S filter_size ⌝ ∗
+        ⌜ size idxs ≤ filter_size + 1 ⌝ ∗
         (a ↦∗ arr) ∗
         ⌜ Forall (λ m, els = dom m) ms_old ⌝ ∗
         ⌜ Forall (λ m, ({[e_new]} ∪ els) = dom m) ms_new ⌝ ∗
@@ -125,8 +279,8 @@ Section bloom_filter.
      ∃ hs a , is_bloom_filter_partial l e_new els rem [] hs a.
   Proof.
     iIntros "Hbf".
-    iDestruct "Hbf" as (hfuns hs ms a arr idxs) "(Hl & Herr & %Hhfuns & %Hlenhs & Hhs & %HlenA & Ha & %Hms & %Hidxs & %Htrue & %Hbd & %Hfalse)".
-    rewrite fp_error_S_Z.
+    iDestruct "Hbf" as (hfuns hs ms a arr idxs) "(Hl & Herr & %Hhfuns & %Hlenhs & Hhs & %HlenA & %HsizeIdxs & Ha & %Hms & %Hidxs & %Htrue & %Hbd & %Hfalse)".
+    replace (num_hash * (S rem)) with (num_hash * rem + num_hash) by lia.
     iExists hs, a.
     rewrite /is_bloom_filter_partial.
     iExists hfuns, [] , ms , arr, idxs.
@@ -143,7 +297,8 @@ Section bloom_filter.
   Proof.
     iIntros "Hbfp".
     iDestruct "Hbfp" as (hfuns ms_new ms_old arr idxs)
-                          "(Hl & Herr & %Hhfuns & %Hlenhs & Hhs_new & Hhs_old & %HlenA & Ha & %Hms_old & %Hms_new & %Hidxs_old & %Hidxs_new & %Htrue & %Hbd & %Hfalse)".
+                          "(Hl & Herr & %Hhfuns & %Hlenhs & Hhs_new & Hhs_old & %HlenA & %HsizeIdxs & Ha & %Hms_old & %Hms_new & %Hidxs_old & %Hidxs_new & %Htrue & %Hbd & %Hfalse)".
+    rewrite nil_length -plus_n_O.
     rewrite /is_bloom_filter.
     iExists hfuns, hs, ms_new, a, arr, idxs.
     iFrame.
@@ -155,7 +310,7 @@ Section bloom_filter.
 
 
   Lemma bloom_filter_init_spec (rem : nat) :
-    {{{ ↯ (fp_error rem 0 0) }}}
+    {{{ ↯ (fp_error (num_hash * rem) 0) }}}
       init_bloom_filter #()
       {{{ (l:loc), RET #l ; is_bloom_filter l ∅ rem }}}.
   Proof using HinG conerisGS0 filter_size Σ.
@@ -218,6 +373,7 @@ Section bloom_filter.
         iPureIntro.
         repeat split.
         * set_solver.
+        * real_solver.
         * revert v vs Hvs Hlen.
           induction num_hash; intros v vs Hvs Hlen.
           ** simpl.
@@ -250,13 +406,14 @@ Section bloom_filter.
     rewrite /insert_bloom_filter /is_bloom_filter.
     wp_pures.
     iDestruct "Hbf" as (hfuns hs ms a arr idxs) "(Herr & Hl & %Hfuns & Hrest)".
+    replace (num_hash * S rem) with (num_hash * rem + num_hash) by lia.
     wp_load.
     wp_pures.
     iAssert (is_bloom_filter_partial l x s rem [] hs a ) with "[Hl Herr Hrest]" as "Hbfp".
     {
       iExists hfuns, [] , ms , arr, idxs.
       simpl.
-      iDestruct "Hrest" as "(<- & ? & -> & ? & % & % & % & % & %)".
+      iDestruct "Hrest" as "(<- & ? & -> & % & ? & % & % & % & % & %)".
       iFrame.
       iPureIntro.
       repeat split; auto.
@@ -269,24 +426,39 @@ Section bloom_filter.
       iIntros "Hbfp HK".
       wp_pures.
       iDestruct "Hbfp" as (hfuns' ms_new ms_old arr' idxs')
-             "(Hl & Herr & %Hhfuns & %Hlenhs & Hhs_new & Hhs_old & %HlenA & Ha & %Hms_old & %Hms_new & %Hidxs_old & %Hidxs_new & %Htrue & %Hbd & %Hfalse)".
+             "(Hl & Herr & %Hhfuns & %Hlenhs & Hhs_new & Hhs_old & %HlenA & %HsizeIdxs & Ha & %Hms_old & %Hms_new & %Hidxs_old & %Hidxs_new & %Htrue & %Hbd & %Hfalse)".
       destruct ms_old as [| mcur ms_old_tl]; [set_solver|].
       simpl.
       iDestruct "Hhs_old" as "(Hhs_cur & Hhs_rest)".
       apply Forall_cons_1 in Hms_old as [??].
+      assert (forall m b, 0 <= fp_error m b)%R as Hfp.
+      {
+        intros; apply fp_error_bounded.
+      }
       wp_apply (wp_insert_avoid_set_adv filter_size _ _ mcur _ idxs'
-         (mknonnegreal (fp_error rem (S (length lsuf)) (size idxs'))
-            (fp_error_nonneg rem (S (length lsuf)) (size idxs')))
-         (mknonnegreal (fp_error rem (length lsuf) (size idxs'))
-            (fp_error_nonneg rem (length lsuf) (size idxs')))
-         (mknonnegreal (fp_error rem (length lsuf) (S (size idxs')))
-            (fp_error_nonneg rem (length lsuf) (S (size idxs')))) with "[$]").
+         (mknonnegreal (fp_error (num_hash * rem + S (length lsuf)) (size idxs'))
+            (Hfp _ _))
+         (mknonnegreal (fp_error (num_hash * rem + (length lsuf)) (size idxs'))
+            (Hfp _ _))
+         (mknonnegreal (fp_error (num_hash * rem + (length lsuf)) (S (size idxs')))
+            (Hfp _ _)) with "[$]").
       + apply not_elem_of_dom_1.
         set_solver.
       + auto.
       + simpl.
-        rewrite fp_error_m_S /=.
-        lra.
+        replace (num_hash * rem + S (length lsuf)) with (S (num_hash * rem + (length lsuf))) by lia.
+        simpl.
+        case_bool_decide.
+        * rewrite fp_error_max /=; auto.
+          rewrite fp_error_max /=; auto.
+          rewrite !Rmult_1_l.
+          rewrite -Rdiv_plus_distr.
+          rewrite -Rplus_assoc.
+          rewrite -Rminus_def.
+          rewrite Rplus_minus_l.
+          rewrite Rdiv_diag; auto.
+          real_solver.
+        * lra.
       + simpl.
         iIntros (v) "(% & ? & [(% & ?) | (% &? )])".
         * wp_pures.
@@ -310,6 +482,28 @@ Section bloom_filter.
           ** rewrite -app_assoc //.
           ** rewrite -app_assoc //.
           ** rewrite insert_length //.
+          ** assert (idxs' ⊆ (set_seq 0 (filter_size + 1) ∖ {[v]} )) as H3.
+             {
+               apply elem_of_subseteq.
+               intros z Hz.
+               apply elem_of_difference.
+               split; [|set_solver].
+               apply elem_of_set_seq.
+               split; [lia|].
+               simpl.
+               replace (filter_size + 1) with (S filter_size) by lia.
+               apply Hbd.
+               set_solver.
+             }
+             etransitivity.
+             *** apply le_n_S.
+                 apply subseteq_size, H3.
+             *** rewrite size_difference.
+                 **** rewrite size_set_seq size_singleton.
+                      lia.
+                 **** apply singleton_subseteq_l.
+                      apply elem_of_set_seq.
+                      split; lia.
           ** auto.
           ** apply Forall_app_2; auto.
              apply Forall_singleton.
@@ -370,6 +564,7 @@ Section bloom_filter.
           ** rewrite -app_assoc //.
           ** rewrite insert_length //.
           ** auto.
+          ** auto.
           ** apply Forall_app_2; auto.
              apply Forall_singleton.
              set_solver.
@@ -422,15 +617,15 @@ Section bloom_filter.
     iIntros (Φ) "(Hbf & %Hx ) HΦ".
     rewrite /lookup_bloom_filter /is_bloom_filter.
     wp_pures.
-    iDestruct "Hbf" as (hfuns hs ms a arr idxs) "(Herr & Hl & %Hhfuns & %Hlenhs & Hhs & %HlenA & Ha & %Hms & %Hidxs & %Htrue & %Hbd & %Hfalse)".
+    iDestruct "Hbf" as (hfuns hs ms a arr idxs) "(Herr & Hl & %Hhfuns & %Hlenhs & Hhs & %HlenA & %HsizeIdxs & Ha & %Hms & %Hidxs & %Htrue & %Hbd & %Hfalse)".
     wp_load.
     wp_pures.
     wp_alloc res as "Hres".
     wp_pures.
-    iPoseProof (ec_weaken _ (fp_error 0 0 (size idxs)) with "Herr") as "Herr".
+    iPoseProof (ec_weaken _ (fp_error 0 (size idxs)) with "Herr") as "Herr".
     {
       split.
-      - apply fp_error_nonneg.
+      - apply fp_error_bounded.
       - apply fp_error_weaken.
     }
     simpl.
@@ -540,7 +735,8 @@ Section bloom_filter.
       iSplit; auto.
       iRight.
       rewrite Hlenhs.
-      iFrame.
+      case_bool_decide; [|iFrame].
+      iPoseProof (ec_contradict with "Herr") as "?"; done.
     - iIntros "(?&?&?&[?|(?&Herr)])".
       + wp_pures.
         wp_load.
