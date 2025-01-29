@@ -202,6 +202,206 @@ Section impl1.
   Qed.
 End impl1.
 
+Section impl2.
+  Context `{!conerisGS Σ, Hs : !ghost_mapG Σ val (), Hm : !abstract_tapesGS Σ }.
+  Local Opaque INR.
+  
+  (** simulating a rand 3 with two flips *)
+  Local Definition rand_inv_pred2  (γ:gname*gname) : iProp Σ:=
+    (∃ (m:gmap val (list nat)),
+        (ghost_map_auth γ.1 1 ((λ _, ())<$>m)) ∗
+        ● ((λ x, (1, x))<$>m)@ γ.2 ∗
+        [∗ map] α ↦ns∈m, (∃ α', ⌜α = #lbl:α'⌝ ∗ (α' ↪N (1; ns) ))
+    )%I.
+
+  Definition is_rand2 N γ:=
+    inv N (rand_inv_pred2 γ).
+
+  Local Definition expander (l:list nat):=
+    l ≫= (λ x, [x/2; x `mod` 2]).
+  Definition rand_tapes2 (α:val) ns (γ:gname*gname):=
+    (α◯↪N (1; expander ns) @γ.2 ∗ ⌜Forall (λ x, x<=3)%nat ns⌝)%I.
+
+  Definition rand_token2 α (γ:gname*gname) :=
+    (α ↪[γ.1] ())%I.
+  
+  #[local] Program Definition rand_spec2 : rand_spec' 3 :=
+    {| rand_allocate_tape:= (λ: "_", alloc #1);
+      rand_tape:= (λ: "α", (rand("α") #1) + (#2*rand("α") #1)); 
+      is_rand  := is_rand2;
+      rand_tapes := rand_tapes2;
+      rand_token := rand_token2;
+    |}.
+  Next Obligation.
+    simpl.
+    iIntros (????) "[H1 %] [H2 %]".
+    iApply (abstract_tapes_frag_exclusive with "[$][$]").
+  Qed.
+  Next Obligation.
+    simpl.
+    iIntros (??) "H1 H2".
+    iCombine "H1 H2" gives "%H".
+    cbv in H. naive_solver.
+  Qed.
+  Next Obligation.
+    simpl.
+    iIntros (???) "(?&$)". 
+  Qed.
+  Next Obligation.
+    simpl.
+    iIntros (??????????) "#Hinv [H1 %] Herr".
+    iInv "Hinv" as ">(%&Hs&Hm&Ht)" "Hclose".
+    iDestruct (abstract_tapes_agree with "[$][$]") as "%Hsome".
+    rewrite lookup_fmap_Some in Hsome.
+    destruct Hsome as (?&?&Hsome). simplify_eq.
+    iDestruct (big_sepM_insert_acc with "[$]") as "[(%&%Heq&Ht) Hclose']"; first done.
+    simplify_eq.
+    iMod (state_update_presample_exp _ _ _ _ _ (λ x, 1/2* if bool_decide (fin_to_nat x=1)%nat then ε2 2%fin + ε2 3%fin else ε2 0%fin + ε2 1%fin)%R with "[$][$]") as "(%n1&Ht&Herr)".
+    { intros. case_bool_decide; apply Rmult_le_pos; try lra;
+        apply Rplus_le_le_0_compat; naive_solver.
+    }
+    { rewrite !SeriesC_finite_foldr /= in H1 *. etrans; last exact.
+      replace (INR 2) with 2%R by done.
+      replace (INR 4) with 4%R; first lra.
+      rewrite !S_INR INR_0. lra.
+    }
+    case_bool_decide as K1.
+    - (* sampled a 1*)
+      iMod (state_update_presample_exp _ _ _ _ _ (λ x, if bool_decide (fin_to_nat x=1)%nat then ε2 3%fin else ε2 2%fin)%R with "[$][$]") as "(%n2&Ht&Herr)".
+      { intros. case_bool_decide; naive_solver. }
+      { rewrite SeriesC_finite_foldr/=. replace (INR 2) with 2%R by done.
+        lra.
+      }
+      do 2 iMod (abstract_tapes_presample with "[$][$]") as "[Hm H1]".
+      iDestruct ("Hclose'" with "[$Ht]") as "Ht"; first done.
+      iMod ("Hclose" with "[Hs Hm $Ht]"); last iFrame.
+      + rewrite !fmap_insert (insert_id _ _ ()); first iFrame.
+        * by rewrite insert_insert.
+        * rewrite lookup_fmap. by rewrite Hsome.
+      + case_bool_decide as K2; iFrame; rewrite /rand_tapes2 /expander bind_app.
+        * rewrite K1 K2/= -app_assoc. iFrame.
+          iPureIntro. apply Forall_app. split; first done.
+          apply Forall_singleton. done.
+        * rewrite K1. assert (fin_to_nat n2 = 0) as ->.
+          { repeat (inv_fin n2; first done; try intros n2 ?); inv_fin n2.
+          }
+          rewrite -app_assoc. iFrame.
+          iPureIntro. apply Forall_app. split; first done.
+          apply Forall_singleton. simpl. lia.
+    - (* sampled a 0*)
+      iMod (state_update_presample_exp _ _ _ _ _ (λ x, if bool_decide (fin_to_nat x=1)%nat then ε2 1%fin else ε2 0%fin)%R with "[$][$]") as "(%n2&Ht&Herr)".
+      { intros. case_bool_decide; naive_solver. }
+      { rewrite SeriesC_finite_foldr/=. replace (INR 2) with 2%R by done.
+        lra.
+      }
+      do 2 iMod (abstract_tapes_presample with "[$][$]") as "[Hm H1]".
+      iDestruct ("Hclose'" with "[$Ht]") as "Ht"; first done.
+      iMod ("Hclose" with "[Hs Hm $Ht]"); last iFrame.
+      + rewrite !fmap_insert (insert_id _ _ ()); first iFrame.
+        * by rewrite insert_insert.
+        * rewrite lookup_fmap. by rewrite Hsome.
+      + case_bool_decide as K2; iFrame; rewrite /rand_tapes2 /expander bind_app.
+        * assert (fin_to_nat n1 = 0) as ->.
+          { repeat (inv_fin n1; first done; try intros n1 ?); inv_fin n1.
+          }
+          rewrite K2/= -app_assoc. iFrame.
+          iPureIntro. apply Forall_app. split; first done.
+          apply Forall_singleton. lia. 
+        * assert (fin_to_nat n1 = 0) as ->.
+          { repeat (inv_fin n1; first done; try intros n1 ?); inv_fin n1.
+          }
+          assert (fin_to_nat n2 = 0) as ->.
+          { repeat (inv_fin n2; first done; try intros n2 ?); inv_fin n2.
+          }
+          rewrite -app_assoc. iFrame.
+          iPureIntro. apply Forall_app. split; first done.
+          apply Forall_singleton. simpl. lia.   
+  Qed.
+  Next Obligation.
+    iIntros (???).
+    rewrite /is_rand2/rand_inv_pred2.
+    iMod (abstract_tapes_alloc ∅) as "(%&H1&_)".
+    iMod (ghost_map_alloc_empty) as "(%&H2)".
+    iMod (inv_alloc with "[H1 H2]"); last first.
+    - iExists (_,_). by iFrame.
+    - iNext. iExists ∅.
+      rewrite !fmap_empty. by iFrame.
+  Qed.
+  Next Obligation.
+    simpl.
+    iIntros (?[??]?? Φ) "#Hinv HΦ".
+    wp_pures.
+    iInv "Hinv" as ">(%&Hs&Hm&Hts)" "Hclose".
+    wp_apply (wp_alloc_tape); first done.
+    iIntros (α) "Ht".
+    iAssert (⌜m!!#lbl:α=None⌝)%I as "%Hnone".
+    { destruct (_!!_) eqn:?; last done.
+      iDestruct (big_sepM_insert_acc with "[$]") as "[(%&%&?) Hclose']"; first done.
+      simplify_eq.
+      by iDestruct (tapeN_tapeN_contradict with "[$][$]") as "%".
+    }
+    iMod (ghost_map_insert with "[$]") as "[Hs Htoken]"; first by erewrite lookup_fmap, Hnone.
+    iMod (abstract_tapes_new with "[$]") as "[Hm ?]"; first by erewrite lookup_fmap, Hnone.
+    iMod ("Hclose" with "[Hts Ht Hs Hm]").
+    { iNext. iExists (<[_:=_]>_). rewrite !fmap_insert.
+      iFrame.
+      rewrite big_sepM_insert; last done.
+      by iFrame.
+    }
+    iApply "HΦ". by iFrame.
+  Qed.
+  Next Obligation.
+    iIntros (?[??]???? Hsubset Φ) "[#Hinv [Htfrag %H]] HΦ".
+    rewrite /expander bind_cons.
+    iApply fupd_pgl_wp.
+    iInv "Hinv" as ">(%&Hs&Hm&Hts)" "Hclose".
+    iDestruct (abstract_tapes_agree with "[$][$]") as "%Hsome".
+    rewrite lookup_fmap_Some in Hsome.
+    destruct Hsome as (?&?&?). simplify_eq.
+    iDestruct (big_sepM_lookup_acc with "[$]") as "[(%&%&?) Hclose']"; first done.
+    simplify_eq.
+    iMod ("Hclose" with "[-Htfrag HΦ]") as "_"; iFrame.
+    { iDestruct ("Hclose'" with "[-]") as "$". by iFrame. }
+    iModIntro. wp_pures.
+    wp_bind (rand(_) _)%E.
+    iInv "Hinv" as ">(%&Hs&Hm&Hts)" "Hclose".
+    iDestruct (abstract_tapes_agree with "[$][$]") as "%Hsome".
+    rewrite lookup_fmap_Some in Hsome.
+    destruct Hsome as (?&?&Hsome). simplify_eq.
+    iDestruct (big_sepM_insert_acc with "[$]") as "[(%&%&?) Hclose']"; first done.
+    simplify_eq.
+    wp_apply (wp_rand_tape with "[$]") as "[Htape %]".
+    iMod (abstract_tapes_pop with "[$][$]") as "[Hm Htfrag]".
+    iDestruct ("Hclose'" with "[$Htape]") as "Htapes"; first done.
+    iMod ("Hclose" with "[-HΦ Htfrag]").
+    { iFrame. rewrite !fmap_insert. iFrame.
+      rewrite (insert_id _ _ ()); first iFrame.
+      rewrite lookup_fmap. by rewrite Hsome. }
+    iModIntro. wp_pures.
+    wp_bind (rand(_) _)%E.
+    iInv "Hinv" as ">(%&Hs&Hm&Hts)" "Hclose".
+    iDestruct (abstract_tapes_agree with "[$][$]") as "%Hsome'".
+    rewrite lookup_fmap_Some in Hsome'.
+    destruct Hsome' as (?&?&Hsome'). simplify_eq.
+    iDestruct (big_sepM_insert_acc with "[$]") as "[(%&%&?) Hclose']"; first done.
+    simplify_eq.
+    wp_apply (wp_rand_tape with "[$]") as "[Htape %]".
+    iMod (abstract_tapes_pop with "[$][$]") as "[Hm Htfrag]".
+    iDestruct ("Hclose'" with "[$Htape]") as "Htapes"; first done.
+    iMod ("Hclose" with "[-HΦ Htfrag]").
+    { iFrame. rewrite !fmap_insert. iFrame.
+      rewrite (insert_id _ _ ()); first iFrame.
+      rewrite lookup_fmap. by rewrite Hsome'. }
+    iModIntro.
+    wp_pures.
+    simpl.
+    replace (_+2*_)%Z with (Z.of_nat n).
+    - iApply "HΦ". iFrame.
+      iPureIntro. by eapply Forall_inv_tail.
+    - apply Forall_cons in H as [??]. destruct n as [|[|[|[|]]]]; simpl; lia.
+  Qed.
+End impl2.
+
 Section checks.
   Context `{H: conerisGS Σ, r1:!rand_spec' tb}.
   
