@@ -128,7 +128,7 @@ Section impl3.
     iIntros (Hsubset Hpos Hineq) "#Hinv Hfrag Herr".
     iMod (state_update_epsilon_err) as "(%ep & %Heps & Heps)".
     iRevert "Hfrag Herr".
-    iApply (ec_ind_amp _ (5/4)%R with "[][$]"); try lra.
+    iApply (ec_ind_amp _ (5)%R with "[][$]"); try lra.
     clear ep Heps.
     iModIntro.
     iIntros (eps Heps) "#IH Heps (%ls & %Hfilter & Hfrag) Herr".
@@ -137,7 +137,7 @@ Section impl3.
     iMod (rand_tapes_presample _ _ _ _ _ 
             (λ x, match decide (fin_to_nat x < 4)%nat with
                   | left p => ε2 (nat_to_fin p)
-                  | _ => ε + 5/4*eps
+                  | _ => ε + 5*eps
                                   end
             )%R with "[$][$]") as "(%n & Herr & Hfrag)". 
     { intros. case_match; first done.
