@@ -608,7 +608,80 @@ Section bloom_filter.
   Qed.
 
 
-  Lemma bloom_filter_lookup_spec (l : loc) (s : gset nat) (x rem : nat) :
+  Lemma bloom_filter_lookup_in_spec (l : loc) (s : gset nat) (x rem : nat) :
+    {{{ is_bloom_filter l s rem ∗ ⌜ x ∈ s ⌝
+    }}}
+      lookup_bloom_filter #l #x
+      {{{ v, RET v ; ⌜v = #true⌝ }}}.
+  Proof.
+    iIntros (Φ) "(Hbf & %Hx ) HΦ".
+    rewrite /lookup_bloom_filter /is_bloom_filter.
+    wp_pures.
+    iDestruct "Hbf" as (hfuns hs ms a arr idxs) "(Herr & Hl & %Hhfuns & %Hlenhs & Hhs & %HlenA & %HsizeIdxs & Ha & %Hms & %Hidxs & %Htrue & %Hbd & %Hfalse)".
+    wp_load.
+    wp_pures.
+    wp_alloc res as "Hres".
+    wp_pures.
+    simpl.
+    wp_apply (wp_list_iter_invariant_HO
+             (λ l1 l2,
+               (∃ ms_old,
+                   ⌜ Forall (λ m : gmap nat nat, s = dom m) ms_old ⌝ ∗
+                   ⌜ ∀ e : nat, e ∈ s → Forall (λ m : gmap nat nat, m !!! e ∈ idxs) ms_old ⌝ ∗
+                   [∗ list] h;m ∈ l2;ms_old, hashfun filter_size h m) ∗
+               a ↦∗ arr ∗
+               ⌜ is_list_HO (l1 ++ l2) hfuns ⌝∗
+               res ↦ #true)%I
+           with "[][Ha Hhs Herr Hres]"); auto.
+    - iIntros (lpre w lsuf).
+      iIntros (Ψ).
+      iModIntro.
+      iIntros "((%ms_old & %Hms_old_dom & %Hms_old_idxs & Hms_old_hf) & Ha & %Hhfuns' & Hr)".
+      iIntros "HΨ".
+      wp_pures.
+      destruct ms_old as [| m ms_tail]; auto.
+      simpl.
+      iDestruct "Hms_old_hf" as "[Hmcur Hms_tail]".
+      wp_bind (w _).
+      assert (is_Some (m !! x)) as [x0 H]; eauto.
+      {
+        apply elem_of_dom.
+        by apply Forall_cons in Hms_old_dom as [-> ?].
+      }
+      wp_apply (wp_hashfun_prev _ _ _ m x with "Hmcur").
+      * eauto.
+      * iIntros "Hhfw".
+        wp_pures.
+        wp_apply (wp_load_offset with "Ha").
+        {
+          apply Htrue.
+          apply lookup_total_correct in H.
+          specialize (Hms_old_idxs x Hx).
+          apply Forall_cons in Hms_old_idxs as [??].
+          set_solver.
+        }
+        iIntros "Ha".
+        wp_pures.
+        iApply "HΨ".
+        iModIntro.
+        iFrame.
+        iPureIntro.
+        apply Forall_cons in Hms_old_dom as [??].
+        repeat split; auto.
+        ** intros e He.
+           specialize (Hms_old_idxs e He).
+           apply Forall_cons in Hms_old_idxs as [??].
+           done.
+        ** rewrite -app_assoc //.
+    - iFrame.
+      iSplit; auto.
+    - iIntros "(?&?&?&?)".
+      + wp_pures.
+        wp_load.
+        by iApply "HΦ".
+ Qed.
+
+  Lemma bloom_filter_lookup_not_in_spec (l : loc) (s : gset nat) (x rem : nat) :
     {{{ is_bloom_filter l s (S rem) ∗ ⌜ x ∉ s ⌝
     }}}
       lookup_bloom_filter #l #x
@@ -746,3 +819,42 @@ Section bloom_filter.
  Qed.
 
 End bloom_filter.
+
+
+(*
+
+Section bloom_filter_par.
+
+  Variable filter_size : nat.
+  Variable num_hash : nat.
+  (* Variable insert_num : nat. *)
+  (* Variable max_hash_size : nat.*)
+  (* Hypothesis max_hash_size_pos: (0<max_hash_size)%nat. *)
+
+  Context `{!conerisGS Σ, !spawnG Σ, HinG: inG Σ (gset_bijR nat nat)}.
+
+  Definition parallel_test : expr :=
+    (λ: "qs" "q" ,
+      let: "bf" := init_bloom_filter filter_size num_hash #() in
+      letrec: "ins" "l" :=
+         (match: "l" with
+           SOME "a" => (insert_bloom_filter "bf" (Fst "a") ||| "ins" (Snd "a"))
+         | NONE => #()
+         end) in
+      "ins" "qs" ;; lookup_bloom_filter "bf" "q").
+
+
+  Lemma parallel_test_spec (lqs : list nat) (q : nat) (qs : val) :
+    {{{ ⌜ is_list lqs qs ⌝ ∗ ↯ (fp_error filter_size num_hash (num_hash * length lqs) 0) }}}
+      parallel_test qs #q
+      {{{ v, RET v ; ⌜v = #false⌝ }}}.
+  Proof.
+
+
+
+
+
+
+End bloom_filter_par.
+
+*)
