@@ -468,7 +468,7 @@ Section impl3.
   #[local] Program Definition rand_spec3 : rand_spec' tb :=
     {| rand_allocate_tape:= (λ: "_", alloc #(S tb));
       rand_tape:= (rec: "f" "α":=
-                     let: "res" := rand("α") #tb in
+                     let: "res" := rand("α") #(S tb) in
                      if: "res" ≤ #tb then "res" else "f" "α"
                   ); 
       is_rand  := is_rand3;
@@ -495,10 +495,9 @@ Section impl3.
     iIntros (??????????) "#Hinv [H1 %] Herr".
     iMod (state_update_epsilon_err) as "(%ep & %Heps & Heps)".
     iRevert "H1 Herr".
-    iApply (ec_ind_amp _ (S (S tb)/S tb)%R with "[][$]"); try lra.
-    { apply Rcomplements.Rlt_div_r.
-      - pose proof (pos_INR_S (tb)). lra.
-      - rewrite Rmult_1_l. apply lt_INR. lia.
+    iApply (ec_ind_amp _ (S (S tb))%R with "[][$]"); try lra.
+    { 
+      pose proof (pos_INR_S (tb)). rewrite S_INR. lra.
     }
     clear ep Heps.
     iModIntro.
@@ -514,16 +513,62 @@ Section impl3.
     iMod (state_update_presample_exp _ _ _ _ _
             (λ x, match decide (fin_to_nat x < S tb)%nat with
                   | left p => ε2 (nat_to_fin p)
-                  | _ => ε + S (S tb)/S tb*eps
+                  | _ => ε + S (S tb)*eps
                                   end
             )%R with "[$][$]") as "(%n&Ht&Herr)".
     { intros. case_match; first done.
       apply Rplus_le_le_0_compat; first naive_solver.
       apply Rmult_le_pos; last lra.
-      apply Rcomplements.Rdiv_le_0_compat; try apply pos_INR.
-      apply pos_INR_S.
+      apply pos_INR.
     }
-    { admit.
+    {
+      rewrite !SeriesC_scal_l in H1 *.
+      assert (forall (x y z:R), x>0->1/x*y<=z <-> y<=z*x)%R as Hrewrite.
+      { intros. rewrite -Rcomplements.Rle_div_l; last done.
+        lra. 
+      }
+      rewrite !Hrewrite in H1 *; [|pose proof pos_INR_S (S tb); lra|pose proof pos_INR_S (tb); lra].
+      rewrite !SeriesC_fin_sum in H1 *.
+      rewrite -!SeriesC_nat_bounded in H1 *.
+      rewrite (SeriesC_split_elem _ (S tb)%fin); last first.
+      - apply ex_seriesC_nat_bounded.
+      - intros. rewrite /extend_fin_to_R. repeat case_match; try lra.
+        + naive_solver.
+        + apply Rplus_le_le_0_compat; first lra.
+          apply Rmult_le_pos; last lra. apply pos_INR.
+      - rewrite SeriesC_singleton_dependent.
+        rewrite bool_decide_eq_true_2; last done.
+        rewrite /extend_fin_to_R.
+        case_match; first lia.
+        rewrite fin_to_nat_to_fin. case_match; first lia.
+        trans (ε + S (S tb) * eps + ε * S tb)%R; last (rewrite !S_INR; lra).
+        assert (SeriesC
+                  (λ a : nat,
+                     if bool_decide (a ≠ S tb)
+                     then
+                       if bool_decide (a ≤ S tb)
+                       then
+                         match le_lt_dec (S (S tb)) a with
+                         | left _ => 0
+                         | right h =>
+                             match decide (nat_to_fin h < S tb)%nat with
+                             | left p => ε2 (nat_to_fin p)
+                             | right _ => ε + S (S tb) * eps
+                             end
+                         end
+                       else 0
+                     else 0) <=ε* S tb)%R; last lra.
+        etrans; last exact.
+        right.
+        apply SeriesC_ext.
+        rewrite /extend_fin_to_R.
+        intros.
+        case_bool_decide as K1; try case_bool_decide as K2; try case_match eqn : K3;
+          try rewrite fin_to_nat_to_fin;
+          try case_bool_decide as K4; try case_match eqn:K5; try case_match; try (done||lia).
+        f_equal.
+        apply fin_to_nat_inj.
+        by rewrite !fin_to_nat_to_fin.  
     }
     iMod (abstract_tapes_presample with "[$][$]") as "[Hm H1]".
     iDestruct ("Hclose'" with "[$Ht]") as "Ht"; first done.
@@ -538,15 +583,15 @@ Section impl3.
           apply Forall_singleton. pose proof fin_to_nat_lt n. rewrite fin_to_nat_to_fin. lia.
       + iDestruct (ec_split with "[$]") as "[Hε Heps]"; first lra.
         { apply Rmult_le_pos; last lra.
-        apply Rcomplements.Rdiv_le_0_compat; try apply pos_INR.
-        apply pos_INR_S. }
+        apply pos_INR.
+        } 
         iApply ("IH" with "[$][-Hε][$]").
         iFrame. iPureIntro.
         rewrite filter_app.
         rewrite filter_cons. case_match.
         * simpl in *. lia.
         * by rewrite filter_nil app_nil_r.
-  Admitted.
+  Qed.
   Next Obligation.
     iIntros (???).
     rewrite /is_rand1/rand_inv_pred1.
@@ -581,32 +626,45 @@ Section impl3.
     iApply "HΦ". by iFrame.
   Qed.
   Next Obligation.
-  Admitted.
-  (*   iIntros (?[??]???? Hsubset Φ) "[#Hinv [Htfrag %]] HΦ". *)
-  (*   iApply fupd_pgl_wp. *)
-  (*   iInv "Hinv" as ">(%&Hs&Hm&Hts)" "Hclose". *)
-  (*   iDestruct (abstract_tapes_agree with "[$][$]") as "%Hsome". *)
-  (*   rewrite lookup_fmap_Some in Hsome. *)
-  (*   destruct Hsome as (?&?&?). simplify_eq. *)
-  (*   iDestruct (big_sepM_lookup_acc with "[$]") as "[(%&%&?) Hclose']"; first done. *)
-  (*   simplify_eq. *)
-  (*   iMod ("Hclose" with "[-Htfrag HΦ]") as "_"; iFrame. *)
-  (*   { iDestruct ("Hclose'" with "[-]") as "$". by iFrame. } *)
-  (*   iModIntro. wp_pures. *)
-  (*   iInv "Hinv" as ">(%&Hs&Hm&Hts)" "Hclose". *)
-  (*   iDestruct (abstract_tapes_agree with "[$][$]") as "%Hsome". *)
-  (*   rewrite lookup_fmap_Some in Hsome. *)
-  (*   destruct Hsome as (?&?&Hsome). simplify_eq. *)
-  (*   iDestruct (big_sepM_insert_acc with "[$]") as "[(%&%&?) Hclose']"; first done. *)
-  (*   simplify_eq. *)
-  (*   wp_apply (wp_rand_tape with "[$]") as "[Htape %]". *)
-  (*   iMod (abstract_tapes_pop with "[$][$]") as "[Hm Htfrag]". *)
-  (*   iDestruct ("Hclose'" with "[$Htape]") as "Htapes"; first done. *)
-  (*   iMod ("Hclose" with "[-HΦ Htfrag]"). *)
-  (*   { iFrame. rewrite !fmap_insert. iFrame. *)
-  (*     rewrite (insert_id _ _ ()); first iFrame. *)
-  (*     rewrite lookup_fmap. by rewrite Hsome. } *)
-  (*   iApply "HΦ". iFrame. *)
-  (*   iPureIntro. by eapply Forall_inv_tail. *)
-  (* Qed. *)
+    iIntros (?[??]???? Hsubset Φ) "[#Hinv [(%ns'&%Hfilter&Htfrag) %Hforall]] HΦ".
+    iApply fupd_pgl_wp.
+    iInv "Hinv" as ">(%m&Hs&Hm&Hts)" "Hclose".
+    iDestruct (abstract_tapes_agree with "[$][$]") as "%Hsome".
+    rewrite lookup_fmap_Some in Hsome.
+    destruct Hsome as (?&?&Hsome). simplify_eq.
+    iDestruct (big_sepM_lookup_acc with "[$]") as "[(%&%&?) Hclose']"; first done.
+    simplify_eq.
+    iMod ("Hclose" with "[-Htfrag HΦ]") as "_"; iFrame.
+    { iDestruct ("Hclose'" with "[-]") as "$". by iFrame. }
+    iModIntro.
+    simpl.
+    clear m Hsome.
+    iLöb as "IH" forall (ns' n ns Hfilter Hforall) "Htfrag HΦ".
+    wp_pures.
+    wp_bind (rand(_)_)%E.
+    iInv "Hinv" as ">(%&Hs&Hm&Hts)" "Hclose".
+    iDestruct (abstract_tapes_agree with "[$][$]") as "%Hsome".
+    rewrite lookup_fmap_Some in Hsome.
+    destruct Hsome as (?&?&Hsome). simplify_eq.
+    iDestruct (big_sepM_insert_acc with "[$]") as "[(%&%&?) Hclose']"; first done.
+    simplify_eq.
+    destruct ns'.
+    { rewrite filter_nil in Hfilter. simplify_eq. }
+    wp_apply (wp_rand_tape with "[$]") as "[Htape %]".
+    iMod (abstract_tapes_pop with "[$][$]") as "[Hm Htfrag]".
+    iDestruct ("Hclose'" with "[$Htape]") as "Htapes"; first done.
+    iMod ("Hclose" with "[-HΦ Htfrag]").
+    { iFrame. rewrite !fmap_insert. iFrame.
+      rewrite (insert_id _ _ ()); first iFrame.
+      rewrite lookup_fmap. by rewrite Hsome. }
+    iModIntro. wp_pures.
+    case_bool_decide.
+    - wp_pures. rewrite filter_cons in Hfilter.
+      case_match; last lia. simplify_eq. iApply "HΦ". iFrame.
+      iPureIntro. split; first done. by eapply Forall_inv_tail.
+    - wp_pure. iApply ("IH" with "[][][$]").
+      + rewrite filter_cons in Hfilter. case_match; [lia|done].
+      + done.
+      + done.
+  Qed.
 End impl3.
