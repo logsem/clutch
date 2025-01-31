@@ -62,20 +62,22 @@ Class rand_atomic_spec (tb:nat) `{!conerisGS Σ} := RandAtomicSpec
 Section checks.
   Context `{H: conerisGS Σ, r1:!rand_atomic_spec tb}.
   Lemma wp_atomic_rand_tape_1 n ns α :
-     rand_tapes α (n :: ns) -∗
-      WP (rand_tape α)%E 
-             {{ λ n', ⌜#n=n'⌝∗  rand_tapes α (ns) ∗ ⌜ (n<=tb)%nat⌝ }}.
+     {{{ ▷ rand_tapes α (n :: ns) }}}
+      rand_tape α 
+                       {{{ RET #(LitInt n); rand_tapes α (ns) ∗ ⌜n <= tb⌝ }}}.
   Proof.
-    iIntros "Hfrag".
-    iDestruct (rand_tapes_valid with "[$]") as "%H'".
-    awp_apply (rand_tape_spec_some ∅ with "[-]").
-    iAaccIntro with "Hfrag".
-    - iIntros "?". by iFrame.
-    -  iIntros. iFrame. iModIntro. iSplit; first done.
-       iPureIntro.
-       rewrite Forall_cons in H'. naive_solver.
+    iIntros (Φ) ">Hfrag HΦ".
+    iApply (pgl_wp_step_fupd with "[HΦ]"); first done.
+    - iModIntro. iNext. iModIntro. iExact "HΦ".
+    - iDestruct (rand_tapes_valid with "[$]") as "%H'".
+      awp_apply (rand_tape_spec_some ∅ with "[-]").
+      iAaccIntro with "Hfrag".
+      + iIntros "?". by iFrame.
+      +  iIntros. iFrame. iModIntro.
+         iIntros "HΦ". iApply "HΦ". iModIntro. iFrame. 
+         iPureIntro.
+         rewrite Forall_cons in H'. naive_solver.
   Qed.
-
 End checks.
 
 
