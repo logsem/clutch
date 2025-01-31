@@ -93,8 +93,9 @@ Section race.
     )%I.
     
   (* We want to upper bound the probability we get a 0 (error).
-     If we use two tapes, we need to pay 3/4 to ensure both tapes dont have a 0
-     If we use one tape, we only need 1/2
+     Here we use one tape which is placed in a shared invariant, we only need 1/2
+
+     One can possibly use two local tapes, one for each thread, but the presampling must be done only after the CAS
    *)
   Lemma race_prog_spec:
   {{{ ↯ (1/2) }}}
