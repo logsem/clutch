@@ -19,9 +19,13 @@ Section language_mixin.
   Context {state : measurableType d_state}.
 
   Context (of_val : val → expr).
-  Context (to_val : expr → option val).
+  Context (of_val_meas : measurable_fun setT of_val).
 
-  Context (prim_step : measurable_map (expr * state)%type (giryM (expr * state)%type)).
+  Context (to_val : expr → MOption val).
+  Context (to_val_meas : measurable_fun setT to_val).
+
+  Context (prim_step : (expr * state)%type -> (giryM (expr * state)%type)).
+  Context (prim_step_meas : measurable_fun setT prim_step).
 
   Record MeasLanguageMixin := {
     mixin_to_of_val v : to_val (of_val v) = Some v;
@@ -46,15 +50,17 @@ Structure meas_language := MeasLanguage {
   state : measurableType d_state;
 
   of_val : val → expr;
-  to_val : expr → option val;
+  of_val_meas : measurable_fun setT of_val;
+  to_val : expr → MOption val;
+  to_val_meas : measurable_fun setT to_val;
 
-  prim_step : measurable_map (expr * state)%type (giryM (expr * state)%type);
+  prim_step : (expr * state)%type -> (giryM (expr * state)%type);
+  prim_step_meas : measurable_fun setT prim_step;
 
   language_mixin : MeasLanguageMixin of_val to_val prim_step
 }.
 
-
-
+(*
 (** Register MCA products into measurableMap hierarchy *)
 
 HB.instance Definition _ {d1 d2 } {T1 : measurableType d1} {T2 : measurableType d2} :=
@@ -62,6 +68,7 @@ HB.instance Definition _ {d1 d2 } {T1 : measurableType d1} {T2 : measurableType 
 
 HB.instance Definition _ {d1 d2 } {T1 : measurableType d1} {T2 : measurableType d2} :=
   isMeasurableMap.Build _ _ (T1 * T2)%type T2 snd measurable_snd.
+*)
 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
@@ -82,7 +89,8 @@ Definition fill_lift {Λ} (K : measurable_map (expr Λ) (expr Λ)) : (expr Λ * 
 
 Local Lemma fill_lift_measurable {Λ} (K : measurable_map (expr Λ) (expr Λ)) :
   @measurable_fun _ _ (expr Λ * state Λ)%type (expr Λ * state Λ)%type setT (fill_lift K).
-Proof.
+Proof. Admitted.
+(*
   apply measurable_fun_prod.
   { simpl.
     have -> : (λ x : expr Λ * state Λ, K x.1) = m_cmp K fst.
@@ -92,10 +100,12 @@ Proof.
     eapply measurable_mapP. }
   { eapply measurable_mapP. }
 Qed.
+*)
 
+(*
 HB.instance Definition _ {Λ} (K : measurable_map (expr Λ) (expr Λ)) :=
   isMeasurableMap.Build _ _ (expr Λ * state Λ)%type (expr Λ * state Λ)%type (fill_lift K) (fill_lift_measurable K).
-
+*)
 
 Global Instance inj_fill_lift {Λ : meas_language} (K : measurable_map (expr Λ) (expr Λ)) :
   Inj (=) (=) K →
@@ -108,7 +118,7 @@ Class MeasLanguageCtx {Λ : meas_language} (K : measurable_map (expr Λ) (expr �
   fill_inj : Inj (=) (=) K;
   fill_dmap e1 σ1 :
     to_val e1 = None →
-    prim_step ((K e1), σ1) = giryM_map (fill_lift K) (prim_step (e1, σ1))
+    prim_step ((K e1), σ1) = giryM_zero (*  FIXME: giryM_map ((uncurry fill_lift) K) (prim_step (e1, σ1)) *)
 }.
 
 #[global] Existing Instance fill_inj.
@@ -160,6 +170,8 @@ Section language.
   Proof.
     intros Hs.
     rewrite fill_dmap; [| by eapply val_stuck].
+  Admitted.
+  (*
     pose HI := @inj_map_inj_eq  _ _ _ _ _ (fill_lift K) _.
     move=> HZ.
     apply Hs; clear Hs.
@@ -170,6 +182,7 @@ Section language.
     rewrite giryM_map_zero.
     apply HZ.
   Qed.
+   *)
 
   (*
   Lemma fill_step_inv e1' σ1 e2 σ2 `{!LanguageCtx K} :

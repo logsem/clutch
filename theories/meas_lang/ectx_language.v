@@ -8,28 +8,36 @@ From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Import weakestpre.
 From mathcomp.analysis Require Import reals measure ereal Rstruct.
-From clutch.prob.monad Require Import laws.
+From clutch.prob.monad Require Import laws types.
 From clutch.meas_lang Require Import language.
 
 Section ectx_language_mixin.
   Local Open Scope classical_set_scope.
 
-  Context {d_expr d_val d_state : measure_display}.
+  Context {d_expr d_val d_state d_ectx: measure_display}.
   Context {expr : measurableType d_expr}.
   Context {val : measurableType d_val}.
   Context {state : measurableType d_state}.
+  Context {ectx : measurableType d_ectx}.
 
-  Context {ectx : Type}.
+  Context (of_val : val -> expr).
+  Context (of_val_meas : measurable_fun setT of_val).
 
-  Context (of_val : val → expr).
-  Context (to_val : expr → option val).
+  Context (to_val : expr -> (MOption val)).
+  Context (to_val_meas : measurable_fun setT to_val).
 
-  Context (head_step : measurable_map (expr * state)%type (giryM (expr * state)%type)).
+  Context (head_step : (expr * state)%type -> (giryM (expr * state)%type)).
+  Context (head_step_meas : measurable_fun setT head_step).
 
   Context (empty_ectx : ectx).
-  Context (comp_ectx : ectx → ectx → ectx).
-  Context (fill : ectx → measurable_map expr expr).
-  Context (decomp : expr → ectx * expr).
+  Context (comp_ectx : ectx → ectx → ectx). (* TODO: Does this need to be measurable? I assume yes. *)
+
+  Context (fill : (ectx * expr)%type -> expr).
+  Context (fill_meas : measurable_fun setT fill).
+
+  Context (decomp : expr → (ectx * expr)%type).
+  Context (decomp_meas : measurable_fun setT decomp).
+
 
   Record MeasEctxLanguageMixin := {
     mixin_to_of_val v : to_val (of_val v) = Some v;
@@ -38,19 +46,19 @@ Section ectx_language_mixin.
     mixin_head_stuck e σ : (¬ is_zero (head_step (e, σ))) → to_val e = None;
     mixin_head_step_mass e σ : (¬ is_zero (head_step (e, σ))) -> is_prob (head_step (e, σ))  ;
 
-    mixin_fill_empty e : fill empty_ectx e = e;
-    mixin_fill_comp K1 K2 e : fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e;
-    mixin_fill_inj K : Inj (=) (=) (fill K);
-    mixin_fill_val K e : is_Some (to_val (fill K e)) → is_Some (to_val e);
+    mixin_fill_empty e : fill (empty_ectx, e) = e;
+    mixin_fill_comp K1 K2 e : fill (K1, (fill (K2, e))) = fill ((comp_ectx K1 K2), e);
+    mixin_fill_inj K : Inj (=) (=) ((curry fill) K);
+    mixin_fill_val K e : is_Some (to_val (fill (K, e))) → is_Some (to_val e);
 
 
     (** [decomp] decomposes an expression into an evaluation context and its head redex  *)
     mixin_decomp_fill K e e' :
-      decomp e = (K, e') → fill K e' = e;
+      decomp e = (K, e') → fill (K, e') = e;
     mixin_decomp_val_empty K e e' :
       decomp e = (K, e') → is_Some (to_val e') → K = empty_ectx;
     mixin_decomp_fill_comp e e' K K' :
-      to_val e = None → decomp e = (K', e') → decomp (fill K e) = (comp_ectx K K', e');
+      to_val e = None → decomp e = (K', e') → decomp (fill (K, e)) = (comp_ectx K K', e');
 
     (** Given a head redex [e1_redex] somewhere in a term, and another
         decomposition of the same term into [fill K' e1'] such that [e1'] is
@@ -61,7 +69,7 @@ Section ectx_language_mixin.
         This implies there can be only one head redex, see
         [head_redex_unique]. *)
     mixin_step_by_val K' K_redex e1' e1_redex σ1 :
-      fill K' e1' = fill K_redex e1_redex →
+      fill (K', e1') = fill (K_redex, e1_redex) →
       to_val e1' = None →
       (¬ is_zero (head_step (e1_redex, σ1))) →
       ∃ K'', K_redex = comp_ectx K' K'';
@@ -70,7 +78,7 @@ Section ectx_language_mixin.
       the empty evaluation context. In other words, if [e] is not a value
       wrapping it in a context does not add new head redex positions. *)
     mixin_head_ctx_step_val K e σ1 :
-      (¬ is_zero (head_step ((fill K e), σ1))) →
+      (¬ is_zero (head_step ((fill (K, e)), σ1))) →
       is_Some (to_val e) ∨ K = empty_ectx;
   }.
 End ectx_language_mixin.
@@ -79,18 +87,25 @@ Structure meas_ectxLanguage := MeasEctxLanguage {
   d_expr : measure_display;
   d_val: measure_display;
   d_state: measure_display;
+  d_ectx: measure_display;
+
   expr : measurableType d_expr;
   val : measurableType d_val;
   state : measurableType d_state;
-  ectx : Type;
+  ectx : measurableType d_ectx;
 
   of_val : val → expr;
-  to_val : expr → option val;
+  of_val_meas : measurable_fun setT of_val;
+  to_val : expr → MOption val;
+  to_val_meas : measurable_fun setT to_val;
 
   empty_ectx : ectx;
   comp_ectx : ectx → ectx → ectx;
-  fill : ectx → measurable_map expr expr;
-  decomp : expr → ectx * expr;
+
+  fill : (ectx * expr)%type -> expr;
+  fill_meas : measurable_fun setT fill;
+  decomp : expr → (ectx * expr)%type;
+  decomp_meas : measurable_fun setT decomp;
 
   head_step : measurable_map (expr * state)%type (giryM (expr * state)%type);
 
@@ -166,10 +181,10 @@ Section ectx_language.
   (* All non-value redexes are at the root. In other words, all sub-redexes are
      values. *)
   Definition sub_redexes_are_values (e : expr Λ) :=
-    ∀ K e', e = fill K e' → to_val e' = None → K = empty_ectx.
+    ∀ K e', e = fill (K, e') → to_val e' = None → K = empty_ectx.
 
   Definition fill_lift (K : ectx Λ) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
-    λ '(e, σ), (fill K e, σ).
+    λ '(e, σ), (fill (K, e), σ).
 
   Lemma fill_lift_comp (K1 K2 : ectx Λ) :
     fill_lift (comp_ectx K1 K2) = fill_lift K1 ∘ fill_lift K2.
@@ -201,6 +216,7 @@ Section ectx_language.
    *)
   Definition prim_step (e1 : (expr Λ * state Λ)%type) : giryM (expr Λ * state Λ)%type.
   Admitted.
+
 
   (*
 
@@ -473,11 +489,14 @@ work.
 Note that this trick no longer works when we switch to canonical projections
 because then the pattern match [let '...] will be desugared into projections. *)
 
+
 Program Definition MeasLanguageOfEctx (Λ : meas_ectxLanguage) : meas_language :=
-  let '@MeasEctxLanguage _ _ _ expr val state _ of_val to_val _ _ _ _ head_step mix := Λ in
-  @MeasLanguage _ _ _ expr val state of_val to_val head_step _.
+  let '@MeasEctxLanguage _ _ _ _ expr val state ectx of_val of_val_meas to_val to_val_meas head_step _ _ _ _ _ _ mix := Λ in
+  @MeasLanguage _ _ _ expr val state of_val of_val_meas to_val to_val_meas _ _ _.
+Next Obligation. Admitted. (* Wrong expr and val type!!*)
+Next Obligation. Admitted.
 Next Obligation.
   intros.
   destruct mix.
   split; try done.
-Defined.
+Admitted.

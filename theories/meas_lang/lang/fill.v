@@ -902,73 +902,6 @@ HB.instance Definition _ :=
 Definition fill_item : measurable_map (ectx_item * expr)%type expr :=
   fill_item_def.
 
-
-
-
-(* MS on Option *)
-(* noval (measurable fun ) *)
-
-Section Option.
-Context {d1} {T1 : measurableType d1}.
-
-Definition option_S : Type := option (set T1).
-Definition option_T : Type := option T1.
-Fixpoint option_ST (k : option_S) : set option_T :=
-  match k with
-  | None => [set None]
-  | Some s => image Some s
-  end.
-Definition option_ML : set option_S :=
-  fun k =>
-    match k with
-    | None => True
-    | Some s => d1.-measurable s
-    end.
-
-Definition option_cyl : set (set option_T) := image option_ML option_ST.
-
-HB.instance Definition _ := gen_eqMixin option_T.
-HB.instance Definition _ := gen_choiceMixin option_T.
-HB.instance Definition _ := isPointed.Build option_T None.
-
-(* FIXME: Remove *)
-Local Lemma option_meas_obligation :
-  ∀ A : set option_T, <<s option_cyl>> A → <<s option_cyl >> (~` A).
-Proof. eapply sigma_algebraC. Qed.
-
-HB.instance Definition _ := @isMeasurable.Build
-  (sigma_display option_cyl)
-  option_T
-  <<s option_cyl>>
-  (@sigma_algebra0 _ setT option_cyl)
-  option_meas_obligation
-  (@sigma_algebra_bigcup _ setT option_cyl).
-
-End Option.
-
-Definition MOption {d1} (T : measurableType d1) : measurableType (@option_cyl d1 T).-sigma := option_T.
-
-Definition MNone {d1} {T : measurableType d1} : MOption T := None.
-Definition MSome {d1} {T : measurableType d1} : T -> MOption T := Some.
-
-Lemma MSome_measurable {d1} {T : measurableType d1} : measurable_fun setT (MSome : T -> MOption T).
-Proof. Admitted.
-Hint Resolve MSome_measurable : measlang.
-
-(* Shapes? *)
-
-Definition 𝜋_MSome_v {d1} {T : measurableType d1} (k : MOption T) : T := match k with | Some v => v | _ => point end.
-Definition MOption_cov_Some {d1} {T : measurableType d1} : set (MOption T) := [set e | ∃ x, e = Some x].
-Definition MOption_cov_None {d1} {T : measurableType d1} : set (MOption T) := [set e | e = None].
-Lemma MOption_cov_Some_meas {d1} {T : measurableType d1} : measurable (MOption_cov_Some : set (MOption T)).
-Proof. Admitted.
-Hint Resolve MOption_cov_Some_meas : measlang.
-Lemma MOption_cov_None_meas {d1} {T : measurableType d1} : measurable (MOption_cov_None : set (MOption T)).
-Proof. Admitted.
-Hint Resolve MOption_cov_None_meas : measlang.
-
-
-
 Definition noval (x : expr * ectx_item) : MOption (ectx_item * expr)%type :=
   match x.1 with
   | Val _ => None
@@ -979,11 +912,6 @@ Lemma noval_measurable : measurable_fun setT noval.
 Proof. Admitted.
 Hint Resolve noval_measurable : measlang.
 
-
-
-Definition decomp_item_cover : list (set expr) := [].
-
-Definition decomp_item (e : expr) : option (ectx_item * expr). Admitted.
 (*
   let noval (e : expr) (ei : ectx_item) :=
     match e with Val _ => None | _ => Some (ei, e) end in
@@ -1034,6 +962,356 @@ Definition decomp_item (e : expr) : option (ectx_item * expr). Admitted.
   end.
 *)
 
+Definition decomp_cov_app_val    : set expr :=
+  setI ecov_app $
+  preimage 𝜋_AppU $
+  setX setT ecov_val.
+
+Definition decomp_cov_app_expr   : set expr :=
+  setI ecov_app $
+  preimage 𝜋_AppU $
+  setX setT (~` ecov_val).
+
+Definition decomp_cov_unop       : set expr :=
+  ecov_unop.
+
+Definition decomp_cov_binop_val  : set expr :=
+  setI ecov_binop $
+  preimage 𝜋_BinOpU $
+  setX setT ecov_val.
+
+Definition decomp_cov_binop_expr : set expr :=
+  setI ecov_binop $
+  preimage 𝜋_BinOpU $
+  setX setT (~` ecov_val).
+
+Definition decomp_cov_if         : set expr :=
+  ecov_if.
+
+Definition decomp_cov_pair_val   : set expr :=
+  setI ecov_pair $
+  preimage 𝜋_PairU $
+  setX setT ecov_val.
+
+Definition decomp_cov_pair_expr  : set expr :=
+  setI ecov_pair $
+  preimage 𝜋_PairU $
+  setX setT (~` ecov_val).
+
+Definition decomp_cov_fst        : set expr :=
+  ecov_fst.
+
+Definition decomp_cov_snd        : set expr :=
+  ecov_snd.
+
+Definition decomp_cov_injl       : set expr :=
+  ecov_injl.
+
+Definition decomp_cov_injr       : set expr :=
+  ecov_injr.
+
+Definition decomp_cov_case       : set expr :=
+  ecov_case.
+
+Definition decomp_cov_alloc_val  : set expr :=
+  setI ecov_alloc $
+  preimage 𝜋_AllocNU $
+  setX setT ecov_val.
+
+Definition decomp_cov_alloc_expr : set expr :=
+  setI ecov_alloc $
+  preimage 𝜋_AllocNU $
+  setX setT (~` ecov_val).
+
+Definition decomp_cov_load       : set expr :=
+  ecov_load.
+
+Definition decomp_cov_store_val  : set expr :=
+  setI ecov_store $
+  preimage 𝜋_StoreU $
+  setX setT ecov_val.
+
+Definition decomp_cov_store_expr : set expr :=
+  setI ecov_store $
+  preimage 𝜋_StoreU $
+  setX setT (~` ecov_val).
+
+Definition decomp_cov_alloctape  : set expr :=
+  ecov_alloctape.
+
+Definition decomp_cov_rand_val   : set expr :=
+  setI ecov_rand $
+  preimage 𝜋_RandU $
+  setX setT ecov_val.
+
+Definition decomp_cov_rand_expr  : set expr :=
+  setI ecov_rand $
+  preimage 𝜋_RandU $
+  setX setT (~` ecov_val).
+
+Definition decomp_cov_urand      : set expr :=
+  ecov_urand.
+
+Definition decomp_cov_tick       : set expr :=
+  ecov_tick.
+
+Definition decomp_cov_stuck      : set expr. Admitted. (* Complement of the union of the prior cases.*)
+
+Lemma decomp_cov_app_val_meas     : measurable decomp_cov_app_val. Proof. Admitted.
+Lemma decomp_cov_app_expr_meas    : measurable decomp_cov_app_expr. Proof. Admitted.
+Lemma decomp_cov_unop_meas        : measurable decomp_cov_unop. Proof. Admitted.
+Lemma decomp_cov_binop_val_meas   : measurable decomp_cov_binop_val. Proof. Admitted.
+Lemma decomp_cov_binop_expr_meas  : measurable decomp_cov_binop_expr. Proof. Admitted.
+Lemma decomp_cov_if_meas          : measurable decomp_cov_if. Proof. Admitted.
+Lemma decomp_cov_pair_val_meas    : measurable decomp_cov_pair_val. Proof. Admitted.
+Lemma decomp_cov_pair_expr_meas   : measurable decomp_cov_pair_expr. Proof. Admitted.
+Lemma decomp_cov_fst_meas         : measurable decomp_cov_fst. Proof. Admitted.
+Lemma decomp_cov_snd_meas         : measurable decomp_cov_snd. Proof. Admitted.
+Lemma decomp_cov_injl_meas        : measurable decomp_cov_injl. Proof. Admitted.
+Lemma decomp_cov_injr_meas        : measurable decomp_cov_injr. Proof. Admitted.
+Lemma decomp_cov_case_meas        : measurable decomp_cov_case. Proof. Admitted.
+Lemma decomp_cov_alloc_val_meas   : measurable decomp_cov_alloc_val. Proof. Admitted.
+Lemma decomp_cov_alloc_expr_meas  : measurable decomp_cov_alloc_expr. Proof. Admitted.
+Lemma decomp_cov_load_meas        : measurable decomp_cov_load. Proof. Admitted.
+Lemma decomp_cov_store_val_meas   : measurable decomp_cov_store_val. Proof. Admitted.
+Lemma decomp_cov_store_expr_meas  : measurable decomp_cov_store_expr. Proof. Admitted.
+Lemma decomp_cov_alloctape_meas   : measurable decomp_cov_alloctape. Proof. Admitted.
+Lemma decomp_cov_rand_val_meas    : measurable decomp_cov_rand_val. Proof. Admitted.
+Lemma decomp_cov_rand_expr_meas   : measurable decomp_cov_rand_expr. Proof. Admitted.
+Lemma decomp_cov_urand_meas       : measurable decomp_cov_urand. Proof. Admitted.
+Lemma decomp_cov_tick_meas        : measurable decomp_cov_tick. Proof. Admitted.
+Lemma decomp_cov_stuck_meas       : measurable decomp_cov_stuck. Proof. Admitted.
+
+Hint Resolve decomp_cov_app_val_meas     : measlang.
+Hint Resolve decomp_cov_app_expr_meas    : measlang.
+Hint Resolve decomp_cov_unop_meas        : measlang.
+Hint Resolve decomp_cov_binop_val_meas   : measlang.
+Hint Resolve decomp_cov_binop_expr_meas  : measlang.
+Hint Resolve decomp_cov_if_meas          : measlang.
+Hint Resolve decomp_cov_pair_val_meas    : measlang.
+Hint Resolve decomp_cov_pair_expr_meas   : measlang.
+Hint Resolve decomp_cov_fst_meas         : measlang.
+Hint Resolve decomp_cov_snd_meas         : measlang.
+Hint Resolve decomp_cov_injl_meas        : measlang.
+Hint Resolve decomp_cov_injr_meas        : measlang.
+Hint Resolve decomp_cov_case_meas        : measlang.
+Hint Resolve decomp_cov_alloc_val_meas   : measlang.
+Hint Resolve decomp_cov_alloc_expr_meas  : measlang.
+Hint Resolve decomp_cov_load_meas        : measlang.
+Hint Resolve decomp_cov_store_val_meas   : measlang.
+Hint Resolve decomp_cov_store_expr_meas  : measlang.
+Hint Resolve decomp_cov_alloctape_meas   : measlang.
+Hint Resolve decomp_cov_rand_val_meas    : measlang.
+Hint Resolve decomp_cov_rand_expr_meas   : measlang.
+Hint Resolve decomp_cov_urand_meas       : measlang.
+Hint Resolve decomp_cov_tick_meas        : measlang.
+Hint Resolve decomp_cov_stuck_meas       : measlang.
+
+Definition decomp_item_cover : list (set expr) := [
+  decomp_cov_app_val;
+  decomp_cov_app_expr;
+  decomp_cov_unop;
+  decomp_cov_binop_val;
+  decomp_cov_binop_expr;
+  decomp_cov_if;
+  decomp_cov_pair_val;
+  decomp_cov_pair_expr;
+  decomp_cov_fst;
+  decomp_cov_snd;
+  decomp_cov_injl;
+  decomp_cov_injr;
+  decomp_cov_case;
+  decomp_cov_alloc_val;
+  decomp_cov_alloc_expr;
+  decomp_cov_load;
+  decomp_cov_store_val;
+  decomp_cov_store_expr;
+  decomp_cov_alloctape;
+  decomp_cov_rand_val;
+  decomp_cov_rand_expr;
+  decomp_cov_urand;
+  decomp_cov_tick;
+  decomp_cov_stuck
+].
+
+Definition decomp_app_val    : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_App_l (ssrfun.comp AppLCtxU $ ssrfun.comp 𝜋_Val_v $ 𝜋_App_r).
+
+Definition decomp_app_expr   : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp MSome $
+  mProd (ssrfun.comp AppRCtxU 𝜋_App_l) 𝜋_App_r.
+
+Definition decomp_unop       : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_UnOp_e (ssrfun.comp UnOpCtxU 𝜋_UnOp_op).
+
+Definition decomp_binop_val  : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_BinOp_l (ssrfun.comp BinOpLCtxU $ mProd 𝜋_BinOp_op (ssrfun.comp 𝜋_Val_v 𝜋_BinOp_r)).
+
+Definition decomp_binop_expr : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp MSome $
+  mProd (ssrfun.comp BinOpRCtxU $ mProd 𝜋_BinOp_op 𝜋_BinOp_l) 𝜋_BinOp_r.
+
+Definition decomp_if         : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_If_c (ssrfun.comp IfCtxU $ mProd 𝜋_If_l 𝜋_If_r).
+
+Definition decomp_pair_val   : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_Pair_l (ssrfun.comp PairLCtxU $ 𝜋_Val_v).
+
+Definition decomp_pair_expr  : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp MSome $
+  mProd (ssrfun.comp PairRCtxU 𝜋_Pair_l) 𝜋_Pair_r.
+
+Definition decomp_fst        : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_Fst_e (cst FstCtxU).
+
+Definition decomp_snd        : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_Snd_e (cst SndCtxU).
+
+Definition decomp_injl       : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_InjL_e (cst InjLCtxU).
+
+Definition decomp_injr       : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_InjR_e (cst InjRCtxU).
+
+Definition decomp_case       : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_Case_c (ssrfun.comp CaseCtxU $ mProd 𝜋_Case_l 𝜋_Case_r).
+
+Definition decomp_alloc_val  : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_AllocN_N (ssrfun.comp AllocNLCtxU $ ssrfun.comp 𝜋_Val_v 𝜋_AllocN_e ).
+
+Definition decomp_alloc_expr : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp MSome $
+  mProd (ssrfun.comp AllocNRCtxU 𝜋_AllocN_N) 𝜋_AllocN_e.
+
+Definition decomp_load       : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_Load_e (cst LoadCtxU).
+
+Definition decomp_store_val  : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_Store_l (ssrfun.comp StoreLCtxU $ ssrfun.comp 𝜋_Val_v 𝜋_Store_e).
+
+Definition decomp_store_expr : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp MSome $
+  mProd (ssrfun.comp StoreRCtxU 𝜋_Store_l) 𝜋_Store_e.
+
+Definition decomp_alloctape  : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_AllocTape_e (cst AllocTapeCtxU).
+
+Definition decomp_rand_val   : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_Rand_t (ssrfun.comp RandLCtxU $ ssrfun.comp 𝜋_Val_v 𝜋_Rand_N).
+
+Definition decomp_rand_expr  : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp MSome $
+  mProd (ssrfun.comp RandRCtxU 𝜋_Rand_t) 𝜋_Rand_N.
+
+Definition decomp_urand      : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_URand_e (cst URandCtxU).
+
+Definition decomp_tick       : expr -> (MOption (ectx_item * expr)%type) :=
+  ssrfun.comp noval $
+  mProd 𝜋_Tick_e (cst TickCtxU).
+
+Definition decomp_stuck      : expr -> (MOption (ectx_item * expr)%type) :=
+  cst MNone.
+
+Lemma decomp_app_val_meas    : measurable_fun decomp_cov_app_val    decomp_app_val. Proof. Admitted.
+Lemma decomp_app_expr_meas   : measurable_fun decomp_cov_app_expr   decomp_app_expr. Proof. Admitted.
+Lemma decomp_unop_meas       : measurable_fun decomp_cov_unop       decomp_unop. Proof. Admitted.
+Lemma decomp_binop_val_meas  : measurable_fun decomp_cov_binop_val  decomp_binop_val. Proof. Admitted.
+Lemma decomp_binop_expr_meas : measurable_fun decomp_cov_binop_expr decomp_binop_expr. Proof. Admitted.
+Lemma decomp_if_meas         : measurable_fun decomp_cov_if         decomp_if. Proof. Admitted.
+Lemma decomp_pair_val_meas   : measurable_fun decomp_cov_pair_val   decomp_pair_val. Proof. Admitted.
+Lemma decomp_pair_expr_meas  : measurable_fun decomp_cov_pair_expr  decomp_pair_expr. Proof. Admitted.
+Lemma decomp_fst_meas        : measurable_fun decomp_cov_fst        decomp_fst. Proof. Admitted.
+Lemma decomp_snd_meas        : measurable_fun decomp_cov_snd        decomp_snd. Proof. Admitted.
+Lemma decomp_injl_meas       : measurable_fun decomp_cov_injl       decomp_injl. Proof. Admitted.
+Lemma decomp_injr_meas       : measurable_fun decomp_cov_injr       decomp_injr. Proof. Admitted.
+Lemma decomp_case_meas       : measurable_fun decomp_cov_case       decomp_case. Proof. Admitted.
+Lemma decomp_alloc_val_meas  : measurable_fun decomp_cov_alloc_val  decomp_alloc_val. Proof. Admitted.
+Lemma decomp_alloc_expr_meas : measurable_fun decomp_cov_alloc_expr decomp_alloc_expr. Proof. Admitted.
+Lemma decomp_load_meas       : measurable_fun decomp_cov_load       decomp_load. Proof. Admitted.
+Lemma decomp_store_val_meas  : measurable_fun decomp_cov_store_val  decomp_store_val. Proof. Admitted.
+Lemma decomp_store_expr_meas : measurable_fun decomp_cov_store_expr decomp_store_expr. Proof. Admitted.
+Lemma decomp_alloctape_meas  : measurable_fun decomp_cov_alloctape  decomp_alloctape. Proof. Admitted.
+Lemma decomp_rand_val_meas   : measurable_fun decomp_cov_rand_val   decomp_rand_val. Proof. Admitted.
+Lemma decomp_rand_expr_meas  : measurable_fun decomp_cov_rand_expr  decomp_rand_expr. Proof. Admitted.
+Lemma decomp_urand_meas      : measurable_fun decomp_cov_urand      decomp_urand. Proof. Admitted.
+Lemma decomp_tick_meas       : measurable_fun decomp_cov_tick       decomp_tick. Proof. Admitted.
+Lemma decomp_stuck_meas      : measurable_fun decomp_cov_stuck      decomp_stuck. Proof. Admitted.
+
+Hint Resolve decomp_app_val_meas    : measlang.
+Hint Resolve decomp_app_expr_meas   : measlang.
+Hint Resolve decomp_unop_meas       : measlang.
+Hint Resolve decomp_binop_val_meas  : measlang.
+Hint Resolve decomp_binop_expr_meas : measlang.
+Hint Resolve decomp_if_meas         : measlang.
+Hint Resolve decomp_pair_val_meas   : measlang.
+Hint Resolve decomp_pair_expr_meas  : measlang.
+Hint Resolve decomp_fst_meas        : measlang.
+Hint Resolve decomp_snd_meas        : measlang.
+Hint Resolve decomp_injl_meas       : measlang.
+Hint Resolve decomp_injr_meas       : measlang.
+Hint Resolve decomp_case_meas       : measlang.
+Hint Resolve decomp_alloc_val_meas  : measlang.
+Hint Resolve decomp_alloc_expr_meas : measlang.
+Hint Resolve decomp_load_meas       : measlang.
+Hint Resolve decomp_store_val_meas  : measlang.
+Hint Resolve decomp_store_expr_meas : measlang.
+Hint Resolve decomp_alloctape_meas  : measlang.
+Hint Resolve decomp_rand_val_meas   : measlang.
+Hint Resolve decomp_rand_expr_meas  : measlang.
+Hint Resolve decomp_urand_meas      : measlang.
+Hint Resolve decomp_tick_meas       : measlang.
+Hint Resolve decomp_stuck_meas      : measlang.
+
+Definition decomp_item_def (e : expr) : MOption (ectx_item * expr)%type :=
+  match e with
+  | App _ (Val _)      => decomp_app_val e
+  | App _ _            => decomp_app_expr e
+  | UnOp _ _           => decomp_unop e
+  | BinOp _ _ (Val _)  => decomp_binop_val e
+  | BinOp _ _ _        => decomp_binop_expr e
+  | If _ _ _           => decomp_if e
+  | Pair _ (Val _)     => decomp_pair_val e
+  | Pair _ _           => decomp_pair_expr e
+  | Fst _              => decomp_fst e
+  | Snd _              => decomp_snd e
+  | InjL _             => decomp_injl e
+  | InjR _             => decomp_injr e
+  | Case _ _ _         => decomp_case e
+  | AllocN _ (Val _)   => decomp_alloc_val e
+  | AllocN _ _         => decomp_alloc_expr e
+  | Load _             => decomp_load e
+  | Store _ (Val _)    => decomp_store_val e
+  | Store _ _          => decomp_store_expr e
+  | AllocTape _        => decomp_alloctape e
+  | Rand _ (Val _)     => decomp_rand_val e
+  | Rand _ _           => decomp_rand_expr e
+  | URand _            => decomp_urand e
+  | Tick _             => decomp_tick e
+  | _                  => decomp_stuck e
+  end.
+
+
+Lemma decomp_item_def_meas : measurable_fun setT decomp_item_def.
+(* Same covering argument as fill, basically. *)
+Admitted.
+
 Fixpoint height (e : expr) : nat :=
   match e with
   | Val _ => 1
@@ -1073,11 +1351,9 @@ Lemma expr_ord_wf : well_founded expr_ord.
 Proof. red; intro; eapply expr_ord_wf'; eauto. Defined.
 
 
-
-
 (* TODO: this proof is slow, but I do not see how to make it faster... *)
 (* TODO: Uncomment the slow proof *)
-Lemma decomp_expr_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e.
+Lemma decomp_expr_ord Ki e e' : decomp_item_def e = Some (Ki, e') → expr_ord e' e.
 Proof. Admitted.
 (*
   rewrite /expr_ord /decomp_item.
@@ -1085,7 +1361,7 @@ Proof. Admitted.
 Qed. *)
 
 Lemma decomp_fill_item Ki e :
-  to_val e = None → decomp_item (fill_item (Ki, e)) = Some (Ki, e).
+  to_val e = None → decomp_item_def (fill_item (Ki, e)) = Some (Ki, e).
 Proof. Admitted.
 (*  Proof. destruct Ki ; simpl ; by repeat destruct_match. Qed. *)
 
@@ -1106,7 +1382,8 @@ Local Open Scope classical_set_scope.
 
 (** TODO: I'm pretty sure I could do this, but I want to be sure I dont't need it
  to be a measurable function (ectx_item x expr) -> expr first. That would involve putting
- a measure on ectx_item, which is not hard. *)
+ a measure on ectx_item, which is not hard.
 Definition fill_item_mf (K : ectx_item) : measurable_map expr expr.
 Admitted.
 (*   := m_discr (fill_item K : <<discr expr>> -> <<discr expr>>).  *)
+*)

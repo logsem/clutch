@@ -2926,6 +2926,7 @@ Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
   fill_item (Ki1, e1) = fill_item (Ki2, e2) → Ki1 = Ki2.
 Proof. destruct Ki2, Ki1. (*  naive_solver eauto with f_equal. Qed. *) Admitted.
 
+(*
 Definition meas_lang_mixin :
   @MeasEctxiLanguageMixin _ _ _ expr val state ectx_item
     of_val to_val fill_item_mf decomp_item expr_ord head_stepM_def.
@@ -2944,15 +2945,16 @@ Proof.
   - admit.
   - admit.
 Admitted.
+*)
 
 End meas_lang.
 
 (** Language *)
 
-
+(*
 Canonical Structure meas_ectxi_lang := MeasEctxiLanguage meas_lang.head_stepM meas_lang.meas_lang_mixin.
 Canonical Structure meas_ectx_lang := MeasEctxLanguageOfEctxi meas_ectxi_lang.
 Canonical Structure meas_lang := MeasLanguageOfEctx meas_ectx_lang.
-
+*)
 (* Prefer meas_lang names over ectx_language names. *)
 Export meas_lang.
