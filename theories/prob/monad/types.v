@@ -39,6 +39,7 @@ Reserved Notation "T .-giry.-measurable"
 *)
 
 
+(*
 (** ********** Measurable Functions ********** **)
 (* Adding measurable functions to the hierarchy allows us to avoid
    excessive proofs of measurability. *)
@@ -52,7 +53,6 @@ HB.mixin Record isMeasurableMap d1 d2 (T1 : measurableType d1) (T2 : measurableT
 #[short(type=measurable_map)]
 HB.structure Definition MeasurableMap {d1} {d2} T1 T2 :=
   {f of @isMeasurableMap d1 d2 T1 T2 f}.
-
 
 (* FIXME: Builder for measurableFun to RealType? Or does this go automatically?  *)
 
@@ -75,6 +75,8 @@ Section measurability_lemmas.
     d1.-measurable S1 -> d2.-measurable S2 ->  *)
 
 End measurability_lemmas.
+*)
+
 
 (*
 (** ********** Borel space on extended Reals ********** **)
@@ -231,7 +233,6 @@ End giryNotation.
 Reserved Notation "'<<discr' G '>>'"
   (at level 2, format "'<<discr'  G  '>>'").
 
-
 Section discrete_space.
   Local Open Scope classical_set_scope.
 
@@ -314,7 +315,7 @@ Proof. eapply sigma_algebraC. Qed.
 
 HB.instance Definition _ := @isMeasurable.Build
   (sigma_display option_cyl)
-  option_T
+  (option T1)
   <<s option_cyl>>
   (@sigma_algebra0 _ setT option_cyl)
   option_meas_obligation
@@ -322,30 +323,24 @@ HB.instance Definition _ := @isMeasurable.Build
 
 End Option.
 
-Definition MOption {d1} (T : measurableType d1) : measurableType (@option_cyl d1 T).-sigma := option_T.
-
-Definition MNone {d1} {T : measurableType d1} : MOption T := None.
-Definition MSome {d1} {T : measurableType d1} : T -> MOption T := Some.
-
-Lemma MSome_measurable {d1} {T : measurableType d1} : measurable_fun setT (MSome : T -> MOption T).
+Lemma Some_measurable {d1} {T : measurableType d1} : measurable_fun setT (Some : T -> option T).
 Proof. Admitted.
-Hint Resolve MSome_measurable : measlang.
+Hint Resolve Some_measurable : measlang.
 
 (* Shapes? *)
 
-Definition 𝜋_MSome_v {d1} {T : measurableType d1} (k : MOption T) : T := match k with | Some v => v | _ => point end.
-Definition MOption_cov_Some {d1} {T : measurableType d1} : set (MOption T) := [set e | exists x, e = Some x].
-Definition MOption_cov_None {d1} {T : measurableType d1} : set (MOption T) := [set e | e = None].
-Lemma MOption_cov_Some_meas {d1} {T : measurableType d1} : measurable (MOption_cov_Some : set (MOption T)).
+Definition 𝜋_Some_v {d1} {T : measurableType d1} (k : option T) : T := match k with | Some v => v | _ => point end.
+Definition option_cov_Some {d1} {T : measurableType d1} : set (option T) := [set e | exists x, e = Some x].
+Definition option_cov_None {d1} {T : measurableType d1} : set (option T) := [set e | e = None].
+Lemma option_cov_Some_meas {d1} {T : measurableType d1} : measurable (option_cov_Some : set (option T)).
 Proof. Admitted.
-Hint Resolve MOption_cov_Some_meas : measlang.
-Lemma MOption_cov_None_meas {d1} {T : measurableType d1} : measurable (MOption_cov_None : set (MOption T)).
+Hint Resolve option_cov_Some_meas : measlang.
+Lemma option_cov_None_meas {d1} {T : measurableType d1} : measurable (option_cov_None : set (option T)).
 Proof. Admitted.
-Hint Resolve MOption_cov_None_meas : measlang.
-Lemma 𝜋_MSome_v_meas {d1} {T : measurableType d1} (k : MOption T) : measurable_fun (MOption_cov_Some : set (MOption T)) 𝜋_MSome_v.
+Hint Resolve option_cov_None_meas : measlang.
+Lemma 𝜋_Some_v_meas {d1} {T : measurableType d1} (k : option T) : measurable_fun (option_cov_Some : set (option T)) 𝜋_Some_v.
 Proof. Admitted.
-Hint Resolve 𝜋_MSome_v_meas : measlang.
-
+Hint Resolve 𝜋_Some_v_meas : measlang.
 
 Section List.
 
@@ -368,9 +363,9 @@ Fixpoint list_ML (k : list_S) : Prop :=
 
 Definition list_cyl : set (set list_T) := image list_ML list_ST.
 
-HB.instance Definition _ := gen_eqMixin list_T.
-HB.instance Definition _ := gen_choiceMixin list_T.
-HB.instance Definition _ := isPointed.Build list_T [::].
+HB.instance Definition _ := gen_eqMixin (list T1).
+HB.instance Definition _ := gen_choiceMixin (list T1).
+HB.instance Definition _ := isPointed.Build (list T1) [::].
 
 (* FIXME: Remove *)
  Lemma list_meas_obligation :
@@ -379,39 +374,34 @@ Proof. eapply sigma_algebraC. Qed.
 
 HB.instance Definition _ := @isMeasurable.Build
   (sigma_display list_cyl)
-  list_T
+  (list T1)
   <<s list_cyl>>
   (@sigma_algebra0 _ setT list_cyl)
   list_meas_obligation
   (@sigma_algebra_bigcup _ setT list_cyl).
-
 End List.
 
-Definition MList {d1} (T : measurableType d1) : measurableType (@list_cyl d1 T).-sigma := list_T.
+Definition consU {d1} {T : measurableType d1} : (T * list T)%type -> list T := uncurry List.cons.
 
-Definition MEmpty {d1} {T : measurableType d1} : MList T := [::].
-Program Definition MCons {d1} {T : measurableType d1} : (T * MList T)%type -> MList T :=
-  fun x => List.cons (fst x) (snd x).
-
-Lemma MCons_measurable {d1} {T : measurableType d1} : measurable_fun setT (MCons: (T * MList T)%type -> MList T).
+Lemma cons_measurable {d1} {T : measurableType d1} : measurable_fun setT (consU : (T * list T)%type -> list T).
 Proof. Admitted.
-Hint Resolve MCons_measurable : measlang.
+Hint Resolve cons_measurable : measlang.
 
 (* Shapes? *)
 
-Definition 𝜋_MCons_v {d1} {T : measurableType d1} (k : MList T) : T := match k with | (v :: _) => v | _ => point end.
-Definition 𝜋_MCons_vs {d1} {T : measurableType d1} (k : MList T) : MList T := match k with | (_ :: v) => v | _ => point end.
-Definition MList_cov_Cons {d1} {T : measurableType d1} : set (MList T) := [set e | exists x y, e = x :: y].
-Definition MList_cov_None {d1} {T : measurableType d1} : set (MList T) := [set e | e = [::]].
-Lemma MList_cov_Cons_meas {d1} {T : measurableType d1} : measurable (MList_cov_Cons : set (MList T)).
+Definition 𝜋_cons_v {d1} {T : measurableType d1} (k : list T) : T := match k with | (v :: _) => v | _ => point end.
+Definition 𝜋_cons_vs {d1} {T : measurableType d1} (k : list T) : list T := match k with | (_ :: v) => v | _ => point end.
+Definition list_cov_cons {d1} {T : measurableType d1} : set (list T) := [set e | exists x y, e = x :: y].
+Definition list_cov_empty {d1} {T : measurableType d1} : set (list T) := [set e | e = [::]].
+Lemma list_cov_cons_meas {d1} {T : measurableType d1} : measurable (list_cov_cons : set (list T)).
 Proof. Admitted.
-Hint Resolve MList_cov_Cons_meas : measlang.
-Lemma MList_cov_None_meas {d1} {T : measurableType d1} : measurable (MList_cov_None : set (MList T)).
+Hint Resolve list_cov_cons_meas : measlang.
+Lemma list_cov_empty_meas {d1} {T : measurableType d1} : measurable (list_cov_empty : set (list T)).
 Proof. Admitted.
-Hint Resolve MList_cov_None_meas : measlang.
-Lemma 𝜋_MCons_v_meas {d1} {T : measurableType d1} (k : MList T) : measurable_fun (MList_cov_Cons : set (MList T)) 𝜋_MCons_v.
+Hint Resolve list_cov_empty_meas : measlang.
+Lemma 𝜋_cons_v_meas {d1} {T : measurableType d1} (k : list T) : measurable_fun (list_cov_cons : set (list T)) 𝜋_cons_v.
 Proof. Admitted.
-Hint Resolve 𝜋_MCons_v_meas : measlang.
-Lemma 𝜋_MCons_vs_meas {d1} {T : measurableType d1} (k : MList T) : measurable_fun (MList_cov_Cons : set (MList T)) 𝜋_MCons_vs.
+Hint Resolve 𝜋_cons_v_meas : measlang.
+Lemma 𝜋_cons_vs_meas {d1} {T : measurableType d1} (k : list T) : measurable_fun (list_cov_cons : set (list T)) 𝜋_cons_vs.
 Proof. Admitted.
-Hint Resolve 𝜋_MCons_vs_meas : measlang.
+Hint Resolve 𝜋_cons_vs_meas : measlang.
