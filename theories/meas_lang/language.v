@@ -13,21 +13,24 @@ Notation giryM := (giryM (R := R)).
 Section language_mixin.
   Local Open Scope classical_set_scope.
 
+  (** Measurable types for the language *)
   Context {d_expr d_val d_state : measure_display}.
   Context {expr : measurableType d_expr}.
   Context {val : measurableType d_val}.
   Context {state : measurableType d_state}.
 
+  (** Measurable val/expr coercions *)
   Context (of_val : val → expr).
   Context (of_val_meas : measurable_fun setT of_val).
-
-  Context (to_val : expr → MOption val).
+  Context (to_val : expr → option val).
   Context (to_val_meas : measurable_fun setT to_val).
 
+  (** Measurable step *)
   Context (prim_step : (expr * state)%type -> (giryM (expr * state)%type)).
   Context (prim_step_meas : measurable_fun setT prim_step).
 
   Record MeasLanguageMixin := {
+    (** val/expr coercions are partial inverses *)
     mixin_to_of_val v : to_val (of_val v) = Some v;
     mixin_of_to_val e v : to_val e = Some v → of_val v = e;
 
@@ -39,36 +42,21 @@ Section language_mixin.
   }.
 End language_mixin.
 
-
 Structure meas_language := MeasLanguage {
   d_expr : measure_display;
   d_val : measure_display;
   d_state : measure_display;
-
   expr : measurableType d_expr;
   val : measurableType d_val;
   state : measurableType d_state;
-
   of_val : val → expr;
   of_val_meas : measurable_fun setT of_val;
-  to_val : expr → MOption val;
+  to_val : expr → option val;
   to_val_meas : measurable_fun setT to_val;
-
   prim_step : (expr * state)%type -> (giryM (expr * state)%type);
   prim_step_meas : measurable_fun setT prim_step;
-
   language_mixin : MeasLanguageMixin of_val to_val prim_step
 }.
-
-(*
-(** Register MCA products into measurableMap hierarchy *)
-
-HB.instance Definition _ {d1 d2 } {T1 : measurableType d1} {T2 : measurableType d2} :=
-  isMeasurableMap.Build _ _ (T1 * T2)%type T1 fst measurable_fst.
-
-HB.instance Definition _ {d1 d2 } {T1 : measurableType d1} {T2 : measurableType d2} :=
-  isMeasurableMap.Build _ _ (T1 * T2)%type T2 snd measurable_snd.
-*)
 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
@@ -84,10 +72,10 @@ Canonical Structure exprO Λ := leibnizO (expr Λ).
 
 Definition cfg (Λ : meas_language) := (expr Λ * state Λ)%type.
 
-Definition fill_lift {Λ} (K : measurable_map (expr Λ) (expr Λ)) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
-  λ c, (K (fst c), (snd c)).
+Program Definition fill_lift {Λ} (K : (expr Λ) -> (expr Λ)) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
+  mProd (ssrfun.comp K fst) snd.
 
-Local Lemma fill_lift_measurable {Λ} (K : measurable_map (expr Λ) (expr Λ)) :
+Local Lemma fill_lift_measurable {Λ} (K : (expr Λ) -> (expr Λ)) (HK : measurable_fun setT K) :
   @measurable_fun _ _ (expr Λ * state Λ)%type (expr Λ * state Λ)%type setT (fill_lift K).
 Proof. Admitted.
 (*
@@ -107,18 +95,18 @@ HB.instance Definition _ {Λ} (K : measurable_map (expr Λ) (expr Λ)) :=
   isMeasurableMap.Build _ _ (expr Λ * state Λ)%type (expr Λ * state Λ)%type (fill_lift K) (fill_lift_measurable K).
 *)
 
-Global Instance inj_fill_lift {Λ : meas_language} (K : measurable_map (expr Λ) (expr Λ)) :
+Global Instance inj_fill_lift {Λ : meas_language} (K : (expr Λ -> expr Λ)) :
   Inj (=) (=) K →
   Inj (=) (=) (fill_lift K).
 Proof. by intros ? [] [] [=->%(inj _) ->]. Qed.
 
-Class MeasLanguageCtx {Λ : meas_language} (K : measurable_map (expr Λ) (expr Λ)) := {
+Class MeasLanguageCtx {Λ : meas_language} (K : (expr Λ) -> (expr Λ)) (HK : measurable_fun setT K) := {
   fill_not_val e :
     to_val e = None → to_val (K e) = None;
   fill_inj : Inj (=) (=) K;
   fill_dmap e1 σ1 :
     to_val e1 = None →
-    prim_step ((K e1), σ1) = giryM_zero (*  FIXME: giryM_map ((uncurry fill_lift) K) (prim_step (e1, σ1)) *)
+    prim_step ((K e1), σ1) = giryM_map (fill_lift_measurable K HK) (prim_step (e1, σ1))
 }.
 
 #[global] Existing Instance fill_inj.
@@ -164,7 +152,7 @@ Section language.
   Qed.
   *)
 
-  Lemma fill_step e σ `{!MeasLanguageCtx K} :
+  Lemma fill_step e σ `{!MeasLanguageCtx K HK} :
     (¬ is_zero (prim_step (e, σ))) ->
     (¬ is_zero (prim_step (K e, σ))).
   Proof.
