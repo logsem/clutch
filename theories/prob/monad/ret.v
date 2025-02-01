@@ -22,9 +22,9 @@ Section giry_ret.
   Notation giryM := (giryM (R := R)).
   Context {d} {T : measurableType d}.
 
-  Local Definition giryM_ret_def : T -> giryM T := fun t0 => @dirac _ T t0 _.
+  Definition giryM_ret : T -> giryM T := fun t0 => @dirac _ T t0 _.
 
-  Local Lemma giry_ret_measurable : @measurable_fun _ _ T (giryM T) setT giryM_ret_def.
+  Lemma giry_ret_measurable : @measurable_fun _ _ T (giryM T) setT giryM_ret.
   Proof.
     apply measurable_evals_iff_measurable.
     rewrite /measurable_evaluations.
@@ -49,14 +49,8 @@ Section giry_ret.
     - apply measurable0.
   Qed.
 
-  HB.instance Definition _ :=
-    isMeasurableMap.Build _ _ T (giryM T) giryM_ret_def giry_ret_measurable.
+  (** Public equality for ret *)
+  Lemma giryM_ret_eval (t : T) : forall z, giryM_ret t z = dirac t z.
+  Proof. auto. Qed.
 
 End giry_ret.
-
-(** Public definition for ret *)
-Definition giryM_ret (R : realType) {d} {T : measurableType d} : measurable_map T (@giryM R _ T) := giryM_ret_def.
-
-(** Public equality for ret *)
-Lemma giryM_ret_eval (R : realType) {d} {T : measurableType d} (t : T) : forall z, giryM_ret R t z = dirac t z.
-Proof. auto. Qed.

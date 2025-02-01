@@ -6,7 +6,7 @@ From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
-From clutch.prob.monad Require Export types eval compose integrate.
+From clutch.prob.monad Require Export types eval integrate.
 
 Import Coq.Logic.FunctionalExtensionality.
 

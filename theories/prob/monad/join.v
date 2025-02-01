@@ -6,7 +6,7 @@ From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
-From clutch.prob.monad Require Export types eval compose integrate.
+From clutch.prob.monad Require Export types eval integrate.
 
 Import Coq.Logic.FunctionalExtensionality.
 
@@ -24,7 +24,7 @@ Section giryM_join_definition.
   Local Open Scope classical_set_scope.
 
   (* Specification of giryM_join as an integral *)
-  Local Definition giryM_join_def {d} {T : measurableType d} (m : giryM (giryM T)) : (set T -> \bar R)
+  Local Definition giryM_join_def (m : giryM (giryM T)) : (set T -> \bar R)
     := (fun S => \int[m]_μ (μ S))%E.
 
   Section giryM_join_measure_def.
@@ -165,21 +165,20 @@ Section giryM_join_definition.
   End giryM_join_measure_def.
 
   (* Workaround for HB bindings issue *)
-  Definition giryM_join_def' : giryM (giryM T) -> (giryM T) := giryM_join_def.
-
+  Definition giryM_join : giryM (giryM T) -> (giryM T) := giryM_join_def.
 
   (* The measurable evaluation function which computes the giryM_join_def on measurable sets *)
-  Definition giryM_join_meas_map_pre {S : set T} (HS : d.-measurable S) : measurable_map (giryM (giryM T)) (\bar R) :=
-    @giryM_integrate R _ (giryM T) (giryM_eval R HS) (giryM_eval_nonneg HS).
+  Definition giryM_join_meas_map_pre {S : set T} (HS : d.-measurable S) : (giryM (giryM T)) -> (\bar R) :=
+    @giryM_integrate R _ (giryM T) (giryM_eval S).
 
   (* giryM_join_def equals the measurable evaluation function at each measruable set *)
   Lemma giryM_join_meas_map_pre_spec {S : set T} (HS : d.-measurable S) (m : giryM (giryM T)):
-      giryM_join_meas_map_pre HS m = giryM_join_def m S.
+      giryM_join_meas_map_pre HS m = giryM_join m S.
   Proof. by rewrite /giryM_join_meas_map_pre giryM_integrate_eval /giryM_join_def. Qed.
 
-
-  Lemma giryM_join_def'_measurable : @measurable_fun _ _ (giryM (giryM T)) (giryM T) setT giryM_join_def'.
+  Lemma giryM_join_def'_measurable : @measurable_fun _ _ (giryM (giryM T)) (giryM T) setT giryM_join.
   Proof.
+    (*
     apply measurable_if_measurable_evals.
     rewrite /giryM_join_def'/measurable_evaluations.
     intros S HS.
@@ -189,26 +188,13 @@ Section giryM_join_definition.
       by rewrite giryM_join_meas_map_pre_spec.
     }
     rewrite H1.
-    rewrite /giryM_join_meas_map_pre.
-    (* Broken by new mathcomp-analysis *)
-
+    rewrite /giryM_join_meas_map_pre. *)
   Admitted.
+
   (*
-    apply measurable_mapP.
-  Qed.
-   *)
-
-  HB.instance Definition _ :=
-    isMeasurableMap.Build _ _ (giryM (giryM T)) (giryM T) (giryM_join_def' : giryM (giryM T) -> (giryM T)) giryM_join_def'_measurable.
-
+  Lemma giryM_join_eval {R : realType} {d} {T : measurableType d} (m : giryM  (giryM T )) :
+    forall (S : set T), (giryM_join m S = \int[m]_μ (μ S))%E.
+  Proof. done. Qed.
+*)
 End giryM_join_definition.
 
-(** Public definition of join*)
-Definition giryM_join {R : realType} {d} {T : measurableType d} :
-    measurable_map (@giryM R _ (@giryM R _ T)) (@giryM R _ T) :=
-  giryM_join_def'.
-
-(** Public equation for join*)
-Lemma giryM_join_eval {R : realType} {d} {T : measurableType d} (m : @giryM R _ (@giryM R _ T)) :
-  forall S, (giryM_join m S = \int[m]_μ (μ S))%E.
-Proof. done. Qed.

@@ -19,21 +19,12 @@ Section discrete_space_mapout.
   Context {d2} {T1 : pointedType} {T2 : measurableType d2}.
   Local Open Scope classical_set_scope.
 
-  Local Definition m_mapout_def (f : T1 -> T2) : <<discr T1>> -> T2 := f.
+  Local Definition m_discr (f : T1 -> T2) : <<discr T1>> -> T2 := f.
 
-  Lemma discr_mapout_measurable (f : T1 -> T2) : (measurable_fun setT (m_mapout_def f)).
+  Lemma m_discr_measurable (f : T1 -> T2) : (measurable_fun setT (m_discr f)).
   Proof. rewrite /measurable_fun. intros. by rewrite /measurable/=/discr_meas/=. Qed.
 
-  HB.instance Definition  _ (f : T1 -> T2) :=
-    isMeasurableMap.Build _ _ <<discr T1>> T2 (m_mapout_def f) (discr_mapout_measurable f).
+  Definition m_discr_eval (f : T1 -> T2) : forall t : T1, m_discr f t = f t.
+  Proof. done. Qed.
+
 End discrete_space_mapout.
-
-(** Public definition for identity function *)
-Local Open Scope classical_set_scope.
-Definition m_discr {d} {T1 : pointedType} {T2 : measurableType d} (f : T1 -> T2) : measurable_map <<discr T1>> T2 :=
-  m_mapout_def f.
-
-(** Public equality for id *)
-Definition m_discr_eval {d} {T1 : pointedType} {T2 : measurableType d} (f : T1 -> T2) :
-    forall t : T1, m_discr f t = f t.
-Proof. done. Qed.

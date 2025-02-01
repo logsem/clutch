@@ -21,35 +21,30 @@ Section giryM_eval.
   Notation giryM := (giryM (R := R)).
   Context {d} {T : measurableType d}.
 
-  Local Definition giryM_eval_def (S : set T) (HS : measurable S) : giryM T -> \bar R := (fun μ => μ S).
+  Context (S : set T).
+  Context (HS : measurable S).
 
-  Local Lemma giryM_eval_def_measurable (S : set T) (HS : measurable S) : measurable_fun setT (giryM_eval_def HS).
-  Proof. by apply base_eval_measurable. Qed.
+  Definition giryM_eval : giryM T -> \bar R := (fun μ => μ S).
 
-  HB.instance Definition _ (S : set T) (HS : measurable S) :=
-    isMeasurableMap.Build _ _ (giryM T) (\bar R) (giryM_eval_def HS) (giryM_eval_def_measurable HS).
+  Lemma giryM_eval_meas : measurable_fun setT giryM_eval.
+  Proof using HS R S T d. by apply base_eval_measurable. Qed.
+
+  (** Public equality for eval *)
+  Lemma giryM_eval_eval : forall μ, giryM_eval μ = μ S.
+  Proof. done. Qed.
+
+  (** Eval is nonnegative *)
+  Lemma giryM_eval_nonneg : forall x : giryM T, (0%R <= giryM_eval x)%E.
+  Proof.
+    intro μ.
+    rewrite /giryM_eval_eval.
+    apply (measure_ge0 μ S).
+  Qed.
 
 End giryM_eval.
 
-(** Public definition for eval *)
-Definition giryM_eval (R : realType) {d} {T : measurableType d} {S : set T} (HS : measurable S) :
-    measurable_map (giryM T) (\bar R) :=
-  (@giryM_eval_def R _ T S HS).
-
-(** Public equality for eval *)
-Lemma giryM_eval_eval (R : realType) {d} {T : measurableType d} {S : set T} (HS : measurable S) :
-  forall μ, giryM_eval R HS μ = μ S.
-Proof. done. Qed.
 
 
-(** Eval is nonnegative *)
-Lemma giryM_eval_nonneg (R : realType) {d} {T : measurableType d} {S : set T} (HS : measurable S) :
-  forall x : giryM T, (0%R <= giryM_eval R HS x)%E.
-Proof.
-  intro μ.
-  rewrite /giryM_eval_eval.
-  apply (measure_ge0 μ S).
-Qed.
 
 
 Section giryM_eval_char.
@@ -77,7 +72,7 @@ Section giryM_eval_char.
 
     apply (@measurable_comp _ _ _ _ _ _ setT (@^~ S : giryM T2 -> \bar R)); auto.
     { apply subsetT. }
-    apply (giryM_eval_def_measurable HS).
+    apply (giryM_eval_meas HS).
   Qed.
 
 
@@ -136,39 +131,8 @@ Section giryM_eval_char.
     apply Hm.
   Qed.
 
-
   (** A function A -> giryM B is measurable iff its evaluation function at every S is measurable. *)
   Lemma measurable_evals_iff_measurable : measurable_evaluations f <-> measurable_fun setT f.
   Proof. split; [apply measurable_if_measurable_evals | apply measurable_evals_if_measurable]. Qed.
 
 End giryM_eval_char.
-
-
-(* TODO: Fix whatever is happening here, so that we can build measurable maps of type
-   A -> giryM R B by building measurable evals .*)
-(*
-HB.factory Record GiryMeasurableEvals {R : realType} {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> giryM R T2) :=
-  { meas_evaluationsP : measurable_evaluations f }.
-*)
-
-    (* Probably want to use measurable_evaluations as a builder for measuable_fun now, so I can
-       instansiate THAT and get the measurable fun hierarchy bit automatically (by this lemma) *)
-
-    (* I don't think we ever care about measruable_evaluations as a class (still useful as a lemma
-       so I won't add a mixin + factory going the other direction )*)
-
-    (* FIXME: Needs to be done outside of a section. Uncomment below (it works) and reorganize. *)
-
-
-(*
-
-HB.builders Context R d1 d2 T1 T2 f of @GiryMeasurableEvals R d1 d2 T1 T2 f.
-  Lemma measurable_subproof: measurable_fun setT f.
-  Proof. apply measurable_evals_iff_measurable, meas_evaluationsP. Qed.
-
-  HB.instance Definition _ :=
-      isMeasurableMap.Build _ _ T1 (giryM R T2) f measurable_subproof.
-
-HB.end.
-
-*)

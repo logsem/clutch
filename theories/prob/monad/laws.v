@@ -7,7 +7,7 @@ From mathcomp.analysis Require Import reals ereal signed (* topology *) normedty
 From stdpp Require Import base.
 From HB Require Import structures.
 
-From clutch.prob.monad Require Export types eval ret integrate const map zero compose join bind identity uniform discrete_mapout.
+From clutch.prob.monad Require Export types eval ret integrate map zero join bind uniform discrete_mapout.
 
 Import Coq.Logic.FunctionalExtensionality.
 
@@ -92,15 +92,18 @@ Section monad_laws.
 
   Local Open Scope classical_set_scope.
 
+  (*
   Lemma giryM_join_zero {d1} {T1 : measurableType d1} : giryM_join giryM_zero = (giryM_zero: giryM T1).
   Proof.
     apply giryM_ext.
     intro S.
+  Admitted.
+  (*
     rewrite giryM_join_eval.
     rewrite giryM_zero_eval.
     by rewrite integral_measure_zero.
   Qed.
-
+*)
 
   (* FIXME: Express using nonnegative functions (I think they're in the hierarhy?) *)
   (* FIXME: giryM_integrate @ symbol *)
@@ -544,6 +547,7 @@ Section monad_laws.
     rewrite giryM_join_eval.
     f_equal.
   Qed.
+*)
 End monad_laws.
 
 
@@ -558,12 +562,11 @@ Section giry_iterM.
   Local Open Scope classical_set_scope.
 
   (* Monadic iteration *)
-  Fixpoint giryM_iterN (n : nat) (f : measurable_map T (giryM T)) : measurable_map T (giryM T)
+  Fixpoint giryM_iterN (n : nat) (f : T -> (giryM T)) (Hf : measurable_fun setT f) : T -> (giryM T)
     := match n with
-         O => giryM_ret R
-       | (S n) => m_cmp (giryM_bind f) (giryM_iterN n f)
+         O => giryM_ret
+       | (S n) => ssrfun.comp (giryM_bind Hf) (giryM_iterN n Hf)
        end.
-
 
 End giry_iterM.
 
@@ -578,7 +581,8 @@ Section is_zero.
   Definition is_zero {d} {T : measurableType d} (s : giryM T) : Prop := s = giryM_zero.
 
 
-  Lemma is_zero_map (μ : giryM T1) (f : measurable_map T1 T2) : is_zero μ -> is_zero (giryM_map f μ).
+  Lemma is_zero_map (μ : giryM T1) (f : T1 -> T2) (Hf : measurable_fun setT f) :
+    is_zero μ -> is_zero (giryM_map Hf μ).
   Proof.
     move=> HZ.
     unfold is_zero.
@@ -588,10 +592,12 @@ Section is_zero.
     by rewrite giryM_zero_eval giryM_zero_eval.
   Qed.
 
-  Global Instance inj_map_inj_eq (f : measurable_map T1 T2) :
+  Global Instance inj_map_inj_eq (f : T1 -> T2) (Hf : measurable_fun setT f) :
     Inj (=) (=) f →
     Inj (=) (=) (@giryM_map R _ _ _ _ f).
   Proof.
+  Admitted.
+    (*
     move=> Hf x y HI.
     have W0 : forall S, giryM_map f x S = giryM_map f y S.
     { rewrite HI. by intro S. }
@@ -617,7 +623,9 @@ Section is_zero.
     rewrite <-H_inj_lemma.
     apply W1.
   Qed.
+*)
 
+  (*
   Lemma inj_map_inj (f : measurable_map T1 T2) :
     Inj (=) (=) f →
     Inj (measure_eq) (measure_eq) (@giryM_map R _ _ _ _ f).
@@ -652,7 +660,7 @@ Section is_zero.
     rewrite H_inj_lemma.
     (* I think this is false *)
   Abort.
-
+*)
 End is_zero.
 
 

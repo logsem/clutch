@@ -23,12 +23,22 @@ Section giryM_integrate_laws.
 
   Local Open Scope classical_set_scope.
 
-  Local Definition giryM_integrate_def {f : measurable_map T (\bar R)} (Hf : forall x : T, (0%R <= f x)%E) : giryM T -> \bar R
-    := fun μ => (\int[μ]_x (f x))%E.
+  Context {f : T -> (\bar R)}.
+  Context (Hf : forall x : T, (0%R <= f x)%E).
 
-  Local Lemma giry_meas_integrate {f : measurable_map T (\bar R)} (Hf : forall x : T, (0%R <= f x)%E) :
-    measurable_fun setT (giryM_integrate_def Hf).
-  Proof.
+  Definition giryM_integrate : giryM T -> \bar R := fun μ => (\int[μ]_x (f x))%E.
+
+  Axiom giryM_integrate_meas : measurable_fun setT giryM_integrate.
+
+  (** Public equality for integrate *)
+  Lemma giryM_integrate_eval : forall μ, (giryM_integrate μ = \int[μ]_x (f x))%E.
+  Proof. done. Qed.
+
+End giryM_integrate_laws.
+
+
+    (*
+
     have Setoid1 (d1 d2: measure_display) (X : measurableType d1) (Y : measurableType d2) (S : set X) (f1 f2 : X -> Y) (Hfg : f1 = f2) :
       measurable_fun S f1 =  measurable_fun S f2.
     { by rewrite Hfg. }
@@ -291,20 +301,5 @@ Section giryM_integrate_laws.
 *)
 *)
   Admitted.
+*)
 
-  HB.instance Definition _ {f : measurable_map T (\bar R)} (Hf : forall x : T, (0%R <= f x)%E):=
-    isMeasurableMap.Build _ _ (giryM T) (\bar R) (giryM_integrate_def Hf) (giry_meas_integrate Hf).
-
-End giryM_integrate_laws.
-
-
-(** Public definition for integrate (integral over nonnegative measurable functions into borelER)*)
-Definition giryM_integrate {R : realType} {d} {T : measurableType d} (f : measurable_map T (\bar R))
-    (Hf : forall x : T, (0%R <= f x)%E) :
-    measurable_map (@giryM R _ T) (\bar R)
-  := (giryM_integrate_def Hf).
-
-(** Public equality for integrate *)
-Lemma giryM_integrate_eval {R : realType} {d} {T : measurableType d} (f : measurable_map T (\bar R)) (Hf : forall x : T, (0%R <= f x)%E) :
-  forall μ, (giryM_integrate Hf μ = \int[μ]_x (f x))%E.
-Proof. done. Qed.

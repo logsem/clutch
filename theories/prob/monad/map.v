@@ -25,58 +25,53 @@ Section giryM_map_definition.
 
   Local Open Scope classical_set_scope.
 
-  (* FIXME: This is an attempt to eliminate a reverse coercion. Delete or rename once done *)
-  (* Speficially, this function takes in a measurable_map instead of a measurable_fun *)
-  Local Definition giryM_map_def (f : measurable_map T1 T2) (m : giryM T1) : set T2 -> \bar R :=
+  Context (f : T1 -> T2).
+  Context (Hf : measurable_fun setT f).
+  Context (m : giryM T1).
+
+  Local Definition giryM_map_def : set T2 -> \bar R :=
     fun A => m (f @^-1` A).
 
-  Local Lemma giryM_map_def_pushforward_equiv (f : measurable_map T1 T2) (m : giryM T1) (S : set T2) :
-      giryM_map_def f m S = pushforward m (@measurable_mapP _ _ _ _ f) S.
+  Local Lemma giryM_map_def_pushforward_equiv (S : set T2) :
+      giryM_map_def S = pushforward m Hf S.
   Proof. by rewrite /pushforward/giryM_map_def. Qed.
 
-  Local Lemma giryM_map_def_0 (f : measurable_map T1 T2) (m : giryM T1) : giryM_map_def f m set0 = 0%E.
-  Proof.
+  Local Lemma giryM_map_def_0 : giryM_map_def set0 = 0%E.
+  Proof using Hf R T1 T2 d1 d2 f m.
     rewrite giryM_map_def_pushforward_equiv.
-    apply (measure0 (pushforward m (@measurable_mapP _ _ _ _ f))).
+    apply (measure0 (pushforward m Hf)).
   Qed.
 
-  Local Lemma giryM_map_def_ge0 (f : measurable_map T1 T2) (m : giryM T1) A : (0 <= giryM_map_def f m A)%E.
-  Proof.
+  Local Lemma giryM_map_def_ge0 A : (0 <= giryM_map_def A)%E.
+  Proof using Hf R T1 T2 d1 d2 f m.
     rewrite giryM_map_def_pushforward_equiv.
-    apply (measure_ge0 (pushforward m (@measurable_mapP _ _ _ _ f))).
+    apply (measure_ge0 (pushforward m Hf)).
   Qed.
 
-  Local Lemma giryM_map_def_semi_additive (f : measurable_map T1 T2) (m : giryM T1) : semi_sigma_additive (giryM_map_def f m).
-  Proof.
-    rewrite (functional_extensionality _ _ (giryM_map_def_pushforward_equiv f m)).
-    apply (@measure_semi_sigma_additive _ _ _ (pushforward m (@measurable_mapP _ _ _ _ f))).
+  Local Lemma giryM_map_def_semi_additive : semi_sigma_additive giryM_map_def.
+  Proof using Hf R T1 T2 d1 d2 f m.
+    rewrite (functional_extensionality _ _ giryM_map_def_pushforward_equiv).
+    apply (@measure_semi_sigma_additive _ _ _ (pushforward m Hf)).
   Qed.
 
-  Local Lemma giryM_map_def_setT  (f : measurable_map T1 T2) (m : giryM T1) :
-    (giryM_map_def f m setT <= 1)%E.
-  Proof.
+  Local Lemma giryM_map_def_setT : (giryM_map_def setT <= 1)%E.
+  Proof using Hf R T1 T2 d1 d2 f m.
     rewrite giryM_map_def_pushforward_equiv.
     rewrite /pushforward.
     rewrite preimage_setT.
     apply sprobability_setT.
   Qed.
 
-  HB.instance Definition _  (f : measurable_map T1 T2) (m : giryM T1)
+  HB.instance Definition _
     := isMeasure.Build _ _ R
-         (giryM_map_def f m)
-         (giryM_map_def_0 f m)
-         (giryM_map_def_ge0 f m)
-         (@giryM_map_def_semi_additive f m).
+         (giryM_map_def )
+         (giryM_map_def_0 )
+         (giryM_map_def_ge0 )
+         (@giryM_map_def_semi_additive ).
 
-  HB.instance Definition _ (f : measurable_map T1 T2) (m : giryM T1) :=
-    Measure_isSubProbability.Build _ _ _ (giryM_map_def f m) (giryM_map_def_setT f m).
+  HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ giryM_map_def giryM_map_def_setT.
 
-
-  (* FIXME: I have to define this again because of https://github.com/math-comp/hierarchy-builder/issues/419
-     Can't use the partially applied giryM_map_def in the instance for measurable_map.
-   *)
-  Local Definition giryM_map_def' (f : measurable_map T1 T2) (m : giryM T1) : giryM T2 :=
-    giryM_map_def f m.
+  Definition giryM_map : giryM T2 := giryM_map_def.
 
   (*
   Local Lemma giryM_map_def_is_measurable (f : measurable_map T1 T2) :
@@ -111,10 +106,18 @@ Section giryM_map_definition.
   *)
 
 
+End giryM_map_definition.
 
-  Local Lemma giryM_map_def'_is_measurable (f : measurable_map T1 T2) :
-    @measurable_fun _ _ (giryM T1) (giryM T2) setT (giryM_map_def' f).
-  Proof.
+
+Section giryM_map.
+  Context `{R : realType}.
+  Notation giryM := (giryM (R := R)).
+  Context {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2}.
+
+  Lemma giryM_map_meas (f : T1 -> T2) (Hf : measurable_fun setT f) :
+    @measurable_fun _ _ (giryM T1) (giryM T2) setT (giryM_map Hf).
+  Proof.  Admitted.
+    (*
     apply measurable_if_measurable_evals.
     rewrite /measurable_evaluations.
     intros S HS.
@@ -127,7 +130,7 @@ Section giryM_map_definition.
     }
     simpl.
 
-
+*)
 
     (*
     apply measurable_if_pushfowrard_subset.
@@ -139,27 +142,17 @@ Section giryM_map_definition.
     rewrite /pushforward.
     rewrite /preimage.
      *)
-  Admitted.
 
-  HB.instance Definition _ (f : measurable_map T1 T2)  :=
-    isMeasurableMap.Build _ _ (giryM T1) (giryM T2)
-      (giryM_map_def' f)
-      (giryM_map_def'_is_measurable f).
+  (** Public equality for giryM_map *)
+  Lemma giryM_map_eval  (f : T1 -> T2) (Hf : measurable_fun setT f) :
+    forall μ S, (@giryM_map R _ _ _ _ f Hf μ) S = pushforward μ Hf S.
+  Proof.
+    intros μ S.
+    rewrite /giryM_map/giryM_map_def.
+    rewrite -giryM_map_def_pushforward_equiv.
+    simpl.
+    done.
+  Qed.
 
-End giryM_map_definition.
+End giryM_map.
 
-(** Public definition for giryM_map *)
-Definition giryM_map {R : realType} {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : measurable_map T1 T2) :
-    measurable_map (@giryM R _ T1) (@giryM R _ T2)
-  := giryM_map_def' f.
-
-(** Public equality for giryM_map *)
-Lemma giryM_map_eval {R : realType} {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : measurable_map T1 T2) :
-  forall μ S, (@giryM_map R _ _ _ _ f μ) S = pushforward μ (@measurable_mapP _ _ _ _ f) S.
-Proof.
-  intros μ S.
-  rewrite /giryM_map/giryM_map_def'.
-  rewrite -giryM_map_def_pushforward_equiv.
-  simpl.
-  done.
-Qed.

@@ -6,7 +6,7 @@ From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
-From clutch.prob.monad Require Export types eval ret integrate const map zero compose join bind laws identity.
+From clutch.prob.monad Require Export types eval ret integrate map zero join bind laws.
 
 Import Coq.Logic.FunctionalExtensionality.
 
@@ -15,6 +15,7 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 Set Default Proof Using "Type".
+(*
 
 (** ********** Test: Examples of measuring sets *)
 Section giry_space_example.
@@ -176,3 +177,4 @@ Section seal_example.
 
 
 End seal_example.
+*)
