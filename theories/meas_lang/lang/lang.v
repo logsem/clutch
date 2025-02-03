@@ -663,6 +663,24 @@ Section meas_semantics.
   Qed.
   Hint Resolve auxcov_allocN_meas : measlang.
 
+  Ltac subset_proof_simp_unfold :=
+    match goal with
+      | [ |- ∀ (a : expr_T) (b : state_pre), ?E ]        => move=>??//=
+      | [ |- ∀ (x : expr_pre), ((?A = ?B) -> ?E) ]       => move=>?->//=
+      | [ |- ∀ (x : val_pre), ((?A = ?B) -> ?E) ]        => move=>?->//=
+      | [ |- ∀ (x : base_lit_pre), ((?A = ?B) -> ?E) ]   => move=>?->//=
+      | [ |- ∀ x : @Measurable.sort default_measure_display TZ, ((?E = ?E1) → ?G)] => move=>?->//=
+      | [ |- ∀ (x : expr_pre), ?E ]                      => move=>?//=
+    end.
+
+  Ltac subset_proof_simp_destruct := move=> [++].
+
+  Ltac subset_proof_simp :=
+    try rewrite/subset//=;
+    move=>?;
+    repeat (repeat subset_proof_simp_destruct; subset_proof_simp_unfold).
+
+
   Lemma aux_allocN_Z_meas : measurable_fun auxcov_allocN aux_allocN_Z.
   Proof.
     unfold aux_allocN_Z.
@@ -670,42 +688,21 @@ Section meas_semantics.
     eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_LitIntU).
     3: by eauto with measlang.
     1: by eauto with measlang.
-    { rewrite /subset//=.
-      move=>?.
-      repeat move=>[++]; move=>??//=.
-      repeat move=>[++]; move=>?//=.
-      repeat move=>[++]; move=>?->//=.
-      repeat move=>[++]; move=>?->//=.
-      repeat move=>[++]; move=>?->//=.
-      repeat move=>[++]; move=>?->//=.
+    { subset_proof_simp.
       repeat move=>[++]; move=>??//=.
       rewrite /bcov_LitInt.
       move=><-//=.
       by eexists.
     }
     mcrunch_comp.
-    { rewrite /subset//=.
-      move=>?.
-      repeat move=>[++]; move=>??//=.
-      repeat move=>[++]; move=>?//=.
-      repeat move=>[++]; move=>?->//=.
-      repeat move=>[++]; move=>?->//=.
-      repeat move=>[++]; move=>?->//=.
-      repeat move=>[++]; move=>?->//=.
+    { subset_proof_simp.
       repeat move=>[++]; move=>??//=.
       rewrite /vcov_lit.
       move=><-//=.
       by eexists.
     }
     mcrunch_comp.
-    {
-      move=>?.
-      repeat move=>[++]; move=>??//=.
-      repeat move=>[++]; move=>?//=.
-      repeat move=>[++]; move=>?->//=.
-      repeat move=>[++]; move=>?->//=.
-      repeat move=>[++]; move=>?->//=.
-      repeat move=>[++]; move=>?->//=.
+    { subset_proof_simp.
       repeat move=>[++]; move=>??//=.
       rewrite /ecov_val.
       move=><-//=.
@@ -714,14 +711,15 @@ Section meas_semantics.
     mcrunch_comp.
     mcrunch_comp.
     {
+      rewrite /subset//=.
       move=>?.
-      repeat move=>[++]; move=>??//=.
-      repeat move=>[++]; move=>?//=.
-      repeat move=>[++]; move=>?->//=.
-      repeat move=>[++]; move=>?->//=.
-      repeat move=>[++]; move=>?->//=.
-      repeat move=>[++]; move=>?->//=.
-      repeat move=>[++]; move=>?->//=.
+      repeat move=>[++]; subset_proof_simp_unfold.
+      repeat move=>[++]; subset_proof_simp_unfold.
+      repeat move=>[++]; subset_proof_simp_unfold.
+      repeat move=>[++]; subset_proof_simp_unfold.
+      repeat move=>[++]; subset_proof_simp_unfold.
+      repeat move=>[++]; subset_proof_simp_unfold.
+      repeat move=>[++]; subset_proof_simp_unfold.
       rewrite /ecov_alloc.
       move=><-//=.
       eexists _.
