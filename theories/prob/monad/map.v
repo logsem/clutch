@@ -109,14 +109,15 @@ Section giryM_map_definition.
 End giryM_map_definition.
 
 
+
 Section giryM_map.
   Context `{R : realType}.
   Notation giryM := (giryM (R := R)).
   Context {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2}.
 
-  Lemma giryM_map_meas (f : T1 -> T2) (Hf : measurable_fun setT f) :
-    @measurable_fun _ _ (giryM T1) (giryM T2) setT (giryM_map Hf).
-  Proof.  Admitted.
+  Axiom giryM_map_meas :
+    forall (f : T1 -> T2) (Hf : measurable_fun setT f), @measurable_fun _ _ (giryM T1) (giryM T2) setT (giryM_map Hf).
+
     (*
     apply measurable_if_measurable_evals.
     rewrite /measurable_evaluations.
@@ -142,6 +143,28 @@ Section giryM_map.
     rewrite /pushforward.
     rewrite /preimage.
      *)
+  Local Open Scope classical_set_scope.
+ (*
+
+  Definition giryM_mapU : (<<discr (MeasurableMapT T1 T2)>> * (giryM T1))%type -> (giryM T2) :=
+    fun x => giryM_map x.1.(f_meas) x.2.
+
+  Lemma MyTest (S : set (<<discr (MeasurableMapT T1 T2)>> * (giryM T1))%type) :
+    measurable (image S snd) -> measurable S.
+  Proof.
+    intro X.
+    rewrite /measurable//=/preimage_classes//=.
+  Abort.
+
+  Lemma giryM_mapU_meas : measurable_fun setT giryM_mapU.
+  Proof.
+    intros _ Y HY.
+    rewrite //= setTI.
+    rewrite /preimage/giryM_mapU//=.
+    rewrite /measurable//=/preimage_classes//=.
+  Admitted.
+*)
+
 
   (** Public equality for giryM_map *)
   Lemma giryM_map_eval  (f : T1 -> T2) (Hf : measurable_fun setT f) :

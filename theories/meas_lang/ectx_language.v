@@ -135,44 +135,36 @@ Section ectx_language.
   Implicit Types e : expr Λ.
   Implicit Types K : ectx Λ.
 
-
-
-  (*
   (* Only project stuff out of the mixin that is not also in language *)
-  Lemma val_head_stuck e1 σ1 ρ : head_step e1 σ1 ρ > 0 → to_val e1 = None.
+  Lemma head_not_stuck e σ : (¬ is_zero (head_step (e, σ))) → to_val e = None.
   Proof. apply ectx_language_mixin. Qed.
-  Lemma state_step_head_not_stuck e σ σ' α :
-    state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0).
+  Lemma head_step_mass e σ : (¬ is_zero (head_step (e, σ))) -> is_prob (head_step (e, σ)).
   Proof. apply ectx_language_mixin. Qed.
-  Lemma head_step_mass e σ :
-    (∃ ρ, head_step e σ ρ > 0) → SeriesC (head_step e σ) = 1.
+  Lemma fill_empty e : fill (empty_ectx, e) = e.
   Proof. apply ectx_language_mixin. Qed.
-  Lemma fill_empty e : fill empty_ectx e = e.
+  Lemma fill_comp K1 K2 e : fill (K1, (fill (K2, e))) = fill ((comp_ectx K1 K2), e).
   Proof. apply ectx_language_mixin. Qed.
-  Lemma fill_comp K1 K2 e : fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e.
+  Global Instance fill_inj K : Inj (=) (=) ((curry fill) K).
   Proof. apply ectx_language_mixin. Qed.
-  Global Instance fill_inj K : Inj (=) (=) (fill K).
+  Lemma fill_val K e : is_Some (to_val (fill (K, e))) → is_Some (to_val e).
   Proof. apply ectx_language_mixin. Qed.
-  Lemma fill_val K e : is_Some (to_val (fill K e)) → is_Some (to_val e).
-  Proof. apply ectx_language_mixin. Qed.
-  Lemma decomp_fill K e e' : decomp e = (K, e') → fill K e' = e.
+  Lemma decomp_fill K e e' : decomp e = (K, e') → fill (K, e') = e.
   Proof. apply ectx_language_mixin. Qed.
   Lemma decomp_val_empty K e e' :
     decomp e = (K, e') → is_Some (to_val e') → K = empty_ectx.
   Proof. apply ectx_language_mixin. Qed.
-  Lemma decomp_fill_comp K K' e e' :
-    to_val e = None → decomp e = (K', e') → decomp (fill K e) = (comp_ectx K K', e').
+  Lemma decomp_fill_comp K K' e e' : to_val e = None → decomp e = (K', e') → decomp (fill (K, e)) = (comp_ectx K K', e').
   Proof. apply ectx_language_mixin. Qed.
-  Lemma step_by_val K' K_redex e1' e1_redex σ1 ρ :
-      fill K' e1' = fill K_redex e1_redex →
+  Lemma step_by_val K' K_redex e1' e1_redex σ1 :
+      fill (K', e1') = fill (K_redex, e1_redex) →
       to_val e1' = None →
-      head_step e1_redex σ1 ρ > 0 →
+      (¬ is_zero (head_step (e1_redex, σ1))) →
       ∃ K'', K_redex = comp_ectx K' K''.
   Proof. apply ectx_language_mixin. Qed.
-  Lemma head_ctx_step_val K e σ1 ρ :
-    head_step (fill K e) σ1 ρ > 0 → is_Some (to_val e) ∨ K = empty_ectx.
+  Lemma head_ctx_step_val K e σ1 :
+      (¬ is_zero (head_step ((fill (K, e)), σ1))) →
+      is_Some (to_val e) ∨ K = empty_ectx.
   Proof. apply ectx_language_mixin. Qed.
-  *)
 
   Class head_reducible (e : expr Λ) (σ : state Λ) :=
     head_reducible_step : ¬ is_zero (head_step (e, σ)).
@@ -186,47 +178,74 @@ Section ectx_language.
   Definition sub_redexes_are_values (e : expr Λ) :=
     ∀ K e', e = fill (K, e') → to_val e' = None → K = empty_ectx.
 
+  Definition fill_liftU : (ectx Λ * (expr Λ * state Λ)) → (expr Λ * state Λ) :=
+    mProd
+      ( ssrfun.comp fill $
+        mProd fst (ssrfun.comp fst snd) )
+      ( ssrfun.comp snd snd ).
+
+  Lemma fill_liftU_meas : measurable_fun setT fill_liftU.
+  Proof.
+    mcrunch_prod.
+    { eapply @measurable_compT; first by eauto with measlang.
+      { by apply fill_meas.  }
+      mcrunch_prod.
+      { by eauto with measlang. }
+      by mcrunch_comp.
+    }
+    { by mcrunch_comp. }
+  Qed.
+
+
   Definition fill_lift (K : ectx Λ) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
-    λ '(e, σ), (fill (K, e), σ).
+    fun x => fill_liftU (K, x).
 
   Lemma fill_lift_comp (K1 K2 : ectx Λ) :
     fill_lift (comp_ectx K1 K2) = fill_lift K1 ∘ fill_lift K2.
   Proof.
     extensionality ρ. destruct ρ.
-  Admitted.
-  (*
-    rewrite /fill_lift -fill_comp //=.
-  Qed.*)
+    rewrite /fill_lift/fill_liftU //=.
+    rewrite -fill_comp //=.
+  Qed.
 
   Lemma fill_lift_empty :
     fill_lift empty_ectx = (λ ρ, ρ).
   Proof.
     extensionality ρ. destruct ρ.
-    (*
-    rewrite /fill_lift fill_empty //.
-  Qed. *) Admitted.
-
-  (*
+    rewrite /fill_lift/fill_liftU //= fill_empty //.
+  Qed.
   Instance inj_fill (K : ectx Λ) : Inj eq eq (fill_lift K).
-  Proof. intros [] [] [=<-%(inj _) ->]=>//. Qed.
+  Proof.
+    intros [] [].
+    move=> [H1 ->].
+    have HF : ((curry fill) K) s = ((curry fill) K) s1 by rewrite //=.
+    by rewrite (fill_inj K _ _ HF).
+  Qed.
 
-   *)
-
-
-  (* TODO (Next: This thing needs to be measurable).
-     which means fill and decomp need to be measurable.
-
-   *)
-  Definition prim_step (e1 : (expr Λ * state Λ)%type) : giryM (expr Λ * state Λ)%type.
-  Admitted.
-
+  (** FIXME: What a strange little measurability proof. *)
+  Program Definition prim_step : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type :=
+    ssrfun.comp
+      ( giryM_map (ssrfun.comp fill_liftU $ mProd (ssrfun.comp fst $ ssrfun.comp decomp fst) (fun x => x)) _ )
+      ( ssrfun.comp head_step $ mProd (ssrfun.comp snd $ ssrfun.comp decomp $ fst) snd ).
+  Next Obligation.
+    eapply @measurable_compT; first by eauto with measlang.
+    { by apply fill_liftU_meas. }
+    eapply @measurable_compT; first by eauto with measlang.
+    { eapply @measurable_compT; first by eauto with measlang.
+      { mcrunch_prod.
+        { mcrunch_comp.
+          eapply @measurable_compT; first by eauto with measlang.
+          { by apply decomp_meas. }
+          { by eauto with measlang. }
+        }
+        { by eapply measurable_id. }
+      }
+      { by eapply measurable_id. }
+    }
+    { by eapply measurable_id. }
+  Qed.
 
   (*
-
-    let '(K, e1') := decomp e1 in
-    dmap (fill_lift K) (head_step e1' σ1).
-
-
   (*
   Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.

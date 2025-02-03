@@ -257,13 +257,80 @@ Section discrete_space.
     HB.instance Definition _ := gen_eqMixin (discrType T).
     HB.instance Definition _ := gen_choiceMixin (discrType T).
     HB.instance Definition _ := isPointed.Build (discrType T) inhab.
-    HB.instance Definition _:= @isMeasurable.Build default_measure_display (discrType T) discr_meas
+    HB.instance Definition _ := @isMeasurable.Build default_measure_display (discrType T) discr_meas
                                  discr_meas0 discr_measC discr_measU.
   End discr_salgebra_instance.
 
 End discrete_space.
 
 Notation "'<<discr' G '>>'" := (discrType G) : classical_set_scope.
+
+
+
+
+(*
+
+
+Section discrete_space_of_maps.
+
+  Local Open Scope classical_set_scope.
+
+  Context {d1 d2 : measure_display}.
+  Context (T1 : measurableType d1).
+  Context (T2 : measurableType d2).
+
+  (** Bundled: a measurable map equipped with the set it's measurable out of. *)
+  Structure MeasurableMap (dom : set T1) : Type := {
+      mf_car :> T1 -> T2;
+      dom_meas : d1.-measurable dom;
+      f_meas : measurable_fun dom mf_car
+  }.
+
+  Definition MeasurableMapT : Type := @MeasurableMap setT.
+
+  Program Definition MeasurableMapT_mk (f : T1 -> T2) (Hf : measurable_fun setT f) : MeasurableMapT :=
+    {| mf_car := f ; dom_meas := _; f_meas := Hf |}.
+  Next Obligation. intros. by eapply @measurableT. Qed.
+
+  Program Definition MeasurableMapT_default : MeasurableMapT :=
+    @MeasurableMapT_mk (cst point) _.
+  Next Obligation. intros. by apply measurable_cst. Qed.
+
+  HB.instance Definition _ := gen_eqMixin MeasurableMapT.
+  HB.instance Definition _ := gen_choiceMixin MeasurableMapT.
+  HB.instance Definition _ := isPointed.Build MeasurableMapT MeasurableMapT_default.
+
+  (*  Check ((<<discr (MeasurableMapT)>>) : measurableType _) . *)
+
+  Definition lift (f : T1 -> T2) (H : measurable_fun setT f) : T1 -> <<discr MeasurableMapT>> :=
+    cst (@MeasurableMapT_mk f H).
+
+  (* What do we need for this to be measurable? *)
+  Lemma lift_meas (f : T1 -> T2) (H : measurable_fun setT f) : measurable_fun setT (@lift f H).
+  Proof.
+    unfold lift.
+    apply measurable_cst.
+  Qed.
+
+  (*
+    unfold MeasurableMapT_mk.
+    unfold measurable_fun.
+    simpl.
+    intros _ Y HY.
+    rewrite /preimage//=.
+    rewrite setTI.
+    (* It's either set0 or setT becuase the choice to t doesn't matter (proof irrelevance) *)
+  Admitted.
+*)
+
+
+End discrete_space_of_maps.
+
+*)
+
+
+
+
 
 Section fin_pointed.
   Local Open Scope ereal_scope.
