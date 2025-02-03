@@ -824,7 +824,7 @@ Definition fill_item_cover : list (set (ectx_item * expr)%type) := [
 (setX ectx_item_cov_URandCtx     setT);
 (setX ectx_item_cov_TickCtx      setT) ].
 
-Definition fill_item_def (x : (ectx_item * expr)%type) : expr :=
+Definition fill_item (x : (ectx_item * expr)%type) : expr :=
   match x.1 with
   | AppLCtx v2      => fill_item_AppLCtx x
   | AppRCtx e1      => fill_item_AppRCtx x
@@ -863,8 +863,8 @@ Lemma fill_item_cover_is_cover :
 Proof. Admitted.
 
 
-Lemma fill_item_def_restricted_measurable :
-    Forall (fun S => measurable_fun S fill_item_def) fill_item_cover.
+Lemma fill_item_restricted_measurable :
+    Forall (fun S => measurable_fun S fill_item) fill_item_cover.
 Proof.
   repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
   (* Maybe tweak my lemmas above so that they restrict from fill_item_def? *)
@@ -873,21 +873,21 @@ Admitted.
 
 
 
-Local Lemma fill_item_def_measurable :
-  @measurable_fun _ _ (ectx_item * expr)%type expr setT fill_item_def.
+Lemma fill_item_def_measurable :
+  @measurable_fun _ _ (ectx_item * expr)%type expr setT fill_item.
 Proof.
-  apply (@measurable_by_cover_list _ _ _ _ fill_item_def fill_item_cover).
+  apply (@measurable_by_cover_list _ _ _ _ fill_item fill_item_cover).
   - by apply fill_item_cover_measurable.
   - by apply fill_item_cover_is_cover.
   - suffices HFdep :
         (Forall (λ l : set (ectx_item * expr)%type,
                    elem_of_list l fill_item_cover ->
-                   measurable_fun l (fill_item_def \_ l)) fill_item_cover).
+                   measurable_fun l (fill_item \_ l)) fill_item_cover).
     { apply Forall_forall.
       intros x Hx.
       by apply (iffLR (Forall_forall _ _) HFdep x Hx Hx).
     }
-    eapply (Forall_impl _ _ _ fill_item_def_restricted_measurable).
+    eapply (Forall_impl _ _ _ fill_item_restricted_measurable).
     intros S H HS.
     (*
     eapply mathcomp_restriction_is_measurable in H; last first.
@@ -897,11 +897,6 @@ Proof.
     by apply mathcomp_restriction_setT.
 *)
 Admitted.
-
-Definition fill_item : (ectx_item * expr)%type -> expr :=
-  fill_item_def.
-
-Lemma fill_item_meas : measurable_fun setT fill_item. Admitted.
 
 Definition noval (x : expr * ectx_item) : option (ectx_item * expr)%type :=
   match x.1 with
@@ -1280,7 +1275,7 @@ Hint Resolve decomp_urand_meas      : measlang.
 Hint Resolve decomp_tick_meas       : measlang.
 Hint Resolve decomp_stuck_meas      : measlang.
 
-Definition decomp_item_def (e : expr) : option (ectx_item * expr)%type :=
+Definition decomp_item (e : expr) : option (ectx_item * expr)%type :=
   match e with
   | App _ (Val _)      => decomp_app_val e
   | App _ _            => decomp_app_expr e
@@ -1309,7 +1304,7 @@ Definition decomp_item_def (e : expr) : option (ectx_item * expr)%type :=
   end.
 
 
-Lemma decomp_item_def_meas : measurable_fun setT decomp_item_def.
+Lemma decomp_item_meas : measurable_fun setT decomp_item.
 (* Same covering argument as fill, basically. *)
 Admitted.
 
@@ -1354,7 +1349,7 @@ Proof. red; intro; eapply expr_ord_wf'; eauto. Defined.
 
 (* TODO: this proof is slow, but I do not see how to make it faster... *)
 (* TODO: Uncomment the slow proof *)
-Lemma decomp_expr_ord Ki e e' : decomp_item_def e = Some (Ki, e') → expr_ord e' e.
+Lemma decomp_expr_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e.
 Proof. Admitted.
 (*
   rewrite /expr_ord /decomp_item.
@@ -1362,7 +1357,7 @@ Proof. Admitted.
 Qed. *)
 
 Lemma decomp_fill_item Ki e :
-  to_val e = None → decomp_item_def (fill_item (Ki, e)) = Some (Ki, e).
+  to_val e = None → decomp_item (fill_item (Ki, e)) = Some (Ki, e).
 Proof. Admitted.
 (*  Proof. destruct Ki ; simpl ; by repeat destruct_match. Qed. *)
 

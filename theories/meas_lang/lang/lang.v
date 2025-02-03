@@ -1476,10 +1476,10 @@ Section meas_semantics.
 
   (* TODO: Eventually we could make this definition look less goofy?
      The functions don't _need_ each case to be defeq to a measurable function,
-     since we're proving the restriction of head_stepM_def to every set in the cover
+     since we're proving the restriction of head_stepM to every set in the cover
      is propeq to measurable function instead (see: head_stepM_rec_meas).
    *)
-  Definition head_stepM_def (c : cfg) : giryM cfg :=
+  Definition head_stepM (c : cfg) : giryM cfg :=
     let (e1, σ1) := c in
     match e1 with
     | Rec _ _ _                                            => head_stepM_rec c
@@ -1534,9 +1534,9 @@ Section meas_semantics.
 
 
   (** Measurability of head_step restricted to the different sets in the cover *)
-  Lemma head_stepM_rec_meas : measurable_fun cover_rec head_stepM_def.
+  Lemma head_stepM_rec_meas : measurable_fun cover_rec head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_rec head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_rec head_stepM).
     - solve_toplevel_meas.
       apply @NonStatefulU_meas; solve_toplevel_meas. (* How to integrate this into the tactic w/o stack overflow?*)
       (* Why do these not get applied form the hintdb? *)
@@ -1551,9 +1551,9 @@ Section meas_semantics.
   Hint Resolve head_stepM_rec_meas : measlang.
 
 
-  Lemma head_stepM_pair_meas : measurable_fun cover_pair head_stepM_def.
+  Lemma head_stepM_pair_meas : measurable_fun cover_pair head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_pair head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_pair head_stepM).
     - (* FIXME: Duplicate proof from above *)
       have S : expr_cyl.-sigma.-measurable (ecov_pair `&` 𝜋_PairU @^-1` (ecov_val `*` ecov_val)).
       { apply 𝜋_PairU_meas; last apply measurableX; by eauto with measlang.  }
@@ -1600,9 +1600,9 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_pair_meas : measlang.
 
-  Lemma head_stepM_injL_meas : measurable_fun cover_injL head_stepM_def.
+  Lemma head_stepM_injL_meas : measurable_fun cover_injL head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_injL head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_injL head_stepM).
     - apply measurable_compT; try by eauto with measlang.
       have S : (expr_cyl.-sigma.-measurable (ecov_injl `&` 𝜋_InjLU @^-1` ecov_val)).
       { apply 𝜋_InjLU_meas; by eauto with measlang. }
@@ -1631,9 +1631,9 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_injL_meas : measlang.
 
-  Lemma head_stepM_injR_meas : measurable_fun cover_injR head_stepM_def.
+  Lemma head_stepM_injR_meas : measurable_fun cover_injR head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_injR head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_injR head_stepM).
     - apply measurable_compT; try by eauto with measlang.
       have S : (expr_cyl.-sigma.-measurable (ecov_injr `&` 𝜋_InjRU @^-1` ecov_val)).
       { apply 𝜋_InjRU_meas; by eauto with measlang. }
@@ -1663,9 +1663,9 @@ Section meas_semantics.
   Hint Resolve head_stepM_injR_meas : measlang.
 
   (* FIXME: Many of the subproofs here are repetitive *)
-  Lemma head_stepM_app_meas : measurable_fun cover_app head_stepM_def.
+  Lemma head_stepM_app_meas : measurable_fun cover_app head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_app head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_app head_stepM).
     - apply measurable_compT; try by eauto with measlang.
       have S : expr_cyl.-sigma.-measurable (ecov_app `&` 𝜋_AppU @^-1` ((ecov_val `&` 𝜋_Val_v @^-1` vcov_rec) `*` ecov_val)).
       { apply 𝜋_AppU_meas; try by eauto with measlang.
@@ -1826,9 +1826,9 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_app_meas : measlang.
 
-  Lemma head_stepM_unop_ok_meas : measurable_fun cover_unop_ok head_stepM_def.
+  Lemma head_stepM_unop_ok_meas : measurable_fun cover_unop_ok head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_unop_ok head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_unop_ok head_stepM).
     - apply measurable_compT; try by eauto with measlang.
       eapply @measurable_fun_prod'.
       { by eauto with measlang. }
@@ -1904,9 +1904,9 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_unop_ok_meas : measlang.
 
-  Lemma head_stepM_unop_stuck_meas : measurable_fun cover_unop_stuck head_stepM_def.
+  Lemma head_stepM_unop_stuck_meas : measurable_fun cover_unop_stuck head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_unop_stuck head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_unop_stuck head_stepM).
     - by apply measurable_cst.
     - move=>[e?].
       move=>[?[+]]//=.
@@ -1921,9 +1921,9 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_unop_stuck_meas : measlang.
 
-  Lemma head_stepM_binop_ok_meas : measurable_fun cover_binop_ok head_stepM_def.
+  Lemma head_stepM_binop_ok_meas : measurable_fun cover_binop_ok head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_binop_ok head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_binop_ok head_stepM).
     - apply measurable_compT; try by eauto with measlang.
       eapply (@measurable_fun_prod' _ _ _ _ _ _
               (ssrfun.comp ValU (ssrfun.comp bin_op_evalC (ssrfun.comp (Package3 𝜋_BinOp_op (ssrfun.comp 𝜋_Val_v 𝜋_BinOp_l) (ssrfun.comp 𝜋_Val_v 𝜋_BinOp_r)) fst)))
@@ -2020,9 +2020,9 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_binop_ok_meas : measlang.
 
-  Lemma head_stepM_binop_stuck_meas : measurable_fun cover_binop_stuck head_stepM_def.
+  Lemma head_stepM_binop_stuck_meas : measurable_fun cover_binop_stuck head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_binop_stuck head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_binop_stuck head_stepM).
     - by apply measurable_cst.
     - move=>[e?].
       move=>[?+]//=.
@@ -2040,7 +2040,7 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_binop_stuck_meas : measlang.
 
-  Lemma head_stepM_allocN_ok_meas : measurable_fun cover_allocN_ok head_stepM_def.
+  Lemma head_stepM_allocN_ok_meas : measurable_fun cover_allocN_ok head_stepM.
   Proof.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_allocN_ok).
     - mcrunch_comp.
@@ -2100,7 +2100,7 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_allocN_ok_meas : measlang.
 
-  Lemma head_stepM_allocN_stuck_meas : measurable_fun cover_allocN_stuck head_stepM_def.
+  Lemma head_stepM_allocN_stuck_meas : measurable_fun cover_allocN_stuck head_stepM.
   Proof.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_allocN_stuck).
     - by apply measurable_cst.
@@ -2120,7 +2120,7 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_allocN_stuck_meas : measlang.
 
-  Lemma head_stepM_load_ok_meas : measurable_fun cover_load_ok head_stepM_def.
+  Lemma head_stepM_load_ok_meas : measurable_fun cover_load_ok head_stepM.
   Proof.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_load_ok).
     - mcrunch_comp.
@@ -2163,9 +2163,9 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_load_ok_meas : measlang.
 
-  Lemma head_stepM_load_stuck_meas : measurable_fun cover_load_stuck head_stepM_def.
+  Lemma head_stepM_load_stuck_meas : measurable_fun cover_load_stuck head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_load_stuck head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_load_stuck head_stepM).
     - by apply measurable_cst.
     - move=>[e?].
       by repeat ((repeat move=>[++]//=); move=>?//=->//=).
@@ -2173,7 +2173,7 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_load_stuck_meas : measlang.
 
-  Lemma head_stepM_store_ok_meas : measurable_fun cover_store_ok head_stepM_def.
+  Lemma head_stepM_store_ok_meas : measurable_fun cover_store_ok head_stepM.
   Proof.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_store_ok).
     - mcrunch_comp.
@@ -2235,7 +2235,7 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_store_ok_meas : measlang.
 
-  Lemma head_stepM_store_stuck_meas : measurable_fun cover_store_stuck head_stepM_def.
+  Lemma head_stepM_store_stuck_meas : measurable_fun cover_store_stuck head_stepM.
   Proof.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_store_stuck).
     - by apply measurable_cst.
@@ -2253,9 +2253,9 @@ Section meas_semantics.
   Hint Resolve head_stepM_load_stuck_meas : measlang.
 
 
-  Lemma head_stepM_ifT_meas : measurable_fun cover_ifT head_stepM_def.
+  Lemma head_stepM_ifT_meas : measurable_fun cover_ifT head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_ifT head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_ifT head_stepM).
     - apply measurable_compT; try by eauto with measlang.
       have S : expr_cyl.-sigma.-measurable (ecov_if `&` 𝜋_If_c @^-1` (ecov_val `&` 𝜋_Val_v @^-1` (vcov_lit `&` 𝜋_LitV_v @^-1` (bcov_LitBool `&` 𝜋_LitBool_b @^-1` [set true])))).
      { apply 𝜋_If_c_meas; first by eauto with measlang.
@@ -2280,9 +2280,9 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_ifT_meas : measlang.
 
-  Lemma head_stepM_ifF_meas : measurable_fun cover_ifF head_stepM_def.
+  Lemma head_stepM_ifF_meas : measurable_fun cover_ifF head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_ifT head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_ifT head_stepM).
     - apply measurable_compT; try by eauto with measlang.
       have S : expr_cyl.-sigma.-measurable (ecov_if `&` 𝜋_If_c @^-1` (ecov_val `&` 𝜋_Val_v @^-1` (vcov_lit `&` 𝜋_LitV_v @^-1` (bcov_LitBool `&` 𝜋_LitBool_b @^-1` [set false])))).
      { apply 𝜋_If_c_meas; first by eauto with measlang.
@@ -2307,9 +2307,9 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_ifF_meas : measlang.
 
-  Lemma head_stepM_fst_meas : measurable_fun cover_fst head_stepM_def.
+  Lemma head_stepM_fst_meas : measurable_fun cover_fst head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_fst head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_fst head_stepM).
     - apply measurable_compT; try by eauto with measlang.
       have S : expr_cyl.-sigma.-measurable (ecov_fst `&` 𝜋_Fst_e @^-1` (ecov_val `&` 𝜋_Val_v @^-1` vcov_pair)).
       { apply 𝜋_Fst_e_meas; first by eauto with measlang.
@@ -2345,9 +2345,9 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_fst_meas : measlang.
 
-  Lemma head_stepM_snd_meas : measurable_fun cover_snd head_stepM_def.
+  Lemma head_stepM_snd_meas : measurable_fun cover_snd head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_snd head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_snd head_stepM).
     - apply measurable_compT; try by eauto with measlang.
       have S : expr_cyl.-sigma.-measurable (ecov_snd `&` 𝜋_Snd_e @^-1` (ecov_val `&` 𝜋_Val_v @^-1` vcov_pair)).
       { apply 𝜋_Snd_e_meas; first by eauto with measlang.
@@ -2383,9 +2383,9 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_snd_meas : measlang.
 
-  Lemma head_stepM_caseL_meas : measurable_fun cover_caseL head_stepM_def.
+  Lemma head_stepM_caseL_meas : measurable_fun cover_caseL head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_caseL head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_caseL head_stepM).
     - apply measurable_compT; try by eauto with measlang.
       have S : expr_cyl.-sigma.-measurable (ecov_case `&` 𝜋_Case_c @^-1` (ecov_val `&` 𝜋_Val_v @^-1` vcov_injlv)).
       { apply 𝜋_Case_c_meas; first by eauto with measlang.
@@ -2426,9 +2426,9 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_caseL_meas : measlang.
 
-  Lemma head_stepM_caseR_meas : measurable_fun cover_caseR head_stepM_def.
+  Lemma head_stepM_caseR_meas : measurable_fun cover_caseR head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_caseR head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_caseR head_stepM).
     - apply measurable_compT; try by eauto with measlang.
       have S : expr_cyl.-sigma.-measurable (ecov_case `&` 𝜋_Case_c @^-1` (ecov_val `&` 𝜋_Val_v @^-1` vcov_injrv)).
       { apply 𝜋_Case_c_meas; first by eauto with measlang.
@@ -2469,39 +2469,39 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_caseR_meas : measlang.
 
-  Lemma head_stepM_allocTape_meas : measurable_fun cover_allocTape head_stepM_def.
+  Lemma head_stepM_allocTape_meas : measurable_fun cover_allocTape head_stepM.
   Proof.
   Admitted.
   Hint Resolve head_stepM_allocTape_meas : measlang.
 
-  Lemma head_stepM_allocUTape_meas : measurable_fun cover_allocUTape head_stepM_def.
+  Lemma head_stepM_allocUTape_meas : measurable_fun cover_allocUTape head_stepM.
   Proof.
   Admitted.
   Hint Resolve head_stepM_allocUTape_meas : measlang.
 
-  Lemma head_stepM_rand_meas : measurable_fun cover_rand head_stepM_def.
+  Lemma head_stepM_rand_meas : measurable_fun cover_rand head_stepM.
   Proof.
   Admitted.
   Hint Resolve head_stepM_rand_meas : measlang.
 
-  Lemma head_stepM_urand_meas : measurable_fun cover_urand head_stepM_def.
+  Lemma head_stepM_urand_meas : measurable_fun cover_urand head_stepM.
   Proof.
   Admitted.
   Hint Resolve head_stepM_urand_meas : measlang.
 
-  Lemma head_stepM_randT_meas : measurable_fun cover_randT head_stepM_def.
+  Lemma head_stepM_randT_meas : measurable_fun cover_randT head_stepM.
   Proof.
   Admitted.
   Hint Resolve head_stepM_randT_meas : measlang.
 
-  Lemma head_stepM_urandT_meas : measurable_fun cover_urandT head_stepM_def.
+  Lemma head_stepM_urandT_meas : measurable_fun cover_urandT head_stepM.
   Proof.
   Admitted.
   Hint Resolve head_stepM_urandT_meas : measlang.
 
-  Lemma head_stepM_tick_meas : measurable_fun cover_tick head_stepM_def.
+  Lemma head_stepM_tick_meas : measurable_fun cover_tick head_stepM.
   Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_tick head_stepM_def).
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_tick head_stepM).
     - apply measurable_compT; try by eauto with measlang.
       have S : expr_cyl.-sigma.-measurable (ecov_tick `&` 𝜋_Tick_e @^-1` (ecov_val `&` 𝜋_Val_v @^-1` (vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitInt))).
       { apply 𝜋_Tick_e_meas; first by eauto with measlang.
@@ -2525,7 +2525,7 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_tick_meas : measlang.
 
-  Lemma head_stepM_stuck_meas : measurable_fun cover_maybe_stuck head_stepM_def.
+  Lemma head_stepM_stuck_meas : measurable_fun cover_maybe_stuck head_stepM.
   Proof.
     (* TODO/FIXME: This is circular. To fix this, the maybe stuck case
        will need to be the difference from all the other cases, and then we can
@@ -2572,8 +2572,8 @@ Section meas_semantics.
     - by apply cover_maybe_stuck_meas.
   Qed.
 
-  Lemma head_stepM_def_restricted_measurable :
-      Forall (fun S => measurable_fun S head_stepM_def) cfg_cover.
+  Lemma head_stepM_restricted_measurable :
+      Forall (fun S => measurable_fun S head_stepM) cfg_cover.
   Proof.
     repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
     - by apply head_stepM_rec_meas.
@@ -2607,21 +2607,21 @@ Section meas_semantics.
     - by apply head_stepM_stuck_meas.
   Qed.
 
-  Lemma head_stepM_def_measurable :
-    @measurable_fun _ _ cfg (giryM cfg) setT head_stepM_def.
+  Lemma head_stepM_measurable :
+    @measurable_fun _ _ cfg (giryM cfg) setT head_stepM.
   Proof.
-    apply (@measurable_by_cover_list _ _ _ _ head_stepM_def cfg_cover).
+    apply (@measurable_by_cover_list _ _ _ _ head_stepM cfg_cover).
     - by apply cfg_cover_measurable.
     - by apply cfg_cover_is_cover.
     - suffices HFdep :
           (Forall (λ l : set cfg,
                      elem_of_list l cfg_cover ->
-                     measurable_fun (T:=cfg) (U:=types.giryM cfg) l (head_stepM_def \_ l)) cfg_cover).
+                     measurable_fun (T:=cfg) (U:=types.giryM cfg) l (head_stepM \_ l)) cfg_cover).
       { apply Forall_forall.
         intros x Hx.
         by apply (iffLR (Forall_forall _ _) HFdep x Hx Hx).
       }
-      eapply (Forall_impl _ _ _ head_stepM_def_restricted_measurable).
+      eapply (Forall_impl _ _ _ head_stepM_restricted_measurable).
       intros S H HS.
       apply mathcomp_restriction_is_measurable in H; last first.
       { eapply Forall_forall.
@@ -2898,12 +2898,16 @@ Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
   fill_item (Ki1, e1) = fill_item (Ki2, e2) → Ki1 = Ki2.
 Proof. destruct Ki2, Ki1. (*  naive_solver eauto with f_equal. Qed. *) Admitted.
 
-(*
 Definition meas_lang_mixin :
-  @MeasEctxiLanguageMixin _ _ _ expr val state ectx_item
-    of_val to_val fill_item_mf decomp_item expr_ord head_stepM_def.
+  @MeasEctxiLanguageMixin _ _ _ _ expr val state ectx_item
+    of_val to_val fill_item decomp_item expr_ord head_stepM.
 Proof.
   split.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
   - apply to_of_val.
   - apply of_to_val.
   - admit.
@@ -2917,16 +2921,14 @@ Proof.
   - admit.
   - admit.
 Admitted.
-*)
 
 End meas_lang.
 
 (** Language *)
 
-(*
 Canonical Structure meas_ectxi_lang := MeasEctxiLanguage meas_lang.head_stepM meas_lang.meas_lang_mixin.
 Canonical Structure meas_ectx_lang := MeasEctxLanguageOfEctxi meas_ectxi_lang.
 Canonical Structure meas_lang := MeasLanguageOfEctx meas_ectx_lang.
-*)
+
 (* Prefer meas_lang names over ectx_language names. *)
 Export meas_lang.
