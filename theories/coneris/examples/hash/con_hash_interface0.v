@@ -48,8 +48,8 @@ Class con_hash0 `{!conerisGS Σ} (val_size:nat):= Con_Hash0
     hash_tape0 α ns γ-∗ hash_tape0 α ns' γ-∗ False;
   (* hash_tape_auth_exclusive m m' γ: *)
   (*   hash_tape_auth0 m γ -∗ hash_tape_auth0 m' γ -∗ False; *)
-  (* hash_tape_auth_frag_agree m α ns γ: *)
-  (*   hash_tape_auth0 m γ  -∗ hash_tape0 α ns γ -∗ ⌜m!!α=Some ns⌝; *)
+  hash_tape_auth_frag_agree m α ns γ:
+    hash_tape_auth0 m γ  -∗ hash_tape0 α ns γ -∗ ⌜m!!α=Some ns⌝;
   (* hash_tape_auth_alloc m α γ: *)
   (*   m!!α=None -> hash_tape_auth0 m γ ==∗ hash_tape_auth0 (<[α:=[]]> m) γ ∗ hash_tape0 α [] γ; *)
   hash_tape_presample N m γ γ_lock f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} α ns ε ε2 E:
@@ -64,8 +64,6 @@ Class con_hash0 `{!conerisGS Σ} (val_size:nat):= Con_Hash0
           hash_tape0 α (ns++[fin_to_nat n]) γ); 
   (* hash_auth_exclusive m m' γ: *)
   (*   hash_auth0 m γ -∗ hash_auth0 m' γ -∗ False; *)
-  (* hash_auth_frag_agree m k v γ: *)
-  (*   hash_auth0 m γ -∗ hash_frag0 k v γ -∗ ⌜m!!k = Some v⌝; *)
   (* hash_frag_frag_agree k v1 v2 γ : *)
   (*   hash_frag0 k v1 γ -∗ hash_frag0 k v2 γ -∗ ⌜v1=v2⌝; *)
   (* hash_auth_duplicate_frag m k v γ: *)
@@ -94,19 +92,19 @@ Class con_hash0 `{!conerisGS Σ} (val_size:nat):= Con_Hash0
 
   con_hash_alloc_tape0 N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ_tape γ_lock Q:
   {{{ con_hash_inv0 N f l hm P R γ_tape γ_lock ∗
-      (∀ m m' α, P m m' -∗ ⌜α∉dom m'⌝ -∗ |={⊤∖↑N}=> P m (<[α:=[]]>m') ∗ Q α)
+      (∀ m m' α, P m m' -∗ ⌜α∉dom m'⌝ -∗ |={⊤∖↑N.@"hash"}=> P m (<[α:=[]]>m') ∗ Q α)
   }}}
       allocate_tape0 #()
       {{{ (α: val), RET α; hash_tape0 α [] γ_tape ∗ Q α }}}; 
   
   con_hash_spec0 N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ_tape γ_lock Q1 Q2 α (v:nat):
   {{{ con_hash_inv0 N f l hm P R γ_tape γ_lock ∗ 
-      ( ∀ m m', R m -∗ P m m' -∗ state_update (⊤∖↑N) (⊤∖↑N)
+      ( ∀ m m', R m -∗ P m m' -∗ hash_tape_auth0 m' γ_tape -∗ state_update (⊤∖↑N.@"hash") (⊤∖↑N.@"hash")
              match m!!v with
-             | Some res => R m ∗ P m m' ∗ Q1 res
-             | None => ∃ n ns, hash_tape0 α (n::ns) γ_tape ∗ P m m' ∗
+             | Some res => R m ∗ P m m' ∗ hash_tape_auth0 m' γ_tape ∗ Q1 res
+             | None => ∃ n ns, hash_tape0 α (n::ns) γ_tape ∗ P m (<[α:=n::ns]> m') ∗ hash_tape_auth0 (<[α:=n::ns]> m') γ_tape ∗
                               (∀ m'', P m m'' -∗  ⌜m''!!α=Some (n::ns)⌝
-                                      ={⊤∖↑N}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗ Q2 n ns)
+                                      ={⊤∖↑N.@"hash"}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗ Q2 n ns)
              end                                        
       )
   }}}

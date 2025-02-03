@@ -116,7 +116,7 @@ Section con_hash_impl2.
 
   Lemma con_hash_alloc_tape N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR:∀ m, Timeless (R m)} γ1 γ2 γ3 γ4 γ5 γ_lock Q:
   {{{ con_hash_inv N f l hm P R γ1 γ2 γ3 γ4 γ5 γ_lock ∗
-      (∀ m m' α, P m m' -∗ ⌜α∉dom m'⌝ -∗ |={⊤∖↑N}=> P m (<[α:=[]]>m') ∗ Q α)
+      (∀ m m' α, P m m' -∗ ⌜α∉dom m'⌝ -∗ |={⊤∖↑N.@"hash"}=> P m (<[α:=[]]>m') ∗ Q α)
   }}}
       allocate_tape #()
       {{{ (α: val), RET α; hash_tape α [] γ2 γ3 ∗ Q α }}}.
@@ -135,12 +135,12 @@ Section con_hash_impl2.
 
   Lemma con_hash_spec N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ1 γ2 γ3 γ4 γ5 γ_lock Q1 Q2 α (v:nat):
   {{{ con_hash_inv N f l hm P R γ1 γ2 γ3 γ4 γ5 γ_lock ∗ 
-      ( ∀ m m', R m -∗ P m m' -∗ hash_auth m γ1 γ2 γ4 γ5-∗ state_update (⊤∖↑N) (⊤∖↑N)
+      ( ∀ m m', R m -∗ P m m' -∗ hash_tape_auth m' γ2 γ3 -∗ hash_auth m γ1 γ2 γ4 γ5-∗ state_update (⊤∖↑N.@"hash") (⊤∖↑N.@"hash")
              match m!!v with
-             | Some res => R m ∗ P m m' ∗ hash_auth m γ1 γ2 γ4 γ5∗ Q1 res
-             | None => ∃ n ns, hash_tape α (n::ns) γ2 γ3 ∗ P m m' ∗
+             | Some res => R m ∗ P m m' ∗ hash_tape_auth m' γ2 γ3 ∗ hash_auth m γ1 γ2 γ4 γ5∗ Q1 res
+             | None => ∃ n ns, hash_tape α (n::ns) γ2 γ3 ∗ P m (<[α:=n::ns]> m') ∗ hash_tape_auth (<[α:=n::ns]> m') γ2 γ3 ∗
                               (∀ m'', P m m'' -∗  ⌜m''!!α=Some (n::ns)⌝
-                                      ={⊤∖↑N}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗
+                                      ={⊤∖↑N.@"hash"}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗
                                       hash_auth (<[v:=n]> m) γ1 γ2 γ4 γ5∗ Q2 n ns)
              end                                        
       )
@@ -154,21 +154,21 @@ Section con_hash_impl2.
     iIntros (Φ) "(#Hinv  & Hvs) HΦ".
     rewrite /hash_tape/hash_set_frag.
     iApply (con_hash_spec1 _ _ _ _ _ _ _ _ _ _ Q1 Q2 with "[$Hinv Hvs]").
-    - iIntros (??) "(Hhv & Hfrag & HR) HP Hauth1".
+    - iIntros (??) "(Hhv & Hfrag & HR) HP Htauth Hauth1".
       rewrite /hash_auth.
       rewrite /hash_set_frag.
-      iMod ("Hvs" with "[$][$][Hauth1 $Hhv Hfrag]") as "Hcont".
+      iMod ("Hvs" with "[$][$][$][Hauth1 $Hhv Hfrag]") as "Hcont".
       { rewrite big_sepM_sep. iFrame "Hfrag". iSplit; first done.
         rewrite big_sepM_forall. iIntros.
         iDestruct (con_hash_interface1.hash_auth_duplicate with "[$]") as "#?"; first done.
         by iApply hash_frag_in_hash_set.
       }
       case_match.
-      + iDestruct "Hcont" as "($&$&($&?&H)&$)".
+      + iDestruct "Hcont" as "($&$&$&($&?&H)&$)".
         iFrame.
         rewrite big_sepM_sep.
         by iDestruct "H" as "[??]".
-      + iDestruct "Hcont" as "(%&%&?&?&Hcont)".
+      + iDestruct "Hcont" as "(%&%&?&?&?&Hcont)".
         iModIntro.
         iFrame. iIntros.
         iMod ("Hcont" with "[$][//]") as "(?&?&(?&?&H)&?)".
@@ -252,7 +252,10 @@ Section con_hash_impl2.
     iModIntro. rewrite big_sepM_sep.
     by iFrame.
   Qed.
-  
+  Next Obligation.
+    iIntros.
+    iApply (con_hash_interface1.hash_tape_auth_frag_agree with "[$][$]").
+  Qed.
   Next Obligation.
     iIntros (????) "?".
     by iApply con_hash_interface1.hash_tape_valid.

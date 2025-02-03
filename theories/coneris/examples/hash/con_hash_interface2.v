@@ -83,8 +83,8 @@ Class con_hash2 `{!conerisGS Σ} (val_size:nat):= Con_Hash2
     m!!k=None -> hash_set_frag2 v γ2 γ5 -∗ hash_auth2 m γ1 γ2 γ4 γ5 ==∗ hash_auth2 (<[k:=v]> m ) γ1 γ2 γ4 γ5  ;  
   (* hash_tape_auth_exclusive m m' γ2 γ3: *)
   (*   hash_tape_auth1 m γ2 γ3 -∗ hash_tape_auth1 m' γ2 γ3 -∗ False; *)
-  (* hash_tape_auth_frag_agree m α ns γ2 γ3: *)
-  (*   hash_tape_auth1 m γ2 γ3 -∗ hash_tape1 α ns γ2 γ3 -∗ ⌜m!!α=Some ns⌝; *)
+  hash_tape_auth_frag_agree m α ns γ2 γ3:
+    hash_tape_auth2 m γ2 γ3 -∗ hash_tape2 α ns γ2 γ3 -∗ ⌜m!!α=Some ns⌝;
   (* hash_tape_auth_insert m α γ2 γ3: *)
   (*   m!!α=None -> hash_tape_auth1 m γ2 γ3 ==∗ hash_tape_auth1 (<[α:=[]]> m) γ2 γ3 ∗ hash_tape1 α [] γ2 γ3; *)
   (* hash_tape_auth_frag_update m α ns n γ2 γ3: *)
@@ -133,19 +133,19 @@ Class con_hash2 `{!conerisGS Σ} (val_size:nat):= Con_Hash2
 
   con_hash_alloc_tape2 N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ1 γ2 γ3 γ4 γ5 γ_lock Q:
   {{{ con_hash_inv2 N f l hm P R γ1 γ2 γ3 γ4 γ5 γ_lock ∗
-      (∀ m m' α, P m m' -∗ ⌜α∉dom m'⌝ -∗ |={⊤∖↑N}=> P m (<[α:=[]]>m') ∗ Q α)
+      (∀ m m' α, P m m' -∗ ⌜α∉dom m'⌝ -∗ |={⊤∖↑N.@"hash"}=> P m (<[α:=[]]>m') ∗ Q α)
   }}}
       allocate_tape2 #()
       {{{ (α: val), RET α; hash_tape2 α [] γ2 γ3 ∗ Q α }}};  
 
   con_hash_spec2  N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ1 γ2 γ3 γ4 γ5 γ_lock Q1 Q2 α (v:nat):
   {{{ con_hash_inv2 N f l hm P R γ1 γ2 γ3 γ4 γ5 γ_lock ∗ 
-      ( ∀ m m', R m -∗ P m m' -∗ hash_auth2 m γ1 γ2 γ4 γ5-∗ state_update (⊤∖↑N) (⊤∖↑N)
+      ( ∀ m m', R m -∗ P m m' -∗ hash_tape_auth2 m' γ2 γ3 -∗ hash_auth2 m γ1 γ2 γ4 γ5-∗ state_update (⊤∖↑N.@"hash") (⊤∖↑N.@"hash")
              match m!!v with
-             | Some res => R m ∗ P m m' ∗ hash_auth2 m γ1 γ2 γ4 γ5∗ Q1 res
-             | None => ∃ n ns, hash_tape2 α (n::ns) γ2 γ3 ∗ P m m' ∗
+             | Some res => R m ∗ P m m' ∗ hash_tape_auth2 m' γ2 γ3 ∗ hash_auth2 m γ1 γ2 γ4 γ5∗ Q1 res
+             | None => ∃ n ns, hash_tape2 α (n::ns) γ2 γ3 ∗ P m (<[α:=n::ns]> m') ∗ hash_tape_auth2 (<[α:=n::ns]> m') γ2 γ3 ∗
                               (∀ m'', P m m'' -∗  ⌜m''!!α=Some (n::ns)⌝
-                                      ={⊤∖↑N}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗
+                                      ={⊤∖↑N.@"hash"}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗
                                       hash_auth2 (<[v:=n]> m) γ1 γ2 γ4 γ5∗ Q2 n ns)
              end                                        
       )
@@ -203,13 +203,16 @@ Section test.
   Proof.
     iIntros (Φ) "[#Hinv [Ht Hlis]] HΦ".
     iApply (con_hash_spec2 _ _ _ _ _ _ _ _ _ _ _ _ (λ res, hash_tape2 _ _ _ _ ∗ hash_frag2 v res γ1 γ2 γ4 ∗ [∗ list] n0 ∈ (n :: ns), hash_set_frag2 n0 γ2 γ5)%I (λ n' ns', ⌜n=n'⌝ ∗ ⌜ns=ns'⌝ ∗ hash_frag2 v n γ1 γ2 γ4 ∗ [∗ list] n0 ∈ (ns), hash_set_frag2 n0 γ2 γ5)%I with "[$Hinv Ht Hlis]").
-    - iIntros (??) "_ _ Hauth".
+    - iIntros (??) "_ _ Htauth Hauth".
       case_match.
       + iDestruct (hash_auth_duplicate with "[$]") as "#$"; first done. by iFrame.
       + iDestruct "Hlis" as "[H1 Hlis]".
+        iDestruct (hash_tape_auth_frag_agree with "[$][$]") as "%".
         iMod (hash_auth_insert with "[$][$]") as "H"; first done.
         iDestruct (hash_auth_duplicate with "[$]") as "#$"; first by rewrite lookup_insert.
-        iFrame. iModIntro. iIntros. iPureIntro. done. 
+        iFrame. iModIntro. iIntros. 
+        rewrite insert_id; last done.
+        iFrame. iIntros. done. 
     - iNext. iIntros (res) "[(?&?&?)|(%&%&?&->&->&->&?&?)]".
       + iApply "HΦ". iFrame. iRight. iFrame.
       + iApply "HΦ". simplify_eq. iFrame. iLeft. by iFrame. 
@@ -224,7 +227,7 @@ Section test.
   Proof. 
     iIntros (Φ) "(#Hinv & [Ht ?] & #Hf) HΦ".
     iApply (con_hash_spec2 _ _ _ _ _ _ _ _ _ _ _ _ (λ res' , ⌜res=res'⌝ ∗ hash_frag2 v res γ1 γ2 γ4 ∗ hash_tape2 _ _ _ _ )%I (λ _ _, ⌜False⌝)%I with "[$Hinv Ht]").
-    - iIntros (??) "_ _ Hauth".
+    - iIntros (??) "_ _ Htauth Hauth".
       case_match.
       + iDestruct (hash_auth_frag_agree with "[$][$]") as "%".
         simplify_eq. iDestruct (hash_auth_duplicate with "[$]") as "#$"; first done.

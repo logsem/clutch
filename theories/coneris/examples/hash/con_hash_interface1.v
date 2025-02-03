@@ -70,8 +70,8 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
     m!!k=None -> hash_set_frag1 v γ2 -∗ hash_auth1 m γ1 γ2 ==∗ hash_auth1 (<[k:=v]> m ) γ1 γ2;
   (* hash_tape_auth_exclusive m m' γ2 γ3: *)
   (*   hash_tape_auth1 m γ2 γ3 -∗ hash_tape_auth1 m' γ2 γ3 -∗ False; *)
-  (* hash_tape_auth_frag_agree m α ns γ2 γ3: *)
-  (*   hash_tape_auth1 m γ2 γ3 -∗ hash_tape1 α ns γ2 γ3 -∗ ⌜m!!α=Some ns⌝; *)
+  hash_tape_auth_frag_agree m α ns γ2 γ3:
+    hash_tape_auth1 m γ2 γ3 -∗ hash_tape1 α ns γ2 γ3 -∗ ⌜m!!α=Some ns⌝;
   (* hash_tape_auth_insert m α γ2 γ3: *)
   (*   m!!α=None -> hash_tape_auth1 m γ2 γ3 ==∗ hash_tape_auth1 (<[α:=[]]> m) γ2 γ3 ∗ hash_tape1 α [] γ2 γ3; *)
   (* hash_tape_auth_frag_update m α ns n γ2 γ3: *)
@@ -121,19 +121,19 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
 
   con_hash_alloc_tape1 N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ1 γ2 γ3 γ_lock Q:
   {{{ con_hash_inv1 N f l hm P R γ1 γ2 γ3 γ_lock ∗
-      (∀ m m' α, P m m' -∗ ⌜α∉dom m'⌝ -∗ |={⊤∖↑N}=> P m (<[α:=[]]>m') ∗ Q α)
+      (∀ m m' α, P m m' -∗ ⌜α∉dom m'⌝ -∗ |={⊤∖↑N.@"hash"}=> P m (<[α:=[]]>m') ∗ Q α)
   }}}
       allocate_tape1 #()
       {{{ (α: val), RET α; hash_tape1 α [] γ2 γ3 ∗ Q α }}}; 
 
   con_hash_spec1 N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ1 γ2 γ3 γ_lock Q1 Q2 α (v:nat):
   {{{ con_hash_inv1 N f l hm P R γ1 γ2 γ3 γ_lock ∗ 
-      ( ∀ m m', R m -∗ P m m' -∗ hash_auth1 m γ1 γ2 -∗ state_update (⊤∖↑N) (⊤∖↑N)
+      ( ∀ m m', R m -∗ P m m' -∗ hash_tape_auth1 m' γ2 γ3 -∗ hash_auth1 m γ1 γ2 -∗ state_update (⊤∖↑N.@"hash") (⊤∖↑N.@"hash")
              match m!!v with
-             | Some res => R m ∗ P m m' ∗ hash_auth1 m γ1 γ2 ∗ Q1 res
-             | None => ∃ n ns, hash_tape1 α (n::ns) γ2 γ3 ∗ P m m' ∗
+             | Some res => R m ∗ P m m' ∗ hash_auth1 m γ1 γ2 ∗ hash_tape_auth1 m' γ2 γ3 ∗ Q1 res
+             | None => ∃ n ns, hash_tape1 α (n::ns) γ2 γ3 ∗ P m (<[α:=n::ns]> m') ∗ hash_tape_auth1 (<[α:=n::ns]> m') γ2 γ3 ∗
                               (∀ m'', P m m'' -∗  ⌜m''!!α=Some (n::ns)⌝
-                                      ={⊤∖↑N}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗
+                                      ={⊤∖↑N.@"hash"}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗
                                       hash_auth1 (<[v:=n]> m) γ1 γ2  ∗ Q2 n ns)
              end                                        
       )
@@ -190,15 +190,17 @@ Section test.
     iIntros (Φ) "[#Hinv Ht] HΦ".
     iDestruct (hash_tape_in_hash_set with "[$]") as "#Hfrag".
     iApply (con_hash_spec1 _ _ _ _ _ _ _ _ _ _ (λ res, hash_frag1 v res γ1 γ2 ∗ hash_tape1 α _ _ _)%I (λ n' ns', ⌜n=n'⌝ ∗ ⌜ns'=ns⌝ ∗ hash_frag1 v n γ1 γ2)%I with "[$Hinv Ht]").
-    - iIntros (??) "_ _ Hauth ".
+    - iIntros (??) "_ _ Htauth Hauth ".
       case_match.
       + iDestruct (hash_auth_duplicate with "[$]") as "#$"; first done. by iFrame.
-      + iFrame. iModIntro.
+      + iDestruct (hash_tape_auth_frag_agree with "[$][$]") as "%H'".
+        iFrame. iModIntro.
         iSplit; first done.
-        iIntros. 
+        rewrite insert_id; last done.
+        iFrame.  
         iMod (hash_auth_insert with "[][$]") as "H"; first done; last first.
         * iDestruct (hash_auth_duplicate with "[$]") as "#$"; first by rewrite lookup_insert.
-          iFrame. iModIntro. done. 
+          iFrame. by iIntros. 
         * rewrite big_sepL_cons. iDestruct "Hfrag" as "[$ ?]".        
     - iNext. iIntros (res) "[[??]|(%&%&?&->&->&->&?)]".
       + iApply "HΦ". iFrame.
@@ -215,7 +217,7 @@ Section test.
     iIntros (Φ) "(#Hinv & Ht & #Hf) HΦ".
     iDestruct (hash_tape_in_hash_set with "[$]") as "#Hfrag".
     iApply (con_hash_spec1 _ _ _ _ _ _ _ _ _ _ (λ res' , ⌜res=res'⌝ ∗ hash_frag1 v res γ1 γ2 ∗ hash_tape1 α _ _ _)%I (λ _ _, ⌜False⌝)%I with "[$Hinv Ht]").
-    - iIntros (??) "_ _ Hauth".
+    - iIntros (??) "_ _ Htauth Hauth".
       case_match.
       + iDestruct (hash_auth_frag_agree with "[$][$]") as "%".
         simplify_eq. iDestruct (hash_auth_duplicate with "[$]") as "#$"; first done. by iFrame.
