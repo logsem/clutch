@@ -80,25 +80,10 @@ Definition fill_lift {Λ} (K : (expr Λ) -> (expr Λ)) : (expr Λ * state Λ) �
 Lemma fill_lift_measurable {Λ} (K : (expr Λ) -> (expr Λ)) (HK : measurable_fun setT K) :
   @measurable_fun _ _ (expr Λ * state Λ)%type (expr Λ * state Λ)%type setT (fill_lift K).
 Proof.
-
-
-Admitted.
-(*
-  apply measurable_fun_prod.
-  { simpl.
-    have -> : (λ x : expr Λ * state Λ, K x.1) = m_cmp K fst.
-    { apply functional_extensionality.
-      intro x.
-      by rewrite m_cmp_eval/=. }
-    eapply measurable_mapP. }
-  { eapply measurable_mapP. }
+  mcrunch_prod.
+  { mcrunch_comp. }
+  { eauto with measlang. }
 Qed.
-*)
-
-(*
-HB.instance Definition _ {Λ} (K : measurable_map (expr Λ) (expr Λ)) :=
-  isMeasurableMap.Build _ _ (expr Λ * state Λ)%type (expr Λ * state Λ)%type (fill_lift K) (fill_lift_measurable K).
-*)
 
 Global Instance inj_fill_lift {Λ : meas_language} (K : (expr Λ -> expr Λ)) :
   Inj (=) (=) K →
@@ -111,7 +96,7 @@ Class MeasLanguageCtx {Λ : meas_language} (K : (expr Λ) -> (expr Λ)) (HK : me
   fill_inj : Inj (=) (=) K;
   fill_dmap e1 σ1 :
     to_val e1 = None →
-    prim_step ((K e1), σ1) = giryM_map (fill_lift_measurable K HK) (prim_step (e1, σ1))
+    prim_step ((K e1), σ1) = giryM_map _ (fill_lift_measurable K HK) (prim_step (e1, σ1))
 }.
 
 #[global] Existing Instance fill_inj.
@@ -135,6 +120,7 @@ Section language.
   Lemma prim_step_mass e σ : (¬ is_zero (prim_step (e, σ))) -> is_prob (prim_step (e, σ)).
   Proof. apply language_mixin. Qed.
 
+  (* ??? *)
   (*
   Class Atomic (a : atomicity) (e : expr Λ) : Prop :=
     atomic σ e' σ' :
@@ -161,21 +147,21 @@ Section language.
     (¬ is_zero (prim_step (e, σ))) ->
     (¬ is_zero (prim_step (K e, σ))).
   Proof.
+    (* FIXME: Cleanup *)
     intros Hs.
     rewrite fill_dmap; [| by eapply val_stuck].
-  Admitted.
-  (*
-    pose HI := @inj_map_inj_eq  _ _ _ _ _ (fill_lift K) _.
-    move=> HZ.
-    apply Hs; clear Hs.
-    move: HI.
-    move /(_ _ _ (prim_step (e, σ)) giryM_zero).
+    pose HI := (@inj_map_inj_eq R _ _ _ _ (fill_lift K) (fill_lift_measurable _ HK) (inj_fill_lift _ fill_inj)).
+    pose HI' := HI HK MeasLanguageCtx0.
+    have HI'' := HI' (prim_step (e, σ)) giryM_zero.
+    intro H.
+    apply Hs.
     unfold is_zero.
-    move ->; try done.
+    unfold is_zero in H.
+    apply HI''.
     rewrite giryM_map_zero.
-    apply HZ.
+    apply H.
   Qed.
-   *)
+
 
   (*
   Lemma fill_step_inv e1' σ1 e2 σ2 `{!LanguageCtx K} :

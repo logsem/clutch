@@ -156,3 +156,4 @@ Section giryM_map.
 
 End giryM_map.
 
+Global Arguments giryM_map {_} {_} {_} {_} {_} _.

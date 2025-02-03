@@ -21,7 +21,7 @@ Set Default Proof Using "Type".
 Definition giryM_bind {R : realType} {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
                       (f : T1 -> (giryM T2)) (Hf : measurable_fun setT f):
   (@giryM R _ T1) -> (@giryM R _ T2)
-  := ssrfun.comp giryM_join (giryM_map Hf).
+  := ssrfun.comp giryM_join (giryM_map f Hf).
 
 Definition giryM_bind_meas {R : realType} {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
                       (f : T1 -> (giryM T2)) (Hf : measurable_fun setT f):

@@ -299,9 +299,10 @@ Section monad_laws.
       + by apply (@measurableT (@giryM_display R d1 T1) (@salgebraType (@giryType R d1 T1) (@giry_subbase R d1 T1))).
       + admit.
   Admitted.
+  *)
 
-  Lemma giryM_map_zero {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : measurable_map T1 T2) :
-      giryM_map f giryM_zero = (giryM_zero : giryM T2).
+  Lemma giryM_map_zero {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> T2) (Hf : measurable_fun setT f) :
+      giryM_map f Hf giryM_zero  = (giryM_zero : giryM T2).
   Proof.
     apply giryM_ext.
     intro S.
@@ -309,6 +310,8 @@ Section monad_laws.
     rewrite giryM_zero_eval.
     by rewrite /=/mzero/pushforward.
   Qed.
+
+  (*
 
 
   (* Note: this does not hold for subdistributions! *)
@@ -582,7 +585,7 @@ Section is_zero.
 
 
   Lemma is_zero_map (μ : giryM T1) (f : T1 -> T2) (Hf : measurable_fun setT f) :
-    is_zero μ -> is_zero (giryM_map Hf μ).
+    is_zero μ -> is_zero (giryM_map f Hf μ).
   Proof.
     move=> HZ.
     unfold is_zero.
@@ -592,16 +595,16 @@ Section is_zero.
     by rewrite giryM_zero_eval giryM_zero_eval.
   Qed.
 
-  Global Instance inj_map_inj_eq (f : T1 -> T2) (Hf : measurable_fun setT f) :
+
+
+  Global Instance inj_map_inj_eq (f : T1 -> T2) (Hm : measurable_fun setT f) :
     Inj (=) (=) f →
-    Inj (=) (=) (@giryM_map R _ _ _ _ f).
+    Inj (=) (=) (@giryM_map R _ _ _ _ f Hm).
   Proof.
-  Admitted.
-    (*
     move=> Hf x y HI.
-    have W0 : forall S, giryM_map f x S = giryM_map f y S.
+    have W0 : forall S, giryM_map f Hm x S = giryM_map f Hm y S.
     { rewrite HI. by intro S. }
-    have W1 : forall S, pushforward x (@measurable_mapP _ _ _ _ f) S = pushforward y (@measurable_mapP _ _ _ _ f) S.
+    have W1 : forall S, pushforward x Hm S = pushforward y Hm S.
     { intro S.
       specialize W0 with S.
       by rewrite giryM_map_eval giryM_map_eval in W0. }
@@ -623,7 +626,6 @@ Section is_zero.
     rewrite <-H_inj_lemma.
     apply W1.
   Qed.
-*)
 
   (*
   Lemma inj_map_inj (f : measurable_map T1 T2) :
