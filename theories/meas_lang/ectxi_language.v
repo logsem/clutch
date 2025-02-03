@@ -25,23 +25,24 @@ Section ectxi_language_mixin.
   Context {ectx_item : measurableType d_ectx_item}.
 
   Context (of_val : val → expr).
-  Context (of_val_meas : measurable_fun setT of_val).
 
   Context (to_val : expr → option val).
-  Context (to_val_meas : measurable_fun setT to_val).
 
   Context (fill_item : (ectx_item * expr)%type -> expr).
-  Context (fill_item_meas : measurable_fun setT fill_item).
 
   Context (decomp_item : expr → option (ectx_item * expr)%type).
-  Context (decomp_item_meas : measurable_fun setT decomp_item).
 
   Context (expr_ord : expr → expr → Prop).
 
   Context (head_step : (expr * state)%type -> (giryM (expr * state)%type)).
-  Context (head_step_meas : measurable_fun setT head_step).
 
   Record MeasEctxiLanguageMixin := {
+    mixin_of_val_meas : measurable_fun setT of_val;
+    mixin_to_val_meas : measurable_fun setT to_val;
+    mixin_fill_item_meas : measurable_fun setT fill_item;
+    mixin_decomp_item_meas : measurable_fun setT decomp_item;
+    mixin_head_step_meas : measurable_fun setT head_step;
+
     mixin_to_of_val v : to_val (of_val v) = Some v;
     mixin_of_to_val e v : to_val e = Some v → of_val v = e;
     mixin_val_stuck e1 σ1 : (¬ (is_zero (head_step (e1, σ1)))) → to_val e1 = None;
@@ -82,28 +83,16 @@ Structure meas_ectxiLanguage := MeasEctxiLanguage {
   d_val : measure_display;
   d_state : measure_display;
   d_ectx_item : measure_display;
-
   expr : measurableType d_expr;
   val : measurableType d_val;
   state : measurableType d_state;
   ectx_item : measurableType d_ectx_item;
-
   of_val : val → expr;
-  of_val_meas : measurable_fun setT of_val;
   to_val : expr → option val;
-  to_val_meas : measurable_fun setT to_val;
-
   fill_item : (ectx_item * expr)%type -> expr;
-  fill_item_meas : measurable_fun setT fill_item;
-
   decomp_item : expr → option (ectx_item * expr)%type;
-  decomp_item_meas : measurable_fun setT decomp_item;
-
   expr_ord : expr → expr → Prop;
-
   head_step : (expr * state)%type -> (giryM (expr * state)%type);
-  head_step_meas : measurable_fun setT head_step;
-
   ectxi_language_mixin :
     MeasEctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step
 }.
@@ -111,7 +100,7 @@ Structure meas_ectxiLanguage := MeasEctxiLanguage {
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments MeasEctxiLanguage {_ _ _ _ _ _ _ _ _ _ _ _ } _ _.
+Global Arguments MeasEctxiLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _} _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments fill_item {_} _.
@@ -124,16 +113,21 @@ Section ectxi_language.
   Implicit Types (e : expr Λ) (Ki : ectx_item Λ).
   Notation ectx := (list (ectx_item Λ)).
 
-  (*
-
   (* Only project stuff out of the mixin that is not also in ectxLanguage *)
-  Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
+  Lemma fill_item_meas : measurable_fun setT (@fill_item Λ).
   Proof. apply ectxi_language_mixin. Qed.
-  Lemma fill_item_val Ki e : is_Some (to_val (fill_item Ki e)) → is_Some (to_val e).
+  Lemma decomp_item_meas : measurable_fun setT (@decomp_item Λ).
+  Proof. apply ectxi_language_mixin. Qed.
+  Lemma head_step_meas : measurable_fun setT (@head_step Λ).
+  Proof. apply ectxi_language_mixin. Qed.
+
+  Global Instance fill_item_inj Ki : Inj (=) (=) ((curry fill_item) Ki).
+  Proof. apply ectxi_language_mixin. Qed.
+  Lemma fill_item_val Ki e : is_Some (to_val (fill_item (Ki, e))) → is_Some (to_val e).
   Proof. apply ectxi_language_mixin. Qed.
   Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
     to_val e1 = None → to_val e2 = None →
-    fill_item Ki1 e1 = fill_item Ki2 e2 → Ki1 = Ki2.
+    fill_item (Ki1, e1) = fill_item (Ki2, e2) → Ki1 = Ki2.
   Proof. apply ectxi_language_mixin. Qed.
   Lemma expr_ord_wf : well_founded (@expr_ord Λ).
   Proof. apply ectxi_language_mixin. Qed.
@@ -141,19 +135,17 @@ Section ectxi_language.
     decomp_item e = Some (Ki, e') → expr_ord e' e.
   Proof. apply ectxi_language_mixin. Qed.
   Lemma decomp_fill_item e Ki :
-    to_val e = None → decomp_item (fill_item Ki e) = Some (Ki, e).
+    to_val e = None → decomp_item (fill_item (Ki, e)) = Some (Ki, e).
   Proof. apply ectxi_language_mixin. Qed.
   Lemma decomp_fill_item_2 e e' Ki :
-    decomp_item e = Some (Ki, e') → fill_item Ki e' = e ∧ to_val e' = None.
+    decomp_item e = Some (Ki, e') → fill_item (Ki, e') = e ∧ to_val e' = None.
   Proof. apply ectxi_language_mixin. Qed.
-  Lemma head_ctx_step_val Ki e σ1 ρ :
-    head_step (fill_item Ki e) σ1 ρ > 0 → is_Some (to_val e).
+  Lemma head_ctx_step_val Ki e σ1 :
+    (¬ is_zero (head_step ((fill_item (Ki, e)), σ1))) → is_Some (to_val e).
   Proof. apply ectxi_language_mixin. Qed.
-
-  Lemma fill_item_not_val K e : to_val e = None → to_val (fill_item K e) = None.
+  Lemma fill_item_not_val K e : to_val e = None → to_val (fill_item (K, e)) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_item_val. Qed.
 
-   *)
 
   (*
   (* Shoule be easier to show this is measurable *)
@@ -188,25 +180,22 @@ Section ectxi_language.
   Admitted.
   Hint Resolve fill_measurable : measlang.
 
-
     (* |K|-fold composition of measurable functions
     induction K; [by eapply measurable_id|].
     rewrite /fill/=. *)
 
 
-  (*
-  Lemma fill_app (K1 K2 : ectx) e : fill (K1 ++ K2) e = fill K2 (fill K1 e).
+  Lemma fill_app (K1 K2 : ectx) e : fill ((K1 ++ K2), e) = fill (K2, (fill (K1, e))).
   Proof. apply foldl_app. Qed.
-  *)
 
   Program Fixpoint decomp (e : expr Λ) {wf expr_ord e} : ectx * expr Λ :=
     match decomp_item e with
     | Some (Ki, e') => let '(K, e'') := decomp e' in (K ++ [Ki], e'')
     | None => ([], e)
     end.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
-  (* Solve Obligations with eauto using decomp_ord, expr_ord_wf. *)
+  Solve Obligations with eauto using decomp_ord, expr_ord_wf.
+
+
 
   (*
   Lemma decomp_unfold e :
@@ -311,10 +300,8 @@ Section ectxi_language.
   Qed.  *)
 
 
-  (*
   Canonical Structure meas_ectxi_lang_ectx := MeasEctxLanguage meas_ectxi_lang_ectx_mixin.
   Canonical Structure meas_ectxi_lang := MeasLanguageOfEctx meas_ectxi_lang_ectx.
-*)
 
   (*
   Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
@@ -329,23 +316,26 @@ Section ectxi_language.
   Qed.
   *)
 
+
   (*
-  Global Instance ectxi_lang_ctx_item Ki : MeasLanguageCtx fill_item.
+
+  I'm acutally not sure I can separate out ectx from expr like this now that it's a function
+  out of a product type...
+
+  Check @MeasLanguageCtx.
+  Global Instance ectxi_lang_ctx_item Ki : MeasLanguageCtx ((curry fill_item) Ki).
   Proof. Admitted.
     (* change (LanguageCtx (fill [Ki])). apply _. Qed. *)
-*)
+   *)
 End ectxi_language.
-(*
+
 Global Arguments meas_ectxi_lang_ectx : clear implicits.
 Global Arguments meas_ectxi_lang : clear implicits.
 Coercion meas_ectxi_lang_ectx : meas_ectxiLanguage >-> meas_ectxLanguage.
 Coercion meas_ectxi_lang : meas_ectxiLanguage >-> meas_language.
 
-  *)
-Program Definition MeasEctxLanguageOfEctxi (Λ : meas_ectxiLanguage) : meas_ectxLanguage.
-Admitted.
-(*
- let '@MeasEctxiLanguage _ _ _ expr val state ectx_item of_val to_val _ _ _ _ mix := Λ in
+Program Definition MeasEctxLanguageOfEctxi (Λ : meas_ectxiLanguage) : meas_ectxLanguage :=
+ let '@MeasEctxiLanguage _ _ _ _ expr val state ectx_item of_val to_val fill_item decomp_item expr_old head_step mix := Λ in
  MeasEctxLanguage (@meas_ectxi_lang_ectx_mixin Λ).
-*)
+
 Global Arguments MeasEctxLanguageOfEctxi : simpl never.
