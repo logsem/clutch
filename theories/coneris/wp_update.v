@@ -567,6 +567,12 @@ Section state_update.
     iMod ("H" with "[$]").
     by iModIntro.
   Qed.
+
+  Lemma state_update_pgl_wp  Φ E e:
+    state_update E E (WP e @ E {{ Φ }}) ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros ">$".
+  Qed.
   
   (** state_update works for allocation of invariants and ghost resources *)
   Lemma state_update_inv_alloc E P N:
