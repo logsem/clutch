@@ -14,24 +14,19 @@ Notation giryM := (giryM (R := R)).
 
 Section language_mixin.
   Local Open Scope classical_set_scope.
-
-  (** Measurable types for the language *)
   Context {d_expr d_val d_state : measure_display}.
   Context {expr : measurableType d_expr}.
   Context {val : measurableType d_val}.
   Context {state : measurableType d_state}.
-
-  (** Measurable val/expr coercions *)
   Context (of_val : val → expr).
-  Context (of_val_meas : measurable_fun setT of_val).
   Context (to_val : expr → option val).
-  Context (to_val_meas : measurable_fun setT to_val).
-
-  (** Measurable step *)
   Context (prim_step : (expr * state)%type -> (giryM (expr * state)%type)).
-  Context (prim_step_meas : measurable_fun setT prim_step).
-
   Record MeasLanguageMixin := {
+      
+    mixin_of_val_meas : measurable_fun setT of_val;
+    mixin_to_val_meas : measurable_fun setT to_val;
+    mixin_prim_step_meas : measurable_fun setT prim_step;
+      
     (** val/expr coercions are partial inverses *)
     mixin_to_of_val v : to_val (of_val v) = Some v;
     mixin_of_to_val e v : to_val e = Some v → of_val v = e;
@@ -52,18 +47,15 @@ Structure meas_language := MeasLanguage {
   val : measurableType d_val;
   state : measurableType d_state;
   of_val : val → expr;
-  of_val_meas : measurable_fun setT of_val;
   to_val : expr → option val;
-  to_val_meas : measurable_fun setT to_val;
   prim_step : (expr * state)%type -> (giryM (expr * state)%type);
-  prim_step_meas : measurable_fun setT prim_step;
   language_mixin : MeasLanguageMixin of_val to_val prim_step
 }.
 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments MeasLanguage {_ _ _ _ _ _ _ _ _ } _.
+Global Arguments MeasLanguage {_ _ _ _ _ _ _ _ _} _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments prim_step {_}.
@@ -111,6 +103,12 @@ Section language.
 
 
   (* From the mixin *)
+  Lemma of_val_meas : measurable_fun setT (@of_val Λ).
+  Proof. apply language_mixin. Qed.
+  Lemma to_val_meas : measurable_fun setT (@to_val Λ).
+  Proof. apply language_mixin. Qed.
+  Lemma prim_step_meas : measurable_fun setT (@prim_step Λ).
+  Proof. apply language_mixin. Qed.
   Lemma to_of_val v : to_val (of_val v) = Some v.
   Proof. apply language_mixin. Qed.
   Lemma of_to_val e v : to_val e = Some v → of_val v = e.
@@ -161,6 +159,7 @@ Section language.
     rewrite giryM_map_zero.
     apply H.
   Qed.
+
 
 
   (*

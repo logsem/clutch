@@ -21,27 +21,21 @@ Section ectx_language_mixin.
   Context {val : measurableType d_val}.
   Context {state : measurableType d_state}.
   Context {ectx : measurableType d_ectx}.
-
   Context (of_val : val -> expr).
-  Context (of_val_meas : measurable_fun setT of_val).
-
   Context (to_val : expr -> (option val)).
-  Context (to_val_meas : measurable_fun setT to_val).
-
   Context (head_step : (expr * state)%type -> (giryM (expr * state)%type)).
-  Context (head_step_meas : measurable_fun setT head_step).
-
   Context (empty_ectx : ectx).
   Context (comp_ectx : ectx → ectx → ectx). (* TODO: Does this need to be measurable? I assume yes. *)
-
   Context (fill : (ectx * expr)%type -> expr).
-  Context (fill_meas : measurable_fun setT fill).
-
   Context (decomp : expr → (ectx * expr)%type).
-  Context (decomp_meas : measurable_fun setT decomp).
-
 
   Record MeasEctxLanguageMixin := {
+    mixin_of_val_meas : measurable_fun setT of_val;
+    mixin_to_val_meas : measurable_fun setT to_val;
+    mixin_head_step_meas : measurable_fun setT head_step;
+    mixin_fill_meas : measurable_fun setT fill;
+    mixin_decomp_meas : measurable_fun setT decomp;
+
     mixin_to_of_val v : to_val (of_val v) = Some v;
     mixin_of_to_val e v : to_val e = Some v → of_val v = e;
 
@@ -90,28 +84,17 @@ Structure meas_ectxLanguage := MeasEctxLanguage {
   d_val: measure_display;
   d_state: measure_display;
   d_ectx: measure_display;
-
   expr : measurableType d_expr;
   val : measurableType d_val;
   state : measurableType d_state;
   ectx : measurableType d_ectx;
-
   of_val : val → expr;
-  of_val_meas : measurable_fun setT of_val;
   to_val : expr → option val;
-  to_val_meas : measurable_fun setT to_val;
-
   empty_ectx : ectx;
   comp_ectx : ectx → ectx → ectx;
-
   fill : (ectx * expr)%type -> expr;
-  fill_meas : measurable_fun setT fill;
   decomp : expr → (ectx * expr)%type;
-  decomp_meas : measurable_fun setT decomp;
-
   head_step : (expr * state)%type -> (giryM (expr * state)%type);
-  head_step_meas : measurable_fun setT head_step;
-
   ectx_language_mixin :
     MeasEctxLanguageMixin of_val to_val head_step empty_ectx comp_ectx fill decomp;
 }.
@@ -119,7 +102,7 @@ Structure meas_ectxLanguage := MeasEctxLanguage {
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments MeasEctxLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _} _.
+Global Arguments MeasEctxLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments empty_ectx {_}.
@@ -136,6 +119,12 @@ Section ectx_language.
   Implicit Types K : ectx Λ.
 
   (* Only project stuff out of the mixin that is not also in language *)
+  Lemma head_step_meas : measurable_fun setT (@head_step Λ).
+  Proof. apply ectx_language_mixin. Qed.
+  Lemma fill_meas : measurable_fun setT (@fill Λ).
+  Proof. apply ectx_language_mixin. Qed.
+  Lemma decomp_meas : measurable_fun setT (@decomp Λ).
+  Proof. apply ectx_language_mixin. Qed.
   Lemma head_not_stuck e σ : (¬ is_zero (head_step (e, σ))) → to_val e = None.
   Proof. apply ectx_language_mixin. Qed.
   Lemma head_step_mass e σ : (¬ is_zero (head_step (e, σ))) -> is_prob (head_step (e, σ)).
@@ -188,14 +177,13 @@ Section ectx_language.
   Proof.
     mcrunch_prod.
     { eapply @measurable_compT; first by eauto with measlang.
-      { by apply fill_meas.  }
+      { by apply fill_meas. }
       mcrunch_prod.
       { by eauto with measlang. }
       by mcrunch_comp.
     }
     { by mcrunch_comp. }
   Qed.
-
 
   Definition fill_lift (K : ectx Λ) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
     fun x => fill_liftU (K, x).
@@ -245,16 +233,15 @@ Section ectx_language.
     { by eapply measurable_id. }
   Qed.
 
-  (*
-  (*
-  Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
+  Lemma fill_not_val K e : to_val e = None → to_val (fill (K, e)) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.
-  *)
 
   Definition ectx_lang_mixin : MeasLanguageMixin (@of_val Λ) to_val head_step.
   Proof. split; by apply ectx_language_mixin. Qed.
 
   Canonical Structure ectx_lang : meas_language := MeasLanguage ectx_lang_mixin.
+
+  (*
 
   (*
   Definition head_atomic (a : atomicity) (e : expr Λ) : Prop :=
@@ -499,10 +486,10 @@ Section ectx_language.
  *)
 *)
 End ectx_language.
-(*
+
 Global Arguments ectx_lang : clear implicits.
 Coercion ectx_lang : meas_ectxLanguage >-> meas_language.
-*)
+
 (* This definition makes sure that the fields of the [language] record do not
 refer to the projections of the [ectxLanguage] record but to the actual fields
 of the [ectxLanguage] record. This is crucial for canonical structure search to
@@ -511,14 +498,11 @@ work.
 Note that this trick no longer works when we switch to canonical projections
 because then the pattern match [let '...] will be desugared into projections. *)
 
-
 Program Definition MeasLanguageOfEctx (Λ : meas_ectxLanguage) : meas_language :=
-  let '@MeasEctxLanguage _ _ _ _ expr val state ectx of_val of_val_meas to_val to_val_meas head_step head_step_meas  _ _ _ _ _ _ mix := Λ in
-  @MeasLanguage _ _ _ expr val state of_val of_val_meas to_val to_val_meas _ _ _.
-Next Obligation. Admitted. (* Wrong expr and val type!!*)
-Next Obligation. Admitted.
+  let '@MeasEctxLanguage _ _ _ _ expr val state ectx of_val to_val empty_ctx comp_ctx _ _ head_step mix := Λ in
+  @MeasLanguage _ _ _ expr val state of_val to_val head_step _.
 Next Obligation.
   intros.
   destruct mix.
   split; try done.
-Admitted.
+Qed.
