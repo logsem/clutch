@@ -27,34 +27,10 @@ From mathcomp Require Import ssrbool eqtype fintype choice all_algebra finmap.
 From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
 From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed normedtype sequences esum numfun measure lebesgue_measure lebesgue_integral. *)
-Check measurable_fun.
+
 Set Warnings "+spurious-ssr-injection".
 
 Local Open Scope classical_set_scope.
-
-
-(* Really slow when I add it to mcrunch *)
-Ltac mcrunch_fst := apply measurable_fst_restriction; by eauto with measlang.
-
-Ltac mcrunch_snd := apply measurable_snd_restriction; by eauto with measlang.
-
-(** Wrapper around eauto for finishing tactics *)
-Ltac mcrunch := by eauto with measlang.
-
-(** For proving the measurability of a composition where the first composite function
-    can be solved by eauto on a set, and the measurability is not on the top set. *)
-Ltac mcrunch_comp :=
-  ( eapply @measurable_comp; [ | | by eauto with measlang | ]; try by eauto with measlang ).
-
-(** For proving the measurability of a composition by a constructor.
-    First argument is the constructor measurability proof. *)
-Ltac mcrunch_compC H :=
-  ( eapply @measurable_compT; [ by eauto with measlang | by apply H | ] ).
-
-(** Measurability of mprod
-    Doesn't always work, if it gets confused you need to unroll the arguments to
-    measurable_fun_prod' *)
-Ltac mcrunch_prod := ( eapply @measurable_fun_prod'; first by eauto with measlang ).
 
 Module meas_lang.
 
@@ -250,7 +226,7 @@ Section meas_semantics.
 (*
     | Store (Val (LitV (LitLoc l))) (Val w) =>
         match σ1.(heap) !! l with
-          | Some v => giryM_ret R ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : cfg)
+          | Some v => giryM_ret ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : cfg)
           | None => giryM_zero
         end
 *)
@@ -488,6 +464,7 @@ Section meas_semantics.
     - by eauto with measlang.
   Qed.
   Hint Resolve cover_app_meas : measlang.
+
 
   Lemma cover_unop_ok'_meas : measurable cover_unop_ok'.
   Proof.
@@ -1175,9 +1152,9 @@ Section meas_semantics.
       (HC : measurable_fun S C) : measurable_fun (NonStatefulS S) (NonStatefulU C).
   Proof.
     rewrite /NonStatefulU//=.
-    have H1 : measurable_fun (T:=A) (U:=A) S m_id.
+    have H1 : measurable_fun (T:=A) (U:=A) S (fun x => x).
     { apply mathcomp_measurable_fun_restiction_setT; [done|].
-      by apply measurable_mapP.
+      by apply measurable_id.
     }
     apply (measurable_fun_prod' (ssrfun.comp C fst) snd (NonStatefulS S) (NonStatefulS_measurable S HS)).
     - eapply measurable_comp.
@@ -1191,16 +1168,16 @@ Section meas_semantics.
   Qed.
 
   (** Top-level functions *)
-  (* | Rec f x e => giryM_ret R ((Val $ RecV f x e, σ1) : cfg)  *)
+  (* | Rec f x e => giryM_ret ((Val $ RecV f x e, σ1) : cfg)  *)
   Definition head_stepM_rec : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp giryM_ret $
     NonStatefulU $
     ssrfun.comp ValU $
     ssrfun.comp RecVU 𝜋_RecU.
 
-  (* | Pair (Val v1) (Val v2) => giryM_ret R ((Val $ PairV v1 v2, σ1) : cfg)   *)
+  (* | Pair (Val v1) (Val v2) => giryM_ret ((Val $ PairV v1 v2, σ1) : cfg)   *)
   Definition head_stepM_pair : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     NonStatefulU $
     ssrfun.comp ValU $
     ssrfun.comp PairVU $
@@ -1208,27 +1185,27 @@ Section meas_semantics.
       (ssrfun.comp 𝜋_Val_v 𝜋_Pair_l)
       (ssrfun.comp 𝜋_Val_v $ 𝜋_Pair_r).
 
-  (* | InjL (Val v) => giryM_ret R ((Val $ InjLV v, σ1) : cfg) *)
+  (* | InjL (Val v) => giryM_ret ((Val $ InjLV v, σ1) : cfg) *)
   Definition head_stepM_injL : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     NonStatefulU $
     ssrfun.comp ValU $
     ssrfun.comp InjLVU $
     ssrfun.comp 𝜋_ValU $
     𝜋_InjLU.
 
-  (* | InjR (Val v) => giryM_ret R ((Val $ InjRV v, σ1) : cfg) *)
+  (* | InjR (Val v) => giryM_ret ((Val $ InjRV v, σ1) : cfg) *)
   Definition head_stepM_injR : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     NonStatefulU $
     ssrfun.comp ValU $
     ssrfun.comp InjRVU $
     ssrfun.comp 𝜋_ValU $
     𝜋_InjRU.
 
-  (* | App (Val (RecV f x e1)) (Val v2) => giryM_ret R ((subst' x v2 (subst' f (RecV f x e1) e1) , σ1) : cfg)  *)
+  (* | App (Val (RecV f x e1)) (Val v2) => giryM_ret ((subst' x v2 (subst' f (RecV f x e1) e1) , σ1) : cfg)  *)
   Definition head_stepM_app : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     NonStatefulU $
     ssrfun.comp substU' $ (* subst' ...  *)
     mProd
@@ -1244,14 +1221,14 @@ Section meas_semantics.
 
   (* | UnOp op (Val v) =>
         match un_op_eval op v with
-          | Some w => giryM_ret R ((Val w, σ1) : cfg)
+          | Some w => giryM_ret ((Val w, σ1) : cfg)
           | _ => giryM_zero
         end
    *)
 
   (* The function (on configurations) to do when the cfg is a UnOp that is valid *)
   Definition head_stepM_unop_ok : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     mProd
       ( ssrfun.comp ValU $
         ssrfun.comp un_op_evalC $
@@ -1268,7 +1245,7 @@ Section meas_semantics.
 
   (* The function (on configurations) to do when the cfg is a BinOp that is valid *)
   Definition head_stepM_binop_ok : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     mProd
       ( ssrfun.comp ValU $
         ssrfun.comp bin_op_evalC $
@@ -1291,12 +1268,12 @@ Section meas_semantics.
         if bool_decide (0 < Z.to_nat N)%nat
           then
             let ℓ := fresh_loc σ1.(heap) in
-            giryM_ret R ((Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1) : cfg)
+            giryM_ret ((Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1) : cfg)
           else giryM_zero
 
    *)
   Definition head_stepM_allocN_ok : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     mProd
       (ssrfun.comp ValU $
        ssrfun.comp LitVU $
@@ -1313,12 +1290,12 @@ Section meas_semantics.
   (*
     | Load (Val (LitV (LitLoc l))) =>
         match σ1.(heap) !! l with
-          | Some v => giryM_ret R ((Val v, σ1) : cfg)
+          | Some v => giryM_ret ((Val v, σ1) : cfg)
           | None => giryM_zero
         end
    *)
   Definition head_stepM_load_ok : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     mProd
       ( ssrfun.comp ValU $
         ssrfun.comp state_loadC $
@@ -1330,7 +1307,7 @@ Section meas_semantics.
     cst giryM_zero.
 
   Definition head_stepM_store_ok : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     mProd
       (ssrfun.comp state_storeE $ aux_store)
       (ssrfun.comp state_storeS $ aux_store).
@@ -1339,39 +1316,39 @@ Section meas_semantics.
   Definition head_stepM_store_stuck: cfg -> giryM cfg :=
     cst giryM_zero.
 
-  (* | If (Val (LitV (LitBool true))) e1 e2  => giryM_ret R ((e1 , σ1) : cfg) *)
+  (* | If (Val (LitV (LitBool true))) e1 e2  => giryM_ret ((e1 , σ1) : cfg) *)
   Definition head_stepM_ifT : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     NonStatefulU $
     𝜋_If_l.
 
-  (* | If (Val (LitV (LitBool false))) e1 e2 => giryM_ret R ((e2 , σ1) : cfg) *)
+  (* | If (Val (LitV (LitBool false))) e1 e2 => giryM_ret ((e2 , σ1) : cfg) *)
   Definition head_stepM_ifF : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     NonStatefulU $
     𝜋_If_r.
 
-  (* | Fst (Val (PairV v1 v2)) => giryM_ret R ((Val v1, σ1) : cfg) *)
+  (* | Fst (Val (PairV v1 v2)) => giryM_ret ((Val v1, σ1) : cfg) *)
   Definition head_stepM_fst : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     NonStatefulU $
     ssrfun.comp ValU $
     ssrfun.comp 𝜋_PairV_l $
     ssrfun.comp 𝜋_ValU $
     𝜋_Fst_e.
 
-  (* | Snd (Val (PairV v1 v2)) => giryM_ret R ((Val v2, σ1) : cfg) *)
+  (* | Snd (Val (PairV v1 v2)) => giryM_ret ((Val v2, σ1) : cfg) *)
   Definition head_stepM_snd : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     NonStatefulU $
     ssrfun.comp ValU $
     ssrfun.comp 𝜋_PairV_r $
     ssrfun.comp 𝜋_ValU $
     𝜋_Snd_e.
 
-  (* | Case (Val (InjLV v)) e1 e2 => giryM_ret R ((App e1 (Val v), σ1) : cfg) *)
+  (* | Case (Val (InjLV v)) e1 e2 => giryM_ret ((App e1 (Val v), σ1) : cfg) *)
   Definition head_stepM_caseL : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     NonStatefulU $
     ssrfun.comp AppU $
     mProd
@@ -1381,9 +1358,9 @@ Section meas_semantics.
         ssrfun.comp 𝜋_Val_v $
         𝜋_Case_c ).
 
-  (* | Case (Val (InjRV v)) e1 e2 => giryM_ret R ((App e2 (Val v), σ1) : cfg) *)
+  (* | Case (Val (InjRV v)) e1 e2 => giryM_ret ((App e2 (Val v), σ1) : cfg) *)
   Definition head_stepM_caseR : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     NonStatefulU $
     ssrfun.comp AppU $
     mProd
@@ -1405,11 +1382,11 @@ Section meas_semantics.
   (*
     | AllocTape (Val (LitV (LitInt z))) =>
         let ι := fresh_loc σ1.(tapes) in
-        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := {| btape_tape := emptyTape ; btape_bound := (Z.to_nat z) |} ]> σ1) : cfg)
+        giryM_ret ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := {| btape_tape := emptyTape ; btape_bound := (Z.to_nat z) |} ]> σ1) : cfg)
       destruct and apply RandAllcoTapeE/S
   *)
   Definition head_stepM_allocTape : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     mProd
       (ssrfun.comp ValU $
        ssrfun.comp LitVU $
@@ -1422,10 +1399,10 @@ Section meas_semantics.
   (*
     | AllocUTape =>
         let ι := fresh_loc σ1.(utapes) in
-        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : cfg)
+        giryM_ret ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : cfg)
    *)
   Definition head_stepM_allocUTape : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     mProd
       (ssrfun.comp ValU $
        ssrfun.comp LitVU $
@@ -1486,9 +1463,9 @@ Section meas_semantics.
   Definition head_stepM_urandT : cfg -> giryM cfg :=
     ssrfun.comp rand_urandT head_stepM_aux_urandT.
 
-  (* | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : cfg) *)
+  (* | Tick (Val (LitV (LitInt n))) => giryM_ret ((Val $ LitV $ LitUnit, σ1) : cfg) *)
   Definition head_stepM_tick : cfg -> giryM cfg :=
-    ssrfun.comp (giryM_ret R) $
+    ssrfun.comp (giryM_ret) $
     NonStatefulU $
     ssrfun.comp ValU $
     ssrfun.comp LitVU $
@@ -1546,7 +1523,6 @@ Section meas_semantics.
     end.
 
   Hint Resolve measurable_compT : measlang.
-  Hint Resolve measurable_mapP : measlang.
 
   (* Combining solve_packaged_meas and solve_toplevel_meas is too slow! *)
   Ltac solve_toplevel_meas :=
@@ -1554,6 +1530,8 @@ Section meas_semantics.
       try (apply measurable_compT);
       try (by eauto with measlang)
     ).
+
+
 
   (** Measurability of head_step restricted to the different sets in the cover *)
   Lemma head_stepM_rec_meas : measurable_fun cover_rec head_stepM_def.
@@ -2629,7 +2607,7 @@ Section meas_semantics.
     - by apply head_stepM_stuck_meas.
   Qed.
 
-  Local Lemma head_stepM_def_measurable :
+  Lemma head_stepM_def_measurable :
     @measurable_fun _ _ cfg (giryM cfg) setT head_stepM_def.
   Proof.
     apply (@measurable_by_cover_list _ _ _ _ head_stepM_def cfg_cover).
@@ -2651,12 +2629,6 @@ Section meas_semantics.
         - by apply HS. }
       by apply mathcomp_restriction_setT.
   Qed.
-
-  HB.instance Definition _ :=
-    isMeasurableMap.Build _ _ _ _ _ head_stepM_def_measurable.
-
-  Definition head_stepM : measurable_map cfg (giryM cfg) :=
-    head_stepM_def.
 
 
 End meas_semantics.

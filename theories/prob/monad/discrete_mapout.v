@@ -19,7 +19,7 @@ Section discrete_space_mapout.
   Context {d2} {T1 : pointedType} {T2 : measurableType d2}.
   Local Open Scope classical_set_scope.
 
-  Local Definition m_discr (f : T1 -> T2) : <<discr T1>> -> T2 := f.
+  Definition m_discr (f : T1 -> T2) : <<discr T1>> -> T2 := f.
 
   Lemma m_discr_measurable (f : T1 -> T2) : (measurable_fun setT (m_discr f)).
   Proof. rewrite /measurable_fun. intros. by rewrite /measurable/=/discr_meas/=. Qed.

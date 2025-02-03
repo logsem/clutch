@@ -72,12 +72,15 @@ Canonical Structure exprO Λ := leibnizO (expr Λ).
 
 Definition cfg (Λ : meas_language) := (expr Λ * state Λ)%type.
 
-Program Definition fill_lift {Λ} (K : (expr Λ) -> (expr Λ)) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
+Definition fill_lift {Λ} (K : (expr Λ) -> (expr Λ)) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
   mProd (ssrfun.comp K fst) snd.
 
-Local Lemma fill_lift_measurable {Λ} (K : (expr Λ) -> (expr Λ)) (HK : measurable_fun setT K) :
+Lemma fill_lift_measurable {Λ} (K : (expr Λ) -> (expr Λ)) (HK : measurable_fun setT K) :
   @measurable_fun _ _ (expr Λ * state Λ)%type (expr Λ * state Λ)%type setT (fill_lift K).
-Proof. Admitted.
+Proof.
+
+
+Admitted.
 (*
   apply measurable_fun_prod.
   { simpl.

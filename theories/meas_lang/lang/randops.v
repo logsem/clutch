@@ -95,21 +95,24 @@ Feels that it should be derivable from the measurability of bind, but I'd need a
 different definition for that.
  *)
 Definition giryM_ap {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} :
-  (giryM T1 * giryM T2)%type -> giryM (T1 * T2)%type :=
-  fun X => giryM_bind' (fun x => giryM_bind' (fun y => giryM_ret _ (x, y)) X.2) X.1.
-
-Definition rand_rand_aux : <<discr TZ>> -> giryM expr :=
+  (giryM T1 * giryM T2)%type -> giryM (T1 * T2)%type. Admitted.
+(*
+  fun X => giryM_bind (fun x => giryM_bind (fun y => giryM_ret _ (x, y)) X.2) X.1.
+*)
+Definition rand_rand_aux : <<discr TZ>> -> giryM expr. Admitted.
+(*
   m_discr (fun z =>
-    giryM_map_def' (giryM_unif' (Z.to_nat z)) $
+    giryM_map (giryM_unif' (Z.to_nat z)) $
     ssrfun.comp ValU $
     ssrfun.comp LitVU $
     LitIntU).
+*)
 
 Definition rand_rand : (<<discr Z>> * state)%type -> giryM cfg :=
   ssrfun.comp giryM_ap $
   mProd
     (ssrfun.comp rand_rand_aux fst)
-    (ssrfun.comp (giryM_ret _) snd).
+    (ssrfun.comp giryM_ret snd).
 
 Lemma rand_rand_meas : measurable_fun setT rand_rand. Admitted.
 Hint Resolve rand_rand_meas : measlang.
@@ -117,16 +120,18 @@ Hint Resolve rand_rand_meas : measlang.
 (**  URand no tape *)
 
 (** Uniform distrubtion over real number literal expressions on the interval *)
-Definition rand_urand_aux : giryM expr :=
+Definition rand_urand_aux : giryM expr. Admitted.
+(*
   giryM_map_def' unif_base $
   ssrfun.comp ValU $
   ssrfun.comp LitVU $
   LitRealU.
+*)
 
 (* My life would be way easier if I could go from (giryM X * giryM Y) to giryM (X * Y)*)
 Definition rand_urand : state -> giryM cfg :=
   ssrfun.comp giryM_ap  $
-  mProd (cst $ rand_urand_aux) (giryM_ret _).
+  mProd (cst $ rand_urand_aux) giryM_ret.
 
 
 Lemma rand_urand_meas : measurable_fun setT rand_urand. Admitted.
@@ -218,13 +223,13 @@ let σ' := state_upd_tapes <[ l := {| btape_tape := (tapeAdvance τ); btape_boun
 Program Definition rand_randT_ok : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg :=
   ssrfun.comp giryM_ap $
   mProd
-    ( ssrfun.comp (giryM_ret _) $
+    ( ssrfun.comp giryM_ret $
       ssrfun.comp ValU $
       ssrfun.comp LitVU $
       ssrfun.comp LitInt $
       ssrfun.comp tape_read $
       mProd (ssrfun.comp snd fst) snd )
-    ( ssrfun.comp (giryM_ret _) snd ).
+    ( ssrfun.comp giryM_ret snd ).
 
 
 Definition rand_randT_nextEmpty : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg.

@@ -896,13 +896,12 @@ Proof.
 *)
 Admitted.
 
-HB.instance Definition _ :=
-  isMeasurableMap.Build _ _ _ _ _ fill_item_def_measurable.
-
-Definition fill_item : measurable_map (ectx_item * expr)%type expr :=
+Definition fill_item : (ectx_item * expr)%type -> expr :=
   fill_item_def.
 
-Definition noval (x : expr * ectx_item) : MOption (ectx_item * expr)%type :=
+Lemma fill_item_meas : measurable_fun setT fill_item. Admitted.
+
+Definition noval (x : expr * ectx_item) : option (ectx_item * expr)%type :=
   match x.1 with
   | Val _ => None
   | _ => Some (snd x, fst x)
@@ -1134,100 +1133,100 @@ Definition decomp_item_cover : list (set expr) := [
   decomp_cov_stuck
 ].
 
-Definition decomp_app_val    : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_app_val    : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_App_l (ssrfun.comp AppLCtxU $ ssrfun.comp 𝜋_Val_v $ 𝜋_App_r).
 
-Definition decomp_app_expr   : expr -> (MOption (ectx_item * expr)%type) :=
-  ssrfun.comp MSome $
+Definition decomp_app_expr   : expr -> (option (ectx_item * expr)%type) :=
+  ssrfun.comp Some $
   mProd (ssrfun.comp AppRCtxU 𝜋_App_l) 𝜋_App_r.
 
-Definition decomp_unop       : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_unop       : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_UnOp_e (ssrfun.comp UnOpCtxU 𝜋_UnOp_op).
 
-Definition decomp_binop_val  : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_binop_val  : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_BinOp_l (ssrfun.comp BinOpLCtxU $ mProd 𝜋_BinOp_op (ssrfun.comp 𝜋_Val_v 𝜋_BinOp_r)).
 
-Definition decomp_binop_expr : expr -> (MOption (ectx_item * expr)%type) :=
-  ssrfun.comp MSome $
+Definition decomp_binop_expr : expr -> (option (ectx_item * expr)%type) :=
+  ssrfun.comp Some $
   mProd (ssrfun.comp BinOpRCtxU $ mProd 𝜋_BinOp_op 𝜋_BinOp_l) 𝜋_BinOp_r.
 
-Definition decomp_if         : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_if         : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_If_c (ssrfun.comp IfCtxU $ mProd 𝜋_If_l 𝜋_If_r).
 
-Definition decomp_pair_val   : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_pair_val   : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_Pair_l (ssrfun.comp PairLCtxU $ 𝜋_Val_v).
 
-Definition decomp_pair_expr  : expr -> (MOption (ectx_item * expr)%type) :=
-  ssrfun.comp MSome $
+Definition decomp_pair_expr  : expr -> (option (ectx_item * expr)%type) :=
+  ssrfun.comp Some $
   mProd (ssrfun.comp PairRCtxU 𝜋_Pair_l) 𝜋_Pair_r.
 
-Definition decomp_fst        : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_fst        : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_Fst_e (cst FstCtxU).
 
-Definition decomp_snd        : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_snd        : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_Snd_e (cst SndCtxU).
 
-Definition decomp_injl       : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_injl       : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_InjL_e (cst InjLCtxU).
 
-Definition decomp_injr       : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_injr       : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_InjR_e (cst InjRCtxU).
 
-Definition decomp_case       : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_case       : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_Case_c (ssrfun.comp CaseCtxU $ mProd 𝜋_Case_l 𝜋_Case_r).
 
-Definition decomp_alloc_val  : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_alloc_val  : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_AllocN_N (ssrfun.comp AllocNLCtxU $ ssrfun.comp 𝜋_Val_v 𝜋_AllocN_e ).
 
-Definition decomp_alloc_expr : expr -> (MOption (ectx_item * expr)%type) :=
-  ssrfun.comp MSome $
+Definition decomp_alloc_expr : expr -> (option (ectx_item * expr)%type) :=
+  ssrfun.comp Some $
   mProd (ssrfun.comp AllocNRCtxU 𝜋_AllocN_N) 𝜋_AllocN_e.
 
-Definition decomp_load       : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_load       : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_Load_e (cst LoadCtxU).
 
-Definition decomp_store_val  : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_store_val  : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_Store_l (ssrfun.comp StoreLCtxU $ ssrfun.comp 𝜋_Val_v 𝜋_Store_e).
 
-Definition decomp_store_expr : expr -> (MOption (ectx_item * expr)%type) :=
-  ssrfun.comp MSome $
+Definition decomp_store_expr : expr -> (option (ectx_item * expr)%type) :=
+  ssrfun.comp Some $
   mProd (ssrfun.comp StoreRCtxU 𝜋_Store_l) 𝜋_Store_e.
 
-Definition decomp_alloctape  : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_alloctape  : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_AllocTape_e (cst AllocTapeCtxU).
 
-Definition decomp_rand_val   : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_rand_val   : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_Rand_t (ssrfun.comp RandLCtxU $ ssrfun.comp 𝜋_Val_v 𝜋_Rand_N).
 
-Definition decomp_rand_expr  : expr -> (MOption (ectx_item * expr)%type) :=
-  ssrfun.comp MSome $
+Definition decomp_rand_expr  : expr -> (option (ectx_item * expr)%type) :=
+  ssrfun.comp Some $
   mProd (ssrfun.comp RandRCtxU 𝜋_Rand_t) 𝜋_Rand_N.
 
-Definition decomp_urand      : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_urand      : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_URand_e (cst URandCtxU).
 
-Definition decomp_tick       : expr -> (MOption (ectx_item * expr)%type) :=
+Definition decomp_tick       : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_Tick_e (cst TickCtxU).
 
-Definition decomp_stuck      : expr -> (MOption (ectx_item * expr)%type) :=
-  cst MNone.
+Definition decomp_stuck      : expr -> (option (ectx_item * expr)%type) :=
+  cst None.
 
 Lemma decomp_app_val_meas    : measurable_fun decomp_cov_app_val    decomp_app_val. Proof. Admitted.
 Lemma decomp_app_expr_meas   : measurable_fun decomp_cov_app_expr   decomp_app_expr. Proof. Admitted.
@@ -1279,7 +1278,7 @@ Hint Resolve decomp_urand_meas      : measlang.
 Hint Resolve decomp_tick_meas       : measlang.
 Hint Resolve decomp_stuck_meas      : measlang.
 
-Definition decomp_item_def (e : expr) : MOption (ectx_item * expr)%type :=
+Definition decomp_item_def (e : expr) : option (ectx_item * expr)%type :=
   match e with
   | App _ (Val _)      => decomp_app_val e
   | App _ _            => decomp_app_expr e

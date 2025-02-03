@@ -40,3 +40,5 @@ HB.instance Definition _ := isPointed.Build binder inhabitant.
 HB.instance Definition _ := gen_eqMixin loc.
 HB.instance Definition _ := gen_choiceMixin loc.
 HB.instance Definition _ := isPointed.Build loc inhabitant.
+
+Hint Resolve giry_ret_measurable : measlang.

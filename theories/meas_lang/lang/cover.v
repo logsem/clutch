@@ -150,8 +150,8 @@ Proof.
   - by move=> [x??]; exists x.
   - by move=> [x?]; exists x.
 Qed.
-Hint Resolve bcov_LitReal_meas : measlang.
 
+Arguments eq_measurable {_} {_} _ {_}.
 Lemma ecov_val_meas : measurable ecov_val.
 Proof.
   rewrite /ecov_val.

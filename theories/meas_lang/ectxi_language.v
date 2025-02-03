@@ -25,13 +25,13 @@ Section ectxi_language_mixin.
   Context (of_val : val → expr).
   Context (of_val_meas : measurable_fun setT of_val).
 
-  Context (to_val : expr → MOption val).
+  Context (to_val : expr → option val).
   Context (to_val_meas : measurable_fun setT to_val).
 
   Context (fill_item : (ectx_item * expr)%type -> expr).
   Context (fill_item_meas : measurable_fun setT fill_item).
 
-  Context (decomp_item : expr → MOption (ectx_item * expr)%type).
+  Context (decomp_item : expr → option (ectx_item * expr)%type).
   Context (decomp_item_meas : measurable_fun setT decomp_item).
 
   Context (expr_ord : expr → expr → Prop).
@@ -88,13 +88,13 @@ Structure meas_ectxiLanguage := MeasEctxiLanguage {
 
   of_val : val → expr;
   of_val_meas : measurable_fun setT of_val;
-  to_val : expr → MOption val;
+  to_val : expr → option val;
   to_val_meas : measurable_fun setT to_val;
 
   fill_item : (ectx_item * expr)%type -> expr;
   fill_item_meas : measurable_fun setT fill_item;
 
-  decomp_item : expr → MOption (ectx_item * expr)%type;
+  decomp_item : expr → option (ectx_item * expr)%type;
   decomp_item_meas : measurable_fun setT decomp_item;
 
   expr_ord : expr → expr → Prop;
@@ -120,7 +120,7 @@ Global Arguments head_step {_}.
 Section ectxi_language.
   Context {Λ : meas_ectxiLanguage}.
   Implicit Types (e : expr Λ) (Ki : ectx_item Λ).
-  Notation ectx := (MList (ectx_item Λ)).
+  Notation ectx := (list (ectx_item Λ)).
 
   (*
 
@@ -228,7 +228,7 @@ Section ectxi_language.
 
 
   Definition meas_ectxi_lang_ectx_mixin :
-    MeasEctxLanguageMixin of_val to_val head_step MEmpty (flip (++)) fill decomp.
+    MeasEctxLanguageMixin of_val to_val head_step [] (flip (++)) fill decomp.
   Proof. Admitted.
 
     (*

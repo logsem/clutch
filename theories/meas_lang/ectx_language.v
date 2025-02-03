@@ -23,7 +23,7 @@ Section ectx_language_mixin.
   Context (of_val : val -> expr).
   Context (of_val_meas : measurable_fun setT of_val).
 
-  Context (to_val : expr -> (MOption val)).
+  Context (to_val : expr -> (option val)).
   Context (to_val_meas : measurable_fun setT to_val).
 
   Context (head_step : (expr * state)%type -> (giryM (expr * state)%type)).
@@ -96,7 +96,7 @@ Structure meas_ectxLanguage := MeasEctxLanguage {
 
   of_val : val → expr;
   of_val_meas : measurable_fun setT of_val;
-  to_val : expr → MOption val;
+  to_val : expr → option val;
   to_val_meas : measurable_fun setT to_val;
 
   empty_ectx : ectx;
@@ -107,7 +107,8 @@ Structure meas_ectxLanguage := MeasEctxLanguage {
   decomp : expr → (ectx * expr)%type;
   decomp_meas : measurable_fun setT decomp;
 
-  head_step : measurable_map (expr * state)%type (giryM (expr * state)%type);
+  head_step : (expr * state)%type -> (giryM (expr * state)%type);
+  head_step_meas : measurable_fun setT head_step;
 
   ectx_language_mixin :
     MeasEctxLanguageMixin of_val to_val head_step empty_ectx comp_ectx fill decomp;
@@ -491,7 +492,7 @@ because then the pattern match [let '...] will be desugared into projections. *)
 
 
 Program Definition MeasLanguageOfEctx (Λ : meas_ectxLanguage) : meas_language :=
-  let '@MeasEctxLanguage _ _ _ _ expr val state ectx of_val of_val_meas to_val to_val_meas head_step _ _ _ _ _ _ mix := Λ in
+  let '@MeasEctxLanguage _ _ _ _ expr val state ectx of_val of_val_meas to_val to_val_meas head_step head_step_meas  _ _ _ _ _ _ mix := Λ in
   @MeasLanguage _ _ _ expr val state of_val of_val_meas to_val to_val_meas _ _ _.
 Next Obligation. Admitted. (* Wrong expr and val type!!*)
 Next Obligation. Admitted.

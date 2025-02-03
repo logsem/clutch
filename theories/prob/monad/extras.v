@@ -423,6 +423,7 @@ Section subspaces.
     have Z : is_true (x \in E) by auto.
     by rewrite in_setE in Z.
   Qed.
+  Global Arguments mathcomp_measurable_fun_ext {_} {_} {_} {_}.
 
 
   (* TODO: Delete me (but not yet)
@@ -496,7 +497,7 @@ Section subspaces.
     by apply H.
   Qed.
 
-
+  Global Arguments mathcomp_measurable_fun_restiction_setT {_} {_} {_} {_}.
 
 End subspaces.
 
@@ -546,6 +547,7 @@ Lemma measurable_fun_prod' {d d1 d2} {T : measurableType d} {T1 : measurableType
   measurable_fun S f -> measurable_fun S g ->
   measurable_fun S (fun x => (f x, g x)).
 Proof. by move=>??; exact/prod_measurable_funP'. Qed.
+Global Arguments measurable_fun_prod' {_} {_} {_} {_} {_} {_}.
 
 Notation mProd f g := (fun x => (f x, g x)).
 
@@ -580,6 +582,7 @@ Proof.
   apply measurableI; [done|].
   apply MF; done.
 Qed.
+Global Arguments measurable_fun_setI1 {_} {_} {_} {_}.
 
 
 Lemma measurable_fun_setI2 {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
@@ -603,3 +606,30 @@ Proof.
   - done.
   - by apply measurable_snd.
 Qed.
+
+(** Tactics *)
+
+(* Really slow when I add it to mcrunch *)
+Ltac mcrunch_fst := apply measurable_fst_restriction; by eauto with measlang.
+
+Ltac mcrunch_snd := apply measurable_snd_restriction; by eauto with measlang.
+
+(** Wrapper around eauto for finishing tactics *)
+Ltac mcrunch := by eauto with measlang.
+
+(** For proving the measurability of a composition where the first composite function
+    can be solved by eauto on a set, and the measurability is not on the top set. *)
+Ltac mcrunch_comp :=
+  ( eapply @measurable_comp; [ | | by eauto with measlang | ]; try by eauto with measlang ).
+
+(** For proving the measurability of a composition by a constructor.
+    First argument is the constructor measurability proof. *)
+Ltac mcrunch_compC H :=
+  ( eapply @measurable_compT; [ by eauto with measlang | by apply H | ] ).
+
+(** Measurability of mprod
+    Doesn't always work, if it gets confused you need to unroll the arguments to
+    measurable_fun_prod' *)
+Ltac mcrunch_prod := ( eapply @measurable_fun_prod'; first by eauto with measlang ).
+
+

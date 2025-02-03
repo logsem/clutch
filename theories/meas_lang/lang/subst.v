@@ -77,8 +77,6 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
 Definition substU (b : string) (x : (val * expr)%type) : expr :=
   subst b x.1 x.2.
 
-Check (preimage _ _).
-
 (*
 Lemma subst_preimage_full (x : string) (s1 : val_shape) (s2 : expr_shape) (s : expr_shape) :
     (s = shape_subst x s1 s2) ->
