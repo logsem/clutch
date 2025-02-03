@@ -20,7 +20,8 @@ Class con_hash0 `{!conerisGS Σ} (val_size:nat):= Con_Hash0
   hash_lock_gname:Type;
   
   (** * Predicates *)
-  con_hash_inv0 (N:namespace) (f l hm: val) (P:gmap nat nat -> gmap val (list nat) -> iProp Σ) {HP: ∀ m m', Timeless (P m m')} (γ:hash_tape_gname) (γ_lock:hash_lock_gname): iProp Σ;
+  con_hash_inv0 (N:namespace) (f l hm: val) (P:gmap nat nat -> gmap val (list nat) -> iProp Σ) {HP: ∀ m m', Timeless (P m m')}
+    (R:gmap nat nat -> iProp Σ) {HR: ∀ m, Timeless (R m )} (γ:hash_tape_gname) (γ_lock:hash_lock_gname): iProp Σ;
   (* concrete_seq_hash {L:seq_hashG Σ} (f:val) (m:gmap nat nat) : iProp Σ;  *)
   hash_tape0 (α:val) (ns:list nat) (γ:hash_tape_gname): iProp Σ;
   hash_tape_auth0 (m:gmap val (list nat)) (γ:hash_tape_gname) :iProp Σ;
@@ -36,8 +37,8 @@ Class con_hash0 `{!conerisGS Σ} (val_size:nat):= Con_Hash0
   (*   Timeless (hash_auth0 m γ); *)
   (* #[global] hash_frag_timeless v res γ :: *)
   (*   Timeless (hash_frag0 v res γ); *)
-  #[global] con_hash_inv_persistent N f l hm P {HP: ∀ m m', Timeless (P m m')} γ_tape γ_lock ::
-    Persistent (con_hash_inv0 N f l hm P γ_tape γ_lock); 
+  #[global] con_hash_inv_persistent N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ_tape γ_lock ::
+    Persistent (con_hash_inv0 N f l hm P R γ_tape γ_lock); 
   (* #[global] hash_frag_persistent v res γ :: *)
   (*   Persistent (hash_frag0 v res γ); *)
   
@@ -51,11 +52,11 @@ Class con_hash0 `{!conerisGS Σ} (val_size:nat):= Con_Hash0
   (*   hash_tape_auth0 m γ  -∗ hash_tape0 α ns γ -∗ ⌜m!!α=Some ns⌝; *)
   (* hash_tape_auth_alloc m α γ: *)
   (*   m!!α=None -> hash_tape_auth0 m γ ==∗ hash_tape_auth0 (<[α:=[]]> m) γ ∗ hash_tape0 α [] γ; *)
-  hash_tape_presample N m γ γ_lock f l hm P {HP: ∀ m m', Timeless (P m m')} α ns ε ε2 E:
+  hash_tape_presample N m γ γ_lock f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} α ns ε ε2 E:
   ↑(N.@"rand")⊆E ->
     (∀ x : fin (S val_size), (0 <= ε2 x)%R)->
     (SeriesC (λ n : fin (S val_size), 1 / S val_size * ε2 n) <= ε)%R ->
-    con_hash_inv0 N f l hm P γ γ_lock -∗
+    con_hash_inv0 N f l hm P R γ γ_lock -∗
     hash_tape_auth0 m γ -∗ hash_tape0 α ns γ -∗ ↯ ε -∗
     state_update E E (∃ n, 
           ↯ (ε2 n) ∗
@@ -73,10 +74,10 @@ Class con_hash0 `{!conerisGS Σ} (val_size:nat):= Con_Hash0
   (*   m!!k=None -> hash_auth0 m γ ==∗ (hash_auth0 (<[k:=v]> m) γ ∗ hash_frag0 k v γ); *)
                       
 
-  con_hash_presample0 N f l hm P {HP: ∀ m m', Timeless (P m m')} γ γ_lock Q
+  con_hash_presample0 N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ γ_lock Q
     E  :
     ↑(N.@"hash") ⊆ E ->
-    con_hash_inv0 N f l hm P γ γ_lock -∗
+    con_hash_inv0 N f l hm P R γ γ_lock -∗
     (∀ m m', P m m'  -∗
              hash_tape_auth0 m' γ -∗
              state_update (E∖↑(N.@"hash")) (E∖↑(N.@"hash"))
@@ -86,30 +87,32 @@ Class con_hash0 `{!conerisGS Σ} (val_size:nat):= Con_Hash0
         ∃ m m' m'', Q m m' m''
       ); 
 
-  con_hash_init0 N P {HP: ∀ m m', Timeless (P m m')} :
-    {{{ P ∅ ∅ }}}
+  con_hash_init0 N P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} :
+    {{{ P ∅ ∅ ∗ R ∅}}}
       init_hash0 #()
-      {{{ (f:val), RET f; ∃ l hm γ_tape γ_lock, con_hash_inv0 N f l hm P γ_tape γ_lock }}}; 
+      {{{ (f:val), RET f; ∃ l hm γ_tape γ_lock, con_hash_inv0 N f l hm P R γ_tape γ_lock }}}; 
 
-  con_hash_alloc_tape0 N f l hm P {HP: ∀ m m', Timeless (P m m')} γ_tape γ_lock Q:
-  {{{ con_hash_inv0 N f l hm P γ_tape γ_lock ∗
+  con_hash_alloc_tape0 N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ_tape γ_lock Q:
+  {{{ con_hash_inv0 N f l hm P R γ_tape γ_lock ∗
       (∀ m m' α, P m m' -∗ ⌜α∉dom m'⌝ -∗ |={⊤∖↑N}=> P m (<[α:=[]]>m') ∗ Q α)
   }}}
       allocate_tape0 #()
       {{{ (α: val), RET α; hash_tape0 α [] γ_tape ∗ Q α }}}; 
   
-  con_hash_spec0 N f l hm P {HP: ∀ m m', Timeless (P m m')} γ_tape γ_lock Q1 Q2 α ns (v:nat):
-  {{{ con_hash_inv0 N f l hm P γ_tape γ_lock ∗ hash_tape0 α (ns) γ_tape∗
-      ( ∀ m m', P m m' -∗ ⌜m'!!α=Some ns⌝ -∗ |={⊤∖↑N}=>
+  con_hash_spec0 N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ_tape γ_lock Q1 Q2 α (v:nat):
+  {{{ con_hash_inv0 N f l hm P R γ_tape γ_lock ∗ 
+      ( ∀ m m', R m -∗ P m m' -∗ state_update (⊤∖↑N) (⊤∖↑N)
              match m!!v with
-             | Some res => P m m' ∗ Q1 res
-             | None => ∃ n ns', ⌜n::ns'=ns⌝ ∗ P (<[v:=n]> m) (<[α:=ns']> m') ∗ Q2
+             | Some res => R m ∗ P m m' ∗ Q1 res
+             | None => ∃ n ns, hash_tape0 α (n::ns) γ_tape ∗ P m m' ∗
+                              (∀ m'', P m m'' -∗  ⌜m''!!α=Some (n::ns)⌝
+                                      ={⊤∖↑N}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗ Q2 n ns)
              end                                        
       )
   }}}
       f #v α
-      {{{ (res:nat), RET (#res);  (hash_tape0 α (ns) γ_tape ∗ Q1 res ∨
-                                 ∃ n ns', ⌜n::ns'=ns⌝ ∗ hash_tape0 α ns' γ_tape ∗ ⌜res=n⌝ ∗ Q2 
+      {{{ (res:nat), RET (#res);  (Q1 res ∨
+                                 ∃ n ns, hash_tape0 α ns γ_tape ∗ ⌜res=n⌝ ∗ Q2 n ns
                                 )
       }}};
   (* con_hash_spec_hashed_before0 f l hm γ1 γ2 γlock α ns res (v:nat): *)

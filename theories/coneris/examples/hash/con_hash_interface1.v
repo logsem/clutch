@@ -20,7 +20,7 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
   hash_lock_gname:Type;
   
   (** * Predicates *)
-  con_hash_inv1 (N:namespace) (f l hm: val) (P:gmap nat nat -> gmap val (list nat) -> iProp Σ) {HP: ∀ m m', Timeless (P m m')} (γ1:hash_view_gname) (γ2: hash_set_gname) (γ3:hash_tape_gname) (γ_lock:hash_lock_gname): iProp Σ;
+  con_hash_inv1 (N:namespace) (f l hm: val) (P:gmap nat nat -> gmap val (list nat) -> iProp Σ) {HP: ∀ m m', Timeless (P m m')}  (R:gmap nat nat -> iProp Σ) {HR: ∀ m, Timeless (R m )} (γ1:hash_view_gname) (γ2: hash_set_gname) (γ3:hash_tape_gname) (γ_lock:hash_lock_gname): iProp Σ;
   (* concrete_seq_hash {L:seq_hashG Σ} (f:val) (m:gmap nat nat) : iProp Σ;  *)
   hash_tape1 (α:val) (ns:list nat) (γ2: hash_set_gname) (γ3:hash_tape_gname): iProp Σ;
   hash_tape_auth1 (m:gmap val (list nat)) (γ2 :hash_set_gname) (γ3:hash_tape_gname): iProp Σ;
@@ -44,8 +44,8 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
     Timeless (hash_set1 s γ2); 
   #[global] hash_set_frag_timeless s γ2 ::
     Timeless (hash_set_frag1 s γ2); 
-  #[global] con_hash_inv_persistent N f l hm γ1 γ2 γ3 P {HP: ∀ m m', Timeless (P m m')} γ_lock ::
-    Persistent (con_hash_inv1 N f l hm P γ1 γ2 γ3 γ_lock); 
+  #[global] con_hash_inv_persistent N f l hm γ1 γ2 γ3 P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )}  γ_lock ::
+    Persistent (con_hash_inv1 N f l hm P R γ1 γ2 γ3 γ_lock); 
   #[global] hash_frag_persistent v res γ γ2::
     Persistent (hash_frag1 v res γ γ2);
   #[global] hash_set_frag_persistent s γ2 ::
@@ -85,10 +85,10 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
       hash_tape1 α ns γ2 γ3-∗ hash_tape1 α ns' γ2 γ3 -∗ False;
 
   
-  hash_tape_presample N f l hm P {HP: ∀ m m', Timeless (P m m')} m γ_hv γ_set γ γ_lock α ns s (ε εI εO:nonnegreal) E:
+  hash_tape_presample N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )}  m γ_hv γ_set γ γ_lock α ns s (ε εI εO:nonnegreal) E:
   ↑(N.@"rand")⊆E ->
   (εI * (size s) + εO * (val_size + 1 - size s) <= ε * (val_size + 1))%R ->
-  con_hash_inv1 N f l hm P γ_hv γ_set γ γ_lock -∗
+  con_hash_inv1 N f l hm P R γ_hv γ_set γ γ_lock -∗
     hash_tape_auth1 m γ_set γ -∗ hash_tape1 α ns γ_set γ -∗ ↯ ε -∗
     hash_set1 s γ_set -∗
     state_update E E (∃ (n:fin(S val_size)), 
@@ -99,10 +99,10 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
           hash_tape1 α (ns++[fin_to_nat n]) γ_set γ
       ); 
 
-  con_hash_presample1  N f l hm P {HP: ∀ m m', Timeless (P m m')} γ_hv γ_set γ_tape γ_lock Q
+  con_hash_presample1  N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ_hv γ_set γ_tape γ_lock Q
     E  :
     ↑(N.@"hash") ⊆ E ->
-    con_hash_inv1 N f l hm P γ_hv γ_set γ_tape γ_lock -∗
+    con_hash_inv1 N f l hm P R γ_hv γ_set γ_tape γ_lock -∗
     (∀ m m', P m m'  -∗
              hash_tape_auth1 m' γ_set γ_tape -∗
              state_update (E∖↑(N.@"hash")) (E∖↑(N.@"hash"))
@@ -112,34 +112,38 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
         ∃ m m' m'', Q m m' m''
       ) ;
 
-  con_hash_init1 N P {HP: ∀ m m', Timeless (P m m')}:
-    {{{ P ∅ ∅ }}}
+  con_hash_init1 N P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} :
+    {{{ P ∅ ∅ ∗ R ∅}}}
       init_hash1 #()
-      {{{ (f:val), RET f; ∃ l hm γ1 γ2 γ3 γ_lock, con_hash_inv1 N f l hm P γ1 γ2 γ3 γ_lock ∗
+      {{{ (f:val), RET f; ∃ l hm γ1 γ2 γ3 γ_lock, con_hash_inv1 N f l hm P R γ1 γ2 γ3 γ_lock ∗
                                                   hash_set1 ∅ γ2
       }}}; 
 
-  con_hash_alloc_tape1 N f l hm P {HP: ∀ m m', Timeless (P m m')} γ1 γ2 γ3 γ_lock Q:
-  {{{ con_hash_inv1 N f l hm P γ1 γ2 γ3 γ_lock ∗
+  con_hash_alloc_tape1 N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ1 γ2 γ3 γ_lock Q:
+  {{{ con_hash_inv1 N f l hm P R γ1 γ2 γ3 γ_lock ∗
       (∀ m m' α, P m m' -∗ ⌜α∉dom m'⌝ -∗ |={⊤∖↑N}=> P m (<[α:=[]]>m') ∗ Q α)
   }}}
       allocate_tape1 #()
       {{{ (α: val), RET α; hash_tape1 α [] γ2 γ3 ∗ Q α }}}; 
 
-  con_hash_spec1 N f l hm P {HP: ∀ m m', Timeless (P m m')} γ1 γ2 γ3 γ_lock Q1 Q2 α ns (v:nat):
-  {{{ con_hash_inv1 N f l hm P γ1 γ2 γ3 γ_lock ∗ hash_tape1 α (ns) γ2 γ3∗
-      ( ∀ m m', P m m' -∗ hash_auth1 m γ1 γ2 -∗ ⌜m'!!α=Some ns⌝ -∗ |={⊤∖↑N}=>
+  con_hash_spec1 N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ1 γ2 γ3 γ_lock Q1 Q2 α (v:nat):
+  {{{ con_hash_inv1 N f l hm P R γ1 γ2 γ3 γ_lock ∗ 
+      ( ∀ m m', R m -∗ P m m' -∗ hash_auth1 m γ1 γ2 -∗ state_update (⊤∖↑N) (⊤∖↑N)
              match m!!v with
-             | Some res => P m m' ∗ hash_auth1 m γ1 γ2 ∗ Q1 res
-             | None => ∃ n ns', ⌜n::ns'=ns⌝ ∗ P (<[v:=n]> m) (<[α:=ns']> m')∗ hash_auth1 (<[v:=n]> m) γ1 γ2  ∗ Q2
+             | Some res => R m ∗ P m m' ∗ hash_auth1 m γ1 γ2 ∗ Q1 res
+             | None => ∃ n ns, hash_tape1 α (n::ns) γ2 γ3 ∗ P m m' ∗
+                              (∀ m'', P m m'' -∗  ⌜m''!!α=Some (n::ns)⌝
+                                      ={⊤∖↑N}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗
+                                      hash_auth1 (<[v:=n]> m) γ1 γ2  ∗ Q2 n ns)
              end                                        
       )
   }}}
       f #v α
-      {{{ (res:nat), RET (#res);  (hash_tape1 α (ns) γ2 γ3 ∗ Q1 res ∨
-                                 ∃ n ns', ⌜n::ns'=ns⌝ ∗ hash_tape1 α ns' γ2 γ3 ∗ ⌜res=n⌝ ∗ Q2 
+      {{{ (res:nat), RET (#res);  (Q1 res ∨
+                                 ∃ n ns, hash_tape1 α ns γ2 γ3 ∗ ⌜res=n⌝ ∗ Q2 n ns
                                 )
-      }}};
+      }}}
+
 }.
 
 Section test.
@@ -148,7 +152,7 @@ Section test.
   Lemma con_hash_presample_test N f l hm γ1 γ2 γ3 γlock  E (ε εI εO:nonnegreal) ns α s :
     ↑N⊆E ->
     (εI * (size s) + εO * (val_size + 1 - size s) <= ε * (val_size + 1))%R ->
-    con_hash_inv1 N f l hm (λ _ _, True) γ1 γ2 γ3 γlock -∗
+    con_hash_inv1 N f l hm (λ _ _, True) (λ _, True )γ1 γ2 γ3 γlock -∗
     hash_tape1 α ns γ2 γ3 -∗
     ↯ ε -∗
     hash_set1 s γ2 -∗
@@ -160,7 +164,7 @@ Section test.
       ).
   Proof.
     iIntros (Hsubset Hineq) "#Hinv Ht Herr Hs".
-    iMod (con_hash_presample1 _ _ _ _ _ _ _ _ _ 
+    iMod (con_hash_presample1 _ _ _ _ _ _ _ _ _ _
             (λ m m' m'', (∃ n : fin (S val_size), hash_tape1 α (ns ++ [fin_to_nat n]) γ2 γ3 ∗
                                                   (⌜fin_to_nat n ∈ s⌝ ∗ hash_set1 s γ2 ∗ ↯ εI ∨ ⌜fin_to_nat n ∉ s⌝ ∗ hash_set1 (s ∪ {[fin_to_nat n]}) γ2 ∗ ↯ εO)))%I with "[//][-]") as "Hcont".
     - by apply nclose_subseteq'.
@@ -175,7 +179,7 @@ Section test.
   
     
   Lemma con_hash_spec_test1 N f l hm γ1 γ2 γ3 γlock α n ns (v:nat):
-    {{{ con_hash_inv1 N f l hm (λ _ _, True) γ1 γ2 γ3 γlock ∗ hash_tape1 α (n::ns) γ2 γ3 }}}
+    {{{ con_hash_inv1 N f l hm (λ _ _, True) (λ _, True) γ1 γ2 γ3 γlock ∗ hash_tape1 α (n::ns) γ2 γ3 }}}
       f #v α
       {{{ (res:nat), RET (#res);  hash_frag1 v res γ1 γ2 ∗
                                 (hash_tape1 α ns γ2 γ3 ∗ ⌜res=n⌝ ∨
@@ -185,21 +189,24 @@ Section test.
   Proof.
     iIntros (Φ) "[#Hinv Ht] HΦ".
     iDestruct (hash_tape_in_hash_set with "[$]") as "#Hfrag".
-    iApply (con_hash_spec1 _ _ _ _ _ _ _ _ _ (λ res, hash_frag1 v res γ1 γ2) (hash_frag1 v n γ1 γ2) with "[$Hinv $Ht]").
-    - iIntros (??) "_ Hauth %".
+    iApply (con_hash_spec1 _ _ _ _ _ _ _ _ _ _ (λ res, hash_frag1 v res γ1 γ2 ∗ hash_tape1 α _ _ _)%I (λ n' ns', ⌜n=n'⌝ ∗ ⌜ns'=ns⌝ ∗ hash_frag1 v n γ1 γ2)%I with "[$Hinv Ht]").
+    - iIntros (??) "_ _ Hauth ".
       case_match.
-      + by iDestruct (hash_auth_duplicate with "[$]") as "#$"; first done.
-      + iMod (hash_auth_insert with "[][$]") as "H"; first done; last first.
+      + iDestruct (hash_auth_duplicate with "[$]") as "#$"; first done. by iFrame.
+      + iFrame. iModIntro.
+        iSplit; first done.
+        iIntros. 
+        iMod (hash_auth_insert with "[][$]") as "H"; first done; last first.
         * iDestruct (hash_auth_duplicate with "[$]") as "#$"; first by rewrite lookup_insert.
-          iFrame. iModIntro. by iExists _.
+          iFrame. iModIntro. done. 
         * rewrite big_sepL_cons. iDestruct "Hfrag" as "[$ ?]".        
-    - iNext. iIntros (res) "[[??]|(%&%&%&?&%&H)]".
+    - iNext. iIntros (res) "[[??]|(%&%&?&->&->&->&?)]".
       + iApply "HΦ". iFrame.
-      + iApply "HΦ". simplify_eq. iFrame "H". iLeft. by iFrame.
+      + iApply "HΦ". simplify_eq. iFrame.  iLeft. by iFrame.
   Qed.
 
   Lemma con_hash_spec_hashed_before1 N f l hm γ1 γ2 γ3 γlock α ns res (v:nat):
-    {{{ con_hash_inv1 N f l hm (λ _ _, True) γ1 γ2 γ3 γlock ∗ hash_tape1 α ns γ2 γ3 ∗ hash_frag1 v res γ1 γ2 }}}
+    {{{ con_hash_inv1 N f l hm (λ _ _, True) (λ _, True) γ1 γ2 γ3 γlock ∗ hash_tape1 α ns γ2 γ3 ∗ hash_frag1 v res γ1 γ2 }}}
       f #v α
       {{{ RET (#res);  hash_frag1 v res γ1 γ2 ∗
                        (hash_tape1 α ns γ2 γ3 )
@@ -207,16 +214,15 @@ Section test.
   Proof. 
     iIntros (Φ) "(#Hinv & Ht & #Hf) HΦ".
     iDestruct (hash_tape_in_hash_set with "[$]") as "#Hfrag".
-    iApply (con_hash_spec1 _ _ _ _ _ _ _ _ _ (λ res' , ⌜res=res'⌝ ∗ hash_frag1 v res γ1 γ2)%I (False) with "[$Hinv $Ht]").
-    - iIntros (??) "_ Hauth %".
+    iApply (con_hash_spec1 _ _ _ _ _ _ _ _ _ _ (λ res' , ⌜res=res'⌝ ∗ hash_frag1 v res γ1 γ2 ∗ hash_tape1 α _ _ _)%I (λ _ _, ⌜False⌝)%I with "[$Hinv Ht]").
+    - iIntros (??) "_ _ Hauth".
       case_match.
       + iDestruct (hash_auth_frag_agree with "[$][$]") as "%".
         simplify_eq. iDestruct (hash_auth_duplicate with "[$]") as "#$"; first done. by iFrame.
       + iDestruct (hash_auth_frag_agree with "[$][$]") as "%".
         simplify_eq.
-    - iNext. iIntros (res') "[[?[->?]]|(%&%&%&?&?&%)]".
-      + iApply "HΦ". iFrame.
-      + done.
+    - iNext. iIntros (res') "[(->&?&?)|(%&%&?&%&[])]".
+      iApply "HΦ". iFrame.
   Qed.
   
 End test.

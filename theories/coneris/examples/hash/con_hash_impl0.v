@@ -160,22 +160,24 @@ Section con_hash_impl.
   Definition abstract_con_hash_inv N f l hm P {HP: ∀ m m', Timeless (P m m')} γ γ_tape:=
     (inv (N.@"hash") (abstract_con_hash f l hm P γ γ_tape) ∗ is_rand (N.@"rand") γ_tape.1)%I.
   
-  Definition concrete_con_hash (hm:val) (m:gmap nat nat) γ : iProp Σ:=
+  Definition concrete_con_hash (hm:val) (m:gmap nat nat) R {HR: ∀ m, Timeless (R m )} γ : iProp Σ:=
     ∃ (hm':loc), ⌜hm=#hm'⌝ ∗
     map_list hm' ((λ b, LitV (LitInt (Z.of_nat b))) <$> m) ∗
-    own γ (◯E m).
+    own γ (◯E m) ∗
+    R m
+  .
 
-  Definition concrete_con_hash_inv hm l γ_lock γ:=
-    is_lock (L:=Hl) γ_lock l (∃ m, concrete_con_hash hm m γ).
+  Definition concrete_con_hash_inv hm l R {HR: ∀ m, Timeless (R m )} γ_lock γ:=
+    is_lock (L:=Hl) γ_lock l (∃ m, concrete_con_hash hm m R γ).
   
-  Definition con_hash_inv N f l hm P {HP: ∀ m m', Timeless (P m m')} γ_tape γ_lock:=
+  Definition con_hash_inv N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ_tape γ_lock:=
     (∃ γ, abstract_con_hash_inv N f l hm P γ γ_tape ∗
-           concrete_con_hash_inv hm l γ_lock γ)%I.
+           concrete_con_hash_inv hm l R γ_lock γ)%I.
 
-  Lemma con_hash_presample N f l hm P {HP: ∀ m m', Timeless (P m m')} γ γ_lock Q
+  Lemma con_hash_presample N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ γ_lock Q
     E  :
     ↑(N.@"hash") ⊆ E ->
-    con_hash_inv N f l hm P γ γ_lock -∗
+    con_hash_inv N f l hm P R γ γ_lock -∗
     (∀ m m', P m m'  -∗
              hash_tape_auth m' γ -∗
              state_update (E∖↑(N.@"hash")) (E∖↑(N.@"hash"))
@@ -200,12 +202,12 @@ Section con_hash_impl.
   Qed.
   
 
-  Lemma con_hash_init N P {HP: ∀ m m', Timeless (P m m')} :
-    {{{ P ∅ ∅ }}}
+  Lemma con_hash_init N P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )}:
+    {{{ P ∅ ∅ ∗  R ∅}}}
       init_hash #()
-      {{{ (f:val), RET f; ∃ l hm γ_tape γ_lock, con_hash_inv N f l hm P γ_tape γ_lock }}}.
+      {{{ (f:val), RET f; ∃ l hm γ_tape γ_lock, con_hash_inv N f l hm P R γ_tape γ_lock }}}.
   Proof.
-    iIntros (Φ) "HP HΦ".
+    iIntros (Φ) "[HP HR] HΦ".
     rewrite /init_hash.
     iApply fupd_pgl_wp.
     iMod (rand_inv_create_spec) as "(%&#Hrand)"; first done.
@@ -217,7 +219,7 @@ Section con_hash_impl.
     wp_apply (wp_init_map with "[$]") as (l) "Hm".
     wp_pures.
     iMod (ghost_var_alloc ∅) as "[%γ2 [Hauth Hfrag]]".
-    wp_apply (newlock_spec with "[Hm Hfrag]") as (loc γ_lock) "#Hl"; last first.
+    wp_apply (newlock_spec with "[Hm Hfrag HR]") as (loc γ_lock) "#Hl"; last first.
     - wp_pures. 
       iMod (inv_alloc with "[Hauth HP Htauth]") as "#Hinv"; last first.
       + rewrite /compute_con_hash. wp_pures.  iApply "HΦ". iExists _, _, (_,_).
@@ -227,8 +229,8 @@ Section con_hash_impl.
     - by iFrame.
   Qed.
 
-  Lemma con_hash_alloc_tape N f l hm P {HP: ∀ m m', Timeless (P m m')} γ_tape γ_lock Q:
-  {{{ con_hash_inv N f l hm P γ_tape γ_lock ∗
+  Lemma con_hash_alloc_tape N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ_tape γ_lock Q:
+  {{{ con_hash_inv N f l hm P R γ_tape γ_lock ∗
       (∀ m m' α, P m m' -∗ ⌜α∉dom m'⌝ -∗ |={⊤∖↑N}=> P m (<[α:=[]]>m') ∗ Q α)
   }}}
       allocate_tape #()
@@ -259,22 +261,24 @@ Section con_hash_impl.
     - rewrite lookup_fmap. apply not_elem_of_dom_1 in H. by rewrite H.
   Qed.
 
-  Lemma con_hash_spec N f l hm P {HP: ∀ m m', Timeless (P m m')} γ_tape γ_lock Q1 Q2 α ns (v:nat):
-  {{{ con_hash_inv N f l hm P γ_tape γ_lock ∗ hash_tape α (ns) γ_tape∗
-      ( ∀ m m', P m m' -∗ ⌜m'!!α=Some ns⌝ -∗ |={⊤∖↑N}=>
+  Lemma con_hash_spec N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ_tape γ_lock Q1 Q2 α (v:nat):
+  {{{ con_hash_inv N f l hm P R γ_tape γ_lock ∗ 
+      ( ∀ m m', R m -∗ P m m' -∗ state_update (⊤∖↑N) (⊤∖↑N)
              match m!!v with
-             | Some res => P m m' ∗ Q1 res
-             | None => ∃ n ns', ⌜n::ns'=ns⌝ ∗ P (<[v:=n]> m) (<[α:=ns']> m') ∗ Q2
+             | Some res => R m ∗ P m m' ∗ Q1 res
+             | None => ∃ n ns, hash_tape α (n::ns) γ_tape ∗ P m m' ∗
+                              (∀ m'', P m m'' -∗  ⌜m''!!α=Some (n::ns)⌝
+                                      ={⊤∖↑N}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗ Q2 n ns)
              end                                        
       )
   }}}
       f #v α
-      {{{ (res:nat), RET (#res);  (hash_tape α (ns) γ_tape ∗ Q1 res ∨
-                                 ∃ n ns', ⌜n::ns'=ns⌝ ∗ hash_tape α ns' γ_tape ∗ ⌜res=n⌝ ∗ Q2 
+      {{{ (res:nat), RET (#res);  (Q1 res ∨
+                                 ∃ n ns, hash_tape α ns γ_tape ∗ ⌜res=n⌝ ∗ Q2 n ns
                                 )
       }}}.
   Proof.
-    iIntros (Φ) "((%&#[Hinv1 Hinv1'] & #Hin2)& [Htape Htape'] & Hvs) HΦ".
+    iIntros (Φ) "((%&#[Hinv1 Hinv1'] & #Hin2) & Hvs) HΦ".
     rewrite /abstract_con_hash_inv/concrete_con_hash_inv.
     iApply fupd_pgl_wp.
     iInv "Hinv1" as ">(%&%&->&H1&H2)" "Hclose".
@@ -282,7 +286,7 @@ Section con_hash_impl.
     iModIntro.
     rewrite /compute_con_hash_specialized.
     wp_pures.
-    wp_apply (acquire_spec with "Hin2") as "[Hl[% (%&->&Hm&Hfrag)]]".
+    wp_apply (acquire_spec with "Hin2") as "[Hl[% (%&->&Hm&Hfrag&HR)]]".
     wp_pures.
     rewrite /compute_hash.
     wp_pures.
@@ -291,42 +295,53 @@ Section con_hash_impl.
     destruct (_!!_) eqn:Hres; simpl.
     - (* hashed before *)
       wp_pures.
-      iApply fupd_pgl_wp.
+      iApply state_update_pgl_wp.
       iInv "Hinv1" as ">(%&%&->&H1&[Htapes Htauth]&H2)" "Hclose".
       iDestruct (ghost_var_agree with "[$][$]") as "->".
       rewrite /hash_tape /hash_tape_auth.
-      iDestruct (abstract_tapes_agree with "[$][$]") as "%H".
-      rewrite lookup_fmap in H. apply fmap_Some_1 in H.
-      destruct H as (?&?&?). simplify_eq.
-      iMod (fupd_mask_subseteq) as "Hclose'"; last iMod ("Hvs" with "[$][]") as "Hvs"; try done.
+      (* iDestruct (abstract_tapes_agree with "[$][$]") as "%H". *)
+      (* rewrite lookup_fmap in H. apply fmap_Some_1 in H. *)
+      (* destruct H as (?&?&?). simplify_eq. *)
+      iMod (fupd_mask_subseteq) as "Hclose'"; last iMod ("Hvs" with "[$][$]") as "Hvs"; try done.
       { apply difference_mono_l. apply nclose_subseteq. }
       iMod "Hclose'" as "_".
       rewrite Hres.
-      iDestruct "Hvs" as "[HP HQ]".
+      iDestruct "Hvs" as "(HR & HP & HQ)".
       iMod ("Hclose" with "[$H1 $HP $Htauth $Htapes]") as "_"; first done.
       iModIntro.
-      wp_apply (release_spec with "[$Hin2 $Hl $Hfrag $Hm]") as "_"; first done.
+      wp_apply (release_spec with "[$Hin2 $Hl $Hfrag $Hm $HR]") as "_"; first done.
       wp_pures.
       iModIntro. iApply "HΦ".
       iLeft.
       by iFrame.
     - wp_pures.
       rewrite /hash_tape.
-      destruct ns eqn : Hns.
-      { iApply fupd_pgl_wp.
-        iInv "Hinv1" as ">(%&%&->&H1&[Htapes Htauth]&H2)" "Hclose".
-        iDestruct (ghost_var_agree with "[$][$]") as "->".
-        rewrite /hash_tape /hash_tape_auth.
-        iDestruct (abstract_tapes_agree with "[$][$]") as "%H".
-        rewrite lookup_fmap in H. apply fmap_Some_1 in H.
-        destruct H as (?&?&?). simplify_eq.
-        simplify_eq.
-        iMod (fupd_mask_subseteq) as "Hclose'"; last iMod ("Hvs" with "[$][]") as "Hvs"; try done.
-        { apply difference_mono_l. apply nclose_subseteq. }
-        iMod "Hclose'" as "_".
-        rewrite Hres.
-        iDestruct "Hvs" as "(%&%&%&?)". simplify_eq.
-      }
+      (* destruct ns eqn : Hns. *)
+      (* { iApply fupd_pgl_wp. *)
+      (*   iInv "Hinv1" as ">(%&%&->&H1&[Htapes Htauth]&H2)" "Hclose". *)
+      (*   iDestruct (ghost_var_agree with "[$][$]") as "->". *)
+      (*   rewrite /hash_tape /hash_tape_auth. *)
+      (*   iDestruct (abstract_tapes_agree with "[$][$]") as "%H". *)
+      (*   rewrite lookup_fmap in H. apply fmap_Some_1 in H. *)
+      (*   destruct H as (?&?&?). simplify_eq. *)
+      (*   simplify_eq. *)
+      (*   iMod (fupd_mask_subseteq) as "Hclose'"; last iMod ("Hvs" with "[$][$][]") as "Hvs"; try done. *)
+      (*   { apply difference_mono_l. apply nclose_subseteq. } *)
+      (*   iMod "Hclose'" as "_". *)
+      (*   rewrite Hres. *)
+      (*   iDestruct "Hvs" as "(%&%&%&?)". simplify_eq. *)
+      (* } *)
+      iApply state_update_pgl_wp.
+      iInv "Hinv1" as ">(%&%&->&H1&[Htapes Htauth]&H2)" "Hclose".
+      iDestruct (ghost_var_agree with "[$][$]") as "->".
+      rewrite /hash_tape /hash_tape_auth.
+      iMod (fupd_mask_subseteq) as "Hclose'"; last iMod ("Hvs" with "[$][$]") as "Hvs"; try done.
+      { apply difference_mono_l. apply nclose_subseteq. }
+      rewrite Hres.
+      iDestruct "Hvs" as "(%&%&[Htape Htape']&HP&Hvs)".
+      iMod ("Hclose'") as "_".
+      iMod ("Hclose" with "[$H1 $Htauth $Htapes $HP//]") as "_".
+      iModIntro.
       wp_apply (rand_tape_spec_some with "[$]") as "Htape"; first done.
       iApply fupd_pgl_wp.
       iInv "Hinv1" as ">(%&%&_&Hown&[Htoken Hauth]&HP)" "Hclose".
@@ -339,16 +354,16 @@ Section con_hash_impl.
       iMod (fupd_mask_subseteq) as "Hclose'"; last iMod ("Hvs" with "[$][]") as "Hvs"; try done.
       { apply difference_mono_l. apply nclose_subseteq. }
       iMod "Hclose'" as "_".
-      rewrite Hres.
-      iDestruct "Hvs" as "(%&%&%&HP&HQ)". simplify_eq.
+      iDestruct "Hvs" as "(HR&HP&HQ)". simplify_eq.
       iMod (ghost_var_update with "[$][$]") as "[Hown Hown']".
       iMod ("Hclose" with "[Hauth Htoken Hown HP]") as "_".
       { iExists _, (<[_:=_]>_).
         iFrame.
         iSplit; first done.
         rewrite /hash_tape_auth.
+        iNext.
         rewrite fmap_insert. iFrame.
-        rewrite dom_insert_L subseteq_union_1_L; first done.
+        rewrite dom_insert_L subseteq_union_1_L; first iFrame.
         apply elem_of_subseteq_singleton. rewrite elem_of_dom.
         by rewrite Hsome.
       }
@@ -375,12 +390,11 @@ Section con_hash_impl.
       wp_pures.
       wp_apply (wp_set with "[$]") as "Hm".
       wp_pures.
-      wp_apply (release_spec with "[$Hin2 $Hown' Hm $Hl]") as "_".
+      wp_apply (release_spec with "[$Hin2 $Hown' $HR Hm $Hl]") as "_".
       { iExists _. iSplit; first done. by rewrite fmap_insert. }
       wp_pures.
       iApply "HΦ".
-      iFrame. iRight. iFrame. iModIntro.
-      iExists _; by repeat iSplit.
+      iFrame. iRight. iFrame. by iModIntro.
   Qed.
     
 
@@ -419,7 +433,7 @@ Section con_hash_impl.
   (*   destruct H as (?&?&?). by simplify_eq. *)
   (* Qed. *)
   Next Obligation.
-    iIntros (?????????????????) "#(%&[? Hinv]&?)[??][??]Herr".
+    iIntros (???????????????????) "#(%&[? Hinv]&?)[??][??]Herr".
     iDestruct (abstract_tapes_agree with "[$][$]") as "%H'".
     rewrite lookup_fmap in H'. apply fmap_Some_1 in H'.
     destruct H' as (?&Hsome&?). simplify_eq.
