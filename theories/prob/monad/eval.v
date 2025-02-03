@@ -107,7 +107,7 @@ Section giryM_eval_char.
 
     have G1 : d1.-measurable [set: T1] by auto.
     specialize (Hm Y HY G1).
-    rewrite /salgebraType/= in Hm.
+    rewrite /g_sigma_algebraType/= in Hm.
     clear G1.
 
     rewrite /preimage_class_of_measures/preimage_class/= in HX.

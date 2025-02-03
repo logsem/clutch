@@ -1,3 +1,4 @@
+Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
 From stdpp Require Import base numbers binders strings gmap.
@@ -15,6 +16,7 @@ From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
 From clutch.meas_lang.lang Require Export prelude types.
+Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.
 
@@ -955,7 +957,7 @@ Section constructor_measurability.
         split.
         + exists a; done.
         + by intuition.
-      - move=> [[? ? ] [H [<- <-]]].
+      - move=> [[? ?] H] [<- <-].
         exists y.2.
         + by rewrite H.
         + destruct y as [[??]?]; by rewrite /=.

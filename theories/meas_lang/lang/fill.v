@@ -1,4 +1,5 @@
 (* TODO cleanup imports *)
+Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
 From stdpp Require Import base numbers binders strings gmap.
@@ -16,6 +17,7 @@ From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
 From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections cfg types.
+Set Warnings "hiding-delimiting-key".
 
 
 

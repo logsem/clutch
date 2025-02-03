@@ -1,4 +1,5 @@
 (* TODO cleanup imports *)
+Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
 From stdpp Require Import base numbers binders strings gmap.
@@ -27,6 +28,7 @@ From mathcomp Require Import ssrbool eqtype fintype choice all_algebra finmap.
 From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
 From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed normedtype sequences esum numfun measure lebesgue_measure lebesgue_integral. *)
+Set Warnings "hiding-delimiting-key".
 
 Set Warnings "+spurious-ssr-injection".
 

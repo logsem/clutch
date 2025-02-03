@@ -1,3 +1,4 @@
+Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
 From stdpp Require Import base numbers binders strings gmap.
@@ -8,6 +9,7 @@ From clutch.bi Require Import weakestpre.
 From mathcomp.analysis Require Import reals measure ereal.
 From clutch.prob.monad Require Import laws.
 From clutch.meas_lang Require Import language.
+Set Warnings "hiding-delimiting-key".
 
 Section erasable.
   Context {Λ : meas_language}.

@@ -1,3 +1,4 @@
+Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Reals.
 From stdpp Require Import base numbers binders strings gmap.
@@ -7,6 +8,7 @@ From iris.algebra Require Import ofe.
 From clutch.bi Require Import weakestpre.
 From mathcomp.analysis Require Import reals measure ereal Rstruct.
 From clutch.prob.monad Require Export laws.
+Set Warnings "hiding-delimiting-key".
 
 Notation giryM := (giryM (R := R)).
 

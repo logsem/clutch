@@ -136,7 +136,7 @@ Global Arguments giryM_display {_} {_} {_}.
 
 (** Use giryM for any Giry Monad type *)
 Definition giryM (R : realType) (d : measure_display) (T : measurableType d) : measurableType giryM_display :=
-  [the measurableType _ of salgebraType (@giry_subbase R d T)].
+  [the measurableType _ of g_sigma_algebraType (@giry_subbase R d T)].
 Global Arguments giryM {_} {_} _.
 
 
@@ -290,7 +290,7 @@ Context {d1} {T1 : measurableType d1}.
 
 Definition option_S : Type := option (set T1).
 Definition option_T : Type := option T1.
-Fixpoint option_ST (k : option_S) : set option_T :=
+Definition option_ST (k : option_S) : set option_T :=
   match k with
   | None => [set None]
   | Some s => image Some s
