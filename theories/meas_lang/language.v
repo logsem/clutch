@@ -82,13 +82,14 @@ Global Instance inj_fill_lift {Λ : meas_language} (K : (expr Λ -> expr Λ)) :
   Inj (=) (=) (fill_lift K).
 Proof. by intros ? [] [] [=->%(inj _) ->]. Qed.
 
-Class MeasLanguageCtx {Λ : meas_language} (K : (expr Λ) -> (expr Λ)) (HK : measurable_fun setT K) := {
+Class MeasLanguageCtx {Λ : meas_language} (K : (expr Λ) -> (expr Λ))  := {
+  K_measurable : measurable_fun setT K;
   fill_not_val e :
     to_val e = None → to_val (K e) = None;
   fill_inj : Inj (=) (=) K;
   fill_dmap e1 σ1 :
     to_val e1 = None →
-    prim_step ((K e1), σ1) = giryM_map _ (fill_lift_measurable K HK) (prim_step (e1, σ1))
+    prim_step ((K e1), σ1) = giryM_map _ (fill_lift_measurable K K_measurable) (prim_step (e1, σ1))
 }.
 
 #[global] Existing Instance fill_inj.
@@ -141,15 +142,15 @@ Section language.
   Qed.
   *)
 
-  Lemma fill_step e σ `{!MeasLanguageCtx K HK} :
+  Lemma fill_step e σ `{!MeasLanguageCtx K} :
     (¬ is_zero (prim_step (e, σ))) ->
     (¬ is_zero (prim_step (K e, σ))).
   Proof.
     (* FIXME: Cleanup *)
     intros Hs.
     rewrite fill_dmap; [| by eapply val_stuck].
-    pose HI := (@inj_map_inj_eq R _ _ _ _ (fill_lift K) (fill_lift_measurable _ HK) (inj_fill_lift _ fill_inj)).
-    pose HI' := HI HK MeasLanguageCtx0.
+    pose HI := (@inj_map_inj_eq R _ _ _ _ (fill_lift K) (fill_lift_measurable _ K_measurable) (inj_fill_lift _ fill_inj)).
+    pose HI' := HI MeasLanguageCtx0  MeasLanguageCtx0.
     have HI'' := HI' (prim_step (e, σ)) giryM_zero.
     intro H.
     apply Hs.

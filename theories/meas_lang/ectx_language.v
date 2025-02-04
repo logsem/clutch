@@ -242,46 +242,49 @@ Section ectx_language.
   Canonical Structure ectx_lang : meas_language := MeasLanguage ectx_lang_mixin.
 
   (*
-
-  (*
   Definition head_atomic (a : atomicity) (e : expr Λ) : Prop :=
     ∀ σ e' σ',
       head_step e σ (e', σ') > 0 →
       if a is WeaklyAtomic then irreducible (e', σ') else is_Some (to_val e').
   *)
 
-  (*
   (** * Some lemmas about this language *)
+
   Lemma not_head_reducible e σ : ¬head_reducible e σ ↔ head_irreducible e σ.
   Proof.
     unfold head_reducible, head_irreducible. split.
-    - intros Hnot ρ.
-      assert (¬ head_step e σ ρ > 0) as H%Rnot_gt_ge; eauto.
-      pose proof (pmf_pos (head_step e σ) ρ). lra.
-    - intros Hall [ρ ?]. specialize (Hall ρ). lra.
+    { by apply classical.NNP_P. }
+    { by apply classical.P_NNP. }
   Qed.
-  *)
 
-  (*
   (** The decomposition into head redex and context is unique.
       In all sensible instances, [comp_ectx K' empty_ectx] will be the same as
       [K'], so the conclusion is [K = K' ∧ e = e'], but we do not require a law
       to actually prove that so we cannot use that fact here. *)
   Lemma head_redex_unique K K' e e' σ :
-    fill K e = fill K' e' →
+    fill (K, e) = fill (K', e') →
     head_reducible e σ →
     head_reducible e' σ →
     K = comp_ectx K' empty_ectx ∧ e = e'.
   Proof.
-    intros Heq [[e2 σ2] Hred] [[e2' σ2'] Hred'].
-    edestruct (step_by_val K' K e' e) as [K'' HK];
-      [by eauto using val_head_stuck..|].
-    subst K. move: Heq. rewrite -fill_comp. intros <-%(inj (fill _)).
-    destruct (head_ctx_step_val _ _ _ _ Hred') as [[]%not_eq_None_Some|HK''].
-    { by eapply val_head_stuck. }
-    subst K''. rewrite fill_empty. done.
+    intros Heq H1 H2.
+    edestruct (step_by_val K' K e' e) as [K'' HK].
+    { by symmetry; apply Heq. }
+    { by eapply head_not_stuck, H2. }
+    { by eapply H1. }
+    subst K. move: Heq. rewrite -fill_comp.
+    intro HI.
+    have HI' := (fill_inj _ _ _ HI).
+    rewrite <- HI' in H2.
+    destruct (head_ctx_step_val _ _ σ H2) as [HA | HA].
+    { exfalso.
+      erewrite head_not_stuck in HA; [by destruct HA |].
+      by eapply H1. }
+    { subst K''.
+      split; [done|].
+      rewrite <-HI'.
+      by rewrite fill_empty. }
   Qed.
-  *)
 
   (*
   Lemma fill_prim_step_dbind K e1 σ1 :
@@ -484,7 +487,6 @@ Section ectx_language.
   Proof. apply: pure_exec_ctx. Qed.
 
  *)
-*)
 End ectx_language.
 
 Global Arguments ectx_lang : clear implicits.

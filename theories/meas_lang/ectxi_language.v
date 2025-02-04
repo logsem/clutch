@@ -315,18 +315,17 @@ Section ectxi_language.
     intros []%eq_None_not_Some. eapply fill_val, Hsub. by rewrite /= fill_app.
   Qed.
   *)
+  (* (curry_meas R Ki).*)
+  Global Program Instance ectxi_lang_ctx_item Ki : MeasLanguageCtx ((curry fill_item) Ki) := {
+      K_measurable := _;
+      fill_not_val e := _;
+      fill_inj  := _;
+      fill_dmap e1 σ1 := _
+  }.
+  Next Obligation. by move=>Ki; apply (curry_meas R), fill_item_meas. Qed.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
 
-
-  (*
-
-  I'm acutally not sure I can separate out ectx from expr like this now that it's a function
-  out of a product type...
-
-  Check @MeasLanguageCtx.
-  Global Instance ectxi_lang_ctx_item Ki : MeasLanguageCtx ((curry fill_item) Ki).
-  Proof. Admitted.
-    (* change (LanguageCtx (fill [Ki])). apply _. Qed. *)
-   *)
 End ectxi_language.
 
 Global Arguments meas_ectxi_lang_ectx : clear implicits.
