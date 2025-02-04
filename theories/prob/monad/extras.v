@@ -633,3 +633,36 @@ Ltac mcrunch_compC H :=
 Ltac mcrunch_prod := ( eapply @measurable_fun_prod'; first by eauto with measlang ).
 
 
+Section measurable_curry.
+  Local Open Scope classical_set_scope.
+
+  (** Currying a function and then applying to a value yields a measurable function *)
+
+  Context (R : realType). (* This is due to a bug in mathcomp analysis, delete me. *)
+
+  Context {d1 d2 d3 : measure_display}.
+  Context {T1 : measurableType d1}.
+  Context {T2 : measurableType d2}.
+  Context {T3 : measurableType d3}.
+
+  Context (f : (T1 * T2) -> T3).
+  Context (mf : measurable_fun setT f).
+  Context (x : T1).
+
+  Lemma curry_meas : measurable_fun setT ((curry f) x).
+  Proof using R T1 T2 T3 d1 d2 d3 f mf x.
+    intros _ U MU.
+    rewrite setTI /curry //=.
+    suffices H : ((fun y : T2 => f (x, y)) @^-1` U) = xsection (f @^-1` U) x.
+    { rewrite H.
+      eapply (measurable_xsection R _). (* I can see no reason why measurable_xsection needs R? *)
+      rewrite <- (setTI (preimage _ _)).
+      eapply (@mf _ U MU).
+      Unshelve. by apply @measurableT.
+    }
+    apply /predeqP =>y /=.
+    rewrite /xsection/=.
+    by rewrite in_setE //=.
+  Qed.
+
+End measurable_curry.
