@@ -307,13 +307,13 @@ Section con_hash_impl1.
       iApply "HΦ". by iFrame.
   Qed.
 
-  Lemma con_hash_spec  N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ1 γ2 γ3 γ_lock Q1 Q2 α (v:nat):
+  Lemma con_hash_spec N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ1 γ2 γ3 γ_lock Q1 Q2 α (v:nat):
   {{{ con_hash_inv N f l hm P R γ1 γ2 γ3 γ_lock ∗ 
       ( ∀ m m', R m -∗ P m m' -∗ hash_tape_auth m' γ2 γ3 -∗ hash_auth m γ1 γ2 -∗ state_update (⊤∖↑N.@"hash") (⊤∖↑N.@"hash")
              match m!!v with
              | Some res => R m ∗ P m m' ∗ hash_auth m γ1 γ2 ∗ hash_tape_auth m' γ2 γ3 ∗ Q1 res
              | None => ∃ n ns, hash_tape α (n::ns) γ2 γ3 ∗ P m (<[α:=n::ns]> m') ∗ hash_tape_auth (<[α:=n::ns]> m') γ2 γ3 ∗
-                              (∀ m'', P m m'' -∗  ⌜m''!!α=Some (n::ns)⌝
+                              (∀ m'', P m m'' -∗ hash_tape α (ns) γ2 γ3 -∗ ⌜m''!!α=Some (n::ns)⌝
                                       ={⊤∖↑N.@"hash"}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗
                                       hash_auth (<[v:=n]> m) γ1 γ2  ∗ Q2 n ns)
              end                                        
@@ -321,7 +321,7 @@ Section con_hash_impl1.
   }}}
       f #v α
       {{{ (res:nat), RET (#res);  (Q1 res ∨
-                                 ∃ n ns, hash_tape α ns γ2 γ3 ∗ ⌜res=n⌝ ∗ Q2 n ns
+                                 ∃ ns, Q2 res ns
                                 )
       }}}.
   Proof.
@@ -335,17 +335,19 @@ Section con_hash_impl1.
         iFrame. iModIntro.
         iSplit.
         { iApply big_sepM_insert_2; done. }
-        iIntros (?) "[#? HP] %".
-        iMod ("Hcont" with "[$][//]") as "(?&?&?&?)".
+        iIntros (?) "[#? HP] Ht %".
+        iMod ("Hcont" with "[$][$Ht][//]") as "(?&?&?&?)".
+        { rewrite big_sepL_cons.
+          iDestruct "Hfrag" as "[_ $]". }
         iFrame. iModIntro. iSplit. 
         * iApply big_sepM_insert_2; last done.
           rewrite big_sepL_cons.
           iDestruct "Hfrag" as "[_ $]".
         * rewrite big_sepL_cons.
           iDestruct "Hfrag" as "[_ $]".
-    - iNext. iIntros (res) "[?|(%&%&?&->&?&#?)]"; iApply "HΦ".
+    - iNext. iIntros (res) "[?|(%&?&#?)]"; iApply "HΦ".
       + iLeft. by iFrame.
-      + iRight. iFrame. by iSplit. 
+      + iRight. iFrame. 
   Qed.
 
   

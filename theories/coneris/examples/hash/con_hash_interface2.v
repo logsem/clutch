@@ -144,7 +144,7 @@ Class con_hash2 `{!conerisGS Σ} (val_size:nat):= Con_Hash2
              match m!!v with
              | Some res => R m ∗ P m m' ∗ hash_tape_auth2 m' γ2 γ3 ∗ hash_auth2 m γ1 γ2 γ4 γ5∗ Q1 res
              | None => ∃ n ns, hash_tape2 α (n::ns) γ2 γ3 ∗ P m (<[α:=n::ns]> m') ∗ hash_tape_auth2 (<[α:=n::ns]> m') γ2 γ3 ∗
-                              (∀ m'', P m m'' -∗  ⌜m''!!α=Some (n::ns)⌝
+                              (∀ m'', P m m'' -∗ hash_tape2 α (ns) γ2 γ3 -∗ ⌜m''!!α=Some (n::ns)⌝
                                       ={⊤∖↑N.@"hash"}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗
                                       hash_auth2 (<[v:=n]> m) γ1 γ2 γ4 γ5∗ Q2 n ns)
              end                                        
@@ -152,7 +152,7 @@ Class con_hash2 `{!conerisGS Σ} (val_size:nat):= Con_Hash2
   }}}
       f #v α
       {{{ (res:nat), RET (#res);  (Q1 res ∨
-                                 ∃ n ns, hash_tape2 α ns γ2 γ3 ∗ ⌜res=n⌝ ∗ Q2 n ns
+                                 ∃ ns,  Q2 res ns
                                 )
       }}}
 ;
@@ -202,7 +202,7 @@ Section test.
       }}}.
   Proof.
     iIntros (Φ) "[#Hinv [Ht Hlis]] HΦ".
-    iApply (con_hash_spec2 _ _ _ _ _ _ _ _ _ _ _ _ (λ res, hash_tape2 _ _ _ _ ∗ hash_frag2 v res γ1 γ2 γ4 ∗ [∗ list] n0 ∈ (n :: ns), hash_set_frag2 n0 γ2 γ5)%I (λ n' ns', ⌜n=n'⌝ ∗ ⌜ns=ns'⌝ ∗ hash_frag2 v n γ1 γ2 γ4 ∗ [∗ list] n0 ∈ (ns), hash_set_frag2 n0 γ2 γ5)%I with "[$Hinv Ht Hlis]").
+    iApply (con_hash_spec2 _ _ _ _ _ _ _ _ _ _ _ _ (λ res, hash_tape2 _ _ _ _ ∗ hash_frag2 v res γ1 γ2 γ4 ∗ [∗ list] n0 ∈ (n :: ns), hash_set_frag2 n0 γ2 γ5)%I (λ n' ns', ⌜n=n'⌝ ∗ ⌜ns=ns'⌝ ∗ hash_tape2 _ _ _ _ ∗ hash_frag2 v n γ1 γ2 γ4 ∗ [∗ list] n0 ∈ (ns), hash_set_frag2 n0 γ2 γ5)%I with "[$Hinv Ht Hlis]").
     - iIntros (??) "_ _ Htauth Hauth".
       case_match.
       + iDestruct (hash_auth_duplicate with "[$]") as "#$"; first done. by iFrame.
@@ -212,8 +212,8 @@ Section test.
         iDestruct (hash_auth_duplicate with "[$]") as "#$"; first by rewrite lookup_insert.
         iFrame. iModIntro. iIntros. 
         rewrite insert_id; last done.
-        iFrame. iIntros. done. 
-    - iNext. iIntros (res) "[(?&?&?)|(%&%&?&->&->&->&?&?)]".
+        iFrame. iIntros. iFrame. done. 
+    - iNext. iIntros (res) "[(?&?&?)|(%&->&->&?&?&?)]".
       + iApply "HΦ". iFrame. iRight. iFrame.
       + iApply "HΦ". simplify_eq. iFrame. iLeft. by iFrame. 
   Qed.
@@ -234,7 +234,7 @@ Section test.
         iFrame. by done. 
       + iDestruct (hash_auth_frag_agree with "[$][$]") as "%".
         simplify_eq.
-    - iNext. iIntros (res') "[[->[??]]|(%&%&?&%&[])]".
+    - iNext. iIntros (res') "[[->[??]]|(%&[])]".
       iApply "HΦ". iFrame.
   Qed.
   

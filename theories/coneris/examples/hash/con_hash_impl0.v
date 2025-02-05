@@ -265,14 +265,14 @@ Section con_hash_impl.
              match m!!v with
              | Some res => R m ∗ P m m' ∗ hash_tape_auth m' γ_tape ∗ Q1 res
              | None => ∃ n ns, hash_tape α (n::ns) γ_tape ∗ P m (<[α:=n::ns]> m') ∗ hash_tape_auth (<[α:=n::ns]> m') γ_tape ∗
-                              (∀ m'', P m m'' -∗  ⌜m''!!α=Some (n::ns)⌝
+                              (∀ m'', P m m'' -∗ hash_tape α (ns) γ_tape -∗ ⌜m''!!α=Some (n::ns)⌝
                                       ={⊤∖↑N.@"hash"}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗ Q2 n ns)
              end                                        
       )
   }}}
       f #v α
       {{{ (res:nat), RET (#res);  (Q1 res ∨
-                                 ∃ n ns, hash_tape α ns γ_tape ∗ ⌜res=n⌝ ∗ Q2 n ns
+                                 ∃ ns,  Q2 res ns
                                 )
       }}}.
   Proof.
@@ -346,7 +346,7 @@ Section con_hash_impl.
       iDestruct (ghost_var_agree with "[$][$]") as "->".
       iMod (abstract_tapes_pop with "[$][$]") as "[Hauth Htape']".
       simplify_eq.
-      iMod ("Hvs" with "[$][]") as "Hvs"; try done.
+      iMod ("Hvs" with "[$][$][]") as "Hvs"; try done.
       iDestruct "Hvs" as "(HR&HP&HQ)". simplify_eq.
       iMod (ghost_var_update with "[$][$]") as "[Hown Hown']".
       iMod ("Hclose" with "[Hauth Htoken Hown HP]") as "_".
@@ -387,7 +387,7 @@ Section con_hash_impl.
       { iExists _. iSplit; first done. by rewrite fmap_insert. }
       wp_pures.
       iApply "HΦ".
-      iFrame. iRight. iFrame. by iModIntro.
+      by iFrame. 
   Qed.
     
 

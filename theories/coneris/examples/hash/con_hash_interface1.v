@@ -134,7 +134,7 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
              match m!!v with
              | Some res => R m ∗ P m m' ∗ hash_auth1 m γ1 γ2 ∗ hash_tape_auth1 m' γ2 γ3 ∗ Q1 res
              | None => ∃ n ns, hash_tape1 α (n::ns) γ2 γ3 ∗ P m (<[α:=n::ns]> m') ∗ hash_tape_auth1 (<[α:=n::ns]> m') γ2 γ3 ∗
-                              (∀ m'', P m m'' -∗  ⌜m''!!α=Some (n::ns)⌝
+                              (∀ m'', P m m'' -∗ hash_tape1 α (ns) γ2 γ3 -∗ ⌜m''!!α=Some (n::ns)⌝
                                       ={⊤∖↑N.@"hash"}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗
                                       hash_auth1 (<[v:=n]> m) γ1 γ2  ∗ Q2 n ns)
              end                                        
@@ -142,7 +142,7 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
   }}}
       f #v α
       {{{ (res:nat), RET (#res);  (Q1 res ∨
-                                 ∃ n ns, hash_tape1 α ns γ2 γ3 ∗ ⌜res=n⌝ ∗ Q2 n ns
+                                 ∃ ns, Q2 res ns
                                 )
       }}}
 
@@ -197,7 +197,7 @@ Section test.
   Proof.
     iIntros (Φ) "[#Hinv Ht] HΦ".
     iDestruct (hash_tape_in_hash_set with "[$]") as "#Hfrag".
-    iApply (con_hash_spec1 _ _ _ _ _ _ _ _ _ _ (λ res, hash_frag1 v res γ1 γ2 ∗ hash_tape1 α _ _ _)%I (λ n' ns', ⌜n=n'⌝ ∗ ⌜ns'=ns⌝ ∗ hash_frag1 v n γ1 γ2)%I with "[$Hinv Ht]").
+    iApply (con_hash_spec1 _ _ _ _ _ _ _ _ _ _ (λ res, hash_frag1 v res γ1 γ2 ∗ hash_tape1 α _ _ _)%I (λ n' ns', ⌜n=n'⌝ ∗ ⌜ns'=ns⌝ ∗ hash_frag1 v n γ1 γ2 ∗ hash_tape1 α _ _ _)%I with "[$Hinv Ht]").
     - iIntros (??) "_ _ Htauth Hauth ".
       case_match.
       + iDestruct (hash_auth_duplicate with "[$]") as "#$"; first done. by iFrame.
@@ -208,11 +208,11 @@ Section test.
         iFrame.  
         iMod (hash_auth_insert with "[][$]") as "H"; first done; last first.
         * iDestruct (hash_auth_duplicate with "[$]") as "#$"; first by rewrite lookup_insert.
-          iFrame. by iIntros. 
+          iFrame. iIntros. iFrame. by done.
         * rewrite big_sepL_cons. iDestruct "Hfrag" as "[$ ?]".        
-    - iNext. iIntros (res) "[[??]|(%&%&?&->&->&->&?)]".
+    - iNext. iIntros (res) "[[??]|(%&->&->&#?&?)]".
       + iApply "HΦ". iFrame.
-      + iApply "HΦ". simplify_eq. iFrame.  iLeft. by iFrame.
+      + iApply "HΦ". simplify_eq. iFrame.  iSplit; first done. iLeft. by iFrame.
   Qed.
 
   Lemma con_hash_spec_hashed_before1 N f l hm γ1 γ2 γ3 γlock α ns res (v:nat):
@@ -231,7 +231,7 @@ Section test.
         simplify_eq. iDestruct (hash_auth_duplicate with "[$]") as "#$"; first done. by iFrame.
       + iDestruct (hash_auth_frag_agree with "[$][$]") as "%".
         simplify_eq.
-    - iNext. iIntros (res') "[(->&?&?)|(%&%&?&%&[])]".
+    - iNext. iIntros (res') "[(->&?&?)|(%&[])]".
       iApply "HΦ". iFrame.
   Qed.
   

@@ -99,7 +99,7 @@ Section race.
         * iModIntro. case_match; last done.
           iDestruct (hash_auth_duplicate with "[$]") as "#?"; first done.
           by iFrame.
-      + iIntros (?) "[?|(%&%&?&->&?)]"; by iFrame.
+      + iIntros (?) "[?|(%&?)]"; by iFrame.
     - wp_apply (con_hash_alloc_tape3  _ _ _ _ _ _ _ _ _ _ _ _ _ (λ _, ⌜True⌝)%I).
       { iSplit; first done.
         iIntros. iModIntro. by iSplit.
@@ -138,7 +138,7 @@ Section race.
         * iModIntro. case_match; last done.
           iDestruct (hash_auth_duplicate with "[$]") as "#?"; first done.
           by iFrame.
-      + iIntros (?) "[?|(%&%&?&->&?)]"; by iFrame.
+      + iIntros (?) "[?|(%&?)]"; by iFrame.
     - iIntros (??) "[(%res&<-&?)(%res'&<-&?)]".
       iDestruct (hash_frag_frag_agree with "[$][$]") as "%K".
       replace (res) with (res'); last naive_solver.

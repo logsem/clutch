@@ -103,14 +103,14 @@ Class con_hash0 `{!conerisGS Σ} (val_size:nat):= Con_Hash0
              match m!!v with
              | Some res => R m ∗ P m m' ∗ hash_tape_auth0 m' γ_tape ∗ Q1 res
              | None => ∃ n ns, hash_tape0 α (n::ns) γ_tape ∗ P m (<[α:=n::ns]> m') ∗ hash_tape_auth0 (<[α:=n::ns]> m') γ_tape ∗
-                              (∀ m'', P m m'' -∗  ⌜m''!!α=Some (n::ns)⌝
+                              (∀ m'', P m m'' -∗  hash_tape0 α (ns) γ_tape -∗ ⌜m''!!α=Some (n::ns)⌝
                                       ={⊤∖↑N.@"hash"}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗ Q2 n ns)
              end                                        
       )
   }}}
       f #v α
       {{{ (res:nat), RET (#res);  (Q1 res ∨
-                                 ∃ n ns, hash_tape0 α ns γ_tape ∗ ⌜res=n⌝ ∗ Q2 n ns
+                                 ∃ ns, Q2 res ns
                                 )
       }}};
   (* con_hash_spec_hashed_before0 f l hm γ1 γ2 γlock α ns res (v:nat): *)

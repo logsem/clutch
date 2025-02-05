@@ -263,13 +263,13 @@ Section con_hash_impl3.
     iFrame.
   Qed.
 
-  Lemma con_hash_spec  N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ1 γ2 γ3 γ4 γ5 γ_token γ_lock Q1 Q2 α (v:nat):
+  Lemma con_hash_spec N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ1 γ2 γ3 γ4 γ5 γ_token γ_lock Q1 Q2 α (v:nat):
   {{{ con_hash_inv N f l hm P R γ1 γ2 γ3 γ4 γ5 γ_token γ_lock ∗ 
       ( ∀ m m', R m -∗ P m m' -∗ hash_tape_auth m' γ2 γ3 -∗ hash_auth m γ1 γ2 γ4 γ5-∗ state_update (⊤∖↑N.@"hash") (⊤∖↑N.@"hash")
              match m!!v with
              | Some res => R m ∗ P m m' ∗hash_tape_auth m' γ2 γ3 ∗ hash_auth m γ1 γ2 γ4 γ5∗ Q1 res
              | None => ∃ n ns, hash_tape α (n::ns) γ2 γ3 ∗ P m (<[α:=n::ns]> m') ∗ hash_tape_auth (<[α:=n::ns]> m') γ2 γ3 ∗
-                              (∀ m'', P m m'' -∗  ⌜m''!!α=Some (n::ns)⌝
+                              (∀ m'', P m m'' -∗  hash_tape α (ns) γ2 γ3 -∗ ⌜m''!!α=Some (n::ns)⌝
                                       ={⊤∖↑N.@"hash"}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗
                                       hash_auth (<[v:=n]> m) γ1 γ2 γ4 γ5∗ Q2 n ns)
              end                                        
@@ -277,9 +277,10 @@ Section con_hash_impl3.
   }}}
       f #v α
       {{{ (res:nat), RET (#res);  (Q1 res ∨
-                                 ∃ n ns, hash_tape α ns γ2 γ3 ∗ ⌜res=n⌝ ∗ Q2 n ns
+                                 ∃ ns, Q2 res ns
                                 )
-      }}}.
+      }}}
+.
   Proof.
     iIntros (Φ) "(#[H1 H2] & Hvs) HΦ".
     iApply (con_hash_spec2 with "[$H1 Hvs]"); last done.
