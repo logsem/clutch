@@ -165,22 +165,24 @@ Section con_hash_impl1.
     iApply (hash_set_frag_in_set with "[$][$]").
   Qed.
 
-  Lemma hash_tape_presample N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} m γ_hv γ_set γ γ_lock α ns s (ε εI εO:nonnegreal) E:
+  Lemma hash_tape_presample N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} m γ_hv γ_set γ γ_lock α ns s (bad : gset nat) (ε εI εO:nonnegreal) E:
   ↑(N.@"rand")⊆E ->
-  (εI * (size s) + εO * (val_size + 1 - size s) <= ε * (val_size + 1))%R ->
+  (forall x : nat, x ∈ bad -> (x < S val_size)%nat) ->
+  (εI * (size bad) + εO * (val_size + 1 - size bad) <= ε * (val_size + 1))%R ->
   con_hash_inv N f l hm P R γ_hv γ_set γ γ_lock -∗
     hash_tape_auth m γ_set γ -∗ hash_tape α ns γ_set γ -∗ ↯ ε -∗
     hash_set s γ_set -∗
-    state_update E E (∃ (n:fin(S val_size)), 
-          ( (⌜fin_to_nat n ∈ s⌝) ∗ hash_set s γ_set ∗ ↯ εI  ∨
-            (⌜fin_to_nat n ∉ s⌝) ∗ hash_set (s∪{[(fin_to_nat n)]}) γ_set ∗ ↯ εO
+    state_update E E (∃ (n:fin(S val_size)),
+          ( (⌜fin_to_nat n ∈ bad⌝) ∗ ↯ εI  ∨
+            (⌜fin_to_nat n ∉ bad⌝) ∗ ↯ εO
           )∗
+          hash_set (s∪{[(fin_to_nat n)]}) γ_set ∗
           hash_tape_auth (<[α:=ns++[fin_to_nat n]]>m) γ_set γ ∗
           hash_tape α (ns++[fin_to_nat n]) γ_set γ
       ).
   Proof.
-    iIntros (Hsubset Hineq) "#Hinv [Htauth #?] [Ht #?] Herr (Hs&%&#?)".
-    pose (ε2 (x:fin (S val_size)):= if bool_decide (fin_to_nat x ∈s) then nonneg εI else nonneg εO).
+    iIntros (Hsubset Hbound Hineq) "#Hinv [Htauth #?] [Ht #?] Herr (Hs&%&#?)".
+    pose (ε2 (x:fin (S val_size)):= if bool_decide (fin_to_nat x ∈ bad) then nonneg εI else nonneg εO).
     iMod (con_hash_interface0.hash_tape_presample _ _ _ _ _ _ _ _ _ _ _ _ ε2 with "[//][$][$][$]") as "(%&Herr&Htauth&Ht)".
     - done.
     - intros. rewrite /ε2. case_bool_decide; apply cond_nonneg.
@@ -189,8 +191,8 @@ Section con_hash_impl1.
       rewrite S_INR.
       rewrite SeriesC_scal_l.
       rewrite (SeriesC_ext _ (λ x : fin (S val_size),
-                                εI * (if bool_decide (fin_to_nat x ∈ s) then 1 else 0) +
-                                  εO * (if bool_decide (¬(fin_to_nat x ∈ s)) then 1 else 0))%R); last first.
+                                εI * (if bool_decide (fin_to_nat x ∈ bad) then 1 else 0) +
+                                  εO * (if bool_decide (¬(fin_to_nat x ∈ bad)) then 1 else 0))%R); last first.
       {
         intro n.
         case_bool_decide as HE ; case_bool_decide as HF; simpl.
@@ -208,26 +210,31 @@ Section con_hash_impl1.
       apply Rcomplements.Rle_div_l; [lra |].
       rewrite SeriesC_fin_in_set; auto.
       rewrite SeriesC_fin_not_in_set; auto.
-    - iFrame. rewrite /ε2. case_bool_decide.
-      + iModIntro. repeat iSplit; try done.
-        * iLeft. iFrame. by repeat iSplit.
+    - iFrame. rewrite /ε2.
+      destruct (decide ((fin_to_nat n) ∈ s)).
+      + iModIntro.
+        replace ((s∪{[(fin_to_nat n)]})) with s by set_solver.
+        iFrame.
+        repeat iSplit; try done.
+        * case_bool_decide; [iLeft| iRight]; by iFrame.
         * iApply big_sepM_insert_2; last done.
           iSplit; first done.
           iSplit; last done.
+          rewrite /hash_set_frag.
           by iApply (big_sepS_elem_of with "[$]").
         * by iApply (big_sepS_elem_of with "[$]").
       + iMod (ghost_map_insert_persist (fin_to_nat n) with "[$]") as "[Hs #?]". 
         * by rewrite lookup_gset_to_gmap_None.
-        * iModIntro. repeat iSplit; try done.
-          -- iRight. iFrame.
-             iSplit; first done. repeat iSplit.
-             ++ rewrite <-gset_to_gmap_union_singleton.
-                by rewrite union_comm_L.
-             ++ iPureIntro.
-                set_unfold. intros ? [|]; first naive_solver.
-                subst.
-                apply fin_to_nat_lt.
-             ++ by iApply big_sepS_insert_2'.
+        * iModIntro.
+          iSplitL "Herr"; [case_bool_decide; [iLeft | iRight]; by iFrame |].
+          repeat iSplit; try done.
+          -- rewrite <-gset_to_gmap_union_singleton.
+             by rewrite union_comm_L.
+          -- iPureIntro.
+             set_unfold. intros ? [|]; first naive_solver.
+             subst.
+             apply fin_to_nat_lt.
+          -- by iApply big_sepS_insert_2'.
           -- iApply big_sepM_insert_2; last done.
              iSplit; first done.
              by iSplit.

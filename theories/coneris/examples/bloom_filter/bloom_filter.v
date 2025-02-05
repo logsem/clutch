@@ -5,7 +5,65 @@ From clutch.coneris.lib Require Import list array.
 
 Set Default Proof Using "Type*".
 
+(*
+Class bloom_filter `{!conerisGS Σ} := BloomFilter
+{
+  (** * Operations *)
+  init_filter : val;
+  insert_elem : val;
+  lookup_elem : val;
+
+  (** * Ghost state *)
+  name: Type;
+
+  (** * Predicates *)
+  is_bloom_filter (N:namespace) (γs:name) (v : val)  : iProp Σ;
+  bf_content_auth (γs:name) (s: gset nat) : iProp Σ;
+  bf_content_frag (γs:name) (s: gset nat) : iProp Σ;
+  bf_init_cond (sz nh : nat) : iProp Σ;
+
+  is_bf_persistent N γs v : Persistent (is_bloom_filter N γs v);
+  bf_content_frag_timeless γs s : Timeless (bf_content_frag γs s);
+  bf_content_auth_timeless γs s : Timeless (bf_content_auth γs s);
+  bf_content_frag_exclusive γs s1 s2 :
+  bf_content_frag γs s1 -∗ bf_content_frag γs s2 -∗ False;
+  bf_content_auth_exclusive γs s1 s2 :
+  bf_content_auth γs s1 -∗ bf_content_auth γs s2 -∗ False;
+  bf_content_agree γs s1 s2 :
+  bf_content_frag γs s1 -∗ bf_content_auth γs s2 -∗ ⌜s1 ≡ s2⌝;
+  bf_content_update γs s s' :
+  bf_content_frag γs s -∗ bf_content_auth γs s -∗
+    |==> bf_content_frag γs s' ∗ bf_content_auth γs s';
+
+
+  (** Specs *)
+  bf_init_spec N (filter_size num_hash : nat)  :
+    {{{ bf_init_cond filter_size num_hash }}}
+      init_filter #()
+      {{{ (γs : name) (v:val), RET v;  is_bloom_filter N γs v ∗ bf_content_frag γs ∅  }}};
+
+  bf_insert_spec N γs s (n : nat) (Φ : val → iProp Σ) :
+      is_bloom_filter N γs s -∗
+          (∀ s, bf_content_auth γs s ={⊤∖↑N}=∗ bf_content_auth γs (s ∪ {[n]}) ∗ Φ #()) -∗
+              WP insert_elem s #n {{ Φ }};
+
+  bf_lookup_spec_hit N γs s (n : nat) (Φ : val → iProp Σ) :
+      is_bloom_filter N γs s -∗
+          (∀ s, ⌜n ∈ s⌝ -∗ bf_content_auth γs s ={⊤∖↑N}=∗ bf_content_auth γs s ∗ Φ (#true)) -∗
+              WP lookup_elem s #n {{ Φ }};
+
+  bf_lookup_spec_miss N γs s (n : nat) (Φ : val → iProp Σ) :
+      is_bloom_filter N γs s -∗
+          (∀ s, ⌜n ∉ s⌝ -∗ bf_content_auth γs s ={⊤∖↑N}=∗ bf_content_auth γs s ∗ Φ (#false)) -∗
+              WP lookup_elem s #n {{ Φ }};
+
+}.
+
+*)
+
 Section bloom_filter.
+
+
 
   Variable filter_size : nat.
   Variable num_hash : nat.

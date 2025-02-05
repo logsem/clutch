@@ -50,7 +50,7 @@ Section con_hash_impl2.
   con_hash_inv N f l hm P R γ_hv γ_set γ γ_hv' γ_set' γ_lock -∗
     hash_tape_auth m γ_set γ -∗ hash_tape α ns γ_set γ-∗ ↯ ε -∗
     hash_set s γ_set γ_set'-∗
-    state_update E E (∃ (n:fin(S val_size)), 
+    state_update E E (∃ (n:fin(S val_size)),
           (  hash_set (s+1)%nat γ_set γ_set' ∗ ↯ εO
           )∗
           hash_tape_auth (<[α:=ns++[fin_to_nat n]]>m) γ_set γ ∗
@@ -59,21 +59,25 @@ Section con_hash_impl2.
   Proof.
     rewrite /hash_tape_auth/hash_tape/hash_set/hash_set_frag.
     iIntros (Hsubset Hineq) "#Hinv Htauth Ht Herr (%s' & <- & Hset & Hset')".
-    iMod (con_hash_interface1.hash_tape_presample _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 1%NNR with "[//][$][$][$][$]") as "Hcont".
+    iPoseProof (hash_set_valid with "Hset") as "%Hbound".
+    iMod (con_hash_interface1.hash_tape_presample _ _ _ _ _ _ _ _ _ _ _ _ _ _ s' _ 1%NNR with "[//][$][$][$][$]") as "Hcont".
     { done. }
+    { intros.
+      by apply Nat.lt_succ_r, Hbound.
+    }
     { simpl. erewrite Rmult_1_l. done. }
-    iDestruct ("Hcont" ) as "(%&[(%&?&?)|(%&?&?)]&$&$)".
+    iDestruct ("Hcont" ) as "(%&[(%&?)|(%&?)]&?&$&$)".
     { by iDestruct (ec_contradict with "[$]") as "%". }
     iMod (ghost_map_insert with "[$]") as "[Hset' Hs']".
     { apply not_elem_of_dom_1. by rewrite dom_gset_to_gmap. }
-    rewrite <-gset_to_gmap_union_singleton. 
+    rewrite <-gset_to_gmap_union_singleton.
     iModIntro. iFrame.
     repeat iSplit; try done.
     - iPureIntro. rewrite size_union; last set_solver. rewrite size_singleton. lia.
     - by rewrite union_comm_L.
     - iApply (hash_set_duplicate); last done. set_solver.
   Qed.
-    
+
   Lemma con_hash_presample  N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR:∀ m, Timeless (R m)} γ_hv γ_set γ_tape γ_hv' γ_set' γ_lock Q
     E  :
     ↑(N.@"hash") ⊆ E ->
@@ -142,7 +146,7 @@ Section con_hash_impl2.
                               (∀ m'', P m m'' -∗  ⌜m''!!α=Some (n::ns)⌝
                                       ={⊤∖↑N.@"hash"}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗
                                       hash_auth (<[v:=n]> m) γ1 γ2 γ4 γ5∗ Q2 n ns)
-             end                                        
+             end
       )
   }}}
       f #v α
@@ -179,24 +183,24 @@ Section con_hash_impl2.
       + iLeft. by iFrame.
       + iRight. by iFrame.
   Qed.
-      
-  
+
+
   Program Definition con_hash_impl2 : con_hash2 val_size :=
     {| init_hash2:=init_hash;
       allocate_tape2:=allocate_tape;
       compute_hash2:=compute_hash;
-      
-      con_hash_inv2 := con_hash_inv; 
+
+      con_hash_inv2 := con_hash_inv;
       hash_tape2:=hash_tape;
       hash_frag2:=hash_frag;
       hash_auth2:=hash_auth;
       hash_tape_auth2 := hash_tape_auth;
-      hash_set2:=hash_set; 
-      hash_set_frag2:=hash_set_frag; 
-      con_hash_interface2.hash_tape_presample := hash_tape_presample; 
-      con_hash_presample2 := con_hash_presample; 
-      con_hash_init2 := con_hash_init; 
-      con_hash_alloc_tape2 := con_hash_alloc_tape; 
+      hash_set2:=hash_set;
+      hash_set_frag2:=hash_set_frag;
+      con_hash_interface2.hash_tape_presample := hash_tape_presample;
+      con_hash_presample2 := con_hash_presample;
+      con_hash_init2 := con_hash_init;
+      con_hash_alloc_tape2 := con_hash_alloc_tape;
       con_hash_spec2:=con_hash_spec
     |}
   .
@@ -239,7 +243,7 @@ Section con_hash_impl2.
       simpl.
       iCombine "H2 H4" gives "%H0".
       cbv in H0. naive_solver.
-    } 
+    }
     iMod (hv_auth_insert with "[$]") as "[$?]"; first done.
     { rewrite Forall_forall.
       intros x Hx.
@@ -265,5 +269,5 @@ Section con_hash_impl2.
     iApply (con_hash_interface1.hash_tape_exclusive with "[$][$]").
   Qed.
 
-  
+
 End con_hash_impl2.

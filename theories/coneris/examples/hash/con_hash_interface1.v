@@ -85,16 +85,18 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
       hash_tape1 α ns γ2 γ3-∗ hash_tape1 α ns' γ2 γ3 -∗ False;
 
   
-  hash_tape_presample N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )}  m γ_hv γ_set γ γ_lock α ns s (ε εI εO:nonnegreal) E:
+  hash_tape_presample N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )}  m γ_hv γ_set γ γ_lock α ns s (bad : gset nat)(ε εI εO:nonnegreal) E:
   ↑(N.@"rand")⊆E ->
-  (εI * (size s) + εO * (val_size + 1 - size s) <= ε * (val_size + 1))%R ->
+  (forall x : nat, x ∈ bad -> (x < S val_size)%nat) ->
+  (εI * (size bad) + εO * (val_size + 1 - size bad) <= ε * (val_size + 1))%R ->
   con_hash_inv1 N f l hm P R γ_hv γ_set γ γ_lock -∗
     hash_tape_auth1 m γ_set γ -∗ hash_tape1 α ns γ_set γ -∗ ↯ ε -∗
     hash_set1 s γ_set -∗
     state_update E E (∃ (n:fin(S val_size)), 
-          ( (⌜fin_to_nat n ∈ s⌝) ∗ hash_set1 s γ_set ∗ ↯ εI  ∨
-            (⌜fin_to_nat n ∉ s⌝) ∗ hash_set1 (s∪{[(fin_to_nat n)]}) γ_set ∗ ↯ εO
+          ( (⌜fin_to_nat n ∈ bad⌝) ∗ ↯ εI  ∨
+            (⌜fin_to_nat n ∉ bad⌝) ∗ ↯ εO
           )∗
+          hash_set1 (s∪{[(fin_to_nat n)]}) γ_set ∗
           hash_tape_auth1 (<[α:=ns++[fin_to_nat n]]>m) γ_set γ ∗
           hash_tape1 α (ns++[fin_to_nat n]) γ_set γ
       ); 
@@ -158,23 +160,29 @@ Section test.
     hash_set1 s γ2 -∗
     state_update E E (∃ (n:fin (S val_size)),
           hash_tape1 α (ns++[fin_to_nat n]) γ2 γ3 ∗
-          ( (⌜fin_to_nat n ∈ s⌝) ∗ hash_set1 s γ2 ∗ ↯ εI ∨
-            (⌜fin_to_nat n ∉ s⌝) ∗ hash_set1 (s∪{[(fin_to_nat n)]}) γ2 ∗ ↯ εO
-          )
+          ( (⌜fin_to_nat n ∈ s⌝) ∗ ↯ εI ∨
+            (⌜fin_to_nat n ∉ s⌝) ∗ ↯ εO
+          ) ∗
+          hash_set1 (s∪{[(fin_to_nat n)]}) γ2
       ).
   Proof.
     iIntros (Hsubset Hineq) "#Hinv Ht Herr Hs".
+    iDestruct (hash_set_valid with "[$]") as "%Hbound".
     iMod (con_hash_presample1 _ _ _ _ _ _ _ _ _ _
             (λ m m' m'', (∃ n : fin (S val_size), hash_tape1 α (ns ++ [fin_to_nat n]) γ2 γ3 ∗
-                                                  (⌜fin_to_nat n ∈ s⌝ ∗ hash_set1 s γ2 ∗ ↯ εI ∨ ⌜fin_to_nat n ∉ s⌝ ∗ hash_set1 (s ∪ {[fin_to_nat n]}) γ2 ∗ ↯ εO)))%I with "[//][-]") as "Hcont".
+                                                    (⌜fin_to_nat n ∈ s⌝ ∗ ↯ εI ∨ ⌜fin_to_nat n ∉ s⌝ ∗ ↯ εO) ∗
+                                                    hash_set1 (s ∪ {[fin_to_nat n]}) γ2 ))%I with "[//][-]") as "Hcont".
     - by apply nclose_subseteq'.
     - iIntros (_ ?) "_ Hauth".
-      iMod (hash_tape_presample with "[//][$][$][$][$]") as "(%&?&$&$)".
+      iMod (hash_tape_presample _ _ _ _ _ _ _ _ _ _ _ _ _ s with "[//][$][$][$][$]") as "(%&?&?&?&?)".
       + apply subseteq_difference_r; last by apply nclose_subseteq'.
         by apply ndot_ne_disjoint.
+      + intros.
+        apply Nat.lt_succ_r.
+        by apply Hbound.
       + done.
       + by iFrame.
-    - iDestruct "Hcont" as "(%&%&%&%&$&[(%&?&?)|(%&?&?)])"; iModIntro; [iLeft|iRight]; by iFrame.
+    - iDestruct "Hcont" as "(%&%&%&%&$&[(%&?)|(%&?)]&?)"; iModIntro; iFrame; [iLeft|iRight]; by iFrame.
   Qed.
   
     
