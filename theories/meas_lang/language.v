@@ -227,43 +227,66 @@ Section language.
   Lemma stuck_fill `{!@LanguageCtx Λ K} e σ :
     stuck (e, σ) → stuck (K e, σ).
   Proof. rewrite -!not_not_stuck. eauto using not_stuck_fill_inv. Qed.
+*)
 
   Record pure_step (e1 e2 : expr Λ)  := {
-    pure_step_safe σ1 : reducible (e1, σ1);
-    pure_step_det σ : prim_step e1 σ (e2, σ) = 1;
+    pure_step_safe σ1 : ¬ (is_zero (prim_step (e1, σ1)));
+    pure_step_det σ : is_ret (e2, σ) (prim_step (e1, σ));
   }.
 
   Class PureExec (φ : Prop) (n : nat) (e1 e2 : expr Λ) :=
     pure_exec : φ → relations.nsteps pure_step n e1 e2.
 
-  Lemma pure_step_ctx K `{!@LanguageCtx Λ K} e1 e2 :
+  Lemma pure_step_ctx K `{!@MeasLanguageCtx Λ K} e1 e2 :
     pure_step e1 e2 → pure_step (K e1) (K e2).
   Proof.
     intros [Hred Hstep]. split.
-    - unfold reducible in *. intros σ1.
-      destruct (Hred σ1) as [[]].
-      eexists. by eapply fill_step.
-    - intros σ.
+    { intros σ1.
+      eapply (fill_step _); first by apply H.
+      by apply Hred. }
+    { intros σ.
+      admit.
+      (*
       rewrite -fill_step_prob //.
       eapply (to_final_None_1 (_, σ)).
       by eapply reducible_not_final.
-  Qed.
+       *)
+    }
+  Admitted.
 
-  Lemma pure_step_nsteps_ctx K `{!@LanguageCtx Λ K} n e1 e2 :
+  Lemma pure_step_nsteps_ctx K `{!@MeasLanguageCtx Λ K} n e1 e2 :
     relations.nsteps pure_step n e1 e2 →
     relations.nsteps pure_step n (K e1) (K e2).
-  Proof. eauto using nsteps_congruence, pure_step_ctx. Qed.
+  Proof.
+    intro H'.
+    eapply (nsteps_congruence _ _ _ _ _ _ H' ).
+    Unshelve.
+    intros x y.
+    by apply (pure_step_ctx _).
+  Qed.
 
-  Lemma rtc_pure_step_ctx K `{!@LanguageCtx Λ K} e1 e2 :
+  Lemma rtc_pure_step_ctx K `{!@MeasLanguageCtx Λ K} e1 e2 :
     rtc pure_step e1 e2 → rtc pure_step (K e1) (K e2).
-  Proof. eauto using rtc_congruence, pure_step_ctx. Qed.
+  Proof.
+    intro H'.
+    eapply (rtc_congruence _ _ _ _ _ H').
+    Unshelve.
+    intros x y.
+    by apply (pure_step_ctx _).
+  Qed.
 
   (* We do not make this an instance because it is awfully general. *)
-  Lemma pure_exec_ctx K `{!@LanguageCtx Λ K} φ n e1 e2 :
+  Lemma pure_exec_ctx K `{!@MeasLanguageCtx Λ K} φ n e1 e2 :
     PureExec φ n e1 e2 →
     PureExec φ n (K e1) (K e2).
-  Proof. rewrite /PureExec; eauto using pure_step_nsteps_ctx. Qed.
+  Proof.
+    rewrite /PureExec.
+    intros H' p.
+    apply (pure_step_nsteps_ctx _).
+    by apply (H' p).
+  Qed.
 
+  (*
   Lemma PureExec_reducible σ1 φ n e1 e2 :
     φ → PureExec φ (S n) e1 e2 → reducible (e1, σ1).
   Proof. move => Hφ /(_ Hφ). inversion_clear 1. apply H. Qed.
@@ -275,7 +298,9 @@ Section language.
     destruct (PureExec_reducible inhabitant _ _ _ _ Hφ Hex) => /=.
     simpl in *.
     by eapply val_stuck.
-  Qed.     
+  Qed.
+
+  *)
   
   (* This is a family of frequent assumptions for PureExec *)
   Class IntoVal (e : expr Λ) (v : val Λ) :=
@@ -294,7 +319,7 @@ Section language.
     (∃ v, of_val v = e) → is_Some (to_val e).
   Proof. intros [v <-]. rewrite to_of_val. eauto. Qed.
 
-  Lemma fill_is_val e K `{@LanguageCtx Λ K} :
+  Lemma fill_is_val e K `{@MeasLanguageCtx Λ K} :
     is_Some (to_val (K e)) → is_Some (to_val e).
   Proof. rewrite -!not_eq_None_Some. eauto using fill_not_val. Qed.
 
@@ -303,13 +328,12 @@ Section language.
   Proof.
     intros ?; rewrite <- to_of_val.
     f_equal; symmetry; eapply rtc_nf; first done.
-    intros [e' [Hstep _]].
-    specialize (Hstep inhabitant) as [? Hval%val_stuck].
-    by rewrite to_of_val in Hval.
+    intros [e' [ Hstep ? ]].
+    have K := to_of_val v.
+    rewrite (val_stuck _ _ (Hstep inhabitant)) in K.
+    by inversion K.
   Qed.
-   *)
+
 End language.
 
-(*
 Global Hint Mode PureExec + - - ! - : typeclass_instances.
-*)
