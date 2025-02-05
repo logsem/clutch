@@ -674,3 +674,17 @@ Section is_prob.
   Definition is_prob  {d} {T : measurableType d} (s : giryM T) : Prop := s [set: T] = 1%E.
 
 End is_prob.
+
+Section is_ret.
+  Local Open Scope classical_set_scope.
+  Context `{R : realType}.
+  Notation giryM := (giryM (R := R)).
+  Context {d1} {T1 : measurableType d1}.
+
+  Definition is_ret (p : T1) (c : giryM T1) : Prop :=
+    c = giryM_ret p.
+
+  Lemma is_ret_is_prob p (c : giryM T1) : is_ret p c -> is_prob c.
+  Proof. by rewrite /is_ret/is_prob; move=>->//=; apply diracT. Qed.
+
+End is_ret.
