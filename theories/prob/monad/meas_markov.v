@@ -289,12 +289,12 @@ Section markov.
     }
   Admitted.
 
-(*
   Lemma pexec_no_final a n :
     ¬ is_final a →
-    pexec (S n) a = step a ≫= pexec n.
+    pexec (S n) a = giryM_bind_external (step a) (pexec n).
   Proof. intros. rewrite pexec_Sn step_or_final_no_final //. Qed.
 
+  (*
   Lemma pexec_det_step n a1 a2 a0 :
     step a1 a2 = 1 →
     pexec n a0 a1 = 1 →
@@ -325,51 +325,60 @@ Section markov.
     - rewrite to_final_is_final //.
     - rewrite step_or_final_no_final //.
   Qed.
+*)
 
   (** * Stratified evaluation to a final state *)
-  Fixpoint exec (n : nat) (a : mstate δ) {struct n} : distr (mstate_ret δ) :=
+  Fixpoint exec (n : nat) (a : mstate δ) {struct n} : giryM (mstate_ret δ) :=
     match to_final a, n with
-      | Some b, _ => dret b
-      | None, 0 => dzero
-      | None, S n => step a ≫= exec n
+      | Some b, _ => giryM_ret b
+      | None, 0 => giryM_zero
+      | None, S n => giryM_bind_external (step a) (exec n)
     end.
 
   Lemma exec_unfold (n : nat) :
     exec n = λ a,
       match to_final a, n with
-      | Some b, _ => dret b
-      | None, 0 => dzero
-      | None, S n => step a ≫= exec n
+      | Some b, _ => giryM_ret b
+      | None, 0 => giryM_zero
+      | None, S n => giryM_bind_external (step a) (exec n)
       end.
   Proof. by destruct n. Qed.
 
   Lemma exec_is_final a b n :
-    to_final a = Some b → exec n a = dret b.
+    to_final a = Some b → exec n a = giryM_ret b.
   Proof. destruct n; simpl; by intros ->. Qed.
 
   Lemma exec_Sn a n :
-    exec (S n) a = step_or_final a ≫= exec n.
+    exec (S n) a = giryM_bind_external (step a) (exec n).
   Proof.
     rewrite /step_or_final /=.
     case_match; [|done].
+  Admitted.
+  (*
     rewrite dret_id_left -/exec.
     by erewrite exec_is_final.
   Qed.
+*)
 
   Lemma exec_plus a n1 n2 :
-    exec (n1 + n2) a = pexec n1 a ≫= exec n2.
+    exec (n1 + n2) a = giryM_bind_external (pexec n1 a) (exec n2).
   Proof.
     revert a. induction n1.
-    - intro a. rewrite pexec_O dret_id_left //.
-    - intro a. replace ((S n1 + n2)%nat) with ((S (n1 + n2))); auto.
+    { intro a. rewrite pexec_O. admit. (* dret_id_left //. *) }
+    { admit.
+      (*
+      intro a. replace ((S n1 + n2)%nat) with ((S (n1 + n2))); auto.
       rewrite exec_Sn pexec_Sn.
       apply distr_ext.
       intro.
       rewrite -dbind_assoc.
       rewrite /pmf/=/dbind_pmf.
       by setoid_rewrite IHn1.
-  Qed.
+      *)
+      }
+  Admitted.
 
+  (*
   Lemma exec_pexec_relate a n:
     exec n a = pexec n a ≫=
                  (λ e, match to_final e with
@@ -518,10 +527,17 @@ Section markov.
     - by apply upper_bound_ge_sup=>/=.
   Qed.
 
+*)
 
-  (** * Full evaluation (limit of stratification) *)
+
+
+  (** * Full evaluation (limit of stratification)
   Definition lim_exec (a : mstate δ) : distr (mstate_ret δ) := lim_distr (λ n, exec n a) (exec_mono a).
+*)
 
+
+
+  (*
   Lemma lim_exec_unfold a b :
     lim_exec a b = Sup_seq (λ n, (exec n a) b).
   Proof. apply lim_distr_pmf. Qed.
@@ -750,6 +766,6 @@ Section markov.
         intro v; destruct (ϕ v); real_solver.
   Qed.
 
-*)
+**)
 End markov.
 #[global] Arguments pexec {_} _ _ : simpl never.
