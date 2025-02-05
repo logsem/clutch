@@ -1,4 +1,4 @@
-y (** Giry monad map *)
+(** Giry monad map *)
 
 From mathcomp Require Import all_ssreflect all_algebra finmap.
 From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
@@ -6,7 +6,7 @@ From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
-From clutch.prob.monad Require Export types eval.
+From clutch.prob.monad Require Export types eval zero.
 
 Import Coq.Logic.FunctionalExtensionality.
 
@@ -15,7 +15,6 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 Set Default Proof Using "Type".
-
 
 
 Section giryM_map_definition.
@@ -110,6 +109,8 @@ End giryM_map_definition.
 
 
 
+
+
 Section giryM_map.
   Context `{R : realType}.
   Notation giryM := (giryM (R := R)).
@@ -117,7 +118,6 @@ Section giryM_map.
 
   Axiom giryM_map_meas :
     forall (f : T1 -> T2) (Hf : measurable_fun setT f), @measurable_fun _ _ (giryM T1) (giryM T2) setT (giryM_map Hf).
-
     (*
     apply measurable_if_measurable_evals.
     rewrite /measurable_evaluations.
@@ -130,9 +130,7 @@ Section giryM_map.
       reflexivity.
     }
     simpl.
-
-*)
-
+    *)
     (*
     apply measurable_if_pushfowrard_subset.
     Check (@measurability _ _ _ _ setT _ ereal_borel_subbase _).
@@ -143,27 +141,19 @@ Section giryM_map.
     rewrite /pushforward.
     rewrite /preimage.
      *)
+End giryM_map.
+
+
+
+Section giryM_map_external.
+  Context `{R : realType}.
+  Notation giryM := (giryM (R := R)).
+  Context {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2}.
   Local Open Scope classical_set_scope.
- (*
 
-  Definition giryM_mapU : (<<discr (MeasurableMapT T1 T2)>> * (giryM T1))%type -> (giryM T2) :=
-    fun x => giryM_map x.1.(f_meas) x.2.
-
-  Lemma MyTest (S : set (<<discr (MeasurableMapT T1 T2)>> * (giryM T1))%type) :
-    measurable (image S snd) -> measurable S.
-  Proof.
-    intro X.
-    rewrite /measurable//=/preimage_classes//=.
-  Abort.
-
-  Lemma giryM_mapU_meas : measurable_fun setT giryM_mapU.
-  Proof.
-    intros _ Y HY.
-    rewrite //= setTI.
-    rewrite /preimage/giryM_mapU//=.
-    rewrite /measurable//=/preimage_classes//=.
-  Admitted.
-*)
+  (** This definition doesn't need a proof of the measurability of f at definition-time. *)
+  Definition giryM_map_external (f : T1 -> T2) (m : giryM T1) : giryM T2 :=
+    @extern_if (giryM T2) (measurable_fun setT f) giryM_zero (fun H => giryM_map H m) .
 
 
   (** Public equality for giryM_map *)
@@ -177,6 +167,7 @@ Section giryM_map.
     done.
   Qed.
 
-End giryM_map.
+
+End giryM_map_external.
 
 Global Arguments giryM_map {_} {_} {_} {_} {_} _.

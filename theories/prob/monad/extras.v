@@ -666,3 +666,25 @@ Section measurable_curry.
   Qed.
 
 End measurable_curry.
+
+
+Section extern_if.
+  Context {T : Type}.
+  Context (P : Prop).
+
+  Definition extern_if (default : T) (f : P -> T) : T :=
+    match (pselect P) with
+    | left H => f H
+    | right _ => default
+    end.
+
+  Lemma extern_if_eq {default : T} {f : P -> T} (H : P) :
+    extern_if default f = f H.
+  Proof.
+    rewrite /extern_if//=.
+    destruct (pselect P) as [H' | H'].
+    { f_equal. by apply proof_irrelevance. }
+    { exfalso. by apply H', H. }
+  Qed.
+
+End extern_if.
