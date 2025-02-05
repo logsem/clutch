@@ -106,16 +106,98 @@ Section impl.
       ⌜c=(lk, #l)%V⌝ ∗
       abstract_lazy_rand_inv N γ_tape ∗
       is_lock (L:=Hl) γ_lock lk (∃ res, P res ∗ rand_auth res γ_view ∗ l↦(option_to_val res)))%I.
+
+  Lemma rand_tape_presample_impl N c P {HP:∀ n, Timeless (P n)} γ γ_view γ_lock E m α ε (ε2:fin (S val_size) -> R):
+    ↑(N.@"rand")⊆E ->
+    (∀ x, (0 <= ε2 x)%R)->
+    (SeriesC (λ n : fin (S val_size), 1 / S val_size * ε2 n) <= ε)%R ->
+    lazy_rand_inv N c P γ γ_view γ_lock -∗
+    rand_tape_auth m γ -∗ rand_tape_frag α None γ -∗ ↯ ε -∗
+    state_update E E (∃ n, 
+          ↯ (ε2 n) ∗
+          rand_tape_auth (<[α:=Some (fin_to_nat n)]>m) γ ∗
+          rand_tape_frag α (Some (fin_to_nat n)) γ).
+  Admitted.
+
+  Lemma lazy_rand_presample_impl N c P {HP: ∀ n, Timeless (P n)} γ γ_view γ_lock Q
+    E  :
+  ↑(N.@"tape") ⊆ E ->
+  lazy_rand_inv N c P γ γ_view γ_lock -∗
+  (∀ m,  rand_tape_auth m γ -∗
+         state_update (E∖↑(N.@"tape")) (E∖↑(N.@"tape"))
+           (∃ m', rand_tape_auth m' γ ∗ Q m m')
+    ) -∗
+    state_update E E (
+        ∃ m m', Q m m'
+      ).
+  Admitted.
+
+  Lemma lazy_rand_init_impl N P {HP: ∀ n, Timeless (P n)} :
+    {{{ P None }}}
+      init_lazy_rand_prog #()
+      {{{ (c:val), RET c;
+          ∃ γ γ_view γ_lock, 
+            lazy_rand_inv N c P γ γ_view γ_lock }}}.
+  Proof.
+  Admitted.
+
+  Lemma lazy_rand_alloc_tape_impl N c P {HP: ∀ n, Timeless (P n)} γ_tape γ_view γ_lock Q:
+  {{{ lazy_rand_inv N c P γ_tape γ_view γ_lock ∗
+      (∀ (m:gmap val (option nat)) α, ⌜α∉dom m⌝ -∗ |={⊤∖↑N.@"tape"}=> Q α)
+  }}}
+      allocate_tape_prog #()
+      {{{ (α: val), RET α; rand_tape_frag α None γ_tape ∗ Q α }}}.
+  Proof.
+  Admitted.
+
+  Lemma lazy_rand_spec_impl N c P {HP: ∀ n, Timeless (P n)} γ_tape γ_view γ_lock Q1 Q2 α (v:nat) (tid:nat):
+  {{{ lazy_rand_inv N c P γ_tape γ_view γ_lock ∗
+      ( ∀ n m, P n -∗ rand_auth n γ_view -∗ rand_tape_auth m γ_tape -∗ state_update (⊤∖↑N.@"tape") (⊤∖↑N.@"rand")
+             match n with
+             | Some (res, tid') => P n ∗ rand_auth n γ_view ∗ rand_tape_auth m γ_tape ∗ Q1 res tid'
+             | None => ∃ n', rand_tape_frag α (Some n') γ_tape ∗ rand_tape_auth (<[α:=Some n']> m) γ_tape ∗
+                              (∀ (m':gmap val (option nat)), ⌜m'!!α=(Some (Some n'))⌝
+                                      ={⊤∖↑N.@"tape"}=∗  P (Some (n', tid)) ∗ rand_auth (Some (n', tid)) γ_view ∗ Q2 n' tid)
+             end                                        
+      )
+  }}}
+      c α #tid
+      {{{ (res' tid':nat), RET (#res', #tid')%V;  (Q1 res' tid' ∨
+                                  rand_tape_frag α None γ_tape ∗ Q2 res' tid'
+                                )
+      }}}.
+  Proof.
+  Admitted.
   
-  (* Program Definition lazy_rand_impl : lazy_rand val_size := *)
-  (*   {| init_lazy_rand := init_lazy_rand_prog; *)
-  (*     allocate_tape := allocate_tape_prog; *)
-  (*     lazy_read_rand := lazy_read_rand_prog; *)
-  (*     lazy_rand_interface.rand_tape_frag := rand_tape_frag; *)
-  (*     lazy_rand_interface.rand_tape_auth := rand_tape_auth; *)
-  (*     lazy_rand_interface.rand_auth := rand_auth; *)
-  (*     lazy_rand_interface.rand_frag := rand_frag; *)
-  (*     rand_inv:=lazy_rand_inv; *)
-  (*   |} *)
-  (* . *)
+  Program Definition lazy_rand_impl : lazy_rand val_size :=
+    {| init_lazy_rand := init_lazy_rand_prog;
+      allocate_tape := allocate_tape_prog;
+      lazy_read_rand := lazy_read_rand_prog;
+      lazy_rand_interface.rand_tape_frag := rand_tape_frag;
+      lazy_rand_interface.rand_tape_auth := rand_tape_auth;
+      lazy_rand_interface.rand_auth := rand_auth;
+      lazy_rand_interface.rand_frag := rand_frag;
+      rand_inv:=lazy_rand_inv;
+      rand_tape_presample:=rand_tape_presample_impl;
+      lazy_rand_presample:=lazy_rand_presample_impl;
+      lazy_rand_init:=lazy_rand_init_impl;
+      lazy_rand_alloc_tape:=lazy_rand_alloc_tape_impl;
+      lazy_rand_spec:=lazy_rand_spec_impl
+    |}
+  .
+  Next Obligation.
+  Admitted.
+  Next Obligation.
+  Admitted.
+  Next Obligation.
+  Admitted.
+  Next Obligation.
+  Admitted.
+  Next Obligation.
+  Admitted.
+  Next Obligation.
+  Admitted.
+  Next Obligation.
+  Admitted.
+  
 End impl.
