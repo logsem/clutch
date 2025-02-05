@@ -564,12 +564,52 @@ Section giry_iterM.
 
   Local Open Scope classical_set_scope.
 
+
+
   (* Monadic iteration *)
-  Fixpoint giryM_iterN (n : nat) (f : T -> (giryM T)) (Hf : measurable_fun setT f) : T -> (giryM T)
+  Fixpoint giryM_iterN (n : nat) (f : T -> (giryM T)) : T -> (giryM T)
     := match n with
          O => giryM_ret
-       | (S n) => ssrfun.comp (giryM_bind Hf) (giryM_iterN n Hf)
+       | (S n) => fun a => giryM_bind_external (f a) (giryM_iterN n f)
        end.
+
+  Lemma giryM_iterN_zero (f : T -> giryM T) : giryM_iterN 0 f = giryM_ret.
+  Proof. done. Qed.
+
+
+  (* Follows from monad associativity. The RHS of this is measurable by construction.*)
+  Lemma giryM_iterN_S_rev_eq n (f : T -> giryM T):
+    (fun a => giryM_bind_external (f a) (giryM_iterN n f)) = (ssrfun.comp (giryM_bind_external^~ f) (giryM_iterN n f)).
+  Proof.
+  Admitted.
+  (*
+    apply functional_extensionality.
+    intro a.
+    rewrite /ssrfun.comp//=.
+    induction n.
+    { rewrite giryM_iterN_zero. admit. }
+    simpl.
+    rewrite IHn.
+    *)
+
+  Lemma giryM_iterN_S_rev n (f : T -> giryM T) :
+    giryM_iterN (S n) f = ssrfun.comp (giryM_bind_external^~ f) (giryM_iterN n f).
+  Proof. by rewrite <- giryM_iterN_S_rev_eq. Qed.
+
+  Lemma giryM_iterN_meas (f : T -> giryM T) (HF : measurable_fun setT f) :
+      ∀ n, measurable_fun setT (giryM_iterN n f).
+  Proof.
+    induction n.
+    { rewrite giryM_iterN_zero.
+      by apply giry_ret_measurable. }
+    { rewrite giryM_iterN_S_rev.
+      eapply @measurable_comp.
+      { by eapply @measurableT. }
+      { done. }
+      { by apply giryM_bind_external'_meas. }
+      { done. }
+    }
+  Qed.
 
 End giry_iterM.
 

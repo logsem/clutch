@@ -18,6 +18,7 @@ Set Default Proof Using "Type*".
 Context `{R : realType}.
 Local Notation giryM := (giryM (R := R)).
 
+
 (** * Markov Chains *)
 Section meas_markov_mixin.
   Context {mstate_disp mstate_ret_disp : measure_display}.
@@ -110,7 +111,6 @@ End is_final.
 
 #[global] Hint Immediate to_final_Some_2 to_final_None_2 to_final_None_1: core.
 
-
 Section reducible.
   Context {δ : meas_markov}.
   Implicit Types a : mstate δ.
@@ -175,16 +175,16 @@ Section markov.
   (* FIXME: Some of the bind lemmas might be in the wrong order. This is easier to prove so
      change it if matters. *)
   Program Definition stepN (n : nat) a : giryM (mstate δ) :=
-    giryM_iterN n step_meas a.
+    giryM_iterN n step a.
 
   Lemma stepN_meas (n : nat) : measurable_fun setT (stepN n).
-  Proof. Admitted.
+  Proof. apply giryM_iterN_meas, step_meas. Qed.
 
   Lemma stepN_O : stepN 0 = giryM_ret.
   Proof. done. Qed.
 
   Lemma stepN_Sn a n :
-    stepN (S n) a = giryM_bind step_meas (stepN n a).
+    stepN (S n) a = giryM_bind_external (step a) (stepN n).
   Proof. done. Qed.
 
   Lemma stepN_1 a :
@@ -192,7 +192,7 @@ Section markov.
   Proof. rewrite stepN_Sn stepN_O. (* dret_id_right //. Qed. *)  Admitted.
 
   Lemma stepN_plus a (n m : nat) :
-    stepN (n + m) a = giryM_bind (stepN_meas m) (stepN n a).
+    stepN (n + m) a = giryM_bind_external (stepN n a) (stepN m).
   Proof. Admitted.
 
   (*
@@ -240,7 +240,7 @@ Section markov.
     is_final a → step_or_final a = giryM_ret a.
   Proof. rewrite /step_or_final /=. by intros [? ->]. Qed.
 
-  Definition pexec (n : nat) a : giryM (mstate δ) := giryM_iterN n (step_or_final_meas) a.
+  Definition pexec (n : nat) a : giryM (mstate δ) := giryM_iterN n step_or_final a.
 
   Lemma pexec_meas (n : nat) : measurable_fun setT (pexec n).
   Proof. Admitted.
@@ -251,11 +251,11 @@ Section markov.
 
 
   Lemma pexec_Sn a n :
-    pexec (S n) a = giryM_bind (step_or_final_meas) (pexec n a).
+    pexec (S n) a = giryM_bind_external (step_or_final a) (pexec n).
   Proof. done. Qed.
 
   Lemma pexec_plus ρ n m :
-    pexec (n + m) ρ = giryM_bind (pexec_meas m) (pexec n ρ).
+    pexec (n + m) ρ = giryM_bind_external (pexec n ρ) (pexec m).
   Proof. Admitted.
 
   Lemma pexec_1 :
@@ -267,9 +267,9 @@ Section markov.
   Admitted.
 
   Lemma pexec_Sn_r a n :
-    pexec (S n) a = giryM_bind (pexec_meas n) (step_or_final a).
+    pexec (S n) a = giryM_bind_external (pexec n a) step_or_final.
   Proof.
-    assert (S n = 1 + n)%nat as -> by lia.
+    assert (S n = n + 1)%nat as -> by lia.
     rewrite pexec_plus.
     rewrite pexec_1 //.
   Qed.
