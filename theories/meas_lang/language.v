@@ -10,7 +10,6 @@ From mathcomp.analysis Require Import reals measure ereal Rstruct.
 From clutch.prob.monad Require Export laws meas_markov.
 Set Warnings "hiding-delimiting-key".
 
-Notation giryM := (giryM (R := R)).
 
 Section language_mixin.
   Local Open Scope classical_set_scope.
@@ -95,6 +94,30 @@ Class MeasLanguageCtx {Λ : meas_language} (K : (expr Λ) -> (expr Λ))  := {
 #[global] Existing Instance fill_inj.
 
 Inductive atomicity := StronglyAtomic | WeaklyAtomic.
+
+Definition meas_lang_markov_mixin (Λ : meas_language) :
+  MeasMarkovMixin (@prim_step Λ) (ssrfun.comp to_val fst).
+Proof.
+  constructor.
+  { by apply language_mixin. }
+  { eapply measurable_comp.
+    { by eapply @measurableT. }
+    { done. }
+    { by apply language_mixin. }
+    { by apply measurable_fst. }
+  }
+  { admit. }
+  (*
+  move=> [e σ] /= [v Hv] [e' σ'].
+  case (Rgt_dec (prim_step e σ (e', σ')) 0)
+    as [H | ?%pmf_eq_0_not_gt_0]; simplify_eq=>//=.
+  eapply mixin_val_stuck in H; [|eapply language_mixin].
+  simplify_eq.
+*)
+Admitted.
+
+Canonical Structure lang_markov (Λ : meas_language) := MeasMarkov _ _ (meas_lang_markov_mixin Λ).
+
 
 Section language.
   Context {Λ : meas_language}.
