@@ -1,4 +1,4 @@
-(** Giry monad map *)
+y (** Giry monad map *)
 
 From mathcomp Require Import all_ssreflect all_algebra finmap.
 From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
