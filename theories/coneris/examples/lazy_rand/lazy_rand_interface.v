@@ -45,12 +45,12 @@ Class lazy_rand `{!conerisGS Σ} (val_size:nat):= Lazy_Rand
   rand_tape_auth_frag_agree m α ns γ:
   rand_tape_auth m γ  -∗ rand_tape_frag α ns γ -∗ ⌜m!!α=Some ns⌝;
                                                         
-  rand_auth_exclusive n γ:
-    rand_auth n γ -∗ rand_auth n γ -∗ False; 
+  rand_auth_exclusive n n' γ:
+    rand_auth n γ -∗ rand_auth n' γ -∗ False; 
   rand_auth_frag_agree n n' tid γ:
     rand_auth n γ -∗ rand_frag n' tid γ -∗ ⌜n=Some (n', tid)⌝; 
   rand_auth_duplicate n γ:
-     rand_auth (Some n) γ -∗ rand_frag n.1 n.2 γ;
+     rand_auth (Some n) γ -∗ rand_auth (Some n) γ ∗ rand_frag n.1 n.2 γ;
   rand_frag_frag_agree v1 v2 tid1 tid2 γ :
     rand_frag v1 tid1 γ -∗ rand_frag v2 tid2 γ-∗ ⌜v1=v2∧tid1=tid2⌝; 
 
@@ -105,18 +105,18 @@ Class lazy_rand `{!conerisGS Σ} (val_size:nat):= Lazy_Rand
   
   lazy_rand_spec N c P {HP: ∀ n, Timeless (P n)} γ_tape γ_view γ_lock Q1 Q2 α (v:nat) (tid:nat):
   {{{ rand_inv N c P γ_tape γ_view γ_lock ∗
-      ( ∀ n m, P n -∗ rand_auth n γ_view -∗ rand_tape_auth m γ_tape -∗ state_update (⊤∖↑N.@"tape") (⊤∖↑N.@"rand")
+      ( ∀ n m, P n -∗ rand_auth n γ_view -∗ rand_tape_auth m γ_tape -∗ state_update (⊤∖↑N.@"tape") (⊤∖↑N.@"tape")
              match n with
              | Some (res, tid') => P n ∗ rand_auth n γ_view ∗ rand_tape_auth m γ_tape ∗ Q1 res tid'
              | None => ∃ n', rand_tape_frag α (Some n') γ_tape ∗ rand_tape_auth (<[α:=Some n']> m) γ_tape ∗
-                              (∀ (m':gmap val (option nat)), ⌜m'!!α=(Some (Some n'))⌝
+                              ( rand_tape_frag α None γ_tape
                                       ={⊤∖↑N.@"tape"}=∗  P (Some (n', tid)) ∗ rand_auth (Some (n', tid)) γ_view ∗ Q2 n' tid)
              end                                        
       )
   }}}
-      c α #tid
+      lazy_read_rand c α #tid
       {{{ (res' tid':nat), RET (#res', #tid')%V;  (Q1 res' tid' ∨
-                                  rand_tape_frag α None γ_tape ∗ Q2 res' tid'
+                                                   Q2 res' tid'
                                 )
       }}};
 }.
