@@ -35,8 +35,8 @@ Class lazy_rand `{!conerisGS Σ} (val_size:nat):= Lazy_Rand
   
   #[global] rand_inv_persistent N c P {HP: ∀ n, Timeless (P n)} γ_tape γ_view γ_lock ::
     Persistent (rand_inv N c P γ_tape γ_view γ_lock); 
-  (* #[global] rand_frag_persistent v res γ :: *)
-  (*   Persistent (rand_frag v res γ); *)
+  #[global] rand_frag_persistent v res γ ::
+    Persistent (rand_frag v res γ);
   
   rand_tape_frag_exclusive α ns ns' γ:
     rand_tape_frag α ns γ-∗ rand_tape_frag α ns' γ-∗ False; 
@@ -50,9 +50,15 @@ Class lazy_rand `{!conerisGS Σ} (val_size:nat):= Lazy_Rand
   rand_auth_frag_agree n n' tid γ:
     rand_auth n γ -∗ rand_frag n' tid γ -∗ ⌜n=Some (n', tid)⌝; 
   rand_auth_duplicate n γ:
-     rand_auth (Some n) γ -∗ rand_auth (Some n) γ ∗ rand_frag n.1 n.2 γ;
+     rand_auth (Some n) γ -∗ rand_frag n.1 n.2 γ;
+  rand_auth_valid n tid γ:
+     rand_auth (Some (n, tid)) γ -∗ ⌜(n<=val_size)%nat⌝;
+  rand_frag_valid n tid γ:
+     rand_frag n tid γ -∗ ⌜(n<=val_size)%nat⌝;
   rand_frag_frag_agree v1 v2 tid1 tid2 γ :
     rand_frag v1 tid1 γ -∗ rand_frag v2 tid2 γ-∗ ⌜v1=v2∧tid1=tid2⌝; 
+  rand_auth_update n γ:
+    (n.1<=val_size)%nat -> rand_auth None γ ==∗ rand_auth (Some n) γ;
 
                                                         
   (* rand_tape_auth_alloc m α γ: *)
@@ -103,7 +109,7 @@ Class lazy_rand `{!conerisGS Σ} (val_size:nat):= Lazy_Rand
       allocate_tape #()
       {{{ (α: val), RET α; rand_tape_frag α None γ_tape ∗ Q α }}};    
   
-  lazy_rand_spec N c P {HP: ∀ n, Timeless (P n)} γ_tape γ_view γ_lock Q1 Q2 α (v:nat) (tid:nat):
+  lazy_rand_spec N c P {HP: ∀ n, Timeless (P n)} γ_tape γ_view γ_lock Q1 Q2 α (tid:nat):
   {{{ rand_inv N c P γ_tape γ_view γ_lock ∗
       ( ∀ n m, P n -∗ rand_auth n γ_view -∗ rand_tape_auth m γ_tape -∗ state_update (⊤∖↑N.@"tape") (⊤∖↑N.@"tape")
              match n with

@@ -96,12 +96,12 @@ Section impl.
     | Some (n1, n2) => SOMEV (#n1, #n2)%V
     | None => NONEV end.     
 
-  Definition rand_frag (res tid:nat) (γ:gname):=(() ↪[γ]□ Some (res, tid))%I.
+  Definition rand_frag (res tid:nat) (γ:gname):=(() ↪[γ]□ Some (res, tid) ∗ ⌜res<=val_size⌝)%I.
   
   Definition option_duplicate (n:option (nat* nat)) γ:=
     match n with
     | Some (n1, n2) => rand_frag n1 n2 γ
-    | None => (⌜True⌝)%I
+    | None => (() ↪[γ] None)%I
     end.
   
   Definition rand_auth (n:option (nat*nat)) γ :=
@@ -170,10 +170,14 @@ Section impl.
     wp_pures.
     wp_alloc x as "Hx".
     wp_pures.
-    iMod (ghost_map_alloc (<[():=None]> ∅)) as "(%&Hm&_)".
+    iMod (ghost_map_alloc (<[():=None]> ∅)) as "(%&Hm&Ht)".
     wp_apply (newlock_spec (∃ res, P res ∗ rand_auth res _ ∗ _↦(option_to_val res))%I
-                           with "[$HP $Hx $Hm //]"
+                           with "[$HP $Hx $Hm Ht]"
              ).
+    { simpl. iSplit; last done.
+      iDestruct (big_sepM_lookup with "[$]") as "$".
+      apply lookup_insert.
+    }
     iIntros (??) "#Hlock".
     wp_pures.
     iMod (rand_inv_create_spec) as "(%&#Hrand)"; last first.
@@ -216,7 +220,7 @@ Section impl.
     - rewrite lookup_fmap. apply not_elem_of_dom_1 in H. by rewrite H.
   Qed.
 
-  Lemma lazy_rand_spec_impl N c P {HP: ∀ n, Timeless (P n)} γ_tape γ_view γ_lock Q1 Q2 α (v:nat) (tid:nat):
+  Lemma lazy_rand_spec_impl N c P {HP: ∀ n, Timeless (P n)} γ_tape γ_view γ_lock Q1 Q2 α (tid:nat):
   {{{ lazy_rand_inv N c P γ_tape γ_view γ_lock ∗
       ( ∀ n m, P n -∗ rand_auth n γ_view -∗ rand_tape_auth m γ_tape -∗ state_update (⊤∖↑N.@"tape") (⊤∖↑N.@"tape")
              match n with
@@ -318,7 +322,7 @@ Section impl.
   Qed.
   Next Obligation.
     rewrite /rand_auth/rand_frag.
-    iIntros (????)"[H ?]H'".
+    iIntros (????)"[H ?][H' ?]".
     iCombine "H H'" gives "%H".
     destruct n; simpl in H; simplify_eq.
     rewrite /option_to_gmap in H. rewrite lookup_insert in H.
@@ -326,13 +330,28 @@ Section impl.
   Qed.
   Next Obligation.
     iIntros ([]?) "(?&#?&?)".
-    iFrame. by iSplit.
+    by done. 
+  Qed.
+  Next Obligation.
+    iIntros (???) "(?&?&%)".
+    done.
+  Qed.
+  Next Obligation.
+    iIntros (???) "[??]".
+    done.
   Qed.
   Next Obligation.
     rewrite /rand_frag.
-    iIntros (?????) "H H'".
+    iIntros (?????) "[H ?] [H' ?]".
     iCombine "H H'" gives "%".
     iPureIntro. naive_solver.
   Qed.
-  
+  Next Obligation.
+    rewrite /rand_auth /=.
+    iIntros ([??]??) "(?&?&_)".
+    rewrite /option_to_gmap/=.
+    iMod (ghost_map_update with "[$][$]") as "[??]". rewrite insert_insert.
+    iFrame.
+    by iMod (ghost_map_elem_persist with "[$]") as "$".
+  Qed.
 End impl.
