@@ -126,6 +126,7 @@ Section impl.
           ↯ (ε2 n) ∗
           rand_tape_auth (<[α:=Some (fin_to_nat n)]>m) γ ∗
           rand_tape_frag α (Some (fin_to_nat n)) γ).
+  Proof. 
     iIntros (???) "(%&%&->&#[? Hinv]&#?) [Htokens Htauth] [Htape Hfrag] Herr".
     iDestruct (abstract_tapes_agree with "[$][$]") as "%H'".
     rewrite lookup_fmap in H'. apply fmap_Some_1 in H'.
@@ -149,6 +150,7 @@ Section impl.
     state_update E E (
         ∃ m m', Q m m'
       ).
+  Proof.
     iIntros (?) "(%&%&->&#[Hinv ?]&#?) Hvs".
     iInv "Hinv" as ">(%&?)" "Hclose".
     iMod ("Hvs" with "[$]") as "(%&?&?)".
