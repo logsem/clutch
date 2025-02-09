@@ -215,3 +215,6 @@ Proof.
      IHn /=.
     rewrite map_union_empty replicate_length //.
 Qed.
+
+Global Instance state_inhabited : Inhabited state :=
+  populate {| heap := gmap_empty; tapes := gmap_empty; utapes := gmap_empty |}.

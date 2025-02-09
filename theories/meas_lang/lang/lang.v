@@ -29,34 +29,20 @@ From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
 From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed normedtype sequences esum numfun measure lebesgue_measure lebesgue_integral. *)
 Set Warnings "hiding-delimiting-key".
-
 Set Warnings "+spurious-ssr-injection".
 
-Local Open Scope classical_set_scope.
-
 Module meas_lang.
-
-Global Instance state_inhabited : Inhabited state := populate {| heap := gmap_empty; tapes := gmap_empty; utapes := gmap_empty |}.
 
 Canonical Structure stateO := leibnizO state.
 Canonical Structure locO := leibnizO loc.
 Canonical Structure valO := leibnizO val.
 Canonical Structure exprO := leibnizO expr.
 
-
 Section meas_semantics.
   Local Open Scope ereal_scope.
   Local Open Scope classical_set_scope.
 
-  (** The head_step relation
-        - Cover for the pattern match
-        - Function for each case (doesn't use pattern match)
-          - Measuability of each function on the cover
-
-        Since the top-level cover is just pattern matching on expr, it's of the form
-          (measurable expr set, setT of states)
-        This means that I can define it in terms of generic lifts of ecov.
-  *)
+  (**  The top-level cover for head_step *)
 
   (* Lift a set S to [ (s, σ) | s ∈ S, σ ∈ State ] *)
   Definition NonStatefulS {A : Type} (S : set A) : set (A * state) := preimage fst S.
@@ -64,22 +50,17 @@ Section meas_semantics.
   Lemma NonStatefulS_measurable {d} {T : measurableType d} (S : set T) (HS : measurable S) :
       measurable (NonStatefulS S).
   Proof.
-    rewrite <- (setTI (NonStatefulS S)).
-    rewrite /NonStatefulS.
-    apply measurable_fst; [|done].
-    by eapply @measurableT.
+    rewrite <- (setTI (NonStatefulS S)); rewrite /NonStatefulS.
+    apply measurable_fst; [by eapply @measurableT|done].
   Qed.
   Hint Resolve NonStatefulS_measurable : measlang.
-
-
-  (**  The top-level cover for head_step *)
 
   (* [set c | ∃ f x e σ, c = (Rec f x e, σ) ]. *)
   Definition cover_rec : set cfg :=
     NonStatefulS ecov_rec.
 
   (*[set c | ∃ v1 v2 σ, c = (Pair (Val v1) (Val v2), σ) ].*)
-  Program Definition cover_pair : set cfg :=
+  Definition cover_pair : set cfg :=
     NonStatefulS $
     setI ecov_pair $
     preimage 𝜋_PairU $
@@ -161,9 +142,6 @@ Section meas_semantics.
             (ssrfun.comp (ssrfun.comp 𝜋_Val_v snd) fst))
          (ssrfun.comp 𝜋_Val_v snd)) $
     auxcov_binop_stuck.
-
-
-
 
   (* [set e | ∃ N v, e = AllocN (Val (LitV (LitInt N))) (val v)] *)
   Definition auxcov_allocN : set cfg  :=
@@ -353,20 +331,73 @@ Section meas_semantics.
 
 
   (*  [set c | ∃ z σ,          c = (AllocTape (Val (LitV (LitInt z))), σ) ]. *)
-  Definition cover_allocTape : set cfg. Admitted.
+  Definition cover_allocTape : set cfg :=
+    NonStatefulS $
+    setI ecov_alloctape $
+    preimage 𝜋_AllocTapeU $
+    setI ecov_val $
+    preimage 𝜋_ValU $
+    setI vcov_lit $
+    preimage 𝜋_LitV_v $
+    bcov_LitInt.
 
   (* [set c | ∃ σ,            c = (AllocUTape, σ) ] *)
-  Definition cover_allocUTape : set cfg. Admitted.
+  Definition cover_allocUTape : set cfg :=
+    NonStatefulS $ ecov_allocutape.
 
   (* Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) *)
-  Definition cover_rand : set cfg. Admitted.
+  Definition cover_rand : set cfg :=
+    NonStatefulS $
+    setI ecov_rand $
+    preimage 𝜋_RandU $
+    setX
+      ( setI ecov_val $
+         preimage 𝜋_ValU $
+         setI vcov_lit $
+         preimage 𝜋_LitV_v $
+         bcov_LitInt )
+      ( setI ecov_val $
+         preimage 𝜋_ValU $
+         setI vcov_lit $
+         preimage 𝜋_LitV_v $
+         bcov_LitUnit ).
 
   (*  (URand (Val (LitV LitUnit)), σ) *)
-  Definition cover_urand : set cfg. Admitted.
+  Definition cover_urand : set cfg :=
+    NonStatefulS $
+    setI ecov_urand $
+    preimage 𝜋_URandU $
+    setI ecov_val $
+    preimage 𝜋_ValU $
+    setI vcov_lit $
+    preimage 𝜋_LitV_v $
+    bcov_LitUnit.
 
-  Definition cover_randT : set cfg. Admitted.
+  Definition cover_randT : set cfg :=
+    NonStatefulS $
+    setI ecov_rand $
+    preimage 𝜋_RandU $
+    setX
+      ( setI ecov_val $
+         preimage 𝜋_ValU $
+         setI vcov_lit $
+         preimage 𝜋_LitV_v $
+         bcov_LitInt )
+      ( setI ecov_val $
+         preimage 𝜋_ValU $
+         setI vcov_lit $
+         preimage 𝜋_LitV_v $
+         bcov_LitLbl ).
 
-  Definition cover_urandT : set cfg. Admitted.
+  Definition cover_urandT : set cfg :=
+    NonStatefulS $
+    setI ecov_urand $
+    preimage 𝜋_URandU $
+    setI ecov_val $
+    preimage 𝜋_ValU $
+    setI vcov_lit $
+    preimage 𝜋_LitV_v $
+    bcov_LitLbl.
 
   (* [set c | ∃ σ n, c = (Tick (Val (LitV (LitInt n))), σ) ]  *)
   Definition cover_tick : set cfg :=
@@ -410,23 +441,16 @@ Section meas_semantics.
     cover_tick
   ].
 
-  Definition cover_maybe_stuck : set cfg. Admitted. (* compliment of union of cfg_cover_pre *)
+  Program Definition cover_maybe_stuck : set cfg :=
+    setC $ List.fold_right setU set0 cfg_cover_pre.
 
-  Definition cfg_cover : list (set cfg) := cfg_cover_pre ++ [cover_maybe_stuck].
+  Definition cfg_cover : list (set cfg) := cover_maybe_stuck :: cfg_cover_pre.
 
 
   (**The top-level cover is a cover *)
 
   Lemma cfg_cover_is_cover : List.fold_right setU set0 cfg_cover = setT.
-  Proof.
-    (* FIXME
-
-    rewrite /cfg_cover/=/cover_maybe_stuck.
-    rewrite setTU.
-    repeat rewrite setUT.
-    done. *)
-  Admitted.
-
+  Proof. by rewrite foldr_cons setvU. Qed.
 
   (** The top-level cover is measurable *)
 
@@ -1107,27 +1131,68 @@ Section meas_semantics.
   Hint Resolve cover_caseR_meas : measlang.
 
   Lemma cover_allocTape_meas : measurable cover_allocTape.
-  Proof. Admitted.
+  Proof.
+    apply NonStatefulS_measurable.
+    apply 𝜋_AllocTapeU_meas; first by eauto with measlang.
+    apply 𝜋_ValU_meas; first by eauto with measlang.
+    apply 𝜋_LitVU_meas; first by eauto with measlang.
+    by eauto with measlang.
+  Qed.
   Hint Resolve cover_allocTape_meas : measlang.
 
   Lemma cover_allocUTape_meas : measurable cover_allocUTape.
-  Proof. Admitted.
+  Proof.
+    apply NonStatefulS_measurable.
+    by eauto with measlang.
+  Qed.
   Hint Resolve cover_allocUTape_meas : measlang.
 
   Lemma cover_rand_meas : measurable cover_rand.
-  Proof. Admitted.
+  Proof.
+    apply NonStatefulS_measurable.
+    apply 𝜋_RandU_meas; first by eauto with measlang.
+    apply measurableX.
+    { apply 𝜋_ValU_meas; first by eauto with measlang.
+      apply 𝜋_LitVU_meas; first by eauto with measlang.
+      by eauto with measlang. }
+    { apply 𝜋_ValU_meas; first by eauto with measlang.
+      apply 𝜋_LitVU_meas; first by eauto with measlang.
+      by eauto with measlang. }
+  Qed.
   Hint Resolve cover_rand_meas : measlang.
 
   Lemma cover_urand_meas : measurable cover_urand.
-  Proof. Admitted.
+  Proof.
+    apply NonStatefulS_measurable.
+    apply 𝜋_URandU_meas; first by eauto with measlang.
+    apply 𝜋_ValU_meas; first by eauto with measlang.
+    apply 𝜋_LitVU_meas; first by eauto with measlang.
+    by eauto with measlang.
+  Qed.
   Hint Resolve cover_urand_meas : measlang.
 
   Lemma cover_randT_meas : measurable cover_randT.
-  Proof. Admitted.
+  Proof.
+    apply NonStatefulS_measurable.
+    apply 𝜋_RandU_meas; first by eauto with measlang.
+    apply measurableX.
+    { apply 𝜋_ValU_meas; first by eauto with measlang.
+      apply 𝜋_LitVU_meas; first by eauto with measlang.
+      by eauto with measlang. }
+    { apply 𝜋_ValU_meas; first by eauto with measlang.
+      apply 𝜋_LitVU_meas; first by eauto with measlang.
+      by eauto with measlang. }
+  Qed.
   Hint Resolve cover_randT_meas : measlang.
 
   Lemma cover_urandT_meas : measurable cover_urandT.
-  Proof. Admitted.
+  Proof.
+    apply NonStatefulS_measurable.
+    apply 𝜋_URandU_meas; first by eauto with measlang.
+    apply 𝜋_ValU_meas; first by eauto with measlang.
+    apply 𝜋_LitVU_meas; first by eauto with measlang.
+    by eauto with measlang.
+  Qed.
   Hint Resolve cover_urandT_meas : measlang.
 
   Lemma cover_tick_meas : measurable cover_tick.
@@ -1140,8 +1205,14 @@ Section meas_semantics.
   Qed.
   Hint Resolve cover_tick_meas : measlang.
 
+
   Lemma cover_maybe_stuck_meas : measurable cover_maybe_stuck.
-  Proof. Admitted.
+  Proof.
+    apply measurableC.
+    rewrite //=.
+    repeat (eapply (@measurableU _ cfg _); first by eauto with measlang).
+    by eapply @measurable0.
+  Qed.
 
   (**  Top-level functions *)
 
@@ -2541,6 +2612,7 @@ Section meas_semantics.
       Forall (fun S => measurable S) cfg_cover.
   Proof.
     repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
+    - by apply cover_maybe_stuck_meas.
     - by apply cover_rec_meas.
     - by apply cover_pair_meas.
     - by apply cover_injL_meas.
@@ -2569,13 +2641,13 @@ Section meas_semantics.
     - by apply cover_randT_meas.
     - by apply cover_urandT_meas.
     - by apply cover_tick_meas.
-    - by apply cover_maybe_stuck_meas.
   Qed.
 
   Lemma head_stepM_restricted_measurable :
       Forall (fun S => measurable_fun S head_stepM) cfg_cover.
   Proof.
     repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
+    - by apply head_stepM_stuck_meas.
     - by apply head_stepM_rec_meas.
     - by apply head_stepM_pair_meas.
     - by apply head_stepM_injL_meas.
@@ -2604,7 +2676,6 @@ Section meas_semantics.
     - by apply head_stepM_randT_meas.
     - by apply head_stepM_urandT_meas.
     - by apply head_stepM_tick_meas.
-    - by apply head_stepM_stuck_meas.
   Qed.
 
   Lemma head_stepM_measurable :

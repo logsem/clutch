@@ -5,6 +5,7 @@ From Coq Require Import Logic.ClassicalEpsilon Psatz.
 From stdpp Require Import base numbers binders strings gmap.
 From mathcomp Require Import functions.
 From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
+From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
 From iris.algebra Require Export ofe.
 From clutch.prelude Require Export stdpp_ext.
@@ -17,6 +18,7 @@ From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
 From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state cfg.
+Require Import ssrfun.
 Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.
@@ -96,12 +98,51 @@ Definition giryM_unif' : TZ -> giryM <<discr TZ>>. Admitted.
 Feels that it should be derivable from the measurability of bind, but I'd need a slightly
 different definition for that.
  *)
-Definition giryM_ap {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} :
-  (giryM T1 * giryM T2)%type -> giryM (T1 * T2)%type. Admitted.
+
+
 (*
+Check (giryM_bind_external ^~ (fun X => giryM_bind_external ^~ X)).
+
+  ssrfun.comp _ fst.
   fun X => giryM_bind (fun x => giryM_bind (fun y => giryM_ret _ (x, y)) X.2) X.1.
 *)
-Definition rand_rand_aux : <<discr TZ>> -> giryM expr. Admitted.
+
+
+(*
+(a1 -> a2 -> r) -> m a1 -> m a2 -> m r
+do { x1 <- m1; x2 <- m2; return (f x1 x2) }
+Program Definition giryM_liftM2 {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+    (f : T1 -> T2 -> T3) (m1 : giryM T1) (m2 : giryM T2) : giryM T3 :=
+  (giryM_bind_external ^~ (fun x1 : T1 => giryM_bind_external ^~ (fun x2 : T2 => _) _)) _.
+
+*)
+
+
+
+Definition giryM_ap {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} :
+  (giryM T1 * giryM T2)%type -> giryM (T1 * T2)%type :=
+  fun X =>
+    (ssrfun.comp
+       (giryM_bind_external ^~ (fun x => ((giryM_bind_external ^~ (fun y => giryM_ret (x, y))) (snd X))))
+       fst) X.
+
+(*
+Check fun X => (giryM_bind_external (fst X) (fun x => (giryM_bind_external (snd X) (fun y => giryM_ret (x, y))))).
+*)
+(*  \xy -> (fst xy) >>= (\x -> (snd xy) >>= (\y -> ret (x, y))) *)
+(* liftM2 (>>=) fst ((. ((ret .) . (,))) . (>>=) . snd)  *)
+
+Lemma giryM_ap_meas {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} :
+    measurable_fun setT (@giryM_ap _ _ T1 T2).
+Proof.
+  unfold giryM_ap.
+Admitted.
+
+
+Definition rand_rand_aux : <<discr TZ>> -> giryM expr :=
+  ssrfun.comp
+    (giryM_map_external (ssrfun.comp ValU $ ssrfun.comp LitVU $ LitIntU ))
+    giryM_unif'.
 (*
   m_discr (fun z =>
     giryM_map (giryM_unif' (Z.to_nat z)) $
@@ -110,13 +151,48 @@ Definition rand_rand_aux : <<discr TZ>> -> giryM expr. Admitted.
     LitIntU).
 *)
 
-Definition rand_rand : (<<discr Z>> * state)%type -> giryM cfg :=
+Lemma rand_rand_aux_meas : measurable_fun setT rand_rand_aux.
+Proof.
+  have H : (measurable_fun (T:=TZ) (U:=types_expr_T__canonical__measure_Measurable) [set: TZ] (ValU \o (LitVU \o LitIntU))).
+  { mcrunch_compC ValU_measurable.
+    mcrunch_compC LitVU_measurable.
+    by eauto with measlang.
+  }
+  eapply (@measurable_comp _ _ _ _ _ _ setT).
+  { by eapply @measurableT. }
+  { by eapply subsetT. }
+  { have -> : ((giryM_map_external (ValU \o (LitVU \o LitIntU))) = (giryM_map _ H));
+      last by eapply @giryM_map_meas.
+    intro t.
+    rewrite /giryM_map_external/extern_if.
+    (* Don't do this here *)
+    admit.
+  }
+  { by eauto with measlang. }
+Admitted.
+Hint Resolve rand_rand_aux_meas : measlang.
+
+Definition rand_rand : (<<discr TZ>> * state)%type -> giryM cfg :=
   ssrfun.comp giryM_ap $
   mProd
     (ssrfun.comp rand_rand_aux fst)
     (ssrfun.comp giryM_ret snd).
 
-Lemma rand_rand_meas : measurable_fun setT rand_rand. Admitted.
+Lemma rand_rand_meas : measurable_fun setT rand_rand.
+Proof.
+  unfold rand_rand.
+  eapply (@measurable_comp _ _ _ _ _ _ setT).
+  { by eapply @measurableT. }
+  { by eapply subsetT. }
+  { by apply giryM_ap_meas. }
+  mcrunch_prod.
+  { mcrunch_compC rand_rand_aux_meas. by eauto with measlang. }
+  eapply (@measurable_comp _ _ _ _ _ _ setT).
+  { by eapply @measurableT. }
+  { by eapply subsetT. }
+  { by apply giry_ret_measurable. }
+  by eauto with measlang.
+Qed.
 Hint Resolve rand_rand_meas : measlang.
 
 (**  URand no tape *)
