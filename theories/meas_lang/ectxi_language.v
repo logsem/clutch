@@ -248,6 +248,28 @@ Section ectxi_language.
     eauto.
   Qed.
 
+  Lemma decomp_fill K e e' : decomp e = (K, e') → fill (K, e') = e.
+  Proof. Admitted.
+
+  Lemma decomp_to_val_emp K e e' : decomp e = (K, e') → is_Some (to_val e') → K = [].
+  Proof. Admitted.
+
+  (* FIXME: Rename *)
+  Lemma decomp_lemma_1 e e' K K' :  to_val e = None → decomp e = (K', e') → decomp (fill (K, e)) = (flip app K K', e').
+  Proof. Admitted.
+
+
+  Lemma decomp_lemma_2 K' K_redex e1' e1_redex σ1  :
+    fill (K', e1') = fill (K_redex, e1_redex)
+    → to_val e1' = None
+      → ¬ is_zero (head_step (e1_redex, σ1))
+        → ∃ K'' , K_redex = flip app K' K''.
+  Proof. Admitted.
+
+
+  Lemma decomp_lemma_3 K e σ1 : ¬ is_zero (head_step (fill (K, e), σ1)) → is_Some (to_val e) ∨ K = [].
+  Proof. Admitted.
+
   Definition meas_ectxi_lang_ectx_mixin :
     MeasEctxLanguageMixin of_val to_val head_step [] (flip (++)) fill decomp.
   Proof.
@@ -282,11 +304,11 @@ Section ectxi_language.
         by rewrite /curry. }
     }
     { done. }
-    { admit. }
-    { admit. }
-    { admit. }
-    { admit. }
-    { admit. }
+    { by apply decomp_fill. }
+    { by apply decomp_to_val_emp. }
+    { by apply decomp_lemma_1. }
+    { by apply decomp_lemma_2. }
+    { by apply decomp_lemma_3. }
      
 
     (*
