@@ -31,6 +31,10 @@ Definition to_val (e : expr) : option val :=
   | _ => None
   end.
 
+Lemma to_val_meas : measurable_fun setT to_val.
+Proof. Admitted.
+
+
 Global Instance of_val_inj : Inj (=) (=) (@of_val).
 Proof. intros ?? H. by inversion H. Qed.
 
@@ -1363,23 +1367,19 @@ Proof. Admitted.
 
 (* TODO: this proof is slow, but I do not see how to make it faster... *)
 (* TODO: Uncomment the slow proof *)
-(*
 Lemma decomp_fill_item_2 e e' Ki :
-  decomp_item e = Some (Ki, e') → fill_item Ki e' = e ∧ to_val e' = None.
+  decomp_item e = Some (Ki, e') → fill_item (Ki, e') = e ∧ to_val e' = None.
 Proof. Admitted.
 (*
   rewrite /decomp_item ;
     destruct e ; try done ;
     destruct Ki ; cbn ; repeat destruct_match ; intros [=] ; subst ; auto.
 Qed. *)
-*)
-Local Open Scope classical_set_scope.
 
+Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
+  to_val e1 = None → to_val e2 = None →
+  fill_item (Ki1, e1) = fill_item (Ki2, e2) → Ki1 = Ki2.
+Proof. destruct Ki2, Ki1. (*  naive_solver eauto with f_equal. Qed. *) Admitted.
 
-(** TODO: I'm pretty sure I could do this, but I want to be sure I dont't need it
- to be a measurable function (ectx_item x expr) -> expr first. That would involve putting
- a measure on ectx_item, which is not hard.
-Definition fill_item_mf (K : ectx_item) : measurable_map expr expr.
-Admitted.
-(*   := m_discr (fill_item K : <<discr expr>> -> <<discr expr>>).  *)
-*)
+Lemma fill_item_some Ki e : is_Some (to_val (fill_item (Ki, e))) → is_Some (to_val e).
+Proof. Admitted.

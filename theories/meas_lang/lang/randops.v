@@ -27,7 +27,11 @@ Section unif.
   Local Open Scope ereal_scope.
   Local Open Scope classical_set_scope.
   (* Uniform space over [0, 1]*)
-  Definition unif_base : subprobability _ R := uniform_prob (@Num.Internals.ltr01 R).
+  Definition unif_base : subprobability _ _ := uniform_prob (@Num.Internals.ltr01 TR).
+
+  (** FIXME: Type conversion *)
+  Axiom (unif_base_ax : giryM TR).
+
 End unif.
 
 
@@ -197,22 +201,27 @@ Hint Resolve rand_rand_meas : measlang.
 
 (**  URand no tape *)
 
-(** Uniform distrubtion over real number literal expressions on the interval *)
-Definition rand_urand_aux : giryM expr. Admitted.
-(*
-  giryM_map_def' unif_base $
-  ssrfun.comp ValU $
-  ssrfun.comp LitVU $
-  LitRealU.
-*)
 
-(* My life would be way easier if I could go from (giryM X * giryM Y) to giryM (X * Y)*)
+(** Uniform distrubtion over real number literal expressions on the interval *)
+Definition rand_urand_aux : giryM expr :=
+  giryM_map_external
+    (ssrfun.comp ValU $ ssrfun.comp LitVU $ LitRealU )
+    unif_base_ax.
+
 Definition rand_urand : state -> giryM cfg :=
   ssrfun.comp giryM_ap  $
   mProd (cst $ rand_urand_aux) giryM_ret.
 
-
-Lemma rand_urand_meas : measurable_fun setT rand_urand. Admitted.
+Lemma rand_urand_meas : measurable_fun setT rand_urand.
+Proof.
+  eapply (@measurable_comp _ _ _ _ _ _ setT).
+  { by eapply @measurableT. }
+  { by eapply subsetT. }
+  { by apply giryM_ap_meas. }
+  mcrunch_prod.
+  { by eauto with measlang. }
+  { by apply giry_ret_measurable. }
+Qed.
 Hint Resolve rand_urand_meas : measlang.
 
 (**  Rand with tape *)
@@ -259,6 +268,7 @@ Lemma auxcov_randT_ok_meas : measurable auxcov_randT_ok.
 Proof. Admitted.
 Hint Resolve auxcov_randT_ok_meas : measlang.
 
+
 Definition rand_randT_noTape (x : (<<discr Z>> * <<discr loc>> * state)%type) : giryM cfg :=
   giryM_zero.
 
@@ -267,10 +277,13 @@ giryM_map
 (m_discr (fun (n : 'I_(S (Z.to_nat N))) => (((Val $ LitV $ LitInt $ fin_to_nat n) : <<discr expr>>), σ1) : cfg))
 (giryM_unif (Z.to_nat N))
 *)
-Definition rand_randT_boundMismatch : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg :=
+Definition rand_randT_boundMismatch : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg.
+Admitted.
+
+(*
   ssrfun.comp rand_rand $
   mProd (ssrfun.comp fst fst) snd.
-
+*)
 
 (*
 giryM_map
@@ -288,9 +301,14 @@ giryM_map
 Definition tape_sample : (<<discr Z>> * <<discr loc>> * state)%type -> giryM state.
 Admitted.
 
+(* Tape -> next slot on tape*)
 Definition tape_advance : (<<discr loc>> * state)%type -> state.
 Admitted.
 
+(* Tape -> next item on tape, junk when the next item is none.
+   Measurable out of the set of tapes with next item Some, i.e. the range of tape_advance.
+
+ *)
 Definition tape_read : (<<discr loc>> * state)%type -> TZ.
 Admitted.
 
@@ -298,7 +316,11 @@ Admitted.
 let σ' := state_upd_tapes <[ l := {| btape_tape := (tapeAdvance τ); btape_bound := M |} ]> σ1 in
 (giryM_ret R ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : cfg))
 *)
-Program Definition rand_randT_ok : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg :=
+Definition rand_randT_ok : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg.
+Admitted.
+
+(*
+
   ssrfun.comp giryM_ap $
   mProd
     ( ssrfun.comp giryM_ret $
@@ -308,8 +330,10 @@ Program Definition rand_randT_ok : (<<discr Z>> * <<discr loc>> * state)%type ->
       ssrfun.comp tape_read $
       mProd (ssrfun.comp snd fst) snd )
     ( ssrfun.comp giryM_ret snd ).
+*)
 
 
+(* When the next tape slot is empty, fill it, and advance. *)
 Definition rand_randT_nextEmpty : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg.
 Admitted.
 

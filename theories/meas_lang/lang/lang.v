@@ -1,5 +1,4 @@
-(* TODO cleanup imports *)
-Set Warnings "-hiding-delimiting-key".
+(* TODO cleanup imports *) Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
 From stdpp Require Import base numbers binders strings gmap.
@@ -2598,11 +2597,13 @@ Section meas_semantics.
 
   Lemma head_stepM_stuck_meas : measurable_fun cover_maybe_stuck head_stepM.
   Proof.
-    (* TODO/FIXME: This is circular. To fix this, the maybe stuck case
-       will need to be the difference from all the other cases, and then we can
-       show that we land in the last case.
-
-       This will also change the is_cover proof (to be something like (U F) U (X - U F) = X) *)
+    unfold cover_maybe_stuck.
+    (* Need to show that, if its not in any of the prior cases, its in the last case
+       Probably the easiest way to do this:
+          Unfold foldr
+          Distribute ~` over disjunction, destruct conjunction
+          Case split on expr, by cases get false
+     *)
   Admitted.
   Hint Resolve head_stepM_stuck_meas : measlang.
 
@@ -2742,18 +2743,28 @@ Qed.
 *)
 
 (** Basic properties about the language *)
-Global Instance fill_item_inj Ki : Inj (=) (=) (fun e => fill_item (Ki, e)).
+Global Instance fill_item_inj Ki : Inj eq eq (curry fill_item Ki).
 Proof. induction Ki; intros ???; simplify_eq/=; auto with f_equal. Qed.
 
 Lemma fill_item_val Ki e :
   is_Some (to_val (fill_item (Ki, e))) → is_Some (to_val e).
 Proof. intros [v ?]. induction Ki; simplify_option_eq; eauto. Qed.
 
-(* ??? *)
+Lemma val_head_stuck e1 σ1 : ¬ is_zero (head_stepM (e1, σ1)) → to_val e1 = None.
+Proof. Admitted.
+
 (*
 Lemma val_head_stuck e σ ρ :
   head_step e σ ρ > 0 → to_val e = None.
 Proof. destruct ρ, e; [|done..]. rewrite /pmf /=. lra. Qed.
+*)
+
+
+
+Lemma head_step_ctx_val Ki e σ1 : ¬ is_zero (head_stepM (fill_item (Ki, e), σ1)) → is_Some (to_val e).
+Proof. Admitted.
+
+(*
 
 Lemma head_ctx_step_val Ki e σ ρ :
   head_step (fill_item Ki e) σ ρ > 0 → is_Some (to_val e).
@@ -2955,6 +2966,9 @@ Qed.
 
 *)
 
+Lemma head_step_mass e σ : ¬ is_zero (head_stepM (e, σ)) → is_prob (head_stepM (e, σ)).
+Proof. Admitted.
+
 (*
 Lemma head_step_mass e σ :
   (∃ ρ, head_step e σ ρ > 0) → SeriesC (head_step e σ) = 1.
@@ -2964,34 +2978,30 @@ Proof.
     repeat (simplify_map_eq/=; solve_distr_mass || case_match; try (case_bool_decide; done)).
 Qed.
 *)
-Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
-  to_val e1 = None → to_val e2 = None →
-  fill_item (Ki1, e1) = fill_item (Ki2, e2) → Ki1 = Ki2.
-Proof. destruct Ki2, Ki1. (*  naive_solver eauto with f_equal. Qed. *) Admitted.
 
 Definition meas_lang_mixin :
   @MeasEctxiLanguageMixin _ _ _ _ expr val state ectx_item
     of_val to_val fill_item decomp_item expr_ord head_stepM.
 Proof.
   split.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - apply to_of_val.
-  - apply of_to_val.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-Admitted.
+  - by apply ValU_measurable.
+  - by apply to_val_meas.
+  - by apply fill_item_def_measurable.
+  - by apply decomp_item_meas.
+  - by apply head_stepM_measurable.
+  - by apply to_of_val.
+  - by apply of_to_val.
+  - by apply val_head_stuck.
+  - by apply head_step_mass.
+  - by apply fill_item_some.
+  - by apply fill_item_inj.
+  - by apply fill_item_no_val_inj.
+  - by apply expr_ord_wf.
+  - by apply decomp_expr_ord.
+  - by apply decomp_fill_item.
+  - by apply decomp_fill_item_2.
+  - by apply head_step_ctx_val.
+Qed.
 
 End meas_lang.
 
