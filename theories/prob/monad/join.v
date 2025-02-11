@@ -16,6 +16,7 @@ Unset Printing Implicit Defensive.
 
 Set Default Proof Using "Type".
 
+(*
 Section giryM_join_definition.
   Context `{R : realType}.
   Notation giryM := (giryM (R := R)).
@@ -197,4 +198,4 @@ Section giryM_join_definition.
   Proof. done. Qed.
 *)
 End giryM_join_definition.
-
+*)

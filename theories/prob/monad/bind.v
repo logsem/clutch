@@ -17,7 +17,7 @@ Unset Printing Implicit Defensive.
 
 Set Default Proof Using "Type".
 
-
+(*
 Section bind.
   Context `{R : realType}.
   Notation giryM := (giryM (R := R)).
@@ -56,3 +56,4 @@ Section bind.
 
 End bind.
 
+*)

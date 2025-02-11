@@ -16,7 +16,7 @@ Unset Printing Implicit Defensive.
 
 Set Default Proof Using "Type".
 
-
+(*
 Section giryM_map_definition.
   Context `{R : realType}.
   Notation giryM := (giryM (R := R)).
@@ -171,3 +171,4 @@ Section giryM_map_external.
 End giryM_map_external.
 
 Global Arguments giryM_map {_} {_} {_} {_} {_} _.
+*)

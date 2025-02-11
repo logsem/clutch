@@ -95,12 +95,12 @@ End ereal_borel.
 *)
 
 
+(*
 
 
 (** ********** Giry Monad ********** **)
 
 Section giry_space.
-  (** Define a measurable space over (giryType T) *)
   Context `{R : realType} `{d : measure_display} (T : measurableType d).
   Local Open Scope classical_set_scope.
 
@@ -117,6 +117,7 @@ Section giry_space.
 
   HB.instance Definition _ := isPointed.Build (giryType T) mzero.
 
+  (*
   Definition preimage_class_of_measures (S : set T) : set (set (giryType T)) :=
     @preimage_class (giryType T)
       (\bar R)                  (* Range type *)
@@ -126,8 +127,12 @@ Section giry_space.
 
   Definition giry_subbase : set (set (giryType T))
     := [set C | exists (S : set T) (_ : measurable S), preimage_class_of_measures S C].
+  *)
+
+  Axiom giry_subbase : set (set (giryType T)).
 
   Definition giry_measurable : set (set (giryType T)) := <<s giry_subbase>>.
+
 End giry_space.
 
 Definition giryM_display `{R : realType} `{d : measure_display} `{T : measurableType d} :=
@@ -142,25 +147,9 @@ Global Arguments giryM {_} {_} _.
 
 (** Relation defeining measure equality *)
 (* Local Open Scope classical_set_scope. *)
+*)
 
-Definition measure_eq `{R : realType} `{d : measure_display} {T : measurableType d} : relation (@giryM R d T) :=
-  fun μ1 μ2 => forall (S : set T), measurable S -> μ1 S = μ2 S.
-Notation "x ≡μ y" := (measure_eq x y) (at level 70).
-Global Hint Extern 0 (_ ≡μ _) => reflexivity : core.
-Global Hint Extern 0 (_ ≡μ _) => symmetry; assumption : core.
-
-Instance equivalence_measure_eq `{R : realType} `{d : measure_display} {T : measurableType d} :
-  Equivalence (@measure_eq R d T).
-Proof.
-  constructor.
-  - done.
-  - rewrite /Symmetric.
-    intros ? ? H ? ?.
-    by rewrite H //=.
-  - intros ? ? ? H0 H1 ? ?.
-    by rewrite H0 //= H1 //=.
-Qed.
-
+(*
 
 
 Section giry_lemmas.
@@ -186,7 +175,19 @@ Section giry_lemmas.
       (_ : x7 = y7)//.
   Qed.
 
+  Definition base_eval_internal {d1} {T1 : measurableType d1} (S : set T1) (HS : measurable S) :
+      giryM T1 -> \bar R :=
+    fun μ => μ S.
+  Axiom base_eval_meas : forall {d1} {T1 : measurableType d1} (S : set T1) (HS : measurable S),
+    measurable_fun setT (base_eval_internal HS).
 
+  (* External
+  Definition eval {d1} {T1 : measurableType d1} (S : set T1) :
+  *)
+
+
+
+  (*
   Lemma base_eval_measurable {d1} {T1 : measurableType d1} (S : set T1) (HS : measurable S):
     measurable_fun [set: giryM T1] ((SubProbability.sort (R:=R))^~ S).
   Proof.
@@ -216,19 +217,18 @@ Section giry_lemmas.
     - done.
     - by rewrite setTI.
   Qed.
+   *)
 
 End giry_lemmas.
 
+*)
 
-
-(* Notation is useless without inference for R
-
+(*
 Section giryNotation.
   Notation "T .-giry" := (@giryM_display _ T) : measure_display_scope.
   Notation "T .-giry.-measurable" := ((@measurable _ (giryM T)) : set (set (giryM T))) : classical_set_scope.
 End giryNotation.
 *)
-
 
 Reserved Notation "'<<discr' G '>>'"
   (at level 2, format "'<<discr'  G  '>>'").
@@ -391,7 +391,16 @@ HB.instance Definition _ := @isMeasurable.Build
 End Option.
 
 Lemma Some_measurable {d1} {T : measurableType d1} : measurable_fun setT (Some : T -> option T).
-Proof. Admitted.
+Proof.
+  eapply measurability; first done.
+  rewrite /preimage_class/subset//=.
+  intros ? [? [x ? <-] <-].
+  rewrite setTI/preimage//=.
+  unfold option_ML in H.
+  destruct x; rewrite //=.
+  { admit. }
+  { admit. }
+Admitted.
 Hint Resolve Some_measurable : measlang.
 
 (* Shapes? *)

@@ -16,6 +16,7 @@ Unset Printing Implicit Defensive.
 
 Set Default Proof Using "Type".
 
+(*
 Section giryM_integrate_laws.
   Context `{R : realType}.
   Notation giryM := (giryM (R := R)).
@@ -35,7 +36,7 @@ Section giryM_integrate_laws.
   Proof. done. Qed.
 
 End giryM_integrate_laws.
-
+*)
 
     (*
 

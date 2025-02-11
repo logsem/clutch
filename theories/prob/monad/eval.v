@@ -15,7 +15,7 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 Set Default Proof Using "Type".
-
+(*
 Section giryM_eval.
   Context `{R : realType}.
   Notation giryM := (giryM (R := R)).
@@ -42,7 +42,6 @@ Section giryM_eval.
   Qed.
 
 End giryM_eval.
-
 
 
 
@@ -136,3 +135,5 @@ Section giryM_eval_char.
   Proof. split; [apply measurable_if_measurable_evals | apply measurable_evals_if_measurable]. Qed.
 
 End giryM_eval_char.
+
+*)

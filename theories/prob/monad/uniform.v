@@ -15,7 +15,7 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 Set Default Proof Using "Type".
-
+ (*
 Section unif_fin_space.
   Local Open Scope ereal_scope.
   Local Open Scope classical_set_scope.
@@ -63,3 +63,4 @@ Definition giryM_unif_eval {R : realType} (m : nat) :
     forall X : set <<discr ('I_(S m))>>,
       (@giryM_unif R m) X =  if `[< finite_set X >] then ((#|` fset_set X |)%:R / (S m)%:R)%:E else +oo.
 Proof. done. Qed.
+*)

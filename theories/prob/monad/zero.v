@@ -15,6 +15,7 @@ Unset Printing Implicit Defensive.
 
 Set Default Proof Using "Type".
 
+(*
 Section giryM_zero.
   Context {d} {T : measurableType d}.
   Context `{R : realType}.
@@ -34,3 +35,4 @@ Definition giryM_zero {R : realType} {d} {T : measurableType d} : @giryM R _ T :
 Definition giryM_zero_eval {R : realType} {d} {T : measurableType d} :
     forall t : set T, @giryM_zero R _ _ t = 0%R.
 Proof. done. Qed.
+*)
