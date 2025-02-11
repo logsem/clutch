@@ -25,16 +25,16 @@ Section client.
               ↯ ε ∗ ⌜(∀ x, 0<=ε2 x)%R⌝∗
               ⌜(SeriesC (λ n, 1 / 16 * ε2 n)%R <= ε)%R ⌝ ∗
               (∀ n, ↯ (ε2 n) ={∅, E}=∗ P ε ε2 n ) }}}
-      con_prog 
+      con_prog @ (E ∪ ↑N)
       {{{ (n:fin 16%nat), RET #(fin_to_nat n); ∃ ε ε2, P ε ε2 n }}}.
   Proof.
     iIntros (Hnotin Φ) "Hvs HΦ".
     rewrite /con_prog.
     wp_apply (new_counter_spec (L:=L) _ N with "[//]") as (c) "(%γ & #Hcounter & Hfrag)".
     wp_pures.
-    wp_apply (allocate_tape_spec with "[$]") as (lbl) "Htape"; first done.
+    wp_apply (allocate_tape_spec with "[$]") as (lbl) "Htape"; first apply union_subseteq_r.
     wp_pures.
-    iAssert (state_update ⊤ ⊤ (∃ ε ε2 (n1 n2:fin 4) n,
+    iAssert (state_update (E∪_) (E∪_) (∃ ε ε2 (n1 n2:fin 4) n,
                    ⌜(fin_to_nat n= 4*fin_to_nat n1 + fin_to_nat n2)%nat⌝ ∗
                    counter_tapes lbl [fin_to_nat n1; fin_to_nat n2] ∗
                    P ε ε2 n))%I with "[Hvs Htape]" as ">(%&%&%&%&%&%Heq&Htape&HP)".
@@ -62,22 +62,23 @@ Section client.
           rewrite /fin_force; case_match; try lia.
           rewrite fin_to_nat_to_fin. lia.
     }
-    wp_apply (incr_counter_tape_spec_some _ _ _ _ (λ _, counter_content_frag γ 1 (fin_to_nat n1)) with "[$Hcounter $Htape Hfrag]"); try done.
+    wp_apply (incr_counter_tape_spec_some _ _ _ _ (λ _, counter_content_frag γ 1 (fin_to_nat n1)) with "[$Hcounter $Htape Hfrag]").
+    { apply union_subseteq_r. }
     { iIntros. by iMod (counter_content_update with "[$][$]") as "[$$]". }
     iIntros (?) "[Htape Hfrag]".
     wp_pures.
-    wp_apply (read_counter_spec _ _ _ _ (λ n, counter_content_frag _ _ _∗ ⌜(n=fin_to_nat n1)%nat⌝)%I with "[$Hcounter Hfrag]"); first done.
+    wp_apply (read_counter_spec _ _ _ _ (λ n, counter_content_frag _ _ _∗ ⌜(n=fin_to_nat n1)%nat⌝)%I with "[$Hcounter Hfrag]"); first apply union_subseteq_r.
     { iIntros.
       iDestruct (counter_content_agree with "[$][$]") as "->".
       by iFrame.
     }
     iIntros (?) "[Hfrag ->]".
     wp_pures.
-    wp_apply (incr_counter_tape_spec_some _ _ _ _ (λ _, counter_content_frag γ 1 (fin_to_nat n1 + fin_to_nat n2)) with "[$Hcounter $Htape Hfrag]"); try done.
+    wp_apply (incr_counter_tape_spec_some _ _ _ _ (λ _, counter_content_frag γ 1 (fin_to_nat n1 + fin_to_nat n2)) with "[$Hcounter $Htape Hfrag]"); first apply union_subseteq_r.
     { iIntros. by iMod (counter_content_update with "[$][$]") as "[$$]". }
     iIntros (?) "[Htape Hfrag]".
     wp_pures.
-    wp_apply (read_counter_spec _ _ _ _ (λ n, counter_content_frag _ _ _∗ ⌜(n=fin_to_nat n1+fin_to_nat n2)%nat⌝)%I with "[$Hcounter Hfrag]"); first done.
+    wp_apply (read_counter_spec _ _ _ _ (λ n, counter_content_frag _ _ _∗ ⌜(n=fin_to_nat n1+fin_to_nat n2)%nat⌝)%I with "[$Hcounter Hfrag]"); first apply union_subseteq_r.
     { iIntros.
       iDestruct (counter_content_agree with "[$][$]") as "->".
       by iFrame.
