@@ -7,7 +7,7 @@ Set Default Proof Using "Type*".
 Section client.
   Context `{rc:random_counter} {L: counterG Σ}.
   Definition con_prog : expr :=
-    let: "c" := new_counter #() in
+    λ: "_", let: "c" := new_counter #() in
     let: "lbl" := allocate_tape #() in
     (incr_counter_tape "c" "lbl");;
     let: "v" := read_counter "c" in
@@ -25,11 +25,11 @@ Section client.
               ↯ ε ∗ ⌜(∀ x, 0<=ε2 x)%R⌝∗
               ⌜(SeriesC (λ n, 1 / 16 * ε2 n)%R <= ε)%R ⌝ ∗
               (∀ n, ↯ (ε2 n) ={∅, E}=∗ P ε ε2 n ) }}}
-      con_prog @ (E ∪ ↑N)
+      con_prog #()@ (E ∪ ↑N)
       {{{ (n:fin 16%nat), RET #(fin_to_nat n); ∃ ε ε2, P ε ε2 n }}}.
   Proof.
     iIntros (Hnotin Φ) "Hvs HΦ".
-    rewrite /con_prog.
+    rewrite /con_prog. wp_pures.
     wp_apply (new_counter_spec (L:=L) _ N with "[//]") as (c) "(%γ & #Hcounter & Hfrag)".
     wp_pures.
     wp_apply (allocate_tape_spec with "[$]") as (lbl) "Htape"; first apply union_subseteq_r.
