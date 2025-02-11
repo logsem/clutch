@@ -12,7 +12,7 @@ From clutch.prelude Require Export stdpp_ext.
 From clutch.common Require Export locations.
 From clutch.meas_lang Require Import ectxi_language ectx_language.
 From Coq Require Export Reals.
-From clutch.prob.monad Require Export laws extras.
+From clutch.prob.monad Require Export giry.
 From mathcomp.analysis Require Export Rstruct.
 From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
@@ -123,29 +123,9 @@ Program Definition giryM_liftM2 {d1 d2 d3} {T1 : measurableType d1} {T2 : measur
 
 
 
-Definition giryM_ap {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} :
-  (giryM T1 * giryM T2)%type -> giryM (T1 * T2)%type :=
-  fun X =>
-    (ssrfun.comp
-       (giryM_bind_external ^~ (fun x => ((giryM_bind_external ^~ (fun y => giryM_ret (x, y))) (snd X))))
-       fst) X.
-
-(*
-Check fun X => (giryM_bind_external (fst X) (fun x => (giryM_bind_external (snd X) (fun y => giryM_ret (x, y))))).
-*)
-(*  \xy -> (fst xy) >>= (\x -> (snd xy) >>= (\y -> ret (x, y))) *)
-(* liftM2 (>>=) fst ((. ((ret .) . (,))) . (>>=) . snd)  *)
-
-Lemma giryM_ap_meas {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} :
-    measurable_fun setT (@giryM_ap _ _ T1 T2).
-Proof.
-  unfold giryM_ap.
-Admitted.
-
-
 Definition rand_rand_aux : <<discr TZ>> -> giryM expr :=
   ssrfun.comp
-    (giryM_map_external (ssrfun.comp ValU $ ssrfun.comp LitVU $ LitIntU ))
+    (gMap' (ssrfun.comp ValU $ ssrfun.comp LitVU $ LitIntU ))
     giryM_unif'.
 (*
   m_discr (fun z =>
@@ -165,22 +145,23 @@ Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT).
   { by eapply @measurableT. }
   { by eapply subsetT. }
-  { have -> : ((giryM_map_external (ValU \o (LitVU \o LitIntU))) = (giryM_map _ H));
-      last by eapply @giryM_map_meas.
+  { have -> : ((gMap' (ValU \o (LitVU \o LitIntU))) = (gMap H));
+      last by eapply @gMap_measurable.
     intro t.
-    rewrite /giryM_map_external/extern_if.
-    (* Don't do this here *)
     admit.
+    (* Don't do this here
+    rewrite /giryM_map_external/extern_if.
+    admit. *)
   }
   { by eauto with measlang. }
 Admitted.
 Hint Resolve rand_rand_aux_meas : measlang.
 
 Definition rand_rand : (<<discr TZ>> * state)%type -> giryM cfg :=
-  ssrfun.comp giryM_ap $
+  ssrfun.comp gProd $
   mProd
     (ssrfun.comp rand_rand_aux fst)
-    (ssrfun.comp giryM_ret snd).
+    (ssrfun.comp gRet snd).
 
 Lemma rand_rand_meas : measurable_fun setT rand_rand.
 Proof.
@@ -188,13 +169,13 @@ Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT).
   { by eapply @measurableT. }
   { by eapply subsetT. }
-  { by apply giryM_ap_meas. }
+  { by apply gProd_measurable. }
   mcrunch_prod.
   { mcrunch_compC rand_rand_aux_meas. by eauto with measlang. }
   eapply (@measurable_comp _ _ _ _ _ _ setT).
   { by eapply @measurableT. }
   { by eapply subsetT. }
-  { by apply giry_ret_measurable. }
+  { by apply gRet_measurable. }
   by eauto with measlang.
 Qed.
 Hint Resolve rand_rand_meas : measlang.
@@ -204,23 +185,23 @@ Hint Resolve rand_rand_meas : measlang.
 
 (** Uniform distrubtion over real number literal expressions on the interval *)
 Definition rand_urand_aux : giryM expr :=
-  giryM_map_external
+  gMap'
     (ssrfun.comp ValU $ ssrfun.comp LitVU $ LitRealU )
     unif_base_ax.
 
 Definition rand_urand : state -> giryM cfg :=
-  ssrfun.comp giryM_ap  $
-  mProd (cst $ rand_urand_aux) giryM_ret.
+  ssrfun.comp gProd $
+  mProd (cst $ rand_urand_aux) gRet.
 
 Lemma rand_urand_meas : measurable_fun setT rand_urand.
 Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT).
   { by eapply @measurableT. }
   { by eapply subsetT. }
-  { by apply giryM_ap_meas. }
+  { by apply gProd_measurable. }
   mcrunch_prod.
   { by eauto with measlang. }
-  { by apply giry_ret_measurable. }
+  { by apply gRet_measurable. }
 Qed.
 Hint Resolve rand_urand_meas : measlang.
 
@@ -270,7 +251,7 @@ Hint Resolve auxcov_randT_ok_meas : measlang.
 
 
 Definition rand_randT_noTape (x : (<<discr Z>> * <<discr loc>> * state)%type) : giryM cfg :=
-  giryM_zero.
+  gZero.
 
 (*
 giryM_map
@@ -429,7 +410,7 @@ Hint Resolve auxcov_urandT_ok_meas : measlang.
 
 
 Definition rand_urandT_noTape (x : (<<discr loc>> * state)%type) : giryM cfg :=
-  giryM_zero.
+  gZero.
 
  (* giryM_map urand_tape_step unif_base *)
 Definition rand_urandT_nextEmpty (x : (<<discr loc>> * state)%type) : giryM cfg.

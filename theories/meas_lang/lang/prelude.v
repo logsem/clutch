@@ -11,7 +11,7 @@ From clutch.common Require Export locations.
 From clutch.meas_lang Require Import ectxi_language ectx_language.
 
 From Coq Require Export Reals.
-From clutch.prob.monad Require Export laws extras.
+From clutch.prob.monad Require Export giry.
 From mathcomp.analysis Require Export Rstruct.
 
 From mathcomp Require Import classical_sets.
@@ -44,4 +44,4 @@ HB.instance Definition _ := gen_eqMixin loc.
 HB.instance Definition _ := gen_choiceMixin loc.
 HB.instance Definition _ := isPointed.Build loc inhabitant.
 
-Hint Resolve giry_ret_measurable : measlang.
+Hint Resolve gRet_measurable : measlang.

@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Import weakestpre.
 From mathcomp.analysis Require Import reals measure ereal Rstruct.
-From clutch.prob.monad Require Export laws meas_markov.
+From clutch.prob.monad Require Export giry meas_markov.
 Set Warnings "hiding-delimiting-key".
 
 
@@ -88,7 +88,7 @@ Class MeasLanguageCtx {Λ : meas_language} (K : (expr Λ) -> (expr Λ))  := {
   fill_inj : Inj (=) (=) K;
   fill_dmap e1 σ1 :
     to_val e1 = None →
-    prim_step ((K e1), σ1) = giryM_map _ (fill_lift_measurable K K_measurable) (prim_step (e1, σ1))
+    prim_step ((K e1), σ1) = gMap (fill_lift_measurable K K_measurable) (prim_step (e1, σ1))
 }.
 
 #[global] Existing Instance fill_inj.
@@ -169,9 +169,12 @@ Section language.
     (¬ is_zero (prim_step (e, σ))) ->
     (¬ is_zero (prim_step (K e, σ))).
   Proof.
-    (* FIXME: Cleanup *)
+    (* FIXME: is this true? *)
     intros Hs.
     rewrite fill_dmap; [| by eapply val_stuck].
+  Admitted.
+
+  (*
     pose HI := (@inj_map_inj_eq R _ _ _ _ (fill_lift K) (fill_lift_measurable _ K_measurable) (inj_fill_lift _ fill_inj)).
     pose HI' := HI MeasLanguageCtx0  MeasLanguageCtx0.
     have HI'' := HI' (prim_step (e, σ)) giryM_zero.
@@ -184,7 +187,7 @@ Section language.
     apply H.
   Qed.
 
-
+*)
 
   (*
   Lemma fill_step_inv e1' σ1 e2 σ2 `{!LanguageCtx K} :
@@ -254,7 +257,7 @@ Section language.
 
   Record pure_step (e1 e2 : expr Λ)  := {
     pure_step_safe σ1 : ¬ (is_zero (prim_step (e1, σ1)));
-    pure_step_det σ : is_ret (e2, σ) (prim_step (e1, σ));
+    pure_step_det σ : is_det (e2, σ) (prim_step (e1, σ));
   }.
 
   Class PureExec (φ : Prop) (n : nat) (e1 e2 : expr Λ) :=

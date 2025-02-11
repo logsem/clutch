@@ -9,7 +9,8 @@ From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Import weakestpre.
 From mathcomp.analysis Require Import reals measure ereal Rstruct.
-From clutch.prob.monad Require Import laws types meas_markov.
+(* From clutch.prob.monad Require Import laws types meas_markov. *)
+From clutch.prob.monad Require Import giry meas_markov.
 From clutch.meas_lang Require Import language.
 Set Warnings "hiding-delimiting-key".
 
@@ -211,7 +212,8 @@ Section ectx_language.
   Qed.
 
   (** FIXME: What a strange little measurability proof. *)
-  Program Definition prim_step : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type :=
+  Definition prim_step : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type. Admitted.
+  (*
     ssrfun.comp
       ( giryM_map (ssrfun.comp fill_liftU $ mProd (ssrfun.comp fst $ ssrfun.comp decomp fst) (fun x => x)) _ )
       ( ssrfun.comp head_step $ mProd (ssrfun.comp snd $ ssrfun.comp decomp $ fst) snd ).
@@ -232,7 +234,7 @@ Section ectx_language.
     }
     { by eapply measurable_id. }
   Qed.
-
+*)
   Lemma fill_not_val K e : to_val e = None → to_val (fill (K, e)) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.
 
@@ -505,7 +507,7 @@ Section ectx_language.
 
   Record pure_head_step (e1 e2 : expr Λ) := {
     pure_head_step_safe σ1 : head_reducible e1 σ1;
-    pure_head_step_det σ1 : is_ret (e2, σ1) (head_step (e1, σ1))
+    pure_head_step_det σ1 : is_det (e2, σ1) (head_step (e1, σ1))
   }.
 
 

@@ -3,7 +3,7 @@ From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Program.Wf Reals.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
 From mathcomp.analysis Require Import reals measure ereal Rstruct sequences.
-From clutch.prob.monad Require Export laws.
+From clutch.prob.monad Require Export giry.
 
 From mathcomp.analysis Require Import topology.
 

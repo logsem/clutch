@@ -9,7 +9,7 @@ From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Import weakestpre.
 From mathcomp.analysis Require Import reals measure ereal Rstruct.
-From clutch.prob.monad Require Export laws meas_markov.
+From clutch.prob.monad Require Export giry meas_markov.
 From clutch.meas_lang Require Import language ectx_language.
 Set Warnings "hiding-delimiting-key".
 

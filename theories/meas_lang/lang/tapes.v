@@ -1,5 +1,5 @@
 (* TODO cleanup imports *)
-Set Warnings "-hiding-delimiting-key".
+Set Warnings "hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
 From stdpp Require Import base numbers binders strings gmap.
@@ -11,7 +11,7 @@ From clutch.prelude Require Export stdpp_ext.
 From clutch.common Require Export locations.
 From clutch.meas_lang Require Import ectxi_language ectx_language.
 From Coq Require Export Reals.
-From clutch.prob.monad Require Export laws extras.
+From clutch.prob.monad Require Export giry.
 From mathcomp.analysis Require Export Rstruct.
 From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.

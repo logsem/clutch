@@ -6,7 +6,7 @@ From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
-From clutch.prob.monad Require Export types eval integrate.
+From clutch.prob.monad Require Export giry. (* types eval integrate *)
 
 Import Coq.Logic.FunctionalExtensionality.
 
@@ -15,6 +15,7 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 Set Default Proof Using "Type".
+
  (*
 Section unif_fin_space.
   Local Open Scope ereal_scope.

@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Import weakestpre.
 From mathcomp.analysis Require Import reals measure ereal Rstruct.
-From clutch.prob.monad Require Export laws.
+From clutch.prob.monad Require Export giry.
 Set Warnings "hiding-delimiting-key".
 (*From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
@@ -98,7 +98,8 @@ Section is_final.
   Lemma is_final_dzero a : is_final a → is_zero (step a).
   Proof.
     intros Hf.
-    by rewrite to_final_is_final //.
+    apply to_final_is_final.
+    by rewrite //.
   Qed.
 
   (*
@@ -130,7 +131,12 @@ Section reducible.
   Proof. move=> H ?. apply H. by apply is_final_dzero. Qed.
 
   Lemma is_final_irreducible a : is_final a → irreducible a.
-  Proof. by intros ?; rewrite /irreducible is_final_dzero //. Qed.
+  Proof.
+    intros ?.
+    rewrite /irreducible.
+    apply is_final_dzero.
+    by rewrite //.
+Qed.
 
   Lemma not_not_stuck a : ¬ not_stuck a ↔ stuck a.
   Proof.
@@ -170,19 +176,17 @@ Section markov.
 
 
   (** * Strict partial evaluation *)
-  (* FIXME: Some of the bind lemmas might be in the wrong order. This is easier to prove so
-     change it if matters. *)
   Program Definition stepN (n : nat) a : giryM (mstate δ) :=
-    giryM_iterN n step a.
+    gIter n step a.
 
   Lemma stepN_meas (n : nat) : measurable_fun setT (stepN n).
-  Proof. apply giryM_iterN_meas, step_meas. Qed.
+  Proof. by apply gIter_measurable, step_meas. Qed.
 
-  Lemma stepN_O : stepN 0 = giryM_ret.
+  Lemma stepN_O : stepN 0 = gRet.
   Proof. done. Qed.
 
   Lemma stepN_Sn a n :
-    stepN (S n) a = giryM_bind_external (step a) (stepN n).
+    stepN (S n) a = gBind' (stepN n) (step a) .
   Proof. done. Qed.
 
   Lemma stepN_1 a :
@@ -190,7 +194,7 @@ Section markov.
   Proof. rewrite stepN_Sn stepN_O. (* dret_id_right //. Qed. *)  Admitted.
 
   Lemma stepN_plus a (n m : nat) :
-    stepN (n + m) a = giryM_bind_external (stepN n a) (stepN m).
+    stepN (n + m) a = gBind' (stepN m) (stepN n a) .
   Proof. Admitted.
 
   (*
@@ -223,7 +227,7 @@ Section markov.
   (** * Non-strict partial evaluation *)
   Definition step_or_final a : giryM (mstate δ) :=
     match to_final a with
-    | Some _ => giryM_ret a
+    | Some _ => gRet a
     | None => step a
     end.
 
@@ -235,25 +239,25 @@ Section markov.
   Proof. rewrite /step_or_final /is_final /= -eq_None_not_Some. by intros ->. Qed.
 
   Lemma step_or_final_is_final a :
-    is_final a → step_or_final a = giryM_ret a.
+    is_final a → step_or_final a = gRet a.
   Proof. rewrite /step_or_final /=. by intros [? ->]. Qed.
 
-  Definition pexec (n : nat) a : giryM (mstate δ) := giryM_iterN n step_or_final a.
+  Definition pexec (n : nat) a : giryM (mstate δ) := gIter n step_or_final a.
 
   Lemma pexec_meas (n : nat) : measurable_fun setT (pexec n).
   Proof. Admitted.
 
   Lemma pexec_O a :
-    pexec 0 a = giryM_ret a.
+    pexec 0 a = gRet a.
   Proof. done. Qed.
 
 
   Lemma pexec_Sn a n :
-    pexec (S n) a = giryM_bind_external (step_or_final a) (pexec n).
+    pexec (S n) a = gBind' (pexec n) (step_or_final a).
   Proof. done. Qed.
 
   Lemma pexec_plus ρ n m :
-    pexec (n + m) ρ = giryM_bind_external (pexec n ρ) (pexec m).
+    pexec (n + m) ρ = gBind' (pexec m) (pexec n ρ).
   Proof. Admitted.
 
   Lemma pexec_1 :
@@ -265,7 +269,7 @@ Section markov.
   Admitted.
 
   Lemma pexec_Sn_r a n :
-    pexec (S n) a = giryM_bind_external (pexec n a) step_or_final.
+    pexec (S n) a = gBind' step_or_final (pexec n a).
   Proof.
     assert (S n = n + 1)%nat as -> by lia.
     rewrite pexec_plus.
@@ -273,7 +277,7 @@ Section markov.
   Qed.
 
   Lemma pexec_is_final n a :
-    is_final a → pexec n a = giryM_ret a.
+    is_final a → pexec n a = gRet a.
   Proof.
     intros ?.
     induction n.
@@ -289,7 +293,7 @@ Section markov.
 
   Lemma pexec_no_final a n :
     ¬ is_final a →
-    pexec (S n) a = giryM_bind_external (step a) (pexec n).
+    pexec (S n) a = gBind' (pexec n) (step a).
   Proof. intros. rewrite pexec_Sn step_or_final_no_final //. Qed.
 
   (*
@@ -328,26 +332,26 @@ Section markov.
   (** * Stratified evaluation to a final state *)
   Fixpoint exec (n : nat) (a : mstate δ) {struct n} : giryM (mstate_ret δ) :=
     match to_final a, n with
-      | Some b, _ => giryM_ret b
-      | None, 0 => giryM_zero
-      | None, S n => giryM_bind_external (step a) (exec n)
+      | Some b, _ => gRet b
+      | None, 0 => gZero
+      | None, S n => gBind' (exec n) (step a)
     end.
 
   Lemma exec_unfold (n : nat) :
     exec n = λ a,
       match to_final a, n with
-      | Some b, _ => giryM_ret b
-      | None, 0 => giryM_zero
-      | None, S n => giryM_bind_external (step a) (exec n)
+      | Some b, _ => gRet b
+      | None, 0 => gZero
+      | None, S n => gBind' (exec n) (step a)
       end.
   Proof. by destruct n. Qed.
 
   Lemma exec_is_final a b n :
-    to_final a = Some b → exec n a = giryM_ret b.
+    to_final a = Some b → exec n a = gRet b.
   Proof. destruct n; simpl; by intros ->. Qed.
 
   Lemma exec_Sn a n :
-    exec (S n) a = giryM_bind_external (step a) (exec n).
+    exec (S n) a = gBind' (exec n) (step a).
   Proof.
     rewrite /step_or_final /=.
     case_match; [|done].
@@ -359,7 +363,7 @@ Section markov.
 *)
 
   Lemma exec_plus a n1 n2 :
-    exec (n1 + n2) a = giryM_bind_external (pexec n1 a) (exec n2).
+    exec (n1 + n2) a = gBind' (exec n2) (pexec n1 a).
   Proof.
     revert a. induction n1.
     { intro a. rewrite pexec_O. admit. (* dret_id_left //. *) }
