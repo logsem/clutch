@@ -112,10 +112,34 @@ Definition auxcov_unop_ok : set (<<discr un_op>> * val)%type :=
 Definition auxcov_unop_stuck : set (<<discr un_op>> * val)%type :=
   [set x | un_op_eval x.1 x.2 = None].
 
+Definition aux_aux_unop_1 : set (<<discr un_op>> * val)%type :=
+  setX [set NegOp] (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitBool).
+
+Definition aux_aux_unop_2 : set (<<discr un_op>> * val)%type :=
+  setX [set MinusUnOp] (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitInt).
+
+Definition aux_aux_unop_3 : set (<<discr un_op>> * val)%type :=
+  setX [set MinusUnOp] (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitInt).
+
+Definition aux_aux_unop_4 : set (<<discr un_op>> * val)%type :=
+  setX [set MinusUnOp] (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitReal).
+
+Lemma aux_aux_unop_1_meas : measurable aux_aux_unop_1. Admitted.
+Lemma aux_aux_unop_2_meas : measurable aux_aux_unop_2. Admitted.
+Lemma aux_aux_unop_3_meas : measurable aux_aux_unop_3. Admitted.
+Lemma aux_aux_unop_4_meas : measurable aux_aux_unop_4. Admitted.
+
+Lemma aux_unop : auxcov_unop_ok = aux_aux_unop_1 `|` aux_aux_unop_2 `|` aux_aux_unop_3 `|` aux_aux_unop_4.
+Admitted.
 
 Lemma auxcov_unop_ok_meas : measurable auxcov_unop_ok.
 Proof.
-Admitted.
+  rewrite aux_unop.
+  eapply @measurableU; last by apply aux_aux_unop_4_meas.
+  eapply @measurableU; last by apply aux_aux_unop_3_meas.
+  eapply @measurableU; last by apply aux_aux_unop_2_meas.
+  by apply aux_aux_unop_1_meas.
+Qed.
 Hint Resolve auxcov_unop_ok_meas : measlang.
 
 
