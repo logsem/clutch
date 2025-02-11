@@ -252,7 +252,14 @@ Section giry_external_bind.
   Lemma gBind'_measurable (f : T1 -> giryM T2) (H : measurable_fun setT f) : measurable_fun setT (gBind' f).
   Proof. by rewrite /gBind'/gMap' extern_if_eq; apply gBind_measurable. Qed.
 
+
+  (*  Program Definition gBind'' : (<<discr (T1 -> giryM T2)>> * giryM T1)%type -> giryM T2 := *)
+
+
 End giry_external_bind.
+
+
+
 
 
 
@@ -262,11 +269,32 @@ Section giry_prod.
   Context {T1 : measurableType d1} {T2 : measurableType d2}.
   Notation giryM := (giryM (R := R)).
 
-  Definition gProd (μ : giryM T1 * giryM T2) : giryM (T1 * T2)%type :=
-    gBind' (fun v1 => gBind' (fun v2 => gRet (v1 , v2)) (snd μ)) (fst μ).
 
+
+  Check giryM (<<discr (T1 -> T2)>>).
+
+  (* https://en.wikipedia.org/wiki/Giry_monad#Product_distributions  *)
+
+  Axiom gProd : (giryM T1 * giryM T2) -> giryM (T1 * T2)%type.
+  (*  gBind' (fun v1 => gBind' (gRet \o (pair v1)) (snd μ)) (fst μ). *)
+
+  Axiom gProd_measurable : measurable_fun setT gProd.
+
+  (*
   Lemma gProd_measurable : measurable_fun setT gProd.
-  Proof. Admitted.
+  Proof.
+    have HM1 (v1 : T1) : measurable_fun setT (gRet \o (pair v1) : T2 -> giryM (T1 * T2)%type).
+    { eapply (@measurable_comp _ _ _ _ _ _ setT).
+      { by eapply @measurableT. }
+      { by apply subsetT. }
+      { by apply gRet_measurable. }
+      { by apply measurable_pair1. }
+    }
+    rewrite /gProd.
+    intros _ Y HY.
+    rewrite setTI/preimage//=.
+  Abort.
+   *)
 
 End giry_prod.
 

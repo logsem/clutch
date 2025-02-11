@@ -686,6 +686,27 @@ Section measurable_curry.
 
 End measurable_curry.
 
+(*
+Section measurable_uncurry_l.
+  Context (R : realType). (* This is due to a bug in mathcomp analysis, delete me. *)
+
+  Context {d2 d3 : measure_display}.
+  Context {T1 : pointedType }.
+  Context {T2 : measurableType d2}.
+  Context {T3 : measurableType d3}.
+
+  Context (f : (<<discr T1>> * T2) -> T3).
+  Context (mf : forall x, measurable_fun setT (curry f x)).
+
+  Lemma uncurry_meas : measurable_fun setT f.
+  Proof.
+    intros _ Y HY.
+    rewrite setTI.
+    (* Augh *)
+  Admitted.
+
+End measurable_uncurry_l.
+*)
 
 Section extern_if.
   Context {T : Type}.
