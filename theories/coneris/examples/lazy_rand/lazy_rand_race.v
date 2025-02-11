@@ -61,23 +61,17 @@ Section race.
     wp_pures.
     wp_apply (wp_par (λ res, ∃ (n:nat), ⌜(#n, #n)%V = res⌝ ∗ rand_frag n n _)%I
                 (λ res, ∃ (n:nat), ⌜(#n, #n)%V = res⌝ ∗ rand_frag n n _)%I with "[][]").
-    - wp_apply (lazy_rand_alloc_tape _ _ ).
-      { iSplit; last by iIntros. done. }
-      iIntros (α) "[Ht _]".
+    - wp_apply (lazy_rand_alloc_tape _ _ with "[//]").
+      iIntros (α) "Ht".
       replace #0 with (# (Z.of_nat 0)) by done.
       wp_apply (lazy_rand_spec _ _ _ _ _ _ (λ x y, ⌜x=y⌝ ∗ rand_frag x x _)%I (λ x y, ⌜x=y⌝ ∗ rand_frag x x _)%I with "[-]").
       + iSplit; first done.
-        simpl. iIntros (n m) "H1 Hauth Htauth".
-        iApply (state_update_inv_acc with "Hinv2").
-        { apply subseteq_difference_r; last done.
-          by apply ndot_preserve_disjoint_r, ndot_ne_disjoint.
-        }
+        simpl. iIntros (n) "H1 Hauth".
+        iApply (state_update_inv_acc with "Hinv2"); first done.
         iIntros ">[[H2 Herr]|H2]"; iDestruct "H1" as "[(->&?)|(%&->&?)]"; iDestruct (ghost_var_agree with "[$][$]") as "%"; simplify_eq.
-        * iMod (rand_tape_presample _ _ _ _ _ _ _ _ _ _ (λ x, if bool_decide (fin_to_nat x = 0%nat) then 0 else 1) with "[$][$][$][$]") as "(%n&?&?&?)".
-          { apply subseteq_difference_r.
-            - by apply ndot_preserve_disjoint_l, ndot_ne_disjoint.
-            - apply subseteq_difference_r; last done.
-              by apply ndot_ne_disjoint.
+        * iMod (rand_tape_presample _ _ _ _ _ _ _ _ _ (λ x, if bool_decide (fin_to_nat x = 0%nat) then 0 else 1) with "[$][$][$]") as "(%n&?&?)".
+          { apply subseteq_difference_r; last done. 
+            by apply ndot_ne_disjoint.
           }
           { intros. case_bool_decide; simpl; lra. }
           { rewrite SeriesC_finite_foldr/=. lra. }
@@ -102,23 +96,17 @@ Section race.
           repeat iSplit; try done.
           iRight. iFrame. by iExists _.
       + by iIntros (??) "[(->&#$)|(->&#$)]".
-    - wp_apply (lazy_rand_alloc_tape _ _ ).
-      { iSplit; last by iIntros. done. }
-      iIntros (α) "[Ht _]".
+    - wp_apply (lazy_rand_alloc_tape _ _ ); first done.
+      iIntros (α) "Ht".
       replace #1 with (# (Z.of_nat 1)) by done.
       wp_apply (lazy_rand_spec _ _ _ _ _ _ (λ x y, ⌜x=y⌝ ∗ rand_frag x x _)%I (λ x y, ⌜x=y⌝ ∗ rand_frag x x _)%I with "[-]").
       + iSplit; first done.
-        simpl. iIntros (n m) "H1 Hauth Htauth".
-        iApply (state_update_inv_acc with "Hinv2").
-        { apply subseteq_difference_r; last done.
-          by apply ndot_preserve_disjoint_r, ndot_ne_disjoint.
-        }
+        simpl. iIntros (n) "H1 Hauth".
+        iApply (state_update_inv_acc with "Hinv2"); first done.
         iIntros ">[[H2 Herr]|H2]"; iDestruct "H1" as "[(->&?)|(%&->&?)]"; iDestruct (ghost_var_agree with "[$][$]") as "%"; simplify_eq.
-        * iMod (rand_tape_presample _ _ _ _ _ _ _ _ _ _ (λ x, if bool_decide (fin_to_nat x = 1%nat) then 0 else 1) with "[$][$][$][$]") as "(%n&?&?&?)".
-          { apply subseteq_difference_r.
-            - by apply ndot_preserve_disjoint_l, ndot_ne_disjoint.
-            - apply subseteq_difference_r; last done.
-              by apply ndot_ne_disjoint.
+        * iMod (rand_tape_presample _ _ _ _ _ _ _ _ _ (λ x, if bool_decide (fin_to_nat x = 1%nat) then 0 else 1) with "[$][$][$]") as "(%n&?&?)".
+          { apply subseteq_difference_r; last done.
+            by apply ndot_ne_disjoint.
           }
           { intros. case_bool_decide; simpl; lra. }
           { rewrite SeriesC_finite_foldr/=. lra. }

@@ -17,15 +17,15 @@ Class lazy_rand `{!conerisGS Σ} (val_size:nat):= Lazy_Rand
   rand_inv (N:namespace) (c: val) (P: option (nat*nat) -> iProp Σ) {HP: ∀ n, Timeless (P n)} 
     (γ:rand_tape_gname) (γ':rand_view_gname) (γ_lock:rand_lock_gname): iProp Σ; 
   rand_tape_frag (α:val) (n:option nat) (γ:rand_tape_gname): iProp Σ;
-  rand_tape_auth (m:gmap val (option nat)) (γ:rand_tape_gname) :iProp Σ; 
+  (* rand_tape_auth (m:gmap val (option nat)) (γ:rand_tape_gname) :iProp Σ;  *)
   rand_auth (m:option (nat*nat)) (γ:rand_view_gname) : iProp Σ;
   rand_frag (res:nat) (tid:nat) (γ:rand_view_gname) : iProp Σ; 
   
   (** * General properties of the predicates *)
   #[global] rand_tape_frag_timeless α ns γ::
     Timeless (rand_tape_frag α ns γ); 
-  #[global] rand_tape_auth_timeless m γ::
-    Timeless (rand_tape_auth m γ);
+  (* #[global] rand_tape_auth_timeless m γ:: *)
+  (*   Timeless (rand_tape_auth m γ); *)
   #[global] rand_auth_timeless n γ::
     Timeless (rand_auth n γ);  
   #[global] rand_frag_timeless n tid γ::
@@ -42,8 +42,8 @@ Class lazy_rand `{!conerisGS Σ} (val_size:nat):= Lazy_Rand
     rand_tape_frag α ns γ-∗ rand_tape_frag α ns' γ-∗ False; 
   (* rand_tape_auth_exclusive m m' γ: *)
   (*   rand_tape_auth m γ -∗ rand_tape_auth m' γ -∗ False; *)
-  rand_tape_auth_frag_agree m α ns γ:
-  rand_tape_auth m γ  -∗ rand_tape_frag α ns γ -∗ ⌜m!!α=Some ns⌝;
+  (* rand_tape_auth_frag_agree m α ns γ: *)
+  (* rand_tape_auth m γ  -∗ rand_tape_frag α ns γ -∗ ⌜m!!α=Some ns⌝; *)
                                                         
   rand_auth_exclusive n n' γ:
     rand_auth n γ -∗ rand_auth n' γ -∗ False; 
@@ -63,15 +63,14 @@ Class lazy_rand `{!conerisGS Σ} (val_size:nat):= Lazy_Rand
                                                         
   (* rand_tape_auth_alloc m α γ: *)
   (*   m!!α=None -> rand_tape_auth m γ ==∗ rand_tape_auth (<[α:=[]]> m) γ ∗ rand_tape α [] γ; *)
-  rand_tape_presample N c P {HP:∀ n, Timeless (P n)} γ γ_view γ_lock E m α ε (ε2:fin (S val_size) -> R):
-    ↑(N.@"rand")⊆E ->
+  rand_tape_presample N c P {HP:∀ n, Timeless (P n)} γ γ_view γ_lock E α ε (ε2:fin (S val_size) -> R):
+    ↑(N)⊆E ->
     (∀ x, (0 <= ε2 x)%R)->
     (SeriesC (λ n : fin (S val_size), 1 / S val_size * ε2 n) <= ε)%R ->
     rand_inv N c P γ γ_view γ_lock -∗
-    rand_tape_auth m γ -∗ rand_tape_frag α None γ -∗ ↯ ε -∗
+    rand_tape_frag α None γ -∗ ↯ ε -∗
     state_update E E (∃ n, 
           ↯ (ε2 n) ∗
-          rand_tape_auth (<[α:=Some (fin_to_nat n)]>m) γ ∗
           rand_tape_frag α (Some (fin_to_nat n)) γ); 
   (* rand_auth_exclusive m m' γ: *)
   (*   rand_auth m γ -∗ rand_auth m' γ -∗ False; *)
@@ -83,17 +82,17 @@ Class lazy_rand `{!conerisGS Σ} (val_size:nat):= Lazy_Rand
   (*   m!!k=None -> rand_auth m γ ==∗ (rand_auth (<[k:=v]> m) γ ∗ rand_frag k v γ); *)
                       
 
-  lazy_rand_presample N c P {HP: ∀ n, Timeless (P n)} γ γ_view γ_lock Q
-    E  :
-  ↑(N.@"tape") ⊆ E ->
-  rand_inv N c P γ γ_view γ_lock -∗
-  (∀ m,  rand_tape_auth m γ -∗
-         state_update (E∖↑(N.@"tape")) (E∖↑(N.@"tape"))
-           (∃ m', rand_tape_auth m' γ ∗ Q m m')
-    ) -∗
-    state_update E E (
-        ∃ m m', Q m m'
-      ); 
+  (* lazy_rand_presample N c P {HP: ∀ n, Timeless (P n)} γ γ_view γ_lock Q *)
+  (*   E  : *)
+  (* ↑(N.@"tape") ⊆ E -> *)
+  (* rand_inv N c P γ γ_view γ_lock -∗ *)
+  (* (∀ m,  rand_tape_auth m γ -∗ *)
+  (*        state_update (E∖↑(N.@"tape")) (E∖↑(N.@"tape")) *)
+  (*          (∃ m', rand_tape_auth m' γ ∗ Q m m') *)
+  (*   ) -∗ *)
+  (*   state_update E E ( *)
+  (*       ∃ m m', Q m m' *)
+  (*     );  *)
 
   lazy_rand_init N P {HP: ∀ n, Timeless (P n)} :
     {{{ P None }}}
@@ -102,21 +101,20 @@ Class lazy_rand `{!conerisGS Σ} (val_size:nat):= Lazy_Rand
           ∃ γ γ_view γ_lock, 
               rand_inv N c P γ γ_view γ_lock }}}; 
 
-  lazy_rand_alloc_tape N c P {HP: ∀ n, Timeless (P n)} γ_tape γ_view γ_lock Q:
-  {{{ rand_inv N c P γ_tape γ_view γ_lock ∗
-      (∀ (m:gmap val (option nat)) α, ⌜α∉dom m⌝ -∗ |={⊤∖↑N.@"tape"}=> Q α)
+  lazy_rand_alloc_tape N c P {HP: ∀ n, Timeless (P n)} γ_tape γ_view γ_lock:
+  {{{ rand_inv N c P γ_tape γ_view γ_lock 
   }}}
       allocate_tape #()
-      {{{ (α: val), RET α; rand_tape_frag α None γ_tape ∗ Q α }}};    
+      {{{ (α: val), RET α; rand_tape_frag α None γ_tape }}};    
   
   lazy_rand_spec N c P {HP: ∀ n, Timeless (P n)} γ_tape γ_view γ_lock Q1 Q2 α (tid:nat):
   {{{ rand_inv N c P γ_tape γ_view γ_lock ∗
-      ( ∀ n m, P n -∗ rand_auth n γ_view -∗ rand_tape_auth m γ_tape -∗ state_update (⊤∖↑N.@"tape") (⊤∖↑N.@"tape")
+      ( ∀ n, P n -∗ rand_auth n γ_view -∗ state_update (⊤) (⊤)
              match n with
-             | Some (res, tid') => P n ∗ rand_auth n γ_view ∗ rand_tape_auth m γ_tape ∗ Q1 res tid'
-             | None => ∃ n', rand_tape_frag α (Some n') γ_tape ∗ rand_tape_auth (<[α:=Some n']> m) γ_tape ∗
+             | Some (res, tid') => P n ∗ rand_auth n γ_view ∗ Q1 res tid'
+             | None => ∃ n', rand_tape_frag α (Some n') γ_tape ∗ 
                               ( rand_tape_frag α None γ_tape
-                                      ={⊤∖↑N.@"tape"}=∗  P (Some (n', tid)) ∗ rand_auth (Some (n', tid)) γ_view ∗ Q2 n' tid)
+                                      ={⊤}=∗  P (Some (n', tid)) ∗ rand_auth (Some (n', tid)) γ_view ∗ Q2 n' tid)
              end                                        
       )
   }}}
