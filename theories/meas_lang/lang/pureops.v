@@ -124,10 +124,17 @@ Definition aux_aux_unop_3 : set (<<discr un_op>> * val)%type :=
 Definition aux_aux_unop_4 : set (<<discr un_op>> * val)%type :=
   setX [set MinusUnOp] (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitReal).
 
-Lemma aux_aux_unop_1_meas : measurable aux_aux_unop_1. Admitted.
-Lemma aux_aux_unop_2_meas : measurable aux_aux_unop_2. Admitted.
-Lemma aux_aux_unop_3_meas : measurable aux_aux_unop_3. Admitted.
-Lemma aux_aux_unop_4_meas : measurable aux_aux_unop_4. Admitted.
+Lemma aux_aux_unop_1_meas : measurable aux_aux_unop_1.
+Proof. apply measurableX; [by rewrite /measurable//= |]. apply 𝜋_LitV_v_meas; by eauto with measlang. Qed.
+
+Lemma aux_aux_unop_2_meas : measurable aux_aux_unop_2.
+Proof. apply measurableX; [by rewrite /measurable//= |]. apply 𝜋_LitV_v_meas; by eauto with measlang. Qed.
+
+Lemma aux_aux_unop_3_meas : measurable aux_aux_unop_3.
+Proof. apply measurableX; [by rewrite /measurable//= |]. apply 𝜋_LitV_v_meas; by eauto with measlang. Qed.
+
+Lemma aux_aux_unop_4_meas : measurable aux_aux_unop_4.
+Proof. apply measurableX; [by rewrite /measurable//= |]. apply 𝜋_LitV_v_meas; by eauto with measlang. Qed.
 
 Lemma aux_unop : auxcov_unop_ok = aux_aux_unop_1 `|` aux_aux_unop_2 `|` aux_aux_unop_3 `|` aux_aux_unop_4.
 Admitted.
