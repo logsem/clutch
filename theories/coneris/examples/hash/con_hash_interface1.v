@@ -158,23 +158,22 @@ Section test.
       + iApply "HΦ". simplify_eq. iFrame.  iSplit; first done. iLeft. by iFrame.
   Qed.
 
-  Lemma con_hash_spec_hashed_before1 N f l hm γ1 γ2 γ3 γlock α ns res (v:nat):
-    {{{ con_hash_inv1 N f l hm (λ _, True) γ1 γ2 γ3 γlock ∗ hash_tape1 α ns γ2 γ3 ∗ hash_frag1 v res γ1 γ2 }}}
+  Lemma con_hash_spec_hashed_before1 N f l hm γ1 γ2 γ3 γlock (α:val) res (v:nat):
+    {{{ con_hash_inv1 N f l hm (λ _, True) γ1 γ2 γ3 γlock ∗ hash_frag1 v res γ1 γ2 }}}
       f #v α
-      {{{ RET (#res);  hash_frag1 v res γ1 γ2 ∗
-                       (hash_tape1 α ns γ2 γ3 )
+      {{{ RET (#res);  hash_frag1 v res γ1 γ2 
       }}}.
   Proof. 
-    iIntros (Φ) "(#Hinv & Ht & #Hf) HΦ".
-    iDestruct (hash_tape_in_hash_set with "[$]") as "#Hfrag".
-    iApply (con_hash_spec1 _ _ _ _ _ _ _ _ _ (λ res' , ⌜res=res'⌝ ∗ hash_frag1 v res γ1 γ2 ∗ hash_tape1 α _ _ _)%I (λ _ _, ⌜False⌝)%I with "[$Hinv Ht]").
+    iIntros (Φ) "(#Hinv & #Hf) HΦ".
+    (* iDestruct (hash_tape_in_hash_set with "[$]") as "#Hfrag". *)
+    iApply (con_hash_spec1 _ _ _ _ _ _ _ _ _ (λ res' , ⌜res=res'⌝ ∗ hash_frag1 v res γ1 γ2 )%I (λ _ _, ⌜False⌝)%I with "[$Hinv]").
     - iIntros (?) "_ Hauth".
       case_match.
       + iDestruct (hash_auth_frag_agree with "[$][$]") as "%".
         simplify_eq. iDestruct (hash_auth_duplicate with "[$]") as "#$"; first done. by iFrame.
       + iDestruct (hash_auth_frag_agree with "[$][$]") as "%".
         simplify_eq.
-    - iNext. iIntros (res') "[(->&?&?)|(%&[])]".
+    - iNext. iIntros (res') "[(->&?)|(%&[])]".
       iApply "HΦ". iFrame.
   Qed.
   
