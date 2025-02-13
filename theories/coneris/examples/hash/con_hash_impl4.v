@@ -125,3 +125,4 @@ Section con_hash_impl.
   Definition hash_frag k v γ1 :=
     (hv_frag (L:=Hhv) k v γ1)%I.
 
+End con_hash_impl.
