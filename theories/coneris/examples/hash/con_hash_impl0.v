@@ -1,10 +1,10 @@
-From iris.algebra Require Import excl_auth gmap.
-From clutch.coneris Require Import coneris abstract_tape hocap_rand_alt lib.map lock con_hash_interface0.
+From iris.algebra Require Import gmap.
+From clutch.coneris Require Import coneris hocap_rand_alt lib.map lock con_hash_interface0.
 
 Set Default Proof Using "Type*".
 (* Concurrent hash impl*)
 (* Section lemmas. *)
-(*   Context `{!inG Σ (excl_authR natO)}. *)
+(*   Context `{!inG Σ (excl_authR (gmapO nat natO))}. *)
 
 (*   (* Helpful lemmas *) *)
 (*   Lemma ghost_var_alloc b : *)
@@ -33,58 +33,14 @@ Set Default Proof Using "Type*".
 
 (* End lemmas. *)
 
-Section lemmas.
-  Context `{!inG Σ (excl_authR (gmapO nat natO))}.
 
-  (* Helpful lemmas *)
-  Lemma ghost_var_alloc b :
-    ⊢ |==> ∃ γ, own γ (●E b) ∗ own γ (◯E b).
-  Proof.
-    iMod (own_alloc (●E b ⋅ ◯E b)) as (γ) "[??]".
-    - by apply excl_auth_valid.
-    - by eauto with iFrame.
-  Qed.
-
-  Lemma ghost_var_agree γ b c :
-    own γ (●E b) -∗ own γ (◯E c) -∗ ⌜ b = c ⌝.
-  Proof.
-    iIntros "Hγ● Hγ◯".
-    by iCombine "Hγ● Hγ◯" gives %->%excl_auth_agree_L.
-  Qed.
-
-  Lemma ghost_var_update γ b' b c :
-    own γ (●E b) -∗ own γ (◯E c) ==∗ own γ (●E b') ∗ own γ (◯E b').
-  Proof.
-    iIntros "Hγ● Hγ◯".
-    iMod (own_update_2 _ _ _ (●E b' ⋅ ◯E b') with "Hγ● Hγ◯") as "[$$]".
-    { by apply excl_auth_update. }
-    done.
-  Qed.
-
-End lemmas.
-
-
-(* Class con_hashG (Σ:gFunctors) := ConhashG { *)
-(*                                      conhashG_tapesG::inG Σ (excl_authR (gmapO nat natO)); *)
-(*                                      conhashG_sizeG::inG Σ (excl_authR natO); *)
-(*                                      conhashG_conerisG::conerisGS Σ; *)
-(*                                      conhashG_rand::@rand_spec Σ conhashG_conerisG; *)
-(*                                      conhashG_randG:randG Σ; *)
-(*                                      conhashG_hv::@hash_view Σ conhashG_conerisG; *)
-(*                                      conhashG_hvG: hvG Σ; *)
-(*                                      conhashG_abstract_tapesG::abstract_tapesGS Σ; *)
-(*                                      conhashG_lock::lock; *)
-(*                                      conhashG_lockG:lockG Σ *)
-                                     
-(* }. *)
 Section con_hash_impl.
   Variable val_size:nat.
   Context `{Hc: conerisGS Σ,
               (* h : @hash_view Σ Hc, Hhv: hvG Σ, *)
                 lo:lock, Hl: lockG Σ,
-                  (* r: @rand_spec Σ Hc, Hr: randG Σ, *)
-                    Hm: inG Σ (excl_authR (gmapO nat natO)),
-                      Ht: !abstract_tapesGS Σ,
+                    (* Hm: inG Σ (excl_authR (gmapO nat natO)), *)
+                    (*   Ht: !abstract_tapesGS Σ, *)
                         Hr: !rand_spec' val_size
     }.
   
@@ -142,72 +98,55 @@ Section con_hash_impl.
       release "l";;
       "output".
 
-  Definition hash_tape α t γ:=(rand_tapes α t γ.1 ∗ α ◯↪N ( val_size ; t ) @ γ.2)%I.
+  Definition hash_tape α t γ:=(rand_tapes α t γ)%I.
   
-  Definition hash_tape_auth m γ :=(([∗ set] α∈ dom m, rand_token α γ.1) ∗
-                                   ● ((λ x, (val_size, x))<$>m) @ γ.2)%I.
-  (* Definition hash_auth m γ := hv_auth (L:=Hhv) m γ. *)
-  (* Definition hash_frag k v γ := hv_frag (L:=Hhv) k v γ. *)
-  Definition abstract_con_hash (f:val) (l:val) (hm:val)
-    (P: gmap nat nat -> gmap val (list nat) -> iProp Σ) {HP: ∀ m m', Timeless (P m m')} γ γ_tape: iProp Σ :=
-    ∃ m m',
-      ⌜f=compute_con_hash_specialized (l, hm)%V⌝ ∗
-      (* hv_auth (L:=Hhv) m γ1 ∗ *)
-      own γ (●E m) ∗
-      hash_tape_auth m' γ_tape ∗
-      P m m'
+  (* Definition hash_tape_auth m γ :=(([∗ set] α∈ dom m, rand_token α γ.1) ∗ *)
+  (*                                  ● ((λ x, (val_size, x))<$>m) @ γ.2)%I. *)
+  Definition abstract_con_hash (f:val) (l:val) (hm:val): iProp Σ :=
+      ⌜f=compute_con_hash_specialized (l, hm)%V⌝ 
   .
-  Definition abstract_con_hash_inv N f l hm P {HP: ∀ m m', Timeless (P m m')} γ γ_tape:=
-    (inv (N.@"hash") (abstract_con_hash f l hm P γ γ_tape) ∗ is_rand (N.@"rand") γ_tape.1)%I.
+  Definition abstract_con_hash_inv N f l hm γ_tape:=
+    ((abstract_con_hash f l hm) ∗ is_rand (N) γ_tape)%I.
   
-  Definition concrete_con_hash (hm:val) (m:gmap nat nat) R {HR: ∀ m, Timeless (R m )} γ : iProp Σ:=
+  Definition concrete_con_hash (hm:val) (m:gmap nat nat) R {HR: ∀ m, Timeless (R m )} : iProp Σ:=
     ∃ (hm':loc), ⌜hm=#hm'⌝ ∗
     map_list hm' ((λ b, LitV (LitInt (Z.of_nat b))) <$> m) ∗
-    own γ (◯E m) ∗
     R m
   .
 
-  Definition concrete_con_hash_inv hm l R {HR: ∀ m, Timeless (R m )} γ_lock γ:=
-    is_lock (L:=Hl) γ_lock l (∃ m, concrete_con_hash hm m R γ).
+  Definition concrete_con_hash_inv hm l R {HR: ∀ m, Timeless (R m )} γ_lock:=
+    is_lock (L:=Hl) γ_lock l (∃ m, concrete_con_hash hm m R).
   
-  Definition con_hash_inv N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ_tape γ_lock:=
-    (∃ γ, abstract_con_hash_inv N f l hm P γ γ_tape ∗
-           concrete_con_hash_inv hm l R γ_lock γ)%I.
+  Definition con_hash_inv N f l hm R {HR: ∀ m, Timeless (R m )} γ_tape γ_lock:=
+    (abstract_con_hash_inv N f l hm γ_tape ∗
+           concrete_con_hash_inv hm l R γ_lock)%I.
 
-  Lemma con_hash_presample N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ γ_lock Q
-    E  :
-    ↑(N.@"hash") ⊆ E ->
-    con_hash_inv N f l hm P R γ γ_lock -∗
-    (∀ m m', P m m'  -∗
-             hash_tape_auth m' γ -∗
-             state_update (E∖↑(N.@"hash")) (E∖↑(N.@"hash"))
-             (∃ m'', P m m'' ∗ hash_tape_auth m'' γ ∗ Q m m' m'')
-    ) -∗
-    state_update E E (
-        ∃ m m' m'', Q m m' m''
-      ).
+  Lemma con_hash_tape_presample N γ γ_lock f l hm R {HR: ∀ m, Timeless (R m )} α ns ε ε2 E:
+  ↑(N)⊆E ->
+    (∀ x : fin (S val_size), (0 <= ε2 x)%R)->
+    (SeriesC (λ n : fin (S val_size), 1 / S val_size * ε2 n) <= ε)%R ->
+    con_hash_inv N f l hm R γ γ_lock -∗
+    hash_tape α ns γ -∗ ↯ ε -∗
+    state_update E E (∃ n, 
+          ↯ (ε2 n) ∗
+          hash_tape α (ns++[fin_to_nat n]) γ).
   Proof.
-    iIntros (Hsubset) "#Hinv Hvs".
-    iDestruct "Hinv" as "(%γ' & #[Hinv1 Hinv'] & #Hinv2)".
-    iInv "Hinv1" as ">(%&%&->&Hown&Hauth&HP)" "Hclose".
-    iApply (state_update_mono_fupd (E∖↑(N.@"hash"))).
-    { apply difference_mono_l. done. }
-    iApply fupd_mask_intro.
-    { by apply difference_mono_l.  }
-    iIntros "Hclose'".
-    iMod ("Hvs" with "[$][$]") as "(%&HP&Hauth&HQ)".
-    iMod "Hclose'" as "_".
-    iMod ("Hclose" with "[$Hown $HP $Hauth]"); first done.
-    by iFrame.
+    iIntros (Hsubset Hpos Hineq) "#([->?]&?)?Herr".
+    iMod (rand_tapes_presample with "[$][$][$]") as "(%&Htape&?)"; try done.
+    (* iDestruct (big_sepM_insert_acc with "[$]") as "[H1 H2]"; first done. *)
+    (* iDestruct "H1" as "(%&->&Htape)". *)
+    (* (** should have better lemma for this*) *)
+    (* iMod (state_update_presample_exp with "[$][$]") as "(%&Htape&?)"; [done..|]. *)
+    by iFrame. 
   Qed.
   
 
-  Lemma con_hash_init N P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )}:
-    {{{ P ∅ ∅ ∗  R ∅}}}
+  Lemma con_hash_init N R {HR: ∀ m, Timeless (R m )} :
+    {{{ R ∅}}}
       init_hash #()
-      {{{ (f:val), RET f; ∃ l hm γ_tape γ_lock, con_hash_inv N f l hm P R γ_tape γ_lock }}}.
+      {{{ (f:val), RET f; ∃ l hm γ_tape γ_lock, con_hash_inv N f l hm R γ_tape γ_lock }}}.
   Proof.
-    iIntros (Φ) "[HP HR] HΦ".
+    iIntros (Φ) "HR HΦ".
     rewrite /init_hash.
     iApply fupd_pgl_wp.
     iMod (rand_inv_create_spec) as "(%&#Hrand)"; first done.
@@ -215,76 +154,49 @@ Section con_hash_impl.
     wp_pures.
     rewrite /con_hash_inv/abstract_con_hash_inv/abstract_con_hash/concrete_con_hash_inv/concrete_con_hash.
     rewrite /init_hash_state.
-    iMod (abstract_tapes_alloc) as "(%γ_tape & Htauth &?)".
     wp_apply (wp_init_map with "[$]") as (l) "Hm".
     wp_pures.
-    iMod (ghost_var_alloc ∅) as "[%γ2 [Hauth Hfrag]]".
-    wp_apply (newlock_spec with "[Hm Hfrag HR]") as (loc γ_lock) "#Hl"; last first.
+    wp_apply (newlock_spec with "[Hm HR]") as (loc γ_lock) "#Hl"; last first.
     - wp_pures. 
-      iMod (inv_alloc with "[Hauth HP Htauth]") as "#Hinv"; last first.
-      + rewrite /compute_con_hash. wp_pures.  iApply "HΦ". iExists _, _, (_,_).
-        by iFrame "Hinv Hl Hrand".
-      + rewrite /compute_con_hash_specialized. iFrame. iSplit; try done. iNext.
-        rewrite dom_empty_L. done.
+      rewrite /compute_con_hash. wp_pures.  iApply "HΦ". iModIntro.
+      by iFrame "Hl Hrand".
     - by iFrame.
   Qed.
 
-  Lemma con_hash_alloc_tape N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ_tape γ_lock Q:
-  {{{ con_hash_inv N f l hm P R γ_tape γ_lock ∗
-      (∀ m m' α, P m m' -∗ ⌜α∉dom m'⌝ -∗ |={⊤∖↑N.@"hash"}=> P m (<[α:=[]]>m') ∗ Q α)
+  Lemma con_hash_alloc_tape N f l hm R {HR: ∀ m, Timeless (R m )} γ_tape γ_lock:
+  {{{ con_hash_inv N f l hm R γ_tape γ_lock 
   }}}
       allocate_tape #()
-      {{{ (α: val), RET α; hash_tape α [] γ_tape ∗ Q α }}}.
+      {{{ (α: val), RET α; hash_tape α [] γ_tape }}}.
   Proof.
-    iIntros (Φ) "[(%&#[Hinv1 Hinv1'] & #Hin2)Hvs] HΦ".
+    iIntros (Φ) "(#[-> Hinv1'] & #Hin2) HΦ".
     rewrite /allocate_tape.
     wp_pures.
-    iApply pgl_wp_fupd.
-    wp_apply (rand_allocate_tape_spec with "[//]") as (α) "[Htoken Hrand]"; first done.
-    iInv "Hinv1" as ">(%&%&->&Hown&[Htokens Hauth]&HP)" "Hclose".
-    iAssert (⌜α∉dom m'⌝)%I as "%".
-    { iIntros "%H".
-      rewrite big_sepS_elem_of_acc; last done.
-      iDestruct "Htokens" as "[? ?]".
-      iApply (rand_token_exclusive with "[$][$]").
-    }
-    iMod ("Hvs" with "[$HP][//]") as "[HP HQ]".
-    iMod (abstract_tapes_new with "[$]") as "[Hauth Htape]"; last first.
-    - iMod ("Hclose" with "[$Hown $HP Hauth Htoken Htokens]").
-      + rewrite /hash_tape_auth. rewrite fmap_insert. iFrame.
-        iSplit; first done.
-        rewrite dom_insert_L big_sepS_insert; last done.
-        iFrame.
-      + iApply "HΦ". by iFrame.
-    - rewrite lookup_fmap. apply not_elem_of_dom_1 in H. by rewrite H.
+    wp_apply (rand_allocate_tape_spec with "[//]") as (α) "[_ Hrand]"; first done.
+    iApply "HΦ".
+    iFrame.
   Qed.
 
-  Lemma con_hash_spec  N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ_tape γ_lock Q1 Q2 α (v:nat):
-  {{{ con_hash_inv N f l hm P R γ_tape γ_lock ∗ 
-      ( ∀ m m', R m -∗ P m m' -∗ hash_tape_auth m' γ_tape -∗ state_update (⊤∖↑N.@"hash") (⊤∖↑N.@"hash")
+  Lemma con_hash_spec N f l hm R {HR: ∀ m, Timeless (R m )} γ_tape γ_lock Q1 Q2 α (v:nat):
+  {{{ con_hash_inv N f l hm R γ_tape γ_lock ∗ 
+      ( ∀ m , R m -∗ state_update (⊤) (⊤)
              match m!!v with
-             | Some res => R m ∗ P m m' ∗ hash_tape_auth m' γ_tape ∗ Q1 res
-             | None => ∃ n ns, hash_tape α (n::ns) γ_tape ∗ P m (<[α:=n::ns]> m') ∗ hash_tape_auth (<[α:=n::ns]> m') γ_tape ∗
-                              (∀ m'', P m m'' -∗ hash_tape α (ns) γ_tape -∗ ⌜m''!!α=Some (n::ns)⌝
-                                      ={⊤∖↑N.@"hash"}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗ Q2 n ns)
+             | Some res => R m ∗ Q1 res
+             | None => ∃ n ns, hash_tape α (n::ns) γ_tape ∗ 
+                              (hash_tape α (ns) γ_tape ={⊤}=∗ R (<[v:=n]> m) ∗ Q2 n ns)
              end                                        
       )
   }}}
       f #v α
       {{{ (res:nat), RET (#res);  (Q1 res ∨
-                                 ∃ ns,  Q2 res ns
+                                 ∃ ns, Q2 res ns
                                 )
       }}}.
   Proof.
-    iIntros (Φ) "((%&#[Hinv1 Hinv1'] & #Hin2) & Hvs) HΦ".
-    rewrite /abstract_con_hash_inv/concrete_con_hash_inv.
-    iApply fupd_pgl_wp.
-    iInv "Hinv1" as ">(%&%&->&H1&H2)" "Hclose".
-    iMod ("Hclose" with "[$H1 $H2]") as "_"; first done.
-    iModIntro.
+    iIntros (Φ) "((#[-> Hinv1'] & #Hin2) & Hvs) HΦ".
     rewrite /compute_con_hash_specialized.
     wp_pures.
-    wp_apply (acquire_spec with "Hin2") as "[Hl[% (%&->&Hm&Hfrag&HR)]]".
+    wp_apply (acquire_spec with "Hin2") as "[Hl[% (%&->&Hm&HR)]]".
     wp_pures.
     rewrite /compute_hash.
     wp_pures.
@@ -294,18 +206,11 @@ Section con_hash_impl.
     - (* hashed before *)
       wp_pures.
       iApply state_update_pgl_wp.
-      iInv "Hinv1" as ">(%&%&->&H1&[Htapes Htauth]&H2)" "Hclose".
-      iDestruct (ghost_var_agree with "[$][$]") as "->".
-      rewrite /hash_tape /hash_tape_auth.
-      (* iDestruct (abstract_tapes_agree with "[$][$]") as "%H". *)
-      (* rewrite lookup_fmap in H. apply fmap_Some_1 in H. *)
-      (* destruct H as (?&?&?). simplify_eq. *)
-      iMod ("Hvs" with "[$][$][$]") as "Hvs"; try done.
+      iMod ("Hvs" with "[$]") as "Hvs"; try done.
       rewrite Hres.
-      iDestruct "Hvs" as "(HR & HP & [Htoken Htauth] & HQ)".
-      iMod ("Hclose" with "[$H1 $HP $Htauth $Htoken]") as "_"; first done.
+      iDestruct "Hvs" as "(HR & HQ)".
       iModIntro.
-      wp_apply (release_spec with "[$Hin2 $Hl $Hfrag $Hm $HR]") as "_"; first done.
+      wp_apply (release_spec with "[$Hin2 $Hl $Hm $HR]") as "_"; first done.
       wp_pures.
       iModIntro. iApply "HΦ".
       iLeft.
@@ -328,62 +233,18 @@ Section con_hash_impl.
       (*   iDestruct "Hvs" as "(%&%&%&?)". simplify_eq. *)
       (* } *)
       iApply state_update_pgl_wp.
-      iInv "Hinv1" as ">(%&%&->&H1&[Htapes Htauth]&H2)" "Hclose".
-      iDestruct (ghost_var_agree with "[$][$]") as "->".
-      rewrite /hash_tape /hash_tape_auth.
-      iMod ("Hvs" with "[$][$][$]") as "Hvs"; try done.
+      rewrite /hash_tape.
+      iMod ("Hvs" with "[$]") as "Hvs"; try done.
       rewrite Hres.
-      iDestruct "Hvs" as "(%&%&[Htape Htape']&HP&[Htapes Htauth]&Hvs)".
-      iDestruct (abstract_tapes_agree with "[$][$]") as "%Hsome'".
-      iMod ("Hclose" with "[$H1 $Htauth $Htapes $HP]") as "_"; first done.
+      iDestruct "Hvs" as "(%&%& Htape&Hvs)".
       iModIntro.
       wp_apply (rand_tape_spec_some with "[$]") as "Htape"; first done.
-      iApply fupd_pgl_wp.
-      iInv "Hinv1" as ">(%&%&_&Hown&[Htoken Hauth]&HP)" "Hclose".
-      iDestruct (abstract_tapes_agree with "[$][$]") as "%Hsome".
-      apply lookup_fmap_Some in Hsome.
-      destruct Hsome as (?&?&Hsome). simplify_eq.
-      iDestruct (ghost_var_agree with "[$][$]") as "->".
-      iMod (abstract_tapes_pop with "[$][$]") as "[Hauth Htape']".
-      simplify_eq.
-      iMod ("Hvs" with "[$][$][]") as "Hvs"; try done.
-      iDestruct "Hvs" as "(HR&HP&HQ)". simplify_eq.
-      iMod (ghost_var_update with "[$][$]") as "[Hown Hown']".
-      iMod ("Hclose" with "[Hauth Htoken Hown HP]") as "_".
-      { iExists _, (<[_:=_]>_).
-        iFrame.
-        iSplit; first done.
-        rewrite /hash_tape_auth.
-        iNext.
-        rewrite fmap_insert. iFrame.
-        rewrite dom_insert_L subseteq_union_1_L; first iFrame.
-        apply elem_of_subseteq_singleton. rewrite elem_of_dom.
-        by rewrite Hsome.
-      }
-      (* iDestruct (abstract_tapes_agree with "[$][$]") as "%H". *)
-      (* rewrite lookup_fmap in H. apply fmap_Some_1 in H. *)
-      (* destruct H as (?&?&?). simplify_eq. *)
-      (* iDestruct (big_sepM_insert_acc with "[$]") as "[H1 H2]"; first done. *)
-      (* iDestruct "H1" as "(%&%&H1)". simplify_eq. *)
-      (* wp_apply (wp_rand_tape with "[$]") as "[H1 %]". *)
-      (* iDestruct ("H2" with "[H1]") as "H2"; first by iFrame. *)
-      (* iMod (abstract_tapes_pop with "[$][$]") as "[Hauth Htape]". *)
-      (* iDestruct (ghost_var_agree with "[$][$]") as "->". *)
-      (* iMod ("Hvs" with "[$HP][//]") as "Hvs". *)
-      (* rewrite Hres. *)
-      (* iDestruct "Hvs" as "(%&%&%&HP&HQ)". *)
-      (* simplify_eq. *)
-      (* iMod (ghost_var_update with "[$][$]") as "[Hown Hfrag]". *)
-      (* iMod ("Hclose" with "[$Hown $HP Hauth $H2]") as "_". *)
-      (* { iSplit; first done. *)
-      (*   by rewrite fmap_insert.  *)
-      (* } *)
-      (* iModIntro. *)
-      iModIntro.
+      iMod ("Hvs" with "[$]") as "Hvs"; try done.
+      iDestruct "Hvs" as "(HR&HQ)". 
       wp_pures.
       wp_apply (wp_set with "[$]") as "Hm".
       wp_pures.
-      wp_apply (release_spec with "[$Hin2 $Hown' $HR Hm $Hl]") as "_".
+      wp_apply (release_spec with "[$Hin2 $HR Hm $Hl]") as "_".
       { iExists _. iSplit; first done. by rewrite fmap_insert. }
       wp_pures.
       iApply "HΦ".
@@ -401,49 +262,24 @@ Section con_hash_impl.
       hash_lock_gname:=_; 
       con_hash_inv0 := con_hash_inv;
       hash_tape0:=hash_tape;
-      con_hash_presample0 := con_hash_presample;
+      hash_tape_presample := con_hash_tape_presample;
       con_hash_init0 := con_hash_init;
       con_hash_alloc_tape0 := con_hash_alloc_tape;
       con_hash_spec0 := con_hash_spec;
     |}
   .
   Next Obligation.
-    iIntros (???) "[? ?]".
+    iIntros (???) " ?".
     by iApply (rand_tapes_valid).
   Qed.
   Next Obligation.
-    iIntros (????) "[H1 ?] [H2 ?]".
-    iApply (abstract_tapes_frag_exclusive with "[$][$]").
+    iIntros (????) "H1 H2".
+    iApply (rand_tapes_exclusive with "[$][$]").
   Qed.
   (* Next Obligation. *)
   (*   iIntros (???) "[??][??]". *)
   (*   iApply (abstract_tapes_auth_exclusive with "[$][$]"). *)
   (* Qed. *)
-  Next Obligation.
-    iIntros (????) "[??][??]".
-    iDestruct (abstract_tapes_agree with "[$][$]") as "%H".
-    rewrite lookup_fmap in H. apply fmap_Some_1 in H.
-    destruct H as (?&?&?). by simplify_eq.
-  Qed.
-  Next Obligation.
-    iIntros (???????????????????) "#(%&[? Hinv]&?)[??][??]Herr".
-    iDestruct (abstract_tapes_agree with "[$][$]") as "%H'".
-    rewrite lookup_fmap in H'. apply fmap_Some_1 in H'.
-    destruct H' as (?&Hsome&?). simplify_eq.
-    iMod (rand_tapes_presample with "[$][$][$]") as "(%&Htape&?)"; try done.
-    (* iDestruct (big_sepM_insert_acc with "[$]") as "[H1 H2]"; first done. *)
-    (* iDestruct "H1" as "(%&->&Htape)". *)
-    (* (** should have better lemma for this*) *)
-    (* iMod (state_update_presample_exp with "[$][$]") as "(%&Htape&?)"; [done..|]. *)
-    iMod (abstract_tapes_presample with "[$][$]") as "[? H]".
-    iFrame. iModIntro.
-    rewrite /hash_tape_auth.
-    rewrite fmap_insert. iFrame.
-    rewrite dom_insert_L subseteq_union_1_L; first done.
-    apply elem_of_subseteq_singleton. rewrite elem_of_dom.
-    by rewrite Hsome.
-  Qed.
-    
     
     
     

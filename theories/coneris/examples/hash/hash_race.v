@@ -51,8 +51,8 @@ Section race.
     iIntros (Φ) "Herr HΦ".
     rewrite /race_prog.
     iMod (ghost_var_alloc false) as (γ) "[Hauth Hfrag]".
-    wp_apply (con_hash_init3 (nroot.@"1") (λ _ _, ⌜True⌝)%I  (λ m,if bool_decide (m!!0=None) then own γ (◯E false) else own γ (◯E true))%I  with "[Hfrag]" ).
-    { iSplit; first done. rewrite bool_decide_eq_true_2; first iFrame.
+    wp_apply (con_hash_init3 (nroot.@"1")  (λ m,if bool_decide (m!!0=None) then own γ (◯E false) else own γ (◯E true))%I  with "[Hfrag]" ).
+    { rewrite bool_decide_eq_true_2; first iFrame.
       by rewrite lookup_empty.
     }
     iIntros (f) "(%&%&%&%&%&%&%&%γ_token&%&#Hinv1&Htoken)".
@@ -61,33 +61,23 @@ Section race.
     wp_pures.
     wp_apply (wp_par (λ res, ∃ (res':nat), ⌜#res' = res⌝ ∗ hash_frag3 0 res' _ _ _ )%I
                 (λ res, ∃ (res':nat), ⌜#res' = res⌝ ∗ hash_frag3 0 res' _ _ _)%I with "[][]").
-    - wp_apply (con_hash_alloc_tape3  _ _ _ _ _ _ _ _ _ _ _ _ _ (λ _, ⌜True⌝)%I).
-      { iSplit; first done.
-        iIntros. iModIntro. by iSplit.
-      }
-      iIntros (α) "[Ht _]".
+    - wp_apply (con_hash_alloc_tape3  _ _ _ _ _ _ _ _ _ _ _ _ _ ); first done.
+      iIntros (α) "Ht".
       replace 0%Z with (Z.of_nat 0%nat) by done.
-      wp_apply (con_hash_spec3 _ _ _ _ _ _ _ _ _ _ _ _ _ (λ res,  hash_frag3 0 res _ _ _ )%I (λ res _, hash_frag3 0 res _ _ _ )%I with "[Ht]"); first iSplit; first done.
+      wp_apply (con_hash_spec3 _ _ _ _ _ _ _ _ _ _ _ _ (λ res,  hash_frag3 0 res _ _ _ )%I (λ res _, hash_frag3 0 res _ _ _ )%I with "[Ht]"); first iSplit; first done.
       + simpl.
-        iIntros (? ?) "Hfrag _ Htauth Hhauth".
+        iIntros (?) "Hfrag Hhauth".
         case_bool_decide as H.
-        * iApply (state_update_inv_acc with "[][-]"); [|iExact "Hinv2" |].
-          { apply subseteq_difference_r; last done.
-            apply ndot_preserve_disjoint_r.
-            by apply ndot_ne_disjoint. }
+        * iApply (state_update_inv_acc with "[][-]"); [done|iExact "Hinv2" |].
           iIntros ">[(Hauth & Htoken &Herr) | Hauth]"; last by iDestruct (ghost_var_agree with "[$][$]") as "%".
           rewrite H.
-          iMod (hash_tape_presample with "[//][$][$][$][Htoken]") as "(%&?&?&?)".
+          iMod (hash_tape_presample with "[//][$][$][Htoken]") as "(%&?&?)".
           -- repeat apply subseteq_difference_r; last done.
-             ++ by apply ndot_preserve_disjoint_l, ndot_ne_disjoint.
-             ++ by apply ndot_ne_disjoint.
-          -- repeat apply subseteq_difference_r; last done.
-             ++ by apply ndot_preserve_disjoint_l, ndot_ne_disjoint.
-             ++ by apply ndot_ne_disjoint.
+             by apply ndot_ne_disjoint.
           -- destruct max_hash_size as [|n]; first lia.
              iAssert (hash_token3 (n) γ_token ∗ hash_token3 (1) γ_token)%I with "[Htoken]" as "[_ $]".
              rewrite -hash_token_split. replace (n+1)%nat with (S n) by lia. iFrame.
-          -- simpl. iDestruct (hash_tape_auth_frag_agree with "[$][$]") as "%".
+          -- simpl. 
              iFrame. iMod (ghost_var_update _ true with "[$][$]") as "[??]". iFrame. iModIntro.
              iIntros.
              rewrite bool_decide_eq_false_2; last first.
@@ -100,33 +90,23 @@ Section race.
           iDestruct (hash_auth_duplicate with "[$]") as "#?"; first done.
           by iFrame.
       + iIntros (?) "[?|(%&?)]"; by iFrame.
-    - wp_apply (con_hash_alloc_tape3  _ _ _ _ _ _ _ _ _ _ _ _ _ (λ _, ⌜True⌝)%I).
-      { iSplit; first done.
-        iIntros. iModIntro. by iSplit.
-      }
-      iIntros (α) "[Ht _]".
+    - wp_apply (con_hash_alloc_tape3  _ _ _ _ _ _ _ _ _ _ _ _ _); first done.
+      iIntros (α) "Ht".
       replace 0%Z with (Z.of_nat 0%nat) by done.
-      wp_apply (con_hash_spec3 _ _ _ _ _ _ _ _ _ _ _ _ _ (λ res,  hash_frag3 0 res _ _ _ )%I (λ res _, hash_frag3 0 res _ _ _ )%I with "[Ht]"); first iSplit; first done.
+      wp_apply (con_hash_spec3 _ _ _ _ _ _ _ _ _ _ _ _ (λ res,  hash_frag3 0 res _ _ _ )%I (λ res _, hash_frag3 0 res _ _ _ )%I with "[Ht]"); first iSplit; first done.
       + simpl.
-        iIntros (? ?) "Hfrag _ Htauth Hhauth".
+        iIntros (?) "Hfrag  Hhauth".
         case_bool_decide as H.
-        * iApply (state_update_inv_acc with "[][-]"); [|iExact "Hinv2" |].
-          { apply subseteq_difference_r; last done.
-            apply ndot_preserve_disjoint_r.
-            by apply ndot_ne_disjoint. }
+        * iApply (state_update_inv_acc with "[][-]"); [done|iExact "Hinv2" |].
           iIntros ">[(Hauth & Htoken &Herr) | Hauth]"; last by iDestruct (ghost_var_agree with "[$][$]") as "%".
           rewrite H.
-          iMod (hash_tape_presample with "[//][$][$][$][Htoken]") as "(%&?&?&?)".
+          iMod (hash_tape_presample with "[//][$][$][Htoken]") as "(%&?&?)".
           -- repeat apply subseteq_difference_r; last done.
-             ++ by apply ndot_preserve_disjoint_l, ndot_ne_disjoint.
-             ++ by apply ndot_ne_disjoint.
-          -- repeat apply subseteq_difference_r; last done.
-             ++ by apply ndot_preserve_disjoint_l, ndot_ne_disjoint.
-             ++ by apply ndot_ne_disjoint.
-          -- destruct max_hash_size as [|n]; first lia.
+             by apply ndot_ne_disjoint.
+         -- destruct max_hash_size as [|n]; first lia.
              iAssert (hash_token3 (n) γ_token ∗ hash_token3 (1) γ_token)%I with "[Htoken]" as "[_ $]".
              rewrite -hash_token_split. replace (n+1)%nat with (S n) by lia. iFrame.
-          -- simpl. iDestruct (hash_tape_auth_frag_agree with "[$][$]") as "%".
+          -- simpl. 
              iFrame. iMod (ghost_var_update _ true with "[$][$]") as "[??]". iFrame. iModIntro.
              iIntros.
              rewrite bool_decide_eq_false_2; last first.

@@ -37,14 +37,13 @@ Section con_hash_impl3.
   Definition hash_auth :=
     (hash_auth2 )%I.
   Definition hash_tape := hash_tape2.
-  Definition hash_tape_auth  := hash_tape_auth2.
 
   Definition hash_frag := hash_frag2.
 
   Definition hash_token n γ := own γ (◯ n%nat).
   
-  Definition con_hash_inv N f l hm (P:gmap nat nat -> gmap val (list nat) -> iProp Σ) {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m)} γ1 γ2 γ_tape γ4 γ5 γ_token γ_lock:=
-    (con_hash_inv2 (N) f l hm P R γ1 γ2 γ_tape γ4 γ5 γ_lock ∗
+  Definition con_hash_inv N f l hm  R {HR: ∀ m, Timeless (R m)} γ1 γ2 γ_tape γ4 γ5 γ_token γ_lock:=
+    (con_hash_inv2 (N.@"rand") f l hm R γ1 γ2 γ_tape γ4 γ5 γ_lock ∗
     inv (N.@"err") (∃ n, hash_set n γ2 γ5 γ_token))%I
   .
 
@@ -97,23 +96,20 @@ Section con_hash_impl3.
       by apply le_INR.
   Qed.
 
-  Lemma hash_tape_presample  N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} m γ_hv γ_set γ_hv' γ_token γ γ_set' γ_lock α ns  E:
-  ↑(N.@"rand")⊆E ->
-  ↑(N.@"err")⊆E ->
-  con_hash_inv N f l hm P R γ_hv γ_set γ γ_hv' γ_set' γ_token γ_lock -∗
-  hash_tape_auth m γ_set γ -∗
+  Lemma hash_tape_presample  N f l hm R {HR: ∀ m, Timeless (R m )} γ_hv γ_set γ_hv' γ_token γ γ_set' γ_lock α ns  E:
+  ↑(N)⊆E ->
+  con_hash_inv N f l hm R γ_hv γ_set γ γ_hv' γ_set' γ_token γ_lock -∗
   hash_tape α ns γ_set γ-∗
   ↯ (amortized_error val_size max_hash_size Hpos) -∗
   hash_token 1 γ_token-∗
     (* hash_set3 s γ_set γ_set' γ6-∗ *)
     state_update E E (∃ (n:fin(S val_size)), 
           (* ( hash_set3 (s+1)%nat γ_set γ_set' γ6 )∗ *)
-          hash_tape_auth (<[α:=ns++[fin_to_nat n]]>m) γ_set γ ∗
           hash_tape α (ns++[fin_to_nat n]) γ_set γ ∗ hash_set_frag (fin_to_nat n) γ_set γ_set'
       ).
   Proof.
-    rewrite /hash_tape_auth/hash_tape/hash_token/hash_set.
-    iIntros (Hsubset Hsubset') "#[Hinv Hinv'] Htauth Ht Herr Htoken ".
+    rewrite /hash_tape/hash_token/hash_set.
+    iIntros (Hsubset ) "#[Hinv Hinv'] Ht Herr Htoken ".
     iInv ("Hinv'") as ">(%s&(%&?&Hauth&Htokens&%H&?))" "Hclose". 
     iDestruct (ec_combine with "[$]") as "Herr".
     rewrite /amortized_error/=H.
@@ -172,9 +168,10 @@ Section con_hash_impl3.
       apply K in Hineq'.
       replace (_+_-_) with s in Hineq'; last lia.
       rewrite plus_INR in Hineq'. simpl in *. done. }
-    iMod (con_hash_interface2.hash_tape_presample _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ (mknonnegreal _ _) 0%NNR with "[//][$][$][Herr][$]") as "(%&[Hs _]&Htauth&Ht&Hsf)"; [| |iApply ec_eq; last done; simpl; done|].
-    - apply subseteq_difference_r; last done.
-      by apply ndot_ne_disjoint.
+    iMod (con_hash_interface2.hash_tape_presample _ _ _ _ _ _ _ _ _ _ _ _ _ _ (mknonnegreal _ _) 0%NNR with "[//][$][Herr][$]") as "(%&[Hs _]&Ht&Hsf)"; [| |iApply ec_eq; last done; simpl; done|].
+    - apply subseteq_difference_r.
+      + by apply ndot_ne_disjoint.
+      + by apply nclose_subseteq'.
     - simpl. rewrite Rmult_0_l Rplus_0_r.
       rewrite -Rmult_div_swap.
       rewrite Rmult_div_l; first done.
@@ -196,38 +193,10 @@ Section con_hash_impl3.
   Qed.
 
 
-  Lemma con_hash_presample  N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ_hv γ_set γ_tape γ_hv' γ_set' γ_token γ_lock Q
-    E  :
-  ↑(N.@"hash") ⊆ E ->
-  (* ↑(N.@"err") ⊆ E -> *)
-    con_hash_inv N f l hm P R γ_hv γ_set γ_tape γ_hv' γ_set' γ_token γ_lock -∗
-    (∀ m m', P m m'  -∗
-               (* hash_set3 s γ_set γ_set' γ_token -∗ *)
-             hash_tape_auth m' γ_set γ_tape -∗
-             state_update (E∖↑(N.@"hash")) (E∖↑(N.@"hash"))
-             (∃ m'' , P m m'' ∗ hash_tape_auth m'' γ_set γ_tape ∗  Q m m' m'' )
-    ) -∗
-    state_update E E (
-        ∃ m m' m''  , Q m m' m'' 
-      ).
-  Proof.
-    iIntros (?)"#[H1 H2] Hvs".
-    (* iApply (state_update_inv_acc with "[$H2][-]"); first done. *)
-    (* iIntros ">(%&?)". *)
-    iMod (con_hash_presample2 _ _ _ _ _ _ _ _ _ _ _ _ (λ _ _ _, Q _  _ _)%I with "[//][-]") as "Hcont"; first done.
-    - iIntros (??) "HP Htauth".
-      (* iApply (state_update_mono_fupd' (E∖↑N)). *)
-      (* { rewrite difference_difference_l_L. apply difference_mono_l. *)
-      (*   apply union_least; by apply nclose_subseteq'.  *)
-      (* } *)
-      by iMod ("Hvs" with "[$][$]") as "(%&$&$&$)".
-    - by iDestruct "Hcont" as "(%&%&%&$)".
-  Qed.
-
-  Lemma con_hash_init N P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m)}:
-    {{{ P ∅ ∅ ∗ R ∅}}}
+  Lemma con_hash_init N R {HR: ∀ m, Timeless (R m)}:
+    {{{ R ∅}}}
       init_hash #()
-      {{{ (f:val), RET f; ∃ l hm γ1 γ2 γ3 γ4 γ5 γ_token γ_lock, con_hash_inv N f l hm P R γ1 γ2 γ3 γ4 γ5 γ_token γ_lock ∗  hash_token max_hash_size γ_token
+      {{{ (f:val), RET f; ∃ l hm γ1 γ2 γ3 γ4 γ5 γ_token γ_lock, con_hash_inv N f l hm R γ1 γ2 γ3 γ4 γ5 γ_token γ_lock ∗  hash_token max_hash_size γ_token
       }}}.
   Proof.
     iIntros (Φ)"HP HΦ".
@@ -248,29 +217,25 @@ Section con_hash_impl3.
     by iFrame "Hinv".
   Qed.
 
-  Lemma con_hash_alloc_tape N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m)} γ1 γ2 γ3 γ4 γ5 γ_token γ_lock Q:
-  {{{ con_hash_inv N f l hm P R γ1 γ2 γ3 γ4 γ5 γ_token γ_lock ∗
-      (∀ m m' α, P m m' -∗ ⌜α∉dom m'⌝ -∗ |={⊤∖↑N.@"hash"}=> P m (<[α:=[]]>m') ∗ Q α)
+  Lemma con_hash_alloc_tape N f l hm R {HR: ∀ m, Timeless (R m)} γ1 γ2 γ3 γ4 γ5 γ_token γ_lock:
+  {{{ con_hash_inv N f l hm R γ1 γ2 γ3 γ4 γ5 γ_token γ_lock 
   }}}
       allocate_tape #()
-      {{{ (α: val), RET α; hash_tape α [] γ2 γ3 ∗ Q α }}}.
+      {{{ (α: val), RET α; hash_tape α [] γ2 γ3  }}}.
   Proof.
-    iIntros (Φ) "(#[H1 H2] & Hvs) HΦ".
+    iIntros (Φ) "#[H1 H2] HΦ".
     rewrite /allocate_tape.
-    wp_apply (con_hash_alloc_tape2 with "[$H1 Hvs]"); last done.
-    iIntros. iMod (fupd_mask_subseteq ) as "Hclose"; last iMod ("Hvs" with "[$][//]").
-    { apply difference_mono_l. done. }
-    iFrame.
+    by wp_apply (con_hash_alloc_tape2 with "[$H1]"). 
   Qed.
 
-  Lemma con_hash_spec N f l hm P {HP: ∀ m m', Timeless (P m m')} R {HR: ∀ m, Timeless (R m )} γ1 γ2 γ3 γ4 γ5 γ_token γ_lock Q1 Q2 α (v:nat):
-  {{{ con_hash_inv N f l hm P R γ1 γ2 γ3 γ4 γ5 γ_token γ_lock ∗ 
-      ( ∀ m m', R m -∗ P m m' -∗ hash_tape_auth m' γ2 γ3 -∗ hash_auth m γ1 γ2 γ4 γ5-∗ state_update (⊤∖↑N.@"hash") (⊤∖↑N.@"hash")
+  Lemma con_hash_spec N f l hm R {HR: ∀ m, Timeless (R m )} γ1 γ2 γ3 γ4 γ5 γ_token γ_lock Q1 Q2 α (v:nat):
+  {{{ con_hash_inv N f l hm R γ1 γ2 γ3 γ4 γ5 γ_token γ_lock ∗ 
+      ( ∀ m, R m -∗ hash_auth m γ1 γ2 γ4 γ5-∗ state_update (⊤) (⊤)
              match m!!v with
-             | Some res => R m ∗ P m m' ∗hash_tape_auth m' γ2 γ3 ∗ hash_auth m γ1 γ2 γ4 γ5∗ Q1 res
-             | None => ∃ n ns, hash_tape α (n::ns) γ2 γ3 ∗ P m (<[α:=n::ns]> m') ∗ hash_tape_auth (<[α:=n::ns]> m') γ2 γ3 ∗
-                              (∀ m'', P m m'' -∗  hash_tape α (ns) γ2 γ3 -∗ ⌜m''!!α=Some (n::ns)⌝
-                                      ={⊤∖↑N.@"hash"}=∗ R (<[v:=n]> m) ∗ P (<[v:=n]> m) (<[α:=ns]> m'') ∗
+             | Some res => R m ∗ hash_auth m γ1 γ2 γ4 γ5∗ Q1 res
+             | None => ∃ n ns, hash_tape α (n::ns) γ2 γ3 ∗ 
+                              (hash_tape α (ns) γ2 γ3
+                                      ={⊤}=∗ R (<[v:=n]> m) ∗
                                       hash_auth (<[v:=n]> m) γ1 γ2 γ4 γ5∗ Q2 n ns)
              end                                        
       )
@@ -298,12 +263,10 @@ Section con_hash_impl3.
       hash_tape3:=hash_tape;
       hash_frag3:=hash_frag;
       hash_auth3:=hash_auth;
-      hash_tape_auth3 := hash_tape_auth;
       hash_set3:=hash_set;
       hash_set_frag3:=hash_set_frag;
       hash_token3 := hash_token;
       con_hash_interface3.hash_tape_presample := hash_tape_presample;
-      con_hash_presample3 := con_hash_presample;
       con_hash_init3 := con_hash_init;
       con_hash_alloc_tape3 := con_hash_alloc_tape;
       con_hash_spec3:=con_hash_spec
@@ -331,10 +294,6 @@ Section con_hash_impl3.
   Next Obligation.
     iIntros.
     by iApply (con_hash_interface2.hash_auth_insert with "[$][$]").
-  Qed.
-  Next Obligation.
-    iIntros.
-    by iApply (con_hash_interface2.hash_tape_auth_frag_agree with "[$][$]").
   Qed.
   Next Obligation.
     iIntros.
