@@ -79,6 +79,17 @@ Definition list_map : val :=
   | NONE => NONE
   end.
 
+Definition list_zip : val :=
+  rec: "list_zip" "f" "l1" "l2" :=
+  match: "l1" with
+    SOME "a1" =>
+      match: "l2" with
+        SOME "a2" => (Fst "a1", Fst "a2") :: "list_zip" "f" (Snd "a1") (Snd "a2")
+      | NONE => NONE
+      end
+  | NONE => NONE
+  end.
+
 Definition list_filter : val :=
   rec: "list_filter" "f" "l" :=
   match: "l" with
@@ -1547,6 +1558,44 @@ Section list_specs_HO.
         iSplitR; first done.
         simpl.
         iFrame.
+  Qed.
+
+  Lemma wp_list_zip_HO (l1 l2 : list val) (fv lv1 lv2 : val)
+    (P : val -> iProp Σ) (Q : val -> val -> iProp Σ) E :
+    {{{ ⌜ is_list_HO l1 lv1 ⌝ ∗ ⌜ is_list_HO l2 lv2 ⌝ }}}
+      list_zip fv lv1 lv2 @ E
+    {{{ rv , RET rv; ⌜is_list_HO (zip_with (λ v1 v2, (v1, v2)%V) l1 l2) rv⌝ }}}.
+  Proof.
+      iIntros (Φ) "(%Hl1 & %Hl2) HΦ".
+      iInduction l1 as [ | a1 l1'] "IH" forall (l2 lv2 Hl2 lv1 Hl1 Φ).
+      - rewrite /list_zip.
+        simpl.
+        simpl in Hl1.
+        subst.
+        wp_pures.
+        iModIntro.
+        by iApply "HΦ".
+      - rewrite /list_zip.
+        simpl in Hl1.
+        destruct Hl1 as [lv1' [Hlv1' Hl1']].
+        destruct l2 as [ |a2 l2'].
+        + simpl.
+          simpl in Hl2.
+          subst.
+          wp_pures.
+          iModIntro.
+          by iApply "HΦ".
+        + simpl in Hl2.
+          destruct Hl2 as [lv2' [Hlv2' Hl2']].
+          subst.
+          do 13 wp_pure.
+          fold list_zip.
+          wp_apply "IH"; [done|done|].
+          iIntros (rv) "%Hr".
+          wp_pures.
+          wp_apply (wp_list_cons_HO); [done|].
+          iIntros (v) "%Hv".
+          by iApply "HΦ".
   Qed.
 
 
