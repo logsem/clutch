@@ -22,11 +22,13 @@ Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.
 
+Context `{R : realType}.
+
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes, and [loc]-indexed utapes *)
 Record state_pre : Type := {
   heap   : gmap loc val;
   tapes  : gmap loc btape;
-  utapes : gmap loc utape
+  utapes : gmap loc (@utape R)
 }.
 
 Definition gmap_loc_cyl_emp d (T : measurableType d) : set (set (gmap loc T)) :=

@@ -2867,6 +2867,7 @@ Inductive head_step_rel : expr -> state -> expr -> state → Prop :=
   n_nat < N ->
   Z.of_nat n_nat = n_int ->
   head_step_rel (Rand (Val $ LitV $ LitInt z) (Val $ LitV LitUnit)) σ (Val $ LitV $ LitInt n_int) σ
+(*
 | AllocTapeS z N σ l :
   l = fresh_loc σ.(tapes) →
   N = Z.to_nat z →
@@ -2913,7 +2914,7 @@ Inductive head_step_rel : expr -> state -> expr -> state → Prop :=
   (r <= 1)%R ->
   σ.(utapes) !! l = Some b →
   head_step_rel (URand (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitReal r) σ
-
+*)
 (* Tick *)
 | TickS σ z :
   head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ.
@@ -2925,13 +2926,14 @@ Global Hint Constructors head_step_rel : head_step.
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV LitUnit))) _ _ _) =>
          eapply (RandNoTapeS _ _ 0%fin) : head_step.
+(*
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
          eapply (RandTapeEmptyS _ _ _ 0%fin) : head_step.
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
          eapply (RandTapeOtherS _ _ _ _ _ 0%fin) : head_step.
-
+*)
 (*
 Ltac inv_head_step :=
   repeat
