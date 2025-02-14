@@ -19,74 +19,162 @@ From clutch.prelude Require Import classical.
 From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes.
 Set Warnings "hiding-delimiting-key".
 
-
 Local Open Scope classical_set_scope.
+
+Set Default Proof Using "Type*".
 
 Context `{R : realType}.
 
+Global Instance gmap_lookup {T} : Lookup loc T (gmap loc T).
+Proof. Admitted.
+
+Section gmap_loc_measurable.
+  Local Open Scope classical_set_scope.
+  (** Measurable functions out of nat *)
+  Context {d} {T : measurableType d}.
+
+  HB.instance Definition _ := gen_eqMixin (gmap loc T).
+  HB.instance Definition _ := gen_choiceMixin (gmap loc T).
+  HB.instance Definition _ := isPointed.Build (gmap loc T) (inhabitant : gmap loc T).
+
+
+  Definition loc_enum : nat -> loc. Admitted.
+  Lemma loc_enum_surj : forall l, exists n, loc_enum n = l.
+  Proof. Admitted.
+
+  (* NOTE: that this is the preimage out of (option T), not T *)
+  Definition gl_generators : set (set (gmap loc T)) :=
+    (\bigcup_i (preimage_class setT (fun (f : gmap loc T) => lookup (loc_enum i) f) measurable)).
+
+  Definition gl_measurable : set (set (gmap loc T)) := <<s gl_generators>>.
+
+  Lemma gl_meas0 : gl_measurable set0.
+  Proof. by apply sigma_algebra0. Qed.
+
+  Lemma gl_measC X : (gl_measurable X) -> gl_measurable (~` X).
+  Proof. by apply sigma_algebraC. Qed.
+
+  Lemma gl_measU (F : sequences.sequence (set (gmap loc T))) : (forall i, gl_measurable (F i)) -> gl_measurable (\bigcup_i F i).
+  Proof. by apply sigma_algebra_bigcup. Qed.
+
+  HB.instance Definition _ :=
+    @isMeasurable.Build (sigma_display gl_measurable) (gmap loc T) gl_measurable gl_meas0 gl_measC gl_measU.
+
+
+  Lemma gl_eval_measurable (l : <<discr loc>>) : measurable_fun setT (lookup l : gmap loc T -> option T).
+  Proof.
+    intros _ Y HY.
+    rewrite /gl_measurable.
+    unfold lookup.
+    suffices H : gl_generators (setT `&` gmap_lookup l @^-1` Y).
+    { by apply ((@sub_gen_smallest _ _ gl_generators) _ H). }
+    destruct (loc_enum_surj l) as [i Hi].
+    exists i; [done|].
+    rewrite /preimage_class//=.
+    exists Y; [done|].
+    by rewrite Hi setTI //=.
+  Qed.
+  Hint Resolve gl_eval_measurable : measlang.
+
+
+  Lemma uncurry_loc_measurable {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+          (f : <<discr loc>> -> T1 -> T2) (Hf : forall i, measurable_fun setT (f i)) :
+        measurable_fun setT (uncurry f).
+   Proof using T d.
+    intros _ Y HY.
+    have -> : ((uncurry f) @^-1` Y) = \bigcup_i ((setX [set loc_enum i] ((f $ loc_enum i) @^-1` Y)) : set (<<discr loc>> * _)%type).
+    { rewrite /uncurry/preimage/setX//=.
+      apply /predeqP =>[[l ]] /=.
+      split.
+      { intros H.
+        destruct (loc_enum_surj l) as [i Hi].
+        exists i; [done|].
+        by rewrite Hi //=. }
+      { move=>[x ?]//=. by move=>[-> ?]//=. }
+    }
+    rewrite setTI.
+    apply bigcup_measurable.
+    intros i ?.
+    apply measurableX.
+    { by rewrite /measurable//=. }
+    rewrite <-(setTI (preimage _ _)).
+    by eapply (Hf _ _ Y HY).
+    Unshelve. by apply @measurableT.
+  Qed.
+
+
+  (* The uncurry is measurable becuase nat is discrete and countable *)
+  Definition gl_evalC : (<<discr loc>> * gmap loc T)%type -> option T := uncurry lookup.
+  Lemma gl_evalC_measurable : measurable_fun setT gl_evalC.
+  Proof. unfold gl_evalC. (* Typeclasses crap *) Admitted.
+  Hint Resolve nf_evalC_measurable : measlang.
+
+
+  Definition gl_update (l : <<discr loc>>) : (T * (gmap loc T))%type -> (gmap loc T) :=
+    fun x => insert l x.1 x.2.
+
+  Lemma gl_update_measurable (l : loc) : measurable_fun setT (gl_update l).
+  Proof.
+    eapply @measurability; [done|].
+    rewrite //=/gl_update/subset/preimage_class//=.
+    intro S.
+    rewrite /nf_generators/preimage_class//=.
+    move=> [S' [k _ +]].
+    rewrite setTI//=; move=>[S'' HS'' +].
+    rewrite setTI//=; move=><-<-//=.
+    rewrite <-comp_preimage; rewrite /ssrfun.comp//=.
+    destruct (loc_enum_surj l) as [i Hi].
+    destruct (k =? i); rewrite //=.
+    { have -> : ((λ x : T * gmap loc T, <[l:=x.1]> x.2 !! loc_enum k) @^-1` S'') =
+                (setT `&` (ssrfun.comp Some fst) @^-1` S'').
+      { rewrite /setI/preimage/cst//=.
+        apply /predeqP =>[y] /=.
+        split.
+        { admit. }
+        { admit. }
+      }
+      admit. }
+
+    { have -> : ((λ x : T * gmap loc T, <[l:=x.1]> x.2 !! loc_enum k) @^-1` S'') =
+               ((ssrfun.comp (gmap_lookup (loc_enum k)) snd) @^-1` S'').
+      { rewrite /ssrfun.comp/preimage//=. admit. }
+      rewrite <-(setTI (preimage _ _)).
+      admit.
+      (*
+      by eapply (measurable_comp _ _ (nf_eval_measurable k) (measurable_snd) _ HS'').
+      Unshelve.
+      { by eapply @measurableT. }
+      { by simpl. }
+      { by eapply @measurableT. }
+    }
+      *)
+  Admitted.
+  Hint Resolve gl_update_measurable : measlang.
+
+  Definition gl_updateC : (<<discr loc>> * (T * (gmap loc T)))%type -> (gmap loc T) := uncurry gl_update.
+  Lemma gl_updateC_measurable : measurable_fun setT gl_updateC.
+  Proof. Admitted. (*  by apply (@uncurry_nat_measurable _ _ _ _ gl_update), gl_update_measurable. Qed. *)
+  Hint Resolve gl_updateC_measurable : measlang.
+
+End gmap_loc_measurable.
+
+
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes, and [loc]-indexed utapes *)
-Record state_pre : Type := {
-  heap   : gmap loc val;
-  tapes  : gmap loc btape;
-  utapes : gmap loc (@utape R)
-}.
+Definition state : Type := ((gmap loc val) * (gmap loc btape) * (gmap loc (@utape R)))%type.
 
-Definition gmap_loc_cyl_emp d (T : measurableType d) : set (set (gmap loc T)) :=
-  [set (fun g => forall l, g !! l = None)].
-
-Definition gmap_loc_cyl_full d (T : measurableType d) : set (set (gmap loc T)) :=
-  let loc_set   : set loc := setT in
-  let T_set     : set (set T) := d.-measurable in
-
-  (* The set of all gmaps such that
-      - the value at position l is set to an element in the set ts *)
-  let construct (l : loc) (ts : set T) : set (gmap loc T) :=
-    fun g => exists v : T, g !! l = Some v /\ ts v in
-  image2 loc_set T_set construct.
-
-Definition gmap_loc_cyl d (T : measurableType d) : set (set (gmap loc T)) :=
-  gmap_loc_cyl_emp d T `|` gmap_loc_cyl_full d T.
-
-(* The set of all states such that
-   each field is a gmap cylinder
- *)
-Program Definition state_cyl : set (set state_pre) :=
-  let hs_set := gmap_loc_cyl _ val in
-  let ts_set := gmap_loc_cyl _ btape in
-  let us_set := gmap_loc_cyl _ utape in
-  let construct (hs : set (gmap loc val)) (ht : set (gmap loc btape)) (hu : set (gmap loc utape)) : set state_pre :=
-    fun σ =>
-      exists g1 : gmap loc val,
-      exists g2 : gmap loc btape,
-      exists g3 : gmap loc utape,
-      σ = {| heap := g1; tapes := g2; utapes := g3|} /\
-      hs g1 /\
-      ht g2 /\
-      hu g3
-    in
-  image3 hs_set ts_set us_set construct.
-
-HB.instance Definition _ := gen_eqMixin state_pre.
-HB.instance Definition _ := gen_choiceMixin state_pre.
-HB.instance Definition _ := isPointed.Build state_pre {| heap := gmap_empty; tapes := gmap_empty; utapes := gmap_empty |}.
+Definition heap   : state -> gmap loc val := ssrfun.comp fst fst.
+Definition tapes  : state -> gmap loc btape := ssrfun.comp snd fst.
+Definition utapes : state -> gmap loc (@utape R) := snd.
 
 
-Local Lemma state_pre_meas_obligation : ∀ A : set state_pre, <<s state_cyl>> A → <<s state_cyl>> (~` A).
-Proof. eapply sigma_algebraC. Qed.
 
-(* There's got to be a way to delete this *)
-HB.instance Definition _ := @isMeasurable.Build
-  (sigma_display state_cyl)
-  state_pre
-  <<s state_cyl>>
-  (@sigma_algebra0 _ setT state_cyl)
-  state_pre_meas_obligation
-  (@sigma_algebra_bigcup _ setT state_cyl).
 
-Definition state : measurableType state_cyl.-sigma := state_pre.
+
+
 
 (** Operations on states *)
 
+(*
 
 Definition state_upd_heap (f : gmap loc val → gmap loc val) (σ : state) : state :=
   {| heap := f σ.(heap); tapes := σ.(tapes); utapes := σ.(utapes) |}.
@@ -220,3 +308,4 @@ Qed.
 
 Global Instance state_inhabited : Inhabited state :=
   populate {| heap := gmap_empty; tapes := gmap_empty; utapes := gmap_empty |}.
+*)

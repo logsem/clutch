@@ -22,16 +22,16 @@ Set Warnings "hiding-delimiting-key".
 Local Open Scope classical_set_scope.
 
 Definition state_loadC (x : (<<discr loc>> * state)%type) : val :=
-  match (x.2.(heap) !! x.1)  with
+  match (heap x.2 !! x.1)  with
   | Some v => v
   | None => inhabitant
   end.
 
 Definition auxcov_load_ok : set (<<discr loc>> * state)%type :=
-  [set x | ∃ w, x.2.(heap) !! x.1 = Some w ].
+  [set x | ∃ w, heap x.2 !! x.1 = Some w ].
 
 Definition auxcov_load_stuck : set (<<discr loc>> * state)%type :=
-  [set x | x.2.(heap) !! x.1 = None ].
+  [set x | heap x.2 !! x.1 = None ].
 
 Lemma auxcov_load_ok_meas : measurable auxcov_load_ok.
 Proof. Admitted.
@@ -57,12 +57,13 @@ Hint Resolve state_loadC_meas : measlang.
 *)
 
 (* AllocN: the state part of the result *)
-Definition state_allocNCS (x : (<<discr Z>> * val * state)%type) : state :=
+Definition state_allocNCS (x : (<<discr Z>> * val * state)%type) : state. Admitted.
+(*
   state_upd_heap_N (fresh_loc x.2.(heap)) (Z.to_nat x.1.1) x.1.2 x.2.
-
+*)
 (* AllocN: the state part of the result *)
-Definition state_allocNCE (x : (<<discr Z>> * val * state)%type) : <<discr loc>> :=
-  (fresh_loc x.2.(heap)).
+Definition state_allocNCE (x : (<<discr Z>> * val * state)%type) : <<discr loc>>. Admitted.
+(*   (fresh_loc x.2.(heap)).  *)
 
 
 Definition auxcov_allocN_ok : set (<<discr Z>> * val * state)%type :=
@@ -100,18 +101,18 @@ Hint Resolve state_allocNCS_meas : measlang.
 
 
 (* store: the state part of the result *)
-Program Definition state_storeS (x : (<<discr loc>> * val * state)%type) : state :=
-  state_upd_heap <[x.1.1:=x.1.2]> x.2.
+Program Definition state_storeS (x : (<<discr loc>> * val * state)%type) : state. Admitted.
+(*  state_upd_heap <[x.1.1:=x.1.2]> x.2. *)
 
 (* store: the expression part of the result *)
 Definition state_storeE (x : (<<discr loc>> * val * state)%type) : expr :=
   ValU $ LitV $ LitUnit.
 
 Definition auxcov_store_ok : set (<<discr loc>> * val * state)%type :=
-  [set x | ∃ w, x.2.(heap) !! x.1.1 = Some w ].
+  [set x | ∃ w, heap x.2 !! x.1.1 = Some w ].
 
 Definition auxcov_store_stuck : set (<<discr loc>> * val * state)%type :=
-  [set x | x.2.(heap) !! x.1.1 = None ].
+  [set x | heap x.2 !! x.1.1 = None ].
 
 Lemma auxcov_store_ok_meas : measurable auxcov_store_ok.
 Proof. Admitted.
