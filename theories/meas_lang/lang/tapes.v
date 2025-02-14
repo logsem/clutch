@@ -11,7 +11,7 @@ From clutch.prelude Require Export stdpp_ext.
 From clutch.common Require Export locations.
 From clutch.meas_lang Require Import ectxi_language ectx_language.
 From Coq Require Export Reals.
-From clutch.prob.monad Require Export giry.
+From clutch.prob.monad Require Export giry prelude.
 From mathcomp.analysis Require Export Rstruct.
 From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
@@ -19,7 +19,9 @@ From clutch.prelude Require Import classical.
 From clutch.meas_lang.lang Require Export prelude. (* types constructors shapes cover projections. **)
 Set Warnings "hiding-delimiting-key".
 
-Section nat_mf.
+Set Default Proof Using "Type*".
+
+Section seq_measure.
   Local Open Scope classical_set_scope.
   (** Measurable functions out of nat *)
   Context {d} {T : measurableType d}.
@@ -30,15 +32,83 @@ Section nat_mf.
   HB.instance Definition _ := gen_choiceMixin nf.
   HB.instance Definition _ := isPointed.Build nf (cst point).
 
- (*
-  Check preimage_set_system.
+  Definition nf_generators : set (set nf) :=
+    (\bigcup_i (preimage_class setT (fun f => f i) measurable)).
 
-  Program Definition nf_generators : set (set nf) :=
-    preimage () (setT : set T).
-*)
+  Definition nf_measurable : set (set nf) := <<s nf_generators>>.
+
+  Lemma nf_meas0 : nf_measurable set0.
+  Proof. by apply sigma_algebra0. Qed.
+
+  Lemma nf_measC X : (nf_measurable X) -> nf_measurable (~` X).
+  Proof. by apply sigma_algebraC. Qed.
+
+  Lemma nf_measU (F : sequences.sequence (set nf)) : (forall i, nf_measurable (F i)) -> nf_measurable (\bigcup_i F i).
+  Proof. by apply sigma_algebra_bigcup. Qed.
+
+  HB.instance Definition _ :=
+    @isMeasurable.Build (sigma_display nf_measurable) nf nf_measurable nf_meas0 nf_measC nf_measU.
+
+  Definition nf_eval (i : nat) : nf -> T := (fun f : nf => f i).
+
+  Lemma nf_eval_measurable (i : nat) : measurable_fun setT (nf_eval i).
+  Proof.
+    intros _ Y HY.
+    rewrite /nf_measurable.
+    suffices H : nf_generators ([set: tapes_nf__canonical__measure_SigmaRing] `&` nf_eval i @^-1` Y).
+    { by apply ((@sub_gen_smallest _ _ nf_generators) _ H). }
+    exists i; [done|].
+    rewrite /nf_eval.
+    rewrite /preimage_class//=.
+    exists Y; [done|].
+    rewrite setTI.
+    done.
+  Qed.
+
+  (* The uncurry is measurable becuase nat is discrete and countable *)
+  Definition nf_evalC : (nat * nf)%type -> T := uncurry nf_eval.
+  Lemma nf_evalC_measurable : measurable_fun setT nf_evalC.
+  Proof. by apply (@uncurry_nat_measurable _ _ _ _ nf_eval), nf_eval_measurable. Qed.
+
+  Definition nf_update (i : nat) : (T * nf)%type -> nf :=
+    (fun x => (fun n => if (n =? i) then (fst x) else ((ssrfun.comp (nf_eval n) snd) x))).
+
+  Lemma nf_update_measurable (i : nat) : measurable_fun setT (nf_update i).
+  Proof.
+    eapply @measurability; [done|].
+    rewrite //=/nf_update/subset/preimage_class//=.
+    intro S.
+    rewrite /nf_generators/preimage_class//=.
+    move=> [S' [k _ +]].
+    rewrite setTI//=; move=>[S'' HS'' +].
+    rewrite setTI//=; move=><-<-//=.
+    rewrite <-comp_preimage; rewrite /ssrfun.comp//=.
+    destruct (k =? i); rewrite //=.
+    { have -> : ((λ x : T * nf, x.1) @^-1` S'') = (setT `&` fst @^-1` S'').
+      { rewrite /setI/preimage/cst//=.
+        apply /predeqP =>[y] /=.
+        by intuition. }
+      by eapply @measurable_fst. }
+    { have -> : ((λ x : T * nf, nf_eval k x.2) @^-1` S'') = ((ssrfun.comp (nf_eval k) snd) @^-1` S'').
+      { by rewrite /ssrfun.comp/preimage//=. }
+      rewrite <-(setTI (preimage _ _)).
+      by eapply (measurable_comp _ _ (nf_eval_measurable k) (measurable_snd) _ HS'').
+      Unshelve.
+      { by eapply @measurableT. }
+      { by simpl. }
+      { by eapply @measurableT. }
+    }
+  Qed.
 
 
-End nat_mf.
+  Definition nf_updateC : (nat * (T * nf))%type -> nf := uncurry nf_update.
+  Lemma nf_updateC_measurable : measurable_fun setT nf_updateC.
+  Proof. by apply (@uncurry_nat_measurable _ _ _ _ nf_update), nf_update_measurable. Qed.
+
+End seq_measure.
+
+
+
 
 (**  General lemmas about tapes *)
 

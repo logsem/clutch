@@ -759,3 +759,30 @@ End discrete_space_mapout.
 Definition image4 {TA TB TC TD rT} (A : set TA) (B : set TB) (C : set TC) (D : set TD) (f : TA -> TB -> TC -> TD -> rT) :=
   [set z | exists2 x, A x & exists2 y, B y & exists2 w, C w & exists2 v, D v & f x y w v = z].
 Arguments image4 _ _ _ _ _ _ _ _ _ /.
+
+Section uncurry_nat_measurable.
+  Local Open Scope classical_set_scope.
+
+  Lemma uncurry_nat_measurable {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+          (f : nat -> T1 -> T2) (Hf : forall i, measurable_fun setT (f i)) :
+        measurable_fun setT (uncurry f).
+  Proof.
+    intros _ Y HY.
+    have -> : ((uncurry f) @^-1` Y) = (\bigcup_i ((setX [set i] ((f i) @^-1` Y)) : set (nat * _)%type)).
+    { rewrite /uncurry/preimage/setX//=.
+      apply /predeqP =>[[n ?]] /=.
+      split.
+      { intros H. by exists n. }
+      { move=>[x ?]//=. by move=>[-> ?]//=. }
+    }
+    rewrite setTI.
+    apply bigcup_measurable.
+    intros i ?.
+    apply measurableX.
+    { by rewrite /measurable//=. }
+    rewrite <-(setTI (preimage _ _)).
+    by eapply (Hf i _ Y HY).
+    Unshelve. by apply @measurableT.
+  Qed.
+
+End uncurry_nat_measurable.
