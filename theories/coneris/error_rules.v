@@ -1297,6 +1297,54 @@ Qed.
     iPureIntro. rewrite fmap_app; by f_equal.
   Qed.
 
+  Lemma state_step_err_set_in_out (N : nat) (z : Z) (bad : gset nat) (ε εI εO : R) E α ns :
+    TCEq N (Z.to_nat z) →
+    (0<=εI)%R →
+    (0<=εO)%R →
+    (∀ n, n ∈ bad -> n < S N) →
+    (εI * (size bad) + εO * (N + 1 - size bad)  <= ε * (N + 1))%R →
+    α ↪N (N; ns) -∗
+    ↯ ε -∗
+    state_update E E (∃ (x : fin (S N)),
+        ((⌜fin_to_nat x ∉ bad⌝ ∗ ↯ εO) ∨ (⌜fin_to_nat x ∈ bad⌝ ∗ ↯ εI)) ∗
+          α ↪N (N; ns ++ [fin_to_nat x])).
+  Proof.
+    iIntros (HN HineqI HineqO Hlen Hleq) "Htape Herr".
+    set (ε2 := (λ x : fin (S N), if bool_decide (fin_to_nat x ∈ bad) then εI else εO)).
+    iMod (state_update_presample_exp _ _ _ _ (SeriesC (λ n : fin (S N), (1 / (N + 1) * ε2 n)%R)) ε2
+           with "Htape [Herr]") as (x) "[Htape Herr]".
+    (* wp_apply (wp_couple_rand_adv_comp1 _ _ _  (SeriesC (λ n : fin (S N), (1 / (N + 1) * ε2 n)%R)) ε2 with "[Herr]"). *)
+    { intros. rewrite /ε2. by case_bool_decide. }
+    { rewrite S_INR. done. }
+    { iApply ec_weaken; auto.
+      simpl.
+      rewrite SeriesC_scal_l /ε2.
+      erewrite (SeriesC_ext _ (λ x : fin (S N),
+                     εI * (if bool_decide (fin_to_nat x ∈ bad) then 1 else 0) +
+                     εO * (if bool_decide (fin_to_nat x ∉ bad) then 1 else 0))%R); last first.
+      { intro n. do 2 case_bool_decide; done || lra. }
+      rewrite SeriesC_plus; [ | apply ex_seriesC_finite | apply ex_seriesC_finite].
+      rewrite 2!SeriesC_scal_l.
+      rewrite /Rdiv Rmult_1_l.
+      rewrite Rmult_comm.
+      rewrite -Rdiv_def.
+      pose proof (pos_INR N).
+      split.
+      { apply Rmult_le_pos; [|real_solver].
+        apply Rplus_le_le_0_compat.
+        - apply Rmult_le_pos; [lra|].
+          apply SeriesC_ge_0; [|apply ex_seriesC_finite].
+          intros ?. case_bool_decide; lra.
+        - apply Rmult_le_pos; [lra|].
+          apply SeriesC_ge_0; [|apply ex_seriesC_finite].
+          intros ?. case_bool_decide; lra. }
+      apply Rcomplements.Rle_div_l; [lra |].
+      rewrite SeriesC_fin_in_set; auto.
+      rewrite SeriesC_fin_not_in_set; auto. }
+    rewrite /ε2.
+    iModIntro.
+    case_bool_decide; iFrame; eauto.
+  Qed.
 
   Lemma wp_couple_empty_tape_adv_comp E α N (ε1 : R) (ε2 : nat → R) :
     (∀ (n:nat), 0<= ε2 n)%R ->

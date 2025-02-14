@@ -1,128 +1,279 @@
-From iris.algebra Require Import excl_auth gmap.
-From clutch.coneris Require Import coneris abstract_tape hocap_rand_alt lib.map lock
-  hash_view_interface con_hash_interface4.
-
+From iris.base_logic.lib Require Import ghost_map.
+From clutch.coneris Require Import coneris.
+From clutch.coneris.lib Require Import map lock.
+From clutch.coneris.examples Require Import coll_free_hash_view_impl.
 Set Default Proof Using "Type*".
 
+Class con_hashG Σ `{conerisGS Σ} := {
+  con_hash_lock :: lock.lock;
+  con_hash_lockG : lockG Σ;
+  con_hash_hash_viewG : hvG1 Σ;
+  con_hash_ghost_mapG1 :: ghost_mapG Σ nat loc;
+  con_hash_ghost_mapG2 :: ghost_mapG Σ nat (option nat);
+}.
 
 Section con_hash_impl.
-  Variable val_size max_key : nat.
-  Context `{Hc: conerisGS Σ,
-              (* h : @hash_view Σ Hc, Hhv: hvG Σ, *)
-                lo:lock, Hl: lockG Σ,
-                  (* r: @rand_spec Σ Hc, Hr: randG Σ, *)
-                    Hm: inG Σ (excl_authR (gmapO nat natO)),
-                      Ht: !abstract_tapesGS Σ,
-                        Hr: !rand_spec' val_size,
-                  h : @hash_view Σ Hc, Hhv: hvG Σ
-    }.
+  Context `{!conerisGS Σ, !con_hashG Σ}.
 
+  Variable val_size : nat.
 
+  (** * Sequential hash function with per key presampling tapes *)
   Definition alloc_tapes : val :=
-    (rec: "alloc_tapes" "tm" "n" :=
-       if: ("n" - #1) < #0 then
-         #()
-       else
-        let: "α" := rand_allocate_tape #() in
-         set "tm" ("n" - #1) "α";;
-        "alloc_tapes" "tm" ("n" - #1)).
+    rec: "alloc_tapes" "tm" "n" :=
+     if: ("n" - #1) < #0 then
+        #()
+      else
+       let: "α" := alloc #val_size in
+        map.set "tm" ("n" - #1) "α";;
+       "alloc_tapes" "tm" ("n" - #1).
 
   Definition init_hash_state : val :=
    λ: "max_val",
       let: "val_map" := init_map #() in
       let: "tape_map" := init_map #() in
-      alloc_tapes "tape_map" ("max_key" + #1);;
+      alloc_tapes "tape_map" ("max_val" + #1);;
       ("val_map", "tape_map").
-
-  (* To hash a value v, we check whether it is in the map (i.e. it has been previously hashed).
-     If it has we return the saved hash value, otherwise we look up the tape for this value
-     flip a bit with that tape, and save it in the map *)
 
   Definition compute_hash : val :=
     λ: "vm" "tm" "v",
-      match: get "vm" "v" with
+      match: map.get "vm" "v" with
       | SOME "b" => "b"
       | NONE =>
-          match: get "tm" "v" with
+          match: map.get "tm" "v" with
             | SOME "α" =>
-                let: "b" := rand_tape "α" in
+                let: "b" := rand("α") #val_size  in
                 set "vm" "v" "b";;
                 "b"
           | NONE => #0
           end
       end.
 
-
-  Definition compute_con_hash :val:=
-    λ: "lhm" "v",
-      let, ("l", "hm", "tm") := "lhm" in
-      acquire "l";;
-      let: "output" := compute_hash "hm" "tm" "v" in
-      release "l";;
-      "output".
-
-
-  Definition compute_con_hash_specialized (lhm:val):val:=
+  Definition compute_hash_specialized vm tm : val :=
     λ: "v",
-      let, ("l", "hm", "tm") := lhm in
+      match: map.get vm "v" with
+      | SOME "b" => "b"
+      | NONE =>
+          match: map.get tm "v" with
+            | SOME "α" =>
+                let: "b" := rand("α") #val_size in
+                set vm "v" "b";;
+                "b"
+            | NONE => #false
+            end
+      end.
+
+  Lemma wp_alloc_tapes E ltm max :
+    {{{ map_list ltm ∅ }}}
+      alloc_tapes #ltm #max @ E
+    {{{ RET #(); ∃ tm,
+        map_list ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
+        ⌜(∀ i : nat, i < max ↔ i ∈ dom tm)⌝ ∗
+        ([∗ map] i ↦ α ∈ tm, α ↪N (val_size; [])) }}}.
+  Proof.
+    iIntros (Φ) "Htm HΦ".
+    rewrite /alloc_tapes.
+    remember max as k eqn:Heqk.
+    iEval (setoid_rewrite Heqk) in "HΦ".
+    iAssert (∃ tm, ⌜ (∀ i : nat, (k <= i < max)%nat ↔ i ∈ dom tm) ⌝ ∗
+                   map_list ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
+                   ([∗ map] i ↦ α ∈ tm, α ↪N (val_size; [])))%I with "[Htm]" as "Htm".
+    { iExists ∅. rewrite fmap_empty. iFrame. iSplit.
+      { iPureIntro. subst. intros; split; try lia. rewrite dom_empty_L. inversion 1. }
+      { rewrite big_sepM_empty. auto. } }
+    assert (Hlek: k <= max) by lia.
+    clear Heqk.
+    iInduction k as [| k] "IH" forall (Hlek).
+    - wp_pures. iApply "HΦ". iModIntro. iDestruct "Htm" as (tm Hdom) "(Hm&Htapes)".
+      iFrame. iPureIntro. split.
+      { intros. apply Hdom. lia. }
+      { intros. apply Hdom. auto. }
+    - iSpecialize ("IH" with "[] HΦ").
+      { iPureIntro; lia. }
+      wp_pures.
+      case_bool_decide; first by lia.
+      wp_pures.
+      wp_apply (wp_alloc_tape with "[//]").
+      iIntros (α) "Hα". wp_pures.
+      iDestruct "Htm" as (tm Hdom) "(Htm&Htapes)".
+      replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
+      wp_apply (wp_set with "Htm"). iIntros "Htm".
+      wp_pure _. wp_pure _. wp_pure _.
+      replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
+      iApply "IH".
+      iExists (<[k := α]>tm). rewrite fmap_insert. iFrame.
+      iSplit.
+      { iPureIntro. intros i. split.
+        * intros Hle. set_unfold.
+          destruct (decide (i = k)); auto.
+          right. apply Hdom; lia.
+        * set_unfold. intros [?|Hdom']; try lia.
+          apply Hdom in Hdom'. lia. }
+      iApply (big_sepM_insert with "[$Htapes $Hα]").
+      apply not_elem_of_dom_1. intros Hbad.
+      assert (S k <= k).
+      { apply Hdom; auto. }
+      lia.
+  Qed.
+
+  Definition hashkey (γt γv : gname) (k : nat) (v : option nat) : iProp Σ :=
+    ∃ (α : loc) (w : option nat),
+      k ↪[γt] α ∗ k ↪[γv] w ∗
+      match v with
+      | None => α ↪N (val_size; []) ∗ ⌜w = None⌝
+      | Some n => α ↪N (val_size; [n]) ∗ ⌜w = None⌝ ∨ ⌜w = Some n⌝
+      end.
+
+  Definition hashfun γtm γvm (max : nat) (f : val) : iProp Σ :=
+    ∃ (lvm ltm : loc) (vm : gmap nat nat) (vm' : gmap nat (option nat)) (tm : gmap nat loc),
+       ⌜ (∀ i : nat, i <= max ↔ i ∈ dom tm) ⌝ ∗
+       ⌜ dom vm ⊆ dom tm ⌝ ∗
+       ⌜ f = compute_hash_specialized #lvm #ltm ⌝ ∗
+       map_list lvm ((λ (n : nat), LitV (LitInt n)) <$> vm) ∗
+       map_list ltm ((λ (α : loc), LitV (LitLbl α)) <$> tm) ∗
+       ghost_map_auth γtm 1 tm ∗
+       ghost_map_auth γvm 1 vm' ∗
+       ⌜∀ i v, vm !! i = Some v ↔ vm' !! i = Some (Some v)⌝.
+
+  Lemma wp_init_hash_state max :
+    {{{ True }}}
+      init_hash_state #max
+    {{{ (γt γv : gname) (lvm ltm : loc) (tm : gmap nat loc), RET (#lvm, #ltm);
+        hashfun γt γv max (compute_hash_specialized #lvm #ltm) ∗
+        ⌜(∀ i : nat, i < S max ↔ i ∈ dom tm)⌝ ∗
+        ([∗ map] k ↦ v ∈ tm, hashkey γt γv k None) }}}.
+  Proof.
+    iIntros (Φ) "_ HΦ".
+    rewrite /init_hash_state.
+    wp_pures.
+    wp_apply (wp_init_map with "[//]").
+    iIntros (lvm) "Hvm". wp_pures.
+    wp_apply (wp_init_map with "[//]").
+    iIntros (ltm) "Htm". wp_pures.
+    rewrite /compute_hash. wp_pures.
+    replace (Z.of_nat max + 1)%Z with (Z.of_nat (S max))%Z by lia.
+    wp_apply (wp_alloc_tapes with "Htm").
+    iDestruct 1 as (tm) "(Htm&%Hdom&Htapes)".
+    wp_pures.
+    iMod (ghost_map_alloc tm) as (γt) "[Htauth Hkey]".
+    iMod (ghost_map_alloc (gset_to_gmap None (dom tm))) as (γv) "[Hvauth Hvals]".
+    iCombine "Hkey Hvals Htapes" as "Htapes".
+    rewrite gset_to_gmap_dom big_sepM_fmap -!big_sepM_sep /=.
+    iApply ("HΦ" $! _ _ _ _ tm). iModIntro.
+    iSplitR "Htapes".
+    { iExists lvm, ltm, ∅, _, tm.
+      rewrite ?fmap_empty. iFrame. iSplit.
+      { iPureIntro. intros. rewrite -Hdom. split; lia. }
+      iSplit; [done|].
+      iSplit; [done|].
+      iPureIntro. intros ??.
+      rewrite lookup_empty.
+      split; [done|].
+      by intros (?&?&?)%lookup_fmap_Some. }
+    iSplit; [done|].
+    iApply (big_sepM_mono with "Htapes").
+    iIntros (k α Hlookup) "(? & ? & ?)". by iFrame.
+  Qed.
+
+  Lemma wp_hashfun_prev E f (max k n : nat) γt γv :
+    {{{ hashfun γt γv max f ∗ hashkey γt γv k (Some n) }}}
+      f #k @ E
+    {{{ RET #n; hashfun γt γv max f ∗ hashkey γt γv k (Some n) }}}.
+  Proof.
+    iIntros (Φ) "[Hhash (%α & %w & Hk & Hw & Hv)] HΦ".
+    iDestruct "Hhash" as (lvm ltm vm vm' tm Hdom1 Hdom2 ->) "(Hvm & Htm & Htapes & Hvals & %Hvm)".
+    rewrite /compute_hash_specialized.
+    wp_pures.
+    wp_apply (wp_get with "Hvm").
+    iIntros (vret) "(Hhash&->)".
+    rewrite lookup_fmap.
+    iDestruct (ghost_map_lookup with "Htapes Hk") as %Ht.
+    iDestruct "Hv" as "[[Hα %] | %]".
+    - iDestruct (ghost_map_lookup with "Hvals Hw") as %Hv.
+      assert (vm !! k = None) as ->.
+      { destruct (vm !! k) eqn:?; [|done]. set_solver. }
+      wp_pures.
+      wp_apply (wp_get with "Htm").
+      iIntros (α') "[Htm ->]".
+      rewrite lookup_fmap Ht.
+      wp_pures.
+      wp_apply (wp_rand_tape with "Hα").
+      iIntros "[Htape %]". wp_pures.
+      wp_apply (wp_set with "Hhash").
+      iIntros "Hhash". wp_pures. iApply "HΦ".
+      iMod (ghost_map_update (Some _) with "Hvals Hw") as "[Hvals Hw]".
+      iModIntro.
+      iSplitR "Hk Hw Htape"; last first.
+      { iFrame. by iRight. }
+      iExists _, _, (<[k:=n]>vm), _, tm.
+      iFrame.
+      iSplit; first done.
+      iSplit.
+      { iPureIntro; rewrite dom_insert_L. set_unfold; intros ? [?|?]; auto.
+        subst. apply elem_of_dom; eauto. }
+      iSplit; first done.
+      rewrite fmap_insert; iFrame.
+      iPureIntro.
+      split.
+      { intros [[-> ->] | [? ?]]%lookup_insert_Some.
+        { rewrite lookup_insert //. }
+        rewrite lookup_insert_ne //.
+        by apply Hvm. }
+      { intros [[-> ?] | [? ?]]%lookup_insert_Some.
+        { rewrite lookup_insert //. }
+        rewrite lookup_insert_ne //.
+        set_solver. }
+    - iDestruct (ghost_map_lookup with "Hvals Hw") as %Hv. subst.
+      rewrite -Hvm in Hv. rewrite Hv.
+      wp_pures.
+      iApply "HΦ". iModIntro.
+      iFrame. eauto.
+  Qed.
+
+  Lemma hashfun_presample E k (bad : gset nat) (ε εI εO: nonnegreal) max γt γv :
+    k ≤ max →
+    (∀ x, x ∈ bad → x < S val_size) →
+    (εI * size bad + εO * (val_size + 1 - size bad) <= ε * (val_size + 1))%R →
+    hashkey γt γv k None -∗
+    ↯ ε -∗
+    state_update E E (∃ (n : fin (S val_size)),
+      ((⌜fin_to_nat n ∉ bad⌝ ∗ ↯ εO) ∨ (⌜fin_to_nat n ∈ bad⌝ ∗ ↯ εI)) ∗
+        hashkey γt γv k (Some (fin_to_nat n))).
+  Proof.
+    iIntros (Hmax Hsize Heps) "Hkey Herr".
+    iDestruct "Hkey" as (α w) "(Hk & Hw & Hα & %)".
+    iMod (state_step_err_set_in_out _ val_size bad _ εI εO
+           with "Hα Herr") as (n) "[Herr Htape] /=".
+    { apply cond_nonneg. }
+    { apply cond_nonneg. }
+    { done. }
+    { done. }
+    iModIntro. iExists _.
+    iFrame "Herr".
+    iExists _, _. iFrame.
+    iLeft. by iFrame.
+  Qed.
+
+  (** * Concurrent hash function with per key presampling tapes*)
+  Definition compute_con_hash : val :=
+    λ: "l" "hm" "tm" "v",
       acquire "l";;
       let: "output" := compute_hash "hm" "tm" "v" in
       release "l";;
       "output".
 
+  Definition compute_con_hash_specialized (l hm tm : val) : val:=
+    λ: "v",
+      acquire "l";;
+      let: "output" := compute_hash "hm" "tm" "v" in
+      release "l";;
+      "output".
 
-  (* init_hash returns a hash as a function, basically wrapping the internal state
-     in the returned function *)
   Definition init_hash : val :=
     λ: "max_val",
       let, ("hm", "tm") := init_hash_state "max_val" in
-      let: "l" := newlock #() in
+      let: "l" := newlock  #() in
       compute_hash ("l", "hm", "tm").
 
-  Definition hash_key_tape (tm : gmap nat (val * list nat)) γ:=
-    ([∗ map] k ↦ t ∈ tm,
-      rand_tapes t.1 t.2 γ.1 ∗
-        t.1 ◯↪N ( val_size ; t.2 ) @ γ.2)%I.
-
-  Definition hash_key_tape_auth (tm :  gmap nat val) (tcont : gmap val (list nat)) γ :=
-     (([∗ map] k ↦ α ∈ tm, rand_token α γ.1) ∗
-        ● ((λ t, (val_size, t))<$>tcont) @ γ.2)%I.
-
-
-  Definition abstract_con_hash (f:val) (l:val) (hm:val) γ_hv γ_tapes : iProp Σ :=
-    ∃ m tm tcont,
-      ⌜f=compute_con_hash_specialized (l, hm)%V⌝ ∗
-           own γ_hv (●E m) ∗
-           hash_key_tape_auth tm tcont γ_tapes
-      (* hv_auth (L:=Hhv) m γ1 ∗ *)
-  .
-
-  Definition abstract_con_hash_inv N f l hm γ_hv γ_tapes :=
-    (inv (N.@"hash") (abstract_con_hash f l hm γ_hv γ_tapes))%I.
-
-
-  Definition concrete_con_hash (hm:val) (m : gmap nat nat) R {HR: ∀ m, Timeless (R m)} γ_hv : iProp Σ :=
-    ∃ (lvm ltm : loc) (vm: gmap nat nat) (tm: gmap nat loc),
-      ⌜ hm=#lvm ⌝ ∗
-      map_list lvm ((λ n, LitV (LitInt (Z.of_nat n))) <$> vm) ∗
-      map_list ltm ((λ a, LitV (LitLbl a)) <$> tm) ∗
-      ([∗ map] i ↦ α ∈ tm,
-        (∃ v, ⌜ m !! i = Some v ⌝ ∗ ⌜ vm !! i = Some v ⌝) ∨
-        (∃ v vs, ⌜ m !! i = Some v ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪N (val_size ; (v::vs))) ∨
-        (⌜ m !! i = None ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪N (val_size ; nil))) ∗
-      own γ_hv (◯E m) ∗
-      R m.
-
-
-
-  Definition concrete_con_hash_inv hm l R {HR: ∀ m, Timeless (R m )} γ_hv γ_lock :=
-    is_lock (L:=Hl) γ_lock l (∃ m, concrete_con_hash hm m R γ_hv).
-  
-
-  Definition hash_auth m γ1:=
-    (hv_auth (L:=Hhv) m γ1 )%I.
-
-  Definition hash_frag k v γ1 :=
-    (hv_frag (L:=Hhv) k v γ1)%I.
+  (** TODO: the lock should just protect [hashfun] *)
 
 End con_hash_impl.
