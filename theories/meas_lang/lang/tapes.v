@@ -19,6 +19,26 @@ From clutch.prelude Require Import classical.
 From clutch.meas_lang.lang Require Export prelude. (* types constructors shapes cover projections. **)
 Set Warnings "hiding-delimiting-key".
 
+Section nat_mf.
+  Local Open Scope classical_set_scope.
+  (** Measurable functions out of nat *)
+  Context {d} {T : measurableType d}.
+
+  Definition nf : Type := nat -> T.
+
+  HB.instance Definition _ := gen_eqMixin nf.
+  HB.instance Definition _ := gen_choiceMixin nf.
+  HB.instance Definition _ := isPointed.Build nf (cst point).
+
+ (*
+  Check preimage_set_system.
+
+  Program Definition nf_generators : set (set nf) :=
+    preimage () (setT : set T).
+*)
+
+
+End nat_mf.
 
 (**  General lemmas about tapes *)
 

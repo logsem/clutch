@@ -116,7 +116,7 @@ Definition aux_aux_unop_1 : set (<<discr un_op>> * val)%type :=
   setX [set NegOp] (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitBool).
 
 Definition aux_aux_unop_2 : set (<<discr un_op>> * val)%type :=
-  setX [set MinusUnOp] (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitInt).
+  setX [set NegOp] (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitInt).
 
 Definition aux_aux_unop_3 : set (<<discr un_op>> * val)%type :=
   setX [set MinusUnOp] (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitInt).
@@ -137,7 +137,29 @@ Lemma aux_aux_unop_4_meas : measurable aux_aux_unop_4.
 Proof. apply measurableX; [by rewrite /measurable//= |]. apply 𝜋_LitV_v_meas; by eauto with measlang. Qed.
 
 Lemma aux_unop : auxcov_unop_ok = aux_aux_unop_1 `|` aux_aux_unop_2 `|` aux_aux_unop_3 `|` aux_aux_unop_4.
-Admitted.
+Proof.
+  rewrite /auxcov_unop_ok/aux_aux_unop_1/aux_aux_unop_2/aux_aux_unop_3/aux_aux_unop_4/setU/=.
+  apply /predeqP =>[[y1 y2]] /=.
+  split.
+  { repeat move=> [+]; move=>?//=.
+    destruct y1.
+    all: move=>//=.
+    all: destruct y2.
+    all: move=>//=.
+    all: destruct l.
+    all: move=>//=?.
+    1: left; left; right.
+    2: left; left; left.
+    3: left; right.
+    4: right.
+    all: split; rewrite //.
+    all: rewrite /vcov_lit/bcov_LitInt/bcov_LitBool/bcov_LitReal//=.
+    all: by split; eexists. }
+  { move=>[[[[->[++]]|[->[++]]]|[->[++]]]|[->[++]]].
+    all: repeat move=> [+]; move=>?->.
+    all: repeat move=> [+]; move=>?//=->.
+    all: by eexists _; move=>//=. }
+Qed.
 
 Lemma auxcov_unop_ok_meas : measurable auxcov_unop_ok.
 Proof.
@@ -149,14 +171,38 @@ Proof.
 Qed.
 Hint Resolve auxcov_unop_ok_meas : measlang.
 
+Lemma aux_unop' : auxcov_unop_stuck = ~` auxcov_unop_ok.
+Proof.
+  rewrite /auxcov_unop_stuck/setC/auxcov_unop_ok.
+  apply /predeqP =>[[y1 y2]] /=.
+  split.
+  { all: rewrite/un_op_eval//=.
+    all: destruct y1.
+    all: move=>//=.
+    all: destruct y2.
+    all: move=>//=.
+    all: try by move=>? [? HK]; inversion HK.
+    all: destruct l.
+    all: move=>//=?.
+    all: by move=> [? HK]; inversion HK. }
+  { all: rewrite/un_op_eval//=.
+    all: destruct y1.
+    all: move=>//=.
+    all: destruct y2.
+    all: move=>//=.
+    all: destruct l.
+    all: move=>//= H.
+    all: exfalso; apply H.
+    all: by eexists _. }
+Qed.
 
 Lemma auxcov_unop_stuck_meas : measurable auxcov_unop_stuck.
-Proof.
-Admitted.
+Proof. by rewrite aux_unop'; eapply @measurableC, auxcov_unop_ok_meas. Qed.
 Hint Resolve auxcov_unop_stuck_meas : measlang.
 
 Lemma un_op_evalC_meas : measurable_fun auxcov_unop_ok un_op_evalC.
 Proof.
+(* Cover argument *)
 Admitted.
 Hint Resolve un_op_evalC_meas : measlang.
 
@@ -165,7 +211,6 @@ Hint Resolve un_op_evalC_meas : measlang.
 
 Definition auxcov_binop_ok : set (<<discr bin_op>> * val * val)%type :=
   [set x | ∃ w, bin_op_eval x.1.1 x.1.2 x.2 = Some w].
-
 
 Definition auxcov_binop_stuck : set (<<discr bin_op>> * val * val)%type :=
   [set x | bin_op_eval x.1.1 x.1.2 x.2 = None].

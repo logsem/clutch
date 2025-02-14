@@ -752,3 +752,10 @@ Section discrete_space_mapout.
   Proof. done. Qed.
 
 End discrete_space_mapout.
+
+
+
+(* FIXME: move *)
+Definition image4 {TA TB TC TD rT} (A : set TA) (B : set TB) (C : set TC) (D : set TD) (f : TA -> TB -> TC -> TD -> rT) :=
+  [set z | exists2 x, A x & exists2 y, B y & exists2 w, C w & exists2 v, D v & f x y w v = z].
+Arguments image4 _ _ _ _ _ _ _ _ _ /.
