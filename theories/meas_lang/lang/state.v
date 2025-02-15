@@ -160,16 +160,55 @@ End gmap_loc_measurable.
 
 
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes, and [loc]-indexed utapes *)
-Definition state : Type := ((gmap loc val) * (gmap loc btape) * (gmap loc (@utape R)))%type.
+Record state : Type := {
+    state_v : ((gmap loc val) * (gmap loc btape) * (gmap loc (@utape R)))%type
+}.
 
-Definition heap   : state -> gmap loc val := ssrfun.comp fst fst.
-Definition tapes  : state -> gmap loc btape := ssrfun.comp snd fst.
-Definition utapes : state -> gmap loc (@utape R) := snd.
+Definition prod_of_state (s : state) : ((gmap loc val) * (gmap loc btape) * (gmap loc (@utape R))) :=
+  match s with {| state_v := x |} => x end.
 
+Definition state_of_prod (v : (gmap loc val) * (gmap loc btape) * (gmap loc (@utape R))) : state :=
+  {| state_v := v |}.
 
+Lemma prod_of_state_of_state p : prod_of_state (state_of_prod p) = p.
+Proof. by rewrite /prod_of_state/state_of_prod//. Qed.
 
+Lemma state_of_prod_of_state s : state_of_prod (prod_of_state s) = s.
+Proof. destruct s. by rewrite /prod_of_state/state_of_prod//. Qed.
 
+HB.instance Definition _ := gen_eqMixin state.
+HB.instance Definition _ := gen_choiceMixin state.
+HB.instance Definition _ := isPointed.Build state (state_of_prod point).
 
+Definition state_measurable : set (set state) :=
+  flip image (flip image state_of_prod) measurable.
+
+Lemma state_display : measure_display.
+Proof. done. Qed.
+
+Lemma state_meas0 : state_measurable set0.
+Proof. Admitted.
+
+Lemma state_measC X : (state_measurable X) -> state_measurable (~` X).
+Proof. Admitted.
+
+Lemma state_measU (F : sequences.sequence (set state)) : (forall i, state_measurable (F i)) -> state_measurable (\bigcup_i F i).
+Proof. Admitted.
+
+HB.instance Definition _ :=
+  @isMeasurable.Build state_display state state_measurable state_meas0 state_measC state_measU.
+
+Definition state_lift_fun {d} {T : measurableType d} f : state -> T := ssrfun.comp f prod_of_state.
+
+Definition state_lift_set D : set state := image D state_of_prod.
+
+Definition state_lift_meas {d} {T : measurableType d} (f : _ -> T) D (HD : measurable D) (H : measurable_fun D f) :
+    measurable_fun (state_lift_set D) (state_lift_fun f).
+Proof. Admitted.
+
+Definition heap   : state -> gmap loc val := state_lift_fun $ ssrfun.comp fst fst.
+Definition tapes  : state -> gmap loc btape := state_lift_fun $ ssrfun.comp snd fst.
+Definition utapes : state -> gmap loc (@utape R) := state_lift_fun $ snd.
 
 
 (** Operations on states *)
