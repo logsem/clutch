@@ -2,7 +2,7 @@
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
-From stdpp Require Import base numbers binders strings gmap.
+From stdpp Require Import base numbers binders strings gmap fin_maps.
 From mathcomp Require Import functions.
 From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
@@ -126,13 +126,23 @@ Section gmap_loc_measurable.
     rewrite setTI//=; move=><-<-//=.
     rewrite <-comp_preimage; rewrite /ssrfun.comp//=.
     destruct (loc_enum_surj l) as [i Hi].
-    destruct (k =? i); rewrite //=.
-    { have -> : ((λ x : T * gmap <<discr loc>> T, <[l:=x.1]> x.2 !! loc_enum k) @^-1` S'') =
+    destruct (k =? i) as [|] eqn:Hki; rewrite //=.
+    { apply Nat.eqb_eq in Hki.
+      have -> : ((λ x : T * gmap <<discr loc>> T, <[l:=x.1]> x.2 !! loc_enum k) @^-1` S'') =
                 (setT `&` (ssrfun.comp Some fst) @^-1` S'').
       { rewrite /setI/preimage/cst//=.
         apply /predeqP =>[y] /=.
         split.
-        { admit. }
+        { subst.
+          have X := (lookup_insert y.2 (loc_enum i) y.1).
+
+          (*
+          move=>H; split; first done.
+
+          simpl at
+*)
+
+          admit. }
         { admit. }
       }
       admit. }
