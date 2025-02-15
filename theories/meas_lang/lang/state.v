@@ -25,7 +25,7 @@ Set Default Proof Using "Type*".
 
 Context `{R : realType}.
 
-Global Instance gmap_lookup {T} : Lookup loc T (gmap loc T).
+Global Instance gmap_lookup {T} : Lookup <<discr loc>> T (gmap <<discr loc>> T).
 Proof. Admitted.
 
 Section gmap_loc_measurable.
@@ -33,20 +33,22 @@ Section gmap_loc_measurable.
   (** Measurable functions out of nat *)
   Context {d} {T : measurableType d}.
 
-  HB.instance Definition _ := gen_eqMixin (gmap loc T).
-  HB.instance Definition _ := gen_choiceMixin (gmap loc T).
-  HB.instance Definition _ := isPointed.Build (gmap loc T) (inhabitant : gmap loc T).
+  (** TODO: Get the actual stdpp functions working, so less porting work later. I think the issue could be missing <<discr loc>>. *)
+
+  HB.instance Definition _ := gen_eqMixin (gmap <<discr loc>> T).
+  HB.instance Definition _ := gen_choiceMixin (gmap <<discr loc>> T).
+  HB.instance Definition _ := isPointed.Build (gmap <<discr loc>> T) (inhabitant : gmap <<discr loc>> T).
 
 
-  Definition loc_enum : nat -> loc. Admitted.
+  Definition loc_enum : nat -> <<discr loc>>. Admitted.
   Lemma loc_enum_surj : forall l, exists n, loc_enum n = l.
   Proof. Admitted.
 
   (* NOTE: that this is the preimage out of (option T), not T *)
-  Definition gl_generators : set (set (gmap loc T)) :=
-    (\bigcup_i (preimage_class setT (fun (f : gmap loc T) => lookup (loc_enum i) f) measurable)).
+  Definition gl_generators : set (set (gmap <<discr loc>> T)) :=
+    (\bigcup_i (preimage_class setT (fun (f : gmap <<discr loc>> T) => lookup (loc_enum i) f) measurable)).
 
-  Definition gl_measurable : set (set (gmap loc T)) := <<s gl_generators>>.
+  Definition gl_measurable : set (set (gmap <<discr loc>> T)) := <<s gl_generators>>.
 
   Lemma gl_meas0 : gl_measurable set0.
   Proof. by apply sigma_algebra0. Qed.
@@ -54,14 +56,14 @@ Section gmap_loc_measurable.
   Lemma gl_measC X : (gl_measurable X) -> gl_measurable (~` X).
   Proof. by apply sigma_algebraC. Qed.
 
-  Lemma gl_measU (F : sequences.sequence (set (gmap loc T))) : (forall i, gl_measurable (F i)) -> gl_measurable (\bigcup_i F i).
+  Lemma gl_measU (F : sequences.sequence (set (gmap <<discr loc>> T))) : (forall i, gl_measurable (F i)) -> gl_measurable (\bigcup_i F i).
   Proof. by apply sigma_algebra_bigcup. Qed.
 
   HB.instance Definition _ :=
-    @isMeasurable.Build (sigma_display gl_measurable) (gmap loc T) gl_measurable gl_meas0 gl_measC gl_measU.
+    @isMeasurable.Build (sigma_display gl_measurable) (gmap <<discr loc>> T) gl_measurable gl_meas0 gl_measC gl_measU.
 
 
-  Lemma gl_eval_measurable (l : <<discr loc>>) : measurable_fun setT (lookup l : gmap loc T -> option T).
+  Lemma gl_eval_measurable (l : <<discr loc>>) : measurable_fun setT (lookup l : gmap <<discr loc>> T -> option T).
   Proof.
     intros _ Y HY.
     rewrite /gl_measurable.
@@ -106,14 +108,14 @@ Section gmap_loc_measurable.
   (* The uncurry is measurable becuase nat is discrete and countable *)
   Definition gl_evalC : (<<discr loc>> * gmap loc T)%type -> option T := uncurry lookup.
   Lemma gl_evalC_measurable : measurable_fun setT gl_evalC.
-  Proof. unfold gl_evalC. (* Typeclasses crap *) Admitted.
+  Proof. eapply @uncurry_loc_measurable. by apply gl_eval_measurable. Qed.
   Hint Resolve nf_evalC_measurable : measlang.
 
 
   Definition gl_update (l : <<discr loc>>) : (T * (gmap loc T))%type -> (gmap loc T) :=
     fun x => insert l x.1 x.2.
 
-  Lemma gl_update_measurable (l : loc) : measurable_fun setT (gl_update l).
+  Lemma gl_update_measurable (l : <<discr loc>>) : measurable_fun setT (gl_update l).
   Proof.
     eapply @measurability; [done|].
     rewrite //=/gl_update/subset/preimage_class//=.
@@ -125,7 +127,7 @@ Section gmap_loc_measurable.
     rewrite <-comp_preimage; rewrite /ssrfun.comp//=.
     destruct (loc_enum_surj l) as [i Hi].
     destruct (k =? i); rewrite //=.
-    { have -> : ((λ x : T * gmap loc T, <[l:=x.1]> x.2 !! loc_enum k) @^-1` S'') =
+    { have -> : ((λ x : T * gmap <<discr loc>> T, <[l:=x.1]> x.2 !! loc_enum k) @^-1` S'') =
                 (setT `&` (ssrfun.comp Some fst) @^-1` S'').
       { rewrite /setI/preimage/cst//=.
         apply /predeqP =>[y] /=.
@@ -135,7 +137,7 @@ Section gmap_loc_measurable.
       }
       admit. }
 
-    { have -> : ((λ x : T * gmap loc T, <[l:=x.1]> x.2 !! loc_enum k) @^-1` S'') =
+    { have -> : ((λ x : T * gmap <<discr loc>> T, <[l:=x.1]> x.2 !! loc_enum k) @^-1` S'') =
                ((ssrfun.comp (gmap_lookup (loc_enum k)) snd) @^-1` S'').
       { rewrite /ssrfun.comp/preimage//=. admit. }
       rewrite <-(setTI (preimage _ _)).
@@ -151,26 +153,27 @@ Section gmap_loc_measurable.
   Admitted.
   Hint Resolve gl_update_measurable : measlang.
 
-  Definition gl_updateC : (<<discr loc>> * (T * (gmap loc T)))%type -> (gmap loc T) := uncurry gl_update.
+  Definition gl_updateC : (<<discr loc>> * (T * (gmap <<discr loc>> T)))%type -> (gmap <<discr loc>> T) := uncurry gl_update.
   Lemma gl_updateC_measurable : measurable_fun setT gl_updateC.
-  Proof. Admitted. (*  by apply (@uncurry_nat_measurable _ _ _ _ gl_update), gl_update_measurable. Qed. *)
+  Proof. eapply @uncurry_loc_measurable. by apply gl_update_measurable. Qed.
   Hint Resolve gl_updateC_measurable : measlang.
+
+  (* FIXME: Prove this is measurable <[ _ := _ ]>. *)
 
 End gmap_loc_measurable.
 
-
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes, and [loc]-indexed utapes *)
 Record state : Type := {
-    state_v : ((gmap loc val) * (gmap loc btape) * (gmap loc (@utape R)))%type
+    state_v : ((gmap <<discr loc>> val) * (gmap <<discr loc>> btape) * (gmap <<discr loc>> (@utape R)))%type
 }.
 
-Definition prod_of_state (s : state) : ((gmap loc val) * (gmap loc btape) * (gmap loc (@utape R))) :=
+Definition prod_of_state (s : state) : ((gmap <<discr loc>> val) * (gmap <<discr loc>> btape) * (gmap <<discr loc>> (@utape R))) :=
   match s with {| state_v := x |} => x end.
 
-Definition state_of_prod (v : (gmap loc val) * (gmap loc btape) * (gmap loc (@utape R))) : state :=
+Definition state_of_prod (v : (gmap <<discr loc>> val) * (gmap <<discr loc>> btape) * (gmap <<discr loc>> (@utape R))) : state :=
   {| state_v := v |}.
 
-Lemma prod_of_state_of_state p : prod_of_state (state_of_prod p) = p.
+Lemma prod_of_state_of_prod p : prod_of_state (state_of_prod p) = p.
 Proof. by rewrite /prod_of_state/state_of_prod//. Qed.
 
 Lemma state_of_prod_of_state s : state_of_prod (prod_of_state s) = s.
@@ -186,46 +189,243 @@ Definition state_measurable : set (set state) :=
 Lemma state_display : measure_display.
 Proof. done. Qed.
 
+Lemma state_measurable_of_prod_measurable S : measurable S -> state_measurable (image S state_of_prod).
+Proof.
+  move=>HS.
+  rewrite /state_measurable/image/flip//=.
+  exists S; done.
+Qed.
+
+Lemma prod_measurable_of_state_measurable {S} :
+  state_measurable S -> measurable (image S prod_of_state).
+Proof.
+  (*
+  intro HS.
+  exists (image S prod_of_state).
+  destruct HS as [P HP <-].
+  have -> : [set prod_of_state x | x in flip image state_of_prod P] = P.
+  { apply functional_extensionality; intro x; apply propext; split; simpl.
+    { move=>[z [z' H]] <- <-. by rewrite prod_of_state_of_state. }
+    { move=>H. exists (state_of_prod x); [by exists x| by apply prod_of_state_of_state]. }
+  }
+  done.
+*)
+Admitted.
+
 Lemma state_meas0 : state_measurable set0.
-Proof. Admitted.
+Proof.
+  have -> : (set0 : set state) = (image set0 state_of_prod).
+  { apply functional_extensionality; intro x; apply propext.
+    rewrite /image/state_of_prod/set0//=.
+    split; [by move=>?|by move=>[??]].
+  }
+  by apply state_measurable_of_prod_measurable, @measurable0.
+Qed.
 
 Lemma state_measC X : (state_measurable X) -> state_measurable (~` X).
-Proof. Admitted.
+Proof.
+  move=>H.
+  (*
+  destruct (exists_prod_measurable_of_state_measurable H) as [P [HP ->]].
+  have -> : (~` [set state_of_prod x | x in P]) = image (~` P) state_of_prod.
+  { apply functional_extensionality; intro x; apply propext.
+    admit. }
+  apply state_measurable_of_prod_measurable.
+  by apply measurableC, HP. *)
+Admitted.
 
 Lemma state_measU (F : sequences.sequence (set state)) : (forall i, state_measurable (F i)) -> state_measurable (\bigcup_i F i).
-Proof. Admitted.
+Proof.
+  intro H.
+Admitted.
 
 HB.instance Definition _ :=
   @isMeasurable.Build state_display state state_measurable state_meas0 state_measC state_measU.
 
+(*
 Definition state_lift_fun {d} {T : measurableType d} f : state -> T := ssrfun.comp f prod_of_state.
+*)
 
 Definition state_lift_set D : set state := image D state_of_prod.
 
-Definition state_lift_meas {d} {T : measurableType d} (f : _ -> T) D (HD : measurable D) (H : measurable_fun D f) :
+Lemma prod_of_state_meas D (H : measurable D) : measurable_fun D prod_of_state.
+Proof.
+  intros HD Y HY.
+  have -> : (D `&` prod_of_state @^-1` Y) = (image (setI (image D prod_of_state) Y) state_of_prod).
+  { rewrite /setI/image//=.
+    apply functional_extensionality; intro y; apply propext; split; rewrite //=.
+    { move=>[??].
+      eexists (prod_of_state y); last by rewrite state_of_prod_of_state.
+      split; [|done].
+      eexists _; done. }
+    { move=> [? [+ +]]. move=> [? ?] H1 H2 <-.
+      rewrite prod_of_state_of_prod.
+      split; last done.
+      rewrite <-H1.
+      rewrite state_of_prod_of_state.
+      done. } }
+  apply state_measurable_of_prod_measurable.
+  apply measurableI.
+  { by apply prod_measurable_of_state_measurable. }
+  { done. }
+Qed.
+
+Lemma state_of_prod_meas D (H : measurable D) : measurable_fun D state_of_prod.
+Proof.
+  intros HD Y HY.
+  have -> : (D `&` state_of_prod @^-1` Y) = (image (setI (image D state_of_prod) Y) prod_of_state).
+  { rewrite /setI/image//=.
+    apply functional_extensionality; intro y; apply propext; split; rewrite //=.
+    { move=>[??].
+      eexists (state_of_prod y); last by rewrite prod_of_state_of_prod.
+      split; [|done].
+      eexists _; done. }
+    { move=> [? [+ +]]. move=> [? ?] H1 H2 <-.
+      rewrite state_of_prod_of_state.
+      split; last done.
+      rewrite <-H1.
+      rewrite prod_of_state_of_prod.
+      done. } }
+  apply prod_measurable_of_state_measurable.
+  suffices HM : measurable ([set state_of_prod x | x in D] `&` Y) by done.
+  apply measurableI.
+  { by apply state_measurable_of_prod_measurable. }
+  { done. }
+Qed.
+
+
+(*
+Definition state_lift_fun_meas {d} {T : measurableType d} (f : _ -> T) D (HD : measurable D) (H : measurable_fun D f) :
     measurable_fun (state_lift_set D) (state_lift_fun f).
-Proof. Admitted.
+Proof.
+  intros H1 Y HY.
+  have -> :  (state_lift_set D `&` state_lift_fun f @^-1` Y) = (image (D `&` f @^-1` Y) state_of_prod).
+  { rewrite /image/setI/preimage/state_lift_fun/state_lift_set/state_of_prod//=.
+    apply functional_extensionality; intro y; apply propext; split; rewrite //=.
+    { move=>[[??]<-].
+      rewrite prod_of_state_of_state.
+      move=>?. by eexists _. }
+    { move=>[?[??]]<-.
+      split; [eexists _; done|].
+      by rewrite prod_of_state_of_state. }
+  }
+  by apply state_measurable_of_prod_measurable, (H HD), HY.
+Qed.
+*)
 
-Definition heap   : state -> gmap loc val := state_lift_fun $ ssrfun.comp fst fst.
-Definition tapes  : state -> gmap loc btape := state_lift_fun $ ssrfun.comp snd fst.
-Definition utapes : state -> gmap loc (@utape R) := state_lift_fun $ snd.
+Definition heap : state -> gmap <<discr loc>> val := ssrfun.comp (ssrfun.comp fst fst) prod_of_state.
+Lemma heap_meas : measurable_fun setT heap.
+Proof.
+  eapply (@measurable_comp _ _ _ _ _ _ setT (ssrfun.comp fst fst) setT prod_of_state); simpl.
+  { by eapply @measurableT. }
+  { done. }
+  { eapply measurable_comp.
+    { by eapply @measurableT. }
+    { done. }
+    { by apply @measurable_fst. }
+    { by apply @measurable_fst. }
+  }
+  { eapply prod_of_state_meas. by apply @measurableT. }
+Qed.
+Hint Resolve heap_meas : measlang.
 
+Definition tapes  : state -> gmap <<discr loc>> btape := ssrfun.comp (ssrfun.comp snd fst) prod_of_state.
+Lemma tapes_meas : measurable_fun setT tapes.
+Proof.
+  eapply (@measurable_comp _ _ _ _ _ _ setT (ssrfun.comp snd fst) setT prod_of_state); simpl.
+  { by eapply @measurableT. }
+  { done. }
+  { eapply measurable_comp.
+    { by eapply @measurableT. }
+    { done. }
+    { by apply @measurable_snd. }
+    { by apply @measurable_fst. }
+  }
+  { eapply prod_of_state_meas. by apply @measurableT. }
+Qed.
+Hint Resolve tapes_meas : measlang.
+
+Definition utapes : state -> gmap <<discr loc>> (@utape R) := ssrfun.comp snd prod_of_state.
+Lemma utapes_meas : measurable_fun setT utapes.
+Proof.
+  eapply (@measurable_comp _ _ _ _ _ _ setT snd setT prod_of_state); simpl.
+  { by eapply @measurableT. }
+  { done. }
+  { by eapply @measurable_snd. }
+  { eapply prod_of_state_meas. by apply @measurableT. }
+Qed.
+Hint Resolve utapes_meas : measlang.
 
 (** Operations on states *)
 
+Definition state_upd_heap (f : gmap <<discr loc>> val -> gmap <<discr loc>> val) : state -> state :=
+  ssrfun.comp state_of_prod $
+  mProd (mProd (ssrfun.comp f heap) tapes) utapes.
+
+Lemma state_upd_heap_meas f (H : measurable_fun setT f) : measurable_fun setT (state_upd_heap f).
+Proof.
+  eapply (@measurable_comp _ _ _ _ _ _ setT state_of_prod  setT _).
+  { by eapply @measurableT. }
+  { done. }
+  { by apply state_of_prod_meas. }
+  mcrunch_prod.
+  { mcrunch_prod.
+    { eapply @measurable_comp; [by eapply @measurableT|done| |].
+      { done. }
+      { by apply heap_meas.  }
+    }
+    { by apply tapes_meas. }
+  }
+  { by apply utapes_meas. }
+Qed.
+Hint Resolve state_upd_heap_meas : measlang.
+
+Definition state_upd_tapes (f : gmap <<discr loc>> btape -> gmap <<discr loc>> btape) : state -> state :=
+  ssrfun.comp state_of_prod $
+  mProd (mProd heap (ssrfun.comp f tapes)) utapes.
+
+Lemma state_upd_tapes_meas f (H : measurable_fun setT f) : measurable_fun setT (state_upd_tapes f).
+Proof.
+  eapply (@measurable_comp _ _ _ _ _ _ setT state_of_prod  setT _).
+  { by eapply @measurableT. }
+  { done. }
+  { by apply state_of_prod_meas. }
+  mcrunch_prod.
+  { mcrunch_prod.
+    { by apply heap_meas.  }
+    { eapply @measurable_comp; [by eapply @measurableT|done| |].
+      { done. }
+      { by apply tapes_meas. }
+    }
+  }
+  { by apply utapes_meas. }
+Qed.
+Hint Resolve state_upd_tapes_meas : measlang.
+
+Definition state_upd_utapes (f : gmap <<discr loc>> utape -> gmap <<discr loc>> utape) : state -> state :=
+  ssrfun.comp state_of_prod $
+  mProd (mProd heap tapes) (ssrfun.comp f utapes).
+
+Lemma state_upd_utapes_meas f (H : measurable_fun setT f) : measurable_fun setT (state_upd_utapes f).
+Proof.
+  eapply (@measurable_comp _ _ _ _ _ _ setT state_of_prod  setT _).
+  { by eapply @measurableT. }
+  { done. }
+  { by apply state_of_prod_meas. }
+  mcrunch_prod.
+  { mcrunch_prod.
+    { by apply heap_meas.  }
+    { by apply tapes_meas. }
+  }
+  { eapply @measurable_comp; [by eapply @measurableT|done| |].
+    { done. }
+    { by apply utapes_meas. }
+  }
+Qed.
+Hint Resolve state_upd_utapes_meas : measlang.
+
+
 (*
-
-Definition state_upd_heap (f : gmap loc val → gmap loc val) (σ : state) : state :=
-  {| heap := f σ.(heap); tapes := σ.(tapes); utapes := σ.(utapes) |}.
-Global Arguments state_upd_heap _ !_ /.
-
-Definition state_upd_tapes (f : gmap loc btape → gmap loc btape) (σ : state) : state :=
-  {| heap := σ.(heap); tapes := f σ.(tapes); utapes := σ.(utapes) |}.
-Global Arguments state_upd_tapes _ !_ /.
-
-Definition state_upd_utapes (f : gmap loc utape → gmap loc utape) (σ : state) : state :=
-  {| heap := σ.(heap); tapes := σ.(tapes); utapes := f σ.(utapes) |}.
-Global Arguments state_upd_utapes _ !_ /.
 
 Lemma state_upd_tapes_twice σ l xs ys :
   state_upd_tapes <[ l := ys ]> (state_upd_tapes <[ l := xs ]> σ) = state_upd_tapes <[ l:= ys ]> σ.
