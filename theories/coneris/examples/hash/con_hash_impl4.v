@@ -1,13 +1,11 @@
 From iris.base_logic.lib Require Import ghost_map.
 From clutch.coneris Require Import coneris.
 From clutch.coneris.lib Require Import map lock.
-From clutch.coneris.examples Require Import coll_free_hash_view_impl.
 Set Default Proof Using "Type*".
 
 Class con_hashG Σ `{conerisGS Σ} := {
   con_hash_lock :: lock.lock;
   con_hash_lockG : lockG Σ;
-  con_hash_hash_viewG : hvG1 Σ;
   con_hash_ghost_mapG1 :: ghost_mapG Σ nat loc;
   con_hash_ghost_mapG2 :: ghost_mapG Σ nat (option nat);
 }.
@@ -132,6 +130,8 @@ Section con_hash_impl.
        map_list ltm ((λ (α : loc), LitV (LitLbl α)) <$> tm) ∗
        ghost_map_auth γtm 1 tm ∗
        ghost_map_auth γvm 1 vm' ∗
+       (** [vm] is the physical value map, whereas [vm'] is the logical value map. In this way, the
+           points-to [k ↪[γv] None] represents a "permission" to write to the key [k]. *)
        ⌜∀ i v, vm !! i = Some v ↔ vm' !! i = Some (Some v)⌝.
 
   Lemma wp_init_hash_state max :
@@ -241,7 +241,7 @@ Section con_hash_impl.
   Proof.
     iIntros (Hmax Hsize Heps) "Hkey Herr".
     iDestruct "Hkey" as (α w) "(Hk & Hw & Hα & %)".
-    iMod (state_step_err_set_in_out _ val_size bad _ εI εO
+    iMod (state_step_err_set_in_out _ bad _ εI εO
            with "Hα Herr") as (n) "[Herr Htape] /=".
     { apply cond_nonneg. }
     { apply cond_nonneg. }

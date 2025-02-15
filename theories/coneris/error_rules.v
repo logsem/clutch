@@ -1297,10 +1297,9 @@ Qed.
     iPureIntro. rewrite fmap_app; by f_equal.
   Qed.
 
-  Lemma state_step_err_set_in_out (N : nat) (z : Z) (bad : gset nat) (ε εI εO : R) E α ns :
-    TCEq N (Z.to_nat z) →
-    (0<=εI)%R →
-    (0<=εO)%R →
+  Lemma state_step_err_set_in_out (N : nat) (bad : gset nat) (ε εI εO : R) E α ns :
+    (0 <= εI)%R →
+    (0 <= εO)%R →
     (∀ n, n ∈ bad -> n < S N) →
     (εI * (size bad) + εO * (N + 1 - size bad)  <= ε * (N + 1))%R →
     α ↪N (N; ns) -∗
@@ -1309,11 +1308,10 @@ Qed.
         ((⌜fin_to_nat x ∉ bad⌝ ∗ ↯ εO) ∨ (⌜fin_to_nat x ∈ bad⌝ ∗ ↯ εI)) ∗
           α ↪N (N; ns ++ [fin_to_nat x])).
   Proof.
-    iIntros (HN HineqI HineqO Hlen Hleq) "Htape Herr".
+    iIntros (HineqI HineqO Hlen Hleq) "Htape Herr".
     set (ε2 := (λ x : fin (S N), if bool_decide (fin_to_nat x ∈ bad) then εI else εO)).
     iMod (state_update_presample_exp _ _ _ _ (SeriesC (λ n : fin (S N), (1 / (N + 1) * ε2 n)%R)) ε2
            with "Htape [Herr]") as (x) "[Htape Herr]".
-    (* wp_apply (wp_couple_rand_adv_comp1 _ _ _  (SeriesC (λ n : fin (S N), (1 / (N + 1) * ε2 n)%R)) ε2 with "[Herr]"). *)
     { intros. rewrite /ε2. by case_bool_decide. }
     { rewrite S_INR. done. }
     { iApply ec_weaken; auto.
