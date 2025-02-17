@@ -21,35 +21,21 @@ Class rand_spec' (tb:nat) `{!conerisGS Σ} := RandSpec'
   (** * Predicates *)
   is_rand (N:namespace)
     (γ1: rand_tape_name) : iProp Σ; 
-  (* rand_tapes_auth {L : randG Σ} (γ: rand_tape_name) (m:gmap loc (nat * list nat)): iProp Σ; *)
   rand_tapes (* (γ: rand_tape_name) *) (α:val) (ns: (list nat)) (γ1: rand_tape_name): iProp Σ;
   rand_token (α: val) (γ:rand_tape_name) : iProp Σ;
   (** * General properties of the predicates *)
   #[global] is_rand_persistent N γ1 ::
     Persistent (is_rand N γ1);
-  (* #[global] rand_tapes_auth_timeless {L : randG Σ} γ m :: *)
-  (*   Timeless (rand_tapes_auth (L:=L) γ m); *)
   #[global] rand_tapes_timeless α ns γ::
     Timeless (rand_tapes α ns γ);  
   #[global] rand_token_timeless α γ::
     Timeless (rand_token α γ);  
-  (* #[global] rand_tape_name_inhabited :: *)
-  (*   Inhabited rand_tape_name; *)
-
-  (* rand_tapes_auth_exclusive {L : randG Σ} γ m m': *)
-  (* rand_tapes_auth (L:=L) γ m -∗ rand_tapes_auth (L:=L) γ m' -∗ False; *)
   rand_tapes_exclusive α ns ns' γ:
   rand_tapes α ns γ-∗ rand_tapes α ns' γ-∗ False;
   rand_token_exclusive α γ:
   rand_token α γ -∗ rand_token α γ -∗ False; 
-  (* rand_tapes_agree {L : randG Σ} γ α m ns: *)
-  (* rand_tapes_auth (L:=L) γ m -∗ rand_tapes (L:=L) γ α ns -∗ ⌜ m!! α = Some (ns) ⌝; *)
   rand_tapes_valid α ns γ:
     rand_tapes α ns γ -∗ ⌜Forall (λ n, n<=tb)%nat ns⌝ ; 
-  (* rand_tapes_update {L : randG Σ} γ α m ns ns': *)
-  (* Forall (λ x, x<=ns'.1) ns'.2 -> *)
-  (*   rand_tapes_auth (L:=L) γ m -∗ rand_tapes (L:=L) γ α ns ==∗ *)
-  (*   rand_tapes_auth (L:=L) γ (<[α := ns']> m) ∗ rand_tapes (L:=L) γ α ns'; *)
   rand_tapes_presample N E α ns ε (ε2 : fin (S tb) -> R) γ:
   ↑N⊆E -> 
   (∀ x, 0<=ε2 x)%R ->

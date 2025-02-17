@@ -1643,39 +1643,6 @@ Section list_specs_HO.
 
 
 
-  (*
-  Lemma wp_list_make_HO E (n : nat) (f : val) P Q Ψ :
-    {{{
-          {{{ P }}} f @ E {{{v, RET v; Q v }}}
-    }}}
-      list_make #n f @ E
-      {{{ v vs, RET v; ⌜is_list_HO vs v⌝ ∗ ⌜length vs = n ⌝ ∗ [∗ list] k↦w ∈ vs, Q v }}}.
-  Proof.
-    iIntros (Φ) "#Hf Hφ".
-    iInduction n as [ | p] "IHm" forall (Φ).
-    - rewrite /list_make.
-      wp_pures.
-      iApply ("Hφ" $! _ []).
-      iModIntro; auto.
-    - rewrite /list_make.
-      wp_rec.
-      do 5 wp_pure.
-      assert (#(S p - 1) = #p) as ->.
-      { do 3 f_equal. lia. }
-      fold list_make.
-      wp_apply "IHm".
-      iIntros (v vs) "(%Hvs & %Hlen & Hg)".
-      wp_apply (wp_list_cons_HO with "[//]").
-      iIntros (v' Hv').
-      iApply ("Hφ" $! v' (f :: vs)); iFrame.
-      iSplitL; auto.
-      iSplitR; auto.
-      iPureIntro.
-      rewrite cons_length.
-      by f_equal.
-  Qed.
-  *)
-
 End list_specs_HO.
 
 

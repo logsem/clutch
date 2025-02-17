@@ -1,5 +1,7 @@
 (** * Hocap atomic rand specs
     The sampling operation is atomic. This allows tapes to be placed within invariants
+    Note that this spec does not support compressing multiple rands, 
+    e.g. simulating a rand 3 with two rand 1s
  *)
 From clutch.coneris Require Import coneris atomic.
 
@@ -16,25 +18,12 @@ Class rand_atomic_spec (tb:nat) `{!conerisGS Σ} := RandAtomicSpec
   (** * Predicates *)
   rand_tapes (α:val) (ns: (list nat)): iProp Σ;
   (** * General properties of the predicates *)
-  (* #[global] rand_tapes_auth_timeless {L : randG Σ} γ m :: *)
-  (*   Timeless (rand_tapes_auth (L:=L) γ m); *)
   #[global] rand_tapes_timeless α ns::
     Timeless (rand_tapes α ns);  
-  (* #[global] rand_tape_name_inhabited :: *)
-  (*   Inhabited rand_tape_name; *)
-
-  (* rand_tapes_auth_exclusive {L : randG Σ} γ m m': *)
-  (* rand_tapes_auth (L:=L) γ m -∗ rand_tapes_auth (L:=L) γ m' -∗ False; *)
   rand_tapes_exclusive α ns ns':
   rand_tapes α ns-∗ rand_tapes α ns'-∗ False;
-  (* rand_tapes_agree {L : randG Σ} γ α m ns: *)
-  (* rand_tapes_auth (L:=L) γ m -∗ rand_tapes (L:=L) γ α ns -∗ ⌜ m!! α = Some (ns) ⌝; *)
   rand_tapes_valid α ns:
     rand_tapes α ns -∗ ⌜Forall (λ n, n<=tb)%nat ns⌝ ; 
-  (* rand_tapes_update {L : randG Σ} γ α m ns ns': *)
-  (* Forall (λ x, x<=ns'.1) ns'.2 -> *)
-  (*   rand_tapes_auth (L:=L) γ m -∗ rand_tapes (L:=L) γ α ns ==∗ *)
-  (*   rand_tapes_auth (L:=L) γ (<[α := ns']> m) ∗ rand_tapes (L:=L) γ α ns'; *)
   rand_tapes_presample E α ns ε (ε2 : fin (S tb) -> R):
   (∀ x, 0<=ε2 x)%R ->
   (SeriesC (λ n, 1 / (S tb) * ε2 n)%R <= ε)%R ->
