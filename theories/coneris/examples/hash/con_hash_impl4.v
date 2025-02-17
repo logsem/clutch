@@ -13,56 +13,54 @@ Class con_hashG Σ `{conerisGS Σ} := {
 Section con_hash_impl.
   Context `{!conerisGS Σ, !con_hashG Σ}.
 
-  Variable val_size : nat.
-
   (** * Sequential hash function with per key presampling tapes *)
   Definition alloc_tapes : val :=
-    rec: "alloc_tapes" "tm" "n" :=
+    rec: "alloc_tapes" "val_size" "tm" "n" :=
      if: ("n" - #1) < #0 then
         #()
       else
-       let: "α" := alloc #val_size in
+       let: "α" := alloc "val_size" in
         map.set "tm" ("n" - #1) "α";;
-       "alloc_tapes" "tm" ("n" - #1).
-
-  Definition init_hash_state : val :=
-   λ: "max_val",
-      let: "val_map" := init_map #() in
-      let: "tape_map" := init_map #() in
-      alloc_tapes "tape_map" ("max_val" + #1);;
-      ("val_map", "tape_map").
+       "alloc_tapes" "val_size" "tm" ("n" - #1).
 
   Definition compute_hash : val :=
-    λ: "vm" "tm" "v",
+    λ: "val_size" "vm" "tm" "v",
       match: map.get "vm" "v" with
       | SOME "b" => "b"
       | NONE =>
           match: map.get "tm" "v" with
             | SOME "α" =>
-                let: "b" := rand("α") #val_size  in
+                let: "b" := rand("α") "val_size"  in
                 set "vm" "v" "b";;
                 "b"
           | NONE => #0
           end
       end.
 
-  Definition compute_hash_specialized vm tm : val :=
+  Definition compute_hash_specialized val_size vm tm : val :=
     λ: "v",
       match: map.get vm "v" with
       | SOME "b" => "b"
       | NONE =>
           match: map.get tm "v" with
             | SOME "α" =>
-                let: "b" := rand("α") #val_size in
+                let: "b" := rand("α") val_size in
                 set vm "v" "b";;
                 "b"
-            | NONE => #false
+            | NONE => #0
             end
       end.
 
-  Lemma wp_alloc_tapes E ltm max :
+  Definition init_hash_state : val :=
+   λ: "val_size" "max_val",
+      let: "val_map" := init_map #() in
+      let: "tape_map" := init_map #() in
+      alloc_tapes "val_size" "tape_map" ("max_val" + #1);;
+      compute_hash "val_size" "val_map" "tape_map".
+
+  Lemma wp_alloc_tapes E val_size ltm max :
     {{{ map_list ltm ∅ }}}
-      alloc_tapes #ltm #max @ E
+      alloc_tapes #val_size #ltm #max @ E
     {{{ RET #(); ∃ tm,
         map_list ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
         ⌜(∀ i : nat, i < max ↔ i ∈ dom tm)⌝ ∗
@@ -113,7 +111,10 @@ Section con_hash_impl.
       lia.
   Qed.
 
-  Definition hashkey (γt γv : gname) (k : nat) (v : option nat) : iProp Σ :=
+  (** Exclusive ownership of the hash key [k], including the ability to presample its hash value.
+      We could also make [hashkey] persistent after the first (physical) hash by converting the
+      points-to into a persistent points-to. *)
+  Definition hashkey (γt γv : gname) (val_size : nat) (k : nat) (v : option nat) : iProp Σ :=
     ∃ (α : loc) (w : option nat),
       k ↪[γt] α ∗ k ↪[γv] w ∗
       match v with
@@ -121,11 +122,12 @@ Section con_hash_impl.
       | Some n => α ↪N (val_size; [n]) ∗ ⌜w = None⌝ ∨ ⌜w = Some n⌝
       end.
 
-  Definition hashfun γtm γvm (max : nat) (f : val) : iProp Σ :=
+  (** (Sequential) hash function *)
+  Definition hashfun γtm γvm (val_size max : nat) (f : val) : iProp Σ :=
     ∃ (lvm ltm : loc) (vm : gmap nat nat) (vm' : gmap nat (option nat)) (tm : gmap nat loc),
        ⌜ (∀ i : nat, i <= max ↔ i ∈ dom tm) ⌝ ∗
        ⌜ dom vm ⊆ dom tm ⌝ ∗
-       ⌜ f = compute_hash_specialized #lvm #ltm ⌝ ∗
+       ⌜ f = compute_hash_specialized #val_size #lvm #ltm ⌝ ∗
        map_list lvm ((λ (n : nat), LitV (LitInt n)) <$> vm) ∗
        map_list ltm ((λ (α : loc), LitV (LitLbl α)) <$> tm) ∗
        ghost_map_auth γtm 1 tm ∗
@@ -134,13 +136,13 @@ Section con_hash_impl.
            points-to [k ↪[γv] None] represents a "permission" to write to the key [k]. *)
        ⌜∀ i v, vm !! i = Some v ↔ vm' !! i = Some (Some v)⌝.
 
-  Lemma wp_init_hash_state max :
+  Lemma wp_init_hash_state val_size max :
     {{{ True }}}
-      init_hash_state #max
-    {{{ (γt γv : gname) (lvm ltm : loc) (tm : gmap nat loc), RET (#lvm, #ltm);
-        hashfun γt γv max (compute_hash_specialized #lvm #ltm) ∗
+      init_hash_state #val_size #max
+    {{{ (γt γv : gname) (tm : gmap nat loc) hash, RET hash;
+        hashfun γt γv val_size max hash ∗
         ⌜(∀ i : nat, i < S max ↔ i ∈ dom tm)⌝ ∗
-        ([∗ map] k ↦ v ∈ tm, hashkey γt γv k None) }}}.
+        ([∗ map] k ↦ v ∈ tm, hashkey γt γv val_size k None) }}}.
   Proof.
     iIntros (Φ) "_ HΦ".
     rewrite /init_hash_state.
@@ -158,12 +160,13 @@ Section con_hash_impl.
     iMod (ghost_map_alloc (gset_to_gmap None (dom tm))) as (γv) "[Hvauth Hvals]".
     iCombine "Hkey Hvals Htapes" as "Htapes".
     rewrite gset_to_gmap_dom big_sepM_fmap -!big_sepM_sep /=.
-    iApply ("HΦ" $! _ _ _ _ tm). iModIntro.
+    iApply ("HΦ" $! _ _ tm). iModIntro.
     iSplitR "Htapes".
     { iExists lvm, ltm, ∅, _, tm.
       rewrite ?fmap_empty. iFrame. iSplit.
       { iPureIntro. intros. rewrite -Hdom. split; lia. }
       iSplit; [done|].
+      rewrite /compute_hash_specialized.
       iSplit; [done|].
       iPureIntro. intros ??.
       rewrite lookup_empty.
@@ -174,10 +177,10 @@ Section con_hash_impl.
     iIntros (k α Hlookup) "(? & ? & ?)". by iFrame.
   Qed.
 
-  Lemma wp_hashfun_prev E f (max k n : nat) γt γv :
-    {{{ hashfun γt γv max f ∗ hashkey γt γv k (Some n) }}}
+  Lemma wp_hashfun_prev E f (val_size max k n : nat) γt γv :
+    {{{ hashfun γt γv val_size max f ∗ hashkey γt γv val_size k (Some n) }}}
       f #k @ E
-    {{{ RET #n; hashfun γt γv max f ∗ hashkey γt γv k (Some n) }}}.
+    {{{ RET #n; hashfun γt γv val_size max f ∗ hashkey γt γv val_size k (Some n) }}}.
   Proof.
     iIntros (Φ) "[Hhash (%α & %w & Hk & Hw & Hv)] HΦ".
     iDestruct "Hhash" as (lvm ltm vm vm' tm Hdom1 Hdom2 ->) "(Hvm & Htm & Htapes & Hvals & %Hvm)".
@@ -229,15 +232,16 @@ Section con_hash_impl.
       iFrame. eauto.
   Qed.
 
-  Lemma hashfun_presample E k (bad : gset nat) (ε εI εO: nonnegreal) max γt γv :
+  (** Presampling of hash key  *)
+  Lemma hashkey_presample E val_size k (bad : gset nat) (ε εI εO: nonnegreal) max γt γv :
     k ≤ max →
     (∀ x, x ∈ bad → x < S val_size) →
     (εI * size bad + εO * (val_size + 1 - size bad) <= ε * (val_size + 1))%R →
-    hashkey γt γv k None -∗
+    hashkey γt γv val_size k None -∗
     ↯ ε -∗
     state_update E E (∃ (n : fin (S val_size)),
       ((⌜fin_to_nat n ∉ bad⌝ ∗ ↯ εO) ∨ (⌜fin_to_nat n ∈ bad⌝ ∗ ↯ εI)) ∗
-        hashkey γt γv k (Some (fin_to_nat n))).
+        hashkey γt γv val_size k (Some (fin_to_nat n))).
   Proof.
     iIntros (Hmax Hsize Heps) "Hkey Herr".
     iDestruct "Hkey" as (α w) "(Hk & Hw & Hα & %)".
@@ -253,27 +257,77 @@ Section con_hash_impl.
     iLeft. by iFrame.
   Qed.
 
-  (** * Concurrent hash function with per key presampling tapes*)
   Definition compute_con_hash : val :=
-    λ: "l" "hm" "tm" "v",
-      acquire "l";;
-      let: "output" := compute_hash "hm" "tm" "v" in
-      release "l";;
+    λ: "lk" "hash" "v",
+      acquire "lk";;
+      let: "output" := "hash" "v" in
+      release "lk";;
       "output".
 
-  Definition compute_con_hash_specialized (l hm tm : val) : val:=
+  Definition compute_con_hash_specialized (lk hash : val) : val :=
     λ: "v",
-      acquire "l";;
-      let: "output" := compute_hash "hm" "tm" "v" in
-      release "l";;
+      acquire (lock := con_hash_lock) lk;;
+      let: "output" := hash "v" in
+      release (lock := con_hash_lock) lk;;
       "output".
 
-  Definition init_hash : val :=
-    λ: "max_val",
-      let, ("hm", "tm") := init_hash_state "max_val" in
-      let: "l" := newlock  #() in
-      compute_hash ("l", "hm", "tm").
+  Definition init_con_hash : val :=
+    λ: "val_size" "max_val",
+      let: "hash" := init_hash_state "val_size" "max_val" in
+      let: "lk" := newlock #() in
+      compute_con_hash "lk" "hash".
 
-  (** TODO: the lock should just protect [hashfun] *)
+  (** Concurrent hashfun *)
+  Definition conhashfun γt γv val_size max f :=
+    (∃ γ lk hash,
+        ⌜f = compute_con_hash_specialized lk hash⌝ ∗
+        is_lock (L := con_hash_lockG) γ lk (hashfun γt γv val_size max hash))%I.
+
+  #[global] Instance conhashfun_persistent γt γv val_size max f :
+    Persistent (conhashfun γt γv val_size max f).
+  Proof. apply _. Qed.
+
+  Lemma wp_init_hash val_size max :
+    {{{ True }}}
+      init_con_hash #val_size #max
+    {{{ (keys : gset nat) (γt γv : gname) conhash, RET conhash;
+        conhashfun γt γv val_size max conhash ∗
+        ⌜(∀ i : nat, i < S max ↔ i ∈ keys)⌝ ∗
+        ([∗ set] k ∈ keys, hashkey γt γv val_size k None) }}}.
+  Proof.
+    iIntros (Φ) "_ HΦ". rewrite /init_con_hash.
+    wp_pures.
+    wp_apply (wp_init_hash_state with "[//]").
+    iIntros (γt γv tm hash) "(Hfun & % & Hkeys)". wp_pures.
+    wp_apply (newlock_spec with "Hfun").
+    iIntros (lk γ) "Hlk". wp_pures.
+    rewrite /compute_con_hash. wp_pures.
+    iModIntro. iApply ("HΦ" $! (dom tm)).
+    iSplitL "Hlk".
+    { iExists _, _, _. iSplit; [done|]. iFrame. }
+    iSplit; [done|].
+    rewrite big_sepM_dom //.
+  Qed.
+
+  Lemma wp_conhashfun_prev f (val_size max k n : nat) γt γv :
+    {{{ conhashfun γt γv val_size max f ∗ hashkey γt γv val_size k (Some n) }}}
+      f #k
+    {{{ RET #n; conhashfun γt γv val_size max f ∗ hashkey γt γv val_size k (Some n) }}}.
+  Proof.
+    iIntros (Φ) "[#Hchf Hkey] HΦ".
+    iDestruct "Hchf" as (γ lk hash ->) "Hlk".
+    rewrite /compute_con_hash_specialized.
+    wp_pures.
+    wp_apply (acquire_spec with "Hlk").
+    iIntros "[Hlocked Hfun]". wp_pures.
+    wp_apply (wp_hashfun_prev with "[$Hfun $Hkey]").
+    iIntros "[Hfun Hkey]". wp_pures.
+    wp_apply (release_spec with "[$Hlocked $Hlk $Hfun]").
+    iIntros "_".
+    wp_pures.
+    iApply "HΦ".
+    iFrame. iModIntro.
+    by iFrame "Hlk".
+  Qed.
 
 End con_hash_impl.
