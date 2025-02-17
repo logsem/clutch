@@ -278,20 +278,20 @@ Section con_hash_impl.
       compute_con_hash "lk" "hash".
 
   (** Concurrent hashfun *)
-  Definition conhashfun γt γv val_size max f :=
-    (∃ γ lk hash,
+  Definition conhashfun γt γv val_size f :=
+    (∃ γ lk hash max,
         ⌜f = compute_con_hash_specialized lk hash⌝ ∗
         is_lock (L := con_hash_lockG) γ lk (hashfun γt γv val_size max hash))%I.
 
-  #[global] Instance conhashfun_persistent γt γv val_size max f :
-    Persistent (conhashfun γt γv val_size max f).
+  #[global] Instance conhashfun_persistent γt γv val_size f :
+    Persistent (conhashfun γt γv val_size f).
   Proof. apply _. Qed.
 
   Lemma wp_init_hash val_size max :
     {{{ True }}}
       init_con_hash #val_size #max
     {{{ (keys : gset nat) (γt γv : gname) conhash, RET conhash;
-        conhashfun γt γv val_size max conhash ∗
+        conhashfun γt γv val_size conhash ∗
         ⌜(∀ i : nat, i < S max ↔ i ∈ keys)⌝ ∗
         ([∗ set] k ∈ keys, hashkey γt γv val_size k None) }}}.
   Proof.
@@ -304,18 +304,18 @@ Section con_hash_impl.
     rewrite /compute_con_hash. wp_pures.
     iModIntro. iApply ("HΦ" $! (dom tm)).
     iSplitL "Hlk".
-    { iExists _, _, _. iSplit; [done|]. iFrame. }
+    { iExists _, _, _, _. iSplit; [done|]. iFrame. }
     iSplit; [done|].
     rewrite big_sepM_dom //.
   Qed.
 
-  Lemma wp_conhashfun_prev f (val_size max k n : nat) γt γv :
-    {{{ conhashfun γt γv val_size max f ∗ hashkey γt γv val_size k (Some n) }}}
+  Lemma wp_conhashfun_prev f (val_size k n : nat) γt γv :
+    {{{ conhashfun γt γv val_size f ∗ hashkey γt γv val_size k (Some n) }}}
       f #k
-    {{{ RET #n; conhashfun γt γv val_size max f ∗ hashkey γt γv val_size k (Some n) }}}.
+    {{{ RET #n; conhashfun γt γv val_size f ∗ hashkey γt γv val_size k (Some n) }}}.
   Proof.
     iIntros (Φ) "[#Hchf Hkey] HΦ".
-    iDestruct "Hchf" as (γ lk hash ->) "Hlk".
+    iDestruct "Hchf" as (γ lk hash max ->) "Hlk".
     rewrite /compute_con_hash_specialized.
     wp_pures.
     wp_apply (acquire_spec with "Hlk").
