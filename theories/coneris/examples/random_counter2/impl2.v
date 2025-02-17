@@ -42,18 +42,6 @@ Local Fixpoint decoder (l:list bool) :=
   | _ => None
 end.
 
-(* Lemma decoder_unfold l: *)
-(*   decoder l =  *)
-(*   match l with *)
-(*   |[] => Some [] *)
-(*   | b::b'::ls => *)
-(*       res← decoder ls; *)
-(*       Some (((bool_to_nat b)*2+(bool_to_nat b'))::res) *)
-(* | _ => None end. *)
-(* Proof. *)
-(*   induction l; by rewrite {1}/decoder. *)
-(* Qed. *)
-
 Local Lemma decoder_correct bs ns: decoder bs = Some ns -> expander ns = bs.
 Proof.
   revert bs.
@@ -177,46 +165,6 @@ Section impl2.
     by iModIntro.
   Qed.
 
-
-  (** This lemma is not possible as only one view shift*)
-  (* Lemma incr_counter_spec2 E N c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T: nat -> iProp Σ) (Q: nat->nat->iProp Σ): *)
-  (*   ↑N ⊆ E-> *)
-  (*   (∀ ε n, 0<= ε -> 0<= ε2 ε n)%R-> *)
-  (*   (∀ (ε:R), 0<=ε -> ((ε2 ε 0%nat) + (ε2 ε 1%nat)+ (ε2 ε 2%nat)+ (ε2 ε 3%nat))/4 <= ε)%R → *)
-  (*   {{{ inv N (counter_inv_pred2 c γ1 γ2 γ3) ∗ *)
-  (*       □(∀ (ε:R) (n : nat), P ∗ ●↯ ε @ γ1 ={E∖↑N}=∗ (⌜(1<=ε2 ε n)%R⌝∨●↯ (ε2 ε n) @ γ1 ∗ T n) ) ∗ *)
-  (*       □ (∀ (n z:nat), T n ∗ own γ3 (●F z) ={E∖↑N}=∗ *)
-  (*                         own γ3 (●F(z+n)%nat)∗ Q z n) ∗ *)
-  (*       P *)
-  (*   }}} *)
-  (*     incr_counter2 c @ E *)
-  (*     {{{ (n:nat) (z:nat), RET (#z, #n); Q z n }}}. *)
-  (* Proof. *)
-  (*   iIntros (Hsubset Hpos Hineq Φ) "(#Hinv & #Hvs1 & #Hvs2 & HP) HΦ". *)
-  (*   rewrite /incr_counter2. *)
-  (*   wp_pures. *)
-  (*   wp_bind (rand _)%E. *)
-  (*   iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
-  (*   (** cant do two view shifts! *) *)
-  (* Abort. *)
-
-  (* Lemma allocate_tape_spec2 N E c γ1: *)
-  (*   ↑N ⊆ E-> *)
-  (*   {{{ is_counter2 N c γ1 }}} *)
-  (*     allocate_tape2 #() @ E *)
-  (*     {{{ (v:val), RET v; (flip_tapes (L:=L) v (expander []) ∗ ⌜Forall (λ x, x<4) []⌝) *)
-  (*     }}}. *)
-  (* Proof. *)
-  (*   iIntros (Hsubset Φ) "#Hinv HΦ".     *)
-  (*   rewrite /allocate_tape2. *)
-  (*   wp_pures. *)
-  (*   wp_apply flip_allocate_tape_spec; first done. *)
-  (*   iIntros (?) "?". *)
-  (*   iApply "HΦ". *)
-  (*   iFrame. *)
-  (*   iPureIntro.  *)
-  (*   by apply Forall_nil. *)
-  (* Qed. *)
     
 Lemma incr_counter_spec2 N E c γ1 (Q:nat->nat->iProp Σ)  :
     ↑N⊆E ->
@@ -353,46 +301,6 @@ Program Definition random_counter2 `{flip_spec Σ}: random_counter :=
     incr_counter_spec _ :=incr_counter_spec2 (L:=counterG2_to_flipG);
     read_counter_spec _ :=read_counter_spec2 (L:=counterG2_to_flipG)
   |}.
-(* Next Obligation. *)
-(*   simpl. *)
-(*   iIntros (???????) "[H1 ?] [H2 ?]". *)
-(*   iApply (flip_tapes_auth_exclusive with "[$][$]"). *)
-(* Qed. *)
-(* Next Obligation. *)
-(*   simpl. *)
-(*   iIntros (???????) "[??] [??]". *)
-(*   iApply (flip_tapes_exclusive with "[$][$]"). *)
-(* Qed. *)
-(* Next Obligation. *)
-(*   simpl. *)
-(*   iIntros (????????) "[Hauth %H0] [Hfrag %]". *)
-(*   iDestruct (flip_tapes_agree γ α ((λ ns0 : list nat, expander ns0) <$> m) (expander ns) with "[$][$]") as "%K". *)
-(*   iPureIntro. *)
-(*   rewrite lookup_fmap_Some in K. destruct K as (?&K1&?). *)
-(*   replace ns with x; first done. *)
-(*   apply expander_inj; try done. *)
-(*   by eapply map_Forall_lookup_1 in H0. *)
-(* Qed. *)
-(* Next Obligation. *)
-(*   simpl. *)
-(*   iIntros (??????) "[? %]". *)
-(*   iPureIntro. *)
-(*   eapply Forall_impl; first done. *)
-(*   simpl. lia. *)
-(* Qed. *)
-(* Next Obligation. *)
-(*   simpl. *)
-(*   iIntros (??????????) "[H1 %] [H2 %]". *)
-(*   iMod (flip_tapes_update with "[$][$]") as "[??]". *)
-(*   iFrame. *)
-(*   iModIntro. *)
-(*   rewrite fmap_insert. iFrame. *)
-(*   iPureIntro. split. *)
-(*   - apply map_Forall_insert_2; last done. *)
-(*     eapply Forall_impl; first done. simpl; lia. *)
-(*   - eapply Forall_impl; first done. *)
-(*     simpl; lia. *)
-(* Qed. *)
 Next Obligation.
   simpl.
   iIntros (???????) "H1 H2".

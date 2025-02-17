@@ -10,20 +10,16 @@ Definition coll_free (m : gmap nat nat) :=
   k1 = k2.
 
 
-(* Definition NoDup_maps (m:gmap nat nat ) (m':gmap val (list nat)) := *)
-(*   NoDup ((map_to_list m).*2 ++ concat ((map_to_list m').*2)). *)
 
 Class con_hash2 `{!conerisGS Σ} (val_size:nat):= Con_Hash2
 {
   (** * Operations *)
   init_hash2 : val;
-  (* incr_counter : val; *)
   allocate_tape2 : val;
   compute_hash2 : val;
   (** * Ghost state *)
   
   (** [name] is used to associate [locked] with [is_lock] *)
-  (* tape_name: Type; *)
   
   hash_view_gname:Type;
   hash_set_gname:Type;
@@ -34,7 +30,6 @@ Class con_hash2 `{!conerisGS Σ} (val_size:nat):= Con_Hash2
   
   (** * Predicates *)
   con_hash_inv2 (N:namespace) (f l hm: val)  (R:gmap nat nat -> iProp Σ) {HR: ∀ m, Timeless (R m )} (γ1:hash_view_gname) (γ2: hash_set_gname) (γ3:hash_tape_gname) (γ4:hash_view_gname') (γ5:hash_set_gname') (γ_lock:hash_lock_gname): iProp Σ;
-  (* concrete_seq_hash {L:seq_hashG Σ} (f:val) (m:gmap nat nat) : iProp Σ;  *)
   hash_tape2 (α:val) (ns:list nat) (γ2: hash_set_gname) (γ3:hash_tape_gname): iProp Σ; 
   hash_auth2 (m:gmap nat nat) (γ:hash_view_gname) (γ2 : hash_set_gname) (γ4: hash_view_gname') (γ5:hash_set_gname'): iProp Σ; 
   hash_frag2 (v res:nat) (γ:hash_view_gname) (γ2 : hash_set_gname) (γ4:hash_view_gname'): iProp Σ;
@@ -42,8 +37,6 @@ Class con_hash2 `{!conerisGS Σ} (val_size:nat):= Con_Hash2
   hash_set_frag2 (n:nat) (γ2: hash_set_gname)(γ5:hash_set_gname'): iProp Σ; 
   
   (** * General properties of the predicates *)
-  (* #[global] concrete_seq_hash_timeless {L : seq_hashG Σ} f m :: *)
-  (*   Timeless (concrete_seq_hash (L:=L) f m); *)
   #[global] hash_tape_timeless α ns γ2 γ3 ::
     Timeless (hash_tape2 α ns γ2 γ3 );
   #[global] hash_auth_timeless m γ γ2 γ4 γ5::
@@ -58,8 +51,6 @@ Class con_hash2 `{!conerisGS Σ} (val_size:nat):= Con_Hash2
     Persistent (con_hash_inv2 N f l hm R γ1 γ2 γ3 γ4 γ5 γ_lock); 
   #[global] hash_frag_persistent v res γ γ2 γ4 ::
     Persistent (hash_frag2 v res γ γ2 γ4);
-  (* #[global] hash_set_frag_persistent s γ2 :: *)
-  (*   Persistent (hash_set_frag2 s γ2);  *)
   hash_auth_exclusive m m' γ γ2 γ4 γ5:
     hash_auth2 m γ γ2 γ4 γ5-∗ hash_auth2 m' γ γ2 γ4 γ5-∗ False;
   hash_auth_frag_agree m k v γ γ2 γ4 γ5:
@@ -70,24 +61,8 @@ Class con_hash2 `{!conerisGS Σ} (val_size:nat):= Con_Hash2
     hash_auth2 m γ γ2 γ4 γ5-∗ ⌜coll_free m⌝;
   hash_frag_frag_agree k1 k2 v1 v2 γ γ2 γ4 :
     hash_frag2 k1 v1 γ γ2 γ4 -∗ hash_frag2 k2 v2 γ γ2 γ4-∗ ⌜k1=k2<->v1=v2⌝; 
-  (* hash_frag_in_hash_set γ1 γ2 v res: *)
-  (*   hash_frag2 v res γ1 γ2 -∗ hash_set_frag2 res γ2 ;  *)
-  (* hash_tape_in_hash_set α ns γ γ': *)
-  (* hash_tape2 α ns γ γ' -∗ [∗ list] n ∈ ns, hash_set_frag2 n γ;  *)
-  (* hash_set_frag_in_set s n γ: *)
-  (* hash_set1 s γ -∗ hash_set_frag1 n γ -∗ ⌜n ∈ s⌝; *)
   hash_auth_insert m k v γ1 γ2 γ4 γ5:
     m!!k=None -> hash_set_frag2 v γ2 γ5 -∗ hash_auth2 m γ1 γ2 γ4 γ5 ==∗ hash_auth2 (<[k:=v]> m ) γ1 γ2 γ4 γ5  ;  
-  (* hash_tape_auth_exclusive m m' γ2 γ3: *)
-  (*   hash_tape_auth1 m γ2 γ3 -∗ hash_tape_auth1 m' γ2 γ3 -∗ False; *)
-  
-  (* hash_tape_auth_insert m α γ2 γ3: *)
-  (*   m!!α=None -> hash_tape_auth1 m γ2 γ3 ==∗ hash_tape_auth1 (<[α:=[]]> m) γ2 γ3 ∗ hash_tape1 α [] γ2 γ3; *)
-  (* hash_tape_auth_frag_update m α ns n γ2 γ3: *)
-  (* hash_set_frag1 n γ2 -∗ hash_tape_auth1 m γ2 γ3 -∗ hash_tape1 α ns γ2 γ3 ==∗ *)
-  (* hash_tape_auth1 (<[α:=ns++[n]]> m) γ2 γ3 ∗ hash_tape1 α (ns ++ [n]) γ2 γ3; *) 
-  (* hash_set_valid s γ: *)
-  (*   hash_set1 s γ -∗ ⌜∀ n, n∈s -> (n<=val_size)%nat⌝; *)
   hash_tape_valid α ns γ2 γ3 :
     hash_tape2 α ns γ2 γ3 -∗ ⌜Forall (λ x, x<=val_size)%nat ns⌝; 
   hash_tape_exclusive α ns ns' γ2 γ3 :

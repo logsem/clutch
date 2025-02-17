@@ -18,15 +18,12 @@ Class random_counter `{!conerisGS Σ} := RandCounter
   counter_name: Type;
   (** * Predicates *)
   is_counter {L : counterG Σ} (N:namespace) (counter: val) (γ: counter_name): iProp Σ;
-  (* counter_tapes_auth {L : counterG Σ} (γ: tape_name) (m:gmap loc (list nat)): iProp Σ; *)
   counter_tapes {L : counterG Σ} (α:val) (ns:list nat): iProp Σ;
   counter_content_auth {L : counterG Σ} (γ: counter_name) (z:nat): iProp Σ;
   counter_content_frag {L : counterG Σ} (γ: counter_name) (f:frac) (z:nat): iProp Σ;
   (** * General properties of the predicates *)
   #[global] is_counter_persistent {L : counterG Σ} N c γ1 ::
     Persistent (is_counter (L:=L) N c γ1);
-  (* #[global] counter_tapes_auth_timeless {L : counterG Σ} γ m :: *)
-  (*   Timeless (counter_tapes_auth (L:=L) γ m); *)
   #[global] counter_tapes_timeless {L : counterG Σ} α ns ::
     Timeless (counter_tapes (L:=L) α ns);
   #[global] counter_content_auth_timeless {L : counterG Σ} γ z ::
@@ -34,18 +31,10 @@ Class random_counter `{!conerisGS Σ} := RandCounter
   #[global] counter_content_frag_timeless {L : counterG Σ} γ f z ::
     Timeless (counter_content_frag (L:=L) γ f z);
   
-  (* counter_tapes_auth_exclusive {L : counterG Σ} γ m m': *)
-  (* counter_tapes_auth (L:=L) γ m -∗ counter_tapes_auth (L:=L) γ m' -∗ False; *)
   counter_tapes_exclusive {L : counterG Σ} α ns ns':
   counter_tapes (L:=L) α ns -∗ counter_tapes (L:=L) α ns' -∗ False;
-  (* counter_tapes_agree {L : counterG Σ} γ α m ns: *)
-  (* counter_tapes_auth (L:=L) γ m -∗ counter_tapes (L:=L) γ α ns -∗ ⌜ m!! α = Some (ns) ⌝; *)
   counter_tapes_valid {L : counterG Σ} α ns:
     counter_tapes (L:=L) α ns -∗ ⌜Forall (λ n, n<=3)%nat ns⌝;
-  (* counter_tapes_update {L : counterG Σ} γ α m ns ns': *)
-  (*   Forall (λ x, x<=3%nat) ns'-> *)
-  (*   counter_tapes_auth (L:=L) γ m -∗ counter_tapes (L:=L) γ α ns ==∗ *)
-  (*   counter_tapes_auth (L:=L) γ (<[α := ns']> m) ∗ counter_tapes (L:=L) γ α (ns'); *)
   counter_tapes_presample {L:counterG Σ} N E γ c α ns ε (ε2 : fin 4%nat -> R):
   ↑N ⊆ E ->
   (∀ x, 0<=ε2 x)%R ->

@@ -32,7 +32,6 @@ Class hash_view `{!conerisGS Σ} := Hash_View
     hv_auth (L:=L) m γ -∗ hv_auth (L:=L) m' γ -∗ False;
   hv_auth_init {L:hvG Σ}:
   (⊢|==> (∃ γ, hv_auth (L:=L) ∅ γ))%I;
-  (* hv_auth_coll_free {L:hvG Σ} m γ: hv_auth (L:=L) m γ -∗ ⌜coll_free m⌝; *)
   hv_auth_duplicate_frag {L:hvG Σ} m n b γ:
     m!!n=Some b -> hv_auth (L:=L) m γ -∗ hv_auth (L:=L) m γ ∗ hv_frag (L:=L) n b γ;
   hv_auth_frag_agree {L:hvG Σ} m γ k v:

@@ -59,23 +59,6 @@ Section impl3.
     iFrame.
     by iModIntro.
   Qed.
-
-  (* Lemma allocate_tape_spec3 N E c γ1: *)
-  (*   ↑N ⊆ E-> *)
-  (*   {{{ is_counter3 N c γ1 }}} *)
-  (*     allocate_tape3 #() @ E *)
-  (*     {{{ (v:val), RET v; (∃ ls, ⌜filter filter_f ls = []⌝ ∗ rand_tapes (L:=L) v (4, ls)) *)
-  (*     }}}. *)
-  (* Proof. *)
-  (*   iIntros (Hsubset Φ) "#Hinv HΦ". *)
-  (*   rewrite /allocate_tape3. *)
-  (*   wp_pures. *)
-  (*   wp_apply rand_allocate_tape_spec; first done. *)
-  (*   iIntros. *)
-  (*   iApply "HΦ". *)
-  (*   by iFrame. *)
-  (* Qed. *)
-
   
 
   Lemma counter_tapes_presample3 N E γ1 c α ε (ε2 : fin 4%nat -> R):
@@ -215,67 +198,14 @@ Program Definition random_counter3 `{F:rand_spec}: random_counter :=
     incr_counter := incr_counter3;
     read_counter:=read_counter3;
     counterG := counterG3;
-    (* tape_name := rand_tape_name; *)
     counter_name :=gname;
     is_counter _ N c γ1 := is_counter3 N c γ1;
-    (* counter_tapes_auth _ γ m := (∃ (m':gmap loc (nat*list nat)), *)
-    (*                                 ⌜(dom m = dom m')⌝ ∗ *)
-    (*                                 ⌜∀ l xs' tb, m'!!l=Some (tb, xs') → tb = 4 ∧ m!!l=Some (filter filter_f xs')⌝ ∗ *)
-    (*                                              rand_tapes_auth (L:=counterG3_randG) γ m')%I; *)
-    (* counter_tapes _ α n := *)
-    (*   (∃ ls, ⌜filter filter_f ls = (match n with |Some x => [x] | None => [] end)⌝ ∗ rand_tapes (L:=counterG3_randG) α (4, ls))%I; *)
     counter_content_auth _ γ z := own γ (●F z);
     counter_content_frag _ γ f z := own γ (◯F{f} z);
-    (* counter_tapes_presample _ := counter_tapes_presample3; *)
     new_counter_spec _ := new_counter_spec3 (L:=counterG3_randG) ;
     incr_counter_spec _ :=incr_counter_spec3 (L:=counterG3_randG);
     read_counter_spec _ :=read_counter_spec3 (L:=counterG3_randG) 
   |}.
-(* Next Obligation. *)
-(*   simpl. *)
-(*   iIntros (???????) "(%&%&%&?) (%&%&%&?)". *)
-(*   iApply (rand_tapes_auth_exclusive with "[$][$]"). *)
-(* Qed. *)
-(* Next Obligation. *)
-(*   simpl. *)
-(*   iIntros (???????) "(%&%&?) (%&%&?)". *)
-(*   iApply (rand_tapes_exclusive with "[$][$]"). *)
-(* Qed. *)
-(* Next Obligation. *)
-(*   simpl. *)
-(*   iIntros (????????) "(%&%&%K&?) (%&%&?)". *)
-(*   iDestruct (rand_tapes_agree γ α with "[$][$]") as "%K'". *)
-(*   iPureIntro. *)
-(*   apply K in K'. subst. naive_solver. *)
-(* Qed. *)
-(* Next Obligation. *)
-(*   simpl. *)
-(*   iIntros (??????) "(%&%&?)". *)
-(*   iPureIntro. *)
-(*   subst. *)
-(*   induction ls; first done. *)
-(*   rewrite filter_cons. *)
-(*   case_decide as H; last done. *)
-(*   rewrite Forall_cons_iff; split; last done. *)
-(*   rewrite /filter_f in H. lia. *)
-(* Qed. *)
-(* Next Obligation. *)
-(*   simpl. *)
-(*   iIntros (??????????) "(%&%&%&?) (%&%&?)". *)
-(*   iMod (rand_tapes_update _ _ _ _ (_,ns') with "[$][$]") as "[??]"; last iFrame. *)
-(*   - eapply Forall_impl; first done. simpl; lia. *)
-(*   - iPureIntro. split; [split; first (rewrite !dom_insert_L; set_solver)|]. *)
-(*     + intros ? xs' ? K. *)
-(*       rewrite lookup_insert_Some in K. *)
-(*       destruct K as [[??]|[??]]; simplify_eq. *)
-(*       * split; first done. *)
-(*         rewrite lookup_insert_Some; left. *)
-(*         split; first done. *)
-(*         by erewrite Forall_filter_f. *)
-(*       * rewrite lookup_insert_ne; last done.  *)
-(*         naive_solver. *)
-(*     + by apply Forall_filter_f. *)
-(* Qed. *)
 Next Obligation.
   simpl.
   iIntros (???????) "H1 H2".

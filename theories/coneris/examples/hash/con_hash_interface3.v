@@ -24,13 +24,11 @@ Class con_hash3 `{!conerisGS Σ} (val_size:nat) (max_hash_size:nat) (Hpos:0<max_
 {
   (** * Operations *)
   init_hash3 : val;
-  (* incr_counter : val; *)
   allocate_tape3 : val;
   compute_hash3 : val;
   (** * Ghost state *)
   
   (** [name] is used to associate [locked] with [is_lock] *)
-  (* tape_name: Type; *)
   
   hash_view_gname:Type;
   hash_set_gname:Type;
@@ -51,8 +49,6 @@ Class con_hash3 `{!conerisGS Σ} (val_size:nat) (max_hash_size:nat) (Hpos:0<max_
   hash_token3 (n:nat) (γ6:hash_token_gname):iProp Σ; 
   
   (** * General properties of the predicates *)
-  (* #[global] concrete_seq_hash_timeless {L : seq_hashG Σ} f m :: *)
-  (*   Timeless (concrete_seq_hash (L:=L) f m); *)
   #[global] hash_tape_timeless α ns γ2 γ3 ::
     Timeless (hash_tape3 α ns γ2 γ3 );
   #[global] hash_auth_timeless m γ γ2 γ4 γ5::
@@ -69,8 +65,6 @@ Class con_hash3 `{!conerisGS Σ} (val_size:nat) (max_hash_size:nat) (Hpos:0<max_
     Persistent (con_hash_inv3 N f l hm R γ1 γ2 γ3 γ4 γ5 γ6 γ_lock); 
   #[global] hash_frag_persistent v res γ γ2 γ4 ::
     Persistent (hash_frag3 v res γ γ2 γ4);
-  (* #[global] hash_set_frag_persistent s γ2 :: *)
-  (*   Persistent (hash_set_frag2 s γ2);  *)
   hash_auth_exclusive m m' γ γ2 γ4 γ5:
     hash_auth3 m γ γ2 γ4 γ5-∗ hash_auth3 m' γ γ2 γ4 γ5-∗ False;
   hash_auth_frag_agree m k v γ γ2 γ4 γ5:
@@ -81,24 +75,8 @@ Class con_hash3 `{!conerisGS Σ} (val_size:nat) (max_hash_size:nat) (Hpos:0<max_
     hash_auth3 m γ γ2 γ4 γ5-∗ ⌜coll_free m⌝;
   hash_frag_frag_agree k1 k2 v1 v2 γ γ2 γ4 :
     hash_frag3 k1 v1 γ γ2 γ4 -∗ hash_frag3 k2 v2 γ γ2 γ4-∗ ⌜k1=k2<->v1=v2⌝; 
-  (* hash_frag_in_hash_set γ1 γ2 v res: *)
-  (*   hash_frag2 v res γ1 γ2 -∗ hash_set_frag2 res γ2 ;  *)
-  (* hash_tape_in_hash_set α ns γ γ': *)
-  (* hash_tape2 α ns γ γ' -∗ [∗ list] n ∈ ns, hash_set_frag2 n γ;  *)
-  (* hash_set_frag_in_set s n γ: *)
-  (* hash_set1 s γ -∗ hash_set_frag1 n γ -∗ ⌜n ∈ s⌝; *)
   hash_auth_insert m k v γ1 γ2 γ4 γ5:
     m!!k=None -> hash_set_frag3 v γ2 γ5 -∗ hash_auth3 m γ1 γ2 γ4 γ5 ==∗ hash_auth3 (<[k:=v]> m ) γ1 γ2 γ4 γ5  ;  
-  (* hash_tape_auth_exclusive m m' γ2 γ3: *)
-  (*   hash_tape_auth1 m γ2 γ3 -∗ hash_tape_auth1 m' γ2 γ3 -∗ False; *)
-  
-  (* hash_tape_auth_insert m α γ2 γ3: *)
-  (*   m!!α=None -> hash_tape_auth1 m γ2 γ3 ==∗ hash_tape_auth1 (<[α:=[]]> m) γ2 γ3 ∗ hash_tape1 α [] γ2 γ3; *)
-  (* hash_tape_auth_frag_update m α ns n γ2 γ3: *)
-  (* hash_set_frag1 n γ2 -∗ hash_tape_auth1 m γ2 γ3 -∗ hash_tape1 α ns γ2 γ3 ==∗ *)
-  (* hash_tape_auth1 (<[α:=ns++[n]]> m) γ2 γ3 ∗ hash_tape1 α (ns ++ [n]) γ2 γ3; *) 
-  (* hash_set_valid s γ: *)
-  (*   hash_set1 s γ -∗ ⌜∀ n, n∈s -> (n<=val_size)%nat⌝; *)
   hash_tape_valid α ns γ2 γ3 :
     hash_tape3 α ns γ2 γ3 -∗ ⌜Forall (λ x, x<=val_size)%nat ns⌝; 
   hash_tape_exclusive α ns ns' γ2 γ3 :
@@ -113,9 +91,7 @@ Class con_hash3 `{!conerisGS Σ} (val_size:nat) (max_hash_size:nat) (Hpos:0<max_
   hash_tape3 α ns γ_set γ-∗
   ↯ (amortized_error val_size max_hash_size Hpos) -∗
   hash_token3 1 γ_token-∗
-    (* hash_set3 s γ_set γ_set' γ6-∗ *)
     state_update E E (∃ (n:fin(S val_size)), 
-          (* ( hash_set3 (s+1)%nat γ_set γ_set' γ6 )∗ *)
           hash_tape3 α (ns++[fin_to_nat n]) γ_set γ ∗ hash_set_frag3 (fin_to_nat n) γ_set γ_set'
       ); 
 

@@ -6,13 +6,11 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
 {
   (** * Operations *)
   init_hash1 : val;
-  (* incr_counter : val; *)
   allocate_tape1 : val;
   compute_hash1 : val;
   (** * Ghost state *)
   
   (** [name] is used to associate [locked] with [is_lock] *)
-  (* tape_name: Type; *)
   
   hash_view_gname:Type;
   hash_set_gname:Type;
@@ -21,7 +19,6 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
   
   (** * Predicates *)
   con_hash_inv1 (N:namespace) (f l hm: val) (R:gmap nat nat -> iProp Σ) {HR: ∀ m, Timeless (R m )} (γ1:hash_view_gname) (γ2: hash_set_gname) (γ3:hash_tape_gname) (γ_lock:hash_lock_gname): iProp Σ;
-  (* concrete_seq_hash {L:seq_hashG Σ} (f:val) (m:gmap nat nat) : iProp Σ;  *)
   hash_tape1 (α:val) (ns:list nat) (γ2: hash_set_gname) (γ3:hash_tape_gname): iProp Σ;
   hash_auth1 (m:gmap nat nat) (γ:hash_view_gname) (γ2 : hash_set_gname): iProp Σ;
   hash_frag1 (v res:nat) (γ:hash_view_gname) (γ2 : hash_set_gname): iProp Σ;
@@ -29,8 +26,6 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
   hash_set_frag1 (n:nat) (γ2:hash_set_gname) : iProp Σ;
   
   (** * General properties of the predicates *)
-  (* #[global] concrete_seq_hash_timeless {L : seq_hashG Σ} f m :: *)
-  (*   Timeless (concrete_seq_hash (L:=L) f m); *)
   #[global] hash_tape_timeless α ns γ2 γ3::
     Timeless (hash_tape1 α ns γ2 γ3);
   #[global] hash_auth_timeless m γ γ2::
@@ -65,13 +60,6 @@ Class con_hash1 `{!conerisGS Σ} (val_size:nat):= Con_Hash1
   hash_set1 s γ -∗ hash_set_frag1 n γ -∗ ⌜n ∈ s⌝;
   hash_auth_insert m k v γ1 γ2:
     m!!k=None -> hash_set_frag1 v γ2 -∗ hash_auth1 m γ1 γ2 ==∗ hash_auth1 (<[k:=v]> m ) γ1 γ2;
-  (* hash_tape_auth_exclusive m m' γ2 γ3: *)
-  (*   hash_tape_auth1 m γ2 γ3 -∗ hash_tape_auth1 m' γ2 γ3 -∗ False; *)
-  (* hash_tape_auth_insert m α γ2 γ3: *)
-  (*   m!!α=None -> hash_tape_auth1 m γ2 γ3 ==∗ hash_tape_auth1 (<[α:=[]]> m) γ2 γ3 ∗ hash_tape1 α [] γ2 γ3; *)
-  (* hash_tape_auth_frag_update m α ns n γ2 γ3: *)
-  (* hash_set_frag1 n γ2 -∗ hash_tape_auth1 m γ2 γ3 -∗ hash_tape1 α ns γ2 γ3 ==∗ *)
-  (* hash_tape_auth1 (<[α:=ns++[n]]> m) γ2 γ3 ∗ hash_tape1 α (ns ++ [n]) γ2 γ3; *)
   hash_set_valid s γ:
     hash_set1 s γ -∗ ⌜∀ n, n∈s -> (n<=val_size)%nat⌝;
   hash_tape_valid α ns γ2 γ3:

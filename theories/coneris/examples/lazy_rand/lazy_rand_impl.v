@@ -2,44 +2,11 @@ From iris.algebra Require Import gmap.
 From clutch.coneris Require Import coneris hocap_rand_alt lock lazy_rand_interface.
 
 Set Default Proof Using "Type*".
-
-
-(* Section lemmas. *)
-(*   Context `{!inG Σ (excl_authR (optionO (prodO natO natO)))}. *)
-
-(*   (* Helpful lemmas *) *)
-(*   Lemma ghost_var_alloc b : *)
-(*     ⊢ |==> ∃ γ, own γ (●E b) ∗ own γ (◯E b). *)
-(*   Proof. *)
-(*     iMod (own_alloc (●E b ⋅ ◯E b)) as (γ) "[??]". *)
-(*     - by apply excl_auth_valid. *)
-(*     - by eauto with iFrame. *)
-(*   Qed. *)
-
-(*   Lemma ghost_var_agree γ b c : *)
-(*     own γ (●E b) -∗ own γ (◯E c) -∗ ⌜ b = c ⌝. *)
-(*   Proof. *)
-(*     iIntros "Hγ● Hγ◯". *)
-(*     by iCombine "Hγ● Hγ◯" gives %->%excl_auth_agree_L. *)
-(*   Qed. *)
-
-(*   Lemma ghost_var_update γ b' b c : *)
-(*     own γ (●E b) -∗ own γ (◯E c) ==∗ own γ (●E b') ∗ own γ (◯E b'). *)
-(*   Proof. *)
-(*     iIntros "Hγ● Hγ◯". *)
-(*     iMod (own_update_2 _ _ _ (●E b' ⋅ ◯E b') with "Hγ● Hγ◯") as "[$$]". *)
-(*     { by apply excl_auth_update. } *)
-(*     done. *)
-(*   Qed. *)
-
-(* End lemmas. *)
 Section impl.
   Variable val_size:nat.
   Context `{Hc: conerisGS Σ,
               Hv: !ghost_mapG Σ () (option (nat*nat)),
                 lo:lock, Hl: lockG Σ,
-                    (* Hv: !inG Σ (excl_authR (optionO (prodO natO natO))), *)
-                      (* Ht: !abstract_tapesGS Σ, *)
                         Hr: !rand_spec' val_size
     }.
 
@@ -73,9 +40,6 @@ Section impl.
               
   Definition rand_tape_frag α n γ :=
     (rand_tapes α (option_to_list n) γ )%I.
-  
-  (* Definition rand_tape_auth m γ :=(([∗ set] α∈ dom m, rand_token α γ.1) ∗ *)
-  (*                                  ● ((λ x, (val_size, option_to_list x))<$>m) @ γ.2)%I. *)
   
 
   Definition abstract_lazy_rand_inv N γ_tape:=
@@ -134,25 +98,6 @@ Section impl.
     (* iMod (abstract_tapes_presample with "[$][$]") as "[? H]". *)
     by iFrame. 
   Qed.
-
-  (* Lemma lazy_rand_presample_impl N c P {HP: ∀ n, Timeless (P n)} γ γ_view γ_lock Q *)
-  (*   E  : *)
-  (* ↑(N.@"tape") ⊆ E -> *)
-  (* lazy_rand_inv N c P γ γ_view γ_lock -∗ *)
-  (* (∀ m,  rand_tape_auth m γ -∗ *)
-  (*        state_update (E∖↑(N.@"tape")) (E∖↑(N.@"tape")) *)
-  (*          (∃ m', rand_tape_auth m' γ ∗ Q m m') *)
-  (*   ) -∗ *)
-  (*   state_update E E ( *)
-  (*       ∃ m m', Q m m' *)
-  (*     ). *)
-  (* Proof. *)
-  (*   iIntros (?) "(%&%&->&#[Hinv ?]&#?) Hvs". *)
-  (*   iInv "Hinv" as ">(%&?)" "Hclose". *)
-  (*   iMod ("Hvs" with "[$]") as "(%&?&?)". *)
-  (*   iMod ("Hclose" with "[$]") as "_". *)
-  (*   by iFrame. *)
-  (* Qed. *)
 
   Lemma lazy_rand_init_impl N P {HP: ∀ n, Timeless (P n)} :
     {{{ P None }}}

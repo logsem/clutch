@@ -215,23 +215,11 @@ Program Definition random_counter3 `{F:rand_spec}: random_counter :=
     incr_counter_tape_spec_some _ :=incr_counter_tape_spec_some3;
     read_counter_spec _ :=read_counter_spec3 (L:=counterG3_randG) 
   |}.
-(* Next Obligation. *)
-(*   simpl. *)
-(*   iIntros (???????) "(%&%&%&?) (%&%&%&?)". *)
-(*   iApply (rand_tapes_auth_exclusive with "[$][$]"). *)
-(* Qed. *)
 Next Obligation.
   simpl.
   iIntros (???????) "(%&%&?) (%&%&?)".
   iApply (rand_tapes_exclusive with "[$][$]").
 Qed.
-(* Next Obligation. *)
-(*   simpl. *)
-(*   iIntros (????????) "(%&%&%K&?) (%&%&?)". *)
-(*   iDestruct (rand_tapes_agree γ α with "[$][$]") as "%K'". *)
-(*   iPureIntro. *)
-(*   apply K in K'. subst. naive_solver. *)
-(* Qed. *)
 Next Obligation.
   simpl.
   iIntros (??????) "(%&%&?)".
@@ -243,23 +231,6 @@ Next Obligation.
   rewrite Forall_cons_iff; split; last done.
   rewrite /filter_f in H. lia.
 Qed.
-(* Next Obligation. *)
-(*   simpl. *)
-(*   iIntros (??????????) "(%&%&%&?) (%&%&?)". *)
-(*   iMod (rand_tapes_update _ _ _ _ (_,ns') with "[$][$]") as "[??]"; last iFrame. *)
-(*   - eapply Forall_impl; first done. simpl; lia. *)
-(*   - iPureIntro. split; [split; first (rewrite !dom_insert_L; set_solver)|]. *)
-(*     + intros ? xs' ? K. *)
-(*       rewrite lookup_insert_Some in K. *)
-(*       destruct K as [[??]|[??]]; simplify_eq. *)
-(*       * split; first done. *)
-(*         rewrite lookup_insert_Some; left. *)
-(*         split; first done. *)
-(*         by erewrite Forall_filter_f. *)
-(*       * rewrite lookup_insert_ne; last done.  *)
-(*         naive_solver. *)
-(*     + by apply Forall_filter_f. *)
-(* Qed. *)
 Next Obligation.
   simpl.
   iIntros (???????) "H1 H2".
