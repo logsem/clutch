@@ -13,7 +13,7 @@ From clutch.prob Require Import distribution.
 Import uPred.
 
 Notation con_prob_lang_mdp := (con_lang_mdp con_prob_lang).
-(** *NOTE: In future logics, the adequacy theorem should be generalized to ARBITRARY concurrent prob languages, not just con_prob_lang *)
+
 (** Normal adequacy *)
 Section adequacy.
   Context `{!conerisGS Σ}.
@@ -463,14 +463,6 @@ Section safety.
       by rewrite H0.
   Qed.
 
-  (* Lemma sch_erasable_dbind_mass `{Countable sch_int_state} (ζ : sch_int_state) (sch: scheduler con_prob_lang_mdp sch_int_state) `{H0 : !TapeOblivious sch_int_state sch} μ σ n es: *)
-  (* sch_erasable (λ (t : Type) _ _  *)
-  (*                  (sch : scheduler con_prob_lang_mdp t), TapeOblivious t sch) μ σ -> *)
-  (* SeriesC (μ≫=(λ σ', sch_pexec sch n (ζ, (es, σ')))) = SeriesC (sch_pexec sch n (ζ, (es, σ))). *)
-  (* Proof. *)
-  (*   intros H'. *)
-  (*   epose proof H' _ _ _ _ _ _ n H0 as H1. *)
-  (* Admitted. *)
   
   Lemma state_step_coupl_erasure_safety `{Countable sch_int_state} (ζ : sch_int_state) es σ ε Z n (sch: scheduler con_prob_lang_mdp sch_int_state) `{H0 : !TapeOblivious sch_int_state sch}:
     state_step_coupl σ ε Z -∗
@@ -752,82 +744,3 @@ Proof.
   by iApply Hwp.
 Qed.
 
-
-(* Definition sch_reducible `{Countable sch_int_state} (sch: scheduler con_prob_lang_mdp sch_int_state) (ζ : sch_int_state) ρ:= *)
-(*   ∀ x, sch (ζ, ρ) x > 0 -> SeriesC (step x.2 ρ) >0. *)
-  
-(* Lemma sch_pexec_safety_relate `{Countable sch_int_state} (sch: scheduler con_prob_lang_mdp sch_int_state) (ζ : sch_int_state) ρ n: *)
-(*   sch_mass_1 sch -> *)
-(*   probp (sch_pexec sch n (ζ, ρ)) (λ '(ζ', ρ), (is_final ρ ∨ sch_reducible sch ζ' ρ)) = *)
-(*   SeriesC (sch_pexec sch (S n) (ζ, ρ)). *)
-(* Proof. *)
-(*   intros Hmass. *)
-(*   revert ζ ρ. *)
-(*   induction n; intros ζ ρ. *)
-(*   { rewrite sch_pexec_O sch_pexec_1/sch_step_or_final. *)
-(*     case_match. *)
-(*     - rewrite dret_mass. *)
-(*       rewrite probp_dret_true; first done. *)
-(*       left. *)
-(*       rewrite /is_final. naive_solver. *)
-(*     - destruct (decide (sch_reducible sch ζ ρ)). *)
-(*       + rewrite probp_dret_true; last naive_solver. *)
-(*         rewrite /sch_step. *)
-(*         rewrite dbind_mass. *)
-(*         erewrite (SeriesC_ext _ (λ a, sch (ζ, ρ) a)); first by rewrite Hmass. *)
-(*         intros [ζ' ac']. *)
-(*         destruct (pmf_pos (sch (ζ, ρ)) (ζ', ac')) as [K' | <-]; last lra. *)
-(*         rewrite dmap_mass.  *)
-(*         rewrite /sch_reducible in s. *)
-(*         unshelve epose proof s (ζ', ac') _ as H1; first lra. *)
-(*         rewrite /=/con_lang_mdp_step in H1. *)
-(*         rewrite /=/con_lang_mdp_step. *)
-(*         destruct ρ. *)
-(*         case_match. *)
-(*         { simpl in *. *)
-(*           rewrite dzero_mass in H1; lra. *)
-(*         } *)
-(*         case_match; last (rewrite dret_mass; lra). *)
-(*         case_match; first (rewrite dret_mass; lra). *)
-(*         rewrite dmap_mass. *)
-(*         erewrite mixin_prim_step_mass; [lra|apply con_language_mixin|]. *)
-(*         unshelve epose proof SeriesC_gtz_ex _ _ H1 as [? H5]; first by intros. *)
-(*         rewrite dmap_pos in H5. destruct H5 as [?[->?]]. *)
-(*         clear -H5. *)
-(*         naive_solver. *)
-(*       + rewrite probp_dret_false; last first. *)
-(*         { rewrite /is_final. intros [[??]|]; naive_solver. } *)
-(*         rewrite /sch_reducible in n. *)
-(*         symmetry. apply SeriesC_0. *)
-(*         intros [ζ' cfg]. *)
-(*         rewrite /sch_step. *)
-(*         rewrite dbind_unfold_pmf. *)
-(*         apply SeriesC_0. *)
-(*         intros [ζ'' ac']. *)
-(*         rewrite dmap_unfold_pmf/=. *)
-(*         destruct (pmf_pos (sch (ζ, ρ)) (ζ'', ac')) as [|H1]; last (rewrite -H1; lra). *)
-(*         rewrite SeriesC_0; first lra. *)
-(*         intros ρ'. *)
-(*         case_bool_decide; last lra. *)
-(*         simplify_eq. *)
-(*         destruct (pmf_pos (con_lang_mdp_step con_prob_lang ac' ρ) ρ') as [|H2]; last (rewrite -H2; lra). *)
-(*         exfalso. *)
-(*         apply n. *)
-        
-(*   }  *)
-(* Admitted. *)
-
-(* Corollary wp_safety' Σ `{conerisGpreS Σ} `{Countable sch_int_state} (ζ : sch_int_state) *)
-(*   (e : expr) (σ : state) (ε : R) n (sch: scheduler con_prob_lang_mdp sch_int_state) φ `{!TapeOblivious sch_int_state sch}: *)
-(*   0 <= ε → *)
-(*   sch_mass_1 sch -> *)
-(*   (∀ `{conerisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) → *)
-(*   probp (sch_pexec sch n (ζ, ([e], σ))) *)
-(*     (λ '(ζ', ρ), is_final ρ \/ *)
-(*                    sch_reducible sch ζ' ρ *)
-(*     ) >= 1 - ε. *)
-(* Proof. *)
-(*   intros Hε Hmass Hwp. *)
-(*   rewrite sch_pexec_safety_relate. *)
-(*   by eapply wp_safety. *)
-(* Qed. *)
