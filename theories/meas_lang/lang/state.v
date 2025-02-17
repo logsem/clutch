@@ -133,8 +133,7 @@ Section gmap_loc_measurable.
       { rewrite /setI/preimage/cst//=.
         apply /predeqP =>[y] /=.
         split.
-        { subst.
-          have X := (lookup_insert y.2 (loc_enum i) y.1).
+          (*  have X := (lookup_insert y.2 (loc_enum i) y.1). *)
 
           (*
           move=>H; split; first done.
@@ -142,7 +141,7 @@ Section gmap_loc_measurable.
           simpl at
 *)
 
-          admit. }
+        { admit. }
         { admit. }
       }
       admit. }
@@ -209,18 +208,13 @@ Qed.
 Lemma prod_measurable_of_state_measurable {S} :
   state_measurable S -> measurable (image S prod_of_state).
 Proof.
-  (*
   intro HS.
-  exists (image S prod_of_state).
-  destruct HS as [P HP <-].
-  have -> : [set prod_of_state x | x in flip image state_of_prod P] = P.
-  { apply functional_extensionality; intro x; apply propext; split; simpl.
-    { move=>[z [z' H]] <- <-. by rewrite prod_of_state_of_state. }
-    { move=>H. exists (state_of_prod x); [by exists x| by apply prod_of_state_of_state]. }
-  }
-  done.
-*)
-Admitted.
+  destruct HS as [S' HS' <-].
+  rewrite image_comp.
+  have -> : ssrfun.comp prod_of_state state_of_prod = (fun x => x).
+  { apply functional_extensionality; intro x. by rewrite /ssrfun.comp prod_of_state_of_prod. }
+  by rewrite image_id.
+Qed.
 
 Lemma state_meas0 : state_measurable set0.
 Proof.
@@ -435,11 +429,9 @@ Qed.
 Hint Resolve state_upd_utapes_meas : measlang.
 
 
-(*
-
 Lemma state_upd_tapes_twice σ l xs ys :
   state_upd_tapes <[ l := ys ]> (state_upd_tapes <[ l := xs ]> σ) = state_upd_tapes <[ l:= ys ]> σ.
-Proof. rewrite /state_upd_tapes /=. f_equal. apply insert_insert. Qed.
+Proof. Admitted. (* rewrite /state_upd_tapes /=. f_equal. apply insert_insert. Qed. *)
 
 Lemma state_upd_tapes_same σ σ' l xs ys :
   state_upd_tapes <[l:=ys]> σ = state_upd_tapes <[l:=xs]> σ' -> xs = ys.
@@ -457,8 +449,8 @@ Proof.
   destruct σ as [? t]. simpl.
   intros Ht.
   f_equal.
-  apply insert_id. done.
-Qed.
+  (* apply insert_id. done. *)
+Admitted.
 
 (*
 Lemma state_upd_tapes_same' σ σ' l n xs (x y : stdpp.fin.fin (S n)) :
@@ -470,7 +462,7 @@ Lemma state_upd_tapes_neq' σ σ' l n xs (x y : stdpp.fin.fin (S n)) :
 Proof. move => H /state_upd_tapes_same ?. simplify_eq. Qed.
 *)
 
-Fixpoint heap_array (l : loc) (vs : list val) : gmap loc val :=
+Fixpoint heap_array (l : <<discr loc>>) (vs : list val) : gmap <<discr loc>> val :=
   match vs with
   | [] => ∅
   | v :: vs' => {[l := v]} ∪ heap_array (l +ₗ 1) vs'
@@ -499,6 +491,8 @@ Lemma heap_array_lookup l vs v k :
   ∃ j, (0 ≤ j)%Z ∧ k = l +ₗ j ∧ vs !! (Z.to_nat j) = Some v.
 Proof.
   revert k l; induction vs as [|v' vs IH] => l' l /=.
+Admitted.
+(*
   { rewrite lookup_empty. naive_solver lia. }
   rewrite -insert_union_singleton_l lookup_insert_Some IH. split.
   - intros [[-> ?] | (Hl & j & ? & -> & ?)].
@@ -514,6 +508,7 @@ Proof.
     eexists (j - 1)%Z. rewrite loc_add_assoc Z.add_sub_assoc Z.add_simpl_l.
     auto with lia.
 Qed.
+*)
 
 Lemma heap_array_map_disjoint (h : gmap loc val) (l : loc) (vs : list val) :
   (∀ i, (0 ≤ i)%Z → (i < length vs)%Z → h !! (l +ₗ i) = None) →
@@ -531,8 +526,11 @@ Lemma state_upd_heap_singleton l v σ :
   state_upd_heap_N l 1 v σ = state_upd_heap <[l:= v]> σ.
 Proof.
   destruct σ as [h p]. rewrite /state_upd_heap_N /=. f_equiv.
+Admitted.
+(*
   rewrite right_id insert_union_singleton_l. done.
 Qed.
+*)
 
 Lemma state_upd_tapes_heap σ l1 l2 xs m v :
   state_upd_tapes <[l2:=xs]> (state_upd_heap_N l1 m v σ) =
@@ -555,6 +553,4 @@ Proof.
     rewrite map_union_empty replicate_length //.
 Qed.
 
-Global Instance state_inhabited : Inhabited state :=
-  populate {| heap := gmap_empty; tapes := gmap_empty; utapes := gmap_empty |}.
-*)
+Global Instance state_inhabited : Inhabited state := populate point.
