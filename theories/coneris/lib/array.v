@@ -179,7 +179,7 @@ Section proof.
   End array_init.
 
   Section array_init_fmap.
-    Context {A} (g : A → val) (Q : nat → A → iProp Σ).
+    Context {A B} (g : A → val) (Q : nat → A → iProp Σ) (R : nat -> A -> B -> iProp Σ).
     Implicit Types (xs : list A) (f : val).
 
     Local Lemma big_sepL_exists_eq vs :
@@ -210,4 +210,22 @@ Section proof.
       iApply "HΦ". iFrame "Hl Hxs". by rewrite fmap_length.
     Qed.
   End array_init_fmap.
+
+  Section array_zip.
+
+    Context {A B} (R : nat -> A -> B -> iProp Σ).
+
+    Lemma big_sepL_exists vs :
+      ([∗ list] k↦v ∈ vs, ∃ x, R k x v) -∗
+          ∃ xs, [∗ list] k↦v;x ∈ vs;xs, R k x v.
+    Proof.
+      iIntros "Hvs". iInduction vs as [|v vs] "IH" forall (R); simpl.
+      { iExists []. by auto. }
+      iDestruct "Hvs" as "[(%x & Hv) Hvs]".
+      iDestruct ("IH" with "Hvs") as (xs) "Hxs".
+      iExists (x :: xs). by iFrame.
+    Qed.
+
+  End array_zip.
+
 End proof.

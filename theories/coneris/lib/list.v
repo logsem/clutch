@@ -1522,6 +1522,53 @@ Section list_specs_HO.
   Qed.
 
 
+  Lemma wp_list_seq_fun_HO_invariant E Ψ (n m : nat) (fv : val) Q :
+    (∀ (i: nat) (l : list val),
+          {{{ Ψ l }}} fv #i @ E
+          {{{ v, RET v; Ψ (v :: l) ∗ Q i v }}} ) -∗
+      {{{ Ψ [] }}}
+      list_seq_fun #n #m fv @ E
+      {{{ v vs, RET v; ⌜is_list_HO vs v⌝ ∗ ⌜length vs = m ⌝ ∗ Ψ vs ∗ [∗ list] k↦w ∈ vs, Q (n+k) w }}}.
+  Proof.
+    iIntros "#Hf".
+    iInduction m as [ | p] "IHm" forall (n).
+    - iIntros (Φ) "!# HΨ HΦ".
+      rewrite /list_seq_fun /=.
+      wp_pures.
+      iApply ("HΦ" $! _ []); auto.
+    - iIntros (Φ) "!# HΨ HΦ".
+      rewrite /list_seq_fun /=.
+      wp_rec.
+      do 8 wp_pure.
+      assert (#(S p - 1) = #p) as ->.
+      { do 3 f_equal. lia. }
+      fold list_seq_fun.
+      assert (#(n + 1) =
+                #(Z.of_nat (S n))) as ->.
+      { do 3 f_equal. lia. }
+      wp_bind (list_seq_fun _ _ _).
+      wp_apply ("IHm" with "HΨ").
+      iIntros (v vs) "(%Hv & %Hlenp & (HΨ&Hcont))".
+      wp_apply ("Hf" with "HΨ"); auto.
+      iIntros (w) "(HΨ&Hw)".
+      wp_apply (wp_list_cons _ vs); auto.
+      iIntros (v' Hv').
+      iApply "HΦ".
+      iFrame.
+      iSplitR; auto.
+      iSplitR.
+      {
+        iPureIntro.
+        rewrite cons_length; auto.
+      }
+      iApply big_sepL_cons.
+      rewrite Nat.add_0_r.
+      setoid_rewrite Nat.add_succ_r.
+      setoid_rewrite Nat.add_succ_l.
+      iFrame.
+  Qed.
+
+
   Lemma wp_list_map_HO (l : list val) (fv lv : val)
     (P : val -> iProp Σ) (Q : val -> val -> iProp Σ) E :
     {{{ (∀ v,

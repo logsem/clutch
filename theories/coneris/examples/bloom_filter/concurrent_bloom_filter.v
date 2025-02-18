@@ -87,47 +87,91 @@ Section conc_bloom_filter.
   Admitted.
 
 
-  Definition con_hash_inv_list N fs αs ls hms hnames :=
-    ( ⌜ length fs = length hms ⌝ ∗ ⌜ length fs = length ls ⌝ ∗
-      [∗ list] k↦hf;γ ∈ (zip (zip fs αs) (zip ls hms));hnames,
-        (∃ ns, hash_tape1 hf.1.2 ns γ.2.1 γ.2.2.1) ∗
-        con_hash_inv1 N hf.1.1 hf.2.1 hf.2.2 (λ _, True) γ.1 γ.2.1 γ.2.2.1 γ.2.2.2)%I.
+  Definition con_hash_inv_list N hfs hnames :=
+      ([∗ list] k↦hf;γ ∈ hfs;hnames,
+        ∃ f α lk hm ns,
+          ⌜ hf = (f, α)%V ⌝ ∗
+          hash_tape1 α ns γ.2.1 γ.2.2.1 ∗
+        con_hash_inv1 N f lk hm (λ _, True) γ.1 γ.2.1 γ.2.2.1 γ.2.2.2)%I.
 
 
-  Lemma con_hash_inv_list_app N fs1 f fs2 αs ls hms hnames :
-    (con_hash_inv_list N (fs1 ++ (f :: fs2)) αs ls hms hnames -∗
-    (∃ αs1 α αs2 ls1 lk ls2 hms1 hm hms2 hnames1 γ hnames2,
-      con_hash_inv_list N fs1 αs1 ls1 hms1 hnames1 ∗
-        ((∃ ns, hash_tape1 α ns γ.2.1 γ.2.2.1) ∗
-           con_hash_inv1 N f lk hm (λ _, True) γ.1 γ.2.1 γ.2.2.1 γ.2.2.2) ∗
-      con_hash_inv_list N fs2 αs2 ls2 hms2 hnames2)).
-  Admitted.
-
-
-  Lemma con_hash_inv_list_cons N f fs2 αs ls hms hnames :
-    con_hash_inv_list N ((f :: fs2)) αs ls hms hnames -∗
-    (∃ α αs2 lk ls2 hm hms2 γ hnames2,
-        ⌜ αs = α :: αs2 ⌝ ∗ ⌜ ls = lk :: ls2 ⌝ ∗ ⌜ hms = hm :: hms2 ⌝ ∗ ⌜ hnames = γ :: hnames2 ⌝ ∗
-         (∃ ns, hash_tape1 α ns γ.2.1 γ.2.2.1) ∗
-         (con_hash_inv1 N f lk hm (λ _, True) γ.1 γ.2.1 γ.2.2.1 γ.2.2.2) ∗
-         con_hash_inv_list N fs2 αs2 ls2 hms2 hnames2
+  Lemma con_hash_inv_list_cons N hf hfs2 hnames :
+    con_hash_inv_list N ((hf :: hfs2)) hnames -∗
+    (∃ f α lk hm γ hnames2 ns,
+        ⌜ hf = (f, α)%V⌝ ∗ ⌜ hnames = γ :: hnames2 ⌝ ∗
+         hash_tape1 α ns γ.2.1 γ.2.2.1 ∗
+         con_hash_inv1 N f lk hm (λ _, True) γ.1 γ.2.1 γ.2.2.1 γ.2.2.2 ∗
+         con_hash_inv_list N hfs2 hnames2
     ).
   Admitted.
 
 
 
-  Definition bloom_filter_inv N bfl hfuns a fs αs ls hms
+  Definition bloom_filter_inv N bfl hfuns a
     (hnames : list (hash_view_gname * (hash_set_gname * (hash_tape_gname * hash_lock_gname)))) (s : gset nat) : iPropI Σ :=
       inv (N.@"bf")
+        (∃ hfs,
           (bfl ↦ (hfuns, LitV (LitLoc a))%V ∗
-          ⌜ is_list_HO (zip_with (λ v1 v2, PairV v1 v2) fs αs) hfuns ⌝ ∗
-          ⌜ length fs = num_hash ⌝ ∗
-          con_hash_inv_list N fs αs ls hms hnames ∗
+          ⌜ is_list_HO hfs hfuns ⌝ ∗
+          ⌜ length hfs = num_hash ⌝ ∗
+          con_hash_inv_list N hfs hnames ∗
           ⌜ forall i, i ∈ s -> (i < S filter_size)%nat  ⌝ ∗
           (∃ (arr : list val),
             (a ↦∗ arr) ∗
             ⌜ length arr = S filter_size ⌝ ∗
-            ⌜ forall i, i < S filter_size -> arr !! i = Some #true -> i ∈ s  ⌝))%I.
+            ⌜ forall i, i < S filter_size -> arr !! i = Some #true -> i ∈ s  ⌝)))%I.
+
+
+  Lemma bloom_filter_init_spec N :
+    {{{ ↯ (fp_error filter_size num_hash (num_hash * num_threads) 0) }}}
+      init_bloom_filter #()
+    {{{ (bfl:loc), RET #bfl ;
+        ∃ hfuns a hnames s,
+        bloom_filter_inv N bfl hfuns a hnames s
+    }}}.
+  Proof.
+    iIntros (Φ) "Herr HΦ".
+    rewrite /init_bloom_filter.
+    wp_pures.
+    wp_apply (wp_list_seq_fun_HO _ 0 num_hash _
+                (λ _ fα,
+                  ∃ f α lk hm γ,
+                    ⌜ fα = (f, α)%V ⌝ ∗
+                    hash_set1 ∅ γ.2.1  ∗
+                    hash_tape1 α [] γ.2.1 γ.2.2.1 ∗
+                    con_hash_inv1 N f lk hm (λ _, True) γ.1 γ.2.1 γ.2.2.1 γ.2.2.2)%I).
+    - iIntros (i Ψ).
+      iModIntro.
+      iIntros "_ HΨ".
+      wp_pures.
+      wp_apply (con_hash_init1 N (λ _, True)%I); auto.
+      iIntros (f) "(%lk & %hm & %γ1 & %γ2 & %γ3 & %γ4 & #Hinv & Hs)".
+      wp_pures.
+      wp_apply (con_hash_alloc_tape1 with "Hinv").
+      iIntros (α) "Hht".
+      wp_pures.
+      iApply ("HΨ" with "[Hs Hht]").
+      iExists f,α,lk,hm,(γ1,(γ2,(γ3,γ4))).
+      simpl.
+      iFrame.
+      iSplit; done.
+    - iIntros (hfuns fαs) "(%Hhfuns & %Hlen & Hinvs)".
+      wp_pures.
+      wp_apply (wp_array_init (λ _ v, ⌜ v = #false ⌝%I)).
+      + real_solver.
+      + iApply big_sepL_intro.
+        iModIntro.
+        iIntros (??) "?".
+        wp_pures.
+        done.
+      + iIntros (a arr) "(%HlenA & Ha & %Harr)".
+        wp_pures.
+        wp_alloc l as "Hl".
+        wp_pures.
+        iApply "HΦ".
+        iModIntro.
+        iPoseProof (array.big_sepL_exists with "Hinvs") as "(%fs & Hinvs)"; auto.
+   Admitted.
 
 
 
