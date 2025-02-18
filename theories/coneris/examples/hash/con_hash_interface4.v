@@ -47,6 +47,8 @@ Class con_hash4 `{!conerisGS Σ} (val_size max_key : nat ):= Con_Hash4
     m!!k=Some v -> hash_auth4 m γ  -∗ hash_frag4 k v γ ;
   hash_frag_frag_agree k v1 v2 γ :
     hash_frag4 k v1 γ  -∗ hash_frag4 k v2 γ  -∗ ⌜v1=v2⌝;
+  hash_frag_valid k v γ :
+    hash_frag4 k v γ -∗ ⌜ (v ≤ val_size)%nat ⌝;
 
 
   hash_preview4 N k f l hm R {HR: ∀ m, Timeless (R m )}  m γ_hv γ_lock (bad : gset nat)(ε εI εO:nonnegreal) E:
@@ -81,3 +83,73 @@ Class con_hash4 `{!conerisGS Σ} (val_size max_key : nat ):= Con_Hash4
       }}}
 
 }.
+
+
+Section derived_lemmas.
+  Context `{conerisGS Σ, !con_hash4 val_size max_key}.
+
+  Lemma wp_hash_lookup_safe N k f l hm m R {HR: ∀ m, Timeless (R m )} γhv γlock :
+    (k ≤ max_key)%nat ->
+    {{{ hash_auth4 m γhv ∗ con_hash_inv4 N f l hm R γhv γlock }}}
+        f #k
+    {{{ (v : nat), RET #v; ⌜ (v ≤ val_size)%nat ⌝ ∗ hash_auth4 (<[k:=v]> m) γhv }}}.
+  Proof.
+    iIntros (Hk Φ) "(Hhauth & #Hinv) HΦ".
+    destruct (m !! k) as [v|] eqn:Hlookup.
+    - iPoseProof (hash_auth_duplicate m k v with "Hhauth") as "#Hfrag"; auto.
+      wp_apply con_hash_spec4; auto.
+      iPoseProof (hash_frag_valid with "Hfrag") as "%".
+      iIntros (?) "->".
+      iApply "HΦ".
+      iSplit; auto.
+      by rewrite insert_id.
+    - iMod (ec_zero) as "Herr".
+      iApply state_update_pgl_wp.
+      iMod (hash_preview4 N _  _ _ _ _ _ _ _ ∅ nnreal_zero nnreal_zero nnreal_zero with "Hhauth [] [] [Herr]")
+        as "(%v & _ & Hhauth)"; auto.
+      + set_solver.
+      + rewrite size_empty /=.
+        lra.
+      + iModIntro.
+        iPoseProof (hash_auth_duplicate _ k v with "Hhauth") as "#Hfrag"; auto.
+        {
+          rewrite lookup_insert //.
+        }
+        wp_apply con_hash_spec4; auto.
+        iPoseProof (hash_frag_valid with "Hfrag") as "%".
+        iIntros (?) "->".
+        iApply "HΦ".
+        iSplit; auto.
+   Qed.
+
+  Lemma wp_hash_lookup_avoid_set N k f l hm m R {HR: ∀ m, Timeless (R m )} γhv γlock (bad : gset nat)(ε εI εO:nonnegreal) :
+    (forall x : nat, x ∈ bad -> (x < S val_size)%nat) ->
+    (εI * (size bad) + εO * (val_size + 1 - size bad) <= ε * (val_size + 1))%R ->
+    (k ≤ max_key)%nat ->
+    m !! k = None ->
+    {{{ ↯ ε ∗ hash_auth4 m γhv ∗ con_hash_inv4 N f l hm R γhv γlock }}}
+      f #k
+      {{{ (v : nat), RET #v; ⌜ (v ≤ val_size)%nat ⌝ ∗
+                             ((⌜v ∈ bad⌝) ∗ ↯ εI  ∨
+                                (⌜v ∉ bad⌝) ∗ ↯ εO) ∗
+                             hash_auth4 (<[k:=v]> m) γhv }}}.
+  Proof.
+    iIntros (Hbad Hdistr Hk Hnone Φ) "(Herr & Hhauth & #Hinv) HΦ".
+    iApply state_update_pgl_wp.
+    iMod (hash_preview4 N _  _ _ _ _ _ _ _ bad ε εI εO with "Hhauth [] [] [Herr]")
+      as "(%v & Hv & Hhauth)"; auto.
+    iModIntro.
+    iPoseProof (hash_auth_duplicate _ k v with "Hhauth") as "#Hfrag"; auto.
+    {
+      rewrite lookup_insert //.
+    }
+    wp_apply con_hash_spec4; auto.
+    iPoseProof (hash_frag_valid with "Hfrag") as "%".
+    iIntros (?) "->".
+    iApply "HΦ".
+    iSplit; auto.
+    by iFrame.
+  Qed.
+
+End derived_lemmas.
+

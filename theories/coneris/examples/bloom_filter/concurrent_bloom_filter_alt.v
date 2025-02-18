@@ -68,10 +68,6 @@ Section conc_bloom_filter.
  *)
 
 
-  Lemma hash_frag_valid k v γ :
-    hash_frag4 k v γ  -∗ ⌜ (v ≤ filter_size)%nat ⌝.
-  Admitted.
-
   Definition con_hash_inv_list N hfs hnames ks (s : gset nat) :=
     ([∗ list] i ↦f;γ ∈ hfs;hnames,
        ∃ lk hm,
@@ -106,6 +102,8 @@ Section conc_bloom_filter.
     (hnames : list (hash_view_gname * hash_lock_gname)) ks (s : gset nat) : iPropI Σ :=
       (inv (N.@"bf") (bloom_filter_inv_aux N bfl hfuns a hnames ks s)).
 
+  Definition hash_auth_list (hnames : list (hash_view_gname * hash_lock_gname)) (ks : list nat) :=
+    ([∗ list] γ ∈ hnames, ∃ m, hash_auth4 m γ.1 ∗ [∗ list] k ∈ ks, ⌜ k ∈ dom m ⌝)%I.
 
 (*
   Definition con_hash_inv_list N hfs hnames :=
@@ -128,9 +126,12 @@ Section conc_bloom_filter.
      ⌜ NoDup ks ⌝ -∗
      ([∗ list] k ∈ ks,  ⌜ m !! k = None ⌝) -∗
      ↯ (fp_error filter_size num_hash (rem + length ks) (size bad)) -∗
-     state_update E E (∃ (res : gset nat),
+     state_update E E (∃ (res : gset nat) (m' : gmap nat nat),
           ⌜ forall x : nat, x ∈ (bad ∪ res) -> (x < S filter_size)%nat ⌝ ∗
           ↯ (fp_error filter_size num_hash rem (size (bad ∪ res))) ∗
+          hash_auth4 m' γ_hv ∗
+          ⌜ m ⊆ m' ⌝ ∗
+          ([∗ list] k ∈ ks, ⌜ k ∈ dom m' ⌝) ∗
           ([∗ list] k ∈ ks, ∃ v, ⌜ v ∈ (bad ∪ res) ⌝ ∗ hash_frag4 k v γ_hv )).
   Proof.
     iIntros (Hsubset Hbound) "Hhauth #Hhinv".
@@ -138,10 +139,12 @@ Section conc_bloom_filter.
     - iIntros "Hndup Hnone Herr".
       rewrite /= Nat.add_0_r.
       iModIntro.
-      iExists bad.
+      iExists bad, m.
       replace (bad ∪ bad) with bad by set_solver.
       iSplit; auto.
-    - iIntros "%Hndup (Hknone & Hksnone) Herr".
+      by iFrame.
+    - iIntros "%Hndup ( Hknone & Hksnone) Herr".
+      iDestruct "Hknone" as "%Hknone".
       pose proof (NoDup_cons_1_1 k ks Hndup) as Hdup1.
       pose proof (NoDup_cons_1_2 k ks Hndup) as Hdup2.
       replace (rem + length (k :: ks)) with (S rem + (length ks));
@@ -157,7 +160,7 @@ Section conc_bloom_filter.
                          (Hfp _ _))
                       (mknonnegreal (fp_error filter_size num_hash (rem + length ks) (S (size bad)))
                          (Hfp _ _))
-                      E with "Hhauth Hhinv Hknone [Herr]") as "Hcur"; auto; try done.
+                      E with "Hhauth Hhinv [//] [Herr]") as "Hcur"; auto; try done.
        + simpl.
          case_bool_decide.
          * rewrite fp_error_max /=; auto.
@@ -175,7 +178,7 @@ Section conc_bloom_filter.
          ** simpl.
             iPoseProof (hash_auth_duplicate _ k v with "Hhauth") as "#Hkv";
               [rewrite lookup_insert // |].
-            iMod ("IH" $! _ bad with "[] Hhauth [] [Hksnone] Herr") as "(%res&?&?&?)"; auto.
+            iMod ("IH" $! _ bad with "[] Hhauth [] [Hksnone] Herr") as "(%res&%m'&?&?&?&%Hmm'&?&?)"; auto.
             {
               iApply (big_sepL_mono with "Hksnone").
               iIntros (i k' Hsome) "%Hk'".
@@ -186,9 +189,20 @@ Section conc_bloom_filter.
               set_solver.
             }
             iModIntro.
-            iExists (bad ∪ res).
+            iExists (bad ∪ res), m'.
             replace (bad ∪ (bad ∪ res)) with (bad ∪ res) by set_solver.
             iFrame.
+            iSplit.
+            {
+              iPureIntro.
+              etrans; [ |apply Hmm'].
+              by apply insert_subseteq.
+            }
+            iSplit.
+            {
+              iPureIntro.
+              admit.
+            }
             iExists v.
             iSplit; auto.
             iPureIntro.
@@ -196,7 +210,7 @@ Section conc_bloom_filter.
          ** simpl.
             iPoseProof (hash_auth_duplicate _ k v with "Hhauth") as "#Hkv";
               [rewrite lookup_insert // |].
-            iMod ("IH" $! _ (bad ∪ {[fin_to_nat v]}) with "[] Hhauth [] [Hksnone] [Herr]") as "(%res&?&?&?)"; auto.
+            iMod ("IH" $! _ (bad ∪ {[fin_to_nat v]}) with "[] Hhauth [] [Hksnone] [Herr]") as "(%res&%m'&?&?&?&%Hmm'&?&?)"; auto.
             *** iPureIntro.
                 intros x Hx.
                 apply elem_of_union in Hx as [Hx|Hx]; auto.
@@ -214,14 +228,25 @@ Section conc_bloom_filter.
                 replace (size bad + 1) with (S (size bad)) by lia.
                 iFrame.
             *** iModIntro.
-                iExists ((bad ∪ {[fin_to_nat v]}) ∪ res).
+                iExists ((bad ∪ {[fin_to_nat v]}) ∪ res), m'.
                 replace (bad ∪ (bad ∪ {[fin_to_nat v]} ∪ res)) with ((bad ∪ {[fin_to_nat v]}) ∪ res) by set_solver.
                 iFrame.
+                iSplit.
+                {
+                  iPureIntro.
+                  etrans; [ |apply Hmm'].
+                  by apply insert_subseteq.
+                }
+                iSplit.
+                {
+                  iPureIntro.
+                  admit.
+                }
                 iExists (fin_to_nat v).
                 iSplit; auto.
                 iPureIntro.
                 set_solver.
-  Qed.
+  Admitted.
 
 
   Lemma bloom_filter_init_spec N (ks : list nat) :
@@ -232,7 +257,8 @@ Section conc_bloom_filter.
       init_bloom_filter #()
    {{{ (bfl:loc), RET #bfl ;
          ∃ hfuns a hnames s,
-           bloom_filter_inv N bfl hfuns a hnames ks s
+             hash_auth_list hnames ks ∗
+             bloom_filter_inv N bfl hfuns a hnames ks s
    }}}.
    Proof.
     iIntros (Hthreads Hndup) "#Hks".
@@ -246,8 +272,10 @@ Section conc_bloom_filter.
                       ↯(fp_error filter_size num_hash ((num_hash - length l) * num_threads) (size s)) ∗
                       ⌜ ∀ x : nat, x ∈ s → x < S filter_size ⌝ ∗
                       ([∗ list] f ∈ l,
-                        (∃ lk hm γ, con_hash_inv4 N f lk hm (λ _, True) γ.1 γ.2 ∗
-                            ([∗ list] k ∈ ks, ∃ v, ⌜ v ∈ s ⌝ ∗ hash_frag4 k v γ.1)))))%I).
+                        (∃ γ,
+                            (∃ m, hash_auth4 m γ.1 ∗ [∗ list] k ∈ ks, ⌜ k ∈ dom m ⌝) ∗
+                            (∃ lk hm, con_hash_inv4 N f lk hm (λ _, True) γ.1 γ.2 ∗
+                            ([∗ list] k ∈ ks, ∃ v, ⌜ v ∈ s ⌝ ∗ hash_frag4 k v γ.1))))))%I).
     wp_apply (wp_list_seq_fun_HO_invariant _ Ψ
                 0 num_hash _ (λ _ _, True)%I with "[] [Herr] [HΦ]").
     - iIntros (i l Ξ).
@@ -280,16 +308,19 @@ Section conc_bloom_filter.
       iMod (hash_preview_list N _ ks _ _ _ _ _ _ _ s ⊤ with "Hhauth Hinv [][][Herr]") as "Hupd"; auto.
       iModIntro.
       iRight.
-      iDestruct "Hupd" as "(%res & ? & Herr & ?)".
+      iDestruct "Hupd" as "(%res & %m' & ? & Herr & ? & ? & ? & ?)".
       iExists (s ∪ res).
-      iFrame.
+      iSplitL "Herr"; auto.
+      iSplit; auto.
       iApply big_sepL_cons.
       iSplitR "Hl".
-      * iExists lk, hm, (γ1, γ2).
+      * iExists (γ1, γ2).
+        iFrame.
+        iExists lk, hm.
         auto.
       * iApply (big_sepL_mono with "Hl").
-        iIntros (k v Hkv) "(%lk' & %hm' & %γ' & Hinv & Hlist)".
-        iExists lk', hm', γ'.
+        iIntros (k v Hkv) "(%γ & Hm & %lk' & %hm' & Hinv & Hlist)".
+        iExists γ.
         iFrame.
         iApply (big_sepL_mono with "Hlist").
         iIntros (???) "(%&%&?)".
@@ -319,18 +350,41 @@ Section conc_bloom_filter.
         rewrite /Ψ.
         iDestruct "HΨ" as "[%|(%s & Herr & %Hbound & Hfs)]";
           [lia |].
+        (*
         iAssert ([∗ list] f ∈ fαs, ∃ (γ : hash_view_gname * hash_lock_gname) (lk hm : val),
                     con_hash_inv4 N f lk hm (λ _ : gmap nat nat, True) γ.1 γ.2 ∗
+                    (∃ m : gmap nat nat, hash_auth4 m γ.1 ∗ ([∗ list] k ∈ ks, ⌜k ∈ dom m⌝)) ∗
                       ([∗ list] k ∈ ks, ∃ v : nat, ⌜v ∈ s⌝ ∗ hash_frag4 k v γ.1))%I with "[Hfs]" as "Hfs".
         {
           iApply (big_sepL_mono with "Hfs").
           iIntros (???) "(%&%&%&?)".
           iFrame.
         }
+        *)
         iPoseProof (array.big_sepL_exists with "Hfs") as "(%hnames & Hfs)"; eauto.
         iApply "HΦ".
-        iExists hfuns, a.
-        iExists hnames, s.
+        iExists hfuns, a, hnames, s.
+        rewrite /hash_auth_list/=.
+        iAssert ( ([∗ list] γ ∈ hnames, (∃ m : gmap nat nat, hash_auth4 m γ.1 ∗ ([∗ list] k ∈ ks, ⌜k ∈ dom m⌝))) ∗
+                    [∗ list] v;x ∈ fαs;hnames, ∃ lk hm : val, con_hash_inv4 N v lk hm (λ _ : gmap nat nat, True) x.1 x.2 ∗
+                                                                ([∗ list] k ∈ ks, ∃ v0 : nat, ⌜v0 ∈ s⌝ ∗ hash_frag4 k v0 x.1))%I
+          with "[Hfs]" as "(Hauths & Hfs)".
+        {
+          iPoseProof (big_sepL2_alt with "Hfs") as "(%Hlens & Hfs)".
+          iPoseProof (big_sepL_sep with "Hfs") as "(Hauths & Hfrags)".
+          iSplitL "Hauths".
+          - iPoseProof (big_sepL_sep_zip
+                          (λ _ _, True)%I
+                          (λ _ x, ∃ m : gmap nat nat, hash_auth4 m x.1 ∗ ([∗ list] k ∈ ks, ⌜k ∈ dom m⌝))%I
+                          fαs hnames) as "(H1 & H2)"; auto.
+            iSpecialize ("H1" with "[Hauths]").
+            + iApply (big_sepL_mono with "Hauths"); auto.
+            + iDestruct "H1" as "(?&?)".
+              iFrame.
+          - iApply big_sepL2_alt.
+            iSplit; auto.
+        }
+        iFrame.
         iMod (inv_alloc _ _ (bloom_filter_inv_aux N l hfuns a hnames ks s) with "[Herr Ha Hl Hfs]") as "#Hinv";
           [| iApply "Hinv"].
         rewrite /bloom_filter_inv_aux.
@@ -413,5 +467,61 @@ Section conc_bloom_filter.
      by iApply "HΦ".
  Qed.
 
+ Lemma bloom_filter_lookup_spec N bfl hfuns a hnames (k : nat) (ks : list nat) s :
+    (k ∉ ks) ->
+    (k ≤ max_key)%nat ->
+    ([∗ list] k ∈ ks, ⌜ (k ≤ max_key)%nat ⌝) -∗
+    {{{ ↯ (fp_error filter_size num_hash 0 (size s)) ∗
+          hash_auth_list hnames ks ∗
+        bloom_filter_inv N bfl hfuns a hnames ks s }}}
+           lookup_bloom_filter #bfl #k
+      {{{ v, RET v; ⌜ v = #false ⌝ }}}.
+ Proof.
+   iIntros (Hk Hkleq Hksleq Φ) "!# (Herr & Hauths & #Hinv) HΦ".
+   rewrite /lookup_bloom_filter.
+   wp_pures.
+   wp_bind (!_)%E.
+   iInv "Hinv" as "(%hfs&>Hbfl&>%Hhfs&>%Hlenhfs&#Hhinv&?)" "Hclose".
+   wp_load.
+   iMod ("Hclose" with "[-HΦ Herr]").
+   {
+     iModIntro.
+     iExists hfs.
+     iFrame.
+     repeat iSplit; auto.
+   }
+   iModIntro.
+   wp_pures.
+   wp_alloc res as "Hres".
+   wp_pures.
+   wp_apply (wp_list_iter_invariant_HO
+               (λ fs1 fs2,
+                 (∃ hnames2,
+                     hash_auth_list hnames2 ks ∗
+                     con_hash_inv_list N fs2 hnames2 ks s) ∗
+                 (res ↦ #false ∨
+                 (res ↦ #true ∗
+                          ↯ ((size s / (filter_size + 1)) ^ (length fs2))%R)))%I
+              with "[][Herr Hres][HΦ]"); auto.
+   - iIntros (fs1 f fs2 Ψ) "!# ((%γ2 & Hauths & Hiter) & [Hr | (Hr & Herr)]) HΨ".
+     + wp_pures.
+       wp_bind (f _).
+       iPoseProof (con_hash_inv_list_cons with "Hiter")
+         as "(%lk&%hm&%γ&%hnames3&->&#Hinvf&Hfrags&Htail)".
+       rewrite /hash_auth_list.
+       iPoseProof (big_sepL_cons with "Hauths") as "((%m&Hmauth&Hmdom)&Hauths)"; auto.
+       wp_apply (wp_hash_lookup_safe with "[Hmauth]"); auto.
+       { admit. }
+       iIntros (v) "(?&?)".
+       wp_pures.
+       wp_bind (!_)%E.
+       iInv "Hinv" as "(%&?&?&?&?&?&%arr&Harr&>%HlenA&>%Htrue)" "Hclose".
+       wp_apply (wp_load_offset with "Harr").
+       { admit. }
+       iIntros "Harr".
 
 
+
+   Admitted.
+
+ Qed.
