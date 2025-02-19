@@ -786,3 +786,22 @@ Section uncurry_nat_measurable.
   Qed.
 
 End uncurry_nat_measurable.
+
+Section ofOption.
+  Local Open Scope classical_set_scope.
+  Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
+
+  Definition of_option (f : T1 -> option T2) : T1 -> T2 :=
+    fun t => match f t with | Some x => x | None => point end.
+
+  Definition of_option_dom : set T1 :=
+    preimage Some option_cov_Some.
+
+  Lemma of_option_dom_meas : measurable of_option_dom.
+  Proof. Admitted.
+
+  Lemma of_option_measurable (f : T1 -> option T2) (Hf : measurable_fun setT f) :
+    measurable_fun of_option_dom (of_option f).
+  Proof. (* Covering argument *) Admitted.
+
+End ofOption.

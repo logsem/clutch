@@ -21,11 +21,8 @@ Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.
 
-Definition state_loadC (x : (<<discr loc>> * state)%type) : val :=
-  match (heap x.2 !! x.1)  with
-  | Some v => v
-  | None => inhabitant
-  end.
+Definition state_loadC : (<<discr loc>> * state)%type -> val :=
+  of_option (ssrfun.comp gl_evalC $ mProd fst (ssrfun.comp heap snd)).
 
 Definition auxcov_load_ok : set (<<discr loc>> * state)%type :=
   [set x | ∃ w, heap x.2 !! x.1 = Some w ].
@@ -55,6 +52,8 @@ Hint Resolve state_loadC_meas : measlang.
             giryM_ret R ((Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1) : cfg)
           else giryM_zero
 *)
+
+Locate fresh_loc.
 
 (* AllocN: the state part of the result *)
 Definition state_allocNCS (x : (<<discr Z>> * val * state)%type) : state. Admitted.
