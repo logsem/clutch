@@ -271,7 +271,7 @@ Section hp.
 
   Definition get_fresh m : (hasMax m → <<discr loc >>). Admitted.
 
-  Program Definition hp_fresh (m : MeasHeapDom <<discr loc>>) : <<discr loc>> :=
+  Definition hp_fresh (m : MeasHeapDom <<discr loc>>) : <<discr loc>> :=
     @extern_if <<discr loc>> (hasMax m) point (get_fresh m).
 
   (*
@@ -293,132 +293,53 @@ Section hp.
 
 End hp.
 
-  (*
+Section hpfuns.
+  Local Open Scope classical_set_scope.
+  Context {d} (T : measurableType d).
+  Context {d1} (T1 : measurableType d1).
 
-  (** TODO: Get the actual stdpp functions working, so less porting work later. I think the issue could be missing <<discr loc>>. *)
+  Definition hp_eval (i : <<discr loc>>) : hp T1 -> T. Admitted.
 
-  HB.instance Definition _ := gen_eqMixin (gmap <<discr loc>> T).
-  HB.instance Definition _ := gen_choiceMixin (gmap <<discr loc>> T).
-  HB.instance Definition _ := isPointed.Build (gmap <<discr loc>> T) (inhabitant : gmap <<discr loc>> T).
-
-
-
-  (* NOTE: that this is the preimage out of (option T), not T *)
-  Definition gl_generators : set (set (gmap <<discr loc>> T)) :=
-    (\bigcup_i (preimage_class setT (fun (f : gmap <<discr loc>> T) => lookup (loc_enum i) f) measurable)).
-
-  Definition gl_measurable : set (set (gmap <<discr loc>> T)) := <<s gl_generators>>.
-
-  Lemma gl_meas0 : gl_measurable set0.
-  Proof. by apply sigma_algebra0. Qed.
-
-  Lemma gl_measC X : (gl_measurable X) -> gl_measurable (~` X).
-  Proof. by apply sigma_algebraC. Qed.
-
-  Lemma gl_measU (F : sequences.sequence (set (gmap <<discr loc>> T))) : (forall i, gl_measurable (F i)) -> gl_measurable (\bigcup_i F i).
-  Proof. by apply sigma_algebra_bigcup. Qed.
-
-  HB.instance Definition _ :=
-    @isMeasurable.Build (sigma_display gl_measurable) (gmap <<discr loc>> T) gl_measurable gl_meas0 gl_measC gl_measU.
-
-
-  Lemma gl_eval_measurable (l : <<discr loc>>) : measurable_fun setT (lookup l : gmap <<discr loc>> T -> option T).
-  Proof.
-    intros _ Y HY.
-    rewrite /gl_measurable.
-    unfold lookup.
-    suffices H : gl_generators (setT `&` gmap_lookup l @^-1` Y).
-    { by apply ((@sub_gen_smallest _ _ gl_generators) _ H). }
-    destruct (loc_enum_surj l) as [i Hi].
-    exists i; [done|].
-    rewrite /preimage_class//=.
-    exists Y; [done|].
-    by rewrite Hi setTI //=.
-  Qed.
-  Hint Resolve gl_eval_measurable : measlang.
-
-
+  Lemma hp_eval_measurable (i : <<discr loc>>) : measurable_fun setT (hp_eval i).
+  Proof. Admitted.
+  Hint Resolve hp_eval_measurable : measlang.
 
   (* The uncurry is measurable becuase nat is discrete and countable *)
-  Definition gl_evalC : (<<discr loc>> * gmap <<discr loc>>T)%type -> option T := uncurry lookup.
-  Lemma gl_evalC_measurable : measurable_fun setT gl_evalC.
-  Proof. eapply @uncurry_loc_measurable. by apply gl_eval_measurable. Qed.
+  Definition hp_evalC : (<<discr loc>> * hp T1)%type -> T := uncurry hp_eval.
+  Lemma hp_evalC_measurable : measurable_fun setT hp_evalC.
+  Proof.
+    eapply (@uncurry_loc_measurable _ _ _ _ _ _ hp_eval).
+    by apply hp_eval_measurable.
+    (* ??? *)
+    Unshelve. all: eauto.
+  Qed.
   Hint Resolve nf_evalC_measurable : measlang.
 
+  Definition hp_update (i : <<discr loc>>) : (T * hp T1)%type -> hp T1. Admitted.
 
-  Definition gl_update (l : <<discr loc>>) : (T * (gmap <<discr loc>>T))%type -> (gmap <<discr loc>>T) :=
-    fun x => insert l x.1 x.2.
+  Lemma hp_update_measurable (i : <<discr loc>>) : measurable_fun setT (hp_update i).
+  Proof. Admitted.
+  Hint Resolve hp_update_measurable : measlang.
 
-  Lemma gl_update_measurable (l : <<discr loc>>) : measurable_fun setT (gl_update l).
-  Proof.
-    eapply @measurability; [done|].
-    rewrite //=/gl_update/subset/preimage_class//=.
-    intro S.
-    rewrite /nf_generators/preimage_class//=.
-    move=> [S' [k _ +]].
-    rewrite setTI//=; move=>[S'' HS'' +].
-    rewrite setTI//=; move=><-<-//=.
-    rewrite <-comp_preimage; rewrite /ssrfun.comp//=.
-    destruct (loc_enum_surj l) as [i Hi].
-    destruct (k =? i) as [|] eqn:Hki; rewrite //=.
-    { apply Nat.eqb_eq in Hki.
-      have -> : ((λ x : T * gmap <<discr loc>> T, <[l:=x.1]> x.2 !! loc_enum k) @^-1` S'') =
-                (setT `&` (ssrfun.comp Some fst) @^-1` S'').
-      { rewrite /setI/preimage/cst//=.
-        apply /predeqP =>[y] /=.
-        split.
-          (*  have X := (lookup_insert y.2 (loc_enum i) y.1). *)
+  Definition hp_updateC : (<<discr loc>> * (T * hp T1))%type -> hp T1. Admitted.
+  Lemma hp_updateC_measurable : measurable_fun setT hp_updateC.
+  Proof. Admitted. (*  by apply (@uncurry_loc_measurable _ _ _ _ hpf_update), hpf_update_measurable. Qed. *)
+  Hint Resolve hp_updateC_measurable : measlang.
 
-          (*
-          move=>H; split; first done.
+  Lemma hp_fresh_meas : measurable_fun setT (hp_fresh T1).
+  Proof. Admitted.
 
-          simpl at
-*)
-
-        { admit. }
-        { admit. }
-      }
-      admit. }
-
-    { have -> : ((λ x : T * gmap <<discr loc>> T, <[l:=x.1]> x.2 !! loc_enum k) @^-1` S'') =
-               ((ssrfun.comp (gmap_lookup (loc_enum k)) snd) @^-1` S'').
-      { rewrite /ssrfun.comp/preimage//=. admit. }
-      rewrite <-(setTI (preimage _ _)).
-      admit.
-      (*
-      by eapply (measurable_comp _ _ (nf_eval_measurable k) (measurable_snd) _ HS'').
-      Unshelve.
-      { by eapply @measurableT. }
-      { by simpl. }
-      { by eapply @measurableT. }
-    }
-      *)
-  Admitted.
-  Hint Resolve gl_update_measurable : measlang.
-
-  Definition gl_updateC : (<<discr loc>> * (T * (gmap <<discr loc>> T)))%type -> (gmap <<discr loc>> T) := uncurry gl_update.
-  Lemma gl_updateC_measurable : measurable_fun setT gl_updateC.
-  Proof. eapply @uncurry_loc_measurable. by apply gl_update_measurable. Qed.
-  Hint Resolve gl_updateC_measurable : measlang.
-
-  (* FIXME: Prove this is measurable <[ _ := _ ]>. *)
-
-End gmap_loc_measurable.
-
-*)
-
-
-(*
+End hpfuns.
 
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes, and [loc]-indexed utapes *)
 Record state : Type := {
-    state_v : ((hpf val) * (hpf btape) * (hpf (@utape R)))%type
+    state_v : ((hp val) * (hp btape) * (hp (@utape R)))%type
 }.
 
-Definition prod_of_state (s : state) : ((gmap <<discr loc>> val) * (gmap <<discr loc>> btape) * (gmap <<discr loc>> (@utape R))) :=
+Definition prod_of_state (s : state) : ((hp val) * (hp btape) * (hp (@utape R))) :=
   match s with {| state_v := x |} => x end.
 
-Definition state_of_prod (v : (gmap <<discr loc>> val) * (gmap <<discr loc>> btape) * (gmap <<discr loc>> (@utape R))) : state :=
+Definition state_of_prod (v : (hp val) * (hp btape) * (hp (@utape R))) : state :=
   {| state_v := v |}.
 
 Lemma prod_of_state_of_prod p : prod_of_state (state_of_prod p) = p.
@@ -556,7 +477,7 @@ Proof.
 Qed.
 *)
 
-Definition heap : state -> gmap <<discr loc>> val := ssrfun.comp (ssrfun.comp fst fst) prod_of_state.
+Definition heap : state -> hp val := ssrfun.comp (ssrfun.comp fst fst) prod_of_state.
 Lemma heap_meas : measurable_fun setT heap.
 Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT (ssrfun.comp fst fst) setT prod_of_state); simpl.
@@ -572,7 +493,7 @@ Proof.
 Qed.
 Hint Resolve heap_meas : measlang.
 
-Definition tapes  : state -> gmap <<discr loc>> btape := ssrfun.comp (ssrfun.comp snd fst) prod_of_state.
+Definition tapes  : state -> hp btape := ssrfun.comp (ssrfun.comp snd fst) prod_of_state.
 Lemma tapes_meas : measurable_fun setT tapes.
 Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT (ssrfun.comp snd fst) setT prod_of_state); simpl.
@@ -588,7 +509,7 @@ Proof.
 Qed.
 Hint Resolve tapes_meas : measlang.
 
-Definition utapes : state -> gmap <<discr loc>> (@utape R) := ssrfun.comp snd prod_of_state.
+Definition utapes : state -> hp (@utape R) := ssrfun.comp snd prod_of_state.
 Lemma utapes_meas : measurable_fun setT utapes.
 Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT snd setT prod_of_state); simpl.
@@ -601,7 +522,7 @@ Hint Resolve utapes_meas : measlang.
 
 (** Operations on states *)
 
-Definition state_upd_heap (f : gmap <<discr loc>> val -> gmap <<discr loc>> val) : state -> state :=
+Definition state_upd_heap (f : hp val -> hp val) : state -> state :=
   ssrfun.comp state_of_prod $
   mProd (mProd (ssrfun.comp f heap) tapes) utapes.
 
@@ -623,7 +544,7 @@ Proof.
 Qed.
 Hint Resolve state_upd_heap_meas : measlang.
 
-Definition state_upd_tapes (f : gmap <<discr loc>> btape -> gmap <<discr loc>> btape) : state -> state :=
+Definition state_upd_tapes (f : hp btape -> hp btape) : state -> state :=
   ssrfun.comp state_of_prod $
   mProd (mProd heap (ssrfun.comp f tapes)) utapes.
 
@@ -645,7 +566,7 @@ Proof.
 Qed.
 Hint Resolve state_upd_tapes_meas : measlang.
 
-Definition state_upd_utapes (f : gmap <<discr loc>> utape -> gmap <<discr loc>> utape) : state -> state :=
+Definition state_upd_utapes (f : hp utape -> hp utape) : state -> state :=
   ssrfun.comp state_of_prod $
   mProd (mProd heap tapes) (ssrfun.comp f utapes).
 
@@ -667,7 +588,7 @@ Proof.
 Qed.
 Hint Resolve state_upd_utapes_meas : measlang.
 
-
+(*
 Lemma state_upd_tapes_twice σ l xs ys :
   state_upd_tapes <[ l := ys ]> (state_upd_tapes <[ l := xs ]> σ) = state_upd_tapes <[ l:= ys ]> σ.
 Proof. Admitted. (* rewrite /state_upd_tapes /=. f_equal. apply insert_insert. Qed. *)

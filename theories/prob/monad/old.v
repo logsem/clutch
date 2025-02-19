@@ -1886,3 +1886,118 @@ Section seal_example.
 End seal_example.
 *)
     *)
+
+
+  (*
+
+  (** TODO: Get the actual stdpp functions working, so less porting work later. I think the issue could be missing <<discr loc>>. *)
+
+  HB.instance Definition _ := gen_eqMixin (gmap <<discr loc>> T).
+  HB.instance Definition _ := gen_choiceMixin (gmap <<discr loc>> T).
+  HB.instance Definition _ := isPointed.Build (gmap <<discr loc>> T) (inhabitant : gmap <<discr loc>> T).
+
+
+
+  (* NOTE: that this is the preimage out of (option T), not T *)
+  Definition gl_generators : set (set (gmap <<discr loc>> T)) :=
+    (\bigcup_i (preimage_class setT (fun (f : gmap <<discr loc>> T) => lookup (loc_enum i) f) measurable)).
+
+  Definition gl_measurable : set (set (gmap <<discr loc>> T)) := <<s gl_generators>>.
+
+  Lemma gl_meas0 : gl_measurable set0.
+  Proof. by apply sigma_algebra0. Qed.
+
+  Lemma gl_measC X : (gl_measurable X) -> gl_measurable (~` X).
+  Proof. by apply sigma_algebraC. Qed.
+
+  Lemma gl_measU (F : sequences.sequence (set (gmap <<discr loc>> T))) : (forall i, gl_measurable (F i)) -> gl_measurable (\bigcup_i F i).
+  Proof. by apply sigma_algebra_bigcup. Qed.
+
+  HB.instance Definition _ :=
+    @isMeasurable.Build (sigma_display gl_measurable) (gmap <<discr loc>> T) gl_measurable gl_meas0 gl_measC gl_measU.
+
+
+  Lemma gl_eval_measurable (l : <<discr loc>>) : measurable_fun setT (lookup l : gmap <<discr loc>> T -> option T).
+  Proof.
+    intros _ Y HY.
+    rewrite /gl_measurable.
+    unfold lookup.
+    suffices H : gl_generators (setT `&` gmap_lookup l @^-1` Y).
+    { by apply ((@sub_gen_smallest _ _ gl_generators) _ H). }
+    destruct (loc_enum_surj l) as [i Hi].
+    exists i; [done|].
+    rewrite /preimage_class//=.
+    exists Y; [done|].
+    by rewrite Hi setTI //=.
+  Qed.
+  Hint Resolve gl_eval_measurable : measlang.
+
+
+
+  (* The uncurry is measurable becuase nat is discrete and countable *)
+  Definition gl_evalC : (<<discr loc>> * gmap <<discr loc>>T)%type -> option T := uncurry lookup.
+  Lemma gl_evalC_measurable : measurable_fun setT gl_evalC.
+  Proof. eapply @uncurry_loc_measurable. by apply gl_eval_measurable. Qed.
+  Hint Resolve nf_evalC_measurable : measlang.
+
+
+  Definition gl_update (l : <<discr loc>>) : (T * (gmap <<discr loc>>T))%type -> (gmap <<discr loc>>T) :=
+    fun x => insert l x.1 x.2.
+
+  Lemma gl_update_measurable (l : <<discr loc>>) : measurable_fun setT (gl_update l).
+  Proof.
+    eapply @measurability; [done|].
+    rewrite //=/gl_update/subset/preimage_class//=.
+    intro S.
+    rewrite /nf_generators/preimage_class//=.
+    move=> [S' [k _ +]].
+    rewrite setTI//=; move=>[S'' HS'' +].
+    rewrite setTI//=; move=><-<-//=.
+    rewrite <-comp_preimage; rewrite /ssrfun.comp//=.
+    destruct (loc_enum_surj l) as [i Hi].
+    destruct (k =? i) as [|] eqn:Hki; rewrite //=.
+    { apply Nat.eqb_eq in Hki.
+      have -> : ((λ x : T * gmap <<discr loc>> T, <[l:=x.1]> x.2 !! loc_enum k) @^-1` S'') =
+                (setT `&` (ssrfun.comp Some fst) @^-1` S'').
+      { rewrite /setI/preimage/cst//=.
+        apply /predeqP =>[y] /=.
+        split.
+          (*  have X := (lookup_insert y.2 (loc_enum i) y.1). *)
+
+          (*
+          move=>H; split; first done.
+
+          simpl at
+*)
+
+        { admit. }
+        { admit. }
+      }
+      admit. }
+
+    { have -> : ((λ x : T * gmap <<discr loc>> T, <[l:=x.1]> x.2 !! loc_enum k) @^-1` S'') =
+               ((ssrfun.comp (gmap_lookup (loc_enum k)) snd) @^-1` S'').
+      { rewrite /ssrfun.comp/preimage//=. admit. }
+      rewrite <-(setTI (preimage _ _)).
+      admit.
+      (*
+      by eapply (measurable_comp _ _ (nf_eval_measurable k) (measurable_snd) _ HS'').
+      Unshelve.
+      { by eapply @measurableT. }
+      { by simpl. }
+      { by eapply @measurableT. }
+    }
+      *)
+  Admitted.
+  Hint Resolve gl_update_measurable : measlang.
+
+  Definition gl_updateC : (<<discr loc>> * (T * (gmap <<discr loc>> T)))%type -> (gmap <<discr loc>> T) := uncurry gl_update.
+  Lemma gl_updateC_measurable : measurable_fun setT gl_updateC.
+  Proof. eapply @uncurry_loc_measurable. by apply gl_update_measurable. Qed.
+  Hint Resolve gl_updateC_measurable : measlang.
+
+  (* FIXME: Prove this is measurable <[ _ := _ ]>. *)
+
+End gmap_loc_measurable.
+
+*)
