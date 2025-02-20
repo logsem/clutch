@@ -41,10 +41,31 @@ End unif.
         giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := {| btape_tape := emptyTape ; btape_bound := (Z.to_nat z) |} ]> σ1) : cfg)
 *)
 
-Definition rand_allocTapeE (x : (<<discr Z>> * state)%type) : <<discr loc>>. Admitted.
-(*    fresh_loc (tapes x.2). *)
+Definition rand_allocTapeE : (<<discr Z>> * state)%type -> <<discr loc>> :=
+  ssrfun.comp fresh $ ssrfun.comp tapes snd.
 
-Definition rand_allocTapeS (x : (<<discr Z>> * state)%type) : state. Admitted.
+
+Definition new_btape : <<discr Z>> -> btape :=
+  fun z => (Z.to_nat z, emptyTape).
+
+Lemma new_btape_meas : measurable_fun setT new_btape.
+Proof.
+  (* <<discr Z>> is discrete *)
+Admitted.
+
+
+Program Definition rand_allocTapeS : (<<discr Z>> * state)%type -> state :=
+  ssrfun.comp state_of_prod $
+  mProd
+    (mProd (ssrfun.comp heap snd)
+      (ssrfun.comp hp_updateC $
+        mProd
+          (ssrfun.comp fresh $ ssrfun.comp tapes snd)
+          (mProd
+            (ssrfun.comp Some $ ssrfun.comp new_btape fst)
+            (ssrfun.comp tapes snd))))
+    (ssrfun.comp utapes snd).
+
 (*  state_upd_tapes <[ (fresh_loc x.2.(tapes)) := {| btape_tape := emptyTape ; btape_bound := Z.to_nat x.1 |} ]> x.2. *)
 
 Lemma rand_allocTapeE_meas : measurable_fun setT rand_allocTapeE. Admitted.
@@ -59,7 +80,7 @@ Hint Resolve rand_allocTapeS_meas : measlang.
         giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : cfg)
 *)
 
-Definition rand_allocUTapeE (x : state) : <<discr loc>>. Admitted.
+Definition rand_allocUTapeE : state -> <<discr loc>>. Admitted.
 (*   fresh_loc (tapes x). *)
 
 Definition rand_allocUTapeS (x : state) : state. Admitted.
