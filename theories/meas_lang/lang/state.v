@@ -63,45 +63,45 @@ Section hp_measure.
    *)
   Context {d} {T : measurableType d}.
 
-  Definition hpf : Type := <<discr loc>> -> T.
+  Definition hp : Type := <<discr loc>> -> T.
 
-  HB.instance Definition _ := gen_eqMixin hpf.
-  HB.instance Definition _ := gen_choiceMixin hpf.
-  HB.instance Definition _ := isPointed.Build hpf (cst point).
+  HB.instance Definition _ := gen_eqMixin hp.
+  HB.instance Definition _ := gen_choiceMixin hp.
+  HB.instance Definition _ := isPointed.Build hp (cst point).
 
-  Definition hpf_generators : set (set hpf) :=
+  Definition hp_generators : set (set hp) :=
     (\bigcup_i (preimage_class setT (fun f => f i) measurable)).
 
-  Definition hpf_measurable : set (set hpf) := <<s hpf_generators>>.
+  Definition hp_measurable : set (set hp) := <<s hp_generators>>.
 
-  Lemma hpf_meas0 : hpf_measurable set0.
+  Lemma hp_meas0 : hp_measurable set0.
   Proof. by apply sigma_algebra0. Qed.
 
-  Lemma hpf_measC X : (hpf_measurable X) -> hpf_measurable (~` X).
+  Lemma hp_measC X : (hp_measurable X) -> hp_measurable (~` X).
   Proof. by apply sigma_algebraC. Qed.
 
-  Lemma hpf_measU (F : sequences.sequence (set hpf)) : (forall i, hpf_measurable (F i)) -> hpf_measurable (\bigcup_i F i).
+  Lemma hp_measU (F : sequences.sequence (set hp)) : (forall i, hp_measurable (F i)) -> hp_measurable (\bigcup_i F i).
   Proof. by apply sigma_algebra_bigcup. Qed.
 
   HB.instance Definition _ :=
-    @isMeasurable.Build (sigma_display hpf_measurable) hpf hpf_measurable hpf_meas0 hpf_measC hpf_measU.
+    @isMeasurable.Build (sigma_display hp_measurable) hp hp_measurable hp_meas0 hp_measC hp_measU.
 
-  Definition hpf_eval (i : <<discr loc>>) : hpf -> T := (fun f : hpf => f i).
+  Definition hp_eval (i : <<discr loc>>) : hp -> T := (fun f : hp => f i).
 
-  Lemma hpf_eval_measurable (i : <<discr loc>>) : measurable_fun setT (hpf_eval i).
+  Lemma hp_eval_measurable (i : <<discr loc>>) : measurable_fun setT (hp_eval i).
   Proof.
     intros _ Y HY.
-    rewrite /hpf_measurable.
-    suffices H : hpf_generators (setT `&` hpf_eval i @^-1` Y).
-    { by apply ((@sub_gen_smallest _ _ hpf_generators) _ H). }
+    rewrite /hp_measurable.
+    suffices H : hp_generators (setT `&` hp_eval i @^-1` Y).
+    { by apply ((@sub_gen_smallest _ _ hp_generators) _ H). }
     exists i; [done|].
-    rewrite /hpf_eval.
+    rewrite /hp_eval.
     rewrite /preimage_class//=.
     exists Y; [done|].
     rewrite setTI.
     done.
   Qed.
-  Hint Resolve hpf_eval_measurable : measlang.
+  Hint Resolve hp_eval_measurable : measlang.
 
   Definition loc_enum : nat -> <<discr loc>>. Admitted.
   Lemma loc_enum_surj : forall l, exists n, loc_enum n = l.
@@ -134,50 +134,50 @@ Section hp_measure.
 
 
   (* The uncurry is measurable becuase nat is discrete and countable *)
-  Definition hpf_evalC : (<<discr loc>> * hpf)%type -> T := uncurry hpf_eval.
-  Lemma hpf_evalC_measurable : measurable_fun setT hpf_evalC.
-  Proof. by apply (@uncurry_loc_measurable _ _ _ _ hpf_eval), hpf_eval_measurable. Qed.
-  Hint Resolve nf_evalC_measurable : measlang.
+  Definition hp_evalC : (<<discr loc>> * hp)%type -> T := uncurry hp_eval.
+  Lemma hp_evalC_measurable : measurable_fun setT hp_evalC.
+  Proof. by apply (@uncurry_loc_measurable _ _ _ _ hp_eval), hp_eval_measurable. Qed.
+  Hint Resolve hp_evalC_measurable : measlang.
 
-  Definition hpf_update (i : <<discr loc>>) : (T * hpf)%type -> hpf :=
-    (fun x => (fun n => if (decide (n = i)) then (fst x) else ((ssrfun.comp (hpf_eval n) snd) x))).
+  Definition hp_update (i : <<discr loc>>) : (T * hp)%type -> hp :=
+    (fun x => (fun n => if (decide (n = i)) then (fst x) else ((ssrfun.comp (hp_eval n) snd) x))).
 
-  Lemma hpf_update_measurable (i : <<discr loc>>) : measurable_fun setT (hpf_update i).
+  Lemma hp_update_measurable (i : <<discr loc>>) : measurable_fun setT (hp_update i).
   Proof.
     eapply @measurability; [done|].
-    rewrite //=/hpf_update/subset/preimage_class//=.
+    rewrite //=/hp_update/subset/preimage_class//=.
     intro S.
-    rewrite /hpf_generators/preimage_class//=.
+    rewrite /hp_generators/preimage_class//=.
     move=> [S' [k _ +]].
     rewrite setTI//=; move=>[S'' HS'' +].
     rewrite setTI//=; move=><-<-//=.
     rewrite <-comp_preimage; rewrite /ssrfun.comp//=.
     destruct (decide (k = i)); rewrite //=.
-    { have -> : ((λ x : T * hpf, x.1) @^-1` S'') = (setT `&` fst @^-1` S'').
+    { have -> : ((λ x : T * hp, x.1) @^-1` S'') = (setT `&` fst @^-1` S'').
       { rewrite /setI/preimage/cst//=.
         apply /predeqP =>[y] /=.
         by intuition. }
       by eapply @measurable_fst. }
-    { have -> : ((λ x : T * hpf, hpf_eval k x.2) @^-1` S'') = ((ssrfun.comp (hpf_eval k) snd) @^-1` S'').
+    { have -> : ((λ x : T * hp, hp_eval k x.2) @^-1` S'') = ((ssrfun.comp (hp_eval k) snd) @^-1` S'').
       { by rewrite /ssrfun.comp/preimage//=. }
       rewrite <-(setTI (preimage _ _)).
-      by eapply (measurable_comp _ _ (hpf_eval_measurable k) (measurable_snd) _ HS'').
+      by eapply (measurable_comp _ _ (hp_eval_measurable k) (measurable_snd) _ HS'').
       Unshelve.
       { by eapply @measurableT. }
       { by simpl. }
       { by eapply @measurableT. }
     }
   Qed.
-  Hint Resolve hpf_update_measurable : measlang.
+  Hint Resolve hp_update_measurable : measlang.
 
-  Definition hpf_updateC : (<<discr loc>> * (T * hpf))%type -> hpf := uncurry hpf_update.
-  Lemma hpf_updateC_measurable : measurable_fun setT hpf_updateC.
-  Proof. by apply (@uncurry_loc_measurable _ _ _ _ hpf_update), hpf_update_measurable. Qed.
-  Hint Resolve hpf_updateC_measurable : measlang.
+  Definition hp_updateC : (<<discr loc>> * (T * hp))%type -> hp := uncurry hp_update.
+  Lemma hp_updateC_measurable : measurable_fun setT hp_updateC.
+  Proof. by apply (@uncurry_loc_measurable _ _ _ _ hp_update), hp_update_measurable. Qed.
+  Hint Resolve hp_updateC_measurable : measlang.
 
 End hp_measure.
 
-Global Arguments hpf {_} _.
+Global Arguments hp {_} _.
 Global Arguments MeasHeapDom {_} _.
 
 
@@ -199,8 +199,8 @@ Section dom.
   Admitted.
    *)
 
-  Definition dom (m : hpf (option T)) : MeasHeapDom <<discr loc>> :=
-    {| v := [set l | is_Some (hpf_eval l m) ] |}.
+  Definition dom (m : hp (option T)) : MeasHeapDom <<discr loc>> :=
+    {| v := [set l | is_Some (hp_eval l m) ] |}.
 
   Lemma dom_measurable : measurable_fun setT dom.
   Proof.
@@ -215,11 +215,11 @@ Section dom.
 
 End dom.
 
-Definition loc_lt (l1 l2 : <<discr loc>>) : bool. Admitted.
+Definition loc_lt (l1 l2 : <<discr loc>>) : Prop :=
+  (l1.(loc_car) < l2.(loc_car))%Z.
 
 Definition hasMax : MeasHeapDom <<discr loc>> -> Prop :=
-  fun S => exists l : <<discr loc>>, forall l' : <<discr loc>>, S.(v) l -> loc_lt l' l.
-
+  fun S => exists (l : <<discr loc>>), forall l' : <<discr loc>>, S.(v) l -> loc_lt l' l.
 
 Section hp.
   Local Open Scope classical_set_scope.
@@ -235,101 +235,51 @@ Section hp.
   Admitted.
 
   (** A heap (hp) is a map from <<discr loc>> to some type, whose domain is finite. *)
+  Definition hp_finite : set (hp (option T)) := preimage dom hasMax.
 
-  Structure hp := {
-      f : hpf (option T);
-      Hfin : hasMax (dom f)
-  }.
-
-  Program Definition hp_empty : hp := {| f := point; Hfin := _|}.
-  Next Obligation. Admitted.
-
-  (** The measure space on hp is a subtype measure space on hpf *)
-
-  HB.instance Definition _ := gen_eqMixin hp.
-  HB.instance Definition _ := gen_choiceMixin hp.
-  HB.instance Definition _ := isPointed.Build hp hp_empty.
-
-  Definition hp_measurable : set (set hp).  Admitted.
-
-  Lemma hp_meas0 : hp_measurable set0.
-  Proof. Admitted.
-
-  Lemma hp_measC X : (hp_measurable  X) -> hp_measurable  (~` X).
-  Proof. Admitted.
-
-  Lemma hp_measU (F : sequences.sequence (set hp)) : (forall i, hp_measurable  (F i)) -> hp_measurable (\bigcup_i F i).
-  Proof. Admitted.
-
-  HB.instance Definition _ :=
-    @isMeasurable.Build  default_measure_display hp hp_measurable hp_meas0 hp_measC hp_measU.
-
-  Definition hp_dom : hp -> MeasHeapDom <<discr loc>> := (fun h : hp => dom h.(f)).
-
-  Lemma hp_dom_measurable : measurable_fun setT hp_dom.
-  Proof. Admitted.
-
-  Definition get_fresh m : (hasMax m → <<discr loc >>). Admitted.
-
-  Definition hp_fresh (m : MeasHeapDom <<discr loc>>) : <<discr loc>> :=
-    @extern_if <<discr loc>> (hasMax m) point (get_fresh m).
-
-  (*
-  (* unpack the max, then add 1 *)
-  Definition fresh (h : hp) : <<discr loc>> := ssrfun.comp get_fresh hp_dom.
-
-  (* unpack the max, then add 1 *)
-  Definition fresh (h : hp) : <<discr loc>>. Admitted.
-
-  Lemma measurable_fresh : measurable_fun setT fresh.
+  Lemma hp_finite_measurable : measurable hp_finite.
   Proof.
-    (* Suffices to prove the preimage of [set l] is measurable
-       if l = 0; this set is the singleton empty heap
-       Otherwise, this set is the set of sets of locations containing l-1
-       There are a finite number of such sets
+    unfold hp_finite.
+    rewrite <- (setTI (preimage _ _)).
+    apply dom_measurable; try by eauto.
+    by apply hasMaxMeasurable.
+  Qed.
+  Hint Resolve hp_finite_measurable : measlang.
+
+
+  Definition get_fresh (m : hp (option T)) (H : hasMax (dom m)): <<discr loc>>.
+    (* The minimum loc that is greater than every element of ...
+       Exists because of H.
      *)
   Admitted.
-*)
+
+  Definition fresh : hp (option T) -> <<discr loc>> :=
+    fun m => extern_if point (get_fresh m).
+
+  Lemma fresh_meas : measurable_fun hp_finite fresh.
+  Proof.
+    (*
+      On this set, it's equal to...
+
+      Suffices to consider the preimage of each [set l]
+      This preimage (when restructred to hp_finite) is the empty map when l = 0
+      Otherwise, the preimage (when restructred to hp_finite) is the set of all heaps
+      with (l-1) set to (Some _).
+      This is a generator of the function sigma algebra.
+     *)
+  Admitted.
 
 End hp.
 
+
 Section hpfuns.
-  Local Open Scope classical_set_scope.
-  Context {d} (T : measurableType d).
-  Context {d1} (T1 : measurableType d1).
 
-  Definition hp_eval (i : <<discr loc>>) : hp T1 -> T. Admitted.
-
-  Lemma hp_eval_measurable (i : <<discr loc>>) : measurable_fun setT (hp_eval i).
-  Proof. Admitted.
-  Hint Resolve hp_eval_measurable : measlang.
-
-  (* The uncurry is measurable becuase nat is discrete and countable *)
-  Definition hp_evalC : (<<discr loc>> * hp T1)%type -> T := uncurry hp_eval.
-  Lemma hp_evalC_measurable : measurable_fun setT hp_evalC.
-  Proof.
-    eapply (@uncurry_loc_measurable _ _ _ _ _ _ hp_eval).
-    by apply hp_eval_measurable.
-    (* ??? *)
-    Unshelve. all: eauto.
-  Qed.
-  Hint Resolve nf_evalC_measurable : measlang.
-
-  Definition hp_update (i : <<discr loc>>) : (T * hp T1)%type -> hp T1. Admitted.
-
-  Lemma hp_update_measurable (i : <<discr loc>>) : measurable_fun setT (hp_update i).
-  Proof. Admitted.
-  Hint Resolve hp_update_measurable : measlang.
-
-  Definition hp_updateC : (<<discr loc>> * (T * hp T1))%type -> hp T1. Admitted.
-  Lemma hp_updateC_measurable : measurable_fun setT hp_updateC.
-  Proof. Admitted. (*  by apply (@uncurry_loc_measurable _ _ _ _ hpf_update), hpf_update_measurable. Qed. *)
-  Hint Resolve hp_updateC_measurable : measlang.
-
-  Lemma hp_fresh_meas : measurable_fun setT (hp_fresh T1).
-  Proof. Admitted.
+  (** Stdpp instances for hp *)
 
 End hpfuns.
+
+
+
 
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes, and [loc]-indexed utapes *)
 Record state : Type := {
@@ -712,7 +662,7 @@ Proof.
      IHn /=.
     rewrite map_union_empty replicate_length //.
 Qed.
+*)
 
 Global Instance state_inhabited : Inhabited state := populate point.
 
-*)
