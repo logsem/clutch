@@ -16,19 +16,19 @@ From mathcomp.analysis Require Export Rstruct.
 From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
-From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state.
+From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state cfg.
 Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.
 
 Definition state_loadC : (<<discr loc>> * state)%type -> val :=
-  of_option (ssrfun.comp gl_evalC $ mProd fst (ssrfun.comp heap snd)).
+  of_option $ ssrfun.comp hp_evalC $ mProd fst (ssrfun.comp heap snd).
 
 Definition auxcov_load_ok : set (<<discr loc>> * state)%type :=
-  [set x | ∃ w, heap x.2 !! x.1 = Some w ].
+  [set x | is_Some (hp_eval x.1 (heap x.2)) ].
 
 Definition auxcov_load_stuck : set (<<discr loc>> * state)%type :=
-  [set x | heap x.2 !! x.1 = None ].
+  ~` auxcov_load_ok.
 
 Lemma auxcov_load_ok_meas : measurable auxcov_load_ok.
 Proof. Admitted.
@@ -53,16 +53,31 @@ Hint Resolve state_loadC_meas : measlang.
           else giryM_zero
 *)
 
-Locate fresh_loc.
+
 
 (* AllocN: the state part of the result *)
-Definition state_allocNCS (x : (<<discr Z>> * val * state)%type) : state. Admitted.
+
+
+(** FIXME: For now, we will just ignore the N and allocate a single cell. *)
+Definition state_allocNCS : (<<discr Z>> * val * state)%type -> state :=
+  ssrfun.comp state_of_prod $
+  mProd
+    (mProd
+       (ssrfun.comp hp_updateC $
+        mProd
+          (ssrfun.comp fresh $ ssrfun.comp heap snd)
+          (mProd
+            (ssrfun.comp Some $ ssrfun.comp snd fst )
+            (ssrfun.comp heap $ snd)))
+      (ssrfun.comp tapes snd))
+    (ssrfun.comp utapes snd).
+
 (*
   state_upd_heap_N (fresh_loc x.2.(heap)) (Z.to_nat x.1.1) x.1.2 x.2.
 *)
 (* AllocN: the state part of the result *)
-Definition state_allocNCE (x : (<<discr Z>> * val * state)%type) : <<discr loc>>. Admitted.
-(*   (fresh_loc x.2.(heap)).  *)
+Definition state_allocNCE : (<<discr Z>> * val * state)%type -> <<discr loc>> :=
+  ssrfun.comp fresh $ ssrfun.comp heap snd.
 
 
 Definition auxcov_allocN_ok : set (<<discr Z>> * val * state)%type :=

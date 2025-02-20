@@ -271,10 +271,23 @@ Section hp.
 
 End hp.
 
+Global Arguments fresh {_ _} _.
 
 Section hpfuns.
+  Local Open Scope classical_set_scope.
+  Context {d} {T : measurableType d}.
 
-  (** Stdpp instances for hp *)
+  (** Stdpp instances for hp
+
+      Note: These instances are possibly not what you want to use, because they
+      uncurry the definitions so are not measurable.
+
+      Could prove that the real definitions are extensionally equal to stdpp-looking ones though,
+      to make porting the logic easier.
+   *)
+
+  Instance : PartialAlter <<discr loc>> T (hp (option T)) := {
+      partial_alter f l h := hp_updateC (l, (f $ hp_evalC (l, h), h)) }.
 
 End hpfuns.
 
@@ -283,13 +296,13 @@ End hpfuns.
 
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes, and [loc]-indexed utapes *)
 Record state : Type := {
-    state_v : ((hp val) * (hp btape) * (hp (@utape R)))%type
+    state_v : ((hp (option val)) * (hp (option btape)) * (hp (option (@utape R))))%type
 }.
 
-Definition prod_of_state (s : state) : ((hp val) * (hp btape) * (hp (@utape R))) :=
+Definition prod_of_state (s : state) : ((hp (option val)) * (hp (option btape)) * (hp (option (@utape R)))) :=
   match s with {| state_v := x |} => x end.
 
-Definition state_of_prod (v : (hp val) * (hp btape) * (hp (@utape R))) : state :=
+Definition state_of_prod (v : (hp (option val)) * (hp (option btape)) * (hp (option (@utape R)))) : state :=
   {| state_v := v |}.
 
 Lemma prod_of_state_of_prod p : prod_of_state (state_of_prod p) = p.
@@ -427,7 +440,7 @@ Proof.
 Qed.
 *)
 
-Definition heap : state -> hp val := ssrfun.comp (ssrfun.comp fst fst) prod_of_state.
+Definition heap : state -> hp (option val) := ssrfun.comp (ssrfun.comp fst fst) prod_of_state.
 Lemma heap_meas : measurable_fun setT heap.
 Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT (ssrfun.comp fst fst) setT prod_of_state); simpl.
@@ -443,7 +456,7 @@ Proof.
 Qed.
 Hint Resolve heap_meas : measlang.
 
-Definition tapes  : state -> hp btape := ssrfun.comp (ssrfun.comp snd fst) prod_of_state.
+Definition tapes  : state -> hp (option btape) := ssrfun.comp (ssrfun.comp snd fst) prod_of_state.
 Lemma tapes_meas : measurable_fun setT tapes.
 Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT (ssrfun.comp snd fst) setT prod_of_state); simpl.
@@ -459,7 +472,7 @@ Proof.
 Qed.
 Hint Resolve tapes_meas : measlang.
 
-Definition utapes : state -> hp (@utape R) := ssrfun.comp snd prod_of_state.
+Definition utapes : state -> hp (option (@utape R)) := ssrfun.comp snd prod_of_state.
 Lemma utapes_meas : measurable_fun setT utapes.
 Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT snd setT prod_of_state); simpl.
@@ -472,7 +485,7 @@ Hint Resolve utapes_meas : measlang.
 
 (** Operations on states *)
 
-Definition state_upd_heap (f : hp val -> hp val) : state -> state :=
+Definition state_upd_heap (f : hp (option val) -> hp (option val)) : state -> state :=
   ssrfun.comp state_of_prod $
   mProd (mProd (ssrfun.comp f heap) tapes) utapes.
 
@@ -494,7 +507,7 @@ Proof.
 Qed.
 Hint Resolve state_upd_heap_meas : measlang.
 
-Definition state_upd_tapes (f : hp btape -> hp btape) : state -> state :=
+Definition state_upd_tapes (f : hp (option btape) -> hp (option btape)) : state -> state :=
   ssrfun.comp state_of_prod $
   mProd (mProd heap (ssrfun.comp f tapes)) utapes.
 
@@ -516,7 +529,7 @@ Proof.
 Qed.
 Hint Resolve state_upd_tapes_meas : measlang.
 
-Definition state_upd_utapes (f : hp utape -> hp utape) : state -> state :=
+Definition state_upd_utapes (f : hp (option utape) -> hp (option utape)) : state -> state :=
   ssrfun.comp state_of_prod $
   mProd (mProd heap tapes) (ssrfun.comp f utapes).
 
@@ -628,10 +641,21 @@ Proof.
   intros (j&?&->&Hj%lookup_lt_Some%inj_lt)%heap_array_lookup.
   move: Hj. rewrite Z2Nat.id // => ?. by rewrite Hdisj.
 Qed.
+*)
 
-Definition state_upd_heap_N (l : loc) (n : nat) (v : val) (σ : state) : state :=
+(*
+Definition state_upd_hp_N : (<<discr loc>> * <<discr Z>> * val * (hp (option val)))%type -> (hp (option val)).
+Admitted.
+
+
+Lemma
+                              (l : loc) (n : nat) (v : val) (σ : state) : state :=
   state_upd_heap (λ h, heap_array l (replicate n v) ∪ h) σ.
+*)
 
+
+
+(*
 Lemma state_upd_heap_singleton l v σ :
   state_upd_heap_N l 1 v σ = state_upd_heap <[l:= v]> σ.
 Proof.
