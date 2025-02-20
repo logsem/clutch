@@ -137,31 +137,7 @@ Lemma rand_rand_S_meas : measurable_fun setT rand_rand_S. Admitted.
 Hint Resolve rand_rand_S_meas : measlang.
 *)
 
-Definition giryM_unif' : TZ -> giryM <<discr TZ>>. Admitted.
-
-(* TODO: Somehow, I need to prove that this is measurable. Is it?
-
-Feels that it should be derivable from the measurability of bind, but I'd need a slightly
-different definition for that.
- *)
-
-
-(*
-Check (giryM_bind_external ^~ (fun X => giryM_bind_external ^~ X)).
-
-  ssrfun.comp _ fst.
-  fun X => giryM_bind (fun x => giryM_bind (fun y => giryM_ret _ (x, y)) X.2) X.1.
-*)
-
-
-(*
-(a1 -> a2 -> r) -> m a1 -> m a2 -> m r
-do { x1 <- m1; x2 <- m2; return (f x1 x2) }
-Program Definition giryM_liftM2 {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
-    (f : T1 -> T2 -> T3) (m1 : giryM T1) (m2 : giryM T2) : giryM T3 :=
-  (giryM_bind_external ^~ (fun x1 : T1 => giryM_bind_external ^~ (fun x2 : T2 => _) _)) _.
-
-*)
+Definition giryM_unif' : <<discr TZ>> -> giryM <<discr TZ>>. Admitted.
 
 
 
@@ -211,18 +187,20 @@ Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT).
   { by eapply @measurableT. }
   { by eapply subsetT. }
-Admitted.
-(*
-  { admit. } (*  apply gProd_measurable. } *)
+  { by eapply @gProd_measurable. }
   mcrunch_prod.
-  { mcrunch_compC rand_rand_aux_meas. by eauto with measlang. }
+  { eapply (@measurable_comp _ _ _ _ _ _ setT).
+    { by eapply @measurableT. }
+    { by eapply subsetT. }
+    { by apply rand_rand_aux_meas. }
+    { by eauto with measlang. }
+  }
   eapply (@measurable_comp _ _ _ _ _ _ setT).
   { by eapply @measurableT. }
   { by eapply subsetT. }
   { by apply gRet_measurable. }
   by eauto with measlang.
 Qed.
-*)
 Hint Resolve rand_rand_meas : measlang.
 
 (**  URand no tape *)
@@ -243,14 +221,11 @@ Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT).
   { by eapply @measurableT. }
   { by eapply subsetT. }
-Admitted.
-(*
-  { by apply gProd_measurable. }
+  { by eapply @gProd_measurable. }
   mcrunch_prod.
   { by eauto with measlang. }
   { by apply gRet_measurable. }
 Qed.
-*)
 Hint Resolve rand_urand_meas : measlang.
 
 (**  Rand with tape *)
