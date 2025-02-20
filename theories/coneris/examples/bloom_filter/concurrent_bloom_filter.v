@@ -5,7 +5,7 @@ From clutch.coneris.lib Require Import list array.
 
 Set Default Proof Using "Type*".
 
-
+(*
 
 Section conc_bloom_filter.
 
@@ -262,3 +262,5 @@ Section conc_bloom_filter.
 
 
 End conc_bloom_filter.
+
+*)
