@@ -26,9 +26,6 @@ Create HintDb measlang.
 (* Fix giryM to be the giry type with stdlib-valued real numbers *)
 Notation giryM := (giryM (R := R)).
 
-Global Instance classical_eq_dec {T : Type} : EqDecision T.
-Proof. intros ??; apply ClassicalEpsilon.excluded_middle_informative. Defined.
-
 (* Instances for Z *)
 HB.instance Definition _ := gen_eqMixin Z.
 HB.instance Definition _ := gen_choiceMixin Z.

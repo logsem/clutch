@@ -41,8 +41,8 @@ End unif.
         giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := {| btape_tape := emptyTape ; btape_bound := (Z.to_nat z) |} ]> σ1) : cfg)
 *)
 
-Definition rand_allocTapeE (x : (<<discr Z>> * state)%type) : <<discr loc>> :=
-  fresh_loc (tapes x.2).
+Definition rand_allocTapeE (x : (<<discr Z>> * state)%type) : <<discr loc>>. Admitted.
+(*    fresh_loc (tapes x.2). *)
 
 Definition rand_allocTapeS (x : (<<discr Z>> * state)%type) : state. Admitted.
 (*  state_upd_tapes <[ (fresh_loc x.2.(tapes)) := {| btape_tape := emptyTape ; btape_bound := Z.to_nat x.1 |} ]> x.2. *)
@@ -59,8 +59,8 @@ Hint Resolve rand_allocTapeS_meas : measlang.
         giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : cfg)
 *)
 
-Definition rand_allocUTapeE (x : state) : <<discr loc>> :=
-  fresh_loc (tapes x).
+Definition rand_allocUTapeE (x : state) : <<discr loc>>. Admitted.
+(*   fresh_loc (tapes x). *)
 
 Definition rand_allocUTapeS (x : state) : state. Admitted.
 (*   state_upd_utapes <[ (fresh_loc x.(utapes)) := emptyTape ]> x. *)
@@ -221,13 +221,15 @@ Hint Resolve rand_urand_meas : measlang.
  *)
 
 
-Definition auxcov_randT_noTape : set (<<discr Z>> * <<discr loc>> * state)%type :=
+Definition auxcov_randT_noTape : set (<<discr Z>> * <<discr loc>> * state)%type. Admitted.
+(*
   [set x | tapes x.2 !! x.1.2 = None ].
-
-Definition auxcov_randT_boundMismatch : set (<<discr Z>> * <<discr loc>> * state)%type :=
+*)
+Definition auxcov_randT_boundMismatch : set (<<discr Z>> * <<discr loc>> * state)%type. Admitted.
+(*
   [set x | ∃ b, tapes x.2 !! x.1.2 = Some b /\
                 (bool_decide (btape_bound b = Z.to_nat x.1.1) = false) ].
-
+*)
 Definition auxcov_randT_nextEmpty : set (<<discr Z>> * <<discr loc>> * state)%type. Admitted.
 (*
   [set x | ∃ b, x.2.(tapes) !! x.1.2 = Some b /\
@@ -393,9 +395,10 @@ Hint Resolve rand_randT_meas : measlang.
 (** Urand with tape *)
 
 
-Definition auxcov_urandT_noTape : set (<<discr loc>> * state)%type :=
+Definition auxcov_urandT_noTape : set (<<discr loc>> * state)%type. Admitted.
+(*
   [set x | tapes x.2 !! x.1 = None ].
-
+*)
 
 Definition auxcov_urandT_nextEmpty : set (<<discr loc>> * state)%type. Admitted.
 (*
@@ -446,7 +449,9 @@ Lemma urandT_ok_meas : measurable_fun auxcov_urandT_ok rand_urandT_ok.
 Proof. Admitted.
 Hint Resolve urandT_ok_meas : measlang.
 
-Definition rand_urandT (x : (<<discr loc>> * state)%type) : giryM cfg :=
+Definition rand_urandT (x : (<<discr loc>> * state)%type) : giryM cfg. Admitted.
+
+(*
   let l := x.1 in
   let σ1 := x.2 in
   match utapes σ1 !! l with
@@ -457,6 +462,7 @@ Definition rand_urandT (x : (<<discr loc>> * state)%type) : giryM cfg :=
       end
   | None => rand_urandT_noTape x
   end.
+*)
 
 Lemma rand_urandT_meas : measurable_fun setT rand_urandT.
 Proof. Admitted.

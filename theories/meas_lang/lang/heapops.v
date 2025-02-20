@@ -24,6 +24,7 @@ Local Open Scope classical_set_scope.
 (* TODO afteroon:
    - Fix def'n of allocN to just be alloc
    - Restrict def'n to get stuck if map is not finite
+      - General noncomputable "is in set" case split
    - Measurability of "auxcov load and store OK" sets (preimage of blah blah blah)
    - Store
  *)
@@ -33,21 +34,30 @@ Definition state_loadC : (<<discr loc>> * state)%type -> val :=
   of_option $ ssrfun.comp hp_evalC $ mProd fst (ssrfun.comp heap snd).
 
 Definition auxcov_load_ok : set (<<discr loc>> * state)%type :=
-  [set x | is_Some (hp_eval x.1 (heap x.2)) ].
+  preimage (ssrfun.comp hp_evalC $ mProd fst (ssrfun.comp heap snd)) option_cov_Some.
 
 Definition auxcov_load_stuck : set (<<discr loc>> * state)%type :=
   ~` auxcov_load_ok.
 
 Lemma auxcov_load_ok_meas : measurable auxcov_load_ok.
-Proof. Admitted.
+Proof.
+  suffices HM : measurable_fun setT (ssrfun.comp hp_evalC $ mProd fst (ssrfun.comp heap snd)).
+  { unfold auxcov_load_ok.
+    rewrite <- (setTI (preimage _ _)).
+    apply HM; try by eauto with measlang.
+    by apply option_cov_Some_meas. }
+  (* Doable *)
+Admitted.
 Hint Resolve auxcov_load_ok_meas : measlang.
 
 Lemma auxcov_load_stuck_meas : measurable auxcov_load_stuck.
-Proof. Admitted.
+Proof. by apply measurableC, auxcov_load_ok_meas. Qed.
 Hint Resolve auxcov_load_stuck_meas : measlang.
 
 Lemma state_loadC_meas : measurable_fun auxcov_load_ok state_loadC.
 Proof.
+  (* Cover with auxcov_load_ok, load_stuck *)
+  (* Constant on the latter, measurable on the former *)
 Admitted.
 Hint Resolve state_loadC_meas : measlang.
 
@@ -61,41 +71,38 @@ Hint Resolve state_loadC_meas : measlang.
           else giryM_zero
 *)
 
-
-
 (* AllocN: the state part of the result *)
 
-
-(** FIXME: For now, we will just ignore the N and allocate a single cell. *)
-Definition state_allocNCS : (<<discr Z>> * val * state)%type -> state :=
+Definition state_allocNCS : (val * state)%type -> state :=
   ssrfun.comp state_of_prod $
   mProd
     (mProd
-       (ssrfun.comp hp_updateC $
-        mProd
-          (ssrfun.comp fresh $ ssrfun.comp heap snd)
-          (mProd
-            (ssrfun.comp Some $ ssrfun.comp snd fst )
-            (ssrfun.comp heap $ snd)))
+      (ssrfun.comp hp_updateC $
+       mProd
+         (ssrfun.comp fresh $ ssrfun.comp heap snd)
+         (mProd
+            (ssrfun.comp Some fst)
+            (ssrfun.comp heap snd)))
       (ssrfun.comp tapes snd))
     (ssrfun.comp utapes snd).
+
 
 (*
   state_upd_heap_N (fresh_loc x.2.(heap)) (Z.to_nat x.1.1) x.1.2 x.2.
 *)
 (* AllocN: the state part of the result *)
-Definition state_allocNCE : (<<discr Z>> * val * state)%type -> <<discr loc>> :=
+Definition state_allocNCE : (val * state)%type -> <<discr loc>> :=
   ssrfun.comp fresh $ ssrfun.comp heap snd.
 
+Definition auxcov_allocN_ok : set (val * state)%type :=
+  setX setT $ preimage heap (hp_finite _).
 
-Definition auxcov_allocN_ok : set (<<discr Z>> * val * state)%type :=
-  [set x | (0 < Z.to_nat x.1.1)%nat].
-
-Definition auxcov_allocN_stuck: set (<<discr Z>> * val * state)%type :=
-  [set x | (0 >= Z.to_nat x.1.1)%nat].
+Definition auxcov_allocN_stuck: set (val * state)%type :=
+  ~` auxcov_allocN_ok.
 
 Lemma auxcov_allocN_ok_meas : measurable auxcov_allocN_ok.
-Proof. Admitted.
+Proof.
+Admitted.
 Hint Resolve auxcov_allocN_ok_meas : measlang.
 
 Lemma auxcov_allocN_stuck_meas : measurable auxcov_allocN_stuck.
@@ -123,19 +130,30 @@ Hint Resolve state_allocNCS_meas : measlang.
 
 
 (* store: the state part of the result *)
-Program Definition state_storeS (x : (<<discr loc>> * val * state)%type) : state. Admitted.
-(*  state_upd_heap <[x.1.1:=x.1.2]> x.2. *)
+Definition state_storeS : <<discr loc>> * val * state -> state :=
+  ssrfun.comp state_of_prod $
+  mProd
+    (mProd
+      (ssrfun.comp hp_updateC $
+       mProd
+         (ssrfun.comp fst fst)
+         (mProd
+            (ssrfun.comp Some $ ssrfun.comp snd fst)
+            (ssrfun.comp heap snd)))
+      (ssrfun.comp tapes snd))
+  (ssrfun.comp utapes snd).
 
 (* store: the expression part of the result *)
-Definition state_storeE (x : (<<discr loc>> * val * state)%type) : expr :=
-  ValU $ LitV $ LitUnit.
-
+Definition state_storeE : (<<discr loc>> * val * state) -> expr :=
+  cst $ ValU $ LitV $ LitUnit.
 
 Definition auxcov_store_ok : set (<<discr loc>> * val * state)%type :=
-  [set x | ∃ w, heap x.2 !! x.1.1 = Some w ].
+  preimage
+    (ssrfun.comp hp_evalC $ mProd (ssrfun.comp fst fst) (ssrfun.comp heap snd))
+    (@option_cov_Some _ val).
 
 Definition auxcov_store_stuck : set (<<discr loc>> * val * state)%type :=
-  [set x | heap x.2 !! x.1.1 = None ].
+  ~` auxcov_store_ok.
 
 Lemma auxcov_store_ok_meas : measurable auxcov_store_ok.
 Proof. Admitted.

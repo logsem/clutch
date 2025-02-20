@@ -3,6 +3,7 @@ From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
 From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From clutch.prelude Require Import classical.
+From stdpp Require Import base.
 From HB Require Import structures.
 
 Import Coq.Logic.FunctionalExtensionality.
@@ -805,3 +806,26 @@ Section ofOption.
   Proof. (* Covering argument *) Admitted.
 
 End ofOption.
+
+Global Instance classical_eq_dec {T : Type} : EqDecision T.
+Proof. intros ??; apply ClassicalEpsilon.excluded_middle_informative. Defined.
+
+Section ifIn.
+  Local Open Scope classical_set_scope.
+  Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
+
+  Definition ifIn (D : set T1) (f1 f2 : T1 -> T2) : T1 -> T2 :=
+    fun x => if (asbool (D x)) then f1 x else f2 x.
+
+  Lemma ifInMeasurable (D DT : set T1) (H : measurable D) (HDT  : measurable DT) (f1 f2 : T1 -> T2)
+                       (Hf1 : measurable_fun (D `&` DT) f1) (Hf2 : measurable_fun ((~` D) `&` DT) f2) :
+    measurable_fun setT (ifIn DT f1 f2).
+  Proof. Admitted.
+
+  Lemma ifIn_eq_left (D : set T1) (f1 f2 : T1 -> T2) (x : T1) : D x -> ifIn D f1 f2 x = f1 x.
+  Proof. Admitted.
+
+  Lemma ifIn_eq_right (D : set T1) (f1 f2 : T1 -> T2) (x : T1) : ¬ D x -> ifIn D f1 f2 x = f2 x.
+  Proof. Admitted.
+
+End ifIn.
