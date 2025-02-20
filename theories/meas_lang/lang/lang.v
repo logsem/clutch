@@ -1462,15 +1462,18 @@ Section meas_semantics.
       destruct and apply RandAllcoTapeE/S
   *)
   Definition head_stepM_allocTape : cfg -> giryM cfg :=
-    ssrfun.comp (gRet) $
-    mProd
-      (ssrfun.comp ValU $
-       ssrfun.comp LitVU $
-       ssrfun.comp LitLblU $
-       ssrfun.comp rand_allocTapeE $
-       head_stepM_allocTape_aux)
-      (ssrfun.comp rand_allocTapeS $
-       head_stepM_allocTape_aux).
+    ifIn (ssrfun.comp rand_allocTape_ok_cov head_stepM_allocTape_aux)
+      (ssrfun.comp (gRet) $
+        mProd
+        (ssrfun.comp ValU $
+          ssrfun.comp LitVU $
+          ssrfun.comp LitLblU $
+          ssrfun.comp rand_allocTapeE $
+          head_stepM_allocTape_aux)
+        (ssrfun.comp rand_allocTapeS $
+          head_stepM_allocTape_aux))
+        (cst gZero).
+
 
   (*
     | AllocUTape =>
@@ -1478,15 +1481,17 @@ Section meas_semantics.
         gRet ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : cfg)
    *)
   Definition head_stepM_allocUTape : cfg -> giryM cfg :=
-    ssrfun.comp (gRet) $
-    mProd
-      (ssrfun.comp ValU $
-       ssrfun.comp LitVU $
-       ssrfun.comp LitLblU $
-       ssrfun.comp rand_allocUTapeE $
-       snd)
-      (ssrfun.comp rand_allocUTapeS $
-       snd).
+    ifIn (ssrfun.comp rand_allocUTape_ok_cov snd)
+      (ssrfun.comp (gRet) $
+      mProd
+        (ssrfun.comp ValU $
+         ssrfun.comp LitVU $
+         ssrfun.comp LitLblU $
+         ssrfun.comp rand_allocUTapeE $
+         snd)
+        (ssrfun.comp rand_allocUTapeS $
+         snd))
+      (cst gZero).
 
   (* Rand (Val (LitInt N)) (Val LitUnit) -> ... *)
   Definition head_stepM_aux_rand : cfg -> (<<discr Z>> * state)%type :=

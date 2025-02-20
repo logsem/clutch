@@ -54,7 +54,7 @@ Proof.
 Admitted.
 
 
-Program Definition rand_allocTapeS : (<<discr Z>> * state)%type -> state :=
+Definition rand_allocTapeS : (<<discr Z>> * state)%type -> state :=
   ssrfun.comp state_of_prod $
   mProd
     (mProd (ssrfun.comp heap snd)
@@ -66,12 +66,19 @@ Program Definition rand_allocTapeS : (<<discr Z>> * state)%type -> state :=
             (ssrfun.comp tapes snd))))
     (ssrfun.comp utapes snd).
 
+
+Definition rand_allocTape_ok_cov : set (<<discr Z>> * state) :=
+  setX setT $ preimage tapes (hp_finite _).
+
+Lemma rand_allocTape_ok_cov_meas : measurable rand_allocTape_ok_cov.
+Proof. Admitted.
+
 (*  state_upd_tapes <[ (fresh_loc x.2.(tapes)) := {| btape_tape := emptyTape ; btape_bound := Z.to_nat x.1 |} ]> x.2. *)
 
-Lemma rand_allocTapeE_meas : measurable_fun setT rand_allocTapeE. Admitted.
+Lemma rand_allocTapeE_meas : measurable_fun rand_allocTape_ok_cov  rand_allocTapeE. Admitted.
 Hint Resolve rand_allocTapeE_meas : measlang.
 
-Lemma rand_allocTapeS_meas : measurable_fun setT rand_allocTapeS. Admitted.
+Lemma rand_allocTapeS_meas : measurable_fun rand_allocTape_ok_cov  rand_allocTapeS. Admitted.
 Hint Resolve rand_allocTapeS_meas : measlang.
 
 (*
@@ -80,21 +87,35 @@ Hint Resolve rand_allocTapeS_meas : measlang.
         giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : cfg)
 *)
 
-Definition rand_allocUTapeE : state -> <<discr loc>>. Admitted.
-(*   fresh_loc (tapes x). *)
+Definition rand_allocUTapeE : state -> <<discr loc>> :=
+  ssrfun.comp fresh utapes.
 
-Definition rand_allocUTapeS (x : state) : state. Admitted.
+Definition rand_allocUTapeS : state -> state :=
+  ssrfun.comp state_of_prod $
+  mProd (mProd heap tapes)
+  (ssrfun.comp hp_updateC $
+    mProd
+      (ssrfun.comp fresh utapes)
+      (mProd (ssrfun.comp Some $ cst emptyTape) utapes)).
+
+
+Definition rand_allocUTape_ok_cov : set state :=
+  preimage tapes (hp_finite _).
+
+Lemma rand_allocUTape_ok_cov_meas : measurable rand_allocTape_ok_cov.
+Proof. Admitted.
+
 (*   state_upd_utapes <[ (fresh_loc x.(utapes)) := emptyTape ]> x. *)
 
-Lemma rand_allocUTapeE_meas : measurable_fun setT rand_allocUTapeE. Admitted.
+Lemma rand_allocUTapeE_meas : measurable_fun rand_allocUTape_ok_cov rand_allocUTapeE. Admitted.
 Hint Resolve rand_allocUTapeE_meas : measlang.
 
-Lemma rand_allocUTapeS_meas : measurable_fun setT rand_allocUTapeS. Admitted.
+Lemma rand_allocUTapeS_meas : measurable_fun rand_allocUTape_ok_cov  rand_allocUTapeS. Admitted.
 Hint Resolve rand_allocUTapeS_meas : measlang.
 
-(* Each random operation has a pure "core" that is mapped over a set of expressions.
-This gets lifted to a cfg -> giryM cfg by adding state, but state is not needed for rand or urand.
- *)
+
+
+
 
 (**  Rand no tape *)
 
