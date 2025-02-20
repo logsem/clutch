@@ -11,18 +11,18 @@ Section conc_bloom_filter.
 
 
 
-  Variables filter_size max_key num_hash num_threads : nat.
-  Context `{!conerisGS Σ, !spawnG Σ, c:con_hash4 Σ filter_size, !inG Σ (excl_authR boolO), !inG Σ (prodR fracR val0) }.
+  Variables filter_size max_key num_hash : nat.
+  Context `{!conerisGS Σ, !spawnG Σ, c:con_hash4 Σ filter_size max_key, !inG Σ (excl_authR boolO), !inG Σ (prodR fracR val0) }.
 
 
-  Definition init_bloom_filter : expr :=
+  Definition init_bloom_filter : val :=
     λ: "_" ,
       let: "hfuns" := list_seq_fun #0 #num_hash (λ: "_", init_hash4 #()) in
       let: "arr" := array_init #(S filter_size) (λ: "x", #false)%E in
       let: "l" := ref ("hfuns", "arr") in
       "l".
 
-  Definition insert_bloom_filter : expr :=
+  Definition insert_bloom_filter : val :=
     λ: "l" "v" ,
       let, ("hfuns", "arr") := !"l" in
       list_iter (λ: "h",
@@ -30,7 +30,7 @@ Section conc_bloom_filter.
           "arr" +ₗ "i" <- #true) "hfuns".
 
 
-  Definition lookup_bloom_filter : expr :=
+  Definition lookup_bloom_filter : val :=
     λ: "l" "v" ,
       let, ("hfuns", "arr") := !"l" in
       let: "res" := ref #true in
@@ -39,33 +39,13 @@ Section conc_bloom_filter.
           if: !("arr" +ₗ "i") then #() else "res" <- #false) "hfuns" ;;
       !"res".
 
-(*
-  (*
-     The invariant of the case study keeps track of three sets, s1, s2, and s3, whose union s is always constant.
-       - s1 represents the set of elements that are in the tape of some hash
-       - s2 represents the set of indices that have been read from the hash, but are still waiting to be written to
-       the array
-       - s3 represents the set of indices of the array that have been set to 1
-
-     After the initialization, s1 will contain all elements in the hash sets, while s2 and s3 are empty. The deterministic
-     part of the program will just advance the physical state of the bloom filter so that at the end s1 and s2 are empty.
-
-     Additionally, the invariant ensures that every thread reading from a hash will find a non-empty tape (and therefore there
-     is no more sampling happening).
-   *)
-  Definition bloom_filter_inv (s : gset nat) (a : loc) (arr lbls : list val) (snames : list hash_set_gname) (tnames : list hash_tape_gname): iProp Σ :=
-    ∃ (s1 s2 s3 : gset nat),
-      ⌜ s1 ∪ s2 ∪ s3 = s ⌝ ∗
-      (* Every element in s1 is in the tape of some hash *)
-      ([∗ list] x ∈ (zip lbls (zip snames tnames)),
-           ∃ (sx : list nat), hash_tape1 (fst x) sx (fst (snd x)) (snd (snd x)) ∗ ⌜ subseteq (list_to_set sx) s1 ⌝) ∗
-      (* Every element in s2 is waiting to be written *)
-      (* Every element in s3 is an index set to 1 in the array *)
-      (a ↦∗ arr) ∗
-      ⌜ forall i, arr !! i = Some #true -> i ∈ s3  ⌝ ∗
-      ⌜ forall i, i ∈ s3 -> (i < S filter_size)%nat  ⌝ ∗
-      ([∗ set] x ∈ s3, ∃ γ, (hash_set_frag1 x γ)).
- *)
+  Definition main_bloom_filter (ksv ktest : val) : expr :=
+      let: "bfl" := init_bloom_filter #() in
+      let: "handles" := ref list_nil in
+      list_iter (λ: "k", let: "hndl" := spawn (λ:"_", insert_bloom_filter "bfl" "k") in
+                         "handles" <- (list_cons "hndl" !"handles")) ksv ;;
+      list_iter (λ: "hndl", spawn.join "hndl") !"handles" ;;
+      lookup_bloom_filter "bfl" ktest.
 
 
   Definition con_hash_inv_list N hfs hnames ks (s : gset nat) :=
@@ -83,7 +63,14 @@ Section conc_bloom_filter.
         ([∗ list] k ∈ ks, ∃ v, ⌜ v ∈ s ⌝ ∗ hash_frag4 k v γ.1) ∗
         con_hash_inv_list N fs2 hnames2 ks s
     ).
-  Admitted.
+  Proof.
+    iIntros "Hinv_list".
+    rewrite /con_hash_inv_list.
+    destruct hnames as [| γ hnames2]; auto.
+    iDestruct "Hinv_list" as "((%lk & %hm & ?) & ?)".
+    iExists lk, hm.
+    by iFrame.
+  Qed.
 
   Definition bloom_filter_inv_aux N bfl hfuns a
     (hnames : list (hash_view_gname * hash_lock_gname)) ks (s : gset nat) : iPropI Σ :=
@@ -254,18 +241,18 @@ Section conc_bloom_filter.
 
 
   Lemma bloom_filter_init_spec N (ks : list nat) :
-    (length ks = num_threads) ->
     NoDup ks ->
     ([∗ list] k ∈ ks, ⌜ (k ≤ max_key)%nat ⌝) -∗
-    {{{ ↯ (fp_error filter_size num_hash (num_hash * num_threads) 0) }}}
+    {{{ ↯ (fp_error filter_size num_hash (num_hash * length ks) 0) }}}
       init_bloom_filter #()
    {{{ (bfl:loc), RET #bfl ;
          ∃ hfuns a hnames s,
+             ↯ (fp_error filter_size num_hash 0 (size s)) ∗
              hash_auth_list hnames ks ∗
              bloom_filter_inv N bfl hfuns a hnames ks s
    }}}.
    Proof.
-    iIntros (Hthreads Hndup) "#Hks".
+    iIntros (Hndup) "#Hks".
     iIntros (Φ).
     iModIntro.
     iIntros "Herr HΦ".
@@ -273,7 +260,7 @@ Section conc_bloom_filter.
     wp_pures.
     set (Ψ := (λ l, ⌜ num_hash < length l ⌝ ∨
                 (∃ (s : gset nat),
-                      ↯(fp_error filter_size num_hash ((num_hash - length l) * num_threads) (size s)) ∗
+                      ↯(fp_error filter_size num_hash ((num_hash - length l) * length ks) (size s)) ∗
                       ⌜ ∀ x : nat, x ∈ s → x < S filter_size ⌝ ∗
                       ([∗ list] f ∈ l,
                         (∃ γ,
@@ -300,7 +287,6 @@ Section conc_bloom_filter.
       }
       iDestruct "HΨ" as "[%|HΨ]"; [iModIntro; iLeft; iPureIntro; lia |].
       iDestruct "HΨ" as "(%s & Herr & %Hbound & Hl)".
-      rewrite -Hthreads.
       replace ((num_hash - length l) * length ks) with ((num_hash - S (length l)) * length ks + length ks);
         last first.
       {
@@ -369,6 +355,7 @@ Section conc_bloom_filter.
         *)
         iPoseProof (array.big_sepL_exists with "Hfs") as "(%hnames & Hfs)"; eauto.
         iApply "HΦ".
+        rewrite Hlen Nat.sub_diag Nat.mul_0_l.
         iExists hfuns, a, hnames, s.
         rewrite /hash_auth_list/=.
         iAssert ( ([∗ list] γ ∈ hnames, (∃ m : gmap nat nat, hash_auth4 m γ.1 ∗ (⌜dom m = list_to_set ks⌝))) ∗
@@ -391,7 +378,7 @@ Section conc_bloom_filter.
             iSplit; auto.
         }
         iFrame.
-        iMod (inv_alloc _ _ (bloom_filter_inv_aux N l hfuns a hnames ks s) with "[Herr Ha Hl Hfs]") as "#Hinv";
+        iMod (inv_alloc _ _ (bloom_filter_inv_aux N l hfuns a hnames ks s) with "[Ha Hl Hfs]") as "#Hinv";
           [| iApply "Hinv"].
         rewrite /bloom_filter_inv_aux.
         iModIntro.
@@ -418,7 +405,7 @@ Section conc_bloom_filter.
       {{{ bloom_filter_inv N bfl hfuns a hnames ks s }}}
             insert_bloom_filter #bfl #k
       {{{ RET #(); True  }}}.
-  Proof using c conerisGS0 conerisGS1 excl_authR filter_size inG0 inG1 max_key max_key0 num_hash num_threads spawnG0 val0 Σ.
+  Proof.
     iIntros (Hk Hleq Φ) "!# #Hinv HΦ".
     rewrite /insert_bloom_filter.
     wp_pures.
@@ -527,7 +514,6 @@ Section conc_bloom_filter.
        rewrite /hash_auth_list.
        iPoseProof (big_sepL_cons with "Hauths") as "((%m&Hmauth&Hmdom)&Hauths)"; auto.
        wp_apply (wp_hash_lookup_safe with "[Hmauth]"); auto.
-       { admit. }
        iIntros (v) "(%&?)".
        wp_pures.
        wp_bind (!_)%E.
@@ -579,9 +565,11 @@ Section conc_bloom_filter.
                      0%NNR with "[$Herr $Hmauth]"); auto.
        {
          simpl. rewrite Rmult_0_l Rplus_0_r.
-       }
-       {
-         admit.
+         rewrite -(Rmult_comm (filter_size + 1))
+            -Rmult_assoc
+            Rmult_div_assoc
+            Rmult_div_r; [lra |].
+         real_solver.
        }
        simpl.
        iIntros (v) "(%Hv & [(%Hin & Herr) | (%Hout & Herr)] & Hauth)".
@@ -653,9 +641,94 @@ Section conc_bloom_filter.
       by iApply "HΦ".
     * simpl.
       iPoseProof (ec_contradict with "Herr") as "?"; auto; lra.
+  Qed.
 
 
-   Admitted.
+ Lemma main_bloom_filter_spec (N : namespace) (ks : list nat) (ksv : val) (ktest : nat) :
+   NoDup ks ->
+   is_list ks ksv ->
+   ktest ∉ ks ->
+   (ktest ≤ max_key)%nat ->
+   {{{ ([∗ list] k ∈ ks, ⌜ (k ≤ max_key)%nat ⌝) ∗
+         ↯ (fp_error filter_size num_hash (num_hash * length ks) 0)
+   }}}
+     main_bloom_filter ksv #ktest
+   {{{
+         v, RET v; ⌜ v = #false ⌝
+   }}}.
+ Proof.
+   iIntros (Hndup Hksv Hktest Htestvalid Φ) "(#Hks & Herr) HΦ".
+   rewrite /main_bloom_filter.
+   wp_apply (bloom_filter_init_spec N ks with "[//] Herr"); auto.
+   iIntros (bfl) "(%hfuns & %a & %hnames & %s & Herr & Hauths & #Hinv)".
+   wp_pures.
+   wp_alloc handles as "Hhandles".
+   wp_pures.
+   wp_bind (list_iter _ _).
+   wp_apply (wp_list_iter_invariant_HO
+               (λ l1 l2,
+                 ([∗ list] v ∈ l2, ∃ n:nat, ⌜ v = #n ⌝ ∗ ⌜ n ∈ ks ⌝) ∗
+                 ( ∃ lh vlh, ⌜ is_list_HO lh vlh ⌝ ∗
+                                   handles ↦ vlh ∗
+                                   [∗ list] hndl ∈ lh, ∃ (l : loc), ⌜ hndl = #l ⌝ ∗ join_handle N l (λ _, True)))%I
+            with "[][Hhandles][Herr Hauths HΦ]").
+   - iIntros (lpre w lsuf Ψ) "!# (Hnats & %lh & %vlh & %Hlh & Hhandles & Hlist) HΨ".
+     wp_pures.
+     iDestruct "Hnats" as "((%n & -> & %Hn) & Hnats)".
+     wp_apply (spawn_spec N (λ _, True)%I).
+     + wp_pures.
+       wp_apply (bloom_filter_insert_thread_spec _ _ _ _ _ _ ks); auto.
+     + iIntros (l) "Hl".
+       wp_pures.
+       wp_load.
+       wp_apply (wp_list_cons_HO); auto.
+       iIntros (v) "Hcons".
+       wp_store.
+       iModIntro.
+       iApply "HΨ".
+       iFrame.
+       auto.
+
+  - iFrame.
+    iSplit.
+    {
+      apply is_list_to_HO in Hksv.
+      eauto.
+    }
+    iSplit.
+    + iPureIntro.
+      intros i v Hi.
+      simpl.
+      destruct (ks !! i) eqn:Hlookup.
+      * exists n; split.
+        ** assert (Some v = Some #n) as Haux ; [|inversion Haux; auto].
+           rewrite -Hi list_lookup_fmap Hlookup /= //.
+        ** eapply elem_of_list_lookup_2; eauto.
+      * rewrite list_lookup_fmap Hlookup /= in Hi.
+        inversion Hi.
+    + iExists []; auto.
+  - iIntros "!> (_ & (%lh & %vlh & %Hlh & Hhandles & Hlist))".
+    wp_pures.
+    wp_load.
+    wp_pures.
+    wp_apply (wp_list_iter_invariant_HO
+                (λ l1 l2, [∗ list] H↦hndl ∈ l2, ∃ l : loc, ⌜hndl = #l⌝ ∗ join_handle N l (λ _ : val, True))%I
+             with "[][Hlist]").
+    + iIntros (lpre w lpost Ψ) "!# ((%l & -> & ?) & ?) HΨ".
+      wp_pures.
+      wp_apply (join_spec with "[$]").
+      iIntros (?) "_".
+      iApply "HΨ".
+      iFrame.
+   + iFrame.
+     auto.
+
+   + iIntros "_".
+     wp_pures.
+     wp_apply (bloom_filter_lookup_spec N _ _ _ _ _ ks s with "[][Herr Hauths]"); auto.
+     iFrame.
+     auto.
+ Qed.
 
 
  End conc_bloom_filter.

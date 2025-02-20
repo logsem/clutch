@@ -1465,6 +1465,18 @@ Section list_specs_HO.
   end.
 
 
+  Lemma is_list_to_HO {A} `{Inject A val} (l : list A) (v : val) :
+    is_list l v -> is_list_HO (List.map (λ a, inject a) l) v.
+  Proof.
+    revert v.
+    induction l.
+    - auto.
+    - intros v Hv.
+      destruct Hv as [v' [Hv'1 Hv'2]].
+      exists v'.
+      split; auto.
+  Qed.
+
   Lemma wp_list_cons_HO (w : val) l lv E :
     {{{ ⌜is_list_HO l lv⌝ }}}
       list_cons w lv @ E
@@ -1476,6 +1488,7 @@ Section list_specs_HO.
     iApply "HΦ". iPureIntro.
     by eexists.
   Qed.
+
 
 
   Lemma wp_list_seq_fun_HO E (n m : nat) (fv : val) Q :
