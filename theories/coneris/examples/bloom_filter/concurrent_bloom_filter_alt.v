@@ -731,4 +731,88 @@ Section conc_bloom_filter.
  Qed.
 
 
- End conc_bloom_filter.
+  Definition insert_bloom_filter_loop : val :=
+    (rec: "aux" "bfl" "ks" :=
+       match: "ks" with
+         NONE => #()
+       | SOME "p" =>
+           let: "h" := Fst "p" in
+           let: "t" := Snd "p" in
+           (insert_bloom_filter "bfl" "h") ||| ("aux" "bfl" "t")
+       end).
+
+  Definition main_bloom_filter_par (ksv ktest : val) : expr :=
+      let: "bfl" := init_bloom_filter #() in
+      insert_bloom_filter_loop "bfl" ksv ;;
+      lookup_bloom_filter "bfl" ktest.
+
+  Lemma insert_bloom_filter_loop_spec N bfl hfuns a hnames s
+          (ns ks : list nat) (ksv : val) :
+    is_list ks ksv ->
+    {{{ bloom_filter_inv N bfl hfuns a hnames ns s ∗
+        ([∗ list] k ∈ ks, ⌜k ∈ ns ⌝) ∗
+        ([∗ list] k ∈ ns, ⌜ (k ≤ max_key)%nat ⌝)
+    }}}
+      insert_bloom_filter_loop #bfl ksv
+    {{{ v, RET v; True }}}.
+  Proof.
+    iIntros (Hksv Φ) "(#Hinv & %Hks & %Hns) HΦ".
+    rewrite /insert_bloom_filter_loop.
+    iInduction ks as [|k ks'] "IH" forall (ksv Hksv Φ).
+    - simpl in Hksv.
+      simplify_eq.
+      wp_pures.
+      by iApply "HΦ".
+    - destruct Hksv as [kv [-> Htail]].
+      wp_pures.
+      simpl.
+      wp_apply (wp_par (λ _, True)%I (λ _, True)%I).
+      + wp_apply (bloom_filter_insert_thread_spec _ _ _ _ _ _ ns); auto.
+        apply (Hks 0); auto.
+
+      + iSpecialize ("IH" with "[]").
+        {
+          iPureIntro.
+          intros i ? ?.
+          apply (Hks (S i)).
+          auto.
+        }
+        iApply "IH"; auto.
+      + iIntros (? ?) "? !>".
+        by iApply "HΦ".
+  Qed.
+
+ Lemma main_bloom_filter_par_spec (N : namespace) (ks : list nat) (ksv : val) (ktest : nat) :
+      NoDup ks ->
+      is_list ks ksv ->
+      ktest ∉ ks ->
+      (ktest ≤ max_key)%nat ->
+      {{{ ([∗ list] k ∈ ks, ⌜ (k ≤ max_key)%nat ⌝) ∗
+            ↯ (fp_error filter_size num_hash (num_hash * length ks) 0)
+      }}}
+        main_bloom_filter_par ksv #ktest
+        {{{
+              v, RET v; ⌜ v = #false ⌝
+        }}}.
+ Proof.
+   iIntros (Hndup Hksv Hktest Htestvalid Φ) "(#Hks & Herr) HΦ".
+   rewrite /main_bloom_filter_par.
+   wp_apply (bloom_filter_init_spec N ks with "[//] Herr"); auto.
+   iIntros (bfl) "(%hfuns & %a & %hnames & %s & Herr & Hauths & #Hinv)".
+   wp_pures.
+   wp_apply (insert_bloom_filter_loop_spec N _ _ _ _ _ ks ks); auto.
+   {
+     repeat iSplit; auto.
+     iPureIntro.
+     intros ? ? ?.
+     simpl.
+     eapply elem_of_list_lookup_2; eauto.
+   }
+   iIntros (?) "_".
+   wp_pures.
+   wp_apply (bloom_filter_lookup_spec N _ _ _ _ _ ks s with "[][Herr Hauths]"); auto.
+   iFrame.
+   auto.
+Qed.
+
+End conc_bloom_filter.
