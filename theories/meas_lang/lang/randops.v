@@ -137,9 +137,15 @@ Lemma rand_rand_S_meas : measurable_fun setT rand_rand_S. Admitted.
 Hint Resolve rand_rand_S_meas : measlang.
 *)
 
+
+Definition ZtoNat' : <<discr Z>> -> <<discr nat>> := Z.to_nat.
+
+Lemma ZtoNat'_measurable : measurable_fun setT ZtoNat'.
+Proof. (* Discrete *) Admitted.
+
 Definition giryM_unif' : <<discr TZ>> -> giryM <<discr TZ>>. Admitted.
 
-
+Lemma giryM_unif'_meas : measurable_fun setT giryM_unif'. (* Discrete *) Admitted.
 
 Definition rand_rand_aux : <<discr TZ>> -> giryM expr :=
   ssrfun.comp
@@ -238,11 +244,19 @@ Hint Resolve rand_urand_meas : measlang.
  *)
 
 
-Definition auxcov_randT_noTape : set (<<discr Z>> * <<discr loc>> * state)%type. Admitted.
+(* Looking up gives None when the tape is not allocated *)
+Definition auxcov_randT_noTape : set (<<discr Z>> * <<discr loc>> * state)%type :=
+  (preimage (ssrfun.comp hp_evalC $ mProd (ssrfun.comp snd fst) (ssrfun.comp heap snd)) option_cov_None).
 (*
   [set x | tapes x.2 !! x.1.2 = None ].
 *)
+
+
+
+
 Definition auxcov_randT_boundMismatch : set (<<discr Z>> * <<discr loc>> * state)%type. Admitted.
+
+
 (*
   [set x | ∃ b, tapes x.2 !! x.1.2 = Some b /\
                 (bool_decide (btape_bound b = Z.to_nat x.1.1) = false) ].
@@ -261,7 +275,7 @@ Definition auxcov_randT_ok : set (<<discr Z>> * <<discr loc>> * state)%type. Adm
 *)
 
 Lemma auxcov_randT_noTape_meas : measurable auxcov_randT_noTape.
-Proof. Admitted.
+Proof. (* Preimage of measurable set under measurable function *) Admitted.
 Hint Resolve auxcov_randT_noTape_meas : measlang.
 
 Lemma auxcov_randT_boundMismatch_meas : measurable auxcov_randT_boundMismatch.
@@ -285,8 +299,20 @@ giryM_map
 (m_discr (fun (n : 'I_(S (Z.to_nat N))) => (((Val $ LitV $ LitInt $ fin_to_nat n) : <<discr expr>>), σ1) : cfg))
 (giryM_unif (Z.to_nat N))
 *)
-Definition rand_randT_boundMismatch : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg.
-Admitted.
+
+
+
+(* Measurable for each z and l *)
+Definition rand_randT_boundMismatch' (z : <<discr Z>>) (l : <<discr loc>>) : (state)%type -> giryM cfg :=
+  ssrfun.comp gProd $
+  mProd
+    (ssrfun.comp (gMap' (ssrfun.comp ValU $ ssrfun.comp LitVU $ LitIntU)) $ (cst (giryM_unif' z)))
+    gRet.
+
+(* Measurable because z and l and discrete and countable *)
+Definition rand_randT_boundMismatch : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg :=
+  uncurry (uncurry rand_randT_boundMismatch').
+
 
 (*
   ssrfun.comp rand_rand $
@@ -306,64 +332,141 @@ giryM_map
 *)
 
 (* Uniform distribution over the states with loc with one sample on the end *)
-Definition tape_sample : (<<discr Z>> * <<discr loc>> * state)%type -> giryM state.
-Admitted.
+
+Definition get_btape : (<<discr loc>> * state)%type -> option btape :=
+  ssrfun.comp hp_evalC $
+  mProd fst ( ssrfun.comp tapes snd ).
+
+(* Update the tape a location l with a new uniform sample under its tape head *)
+
+(* FIXME: I mean... just look at it *)
+Definition tape_sample' (z : <<discr Z>>) (l : <<discr loc>>) : state -> giryM state :=
+  ssrfun.comp
+    (gMap'
+       ((ssrfun.comp state_of_prod $
+         mProd
+          (mProd
+            (ssrfun.comp heap snd)
+            (* Update the tape swith label l...*)
+            (ssrfun.comp hp_updateC $
+             mProd
+              (cst l)
+              (mProd
+                (* new tape is ... get the tape at l, set it to the unif sample *)
+                 (ssrfun.comp Some $
+                  (* btape *)
+                  mProd
+                    (* The btape bound *)
+                    (ssrfun.comp btape_bound $ of_option $ ssrfun.comp get_btape $ mProd (cst l) snd)
+                    (* The btape tape: shifted *)
+                    ( mProd
+                        (* The position is the old position *)
+                        ( ssrfun.comp btape_position $ of_option $ ssrfun.comp get_btape $ mProd (cst l) snd)
+                        (* The new tape: Update the old tape *)
+                        ( ssrfun.comp nf_updateC $
+                          (mProd
+                            (* Update at the tape head position *)
+                            ( ssrfun.comp btape_position $ of_option $ ssrfun.comp get_btape $ mProd (cst l) snd)
+                            (mProd
+                              (* ... to Some of whatever we sampled *)
+                              (ssrfun.comp Some fst )
+                              ( ssrfun.comp btape_contents $ of_option $ ssrfun.comp get_btape $ mProd (cst l) snd))))))
+                (ssrfun.comp tapes snd))))
+          (ssrfun.comp utapes snd)) : (<<discr TZ>> * state)%type -> state)) $
+  ssrfun.comp gProd $
+  mProd (cst (giryM_unif' z)) gRet.
+
+Definition tape_sample : (<<discr Z>> * <<discr loc>> * state)%type -> giryM state :=
+  uncurry $ uncurry tape_sample'.
+
 
 (* Tape -> next slot on tape*)
-Definition tape_advance : (<<discr loc>> * state)%type -> state.
-Admitted.
+Definition tape_advance : (<<discr loc>> * state)%type -> state :=
+  ssrfun.comp state_of_prod $
+  mProd
+    (mProd
+      (ssrfun.comp heap snd)
+      (* Update the "tapes" map in the state *)
+      (ssrfun.comp hp_updateC $
+        (mProd
+          fst (* at location l *)
+          (mProd
+           (* to be the btape at location l but shifted *)
+           (ssrfun.comp Some $
+            mProd
+              (* Bound stays the same *)
+              (ssrfun.comp btape_bound $ of_option $ get_btape )
+              (* Tape gets advanced *)
+              (ssrfun.comp tapeAdvance $ ssrfun.comp snd $  of_option $ get_btape ))
+           (ssrfun.comp tapes snd)))))
+  (ssrfun.comp utapes snd).
 
 (* Tape -> next item on tape, junk when the next item is none.
    Measurable out of the set of tapes with next item Some, i.e. the range of tape_advance.
-
  *)
-Definition tape_read : (<<discr loc>> * state)%type -> TZ.
-Admitted.
+
+
+Definition tape_read : (<<discr loc>> * state)%type -> <<discr TZ>> :=
+  of_option $
+  ssrfun.comp nf_evalC $
+  mProd
+    (* Get the next position of the tape at loc *)
+    (ssrfun.comp fst $ of_option get_btape )
+    (* Get the tape at loc *)
+    (ssrfun.comp snd $ ssrfun.comp snd $ of_option get_btape).
 
 (*
 let σ' := state_upd_tapes <[ l := {| btape_tape := (tapeAdvance τ); btape_bound := M |} ]> σ1 in
 (giryM_ret R ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : cfg))
 *)
-Definition rand_randT_ok : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg.
-Admitted.
-
-(*
-
-  ssrfun.comp giryM_ap $
+(* Read from and advance the tape *)
+Definition rand_randT_ok : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg :=
+  ssrfun.comp gRet $
   mProd
-    ( ssrfun.comp giryM_ret $
-      ssrfun.comp ValU $
+    ( ssrfun.comp ValU $
       ssrfun.comp LitVU $
       ssrfun.comp LitInt $
       ssrfun.comp tape_read $
       mProd (ssrfun.comp snd fst) snd )
-    ( ssrfun.comp giryM_ret snd ).
-*)
+    (ssrfun.comp tape_advance $ mProd (ssrfun.comp snd fst) snd ).
 
 
 (* When the next tape slot is empty, fill it, and advance. *)
-Definition rand_randT_nextEmpty : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg.
-Admitted.
-
-  (*
-
+Definition rand_randT_nextEmpty : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg :=
   ssrfun.comp
-  _.
-Admitted.
-
-  ssrfun.comp giryM_ap $
-  mProd
-    (* The uniform distribution on the next integer *)
-    (ssrfun.comp (m_discr (fun z =>
-      giryM_map_def' (giryM_unif' (Z.to_nat z)) $
-      ssrfun.comp ValU $
-      ssrfun.comp LitVU $
-      LitIntU)) $
-     ssrfun.comp fst $
-     fst)
-    (* The uniform distribution over next tape states *)
-    _.
-*)
+    (gMap' (
+      mProd
+        (ssrfun.comp ValU $ ssrfun.comp LitVU $ ssrfun.comp LitInt $ snd) (* The expression *)
+        (* The state*)
+        (ssrfun.comp state_of_prod $
+         (mProd (mProd (ssrfun.comp heap $ ssrfun.comp snd fst)
+            (* The updated tapes *)
+            (ssrfun.comp hp_updateC $
+              (* Update the tape at loc... *)
+              mProd (ssrfun.comp snd (ssrfun.comp fst fst))
+              (mProd
+                 (ssrfun.comp Some $
+                  (* The new btape *)
+                  mProd
+                    (* Bound is unchanged *)
+                    (ssrfun.comp btape_bound $ of_option $ ssrfun.comp get_btape $ mProd (ssrfun.comp snd (ssrfun.comp fst fst)) (ssrfun.comp snd fst) )
+                    (* Tape is the advanced version of.. *)
+                    ( mProd
+                        (ssrfun.comp Nat.succ $ ssrfun.comp btape_position $ of_option $ ssrfun.comp get_btape $ mProd (ssrfun.comp snd (ssrfun.comp fst fst)) (ssrfun.comp snd fst) )
+                        (ssrfun.comp nf_updateC $
+                          mProd
+                            (* Update at current tape head *)
+                            (ssrfun.comp btape_position $ of_option $ ssrfun.comp get_btape $ mProd (ssrfun.comp snd (ssrfun.comp fst fst)) (ssrfun.comp snd fst) )
+                            (mProd
+                              (* With value...*)
+                              (ssrfun.comp Some snd)
+                              (ssrfun.comp btape_contents $ of_option $ ssrfun.comp get_btape $ mProd (ssrfun.comp snd (ssrfun.comp fst fst)) (ssrfun.comp snd fst) )))))
+                 (ssrfun.comp tapes $ ssrfun.comp snd fst))
+              )
+            )
+          (ssrfun.comp utapes $ ssrfun.comp snd fst))))) $
+  ssrfun.comp gProd $
+  (mProd gRet (ssrfun.comp giryM_unif' $ ssrfun.comp fst fst)).
 
 Lemma randT_noTape_meas : measurable_fun auxcov_randT_noTape rand_randT_noTape.
 Proof. Admitted.
@@ -380,6 +483,8 @@ Hint Resolve randT_nextEmpty_meas : measlang.
 Lemma randT_ok_meas : measurable_fun auxcov_randT_ok rand_randT_ok.
 Proof. Admitted.
 Hint Resolve randT_ok_meas : measlang.
+
+
 
 Definition rand_randT (x : (<<discr Z>> * <<discr loc>> * state)%type) : giryM cfg. Admitted.
 (*
