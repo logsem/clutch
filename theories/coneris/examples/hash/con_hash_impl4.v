@@ -309,6 +309,25 @@ Section con_hash_impl.
     rewrite big_sepM_dom //.
   Qed.
 
+  Lemma wp_init_hash_alt val_size max :
+    {{{ True }}}
+      init_con_hash #val_size #max
+      {{{ (γs : gname * gname) conhash, RET conhash;
+          conhashfun γs val_size conhash ∗
+            ([∗ set] k ∈ (set_seq 0 (S max)), hashkey γs val_size k None) }}}.
+  Proof.
+    iIntros (Φ) "_ HΦ".
+    wp_apply wp_init_hash; auto.
+    iIntros (keys γs conhash) "(?&%Hmax&?)".
+    iApply "HΦ"; iFrame.
+    iApply (big_sepS_subseteq with "[$]").
+    apply elem_of_subseteq.
+    intros x Hx.
+    apply Hmax.
+    apply elem_of_set_seq in Hx.
+    lia.
+  Qed.
+
   Lemma wp_conhashfun_prev f (val_size k n : nat) γs :
     {{{ conhashfun γs val_size f ∗ hashkey γs val_size k (Some n) }}}
       f #k
