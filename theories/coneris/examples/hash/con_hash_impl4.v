@@ -344,7 +344,7 @@ Section con_hash_impl.
   Lemma wp_conhashfun_prev f (k n : nat) γs val_size :
     {{{ conhashfun γs val_size f ∗ hashkey γs k (Some n) }}}
       f #k
-    {{{ RET #n; conhashfun γs val_size f }}}.
+    {{{ RET #n; True }}}.
   Proof.
     iIntros (Φ) "[#Hchf Hkey] HΦ".
     iDestruct "Hchf" as (γ lk hash max N ->) "[#HI Hlk]".
@@ -357,9 +357,7 @@ Section con_hash_impl.
     wp_apply (release_spec with "[$Hlocked $Hlk $Hfun]").
     iIntros "_".
     wp_pures.
-    iApply "HΦ".
-    iFrame. iModIntro.
-    by iFrame "Hlk HI".
+    by iApply "HΦ".
   Qed.
 
 End con_hash_impl.
