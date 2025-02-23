@@ -1,4 +1,4 @@
-From iris.base_logic.lib Require Import ghost_map.
+From iris.base_logic.lib Require Import ghost_var ghost_map.
 From clutch.coneris Require Import coneris.
 From clutch.coneris.lib Require Import map lock.
 Set Default Proof Using "Type*".
@@ -6,8 +6,8 @@ Set Default Proof Using "Type*".
 Class con_hashG Σ `{conerisGS Σ} := {
   con_hash_lock :: lock.lock;
   con_hash_lockG : lockG Σ;
-  con_hash_ghost_mapG1 :: ghost_mapG Σ nat loc;
-  con_hash_ghost_mapG2 :: ghost_mapG Σ nat (option nat);
+  con_hash_ghost_mapG :: ghost_mapG Σ nat (option nat);
+  con_hash_ghost_varG :: ghost_varG Σ (gmap nat loc * gmap nat nat);
 }.
 
 Section con_hash_impl.
@@ -111,38 +111,57 @@ Section con_hash_impl.
       lia.
   Qed.
 
-  (** Exclusive ownership of the hash key [k], including the ability to presample its hash value.
-      We could also make [hashkey] persistent after the first (physical) hash by converting the
-      points-to into a persistent points-to. *)
-  Definition hashkey (γs : gname * gname) (val_size : nat) (k : nat) (v : option nat) : iProp Σ :=
-    ∃ (α : loc) (w : option nat),
-      k ↪[γs.1] α ∗ k ↪[γs.2] w ∗
-      match v with
-      | None => α ↪N (val_size; []) ∗ ⌜w = None⌝
-      | Some n => α ↪N (val_size; [n]) ∗ ⌜w = None⌝ ∨ ⌜w = Some n⌝
-      end.
+  Definition token (k : nat) : iProp Σ. Admitted.
+
+  Global Instance token_timeless b : Timeless (token b).
+  Proof. Admitted. (* apply _. Qed. *)
+
+  Lemma token_alloc (A : gset nat) :
+    ⊢ |==> [∗ set] k ∈ A, token k.
+  Proof. Admitted.
+
+  Lemma token_exclusive b :
+    token b -∗ token b -∗ False.
+  Admitted.
+
+  Definition hashkey (γs : gname * gname) (k : nat) (v : option nat) : iProp Σ :=
+    if v is Some n then k ↪[γs.1]□ (Some n) else k ↪[γs.1] None.
+
+  #[global] Instance conhashfun_persistent γs k n :
+    Persistent (hashkey γs k (Some n)).
+  Proof. apply _. Qed.
+
+  Definition hashfunI (γs : gname * gname) (val_size : nat) : iProp Σ :=
+    ∃ (m : gmap nat (option nat)) (tm : gmap nat loc) (vm : gmap nat nat),
+      ⌜dom m ⊆ dom tm⌝ ∗
+      ⌜∀ k n, vm !! k = Some n → m !! k = Some (Some n)⌝ ∗
+      ghost_map_auth γs.1 1 m ∗ ghost_var γs.2 (1/2) (tm, vm) ∗
+      [∗ map] k ↦ o ∈ m,
+      ∃ (α : loc), ⌜tm !! k = Some α⌝ ∗
+           if o is Some n then α ↪N (val_size; [n]) ∨ token k
+           else α ↪N (val_size; []).
+
+  Definition hashfunInv N (γs : gname * gname) (val_size : nat) : iProp Σ :=
+    inv N (hashfunI γs val_size).
 
   (** (Sequential) hash function *)
   Definition hashfun (γs : gname * gname) (val_size max : nat) (f : val) : iProp Σ :=
-    ∃ (lvm ltm : loc) (vm : gmap nat nat) (vm' : gmap nat (option nat)) (tm : gmap nat loc),
-       ⌜ (∀ i : nat, i <= max ↔ i ∈ dom tm) ⌝ ∗
-       ⌜ dom vm ⊆ dom tm ⌝ ∗
-       ⌜ f = compute_hash_specialized #val_size #lvm #ltm ⌝ ∗
+    ∃ (lvm ltm : loc) (vm : gmap nat nat) (tm : gmap nat loc),
+       ⌜(∀ i : nat, i <= max ↔ i ∈ dom tm)⌝ ∗
+       ⌜f = compute_hash_specialized #val_size #lvm #ltm ⌝ ∗
        map_list lvm ((λ (n : nat), LitV (LitInt n)) <$> vm) ∗
        map_list ltm ((λ (α : loc), LitV (LitLbl α)) <$> tm) ∗
-       ghost_map_auth γs.1 1 tm ∗
-       ghost_map_auth γs.2 1 vm' ∗
-       (** [vm] is the physical value map, whereas [vm'] is the logical value map. In this way, the
-           points-to [k ↪[γv] None] represents a "permission" to write to the key [k]. *)
-       ⌜∀ i v, vm !! i = Some v ↔ vm' !! i = Some (Some v)⌝.
+       ghost_var γs.2 (1/2) (tm, vm) ∗
+       ([∗ set] k ∈ dom tm ∖ dom vm, token k).
 
-  Lemma wp_init_hash_state val_size max :
+  Lemma wp_init_hash_state N val_size max :
     {{{ True }}}
       init_hash_state #val_size #max
     {{{ (γs : gname * gname) (tm : gmap nat loc) hash, RET hash;
         hashfun γs val_size max hash ∗
+        hashfunInv N γs val_size ∗
         ⌜(∀ i : nat, i < S max ↔ i ∈ dom tm)⌝ ∗
-        ([∗ map] k ↦ v ∈ tm, hashkey γs val_size k None) }}}.
+        ([∗ map] k ↦ v ∈ tm, hashkey γs k None) }}}.
   Proof.
     iIntros (Φ) "_ HΦ".
     rewrite /init_hash_state.
@@ -156,105 +175,139 @@ Section con_hash_impl.
     wp_apply (wp_alloc_tapes with "Htm").
     iDestruct 1 as (tm) "(Htm&%Hdom&Htapes)".
     wp_pures.
-    iMod (ghost_map_alloc tm) as (γt) "[Htauth Hkey]".
-    iMod (ghost_map_alloc (gset_to_gmap None (dom tm))) as (γv) "[Hvauth Hvals]".
-    iCombine "Hkey Hvals Htapes" as "Htapes".
-    rewrite gset_to_gmap_dom big_sepM_fmap -!big_sepM_sep /=.
-    iApply ("HΦ" $! (_, _) tm). iModIntro.
-    iSplitR "Htapes".
-    { iExists lvm, ltm, ∅, _, tm.
-      rewrite ?fmap_empty. iFrame. iSplit.
-      { iPureIntro. intros. rewrite -Hdom. split; lia. }
-      iSplit; [done|].
-      rewrite /compute_hash_specialized.
-      iSplit; [done|].
-      iPureIntro. intros ??.
-      rewrite lookup_empty.
-      split; [done|].
-      by intros (?&?&?)%lookup_fmap_Some. }
-    iSplit; [done|].
-    iApply (big_sepM_mono with "Htapes").
-    iIntros (k α Hlookup) "(? & ? & ?)". by iFrame.
+    iMod (ghost_map_alloc (gset_to_gmap None (dom tm))) as (γk) "[HkeyA Hkeys]".
+    iMod (ghost_var_alloc (tm, ∅)) as (γv) "[Hv1 Hv2]".
+    iMod (token_alloc (dom tm)) as "Htok".
+    rewrite gset_to_gmap_dom.
+    rewrite big_sepM_fmap.
+    iMod (inv_alloc N _ (hashfunI (γk, γv) val_size) with "[$HkeyA $Hv1 Htapes]") as "#HI".
+    { iModIntro. rewrite dom_fmap_L big_sepM_fmap. iSplit; [done|].
+      iSplit; [iPureIntro; set_solver|].
+      iApply (big_sepM_mono with "Htapes"). iIntros (? α ?) "Hα". by iFrame. }
+    iModIntro.
+    iApply ("HΦ" $! (_, _) tm).
+    iFrame "# % Hkeys".
+    iExists lvm, ltm, ∅, tm.
+    rewrite ?fmap_empty. iFrame.
+    rewrite dom_empty_L difference_empty_L.
+    iFrame. iSplit; [|done].
+    iPureIntro. intros. rewrite -Hdom. split; lia.
   Qed.
 
-  Lemma wp_hashfun_prev E f (val_size max k n : nat) γs :
-    {{{ hashfun γs val_size max f ∗ hashkey γs val_size k (Some n) }}}
+  Lemma wp_hashfun_prev N E f (val_size max k n : nat) γs :
+    ↑N ⊆ E →
+    {{{ hashfunInv N γs val_size ∗ hashfun γs val_size max f ∗ hashkey γs k (Some n) }}}
       f #k @ E
-    {{{ RET #n; hashfun γs val_size max f ∗ hashkey γs val_size k (Some n) }}}.
+    {{{ RET #n; hashfun γs val_size max f }}}.
   Proof.
-    iIntros (Φ) "[Hhash (%α & %w & Hk & Hw & Hv)] HΦ".
-    iDestruct "Hhash" as (lvm ltm vm vm' tm Hdom1 Hdom2 ->) "(Hvm & Htm & Htapes & Hvals & %Hvm)".
+    iIntros (? Φ) "(#HI & Hhash & Hkey) HΦ".
+    iDestruct "Hhash" as (lvm ltm vm tm Hdom ->) "(Hvm & Htm & Hv & Htoks)".
     rewrite /compute_hash_specialized.
     wp_pures.
     wp_apply (wp_get with "Hvm").
     iIntros (vret) "(Hhash&->)".
     rewrite lookup_fmap.
-    iDestruct (ghost_map_lookup with "Htapes Hk") as %Ht.
-    iDestruct "Hv" as "[[Hα %] | %]".
-    - iDestruct (ghost_map_lookup with "Hvals Hw") as %Hv.
-      assert (vm !! k = None) as ->.
-      { destruct (vm !! k) eqn:?; [|done]. set_solver. }
-      wp_pures.
+    destruct (vm !! k) eqn:Hvmk.
+    - wp_pures.
+      iInv N as ">(%m & %tm' & %vm' & % & %Hsubset & Hm & Hv' & Hkeys)" "Hclose".
+      iDestruct (ghost_var_agree with "Hv Hv'") as %[=<- <-].
+      iDestruct (ghost_map_lookup with "Hm Hkey") as %?.
+      pose proof (Hsubset _ _ Hvmk). simplify_map_eq.
+      iMod ("Hclose" with "[Hkeys $Hv' $Hm]") as "_".
+      { iModIntro. iSplit; [done|]. iSplit; [done|]. iApply "Hkeys". }
+      iModIntro.
+      iApply "HΦ".
+      by iFrame "∗ # %".
+    - wp_pures.
       wp_apply (wp_get with "Htm").
       iIntros (α') "[Htm ->]".
-      rewrite lookup_fmap Ht.
-      wp_pures.
-      wp_apply (wp_rand_tape with "Hα").
-      iIntros "[Htape %]". wp_pures.
-      wp_apply (wp_set with "Hhash").
-      iIntros "Hhash". wp_pures. iApply "HΦ".
-      iMod (ghost_map_update (Some _) with "Hvals Hw") as "[Hvals Hw]".
+      rewrite lookup_fmap.
+      wp_apply fupd_pgl_wp.
+      iInv N as ">(%m & %tm' & %vm' & % & %Hsubset & Hm & Hv' & Hkeys)" "Hclose".
+      iDestruct (ghost_var_agree with "Hv Hv'") as %[=<- <-].
+      iDestruct (ghost_map_lookup with "Hm Hkey") as %?.
+      iDestruct (big_sepM_lookup_acc with "Hkeys") as "[Hk Hkeys]"; [done|].
+      simplify_map_eq.
+      assert (k ∈ dom tm ∖ dom vm).
+      { apply elem_of_difference. split; [|by apply not_elem_of_dom].
+        eapply elem_of_subseteq; [done|].
+        apply elem_of_dom; by eexists. }
+      iDestruct "Hk" as (α Hα) "[Hα | Htok]"; last first.
+      { iDestruct (big_sepS_elem_of with "Htoks") as "Htok'"; [done|].
+        iDestruct (token_exclusive with "Htok Htok'") as %[]. }
+      iMod ("Hclose" with "[Hkeys Hα $Hv' $Hm]") as "_".
+      { iModIntro. iSplit; [done|]. iSplit; [done|]. iApply "Hkeys". eauto. }
       iModIntro.
-      iSplitR "Hk Hw Htape"; last first.
-      { iFrame. by iRight. }
-      iExists _, _, (<[k:=n]>vm), _, tm.
-      iFrame.
-      iSplit; first done.
-      iSplit.
-      { iPureIntro; rewrite dom_insert_L. set_unfold; intros ? [?|?]; auto.
-        subst. apply elem_of_dom; eauto. }
-      iSplit; first done.
-      rewrite fmap_insert; iFrame.
-      iPureIntro.
-      split.
-      { intros [[-> ->] | [? ?]]%lookup_insert_Some.
-        { rewrite lookup_insert //. }
-        rewrite lookup_insert_ne //.
-        by apply Hvm. }
-      { intros [[-> ?] | [? ?]]%lookup_insert_Some.
-        { rewrite lookup_insert //. }
-        rewrite lookup_insert_ne //.
-        set_solver. }
-    - iDestruct (ghost_map_lookup with "Hvals Hw") as %Hv. subst.
-      rewrite -Hvm in Hv. rewrite Hv.
+      rewrite Hα.
       wp_pures.
-      iApply "HΦ". iModIntro.
-      iFrame. eauto.
+      wp_bind (rand(_) _)%E.
+      iInv N as ">(%m' & %tm' & %vm' & %Hdom' & %Hsubset' & Hm & Hv' & Hkeys)" "Hclose".
+      iDestruct (ghost_var_agree with "Hv Hv'") as %[=<- <-].
+      iDestruct (ghost_map_lookup with "Hm Hkey") as %?.
+      iDestruct (big_sepM_lookup_acc with "Hkeys") as "[Hk Hkeys]"; [done|].
+      iDestruct (big_sepS_delete with "Htoks") as "[Htok Htoks]"; [done|].
+      iDestruct "Hk" as (α' Hα') "[Hα | Htok']"; last first.
+      { iDestruct (token_exclusive with "Htok Htok'") as %[]. }
+      simplify_map_eq.
+      wp_apply (wp_rand_tape with "Hα").
+      iIntros "[_ %]".
+      iMod (ghost_var_update_2 (tm, <[k:=n]>vm) with "Hv Hv'") as "[Hv Hv']".
+      { compute_done. }
+      iMod ("Hclose" with "[Hkeys Htok $Hv' $Hm]") as "_".
+      { iModIntro. iSplit; [iPureIntro; set_solver|].
+        iSplit; [iPureIntro|].
+        { iIntros (?? [[<- <-] | [? ?]]%lookup_insert_Some); set_solver. }
+        iApply "Hkeys". eauto. }
+      iModIntro.
+      wp_pures.
+      wp_apply (wp_set with "Hhash").
+      iIntros "Hhash". wp_pures.
+      iApply "HΦ".
+      iModIntro.
+      iExists _, _, (<[k:=n]>vm), tm.
+      iFrame.
+      iSplit; [done|].
+      iSplit; [done|].
+      rewrite fmap_insert. iFrame "Hhash".
+      rewrite dom_insert_L union_comm_L.
+      rewrite -difference_difference_l_L //.
   Qed.
 
   (** Presampling of hash key  *)
-  Lemma hashkey_presample E val_size k (bad : gset nat) (ε εI εO: nonnegreal) max γs :
-    k ≤ max →
+  Lemma hashkey_presample N E val_size k (bad : gset nat) (ε εI εO: nonnegreal) γs :
+    ↑N ⊆ E →
     (∀ x, x ∈ bad → x < S val_size) →
     (εI * size bad + εO * (val_size + 1 - size bad) <= ε * (val_size + 1))%R →
-    hashkey γs val_size k None -∗
+    hashfunInv N γs val_size -∗
+    hashkey γs k None -∗
     ↯ ε -∗
     state_update E E (∃ (n : fin (S val_size)),
       ((⌜fin_to_nat n ∉ bad⌝ ∗ ↯ εO) ∨ (⌜fin_to_nat n ∈ bad⌝ ∗ ↯ εI)) ∗
-        hashkey γs val_size k (Some (fin_to_nat n))).
+        hashkey γs k (Some (fin_to_nat n))).
   Proof.
-    iIntros (Hmax Hsize Heps) "Hkey Herr".
-    iDestruct "Hkey" as (α w) "(Hk & Hw & Hα & %)".
+    iIntros (HE Hsize Heps) "Hinv Hkey Herr".
+    iInv N as ">(%m & %tm & %vm & % & %Hsubset & Hm & Hv & Hkeys)" "Hclose".
+    iDestruct (ghost_map_lookup with "Hm Hkey") as %Hkm.
+    iDestruct (big_sepM_delete with "Hkeys") as "[Hk Hkeys]"; [done|].
+    iDestruct "Hk" as (α' Hα') "Hα".
     iMod (state_step_err_set_in_out _ bad _ εI εO
            with "Hα Herr") as (n) "[Herr Htape] /=".
     { apply cond_nonneg. }
     { apply cond_nonneg. }
     { done. }
     { done. }
-    iModIntro. iExists _.
-    iFrame "Herr".
-    iExists _, _. iFrame.
-    iLeft. by iFrame.
+    iMod (ghost_map_update (Some (fin_to_nat n)) with "Hm Hkey") as "[Hm Hkey]".
+    iMod (ghost_map_elem_persist with "Hkey") as "#Hkey".
+    iMod ("Hclose" with "[Hkeys Htape $Hv $Hm]") as "_".
+    { iModIntro. iSplit; [iPureIntro|].
+      { rewrite dom_insert_L. apply elem_of_dom_2 in Hkm. set_solver. }
+      iSplit; [iPureIntro|].
+      { intros k' n' Hk'.
+        pose proof (Hsubset _ _ Hk').
+        destruct (decide (k = k')); by simplify_map_eq. }
+      rewrite big_sepM_insert_delete.
+      by iFrame. }
+    iModIntro. eauto.
   Qed.
 
   Definition compute_con_hash : val :=
