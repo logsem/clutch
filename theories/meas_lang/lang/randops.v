@@ -26,11 +26,13 @@ Local Open Scope classical_set_scope.
 Section unif.
   Local Open Scope ereal_scope.
   Local Open Scope classical_set_scope.
+
+  Context {R : realType}.
   (* Uniform space over [0, 1]*)
   Definition unif_base : subprobability _ _ := uniform_prob (@Num.Internals.ltr01 TR).
 
   (** FIXME: Type conversion *)
-  Axiom (unif_base_ax : giryM TR).
+  Axiom (unif_base_ax : giryM R).
 
 End unif.
 
@@ -484,9 +486,12 @@ Lemma randT_ok_meas : measurable_fun auxcov_randT_ok rand_randT_ok.
 Proof. Admitted.
 Hint Resolve randT_ok_meas : measlang.
 
+Definition rand_randT : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg :=
+  ifIn auxcov_randT_noTape rand_randT_noTape $
+  ifIn auxcov_randT_boundMismatch rand_randT_boundMismatch $
+  ifIn auxcov_randT_nextEmpty rand_randT_boundMismatch $
+  rand_randT_ok.
 
-
-Definition rand_randT (x : (<<discr Z>> * <<discr loc>> * state)%type) : giryM cfg. Admitted.
 (*
   let N := x.1.1 in
   let l := x.1.2 in
@@ -515,8 +520,6 @@ Hint Resolve rand_randT_meas : measlang.
 
 
 (** Urand with tape *)
-
-
 Definition auxcov_urandT_noTape : set (<<discr loc>> * state)%type. Admitted.
 (*
   [set x | tapes x.2 !! x.1 = None ].
@@ -548,22 +551,87 @@ Hint Resolve auxcov_urandT_ok_meas : measlang.
 Definition rand_urandT_noTape (x : (<<discr loc>> * state)%type) : giryM cfg :=
   gZero.
 
- (* giryM_map urand_tape_step unif_base *)
-Definition rand_urandT_nextEmpty (x : (<<discr loc>> * state)%type) : giryM cfg.
-Admitted.
+Definition get_utape : (<<discr loc>> * state)%type -> option utape :=
+  ssrfun.comp hp_evalC $
+  mProd fst ( ssrfun.comp utapes snd ).
+
+
+Definition dummy_coe_1_remove_me : TR -> state.R. Admitted.
+Definition dummy_coe_2_remove_me : state.R -> TR. Admitted.
+
+Program Definition rand_urandT_nextEmpty : (<<discr loc>> * state)%type -> giryM cfg :=
+  ssrfun.comp (gMap' $
+    mProd
+      (* The expression *)
+      (ssrfun.comp ValU $ ssrfun.comp LitVU $ ssrfun.comp LitReal $ snd)
+      (* The state *)
+      (ssrfun.comp state_of_prod $
+        mProd (mProd (ssrfun.comp (ssrfun.comp heap snd) fst) (ssrfun.comp (ssrfun.comp tapes snd) fst))
+        (* Update the utapes *)
+        (ssrfun.comp hp_updateC $
+          (* At location l*)
+         mProd (ssrfun.comp fst fst) (
+           mProd
+             (ssrfun.comp Some $
+                mProd
+                  (* Head shifts forward by one*)
+                  (ssrfun.comp Nat.succ $ ssrfun.comp fst $ of_option $ ssrfun.comp get_utape fst )
+                  (* Tape at old head is updated with sample *)
+                  (ssrfun.comp nf_updateC $
+                   mProd (ssrfun.comp fst $ of_option $ ssrfun.comp get_utape fst)
+                   (mProd
+                      (ssrfun.comp Some _) (* snd, even though it doesn't typecheck atm *)
+                      (ssrfun.comp snd $ of_option $ ssrfun.comp get_utape fst))))
+             (ssrfun.comp (ssrfun.comp utapes snd) fst)
+          ))
+      )
+    ) $
+  ssrfun.comp gProd $
+  mProd gRet (cst (@unif_base_ax TR)).
+Next Obligation.
+  intros _ _ _ _ _ _ _ z.
+  apply dummy_coe_1_remove_me.
+  apply z.
+Defined.
+
 
 (*
 let σ' := state_upd_utapes <[ l := (tapeAdvance τ) ]> σ1 in
 (giryM_ret R ((Val $ LitV $ LitReal u, σ') : cfg))
  *)
-Definition rand_urandT_ok (x : (<<discr loc>> * state)%type) : giryM cfg.
-Admitted.
+Program Definition rand_urandT_ok : (<<discr loc>> * state)%type -> giryM cfg :=
+  ssrfun.comp gProd $
+  mProd
+    (ssrfun.comp gRet $ ssrfun.comp ValU $ ssrfun.comp LitVU $ ssrfun.comp LitReal $
+     of_option $ ssrfun.comp nf_evalC $
+     mProd
+      (ssrfun.comp fst $ of_option get_utape )
+      (ssrfun.comp _ $ of_option get_utape))
+  ( ssrfun.comp gRet $
+    ssrfun.comp state_of_prod $
+    mProd (mProd (ssrfun.comp heap snd) (ssrfun.comp tapes snd) )
+    (ssrfun.comp hp_updateC $
+     mProd fst
+     (mProd
+        (ssrfun.comp Some $
+          mProd
+            (ssrfun.comp Nat.succ $ ssrfun.comp fst $ of_option get_utape )
+            ( ssrfun.comp snd $ of_option get_utape ) )
+        (ssrfun.comp utapes snd)))).
+Next Obligation.
+  intros _ _ z; simpl in z.
+  destruct z as [_ zf].
+  intro x.
+  destruct (zf x) as [v|].
+  { apply Some, dummy_coe_2_remove_me, v. }
+  { apply None. }
+Defined.
 
-Lemma urandT_noTape_meas : measurable_fun auxcov_urandT_noTape rand_urandT_ok.
+Lemma urandT_noTape_meas : measurable_fun auxcov_urandT_noTape rand_urandT_noTape.
 Proof. Admitted.
 Hint Resolve urandT_noTape_meas : measlang.
 
-Lemma urandT_nextEmpty_meas : measurable_fun auxcov_urandT_nextEmpty rand_urandT_ok.
+Lemma urandT_nextEmpty_meas : measurable_fun auxcov_urandT_nextEmpty rand_urandT_nextEmpty.
 Proof. Admitted.
 Hint Resolve urandT_nextEmpty_meas : measlang.
 
@@ -571,7 +639,10 @@ Lemma urandT_ok_meas : measurable_fun auxcov_urandT_ok rand_urandT_ok.
 Proof. Admitted.
 Hint Resolve urandT_ok_meas : measlang.
 
-Definition rand_urandT (x : (<<discr loc>> * state)%type) : giryM cfg. Admitted.
+Definition rand_urandT : (<<discr loc>> * state)%type -> giryM cfg :=
+  ifIn auxcov_urandT_noTape rand_urandT_noTape $
+  ifIn auxcov_urandT_nextEmpty rand_urandT_nextEmpty $
+  rand_urandT_ok .
 
 (*
   let l := x.1 in
