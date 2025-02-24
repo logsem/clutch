@@ -259,7 +259,7 @@ Proof.
       + by move=>[-> ?].
       + by move=>?. }
       apply sigma_algebra0.
-  - move=> _. by rewrite /measurable/=/discr_meas/=.
+  - move=> _. by rewrite /measurable/=/discr_measurable/=.
 Qed.
 
 Lemma un_op_generated_by_singletons : un_op.-discr.-measurable = <<s un_op_singletons >>.
@@ -294,7 +294,7 @@ Proof.
       + by move=>[-> ?].
       + by move=>?. }
       apply sigma_algebra0.
-  - move=> _. by rewrite /measurable/=/discr_meas/=.
+  - move=> _. by rewrite /measurable/=/discr_measurable/=.
 Qed.
 
 Lemma bin_op_generated_by_singletons : bin_op.-discr.-measurable = <<s bin_op_singletons >>.
@@ -329,5 +329,5 @@ Proof.
       + by move=>[-> ?].
       + by move=>?. }
       apply sigma_algebra0.
-  - move=> _. by rewrite /measurable/=/discr_meas/=.
+  - move=> _. by rewrite /measurable/=/discr_measurable/=.
 Qed.

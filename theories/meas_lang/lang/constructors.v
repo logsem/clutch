@@ -228,7 +228,7 @@ Section constructor_measurability.
             { apply sub_sigma_algebra.
               simpl.
               left.
-              exists [set f]. { by rewrite /measurable/=/discr_meas/=. }
+              exists [set f]. { by rewrite /measurable/=/discr_measurable/=. }
               by rewrite setTI /=. }
             by rewrite setTI /=.
           + apply sub_sigma_algebra.
@@ -239,7 +239,7 @@ Section constructor_measurability.
             { apply sub_sigma_algebra.
               simpl.
               right.
-              exists [set x]. { by rewrite /measurable/=/discr_meas/=. }
+              exists [set x]. { by rewrite /measurable/=/discr_measurable/=. }
               by rewrite setTI /=. }
             by rewrite setTI /=.
       }
@@ -321,7 +321,7 @@ Section constructor_measurability.
           apply sub_sigma_algebra.
           simpl.
           left.
-          exists [set op]. { by rewrite /measurable/=/discr_meas/=. }
+          exists [set op]. { by rewrite /measurable/=/discr_measurable/=. }
           by rewrite setTI /=. }
       apply/seteqP; split=> y/=.
       - move=> [a ? [-> Ha]]; split; [|done].
@@ -393,7 +393,7 @@ Section constructor_measurability.
           exists ([set op] `*` setT).
           { apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=.
             left.
-            exists [set op]. { by rewrite /discr_meas/measurable/=/expr_cyl/=. }
+            exists [set op]. { by rewrite /discr_measurable/measurable/=/expr_cyl/=. }
             rewrite setTI.
             rewrite /setX/=.
             apply/seteqP; split=> x/=; by intuition.
@@ -936,7 +936,7 @@ Section constructor_measurability.
             { apply sub_sigma_algebra.
               simpl.
               left.
-              exists [set f]. { by rewrite /measurable/=/discr_meas/=. }
+              exists [set f]. { by rewrite /measurable/=/discr_measurable/=. }
               by rewrite setTI /=. }
             by rewrite setTI /=.
           + apply sub_sigma_algebra.
@@ -947,7 +947,7 @@ Section constructor_measurability.
             { apply sub_sigma_algebra.
               simpl.
               right.
-              exists [set x]. { by rewrite /measurable/=/discr_meas/=. }
+              exists [set x]. { by rewrite /measurable/=/discr_measurable/=. }
               by rewrite setTI /=. }
             by rewrite setTI /=.
       }

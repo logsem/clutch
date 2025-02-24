@@ -1083,7 +1083,7 @@ Section meas_semantics.
     apply 𝜋_Val_v_meas; first by eauto with measlang.
     apply 𝜋_LitV_v_meas; first by eauto with measlang.
     apply 𝜋_LitBool_b_meas; first by eauto with measlang.
-    by rewrite /measurable/discr_meas//=.
+    by rewrite /measurable/discr_measurable//=.
   Qed.
   Hint Resolve cover_ifT_meas : measlang.
 
@@ -1094,7 +1094,7 @@ Section meas_semantics.
     apply 𝜋_Val_v_meas; first by eauto with measlang.
     apply 𝜋_LitV_v_meas; first by eauto with measlang.
     apply 𝜋_LitBool_b_meas; first by eauto with measlang.
-    by rewrite /measurable/discr_meas//=.
+    by rewrite /measurable/discr_measurable//=.
   Qed.
   Hint Resolve cover_ifF_meas : measlang.
 
@@ -2387,7 +2387,7 @@ Section meas_semantics.
        apply 𝜋_Val_v_meas; first by eauto with measlang.
        apply 𝜋_LitV_v_meas; first by eauto with measlang.
        apply 𝜋_LitBool_b_meas; first by eauto with measlang.
-       by rewrite /measurable/discr_meas//=.
+       by rewrite /measurable/discr_measurable//=.
       }
       apply @NonStatefulU_meas; first done.
       rewrite <-(setIid ecov_if).
@@ -2416,7 +2416,7 @@ Section meas_semantics.
        apply 𝜋_Val_v_meas; first by eauto with measlang.
        apply 𝜋_LitV_v_meas; first by eauto with measlang.
        apply 𝜋_LitBool_b_meas; first by eauto with measlang.
-       by rewrite /measurable/discr_meas//=.
+       by rewrite /measurable/discr_measurable//=.
       }
       apply @NonStatefulU_meas; first done.
       rewrite <-(setIid ecov_if).

@@ -79,7 +79,7 @@ Proof.
   apply sub_sigma_algebra.
   rewrite /base_lit_cyl/=.
   exists (LitInt setT).
-  { by rewrite /=/measurable/=/discr_meas/=. }
+  { by rewrite /=/measurable/=/discr_measurable/=. }
   rewrite /bcov_LitInt/=.
   apply /predeqP =>y /=.
   split.
@@ -93,7 +93,7 @@ Proof.
   apply sub_sigma_algebra.
   rewrite /base_lit_cyl/=.
   exists (LitBool setT).
-  { by rewrite /=/measurable/=/discr_meas/=. }
+  { by rewrite /=/measurable/=/discr_measurable/=. }
   rewrite /bcov_LitBool/=.
   apply /predeqP =>y /=.
   split.
@@ -107,7 +107,7 @@ Proof.
   apply sub_sigma_algebra.
   rewrite /base_lit_cyl/=.
   exists (LitUnit).
-  { by rewrite /=/measurable/=/discr_meas/=. }
+  { by rewrite /=/measurable/=/discr_measurable/=. }
   rewrite /bcov_LitUnit//=.
 Qed.
 Hint Resolve bcov_LitUnit_meas : measlang.
@@ -117,7 +117,7 @@ Proof.
   apply sub_sigma_algebra.
   rewrite /base_lit_cyl/=.
   exists (LitLoc setT).
-  { by rewrite /=/measurable/=/discr_meas/=. }
+  { by rewrite /=/measurable/=/discr_measurable/=. }
   rewrite /bcov_LitLoc/=.
   apply /predeqP =>y /=.
   split.
@@ -131,7 +131,7 @@ Proof.
   apply sub_sigma_algebra.
   rewrite /base_lit_cyl/=.
   exists (LitLbl setT).
-  { by rewrite /=/measurable/=/discr_meas/=. }
+  { by rewrite /=/measurable/=/discr_measurable/=. }
   rewrite /bcov_LitLbl/=.
   apply /predeqP =>y /=.
   split.

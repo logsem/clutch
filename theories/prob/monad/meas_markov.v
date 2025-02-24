@@ -93,7 +93,7 @@ Section is_final.
   Proof. done. Qed.
 
   Lemma to_final_Some_2 a b : to_final a = Some b → is_final a.
-  Proof. intros. by eexists. Qed.
+  Proof. intros. eexists _; by apply H.  Qed.
 
   Lemma is_final_dzero a : is_final a → is_zero (step a).
   Proof.
@@ -271,7 +271,7 @@ Section markov.
   Lemma pexec_Sn_r a n :
     pexec (S n) a = gBind' step_or_final (pexec n a).
   Proof.
-    assert (S n = n + 1)%nat as -> by lia.
+    assert (S n = n + 1)%nat as ->; try lia.
     rewrite pexec_plus.
     rewrite pexec_1 //.
   Qed.

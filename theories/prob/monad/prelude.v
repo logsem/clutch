@@ -1,14 +1,8 @@
-From mathcomp Require Import all_ssreflect all_algebra finmap.
-From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
-From mathcomp Require Import cardinality fsbigop.
-From mathcomp.analysis Require Import reals ereal signed normedtype esum numfun measure lebesgue_measure lebesgue_integral sequences.
-From clutch.prelude Require Import classical.
-From stdpp Require Import base.
 From HB Require Import structures.
-
-(* Import Coq.Logic.FunctionalExtensionality.
-Import Coq.Relations.Relation_Definitions.
-Import Coq.Classes.RelationClasses. *)
+From mathcomp Require Import all_ssreflect classical_sets boolp functions.
+From clutch.prelude Require Import classical.
+From mathcomp.analysis Require Import  reals ereal measure lebesgue_measure lebesgue_integral sequences.
+From stdpp Require Import base.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -18,50 +12,52 @@ Set Default Proof Using "Type*".
 
 Reserved Notation "'<<discr' G '>>'" (at level 2, format "'<<discr' G '>>'").
 Reserved Notation "G .-discr" (at level 1, format "G .-discr").
-Reserved Notation "G .-discr.-measurable"
- (at level 2, format "G .-discr.-measurable").
+Reserved Notation "G .-discr.-measurable" (at level 2, format "G .-discr.-measurable").
 
-Section discrete_space.
-  Local Open Scope classical_set_scope.
+Global Instance classical_eq_dec {T : Type} : EqDecision T.
+Proof. by intros ??; apply make_decision. Defined.
 
-  (** Type of points in a discrete space *)
-  Definition discrType (T : Type) : Type := T.
+Local Open Scope classical_set_scope.
 
-  Section discr_salgebra_instance.
-    Variables (T: pointedType).
+Definition discrType (T : Type) : Type := T.
 
-    Definition discr_meas : set (set (discrType T)) := setT.
+Section discr_salgebra_instance.
 
-    Lemma discr_meas0 : discr_meas set0.
-    Proof. by []. Qed.
+Variables (T : pointedType).
 
-    Lemma discr_measC X : discr_meas X -> discr_meas (~` X).
-    Proof. by []. Qed.
+Definition discr_measurable : set (set (discrType T)) := setT.
 
-    Lemma discr_measU (F : sequence (set T)) : (forall i, discr_meas (F i)) -> discr_meas (\bigcup_i F i).
-    Proof. by []. Qed.
+Lemma discr_measurable0 : discr_measurable set0.
+Proof. by []. Qed.
 
-    Definition discr_display : Type -> measure_display.
-    Proof. done. Qed.
+Lemma discr_measurableC X : discr_measurable X -> discr_measurable (~` X).
+Proof. by []. Qed.
 
-    HB.instance Definition _ := gen_eqMixin (discrType T).
-    HB.instance Definition _ := gen_choiceMixin (discrType T).
-    HB.instance Definition _ := isPointed.Build (discrType T) point.
-    HB.instance Definition _ := @isMeasurable.Build (discr_display T) (discrType T) discr_meas
-                                 discr_meas0 discr_measC discr_measU.
-  End discr_salgebra_instance.
+Lemma discr_measurableU (F : sequence (set T)) : (forall i, discr_measurable (F i)) -> discr_measurable (\bigcup_i F i).
+Proof. by []. Qed.
 
+Definition discr_display : Type -> measure_display.
+Proof. done. Qed.
 
-End discrete_space.
+HB.instance Definition _ := gen_eqMixin (discrType T).
+HB.instance Definition _ := gen_choiceMixin (discrType T).
+HB.instance Definition _ := isPointed.Build (discrType T) point.
+HB.instance Definition _ := @isMeasurable.Build (discr_display T) (discrType T) discr_measurable
+                             discr_measurable0 discr_measurableC discr_measurableU.
+End discr_salgebra_instance.
 
 Notation "'<<discr' G '>>'" := (discrType G) : classical_set_scope.
 Notation "G .-discr" := (discr_display G) : measure_display_scope.
 Notation "G .-discr.-measurable" :=
   (((G.-discr).-measurable : set (set (<<discr G>>))) )%classic.
 
+
+
+
+
+
 Section fin_pointed.
   Local Open Scope ereal_scope.
-  Local Open Scope classical_set_scope.
   Context {R : realType}.
   Variable (m : nat).
 
@@ -75,7 +71,6 @@ End fin_pointed.
 
 Section Option.
 
-  Local Open Scope classical_set_scope.
   Context {d1} {T1 : measurableType d1}.
 
   Definition option_S : Type := option (set T1).
@@ -145,7 +140,6 @@ Hint Resolve 𝜋_Some_v_meas : measlang.
 
 Section List.
 
-  Local Open Scope classical_set_scope.
   Context {d1} {T1 : measurableType d1}.
 
   Definition list_S : Type := list (set T1).
@@ -208,7 +202,6 @@ Hint Resolve 𝜋_cons_vs_meas : measlang.
 
 
 Section Lib.
-  Local Open Scope classical_set_scope.
   Lemma measurable_if_pushfowrard_subset {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> T2) :
         (d2.-measurable  `<=` [set s : set T2 | d1.-measurable ( f@^-1` s )]) -> (measurable_fun setT f). Proof.
     intro HS.
@@ -423,7 +416,6 @@ End Lib.
 
 
 
-Local Open Scope classical_set_scope.
 
 Section subspaces.
   (** Mathcomp needs measurable spaces to be pointed
@@ -657,7 +649,6 @@ Ltac mcrunch_prod := ( eapply @measurable_fun_prod'; first by eauto with measlan
 
 
 Section measurable_curry.
-  Local Open Scope classical_set_scope.
 
   (** Currying a function and then applying to a value yields a measurable function *)
 
@@ -745,12 +736,11 @@ End extern_if.
 
 Section discrete_space_mapout.
   Context {d2} {T1 : pointedType} {T2 : measurableType d2}.
-  Local Open Scope classical_set_scope.
 
   Definition m_discr (f : T1 -> T2) : <<discr T1>> -> T2 := f.
 
   Lemma m_discr_measurable (f : T1 -> T2) : (measurable_fun setT (m_discr f)).
-  Proof. rewrite /measurable_fun. intros. by rewrite /measurable/=/discr_meas/=. Qed.
+  Proof. rewrite /measurable_fun. intros. by rewrite /measurable/=/discr_measurable/=. Qed.
 
   Definition m_discr_eval (f : T1 -> T2) : forall t : T1, m_discr f t = f t.
   Proof. done. Qed.
@@ -763,7 +753,6 @@ Definition image4 {TA TB TC TD rT} (A : set TA) (B : set TB) (C : set TC) (D : s
 Arguments image4 _ _ _ _ _ _ _ _ _ /.
 
 Section uncurry_nat_measurable.
-  Local Open Scope classical_set_scope.
 
   Lemma uncurry_nat_measurable {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
           (f : nat -> T1 -> T2) (Hf : forall i, measurable_fun setT (f i)) :
@@ -790,7 +779,6 @@ Section uncurry_nat_measurable.
 End uncurry_nat_measurable.
 
 Section ofOption.
-  Local Open Scope classical_set_scope.
   Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
 
   Definition of_option (f : T1 -> option T2) : T1 -> T2 :=
@@ -808,11 +796,8 @@ Section ofOption.
 
 End ofOption.
 
-Global Instance classical_eq_dec {T : Type} : EqDecision T.
-Proof. intros ??; apply ClassicalEpsilon.excluded_middle_informative. Defined.
 
 Section ifIn.
-  Local Open Scope classical_set_scope.
   Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
 
   Definition ifIn (D : set T1) (f1 f2 : T1 -> T2) : T1 -> T2 :=
