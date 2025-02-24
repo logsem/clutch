@@ -570,6 +570,7 @@ Proof. by move=>??; exact/prod_measurable_funP'. Qed.
 Global Arguments measurable_fun_prod' {_} {_} {_} {_} {_} {_}.
 
 Notation mProd f g := (fun x => (f x, g x)).
+Notation "f △ g" := (mProd f g) (at level 70, no associativity).
 
 Lemma measurable_compT {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
        (f : T2 -> T3) (E : set T1) (g : T1 -> T2)
@@ -753,8 +754,6 @@ Section discrete_space_mapout.
   Proof. done. Qed.
 
 End discrete_space_mapout.
-
-
 
 (* FIXME: move *)
 Definition image4 {TA TB TC TD rT} (A : set TA) (B : set TB) (C : set TC) (D : set TD) (f : TA -> TB -> TC -> TD -> rT) :=

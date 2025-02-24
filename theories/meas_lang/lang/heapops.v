@@ -21,15 +21,6 @@ Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.
 
-(* TODO afteroon:
-   - Fix def'n of allocN to just be alloc
-   - Restrict def'n to get stuck if map is not finite
-      - General noncomputable "is in set" case split
-   - Measurability of "auxcov load and store OK" sets (preimage of blah blah blah)
-   - Store
- *)
-
-
 Definition state_loadC : (<<discr loc>> * state)%type -> val :=
   of_option $ ssrfun.comp hp_evalC $ mProd fst (ssrfun.comp heap snd).
 
