@@ -36,13 +36,21 @@ Section conc_bloom_filter.
           if: !("arr" +ₗ "i") then #() else "res" <- #false) "hfuns" ;;
       !"res".
 
+  Definition insert_bloom_filter_loop : val :=
+    (rec: "aux" "bfl" "ks" :=
+       match: "ks" with
+         NONE => #()
+       | SOME "p" =>
+           let: "h" := Fst "p" in
+           let: "t" := Snd "p" in
+           (insert_bloom_filter "bfl" "h") ||| ("aux" "bfl" "t")
+       end).
+
   Definition main_bloom_filter (ksv ktest : val) : expr :=
       let: "bfl" := init_bloom_filter #() in
-      let: "handles" := ref list_nil in
-      list_iter (λ: "k", let: "hndl" := spawn (λ:"_", insert_bloom_filter "bfl" "k") in
-                         "handles" <- (list_cons "hndl" !"handles")) ksv ;;
-      list_iter (λ: "hndl", spawn.join "hndl") !"handles" ;;
+      insert_bloom_filter_loop "bfl" ksv ;;
       lookup_bloom_filter "bfl" ktest.
+
 
   Definition con_hash_inv_list hfs hnames ks (s : gset nat) :=
     ([∗ list] i ↦f;γ ∈ hfs;hnames,
@@ -539,20 +547,6 @@ Section conc_bloom_filter.
       iPoseProof (ec_contradict with "Herr") as "?"; auto; lra.
  Qed.
 
-  Definition insert_bloom_filter_loop : val :=
-    (rec: "aux" "bfl" "ks" :=
-       match: "ks" with
-         NONE => #()
-       | SOME "p" =>
-           let: "h" := Fst "p" in
-           let: "t" := Snd "p" in
-           (insert_bloom_filter "bfl" "h") ||| ("aux" "bfl" "t")
-       end).
-
-  Definition main_bloom_filter_par (ksv ktest : val) : expr :=
-      let: "bfl" := init_bloom_filter #() in
-      insert_bloom_filter_loop "bfl" ksv ;;
-      lookup_bloom_filter "bfl" ktest.
 
   Lemma insert_bloom_filter_loop_spec N bfl hfuns a hnames s
           (ns ks : list nat) (ksv : val) :
@@ -589,18 +583,18 @@ Section conc_bloom_filter.
         by iApply "HΦ".
   Qed.
 
- Lemma main_bloom_filter_par_spec (N : namespace) (ks : list nat) (ksv : val) (ktest : nat) :
+ Lemma main_bloom_filter_spec (N : namespace) (ks : list nat) (ksv : val) (ktest : nat) :
       NoDup ks ->
       is_list ks ksv ->
       ktest ∉ ks ->
       (ktest ≤ max_key)%nat ->
       {{{ ([∗ list] k ∈ ks, ⌜ (k ≤ max_key)%nat ⌝) ∗
            ↯ (fp_error filter_size num_hash (num_hash * length ks) 0) }}}
-        main_bloom_filter_par ksv #ktest
+        main_bloom_filter ksv #ktest
       {{{ v, RET v; ⌜ v = #false ⌝ }}}.
  Proof.
    iIntros (Hndup Hksv Hktest Htestvalid Φ) "(#Hks & Herr) HΦ".
-   rewrite /main_bloom_filter_par.
+   rewrite /main_bloom_filter.
    wp_apply (bloom_filter_init_spec N ks with "[//] Herr"); auto.
    iIntros (bfl) "(%hfuns & %a & %hnames & %s & Herr & Hauths & #Hinv)".
    wp_pures.
