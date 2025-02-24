@@ -166,10 +166,10 @@ Section expr_algebra.
   (** Defines the sigma algebra over expressions *)
   Local Open Scope classical_set_scope.
 
-  Definition TZ : measurableType default_measure_display := <<discr Z>>.
-  Definition TB : measurableType default_measure_display := <<discr bool>>.
-  Definition TL : measurableType default_measure_display := <<discr loc>>.
-  Definition TR : measurableType default_measure_display := (R : realType).
+  Definition TZ : measurableType _ := <<discr Z>>.
+  Definition TB : measurableType _ := <<discr bool>>.
+  Definition TL : measurableType _ := <<discr loc>>.
+  Definition TR : measurableType _ := (R : realType).
 
   Definition base_lit_S : Type := @base_lit_pre (set TZ) (set TB) (set TL) (set TR).
   Definition val_S      : Type := @val_pre      (set TZ) (set TB) (set TL) (set TR).

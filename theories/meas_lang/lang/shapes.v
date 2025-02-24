@@ -227,7 +227,7 @@ Definition bin_op_singletons : set (set <<discr bin_op>>) := fun S => exists b, 
 
 (* Not the best way to prove this. Use Countable instances instead of my custom enum functions. *)
 (* The result is true for all countable discrete types. *)
-Lemma binder_generated_by_singletons : 'measurable = <<s binder_singletons >>.
+Lemma binder_generated_by_singletons : binder.-discr.-measurable = <<s binder_singletons >>.
 Proof.
   apply /predeqP =>y //=.
   simpl in *.
@@ -262,7 +262,7 @@ Proof.
   - move=> _. by rewrite /measurable/=/discr_meas/=.
 Qed.
 
-Lemma un_op_generated_by_singletons : 'measurable = <<s un_op_singletons >>.
+Lemma un_op_generated_by_singletons : un_op.-discr.-measurable = <<s un_op_singletons >>.
 Proof.
   apply /predeqP =>y //=.
   simpl in *.
@@ -297,7 +297,7 @@ Proof.
   - move=> _. by rewrite /measurable/=/discr_meas/=.
 Qed.
 
-Lemma bin_op_generated_by_singletons : 'measurable = <<s bin_op_singletons >>.
+Lemma bin_op_generated_by_singletons : bin_op.-discr.-measurable = <<s bin_op_singletons >>.
 Proof.
   apply /predeqP =>y //=.
   simpl in *.

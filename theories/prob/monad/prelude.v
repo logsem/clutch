@@ -1,36 +1,36 @@
 From mathcomp Require Import all_ssreflect all_algebra finmap.
 From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
 From mathcomp Require Import cardinality fsbigop.
-From mathcomp.analysis Require Import reals ereal signed normedtype esum numfun measure lebesgue_measure lebesgue_integral.
+From mathcomp.analysis Require Import reals ereal signed normedtype esum numfun measure lebesgue_measure lebesgue_integral sequences.
 From clutch.prelude Require Import classical.
 From stdpp Require Import base.
 From HB Require Import structures.
 
-Import Coq.Logic.FunctionalExtensionality.
+(* Import Coq.Logic.FunctionalExtensionality.
 Import Coq.Relations.Relation_Definitions.
-Import Coq.Classes.RelationClasses.
+Import Coq.Classes.RelationClasses. *)
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Set Default Proof Using "Type".
+Set Default Proof Using "Type*".
 
-
-Reserved Notation "'<<discr' G '>>'"
-  (at level 2, format "'<<discr'  G  '>>'").
+Reserved Notation "'<<discr' G '>>'" (at level 2, format "'<<discr' G '>>'").
+Reserved Notation "G .-discr" (at level 1, format "G .-discr").
+Reserved Notation "G .-discr.-measurable"
+ (at level 2, format "G .-discr.-measurable").
 
 Section discrete_space.
   Local Open Scope classical_set_scope.
 
-  (* Type of points in a discrete space *)
+  (** Type of points in a discrete space *)
   Definition discrType (T : Type) : Type := T.
 
   Section discr_salgebra_instance.
     Variables (T: pointedType).
-    Definition inhab : discrType T := (@point T).
 
-    Definition discr_meas : set (set (discrType T)) := [set: set (discrType T)].
+    Definition discr_meas : set (set (discrType T)) := setT.
 
     Lemma discr_meas0 : discr_meas set0.
     Proof. by []. Qed.
@@ -38,21 +38,26 @@ Section discrete_space.
     Lemma discr_measC X : discr_meas X -> discr_meas (~` X).
     Proof. by []. Qed.
 
-    Lemma discr_measU (F : sequences.sequence (set T)) : (forall i, discr_meas (F i)) -> discr_meas (\bigcup_i F i).
+    Lemma discr_measU (F : sequence (set T)) : (forall i, discr_meas (F i)) -> discr_meas (\bigcup_i F i).
     Proof. by []. Qed.
+
+    Definition discr_display : Type -> measure_display.
+    Proof. done. Qed.
 
     HB.instance Definition _ := gen_eqMixin (discrType T).
     HB.instance Definition _ := gen_choiceMixin (discrType T).
-    HB.instance Definition _ := isPointed.Build (discrType T) inhab.
-    HB.instance Definition _ := @isMeasurable.Build default_measure_display (discrType T) discr_meas
+    HB.instance Definition _ := isPointed.Build (discrType T) point.
+    HB.instance Definition _ := @isMeasurable.Build (discr_display T) (discrType T) discr_meas
                                  discr_meas0 discr_measC discr_measU.
   End discr_salgebra_instance.
+
 
 End discrete_space.
 
 Notation "'<<discr' G '>>'" := (discrType G) : classical_set_scope.
-
-
+Notation "G .-discr" := (discr_display G) : measure_display_scope.
+Notation "G .-discr.-measurable" :=
+  (((G.-discr).-measurable : set (set (<<discr G>>))) )%classic.
 
 Section fin_pointed.
   Local Open Scope ereal_scope.
@@ -60,11 +65,8 @@ Section fin_pointed.
   Context {R : realType}.
   Variable (m : nat).
 
-  (* The finite type of > 0 elements is pointed *)
-  Program Definition Ism_inhabitant : 'I_(S m). eapply (@Ordinal _), leqnn. Defined.
+  Definition Ism_inhabitant : 'I_(S m). by eapply (@Ordinal _), leqnn. Defined.
 
-  HB.instance Definition _ := gen_eqMixin ('I_m).
-  HB.instance Definition _ := gen_choiceMixin ('I_m).
   HB.instance Definition _ N := isPointed.Build ('I_(S m)) Ism_inhabitant.
 End fin_pointed.
 

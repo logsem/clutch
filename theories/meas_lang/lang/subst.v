@@ -165,7 +165,7 @@ Definition substU'_cover : list (set (<<discr binder>> * (val * expr))) :=
 Lemma substU'_measurable : measurable_fun setT substU'.
 Proof.
   apply (@measurable_by_cover_list _ _ _ _ substU' substU'_cover).
-  - have BAnonMeas : 'measurable ([set BAnon] : set <<discr binder>>).
+  - have BAnonMeas : binder.-discr.-measurable ([set BAnon] : set <<discr binder>>).
     { by rewrite /measurable/discr_meas//=. }
     repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
     + apply measurableX; done.
