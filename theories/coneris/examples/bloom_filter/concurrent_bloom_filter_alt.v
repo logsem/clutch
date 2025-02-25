@@ -2,7 +2,7 @@ From iris.base_logic.lib Require Import invariants.
 From iris.algebra Require Import gset_bij auth excl frac agree numbers.
 From clutch.coneris Require Import
   coneris par spawn spin_lock hash atomic lock
-  concurrent_hash con_hash_interface4 bloom_filter.
+  con_hash_interface4 bloom_filter.
 From clutch.coneris.lib Require Import list array.
 
 Set Default Proof Using "Type*".
