@@ -85,6 +85,7 @@ Definition state_allocNCS : (val * state)%type -> state :=
 Definition state_allocNCE : (val * state)%type -> <<discr loc>> :=
   ssrfun.comp fresh $ ssrfun.comp heap snd.
 
+(** FIXME: Rename to remove N*)
 Definition auxcov_allocN_ok : set (val * state)%type :=
   setX setT $ preimage heap (hp_finite _).
 

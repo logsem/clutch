@@ -70,8 +70,7 @@ Inductive ectx_item_pre {TZ TB TL TR : Type} : Type :=
   | InjLCtx
   | InjRCtx
   | CaseCtx (e1 : @expr_pre TZ TB TL TR) (e2 : @expr_pre TZ TB TL TR)
-  | AllocNLCtx (v2 : @val_pre TZ TB TL TR)
-  | AllocNRCtx (e1 : @expr_pre TZ TB TL TR)
+  | AllocCtx
   | LoadCtx
   | StoreLCtx (v2 : @val_pre TZ TB TL TR)
   | StoreRCtx (e1 : @expr_pre TZ TB TL TR)
@@ -134,8 +133,7 @@ Definition ectx_item_pre_F (k : @ectx_item_pre TZ1 TB1 TL1 TR1) : @ectx_item_pre
   | InjLCtx => InjLCtx
   | InjRCtx => InjRCtx
   | CaseCtx e1 e2 => CaseCtx (expr_pre_F FInt FBool FLoc FLbl FReal e1) (expr_pre_F FInt FBool FLoc FLbl FReal e2)
-  | AllocNLCtx v2 => AllocNLCtx (val_pre_F FInt FBool FLoc FLbl FReal v2)
-  | AllocNRCtx e1 => AllocNRCtx (expr_pre_F FInt FBool FLoc FLbl FReal e1)
+  | AllocCtx => AllocCtx
   | LoadCtx => LoadCtx
   | StoreLCtx v2 => StoreLCtx (val_pre_F FInt FBool FLoc FLbl FReal v2)
   | StoreRCtx e1 => StoreRCtx (expr_pre_F FInt FBool FLoc FLbl FReal e1)
@@ -168,8 +166,7 @@ Section ectx_item_algebra.
     | InjLCtx => [set InjLCtx]
     | InjRCtx => [set InjRCtx]
     | CaseCtx e1 e2 => image2 (expr_ST e1) (expr_ST e2) CaseCtx
-    | AllocNLCtx v2 => image (val_ST v2) AllocNLCtx
-    | AllocNRCtx e1 => image (expr_ST e1) AllocNRCtx
+    | AllocCtx => [set AllocCtx]
     | LoadCtx => [set LoadCtx]
     | StoreLCtx v2 => image (val_ST v2) StoreLCtx
     | StoreRCtx e1 =>  image (expr_ST e1) StoreRCtx
@@ -196,8 +193,7 @@ Section ectx_item_algebra.
       | InjLCtx => True
       | InjRCtx => True
       | CaseCtx e1 e2 => expr_ML e1 /\ expr_ML e2
-      | AllocNLCtx v2 => val_ML v2
-      | AllocNRCtx e1 => expr_ML e1
+      | AllocCtx => True
       | LoadCtx => True
       | StoreLCtx v2 => val_ML v2
       | StoreRCtx e1 => expr_ML e1
@@ -248,8 +244,7 @@ Definition SndCtxC          : ectx_item := SndCtx.
 Definition InjLCtxC         : ectx_item := InjLCtx.
 Definition InjRCtxC         : ectx_item := InjRCtx.
 Definition CaseCtxC e1 e2   : ectx_item := CaseCtx e1 e2.
-Definition AllocNLCtxC v2   : ectx_item := AllocNLCtx v2.
-Definition AllocNRCtxC e1   : ectx_item := AllocNRCtx e1.
+Definition AllocCtxC        : ectx_item := AllocCtx.
 Definition LoadCtxC         : ectx_item := LoadCtx.
 Definition StoreLCtxC v2    : ectx_item := StoreLCtx v2.
 Definition StoreRCtxC e1    : ectx_item := StoreRCtx e1.
@@ -273,8 +268,7 @@ Definition SndCtxU                                    := SndCtxC.
 Definition InjLCtxU                                   := InjLCtxC.
 Definition InjRCtxU                                   := InjRCtxC.
 Definition CaseCtxU (v : expr * expr)                 := CaseCtxC v.1 v.2.
-Definition AllocNLCtxU (v : val)                      := AllocNLCtxC v.
-Definition AllocNRCtxU (v : expr)                     := AllocNRCtxC v.
+Definition AllocCtxU                                  := AllocCtxC.
 Definition LoadCtxU                                   := LoadCtxC.
 Definition StoreLCtxU (v : val)                       := StoreLCtxC v.
 Definition StoreRCtxU (v : expr)                      := StoreRCtxC v.
@@ -322,14 +316,6 @@ Section ConstructorMeasurable.
   Lemma CaseCtxU_measurable : measurable_fun setT CaseCtxU.
   Proof. Admitted.
   Hint Resolve CaseCtxU_measurable : measlang.
-
-  Lemma AllocNLCtxU_measurable : measurable_fun setT AllocNLCtxU.
-  Proof. Admitted.
-  Hint Resolve AllocNLCtxU_measurable : measlang.
-
-  Lemma AllocNRCtxU_measurable : measurable_fun setT AllocNRCtxU.
-  Proof. Admitted.
-  Hint Resolve AllocNRCtxU_measurable : measlang.
 
   Lemma StoreLCtxU_measurable : measurable_fun setT StoreLCtxU.
   Proof. Admitted.
@@ -409,8 +395,6 @@ Definition 𝜋_PairLCtx_v     (k : ectx_item) : val := match k with | PairLCtx 
 Definition 𝜋_PairRCtx_e     (k : ectx_item) : expr := match k with | PairRCtx v => v | _ => point end.
 Definition 𝜋_CaseCtx_l      (k : ectx_item) : expr := match k with | CaseCtx v _ => v | _ => point end.
 Definition 𝜋_CaseCtx_r      (k : ectx_item) : expr := match k with | CaseCtx _ v => v | _ => point end.
-Definition 𝜋_AllocNLCtx_v   (k : ectx_item) : val := match k with | AllocNLCtx v => v | _ => point end.
-Definition 𝜋_AllocNRCtx_e   (k : ectx_item) : expr := match k with | AllocNRCtx v => v | _ => point end.
 Definition 𝜋_StoreLCtx_v    (k : ectx_item) : val := match k with | StoreLCtx v => v | _ => point end.
 Definition 𝜋_StoreRCtx_e    (k : ectx_item) : expr := match k with | StoreRCtx v => v | _ => point end.
 Definition 𝜋_RandLCtx_v     (k : ectx_item) : val := match k with | RandLCtx v => v | _ => point end.
@@ -434,8 +418,7 @@ Definition ectx_item_cov_SndCtx       : set ectx_item := [set SndCtx].
 Definition ectx_item_cov_InjLCtx      : set ectx_item := [set InjLCtx].
 Definition ectx_item_cov_InjRCtx      : set ectx_item := [set InjRCtx].
 Definition ectx_item_cov_CaseCtx      : set ectx_item := [set e | ∃ x y, e = CaseCtx x y].
-Definition ectx_item_cov_AllocNLCtx   : set ectx_item := [set e | ∃ x, e = AllocNLCtx x].
-Definition ectx_item_cov_AllocNRCtx   : set ectx_item := [set e | ∃ x, e = AllocNRCtx x].
+Definition ectx_item_cov_AllocCtx     : set ectx_item := [set AllocCtx].
 Definition ectx_item_cov_LoadCtx      : set ectx_item := [set LoadCtx].
 Definition ectx_item_cov_StoreLCtx    : set ectx_item := [set e | ∃ x, e = StoreLCtx x].
 Definition ectx_item_cov_StoreRCtx    : set ectx_item := [set e | ∃ x, e = StoreRCtx x].
@@ -498,13 +481,9 @@ Lemma ectx_item_cov_CaseCtx_meas      : measurable ectx_item_cov_CaseCtx.
 Proof. Admitted.
 Hint Resolve ectx_item_cov_CaseCtx_meas      : measlang.
 
-Lemma ectx_item_cov_AllocNLCtx_meas   : measurable ectx_item_cov_AllocNLCtx.
+Lemma ectx_item_cov_AllocCtx_meas     : measurable ectx_item_cov_AllocCtx.
 Proof. Admitted.
-Hint Resolve ectx_item_cov_AllocNLCtx_meas   : measlang.
-
-Lemma ectx_item_cov_AllocNRCtx_meas   : measurable ectx_item_cov_AllocNRCtx.
-Proof. Admitted.
-Hint Resolve ectx_item_cov_AllocNRCtx_meas   : measlang.
+Hint Resolve ectx_item_cov_AllocCtx_meas   : measlang.
 
 Lemma ectx_item_cov_LoadCtx_meas      : measurable ectx_item_cov_LoadCtx.
 Proof. Admitted.
@@ -595,14 +574,6 @@ Lemma 𝜋_CaseCtx_r_meas    : measurable_fun ectx_item_cov_CaseCtx 𝜋_CaseCtx
 Proof. Admitted.
 Hint Resolve 𝜋_CaseCtx_r_meas    : measlang.
 
-Lemma 𝜋_AllocNLCtx_v_meas : measurable_fun ectx_item_cov_AllocNLCtx 𝜋_AllocNLCtx_v.
-Proof. Admitted.
-Hint Resolve 𝜋_AllocNLCtx_v_meas : measlang.
-
-Lemma 𝜋_AllocNRCtx_e_meas : measurable_fun ectx_item_cov_AllocNRCtx 𝜋_AllocNRCtx_e.
-Proof. Admitted.
-Hint Resolve 𝜋_AllocNRCtx_e_meas : measlang.
-
 Lemma 𝜋_StoreLCtx_v_meas  : measurable_fun ectx_item_cov_StoreLCtx 𝜋_StoreLCtx_v.
 Proof. Admitted.
 Hint Resolve 𝜋_StoreLCtx_v_meas  : measlang.
@@ -683,17 +654,8 @@ Definition fill_item_CaseCtx      : (ectx_item  * expr)%type -> expr :=
   ssrfun.comp CaseU $
   mProd (mProd snd (ssrfun.comp 𝜋_CaseCtx_l fst)) (ssrfun.comp 𝜋_CaseCtx_r fst).
 
-Definition fill_item_AllocNLCtx   : (ectx_item  * expr)%type -> expr :=
-  ssrfun.comp AllocNU $
-  mProd
-    snd
-    (ssrfun.comp ValU $ ssrfun.comp 𝜋_AllocNLCtx_v $ fst).
-
-Definition fill_item_AllocNRCtx   : (ectx_item  * expr)%type -> expr :=
-  ssrfun.comp AllocNU $
-  mProd
-    (ssrfun.comp 𝜋_AllocNRCtx_e $ fst)
-    snd.
+Definition fill_item_AllocCtx     : (ectx_item  * expr)%type -> expr :=
+  ssrfun.comp AllocU $ snd.
 
 Definition fill_item_LoadCtx      : (ectx_item  * expr)%type -> expr :=
   ssrfun.comp LoadU $ snd.
@@ -757,9 +719,7 @@ Lemma fill_item_InjRCtx_meas      : measurable_fun (setX ectx_item_cov_InjRCtx  
 Proof. Admitted.
 Lemma fill_item_CaseCtx_meas      : measurable_fun (setX ectx_item_cov_CaseCtx      setT) fill_item_CaseCtx.
 Proof. Admitted.
-Lemma fill_item_AllocNLCtx_meas   : measurable_fun (setX ectx_item_cov_AllocNLCtx   setT) fill_item_AllocNLCtx.
-Proof. Admitted.
-Lemma fill_item_AllocNRCtx_meas   : measurable_fun (setX ectx_item_cov_AllocNRCtx   setT) fill_item_AllocNRCtx.
+Lemma fill_item_AllocCtx_meas     : measurable_fun (setX ectx_item_cov_AllocCtx   setT) fill_item_AllocCtx.
 Proof. Admitted.
 Lemma fill_item_LoadCtx_meas      : measurable_fun (setX ectx_item_cov_LoadCtx      setT) fill_item_LoadCtx.
 Proof. Admitted.
@@ -791,8 +751,7 @@ Hint Resolve fill_item_SndCtx_meas       : measlang.
 Hint Resolve fill_item_InjLCtx_meas      : measlang.
 Hint Resolve fill_item_InjRCtx_meas      : measlang.
 Hint Resolve fill_item_CaseCtx_meas      : measlang.
-Hint Resolve fill_item_AllocNLCtx_meas   : measlang.
-Hint Resolve fill_item_AllocNRCtx_meas   : measlang.
+Hint Resolve fill_item_AllocCtx_meas     : measlang.
 Hint Resolve fill_item_LoadCtx_meas      : measlang.
 Hint Resolve fill_item_StoreLCtx_meas    : measlang.
 Hint Resolve fill_item_StoreRCtx_meas    : measlang.
@@ -817,8 +776,7 @@ Definition fill_item_cover : list (set (ectx_item * expr)%type) := [
 (setX ectx_item_cov_InjLCtx      setT);
 (setX ectx_item_cov_InjRCtx      setT);
 (setX ectx_item_cov_CaseCtx      setT);
-(setX ectx_item_cov_AllocNLCtx   setT);
-(setX ectx_item_cov_AllocNRCtx   setT);
+(setX ectx_item_cov_AllocCtx     setT);
 (setX ectx_item_cov_LoadCtx      setT);
 (setX ectx_item_cov_StoreLCtx    setT);
 (setX ectx_item_cov_StoreRCtx    setT);
@@ -843,8 +801,7 @@ Definition fill_item (x : (ectx_item * expr)%type) : expr :=
   | InjLCtx         => fill_item_InjLCtx x
   | InjRCtx         => fill_item_InjRCtx x
   | CaseCtx e1 e2   => fill_item_CaseCtx x
-  | AllocNLCtx v2   => fill_item_AllocNLCtx x
-  | AllocNRCtx e1   => fill_item_AllocNRCtx x
+  | AllocCtx        => fill_item_AllocCtx x
   | LoadCtx         => fill_item_LoadCtx x
   | StoreLCtx v2    => fill_item_StoreLCtx x
   | StoreRCtx e1    => fill_item_StoreRCtx x
@@ -1013,15 +970,8 @@ Definition decomp_cov_injr       : set expr :=
 Definition decomp_cov_case       : set expr :=
   ecov_case.
 
-Definition decomp_cov_alloc_val  : set expr :=
-  setI ecov_alloc $
-  preimage 𝜋_AllocNU $
-  setX setT ecov_val.
-
-Definition decomp_cov_alloc_expr : set expr :=
-  setI ecov_alloc $
-  preimage 𝜋_AllocNU $
-  setX setT (~` ecov_val).
+Definition decomp_cov_alloc      : set expr :=
+  ecov_alloc.
 
 Definition decomp_cov_load       : set expr :=
   ecov_load.
@@ -1070,8 +1020,7 @@ Lemma decomp_cov_snd_meas         : measurable decomp_cov_snd. Proof. Admitted.
 Lemma decomp_cov_injl_meas        : measurable decomp_cov_injl. Proof. Admitted.
 Lemma decomp_cov_injr_meas        : measurable decomp_cov_injr. Proof. Admitted.
 Lemma decomp_cov_case_meas        : measurable decomp_cov_case. Proof. Admitted.
-Lemma decomp_cov_alloc_val_meas   : measurable decomp_cov_alloc_val. Proof. Admitted.
-Lemma decomp_cov_alloc_expr_meas  : measurable decomp_cov_alloc_expr. Proof. Admitted.
+Lemma decomp_cov_alloc_meas       : measurable decomp_cov_alloc. Proof. Admitted.
 Lemma decomp_cov_load_meas        : measurable decomp_cov_load. Proof. Admitted.
 Lemma decomp_cov_store_val_meas   : measurable decomp_cov_store_val. Proof. Admitted.
 Lemma decomp_cov_store_expr_meas  : measurable decomp_cov_store_expr. Proof. Admitted.
@@ -1095,8 +1044,7 @@ Hint Resolve decomp_cov_snd_meas         : measlang.
 Hint Resolve decomp_cov_injl_meas        : measlang.
 Hint Resolve decomp_cov_injr_meas        : measlang.
 Hint Resolve decomp_cov_case_meas        : measlang.
-Hint Resolve decomp_cov_alloc_val_meas   : measlang.
-Hint Resolve decomp_cov_alloc_expr_meas  : measlang.
+Hint Resolve decomp_cov_alloc            : measlang.
 Hint Resolve decomp_cov_load_meas        : measlang.
 Hint Resolve decomp_cov_store_val_meas   : measlang.
 Hint Resolve decomp_cov_store_expr_meas  : measlang.
@@ -1121,8 +1069,7 @@ Definition decomp_item_cover : list (set expr) := [
   decomp_cov_injl;
   decomp_cov_injr;
   decomp_cov_case;
-  decomp_cov_alloc_val;
-  decomp_cov_alloc_expr;
+  decomp_cov_alloc;
   decomp_cov_load;
   decomp_cov_store_val;
   decomp_cov_store_expr;
@@ -1186,13 +1133,9 @@ Definition decomp_case       : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
   mProd 𝜋_Case_c (ssrfun.comp CaseCtxU $ mProd 𝜋_Case_l 𝜋_Case_r).
 
-Definition decomp_alloc_val  : expr -> (option (ectx_item * expr)%type) :=
+Definition decomp_alloc     : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
-  mProd 𝜋_AllocN_N (ssrfun.comp AllocNLCtxU $ ssrfun.comp 𝜋_Val_v 𝜋_AllocN_e ).
-
-Definition decomp_alloc_expr : expr -> (option (ectx_item * expr)%type) :=
-  ssrfun.comp Some $
-  mProd (ssrfun.comp AllocNRCtxU 𝜋_AllocN_N) 𝜋_AllocN_e.
+  mProd 𝜋_Alloc_e (cst AllocCtxU).
 
 Definition decomp_load       : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
@@ -1242,8 +1185,7 @@ Lemma decomp_snd_meas        : measurable_fun decomp_cov_snd        decomp_snd. 
 Lemma decomp_injl_meas       : measurable_fun decomp_cov_injl       decomp_injl. Proof. Admitted.
 Lemma decomp_injr_meas       : measurable_fun decomp_cov_injr       decomp_injr. Proof. Admitted.
 Lemma decomp_case_meas       : measurable_fun decomp_cov_case       decomp_case. Proof. Admitted.
-Lemma decomp_alloc_val_meas  : measurable_fun decomp_cov_alloc_val  decomp_alloc_val. Proof. Admitted.
-Lemma decomp_alloc_expr_meas : measurable_fun decomp_cov_alloc_expr decomp_alloc_expr. Proof. Admitted.
+Lemma decomp_alloc_meas      : measurable_fun decomp_cov_alloc      decomp_alloc. Proof. Admitted.
 Lemma decomp_load_meas       : measurable_fun decomp_cov_load       decomp_load. Proof. Admitted.
 Lemma decomp_store_val_meas  : measurable_fun decomp_cov_store_val  decomp_store_val. Proof. Admitted.
 Lemma decomp_store_expr_meas : measurable_fun decomp_cov_store_expr decomp_store_expr. Proof. Admitted.
@@ -1267,8 +1209,7 @@ Hint Resolve decomp_snd_meas        : measlang.
 Hint Resolve decomp_injl_meas       : measlang.
 Hint Resolve decomp_injr_meas       : measlang.
 Hint Resolve decomp_case_meas       : measlang.
-Hint Resolve decomp_alloc_val_meas  : measlang.
-Hint Resolve decomp_alloc_expr_meas : measlang.
+Hint Resolve decomp_alloc_meas      : measlang.
 Hint Resolve decomp_load_meas       : measlang.
 Hint Resolve decomp_store_val_meas  : measlang.
 Hint Resolve decomp_store_expr_meas : measlang.
@@ -1294,8 +1235,7 @@ Definition decomp_item (e : expr) : option (ectx_item * expr)%type :=
   | InjL _             => decomp_injl e
   | InjR _             => decomp_injr e
   | Case _ _ _         => decomp_case e
-  | AllocN _ (Val _)   => decomp_alloc_val e
-  | AllocN _ _         => decomp_alloc_expr e
+  | Alloc _            => decomp_alloc e
   | Load _             => decomp_load e
   | Store _ (Val _)    => decomp_store_val e
   | Store _ _          => decomp_store_expr e
@@ -1327,7 +1267,7 @@ Fixpoint height (e : expr) : nat :=
   | InjL e => 1 + height e
   | InjR e => 1 + height e
   | Case e0 e1 e2 => 1 + height e0 + height e1 + height e2
-  | AllocN e1 e2 => 1 + height e1 + height e2
+  | Alloc e1 => 1 + height e1
   | Load e => 1 + height e
   | Store e1 e2 => 1 + height e1 + height e2
   | AllocTape e => 1 + height e

@@ -42,7 +42,7 @@ Definition SndU (v : expr)                                        := SndC v.
 Definition InjLU (v : expr)                                       := InjLC v.
 Definition InjRU (v : expr)                                       := InjRC v.
 Definition CaseU (v : expr * expr * expr)                         := CaseC v.1.1 v.1.2 v.2.
-Definition AllocNU (v : expr * expr)                              := AllocNC v.1 v.2.
+Definition AllocU (v : expr)                                      := AllocC v.
 Definition LoadU (v : expr)                                       := LoadC v.
 Definition StoreU (v : expr * expr)                               := StoreC v.1 v.2.
 Definition AllocTapeU (v : expr)                                  := AllocTapeC v.
@@ -687,7 +687,7 @@ Section constructor_measurability.
   Qed.
   Hint Resolve CaseU_measurable : measlang.
 
-  Lemma AllocNU_measurable : measurable_fun setT AllocNU.
+  Lemma AllocU_measurable : measurable_fun setT AllocU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -695,6 +695,8 @@ Section constructor_measurability.
     destruct D; rewrite /preimage/=.
     14: {
          simpl in HD.
+         admit.
+         (*
          destruct HD as [HD0 HD1].
          rewrite Prod2Decomp.
          { apply measurableI.
@@ -718,10 +720,12 @@ Section constructor_measurability.
              + by move=> [??[??[<- ?]]].
         }
         by move=>????[??]//.
+
+            *)
     }
     all: by ctor_triv_case.
-  Qed.
-  Hint Resolve AllocNU_measurable : measlang.
+  Admitted.
+  Hint Resolve AllocU_measurable : measlang.
 
   Lemma LoadU_measurable : measurable_fun setT LoadU.
   Proof.

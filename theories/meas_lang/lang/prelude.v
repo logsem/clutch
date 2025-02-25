@@ -1,24 +1,11 @@
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
-From Coq Require Import Logic.ClassicalEpsilon Psatz.
-From stdpp Require Import base numbers binders strings gmap.
-From mathcomp Require Import functions.
-From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
-From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
-From iris.algebra Require Export ofe.
-From clutch.prelude Require Export stdpp_ext.
-From clutch.common Require Export locations.
-From clutch.meas_lang Require Import ectxi_language ectx_language.
-
-From Coq Require Export Reals.
-From clutch.prob.monad Require Export giry.
+From stdpp Require Import binders.
+From mathcomp Require Import eqtype choice boolp classical_sets.
 From mathcomp.analysis Require Export Rstruct.
-
-From mathcomp Require Import classical_sets.
-
-Import Coq.Logic.FunctionalExtensionality.
-From clutch.prelude Require Import classical.
-
+From clutch.common Require Export locations.
+From clutch.prob.monad Require Export giry.
+From Coq Require Export Reals.
 Set Warnings "hiding-delimiting-key".
 
 (* Fix giryM to be the giry type with stdlib-valued real numbers *)

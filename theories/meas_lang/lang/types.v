@@ -1,33 +1,11 @@
-(* TODO cleanup imports *)
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
-From Coq Require Import Logic.ClassicalEpsilon Psatz.
-From stdpp Require Import base numbers binders strings gmap.
-From mathcomp Require Import functions.
-From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
-From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
-From iris.algebra Require Export ofe.
-From clutch.prelude Require Export stdpp_ext.
+From stdpp Require Import binders.
+From mathcomp Require Import functions classical_sets.
+From mathcomp.analysis Require Import reals measure lebesgue_measure.
+From mathcomp Require Import eqtype choice boolp.
 From clutch.common Require Export locations.
-From clutch.meas_lang Require Import ectxi_language ectx_language.
-From Coq Require Export Reals.
-From clutch.prob.monad Require Export giry.
-From mathcomp.analysis Require Export Rstruct.
-From mathcomp Require Import classical_sets.
-Import Coq.Logic.FunctionalExtensionality.
-From clutch.prelude Require Import classical.
 From clutch.meas_lang.lang Require Export prelude.
-(* From Coq Require Import Reals Psatz.
-From stdpp Require Export binders strings.
-From stdpp Require Import fin.
-From stdpp Require Import gmap fin_maps countable fin.
-From clutch.prob Require Export distribution.
-From clutch.common Require Export language ectx_language ectxi_language locations.
-From iris.prelude Require Import options.
-From mathcomp Require Import ssrbool eqtype fintype choice all_algebra finmap.
-From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
-From mathcomp Require Import cardinality fsbigop.
-From mathcomp.analysis Require Import reals ereal signed normedtype sequences esum numfun measure lebesgue_measure lebesgue_integral. *)
 Set Warnings "hiding-delimiting-key".
 
 (** Syntax for an expressions with general leaves *)
@@ -73,7 +51,7 @@ Inductive expr_pre {TZ TB TL TR : Type} :=
   | InjR (e : expr_pre)
   | Case (e0 e1 e2 : expr_pre)
   (* Heap *)
-  | AllocN (e1 e2 : expr_pre) (* Array length and initial value *)
+  | Alloc (e1 : expr_pre) (* Initial value *)
   | Load (e : expr_pre)
   | Store (e1 e2 : expr_pre)
   (* Finite probabilistic choice *)
@@ -99,13 +77,28 @@ HB.instance Definition _ := gen_eqMixin un_op.
 HB.instance Definition _ := gen_choiceMixin un_op.
 HB.instance Definition _ := isPointed.Build un_op NegOp.
 
+Section un_op_countable.
+  Definition un_op_pickle : un_op -> nat. Admitted.
+  Definition un_op_unpickle : nat -> option un_op. Admitted.
+  Lemma un_op_cancel : ssrfun.pcancel un_op_pickle un_op_unpickle. Admitted.
+  HB.instance Definition _ := Choice_isCountable.Build un_op un_op_cancel.
+End un_op_countable.
+
+HB.saturate un_op.
+
 (* Instances for bin_op *)
 HB.instance Definition _ := gen_eqMixin bin_op.
 HB.instance Definition _ := gen_choiceMixin bin_op.
 HB.instance Definition _ := isPointed.Build bin_op PlusOp.
 
+Section bin_op_countable.
+  Definition bin_op_pickle : bin_op -> nat. Admitted.
+  Definition bin_op_unpickle : nat -> option bin_op. Admitted.
+  Lemma bin_op_cancel : ssrfun.pcancel bin_op_pickle bin_op_unpickle. Admitted.
+  HB.instance Definition _ := Choice_isCountable.Build bin_op bin_op_cancel.
+End bin_op_countable.
 
-
+HB.saturate bin_op.
 
 Section functor.
 
@@ -142,7 +135,7 @@ Fixpoint expr_pre_F (e : @expr_pre TZ1 TB1 TL1 TR1) : @expr_pre TZ2 TB2 TL2 TR2 
   | InjL e         => InjL (expr_pre_F e)
   | InjR e         => InjR (expr_pre_F e)
   | Case e1 e2 e3  => Case (expr_pre_F e1) (expr_pre_F e2) (expr_pre_F e3)
-  | AllocN e1 e2   => AllocN (expr_pre_F e1) (expr_pre_F e2)
+  | Alloc e1       => Alloc (expr_pre_F e1)
   | Load e         => Load (expr_pre_F e)
   | Store e1 e2    => Store (expr_pre_F e1) (expr_pre_F e2)
   | AllocTape e    => AllocTape (expr_pre_F e)
@@ -159,8 +152,6 @@ Fixpoint expr_pre_F (e : @expr_pre TZ1 TB1 TL1 TR1) : @expr_pre TZ2 TB2 TL2 TR2 
   | InjRV v1       => InjRV (val_pre_F v1)
   end.
 End functor.
-
-
 
 Section expr_algebra.
   (** Defines the sigma algebra over expressions *)
@@ -207,7 +198,7 @@ Section expr_algebra.
     | InjL e1        => image  (expr_ST e1) InjL
     | InjR e1        => image  (expr_ST e1) InjR
     | Case e0 e1 e2  => image3 (expr_ST e0) (expr_ST e1) (expr_ST e2) Case
-    | AllocN e1 e2   => image2 (expr_ST e1) (expr_ST e2) AllocN
+    | Alloc e1       => image  (expr_ST e1) Alloc
     | Load e         => image  (expr_ST e)  Load
     | Store e1 e2    => image2 (expr_ST e1) (expr_ST e2) Store
     | AllocTape e    => image  (expr_ST e)  AllocTape
@@ -254,7 +245,7 @@ Section expr_algebra.
     | InjL e1        => expr_ML e1
     | InjR e1        => expr_ML e1
     | Case e0 e1 e2  => expr_ML e0 /\ expr_ML e1 /\ expr_ML e2
-    | AllocN e1 e2   => expr_ML e1 /\ expr_ML e2
+    | Alloc e1       => expr_ML e1
     | Load e         => expr_ML e
     | Store e1 e2    => expr_ML e1 /\ expr_ML e2
     | AllocTape e    => expr_ML e
@@ -356,7 +347,7 @@ Definition SndC e1          : expr_T     := Snd e1.
 Definition InjLC e1         : expr_T     := InjL e1.
 Definition InjRC e1         : expr_T     := InjR e1.
 Definition CaseC e0 e1 e2   : expr_T     := Case e0 e1 e2.
-Definition AllocNC e1 e2    : expr_T     := AllocN e1 e2.
+Definition AllocC e1        : expr_T     := Alloc e1.
 Definition LoadC e          : expr_T     := Load e.
 Definition StoreC e1 e2     : expr_T     := Store e1 e2.
 Definition AllocTapeC e     : expr_T     := AllocTape e.

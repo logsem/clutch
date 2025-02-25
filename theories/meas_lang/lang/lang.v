@@ -143,48 +143,32 @@ Section meas_semantics.
          (ssrfun.comp 𝜋_Val_v snd)) $
     auxcov_binop_stuck.
 
-  (* [set e | ∃ N v, e = AllocN (Val (LitV (LitInt N))) (val v)] *)
-  Definition auxcov_allocN : set cfg  :=
+  (* [set e | ∃ N v, e = Alloc (Val (LitV (LitInt N))) (val v)] *)
+  Definition auxcov_alloc : set cfg  :=
     setI setT $
     preimage fst $
     setI ecov_alloc $
-    preimage 𝜋_AllocNU $
-    setX
-      ( setI ecov_val $
-        preimage 𝜋_ValU $
-        setI vcov_lit $
-        preimage 𝜋_LitVU $
-        bcov_LitInt )
-      ecov_val.
+    preimage 𝜋_AllocU $
+    ecov_val.
 
-  Definition aux_allocN_Z : cfg -> <<discr Z>> :=
-    ssrfun.comp 𝜋_LitIntU $
-    ssrfun.comp 𝜋_LitVU $
+  Definition aux_alloc_v : cfg -> val :=
     ssrfun.comp 𝜋_ValU $
-    ssrfun.comp fst $
-    ssrfun.comp 𝜋_AllocNU $
+    ssrfun.comp 𝜋_AllocU $
     fst.
 
-  Definition aux_allocN_v : cfg -> val :=
-    ssrfun.comp 𝜋_ValU $
-    ssrfun.comp snd $
-    ssrfun.comp 𝜋_AllocNU $
-    fst.
-
-  Definition aux_allocN_σ : cfg -> state :=
+  Definition aux_alloc_σ : cfg -> state :=
     snd.
 
-  Definition aux_allocN : cfg -> (val * state) :=
-    mProd aux_allocN_v aux_allocN_σ.
+  Definition aux_alloc : cfg -> (val * state) :=
+    mProd aux_alloc_v aux_alloc_σ.
 
   (*  [set c | ∃ N v σ, c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = true]. *)
-  Definition cover_allocN_ok : set cfg :=
-    setI auxcov_allocN $ preimage aux_allocN auxcov_allocN_ok.
+  Definition cover_alloc_ok : set cfg :=
+    setI auxcov_alloc $ preimage aux_alloc auxcov_allocN_ok.
 
   (* [set c | ∃ N v σ, c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = false].*)
-  Definition cover_allocN_stuck : set cfg :=
-    setI auxcov_allocN $ preimage aux_allocN auxcov_allocN_stuck.
-
+  Definition cover_alloc_stuck : set cfg :=
+    setI auxcov_alloc $ preimage aux_alloc auxcov_allocN_stuck.
 
   (* [set e | ∃ l e = (Load (Val (LitV (LitLoc l))))] *)
   Definition auxcov_load : set expr :=
@@ -426,8 +410,8 @@ Section meas_semantics.
     cover_snd;
     cover_caseL;
     cover_caseR;
-    cover_allocN_ok;
-    cover_allocN_stuck;
+    cover_alloc_ok;
+    cover_alloc_stuck;
     cover_load_ok;
     cover_load_stuck;
     cover_store_ok;
@@ -675,8 +659,9 @@ Section meas_semantics.
   Hint Resolve cover_binop_stuck_meas : measlang.
 
 
-  Lemma auxcov_allocN_meas : measurable auxcov_allocN.
-  Proof.
+  Lemma auxcov_alloc_meas : measurable auxcov_alloc.
+  Proof. Admitted.
+  (*
     apply @measurable_fst.
     { by eauto with measlang. }
     apply 𝜋_AllocNU_meas.
@@ -684,8 +669,8 @@ Section meas_semantics.
     apply measurableX.
     { by eauto with measlang. }
     { by eauto with measlang. }
-  Qed.
-  Hint Resolve auxcov_allocN_meas : measlang.
+  Qed. *)
+  Hint Resolve auxcov_alloc_meas : measlang.
 
   (*
   Ltac subset_proof_simp_unfold :=
@@ -707,9 +692,9 @@ Section meas_semantics.
     repeat (repeat subset_proof_simp_destruct; subset_proof_simp_unfold).
 *)
 
+  (*
   Lemma aux_allocN_Z_meas : measurable_fun auxcov_allocN aux_allocN_Z.
   Proof. Admitted.
-  (*
     unfold aux_allocN_Z.
     unfold auxcov_allocN.
     eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_LitIntU).
@@ -755,11 +740,12 @@ Section meas_semantics.
     }
     mcrunch_fst.
   Qed.
-*)
   Hint Resolve aux_allocN_Z_meas : measlang.
+*)
 
-  Lemma aux_allocN_v_meas : measurable_fun auxcov_allocN aux_allocN_v.
-  Proof.
+  Lemma aux_alloc_v_meas : measurable_fun auxcov_alloc aux_alloc_v.
+  Proof. Admitted.
+  (*
     unfold aux_allocN_v.
     unfold auxcov_allocN.
     eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_ValU).
@@ -792,32 +778,32 @@ Section meas_semantics.
       by eexists.
     }
     by eapply @measurable_fst_restriction; eauto with measlang.
-  Qed.
-  Hint Resolve aux_allocN_v_meas : measlang.
+  Qed.*)
+  Hint Resolve aux_alloc_v_meas : measlang.
 
-  Lemma aux_allocN_σ_meas : measurable_fun auxcov_allocN aux_allocN_σ.
+  Lemma aux_alloc_σ_meas : measurable_fun auxcov_alloc aux_alloc_σ.
   Proof.
     by eapply @measurable_snd_restriction; eauto with measlang.
   Qed.
-  Hint Resolve aux_allocN_σ_meas : measlang.
+  Hint Resolve aux_alloc_σ_meas : measlang.
 
-  Lemma aux_allocN_meas : measurable_fun auxcov_allocN aux_allocN.
+  Lemma aux_alloc_meas : measurable_fun auxcov_alloc aux_alloc.
   Proof.
     mcrunch_prod; try by eauto with measlang.
   Qed.
-  Hint Resolve aux_allocN_meas : measlang.
+  Hint Resolve aux_alloc_meas : measlang.
 
-  Lemma cover_allocN_ok_meas : measurable cover_allocN_ok.
+  Lemma cover_alloc_ok_meas : measurable cover_alloc_ok.
   Proof.
     mcrunch_prod; try by eauto with measlang.
   Qed.
-  Hint Resolve cover_allocN_ok_meas : measlang.
+  Hint Resolve cover_alloc_ok_meas : measlang.
 
-  Lemma cover_allocN_stuck_meas : measurable cover_allocN_stuck.
+  Lemma cover_alloc_stuck_meas : measurable cover_alloc_stuck.
   Proof.
     mcrunch_prod; try by eauto with measlang.
   Qed.
-  Hint Resolve cover_allocN_stuck_meas : measlang.
+  Hint Resolve cover_alloc_stuck_meas : measlang.
 
   Lemma auxcov_load_meas : measurable auxcov_load.
   Proof. unfold auxcov_load. by eauto with measlang. Qed.
@@ -1348,19 +1334,19 @@ Section meas_semantics.
           else gZero
 
    *)
-  Definition head_stepM_allocN_ok : cfg -> giryM cfg :=
+  Definition head_stepM_alloc_ok : cfg -> giryM cfg :=
     ssrfun.comp (gRet) $
     mProd
       (ssrfun.comp ValU $
        ssrfun.comp LitVU $
        ssrfun.comp LitLocU $
        ssrfun.comp state_allocNCE $
-       aux_allocN)
+       aux_alloc)
       (ssrfun.comp state_allocNCS $
-       aux_allocN).
+       aux_alloc).
 
   (* TODO: Delete *)
-  Definition head_stepM_allocN_stuck: cfg -> giryM cfg :=
+  Definition head_stepM_alloc_stuck: cfg -> giryM cfg :=
     cst gZero.
 
   (*
@@ -1585,9 +1571,9 @@ Section meas_semantics.
     | Snd (Val (PairV _ _))                                => head_stepM_snd c
     | Case (Val (InjLV _)) _ _                             => head_stepM_caseL c
     | Case (Val (InjRV _)) _ _                             => head_stepM_caseR c
-    | AllocN (Val (LitV (LitInt N))) (Val v)               => (if_in cover_allocN_ok
-                                                                head_stepM_allocN_ok
-                                                                head_stepM_allocN_stuck) c
+    | Alloc (Val v)                                        => (if_in cover_alloc_ok
+                                                                head_stepM_alloc_ok
+                                                                head_stepM_alloc_stuck) c
     | Load (Val (LitV (LitLoc l)))                         => (if_in cover_load_ok
                                                                 head_stepM_load_ok
                                                                 head_stepM_load_stuck) c
@@ -2140,16 +2126,17 @@ Section meas_semantics.
   Qed.
   Hint Resolve head_stepM_binop_stuck_meas : measlang.
 
-  Lemma head_stepM_allocN_ok_meas : measurable_fun cover_allocN_ok head_stepM.
-  Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_allocN_ok).
+  Lemma head_stepM_alloc_ok_meas : measurable_fun cover_alloc_ok head_stepM.
+  Proof. Admitted.
+  (*
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_alloc_ok).
     - mcrunch_comp.
       mcrunch_prod.
       { mcrunch_compC ValU_measurable.
         mcrunch_compC LitVU_measurable.
         mcrunch_compC LitLocU_measurable.
         mcrunch_comp.
-        { rewrite /subset/cover_allocN_ok/auxcov_allocN_ok//=.
+        { rewrite /subset/cover_alloc_ok/auxcov_allocN_ok//=.
           move=> [??].
           repeat move=>[++]; move=>??//=.
           repeat move=>[++]; move=>?//=.
@@ -2205,12 +2192,13 @@ Section meas_semantics.
       split; [eexists _; done|].
       split; eexists _; done.
     Unshelve. by eauto with measlang.
-  Qed.
-  Hint Resolve head_stepM_allocN_ok_meas : measlang.
+  Qed. *)
+  Hint Resolve head_stepM_alloc_ok_meas : measlang.
 
-  Lemma head_stepM_allocN_stuck_meas : measurable_fun cover_allocN_stuck head_stepM.
-  Proof.
-    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_allocN_stuck).
+  Lemma head_stepM_alloc_stuck_meas : measurable_fun cover_alloc_stuck head_stepM.
+  Proof. Admitted.
+  (*
+    eapply (mathcomp_measurable_fun_ext _ _ head_stepM_alloc_stuck).
     - by apply measurable_cst.
     - move=> [??].
       repeat move=>[++]; move=>?//=.
@@ -2227,8 +2215,8 @@ Section meas_semantics.
     (*
     Unshelve. by eauto with measlang.
   Qed.
-*)
-  Hint Resolve head_stepM_allocN_stuck_meas : measlang.
+*) *)
+  Hint Resolve head_stepM_alloc_stuck_meas : measlang.
 
   Lemma head_stepM_load_ok_meas : measurable_fun cover_load_ok head_stepM.
   Proof.
@@ -2696,8 +2684,8 @@ Section meas_semantics.
     - by apply cover_snd_meas.
     - by apply cover_caseL_meas.
     - by apply cover_caseR_meas.
-    - by apply cover_allocN_ok_meas.
-    - by apply cover_allocN_stuck_meas.
+    - by apply cover_alloc_ok_meas.
+    - by apply cover_alloc_stuck_meas.
     - by apply cover_load_ok_meas.
     - by apply cover_load_stuck_meas.
     - by apply cover_store_ok_meas.
@@ -2731,8 +2719,8 @@ Section meas_semantics.
     - by apply head_stepM_snd_meas.
     - by apply head_stepM_caseL_meas.
     - by apply head_stepM_caseR_meas.
-    - by apply head_stepM_allocN_ok_meas.
-    - by apply head_stepM_allocN_stuck_meas.
+    - by apply head_stepM_alloc_ok_meas.
+    - by apply head_stepM_alloc_stuck_meas.
     - by apply head_stepM_load_ok_meas.
     - by apply head_stepM_load_stuck_meas.
     - by apply head_stepM_store_ok_meas.

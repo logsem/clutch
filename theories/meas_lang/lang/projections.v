@@ -76,8 +76,7 @@ Definition 𝜋_InjR_e       (e : expr)     : expr             := match e with |
 Definition 𝜋_Case_c       (e : expr)     : expr             := match e with | Case e _ _ => e | _ => point end.
 Definition 𝜋_Case_l       (e : expr)     : expr             := match e with | Case _ e _ => e | _ => point end.
 Definition 𝜋_Case_r       (e : expr)     : expr             := match e with | Case _ _ e => e | _ => point end.
-Definition 𝜋_AllocN_N     (e : expr)     : expr             := match e with | AllocN e _ => e | _ => point end.
-Definition 𝜋_AllocN_e     (e : expr)     : expr             := match e with | AllocN _ e => e | _ => point end.
+Definition 𝜋_Alloc_e     (e : expr)     : expr             := match e with | Alloc e => e | _ => point end.
 Definition 𝜋_Load_e       (e : expr)     : expr             := match e with | Load e => e | _ => point end.
 Definition 𝜋_Store_l      (e : expr)     : expr             := match e with | Store e _ => e | _ => point end.
 Definition 𝜋_Store_e      (e : expr)     : expr             := match e with | Store _ e => e | _ => point end.
@@ -115,21 +114,13 @@ Definition 𝜋_PairU := Package2 𝜋_Pair_l 𝜋_Pair_r.
 Definition 𝜋_InjLU := 𝜋_InjL_e.
 Definition 𝜋_InjRU := 𝜋_InjR_e.
 Definition 𝜋_CaseU := Package3 𝜋_Case_c 𝜋_Case_l 𝜋_Case_r.
-Definition 𝜋_AllocNU := Package2 𝜋_AllocN_N 𝜋_AllocN_e.
+Definition 𝜋_AllocU := 𝜋_Alloc_e.
 Definition 𝜋_LoadU := 𝜋_Load_e.
 Definition 𝜋_StoreU := Package2 𝜋_Store_l 𝜋_Store_e.
 Definition 𝜋_AllocTapeU := 𝜋_AllocTape_e.
 Definition 𝜋_RandU := Package2 𝜋_Rand_t 𝜋_Rand_N.
 Definition 𝜋_URandU := 𝜋_URand_e.
 Definition 𝜋_TickU := 𝜋_Tick_e.
-
-
-
-
-
-
-
-
 
 
 (** Primitive Projection functions measurability *)
@@ -1539,51 +1530,9 @@ Proof.
 Qed.
 Hint Resolve 𝜋_Case_r_meas : measlang.
 
-Lemma 𝜋_AllocN_N_meas      : measurable_fun ecov_alloc 𝜋_AllocN_N.
+Lemma 𝜋_Alloc_e_meas      : measurable_fun ecov_alloc 𝜋_Alloc_e.
 Proof.
-  into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
-  move=> [SB + ->].
-  move=> [C ? <-].
-  rewrite /ecov_pair/setI/=.
-  eapply (eq_measurable
-            (\bigcup_n [set x | (∃ e1 e2 : expr_pre, x = AllocNC e1 e2 /\
-                                           (expr_ST (gen_expr (expr_shape_enum n)) e2)) ∧
-                                expr_ST C (𝜋_AllocN_N x)])); last first.
-  { apply /predeqP =>y /=.
-    split.
-    - move=> [[? [z ->]] +]; simpl; move=> ?.
-      destruct (expr_shape_enum_surj (shape_expr z)).
-      eexists _; [done|].
-      split; [|done].
-      eexists _; eexists _; split; [done|].
-      by rewrite -expr_shape_cyl.
-    - move=> [? _ [[? [? [-> ?]]] +]]; simpl; move=> ?.
-      split; [|done].
-      by eexists _; eexists _; eauto.
-  }
-
-  apply bigcup_measurable; move=> k _.
-  apply sub_sigma_algebra.
-  eexists (AllocN C (gen_expr (expr_shape_enum k))).
-  { split; [done|]. by apply gen_expr_generator. }
-
-  apply /predeqP =>y /=.
-  split.
-  - move=> [? ? [ ? ? <-]].
-    split.
-    + by eexists _; eexists _; eauto.
-    + by simpl.
-  - move=> [[? [? [-> ?]]] +]; simpl; move=> ?.
-    eexists _; [done|].
-    eexists _; [done|].
-    done.
-Qed.
-Hint Resolve 𝜋_AllocN_N_meas : measlang.
-
-
-Lemma 𝜋_AllocN_e_meas      : measurable_fun ecov_alloc 𝜋_AllocN_e.
-Proof.
+  (*
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1621,8 +1570,9 @@ Proof.
     eexists _; [done|].
     eexists _; [done|].
     done.
-Qed.
-Hint Resolve 𝜋_AllocN_e_meas : measlang.
+*)
+  Admitted.
+Hint Resolve 𝜋_Alloc_e_meas : measlang.
 
 Lemma 𝜋_Load_e_meas        : measurable_fun ecov_load 𝜋_Load_e.
 Proof.
@@ -1981,9 +1931,9 @@ Definition 𝜋_CaseU_meas : measurable_fun ecov_case 𝜋_CaseU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_CaseU_meas : measlang.
 
-Definition 𝜋_AllocNU_meas : measurable_fun ecov_alloc 𝜋_AllocNU.
+Definition 𝜋_AllocU_meas : measurable_fun ecov_alloc 𝜋_AllocU.
 Proof. by solve_packaged_meas. Qed.
-Hint Resolve 𝜋_AllocNU_meas : measlang.
+Hint Resolve 𝜋_AllocU_meas : measlang.
 
 Definition 𝜋_LoadU_meas : measurable_fun ecov_load 𝜋_LoadU.
 Proof. by solve_packaged_meas. Qed.
