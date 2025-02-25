@@ -1462,7 +1462,7 @@ Section meas_semantics.
       destruct and apply RandAllcoTapeE/S
   *)
   Definition head_stepM_allocTape : cfg -> giryM cfg :=
-    ifIn (ssrfun.comp rand_allocTape_ok_cov head_stepM_allocTape_aux)
+    if_in (ssrfun.comp rand_allocTape_ok_cov head_stepM_allocTape_aux)
       (ssrfun.comp (gRet) $
         mProd
         (ssrfun.comp ValU $
@@ -1481,7 +1481,7 @@ Section meas_semantics.
         gRet ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : cfg)
    *)
   Definition head_stepM_allocUTape : cfg -> giryM cfg :=
-    ifIn (ssrfun.comp rand_allocUTape_ok_cov snd)
+    if_in (ssrfun.comp rand_allocUTape_ok_cov snd)
       (ssrfun.comp (gRet) $
       mProd
         (ssrfun.comp ValU $
@@ -1585,13 +1585,13 @@ Section meas_semantics.
     | Snd (Val (PairV _ _))                                => head_stepM_snd c
     | Case (Val (InjLV _)) _ _                             => head_stepM_caseL c
     | Case (Val (InjRV _)) _ _                             => head_stepM_caseR c
-    | AllocN (Val (LitV (LitInt N))) (Val v)               => (ifIn cover_allocN_ok
+    | AllocN (Val (LitV (LitInt N))) (Val v)               => (if_in cover_allocN_ok
                                                                 head_stepM_allocN_ok
                                                                 head_stepM_allocN_stuck) c
-    | Load (Val (LitV (LitLoc l)))                         => (ifIn cover_load_ok
+    | Load (Val (LitV (LitLoc l)))                         => (if_in cover_load_ok
                                                                 head_stepM_load_ok
                                                                 head_stepM_load_stuck) c
-    | Store (Val (LitV (LitLoc l))) (Val v)                => (ifIn cover_store_ok
+    | Store (Val (LitV (LitLoc l))) (Val v)                => (if_in cover_store_ok
                                                                 head_stepM_store_ok
                                                                 head_stepM_store_stuck) c
     | AllocTape (Val (LitV (LitInt z)))                    => head_stepM_allocTape c

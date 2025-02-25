@@ -36,7 +36,7 @@ Proof.
   { unfold auxcov_load_ok.
     rewrite <- (setTI (preimage _ _)).
     apply HM; try by eauto with measlang.
-    by apply option_cov_Some_meas. }
+    by apply option_cov_Some_meas_set. }
   (* Doable *)
 Admitted.
 Hint Resolve auxcov_load_ok_meas : measlang.

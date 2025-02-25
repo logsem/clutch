@@ -21,8 +21,6 @@ From clutch.prelude Require Import classical.
 
 Set Warnings "hiding-delimiting-key".
 
-Create HintDb measlang.
-
 (* Fix giryM to be the giry type with stdlib-valued real numbers *)
 Notation giryM := (giryM (R := R)).
 

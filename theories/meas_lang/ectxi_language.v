@@ -383,7 +383,7 @@ Section ectxi_language.
       fill_inj  := _;
       fill_dmap e1 σ1 := _
   }.
-  Next Obligation. by move=>Ki; apply (curry_meas R), fill_item_meas. Qed.
+  Next Obligation. by move=>Ki; apply (curry_meas_fun R), fill_item_meas. Qed.
   Next Obligation. Admitted.
   Next Obligation. Admitted.
 

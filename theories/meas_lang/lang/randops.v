@@ -487,9 +487,9 @@ Proof. Admitted.
 Hint Resolve randT_ok_meas : measlang.
 
 Definition rand_randT : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg :=
-  ifIn auxcov_randT_noTape rand_randT_noTape $
-  ifIn auxcov_randT_boundMismatch rand_randT_boundMismatch $
-  ifIn auxcov_randT_nextEmpty rand_randT_boundMismatch $
+  if_in auxcov_randT_noTape rand_randT_noTape $
+  if_in auxcov_randT_boundMismatch rand_randT_boundMismatch $
+  if_in auxcov_randT_nextEmpty rand_randT_boundMismatch $
   rand_randT_ok.
 
 (*
@@ -640,8 +640,8 @@ Proof. Admitted.
 Hint Resolve urandT_ok_meas : measlang.
 
 Definition rand_urandT : (<<discr loc>> * state)%type -> giryM cfg :=
-  ifIn auxcov_urandT_noTape rand_urandT_noTape $
-  ifIn auxcov_urandT_nextEmpty rand_urandT_nextEmpty $
+  if_in auxcov_urandT_noTape rand_urandT_noTape $
+  if_in auxcov_urandT_nextEmpty rand_urandT_nextEmpty $
   rand_urandT_ok .
 
 (*

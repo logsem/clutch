@@ -69,6 +69,63 @@ Section fin_pointed.
   HB.instance Definition _ N := isPointed.Build ('I_(S m)) Ism_inhabitant.
 End fin_pointed.
 
+Section curry.
+  Context (R : realType). (* This is due to a bug in mathcomp analysis, delete me. *)
+
+  Context {d1 d2 d3 : measure_display}.
+  Context {T1 : measurableType d1}.
+  Context {T2 : measurableType d2}.
+  Context {T3 : measurableType d3}.
+
+  Context (f : (T1 * T2) -> T3).
+  Context (mf : measurable_fun setT f).
+  Context (x : T1).
+
+  Lemma curry_meas_fun : measurable_fun setT ((curry f) x).
+  Proof using R T1 T2 T3 d1 d2 d3 f mf x.
+    intros _ U MU.
+    rewrite setTI /curry //=.
+    suffices H : ((fun y : T2 => f (x, y)) @^-1` U) = xsection (f @^-1` U) x.
+    { rewrite H.
+      eapply (measurable_xsection R _). (* I can see no reason why measurable_xsection needs R? *)
+      rewrite <- (setTI (preimage _ _)).
+      eapply (@mf _ U MU).
+      Unshelve. by apply @measurableT.
+    }
+    apply /predeqP =>y /=.
+    rewrite /xsection/=.
+    by rewrite in_setE //=.
+  Qed.
+
+End curry.
+
+Section uncurry_nat.
+
+  (* TODO: Generalize to all genSingletonType *)
+  Lemma uncurry_nat_measurable {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+          (f : nat -> T1 -> T2) (Hf : forall i, measurable_fun setT (f i)) :
+        measurable_fun setT (uncurry f).
+  Proof.
+    intros _ Y HY.
+    have -> : ((uncurry f) @^-1` Y) = (\bigcup_i ((setX [set i] ((f i) @^-1` Y)) : set (nat * _)%type)).
+    { rewrite /uncurry/preimage/setX//=.
+      apply /predeqP =>[[n ?]] /=.
+      split.
+      { intros H. by exists n. }
+      { move=>[x ?]//=. by move=>[-> ?]//=. }
+    }
+    rewrite setTI.
+    apply bigcup_measurable.
+    intros i ?.
+    apply measurableX.
+    { by rewrite /measurable//=. }
+    rewrite <-(setTI (preimage _ _)).
+    by eapply (Hf i _ Y HY).
+    Unshelve. by apply @measurableT.
+  Qed.
+
+End uncurry_nat.
+
 
 #[short(type=genSingletonType)]
 HB.structure Definition GenSingletons := {T of isPointed T & Countable T}.
@@ -388,7 +445,160 @@ Section subspaces.
 
   Global Arguments mathcomp_measurable_fun_restiction_setT {_} {_} {_} {_}.
 
+  Lemma measurable_fun_setI1 {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+     (f : T1 -> T2) (S1 S2 : set T1) (MS1 : measurable S1) (MS2 : measurable S2) (MF : measurable_fun S1 f) :
+     measurable_fun (S1 `&` S2) f.
+  Proof.
+    move=>???.
+    rewrite (setIC S1 S2); rewrite <-setIA.
+    apply measurableI; [done|].
+    apply MF; done.
+  Qed.
+  Global Arguments measurable_fun_setI1 {_} {_} {_} {_}.
+
+
+  Lemma measurable_fun_setI2 {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+     (f : T1 -> T2) (S1 S2 : set T1) (MS1 : measurable S1) (MS2 : measurable S2) (MF : measurable_fun S2 f) :
+     measurable_fun (S1 `&` S2) f.
+  Proof. by rewrite (setIC S1 S2); apply measurable_fun_setI1. Qed.
 End subspaces.
+
+
+Definition image3 {TA TB TC rT} (A : set TA) (B : set TB) (C : set TC) (f : TA -> TB -> TC -> rT) :=
+  [set z | exists2 x, A x & exists2 y, B y & exists2 w, C w & f x y w = z].
+Arguments image3 _ _ _ _ _ _ _ _ /.
+
+Definition image4 {TA TB TC TD rT} (A : set TA) (B : set TB) (C : set TC) (D : set TD) (f : TA -> TB -> TC -> TD -> rT) :=
+  [set z | exists2 x, A x & exists2 y, B y & exists2 w, C w & exists2 v, D v & f x y w v = z].
+Arguments image4 _ _ _ _ _ _ _ _ _ /.
+
+Lemma eq_measurable {d} {T : measurableType d} (X Y : set T) :
+  d.-measurable X -> Y = X -> d.-measurable Y.
+Proof. by move=>?->. Qed.
+
+
+Notation mProd f g := (fun x => (f x, g x)).
+Notation "f △ g" := (mProd f g) (at level 70, no associativity).
+
+Section products.
+
+  (** Strict generalization of the version in mathcomp *)
+  Lemma prod_measurable_funP' {d d1 d2} {T : measurableType d} {T1 : measurableType d1} {T2 : measurableType d2}
+    (h : T -> T1 * T2) (S : set T) (HS : measurable S) :
+    measurable_fun S h <-> measurable_fun S (ssrfun.comp fst h) /\ measurable_fun S (ssrfun.comp snd h).
+  Proof.
+    split.
+    - intro H.
+      apply (@mathcomp_restriction_is_measurable _ _ _ _ S HS h) in H.
+      apply (prod_measurable_funP (h \_ S)) in H.
+      destruct H as [H1 H2].
+      by split; apply (@mathcomp_restriction_measurable_of_measurable _ _ _ _ S HS); rewrite restrict_comp.
+    - intros [H1 H2].
+      eapply (@mathcomp_restriction_is_measurable _ _ _ _ S HS _) in H1.
+      eapply (@mathcomp_restriction_is_measurable _ _ _ _ S HS _) in H2.
+      rewrite restrict_comp in H1; [|done].
+      rewrite restrict_comp in H2; [|done].
+      have X := iffRL (prod_measurable_funP (h \_ S)) (conj H1 H2).
+      apply (@mathcomp_restriction_measurable_of_measurable _ _ _ _ S HS _ X).
+  Qed.
+
+  (** Strict generalization of the version in mathcomp *)
+  Lemma measurable_fun_prod' {d d1 d2} {T : measurableType d} {T1 : measurableType d1} {T2 : measurableType d2}
+    (f : T -> T1) (g : T -> T2) (S : set T) (HS : measurable S):
+    measurable_fun S f -> measurable_fun S g ->
+    measurable_fun S (fun x => (f x, g x)).
+  Proof. by move=>??; exact/prod_measurable_funP'. Qed.
+  Global Arguments measurable_fun_prod' {_} {_} {_} {_} {_} {_}.
+
+  Lemma measurable_fst_restriction {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} {S : set (T1 * T2)%type} (H : measurable S) :
+    measurable_fun S fst.
+  Proof.
+    eapply @mathcomp_measurable_fun_restiction_setT.
+    - done.
+    - by apply measurable_fst.
+  Qed.
+
+  Lemma measurable_snd_restriction {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} {S : set (T1 * T2)%type} (H : measurable S) :
+    measurable_fun S snd.
+  Proof.
+    eapply @mathcomp_measurable_fun_restiction_setT.
+    - done.
+    - by apply measurable_snd.
+  Qed.
+
+End products.
+
+
+Section comp.
+
+  Lemma measurable_compT {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+         (f : T2 -> T3) (E : set T1) (g : T1 -> T2)
+         (HE : d1.-measurable E) (Hf : measurable_fun setT f)
+         (Hg : measurable_fun E g) : measurable_fun E (ssrfun.comp f g).
+  Proof.
+    have MT : measurable (setT : set T2) by eauto.
+    by eapply (measurable_comp MT _ Hf Hg).
+    Unshelve.
+    by rewrite /subset//=.
+  Qed.
+
+  Lemma measurable_compT' {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+         (f : T2 -> T3) (E : set T1) (g : T1 -> T2)
+         (HE : d1.-measurable E) (Hf : measurable_fun setT f)
+         (Hg : measurable_fun E g) : measurable_fun E (ssrfun.comp f g).
+  Proof.
+    have MT : measurable (setT : set T2) by eauto.
+    by eapply (measurable_comp MT _ Hf Hg).
+    Unshelve.
+    by rewrite /subset//=.
+  Qed.
+
+End comp.
+
+(** A function into a generated measurableType is a measurable function
+    when the preimages of the generators are measurable.  *)
+
+Create HintDb measlang.
+
+Ltac into_gen_measurable := eapply measurability; [by eauto|].
+
+(* Really slow when I add it to mcrunch *)
+Ltac mcrunch_fst := apply measurable_fst_restriction; by eauto with measlang.
+
+Ltac mcrunch_snd := apply measurable_snd_restriction; by eauto with measlang.
+
+(** Wrapper around eauto for finishing tactics *)
+Ltac mcrunch := by eauto with measlang.
+
+(** For proving the measurability of a composition where the first composite function
+    can be solved by eauto on a set, and the measurability is not on the top set. *)
+Ltac mcrunch_comp :=
+  ( eapply @measurable_comp; [ | | by eauto with measlang | ]; try by eauto with measlang ).
+
+(** For proving the measurability of a composition by a constructor.
+    First argument is the constructor measurability proof. *)
+Ltac mcrunch_compC H :=
+  ( eapply @measurable_compT; [ by eauto with measlang | by apply H | ] ).
+
+(** Measurability of mprod
+    Doesn't always work, if it gets confused you need to unroll the arguments to
+    measurable_fun_prod' *)
+Ltac mcrunch_prod := ( eapply @measurable_fun_prod'; first by eauto with measlang ).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 Section option_salgebra_instance.
@@ -429,38 +639,41 @@ Section option_salgebra_instance.
 
 End option_salgebra_instance.
 
-Lemma Some_measurable {d1} {T : measurableType d1} : measurable_fun setT (Some : T -> option T).
-Proof.
-  eapply measurability; first done.
-  rewrite /preimage_class/subset//=.
-  intros ? [? [x ? <-] <-].
-  rewrite setTI/preimage//=.
-  unfold option_ML in H.
-  destruct x; rewrite //=.
-  { admit. }
-  { admit. }
-Admitted.
-Hint Resolve Some_measurable : measlang.
+Section option.
 
-(* Shapes? *)
+  Lemma Some_meas_fun {d1} {T : measurableType d1} : measurable_fun setT (Some : T -> option T).
+  Proof.
+    eapply measurability; first done.
+    rewrite /preimage_class/subset//=.
+    intros ? [? [x ? <-] <-].
+    rewrite setTI/preimage//=.
+    unfold option_ML in H.
+    destruct x; rewrite //=.
+    { admit. }
+    { admit. }
+  Admitted.
+  Hint Resolve Some_meas_fun : measlang.
 
-Definition 𝜋_Some_v {d1} {T : measurableType d1} (k : option T) : T := match k with | Some v => v | _ => point end.
-Definition option_cov_Some {d1} {T : measurableType d1} : set (option T) := [set e | exists x, e = Some x].
-Definition option_cov_None {d1} {T : measurableType d1} : set (option T) := [set e | e = None].
-Lemma option_cov_Some_meas {d1} {T : measurableType d1} : measurable (option_cov_Some : set (option T)).
-Proof. Admitted.
-Hint Resolve option_cov_Some_meas : measlang.
-Lemma option_cov_None_meas {d1} {T : measurableType d1} : measurable (option_cov_None : set (option T)).
-Proof. Admitted.
-Hint Resolve option_cov_None_meas : measlang.
-Lemma 𝜋_Some_v_meas {d1} {T : measurableType d1} (k : option T) : measurable_fun (option_cov_Some : set (option T)) 𝜋_Some_v.
-Proof. Admitted.
-Hint Resolve 𝜋_Some_v_meas : measlang.
+  (* Shapes? *)
+
+  Definition 𝜋_Some_v {d1} {T : measurableType d1} (k : option T) : T := match k with | Some v => v | _ => point end.
+  Definition option_cov_Some {d1} {T : measurableType d1} : set (option T) := [set e | exists x, e = Some x].
+  Definition option_cov_None {d1} {T : measurableType d1} : set (option T) := [set e | e = None].
+  Lemma option_cov_Some_meas_set {d1} {T : measurableType d1} : measurable (option_cov_Some : set (option T)).
+  Proof. Admitted.
+  Hint Resolve option_cov_Some_meas_set : measlang.
+  Lemma option_cov_None_meas_set {d1} {T : measurableType d1} : measurable (option_cov_None : set (option T)).
+  Proof. Admitted.
+  Hint Resolve option_cov_None_meas_set : measlang.
+  Lemma 𝜋_Some_v_meas_fun {d1} {T : measurableType d1} (k : option T) : measurable_fun (option_cov_Some : set (option T)) 𝜋_Some_v.
+  Proof. Admitted.
+  Hint Resolve 𝜋_Some_v_meas_fun : measlang.
+
+End option.
 
 
 
-Section List.
-
+Section list_salgebra_instance.
   Context {d1} {T1 : measurableType d1}.
 
   Definition list_S : Type := list (set T1).
@@ -478,8 +691,6 @@ Section List.
 
   Definition list_cyl : set (set list_T) := image list_ML list_ST.
 
-  HB.instance Definition _ := gen_eqMixin (list T1).
-  HB.instance Definition _ := gen_choiceMixin (list T1).
   HB.instance Definition _ := isPointed.Build (list T1) [::].
 
   (* FIXME: Remove *)
@@ -494,220 +705,36 @@ Section List.
     (@sigma_algebra0 _ setT list_cyl)
     list_meas_obligation
     (@sigma_algebra_bigcup _ setT list_cyl).
-End List.
 
-Definition consU {d1} {T : measurableType d1} : (T * list T)%type -> list T := uncurry List.cons.
-
-Lemma cons_measurable {d1} {T : measurableType d1} : measurable_fun setT (consU : (T * list T)%type -> list T).
-Proof. Admitted.
-Hint Resolve cons_measurable : measlang.
-
-(* Shapes? *)
-
-Definition 𝜋_cons_v {d1} {T : measurableType d1} (k : list T) : T := match k with | (v :: _) => v | _ => point end.
-Definition 𝜋_cons_vs {d1} {T : measurableType d1} (k : list T) : list T := match k with | (_ :: v) => v | _ => point end.
-Definition list_cov_cons {d1} {T : measurableType d1} : set (list T) := [set e | exists x y, e = x :: y].
-Definition list_cov_empty {d1} {T : measurableType d1} : set (list T) := [set e | e = [::]].
-Lemma list_cov_cons_meas {d1} {T : measurableType d1} : measurable (list_cov_cons : set (list T)).
-Proof. Admitted.
-Hint Resolve list_cov_cons_meas : measlang.
-Lemma list_cov_empty_meas {d1} {T : measurableType d1} : measurable (list_cov_empty : set (list T)).
-Proof. Admitted.
-Hint Resolve list_cov_empty_meas : measlang.
-Lemma 𝜋_cons_v_meas {d1} {T : measurableType d1} (k : list T) : measurable_fun (list_cov_cons : set (list T)) 𝜋_cons_v.
-Proof. Admitted.
-Hint Resolve 𝜋_cons_v_meas : measlang.
-Lemma 𝜋_cons_vs_meas {d1} {T : measurableType d1} (k : list T) : measurable_fun (list_cov_cons : set (list T)) 𝜋_cons_vs.
-Proof. Admitted.
-Hint Resolve 𝜋_cons_vs_meas : measlang.
+End list_salgebra_instance.
 
 
+Section list.
+  Definition consU {d1} {T : measurableType d1} : (T * list T)%type -> list T := uncurry List.cons.
 
+  Lemma cons_meas_fun {d1} {T : measurableType d1} : measurable_fun setT (consU : (T * list T)%type -> list T).
+  Proof. Admitted.
+  Hint Resolve cons_meas_fun : measlang.
 
+  (* Shapes? *)
 
-
-Definition image3 {TA TB TC rT} (A : set TA) (B : set TB) (C : set TC) (f : TA -> TB -> TC -> rT) :=
-  [set z | exists2 x, A x & exists2 y, B y & exists2 w, C w & f x y w = z].
-Arguments image3 _ _ _ _ _ _ _ _ /.
-
-Lemma eq_measurable {d} {T : measurableType d} (X Y : set T) :
-  d.-measurable X -> Y = X -> d.-measurable Y.
-Proof. by move=>?->. Qed.
-
-(** A function into a generated measurableType is a measurable function
-    when the preimages of the generators are measurable.  *)
-Ltac into_gen_measurable := eapply measurability; [by eauto|].
-
-(*  Definition fin_to_nat {N : nat} (x : 'I_(S N)) : Z.
-Admitted. *)
-
-(** Strict generalization of the version in mathcomp *)
-Lemma prod_measurable_funP' {d d1 d2} {T : measurableType d} {T1 : measurableType d1} {T2 : measurableType d2}
-  (h : T -> T1 * T2) (S : set T) (HS : measurable S) :
-  measurable_fun S h <-> measurable_fun S (ssrfun.comp fst h) /\ measurable_fun S (ssrfun.comp snd h).
-Proof.
-  split.
-  - intro H.
-    apply (@mathcomp_restriction_is_measurable _ _ _ _ S HS h) in H.
-    apply (prod_measurable_funP (h \_ S)) in H.
-    destruct H as [H1 H2].
-    by split; apply (@mathcomp_restriction_measurable_of_measurable _ _ _ _ S HS); rewrite restrict_comp.
-  - intros [H1 H2].
-    eapply (@mathcomp_restriction_is_measurable _ _ _ _ S HS _) in H1.
-    eapply (@mathcomp_restriction_is_measurable _ _ _ _ S HS _) in H2.
-    rewrite restrict_comp in H1; [|done].
-    rewrite restrict_comp in H2; [|done].
-    have X := iffRL (prod_measurable_funP (h \_ S)) (conj H1 H2).
-    apply (@mathcomp_restriction_measurable_of_measurable _ _ _ _ S HS _ X).
-Qed.
-
-(** Strict generalization of the version in mathcomp *)
-Lemma measurable_fun_prod' {d d1 d2} {T : measurableType d} {T1 : measurableType d1} {T2 : measurableType d2}
-  (f : T -> T1) (g : T -> T2) (S : set T) (HS : measurable S):
-  measurable_fun S f -> measurable_fun S g ->
-  measurable_fun S (fun x => (f x, g x)).
-Proof. by move=>??; exact/prod_measurable_funP'. Qed.
-Global Arguments measurable_fun_prod' {_} {_} {_} {_} {_} {_}.
-
-Notation mProd f g := (fun x => (f x, g x)).
-Notation "f △ g" := (mProd f g) (at level 70, no associativity).
-
-Lemma measurable_compT {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
-       (f : T2 -> T3) (E : set T1) (g : T1 -> T2)
-       (HE : d1.-measurable E) (Hf : measurable_fun setT f)
-       (Hg : measurable_fun E g) : measurable_fun E (ssrfun.comp f g).
-Proof.
-  have MT : measurable (setT : set T2) by eauto.
-  by eapply (measurable_comp MT _ Hf Hg).
-  Unshelve.
-  by rewrite /subset//=.
-Qed.
-
-Lemma measurable_compT' {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
-       (f : T2 -> T3) (E : set T1) (g : T1 -> T2)
-       (HE : d1.-measurable E) (Hf : measurable_fun setT f)
-       (Hg : measurable_fun E g) : measurable_fun E (ssrfun.comp f g).
-Proof.
-  have MT : measurable (setT : set T2) by eauto.
-  by eapply (measurable_comp MT _ Hf Hg).
-  Unshelve.
-  by rewrite /subset//=.
-Qed.
-
-Lemma measurable_fun_setI1 {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
-   (f : T1 -> T2) (S1 S2 : set T1) (MS1 : measurable S1) (MS2 : measurable S2) (MF : measurable_fun S1 f) :
-   measurable_fun (S1 `&` S2) f.
-Proof.
-  move=>???.
-  rewrite (setIC S1 S2); rewrite <-setIA.
-  apply measurableI; [done|].
-  apply MF; done.
-Qed.
-Global Arguments measurable_fun_setI1 {_} {_} {_} {_}.
-
-
-Lemma measurable_fun_setI2 {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
-   (f : T1 -> T2) (S1 S2 : set T1) (MS1 : measurable S1) (MS2 : measurable S2) (MF : measurable_fun S2 f) :
-   measurable_fun (S1 `&` S2) f.
-Proof. by rewrite (setIC S1 S2); apply measurable_fun_setI1. Qed.
-
-
-Lemma measurable_fst_restriction {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} {S : set (T1 * T2)%type} (H : measurable S) :
-  measurable_fun S fst.
-Proof.
-  eapply @mathcomp_measurable_fun_restiction_setT.
-  - done.
-  - by apply measurable_fst.
-Qed.
-
-Lemma measurable_snd_restriction {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} {S : set (T1 * T2)%type} (H : measurable S) :
-  measurable_fun S snd.
-Proof.
-  eapply @mathcomp_measurable_fun_restiction_setT.
-  - done.
-  - by apply measurable_snd.
-Qed.
-
-(** Tactics *)
-
-(* Really slow when I add it to mcrunch *)
-Ltac mcrunch_fst := apply measurable_fst_restriction; by eauto with measlang.
-
-Ltac mcrunch_snd := apply measurable_snd_restriction; by eauto with measlang.
-
-(** Wrapper around eauto for finishing tactics *)
-Ltac mcrunch := by eauto with measlang.
-
-(** For proving the measurability of a composition where the first composite function
-    can be solved by eauto on a set, and the measurability is not on the top set. *)
-Ltac mcrunch_comp :=
-  ( eapply @measurable_comp; [ | | by eauto with measlang | ]; try by eauto with measlang ).
-
-(** For proving the measurability of a composition by a constructor.
-    First argument is the constructor measurability proof. *)
-Ltac mcrunch_compC H :=
-  ( eapply @measurable_compT; [ by eauto with measlang | by apply H | ] ).
-
-(** Measurability of mprod
-    Doesn't always work, if it gets confused you need to unroll the arguments to
-    measurable_fun_prod' *)
-Ltac mcrunch_prod := ( eapply @measurable_fun_prod'; first by eauto with measlang ).
-
-
-Section measurable_curry.
-
-  (** Currying a function and then applying to a value yields a measurable function *)
-
-  Context (R : realType). (* This is due to a bug in mathcomp analysis, delete me. *)
-
-  Context {d1 d2 d3 : measure_display}.
-  Context {T1 : measurableType d1}.
-  Context {T2 : measurableType d2}.
-  Context {T3 : measurableType d3}.
-
-  Context (f : (T1 * T2) -> T3).
-  Context (mf : measurable_fun setT f).
-  Context (x : T1).
-
-  Lemma curry_meas : measurable_fun setT ((curry f) x).
-  Proof using R T1 T2 T3 d1 d2 d3 f mf x.
-    intros _ U MU.
-    rewrite setTI /curry //=.
-    suffices H : ((fun y : T2 => f (x, y)) @^-1` U) = xsection (f @^-1` U) x.
-    { rewrite H.
-      eapply (measurable_xsection R _). (* I can see no reason why measurable_xsection needs R? *)
-      rewrite <- (setTI (preimage _ _)).
-      eapply (@mf _ U MU).
-      Unshelve. by apply @measurableT.
-    }
-    apply /predeqP =>y /=.
-    rewrite /xsection/=.
-    by rewrite in_setE //=.
-  Qed.
-
-End measurable_curry.
-
-(*
-Section measurable_uncurry_l.
-  Context (R : realType). (* This is due to a bug in mathcomp analysis, delete me. *)
-
-  Context {d2 d3 : measure_display}.
-  Context {T1 : pointedType }.
-  Context {T2 : measurableType d2}.
-  Context {T3 : measurableType d3}.
-
-  Context (f : (<<discr T1>> * T2) -> T3).
-  Context (mf : forall x, measurable_fun setT (curry f x)).
-
-  Lemma uncurry_meas : measurable_fun setT f.
-  Proof.
-    intros _ Y HY.
-    rewrite setTI.
-    (* Augh *)
-  Admitted.
-
-End measurable_uncurry_l.
-*)
+  Definition 𝜋_cons_v {d1} {T : measurableType d1} (k : list T) : T := match k with | (v :: _) => v | _ => point end.
+  Definition 𝜋_cons_vs {d1} {T : measurableType d1} (k : list T) : list T := match k with | (_ :: v) => v | _ => point end.
+  Definition list_cov_cons {d1} {T : measurableType d1} : set (list T) := [set e | exists x y, e = x :: y].
+  Definition list_cov_empty {d1} {T : measurableType d1} : set (list T) := [set e | e = [::]].
+  Lemma list_cov_cons_meas_set {d1} {T : measurableType d1} : measurable (list_cov_cons : set (list T)).
+  Proof. Admitted.
+  Hint Resolve list_cov_cons_meas_set : measlang.
+  Lemma list_cov_empty_meas_set {d1} {T : measurableType d1} : measurable (list_cov_empty : set (list T)).
+  Proof. Admitted.
+  Hint Resolve list_cov_empty_meas_set : measlang.
+  Lemma 𝜋_cons_v_meas_fun {d1} {T : measurableType d1} (k : list T) : measurable_fun (list_cov_cons : set (list T)) 𝜋_cons_v.
+  Proof. Admitted.
+  Hint Resolve 𝜋_cons_v_meas_fun : measlang.
+  Lemma 𝜋_cons_vs_meas_fun {d1} {T : measurableType d1} (k : list T) : measurable_fun (list_cov_cons : set (list T)) 𝜋_cons_vs.
+  Proof. Admitted.
+  Hint Resolve 𝜋_cons_vs_meas_fun : measlang.
+End list.
 
 Section extern_if.
   Context {T : Type}.
@@ -739,73 +766,35 @@ Section extern_if.
 
 End extern_if.
 
-
-
-(* FIXME: move *)
-Definition image4 {TA TB TC TD rT} (A : set TA) (B : set TB) (C : set TC) (D : set TD) (f : TA -> TB -> TC -> TD -> rT) :=
-  [set z | exists2 x, A x & exists2 y, B y & exists2 w, C w & exists2 v, D v & f x y w v = z].
-Arguments image4 _ _ _ _ _ _ _ _ _ /.
-
-Section uncurry_nat_measurable.
-
-  Lemma uncurry_nat_measurable {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
-          (f : nat -> T1 -> T2) (Hf : forall i, measurable_fun setT (f i)) :
-        measurable_fun setT (uncurry f).
-  Proof.
-    intros _ Y HY.
-    have -> : ((uncurry f) @^-1` Y) = (\bigcup_i ((setX [set i] ((f i) @^-1` Y)) : set (nat * _)%type)).
-    { rewrite /uncurry/preimage/setX//=.
-      apply /predeqP =>[[n ?]] /=.
-      split.
-      { intros H. by exists n. }
-      { move=>[x ?]//=. by move=>[-> ?]//=. }
-    }
-    rewrite setTI.
-    apply bigcup_measurable.
-    intros i ?.
-    apply measurableX.
-    { by rewrite /measurable//=. }
-    rewrite <-(setTI (preimage _ _)).
-    by eapply (Hf i _ Y HY).
-    Unshelve. by apply @measurableT.
-  Qed.
-
-End uncurry_nat_measurable.
-
-Section ofOption.
+Section of_option.
   Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
 
-  Definition of_option (f : T1 -> option T2) : T1 -> T2 :=
-    fun t => match f t with | Some x => x | None => point end.
+  Definition of_option (f : T1 -> option T2) : T1 -> T2 := 𝜋_Some_v \o f.
 
-  Definition of_option_dom : set T1 :=
-    preimage Some option_cov_Some.
-
-  Lemma of_option_dom_meas : measurable of_option_dom.
+  Lemma of_option_meas_fun (f : T1 -> option T2) (Hf : measurable_fun setT f) :
+    measurable_fun (preimage f option_cov_Some) (of_option f).
   Proof. Admitted.
+  Hint Resolve of_option_meas_fun : measlang.
 
-  Lemma of_option_measurable (f : T1 -> option T2) (Hf : measurable_fun setT f) :
-    measurable_fun of_option_dom (of_option f).
-  Proof. (* Covering argument *) Admitted.
-
-End ofOption.
+End of_option.
 
 
-Section ifIn.
+Section if_in.
   Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
 
-  Definition ifIn (D : set T1) (f1 f2 : T1 -> T2) : T1 -> T2 :=
+  Definition if_in (D : set T1) (f1 f2 : T1 -> T2) : T1 -> T2 :=
     fun x => if (asbool (D x)) then f1 x else f2 x.
 
-  Lemma ifInMeasurable (D DT : set T1) (H : measurable D) (HDT  : measurable DT) (f1 f2 : T1 -> T2)
+  Lemma if_in_meas_fun (D DT : set T1) (H : measurable D) (HDT  : measurable DT) (f1 f2 : T1 -> T2)
                        (Hf1 : measurable_fun (D `&` DT) f1) (Hf2 : measurable_fun ((~` D) `&` DT) f2) :
-    measurable_fun setT (ifIn DT f1 f2).
+    measurable_fun setT (if_in DT f1 f2).
+  Proof. Admitted.
+  Hint Resolve if_in_meas_fun : measlang.
+
+  Lemma ifIn_eq_left (D : set T1) (f1 f2 : T1 -> T2) (x : T1) : D x -> if_in D f1 f2 x = f1 x.
   Proof. Admitted.
 
-  Lemma ifIn_eq_left (D : set T1) (f1 f2 : T1 -> T2) (x : T1) : D x -> ifIn D f1 f2 x = f1 x.
+  Lemma ifIn_eq_right (D : set T1) (f1 f2 : T1 -> T2) (x : T1) : ¬ D x -> if_in D f1 f2 x = f2 x.
   Proof. Admitted.
 
-  Lemma ifIn_eq_right (D : set T1) (f1 f2 : T1 -> T2) (x : T1) : ¬ D x -> ifIn D f1 f2 x = f2 x.
-  Proof. Admitted.
-
-End ifIn.
+End if_in.
