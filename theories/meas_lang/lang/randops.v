@@ -172,7 +172,7 @@ Proof.
   { by eapply @measurableT. }
   { by eapply subsetT. }
   { have -> : ((gMap' (ValU \o (LitVU \o LitIntU))) = (gMap H));
-      last by eapply @gMap_measurable.
+      last by eapply @gMap_meas_fun.
     intro t.
     admit.
     (* Don't do this here
@@ -195,7 +195,7 @@ Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT).
   { by eapply @measurableT. }
   { by eapply subsetT. }
-  { by eapply @gProd_measurable. }
+  { by eapply @gProd_meas_fun. }
   mcrunch_prod.
   { eapply (@measurable_comp _ _ _ _ _ _ setT).
     { by eapply @measurableT. }
@@ -206,7 +206,7 @@ Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT).
   { by eapply @measurableT. }
   { by eapply subsetT. }
-  { by apply gRet_measurable. }
+  { by apply gRet_meas_fun. }
   by eauto with measlang.
 Qed.
 Hint Resolve rand_rand_meas : measlang.
@@ -229,10 +229,10 @@ Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT).
   { by eapply @measurableT. }
   { by eapply subsetT. }
-  { by eapply @gProd_measurable. }
+  { by eapply @gProd_meas_fun. }
   mcrunch_prod.
   { by eauto with measlang. }
-  { by apply gRet_measurable. }
+  { by apply gRet_meas_fun. }
 Qed.
 Hint Resolve rand_urand_meas : measlang.
 

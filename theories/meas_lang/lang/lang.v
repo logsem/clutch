@@ -1613,7 +1613,7 @@ Section meas_semantics.
       try (by eauto with measlang)
     ).
 
-  Hint Resolve gRet_measurable : measlang.
+  Hint Resolve gRet_meas_fun : measlang.
 
 
 
@@ -1622,7 +1622,7 @@ Section meas_semantics.
   Proof.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_rec head_stepM).
     - solve_toplevel_meas.
-      { by apply gRet_measurable. }
+      { by apply gRet_meas_fun. }
       apply @NonStatefulU_meas; solve_toplevel_meas. (* How to integrate this into the tactic w/o stack overflow?*)
       (* Why do these not get applied form the hintdb? *)
       - by apply ValU_measurable.
@@ -1643,7 +1643,7 @@ Section meas_semantics.
       { apply 𝜋_PairU_meas; last apply measurableX; by eauto with measlang.  }
       apply measurable_compT.
       { by apply cover_pair_meas. }
-      { by apply gRet_measurable. }
+      { by apply gRet_meas_fun. }
       apply @NonStatefulU_meas; try done.
       (*  solve_toplevel_meas. *)
       (* FIXME: Remove whatever hint is making this overapproximate the cover set
@@ -1691,7 +1691,7 @@ Section meas_semantics.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_injL head_stepM).
     - apply measurable_compT.
       { by apply cover_injL_meas. }
-      { by apply gRet_measurable. }
+      { by apply gRet_meas_fun. }
       have S : (expr_cyl.-sigma.-measurable (ecov_injl `&` 𝜋_InjLU @^-1` ecov_val)).
       { apply 𝜋_InjLU_meas; by eauto with measlang. }
       apply @NonStatefulU_meas; first done.
@@ -1724,7 +1724,7 @@ Section meas_semantics.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_injR head_stepM).
     - apply measurable_compT.
       { by apply cover_injR_meas. }
-      { by apply gRet_measurable. }
+      { by apply gRet_meas_fun. }
       have S : (expr_cyl.-sigma.-measurable (ecov_injr `&` 𝜋_InjRU @^-1` ecov_val)).
       { apply 𝜋_InjRU_meas; by eauto with measlang. }
       apply @NonStatefulU_meas; first done.
@@ -1758,7 +1758,7 @@ Section meas_semantics.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_app head_stepM).
     - apply measurable_compT.
       { by apply cover_app_meas. }
-      { by apply gRet_measurable. }
+      { by apply gRet_meas_fun. }
       have S : expr_cyl.-sigma.-measurable (ecov_app `&` 𝜋_AppU @^-1` ((ecov_val `&` 𝜋_Val_v @^-1` vcov_rec) `*` ecov_val)).
       { apply 𝜋_AppU_meas; try by eauto with measlang.
         apply measurableX; by eauto with measlang. }
@@ -1923,7 +1923,7 @@ Section meas_semantics.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_unop_ok head_stepM).
     - apply measurable_compT.
       { by apply cover_unop_ok_meas. }
-      { by apply gRet_measurable. }
+      { by apply gRet_meas_fun. }
       eapply @measurable_fun_prod'.
       { by eauto with measlang. }
       2: { eapply @mathcomp_measurable_fun_restiction_setT.
@@ -2020,7 +2020,7 @@ Section meas_semantics.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_binop_ok head_stepM).
     - apply measurable_compT.
       { by apply cover_binop_ok_meas. }
-      { by apply gRet_measurable. }
+      { by apply gRet_meas_fun. }
   Admitted.
   (*
       eapply (@measurable_fun_prod' _ _ _ _ _ _
@@ -2381,7 +2381,7 @@ Section meas_semantics.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_ifT head_stepM).
     - apply measurable_compT.
       { by apply cover_ifT_meas. }
-      { by apply gRet_measurable. }
+      { by apply gRet_meas_fun. }
       have S : expr_cyl.-sigma.-measurable (ecov_if `&` 𝜋_If_c @^-1` (ecov_val `&` 𝜋_Val_v @^-1` (vcov_lit `&` 𝜋_LitV_v @^-1` (bcov_LitBool `&` 𝜋_LitBool_b @^-1` [set true])))).
      { apply 𝜋_If_c_meas; first by eauto with measlang.
        apply 𝜋_Val_v_meas; first by eauto with measlang.
@@ -2410,7 +2410,7 @@ Section meas_semantics.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_ifT head_stepM).
     - apply measurable_compT.
       { by apply cover_ifF_meas. }
-      { by apply gRet_measurable. }
+      { by apply gRet_meas_fun. }
       have S : expr_cyl.-sigma.-measurable (ecov_if `&` 𝜋_If_c @^-1` (ecov_val `&` 𝜋_Val_v @^-1` (vcov_lit `&` 𝜋_LitV_v @^-1` (bcov_LitBool `&` 𝜋_LitBool_b @^-1` [set false])))).
      { apply 𝜋_If_c_meas; first by eauto with measlang.
        apply 𝜋_Val_v_meas; first by eauto with measlang.
@@ -2439,7 +2439,7 @@ Section meas_semantics.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_fst head_stepM).
     - apply measurable_compT.
       { by apply cover_fst_meas. }
-      { by apply gRet_measurable. }
+      { by apply gRet_meas_fun. }
       have S : expr_cyl.-sigma.-measurable (ecov_fst `&` 𝜋_Fst_e @^-1` (ecov_val `&` 𝜋_Val_v @^-1` vcov_pair)).
       { apply 𝜋_Fst_e_meas; first by eauto with measlang.
         apply 𝜋_Val_v_meas; first by eauto with measlang.
@@ -2479,7 +2479,7 @@ Section meas_semantics.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_snd head_stepM).
     - apply measurable_compT.
       { by apply cover_snd_meas. }
-      { by apply gRet_measurable. }
+      { by apply gRet_meas_fun. }
       have S : expr_cyl.-sigma.-measurable (ecov_snd `&` 𝜋_Snd_e @^-1` (ecov_val `&` 𝜋_Val_v @^-1` vcov_pair)).
       { apply 𝜋_Snd_e_meas; first by eauto with measlang.
         apply 𝜋_Val_v_meas; first by eauto with measlang.
@@ -2519,7 +2519,7 @@ Section meas_semantics.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_caseL head_stepM).
     - apply measurable_compT.
       { by apply cover_caseL_meas. }
-      { by apply gRet_measurable. }
+      { by apply gRet_meas_fun. }
       have S : expr_cyl.-sigma.-measurable (ecov_case `&` 𝜋_Case_c @^-1` (ecov_val `&` 𝜋_Val_v @^-1` vcov_injlv)).
       { apply 𝜋_Case_c_meas; first by eauto with measlang.
         apply 𝜋_Val_v_meas; first by eauto with measlang.
@@ -2564,7 +2564,7 @@ Section meas_semantics.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_caseR head_stepM).
     - apply measurable_compT.
       { by apply cover_caseR_meas. }
-      { by apply gRet_measurable. }
+      { by apply gRet_meas_fun. }
       have S : expr_cyl.-sigma.-measurable (ecov_case `&` 𝜋_Case_c @^-1` (ecov_val `&` 𝜋_Val_v @^-1` vcov_injrv)).
       { apply 𝜋_Case_c_meas; first by eauto with measlang.
         apply 𝜋_Val_v_meas; first by eauto with measlang.
@@ -2639,7 +2639,7 @@ Section meas_semantics.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_tick head_stepM).
     - apply measurable_compT.
       { by apply cover_tick_meas. }
-      { by apply gRet_measurable. }
+      { by apply gRet_meas_fun. }
       have S : expr_cyl.-sigma.-measurable (ecov_tick `&` 𝜋_Tick_e @^-1` (ecov_val `&` 𝜋_Val_v @^-1` (vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitInt))).
       { apply 𝜋_Tick_e_meas; first by eauto with measlang.
         apply 𝜋_Val_v_meas; first by eauto with measlang.

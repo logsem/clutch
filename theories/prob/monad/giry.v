@@ -1,29 +1,18 @@
 (** Axioms of a the Giry Monad type (a sigma algebra for subdistributions) *)
 
-From mathcomp Require Import all_ssreflect all_algebra finmap.
-From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
-From mathcomp Require Import cardinality fsbigop.
-From mathcomp.analysis Require Import reals ereal signed normedtype esum numfun measure lebesgue_measure lebesgue_integral.
-From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Reals.
-From Coq Require Import Classes.Morphisms.
-
-From HB Require Import structures.
-
+From mathcomp Require Import all_ssreflect all_algebra boolp classical_sets functions.
+From mathcomp.analysis Require Import reals ereal measure lebesgue_measure lebesgue_integral.
 From clutch.prob.monad Require Export prelude.
 From clutch.prelude Require Import classical.
-
-Import Coq.Logic.FunctionalExtensionality.
 Import Coq.Relations.Relation_Definitions.
-Import Coq.Classes.RelationClasses.
+From Coq Require Import Classes.Morphisms.
+From HB Require Import structures.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 Set Default Proof Using "Type".
-
-
-
 
 Section giryM_ax.
   Local Open Scope classical_set_scope.
@@ -74,21 +63,16 @@ Proof.
     by rewrite H0 //= H1 //=.
 Qed.
 
-
-Definition degenerate {T : Type} : T -> T -> Prop := fun _ _ => True.
-
 Section giry_eval.
   Local Open Scope classical_set_scope.
   Context `{R : realType} `{d : measure_display} {T : measurableType d}.
   Notation giryM := (giryM (R := R)).
 
   Axiom gEval : forall (S : set T), (d.-measurable S) -> (giryM T -> \bar R).
-  Axiom gEval_measurable : forall (S : set T) (H : d.-measurable S), measurable_fun setT (gEval H).
+  Axiom gEval_meas_fun : forall (S : set T) (H : d.-measurable S), measurable_fun setT (gEval H).
   Axiom gEval_eval : forall (S : set T) (H : d.-measurable S) (μ : giryM T), gEval H μ = μ S.
 
 End giry_eval.
-
-
 
 Section giry_join.
   Local Open Scope classical_set_scope.
@@ -96,7 +80,7 @@ Section giry_join.
   Notation giryM := (giryM (R := R)).
 
   Axiom gJoin : giryM (giryM T) -> giryM T.
-  Axiom gJoin_measurable : measurable_fun setT gJoin.
+  Axiom gJoin_meas_fun : measurable_fun setT gJoin.
   Axiom gJoin_proper : (Proper (measure_eq ==> measure_eq) gJoin).
   Global Existing Instance gJoin_proper.
 
@@ -109,7 +93,7 @@ Section giry_map.
   Notation giryM := (giryM (R := R)).
 
   Axiom gMap : forall (f : T1 -> T2), measurable_fun setT f -> (giryM T1 -> giryM T2).
-  Axiom gMap_measurable : forall (f : T1 -> T2) (H : measurable_fun setT f), measurable_fun setT (gMap H).
+  Axiom gMap_meas_fun : forall (f : T1 -> T2) (H : measurable_fun setT f), measurable_fun setT (gMap H).
   Axiom gMap_proper : forall (f : T1 -> T2) (H : measurable_fun setT f), (Proper (measure_eq ==> measure_eq) (gMap H)).
   Global Existing Instance gMap_proper.
 
@@ -122,7 +106,7 @@ Section giry_ret.
   Notation giryM := (giryM (R := R)).
 
   Axiom gRet : T -> giryM T.
-  Axiom gRet_measurable : measurable_fun setT gRet.
+  Axiom gRet_meas_fun : measurable_fun setT gRet.
 
 End giry_ret.
 
@@ -135,13 +119,13 @@ Section giry_bind.
   Definition gBind (f : T1 -> giryM T2) (H : measurable_fun setT f) : giryM T1 -> giryM T2 :=
     gJoin \o (gMap H).
 
-  Lemma gBind_measurable (f : T1 -> giryM T2) (H : measurable_fun setT f) :  measurable_fun setT (gBind H).
+  Lemma gBind_meas_fun (f : T1 -> giryM T2) (H : measurable_fun setT f) :  measurable_fun setT (gBind H).
   Proof.
     eapply (@measurable_comp _ _ _ _ _ _ setT).
     { by eapply @measurableT. }
     { by apply subsetT. }
-    { by apply gJoin_measurable. }
-    { by apply gMap_measurable. }
+    { by apply gJoin_meas_fun. }
+    { by apply gMap_meas_fun. }
   Qed.
 
   Global Instance gBind_proper (f : T1 -> giryM T2) (H : measurable_fun setT f) : Proper (measure_eq ==> measure_eq) (gBind H).
@@ -162,15 +146,14 @@ Section giry_monad.
   Context {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}.
   Notation giryM := (giryM (R := R)).
 
-
   Axiom gJoin_assoc : forall (x : giryM (giryM (giryM T1))),
-    (gJoin \o (gMap gJoin_measurable)) x ≡μ (gJoin \o gJoin) x.
+    (gJoin \o (gMap gJoin_meas_fun)) x ≡μ (gJoin \o gJoin) x.
 
   Axiom gJoin_id1 : forall (x : giryM T1),
-   (gJoin \o (gMap gRet_measurable)) x ≡μ (gJoin \o gRet) x.
+   (gJoin \o (gMap gRet_meas_fun)) x ≡μ (gJoin \o gRet) x.
 
   Axiom gJoin_id2 : forall (x : giryM (giryM T1)) (f : T1 -> T2) (H : measurable_fun setT f),
-    (gJoin \o gMap (gMap_measurable H)) x ≡μ (gMap H \o gJoin) x.
+    (gJoin \o gMap (gMap_meas_fun H)) x ≡μ (gMap H \o gJoin) x.
 
   (*
     Laws in terms of ret and bind
@@ -227,8 +210,8 @@ Section giry_external_map.
   Definition gMap' (f : T1 -> T2) : giryM T1 -> giryM T2 :=
     extern_if (cst gZero) (fun h : measurable_fun setT f => gMap h).
 
-  Lemma gMap'_measurable (f : T1 -> T2) (H : measurable_fun setT f) : measurable_fun setT (gMap' f).
-  Proof. by rewrite /gMap' extern_if_eq; apply gMap_measurable. Qed.
+  Lemma gMap'_meas_fun (f : T1 -> T2) (H : measurable_fun setT f) : measurable_fun setT (gMap' f).
+  Proof. by rewrite /gMap' extern_if_eq; apply gMap_meas_fun. Qed.
 
   Global Instance gMap'_proper : Proper (eq ==> measure_eq ==> measure_eq) gMap'.
   Proof.
@@ -249,18 +232,10 @@ Section giry_external_bind.
   Definition gBind' (f : T1 -> giryM T2) : giryM T1 -> giryM T2 :=
     gJoin \o (gMap' f).
 
-  Lemma gBind'_measurable (f : T1 -> giryM T2) (H : measurable_fun setT f) : measurable_fun setT (gBind' f).
-  Proof. by rewrite /gBind'/gMap' extern_if_eq; apply gBind_measurable. Qed.
-
-
-  (*  Program Definition gBind'' : (<<discr (T1 -> giryM T2)>> * giryM T1)%type -> giryM T2 := *)
-
+  Lemma gBind'_meas_fun (f : T1 -> giryM T2) (H : measurable_fun setT f) : measurable_fun setT (gBind' f).
+  Proof. by rewrite /gBind'/gMap' extern_if_eq; apply gBind_meas_fun. Qed.
 
 End giry_external_bind.
-
-
-
-
 
 
 Section giry_prod.
@@ -269,56 +244,13 @@ Section giry_prod.
   Context {T1 : measurableType d1} {T2 : measurableType d2}.
   Notation giryM := (giryM (R := R)).
 
-
-
-  Check giryM (<<discr (T1 -> T2)>>).
-
   (* https://en.wikipedia.org/wiki/Giry_monad#Product_distributions  *)
-
   Axiom gProd : (giryM T1 * giryM T2) -> giryM (T1 * T2)%type.
   (*  gBind' (fun v1 => gBind' (gRet \o (pair v1)) (snd μ)) (fst μ). *)
 
-  Axiom gProd_measurable : measurable_fun setT gProd.
-
-  (*
-  Lemma gProd_measurable : measurable_fun setT gProd.
-  Proof.
-    have HM1 (v1 : T1) : measurable_fun setT (gRet \o (pair v1) : T2 -> giryM (T1 * T2)%type).
-    { eapply (@measurable_comp _ _ _ _ _ _ setT).
-      { by eapply @measurableT. }
-      { by apply subsetT. }
-      { by apply gRet_measurable. }
-      { by apply measurable_pair1. }
-    }
-    rewrite /gProd.
-    intros _ Y HY.
-    rewrite setTI/preimage//=.
-  Abort.
-   *)
+  Axiom gProd_meas_fun : measurable_fun setT gProd.
 
 End giry_prod.
-
-(*
-Definition giryM_ap {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} :
-  (giryM T1 * giryM T2)%type -> giryM (T1 * T2)%type :=
-  fun X =>
-    (ssrfun.comp
-       (giryM_bind_external ^~ (fun x => ((giryM_bind_external ^~ (fun y => giryM_ret (x, y))) (snd X))))
-       fst) X.
-
-(*
-Check fun X => (giryM_bind_external (fst X) (fun x => (giryM_bind_external (snd X) (fun y => giryM_ret (x, y))))).
-*)
-(*  \xy -> (fst xy) >>= (\x -> (snd xy) >>= (\y -> ret (x, y))) *)
-(* liftM2 (>>=) fst ((. ((ret .) . (,))) . (>>=) . snd)  *)
-
-Lemma giryM_ap_meas {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} :
-    measurable_fun setT (@giryM_ap _ _ T1 T2).
-Proof.
-  unfold giryM_ap.
-Admitted.
-*)
-
 
 
 Section giry_iterM.
@@ -356,11 +288,11 @@ Section giry_iterM.
   Proof. by rewrite <- giryM_iterN_S_rev_eq. Qed.
 *)
 
-  Lemma gIter_measurable (f : T -> giryM T) (HF : measurable_fun setT f) :
+  Lemma gIter_meas_fun (f : T -> giryM T) (HF : measurable_fun setT f) :
       forall n, measurable_fun setT (gIter n f).
   Proof.
     induction n.
-    { by rewrite giryM_iterN_zero; apply gRet_measurable. }
+    { by rewrite giryM_iterN_zero; apply gRet_meas_fun. }
     { admit.
       (*
       rewrite giryM_iterN_S_rev.

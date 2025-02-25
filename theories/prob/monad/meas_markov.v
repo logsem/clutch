@@ -180,7 +180,7 @@ Section markov.
     gIter n step a.
 
   Lemma stepN_meas (n : nat) : measurable_fun setT (stepN n).
-  Proof. by apply gIter_measurable, step_meas. Qed.
+  Proof. by apply gIter_meas_fun, step_meas. Qed.
 
   Lemma stepN_O : stepN 0 = gRet.
   Proof. done. Qed.

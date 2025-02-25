@@ -28,15 +28,18 @@ Notation giryM := (giryM (R := R)).
 HB.instance Definition _ := gen_eqMixin Z.
 HB.instance Definition _ := gen_choiceMixin Z.
 HB.instance Definition _ := isPointed.Build Z inhabitant.
+HB.saturate Z.
 
 (* Instances for binder *)
 HB.instance Definition _ := gen_eqMixin binder.
 HB.instance Definition _ := gen_choiceMixin binder.
 HB.instance Definition _ := isPointed.Build binder inhabitant.
+HB.saturate binder.
 
 (* Instances for loc *)
 HB.instance Definition _ := gen_eqMixin loc.
 HB.instance Definition _ := gen_choiceMixin loc.
 HB.instance Definition _ := isPointed.Build loc inhabitant.
+HB.saturate loc.
 
-Hint Resolve gRet_measurable : measlang.
+Hint Resolve gRet_meas_fun : measlang.
