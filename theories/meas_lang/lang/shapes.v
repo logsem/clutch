@@ -90,6 +90,7 @@ Qed.
 
 Lemma expr_shape_cyl (s : expr_shape) : [set e | shape_expr e = s] = expr_ST (gen_expr s).
 Proof.
+  (*
   apply /predeqP =>b.
   have D1 : [set e | shape_expr e = s] b -> expr_ST (gen_expr s) b.
   { destruct b.
@@ -107,6 +108,7 @@ Proof.
     all: admit.
   }
   by split.
+*)
 Admitted.
 
 Lemma val_shape_cyl (s : val_shape) : [set e | shape_val e = s] = val_ST (gen_val s).
@@ -120,36 +122,6 @@ Definition expr_shape_enum (n : nat) : expr_shape. Admitted.
 Definition val_shape_enum (n : nat) : val_shape. Admitted.
 
 Definition base_lit_shape_enum (n : nat) : base_lit_shape. Admitted.
-
-Definition binder_enum (n : nat) : <<discr binder>> :=
-  match (decode $ Pos.of_nat n) with
-  | Some x => x
-  | None => point
-  end.
-
-Definition un_op_enum (n : nat) : <<discr un_op>> :=
-  match n with
-  | 0 => NegOp
-  | _ => MinusUnOp
-  end.
-
-Definition bin_op_enum (n : nat) : <<discr bin_op>> :=
-  match n with
-  | 0  => PlusOp
-  | 1  => MinusOp
-  | 2  => MultOp
-  | 3  => QuotOp
-  | 4  => RemOp
-  | 5  => AndOp
-  | 6  => OrOp
-  | 7  => XorOp
-  | 8  => ShiftLOp
-  | 9  => ShiftROp
-  | 10 => LeOp
-  | 11 => LtOp
-  | 12 => EqOp
-  | _ => OffsetOp
-  end.
 
 (* I only need surjectivity to prove that I don't miss any trees, so I'll use a definition
    of surjectivity appropriate for that (not the HB one, it gives us nothing) *)
@@ -219,14 +191,22 @@ Proof. by rewrite <- setI_bigcupr, expr_shape_decompT, setIT. Qed.
 Lemma val_shape_decomp S : (\bigcup_n (S `&` val_seq n)) = S.
 Proof. by rewrite <- setI_bigcupr, val_shape_decompT, setIT. Qed.
 
+(*
+Check @discr_generated_by_singletons binder.
+Check @discr_generated_by_singletons un_op.
+Check @discr_generated_by_singletons bin_op.
+*)
 
-(**  Lemma about discrete spaces *)
+
+(**  Lemma about discrete spaces
+
+TODO: Refactor code to use discr_generated_by_singletons instead (7 total usages) then delete.
+ *)
+
 Definition binder_singletons : set (set <<discr binder>>) := fun S => exists b, S = [set b].
 Definition un_op_singletons : set (set <<discr un_op>>) := fun S => exists b, S = [set b].
 Definition bin_op_singletons : set (set <<discr bin_op>>) := fun S => exists b, S = [set b].
 
-(* Not the best way to prove this. Use Countable instances instead of my custom enum functions. *)
-(* The result is true for all countable discrete types. *)
 Lemma binder_generated_by_singletons : binder.-discr.-measurable = <<s binder_singletons >>.
 Proof.
   apply /predeqP =>y //=.

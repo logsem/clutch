@@ -146,6 +146,46 @@ Section discr_gen_singletons.
     (* The type is countable so setT is the union of singletons *)
   Admitted.
 
+  (*
+
+(* Not the best way to prove this. Use Countable instances instead of my custom enum functions. *)
+(* The result is true for all countable discrete types. *)
+Lemma binder_generated_by_singletons : binder.-discr.-measurable = <<s binder_singletons >>.
+Proof.
+  apply /predeqP =>y //=.
+  simpl in *.
+  split.
+  - move=> _.
+    have ->: y = \bigcup_i ([set (binder_enum i)] `&` y).
+    { rewrite /bigcup//=.
+      apply /predeqP =>z /=.
+      split.
+      - move=> ?.
+        destruct (binder_enum_surj z) as [i ?].
+        by exists i.
+      - by move=> [i ?][-> ?].
+    }
+    apply sigma_algebra_bigcup.
+    move=> i.
+    destruct (ExcludedMiddle (y (binder_enum i))).
+    + apply sub_sigma_algebra.
+      rewrite /binder_singletons/setI //=.
+      exists (binder_enum i).
+      apply /predeqP =>z /=.
+      split.
+      + by move=> [? ?].
+      + by move=>->.
+    + have -> : ([set binder_enum i] `&` y) = set0.
+      { rewrite /setI//=.
+      apply /predeqP =>z /=.
+      split.
+      + by move=>[-> ?].
+      + by move=>?. }
+      apply sigma_algebra0.
+  - move=> _. by rewrite /measurable/=/discr_measurable/=.
+Qed.
+   *)
+
 End discr_gen_singletons.
 
 

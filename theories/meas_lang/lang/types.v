@@ -1,9 +1,10 @@
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
-From stdpp Require Import binders.
+From stdpp Require Import binders gmap.
 From mathcomp Require Import functions classical_sets.
 From mathcomp.analysis Require Import reals measure lebesgue_measure.
 From mathcomp Require Import eqtype choice boolp.
+From clutch.prelude Require Export stdpp_ext.
 From clutch.common Require Export locations.
 From clutch.meas_lang.lang Require Export prelude.
 Set Warnings "hiding-delimiting-key".
@@ -72,12 +73,36 @@ with val_pre {TZ TB TL TR : Type} :=
 Scheme expr_pre_mut := Induction for expr_pre Sort Prop
 with val_pre_mut := Induction for val_pre Sort Prop.
 
+(* Definition *)
+
+Definition binder_enum (n : nat) : <<discr binder>> :=
+  match (decode $ Pos.of_nat n) with
+  | Some x => x
+  | None => point
+  end.
+
+Section binder_countable.
+  Definition binder_pickle : binder -> nat. Admitted.
+  Definition binder_unpickle : nat -> option binder. Admitted.
+  Lemma binder_cancel : ssrfun.pcancel binder_pickle binder_unpickle. Admitted.
+  HB.instance Definition _ := Choice_isCountable.Build _ binder_cancel.
+
+End binder_countable.
+
+HB.saturate binder.
+
 (* Instances for un_op *)
 HB.instance Definition _ := gen_eqMixin un_op.
 HB.instance Definition _ := gen_choiceMixin un_op.
 HB.instance Definition _ := isPointed.Build un_op NegOp.
 
 Section un_op_countable.
+  Definition un_op_enum (n : nat) : <<discr un_op>> :=
+    match n with
+    | 0 => NegOp
+    | _ => MinusUnOp
+    end.
+
   Definition un_op_pickle : un_op -> nat. Admitted.
   Definition un_op_unpickle : nat -> option un_op. Admitted.
   Lemma un_op_cancel : ssrfun.pcancel un_op_pickle un_op_unpickle. Admitted.
@@ -92,6 +117,24 @@ HB.instance Definition _ := gen_choiceMixin bin_op.
 HB.instance Definition _ := isPointed.Build bin_op PlusOp.
 
 Section bin_op_countable.
+  Definition bin_op_enum (n : nat) : <<discr bin_op>> :=
+    match n with
+    | 0  => PlusOp
+    | 1  => MinusOp
+    | 2  => MultOp
+    | 3  => QuotOp
+    | 4  => RemOp
+    | 5  => AndOp
+    | 6  => OrOp
+    | 7  => XorOp
+    | 8  => ShiftLOp
+    | 9  => ShiftROp
+    | 10 => LeOp
+    | 11 => LtOp
+    | 12 => EqOp
+    | _ => OffsetOp
+    end.
+
   Definition bin_op_pickle : bin_op -> nat. Admitted.
   Definition bin_op_unpickle : nat -> option bin_op. Admitted.
   Lemma bin_op_cancel : ssrfun.pcancel bin_op_pickle bin_op_unpickle. Admitted.
