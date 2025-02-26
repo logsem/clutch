@@ -37,7 +37,7 @@ Notation AppU                  := (uncurry AppC).
 Definition UnOpU (v : <<discr un_op>> * expr)                     := UnOpC v.1 v.2.
 Definition BinOpU (v : <<discr bin_op>> * expr * expr)            := BinOpC v.1.1 v.1.2 v.2.
 Definition IfU (v : expr * expr * expr)                           := IfC v.1.1 v.1.2 v.2.
-Definition PairU (v : expr * expr)                                := PairC v.1 v.2.
+Notation PairU                 := (uncurry PairC).
 Notation FstU                  := FstC.
 Notation SndU                  := SndC.
 Notation InjLU                 := InjLC.
@@ -45,9 +45,9 @@ Notation InjRU                 := InjRC.
 Definition CaseU (v : expr * expr * expr)                         := CaseC v.1.1 v.1.2 v.2.
 Notation AllocU                := AllocC.
 Notation LoadU                 := LoadC.
-Definition StoreU (v : expr * expr)                               := StoreC v.1 v.2.
-Definition AllocTapeU (v : expr)                                  := AllocTapeC v.
-Definition RandU (v : expr * expr)                                := RandC v.1 v.2.
+Notation StoreU                := (uncurry StoreC).
+Notation AllocTapeU            := AllocTapeC.
+Notation RandU                 := (uncurry RandC).
 Notation AllocUTapeU           := AllocUTapeC.
 Notation UrandU                := URandC.
 Notation TickU                 := TickC.
@@ -275,35 +275,28 @@ Section constructor_measurability.
   Qed.
   Hint Resolve RecU_meas_fun : measlang.
 
-
-
   Lemma AppU_meas_fun : measurable_fun setT AppU.
-  Proof.
+  Proof. (* Note: All 2-argument proofs in this file are identical to AppU *)
     expr_ctor_meas_fun_cases.
-    4: { intros D0 D1 [HD0 HD1]; rewrite setTI.
-         ctor_2_separate_preimage; apply measurableI.
-         - apply sub_sigma_algebra.
-           right.
-           exists (expr_ST D1); first (by apply sub_sigma_algebra; exists D1 ).
-           rewrite setTI.
-           apply/seteqP; split=> x/=; rewrite /curry//=.
-           + destruct x.
-             eexists _; [done|].
-             eexists _; [done|].
-             by rewrite /AppU/uncurry//=.
-           + destruct x.
-             by move=> [??[??][?<-]].
-          - apply sub_sigma_algebra.
-            rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
-            left.
-            exists (expr_ST D0).
-            { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D0. }
-            rewrite setTI.
-            apply/seteqP; split=> x/=; destruct x.
-            + by move=>?; eexists _; [done|]; eexists _; done.
-            + by move=> [??[??[<- ?]]].
-    }
-    all: by ctor_triv_cases_2.
+    all: try by ctor_triv_cases_2.
+    intros D0 D1 [??]; rewrite setTI.
+    ctor_2_separate_preimage; apply measurableI.
+    - apply sub_sigma_algebra.
+      right.
+      eexists (expr_ST _); [by apply sub_sigma_algebra; eexists _ |].
+      rewrite setTI.
+      apply/seteqP; split=> x/=; rewrite //=; destruct x.
+      + by eexists _; [done|]; eexists _; [done|]; rewrite //=.
+      + by move=> [??[??][?<-]].
+     - apply sub_sigma_algebra.
+       rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+       left.
+       exists (expr_ST D0).
+       { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D0. }
+       rewrite setTI.
+       apply/seteqP; split=> x/=; destruct x.
+       + by move=>?; eexists _; [done|]; eexists _; done.
+       + by move=> [??[??[<- ?]]].
   Qed.
   Hint Resolve AppU_meas_fun : measlang.
 
@@ -518,34 +511,27 @@ Section constructor_measurability.
   Hint Resolve IfU_meas_fun : measlang.
 
   Lemma PairU_meas_fun : measurable_fun setT PairU.
-  Proof.
-    eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
-    move=> S /= [_ [D HD <-] <-]; rewrite setTI.
-    destruct D; rewrite /preimage/=.
-    8: {
-         simpl in HD.
-         destruct HD as [HD0 HD1].
-         rewrite Prod2Decomp.
-         { apply measurableI.
-           - apply sub_sigma_algebra.
-             right.
-             eexists _; [by apply sub_sigma_algebra; exists D2 |].
-             rewrite setTI.
-             apply/seteqP; split=> x/=.
-             + by move=>?; exists x.1; [done|]; exists x.2; done.
-             + by move=> [??[??][?<-]].
-           - apply sub_sigma_algebra.
-             left.
-             eexists _; [by apply sub_sigma_algebra; exists D1 |].
-             rewrite setTI.
-             apply/seteqP; split=> x/=.
-             + by move=>?; exists x.1; [done|]; exists x.2; done.
-             + by move=> [??[??[<- ?]]].
-        }
-        by move=>????[??]//.
-    }
-    all: by ctor_triv_case.
+  Proof. (* Note: All 2-argument proofs in this file are identical to AppU *)
+    expr_ctor_meas_fun_cases.
+    all: try by ctor_triv_cases_2.
+    intros D0 D1 [??]; rewrite setTI.
+    ctor_2_separate_preimage; apply measurableI.
+    - apply sub_sigma_algebra.
+      right.
+      eexists (expr_ST _); [by apply sub_sigma_algebra; eexists _ |].
+      rewrite setTI.
+      apply/seteqP; split=> x/=; rewrite //=; destruct x.
+      + by eexists _; [done|]; eexists _; [done|]; rewrite //=.
+      + by move=> [??[??][?<-]].
+     - apply sub_sigma_algebra.
+       rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+       left.
+       exists (expr_ST D0).
+       { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D0. }
+       rewrite setTI.
+       apply/seteqP; split=> x/=; destruct x.
+       + by move=>?; eexists _; [done|]; eexists _; done.
+       + by move=> [??[??[<- ?]]].
   Qed.
   Hint Resolve PairU_meas_fun : measlang.
 
@@ -764,38 +750,27 @@ Section constructor_measurability.
   Hint Resolve LoadU_meas_fun : measlang.
 
   Lemma StoreU_meas_fun : measurable_fun setT StoreU.
-  Proof.
-    eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
-    move=> S /= [_ [D HD <-] <-]; rewrite setTI.
-    destruct D; rewrite /preimage/=.
-    16: {
-         simpl in HD.
-         destruct HD as [HD0 HD1].
-         rewrite Prod2Decomp.
-         { apply measurableI.
-           - apply sub_sigma_algebra.
-             rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
-             right.
-             exists (expr_ST D2).
-             { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D2. }
-             rewrite setTI.
-             apply/seteqP; split=> x/=.
-             + by move=>?; exists x.1; [done|]; exists x.2; done.
-             + by move=> [??[??][?<-]].
-           - apply sub_sigma_algebra.
-             rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
-             left.
-             exists (expr_ST D1).
-             { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D1. }
-             rewrite setTI.
-             apply/seteqP; split=> x/=.
-             + by move=>?; exists x.1; [done|]; exists x.2; done.
-             + by move=> [??[??[<- ?]]].
-        }
-        by move=>????[??]//.
-    }
-    all: by ctor_triv_case.
+  Proof. (* Note: All 2-argument proofs in this file are identical to AppU *)
+    expr_ctor_meas_fun_cases.
+    all: try by ctor_triv_cases_2.
+    intros D0 D1 [??]; rewrite setTI.
+    ctor_2_separate_preimage; apply measurableI.
+    - apply sub_sigma_algebra.
+      right.
+      eexists (expr_ST _); [by apply sub_sigma_algebra; eexists _ |].
+      rewrite setTI.
+      apply/seteqP; split=> x/=; rewrite //=; destruct x.
+      + by eexists _; [done|]; eexists _; [done|]; rewrite //=.
+      + by move=> [??[??][?<-]].
+     - apply sub_sigma_algebra.
+       rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+       left.
+       exists (expr_ST D0).
+       { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D0. }
+       rewrite setTI.
+       apply/seteqP; split=> x/=; destruct x.
+       + by move=>?; eexists _; [done|]; eexists _; done.
+       + by move=> [??[??[<- ?]]].
   Qed.
   Hint Resolve StoreU_meas_fun : measlang.
 
@@ -819,38 +794,27 @@ Section constructor_measurability.
   Hint Resolve AllocTapeU_meas_fun : measlang.
 
   Lemma RandU_meas_fun : measurable_fun setT RandU.
-  Proof.
-    eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
-    move=> S /= [_ [D HD <-] <-]; rewrite setTI.
-    destruct D; rewrite /preimage/=.
-    18: {
-         simpl in HD.
-         destruct HD as [HD0 HD1].
-         rewrite Prod2Decomp.
-         { apply measurableI.
-           - apply sub_sigma_algebra.
-             rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
-             right.
-             exists (expr_ST D2).
-             { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D2. }
-             rewrite setTI.
-             apply/seteqP; split=> x/=.
-             + by move=>?; exists x.1; [done|]; exists x.2; done.
-             + by move=> [??[??][?<-]].
-           - apply sub_sigma_algebra.
-             rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
-             left.
-             exists (expr_ST D1).
-             { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D1. }
-             rewrite setTI.
-             apply/seteqP; split=> x/=.
-             + by move=>?; exists x.1; [done|]; exists x.2; done.
-             + by move=> [??[??[<- ?]]].
-        }
-        by move=>????[??]//.
-    }
-    all: by ctor_triv_case.
+  Proof. (* Note: All 2-argument proofs in this file are identical to AppU *)
+    expr_ctor_meas_fun_cases.
+    all: try by ctor_triv_cases_2.
+    intros D0 D1 [??]; rewrite setTI.
+    ctor_2_separate_preimage; apply measurableI.
+    - apply sub_sigma_algebra.
+      right.
+      eexists (expr_ST _); [by apply sub_sigma_algebra; eexists _ |].
+      rewrite setTI.
+      apply/seteqP; split=> x/=; rewrite //=; destruct x.
+      + by eexists _; [done|]; eexists _; [done|]; rewrite //=.
+      + by move=> [??[??][?<-]].
+     - apply sub_sigma_algebra.
+       rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+       left.
+       exists (expr_ST D0).
+       { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D0. }
+       rewrite setTI.
+       apply/seteqP; split=> x/=; destruct x.
+       + by move=>?; eexists _; [done|]; eexists _; done.
+       + by move=> [??[??[<- ?]]].
   Qed.
   Hint Resolve RandU_meas_fun : measlang.
 
