@@ -200,18 +200,13 @@ Section expr_algebra.
   (** Defines the sigma algebra over expressions *)
   Local Open Scope classical_set_scope.
 
-  Definition TZ : measurableType _ := <<discr Z>>.
-  Definition TB : measurableType _ := <<discr bool>>.
-  Definition TL : measurableType _ := <<discr loc>>.
-  Definition TR : measurableType _ := (R : realType).
+  Definition base_lit_S : Type := @base_lit_pre (set <<discr Z>>) (set <<discr bool>>) (set <<discr loc>>) (set ((R : realType) : measurableType _)).
+  Definition val_S      : Type := @val_pre      (set <<discr Z>>) (set <<discr bool>>) (set <<discr loc>>) (set ((R : realType) : measurableType _)).
+  Definition expr_S     : Type := @expr_pre     (set <<discr Z>>) (set <<discr bool>>) (set <<discr loc>>) (set ((R : realType) : measurableType _)).
 
-  Definition base_lit_S : Type := @base_lit_pre (set TZ) (set TB) (set TL) (set TR).
-  Definition val_S      : Type := @val_pre      (set TZ) (set TB) (set TL) (set TR).
-  Definition expr_S     : Type := @expr_pre     (set TZ) (set TB) (set TL) (set TR).
-
-  Definition base_lit_T : Type := @base_lit_pre TZ TB TL TR.
-  Definition val_T      : Type := @val_pre      TZ TB TL TR.
-  Definition expr_T     : Type := @expr_pre     TZ TB TL TR.
+  Definition base_lit_T : Type := @base_lit_pre <<discr Z>> <<discr bool>> <<discr loc>> ((R : realType) : measurableType _).
+  Definition val_T      : Type := @val_pre      <<discr Z>> <<discr bool>> <<discr loc>> ((R : realType) : measurableType _).
+  Definition expr_T     : Type := @expr_pre     <<discr Z>> <<discr bool>> <<discr loc>> ((R : realType) : measurableType _).
 
   (* Cylinder constructions *)
 
@@ -370,40 +365,40 @@ Definition expr : measurableType expr_cyl.-sigma := expr_T.
 Definition val : measurableType val_cyl.-sigma := val_T.
 
 (** Constructors for expressions with the fixed and measurable base types. *)
-Definition LitIntC  v       : base_lit_T := LitInt v.
-Definition LitBoolC v       : base_lit_T := LitBool v.
-Definition LitUnitC         : base_lit_T := LitUnit.
-Definition LitLocC  v       : base_lit_T := LitLoc v.
-Definition LitLblC  v       : base_lit_T := LitLbl v.
-Definition LitRealC v       : base_lit_T := LitReal v.
+Definition LitIntC  (v : <<discr Z>>)                          : base_lit := LitInt v.
+Definition LitBoolC (v : <<discr bool>>)                          : base_lit := LitBool v.
+Definition LitUnitC                                            : base_lit := LitUnit.
+Definition LitLocC  (v : <<discr loc>>)                        : base_lit := LitLoc v.
+Definition LitLblC  (v : <<discr loc>>)                        : base_lit := LitLbl v.
+Definition LitRealC (v : ((R : realType) : measurableType _))  : base_lit := LitReal v.
 
-Definition ValC v           : expr_T     := Val v.
-Definition VarC x           : expr_T     := Var x.
-Definition RecC f x e       : expr_T     := Rec f x e.
-Definition AppC e1 e2       : expr_T     := App e1 e2.
-Definition UnOpC op e       : expr_T     := UnOp op e.
-Definition BinOpC op e1 e2  : expr_T     := BinOp op e1 e2.
-Definition IfC e0 e1 e2     : expr_T     := If e0 e1 e2.
-Definition PairC e1 e2      : expr_T     := Pair e1 e2.
-Definition FstC e1          : expr_T     := Fst e1.
-Definition SndC e1          : expr_T     := Snd e1.
-Definition InjLC e1         : expr_T     := InjL e1.
-Definition InjRC e1         : expr_T     := InjR e1.
-Definition CaseC e0 e1 e2   : expr_T     := Case e0 e1 e2.
-Definition AllocC e1        : expr_T     := Alloc e1.
-Definition LoadC e          : expr_T     := Load e.
-Definition StoreC e1 e2     : expr_T     := Store e1 e2.
-Definition AllocTapeC e     : expr_T     := AllocTape e.
-Definition RandC e1 e2      : expr_T     := Rand e1 e2.
-Definition AllocUTapeC      : expr_T     := AllocUTape.
-Definition URandC e         : expr_T     := URand e.
-Definition TickC e          : expr_T     := Tick e.
+Definition ValC (v : val)                                      : expr := Val v.
+Definition VarC (x : <<discr binder>>)                         : expr := Var x.
+Definition RecC (f x : <<discr binder>>) (e : expr)            : expr := Rec f x e.
+Definition AppC (e1 e2 : expr)                                 : expr := App e1 e2.
+Definition UnOpC (op : <<discr un_op>>) (e : expr)             : expr := UnOp op e.
+Definition BinOpC (op : <<discr bin_op>>) (e1 e2 : expr)       : expr := BinOp op e1 e2.
+Definition IfC (e0 e1 e2 : expr)                               : expr := If e0 e1 e2.
+Definition PairC (e1 e2 : expr)                                : expr := Pair e1 e2.
+Definition FstC (e1 : expr)                                    : expr := Fst e1.
+Definition SndC (e1 : expr)                                    : expr := Snd e1.
+Definition InjLC (e1 : expr)                                   : expr := InjL e1.
+Definition InjRC (e1 : expr)                                   : expr := InjR e1.
+Definition CaseC (e0 e1 e2 : expr)                             : expr := Case e0 e1 e2.
+Definition AllocC (e1 : expr)                                  : expr := Alloc e1.
+Definition LoadC (e : expr)                                    : expr := Load e.
+Definition StoreC (e1 e2 : expr)                               : expr := Store e1 e2.
+Definition AllocTapeC (e : expr)                               : expr := AllocTape e.
+Definition RandC (e1 e2 : expr)                                : expr := Rand e1 e2.
+Definition AllocUTapeC                                         : expr := AllocUTape.
+Definition URandC (e : expr)                                   : expr := URand e.
+Definition TickC (e : expr)                                    : expr := Tick e.
 
-Definition LitVC b          : val_T      := LitV b.
-Definition RecVC f x e      : val_T      := RecV f x e.
-Definition PairVC v1 v2     : val_T      := PairV v1 v2.
-Definition InjLVC v         : val_T      := InjLV v.
-Definition InjRVC v         : val_T      := InjRV v.
+Definition LitVC (b : base_lit)                                : val := LitV b.
+Definition RecVC (f x : <<discr binder>>) (e : expr)           : val := RecV f x e.
+Definition PairVC (v1 v2 : val)                                : val := PairV v1 v2.
+Definition InjLVC (v : val)                                    : val := InjLV v.
+Definition InjRVC (v : val)                                    : val := InjRV v.
 
 Global Instance val_inhabited : Inhabited val := populate (LitV LitUnit).
 Global Instance expr_inhabited : Inhabited expr := populate (Val inhabitant).

@@ -28,8 +28,8 @@ Section unif.
   Local Open Scope classical_set_scope.
 
   Context {R : realType}.
-  (* Uniform space over [0, 1]*)
-  Definition unif_base : subprobability _ _ := uniform_prob (@Num.Internals.ltr01 TR).
+  (* Uniform space over [0, 1
+  Definition unif_base : subprobability _ _ := uniform_prob (@Num.Internals.ltr01 TR). *)
 
   (** FIXME: Type conversion *)
   Axiom (unif_base_ax : giryM R).
@@ -145,11 +145,11 @@ Definition ZtoNat' : <<discr Z>> -> <<discr nat>> := Z.to_nat.
 Lemma ZtoNat'_measurable : measurable_fun setT ZtoNat'.
 Proof. (* Discrete *) Admitted.
 
-Definition giryM_unif' : <<discr TZ>> -> giryM <<discr TZ>>. Admitted.
+Definition giryM_unif' : <<discr Z>> -> giryM <<discr Z>>. Admitted.
 
 Lemma giryM_unif'_meas : measurable_fun setT giryM_unif'. (* Discrete *) Admitted.
 
-Definition rand_rand_aux : <<discr TZ>> -> giryM expr :=
+Definition rand_rand_aux : <<discr Z>> -> giryM expr :=
   ssrfun.comp
     (gMap' (ssrfun.comp ValU $ ssrfun.comp LitVU $ LitIntU ))
     giryM_unif'.
@@ -163,7 +163,7 @@ Definition rand_rand_aux : <<discr TZ>> -> giryM expr :=
 
 Lemma rand_rand_aux_meas : measurable_fun setT rand_rand_aux.
 Proof.
-  have H : (measurable_fun (T:=TZ) (U:=types_expr_T__canonical__measure_Measurable) [set: TZ] (ValU \o (LitVU \o LitIntU))).
+  have H : (measurable_fun [set: <<discr Z>>] (ValU \o (LitVU \o LitIntU))).
   { mcrunch_compC ValU_meas_fun.
     mcrunch_compC LitVU_meas_fun.
     by eauto with measlang.
@@ -183,7 +183,7 @@ Proof.
 Admitted.
 Hint Resolve rand_rand_aux_meas : measlang.
 
-Definition rand_rand : (<<discr TZ>> * state)%type -> giryM cfg :=
+Definition rand_rand : (<<discr Z>> * state)%type -> giryM cfg :=
   ssrfun.comp gProd $
   mProd
     (ssrfun.comp rand_rand_aux fst)
@@ -374,7 +374,7 @@ Definition tape_sample' (z : <<discr Z>>) (l : <<discr loc>>) : state -> giryM s
                               (ssrfun.comp Some fst )
                               ( ssrfun.comp btape_contents $ of_option $ ssrfun.comp get_btape $ mProd (cst l) snd))))))
                 (ssrfun.comp tapes snd))))
-          (ssrfun.comp utapes snd)) : (<<discr TZ>> * state)%type -> state)) $
+          (ssrfun.comp utapes snd)) : (<<discr Z>> * state)%type -> state)) $
   ssrfun.comp gProd $
   mProd (cst (giryM_unif' z)) gRet.
 
@@ -408,7 +408,7 @@ Definition tape_advance : (<<discr loc>> * state)%type -> state :=
  *)
 
 
-Definition tape_read : (<<discr loc>> * state)%type -> <<discr TZ>> :=
+Definition tape_read : (<<discr loc>> * state)%type -> <<discr Z>> :=
   of_option $
   ssrfun.comp nf_evalC $
   mProd
@@ -556,8 +556,8 @@ Definition get_utape : (<<discr loc>> * state)%type -> option utape :=
   mProd fst ( ssrfun.comp utapes snd ).
 
 
-Definition dummy_coe_1_remove_me : TR -> state.R. Admitted.
-Definition dummy_coe_2_remove_me : state.R -> TR. Admitted.
+Definition dummy_coe_1_remove_me : R -> state.R. Admitted.
+Definition dummy_coe_2_remove_me : state.R -> R. Admitted.
 
 Program Definition rand_urandT_nextEmpty : (<<discr loc>> * state)%type -> giryM cfg :=
   ssrfun.comp (gMap' $
@@ -587,7 +587,7 @@ Program Definition rand_urandT_nextEmpty : (<<discr loc>> * state)%type -> giryM
       )
     ) $
   ssrfun.comp gProd $
-  mProd gRet (cst (@unif_base_ax TR)).
+  mProd gRet (cst (@unif_base_ax R)).
 Next Obligation.
   intros _ _ _ _ _ _ _ z.
   apply dummy_coe_1_remove_me.

@@ -36,11 +36,11 @@ Local Open Scope classical_set_scope.
 
 
 (** Projection functions *)
-Definition 𝜋_LitInt_z  (b : base_lit) : TZ := match b with | LitInt  v => v | _ => point end.
-Definition 𝜋_LitBool_b (b : base_lit) : TB := match b with | LitBool v => v | _ => point end.
-Definition 𝜋_LitLoc_l  (b : base_lit) : TL := match b with | LitLoc  v => v | _ => point end.
-Definition 𝜋_LitLbl_l  (b : base_lit) : TL := match b with | LitLbl  v => v | _ => point end.
-Definition 𝜋_LitReal_r (b : base_lit) : TR := match b with | LitReal v => v | _ => point end.
+Definition 𝜋_LitInt_z  (b : base_lit) : <<discr Z>> := match b with | LitInt  v => v | _ => point end.
+Definition 𝜋_LitBool_b (b : base_lit) : <<discr bool>> := match b with | LitBool v => v | _ => point end.
+Definition 𝜋_LitLoc_l  (b : base_lit) : <<discr loc>> := match b with | LitLoc  v => v | _ => point end.
+Definition 𝜋_LitLbl_l  (b : base_lit) : <<discr loc>> := match b with | LitLbl  v => v | _ => point end.
+Definition 𝜋_LitReal_r (b : base_lit) : ((R : realType) : measurableType _):= match b with | LitReal v => v | _ => point end.
 
 Definition 𝜋_LitV_v    (v : val)      : base_lit         := match v with | LitV v => v | _ => point end.
 Definition 𝜋_RecV_f    (v : val)      : <<discr binder>> := match v with | RecV f _ _ => f | _ => point end.

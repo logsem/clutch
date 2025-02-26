@@ -149,8 +149,8 @@ End functor.
 
 
 Section ectx_item_algebra.
-  Definition ectx_item_S : Type := @ectx_item_pre (set TZ) (set TB) (set TL) (set TR).
-  Definition ectx_item_T : Type := @ectx_item_pre TZ TB TL TR.
+  Definition ectx_item_S : Type := @ectx_item_pre (set <<discr Z>>) (set <<discr bool>>) (set <<discr loc>>) (set ((R : realType) : measurableType _)).
+  Definition ectx_item_T : Type := @ectx_item_pre <<discr Z>> <<discr bool>> <<discr loc>> ((R : realType) : measurableType _).
   Definition ectx_item_ST (k : ectx_item_S) : set ectx_item_T :=
     match k with
     | AppLCtx v2 => image (val_ST v2) AppLCtx
