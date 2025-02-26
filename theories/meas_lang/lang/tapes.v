@@ -183,7 +183,7 @@ Hint Resolve btape_bound_meas : measlang.
 
 
 (** Tape of real numbers *)
-Definition utape `{R : realType} := tape ((R : realType) : measurableType _).
+Definition utape := tape ((R : realType) : measurableType _).
 
 
 (* btape and utape definitions *)

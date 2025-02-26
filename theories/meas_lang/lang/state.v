@@ -296,13 +296,13 @@ End hpfuns.
 
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes, and [loc]-indexed utapes *)
 Record state : Type := {
-    state_v : ((hp (option val)) * (hp (option btape)) * (hp (option (@utape R))))%type
+    state_v : ((hp (option val)) * (hp (option btape)) * (hp (option utape )))%type
 }.
 
-Definition prod_of_state (s : state) : ((hp (option val)) * (hp (option btape)) * (hp (option (@utape R)))) :=
+Definition prod_of_state (s : state) : ((hp (option val)) * (hp (option btape)) * (hp (option utape ))) :=
   match s with {| state_v := x |} => x end.
 
-Definition state_of_prod (v : (hp (option val)) * (hp (option btape)) * (hp (option (@utape R)))) : state :=
+Definition state_of_prod (v : (hp (option val)) * (hp (option btape)) * (hp (option utape ))) : state :=
   {| state_v := v |}.
 
 Lemma prod_of_state_of_prod p : prod_of_state (state_of_prod p) = p.
@@ -472,7 +472,7 @@ Proof.
 Qed.
 Hint Resolve tapes_meas : measlang.
 
-Definition utapes : state -> hp (option (@utape R)) := ssrfun.comp snd prod_of_state.
+Definition utapes : state -> hp (option utape) := ssrfun.comp snd prod_of_state.
 Lemma utapes_meas : measurable_fun setT utapes.
 Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT snd setT prod_of_state); simpl.

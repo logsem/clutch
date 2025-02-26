@@ -556,10 +556,8 @@ Definition get_utape : (<<discr loc>> * state)%type -> option utape :=
   mProd fst ( ssrfun.comp utapes snd ).
 
 
-Definition dummy_coe_1_remove_me : R -> state.R. Admitted.
-Definition dummy_coe_2_remove_me : state.R -> R. Admitted.
 
-Program Definition rand_urandT_nextEmpty : (<<discr loc>> * state)%type -> giryM cfg :=
+Definition rand_urandT_nextEmpty : (<<discr loc>> * state)%type -> giryM cfg :=
   ssrfun.comp (gMap' $
     mProd
       (* The expression *)
@@ -580,7 +578,7 @@ Program Definition rand_urandT_nextEmpty : (<<discr loc>> * state)%type -> giryM
                   (ssrfun.comp sequence_updateC $
                    mProd (ssrfun.comp fst $ of_option $ ssrfun.comp get_utape fst)
                    (mProd
-                      (ssrfun.comp Some _) (* snd, even though it doesn't typecheck atm *)
+                      (ssrfun.comp Some snd) (* snd, even though it doesn't typecheck atm *)
                       (ssrfun.comp snd $ of_option $ ssrfun.comp get_utape fst))))
              (ssrfun.comp (ssrfun.comp utapes snd) fst)
           ))
@@ -588,25 +586,20 @@ Program Definition rand_urandT_nextEmpty : (<<discr loc>> * state)%type -> giryM
     ) $
   ssrfun.comp gProd $
   mProd gRet (cst (@unif_base_ax R)).
-Next Obligation.
-  intros _ _ _ _ _ _ _ z.
-  apply dummy_coe_1_remove_me.
-  apply z.
-Defined.
 
 
 (*
 let σ' := state_upd_utapes <[ l := (tapeAdvance τ) ]> σ1 in
 (giryM_ret R ((Val $ LitV $ LitReal u, σ') : cfg))
  *)
-Program Definition rand_urandT_ok : (<<discr loc>> * state)%type -> giryM cfg :=
+Definition rand_urandT_ok : (<<discr loc>> * state)%type -> giryM cfg :=
   ssrfun.comp gProd $
   mProd
     (ssrfun.comp gRet $ ssrfun.comp ValU $ ssrfun.comp LitVU $ ssrfun.comp LitReal $
      of_option $ ssrfun.comp sequence_evalC $
      mProd
       (ssrfun.comp fst $ of_option get_utape )
-      (ssrfun.comp _ $ of_option get_utape))
+      (ssrfun.comp snd $ of_option get_utape))
   ( ssrfun.comp gRet $
     ssrfun.comp state_of_prod $
     mProd (mProd (ssrfun.comp heap snd) (ssrfun.comp tapes snd) )
@@ -618,14 +611,6 @@ Program Definition rand_urandT_ok : (<<discr loc>> * state)%type -> giryM cfg :=
             (ssrfun.comp Nat.succ $ ssrfun.comp fst $ of_option get_utape )
             ( ssrfun.comp snd $ of_option get_utape ) )
         (ssrfun.comp utapes snd)))).
-Next Obligation.
-  intros _ _ z; simpl in z.
-  destruct z as [_ zf].
-  intro x.
-  destruct (zf x) as [v|].
-  { apply Some, dummy_coe_2_remove_me, v. }
-  { apply None. }
-Defined.
 
 Lemma urandT_noTape_meas : measurable_fun auxcov_urandT_noTape rand_urandT_noTape.
 Proof. Admitted.
