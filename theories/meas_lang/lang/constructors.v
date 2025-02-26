@@ -34,7 +34,7 @@ Notation ValU                  := ValC.
 Notation VarU                  := VarC.
 Definition RecU (v : <<discr binder>> * <<discr binder>> * expr)  := RecC v.1.1 v.1.2 v.2.
 Notation AppU                  := (uncurry AppC).
-Definition UnOpU (v : <<discr un_op>> * expr)                     := UnOpC v.1 v.2.
+Definition UnOpU               := (uncurry UnOpC).
 Definition BinOpU (v : <<discr bin_op>> * expr * expr)            := BinOpC v.1.1 v.1.2 v.2.
 Definition IfU (v : expr * expr * expr)                           := IfC v.1.1 v.1.2 v.2.
 Notation PairU                 := (uncurry PairC).
@@ -302,49 +302,38 @@ Section constructor_measurability.
 
   Lemma UnOpU_meas_fun : measurable_fun setT UnOpU.
   Proof.
-    eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
-    move=> S /= [_ [D HD <-] <-]; rewrite setTI.
-    destruct D; rewrite /preimage/=.
-    5: {
-      simpl.
-      suffices -> :
-        [set t | (exists2 x : expr_T, expr_ST D x & UnOp op x = UnOpU t)] =
-        [set t | exists x0 : expr_T, exists o, (expr_ST D x0 /\ UnOp o x0 = UnOpU t)] `&`
-        [set t | t.1 = op ].
-      { apply measurableI.
-        + rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
-          apply sub_sigma_algebra.
-          simpl in HD.
-          simpl.
-          right.
-          exists (expr_ST D).
-          { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D. }
-          rewrite setTI /=.
-          apply/seteqP; split=> x/=.
-          + move=>?. exists x.2. exists x.1. split; [done|]. by intuition.
-          + move=> [? [? [? H]]].
-            inversion H.
-            by rewrite <- H2.
-        + rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
-          apply sub_sigma_algebra.
-          simpl.
-          left.
-          exists [set op]. { by rewrite /measurable/=/discr_measurable/=. }
-          by rewrite setTI /=. }
-      apply/seteqP; split=> y/=.
-      - move=> [a ? [-> Ha]]; split; [|done].
-        exists a. exists y.1. split; [done|].
-        by rewrite Ha //=.
-      - move=> [[a [? [? Ha]]] <-].
-        simpl in HD.
-        exists a; [done|].
-        destruct y; simpl.
-        rewrite /UnOpU/UnOpC/=.
-        f_equal.
-        inversion Ha. by intuition.
-    }
-    all: by ctor_triv_case.
+    expr_ctor_meas_fun_cases.
+    all: try by ctor_triv_cases_2.
+    intros op D ?; rewrite setTI.
+    simpl.
+    suffices -> :
+      [set t | (exists2 x : expr_T, expr_ST D x & UnOp op x = UnOpU t)] =
+      [set t | exists x0 : expr_T, exists o, (expr_ST D x0 /\ UnOp o x0 = UnOpU t)] `&`
+      [set t | t.1 = op ].
+    { apply measurableI.
+      + rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+        apply sub_sigma_algebra.
+        simpl.
+        right.
+        exists (expr_ST D).
+        { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D. }
+        rewrite setTI /=.
+        apply/seteqP; split=> x/=; destruct x; simpl.
+        + by move=>?; eexists _; exists d; split; [done|].
+        + move=> [? [? [? H]]].
+          inversion H.
+          by rewrite <- H2.
+      + rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+        apply sub_sigma_algebra.
+        simpl.
+        left.
+        exists [set op]. { by rewrite /measurable/=/discr_measurable/=. }
+        by rewrite setTI /=. }
+    apply/seteqP; split=> y/=; destruct y.
+    - move=> [??]; move=> [+]; move=>-><-//=; split; [|done].
+      eexists _; eexists _; done.
+    - move=> [[?[?[?+]]]+] //=.
+      move=>[+]; move=><-<-//=; move=><-//=.  eexists _; done.
   Qed.
   Hint Resolve UnOpU_meas_fun : measlang.
 
