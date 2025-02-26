@@ -7,7 +7,7 @@ Section test.
 
   Definition loop:val:=
     rec: "loop" "x" := "loop" "x".
-  
+
   Definition e' (n:expr) : expr :=
     let: "k" := rand #1 in
     if: n+"k" ≤ #2 then
@@ -16,7 +16,7 @@ Section test.
       if: n+"k"=#3
       then #false
       else loop #().
-  
+
   Definition e :expr :=
     let: "n" := rand #3 in
     if: "n"≤#1
@@ -30,7 +30,7 @@ Section test.
     rewrite /loop.
     by wp_pures.
   Qed.
-  
+
   Lemma twp_e'_two E:
     ⊢ ↯ (nnreal_half) -∗ WP (e' #2) @ E [{ φ }].
   Proof.
@@ -83,7 +83,7 @@ Section test.
       wp_pures.
       wp_apply loop_lemma.
   Qed.
-  
+
   Lemma twp_e E:
     ⊢ ↯ (nnreal_div (nnreal_nat 3) (nnreal_nat 8)) -∗
     WP e @ E [{φ}].
@@ -96,7 +96,7 @@ Section test.
         wp_apply (twp_couple_rand_adv_comp1 _ _ _ _ ε2 with "[$]").
         { rewrite SeriesC_finite_foldr. simpl. lra. }
         iIntros (n) "Herr".
-        wp_pures. 
+        wp_pures.
         case_bool_decide; wp_pures; first done.
         pose proof (fin_to_nat_lt n).
         eassert (n=nat_to_fin (_:2<4) \/ n = nat_to_fin (_ :3<4)) as [-> | ->].
@@ -123,7 +123,7 @@ Section test.
         wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ ε2 with "[$]").
         { rewrite SeriesC_finite_foldr. simpl. lra. }
         iIntros (n) "Herr".
-        wp_pures. 
+        wp_pures.
         case_bool_decide; wp_pures; first done.
         pose proof (fin_to_nat_lt n).
         eassert (n=nat_to_fin (_:2<4) \/ n = nat_to_fin (_ :3<4)) as [-> | ->].
@@ -137,7 +137,49 @@ Section test.
     - by wp_apply wp_e'_two.
     - by wp_apply wp_e'_three.
   Qed.
-    
+
+  Definition e'' :expr :=
+    let: "l" := ref #0 in
+    "l" <- (!"l" + rand #3);;
+    "l" <- (!"l" + rand #3);;
+    !"l".
+
+  Lemma wp_e'' :
+    ↯ (nnreal_div (nnreal_nat 1) (nnreal_nat 16)) ⊢ WP e'' {{ v, ∃ (n : nat), ⌜v = #n⌝ ∗ ⌜n > 0⌝ }}.
+  Proof.
+    iIntros "Herr". rewrite /e''.
+    wp_alloc l as "Hl".
+    wp_pures.
+    wp_bind (rand #3)%E.
+    set (ε1 := λ n : fin 4, if fin_to_nat n =? 0 then nnreal_div (nnreal_nat 1) (nnreal_nat 4) else nnreal_zero).
+    wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ ε1 with "Herr").
+    { rewrite SeriesC_finite_foldr. simpl. lra. }
+    iIntros (n) "Herr".
+    wp_load. wp_pures. wp_store.
+    inv_fin n; last first.
+    - intros n.
+      wp_apply wp_rand; [done|].
+      iIntros (m) "_".
+      wp_load. wp_store. wp_load.
+      iModIntro. iExists _.
+      iSplit; [iPureIntro|].
+      { do 2 f_equal. rewrite -Nat2Z.inj_add //. }
+      iPureIntro. lia.
+    - replace (ε1 0%fin) with (nnreal_div (nnreal_nat 1) (nnreal_nat 4)); last first.
+      { rewrite /ε1 /=. done. }
+      set (ε2 := λ n : fin 4, if fin_to_nat n =? 0 then nnreal_one else nnreal_zero).
+      wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ ε2 with "Herr").
+      { rewrite SeriesC_finite_foldr. simpl. lra. }
+      iIntros (n) "Herr".
+      inv_fin n.
+      { by iDestruct (ec_contradict with "Herr") as %[]. }
+      intros n => /=.
+      wp_load. wp_store. wp_load.
+      iModIntro. iExists _.
+      iSplit; [done|].
+      iPureIntro. lia.
+  Qed.
+
 End test.
 
 Local Open Scope R.
@@ -249,6 +291,3 @@ Proof.
     rewrite /f/=.
     done.
 Qed.
-
-
-
