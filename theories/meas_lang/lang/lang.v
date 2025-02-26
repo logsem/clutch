@@ -46,14 +46,14 @@ Section meas_semantics.
   (* Lift a set S to [ (s, σ) | s ∈ S, σ ∈ State ] *)
   Definition NonStatefulS {A : Type} (S : set A) : set (A * state) := preimage fst S.
 
-  Lemma NonStatefulS_measurable {d} {T : measurableType d} (S : set T) (HS : measurable S) :
+  Lemma NonStatefulS_meas_fun {d} {T : measurableType d} (S : set T) (HS : measurable S) :
       measurable (NonStatefulS S).
   Proof.
     rewrite <- (setTI (NonStatefulS S)); rewrite /NonStatefulS.
     apply @measurable_fst; last done.
     by eapply @measurableT.
   Qed.
-  Hint Resolve NonStatefulS_measurable : measlang.
+  Hint Resolve NonStatefulS_meas_fun : measlang.
 
   (* [set c | ∃ f x e σ, c = (Rec f x e, σ) ]. *)
   Definition cover_rec : set cfg :=
@@ -439,12 +439,12 @@ Section meas_semantics.
   (** The top-level cover is measurable *)
 
   Lemma cover_rec_meas : measurable cover_rec.
-  Proof. by apply NonStatefulS_measurable; eauto with measlang. Qed.
+  Proof. by apply NonStatefulS_meas_fun; eauto with measlang. Qed.
   Hint Resolve cover_rec_meas : measlang.
 
   Lemma cover_pair_meas : measurable cover_pair.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     apply 𝜋_PairU_meas; eauto with measlang.
     apply measurableX; by eauto with measlang.
   Qed.
@@ -452,7 +452,7 @@ Section meas_semantics.
 
   Lemma cover_injL_meas : measurable cover_injL.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     by apply 𝜋_InjLU_meas; eauto with measlang.
   Qed.
 
@@ -460,14 +460,14 @@ Section meas_semantics.
 
   Lemma cover_injR_meas : measurable cover_injR.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     by apply 𝜋_InjRU_meas; eauto with measlang.
   Qed.
   Hint Resolve cover_injR_meas : measlang.
 
   Lemma cover_app_meas : measurable cover_app.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     apply 𝜋_AppU_meas; eauto with measlang.
     apply measurableX.
     - by apply 𝜋_ValU_meas; eauto with measlang.
@@ -1064,7 +1064,7 @@ Section meas_semantics.
 
   Lemma cover_ifT_meas : measurable cover_ifT.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     apply 𝜋_If_c_meas; first by eauto with measlang.
     apply 𝜋_Val_v_meas; first by eauto with measlang.
     apply 𝜋_LitV_v_meas; first by eauto with measlang.
@@ -1075,7 +1075,7 @@ Section meas_semantics.
 
   Lemma cover_ifF_meas : measurable cover_ifF.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     apply 𝜋_If_c_meas; first by eauto with measlang.
     apply 𝜋_Val_v_meas; first by eauto with measlang.
     apply 𝜋_LitV_v_meas; first by eauto with measlang.
@@ -1086,7 +1086,7 @@ Section meas_semantics.
 
   Lemma cover_fst_meas : measurable cover_fst.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     apply 𝜋_Fst_e_meas; first by eauto with measlang.
     apply 𝜋_Val_v_meas; first by eauto with measlang.
     eauto with measlang.
@@ -1095,7 +1095,7 @@ Section meas_semantics.
 
   Lemma cover_snd_meas : measurable cover_snd.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     apply 𝜋_Snd_e_meas; first by eauto with measlang.
     apply 𝜋_Val_v_meas; first by eauto with measlang.
     eauto with measlang.
@@ -1104,7 +1104,7 @@ Section meas_semantics.
 
   Lemma cover_caseL_meas : measurable cover_caseL.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     apply 𝜋_Case_c_meas; first by eauto with measlang.
     apply 𝜋_Val_v_meas; first by eauto with measlang.
     eauto with measlang.
@@ -1113,7 +1113,7 @@ Section meas_semantics.
 
   Lemma cover_caseR_meas : measurable cover_caseR.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     apply 𝜋_Case_c_meas; first by eauto with measlang.
     apply 𝜋_Val_v_meas; first by eauto with measlang.
     eauto with measlang.
@@ -1122,7 +1122,7 @@ Section meas_semantics.
 
   Lemma cover_allocTape_meas : measurable cover_allocTape.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     apply 𝜋_AllocTapeU_meas; first by eauto with measlang.
     apply 𝜋_ValU_meas; first by eauto with measlang.
     apply 𝜋_LitVU_meas; first by eauto with measlang.
@@ -1132,14 +1132,14 @@ Section meas_semantics.
 
   Lemma cover_allocUTape_meas : measurable cover_allocUTape.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     by eauto with measlang.
   Qed.
   Hint Resolve cover_allocUTape_meas : measlang.
 
   Lemma cover_rand_meas : measurable cover_rand.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     apply 𝜋_RandU_meas; first by eauto with measlang.
     apply measurableX.
     { apply 𝜋_ValU_meas; first by eauto with measlang.
@@ -1153,7 +1153,7 @@ Section meas_semantics.
 
   Lemma cover_urand_meas : measurable cover_urand.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     apply 𝜋_URandU_meas; first by eauto with measlang.
     apply 𝜋_ValU_meas; first by eauto with measlang.
     apply 𝜋_LitVU_meas; first by eauto with measlang.
@@ -1163,7 +1163,7 @@ Section meas_semantics.
 
   Lemma cover_randT_meas : measurable cover_randT.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     apply 𝜋_RandU_meas; first by eauto with measlang.
     apply measurableX.
     { apply 𝜋_ValU_meas; first by eauto with measlang.
@@ -1177,7 +1177,7 @@ Section meas_semantics.
 
   Lemma cover_urandT_meas : measurable cover_urandT.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     apply 𝜋_URandU_meas; first by eauto with measlang.
     apply 𝜋_ValU_meas; first by eauto with measlang.
     apply 𝜋_LitVU_meas; first by eauto with measlang.
@@ -1187,7 +1187,7 @@ Section meas_semantics.
 
   Lemma cover_tick_meas : measurable cover_tick.
   Proof.
-    apply NonStatefulS_measurable.
+    apply NonStatefulS_meas_fun.
     apply 𝜋_Tick_e_meas; first by eauto with measlang.
     apply 𝜋_Val_v_meas; first by eauto with measlang.
     apply 𝜋_LitV_v_meas; first by eauto with measlang.
@@ -1218,14 +1218,14 @@ Section meas_semantics.
     { apply mathcomp_measurable_fun_restiction_setT; [done|].
       by apply measurable_id.
     }
-    apply (measurable_fun_prod' (ssrfun.comp C fst) snd (NonStatefulS S) (NonStatefulS_measurable S HS)).
+    apply (measurable_fun_prod' (ssrfun.comp C fst) snd (NonStatefulS S) (NonStatefulS_meas_fun S HS)).
     - eapply measurable_comp.
       3: { by apply HC. }
       + by apply HS.
       + by rewrite /NonStatefulS/preimage/subset//=; move=> t [??<-].
-      + apply (mathcomp_measurable_fun_restiction_setT (NonStatefulS S) (NonStatefulS_measurable S HS) fst).
+      + apply (mathcomp_measurable_fun_restiction_setT (NonStatefulS S) (NonStatefulS_meas_fun S HS) fst).
         by eapply @measurable_fst_restriction; eauto with measlang.
-    - apply (mathcomp_measurable_fun_restiction_setT (NonStatefulS S) (NonStatefulS_measurable S HS) snd).
+    - apply (mathcomp_measurable_fun_restiction_setT (NonStatefulS S) (NonStatefulS_meas_fun S HS) snd).
         by eapply @measurable_snd_restriction; eauto with measlang.
   Qed.
 
@@ -1611,8 +1611,8 @@ Section meas_semantics.
       { by apply gRet_meas_fun. }
       apply @NonStatefulU_meas; solve_toplevel_meas. (* How to integrate this into the tactic w/o stack overflow?*)
       (* Why do these not get applied form the hintdb? *)
-      - by apply ValU_measurable.
-      - by apply RecVU_measurable.
+      - by apply ValU_meas_fun.
+      - by apply RecVU_meas_fun.
     - (* The trick: the two functions are equal on this set. *)
       move=>[??].
       do 3 (move=>[+]; move=>?).
@@ -1635,9 +1635,9 @@ Section meas_semantics.
       (* FIXME: Remove whatever hint is making this overapproximate the cover set
           I think it's measurable_compT, which we only want to use for certain compositions... *)
       apply measurable_compT; try by eauto with measlang.
-      + by apply ValU_measurable.
+      + by apply ValU_meas_fun.
       apply measurable_compT; try by eauto with measlang.
-      + by apply PairVU_measurable.
+      + by apply PairVU_meas_fun.
       apply measurable_fun_prod'_expr; try by eauto with measlang.
       + eapply measurable_comp.
         3: by apply 𝜋_Val_v_meas.
@@ -1682,9 +1682,9 @@ Section meas_semantics.
       { apply 𝜋_InjLU_meas; by eauto with measlang. }
       apply @NonStatefulU_meas; first done.
       apply measurable_compT; try by eauto with measlang.
-      + by apply ValU_measurable.
+      + by apply ValU_meas_fun.
       apply measurable_compT; try by eauto with measlang.
-      + by apply InjLVU_measurable.
+      + by apply InjLVU_meas_fun.
       eapply measurable_comp.
       3: { by apply 𝜋_Val_v_meas. }
       * by eauto with measlang.
@@ -1715,9 +1715,9 @@ Section meas_semantics.
       { apply 𝜋_InjRU_meas; by eauto with measlang. }
       apply @NonStatefulU_meas; first done.
       apply measurable_compT; try by eauto with measlang.
-      + by apply ValU_measurable.
+      + by apply ValU_meas_fun.
       apply measurable_compT; try by eauto with measlang.
-      + by apply InjRVU_measurable.
+      + by apply InjRVU_meas_fun.
       eapply measurable_comp.
       3: { by apply 𝜋_Val_v_meas. }
       * by eauto with measlang.
@@ -1917,7 +1917,7 @@ Section meas_semantics.
            - by eapply @measurable_snd_restriction; eauto with measlang.
       }
       apply measurable_compT; try by eauto with measlang.
-      { by apply ValU_measurable. }
+      { by apply ValU_meas_fun. }
       eapply @measurable_comp.
       3: { by eapply un_op_evalC_meas. }
       + by eauto with measlang.
@@ -2224,7 +2224,7 @@ Section meas_semantics.
     - mcrunch_comp.
       mcrunch_prod.
       2: by eapply @measurable_snd_restriction; eauto with measlang.
-      mcrunch_compC ValU_measurable.
+      mcrunch_compC ValU_meas_fun.
       mcrunch_comp.
       { rewrite /subset/auxcov_load_ok/aux_load_loc//=.
         move=>[??].
@@ -2434,7 +2434,7 @@ Section meas_semantics.
         by eauto with measlang. }
       apply @NonStatefulU_meas; first done.
       apply measurable_compT; try by eauto with measlang.
-      + by apply ValU_measurable.
+      + by apply ValU_meas_fun.
       eapply measurable_comp.
       3: { by apply 𝜋_PairV_l_meas. }
       * by eauto with measlang.
@@ -2474,7 +2474,7 @@ Section meas_semantics.
         by eauto with measlang. }
       apply @NonStatefulU_meas; first done.
       apply measurable_compT; try by eauto with measlang.
-      + by apply ValU_measurable.
+      + by apply ValU_meas_fun.
       eapply measurable_comp.
       3: { by apply 𝜋_PairV_r_meas. }
       * by eauto with measlang.
@@ -2515,13 +2515,13 @@ Section meas_semantics.
       }
       apply @NonStatefulU_meas; first done.
       apply measurable_compT; try by eauto with measlang.
-      + by apply AppU_measurable.
+      + by apply AppU_meas_fun.
       apply measurable_fun_prod'_expr; try by eauto with measlang.
       + rewrite <-(setIid ecov_case).
         rewrite <-setIA.
         apply measurable_fun_setI1; try by eauto with measlang.
         apply measurable_compT; try by eauto with measlang.
-        + by apply ValU_measurable.
+        + by apply ValU_meas_fun.
         eapply measurable_comp.
         3: { by apply 𝜋_InjLV_v_meas. }
         * by eauto with measlang.
@@ -2560,13 +2560,13 @@ Section meas_semantics.
       }
       apply @NonStatefulU_meas; first done.
       apply measurable_compT; try by eauto with measlang.
-      + by apply AppU_measurable.
+      + by apply AppU_meas_fun.
       apply measurable_fun_prod'_expr; try by eauto with measlang.
       + rewrite <-(setIid ecov_case).
         rewrite <-setIA.
         apply measurable_fun_setI1; try by eauto with measlang.
         apply measurable_compT; try by eauto with measlang.
-        + by apply ValU_measurable.
+        + by apply ValU_meas_fun.
         eapply measurable_comp.
         3: { by apply 𝜋_InjRV_v_meas. }
         * by eauto with measlang.
@@ -2635,9 +2635,9 @@ Section meas_semantics.
         by eauto with measlang. }
       apply @NonStatefulU_meas; first done.
       apply measurable_compT; try by eauto with measlang.
-      + by apply ValU_measurable.
+      + by apply ValU_meas_fun.
       apply measurable_compT; try by eauto with measlang.
-      + by apply LitVU_measurable.
+      + by apply LitVU_meas_fun.
     - move=>[e?].
       move=>/=[+]; move=>[?+].
       move=>//=->.
@@ -3045,7 +3045,7 @@ Definition meas_lang_mixin :
     of_val to_val fill_item decomp_item expr_ord head_stepM.
 Proof.
   split.
-  - by apply ValU_measurable.
+  - by apply ValU_meas_fun.
   - by apply to_val_meas.
   - by apply fill_item_def_measurable.
   - by apply decomp_item_meas.

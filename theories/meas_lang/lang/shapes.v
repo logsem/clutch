@@ -18,7 +18,6 @@ Definition base_lit_shape : Type := @base_lit_pre () () () ().
 Definition val_shape      : Type := @val_pre () () () ().
 Definition expr_shape     : Type := @expr_pre () () () ().
 
-
 (** Get the shape of an expression *)
 
 Definition shape_base_lit {T1 T2 T3 T4} : @base_lit_pre T1 T2 T3 T4 -> base_lit_shape :=

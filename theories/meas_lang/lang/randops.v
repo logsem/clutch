@@ -164,8 +164,8 @@ Definition rand_rand_aux : <<discr TZ>> -> giryM expr :=
 Lemma rand_rand_aux_meas : measurable_fun setT rand_rand_aux.
 Proof.
   have H : (measurable_fun (T:=TZ) (U:=types_expr_T__canonical__measure_Measurable) [set: TZ] (ValU \o (LitVU \o LitIntU))).
-  { mcrunch_compC ValU_measurable.
-    mcrunch_compC LitVU_measurable.
+  { mcrunch_compC ValU_meas_fun.
+    mcrunch_compC LitVU_meas_fun.
     by eauto with measlang.
   }
   eapply (@measurable_comp _ _ _ _ _ _ setT).

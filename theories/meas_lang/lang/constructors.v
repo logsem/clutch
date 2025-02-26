@@ -1,3 +1,4 @@
+(**  TODO: Cleanup imports *)
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
@@ -59,9 +60,6 @@ Definition InjRVU (v : val)                                       := InjRVC v.
 
 
 Section constructor_measurability.
-  (** For each uncurried constructor ConstrU, prove:
-          ConstrU_measurable : measurable_fun setT ConstrU
-   *)
 
   Local Lemma MZ {d} {T : measurableType d} (S : set T)  : S = set0 -> measurable S.
   Proof. by move=>->; apply measurable0. Qed.
@@ -124,7 +122,6 @@ Section constructor_measurability.
   Qed.
 
 
-
   (** The bulk of the trivial case work for the constructor measurability:
       Proves
         'measurable [set t | (exists2 x : ..., S x & A x = B t)]
@@ -139,24 +136,24 @@ Section constructor_measurability.
   Hint Resolve measurability : measlang.
 
   (** Base_lit constructors, uncurried *)
-  Lemma LitIntU_measurable : measurable_fun setT LitIntU.
+  Lemma LitIntU_meas_fun : measurable_fun setT LitIntU.
   Proof. into_gen_measurable. by rewrite //=. Qed.
-  Hint Resolve LitIntU_measurable : measlang.
+  Hint Resolve LitIntU_meas_fun : measlang.
 
-  Lemma LitBoolU_measurable : measurable_fun setT LitBoolU.
+  Lemma LitBoolU_meas_fun : measurable_fun setT LitBoolU.
   Proof. into_gen_measurable. by rewrite //=. Qed.
-  Hint Resolve LitBoolU_measurable : measlang.
+  Hint Resolve LitBoolU_meas_fun : measlang.
 
-  Lemma LitLocU_measurable : measurable_fun setT LitLocU.
+  Lemma LitLocU_meas_fun : measurable_fun setT LitLocU.
   Proof. into_gen_measurable. by rewrite //=. Qed.
-  Hint Resolve LitLocU_measurable : measlang.
+  Hint Resolve LitLocU_meas_fun : measlang.
 
-  Lemma LitLblU_measurable : measurable_fun setT LitLblU.
+  Lemma LitLblU_meas_fun : measurable_fun setT LitLblU.
   Proof. into_gen_measurable. by rewrite //=. Qed.
-  Hint Resolve LitLblU_measurable : measlang.
+  Hint Resolve LitLblU_meas_fun : measlang.
 
 
-  Lemma LitRealU_measurable : measurable_fun setT LitRealU.
+  Lemma LitRealU_meas_fun : measurable_fun setT LitRealU.
   Proof.
     into_gen_measurable.
     move=> ? [? [D H <-] <-] /=.
@@ -170,10 +167,10 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve LitRealU_measurable : measlang.
+  Hint Resolve LitRealU_meas_fun : measlang.
 
   (** Expr Constructors: Each *C function is (.. * ... * ...) / expr -measurable *)
-  Lemma ValU_measurable : measurable_fun setT ValU.
+  Lemma ValU_meas_fun : measurable_fun setT ValU.
   Proof.
     into_gen_measurable.
     move=> ? [? [D H <-] <-] /=.
@@ -187,14 +184,14 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve ValU_measurable : measlang.
+  Hint Resolve ValU_meas_fun : measlang.
 
-  Lemma VarU_measurable : measurable_fun setT VarU.
+  Lemma VarU_meas_fun : measurable_fun setT VarU.
   Proof. into_gen_measurable. by rewrite //=. Qed.
-  Hint Resolve VarU_measurable : measlang.
+  Hint Resolve VarU_meas_fun : measlang.
 
 
-  Lemma RecU_measurable : measurable_fun setT RecU.
+  Lemma RecU_meas_fun : measurable_fun setT RecU.
   Proof.
     into_gen_measurable.
     move=> ? [? [D H <-] <-] /=.
@@ -253,9 +250,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve RecU_measurable : measlang.
+  Hint Resolve RecU_meas_fun : measlang.
 
-  Lemma AppU_measurable : measurable_fun setT AppU.
+  Lemma AppU_meas_fun : measurable_fun setT AppU.
   Proof.
     into_gen_measurable.
     rewrite /preimage_class/subset.
@@ -289,9 +286,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve AppU_measurable : measlang.
+  Hint Resolve AppU_meas_fun : measlang.
 
-  Lemma UnOpU_measurable : measurable_fun setT UnOpU.
+  Lemma UnOpU_meas_fun : measurable_fun setT UnOpU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -337,9 +334,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve UnOpU_measurable : measlang.
+  Hint Resolve UnOpU_meas_fun : measlang.
 
-  Lemma BinOpU_measurable : measurable_fun setT BinOpU.
+  Lemma BinOpU_meas_fun : measurable_fun setT BinOpU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -425,9 +422,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve BinOpU_measurable : measlang.
+  Hint Resolve BinOpU_meas_fun : measlang.
 
-  Lemma IfU_measurable : measurable_fun setT IfU.
+  Lemma IfU_meas_fun : measurable_fun setT IfU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -499,9 +496,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve IfU_measurable : measlang.
+  Hint Resolve IfU_meas_fun : measlang.
 
-  Lemma PairU_measurable : measurable_fun setT PairU.
+  Lemma PairU_meas_fun : measurable_fun setT PairU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -531,9 +528,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve PairU_measurable : measlang.
+  Hint Resolve PairU_meas_fun : measlang.
 
-  Lemma FstU_measurable : measurable_fun setT FstU.
+  Lemma FstU_meas_fun : measurable_fun setT FstU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -551,9 +548,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve FstU_measurable : measlang.
+  Hint Resolve FstU_meas_fun : measlang.
 
-  Lemma SndU_measurable : measurable_fun setT SndU.
+  Lemma SndU_meas_fun : measurable_fun setT SndU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -571,9 +568,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve SndU_measurable : measlang.
+  Hint Resolve SndU_meas_fun : measlang.
 
-  Lemma InjLU_measurable : measurable_fun setT InjLU.
+  Lemma InjLU_meas_fun : measurable_fun setT InjLU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -591,9 +588,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve InjLU_measurable : measlang.
+  Hint Resolve InjLU_meas_fun : measlang.
 
-  Lemma InjRU_measurable : measurable_fun setT InjRU.
+  Lemma InjRU_meas_fun : measurable_fun setT InjRU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -611,9 +608,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve InjRU_measurable : measlang.
+  Hint Resolve InjRU_meas_fun : measlang.
 
-  Lemma CaseU_measurable : measurable_fun setT CaseU.
+  Lemma CaseU_meas_fun : measurable_fun setT CaseU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -685,9 +682,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve CaseU_measurable : measlang.
+  Hint Resolve CaseU_meas_fun : measlang.
 
-  Lemma AllocU_measurable : measurable_fun setT AllocU.
+  Lemma AllocU_meas_fun : measurable_fun setT AllocU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -725,9 +722,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Admitted.
-  Hint Resolve AllocU_measurable : measlang.
+  Hint Resolve AllocU_meas_fun : measlang.
 
-  Lemma LoadU_measurable : measurable_fun setT LoadU.
+  Lemma LoadU_meas_fun : measurable_fun setT LoadU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -745,9 +742,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve LoadU_measurable : measlang.
+  Hint Resolve LoadU_meas_fun : measlang.
 
-  Lemma StoreU_measurable : measurable_fun setT StoreU.
+  Lemma StoreU_meas_fun : measurable_fun setT StoreU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -781,9 +778,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve StoreU_measurable : measlang.
+  Hint Resolve StoreU_meas_fun : measlang.
 
-  Lemma AllocTapeU_measurable : measurable_fun setT AllocTapeU.
+  Lemma AllocTapeU_meas_fun : measurable_fun setT AllocTapeU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -800,9 +797,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve AllocTapeU_measurable : measlang.
+  Hint Resolve AllocTapeU_meas_fun : measlang.
 
-  Lemma RandU_measurable : measurable_fun setT RandU.
+  Lemma RandU_meas_fun : measurable_fun setT RandU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -836,13 +833,13 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve RandU_measurable : measlang.
+  Hint Resolve RandU_meas_fun : measlang.
 
   (*
-  Lemma AllocUTapeU_measurable : measurable_fun setT AllocUTapeU.
+  Lemma AllocUTapeU_meas_fun : measurable_fun setT AllocUTapeU.
   *)
 
-  Lemma UrandU_measurable : measurable_fun setT UrandU.
+  Lemma UrandU_meas_fun : measurable_fun setT UrandU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -859,9 +856,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve UrandU_measurable : measlang.
+  Hint Resolve UrandU_meas_fun : measlang.
 
-  Lemma TickU_measurable : measurable_fun setT TickU.
+  Lemma TickU_meas_fun : measurable_fun setT TickU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -878,11 +875,11 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve TickU_measurable : measlang.
+  Hint Resolve TickU_meas_fun : measlang.
 
   (** Val constructors *)
 
-  Lemma LitVU_measurable : measurable_fun setT LitVU.
+  Lemma LitVU_meas_fun : measurable_fun setT LitVU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -899,9 +896,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve LitVU_measurable : measlang.
+  Hint Resolve LitVU_meas_fun : measlang.
 
-  Lemma RecVU_measurable : measurable_fun setT RecVU.
+  Lemma RecVU_meas_fun : measurable_fun setT RecVU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -968,9 +965,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve RecVU_measurable : measlang.
+  Hint Resolve RecVU_meas_fun : measlang.
 
-  Lemma PairVU_measurable : measurable_fun setT PairVU.
+  Lemma PairVU_meas_fun : measurable_fun setT PairVU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -1004,9 +1001,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve PairVU_measurable : measlang.
+  Hint Resolve PairVU_meas_fun : measlang.
 
-  Lemma InjLVU_measurable : measurable_fun setT InjLVU.
+  Lemma InjLVU_meas_fun : measurable_fun setT InjLVU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -1023,9 +1020,9 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve InjLVU_measurable : measlang.
+  Hint Resolve InjLVU_meas_fun : measlang.
 
-  Lemma InjRVU_measurable : measurable_fun setT InjRVU.
+  Lemma InjRVU_meas_fun : measurable_fun setT InjRVU.
   Proof.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
@@ -1042,6 +1039,6 @@ Section constructor_measurability.
     }
     all: by ctor_triv_case.
   Qed.
-  Hint Resolve InjRVU_measurable : measlang.
+  Hint Resolve InjRVU_meas_fun : measlang.
 
 End constructor_measurability.
