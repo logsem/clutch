@@ -41,7 +41,7 @@ Section sequence_measure.
 
   Definition sequence_eval (i : nat) : T^nat -> T := fun f => f i.
 
-  Lemma sequence_eval_measurable (i : nat) : measurable_fun setT (sequence_eval i).
+  Lemma sequence_eval_meas_fun  (i : nat) : measurable_fun setT (sequence_eval i).
   Proof.
     intros _ Y HY.
     rewrite /sequence_measurable.
@@ -54,13 +54,13 @@ Section sequence_measure.
     rewrite setTI.
     done.
   Qed.
-  Hint Resolve sequence_eval_measurable : measlang.
+  Hint Resolve sequence_eval_meas_fun : measlang.
 
   (* The uncurry is measurable becuase nat is discrete and countable *)
   Definition sequence_evalC : (nat * T^nat)%type -> T := uncurry sequence_eval.
-  Lemma sequence_evalC_measurable : measurable_fun setT sequence_evalC.
-  Proof. by apply (@uncurry_nat_measurable _ _ _ _ sequence_eval), sequence_eval_measurable. Qed.
-  Hint Resolve sequence_evalC_measurable : measlang.
+  Lemma sequence_evalC_meas_fun : measurable_fun setT sequence_evalC.
+  Proof. by apply (@uncurry_nat_measurable _ _ _ _ sequence_eval), sequence_eval_meas_fun. Qed.
+  Hint Resolve sequence_evalC_meas_fun : measlang.
 
   Definition sequence_update (i : nat) : (T * T^nat)%type -> T^nat :=
     fun x n =>
@@ -68,7 +68,7 @@ Section sequence_measure.
         then fst x
         else ((sequence_eval n) \o snd) x.
 
-  Lemma sequence_update_measurable (i : nat) : measurable_fun setT (sequence_update i).
+  Lemma sequence_update_meas_fun (i : nat) : measurable_fun setT (sequence_update i).
   Proof.
     eapply @measurability; [done|].
     rewrite //=/sequence_update/subset/preimage_class//=.
@@ -87,19 +87,19 @@ Section sequence_measure.
     { have -> : ((λ x : T * sequence T, sequence_eval k x.2) @^-1` S'') = ((ssrfun.comp (sequence_eval k) snd) @^-1` S'').
       { by rewrite /ssrfun.comp/preimage//=. }
       rewrite <-(setTI (preimage _ _)).
-      by eapply (measurable_comp _ _ (sequence_eval_measurable k) (measurable_snd) _ HS'').
+      by eapply (measurable_comp _ _ (sequence_eval_meas_fun k) (measurable_snd) _ HS'').
       Unshelve.
       { by eapply @measurableT. }
       { by simpl. }
       { by eapply @measurableT. }
     }
   Qed.
-  Hint Resolve sequence_update_measurable : measlang.
+  Hint Resolve sequence_update_meas_fun : measlang.
 
   Definition sequence_updateC : (nat * (T * T^nat))%type -> T^nat := uncurry sequence_update.
-  Lemma sequence_updateC_measurable : measurable_fun setT sequence_updateC.
-  Proof. by apply (@uncurry_nat_measurable _ _ _ _ sequence_update), sequence_update_measurable. Qed.
-  Hint Resolve sequence_updateC_measurable : measlang.
+  Lemma sequence_updateC_meas_fun : measurable_fun setT sequence_updateC.
+  Proof. by apply (@uncurry_nat_measurable _ _ _ _ sequence_update), sequence_update_meas_fun. Qed.
+  Hint Resolve sequence_updateC_meas_fun : measlang.
 
 End sequence_measure.
 
@@ -113,14 +113,14 @@ Section tapes.
   Definition tape : Type := (nat * (option A)^nat)%type.
 
   Definition tape_position : tape -> nat := fst.
-  Lemma tape_positon_meas : measurable_fun setT tape_position.
+  Lemma tape_positon_meas_fun : measurable_fun setT tape_position.
   Proof. unfold tape_position. by eauto with measlang. Qed.
-  Hint Resolve tape_positon_meas : measlang.
+  Hint Resolve tape_positon_meas_fun : measlang.
 
   Definition tape_contents : tape -> (option A)^nat := snd.
-  Lemma tape_contents_meas : measurable_fun setT tape_contents.
+  Lemma tape_contents_meas_fun : measurable_fun setT tape_contents.
   Proof. unfold tape_contents. by eauto with measlang. Qed.
-  Hint Resolve tape_contents_meas : measlang.
+  Hint Resolve tape_contents_meas_fun : measlang.
 
   Definition emptyTapeContents : (option A)^nat := cst None.
 
@@ -133,19 +133,19 @@ Section tapes.
   Definition shiftTape (f : nat -> nat) : tape -> tape :=
     (f \o tape_position) △ tape_contents.
 
-  Lemma shiftTape_meas (f : nat -> nat) : measurable_fun setT (shiftTape f).
+  Lemma shiftTape_meas_fun (f : nat -> nat) : measurable_fun setT (shiftTape f).
   Proof.
     mcrunch_prod.
     { eapply measurable_comp; first by eapply @measurableT.
       all: simpl; by eauto with measlang. }
     by eauto with measlang.
   Qed.
-  Hint Resolve shiftTape_meas : measlang.
+  Hint Resolve shiftTape_meas_fun : measlang.
 
   Definition tapeAdvance : tape -> tape := shiftTape (Nat.succ).
-  Lemma tapeAdvance_meas : measurable_fun setT tapeAdvance.
+  Lemma tapeAdvance_meas_fun : measurable_fun setT tapeAdvance.
   Proof. by eauto with measlang. Qed.
-  Hint Resolve tapeAdvance_meas : measlang.
+  Hint Resolve tapeAdvance_meas_fun : measlang.
 
 End tapes.
 
@@ -157,36 +157,33 @@ Local Open Scope classical_set_scope.
 Definition btape : Type := (nat * (tape <<discr Z>>))%type.
 
 Definition btape_position : btape -> nat := ssrfun.comp fst snd.
-Lemma btape_positon_meas : measurable_fun setT btape_position.
+Lemma btape_positon_meas_fun : measurable_fun setT btape_position.
 Proof.
   eapply measurable_comp; first by eapply @measurableT.
   { by simpl. }
   { by eauto with measlang. }
   { by eauto with measlang. }
 Qed.
-Hint Resolve btape_positon_meas : measlang.
+Hint Resolve btape_positon_meas_fun : measlang.
 
 Definition btape_contents : btape -> sequence (option <<discr Z>>) := snd \o snd.
-Lemma btape_contents_meas : measurable_fun setT btape_contents.
+Lemma btape_contents_meas_fun : measurable_fun setT btape_contents.
 Proof.
   eapply measurable_comp; first by eapply @measurableT.
   { by simpl. }
   { by eauto with measlang. }
   { by eauto with measlang. }
 Qed.
-Hint Resolve btape_contents_meas : measlang.
+Hint Resolve btape_contents_meas_fun : measlang.
 
 Definition btape_bound : btape -> nat := fst.
-Lemma btape_bound_meas : measurable_fun setT btape_bound.
+Lemma btape_bound_meas_fun : measurable_fun setT btape_bound.
 Proof. unfold btape_bound; by eauto with measlang. Qed.
-Hint Resolve btape_bound_meas : measlang.
+Hint Resolve btape_bound_meas_fun : measlang.
 
 
 (** Tape of real numbers *)
 Definition utape := tape ((R : realType) : measurableType _).
-
-
-(* btape and utape definitions *)
 
 (* All values of the tape are within the tape bound *)
 Definition btape_inbounds (t : btape): Prop :=
