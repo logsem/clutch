@@ -488,7 +488,7 @@ Section meas_semantics.
     2: { apply measurableX; by eauto with measlang. }
     eapply measurable_comp.
     3: { by eapply 𝜋_Val_v_meas. }
-    - by apply ecov_val_meas.
+    - by apply ecov_val_meas_set.
     - rewrite /subset//=.
       by move=>?//=[?[??]]<-//=.
     - eapply (mathcomp_measurable_fun_restiction_setT ([set: <<discr un_op >>] `*` ecov_val) _ snd).
@@ -516,7 +516,7 @@ Section meas_semantics.
     2: { apply measurableX; by eauto with measlang. }
     eapply measurable_comp.
     3: { by eapply 𝜋_Val_v_meas. }
-    - by apply ecov_val_meas.
+    - by apply ecov_val_meas_set.
     - rewrite /subset//=.
       by move=>?//=[?[??]]<-//=.
     - eapply (mathcomp_measurable_fun_restiction_setT ([set: <<discr un_op >>] `*` ecov_val) _ snd).

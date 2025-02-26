@@ -21,14 +21,14 @@ Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.
 
-
 (** Uncurried constructors: These ones can be shown to be measurable directly *)
-Definition LitIntU  (v : TZ)                                      := LitIntC v.
-Definition LitBoolU (v : TB)                                      := LitBoolC v.
-Definition LitUnitU                                               := LitUnitC.
-Definition LitLocU  (v : TL)                                      := LitLocC v.
-Definition LitLblU  (v : TL)                                      := LitLblC v.
-Definition LitRealU (v : TR)                                      := LitRealC v.
+
+Definition LitIntU   := LitIntC.
+Definition LitBoolU  := LitBoolC.
+Definition LitUnitU  := LitUnitC.
+Definition LitLocU   := LitLocC.
+Definition LitLblU   := LitLblC.
+Definition LitRealU  := LitRealC.
 
 Definition ValU (v : val)                                         := ValC v.
 Definition VarU (v : <<discr binder>>)                            := VarC v.
