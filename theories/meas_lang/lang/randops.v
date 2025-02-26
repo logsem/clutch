@@ -365,7 +365,7 @@ Definition tape_sample' (z : <<discr Z>>) (l : <<discr loc>>) : state -> giryM s
                         (* The position is the old position *)
                         ( ssrfun.comp btape_position $ of_option $ ssrfun.comp get_btape $ mProd (cst l) snd)
                         (* The new tape: Update the old tape *)
-                        ( ssrfun.comp nf_updateC $
+                        ( ssrfun.comp sequence_updateC $
                           (mProd
                             (* Update at the tape head position *)
                             ( ssrfun.comp btape_position $ of_option $ ssrfun.comp get_btape $ mProd (cst l) snd)
@@ -410,7 +410,7 @@ Definition tape_advance : (<<discr loc>> * state)%type -> state :=
 
 Definition tape_read : (<<discr loc>> * state)%type -> <<discr Z>> :=
   of_option $
-  ssrfun.comp nf_evalC $
+  ssrfun.comp sequence_evalC $
   mProd
     (* Get the next position of the tape at loc *)
     (ssrfun.comp fst $ of_option get_btape )
@@ -455,7 +455,7 @@ Definition rand_randT_nextEmpty : (<<discr Z>> * <<discr loc>> * state)%type -> 
                     (* Tape is the advanced version of.. *)
                     ( mProd
                         (ssrfun.comp Nat.succ $ ssrfun.comp btape_position $ of_option $ ssrfun.comp get_btape $ mProd (ssrfun.comp snd (ssrfun.comp fst fst)) (ssrfun.comp snd fst) )
-                        (ssrfun.comp nf_updateC $
+                        (ssrfun.comp sequence_updateC $
                           mProd
                             (* Update at current tape head *)
                             (ssrfun.comp btape_position $ of_option $ ssrfun.comp get_btape $ mProd (ssrfun.comp snd (ssrfun.comp fst fst)) (ssrfun.comp snd fst) )
@@ -577,7 +577,7 @@ Program Definition rand_urandT_nextEmpty : (<<discr loc>> * state)%type -> giryM
                   (* Head shifts forward by one*)
                   (ssrfun.comp Nat.succ $ ssrfun.comp fst $ of_option $ ssrfun.comp get_utape fst )
                   (* Tape at old head is updated with sample *)
-                  (ssrfun.comp nf_updateC $
+                  (ssrfun.comp sequence_updateC $
                    mProd (ssrfun.comp fst $ of_option $ ssrfun.comp get_utape fst)
                    (mProd
                       (ssrfun.comp Some _) (* snd, even though it doesn't typecheck atm *)
@@ -603,7 +603,7 @@ Program Definition rand_urandT_ok : (<<discr loc>> * state)%type -> giryM cfg :=
   ssrfun.comp gProd $
   mProd
     (ssrfun.comp gRet $ ssrfun.comp ValU $ ssrfun.comp LitVU $ ssrfun.comp LitReal $
-     of_option $ ssrfun.comp nf_evalC $
+     of_option $ ssrfun.comp sequence_evalC $
      mProd
       (ssrfun.comp fst $ of_option get_utape )
       (ssrfun.comp _ $ of_option get_utape))

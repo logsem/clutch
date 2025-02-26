@@ -1,116 +1,107 @@
-(* TODO cleanup imports *)
 Set Warnings "hiding-delimiting-key".
 From HB Require Import structures.
-From Coq Require Import Logic.ClassicalEpsilon Psatz.
-From stdpp Require Import base numbers binders strings gmap.
-From mathcomp Require Import functions.
-From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
-From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
-From iris.algebra Require Export ofe.
-From clutch.prelude Require Export stdpp_ext.
+From Coq Require Export ssrfun.
+From stdpp Require Import binders.
+From mathcomp Require Import eqtype choice boolp functions classical_sets.
+From mathcomp.analysis Require Import reals measure lebesgue_measure sequences.
 From clutch.common Require Export locations.
-From clutch.meas_lang Require Import ectxi_language ectx_language.
-From Coq Require Export Reals.
-From clutch.prob.monad Require Export giry prelude.
-From mathcomp.analysis Require Export Rstruct.
-From mathcomp Require Import classical_sets.
-Import Coq.Logic.FunctionalExtensionality.
-From clutch.prelude Require Import classical.
-From clutch.meas_lang.lang Require Export prelude. (* types constructors shapes cover projections. **)
+From clutch.meas_lang.lang Require Export prelude.
 Set Warnings "hiding-delimiting-key".
 
 Set Default Proof Using "Type*".
 
-Section seq_measure.
-  Local Open Scope classical_set_scope.
-  (** Measurable functions out of nat *)
+Local Open Scope classical_set_scope.
+
+(** Sigma algebra on sequences *)
+
+Section sequence_measure.
   Context {d} {T : measurableType d}.
 
-  Definition nf : Type := nat -> T.
+  HB.instance Definition _ := gen_eqMixin T^nat.
+  HB.instance Definition _ := gen_choiceMixin T^nat.
+  HB.instance Definition _ := isPointed.Build T^nat (cst point).
 
-  HB.instance Definition _ := gen_eqMixin nf.
-  HB.instance Definition _ := gen_choiceMixin nf.
-  HB.instance Definition _ := isPointed.Build nf (cst point).
+  Definition sequence_generators : set (set T^nat) :=
+    \bigcup_i (preimage_class setT (fun f => f i) measurable).
 
-  Definition nf_generators : set (set nf) :=
-    (\bigcup_i (preimage_class setT (fun f => f i) measurable)).
+  Definition sequence_measurable : set (set T^nat) := <<s sequence_generators>>.
 
-  Definition nf_measurable : set (set nf) := <<s nf_generators>>.
-
-  Lemma nf_meas0 : nf_measurable set0.
+  Lemma sequence_meas0 : sequence_measurable set0.
   Proof. by apply sigma_algebra0. Qed.
 
-  Lemma nf_measC X : (nf_measurable X) -> nf_measurable (~` X).
+  Lemma sequence_measC X : (sequence_measurable X) -> sequence_measurable (~` X).
   Proof. by apply sigma_algebraC. Qed.
 
-  Lemma nf_measU (F : sequences.sequence (set nf)) : (forall i, nf_measurable (F i)) -> nf_measurable (\bigcup_i F i).
+  Lemma sequence_measU (F : sequence (set T^nat)) : (forall i, sequence_measurable (F i)) -> sequence_measurable (\bigcup_i F i).
   Proof. by apply sigma_algebra_bigcup. Qed.
 
   HB.instance Definition _ :=
-    @isMeasurable.Build (sigma_display nf_measurable) nf nf_measurable nf_meas0 nf_measC nf_measU.
+    @isMeasurable.Build (sigma_display sequence_measurable) T^nat
+      sequence_measurable sequence_meas0 sequence_measC sequence_measU.
 
-  Definition nf_eval (i : nat) : nf -> T := (fun f : nf => f i).
+  Definition sequence_eval (i : nat) : T^nat -> T := fun f => f i.
 
-  Lemma nf_eval_measurable (i : nat) : measurable_fun setT (nf_eval i).
+  Lemma sequence_eval_measurable (i : nat) : measurable_fun setT (sequence_eval i).
   Proof.
     intros _ Y HY.
-    rewrite /nf_measurable.
-    suffices H : nf_generators ([set: tapes_nf__canonical__measure_SigmaRing] `&` nf_eval i @^-1` Y).
-    { by apply ((@sub_gen_smallest _ _ nf_generators) _ H). }
+    rewrite /sequence_measurable.
+    suffices H : sequence_generators (setT `&` sequence_eval i @^-1` Y).
+    { by apply ((@sub_gen_smallest _ _ sequence_generators) _ H). }
     exists i; [done|].
-    rewrite /nf_eval.
+    rewrite /sequence_eval.
     rewrite /preimage_class//=.
     exists Y; [done|].
     rewrite setTI.
     done.
   Qed.
-  Hint Resolve nf_eval_measurable : measlang.
+  Hint Resolve sequence_eval_measurable : measlang.
 
   (* The uncurry is measurable becuase nat is discrete and countable *)
-  Definition nf_evalC : (nat * nf)%type -> T := uncurry nf_eval.
-  Lemma nf_evalC_measurable : measurable_fun setT nf_evalC.
-  Proof. by apply (@uncurry_nat_measurable _ _ _ _ nf_eval), nf_eval_measurable. Qed.
-  Hint Resolve nf_evalC_measurable : measlang.
+  Definition sequence_evalC : (nat * T^nat)%type -> T := uncurry sequence_eval.
+  Lemma sequence_evalC_measurable : measurable_fun setT sequence_evalC.
+  Proof. by apply (@uncurry_nat_measurable _ _ _ _ sequence_eval), sequence_eval_measurable. Qed.
+  Hint Resolve sequence_evalC_measurable : measlang.
 
-  Definition nf_update (i : nat) : (T * nf)%type -> nf :=
-    (fun x => (fun n => if (n =? i) then (fst x) else ((ssrfun.comp (nf_eval n) snd) x))).
+  Definition sequence_update (i : nat) : (T * T^nat)%type -> T^nat :=
+    fun x n =>
+      if (n =? i)
+        then fst x
+        else ((sequence_eval n) \o snd) x.
 
-  Lemma nf_update_measurable (i : nat) : measurable_fun setT (nf_update i).
+  Lemma sequence_update_measurable (i : nat) : measurable_fun setT (sequence_update i).
   Proof.
     eapply @measurability; [done|].
-    rewrite //=/nf_update/subset/preimage_class//=.
+    rewrite //=/sequence_update/subset/preimage_class//=.
     intro S.
-    rewrite /nf_generators/preimage_class//=.
+    rewrite /sequence_generators/preimage_class//=.
     move=> [S' [k _ +]].
     rewrite setTI//=; move=>[S'' HS'' +].
     rewrite setTI//=; move=><-<-//=.
     rewrite <-comp_preimage; rewrite /ssrfun.comp//=.
     destruct (k =? i); rewrite //=.
-    { have -> : ((λ x : T * nf, x.1) @^-1` S'') = (setT `&` fst @^-1` S'').
+    { have -> : ((λ x : T * sequence T, x.1) @^-1` S'') = (setT `&` fst @^-1` S'').
       { rewrite /setI/preimage/cst//=.
         apply /predeqP =>[y] /=.
         by intuition. }
       by eapply @measurable_fst. }
-    { have -> : ((λ x : T * nf, nf_eval k x.2) @^-1` S'') = ((ssrfun.comp (nf_eval k) snd) @^-1` S'').
+    { have -> : ((λ x : T * sequence T, sequence_eval k x.2) @^-1` S'') = ((ssrfun.comp (sequence_eval k) snd) @^-1` S'').
       { by rewrite /ssrfun.comp/preimage//=. }
       rewrite <-(setTI (preimage _ _)).
-      by eapply (measurable_comp _ _ (nf_eval_measurable k) (measurable_snd) _ HS'').
+      by eapply (measurable_comp _ _ (sequence_eval_measurable k) (measurable_snd) _ HS'').
       Unshelve.
       { by eapply @measurableT. }
       { by simpl. }
       { by eapply @measurableT. }
     }
   Qed.
-  Hint Resolve nf_update_measurable : measlang.
+  Hint Resolve sequence_update_measurable : measlang.
 
-  Definition nf_updateC : (nat * (T * nf))%type -> nf := uncurry nf_update.
-  Lemma nf_updateC_measurable : measurable_fun setT nf_updateC.
-  Proof. by apply (@uncurry_nat_measurable _ _ _ _ nf_update), nf_update_measurable. Qed.
-  Hint Resolve nf_updateC_measurable : measlang.
+  Definition sequence_updateC : (nat * (T * T^nat))%type -> T^nat := uncurry sequence_update.
+  Lemma sequence_updateC_measurable : measurable_fun setT sequence_updateC.
+  Proof. by apply (@uncurry_nat_measurable _ _ _ _ sequence_update), sequence_update_measurable. Qed.
+  Hint Resolve sequence_updateC_measurable : measlang.
 
-End seq_measure.
-
-Global Arguments nf {_} _.
+End sequence_measure.
 
 Section tapes.
   Local Open Scope classical_set_scope.
@@ -119,28 +110,28 @@ Section tapes.
 
   Context {d} {A : measurableType d}.
 
-  Definition tape : Type := (nat * nf (option A))%type.
+  Definition tape : Type := (nat * (option A)^nat)%type.
 
   Definition tape_position : tape -> nat := fst.
   Lemma tape_positon_meas : measurable_fun setT tape_position.
   Proof. unfold tape_position. by eauto with measlang. Qed.
   Hint Resolve tape_positon_meas : measlang.
 
-  Definition tape_contents : tape -> nf (option A) := snd.
+  Definition tape_contents : tape -> (option A)^nat := snd.
   Lemma tape_contents_meas : measurable_fun setT tape_contents.
   Proof. unfold tape_contents. by eauto with measlang. Qed.
   Hint Resolve tape_contents_meas : measlang.
 
-  Definition emptyTapeContents  : nf (option A) := cst None.
+  Definition emptyTapeContents : (option A)^nat := cst None.
 
   Definition emptyTape : tape := (0, emptyTapeContents).
 
   (* History lookup: look through absolute history *)
   (** Don't use lookup if you expect the function to be measurable in the index! *)
-  Global Instance tape_content_lookup : Lookup nat A tape := fun i => (ssrfun.comp (nf_eval i) tape_contents).
+  Global Instance tape_content_lookup : Lookup nat A tape := fun i => ((sequence_eval i) \o tape_contents).
 
   Definition shiftTape (f : nat -> nat) : tape -> tape :=
-    mProd (ssrfun.comp f tape_position) tape_contents.
+    (f \o tape_position) △ tape_contents.
 
   Lemma shiftTape_meas (f : nat -> nat) : measurable_fun setT (shiftTape f).
   Proof.
@@ -175,7 +166,7 @@ Proof.
 Qed.
 Hint Resolve btape_positon_meas : measlang.
 
-Definition btape_contents : btape -> nf (option <<discr Z>>) := ssrfun.comp snd snd.
+Definition btape_contents : btape -> sequence (option <<discr Z>>) := snd \o snd.
 Lemma btape_contents_meas : measurable_fun setT btape_contents.
 Proof.
   eapply measurable_comp; first by eapply @measurableT.
@@ -192,9 +183,7 @@ Hint Resolve btape_bound_meas : measlang.
 
 
 (** Tape of real numbers *)
-Definition utape `{R : realType} := tape R.
-
-
+Definition utape `{R : realType} := tape ((R : realType) : measurableType _).
 
 
 (* btape and utape definitions *)
