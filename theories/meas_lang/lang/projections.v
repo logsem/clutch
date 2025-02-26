@@ -126,6 +126,10 @@ Definition 𝜋_TickU := 𝜋_Tick_e.
 (** Primitive Projection functions measurability *)
 Lemma 𝜋_LitInt_z_meas  : measurable_fun bcov_LitInt 𝜋_LitInt_z.
 Proof.
+  have -> : bcov_LitInt = [set e  | ∃ v, e = LitIntU v].
+  { apply /predeqP =>y //=; rewrite /ecov_val//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   intros _H S HS.
   apply sub_sigma_algebra.
   exists (LitInt S).
@@ -143,6 +147,10 @@ Hint Resolve 𝜋_LitInt_z_meas : measlang.
 
 Lemma 𝜋_LitBool_b_meas : measurable_fun bcov_LitBool 𝜋_LitBool_b.
 Proof.
+  have -> : bcov_LitBool = [set e  | ∃ v, e = LitBoolU v].
+  { apply /predeqP =>y //=; rewrite /ecov_val//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   intros _H S HS.
   apply sub_sigma_algebra.
   exists (LitBool S).
@@ -160,6 +168,10 @@ Hint Resolve 𝜋_LitBool_b_meas : measlang.
 
 Lemma 𝜋_LitLoc_l_meas  : measurable_fun bcov_LitLoc 𝜋_LitLoc_l.
 Proof.
+  have -> : bcov_LitLoc = [set e  | ∃ v, e = LitLocU v].
+  { apply /predeqP =>y //=; rewrite /ecov_val//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   intros _H S HS.
   apply sub_sigma_algebra.
   exists (LitLoc S).
@@ -177,6 +189,10 @@ Hint Resolve 𝜋_LitLoc_l_meas : measlang.
 
 Lemma 𝜋_LitLbl_l_meas  : measurable_fun bcov_LitLbl 𝜋_LitLbl_l.
 Proof.
+  have -> : bcov_LitLbl = [set e  | ∃ v, e = LitLblU v].
+  { apply /predeqP =>y //=; rewrite /ecov_val//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   intros _H S HS.
   apply sub_sigma_algebra.
   exists (LitLbl S).
@@ -194,6 +210,10 @@ Hint Resolve 𝜋_LitLbl_l_meas : measlang.
 
 Lemma 𝜋_LitReal_r_meas : measurable_fun bcov_LitReal 𝜋_LitReal_r.
 Proof.
+  have -> : bcov_LitReal = [set e  | ∃ v, e = LitRealU v].
+  { apply /predeqP =>y //=; rewrite /ecov_val//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   intros _H S HS.
   apply sub_sigma_algebra.
   exists (LitReal S).
@@ -212,6 +232,10 @@ Hint Resolve 𝜋_LitReal_r_meas : measlang.
 
 Lemma 𝜋_LitV_v_meas    : measurable_fun vcov_lit   𝜋_LitV_v.
 Proof.
+  have -> : vcov_lit = [set e  | ∃ v, e = LitVU v].
+  { apply /predeqP =>y //=; rewrite /ecov_val//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.                       (* codomain is generated SA *)
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.    (* Separate S into union of preimages *)
   move=> [SB + ->].                                    (* Destruct facts about S *)
@@ -232,6 +256,10 @@ Hint Resolve 𝜋_LitV_v_meas : measlang.
 
 Lemma 𝜋_RecV_f_meas    : measurable_fun vcov_rec   𝜋_RecV_f.
 Proof.
+  have -> : vcov_rec =  [set e  | ∃ f x b, e = RecVC f x b].
+  { apply /predeqP =>y //=; rewrite /ecov_rec//=; split.
+    - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
+    - by move=> [a[b[c->]]]; eexists (a, b, c). }
   eapply (measurability binder_generated_by_singletons).
   move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
@@ -281,6 +309,10 @@ Hint Resolve 𝜋_RecV_f_meas : measlang.
 
 Lemma 𝜋_RecV_x_meas    : measurable_fun vcov_rec   𝜋_RecV_x.
 Proof.
+  have -> : vcov_rec =  [set e  | ∃ f x b, e = RecVC f x b].
+  { apply /predeqP =>y //=; rewrite /ecov_rec//=; split.
+    - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
+    - by move=> [a[b[c->]]]; eexists (a, b, c). }
   eapply (measurability binder_generated_by_singletons).
   move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
@@ -330,6 +362,10 @@ Hint Resolve 𝜋_RecV_x_meas : measlang.
 
 Lemma 𝜋_RecV_e_meas    : measurable_fun vcov_rec   𝜋_RecV_e.
 Proof.
+  have -> : vcov_rec =  [set e  | ∃ f x b, e = RecVC f x b].
+  { apply /predeqP =>y //=; rewrite /ecov_rec//=; split.
+    - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
+    - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -376,6 +412,10 @@ Hint Resolve 𝜋_RecV_e_meas : measlang.
 
 Lemma 𝜋_PairV_l_meas : measurable_fun vcov_pair  𝜋_PairV_l.
 Proof.
+  have -> : vcov_pair = [set e  | ∃ e1 e2, e = PairVC e1 e2].
+  { apply /predeqP =>y //=; rewrite /ecov_app//=; split.
+    - by move=> [[??]?]<-; eexists _; eexists _.
+    - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -418,6 +458,10 @@ Hint Resolve 𝜋_PairV_l_meas : measlang.
 
 Lemma 𝜋_PairV_r_meas   : measurable_fun vcov_pair  𝜋_PairV_r.
 Proof.
+  have -> : vcov_pair = [set e  | ∃ e1 e2, e = PairVC e1 e2].
+  { apply /predeqP =>y //=; rewrite /ecov_app//=; split.
+    - by move=> [[??]?]<-; eexists _; eexists _.
+    - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -461,6 +505,10 @@ Hint Resolve 𝜋_PairV_r_meas : measlang.
 
 Lemma 𝜋_InjLV_v_meas   : measurable_fun vcov_injlv 𝜋_InjLV_v.
 Proof.
+  have -> : vcov_injlv = [set e  | ∃ x, e = InjLVU x].
+  { apply /predeqP =>y //=; rewrite /ecov_var//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -481,6 +529,10 @@ Hint Resolve 𝜋_InjLV_v_meas : measlang.
 
 Lemma 𝜋_InjRV_v_meas   : measurable_fun vcov_injrv 𝜋_InjRV_v.
 Proof.
+  have -> : vcov_injrv = [set e  | ∃ x, e = InjRVU x].
+  { apply /predeqP =>y //=; rewrite /ecov_var//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -528,6 +580,10 @@ Hint Resolve 𝜋_Val_v_meas : measlang.
 
 Lemma 𝜋_Var_v_meas         : measurable_fun ecov_var 𝜋_Var_v.
 Proof.
+  have -> : ecov_var = [set e  | ∃ x, e = VarU x].
+  { apply /predeqP =>y //=; rewrite /ecov_var//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   (** Instead of having spaces of binders (bad, would require major rework)
       we use the fact that the measure space of binders is generated
       by points *)
@@ -554,6 +610,10 @@ Hint Resolve 𝜋_Var_v_meas : measlang.
 
 Lemma 𝜋_Rec_f_meas         : measurable_fun ecov_rec 𝜋_Rec_f.
 Proof.
+  have -> : ecov_rec =  [set e  | ∃ f x b, e = RecC f x b].
+  { apply /predeqP =>y //=; rewrite /ecov_rec//=; split.
+    - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
+    - by move=> [a[b[c->]]]; eexists (a, b, c). }
   eapply (measurability binder_generated_by_singletons).
   move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
@@ -603,6 +663,10 @@ Hint Resolve 𝜋_Rec_f_meas : measlang.
 
 Lemma 𝜋_Rec_x_meas         : measurable_fun ecov_rec 𝜋_Rec_x.
 Proof.
+  have -> : ecov_rec =  [set e  | ∃ f x b, e = RecC f x b].
+  { apply /predeqP =>y //=; rewrite /ecov_rec//=; split.
+    - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
+    - by move=> [a[b[c->]]]; eexists (a, b, c). }
   eapply (measurability binder_generated_by_singletons).
   move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
@@ -653,6 +717,10 @@ Hint Resolve 𝜋_Rec_x_meas : measlang.
 
 Lemma 𝜋_Rec_e_meas         : measurable_fun ecov_rec 𝜋_Rec_e.
 Proof.
+  have -> : ecov_rec =  [set e  | ∃ f x b, e = RecC f x b].
+  { apply /predeqP =>y //=; rewrite /ecov_rec//=; split.
+    - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
+    - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -698,6 +766,10 @@ Hint Resolve 𝜋_Rec_e_meas : measlang.
 
 Lemma 𝜋_App_l_meas         : measurable_fun ecov_app 𝜋_App_l.
 Proof.
+  have -> : ecov_app = [set e  | ∃ e1 e2, e = AppC e1 e2].
+  { apply /predeqP =>y //=; rewrite /ecov_app//=; split.
+    - by move=> [[??]?]<-; eexists _; eexists _.
+    - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -740,6 +812,10 @@ Hint Resolve 𝜋_App_l_meas : measlang.
 
 Lemma 𝜋_App_r_meas         : measurable_fun ecov_app 𝜋_App_r.
 Proof.
+  have -> : ecov_app = [set e  | ∃ e1 e2, e = AppC e1 e2].
+  { apply /predeqP =>y //=; rewrite /ecov_app//=; split.
+    - by move=> [[??]?]<-; eexists _; eexists _.
+    - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -783,6 +859,10 @@ Hint Resolve 𝜋_App_r_meas : measlang.
 
 Lemma 𝜋_UnOp_op_meas       : measurable_fun ecov_unop 𝜋_UnOp_op.
 Proof.
+  have -> : ecov_unop = [set e  | ∃ e1 e2, e = UnOpC e1 e2].
+  { apply /predeqP =>y //=; rewrite /ecov_app//=; split.
+    - by move=> [[??]?]<-; eexists _; eexists _.
+    - by move=> [a[b->]]; eexists (a, b). }
   rewrite //=.
   eapply (measurability un_op_generated_by_singletons).
   move=> S.
@@ -829,6 +909,10 @@ Hint Resolve 𝜋_UnOp_op_meas : measlang.
 
 Lemma 𝜋_UnOp_e_meas        : measurable_fun ecov_unop 𝜋_UnOp_e.
 Proof.
+  have -> : ecov_unop = [set e  | ∃ e1 e2, e = UnOpC e1 e2].
+  { apply /predeqP =>y //=; rewrite /ecov_app//=; split.
+    - by move=> [[??]?]<-; eexists _; eexists _.
+    - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -871,6 +955,10 @@ Hint Resolve 𝜋_UnOp_e_meas : measlang.
 
 Lemma 𝜋_BinOp_op_meas      : measurable_fun ecov_binop 𝜋_BinOp_op.
 Proof.
+  have -> : ecov_binop =  [set e  | ∃ f x b, e = BinOpC f x b].
+  { apply /predeqP =>y //=; rewrite /ecov_rec//=; split.
+    - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
+    - by move=> [a[b[c->]]]; eexists (a, b, c). }
   rewrite //=.
   eapply (measurability bin_op_generated_by_singletons).
   move=> S.
@@ -922,6 +1010,10 @@ Hint Resolve 𝜋_BinOp_op_meas : measlang.
 
 Lemma 𝜋_BinOp_l_meas       : measurable_fun ecov_binop 𝜋_BinOp_l.
 Proof.
+  have -> : ecov_binop =  [set e  | ∃ f x b, e = BinOpC f x b].
+  { apply /predeqP =>y //=; rewrite /ecov_rec//=; split.
+    - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
+    - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -973,6 +1065,10 @@ Hint Resolve 𝜋_BinOp_l_meas : measlang.
 
 Lemma 𝜋_BinOp_r_meas       : measurable_fun ecov_binop 𝜋_BinOp_r.
 Proof.
+  have -> : ecov_binop =  [set e  | ∃ f x b, e = BinOpC f x b].
+  { apply /predeqP =>y //=; rewrite /ecov_rec//=; split.
+    - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
+    - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1023,6 +1119,10 @@ Hint Resolve 𝜋_BinOp_r_meas : measlang.
 
 Lemma 𝜋_If_c_meas          : measurable_fun ecov_if 𝜋_If_c.
 Proof.
+  have -> : ecov_if =  [set e  | ∃ f x b, e = IfC f x b].
+  { apply /predeqP =>y //=; rewrite /ecov_rec//=; split.
+    - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
+    - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1081,6 +1181,10 @@ Hint Resolve 𝜋_If_c_meas : measlang.
 
 Lemma 𝜋_If_l_meas          : measurable_fun ecov_if 𝜋_If_l.
 Proof.
+  have -> : ecov_if =  [set e  | ∃ f x b, e = IfC f x b].
+  { apply /predeqP =>y //=; rewrite /ecov_rec//=; split.
+    - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
+    - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1139,6 +1243,10 @@ Hint Resolve 𝜋_If_l_meas : measlang.
 
 Lemma 𝜋_If_r_meas          : measurable_fun ecov_if 𝜋_If_r.
 Proof.
+  have -> : ecov_if =  [set e  | ∃ f x b, e = IfC f x b].
+  { apply /predeqP =>y //=; rewrite /ecov_rec//=; split.
+    - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
+    - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1197,6 +1305,10 @@ Hint Resolve 𝜋_If_r_meas : measlang.
 
 Lemma 𝜋_Pair_l_meas        : measurable_fun ecov_pair 𝜋_Pair_l.
 Proof.
+  have -> : ecov_pair = [set e  | ∃ e1 e2, e = PairC e1 e2].
+  { apply /predeqP =>y //=; rewrite /ecov_app//=; split.
+    - by move=> [[??]?]<-; eexists _; eexists _.
+    - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1239,6 +1351,10 @@ Hint Resolve 𝜋_Pair_l_meas : measlang.
 
 Lemma 𝜋_Pair_r_meas        : measurable_fun ecov_pair 𝜋_Pair_r.
 Proof.
+  have -> : ecov_pair = [set e  | ∃ e1 e2, e = PairC e1 e2].
+  { apply /predeqP =>y //=; rewrite /ecov_app//=; split.
+    - by move=> [[??]?]<-; eexists _; eexists _.
+    - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1281,6 +1397,10 @@ Hint Resolve 𝜋_Pair_r_meas : measlang.
 
 Lemma 𝜋_Fst_e_meas         : measurable_fun ecov_fst 𝜋_Fst_e.
 Proof.
+  have -> : ecov_fst = [set e  | ∃ v, e = FstC v].
+  { apply /predeqP =>y //=; rewrite /ecov_val//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1301,6 +1421,10 @@ Hint Resolve 𝜋_Fst_e_meas : measlang.
 
 Lemma 𝜋_Snd_e_meas         : measurable_fun ecov_snd 𝜋_Snd_e.
 Proof.
+  have -> : ecov_snd = [set e  | ∃ v, e = SndC v].
+  { apply /predeqP =>y //=; rewrite /ecov_val//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1321,6 +1445,10 @@ Hint Resolve 𝜋_Snd_e_meas : measlang.
 
 Lemma 𝜋_InjL_e_meas        : measurable_fun ecov_injl 𝜋_InjL_e.
 Proof.
+  have -> : ecov_injl = [set e  | ∃ v, e = InjLC v].
+  { apply /predeqP =>y //=; rewrite /ecov_val//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1341,6 +1469,10 @@ Hint Resolve 𝜋_InjL_e_meas : measlang.
 
 Lemma 𝜋_InjR_e_meas        : measurable_fun ecov_injr 𝜋_InjR_e.
 Proof.
+  have -> : ecov_injr = [set e  | ∃ v, e = InjRC v].
+  { apply /predeqP =>y //=; rewrite /ecov_val//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1362,6 +1494,10 @@ Hint Resolve 𝜋_InjR_e_meas : measlang.
 
 Lemma 𝜋_Case_c_meas          : measurable_fun ecov_case 𝜋_Case_c.
 Proof.
+  have -> : ecov_case =  [set e  | ∃ f x b, e = CaseC f x b].
+  { apply /predeqP =>y //=; rewrite /ecov_rec//=; split.
+    - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
+    - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1420,6 +1556,10 @@ Hint Resolve 𝜋_Case_c_meas : measlang.
 
 Lemma 𝜋_Case_l_meas          : measurable_fun ecov_case 𝜋_Case_l.
 Proof.
+  have -> : ecov_case =  [set e  | ∃ f x b, e = CaseC f x b].
+  { apply /predeqP =>y //=; rewrite /ecov_rec//=; split.
+    - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
+    - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1478,6 +1618,10 @@ Hint Resolve 𝜋_Case_l_meas : measlang.
 
 Lemma 𝜋_Case_r_meas          : measurable_fun ecov_case 𝜋_Case_r.
 Proof.
+  have -> : ecov_case =  [set e  | ∃ f x b, e = CaseC f x b].
+  { apply /predeqP =>y //=; rewrite /ecov_rec//=; split.
+    - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
+    - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1580,6 +1724,10 @@ Hint Resolve 𝜋_Alloc_e_meas : measlang.
 
 Lemma 𝜋_Load_e_meas        : measurable_fun ecov_load 𝜋_Load_e.
 Proof.
+  have -> : ecov_load = [set e  | ∃ x, e = LoadU x].
+  { apply /predeqP =>y //=; rewrite /ecov_var//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1600,6 +1748,10 @@ Hint Resolve 𝜋_Load_e_meas : measlang.
 
 Lemma 𝜋_Store_l_meas       : measurable_fun ecov_store 𝜋_Store_l.
 Proof.
+  have -> : ecov_store = [set e  | ∃ e1 e2, e = StoreC e1 e2].
+  { apply /predeqP =>y //=; rewrite /ecov_app//=; split.
+    - by move=> [[??]?]<-; eexists _; eexists _.
+    - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1642,6 +1794,10 @@ Hint Resolve 𝜋_Store_l_meas : measlang.
 
 Lemma 𝜋_Store_e_meas       : measurable_fun ecov_store 𝜋_Store_e.
 Proof.
+  have -> : ecov_store = [set e  | ∃ e1 e2, e = StoreC e1 e2].
+  { apply /predeqP =>y //=; rewrite /ecov_app//=; split.
+    - by move=> [[??]?]<-; eexists _; eexists _.
+    - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1684,6 +1840,10 @@ Hint Resolve 𝜋_Store_e_meas : measlang.
 
 Lemma 𝜋_AllocTape_e_meas   : measurable_fun ecov_alloctape 𝜋_AllocTape_e.
 Proof.
+  have -> : ecov_alloctape = [set e  | ∃ x, e = AllocTapeU x].
+  { apply /predeqP =>y //=; rewrite /ecov_var//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1705,6 +1865,10 @@ Hint Resolve 𝜋_AllocTape_e_meas : measlang.
 
 Lemma 𝜋_Rand_t_meas        : measurable_fun ecov_rand 𝜋_Rand_t.
 Proof.
+  have -> : ecov_rand = [set e  | ∃ e1 e2, e = RandC e1 e2].
+  { apply /predeqP =>y //=; rewrite /ecov_app//=; split.
+    - by move=> [[??]?]<-; eexists _; eexists _.
+    - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1748,6 +1912,10 @@ Hint Resolve 𝜋_Rand_t_meas : measlang.
 
 Lemma 𝜋_Rand_N_meas        : measurable_fun ecov_rand 𝜋_Rand_N.
 Proof.
+  have -> : ecov_rand = [set e  | ∃ e1 e2, e = RandC e1 e2].
+  { apply /predeqP =>y //=; rewrite /ecov_app//=; split.
+    - by move=> [[??]?]<-; eexists _; eexists _.
+    - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1790,6 +1958,10 @@ Hint Resolve 𝜋_Rand_N_meas : measlang.
 
 Lemma 𝜋_URand_e_meas       : measurable_fun ecov_urand 𝜋_URand_e.
 Proof.
+  have -> : ecov_urand = [set e  | ∃ x, e = URand x].
+  { apply /predeqP =>y //=; rewrite /ecov_var//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
@@ -1810,6 +1982,10 @@ Hint Resolve 𝜋_URand_e_meas : measlang.
 
 Lemma 𝜋_Tick_e_meas        : measurable_fun ecov_tick 𝜋_Tick_e.
 Proof.
+  have -> : ecov_tick = [set e  | ∃ x, e = TickU x].
+  { apply /predeqP =>y //=; rewrite /ecov_var//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
