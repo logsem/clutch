@@ -1,20 +1,9 @@
-(**  TODO: Cleanup imports *)
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
-From Coq Require Import Logic.ClassicalEpsilon Psatz.
-From stdpp Require Import base numbers binders strings gmap.
-From mathcomp Require Import functions.
-From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
-From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
-From iris.algebra Require Export ofe.
-From clutch.prelude Require Export stdpp_ext.
+From stdpp Require Import binders.
+From mathcomp Require Import boolp classical_sets.
+From mathcomp.analysis Require Import measure.
 From clutch.common Require Export locations.
-From clutch.meas_lang Require Import ectxi_language ectx_language.
-From Coq Require Export Reals.
-From clutch.prob.monad Require Export giry.
-From mathcomp.analysis Require Export Rstruct.
-From mathcomp Require Import classical_sets.
-Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
 From clutch.meas_lang.lang Require Export prelude types.
 Set Warnings "hiding-delimiting-key".
@@ -23,40 +12,40 @@ Local Open Scope classical_set_scope.
 
 (** Uncurried constructors: These ones can be shown to be measurable directly *)
 
-Definition LitIntU   := LitIntC.
-Definition LitBoolU  := LitBoolC.
-Definition LitUnitU  := LitUnitC.
-Definition LitLocU   := LitLocC.
-Definition LitLblU   := LitLblC.
-Definition LitRealU  := LitRealC.
+Notation LitIntU     := LitIntC.
+Notation LitBoolU    := LitBoolC.
+Notation LitUnitU    := LitUnitC.
+Notation LitLocU     := LitLocC.
+Notation LitLblU     := LitLblC.
+Notation LitRealU    := LitRealC.
 
-Notation ValU                  := ValC.
-Notation VarU                  := VarC.
-Definition RecU (v : <<discr binder>> * <<discr binder>> * expr)  := RecC v.1.1 v.1.2 v.2.
-Notation AppU                  := (uncurry AppC).
-Definition UnOpU               := (uncurry UnOpC).
-Definition BinOpU (v : <<discr bin_op>> * expr * expr)            := BinOpC v.1.1 v.1.2 v.2.
-Definition IfU (v : expr * expr * expr)                           := IfC v.1.1 v.1.2 v.2.
-Notation PairU                 := (uncurry PairC).
-Notation FstU                  := FstC.
-Notation SndU                  := SndC.
-Notation InjLU                 := InjLC.
-Notation InjRU                 := InjRC.
-Definition CaseU (v : expr * expr * expr)                         := CaseC v.1.1 v.1.2 v.2.
-Notation AllocU                := AllocC.
-Notation LoadU                 := LoadC.
-Notation StoreU                := (uncurry StoreC).
-Notation AllocTapeU            := AllocTapeC.
-Notation RandU                 := (uncurry RandC).
-Notation AllocUTapeU           := AllocUTapeC.
-Notation UrandU                := URandC.
-Notation TickU                 := TickC.
+Notation ValU        := ValC.
+Notation VarU        := VarC.
+Notation RecU        := (uncurry3 RecC).
+Notation AppU        := (uncurry AppC).
+Notation UnOpU       := (uncurry UnOpC).
+Notation BinOpU      := (uncurry3 BinOpC).
+Notation IfU         := (uncurry3 IfC).
+Notation PairU       := (uncurry PairC).
+Notation FstU        := FstC.
+Notation SndU        := SndC.
+Notation InjLU       := InjLC.
+Notation InjRU       := InjRC.
+Notation CaseU       := (uncurry3 CaseC).
+Notation AllocU      := AllocC.
+Notation LoadU       := LoadC.
+Notation StoreU      := (uncurry StoreC).
+Notation AllocTapeU  := AllocTapeC.
+Notation RandU       := (uncurry RandC).
+Notation AllocUTapeU := AllocUTapeC.
+Notation UrandU      := URandC.
+Notation TickU       := TickC.
 
-Definition LitVU                 := LitVC.
-Definition RecVU (v : <<discr binder>> * <<discr binder>> * expr) := RecVC v.1.1 v.1.2 v.2.
-Definition PairVU (v : val * val)                                 := PairVC v.1 v.2.
-Definition InjLVU                := InjLVC.
-Definition InjRVU                := InjRVC.
+Notation LitVU       := LitVC.
+Notation RecVU       := (uncurry3 RecVC).
+Notation PairVU      := (uncurry PairVC).
+Notation InjLVU      := InjLVC.
+Notation InjRVU      := InjRVC.
 
 
 Section constructor_measurability.
@@ -216,6 +205,8 @@ Section constructor_measurability.
 
   Lemma RecU_meas_fun : measurable_fun setT RecU.
   Proof.
+    have -> : RecU = (fun x => RecC x.1.1 x.1.2 x.2) by
+      apply functional_extensionality; intros [[??]?]. rewrite /RecU//=.
     into_gen_measurable.
     move=> ? [? [D H <-] <-] /=.
     rewrite setTI.
@@ -224,7 +215,7 @@ Section constructor_measurability.
     3: {
       simpl.
       suffices -> :
-        [set t | (exists2 x0 : expr_T, expr_ST D x0 & Rec f x x0 = RecU t)] =
+        [set t | (exists2 x0 : expr_T, expr_ST D x0 & Rec f x x0 = RecC t.1.1 t.1.2 t.2)] =
         [set t | (exists2 x0 : expr_T, expr_ST D x0 & t.2 = x0)] `&`
         ( [set t | t.1.1 = f ] `&`
           [set t | t.1.2 = x ]).
@@ -339,13 +330,15 @@ Section constructor_measurability.
 
   Lemma BinOpU_meas_fun : measurable_fun setT BinOpU.
   Proof.
+    have -> : BinOpU = (fun x => BinOpC x.1.1 x.1.2 x.2) by
+      apply functional_extensionality; intros [[??]?]; rewrite //=.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     6: {
       suffices -> :
-         [set t | (exists2 x : expr_T, expr_ST D1 x & exists2 y : expr_T, expr_ST D2 y & BinOp op x y = BinOpU t)] =
+         [set t | (exists2 x : expr_T, expr_ST D1 x & exists2 y : expr_T, expr_ST D2 y & BinOp op x y = BinOpC t.1.1 t.1.2 t.2)] =
         ([set t | (exists2 x : expr_T, expr_ST D1 x & exists2 y : expr_T, True            & exists op, BinOp op x y = BinOpU t)] `&`
          [set t | (exists2 x : expr_T, True            & exists2 y : expr_T, expr_ST D2 y & exists op, BinOp op x y = BinOpU t)]) `&`
         [set t | t.1.1 = op ].
@@ -371,7 +364,8 @@ Section constructor_measurability.
             exists x.1.1.
             destruct x as [[??]?].
             by intuition.
-          + move=> [??][??][?][?<-?].
+          + destruct x as [[x1 x2] x3]; simpl.
+            move=> [??][??][?][?<-?].
             by intuition.
         - apply sub_sigma_algebra; rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
           right.
@@ -385,7 +379,8 @@ Section constructor_measurability.
             exists y.1.1.
             destruct y as [yy yyy]; destruct yy; simpl.
             by rewrite /BinOpU/=.
-          + by move=> [? _ [? ?]] [? [? ?]] <-.
+          + destruct y as [[??]?].
+            by move=> [? _ [? ?]] [? [? ?]] <-.
         - apply sub_sigma_algebra; rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
           left.
           exists ([set op] `*` setT).
@@ -406,17 +401,18 @@ Section constructor_measurability.
         rewrite B in W.
         rewrite C in Z.
         split; [split|].
-        + exists y.1.2; [done|]; exists y.2; [done|]; exists y.1.1; done.
-        + exists y.1.2; [done|]; exists y.2; [done|]; exists y.1.1; done.
+        + exists y.1.2; [done|]; exists y.2; [done|]; exists y.1.1. destruct y as [[??]?]; done.
+        + exists y.1.2; [done|]; exists y.2; [done|]; exists y.1.1. destruct y as [[??]?]; done.
         + by intuition.
-      - move=> [[[? p][??]]].
+      - destruct y as [[y1 y2]y3]. simpl.
+        move=> [[[? p][??]]].
         move=> [?[? H1 ?]].
+
         rewrite H1 in p.
         move=> [??][? p2][?[?? H2]]Hop.
         rewrite H2 in p2.
-        exists y.1.2; [done|].
-        exists y.2; [done|].
-        destruct y as [[??]?].
+        exists y2; [done|].
+        exists y3; [done|].
         rewrite /BinOpU/BinOpC/=.
         simpl in Hop.
         by rewrite Hop.
@@ -427,6 +423,8 @@ Section constructor_measurability.
 
   Lemma IfU_meas_fun : measurable_fun setT IfU.
   Proof.
+    have -> : IfU = (fun x => IfC x.1.1 x.1.2 x.2) by
+      apply functional_extensionality; intros [[??]?]; rewrite //=.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
@@ -456,7 +454,8 @@ Section constructor_measurability.
           exists x.2; [done|].
           destruct x as [[??]?].
           by intuition.
-        + move=> [??][??][??][<-]??.
+        + destruct x as [[??]?].
+          move=> [??][??][??][<-]??.
           by intuition.
       - apply sub_sigma_algebra.
         rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
@@ -477,7 +476,8 @@ Section constructor_measurability.
           exists x.2; [done|].
           destruct x as [[??]?].
           by intuition.
-        + move=> [??][??][??][? <- ?].
+        + destruct x as [[??]?].
+          move=> [??][??][??][? <- ?].
           by intuition.
       - apply sub_sigma_algebra.
         rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
@@ -491,7 +491,8 @@ Section constructor_measurability.
           exists x.2; [done|].
           destruct x as [[??]?].
           by intuition.
-        + move=> [??][??][??][??<-].
+        + destruct x as [[??]?].
+          move=> [??][??][??][??<-].
           by intuition.
         + by move=> [[??]?] [[??]?] [-> -> ->].
     }
@@ -606,6 +607,8 @@ Section constructor_measurability.
 
   Lemma CaseU_meas_fun : measurable_fun setT CaseU.
   Proof.
+    have -> : CaseU = (fun x => CaseC x.1.1 x.1.2 x.2) by
+      apply functional_extensionality; intros [[??]?]; rewrite //=.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
@@ -685,37 +688,17 @@ Section constructor_measurability.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     14: {
+         apply sub_sigma_algebra.
+         rewrite /expr_cyl/=.
          simpl in HD.
-         admit.
-         (*
-         destruct HD as [HD0 HD1].
-         rewrite Prod2Decomp.
-         { apply measurableI.
-           - apply sub_sigma_algebra.
-             rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
-             right.
-             exists (expr_ST D2).
-             { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D2. }
-             rewrite setTI.
-             apply/seteqP; split=> x/=.
-             + by move=>?; exists x.1; [done|]; exists x.2; done.
-             + by move=> [??[??][?<-]].
-           - apply sub_sigma_algebra.
-             rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
-             left.
-             exists (expr_ST D1).
-             { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D1. }
-             rewrite setTI.
-             apply/seteqP; split=> x/=.
-             + by move=>?; exists x.1; [done|]; exists x.2; done.
-             + by move=> [??[??[<- ?]]].
-        }
-        by move=>????[??]//.
-
-            *)
+         exists D; [done|].
+         apply/seteqP; split=> x/=; [move=>?; by exists x|].
+         move=> [? ? H].
+         inversion H as [H1].
+         by rewrite <- H1.
     }
     all: by ctor_triv_case.
-  Admitted.
+  Qed.
   Hint Resolve AllocU_meas_fun : measlang.
 
   Lemma LoadU_meas_fun : measurable_fun setT LoadU.
@@ -872,6 +855,8 @@ Section constructor_measurability.
 
   Lemma RecVU_meas_fun : measurable_fun setT RecVU.
   Proof.
+    have -> : RecVU = (fun x => RecVC x.1.1 x.1.2 x.2) by
+      apply functional_extensionality; intros [[??]?]; rewrite //=.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
@@ -879,7 +864,7 @@ Section constructor_measurability.
     2: {
       simpl.
       suffices -> :
-        [set t | (exists2 x0 : expr_T, expr_ST e x0 & RecV f x x0 = RecVU t)] =
+        [set t | (exists2 x0 : expr_T, expr_ST e x0 & RecV f x x0 = RecVC t.1.1 t.1.2 t.2)] =
         [set t | (exists2 x0 : expr_T, expr_ST e x0 & t.2 = x0)] `&`
         ( [set t | t.1.1 = f ] `&`
           [set t | t.1.2 = x ]).
@@ -941,6 +926,8 @@ Section constructor_measurability.
 
   Lemma PairVU_meas_fun : measurable_fun setT PairVU.
   Proof.
+    have -> : PairVU = (fun x => PairVC x.1 x.2) by
+      apply functional_extensionality; intros [??]; rewrite //=.
     eapply measurability; [by eauto|].
     rewrite /preimage_class/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
