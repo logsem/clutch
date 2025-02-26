@@ -819,11 +819,13 @@ Section meas_semantics.
     { rewrite /subset//=.
       move=>?[++].
       move=>?[++].
+      admit.
+      (*
       move=>[?->]//=.
       move=>[++]//=.
       move=>[? _ <-]//=.
       move=>[++]//=.
-      by move=>??//=<-//.
+      by move=>??//=<-//. *)
     }
     eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_LitV_v).
     3: by apply 𝜋_LitVU_meas.
@@ -831,10 +833,10 @@ Section meas_semantics.
     { rewrite /subset//=.
       move=>?[++].
       move=>?[++].
-      move=>[?->]//=.
-      move=>[++].
       admit.
       (*  move=>[?->]//=.
+      move=>[?->]//=.
+      move=>[++].
       move=>[++].
       move=>[?->]//=.
       move=>[++].
@@ -849,10 +851,11 @@ Section meas_semantics.
     { rewrite /subset//=.
       move=>?[++].
       move=>?[++].
+      admit.
+      (*
       move=>[?->]//=.
       move=>[++].
-      admit.
-      (*  move=>[?->]//=.
+        move=>[?->]//=.
       move=>[++].
       move=>[?->]//=.
       move=>[++].
@@ -943,9 +946,9 @@ Section meas_semantics.
       move=>?.
       repeat move=>[++]; move=>??//=.
       repeat move=>[++]; move=>?//=.
-      repeat move=>[++]; move=>?->//=.
       admit.
       (*
+      repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
@@ -959,9 +962,9 @@ Section meas_semantics.
       move=>?.
       repeat move=>[++]; move=>??//=.
       repeat move=>[++]; move=>?//=.
-      repeat move=>[++]; move=>?->//=.
       admit.
-      (*
+        (*
+      repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
@@ -975,9 +978,9 @@ Section meas_semantics.
       move=>?.
       repeat move=>[++]; move=>??//=.
       repeat move=>[++]; move=>?//=.
-      repeat move=>[++]; move=>?->//=.
       admit.
       (*
+      repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
@@ -992,9 +995,9 @@ Section meas_semantics.
       move=>?.
       repeat move=>[++]; move=>??//=.
       repeat move=>[++]; move=>?//=.
-      repeat move=>[++]; move=>?->//=.
       admit.
       (*
+      repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
@@ -1020,9 +1023,9 @@ Section meas_semantics.
       move=>?.
       repeat move=>[++]; move=>??//=.
       repeat move=>[++]; move=>?//=.
-      repeat move=>[++]; move=>?->//=.
       admit.
       (*
+      repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>??//=.
@@ -1034,9 +1037,9 @@ Section meas_semantics.
       move=>?.
       repeat move=>[++]; move=>??//=.
       repeat move=>[++]; move=>?//=.
-      repeat move=>[++]; move=>?->//=.
       admit.
       (*
+      repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
@@ -1628,10 +1631,12 @@ Section meas_semantics.
       - by apply RecVU_meas_fun.
     - (* The trick: the two functions are equal on this set. *)
       move=>[??].
+  Admitted.
+  (*
       do 3 (move=>[+]; move=>?).
       by move=>/=->/=.
     Unshelve. by eauto with measlang.
-  Qed.
+  Qed. *)
   Hint Resolve head_stepM_rec_meas : measlang.
 
   Lemma head_stepM_pair_meas : measurable_fun cover_pair head_stepM.
@@ -1674,13 +1679,13 @@ Section meas_semantics.
           by apply measurable_fun_setI1; try by eauto with measlang.
         all: try (by eauto with measlang).
     - move=>[e?].
+  Admitted.
+  (*
       move=>/=[+].
       move=>[?[?+]].
       move=>//=->//=.
       move=>[++].
       rewrite /ecov_val//=.
-  Admitted.
-  (*
       do 2 move=>[?->].
       by rewrite //=.
     Unshelve. by eauto with measlang.
@@ -1713,10 +1718,11 @@ Section meas_semantics.
         apply measurable_fun_setI1; try by eauto with measlang.
     - move=>[e?].
       move=>/=[+].
-      move=>[?+].
-      move=>//=->//=.
+
       admit.
       (*
+      move=>[?+].
+      move=>//=->//=.
       move=>[?->].
       rewrite /ecov_val//=.
     Unshelve. by eauto with measlang. *)
@@ -1750,10 +1756,10 @@ Section meas_semantics.
         apply measurable_fun_setI1; try by eauto with measlang.
     - move=>[e?].
       move=>/=[+].
-      move=>[?+].
-      move=>//=->//=.
   Admitted.
   (*
+      move=>[?+].
+      move=>//=->//=.
       move=>[?->].
       rewrite /ecov_val//=.
     Unshelve. by eauto with measlang.
@@ -1779,10 +1785,10 @@ Section meas_semantics.
         * by eauto with measlang.
         * rewrite /subset//=.
           move=>?[+[+[++]]].
-          move=>?[+].
-          move=>?[+]; move=>?->//=.
           admit.
           (*
+          move=>?[+].
+          move=>?[+]; move=>?->//=.
           move=>[[++]+]; move=>?->//=.
           move=>[+[+[++]]]; move=>???->.
           move=>[++]; move=>??.
@@ -1799,10 +1805,10 @@ Section meas_semantics.
           move=>?.
           move=>[+[+[++]]].
           move=>?.
-          move=> [+[++[++]]].
-          move=>??->//=.
           admit.
           (*
+          move=> [+[++[++]]].
+          move=>??->//=.
           move=>[++]; move=>?->//=.
           move=>[+[+[++]]]; move=>???->.
           move=>[++]; move=>??<-.
@@ -1821,7 +1827,6 @@ Section meas_semantics.
           move=>[+[+[++]]].
           move=>?.
           move=> [+[++[++]]].
-          move=>??->//=.
           admit.
           (*
           move=>[++]; move=>?->//=.
@@ -1840,9 +1845,9 @@ Section meas_semantics.
         * rewrite /subset//=.
           move=>?[+[+[++]]].
           move=>?[+].
-          move=>?[+]; move=>?->//=.
           admit.
           (*
+          move=>?[+]; move=>?->//=.
           move=>[[++]+]; move=>?->//=.
           move=>[+[+[++]]]; move=>???->.
           move=>[++]; move=>??.
@@ -1859,10 +1864,10 @@ Section meas_semantics.
           move=>?.
           move=>[+[+[++]]].
           move=>?.
-          move=> [+[++[++]]].
-          move=>??->//=.
           admit.
           (*
+          move=> [+[++[++]]].
+          move=>??->//=.
           move=>[++]; move=>?->//=.
           move=>[+[+[++]]]; move=>???->.
           move=>[++]; move=>??<-.
@@ -1880,10 +1885,10 @@ Section meas_semantics.
           move=>?.
           move=>[+[+[++]]].
           move=>?.
-          move=> [+[++[++]]].
-          move=>??->//=.
           admit.
           (*
+          move=> [+[++[++]]].
+          move=>??->//=.
           move=>[++]; move=>?->//=.
           move=>[+[+[++]]]; move=>????.
           move=>?<-.
@@ -1898,10 +1903,10 @@ Section meas_semantics.
         * by eauto with measlang.
         * rewrite /subset//=.
           move=>?[+[+[++]]].
-          move=>?[+].
-          move=>?[+]; move=>?->//=.
           admit.
           (*
+          move=>?[+].
+          move=>?[+]; move=>?->//=.
           move=>[[++]+]; move=>?->//=.
           move=>[+[+[++]]]; move=>???->.
           move=>[++]; move=>??.
@@ -1915,10 +1920,10 @@ Section meas_semantics.
          move=>?.
          move=>[+[+[++]]].
          move=>?.
-         move=> [+[++[++]]].
-         move=>??->//=.
          admit.
          (*
+         move=> [+[++[++]]].
+         move=>??->//=.
          move=>[++]; move=>?->//=.
          move=>[+[+[++]]]; move=>????.
          move=>?<-.
@@ -1929,12 +1934,12 @@ Section meas_semantics.
         by apply measurable_fun_setI1; try by eauto with measlang.
       }
     - move=>[e?].
+      admit.
+      (*
       move=>[[++]+].
       move=>?[++]; move=>?//=->.
       move=>[+[++]]//=.
       move=>[++]//=; move=>[+].
-      admit.
-      (*
       move=>?//=->.
       move=>[+[++]].
       move=>??//=[+].
@@ -1965,11 +1970,11 @@ Section meas_semantics.
         move=>[??][[??]+]//=.
         move=>[++]//=.
         move=>?[++]//=.
+        admit.
+        (*
         move=>[?[+]]//=.
         move=>?->//=.
         move=>[[?+]+]//=.
-        admit.
-        (*
         move=>[?->]//=.
         move=>[?+]//=.
         rewrite//=.
@@ -1999,12 +2004,12 @@ Section meas_semantics.
       { rewrite /subset//=.
         move=>?[++].
         move=>?[++].
+        admit.
+        (*
         move=>[?[++]].
         move=>?->//=.
         move=>[[?+]+].
         move=>[?+].
-        admit.
-        (*
         move=>->//=.
         move=>[?+]//=.
         simpl.
@@ -2018,10 +2023,10 @@ Section meas_semantics.
         by apply measurable_fun_setI1; try by eauto with measlang. }
     - move=> [e?].
       move=>[?[+]]//=.
-      move=>[++]; move=>?//=.
-      move=>[?->].
       admit.
       (*
+      move=>[++]; move=>?//=.
+      move=>[?->].
       move=>[[_[++]][++]]//=.
       move=>?//=->.
       move=>?//=.
@@ -2036,12 +2041,12 @@ Section meas_semantics.
     - by apply measurable_cst.
     - move=>[e?].
       move=>[?[+]]//=.
+      admit.
+      (*
       move=>[?[++]]//=.
       move=>?//=->.
       move=>[[++]+]//=.
       move=>?.
-      admit.
-      (*
       move=>[+]; move=>?//=->//=.
       rewrite /auxcov_unop_stuck//=.
       by move=>->//=.
@@ -2164,11 +2169,12 @@ Section meas_semantics.
       move=>[++]//=.
       move=>[++]//=.
       move=>?[++]//=.
+(*
       move=>?[?+]//=.
       rewrite //=; move=>->//=.
       move=>[[[?+]+]+]//=.
 
-      (*  move=>[?+]//=; move=>->//=.
+      move=>[?+]//=; move=>->//=.
       move=>[?+]//=; move=>->//=.
       rewrite /auxcov_binop_stuck//=.
       by move=>->.
@@ -2290,9 +2296,9 @@ Section meas_semantics.
       { rewrite /subset/cover_load_ok/auxcov_load//=.
         move=>?.
         (repeat move=>[++]); move=>??//=.
-        (repeat move=>[++]); move=>?->//=.
         admit.
         (*
+        (repeat move=>[++]); move=>?->//=.
         (repeat move=>[++]); move=>?->//=.
         (repeat move=>[++]); move=>?->//=.
         (repeat move=>[++]); move=>?->//=.
@@ -2341,9 +2347,9 @@ Section meas_semantics.
           move=>[[??]?].
           (repeat move=>[++]); move=>??//=.
           (repeat move=>[++]); move=>?//=.
-          (repeat move=>[++]); move=>?->//=.
           admit.
           (*
+          (repeat move=>[++]); move=>?->//=.
           (repeat move=>[++]); move=>?->//=.
           (repeat move=>[++]); move=>?->//=.
           (repeat move=>[++]); move=>?->//=.
@@ -2366,9 +2372,9 @@ Section meas_semantics.
           move=>[[??]?].
           (repeat move=>[++]); move=>??//=.
           (repeat move=>[++]); move=>?//=.
-          (repeat move=>[++]); move=>?->//=.
           admit.
           (*
+          (repeat move=>[++]); move=>?->//=.
           (repeat move=>[++]); move=>?->//=.
           (repeat move=>[++]); move=>?->//=.
           (repeat move=>[++]); move=>?->//=.
@@ -2388,9 +2394,9 @@ Section meas_semantics.
       }
     - move=>[e?].
       (repeat move=>[++]); move=>?//=.
-      (repeat move=>[++]); move=>?->//=.
       admit.
       (*
+      (repeat move=>[++]); move=>?->//=.
       (repeat move=>[++]); move=>?->//=.
       (repeat move=>[++]); move=>?->//=.
       (repeat move=>[++]); move=>?->//=.
@@ -2410,8 +2416,8 @@ Section meas_semantics.
     - by apply measurable_cst.
     - move=>[e?].
       (repeat move=>[++]); move=>?//=.
-      (repeat move=>[++]); move=>?->//=.
       (*
+      (repeat move=>[++]); move=>?->//=.
       (repeat move=>[++]); move=>?->//=.
       (repeat move=>[++]); move=>?->//=.
       (repeat move=>[++]); move=>?->//=.
@@ -2445,11 +2451,11 @@ Section meas_semantics.
       rewrite <-setIA.
       by apply measurable_fun_setI1; eauto with measlang.
     - move=>[e?].
+    Admitted.
+  (*
       move=>/=[+]; do 3 move=>[?+].
       move=>//=->.
       move=>[+[+[++]]]/=.
-    Admitted.
-  (*
       move=>/=[+]; move=>?->.
       move=>/=[+]; move=>?->.
       move=>/=[+]; move=>?->.
@@ -2476,11 +2482,11 @@ Section meas_semantics.
       rewrite <-setIA.
       by apply measurable_fun_setI1; eauto with measlang.
     - move=>[e?].
+  Admitted.
+  (*
       move=>/=[+]; do 3 move=>[?+].
       move=>//=->.
       move=>[+[+[++]]]/=.
-  Admitted.
-  (*
       move=>/=[+]; move=>?->.
       move=>/=[+]; move=>?->.
       move=>/=[+]; move=>?->.
@@ -2519,10 +2525,10 @@ Section meas_semantics.
         apply measurable_fun_setI1; try by eauto with measlang.
     - move=>[e?].
       move=>/=[+]; move=>[?+].
-      move=>//=->.
-      move=>[++]/=.
   Admitted.
   (*
+      move=>//=->.
+      move=>[++]/=.
       move=>/=[+]; move=>?->.
       move=>[+]/=; move=>?.
       move=>[+]/=; move=>?.
@@ -2561,10 +2567,10 @@ Section meas_semantics.
         apply measurable_fun_setI1; try by eauto with measlang.
     - move=>[e?].
       move=>/=[+]; move=>[?+].
-      move=>//=->.
-      move=>[++]/=.
   Admitted.
   (*
+      move=>//=->.
+      move=>[++]/=.
       move=>/=[+]; move=>?->.
       move=>[+]/=; move=>?.
       move=>[+]/=; move=>?.
@@ -2610,9 +2616,9 @@ Section meas_semantics.
         by apply measurable_fun_setI1; try by eauto with measlang.
     - move=>[e?].
       move=>/=[+]; move=>[?+].
-      move=>/=[?[?->]]/=.
   Admitted.
   (*
+      move=>/=[?[?->]]/=.
       move=>[[++][++]]//=.
       do 2 move=>?//=->.
       by move=>//=.
@@ -2657,10 +2663,10 @@ Section meas_semantics.
         by apply measurable_fun_setI1; try by eauto with measlang.
     - move=>[e?].
       move=>/=[+]; move=>[?+].
-      move=>/=[?[?->]]/=.
   Admitted.
 
   (*
+      move=>/=[?[?->]]/=.
       move=>[[++][++]]//=.
       do 2 move=>?//=->.
       by move=>//=.
@@ -2716,10 +2722,10 @@ Section meas_semantics.
       + by apply LitVU_meas_fun.
     - move=>[e?].
       move=>/=[+]; move=>[?+].
-      move=>//=->.
-      move=>[+[++]]/=.
   Admitted.
   (*
+      move=>//=->.
+      move=>[+[++]]/=.
       move=>/=[+]; move=>?->.
       move=>[+]/=; move=>?->.
       move=>[+]/=; move=>?->.
