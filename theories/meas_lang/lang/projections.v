@@ -76,7 +76,7 @@ Definition 𝜋_InjR_e       (e : expr)     : expr             := match e with |
 Definition 𝜋_Case_c       (e : expr)     : expr             := match e with | Case e _ _ => e | _ => point end.
 Definition 𝜋_Case_l       (e : expr)     : expr             := match e with | Case _ e _ => e | _ => point end.
 Definition 𝜋_Case_r       (e : expr)     : expr             := match e with | Case _ _ e => e | _ => point end.
-Definition 𝜋_Alloc_e     (e : expr)     : expr             := match e with | Alloc e => e | _ => point end.
+Definition 𝜋_Alloc_e      (e : expr)     : expr             := match e with | Alloc e => e | _ => point end.
 Definition 𝜋_Load_e       (e : expr)     : expr             := match e with | Load e => e | _ => point end.
 Definition 𝜋_Store_l      (e : expr)     : expr             := match e with | Store e _ => e | _ => point end.
 Definition 𝜋_Store_e      (e : expr)     : expr             := match e with | Store _ e => e | _ => point end.
@@ -87,40 +87,37 @@ Definition 𝜋_URand_e      (e : expr)     : expr             := match e with |
 Definition 𝜋_Tick_e       (e : expr)     : expr             := match e with | Tick e => e | _ => point end.
 
 
-Notation Package2 f g := (fun e => (f e, g e)).
-Notation Package3 f g h := (fun e => ((f e, g e), h e)).
-
 (** Uncurred projections *)
-Definition 𝜋_LitIntU := 𝜋_LitInt_z.
-Definition 𝜋_LitBoolU := 𝜋_LitBool_b.
-Definition 𝜋_LitLocU := 𝜋_LitLoc_l.
-Definition 𝜋_LitLblU := 𝜋_LitLbl_l.
-Definition 𝜋_LitRealU := 𝜋_LitReal_r.
+Definition 𝜋_LitIntU    := 𝜋_LitInt_z.
+Definition 𝜋_LitBoolU   := 𝜋_LitBool_b.
+Definition 𝜋_LitLocU    := 𝜋_LitLoc_l.
+Definition 𝜋_LitLblU    := 𝜋_LitLbl_l.
+Definition 𝜋_LitRealU   := 𝜋_LitReal_r.
 
-Definition 𝜋_LitVU := 𝜋_LitV_v.
-Definition 𝜋_RecVU := Package3 𝜋_RecV_f 𝜋_RecV_x 𝜋_RecV_e.
-Definition 𝜋_PairVU := Package2 𝜋_PairV_l 𝜋_PairV_r.
-Definition 𝜋_InjLVU := 𝜋_InjLV_v.
-Definition 𝜋_InjRVU := 𝜋_InjRV_v.
+Definition 𝜋_LitVU      := 𝜋_LitV_v.
+Definition 𝜋_RecVU      := 𝜋_RecV_f        △ 𝜋_RecV_x    △ 𝜋_RecV_e.
+Definition 𝜋_PairVU     := 𝜋_PairV_l       △ 𝜋_PairV_r.
+Definition 𝜋_InjLVU     := 𝜋_InjLV_v.
+Definition 𝜋_InjRVU     := 𝜋_InjRV_v.
 
-Definition 𝜋_ValU := 𝜋_Val_v.
-Definition 𝜋_VarU := 𝜋_Var_v.
-Definition 𝜋_RecU := Package3 𝜋_Rec_f 𝜋_Rec_x 𝜋_Rec_e.
-Definition 𝜋_UnOpU := Package2 𝜋_UnOp_op 𝜋_UnOp_e.
-Definition 𝜋_BinOpU := Package3 𝜋_BinOp_op 𝜋_BinOp_l 𝜋_BinOp_r.
-Definition 𝜋_AppU := Package2 𝜋_App_l 𝜋_App_r.
-Definition 𝜋_IfU := Package3 𝜋_If_c 𝜋_If_l 𝜋_If_r.
-Definition 𝜋_PairU := Package2 𝜋_Pair_l 𝜋_Pair_r.
-Definition 𝜋_InjLU := 𝜋_InjL_e.
-Definition 𝜋_InjRU := 𝜋_InjR_e.
-Definition 𝜋_CaseU := Package3 𝜋_Case_c 𝜋_Case_l 𝜋_Case_r.
-Definition 𝜋_AllocU := 𝜋_Alloc_e.
-Definition 𝜋_LoadU := 𝜋_Load_e.
-Definition 𝜋_StoreU := Package2 𝜋_Store_l 𝜋_Store_e.
+Definition 𝜋_ValU       := 𝜋_Val_v.
+Definition 𝜋_VarU       := 𝜋_Var_v.
+Definition 𝜋_RecU       := 𝜋_Rec_f         △ 𝜋_Rec_x     △ 𝜋_Rec_e.
+Definition 𝜋_UnOpU      := 𝜋_UnOp_op       △ 𝜋_UnOp_e.
+Definition 𝜋_BinOpU     := 𝜋_BinOp_op      △ 𝜋_BinOp_l   △ 𝜋_BinOp_r.
+Definition 𝜋_AppU       := 𝜋_App_l         △ 𝜋_App_r.
+Definition 𝜋_IfU        := 𝜋_If_c          △ 𝜋_If_l      △ 𝜋_If_r.
+Definition 𝜋_PairU      := 𝜋_Pair_l        △ 𝜋_Pair_r.
+Definition 𝜋_InjLU      := 𝜋_InjL_e.
+Definition 𝜋_InjRU      := 𝜋_InjR_e.
+Definition 𝜋_CaseU      := 𝜋_Case_c        △ 𝜋_Case_l    △ 𝜋_Case_r.
+Definition 𝜋_AllocU     := 𝜋_Alloc_e.
+Definition 𝜋_LoadU      := 𝜋_Load_e.
+Definition 𝜋_StoreU     := 𝜋_Store_l       △ 𝜋_Store_e.
 Definition 𝜋_AllocTapeU := 𝜋_AllocTape_e.
-Definition 𝜋_RandU := Package2 𝜋_Rand_t 𝜋_Rand_N.
-Definition 𝜋_URandU := 𝜋_URand_e.
-Definition 𝜋_TickU := 𝜋_Tick_e.
+Definition 𝜋_RandU      := 𝜋_Rand_t        △ 𝜋_Rand_N.
+Definition 𝜋_URandU     := 𝜋_URand_e.
+Definition 𝜋_TickU      := 𝜋_Tick_e.
 
 
 (** Primitive Projection functions measurability *)
@@ -1680,46 +1677,24 @@ Hint Resolve 𝜋_Case_r_meas : measlang.
 
 Lemma 𝜋_Alloc_e_meas      : measurable_fun ecov_alloc 𝜋_Alloc_e.
 Proof.
-  (*
+  have -> : ecov_alloc = [set e  | ∃ x, e = AllocU x].
+  { apply /predeqP =>y //=; rewrite /ecov_var//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
-  rewrite /ecov_pair/setI/=.
-  eapply (eq_measurable
-            (\bigcup_n [set x | (∃ e1 e2 : expr_pre, x = AllocNC e1 e2 /\
-                                           (expr_ST (gen_expr (expr_shape_enum n)) e1)) ∧
-                                expr_ST C (𝜋_AllocN_e x)])); last first.
-  { apply /predeqP =>y /=.
-    split.
-    - move=> [[z [? ->]] +]; simpl; move=> ?.
-      destruct (expr_shape_enum_surj (shape_expr z)).
-      eexists _; [done|].
-      split; [|done].
-      eexists _; eexists _; split; [done|].
-      by rewrite -expr_shape_cyl.
-    - move=> [? _ [[? [? [-> ?]]] +]]; simpl; move=> ?.
-      split; [|done].
-      by eexists _; eexists _; eauto.
-  }
-
-  apply bigcup_measurable; move=> k _.
   apply sub_sigma_algebra.
-  eexists (AllocN (gen_expr (expr_shape_enum k)) C).
-  { split; [|done]. by apply gen_expr_generator. }
-
+  eexists (Alloc C). { simpl. assumption. }
   apply /predeqP =>y /=.
   split.
-  - move=> [? ? [ ? ? <-]].
-    split.
-    + by eexists _; eexists _; eauto.
-    + by simpl.
-  - move=> [[? [? [-> ?]]] +]; simpl; move=> ?.
-    eexists _; [done|].
-    eexists _; [done|].
-    done.
-*)
-  Admitted.
+  - move=> [? z <-].
+    rewrite //=.
+    split; [by eexists _|done].
+  - move=> [[z ->]] //=; move=> ?.
+    exists z; [done|done].
+Qed.
 Hint Resolve 𝜋_Alloc_e_meas : measlang.
 
 Lemma 𝜋_Load_e_meas        : measurable_fun ecov_load 𝜋_Load_e.

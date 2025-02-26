@@ -1,21 +1,12 @@
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
-From Coq Require Import Logic.ClassicalEpsilon Psatz.
-From stdpp Require Import base numbers binders strings gmap.
-From mathcomp Require Import functions.
-From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
-From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
-From iris.algebra Require Export ofe.
-From clutch.prelude Require Export stdpp_ext.
+From stdpp Require Import binders.
+From mathcomp Require Import boolp classical_sets.
+From mathcomp.analysis Require Import measure lebesgue_measure.
 From clutch.common Require Export locations.
-From clutch.meas_lang Require Import ectxi_language ectx_language.
-From Coq Require Export Reals.
-From clutch.prob.monad Require Export giry.
-From mathcomp.analysis Require Export Rstruct.
-From mathcomp Require Import classical_sets.
-Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
 From clutch.meas_lang.lang Require Export prelude types shapes constructors.
+
 Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.
@@ -33,40 +24,40 @@ Local Open Scope classical_set_scope.
  *)
 
 
-Definition ecov_val        := range ValU.
-Definition ecov_var        := range VarU.
-Definition ecov_rec        := range RecU.
-Definition ecov_app        := range AppU.
-Definition ecov_unop       := range UnOpU.
-Definition ecov_binop      := range BinOpU.
-Definition ecov_if         := range IfU.
-Definition ecov_pair       := range PairU.
-Definition ecov_fst        := range FstU.
-Definition ecov_snd        := range SndU.
-Definition ecov_injl       := range InjLU.
-Definition ecov_injr       := range InjRU.
-Definition ecov_case       := range CaseU.
-Definition ecov_alloc      := range AllocU.
-Definition ecov_load       := range LoadU.
-Definition ecov_store      := range StoreU.
-Definition ecov_alloctape  := range AllocTapeU.
-Definition ecov_rand       := range RandU.
-Definition ecov_allocutape := [set AllocUTapeU].
-Definition ecov_urand      := range UrandU.
-Definition ecov_tick       := range TickU.
+Notation ecov_val        := (range ValU).
+Notation ecov_var        := (range VarU).
+Notation ecov_rec        := (range RecU).
+Notation ecov_app        := (range AppU).
+Notation ecov_unop       := (range UnOpU).
+Notation ecov_binop      := (range BinOpU).
+Notation ecov_if         := (range IfU).
+Notation ecov_pair       := (range PairU).
+Notation ecov_fst        := (range FstU).
+Notation ecov_snd        := (range SndU).
+Notation ecov_injl       := (range InjLU).
+Notation ecov_injr       := (range InjRU).
+Notation ecov_case       := (range CaseU).
+Notation ecov_alloc      := (range AllocU).
+Notation ecov_load       := (range LoadU).
+Notation ecov_store      := (range StoreU).
+Notation ecov_alloctape  := (range AllocTapeU).
+Notation ecov_rand       := (range RandU).
+Notation ecov_allocutape := [set AllocUTapeU].
+Notation ecov_urand      := (range UrandU).
+Notation ecov_tick       := (range TickU).
 
-Definition vcov_lit        := range LitVU.
-Definition vcov_rec        := range RecVU.
-Definition vcov_pair       := range PairVU.
-Definition vcov_injlv      := range InjLVU.
-Definition vcov_injrv      := range InjRVU.
+Notation vcov_lit        := (range LitVU).
+Notation vcov_rec        := (range RecVU).
+Notation vcov_pair       := (range PairVU).
+Notation vcov_injlv      := (range InjLVU).
+Notation vcov_injrv      := (range InjRVU).
 
-Definition bcov_LitInt      := range LitIntU.
-Definition bcov_LitBool     := range LitBoolU.
-Definition bcov_LitUnit     := [set  LitUnitC].
-Definition bcov_LitLoc      := range LitLocU.
-Definition bcov_LitLbl      := range LitLblU.
-Definition bcov_LitReal     := range LitRealU.
+Notation bcov_LitInt     := (range LitIntU).
+Notation bcov_LitBool    := (range LitBoolU).
+Notation bcov_LitUnit    := [set  LitUnitC].
+Notation bcov_LitLoc     := (range LitLocU).
+Notation bcov_LitLbl     := (range LitLblU).
+Notation bcov_LitReal    := (range LitRealU).
 
 (* Both will use the decomposition argument. *)
 Lemma bcov_LitInt_meas_set  : measurable bcov_LitInt.
@@ -566,33 +557,24 @@ Proof.
   { apply /predeqP =>y //=; rewrite /ecov_var//=; split.
     - move=> [??]<-; by eexists _.
     - move=> [?->]; by eexists _. }
-  (*
-  eapply (eq_measurable (\bigcup_i \bigcup_j (image2 (expr_seq i) (expr_seq j) AllocC))); last first.
+  eapply (eq_measurable (\bigcup_n [set AllocC v | v in (expr_seq n)])); last first.
   { rewrite /bigcup/=.
     apply /predeqP =>y /=.
     split.
-    - move=> [e0][e1]->.
-      destruct (expr_shape_enum_surj (shape_expr e0)) as [?].
-      destruct (expr_shape_enum_surj (shape_expr e1)) as [?].
+    - move=> [v ->].
+      destruct (expr_shape_enum_surj (shape_expr v)) as [? ?].
       eexists _; [done|].
-      eexists _; [done|].
-      exists e0; [ by rewrite //= |].
-      exists e1; [ by rewrite //= |].
-      f_equal; done.
-    - rewrite /image2//=.
-      move=> [??][??][??][??]<-.
-      eexists _.
-      eexists _.
-      done.
+      eexists _; [|done].
+      by rewrite //=.
+    - move=> [? _] [x ?] <-.
+      by eexists _.
   }
-  apply bigcup_measurable; move=> i _.
-  apply bigcup_measurable; move=> j _.
+  apply bigcup_measurable.
+  move=> k _.
   apply sub_sigma_algebra.
-  eexists (AllocN (gen_expr (expr_shape_enum i)) (gen_expr (expr_shape_enum j))).
-  { rewrite //=. split. all: by apply gen_expr_generator. }
-  by rewrite /expr_seq/preimage //= (expr_shape_cyl _) (expr_shape_cyl _).
-  *)
-Admitted.
+  exists (Alloc (gen_expr (expr_shape_enum k))); [ by apply gen_expr_generator |].
+  by rewrite /expr_seq/preimage //= (expr_shape_cyl _).
+Qed.
 Hint Resolve ecov_alloc_meas_set : measlang.
 
 Lemma ecov_load_meas_set       : measurable ecov_load.
