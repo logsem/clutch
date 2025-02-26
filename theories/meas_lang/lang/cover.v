@@ -15,7 +15,7 @@ From mathcomp.analysis Require Export Rstruct.
 From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
-From clutch.meas_lang.lang Require Export prelude types shapes.
+From clutch.meas_lang.lang Require Export prelude types shapes constructors.
 Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.
@@ -33,8 +33,7 @@ Local Open Scope classical_set_scope.
  *)
 
 
-(** TODO: It would be better if these were defined as ``image setT CtorU`` *)
-Definition ecov_val        : set expr     := [set e  | ∃ v,         e = ValC v].
+Definition ecov_val        : set expr     := range ValU.
 Definition ecov_var        : set expr     := [set e  | ∃ s,         e = VarC s].
 Definition ecov_rec        : set expr     := [set e  | ∃ f x b,     e = RecC f x b].
 Definition ecov_app        : set expr     := [set e  | ∃ e1 e2,     e = AppC e1 e2].
@@ -159,7 +158,10 @@ Hint Resolve bcov_LitReal_meas_set : measlang.
 Arguments eq_measurable {_} {_} _ {_}.
 Lemma ecov_val_meas_set : measurable ecov_val.
 Proof.
-  rewrite /ecov_val.
+  have -> : ecov_val = [set e  | ∃ v, e = ValC v].
+  { apply /predeqP =>y //=; rewrite /ecov_val//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   eapply (eq_measurable (\bigcup_n [set ValC v | v in (val_seq n)])); last first.
   { rewrite /bigcup/=.
     apply /predeqP =>y /=.

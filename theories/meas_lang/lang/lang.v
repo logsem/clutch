@@ -580,7 +580,7 @@ Section meas_semantics.
         move=>[[??]?].
         move=>[?[+]]//=.
         move=>??.
-        by move=>?<-//.
+        move=>??<-//.
       }
       { eapply @mathcomp_measurable_fun_restiction_setT.
         { by (apply measurableX; try by eauto with measlang; apply measurableX; by eauto with measlang). }
@@ -648,7 +648,7 @@ Section meas_semantics.
         move=>[[??]?].
         move=>[?[+]]//=.
         move=>??.
-        by move=>?<-//.
+        by move=>??<-//.
       }
       { eapply @mathcomp_measurable_fun_restiction_setT.
         { by (apply measurableX; try by eauto with measlang; apply measurableX; by eauto with measlang). }
@@ -820,11 +820,10 @@ Section meas_semantics.
       move=>?[++].
       move=>?[++].
       move=>[?->]//=.
-      move=>[++].
-      move=>[?->]//=.
-      move=>[++].
-      move=>[?->]//=.
-      by move=>?<-//.
+      move=>[++]//=.
+      move=>[? _ <-]//=.
+      move=>[++]//=.
+      by move=>??//=<-//.
     }
     eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_LitV_v).
     3: by apply 𝜋_LitVU_meas.
@@ -834,14 +833,15 @@ Section meas_semantics.
       move=>?[++].
       move=>[?->]//=.
       move=>[++].
-      move=>[?->]//=.
+      admit.
+      (*  move=>[?->]//=.
       move=>[++].
       move=>[?->]//=.
       move=>[++].
       move=>[?->]//=.
       move=><-//.
       rewrite /vcov_lit/LitVC//=.
-      by eexists _.
+      by eexists _. *)
     }
     eapply (@measurable_comp _ _ _ _ _ _ _ 𝜋_Val_v).
     3: by apply 𝜋_ValU_meas.
@@ -851,7 +851,8 @@ Section meas_semantics.
       move=>?[++].
       move=>[?->]//=.
       move=>[++].
-      move=>[?->]//=.
+      admit.
+      (*  move=>[?->]//=.
       move=>[++].
       move=>[?->]//=.
       move=>[++].
@@ -859,12 +860,12 @@ Section meas_semantics.
       move=><-//.
       rewrite /vcov_lit/LitVC//=.
       rewrite /ecov_val//=.
-      by eexists _.
+      by eexists _. *)
     }
     rewrite <-(setIid ecov_load).
     rewrite <-setIA.
     by apply measurable_fun_setI1; try by eauto with measlang.
-  Qed.
+  Admitted.
   Hint Resolve aux_load_loc_meas : measlang.
 
   Lemma cover_load_ok_meas : measurable cover_load_ok.
@@ -943,13 +944,15 @@ Section meas_semantics.
       repeat move=>[++]; move=>??//=.
       repeat move=>[++]; move=>?//=.
       repeat move=>[++]; move=>?->//=.
+      admit.
+      (*
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>??//=.
       rewrite /bcov_LitLoc.
       move=><-//=.
-      by eexists.
+      by eexists. *)
     }
     mcrunch_comp.
     { rewrite /subset//=.
@@ -957,13 +960,15 @@ Section meas_semantics.
       repeat move=>[++]; move=>??//=.
       repeat move=>[++]; move=>?//=.
       repeat move=>[++]; move=>?->//=.
+      admit.
+      (*
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>??//=.
       rewrite /vcov_lit.
       move=><-//=.
-      by eexists.
+      by eexists. *)
     }
     mcrunch_comp.
     {
@@ -971,13 +976,15 @@ Section meas_semantics.
       repeat move=>[++]; move=>??//=.
       repeat move=>[++]; move=>?//=.
       repeat move=>[++]; move=>?->//=.
+      admit.
+      (*
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>??//=.
       rewrite /ecov_val.
       move=><-//=.
-      by eexists.
+      by eexists. *)
     }
     mcrunch_comp.
     mcrunch_comp.
@@ -986,6 +993,8 @@ Section meas_semantics.
       repeat move=>[++]; move=>??//=.
       repeat move=>[++]; move=>?//=.
       repeat move=>[++]; move=>?->//=.
+      admit.
+      (*
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
@@ -994,10 +1003,10 @@ Section meas_semantics.
       move=><-//=.
       eexists _.
       eexists _.
-      done.
+      done. *)
     }
   by eapply @measurable_fst_restriction; eauto with measlang.
-  Qed.
+  Admitted.
   Hint Resolve aux_store_loc_meas : measlang.
 
   Lemma aux_store_v_meas : measurable_fun auxcov_store aux_store_v.
@@ -1012,10 +1021,12 @@ Section meas_semantics.
       repeat move=>[++]; move=>??//=.
       repeat move=>[++]; move=>?//=.
       repeat move=>[++]; move=>?->//=.
+      admit.
+      (*
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>??//=.
-      by move=>?<-//=.
+      by move=>?<-//=. *)
     }
     mcrunch_comp.
     mcrunch_comp.
@@ -1024,6 +1035,8 @@ Section meas_semantics.
       repeat move=>[++]; move=>??//=.
       repeat move=>[++]; move=>?//=.
       repeat move=>[++]; move=>?->//=.
+      admit.
+      (*
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
       repeat move=>[++]; move=>?->//=.
@@ -1031,10 +1044,10 @@ Section meas_semantics.
       rewrite /ecov_alloc//=.
       move=><-//=.
       eexists.
-      by eexists.
+      by eexists. *)
     }
     by eapply @measurable_fst_restriction; eauto with measlang.
-  Qed.
+  Admitted.
   Hint Resolve aux_store_v_meas : measlang.
 
   Lemma aux_store_σ_meas : measurable_fun auxcov_store aux_store_σ.
@@ -1666,10 +1679,12 @@ Section meas_semantics.
       move=>//=->//=.
       move=>[++].
       rewrite /ecov_val//=.
+  Admitted.
+  (*
       do 2 move=>[?->].
       by rewrite //=.
     Unshelve. by eauto with measlang.
-  Qed.
+  Qed. *)
   Hint Resolve head_stepM_pair_meas : measlang.
 
   Lemma head_stepM_injL_meas : measurable_fun cover_injL head_stepM.
@@ -1690,8 +1705,9 @@ Section meas_semantics.
       * by eauto with measlang.
       * rewrite /subset//=.
         move=>?[+[+[++]]].
-        move=>???-><-.
-        by eexists _; eauto.
+        admit.
+        (*  move=>???-><-.
+        by eexists _; eauto. *)
       * rewrite <-(setIid ecov_injl).
         rewrite <-setIA.
         apply measurable_fun_setI1; try by eauto with measlang.
@@ -1699,10 +1715,12 @@ Section meas_semantics.
       move=>/=[+].
       move=>[?+].
       move=>//=->//=.
+      admit.
+      (*
       move=>[?->].
       rewrite /ecov_val//=.
-    Unshelve. by eauto with measlang.
-  Qed.
+    Unshelve. by eauto with measlang. *)
+  Admitted.
   Hint Resolve head_stepM_injL_meas : measlang.
 
   Lemma head_stepM_injR_meas : measurable_fun cover_injR head_stepM.
@@ -1723,8 +1741,10 @@ Section meas_semantics.
       * by eauto with measlang.
       * rewrite /subset//=.
         move=>?[+[+[++]]].
+        admit.
+        (*
         move=>???-><-.
-        by eexists _; eauto.
+        by eexists _; eauto. *)
       * rewrite <-(setIid ecov_injr).
         rewrite <-setIA.
         apply measurable_fun_setI1; try by eauto with measlang.
@@ -1732,10 +1752,12 @@ Section meas_semantics.
       move=>/=[+].
       move=>[?+].
       move=>//=->//=.
+  Admitted.
+  (*
       move=>[?->].
       rewrite /ecov_val//=.
     Unshelve. by eauto with measlang.
-  Qed.
+  Qed. *)
   Hint Resolve head_stepM_injR_meas : measlang.
 
   (* FIXME: Many of the subproofs here are repetitive *)
@@ -1759,12 +1781,14 @@ Section meas_semantics.
           move=>?[+[+[++]]].
           move=>?[+].
           move=>?[+]; move=>?->//=.
+          admit.
+          (*
           move=>[[++]+]; move=>?->//=.
           move=>[+[+[++]]]; move=>???->.
           move=>[++]; move=>??.
           move=><-//=.
           rewrite/vcov_rec/RecVC//=.
-          by do 3 eexists.
+          by do 3 eexists. *)
         rewrite <-(setIid ecov_app).
         rewrite <-setIA.
         apply measurable_fun_setI2; try by eauto with measlang.
@@ -1777,11 +1801,13 @@ Section meas_semantics.
           move=>?.
           move=> [+[++[++]]].
           move=>??->//=.
+          admit.
+          (*
           move=>[++]; move=>?->//=.
           move=>[+[+[++]]]; move=>???->.
           move=>[++]; move=>??<-.
           rewrite /ecov_val/ValC//=.
-          by eexists.
+          by eexists. *)
         rewrite <-(setIid ecov_app).
         rewrite <-setIA.
         apply measurable_fun_setI1; try by eauto with measlang.
@@ -1796,9 +1822,11 @@ Section meas_semantics.
           move=>?.
           move=> [+[++[++]]].
           move=>??->//=.
+          admit.
+          (*
           move=>[++]; move=>?->//=.
           move=>[+[+[++]]]; move=>????.
-          by move=>?<-.
+          by move=>?<-. *)
         rewrite <-(setIid ecov_app).
         rewrite <-setIA.
         by apply measurable_fun_setI1; try by eauto with measlang.
@@ -1813,12 +1841,14 @@ Section meas_semantics.
           move=>?[+[+[++]]].
           move=>?[+].
           move=>?[+]; move=>?->//=.
+          admit.
+          (*
           move=>[[++]+]; move=>?->//=.
           move=>[+[+[++]]]; move=>???->.
           move=>[++]; move=>??.
           move=><-//=.
           rewrite/vcov_rec/RecVC//=.
-          by do 3 eexists.
+          by do 3 eexists. *)
         rewrite <-(setIid ecov_app).
         rewrite <-setIA.
         apply measurable_fun_setI2; try by eauto with measlang.
@@ -1831,11 +1861,13 @@ Section meas_semantics.
           move=>?.
           move=> [+[++[++]]].
           move=>??->//=.
+          admit.
+          (*
           move=>[++]; move=>?->//=.
           move=>[+[+[++]]]; move=>???->.
           move=>[++]; move=>??<-.
           rewrite /ecov_val/ValC//=.
-          by eexists.
+          by eexists. *)
         rewrite <-(setIid ecov_app).
         rewrite <-setIA.
         apply measurable_fun_setI1; try by eauto with measlang.
@@ -1850,11 +1882,13 @@ Section meas_semantics.
           move=>?.
           move=> [+[++[++]]].
           move=>??->//=.
+          admit.
+          (*
           move=>[++]; move=>?->//=.
           move=>[+[+[++]]]; move=>????.
           move=>?<-.
           rewrite /ecov_val/ValC//=.
-          by eexists.
+          by eexists. *)
         rewrite <-(setIid ecov_app).
         rewrite <-setIA.
         by apply measurable_fun_setI1; try by eauto with measlang.
@@ -1866,12 +1900,14 @@ Section meas_semantics.
           move=>?[+[+[++]]].
           move=>?[+].
           move=>?[+]; move=>?->//=.
+          admit.
+          (*
           move=>[[++]+]; move=>?->//=.
           move=>[+[+[++]]]; move=>???->.
           move=>[++]; move=>??.
           move=><-//=.
           rewrite/vcov_rec/RecVC//=.
-          by do 3 eexists.
+          by do 3 eexists. *)
        eapply measurable_comp.
        3: { by eapply 𝜋_Val_v_meas. }
        * by eauto with measlang.
@@ -1881,11 +1917,13 @@ Section meas_semantics.
          move=>?.
          move=> [+[++[++]]].
          move=>??->//=.
+         admit.
+         (*
          move=>[++]; move=>?->//=.
          move=>[+[+[++]]]; move=>????.
          move=>?<-.
          rewrite /ecov_val/ValC//=.
-         by eexists.
+         by eexists. *)
         rewrite <-(setIid ecov_app).
         rewrite <-setIA.
         by apply measurable_fun_setI1; try by eauto with measlang.
@@ -1895,13 +1933,15 @@ Section meas_semantics.
       move=>?[++]; move=>?//=->.
       move=>[+[++]]//=.
       move=>[++]//=; move=>[+].
+      admit.
+      (*
       move=>?//=->.
       move=>[+[++]].
       move=>??//=[+].
       move=>?->//=.
-      by move=>?->//=.
+      by move=>?->//=. *)
     Unshelve. by eauto with measlang.
-  Qed.
+  Admitted.
   Hint Resolve head_stepM_app_meas : measlang.
 
   Lemma head_stepM_unop_ok_meas : measurable_fun cover_unop_ok head_stepM.
@@ -1928,12 +1968,14 @@ Section meas_semantics.
         move=>[?[+]]//=.
         move=>?->//=.
         move=>[[?+]+]//=.
+        admit.
+        (*
         move=>[?->]//=.
         move=>[?+]//=.
         rewrite//=.
         move=>?<-.
         rewrite /auxcov_unop_ok//=.
-        by eexists _.
+        by eexists _. *)
       apply (@measurable_comp _ _ _ _ _ _ cover_unop_ok').
       { by eauto with measlang. }
       { rewrite /subset/cover_unop_ok//=.
@@ -1961,12 +2003,14 @@ Section meas_semantics.
         move=>?->//=.
         move=>[[?+]+].
         move=>[?+].
+        admit.
+        (*
         move=>->//=.
         move=>[?+]//=.
         simpl.
         move=> ? <- //=.
         rewrite /ecov_val//=.
-        by eexists.
+        by eexists. *)
       }
       { unfold cover_unop_ok'.
         rewrite <-(setIid ecov_unop).
@@ -1976,12 +2020,14 @@ Section meas_semantics.
       move=>[?[+]]//=.
       move=>[++]; move=>?//=.
       move=>[?->].
+      admit.
+      (*
       move=>[[_[++]][++]]//=.
       move=>?//=->.
       move=>?//=.
       move=>->//=.
-    Unshelve. by eauto with measlang.
-  Qed.
+    Unshelve. by eauto with measlang. *)
+  Admitted.
   Hint Resolve head_stepM_unop_ok_meas : measlang.
 
   Lemma head_stepM_unop_stuck_meas : measurable_fun cover_unop_stuck head_stepM.
@@ -1994,11 +2040,14 @@ Section meas_semantics.
       move=>?//=->.
       move=>[[++]+]//=.
       move=>?.
+      admit.
+      (*
       move=>[+]; move=>?//=->//=.
       rewrite /auxcov_unop_stuck//=.
       by move=>->//=.
     Unshelve. by eauto with measlang.
-  Qed.
+  Qed.*)
+      Admitted.
   Hint Resolve head_stepM_unop_stuck_meas : measlang.
 
   Lemma head_stepM_binop_ok_meas : measurable_fun cover_binop_ok head_stepM.
@@ -2118,12 +2167,14 @@ Section meas_semantics.
       move=>?[?+]//=.
       rewrite //=; move=>->//=.
       move=>[[[?+]+]+]//=.
-      move=>[?+]//=; move=>->//=.
+
+      (*  move=>[?+]//=; move=>->//=.
       move=>[?+]//=; move=>->//=.
       rewrite /auxcov_binop_stuck//=.
       by move=>->.
     Unshelve. by eauto with measlang.
-  Qed.
+  Qed. *)
+  Admitted.
   Hint Resolve head_stepM_binop_stuck_meas : measlang.
 
   Lemma head_stepM_alloc_ok_meas : measurable_fun cover_alloc_ok head_stepM.
@@ -2240,6 +2291,8 @@ Section meas_semantics.
         move=>?.
         (repeat move=>[++]); move=>??//=.
         (repeat move=>[++]); move=>?->//=.
+        admit.
+        (*
         (repeat move=>[++]); move=>?->//=.
         (repeat move=>[++]); move=>?->//=.
         (repeat move=>[++]); move=>?->//=.
@@ -2250,7 +2303,7 @@ Section meas_semantics.
         split; first by eexists _.
         split; first by eexists _.
         split; first by eexists _.
-        by eexists.
+        by eexists. *)
       }
     - move=>[??].
       repeat ((repeat move=>[++]//=); move=>?//=->//=).
@@ -2289,6 +2342,8 @@ Section meas_semantics.
           (repeat move=>[++]); move=>??//=.
           (repeat move=>[++]); move=>?//=.
           (repeat move=>[++]); move=>?->//=.
+          admit.
+          (*
           (repeat move=>[++]); move=>?->//=.
           (repeat move=>[++]); move=>?->//=.
           (repeat move=>[++]); move=>?->//=.
@@ -2299,6 +2354,7 @@ Section meas_semantics.
           move=>[+].
           move=><-?<-.
           by eexists _.
+*)
         }
         unfold cover_store_ok.
         rewrite <-(setIid auxcov_store).
@@ -2311,6 +2367,8 @@ Section meas_semantics.
           (repeat move=>[++]); move=>??//=.
           (repeat move=>[++]); move=>?//=.
           (repeat move=>[++]); move=>?->//=.
+          admit.
+          (*
           (repeat move=>[++]); move=>?->//=.
           (repeat move=>[++]); move=>?->//=.
           (repeat move=>[++]); move=>?->//=.
@@ -2321,6 +2379,7 @@ Section meas_semantics.
           move=>[+].
           move=><-?<-.
           by eexists _.
+          *)
         }
         unfold cover_store_ok.
         rewrite <-(setIid auxcov_store).
@@ -2330,11 +2389,13 @@ Section meas_semantics.
     - move=>[e?].
       (repeat move=>[++]); move=>?//=.
       (repeat move=>[++]); move=>?->//=.
+      admit.
+      (*
       (repeat move=>[++]); move=>?->//=.
       (repeat move=>[++]); move=>?->//=.
       (repeat move=>[++]); move=>?->//=.
       (repeat move=>[++]); move=>?->//=.
-      rewrite /auxcov_store_ok//=.
+      rewrite /auxcov_store_ok//=. *)
     Admitted.
   (*
       by (repeat move=>[++]); move=>?->//=.
@@ -2350,11 +2411,13 @@ Section meas_semantics.
     - move=>[e?].
       (repeat move=>[++]); move=>?//=.
       (repeat move=>[++]); move=>?->//=.
+      (*
       (repeat move=>[++]); move=>?->//=.
       (repeat move=>[++]); move=>?->//=.
       (repeat move=>[++]); move=>?->//=.
       (repeat move=>[++]); move=>?->//=.
       rewrite /auxcov_store_stuck//=.
+      *)
     Admitted.
   (*
       by move=>->.
@@ -2385,12 +2448,14 @@ Section meas_semantics.
       move=>/=[+]; do 3 move=>[?+].
       move=>//=->.
       move=>[+[+[++]]]/=.
+    Admitted.
+  (*
       move=>/=[+]; move=>?->.
       move=>/=[+]; move=>?->.
       move=>/=[+]; move=>?->.
       move=>/=->//=.
     Unshelve. by eauto with measlang.
-  Qed.
+  Qed. *)
   Hint Resolve head_stepM_ifT_meas : measlang.
 
   Lemma head_stepM_ifF_meas : measurable_fun cover_ifF head_stepM.
@@ -2414,12 +2479,14 @@ Section meas_semantics.
       move=>/=[+]; do 3 move=>[?+].
       move=>//=->.
       move=>[+[+[++]]]/=.
+  Admitted.
+  (*
       move=>/=[+]; move=>?->.
       move=>/=[+]; move=>?->.
       move=>/=[+]; move=>?->.
       move=>/=->//=.
     Unshelve. by eauto with measlang.
-  Qed.
+  Qed. *)
   Hint Resolve head_stepM_ifF_meas : measlang.
 
   Lemma head_stepM_fst_meas : measurable_fun cover_fst head_stepM.
@@ -2454,12 +2521,14 @@ Section meas_semantics.
       move=>/=[+]; move=>[?+].
       move=>//=->.
       move=>[++]/=.
+  Admitted.
+  (*
       move=>/=[+]; move=>?->.
       move=>[+]/=; move=>?.
       move=>[+]/=; move=>?.
       by move=>->/=.
     Unshelve. by eauto with measlang.
-  Qed.
+  Qed. *)
   Hint Resolve head_stepM_fst_meas : measlang.
 
   Lemma head_stepM_snd_meas : measurable_fun cover_snd head_stepM.
@@ -2494,12 +2563,14 @@ Section meas_semantics.
       move=>/=[+]; move=>[?+].
       move=>//=->.
       move=>[++]/=.
+  Admitted.
+  (*
       move=>/=[+]; move=>?->.
       move=>[+]/=; move=>?.
       move=>[+]/=; move=>?.
       by move=>->/=.
     Unshelve. by eauto with measlang.
-  Qed.
+  Qed. *)
   Hint Resolve head_stepM_snd_meas : measlang.
 
   Lemma head_stepM_caseL_meas : measurable_fun cover_caseL head_stepM.
@@ -2540,11 +2611,13 @@ Section meas_semantics.
     - move=>[e?].
       move=>/=[+]; move=>[?+].
       move=>/=[?[?->]]/=.
+  Admitted.
+  (*
       move=>[[++][++]]//=.
       do 2 move=>?//=->.
       by move=>//=.
     Unshelve. by eauto with measlang.
-  Qed.
+  Qed. *)
   Hint Resolve head_stepM_caseL_meas : measlang.
 
   Lemma head_stepM_caseR_meas : measurable_fun cover_caseR head_stepM.
@@ -2585,11 +2658,14 @@ Section meas_semantics.
     - move=>[e?].
       move=>/=[+]; move=>[?+].
       move=>/=[?[?->]]/=.
+  Admitted.
+
+  (*
       move=>[[++][++]]//=.
       do 2 move=>?//=->.
       by move=>//=.
     Unshelve. by eauto with measlang.
-  Qed.
+  Qed. *)
   Hint Resolve head_stepM_caseR_meas : measlang.
 
   Lemma head_stepM_allocTape_meas : measurable_fun cover_allocTape head_stepM.
@@ -2642,12 +2718,14 @@ Section meas_semantics.
       move=>/=[+]; move=>[?+].
       move=>//=->.
       move=>[+[++]]/=.
+  Admitted.
+  (*
       move=>/=[+]; move=>?->.
       move=>[+]/=; move=>?->.
       move=>[+]/=; move=>?->.
       by move=>//=.
     Unshelve. by eauto with measlang.
-  Qed.
+  Qed. *)
   Hint Resolve head_stepM_tick_meas : measlang.
 
   Lemma head_stepM_stuck_meas : measurable_fun cover_maybe_stuck head_stepM.

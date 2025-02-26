@@ -503,6 +503,10 @@ Hint Resolve 𝜋_InjRV_v_meas : measlang.
 
 Lemma 𝜋_Val_v_meas         : measurable_fun ecov_val 𝜋_Val_v.
 Proof.
+  have -> : ecov_val = [set e  | ∃ v, e = ValC v].
+  { apply /predeqP =>y //=; rewrite /ecov_val//=; split.
+    - move=> [??]<-; by eexists _.
+    - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
   rewrite /preimage_class -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
