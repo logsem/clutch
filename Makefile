@@ -44,4 +44,4 @@ clean:
 tar:
 	git archive --format=tar.gz -o coq-coneris.tar.gz HEAD
 
-.PHONY: clean zip
+.PHONY: clean tar

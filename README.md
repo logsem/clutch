@@ -47,7 +47,7 @@ You should now be able to build the development by using `make -j N` where `N` i
 
 ## Axioms
 
-The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Coq's standard library. For example, the following list is produced when executing the command `Print Assumptions main_bloom_filter_seq_spec.` in [`theories/coneris/examples/bloom_filter/concurrent_bloom_filter.v`](theories/coneris/examples/bloom_filter/concurrent_bloom_filter.v):
+The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Coq's standard library. For example, the following list is produced when compiling the file [`theories/coneris/coneris_print_assumptions.v`](theories/coneris/coneris_print_assumptions.v) which executes the Coq command `Print Assumptions coneris_results.`, where `coneris_results` refers to the proof of the Bloom filter spec and the adequacy theorems:
 
 ```
 ClassicalDedekindReals.sig_not_dec : ∀ P : Prop, {¬ ¬ P} + {¬ P}
