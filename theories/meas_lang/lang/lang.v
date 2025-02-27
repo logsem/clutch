@@ -1624,14 +1624,16 @@ Section meas_semantics.
   Proof.
     eapply (mathcomp_measurable_fun_ext _ _ head_stepM_rec head_stepM).
     - solve_toplevel_meas.
-      { by apply gRet_meas_fun. }
+  Admitted.
+  (*
+      { eapply @gRet_meas_fun. }
       apply @NonStatefulU_meas; solve_toplevel_meas. (* How to integrate this into the tactic w/o stack overflow?*)
       (* Why do these not get applied form the hintdb? *)
       - by apply ValU_meas_fun.
       - by apply RecVU_meas_fun.
     - (* The trick: the two functions are equal on this set. *)
       move=>[??].
-  Admitted.
+  Admitted. *)
   (*
       do 3 (move=>[+]; move=>?).
       by move=>/=->/=.

@@ -15,8 +15,6 @@ From clutch.prob Require Import distribution couplings couplings_app mdp.
 *)
 Set Default Proof Using "Type*".
 
-Notation giryM := (giryM (R := R)).
-
 (** * Markov Chains *)
 Section meas_markov_mixin.
   Context {mstate_disp mstate_ret_disp : measure_display}.

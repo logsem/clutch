@@ -173,7 +173,6 @@ Proof.
   { by eapply subsetT. }
   { have -> : ((gMap' (ValU \o (LitVU \o LitIntU))) = (gMap H));
       last by eapply @gMap_meas_fun.
-    intro t.
     admit.
     (* Don't do this here
     rewrite /giryM_map_external/extern_if.

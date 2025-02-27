@@ -8,9 +8,6 @@ From clutch.prob.monad Require Export giry.
 From Coq Require Export Reals.
 Set Warnings "hiding-delimiting-key".
 
-(* Fix giryM to be the giry type with stdlib-valued real numbers *)
-Notation giryM := (giryM (R := R)).
-
 (* Instances for Z *)
 HB.instance Definition _ := gen_eqMixin Z.
 HB.instance Definition _ := gen_choiceMixin Z.

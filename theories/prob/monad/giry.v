@@ -1,11 +1,10 @@
 (** Axioms of a the Giry Monad type (a sigma algebra for subdistributions) *)
-
 From mathcomp Require Import all_ssreflect all_algebra boolp classical_sets functions.
-From mathcomp.analysis Require Import reals ereal measure lebesgue_measure lebesgue_integral.
+From mathcomp.analysis Require Import reals ereal measure lebesgue_measure lebesgue_integral Rstruct.
 From clutch.prob.monad Require Export prelude.
 From clutch.prelude Require Import classical.
 Import Coq.Relations.Relation_Definitions.
-From Coq Require Import Classes.Morphisms.
+From Coq Require Import Classes.Morphisms Reals.
 From HB Require Import structures.
 
 Set Implicit Arguments.
@@ -16,7 +15,7 @@ Set Default Proof Using "Type".
 
 Section giryM_ax.
   Local Open Scope classical_set_scope.
-  Context `{R : realType} `{d : measure_display} (T : measurableType d).
+  Context `{d : measure_display} (T : measurableType d).
 
   Definition giryM : Type := @subprobability d T R.
 
@@ -45,14 +44,14 @@ End giryM_ax.
 
 
 
-Definition measure_eq `{R : realType} `{d : measure_display} {T : measurableType d} : relation (@giryM R d T) :=
+Definition measure_eq `{d : measure_display} {T : measurableType d} : relation (giryM T) :=
   fun μ1 μ2 => forall (S : set T), measurable S -> μ1 S = μ2 S.
 Notation "x ≡μ y" := (measure_eq x y) (at level 70).
 Global Hint Extern 0 (_ ≡μ _) => reflexivity : core.
 Global Hint Extern 0 (_ ≡μ _) => symmetry; assumption : core.
 
-Instance equivalence_measure_eq `{R : realType} `{d : measure_display} {T : measurableType d} :
-  Equivalence (@measure_eq R d T).
+Instance equivalence_measure_eq `{d : measure_display} {T : measurableType d} :
+  Equivalence (@measure_eq d T).
 Proof.
   constructor.
   - done.
@@ -65,8 +64,7 @@ Qed.
 
 Section giry_eval.
   Local Open Scope classical_set_scope.
-  Context `{R : realType} `{d : measure_display} {T : measurableType d}.
-  Notation giryM := (giryM (R := R)).
+  Context `{d : measure_display} {T : measurableType d}.
 
   Axiom gEval : forall (S : set T), (d.-measurable S) -> (giryM T -> \bar R).
   Axiom gEval_meas_fun : forall (S : set T) (H : d.-measurable S), measurable_fun setT (gEval H).
@@ -76,8 +74,7 @@ End giry_eval.
 
 Section giry_join.
   Local Open Scope classical_set_scope.
-  Context `{R : realType} `{d : measure_display} {T : measurableType d}.
-  Notation giryM := (giryM (R := R)).
+  Context `{d : measure_display} {T : measurableType d}.
 
   Axiom gJoin : giryM (giryM T) -> giryM T.
   Axiom gJoin_meas_fun : measurable_fun setT gJoin.
@@ -88,9 +85,8 @@ End giry_join.
 
 Section giry_map.
   Local Open Scope classical_set_scope.
-  Context `{R : realType} `{d1 : measure_display} `{d2 : measure_display}.
+  Context `{d1 : measure_display} `{d2 : measure_display}.
   Context {T1 : measurableType d1} {T2 : measurableType d2}.
-  Notation giryM := (giryM (R := R)).
 
   Axiom gMap : forall (f : T1 -> T2), measurable_fun setT f -> (giryM T1 -> giryM T2).
   Axiom gMap_meas_fun : forall (f : T1 -> T2) (H : measurable_fun setT f), measurable_fun setT (gMap H).
@@ -102,8 +98,7 @@ End giry_map.
 
 Section giry_ret.
   Local Open Scope classical_set_scope.
-  Context `{R : realType} `{d : measure_display} {T : measurableType d}.
-  Notation giryM := (giryM (R := R)).
+  Context `{d : measure_display} {T : measurableType d}.
 
   Axiom gRet : T -> giryM T.
   Axiom gRet_meas_fun : measurable_fun setT gRet.
@@ -112,9 +107,8 @@ End giry_ret.
 
 Section giry_bind.
   Local Open Scope classical_set_scope.
-  Context `{R : realType} `{d1 : measure_display} `{d2 : measure_display}.
+  Context `{d1 : measure_display} `{d2 : measure_display}.
   Context {T1 : measurableType d1} {T2 : measurableType d2}.
-  Notation giryM := (giryM (R := R)).
 
   Definition gBind (f : T1 -> giryM T2) (H : measurable_fun setT f) : giryM T1 -> giryM T2 :=
     gJoin \o (gMap H).
@@ -142,9 +136,8 @@ End giry_bind.
 
 Section giry_monad.
   Local Open Scope classical_set_scope.
-  Context `{R : realType} `{d1 : measure_display} `{d2 : measure_display} `{d3 : measure_display}.
+  Context `{d1 : measure_display} `{d2 : measure_display} `{d3 : measure_display}.
   Context {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}.
-  Notation giryM := (giryM (R := R)).
 
   Axiom gJoin_assoc : forall (x : giryM (giryM (giryM T1))),
     (gJoin \o (gMap gJoin_meas_fun)) x ≡μ (gJoin \o gJoin) x.
@@ -186,8 +179,6 @@ End giry_monad.
 
 Section giry_zero.
   Local Open Scope classical_set_scope.
-  Context `{R : realType}.
-  Notation giryM := (giryM (R := R)).
 
   Section giry_zero_def.
     Context `{d1 : measure_display} {T1 : measurableType d1}.
@@ -203,9 +194,8 @@ End giry_zero.
 
 Section giry_external_map.
   Local Open Scope classical_set_scope.
-  Context `{R : realType} `{d1 : measure_display} `{d2 : measure_display}.
+  Context `{d1 : measure_display} `{d2 : measure_display}.
   Context {T1 : measurableType d1} {T2 : measurableType d2}.
-  Notation giryM := (giryM (R := R)).
 
   Definition gMap' (f : T1 -> T2) : giryM T1 -> giryM T2 :=
     extern_if (cst gZero) (fun h : measurable_fun setT f => gMap h).
@@ -225,9 +215,8 @@ End giry_external_map.
 
 Section giry_external_bind.
   Local Open Scope classical_set_scope.
-  Context `{R : realType} `{d1 : measure_display} `{d2 : measure_display}.
+  Context `{d1 : measure_display} `{d2 : measure_display}.
   Context {T1 : measurableType d1} {T2 : measurableType d2}.
-  Notation giryM := (giryM (R := R)).
 
   Definition gBind' (f : T1 -> giryM T2) : giryM T1 -> giryM T2 :=
     gJoin \o (gMap' f).
@@ -240,9 +229,8 @@ End giry_external_bind.
 
 Section giry_prod.
   Local Open Scope classical_set_scope.
-  Context `{R : realType} `{d1 : measure_display} `{d2 : measure_display}.
+  Context `{d1 : measure_display} `{d2 : measure_display}.
   Context {T1 : measurableType d1} {T2 : measurableType d2}.
-  Notation giryM := (giryM (R := R)).
 
   (* https://en.wikipedia.org/wiki/Giry_monad#Product_distributions  *)
   Axiom gProd : (giryM T1 * giryM T2) -> giryM (T1 * T2)%type.
@@ -255,8 +243,6 @@ End giry_prod.
 
 Section giry_iterM.
   Local Open Scope classical_set_scope.
-  Context `{R : realType}.
-  Notation giryM := (giryM (R := R)).
   Context {d} {T : measurableType d}.
 
   Fixpoint gIter (n : nat) (f : T -> giryM T) : T -> giryM T
@@ -311,8 +297,6 @@ End giry_iterM.
 
 Section giry_is_zero.
   Local Open Scope classical_set_scope.
-  Context `{R : realType}.
-  Notation giryM := (giryM (R := R)).
   Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
 
   Definition is_zero {d} {T : measurableType d} (s : giryM T) : Prop := s ≡μ gZero.
@@ -328,8 +312,6 @@ End giry_is_zero.
 
 Section giry_is_prob.
   Local Open Scope classical_set_scope.
-  Context `{R : realType}.
-  Notation giryM := (giryM (R := R)).
 
   Definition is_prob  {d} {T : measurableType d} (s : giryM T) : Prop := s [set: T] = 1%E.
 
@@ -337,8 +319,6 @@ End giry_is_prob.
 
 Section giry_has_support_in.
   Local Open Scope classical_set_scope.
-  Context `{R : realType}.
-  Notation giryM := (giryM (R := R)).
   Context {d} {T : measurableType d}.
 
   Definition mass (μ : giryM T) (S : set T) (_ : d.-measurable S) : \bar R :=
@@ -355,8 +335,6 @@ End giry_has_support_in.
 
 Section giry_is_det.
   Local Open Scope classical_set_scope.
-  Context `{R : realType}.
-  Notation giryM := (giryM (R := R)).
   Context {d} {T : measurableType d}.
 
   Definition is_det (t : T) (μ : giryM T) : Prop :=
