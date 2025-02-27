@@ -1,13 +1,8 @@
 opam-version: "2.0"
 name: "coq-coneris"
 synopsis: "Coneris"
-maintainer: "Kwing Hei Li"
-authors: "Kwing Hei Li,
-          Alejandro Aguirre,
-	  Simon Oddershede Gregersen,
-          Philipp G. Haselwarter,
-          Joseph Tassarotti,
-          Lars Birkedal"
+maintainer: "anonymous"
+authors: "anonymous"
 license: "MIT"
 build: [make "-j%{jobs}%"]
 install: []
