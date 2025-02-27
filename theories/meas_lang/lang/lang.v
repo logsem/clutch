@@ -36,7 +36,7 @@ Canonical Structure stateO := leibnizO state.
 Canonical Structure locO := leibnizO loc.
 Canonical Structure valO := leibnizO val.
 Canonical Structure exprO := leibnizO expr.
-
+(*
 Section meas_semantics.
   Local Open Scope ereal_scope.
   Local Open Scope classical_set_scope.
@@ -1557,7 +1557,7 @@ Section meas_semantics.
   Definition head_stepM_stuck : cfg -> giryM cfg :=
     cst gZero.
 
-
+*)
 
 
   (* TODO: Eventually we could make this definition look less goofy?
@@ -1565,7 +1565,8 @@ Section meas_semantics.
      since we're proving the restriction of head_stepM to every set in the cover
      is propeq to measurable function instead (see: head_stepM_rec_meas).
    *)
-  Definition head_stepM (c : cfg) : giryM cfg :=
+  Definition head_stepM (c : cfg) : giryM cfg. Admitted.
+(*
     let (e1, σ1) := c in
     match e1 with
     | Rec _ _ _                                            => head_stepM_rec c
@@ -1605,7 +1606,6 @@ Section meas_semantics.
     | Tick (Val (LitV (LitInt _)))                         => head_stepM_tick c
     | _                                                    => head_stepM_stuck c
     end.
-
   Hint Resolve measurable_compT : measlang.
 
   (* Combining solve_packaged_meas and solve_toplevel_meas is too slow! *)
@@ -2849,6 +2849,7 @@ Section meas_semantics.
   Admitted.
 
 End meas_semantics.
+*)
 
   (*
 
@@ -3130,6 +3131,8 @@ Definition meas_lang_mixin :
   @MeasEctxiLanguageMixin _ _ _ _ expr val state ectx_item
     of_val to_val fill_item decomp_item expr_ord head_stepM.
 Proof.
+Admitted.
+(*
   split.
   - by apply ValU_meas_fun.
   - by apply to_val_meas.
@@ -3149,6 +3152,7 @@ Proof.
   - by apply decomp_fill_item_2.
   - by apply head_step_ctx_val.
 Qed.
+*)
 
 End meas_lang.
 
