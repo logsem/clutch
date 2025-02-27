@@ -1,6 +1,6 @@
 Require Import FinFun.
 From stdpp Require Import fin countable finite.
-From clutch.prelude Require Import base classical stdpp_ext.
+From coneris.prelude Require Import base classical stdpp_ext.
 Set Default Proof Using "Type*".
 
 Section fin.

@@ -5,7 +5,7 @@
       We also fix the tape bound
  *)
 From iris.algebra Require Import excl_auth gmap.
-From clutch.coneris Require Import coneris abstract_tape.
+From coneris.coneris Require Import coneris abstract_tape.
 
 Set Default Proof Using "Type*".
 

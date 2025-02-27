@@ -1,5 +1,5 @@
 From stdpp Require Import countable fin_maps finite gmap.
-From clutch.prelude Require Import classical.
+From coneris.prelude Require Import classical.
 
 Section base.
   Global Instance negb_inj : Inj (=) (=) negb.

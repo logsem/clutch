@@ -1,4 +1,4 @@
-(** This file extends the Clutch program logic with some derived laws (not
+(** This file extends the Coneris program logic with some derived laws (not
 using the lifting lemmas) about arrays
 
 For utility functions on arrays (e.g., freeing/copying an array), see
@@ -7,8 +7,8 @@ For utility functions on arrays (e.g., freeing/copying an array), see
 From stdpp Require Import fin_maps.
 From iris.bi Require Import lib.fractional.
 From iris.proofmode Require Import proofmode.
-From clutch.con_prob_lang Require Import tactics lang notation.
-From clutch.coneris Require Export primitive_laws.
+From coneris.con_prob_lang Require Import tactics lang notation.
+From coneris.coneris Require Export primitive_laws.
 From iris.prelude Require Import options.
 
 (** The [array] connective is a version of [pointsto] that works

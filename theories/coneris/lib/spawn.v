@@ -1,5 +1,5 @@
 From iris.prelude Require Import options.
-From clutch.coneris Require Import coneris.
+From coneris.coneris Require Import coneris.
 From iris.algebra Require Import excl.
 From iris.base_logic.lib Require Export invariants.
 From iris.proofmode Require Import proofmode.

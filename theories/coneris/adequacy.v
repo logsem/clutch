@@ -4,12 +4,12 @@ From iris.base_logic.lib Require Import ghost_map invariants fancy_updates.
 From iris.algebra Require Import excl.
 From iris.prelude Require Import options.
 
-From clutch.prelude Require Import stdpp_ext iris_ext.
-From clutch.con_prob_lang Require Import erasure notation.
-From clutch.common Require Export con_language sch_erasable.
-From clutch.base_logic Require Import error_credits.
-From clutch.coneris Require Import weakestpre primitive_laws.
-From clutch.prob Require Import distribution.
+From coneris.prelude Require Import stdpp_ext iris_ext.
+From coneris.con_prob_lang Require Import erasure notation.
+From coneris.common Require Export con_language sch_erasable.
+From coneris.base_logic Require Import error_credits.
+From coneris.coneris Require Import weakestpre primitive_laws.
+From coneris.prob Require Import distribution.
 Import uPred.
 
 Notation con_prob_lang_mdp := (con_lang_mdp con_prob_lang).
@@ -315,7 +315,7 @@ Proof.
     eapply Rle_trans; [eapply prob_le_1|done]. }
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (?) "[??]"; [done|].
-  set (HclutchGS := HeapG Σ _ _ _ γH γT _).
+  set (HconerisGS := HeapG Σ _ _ _ γH γT _).
   iApply (wp_refRcoupl_step_fupdN _ ε').
   iFrame. by iApply Hwp.
 Qed.
@@ -725,7 +725,7 @@ Proof.
   }
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (?) "[??]"; [done|].
-  set (HclutchGS := HeapG Σ _ _ _ γH γT _).
+  set (HconerisGS := HeapG Σ _ _ _ γH γT _).
   iApply (wp_safety_step_fupdN _ ε'); first done.
   iFrame. by iApply Hwp.
 Qed.

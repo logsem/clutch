@@ -4,11 +4,11 @@ From iris.base_logic.lib Require Export fancy_updates.
 From iris.bi Require Export fixpoint big_op.
 From iris.prelude Require Import options.
 
-From clutch.bi Require Export weakestpre.
-From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
-From clutch.prob Require Export couplings distribution graded_predicate_lifting.
-From clutch.con_prob_lang Require Import lang erasure.
-From clutch.common Require Export sch_erasable con_language.
+From coneris.bi Require Export weakestpre.
+From coneris.prelude Require Import stdpp_ext iris_ext NNRbar.
+From coneris.prob Require Export couplings distribution graded_predicate_lifting.
+From coneris.con_prob_lang Require Import lang erasure.
+From coneris.common Require Export sch_erasable con_language.
 
 Import uPred.
 

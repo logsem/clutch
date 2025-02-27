@@ -1,6 +1,6 @@
 From iris.base_logic.lib Require Export invariants.
-From clutch.coneris Require Import coneris.
-From clutch.con_prob_lang Require Import notation.
+From coneris.coneris Require Import coneris.
+From coneris.con_prob_lang Require Import notation.
 From iris.prelude Require Import options.
 
 (** A general interface for a lock.

@@ -1,9 +1,9 @@
 From Coq Require Import Reals Psatz.
 From stdpp Require Import fin_maps.
 From iris.proofmode Require Import environments proofmode.
-From clutch.prob Require Import distribution.
-From clutch.common Require Import con_ectx_language.
-From clutch.con_prob_lang Require Import lang.
+From coneris.prob Require Import distribution.
+From coneris.common Require Import con_ectx_language.
+From coneris.con_prob_lang Require Import lang.
 From iris.prelude Require Import options.
 Import con_prob_lang.
 

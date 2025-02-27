@@ -1,6 +1,6 @@
-From clutch.prelude Require Import fin.
-From clutch.coneris Require Import coneris par spawn.
-From clutch.coneris.examples Require Import random_counter.random_counter.
+From coneris.prelude Require Import fin.
+From coneris.coneris Require Import coneris par spawn.
+From coneris.coneris.examples Require Import random_counter.random_counter.
 
 Set Default Proof Using "Type*".
 

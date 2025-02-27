@@ -1,4 +1,4 @@
-From clutch.coneris Require Import coneris coll_free_hash_view_interface.
+From coneris.coneris Require Import coneris coll_free_hash_view_interface.
 
 Set Default Proof Using "Type*".
 (** * seq hash interface. Not completed. To be deleted *)

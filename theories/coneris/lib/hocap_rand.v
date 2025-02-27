@@ -1,5 +1,5 @@
 (** * Hocap rand specs *)
-From clutch.coneris Require Import coneris.
+From coneris.coneris Require Import coneris.
 
 Set Default Proof Using "Type*".
 

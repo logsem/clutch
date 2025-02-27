@@ -1,6 +1,6 @@
 From iris.algebra Require Import excl_auth frac_auth.
 From iris.base_logic.lib Require Import invariants.
-From clutch.coneris Require Import coneris par spawn atomic lib.flip.
+From coneris.coneris Require Import coneris par spawn atomic lib.flip.
 
 Local Open Scope Z.
 

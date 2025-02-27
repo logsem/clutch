@@ -1,4 +1,4 @@
-From clutch.coneris Require Export coneris.
+From coneris.coneris Require Export coneris.
   
 Section test.
   Context `{!conerisGS Σ}.

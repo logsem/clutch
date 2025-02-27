@@ -1,4 +1,4 @@
-From clutch.coneris Require Import coneris.
+From coneris.coneris Require Import coneris.
 
 Definition bool_to_int : val :=
   λ: "b",

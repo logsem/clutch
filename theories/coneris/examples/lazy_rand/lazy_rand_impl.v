@@ -1,5 +1,5 @@
 From iris.algebra Require Import gmap.
-From clutch.coneris Require Import coneris hocap_rand_alt lock lazy_rand_interface.
+From coneris.coneris Require Import coneris hocap_rand_alt lock lazy_rand_interface.
 
 Set Default Proof Using "Type*".
 Section impl.

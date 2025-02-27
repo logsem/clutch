@@ -1,7 +1,7 @@
 From iris.algebra Require Import excl_auth cmra.
 From iris.base_logic.lib Require Import invariants.
-From clutch.coneris Require Import coneris par spawn.
-From clutch.coneris.examples Require Import random_counter3.random_counter.
+From coneris.coneris Require Import coneris par spawn.
+From coneris.coneris.examples Require Import random_counter3.random_counter.
 
 Local Open Scope Z.
 

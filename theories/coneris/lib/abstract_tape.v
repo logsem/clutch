@@ -1,7 +1,7 @@
 (** * Abstract tapes *)
 From stdpp Require Import namespaces.
 From iris Require Import excl_auth invariants list.
-From clutch.coneris Require Import coneris.
+From coneris.coneris Require Import coneris.
 
 Set Default Proof Using "Type*".
 

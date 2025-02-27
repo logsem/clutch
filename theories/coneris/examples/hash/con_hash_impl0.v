@@ -1,5 +1,5 @@
 From iris.algebra Require Import gmap.
-From clutch.coneris Require Import coneris hocap_rand_alt lib.map lock con_hash_interface0.
+From coneris.coneris Require Import coneris hocap_rand_alt lib.map lock con_hash_interface0.
 
 Set Default Proof Using "Type*".
 

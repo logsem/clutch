@@ -1,5 +1,5 @@
 From iris.algebra Require Import excl_auth.
-From clutch.coneris Require Import coneris par spawn lib.hocap_rand_atomic.
+From coneris.coneris Require Import coneris par spawn lib.hocap_rand_atomic.
 
 Local Open Scope Z.
 

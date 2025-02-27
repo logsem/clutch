@@ -2,8 +2,8 @@
     that this gives rise to a "language" in our sense. *)
 From Coq Require Import Reals Psatz.
 From iris.prelude Require Export prelude.
-From clutch.common Require Import con_language.
-From clutch.prob Require Import distribution.
+From coneris.common Require Import con_language.
+From coneris.prob Require Import distribution.
 
 Section con_ectx_language_mixin.
   Context {expr val ectx state state_idx : Type}.

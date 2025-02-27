@@ -1,6 +1,6 @@
 From iris.algebra Require Import excl_auth.
 From iris.base_logic.lib Require Export invariants cancelable_invariants.
-From clutch.coneris Require Import coneris par spawn lib.flip.
+From coneris.coneris Require Import coneris par spawn lib.flip.
 
 Local Open Scope Z.
 

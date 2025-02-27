@@ -1,7 +1,7 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq.
 From stdpp Require Import numbers.
-From clutch.prelude Require Import base Reals_ext.
+From coneris.prelude Require Import base Reals_ext.
 Import Hierarchy.
 
 Local Open Scope R.

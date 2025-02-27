@@ -1,6 +1,6 @@
 From iris.base_logic.lib Require Import invariants.
-From clutch.coneris Require Import coneris par spawn spin_lock hash atomic lock.
-From clutch.coneris.lib Require Import list.
+From coneris.coneris Require Import coneris par spawn spin_lock hash atomic lock.
+From coneris.coneris.lib Require Import list.
 
 Set Default Proof Using "Type*".
 

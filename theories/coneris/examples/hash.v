@@ -1,6 +1,6 @@
 From stdpp Require Export fin_maps.
 From iris.algebra Require Import excl_auth numbers gset_bij.
-From clutch.coneris Require Export coneris lib.map.
+From coneris.coneris Require Export coneris lib.map.
 Import Hierarchy.
 Set Default Proof Using "Type*".
 

@@ -1,8 +1,8 @@
 (** Some derived lemmas for ectx-based languages *)
 From iris.proofmode Require Import proofmode.
-From clutch.common Require Import con_ectx_language.
-From clutch.con_prob_lang Require Import lang.
-From clutch.coneris Require Import weakestpre lifting.
+From coneris.common Require Import con_ectx_language.
+From coneris.con_prob_lang Require Import lang.
+From coneris.coneris Require Import weakestpre lifting.
 From iris.prelude Require Import options.
 
 Local Open Scope R.

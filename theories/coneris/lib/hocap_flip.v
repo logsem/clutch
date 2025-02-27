@@ -1,5 +1,5 @@
-From clutch.coneris Require Import coneris.
-From clutch.coneris Require Import flip hocap_rand.
+From coneris.coneris Require Import coneris.
+From coneris.coneris Require Import flip hocap_rand.
 
 Set Default Proof Using "Type*".
 

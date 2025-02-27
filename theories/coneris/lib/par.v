@@ -1,5 +1,5 @@
 From iris.prelude Require Import options.
-From clutch.coneris Require Import coneris spawn.
+From coneris.coneris Require Import coneris spawn.
 
 Definition parN : namespace := nroot .@ "par".
 

@@ -1,6 +1,6 @@
-From clutch.con_prob_lang Require Import lang notation class_instances tactics.
-From clutch.con_prob_lang Require Export wp_tactics.
-From clutch.coneris Require Import weakestpre primitive_laws derived_laws.
+From coneris.con_prob_lang Require Import lang notation class_instances tactics.
+From coneris.con_prob_lang Require Export wp_tactics.
+From coneris.coneris Require Import weakestpre primitive_laws derived_laws.
 From iris.prelude Require Import options.
 
 #[global] Program Instance rel_logic_wptactics_base `{!conerisGS Σ} : GwpTacticsBase Σ unit wp.

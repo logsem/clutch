@@ -1,5 +1,5 @@
 From iris Require Import ghost_map.
-From clutch.coneris Require Export coneris hash_view_interface.
+From coneris.coneris Require Export coneris hash_view_interface.
 
 Set Default Proof Using "Type*".
 

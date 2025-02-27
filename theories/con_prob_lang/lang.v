@@ -2,9 +2,9 @@ From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
-From clutch.prelude Require Export stdpp_ext.
-From clutch.prob Require Export distribution mdp.
-From clutch.common Require Export con_language con_ectx_language con_ectxi_language locations.
+From coneris.prelude Require Export stdpp_ext.
+From coneris.prob Require Export distribution mdp.
+From coneris.common Require Export con_language con_ectx_language con_ectxi_language locations.
 From iris.prelude Require Import options.
 
 Delimit Scope expr_scope with E.

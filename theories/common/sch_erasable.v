@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
-From clutch.common Require Import con_language.
-From clutch.prob Require Export couplings distribution mdp.
+From coneris.common Require Import con_language.
+From coneris.prob Require Export couplings distribution mdp.
 
 Section sch_erasable.
   Context {Λ : conLanguage}.

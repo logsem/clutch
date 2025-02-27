@@ -2,7 +2,7 @@
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import
   coq_tactics ltac_tactics sel_patterns environments reduction proofmode.
-From clutch.coneris Require Import coneris lib.conversion par spawn lib.flip.
+From coneris.coneris Require Import coneris lib.conversion par spawn lib.flip.
 
 Set Default Proof Using "Type*".
 

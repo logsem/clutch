@@ -1,5 +1,5 @@
 From stdpp Require Import finite list sets.
-From clutch.prelude Require Import base classical fin.
+From coneris.prelude Require Import base classical fin.
 Require Import Coq.Program.Equality.
 Set Default Proof Using "Type*".
 

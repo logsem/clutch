@@ -1,6 +1,6 @@
 From stdpp Require Export fin_maps.
 From iris.algebra Require Import excl_auth numbers gset_bij.
-From clutch.coneris Require Export coneris lib.map hocap_rand abstract_tape coll_free_hash_view_interface seq_hash_interface.
+From coneris.coneris Require Export coneris lib.map hocap_rand abstract_tape coll_free_hash_view_interface seq_hash_interface.
 Set Default Proof Using "Type*".
 
 (** test: a sequential hash implementation that the coll-free hash view interface

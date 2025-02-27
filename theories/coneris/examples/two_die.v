@@ -1,6 +1,6 @@
 From iris.algebra Require Import excl_auth cmra.
 From iris.base_logic.lib Require Import invariants.
-From clutch.coneris Require Import coneris par spawn.
+From coneris.coneris Require Import coneris par spawn.
 
 Local Open Scope Z.
 

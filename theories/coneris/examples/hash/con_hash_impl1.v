@@ -2,8 +2,8 @@ From stdpp Require Import namespaces finite fin_sets.
 From iris.proofmode Require Import proofmode.
 From iris Require Import ghost_map.
 From iris.algebra Require Import excl_auth gmap.
-From clutch.prelude Require Import stdpp_ext.
-From clutch.coneris Require Import coneris hash_view_interface con_hash_interface0 con_hash_interface1.
+From coneris.prelude Require Import stdpp_ext.
+From coneris.coneris Require Import coneris hash_view_interface con_hash_interface0 con_hash_interface1.
 
 Set Default Proof Using "Type*".
 

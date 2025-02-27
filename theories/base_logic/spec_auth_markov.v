@@ -5,8 +5,8 @@ From iris.proofmode Require Import base tactics classes.
 From iris.algebra Require Import excl auth.
 From iris.prelude Require Import options.
 
-From clutch.prob Require Import couplings distribution markov.
-From clutch.base_logic Require Export spec_update.
+From coneris.prob Require Import couplings distribution markov.
+From coneris.base_logic Require Export spec_update.
 
 (** The authoritative spec tracking algebra  *)
 Definition specUR (δ : markov) : ucmra := optionUR (exclR (leibnizO (mstate δ))).

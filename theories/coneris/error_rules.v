@@ -1,10 +1,10 @@
 (** * Union bound rules  *)
 From stdpp Require Import namespaces finite fin_sets.
 From iris.proofmode Require Import proofmode.
-From clutch.prelude Require Import stdpp_ext.
-From clutch.con_prob_lang Require Import notation tactics metatheory.
-From clutch.con_prob_lang Require Export lang.
-From clutch.coneris Require Export lifting proofmode ectx_lifting primitive_laws wp_update. 
+From coneris.prelude Require Import stdpp_ext.
+From coneris.con_prob_lang Require Import notation tactics metatheory.
+From coneris.con_prob_lang Require Export lang.
+From coneris.coneris Require Export lifting proofmode ectx_lifting primitive_laws wp_update. 
 
 (** TODO: this file needs to get properly updated to take into account that the error credits [↯ ε]
     now works for [ε : R] rather than [ε : nonnegreal]. Ideally, no `nonnegreal` should appear at

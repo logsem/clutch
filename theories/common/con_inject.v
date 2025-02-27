@@ -1,5 +1,5 @@
-From clutch.con_prob_lang Require Import lang notation.
-From clutch.prelude Require Import base.
+From coneris.con_prob_lang Require Import lang notation.
+From coneris.prelude Require Import base.
 Set Default Proof Using "Type*".
 
 Section inject.

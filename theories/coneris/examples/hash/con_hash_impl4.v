@@ -1,7 +1,7 @@
 From iris.base_logic.lib Require Import ghost_var ghost_map.
-From clutch.coneris Require Import coneris.
-From clutch.coneris.lib Require Import map lock.
-From clutch.coneris.examples.hash Require Import con_hash_interface4.
+From coneris.coneris Require Import coneris.
+From coneris.coneris.lib Require Import map lock.
+From coneris.coneris.examples.hash Require Import con_hash_interface4.
 Set Default Proof Using "Type*".
 
 Class con_hashG Σ `{conerisGS Σ} := {

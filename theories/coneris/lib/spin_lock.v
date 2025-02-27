@@ -1,7 +1,7 @@
 From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import lib.token.
-From clutch Require Import coneris.
-From clutch.coneris.lib Require Export lock.
+From coneris Require Import coneris.
+From coneris.coneris.lib Require Export lock.
 From iris.prelude Require Import options.
 
 Local Definition newlock : val := λ: <>, ref #false.

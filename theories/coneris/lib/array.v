@@ -1,5 +1,5 @@
-From clutch.common Require Import con_inject.
-From clutch.coneris Require Import coneris.
+From coneris.common Require Import con_inject.
+From coneris.coneris Require Import coneris.
 
 Set Default Proof Using "Type*".
 

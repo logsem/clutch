@@ -1,10 +1,10 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From stdpp Require Import fin_maps fin_map_dom.
-From clutch.prelude Require Import stdpp_ext.
-From clutch.common Require Import con_language con_ectx_language sch_erasable.
-From clutch.con_prob_lang Require Import notation lang metatheory.
-From clutch.prob Require Import couplings couplings_app mdp.
+From coneris.prelude Require Import stdpp_ext.
+From coneris.common Require Import con_language con_ectx_language sch_erasable.
+From coneris.con_prob_lang Require Import notation lang metatheory.
+From coneris.prob Require Import couplings couplings_app mdp.
 
 Set Default Proof Using "Type*".
 Local Open Scope R.

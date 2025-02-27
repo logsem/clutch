@@ -3,7 +3,7 @@
     Note that this spec does not support compressing multiple rands, 
     e.g. simulating a rand 3 with two rand 1s
  *)
-From clutch.coneris Require Import coneris atomic.
+From coneris.coneris Require Import coneris atomic.
 
 Set Default Proof Using "Type*".
 

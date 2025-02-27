@@ -1,4 +1,4 @@
-From clutch.prelude Require Import base.
+From coneris.prelude Require Import base.
 From stdpp Require Export prelude gmap strings pretty.
 From iris.prelude Require Export prelude.
 From iris.proofmode Require Import proofmode.

@@ -20,7 +20,7 @@ COPYING file for more details.
 *)
 
 From Coq Require Import Reals ssreflect.
-From clutch.prelude Require Export classical.
+From coneris.prelude Require Export classical.
 
 (*Require Import Rcomplements.*)
 

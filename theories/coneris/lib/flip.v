@@ -2,7 +2,7 @@
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import
   coq_tactics ltac_tactics sel_patterns environments reduction proofmode.
-From clutch.coneris Require Import coneris lib.conversion atomic.
+From coneris.coneris Require Import coneris lib.conversion atomic.
 
 Definition flipL : val := λ: "e", int_to_bool (rand("e") #1%nat).
 Definition flip : expr := (flipL #()).

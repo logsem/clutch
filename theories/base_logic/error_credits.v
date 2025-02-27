@@ -1,7 +1,7 @@
 (** This file implements error credits *)
 From Coq Require Import Reals RIneq Psatz.
 From Coquelicot Require Import Lim_seq.
-From clutch.prelude Require Export base classical Reals_ext NNRbar.
+From coneris.prelude Require Export base classical Reals_ext NNRbar.
 From iris.prelude Require Import options.
 From iris.proofmode Require Import tactics.
 From iris.algebra Require Export auth numbers.

@@ -1,5 +1,5 @@
 From iris.algebra Require Import excl_auth.
-From clutch.coneris Require Import coneris par spawn con_hash_interface3.
+From coneris.coneris Require Import coneris par spawn con_hash_interface3.
   
 Set Default Proof Using "Type*".
 Section lemmas.

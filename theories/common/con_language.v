@@ -1,8 +1,8 @@
 From Coq Require Import Reals Psatz.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
-From clutch.bi Require Export weakestpre.
-From clutch.prob Require Import distribution mdp.
+From coneris.bi Require Export weakestpre.
+From coneris.prob Require Import distribution mdp.
 
 Section con_language_mixin.
   Context {expr val state state_idx : Type}.
