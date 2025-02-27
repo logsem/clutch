@@ -26,9 +26,10 @@ Set Default Proof Using "Type*".
 Section heapdom.
   Context {d} {T : measurableType d}.
 
-  (**  Measure space on sets  *)
-
+  (**  Sets  *)
   Structure MeasHeapDom := { v : set T }.
+
+  (** Measure space on sets *)
 
   HB.instance Definition _ := gen_eqMixin MeasHeapDom.
   HB.instance Definition _ := gen_choiceMixin MeasHeapDom.
@@ -188,23 +189,11 @@ Section dom.
   (** domain of a heap function hpf *)
   Context {d} {T : measurableType d}.
 
-  (*
-
-  Definition hpf_point (l0 : <<discr loc>>) (t : T) : hpf (option T) :=
-    fun l => if decide(l = l0) then Some t else None.
-
-  Lemma hp_point_singleton_measurable l0 (S : set T) (HS : measurable S) :
-    measurable (image S (hp_point l0)).
-  Proof.
-    (* This set is the countable intersection of the preimage of (image S Some) in location l0
-       and [set None] in all others  *)
-  Admitted.
-   *)
-
+  (* Function which takes a heap to the set of all elements which are Some *)
   Definition dom (m : hp (option T)) : MeasHeapDom <<discr loc>> :=
     {| v := [set l | is_Some (hp_eval l m) ] |}.
 
-  Lemma dom_measurable : measurable_fun setT dom.
+  Lemma dom_meas_fun : measurable_fun setT dom.
   Proof.
     (* Suffices to show that the preimages of generators of (MeasHeapDom <<discr loc>>) are measurable
        Suffices to show that forall (S : set <<discr loc>>), preimage [set S] dom is measurable
@@ -214,12 +203,14 @@ Section dom.
           under (eval l); so is measurable.
      *)
   Admitted.
+  Hint Resolve dom_meas_fun : measlang.
 
 End dom.
 
 Definition loc_lt (l1 l2 : <<discr loc>>) : Prop :=
   (l1.(loc_car) < l2.(loc_car))%Z.
 
+(* A set has a maximum *)
 Definition hasMax : MeasHeapDom <<discr loc>> -> Prop :=
   fun S => exists (l : <<discr loc>>), forall l' : <<discr loc>>, S.(v) l -> loc_lt l' l.
 
@@ -228,26 +219,26 @@ Section hp.
   Context {d} (T : measurableType d).
 
   (* The set of MeasHeapDom's that have a maximum is measurable. *)
-  Lemma hasMaxMeasurable : measurable hasMax.
+  Lemma hasMax_meas_set : measurable hasMax.
   Proof.
     (* hasMax = U_(i in i) [set S | |S| = i ]
               = U_(i in i), U(S : set <<discr loc>>, |S| = i), [set S]
         Because <<discr loc>> is discrete, each S is measurable, so each [set S] is measurable.
         So this set is measurable. *)
   Admitted.
+  Hint Resolve hasMax_meas_set : measlang.
 
   (** A heap (hp) is a map from <<discr loc>> to some type, whose domain is finite. *)
   Definition hp_finite : set (hp (option T)) := preimage dom hasMax.
 
-  Lemma hp_finite_measurable : measurable hp_finite.
+  Lemma hp_finite_meas_set : measurable hp_finite.
   Proof.
     unfold hp_finite.
     rewrite <- (setTI (preimage _ _)).
-    apply dom_measurable; try by eauto.
-    by apply hasMaxMeasurable.
+    apply dom_meas_fun; try by eauto.
+    by apply hasMax_meas_set.
   Qed.
-  Hint Resolve hp_finite_measurable : measlang.
-
+  Hint Resolve hp_finite_meas_set : measlang.
 
   Definition get_fresh (m : hp (option T)) (H : hasMax (dom m)): <<discr loc>>.
     (* The minimum loc that is greater than every element of ...
@@ -258,7 +249,7 @@ Section hp.
   Definition fresh : hp (option T) -> <<discr loc>> :=
     fun m => extern_if point (get_fresh m).
 
-  Lemma fresh_meas : measurable_fun hp_finite fresh.
+  Lemma fresh_meas_fun : measurable_fun hp_finite fresh.
   Proof.
     (*
       On this set, it's equal to...
@@ -270,6 +261,7 @@ Section hp.
       This is a generator of the function sigma algebra.
      *)
   Admitted.
+  Hint Resolve fresh_meas_fun : measlang.
 
 End hp.
 
@@ -301,10 +293,10 @@ Record state : Type := {
     state_v : ((hp (option val)) * (hp (option btape)) * (hp (option utape )))%type
 }.
 
-Definition prod_of_state (s : state) : ((hp (option val)) * (hp (option btape)) * (hp (option utape ))) :=
+Definition prod_of_state (s : state) : ((hp (option val)) * (hp (option btape)) * (hp (option utape))) :=
   match s with {| state_v := x |} => x end.
 
-Definition state_of_prod (v : (hp (option val)) * (hp (option btape)) * (hp (option utape ))) : state :=
+Definition state_of_prod (v : (hp (option val)) * (hp (option btape)) * (hp (option utape))) : state :=
   {| state_v := v |}.
 
 Lemma prod_of_state_of_prod p : prod_of_state (state_of_prod p) = p.
@@ -377,7 +369,7 @@ Definition state_lift_fun {d} {T : measurableType d} f : state -> T := ssrfun.co
 
 Definition state_lift_set D : set state := image D state_of_prod.
 
-Lemma prod_of_state_meas D (H : measurable D) : measurable_fun D prod_of_state.
+Lemma prod_of_state_meas_fun D (H : measurable D) : measurable_fun D prod_of_state.
 Proof.
   intros HD Y HY.
   have -> : (D `&` prod_of_state @^-1` Y) = (image (setI (image D prod_of_state) Y) state_of_prod).
@@ -398,8 +390,9 @@ Proof.
   { by apply prod_measurable_of_state_measurable. }
   { done. }
 Qed.
+Hint Resolve prod_of_state_meas_fun : measlang.
 
-Lemma state_of_prod_meas D (H : measurable D) : measurable_fun D state_of_prod.
+Lemma state_of_prod_meas_fun D (H : measurable D) : measurable_fun D state_of_prod.
 Proof.
   intros HD Y HY.
   have -> : (D `&` state_of_prod @^-1` Y) = (image (setI (image D state_of_prod) Y) prod_of_state).
@@ -421,6 +414,7 @@ Proof.
   { by apply state_measurable_of_prod_measurable. }
   { done. }
 Qed.
+Hint Resolve state_of_prod_meas_fun : measlang.
 
 
 (*
@@ -442,8 +436,10 @@ Proof.
 Qed.
 *)
 
-Definition heap : state -> hp (option val) := ssrfun.comp (ssrfun.comp fst fst) prod_of_state.
-Lemma heap_meas : measurable_fun setT heap.
+Definition heap : state -> hp (option val) :=
+  fst \o fst \o prod_of_state.
+
+Lemma heap_meas_fun : measurable_fun setT heap.
 Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT (ssrfun.comp fst fst) setT prod_of_state); simpl.
   { by eapply @measurableT. }
@@ -454,12 +450,14 @@ Proof.
     { by apply @measurable_fst. }
     { by apply @measurable_fst. }
   }
-  { eapply prod_of_state_meas. by apply @measurableT. }
+  { eapply prod_of_state_meas_fun. by apply @measurableT. }
 Qed.
-Hint Resolve heap_meas : measlang.
+Hint Resolve heap_meas_fun : measlang.
 
-Definition tapes  : state -> hp (option btape) := ssrfun.comp (ssrfun.comp snd fst) prod_of_state.
-Lemma tapes_meas : measurable_fun setT tapes.
+Definition tapes  : state -> hp (option btape) :=
+  snd \o fst \o prod_of_state.
+
+Lemma tapes_meas_fun : measurable_fun setT tapes.
 Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT (ssrfun.comp snd fst) setT prod_of_state); simpl.
   { by eapply @measurableT. }
@@ -470,88 +468,87 @@ Proof.
     { by apply @measurable_snd. }
     { by apply @measurable_fst. }
   }
-  { eapply prod_of_state_meas. by apply @measurableT. }
+  { eapply prod_of_state_meas_fun. by apply @measurableT. }
 Qed.
-Hint Resolve tapes_meas : measlang.
+Hint Resolve tapes_meas_fun : measlang.
 
-Definition utapes : state -> hp (option utape) := ssrfun.comp snd prod_of_state.
-Lemma utapes_meas : measurable_fun setT utapes.
+Definition utapes : state -> hp (option utape) :=
+  snd \o prod_of_state.
+
+Lemma utapes_meas_fun : measurable_fun setT utapes.
 Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT snd setT prod_of_state); simpl.
   { by eapply @measurableT. }
   { done. }
   { by eapply @measurable_snd. }
-  { eapply prod_of_state_meas. by apply @measurableT. }
+  { eapply prod_of_state_meas_fun. by apply @measurableT. }
 Qed.
-Hint Resolve utapes_meas : measlang.
+Hint Resolve utapes_meas_fun : measlang.
 
 (** Operations on states *)
 
 Definition state_upd_heap (f : hp (option val) -> hp (option val)) : state -> state :=
-  ssrfun.comp state_of_prod $
-  mProd (mProd (ssrfun.comp f heap) tapes) utapes.
+  state_of_prod \o (f \o heap △ tapes △ utapes).
 
-Lemma state_upd_heap_meas f (H : measurable_fun setT f) : measurable_fun setT (state_upd_heap f).
+Lemma state_upd_heap_meas_fun f (H : measurable_fun setT f) : measurable_fun setT (state_upd_heap f).
 Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT state_of_prod  setT _).
   { by eapply @measurableT. }
   { done. }
-  { by apply state_of_prod_meas. }
+  { by apply state_of_prod_meas_fun. }
   mcrunch_prod.
   { mcrunch_prod.
     { eapply @measurable_comp; [by eapply @measurableT|done| |].
       { done. }
-      { by apply heap_meas.  }
+      { by apply heap_meas_fun.  }
     }
-    { by apply tapes_meas. }
+    { by apply tapes_meas_fun. }
   }
-  { by apply utapes_meas. }
+  { by apply utapes_meas_fun. }
 Qed.
-Hint Resolve state_upd_heap_meas : measlang.
+Hint Resolve state_upd_heap_meas_fun : measlang.
 
 Definition state_upd_tapes (f : hp (option btape) -> hp (option btape)) : state -> state :=
-  ssrfun.comp state_of_prod $
-  mProd (mProd heap (ssrfun.comp f tapes)) utapes.
+  state_of_prod \o (heap △ f \o tapes △ utapes).
 
-Lemma state_upd_tapes_meas f (H : measurable_fun setT f) : measurable_fun setT (state_upd_tapes f).
+Lemma state_upd_tapes_meas_fun f (H : measurable_fun setT f) : measurable_fun setT (state_upd_tapes f).
 Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT state_of_prod  setT _).
   { by eapply @measurableT. }
   { done. }
-  { by apply state_of_prod_meas. }
+  { by apply state_of_prod_meas_fun. }
   mcrunch_prod.
   { mcrunch_prod.
-    { by apply heap_meas.  }
+    { by apply heap_meas_fun.  }
     { eapply @measurable_comp; [by eapply @measurableT|done| |].
       { done. }
-      { by apply tapes_meas. }
+      { by apply tapes_meas_fun. }
     }
   }
-  { by apply utapes_meas. }
+  { by apply utapes_meas_fun. }
 Qed.
-Hint Resolve state_upd_tapes_meas : measlang.
+Hint Resolve state_upd_tapes_meas_fun : measlang.
 
 Definition state_upd_utapes (f : hp (option utape) -> hp (option utape)) : state -> state :=
-  ssrfun.comp state_of_prod $
-  mProd (mProd heap tapes) (ssrfun.comp f utapes).
+  state_of_prod \o (heap △ tapes △ f \o utapes).
 
-Lemma state_upd_utapes_meas f (H : measurable_fun setT f) : measurable_fun setT (state_upd_utapes f).
+Lemma state_upd_utapes_meas_fun f (H : measurable_fun setT f) : measurable_fun setT (state_upd_utapes f).
 Proof.
   eapply (@measurable_comp _ _ _ _ _ _ setT state_of_prod  setT _).
   { by eapply @measurableT. }
   { done. }
-  { by apply state_of_prod_meas. }
+  { by apply state_of_prod_meas_fun. }
   mcrunch_prod.
   { mcrunch_prod.
-    { by apply heap_meas.  }
-    { by apply tapes_meas. }
+    { by apply heap_meas_fun.  }
+    { by apply tapes_meas_fun. }
   }
   { eapply @measurable_comp; [by eapply @measurableT|done| |].
     { done. }
-    { by apply utapes_meas. }
+    { by apply utapes_meas_fun. }
   }
 Qed.
-Hint Resolve state_upd_utapes_meas : measlang.
+Hint Resolve state_upd_utapes_meas_fun : measlang.
 
 (*
 Lemma state_upd_tapes_twice σ l xs ys :
