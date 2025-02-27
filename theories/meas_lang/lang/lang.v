@@ -2944,9 +2944,10 @@ Inductive head_step_rel : expr -> state -> expr -> state → Prop :=
 | UnOpS op v v' σ :
   un_op_eval op v = Some v' →
   head_step_rel (UnOp op (Val v)) σ (Val v') σ
+(*
 | BinOpS op v1 v2 v' σ :
   bin_op_eval op v1 v2 = Some v' →
-  head_step_rel (BinOp op (Val v1) (Val v2)) σ (Val v') σ
+  head_step_rel (BinOp op (Val v1) (Val v2)) σ (Val v') σ *)
 | IfTrueS e1 e2 σ :
   head_step_rel (If (Val $ LitV $ LitBool true) e1 e2) σ e1 σ
 | IfFalseS e1 e2 σ :

@@ -2,6 +2,7 @@
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
+From Coq Require Export ssrfun.
 From stdpp Require Import base numbers binders strings gmap.
 From mathcomp Require Import functions.
 From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
@@ -22,7 +23,20 @@ Set Warnings "hiding-delimiting-key".
 Local Open Scope classical_set_scope.
 
 
-Definition un_op_eval (op : un_op) (v : val) : option val :=
+Section arithmetic.
+(** Arithmetic functions bug given measurale types *)
+
+Definition neg_bool   : <<discr bool>> -> <<discr bool>> := negb.
+Definition neg_int    : <<discr Z>> -> <<discr Z>> := Z.lnot.
+Definition minus_int  : <<discr Z>> -> <<discr Z>> := Z.opp.
+Definition minus_real : R -> R := Ropp.
+
+(* TODO: measurable_fun for each of these *)
+
+End arithmetic.
+
+(* un_op_eval: Normal (reducible) version *)
+Definition un_op_eval (op : <<discr un_op>>) (v : val) : option val :=
   match op, v with
   | NegOp, LitV (LitBool b) => Some $ LitV $ LitBool (negb b)
   | NegOp, LitV (LitInt z) => Some $ LitV $ LitInt (Z.lnot z)
@@ -31,6 +45,69 @@ Definition un_op_eval (op : un_op) (v : val) : option val :=
   | _, _ => None
   end.
 
+(** TODO: Define these sets in a way that works with the automation *)
+Definition un_op_eval'_cov_neg_bool    : set (<<discr un_op>> * val). Admitted.
+Definition un_op_eval'_cov_neg_int     : set (<<discr un_op>> * val). Admitted.
+Definition un_op_eval'_cov_minus_int   : set (<<discr un_op>> * val). Admitted.
+Definition un_op_eval'_cov_minus_real  : set (<<discr un_op>> * val). Admitted.
+
+Lemma un_op_eval'_cov_neg_bool_meas_set : measurable un_op_eval'_cov_neg_bool.
+Proof. Admitted.
+
+Lemma un_op_eval'_cov_neg_int_meas_set : measurable un_op_eval'_cov_neg_int.
+Proof. Admitted.
+
+Lemma un_op_eval'_cov_minus_int_meas_set : measurable un_op_eval'_cov_minus_int.
+Proof. Admitted.
+
+Lemma un_op_eval'_cov_minus_real_meas_set : measurable un_op_eval'_cov_minus_real.
+Proof. Admitted.
+
+Hint Resolve un_op_eval'_cov_neg_bool_meas_set : measlang.
+Hint Resolve un_op_eval'_cov_neg_int_meas_set : measlang.
+Hint Resolve un_op_eval'_cov_minus_int_meas_set : measlang.
+Hint Resolve un_op_eval'_cov_minus_real_meas_set : measlang.
+
+Ltac ml_done := by eauto with measlang.
+
+
+
+Definition un_op_eval'_neg_bool : (<<discr un_op>> * val) -> option val :=
+  Some \o LitV \o LitBool \o neg_bool \o 𝜋_LitBool_b \o 𝜋_LitV_v \o snd.
+
+Definition un_op_eval'_neg_int : (<<discr un_op>> * val) -> option val :=
+  Some \o LitV \o LitInt \o neg_int \o 𝜋_LitInt_z \o 𝜋_LitV_v \o snd.
+
+Definition un_op_eval'_minus_int : (<<discr un_op>> * val) -> option val :=
+  Some \o LitV \o LitInt \o minus_int \o 𝜋_LitInt_z \o 𝜋_LitV_v \o snd.
+
+Definition un_op_eval'_minus_real : (<<discr un_op>> * val) -> option val :=
+  Some \o LitV \o LitReal \o minus_real \o 𝜋_LitReal_r \o 𝜋_LitV_v \o snd.
+
+Ltac mf_Some := fail.
+
+
+
+(* un_op_eval: Measurable version *)
+Definition un_op_eval' : (<<discr un_op>> * val)%type -> option val :=
+  if_in un_op_eval'_cov_neg_bool    un_op_eval'_neg_bool   $
+  if_in un_op_eval'_cov_neg_int     un_op_eval'_neg_int    $
+  if_in un_op_eval'_cov_minus_int   un_op_eval'_minus_int  $
+  if_in un_op_eval'_cov_minus_real  un_op_eval'_minus_real $
+  cst None.
+
+(* TODO: Make sure this is the right theorem first *)
+Lemma un_op_eval_eq (op : <<discr un_op>>) (v : val) : un_op_eval op v = un_op_eval' (op, v).
+Proof. Admitted.
+
+
+
+
+
+
+
+
+(* bin_op_eval_int: Normal (reducible) version *)
 Definition bin_op_eval_int (op : bin_op) (n1 n2 : Z) : base_lit :=
   match op with
   | PlusOp => LitInt (n1 + n2)
@@ -50,6 +127,7 @@ Definition bin_op_eval_int (op : bin_op) (n1 n2 : Z) : base_lit :=
   end%Z.
 
 
+(* bin_op_eval_bool: Normal (reducible) version *)
 Definition bin_op_eval_bool (op : bin_op) (b1 b2 : bool) : option base_lit :=
   match op with
   | PlusOp | MinusOp | MultOp | QuotOp | RemOp => None (* Arithmetic *)
@@ -62,6 +140,7 @@ Definition bin_op_eval_bool (op : bin_op) (b1 b2 : bool) : option base_lit :=
   | OffsetOp => None
   end.
 
+(* bin_op_eval_loc: Normal (reducible) version *)
 Definition bin_op_eval_loc (op : bin_op) (l1 : loc) (v2 : base_lit) : option base_lit :=
   match op, v2 with
   | OffsetOp, LitInt off => Some $ LitLoc (l1 +ₗ off)
@@ -70,6 +149,7 @@ Definition bin_op_eval_loc (op : bin_op) (l1 : loc) (v2 : base_lit) : option bas
   | _, _ => None
   end.
 
+(* bin_op_eval_real: Normal (reducible) version *)
 Definition bin_op_eval_real (op : bin_op) (r1 r2 : R) : option base_lit :=
   match op with
   | PlusOp => Some $ LitReal (r1 + r2)
@@ -81,6 +161,9 @@ Definition bin_op_eval_real (op : bin_op) (r1 r2 : R) : option base_lit :=
   | _ => None
   end%R.
 
+
+
+(*
 Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
   if decide (op = EqOp) then
     if decide (v1 = v2) then
@@ -413,4 +496,5 @@ Definition head_stepM_unop_matcher (x : <<discr un_op>> * val) : giryM expr :=
     apply 𝜋_UnOpU_meas; try by eauto with measlang.
     apply measurableX ; by eauto with measlang.
   Qed.
+*)
 *)
