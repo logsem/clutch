@@ -1,6 +1,17 @@
 # Coneris Project
 
-This repository contains the formal development of Coneris
+This repository contains the mechanized development of Coneris.
+
+For the artifact evaluation, we plan to submit a more fully-fledged artifact including in particular a mapping between the paper and the Coq development.
+
+For the sake of supplementing the paper, we provide the following brief pointers:
+- the operational semantics is defined in `theories/con_prob_lang/lang.v`
+- the adequacy theorems are proven in `theories/coneris/adequacy.v`
+- the Bloom filter case study is in `theories/coneris/examples/concurrent_bloom_filter.v`
+- the HOCAP spec for the randomized counter is in `theories/coneris/examples/random_counter/random_counter.v`
+- the weakest precondition is defined in `theories/coneris/weakestpre.v`
+- the probabilistic update modality is defined in `theories/coneris/wp_update.v` under the name `state_update`
+
 
 ## Building the development
 
