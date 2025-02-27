@@ -30,3 +30,10 @@ HB.instance Definition _ := isPointed.Build loc inhabitant.
 HB.saturate loc.
 
 Hint Resolve gRet_meas_fun : measlang.
+
+
+Local Open Scope classical_set_scope.
+
+Definition loc_enum : nat -> <<discr loc>>. Admitted.
+Lemma loc_enum_surj : forall l, exists n, loc_enum n = l.
+Proof. Admitted.

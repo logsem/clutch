@@ -156,7 +156,7 @@ Local Open Scope classical_set_scope.
 (** Tape + bound *)
 Definition btape : Type := (nat * (tape <<discr Z>>))%type.
 
-Definition btape_position : btape -> nat := ssrfun.comp fst snd.
+Definition btape_position : btape -> nat := fst \o snd.
 Lemma btape_positon_meas_fun : measurable_fun setT btape_position.
 Proof.
   eapply measurable_comp; first by eapply @measurableT.
