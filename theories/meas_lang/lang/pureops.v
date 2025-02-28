@@ -32,16 +32,18 @@ Definition neg_int    : <<discr Z>> -> <<discr Z>>  := Z.lnot.
 Definition minus_int  : <<discr Z>> -> <<discr Z>>  := Z.opp.
 Definition minus_real : RR -> RR := Ropp.
 
-Definition loc_offset : (<<discr loc>> * <<discr Z>>)%type -> <<discr loc>> := uncurry (fun x y => x +ₗ y).
-Definition loc_le : (<<discr loc>> * <<discr loc>>)%type -> <<discr loc>>. Admitted.
-Definition loc_lt : (<<discr loc>> * <<discr loc>>)%type -> <<discr loc>>. Admitted.
-
+Definition loc_offset : (<<discr loc>> * <<discr Z>>)%type -> <<discr loc>> := uncurry loc_add.
+Definition loc_le : (<<discr loc>> * <<discr loc>>)%type -> <<discr bool>> := asbool \o uncurry locations.loc_le.
+Definition loc_lt : (<<discr loc>> * <<discr loc>>)%type -> <<discr bool>> := asbool \o uncurry locations.loc_lt.
 
 Definition plus_real : (RR * RR)%type -> RR := uncurry Rplus.
 Definition sub_real  : (RR * RR)%type -> RR := uncurry Rminus.
-Definition le_real   : (RR * RR)%type -> <<discr bool>>. Admitted.
-Definition lt_real   : (RR * RR)%type -> <<discr bool>>. Admitted.
-Definition eq_real   : (RR * RR)%type -> <<discr bool>>. Admitted.
+
+Definition le_real : (RR * RR)%type -> <<discr bool>> := asbool \o uncurry Rle.
+Definition lt_real : (RR * RR)%type -> <<discr bool>> := asbool \o uncurry Rlt.
+Definition eq_real : (RR * RR)%type -> <<discr bool>> := asbool \o uncurry eq.
+
+(*  Search measurable_fun realType "lt". *)
 
 Lemma neg_bool_meas_fun   : measurable_fun setT neg_bool. Admitted.
 Lemma neg_int_meas_fun    : measurable_fun setT neg_int. Admitted.
@@ -263,7 +265,6 @@ Definition bin_op_eval_loc (op : <<discr bin_op>>) (l1 : <<discr loc>>) (v2 : ba
   | _, _ => None
   end.
 
-
 Definition bin_op_eval'_loc_cov_offset_int : set (<<discr bin_op>> * <<discr loc>> * base_lit) :=
   setX (setX [set OffsetOp] setT) bcov_LitInt.
 Definition bin_op_eval'_loc_cov_le_loc : set (<<discr bin_op>> * <<discr loc>> * base_lit) :=
@@ -288,10 +289,10 @@ Definition bin_op_eval'_loc_offset_int : (<<discr bin_op>> * <<discr loc>> * bas
   Some \o LitLocU \o loc_offset \o (snd \o fst △ 𝜋_LitInt_z \o snd).
 
 Definition bin_op_eval'_loc_le_loc : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option base_lit :=
-  Some \o LitLocU \o loc_le \o (snd \o fst △ 𝜋_LitLoc_l \o snd).
+  Some \o LitBoolU \o loc_le \o (snd \o fst △ 𝜋_LitLoc_l \o snd).
 
-Program Definition bin_op_eval'_loc_lt_loc : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option base_lit :=
-  Some \o LitLocU \o loc_lt \o (snd \o fst △ 𝜋_LitLoc_l \o snd).
+Definition bin_op_eval'_loc_lt_loc : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option base_lit :=
+  Some \o LitBoolU \o loc_lt \o (snd \o fst △ 𝜋_LitLoc_l \o snd).
 
 Lemma bin_op_eval'_loc_offset_int_meas_fun : measurable_fun bin_op_eval'_loc_cov_offset_int bin_op_eval'_loc_offset_int.
 Proof.
