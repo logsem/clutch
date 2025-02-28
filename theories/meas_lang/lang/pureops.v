@@ -23,15 +23,119 @@ Set Warnings "hiding-delimiting-key".
 Local Open Scope classical_set_scope.
 
 
+Lemma fst_setX_meas_fun {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+    (D1 : set T1) (D2 : set T2) {H1 : measurable D1} {H2 : measurable D2} (f : T1 -> T3) :
+  measurable_fun D1 f -> measurable_fun (setX D1 D2) (f \o fst).
+Proof.
+  intros ?.
+  eapply (@measurable_comp _ _ _ _ _ _ D1); try done.
+  { by rewrite /subset//=; move=>?[?[??]]<-//=. }
+  apply @mathcomp_measurable_fun_restiction_setT.
+  { by apply measurableX. }
+  { by apply measurable_fst. }
+Qed.
+
+Lemma snd_setX_meas_fun {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+    (D1 : set T1) (D2 : set T2) {H1 : measurable D1} {H2 : measurable D2} (f : T2 -> T3) :
+  measurable_fun D2 f -> measurable_fun (setX D1 D2) (f \o snd).
+Proof.
+  intros ?.
+  eapply (@measurable_comp _ _ _ _ _ _ D2); try done.
+  { by rewrite /subset//=; move=>?[?[??]]<-//=. }
+  apply @mathcomp_measurable_fun_restiction_setT.
+  { by apply measurableX. }
+  { by apply measurable_snd. }
+Qed.
+
+(*
+Lemma comp_meas_fun {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+    (S : set T1) (T : set T2) {H : d2.-measurable T} (f : T1 -> T2) (g : T2 -> T3) :
+  measurable_fun S f ->
+  measurable_fun T g ->
+  measurable_fun (S `&` f @^-1` T) (g \o f).
+Proof.
+  intros H1 H2.
+  eapply @measurable_comp.
+  3: by apply H2.
+  1: by apply H.
+  {
+
+
+  measurable_fun (T:=val) (U:=Datatypes_option__canonical__measure_Measurable) (vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitBool)
+    (((((Some \o LitV) \o LitBool) \o neg_bool) \o 𝜋_LitBool_b) \o 𝜋_LitV_v)
+ *)
+
+
+Ltac ms_done := by eauto with mf_set.
+
+Ltac mf_done := by eauto with mf_fun.
+
+Ltac ms_unfold := match goal with | |- (measurable ?X) => unfold X end.
+
+Ltac ms_prod := match goal with | |- (measurable (_ `*` _)) => apply measurableX end.
+
+Lemma apply_measurable_fun {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+  (D : set T1) (f : T1 -> T2) (S : set T2) :
+      measurable_fun D f -> measurable D -> measurable S -> measurable (D `&` f @^-1` S).
+Proof. intros H1 H2 H3. apply H1; done. Qed.
+
+Ltac ms_fun :=
+  match goal with
+  | |- (measurable (?Dom `&` ?Fun @^-1` ?S)) =>
+        apply (apply_measurable_fun Dom Fun S); [ try by mf_done | try by ms_done | ]
+  end.
+
+Ltac ms_solve :=
+  repeat match goal with
+         (* First try searching existing database of measurable sets *)
+         | |- _ => by ms_done
+         (* Try applying basic measurability lemmas *)
+         | |- (measurable (_ `*` _)) => ms_prod
+         | |- (measurable (_ `&` _ @^-1` _)) => ms_fun
+         end.
+
+
+
+Ltac mf_unfold_fun := match goal with | |- (measurable_fun _ ?X) => unfold X end.
+
+Ltac mf_unfold_dom := match goal with | |- (measurable_fun ?X _) => unfold X end.
+
+Ltac mf_reassoc :=
+  repeat match goal with
+         | |- context[(?f \o ?g) \o ?h] => rewrite <- (ssrfun.compA f g h)
+         end.
+
+Ltac mf_cmp_fst :=
+  match goal with
+  | |- (measurable_fun (?S1 `*` ?S2) (?f \o fst)) => eapply @fst_setX_meas_fun; [ try by ms_done | try by ms_solve | ]
+  | |- (measurable_fun setT (_ \o fst)) => fail
+  end.
+
+Ltac mf_cmp_snd :=
+  match goal with
+  | |- (measurable_fun (?S1 `*` ?S2) (?f \o snd)) => eapply @snd_setX_meas_fun; [ try by ms_done | try by ms_solve | ]
+  | |- (measurable_fun setT (_ \o snd)) => fail
+  end.
+
+
+
 Section arithmetic.
 (** Arithmetic functions bug given measurale types *)
 
 Definition neg_bool   : <<discr bool>> -> <<discr bool>> := negb.
-Definition neg_int    : <<discr Z>> -> <<discr Z>> := Z.lnot.
-Definition minus_int  : <<discr Z>> -> <<discr Z>> := Z.opp.
-Definition minus_real : R -> R := Ropp.
+Definition neg_int    : <<discr Z>> -> <<discr Z>>  := Z.lnot.
+Definition minus_int  : <<discr Z>> -> <<discr Z>>  := Z.opp.
+Definition minus_real : ((R : realType) : measurableType _) -> ((R : realType) : measurableType _) := Ropp.
 
-(* TODO: measurable_fun for each of these *)
+Lemma neg_bool_meas_fun : measurable_fun setT neg_bool. Admitted.
+Lemma neg_int_meas_fun : measurable_fun setT neg_int. Admitted.
+Lemma minus_int_meas_fun : measurable_fun setT minus_int. Admitted.
+Lemma minus_real_meas_fun : measurable_fun setT minus_real. Admitted.
+
+Hint Resolve neg_bool_meas_fun : mf_fun.
+Hint Resolve neg_int_meas_fun : mf_fun.
+Hint Resolve minus_int_meas_fun : mf_fun.
+Hint Resolve minus_real_meas_fun : mf_fun.
 
 End arithmetic.
 
@@ -45,47 +149,92 @@ Definition un_op_eval (op : <<discr un_op>>) (v : val) : option val :=
   | _, _ => None
   end.
 
-(** TODO: Define these sets in a way that works with the automation *)
-Definition un_op_eval'_cov_neg_bool    : set (<<discr un_op>> * val). Admitted.
-Definition un_op_eval'_cov_neg_int     : set (<<discr un_op>> * val). Admitted.
-Definition un_op_eval'_cov_minus_int   : set (<<discr un_op>> * val). Admitted.
-Definition un_op_eval'_cov_minus_real  : set (<<discr un_op>> * val). Admitted.
+Definition un_op_eval'_cov_neg_bool : set (<<discr un_op>> * val) :=
+  setX [set (NegOp : <<discr un_op>>)] (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitBool).
+
+Definition un_op_eval'_cov_neg_int : set (<<discr un_op>> * val) :=
+  setX [set NegOp] (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitInt).
+
+Definition un_op_eval'_cov_minus_int : set (<<discr un_op>> * val) :=
+  setX [set MinusUnOp] (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitInt).
+
+Definition un_op_eval'_cov_minus_real : set (<<discr un_op>> * val) :=
+  setX [set MinusUnOp] (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitReal).
 
 Lemma un_op_eval'_cov_neg_bool_meas_set : measurable un_op_eval'_cov_neg_bool.
-Proof. Admitted.
+Proof. by ms_unfold; ms_solve. Qed.
 
 Lemma un_op_eval'_cov_neg_int_meas_set : measurable un_op_eval'_cov_neg_int.
-Proof. Admitted.
+Proof. by ms_unfold; ms_solve. Qed.
 
 Lemma un_op_eval'_cov_minus_int_meas_set : measurable un_op_eval'_cov_minus_int.
-Proof. Admitted.
+Proof. by ms_unfold; ms_solve. Qed.
 
 Lemma un_op_eval'_cov_minus_real_meas_set : measurable un_op_eval'_cov_minus_real.
-Proof. Admitted.
+Proof. by ms_unfold; ms_solve. Qed.
 
-Hint Resolve un_op_eval'_cov_neg_bool_meas_set : measlang.
-Hint Resolve un_op_eval'_cov_neg_int_meas_set : measlang.
-Hint Resolve un_op_eval'_cov_minus_int_meas_set : measlang.
-Hint Resolve un_op_eval'_cov_minus_real_meas_set : measlang.
-
-Ltac ml_done := by eauto with measlang.
-
-
+Hint Resolve un_op_eval'_cov_neg_bool_meas_set   : mf_set.
+Hint Resolve un_op_eval'_cov_neg_int_meas_set    : mf_set.
+Hint Resolve un_op_eval'_cov_minus_int_meas_set  : mf_set.
+Hint Resolve un_op_eval'_cov_minus_real_meas_set : mf_set.
 
 Definition un_op_eval'_neg_bool : (<<discr un_op>> * val) -> option val :=
-  Some \o LitV \o LitBool \o neg_bool \o 𝜋_LitBool_b \o 𝜋_LitV_v \o snd.
+  Some \o LitVU \o LitBoolU \o neg_bool \o 𝜋_LitBool_b \o 𝜋_LitV_v \o snd.
 
 Definition un_op_eval'_neg_int : (<<discr un_op>> * val) -> option val :=
-  Some \o LitV \o LitInt \o neg_int \o 𝜋_LitInt_z \o 𝜋_LitV_v \o snd.
+  Some \o LitVU \o LitIntU \o neg_int \o 𝜋_LitInt_z \o 𝜋_LitV_v \o snd.
 
 Definition un_op_eval'_minus_int : (<<discr un_op>> * val) -> option val :=
-  Some \o LitV \o LitInt \o minus_int \o 𝜋_LitInt_z \o 𝜋_LitV_v \o snd.
+  Some \o LitVU \o LitIntU \o minus_int \o 𝜋_LitInt_z \o 𝜋_LitV_v \o snd.
 
 Definition un_op_eval'_minus_real : (<<discr un_op>> * val) -> option val :=
-  Some \o LitV \o LitReal \o minus_real \o 𝜋_LitReal_r \o 𝜋_LitV_v \o snd.
+  Some \o LitVU \o LitRealU \o minus_real \o 𝜋_LitReal_r \o 𝜋_LitV_v \o snd.
 
-Ltac mf_Some := fail.
+Ltac mf_comp :=
+  match goal with
+  | |- (measurable_fun (?fDom `&` ?f @^-1` ?S) (_ \o ?f)) =>
+        eapply (measurable_comp (F:=S));
+        [ try by ms_done | | |
+          rewrite <- (setIid fDom), <- (setIA fDom);
+          apply measurable_fun_setI1;
+          try (by ms_done || by ms_solve || by mf_done)
+        ]
+  | |- (measurable_fun ?S (_ \o ?f)) =>
+        eapply (measurable_comp (F:=setT));
+        [ try by ms_done | | | try by mf_done ]
+  end.
 
+Lemma un_op_eval'_neg_bool_meas_fun : measurable_fun un_op_eval'_cov_neg_bool un_op_eval'_neg_bool.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_snd.
+  mf_comp.
+  { admit. }
+  mf_comp.
+  { admit. }
+  mf_comp.
+  { admit. }
+  mf_comp.
+  { admit. }
+  mf_comp.
+  { admit. }
+  { by apply Some_meas_fun. }
+  { by apply LitVU_meas_fun. }
+Admitted.
+
+Lemma un_op_eval'_neg_int_meas_fun : measurable_fun un_op_eval'_cov_neg_int un_op_eval'_neg_int.
+Proof. Admitted.
+
+Lemma un_op_eval'_minus_int_meas_fun : measurable_fun un_op_eval'_cov_minus_int un_op_eval'_minus_int.
+Proof. Admitted.
+
+Lemma un_op_eval'_minus_real_meas_fun : measurable_fun un_op_eval'_cov_minus_real un_op_eval'_minus_real.
+Proof. Admitted.
+
+Hint Resolve un_op_eval'_neg_bool_meas_fun   : mf_fun.
+Hint Resolve un_op_eval'_neg_int_meas_fun    : mf_fun.
+Hint Resolve un_op_eval'_minus_int_meas_fun  : mf_fun.
+Hint Resolve un_op_eval'_minus_real_meas_fun : mf_fun.
 
 
 (* un_op_eval: Measurable version *)

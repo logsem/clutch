@@ -141,6 +141,7 @@ Proof.
     exists z; done.
 Qed.
 Hint Resolve 𝜋_LitInt_z_meas : measlang.
+Hint Resolve 𝜋_LitInt_z_meas : mf_fun.
 
 Lemma 𝜋_LitBool_b_meas : measurable_fun bcov_LitBool 𝜋_LitBool_b.
 Proof.
@@ -162,6 +163,7 @@ Proof.
     exists z; done.
 Qed.
 Hint Resolve 𝜋_LitBool_b_meas : measlang.
+Hint Resolve 𝜋_LitBool_b_meas : mf_fun.
 
 Lemma 𝜋_LitLoc_l_meas  : measurable_fun bcov_LitLoc 𝜋_LitLoc_l.
 Proof.
@@ -183,6 +185,7 @@ Proof.
     exists z; done.
 Qed.
 Hint Resolve 𝜋_LitLoc_l_meas : measlang.
+Hint Resolve 𝜋_LitLoc_l_meas : mf_fun.
 
 Lemma 𝜋_LitLbl_l_meas  : measurable_fun bcov_LitLbl 𝜋_LitLbl_l.
 Proof.
@@ -204,6 +207,7 @@ Proof.
     exists z; done.
 Qed.
 Hint Resolve 𝜋_LitLbl_l_meas : measlang.
+Hint Resolve 𝜋_LitLbl_l_meas : mf_fun.
 
 Lemma 𝜋_LitReal_r_meas : measurable_fun bcov_LitReal 𝜋_LitReal_r.
 Proof.
@@ -225,6 +229,7 @@ Proof.
     exists z; done.
 Qed.
 Hint Resolve 𝜋_LitReal_r_meas : measlang.
+Hint Resolve 𝜋_LitReal_r_meas : mf_fun.
 
 
 Lemma 𝜋_LitV_v_meas    : measurable_fun vcov_lit   𝜋_LitV_v.
@@ -250,6 +255,7 @@ Proof.
     exists z; [done|done].
 Qed.
 Hint Resolve 𝜋_LitV_v_meas : measlang.
+Hint Resolve 𝜋_LitV_v_meas : mf_fun.
 
 Lemma 𝜋_RecV_f_meas    : measurable_fun vcov_rec   𝜋_RecV_f.
 Proof.
@@ -303,6 +309,7 @@ Proof.
   apply /predeqP =>y //=.
 Qed.
 Hint Resolve 𝜋_RecV_f_meas : measlang.
+Hint Resolve 𝜋_RecV_f_meas : mf_fun.
 
 Lemma 𝜋_RecV_x_meas    : measurable_fun vcov_rec   𝜋_RecV_x.
 Proof.
@@ -356,6 +363,7 @@ Proof.
   apply /predeqP =>y //=.
 Qed.
 Hint Resolve 𝜋_RecV_x_meas : measlang.
+Hint Resolve 𝜋_RecV_x_meas : mf_fun.
 
 Lemma 𝜋_RecV_e_meas    : measurable_fun vcov_rec   𝜋_RecV_e.
 Proof.
@@ -405,6 +413,7 @@ Proof.
     by f_equal.
 Qed.
 Hint Resolve 𝜋_RecV_e_meas : measlang.
+Hint Resolve 𝜋_RecV_e_meas : mf_fun.
 
 
 Lemma 𝜋_PairV_l_meas : measurable_fun vcov_pair  𝜋_PairV_l.
@@ -452,6 +461,7 @@ Proof.
     done.
 Qed.
 Hint Resolve 𝜋_PairV_l_meas : measlang.
+Hint Resolve 𝜋_PairV_l_meas : mf_fun.
 
 Lemma 𝜋_PairV_r_meas   : measurable_fun vcov_pair  𝜋_PairV_r.
 Proof.
@@ -498,6 +508,7 @@ Proof.
     done.
 Qed.
 Hint Resolve 𝜋_PairV_r_meas : measlang.
+Hint Resolve 𝜋_PairV_r_meas : mf_fun.
 
 
 Lemma 𝜋_InjLV_v_meas   : measurable_fun vcov_injlv 𝜋_InjLV_v.
@@ -523,6 +534,7 @@ Proof.
     exists z; [done|done].
 Qed.
 Hint Resolve 𝜋_InjLV_v_meas : measlang.
+Hint Resolve 𝜋_InjLV_v_meas : mf_fun.
 
 Lemma 𝜋_InjRV_v_meas   : measurable_fun vcov_injrv 𝜋_InjRV_v.
 Proof.
@@ -547,6 +559,7 @@ Proof.
     exists z; [done|done].
 Qed.
 Hint Resolve 𝜋_InjRV_v_meas : measlang.
+Hint Resolve 𝜋_InjRV_v_meas : mf_fun.
 
 
 
@@ -573,6 +586,7 @@ Proof.
     exists z; [done|done].
 Qed.
 Hint Resolve 𝜋_Val_v_meas : measlang.
+Hint Resolve 𝜋_Val_v_meas : mf_fun.
 
 
 Lemma 𝜋_Var_v_meas         : measurable_fun ecov_var 𝜋_Var_v.
@@ -604,6 +618,7 @@ Proof.
   eexists (Var b); by rewrite //=.
 Qed.
 Hint Resolve 𝜋_Var_v_meas : measlang.
+Hint Resolve 𝜋_Var_v_meas : mf_fun.
 
 Lemma 𝜋_Rec_f_meas         : measurable_fun ecov_rec 𝜋_Rec_f.
 Proof.
@@ -657,6 +672,7 @@ Proof.
   apply /predeqP =>y //=.
 Qed.
 Hint Resolve 𝜋_Rec_f_meas : measlang.
+Hint Resolve 𝜋_Rec_f_meas : mf_fun.
 
 Lemma 𝜋_Rec_x_meas         : measurable_fun ecov_rec 𝜋_Rec_x.
 Proof.
@@ -710,6 +726,7 @@ Proof.
   apply /predeqP =>y //=.
 Qed.
 Hint Resolve 𝜋_Rec_x_meas : measlang.
+Hint Resolve 𝜋_Rec_x_meas : mf_fun.
 
 
 Lemma 𝜋_Rec_e_meas         : measurable_fun ecov_rec 𝜋_Rec_e.
@@ -760,6 +777,7 @@ Proof.
     by f_equal.
 Qed.
 Hint Resolve 𝜋_Rec_e_meas : measlang.
+Hint Resolve 𝜋_Rec_e_meas : mf_fun.
 
 Lemma 𝜋_App_l_meas         : measurable_fun ecov_app 𝜋_App_l.
 Proof.
@@ -806,6 +824,7 @@ Proof.
     done.
 Qed.
 Hint Resolve 𝜋_App_l_meas : measlang.
+Hint Resolve 𝜋_App_l_meas : mf_fun.
 
 Lemma 𝜋_App_r_meas         : measurable_fun ecov_app 𝜋_App_r.
 Proof.
@@ -852,6 +871,7 @@ Proof.
     done.
 Qed.
 Hint Resolve 𝜋_App_r_meas : measlang.
+Hint Resolve 𝜋_App_r_meas : mf_fun.
 
 
 Lemma 𝜋_UnOp_op_meas       : measurable_fun ecov_unop 𝜋_UnOp_op.
@@ -903,6 +923,7 @@ Proof.
   apply /predeqP =>y //=.
 Qed.
 Hint Resolve 𝜋_UnOp_op_meas : measlang.
+Hint Resolve 𝜋_UnOp_op_meas : mf_fun.
 
 Lemma 𝜋_UnOp_e_meas        : measurable_fun ecov_unop 𝜋_UnOp_e.
 Proof.
@@ -949,6 +970,7 @@ Proof.
     by f_equal.
 Qed.
 Hint Resolve 𝜋_UnOp_e_meas : measlang.
+Hint Resolve 𝜋_UnOp_e_meas : mf_fun.
 
 Lemma 𝜋_BinOp_op_meas      : measurable_fun ecov_binop 𝜋_BinOp_op.
 Proof.
@@ -1004,6 +1026,7 @@ Proof.
   apply /predeqP =>y //=.
 Qed.
 Hint Resolve 𝜋_BinOp_op_meas : measlang.
+Hint Resolve 𝜋_BinOp_op_meas : mf_fun.
 
 Lemma 𝜋_BinOp_l_meas       : measurable_fun ecov_binop 𝜋_BinOp_l.
 Proof.
@@ -1058,6 +1081,7 @@ Proof.
     by f_equal.
 Qed.
 Hint Resolve 𝜋_BinOp_l_meas : measlang.
+Hint Resolve 𝜋_BinOp_l_meas : mf_fun.
 
 
 Lemma 𝜋_BinOp_r_meas       : measurable_fun ecov_binop 𝜋_BinOp_r.
@@ -1113,6 +1137,7 @@ Proof.
     by f_equal.
 Qed.
 Hint Resolve 𝜋_BinOp_r_meas : measlang.
+Hint Resolve 𝜋_BinOp_r_meas : mf_fun.
 
 Lemma 𝜋_If_c_meas          : measurable_fun ecov_if 𝜋_If_c.
 Proof.
@@ -1175,6 +1200,7 @@ Proof.
     by rewrite //=.
 Qed.
 Hint Resolve 𝜋_If_c_meas : measlang.
+Hint Resolve 𝜋_If_c_meas : mf_fun.
 
 Lemma 𝜋_If_l_meas          : measurable_fun ecov_if 𝜋_If_l.
 Proof.
@@ -1237,6 +1263,7 @@ Proof.
     by rewrite //=.
 Qed.
 Hint Resolve 𝜋_If_l_meas : measlang.
+Hint Resolve 𝜋_If_l_meas : mf_fun.
 
 Lemma 𝜋_If_r_meas          : measurable_fun ecov_if 𝜋_If_r.
 Proof.
@@ -1299,6 +1326,7 @@ Proof.
     by rewrite //=.
 Qed.
 Hint Resolve 𝜋_If_r_meas : measlang.
+Hint Resolve 𝜋_If_r_meas : mf_fun.
 
 Lemma 𝜋_Pair_l_meas        : measurable_fun ecov_pair 𝜋_Pair_l.
 Proof.
@@ -1345,6 +1373,7 @@ Proof.
     done.
 Qed.
 Hint Resolve 𝜋_Pair_l_meas : measlang.
+Hint Resolve 𝜋_Pair_l_meas : mf_fun.
 
 Lemma 𝜋_Pair_r_meas        : measurable_fun ecov_pair 𝜋_Pair_r.
 Proof.
@@ -1391,6 +1420,7 @@ Proof.
     done.
 Qed.
 Hint Resolve 𝜋_Pair_r_meas : measlang.
+Hint Resolve 𝜋_Pair_r_meas : mf_fun.
 
 Lemma 𝜋_Fst_e_meas         : measurable_fun ecov_fst 𝜋_Fst_e.
 Proof.
@@ -1415,6 +1445,7 @@ Proof.
     exists z; [done|done].
 Qed.
 Hint Resolve 𝜋_Fst_e_meas : measlang.
+Hint Resolve 𝜋_Fst_e_meas : mf_fun.
 
 Lemma 𝜋_Snd_e_meas         : measurable_fun ecov_snd 𝜋_Snd_e.
 Proof.
@@ -1439,6 +1470,7 @@ Proof.
     exists z; [done|done].
 Qed.
 Hint Resolve 𝜋_Snd_e_meas : measlang.
+Hint Resolve 𝜋_Snd_e_meas : mf_fun.
 
 Lemma 𝜋_InjL_e_meas        : measurable_fun ecov_injl 𝜋_InjL_e.
 Proof.
@@ -1463,6 +1495,7 @@ Proof.
     exists z; [done|done].
 Qed.
 Hint Resolve 𝜋_InjL_e_meas : measlang.
+Hint Resolve 𝜋_InjL_e_meas : mf_fun.
 
 Lemma 𝜋_InjR_e_meas        : measurable_fun ecov_injr 𝜋_InjR_e.
 Proof.
@@ -1487,7 +1520,7 @@ Proof.
     exists z; [done|done].
 Qed.
 Hint Resolve 𝜋_InjR_e_meas : measlang.
-
+Hint Resolve 𝜋_InjR_e_meas : mf_fun.
 
 Lemma 𝜋_Case_c_meas          : measurable_fun ecov_case 𝜋_Case_c.
 Proof.
@@ -1550,6 +1583,7 @@ Proof.
     by rewrite //=.
 Qed.
 Hint Resolve 𝜋_Case_c_meas : measlang.
+Hint Resolve 𝜋_Case_c_meas : mf_fun.
 
 Lemma 𝜋_Case_l_meas          : measurable_fun ecov_case 𝜋_Case_l.
 Proof.
@@ -1612,6 +1646,7 @@ Proof.
     by rewrite //=.
 Qed.
 Hint Resolve 𝜋_Case_l_meas : measlang.
+Hint Resolve 𝜋_Case_l_meas : mf_fun.
 
 Lemma 𝜋_Case_r_meas          : measurable_fun ecov_case 𝜋_Case_r.
 Proof.
@@ -1674,6 +1709,7 @@ Proof.
     by rewrite //=.
 Qed.
 Hint Resolve 𝜋_Case_r_meas : measlang.
+Hint Resolve 𝜋_Case_r_meas : mf_fun.
 
 Lemma 𝜋_Alloc_e_meas      : measurable_fun ecov_alloc 𝜋_Alloc_e.
 Proof.
@@ -1696,6 +1732,7 @@ Proof.
     exists z; [done|done].
 Qed.
 Hint Resolve 𝜋_Alloc_e_meas : measlang.
+Hint Resolve 𝜋_Alloc_e_meas : mf_fun.
 
 Lemma 𝜋_Load_e_meas        : measurable_fun ecov_load 𝜋_Load_e.
 Proof.
@@ -1720,6 +1757,7 @@ Proof.
     exists z; [done|done].
 Qed.
 Hint Resolve 𝜋_Load_e_meas : measlang.
+Hint Resolve 𝜋_Load_e_meas : mf_fun.
 
 Lemma 𝜋_Store_l_meas       : measurable_fun ecov_store 𝜋_Store_l.
 Proof.
@@ -1766,6 +1804,7 @@ Proof.
     done.
 Qed.
 Hint Resolve 𝜋_Store_l_meas : measlang.
+Hint Resolve 𝜋_Store_l_meas : mf_fun.
 
 Lemma 𝜋_Store_e_meas       : measurable_fun ecov_store 𝜋_Store_e.
 Proof.
@@ -1812,6 +1851,7 @@ Proof.
     done.
 Qed.
 Hint Resolve 𝜋_Store_e_meas : measlang.
+Hint Resolve 𝜋_Store_e_meas : mf_fun.
 
 Lemma 𝜋_AllocTape_e_meas   : measurable_fun ecov_alloctape 𝜋_AllocTape_e.
 Proof.
@@ -1836,6 +1876,7 @@ Proof.
     exists z; [done|done].
 Qed.
 Hint Resolve 𝜋_AllocTape_e_meas : measlang.
+Hint Resolve 𝜋_AllocTape_e_meas : mf_fun.
 
 
 Lemma 𝜋_Rand_t_meas        : measurable_fun ecov_rand 𝜋_Rand_t.
@@ -1883,6 +1924,7 @@ Proof.
     done.
 Qed.
 Hint Resolve 𝜋_Rand_t_meas : measlang.
+Hint Resolve 𝜋_Rand_t_meas : mf_fun.
 
 
 Lemma 𝜋_Rand_N_meas        : measurable_fun ecov_rand 𝜋_Rand_N.
@@ -1930,6 +1972,7 @@ Proof.
     done.
 Qed.
 Hint Resolve 𝜋_Rand_N_meas : measlang.
+Hint Resolve 𝜋_Rand_N_meas : mf_fun.
 
 Lemma 𝜋_URand_e_meas       : measurable_fun ecov_urand 𝜋_URand_e.
 Proof.
@@ -1954,6 +1997,7 @@ Proof.
     exists z; [done|done].
 Qed.
 Hint Resolve 𝜋_URand_e_meas : measlang.
+Hint Resolve 𝜋_URand_e_meas : mf_fun.
 
 Lemma 𝜋_Tick_e_meas        : measurable_fun ecov_tick 𝜋_Tick_e.
 Proof.
@@ -1978,6 +2022,7 @@ Proof.
     exists z; [done|done].
 Qed.
 Hint Resolve 𝜋_Tick_e_meas : measlang.
+Hint Resolve 𝜋_Tick_e_meas : mf_fun.
 
 
 
@@ -2005,111 +2050,139 @@ Ltac solve_packaged_meas :=
 Definition 𝜋_LitIntU_meas : measurable_fun bcov_LitInt 𝜋_LitIntU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_LitIntU_meas : measlang.
+Hint Resolve 𝜋_LitIntU_meas : mf_fun.
 
 Definition 𝜋_LitBoolU_meas : measurable_fun bcov_LitBool 𝜋_LitBoolU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_LitBoolU_meas : measlang.
+Hint Resolve 𝜋_LitBoolU_meas : mf_fun.
 
 Definition 𝜋_LitLocU_meas : measurable_fun bcov_LitLoc 𝜋_LitLocU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_LitLocU_meas : measlang.
+Hint Resolve 𝜋_LitLocU_meas : mf_fun.
 
 Definition 𝜋_LitLblU_meas : measurable_fun bcov_LitLbl 𝜋_LitLblU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_LitLblU_meas : measlang.
+Hint Resolve 𝜋_LitLblU_meas : mf_fun.
 
 Definition 𝜋_LitRealU_meas : measurable_fun bcov_LitReal 𝜋_LitRealU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_LitRealU_meas : measlang.
+Hint Resolve 𝜋_LitRealU_meas : mf_fun.
 
 Definition 𝜋_LitVU_meas : measurable_fun vcov_lit 𝜋_LitVU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_LitVU_meas : measlang.
+Hint Resolve 𝜋_LitVU_meas : mf_fun.
 
 Definition 𝜋_RecVU_meas : measurable_fun vcov_rec 𝜋_RecVU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_RecVU_meas : measlang.
+Hint Resolve 𝜋_RecVU_meas : mf_fun.
 
 Definition 𝜋_PairVU_meas : measurable_fun vcov_pair 𝜋_PairVU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_PairVU_meas : measlang.
+Hint Resolve 𝜋_PairVU_meas : mf_fun.
 
 Definition 𝜋_InjLVU_meas : measurable_fun vcov_injlv 𝜋_InjLVU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_InjLVU_meas : measlang.
+Hint Resolve 𝜋_InjLVU_meas : mf_fun.
 
 Definition 𝜋_InjRVU_meas : measurable_fun vcov_injrv 𝜋_InjRVU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_InjRVU_meas : measlang.
+Hint Resolve 𝜋_InjRVU_meas : mf_fun.
 
 Definition 𝜋_ValU_meas : measurable_fun ecov_val 𝜋_ValU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_ValU_meas : measlang.
+Hint Resolve 𝜋_ValU_meas : mf_fun.
 
 Definition 𝜋_VarU_meas : measurable_fun ecov_var 𝜋_VarU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_VarU_meas : measlang.
+Hint Resolve 𝜋_VarU_meas : mf_fun.
 
 Definition 𝜋_RecU_meas : measurable_fun ecov_rec 𝜋_RecU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_RecU_meas : measlang.
+Hint Resolve 𝜋_RecU_meas : mf_fun.
 
 Definition 𝜋_UnOpU_meas : measurable_fun ecov_unop 𝜋_UnOpU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_UnOpU_meas : measlang.
+Hint Resolve 𝜋_UnOpU_meas : mf_fun.
 
 Definition 𝜋_BinOpU_meas : measurable_fun ecov_binop 𝜋_BinOpU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_BinOpU_meas : measlang.
+Hint Resolve 𝜋_BinOpU_meas : mf_fun.
 
 Definition 𝜋_AppU_meas : measurable_fun ecov_app 𝜋_AppU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_AppU_meas : measlang.
+Hint Resolve 𝜋_AppU_meas : mf_fun.
 
 Definition 𝜋_IfU_meas : measurable_fun ecov_if 𝜋_IfU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_IfU_meas : measlang.
+Hint Resolve 𝜋_IfU_meas : mf_fun.
 
 Definition 𝜋_PairU_meas : measurable_fun ecov_pair 𝜋_PairU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_PairU_meas : measlang.
+Hint Resolve 𝜋_PairU_meas : mf_fun.
 
 Definition 𝜋_InjLU_meas : measurable_fun ecov_injl 𝜋_InjLU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_InjLU_meas : measlang.
+Hint Resolve 𝜋_InjLU_meas : mf_fun.
 
 Definition 𝜋_InjRU_meas : measurable_fun ecov_injr 𝜋_InjRU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_InjRU_meas : measlang.
+Hint Resolve 𝜋_InjRU_meas : mf_fun.
 
 Definition 𝜋_CaseU_meas : measurable_fun ecov_case 𝜋_CaseU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_CaseU_meas : measlang.
+Hint Resolve 𝜋_CaseU_meas : mf_fun.
 
 Definition 𝜋_AllocU_meas : measurable_fun ecov_alloc 𝜋_AllocU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_AllocU_meas : measlang.
+Hint Resolve 𝜋_AllocU_meas : mf_fun.
 
 Definition 𝜋_LoadU_meas : measurable_fun ecov_load 𝜋_LoadU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_LoadU_meas : measlang.
+Hint Resolve 𝜋_LoadU_meas : mf_fun.
 
 Definition 𝜋_StoreU_meas : measurable_fun ecov_store 𝜋_StoreU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_StoreU_meas : measlang.
+Hint Resolve 𝜋_StoreU_meas : mf_fun.
 
 Definition 𝜋_AllocTapeU_meas : measurable_fun ecov_alloctape 𝜋_AllocTapeU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_StoreU_meas : measlang.
+Hint Resolve 𝜋_StoreU_meas : mf_fun.
 
 Definition 𝜋_RandU_meas : measurable_fun ecov_rand 𝜋_RandU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_RandU_meas : measlang.
+Hint Resolve 𝜋_RandU_meas : mf_fun.
 
 Definition 𝜋_URandU_meas : measurable_fun ecov_urand 𝜋_URandU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_URandU_meas : measlang.
+Hint Resolve 𝜋_URandU_meas : mf_fun.
 
 Definition 𝜋_Tick_meas : measurable_fun ecov_tick 𝜋_TickU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_Tick_meas : measlang.
+Hint Resolve 𝜋_Tick_meas : mf_fun.

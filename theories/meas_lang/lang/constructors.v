@@ -128,18 +128,22 @@ Section constructor_measurability.
   Lemma LitIntU_meas_fun : measurable_fun setT LitIntU.
   Proof. into_gen_measurable. by rewrite //=. Qed.
   Hint Resolve LitIntU_meas_fun : measlang.
+  Hint Resolve LitIntU_meas_fun : mf_fun.
 
   Lemma LitBoolU_meas_fun : measurable_fun setT LitBoolU.
   Proof. into_gen_measurable. by rewrite //=. Qed.
   Hint Resolve LitBoolU_meas_fun : measlang.
+  Hint Resolve LitBoolU_meas_fun : mf_fun.
 
   Lemma LitLocU_meas_fun : measurable_fun setT LitLocU.
   Proof. into_gen_measurable. by rewrite //=. Qed.
   Hint Resolve LitLocU_meas_fun : measlang.
+  Hint Resolve LitLocU_meas_fun : mf_fun.
 
   Lemma LitLblU_meas_fun : measurable_fun setT LitLblU.
   Proof. into_gen_measurable. by rewrite //=. Qed.
   Hint Resolve LitLblU_meas_fun : measlang.
+  Hint Resolve LitLblU_meas_fun : mf_fun.
 
 
   Lemma LitRealU_meas_fun : measurable_fun setT LitRealU.
@@ -157,6 +161,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve LitRealU_meas_fun : measlang.
+  Hint Resolve LitRealU_meas_fun : mf_fun.
 
   (** Expr Constructors: Each *C function is (.. * ... * ...) / expr -measurable *)
 
@@ -197,10 +202,12 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve ValU_meas_fun : measlang.
+  Hint Resolve ValU_meas_fun : mf_fun.
 
   Lemma VarU_meas_fun : measurable_fun setT VarU.
   Proof. into_gen_measurable. by rewrite //=. Qed.
   Hint Resolve VarU_meas_fun : measlang.
+  Hint Resolve VarU_meas_fun : mf_fun.
 
 
   Lemma RecU_meas_fun : measurable_fun setT RecU.
@@ -265,6 +272,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve RecU_meas_fun : measlang.
+  Hint Resolve RecU_meas_fun : mf_fun.
 
   Lemma AppU_meas_fun : measurable_fun setT AppU.
   Proof. (* Note: All 2-argument proofs in this file are identical to AppU *)
@@ -290,6 +298,7 @@ Section constructor_measurability.
        + by move=> [??[??[<- ?]]].
   Qed.
   Hint Resolve AppU_meas_fun : measlang.
+  Hint Resolve AppU_meas_fun : mf_fun.
 
   Lemma UnOpU_meas_fun : measurable_fun setT UnOpU.
   Proof.
@@ -327,6 +336,7 @@ Section constructor_measurability.
       move=>[+]; move=><-<-//=; move=><-//=.  eexists _; done.
   Qed.
   Hint Resolve UnOpU_meas_fun : measlang.
+  Hint Resolve UnOpU_meas_fun : mf_fun.
 
   Lemma BinOpU_meas_fun : measurable_fun setT BinOpU.
   Proof.
@@ -420,6 +430,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve BinOpU_meas_fun : measlang.
+  Hint Resolve BinOpU_meas_fun : mf_fun.
 
   Lemma IfU_meas_fun : measurable_fun setT IfU.
   Proof.
@@ -499,6 +510,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve IfU_meas_fun : measlang.
+  Hint Resolve IfU_meas_fun : mf_fun.
 
   Lemma PairU_meas_fun : measurable_fun setT PairU.
   Proof. (* Note: All 2-argument proofs in this file are identical to AppU *)
@@ -524,6 +536,7 @@ Section constructor_measurability.
        + by move=> [??[??[<- ?]]].
   Qed.
   Hint Resolve PairU_meas_fun : measlang.
+  Hint Resolve PairU_meas_fun : mf_fun.
 
   Lemma FstU_meas_fun : measurable_fun setT FstU.
   Proof.
@@ -544,6 +557,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve FstU_meas_fun : measlang.
+  Hint Resolve FstU_meas_fun : mf_fun.
 
   Lemma SndU_meas_fun : measurable_fun setT SndU.
   Proof.
@@ -564,6 +578,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve SndU_meas_fun : measlang.
+  Hint Resolve SndU_meas_fun : mf_fun.
 
   Lemma InjLU_meas_fun : measurable_fun setT InjLU.
   Proof.
@@ -584,6 +599,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve InjLU_meas_fun : measlang.
+  Hint Resolve InjLU_meas_fun : mf_fun.
 
   Lemma InjRU_meas_fun : measurable_fun setT InjRU.
   Proof.
@@ -604,6 +620,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve InjRU_meas_fun : measlang.
+  Hint Resolve InjRU_meas_fun : mf_fun.
 
   Lemma CaseU_meas_fun : measurable_fun setT CaseU.
   Proof.
@@ -680,6 +697,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve CaseU_meas_fun : measlang.
+  Hint Resolve CaseU_meas_fun : mf_fun.
 
   Lemma AllocU_meas_fun : measurable_fun setT AllocU.
   Proof.
@@ -700,6 +718,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve AllocU_meas_fun : measlang.
+  Hint Resolve AllocU_meas_fun : mf_fun.
 
   Lemma LoadU_meas_fun : measurable_fun setT LoadU.
   Proof.
@@ -720,6 +739,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve LoadU_meas_fun : measlang.
+  Hint Resolve LoadU_meas_fun : mf_fun.
 
   Lemma StoreU_meas_fun : measurable_fun setT StoreU.
   Proof. (* Note: All 2-argument proofs in this file are identical to AppU *)
@@ -745,6 +765,7 @@ Section constructor_measurability.
        + by move=> [??[??[<- ?]]].
   Qed.
   Hint Resolve StoreU_meas_fun : measlang.
+  Hint Resolve StoreU_meas_fun : mf_fun.
 
   Lemma AllocTapeU_meas_fun : measurable_fun setT AllocTapeU.
   Proof.
@@ -764,6 +785,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve AllocTapeU_meas_fun : measlang.
+  Hint Resolve AllocTapeU_meas_fun : mf_fun.
 
   Lemma RandU_meas_fun : measurable_fun setT RandU.
   Proof. (* Note: All 2-argument proofs in this file are identical to AppU *)
@@ -789,6 +811,7 @@ Section constructor_measurability.
        + by move=> [??[??[<- ?]]].
   Qed.
   Hint Resolve RandU_meas_fun : measlang.
+  Hint Resolve RandU_meas_fun : mf_fun.
 
   (*
   Lemma AllocUTapeU_meas_fun : measurable_fun setT AllocUTapeU.
@@ -812,6 +835,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve UrandU_meas_fun : measlang.
+  Hint Resolve UrandU_meas_fun : mf_fun.
 
   Lemma TickU_meas_fun : measurable_fun setT TickU.
   Proof.
@@ -831,6 +855,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve TickU_meas_fun : measlang.
+  Hint Resolve TickU_meas_fun : mf_fun.
 
   (** Val constructors *)
 
@@ -852,6 +877,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve LitVU_meas_fun : measlang.
+  Hint Resolve LitVU_meas_fun : mf_fun.
 
   Lemma RecVU_meas_fun : measurable_fun setT RecVU.
   Proof.
@@ -923,6 +949,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve RecVU_meas_fun : measlang.
+  Hint Resolve RecVU_meas_fun : mf_fun.
 
   Lemma PairVU_meas_fun : measurable_fun setT PairVU.
   Proof.
@@ -961,6 +988,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve PairVU_meas_fun : measlang.
+  Hint Resolve PairVU_meas_fun : mf_fun.
 
   Lemma InjLVU_meas_fun : measurable_fun setT InjLVU.
   Proof.
@@ -980,6 +1008,7 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve InjLVU_meas_fun : measlang.
+  Hint Resolve InjLVU_meas_fun : mf_fun.
 
   Lemma InjRVU_meas_fun : measurable_fun setT InjRVU.
   Proof.
@@ -999,5 +1028,6 @@ Section constructor_measurability.
     all: by ctor_triv_case.
   Qed.
   Hint Resolve InjRVU_meas_fun : measlang.
+  Hint Resolve InjRVU_meas_fun : mf_fun.
 
 End constructor_measurability.

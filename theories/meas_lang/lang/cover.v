@@ -901,3 +901,36 @@ Proof.
   by rewrite /val_seq/preimage //= (val_shape_cyl _).
 Qed.
 Hint Resolve vcov_injrv_meas_set : measlang.
+
+Hint Resolve ecov_val_meas_set       : mf_set.
+Hint Resolve ecov_var_meas_set       : mf_set.
+Hint Resolve ecov_rec_meas_set       : mf_set.
+Hint Resolve ecov_app_meas_set       : mf_set.
+Hint Resolve ecov_unop_meas_set      : mf_set.
+Hint Resolve ecov_binop_meas_set     : mf_set.
+Hint Resolve ecov_if_meas_set        : mf_set.
+Hint Resolve ecov_pair_meas_set      : mf_set.
+Hint Resolve ecov_fst_meas_set       : mf_set.
+Hint Resolve ecov_snd_meas_set       : mf_set.
+Hint Resolve ecov_injl_meas_set      : mf_set.
+Hint Resolve ecov_injr_meas_set      : mf_set.
+Hint Resolve ecov_case_meas_set      : mf_set.
+Hint Resolve ecov_alloc_meas_set     : mf_set.
+Hint Resolve ecov_load_meas_set      : mf_set.
+Hint Resolve ecov_store_meas_set     : mf_set.
+Hint Resolve ecov_alloctape_meas_set : mf_set.
+Hint Resolve ecov_rand_meas_set      : mf_set.
+Hint Resolve ecov_allocutape_meas_set: mf_set.
+Hint Resolve ecov_urand_meas_set     : mf_set.
+Hint Resolve ecov_tick_meas_set      : mf_set.
+Hint Resolve vcov_lit_meas_set       : mf_set.
+Hint Resolve vcov_rec_meas_set       : mf_set.
+Hint Resolve vcov_pair_meas_set      : mf_set.
+Hint Resolve vcov_injlv_meas_set     : mf_set.
+Hint Resolve vcov_injrv_meas_set     : mf_set.
+Hint Resolve bcov_LitInt_meas_set    : mf_set.
+Hint Resolve bcov_LitBool_meas_set   : mf_set.
+Hint Resolve bcov_LitUnit_meas_set   : mf_set.
+Hint Resolve bcov_LitLoc_meas_set    : mf_set.
+Hint Resolve bcov_LitLbl_meas_set    : mf_set.
+Hint Resolve bcov_LitReal_meas_set   : mf_set.

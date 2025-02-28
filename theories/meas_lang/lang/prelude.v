@@ -34,3 +34,6 @@ Local Open Scope classical_set_scope.
 Definition loc_enum : nat -> <<discr loc>>. Admitted.
 Lemma loc_enum_surj : forall l, exists n, loc_enum n = l.
 Proof. Admitted.
+
+Create HintDb ml_fun.
+Create HintDb ml_set.

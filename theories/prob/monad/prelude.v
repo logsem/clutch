@@ -598,6 +598,7 @@ End comp.
 (** A function into a generated measurableType is a measurable function
     when the preimages of the generators are measurable.  *)
 
+(** FIXME: Depricated hintDB*)
 Create HintDb measlang.
 
 Ltac into_gen_measurable := eapply measurability; [by eauto|].
