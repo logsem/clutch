@@ -1,8 +1,9 @@
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
+From Coq Require Import Reals.
 From stdpp Require Import binders gmap.
 From mathcomp Require Import functions classical_sets.
-From mathcomp.analysis Require Import reals measure lebesgue_measure.
+From mathcomp.analysis Require Import Rstruct reals measure lebesgue_measure.
 From mathcomp Require Import eqtype choice boolp.
 From clutch.prelude Require Export stdpp_ext.
 From clutch.common Require Export locations.
@@ -196,17 +197,19 @@ Fixpoint expr_pre_F (e : @expr_pre TZ1 TB1 TL1 TR1) : @expr_pre TZ2 TB2 TL2 TR2 
   end.
 End functor.
 
+Notation RR := ((R : realType) : measurableType _).
+
 Section expr_algebra.
   (** Defines the sigma algebra over expressions *)
   Local Open Scope classical_set_scope.
 
-  Definition base_lit_S : Type := @base_lit_pre (set <<discr Z>>) (set <<discr bool>>) (set <<discr loc>>) (set ((R : realType) : measurableType _)).
-  Definition val_S      : Type := @val_pre      (set <<discr Z>>) (set <<discr bool>>) (set <<discr loc>>) (set ((R : realType) : measurableType _)).
-  Definition expr_S     : Type := @expr_pre     (set <<discr Z>>) (set <<discr bool>>) (set <<discr loc>>) (set ((R : realType) : measurableType _)).
+  Definition base_lit_S : Type := @base_lit_pre (set <<discr Z>>) (set <<discr bool>>) (set <<discr loc>>) (set RR).
+  Definition val_S      : Type := @val_pre      (set <<discr Z>>) (set <<discr bool>>) (set <<discr loc>>) (set RR).
+  Definition expr_S     : Type := @expr_pre     (set <<discr Z>>) (set <<discr bool>>) (set <<discr loc>>) (set RR).
 
-  Definition base_lit_T : Type := @base_lit_pre <<discr Z>> <<discr bool>> <<discr loc>> ((R : realType) : measurableType _).
-  Definition val_T      : Type := @val_pre      <<discr Z>> <<discr bool>> <<discr loc>> ((R : realType) : measurableType _).
-  Definition expr_T     : Type := @expr_pre     <<discr Z>> <<discr bool>> <<discr loc>> ((R : realType) : measurableType _).
+  Definition base_lit_T : Type := @base_lit_pre <<discr Z>> <<discr bool>> <<discr loc>> RR.
+  Definition val_T      : Type := @val_pre      <<discr Z>> <<discr bool>> <<discr loc>> RR.
+  Definition expr_T     : Type := @expr_pre     <<discr Z>> <<discr bool>> <<discr loc>> RR.
 
   (* Cylinder constructions *)
 

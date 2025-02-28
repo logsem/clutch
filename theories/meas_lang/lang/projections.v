@@ -2186,3 +2186,18 @@ Definition 𝜋_Tick_meas : measurable_fun ecov_tick 𝜋_TickU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_Tick_meas : measlang.
 Hint Resolve 𝜋_Tick_meas : mf_fun.
+
+
+
+
+
+Lemma 𝜋_LitV_v_sub S : [set 𝜋_LitV_v x | x in vcov_lit `&` 𝜋_LitV_v @^-1` S] `<=` S.
+Proof.
+  rewrite /subset//=.
+  move=>?.
+  move=>[+]; move=>?.
+  move=>[+]; move=>[? _].
+  move=><-//=.
+  by move=>?<-//.
+Qed.
+Hint Resolve 𝜋_LitV_v_sub : projection_subs.

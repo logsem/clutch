@@ -1,9 +1,9 @@
 Set Warnings "hiding-delimiting-key".
 From HB Require Import structures.
-From Coq Require Export ssrfun.
+From Coq Require Export ssrfun Reals.
 From stdpp Require Import binders.
 From mathcomp Require Import eqtype choice boolp functions classical_sets.
-From mathcomp.analysis Require Import reals measure lebesgue_measure sequences.
+From mathcomp.analysis Require Import Rstruct reals measure lebesgue_measure sequences.
 From clutch.common Require Export locations.
 From clutch.meas_lang.lang Require Export prelude.
 Set Warnings "hiding-delimiting-key".

@@ -839,3 +839,27 @@ Section if_in.
   Proof. Admitted.
 
 End if_in.
+
+Lemma fst_setX_meas_fun {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+    (D1 : set T1) (D2 : set T2) {H1 : measurable D1} {H2 : measurable D2} (f : T1 -> T3) :
+  measurable_fun D1 f -> measurable_fun (setX D1 D2) (f \o fst).
+Proof.
+  intros ?.
+  eapply (@measurable_comp _ _ _ _ _ _ D1); try done.
+  { by rewrite /subset//=; move=>?[?[??]]<-//=. }
+  apply @mathcomp_measurable_fun_restiction_setT.
+  { by apply measurableX. }
+  { by apply measurable_fst. }
+Qed.
+
+Lemma snd_setX_meas_fun {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+    (D1 : set T1) (D2 : set T2) {H1 : measurable D1} {H2 : measurable D2} (f : T2 -> T3) :
+  measurable_fun D2 f -> measurable_fun (setX D1 D2) (f \o snd).
+Proof.
+  intros ?.
+  eapply (@measurable_comp _ _ _ _ _ _ D2); try done.
+  { by rewrite /subset//=; move=>?[?[??]]<-//=. }
+  apply @mathcomp_measurable_fun_restiction_setT.
+  { by apply measurableX. }
+  { by apply measurable_snd. }
+Qed.

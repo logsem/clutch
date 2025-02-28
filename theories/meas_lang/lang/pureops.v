@@ -22,103 +22,6 @@ Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.
 
-
-Lemma fst_setX_meas_fun {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
-    (D1 : set T1) (D2 : set T2) {H1 : measurable D1} {H2 : measurable D2} (f : T1 -> T3) :
-  measurable_fun D1 f -> measurable_fun (setX D1 D2) (f \o fst).
-Proof.
-  intros ?.
-  eapply (@measurable_comp _ _ _ _ _ _ D1); try done.
-  { by rewrite /subset//=; move=>?[?[??]]<-//=. }
-  apply @mathcomp_measurable_fun_restiction_setT.
-  { by apply measurableX. }
-  { by apply measurable_fst. }
-Qed.
-
-Lemma snd_setX_meas_fun {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
-    (D1 : set T1) (D2 : set T2) {H1 : measurable D1} {H2 : measurable D2} (f : T2 -> T3) :
-  measurable_fun D2 f -> measurable_fun (setX D1 D2) (f \o snd).
-Proof.
-  intros ?.
-  eapply (@measurable_comp _ _ _ _ _ _ D2); try done.
-  { by rewrite /subset//=; move=>?[?[??]]<-//=. }
-  apply @mathcomp_measurable_fun_restiction_setT.
-  { by apply measurableX. }
-  { by apply measurable_snd. }
-Qed.
-
-(*
-Lemma comp_meas_fun {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
-    (S : set T1) (T : set T2) {H : d2.-measurable T} (f : T1 -> T2) (g : T2 -> T3) :
-  measurable_fun S f ->
-  measurable_fun T g ->
-  measurable_fun (S `&` f @^-1` T) (g \o f).
-Proof.
-  intros H1 H2.
-  eapply @measurable_comp.
-  3: by apply H2.
-  1: by apply H.
-  {
-
-
-  measurable_fun (T:=val) (U:=Datatypes_option__canonical__measure_Measurable) (vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitBool)
-    (((((Some \o LitV) \o LitBool) \o neg_bool) \o 𝜋_LitBool_b) \o 𝜋_LitV_v)
- *)
-
-
-Ltac ms_done := by eauto with mf_set.
-
-Ltac mf_done := by eauto with mf_fun.
-
-Ltac ms_unfold := match goal with | |- (measurable ?X) => unfold X end.
-
-Ltac ms_prod := match goal with | |- (measurable (_ `*` _)) => apply measurableX end.
-
-Lemma apply_measurable_fun {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
-  (D : set T1) (f : T1 -> T2) (S : set T2) :
-      measurable_fun D f -> measurable D -> measurable S -> measurable (D `&` f @^-1` S).
-Proof. intros H1 H2 H3. apply H1; done. Qed.
-
-Ltac ms_fun :=
-  match goal with
-  | |- (measurable (?Dom `&` ?Fun @^-1` ?S)) =>
-        apply (apply_measurable_fun Dom Fun S); [ try by mf_done | try by ms_done | ]
-  end.
-
-Ltac ms_solve :=
-  repeat match goal with
-         (* First try searching existing database of measurable sets *)
-         | |- _ => by ms_done
-         (* Try applying basic measurability lemmas *)
-         | |- (measurable (_ `*` _)) => ms_prod
-         | |- (measurable (_ `&` _ @^-1` _)) => ms_fun
-         end.
-
-
-
-Ltac mf_unfold_fun := match goal with | |- (measurable_fun _ ?X) => unfold X end.
-
-Ltac mf_unfold_dom := match goal with | |- (measurable_fun ?X _) => unfold X end.
-
-Ltac mf_reassoc :=
-  repeat match goal with
-         | |- context[(?f \o ?g) \o ?h] => rewrite <- (ssrfun.compA f g h)
-         end.
-
-Ltac mf_cmp_fst :=
-  match goal with
-  | |- (measurable_fun (?S1 `*` ?S2) (?f \o fst)) => eapply @fst_setX_meas_fun; [ try by ms_done | try by ms_solve | ]
-  | |- (measurable_fun setT (_ \o fst)) => fail
-  end.
-
-Ltac mf_cmp_snd :=
-  match goal with
-  | |- (measurable_fun (?S1 `*` ?S2) (?f \o snd)) => eapply @snd_setX_meas_fun; [ try by ms_done | try by ms_solve | ]
-  | |- (measurable_fun setT (_ \o snd)) => fail
-  end.
-
-
-
 Section arithmetic.
 (** Arithmetic functions bug given measurale types *)
 
@@ -221,42 +124,15 @@ Definition un_op_eval'_minus_real : (<<discr un_op>> * val) -> option val :=
 
 Create HintDb projection_subs.
 
-Lemma 𝜋_LitV_v_sub S : [set 𝜋_LitV_v x | x in vcov_lit `&` 𝜋_LitV_v @^-1` S] `<=` S.
-Proof.
-  rewrite /subset//=.
-  move=>?.
-  move=>[+]; move=>?.
-  move=>[+]; move=>[? _].
-  move=><-//=.
-  by move=>?<-//.
-Qed.
-Hint Resolve 𝜋_LitV_v_sub : projection_subs.
-
-Ltac mf_cmp_tree :=
-  match goal with
-  | |- (measurable_fun (?fDom `&` ?f @^-1` ?S) (_ \o ?f)) =>
-        eapply (measurable_comp (F:=S));
-        [ try by ms_done
-        | try by eauto with projection_subs
-        |
-        | rewrite <- (setIid fDom), <- (setIA fDom);
-          apply measurable_fun_setI1;
-          try (by ms_done || by ms_solve || by mf_done)
-        ]
-  | |- (measurable_fun ?S (_ \o ?f)) =>
-        eapply (measurable_comp (F:=setT));
-        [ try by ms_done
-        | try by apply subsetT
-        |
-        | try by mf_done ]
-  end.
-
-
 Lemma un_op_eval'_neg_bool_meas_fun : measurable_fun un_op_eval'_cov_neg_bool un_op_eval'_neg_bool.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_snd.
-  do 5 mf_cmp_tree.
+  mf_cmp_tree; first by apply 𝜋_LitV_v_sub.
+  mf_cmp_tree.
+  mf_cmp_tree.
+  mf_cmp_tree.
+  mf_cmp_tree.
   { by apply Some_meas_fun. }
   { by apply LitVU_meas_fun. }
 Qed.
@@ -265,7 +141,11 @@ Lemma un_op_eval'_neg_int_meas_fun : measurable_fun un_op_eval'_cov_neg_int un_o
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_snd.
-  do 5 mf_cmp_tree.
+  mf_cmp_tree; first by apply 𝜋_LitV_v_sub.
+  mf_cmp_tree.
+  mf_cmp_tree.
+  mf_cmp_tree.
+  mf_cmp_tree.
   { by apply Some_meas_fun. }
   { by apply LitVU_meas_fun. }
 Qed.
@@ -274,7 +154,11 @@ Lemma un_op_eval'_minus_int_meas_fun : measurable_fun un_op_eval'_cov_minus_int 
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_snd.
-  do 5 mf_cmp_tree.
+  mf_cmp_tree; first by apply 𝜋_LitV_v_sub.
+  mf_cmp_tree.
+  mf_cmp_tree.
+  mf_cmp_tree.
+  mf_cmp_tree.
   { by apply Some_meas_fun. }
   { by apply LitVU_meas_fun. }
 Qed.
@@ -283,7 +167,7 @@ Lemma un_op_eval'_minus_real_meas_fun : measurable_fun un_op_eval'_cov_minus_rea
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_snd.
-  mf_cmp_tree.
+  mf_cmp_tree; first by apply 𝜋_LitV_v_sub.
   mf_cmp_tree.
   mf_cmp_tree; last by apply minus_real_meas_fun.
   mf_cmp_tree; last by apply LitRealU_meas_fun.
@@ -408,12 +292,6 @@ Definition bin_op_eval'_loc_le_loc : (<<discr bin_op>> * <<discr loc>> * base_li
 
 Program Definition bin_op_eval'_loc_lt_loc : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option base_lit :=
   Some \o LitLocU \o loc_lt \o (snd \o fst △ 𝜋_LitLoc_l \o snd).
-
-
-Ltac mf_prod :=
-  match goal with
-  | |- (measurable_fun ?S (?f △ ?g)) => apply (measurable_fun_prod' f g S); [ try by ms_solve | try by mf_done | try by mf_done ]
-  end.
 
 Lemma bin_op_eval'_loc_offset_int_meas_fun : measurable_fun bin_op_eval'_loc_cov_offset_int bin_op_eval'_loc_offset_int.
 Proof.
