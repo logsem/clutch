@@ -36,6 +36,7 @@ nra.cache
 _opam
 .DS_Store
 *.zip
+*.tar.gz
 
 # Emacs
 *~
