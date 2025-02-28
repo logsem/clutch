@@ -2189,8 +2189,6 @@ Hint Resolve 𝜋_Tick_meas : mf_fun.
 
 
 
-
-
 Lemma 𝜋_LitV_v_sub S : [set 𝜋_LitV_v x | x in vcov_lit `&` 𝜋_LitV_v @^-1` S] `<=` S.
 Proof.
   rewrite /subset//=.

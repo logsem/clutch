@@ -38,12 +38,15 @@ Definition loc_lt : (<<discr loc>> * <<discr loc>>)%type -> <<discr bool>> := as
 
 Definition plus_real : (RR * RR)%type -> RR := uncurry Rplus.
 Definition sub_real  : (RR * RR)%type -> RR := uncurry Rminus.
+Definition mul_real  : (RR * RR)%type -> RR := uncurry Rmult.
 
 Definition le_real : (RR * RR)%type -> <<discr bool>> := asbool \o uncurry Rle.
 Definition lt_real : (RR * RR)%type -> <<discr bool>> := asbool \o uncurry Rlt.
 Definition eq_real : (RR * RR)%type -> <<discr bool>> := asbool \o uncurry eq.
 
-(*  Search measurable_fun realType "lt". *)
+(* FIXME: Change these definitions to whatever is already proven for R
+   The discrete ones should follow from generalized uncurry lemmas (since they're discr + countable)
+   Search measurable_fun realType "lt". *)
 
 Lemma neg_bool_meas_fun   : measurable_fun setT neg_bool. Admitted.
 Lemma neg_int_meas_fun    : measurable_fun setT neg_int. Admitted.
@@ -52,11 +55,12 @@ Lemma minus_real_meas_fun : measurable_fun setT minus_real. Admitted.
 Lemma loc_offset_meas_fun : measurable_fun setT loc_offset. Admitted.
 Lemma loc_le_meas_fun     : measurable_fun setT loc_le. Admitted.
 Lemma loc_lt_meas_fun     : measurable_fun setT loc_lt. Admitted.
-Lemma plus_real_meas_fun  : measurable_fun setT loc_offset. Admitted.
-Lemma sub_real_meas_fun   : measurable_fun setT loc_offset. Admitted.
-Lemma le_real_meas_fun    : measurable_fun setT loc_offset. Admitted.
-Lemma lt_real_meas_fun    : measurable_fun setT loc_offset. Admitted.
-Lemma eq_real_meas_fun    : measurable_fun setT loc_offset. Admitted.
+Lemma plus_real_meas_fun  : measurable_fun setT plus_real. Admitted.
+Lemma sub_real_meas_fun   : measurable_fun setT sub_real. Admitted.
+Lemma mul_real_meas_fun   : measurable_fun setT mul_real. Admitted.
+Lemma le_real_meas_fun    : measurable_fun setT le_real. Admitted.
+Lemma lt_real_meas_fun    : measurable_fun setT lt_real. Admitted.
+Lemma eq_real_meas_fun    : measurable_fun setT eq_real. Admitted.
 
 Hint Resolve neg_bool_meas_fun   : mf_fun.
 Hint Resolve neg_int_meas_fun    : mf_fun.
@@ -234,7 +238,7 @@ Definition bin_op_eval_int (op : <<discr bin_op>>) (n1 n2 : <<discr Z>>) : base_
 
 
 Lemma bin_op_eval_int_measurable_fun : measurable_fun setT (uncurry (uncurry bin_op_eval_int)).
-Proof. (* Product of discrete countable spaces is discrete *) Admitted.
+Proof. (* Generalized uncurry *) Admitted.
 
 (* Only one version of bin_op_eval_bool because its uncurry is measurable *)
 Definition bin_op_eval_bool (op : <<discr bin_op>>) (b1 b2 : <<discr bool>>) : option base_lit :=
@@ -250,12 +254,7 @@ Definition bin_op_eval_bool (op : <<discr bin_op>>) (b1 b2 : <<discr bool>>) : o
   end.
 
 Lemma bin_op_eval_bool_measurable_fun : measurable_fun setT (uncurry (uncurry bin_op_eval_bool)).
-Proof. (* Product of discrete countable spaces is discrete *) Admitted.
-
-
-
-
-
+Proof. (* Generalized uncurry *) Admitted.
 
 Definition bin_op_eval_loc (op : <<discr bin_op>>) (l1 : <<discr loc>>) (v2 : base_lit) : option base_lit :=
   match op, v2 with
@@ -365,19 +364,41 @@ Definition bin_op_eval_real (op : <<discr bin_op>>) (r1 r2 : RR) : option base_l
   | _ => None
   end%R.
 
-Definition bin_op_eval_real'_cov_plus  : set (<<discr bin_op>> * RR * RR)%type. Admitted.
-Definition bin_op_eval_real'_cov_minus : set (<<discr bin_op>> * RR * RR)%type. Admitted.
-Definition bin_op_eval_real'_cov_mul   : set (<<discr bin_op>> * RR * RR)%type. Admitted.
-Definition bin_op_eval_real'_cov_le    : set (<<discr bin_op>> * RR * RR)%type. Admitted.
-Definition bin_op_eval_real'_cov_lt    : set (<<discr bin_op>> * RR * RR)%type. Admitted.
-Definition bin_op_eval_real'_cov_eq    : set (<<discr bin_op>> * RR * RR)%type. Admitted.
+Program Definition bin_op_eval_real'_cov_plus : set (<<discr bin_op>> * RR * RR)%type :=
+  ([set (PlusOp : <<discr bin_op>>)] `*` setT `*` setT).
 
-Lemma bin_op_eval_real'_cov_plus_meas_set  : measurable bin_op_eval_real'_cov_plus. Admitted.
-Lemma bin_op_eval_real'_cov_minus_meas_set : measurable bin_op_eval_real'_cov_minus. Admitted.
-Lemma bin_op_eval_real'_cov_mul_meas_set   : measurable bin_op_eval_real'_cov_mul. Admitted.
-Lemma bin_op_eval_real'_cov_le_meas_set    : measurable bin_op_eval_real'_cov_le. Admitted.
-Lemma bin_op_eval_real'_cov_lt_meas_set    : measurable bin_op_eval_real'_cov_lt. Admitted.
-Lemma bin_op_eval_real'_cov_eq_meas_set    : measurable bin_op_eval_real'_cov_eq. Admitted.
+Definition bin_op_eval_real'_cov_minus : set (<<discr bin_op>> * RR * RR)%type :=
+  ([set (MinusOp : <<discr bin_op>>)] `*` setT `*` setT).
+
+Definition bin_op_eval_real'_cov_mul : set (<<discr bin_op>> * RR * RR)%type :=
+  ([set (MultOp : <<discr bin_op>>)] `*` setT `*` setT).
+
+Definition bin_op_eval_real'_cov_le : set (<<discr bin_op>> * RR * RR)%type :=
+  ([set (LeOp : <<discr bin_op>>)] `*` setT `*` setT).
+
+Definition bin_op_eval_real'_cov_lt : set (<<discr bin_op>> * RR * RR)%type :=
+  ([set (LtOp : <<discr bin_op>>)] `*` setT `*` setT).
+
+Definition bin_op_eval_real'_cov_eq : set (<<discr bin_op>> * RR * RR)%type :=
+  ([set (EqOp : <<discr bin_op>>)] `*` setT `*` setT).
+
+Lemma bin_op_eval_real'_cov_plus_meas_set  : measurable bin_op_eval_real'_cov_plus.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma bin_op_eval_real'_cov_minus_meas_set : measurable bin_op_eval_real'_cov_minus.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma bin_op_eval_real'_cov_mul_meas_set : measurable bin_op_eval_real'_cov_mul.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma bin_op_eval_real'_cov_le_meas_set : measurable bin_op_eval_real'_cov_le.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma bin_op_eval_real'_cov_lt_meas_set : measurable bin_op_eval_real'_cov_lt.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma bin_op_eval_real'_cov_eq_meas_set : measurable bin_op_eval_real'_cov_eq.
+Proof. by ms_unfold; ms_solve. Qed.
 
 Hint Resolve bin_op_eval_real'_cov_plus_meas_set  : mf_set.
 Hint Resolve bin_op_eval_real'_cov_minus_meas_set : mf_set.
@@ -386,19 +407,116 @@ Hint Resolve bin_op_eval_real'_cov_le_meas_set    : mf_set.
 Hint Resolve bin_op_eval_real'_cov_lt_meas_set    : mf_set.
 Hint Resolve bin_op_eval_real'_cov_eq_meas_set    : mf_set.
 
-Definition bin_op_eval_real'_plus  : (<<discr bin_op>> * RR * RR)%type -> option base_lit. Admitted.
-Definition bin_op_eval_real'_minus : (<<discr bin_op>> * RR * RR)%type -> option base_lit. Admitted.
-Definition bin_op_eval_real'_mul   : (<<discr bin_op>> * RR * RR)%type -> option base_lit. Admitted.
-Definition bin_op_eval_real'_le    : (<<discr bin_op>> * RR * RR)%type -> option base_lit. Admitted.
-Definition bin_op_eval_real'_lt    : (<<discr bin_op>> * RR * RR)%type -> option base_lit. Admitted.
-Definition bin_op_eval_real'_eq    : (<<discr bin_op>> * RR * RR)%type -> option base_lit. Admitted.
+Definition bin_op_eval_real'_plus  : (<<discr bin_op>> * RR * RR)%type -> option base_lit :=
+  Some \o LitRealU \o plus_real \o (snd \o fst △ snd).
 
-Lemma bin_op_eval_real'_plus_meas_fun  : measurable_fun bin_op_eval_real'_cov_plus  bin_op_eval_real'_plus.  Admitted.
-Lemma bin_op_eval_real'_minus_meas_fun : measurable_fun bin_op_eval_real'_cov_minus bin_op_eval_real'_minus. Admitted.
-Lemma bin_op_eval_real'_mul_meas_fun   : measurable_fun bin_op_eval_real'_cov_mul   bin_op_eval_real'_mul.   Admitted.
-Lemma bin_op_eval_real'_le_meas_fun    : measurable_fun bin_op_eval_real'_cov_le    bin_op_eval_real'_le.    Admitted.
-Lemma bin_op_eval_real'_lt_meas_fun    : measurable_fun bin_op_eval_real'_cov_lt    bin_op_eval_real'_lt.    Admitted.
-Lemma bin_op_eval_real'_eq_meas_fun    : measurable_fun bin_op_eval_real'_cov_eq    bin_op_eval_real'_eq.    Admitted.
+Definition bin_op_eval_real'_minus : (<<discr bin_op>> * RR * RR)%type -> option base_lit :=
+  Some \o LitRealU \o sub_real \o (snd \o fst △ snd).
+
+Definition bin_op_eval_real'_mul   : (<<discr bin_op>> * RR * RR)%type -> option base_lit :=
+  Some \o LitRealU \o mul_real \o (snd \o fst △ snd).
+
+Definition bin_op_eval_real'_le    : (<<discr bin_op>> * RR * RR)%type -> option base_lit :=
+  Some \o LitBoolU \o le_real \o (snd \o fst △ snd).
+
+Definition bin_op_eval_real'_lt    : (<<discr bin_op>> * RR * RR)%type -> option base_lit :=
+  Some \o LitBoolU \o lt_real \o (snd \o fst △ snd).
+
+Definition bin_op_eval_real'_eq    : (<<discr bin_op>> * RR * RR)%type -> option base_lit :=
+  Some \o LitBoolU \o eq_real \o (snd \o fst △ snd).
+
+Lemma bin_op_eval_real'_plus_meas_fun  : measurable_fun bin_op_eval_real'_cov_plus  bin_op_eval_real'_plus.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree.
+  { mf_cmp_tree; last by apply plus_real_meas_fun.
+    mf_cmp_tree.
+    { by apply Some_meas_fun. }
+    { by apply LitRealU_meas_fun. }}
+  { mf_prod.
+    { mf_cmp_fst; first by ms_solve.
+      apply @measurable_snd_restriction.
+      by ms_solve. }
+    { apply @measurable_snd_restriction.
+      by ms_solve. }}
+Qed.
+
+Lemma bin_op_eval_real'_minus_meas_fun : measurable_fun bin_op_eval_real'_cov_minus bin_op_eval_real'_minus.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree.
+  { mf_cmp_tree; last by apply sub_real_meas_fun.
+    mf_cmp_tree.
+    { by apply Some_meas_fun. }
+    { by apply LitRealU_meas_fun. }}
+  { mf_prod.
+    { mf_cmp_fst; first by ms_solve.
+      apply @measurable_snd_restriction.
+      by ms_solve. }
+    { apply @measurable_snd_restriction.
+      by ms_solve. }}
+Qed.
+
+Lemma bin_op_eval_real'_mul_meas_fun   : measurable_fun bin_op_eval_real'_cov_mul   bin_op_eval_real'_mul.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree.
+  { mf_cmp_tree; last by apply mul_real_meas_fun.
+    mf_cmp_tree.
+    { by apply Some_meas_fun. }
+    { by apply LitRealU_meas_fun. }}
+  { mf_prod.
+    { mf_cmp_fst; first by ms_solve.
+      apply @measurable_snd_restriction.
+      by ms_solve. }
+    { apply @measurable_snd_restriction.
+      by ms_solve. }}
+Qed.
+
+Lemma bin_op_eval_real'_le_meas_fun    : measurable_fun bin_op_eval_real'_cov_le    bin_op_eval_real'_le.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree.
+  { mf_cmp_tree; last by apply le_real_meas_fun.
+    mf_cmp_tree.
+    by apply Some_meas_fun. }
+  { mf_prod.
+    { mf_cmp_fst; first by ms_solve.
+      apply @measurable_snd_restriction.
+      by ms_solve. }
+    { apply @measurable_snd_restriction.
+      by ms_solve. }}
+Qed.
+
+Lemma bin_op_eval_real'_lt_meas_fun    : measurable_fun bin_op_eval_real'_cov_lt    bin_op_eval_real'_lt.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree.
+  { mf_cmp_tree; last by apply lt_real_meas_fun.
+    mf_cmp_tree.
+    by apply Some_meas_fun. }
+  { mf_prod.
+    { mf_cmp_fst; first by ms_solve.
+      apply @measurable_snd_restriction.
+      by ms_solve. }
+    { apply @measurable_snd_restriction.
+      by ms_solve. }}
+Qed.
+
+Lemma bin_op_eval_real'_eq_meas_fun    : measurable_fun bin_op_eval_real'_cov_eq    bin_op_eval_real'_eq.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree.
+  { mf_cmp_tree; last by apply eq_real_meas_fun.
+    mf_cmp_tree.
+    by apply Some_meas_fun. }
+  { mf_prod.
+    { mf_cmp_fst; first by ms_solve.
+      apply @measurable_snd_restriction.
+      by ms_solve. }
+    { apply @measurable_snd_restriction.
+      by ms_solve. }}
+Qed.
 
 Hint Resolve bin_op_eval_real'_plus_meas_fun  : mf_fun.
 Hint Resolve bin_op_eval_real'_minus_meas_fun : mf_fun.

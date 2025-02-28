@@ -59,6 +59,7 @@ Section discr_meas_fun.
   Proof. by rewrite /measurable_fun/measurable/discr_measurable//. Qed.
 End discr_meas_fun.
 
+
 Section fin_pointed.
   Local Open Scope ereal_scope.
   Context {R : realType}.
