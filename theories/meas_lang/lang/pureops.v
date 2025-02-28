@@ -353,7 +353,7 @@ Lemma bin_op_eval'_loc_meas_fun : measurable_fun setT bin_op_eval'_loc. Admitted
 Hint Resolve bin_op_eval'_loc_meas_fun : mf_fun.
 
 (* bin_op_eval_real: Normal (reducible) version *)
-Definition bin_op_eval_real (op : <<discr bin_op>>) (r1 r2 : ((R : realType) : measurableType _)) : option base_lit :=
+Definition bin_op_eval_real (op : <<discr bin_op>>) (r1 r2 : RR) : option base_lit :=
   match op with
   | PlusOp => Some $ LitReal (r1 + r2)
   | MinusOp => Some $ LitReal (r1 - r2)
@@ -364,12 +364,12 @@ Definition bin_op_eval_real (op : <<discr bin_op>>) (r1 r2 : ((R : realType) : m
   | _ => None
   end%R.
 
-Definition bin_op_eval_real'_cov_plus  : set (<<discr bin_op>> * ((R : realType) : measurableType _) * ((R : realType) : measurableType _)). Admitted.
-Definition bin_op_eval_real'_cov_minus : set (<<discr bin_op>> * ((R : realType) : measurableType _) * ((R : realType) : measurableType _)). Admitted.
-Definition bin_op_eval_real'_cov_mul   : set (<<discr bin_op>> * ((R : realType) : measurableType _) * ((R : realType) : measurableType _)). Admitted.
-Definition bin_op_eval_real'_cov_le    : set (<<discr bin_op>> * ((R : realType) : measurableType _) * ((R : realType) : measurableType _)). Admitted.
-Definition bin_op_eval_real'_cov_lt    : set (<<discr bin_op>> * ((R : realType) : measurableType _) * ((R : realType) : measurableType _)). Admitted.
-Definition bin_op_eval_real'_cov_eq    : set (<<discr bin_op>> * ((R : realType) : measurableType _) * ((R : realType) : measurableType _)). Admitted.
+Definition bin_op_eval_real'_cov_plus  : set (<<discr bin_op>> * RR * RR)%type. Admitted.
+Definition bin_op_eval_real'_cov_minus : set (<<discr bin_op>> * RR * RR)%type. Admitted.
+Definition bin_op_eval_real'_cov_mul   : set (<<discr bin_op>> * RR * RR)%type. Admitted.
+Definition bin_op_eval_real'_cov_le    : set (<<discr bin_op>> * RR * RR)%type. Admitted.
+Definition bin_op_eval_real'_cov_lt    : set (<<discr bin_op>> * RR * RR)%type. Admitted.
+Definition bin_op_eval_real'_cov_eq    : set (<<discr bin_op>> * RR * RR)%type. Admitted.
 
 Lemma bin_op_eval_real'_cov_plus_meas_set  : measurable bin_op_eval_real'_cov_plus. Admitted.
 Lemma bin_op_eval_real'_cov_minus_meas_set : measurable bin_op_eval_real'_cov_minus. Admitted.
@@ -385,12 +385,12 @@ Hint Resolve bin_op_eval_real'_cov_le_meas_set    : mf_set.
 Hint Resolve bin_op_eval_real'_cov_lt_meas_set    : mf_set.
 Hint Resolve bin_op_eval_real'_cov_eq_meas_set    : mf_set.
 
-Definition bin_op_eval_real'_plus  : (<<discr bin_op>> * ((R : realType) : measurableType _) * ((R : realType) : measurableType _)) -> option base_lit. Admitted.
-Definition bin_op_eval_real'_minus : (<<discr bin_op>> * ((R : realType) : measurableType _) * ((R : realType) : measurableType _)) -> option base_lit. Admitted.
-Definition bin_op_eval_real'_mul   : (<<discr bin_op>> * ((R : realType) : measurableType _) * ((R : realType) : measurableType _)) -> option base_lit. Admitted.
-Definition bin_op_eval_real'_le    : (<<discr bin_op>> * ((R : realType) : measurableType _) * ((R : realType) : measurableType _)) -> option base_lit. Admitted.
-Definition bin_op_eval_real'_lt    : (<<discr bin_op>> * ((R : realType) : measurableType _) * ((R : realType) : measurableType _)) -> option base_lit. Admitted.
-Definition bin_op_eval_real'_eq    : (<<discr bin_op>> * ((R : realType) : measurableType _) * ((R : realType) : measurableType _)) -> option base_lit. Admitted.
+Definition bin_op_eval_real'_plus  : (<<discr bin_op>> * RR * RR)%type -> option base_lit. Admitted.
+Definition bin_op_eval_real'_minus : (<<discr bin_op>> * RR * RR)%type -> option base_lit. Admitted.
+Definition bin_op_eval_real'_mul   : (<<discr bin_op>> * RR * RR)%type -> option base_lit. Admitted.
+Definition bin_op_eval_real'_le    : (<<discr bin_op>> * RR * RR)%type -> option base_lit. Admitted.
+Definition bin_op_eval_real'_lt    : (<<discr bin_op>> * RR * RR)%type -> option base_lit. Admitted.
+Definition bin_op_eval_real'_eq    : (<<discr bin_op>> * RR * RR)%type -> option base_lit. Admitted.
 
 Lemma bin_op_eval_real'_plus_meas_fun  : measurable_fun bin_op_eval_real'_cov_plus  bin_op_eval_real'_plus.  Admitted.
 Lemma bin_op_eval_real'_minus_meas_fun : measurable_fun bin_op_eval_real'_cov_minus bin_op_eval_real'_minus. Admitted.
