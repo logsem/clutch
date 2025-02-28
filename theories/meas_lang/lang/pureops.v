@@ -127,6 +127,10 @@ Definition neg_int    : <<discr Z>> -> <<discr Z>>  := Z.lnot.
 Definition minus_int  : <<discr Z>> -> <<discr Z>>  := Z.opp.
 Definition minus_real : ((R : realType) : measurableType _) -> ((R : realType) : measurableType _) := Ropp.
 
+Definition loc_offset : (<<discr loc>> * <<discr Z>>)%type -> <<discr loc>> := uncurry (fun x y => x +ₗ y).
+Definition loc_le : (<<discr loc>> * <<discr loc>>)%type -> <<discr loc>>. Admitted.
+Definition loc_lt : (<<discr loc>> * <<discr loc>>)%type -> <<discr loc>>. Admitted.
+
 Definition plus_real : (((R : realType) : measurableType _) * ((R : realType) : measurableType _))%type ->
                        ((R : realType) : measurableType _) := uncurry Rplus.
 Definition sub_real : (((R : realType) : measurableType _) * ((R : realType) : measurableType _))%type ->
@@ -136,15 +140,31 @@ Definition le_real : (((R : realType) : measurableType _) * ((R : realType) : me
 Definition lt_real : (((R : realType) : measurableType _) * ((R : realType) : measurableType _))%type -> <<discr bool>>. Admitted.
 Definition eq_real : (((R : realType) : measurableType _) * ((R : realType) : measurableType _))%type -> <<discr bool>>. Admitted.
 
-Lemma neg_bool_meas_fun : measurable_fun setT neg_bool. Admitted.
-Lemma neg_int_meas_fun : measurable_fun setT neg_int. Admitted.
-Lemma minus_int_meas_fun : measurable_fun setT minus_int. Admitted.
+Lemma neg_bool_meas_fun   : measurable_fun setT neg_bool. Admitted.
+Lemma neg_int_meas_fun    : measurable_fun setT neg_int. Admitted.
+Lemma minus_int_meas_fun  : measurable_fun setT minus_int. Admitted.
 Lemma minus_real_meas_fun : measurable_fun setT minus_real. Admitted.
+Lemma loc_offset_meas_fun : measurable_fun setT loc_offset. Admitted.
+Lemma loc_le_meas_fun     : measurable_fun setT loc_le. Admitted.
+Lemma loc_lt_meas_fun     : measurable_fun setT loc_lt. Admitted.
+Lemma plus_real_meas_fun  : measurable_fun setT loc_offset. Admitted.
+Lemma sub_real_meas_fun   : measurable_fun setT loc_offset. Admitted.
+Lemma le_real_meas_fun    : measurable_fun setT loc_offset. Admitted.
+Lemma lt_real_meas_fun    : measurable_fun setT loc_offset. Admitted.
+Lemma eq_real_meas_fun    : measurable_fun setT loc_offset. Admitted.
 
-Hint Resolve neg_bool_meas_fun : mf_fun.
-Hint Resolve neg_int_meas_fun : mf_fun.
-Hint Resolve minus_int_meas_fun : mf_fun.
+Hint Resolve neg_bool_meas_fun   : mf_fun.
+Hint Resolve neg_int_meas_fun    : mf_fun.
+Hint Resolve minus_int_meas_fun  : mf_fun.
 Hint Resolve minus_real_meas_fun : mf_fun.
+Hint Resolve loc_offset_meas_fun : mf_fun.
+Hint Resolve loc_le_meas_fun     : mf_fun.
+Hint Resolve loc_lt_meas_fun     : mf_fun.
+Hint Resolve plus_real_meas_fun  : mf_fun.
+Hint Resolve sub_real_meas_fun   : mf_fun.
+Hint Resolve le_real_meas_fun    : mf_fun.
+Hint Resolve lt_real_meas_fun    : mf_fun.
+Hint Resolve eq_real_meas_fun    : mf_fun.
 
 End arithmetic.
 
@@ -360,25 +380,85 @@ Definition bin_op_eval_loc (op : <<discr bin_op>>) (l1 : <<discr loc>>) (v2 : ba
   end.
 
 
-Definition bin_op_eval'_loc_cov_offset_int : set (<<discr bin_op>> * <<discr loc>> * base_lit). Admitted.
-Definition bin_op_eval'_loc_cov_le_loc     : set (<<discr bin_op>> * <<discr loc>> * base_lit). Admitted.
-Definition bin_op_eval'_loc_cov_lt_loc     : set (<<discr bin_op>> * <<discr loc>> * base_lit). Admitted.
+Definition bin_op_eval'_loc_cov_offset_int : set (<<discr bin_op>> * <<discr loc>> * base_lit) :=
+  setX (setX [set OffsetOp] setT) bcov_LitInt.
+Definition bin_op_eval'_loc_cov_le_loc : set (<<discr bin_op>> * <<discr loc>> * base_lit) :=
+  setX (setX [set LeOp] setT) bcov_LitLoc.
+Definition bin_op_eval'_loc_cov_lt_loc : set (<<discr bin_op>> * <<discr loc>> * base_lit) :=
+  setX (setX [set LtOp] setT) bcov_LitLoc.
 
-Lemma bin_op_eval'_loc_cov_offset_int_meas_set : measurable bin_op_eval'_loc_cov_offset_int. Admitted.
-Lemma bin_op_eval'_loc_cov_le_loc_meas_set     : measurable bin_op_eval'_loc_cov_le_loc. Admitted.
-Lemma bin_op_eval'_loc_cov_lt_loc_meas_set     : measurable bin_op_eval'_loc_cov_lt_loc. Admitted.
+Lemma bin_op_eval'_loc_cov_offset_int_meas_set : measurable bin_op_eval'_loc_cov_offset_int.
+Proof. ms_unfold; ms_prod; [ ms_prod |]; by ms_done. Qed.
+
+Lemma bin_op_eval'_loc_cov_le_loc_meas_set : measurable bin_op_eval'_loc_cov_le_loc.
+Proof. ms_unfold; ms_prod; [ ms_prod |]; by ms_done. Qed.
+
+Lemma bin_op_eval'_loc_cov_lt_loc_meas_set : measurable bin_op_eval'_loc_cov_lt_loc.
+Proof. ms_unfold; ms_prod; [ ms_prod |]; by ms_done. Qed.
 
 Hint Resolve bin_op_eval'_loc_cov_offset_int_meas_set : mf_set.
 Hint Resolve bin_op_eval'_loc_cov_le_loc_meas_set     : mf_set.
 Hint Resolve bin_op_eval'_loc_cov_lt_loc_meas_set     : mf_set.
 
-Definition bin_op_eval'_loc_offset_int : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option base_lit. Admitted.
-Definition bin_op_eval'_loc_le_loc     : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option base_lit. Admitted.
-Definition bin_op_eval'_loc_lt_loc     : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option base_lit. Admitted.
+Definition bin_op_eval'_loc_offset_int : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option base_lit :=
+  Some \o LitLocU \o loc_offset \o (snd \o fst △ 𝜋_LitInt_z \o snd).
 
-Lemma bin_op_eval'_loc_offset_int_meas_fun : measurable_fun bin_op_eval'_loc_cov_offset_int bin_op_eval'_loc_offset_int. Admitted.
-Lemma bin_op_eval'_loc_le_loc_meas_fun     : measurable_fun bin_op_eval'_loc_cov_le_loc     bin_op_eval'_loc_le_loc.     Admitted.
-Lemma bin_op_eval'_loc_lt_loc_meas_fun     : measurable_fun bin_op_eval'_loc_cov_lt_loc     bin_op_eval'_loc_lt_loc.     Admitted.
+Definition bin_op_eval'_loc_le_loc : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option base_lit :=
+  Some \o LitLocU \o loc_le \o (snd \o fst △ 𝜋_LitLoc_l \o snd).
+
+Program Definition bin_op_eval'_loc_lt_loc : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option base_lit :=
+  Some \o LitLocU \o loc_lt \o (snd \o fst △ 𝜋_LitLoc_l \o snd).
+
+
+Ltac mf_prod :=
+  match goal with
+  | |- (measurable_fun ?S (?f △ ?g)) => apply (measurable_fun_prod' f g S); [ try by ms_solve | try by mf_done | try by mf_done ]
+  end.
+
+Lemma bin_op_eval'_loc_offset_int_meas_fun : measurable_fun bin_op_eval'_loc_cov_offset_int bin_op_eval'_loc_offset_int.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree.
+  - mf_cmp_tree; last by eapply loc_offset_meas_fun.
+    mf_cmp_tree.
+    by apply Some_meas_fun.
+  - mf_prod.
+    + mf_cmp_fst; first by ms_solve.
+      eapply (@measurable_snd_restriction _ _ <<discr bin_op>> <<discr loc>>).
+      by ms_solve.
+    + mf_cmp_snd; first by ms_solve.
+      by mf_done.
+Qed.
+
+Lemma bin_op_eval'_loc_le_loc_meas_fun : measurable_fun bin_op_eval'_loc_cov_le_loc bin_op_eval'_loc_le_loc.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree.
+  - mf_cmp_tree; last by eapply loc_le_meas_fun.
+    mf_cmp_tree.
+    by apply Some_meas_fun.
+  - mf_prod.
+    + mf_cmp_fst; first by ms_solve.
+      eapply (@measurable_snd_restriction _ _ <<discr bin_op>> <<discr loc>>).
+      by ms_solve.
+    + mf_cmp_snd; first by ms_solve.
+      by mf_done.
+Qed.
+
+Lemma bin_op_eval'_loc_lt_loc_meas_fun : measurable_fun bin_op_eval'_loc_cov_lt_loc bin_op_eval'_loc_lt_loc.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree.
+  - mf_cmp_tree; last by eapply loc_lt_meas_fun.
+    mf_cmp_tree.
+    by apply Some_meas_fun.
+  - mf_prod.
+    + mf_cmp_fst; first by ms_solve.
+      eapply (@measurable_snd_restriction _ _ <<discr bin_op>> <<discr loc>>).
+      by ms_solve.
+    + mf_cmp_snd; first by ms_solve.
+      by mf_done.
+Qed.
 
 Hint Resolve bin_op_eval'_loc_offset_int_meas_fun : mf_fun.
 Hint Resolve bin_op_eval'_loc_le_loc_meas_fun     : mf_fun.
