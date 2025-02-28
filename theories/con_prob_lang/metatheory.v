@@ -1,11 +1,12 @@
 From Coq Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap fin_sets.
-From coneris.prelude Require Import stdpp_ext NNRbar fin uniform_list.
-From coneris.prob Require Import distribution couplings couplings_app.
+From stdpp Require Import countable.
+From coneris.prelude Require Import base Coquelicot_ext Reals_ext stdpp_ext NNRbar fin uniform_list.
+From coneris.prob Require Import distribution couplings.
 From coneris.common Require Import ectx_language.
 From coneris.con_prob_lang Require Import tactics notation.
 From coneris.con_prob_lang Require Export lang.
-From coneris.prob Require Import distribution couplings.
+From coneris.prob Require Import countable_sum graded_predicate_lifting distribution couplings.
 From iris.prelude Require Import options.
 Set Default Proof Using "Type*".
 (* This file contains some metatheory about the [con_prob_lang] language *)

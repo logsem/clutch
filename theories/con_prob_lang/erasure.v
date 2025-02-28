@@ -4,7 +4,7 @@ From stdpp Require Import fin_maps fin_map_dom.
 From coneris.prelude Require Import stdpp_ext.
 From coneris.common Require Import con_language con_ectx_language sch_erasable.
 From coneris.con_prob_lang Require Import notation lang metatheory.
-From coneris.prob Require Import couplings couplings_app mdp.
+From coneris.prob Require Import couplings mdp.
 
 Set Default Proof Using "Type*".
 Local Open Scope R.
