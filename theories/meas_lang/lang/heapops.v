@@ -21,36 +21,33 @@ Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.
 
-Definition state_loadC : (<<discr loc>> * state)%type -> val :=
-  of_option $ ssrfun.comp hp_evalC $ mProd fst (ssrfun.comp heap snd).
-
+Definition load_eval_cov_ok : set (<<discr loc>> * state)%type. Admitted.
+(*
 Definition auxcov_load_ok : set (<<discr loc>> * state)%type :=
   preimage (ssrfun.comp hp_evalC $ mProd fst (ssrfun.comp heap snd)) option_cov_Some.
+*)
 
-Definition auxcov_load_stuck : set (<<discr loc>> * state)%type :=
-  ~` auxcov_load_ok.
+Lemma load_eval_cov_ok_meas_set : measurable load_eval_cov_ok. Admitted.
+(*
+By the measurablity of that function
+ *)
 
-Lemma auxcov_load_ok_meas : measurable auxcov_load_ok.
-Proof.
-  suffices HM : measurable_fun setT (ssrfun.comp hp_evalC $ mProd fst (ssrfun.comp heap snd)).
-  { unfold auxcov_load_ok.
-    rewrite <- (setTI (preimage _ _)).
-    apply HM; try by eauto with measlang.
-    by apply option_cov_Some_meas_set. }
-  (* Doable *)
-Admitted.
-Hint Resolve auxcov_load_ok_meas : measlang.
+Hint Resolve load_eval_cov_ok_meas_set : mf_set.
 
-Lemma auxcov_load_stuck_meas : measurable auxcov_load_stuck.
-Proof. by apply measurableC, auxcov_load_ok_meas. Qed.
-Hint Resolve auxcov_load_stuck_meas : measlang.
+Definition load_eval_ok : (<<discr loc>> * state)%type -> giryM cfg :=
+  gRet \o (ValU \o of_option (hp_evalC \o (fst △ heap \o snd)) △ snd).
 
-Lemma state_loadC_meas : measurable_fun auxcov_load_ok state_loadC.
-Proof.
-  (* Cover with auxcov_load_ok, load_stuck *)
-  (* Constant on the latter, measurable on the former *)
-Admitted.
-Hint Resolve state_loadC_meas : measlang.
+Lemma load_eval_ok_meas_fun : measurable_fun load_eval_cov_ok load_eval_ok. Admitted.
+
+Definition load_eval : (<<discr loc>> * state)%type -> giryM cfg :=
+  if_in load_eval_cov_ok load_eval_ok (cst gZero).
+
+Lemma load_eval_meas_fun : measurable_fun setT load_eval. Admitted.
+
+Hint Resolve load_eval_meas_fun : mf_fun.
+
+
+
 
 
 (*
@@ -61,6 +58,44 @@ Hint Resolve state_loadC_meas : measlang.
             giryM_ret R ((Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1) : cfg)
           else giryM_zero
 *)
+
+(* Case split on whether a finite or infinite *)
+Definition alloc_eval_cov_ok : set (val * state)%type. Admitted.
+
+Lemma alloc_eval_cov_ok_meas_set : measurable alloc_eval_cov_ok. Admitted.
+
+Hint Resolve alloc_eval_cov_ok_meas_set : mf_set.
+
+
+Definition alloc_eval_ok : (val * state)%type -> giryM cfg :=
+  gRet \o (ValU \o LitVU \o LitLocU \o fresh \o heap \o snd △
+          (state_of_prod \o
+            ( hp_updateC \o (fresh \o heap \o snd △ (Some \o fst △ heap \o snd))
+            △ tapes \o snd
+            △ utapes \o snd))).
+
+Lemma alloc_eval_ok_meas_fun : measurable_fun alloc_eval_cov_ok alloc_eval_ok. Admitted.
+
+Hint Resolve alloc_eval_ok_meas_fun : mf_fun.
+
+Definition alloc_eval : (val * state)%type -> giryM cfg :=
+  if_in alloc_eval_cov_ok alloc_eval_ok (cst gZero).
+
+Lemma alloc_eval_meas_fun : measurable_fun setT alloc_eval. Admitted.
+
+Hint Resolve alloc_eval_ok_meas_fun : mf_fun.
+
+
+
+
+
+
+(*
+
+
+
+
+
 
 (* AllocN: the state part of the result *)
 
@@ -164,3 +199,4 @@ Lemma state_storeE_meas : measurable_fun auxcov_store_ok state_storeE.
 Proof.
 Admitted.
 Hint Resolve state_storeE_meas : measlang.
+*)
