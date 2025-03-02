@@ -23,18 +23,101 @@ Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.
 
+Local Notation RR := ((R : realType) : measurableType _)%type.
+
+(* FIXME: Move *)
 Section unif.
   Local Open Scope ereal_scope.
-  Local Open Scope classical_set_scope.
 
-  Context {R : realType}.
-  (* Uniform space over [0, 1
-  Definition unif_base : subprobability _ _ := uniform_prob (@Num.Internals.ltr01 TR). *)
 
-  (** FIXME: Type conversion *)
-  Axiom (unif_base_ax : giryM R).
+  Axiom unif_base : giryM RR.
+    (* broken, how do
+        := @uniform_prob _ _ _ _.
+        (@Num.Internals.ltr01 TR). *)
+
+  Axiom unifN_base : <<discr Z>> -> giryM <<discr Z>>.
+
+  Lemma unifN_base_meas_fun : measurable_fun setT unifN_base.
+  Proof. (* Function from discrete *) Admitted.
+  Hint Resolve unifN_base_meas_fun : mf_fun.
 
 End unif.
+
+
+Definition AllocTape_eval_cov_ok         : set (<<discr Z>> * state)%type. Admitted.
+Definition AllocUTape_eval_cov_ok        : set state. Admitted.
+Definition RandT_eval_cov_ok             : set (<<discr Z>> * <<discr loc>> * state)%type. Admitted.
+Definition RandT_eval_cov_notape         : set (<<discr Z>> * <<discr loc>> * state)%type. Admitted.
+Definition RandT_eval_cov_nextEmpty      : set (<<discr Z>> * <<discr loc>> * state)%type. Admitted.
+Definition RandT_eval_cov_boundMismatch  : set (<<discr Z>> * <<discr loc>> * state)%type. Admitted.
+Definition URandT_eval_cov_ok            : set (<<discr loc>> * state)%type. Admitted.
+Definition URandT_eval_cov_noTape        : set (<<discr loc>> * state)%type. Admitted.
+Definition URandT_eval_cov_nextEmpty     : set (<<discr loc>> * state)%type. Admitted.
+
+Lemma AllocTape_eval_cov_ok_meas_set         : measurable AllocTape_eval_cov_ok. Admitted.
+Lemma AllocUTape_eval_cov_ok_meas_set        : measurable AllocUTape_eval_cov_ok. Admitted.
+Lemma RandT_eval_cov_ok_meas_set             : measurable RandT_eval_cov_ok. Admitted.
+Lemma RandT_eval_cov_notape_meas_set         : measurable RandT_eval_cov_notape. Admitted.
+Lemma RandT_eval_cov_nextEmpty_meas_set      : measurable RandT_eval_cov_nextEmpty. Admitted.
+Lemma RandT_eval_cov_boundMismatch_meas_set  : measurable RandT_eval_cov_boundMismatch. Admitted.
+Lemma URandT_eval_cov_ok_meas_set            : measurable URandT_eval_cov_ok. Admitted.
+Lemma URandT_eval_cov_noTape_meas_set        : measurable URandT_eval_cov_noTape. Admitted.
+Lemma URandT_eval_cov_nextEmpty_meas_set     : measurable URandT_eval_cov_nextEmpty. Admitted.
+
+Hint Resolve AllocTape_eval_cov_ok_meas_set         : mf_set.
+Hint Resolve AllocUTape_eval_cov_ok_meas_set        : mf_set.
+Hint Resolve RandT_eval_cov_ok_meas_set             : mf_set.
+Hint Resolve RandT_eval_cov_notape_meas_set         : mf_set.
+Hint Resolve RandT_eval_cov_nextEmpty_meas_set      : mf_set.
+Hint Resolve RandT_eval_cov_boundMismatch_meas_set  : mf_set.
+Hint Resolve URandT_eval_cov_ok_meas_set            : mf_set.
+Hint Resolve URandT_eval_cov_noTape_meas_set        : mf_set.
+Hint Resolve URandT_eval_cov_nextEmpty_meas_set     : mf_set.
+
+Definition AllocTape_eval_ok         : (<<discr Z>> * state)%type -> giryM cfg. Admitted.
+Definition AllocUTape_eval_ok        : state -> giryM cfg. Admitted.
+Definition RandT_eval_ok             : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg. Admitted.
+Definition RandT_eval_nextEmpty      : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg. Admitted.
+Definition RandT_eval_boundMismatch  : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg. Admitted.
+Definition URandT_eval_ok            : (<<discr loc>> * state)%type -> giryM cfg. Admitted.
+Definition URandT_eval_nextEmpty     : (<<discr loc>> * state)%type -> giryM cfg. Admitted.
+
+Lemma AllocTape_eval_ok_meas_fun         : measurable_fun AllocTape_eval_cov_ok AllocTape_eval_ok. Admitted.
+Lemma AllocUTape_eval_ok_meas_fun        : measurable_fun AllocUTape_eval_cov_ok AllocUTape_eval_ok. Admitted.
+Lemma RandT_eval_ok_meas_fun             : measurable_fun RandT_eval_cov_ok RandT_eval_ok. Admitted.
+Lemma RandT_eval_nextEmpty_meas_fun      : measurable_fun RandT_eval_cov_nextEmpty RandT_eval_nextEmpty. Admitted.
+Lemma RandT_eval_boundMismatch_meas_fun  : measurable_fun RandT_eval_cov_boundMismatch RandT_eval_boundMismatch. Admitted.
+Lemma URandT_eval_ok_meas_fun            : measurable_fun URandT_eval_cov_ok URandT_eval_ok. Admitted.
+Lemma URandT_eval_nextEmpty_meas_fun     : measurable_fun URandT_eval_cov_nextEmpty URandT_eval_nextEmpty. Admitted.
+
+Hint Resolve AllocTape_eval_ok_meas_fun         : mf_fun.
+Hint Resolve AllocUTape_eval_ok_meas_fun        : mf_fun.
+Hint Resolve RandT_eval_ok_meas_fun             : mf_fun.
+Hint Resolve RandT_eval_nextEmpty_meas_fun      : mf_fun.
+Hint Resolve RandT_eval_boundMismatch_meas_fun  : mf_fun.
+Hint Resolve URandT_eval_ok_meas_fun            : mf_fun.
+Hint Resolve URandT_eval_nextEmpty_meas_fun     : mf_fun.
+
+Definition AllocTape_eval  : (<<discr Z>> * state)%type -> giryM cfg. Admitted.
+Definition AllocUTape_eval : state -> giryM cfg. Admitted.
+Definition Rand_eval       : <<discr Z>> -> giryM cfg. Admitted.
+Definition URand_eval      : giryM cfg. Admitted.
+Definition RandT_eval      : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg. Admitted.
+Definition URandT_eval     : (<<discr loc>> * state)%type -> giryM cfg. Admitted.
+
+Lemma AllocTape_eval_meas_fun  : measurable_fun setT AllocTape_eval. Admitted.
+Lemma AllocUTape_eval_meas_fun : measurable_fun setT AllocUTape_eval. Admitted.
+Lemma Rand_eval_meas_fun       : measurable_fun setT Rand_eval. Admitted.
+Lemma RandT_eval_meas_fun      : measurable_fun setT RandT_eval. Admitted.
+Lemma URandT_eval_meas_fun     : measurable_fun setT URandT_eval. Admitted.
+
+Hint Resolve AllocTape_eval_meas_fun  : mf_fun.
+Hint Resolve AllocUTape_eval_meas_fun : mf_fun.
+Hint Resolve Rand_eval_meas_fun       : mf_fun.
+Hint Resolve RandT_eval_meas_fun      : mf_fun.
+Hint Resolve URandT_eval_meas_fun     : mf_fun.
+
+(*
 
 
 (*
@@ -644,3 +727,4 @@ Definition rand_urandT : (<<discr loc>> * state)%type -> giryM cfg :=
 Lemma rand_urandT_meas : measurable_fun setT rand_urandT.
 Proof. Admitted.
 Hint Resolve rand_urandT_meas : measlang.
+*)
