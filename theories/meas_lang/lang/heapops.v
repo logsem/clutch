@@ -86,10 +86,93 @@ Lemma alloc_eval_meas_fun : measurable_fun setT alloc_eval. Admitted.
 Hint Resolve alloc_eval_ok_meas_fun : mf_fun.
 
 
+(*
+    | Store (Val (LitV (LitLoc l))) (Val w) =>
+        match σ1.(heap) !! l with
+          | Some v => giryM_ret R ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : cfg)
+          | None => giryM_zero
+        end
+ *)
+
+(* The set of all states that are allocated at l. *)
+Definition state_heap_alloc_at : set (<<discr loc>> * state)%type. Admitted.
+
+(* Suffices to show it's measurable for every l because discrete + countable
+The set is the preimage of [set Some _] under heap evaluation at l. *)
+Lemma state_heap_alloc_at_meas_set : measurable state_heap_alloc_at. Admitted.
+
+(* Plonk a value into the middle of state_heap_alloc_at *)
+Definition store_eval_cov_ok : set (<<discr loc>> * val * state)%type. Admitted.
+
+Lemma store_eval_cov_ok_meas_set : measurable store_eval_cov_ok. Admitted.
+
+Hint Resolve store_eval_cov_ok_meas_set : mf_set.
+
+Definition store_eval_ok : (<<discr loc>> * val * state)%type -> giryM cfg :=
+  gRet \o (cst (ValU $ LitVU LitUnit) △
+           state_of_prod \o (hp_updateC \o (fst \o fst △ (Some \o snd \o fst △ heap \o snd))
+                            △ tapes \o snd
+                            △ utapes \o snd)).
+
+Lemma store_eval_ok_meas_fun : measurable_fun store_eval_cov_ok store_eval_ok. Admitted.
+
+Hint Resolve store_eval_ok_meas_fun : mf_fun.
+
+Definition store_eval : (<<discr loc>> * val * state)%type -> giryM cfg :=
+  if_in store_eval_cov_ok store_eval_ok (cst gZero).
+
+Lemma store_eval_meas_fun : measurable_fun setT store_eval. Admitted.
+
+Hint Resolve store_eval_meas_fun : mf_fun.
 
 
 
 
+(*
+(* store: the state part of the result *)
+Definition state_storeS : <<discr loc>> * val * state -> state :=
+  ssrfun.comp state_of_prod $
+  mProd
+    (mProd
+      (ssrfun.comp hp_updateC $
+       mProd
+         (ssrfun.comp fst fst)
+         (mProd
+            (ssrfun.comp Some $ ssrfun.comp snd fst)
+            (ssrfun.comp heap snd)))
+      (ssrfun.comp tapes snd))
+  (ssrfun.comp utapes snd).
+
+(* store: the expression part of the result *)
+Definition state_storeE : (<<discr loc>> * val * state) -> expr :=
+  cst $ ValU $ LitV $ LitUnit.
+
+Definition auxcov_store_ok : set (<<discr loc>> * val * state)%type :=
+  preimage
+    (ssrfun.comp hp_evalC $ mProd (ssrfun.comp fst fst) (ssrfun.comp heap snd))
+    (@option_cov_Some _ val).
+
+Definition auxcov_store_stuck : set (<<discr loc>> * val * state)%type :=
+  ~` auxcov_store_ok.
+
+Lemma auxcov_store_ok_meas : measurable auxcov_store_ok.
+Proof. Admitted.
+Hint Resolve auxcov_store_ok_meas : measlang.
+
+Lemma auxcov_store_stuck_meas : measurable auxcov_store_stuck.
+Proof. Admitted.
+Hint Resolve auxcov_store_stuck_meas : measlang.
+
+Lemma state_storeS_meas : measurable_fun auxcov_store_ok state_storeS.
+Proof.
+Admitted.
+Hint Resolve state_storeS_meas : measlang.
+
+Lemma state_storeE_meas : measurable_fun auxcov_store_ok state_storeE.
+Proof.
+Admitted.
+Hint Resolve state_storeE_meas : measlang.
+*)
 (*
 
 
@@ -146,57 +229,4 @@ Proof.
 Admitted.
 Hint Resolve state_allocNCS_meas : measlang.
 
-
-(*
-    | Store (Val (LitV (LitLoc l))) (Val w) =>
-        match σ1.(heap) !! l with
-          | Some v => giryM_ret R ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : cfg)
-          | None => giryM_zero
-        end
- *)
-
-
-(* store: the state part of the result *)
-Definition state_storeS : <<discr loc>> * val * state -> state :=
-  ssrfun.comp state_of_prod $
-  mProd
-    (mProd
-      (ssrfun.comp hp_updateC $
-       mProd
-         (ssrfun.comp fst fst)
-         (mProd
-            (ssrfun.comp Some $ ssrfun.comp snd fst)
-            (ssrfun.comp heap snd)))
-      (ssrfun.comp tapes snd))
-  (ssrfun.comp utapes snd).
-
-(* store: the expression part of the result *)
-Definition state_storeE : (<<discr loc>> * val * state) -> expr :=
-  cst $ ValU $ LitV $ LitUnit.
-
-Definition auxcov_store_ok : set (<<discr loc>> * val * state)%type :=
-  preimage
-    (ssrfun.comp hp_evalC $ mProd (ssrfun.comp fst fst) (ssrfun.comp heap snd))
-    (@option_cov_Some _ val).
-
-Definition auxcov_store_stuck : set (<<discr loc>> * val * state)%type :=
-  ~` auxcov_store_ok.
-
-Lemma auxcov_store_ok_meas : measurable auxcov_store_ok.
-Proof. Admitted.
-Hint Resolve auxcov_store_ok_meas : measlang.
-
-Lemma auxcov_store_stuck_meas : measurable auxcov_store_stuck.
-Proof. Admitted.
-Hint Resolve auxcov_store_stuck_meas : measlang.
-
-Lemma state_storeS_meas : measurable_fun auxcov_store_ok state_storeS.
-Proof.
-Admitted.
-Hint Resolve state_storeS_meas : measlang.
-
-Lemma state_storeE_meas : measurable_fun auxcov_store_ok state_storeE.
-Proof.
-Admitted.
-Hint Resolve state_storeE_meas : measlang.
 *)
