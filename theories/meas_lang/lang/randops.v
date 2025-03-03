@@ -43,21 +43,21 @@ Section unif.
 
 End unif.
 
-
+(* First two: set of heaps with finite elements *)
 Definition AllocTape_eval_cov_ok         : set (<<discr Z>> * state)%type. Admitted.
 Definition AllocUTape_eval_cov_ok        : set state. Admitted.
-Definition RandT_eval_cov_ok             : set (<<discr Z>> * <<discr loc>> * state)%type. Admitted.
-Definition RandT_eval_cov_notape         : set (<<discr Z>> * <<discr loc>> * state)%type. Admitted.
+Definition RandT_eval_cov_noTape         : set (<<discr Z>> * <<discr loc>> * state)%type. Admitted.
 Definition RandT_eval_cov_nextEmpty      : set (<<discr Z>> * <<discr loc>> * state)%type. Admitted.
 Definition RandT_eval_cov_boundMismatch  : set (<<discr Z>> * <<discr loc>> * state)%type. Admitted.
-Definition URandT_eval_cov_ok            : set (<<discr loc>> * state)%type. Admitted.
+Definition RandT_eval_cov_ok             : set (<<discr Z>> * <<discr loc>> * state)%type. Admitted. (* Compl. last 3*)
 Definition URandT_eval_cov_noTape        : set (<<discr loc>> * state)%type. Admitted.
 Definition URandT_eval_cov_nextEmpty     : set (<<discr loc>> * state)%type. Admitted.
+Definition URandT_eval_cov_ok            : set (<<discr loc>> * state)%type. Admitted. (* Compl. last two *)
 
 Lemma AllocTape_eval_cov_ok_meas_set         : measurable AllocTape_eval_cov_ok. Admitted.
 Lemma AllocUTape_eval_cov_ok_meas_set        : measurable AllocUTape_eval_cov_ok. Admitted.
 Lemma RandT_eval_cov_ok_meas_set             : measurable RandT_eval_cov_ok. Admitted.
-Lemma RandT_eval_cov_notape_meas_set         : measurable RandT_eval_cov_notape. Admitted.
+Lemma RandT_eval_cov_noTape_meas_set         : measurable RandT_eval_cov_noTape. Admitted.
 Lemma RandT_eval_cov_nextEmpty_meas_set      : measurable RandT_eval_cov_nextEmpty. Admitted.
 Lemma RandT_eval_cov_boundMismatch_meas_set  : measurable RandT_eval_cov_boundMismatch. Admitted.
 Lemma URandT_eval_cov_ok_meas_set            : measurable URandT_eval_cov_ok. Admitted.
@@ -67,20 +67,86 @@ Lemma URandT_eval_cov_nextEmpty_meas_set     : measurable URandT_eval_cov_nextEm
 Hint Resolve AllocTape_eval_cov_ok_meas_set         : mf_set.
 Hint Resolve AllocUTape_eval_cov_ok_meas_set        : mf_set.
 Hint Resolve RandT_eval_cov_ok_meas_set             : mf_set.
-Hint Resolve RandT_eval_cov_notape_meas_set         : mf_set.
+Hint Resolve RandT_eval_cov_noTape_meas_set         : mf_set.
 Hint Resolve RandT_eval_cov_nextEmpty_meas_set      : mf_set.
 Hint Resolve RandT_eval_cov_boundMismatch_meas_set  : mf_set.
 Hint Resolve URandT_eval_cov_ok_meas_set            : mf_set.
 Hint Resolve URandT_eval_cov_noTape_meas_set        : mf_set.
 Hint Resolve URandT_eval_cov_nextEmpty_meas_set     : mf_set.
 
-Definition AllocTape_eval_ok         : (<<discr Z>> * state)%type -> giryM cfg. Admitted.
-Definition AllocUTape_eval_ok        : state -> giryM cfg. Admitted.
-Definition RandT_eval_ok             : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg. Admitted.
-Definition RandT_eval_nextEmpty      : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg. Admitted.
-Definition RandT_eval_boundMismatch  : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg. Admitted.
-Definition URandT_eval_ok            : (<<discr loc>> * state)%type -> giryM cfg. Admitted.
-Definition URandT_eval_nextEmpty     : (<<discr loc>> * state)%type -> giryM cfg. Admitted.
+(* FIXME: Move *)
+Definition Z_to_nat' : <<discr Z>> -> <<discr nat>> := Z.to_nat.
+
+Definition AllocTape_eval_ok : (<<discr Z>> * state)%type -> giryM cfg :=
+  gRet \o (ValU \o LitVU \o LitLblU \o fresh \o tapes \o snd
+          △ state_of_prod \o
+            ( heap \o snd
+            △ hp_updateC \o (fresh \o tapes \o snd △ (Some \o (Z_to_nat' \o fst △ cst emptyTape) △ tapes \o snd))
+            △ utapes \o snd)).
+
+Definition AllocUTape_eval_ok : state -> giryM cfg :=
+  gRet \o (ValU \o LitVU \o LitLblU \o fresh \o utapes
+          △ state_of_prod \o
+             ( heap
+             △ tapes
+             △ hp_updateC \o (fresh \o utapes △ (cst (Some emptyTape) △ utapes)))).
+
+Local Notation S' := (S : <<discr nat>> -> <<discr nat>>).
+
+Definition RandT_eval_ok : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg :=
+  gRet \o (ValU \o LitVU \o LitIntU \o of_option sequence_evalC \o snd \o of_option hp_evalC \o (snd \o fst △ tapes \o snd)
+          △ state_of_prod \o
+             ( heap \o snd
+             △ (hp_updateC \o
+                  (    snd \o fst
+                  △ ( Some \o (S' \o fst △ snd) \o of_option hp_evalC \o (snd \o fst △ tapes \o snd)
+                  △   tapes \o snd)))
+             △ utapes \o snd)).
+
+Definition RandT_eval_nextEmpty : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg :=
+  gMap' (  ValU \o LitVU \o LitIntU \o fst
+        △ state_of_prod \o
+           (  heap \o snd \o snd
+           △ hp_updateC \o
+               (    snd \o fst \o snd
+               △ ( Some \o (    fst \o of_option hp_evalC \o (snd \o fst \o snd △ tapes \o snd \o snd)
+                            △ ( S' \o fst \o snd \o of_option hp_evalC \o (snd \o fst \o snd △ tapes \o snd \o snd)
+                            △   sequence_updateC \o
+                                  (     fst \o snd \o of_option hp_evalC \o (snd \o fst \o snd △ tapes \o snd \o snd)
+                                  △ (  Some \o fst
+                                  △    snd \o snd \o of_option hp_evalC \o (snd \o fst \o snd △ tapes \o snd \o snd)))))
+               △   tapes \o snd \o snd))
+           △ utapes \o snd \o snd )) \o
+  gProd \o (unifN_base \o fst \o fst △ gRet).
+
+Definition RandT_eval_boundMismatch : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg :=
+  gMap' (ValU \o LitVU \o LitIntU \o fst △ snd \o snd) \o
+  gProd \o (unifN_base \o fst \o fst △ gRet).
+
+Definition URandT_eval_ok : (<<discr loc>> * state)%type -> giryM cfg :=
+  gRet \o (ValU \o LitVU \o LitRealU \o of_option sequence_evalC \o of_option hp_evalC \o (fst △ utapes \o snd)
+          △ state_of_prod \o
+            (  heap \o snd
+            △ tapes \o snd
+            △ hp_updateC \o
+                (    fst
+                △ ( Some \o (S' \o fst △ snd) \o of_option hp_evalC \o (fst △ utapes \o snd)
+                △   utapes \o snd)))).
+
+ Definition URandT_eval_nextEmpty : (<<discr loc>> * state)%type -> giryM cfg :=
+  gMap' ( ValU \o LitVU \o LitRealU \o fst
+        △ state_of_prod \o
+           (  heap \o snd \o snd
+           △ tapes \o snd \o snd
+           △ hp_updateC \o
+              (    fst \o snd
+              △ ( Some \o ( S' \o fst \o of_option hp_evalC \o (fst \o snd △ utapes \o snd \o snd)
+                          △ sequence_updateC \o
+                            (    fst \o of_option hp_evalC \o (fst \o snd △ utapes \o snd \o snd)
+                            △ ( Some \o fst
+                            △   snd \o of_option hp_evalC \o (fst \o snd △ utapes \o snd \o snd))))
+              △   utapes \o snd \o snd)))) \o
+    gProd \o (cst unif_base △ gRet).
 
 Lemma AllocTape_eval_ok_meas_fun         : measurable_fun AllocTape_eval_cov_ok AllocTape_eval_ok. Admitted.
 Lemma AllocUTape_eval_ok_meas_fun        : measurable_fun AllocUTape_eval_cov_ok AllocUTape_eval_ok. Admitted.
@@ -98,23 +164,42 @@ Hint Resolve RandT_eval_boundMismatch_meas_fun  : mf_fun.
 Hint Resolve URandT_eval_ok_meas_fun            : mf_fun.
 Hint Resolve URandT_eval_nextEmpty_meas_fun     : mf_fun.
 
-Definition AllocTape_eval  : (<<discr Z>> * state)%type -> giryM cfg. Admitted.
-Definition AllocUTape_eval : state -> giryM cfg. Admitted.
-Definition Rand_eval       : <<discr Z>> -> giryM cfg. Admitted.
-Definition URand_eval      : giryM cfg. Admitted.
-Definition RandT_eval      : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg. Admitted.
-Definition URandT_eval     : (<<discr loc>> * state)%type -> giryM cfg. Admitted.
+Definition AllocTape_eval  : (<<discr Z>> * state)%type -> giryM cfg :=
+  if_in AllocTape_eval_cov_ok AllocTape_eval_ok (cst gZero).
+
+Definition AllocUTape_eval : state -> giryM cfg :=
+  if_in AllocUTape_eval_cov_ok AllocUTape_eval_ok (cst gZero).
+
+Definition Rand_eval : (<<discr Z>> * state)%type -> giryM cfg :=
+  gProd \o (gMap' (ValU \o LitVU \o LitIntU) \o unifN_base \o fst △ gRet \o snd).
+
+Definition URand_eval : state -> giryM cfg :=
+  gProd \o (cst (gMap' (ValU \o LitVU \o LitRealU) unif_base) △ gRet).
+
+Definition RandT_eval : (<<discr Z>> * <<discr loc>> * state)%type -> giryM cfg :=
+  if_in RandT_eval_cov_noTape (cst gZero) $                      (*  No tape *)
+  if_in RandT_eval_cov_boundMismatch RandT_eval_boundMismatch $  (*  Yes tape but mismatch bound *)
+  if_in RandT_eval_cov_nextEmpty RandT_eval_nextEmpty $          (*  Yes tape, bounds match, but empty *)
+  RandT_eval_ok.                                                 (*  Yes tape, bounds match, next nonempty *)
+
+Definition URandT_eval : (<<discr loc>> * state)%type -> giryM cfg :=
+  if_in URandT_eval_cov_noTape (cst gZero) $                      (*  No tape *)
+  if_in URandT_eval_cov_nextEmpty URandT_eval_nextEmpty $         (*  Yes tape, but empty *)
+  URandT_eval_ok.                                                 (*  Yes tape, next nonempty *)
+
 
 Lemma AllocTape_eval_meas_fun  : measurable_fun setT AllocTape_eval. Admitted.
 Lemma AllocUTape_eval_meas_fun : measurable_fun setT AllocUTape_eval. Admitted.
 Lemma Rand_eval_meas_fun       : measurable_fun setT Rand_eval. Admitted.
 Lemma RandT_eval_meas_fun      : measurable_fun setT RandT_eval. Admitted.
+Lemma URand_eval_meas_fun      : measurable_fun setT URand_eval. Admitted.
 Lemma URandT_eval_meas_fun     : measurable_fun setT URandT_eval. Admitted.
 
 Hint Resolve AllocTape_eval_meas_fun  : mf_fun.
 Hint Resolve AllocUTape_eval_meas_fun : mf_fun.
 Hint Resolve Rand_eval_meas_fun       : mf_fun.
 Hint Resolve RandT_eval_meas_fun      : mf_fun.
+Hint Resolve URand_eval_meas_fun      : mf_fun.
 Hint Resolve URandT_eval_meas_fun     : mf_fun.
 
 (*
