@@ -36,6 +36,130 @@ Canonical Structure stateO := leibnizO state.
 Canonical Structure locO := leibnizO loc.
 Canonical Structure valO := leibnizO val.
 Canonical Structure exprO := leibnizO expr.
+
+Local Open Scope classical_set_scope.
+
+Section meas_semantics.
+
+Definition cover_rec : set cfg :=
+  setI setT $ preimage fst $ ecov_rec.
+
+(* [set c | ∃ v1 v2 σ, c = (Pair (Val v1) (Val v2), σ) ].*)
+Definition cover_pair : set cfg :=
+  setI setT $ preimage fst $ setI ecov_pair $ preimage 𝜋_PairU $ (ecov_val `*` ecov_val).
+
+(* [set c | ∃ v σ, c = (InjL (Val v), σ) ]. *)
+Definition cover_injL : set cfg :=
+  setI setT $ preimage fst $ setI ecov_injl $ preimage 𝜋_InjLU $ ecov_val.
+
+(* [set c | ∃ v σ, c = (InjR (Val v), σ) ]. *)
+Definition cover_injR : set cfg :=
+  setI setT $ preimage fst $ setI ecov_injr $ preimage 𝜋_InjRU $ ecov_val.
+
+(*  [set c | ∃ f x e1 v2 σ,  c = (App (Val (RecV f x e1)) (Val v2) , σ) ]. *)
+Definition cover_app : set cfg :=
+  setI setT $ preimage fst $ setI ecov_app $ preimage 𝜋_AppU $
+  setX (setI ecov_val $ preimage 𝜋_Val_v $ vcov_rec) ecov_val.
+
+Definition cover_unop : set cfg :=
+  setI setT $ preimage fst $ setI ecov_unop $ preimage 𝜋_UnOpU $ setX setT ecov_val.
+
+Definition cover_binop_ok : set cfg :=
+  setI setT $ preimage fst $ setI ecov_binop $ preimage 𝜋_BinOpU $ (setX (setX setT ecov_val) ecov_val).
+
+(* [set e | ∃ N v, e = Alloc (val v)] *)
+Definition cover_alloc : set cfg  :=
+  setI setT $ preimage fst $ setI ecov_alloc $ preimage 𝜋_AllocU $ ecov_val.
+
+(* [set e | ∃ l e = (Load (Val (LitV (LitLoc l))))] *)
+Definition cover_load : set cfg :=
+  setI setT $ preimage fst $ setI ecov_load $ preimage 𝜋_LoadU $
+  setI ecov_val $ preimage 𝜋_ValU $ setI vcov_lit $ preimage 𝜋_LitVU $ bcov_LitLoc.
+
+(* [set e | ∃ N v, e = Store (Val (LitV (LitLoc L))) (val v)] *)
+Definition cover_store : set cfg  :=
+  setI setT $ preimage fst $ setI ecov_store $ preimage 𝜋_StoreU $
+  setX
+    (setI ecov_val $ preimage 𝜋_ValU $ setI vcov_lit $ preimage 𝜋_LitVU $ bcov_LitLoc)
+    ecov_val.
+
+(* [set c | ∃ e1 e2 σ, c = (If (Val (LitV (LitBool true))) e1 e2, σ) ]*)
+Definition cover_ifT : set cfg :=
+  setI setT $ preimage fst $ setI ecov_if $ preimage 𝜋_If_c $ setI ecov_val $
+  preimage 𝜋_ValU $ setI vcov_lit $ preimage 𝜋_LitVU $ setI bcov_LitBool $
+  preimage 𝜋_LitBoolU $ [set true].
+
+(* [set c | ∃ e1 e2 σ, c = (If (Val (LitV (LitBool false))) e1 e2, σ) ] *)
+Definition cover_ifF : set cfg :=
+  setI setT $ preimage fst $ setI ecov_if $ preimage 𝜋_If_c $ setI ecov_val $
+  preimage 𝜋_ValU $ setI vcov_lit $ preimage 𝜋_LitVU $ setI bcov_LitBool $
+  preimage 𝜋_LitBoolU $ [set false].
+
+(* [set c | ∃ v1 v2 σ, c = (Fst (Val (PairV v1 v2)), σ) ] *)
+Definition cover_fst : set cfg :=
+  setI setT $ preimage fst $ setI ecov_fst $ preimage 𝜋_FstU $ setI ecov_val $
+  preimage 𝜋_ValU $ vcov_pair.
+
+(* [set c | ∃ v1 v2 σ, c = (Snd (Val (PairV v1 v2)), σ) ] *)
+Definition cover_snd : set cfg :=
+  setI setT $ preimage fst $ setI ecov_snd $ preimage 𝜋_SndU $ setI ecov_val $
+  preimage 𝜋_ValU $ vcov_pair.
+
+(* [set c | ∃ v e1 e2 σ, c = (Case (Val (InjLV v)) e1 e2, σ) ] *)
+Definition cover_caseL : set cfg :=
+  setI setT $ preimage fst $ setI ecov_case $ preimage 𝜋_Case_c $ setI ecov_val $
+  preimage 𝜋_ValU $ vcov_injlv.
+
+(* [set c | ∃ v e1 e2 σ, c = (Case (Val (InjRV v)) e1 e2, σ) ] *)
+Definition cover_caseR : set cfg :=
+  setI setT $ preimage fst $ setI ecov_case $ preimage 𝜋_Case_c $ setI ecov_val $
+  preimage 𝜋_ValU $ vcov_injrv.
+
+(*  [set c | ∃ z σ,          c = (AllocTape (Val (LitV (LitInt z))), σ) ]. *)
+Definition cover_allocTape : set cfg :=
+  setI setT $ preimage fst $ setI ecov_alloctape $ preimage 𝜋_AllocTapeU $ setI ecov_val $
+  preimage 𝜋_ValU $ setI vcov_lit $ preimage 𝜋_LitVU $ bcov_LitInt.
+
+(* [set c | ∃ σ,            c = (AllocUTape, σ) ] *)
+Definition cover_allocUTape : set cfg :=
+  setI setT $ preimage fst $ ecov_allocutape.
+
+(* Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) *)
+Definition cover_rand : set cfg :=
+  setI setT $ preimage fst $ setI ecov_rand $ preimage 𝜋_RandU $
+  setX
+    ( setI ecov_val $ preimage 𝜋_ValU $ setI vcov_lit $ preimage 𝜋_LitVU $ bcov_LitInt )
+    ( setI ecov_val $ preimage 𝜋_ValU $ setI vcov_lit $ preimage 𝜋_LitVU $ bcov_LitUnit ).
+
+(*  (URand (Val (LitV LitUnit)), σ) *)
+Definition cover_urand : set cfg :=
+  setI setT $ preimage fst $ setI ecov_urand $ preimage 𝜋_URandU $ setI ecov_val $
+  preimage 𝜋_ValU $ setI vcov_lit $ preimage 𝜋_LitVU $ bcov_LitUnit.
+
+Definition cover_randT : set cfg :=
+  setI setT $ preimage fst $ setI ecov_rand $ preimage 𝜋_RandU $
+  setX
+    ( setI ecov_val $ preimage 𝜋_ValU $ setI vcov_lit $ preimage 𝜋_LitVU $ bcov_LitInt )
+    ( setI ecov_val $ preimage 𝜋_ValU $ setI vcov_lit $ preimage 𝜋_LitVU $ bcov_LitLbl ).
+
+Definition cover_urandT : set cfg :=
+  setI setT $ preimage fst $ setI ecov_urand $ preimage 𝜋_URandU $ setI ecov_val $
+  preimage 𝜋_ValU $ setI vcov_lit $ preimage 𝜋_LitVU $ bcov_LitLbl.
+
+(* [set c | ∃ σ n, c = (Tick (Val (LitV (LitInt n))), σ) ]  *)
+Definition cover_tick : set cfg :=
+  setI setT $ preimage fst $ setI ecov_tick $ preimage 𝜋_TickU $ setI ecov_val $
+  preimage 𝜋_ValU $ setI vcov_lit $ preimage 𝜋_LitVU $ bcov_LitInt.
+
+End meas_semantics.
+
+
+
+
+
+
+
+
 (*
 Section meas_semantics.
   Local Open Scope ereal_scope.
@@ -43,356 +167,7 @@ Section meas_semantics.
 
   (**  The top-level cover for head_step *)
 
-  (* Lift a set S to [ (s, σ) | s ∈ S, σ ∈ State ] *)
-  Definition NonStatefulS {A : Type} (S : set A) : set (A * state) := preimage fst S.
 
-  Lemma NonStatefulS_meas_fun {d} {T : measurableType d} (S : set T) (HS : measurable S) :
-      measurable (NonStatefulS S).
-  Proof.
-    rewrite <- (setTI (NonStatefulS S)); rewrite /NonStatefulS.
-    apply @measurable_fst; last done.
-    by eapply @measurableT.
-  Qed.
-  Hint Resolve NonStatefulS_meas_fun : measlang.
-
-  (* [set c | ∃ f x e σ, c = (Rec f x e, σ) ]. *)
-  Definition cover_rec : set cfg :=
-    NonStatefulS ecov_rec.
-
-  (*[set c | ∃ v1 v2 σ, c = (Pair (Val v1) (Val v2), σ) ].*)
-  Definition cover_pair : set cfg :=
-    NonStatefulS $
-    setI ecov_pair $
-    preimage 𝜋_PairU $
-    (ecov_val `*` ecov_val).
-
-  (* [set c | ∃ v σ, c = (InjL (Val v), σ) ]. *)
-  Definition cover_injL : set cfg :=
-    NonStatefulS $
-    setI ecov_injl $
-    preimage 𝜋_InjLU $
-    ecov_val.
-
-  (* [set c | ∃ v σ, c = (InjR (Val v), σ) ]. *)
-  Definition cover_injR : set cfg :=
-    NonStatefulS $
-    setI ecov_injr $
-    preimage 𝜋_InjRU $
-    ecov_val.
-
-  (*  [set c | ∃ f x e1 v2 σ,  c = (App (Val (RecV f x e1)) (Val v2) , σ) ]. *)
-  Definition cover_app : set cfg :=
-    NonStatefulS $
-    setI ecov_app $
-    preimage 𝜋_AppU $
-    setX
-      ( setI ecov_val $
-        preimage 𝜋_Val_v $
-        vcov_rec )
-      ecov_val.
-
-  Definition cover_unop_ok' : set expr :=
-    setI ecov_unop $
-    preimage 𝜋_UnOpU $
-    setI (setX setT ecov_val) $
-    preimage (mProd fst (ssrfun.comp 𝜋_Val_v snd)) $
-    auxcov_unop_ok.
-
-  Definition cover_unop_ok : set cfg :=
-    setI setT $
-    preimage fst $
-    cover_unop_ok'.
-
-  Definition cover_unop_stuck : set cfg :=
-    setI setT $
-    preimage fst $
-    setI ecov_unop $
-    preimage 𝜋_UnOpU $
-    setI (setX setT ecov_val) $
-    preimage (mProd fst (ssrfun.comp 𝜋_Val_v snd)) $
-    auxcov_unop_stuck.
-
-  Definition cover_binop_ok' : set expr :=
-    setI ecov_binop $
-    preimage 𝜋_BinOpU $
-    setI (setX (setX setT ecov_val) ecov_val) $
-    preimage
-      (mProd
-         (mProd
-            (ssrfun.comp fst fst)
-            (ssrfun.comp (ssrfun.comp 𝜋_Val_v snd) fst))
-         (ssrfun.comp 𝜋_Val_v snd)) $
-    auxcov_binop_ok.
-
-  Definition cover_binop_ok : set cfg :=
-    setI setT $
-    preimage fst $
-    cover_binop_ok'.
-
-  Definition cover_binop_stuck : set cfg :=
-    setI setT $
-    preimage fst $
-    setI ecov_binop $
-    preimage 𝜋_BinOpU $
-    setI (setX (setX setT ecov_val) ecov_val) $
-    preimage
-      (mProd
-         (mProd
-            (ssrfun.comp fst fst)
-            (ssrfun.comp (ssrfun.comp 𝜋_Val_v snd) fst))
-         (ssrfun.comp 𝜋_Val_v snd)) $
-    auxcov_binop_stuck.
-
-  (* [set e | ∃ N v, e = Alloc (Val (LitV (LitInt N))) (val v)] *)
-  Definition auxcov_alloc : set cfg  :=
-    setI setT $
-    preimage fst $
-    setI ecov_alloc $
-    preimage 𝜋_AllocU $
-    ecov_val.
-
-  Definition aux_alloc_v : cfg -> val :=
-    ssrfun.comp 𝜋_ValU $
-    ssrfun.comp 𝜋_AllocU $
-    fst.
-
-  Definition aux_alloc_σ : cfg -> state :=
-    snd.
-
-  Definition aux_alloc : cfg -> (val * state) :=
-    mProd aux_alloc_v aux_alloc_σ.
-
-  (*  [set c | ∃ N v σ, c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = true]. *)
-  Definition cover_alloc_ok : set cfg :=
-    setI auxcov_alloc $ preimage aux_alloc auxcov_allocN_ok.
-
-  (* [set c | ∃ N v σ, c = (AllocN (Val (LitV (LitInt N))) (Val v), σ) /\ bool_decide (0 < Z.to_nat N)%nat = false].*)
-  Definition cover_alloc_stuck : set cfg :=
-    setI auxcov_alloc $ preimage aux_alloc auxcov_allocN_stuck.
-
-  (* [set e | ∃ l e = (Load (Val (LitV (LitLoc l))))] *)
-  Definition auxcov_load : set expr :=
-    setI ecov_load $
-    preimage 𝜋_LoadU $
-    setI ecov_val $
-    preimage 𝜋_ValU $
-    setI vcov_lit $
-    preimage 𝜋_LitVU $
-    bcov_LitLoc.
-
-  (* Project down to the loc of a load expression *)
-  Definition aux_load_loc : expr -> <<discr loc>> :=
-    ssrfun.comp 𝜋_LitLocU $
-    ssrfun.comp 𝜋_LitV_v $
-    ssrfun.comp 𝜋_Val_v $
-    𝜋_LoadU.
-
-(*
-    | Store (Val (LitV (LitLoc l))) (Val w) =>
-        match σ1.(heap) !! l with
-          | Some v => gRet ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : cfg)
-          | None => gZero
-        end
-*)
-
-
-  (* [set e | ∃ N v, e = Store (Val (LitV (LitLoc L))) (val v)] *)
-  Definition auxcov_store : set cfg  :=
-    setI setT $
-    preimage fst $
-    setI ecov_store $
-    preimage 𝜋_StoreU $
-    setX
-      ( setI ecov_val $
-        preimage 𝜋_ValU $
-        setI vcov_lit $
-        preimage 𝜋_LitVU $
-        bcov_LitLoc )
-      ecov_val.
-
-
-  Definition aux_store_loc : cfg -> <<discr loc>> :=
-    ssrfun.comp 𝜋_LitLocU $
-    ssrfun.comp 𝜋_LitVU $
-    ssrfun.comp 𝜋_ValU $
-    ssrfun.comp fst $
-    ssrfun.comp 𝜋_StoreU $
-    fst.
-
-  Definition aux_store_v : cfg -> val :=
-    ssrfun.comp 𝜋_ValU $
-    ssrfun.comp snd $
-    ssrfun.comp 𝜋_StoreU $
-    fst.
-
-  Definition aux_store_σ : cfg -> state :=
-    snd.
-
-  Definition aux_store : cfg -> (<<discr loc>> * val * state) :=
-    mProd (mProd aux_store_loc aux_store_v ) aux_store_σ.
-
-  Definition cover_store_ok : set cfg :=
-    setI auxcov_store $ preimage aux_store auxcov_store_ok.
-
-  Definition cover_store_stuck : set cfg :=
-    setI auxcov_store $ preimage aux_store auxcov_store_stuck.
-
-  (* [set c | ∃ l w σ, c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = Some w]. *)
-  Definition cover_load_ok : set cfg :=
-    setI (setX auxcov_load setT) $
-    preimage
-      (mProd (ssrfun.comp aux_load_loc fst) snd)
-      auxcov_load_ok.
-
-  (* [set c | ∃ l σ, c = (Load (Val (LitV (LitLoc l))), σ) /\ σ.(heap) !! l = None]. *)
-  Definition cover_load_stuck : set cfg :=
-    setI (setX auxcov_load setT) $
-    preimage
-      (mProd (ssrfun.comp aux_load_loc fst) snd)
-      auxcov_load_stuck.
-
-  (* [set c | ∃ e1 e2 σ, c = (If (Val (LitV (LitBool true))) e1 e2, σ) ]*)
-  Definition cover_ifT : set cfg :=
-    NonStatefulS $
-    setI ecov_if $
-    preimage 𝜋_If_c $
-    setI ecov_val $
-    preimage 𝜋_Val_v $
-    setI vcov_lit $
-    preimage 𝜋_LitV_v $
-    setI bcov_LitBool $
-    preimage 𝜋_LitBool_b $
-    [set true].
-
-  (* [set c | ∃ e1 e2 σ, c = (If (Val (LitV (LitBool false))) e1 e2, σ) ] *)
-  Definition cover_ifF : set cfg :=
-    NonStatefulS $
-    setI ecov_if $
-    preimage 𝜋_If_c $
-    setI ecov_val $
-    preimage 𝜋_Val_v $
-    setI vcov_lit $
-    preimage 𝜋_LitV_v $
-    setI bcov_LitBool $
-    preimage 𝜋_LitBool_b $
-    [set false].
-
-  (* [set c | ∃ v1 v2 σ, c = (Fst (Val (PairV v1 v2)), σ) ] *)
-  Definition cover_fst : set cfg :=
-    NonStatefulS $
-    setI ecov_fst $
-    preimage 𝜋_Fst_e $
-    setI ecov_val $
-    preimage 𝜋_Val_v $
-    vcov_pair.
-
-  (* [set c | ∃ v1 v2 σ, c = (Snd (Val (PairV v1 v2)), σ) ] *)
-  Definition cover_snd : set cfg :=
-    NonStatefulS $
-    setI ecov_snd $
-    preimage 𝜋_Snd_e $
-    setI ecov_val $
-    preimage 𝜋_Val_v $
-    vcov_pair.
-
-  (* [set c | ∃ v e1 e2 σ, c = (Case (Val (InjLV v)) e1 e2, σ) ] *)
-  Program Definition cover_caseL : set cfg :=
-    NonStatefulS $
-    setI ecov_case $
-    preimage 𝜋_Case_c $
-    setI ecov_val $
-    preimage 𝜋_Val_v $
-    vcov_injlv.
-
-  (* [set c | ∃ v e1 e2 σ, c = (Case (Val (InjRV v)) e1 e2, σ) ] *)
-  Definition cover_caseR : set cfg :=
-    NonStatefulS $
-    setI ecov_case $
-    preimage 𝜋_Case_c $
-    setI ecov_val $
-    preimage 𝜋_Val_v $
-    vcov_injrv.
-
-
-  (*  [set c | ∃ z σ,          c = (AllocTape (Val (LitV (LitInt z))), σ) ]. *)
-  Definition cover_allocTape : set cfg :=
-    NonStatefulS $
-    setI ecov_alloctape $
-    preimage 𝜋_AllocTapeU $
-    setI ecov_val $
-    preimage 𝜋_ValU $
-    setI vcov_lit $
-    preimage 𝜋_LitV_v $
-    bcov_LitInt.
-
-  (* [set c | ∃ σ,            c = (AllocUTape, σ) ] *)
-  Definition cover_allocUTape : set cfg :=
-    NonStatefulS $ ecov_allocutape.
-
-  (* Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) *)
-  Definition cover_rand : set cfg :=
-    NonStatefulS $
-    setI ecov_rand $
-    preimage 𝜋_RandU $
-    setX
-      ( setI ecov_val $
-         preimage 𝜋_ValU $
-         setI vcov_lit $
-         preimage 𝜋_LitV_v $
-         bcov_LitInt )
-      ( setI ecov_val $
-         preimage 𝜋_ValU $
-         setI vcov_lit $
-         preimage 𝜋_LitV_v $
-         bcov_LitUnit ).
-
-  (*  (URand (Val (LitV LitUnit)), σ) *)
-  Definition cover_urand : set cfg :=
-    NonStatefulS $
-    setI ecov_urand $
-    preimage 𝜋_URandU $
-    setI ecov_val $
-    preimage 𝜋_ValU $
-    setI vcov_lit $
-    preimage 𝜋_LitV_v $
-    bcov_LitUnit.
-
-  Definition cover_randT : set cfg :=
-    NonStatefulS $
-    setI ecov_rand $
-    preimage 𝜋_RandU $
-    setX
-      ( setI ecov_val $
-         preimage 𝜋_ValU $
-         setI vcov_lit $
-         preimage 𝜋_LitV_v $
-         bcov_LitInt )
-      ( setI ecov_val $
-         preimage 𝜋_ValU $
-         setI vcov_lit $
-         preimage 𝜋_LitV_v $
-         bcov_LitLbl ).
-
-  Definition cover_urandT : set cfg :=
-    NonStatefulS $
-    setI ecov_urand $
-    preimage 𝜋_URandU $
-    setI ecov_val $
-    preimage 𝜋_ValU $
-    setI vcov_lit $
-    preimage 𝜋_LitV_v $
-    bcov_LitLbl.
-
-  (* [set c | ∃ σ n, c = (Tick (Val (LitV (LitInt n))), σ) ]  *)
-  Definition cover_tick : set cfg :=
-    NonStatefulS $
-    setI ecov_tick $
-    preimage 𝜋_Tick_e $
-    setI ecov_val $
-    preimage 𝜋_Val_v $
-    setI vcov_lit $
-    preimage 𝜋_LitV_v $
-    bcov_LitInt.
 
   Definition cfg_cover_pre : list (set cfg) := [
     cover_rec;

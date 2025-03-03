@@ -251,6 +251,8 @@ Section hp.
 
 End hp.
 
+
+Global Arguments hp_finite {_ _}.
 Global Arguments fresh {_ _} _.
 
 Section hpfuns.

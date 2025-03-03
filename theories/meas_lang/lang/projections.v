@@ -108,6 +108,8 @@ Definition 𝜋_BinOpU     := 𝜋_BinOp_op      △ 𝜋_BinOp_l   △ 𝜋_Bin
 Definition 𝜋_AppU       := 𝜋_App_l         △ 𝜋_App_r.
 Definition 𝜋_IfU        := 𝜋_If_c          △ 𝜋_If_l      △ 𝜋_If_r.
 Definition 𝜋_PairU      := 𝜋_Pair_l        △ 𝜋_Pair_r.
+Definition 𝜋_FstU       := 𝜋_Fst_e.
+Definition 𝜋_SndU       := 𝜋_Snd_e.
 Definition 𝜋_InjLU      := 𝜋_InjL_e.
 Definition 𝜋_InjRU      := 𝜋_InjR_e.
 Definition 𝜋_CaseU      := 𝜋_Case_c        △ 𝜋_Case_l    △ 𝜋_Case_r.
@@ -2136,6 +2138,14 @@ Definition 𝜋_PairU_meas : measurable_fun ecov_pair 𝜋_PairU.
 Proof. by solve_packaged_meas. Qed.
 Hint Resolve 𝜋_PairU_meas : measlang.
 Hint Resolve 𝜋_PairU_meas : mf_fun.
+
+Definition 𝜋_FstU_meas : measurable_fun ecov_fst 𝜋_FstU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_FstU_meas : mf_fun.
+
+Definition 𝜋_SndU_meas : measurable_fun ecov_snd 𝜋_SndU.
+Proof. by solve_packaged_meas. Qed.
+Hint Resolve 𝜋_SndU_meas : mf_fun.
 
 Definition 𝜋_InjLU_meas : measurable_fun ecov_injl 𝜋_InjLU.
 Proof. by solve_packaged_meas. Qed.
