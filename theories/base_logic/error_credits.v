@@ -333,7 +333,7 @@ Section error_credit_theory.
   Qed.
 
 
-  #[local] Lemma ec_ind_simpl_aux (ε ε' k : R) P :
+  #[local] Lemma ec_ind_simpl_external_aux (ε ε' k : R) P :
     0 < ε →
     ε <= ε' ->
     1 < k →
@@ -386,14 +386,79 @@ Section error_credit_theory.
   Qed.
 
 
-  Lemma ec_ind_simpl (ε k : R) P :
+  Lemma ec_ind_simpl_external (ε k : R) P :
     0 < ε →
     1 < k →
     ((↯ (k * ε) -∗ P) ∗ ↯ ε ⊢ P) →
     (↯ ε ⊢ P).
   Proof.
     iIntros (Hε HK Hamp).
-    eapply ec_ind_simpl_aux; eauto.
+    eapply ec_ind_simpl_external_aux; eauto.
+    lra.
+  Qed.
+
+  #[local] Lemma ec_ind_simpl_aux (ε ε' k : R) P :
+    0 < ε →
+    ε <= ε' ->
+    1 < k →
+    □ ((↯ (k * ε) -∗ P) ∗ ↯ ε -∗ P) ⊢
+    (↯ ε' -∗ P).
+  Proof.
+    iIntros (Hε Hleq Hk) "#Hamp Herr".
+    assert (exists n:nat, 1 <= n*(k-1)*ε + ε') as Haux.
+    {
+      edestruct (Rcomplements.nfloor_ex (1/((k-1)*ε))) as [n [Hn1 Hn2]].
+      - apply Rmult_le_pos; [lra|].
+        left.
+        apply Rinv_0_lt_compat.
+        real_solver.
+      - exists (S n).
+        rewrite S_INR.
+        transitivity ((1 / ((k - 1) * ε)) * (k - 1) * ε + ε').
+        + rewrite Rmult_assoc.
+          rewrite /Rdiv Rmult_1_l.
+          rewrite Rinv_l; [lra |].
+          assert (0<(k-1)*ε); real_solver.
+        + apply Rplus_le_compat_r.
+          apply Rmult_le_compat_r; [lra|].
+          apply Rmult_le_compat_r; lra.
+    }
+    destruct Haux as [n Hn].
+    iInduction n as [|m] "IH" forall (ε ε' Hε Hleq Hn Hk) "Hamp Herr".
+    - iDestruct (ec_contradict with "Herr") as %[].
+      simpl in Hn.
+      lra.
+    - replace (ε') with (ε + (ε' - ε)) by lra.
+      iDestruct (ec_split with "Herr") as "[Herr1 Herr2]"; [lra | lra |].
+      iApply ("Hamp" with "[$Herr1 Herr2]").
+      iIntros "Herr".
+      assert (k * ε = (k-1)*ε + ε) as ->; [lra |].
+      iDestruct (ec_split with "Herr") as "[Herr3 Herr4]"; [ real_solver | lra |].
+      iDestruct (ec_combine with "[$Herr2 $Herr3]") as "Herr".
+      iDestruct (ec_combine with "[$Herr $Herr4]") as "Herr".
+      iApply ("IH" $! ε with "[] [] [] [] [] Herr"); auto.
+      + iPureIntro.
+        replace (ε' - ε + (k-1) * ε + ε) with (ε' + (k-1) * ε) by lra.
+        rewrite <- (Rplus_0_r ε) at 1.
+        apply Rplus_le_compat; auto.
+        apply Rmult_le_pos; lra.
+      + iPureIntro.
+        replace (ε' - ε + (k - 1) * ε + ε) with (ε' + (k - 1) * ε) by lra.
+        replace (m * (k - 1) * ε + (ε' + (k - 1) * ε)) with ((m + 1) * (k - 1) * ε + ε') by lra.
+        etrans; eauto.
+        rewrite S_INR //.
+      + replace ((k - 1) * ε + ε) with (k * ε) by lra.
+        auto.
+  Qed.
+
+  Lemma ec_ind_simpl (ε k : R) P :
+    0 < ε →
+    1 < k →
+    □((↯ (k * ε) -∗ P) ∗ ↯ ε -∗ P) ⊢
+    (↯ ε -∗ P).
+  Proof.
+    iIntros (Hε Hk) "#Hamp Herr".
+    iApply ec_ind_simpl_aux; eauto.
     lra.
   Qed.
 
