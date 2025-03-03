@@ -315,6 +315,30 @@ Section error_credit_theory.
         rewrite Rmult_1_l Rmult_1_r. by apply Hn.
   Qed.
 
+  #[local] Lemma err_amp_mult ε ε' k :
+    0 < ε →
+    ε <= ε' ->
+    1 < k →
+    (exists n:nat, 1 <= n*(k-1)*ε + ε').
+  Proof.
+    intros Hε Hleq Hk.
+    edestruct (Rcomplements.nfloor_ex (1/((k-1)*ε))) as [n [Hn1 Hn2]].
+    - apply Rmult_le_pos; [lra|].
+      left.
+      apply Rinv_0_lt_compat.
+      real_solver.
+    - exists (S n).
+      rewrite S_INR.
+      transitivity ((1 / ((k - 1) * ε)) * (k - 1) * ε + ε').
+      + rewrite Rmult_assoc.
+        rewrite /Rdiv Rmult_1_l.
+        rewrite Rinv_l; [lra |].
+        assert (0<(k-1)*ε); real_solver.
+      + apply Rplus_le_compat_r.
+        apply Rmult_le_compat_r; [lra|].
+        apply Rmult_le_compat_r; lra.
+  Qed.
+
   Lemma ec_ind_amp_external (ε k : R) P :
     0 < ε →
     1 < k →
@@ -341,25 +365,7 @@ Section error_credit_theory.
     (↯ ε' ⊢ P).
   Proof.
     iIntros (Hε Hleq Hk Hamp) "Herr".
-    assert (exists n:nat, 1 <= n*(k-1)*ε + ε') as Haux.
-    {
-      edestruct (Rcomplements.nfloor_ex (1/((k-1)*ε))) as [n [Hn1 Hn2]].
-      - apply Rmult_le_pos; [lra|].
-        left.
-        apply Rinv_0_lt_compat.
-        real_solver.
-      - exists (S n).
-        rewrite S_INR.
-        transitivity ((1 / ((k - 1) * ε)) * (k - 1) * ε + ε').
-        + rewrite Rmult_assoc.
-          rewrite /Rdiv Rmult_1_l.
-          rewrite Rinv_l; [lra |].
-          assert (0<(k-1)*ε); real_solver.
-        + apply Rplus_le_compat_r.
-          apply Rmult_le_compat_r; [lra|].
-          apply Rmult_le_compat_r; lra.
-    }
-    destruct Haux as [n Hn].
+    destruct (err_amp_mult ε ε' k) as [n Hn]; auto.
     iInduction n as [|m] "IH" forall (ε ε' Hε Hleq Hn Hk Hamp) "Herr".
     - iDestruct (ec_contradict with "Herr") as %[].
       simpl in Hn.
@@ -405,25 +411,7 @@ Section error_credit_theory.
     (↯ ε' -∗ P).
   Proof.
     iIntros (Hε Hleq Hk) "#Hamp Herr".
-    assert (exists n:nat, 1 <= n*(k-1)*ε + ε') as Haux.
-    {
-      edestruct (Rcomplements.nfloor_ex (1/((k-1)*ε))) as [n [Hn1 Hn2]].
-      - apply Rmult_le_pos; [lra|].
-        left.
-        apply Rinv_0_lt_compat.
-        real_solver.
-      - exists (S n).
-        rewrite S_INR.
-        transitivity ((1 / ((k - 1) * ε)) * (k - 1) * ε + ε').
-        + rewrite Rmult_assoc.
-          rewrite /Rdiv Rmult_1_l.
-          rewrite Rinv_l; [lra |].
-          assert (0<(k-1)*ε); real_solver.
-        + apply Rplus_le_compat_r.
-          apply Rmult_le_compat_r; [lra|].
-          apply Rmult_le_compat_r; lra.
-    }
-    destruct Haux as [n Hn].
+    destruct (err_amp_mult ε ε' k) as [n Hn]; auto.
     iInduction n as [|m] "IH" forall (ε ε' Hε Hleq Hn Hk) "Hamp Herr".
     - iDestruct (ec_contradict with "Herr") as %[].
       simpl in Hn.
