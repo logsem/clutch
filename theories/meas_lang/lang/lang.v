@@ -335,29 +335,82 @@ Hint Resolve cover_randT_meas_set      : mf_set.
 Hint Resolve cover_urandT_meas_set     : mf_set.
 Hint Resolve cover_tick_meas_set       : mf_set.
 
-Definition head_stepM_rec        : cfg -> giryM cfg. Admitted.
-Definition head_stepM_pair       : cfg -> giryM cfg. Admitted.
-Definition head_stepM_injL       : cfg -> giryM cfg. Admitted.
-Definition head_stepM_injR       : cfg -> giryM cfg. Admitted.
-Definition head_stepM_app        : cfg -> giryM cfg. Admitted.
-Definition head_stepM_unop       : cfg -> giryM cfg. Admitted.
-Definition head_stepM_binop      : cfg -> giryM cfg. Admitted.
-Definition head_stepM_alloc      : cfg -> giryM cfg. Admitted.
-Definition head_stepM_load       : cfg -> giryM cfg. Admitted.
-Definition head_stepM_store      : cfg -> giryM cfg. Admitted.
-Definition head_stepM_ifT        : cfg -> giryM cfg. Admitted.
-Definition head_stepM_ifF        : cfg -> giryM cfg. Admitted.
-Definition head_stepM_fst        : cfg -> giryM cfg. Admitted.
-Definition head_stepM_snd        : cfg -> giryM cfg. Admitted.
-Definition head_stepM_caseL      : cfg -> giryM cfg. Admitted.
-Definition head_stepM_caseR      : cfg -> giryM cfg. Admitted.
-Definition head_stepM_allocTape  : cfg -> giryM cfg. Admitted.
-Definition head_stepM_allocUTape : cfg -> giryM cfg. Admitted.
-Definition head_stepM_rand       : cfg -> giryM cfg. Admitted.
-Definition head_stepM_urand      : cfg -> giryM cfg. Admitted.
-Definition head_stepM_randT      : cfg -> giryM cfg. Admitted.
-Definition head_stepM_urandT     : cfg -> giryM cfg. Admitted.
-Definition head_stepM_tick       : cfg -> giryM cfg. Admitted.
+Definition head_stepM_rec : cfg -> giryM cfg :=
+  gRet \o (ValU \o RecVU \o 𝜋_RecU \o fst △ snd).
+
+Definition head_stepM_pair : cfg -> giryM cfg :=
+  gRet \o (ValU \o PairVU \o (𝜋_ValU \o 𝜋_Pair_l \o fst △ 𝜋_ValU \o 𝜋_Pair_r \o fst) △ snd).
+
+Definition head_stepM_injL : cfg -> giryM cfg :=
+  gRet \o (ValU \o InjLVU \o 𝜋_ValU \o 𝜋_InjLU \o fst △ snd).
+
+Definition head_stepM_injR : cfg -> giryM cfg :=
+  gRet \o (ValU \o InjRVU \o 𝜋_ValU \o 𝜋_InjRU \o fst △ snd).
+
+Definition head_stepM_app : cfg -> giryM cfg :=
+  let 𝜋_f  := 𝜋_RecV_f \o 𝜋_ValU \o 𝜋_App_l \o fst in
+  let 𝜋_x  := 𝜋_RecV_x \o 𝜋_ValU \o 𝜋_App_l \o fst in
+  let 𝜋_e1 := 𝜋_RecV_e \o 𝜋_ValU \o 𝜋_App_l \o fst in
+  let 𝜋_v2 := 𝜋_ValU \o 𝜋_App_r \o fst in
+  gRet \o (substU' \o (𝜋_f △ (𝜋_v2 △ substU' \o (𝜋_f △ (RecVU \o (𝜋_f △ 𝜋_x △ 𝜋_e1) △ 𝜋_e1)))) △ snd).
+
+Definition head_stepM_unop : cfg -> giryM cfg :=
+  un_op_eval'' \o (𝜋_UnOp_op \o fst △ 𝜋_Val_v \o 𝜋_UnOp_e \o fst △ snd).
+
+Definition head_stepM_binop : cfg -> giryM cfg :=
+  bin_op_eval'' \o (𝜋_BinOp_op \o fst △ 𝜋_Val_v \o 𝜋_BinOp_l \o fst △ 𝜋_Val_v \o 𝜋_BinOp_r \o fst △ snd).
+
+Definition head_stepM_alloc : cfg -> giryM cfg :=
+  alloc_eval \o (𝜋_ValU \o fst △ snd).
+
+Definition head_stepM_load : cfg -> giryM cfg :=
+  load_eval \o (𝜋_LitLoc_l \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_Load_e \o fst △ snd).
+
+Program Definition head_stepM_store : cfg -> giryM cfg :=
+  let 𝜋_l := 𝜋_LitLoc_l \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_Store_l \o fst in
+  let 𝜋_v := 𝜋_ValU \o 𝜋_Store_e \o fst in
+  store_eval \o (𝜋_l △ 𝜋_v △ snd).
+
+Definition head_stepM_ifT : cfg -> giryM cfg :=
+  gRet \o (𝜋_If_l \o fst △ snd).
+
+Program Definition head_stepM_ifF : cfg -> giryM cfg :=
+  gRet \o (𝜋_If_r \o fst △ snd).
+
+Definition head_stepM_fst : cfg -> giryM cfg :=
+  gRet \o (ValU \o 𝜋_PairV_l \o 𝜋_ValU \o 𝜋_FstU \o fst △ snd).
+
+Definition head_stepM_snd : cfg -> giryM cfg :=
+  gRet \o (ValU \o 𝜋_PairV_r \o 𝜋_ValU \o 𝜋_FstU \o fst △ snd).
+
+Definition head_stepM_caseL : cfg -> giryM cfg :=
+  gRet \o (AppU \o (𝜋_Case_l \o fst △ ValU \o 𝜋_InjLVU \o 𝜋_ValU \o 𝜋_Case_c \o fst) △ snd).
+
+Definition head_stepM_caseR : cfg -> giryM cfg :=
+  gRet \o (AppU \o (𝜋_Case_r \o fst △ ValU \o 𝜋_InjRVU \o 𝜋_ValU \o 𝜋_Case_c \o fst) △ snd).
+
+Definition head_stepM_allocTape : cfg -> giryM cfg :=
+  AllocTape_eval \o (𝜋_LitIntU \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_AllocTapeU \o fst △ snd).
+
+Definition head_stepM_allocUTape : cfg -> giryM cfg :=
+  AllocUTape_eval \o snd.
+
+Definition head_stepM_rand : cfg -> giryM cfg :=
+  Rand_eval \o (𝜋_LitIntU \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_Rand_t \o fst △ snd).
+
+Definition head_stepM_urand : cfg -> giryM cfg :=
+  URand_eval \o snd.
+
+Definition head_stepM_randT : cfg -> giryM cfg :=
+  let 𝜋_N := 𝜋_LitIntU \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_Rand_N \o fst in
+  let 𝜋_l := 𝜋_LitLocU \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_Rand_t \o fst in
+  RandT_eval \o (𝜋_N △ 𝜋_l △ snd).
+
+Definition head_stepM_urandT : cfg -> giryM cfg :=
+  URandT_eval \o (𝜋_LitLocU \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_URand_e \o fst  △ snd).
+
+Definition head_stepM_tick : cfg -> giryM cfg :=
+  gRet \o (cst (ValU $ LitVU $ LitUnitU) △ snd).
 
 Lemma head_stepM_rec_meas_fun        : measurable_fun cover_rec        head_stepM_rec. Admitted.
 Lemma head_stepM_pair_meas_fun       : measurable_fun cover_pair       head_stepM_pair. Admitted.
