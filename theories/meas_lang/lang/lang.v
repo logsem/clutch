@@ -1,7 +1,8 @@
-(* TODO cleanup imports *) Set Warnings "-hiding-delimiting-key".
+(* TODO cleanup imports *)
+Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
-From stdpp Require Import base numbers binders strings gmap.
+From stdpp Require Import base. (* numbers binders strings gmap. **)
 From mathcomp Require Import functions.
 From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
@@ -41,9 +42,140 @@ Local Open Scope classical_set_scope.
 
 Section meas_semantics.
 
-Definition head_stepM : cfg -> giryM cfg. Admitted.
+(*
+Definition test (l : loc) (v : val) (h : hp (option val)) : hp (option val) :=
+  <[ l := v ]> h.
+*)
+(*
+Instance : Insert <<discr loc>> btape (hp (option btape)).
+intros a b c.
+apply (hp_evalC ).
+  *)
+
+Global Instance : Lookup <<discr loc>> btape (hp (option btape)) := hp_eval.
 
 
+Check tapeAdvance.
+
+(* TODO: Make this as close to the old definition in Clutch as possible.
+    - What stdpp isntances do we need for the new tapes?*)
+Definition head_stepM (c : cfg) : giryM cfg :=
+  let (e1, σ1) := c in
+  match e1 with
+  | Rec f x e =>
+      gRet ((Val $ RecV f x e, σ1) : cfg)
+  | Pair (Val v1) (Val v2) =>
+      gRet ((Val $ PairV v1 v2, σ1) : cfg)
+  | InjL (Val v) =>
+      gRet ((Val $ InjLV v, σ1) : cfg)
+  | InjR (Val v) =>
+      gRet ((Val $ InjRV v, σ1) : cfg)
+  | App (Val (RecV f x e1)) (Val v2) =>
+      gRet ((substU' (x, (v2, substU' (f, (RecVC f x e1, e1)))), σ1) : cfg)
+  | UnOp op (Val v) =>
+      match un_op_eval op v with
+        | Some w => gRet ((ValC w, σ1) : cfg)
+        | _ => gZero
+      end
+  | BinOp op (Val v1) (Val v2) =>
+      match bin_op_eval op v1 v2 with
+        | Some w => gRet ((ValC w, σ1) : cfg)
+        | _ => gZero
+      end
+  | If (Val (LitV (LitBool true))) e1 e2  =>
+      gRet ((e1 , σ1) : cfg)
+  | If (Val (LitV (LitBool false))) e1 e2 =>
+      gRet ((e2 , σ1) : cfg)
+  | Fst (Val (PairV v1 v2)) =>
+      gRet ((Val v1, σ1) : cfg)
+  | Snd (Val (PairV v1 v2)) =>
+      gRet ((Val v2, σ1) : cfg)
+  | Case (Val (InjLV v)) e1 e2 =>
+      gRet ((App e1 (Val v), σ1) : cfg)
+  | Case (Val (InjRV v)) e1 e2 =>
+      gRet ((App e2 (Val v), σ1) : cfg)
+  | Alloc (Val v) =>
+      let ℓ := state.fresh (heap σ1) in
+      gRet ((ValC $ LitVC $ LitLocC ℓ, state_upd_heap <[ ℓ := (v : val) ]>  σ1) : cfg)
+
+  | Load (Val (LitV (LitLoc l))) =>
+      match (((heap σ1) !! l) : option val) with
+        | Some v => gRet ((Val v, σ1) : cfg)
+        | None => gZero
+      end
+  | Store (Val (LitV (LitLoc l))) (Val w) =>
+      match ((heap σ1) !! l : option val) with
+        | Some v => gRet ((Val $ LitV LitUnit, state_upd_heap <[ l := (w : val) ]> σ1) : cfg)
+        | None => gZero
+      end
+  (* Uniform sampling from [0, 1 , ..., N] *)
+  | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
+      gMap'
+        (fun (n : <<discr Z>>) => ((Val $ LitV $ LitInt n, σ1) : cfg))
+        (unifN_base N)
+  | AllocTape (Val (LitV (LitInt z))) =>
+      let ι := state.fresh (tapes σ1) in (* FIXME: stdpp-ify *)
+      gRet ((Val $ LitV $ LitLbl ι, state_upd_tapes (fun h => hp_update ι (Some (Z.to_nat z, emptyTape), h)) σ1) : cfg)
+  (* Rand with a tape *)
+  | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) =>
+      match ((tapes σ1) !! l : option btape) with
+      | Some (M, (i, τ)) =>
+          if (bool_decide (M = Z.to_nat N))
+            then
+              match (τ i) with
+              (* Presample *)
+              | Some s =>
+                  let σ' := state_upd_tapes (fun h => hp_update l (Some (M, (i + 1, τ)), h)) σ1 in
+                  gRet (ValC $ LitVC $ LitInt s , σ')
+              (* Next is empty *)
+              | None =>
+                  gMap'
+                    (fun (s : <<discr Z>>) =>
+                       let σ' := state_upd_tapes (fun h => hp_update l (Some (M, (i + 1, sequence_update i (Some s, τ))), h)) σ1 in
+                       ((Val $ LitV $ LitInt s, σ1) : cfg))
+                    (unifN_base N)
+              end
+            (* Bound mismatch *)
+            else
+              gMap'
+                (fun (n : <<discr Z>>) => ((Val $ LitV $ LitInt n, σ1) : cfg))
+                (unifN_base N)
+      (* No tape allocated (get stuck) *)
+      | None => gZero
+      end
+
+  | AllocUTape =>
+      let ι := state.fresh (utapes σ1) in (* FIXME: stdpp-ify *)
+      gRet ((Val $ LitV $ LitLbl ι, state_upd_utapes (fun h => hp_update ι (Some emptyTape, h)) σ1) : cfg)
+  (* Urand with no tape *)
+  | URand (Val (LitV LitUnit)) =>
+      gMap'
+        (fun r => (ValC $ LitVC $ LitReal r, σ1) : cfg)
+        unif_base
+  (* Urand with a tape *)
+  | URand  (Val (LitV (LitLbl l))) =>
+      match ((utapes σ1) !! l : option utape) with
+      | Some (i, τ) =>
+          match (τ i) with
+          (* Presample *)
+          | Some s =>
+              let σ' := state_upd_utapes (fun h => hp_update l (Some (i + 1, τ), h)) σ1 in
+              gRet (ValC $ LitVC $ LitReal s , σ')
+          (* Next is empty *)
+          | None =>
+              gMap'
+                (fun s =>
+                   let σ' := state_upd_utapes (fun h => hp_update l (Some (i + 1, sequence_update i (Some s, τ)), h)) σ1 in
+                   ((Val $ LitV $ LitReal s, σ1) : cfg))
+                (unif_base)
+          end
+      (* No tape allocated (get stuck) *)
+      | None => gZero
+      end
+  | Tick (Val (LitV (LitInt n))) =>
+      gRet ((Val $ LitV $ LitUnit, σ1) : cfg)
+  | _ => gZero
+  end.
 
 Definition cover_rec : set cfg :=
   setI setT $ preimage fst $ ecov_rec.
@@ -154,8 +286,6 @@ Definition cover_urandT : set cfg :=
 Definition cover_tick : set cfg :=
   setI setT $ preimage fst $ setI ecov_tick $ preimage 𝜋_TickU $ setI ecov_val $
   preimage 𝜋_ValU $ setI vcov_lit $ preimage 𝜋_LitVU $ bcov_LitInt.
-
-
 
 Lemma cover_rec_meas_set        : measurable  cover_rec. Admitted.
 Lemma cover_pair_meas_set       : measurable  cover_pair. Admitted.
@@ -362,10 +492,10 @@ Inductive head_step_rel : expr -> state -> expr -> state → Prop :=
 | InjRS v σ :
   head_step_rel (InjR $ Val v) σ (Val $ InjRV v) σ
 
-(* Pure reductions *)
+(* Pure reductions
 | BetaS f x e1 v2 e' σ :
   e' = subst x v2 (subst f (RecV f x e1) e1) →
-  head_step_rel (App (Val $ RecV f x e1) (Val v2)) σ e' σ
+  head_step_rel (App (Val $ RecV f x e1) (Val v2)) σ e' σ *)
 | UnOpS op v v' σ :
   un_op_eval op v = Some v' →
   head_step_rel (UnOp op (Val v)) σ (Val v') σ

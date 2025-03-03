@@ -268,8 +268,13 @@ Section hpfuns.
       to make porting the logic easier.
    *)
 
-  Instance : PartialAlter <<discr loc>> T (hp (option T)) := {
+  Global Instance : PartialAlter <<discr loc>> T (hp (option T)) := {
       partial_alter f l h := hp_updateC (l, (f $ hp_evalC (l, h), h)) }.
+
+  Global Instance : Lookup <<discr loc>> T (hp (option T)) := hp_eval.
+
+(*  Global Program Instance hp_insert {d} {T : measurableType d} : Insert (<<discr loc>>) T (hp T) :=
+  _. *)
 
 End hpfuns.
 
@@ -537,29 +542,30 @@ Proof.
 Qed.
 Hint Resolve state_upd_utapes_meas_fun : measlang.
 
-(*
 Lemma state_upd_tapes_twice σ l xs ys :
   state_upd_tapes <[ l := ys ]> (state_upd_tapes <[ l := xs ]> σ) = state_upd_tapes <[ l:= ys ]> σ.
 Proof. Admitted. (* rewrite /state_upd_tapes /=. f_equal. apply insert_insert. Qed. *)
 
 Lemma state_upd_tapes_same σ σ' l xs ys :
   state_upd_tapes <[l:=ys]> σ = state_upd_tapes <[l:=xs]> σ' -> xs = ys.
-Proof. rewrite /state_upd_tapes /=. intros K. simplify_eq.
+Proof.
+  (* rewrite /state_upd_tapes /=. intros K. simplify_eq.
        rewrite map_eq_iff in H.
        specialize (H l).
        rewrite !lookup_insert in H.
        by simplify_eq.
-Qed.
+Qed. *) Admitted.
 
+(*
 Lemma state_upd_tapes_no_change σ l ys :
-  tapes σ !! l = Some ys ->
+  (tapes σ) !! l = Some ys ->
   state_upd_tapes <[l := ys]> σ = σ .
 Proof.
   destruct σ as [? t]. simpl.
   intros Ht.
   f_equal.
   (* apply insert_id. done. *)
-Admitted.
+Admitted. *)
 
 (*
 Lemma state_upd_tapes_same' σ σ' l n xs (x y : stdpp.fin.fin (S n)) :
@@ -570,7 +576,7 @@ Lemma state_upd_tapes_neq' σ σ' l n xs (x y : stdpp.fin.fin (S n)) :
   x≠y -> state_upd_tapes <[l:=(fin(n; xs++[x]))]> σ ≠ state_upd_tapes <[l:=(fin(n; xs++[y]))]> σ'.
 Proof. move => H /state_upd_tapes_same ?. simplify_eq. Qed.
 *)
-
+(*
 Fixpoint heap_array (l : <<discr loc>>) (vs : list val) : gmap <<discr loc>> val :=
   match vs with
   | [] => ∅
@@ -627,7 +633,7 @@ Proof.
   intros (j&?&->&Hj%lookup_lt_Some%inj_lt)%heap_array_lookup.
   move: Hj. rewrite Z2Nat.id // => ?. by rewrite Hdisj.
 Qed.
-*)
+**)
 
 (*
 Definition state_upd_hp_N : (<<discr loc>> * <<discr Z>> * val * (hp (option val)))%type -> (hp (option val)).
