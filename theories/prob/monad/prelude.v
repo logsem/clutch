@@ -820,24 +820,35 @@ Section of_option.
 
 End of_option.
 
-
 Section if_in.
   Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
 
   Definition if_in (D : set T1) (f1 f2 : T1 -> T2) : T1 -> T2 :=
     fun x => if (asbool (D x)) then f1 x else f2 x.
 
-  Lemma if_in_meas_fun (D DT : set T1) (H : measurable D) (HDT  : measurable DT) (f1 f2 : T1 -> T2)
-                       (Hf1 : measurable_fun (D `&` DT) f1) (Hf2 : measurable_fun ((~` D) `&` DT) f2) :
-    measurable_fun setT (if_in DT f1 f2).
-  Proof. Admitted.
-  Hint Resolve if_in_meas_fun : measlang.
-
   Lemma ifIn_eq_left (D : set T1) (f1 f2 : T1 -> T2) (x : T1) : D x -> if_in D f1 f2 x = f1 x.
-  Proof. Admitted.
+  Proof. by move=>?; rewrite /if_in asboolT. Qed.
 
   Lemma ifIn_eq_right (D : set T1) (f1 f2 : T1 -> T2) (x : T1) : ¬ D x -> if_in D f1 f2 x = f2 x.
-  Proof. Admitted.
+  Proof. by move=>?; rewrite /if_in asboolF. Qed.
+
+  Lemma if_in_meas_fun (D DT : set T1) (H : measurable D) (HDT  : measurable DT) (f1 f2 : T1 -> T2)
+                       (Hf1 : measurable_fun (D `&` DT) f1) (Hf2 : measurable_fun ((~` D) `&` DT) f2) :
+    measurable_fun DT (if_in D f1 f2).
+  Proof.
+    have -> : DT = (D `&` DT) `|` (~` D `&` DT).
+    { by rewrite <- setIUl; rewrite setUv setTI. }
+    apply <- measurable_funU; first split.
+    - eapply mathcomp_measurable_fun_ext; [| by apply Hf1 |].
+      + by apply measurableI.
+      + by move=>//= ? [? ?]; rewrite ifIn_eq_left.
+    - eapply mathcomp_measurable_fun_ext; [| by apply Hf2 |].
+      + apply measurableI; last done. by apply measurableC.
+      + by move=>//= ? [? ?]; rewrite ifIn_eq_right.
+    - apply measurableI; last done. by apply measurableC.
+    - by apply measurableI.
+  Qed.
+  Hint Resolve if_in_meas_fun : measlang.
 
 End if_in.
 
