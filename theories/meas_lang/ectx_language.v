@@ -12,6 +12,7 @@ From mathcomp.analysis Require Import reals measure ereal Rstruct.
 (* From clutch.prob.monad Require Import laws types meas_markov. *)
 From clutch.prob.monad Require Import giry meas_markov.
 From clutch.meas_lang Require Import language.
+From Coq Require Import ssrfun.
 Set Warnings "hiding-delimiting-key".
 
 Section ectx_language_mixin.
@@ -212,11 +213,13 @@ Section ectx_language.
   Qed.
 
   (** FIXME: What a strange little measurability proof. *)
-  Definition prim_step : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type. Admitted.
+  Definition prim_step : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type :=
+    gMap' (fill_liftU \o (fst \o decomp \o fst △ id)) \o head_step \o ((snd \o decomp \o fst) △ snd).
+
   (*
     ssrfun.comp
       ( giryM_map (ssrfun.comp fill_liftU $ mProd (ssrfun.comp fst $ ssrfun.comp decomp fst) (fun x => x)) _ )
-      ( ssrfun.comp head_step $ mProd (ssrfun.comp snd $ ssrfun.comp decomp $ fst) snd ).
+      .
   Next Obligation.
     eapply @measurable_compT; first by eauto with measlang.
     { by apply fill_liftU_meas. }
