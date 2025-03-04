@@ -97,243 +97,140 @@ Section modalities.
     by simplify_eq.
   Qed.
 
-(*   #[local] Instance state_step_coupl_pre_mono Z : BiMonoPred (state_step_coupl_pre Z). *)
-(*   Proof. *)
-(*     split; [|apply _]. *)
-(*     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand". *)
-(*     iIntros ([??]) "[H|[?|[H|(%&%&%&%&%&H)]]]". *)
-(*     - by iLeft. *)
-(*     - iRight; by iLeft. *)
-(*     - iRight; iRight; iLeft. *)
-(*       iIntros (??). *)
-(*       iApply "Hwand". *)
-(*       by iApply "H". *)
-(*     - do 3 iRight. *)
-(*       repeat iExists _; repeat (iSplit; [done|]). *)
-(*       iIntros (?). *)
-(*       iApply "Hwand". *)
-(*       by iApply "H". *)
-(*   Qed. *)
+  #[local] Instance state_step_coupl_pre_mono Z : BiMonoPred (state_step_coupl_pre Z).
+  Proof.
+    split; [|apply _].
+    iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
+    iIntros ([[??]?]) "[H|[H|(%&%&%&%&%&%&%&H)]]".
+    - by iLeft.
+    - iRight; by iLeft.
+    - iRight; iRight.
+      repeat iExists _; repeat (iSplit; [done|]).
+      iIntros (??).
+      iApply "Hwand".
+      iApply ("H" with "[//]").
+  Qed.
 
-(*   Definition state_step_coupl' Z := bi_least_fixpoint (state_step_coupl_pre Z). *)
-(*   Definition state_step_coupl σ ε Z:= state_step_coupl' Z (σ, ε). *)
+  Definition state_step_coupl' Z := bi_least_fixpoint (state_step_coupl_pre Z).
+  Definition state_step_coupl σ ρ ε Z:= state_step_coupl' Z ((σ, ρ), ε).
 
-(*   Lemma state_step_coupl_unfold σ1 ε Z : *)
-(*     state_step_coupl σ1 ε Z ≡ *)
-(*       (⌜(1 <= ε)%R⌝ ∨ *)
-(*          (Z σ1 ε) ∨ *)
-(*          (∀ ε', ⌜(ε<ε')%R⌝ -∗ state_step_coupl σ1 ε' Z) ∨ *)
-(*       (∃ μ (ε2 : state con_prob_lang -> nonnegreal), *)
-(*           ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗ *)
-(*           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗ *)
-(*           ⌜ (SeriesC (λ ρ, (μ ρ) * ε2 ρ) <= ε)%R ⌝ ∗ *)
-(*           ∀ σ2, |={∅}=> state_step_coupl σ2 (ε2 σ2) Z))%I. *)
-(*   Proof. rewrite /state_step_coupl /state_step_coupl' least_fixpoint_unfold //. Qed. *)
+  Lemma state_step_coupl_unfold σ1 ρ ε Z :
+    state_step_coupl σ1 ρ ε Z ≡
+      (⌜(1<=ε)%R⌝ ∨
+        Z σ1 ρ ε ∨
+        ∃ (S: state con_prob_lang -> cfg con_prob_lang -> Prop) (μ : distr (cfg con_prob_lang))
+          (ε1 ε2: nonnegreal),
+          ⌜spec_transition ρ μ ⌝ ∗
+          ⌜ ε1 + ε2 <= ε ⌝ ∗
+          ⌜ ARcoupl (dret σ1) μ S ε1 ⌝ ∗
+          ∀ ρ', ⌜S σ1 ρ'⌝ ={∅}=∗ state_step_coupl σ1 ρ' ε2 Z)%I.
+  Proof. rewrite /state_step_coupl /state_step_coupl' least_fixpoint_unfold //. Qed.
 
-(*   Lemma state_step_coupl_ret_err_ge_1 σ1 Z (ε : nonnegreal) : *)
-(*     (1 <= ε)%R → ⊢ state_step_coupl σ1 ε Z. *)
-(*   Proof. iIntros. rewrite state_step_coupl_unfold. by iLeft. Qed. *)
+  Lemma state_step_coupl_ret_err_ge_1 σ1 ρ1 Z (ε : nonnegreal) :
+    (1 <= ε)%R → ⊢ state_step_coupl σ1 ρ1 ε Z.
+  Proof. iIntros. rewrite state_step_coupl_unfold. by iLeft. Qed.
 
-(*   Lemma state_step_coupl_ret σ1 Z ε : *)
-(*     Z σ1 ε -∗ state_step_coupl σ1 ε Z. *)
-(*   Proof. iIntros. rewrite state_step_coupl_unfold. by iRight; iLeft. Qed. *)
+  Lemma state_step_coupl_ret σ1 ρ1 Z ε :
+    Z σ1 ρ1 ε -∗ state_step_coupl σ1 ρ1 ε Z.
+  Proof. iIntros. rewrite state_step_coupl_unfold. by iRight; iLeft. Qed.
 
-(*   Lemma state_step_coupl_ampl σ1 Z ε: *)
-(*     (∀ ε', ⌜(ε<ε')%R⌝ -∗ state_step_coupl σ1 ε' Z) -∗ state_step_coupl σ1 ε Z. *)
-(*   Proof. iIntros. rewrite state_step_coupl_unfold. *)
-(*          do 2 iRight; by iLeft. *)
-(*   Qed.  *)
+  Lemma state_step_coupl_rec σ1 ρ1 (ε : nonnegreal) Z :
+     (∃ (S: state con_prob_lang -> cfg con_prob_lang -> Prop) (μ : distr (cfg con_prob_lang))
+          (ε1 ε2: nonnegreal),
+          ⌜spec_transition ρ1 μ ⌝ ∗
+          ⌜ ε1 + ε2 <= ε ⌝ ∗
+          ⌜ ARcoupl (dret σ1) μ S ε1 ⌝ ∗
+          ∀ ρ2, ⌜S σ1 ρ2⌝ ={∅}=∗ state_step_coupl σ1 ρ2 ε2 Z)%I
+    ⊢ state_step_coupl σ1 ρ1 ε Z.
+  Proof. iIntros "H". rewrite state_step_coupl_unfold. repeat iRight. done. Qed.
 
-(*   Lemma state_step_coupl_ampl' σ1 Z ε: *)
-(*     (∀ ε', ⌜(ε<ε'<1)%R⌝ -∗ state_step_coupl σ1 ε' Z) -∗ state_step_coupl σ1 ε Z. *)
-(*   Proof. *)
-(*     iIntros "H". *)
-(*     iApply state_step_coupl_ampl. *)
-(*     iIntros (ε' ?). *)
-(*     destruct (Rlt_or_le ε' 1)%R. *)
-(*     - iApply "H". iPureIntro. lra. *)
-(*     - by iApply state_step_coupl_ret_err_ge_1.  *)
-(*   Qed.  *)
+  Lemma state_step_coupl_ind (Ψ Z : state con_prob_lang → cfg con_prob_lang -> nonnegreal → iProp Σ) :
+    ⊢ (□ (∀ σ ρ ε,
+             state_step_coupl_pre Z (λ '(σ', ρ', ε'),
+                 Ψ σ' ρ' ε' ∧ state_step_coupl σ' ρ' ε' Z)%I ((σ, ρ), ε) -∗ Ψ σ ρ ε) →
+       ∀ σ ρ ε, state_step_coupl σ ρ ε Z -∗ Ψ σ ρ ε)%I.
+  Proof.
+    iIntros "#IH" (σ ρ ε) "H".
+    set (Ψ' := (λ '(σ, ρ, ε), Ψ σ ρ ε) :
+           (prodO (prodO (stateO con_prob_lang) (cfgO con_prob_lang)) NNRO) → iProp Σ).
+    assert (NonExpansive Ψ').
+    { intros n [[σ1 ρ1] ε1] [[σ2 ρ2] ε2].
+      intros [[[=][=]][=]].
+      by simplify_eq/=. }
+    iApply (least_fixpoint_ind _ Ψ' with "[] H").
+    iIntros "!#" ([[??] ?]) "H". by iApply "IH".
+  Qed.
 
-(*   Lemma state_step_coupl_rec σ1 (ε : nonnegreal) Z : *)
-(*     (∃ μ (ε2 : state con_prob_lang -> nonnegreal), *)
-(*           ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗ *)
-(*           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗ *)
-(*           ⌜ (Expval μ ε2 <= ε)%R ⌝ ∗ *)
-(*           ∀ σ2, |={∅}=> state_step_coupl σ2 (ε2 σ2) Z)%I *)
-(*     ⊢ state_step_coupl σ1 ε Z. *)
-(*   Proof. iIntros "H". rewrite state_step_coupl_unfold. repeat iRight. done. Qed. *)
-
-(*   Lemma state_step_coupl_rec_equiv σ1 (ε : nonnegreal) Z : *)
-(*     (∃ μ (ε2 : state con_prob_lang -> nonnegreal), *)
-(*         ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗ *)
-(*         ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗ *)
-(*                     ⌜ (Expval μ ε2 <= ε)%R ⌝ ∗ *)
-(*                     ∀ σ2, |={∅}=> state_step_coupl σ2 (ε2 σ2) Z)%I ⊣⊢ *)
-(*     (∃ R μ (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal), *)
-(*         ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗ *)
-(*         ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗ *)
-(*                     ⌜ (ε1 + Expval μ ε2 <= ε)%R ⌝ ∗ *)
-(*                     ⌜pgl μ R ε1⌝ ∗ *)
-(*                     ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ state_step_coupl σ2 (ε2 σ2) Z)%I. *)
-(*   Proof. *)
-(*     iSplit. *)
-(*     - iIntros "H". *)
-(*       iDestruct "H" as "(%μ & %ε2 & % & [%r %] & %Hineq  &H)". *)
-(*       iExists (λ _, True), μ, 0, (λ σ, if bool_decide (μ σ > 0)%R then ε2 σ else 1). *)
-(*       repeat iSplit; first done. *)
-(*       + iPureIntro. exists (Rmax r 1). *)
-(*         intros; case_bool_decide. *)
-(*         * etrans; last apply Rmax_l. done. *)
-(*         * simpl. apply Rmax_r. *)
-(*       + simpl. iPureIntro. rewrite Rplus_0_l. etrans; last exact. *)
-(*         rewrite /Expval. apply Req_le. *)
-(*         apply SeriesC_ext. *)
-(*         intros n. case_bool_decide; first done. *)
-(*         destruct (pmf_pos μ n) as [K|K]. *)
-(*         * exfalso. apply Rlt_gt in K. naive_solver. *)
-(*         * simpl. rewrite -K. lra. *)
-(*       + iPureIntro. by apply pgl_trivial. *)
-(*       + iIntros. case_bool_decide; first done. *)
-(*         by iApply state_step_coupl_ret_err_ge_1. *)
-(*     - iIntros "H". *)
-(*       iDestruct "H" as "(%R & %μ & %ε1 & %ε2 & % & [%r %] & %Hineq & %Hpgl &H)". *)
-(*       iExists μ, (λ σ, if bool_decide(R σ) then ε2 σ else 1). *)
-(*       repeat iSplit; try done. *)
-(*       + iPureIntro. exists (Rmax r 1). *)
-(*         intros; case_bool_decide. *)
-(*         * etrans; last apply Rmax_l. done. *)
-(*         * simpl. apply Rmax_r. *)
-(*       + rewrite /Expval in Hineq. rewrite /Expval. iPureIntro. *)
-(*         rewrite /pgl/prob in Hpgl. etrans; last exact. *)
-(*         etrans; last (apply Rplus_le_compat_r; exact). *)
-(*         rewrite -SeriesC_plus. *)
-(*         * apply SeriesC_le. *)
-(*           -- intros. split; first (case_bool_decide; real_solver). *)
-(*              case_bool_decide; simpl; try lra. *)
-(*              rewrite Rmult_1_r. apply Rplus_le_0_compat. *)
-(*              real_solver. *)
-(*           -- apply ex_seriesC_plus. *)
-(*              ++ apply (ex_seriesC_le _ μ); last done. *)
-(*                 intros. case_bool_decide; by simpl. *)
-(*              ++ apply pmf_ex_seriesC_mult_fn. naive_solver. *)
-(*         * apply (ex_seriesC_le _ μ); last done. *)
-(*           intros. case_bool_decide; by simpl. *)
-(*         * apply pmf_ex_seriesC_mult_fn. naive_solver. *)
-(*       + iIntros. case_bool_decide. *)
-(*         * iApply ("H" with "[//]"). *)
-(*         * by iApply state_step_coupl_ret_err_ge_1. *)
-(*   Qed. *)
-
-(*   Lemma state_step_coupl_rec' σ1 (ε : nonnegreal) Z : *)
-(*     (∃ R μ (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal), *)
-(*           ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗ *)
-(*           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗ *)
-(*           ⌜ (ε1 + Expval μ ε2 <= ε)%R ⌝ ∗ *)
-(*           ⌜pgl μ R ε1⌝ ∗ *)
-(*           ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ state_step_coupl σ2 (ε2 σ2) Z)%I *)
-(*     ⊢ state_step_coupl σ1 ε Z. *)
-(*   Proof. *)
-(*     iIntros. iApply state_step_coupl_rec. by rewrite state_step_coupl_rec_equiv. *)
-(*   Qed. *)
-      
-
-(*   Lemma state_step_coupl_ind (Ψ Z : state con_prob_lang → nonnegreal → iProp Σ) : *)
-(*     ⊢ (□ (∀ σ ε, *)
-(*              state_step_coupl_pre Z (λ '(σ, ε'), *)
-(*                  Ψ σ ε' ∧ state_step_coupl σ ε' Z)%I (σ, ε) -∗ Ψ σ ε) → *)
-(*        ∀ σ ε, state_step_coupl σ ε Z -∗ Ψ σ ε)%I. *)
-(*   Proof. *)
-(*     iIntros "#IH" (σ ε) "H". *)
-(*     set (Ψ' := (λ '(σ, ε), Ψ σ ε) : *)
-(*            (prodO (stateO con_prob_lang) NNRO) → iProp Σ). *)
-(*     assert (NonExpansive Ψ'). *)
-(*     { intros n [σ1 ε1] [σ2 ε2]. *)
-(*       intros [[=][=]]. *)
-(*       by simplify_eq/=. } *)
-(*     iApply (least_fixpoint_ind _ Ψ' with "[] H"). *)
-(*     iIntros "!#" ([? ?]) "H". by iApply "IH". *)
-(*   Qed. *)
-
-(*   Lemma fupd_state_step_coupl σ1 Z (ε : nonnegreal) : *)
-(*     (|={∅}=> state_step_coupl σ1 ε Z) ⊢ state_step_coupl σ1 ε Z. *)
-(*   Proof. *)
-(*     iIntros "H". *)
-(*     iApply state_step_coupl_rec'. *)
-(*     iExists (λ x, x= σ1), (dret σ1), nnreal_zero, (λ _, ε). *)
-(*     repeat iSplit. *)
-(*     - iPureIntro. apply dret_sch_erasable. *)
-(*     - iPureIntro. naive_solver. *)
-(*     - simpl. iPureIntro. rewrite Expval_const; last done. *)
-(*       rewrite dret_mass. lra. *)
-(*     - iPureIntro. *)
-(*       by apply pgl_dret. *)
-(*     - by iIntros (? ->). *)
-(*   Qed. *)
+  Lemma fupd_state_step_coupl σ1 ρ1 Z (ε : nonnegreal) :
+    (|={∅}=> state_step_coupl σ1 ρ1 ε Z) ⊢ state_step_coupl σ1 ρ1 ε Z.
+  Proof.
+    iIntros "H".
+    iApply state_step_coupl_rec.
+    iExists (λ x y, x= σ1/\y=ρ1), (dret _), nnreal_zero, (ε).
+    repeat iSplit.
+    - iPureIntro. apply spec_transition_dret.
+    - iPureIntro. simpl. lra. 
+    - iPureIntro.
+      by apply ARcoupl_dret.
+    - iIntros (? [??]); by simplify_eq.
+  Qed.
   
-(*   Lemma state_step_coupl_mono σ1 Z1 Z2 ε : *)
-(*     (∀ σ2 ε', Z1 σ2 ε' -∗ Z2 σ2 ε') -∗ *)
-(*     state_step_coupl σ1 ε Z1 -∗ state_step_coupl σ1 ε Z2. *)
-(*   Proof. *)
-(*     iIntros "HZ Hs". *)
-(*     iRevert "HZ". *)
-(*     iRevert (σ1 ε) "Hs". *)
-(*     iApply state_step_coupl_ind. *)
-(*     iIntros "!#" (σ ε) *)
-(*       "[% | [? | [H|(% & % & % & % & % & H)]]] Hw". *)
-(*     - iApply state_step_coupl_ret_err_ge_1. lra. *)
-(*     - iApply state_step_coupl_ret. by iApply "Hw". *)
-(*     - iApply state_step_coupl_ampl. *)
-(*       iIntros (??). *)
-(*       by iApply "H". *)
-(*     - iApply state_step_coupl_rec. *)
-(*       repeat iExists _. *)
-(*       repeat iSplit; try done. *)
-(*       iIntros (?). *)
-(*       iMod ("H" $! σ2) as "[IH _]". *)
-(*       by iApply "IH". *)
-(*   Qed. *)
+  Lemma state_step_coupl_mono σ1 ρ1 Z1 Z2 ε :
+    (∀ σ2 ρ2 ε', Z1 σ2 ρ2 ε' -∗ Z2 σ2 ρ2 ε') -∗
+    state_step_coupl σ1 ρ1 ε Z1 -∗ state_step_coupl σ1 ρ1 ε Z2.
+  Proof.
+    iIntros "HZ Hs".
+    iRevert "HZ".
+    iRevert (σ1 ρ1 ε) "Hs".
+    iApply state_step_coupl_ind.
+    iIntros "!#" (σ ρ ε)
+      "[% | [? | (%&%&%&%&%&%&%&H)]] Hw".
+    - iApply state_step_coupl_ret_err_ge_1. lra.
+    - iApply state_step_coupl_ret. by iApply "Hw".
+    - iApply state_step_coupl_rec.
+      repeat iExists _.
+      repeat iSplit; try done.
+      iIntros (??).
+      iMod ("H" $! _ with "[//]") as "[IH _]".
+      by iApply "IH".
+  Qed.
 
-(*   Lemma state_step_coupl_mono_err ε1 ε2 σ1 Z : *)
-(*     (ε1 <= ε2)%R → state_step_coupl σ1 ε1 Z -∗ state_step_coupl σ1 ε2 Z. *)
-(*   Proof. *)
-(*     iIntros (Heps) "Hs". *)
-(*     iApply state_step_coupl_rec'. *)
-(*     set (ε' := nnreal_minus ε2 ε1 Heps). *)
-(*     iExists (λ x, x=σ1), (dret σ1), nnreal_zero, (λ _, ε1). *)
-(*     repeat iSplit. *)
-(*     - iPureIntro. apply dret_sch_erasable. *)
-(*     - iPureIntro; naive_solver. *)
-(*     - iPureIntro. simpl. rewrite Expval_const; last done. rewrite dret_mass; lra. *)
-(*     - iPureIntro. by apply pgl_dret. *)
-(*     - by iIntros (?->). *)
-(*   Qed. *)
+  Lemma state_step_coupl_mono_err ε1 ε2 σ1 ρ1 Z :
+    (ε1 <= ε2)%R → state_step_coupl σ1 ρ1 ε1 Z -∗ state_step_coupl σ1 ρ1 ε2 Z.
+  Proof.
+    iIntros (Heps) "Hs".
+    iApply state_step_coupl_rec.
+    set (ε' := nnreal_minus ε2 ε1 Heps).
+    iExists (λ x y, x=σ1/\y=ρ1), (dret _), nnreal_zero, (ε1).
+    repeat iSplit.
+    - iPureIntro. apply spec_transition_dret.
+    - iPureIntro; simpl; lra.
+    - iPureIntro. by apply ARcoupl_dret. 
+    - iIntros (? [??]); by simplify_eq.
+  Qed.
   
-(*   Lemma state_step_coupl_bind σ1 Z1 Z2 ε : *)
-(*     (∀ σ2 ε', Z1 σ2 ε' -∗ state_step_coupl σ2 ε' Z2) -∗ *)
-(*     state_step_coupl σ1 ε Z1 -∗ *)
-(*     state_step_coupl σ1 ε Z2. *)
-(*   Proof. *)
-(*     iIntros "HZ Hs". *)
-(*     iRevert "HZ". *)
-(*     iRevert (σ1 ε) "Hs". *)
-(*     iApply state_step_coupl_ind. *)
-(*     iIntros "!#" (σ ε) *)
-(*       "[% | [H | [H|(% & % & % & % & % & H)]]] HZ". *)
-(*     - by iApply state_step_coupl_ret_err_ge_1. *)
-(*     - iApply ("HZ" with "H"). *)
-(*     - iApply state_step_coupl_ampl. *)
-(*       iIntros (??). *)
-(*       iDestruct ("H" with "[//]") as "[H _]". *)
-(*       by iApply "H". *)
-(*     - iApply state_step_coupl_rec. *)
-(*       repeat iExists _. *)
-(*       repeat iSplit; try done. *)
-(*       iIntros (?). *)
-(*       iMod ("H" $! _) as "[H _]". *)
-(*       by iApply "H". *)
-(*   Qed. *)
-  
+  Lemma state_step_coupl_bind σ1 ρ1 Z1 Z2 ε :
+    (∀ σ2 ρ2 ε', Z1 σ2 ρ2 ε' -∗ state_step_coupl σ2 ρ2 ε' Z2) -∗
+    state_step_coupl σ1 ρ1 ε Z1 -∗
+    state_step_coupl σ1 ρ1 ε Z2.
+  Proof.
+    iIntros "HZ Hs".
+    iRevert "HZ".
+    iRevert (σ1 ρ1 ε) "Hs".
+    iApply state_step_coupl_ind.
+    iIntros "!#" (σ ρ ε)
+      "[% | [H | (%&%&%&%&%&%&%&H)]] HZ".
+    - by iApply state_step_coupl_ret_err_ge_1.
+    - iApply ("HZ" with "H").
+    - iApply state_step_coupl_rec.
+      repeat iExists _.
+      repeat iSplit; try done.
+      iIntros (??).
+      iMod ("H" $! _ with "[//]") as "[H _]".
+      by iApply "H".
+  Qed.
+
+  (** TODO: state step for LHS *)
 (*   Lemma state_step_coupl_state_step α σ1 Z (ε ε' : nonnegreal) : *)
 (*     α ∈ get_active σ1 → *)
 (*     (∃ R, ⌜pgl (state_step σ1 α) R ε⌝ ∗ *)
