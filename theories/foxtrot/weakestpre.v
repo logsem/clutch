@@ -8,7 +8,7 @@ From clutch.bi Require Export weakestpre.
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.con_prob_lang Require Import lang erasure.
 From clutch.common Require Export sch_erasable con_language.
-From clutch.prob Require Export couplings distribution graded_predicate_lifting.
+From clutch.prob Require Export couplings_app distribution graded_predicate_lifting.
 
 
 Set Default Proof Using "Type*".
@@ -18,26 +18,38 @@ Import uPred.
 Local Open Scope NNR_scope.
 #[global] Hint Resolve cond_nonneg : core.
 
-Definition spec_transition_compress (ρ: cfg con_prob_lang) (μ : distr (option nat))
-  (f: nat -> cfg con_prob_lang -> distr (cfg con_prob_lang)) (μ' : distr (cfg con_prob_lang))
-  : distr (cfg con_prob_lang) :=
-   (μ ≫= (λ (o:option nat),
-                   match o with
-                      | Some tid => (dbind (λ ρ', f tid ρ') (step tid ρ))
-                      | None => μ'
-                      end
-             )).
+Section spec_transition.
+  Definition spec_transition_compress (ρ: cfg con_prob_lang) (μ : distr (option nat))
+    (f: nat -> cfg con_prob_lang -> distr (cfg con_prob_lang)) (μ' : distr (cfg con_prob_lang))
+    : distr (cfg con_prob_lang) :=
+    (μ ≫= (λ (o:option nat),
+             match o with
+             | Some tid => (dbind (λ ρ', f tid ρ') (step tid ρ))
+             | None => μ'
+             end
+    )).
 
-Inductive spec_transition (ρ:cfg con_prob_lang) : distr (cfg con_prob_lang) ->  Prop :=
-| Spec_transition_case : spec_transition ρ dzero
-| Spec_transition_ind (μ : distr (option nat))
-    (f: nat -> cfg con_prob_lang -> distr (cfg con_prob_lang)) (μ' : distr (cfg con_prob_lang)):
-  (∀ (tid:nat), (μ (Some tid) > 0)%R -> 
-              (forall ρ', step tid ρ ρ' > 0 -> spec_transition ρ' (f tid ρ'))) ->
-  ((μ None > 0)%R -> spec_transition ρ μ') ->
-  spec_transition ρ (spec_transition_compress ρ μ f μ')
-.
+  Inductive spec_transition (ρ:cfg con_prob_lang) : distr (cfg con_prob_lang) ->  Prop :=
+  | spec_transition_dret : spec_transition ρ (dret ρ)
+  | spec_transition_bind (μ : distr (option nat))
+      (f: nat -> cfg con_prob_lang -> distr (cfg con_prob_lang)) (μ' : distr (cfg con_prob_lang)):
+    (∀ (tid:nat), (μ (Some tid) > 0)%R -> 
+                (forall ρ', step tid ρ ρ' > 0 -> spec_transition ρ' (f tid ρ'))) ->
+    ((μ None > 0)%R -> spec_transition ρ μ') ->
+    spec_transition ρ (spec_transition_compress ρ μ f μ')
+  .
 
+  Lemma spec_transition_bind' ρ μ μ1 f μ2 :
+    μ=spec_transition_compress ρ μ1 f μ2 ->
+    (∀ (tid:nat), (μ1 (Some tid) > 0)%R -> 
+                (forall ρ', step tid ρ ρ' > 0 -> spec_transition ρ' (f tid ρ'))) ->
+    ((μ1 None > 0)%R -> spec_transition ρ μ2) ->
+    spec_transition ρ μ.
+  Proof.
+    intros -> ??.
+    by apply spec_transition_bind.
+  Qed.
+End spec_transition.
 
 Class foxtrotWpGS (Λ : conLanguage) (Σ : gFunctors) := FoxtrotWpGS {
   foxtrotWpGS_invGS :: invGS_gen HasNoLc Σ;
@@ -50,23 +62,28 @@ Global Arguments FoxtrotWpGS {Λ Σ}.
 Canonical Structure NNRO := leibnizO nonnegreal.
 
 
-(* Section modalities. *)
-(*   Context `{foxtrotWpGS con_prob_lang Σ}. *)
-(*   Implicit Types ε : nonnegreal. *)
+Section modalities.
+  Context `{foxtrotWpGS con_prob_lang Σ}.
+  Implicit Types ε : nonnegreal.
 
-  
-
-(*   Definition state_step_coupl_pre Z Φ : (state con_prob_lang * nonnegreal -> iProp Σ) := *)
-(*     (λ x, *)
-(*       let '(σ1, ε) := x in *)
-(*       ⌜(1<=ε)%R⌝ ∨ *)
-(*         Z σ1 ε ∨ *)
-(*         (∀ (ε':nonnegreal), ⌜(ε<ε')%R⌝ -∗ Φ (σ1, ε')) ∨ *)
-(*       (∃ μ (ε2 : state con_prob_lang -> nonnegreal), *)
-(*           ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗ *)
-(*           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗ *)
-(*           ⌜ (Expval μ ε2 <= ε)%R ⌝ ∗ *)
-(*           ∀ σ2, |={∅}=> Φ (σ2, ε2 σ2)))%I. *)
+  (** state_step_coupl *)
+  Definition state_step_coupl_pre Z Φ : (state con_prob_lang * cfg con_prob_lang * nonnegreal -> iProp Σ) :=
+    (λ x,
+      let '(σ1, ρ, ε) := x in
+      ⌜(1<=ε)%R⌝ ∨
+        Z σ1 ρ ε ∨
+        ∃ (S: state con_prob_lang -> cfg con_prob_lang -> Prop) μ
+          (ε1 ε2: nonnegreal),
+          ⌜spec_transition ρ μ ⌝ ∗
+          ⌜ ε1 + ε2 <= ε ⌝ ∗
+          ⌜ ARcoupl (dret σ1) μ S ε1 ⌝ ∗
+          ∀ ρ', ⌜S σ1 ρ'⌝ ={∅}=∗ Φ (σ1, ρ', ε2)
+    )%I.
+      (* ( ∃ μ (ε2 : state con_prob_lang -> nonnegreal), *)
+          (* ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗ *)
+          (* ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗ *)
+          (* ⌜ (Expval μ ε2 <= ε)%R ⌝ ∗ *)
+          (* ∀ σ2, |={∅}=> Φ (σ2, ε2 σ2)))%I. *)
 
     
 (*   #[local] Instance state_step_coupl_pre_ne Z Φ : *)
@@ -608,4 +625,4 @@ Canonical Structure NNRO := leibnizO nonnegreal.
 (*       rewrite prim_step_mass; [lra|done]. *)
 (*   Qed.  *)
 
-(* End modalities. *)
+End modalities.
