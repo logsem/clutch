@@ -8,12 +8,12 @@ From clutch.bi Require Export weakestpre.
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.con_prob_lang Require Import lang erasure.
 From clutch.common Require Export sch_erasable con_language.
-From clutch.prob Require Export couplings_app distribution graded_predicate_lifting.
+From clutch.prob Require Export couplings_app distribution.
 
+Import uPred.
 
 Set Default Proof Using "Type*".
 
-Import uPred.
 
 Local Open Scope NNR_scope.
 #[global] Hint Resolve cond_nonneg : core.
@@ -60,19 +60,22 @@ Class foxtrotWpGS (Λ : conLanguage) (Σ : gFunctors) := FoxtrotWpGS {
 Global Opaque foxtrotWpGS_invGS.
 Global Arguments FoxtrotWpGS {Λ Σ}.
 Canonical Structure NNRO := leibnizO nonnegreal.
+#[global] Hint Resolve cond_nonneg : core.
 
 
 Section modalities.
-  Context `{foxtrotWpGS con_prob_lang Σ}.
+  Context `{H:foxtrotWpGS con_prob_lang Σ}.
   Implicit Types ε : nonnegreal.
 
   (** state_step_coupl *)
-  Definition state_step_coupl_pre Z Φ : (state con_prob_lang * cfg con_prob_lang * nonnegreal -> iProp Σ) :=
+  Definition state_step_coupl_pre Z
+    (Φ : state con_prob_lang * cfg con_prob_lang * nonnegreal -> iProp Σ) :
+    (state con_prob_lang * cfg con_prob_lang * nonnegreal -> iProp Σ) :=
     (λ x,
       let '(σ1, ρ, ε) := x in
       ⌜(1<=ε)%R⌝ ∨
         Z σ1 ρ ε ∨
-        ∃ (S: state con_prob_lang -> cfg con_prob_lang -> Prop) μ
+        ∃ (S: state con_prob_lang -> cfg con_prob_lang -> Prop) (μ : distr (cfg con_prob_lang))
           (ε1 ε2: nonnegreal),
           ⌜spec_transition ρ μ ⌝ ∗
           ⌜ ε1 + ε2 <= ε ⌝ ∗
@@ -86,12 +89,13 @@ Section modalities.
           (* ∀ σ2, |={∅}=> Φ (σ2, ε2 σ2)))%I. *)
 
     
-(*   #[local] Instance state_step_coupl_pre_ne Z Φ : *)
-(*     NonExpansive (state_step_coupl_pre Z Φ). *)
-(*   Proof. *)
-(*     rewrite /state_step_coupl_pre. *)
-(*     intros ?[??][??][[=][=]]. by simplify_eq. *)
-(*   Qed. *)
+  #[local] Instance state_step_coupl_pre_ne Z Φ :
+    NonExpansive (state_step_coupl_pre Z Φ).
+  Proof.
+    rewrite /state_step_coupl_pre.
+    intros ?[[?[??]]?][[?[??]]?] ([[=][=]]&[=]).
+    by simplify_eq.
+  Qed.
 
 (*   #[local] Instance state_step_coupl_pre_mono Z : BiMonoPred (state_step_coupl_pre Z). *)
 (*   Proof. *)

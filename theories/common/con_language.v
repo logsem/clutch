@@ -82,6 +82,8 @@ Canonical Structure valO Λ := leibnizO (val Λ).
 Canonical Structure exprO Λ := leibnizO (expr Λ).
 
 Definition cfg (Λ : conLanguage) := (list (expr Λ) * state Λ)%type.
+Canonical Structure cfgO Λ := leibnizO (cfg Λ).
+
 Definition partial_cfg (Λ : conLanguage) := (expr Λ * state Λ) % type.
 
 Definition fill_lift {Λ} (K : expr Λ → expr Λ) : (partial_cfg Λ) → (partial_cfg Λ) :=
