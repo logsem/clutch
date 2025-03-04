@@ -54,9 +54,6 @@ apply (hp_evalC ).
 
 Global Instance : Lookup <<discr loc>> btape (hp (option btape)) := hp_eval.
 
-
-Check tapeAdvance.
-
 (* TODO: Make this as close to the old definition in Clutch as possible.
     - What stdpp isntances do we need for the new tapes?*)
 Definition head_stepM (c : cfg) : giryM cfg :=
@@ -287,29 +284,74 @@ Definition cover_tick : set cfg :=
   setI setT $ preimage fst $ setI ecov_tick $ preimage 𝜋_TickU $ setI ecov_val $
   preimage 𝜋_ValU $ setI vcov_lit $ preimage 𝜋_LitVU $ bcov_LitInt.
 
-Lemma cover_rec_meas_set        : measurable  cover_rec. Admitted.
-Lemma cover_pair_meas_set       : measurable  cover_pair. Admitted.
-Lemma cover_injL_meas_set       : measurable  cover_injL. Admitted.
-Lemma cover_injR_meas_set       : measurable  cover_injR. Admitted.
-Lemma cover_app_meas_set        : measurable  cover_app. Admitted.
-Lemma cover_unop_meas_set       : measurable  cover_unop. Admitted.
-Lemma cover_binop_meas_set      : measurable  cover_binop. Admitted.
-Lemma cover_alloc_meas_set      : measurable  cover_alloc. Admitted.
-Lemma cover_load_meas_set       : measurable  cover_load. Admitted.
-Lemma cover_store_meas_set      : measurable  cover_store. Admitted.
-Lemma cover_ifT_meas_set        : measurable  cover_ifT. Admitted.
-Lemma cover_ifF_meas_set        : measurable  cover_ifF. Admitted.
-Lemma cover_fst_meas_set        : measurable  cover_fst. Admitted.
-Lemma cover_snd_meas_set        : measurable  cover_snd. Admitted.
-Lemma cover_caseL_meas_set      : measurable  cover_caseL. Admitted.
-Lemma cover_caseR_meas_set      : measurable  cover_caseR. Admitted.
-Lemma cover_allocTape_meas_set  : measurable  cover_allocTape. Admitted.
-Lemma cover_allocUTape_meas_set : measurable  cover_allocUTape. Admitted.
-Lemma cover_rand_meas_set       : measurable  cover_rand. Admitted.
-Lemma cover_urand_meas_set      : measurable  cover_urand. Admitted.
-Lemma cover_randT_meas_set      : measurable  cover_randT. Admitted.
-Lemma cover_urandT_meas_set     : measurable  cover_urandT. Admitted.
-Lemma cover_tick_meas_set       : measurable  cover_tick. Admitted.
+Lemma cover_rec_meas_set : measurable cover_rec.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_pair_meas_set : measurable cover_pair.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_injL_meas_set : measurable cover_injL.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_injR_meas_set : measurable cover_injR.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_app_meas_set : measurable cover_app.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_unop_meas_set : measurable cover_unop.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_binop_meas_set : measurable cover_binop.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_alloc_meas_set : measurable cover_alloc.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_load_meas_set : measurable cover_load.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_store_meas_set : measurable cover_store.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_ifT_meas_set : measurable cover_ifT.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_ifF_meas_set : measurable cover_ifF.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_fst_meas_set : measurable cover_fst.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_snd_meas_set : measurable cover_snd.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_caseL_meas_set : measurable cover_caseL.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_caseR_meas_set : measurable cover_caseR.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_allocTape_meas_set : measurable cover_allocTape.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_allocUTape_meas_set : measurable cover_allocUTape.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_rand_meas_set : measurable cover_rand.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_urand_meas_set : measurable cover_urand.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_randT_meas_set : measurable cover_randT.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_urandT_meas_set : measurable cover_urandT.
+Proof. by ms_unfold; ms_solve. Qed.
+
+Lemma cover_tick_meas_set : measurable cover_tick.
+Proof. by ms_unfold; ms_solve. Qed.
 
 Hint Resolve cover_rec_meas_set        : mf_set.
 Hint Resolve cover_pair_meas_set       : mf_set.
