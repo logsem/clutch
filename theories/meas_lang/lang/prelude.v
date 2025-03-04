@@ -40,6 +40,8 @@ Proof. Admitted.
 Create HintDb ml_fun.
 Create HintDb ml_set.
 
+Hint Resolve gRet_meas_fun : mf_fun.
+
 Ltac ms_done := by eauto with mf_set.
 
 Ltac mf_done := by eauto with mf_fun.

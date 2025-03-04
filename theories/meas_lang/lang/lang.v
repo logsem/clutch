@@ -396,6 +396,19 @@ Definition head_stepM_app : cfg -> giryM cfg :=
   let 𝜋_v2 := 𝜋_ValU \o 𝜋_App_r \o fst in
   gRet \o (substU' \o (𝜋_f △ (𝜋_v2 △ substU' \o (𝜋_f △ (RecVU \o (𝜋_f △ 𝜋_x △ 𝜋_e1) △ 𝜋_e1)))) △ snd).
 
+(*
+Definition head_stepM_app' : cfg -> giryM cfg :=
+  gRet \o (substU' \o (   𝜋_RecV_f \o 𝜋_ValU \o 𝜋_App_l \o fst
+                      △ (𝜋_ValU \o 𝜋_App_r \o fst
+                      △ substU' \o (  𝜋_RecV_f \o 𝜋_ValU \o 𝜋_App_l \o fst
+                                    △ (RecVU \o (  𝜋_RecV_f \o 𝜋_ValU \o 𝜋_App_l \o fst
+                                                 △ 𝜋_RecV_x \o 𝜋_ValU \o 𝜋_App_l \o fst
+                                                 △ 𝜋_RecV_e \o 𝜋_ValU \o 𝜋_App_l \o fst )
+                                    △ 𝜋_RecV_e \o 𝜋_ValU \o 𝜋_App_l \o fst ))))
+           △ snd).
+*)
+
+
 Definition head_stepM_unop : cfg -> giryM cfg :=
   un_op_eval'' \o (𝜋_UnOp_op \o fst △ 𝜋_Val_v \o 𝜋_UnOp_e \o fst △ snd).
 
@@ -423,7 +436,7 @@ Definition head_stepM_fst : cfg -> giryM cfg :=
   gRet \o (ValU \o 𝜋_PairV_l \o 𝜋_ValU \o 𝜋_FstU \o fst △ snd).
 
 Definition head_stepM_snd : cfg -> giryM cfg :=
-  gRet \o (ValU \o 𝜋_PairV_r \o 𝜋_ValU \o 𝜋_FstU \o fst △ snd).
+  gRet \o (ValU \o 𝜋_PairV_r \o 𝜋_ValU \o 𝜋_SndU \o fst △ snd).
 
 Definition head_stepM_caseL : cfg -> giryM cfg :=
   gRet \o (AppU \o (𝜋_Case_l \o fst △ ValU \o 𝜋_InjLVU \o 𝜋_ValU \o 𝜋_Case_c \o fst) △ snd).
@@ -454,29 +467,257 @@ Definition head_stepM_urandT : cfg -> giryM cfg :=
 Definition head_stepM_tick : cfg -> giryM cfg :=
   gRet \o (cst (ValU $ LitVU $ LitUnitU) △ snd).
 
-Lemma head_stepM_rec_meas_fun        : measurable_fun cover_rec        head_stepM_rec. Admitted.
-Lemma head_stepM_pair_meas_fun       : measurable_fun cover_pair       head_stepM_pair. Admitted.
-Lemma head_stepM_injL_meas_fun       : measurable_fun cover_injL       head_stepM_injL. Admitted.
-Lemma head_stepM_injR_meas_fun       : measurable_fun cover_injR       head_stepM_injR. Admitted.
-Lemma head_stepM_app_meas_fun        : measurable_fun cover_app        head_stepM_app. Admitted.
-Lemma head_stepM_unop_meas_fun       : measurable_fun cover_unop       head_stepM_unop. Admitted.
-Lemma head_stepM_binop_meas_fun      : measurable_fun cover_binop      head_stepM_binop. Admitted.
-Lemma head_stepM_alloc_meas_fun      : measurable_fun cover_alloc      head_stepM_alloc. Admitted.
-Lemma head_stepM_load_meas_fun       : measurable_fun cover_load       head_stepM_load. Admitted.
-Lemma head_stepM_store_meas_fun      : measurable_fun cover_store      head_stepM_store. Admitted.
-Lemma head_stepM_ifT_meas_fun        : measurable_fun cover_ifT        head_stepM_ifT. Admitted.
-Lemma head_stepM_ifF_meas_fun        : measurable_fun cover_ifF        head_stepM_ifF. Admitted.
-Lemma head_stepM_fst_meas_fun        : measurable_fun cover_fst        head_stepM_fst. Admitted.
-Lemma head_stepM_snd_meas_fun        : measurable_fun cover_snd        head_stepM_snd. Admitted.
-Lemma head_stepM_caseL_meas_fun      : measurable_fun cover_caseL      head_stepM_caseL. Admitted.
-Lemma head_stepM_caseR_meas_fun      : measurable_fun cover_caseR      head_stepM_caseR. Admitted.
-Lemma head_stepM_allocTape_meas_fun  : measurable_fun cover_allocTape  head_stepM_allocTape. Admitted.
-Lemma head_stepM_allocUTape_meas_fun : measurable_fun cover_allocUTape head_stepM_allocUTape. Admitted.
-Lemma head_stepM_rand_meas_fun       : measurable_fun cover_rand       head_stepM_rand. Admitted.
-Lemma head_stepM_urand_meas_fun      : measurable_fun cover_urand      head_stepM_urand. Admitted.
-Lemma head_stepM_randT_meas_fun      : measurable_fun cover_randT      head_stepM_randT. Admitted.
-Lemma head_stepM_urandT_meas_fun     : measurable_fun cover_urandT     head_stepM_urandT. Admitted.
-Lemma head_stepM_tick_meas_fun       : measurable_fun cover_tick       head_stepM_tick. Admitted.
+Ltac mf_restrictT :=
+  match goal with
+  | |- (measurable_fun _ _) => apply mathcomp_measurable_fun_restiction_setT; [ try by ms_solve | ]
+  end.
+
+Lemma head_stepM_rec_meas_fun : measurable_fun cover_rec head_stepM_rec.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  mf_prod.
+  { mf_cmp_tree.
+    { admit. }
+    mf_cmp_tree.
+    mf_cmp_tree.
+    { by apply ValU_meas_fun. }
+    { by apply RecVU_meas_fun. }
+  }
+  { mf_restrictT.
+    by ms_solve.
+  }
+Admitted.
+
+Lemma head_stepM_pair_meas_fun : measurable_fun cover_pair head_stepM_pair.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  mf_prod.
+  { mf_cmp_tree.
+    { mf_cmp_tree; [by apply ValU_meas_fun | by apply PairVU_meas_fun]. }
+    mf_prod.
+    { mf_cmp_tree.
+      { by ms_solve. }
+      (* FIXME: Wrong set maybe *)
+
+      all: admit. }
+    { admit. }
+
+    }
+  { mf_restrictT. by ms_solve. }
+Admitted.
+
+Lemma head_stepM_injL_meas_fun       : measurable_fun cover_injL       head_stepM_injL.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  mf_prod.
+  { mf_cmp_tree; first by ms_solve.
+    { admit. }
+    mf_cmp_tree.
+    { admit. }
+    mf_cmp_tree.
+    mf_cmp_tree.
+    { by apply ValU_meas_fun. }
+    { by apply InjLVU_meas_fun. }
+  }
+  { mf_restrictT. by ms_solve. }
+Admitted.
+
+Lemma head_stepM_injR_meas_fun       : measurable_fun cover_injR       head_stepM_injR.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  mf_prod.
+  { mf_cmp_tree; first by ms_solve.
+    { admit. }
+    mf_cmp_tree.
+    { admit. }
+    mf_cmp_tree.
+    mf_cmp_tree.
+    { by apply ValU_meas_fun. }
+    { by apply InjRVU_meas_fun. }
+  }
+  { mf_restrictT. by ms_solve. }
+Admitted.
+
+Lemma head_stepM_app_meas_fun        : measurable_fun cover_app        head_stepM_app.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  mf_prod.
+  { mf_cmp_tree; first by apply substU'_measurable.
+    (* Fix eta expansion*)
+
+
+    admit. }
+  { mf_restrictT. by ms_solve. }
+Admitted.
+
+Lemma head_stepM_unop_meas_fun       : measurable_fun cover_unop       head_stepM_unop.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  (* Fix eta expansion! *)
+  mf_cmp_tree; first by apply un_op_eval''_meas_fun.
+Admitted.
+
+Lemma head_stepM_binop_meas_fun      : measurable_fun cover_binop      head_stepM_binop.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+Admitted.
+
+Lemma head_stepM_alloc_meas_fun      : measurable_fun cover_alloc      head_stepM_alloc.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+Admitted.
+
+Lemma head_stepM_load_meas_fun       : measurable_fun cover_load       head_stepM_load.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  mf_prod.
+  { (* mf_cmp_tree not right *)
+    admit. }
+  { mf_restrictT. by ms_solve. }
+Admitted.
+
+Lemma head_stepM_store_meas_fun      : measurable_fun cover_store      head_stepM_store.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  (* eta *)
+Admitted.
+
+Lemma head_stepM_ifT_meas_fun        : measurable_fun cover_ifT        head_stepM_ifT.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  mf_prod.
+  { mf_cmp_tree; first by ms_solve.
+    { admit. }
+    admit. }
+  { mf_restrictT. by ms_solve. }
+Admitted.
+
+Lemma head_stepM_ifF_meas_fun        : measurable_fun cover_ifF        head_stepM_ifF.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  mf_prod.
+  { admit. }
+  { mf_restrictT. by ms_solve. }
+Admitted.
+
+Lemma head_stepM_fst_meas_fun        : measurable_fun cover_fst        head_stepM_fst.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  mf_prod.
+  { mf_cmp_tree; first by ms_solve.
+    { admit. }
+    mf_cmp_tree; first by ms_solve.
+    { admit. }
+    mf_cmp_tree.
+    { admit. }
+    mf_cmp_tree.
+    by apply ValU_meas_fun.
+  }
+  { mf_restrictT. by ms_solve. }
+Admitted.
+
+Lemma head_stepM_snd_meas_fun        : measurable_fun cover_snd        head_stepM_snd.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  mf_prod.
+  { mf_cmp_tree; first by ms_solve.
+    { admit. }
+    mf_cmp_tree; first by ms_solve.
+    { admit. }
+    mf_cmp_tree.
+    { admit. }
+    mf_cmp_tree.
+    by apply ValU_meas_fun. }
+  { mf_restrictT. by ms_solve. }
+Admitted.
+
+Lemma head_stepM_caseL_meas_fun      : measurable_fun cover_caseL      head_stepM_caseL.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  mf_prod.
+  {
+
+    admit. }
+  { mf_restrictT. by ms_solve. }
+Admitted.
+
+Lemma head_stepM_caseR_meas_fun      : measurable_fun cover_caseR      head_stepM_caseR.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  mf_prod.
+  {
+    admit. }
+  { mf_restrictT. by ms_solve. }
+Admitted.
+
+Lemma head_stepM_allocTape_meas_fun  : measurable_fun cover_allocTape  head_stepM_allocTape.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  mf_prod.
+  {
+
+    admit. }
+  { mf_restrictT. by ms_solve. }
+Admitted.
+
+Lemma head_stepM_allocUTape_meas_fun : measurable_fun cover_allocUTape head_stepM_allocUTape.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+Admitted.
+
+Lemma head_stepM_rand_meas_fun       : measurable_fun cover_rand       head_stepM_rand.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  mf_prod.
+  { admit. }
+  { mf_restrictT. by ms_solve. }
+Admitted.
+
+Lemma head_stepM_urand_meas_fun      : measurable_fun cover_urand      head_stepM_urand.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+Admitted.
+
+Lemma head_stepM_randT_meas_fun      : measurable_fun cover_randT      head_stepM_randT.
+Proof.
+
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+Admitted.
+
+Lemma head_stepM_urandT_meas_fun     : measurable_fun cover_urandT     head_stepM_urandT.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  mf_prod.
+  { admit. }
+  { mf_restrictT. by ms_solve. }
+Admitted.
+
+Lemma head_stepM_tick_meas_fun       : measurable_fun cover_tick       head_stepM_tick.
+Proof.
+  mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first by mf_done.
+  mf_prod.
+  mf_restrictT. by ms_solve.
+Qed.
 
 Hint Resolve head_stepM_rec_meas_fun        : mf_fun.
 Hint Resolve head_stepM_pair_meas_fun       : mf_fun.
