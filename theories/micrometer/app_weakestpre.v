@@ -13,7 +13,7 @@ From clutch.micrometer Require Export meas_spec_update.
 
 Import uPred.
 
-(*  Local Open Scope R. *)
+Local Open Scope R.
 
 
 Class micrometerWpGS (Λ : meas_language) (Σ : gFunctors) `{!meas_spec_updateGS (meas_lang_markov Λ) Σ} := MicrometerWpGS {
@@ -27,7 +27,6 @@ Global Arguments MicrometerWpGS {Λ Σ _}.
 
 Canonical Structure NNRO := leibnizO nonnegreal.
 
-
 (** * Coupling modalities  *)
 Section coupl_modalities.
   Context `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
@@ -36,31 +35,37 @@ Section coupl_modalities.
 
   (** The [spec_coupl] modality allows us to (optionally) prepend spec execution steps and erasable
       distributions, e.g. [state_step]s on both sides. *)
-  Definition meas_spec_coupl_pre (E : coPset) (Z : state Λ * expr Λ * state Λ * nonnegreal -> iProp Σ) (Φ : state Λ * cfg Λ * nonnegreal → iProp Σ) : state Λ * cfg Λ * nonnegreal → iProp Σ.
-    Admitted.
-  (*
+  Definition spec_coupl_pre (E : coPset) (Z : state Λ -> expr Λ -> state Λ -> nonnegreal -> iProp Σ) (Φ : state Λ * cfg Λ * nonnegreal → iProp Σ) :
+      state Λ * cfg Λ * nonnegreal → iProp Σ :=
     (λ (x : state Λ * cfg Λ * nonnegreal),
-      let '(σ1, (e1', σ1'), ε) := x in
-      ⌜1 <= ε⌝ ∨
-      (Z σ1 e1' σ1' ε) ∨
-      (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : distr (state Λ)) (μ1' : distr (state Λ))
+       let '(σ1, (e1', σ1'), ε) := x in
+       ⌜1 <= ε⌝ ∨
+       (Z σ1 e1' σ1' ε) ∨
+      (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
          (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
-         ⌜ARcoupl μ1 (σ2' ← μ1'; pexec n (e1', σ2')) S ε1⌝ ∗
-         ⌜∀ ρ, X2 ρ <= r⌝ ∗
-         ⌜ε1 + Expval (σ2' ← μ1'; pexec n (e1', σ2')) X2 <= ε⌝ ∗
-         ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
-         ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ Φ (σ2, (e2', σ2'), X2 (e2', σ2'))))%I. *)
+           (* ⌜ARcoupl μ1 (σ2' ← μ1'; pexec n (e1', σ2')) S ε1⌝ ∗ *)
+           ⌜∀ ρ, X2 ρ <= r⌝ ∗
+           (* ⌜ε1 + Expval (σ2' ← μ1'; pexec n (e1', σ2')) X2 <= ε⌝ ∗ *)
+           ⌜erasable μ1 σ1⌝ ∗
+           ⌜erasable μ1' σ1'⌝ ∗
+           ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ Φ (σ2, (e2', σ2'), X2 (e2', σ2'))))%I.
 
-  (*
-  #[local] Instance spec_coupl_pre_ne Z E Φ :
+  (* FIXME: Not synthesizing? *)
+  Local Instance idk : Dist (state Λ * cfg Λ * nonnegreal)%type.
+  Admitted.
+
+  #[local] Instance meas_spec_coupl_pre_ne Z E Φ :
     NonExpansive (spec_coupl_pre E Z Φ).
   Proof.
     rewrite /spec_coupl_pre.
+  Admitted.
+  (*
     intros ? ((?&?&?) & ?) ((?&?&?) & ?) ([[=] ([=] & [=])] & [=]).
     by simplify_eq/=.
-  Qed.
+  Qed. *)
 
-  #[local] Instance spec_coupl_pre_mono Z E : BiMonoPred (spec_coupl_pre Z E).
+  (*
+  #[local] Instance spec_coupl_pre_mono Z E : BiMonoPred (meas_spec_coupl_pre Z E).
   Proof.
     split; [|apply _].
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
@@ -74,11 +79,15 @@ Section coupl_modalities.
       iIntros (????). iApply "Hwand". by iApply "H".
   Qed.
 
-  Implicit Type ε : nonnegreal.
+  Implicit Type ε : nonnegreal.$
+*)
 
-  Definition spec_coupl' E Z := bi_least_fixpoint (spec_coupl_pre E Z).
+  Definition spec_coupl' (E : coPset) (Z : state Λ -> expr Λ -> state Λ -> nonnegreal -> iProp Σ) : state Λ * cfg Λ * nonnegreal → iProp Σ .
+  Admitted. (* bi_least_fixpoint (meas_spec_coupl_pre E Z). *)
+
   Definition spec_coupl E σ e' σ' ε Z := spec_coupl' E Z (σ, (e', σ'), ε).
 
+  (*
   Lemma spec_coupl_unfold E σ1 e1' σ1' ε Z :
     spec_coupl E σ1 e1' σ1' ε Z ≡
       (⌜1 <= ε⌝ ∨
@@ -320,20 +329,24 @@ Section coupl_modalities.
     by iApply "H".
   Qed.
 
+  *)
+
   (** * [prog_coupl] *)
 
   (** The [prog_coupl] modality allows us to coupl *exactly* one program step with any number of
       spec execution steps and an erasable distribution *)
-  Definition prog_coupl e1 σ1 e1' σ1' ε Z : iProp Σ :=
-    ∃ (R : cfg Λ → cfg Λ → Prop) (n : nat) (μ1' : distr (state Λ))
+  Definition prog_coupl (e1 : expr Λ) (σ1 : state Λ) (e1' : expr Λ) σ1' (ε : nonnegreal) Z : iProp Σ :=
+    ∃ (R : cfg Λ → cfg Λ → Prop) (n : nat) (μ1' : giryM (state Λ))
       (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : nonnegreal),
       ⌜reducible (e1, σ1)⌝ ∗
-      ⌜ARcoupl (prim_step e1 σ1) (σ2' ← μ1'; pexec n (e1', σ2')) R ε1⌝ ∗
+      (* ⌜ARcoupl (prim_step e1 σ1) (σ2' ← μ1'; pexec n (e1', σ2')) R ε1⌝ ∗ *)
       ⌜∀ ρ, X2 ρ <= r⌝ ∗
-      ⌜ε1 + Expval (prim_step e1 σ1) X2 <= ε⌝ ∗
+      (* ⌜ε1 + Expval (prim_step e1 σ1) X2 <= ε⌝ ∗ *)
       ⌜erasable μ1' σ1'⌝ ∗
       ∀ e2 σ2 e2' σ2', ⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' (X2 (e2, σ2)).
 
+
+  (*
   Lemma prog_coupl_strong_mono e1 σ1 e1' σ1' Z1 Z2 ε :
     (∀ e2 σ2 e2' σ2' ε', ⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∗ Z1 e2 σ2 e2' σ2' ε' -∗ Z2 e2 σ2 e2' σ2' ε') -∗
     prog_coupl e1 σ1 e1' σ1' ε Z1 -∗ prog_coupl e1 σ1 e1' σ1' ε Z2.
@@ -489,14 +502,13 @@ Section coupl_modalities.
 
 End coupl_modalities.
 
-(*
 (** * The weakest precondition  *)
 Definition wp_pre `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}
     (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
      coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
   (∀ σ1 e1' σ1' ε1,
       state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 ={E, ∅}=∗
-      meas_spec_coupl ∅ σ1 e1' σ1' ε1 (λ σ2 e2' σ2' ε2,
+      spec_coupl ∅ σ1 e1' σ1' ε1 (λ σ2 e2' σ2' ε2,
         match to_val e1 with
         | Some v => |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 ∗ Φ v
         | None =>
@@ -504,15 +516,14 @@ Definition wp_pre `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpG
                 ▷ spec_coupl ∅ σ3 e3' σ3' ε3 (λ σ4 e4' σ4' ε4,
                     |={∅, E}=> state_interp σ4 ∗ spec_interp (e4', σ4') ∗ err_interp ε4 ∗ wp E e3 Φ))
       end))%I.
-*)
 
-(*
-
-Local Instance wp_pre_contractive `{!spec_updateGS (lang_markov Λ) Σ, !micrometerWpGS Λ Σ} :
+Local Instance wp_pre_contractive `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ} :
   Contractive wp_pre.
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ.
   do 10 f_equiv.
+Admitted.
+(*
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? [? ?]]. rewrite /spec_coupl_pre.
   do 5 f_equiv.
@@ -523,21 +534,25 @@ Proof.
   intros ? [? [? ?]]. rewrite /spec_coupl_pre.
   do 8 f_equiv.
   apply Hwp.
-Qed.
+Qed. *)
 
-Local Definition wp_def `{!spec_updateGS (lang_markov Λ) Σ, !micrometerWpGS Λ Σ} :
-  Wp (iProp Σ) (expr Λ) (val Λ) () :=
-  {| wp := λ _ : (), fixpoint (wp_pre); wp_default := () |}.
+(* FIXME: Is this right? Why is wp struct not working? *)
+
+Local Definition wp_def `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ} :
+  Wp (iProp Σ) (expr Λ) (val Λ) (). Admitted.
+(* {| wp := λ _ : (), fixpoint (wp_pre); wp_default := () |}. *)
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
 Global Arguments wp' {Λ Σ _}.
 Global Existing Instance wp'.
-Local Lemma wp_unseal `{!spec_updateGS (lang_markov Λ) Σ, !micrometerWpGS Λ Σ} : wp =
+  (*
+Local Lemma wp_unseal `{!meas_spec_updateGS (lang_markov Λ) Σ, !micrometerWpGS Λ Σ} : wp :=
   (@wp_def Λ Σ _ _).(wp).
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
+*)
 
 Section wp.
-Context `{!spec_updateGS (lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
+Context `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types v : val Λ.
@@ -548,11 +563,11 @@ Implicit Types ρ : cfg Λ.
 (* Weakest pre *)
 Lemma wp_unfold E e Φ s :
   WP e @ s; E {{ Φ }} ⊣⊢ wp_pre (wp (PROP:=iProp Σ) s) E e Φ.
-Proof. rewrite wp_unseal. apply (fixpoint_unfold wp_pre). Qed.
+Proof. Admitted. (* rewrite wp_unseal. apply (fixpoint_unfold wp_pre). Qed. *)
 
 Global Instance wp_ne E e n s :
   Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
-Proof.
+Proof. Admitted. (*
   revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
   rewrite !wp_unfold /wp_pre /=.
   do 10 f_equiv.
@@ -565,7 +580,7 @@ Proof.
   do 8 f_equiv.
   rewrite IH; [done|lia|].
   intros ?. apply dist_S, HΦ.
-Qed.
+Qed.*)
 Global Instance wp_proper E e s :
   Proper (pointwise_relation _ (≡) ==> (≡)) (wp (PROP:=iProp Σ) s E e).
 Proof.
@@ -574,7 +589,7 @@ Qed.
 Global Instance wp_contractive E e n s :
   TCEq (to_val e) None →
   Proper (pointwise_relation _ (dist_later n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
-Proof.
+Proof. Admitted. (*
   intros He Φ Ψ HΦ. rewrite !wp_unfold /wp_pre He /=.
   do 10 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
@@ -585,17 +600,17 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? [? ?]]. rewrite /spec_coupl_pre.
   do 22 f_equiv.
-Qed.
+Qed. *)
 
 Lemma wp_value_fupd' E Φ v s : (|={E}=> Φ v) ⊢ WP of_val v @ s; E {{ Φ }}.
-Proof.
+Proof. Admitted. (*
   rewrite wp_unfold /wp_pre to_of_val.
   iIntros "H" (????) "(?&?&?)".
   iApply spec_coupl_ret.
   iMod "H". iFrame.
   iApply fupd_mask_subseteq.
   set_solver.
-Qed.
+Qed. *)
 
 Lemma wp_strong_mono E1 E2 e Φ Ψ s :
   E1 ⊆ E2 →
@@ -605,7 +620,7 @@ Lemma wp_strong_mono E1 E2 e Φ Ψ s :
      spec_coupl ∅ σ1 e1' σ1' ε1 (λ σ2 e2' σ2' ε2,
           |={E2}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 ∗ Ψ v)) -∗
   WP e @ s; E2 {{ Ψ }}.
-Proof.
+Proof. Admitted. (*
   iIntros (HE) "H HΦ". iLöb as "IH" forall (e E1 E2 HE Φ Ψ s).
   rewrite !wp_unfold /wp_pre /=.
   iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
@@ -632,7 +647,7 @@ Proof.
   iMod "Hclose" as "_".
   iModIntro.
   by iApply ("IH" with "[] H").
-Qed.
+Qed. *)
 
 Lemma wp_strong_mono' E1 E2 e Φ Ψ s :
   E1 ⊆ E2 →
@@ -641,13 +656,13 @@ Lemma wp_strong_mono' E1 E2 e Φ Ψ s :
       state_interp σ ∗ spec_interp ρ ∗ err_interp ε ∗ Φ v ={E2}=∗
       state_interp σ ∗ spec_interp ρ ∗ err_interp ε ∗ Ψ v) -∗
   WP e @ s; E2 {{ Ψ }}.
-Proof.
+Proof. Admitted. (*
   iIntros (?) "Hwp Hw".
   iApply (wp_strong_mono with "Hwp"); [done|].
   iIntros (?????) "(?&?&?&?)".
   iApply spec_coupl_ret.
   by iMod ("Hw" with "[$]").
-Qed.
+Qed. *)
 
 Lemma fupd_wp E e Φ s: (|={E}=> WP e @ s; E {{ Φ }}) ⊢ WP e @ s; E {{ Φ }}.
 Proof.
@@ -659,17 +674,17 @@ Proof.
 Qed.
 
 Lemma wp_fupd E e Φ s : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {{ Φ }}.
-Proof.
+Proof. Admitted. (*
   iIntros "H".
   iApply (wp_strong_mono E with "H"); [done|].
   iIntros (?????) "(? & ? & ? & ?)".
   iApply spec_coupl_ret.
   by iFrame.
-Qed.
+Qed. *)
 
 Lemma wp_atomic E1 E2 e Φ `{!Atomic StronglyAtomic e} s :
   (|={E1,E2}=> WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ s; E1 {{ Φ }}.
-Proof.
+Proof. Admitted. (*
   iIntros "H". rewrite !wp_unfold /wp_pre.
   iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
   iDestruct ("H" with "[$]") as ">> H".
@@ -700,12 +715,12 @@ Proof.
     iDestruct (prog_coupl_reducible with "H") as %[ρ Hr].
     pose proof (atomic _ _ _ Hstep) as [? Hval].
     apply val_stuck in Hr. simplify_eq.
-Qed.
+Qed. *)
 
 Lemma wp_step_fupd E1 E2 e P Φ s :
   TCEq (to_val e) None → E2 ⊆ E1 →
   (|={E1}[E2]▷=> P) -∗ WP e @ s; E2 {{ v, P ={E1}=∗ Φ v }} -∗ WP e @ s; E1 {{ Φ }}.
-Proof.
+Proof. Admitted. (*
   rewrite !wp_unfold /wp_pre. iIntros (-> ?) "HR H".
   iIntros (σ1 e1' σ1' ε1) "Hs". iMod "HR".
   iMod ("H" with "Hs") as "H".
@@ -723,11 +738,11 @@ Proof.
   iApply spec_coupl_ret.
   iMod ("H" with "[$]").
   by iFrame.
-Qed.
+Qed. *)
 
 Lemma wp_bind K `{!LanguageCtx K} E e Φ s :
   WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }} ⊢ WP K e @ s; E {{ Φ }}.
-Proof.
+Proof. Admitted. (*
   iIntros "H". iLöb as "IH" forall (E e Φ s). rewrite !wp_unfold /wp_pre.
   iIntros (σ1 e1' σ1' ε1) "Hs".
   iMod ("H" with "[$]") as "H".
@@ -749,8 +764,9 @@ Proof.
   iMod "H" as "($ & $ & $ & H)".
   iModIntro.
   by iApply "IH".
-Qed.
+Qed. *)
 
+(*
 Lemma spec_update_wp E e Φ a :
   spec_update E (WP e @ a; E {{ Φ }}) ⊢ WP e @ a; E {{ Φ }}.
 Proof.
@@ -795,6 +811,7 @@ Proof.
   iIntros (σ4 e4' σ4' ε4) "> ($ & $ & $ & H)".
   iApply ("IH" with "H").
 Qed.
+*)
 
 (** * Derived rules *)
 Lemma wp_mono E e Φ Ψ s : (∀ v, Φ v ⊢ Ψ v) → WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ Ψ }}.
@@ -819,12 +836,12 @@ Lemma wp_value E Φ e v s : IntoVal e v → Φ v ⊢ WP e @ s; E {{ Φ }}.
 Proof. intros <-. apply wp_value'. Qed.
 
 Lemma wp_frame_l E e Φ R s : R ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, R ∗ Φ v }}.
-Proof.
+Proof. Admitted. (*
   iIntros "[? H]".
   iApply (wp_strong_mono with "H"); [done|].
   iIntros (?????) "(? & ? & ? & ?)".
   iApply spec_coupl_ret. by iFrame.
-Qed.
+Qed. *)
 Lemma wp_frame_r E e Φ R s : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
 Proof. iIntros "[H ?]". iApply (wp_strong_mono' with "H"); auto with iFrame. Qed.
 
@@ -873,7 +890,7 @@ End wp.
 
 (** * Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!spec_updateGS (lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
+  Context `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val Λ → iProp Σ.
   Implicit Types v : val Λ.
@@ -935,6 +952,7 @@ Section proofmode_classes.
     iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
   Qed.
 
+  (*
   #[global] Instance elim_modal_spec_update_wp P E e Ψ :
     ElimModal True false false (spec_update E P) P (WP e @ E {{ Ψ }}) (WP e @ E {{ Ψ }}).
   Proof.
@@ -950,6 +968,6 @@ Section proofmode_classes.
     iDestruct (spec_updateN_implies_spec_update with "HP") as "> HP".
     by iApply "Hcnt".
   Qed.
+*)
 
 End proofmode_classes.
-*)
