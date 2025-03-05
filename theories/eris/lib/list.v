@@ -280,6 +280,23 @@ Definition list_split : val :=
         let: "ps" := "list_split" ("i" - #1) "tl" in
         ("x" :: Fst "ps", Snd "ps")
     end).
+
+Definition list_swap: val :=
+  λ: "l" "i" "j",
+    let: "temp" := (match: list_nth "l" "j" with
+                    |SOME "x" => "x"
+                    |NONE => #()
+                    end
+                   )
+    in
+    let: "l'" := list_update "l" "j"
+                   (match: list_nth "l" "i" with
+                    |SOME "x" => "x"
+                    |NONE => #()
+                    end
+                   )  in
+    list_update "l'" "i" "temp".
+
 End list_code.
 
 Fixpoint inject_list `{!Inject A val} (xs : list A) :=
@@ -696,7 +713,7 @@ Section list_specs.
    {{{ ⌜is_list l lv⌝ }}}
       list_nth (Val lv) #i @ E
     {{{ v, RET v; (⌜v = NONEV⌝ ∧ ⌜length l <= i⌝) ∨
-              ⌜∃ r, v = SOMEV (inject r) ∧ nth_error l i = Some r⌝ }}}.
+              ⌜∃ r, v = SOMEV (inject r) ∧ l !! i = Some r⌝ }}}.
   Proof.
     iIntros (Φ) "Ha HΦ".
     iInduction l as [|a l'] "IH" forall (i lv Φ);
@@ -717,7 +734,7 @@ Section list_specs.
   Lemma wp_list_nth_some E (i: nat) l lv  :
     {{{  ⌜is_list l lv ∧ i < length l⌝  }}}
       list_nth (Val lv) #i @ E
-    {{{ v, RET v; ⌜∃ r, v = SOMEV (inject r) ∧ nth_error l i = Some r⌝ }}}.
+    {{{ v, RET v; ⌜∃ r, v = SOMEV (inject r) ∧ l !! i = Some r⌝ }}}.
   Proof.
     iIntros (Φ (Hcoh & Hi)) "HΦ".
     iApply (wp_list_nth $! Hcoh).
@@ -1037,6 +1054,65 @@ Section list_specs.
         * set_solver.
         * set_solver.
   Qed.
+
+  Lemma wp_list_update E l lv a i:
+    {{{ ⌜is_list l lv⌝ ∗ ⌜i<length l⌝ }}}
+    list_update lv #i (inject a)@E
+    {{{ v, RET v; ⌜is_list (<[i:=a]>l) v⌝}}}.
+  Proof.
+    iIntros (Φ) "[%Hv %Hlen] HΦ".
+    iInduction l as [|x l'] "IH" forall (i a lv Hv Hlen Φ).
+    { simpl in Hlen. lia. }
+    rewrite /list_update. wp_pures.
+    destruct Hv as [? [-> Hv]]. wp_pures.
+    case_bool_decide as H.
+    - wp_pures. wp_apply wp_list_tail.
+      { iPureIntro. instantiate (1:=x::l'). naive_solver. }
+       iIntros (v) "%". wp_apply wp_list_cons; first done.
+      iIntros. iApply "HΦ". iPureIntro.
+      assert (i=0) as ->.
+      { inversion H. lia. } naive_solver.
+    - rewrite -/list_update. wp_pures.
+      assert (i≠0) by (intro; naive_solver).
+      replace (_-_)%Z with (Z.of_nat (i-1)) by lia.
+      wp_apply "IH"; [done|..].
+      { iPureIntro. simpl in Hlen. lia. }
+      iIntros. wp_pures. wp_apply wp_list_cons; first done.
+      iIntros. iApply "HΦ".
+      iPureIntro.
+      replace (x::l') with ([x]++l') by done.
+      replace i with (length ([x]) + (i-1)) by (simpl;lia).
+      rewrite insert_app_r. naive_solver.
+  Qed.
+
+  Lemma wp_list_swap E l lv i j:
+    {{{ ⌜is_list l lv⌝ ∗ ⌜i<length l⌝ ∗ ⌜j<length l⌝ }}}
+      list_swap lv #i #j@E
+      {{{ lv', RET lv'; ∃ x y, ⌜l!!i= Some x⌝ ∗ ⌜l!!j=Some y⌝ ∗
+                               ⌜is_list (<[i:=y]>(<[j:=x]>l)) lv'⌝ }}}.
+  Proof.
+    iIntros (Φ) "(%&%&%) HΦ".
+    rewrite /list_swap.
+    wp_pures.
+    wp_apply wp_list_nth_some.
+    { iPureIntro. split; first done. lia. }
+    iIntros (?) "(%&->&%)".
+    wp_pures.
+    wp_apply wp_list_nth_some.
+    { iPureIntro. done. }
+    iIntros (?) "(%&->&%H')".
+    wp_pures.
+    wp_apply wp_list_update.
+    { iPureIntro. split; first done. lia. }
+    iIntros (lv' ?). wp_pures.
+    wp_apply wp_list_update.
+    { iPureIntro. split; first done. rewrite insert_length. lia. }
+    iIntros (lv'' ?).
+    iApply "HΦ".
+    iExists _, _.
+    by repeat iSplit.
+  Qed.
+
 End list_specs.
 
 Global Arguments wp_list_nil : clear implicits.

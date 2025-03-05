@@ -175,13 +175,6 @@ Proof.
   unshelve wp_apply (wp_couple_rand_adv_comp _ _ _ _ f with "Herr").
   { intros. rewrite /f. repeat case_bool_decide; simpl; lra. }
   {
-    exists 1%R; intro n.
-    rewrite /f.
-    case_bool_decide.
-    - simpl; lra.
-    - case_bool_decide; simpl; lra.
-  }
-  {
     rewrite SeriesC_finite_foldr. simpl. rewrite /f. simpl. lra.
   }
   iIntros (n) "Hεcont".
@@ -218,7 +211,7 @@ Proof.
   wp_apply wp_fork.
   - by wp_pures.
   - wp_pures. by iApply "HΦ".
-Qed. 
+Qed.
 
 Lemma wp_concurrency_atomic l: {{{ l ↦#0 }}}
                                 CmpXchg #l #0 #1 ;;
