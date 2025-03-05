@@ -1,3 +1,4 @@
+
 From Coq Require Export Reals Psatz.
 From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Export fancy_updates.
@@ -286,244 +287,107 @@ Section modalities.
 (*   Qed. *)
   
 
-(*   (** * One step prog coupl *) *)
+  (** * One step prog coupl *)
 
-(*   Definition prog_coupl e1 σ1 ε Z : iProp Σ := *)
-(*     (∃ (ε2 : (expr con_prob_lang * state con_prob_lang * list (expr con_prob_lang)) -> nonnegreal), *)
-(*            ⌜reducible e1 σ1⌝ ∗ *)
-(*            ⌜∃ r, ∀ ρ, (ε2 ρ <= r)%R ⌝ ∗ *)
-(*            ⌜(Expval (prim_step e1 σ1) ε2 <= ε)%R⌝ ∗ *)
-(*            (∀ e2 σ2 efs, |={∅}=> *)
-(*                          Z e2 σ2 efs (ε2 (e2, σ2, efs))) *)
-(*        )%I. *)
+  Definition prog_coupl e1 σ1 ρ1 ε Z : iProp Σ :=
+    (∃ (R : (expr con_prob_lang * state con_prob_lang * list (expr con_prob_lang)) -> cfg con_prob_lang -> Prop)
+       μ (ε1 ε2:nonnegreal),
+           ⌜reducible e1 σ1⌝ ∗
+           ⌜ spec_transition ρ1 μ ⌝ ∗
+           ⌜ ε1 + ε2 <= ε%R⌝ ∗
+           ⌜ ARcoupl (prim_step e1 σ1) μ R ε1 ⌝ ∗
+           (∀ e2 σ2 efs ρ2, ⌜R (e2, σ2, efs) ρ2⌝ ={∅}=∗
+                         Z e2 σ2 efs ρ2 ε2 )
+       )%I.
+
+  Lemma prog_coupl_mono_err e σ ρ Z ε ε':
+    (ε<=ε')%R -> prog_coupl e σ ρ ε Z -∗ prog_coupl e σ ρ ε' Z.
+  Proof.
+    iIntros (?) "(%&%&%&%&%&%&%&%&H)".
+    repeat iExists _.
+    repeat iSplit; try done.
+    iPureIntro.
+    etrans; exact.
+  Qed.
+
+  Lemma prog_coupl_strong_mono e1 σ1 ρ1 Z1 Z2 ε :
+    (∀ e2 σ2 ρ2 ε' efs, ⌜∃ σ, (prim_step e1 σ (e2, σ2, efs) > 0)%R⌝ ∗ Z1 e2 σ2 efs ρ2 ε' -∗ Z2 e2 σ2 efs ρ2 ε') -∗
+    prog_coupl e1 σ1 ρ1 ε Z1 -∗ prog_coupl e1 σ1 ρ1 ε Z2.
+  Proof.
+    iIntros "Hm (%&%&%&%&%&%&%&%Hcoupl&H) /=".
+    rewrite /prog_coupl.
+    apply ARcoupl_pos_R in Hcoupl.
+    iExists _, _, _, _.
+    repeat iSplit; try done.
+    simpl.
+    iIntros (????(?&?&?)).
+    iApply "Hm". iMod ("H" with "[//]").
+    iFrame. iPureIntro. naive_solver.
+  Qed.
   
-(*   Definition prog_coupl_equiv1 e1 σ1 ε Z: *)
-(*     (∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗ *)
-(*     prog_coupl e1 σ1 ε Z -∗ *)
-(*     (∃ R (ε1 : nonnegreal) (ε2 : (expr con_prob_lang * state con_prob_lang * list (expr con_prob_lang)) -> nonnegreal), *)
-(*            ⌜reducible e1 σ1⌝ ∗ *)
-(*            ⌜∃ r, ∀ ρ, (ε2 ρ <= r)%R ⌝ ∗ *)
-(*            ⌜(ε1 + Expval (prim_step e1 σ1) ε2 <= ε)%R⌝ ∗ *)
-(*            ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗ *)
-(*            (∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗ *)
-(*                          Z e2 σ2 efs (ε2 (e2, σ2, efs))) *)
-(*     )%I. *)
-(*   Proof. *)
-(*     rewrite /prog_coupl. *)
-(*     iIntros "H1 H". *)
-(*     iDestruct "H" as "(%ε2 & % & [%r %] & %Hineq  &H)". *)
-(*     iExists (λ _, True), 0, (λ x, if bool_decide (prim_step e1 σ1 x > 0)%R then ε2 x else 1). *)
-(*     repeat iSplit; first done. *)
-(*     - iPureIntro. exists (Rmax r 1). *)
-(*       intros; case_bool_decide. *)
-(*       + etrans; last apply Rmax_l. done. *)
-(*       + simpl. apply Rmax_r. *)
-(*     - simpl. iPureIntro. rewrite Rplus_0_l. etrans; last exact. *)
-(*       rewrite /Expval. apply Req_le. *)
-(*       apply SeriesC_ext. *)
-(*       intros n. case_bool_decide; first done. *)
-(*       destruct (pmf_pos (prim_step e1 σ1) n) as [K|K]. *)
-(*       + exfalso. apply Rlt_gt in K. naive_solver. *)
-(*       + simpl. rewrite -K. lra. *)
-(*     - iPureIntro. by apply pgl_trivial. *)
-(*     - iIntros. case_bool_decide; done. *)
-(*   Qed. *)
-
-(*   Definition prog_coupl_equiv2 e1 σ1 ε Z: *)
-(*     (∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗ *)
-(*     (∃ R (ε1 : nonnegreal) (ε2 : (expr con_prob_lang * state con_prob_lang * list (expr con_prob_lang)) -> nonnegreal), *)
-(*         ⌜reducible e1 σ1⌝ ∗ *)
-(*         ⌜∃ r, ∀ ρ, (ε2 ρ <= r)%R ⌝ ∗ *)
-(*                    ⌜(ε1 + Expval (prim_step e1 σ1) ε2 <= ε)%R⌝ ∗ *)
-(*                    ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗ *)
-(*                    (∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗ *)
-(*                                  Z e2 σ2 efs (ε2 (e2, σ2, efs))) *)
-(*     )%I-∗ *)
-(*     prog_coupl e1 σ1 ε Z. *)
-(*   Proof.  *)
-(*     iIntros "H1 H". *)
-(*     iDestruct "H" as "(%R & %ε1 & %ε2 & % & [%r %] & %Hineq & %Hpgl &H)". *)
-(*     iExists (λ σ, if bool_decide(R σ) then ε2 σ else 1). *)
-(*     repeat iSplit; try done. *)
-(*     - iPureIntro. exists (Rmax r 1). *)
-(*       intros; case_bool_decide. *)
-(*       + etrans; last apply Rmax_l. done. *)
-(*       + simpl. apply Rmax_r. *)
-(*     - rewrite /Expval in Hineq. rewrite /Expval. iPureIntro. *)
-(*       rewrite /pgl/prob in Hpgl. etrans; last exact. *)
-(*       etrans; last (apply Rplus_le_compat_r; exact). *)
-(*       rewrite -SeriesC_plus. *)
-(*       + apply SeriesC_le. *)
-(*         * intros. split; first (case_bool_decide; real_solver). *)
-(*           case_bool_decide; simpl; try lra. *)
-(*           rewrite Rmult_1_r. apply Rplus_le_0_compat. *)
-(*           real_solver. *)
-(*         * apply ex_seriesC_plus. *)
-(*           -- apply (ex_seriesC_le _ (prim_step e1 σ1)); last done. *)
-(*              intros. case_bool_decide; by simpl. *)
-(*           -- apply pmf_ex_seriesC_mult_fn. naive_solver. *)
-(*       + apply (ex_seriesC_le _ (prim_step e1 σ1)); last done. *)
-(*         intros. case_bool_decide; by simpl. *)
-(*       + apply pmf_ex_seriesC_mult_fn. naive_solver. *)
-(*     - iIntros. case_bool_decide; last done. *)
-(*       iApply ("H" with "[//]"). *)
-(*   Qed.  *)
-
-(*   Lemma prog_coupl_mono_err e σ Z ε ε': *)
-(*     (ε<=ε')%R -> prog_coupl e σ ε Z -∗ prog_coupl e σ ε' Z. *)
-(*   Proof. *)
-(*     iIntros (?) "(%&%&%&%&H)". *)
-(*     repeat iExists _. *)
-(*     repeat iSplit; try done. *)
-(*     iPureIntro. *)
-(*     etrans; exact. *)
-(*   Qed. *)
-
-(*   Lemma prog_coupl_strong_mono e1 σ1 Z1 Z2 ε : *)
-(*     □(∀ e2 σ2 efs, Z2 e2 σ2 efs 1) -∗ *)
-(*     (∀ e2 σ2 ε' efs, ⌜∃ σ, (prim_step e1 σ (e2, σ2, efs) > 0)%R⌝ ∗ Z1 e2 σ2 efs ε' -∗ Z2 e2 σ2 efs ε') -∗ *)
-(*     prog_coupl e1 σ1 ε Z1 -∗ prog_coupl e1 σ1 ε Z2. *)
-(*   Proof. *)
-(*     iIntros "#H1 Hm (%&%&[%r %]&%Hineq & Hcnt) /=". *)
-(*     rewrite /prog_coupl. *)
-(*     iExists (λ x, if bool_decide (∃ σ, prim_step e1 σ x >0)%R then ε2 x else 1). *)
-(*     repeat iSplit. *)
-(*     - done. *)
-(*     - iPureIntro. exists (Rmax r 1). *)
-(*       intros; case_bool_decide. *)
-(*       + etrans; last apply Rmax_l. done. *)
-(*       + simpl. apply Rmax_r. *)
-(*     - rewrite /Expval in Hineq. rewrite /Expval. iPureIntro. *)
-(*       rewrite /Expval. etrans; last exact. apply Req_le. *)
-(*       apply SeriesC_ext. *)
-(*       intros n. case_bool_decide; first done. *)
-(*       destruct (pmf_pos (prim_step e1 σ1) n) as [K|K]. *)
-(*       + exfalso. apply Rlt_gt in K. naive_solver. *)
-(*       + simpl. rewrite -K. lra. *)
-(*     - simpl. iIntros (???). *)
-(*       case_bool_decide; last done. *)
-(*       iApply "Hm". iMod ("Hcnt" $! _ _ _). *)
-(*       by iFrame. *)
-(*   Qed. *)
-
-(*   Lemma prog_coupl_mono e1 σ1 Z1 Z2 ε : *)
-(*     (∀ e2 σ2 efs ε', Z1 e2 σ2 efs ε' -∗ Z2 e2 σ2 efs ε') -∗ *)
-(*     prog_coupl e1 σ1 ε Z1 -∗ prog_coupl e1 σ1 ε Z2. *)
-(*   Proof. *)
-(*     iIntros "Hm". *)
-(*     rewrite /prog_coupl. *)
-(*     iIntros "(%&%&%&%&?)". *)
-(*     repeat iExists _; repeat iSplit; try done. *)
-(*     iIntros. by iApply "Hm". *)
-(*   Qed. *)
-(*     Lemma prog_coupl_strengthen e1 σ1 Z ε : *)
-(*     □(∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗ *)
-(*     prog_coupl e1 σ1 ε Z -∗ *)
-(*     prog_coupl e1 σ1 ε (λ e2 σ2 efs ε', ⌜(∃ σ, (prim_step e1 σ (e2, σ2, efs) > 0)%R)\/ (1<=ε')%R⌝ ∧ Z e2 σ2 efs ε'). *)
-(*   Proof. *)
-(*     iIntros "#Hmono (%&%&[%r %]&%Hineq & Hcnt) /=". *)
-(*     rewrite /prog_coupl. *)
-(*     iExists (λ x, if bool_decide (∃ σ, prim_step e1 σ x >0)%R then ε2 x else 1). *)
-(*     repeat iSplit. *)
-(*     - done. *)
-(*     - iPureIntro. exists (Rmax r 1). *)
-(*       intros; case_bool_decide. *)
-(*       + etrans; last apply Rmax_l. done. *)
-(*       + simpl. apply Rmax_r. *)
-(*     - rewrite /Expval in Hineq. rewrite /Expval. iPureIntro. *)
-(*       rewrite /Expval. etrans; last exact. apply Req_le. *)
-(*       apply SeriesC_ext. *)
-(*       intros n. case_bool_decide; first done. *)
-(*       destruct (pmf_pos (prim_step e1 σ1) n) as [K|K]. *)
-(*       + exfalso. apply Rlt_gt in K. naive_solver. *)
-(*       + simpl. rewrite -K. lra. *)
-(*     - simpl. iIntros (???). *)
-(*       case_bool_decide. *)
-(*       + iMod ("Hcnt" $! _ _ _). *)
-(*         iFrame. iPureIntro. naive_solver. *)
-(*       + iMod ("Hcnt" $! e2 σ2 efs ). *)
-(*         iModIntro. iSplit; last iApply "Hmono". *)
-(*         iPureIntro. naive_solver. *)
-(*   Qed. *)
-
-(*   Lemma prog_coupl_ctx_bind K `{!ConLanguageCtx K} e1 σ1 Z ε: *)
-(*     to_val e1 = None -> *)
-(*     □(∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗ *)
-(*     prog_coupl e1 σ1 ε (λ e2 σ2 efs ε', Z (K e2) σ2 efs ε') -∗ prog_coupl (K e1) σ1 ε Z. *)
-(*   Proof. *)
-(*     iIntros (Hv) "#H' H". *)
-(*     (* iDestruct (prog_coupl_strengthen with "[][$]") as "H". *) *)
-(*     (* { iModIntro. by iIntros. } *) *)
-(*     iDestruct "H" as "(%ε2&%&[%r %]&%&H)". *)
-(*     (** (classical) inverse of context [K] *) *)
-(*     destruct (partial_inv_fun K) as (Kinv & HKinv). *)
-(*     assert (∀ e, Kinv (K e) = Some e) as HKinv3. *)
-(*     { intro e. *)
-(*       destruct (Kinv (K e)) eqn:Heq; *)
-(*         eapply HKinv in Heq; by simplify_eq. } *)
-(*     set (ε2' := (λ '(e, σ, efs), from_option (λ e', ε2 (e', σ, efs)) 1%NNR (Kinv e))). *)
-(*     assert (∀ e2 σ2 efs, ε2' (K e2, σ2, efs) = ε2 (e2, σ2, efs)) as Hε2'. *)
-(*     { intros. rewrite /ε2' HKinv3 //. } *)
-(*     (* iExists (λ '(e2, σ2, efs), ∃ e2', e2 = K e2' /\ R (e2', σ2, efs)), ε1, ε2'. *) *)
-(*     iExists ε2'. *)
-(*     repeat iSplit; try iPureIntro. *)
-(*     - by apply reducible_fill. *)
-(*     - rewrite /ε2'. eexists (Rmax 1%R r). *)
-(*       intros [[??]?]. *)
-(*       destruct (Kinv _); simpl. *)
-(*       + etrans; last apply Rmax_r. done. *)
-(*       + apply Rmax_l. *)
-(*     - rewrite fill_dmap// Expval_dmap//=; last first. *)
-(*       + eapply ex_expval_bounded. simpl. intros [[??]?] => /=. by rewrite HKinv3/=. *)
-(*       + etrans; last done. *)
-(*         rewrite /Expval. apply Req_le. *)
-(*         apply SeriesC_ext. *)
-(*         intros [[??]?]. simpl. by rewrite HKinv3/=. *)
-(*     (* - rewrite fill_dmap//. *) *)
-(*     (*   replace (ε1) with (ε1+0)%NNR; last (apply nnreal_ext; simpl; lra). *) *)
-(*     (*   eapply pgl_dbind; try done. *) *)
-(*     (*   intros a ?. apply pgl_dret. *) *)
-(*     (*   destruct a as [[??]?] => /=. *) *)
-(*     (*   naive_solver. *) *)
-(*     - iIntros (???). *)
-(*       rewrite /ε2'. *)
-(*       destruct (Kinv e2) eqn:H'; simpl; last done. *)
-(*       apply HKinv in H'. by subst. *)
-(*   Qed. *)
-
+  Lemma prog_coupl_mono e1 σ1 ρ1 Z1 Z2 ε :
+    (∀ e2 σ2 efs ρ2 ε', Z1 e2 σ2 efs ρ2 ε' -∗ Z2 e2 σ2 efs ρ2 ε') -∗
+    prog_coupl e1 σ1 ρ1 ε Z1 -∗ prog_coupl e1 σ1 ρ1 ε Z2.
+  Proof.
+    iIntros "Hm".
+    rewrite /prog_coupl.
+    iIntros "(%&%&%&%&%&%&%&%&H)".
+    repeat iExists _; repeat iSplit; try done.
+    iIntros. iApply "Hm". by iApply "H".
+  Qed.
   
-(*   Lemma prog_coupl_reducible e σ Z ε : *)
-(*     prog_coupl e σ ε Z -∗ ⌜reducible e σ⌝. *)
-(*   Proof. by iIntros "(%&%&%&%& _)". Qed. *)
+  Lemma prog_coupl_strengthen e1 σ1 ρ1 Z ε :
+    prog_coupl e1 σ1 ρ1 ε Z -∗
+    prog_coupl e1 σ1 ρ1 ε (λ e2 σ2 efs ρ2 ε',
+                             ⌜(∃ σ, (prim_step e1 σ (e2, σ2, efs) > 0)%R)⌝ ∧ Z e2 σ2 efs ρ2 ε').
+  Proof.
+    iIntros "(%&%&%&%&%&%&%&%Hcoupl&H) /=".
+    rewrite /prog_coupl.
+    apply ARcoupl_pos_R in Hcoupl.
+    iExists _, _, _, _.
+    repeat iSplit; try done. simpl.
+    iIntros (????(?&?&?)).
+    iMod ("H" with "[//]") as "$".
+    iPureIntro. naive_solver.
+  Qed.
+
+  Lemma prog_coupl_ctx_bind K `{!ConLanguageCtx K} e1 σ1 ρ1 Z ε:
+    to_val e1 = None ->
+    prog_coupl e1 σ1 ρ1 ε (λ e2 σ2 efs ρ2 ε', Z (K e2) σ2 efs ρ2 ε') -∗ prog_coupl (K e1) σ1 ρ1 ε Z.
+  Proof.
+    iIntros (Hv) "H".
+    (* iDestruct (prog_coupl_strengthen with "[][$]") as "H". *)
+    (* { iModIntro. by iIntros. } *)
+    iDestruct "H" as "(%R&%μ&%ε1&%ε2&%&%&%&%&H)".
+    (** (classical) inverse of context [K] *)
+    destruct (partial_inv_fun K) as (Kinv & HKinv).
+    assert (∀ e, Kinv (K e) = Some e) as HKinv3.
+    { intro e.
+      destruct (Kinv (K e)) eqn:Heq;
+        eapply HKinv in Heq; by simplify_eq. }
+    (* set (ε2' := (λ '(e, σ, efs), from_option (λ e', ε2 (e', σ, efs)) 1%NNR (Kinv e))). *)
+    (* assert (∀ e2 σ2 efs, ε2' (K e2, σ2, efs) = ε2 (e2, σ2, efs)) as Hε2'. *)
+    (* { intros. rewrite /ε2' HKinv3 //. } *)
+    rewrite /prog_coupl.
+    iExists (λ '(e2, σ2, efs) ρ2, ∃ e2', e2 = K e2' /\ R (e2', σ2, efs) ρ2), μ, ε1, ε2.
+    repeat iSplit; try iPureIntro.
+    - by apply reducible_fill.
+    - done.
+    - done.
+    - rewrite fill_dmap //.
+      rewrite /dmap.
+      rewrite -(dret_id_right μ) //.
+      eapply (ARcoupl_dbind' _ nnreal_zero); last done; [done|done|simpl; lra|].
+      iIntros ([[??]?]??).
+      apply ARcoupl_dret; naive_solver.
+    - iIntros (????(?&->&?)).
+      by iApply "H".
+  Qed.
+  
+  Lemma prog_coupl_reducible e σ ρ Z ε :
+    prog_coupl e σ ρ ε Z -∗ ⌜reducible e σ⌝.
+  Proof. by iIntros "(%&%&%&%&%&?)". Qed.
  
-
-(*   Lemma prog_coupl_adv_comp e1 σ1 Z (ε : nonnegreal) : *)
-(*     □(∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗ *)
-(*       (∃ R (ε1 : nonnegreal) (ε2 : _ -> nonnegreal), *)
-(*           ⌜reducible e1 σ1⌝ ∗ *)
-(*           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗ *)
-(*           ⌜ (ε1 + Expval (prim_step e1 σ1) ε2 <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗ *)
-(*           ∀ e2 σ2 efs, ⌜ R (e2, σ2, efs) ⌝ ={∅}=∗ Z e2 σ2 efs (ε2 (e2, σ2, efs))) -∗ *)
-(*         prog_coupl e1 σ1 ε Z. *)
-(*   Proof. *)
-(*     iIntros "#H' H". *)
-(*     by iApply prog_coupl_equiv2. *)
-(*   Qed. *)
-
-(*   Lemma prog_coupl_prim_step e1 σ1 Z ε : *)
-(*     □(∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗ *)
-(*     (∃ R ε1 ε2, ⌜reducible e1 σ1⌝ ∗ ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗ *)
-(*           ∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗ Z e2 σ2 efs ε2) -∗ *)
-(*      prog_coupl e1 σ1 ε Z. *)
-(*   Proof. *)
-(*     iIntros "#H' H". *)
-(*     iApply prog_coupl_adv_comp; first done. *)
-(*     iDestruct "H" as "(%R&%ε1 & %ε2 & % & %& % & H)". *)
-(*     iExists R, ε1, (λ _, ε2). *)
-(*     repeat iSplit; try done. *)
-(*     - iPureIntro. naive_solver. *)
-(*     - iPureIntro. rewrite Expval_const; last done. *)
-(*       rewrite prim_step_mass; [lra|done]. *)
-(*   Qed.  *)
+(** TODO: add nice lemmas for using prog_coupl, e.g. prim_step only on the left*)
 
 End modalities.
