@@ -1,56 +1,65 @@
 (** Resources required to track a [MeasLang] spec configuration. *)
-(*
-
 From Coq Require Import Reals.
 From iris.algebra Require Import auth excl.
 From iris.base_logic.lib Require Import invariants ghost_map.
 From iris.prelude Require Import options.
 From iris.proofmode Require Import proofmode.
-From clutch.base_logic Require Export spec_update.
-From clutch.common Require Import language ectxi_language.
-From clutch.prob_lang Require Import lang.
+From clutch.meas_lang Require Export meas_spec_update.
+From clutch.meas_lang Require Import language ectxi_language.
+From clutch.meas_lang Require Import lang.
+From mathcomp.analysis Require Import measure.
 
 Definition progUR : ucmra := optionUR (exclR exprO).
 Definition cfgO : ofe := prodO exprO stateO.
 
 (** The CMRA for the spec [cfg]. *)
-Class specG_prob_lang Σ := SpecGS {
-  #[local] specG_prob_lang_prog_inG :: inG Σ (authR progUR);
-  specG_prob_lang_prog_name : gname;
+Class specG_meas_lang (Σ : gFunctors) := SpecGS {
+  #[local] specG_meas_lang_prog_inG :: inG Σ (authR progUR);
+  specG_meas_lang_prog_name : gname;
 
-  #[local] specG_prob_lang_heap :: ghost_mapG Σ loc val;
-  #[local] specG_prob_lang_tapes :: ghost_mapG Σ loc tape;
+  #[local] specG_meas_lang_heap :: ghost_mapG Σ loc val;
+  #[local] specG_meas_lang_tapes :: ghost_mapG Σ loc btape;
+  #[local] specG_meas_lang_utapes :: ghost_mapG Σ loc utape;
 
-  specG_prob_lang_heap_name : gname;
-  specG_prob_lang_tapes_name : gname;                      
+  specG_meas_lang_heap_name : gname;
+  specG_meas_lang_tapes_name : gname;
+  specG_meas_lang_utapes_name : gname;
 }.
 
 Class specGpreS Σ := SpecGPreS {
   specGpreS_prog_inG :: inG Σ (authR progUR);
   specGpreS_heap :: ghost_mapG Σ loc val;
-  specGpreS_tapes :: ghost_mapG Σ loc tape;
+  specGpreS_tapes :: ghost_mapG Σ loc btape;
+  specGpreS_utapes :: ghost_mapG Σ loc utape;
 }.
 
 Definition specΣ : gFunctors :=
   #[ghost_mapΣ loc val;
-    ghost_mapΣ loc tape;
+    ghost_mapΣ loc btape;
+    ghost_mapΣ loc utape;
     GFunctor (authUR progUR)].
 #[global] Instance subG_clutchGPreS {Σ} : subG specΣ Σ → specGpreS Σ.
 Proof. solve_inG. Qed.
 
 Section resources.
-  Context `{!specG_prob_lang Σ}.
+  Context `{!specG_meas_lang Σ}.
   Definition spec_prog_auth e :=
-    own specG_prob_lang_prog_name (● (Excl' e : progUR)).
-  Definition spec_heap_auth `{specG_prob_lang Σ} :=
-    @ghost_map_auth _ _ _ _ _ specG_prob_lang_heap specG_prob_lang_heap_name 1.
-  Definition spec_tapes_auth `{specG_prob_lang Σ} :=
-    @ghost_map_auth _ _ _ _ _ specG_prob_lang_tapes specG_prob_lang_tapes_name 1.
+    own specG_meas_lang_prog_name (● (Excl' e : progUR)).
+  Definition spec_heap_auth `{specG_meas_lang Σ} :=
+    @ghost_map_auth _ _ _ _ _ specG_meas_lang_heap specG_meas_lang_heap_name 1.
+  Definition spec_tapes_auth `{specG_meas_lang Σ} :=
+    @ghost_map_auth _ _ _ _ _ specG_meas_lang_tapes specG_meas_lang_tapes_name 1.
+  Definition spec_utapes_auth `{specG_meas_lang Σ} :=
+    @ghost_map_auth _ _ _ _ _ specG_meas_lang_utapes specG_meas_lang_utapes_name 1.
 
+  (* TODO: Need ghost map for hp (option T) *)
+
+  (*
   Definition spec_auth (ρ : cfg) : iProp Σ :=
     spec_prog_auth (ρ.1) ∗
-    spec_heap_auth (ρ.2.(heap)) ∗
-    spec_tapes_auth (ρ.2.(tapes)).
+    spec_heap_auth (heap ρ.2) ∗
+    spec_tapes_auth (tapes ρ.2) ∗
+    spec_utapes_auth (utapes ρ.2).
 
   Definition spec_prog_frag (e : expr) : iProp Σ :=
     own specG_prob_lang_prog_name (◯ (Excl' e : progUR)).
@@ -60,9 +69,10 @@ Section resources.
 
   Definition spec_tapes_frag (l : loc) v dq: iProp Σ :=
     (@ghost_map_elem _ _ _ _ _ specG_prob_lang_tapes specG_prob_lang_tapes_name l dq v).
+    *)
 End resources.
 
-
+(*
 (** Spec program  *)
 Notation " ⤇ e" := (spec_prog_frag e) (at level 20) : bi_scope.
 

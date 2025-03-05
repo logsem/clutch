@@ -1,10 +1,10 @@
 (** Rules for updating the specification program. *)
-(*
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
-From clutch.prob_lang Require Import lang notation tactics exec_lang.
-From clutch.prob_lang.spec Require Export spec_ra.
+From clutch.meas_lang Require Import lang notation tactics exec_lang.
+From clutch.meas_lang.spec Require Export spec_ra.
 
+(*
 Section rules.
   Context `{!specG_prob_lang Σ, invGS_gen hasLc Σ}.
   Implicit Types P Q : iProp Σ.

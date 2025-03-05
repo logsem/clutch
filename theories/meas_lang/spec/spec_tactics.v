@@ -1,13 +1,13 @@
 (** Tactics for updating the specification program. *)
-(*
 From iris.base_logic.lib Require Import invariants.
 From iris.proofmode Require Import coq_tactics ltac_tactics reduction.
 From clutch.common Require Import language ectx_language ectxi_language.
-From clutch.base_logic Require Export spec_update.
-From clutch.prob_lang Require Import notation tactics metatheory lang class_instances.
-From clutch.prob_lang.spec Require Export spec_rules.
+From clutch.meas_lang Require Export meas_spec_update.
+From clutch.meas_lang Require Import notation tactics metatheory lang class_instances.
+From clutch.meas_lang.spec Require Export spec_rules.
 Set Default Proof Using "Type".
 
+(*
 (** ** bind *)
 Lemma tac_tp_bind_gen `{!specG_prob_lang Σ} Δ Δ' i p e e' Q :
   envs_lookup i Δ = Some (p, ⤇ e)%I →
