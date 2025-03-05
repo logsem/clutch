@@ -4,10 +4,10 @@ From iris.proofmode Require Import tactics.
 From iris.prelude Require Import options.
 From clutch.prelude Require Import NNRbar.
 From clutch.micrometer Require Import app_weakestpre.
+From mathcomp.analysis Require Import measure.
 
-(*
 Section lifting.
-Context `{!spec_updateGS (lang_markov Λ) Σ, !approxisWpGS Λ Σ}.
+Context `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !approxisWpGS Λ Σ}.
 Implicit Types v : val Λ.
 Implicit Types e : expr Λ.
 Implicit Types σ : state Λ.
@@ -16,6 +16,7 @@ Implicit Types Φ : val Λ → iProp Σ.
 
 #[local] Open Scope R.
 
+(*
 Lemma wp_lift_step_couple E Φ e1 s :
   (∀ σ1 e1' σ1' ε1,
       state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 ={E, ∅}=∗
@@ -197,5 +198,6 @@ Proof.
   intros Hexec ?. rewrite -wp_pure_step_fupd //. clear Hexec.
   induction n as [|n IH]; by rewrite //= -step_fupd_intro // IH.
 Qed.
-End lifting.
+
 *)
+End lifting.

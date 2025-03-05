@@ -1,24 +1,27 @@
 (** Some derived lemmas for ectx-based languages *)
 From iris.proofmode Require Import proofmode.
-From clutch.common Require Import ectx_language.
+From clutch.meas_lang Require Import ectx_language.
 From clutch.micrometer Require Export app_weakestpre lifting.
 From iris.prelude Require Import options.
+From mathcomp.analysis Require Import measure.
 
-(*
 Local Open Scope R.
 
 Section ectx_lifting.
 Context
-  {Λ : ectxLanguage} {Hinh : Inhabited (state Λ)}
- `{!spec_updateGS (lang_markov Λ) Σ, !approxisWpGS Λ Σ}.
+  {Λ : meas_ectxLanguage} {Hinh : Inhabited (state Λ)}
+ `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !approxisWpGS Λ Σ}.
 
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types v : val Λ.
 Implicit Types e : expr Λ.
+(*
 Local Hint Resolve head_prim_reducible head_reducible_prim_step : core.
 Local Hint Resolve head_stuck_stuck : core.
+*)
 
+(*
 Lemma wp_lift_head_step_prog_couple {E Φ} e1 s :
   to_val e1 = None →
   (∀ σ1 e1' σ1' ε1,
@@ -104,5 +107,6 @@ Proof using Hinh.
   rewrite -step_fupd_intro //.
 Qed.
 
-End ectx_lifting.
 *)
+
+End ectx_lifting.
