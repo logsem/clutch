@@ -451,6 +451,27 @@ Section error_credit_theory.
   Qed.
 
 
+  Lemma ec_ind_incr (ε ε' k : R) P :
+    0 < ε →
+    ε < ε' →
+    1 < k →
+    □((↯ ε' -∗ P) ∗ ↯ ε -∗ P) ⊢
+    (↯ ε -∗ P).
+  Proof.
+    iIntros (Hε Hε' Hk) "#Hamp Herr".
+    iApply (ec_ind_simpl ε (ε'/ε) with "[Hamp]"); auto.
+    - apply Rcomplements.Rlt_div_r; lra.
+    - iModIntro.
+      iIntros "(H & Herr)".
+      iApply ("Hamp" with "[H $Herr]").
+      iIntros "Herr".
+      iApply "H".
+      rewrite /Rdiv Rmult_assoc Rinv_l; [|lra].
+      rewrite Rmult_1_r.
+      iFrame.
+  Qed.
+
+
 
   (* TODO: can [ec_ind_amp] be derived from [ec_ind_amp_external] ? *)
   Lemma ec_ind_amp (ε k : R) P :

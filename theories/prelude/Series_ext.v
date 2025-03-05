@@ -473,6 +473,19 @@ Fixpoint max_seq (f : nat -> nat) n :=
   | S m => max (f (S m)) (max_seq f m)
   end.
 
+Lemma le_max_seq (f : nat -> nat) n m :
+  m ≤ n ->
+  f m ≤ max_seq f n.
+Proof.
+  intros Hleq.
+  induction Hleq.
+  - destruct m; simpl; [lia|].
+    apply Nat.le_max_l.
+  - simpl.
+    etrans; eauto.
+    apply Nat.le_max_r.
+Qed.
+
 Lemma sum_max_seq (f : nat -> R) h n `{Inj nat nat eq eq h}:
   (forall n, 0 <= f n) ->
   (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) (max_seq h n)).
