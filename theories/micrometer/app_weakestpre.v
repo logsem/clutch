@@ -4,38 +4,41 @@ From iris.base_logic.lib Require Export fancy_updates.
 From iris.bi Require Export weakestpre fixpoint big_op.
 From iris.prelude Require Import options.
 
+From mathcomp.analysis Require Import measure.
+
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
-(*  From clutch.common Require Export language erasable. *)
-From clutch.base_logic Require Export spec_update.
+From clutch.meas_lang Require Export language erasable.
+From clutch.micrometer Require Export meas_spec_update.
 (*  From clutch.prob Require Export couplings_app distribution. *)
 
 Import uPred.
-(*
 
-Local Open Scope R.
+(*  Local Open Scope R. *)
 
-Class approxisWpGS (Λ : language) (Σ : gFunctors) `{!spec_updateGS (lang_markov Λ) Σ} := ApproxisWpGS {
-  #[global] approxisWpGS_invGS :: invGS_gen HasNoLc Σ;
+
+Class micrometerWpGS (Λ : meas_language) (Σ : gFunctors) `{!meas_spec_updateGS (meas_lang_markov Λ) Σ} := MicrometerWpGS {
+  #[global] micrometerWpGS_invGS :: invGS_gen HasNoLc Σ;
 
   state_interp : state Λ → iProp Σ;
   err_interp : nonnegreal → iProp Σ;
 }.
-Global Opaque approxisWpGS_invGS.
-Global Arguments ApproxisWpGS {Λ Σ _}.
+Global Opaque micrometerWpGS_invGS.
+Global Arguments MicrometerWpGS {Λ Σ _}.
 
 Canonical Structure NNRO := leibnizO nonnegreal.
-(* TODO: move *)
-#[global] Hint Resolve cond_nonneg : core.
+
 
 (** * Coupling modalities  *)
 Section coupl_modalities.
-  Context `{!spec_updateGS (lang_markov Λ) Σ, !approxisWpGS Λ Σ}.
+  Context `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
 
   (** ** [spec_coupl]  *)
 
   (** The [spec_coupl] modality allows us to (optionally) prepend spec execution steps and erasable
       distributions, e.g. [state_step]s on both sides. *)
-  Definition spec_coupl_pre E Z (Φ : state Λ * cfg Λ * nonnegreal → iProp Σ) : state Λ * cfg Λ * nonnegreal → iProp Σ :=
+  Definition meas_spec_coupl_pre (E : coPset) (Z : state Λ * expr Λ * state Λ * nonnegreal -> iProp Σ) (Φ : state Λ * cfg Λ * nonnegreal → iProp Σ) : state Λ * cfg Λ * nonnegreal → iProp Σ.
+    Admitted.
+  (*
     (λ (x : state Λ * cfg Λ * nonnegreal),
       let '(σ1, (e1', σ1'), ε) := x in
       ⌜1 <= ε⌝ ∨
@@ -46,8 +49,9 @@ Section coupl_modalities.
          ⌜∀ ρ, X2 ρ <= r⌝ ∗
          ⌜ε1 + Expval (σ2' ← μ1'; pexec n (e1', σ2')) X2 <= ε⌝ ∗
          ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
-         ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ Φ (σ2, (e2', σ2'), X2 (e2', σ2'))))%I.
+         ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ Φ (σ2, (e2', σ2'), X2 (e2', σ2'))))%I. *)
 
+  (*
   #[local] Instance spec_coupl_pre_ne Z E Φ :
     NonExpansive (spec_coupl_pre E Z Φ).
   Proof.
@@ -481,16 +485,18 @@ Section coupl_modalities.
     prog_coupl e σ e' σ' ε Z -∗ ⌜reducible (e, σ)⌝.
   Proof. by iIntros "(%&%&%&%&%&%&%&%& _)". Qed.
 
+  *)
+
 End coupl_modalities.
 
-
+(*
 (** * The weakest precondition  *)
-Definition wp_pre `{!spec_updateGS (lang_markov Λ) Σ, !approxisWpGS Λ Σ}
+Definition wp_pre `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}
     (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
      coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
   (∀ σ1 e1' σ1' ε1,
       state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 ={E, ∅}=∗
-      spec_coupl ∅ σ1 e1' σ1' ε1 (λ σ2 e2' σ2' ε2,
+      meas_spec_coupl ∅ σ1 e1' σ1' ε1 (λ σ2 e2' σ2' ε2,
         match to_val e1 with
         | Some v => |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 ∗ Φ v
         | None =>
@@ -498,8 +504,11 @@ Definition wp_pre `{!spec_updateGS (lang_markov Λ) Σ, !approxisWpGS Λ Σ}
                 ▷ spec_coupl ∅ σ3 e3' σ3' ε3 (λ σ4 e4' σ4' ε4,
                     |={∅, E}=> state_interp σ4 ∗ spec_interp (e4', σ4') ∗ err_interp ε4 ∗ wp E e3 Φ))
       end))%I.
+*)
 
-Local Instance wp_pre_contractive `{!spec_updateGS (lang_markov Λ) Σ, !approxisWpGS Λ Σ} :
+(*
+
+Local Instance wp_pre_contractive `{!spec_updateGS (lang_markov Λ) Σ, !micrometerWpGS Λ Σ} :
   Contractive wp_pre.
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ.
@@ -516,19 +525,19 @@ Proof.
   apply Hwp.
 Qed.
 
-Local Definition wp_def `{!spec_updateGS (lang_markov Λ) Σ, !approxisWpGS Λ Σ} :
+Local Definition wp_def `{!spec_updateGS (lang_markov Λ) Σ, !micrometerWpGS Λ Σ} :
   Wp (iProp Σ) (expr Λ) (val Λ) () :=
   {| wp := λ _ : (), fixpoint (wp_pre); wp_default := () |}.
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
 Global Arguments wp' {Λ Σ _}.
 Global Existing Instance wp'.
-Local Lemma wp_unseal `{!spec_updateGS (lang_markov Λ) Σ, !approxisWpGS Λ Σ} : wp =
+Local Lemma wp_unseal `{!spec_updateGS (lang_markov Λ) Σ, !micrometerWpGS Λ Σ} : wp =
   (@wp_def Λ Σ _ _).(wp).
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
 Section wp.
-Context `{!spec_updateGS (lang_markov Λ) Σ, !approxisWpGS Λ Σ}.
+Context `{!spec_updateGS (lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types v : val Λ.
@@ -864,7 +873,7 @@ End wp.
 
 (** * Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!spec_updateGS (lang_markov Λ) Σ, !approxisWpGS Λ Σ}.
+  Context `{!spec_updateGS (lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val Λ → iProp Σ.
   Implicit Types v : val Λ.

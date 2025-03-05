@@ -8,23 +8,18 @@ From iris.algebra Require Import ofe.
 From clutch.bi Require Import weakestpre.
 From mathcomp.analysis Require Import reals measure ereal.
 From clutch.prob.monad Require Import giry.
-From clutch.meas_lang Require Import language.
+From clutch.meas_lang Require Import language prelude.
+From Coq Require Import ssrfun.
 Set Warnings "hiding-delimiting-key".
 
 Section erasable.
   Context {Λ : meas_language}.
 
-  (*
-  Definition meas_erasable (f : measurable_map (state Λ) (giryM (state Λ))) : Prop :=
-    forall e m,
-  *)
-
+  Program Definition erasable (μ : giryM (state Λ)) (σ : state Λ) : Prop :=
+    ∀ e m, gBind (_ : measurable_fun setT (exec m \o pair e)) μ ≡μ exec m (e, σ).
+  Next Obligation. intros; mf_cmp_tree; [ by apply @measurableT | by apply exec_meas_fun ]. Qed.
 
 (*
-
-  Definition erasable (μ : distr (state Λ)) σ:=
-    ∀ e m, μ ≫= (λ σ', exec m (e, σ')) = exec m (e, σ).
-
   Definition erasable_dbind (μ1 : distr(state Λ)) (μ2 : state Λ → distr (state Λ)) σ:
     erasable μ1 σ → (∀ σ', μ1 σ' > 0 → erasable (μ2 σ') σ') → erasable (μ1 ≫= μ2) σ.
   Proof.

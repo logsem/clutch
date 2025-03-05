@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Import weakestpre.
 From mathcomp.analysis Require Import reals measure ereal Rstruct.
-From clutch.prob.monad Require Export giry.
+From clutch.prob.monad Require Export giry lim.
 Set Warnings "hiding-delimiting-key".
 (*From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
@@ -344,6 +344,10 @@ Section markov.
       end.
   Proof. by destruct n. Qed.
 
+  Lemma exec_meas_fun (n : nat) : measurable_fun setT (exec n).
+  Proof. Admitted.
+  Hint Resolve exec_meas_fun : mf_fun.
+
   Lemma exec_is_final a b n :
     to_final a = Some b → exec n a = gRet b.
   Proof. destruct n; simpl; by intros ->. Qed.
@@ -529,11 +533,12 @@ Section markov.
 
 *)
 
+  (** * Full evaluation (limit of stratification) *)
 
+  Definition lim_exec (a : mstate δ) : giryM (mstate_ret δ) :=
+    limit_measure (fun n => exec n a).
 
-  (** * Full evaluation (limit of stratification)
-  Definition lim_exec (a : mstate δ) : distr (mstate_ret δ) := lim_distr (λ n, exec n a) (exec_mono a).
-*)
+  (* Definition lim_exec (a : mstate δ) : distr (mstate_ret δ) := lim_distr (λ n, exec n a) (exec_mono a). *)
 
 
 

@@ -3,18 +3,25 @@ From clutch.common Require Export language.
 From clutch.meas_lang Require Export lang tactics notation.
 From iris.prelude Require Import options.
 
+
+
 (*
 Global Instance into_val_val v : IntoVal (Val v) v.
 Proof. done. Qed.
 Global Instance as_val_val v : AsVal (Val v).
 Proof. by eexists. Qed.
+*)
 
 (** * Instances of the [Atomic] class *)
 Section atomic.
+
+
+  (*
   Local Ltac solve_atomic :=
     apply strongly_atomic_atomic, ectx_language_atomic;
     [intros ????; simpl; by inv_head_step
     |apply ectxi_language_sub_redexes_are_values; intros [] **; naive_solver].
+
 
   Global Instance rec_atomic s f x e : Atomic s (Rec f x e).
   Proof. solve_atomic. Qed.
@@ -58,6 +65,7 @@ Section atomic.
 
   Global Instance tick_atomic s z : Atomic s (Tick (Val (LitV (LitInt z)))).
   Proof. solve_atomic. Qed.
+ *)
 End atomic.
 
 (** * Instances of the [PureExec] class *)
@@ -75,6 +83,8 @@ not if [v] contains a lambda/rec that is hidden behind a definition.
 
 To make sure that [wp_rec] and [wp_lam] do reduce lambdas/recs that are hidden
 behind a definition, we activate [AsRecV_recv] by hand in these tactics. *)
+
+(*
 Class AsRecV (v : val) (f x : binder) (erec : expr) :=
   as_recv : v = RecV f x erec.
 Global Hint Mode AsRecV ! - - - : typeclass_instances.

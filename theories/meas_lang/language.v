@@ -116,7 +116,7 @@ Proof.
 *)
 Admitted.
 
-Canonical Structure lang_markov (Λ : meas_language) := MeasMarkov _ _ (meas_lang_markov_mixin Λ).
+Canonical Structure meas_lang_markov (Λ : meas_language) := MeasMarkov _ _ (meas_lang_markov_mixin Λ).
 
 
 Section language.
@@ -142,13 +142,41 @@ Section language.
   Lemma prim_step_mass e σ : (¬ is_zero (prim_step (e, σ))) -> is_prob (prim_step (e, σ)).
   Proof. apply language_mixin. Qed.
 
-  (* ??? *)
-  (*
+
+  Local Open Scope classical_set_scope.
+  Lemma irreducible_meas_set : measurable (irreducible : set (expr Λ * state Λ)%type).
+  Proof.
+    unfold irreducible.
+    have H : (mstate_disp (meas_lang_markov Λ)).-measurable [set: mstate (meas_lang_markov Λ)] by eapply @measurableT.
+    have H1 : giry_display.-measurable is_zero.
+    { intros m T.
+      unfold is_zero.
+      (* [set: 0] is measurable in the Giry Monad. Prove me in Lean (preimage of [0 : R] by evaluations, extensionality) *)
+      admit. }
+    have X := (@step_meas (meas_lang_markov Λ) H is_zero).
+    have X1 := X (H1 _ _).
+    rewrite setTI in X1.
+    by apply X1.
+  Admitted.
+
+  Definition to_val_is_val : set (expr Λ * state Λ) := (preimage to_val option_cov_Some) `*` setT.
+
+  Lemma to_val_is_val_meas_set : measurable to_val_is_val.
+  Proof.
+    unfold to_val_is_val.
+    apply measurableX; last by eapply @measurableT.
+    rewrite <- (setTI (preimage _ _)).
+    apply to_val_meas.
+    { by eapply @measurableT. }
+    { by apply option_cov_Some_meas_set. }
+  Qed.
+
+  (* NOTE: This is fairly different to the Clutch version *)
   Class Atomic (a : atomicity) (e : expr Λ) : Prop :=
-    atomic σ e' σ' :
-      prim_step e σ (e', σ') > 0 →
-      if a is WeaklyAtomic then irreducible (e', σ') else is_Some (to_val e').
-   *)
+    atomic σ :
+      if a is WeaklyAtomic
+        then has_support_in (prim_step (e, σ)) irreducible
+        else has_support_in (prim_step (e, σ)) to_val_is_val.
 
   Lemma of_to_val_flip v e : of_val v = e → to_val e = Some v.
   Proof. intros <-. by rewrite to_of_val. Qed.

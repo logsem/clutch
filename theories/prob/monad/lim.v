@@ -31,4 +31,11 @@ Section setwise_measure_limit.
     isMeasure.Build _ _ _ limit_measure
     limit_measure0 limit_measure_ge0 semi_sigma_additive_limit_measure.
 
+  Lemma limit_measure_setT : (limit_measure setT <= 1)%E.
+  Proof. Admitted.
+
+  HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ limit_measure limit_measure_setT.
+
 End setwise_measure_limit.
+
+(*  Check ((limit_measure _) : giryM _). *)

@@ -558,7 +558,6 @@ Admitted.
 Lemma head_stepM_unop_meas_fun       : measurable_fun cover_unop       head_stepM_unop.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
-  Print head_stepM_unop.
   (* Fix eta expansion! *)
   mf_cmp_tree; first by apply un_op_eval''_meas_fun.
 

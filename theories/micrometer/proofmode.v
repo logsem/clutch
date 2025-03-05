@@ -1,6 +1,6 @@
 (*  From clutch.prob_lang Require Import lang notation class_instances tactics.
 From clutch.prob_lang Require Export wp_tactics. *)
-From clutch.micrometer Require Import app_weakestpre lifting primitive_laws derived_laws.
+(* From clutch.micrometer Require Import app_weakestpre lifting primitive_laws derived_laws. *)
 From iris.prelude Require Import options.
 
 (*
