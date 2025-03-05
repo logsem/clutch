@@ -32,7 +32,7 @@ Section test.
   Qed.
 
   Lemma twp_e'_two E:
-    ⊢ ↯ (nnreal_half) -∗ WP (e' #2) @ E [{ φ }].
+    ⊢ ↯ (1/2) -∗ WP (e' #2) @ E [{ φ }].
   Proof.
     iIntros "Herr".
     rewrite /e'.
@@ -49,7 +49,7 @@ Section test.
   Qed.
 
   Lemma wp_e'_two E:
-    ⊢ ↯ (nnreal_half) -∗ WP (e' #2) @ E {{ φ }}.
+    ⊢ ↯ (1/2) -∗ WP (e' #2) @ E {{ φ }}.
   Proof.
     iIntros "Herr".
     iApply tgl_wp_pgl_wp'.
@@ -57,7 +57,7 @@ Section test.
   Qed.
 
   Lemma twp_e'_three E:
-    ⊢ ↯ (nnreal_one) -∗ WP (e' #3) @ E [{ φ }].
+    ⊢ ↯ (1%R) -∗ WP (e' #3) @ E [{ φ }].
   Proof.
     iIntros "Herr".
     iExFalso.
@@ -66,7 +66,7 @@ Section test.
   Qed.
 
   Lemma wp_e'_three E:
-    ⊢ ↯ (nnreal_half) -∗ WP (e' #3) @ E {{ φ }}.
+    ⊢ ↯ (1/2) -∗ WP (e' #3) @ E {{ φ }}.
   Proof.
     iIntros "Herr".
     rewrite /e'.
@@ -85,16 +85,20 @@ Section test.
   Qed.
 
   Lemma twp_e E:
-    ⊢ ↯ (nnreal_div (nnreal_nat 3) (nnreal_nat 8)) -∗
+    ⊢ ↯ (3 / 8) -∗
     WP e @ E [{φ}].
   Proof.
     iIntros "Herr".
     rewrite /e.
-    set (ε2 := λ n : fin (S 3), if (fin_to_nat n <? 2) then nnreal_zero else
-                      if (fin_to_nat n =? 2) then nnreal_half else nnreal_one)
+    set (ε2 := λ n : fin (S 3), if (fin_to_nat n <? 2) then 0%R else
+                      if (fin_to_nat n =? 2) then (1/2)%R else 1%R)
         .
         wp_apply (twp_couple_rand_adv_comp1 _ _ _ _ ε2 with "[$]").
-        { rewrite SeriesC_finite_foldr. simpl. lra. }
+        { intros; rewrite /ε2.
+          case_match; [lra |].
+          case_match; lra.
+        }
+        { rewrite SeriesC_finite_foldr /ε2. simpl. lra. }
         iIntros (n) "Herr".
         wp_pures.
         case_bool_decide; wp_pures; first done.
@@ -112,16 +116,22 @@ Section test.
   Qed.
 
   Lemma wp_e E:
-    ⊢ ↯ (nnreal_div (nnreal_nat 1) (nnreal_nat 4)) -∗
+    ⊢ ↯ ((1/4)%R) -∗
     WP e @ E {{φ}}.
   Proof.
     iIntros "Herr".
     rewrite /e.
-    set (ε2 := λ n : fin (S 3), if (fin_to_nat n <? 2) then nnreal_zero else
-                      if (fin_to_nat n =? 2) then nnreal_half else nnreal_half)
+    set (ε2 := λ n : fin (S 3), if (fin_to_nat n <? 2) then 0%R else
+                      if (fin_to_nat n =? 2) then (1/2)%R else (1/2)%R)
         .
         wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ ε2 with "[$]").
-        { rewrite SeriesC_finite_foldr. simpl. lra. }
+        {
+          intros; rewrite /ε2.
+          case_match; [lra |].
+          real_solver.
+        }
+        { rewrite SeriesC_finite_foldr. simpl.
+          rewrite /ε2 /=. lra. }
         iIntros (n) "Herr".
         wp_pures.
         case_bool_decide; wp_pures; first done.
@@ -134,8 +144,10 @@ Section test.
           - by repeat (inv_fin n; [done|intros n ?]).
           - by repeat (inv_fin n; [done|intros n ?]).
         }
-    - by wp_apply wp_e'_two.
-    - by wp_apply wp_e'_three.
+    - rewrite /ε2/=.
+      by wp_apply wp_e'_two.
+    - rewrite /ε2/=.
+      by wp_apply wp_e'_three.
   Qed.
 
   Definition e'' :expr :=
@@ -145,15 +157,20 @@ Section test.
     !"l".
 
   Lemma wp_e'' :
-    ↯ (nnreal_div (nnreal_nat 1) (nnreal_nat 16)) ⊢ WP e'' {{ v, ∃ (n : nat), ⌜v = #n⌝ ∗ ⌜n > 0⌝ }}.
+    ↯ (1 / 16) ⊢ WP e'' {{ v, ∃ (n : nat), ⌜v = #n⌝ ∗ ⌜n > 0⌝ }}.
   Proof.
     iIntros "Herr". rewrite /e''.
     wp_alloc l as "Hl".
     wp_pures.
     wp_bind (rand #3)%E.
-    set (ε1 := λ n : fin 4, if fin_to_nat n =? 0 then nnreal_div (nnreal_nat 1) (nnreal_nat 4) else nnreal_zero).
+    set (ε1 := λ n : fin 4, if fin_to_nat n =? 0 then (1/4)%R else 0%R).
     wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ ε1 with "Herr").
-    { rewrite SeriesC_finite_foldr. simpl. lra. }
+    { intros; rewrite /ε1/=.
+      real_solver.
+    }
+    { rewrite SeriesC_finite_foldr.
+      rewrite /ε1 /=.
+      lra. }
     iIntros (n) "Herr".
     wp_load. wp_pures. wp_store.
     inv_fin n; last first.
@@ -165,11 +182,13 @@ Section test.
       iSplit; [iPureIntro|].
       { do 2 f_equal. rewrite -Nat2Z.inj_add //. }
       iPureIntro. lia.
-    - replace (ε1 0%fin) with (nnreal_div (nnreal_nat 1) (nnreal_nat 4)); last first.
+    - replace (ε1 0%fin) with (1/4)%R; last first.
       { rewrite /ε1 /=. done. }
-      set (ε2 := λ n : fin 4, if fin_to_nat n =? 0 then nnreal_one else nnreal_zero).
+      set (ε2 := λ n : fin 4, if fin_to_nat n =? 0 then 1%R else 0%R).
       wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ ε2 with "Herr").
-      { rewrite SeriesC_finite_foldr. simpl. lra. }
+      { intros. rewrite /ε2. real_solver. }
+      { rewrite SeriesC_finite_foldr.
+        rewrite /ε2 /=. lra. }
       iIntros (n) "Herr".
       inv_fin n.
       { by iDestruct (ec_contradict with "Herr") as %[]. }
@@ -245,7 +264,7 @@ Definition baz : expr :=
 
 
 Lemma wp_baz E :
-  ↯ (nnreal_inv (nnreal_nat 2)) -∗ WP baz #() @ E {{ v, ⌜v = #0⌝ }}.
+  ↯ (1/2) -∗ WP baz #() @ E {{ v, ⌜v = #0⌝ }}.
 Proof.
   iIntros "Herr".
   wp_pure.
@@ -253,19 +272,18 @@ Proof.
   wp_pures.
   set f:= (λ n : fin 3,
               if bool_decide (n = 0%fin)
-                then nnreal_zero
-                else if bool_decide (n = 1%fin) then nnreal_one
-                                            else nnreal_inv((nnreal_nat 2))).
+                then 0%R
+                else if bool_decide (n = 1%fin) then 1%R
+                                            else (1/2)).
   unshelve wp_apply (wp_couple_rand_adv_comp _ _ _ _ f with "Herr").
   {
-    exists 1; intro n.
-    rewrite /f.
-    case_bool_decide.
-    - simpl; lra.
-    - case_bool_decide; simpl; lra.
+    intros; rewrite /f.
+    real_solver.
   }
   {
-    rewrite SeriesC_finite_foldr. simpl. lra.
+    rewrite SeriesC_finite_foldr.
+    rewrite /f/=.
+    lra.
   }
   iIntros (n) "Hεcont".
   wp_pures.

@@ -613,6 +613,7 @@ Section higherorder_walkSAT.
     wp_bind (rand _)%E.
     replace (length m) with N in Hp; [|by destruct Hinv].
     wp_apply (twp_couple_rand_adv_comp1 _ _ _ _ (εDistr_resampler _ _ _ target) with "Hε").
+    { intros; apply cond_nonneg. }
     {
       rewrite εDistr_mean.
       rewrite /εInv.
