@@ -52,7 +52,6 @@ intros a b c.
 apply (hp_evalC ).
   *)
 
-Global Instance : Lookup <<discr loc>> btape (hp (option btape)) := hp_eval.
 
 (* TODO: Make this as close to the old definition in Clutch as possible.
     - What stdpp isntances do we need for the new tapes?*)
