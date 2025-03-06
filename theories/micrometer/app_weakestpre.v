@@ -8,7 +8,7 @@ From mathcomp.analysis Require Import measure.
 
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.meas_lang Require Export language erasable.
-From clutch.micrometer Require Export meas_spec_update.
+From clutch.meas_lang Require Export meas_spec_update.
 (*  From clutch.prob Require Export couplings_app distribution. *)
 
 Import uPred.
