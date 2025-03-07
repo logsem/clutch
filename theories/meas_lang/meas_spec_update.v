@@ -20,10 +20,10 @@ Canonical Structure mstateO δ := leibnizO (mstate δ).
 
 (** An "update"-modality for deterministic spec steps  *)
 Section spec_update.
-  (*
-  Context `{spec_updateGS δ Σ, invGS_gen hl Σ}.
+  Context `{meas_spec_updateGS δ Σ, invGS_gen hl Σ}.
   Implicit Types a : mstate δ.
 
+  (*
   Definition spec_updateN_def (n : nat) (E : coPset) (P : iProp Σ) : iProp Σ :=
     (∀ a, spec_interp a -∗ |={E}=> ∃ a', ⌜stepN n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
   Local Definition spec_updateN_aux : seal (@spec_updateN_def). Proof. by eexists. Qed.

@@ -52,9 +52,6 @@ Section resources.
   Definition spec_utapes_auth `{specG_meas_lang Σ} :=
     @ghost_map_auth _ _ _ _ _ specG_meas_lang_utapes specG_meas_lang_utapes_name 1.
 
-  (* TODO: Need ghost map for hp (option T) *)
-
-  (*
   Definition spec_auth (ρ : cfg) : iProp Σ :=
     spec_prog_auth (ρ.1) ∗
     spec_heap_auth (heap ρ.2) ∗
@@ -62,22 +59,24 @@ Section resources.
     spec_utapes_auth (utapes ρ.2).
 
   Definition spec_prog_frag (e : expr) : iProp Σ :=
-    own specG_prob_lang_prog_name (◯ (Excl' e : progUR)).
+    own specG_meas_lang_prog_name (◯ (Excl' e : progUR)).
 
   Definition spec_heap_frag (l : loc) v dq: iProp Σ :=
-    (@ghost_map_elem _ _ _ _ _ specG_prob_lang_heap specG_prob_lang_heap_name l dq v).
+    (@ghost_map_elem _ _ _ _ _ specG_meas_lang_heap specG_meas_lang_heap_name l dq v).
 
   Definition spec_tapes_frag (l : loc) v dq: iProp Σ :=
-    (@ghost_map_elem _ _ _ _ _ specG_prob_lang_tapes specG_prob_lang_tapes_name l dq v).
-    *)
+    (@ghost_map_elem _ _ _ _ _ specG_meas_lang_tapes specG_meas_lang_tapes_name l dq v).
+
+  Definition spec_utapes_frag (l : loc) v dq: iProp Σ :=
+    (@ghost_map_elem _ _ _ _ _ specG_meas_lang_utapes specG_meas_lang_utapes_name l dq v).
+
 End resources.
 
-(*
 (** Spec program  *)
 Notation " ⤇ e" := (spec_prog_frag e) (at level 20) : bi_scope.
 
 (** Spec heap *)
-Notation "l ↦ₛ{ dq } v" := (@ghost_map_elem _ _ _ _ _ specG_prob_lang_heap specG_prob_lang_heap_name l dq v)
+Notation "l ↦ₛ{ dq } v" := (@ghost_map_elem _ _ _ _ _ specG_meas_lang_heap specG_meas_lang_heap_name l dq v)
   (at level 20, format "l  ↦ₛ{ dq }  v") : bi_scope.
 Notation "l ↦ₛ□ v" := (l ↦ₛ{ DfracDiscarded } v)%I
   (at level 20, format "l  ↦ₛ□  v") : bi_scope.
@@ -87,7 +86,7 @@ Notation "l ↦ₛ v" := (l ↦ₛ{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↦ₛ  v") : bi_scope.
 
 (** Spec tapes *)
-Notation "l ↪ₛ{ dq } v" := (@ghost_map_elem _ _ _ _ _ specG_prob_lang_tapes specG_prob_lang_tapes_name l dq v)
+Notation "l ↪ₛ{ dq } v" := (@ghost_map_elem _ _ _ _ _ specG_meas_lang_tapes specG_meas_lang_tapes_name l dq v)
   (at level 20, format "l  ↪ₛ{ dq }  v") : bi_scope.
 Notation "l ↪ₛ□ v" := (l ↪ₛ{ DfracDiscarded } v)%I
   (at level 20, format "l  ↪ₛ□  v") : bi_scope.
@@ -96,8 +95,10 @@ Notation "l ↪ₛ{# q } v" := (l ↪ₛ{ DfracOwn q } v)%I
 Notation "l ↪ₛ v" := (l ↪ₛ{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪ₛ  v") : bi_scope.
 
+(* TODO: Utapes *)
+
 Section theory.
-  Context `{!specG_prob_lang Σ}.
+  Context `{!specG_meas_lang Σ}.
 
   Lemma spec_auth_prog_agree e1 σ1 e2  :
     spec_auth (e1, σ1) -∗ ⤇ e2 -∗ ⌜e1 = e2⌝.
@@ -116,26 +117,30 @@ Section theory.
     iDestruct (spec_auth_prog_agree with "Ha Hf") as %->.
     iDestruct "Ha" as "[Ha Hb]".
     iMod (own_update_2 with "Ha Hf") as "[Ha Hf]".
-    { by eapply auth_update, option_local_update,
-        (exclusive_local_update _ (Excl e3)). }
-    by iFrame.
-  Qed.
+    { eapply auth_update.
+      admit.
+        (* option_local_update.
+        (exclusive_local_update _ (Excl e3)). *) }
+    (*  by iFrame. *)
+  Admitted.
 
   (** Heap *)
 
   Lemma spec_auth_lookup_heap e1 σ1 l v dq:
-    spec_auth (e1, σ1) -∗ l ↦ₛ{dq} v -∗ ⌜σ1.(heap) !! l = Some v⌝.
+    spec_auth (e1, σ1) -∗ l ↦ₛ{dq} v -∗ ⌜heap σ1 !! l = Some v⌝.
   Proof. iIntros "(_&H&_) H'/=". iApply (ghost_map_lookup with "H H'"). Qed.
 
   Lemma spec_auth_heap_alloc e σ v :
     spec_auth (e, σ) ==∗
-    spec_auth (e, state_upd_heap <[ fresh_loc σ.(heap) := v ]> σ) ∗ fresh_loc σ.(heap) ↦ₛ v.
+    spec_auth (e, state_upd_heap <[ fresh_loc (heap σ) := v ]> σ) ∗ fresh_loc (heap σ) ↦ₛ v.
   Proof.
     iIntros "(? & Hheap & ?) /=".
-    iMod (ghost_map_insert (fresh_loc σ.(heap)) with "Hheap") as "[Hheap Hl]".
-    { apply not_elem_of_dom, fresh_loc_is_fresh. }
-    by iFrame.
-  Qed.
+    iMod (ghost_map_insert (state.fresh (heap σ)) with "Hheap") as "[Hheap Hl]".
+    { apply not_elem_of_dom.
+      admit.
+              (* fresh_loc_is_fresh. *) }
+    (* by iFrame. *)
+  Admitted.
 
   Lemma spec_auth_update_heap w e1 σ1 l v :
     spec_auth (e1, σ1) -∗ l ↦ₛ{#1} v ==∗
@@ -143,13 +148,13 @@ Section theory.
   Proof.
     iIntros "(?&H&?) H' /=".
     iMod (ghost_map_update with "H H'") as "?".
-    iModIntro. by iFrame.
-  Qed.
+    iModIntro. (* by iFrame. *) Admitted.
 
   (** Tapes *)
+  (*
 
   Lemma spec_auth_lookup_tape e1 σ1 l v dq :
-    spec_auth (e1, σ1) -∗ l ↪ₛ{dq} v -∗ ⌜σ1.(tapes) !! l = Some v⌝.
+    spec_auth (e1, σ1) -∗ l ↪ₛ{dq} v -∗ ⌜(tapes σ1) !! l = Some v⌝.
   Proof. iIntros "(_&_&H) H'/=". iApply (ghost_map_lookup with "H H'"). Qed.
 
   Lemma spec_auth_update_tape w e1 σ1 l v :
@@ -169,13 +174,14 @@ Section theory.
     iMod (ghost_map_insert (fresh_loc σ.(tapes)) with "Htapes") as "[H Hl]".
     { apply not_elem_of_dom, fresh_loc_is_fresh. }
     by iFrame.
-  Qed.
+  Qed. *)
 
 End theory.
 
+(*
 Lemma spec_ra_init e σ `{specGpreS Σ} :
-  ⊢ |==> ∃ _ : specG_prob_lang Σ,
-      spec_auth (e, σ) ∗ ⤇ e ∗ ([∗ map] l ↦ v ∈ σ.(heap), l ↦ₛ v) ∗ ([∗ map] α ↦ t ∈ σ.(tapes), α ↪ₛ t).
+  ⊢ |==> ∃ _ : specG_meas_lang Σ,
+      spec_auth (e, σ) ∗ ⤇ e ∗ ([∗ map] l ↦ v ∈ (heap σ), l ↦ₛ v) ∗ ([∗ map] α ↦ t ∈ (tapes σ), α ↪ₛ t).
 Proof.
   iMod (own_alloc ((● (Excl' e)) ⋅ (◯ (Excl' e)))) as "(%γp & Hprog_auth & Hprog_frag)".
   { by apply auth_both_valid_discrete. }
@@ -235,4 +241,4 @@ End spec_tape_interface.
 
 #[global] Instance spec_rules_spec_updateGS `{!specG_prob_lang Σ} :
   spec_updateGS (lang_markov prob_lang) Σ := Spec_updateGS spec_auth.
-*)
+******)
