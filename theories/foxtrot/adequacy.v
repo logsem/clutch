@@ -9,4 +9,6 @@ From clutch.prob Require Import distribution couplings_app.
 Import uPred.
 
 Section adequacy.
+  Context `{!foxtrotGS Σ}.
+  
 End adequacy.
