@@ -7,7 +7,7 @@ From mathcomp Require Import functions.
 From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
 From iris.algebra Require Export ofe.
-From clutch.prelude Require Export stdpp_ext.
+From clutch.prelude Require Export base stdpp_ext.
 From clutch.common Require Export locations.
 From clutch.meas_lang Require Import ectxi_language ectx_language.
 From Coq Require Export Reals.
@@ -477,7 +477,12 @@ Proof.
   mf_cmp_tree; first by mf_done.
   mf_prod.
   { mf_cmp_tree.
-    { admit. }
+    { rewrite /subset.
+      simpl. intros ?. elim.
+      intros [??]; simpl; intros [_[? ?]]?.
+      simplify_eq.
+      naive_solver.
+    }
     mf_cmp_tree.
     mf_cmp_tree.
     { by apply ValU_meas_fun. }
@@ -486,7 +491,7 @@ Proof.
   { mf_restrictT.
     by ms_solve.
   }
-Admitted.
+Qed.
 
 Lemma head_stepM_pair_meas_fun : measurable_fun cover_pair head_stepM_pair.
 Proof.
@@ -498,7 +503,14 @@ Proof.
     mf_prod.
     { mf_cmp_tree.
       { by ms_solve. }
-      (* FIXME: Wrong set maybe *)
+      - rewrite /subset/=.
+        intros ? [(?&?) (?&?&?&?)]. simpl in *.
+        simplify_eq. naive_solver.
+      - eapply measurable_comp; [| |apply 𝜋_ValU_meas|].
+        + ms_done.
+        + admit.
+        + apply measurable_fun_setI1; [ms_done| |apply 𝜋_Pair_l_meas].
+          
 
       all: admit. }
     { admit. }
@@ -1024,14 +1036,12 @@ Definition meas_lang_mixin :
   @MeasEctxiLanguageMixin _ _ _ _ expr val state ectx_item
     of_val to_val fill_item decomp_item expr_ord head_stepM.
 Proof.
-Admitted.
-(*
   split.
   - by apply ValU_meas_fun.
   - by apply to_val_meas.
-  - by apply fill_item_def_measurable.
-  - by apply decomp_item_meas.
-  - by apply head_stepM_measurable.
+  - by apply fill_item_meas_fun.
+  - by apply decomp_item_meas_fun.
+  - by apply head_stepM_meas_fun.
   - by apply to_of_val.
   - by apply of_to_val.
   - by apply val_head_stuck.
@@ -1045,7 +1055,6 @@ Admitted.
   - by apply decomp_fill_item_2.
   - by apply head_step_ctx_val.
 Qed.
-*)
 
 End meas_lang.
 
