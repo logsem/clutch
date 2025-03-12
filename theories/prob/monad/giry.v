@@ -150,6 +150,12 @@ Section giry_monad.
   Axiom gJoin_id2 : forall (x : giryM (giryM T1)) (f : T1 -> T2) (H : measurable_fun setT f),
     (gJoin \o gMap (gMap_meas_fun H)) x ≡μ (gMap H \o gJoin) x.
 
+  (* Note: This is defined only for non-negative functions because otherwise one needs to argue
+     about integrability of h at every point in D *)
+  Axiom gBindInt : forall (μ : giryM T1) (f : T1 -> giryM T2) (H : measurable_fun setT f) (h : T2 -> \bar R)
+                     (D : set T2) (mD : measurable D) (Hge0 : forall x, D x -> (0 <= h x)%E) (mh : measurable_fun D h),
+      (\int[gBind H μ]_(y in D) h y = \int[μ]_x \int[f x]_(y in D) h y )%E.
+
   (*
     Laws in terms of ret and bind
 
