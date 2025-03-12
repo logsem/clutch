@@ -9,12 +9,22 @@ From mathcomp.analysis Require Import measure.
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.meas_lang Require Export language erasable.
 From clutch.meas_lang Require Export meas_spec_update.
+From clutch.prob.monad Require Export couplings_app.
 (*  From clutch.prob Require Export couplings_app distribution. *)
+From Coq Require Import ssrfun.
+
+
+From mathcomp.analysis Require Import reals measure lebesgue_measure lebesgue_integral sequences function_spaces Rstruct.
+From clutch.prob.monad Require Import prelude giry.
+From stdpp Require Import base.
+From Coq Require Import Reals.
+
+From mathcomp.analysis Require Import constructive_ereal.
+
 
 Import uPred.
 
 Local Open Scope R.
-
 
 Class micrometerWpGS (Λ : meas_language) (Σ : gFunctors) `{!meas_spec_updateGS (meas_lang_markov Λ) Σ} := MicrometerWpGS {
   #[global] micrometerWpGS_invGS :: invGS_gen HasNoLc Σ;
@@ -35,6 +45,14 @@ Section coupl_modalities.
 
   (** The [spec_coupl] modality allows us to (optionally) prepend spec execution steps and erasable
       distributions, e.g. [state_step]s on both sides. *)
+
+  (*
+ HB.lock Definition expectation {d} {T : measurableType d} {R : realType}
+  (P : probability T R) (X : T -> R) := (\int[P]_w (X w)%:E)%E.
+*)
+
+  (* NOTE: le_ereal due to Scope clash with expressions. Move expval to its own file where this isn't the case. *)
+
   Definition spec_coupl_pre (E : coPset) (Z : state Λ -> expr Λ -> state Λ -> nonnegreal -> iProp Σ) (Φ : state Λ * cfg Λ * nonnegreal → iProp Σ) :
       state Λ * cfg Λ * nonnegreal → iProp Σ :=
     (λ (x : state Λ * cfg Λ * nonnegreal),
@@ -43,9 +61,9 @@ Section coupl_modalities.
        (Z σ1 e1' σ1' ε) ∨
       (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
          (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
-           (* ⌜ARcoupl μ1 (σ2' ← μ1'; pexec n (e1', σ2')) S ε1⌝ ∗ *)
+           ⌜ ARcoupl_meas μ1 (gBind' (pexec n \o pair e1') μ1') S ε1 ⌝ ∗
            ⌜∀ ρ, X2 ρ <= r⌝ ∗
-           (* ⌜ε1 + Expval (σ2' ← μ1'; pexec n (e1', σ2')) X2 <= ε⌝ ∗ *)
+           ⌜ (le_ereal (EFin (nonneg ε1)) (\int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) ⌝ ∗
            ⌜erasable μ1 σ1⌝ ∗
            ⌜erasable μ1' σ1'⌝ ∗
            ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ Φ (σ2, (e2', σ2'), X2 (e2', σ2'))))%I.
@@ -521,9 +539,9 @@ Local Instance wp_pre_contractive `{!meas_spec_updateGS (meas_lang_markov Λ) Σ
   Contractive wp_pre.
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ.
-  do 10 f_equiv.
 Admitted.
 (*
+  do 10 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? [? ?]]. rewrite /spec_coupl_pre.
   do 5 f_equiv.
@@ -565,6 +583,8 @@ Lemma wp_unfold E e Φ s :
   WP e @ s; E {{ Φ }} ⊣⊢ wp_pre (wp (PROP:=iProp Σ) s) E e Φ.
 Proof. Admitted. (* rewrite wp_unseal. apply (fixpoint_unfold wp_pre). Qed. *)
 
+(*
+(**)
 Global Instance wp_ne E e n s :
   Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
 Proof. Admitted. (*
@@ -886,10 +906,12 @@ Proof.
   iIntros (v) "HΦ". by iApply "HΦ".
 Qed.
 
+*)
 End wp.
 
 (** * Proofmode class instances *)
 Section proofmode_classes.
+  (*
   Context `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val Λ → iProp Σ.
@@ -969,5 +991,5 @@ Section proofmode_classes.
     by iApply "Hcnt".
   Qed.
 *)
-
+*)
 End proofmode_classes.

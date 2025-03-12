@@ -508,12 +508,31 @@ Proof.
         simplify_eq. naive_solver.
       - eapply measurable_comp; [| |apply 𝜋_ValU_meas|].
         + ms_done.
-        + admit.
-        + apply measurable_fun_setI1; [ms_done| |apply 𝜋_Pair_l_meas].
-          
+        + (* Just pushing on the definitions *)
+          rewrite /preimage/ecov_pair/subset//=.
+          move=> t [++].
+          move=> x [++].
+          move=> [[??]?<-].
+          rewrite /𝜋_Pair_l/𝜋_Pair_r/=.
+          move=> [[??<-][???]]//=.
+          move=><-//=.
+          by eexists.
+        + (* This is a really annoying trick. Before doing setI1 in this case you want to
+             duplicate the intersection with ecov_pair *)
+          rewrite <- (setIid ecov_pair).
+          rewrite <- (setIA ecov_pair).
 
-      all: admit. }
-    { admit. }
+          apply measurable_fun_setI1; [ by ms_done | | by apply 𝜋_Pair_l_meas].
+
+          (* Now the remaining goal is the preimage intersected with its domain set, which is a lemma
+             we already have *)
+          apply 𝜋_PairU_meas; try by ms_done.
+          ms_prod; by ms_done.
+
+      (*  all: admit. *) }
+    { (* Should be pretty much the same? *)
+
+      admit. }
 
     }
   { mf_restrictT. by ms_solve. }
