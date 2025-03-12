@@ -584,6 +584,9 @@ Proof.
     erewrite (functional_extensionality _ ( _ \o fst)); last first.
     { intros [??]. by simpl. }
     mf_cmp_tree; [by ms_solve|subset_solver|].
+    (*  mf_prod. *)
+    (* Works: eapply @measurable_fun_prod' *)
+
     pose (f :=𝜋_RecV_f \o 𝜋_ValU \o 𝜋_App_l ).
     pose (g := (𝜋_ValU \o 𝜋_App_r) △
          λ s, substU'
