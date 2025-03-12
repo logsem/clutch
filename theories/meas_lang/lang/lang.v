@@ -584,6 +584,18 @@ Proof.
     erewrite (functional_extensionality _ ( _ \o fst)); last first.
     { intros [??]. by simpl. }
     mf_cmp_tree; [by ms_solve|subset_solver|].
+    pose (f :=𝜋_RecV_f \o 𝜋_ValU \o 𝜋_App_l ).
+    pose (g := (𝜋_ValU \o 𝜋_App_r) △
+         λ s, substU'
+           (𝜋_RecV_f (𝜋_ValU (𝜋_App_l s)),
+            (RecVC (𝜋_RecV_f (𝜋_ValU (𝜋_App_l s))) (𝜋_RecV_x (𝜋_ValU (𝜋_App_l s)))
+               (𝜋_RecV_e (𝜋_ValU (𝜋_App_l s))), 𝜋_RecV_e (𝜋_ValU (𝜋_App_l s))))).
+    erewrite (functional_extensionality _ ( f △ g)); last first.
+    { intros. simpl. by rewrite /f/g. }
+    mf_prod.
+    { rewrite /f.
+      all:admit.
+    }
     (* why this doesnt work?*)
     (* apply (measurable_fun_prod'). *)
     admit. }
@@ -1046,7 +1058,10 @@ Qed.
 *)
 
 Lemma head_step_mass e σ : ¬ is_zero (head_stepM (e, σ)) → is_prob (head_stepM (e, σ)).
-Proof. Admitted.
+Proof.
+  assert (is_zero (T:=cfg) gZero) by done.
+  rewrite /head_stepM; repeat case_match; try done.
+Admitted.
 
 (*
 Lemma head_step_mass e σ :
