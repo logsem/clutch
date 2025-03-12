@@ -471,17 +471,15 @@ Ltac mf_restrictT :=
   | |- (measurable_fun _ _) => apply mathcomp_measurable_fun_restiction_setT; [ try by ms_solve | ]
   end.
 
+Local Ltac subset_solver :=
+    intros ?; elim; naive_solver.
 Lemma head_stepM_rec_meas_fun : measurable_fun cover_rec head_stepM_rec.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
   mf_prod.
   { mf_cmp_tree.
-    { rewrite /subset.
-      simpl. intros ?. elim.
-      intros [??]; simpl; intros [_[? ?]]?.
-      simplify_eq.
-      naive_solver.
+    { subset_solver. 
     }
     mf_cmp_tree.
     mf_cmp_tree.
@@ -503,20 +501,11 @@ Proof.
     mf_prod.
     { mf_cmp_tree.
       { by ms_solve. }
-      - rewrite /subset/=.
-        intros ? [(?&?) (?&?&?&?)]. simpl in *.
-        simplify_eq. naive_solver.
+      - subset_solver.
       - eapply measurable_comp; [| |apply 𝜋_ValU_meas|].
         + ms_done.
         + (* Just pushing on the definitions *)
-          rewrite /preimage/ecov_pair/subset//=.
-          move=> t [++].
-          move=> x [++].
-          move=> [[??]?<-].
-          rewrite /𝜋_Pair_l/𝜋_Pair_r/=.
-          move=> [[??<-][???]]//=.
-          move=><-//=.
-          by eexists.
+          eauto with projection_subs.
         + (* This is a really annoying trick. Before doing setI1 in this case you want to
              duplicate the intersection with ecov_pair *)
           rewrite <- (setIid ecov_pair).
@@ -528,15 +517,28 @@ Proof.
              we already have *)
           apply 𝜋_PairU_meas; try by ms_done.
           ms_prod; by ms_done.
-
-      (*  all: admit. *) }
-    { (* Should be pretty much the same? *)
-
-      admit. }
-
     }
-  { mf_restrictT. by ms_solve. }
-Admitted.
+    { (* Should be pretty much the same? *)
+     mf_cmp_tree.
+      { by ms_solve. }
+      - subset_solver.
+      - eapply measurable_comp; [| |apply 𝜋_ValU_meas|].
+        + ms_done.
+        + (* Just pushing on the definitions *)
+          eauto with projection_subs.
+        + rewrite <- (setIid ecov_pair).
+          rewrite <- (setIA ecov_pair).
+
+          apply measurable_fun_setI1; [ by ms_done | | by apply 𝜋_Pair_r_meas].
+
+          (* Now the remaining goal is the preimage intersected with its domain set, which is a lemma
+             we already have *)
+          apply 𝜋_PairU_meas; try by ms_done.
+          ms_prod; by ms_done.
+  }
+  }
+   mf_restrictT. by ms_solve. 
+Qed.
 
 Lemma head_stepM_injL_meas_fun       : measurable_fun cover_injL       head_stepM_injL.
 Proof.
@@ -544,16 +546,16 @@ Proof.
   mf_cmp_tree; first by mf_done.
   mf_prod.
   { mf_cmp_tree; first by ms_solve.
-    { admit. }
+    { subset_solver. }
     mf_cmp_tree.
-    { admit. }
+    { subset_solver. }
     mf_cmp_tree.
     mf_cmp_tree.
     { by apply ValU_meas_fun. }
     { by apply InjLVU_meas_fun. }
   }
   { mf_restrictT. by ms_solve. }
-Admitted.
+Qed. 
 
 Lemma head_stepM_injR_meas_fun       : measurable_fun cover_injR       head_stepM_injR.
 Proof.
@@ -561,16 +563,16 @@ Proof.
   mf_cmp_tree; first by mf_done.
   mf_prod.
   { mf_cmp_tree; first by ms_solve.
-    { admit. }
+    { subset_solver. }
     mf_cmp_tree.
-    { admit. }
+    { subset_solver. }
     mf_cmp_tree.
     mf_cmp_tree.
     { by apply ValU_meas_fun. }
     { by apply InjRVU_meas_fun. }
   }
   { mf_restrictT. by ms_solve. }
-Admitted.
+Qed.
 
 Lemma head_stepM_app_meas_fun        : measurable_fun cover_app        head_stepM_app.
 Proof.
@@ -579,8 +581,11 @@ Proof.
   mf_prod.
   { mf_cmp_tree; first by apply substU'_measurable.
     (* Fix eta expansion*)
-
-
+    erewrite (functional_extensionality _ ( _ \o fst)); last first.
+    { intros [??]. by simpl. }
+    mf_cmp_tree; [by ms_solve|subset_solver|].
+    (* why this doesnt work?*)
+    (* apply (measurable_fun_prod'). *)
     admit. }
   { mf_restrictT. by ms_solve. }
 Admitted.
@@ -590,7 +595,8 @@ Proof.
   mf_unfold_dom; mf_unfold_fun.
   (* Fix eta expansion! *)
   mf_cmp_tree; first by apply un_op_eval''_meas_fun.
-
+  erewrite (functional_extensionality _ (λ '(_,_), _)); last first.
+  { intros [??]. by simpl. }
 
 Admitted.
 
@@ -627,7 +633,8 @@ Proof.
   mf_cmp_tree; first by mf_done.
   mf_prod.
   { mf_cmp_tree; first by ms_solve.
-    { admit. }
+    { subset_solver.  }
+    
     admit. }
   { mf_restrictT. by ms_solve. }
 Admitted.
@@ -647,16 +654,16 @@ Proof.
   mf_cmp_tree; first by mf_done.
   mf_prod.
   { mf_cmp_tree; first by ms_solve.
-    { admit. }
+    { subset_solver. }
     mf_cmp_tree; first by ms_solve.
-    { admit. }
+    { subset_solver. }
     mf_cmp_tree.
-    { admit. }
+    { subset_solver. }
     mf_cmp_tree.
     by apply ValU_meas_fun.
   }
   { mf_restrictT. by ms_solve. }
-Admitted.
+Qed.
 
 Lemma head_stepM_snd_meas_fun        : measurable_fun cover_snd        head_stepM_snd.
 Proof.
@@ -664,15 +671,15 @@ Proof.
   mf_cmp_tree; first by mf_done.
   mf_prod.
   { mf_cmp_tree; first by ms_solve.
-    { admit. }
+    { subset_solver. }
     mf_cmp_tree; first by ms_solve.
-    { admit. }
+    { subset_solver. }
     mf_cmp_tree.
-    { admit. }
+    { subset_solver. }
     mf_cmp_tree.
     by apply ValU_meas_fun. }
   { mf_restrictT. by ms_solve. }
-Admitted.
+Qed.
 
 Lemma head_stepM_caseL_meas_fun      : measurable_fun cover_caseL      head_stepM_caseL.
 Proof.

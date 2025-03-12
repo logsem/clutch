@@ -2209,3 +2209,25 @@ Proof.
   by move=>?<-//.
 Qed.
 Hint Resolve 𝜋_LitV_v_sub : projection_subs.
+
+Lemma 𝜋_Pair_l_sub S1 S2 : [set 𝜋_Pair_l x | x in ecov_pair `&` 𝜋_PairU @^-1` (S1 `*` S2)] `<=` S1.
+Proof.
+  rewrite /preimage/ecov_pair/subset//=.
+  move=> t [++].
+  move=> x [++].
+  move=> [[??]?<-].
+  rewrite /𝜋_Pair_l/𝜋_Pair_r/=.
+  by intros [??]?; simplify_eq.
+Qed.
+Hint Resolve 𝜋_Pair_l_sub : projection_subs.
+
+Lemma 𝜋_Pair_r_sub S1 S2 : [set 𝜋_Pair_r x | x in ecov_pair `&` 𝜋_PairU @^-1` (S1 `*` S2)] `<=` S2.
+Proof.
+  rewrite /preimage/ecov_pair/subset//=.
+  move=> t [++].
+  move=> x [++].
+  move=> [[??]?<-].
+  rewrite /𝜋_Pair_l/𝜋_Pair_r/=.
+  by intros [??]?; simplify_eq.
+Qed.
+Hint Resolve 𝜋_Pair_r_sub : projection_subs.
