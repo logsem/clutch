@@ -194,10 +194,10 @@ Definition cover_app : set cfg :=
   setX (setI ecov_val $ preimage 𝜋_Val_v $ vcov_rec) ecov_val.
 
 Definition cover_unop : set cfg :=
-  setI setT $ preimage fst $ setI ecov_unop $ preimage 𝜋_UnOpU $ setX setT ecov_val.
+  setX (setI ecov_unop $ preimage 𝜋_UnOpU $ setX setT ecov_val) setT.
 
 Definition cover_binop : set cfg :=
-  setI setT $ preimage fst $ setI ecov_binop $ preimage 𝜋_BinOpU $ (setX (setX setT ecov_val) ecov_val).
+  setX (setI ecov_binop $ preimage 𝜋_BinOpU $ (setX (setX setT ecov_val) ecov_val)) setT.
 
 (* [set e | ∃ N v, e = Alloc (val v)] *)
 Definition cover_alloc : set cfg  :=
@@ -694,21 +694,22 @@ Proof.
   (* Fix eta expansion! *)
   mf_cmp_tree; first by apply un_op_eval''_meas_fun.
   mf_prod; first mf_prod.
-  - eapply (measurable_comp); [| |apply 𝜋_UnOp_op_meas|].
+  - eapply measurable_comp; [| |apply 𝜋_UnOp_op_meas|].
     { ms_done. }
     { subset_solver. }
     eapply @measurable_fst_restriction.
     ms_done.
-  - eapply (measurable_comp); last (eapply @measurable_fst_restriction; ms_done).
-    3:{ eapply (measurable_comp); [| |apply 𝜋_Val_v_meas|apply 𝜋_UnOp_e_meas].
-        - ms_done.
-        - admit.
-    }
-    + ms_done.
-    + subset_solver.
+  - mf_cmp_fst; first by ms_solve.
+    eapply @measurable_comp.
+    3: by apply 𝜋_Val_v_meas.
+    { by ms_solve. }
+    { by subset_solver. }
+    rewrite <- (setIid ecov_unop).
+    rewrite <- (setIA ecov_unop).
+    apply measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done].
   - eapply @measurable_snd_restriction.
     ms_done.
-Admitted.
+Qed.
 
 Lemma head_stepM_binop_meas_fun      : measurable_fun cover_binop      head_stepM_binop.
 Proof.

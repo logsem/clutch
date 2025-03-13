@@ -632,3 +632,9 @@ Definition bin_op_eval'' : (<<discr bin_op>> * val * val * state)%type -> giryM 
 Lemma bin_op_eval''_meas_fun : measurable_fun bin_op_eval''_ok bin_op_eval''. Admitted.
 
 Hint Resolve bin_op_eval''_meas_fun : mf_fun.
+
+Definition bin_op_eval''' : (<<discr bin_op>> * val * val * state)%type -> giryM cfg := if_in bin_op_eval''_ok bin_op_eval'' (cst gZero).
+
+Definition bin_op_eval'''_meas_fun : measurable_fun setT bin_op_eval'''. Admitted.
+
+Hint Resolve bin_op_eval'''_meas_fun : mf_fun.
