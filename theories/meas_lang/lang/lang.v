@@ -693,9 +693,21 @@ Proof.
   mf_unfold_dom; mf_unfold_fun.
   (* Fix eta expansion! *)
   mf_cmp_tree; first by apply un_op_eval''_meas_fun.
-  erewrite (functional_extensionality _ (λ '(_,_), _)); last first.
-  { intros [??]. by simpl. }
-
+  mf_prod; first mf_prod.
+  - eapply (measurable_comp); [| |apply 𝜋_UnOp_op_meas|].
+    { ms_done. }
+    { subset_solver. }
+    eapply @measurable_fst_restriction.
+    ms_done.
+  - eapply (measurable_comp); last (eapply @measurable_fst_restriction; ms_done).
+    3:{ eapply (measurable_comp); [| |apply 𝜋_Val_v_meas|apply 𝜋_UnOp_e_meas].
+        - ms_done.
+        - admit.
+    }
+    + ms_done.
+    + subset_solver.
+  - eapply @measurable_snd_restriction.
+    ms_done.
 Admitted.
 
 Lemma head_stepM_binop_meas_fun      : measurable_fun cover_binop      head_stepM_binop.
