@@ -1,6 +1,7 @@
 From iris.bi Require Export bi fixpoint.
 From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Export fancy_updates wsat.
+From clutch.prelude Require Import classical.
 Import uPred.
 
 Section fupd.
@@ -191,3 +192,18 @@ Section timeless.
   Proof. by destruct b. Qed.
   
 End timeless.
+
+Section choice.
+  Context {Σ:gFunctors}.
+
+  Lemma iris_choice {A B:Type} {P:A -> B -> iProp Σ}:
+    (∀ a, ∃ b, P a b) ⊢ (∃ f, ∀ a, P a (f a)).
+  Proof.
+    econstructor.
+    unseal.
+    intros ??? H. simpl. cbv in H. cbv.
+    pose proof (Choice _ _ _ H) as [f ?].
+    by exists f.
+  Qed.
+    
+End choice.
