@@ -812,7 +812,9 @@ Proof.
       + subset_solver.
       + rewrite setIidl; first apply 𝜋_Case_l_meas.
         
-    admit. }
+        admit.
+    - admit.
+  }
   { mf_restrictT. by ms_solve. }
 Admitted.
 
