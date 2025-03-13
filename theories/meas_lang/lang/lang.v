@@ -713,11 +713,20 @@ Admitted.
 Lemma head_stepM_binop_meas_fun      : measurable_fun cover_binop      head_stepM_binop.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree.
 Admitted.
 
 Lemma head_stepM_alloc_meas_fun      : measurable_fun cover_alloc      head_stepM_alloc.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
+  mf_cmp_tree; first apply alloc_eval_meas_fun.
+  mf_prod.
+  - eapply (measurable_comp); [| |apply 𝜋_ValU_meas|]; [ms_done|..].
+    + (* not true??? *) admit.
+    + eapply @measurable_fst_restriction.
+      ms_done.
+  - eapply @measurable_snd_restriction.
+    ms_done.
 Admitted.
 
 Lemma head_stepM_load_meas_fun       : measurable_fun cover_load       head_stepM_load.
@@ -797,7 +806,12 @@ Proof.
   mf_cmp_tree; first by mf_done.
   mf_prod.
   {
-
+    mf_cmp_tree; first apply AppU_meas_fun.
+    mf_prod.
+    - mf_cmp_tree; first ms_solve.
+      + subset_solver.
+      + rewrite setIidl; first apply 𝜋_Case_l_meas.
+        
     admit. }
   { mf_restrictT. by ms_solve. }
 Admitted.
