@@ -813,7 +813,10 @@ Proof.
       + rewrite setIidl; first apply 𝜋_Case_l_meas.
         
         admit.
-    - admit.
+    - mf_cmp_tree; [ms_solve|subset_solver|].
+      mf_cmp_tree; [ms_solve|subset_solver|].
+      mf_cmp_tree; [subset_solver|mf_cmp_tree].
+      apply ValU_meas_fun.
   }
   { mf_restrictT. by ms_solve. }
 Admitted.
@@ -850,7 +853,15 @@ Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
   mf_prod.
-  { admit. }
+  { eapply (measurable_comp); last (eapply @measurable_fst_restriction; ms_done); last first.
+    - eapply (measurable_comp); last apply 𝜋_Rand_t_meas; last eapply measurable_comp; last apply 𝜋_ValU_meas; last eapply (measurable_comp); last apply 𝜋_LitVU_meas; last apply 𝜋_LitIntU_meas; try ms_done.
+      + admit.
+      + admit.
+      + admit.
+    - rewrite /subset/=.
+      intro. elim. intro. subset_solver.
+    - ms_done.
+  }
   { mf_restrictT. by ms_solve. }
 Admitted.
 
