@@ -96,6 +96,7 @@ Ltac mf_cmp_snd :=
 Ltac mf_prod :=
   match goal with
   | |- (measurable_fun ?S (?f △ ?g)) => eapply (@measurable_fun_prod' _ _ _ _ _ _ f g S); [ try by ms_solve | try by mf_done | try by mf_done ]
+  | |- _ => try (eapply (@measurable_fun_prod'); [ try by ms_solve | try by mf_done | try by mf_done ])
   end.
 
 Ltac mf_cmp_tree :=

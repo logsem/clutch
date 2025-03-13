@@ -512,7 +512,7 @@ Proof.
           rewrite <- (setIA ecov_pair).
 
           apply measurable_fun_setI1; [ by ms_done | | by apply 𝜋_Pair_l_meas].
-
+          
           (* Now the remaining goal is the preimage intersected with its domain set, which is a lemma
              we already have *)
           apply 𝜋_PairU_meas; try by ms_done.
@@ -530,7 +530,7 @@ Proof.
           rewrite <- (setIA ecov_pair).
 
           apply measurable_fun_setI1; [ by ms_done | | by apply 𝜋_Pair_r_meas].
-
+          
           (* Now the remaining goal is the preimage intersected with its domain set, which is a lemma
              we already have *)
           apply 𝜋_PairU_meas; try by ms_done.
@@ -584,26 +584,109 @@ Proof.
     erewrite (functional_extensionality _ ( _ \o fst)); last first.
     { intros [??]. by simpl. }
     mf_cmp_tree; [by ms_solve|subset_solver|].
-    (*  mf_prod. *)
+    repeat mf_prod.
     (* Works: eapply @measurable_fun_prod' *)
-
-    pose (f :=𝜋_RecV_f \o 𝜋_ValU \o 𝜋_App_l ).
-    pose (g := (𝜋_ValU \o 𝜋_App_r) △
-         λ s, substU'
-           (𝜋_RecV_f (𝜋_ValU (𝜋_App_l s)),
-            (RecVC (𝜋_RecV_f (𝜋_ValU (𝜋_App_l s))) (𝜋_RecV_x (𝜋_ValU (𝜋_App_l s)))
-               (𝜋_RecV_e (𝜋_ValU (𝜋_App_l s))), 𝜋_RecV_e (𝜋_ValU (𝜋_App_l s))))).
-    erewrite (functional_extensionality _ ( f △ g)); last first.
-    { intros. simpl. by rewrite /f/g. }
-    mf_prod.
-    { rewrite /f.
-      all:admit.
-    }
-    (* why this doesnt work?*)
-    (* apply (measurable_fun_prod'). *)
-    admit. }
+    - eapply (measurable_comp (f:=𝜋_RecV_f)); [| |apply 𝜋_RecV_f_meas|].
+      + ms_done.
+      + subset_solver.
+      + eapply (measurable_comp (f:=𝜋_ValU)); [| |apply 𝜋_ValU_meas|].
+        * ms_done.
+        * subset_solver.
+        * rewrite <- (setIid ecov_app).
+          rewrite <- (setIA ecov_app).
+          apply measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
+          apply 𝜋_AppU_meas; try by ms_done.
+          ms_prod; last by ms_done.
+          apply 𝜋_Val_v_meas; by ms_done.
+    - eapply (measurable_comp (f:=𝜋_ValU)); [| |apply 𝜋_ValU_meas|].
+      + ms_done.
+      + subset_solver.
+      + rewrite <- (setIid ecov_app).
+        rewrite <- (setIA ecov_app).
+        apply measurable_fun_setI1; [ms_done| |apply 𝜋_App_r_meas].
+        apply 𝜋_AppU_meas; try by ms_done.
+        ms_prod; last by ms_done.
+        apply 𝜋_Val_v_meas; by ms_done.
+    - eapply (measurable_comp (f:=substU'));
+        [| |apply substU'_measurable|];
+        [ms_done|subset_solver| ].
+      mf_prod.
+      + eapply (measurable_comp (f:=𝜋_RecV_f)); [| |apply 𝜋_RecV_f_meas|].
+        * ms_done.
+        * subset_solver.
+        * eapply (measurable_comp (f:=𝜋_ValU)); [| |apply 𝜋_ValU_meas|].
+          -- ms_done.
+          -- subset_solver.
+          -- rewrite <- (setIid ecov_app).
+             rewrite <- (setIA ecov_app).
+             apply measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
+             apply 𝜋_AppU_meas; try by ms_done.
+             ms_prod; last by ms_done.
+             apply 𝜋_Val_v_meas; by ms_done.
+      + mf_prod.
+        * eapply (mathcomp_measurable_fun_ext _ _
+                    (RecVU \o
+                       (λ x, ((𝜋_RecV_f (𝜋_ValU (𝜋_App_l x))),
+                                (𝜋_RecV_x (𝜋_ValU (𝜋_App_l x))),
+                                  (𝜋_RecV_e (𝜋_ValU (𝜋_App_l x))))))); last first.
+          -- naive_solver.
+          -- mf_cmp_tree; first apply RecVU_meas_fun.
+             mf_prod; first mf_prod.
+             ++ eapply (measurable_comp (f:=𝜋_RecV_f)); [| |apply 𝜋_RecV_f_meas|].
+                ** ms_done.
+                ** subset_solver.
+                **  eapply (measurable_comp (f:=𝜋_ValU)); [| |apply 𝜋_ValU_meas|].
+                    --- ms_done.
+                    ---  subset_solver.
+                    ---   rewrite <- (setIid ecov_app).
+                          rewrite <- (setIA ecov_app).
+                          apply measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
+                          apply 𝜋_AppU_meas; try by ms_done.
+                          ms_prod; last by ms_done.
+                          apply 𝜋_Val_v_meas; by ms_done.
+             ++ eapply (measurable_comp (f:=𝜋_RecV_x)); [| |apply 𝜋_RecV_x_meas|].
+                ** ms_done.
+                ** subset_solver.
+                **  eapply (measurable_comp (f:=𝜋_ValU)); [| |apply 𝜋_ValU_meas|].
+                    --- ms_done.
+                    ---  subset_solver.
+                    ---   rewrite <- (setIid ecov_app).
+                          rewrite <- (setIA ecov_app).
+                          apply measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
+                          apply 𝜋_AppU_meas; try by ms_done.
+                          ms_prod; last by ms_done.
+                          apply 𝜋_Val_v_meas; by ms_done. 
+             ++ eapply (measurable_comp (f:=𝜋_RecV_e)); [| |apply 𝜋_RecV_e_meas|].
+                ** ms_done.
+                ** subset_solver.
+                **  eapply (measurable_comp (f:=𝜋_ValU)); [| |apply 𝜋_ValU_meas|].
+                    --- ms_done.
+                    ---  subset_solver.
+                    ---   rewrite <- (setIid ecov_app).
+                          rewrite <- (setIA ecov_app).
+                          apply measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
+                          apply 𝜋_AppU_meas; try by ms_done.
+                          ms_prod; last by ms_done.
+                          apply 𝜋_Val_v_meas; by ms_done.
+        * eapply (measurable_comp (f:=𝜋_RecV_e)); [| |apply 𝜋_RecV_e_meas|].
+          -- ms_done.
+          -- subset_solver.
+          --  eapply (measurable_comp (f:=𝜋_ValU)); [| |apply 𝜋_ValU_meas|].
+              ++ ms_done.
+              ++  subset_solver.
+              ++  rewrite <- (setIid ecov_app).
+                  rewrite <- (setIA ecov_app).
+                  apply measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
+                  apply 𝜋_AppU_meas; try by ms_done.
+                  ms_prod; last by ms_done.
+                  apply 𝜋_Val_v_meas; by ms_done.
+  }
   { mf_restrictT. by ms_solve. }
-Admitted.
+  Unshelve.
+  apply 𝜋_AppU_meas; first ms_done.
+  ms_prod; last ms_done.
+  apply 𝜋_Val_v_meas; ms_done.
+Qed.
 
 Lemma head_stepM_unop_meas_fun       : measurable_fun cover_unop       head_stepM_unop.
 Proof.
