@@ -106,15 +106,12 @@ Proof.
     { by apply language_mixin. }
     { by apply measurable_fst. }
   }
-  { admit. }
-  (*
-  move=> [e σ] /= [v Hv] [e' σ'].
-  case (Rgt_dec (prim_step e σ (e', σ')) 0)
-    as [H | ?%pmf_eq_0_not_gt_0]; simplify_eq=>//=.
-  eapply mixin_val_stuck in H; [|eapply language_mixin].
-  simplify_eq.
-*)
-Admitted.
+  intros [e σ]; simpl.
+  pose proof (lem (is_zero (prim_step (e, σ)))) as [|H]; first done.
+  pose proof (mixin_val_stuck _ _ _ (language_mixin Λ) _ _ H) as ->.
+  rewrite /is_Some.
+  naive_solver.
+Qed.
 
 Canonical Structure meas_lang_markov (Λ : meas_language) := MeasMarkov _ _ (meas_lang_markov_mixin Λ).
 

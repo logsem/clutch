@@ -102,6 +102,8 @@ Section giry_ret.
 
   Axiom gRet : T -> giryM T.
   Axiom gRet_meas_fun : measurable_fun setT gRet.
+  (** Use bool_decide or as_bool? *)
+  (* Axiom gRet_eval : forall S x (H: d.-measurable S), gRet x S = if (S x) then 1%E else 0%E. *)
 
 End giry_ret.
 
@@ -183,6 +185,7 @@ Section giry_zero.
   Section giry_zero_def.
     Context `{d1 : measure_display} {T1 : measurableType d1}.
     Axiom gZero : giryM T1.
+    Axiom gZero_eval : forall S (H: d1.-measurable S), gZero S = (0% E).
   End giry_zero_def.
 
   Context `{d1 : measure_display} `{d2 : measure_display} {T1 : measurableType d1} {T2 : measurableType d2}.
@@ -279,18 +282,15 @@ Section giry_iterM.
   Proof.
     induction n.
     { by rewrite giryM_iterN_zero; apply gRet_meas_fun. }
-    { admit.
-      (*
-      rewrite giryM_iterN_S_rev.
-      eapply @measurable_comp.
-      { by eapply @measurableT. }
-      { done. }
-      { by apply giryM_bind_external'_meas. }
-      { done. }
+    { simpl.
+      assert ((fun a : T => gBind' (gIter n f) (f a)) = ((gBind' (gIter n f ))\o f)) as Hrewrite.
+      { by apply functional_extensionality_dep. }
+      rewrite Hrewrite.
+      eapply measurable_comp; [| |by apply gBind'_meas_fun|done]; last first.
+      - done.
+      - eapply @measurableT.
     }
   Qed.
-*)
-  Admitted.
 
 End giry_iterM.
 
@@ -315,6 +315,10 @@ Section giry_is_prob.
 
   Definition is_prob  {d} {T : measurableType d} (s : giryM T) : Prop := s [set: T] = 1%E.
 
+  Lemma is_prob_gRet {d} {T : measurableType d} (x:T) : is_prob (gRet x).
+  Proof.
+  Admitted.
+  
 End giry_is_prob.
 
 Section giry_has_support_in.
