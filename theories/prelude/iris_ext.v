@@ -196,14 +196,38 @@ End timeless.
 Section choice.
   Context {Σ:gFunctors}.
 
-  Lemma iris_choice {A B:Type} {P:A -> B -> iProp Σ}:
+  Lemma iris_choice {A B:Type} (P:A -> B -> iProp Σ):
     (∀ a, ∃ b, P a b) ⊢ (∃ f, ∀ a, P a (f a)).
   Proof.
     econstructor.
     unseal.
-    intros ??? H. simpl. cbv in H. cbv.
+    intros ??? H. simpl. 
     pose proof (Choice _ _ _ H) as [f ?].
     by exists f.
   Qed.
+ 
+  Lemma dependent_choice' {A:Type} (R : A -> A -> Prop):
+    (∀ x, ∃ y, R x y) -> (∀ x, ∃ f, f 0 = x ∧ ∀ n, R (f n) (f (S n))).
+  Proof.
+    pose proof (dependent_choice (R:=R)) as H.
+    intros H' x.
+    epose proof (H _ x) as [??].
+    naive_solver.
+    Unshelve.
+    intros x'.
+    pose proof (H' x') as H'.
+    exists (epsilon H').
+    by pose proof (epsilon_correct _ H').
+  Qed.
     
+  Lemma iris_dependent_choice {A:Type} (R : A -> A -> iProp Σ):
+    (∀ x, ∃ y, R x y) ⊢ (∀ x, ∃ f, ⌜f 0 = x⌝ ∧ ∀ n, R (f n) (f (S n))).
+  Proof.
+    econstructor.
+    unseal.
+    intros ??? H. simpl. 
+    pose proof (dependent_choice' _ H).
+    done.
+  Qed.
+  
 End choice.
