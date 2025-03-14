@@ -412,7 +412,7 @@ Definition head_stepM_unop : cfg -> giryM cfg :=
   un_op_eval'' \o (𝜋_UnOp_op \o fst △ 𝜋_Val_v \o 𝜋_UnOp_e \o fst △ snd).
 
 Definition head_stepM_binop : cfg -> giryM cfg :=
-  bin_op_eval'' \o (𝜋_BinOp_op \o fst △ 𝜋_Val_v \o 𝜋_BinOp_l \o fst △ 𝜋_Val_v \o 𝜋_BinOp_r \o fst △ snd).
+  bin_op_eval''' \o (𝜋_BinOp_op \o fst △ 𝜋_Val_v \o 𝜋_BinOp_l \o fst △ 𝜋_Val_v \o 𝜋_BinOp_r \o fst △ snd).
 
 Definition head_stepM_alloc : cfg -> giryM cfg :=
   alloc_eval \o (𝜋_ValU \o fst △ snd).
@@ -471,8 +471,24 @@ Ltac mf_restrictT :=
   | |- (measurable_fun _ _) => apply mathcomp_measurable_fun_restiction_setT; [ try by ms_solve | ]
   end.
 
+(** Ltacs for banging head onto wall *)
 Local Ltac subset_solver :=
-    intros ?; elim; naive_solver.
+  intros ?; elim; naive_solver.
+
+Local Lemma setIfront {T} (A B: set T): A `&` B = A `&` (A `&` B).
+Proof.
+  by rewrite setIA setIid.
+Qed.
+
+Local Ltac mf_cmp_tree' :=
+  eapply @measurable_comp; simpl;
+  last (rewrite setIfront;
+      apply @measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done]); last first. 
+
+Local Ltac mf_solve' :=
+  rewrite setIfront;
+  apply @measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done]. 
+
 Lemma head_stepM_rec_meas_fun : measurable_fun cover_rec head_stepM_rec.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
@@ -714,18 +730,40 @@ Qed.
 Lemma head_stepM_binop_meas_fun      : measurable_fun cover_binop      head_stepM_binop.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
-  mf_cmp_tree.
-Admitted.
+  mf_cmp_tree; first by apply bin_op_eval'''_meas_fun.
+  mf_prod; last (eapply @measurable_snd_restriction; ms_solve).
+  mf_prod; first mf_prod; mf_cmp_fst; try ms_solve.
+  - rewrite <- (setIid ecov_binop).
+    rewrite <- (setIA ecov_binop).
+    apply measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done].
+  - eapply @measurable_comp.
+    3: by apply 𝜋_Val_v_meas.
+    { by ms_solve. }
+    { by subset_solver. }
+    rewrite <- (setIid ecov_binop).
+    rewrite <- (setIA ecov_binop).
+    apply measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done].
+  - eapply @measurable_comp.
+    3: by apply 𝜋_Val_v_meas.
+    { by ms_solve. }
+    { by subset_solver. }
+    rewrite <- (setIid ecov_binop).
+    rewrite <- (setIA ecov_binop).
+    apply measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done].
+Qed.
 
 Lemma head_stepM_alloc_meas_fun      : measurable_fun cover_alloc      head_stepM_alloc.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first apply alloc_eval_meas_fun.
   mf_prod.
-  - eapply (measurable_comp); [| |apply 𝜋_ValU_meas|]; [ms_done|..].
-    + (* not true??? *) admit.
-    + eapply @measurable_fst_restriction.
-      ms_done.
+  - simpl.
+    assert (([set: expr_T * state] `&` fst @^-1` (ecov_alloc `&` 𝜋_AllocU @^-1` ecov_val)) =
+            ( (ecov_alloc `&` 𝜋_AllocU @^-1` ecov_val)) `*` [set:state]) as Hrewrite;
+      last rewrite Hrewrite.
+    { rewrite eqEsubset. split; subset_solver. }
+    mf_cmp_fst; first ms_solve.
+    admit.
   - eapply @measurable_snd_restriction.
     ms_done.
 Admitted.
@@ -735,17 +773,92 @@ Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
   mf_prod.
-  { (* mf_cmp_tree not right *)
-    admit. }
-  { mf_restrictT. by ms_solve. }
-Admitted.
+  { simpl.
+    assert (([set: expr_T * state]`&` fst @^-1`(ecov_load
+                  `&` 𝜋_LoadU @^-1` (ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitLoc)))) =  (ecov_load `&` (ecov_load `&` 𝜋_LoadU @^-1` (ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitLoc)))) `*` [set:state]) as Hrewrite;
+      last rewrite Hrewrite.
+    { rewrite eqEsubset. split; subset_solver. }
+    mf_cmp_fst.
+    { rewrite setIA.
+      rewrite setIid.
+      by ms_solve.
+    }
+    eapply @measurable_comp; simpl; last first.
+    { apply @measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done]. }
+    2: { rewrite setIA setIid.
+         instantiate (1:= (ecov_val `&` (ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitLoc)))).
+         subset_solver.
+    }
+    - eapply @measurable_comp; simpl; last first.
+      { 
+        apply @measurable_fun_setI1; [by ms_done|ms_solve|by mf_done].
+      }
+      2: { instantiate (1:= vcov_lit `&` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitLoc)).
+           subset_solver.
+      }
+      2:{ rewrite setIA setIid. ms_solve. }
+      eapply @measurable_comp; simpl; last first.
+      { apply @measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done]. }
+      + apply 𝜋_LitLoc_l_meas.
+      + subset_solver.
+      + ms_done.
+    - ms_solve.
+      rewrite setIA setIid. ms_solve.
+    }
+    { mf_restrictT. by ms_solve. }
+Qed.
 
 Lemma head_stepM_store_meas_fun      : measurable_fun cover_store      head_stepM_store.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
-  (* eta *)
-Admitted.
+  simpl.
+  assert (([set: expr_T * state]
+             `&` fst @^-1`
+             (ecov_store
+                `&` 𝜋_StoreU @^-1`
+                ((ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitLoc)) `*` ecov_val))) =  (ecov_store
+                `&` 𝜋_StoreU @^-1`
+                ((ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitLoc)) `*` ecov_val)) `*` [set:state]) as Hrewrite.
+  { rewrite eqEsubset. split; subset_solver. }
+  rewrite Hrewrite.
+  mf_prod; last (eapply @measurable_snd_restriction; ms_solve).
+  mf_prod.
+  - assert ((λ x : cfg, 𝜋_LitLoc_l (𝜋_LitVU (𝜋_ValU (𝜋_Store_l x.1)))) =
+      (𝜋_LitLoc_l \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_Store_l \o fst (B:= state))) as Hrewrite'; last rewrite Hrewrite'. 
+    { apply functional_extensionality_dep. naive_solver. }
+    mf_cmp_fst; first ms_solve.
+    eapply @measurable_comp; simpl; last first.
+    { rewrite setIfront.
+      apply @measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done]. 
+    }
+    2:{ instantiate (1:= (ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitLoc))).
+        subset_solver. 
+    }
+    2:{ ms_solve. }
+    eapply @measurable_comp; simpl; last first.
+    { rewrite setIfront.
+      apply @measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done]. 
+    }
+    2:{ instantiate (1:=vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitLoc).
+        subset_solver. 
+    }
+    2:{ ms_solve. }
+    eapply @measurable_comp; simpl; last first.
+    { rewrite setIfront.
+      apply @measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done]. 
+    }
+    + apply 𝜋_LitLoc_l_meas.
+    + subset_solver.
+    + ms_solve.
+  - assert ((λ x : cfg, 𝜋_ValU (𝜋_Store_e x.1)) =
+            ( 𝜋_ValU \o 𝜋_Store_e \o fst (B:= state))) as Hrewrite'; last rewrite Hrewrite'.
+    { apply functional_extensionality_dep. naive_solver. }
+    mf_cmp_fst; first ms_solve.
+    mf_cmp_tree'; first apply 𝜋_ValU_meas.
+    { subset_solver. }
+    ms_solve.
+Qed.
 
 Lemma head_stepM_ifT_meas_fun        : measurable_fun cover_ifT        head_stepM_ifT.
 Proof.
@@ -754,19 +867,22 @@ Proof.
   mf_prod.
   { mf_cmp_tree; first by ms_solve.
     { subset_solver.  }
-    
-    admit. }
+    rewrite setIfront.
+    apply @measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done]. }
   { mf_restrictT. by ms_solve. }
-Admitted.
+Qed.
 
 Lemma head_stepM_ifF_meas_fun        : measurable_fun cover_ifF        head_stepM_ifF.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
   mf_prod.
-  { admit. }
+  { mf_cmp_tree; first by ms_solve.
+    { subset_solver.  }
+    rewrite setIfront.
+    apply @measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done]. }
   { mf_restrictT. by ms_solve. }
-Admitted.
+Qed.
 
 Lemma head_stepM_fst_meas_fun        : measurable_fun cover_fst        head_stepM_fst.
 Proof.
@@ -811,37 +927,63 @@ Proof.
     mf_prod.
     - mf_cmp_tree; first ms_solve.
       + subset_solver.
-      + rewrite setIidl; first apply 𝜋_Case_l_meas.
-        
-        admit.
+      + mf_solve'.
     - mf_cmp_tree; [ms_solve|subset_solver|].
       mf_cmp_tree; [ms_solve|subset_solver|].
       mf_cmp_tree; [subset_solver|mf_cmp_tree].
       apply ValU_meas_fun.
   }
   { mf_restrictT. by ms_solve. }
-Admitted.
+Qed.
 
 Lemma head_stepM_caseR_meas_fun      : measurable_fun cover_caseR      head_stepM_caseR.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
   mf_prod.
-  {
-    admit. }
+  { mf_cmp_tree; first apply AppU_meas_fun.
+    mf_prod.
+    - mf_cmp_tree; first ms_solve.
+      + subset_solver.
+      + mf_solve'.
+    - mf_cmp_tree; [ms_solve|subset_solver|].
+      mf_cmp_tree; [ms_solve|subset_solver|].
+      mf_cmp_tree; [subset_solver|mf_cmp_tree].
+      apply ValU_meas_fun.
+  }
   { mf_restrictT. by ms_solve. }
-Admitted.
+Qed.
 
 Lemma head_stepM_allocTape_meas_fun  : measurable_fun cover_allocTape  head_stepM_allocTape.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
   mf_prod.
-  {
-
-    admit. }
+  { simpl.
+    assert (([set: expr_T * state]
+     `&` fst @^-1`
+         (ecov_alloctape
+            `&` 𝜋_AllocTapeU @^-1` (ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitInt))))
+            = (ecov_alloctape
+            `&` 𝜋_AllocTapeU @^-1` (ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitInt))) `*` [set: state]
+           ) as Hrewrite; first (rewrite eqEsubset; split; subset_solver ).
+    rewrite Hrewrite.
+    mf_cmp_fst; first ms_solve.
+    mf_cmp_tree'.
+    2: { instantiate (1 := (ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitInt))).
+         subset_solver.
+    }
+    2: { ms_solve. }
+    mf_cmp_tree'.
+    2:{ instantiate (1:=(vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitInt)).
+        subset_solver. }
+    2:{ ms_solve. }
+    mf_cmp_tree'.
+    - apply 𝜋_LitIntU_meas.
+    - subset_solver.
+    - ms_solve. }
   { mf_restrictT. by ms_solve. }
-Admitted.
+Qed.
 
 Lemma head_stepM_allocUTape_meas_fun : measurable_fun cover_allocUTape head_stepM_allocUTape.
 Proof.
