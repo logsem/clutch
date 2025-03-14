@@ -6,7 +6,7 @@ Section binomial.
 
   Parameter (B : val).
 
-  Parameter (B_spec : ∀ (N M : nat) (ε ε1 ε2 : R), N ≤ M → 
+  Parameter (B_spec : ∀ (N M : nat) (ε ε1 ε2 : R), N ≤ (M + 1) → 
   ((ε1 * (1 - (N / (M + 1)))) + (ε2 * (N / (M + 1))) = ε)%R ->
   [[{↯ ε}]]
     B #N #M
@@ -232,7 +232,7 @@ Section binomial.
   Qed.
   
   Lemma twp_binom_split : ∀ (p q : nat), 
-    p ≤ q →
+    p ≤ (q + 1) →
     ∀ (n : nat) (D : fin (S n) → R) (ε : R),
     SeriesC (λ k : fin (S n), (binom_prob p q n k * D k)%R) = ε →
     ([[{ ↯ ε }]] binom #p #q #n [[{ (k : fin (S n)), RET #k ; ↯ (D k) }]]).
@@ -340,7 +340,7 @@ Section binomial.
   
   Lemma twp_binom_k :
     ∀ (p q n : nat),
-    p ≤ q →
+    p ≤ (q + 1) →
     ∀ (k : nat),
     k ≤ n →
     ([[{ ↯ (binom_cred p q n k) }]] binom #p #q #n [[{ RET #k ; True }]]).
