@@ -2,7 +2,7 @@ From HB Require Import structures.
 From mathcomp Require Import all_ssreflect classical_sets boolp functions.
 From clutch.prelude Require Import classical.
 From mathcomp.analysis Require Import reals ereal measure lebesgue_measure lebesgue_integral sequences function_spaces.
-From stdpp Require Import base.
+From stdpp Require Import base decidable.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -824,13 +824,22 @@ Section if_in.
   Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
 
   Definition if_in (D : set T1) (f1 f2 : T1 -> T2) : T1 -> T2 :=
-    fun x => if (asbool (D x)) then f1 x else f2 x.
+    fun x => if (@bool_decide (D x) (make_decision _)) then f1 x else f2 x.
 
   Lemma ifIn_eq_left (D : set T1) (f1 f2 : T1 -> T2) (x : T1) : D x -> if_in D f1 f2 x = f1 x.
-  Proof. by move=>?; rewrite /if_in asboolT. Qed.
+  Proof. move=>?; rewrite /if_in; by case_bool_decide. Qed.
 
   Lemma ifIn_eq_right (D : set T1) (f1 f2 : T1 -> T2) (x : T1) : ¬ D x -> if_in D f1 f2 x = f2 x.
-  Proof. by move=>?; rewrite /if_in asboolF. Qed.
+  Proof. move=>?; rewrite /if_in; by case_bool_decide. Qed.
+
+  Lemma if_in_split (D : set T1) (f1 f2 : T1 -> T2) (x : T1) P:
+    (D x -> P (f1 x)) -> (¬ D x -> P (f2 x)) -> P (if_in D f1 f2 x).
+  Proof.
+    rewrite /if_in.
+    case_bool_decide.
+    - intros H1 ?. by apply H1.
+    - intros ? H2. by apply H2.
+  Qed.
 
   Lemma if_in_meas_fun (D DT : set T1) (H : measurable D) (HDT  : measurable DT) (f1 f2 : T1 -> T2)
                        (Hf1 : measurable_fun (D `&` DT) f1) (Hf2 : measurable_fun ((~` D) `&` DT) f2) :

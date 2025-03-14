@@ -50,6 +50,10 @@ Ltac ms_unfold := match goal with | |- (measurable ?X) => unfold X end.
 
 Ltac ms_prod := match goal with | |- (measurable (_ `*` _)) => apply measurableX end.
 
+Ltac ms_comp := match goal with | |- (measurable (~` _)) => apply measurableC end.
+
+Ltac ms_inter := match goal with | |- (measurable (_ `&` _)) => apply measurableI end.
+
 Lemma apply_measurable_fun {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
   (D : set T1) (f : T1 -> T2) (S : set T2) :
       measurable_fun D f -> measurable D -> measurable S -> measurable (D `&` f @^-1` S).
@@ -68,6 +72,8 @@ Ltac ms_solve :=
          (* Try applying basic measurability lemmas *)
          | |- (measurable (_ `*` _)) => ms_prod
          | |- (measurable (_ `&` _ @^-1` _)) => ms_fun
+         | |- (measurable (~` _)) => ms_comp
+         | |- (measurable (_ `&` _)) => ms_inter                          
          end.
 
 
