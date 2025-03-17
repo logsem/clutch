@@ -41,7 +41,7 @@ Section binomial.
   Definition binom_prob (p q n k : nat) : R := (choose n k * (p / (q + 1))^k * (1 - p / (q + 1))^(n - k))%R.
 
 
-   Lemma binom_prob_split (p q n k : nat) : ((1 - (p / (q + 1))) * binom_prob p q n (k+1)  + (p / (q + 1)) * binom_prob p q n k = binom_prob p q (n+1) (k+1))%R.
+  Lemma binom_prob_split (p q n k : nat) : ((1 - (p / (q + 1))) * binom_prob p q n (k+1)  + (p / (q + 1)) * binom_prob p q n k = binom_prob p q (n+1) (k+1))%R.
   Proof.
     rewrite /binom_prob.
     set (r := (p / (q + 1))%R).
