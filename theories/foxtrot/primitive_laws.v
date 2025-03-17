@@ -27,7 +27,7 @@ Class foxtrotGpreS Σ := FoxtrotGpreS {
   foxtrotGpreS_iris  :: invGpreS Σ;
   foxtrotGpreS_heap  :: ghost_mapG Σ loc val;
   foxtrotGpreS_tapes :: ghost_mapG Σ loc tape;
-  foxtrotGpreS_spcec :: specGpreS Σ;
+  foxtrotGpreS_spec :: specGpreS Σ;
   foxtrotGpreS_err   :: ecGpreS Σ;
 }.
 
