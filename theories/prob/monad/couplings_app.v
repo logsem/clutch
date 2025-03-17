@@ -1,278 +1,278 @@
 (** Exact couplings  *)
-From HB Require Import structures.
 From mathcomp Require Import all_ssreflect classical_sets boolp functions.
 From clutch.prelude Require Import classical.
+From mathcomp.algebra Require Import ssralg ssrnum.
 From mathcomp.analysis Require Import reals ereal measure lebesgue_measure lebesgue_integral sequences function_spaces Rstruct.
 From clutch.prob.monad Require Import prelude giry.
 From stdpp Require Import base.
 From Coq Require Import Reals.
+From HB Require Import structures.
 
+
+Set Implicit Arguments.
+Unset Strict Implicit.
+Unset Printing Implicit Defensive.
+
+Set Default Proof Using "Type".
+
+(*
 Local Open Scope classical_set_scope.
 
 Notation RR := ((R : realType) : measurableType _).
+ *)
 
 Section couplings.
-  Local Open Scope ereal_scope.
+
+
+  Local Open Scope classical_set_scope.
 
   Context {dA dB} `{A : measurableType dA} `{B : measurableType dB}.
-  Context (μ1 : giryM A) (μ2 : giryM B) (S : A -> B -> Prop).
-  Context (ε : RR).
+  Context (μ1 : giryM A) (μ2 : giryM B) (S : A -> B -> Prop) (ε : R).
 
   Definition ARcoupl_meas : Prop :=
-    forall (f : A -> RR) (g : B -> RR),
-    (forall a, (0 <= f a <= 1)%R) ->
-    (forall b, (0 <= g b <= 1)%R) ->
-    (forall a b, S a b -> (f a <= g b)%R) ->
-    (\int[μ1]_(x in setT) (f x)%:E <= (\int[μ2]_(x in setT) (g x)%:E + ε%:E)%E).
+    forall (f : A -> \bar R) (Hmf : measurable_fun setT f) (Hfge0 : forall (a : A), (0 <= f a)%E) (Hfle1 : forall (a : A), (f a <= 1)%E)
+      (g : B -> \bar R) (Hmg : measurable_fun setT g) (Hgge0 : forall (b : B), (0 <= g b)%E) (Hgle1 : forall (b : B), (g b <= 1)%E),
+      (forall (a : A) (b : B), S a b -> (f a <= g b)%E) ->
+      (\int[μ1]_(x in setT) f x <= ( ε%:E + \int[μ2]_(x in setT) g x))%E.
 
 End couplings.
 
-(*
 Section couplings_theory.
-  Context `{Countable A, Countable B, Countable A', Countable B'}.
 
-  Lemma ARcoupl_mono (μ1 μ1': distr A') (μ2 μ2': distr B') R R' ε ε':
-    (∀ a, μ1 a = μ1' a) ->
-    (∀ b, μ2 b = μ2' b) ->
-    (∀ x y, R x y -> R' x y) ->
+
+  Local Open Scope classical_set_scope.
+  Local Open Scope ring_scope.
+
+  Context {dA1 dB1 dA2 dB2}
+    `{A1 : measurableType dA1} `{B1 : measurableType dB1}
+    `{A2 : measurableType dA2} `{B2 : measurableType dB2}.
+
+
+  Lemma ARcoupl_meas_mono (μ1 μ1': giryM A1) (μ2 μ2': giryM B1) S S' (ε ε': R) :
+    (μ1 ≡μ μ1') ->
+    (μ2 ≡μ μ2') ->
+    (∀ x y, S x y -> S' x y) ->
     (ε <= ε') ->
-    ARcoupl μ1 μ2 R ε ->
-    ARcoupl μ1' μ2' R' ε'.
+    ARcoupl_meas μ1 μ2 S ε ->
+    ARcoupl_meas μ1' μ2' S' ε'.
   Proof.
-    intros Hμ1 Hμ2 HR Hε Hcoupl f g Hf Hg Hfg.
-    specialize (Hcoupl f g Hf Hg).
-    replace (μ1') with μ1; last by apply distr_ext.
-    replace (μ2') with μ2; last by apply distr_ext.
-    trans (SeriesC (λ b, μ2 b * g b) + ε); last lra.
-    apply Hcoupl.
-    naive_solver.
-  Qed.
+    intros Hμ1 Hμ2 HR Hε Hcoupl f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1 Hfg.
+    specialize (Hcoupl f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1).
+    rewrite (eq_measure_integral μ1); last first.
+    {
+      intros ???.
+      symmetry.
+      by apply Hμ1.
+    }
+    rewrite (eq_measure_integral μ2); last first.
+    {
+      intros ???.
+      symmetry.
+      by apply Hμ2.
+    }
+    eapply (Order.le_trans).
+    {
+      apply Hcoupl; auto.
+    }
+    by apply  (leeD2r (\int[μ2]_x g x)).
+ Qed.
 
-  Lemma ARcoupl_1 (μ1 : distr A') (μ2 : distr B') R ε:
-    (1 <= ε) -> ARcoupl μ1 μ2 R ε.
+  Lemma ARcoupl_meas_1 (μ1 : giryM A1) (μ2 : giryM B1) S (ε : R) :
+    (1 <= ε) -> ARcoupl_meas μ1 μ2 S ε.
   Proof.
-    rewrite /ARcoupl.
-    intros Hε f g Hf Hg Hfg.
-    trans 1.
-    - trans (SeriesC μ1); last auto.
-      apply SeriesC_le; last auto.
-      real_solver.
-    - replace 1 with (0+1); last lra.
-      apply Rplus_le_compat; last lra.
-      apply SeriesC_ge_0'; real_solver.
-  Qed.
+    intros Hε f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1 Hfg.
+    apply (@Order.le_trans _ _ ((\int[μ1]_x cst 1 x)%E)).
+    {
+      apply ge0_le_integral; auto.
+    }
+    rewrite integral_cst; auto.
+    rewrite mul1e.
+    have Hμ1 : (μ1 [set: A1] <= 1)%E by apply sprobability_setT.
+    apply (@Order.le_trans _ _ (1%E)); auto.
+    have Hg : (0 <= \int[μ2]_x g x)%E.
+    {
+      apply integral_ge0; auto.
+    }
+    by apply (lee_paddr Hg).
+ Qed.
 
-  Lemma ARcoupl_mon_grading (μ1 : distr A') (μ2 : distr B') (R : A' → B' → Prop) ε1 ε2 :
+
+  Lemma ARcoupl_mon_grading (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) ε1 ε2 :
     (ε1 <= ε2) ->
-    ARcoupl μ1 μ2 R ε1 ->
-    ARcoupl μ1 μ2 R ε2.
+    ARcoupl_meas μ1 μ2 S ε1 ->
+    ARcoupl_meas μ1 μ2 S ε2.
   Proof.
-    intros Hleq HR f g Hf Hg Hfg.
-    specialize (HR f g Hf Hg Hfg).
-    lra.
+    intros Hleq Hcoupl f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1 Hfg.
+    specialize (Hcoupl f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1 Hfg).
+    apply (Order.le_trans Hcoupl).
+    by apply (leeD2r (\int[μ2]_x g x)).
   Qed.
 
-  Lemma ARcoupl_dret (a : A) (b : B) (R : A → B → Prop) r :
-    0 <= r →
-    R a b → ARcoupl (dret a) (dret b) R r.
+
+
+  Lemma ARcoupl_dret (a : A1) (b : B1) (S : A1 → B1 → Prop) ε :
+    0 <= ε →
+    S a b →
+    ARcoupl_meas (gRet a) (gRet b) S ε.
   Proof.
-    intros Hr HR f g Hf Hg Hfg.
-    assert (SeriesC (λ a0 : A, dret a a0 * f a0) = f a) as ->.
-    { rewrite <-(SeriesC_singleton a (f a)).
-      rewrite /pmf/=/dret_pmf ; series.
-    }
-    assert (SeriesC (λ b0 : B, dret b b0 * g b0) = g b) as ->.
-    { rewrite <-(SeriesC_singleton b (g b)).
-      rewrite /pmf/=/dret_pmf ; series.
-    }
-    specialize (Hfg _ _ HR). lra. 
+    intros Hε HS f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1 Hfg.
+    rewrite gRetInt_rw; auto.
+    rewrite gRetInt_rw; auto.
+    specialize (Hfg _ _ HS).
+    have Haux : (0 <= ε%:E)%E by auto.
+    apply (lee_paddl Haux Hfg).
   Qed.
 
 
   (* The hypothesis (0 ≤ ε1) is not really needed, I just kept it for symmetry *)
-  Lemma ARcoupl_dbind (f : A → distr A') (g : B → distr B')
-    (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop) ε1 ε2 :
-    (Rle 0 ε1) -> (Rle 0 ε2) ->
-    (∀ a b, R a b → ARcoupl (f a) (g b) S ε2) → ARcoupl μ1 μ2 R ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S (ε1 + ε2).
+  Lemma ARcoupl_dbind (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
+    (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) ε1 ε2 :
+    (0 <= ε1) -> (0 <= ε2) ->
+    (∀ a b, S a b → ARcoupl_meas (f a) (g b) T ε2) →
+    ARcoupl_meas μ1 μ2 S ε1 →
+    ARcoupl_meas (gBind Hf μ1) (gBind Hg μ2) T (ε1 + ε2)%E.
   Proof.
-    intros Hε1 Hε2 Hcoup_fg Hcoup_R h1 h2 Hh1pos Hh2pos Hh1h2S.
-    rewrite /pmf/=/dbind_pmf.
-    (* To use the hypothesis that we have an R-ACoupling up to ε1 for μ1, μ2,
-       we have to rewrite the sums in such a way as to isolate (the expectation
-       of) a random variable X on the LHS and Y on the RHS, and ε1 on the
-       RHS. *)
-    (* First step: rewrite the LHS into a RV X on μ1. *)
-    setoid_rewrite <- SeriesC_scal_r.
-    rewrite <-(fubini_pos_seriesC (λ '(a,x), μ1 x * f x a * h1 a)).
-
-    (* Boring Fubini sideconditions. *)
-    2: { real_solver. }
-    2: { intro a'.
-         (* specialize (Hh1pos a'). *)
-         apply (ex_seriesC_le _ μ1); auto.
-         intro a; split.
-         + apply Rmult_le_pos.
-           * real_solver.
-           * real_solver.
-         + rewrite <- Rmult_1_r.
-           rewrite Rmult_assoc.
-           apply Rmult_le_compat_l; auto.
-           rewrite <- Rmult_1_r.
-           apply Rmult_le_compat; real_solver. }
-    2: { setoid_rewrite SeriesC_scal_r.
-         apply (ex_seriesC_le _ (λ a : A', SeriesC (λ x : A, μ1 x * f x a))); auto.
-         + series.
-         + apply (pmf_ex_seriesC (dbind f μ1)). }
-
-    (* LHS: Pull the (μ1 b) factor out of the inner sum. *)
-    assert (SeriesC (λ b : A, SeriesC (λ a : A', μ1 b * f b a * h1 a)) =
-              SeriesC (λ b : A, μ1 b * SeriesC (λ a : A', f b a * h1 a))) as ->.
-    { setoid_rewrite <- SeriesC_scal_l. series. }
-
-    (* Second step: rewrite the RHS into a RV Y on μ2. *)
-    (* RHS: Fubini. *)
-    rewrite <-(fubini_pos_seriesC (λ '(b,x), μ2 x * g x b * h2 b)).
-    2: by series.
-    2:{ intro b'.
-        specialize (Hh2pos b').
-        apply (ex_seriesC_le _ μ2) ; auto.
-        intro b; split.
-        - series.
-        - do 2 rewrite <- Rmult_1_r. series. }
-    2:{ setoid_rewrite SeriesC_scal_r.
-        apply (ex_seriesC_le _ (λ a : B', SeriesC (λ b : B, μ2 b * g b a))); auto.
-        - intros b'; specialize (Hh2pos b'); split.
-          + apply Rmult_le_pos; [ | lra].
-            apply (pmf_pos ((dbind g μ2)) b').
-          + rewrite <- Rmult_1_r.
-            apply Rmult_le_compat_l; auto.
-            * apply SeriesC_ge_0'. real_solver.
-            * real_solver.
-        - apply (pmf_ex_seriesC (dbind g μ2)). }
-
-    (* RHS: Factor out (μ2 b) *)
-    assert (SeriesC (λ b : B, SeriesC (λ a : B', μ2 b * g b a * h2 a))
-            = SeriesC (λ b : B, μ2 b * SeriesC (λ a : B', g b a * h2 a))) as ->.
-    { apply SeriesC_ext; intro.
-      rewrite <- SeriesC_scal_l.
-      apply SeriesC_ext; real_solver. }
-    rewrite -Rplus_assoc.
-
-    (* Third step: isolate ε1 on the RHS.
-       ALT: could move ε2 into Y instead of into X. *)
-    apply Rle_minus_l.
-
-    (* To construct X, we want to push ε2 into the inner sum. We don't do this
-       directly, because if `ε2 > (f b a * h1 a)` then X might be negative, but
-       our assumption on the ε1 R-ACoupling requires it to be valued in [0,1].
-       Instead, we take max(0, (Σ(a:A')(f b a * h1 a)) - ε2).
-       ALT: could use a more fine-grained max inside the sum?
-     *)
-    assert (SeriesC (λ b : A, μ1 b * SeriesC (λ a : A', f b a * h1 a)) - ε2
-            <= SeriesC (λ b : A, μ1 b * (Rmax (SeriesC (λ a : A', f b a * h1 a) - ε2) 0))) as Hleq.
+    intros Hε1 Hε2 Hcoup_fg Hcoup_S.
+    intros h1 Hmh1 Hh1ge0 Hh1le1.
+    intros h2 Hmh2 Hh2ge0 Hh2le1.
+    intros Hh1h2.
+    rewrite gBindInt_rw; auto.
+    rewrite gBindInt_rw; auto.
+    set (a := fun (x:A1) => maxe ((\int[f x]_y h1 y) - ε2%:E)%E 0%:E).
+    have Hh1measInt : measurable_fun setT (λ x : A1, (\int[f x]_y h1 y)%E).
     {
-      (* This could be an external lemma *)
-      trans (SeriesC (λ b : A, μ1 b * SeriesC (λ a : A', f b a * h1 a)) - SeriesC (λ b, μ1 b * ε2)).
-      - apply Rplus_le_compat; [lra | ].
-        apply Ropp_le_contravar.
-        rewrite SeriesC_scal_r.
-        rewrite <- Rmult_1_l.
-        apply Rmult_le_compat; auto; try lra.
-      - rewrite -SeriesC_minus.
-        * apply SeriesC_le'.
-          ++ intro a.
-             rewrite -Rmult_minus_distr_l.
-             apply Rmult_le_compat_l; auto.
-             apply Rmax_l.
-          ++ apply ex_seriesC_plus.
-             ** apply (ex_seriesC_le _ (λ x : A, μ1 x * SeriesC (λ a : A', f x a * h1 a))).
-                --- intros a; split; [ | lra].
-                    apply Rmult_le_pos; auto.
-                    apply SeriesC_ge_0'.
-                    intro; apply Rmult_le_pos; auto.
-                    apply Hh1pos.
-                --- apply (ex_seriesC_le _ μ1); auto.
-                    intro a; split.
-                    +++ apply Rmult_le_pos; auto.
-                        apply SeriesC_ge_0'.
-                        intro; apply Rmult_le_pos; auto.
-                        apply Hh1pos.
-                    +++ rewrite <- Rmult_1_r.
-                        apply Rmult_le_compat_l; auto.
-                        apply (Rle_trans _ (SeriesC (f a))); auto.
-                        apply SeriesC_le; auto.
-                        intro a'; specialize (Hh1pos a').
-                        split; real_solver.
-             ** apply (ex_seriesC_ext (λ x : A, (-1) * (μ1 x * ε2))); [intro; nra | ].
-                apply ex_seriesC_scal_l.
-                apply ex_seriesC_scal_r; auto.
-          ++ eapply (ex_seriesC_le _ (λ b : A, μ1 b * (SeriesC (λ a : A', f b a * h1 a)))).
-             --- intro a; split.
-                 +++ apply Rmult_le_pos; auto.
-                     apply Rmax_r.
-                 +++ apply Rmult_le_compat_l; auto.
-                     apply Rmax_lub.
-                     *** apply Rle_minus_l.
-                         rewrite <- Rplus_0_r at 1.
-                         apply Rplus_le_compat_l; auto.
-                     *** apply SeriesC_ge_0'.
-                         intro a'.
-                         apply Rmult_le_pos; auto.
-                         apply Hh1pos.
-             --- apply (ex_seriesC_le _ μ1); auto.
-                 intro; split.
-                 +++ apply Rmult_le_pos; auto.
-                     apply SeriesC_ge_0'; intro.
-                     apply Rmult_le_pos; auto.
-                     apply Hh1pos.
-                 +++ rewrite <- Rmult_1_r.
-                     apply Rmult_le_compat_l; auto.
-                     apply (Rle_trans _ (SeriesC (f n))); auto.
-                     apply SeriesC_le; auto.
-                     intro a'; specialize (Hh1pos a'); real_solver.
-        * apply (ex_seriesC_le _ μ1); auto.
-          intro; split.
-          ++ apply Rmult_le_pos; auto.
-             apply SeriesC_ge_0'; intro.
-             apply Rmult_le_pos; auto.
-             apply Hh1pos.
-          ++ rewrite <- Rmult_1_r.
-             apply Rmult_le_compat_l; auto.
-             apply (Rle_trans _ (SeriesC (f n))); auto.
-             apply SeriesC_le; auto.
-             intro a'; specialize (Hh1pos a'); real_solver.
-        * apply ex_seriesC_scal_r; auto.
+      pose proof (gBindInt_meas_fun μ1 Hf Hmh1) as Haux.
+      eapply eq_measurable_fun; eauto.
+      intros ??.
+      rewrite gInt_eval //.
     }
-    eapply Rle_trans; [apply Hleq | ].
+    have Hameas : (measurable_fun setT a).
+    {
+      rewrite /a.
+      apply measurable_maxe; auto.
+      apply emeasurable_funD; auto.
+    }
+    have Ha_ge0 : (forall x, (0 <= a x)%E).
+    {
+      intros x.
+      rewrite /a.
+      rewrite Order.TotalTheory.le_max.
+      rewrite lee_fin
+        Order.le_refl
+        orb_true_r //.
+    }
+    have Ha_le1 : (forall x, (a x <= 1)%E).
+    {
+      intros x.
+      rewrite /a.
+      rewrite Order.TotalTheory.ge_max.
+      rewrite lee_fin
+       Num.Theory.ler01
+       andb_true_r.
+      rewrite leeBlDl //.
+      apply (@Order.le_trans _ _ ((\int[f x]_y cst 1 y)%E));
+        [apply ge0_le_integral; auto |].
+      rewrite integral_cst; auto.
+      rewrite mul1e.
+      have Hμ1 : (f x [set: A2] <= 1)%E by apply sprobability_setT.
+      apply (@Order.le_trans _ _ (1%E)); auto.
+      have Haux : (0 <= ε2%:E)%E by auto.
+      apply Num.Theory.ler_wpDl; auto.
+    }
 
-    rewrite /ARcoupl in Hcoup_R.
-    apply Hcoup_R.
-    + intro; split.
-      * apply Rmax_r; auto.
-      * apply Rmax_lub; [ | lra].
-        apply Rle_minus_l.
-        rewrite <- Rplus_0_r at 1.
-        apply Rplus_le_compat; auto.
-        apply (Rle_trans _ (SeriesC (f a))); auto.
-        apply SeriesC_le; auto.
-        intro a'.
-        specialize (Hh1pos a'); real_solver.
-    + intro; split.
-      * apply SeriesC_ge_0'; intro b'.
-        specialize (Hh2pos b'); real_solver.
-      * apply (Rle_trans _ (SeriesC (g b))); auto.
-        apply SeriesC_le; auto.
-        intro b'.
-        specialize (Hh2pos b'); real_solver.
+    set (b := fun (x:B1) => (\int[g x]_y h2 y)%E).
+    have Hbmeas : (measurable_fun setT b).
+    {
+      pose proof (gBindInt_meas_fun μ2 Hg Hmh2) as Haux.
+      eapply eq_measurable_fun; eauto.
+      intros ??.
+      rewrite gInt_eval //.
+    }
 
-    + intros a b Rab.
-      apply Rmax_lub.
-      2:{ apply SeriesC_ge_0'; intro b'.
-          specialize (Hh2pos b'); real_solver. }
-      rewrite /ARcoupl in Hcoup_fg.
-      apply Rle_minus_l, Hcoup_fg; auto.
+    have Hb_ge0 : (forall x, (0 <= b x)%E).
+    {
+      intros x.
+      rewrite /b.
+      apply integral_ge0; auto.
+    }
+    have Hb_le1 : (forall x, (b x <= 1)%E).
+    {
+      intros x.
+      rewrite /b.
+      apply (@Order.le_trans _ _ ((\int[g x]_y cst 1 y)%E));
+        [apply ge0_le_integral; auto |].
+      rewrite integral_cst; auto.
+      rewrite mul1e.
+      apply sprobability_setT.
+    }
+
+    have HS_ab : (∀ (a0 : A1) (b0 : B1), S a0 b0 → (a a0 <= b b0)%E).
+    {
+      intros a0 b0 Ha0b0.
+      rewrite /a /b.
+      rewrite Order.TotalTheory.ge_max.
+      rewrite integral_ge0; auto.
+      rewrite andb_true_r.
+      rewrite leeBlDl //.
+      apply Hcoup_fg; auto.
+    }
+
+    (* Now, we can instantiate Hcoup_S with a, b  *)
+    specialize (Hcoup_S a Hameas Ha_ge0 Ha_le1 b Hbmeas Hb_ge0 Hb_le1 HS_ab).
+    rewrite (GRing.addrC ε1 ε2).
+    rewrite EFinD.
+    rewrite -GRing.addrA.
+    eapply (@Order.le_trans _ _ (ε2%:E + (\int[μ1]_x a x))%E); last first.
+    {
+      apply (@leeD2l _ (ε2%:E) _ _ Hcoup_S).
+    }
+    eapply (@Order.le_trans _ _ (\int[μ1]_x cst (ε2%:E) x + \int[μ1]_x a x)%E); last first.
+    {
+      apply (@leeD2r _ (\int[μ1]_x a x)%E).
+      rewrite integral_cst; auto.
+      rewrite muleC.
+      apply (@gee_pMl _ (μ1 [set: A1]) ε2%:E); auto.
+      have Haux : (`|μ1 [set: A1]| <= 1)%E.
+      {
+        rewrite gee0_abs.
+        apply sprobability_setT.
+        apply measure_ge0.
+      }
+      rewrite fin_num_abs.
+      eapply Order.POrderTheory.le_lt_trans; eauto.
+      apply ltry.
+      apply sprobability_setT.
+    }
+    rewrite -ge0_integralD; auto.
+    apply ge0_le_integral; auto.
+    {
+      intros ??.
+      apply integral_ge0; auto.
+    }
+    {
+      intros x ?.
+      simpl.
+      apply (@adde_ge0 _ ε2%:E (a x)); auto.
+    }
+    {
+      apply emeasurable_funD; auto.
+    }
+    intros x ?.
+    rewrite /a /=.
+    rewrite adde_maxr.
+    rewrite GRing.addrC.
+    rewrite -GRing.addrA.
+    rewrite (GRing.addrC _ ε2%:E).
+    rewrite -EFinD.
+    rewrite GRing.subrr.
+    rewrite GRing.addr0.
+    rewrite Order.TotalTheory.le_max
+      Order.le_refl
+      orb_true_l //.
   Qed.
-  
+
+  (*
+
   Lemma ARcoupl_dbind' (ε1 ε2 ε : R) (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop) :
     (0 <= ε1) → (0 <= ε2) →
@@ -754,9 +754,11 @@ Section couplings_theory.
     { apply SeriesC_ext; real_solver. }
     apply Hcoupl; real_solver.
   Qed.
-  
+*)
+
 End couplings_theory.
 
+(*
 (* TODO: cleanup *)
 Section ARcoupl.
   Context `{Countable A, Countable B}.

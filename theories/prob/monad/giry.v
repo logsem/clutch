@@ -72,6 +72,19 @@ Section giry_eval.
 
 End giry_eval.
 
+
+Section giry_integral.
+  Local Open Scope classical_set_scope.
+  Local Open Scope ereal_scope.
+  Context `{d : measure_display} {T : measurableType d}.
+
+  (* TODO: Check if additional conditions on f are needed *)
+  Axiom gInt : forall (f : T -> \bar R), (measurable_fun setT f) -> (giryM T -> \bar R).
+  Axiom gInt_meas_fun : forall (f : T -> \bar R) (H : measurable_fun setT f), measurable_fun setT (gInt H).
+  Axiom gInt_eval : forall (f : T -> \bar R) (H : measurable_fun setT f) (μ : giryM T), gInt H μ = (\int[μ]_x f x).
+
+End giry_integral.
+
 Section giry_join.
   Local Open Scope classical_set_scope.
   Context `{d : measure_display} {T : measurableType d}.
@@ -138,6 +151,7 @@ End giry_bind.
 
 Section giry_monad.
   Local Open Scope classical_set_scope.
+  Local Open Scope ereal_scope.
   Context `{d1 : measure_display} `{d2 : measure_display} `{d3 : measure_display}.
   Context {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}.
 
@@ -150,11 +164,43 @@ Section giry_monad.
   Axiom gJoin_id2 : forall (x : giryM (giryM T1)) (f : T1 -> T2) (H : measurable_fun setT f),
     (gJoin \o gMap (gMap_meas_fun H)) x ≡μ (gMap H \o gJoin) x.
 
-  (* Note: This is defined only for non-negative functions because otherwise one needs to argue
-     about integrability of h at every point in D *)
-  Axiom gBindInt : forall (μ : giryM T1) (f : T1 -> giryM T2) (H : measurable_fun setT f) (h : T2 -> \bar R)
-                     (D : set T2) (mD : measurable D) (Hge0 : forall x, D x -> (0 <= h x)%E) (mh : measurable_fun D h),
-      (\int[gBind H μ]_(y in D) h y = \int[μ]_x \int[f x]_(y in D) h y )%E.
+
+  Axiom gRetInt : forall (x : T1) (f : T1 -> \bar R) (H : measurable_fun setT f),
+      gInt H (gRet x) = f x.
+
+  Lemma gRetInt_rw (x : T1) (f : T1 -> \bar R) (H : measurable_fun setT f) :
+      \int[gRet x]_x f x = f x.
+  Proof.
+    rewrite -gInt_eval.
+    apply gRetInt.
+  Qed.
+
+  Lemma gBindInt_meas_fun (μ : giryM T1) (f : T1 -> giryM T2) (H : measurable_fun setT f) (h : T2 -> \bar R)
+                          (mh : measurable_fun setT h) :
+      measurable_fun setT (fun x => gInt mh (f x)).
+  Proof.
+    eapply (@measurable_comp _ _ _ _ _ _ setT).
+    { by eapply @measurableT. }
+    { by apply subsetT. }
+    { by apply gInt_meas_fun. }
+    { by apply H. }
+  Qed.
+
+  Axiom gBindInt : forall (μ : giryM T1) (f : T1 -> giryM T2) (H : measurable_fun setT f) (h : T2 -> \bar R) (mh : measurable_fun setT h),
+      gInt mh (gBind H μ) = gInt (gBindInt_meas_fun μ H mh) μ.
+
+  (* TODO : Cleaner proof? *)
+  Lemma gBindInt_rw (μ : giryM T1) (f : T1 -> giryM T2) (H : measurable_fun setT f) (h : T2 -> \bar R) (mh : measurable_fun setT h) :
+    \int[gBind H μ]_y h y = \int[μ]_x \int[f x]_y  h y.
+  Proof.
+    pose proof (gBindInt μ H mh) as Haux.
+    do 2 rewrite gInt_eval in Haux.
+    rewrite Haux.
+    f_equal.
+    apply functional_extensionality.
+    intros.
+    rewrite gInt_eval //.
+  Qed.
 
   (*
     Laws in terms of ret and bind
