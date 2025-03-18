@@ -32,6 +32,23 @@ Section NegativeBinomial.
   Definition negative_binom_prob (p q r k : nat) : R :=
     (choose (k + r - 1) k * (p / (q + 1))^r * (1 - p  / (q + 1))^k)%R.
 
+  Lemma negative_binom_pos (p q r k : nat) : p ≤ (q + 1) → (0 <= negative_binom_prob p q r k)%R.
+  Proof.
+    intros Hpq.
+    rewrite /negative_binom_prob.
+    assert (0 <= q)%R by apply pos_INR.
+    repeat apply Rmult_le_pos.
+    { apply choose_pos. }
+    { apply pow_le, Rcomplements.Rdiv_le_0_compat; first apply pos_INR.
+      lra.
+    }
+    { apply pow_le.
+      rewrite -Rcomplements.Rminus_le_0 Rcomplements.Rle_div_l; last lra.
+      rewrite Rmult_1_l -INR_1 -plus_INR.
+      apply le_INR, Hpq.
+    }
+  Qed.
+      
   Lemma negative_binom_prob_split : ∀ (p q r k : nat),
     negative_binom_prob p q (r + 1) (k + 1)%nat =
     ((1 - p / (q + 1)) * negative_binom_prob p q (r + 1) k
@@ -184,7 +201,8 @@ Section NegativeBinomial.
         { apply SeriesC_ge_0'.
           intros n.
           apply Rmult_le_pos; last done.
-          admit.
+          apply negative_binom_pos.
+          lia.
         }
         { nra. }
         iPoseProof ("IH" with "[Hterm] [] [] Herr") as "IHH".
@@ -214,11 +232,16 @@ Section NegativeBinomial.
         { apply SeriesC_ge_0'.
           intros n.
           apply Rmult_le_pos; last done.
-          admit.
+          apply negative_binom_pos.
+          lia.
         }
         { nra. }
         iApply ("IHr" with "[] [] [] Herr Hterm").
         { iPureIntro. nra. }
         { by iPureIntro. }
         { by iPureIntro. }
-  Admitted.
+      } 
+  Qed.
+
+End NegativeBinomial.
+#[global] Opaque negative_binomial.
