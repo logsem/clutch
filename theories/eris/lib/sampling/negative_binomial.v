@@ -222,3 +222,4 @@ Section NegativeBinomial.
         { by iPureIntro. }
         { by iPureIntro. }
   Admitted.
+End NegativeBinomial.

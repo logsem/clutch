@@ -47,6 +47,10 @@ auto-save-list
 tramp
 .\#*
 
+# VScode
+.vscode
+
+
 # Org-mode
 .org-id-locations
 *_archive
