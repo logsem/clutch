@@ -243,5 +243,100 @@ Section NegativeBinomial.
       } 
   Qed.
 
+  Lemma wp_negative_binomial_split :
+    ∀ (p q : nat),
+    0 < p →
+    p ≤ (q + 1) →
+    ∀ (r : nat) (D : nat → R) (ε : R),
+    (∀ (n : nat), 0 <= D n)%R →
+    SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
+    ↯ ε -∗
+    WP negative_binomial #p #q #r {{ v, ∃ (k : nat), ⌜v = #k⌝ ∗ ↯ (D k) }}.
+  Proof.
+    iIntros (p q Hp Hpq r D ε HD HSum) "Herr".
+    rewrite /negative_binomial.
+    do 4 wp_pure.
+    iRevert (r D ε HD HSum) "Herr".
+    iLöb as "IH".
+    iIntros (r D ε HD HSum) "Herr".
+    wp_pures.
+    case_bool_decide.
+    - assert (r = 0) as -> by lia.
+      rewrite /negative_binom_prob /choose in HSum.
+      erewrite (SeriesC_ext _ (λ k, if bool_decide (k = 0) then D 0 else 0)) in HSum; last first.
+      { intros k.
+        do 2 case_bool_decide; try lia; subst; simpl; last lra.
+        rewrite Rcomplements.C_n_n.
+        lra.
+      }
+      rewrite SeriesC_singleton in HSum.
+      rewrite -HSum.
+      wp_pures.
+      iModIntro.
+      iExists 0.
+      by iFrame.
+    - destruct r; first lia.
+      set (s1 := (p / (q + 1))%R).
+      set (s0 := ((1 - s1)%R)).
+      wp_pures.
+      erewrite SeriesC_ext in HSum; last first.
+      {
+        intros.
+        replace (S r) with (r + 1)%nat; first done.
+        lia.
+      }
+      rewrite ec_negative_binom_split in HSum.
+      fold s1 s0 in HSum.
+      match type of HSum with
+      | (s0 * ?A + s1 * ?B)%R = _ => set (ε0 := A);
+                                     set (ε1 := B)
+      end.
+      fold ε0 ε1 in HSum.
+      wp_pures.
+      wp_bind (B _ _).
+      wp_apply tgl_wp_pgl_wp'.
+      wp_apply (B_spec p q ε ε0 ε1 Hpq with "Herr").
+      {fold s1 s0. lra.}
+      iIntros (k) "[[-> Herr] | [-> Herr]]".
+      {
+        do 4 wp_pure.
+        wp_bind ((rec: _ _ := _)%V _)%E.
+        iApply wp_wand_r.
+        replace (S r : Z) with ((r + 1)%nat : Z); last lia.
+        iSplitL "Herr".
+        { wp_apply ("IH" with "[] [] Herr").
+          2 : by iPureIntro.
+          { done. }
+        }
+        { iIntros (v) "(%k & -> & Herr)".
+          wp_pures.
+          iModIntro.
+          iExists (k + 1)%nat.
+          iFrame.
+          iPureIntro.
+          f_equal.
+          rewrite Nat2Z.inj_add //.
+        }
+      }
+      {
+        do 5 wp_pure.
+        wp_bind ((rec: _ _ := _)%V _)%E.
+        iApply wp_wand_r.
+        replace (S r - 1)%Z with (r : Z); last lia.
+        iSplitL "Herr".
+        { wp_apply ("IH" with "[] [] Herr").
+          2 : by iPureIntro.
+          { done. }
+        }
+        { iIntros (v) "(%k & -> & Herr)".
+          iExists k.
+          iFrame.
+          iPureIntro.
+          f_equal.
+        }
+      }
+  Qed.
+
+
 End NegativeBinomial.
 #[global] Opaque negative_binomial.
