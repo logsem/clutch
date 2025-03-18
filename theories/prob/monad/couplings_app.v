@@ -27,13 +27,13 @@ Section couplings.
   Local Open Scope classical_set_scope.
 
   Context {dA dB} `{A : measurableType dA} `{B : measurableType dB}.
-  Context (μ1 : giryM A) (μ2 : giryM B) (S : A -> B -> Prop) (ε : R).
+  Context (μ1 : giryM A) (μ2 : giryM B) (S : A -> B -> Prop) (ε : \bar R).
 
   Definition ARcoupl_meas : Prop :=
     forall (f : A -> \bar R) (Hmf : measurable_fun setT f) (Hfge0 : forall (a : A), (0 <= f a)%E) (Hfle1 : forall (a : A), (f a <= 1)%E)
       (g : B -> \bar R) (Hmg : measurable_fun setT g) (Hgge0 : forall (b : B), (0 <= g b)%E) (Hgle1 : forall (b : B), (g b <= 1)%E),
       (forall (a : A) (b : B), S a b -> (f a <= g b)%E) ->
-      (\int[μ1]_(x in setT) f x <= ( ε%:E + \int[μ2]_(x in setT) g x))%E.
+      (\int[μ1]_(x in setT) f x <= ( ε + \int[μ2]_(x in setT) g x))%E.
 
 End couplings.
 
@@ -42,13 +42,14 @@ Section couplings_theory.
 
   Local Open Scope classical_set_scope.
   Local Open Scope ring_scope.
+  Local Open Scope ereal_scope.
 
   Context {dA1 dB1 dA2 dB2}
     `{A1 : measurableType dA1} `{B1 : measurableType dB1}
     `{A2 : measurableType dA2} `{B2 : measurableType dB2}.
 
 
-  Lemma ARcoupl_meas_mono (μ1 μ1': giryM A1) (μ2 μ2': giryM B1) S S' (ε ε': R) :
+  Lemma ARcoupl_meas_mono (μ1 μ1': giryM A1) (μ2 μ2': giryM B1) S S' (ε ε': \bar R) :
     (μ1 ≡μ μ1') ->
     (μ2 ≡μ μ2') ->
     (∀ x y, S x y -> S' x y) ->
@@ -77,7 +78,7 @@ Section couplings_theory.
     by apply  (leeD2r (\int[μ2]_x g x)).
  Qed.
 
-  Lemma ARcoupl_meas_1 (μ1 : giryM A1) (μ2 : giryM B1) S (ε : R) :
+  Lemma ARcoupl_meas_1 (μ1 : giryM A1) (μ2 : giryM B1) S (ε : \bar R) :
     (1 <= ε) -> ARcoupl_meas μ1 μ2 S ε.
   Proof.
     intros Hε f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1 Hfg.
@@ -119,26 +120,25 @@ Section couplings_theory.
     rewrite gRetInt_rw; auto.
     rewrite gRetInt_rw; auto.
     specialize (Hfg _ _ HS).
-    have Haux : (0 <= ε%:E)%E by auto.
-    apply (lee_paddl Haux Hfg).
+    apply (lee_paddl Hε Hfg).
   Qed.
 
 
   (* The hypothesis (0 ≤ ε1) is not really needed, I just kept it for symmetry *)
   Lemma ARcoupl_dbind (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
     (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) ε1 ε2 :
-    (0 <= ε1) -> (0 <= ε2) ->
+    (0 <= ε1) -> (0 <= ε2) -> (ε2 \is a fin_num) ->
     (∀ a b, S a b → ARcoupl_meas (f a) (g b) T ε2) →
     ARcoupl_meas μ1 μ2 S ε1 →
     ARcoupl_meas (gBind Hf μ1) (gBind Hg μ2) T (ε1 + ε2)%E.
   Proof.
-    intros Hε1 Hε2 Hcoup_fg Hcoup_S.
+    intros Hε1 Hε2 Hε2fin Hcoup_fg Hcoup_S.
     intros h1 Hmh1 Hh1ge0 Hh1le1.
     intros h2 Hmh2 Hh2ge0 Hh2le1.
     intros Hh1h2.
     rewrite gBindInt_rw; auto.
     rewrite gBindInt_rw; auto.
-    set (a := fun (x:A1) => maxe ((\int[f x]_y h1 y) - ε2%:E)%E 0%:E).
+    set (a := fun (x:A1) => maxe ((\int[f x]_y h1 y) - ε2)%E 0%:E).
     have Hh1measInt : measurable_fun setT (λ x : A1, (\int[f x]_y h1 y)%E).
     {
       pose proof (gBindInt_meas_fun μ1 Hf Hmh1) as Haux.
@@ -176,8 +176,7 @@ Section couplings_theory.
       rewrite mul1e.
       have Hμ1 : (f x [set: A2] <= 1)%E by apply sprobability_setT.
       apply (@Order.le_trans _ _ (1%E)); auto.
-      have Haux : (0 <= ε2%:E)%E by auto.
-      apply Num.Theory.ler_wpDl; auto.
+      apply (lee_paddl Hε2); auto.
     }
 
     set (b := fun (x:B1) => (\int[g x]_y h2 y)%E).
@@ -220,18 +219,17 @@ Section couplings_theory.
     (* Now, we can instantiate Hcoup_S with a, b  *)
     specialize (Hcoup_S a Hameas Ha_ge0 Ha_le1 b Hbmeas Hb_ge0 Hb_le1 HS_ab).
     rewrite (GRing.addrC ε1 ε2).
-    rewrite EFinD.
     rewrite -GRing.addrA.
-    eapply (@Order.le_trans _ _ (ε2%:E + (\int[μ1]_x a x))%E); last first.
+    eapply (@Order.le_trans _ _ (ε2 + (\int[μ1]_x a x))%E); last first.
     {
-      apply (@leeD2l _ (ε2%:E) _ _ Hcoup_S).
+      apply (@leeD2l _ ε2 _ _ Hcoup_S).
     }
-    eapply (@Order.le_trans _ _ (\int[μ1]_x cst (ε2%:E) x + \int[μ1]_x a x)%E); last first.
+    eapply (@Order.le_trans _ _ (\int[μ1]_x cst ε2 x + \int[μ1]_x a x)%E); last first.
     {
       apply (@leeD2r _ (\int[μ1]_x a x)%E).
       rewrite integral_cst; auto.
       rewrite muleC.
-      apply (@gee_pMl _ (μ1 [set: A1]) ε2%:E); auto.
+      apply (@gee_pMl _ (μ1 [set: A1]) ε2); auto.
       have Haux : (`|μ1 [set: A1]| <= 1)%E.
       {
         rewrite gee0_abs.
@@ -252,7 +250,7 @@ Section couplings_theory.
     {
       intros x ?.
       simpl.
-      apply (@adde_ge0 _ ε2%:E (a x)); auto.
+      apply (@adde_ge0 _ ε2 (a x)); auto.
     }
     {
       apply emeasurable_funD; auto.
@@ -261,15 +259,244 @@ Section couplings_theory.
     rewrite /a /=.
     rewrite adde_maxr.
     rewrite GRing.addrC.
-    rewrite -GRing.addrA.
-    rewrite (GRing.addrC _ ε2%:E).
-    rewrite -EFinD.
-    rewrite GRing.subrr.
-    rewrite GRing.addr0.
+    rewrite subeK //.
     rewrite Order.TotalTheory.le_max
       Order.le_refl
       orb_true_l //.
   Qed.
+
+
+  Lemma ARcoupl_dbind_adv_l (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
+    (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) ε1 (E2 : A1 -> \bar R) (HE2 : measurable_fun setT E2) :
+    (0 <= ε1) -> (forall a, 0 <= E2 a) -> (forall a, (E2 a) \is a fin_num) ->
+    (∀ a b, S a b → ARcoupl_meas (f a) (g b) T (E2 a)) →
+    ARcoupl_meas μ1 μ2 S ε1 →
+    ARcoupl_meas (gBind Hf μ1) (gBind Hg μ2) T (ε1 + \int[μ1]_a E2 a).
+  Proof.
+    intros Hε1 Hε2 Hε2fin Hcoup_fg Hcoup_S.
+    intros h1 Hmh1 Hh1ge0 Hh1le1.
+    intros h2 Hmh2 Hh2ge0 Hh2le1.
+    intros Hh1h2.
+    rewrite gBindInt_rw; auto.
+    rewrite gBindInt_rw; auto.
+    set (a := fun (x:A1) => maxe ((\int[f x]_y h1 y) - E2(x))%E 0%:E).
+    have Hh1measInt : measurable_fun setT (λ x : A1, (\int[f x]_y h1 y)%E).
+    {
+      pose proof (gBindInt_meas_fun μ1 Hf Hmh1) as Haux.
+      eapply eq_measurable_fun; eauto.
+      intros ??.
+      rewrite gInt_eval //.
+    }
+    have Hameas : (measurable_fun setT a).
+    {
+      rewrite /a.
+      apply measurable_maxe; auto.
+      apply emeasurable_funB; auto.
+    }
+    have Ha_ge0 : (forall x, (0 <= a x)%E).
+    {
+      intros x.
+      rewrite /a.
+      rewrite Order.TotalTheory.le_max.
+      rewrite lee_fin
+        Order.le_refl
+        orb_true_r //.
+    }
+    have Ha_le1 : (forall x, (a x <= 1)%E).
+    {
+      intros x.
+      rewrite /a.
+      rewrite Order.TotalTheory.ge_max.
+      rewrite lee_fin
+       Num.Theory.ler01
+       andb_true_r.
+      rewrite leeBlDl //.
+      apply (@Order.le_trans _ _ ((\int[f x]_y cst 1 y)%E));
+        [apply ge0_le_integral; auto |].
+      rewrite integral_cst; auto.
+      rewrite mul1e.
+      have Hμ1 : (f x [set: A2] <= 1)%E by apply sprobability_setT.
+      apply (@Order.le_trans _ _ (1%E)); auto.
+      apply (lee_paddl (Hε2 x)); auto.
+    }
+
+    set (b := fun (x:B1) => (\int[g x]_y h2 y)%E).
+    have Hbmeas : (measurable_fun setT b).
+    {
+      pose proof (gBindInt_meas_fun μ2 Hg Hmh2) as Haux.
+      eapply eq_measurable_fun; eauto.
+      intros ??.
+      rewrite gInt_eval //.
+    }
+
+    have Hb_ge0 : (forall x, (0 <= b x)%E).
+    {
+      intros x.
+      rewrite /b.
+      apply integral_ge0; auto.
+    }
+    have Hb_le1 : (forall x, (b x <= 1)%E).
+    {
+      intros x.
+      rewrite /b.
+      apply (@Order.le_trans _ _ ((\int[g x]_y cst 1 y)%E));
+        [apply ge0_le_integral; auto |].
+      rewrite integral_cst; auto.
+      rewrite mul1e.
+      apply sprobability_setT.
+    }
+
+    have HS_ab : (∀ (a0 : A1) (b0 : B1), S a0 b0 → (a a0 <= b b0)%E).
+    {
+      intros a0 b0 Ha0b0.
+      rewrite /a /b.
+      rewrite Order.TotalTheory.ge_max.
+      rewrite integral_ge0; auto.
+      rewrite andb_true_r.
+      rewrite leeBlDl //.
+      apply Hcoup_fg; auto.
+    }
+
+    (* Now, we can instantiate Hcoup_S with a, b  *)
+    specialize (Hcoup_S a Hameas Ha_ge0 Ha_le1 b Hbmeas Hb_ge0 Hb_le1 HS_ab).
+    rewrite (GRing.addrC ε1).
+    rewrite -GRing.addrA.
+    eapply (@Order.le_trans _ _ ((\int[μ1]_a0 E2 a0) + (\int[μ1]_x a x))%E); last first.
+    {
+      apply (@leeD2l _ (\int[μ1]_a0 E2 a0) _ _ Hcoup_S).
+    }
+    rewrite -ge0_integralD; auto.
+    apply ge0_le_integral; auto.
+    {
+      intros ??.
+      apply integral_ge0; auto.
+    }
+    {
+      intros x ?.
+      simpl.
+      apply (@adde_ge0 _ (E2 x) (a x)); auto.
+    }
+    {
+      apply emeasurable_funD; auto.
+    }
+    intros x ?.
+    rewrite /a /=.
+    rewrite adde_maxr.
+    rewrite GRing.addrC.
+    rewrite subeK //.
+    rewrite Order.TotalTheory.le_max
+      Order.le_refl
+      orb_true_l //.
+  Qed.
+
+
+  Lemma ARcoupl_dbind_adv_r (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
+    (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) ε1 (E2 : B1 -> \bar R) (HE2 : measurable_fun setT E2) :
+    (0 <= ε1) -> (forall b, 0 <= E2 b) -> (forall b, (E2 b) \is a fin_num) ->
+    (∀ a b, S a b → ARcoupl_meas (f a) (g b) T (E2 b)) →
+    ARcoupl_meas μ1 μ2 S ε1 →
+    ARcoupl_meas (gBind Hf μ1) (gBind Hg μ2) T (ε1 + \int[μ2]_b E2 b).
+  Proof.
+    intros Hε1 Hε2 Hε2fin Hcoup_fg Hcoup_S.
+    intros h1 Hmh1 Hh1ge0 Hh1le1.
+    intros h2 Hmh2 Hh2ge0 Hh2le1.
+    intros Hh1h2.
+    rewrite gBindInt_rw; auto.
+    rewrite gBindInt_rw; auto.
+
+    set (a := fun (x:A1) => (\int[f x]_y h1 y)%E).
+    have Hameas : (measurable_fun setT a).
+    {
+      pose proof (gBindInt_meas_fun μ1 Hf Hmh1) as Haux.
+      eapply eq_measurable_fun; eauto.
+      intros ??.
+      rewrite gInt_eval //.
+    }
+
+    have Ha_ge0 : (forall x, (0 <= a x)%E).
+    {
+      intros x.
+      rewrite /a.
+      apply integral_ge0; auto.
+    }
+    have Hh1_int_le1 : (forall x, \int[f x]_y h1 y <= 1).
+    {
+      intro x.
+      apply (@Order.le_trans _ _ ((\int[f x]_y cst 1 y)%E));
+        [apply ge0_le_integral; auto |].
+      rewrite integral_cst; auto.
+      rewrite mul1e.
+      apply sprobability_setT.
+    }
+    have Ha_le1 : (forall x, (a x <= 1)%E); [rewrite /a // |].
+
+    set (b := fun (x:B1) => mine (E2(x) + (\int[g x]_y h2 y))%E 1%:E).
+    have Hh2measInt : measurable_fun setT (λ x : B1, (\int[g x]_y h2 y)%E).
+    {
+      pose proof (gBindInt_meas_fun μ2 Hg Hmh2) as Haux.
+      eapply eq_measurable_fun; eauto.
+      intros ??.
+      rewrite gInt_eval //.
+    }
+    have Hbmeas : (measurable_fun setT b).
+    {
+      rewrite /b.
+      apply measurable_mine; auto.
+      apply emeasurable_funD; auto.
+    }
+    have Hb_ge0 : (forall x, (0 <= b x)%E).
+    {
+      intros x.
+      rewrite /b.
+      rewrite Order.TotalTheory.le_min /=.
+      rewrite lee_fin /= Num.Theory.ler01 andb_true_r.
+      apply (@adde_ge0 _ (E2 x)); auto.
+      apply integral_ge0; auto.
+    }
+    have Hb_le1 : (forall x, (b x <= 1)%E).
+    {
+      intros x.
+      rewrite /b.
+      rewrite Order.TotalTheory.ge_min Order.le_refl orb_true_r //.
+    }
+
+
+    have HS_ab : (∀ (a0 : A1) (b0 : B1), S a0 b0 → (a a0 <= b b0)%E).
+    {
+      intros a0 b0 Ha0b0.
+      rewrite /a /b.
+      rewrite Order.TotalTheory.le_min.
+      rewrite Hh1_int_le1 andb_true_r //.
+      apply Hcoup_fg; auto.
+    }
+
+    (* Now, we can instantiate Hcoup_S with a, b  *)
+    specialize (Hcoup_S a Hameas Ha_ge0 Ha_le1 b Hbmeas Hb_ge0 Hb_le1 HS_ab).
+
+    eapply (@Order.le_trans _ _ (ε1 + \int[μ2]_x b x)); auto.
+    rewrite -GRing.addrA.
+    apply (@leeD2l _ ε1).
+    rewrite -ge0_integralD; auto; last first.
+    {
+      intros.
+      apply integral_ge0; auto.
+    }
+    apply ge0_le_integral; auto.
+    {
+      intros x ?.
+      apply (@adde_ge0 _ (E2 x)); auto.
+      apply integral_ge0; auto.
+    }
+    {
+      apply emeasurable_funD; auto.
+    }
+    intros x ?.
+    rewrite /b /=.
+    rewrite Order.TotalTheory.ge_min
+      Order.le_refl
+      orb_true_l //.
+  Qed.
+
 
   (*
 
