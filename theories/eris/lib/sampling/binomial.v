@@ -37,6 +37,17 @@ Section binomial.
     rewrite !Rcomplements.C_n_n.
     lra.
   Qed.
+
+  Lemma choose_pos : ∀ (n i : nat), (0 <= choose n i)%R.
+  Proof.
+    intros n i.
+    rewrite /choose /C.
+    case_bool_decide; last done.
+    apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR.
+    apply Rmult_lt_0_compat;
+      rewrite -INR_0;
+      apply lt_INR, lt_O_fact.
+  Qed.
   
   Definition binom_prob (p q n k : nat) : R := (choose n k * (p / (q + 1))^k * (1 - p / (q + 1))^(n - k))%R.
 
@@ -399,3 +410,4 @@ Section binomial.
   Qed.
 
 End binomial.
+#[global] Opaque binomial.
