@@ -397,3 +397,5 @@ Section binomial.
       lra.
     }
   Qed.
+
+End binomial.
