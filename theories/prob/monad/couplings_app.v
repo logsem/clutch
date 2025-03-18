@@ -27,13 +27,13 @@ Section couplings.
   Local Open Scope classical_set_scope.
 
   Context {dA dB} `{A : measurableType dA} `{B : measurableType dB}.
-  Context (μ1 : giryM A) (μ2 : giryM B) (S : A -> B -> Prop) (ε : \bar R).
+  Context (μ1 : giryM A) (μ2 : giryM B) (S : A -> B -> Prop) (δ : \bar R).
 
   Definition ARcoupl_meas : Prop :=
     forall (f : A -> \bar R) (Hmf : measurable_fun setT f) (Hfge0 : forall (a : A), (0 <= f a)%E) (Hfle1 : forall (a : A), (f a <= 1)%E)
       (g : B -> \bar R) (Hmg : measurable_fun setT g) (Hgge0 : forall (b : B), (0 <= g b)%E) (Hgle1 : forall (b : B), (g b <= 1)%E),
       (forall (a : A) (b : B), S a b -> (f a <= g b)%E) ->
-      (\int[μ1]_(x in setT) f x <= ( ε + \int[μ2]_(x in setT) g x))%E.
+      (\int[μ1]_(x in setT) f x <= ( δ + \int[μ2]_(x in setT) g x))%E.
 
 End couplings.
 
@@ -49,15 +49,15 @@ Section couplings_theory.
     `{A2 : measurableType dA2} `{B2 : measurableType dB2}.
 
 
-  Lemma ARcoupl_meas_mono (μ1 μ1': giryM A1) (μ2 μ2': giryM B1) S S' (ε ε': \bar R) :
+  Lemma ARcoupl_meas_mono (μ1 μ1': giryM A1) (μ2 μ2': giryM B1) S S' (δ δ': \bar R) :
     (μ1 ≡μ μ1') ->
     (μ2 ≡μ μ2') ->
     (∀ x y, S x y -> S' x y) ->
-    (ε <= ε') ->
-    ARcoupl_meas μ1 μ2 S ε ->
-    ARcoupl_meas μ1' μ2' S' ε'.
+    (δ <= δ') ->
+    ARcoupl_meas μ1 μ2 S δ ->
+    ARcoupl_meas μ1' μ2' S' δ'.
   Proof.
-    intros Hμ1 Hμ2 HR Hε Hcoupl f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1 Hfg.
+    intros Hμ1 Hμ2 HR Hδ Hcoupl f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1 Hfg.
     specialize (Hcoupl f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1).
     rewrite (eq_measure_integral μ1); last first.
     {
@@ -78,10 +78,10 @@ Section couplings_theory.
     by apply  (leeD2r (\int[μ2]_x g x)).
  Qed.
 
-  Lemma ARcoupl_meas_1 (μ1 : giryM A1) (μ2 : giryM B1) S (ε : \bar R) :
-    (1 <= ε) -> ARcoupl_meas μ1 μ2 S ε.
+  Lemma ARcoupl_meas_1 (μ1 : giryM A1) (μ2 : giryM B1) S (δ : \bar R) :
+    (1 <= δ) -> ARcoupl_meas μ1 μ2 S δ.
   Proof.
-    intros Hε f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1 Hfg.
+    intros Hδ f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1 Hfg.
     apply (@Order.le_trans _ _ ((\int[μ1]_x cst 1 x)%E)).
     {
       apply ge0_le_integral; auto.
@@ -98,10 +98,10 @@ Section couplings_theory.
  Qed.
 
 
-  Lemma ARcoupl_meas_mon_grading (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) ε1 ε2 :
-    (ε1 <= ε2) ->
-    ARcoupl_meas μ1 μ2 S ε1 ->
-    ARcoupl_meas μ1 μ2 S ε2.
+  Lemma ARcoupl_meas_mon_grading (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) δ1 δ2 :
+    (δ1 <= δ2) ->
+    ARcoupl_meas μ1 μ2 S δ1 ->
+    ARcoupl_meas μ1 μ2 S δ2.
   Proof.
     intros Hleq Hcoupl f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1 Hfg.
     specialize (Hcoupl f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1 Hfg).
@@ -111,34 +111,34 @@ Section couplings_theory.
 
 
 
-  Lemma ARcoupl_meas_dret (a : A1) (b : B1) (S : A1 → B1 → Prop) ε :
-    0 <= ε →
+  Lemma ARcoupl_meas_dret (a : A1) (b : B1) (S : A1 → B1 → Prop) δ :
+    0 <= δ →
     S a b →
-    ARcoupl_meas (gRet a) (gRet b) S ε.
+    ARcoupl_meas (gRet a) (gRet b) S δ.
   Proof.
-    intros Hε HS f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1 Hfg.
+    intros Hδ HS f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1 Hfg.
     rewrite gRetInt_rw; auto.
     rewrite gRetInt_rw; auto.
     specialize (Hfg _ _ HS).
-    apply (lee_paddl Hε Hfg).
+    apply (lee_paddl Hδ Hfg).
   Qed.
 
 
-  (* The hypothesis (0 ≤ ε1) is not really needed, I just kept it for symmetry *)
+  (* The hypothesis (0 ≤ δ1) is not really needed, I just kept it for symmetry *)
   Lemma ARcoupl_meas_dbind (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
-    (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) ε1 ε2 :
-    (0 <= ε1) -> (0 <= ε2) -> (ε2 \is a fin_num) ->
-    (∀ a b, S a b → ARcoupl_meas (f a) (g b) T ε2) →
-    ARcoupl_meas μ1 μ2 S ε1 →
-    ARcoupl_meas (gBind Hf μ1) (gBind Hg μ2) T (ε1 + ε2)%E.
+    (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) δ1 δ2 :
+    (0 <= δ1) -> (0 <= δ2) -> (δ2 \is a fin_num) ->
+    (∀ a b, S a b → ARcoupl_meas (f a) (g b) T δ2) →
+    ARcoupl_meas μ1 μ2 S δ1 →
+    ARcoupl_meas (gBind Hf μ1) (gBind Hg μ2) T (δ1 + δ2)%E.
   Proof.
-    intros Hε1 Hε2 Hε2fin Hcoup_fg Hcoup_S.
+    intros Hδ1 Hδ2 Hδ2fin Hcoup_fg Hcoup_S.
     intros h1 Hmh1 Hh1ge0 Hh1le1.
     intros h2 Hmh2 Hh2ge0 Hh2le1.
     intros Hh1h2.
     rewrite gBindInt_rw; auto.
     rewrite gBindInt_rw; auto.
-    set (a := fun (x:A1) => maxe ((\int[f x]_y h1 y) - ε2)%E 0%:E).
+    set (a := fun (x:A1) => maxe ((\int[f x]_y h1 y) - δ2)%E 0%:E).
     have Hh1measInt : measurable_fun setT (λ x : A1, (\int[f x]_y h1 y)%E).
     {
       pose proof (gBindInt_meas_fun μ1 Hf Hmh1) as Haux.
@@ -176,7 +176,7 @@ Section couplings_theory.
       rewrite mul1e.
       have Hμ1 : (f x [set: A2] <= 1)%E by apply sprobability_setT.
       apply (@Order.le_trans _ _ (1%E)); auto.
-      apply (lee_paddl Hε2); auto.
+      apply (lee_paddl Hδ2); auto.
     }
 
     set (b := fun (x:B1) => (\int[g x]_y h2 y)%E).
@@ -218,18 +218,18 @@ Section couplings_theory.
 
     (* Now, we can instantiate Hcoup_S with a, b  *)
     specialize (Hcoup_S a Hameas Ha_ge0 Ha_le1 b Hbmeas Hb_ge0 Hb_le1 HS_ab).
-    rewrite (GRing.addrC ε1 ε2).
+    rewrite (GRing.addrC δ1 δ2).
     rewrite -GRing.addrA.
-    eapply (@Order.le_trans _ _ (ε2 + (\int[μ1]_x a x))%E); last first.
+    eapply (@Order.le_trans _ _ (δ2 + (\int[μ1]_x a x))%E); last first.
     {
-      apply (@leeD2l _ ε2 _ _ Hcoup_S).
+      apply (@leeD2l _ δ2 _ _ Hcoup_S).
     }
-    eapply (@Order.le_trans _ _ (\int[μ1]_x cst ε2 x + \int[μ1]_x a x)%E); last first.
+    eapply (@Order.le_trans _ _ (\int[μ1]_x cst δ2 x + \int[μ1]_x a x)%E); last first.
     {
       apply (@leeD2r _ (\int[μ1]_x a x)%E).
       rewrite integral_cst; auto.
       rewrite muleC.
-      apply (@gee_pMl _ (μ1 [set: A1]) ε2); auto.
+      apply (@gee_pMl _ (μ1 [set: A1]) δ2); auto.
       have Haux : (`|μ1 [set: A1]| <= 1)%E.
       {
         rewrite gee0_abs.
@@ -250,7 +250,7 @@ Section couplings_theory.
     {
       intros x ?.
       simpl.
-      apply (@adde_ge0 _ ε2 (a x)); auto.
+      apply (@adde_ge0 _ δ2 (a x)); auto.
     }
     {
       apply emeasurable_funD; auto.
@@ -267,13 +267,13 @@ Section couplings_theory.
 
 
   Lemma ARcoupl_meas_dbind_adv_l (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
-    (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) ε1 (E2 : A1 -> \bar R) (HE2 : measurable_fun setT E2) :
-    (0 <= ε1) -> (forall a, 0 <= E2 a) -> (forall a, (E2 a) \is a fin_num) ->
+    (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) δ1 (E2 : A1 -> \bar R) (HE2 : measurable_fun setT E2) :
+    (0 <= δ1) -> (forall a, 0 <= E2 a) -> (forall a, (E2 a) \is a fin_num) ->
     (∀ a b, S a b → ARcoupl_meas (f a) (g b) T (E2 a)) →
-    ARcoupl_meas μ1 μ2 S ε1 →
-    ARcoupl_meas (gBind Hf μ1) (gBind Hg μ2) T (ε1 + \int[μ1]_a E2 a).
+    ARcoupl_meas μ1 μ2 S δ1 →
+    ARcoupl_meas (gBind Hf μ1) (gBind Hg μ2) T (δ1 + \int[μ1]_a E2 a).
   Proof.
-    intros Hε1 Hε2 Hε2fin Hcoup_fg Hcoup_S.
+    intros Hδ1 Hδ2 Hδ2fin Hcoup_fg Hcoup_S.
     intros h1 Hmh1 Hh1ge0 Hh1le1.
     intros h2 Hmh2 Hh2ge0 Hh2le1.
     intros Hh1h2.
@@ -317,7 +317,7 @@ Section couplings_theory.
       rewrite mul1e.
       have Hμ1 : (f x [set: A2] <= 1)%E by apply sprobability_setT.
       apply (@Order.le_trans _ _ (1%E)); auto.
-      apply (lee_paddl (Hε2 x)); auto.
+      apply (lee_paddl (Hδ2 x)); auto.
     }
 
     set (b := fun (x:B1) => (\int[g x]_y h2 y)%E).
@@ -359,7 +359,7 @@ Section couplings_theory.
 
     (* Now, we can instantiate Hcoup_S with a, b  *)
     specialize (Hcoup_S a Hameas Ha_ge0 Ha_le1 b Hbmeas Hb_ge0 Hb_le1 HS_ab).
-    rewrite (GRing.addrC ε1).
+    rewrite (GRing.addrC δ1).
     rewrite -GRing.addrA.
     eapply (@Order.le_trans _ _ ((\int[μ1]_a0 E2 a0) + (\int[μ1]_x a x))%E); last first.
     {
@@ -391,13 +391,13 @@ Section couplings_theory.
 
 
   Lemma ARcoupl_meas_dbind_adv_r (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
-    (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) ε1 (E2 : B1 -> \bar R) (HE2 : measurable_fun setT E2) :
-    (0 <= ε1) -> (forall b, 0 <= E2 b) ->
+    (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) δ1 (E2 : B1 -> \bar R) (HE2 : measurable_fun setT E2) :
+    (0 <= δ1) -> (forall b, 0 <= E2 b) ->
     (∀ a b, S a b → ARcoupl_meas (f a) (g b) T (E2 b)) →
-    ARcoupl_meas μ1 μ2 S ε1 →
-    ARcoupl_meas (gBind Hf μ1) (gBind Hg μ2) T (ε1 + \int[μ2]_b E2 b).
+    ARcoupl_meas μ1 μ2 S δ1 →
+    ARcoupl_meas (gBind Hf μ1) (gBind Hg μ2) T (δ1 + \int[μ2]_b E2 b).
   Proof.
-    intros Hε1 Hε2 Hcoup_fg Hcoup_S.
+    intros Hδ1 Hδ2 Hcoup_fg Hcoup_S.
     intros h1 Hmh1 Hh1ge0 Hh1le1.
     intros h2 Hmh2 Hh2ge0 Hh2le1.
     intros Hh1h2.
@@ -473,9 +473,9 @@ Section couplings_theory.
     (* Now, we can instantiate Hcoup_S with a, b  *)
     specialize (Hcoup_S a Hameas Ha_ge0 Ha_le1 b Hbmeas Hb_ge0 Hb_le1 HS_ab).
 
-    eapply (@Order.le_trans _ _ (ε1 + \int[μ2]_x b x)); auto.
+    eapply (@Order.le_trans _ _ (δ1 + \int[μ2]_x b x)); auto.
     rewrite -GRing.addrA.
-    apply (@leeD2l _ ε1).
+    apply (@leeD2l _ δ1).
     rewrite -ge0_integralD; auto; last first.
     {
       intros.
@@ -498,8 +498,8 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma ARcoupl_meas_mass_leq (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) ε :
-    ARcoupl_meas μ1 μ2 S ε → μ1 [set: A1] <= μ2 [set: B1] + ε.
+  Lemma ARcoupl_meas_mass_leq (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) δ :
+    ARcoupl_meas μ1 μ2 S δ → μ1 [set: A1] <= μ2 [set: B1] + δ.
   Proof.
     intros Hcoupl.
     rewrite /ARcoupl_meas in Hcoupl.
@@ -521,8 +521,8 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma ARcoupl_meas_eq_elim (μ1 μ2 : giryM A1) ε :
-    ARcoupl_meas μ1 μ2 (=) ε → forall (S : set A1), (dA1.-measurable S) -> μ1 S <= μ2 S + ε.
+  Lemma ARcoupl_meas_eq_elim (μ1 μ2 : giryM A1) δ :
+    ARcoupl_meas μ1 μ2 (=) δ → forall (S : set A1), (dA1.-measurable S) -> μ1 S <= μ2 S + δ.
   Proof.
     intros Hcoupl S HSmeas.
     rewrite GRing.addrC.
