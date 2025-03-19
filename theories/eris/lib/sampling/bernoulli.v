@@ -277,8 +277,6 @@ Section Bernoulli.
     by iApply "HΦ".
   Qed.
 
-
-
   Fixpoint is_bernoulli_translation (N M : nat) (v : list (fin 2)) (l : list (fin (S (S M)))) :=
     match v, l with
     | [], [] => True
