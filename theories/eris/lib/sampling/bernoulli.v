@@ -139,7 +139,7 @@ Section Bernoulli.
   (N <= S M)%nat ->
   0 <= ε1 ->
   0 <= ε2 ->
-  (ε1 * (1 - (N / S M))) + (ε2 * (N/S M)) = ε ->
+  (ε1 * (1 - (N / S M))) + (ε2 * (N / S M)) = ε ->
   [[{↯ ε}]]
     bernoulli #N #M
   [[{
@@ -183,34 +183,66 @@ Section Bernoulli.
     - iApply ("HΦ" $! 1)%nat; auto.
     - iApply ("HΦ" $! 0)%nat; auto.
   Qed.
-    
-  Lemma bernoulli_succes_spec (N M : nat) : 
-    [[{↯ (1 - (N / S M))}]]
+
+  Lemma bernoulli_success_spec (N M : nat) :
+    ∀ (ε ε' : R),
+    (0 <= ε')%R →
+    ε = (ε' * (N / S M)) → 
+    [[{↯ ε ∗ ↯ (1 - (N / S M))}]]
       bernoulli #N #M 
-    [[{ v, RET v; ⌜v = #1⌝ }]].
+    [[{ v, RET v; ↯ ε' ∗ ⌜v = #1⌝ }]].
   Proof.
-    iIntros "%Φ Herr HΦ".
+    iIntros (ε ε' Hε' ->) "%Φ [Herr Hcost] HΦ".
     destruct (decide (S M < N)%nat) as [Hlt |Hge%not_lt].
     { cred_contra. rewrite Rcomplements.Rlt_minus_l.
       simpl_expr. }
-    wp_apply (twp_bernoulli_scale _ _ _ 1 0 with "[$Herr]")%R; [lia | lra..|].
+    iPoseProof (ec_combine with "[$Herr $Hcost]") as "Herr".
+    wp_apply (twp_bernoulli_scale _ _ _ 1 ε' with "Herr")%R; [lia| lra|lra..|].
     iIntros "%k [(_ & Herr) | (-> & Herr)]".
     - cred_contra. 
-    - by iApply "HΦ".
+    - iApply "HΦ". by iFrame.
   Qed.
 
-  Lemma bernoulli_failure_spec (N M : nat) : 
-    [[{↯ (N / S M)}]] 
+  Lemma bernoulli_failure_spec (N M : nat) :
+    ∀ (ε ε' : R),
+    (0 <= ε')%R →
+    ε = (ε' * (1 - N / S M)) → 
+    [[{↯ ε ∗ ↯ (N / S M)}]] 
       bernoulli #N #M 
-    [[{ v, RET v; ⌜v = #0⌝ }]].
+    [[{ v, RET v; ↯ ε' ∗ ⌜v = #0⌝ }]].
   Proof.
-    iIntros "%Φ Herr HΦ".
+    iIntros (ε ε' Hε ->) "%Φ [Herr Hcost] HΦ".
     destruct (decide (S M < N)%nat) as [Hlt |Hge%not_lt].
     { cred_contra. simpl_expr. }
-    wp_apply (twp_bernoulli_scale _ _ (N / S M) 0 1 with "[$Herr]")%R => //.
+    iPoseProof (ec_combine with "[$Herr $Hcost]") as "Herr".
+    wp_apply (twp_bernoulli_scale _ _ _ ε' 1 with "[$Herr]")%R => //.
     iIntros "%k [(-> & Herr) | (-> & Herr)]".
-    - by iApply "HΦ".
+    - iApply "HΦ". by iFrame.
     - find_contra.
+  Qed.
+
+  Lemma bernoulli_success_spec_simple (N M : nat) :
+    [[{↯ (1 - (N / S M))}]]
+      bernoulli #N #M 
+      [[{ v, RET v; ⌜v = #1⌝ }]].
+  Proof.
+    iIntros (Φ) "Herr HΦ".
+    iMod ec_zero as "Hzero".
+    wp_apply (bernoulli_success_spec _ _ 0%R 0%R with "[$Herr $Hzero]") => //.
+    iIntros (v) "[_ Hv]".
+    iApply ("HΦ" with "Hv").
+  Qed.
+
+  Lemma bernoulli_failure_spec_simple (N M : nat) :
+    [[{↯ (N / S M)}]] 
+      bernoulli #N #M 
+      [[{ v, RET v; ⌜v = #0⌝ }]].
+  Proof.
+    iIntros (Φ) "Herr HΦ".
+    iMod ec_zero as "Hzero".
+    wp_apply (bernoulli_failure_spec _ _ 0%R 0%R with "[$Herr $Hzero]") => //.
+    iIntros (v) "[_ Hv]".
+    iApply ("HΦ" with "Hv").
   Qed.
 
   Lemma bernoulli_spec (N M : nat) :
@@ -225,8 +257,6 @@ Section Bernoulli.
     wp_pures; iApply "HΦ"; auto.
   Qed.
 
-
-
   Example Bernoulli_twice (N M : nat) :
     [[{ ↯ (1 - (N / S M)^2) }]]
       let v1 := bernoulli #N #M in 
@@ -234,6 +264,6 @@ Section Bernoulli.
       (v1, v2)
     [[{ RET (#1, #1); True }]].
   Proof.
-    
+  Abort.
 
 End Bernoulli.
