@@ -1,8 +1,29 @@
 From clutch.eris Require Import eris.
 
 Local Open Scope R.
+
+
+Lemma ec_contradict_lt0 `{!erisGS Σ} (ε : R) : (ε < 0)%R -> ↯ ε ⊢ False.
+Proof.
+  iIntros "%ε_nonpos Herr".
+  iPoseProof (ec_valid with "Herr") as "[%Hε _]". lra.
+Qed.
+Ltac cred_contra := 
+    match goal with 
+    | |- context[↯ 0] => 
+          iAssert (False)%I as "[]";
+          iApply ec_contradict_lt0; last iFrame; done
+    | |- context[↯ (1 - _)%R] => 
+          iAssert (False)%I as "[]";
+          iApply ec_contradict_lt0; last iFrame; done
+    | |- context[↯ _] => 
+          iAssert (False)%I as "[]";
+          iApply ec_contradict; last iFrame; done
+    end.
+  
+
 Local Ltac done ::= 
-  lia || lra || nra || real_solver || tactics.done || auto.
+  solve[cred_contra || lia || lra || nra || real_solver || tactics.done || auto].
 Ltac add_hint t := let n := fresh "hint" in have n := t.
 
 Set Printing Coercions.
@@ -18,25 +39,7 @@ Proof.
   Unset Printing Coercions. 
 Qed.
 
-Lemma ec_contradict_lt0 `{!erisGS Σ} (ε : R) : (ε < 0)%R -> ↯ ε ⊢ False.
-Proof.
-  iIntros "%ε_nonpos Herr".
-  iPoseProof (ec_valid with "Herr") as "[%Hε _]" => //.
-Qed.
 
-Ltac cred_contra := 
-    match goal with 
-    | |- context[↯ 0] => 
-          iAssert (False)%I as "[]";
-          iApply ec_contradict_lt0; last iFrame; done
-    | |- context[↯ (1 - _)%R] => 
-          iAssert (False)%I as "[]";
-          iApply ec_contradict_lt0; last iFrame; done
-    | |- context[↯ _] => 
-          iAssert (False)%I as "[]";
-          iApply ec_contradict; last iFrame; done
-    end.
-  
 
 Ltac find_contra :=
   solve
@@ -120,3 +123,28 @@ Lemma Rpow_le_1 (r : R) (k : nat) :
 Proof.
   elim: k => // => n IH //=.
 Qed.
+
+
+  Program Fixpoint list_double_ind {A B: Type} (l1 : list A) (l2 : list B) (P : list A -> list B -> Type) 
+    (IH1 : P [] [])
+    (IH2 : ∀ h1 t1, 
+      P t1 [] -> 
+      P (h1::t1) [])
+    (IH3 : ∀ h2 t2, 
+      P [] t2 -> 
+      P [] (h2::t2))
+    (IH4 : ∀ h1 t1 h2 t2, P t1 t2 -> P (h1 :: t1) (h2 :: t2)) {measure (length l1 + length l2)} : P l1 l2 :=
+  match l1, l2 with 
+  | [], [] => IH1
+  | h1::t1, [] => IH2 h1 t1 (list_double_ind t1 [] P IH1 IH2 IH3 IH4)
+  | [], h2::t2 => IH3 h2 t2 (list_double_ind [] t2 P IH1 IH2 IH3 IH4)
+  | h1::t1, h2::t2 => IH4 h1 t1 h2 t2 (list_double_ind t1 t2 P IH1 IH2 IH3 IH4)
+  end.
+  Solve Obligations with (intros;
+    subst;
+    simpl; lia) || auto.
+  
+  Next Obligation.
+    apply Wf.measure_wf;
+    apply lt_wf.
+  Qed.

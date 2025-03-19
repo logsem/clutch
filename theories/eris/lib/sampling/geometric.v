@@ -5,7 +5,7 @@ Local Open Scope R.
 
 Section Geometric.
   Local Ltac done ::= 
-  solve[lia || lra || nra || real_solver || tactics.done || cred_contra || auto].
+  solve[lia || lra || nra || real_solver || tactics.done || auto].
 
   Context `{!erisGS Σ}.
   Definition geometric : val :=
@@ -35,7 +35,7 @@ About twp_rand_err_amp.
       fold geometric.
       replace (1 - (1 - p)^(S k) * p) with ((1 - p) * (1 - (1 - p)^k * p) + p) by rewrite //=.
       wp_apply (twp_bernoulli_scale _ _ _ (1 - (1 - p) ^ k * p) 1 with "Herr") as "%n [[-> Herr] | [-> Herr]]";
-      fold p; try done.
+      fold p; try done; last cred_contra.
       { apply error_credits.Rle_0_le_minus.
         assert (0 <= ((1 - p) ^ k) <= 1)%R. {
           apply Rpow_le_1; lra.

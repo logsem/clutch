@@ -148,7 +148,7 @@ Section Bernoulli.
       (⌜k = 1%nat⌝ ∗ ↯ ε2)
   }]].
   Proof.
-    set p := (N / S M)%R.
+    set p := N / S M.
     iIntros "%HNleM %ε1_pos %ε2_pos %Heq %Φ Herr HΦ".
     rewrite /bernoulli.
     wp_pures.
@@ -280,10 +280,26 @@ Section Bernoulli.
   Fixpoint is_bernoulli_translation (N M : nat) (v : list (fin 2)) (l : list (fin (S (S M)))) :=
     match v, l with
     | [], [] => True
-    | vh::vt, lh::lt => (vh = 0%fin ∧ N ≤ lh ∨ vh = 1%fin ∧ lh < M) ∧ is_bernoulli_translation N M vt lt
+    | 0%fin::vt, lh::lt => N ≤ lh ∧ is_bernoulli_translation N M vt lt
+    | 1%fin::vt, lh::lt => (lh < N)%nat ∧ is_bernoulli_translation N M vt lt
     | _, _ => False
     end.
+  
+
+  Theorem is_bernoulli_translation_dec (N M : nat) (v : list (fin 2)) (l : list (fin (S (S M)))) :
+    {is_bernoulli_translation N M v l} + {¬ is_bernoulli_translation N M v l}.
+  Proof.
+    apply (list_double_ind v l).
+    - simpl; auto. 
+    - move=> vh vt IH; inv_fin vh => //=.
+    - move=> vh vt IH //.
+    - move=> vh vt lh lt [IH | IH] /=.
+      + repeat (inv_fin vh; try intro vh).
+        * destruct (le_dec N lh); [left | right]; done.
+        * destruct (lt_dec lh N); [left | right]; done.
+      + right; intro Hcontra; full_inv_fin; destruct Hcontra as [_ Hcontra]; auto.
+  Qed.          
 
   Definition own_bernoulli_tape α N M v := (∃ l, α ↪ (S M; l) ∗ ⌜is_bernoulli_translation N M v l⌝)%I.
 
-End Bernoulli.
+End Bernoulli. 
