@@ -132,7 +132,19 @@ Qed.
 Lemma Rbar_le_lub R S : (∀ r, R r -> ∀ ε, (ε > 0)%R -> ∃ r', r-ε<= r' /\ S r') ->
                         Rbar_le (Lub_Rbar R) (Lub_Rbar S).
 Proof.
-Admitted.
+  intros H.
+  apply Lub_Rbar_correct.
+  rewrite /is_ub_Rbar.
+  intros r Hr.
+  apply Rbar_le_plus_epsilon.
+  intros eps Heps.
+  replace eps with (- - eps) by lra.
+  apply Rbar_le_opp.
+  pose proof (H _ Hr eps Heps) as (r' & Hr' & Hs).
+  trans r'.
+  { simpl. lra. }
+  by apply Lub_Rbar_correct.
+Qed.
 
 Lemma foxtrot_adequacy Σ `{foxtrotGpreS Σ} ϕ e e' σ σ' : 
   (∀ `{foxtrotGS Σ}, ⊢ 0%nat ⤇ e' -∗ WP e {{ v, ∃ v', 0%nat ⤇ Val v' ∗ ⌜ ϕ v v' ⌝ }}) ->
