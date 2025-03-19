@@ -226,14 +226,4 @@ Section Bernoulli.
   Qed.
 
 
-
-  Example Bernoulli_twice (N M : nat) :
-    [[{ ↯ (1 - (N / S M)^2) }]]
-      let v1 := bernoulli #N #M in 
-      let v2 := bernoulli #N #M in 
-      (v1, v2)
-    [[{ RET (#1, #1); True }]].
-  Proof.
-    
-
 End Bernoulli.
