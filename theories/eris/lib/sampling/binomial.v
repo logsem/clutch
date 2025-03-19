@@ -16,6 +16,8 @@ Section binomial.
       (⌜k = 1⌝ ∗ ↯ ε2)
   }]]).
 
+  Parameter (B_tape : ∀ (N M : nat), loc → list (fin 2) → iProp Σ).
+
   Definition binom : val :=
     λ: "m" "n",
       rec: "binom" "k" :=
@@ -409,5 +411,16 @@ Section binomial.
     }
   Qed.
 
+  Fixpoint is_binomial_translation (m n k : nat) (v : list (fin (S k))) (l : list (fin 2)) :=
+    match v with
+    | [] => l = []
+    | vh ::vt => ∃ (pre suf : list (fin 2)), sum_list_with fin_to_nat pre = vh ∧
+                                             length v = k ∧
+                                             l = pre ++ suf ∧
+                                             is_binomial_translation m n k vt suf
+  end.
+
+  Definition own_binomial_tape α m n k v := (∃ l, α ↪ (1; l) ∗ ⌜is_binomial_translation m n k v l⌝)%I.
+  
 End binomial.
 #[global] Opaque binomial.

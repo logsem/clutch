@@ -266,4 +266,13 @@ Section Bernoulli.
   Proof.
   Abort.
 
+  Fixpoint is_bernoulli_translation (N M : nat) (v : list (fin 2)) (l : list (fin (S (S M)))) :=
+    match v, l with
+    | [], [] => True
+    | vh::vt, lh::lt => (vh = 0%fin ∧ N ≤ lh ∨ vh = 1%fin ∧ lh < M) ∧ is_bernoulli_translation N M vt lt
+    | _, _ => False
+    end.
+
+  Definition own_bernoulli_tape α N M v := (∃ l, α ↪ (S M; l) ∗ ⌜is_bernoulli_translation N M v l⌝)%I.
+
 End Bernoulli.
