@@ -330,7 +330,7 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma ARcoupl_meas_dbind_adv_l (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
+  Lemma ARcoupl_meas_dbind_exp_l (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
     (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) δ1 (Δ2 : A1 -> \bar R) (HΔ2 : measurable_fun setT Δ2) ε1 ε2 :
     (0 <= δ1) -> (forall a, 0 <= Δ2 a) -> (forall a, (Δ2 a) \is a fin_num) ->
     (∀ a b, S a b → ARcoupl_meas (f a) (g b) T ε2 (Δ2 a)) →
@@ -497,7 +497,7 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma ARcoupl_meas_dbind_adv_r (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
+  Lemma ARcoupl_meas_dbind_exp_r (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
     (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) δ1 (Δ2 : B1 -> \bar R) (HΔ2 : measurable_fun setT Δ2) ε1 ε2 :
     (0 <= δ1) -> (forall b, 0 <= Δ2 b) -> (forall b, (Δ2 b) \is a fin_num) ->
     (∀ a b, S a b → ARcoupl_meas (f a) (g b) T ε2 (Δ2 b)) →
@@ -634,7 +634,7 @@ Section couplings_theory.
 
 
 
-  Lemma ARcoupl_meas_dbind_adv_r_eps0 (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
+  Lemma ARcoupl_meas_dbind_exp_r_eps0 (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
     (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) δ1 (Δ2 : B1 -> \bar R) (HΔ2 : measurable_fun setT Δ2) :
     (0 <= δ1) -> (forall b, 0 <= Δ2 b) -> (forall b, (Δ2 b) \is a fin_num) ->
     (∀ a b, S a b → ARcoupl_meas (f a) (g b) T GRing.zero (Δ2 b)) →
@@ -642,7 +642,7 @@ Section couplings_theory.
     ARcoupl_meas (gBind Hf μ1) (gBind Hg μ2) T GRing.zero (δ1 + \int[μ2]_b Δ2 b).
   Proof.
     intros Hδ1 Hδ2 Hδ2fin Hcoup_fg Hcoup_S.
-    pose proof (ARcoupl_meas_dbind_adv_r Hf Hg HΔ2 Hδ1 Hδ2 Hδ2fin Hcoup_fg Hcoup_S) as Haux.
+    pose proof (ARcoupl_meas_dbind_exp_r Hf Hg HΔ2 Hδ1 Hδ2 Hδ2fin Hcoup_fg Hcoup_S) as Haux.
     rewrite exp.expR0 GRing.add0r mul1e in Haux.
     auto.
   Qed.
@@ -801,6 +801,66 @@ Section ARcoupl_meas.
       apply measurableT_comp; auto.
     }
     intros; simpl; auto.
+  Qed.
+
+
+  Lemma ARcoupl_meas_preserve_mZl (t : A -> B) (Hmt : measurable_fun setT t)
+    (Z : set A) (HZ: measurable Z):
+    (*
+       This condition is precisely measure preservation,
+       i.e. forall S, measurable S -> μ2 S = μ1 (f @^-1` A)
+     *)
+    (forall (S : set B), measurable S -> μ2 S = pushforward μ1 Hmt S) ->
+    (μ1 Z = 0) ->
+    ARcoupl_meas μ1 μ2 (λ n m, (n \notin Z) /\ m = t n) GRing.zero 0.
+  Proof.
+    intros Hpres Hμ1Z f Hfm Hfge0 Hfle1 g Hgm Hgge0 Hgle1 Hfg.
+    rewrite exp.expR0 mul1e.
+    rewrite GRing.add0r.
+    rewrite (negligible_integral HZ); auto.
+    2:{
+      pose proof (finite_measure_integrable_cst μ1 1).
+      eapply (le_integrable _ _ _ H); eauto.
+      Unshelve.
+      auto.
+      auto.
+      intros; simpl; auto.
+      rewrite gee0_abs // Num.Theory.normr1 //.
+    }
+    rewrite setTD.
+    - rewrite integral_mkcond.
+      rewrite (@eq_measure_integral _ _ _ _ (pushforward μ1 Hmt) μ2); last first.
+    {
+      intros ? ? ?.
+      apply Hpres.
+      auto.
+    }
+    have HmfrestrZ : measurable_fun [set: A] (f \_ (~` Z)).
+    {
+      apply measurable_restrict; auto.
+      apply measurableC; auto.
+      apply measurable_fun_setI1; auto.
+      apply measurableC; auto.
+    }
+    rewrite ge0_integral_pushforward; auto; last first.
+    apply ge0_le_integral; auto.
+    {
+      intros x ?.
+      rewrite /patch /=.
+      case (x \in ~`Z); simpl; auto.
+    }
+    {
+      intros; simpl; auto.
+    }
+    {
+      apply measurableT_comp; auto.
+    }
+    intros x ?.
+    rewrite /patch /=.
+    case (x \in ~`Z) eqn:Htx ; simpl; auto.
+    apply Hfg.
+    split; auto.
+    rewrite -in_setC Htx //.
  Qed.
 
 
