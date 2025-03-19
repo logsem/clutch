@@ -296,7 +296,7 @@ Section NegativeBinomial.
       wp_bind (B _ _).
       wp_apply tgl_wp_pgl_wp'.
       wp_apply (B_spec p q ε ε0 ε1 Hpq with "Herr").
-      {fold s1 s0. lra.}
+      {fold s1 s0. lra. }
       iIntros (k) "[[-> Herr] | [-> Herr]]".
       {
         do 4 wp_pure.

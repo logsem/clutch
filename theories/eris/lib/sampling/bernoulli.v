@@ -126,7 +126,7 @@ Section Bernoulli.
     move=> p Hp /=.
     rewrite SeriesC_finite_foldr //=.
   Qed.
-  
+
 
 
   Definition bernoulli : val := 
@@ -139,7 +139,7 @@ Section Bernoulli.
   (N <= S M)%nat ->
   0 <= ε1 ->
   0 <= ε2 ->
-  ((ε1 * (1 - (N / S M))) + (ε2 * (N/S M)) = ε)%R ->
+  (ε1 * (1 - (N / S M))) + (ε2 * (N/S M)) = ε ->
   [[{↯ ε}]]
     bernoulli #N #M
   [[{
@@ -222,7 +222,18 @@ Section Bernoulli.
     rewrite /bernoulli; wp_pures.
     wp_apply (twp_rand with "[$]") as "%n _".
     wp_pures; case_bool_decide;
-    wp_pures; iApply "HΦ"; auto. 
+    wp_pures; iApply "HΦ"; auto.
   Qed.
+
+
+
+  Example Bernoulli_twice (N M : nat) :
+    [[{ ↯ (1 - (N / S M)^2) }]]
+      let v1 := bernoulli #N #M in 
+      let v2 := bernoulli #N #M in 
+      (v1, v2)
+    [[{ RET (#1, #1); True }]].
+  Proof.
+    
 
 End Bernoulli.
