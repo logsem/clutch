@@ -257,13 +257,26 @@ Section Bernoulli.
     wp_pures; iApply "HΦ"; auto.
   Qed.
 
-  Example Bernoulli_twice (N M : nat) :
-    [[{ ↯ (1 - (N / S M)^2) }]]
+  Example bernoulli_twice (N M : nat) (p := N / S M) (Hlt : (N <= S M)%nat) :
+    [[{ ↯ (1 - p^2) }]]
       let v1 := bernoulli #N #M in 
       let v2 := bernoulli #N #M in 
       (v1, v2)
     [[{ RET (#1, #1); True }]].
   Proof.
-  Abort.
+    assert (0 <= p <= 1)%R as Hp. {
+      split; subst p; simpl_expr.
+    }
+    iIntros "%Φ Herr HΦ".
+    replace (1 - p ^ 2) with ((1 - p) + (p - p^2)) by lra.
+    iPoseProof (ec_split with "Herr") as "[Herr1 Herr2]" => //.
+    wp_apply (bernoulli_success_spec _ _ (p - p^2) (1 - p) with "[$Herr1 $Herr2]") as "%v [Herr ->]" => //;
+    first (fold p; nra).
+    wp_apply (bernoulli_success_spec_simple with "Herr") as (?) "->".
+    wp_pures.
+    by iApply "HΦ".
+  Qed.
+
+
 
 End Bernoulli.
