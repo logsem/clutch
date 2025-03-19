@@ -3,8 +3,6 @@ From clutch.eris.lib.sampling Require Import utils.
 From clutch.eris.lib.sampling Require Import bernoulli.
 Local Open Scope R.
 
-
-
 Section Geometric.
   Local Ltac done ::= 
   solve[lia || lra || nra || real_solver || tactics.done || cred_contra || auto].
@@ -28,7 +26,7 @@ About twp_rand_err_amp.
     - iIntros "%Φ Herr HΦ".
       rewrite /geometric Rmult_1_l.
       wp_pures.
-      wp_apply (bernoulli_succes_spec with "Herr") as "%v ->".
+      wp_apply (bernoulli_success_spec_simple with "Herr") as "%v ->".
       wp_pures.
       by iApply "HΦ".
     - iIntros "%Φ Herr HΦ".
