@@ -291,22 +291,21 @@ Section ectx_language.
       by rewrite fill_empty. }
   Qed.
 
-  (*
-  Lemma fill_prim_step_dbind K e1 σ1 :
-    to_val e1 = None →
-    prim_step (fill K e1) σ1 = dbind (fill_lift K) (prim_step e1 σ1).
-  Proof.
-    intros Hval. rewrite /prim_step.
-    destruct (decomp e1) as [K1 e1'] eqn:Heq.
-    destruct (decomp (fill _ e1)) as [K1' e1''] eqn:Heq'.
-    apply (decomp_fill_comp K) in Heq; [|done].
-    rewrite Heq in Heq'; simplify_eq.
-    rewrite dmap_comp.
-    apply dmap_eq; [|done].
-    intros [] ? =>/=.
-    f_equal. rewrite -fill_comp //.
-  Qed.
-*)
+  (* TODO prove fill_lift is measurable *)
+  (* Lemma fill_prim_step_dbind K e1 σ1 : *)
+  (*   to_val e1 = None → *)
+  (*   prim_step ((fill (K, e1)), σ1) = gMap (curry fill K) (prim_step (e1, σ1)). *)
+  (* Proof. *)
+  (*   intros Hval. rewrite /prim_step. *)
+  (*   destruct (decomp e1) as [K1 e1'] eqn:Heq. *)
+  (*   destruct (decomp (fill _ e1)) as [K1' e1''] eqn:Heq'. *)
+  (*   apply (decomp_fill_comp K) in Heq; [|done]. *)
+  (*   rewrite Heq in Heq'; simplify_eq. *)
+  (*   rewrite dmap_comp. *)
+  (*   apply dmap_eq; [|done]. *)
+  (*   intros [] ? =>/=. *)
+  (*   f_equal. rewrite -fill_comp //. *)
+  (* Qed. *)
 
   (*
   Lemma fill_prim_step K e1 σ1 e2 σ2 :
