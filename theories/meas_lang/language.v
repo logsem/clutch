@@ -238,6 +238,7 @@ Section language.
     subst. eauto.
   Qed.
 
+  (** The following lemma is redundant, see fill_dmap *)
   Lemma fill_step_prob e1 σ1 e2 σ2 `{!LanguageCtx K} :
     to_val e1 = None →
     prim_step e1 σ1 (e2, σ2) = prim_step (K e1) σ1 (K e2, σ2).
@@ -245,21 +246,31 @@ Section language.
     intros Hv. rewrite fill_dmap //.
     by erewrite (dmap_elem_eq _ (e2, σ2) _ (λ '(e0, σ0), (K e0, σ0))).
   Qed.
-
-  Lemma reducible_fill `{!@LanguageCtx Λ K} e σ :
+   *)
+  
+  Lemma reducible_fill `{!@MeasLanguageCtx Λ K} e σ :
     reducible (e, σ) → reducible (K e, σ).
   Proof.
-    unfold reducible in *. intros [[] ?]. eexists; by apply fill_step.
-  Qed.
-  Lemma reducible_fill_inv `{!@LanguageCtx Λ K} e σ :
+    unfold reducible in *. intros H1 H2. apply H1. simpl in *.
+    erewrite fill_dmap in H2; last first.
+    { by eapply val_stuck. }
+    (** lemma about gMap is_zero *)
+  Admitted.
+
+  Lemma reducible_fill_inv `{!@MeasLanguageCtx Λ K} e σ :
     to_val e = None → reducible (K e, σ) → reducible (e, σ).
   Proof.
-    intros ? [[e1 σ1] Hstep]; unfold reducible.
-    rewrite /step /= in Hstep.
-    rewrite fill_dmap // in Hstep.
-    apply dmap_pos in Hstep as ([e1' σ2] & ? & Hstep).
-    eauto.
+    rewrite /reducible. simpl.
+    intros H'.
+    erewrite fill_dmap; last done.
+    intros H1 H2. apply H1.
+    rewrite /is_zero in H2.
+    rewrite H2.
+    by rewrite gZero_map.
+    (* TODO: make measure_eq work with rewrite *)
   Qed.
+  
+  (*
   Lemma state_step_reducible e σ σ' α :
     state_step σ α σ' > 0 → reducible (e, σ) ↔ reducible (e, σ').
   Proof. apply state_step_not_stuck. Qed.
@@ -272,15 +283,16 @@ Section language.
     - intros σ σ'. rewrite iterM_Sn. rewrite dbind_pos. elim.
       intros x [??]. pose proof state_step_reducible. naive_solver.
   Qed.
+*)
 
-  Lemma irreducible_fill `{!@LanguageCtx Λ K} e σ :
+  Lemma irreducible_fill `{!@MeasLanguageCtx Λ K} e σ :
     to_val e = None → irreducible (e, σ) → irreducible (K e, σ).
   Proof. rewrite -!not_reducible. naive_solver eauto using reducible_fill_inv. Qed.
-  Lemma irreducible_fill_inv `{!@LanguageCtx Λ K} e σ :
+  Lemma irreducible_fill_inv `{!@MeasLanguageCtx Λ K} e σ :
     irreducible (K e, σ) → irreducible (e, σ).
   Proof. rewrite -!not_reducible. naive_solver eauto using reducible_fill. Qed.
 
-  Lemma not_stuck_fill_inv K `{!@LanguageCtx Λ K} e σ :
+  Lemma not_stuck_fill_inv K `{!@MeasLanguageCtx Λ K} e σ :
     not_stuck (K e, σ) → not_stuck (e, σ).
   Proof.
     rewrite /not_stuck /is_final /to_final /= -!not_eq_None_Some.
@@ -289,10 +301,10 @@ Section language.
     - destruct (decide (to_val e = None)); eauto using reducible_fill_inv.
   Qed.
 
-  Lemma stuck_fill `{!@LanguageCtx Λ K} e σ :
+  Lemma stuck_fill `{!@MeasLanguageCtx Λ K} e σ :
     stuck (e, σ) → stuck (K e, σ).
   Proof. rewrite -!not_not_stuck. eauto using not_stuck_fill_inv. Qed.
-*)
+
 
   Record pure_step (e1 e2 : expr Λ)  := {
     pure_step_safe σ1 : ¬ (is_zero (prim_step (e1, σ1)));

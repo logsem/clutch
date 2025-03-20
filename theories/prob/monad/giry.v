@@ -352,6 +352,10 @@ Section giry_is_zero.
   Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
 
   Definition is_zero {d} {T : measurableType d} (s : giryM T) : Prop := s ≡μ gZero.
+  
+  Global Instance is_zero_Proper {d} {T:measurableType d}:
+    Proper (measure_eq ==> iff) (@is_zero d T).
+  Proof. intros ?? ?. rewrite !/is_zero. by rewrite H. Qed.
 
   Lemma is_zero_gMap' (m : giryM T1) (f : T1 -> T2) (H : measurable_fun setT f) : is_zero m -> is_zero (gMap' f m).
   Proof.

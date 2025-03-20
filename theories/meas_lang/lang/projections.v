@@ -298,8 +298,8 @@ Proof.
       exists i; [done|].
       exists j; [done|].
       exists e.
-      - by rewrite -expr_shape_cyl //=.
-      - by rewrite -Hi.
+      + by rewrite -expr_shape_cyl //=.
+      + by rewrite -Hi.
     - move=> [??][??][??]<-.
       by eexists _; eexists _.
   }
@@ -352,8 +352,8 @@ Proof.
       exists i; [done|].
       exists j; [done|].
       exists e.
-      - by rewrite -expr_shape_cyl //=.
-      - by rewrite -Hi.
+      + by rewrite -expr_shape_cyl //=.
+      + by rewrite -Hi.
     - move=> [??][??][??]<-.
       by eexists _; eexists _.
   }
@@ -661,8 +661,8 @@ Proof.
       exists i; [done|].
       exists j; [done|].
       exists e.
-      - by rewrite -expr_shape_cyl //=.
-      - by rewrite -Hi.
+      + by rewrite -expr_shape_cyl //=.
+      + by rewrite -Hi.
     - move=> [??][??][??]<-.
       by eexists _; eexists _.
   }
@@ -715,8 +715,8 @@ Proof.
       exists i; [done|].
       exists j; [done|].
       exists e.
-      - by rewrite -expr_shape_cyl //=.
-      - by rewrite -Hi.
+      + by rewrite -expr_shape_cyl //=.
+      + by rewrite -Hi.
     - move=> [??][??][??]<-.
       by eexists _; eexists _.
   }
