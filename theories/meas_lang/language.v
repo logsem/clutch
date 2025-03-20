@@ -5,6 +5,7 @@ From stdpp Require Import base numbers binders strings gmap.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
+From clutch.prelude Require Import base.
 From clutch.bi Require Import weakestpre.
 From mathcomp.analysis Require Import reals measure ereal Rstruct.
 From clutch.prob.monad Require Export giry meas_markov.
@@ -149,6 +150,7 @@ Section language.
     { intros m T.
       unfold is_zero.
       (* [set: 0] is measurable in the Giry Monad. Prove me in Lean (preimage of [0 : R] by evaluations, extensionality) *)
+      rewrite /measurable/=.
       admit. }
     have X := (@step_meas (meas_lang_markov Λ) H is_zero).
     have X1 := X (H1 _ _).
@@ -180,15 +182,24 @@ Section language.
   Global Instance of_val_inj : Inj (=) (=) (@of_val Λ).
   Proof. by intros v v' Hv; apply (inj Some); rewrite -!to_of_val Hv. Qed.
 
-  (*
+  
   Lemma strongly_atomic_atomic e a :
     Atomic StronglyAtomic e → Atomic a e.
   Proof.
     unfold Atomic. destruct a; eauto.
-    intros ?????. eapply is_final_irreducible.
-    rewrite /is_final /to_final /=. eauto.
+    intros H ?.
+    eapply has_support_in_subset; last apply H.
+    - apply to_val_is_val_meas_set.
+    - apply irreducible_meas_set.
+    - rewrite /subset/to_val_is_val/irreducible.
+      intros [e' σ']. simpl.
+      intros [H1 _].
+      destruct (lem (is_zero (prim_step (e', σ')))) as [|H']; first done.
+      apply val_stuck in H'.
+      rewrite H' in H1.
+      rewrite /option_cov_Some in H1. simpl in H1.
+      naive_solver.
   Qed.
-  *)
 
   Lemma fill_step e σ `{!MeasLanguageCtx K} :
     (¬ is_zero (prim_step (e, σ))) ->
@@ -197,6 +208,9 @@ Section language.
     (* FIXME: is this true? *)
     intros Hs.
     rewrite fill_dmap; [| by eapply val_stuck].
+    intro Hs'. apply Hs.
+    rewrite /is_zero in Hs'.
+    (* strengthen gZero_map to allow sets other than setT *)
   Admitted.
 
   (*
@@ -296,6 +310,8 @@ Section language.
       eapply (fill_step _); first by apply H.
       by apply Hred. }
     { intros σ.
+      rewrite fill_dmap; last by eapply (val_stuck _ σ).
+      (* lemmas about gMap being determinant missing *)
       admit.
       (*
       rewrite -fill_step_prob //.
@@ -337,7 +353,7 @@ Section language.
     by apply (H' p).
   Qed.
 
-  (*
+  
   Lemma PureExec_reducible σ1 φ n e1 e2 :
     φ → PureExec φ (S n) e1 e2 → reducible (e1, σ1).
   Proof. move => Hφ /(_ Hφ). inversion_clear 1. apply H. Qed.
@@ -346,12 +362,10 @@ Section language.
     φ → PureExec φ (S n) e1 e2 → to_val e1 = None.
   Proof.
     intros Hφ Hex.
-    destruct (PureExec_reducible inhabitant _ _ _ _ Hφ Hex) => /=.
-    simpl in *.
+    pose proof (PureExec_reducible inhabitant _ _ _ _ Hφ Hex) as K.
     by eapply val_stuck.
   Qed.
 
-  *)
   
   (* This is a family of frequent assumptions for PureExec *)
   Class IntoVal (e : expr Λ) (v : val Λ) :=
