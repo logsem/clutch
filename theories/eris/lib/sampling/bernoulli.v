@@ -126,17 +126,17 @@ Section Bernoulli.
     move=> p Hp /=.
     rewrite SeriesC_finite_foldr //=.
   Qed.
-
-
-
-  Definition bernoulli : val := 
-    λ: "N" "M",
-      let: "x" := rand "M" in 
+  
+  
+  Definition bernoulli_tape : val := 
+    λ: "α" "N" "M",
+      let: "x" := rand("α") "M" in 
       if: "x" < "N" then #1 else #0.
 
+  Definition bernoulli : expr := (bernoulli_tape #())%E.
 
   Lemma twp_bernoulli_scale (N M : nat) (ε ε1 ε2 : R) :
-  (N <= S M)%nat ->
+  (N ≤ S M)%nat ->
   0 <= ε1 ->
   0 <= ε2 ->
   (ε1 * (1 - (N / S M))) + (ε2 * (N / S M)) = ε ->
@@ -150,7 +150,7 @@ Section Bernoulli.
   Proof.
     set p := N / S M.
     iIntros "%HNleM %ε1_pos %ε2_pos %Heq %Φ Herr HΦ".
-    rewrite /bernoulli.
+    rewrite /bernoulli /bernoulli_tape.
     wp_pures.
     iPoseProof (ec_valid with "Herr") as "%Hε".
     set ε' := {|nonneg := ε; cond_nonneg := proj1 Hε |}.
@@ -251,7 +251,7 @@ Section Bernoulli.
     [[{ v, RET v; ⌜v = #0⌝ ∨ ⌜v = #1⌝}]].
   Proof.
     iIntros "%Φ _ HΦ".
-    rewrite /bernoulli; wp_pures.
+    rewrite /bernoulli /bernoulli_tape; wp_pures.
     wp_apply (twp_rand with "[$]") as "%n _".
     wp_pures; case_bool_decide;
     wp_pures; iApply "HΦ"; auto.
@@ -277,16 +277,135 @@ Section Bernoulli.
     by iApply "HΦ".
   Qed.
 
-  Fixpoint is_bernoulli_translation (N M : nat) (v : list (fin 2)) (l : list (fin (S (S M)))) :=
+  Fixpoint is_bernoulli_translation (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :=
     match v, l with
     | [], [] => True
-    | 0%fin::vt, lh::lt => N ≤ lh ∧ is_bernoulli_translation N M vt lt
+    | 0%fin::vt, lh::lt => (N ≤ lh)%nat ∧ is_bernoulli_translation N M vt lt
     | 1%fin::vt, lh::lt => (lh < N)%nat ∧ is_bernoulli_translation N M vt lt
     | _, _ => False
     end.
-  
 
-  Theorem is_bernoulli_translation_dec (N M : nat) (v : list (fin 2)) (l : list (fin (S (S M)))) :
+  Fixpoint tape_to_bernoulli (N M : nat) (l : list (fin (S M))) : list (fin 2):=
+    match l with
+    | [] => []
+    | h::t => if bool_decide (N ≤ h)%nat
+              then 0%fin::tape_to_bernoulli N M t
+              else 1%fin::tape_to_bernoulli N M t
+    end.
+
+  Fixpoint bernoulli_to_tape (M : nat) (l : list (fin 2)) : list (fin (S M)):=
+    match l with
+    | [] => []
+    | 0%fin::t => (nat_to_fin (Nat.lt_succ_diag_r M))::bernoulli_to_tape M t
+    | _::t => 0%fin::bernoulli_to_tape M t
+    end.
+
+  Lemma tape_to_bernoulli_translation (N M : nat) :
+    ∀ (v : list (fin 2)) (l : list (fin (S M))),
+    is_bernoulli_translation N M v l ↔ v = tape_to_bernoulli N M l.
+  Proof.
+    move => v l.
+    elim: l v => [[|hv tv]|h t IHt [|hv tv]] /= //.
+    - inv_fin hv; last (move=>hv; inv_fin hv); done.
+    - inv_fin hv;
+        last (move=>hv; inv_fin hv);
+        last done;
+        case_bool_decide.
+      + rewrite IHt.
+        split.
+        * move=>[_ ->] //.
+        * move=> Heq. by injection Heq as ->.
+      + split.
+        * lia.
+        * move=> Heq. discriminate.
+      + split.
+        * lia.
+        * move=> Heq. discriminate.
+      + rewrite IHt.
+        split.
+        * move=>[_ ->] //.
+        * move=> Heq.
+          injection Heq as ->.
+          split; last done.
+          lia.
+  Qed.
+
+  Lemma tape_to_bernoulli_app (N M : nat) :
+    ∀ (l1 l2 : list (fin (S M))),
+    tape_to_bernoulli N M (l1 ++ l2) = tape_to_bernoulli N M l1 ++ tape_to_bernoulli N M l2.
+  Proof.
+    elim=>[|h1 t1 IHt1] l2 /= //.
+    rewrite IHt1 //.
+  Qed.
+    
+  Lemma length_tape_to_bernoulli (N M : nat) :
+    ∀ (l : list (fin (S M))), length (tape_to_bernoulli N M l) = length l.
+  Proof.
+    elim=>[// |h t /=].
+    case_bool_decide;
+      move=><- //.
+  Qed.
+
+  Lemma length_bernoulli_to_tape (M : nat) : ∀ (l : list (fin 2)), length (bernoulli_to_tape M l) = length l.
+  Proof.
+    elim=>[// |h t /=].
+    inv_fin h;
+      last (move=>v);
+      move=><- //.
+  Qed.
+
+  Lemma bernoulli_to_tape_to_bernoulli (N M : nat) :
+    (0 < N)%nat →
+    (N ≤ M)%nat →
+    ∀ (l : list (fin 2)), tape_to_bernoulli N M (bernoulli_to_tape M l) = l.
+  Proof.
+    move=> zero_lt_N N_le_M.
+    elim=>[// |h t IHt].
+    inv_fin h;
+      last (move=>h; inv_fin h; last (move=>h; inv_fin h));
+      simpl;
+      rewrite IHt;
+      first rewrite fin_to_nat_to_fin;
+      case_bool_decide;
+      done.
+  Qed.
+    
+  Lemma is_bernoulli_translation_app_0 (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :
+    ∀ (k : fin (S M)),
+    N ≤ k →
+    is_bernoulli_translation N M v l →
+    is_bernoulli_translation N M (v ++ [0%fin]) (l ++ [k]).
+  Proof.
+    move=> k N_le_k.
+    move: l.
+    induction v as [|hv v]; move=>[|hl l];  [done | contradiction|..].
+    - simpl.
+      inv_fin hv; first contradiction.
+      move=> hv.
+      inv_fin hv; contradiction.
+    - inv_fin hv; [|move=>hv; inv_fin hv]; last (move=>hv; inv_fin hv);
+        simpl;
+        move=>[Ht Htl] //.
+  Qed.
+
+  Lemma is_bernoulli_translation_app_1 (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :
+    ∀ (k : fin (S M)),
+    (k < N)%nat →
+    is_bernoulli_translation N M v l →
+    is_bernoulli_translation N M (v ++ [1%fin]) (l ++ [k]).
+  Proof.
+    move=> k N_le_k.
+    move: l.
+    induction v as [|hv v]; move=>[|hl l]; [done | contradiction |..].
+    - inv_fin hv; first contradiction.
+      move=> hv.
+      inv_fin hv; contradiction.
+    - inv_fin hv; [|move=>hv; inv_fin hv]; last (move=>hv; inv_fin hv);
+        simpl;
+        move=>[Ht Htl] //.
+  Qed.
+  
+  Theorem is_bernoulli_translation_dec (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :
     {is_bernoulli_translation N M v l} + {¬ is_bernoulli_translation N M v l}.
   Proof.
     apply (list_double_ind v l).
@@ -300,6 +419,116 @@ Section Bernoulli.
       + right; intro Hcontra; full_inv_fin; destruct Hcontra as [_ Hcontra]; auto.
   Qed.          
 
-  Definition own_bernoulli_tape α N M v := (∃ l, α ↪ (S M; l) ∗ ⌜is_bernoulli_translation N M v l⌝)%I.
+  Definition own_bernoulli_tape α N M v := (∃ l, α ↪ (M; l) ∗ ⌜is_bernoulli_translation N M v l⌝)%I.
 
+  Lemma twp_presample_bernoulli :
+    ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
+      (N M : nat) (ns : list (fin 2)),
+    to_val e = None
+    → own_bernoulli_tape α N M ns ∗
+    (own_bernoulli_tape α N M (ns ++ [0%fin]) -∗ WP e [{ Φ }]) ∗
+    (own_bernoulli_tape α N M (ns ++ [1%fin]) -∗ WP e [{ Φ }])
+      ⊢  WP e [{ Φ }]
+  .
+  Proof.
+    move=> e α Φ N M ns HNone.
+    iIntros "(Hα & H0 & H1)".
+    rewrite {1}/own_bernoulli_tape.
+    iDestruct "Hα" as "(%l & Hα & %Htl)".
+    wp_apply twp_presample; first done.
+    iFrame.
+    iIntros (k) "Htape".
+    case (decide (N ≤ k)) => [N_le_k | k_lt_N].
+    - iApply "H0".
+      rewrite /own_bernoulli_tape.
+      iExists _.
+      iFrame.
+      iPureIntro.
+      by apply: is_bernoulli_translation_app_0.
+    - iApply "H1".
+      rewrite /own_bernoulli_tape.
+      iExists _.
+      iFrame.
+      iPureIntro.
+      apply: is_bernoulli_translation_app_1;
+        [lia | done].
+  Qed.
+
+  Lemma twp_bernoulli_tape :
+    ∀ (N M : nat) (α : loc) (ns : list (fin 2)) (n : fin 2),
+    [[{ own_bernoulli_tape α N M (n::ns) }]]
+      bernoulli_tape (#lbl:α) #N #M
+      [[{ RET #n ; own_bernoulli_tape α N M ns }]].
+  Proof.
+    iIntros (N M α ns n Φ) "Htape HΦ".
+    rewrite /bernoulli_tape {1}/own_bernoulli_tape.
+    iDestruct "Htape" as "(%l & Hα & %Htl)".
+    case: l Htl => [Hcontra | h t Htl].
+    { inv_fin n; first done.
+      move => n.
+      inv_fin n; first done.
+      move => n.
+      inv_fin n.
+    } 
+    wp_pures.
+    wp_apply (twp_rand_tape with "Hα").
+    iIntros "Hα".
+    inv_fin n; simpl.
+    - move=> [N_le_h Htl].
+      wp_pures.
+      case_bool_decide; first lia.
+      wp_pures.
+      iModIntro.
+      iApply "HΦ".
+      by iFrame.
+    - intros n.
+      inv_fin n; last (intros n; inv_fin n).
+      move=> [k_lt_N Hlt].
+      wp_pures.
+      case_bool_decide; last lia.
+      wp_pures.
+      iModIntro.
+      iApply "HΦ".
+      by iFrame.
+  Qed.
+
+  Lemma twp_presample_bernoulli_planner :
+    ∀ (N M : nat) (e : expr) (ε : nonnegreal)
+      (L : nat) (α : loc) (Φ : val → iProp Σ)
+      (prefix : list (fin 2)) (suffix : list (fin 2) → list (fin 2)),
+    (0 < N)%nat →
+    (N < S M)%nat →
+    to_val e = None →
+    (∀ junk : list (fin 2),
+       (0 < length (suffix (prefix ++ junk)) <= L)%nat) →
+    0 < ε →
+    ↯ ε ∗ own_bernoulli_tape α N M prefix ∗
+    ( (∃ (junk : list (fin 2)), own_bernoulli_tape α N M (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e [{ Φ }]
+    ) ⊢ WP e [{ Φ }].
+  Proof.
+    rewrite /own_bernoulli_tape.
+    iIntros (N M e ε L α Φ prefix suffix zero_lt_N N_lt_SM e_not_val suff_bound ε_pos)
+      "(Herr & (%l & Hα & %Htl) & Hnext)".
+    set suffix2 := bernoulli_to_tape M ∘ suffix ∘ tape_to_bernoulli N M.
+    wp_apply (twp_presample_planner_pos _ M _ _ _ _ _ L l suffix2); try done.
+    {
+      move=>junk.
+      rewrite /suffix2 length_bernoulli_to_tape tape_to_bernoulli_app.
+      apply tape_to_bernoulli_translation in Htl as <-.
+      apply suff_bound.
+    }
+    iFrame.
+    iIntros "(%junk & Hα)".
+    iApply "Hnext".
+    iExists (tape_to_bernoulli N M junk), _.
+    iFrame.
+    iPureIntro.
+    apply tape_to_bernoulli_translation.
+    rewrite !tape_to_bernoulli_app.
+    apply tape_to_bernoulli_translation in Htl as ->.
+    do 2 f_equal.
+    rewrite -tape_to_bernoulli_app /suffix2 /=.
+    rewrite bernoulli_to_tape_to_bernoulli //.
+  Qed.
+  
 End Bernoulli. 

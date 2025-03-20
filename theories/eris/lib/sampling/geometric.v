@@ -13,7 +13,7 @@ Section Geometric.
     if: bernoulli "N" "M" = #1 then #0 else 
     #1 + "geometric" "N" "M"
   .
-About twp_rand_err_amp.
+  
   Lemma geometric_spec (N M k : nat) (Hlt : (N <= M)%nat) (p := N / (S M)) :
   [[{↯ (1 - (((1 - p)^k) * p))%R }]]
     geometric #N #M
