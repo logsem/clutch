@@ -118,6 +118,8 @@ Section giry_ret.
   (** Use bool_decide or as_bool? *)
   (* Axiom gRet_eval : forall S x (H: d.-measurable S), gRet x S = if (S x) then 1%E else 0%E. *)
 
+
+
 End giry_ret.
 
 Section giry_bind.
@@ -424,4 +426,5 @@ Section giry_is_det.
   Definition is_det (t : T) (μ : giryM T) : Prop :=
     has_support_in μ [set t].
 
+  Lemma is_det_dret (a : T) : is_det a (gRet a). Admitted.
 End giry_is_det.

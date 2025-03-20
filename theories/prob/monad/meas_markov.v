@@ -180,7 +180,7 @@ Section markov.
   Lemma stepN_meas (n : nat) : measurable_fun setT (stepN n).
   Proof. by apply gIter_meas_fun, step_meas. Qed.
 
-  Lemma stepN_O : stepN 0 = gRet.
+  Lemma stepN_0 : stepN 0 = gRet.
   Proof. done. Qed.
 
   Lemma stepN_Sn a n :
@@ -189,11 +189,13 @@ Section markov.
 
   Lemma stepN_1 a :
     stepN 1 a = step a.
-  Proof. rewrite stepN_Sn stepN_O. (* dret_id_right //. Qed. *)  Admitted.
+  Proof. rewrite stepN_Sn stepN_0. (* dret_id_right //. Qed. *)  Admitted.
 
   Lemma stepN_plus a (n m : nat) :
     stepN (n + m) a = gBind' (stepN m) (stepN n a) .
   Proof. Admitted.
+
+
 
   (*
     Generalize these ones to eval on sets?
@@ -207,12 +209,15 @@ Section markov.
     stepN n a1 a2 = 1 →
     stepN n a1 ≫= stepN m = stepN m a2.
   Proof. intros ->%pmf_1_eq_dret. rewrite dret_id_left //. Qed.
+*)
 
-  Lemma stepN_det_trans n m a1 a2 a3 :
-    stepN n a1 a2 = 1 →
-    stepN m a2 a3 = 1 →
-    stepN (n + m) a1 a3 = 1.
+  Lemma stepN_is_det_trans n m a1 a2 a3 :
+    is_det a2 (stepN n a1) →
+    is_det a3 (stepN m a2) →
+    is_det a3 (stepN (n + m) a1).
   Proof.
+  Admitted.
+  (*
     rewrite stepN_plus.
     intros ->%pmf_1_eq_dret.
     replace (dret a2 ≫= _)
