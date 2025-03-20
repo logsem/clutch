@@ -51,9 +51,12 @@ Section coupl_modalities.
   (P : probability T R) (X : T -> R) := (\int[P]_w (X w)%:E)%E.
 *)
 
+  Definition coe_nonnegreal_bar_R : nonnegreal -> \bar R := EFin \o nonneg.
+
   (* NOTE: le_ereal due to Scope clash with expressions. Move expval to its own file where this isn't the case. *)
 
-  Definition spec_coupl_pre (E : coPset) (Z : state Λ -> expr Λ -> state Λ -> nonnegreal -> iProp Σ) (Φ : state Λ * cfg Λ * nonnegreal → iProp Σ) :
+
+  Program Definition spec_coupl_pre (E : coPset) (Z : state Λ -> expr Λ -> state Λ -> nonnegreal -> iProp Σ) (Φ : state Λ * cfg Λ * nonnegreal → iProp Σ) :
       state Λ * cfg Λ * nonnegreal → iProp Σ :=
     (λ (x : state Λ * cfg Λ * nonnegreal),
        let '(σ1, (e1', σ1'), ε) := x in
@@ -61,7 +64,7 @@ Section coupl_modalities.
        (Z σ1 e1' σ1' ε) ∨
       (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
          (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
-           ⌜ ARcoupl_meas μ1 (gBind' (pexec n \o pair e1') μ1') S ε1 ⌝ ∗
+           ⌜ ARcoupl_meas μ1 (gBind' (pexec n \o pair e1') μ1') S (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
            ⌜∀ ρ, X2 ρ <= r⌝ ∗
            ⌜ (le_ereal (EFin (nonneg ε1)) (\int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) ⌝ ∗
            ⌜erasable μ1 σ1⌝ ∗
