@@ -15,10 +15,10 @@ Section Lemmas.
   Qed.
 
 
-  Lemma fmap_prop {A B : Type} (l : list A) (f : A -> B) (P1 : A -> Prop) (P2 : B -> Prop) :
-    (∀ a, P1 a -> P2 (f a)) ->
-    (∀ a, a ∈ l -> P1 a) ->
-    ∀ b, b ∈ (f <$> l) -> P2 b.
+  Lemma fmap_prop {A B : Type} (l : list A) (f : A → B) (P1 : A → Prop) (P2 : B → Prop) :
+    (∀ a, P1 a → P2 (f a)) →
+    (∀ a, a ∈ l → P1 a) →
+    ∀ b, b ∈ (f <$> l) → P2 b.
   Proof.
     move=> HPs.
     elim: l.
@@ -36,7 +36,7 @@ Section Lemmas.
   Qed.
 
   Lemma forall_list_eq {A : Type} (l : list A) (a : A) :
-    (∀ e, e ∈ l -> e = a) ->
+    (∀ e, e ∈ l → e = a) →
     l = repeat a (length l).
   Proof.
     add_hint @elem_of_list_here.
@@ -50,7 +50,7 @@ Section Lemmas.
     (λ x, if bool_decide (x < N)%nat then e1 else e2) <$> seq 0 N = repeat e1 N.
   Proof.
     set f := (λ x : nat, if bool_decide (x < N)%nat then e1 else e2).
-    assert (Heq: ∀ e, e ∈ f <$> seq 0 N -> e = e1). {
+    assert (Heq: ∀ e, e ∈ f <$> seq 0 N → e = e1). {
       apply (fmap_prop _ f (λ n, n < N)%nat).
       - move=> a Ha /=.
         rewrite /f bool_decide_eq_true_2 //.
@@ -65,7 +65,7 @@ Section Lemmas.
     (λ x, if bool_decide (x < N)%nat then e1 else e2) <$> seq N L = repeat e2 L.
   Proof.
     set f := (λ x : nat, if bool_decide (x < N)%nat then e1 else e2).
-    assert (Heq: ∀ e, e ∈ f <$> seq N L -> e = e2). {
+    assert (Heq: ∀ e, e ∈ f <$> seq N L → e = e2). {
       apply (fmap_prop _ f (λ n, n >= N)%nat) => a Ha.
       - rewrite /f bool_decide_eq_false_2 //.
       - by apply elem_of_seq in Ha as [].
@@ -83,7 +83,7 @@ Section Lemmas.
   Qed.
 
   Lemma SeriesC_case (N M : nat) (ε1 ε2 : R) :
-    (N <= S M)%nat ->
+    (N <= S M)%nat →
     SeriesC (
       λ x : fin (S M), 
       if bool_decide (fin_to_nat x < N)%nat
@@ -99,7 +99,7 @@ Section Lemmas.
     ).
     { reflexivity. }
     rewrite list_fmap_compose fin.enum_fin_seq.
-    assert (seq 0 (S M) = seq 0 N ++ seq N (S M - N)) as ->. 
+    assert (seq 0 (S M) = seq 0 N ++ seq N (S M - N)) as ->.
     { replace (S M)%nat with (N + (S M - N))%nat at 1 by lia.
       apply seq_app. }
     rewrite fmap_app foldr_plus_app Rplus_comm.
@@ -136,10 +136,10 @@ Section Bernoulli.
 
 
   Lemma twp_bernoulli_scale (N M : nat) (ε ε1 ε2 : R) :
-  (N <= S M)%nat ->
-  0 <= ε1 ->
-  0 <= ε2 ->
-  (ε1 * (1 - (N / S M))) + (ε2 * (N / S M)) = ε ->
+  (N <= S M)%nat →
+  0 <= ε1 →
+  0 <= ε2 →
+  (ε1 * (1 - (N / S M))) + (ε2 * (N / S M)) = ε →
   [[{↯ ε}]]
     bernoulli #N #M
   [[{
@@ -264,7 +264,7 @@ Section Bernoulli.
       (v1, v2)
     [[{ RET (#1, #1); True }]].
   Proof.
-    assert (0 <= p <= 1)%R as Hp. {
+    assert (0 <= p <= 1) as Hp. {
       split; subst p; simpl_expr.
     }
     iIntros "%Φ Herr HΦ".
@@ -284,22 +284,25 @@ Section Bernoulli.
     | 1%fin::vt, lh::lt => (lh < N)%nat ∧ is_bernoulli_translation N M vt lt
     | _, _ => False
     end.
-  
 
-  Theorem is_bernoulli_translation_dec (N M : nat) (v : list (fin 2)) (l : list (fin (S (S M)))) :
-    {is_bernoulli_translation N M v l} + {¬ is_bernoulli_translation N M v l}.
+
+  Definition is_bernoulli_translation_dec (N M : nat) (v : list (fin 2)) (l : list (fin (S (S M)))) :
+    Decision (is_bernoulli_translation N M v l).
   Proof.
-    apply (list_double_ind v l).
-    - simpl; auto. 
-    - move=> vh vt IH; inv_fin vh => //=.
-    - move=> vh vt IH //.
-    - move=> vh vt lh lt [IH | IH] /=.
-      + repeat (inv_fin vh; try intro vh).
-        * destruct (le_dec N lh); [left | right]; done.
-        * destruct (lt_dec lh N); [left | right]; done.
-      + right; intro Hcontra; full_inv_fin; destruct Hcontra as [_ Hcontra]; auto.
-  Qed.          
+    unfold Decision.
+    induction v, l as [|vh vt _ | lh lt _ | vh vt lh lt [IH | IH]] 
+      using list_double_ind; simpl; auto.
+    - inv_fin vh => //=.
+    - repeat (inv_fin vh; try intro vh);
+      [destruct (le_dec N lh) | destruct (lt_dec lh N)]; 
+      tauto.
+    - right; full_inv_fin; intros [_ Hcontra]; contradiction.
+  Qed.
+  Print is_bernoulli_translation_dec.
 
-  Definition own_bernoulli_tape α N M v := (∃ l, α ↪ (S M; l) ∗ ⌜is_bernoulli_translation N M v l⌝)%I.
+
+  Definition own_bernoulli_tape α N M v : iProp Σ := 
+    ∃ l, α ↪ (S M; l) ∗ ⌜is_bernoulli_translation N M v l⌝.
+
 
 End Bernoulli. 
