@@ -2,8 +2,7 @@ From clutch.eris Require Import eris.
 From clutch.eris.lib.sampling Require Import utils.
 Local Open Scope R.
 
-Local Ltac done ::= solve[lia || lra || nra || real_solver || tactics.done || auto].
-Ltac add_hint t := let n := fresh "hint" in have n := t.
+#[local] Ltac done ::= solve[lia || lra || nra || real_solver || tactics.done || auto].
 
 
 Section Lemmas.
@@ -154,13 +153,13 @@ Section TapeTranslation.
   Qed.
 
   Lemma is_bernoulli_translation_cons (N M : nat) (vh : fin 2) (vt : list (fin 2)) (lh : fin (S M)) (lt : list (fin (S M))):
-    is_bernoulli_translation N M (vh :: vt) (lh :: lt) ->
+    is_bernoulli_translation N M (vh :: vt) (lh :: lt) <->
     (vh = 0%fin ∧ (N ≤ lh)%nat ∧ is_bernoulli_translation N M vt lt) ∨
     (vh = 1%fin ∧ (lh < N)%nat ∧ is_bernoulli_translation N M vt lt)
   .
   Proof.
     rewrite is_bernoulli_translation_def.
-    intros [[[]|[]]]%Forall2_cons; done.
+    rewrite Forall2_cons; tauto.
   Qed.
   
 
@@ -188,40 +187,35 @@ Section TapeTranslation.
     ∀ (v : list (fin 2)) (l : list (fin (S M))),
     is_bernoulli_translation N M v l ↔ v = tape_to_bernoulli N M l.
   Proof.
-    setoid_rewrite is_bernoulli_translation_def. 
-    setoid_rewrite tape_to_bernoulli_def.
     move => v l.
     elim: l v => [[|hv tv]|h t IHt [|hv tv]] /= //; split => H //;
-    [by apply Forall2_length in H..| |].
+    [apply is_bernoulli_translation_nil | by apply Forall2_length in H..| |].
     - destruct (IHt tv) as [IHt1 IHt2]. 
       apply Forall2_cons in H as [[[-> HNleh] | [-> HhltN] ] Hforall].
       + rewrite bool_decide_eq_true_2 // -IHt1 //.
       + rewrite bool_decide_eq_false_2 // -IHt1 //.
-    - case:H => -> ->. 
-      rewrite Forall2_cons; split; last by apply IHt. 
+    - case:H => -> ->.
+      rewrite is_bernoulli_translation_cons;
       destruct (decide (N ≤ h))%nat as [HNleh | HhltN%not_le].
-      + rewrite bool_decide_eq_true_2 //.
-      + rewrite bool_decide_eq_false_2 //.
+      + rewrite IHt bool_decide_eq_true_2 //.
+      + rewrite IHt bool_decide_eq_false_2 //.
   Qed.
 
   Lemma tape_to_bernoulli_app (N M : nat) :
     ∀ (l1 l2 : list (fin (S M))),
     tape_to_bernoulli N M (l1 ++ l2) = tape_to_bernoulli N M l1 ++ tape_to_bernoulli N M l2.
   Proof.
-    setoid_rewrite tape_to_bernoulli_def.
     apply map_app.
   Qed.
     
   Lemma length_tape_to_bernoulli (N M : nat) :
     ∀ (l : list (fin (S M))), length (tape_to_bernoulli N M l) = length l.
   Proof.
-    setoid_rewrite tape_to_bernoulli_def.
     apply map_length.
   Qed.
 
   Lemma length_bernoulli_to_tape (M : nat) : ∀ (l : list (fin 2)), length (bernoulli_to_tape M l) = length l.
   Proof.
-    setoid_rewrite bernoulli_to_tape_def.
     apply map_length.
   Qed.
 
@@ -230,8 +224,6 @@ Section TapeTranslation.
     (N ≤ M)%nat →
     ∀ (l : list (fin 2)), tape_to_bernoulli N M (bernoulli_to_tape M l) = l.
   Proof.
-    setoid_rewrite tape_to_bernoulli_def.
-    setoid_rewrite bernoulli_to_tape_def.
     move=> zero_lt_N N_le_M.
     elim=>[// |h t IHt].
     inv_fin h;
@@ -249,7 +241,6 @@ Section TapeTranslation.
     is_bernoulli_translation N M v l →
     is_bernoulli_translation N M (v ++ [0%fin]) (l ++ [k]).
   Proof.
-    setoid_rewrite is_bernoulli_translation_def.
     move=> k N_le_k H.
     apply Forall2_app =>//.
   Qed.
@@ -260,7 +251,6 @@ Section TapeTranslation.
     is_bernoulli_translation N M v l →
     is_bernoulli_translation N M (v ++ [1%fin]) (l ++ [k]).
   Proof.
-    setoid_rewrite is_bernoulli_translation_def.
     move=> k k_lt_N H.
     apply Forall2_app =>//.
   Qed.
