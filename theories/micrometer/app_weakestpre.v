@@ -11,7 +11,7 @@ From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.meas_lang Require Export language erasable.
 From clutch.meas_lang Require Export meas_spec_update.
 From clutch.prob.monad Require Export couplings_app.
-From clutch.bi Require Import weakestpre.
+From clutch.bi Require Export weakestpre.
 (*  From clutch.prob Require Export couplings_app distribution. *)
 From Coq Require Import ssrfun.
 
@@ -364,11 +364,11 @@ Section coupl_modalities.
 
   *)
 
-  (** * [prog_coupl] *)
+  (** * [meas_prog_coupl] *)
 
-  (** The [prog_coupl] modality allows us to coupl *exactly* one program step with any number of
+  (** The [meas_prog_coupl] modality allows us to coupl *exactly* one program step with any number of
       spec execution steps and an erasable distribution *)
-  Definition prog_coupl (e1 : exprO Λ) (σ1 : stateO Λ) (e1' : exprO Λ) σ1' (ε : NNRO) Z : iProp Σ :=
+  Definition meas_prog_coupl (e1 : exprO Λ) (σ1 : stateO Λ) (e1' : exprO Λ) σ1' (ε : NNRO) Z : iProp Σ :=
     ∃ (R : cfg Λ → cfg Λ → Prop) (n : nat) (μ1' : giryM (state Λ))
       (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : nonnegreal),
       ⌜reducible (e1, σ1)⌝ ∗
@@ -380,9 +380,9 @@ Section coupl_modalities.
 
   (*
     Not sure about this one either
-  Lemma prog_coupl_strong_mono e1 σ1 e1' σ1' Z1 Z2 ε :
+  Lemma meas_prog_coupl_strong_mono e1 σ1 e1' σ1' Z1 Z2 ε :
     (∀ e2 σ2 e2' σ2' ε', ⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∗ Z1 e2 σ2 e2' σ2' ε' -∗ Z2 e2 σ2 e2' σ2' ε') -∗
-    prog_coupl e1 σ1 e1' σ1' ε Z1 -∗ prog_coupl e1 σ1 e1' σ1' ε Z2.
+    meas_prog_coupl e1 σ1 e1' σ1' ε Z1 -∗ meas_prog_coupl e1 σ1 e1' σ1' ε Z2.
   Proof.
     iIntros "Hm (%R & %n & %μ1' & %ε1 & %X2 & %r & % & % & % & % & % & Hcnt) /=".
     iExists _, _, _, _, _, _.
@@ -397,26 +397,26 @@ Section coupl_modalities.
   Qed.
 *)
 
-  Lemma prog_coupl_mono e1 σ1 e1' σ1' Z1 Z2 ε :
+  Lemma meas_prog_coupl_mono e1 σ1 e1' σ1' Z1 Z2 ε :
     (∀ e2 σ2 e2' σ2' ε', Z1 e2 σ2 e2' σ2' ε' -∗ Z2 e2 σ2 e2' σ2' ε') -∗
-    prog_coupl e1 σ1 e1' σ1' ε Z1 -∗ prog_coupl e1 σ1 e1' σ1' ε Z2.
+    meas_prog_coupl e1 σ1 e1' σ1' ε Z1 -∗ meas_prog_coupl e1 σ1 e1' σ1' ε Z2.
   Proof. Admitted.
   (*
     iIntros "Hm".
-    iApply prog_coupl_strong_mono.
+    iApply meas_prog_coupl_strong_mono.
     iIntros (?????) "[_ H]". by iApply "Hm".
   Qed.
 
-  Lemma prog_coupl_strengthen e1 σ1 e1' σ1' Z ε :
-    prog_coupl e1 σ1 e1' σ1' ε Z -∗
-    prog_coupl e1 σ1 e1' σ1' ε (λ e2 σ2 e2' σ2' ε', ⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∧ Z e2 σ2 e2' σ2' ε').
+  Lemma meas_prog_coupl_strengthen e1 σ1 e1' σ1' Z ε :
+    meas_prog_coupl e1 σ1 e1' σ1' ε Z -∗
+    meas_prog_coupl e1 σ1 e1' σ1' ε (λ e2 σ2 e2' σ2' ε', ⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∧ Z e2 σ2 e2' σ2' ε').
   Proof.
-    iApply prog_coupl_strong_mono. iIntros (?????) "[$ $]".
+    iApply meas_prog_coupl_strong_mono. iIntros (?????) "[$ $]".
   Qed. *)
 
-  Lemma prog_coupl_ctx_bind K `{!LanguageCtx K} e1 σ1 e1' σ1' Z ε:
+  Lemma meas_prog_coupl_ctx_bind K `{!LanguageCtx K} e1 σ1 e1' σ1' Z ε:
     to_val e1 = None →
-    prog_coupl e1 σ1 e1' σ1' ε (λ e2, Z (K e2)) -∗ prog_coupl (K e1) σ1 e1' σ1' ε Z.
+    meas_prog_coupl e1 σ1 e1' σ1' ε (λ e2, Z (K e2)) -∗ meas_prog_coupl (K e1) σ1 e1' σ1' ε Z.
   Proof.
     iIntros (Hv) "(%R & %n & %μ1' & %ε1 & %X2 & %r & % & % & % & % & % & Hcnt) /=".
 
@@ -459,13 +459,13 @@ Section coupl_modalities.
     by iApply "Hcnt".
   Admitted.
 
-  Lemma prog_coupl_steps ε2 ε1 ε R e1 σ1 e1' σ1' Z :
+  Lemma meas_prog_coupl_steps ε2 ε1 ε R e1 σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
     reducible (e1, σ1) →
     reducible (e1', σ1') →
     ARcoupl_meas (prim_step (e1, σ1)) (prim_step (e1', σ1')) R (0)%R (EFin (nonneg ε1)) →
     (∀ e2 σ2 e2' σ2', ⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' ε2)
-    ⊢ prog_coupl e1 σ1 e1' σ1' ε Z.
+    ⊢ meas_prog_coupl e1 σ1 e1' σ1' ε Z.
   Proof.
     iIntros (-> Hred Hred' Hcpl) "Hcnt".
     iExists _, 1%nat, (gRet σ1'), ε1, (λ _, ε2), ε2.
@@ -481,13 +481,13 @@ Section coupl_modalities.
     done.
   Qed. *)
 
-  Lemma prog_coupl_step_l_erasable ε2 ε1 μ1' ε R e1 σ1 e1' σ1' Z :
+  Lemma meas_prog_coupl_step_l_erasable ε2 ε1 μ1' ε R e1 σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
     reducible (e1, σ1) →
     ARcoupl_meas (prim_step (e1, σ1)) μ1' R (0)%R (EFin (nonneg ε1)) →
     erasable μ1' σ1' →
     (∀ e2 σ2 σ2', ⌜R (e2, σ2) σ2'⌝ ={∅}=∗ Z e2 σ2 e1' σ2' ε2)
-    ⊢ prog_coupl e1 σ1 e1' σ1' ε Z.
+    ⊢ meas_prog_coupl e1 σ1 e1' σ1' ε Z.
   Proof.
     iIntros (-> ? ? ?) "H".
     iExists (λ ρ2 '(e2', σ2'), R ρ2 σ2' ∧ e2' = e1'), 0%nat, μ1', ε1, (λ _, ε2), ε2.
@@ -508,15 +508,15 @@ Section coupl_modalities.
     by iApply "H".
   Qed.   *)
 
-  Lemma prog_coupl_step_l_dret ε2 ε1 ε R e1 σ1 e1' σ1' Z :
+  Lemma meas_prog_coupl_step_l_dret ε2 ε1 ε R e1 σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
     reducible (e1, σ1) →
     ARcoupl_meas (prim_step (e1, σ1)) (gRet σ1') R (0)%R (EFin (nonneg ε1)) →
     (∀ e2 σ2, ⌜R (e2, σ2) σ1'⌝ ={∅}=∗ Z e2 σ2 e1' σ1' ε2)
-    ⊢ prog_coupl e1 σ1 e1' σ1' ε Z.
+    ⊢ meas_prog_coupl e1 σ1 e1' σ1' ε Z.
   Proof.
     iIntros (-> ? ?) "H".
-    iApply (prog_coupl_step_l_erasable _ _ (gRet (σ1'))); [done|done|..].
+    iApply (meas_prog_coupl_step_l_erasable _ _ (gRet (σ1'))); [done|done|..].
   Admitted.
   (*
     { by apply ARcoupl_pos_R. }
@@ -526,13 +526,13 @@ Section coupl_modalities.
   Qed. *)
 
   (* Unsure
-  Lemma prog_coupl_step_l e1 σ1 e1' σ1' ε Z :
+  Lemma meas_prog_coupl_step_l e1 σ1 e1' σ1' ε Z :
     reducible (e1, σ1) →
     (∀ e2 σ2, ⌜prim_step (e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ Z e2 σ2 e1' σ1' ε)
-    ⊢ prog_coupl e1 σ1 e1' σ1' ε Z.
+    ⊢ meas_prog_coupl e1 σ1 e1' σ1' ε Z.
   Proof.
     iIntros (?) "H".
-    iApply (prog_coupl_step_l_dret ε 0%NNR); [|done|..].
+    iApply (meas_prog_coupl_step_l_dret ε 0%NNR); [|done|..].
     { apply nnreal_ext => /=. lra. }
     { eapply ARcoupl_pos_R, ARcoupl_trivial.
       - by apply prim_step_mass.
@@ -541,8 +541,8 @@ Section coupl_modalities.
     by iApply "H".
   Qed.
 
-  Lemma prog_coupl_reducible e e' σ σ' Z ε :
-    prog_coupl e σ e' σ' ε Z -∗ ⌜reducible (e, σ)⌝.
+  Lemma meas_prog_coupl_reducible e e' σ σ' Z ε :
+    meas_prog_coupl e σ e' σ' ε Z -∗ ⌜reducible (e, σ)⌝.
   Proof. by iIntros "(%&%&%&%&%&%&%&%& _)". Qed.
 
   *)
@@ -559,7 +559,7 @@ Definition wp_pre `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpG
         match to_val e1 with
         | Some v => |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 ∗ Φ v
         | None =>
-            prog_coupl e1 σ2 e2' σ2' ε2 (λ e3 σ3 e3' σ3' ε3,
+            meas_prog_coupl e1 σ2 e2' σ2' ε2 (λ e3 σ3 e3' σ3' ε3,
                 ▷ meas_spec_coupl ∅ σ3 e3' σ3' ε3 (λ σ4 e4' σ4' ε4,
                     |={∅, E}=> state_interp σ4 ∗ spec_interp (e4', σ4') ∗ err_interp ε4 ∗ wp E e3 Φ))
       end))%I.
@@ -574,7 +574,7 @@ Admitted.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? [? ?]]. rewrite /meas_spec_coupl_pre.
   do 5 f_equiv.
-  rewrite /prog_coupl.
+  rewrite /meas_prog_coupl.
   do 27 f_equiv.
   f_contractive.
   apply least_fixpoint_ne_outer; [|done].
@@ -618,7 +618,7 @@ Proof. Admitted. (*
   rewrite !wp_unfold /wp_pre /=.
   do 10 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
-  intros ? [? [? ?]]. rewrite /meas_spec_coupl_pre /prog_coupl.
+  intros ? [? [? ?]]. rewrite /meas_spec_coupl_pre /meas_prog_coupl.
   do 32 f_equiv.
   f_contractive_fin.
   apply least_fixpoint_ne_outer; [|done].
@@ -644,7 +644,7 @@ Proof. Admitted. (*
   do 10 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? [? ?]]. rewrite /meas_spec_coupl_pre.
-  rewrite /prog_coupl.
+  rewrite /meas_prog_coupl.
   do 31 f_equiv.
   f_contractive.
   apply least_fixpoint_ne_outer; [|done].
@@ -690,7 +690,7 @@ Proof. Admitted. (*
     iMod "Hclose'". iMod "Hclose".
     by iMod "Hσ". }
   iApply meas_spec_coupl_ret.
-  iApply (prog_coupl_mono with "[HΦ Hclose] H").
+  iApply (meas_prog_coupl_mono with "[HΦ Hclose] H").
   iIntros (e2 σ3 e3' σ3' ε3) "H !>".
   iApply (meas_spec_coupl_mono with "[HΦ Hclose] H"); [done|].
   iIntros (σ4 e4' σ4' ε4) "> ($ & $ & $ & H)".
@@ -743,8 +743,8 @@ Proof. Admitted. (*
   iIntros (σ2 e2' σ2' ε2) "H".
   destruct (to_val e) as [v|] eqn:?.
   { iDestruct "H" as "> ($ & $ & $ & $)". }
-  iDestruct (prog_coupl_strengthen with "H") as "H".
-  iApply (prog_coupl_mono with "[] H").
+  iDestruct (meas_prog_coupl_strengthen with "H") as "H".
+  iApply (meas_prog_coupl_mono with "[] H").
   iIntros (?????) "[[% %Hstep] H] !>".
   iApply (meas_spec_coupl_bind with "[] H"); [done|].
   iIntros (????) "H".
@@ -762,7 +762,7 @@ Proof. Admitted. (*
   + iMod ("H" with "[$]") as "H". iModIntro.
     iApply (meas_spec_coupl_mono with "[] H"); [done|].
     iIntros (????) "H".
-    iDestruct (prog_coupl_reducible with "H") as %[ρ Hr].
+    iDestruct (meas_prog_coupl_reducible with "H") as %[ρ Hr].
     pose proof (atomic _ _ _ Hstep) as [? Hval].
     apply val_stuck in Hr. simplify_eq.
 Qed. *)
@@ -777,7 +777,7 @@ Proof. Admitted. (*
   iModIntro.
   iApply (meas_spec_coupl_mono with "[HR] H"); [done|].
   iIntros (σ2 e2' σ2' ε2) "H".
-  iApply (prog_coupl_mono with "[HR] H").
+  iApply (meas_prog_coupl_mono with "[HR] H").
   iIntros (e3 σ3 e3' σ3' ε3) "H !>".
   iApply (meas_spec_coupl_mono with "[HR] H"); [done|].
   iIntros (σ4 e4' σ4' ε4) "H".
@@ -806,8 +806,8 @@ Proof. Admitted. (*
     by iMod ("H" with "[$]"). }
   rewrite fill_not_val /=; [|done].
   iApply meas_spec_coupl_ret.
-  iApply prog_coupl_ctx_bind; [done|].
-  iApply (prog_coupl_mono with "[] H").
+  iApply meas_prog_coupl_ctx_bind; [done|].
+  iApply (meas_prog_coupl_mono with "[] H").
   iIntros (e3 σ3 e3' σ3' ε3) "H !>".
   iApply (meas_spec_coupl_mono with "[] H"); [done|].
   iIntros (σ4 e4' σ4' ε4) "H".
@@ -855,7 +855,7 @@ Proof.
     iMod "Hclose".
     by iFrame. }
   iApply meas_spec_coupl_ret.
-  iApply (prog_coupl_mono with "[] H").
+  iApply (meas_prog_coupl_mono with "[] H").
   iIntros (e2 σ3 e3' σ3' ε3) "H !>".
   iApply (meas_spec_coupl_mono with "[] H"); [done|].
   iIntros (σ4 e4' σ4' ε4) "> ($ & $ & $ & H)".
@@ -939,7 +939,6 @@ End wp.
 
 (** * Proofmode class instances *)
 Section proofmode_classes.
-  (*
   Context `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val Λ → iProp Σ.
@@ -1017,7 +1016,5 @@ Section proofmode_classes.
     iIntros (?) "[HP Hcnt]".
     iDestruct (spec_updateN_implies_spec_update with "HP") as "> HP".
     by iApply "Hcnt".
-  Qed.
-*)
-*)
+  Qed. *)
 End proofmode_classes.
