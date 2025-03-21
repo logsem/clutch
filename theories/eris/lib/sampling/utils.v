@@ -3,7 +3,9 @@ From clutch.eris.lib.sampling Require Export list_double_ind.
 
 Local Open Scope R.
 
-
+Local Ltac done ::= 
+  solve[lia || lra || nra || real_solver || tactics.done || auto].
+  
 Lemma ec_contradict_lt0 `{!erisGS Σ} (ε : R) : (ε < 0)%R -> ↯ ε ⊢ False.
 Proof.
   iIntros "%ε_nonpos Herr".
@@ -13,18 +15,17 @@ Ltac cred_contra :=
     match goal with 
     | |- context[↯ 0] => 
           iAssert (False)%I as "[]";
-          iApply ec_contradict_lt0; last iFrame; done
+          iApply ec_contradict_lt0; last iFrame; try done
     | |- context[↯ (1 - _)%R] => 
           iAssert (False)%I as "[]";
-          iApply ec_contradict_lt0; last iFrame; done
+          iApply ec_contradict_lt0; last iFrame; try done
     | |- context[↯ _] => 
           iAssert (False)%I as "[]";
-          iApply ec_contradict; last iFrame; done
+          iApply ec_contradict; last iFrame; try done
     end.
   
 
-Local Ltac done ::= 
-  solve[cred_contra || lia || lra || nra || real_solver || tactics.done || auto].
+
 Ltac add_hint t := let n := fresh "hint" in have n := t.
 
 Set Printing Coercions.

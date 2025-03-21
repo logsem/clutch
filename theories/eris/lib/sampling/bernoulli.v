@@ -2,7 +2,7 @@ From clutch.eris Require Import eris.
 From clutch.eris.lib.sampling Require Import utils.
 Local Open Scope R.
 
-Local Ltac done ::= lia || lra || nra || real_solver || tactics.done || auto.
+Local Ltac done ::= solve[lia || lra || nra || real_solver || tactics.done || auto].
 Ltac add_hint t := let n := fresh "hint" in have n := t.
 
 
