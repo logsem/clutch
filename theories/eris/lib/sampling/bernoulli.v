@@ -318,18 +318,17 @@ Section Bernoulli.
     { unfold f. rewrite SeriesC_scal_l. rewrite Rmult_comm.
       simpl_expr.
       Opaque INR.
-      rewrite /= -Heq Rmult_plus_distr_l -!Rmult_assoc.
-      Transparent INR. 
-      rewrite (Rmult_comm _ ε1) (Rmult_comm _ ε2) !Rmult_assoc.
-      rewrite Rmult_div_assoc (Rmult_comm _ N) -Rmult_div_assoc.
-      rewrite Rdiv_diag; last apply INR_S_not_0.
-      rewrite Rmult_plus_distr_l Ropp_mult_distr_r_reverse.
-      rewrite Rmult_div_assoc (Rmult_comm _ N) -Rmult_div_assoc.
-      rewrite Rdiv_diag; last apply INR_S_not_0.
-      rewrite -Rminus_def.
+      setoid_rewrite ssrbool.fun_if.
+      rewrite /= -Heq SeriesC_case //=.
+      unfold p.
+      rewrite !Rmult_plus_distr_l.
+      assert (S M > 0) by apply pos_INR_S.
+      rewrite -(Rmult_assoc (S M) ε2 _) -(Rmult_comm ε2 (S M)) (Rmult_assoc ε2 (S M) _).
       simpl_expr.
-      setoid_rewrite ssrbool.fun_if; cbv [nonneg ε1' ε2'].
-      by apply SeriesC_case. }
+      rewrite -(Rmult_assoc (S M) ε1 _) -(Rmult_comm ε1 (S M)).
+      simpl_expr.
+      rewrite -!Ropp_mult_distr_r Rmult_assoc.
+      simpl_expr. }
     wp_pures.
     unfold f. repeat case_bool_decide; wp_pures; try lia.
     - iApply ("HΦ" $! 1)%nat; auto.

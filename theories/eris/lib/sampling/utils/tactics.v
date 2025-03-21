@@ -1,14 +1,16 @@
 From clutch.eris Require Import eris.
+From clutch.eris.lib.sampling.utils Require Import lemmas.
 
-Local Open Scope R.
+#[local] Open Scope R.
 
 Ltac add_hint t := let n := fresh "hint" in have n := t.
-  
-Lemma ec_contradict_lt0 `{!erisGS Σ} (ε : R) : (ε < 0)%R -> ↯ ε ⊢ False.
-Proof.
-  iIntros "%ε_nonpos Herr".
-  iPoseProof (ec_valid with "Herr") as "[%Hε _]". lra.
-Qed.
+
+Ltac extract_val_eq :=
+  repeat match goal with 
+  | H : #?n = #?m |- _ => injection H as H
+  | H : Z.of_nat _ = Z.of_nat _ |- _ => apply Nat2Z.inj in H
+  end.
+
 Ltac cred_contra := 
     match goal with 
     | |- context[↯ 0] => 
@@ -21,23 +23,6 @@ Ltac cred_contra :=
           iAssert (False)%I as "[]";
           iApply ec_contradict; last iFrame; try done
     end.
-  
-
-
-Set Printing Coercions.
-
-
-Lemma INR_S_not_0 (n : nat) : 
-  INR (S n) ≠ 0.
-Proof.
-  Set Printing Coercions.
-  intros Heq.
-  assert (S n ≠ 0)%nat as Heq' by lia.
-  by apply Heq', INR_eq.
-  Unset Printing Coercions. 
-Qed.
-
-
 
 Ltac find_contra :=
   solve
@@ -46,6 +31,8 @@ Ltac find_contra :=
   | match goal with 
     | H : ¬ _ |- _ => exfalso; apply H; by eauto
     end ].
+  
+
 
 Ltac full_inv_fin :=
   repeat match goal with 
@@ -56,17 +43,14 @@ Ltac full_inv_fin :=
     end
   end;
   try (reflexivity || find_contra).
-Ltac extract_val_eq :=
-  repeat match goal with 
-  | H : #?n = #?m |- _ => injection H as H
-  | H : Z.of_nat _ = Z.of_nat _ |- _ => apply Nat2Z.inj in H
-  end.
 
 Ltac simpl_expr :=
   repeat (
       match goal with 
-      | |- context[(?v * (_ * /?v))] => 
-            rewrite !Rmult_div_assoc Rmult_div_r
+      | |- context[(?v1 * (?v2 * /?v1))] => 
+            rewrite (Rmult_div_assoc v1 v2 v1) (Rmult_div_r v1 v2)
+      | |- context[((?v1 * ?v2) * /?v1)] => 
+            rewrite (Rmult_div_r v1 v2)
 
       | |- ?n * _ < ?n * _ => apply Rmult_lt_compat_l
       | |- ?n * _ <= ?n * _ => apply Rmult_le_compat_l
@@ -79,6 +63,9 @@ Ltac simpl_expr :=
       | |- _ * /?n < _  => apply (Rmult_lt_reg_l n)
       | |- _ * /?n <= _  => apply (Rmult_le_reg_l n)
       | |- _ * /?n = _  => apply (Rmult_eq_reg_l n)
+
+      | |- _ + ?n = _ + ?n => apply (Rplus_eq_compat_r n)
+      | |- ?n + _ = ?n + _ => apply (Rplus_eq_compat_l n)
       end ||
       rewrite Rplus_0_l || rewrite Rplus_0_r ||
       rewrite Rmult_1_l || rewrite Rmult_1_r ||
@@ -95,35 +82,4 @@ Ltac simpl_expr :=
       solve[apply INR_S_not_0]
     ).
 
-Lemma Rmult_le_1_le_r (r1 r2 : R) :
-  0 <= r1 <= 1 -> 
-  0 <= r2 ->
-  0 <= r1 * r2 <= r2.
-Proof.
-  real_solver.
-Qed.
-
-Lemma Rmult_le_1_le_l (r1 r2 : R) :
-  0 <= r1 <= 1 -> 
-  0 <= r2 ->
-  0 <= r2 * r1 <= r2.
-Proof.
-  real_solver.
-Qed.
-
-Lemma Rmult_le_1 (r1 r2 : R) :
-  0 <= r1 <= 1 -> 
-  0 <= r2 <= 1 ->
-  0 <= r1 * r2 <= 1.
-Proof.
-  real_solver.
-Qed.
-
-Lemma Rpow_le_1 (r : R) (k : nat) :
-  0 <= r <= 1 -> 
-  0 <= r ^ k <= 1.
-Proof.
-  elim: k => [|n IH] /=; real_solver.
-Qed.
-
-  
+Search (_ = _ -> _ + ?a = _ + ?a).
