@@ -17,6 +17,36 @@ Section adequacy.
 End adequacy.
 
 
+Lemma foxtrot_adequacy_intermediate Σ `{foxtrotGpreS Σ} (ε:R) ϕ n e e' :
+  (0 <= ε)%R -> 
+  (∀ `{foxtrotGS Σ}, ⊢ ↯ ε -∗ 0%nat ⤇ e' -∗ WP e {{ v, ∃ v', 0%nat ⤇ Val v' ∗ ⌜ ϕ v v' ⌝ }}) ->
+  ∀ sch_int_σ `(Countable sch_int_σ) sch ζ `{!TapeOblivious sch_int_σ sch} σ σ' ε',
+  ε'>0 ->
+  ∃ `(Countable sch_int_σ') sch' ζ' `(!TapeOblivious sch_int_σ' sch'),
+     ARcoupl (sch_exec sch n (ζ, ([e], σ))) (sch_lim_exec sch' (ζ', ([e'], σ'))) ϕ (ε + ε').
+Proof.
+  intros Heps Hwp.
+  intros. 
+  eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
+  iIntros (Hinv) "_".
+  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
+  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
+  iMod (spec_ra_init e σ) as (HspecGS) "(Hs & Hj & ?)".
+  destruct (decide (ε < 1)) as [? | K%Rnot_lt_le].
+  - set ε_nonneg := mknonnegreal _ Heps.
+    iMod (ec_alloc ε_nonneg) as (?) "[HE He]"; [done|].
+    set (HfoxtrotGS := HeapG Σ _ _ _ γH γT HspecGS _).
+    admit.
+    (* iApply (wp_adequacy_step_fupdN ε'). *)
+    (* iFrame "Hh Ht Hs HE". *)
+    (* by iApply (Hwp with "[Hj] [He]"). *)
+  - iApply fupd_mask_intro; [done|]; iIntros "_".
+    iApply step_fupdN_intro; [done|]; iModIntro.
+    iPureIntro. eexists unit, _, _, inhabitant, inhabitant, _.
+    apply ARcoupl_1.
+    simpl in *. lra.
+Admitted.
+
 Definition termination_prob cfg sch_int_σ ζ `{Countable sch_int_σ} sch `{!TapeOblivious sch_int_σ sch} :=
   SeriesC (sch_lim_exec sch (ζ, cfg)).
 
@@ -58,16 +88,6 @@ Definition termination_n_prob' n e σ (r:R) :=
       (projT1 $ projT2 $ (projT2 p).2)
       (projT1 $ projT2 $ projT2 $ (projT2 p).2)
       (projT2 $ projT2 $ projT2 $ (projT2 p).2) = r.
-
-Lemma foxtrot_adequacy_intermediate Σ `{foxtrotGpreS Σ} (ε:R) ϕ e e' :
-  (0 <= ε)%R -> 
-  (∀ `{foxtrotGS Σ}, ⊢ ↯ ε -∗ 0%nat ⤇ e' -∗ WP e {{ v, ∃ v', 0%nat ⤇ Val v' ∗ ⌜ ϕ v v' ⌝ }}) ->
-  ∀ sch_int_σ `(Countable sch_int_σ) sch ζ `{!TapeOblivious sch_int_σ sch} σ σ' n ε',
-  ε'>0 ->
-  ∃ `(Countable sch_int_σ') sch' ζ' `(!TapeOblivious sch_int_σ' sch'),
-     ARcoupl (sch_exec sch n (ζ, ([e], σ))) (sch_lim_exec sch' (ζ', ([e'], σ'))) ϕ (ε + ε').
-Proof.
-Admitted.
 
 Definition lub_termination_prob e σ:= (Lub_Rbar (termination_prob' e σ)).
 Definition lub_termination_n_prob n e σ:= (Lub_Rbar (termination_n_prob' n e σ)).
@@ -112,7 +132,7 @@ Proof.
       { eapply (is_finite_bounded 0 1).
       - eapply Sup_seq_minor_le. apply pmf_pos.
       - apply upper_bound_ge_sup. intros. apply pmf_le_1. }
-      etrans; last eapply sup_is_upper_bound; done.
+      etrans; last apply sup_is_upper_bound. done.
     + 
     pose proof Lub_Rbar_correct (termination_prob' e σ) as H'.
     rewrite /is_lub_Rbar in H'.
@@ -151,9 +171,6 @@ Lemma foxtrot_adequacy Σ `{foxtrotGpreS Σ} ϕ e e' σ σ' :
   Rbar_le (lub_termination_prob e σ) (lub_termination_prob e' σ').
 Proof.
   intros Hwp.
-  epose proof foxtrot_adequacy_intermediate Σ 0 ϕ e e' _ _ as Hwp'. Unshelve.
-  2: { done. }
-  2: { iIntros. by iApply Hwp. }
   rewrite lub_termination_sup_seq_termination_n.
   apply upper_bound_ge_sup.
   intros n.
@@ -161,8 +178,11 @@ Proof.
   rewrite /termination_prob'.
   intros r [(sch_int_σ&ζ&Heqdecision&Hcountable&sch&Htape) <-].
   simpl.
-  intros ε Hε. 
-  epose proof Hwp' sch_int_σ Heqdecision Hcountable sch ζ Htape σ σ' n ε Hε as
+  intros ε Hε.
+  epose proof foxtrot_adequacy_intermediate Σ 0 ϕ n e e' _ _ as Hwp'. Unshelve.
+  2: { done. }
+  2: { iIntros. by iApply Hwp. }
+  epose proof Hwp' sch_int_σ Heqdecision Hcountable sch ζ Htape σ σ' ε Hε as
     (sch_int_σ'&Heqdeicision'&Hcountable'&sch'&ζ'&Htape'&Hcoupl).
   apply ARcoupl_mass_leq in Hcoupl.
   replace (0+_) with ε in Hcoupl by lra.

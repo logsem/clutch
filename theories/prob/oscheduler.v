@@ -10,6 +10,8 @@ Section oscheduler.
       oscheduler_f :> (osch_state * mdpstate δ) -> option (distr (osch_state * mdpaction δ))
     }.
   
+  (* Instance oscheduler_inhabited : Inhabited (oscheduler) := populate ( {| oscheduler_f := inhabitant |} ). *)
+  
   (** Everything below is dependent on an instance of a scheduler (and an mdp) 0*)
   Context (osch:oscheduler).
 
@@ -94,6 +96,7 @@ Section oscheduler.
       osch_pexec n a1 ≫= osch_pexec m = osch_pexec m a2.
     Proof. intros ->%pmf_1_eq_dret. rewrite dret_id_left //. Qed.
 
+    (* osch_exec returns whole configuration if final or nothing else to step*)
     
     Fixpoint osch_exec (n:nat) (ρ : osch_state * mdpstate δ) {struct n} : distr (osch_state * mdpstate δ) :=
       let '(osch_σ, mdp_σ) := ρ in
@@ -578,7 +581,571 @@ Section oscheduler.
           apply (SeriesC_le _ (osch_exec n a)); auto.
           intro v; destruct (ϕ v); real_solver.
     Qed.
+
+    (* osch_exec_val returns the val if final *)
     
+    Fixpoint osch_exec_val (n:nat) (ρ : osch_state * mdpstate δ) {struct n} : distr (mdpstate_ret δ) :=
+      let '(osch_σ, mdp_σ) := ρ in
+      match to_final mdp_σ, osch ρ, n with
+      | Some b, _, _ => dret b
+      | None, None, _ => dzero
+      | None, Some μ, 0 => dzero
+      | None, Some μ, S n => μ ≫= (λ '(osch_σ', mdp_a),
+                                    (step mdp_a mdp_σ) ≫=
+                                      (λ mdp_σ', osch_exec_val n (osch_σ', mdp_σ')))
+                                      
+      end.
+
+    Lemma osch_exec_val_is_final ρ b n :
+      to_final ρ.2 = Some b → osch_exec_val n ρ = dret b.
+    Proof. destruct ρ, n; simpl; by intros ->. Qed.
+
+    Lemma osch_exec_val_not_final_None ρ n :
+      to_final ρ.2 = None -> osch ρ = None → osch_exec_val n ρ = dzero.
+    Proof. destruct ρ, n; simpl; repeat case_match; naive_solver. Qed.
+
+    Lemma osch_exec_val_Sn a n :
+      osch_exec_val (S n) a = osch_step_or_final_or_none a ≫= osch_exec_val n.
+    Proof.
+      rewrite /osch_step_or_final_or_none /=.
+      destruct a. simpl. rewrite /osch_step.
+      repeat case_match; try done.
+      - rewrite dret_id_left -/osch_exec.
+        by erewrite osch_exec_val_is_final.
+      - simpl.
+        rewrite -dbind_assoc.
+        apply dbind_ext_right.
+        intros [??]. rewrite /dmap.
+        rewrite -dbind_assoc.
+        apply dbind_ext_right.
+        intros. by rewrite dret_id_left.
+      - rewrite dret_id_left -/osch_exec.
+        rewrite /osch_exec. simpl.
+        by erewrite osch_exec_val_not_final_None. 
+    Qed.
+    
+    Lemma osch_exec_val_plus a n1 n2 :
+      osch_exec_val (n1 + n2) a = osch_pexec n1 a ≫= osch_exec_val n2.
+    Proof.
+      revert a. induction n1.
+      - intro a. rewrite osch_pexec_O dret_id_left //.
+      - intro a. replace ((S n1 + n2)%nat) with ((S (n1 + n2))); auto.
+        rewrite osch_exec_val_Sn osch_pexec_Sn.
+        apply distr_ext.
+        intro.
+        rewrite -dbind_assoc.
+        rewrite /pmf/=/dbind_pmf.
+        by setoid_rewrite IHn1.
+    Qed.
+
+    Lemma osch_exec_val_pexec_relate a n:
+      osch_exec_val n a = osch_pexec n a ≫=
+                       (λ e, match to_final e.2 with
+                             | Some b => dret b
+                             | _ => dzero
+                             end).
+    Proof.
+      revert a.
+      induction n; intros [].
+      - simpl. rewrite osch_pexec_O.
+        rewrite dret_id_left'.
+        repeat case_match; naive_solver.
+      - simpl. rewrite osch_pexec_Sn.
+        rewrite -dbind_assoc'.
+        case_match eqn:H.
+        + erewrite osch_step_or_final_or_none_is_final; last by eapply to_final_Some_2. 
+          rewrite dret_id_left'.
+          rewrite osch_pexec_is_final; last by eapply to_final_Some_2.
+          rewrite dret_id_left'. rewrite H. done.
+        + case_match.
+          * rewrite /osch_step_or_final_or_none/osch_step/=.
+            repeat case_match; try done.
+            simplify_eq.
+            rewrite -dbind_assoc. apply dbind_ext_right.
+            intros [??].
+            rewrite -dbind_assoc.
+            apply dbind_ext_right.
+            intros ?.
+            by rewrite dret_id_left.
+          * rewrite osch_step_or_final_or_none_is_none; last done.
+            rewrite dret_id_left. rewrite -IHn.
+            by rewrite osch_exec_val_not_final_None.
+    Qed.
+
+    
+    Lemma osch_exec_val_mono a n v :
+      osch_exec_val n a v <= osch_exec_val (S n) a v.
+    Proof.
+      apply refRcoupl_eq_elim.
+      move : a.
+      induction n.
+      - intros [].
+        apply refRcoupl_from_leq.
+        intros b. rewrite /distr_le /=.
+        by repeat case_match.
+      - intros []; do 2 rewrite osch_exec_val_Sn.
+        eapply refRcoupl_dbind; [|apply refRcoupl_eq_refl].
+        by intros ? ? ->.
+    Qed.
+
+    Lemma osch_exec_val_mono' ρ n m v :
+      n ≤ m → osch_exec_val n ρ v <= osch_exec_val m ρ v.
+    Proof.
+      eapply (mon_succ_to_mon (λ x, osch_exec_val x ρ v)).
+      intro. apply osch_exec_val_mono.
+    Qed.
+
+    Lemma osch_exec_val_mono_term a b n m :
+      SeriesC (osch_exec_val n a) = 1 →
+      n ≤ m →
+      osch_exec_val m a b = osch_exec_val n a b.
+    Proof.
+      intros Hv Hleq.
+      apply Rle_antisym; [ |by apply osch_exec_val_mono'].
+      destruct (decide (osch_exec_val m a b <= osch_exec_val n a b))
+        as [|?%Rnot_le_lt]; [done|].
+      exfalso.
+      assert (1 < SeriesC (osch_exec_val m a)); last first.
+      - assert (SeriesC (osch_exec_val m a) <= 1); [done|]. lra.
+      - rewrite -Hv.
+        apply SeriesC_lt; eauto.
+        intros b'. by split; [|apply osch_exec_val_mono'].
+    Qed.
+
+    Lemma osch_pexec_exec_val_le_final n a a' b :
+      to_final a'.2 =Some b->
+      osch_pexec n a a' <= osch_exec_val n a b.
+    Proof.
+      intros.
+      revert a. induction n; intros a.
+      - rewrite osch_pexec_O.
+        destruct (decide (a = a')) as [->|].
+        + erewrite osch_exec_val_is_final; last done.
+          rewrite !dret_1_1 //.
+        + rewrite dret_0 //.
+      - rewrite osch_exec_val_Sn osch_pexec_Sn.
+        destruct (decide (is_final a.2)) as [|].
+        + erewrite osch_step_or_final_or_none_is_final; last done.
+          rewrite 2!dret_id_left -/osch_exec.
+          apply IHn.
+        + rewrite /osch_step_or_final_or_none.
+          repeat case_match; try done.
+          * rewrite !dret_id_left'. naive_solver.
+          * rewrite /dbind/dbind_pmf{1 4}/pmf/=.
+            apply SeriesC_le.
+            -- intros. split; real_solver.
+            -- apply pmf_ex_seriesC_mult_fn.
+               naive_solver.
+          * by rewrite !dret_id_left'.
+    Qed.
+
+    Lemma osch_pexec_exec_val_det n a a' b :
+      to_final a'.2 = Some b →
+      osch_pexec n a a' = 1 → osch_exec_val n a b = 1.
+    Proof.
+      intros Hf.
+      pose proof (osch_pexec_exec_val_le_final n a a' b Hf).
+      pose proof (pmf_le_1 (osch_exec_val n a) b).
+      lra.
+    Qed.
+
+    Lemma osch_exec_val_pexec_val_neq_le n m a a' b b' :
+      to_final a'.2 = Some b' ->
+      b ≠ b' → osch_exec_val m a b + osch_pexec n a a' <= 1.
+    Proof.
+      intros Hf Hneq.
+      etrans; [by eapply Rplus_le_compat_l, osch_pexec_exec_val_le_final|].
+      etrans; [apply Rplus_le_compat_l, (osch_exec_val_mono' _ n (n `max` m)), Nat.le_max_l|].
+      etrans; [apply Rplus_le_compat_r, (osch_exec_val_mono' _ m (n `max` m)), Nat.le_max_r|].
+      etrans; [|apply (pmf_SeriesC (osch_exec_val (n `max` m) a))].
+      apply pmf_plus_neq_SeriesC.
+      intro. simplify_eq.
+    Qed.
+
+    Lemma osch_pexec_exec_val_det_neg n m a a1 b b' :
+      to_final a1.2 = Some b →
+      osch_pexec n a a1 = 1 →
+      b' ≠ b →
+      osch_exec_val m a b' = 0.
+    Proof.
+      intros Hf  Hexec Hv.
+      epose proof (osch_exec_val_pexec_val_neq_le n m a _ _ _ Hf _) as Hle.
+      Unshelve.
+      2: { done. }
+      2:{ done. }
+      rewrite Hexec in Hle.
+      pose proof (pmf_pos (osch_exec_val m a) b').
+      simpl in *.
+      lra.
+    Qed.
+
+    Lemma is_finite_Sup_seq_osch_exec_val a b :
+      is_finite (Sup_seq (λ n, osch_exec_val n a b)).
+    Proof.
+      apply (Rbar_le_sandwich 0 1).
+      - by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+      - by apply upper_bound_ge_sup=>/=.
+    Qed.
+
+    Lemma is_finite_Sup_seq_SeriesC_osch_exec_val a :
+      is_finite (Sup_seq (λ n, SeriesC (osch_exec_val n a))).
+    Proof.
+      apply (Rbar_le_sandwich 0 1).
+      - by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+      - by apply upper_bound_ge_sup=>/=.
+    Qed.
+
+    (** * Full evaluation (limit of stratification) *)
+    Definition osch_lim_exec_val (ρ : osch_state * mdpstate δ) :=
+      lim_distr (λ n, osch_exec_val n ρ) (osch_exec_val_mono ρ).
+
+    
+    Lemma osch_lim_exec_val_unfold a b :
+      osch_lim_exec_val a b = Sup_seq (λ n, (osch_exec_val n a) b).
+    Proof. apply lim_distr_pmf. Qed.
+
+    Lemma osch_lim_exec_val_Sup_seq a :
+      SeriesC (osch_lim_exec_val a) = Sup_seq (λ n, SeriesC (osch_exec_val n a)).
+    Proof.
+      erewrite SeriesC_ext; last first.
+      { intros ?. rewrite osch_lim_exec_val_unfold //. }
+      erewrite MCT_seriesC; eauto.
+      - intros. apply osch_exec_val_mono.
+      - intros. by eapply SeriesC_correct.
+      - rewrite (Rbar_le_sandwich 0 1).
+        + apply Sup_seq_correct.
+        + by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+        + by apply upper_bound_ge_sup=>/=.
+    Qed.
+
+    Lemma osch_lim_exec_val_step a :
+      osch_lim_exec_val a = osch_step_or_final_or_none a ≫= osch_lim_exec_val.
+    Proof.
+      apply distr_ext.
+      intro b.
+      rewrite {2}/pmf /= /dbind_pmf.
+      rewrite osch_lim_exec_val_unfold.
+      setoid_rewrite osch_lim_exec_val_unfold.
+      assert
+        (SeriesC (λ a', osch_step_or_final_or_none a a' * Sup_seq (λ n, osch_exec_val n a' b)) =
+         SeriesC (λ a', Sup_seq (λ n, osch_step_or_final_or_none a a' * osch_exec_val n a' b))) as ->.
+      { apply SeriesC_ext; intro b'.
+        apply eq_rbar_finite.
+        rewrite rmult_finite.
+        rewrite (rbar_finite_real_eq).
+        - rewrite -Sup_seq_scal_l //.
+        - apply (Rbar_le_sandwich 0 1).
+          + by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+          + by apply upper_bound_ge_sup=>/=. }
+      rewrite (MCT_seriesC _ (λ n, osch_exec_val (S n) a b) (osch_lim_exec_val a b)) //.
+      - intros. by apply Rmult_le_pos.
+      - intros.
+        apply Rmult_le_compat; [done|done|done|].
+        apply osch_exec_val_mono.
+      - intros a'.
+        exists (osch_step_or_final_or_none a a').
+        intros n.
+        rewrite <- Rmult_1_r. by apply Rmult_le_compat_l.
+      - intro n.
+        rewrite osch_exec_val_Sn.
+        rewrite {3}/pmf/=/dbind_pmf.
+        apply SeriesC_correct.
+        apply (ex_seriesC_le _ (osch_step_or_final_or_none a)); [|done].
+        intros a'. split.
+        + by apply Rmult_le_pos.
+        + rewrite <- Rmult_1_r. by apply Rmult_le_compat_l.
+      - rewrite osch_lim_exec_val_unfold.
+        rewrite mon_sup_succ.
+        + rewrite (Rbar_le_sandwich 0 1).
+          * apply Sup_seq_correct.
+          * by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+          * by apply upper_bound_ge_sup=>/=.
+        + intro; apply osch_exec_val_mono.
+    Qed.
+
+    Lemma osch_lim_exec_val_pexec n a :
+      osch_lim_exec_val a = osch_pexec n a ≫= osch_lim_exec_val.
+    Proof.
+      move : a.
+      induction n; intro a.
+      - rewrite osch_pexec_O dret_id_left //.
+      - rewrite osch_pexec_Sn -dbind_assoc/=.
+        rewrite osch_lim_exec_val_step.
+        apply dbind_eq; [|done].
+        intros ??. apply IHn.
+    Qed.
+
+    Lemma osch_lim_exec_val_det_final n a a' b :
+      to_final a'.2 = Some b →
+      osch_pexec n a a' = 1 →
+      osch_lim_exec_val a = dret b.
+    Proof.
+      intros Hb Hpe.
+      apply distr_ext.
+      intro b'.
+      rewrite osch_lim_exec_val_unfold.
+      rewrite {2}/pmf /= /dret_pmf.
+      case_bool_decide; simplify_eq.
+      - apply Rle_antisym.
+        + apply finite_rbar_le; [eapply is_finite_Sup_seq_osch_exec_val|].
+          by apply upper_bound_ge_sup=>/=.
+        + apply rbar_le_finite; [eapply is_finite_Sup_seq_osch_exec_val|].
+          apply (Sup_seq_minor_le _ _ n)=>/=.
+          by erewrite osch_pexec_exec_val_det.
+      - rewrite -(sup_seq_const 0).
+        f_equal. apply Sup_seq_ext=> m.
+        destruct (pmf_pos (osch_exec_val m a) b') as [|<-]; last done.
+        assert (osch_exec_val n a b = 1)%R as K1.
+        { apply Rle_antisym; first done.
+          rewrite -Hpe.
+          by eapply osch_pexec_exec_val_le_final.
+        }
+        destruct (Nat.le_ge_cases n m).
+        + erewrite <-osch_exec_val_mono_term in K1; last exact.
+          * assert (SeriesC (λ x, if bool_decide (x ∈ [b; b']) then osch_exec_val m a x else 0) <=1)%R as K2.
+            { trans (SeriesC (osch_exec_val m a)); last done.
+              apply SeriesC_le; last done.
+              intros. by case_match.
+            }
+            rewrite SeriesC_list in K2.
+            -- simpl in K2.
+               rewrite K1 in K2.
+               lra.
+            -- apply NoDup_cons; split; last apply NoDup_singleton.
+               set_solver.
+          * by erewrite <-pmf_1_eq_SeriesC.
+        + assert (osch_exec_val n a b' = 0)%R as K2; last first.
+          { destruct (pmf_pos (osch_exec_val m a) b') as [|]; last lra.
+            exfalso.
+            assert (osch_exec_val m a b'<=osch_exec_val n a b')%R.
+            - by eapply osch_exec_val_mono'.
+            - lra.
+          }
+          erewrite osch_exec_val_mono_term in K1; last reflexivity.
+          * assert (SeriesC (λ x, if bool_decide (x ∈ [b; b']) then osch_exec_val n a x else 0) <=1)%R as K2.
+            { trans (SeriesC (osch_exec_val n a)); last done.
+              apply SeriesC_le; last done.
+              intros. by case_match.
+            }
+            rewrite SeriesC_list in K2.
+            -- simpl in K2.
+               assert (osch_exec_val n a b =1)%R as K3.
+               { apply Rle_antisym; first done.
+                 rewrite -K1.
+                 by apply osch_exec_val_mono'.
+               }
+               rewrite K3 in K2.
+               destruct (pmf_pos (osch_exec_val n a) b'); lra.
+            -- apply NoDup_cons; split; last apply NoDup_singleton.
+               set_solver.
+          * by erewrite <-pmf_1_eq_SeriesC.
+    Qed.
+
+    Lemma osch_lim_exec_val_final a b :
+      to_final a.2 = Some b →
+      osch_lim_exec_val a = dret b.
+    Proof.
+      intros. erewrite (osch_lim_exec_val_det_final 0%nat); [done|done|].
+      rewrite osch_pexec_O. by apply dret_1_1.
+    Qed.
+
+    Lemma osch_lim_exec_val_leq a b (r : R) :
+      (∀ n, osch_exec_val n a b <= r) →
+      osch_lim_exec_val a b <= r.
+    Proof.
+      intro Hexec.
+      rewrite osch_lim_exec_val_unfold.
+      apply finite_rbar_le; [apply is_finite_Sup_seq_osch_exec_val|].
+      by apply upper_bound_ge_sup=>/=.
+    Qed.
+
+    Lemma osch_lim_exec_val_leq_mass  a r :
+      (∀ n, SeriesC (osch_exec_val n a) <= r) →
+      SeriesC (osch_lim_exec_val a) <= r.
+    Proof.
+      intro Hm.
+      erewrite SeriesC_ext; last first.
+      { intros. rewrite osch_lim_exec_val_unfold //. }
+      erewrite (MCT_seriesC _ (λ n, SeriesC (osch_exec_val n a)) (Sup_seq (λ n, SeriesC (osch_exec_val n a)))); eauto.
+      - apply finite_rbar_le; [apply is_finite_Sup_seq_SeriesC_osch_exec_val|].
+        by apply upper_bound_ge_sup.
+      - apply osch_exec_val_mono.
+      - intros. by apply SeriesC_correct.
+      - rewrite (Rbar_le_sandwich 0 1).
+        + apply (Sup_seq_correct (λ n, SeriesC (osch_exec_val n a))).
+        + by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+        + by apply upper_bound_ge_sup=>/=.
+    Qed.
+
+    Lemma osch_lim_exec_val_term n a :
+      SeriesC (osch_exec_val n a) = 1 →
+      osch_lim_exec_val a = osch_exec_val n a.
+    Proof.
+      intro Hv.
+      apply distr_ext=> b.
+      rewrite osch_lim_exec_val_unfold.
+      apply Rle_antisym.
+      - apply finite_rbar_le; [apply is_finite_Sup_seq_osch_exec_val|].
+        rewrite -/pmf.
+        apply upper_bound_ge_sup.
+        intros n'.
+        destruct (decide (n <= n')) as [|?%Rnot_le_lt].
+        + right. apply osch_exec_val_mono_term; [done|]. by apply INR_le.
+        + apply osch_exec_val_mono'. apply INR_le. by left.
+      - apply rbar_le_finite; [apply is_finite_Sup_seq_osch_exec_val|].
+        apply (sup_is_upper_bound (λ m, osch_exec_val m a b) n).
+    Qed.
+
+    Lemma osch_lim_exec_val_pos a b :
+      osch_lim_exec_val a b > 0 → ∃ n, osch_exec_val n a b > 0.
+    Proof.
+      intros.
+      apply Classical_Pred_Type.not_all_not_ex.
+      intros H'.
+      assert (osch_lim_exec_val a b <= 0); [|lra].
+      apply osch_lim_exec_val_leq => n.
+      by apply Rnot_gt_le.
+    Qed.
+
+    Lemma osch_lim_exec_val_continuous_prob a ϕ r :
+      (∀ n, prob (osch_exec_val n a) ϕ <= r) →
+      prob (osch_lim_exec_val a) ϕ <= r.
+    Proof.
+      intro Hm.
+      rewrite /prob.
+      erewrite SeriesC_ext; last first.
+      { intro; rewrite osch_lim_exec_val_unfold; auto. }
+      assert
+        (forall v, (if ϕ v then real (Sup_seq (λ n0 : nat, osch_exec_val n0 a v)) else 0) =
+              (real (Sup_seq (λ n0 : nat, if ϕ v then osch_exec_val n0 a v else 0)))) as Haux.
+      { intro v.
+        destruct (ϕ v); auto.
+        rewrite sup_seq_const //.
+      }
+      assert
+        (is_finite (Sup_seq (λ n0 : nat, SeriesC (λ v, if ϕ v then osch_exec_val n0 a v else 0)))) as Hfin.
+      {
+        apply (Rbar_le_sandwich 0 1).
+        + apply (Sup_seq_minor_le _ _ 0%nat); simpl.
+          apply SeriesC_ge_0'.
+          intro v; destruct (ϕ v); auto.
+          lra.
+        + apply upper_bound_ge_sup; intro; simpl; auto.
+          apply (Rle_trans _ (SeriesC (osch_exec_val n a))); auto.
+          apply (SeriesC_le _ (osch_exec_val n a)); auto.
+          intro v; destruct (ϕ v); real_solver.
+      }
+      erewrite SeriesC_ext; last first.
+      {
+        intro; rewrite Haux //.
+      }
+      erewrite (MCT_seriesC _ (λ n, SeriesC (λ v, if ϕ v then osch_exec_val n a v else 0))
+                  (Sup_seq (λ n0 : nat, SeriesC (λ v, if ϕ v then osch_exec_val n0 a v else 0))));
+        auto.
+      - apply finite_rbar_le; auto.
+        apply upper_bound_ge_sup; auto.
+      - intros n v.
+        destruct (ϕ v); auto.
+        lra.
+      - intros n v.
+        destruct (ϕ v); [ apply osch_exec_val_mono | lra].
+      - intro v; destruct (ϕ v); exists 1; intro; auto; lra.
+      - intros n.
+        apply SeriesC_correct; auto.
+        apply (ex_seriesC_le _ (osch_exec_val n a)); auto.
+        intro v; destruct (ϕ v); real_solver.
+      - rewrite (Rbar_le_sandwich 0 1); auto.
+        + apply (Sup_seq_correct (λ n0 : nat, SeriesC (λ v, if ϕ v then osch_exec_val n0 a v else 0))).
+        + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
+          apply SeriesC_ge_0'.
+          intro v; destruct (ϕ v); real_solver.
+        + apply upper_bound_ge_sup; intro; simpl; auto.
+          apply (Rle_trans _ (SeriesC (osch_exec_val n a))); auto.
+          apply (SeriesC_le _ (osch_exec_val n a)); auto.
+          intro v; destruct (ϕ v); real_solver.
+    Qed.
+
+    Lemma osch_exec_exec_val a n:
+      osch_exec_val n a = osch_exec n a ≫= (λ '(_, a'), match to_final a' with
+                                                        | Some b => dret b
+                                                        | None => dzero
+                                                        end
+                            ).
+    Proof.
+      revert a.
+      induction n; intros [??]; simpl.
+      - repeat case_match.
+        + rewrite dret_id_left.
+          repeat case_match; by simplify_eq.
+        + by rewrite dbind_dzero.
+        + rewrite dret_id_left; repeat case_match; by simplify_eq.
+      - repeat case_match; try rewrite dret_id_left; repeat case_match; try by simplify_eq.
+        rewrite -dbind_assoc'. apply dbind_ext_right.
+        intros [??]. rewrite -dbind_assoc'. apply dbind_ext_right.
+        by intros.
+    Qed.
+
+    Lemma osch_lim_exec_exec_val a:
+      osch_lim_exec_val a = osch_lim_exec a ≫= (λ '(_, a'), match to_final a' with
+                                                        | Some b => dret b
+                                                        | None => dzero
+                                                        end
+                            ).
+    Proof.
+      apply distr_ext.
+      intros b.
+      apply Rle_antisym.
+      - apply osch_lim_exec_val_leq; intros n. rewrite osch_exec_exec_val.
+        rewrite /dbind/dbind_pmf{1 4}/pmf.
+        apply SeriesC_le.
+        + intros [??]. split.
+          * case_match; real_solver.
+          * apply Rmult_le_compat_r; first by case_match.
+            (* rewrite osch_lim_exec_unfold. *)
+            apply rbar_le_finite; last eapply Sup_seq_minor_le.
+            -- apply is_finite_Sup_seq_osch_exec.
+            -- done.
+        + apply pmf_ex_seriesC_mult_fn. naive_solver.
+      - trans (prob (osch_lim_exec a) (λ '(_, x), bool_decide (to_final x = Some b))).
+        + rewrite /prob. rewrite /dbind/dbind_pmf{1}/pmf.
+          right.
+          apply SeriesC_ext.
+          intros [??].
+          case_match; case_bool_decide; simplify_eq.
+          * rewrite dret_1_1; [lra|done].
+          * rewrite dret_0; first lra.
+            naive_solver.
+          * rewrite dzero_0; lra.
+        + apply osch_lim_exec_continuous_prob.
+          intros n.
+          revert a b.
+          induction n; intros a b.
+          * destruct a. simpl.
+            repeat case_match.
+            -- erewrite osch_lim_exec_val_final; last done.
+               destruct (decide (m0 = b)); simplify_eq.
+               ++ rewrite prob_dret_true; last by case_bool_decide.
+                  by rewrite dret_1_1.
+               ++ rewrite dret_0; last done.
+                  rewrite prob_dret_false; first done.
+                  case_bool_decide; try done. simplify_eq.
+            -- rewrite /prob. rewrite SeriesC_0; first done.
+               intros [??]; case_bool_decide; by try rewrite dzero_0.
+            -- rewrite prob_dret_false; first done.
+               case_bool_decide; last done.
+               simplify_eq.
+          * rewrite osch_exec_Sn.
+            rewrite prob_dbind.
+            trans (SeriesC
+                     (λ a0, 
+                        osch_step_or_final_or_none a a0 * osch_lim_exec_val a0 b )).
+            -- apply SeriesC_le; last apply pmf_ex_seriesC_mult_fn; last naive_solver.
+               intros [??]; split.
+               ++ intros. apply Rmult_le_pos; first done.
+                  apply prob_ge_0.
+               ++ by apply Rmult_le_compat_l.
+            -- by rewrite osch_lim_exec_val_step.
+    Qed.        
   End step.
 
 End oscheduler.

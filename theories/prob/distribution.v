@@ -1719,7 +1719,9 @@ Next Obligation. intros. rewrite SeriesC_0 //. lra. Qed.
 
 Section dzero.
   Context `{Countable A}.
-
+  
+  Global Instance distr_inhabited : Inhabited (distr A) := populate (dzero).
+  
   Lemma dzero_ext (μ : distr A) :
     (∀ a, μ a = 0) → μ = dzero.
   Proof. intros ?; by apply distr_ext. Qed.

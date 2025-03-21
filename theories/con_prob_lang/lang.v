@@ -3,7 +3,7 @@ From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
 From clutch.prelude Require Export stdpp_ext.
-From clutch.prob Require Export distribution mdp.
+From clutch.prob Require Export distribution mdp oscheduler.
 From clutch.common Require Export con_language con_ectx_language con_ectxi_language locations.
 From iris.prelude Require Import options.
 
@@ -1330,3 +1330,95 @@ Section sch_typeclasses.
   Qed.
   
 End sch_typeclasses.
+
+(* Program Instance TapeOblivious_inhabitant `{Countable sch_int_σ}: TapeOblivious sch_int_σ (@inhabitant _ scheduler_inhabited). *)
+(* Next Obligation. *)
+(*   naive_solver. *)
+(* Qed. *)
+
+Section osch_typeclasses.
+  Class oTapeOblivious `{Countable osch_int_σ} (osch : oscheduler (con_lang_mdp con_prob_lang) osch_int_σ) : Prop :=
+    otape_oblivious :
+     ∀ ζ ρ ρ', ρ.1 = ρ'.1 -> heap ρ.2 = heap ρ'.2 -> osch (ζ, ρ) = osch (ζ, ρ')
+  .
+  Global Arguments oTapeOblivious (_) {_ _} (_).
+
+  Lemma osch_tape_oblivious `{oTapeOblivious si osch} ζ ρ ρ' :
+    ρ.1 = ρ'.1 -> heap ρ.2 = heap ρ'.2 -> osch (ζ, ρ) = osch (ζ, ρ').
+  Proof.
+    apply otape_oblivious.
+  Qed.
+
+  Lemma osch_tape_oblivious_state_upd_tapes `{oTapeOblivious si osch} ζ α t σ es:
+    osch (ζ, (es, state_upd_tapes <[α:=t]> σ)) = osch (ζ, (es, σ)).
+  Proof.
+    apply osch_tape_oblivious; by simpl.
+  Qed.
+  
+End osch_typeclasses.
+
+Lemma osch_to_sch `{Countable osch_int_σ} (osch : oscheduler (con_lang_mdp con_prob_lang) osch_int_σ) `{Htape: !oTapeOblivious osch_int_σ osch} : ∃ (sch:scheduler (con_lang_mdp con_prob_lang) osch_int_σ), TapeOblivious osch_int_σ sch /\ ∀ x, sch_lim_exec sch x = osch_lim_exec_val osch x.
+Proof.
+  exists ({| scheduler_f := λ x, match osch x with Some d => d | _ => dzero end |}).
+  split.
+  - intros ?????. simpl. erewrite Htape; [|exact..]; done.
+  - intros [o m]; simpl.
+    apply distr_ext. intros v. apply Rle_antisym; simpl.
+    + apply sch_lim_exec_leq.
+      intros n.
+      revert o m.
+      induction n; intros o m.
+      * simpl. case_match; last (by rewrite dzero_0).
+        erewrite osch_lim_exec_val_final; last done; done.
+      * rewrite sch_exec_Sn.
+        erewrite osch_lim_exec_val_step.
+        rewrite /dbind/dbind_pmf{1 4}/pmf.
+        apply SeriesC_le.
+        -- intros [??]; split; first real_solver.
+           apply Rmult_le_compat; try done.
+           rewrite /sch_step_or_final/osch_step_or_final_or_none.
+           repeat case_match; try done.
+           ++ rewrite /sch_step/osch_step/=.
+              by case_match.
+           ++ rewrite /sch_step/=. repeat case_match; try simplify_eq.
+              by rewrite dbind_dzero dzero_0.
+        -- apply pmf_ex_seriesC_mult_fn. naive_solver.
+    + apply osch_lim_exec_val_leq.
+      intros n.
+      revert o m.
+      induction n; intros o m.
+      * simpl.
+        repeat case_match; [|by rewrite dzero_0..].
+        erewrite sch_lim_exec_final; last done; done.
+      * rewrite osch_exec_val_Sn.
+        erewrite sch_lim_exec_step.
+        rewrite /dbind/dbind_pmf{1 4}/pmf.
+        apply SeriesC_le.
+        -- intros [o' m']; split; first real_solver.
+           destruct (osch (o', m')) eqn :Heqn.
+           ++ apply Rmult_le_compat; try done.
+              rewrite /sch_step_or_final/osch_step_or_final_or_none.
+              repeat case_match; try done.
+              ** rewrite /sch_step/osch_step/=.
+                 by case_match.
+              **  rewrite /sch_step/=. repeat case_match; try simplify_eq.
+                  rewrite dret_0; first done. intro. simplify_eq. naive_solver.
+           ++ rewrite /sch_step_or_final/osch_step_or_final_or_none/sch_step/osch_step.
+              repeat case_match.
+              ** apply Rmult_le_compat_l; naive_solver.
+              ** admit.
+              ** admit.
+        -- apply pmf_ex_seriesC_mult_fn. naive_solver.
+Admitted.
+      
+    
+    
+    
+    
+
+(* Program Instance oTapeOblivious_inhabitant `{Countable sch_int_σ}: oTapeOblivious sch_int_σ (@inhabitant _ oscheduler_inhabited). *)
+(* Next Obligation. *)
+(*   naive_solver. *)
+(* Qed. *)
+
+
