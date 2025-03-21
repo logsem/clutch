@@ -1403,13 +1403,27 @@ Proof.
                  by case_match.
               **  rewrite /sch_step/=. repeat case_match; try simplify_eq.
                   rewrite dret_0; first done. intro. simplify_eq. naive_solver.
-           ++ rewrite /sch_step_or_final/osch_step_or_final_or_none/sch_step/osch_step.
+           ++ rewrite /sch_step_or_final/osch_step_or_final_or_none/sch_step/osch_step .
               repeat case_match.
               ** apply Rmult_le_compat_l; naive_solver.
-              ** admit.
-              ** admit.
+              ** rewrite /dbind/dbind_pmf{1 5}/pmf.
+                 apply Rmult_le_compat; try done.
+                 { apply SeriesC_ge_0'. intros [??]. simpl.
+                   real_solver.
+                 }
+                 apply SeriesC_le.
+                 --- intros [??]; split; first real_solver.
+                     apply Rmult_le_compat_r; first done.
+                     simpl. case_match; by simplify_eq.
+                 --- apply pmf_ex_seriesC_mult_fn. naive_solver.
+              ** destruct (decide (o=o'/\m=m')) as [[]|].
+                 --- simplify_eq. rewrite osch_exec_val_not_final_None; try done.
+                     rewrite dzero_0. rewrite Rmult_0_r. real_solver.
+                 --- rewrite dret_0; first rewrite Rmult_0_l; first real_solver.
+                     naive_solver.
         -- apply pmf_ex_seriesC_mult_fn. naive_solver.
-Admitted.
+Qed.
+
       
     
     
