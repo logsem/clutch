@@ -2,7 +2,6 @@ From clutch.eris Require Export eris.
 From clutch.eris.lib.sampling Require Import binomial. 
 
 Section NegativeBinomial.
-
   Context `{!erisGS Σ}.
 
   Parameter (B : val).
@@ -26,8 +25,7 @@ Section NegativeBinomial.
         let: "b" := B "p" "q" in
         if: "b" = #0
         then "negative_binomial" "r" + #1
-        else "negative_binomial" ("r" - #1)
-  .
+        else "negative_binomial" ("r" - #1).
 
   Definition negative_binom_prob (p q r k : nat) : R :=
     (choose (k + r - 1) k * (p / (q + 1))^r * (1 - p  / (q + 1))^k)%R.
@@ -35,6 +33,7 @@ Section NegativeBinomial.
   Lemma negative_binom_pos (p q r k : nat) : p ≤ (q + 1) → (0 <= negative_binom_prob p q r k)%R.
   Proof.
     intros Hpq.
+
     rewrite /negative_binom_prob.
     assert (0 <= q)%R by apply pos_INR.
     repeat apply Rmult_le_pos.
@@ -64,6 +63,28 @@ Section NegativeBinomial.
     lra.
   Qed.
 
+  Lemma negative_binom_prob_is_distr :
+    ∀ (p q r : nat),
+    p ≤ q + 1 →
+    SeriesC (negative_binom_prob p q r) = 1.
+  Admitted.
+  
+  Lemma ex_seriesC_negative_binom_prob :
+    ∀ (p q r : nat),
+    p ≤ q + 1 →
+    ex_seriesC (negative_binom_prob p q r).
+  Proof.
+    unfold ex_seriesC.
+    unfold is_seriesC.
+    intros p q r Hpq.
+    exists 1%R.
+    apply Series.is_series_Reals.
+    unfold infinite_sum.
+    intros ε Hε.
+  Admitted.
+
+  Print infinite_sum.
+  
   Lemma ec_negative_binom_split :
     ∀ (p q r : nat) (D : nat → R),
     let ε := SeriesC (λ k, negative_binom_prob p q (r + 1) k * D k)%R in
@@ -74,11 +95,7 @@ Section NegativeBinomial.
     (* True on paper proof, modulo convergence conditions, enough for now *)
   Admitted.
 
-  Lemma negative_binom_prob_is_distr :
-    ∀ (p q r : nat),
-    p ≤ q + 1 →
-    SeriesC (negative_binom_prob p q r) = 1.
-  Admitted.
+
   
   Lemma twp_negative_binomial_split :
     ∀ (p q : nat),
@@ -304,8 +321,8 @@ Section NegativeBinomial.
         iApply wp_wand_r.
         replace (S r : Z) with ((r + 1)%nat : Z); last lia.
         iSplitL "Herr".
-        { wp_apply ("IH" with "[] [] Herr").
-          2 : by iPureIntro.
+        { wp_apply ("IH" with "[] [] Herr"); first last.
+          { by iPureIntro. }
           { done. }
         }
         { iIntros (v) "(%k & -> & Herr)".
@@ -324,8 +341,8 @@ Section NegativeBinomial.
         iApply wp_wand_r.
         replace (S r - 1)%Z with (r : Z); last lia.
         iSplitL "Herr".
-        { wp_apply ("IH" with "[] [] Herr").
-          2 : by iPureIntro.
+        { wp_apply ("IH" with "[] [] Herr"); first last.
+          { by iPureIntro. }
           { done. }
         }
         { iIntros (v) "(%k & -> & Herr)".
@@ -336,7 +353,6 @@ Section NegativeBinomial.
         }
       }
   Qed.
-
-
+ 
 End NegativeBinomial.
 #[global] Opaque negative_binomial.

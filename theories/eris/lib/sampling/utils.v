@@ -49,10 +49,14 @@ Ltac find_contra :=
   | match goal with 
     | H : ¬ _ |- _ => exfalso; apply H; by eauto
     end ].
+
 Ltac full_inv_fin :=
   repeat match goal with 
-  | |- ∀ _, _ => intro
-  | i : fin _ |- _   => inv_fin i
+  | i : fin _ |- _   => 
+    inv_fin i; 
+    try match goal with 
+    | |- ∀ _ : fin _, _ =>  intro i
+    end
   end;
   try (reflexivity || find_contra).
 Ltac extract_val_eq :=
