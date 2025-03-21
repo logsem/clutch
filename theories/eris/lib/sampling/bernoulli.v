@@ -285,7 +285,7 @@ Section Bernoulli.
     | _, _ => False
     end.
   
-  Theorem is_bernoulli_translation_dec (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :
+  Lemma is_bernoulli_translation_dec (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :
     {is_bernoulli_translation N M v l} + {¬ is_bernoulli_translation N M v l}.
   Proof.
     unfold Decision.
@@ -530,5 +530,5 @@ Section Bernoulli.
     rewrite -tape_to_bernoulli_app /suffix2 /=.
     rewrite bernoulli_to_tape_to_bernoulli //.
   Qed.
-  
+
 End Bernoulli. 
