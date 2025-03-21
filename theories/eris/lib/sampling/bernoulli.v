@@ -116,7 +116,6 @@ Section TapeTranslation.
         (v = 0%fin ∧ N ≤ fin_to_nat l) ∨
         (v = 1%fin ∧ fin_to_nat l < N)%nat
     ).
-  Opaque is_bernoulli_translation.
   Lemma is_bernoulli_translation_def (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :
     is_bernoulli_translation N M v l =
     Forall2 (
@@ -168,7 +167,6 @@ Section TapeTranslation.
   Definition tape_to_bernoulli (N M : nat) : list (fin (S M)) -> list (fin 2):=
     map (λ v, if bool_decide (N ≤ fin_to_nat v)%nat then 0%fin else 1%fin).
 
-  Opaque tape_to_bernoulli.
   Lemma tape_to_bernoulli_def (N M : nat) (l : list (fin (S M))) :
     tape_to_bernoulli N M l = map (λ v, if bool_decide (N ≤ fin_to_nat v)%nat then 0%fin else 1%fin) l.
   Proof.
@@ -178,7 +176,6 @@ Section TapeTranslation.
   Definition bernoulli_to_tape (M : nat) : list (fin 2) -> list (fin (S M)) :=
     map (λ v, if bool_decide (v = 1)%fin then 0%fin else (nat_to_fin (Nat.lt_succ_diag_r M))).
   
-  Opaque bernoulli_to_tape.
   Lemma bernoulli_to_tape_def (M : nat) (l : list (fin 2)) :
     bernoulli_to_tape M l = map (λ v, if bool_decide (v = 1)%fin then 0%fin else (nat_to_fin (Nat.lt_succ_diag_r M))) l.
   Proof.
@@ -267,6 +264,11 @@ Section TapeTranslation.
     move=> k k_lt_N H.
     apply Forall2_app =>//.
   Qed.
+
+  #[global] Opaque is_bernoulli_translation.
+  #[global] Opaque tape_to_bernoulli.
+  #[global] Opaque bernoulli_to_tape.
+
 End TapeTranslation.
 
 Section Bernoulli.
@@ -489,8 +491,7 @@ Section Bernoulli.
     wp_apply (twp_rand_tape with "Hα").
     iIntros "Hα".
     wp_pures.
-    unfold is_bernoulli_translation in Htl.
-    apply Forall2_cons in Htl as [[[-> HNleh] | [-> HhltN]] Htl].
+    apply is_bernoulli_translation_cons in Htl as [(-> & HNleh & Htl)| (-> & HhltN & Htl)].
     - case_bool_decide; first lia.
       wp_pures.
       iModIntro.
