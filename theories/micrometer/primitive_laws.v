@@ -6,7 +6,7 @@ From clutch.base_logic Require Export error_credits.
 From clutch.micrometer Require Export app_weakestpre ectx_lifting.
 From clutch.meas_lang Require Export class_instances meas_spec_update.
 From clutch.meas_lang Require Import tactics lang notation metatheory tapes.
-(*  From clutch.prob_lang.spec Require Export spec_ra spec_rules spec_tactics. *)
+From clutch.meas_lang.spec Require Export spec_ra spec_rules spec_tactics.
 From mathcomp.analysis Require Import measure.
 
 From iris.prelude Require Import options.
@@ -20,26 +20,27 @@ Class micrometerGS Σ := HeapG {
   (* ghost names for the state *)
   micrometerGS_heap_name : gname;
   micrometerGS_tapes_name : gname;
+  micrometerGS_utapes_name : gname;
   (* CMRA and ghost name for the spec *)
-  (*  micrometerGS_spec :: meas_specG_meas_lang Σ; *)
+  micrometerGS_spec :: specG_meas_lang Σ;
   (* CMRA and ghost name for the error *)
   micrometerGS_error :: ecGS Σ;
 }.
 
-(*
-
 Class micrometerGpreS Σ := MicrometerGpreS {
-  micrometerGpreS_iris  :: invGpreS Σ;
-  micrometerGpreS_heap  :: ghost_mapG Σ loc val;
-  micrometerGpreS_tapes :: ghost_mapG Σ loc tape;
-  micrometerGpreS_spcec :: specGpreS Σ;
-  micrometerGpreS_err   :: ecGpreS Σ;
+  micrometerGpreS_iris   :: invGpreS Σ;
+  micrometerGpreS_heap   :: ghost_mapG Σ loc val;
+  micrometerGpreS_tapes  :: ghost_mapG Σ loc btape;
+  micrometerGpreS_utapes :: ghost_mapG Σ loc utape;
+  micrometerGpreS_spcec  :: specGpreS Σ;
+  micrometerGpreS_err    :: ecGpreS Σ;
 }.
 
 Definition micrometerΣ : gFunctors :=
   #[invΣ;
     ghost_mapΣ loc val;
-    ghost_mapΣ loc tape;
+    ghost_mapΣ loc btape;
+    ghost_mapΣ loc utape;
     specΣ;
     ecΣ].
 Global Instance subG_micrometerGPreS {Σ} : subG micrometerΣ Σ → micrometerGpreS Σ.
@@ -47,12 +48,16 @@ Proof. solve_inG. Qed.
 
 Definition heap_auth `{micrometerGS Σ} :=
   @ghost_map_auth _ _ _ _ _ micrometerGS_heap micrometerGS_heap_name.
-Definition tapes_auth `{micrometerGS Σ} :=
+Definition btapes_auth `{micrometerGS Σ} :=
   @ghost_map_auth _ _ _ _ _ micrometerGS_tapes micrometerGS_tapes_name.
+Definition utapes_auth `{micrometerGS Σ} :=
+  @ghost_map_auth _ _ _ _ _ micrometerGS_tapes micrometerGS_utapes_name.
 
-Global Instance micrometerGS_irisGS `{!micrometerGS Σ} : micrometerWpGS prob_lang Σ := {
+Locate meas_spec_updateGS.
+(*
+Global Instance micrometerGS_irisGS `{!micrometerGS Σ} : micrometerWpGS meas_lang Σ := {
   micrometerWpGS_invGS := micrometerGS_invG;
-  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
+  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(btapes) ∗ utapes_auth 1 σ.(utapes))%I;
   err_interp := ec_supply;
 }.
 

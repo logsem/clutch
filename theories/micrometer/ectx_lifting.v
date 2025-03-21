@@ -10,7 +10,7 @@ Local Open Scope R.
 Section ectx_lifting.
 Context
   {Λ : meas_ectxLanguage} {Hinh : Inhabited (state Λ)}
- `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !approxisWpGS Λ Σ}.
+ `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
 
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
@@ -21,22 +21,22 @@ Local Hint Resolve head_prim_reducible head_reducible_prim_step : core.
 Local Hint Resolve head_stuck_stuck : core.
 *)
 
-(*
-Lemma wp_lift_head_step_prog_couple {E Φ} e1 s :
+Lemma wp_lift_head_step_meas_prog_couple {E Φ} e1 s :
   to_val e1 = None →
   (∀ σ1 e1' σ1' ε1,
     state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 ={E,∅}=∗
     ⌜head_reducible e1 σ1⌝ ∗
-    prog_coupl e1 σ1 e1' σ1' ε1 (λ e2 σ2 e2' σ2' ε2,
+    meas_prog_coupl e1 σ1 e1' σ1' ε1 (λ e2 σ2 e2' σ2' ε2,
       ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗
                   err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  iIntros (?) "H". iApply wp_lift_step_prog_couple; [done|].
+  iIntros (?) "H". iApply wp_lift_step_meas_prog_couple; [done|].
   iIntros (σ1 e1' σ1' ε1) "Hσ".
   by iMod ("H" with "Hσ") as "[% H]".
 Qed.
 
+(*
 Lemma wp_lift_head_step {E Φ} e1 s :
   to_val e1 = None →
   (∀ σ1, state_interp σ1 ={E,∅}=∗
