@@ -190,6 +190,17 @@ Section ectx_language.
   Definition fill_lift (K : ectx Λ) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
     fun x => fill_liftU (K, x).
 
+  Lemma fill_lift_meas K: measurable_fun setT (fill_lift K).
+  Proof.
+    rewrite /fill_lift.
+    assert ((λ x, fill_liftU (K, x)) = fill_liftU \o (λ x, (K, x))) as Hrewrite.
+    { apply functional_extensionality_dep.
+      by intros [??]. }
+    rewrite Hrewrite.
+    eapply @measurable_comp; [| |apply fill_liftU_meas|]; try done.
+    apply measurable_pair1.
+  Qed.
+  
   Lemma fill_lift_comp (K1 K2 : ectx Λ) :
     fill_lift (comp_ectx K1 K2) = fill_lift K1 ∘ fill_lift K2.
   Proof.
@@ -215,6 +226,11 @@ Section ectx_language.
   (** FIXME: What a strange little measurability proof. *)
   Definition prim_step : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type :=
     gMap' (fill_liftU \o (fst \o decomp \o fst △ id)) \o head_step \o ((snd \o decomp \o fst) △ snd).
+  (* Proposal for correct prim_step*)
+  Definition prim_step' : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type :=
+    λ '(e, σ),
+      let '(K, e') := decomp e in
+      gMap' (fill_lift K) (head_step (e', σ)). 
 
   (*
     ssrfun.comp
@@ -291,21 +307,17 @@ Section ectx_language.
       by rewrite fill_empty. }
   Qed.
 
-  (* TODO prove fill_lift is measurable *)
-  (* Lemma fill_prim_step_dbind K e1 σ1 : *)
-  (*   to_val e1 = None → *)
-  (*   prim_step ((fill (K, e1)), σ1) = gMap (curry fill K) (prim_step (e1, σ1)). *)
-  (* Proof. *)
-  (*   intros Hval. rewrite /prim_step. *)
-  (*   destruct (decomp e1) as [K1 e1'] eqn:Heq. *)
-  (*   destruct (decomp (fill _ e1)) as [K1' e1''] eqn:Heq'. *)
-  (*   apply (decomp_fill_comp K) in Heq; [|done]. *)
-  (*   rewrite Heq in Heq'; simplify_eq. *)
-  (*   rewrite dmap_comp. *)
-  (*   apply dmap_eq; [|done]. *)
-  (*   intros [] ? =>/=. *)
-  (*   f_equal. rewrite -fill_comp //. *)
-  (* Qed. *)
+  Lemma fill_prim_step_dbind K e1 σ1 :
+    to_val e1 = None →
+    prim_step ((fill (K, e1)), σ1) = gMap' (fill_lift K) (prim_step (e1, σ1)).
+  Proof.
+    intros Hval. rewrite /prim_step.
+    destruct (decomp e1) as [K1 e1'] eqn:Heq.
+    destruct (decomp (fill (K, e1))) as [K1' e1''] eqn:Heq'.
+    apply (decomp_fill_comp K) in Heq; [|done].
+    rewrite Heq in Heq'; simplify_eq.
+    (* Need lemmas for gMap', in particular composition of gMaps *)
+  Admitted.
 
   (*
   Lemma fill_prim_step K e1 σ1 e2 σ2 :
@@ -332,18 +344,24 @@ Section ectx_language.
     head_reducible e1 σ1 →
     prim_step (e1, σ1) = head_step (e1, σ1).
   Proof.
-    (*
     intros Hred.
     rewrite /= /prim_step.
     destruct (decomp e1) as [K e1'] eqn:Heq.
     edestruct (decomp_fill _ _ _ Heq).
-    destruct Hred as [ρ' Hs].
-    destruct (head_ctx_step_val _ _ _ _ Hs) as [| ->].
+    destruct (head_ctx_step_val _ _ _ Hred) as [| ->].
     - assert (K = empty_ectx) as -> by eauto using decomp_val_empty.
-      rewrite fill_lift_empty fill_empty dmap_id //=.
-    - rewrite fill_lift_empty fill_empty dmap_id //=.
-  Qed.
-*)
+      rewrite fill_empty/= in Hred Heq *.
+      rewrite Heq/=.
+      assert ((fill_liftU \o λ x : expr Λ * state Λ, ((decomp x.1).1, x)) = id) as Hrewrite.
+      { apply functional_extensionality_dep.
+        intros [??]. 
+        rewrite /fill_liftU. simpl.
+        f_equal.
+        apply decomp_fill.
+        admit.
+      }
+      admit.
+    - admit. (* rewrite fill_lift_empty fill_empty dmap_id //=. *)
   Admitted.
 
   (*
