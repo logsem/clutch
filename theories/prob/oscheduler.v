@@ -189,6 +189,19 @@ Section oscheduler.
             by rewrite osch_exec_is_none.
     Qed.
 
+    Lemma osch_exec_pos n a b:
+      (osch_exec n a b > 0)%R ->
+      osch b = None ∨ is_final b.2.
+    Proof.
+      rewrite osch_exec_pexec_relate.
+      rewrite dbind_pos. elim.
+      intros [??].
+      repeat case_match.
+      - elim. intros H'. apply dret_pos in H'. simplify_eq. right.
+        eexists _. naive_solver.
+      - elim. rewrite dzero_0. lra.
+      - elim. intros H'. apply dret_pos in H'. simplify_eq. naive_solver.
+    Qed.
     
     Lemma osch_exec_mono a n v :
       osch_exec n a v <= osch_exec (S n) a v.
@@ -466,6 +479,23 @@ Section oscheduler.
       rewrite osch_pexec_O. by apply dret_1_1.
     Qed.
 
+    Lemma osch_lim_exec_None a :
+      osch a = None ->
+      osch_lim_exec a = dret a.
+    Proof.
+      intros.
+      apply distr_ext; intros [??].
+      rewrite osch_lim_exec_unfold.
+      symmetry.
+      apply eq_rbar_finite.
+      apply Rbar_le_antisym.
+      - apply Sup_seq_minor_le with 0%nat.
+        by rewrite osch_exec_is_none.
+      - apply upper_bound_ge_sup.
+        intros.
+        by rewrite osch_exec_is_none.
+    Qed. 
+
     Lemma osch_lim_exec_leq a b (r : R) :
       (∀ n, osch_exec n a b <= r) →
       osch_lim_exec a b <= r.
@@ -522,6 +552,14 @@ Section oscheduler.
       assert (osch_lim_exec a b <= 0); [|lra].
       apply osch_lim_exec_leq => n.
       by apply Rnot_gt_le.
+    Qed.
+    
+    Lemma osch_lim_exec_pos_res x y:
+      (osch_lim_exec x y > 0)%R ->
+      osch y = None \/ is_final y.2.
+    Proof.
+      intros H. apply osch_lim_exec_pos in H as [? H].
+      by apply osch_exec_pos in H.
     Qed.
 
     Lemma osch_lim_exec_continuous_prob a ϕ r :
