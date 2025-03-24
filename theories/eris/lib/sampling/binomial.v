@@ -618,6 +618,7 @@ Section binomial.
         f_equal.
         rewrite fin_succ_hsum //.
   Qed.
+  
   Lemma fin_hsum_comm : ∀ (k m n : nat) (h : fin k) (i : fin m) (j : fin n),
     fin_hsum h (fin_hsum i j) = fin_hsum i (fin_hsum h j).
   Proof.
@@ -637,7 +638,62 @@ Section binomial.
       f_equal.
       apply IH.
   Qed.
-      
+
+  Definition fin_sum_list (m k : nat) (l : list (fin m)) : fin (S k) :=
+    foldr fin_hsum 0%fin l.
+
+  Lemma fin_ind_fixed : ∀ (n : nat) (P : fin (S n) → Prop), P 0%fin → (∀ (i : fin (S n)), P i → P (fin_succ i)) → ∀ (i : fin (S n)), P i.
+  Proof.
+    elim=>[|n IH] P P_0 P_S i; (inv_fin i; first done).
+    - move=>i. inv_fin i.
+    - move=>i.
+      apply (IH (P ∘ FS)).
+      { simpl. apply (P_S 0%fin), P_0. }
+      { move=>j P_Sj.
+        apply (P_S (FS j)), P_Sj.
+      }
+  Qed.
+
+  Lemma repeat_not_max : ∀ (A : Set) (a : A) (k : nat) (i : fin (S k)), i ≠ fin_max k → repeat a (fin_succ i) = a::repeat a i.
+  Proof.
+    move=>A a.
+    elim=>[|k IH] i.
+    - inv_fin i.
+      + move=>contra.
+        contradict contra.
+        reflexivity.
+      + move=>i. inv_fin i.
+    - inv_fin i.
+      + move=>i_not_max //.
+      + move=> i i_not_max /=.
+        rewrite IH //.
+        move=>contra.
+        apply i_not_max.
+        simpl.
+        by f_equal.
+  Qed.
+
+  Lemma fin_sum_repeat_0 : ∀ (k m : nat), fin_sum_list 2 k (repeat (0%fin : fin 2) m) = 0%fin.
+  Proof.
+    intros k.
+    induction m.
+    - reflexivity.
+    - simpl. rewrite IHm //.
+  Qed.
+  
+  Lemma fin_sum_repeat_1 : ∀ (k : nat) (i : fin (S k)), fin_sum_list 2 k (repeat (1%fin : fin 2) i) = i.
+  Proof.
+    intros k.
+    apply fin_ind_fixed.
+    - reflexivity.
+    - move=>i IH.
+      destruct (decide (i = fin_max k)) as [-> | i_not_max ].
+      + rewrite fin_succ_max //.
+      + rewrite repeat_not_max /=; last done.
+        f_equal.
+        apply IH.
+  Qed.
+        
   Fixpoint bernoulli_to_binomial_aux (k c : nat) (l : list (fin 2)) (acc : fin (S k)) : list (fin (S k)) :=
     match l,c with
     | [], _ => []
@@ -647,21 +703,19 @@ Section binomial.
 
   Definition bernoulli_to_binomial (k : nat) (l : list (fin 2)) : list (fin (S k)) :=
     bernoulli_to_binomial_aux k (k - 1) l 0%fin.
-
-  Definition fin_hsum_list (m k : nat) (l : list (fin m)) : fin (S k) :=
-    foldr fin_hsum 0%fin l.
-
-  Lemma bernoulli_to_binomial_aux_length_lt :
-    ∀ (k ct : nat) (l : list (fin 2)) (acc : fin (S k)),
-    length l = S ct → bernoulli_to_binomial_aux k ct l acc = [fin_hsum acc $ fin_hsum_list 2 k l].
+  
+  Lemma bernoulli_to_binomial_aux_app :
+    ∀ (k ct : nat) (l1 l2: list (fin 2)) (acc : fin (S k)),
+    length l1 = S ct → bernoulli_to_binomial_aux k ct (l1 ++ l2) acc = [fin_hsum acc $ fin_sum_list 2 k l1] ++ bernoulli_to_binomial_aux k (k - 1) l2 0%fin.
   Proof.
-    move=>k ct l.
-    elim: l k ct =>[|h t IH] k ct acc len_ct_eq_k /=.
+    move=>k ct l1 l2.
+    elim: l1 l2 k ct =>[|h t IH] l2 k ct acc len_ct_eq_k /=.
     - simpl in len_ct_eq_k. lia.
     - destruct ct.
       + simpl in *.
         destruct t; last (simpl in len_ct_eq_k; lia).
         simpl.
+        f_equal.
         rewrite fin_hsum_comm fin_hsum_assoc; last done.
         fold (@fin_sum (S k)).
         rewrite fin_sum_0.
@@ -670,94 +724,40 @@ Section binomial.
         rewrite IH; last lia.
         rewrite fin_hsum_comm fin_hsum_assoc //.
   Qed.
-  
- (* #[local] Fixpoint bernoulli_to_binomial_aux (k ct acc : nat) (l : list (fin 2)) : list nat :=
-    match l, ct with
-    | [], _ => if bool_decide (ct = k)%nat then [] else [acc] 
-    | _, 0 => [] (* Shouldn't happen *)
-    | h::t, 1 => [acc + h] ++ bernoulli_to_binomial_aux k k 0 t
-    | h::t, S n => bernoulli_to_binomial_aux k n (h + acc) t
-    end.
 
-  Lemma bernoulli_to_binomial_aux_le_k :
-    ∀ k ct acc l, ct + acc ≤ k →
-                  Forall (λ x, x ≤ k) (bernoulli_to_binomial_aux k ct acc l).
+  Lemma bernoulli_to_binomial_app :
+    ∀ (k : nat) (l1 l2: list (fin 2)), k ≠ 0 →
+    length l1 = k → bernoulli_to_binomial k (l1 ++ l2) = [fin_sum_list 2 k l1] ++ bernoulli_to_binomial k l2.
   Proof.
-    move=> k ct acc l.
-    elim: l k ct acc=>[|h t IHt] k ct acc ct_acc_le_k.
-    - simpl.
-      case_bool_decide; first by apply Forall_nil.
-      apply Forall_cons.
-      split; last done.
-      lia.
-    - case: ct ct_acc_le_k =>[|[|n]] ct_acc_le_k /= //.
-      + inv_fin h.
-        * apply Forall_cons.
-          split; simpl; first lia.
-          apply IHt.
-          lia.
-        * move=>n.
-          inv_fin n; last (move=>n; inv_fin n).
-          apply Forall_cons.
-          split; simpl; first lia.
-          apply IHt.
-          lia.
-      + inv_fin h.
-        * apply IHt.
-          simpl.
-          lia.
-        * move=>i.
-          inv_fin i; last (move=>i; inv_fin i).
-          apply IHt.
-          simpl.
-          lia.
-  Defined.
-  
-  Lemma bernoulli_to_binomial (k : nat) (l : list (fin 2)) : list (fin (S k)).
-  Proof.
-    unshelve epose proof (p := bernoulli_to_binomial_aux_le_k k k 0 l _).
-    { rewrite Nat.add_0_r. apply le_n. } 
-    set (r := bernoulli_to_binomial_aux k k 0 l).
-    fold r in p.
-    induction r as [| h t].
-    - exact [].
-    - apply cons.
-      + unshelve eapply nat_to_fin; first exact h.
-        apply Forall_inv in p.
-        apply (proj1 (Nat.succ_le_mono h k) p).
-      + apply IHt.
-        by eapply Forall_inv_tail.
-  Defined.
+    unfold bernoulli_to_binomial.
+    move=>k l1 l2 k_not_0 len_k.
+    rewrite bernoulli_to_binomial_aux_app //; last lia.
+  Qed.
 
-   *)       
-  Lemma binomial_to_bernoulli_to_binomial (k : nat) : (0 < k)%nat → ∀ (l : list (fin (S k))), bernoulli_to_binomial k (binomial_to_bernoulli k l) = l.
+  Lemma binomial_to_bernoulli_to_binomial (k : nat) : (k ≠ 0)%nat → ∀ (l : list (fin (S k))), bernoulli_to_binomial k (binomial_to_bernoulli k l) = l.
   Proof.
     move=>k_pos.
     elim=>[|h t IHt].
-    - unfold bernoulli_to_binomial.
+    - unfold binomial_to_bernoulli.
+      unfold bernoulli_to_binomial.
       unfold bernoulli_to_binomial_aux.
-      unfold bernoulli_to_binomial_aux_le_k.
-      simpl.
-      case_bool_decide; last contradiction.
       reflexivity.
     - simpl.
-      remember (fin_to_nat h) as K.
-      case Eqn: K HeqK =>[|K2] HeqK.
-      + rewrite -(nat_to_fin_to_nat h).
-        * apply fin_to_nat_lt.
-        * assert (h = 0%fin) as ->.
-          { inv_fin h; first done.
-            intros.
-            contradict HeqK.
-            intros HC.
-            discriminate HC.
-          } 
-          intros hL.
-          simpl.
-          rewrite Nat.sub_0_r.
+      rewrite bernoulli_to_binomial_app; try done.
+      + rewrite IHt /=.
+        f_equal.
+        unfold fin_sum_list.
+        rewrite foldr_app.
+        fold (fin_sum_list 2 k (repeat 0%fin (k - h))).
+        rewrite fin_sum_repeat_0.
+        fold (fin_sum_list 2 k (repeat 1%fin h)).
+        rewrite fin_sum_repeat_1 //.
+      + rewrite app_length !repeat_length.
+        assert (h < S k) by apply fin_to_nat_lt.
+        lia.
+  Qed.
           
   Definition own_binomial_tape α m n k v := (∃ l, α ↪ (1; l) ∗ ⌜is_binomial_translation m n k v l⌝)%I.
-          
 
 End binomial.
 #[global] Opaque binomial.
