@@ -394,45 +394,48 @@ Section modalities.
   Lemma prog_coupl_reducible e σ ρ Z ε :
     prog_coupl e σ ρ ε Z -∗ ⌜reducible e σ⌝.
   Proof. by iIntros "(%&%&%&%&%&%&?)". Qed.
-  
-  Lemma prog_coupl_step_l_dret ε2 ε1 ε R e1 σ1 ρ1 Z :
-    ε = (ε1 + ε2)%NNR →
-    reducible e1 σ1 →
-    ARcoupl (prim_step e1 σ1) (dret tt) R ε1 →
-    (∀ e2 σ2 efs, ⌜R (e2, σ2, efs) tt⌝ ={∅}=∗ Z e2 σ2 efs ρ1 ε2)
-    ⊢ prog_coupl e1 σ1 ρ1 ε Z.
-  Proof.
-    iIntros (-> ? ?) "H".
-    rewrite /prog_coupl.
-    iExists (λ x ρ2, ρ1 = ρ2 /\ R x tt), _, ε1, ε2.
-    repeat iSplit; try done.
-    - iPureIntro. apply spec_transition_dret.
-    - iPureIntro.
-      erewrite <-dret_const.
-      + erewrite <-(dret_id_right (prim_step _ _)).
-        replace (ε1) with (ε1+0)%NNR; last by (apply nnreal_ext; simpl; lra).
-        eapply ARcoupl_dbind; [done|done| |done].
-        intros ? []?. apply ARcoupl_dret; naive_solver.
-      + apply dret_mass.
-    - iIntros (????[-> ?]).
-      by iApply "H".
-  Qed.
+
+  (** Prove a more general lemma that allows advanced composition as well *)
+  (* Lemma prog_coupl_step_l_dret ε2 ε1 ε R e1 σ1 ρ1 Z : *)
+  (*   ε = (ε1 + ε2)%NNR → *)
+  (*   reducible e1 σ1 → *)
+  (*   ARcoupl (prim_step e1 σ1) (dret tt) R ε1 → *)
+  (*   (∀ e2 σ2 efs, ⌜R (e2, σ2, efs) tt⌝ ={∅}=∗ Z e2 σ2 efs ρ1 ε2) *)
+  (*   ⊢ prog_coupl e1 σ1 ρ1 ε Z. *)
+  (* Proof. *)
+  (*   iIntros (-> ? ?) "H". *)
+  (*   rewrite /prog_coupl. *)
+  (*   pose (n := length ρ1.1). *)
+  (*   iExists (λ x '(l, ρ), ρ=ρ1 /\ l=[(ρ1, (n+encode_nat x)%nat)]). *)
+  (*   iExists (λ x ρ2, ρ1 = ρ2 /\ R x tt), _, ε1, ε2. *)
+  (*   repeat iSplit; try done. *)
+  (*   - iPureIntro. apply spec_transition_dret. *)
+  (*   - iPureIntro. *)
+  (*     erewrite <-dret_const. *)
+  (*     + erewrite <-(dret_id_right (prim_step _ _)). *)
+  (*       replace (ε1) with (ε1+0)%NNR; last by (apply nnreal_ext; simpl; lra). *)
+  (*       eapply ARcoupl_dbind; [done|done| |done]. *)
+  (*       intros ? []?. apply ARcoupl_dret; naive_solver. *)
+  (*     + apply dret_mass. *)
+  (*   - iIntros (????[-> ?]). *)
+  (*     by iApply "H". *)
+  (* Qed. *)
  
-  Lemma prog_coupl_step_l e1 σ1 ρ1 ε Z :
-    reducible e1 σ1 →
-    (∀ e2 σ2 efs, ⌜prim_step e1 σ1 (e2, σ2, efs) > 0⌝ ={∅}=∗ Z e2 σ2 efs ρ1 ε)
-    ⊢ prog_coupl e1 σ1 ρ1 ε Z.
-  Proof.
-    iIntros (?) "H".
-    iApply (prog_coupl_step_l_dret ε 0%NNR); [|done|..].
-    { apply nnreal_ext => /=. lra. }
-    { eapply ARcoupl_pos_R, ARcoupl_trivial.
-      - by apply prim_step_mass.
-      - apply dret_mass. }
-    simpl.
-    iIntros (??? (_ & ? & [=]%dret_pos)).
-    by iApply "H".
-  Qed.
+  (* Lemma prog_coupl_step_l e1 σ1 ρ1 ε Z : *)
+  (*   reducible e1 σ1 → *)
+  (*   (∀ e2 σ2 efs, ⌜prim_step e1 σ1 (e2, σ2, efs) > 0⌝ ={∅}=∗ Z e2 σ2 efs ρ1 ε) *)
+  (*   ⊢ prog_coupl e1 σ1 ρ1 ε Z. *)
+  (* Proof. *)
+  (*   iIntros (?) "H". *)
+  (*   iApply (prog_coupl_step_l_dret ε 0%NNR); [|done|..]. *)
+  (*   { apply nnreal_ext => /=. lra. } *)
+  (*   { eapply ARcoupl_pos_R, ARcoupl_trivial. *)
+  (*     - by apply prim_step_mass. *)
+  (*     - apply dret_mass. } *)
+  (*   simpl. *)
+  (*   iIntros (??? (_ & ? & [=]%dret_pos)). *)
+  (*   by iApply "H". *)
+  (* Qed. *)
   
 (** TODO: add nice lemmas for using prog_coupl, e.g. prim_step only on the left*)
 
@@ -464,7 +467,7 @@ Proof.
   rewrite /spec_coupl_pre.
   do 3 f_equiv.
   rewrite /prog_coupl.
-  do 22 f_equiv.
+  do 27 f_equiv.
   f_contractive.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[??]?].
@@ -508,7 +511,7 @@ Proof.
   do 8 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? [? ?]]. rewrite /spec_coupl_pre /prog_coupl.
-  do 26 f_equiv.
+  do 31 f_equiv.
   f_contractive_fin.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? [? ?]]. rewrite /spec_coupl_pre.
@@ -530,7 +533,7 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? [? ?]]. rewrite /spec_coupl_pre.
   rewrite /prog_coupl.
-  do 25 f_equiv.
+  do 30 f_equiv.
   f_contractive.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? [? ?]]. rewrite /spec_coupl_pre.

@@ -12,7 +12,9 @@ Section full_info.
         fi_osch_tape_oblivious :: oTapeOblivious _ fi_osch;
         fi_osch_valid:
         ∀ l ρ j l' μ, fi_osch (l, ρ) = Some μ -> (μ (l', j) > 0)%R ->
-                         l' = l++[(ρ, j)]
+                      l' = l++[(ρ, j)];
+        fi_osch_consistent:
+        ∀ l ρ, fi_osch (l, ρ) = None -> ∀ ρ', fi_osch (l, ρ') = None
       }.
 
   
@@ -56,6 +58,9 @@ Section full_info.
   Next Obligation.
     naive_solver.
   Qed.
+  Next Obligation.
+    naive_solver.
+  Qed.
 
   Lemma osch_lim_exec_full_info_inhabitant x:
     osch_lim_exec full_info_inhabitant x = dret x.
@@ -63,12 +68,12 @@ Section full_info.
     by rewrite osch_lim_exec_None.
   Qed.
 
-  Program Definition full_info_append_oscheduler l (osch: full_info_oscheduler) : full_info_oscheduler :=
+  Program Definition full_info_append_oscheduler prel (osch: full_info_oscheduler) : full_info_oscheduler :=
     {|
-      fi_osch := {| oscheduler_f := λ '(l', ρ),
-                                      match decide (∃ l'', l=l'++l'') with
+      fi_osch := {| oscheduler_f := λ '(l, ρ),
+                                      match decide (∃ sufl, l=prel++sufl) with
                                       | left pro =>
-                                          (dmap (λ '(l_res, j), (l++l_res, j))) <$> (osch (epsilon pro, ρ)) 
+                                          (dmap (λ '(l_res, j), (prel++l_res, j))) <$> (osch (epsilon pro, ρ)) 
                                       | _ => None
                                       end
                  |}
@@ -77,24 +82,35 @@ Section full_info.
   Next Obligation.
     simpl. intros ?? ?[? [??]][?[??]]??. simpl in *. simplify_eq.
     case_match; last done.
-  Admitted.
-    (* by apply fi_osch_tape_oblivious. *)
+    f_equal.
+    by apply fi_osch_tape_oblivious.
+  Qed.
   Next Obligation.
-  Admitted.
-    (* simpl. *)
-    (* intros ???????? H. simpl. *)
-    (* case_match eqn: H'. *)
-    (* - pose proof epsilon_correct _ e. *)
-    (*   destruct e as [? ->]. simplify_eq. *)
-    (*   eapply fi_osch_valid in H; first done. *)
-    (*   simplify_eq. rewrite -H0. f_equal. rewrite -H1. *)
-    (*   f_equal. *)
-
-    (*   subst. done. *)
-      
+    simpl.
+    intros ???????.
+    case_match; last done.
+    pose proof epsilon_correct _ e as Hrewrite.
+    simpl in *.
+    intros H' Hpos.
+    apply fmap_Some_1 in H' as [?[H0 ?]]. subst.
+    apply dmap_pos in Hpos as [[??][??]]. simplify_eq.
+    eapply fi_osch_valid in H0; last done.
+    subst. rewrite app_assoc. f_equal. by symmetry.
+  Qed.
+  Next Obligation.
+    simpl.
+    intros ????. case_match; last done.
+    pose proof epsilon_correct _ e as He.
+    simpl in *.
+    intros Hnone.
+    apply fmap_None in Hnone.
+    intros.
+    by eapply fi_osch_consistent in Hnone as ->.
+  Qed. 
+    
   
   Definition full_info_stutter_distr (μ : distr nat) (l:list (cfg * nat)) (ρ:cfg) : distr (full_info_state * nat) :=
-    dmap (λ n, (l++[(ρ, length (ρ.1) + n)], length (ρ.1) + n))%nat μ.
+    dmap (λ n, (l++[(ρ, n)], n))%nat μ.
   
   (* This is a way of building a scheduler that stutters one step into many different states 
      each of which is a different kind of scheduler
