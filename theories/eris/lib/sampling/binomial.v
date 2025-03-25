@@ -4,7 +4,8 @@ Section binomial.
 
   Context `{!erisGS Σ}.
 
-  Parameter (B : val).
+  Parameter (B_lbl : val).
+  Definition B : expr := B_lbl #().
 
   Parameter (B_spec : ∀ (N M : nat) (ε ε1 ε2 : R), N ≤ (M + 1) → 
   ((ε1 * (1 - (N / (M + 1)))) + (ε2 * (N / (M + 1))) = ε)%R ->
@@ -17,14 +18,45 @@ Section binomial.
   }]]).
 
   Parameter (B_tape : ∀ (N M : nat), loc → list (fin 2) → iProp Σ).
+  
+  Parameter (B_tape_presample :
+    ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
+      (N M : nat) (ns : list (fin 2)),
+    to_val e = None
+    → B_tape N M α ns ∗
+    (∀ (i : fin 2),B_tape N M α (ns ++ [i%fin]) -∗ WP e [{ Φ }])
+    ⊢  WP e [{ Φ }])
+  .
 
-  Definition binom : val :=
-    λ: "m" "n",
+  Parameter (twp_B_tape :
+    ∀ (N M : nat) (α : loc) (ns : list (fin 2)) (n : fin 2),
+    [[{ B_tape N M α (n::ns) }]]
+      B (#lbl:α) #N #M
+    [[{ RET #n ; B_tape N M α ns }]]).
+
+  Parameter (B_tape_planner :
+              ∀ (N M : nat) (e : expr) (ε : nonnegreal)
+                (L : nat) (α : loc) (Φ : val → iProp Σ)
+                (prefix : list (fin 2)) (suffix : list (fin 2) → list (fin 2)),
+               (0 < N)%nat →
+               (N < S M)%nat →
+               to_val e = None →
+               (∀ junk : list (fin 2),
+                  (0 < length (suffix (prefix ++ junk)) <= L)%nat) →
+               (0 < ε)%R →
+               ↯ ε ∗ B_tape N M α prefix ∗
+               ( (∃ (junk : list (fin 2)), B_tape N M α (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e [{ Φ }]
+               ) ⊢ WP e [{ Φ }]).
+  
+  Definition binom_tape : val :=
+    λ: "α" "m" "n",
       rec: "binom" "k" :=
         if: "k" ≤ #0
         then #0
-        else "binom" ("k" - #1) + B "m" "n".
+        else "binom" ("k" - #1) + B_lbl "α" "m" "n".
 
+  Definition binom : expr := binom_tape #().
+  
   Definition choose (n k : nat) : R :=
     if bool_decide (k ≤ n)%nat then
       C n k
@@ -252,8 +284,8 @@ Section binomial.
   Proof.
     iIntros (p q Hpq n).
     iIntros (D ε HD Φ) "Herr HΦ".
-    rewrite /binom.
-    do 4 wp_pure.
+    rewrite /binom /binom_tape.
+    do 6 wp_pure.
     iRevert (D ε HD Φ) "Herr HΦ".
     iInduction (n) as [|n] "IH";
       iIntros (D ε HD Φ) "Herr HΦ";
@@ -410,16 +442,6 @@ Section binomial.
       lra.
     }
   Qed.
-
-  Fixpoint is_binomial_translation (m n k : nat) (v : list (fin (S k))) (l : list (fin 2)) :=
-    match v with
-    | [] => l = []
-    | vh ::vt => ∃ (pre suf : list (fin 2)), sum_list_with fin_to_nat pre = vh ∧
-                                             length v = k ∧
-                                             l = pre ++ suf ∧
-                                             is_binomial_translation m n k vt suf
-  end.
-
   
   Definition binomial_to_bernoulli (k : nat) (v : list (fin (S k))) : list (fin 2) :=  
     x ← v ;
@@ -725,13 +747,32 @@ Section binomial.
         rewrite fin_hsum_comm fin_hsum_assoc //.
   Qed.
 
-  Lemma bernoulli_to_binomial_app :
+  Lemma bernoulli_to_binomial_app_1 :
     ∀ (k : nat) (l1 l2: list (fin 2)), k ≠ 0 →
     length l1 = k → bernoulli_to_binomial k (l1 ++ l2) = [fin_sum_list 2 k l1] ++ bernoulli_to_binomial k l2.
   Proof.
     unfold bernoulli_to_binomial.
     move=>k l1 l2 k_not_0 len_k.
     rewrite bernoulli_to_binomial_aux_app //; last lia.
+  Qed.
+
+  Lemma bernoulli_to_binomial_app_n :
+    ∀ (k n : nat) (l1 l2: list (fin 2)), k ≠ 0 →
+    length l1 = n * k → bernoulli_to_binomial k (l1 ++ l2) = bernoulli_to_binomial k l1 ++ bernoulli_to_binomial k l2.
+  Proof.
+    move=>k.
+    elim=>[|n IH].
+    - move=>[|??] l2 k_pos len_l1; last (simpl in len_l1; lia).
+      reflexivity.
+    - move=>l1 l2 k_pos len_l1.
+      rewrite -{1}(take_drop k l1) -app_assoc
+             bernoulli_to_binomial_app_1; try done; last first.
+      { rewrite take_length Nat.min_l /=; lia. }
+      rewrite IH; try done; last first.
+      { rewrite drop_length len_l1. lia. }
+      rewrite app_assoc -bernoulli_to_binomial_app_1; try lia; last first.
+      { rewrite take_length Nat.min_l /=; lia. }
+      rewrite (take_drop k l1) //.
   Qed.
 
   Lemma binomial_to_bernoulli_to_binomial (k : nat) : (k ≠ 0)%nat → ∀ (l : list (fin (S k))), bernoulli_to_binomial k (binomial_to_bernoulli k l) = l.
@@ -743,7 +784,7 @@ Section binomial.
       unfold bernoulli_to_binomial_aux.
       reflexivity.
     - simpl.
-      rewrite bernoulli_to_binomial_app; try done.
+      rewrite bernoulli_to_binomial_app_1; try done.
       + rewrite IHt /=.
         f_equal.
         unfold fin_sum_list.
@@ -756,8 +797,145 @@ Section binomial.
         assert (h < S k) by apply fin_to_nat_lt.
         lia.
   Qed.
-          
-  Definition own_binomial_tape α m n k v := (∃ l, α ↪ (1; l) ∗ ⌜is_binomial_translation m n k v l⌝)%I.
 
+  
+  Fixpoint is_binomial_translation (k : nat) (v : list (fin (S k))) (l : list (fin 2)) :=
+    match v with
+    | [] => l = []
+    | vh ::vt => ∃ (pre suf : list (fin 2)), fin_sum_list 2 k pre = vh ∧
+                                             length pre = k ∧
+                                             l = pre ++ suf ∧
+                                             is_binomial_translation k vt suf
+  end.
+
+  Lemma bernoulli_to_binomial_translation :
+    ∀ (k : nat) (l : list (fin 2)) (v : list (fin (S k))),
+    (0 < k)%nat →
+    is_binomial_translation k v l ↔ ∃ n, length l = n * k ∧ v = bernoulli_to_binomial k l.
+  Proof.
+    move=>k l v.
+    elim:v l =>[|hv tv IH] [|hl tl] k_pos.
+    - split; last done.
+      move=>_.
+      by exists 0.
+    - split; first done.
+      move=>[[|n] [len tsl]]; simpl in len; first lia.
+      contradict tsl.
+      rewrite -{1}(take_drop k (hl::tl)).
+      rewrite bernoulli_to_binomial_app_1; [done|lia|..].
+      rewrite take_length Nat.min_l /=; lia.
+    - split.
+      + intros (pre & suf & sum_eq & len_pre & pre_suf & tls).
+        destruct pre;
+          simpl in len_pre, pre_suf; [lia | discriminate].
+      + intros (? & ? & ?).
+        discriminate.
+    - split.
+      + intros (pre & suf & sum_eq & len_pre & pre_suf & tls).
+        rewrite pre_suf app_length len_pre bernoulli_to_binomial_app_1; [|lia|done].
+        apply IH in tls as (n & -> & ->); last lia.
+        exists (S n).
+        split; first lia.
+        simpl.
+        by f_equal.
+      + move=>[[|n] [len tsl]]; simpl in len; first lia.
+        rewrite -{1}(take_drop k (hl::tl)) bernoulli_to_binomial_app_1 /= in tsl;
+          [..|lia|]; last first.
+        { rewrite take_length Nat.min_l /=; lia. }
+        injection tsl as hv_eq tv_eq.
+        simpl.
+        eexists _, _.
+        split; first done.
+        split.
+        { rewrite take_length Nat.min_l /=; lia. }
+        rewrite -{1}(take_drop k (hl::tl)).
+        split; first done.
+        apply IH; first done.
+        exists n.
+        split; last done.
+        rewrite drop_length /= len.
+        lia.
+  Qed.
+    
+  Definition own_binomial_tape α m n k v := (∃ l, B_tape m n α l ∗ ⌜is_binomial_translation k v l⌝)%I.
+
+  Lemma B_tape_multiple_presample : 
+    ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
+      (N M k : nat) (ns : list (fin 2)),
+    to_val e = None
+    → B_tape N M α ns ∗
+    (∀ (l : list (fin 2)), ⌜length l = k⌝ -∗ B_tape N M α (ns ++ l) -∗ WP e [{ Φ }])
+    ⊢  WP e [{ Φ }]
+  .
+  Proof.
+    iIntros (e α Φ N M k).
+    iRevert (Φ).
+    iInduction (k) as [|k] "IH";
+       iIntros (Φ ns e_not_val) "[Htape Hlists]".
+    - wp_apply ("Hlists" $! []); first done.
+      rewrite app_nil_r //.
+    - wp_apply B_tape_presample; first done.
+      iFrame.
+      iIntros (i) "Htape".
+      wp_apply "IH"; first done.
+      iFrame.
+      iIntros (l length_l_k) "Htape".
+      wp_apply ("Hlists" $! i::l); first rewrite /= length_l_k //.
+      rewrite -app_assoc //.
+  Qed.
+
+  Lemma binomial_tape_presample :
+    ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
+      (N M k : nat) (ns : list (fin (S k))),
+    to_val e = None
+    → (0 < k)%nat
+    → own_binomial_tape α N M k ns ∗
+    (∀ (i : fin (S k)), own_binomial_tape α N M k (ns ++ [i%fin]) -∗ WP e [{ Φ }])
+    ⊢  WP e [{ Φ }]
+  .
+  Proof.
+    unfold own_binomial_tape.
+    iIntros (e α Φ N M k ns e_not_val k_pos) "[(%l & Hα & %Hl) Hwp]".
+    wp_apply (B_tape_multiple_presample _ α _ N M k); first done.
+    iFrame.
+    iIntros (l' length_l'_k) "Hα".
+    set (i := fin_sum_list 2 k l').
+    wp_apply ("Hwp" $! i).
+    iExists (l ++ l').
+    iFrame.
+    iPureIntro.
+    rewrite bernoulli_to_binomial_translation in Hl; last done.
+    destruct Hl as (n & len & ->).
+    rewrite bernoulli_to_binomial_translation; last done.
+    rewrite (bernoulli_to_binomial_app_n _ n); [..|lia|done].
+    exists (S n).
+    rewrite app_length len length_l'_k.
+    split; first lia.
+    f_equal.
+    rewrite -(app_nil_r l') bernoulli_to_binomial_app_1; [done|lia|done].
+  Qed.
+(*
+  TODO : Make similar lemmas to these     
+  Parameter (twp_B_tape :
+    ∀ (N M : nat) (α : loc) (ns : list (fin 2)) (n : fin 2),
+    [[{ B_tape N M α (n::ns) }]]
+      B (#lbl:α) #N #M
+    [[{ RET #n ; B_tape N M α ns }]]).
+
+  Parameter (B_tape_planner :
+              ∀ (N M : nat) (e : expr) (ε : nonnegreal)
+                (L : nat) (α : loc) (Φ : val → iProp Σ)
+                (prefix : list (fin 2)) (suffix : list (fin 2) → list (fin 2)),
+               (0 < N)%nat →
+               (N < S M)%nat →
+               to_val e = None →
+               (∀ junk : list (fin 2),
+                  (0 < length (suffix (prefix ++ junk)) <= L)%nat) →
+               (0 < ε)%R →
+               ↯ ε ∗ B_tape N M α prefix ∗
+               ( (∃ (junk : list (fin 2)), B_tape N M α (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e [{ Φ }]
+               ) ⊢ WP e [{ Φ }]).
+ 
+  *)
 End binomial.
 #[global] Opaque binomial.
