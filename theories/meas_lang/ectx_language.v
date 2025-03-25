@@ -11,7 +11,8 @@ From clutch.bi Require Import weakestpre.
 From mathcomp.analysis Require Import reals measure ereal Rstruct.
 (* From clutch.prob.monad Require Import laws types meas_markov. *)
 From clutch.prob.monad Require Import giry meas_markov.
-From clutch.meas_lang Require Import language.
+From clutch.meas_lang Require Import language prelude.
+
 From Coq Require Import ssrfun.
 Set Warnings "hiding-delimiting-key".
 
@@ -224,14 +225,45 @@ Section ectx_language.
   Qed.
 
   (** FIXME: What a strange little measurability proof. *)
+  (* Definition prim_step : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type := *)
+  (*   gMap' (fill_liftU \o (fst \o decomp \o fst △ id)) \o head_step \o ((snd \o decomp \o fst) △ snd). *)
   Definition prim_step : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type :=
-    gMap' (fill_liftU \o (fst \o decomp \o fst △ id)) \o head_step \o ((snd \o decomp \o fst) △ snd).
-  (* Proposal for correct prim_step*)
-  Definition prim_step' : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type :=
     λ '(e, σ),
       let '(K, e') := decomp e in
       gMap' (fill_lift K) (head_step (e', σ)). 
 
+  Definition prim_step' : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type :=
+    gMap' fill_liftU \o
+    (gProd \o (gRet \o fst △ (head_step \o snd)) \o (fst \o decomp \o fst △ (snd \o decomp \o fst △ snd))).
+
+  Lemma prim_step_prim_step' : prim_step = prim_step'.
+    extensionality ρ. destruct ρ as [e s].
+    rewrite /prim_step/prim_step'.
+    destruct (decomp e) eqn:Hdecomp.
+    simpl. rewrite /fill_lift. rewrite Hdecomp/=.
+    (* need lemmas about gRet and gMap *)
+  Admitted.
+  
+  Lemma prim_step_meas: measurable_fun setT prim_step.
+  Proof.
+    rewrite prim_step_prim_step'.
+    rewrite /prim_step'.
+    eapply measurable_comp; [| |apply gMap'_meas_fun|].
+    { done. }
+    { done. }
+    { apply fill_liftU_meas. }
+    mf_cmp_tree; try done.
+    - mf_cmp_tree; try done.
+      + eapply @gProd_meas_fun.
+      + mf_prod; mf_cmp_tree; try done.
+        * apply gRet_meas_fun.
+        * apply head_step_meas.
+    - mf_prod; repeat mf_cmp_tree; try done.
+      + apply decomp_meas.
+      + mf_prod. repeat mf_cmp_tree; try done.
+        apply decomp_meas.
+  Qed.
+    
   (*
     ssrfun.comp
       ( giryM_map (ssrfun.comp fill_liftU $ mProd (ssrfun.comp fst $ ssrfun.comp decomp fst) (fun x => x)) _ )
@@ -351,31 +383,29 @@ Section ectx_language.
     destruct (head_ctx_step_val _ _ _ Hred) as [| ->].
     - assert (K = empty_ectx) as -> by eauto using decomp_val_empty.
       rewrite fill_empty/= in Hred Heq *.
-      rewrite Heq/=.
-      assert ((fill_liftU \o λ x : expr Λ * state Λ, ((decomp x.1).1, x)) = id) as Hrewrite.
-      { apply functional_extensionality_dep.
-        intros [??]. 
-        rewrite /fill_liftU. simpl.
-        f_equal.
-        apply decomp_fill.
-        admit.
-      }
+      (* rewrite Heq/=. *)
+      (* assert ((fill_liftU \o λ x : expr Λ * state Λ, ((decomp x.1).1, x)) = id) as Hrewrite. *)
+      (* { apply functional_extensionality_dep. *)
+      (*   intros [??].  *)
+      (*   rewrite /fill_liftU. simpl. *)
+      (*   f_equal. *)
+      (*   apply decomp_fill. *)
+      (*   admit. *)
+      (* } *)
       admit.
     - admit. (* rewrite fill_lift_empty fill_empty dmap_id //=. *)
   Admitted.
 
-  (*
-  Lemma head_prim_step_eq e1 σ1 :
-    head_reducible e1 σ1 →
-    prim_step e1 σ1 = head_step e1 σ1.
-  Proof. intros ?. apply distr_ext=>?. by eapply head_prim_step_pmf_eq. Qed.
-*)
 
-(* Not worth
   Lemma head_prim_step e1 σ1 ρ :
-    head_step e1 σ1 ρ > 0 → prim_step e1 σ1 ρ > 0.
-  Proof. intros ?. erewrite head_prim_step_eq; [done|]. eexists; eauto. Qed.
-*)
+    (lt_ereal 0 (head_step (e1, σ1) ρ)) → lt_ereal 0 (prim_step (e1, σ1) ρ).
+  Proof. intros H. erewrite head_prim_step_eq; [done|].
+         rewrite /head_reducible.
+         intro. assert (head_step (e1, σ1) ρ = 0)%E as Hrewrite.
+         { admit. }
+         rewrite Hrewrite in H.
+         rewrite lt_def_ereal in H.
+  Admitted.
 
   (* Proof breaks when no @ for some reason *)
   Lemma head_prim_step e1 σ1 : ¬ (is_zero (head_step (e1, σ1))) -> ¬ (is_zero (prim_step (e1, σ1))).
