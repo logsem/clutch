@@ -4,7 +4,9 @@ From clutch.con_prob_lang Require Import lang.
 Set Default Proof Using "Type*".
 
 Section full_info.
-  Definition full_info_state : Type := list (cfg * nat).
+  Definition cfg' : Type := (list expr * gmap loc val).
+  Definition full_info_state : Type := list (cfg' * nat).
+  Definition cfg_to_cfg' (ρ:cfg) := (ρ.1, heap ρ.2).
 
   Record full_info_oscheduler :=
     MkFullInfoOsch {
@@ -12,7 +14,7 @@ Section full_info.
         fi_osch_tape_oblivious :: oTapeOblivious _ fi_osch;
         fi_osch_valid:
         ∀ l ρ j l' μ, fi_osch (l, ρ) = Some μ -> (μ (l', j) > 0)%R ->
-                      l' = l++[(ρ, j)];
+                      l' = l++[(cfg_to_cfg' ρ, j)];
         fi_osch_consistent:
         ∀ l ρ, fi_osch (l, ρ) = None -> ∀ ρ', fi_osch (l, ρ') = None
       }.
@@ -106,17 +108,90 @@ Section full_info.
     apply fmap_None in Hnone.
     intros.
     by eapply fi_osch_consistent in Hnone as ->.
-  Qed. 
+  Qed.
+
+  (** TODO: lemmas about full_info_append_oscheduler *)
     
   
-  Definition full_info_stutter_distr (μ : distr nat) (l:list (cfg * nat)) (ρ:cfg) : distr (full_info_state * nat) :=
-    dmap (λ n, (l++[(ρ, n)], n))%nat μ.
+  Definition full_info_stutter_distr (μ : distr nat) (l:full_info_state) (ρ:cfg) : distr (full_info_state * nat) :=
+    dmap (λ n, (l++[(cfg_to_cfg' ρ, n)], n))%nat μ.
+
+  Lemma full_info_stutter_distr_tape_oblivious μ l ρ1 ρ2:
+    cfg_to_cfg' ρ1 = cfg_to_cfg' ρ2 ->
+    full_info_stutter_distr μ l ρ1 = full_info_stutter_distr μ l ρ2.
+  Proof.
+    rewrite /full_info_stutter_distr.
+    by intros ->.
+  Qed.
+
+  Lemma full_info_stutter_distr_valid μ l ρ l' j:
+    (full_info_stutter_distr μ l ρ (l', j) > 0)%R → l' = l ++ [(cfg_to_cfg' ρ, j)].
+  Proof.
+    rewrite /full_info_stutter_distr.
+    intros Hpos.
+    apply dmap_pos in Hpos as [?[??]].
+    by simplify_eq.
+  Qed.
   
   (* This is a way of building a scheduler that stutters one step into many different states 
      each of which is a different kind of scheduler
    *)
-  (* Program Definition full_info_stutter_osch (μ : distr nat) (f: nat -> full_info_scheduler) *)
+  Program Definition full_info_stutter_osch (μ : distr nat) (f: nat -> full_info_oscheduler) :=
+    {|
+      fi_osch := {| oscheduler_f := λ '(l, ρ),
+                                      match decide (∃ hd, ∃ tl, l=hd::tl) with
+                                      | left pro =>
+                                          let hd:=(epsilon pro) in
+                                          (full_info_append_oscheduler [hd] (f hd.2)) (l, ρ)
+                                      | _ => Some (full_info_stutter_distr μ [] ρ)
+                                      end
+                 |}
+    |}.
+  Next Obligation.
+    done.
+  Qed.
+  Next Obligation.
+    simpl.
+    intros ???[??][??]??. simpl in *. simplify_eq.
+    case_match.
+    - simpl in *.
+      case_match; last naive_solver.
+      f_equal.
+      by apply fi_osch_tape_oblivious.
+    - f_equal. apply full_info_stutter_distr_tape_oblivious.
+      rewrite /cfg_to_cfg'. by f_equal.
+  Qed.
+  Next Obligation.
+    simpl.
+    intros ???????.
+    case_match.
+    - case_match; last done.
+      intros Hsome.
+      eapply fmap_Some_1 in Hsome as [?[H1 ->]].
+      intros Hpos.
+      apply dmap_pos in Hpos as [[??][? ?]].
+      simplify_eq.
+      eapply fi_osch_valid in H1; last done.
+      rewrite H1.
+      pose proof epsilon_correct _ e as [??].
+      pose proof epsilon_correct _ e0 as H4.
+      simpl in *.
+      simplify_eq.
+      rewrite app_comm_cons. by f_equal.
+    - intros. simplify_eq. assert (l=[]) as ->.
+      + destruct l; first done. exfalso. naive_solver.
+      + by eapply full_info_stutter_distr_valid.
+  Qed.
+  Next Obligation.
+    simpl. intros ???[??].
+    case_match; last done.
+    case_match; last done.
+    rewrite fmap_None.
+    intros H'[??].
+    rewrite fmap_None.
+    by eapply fi_osch_consistent.
+  Qed.
   
-  (* TODO add more lemmas *)
+  (** TODO: lemmas about full_info_stutter_osch *)
   
 End full_info.

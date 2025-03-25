@@ -395,18 +395,49 @@ Section modalities.
     prog_coupl e σ ρ ε Z -∗ ⌜reducible e σ⌝.
   Proof. by iIntros "(%&%&%&%&%&%&?)". Qed.
 
-  (** Prove a more general lemma that allows advanced composition as well *)
-  (* Lemma prog_coupl_step_l_dret ε2 ε1 ε R e1 σ1 ρ1 Z : *)
-  (*   ε = (ε1 + ε2)%NNR → *)
-  (*   reducible e1 σ1 → *)
-  (*   ARcoupl (prim_step e1 σ1) (dret tt) R ε1 → *)
-  (*   (∀ e2 σ2 efs, ⌜R (e2, σ2, efs) tt⌝ ={∅}=∗ Z e2 σ2 efs ρ1 ε2) *)
-  (*   ⊢ prog_coupl e1 σ1 ρ1 ε Z. *)
-  (* Proof. *)
-  (*   iIntros (-> ? ?) "H". *)
-  (*   rewrite /prog_coupl. *)
-  (*   pose (n := length ρ1.1). *)
-  (*   iExists (λ x '(l, ρ), ρ=ρ1 /\ l=[(ρ1, (n+encode_nat x)%nat)]). *)
+  (** TODO Prove a more general lemma that allows advanced composition as well *)
+  Lemma prog_coupl_step_l_dret ε2 ε1 ε R e1 σ1 ρ1 Z :
+    ε = (ε1 + ε2)%NNR →
+    reducible e1 σ1 →
+    pgl (prim_step e1 σ1) R ε1 →
+    (∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗ Z e2 σ2 efs ρ1 ε2)
+    ⊢ prog_coupl e1 σ1 ρ1 ε Z.
+  Proof.
+    iIntros (-> ? ?) "H".
+    rewrite /prog_coupl.
+    pose (n := length ρ1.1).
+    destruct (to_final ρ1) eqn:Hρ1.
+    - iExists (λ x '(l, ρ), R x /\ ρ=ρ1 /\ l=[(cfg_to_cfg' ρ1, (n+encode_nat x)%nat)]).
+      iExists (full_info_stutter_osch (dmap (λ x, n+encode_nat x)%nat (prim_step e1 σ1)) (λ _, full_info_inhabitant)).
+      iExists ε1, (λ _, ε2), ε2.
+      repeat iSplit.
+      + done.
+      + done.
+      + replace (Expval _ _) with (nonneg ε2); first done.
+        rewrite Expval_const; last done.
+        replace (SeriesC _) with 1%R; first lra.
+        symmetry.
+        rewrite osch_lim_exec_step.
+        rewrite dbind_mass.
+        replace (SeriesC _) with (SeriesC (dmap (λ x, ([(cfg_to_cfg' ρ1, (n+encode_nat x))%nat], ρ1)) (prim_step e1 σ1))).
+        { rewrite dmap_mass. by rewrite prim_step_mass. } 
+        apply SeriesC_ext.
+        intros [??].
+        rewrite /osch_step_or_final_or_none/full_info_stutter_osch/=.
+        rewrite Hρ1.
+        admit.
+      + admit.
+      + admit.
+      + iIntros (?????(? & ->&->)). iApply ("H" with "[//]").
+    - 
+  Admitted.
+  (*   pose ( e:={| *)
+  (*     fi_osch := {| oscheduler_f := λ (x:_*cfg con_prob_lang), *)
+  (*                                     if bool_decide (x.1=[]) *)
+  (*                                     then Some (full_info_stutter_distr (dmap (λ x, n+encode_nat x)%nat (prim_step e1 σ1)) [] x.2) *)
+  (*                                     else None *)
+  (*                |} *)
+  (*   |}). *)
   (*   iExists (λ x ρ2, ρ1 = ρ2 /\ R x tt), _, ε1, ε2. *)
   (*   repeat iSplit; try done. *)
   (*   - iPureIntro. apply spec_transition_dret. *)
@@ -421,21 +452,19 @@ Section modalities.
   (*     by iApply "H". *)
   (* Qed. *)
  
-  (* Lemma prog_coupl_step_l e1 σ1 ρ1 ε Z : *)
-  (*   reducible e1 σ1 → *)
-  (*   (∀ e2 σ2 efs, ⌜prim_step e1 σ1 (e2, σ2, efs) > 0⌝ ={∅}=∗ Z e2 σ2 efs ρ1 ε) *)
-  (*   ⊢ prog_coupl e1 σ1 ρ1 ε Z. *)
-  (* Proof. *)
-  (*   iIntros (?) "H". *)
-  (*   iApply (prog_coupl_step_l_dret ε 0%NNR); [|done|..]. *)
-  (*   { apply nnreal_ext => /=. lra. } *)
-  (*   { eapply ARcoupl_pos_R, ARcoupl_trivial. *)
-  (*     - by apply prim_step_mass. *)
-  (*     - apply dret_mass. } *)
-  (*   simpl. *)
-  (*   iIntros (??? (_ & ? & [=]%dret_pos)). *)
-  (*   by iApply "H". *)
-  (* Qed. *)
+  Lemma prog_coupl_step_l e1 σ1 ρ1 ε Z :
+    reducible e1 σ1 →
+    (∀ e2 σ2 efs, ⌜prim_step e1 σ1 (e2, σ2, efs) > 0⌝ ={∅}=∗ Z e2 σ2 efs ρ1 ε)
+    ⊢ prog_coupl e1 σ1 ρ1 ε Z.
+  Proof.
+    iIntros (?) "H".
+    iApply (prog_coupl_step_l_dret ε 0%NNR); [|done|..].
+    { apply nnreal_ext => /=. lra. }
+    { by apply pgl_pos_R, pgl_trivial. }
+    simpl.
+    iIntros (??? (_ & ?)).
+    by iApply "H".
+  Qed.
   
 (** TODO: add nice lemmas for using prog_coupl, e.g. prim_step only on the left*)
 
