@@ -428,9 +428,6 @@ Section Bernoulli.
     by iApply "HΦ".
   Qed.
 
-  
-  
-  
   Definition own_bernoulli_tape α N M v := (∃ l, α ↪ (M; l) ∗ ⌜is_bernoulli_translation N M v l⌝)%I.
 
   Lemma twp_presample_bernoulli :
@@ -438,32 +435,80 @@ Section Bernoulli.
       (N M : nat) (ns : list (fin 2)),
     to_val e = None
     → own_bernoulli_tape α N M ns ∗
-    (own_bernoulli_tape α N M (ns ++ [0%fin]) -∗ WP e [{ Φ }]) ∗
-    (own_bernoulli_tape α N M (ns ++ [1%fin]) -∗ WP e [{ Φ }])
+    (∀ (i : fin 2), own_bernoulli_tape α N M (ns ++ [i]) -∗ WP e [{ Φ }])
       ⊢  WP e [{ Φ }]
   .
   Proof.
     move=> e α Φ N M ns HNone.
-    iIntros "(Hα & H0 & H1)".
+    iIntros "[Hα Hnext]".
     rewrite {1}/own_bernoulli_tape.
     iDestruct "Hα" as "(%l & Hα & %Htl)".
     wp_apply twp_presample; first done.
     iFrame.
     iIntros (k) "Htape".
     destruct (decide (N ≤ k)) as [N_le_k | k_lt_N%not_le].
-    - iApply "H0".
+    - iApply "Hnext".
       rewrite /own_bernoulli_tape.
       iExists _.
       iFrame.
       iPureIntro.
       by apply is_bernoulli_translation_app_0.
-    - iApply "H1".
+    - iApply "Hnext".
       rewrite /own_bernoulli_tape.
       iExists _.
       iFrame.
       iPureIntro.
       by apply is_bernoulli_translation_app_1.
   Qed.
+
+  Lemma twp_presample_bernoulli_adv_comp :
+    ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
+      (N M : nat) (ns : list (fin 2)) (ε : R)
+      (D : fin 2 → R),
+    (N ≤ M + 1)%nat →
+    (∀ (i : fin 2), 0 <= D i)%R →
+    (D 0%fin * (1 - (N / (M + 1))) + D 1%fin * (N / (M + 1)) = ε)%R
+    →  to_val e = None
+    → own_bernoulli_tape α N M ns ∗ ↯ ε ∗
+    (∀ (i : fin 2), ↯ (D i) ∗ own_bernoulli_tape α N M (ns ++ [i]) -∗ WP e [{ Φ }])
+    ⊢  WP e [{ Φ }]
+  .
+  Proof.
+    move=> e α Φ N M ns ε D N_le_SM D_nonneg D_expected_ε HNone.
+    rewrite -(Nat2Z.id M).
+    iIntros "(Hα & Herr & Hnext)".
+    rewrite {1}/own_bernoulli_tape.
+    iDestruct "Hα" as "(%l & Hα & %Htl)".
+    set f :=
+      λ (n : fin (S (Z.to_nat M))), 
+        if bool_decide (fin_to_nat n < N)%nat then D 1%fin else D 0%fin.
+    wp_apply (twp_presample_adv_comp _ _ _ _ _ _ _ _ f); first done; last iFrame.
+    { move=>n.
+      unfold f.
+      case_bool_decide; apply D_nonneg.
+    }
+    { unfold f. rewrite SeriesC_scal_l. rewrite Rmult_comm.
+      simpl_expr.
+      Opaque INR.
+      rewrite SeriesC_case //=.
+      replace (M + 1)%R with (S (Z.to_nat M) : R) in D_expected_ε; last first.
+      { rewrite Nat2Z.id -INR_1 -plus_INR. f_equal. lia. }
+      rewrite -D_expected_ε Rmult_plus_distr_l -!Rmult_assoc
+                 !(Rmult_comm _ (D _)) !Rmult_assoc.
+      simpl_expr.
+      rewrite Rmult_minus_distr_l.
+      simpl_expr.
+    }
+    iIntros (n) "[Herr Hα]".
+    unfold f.
+    case_bool_decide;
+      wp_apply "Hnext";
+      iFrame;
+      iPureIntro.
+    - apply: is_bernoulli_translation_app_1 => //. 
+    - apply: is_bernoulli_translation_app_0 => //.
+  Qed.
+    
 
   Lemma twp_bernoulli_tape :
     ∀ (N M : nat) (α : loc) (ns : list (fin 2)) (n : fin 2),
@@ -528,5 +573,5 @@ Section Bernoulli.
     apply tape_to_bernoulli_translation in Htl as ->.
     rewrite -tape_to_bernoulli_app /suffix2 bernoulli_to_tape_to_bernoulli //=.
   Qed.
-
+ 
 End Bernoulli.
