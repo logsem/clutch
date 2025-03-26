@@ -337,4 +337,37 @@ Fixpoint fin_S_inj {n : nat} (m : fin n) : fin (S n) :=
         apply IH.
   Qed.
 
+  Lemma fin_hsum_to_nat :
+    ∀ (n k : nat) (i : fin n) (j : fin (S k)), fin_to_nat (fin_hsum i j) = (fin_to_nat i + fin_to_nat j) `min` k.
+  Proof.
+    elim=>[|n IH] k i j; inv_fin i.
+    - simpl.
+      rewrite Nat.min_l //.
+      pose proof (fin_to_nat_lt j).
+      lia.
+    - move=>i.
+      destruct k as [|k].
+      + simpl.
+        inv_fin j; last (move=>j; inv_fin j).
+        rewrite fin_hsum_max //.
+      + simpl.
+        rewrite IH fin_succ_to_nat.
+        lia.
+  Qed.
+  
+  Lemma fin_hsum_le : ∀ (n m k : nat) (l : list (fin (S m))),
+    length l = k →
+    fin_to_nat (fin_sum_list (S m) n l) ≤ k * m.
+  Proof.
+    move=>n m k l.
+    elim: l k =>[|h t IH] k <-.
+    - reflexivity.
+    - simpl.
+      specialize (IH (length t) eq_refl).
+      rewrite fin_hsum_to_nat.
+      pose proof (fin_to_nat_lt h).
+      lia.
+  Qed.
+  
+  
   End fintools.

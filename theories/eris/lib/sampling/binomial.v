@@ -33,7 +33,7 @@ Section binomial.
   Parameter (twp_B_tape :
     ∀ (N M : nat) (α : loc) (ns : list (fin 2)) (n : fin 2),
     [[{ B_tape N M α (n::ns) }]]
-      B (#lbl:α) #N #M
+      B_lbl (#lbl:α) #N #M
     [[{ RET #n ; B_tape N M α ns }]]).
 
   Parameter (B_tape_planner :
@@ -584,14 +584,82 @@ Section binomial.
     f_equal.
     rewrite -(app_nil_r l') bernoulli_to_binomial_app_1; [done|lia|done].
   Qed.
+
+  Lemma twp_binomial_tape :
+    ∀ (N M k : nat) (α : loc) (ns : list (fin (S k))) (n : fin (S k)),
+    [[{ own_binomial_tape α N M k (n::ns) }]]
+      binom_tape (#lbl:α) #N #M #k
+      [[{ RET #n ; own_binomial_tape α N M k ns }]].
+  Proof.
+    iIntros (N M k α ns n Φ) "(%l & Htape & is_tl) HΦ".
+    rewrite /binom_tape.
+    unfold is_binomial_translation.
+    fold is_binomial_translation.
+    do 6 wp_pure.
+    iAssert (⌜k ≤ k⌝)%I as "Hk"; first done.
+    generalize k at 1 5 9.
+    iIntros (k').
+    iRevert (l α ns n Φ) "Hk Htape HΦ is_tl".
+    iInduction k' as [|k'] "IH".
+    - iIntros (l α ns n Φ) "%Hk Htape HΦ (%pre & %suf & <- & %len_pre & -> & %is_tl)".
+      wp_pures.
+      iModIntro.
+      replace 0%Z with ((0%fin : fin (S k)) : Z); last done.
+      destruct pre; last (simpl in len_pre; lia).
+      simpl.
+      iApply "HΦ".
+      iExists suf.
+      by iFrame.
+    - iIntros (l α ns n Φ) "%Hk Htape HΦ (%pre & %suf & %sum & %len_pre & -> & %is_tl)".
+      wp_pures.
+      destruct pre as [|hpre tpre]; first (simpl in len_pre; lia).
+      simpl in sum.
+      inv_fin hpre.
+      + move=>/= sum len_pre.
+        wp_apply (twp_B_tape N M α _ _ _ with "Htape").
+        iIntros "Htape".
+        wp_pure.
+        replace (S k' - 1)%Z with (k' : Z); last lia.
+        wp_apply ("IH" $! _ _ ns with "[] Htape [HΦ]"); last first; last (iPureIntro; lia).
+        { iPureIntro.
+          exists tpre, suf.
+          auto.
+        }
+        iIntros "Htape".
+        wp_pures.
+        rewrite Z.add_0_r sum.
+        iModIntro.
+        by iApply "HΦ".
+      + move=>/= i.
+        inv_fin i; last (move=>i; inv_fin i).
+        move=>/= sum len_pre.
+        wp_apply (twp_B_tape N M α _ _ _ with "Htape").
+        iIntros "Htape".
+        wp_pure.
+        replace (S k' - 1)%Z with (k' : Z); last lia.
+        wp_apply ("IH" $! _ _ ns with "[] Htape [HΦ]"); last first; last (iPureIntro; lia).
+        { iPureIntro.
+          exists tpre, suf.
+          auto.
+        }
+        iIntros "Htape".
+        wp_pures.
+        rewrite -sum fin_succ_to_nat.
+        replace (S k - 1)%nat with k; last lia.
+        rewrite Nat.min_l; last first.
+        { transitivity (S k'); last lia.
+          rewrite -len_pre -Nat.succ_le_mono.
+          etrans; first apply fin_hsum_le; first done.
+          lia.
+        }
+        rewrite -Nat2Z.inj_add Nat.add_1_r.
+        iModIntro.
+        iApply ("HΦ" with "Htape").
+  Qed.
+
 (*
   TODO : Make similar lemmas to these     
-  Parameter (twp_B_tape :
-    ∀ (N M : nat) (α : loc) (ns : list (fin 2)) (n : fin 2),
-    [[{ B_tape N M α (n::ns) }]]
-      B (#lbl:α) #N #M
-    [[{ RET #n ; B_tape N M α ns }]]).
-
+ 
   Parameter (B_tape_planner :
               ∀ (N M : nat) (e : expr) (ε : nonnegreal)
                 (L : nat) (α : loc) (Φ : val → iProp Σ)
