@@ -1,6 +1,7 @@
 From Coq Require Import Reals Psatz.
-From clutch.prob Require Import distribution couplings_app oscheduler.
+From clutch.prob Require Import distribution couplings_app.
 From clutch.con_prob_lang Require Import lang.
+From clutch.foxtrot Require Import oscheduler.
 Set Default Proof Using "Type*".
 
 Section full_info.
@@ -10,7 +11,7 @@ Section full_info.
 
   Record full_info_oscheduler :=
     MkFullInfoOsch {
-        fi_osch :> oscheduler (con_lang_mdp con_prob_lang) (full_info_state);
+        fi_osch :> oscheduler (full_info_state);
         fi_osch_tape_oblivious :: oTapeOblivious _ fi_osch;
         fi_osch_valid:
         ∀ l ρ j l' μ, fi_osch (l, ρ) = Some μ -> (μ (l', j) > 0)%R ->
@@ -30,9 +31,8 @@ Section full_info.
     - rewrite osch_exec_Sn.
       intros H'; apply dbind_pos in H' as [[??][H1 H2]].
       apply IHn in H1.
-      rewrite /osch_step_or_final_or_none in H2.
+      rewrite /osch_step_or_none in H2.
       repeat case_match.
-      + apply dret_pos in H2. naive_solver.
       + rewrite /osch_step in H2. case_match; simplify_eq.
         apply dbind_pos in H2 as [[??][H' K]].
         eapply fi_osch_valid in K; last done.
