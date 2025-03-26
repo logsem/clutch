@@ -1,6 +1,5 @@
-From Coq Require Import Utf8 List.
+From Coq Require Import Utf8 List ssreflect.
 Import ListNotations.
-From clutch.eris Require Import eris.
 
 Definition list_double_ind {A B: Type} (l1 : list A) (l2 : list B) 
   (P : list A → list B → Type)
