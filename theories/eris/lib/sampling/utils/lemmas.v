@@ -1,7 +1,6 @@
 From clutch.eris Require Import eris.
 
-Local Open Scope R.
-
+#[local] Open Scope R.
 
 Lemma ec_contradict_lt0 `{!erisGS Σ} (ε : R) : (ε < 0)%R -> ↯ ε ⊢ False.
 Proof.

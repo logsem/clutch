@@ -1,11 +1,11 @@
 From clutch.eris Require Import eris.
 From clutch.eris.lib.sampling Require Import utils.
 From clutch.eris.lib.sampling Require Import bernoulli.
-Local Open Scope R.
+#[local] Open Scope R.
 
 Section Geometric.
-  Local Ltac done ::= 
-  solve[lia || lra || nra || real_solver || tactics.done || auto].
+  #[local] Ltac done ::= 
+    solve[lia || lra || nra || real_solver || tactics.done || auto].
 
   Context `{!erisGS Σ}.
   Definition geometric : val :=

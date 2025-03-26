@@ -9,7 +9,7 @@ Section binomial.
   Parameter (B_lbl : val).
   Definition B : expr := B_lbl #().
 
-  Parameter (B_spec : ∀ (N M : nat) (ε ε1 ε2 : R), N ≤ (M + 1) → 
+  Parameter B_spec : ∀ (N M : nat) (ε ε1 ε2 : R), N ≤ (M + 1) → 
   ((ε1 * (1 - (N / (M + 1)))) + (ε2 * (N / (M + 1))) = ε)%R ->
   [[{↯ ε}]]
     B #N #M
@@ -17,17 +17,17 @@ Section binomial.
       (k : nat), RET #k; 
       (⌜k = 0⌝ ∗ ↯ ε1) ∨
       (⌜k = 1⌝ ∗ ↯ ε2)
-  }]]).
+  }]].
 
-  Parameter (B_tape : ∀ (N M : nat), loc → list (fin 2) → iProp Σ).
+  Parameter B_tape : ∀ (N M : nat), loc → list (fin 2) → iProp Σ.
   
-  Parameter (B_tape_presample :
+  Parameter B_tape_presample :
     ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
       (N M : nat) (ns : list (fin 2)),
     to_val e = None
     → B_tape N M α ns ∗
     (∀ (i : fin 2),B_tape N M α (ns ++ [i%fin]) -∗ WP e [{ Φ }])
-    ⊢  WP e [{ Φ }])
+    ⊢  WP e [{ Φ }]
   .
 
   Parameter (twp_B_tape :

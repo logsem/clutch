@@ -1,9 +1,8 @@
 From clutch.eris Require Import eris.
 From clutch.eris.lib.sampling Require Import utils.
-Local Open Scope R.
+#[local] Open Scope R.
 
 #[local] Ltac done ::= solve[lia || lra || nra || real_solver || tactics.done || auto].
-
 
 Section Lemmas.
 
@@ -20,18 +19,12 @@ Section Lemmas.
     ∀ b, b ∈ (f <$> l) → P2 b.
   Proof.
     move=> HPs.
-    elim: l.
-    - move=> _ b /= HinNil.
-      by apply not_elem_of_nil in HinNil.
-    - move=> a l IH Hforall /= b Hin.
-      rewrite elem_of_cons in Hin.
-      case: Hin.
-      + move=> ->.
-        apply HPs, Hforall, elem_of_list_here.
-      + move=> Hin.
-        apply IH => //.
-        move=> a' Ha'.
-        by apply Hforall, elem_of_list_further.
+    elim: l => [_ ? /= HinNil| a l IH Hforall /= b Hin].
+    - by apply not_elem_of_nil in HinNil.
+    - apply elem_of_cons in Hin as [-> | Hin].
+      + apply HPs, Hforall, elem_of_list_here.
+      + apply IH => // a' Ha'.
+        apply Hforall, elem_of_list_further, Ha'.
   Qed.
 
   Lemma forall_list_eq {A : Type} (l : list A) (a : A) :
@@ -40,8 +33,7 @@ Section Lemmas.
   Proof.
     add_hint @elem_of_list_here.
     add_hint @elem_of_list_further.
-    elim: l => //=.
-    move=> e l IH Hl.
+    elim: l => //= e l IH Hl.
     rewrite (Hl e) // -IH //.
   Qed.
 
@@ -50,11 +42,9 @@ Section Lemmas.
   Proof.
     set f := (λ x : nat, if bool_decide (x < N)%nat then e1 else e2).
     assert (Heq: ∀ e, e ∈ f <$> seq 0 N → e = e1). {
-      apply (fmap_prop _ f (λ n, n < N)%nat).
-      - move=> a Ha /=.
-        rewrite /f bool_decide_eq_true_2 //.
-      - move=> a Ha.
-        by apply elem_of_seq in Ha as [_ Ha].
+      apply (fmap_prop _ f (λ n, n < N)%nat) => [a Ha | a Ha].
+      - rewrite /f bool_decide_eq_true_2 //.
+      - by apply elem_of_seq in Ha as [_ Ha].
     }
     replace N with (length (f <$> seq 0 N)) at 2 by rewrite fmap_length seq_length //.
     exact: forall_list_eq Heq.
@@ -69,8 +59,7 @@ Section Lemmas.
       - rewrite /f bool_decide_eq_false_2 //.
       - by apply elem_of_seq in Ha as [].
     }
-    replace L with (length (f <$> seq N L)) at 2 by rewrite fmap_length seq_length //.
-    exact: forall_list_eq Heq.
+    rewrite (forall_list_eq _ _ Heq) fmap_length seq_length //.
   Qed.
 
 
@@ -109,7 +98,7 @@ End Lemmas.
 
 
 Section TapeTranslation.
-  Definition is_bernoulli_translation (N M : nat) : list (fin 2) -> (list (fin (S M))) -> Prop :=
+  Definition is_bernoulli_translation (N M : nat) : list (fin 2) → (list (fin (S M))) → Prop :=
     Forall2 (
       λ v l, 
         (v = 0%fin ∧ N ≤ fin_to_nat l) ∨
@@ -126,20 +115,20 @@ Section TapeTranslation.
     reflexivity.
   Qed.
 
-
+  
   Lemma is_bernoulli_translation_dec (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :
     {is_bernoulli_translation N M v l} + {¬ is_bernoulli_translation N M v l}.
   Proof.
     rewrite is_bernoulli_translation_def.
     apply Forall2_dec => vh lh.
-    repeat inv_fin vh =>[|vh]; destruct (decide (N ≤ lh)) as [? | ?%not_le]; 
+    repeat inv_fin vh =>[|vh]; destruct (decide (N ≤ lh)) as [? | ?%not_le];
     solve
-      [ left; done
+      [ left; done 
       | right; move=> [[_ Hcontra] | [Hcontra _]] // ].
   Qed.
 
   Lemma is_bernoulli_translation_length (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :
-    is_bernoulli_translation N M v l -> length v = length l.
+    is_bernoulli_translation N M v l → length v = length l.
   Proof.
     rewrite is_bernoulli_translation_def.
     apply Forall2_length.
@@ -163,7 +152,7 @@ Section TapeTranslation.
   Qed.
   
 
-  Definition tape_to_bernoulli (N M : nat) : list (fin (S M)) -> list (fin 2):=
+  Definition tape_to_bernoulli (N M : nat) : list (fin (S M)) → list (fin 2) :=
     map (λ v, if bool_decide (N ≤ fin_to_nat v)%nat then 0%fin else 1%fin).
 
   Lemma tape_to_bernoulli_def (N M : nat) (l : list (fin (S M))) :
@@ -172,7 +161,7 @@ Section TapeTranslation.
     reflexivity.
   Qed.
   
-  Definition bernoulli_to_tape (M : nat) : list (fin 2) -> list (fin (S M)) :=
+  Definition bernoulli_to_tape (M : nat) : list (fin 2) → list (fin (S M)) :=
     map (λ v, if bool_decide (v = 1)%fin then 0%fin else (nat_to_fin (Nat.lt_succ_diag_r M))).
   
   Lemma bernoulli_to_tape_def (M : nat) (l : list (fin 2)) :
@@ -287,11 +276,11 @@ Section Bernoulli.
 
   Definition bernoulli : expr := (bernoulli_tape #())%E.
 
-  Lemma twp_bernoulli_scale (N M : nat) (ε ε1 ε2 : R) :
+  Lemma twp_bernoulli_scale (N M : nat) (ε ε1 ε2 : R) (p := N / S M) :
   (N ≤ S M)%nat →
   0 <= ε1 →
   0 <= ε2 →
-  (ε1 * (1 - (N / S M))) + (ε2 * (N / S M)) = ε →
+  (ε1 * (1 - p)) + (ε2 * p) = ε →
   [[{↯ ε}]]
     bernoulli #N #M
   [[{
@@ -300,7 +289,6 @@ Section Bernoulli.
       (⌜k = 1%nat⌝ ∗ ↯ ε2)
   }]].
   Proof.
-    set p := N / S M.
     iIntros "%HNleM %ε1_pos %ε2_pos %Heq %Φ Herr HΦ".
     rewrite /bernoulli /bernoulli_tape.
     wp_pures.
@@ -325,9 +313,7 @@ Section Bernoulli.
       assert (S M > 0) by apply pos_INR_S.
       rewrite -(Rmult_assoc (S M) ε2 _) -(Rmult_comm ε2 (S M)) (Rmult_assoc ε2 (S M) _).
       simpl_expr.
-      rewrite -(Rmult_assoc (S M) ε1 _) -(Rmult_comm ε1 (S M)).
-      simpl_expr.
-      rewrite -!Ropp_mult_distr_r Rmult_assoc.
+      rewrite -(Rmult_assoc (S M) ε1 _) -(Rmult_comm ε1 (S M)) (Rmult_assoc ε1 (S M) _).
       simpl_expr. }
     wp_pures.
     unfold f. repeat case_bool_decide; wp_pures; try lia.
@@ -335,7 +321,7 @@ Section Bernoulli.
     - iApply ("HΦ" $! 0)%nat; auto.
   Qed.
 
-  Lemma bernoulli_success_spec (N M : nat) :
+  Lemma bernoulli_success_spec (N M : nat) (p := N / S M) :
     ∀ (ε ε' : R),
     (0 <= ε')%R →
     ε = (ε' * (N / S M)) → 
@@ -357,7 +343,7 @@ Section Bernoulli.
   Lemma bernoulli_failure_spec (N M : nat) :
     ∀ (ε ε' : R),
     (0 <= ε')%R →
-    ε = (ε' * (1 - N / S M)) → 
+    ε = (ε' * (1 - N / S M)) →
     [[{↯ ε ∗ ↯ (N / S M)}]] 
       bernoulli #N #M 
     [[{ v, RET v; ↯ ε' ∗ ⌜v = #0⌝ }]].
@@ -374,8 +360,8 @@ Section Bernoulli.
 
   Lemma bernoulli_success_spec_simple (N M : nat) :
     [[{↯ (1 - (N / S M))}]]
-      bernoulli #N #M 
-      [[{ v, RET v; ⌜v = #1⌝ }]].
+      bernoulli #N #M
+    [[{ v, RET v; ⌜v = #1⌝ }]].
   Proof.
     iIntros (Φ) "Herr HΦ".
     iMod ec_zero as "Hzero".
@@ -387,7 +373,7 @@ Section Bernoulli.
   Lemma bernoulli_failure_spec_simple (N M : nat) :
     [[{↯ (N / S M)}]] 
       bernoulli #N #M 
-      [[{ v, RET v; ⌜v = #0⌝ }]].
+    [[{ v, RET v; ⌜v = #0⌝ }]].
   Proof.
     iIntros (Φ) "Herr HΦ".
     iMod ec_zero as "Hzero".
@@ -428,6 +414,7 @@ Section Bernoulli.
     by iApply "HΦ".
   Qed.
 
+  
   Definition own_bernoulli_tape α N M v := (∃ l, α ↪ (M; l) ∗ ⌜is_bernoulli_translation N M v l⌝)%I.
 
   Lemma twp_presample_bernoulli :

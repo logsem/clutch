@@ -5,12 +5,6 @@ From clutch.eris.lib.sampling.utils Require Import lemmas.
 
 Ltac add_hint t := let n := fresh "hint" in have n := t.
 
-Ltac extract_val_eq :=
-  repeat match goal with 
-  | H : #?n = #?m |- _ => injection H as H
-  | H : Z.of_nat _ = Z.of_nat _ |- _ => apply Nat2Z.inj in H
-  end.
-
 Ltac cred_contra := 
     match goal with 
     | |- context[↯ 0] => 
@@ -48,38 +42,58 @@ Ltac simpl_expr :=
   repeat (
       match goal with 
       | |- context[(?v1 * (?v2 * /?v1))] => 
-            rewrite (Rmult_div_assoc v1 v2 v1) (Rmult_div_r v1 v2)
+            rewrite 
+              (Rmult_div_assoc v1 v2 v1) 
+              (Rmult_div_r v1 v2)
+
       | |- context[((?v1 * ?v2) * /?v1)] => 
             rewrite (Rmult_div_r v1 v2)
 
-      | |- ?n * _ < ?n * _ => apply Rmult_lt_compat_l
+      | |- context[?v * /?v] => rewrite (Rinv_r v)
+
+
+      | |- _ * ?n <= _ * ?n => apply Rmult_le_compat_r
+      | |- _ * ?n <  _ * ?n => apply Rmult_lt_compat_r
+      | |- _ * ?n =  _ * ?n => apply Rmult_eq_compat_r
+
+
       | |- ?n * _ <= ?n * _ => apply Rmult_le_compat_l
-      | |- ?n * _ = ?n * _ => apply Rmult_eq_compat_l
+      | |- ?n * _ <  ?n * _ => apply Rmult_lt_compat_l
+      | |- ?n * _ =  ?n * _ => apply Rmult_eq_compat_l
       
-      | |- _ < _ */?n => apply (Rmult_lt_reg_l n)
+
       | |- _ <= _ */?n => apply (Rmult_le_reg_l n)
-      | |- _ = _ */?n => apply (Rmult_eq_reg_l n)
+      | |- _ <  _ */?n => apply (Rmult_lt_reg_l n)
+      | |- _ =  _ */?n => apply (Rmult_eq_reg_l n)
 
-      | |- _ * /?n < _  => apply (Rmult_lt_reg_l n)
+
       | |- _ * /?n <= _  => apply (Rmult_le_reg_l n)
-      | |- _ * /?n = _  => apply (Rmult_eq_reg_l n)
+      | |- _ * /?n <  _  => apply (Rmult_lt_reg_l n)
+      | |- _ * /?n =  _  => apply (Rmult_eq_reg_l n)
 
-      | |- _ + ?n = _ + ?n => apply (Rplus_eq_compat_r n)
-      | |- ?n + _ = ?n + _ => apply (Rplus_eq_compat_l n)
+
+      | |- _ + ?n <= _ + ?n => apply (Rplus_le_compat_r n)
+      | |- _ + ?n <  _ + ?n => apply (Rplus_lt_compat_r n)
+      | |- _ + ?n =  _ + ?n => apply (Rplus_eq_compat_r n)
+
+
+      | |- ?n + _ <= ?n + _ => apply (Rplus_le_compat_l n)
+      | |- ?n + _ <  ?n + _ => apply (Rplus_lt_compat_l n)
+      | |- ?n + _ =  ?n + _ => apply (Rplus_eq_compat_l n)
       end ||
-      rewrite Rplus_0_l || rewrite Rplus_0_r ||
-      rewrite Rmult_1_l || rewrite Rmult_1_r ||
-      rewrite Rmult_0_l || rewrite Rmult_0_r ||
-      rewrite Rdiv_1_l  || rewrite Rdiv_1_r ||
-      rewrite Rdiv_def ||
-      lra ||
-      auto||
+      rewrite Rplus_0_l || rewrite Rplus_0_r    ||
+      rewrite Rmult_0_l || rewrite Rmult_0_r    ||
+      rewrite Rmult_1_l || rewrite Rmult_1_r    ||
+      rewrite Rdiv_1_l  || rewrite Rdiv_1_r     ||
+      rewrite !Rdiv_def || rewrite !Rminus_def  ||
+      rewrite !Rinv_1   || rewrite !Rinv_0      ||
+      rewrite -!Ropp_mult_distr_r ||
+      lra  || auto || done ||
       solve[apply cond_nonneg] ||
-      solve[apply pos_INR_S] ||
-      solve[apply pos_INR] ||
+      solve[apply pos_INR_S]   ||
+      solve[apply pos_INR]     ||
       solve[apply le_INR; lia] ||
       solve[apply lt_INR; lia] ||
       solve[apply INR_S_not_0]
     ).
 
-Search (_ = _ -> _ + ?a = _ + ?a).
