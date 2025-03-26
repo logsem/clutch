@@ -9,7 +9,7 @@ From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.con_prob_lang Require Import lang erasure.
 From clutch.common Require Export sch_erasable con_language.
 From clutch.prob Require Export couplings_app distribution.
-From clutch.foxtrot Require Import full_info.
+From clutch.foxtrot Require Import oscheduler full_info.
 
 Import uPred.
 
@@ -423,8 +423,7 @@ Section modalities.
         { rewrite dmap_mass. by rewrite prim_step_mass. } 
         apply SeriesC_ext.
         intros [??].
-        rewrite /osch_step_or_final_or_none/full_info_stutter_osch/=.
-        rewrite Hρ1.
+        rewrite /osch_step_or_none/full_info_stutter_osch/=.
         admit.
       + admit.
       + admit.
