@@ -6,7 +6,7 @@ Section binomial.
 
   Parameter (B : val).
 
-  Parameter (B_spec : ∀ (N M : nat) (ε ε1 ε2 : R), N ≤ (M + 1) → 
+  Parameter B_spec : ∀ (N M : nat) (ε ε1 ε2 : R), N ≤ (M + 1) → 
   ((ε1 * (1 - (N / (M + 1)))) + (ε2 * (N / (M + 1))) = ε)%R ->
   [[{↯ ε}]]
     B #N #M
@@ -14,9 +14,9 @@ Section binomial.
       (k : nat), RET #k; 
       (⌜k = 0⌝ ∗ ↯ ε1) ∨
       (⌜k = 1⌝ ∗ ↯ ε2)
-  }]]).
+  }]].
 
-  Parameter (B_tape : ∀ (N M : nat), loc → list (fin 2) → iProp Σ).
+  Parameter B_tape : ∀ (N M : nat), loc → list (fin 2) → iProp Σ.
 
   Definition binom : val :=
     λ: "m" "n",
@@ -118,8 +118,8 @@ Section binomial.
 
   Fixpoint fin_S_inj {n : nat} (m : fin n) : fin (S n) :=
     match m with
-    | Fin.F1 _ => Fin.F1
-    | Fin.FS _ k=> Fin.FS (fin_S_inj k)
+    | Fin.F1 _   => Fin.F1
+    | Fin.FS _ k => Fin.FS (fin_S_inj k)
     end.
 
   Lemma fin_S_inj_to_nat : ∀ (m : nat) (n : fin m), fin_to_nat n = fin_to_nat (fin_S_inj n).
