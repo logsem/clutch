@@ -385,7 +385,16 @@ Section binomial.
   Definition binomial_to_bernoulli (k : nat) (v : list (fin (S k))) : list (fin 2) :=  
     x ← v ;
   (repeat (1%fin : fin 2) (fin_to_nat x) ++ repeat (0%fin : fin 2) (k - fin_to_nat x)).
-       
+
+  Lemma binomial_to_bernoulli_length : ∀ (k : nat) (v : list (fin (S k))),
+    length (binomial_to_bernoulli k v) = k * length v.
+  Proof.
+    induction v as [|h t]; simpl; first lia.
+    rewrite !app_length IHt !repeat_length.
+    assert (h < S k) by apply fin_to_nat_lt.
+    lia.
+  Qed.
+  
   Fixpoint bernoulli_to_binomial_aux (k c : nat) (l : list (fin 2)) (acc : fin (S k)) : list (fin (S k)) :=
     match l,c with
     | [], _ => []
@@ -657,23 +666,126 @@ Section binomial.
         iApply ("HΦ" with "Htape").
   Qed.
 
-(*
-  TODO : Make similar lemmas to these     
- 
-  Parameter (B_tape_planner :
-              ∀ (N M : nat) (e : expr) (ε : nonnegreal)
-                (L : nat) (α : loc) (Φ : val → iProp Σ)
-                (prefix : list (fin 2)) (suffix : list (fin 2) → list (fin 2)),
-               (0 < N)%nat →
-               (N < S M)%nat →
-               to_val e = None →
-               (∀ junk : list (fin 2),
-                  (0 < length (suffix (prefix ++ junk)) <= L)%nat) →
-               (0 < ε)%R →
-               ↯ ε ∗ B_tape N M α prefix ∗
-               ( (∃ (junk : list (fin 2)), B_tape N M α (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e [{ Φ }]
-               ) ⊢ WP e [{ Φ }]).
- 
-  *)
+  Lemma twp_binomial_tape_planner :
+    ∀ (N M k : nat) (e : expr) (ε : nonnegreal)
+      (L : nat) (α : loc) (Φ : val → iProp Σ)
+      (prefix : list (fin (S k))) (suffix : list (fin (S k)) → list (fin (S k))),
+    (0 < N)%nat →
+    (N < S M)%nat →
+    (0 < k)%nat → 
+    to_val e = None →
+    (∀ junk : list (fin (S k)),
+       (0 < length (suffix (prefix ++ junk)) <= L)%nat) →
+    (0 < ε)%R →
+    ↯ ε ∗ own_binomial_tape α N M k prefix ∗
+    ( (∃ (junk : list (fin (S k))), own_binomial_tape α N M k (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e [{ Φ }]
+    ) ⊢ WP e [{ Φ }].
+  Proof.
+    iIntros (M N k e ε L α Φ pref suf M_pos N_lt_SM k_pos e_not_val suf_bound ε_pos)
+      "(Herr & (%l & Hα & %is_tl) & Hnext)".
+    set (suf_tl (lst : list (fin 2)) :=
+           let r := (k - (length lst) `mod` k) `mod` k in
+           let padding := repeat 0%fin r in
+           padding ++ binomial_to_bernoulli k (suf (bernoulli_to_binomial k (lst ++ padding)))
+        ).
+    apply bernoulli_to_binomial_translation in is_tl as (n & len_l & pref_eq); last done.
+    wp_apply (B_tape_planner _ _ _ _ ((1 + L) * k) _ _ _ suf_tl); last iFrame; try done.
+    { move=>junk.
+      unfold suf_tl.
+      rewrite app_length binomial_to_bernoulli_length.
+      rewrite -app_assoc (bernoulli_to_binomial_app_n _ n); [|lia|done].
+      rewrite -pref_eq.
+      rewrite repeat_length app_length.
+      match goal with
+      | |- (_ < ?X + k * ?Y ≤ _)%nat =>
+          set (A := X);
+          set (B := Y);
+          assert (A < k) by (apply Nat.mod_upper_bound; lia);
+          assert (0 < B ≤ L) as [bound_left bound_right]by apply suf_bound
+      end.
+      unfold A.
+      fold B A.
+      split; first lia.
+      rewrite Nat.mul_comm Nat.mul_add_distr_r.
+      apply Nat.add_le_mono; first lia.
+      by apply Nat.mul_le_mono_r.
+    }
+    iIntros "(%junk & Hα)".
+    wp_apply "Hnext".
+    set (junk' := junk ++ repeat 0%fin ((k - length junk `mod` k) `mod` k)).
+    iExists (bernoulli_to_binomial k junk').
+    unfold own_binomial_tape.
+    iExists _.
+    iFrame.
+    iPureIntro.
+    rewrite bernoulli_to_binomial_translation; last done.
+    set (s :=
+           suf
+             (bernoulli_to_binomial k
+                ((l ++ junk) ++
+                   repeat 0%fin
+                   ((k - (n * k + length junk) `mod` k)
+                      `mod` k)))).
+    set (n0 := n + length junk `div` k + (if bool_decide (length junk `mod` k = 0) then 0 else 1) + length s).
+     
+    eexists n0.
+    split.
+    {
+      rewrite /suf_tl /= !app_length len_l binomial_to_bernoulli_length.
+      fold s.
+      rewrite (Nat.add_comm (n * k) (length junk)) Nat.Div0.mod_add repeat_length.
+      rewrite {1}(Nat.Div0.div_mod (length junk) k).
+      unfold n0.
+      case_bool_decide as H.
+      {
+        rewrite H Nat.sub_0_r Nat.Div0.mod_same Nat.add_0_r /=.
+        lia.
+      }
+      { 
+        assert (0 < length junk `mod` k) by lia.
+        rewrite (Nat.mod_small (_ - _)); last lia.
+        rewrite (Nat.add_assoc _ (k - (_ `mod` _))) Nat.add_sub_assoc; last first.
+        {  assert (length junk `mod` k < k) by (apply Nat.mod_upper_bound; lia).
+           lia.
+        }
+        lia.
+      }
+    }
+    unfold suf_tl.
+    rewrite app_length len_l.
+    fold s.
+    rewrite pref_eq (bernoulli_to_binomial_app_n k n); try lia.
+    f_equal.
+    set (n1 := length junk `div` k  +
+                 if bool_decide (length junk `mod` k = 0)
+                 then 0
+                 else 1).
+    rewrite app_assoc (bernoulli_to_binomial_app_n k n1); try lia; last first.
+    {
+      rewrite  app_length repeat_length (Nat.add_comm (n * k) (length junk)) Nat.Div0.mod_add {1}(Nat.Div0.div_mod (length junk) k).
+      unfold n1.
+      case_bool_decide as H.
+      {
+        rewrite H !Nat.add_0_r Nat.sub_0_r Nat.Div0.mod_same.
+        lia.
+      }
+      {
+        assert (0 < length junk `mod` k) by lia.
+        rewrite (Nat.mod_small (_ - _)); last lia.
+        rewrite Nat.add_sub_assoc; last first.
+        {  assert (length junk `mod` k < k) by (apply Nat.mod_upper_bound; lia).
+           lia.
+        }
+        lia.
+      }
+    }
+    unfold junk', s.
+    rewrite !(Nat.add_comm (n * k) _) Nat.Div0.mod_add.
+    f_equal.
+    rewrite binomial_to_bernoulli_to_binomial; last lia.
+    rewrite -app_assoc (bernoulli_to_binomial_app_n k n l); try lia.
+    reflexivity.
+  Qed.
+
 End binomial.
 #[global] Opaque binomial.

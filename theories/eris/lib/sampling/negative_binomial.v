@@ -83,8 +83,6 @@ Section NegativeBinomial.
     intros ε Hε.
   Admitted.
 
-  Print infinite_sum.
-  
   Lemma ec_negative_binom_split :
     ∀ (p q r : nat) (D : nat → R),
     let ε := SeriesC (λ k, negative_binom_prob p q (r + 1) k * D k)%R in
