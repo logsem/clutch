@@ -408,7 +408,7 @@ Section modalities.
     pose (n := length ρ1.1).
     destruct (to_final ρ1) eqn:Hρ1.
     - iExists (λ x '(l, ρ), R x /\ ρ=ρ1 /\ l=[(cfg_to_cfg' ρ1, (n+encode_nat x)%nat)]).
-      pose (osch:=full_info_stutter_osch (dmap (λ x, n+encode_nat x)%nat (prim_step e1 σ1)) (λ _, full_info_inhabitant)).
+      pose (osch:=full_info_cons_osch (dmap (λ x, n+encode_nat x)%nat (prim_step e1 σ1)) (λ _, full_info_inhabitant)).
       iExists (osch).
       iExists ε1, (λ _, ε2), ε2.
       assert (osch_lim_exec osch ([], ρ1) = dmap (λ x, ([(cfg_to_cfg' ρ1, (n+encode_nat x)%nat)], ρ1)) (prim_step e1 σ1)).
@@ -426,7 +426,7 @@ Section modalities.
         { rewrite dmap_mass. by rewrite prim_step_mass. } 
         apply SeriesC_ext.
         intros [??].
-        rewrite /osch_step_or_none/full_info_stutter_osch/=.
+        rewrite /osch_step_or_none/full_info_cons_osch/=.
         admit.
       + admit.
       + admit.
@@ -436,7 +436,7 @@ Section modalities.
   (*   pose ( e:={| *)
   (*     fi_osch := {| oscheduler_f := λ (x:_*cfg con_prob_lang), *)
   (*                                     if bool_decide (x.1=[]) *)
-  (*                                     then Some (full_info_stutter_distr (dmap (λ x, n+encode_nat x)%nat (prim_step e1 σ1)) [] x.2) *)
+  (*                                     then Some (full_info_cons_distr (dmap (λ x, n+encode_nat x)%nat (prim_step e1 σ1)) [] x.2) *)
   (*                                     else None *)
   (*                |} *)
   (*   |}). *)

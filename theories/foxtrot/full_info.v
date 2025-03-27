@@ -1,4 +1,6 @@
 From Coq Require Import Reals Psatz.
+From Coquelicot Require Import Rcomplements Rbar Lim_seq.
+From clutch.prelude Require Import Series_ext.
 From clutch.con_prob_lang Require Import lang.
 From clutch.foxtrot Require Import oscheduler.
 From clutch.prob Require Import distribution couplings_app.
@@ -71,7 +73,7 @@ Section full_info.
     by rewrite osch_lim_exec_None.
   Qed.
 
-  Program Definition full_info_append_oscheduler prel (osch: full_info_oscheduler) : full_info_oscheduler :=
+  Program Definition full_info_lift_osch prel (osch: full_info_oscheduler) : full_info_oscheduler :=
     {|
       fi_osch := {| oscheduler_f := λ '(l, ρ),
                                       match decide (∃ sufl, l=prel++sufl) with
@@ -111,14 +113,30 @@ Section full_info.
     by eapply fi_osch_consistent in Hnone as ->.
   Qed.
 
-  Lemma full_info_append_oscheduler_exec prel osch n l ρ:
-    osch_exec (full_info_append_oscheduler prel osch) n (prel++l, ρ) =
+  Lemma full_info_lift_osch_unfold prel osch l ρ:
+    full_info_lift_osch prel osch (prel ++ l, ρ) =
+    dmap (λ '(l', ρ'), (prel ++ l', ρ')) <$> (osch (l, ρ)).
+  Proof.
+    rewrite /full_info_lift_osch.
+    simpl.
+    case_match; last (exfalso; naive_solver).
+    pose proof epsilon_correct _ e as H1.
+    simpl in *.
+    simplify_eq. rewrite -H1.
+    apply option_fmap_ext.
+    intros. rewrite /dmap. apply dbind_ext_right.
+    by intros [??].
+  Qed.
+    
+  
+  Lemma full_info_lift_osch_exec prel osch n l ρ:
+    osch_exec (full_info_lift_osch prel osch) n (prel++l, ρ) =
     dmap (λ '(l', ρ'), (prel++l', ρ')) (osch_exec osch n (l, ρ)).
   Proof.
     revert l ρ.
     induction n; intros l ρ.
     {
-      rewrite /osch_exec/full_info_append_oscheduler/=.
+      rewrite /osch_exec/full_info_lift_osch/=.
       repeat case_match.
       - by rewrite dmap_dzero.
       - pose proof epsilon_correct _ e. simpl in *.
@@ -138,7 +156,7 @@ Section full_info.
     rewrite dmap_dbind.
     rewrite /osch_step_or_none.
     case_match eqn:Heqn.
-    - rewrite /full_info_append_oscheduler /= in Heqn.
+    - rewrite /full_info_lift_osch /= in Heqn.
       case_match; last done.
       pose proof epsilon_correct _ e as H0.
       simpl in *. simplify_eq. apply fmap_Some in Heqn as [?[H1 ->]].
@@ -165,7 +183,7 @@ Section full_info.
         apply fmap_None in Heqn1.
         pose proof epsilon_correct _ e0 as H'.
         simpl in *. simplify_eq. rewrite -H' in Heqn1. rewrite Heqn1 in H1. done.
-    - rewrite /full_info_append_oscheduler/= in Heqn.
+    - rewrite /full_info_lift_osch/= in Heqn.
       rewrite dret_id_left.
       erewrite IHn.
       case_match.
@@ -175,8 +193,8 @@ Section full_info.
       + exfalso. naive_solver.
   Qed.
 
-  Lemma full_info_append_oscheduler_lim_exec prel osch l ρ:
-    osch_lim_exec (full_info_append_oscheduler prel osch) (prel++l, ρ) =
+  Lemma full_info_lift_osch_lim_exec prel osch l ρ:
+    osch_lim_exec (full_info_lift_osch prel osch) (prel++l, ρ) =
     dmap (λ '(l', ρ'), (prel++l', ρ')) (osch_lim_exec osch (l, ρ)).
   Proof.
     apply distr_ext.
@@ -184,7 +202,7 @@ Section full_info.
     apply Rle_antisym.
     - apply osch_lim_exec_leq.
       intros.
-      rewrite full_info_append_oscheduler_exec.
+      rewrite full_info_lift_osch_exec.
       rewrite /dmap/dbind/dbind_pmf{1 4}/pmf.
       apply SeriesC_le; last (apply pmf_ex_seriesC_mult_fn; naive_solver).
       intros. split; first real_solver.
@@ -192,42 +210,42 @@ Section full_info.
       apply osch_lim_exec_is_sup.
     - apply osch_lim_exec_dmap_le.
       intros n. etrans; last apply (osch_lim_exec_is_sup _ n).
-      by rewrite full_info_append_oscheduler_exec.
+      by rewrite full_info_lift_osch_exec.
   Qed.
-  (** TODO: lemmas about full_info_append_oscheduler *)
+  (** TODO: lemmas about full_info_lift_osch *)
     
   
-  Definition full_info_stutter_distr (μ : distr nat) (l:full_info_state) (ρ:cfg) : distr (full_info_state * nat) :=
+  Definition full_info_cons_distr (μ : distr nat) (l:full_info_state) (ρ:cfg) : distr (full_info_state * nat) :=
     dmap (λ n, (l++[(cfg_to_cfg' ρ, n)], n))%nat μ.
 
-  Lemma full_info_stutter_distr_tape_oblivious μ l ρ1 ρ2:
+  Lemma full_info_cons_distr_tape_oblivious μ l ρ1 ρ2:
     cfg_to_cfg' ρ1 = cfg_to_cfg' ρ2 ->
-    full_info_stutter_distr μ l ρ1 = full_info_stutter_distr μ l ρ2.
+    full_info_cons_distr μ l ρ1 = full_info_cons_distr μ l ρ2.
   Proof.
-    rewrite /full_info_stutter_distr.
+    rewrite /full_info_cons_distr.
     by intros ->.
   Qed.
 
-  Lemma full_info_stutter_distr_valid μ l ρ l' j:
-    (full_info_stutter_distr μ l ρ (l', j) > 0)%R → l' = l ++ [(cfg_to_cfg' ρ, j)].
+  Lemma full_info_cons_distr_valid μ l ρ l' j:
+    (full_info_cons_distr μ l ρ (l', j) > 0)%R → l' = l ++ [(cfg_to_cfg' ρ, j)].
   Proof.
-    rewrite /full_info_stutter_distr.
+    rewrite /full_info_cons_distr.
     intros Hpos.
     apply dmap_pos in Hpos as [?[??]].
     by simplify_eq.
   Qed.
   
-  (* This is a way of building a scheduler that stutters one step into many different states 
+  (* This is a way of building a scheduler that conss one step into many different states 
      each of which is a different kind of scheduler
    *)
-  Program Definition full_info_stutter_osch (μ : distr nat) (f: nat -> full_info_oscheduler) :=
+  Program Definition full_info_cons_osch (μ : distr nat) (f: nat -> full_info_oscheduler) :=
     {|
       fi_osch := {| oscheduler_f := λ '(l, ρ),
                                       match decide (∃ hd, ∃ tl, l=hd::tl) with
                                       | left pro =>
                                           let hd:=(epsilon pro) in
-                                          (full_info_append_oscheduler [hd] (f hd.2)) (l, ρ)
-                                      | _ => Some (full_info_stutter_distr μ [] ρ)
+                                          (full_info_lift_osch [hd] (f hd.2)) (l, ρ)
+                                      | _ => Some (full_info_cons_distr μ [] ρ)
                                       end
                  |}
     |}.
@@ -242,7 +260,7 @@ Section full_info.
       case_match; last naive_solver.
       f_equal.
       by apply fi_osch_tape_oblivious.
-    - f_equal. apply full_info_stutter_distr_tape_oblivious.
+    - f_equal. apply full_info_cons_distr_tape_oblivious.
       rewrite /cfg_to_cfg'. by f_equal.
   Qed.
   Next Obligation.
@@ -264,7 +282,7 @@ Section full_info.
       rewrite app_comm_cons. by f_equal.
     - intros. simplify_eq. assert (l=[]) as ->.
       + destruct l; first done. exfalso. naive_solver.
-      + by eapply full_info_stutter_distr_valid.
+      + by eapply full_info_cons_distr_valid.
   Qed.
   Next Obligation.
     simpl. intros ???[??].
@@ -276,42 +294,91 @@ Section full_info.
     by eapply fi_osch_consistent.
   Qed.
 
-  (** TODO: lemmas about full_info_stutter_osch *)
+  (** TODO: lemmas about full_info_cons_osch *)
 
-
-  Lemma full_info_stutter_osch_exec_0 μ f ρ:
-    osch_exec (full_info_stutter_osch μ f) 0 ([], ρ) =
+  Lemma full_info_cons_osch_unfold μ f x a l ρ:
+    full_info_cons_osch μ f ([(x, a)] ++ l, ρ) =
+    (full_info_lift_osch [(x, a)] (f a)) ([(x, a)] ++l, ρ).
+  Proof.
+    Local Opaque full_info_lift_osch.
+    rewrite /full_info_cons_osch/=.
+    case_match; last (exfalso; naive_solver).
+    pose proof epsilon_correct _ e as [??].
+    simplify_eq. destruct (epsilon e).
+    by simplify_eq.
+  Qed.
+    
+  Lemma full_info_cons_osch_exec_0 μ f ρ:
+    osch_exec (full_info_cons_osch μ f) 0 ([], ρ) =
     dzero.
   Proof.
     rewrite /osch_exec.
-    rewrite /full_info_stutter_osch/=.
+    rewrite /full_info_cons_osch/=.
     case_match; first done.
     case_match; (exfalso; naive_solver).
   Qed.
 
-  Lemma full_info_stutter_osch_exec_n μ f ρ a x n l:
-    osch_exec (full_info_stutter_osch μ f) n ([(x, a)]++l, ρ) =
+  Lemma full_info_cons_osch_exec_n μ f ρ a x n l:
+    osch_exec (full_info_cons_osch μ f) n ([(x, a)]++l, ρ) =
     dmap (λ '(l', ρ'), ([(x, a)]++l', ρ')) (osch_exec (f a) n (l, ρ)).
   Proof.
-  Admitted.
+    revert ρ l.
+    induction n; intros ρ l.
+    - destruct ((f a) (l, ρ)) eqn:Heqn.
+      + rewrite !osch_exec_0.
+        * by rewrite dmap_dzero.
+        * done.
+        * rewrite full_info_cons_osch_unfold.
+          rewrite full_info_lift_osch_unfold.
+          rewrite Heqn. simpl. naive_solver. 
+      + rewrite !osch_exec_is_none.
+        * by rewrite dmap_dret.
+        * done.
+        * rewrite full_info_cons_osch_unfold.
+          rewrite full_info_lift_osch_unfold.
+          rewrite Heqn. simpl. naive_solver.  
+    - rewrite !osch_exec_Sn.
+      rewrite dmap_dbind.
+      rewrite /osch_step_or_none.
+      rewrite full_info_cons_osch_unfold.
+      rewrite full_info_lift_osch_unfold.
+      case_match eqn:H.
+      + apply fmap_Some in H as [?[??]].
+        simplify_eq. rewrite H.
+        rewrite /osch_step.
+        rewrite full_info_cons_osch_unfold full_info_lift_osch_unfold.
+        rewrite !H.
+        simpl.
+        rewrite /dmap.
+        rewrite -(dbind_assoc _ (osch_exec (full_info_cons_osch μ f) n)).
+        rewrite -!dbind_assoc.
+        apply dbind_ext_right.
+        intros [??]. rewrite dret_id_left.
+        rewrite -!dbind_assoc.
+        apply dbind_ext_right.
+        intros. rewrite !dret_id_left. rewrite IHn.
+        by rewrite /dmap.
+      + apply fmap_None in H. rewrite H.
+        rewrite !dret_id_left. by erewrite IHn.
+  Qed.
     
-  Lemma full_info_stutter_osch_exec_Sn μ f n ρ:
-    osch_exec (full_info_stutter_osch μ f) (S n) ([], ρ) =
-    μ ≫= (λ x, step' x ρ ≫= (λ ρ', osch_exec (full_info_append_oscheduler [(cfg_to_cfg' ρ, x)] (f x)) n ([(cfg_to_cfg' ρ, x)], ρ'))) .
+  Lemma full_info_cons_osch_exec_Sn μ f n ρ:
+    osch_exec (full_info_cons_osch μ f) (S n) ([], ρ) =
+    μ ≫= (λ x, step' x ρ ≫= (λ ρ', osch_exec (full_info_lift_osch [(cfg_to_cfg' ρ, x)] (f x)) n ([(cfg_to_cfg' ρ, x)], ρ'))) .
   Proof.
     rewrite osch_exec_Sn.
     rewrite /osch_step_or_none.
     case_match eqn:Heqn; last first.
-    { rewrite /full_info_stutter_osch in Heqn.
+    { rewrite /full_info_cons_osch in Heqn.
       simpl in *.
       case_match; naive_solver.
     }
     rewrite /osch_step. rewrite Heqn.
-    rewrite /full_info_stutter_osch in Heqn.
+    rewrite /full_info_cons_osch in Heqn.
     simpl in Heqn. case_match; first naive_solver.
     simplify_eq. subst.
-    (* rewrite /full_info_stutter_distr. *)
-    rewrite {1}/dmap -(dbind_assoc _ (osch_exec (full_info_stutter_osch μ f) n)).
+    (* rewrite /full_info_cons_distr. *)
+    rewrite {1}/dmap -(dbind_assoc _ (osch_exec (full_info_cons_osch μ f) n)).
     rewrite -dbind_assoc.
     apply dbind_ext_right.
     intros.  rewrite dret_id_left.
@@ -319,8 +386,144 @@ Section full_info.
     apply dbind_ext_right.
     intros. rewrite dret_id_left.
     rewrite app_nil_l.
-    rewrite full_info_stutter_osch_exec_n.
-    by rewrite full_info_append_oscheduler_exec.
+    rewrite full_info_cons_osch_exec_n.
+    by rewrite full_info_lift_osch_exec.
   Qed.
+
+  Lemma full_info_cons_osch_lim_exec μ f ρ:
+    osch_lim_exec (full_info_cons_osch μ f) ([], ρ) =
+    μ ≫= (λ x, step' x ρ ≫= (λ ρ', osch_lim_exec (full_info_lift_osch [(cfg_to_cfg' ρ, x)] (f x)) ([(cfg_to_cfg' ρ, x)], ρ'))) .
+  Proof.
+    apply distr_ext.
+    intros.
+    apply Rle_antisym.
+    - apply osch_lim_exec_leq.
+      intros [].
+      + rewrite full_info_cons_osch_exec_0. rewrite dzero_0. done.
+      + rewrite full_info_cons_osch_exec_Sn.
+        rewrite {1}/dbind{1}/dbind_pmf{1}/pmf.
+        rewrite {2}/dbind{1}/dbind_pmf{3}/pmf.
+        apply SeriesC_le; last first.
+        { apply pmf_ex_seriesC_mult_fn. naive_solver. }
+        intros. split; first real_solver.
+        apply Rmult_le_compat; try done.
+        rewrite /dbind/dbind_pmf{1 4}/pmf.
+        apply SeriesC_le; last first.
+        { apply pmf_ex_seriesC_mult_fn. naive_solver. }
+        intros. split; first real_solver.
+        apply Rmult_le_compat; try done.
+        apply osch_lim_exec_is_sup.
+    - rewrite {1 2}/dbind{1 2}/dbind_pmf{1 3}/pmf.
+      setoid_rewrite <- SeriesC_scal_l.
+      setoid_rewrite osch_lim_exec_unfold.
+      assert (SeriesC(λ a0 : nat, SeriesC  (λ x , μ a0 *
+                                                  (step' a0 ρ x *
+                                                     Sup_seq
+                                                       (λ n : nat,
+                                                          osch_exec (full_info_lift_osch [(cfg_to_cfg' ρ, a0)] (f a0)) n
+                                                            ([(cfg_to_cfg' ρ, a0)], x) a))))=
+              Sup_seq (λ n : nat, SeriesC
+                                  (λ a0 : nat,
+                                     SeriesC
+                                       (λ x : mdpstate (con_lang_mdp con_prob_lang),
+                                          μ a0 *
+                                            (step' a0 ρ x *
+                                               osch_exec (full_info_lift_osch [(cfg_to_cfg' ρ, a0)] (f a0)) n
+                                                 ([(cfg_to_cfg' ρ, a0)], x) a))))
+             ) as ->; last first.
+      { apply Rbar_le_fin.
+        - apply Rbar_0_le_to_Rle. apply Sup_seq_minor_le with 0%nat. apply pmf_pos.
+        - apply upper_bound_ge_sup.
+          intros n.
+          rewrite rbar_finite_real_eq; last apply is_finite_Sup_seq_osch_exec.
+          etrans; last apply (sup_is_upper_bound _ (S n)).
+          Local Opaque osch_exec full_info_cons_osch. simpl.
+          rewrite full_info_cons_osch_exec_Sn.
+          Local Transparent osch_exec full_info_cons_osch.
+          rewrite {1}/dbind{1}/dbind_pmf{4}/pmf.
+          right.
+          apply SeriesC_ext.
+          intros. rewrite SeriesC_scal_l.
+          f_equal.
+      }
+      erewrite <-SeriesC_Sup_seq_swap.
+      + apply SeriesC_ext.
+        intros.
+        erewrite <-SeriesC_Sup_seq_swap.
+        * apply SeriesC_ext. intros.
+          destruct (pmf_pos μ n) as [|<-]; last first.
+          { trans 0; first lra.
+            erewrite Sup_seq_ext; first by erewrite sup_seq_const.
+            simpl. intros. rewrite Rmult_0_l. done. 
+          }
+          destruct (pmf_pos (step' n ρ) n0) as [|<-]; last first.
+          { trans 0; first lra.
+            erewrite Sup_seq_ext; first by erewrite sup_seq_const.
+            simpl. intros. rewrite Rmult_0_l. rewrite Rmult_0_r. done.  }
+          admit.
+        * intros. real_solver.
+        * intros. apply Rmult_le_compat; try done; try real_solver.
+          apply Rmult_le_compat; try done.
+          apply osch_exec_mono.
+        * intros. exists (1*(1*1)).
+          intros. apply Rmult_le_compat; try done; real_solver.
+        * intros. apply SeriesC_correct.
+          apply ex_seriesC_scal_l.
+          apply pmf_ex_seriesC_mult_fn. naive_solver.
+        * simpl. instantiate (1:=μ n*1).
+          intros.
+          rewrite SeriesC_scal_l.
+          apply Rmult_le_compat; try done.
+          -- apply SeriesC_ge_0'. intros. real_solver.
+          -- trans (SeriesC (step' n ρ )); last done.
+             apply SeriesC_le; last done.
+             intros. split; first real_solver.
+             rewrite <-Rmult_1_r .
+             by apply Rmult_le_compat.
+      + intros.
+        apply SeriesC_ge_0'.
+        intros. real_solver.
+      + intros. apply SeriesC_le; last (apply ex_seriesC_scal_l; apply pmf_ex_seriesC_mult_fn; naive_solver).
+        intros; split; first real_solver.
+        apply Rmult_le_compat; try done; first real_solver.
+        apply Rmult_le_compat; try done.
+        apply osch_exec_mono.
+      + intros. exists (μ a0 * 1).
+        intros. rewrite SeriesC_scal_l.
+        apply Rmult_le_compat; try done.
+        * apply SeriesC_ge_0'; intros; real_solver.
+        * trans (SeriesC (step' a0 ρ )); last done.
+          apply SeriesC_le; last done.
+          intros. split; first real_solver.
+          rewrite <-Rmult_1_r .
+          apply Rmult_le_compat; try done.
+      + intros n.
+        apply SeriesC_correct.
+        setoid_rewrite SeriesC_scal_l.
+        apply pmf_ex_seriesC_mult_fn.
+        exists 1.
+        intros. split.
+        * apply SeriesC_ge_0'; real_solver.
+        * trans (SeriesC (step' a0 ρ )); last done.
+          apply SeriesC_le; last done.
+          intros. split; first real_solver.
+          rewrite <-Rmult_1_r .
+          apply Rmult_le_compat; try done.
+      + simpl. instantiate (1:=1).
+        intros.
+        setoid_rewrite SeriesC_scal_l.
+        trans (SeriesC μ); last done. 
+        apply SeriesC_le; last done.
+        intros.
+        split; first apply Rmult_le_pos; try done.
+        * apply SeriesC_ge_0'. real_solver.
+        * rewrite <-Rmult_1_r. apply Rmult_le_compat; try done.
+          -- apply SeriesC_ge_0'. real_solver.
+          -- trans (SeriesC (step' n0 ρ)); last done.
+             apply SeriesC_le; last done.
+             intros; split; first real_solver.
+             rewrite <-Rmult_1_r. apply Rmult_le_compat; try done.
+  Admitted.
+      
     
 End full_info.

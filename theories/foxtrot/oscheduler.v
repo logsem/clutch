@@ -110,6 +110,13 @@ Section oscheduler.
            destruct ρ, n; by repeat case_match.
     Qed.
 
+    Lemma osch_exec_0 ρ:
+      is_Some (osch ρ) -> osch_exec 0 ρ = dzero.
+    Proof.
+      rewrite /osch_exec. destruct ρ.
+      by intros [? ->].
+    Qed.
+
     Lemma osch_exec_Sn a n :
       osch_exec (S n) a = osch_step_or_none a ≫= osch_exec n.
     Proof.
