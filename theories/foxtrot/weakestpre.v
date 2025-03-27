@@ -53,7 +53,7 @@ Section modalities.
           ⌜ ∀ x, (X2 x <= r)%R ⌝ ∗
           ⌜ (ε1 + Expval (osch_lim_exec osch ([], ρ)) X2 <= ε)%R ⌝ ∗
           ⌜ ARcoupl μ (osch_lim_exec osch ([], ρ)) S ε1 ⌝ ∗
-          ⌜ ∀ σx σy ρx, S σx ρx -> S σy ρx -> σx=σy ⌝ ∗
+          ⌜ ∀ σx σy ρx ρy l , S σx (l, ρx) -> S σy (l, ρy) -> σx=σy /\ ρx = ρy ⌝ ∗
           ∀ σ2 l ρ', ⌜S σ2 (l, ρ')⌝ ={∅}=∗ Φ (σ2, ρ', X2 (l, ρ'))
     )%I.
     
@@ -98,7 +98,7 @@ Section modalities.
           ⌜ ∀ x, (X2 x <= r)%R ⌝ ∗
           ⌜ (ε1 + Expval (osch_lim_exec osch ([], ρ)) X2 <= ε)%R ⌝ ∗
           ⌜ ARcoupl μ (osch_lim_exec osch ([], ρ)) S ε1 ⌝ ∗
-          ⌜ ∀ σx σy ρx, S σx ρx -> S σy ρx -> σx=σy ⌝ ∗
+          ⌜ ∀ σx σy ρx ρy l , S σx (l, ρx) -> S σy (l, ρy) -> σx=σy /\ ρx = ρy  ⌝ ∗
           ∀ σ2 l ρ', ⌜S σ2 (l, ρ')⌝ ={∅}=∗ spec_coupl σ2 ρ' (X2 (l, ρ')) Z)%I.
   Proof. rewrite /spec_coupl /spec_coupl' least_fixpoint_unfold //. Qed.
 
@@ -124,7 +124,7 @@ Section modalities.
           ⌜ ∀ x, (X2 x <= r)%R ⌝ ∗
           ⌜ (ε1 + Expval (osch_lim_exec osch ([], ρ1)) X2 <= ε)%R ⌝ ∗
           ⌜ ARcoupl μ (osch_lim_exec osch ([], ρ1)) S ε1 ⌝ ∗
-          ⌜ ∀ σx σy ρx, S σx ρx -> S σy ρx -> σx=σy ⌝ ∗
+          ⌜ ∀ σx σy ρx ρy l , S σx (l, ρx) -> S σy (l, ρy) -> σx=σy /\ ρx = ρy  ⌝ ∗
           ∀ σ2 l ρ', ⌜S σ2 (l, ρ')⌝ ={∅}=∗ spec_coupl σ2 ρ' (X2 (l, ρ')) Z)%I
     ⊢ spec_coupl σ1 ρ1 ε Z.
   Proof. iIntros "H". rewrite spec_coupl_unfold. repeat iRight. done. Qed.
@@ -160,7 +160,7 @@ Section modalities.
     - iPureIntro.
       rewrite osch_lim_exec_full_info_inhabitant.
       by apply ARcoupl_dret.
-    - iIntros (?? [??][??][??]). by simplify_eq.
+    - iIntros (?????[??][??]). by simplify_eq.
     - iIntros (???[??]). by simplify_eq.
   Qed.
   
@@ -200,7 +200,7 @@ Section modalities.
     - iPureIntro.
       rewrite osch_lim_exec_full_info_inhabitant.
       by apply ARcoupl_dret.
-    - iIntros (?? [??][??][??]); by simplify_eq.
+    - iIntros (?????[??][??]). by simplify_eq.
     - iIntros (???[??]); by simplify_eq.
   Qed.
   
@@ -293,7 +293,7 @@ Section modalities.
            ⌜ ∀ x, (X2 x <= r)%R ⌝ ∗
            ⌜ (ε1 + Expval (osch_lim_exec osch ([], ρ1)) X2 <= ε)%R⌝ ∗
            ⌜ ARcoupl (prim_step e1 σ1) (osch_lim_exec osch ([], ρ1)) S ε1 ⌝ ∗
-           ⌜ ∀ x1 x2 y, S x1 y -> S x2 y -> x1 = x2 ⌝ ∗
+           ⌜ ∀ x1 x2 l y1 y2, S x1 (l, y1) -> S x2 (l, y2) -> x1 = x2 /\ y1 =y2 ⌝ ∗
            (∀ e2 σ2 efs l ρ2, ⌜S (e2, σ2, efs) (l, ρ2)⌝ ={∅}=∗
                          Z e2 σ2 efs ρ2 (X2 (l, ρ2)) )
        )%I.
@@ -317,7 +317,7 @@ Section modalities.
     apply ARcoupl_pos_R in Hcoupl.
     iExists _, _, _, _, _.
     repeat iSplit; try done.
-    - iPureIntro. intros [[??]?] [[??]?][??].
+    - iPureIntro. intros [[??]?] [[??]?]???.
       intros [?[??]][?[??]].
       naive_solver.
     - simpl.
@@ -347,7 +347,7 @@ Section modalities.
     apply ARcoupl_pos_R in Hcoupl.
     iExists _, _, _, _, _.
     repeat iSplit; try done.
-    - iPureIntro. intros [[??]?] [[??]?][??].
+    - iPureIntro. intros [[??]?] [[??]?]???.
       intros [?[??]][?[??]].
       naive_solver.
     - simpl.
@@ -385,8 +385,8 @@ Section modalities.
       eapply (ARcoupl_dbind' _ nnreal_zero); last done; [done|done|simpl; lra|].
       iIntros ([[??]?]??).
       apply ARcoupl_dret; naive_solver.
-    - simpl. intros [[??]?][[??]?][??][?[? R1]][?[? R2]]. simplify_eq.
-      pose proof Hinj _ _ _ R1 R2. by simplify_eq.
+    - simpl. intros [[??]?][[??]?]???[?[? R1]][?[? R2]]. simplify_eq.
+      pose proof Hinj _ _ _ _ _ R1 R2 as [??]. by simplify_eq.
     - iIntros (?????(?&->&?)).
       by iApply "H".
   Qed.
@@ -408,8 +408,11 @@ Section modalities.
     pose (n := length ρ1.1).
     destruct (to_final ρ1) eqn:Hρ1.
     - iExists (λ x '(l, ρ), R x /\ ρ=ρ1 /\ l=[(cfg_to_cfg' ρ1, (n+encode_nat x)%nat)]).
-      iExists (full_info_stutter_osch (dmap (λ x, n+encode_nat x)%nat (prim_step e1 σ1)) (λ _, full_info_inhabitant)).
+      pose (osch:=full_info_stutter_osch (dmap (λ x, n+encode_nat x)%nat (prim_step e1 σ1)) (λ _, full_info_inhabitant)).
+      iExists (osch).
       iExists ε1, (λ _, ε2), ε2.
+      assert (osch_lim_exec osch ([], ρ1) = dmap (λ x, ([(cfg_to_cfg' ρ1, (n+encode_nat x)%nat)], ρ1)) (prim_step e1 σ1)).
+      { admit. }
       repeat iSplit.
       + done.
       + done.

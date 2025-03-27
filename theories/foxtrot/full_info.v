@@ -1,7 +1,8 @@
 From Coq Require Import Reals Psatz.
-From clutch.prob Require Import distribution couplings_app.
 From clutch.con_prob_lang Require Import lang.
 From clutch.foxtrot Require Import oscheduler.
+From clutch.prob Require Import distribution couplings_app.
+
 Set Default Proof Using "Type*".
 
 Section full_info.
@@ -110,6 +111,89 @@ Section full_info.
     by eapply fi_osch_consistent in Hnone as ->.
   Qed.
 
+  Lemma full_info_append_oscheduler_exec prel osch n l ρ:
+    osch_exec (full_info_append_oscheduler prel osch) n (prel++l, ρ) =
+    dmap (λ '(l', ρ'), (prel++l', ρ')) (osch_exec osch n (l, ρ)).
+  Proof.
+    revert l ρ.
+    induction n; intros l ρ.
+    {
+      rewrite /osch_exec/full_info_append_oscheduler/=.
+      repeat case_match.
+      - by rewrite dmap_dzero.
+      - pose proof epsilon_correct _ e. simpl in *.
+        simplify_eq.
+        apply fmap_Some in H as [?[??]].
+        exfalso. subst. rewrite H2 in H1. rewrite H in H1. done.
+      - by rewrite dmap_dzero.
+      - done.
+      - rewrite fmap_None in H.
+        pose proof epsilon_correct _ e. simpl in *. simplify_eq.
+        rewrite H2 in H1. rewrite H1 in H. done.
+      - by rewrite dmap_dret.
+      - exfalso. naive_solver.
+      - exfalso. naive_solver.
+    }
+    rewrite !osch_exec_Sn.
+    rewrite dmap_dbind.
+    rewrite /osch_step_or_none.
+    case_match eqn:Heqn.
+    - rewrite /full_info_append_oscheduler /= in Heqn.
+      case_match; last done.
+      pose proof epsilon_correct _ e as H0.
+      simpl in *. simplify_eq. apply fmap_Some in Heqn as [?[H1 ->]].
+      rewrite <-H0 in H1.
+      rewrite H1/=.
+      rewrite /osch_step/=.
+      case_match eqn :Heqn1.
+      + case_match; last done.
+        apply fmap_Some in Heqn1 as [?[H3 ->]].
+        pose proof epsilon_correct _ e0 as H'.
+        simpl in *.
+        simplify_eq.
+        rewrite -H' in H3.
+        rewrite H3.
+        rewrite {1}/dmap -!dbind_assoc.
+        apply dbind_ext_right.
+        intros [??].
+        rewrite dret_id_left. rewrite -!dbind_assoc.
+        apply dbind_ext_right.
+        intros. rewrite !dret_id_left.
+        by rewrite -IHn.
+      + rewrite dbind_dzero.
+        case_match; last done.
+        apply fmap_None in Heqn1.
+        pose proof epsilon_correct _ e0 as H'.
+        simpl in *. simplify_eq. rewrite -H' in Heqn1. rewrite Heqn1 in H1. done.
+    - rewrite /full_info_append_oscheduler/= in Heqn.
+      rewrite dret_id_left.
+      erewrite IHn.
+      case_match.
+      + apply fmap_None in Heqn.
+        pose proof epsilon_correct _ e. simpl in *. simplify_eq.
+        rewrite -H0 in Heqn. rewrite Heqn. by rewrite dret_id_left.
+      + exfalso. naive_solver.
+  Qed.
+
+  Lemma full_info_append_oscheduler_lim_exec prel osch l ρ:
+    osch_lim_exec (full_info_append_oscheduler prel osch) (prel++l, ρ) =
+    dmap (λ '(l', ρ'), (prel++l', ρ')) (osch_lim_exec osch (l, ρ)).
+  Proof.
+    apply distr_ext.
+    intros. 
+    apply Rle_antisym.
+    - apply osch_lim_exec_leq.
+      intros.
+      rewrite full_info_append_oscheduler_exec.
+      rewrite /dmap/dbind/dbind_pmf{1 4}/pmf.
+      apply SeriesC_le; last (apply pmf_ex_seriesC_mult_fn; naive_solver).
+      intros. split; first real_solver.
+      apply Rmult_le_compat; try done.
+      apply osch_lim_exec_is_sup.
+    - apply osch_lim_exec_dmap_le.
+      intros n. etrans; last apply (osch_lim_exec_is_sup _ n).
+      by rewrite full_info_append_oscheduler_exec.
+  Qed.
   (** TODO: lemmas about full_info_append_oscheduler *)
     
   
@@ -191,7 +275,52 @@ Section full_info.
     rewrite fmap_None.
     by eapply fi_osch_consistent.
   Qed.
-  
+
   (** TODO: lemmas about full_info_stutter_osch *)
-  
+
+
+  Lemma full_info_stutter_osch_exec_0 μ f ρ:
+    osch_exec (full_info_stutter_osch μ f) 0 ([], ρ) =
+    dzero.
+  Proof.
+    rewrite /osch_exec.
+    rewrite /full_info_stutter_osch/=.
+    case_match; first done.
+    case_match; (exfalso; naive_solver).
+  Qed.
+
+  Lemma full_info_stutter_osch_exec_n μ f ρ a x n l:
+    osch_exec (full_info_stutter_osch μ f) n ([(x, a)]++l, ρ) =
+    dmap (λ '(l', ρ'), ([(x, a)]++l', ρ')) (osch_exec (f a) n (l, ρ)).
+  Proof.
+  Admitted.
+    
+  Lemma full_info_stutter_osch_exec_Sn μ f n ρ:
+    osch_exec (full_info_stutter_osch μ f) (S n) ([], ρ) =
+    μ ≫= (λ x, step' x ρ ≫= (λ ρ', osch_exec (full_info_append_oscheduler [(cfg_to_cfg' ρ, x)] (f x)) n ([(cfg_to_cfg' ρ, x)], ρ'))) .
+  Proof.
+    rewrite osch_exec_Sn.
+    rewrite /osch_step_or_none.
+    case_match eqn:Heqn; last first.
+    { rewrite /full_info_stutter_osch in Heqn.
+      simpl in *.
+      case_match; naive_solver.
+    }
+    rewrite /osch_step. rewrite Heqn.
+    rewrite /full_info_stutter_osch in Heqn.
+    simpl in Heqn. case_match; first naive_solver.
+    simplify_eq. subst.
+    (* rewrite /full_info_stutter_distr. *)
+    rewrite {1}/dmap -(dbind_assoc _ (osch_exec (full_info_stutter_osch μ f) n)).
+    rewrite -dbind_assoc.
+    apply dbind_ext_right.
+    intros.  rewrite dret_id_left.
+    rewrite -!dbind_assoc.
+    apply dbind_ext_right.
+    intros. rewrite dret_id_left.
+    rewrite app_nil_l.
+    rewrite full_info_stutter_osch_exec_n.
+    by rewrite full_info_append_oscheduler_exec.
+  Qed.
+    
 End full_info.

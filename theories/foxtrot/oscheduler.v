@@ -314,6 +314,46 @@ Section oscheduler.
       osch_lim_exec a b = Sup_seq (λ n, (osch_exec n a) b).
     Proof. apply lim_distr_pmf. Qed.
 
+    Lemma osch_lim_exec_is_sup n a b:
+      osch_exec n a b <= osch_lim_exec a b.
+    Proof. rewrite osch_lim_exec_unfold.
+           apply rbar_le_finite.
+           - apply is_finite_Sup_seq_osch_exec.
+           - etrans; last apply sup_is_upper_bound; done.
+    Qed.
+
+    Lemma osch_lim_exec_dmap_le `{Countable B} f a (b:B) r:
+      (∀ n, dmap f (osch_exec n a) b <= r) ->
+      dmap f (osch_lim_exec a) b <= r.
+    Proof. 
+      intros H1.
+      rewrite /dmap/dbind/dbind_pmf{1}/pmf.
+      setoid_rewrite osch_lim_exec_unfold.
+      erewrite SeriesC_ext; last first.
+      { intros. rewrite rbar_scal_r; last apply is_finite_Sup_seq_osch_exec.
+        by rewrite -Sup_seq_scal_r.
+      }
+      setoid_rewrite SeriesC_Sup_seq_swap.
+      - apply Rbar_le_fin.
+        { etrans; last eapply H1. done. }
+        apply upper_bound_ge_sup.
+        intros n.
+        pose proof H1 n as H0.
+        apply rbar_le_rle in H0.
+        naive_solver.
+      - intros. real_solver.
+      - intros. apply Rmult_le_compat; try done.
+        apply osch_exec_mono.
+      - intros. exists (1*1).
+        intros.
+        by apply Rmult_le_compat.
+      - intros. apply SeriesC_correct.
+        apply pmf_ex_seriesC_mult_fn. naive_solver.
+      - simpl. done.
+        Unshelve.
+        exact 0%nat.
+    Qed.
+      
     Lemma osch_lim_exec_Sup_seq a :
       SeriesC (osch_lim_exec a) = Sup_seq (λ n, SeriesC (osch_exec n a)).
     Proof.
