@@ -12,9 +12,56 @@ Import uPred.
 Section adequacy.
   Context `{!foxtrotGS Σ}.
 
-
-               
+  Lemma wp_adequacy_step_fupdN sch_int_σ `{Countable sch_int_σ} sch ζ `{!TapeOblivious sch_int_σ sch} σ σ' (ε:nonnegreal) e es es' ϕ n:
+    state_interp σ ∗ err_interp ε ∗ spec_interp (es', σ') ∗
+    WP e {{ v, ∃ v' : val, 0 ⤇ Val v' ∗ ⌜ϕ v v'⌝ }} ∗ ([∗ list] e' ∈ es, WP e' {{ _, True }})
+    ⊢ |={⊤,∅}=> |={∅}▷=>^n
+                 ⌜∀ ε', ε'>0 -> ∃ (osch:full_info_oscheduler),
+                   ARcoupl (sch_exec sch n (ζ, (e::es, σ))) (osch_lim_exec osch ([], (es', σ')))
+                     (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε + ε') ⌝.
+  Proof.
+  Admitted.
+                              
 End adequacy.
+
+
+Lemma foxtrot_adequacy_full_info_intermediate_multi Σ `{foxtrotGpreS Σ} (ε:R) ϕ n e es es' :
+  (0 <= ε)%R -> 
+  (∀ `{foxtrotGS Σ}, ⊢ ↯ ε -∗
+                     ([∗ map] n↦e ∈ (to_tpool es'), n ⤇ e) -∗
+                     WP e {{ v, ∃ v', 0%nat ⤇ Val v' ∗ ⌜ ϕ v v' ⌝ }} ∗
+                     [∗ list] e'∈ es, WP e' {{ _, True%I }}
+  ) ->
+  ∀ sch_int_σ `(Countable sch_int_σ) sch ζ `{!TapeOblivious sch_int_σ sch} σ σ' ε',
+  ε'>0 ->
+  ∃ (osch:full_info_oscheduler),
+    ARcoupl (sch_exec sch n (ζ, (e::es, σ))) (osch_lim_exec osch ([], (es', σ')))
+      (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε + ε').
+Proof.
+  intros Heps Hwp.
+  intros ????????. 
+  eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
+  iIntros (Hinv) "_".
+  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
+  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
+  iMod (spec_ra_init es' σ') as (HspecGS) "(Hs & Hj & ?)".
+  destruct (decide (ε < 1)) as [? | K%Rnot_lt_le].
+  - set ε_nonneg := mknonnegreal _ Heps.
+    iMod (ec_alloc ε_nonneg) as (?) "[HE He]"; [done|].
+    set (HfoxtrotGS := HeapG Σ _ _ _ γH γT HspecGS _).
+    iApply (wp_adequacy_step_fupdN _ _ _ _ _ ε_nonneg).
+    iFrame.
+    simpl.
+    iApply (Hwp with "[He][-]").
+    + iApply ec_eq; last done.
+      done.
+    + iFrame.
+  - iApply fupd_mask_intro; [done|]; iIntros "_".
+    iApply step_fupdN_intro; [done|]; iModIntro.
+    iPureIntro. eexists full_info_inhabitant.
+    apply ARcoupl_1.
+    simpl in *. lra.
+Qed.
 
 
 Lemma foxtrot_adequacy_full_info_intermediate Σ `{foxtrotGpreS Σ} (ε:R) ϕ n e e' :
@@ -23,30 +70,19 @@ Lemma foxtrot_adequacy_full_info_intermediate Σ `{foxtrotGpreS Σ} (ε:R) ϕ n 
   ∀ sch_int_σ `(Countable sch_int_σ) sch ζ `{!TapeOblivious sch_int_σ sch} σ σ' ε',
   ε'>0 ->
   ∃ (osch:full_info_oscheduler),
-     ARcoupl (sch_exec sch n (ζ, ([e], σ))) (osch_lim_exec_val osch ([], ([e'], σ'))) ϕ (ε + ε').
+    ARcoupl (sch_exec sch n (ζ, ([e], σ))) (osch_lim_exec osch ([], ([e'], σ')))
+      (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε + ε').
 Proof.
-  intros Heps Hwp.
-  intros. 
-  eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
-  iIntros (Hinv) "_".
-  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
-  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
-  iMod (spec_ra_init e σ) as (HspecGS) "(Hs & Hj & ?)".
-  destruct (decide (ε < 1)) as [? | K%Rnot_lt_le].
-  - set ε_nonneg := mknonnegreal _ Heps.
-    iMod (ec_alloc ε_nonneg) as (?) "[HE He]"; [done|].
-    set (HfoxtrotGS := HeapG Σ _ _ _ γH γT HspecGS _).
-    admit.
-    (* iApply (wp_adequacy_step_fupdN ε'). *)
-    (* iFrame "Hh Ht Hs HE". *)
-    (* by iApply (Hwp with "[Hj] [He]"). *)
-  - iApply fupd_mask_intro; [done|]; iIntros "_".
-    iApply step_fupdN_intro; [done|]; iModIntro.
-    iPureIntro. eexists full_info_inhabitant.
-    apply ARcoupl_1.
-    simpl in *. lra.
-Admitted.
-
+  intros ? Hwp ??????????.
+  by epose proof foxtrot_adequacy_full_info_intermediate_multi _ _ _ _ e [] [e'] _ _ _ _ _ _ _ _ _ _.
+  Unshelve.
+  all: try done.
+  iIntros (?) "? H". simpl. rewrite /to_tpool.
+  iSplit; last done.
+  iApply (Hwp with "[$]").
+  iApply big_sepM_lookup; last iFrame.
+  simpl. apply lookup_insert.
+Qed.
 
 Lemma foxtrot_adequacy_intermediate Σ `{foxtrotGpreS Σ} (ε:R) ϕ n e e' :
   (0 <= ε)%R -> 
@@ -62,7 +98,15 @@ Proof.
   epose proof osch_to_sch osch as [sch'[Htape ?]].
   eexists _, _, _, sch', [], Htape.
   replace (_+_)%R with ((ε+ε')+0)%R; last lra.
-  eapply ARcoupl_eq_trans_r; [lra|done|done|by apply ARcoupl_eq_0].
+  eapply (ARcoupl_eq_trans_r _ ((osch_lim_exec_val osch ([], ([e'], _))))) ; [lra|done| |by apply ARcoupl_eq_0].
+  rewrite osch_lim_exec_exec_val.
+  replace (_+_)%R with ((ε+ε')+0)%R; last lra.
+  rewrite -(dret_id_right (sch_exec _ _ _)).
+  eapply ARcoupl_dbind; try done.
+  { real_solver. }
+  simpl. intros ? [?[??]][? [Hsome ?]].
+  simpl. simpl in *. rewrite Hsome.
+  simpl. by apply ARcoupl_dret.
   Unshelve. done.
 Qed.
 

@@ -185,18 +185,15 @@ Section theory.
 
 End theory.
 
-Lemma spec_ra_init e σ `{specGpreS Σ} :
+Lemma spec_ra_init es σ `{specGpreS Σ} :
   ⊢ |==> ∃ _ : specG_con_prob_lang Σ,
-      spec_auth ([e], σ) ∗ 0%nat ⤇ e ∗ ([∗ map] l ↦ v ∈ σ.(heap), l ↦ₛ v) ∗ ([∗ map] α ↦ t ∈ σ.(tapes), α ↪ₛ t).
+      spec_auth (es, σ) ∗ ([∗ map] n↦e ∈ (to_tpool es), n ⤇ e) ∗ ([∗ map] l ↦ v ∈ σ.(heap), l ↦ₛ v) ∗ ([∗ map] α ↦ t ∈ σ.(tapes), α ↪ₛ t).
 Proof.
-  iMod (ghost_map_alloc (to_tpool [e])) as "[%γE [He Hes]]".
+  iMod (ghost_map_alloc (to_tpool es)) as "[%γE [He Hes]]".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh Hls]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht Hαs]]".
   iExists (SpecGS _ _ γE _ _ γH γT).
-  iFrame.
-  rewrite /to_tpool/=.
-  iDestruct (big_sepM_lookup with "[$]") as "$"; last done.
-  by rewrite lookup_insert.
+  by iFrame.
 Qed.
 
 (** Tapes containing natural numbers defined as a wrapper over backend tapes *)
