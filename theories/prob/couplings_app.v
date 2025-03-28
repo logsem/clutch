@@ -944,6 +944,17 @@ Proof.
   apply ARcoupl_eq.
 Qed.
 
+Lemma ARcoupl_eq_0 `{Countable A} (μ1 μ2: distr A):
+  (∀ x, μ1 x <= μ2 x)%R -> ARcoupl μ1 μ2 (=) 0.
+Proof.
+  rewrite /ARcoupl.
+  intros.
+  rewrite Rplus_0_r.
+  apply SeriesC_le; last first.
+  { apply pmf_ex_seriesC_mult_fn; naive_solver. }
+  intros. real_solver.
+Qed.
+
 Lemma ARcoupl_dunif (N : nat) f `{Bij (fin N) (fin N) f} :
   ARcoupl (dunif N) (dunif N) (λ n m, m = f n) 0.
 Proof.

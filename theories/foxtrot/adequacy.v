@@ -5,7 +5,7 @@ From iris.base_logic.lib Require Import ghost_map invariants fancy_updates.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.base_logic Require Import error_credits.
-From clutch.foxtrot Require Import weakestpre primitive_laws.
+From clutch.foxtrot Require Import weakestpre primitive_laws oscheduler full_info.
 From clutch.prob Require Import distribution couplings_app.
 Import uPred.
 
@@ -17,13 +17,13 @@ Section adequacy.
 End adequacy.
 
 
-Lemma foxtrot_adequacy_intermediate Σ `{foxtrotGpreS Σ} (ε:R) ϕ n e e' :
+Lemma foxtrot_adequacy_full_info_intermediate Σ `{foxtrotGpreS Σ} (ε:R) ϕ n e e' :
   (0 <= ε)%R -> 
   (∀ `{foxtrotGS Σ}, ⊢ ↯ ε -∗ 0%nat ⤇ e' -∗ WP e {{ v, ∃ v', 0%nat ⤇ Val v' ∗ ⌜ ϕ v v' ⌝ }}) ->
   ∀ sch_int_σ `(Countable sch_int_σ) sch ζ `{!TapeOblivious sch_int_σ sch} σ σ' ε',
   ε'>0 ->
-  ∃ `(Countable sch_int_σ') sch' ζ' `(!TapeOblivious sch_int_σ' sch'),
-     ARcoupl (sch_exec sch n (ζ, ([e], σ))) (sch_lim_exec sch' (ζ', ([e'], σ'))) ϕ (ε + ε').
+  ∃ (osch:full_info_oscheduler),
+     ARcoupl (sch_exec sch n (ζ, ([e], σ))) (osch_lim_exec_val osch ([], ([e'], σ'))) ϕ (ε + ε').
 Proof.
   intros Heps Hwp.
   intros. 
@@ -42,10 +42,29 @@ Proof.
     (* by iApply (Hwp with "[Hj] [He]"). *)
   - iApply fupd_mask_intro; [done|]; iIntros "_".
     iApply step_fupdN_intro; [done|]; iModIntro.
-    iPureIntro. eexists unit, _, _, inhabitant, inhabitant, _.
+    iPureIntro. eexists full_info_inhabitant.
     apply ARcoupl_1.
     simpl in *. lra.
 Admitted.
+
+
+Lemma foxtrot_adequacy_intermediate Σ `{foxtrotGpreS Σ} (ε:R) ϕ n e e' :
+  (0 <= ε)%R -> 
+  (∀ `{foxtrotGS Σ}, ⊢ ↯ ε -∗ 0%nat ⤇ e' -∗ WP e {{ v, ∃ v', 0%nat ⤇ Val v' ∗ ⌜ ϕ v v' ⌝ }}) ->
+  ∀ sch_int_σ `(Countable sch_int_σ) sch ζ `{!TapeOblivious sch_int_σ sch} σ σ' ε',
+  ε'>0 ->
+  ∃ `(Countable sch_int_σ') sch' ζ' `(!TapeOblivious sch_int_σ' sch'),
+     ARcoupl (sch_exec sch n (ζ, ([e], σ))) (sch_lim_exec sch' (ζ', ([e'], σ'))) ϕ (ε + ε').
+Proof.
+  intros Heps Hwp.
+  intros ??? sch ζ ? ? ? ε' ?.
+  epose proof foxtrot_adequacy_full_info_intermediate _ _ _ _ _ _ Heps Hwp _ _ sch ζ _ _ _ _ as [osch Hcoupl].
+  epose proof osch_to_sch osch as [sch'[Htape ?]].
+  eexists _, _, _, sch', [], Htape.
+  replace (_+_)%R with ((ε+ε')+0)%R; last lra.
+  eapply ARcoupl_eq_trans_r; [lra|done|done|by apply ARcoupl_eq_0].
+  Unshelve. done.
+Qed.
 
 Definition termination_prob cfg sch_int_σ ζ `{Countable sch_int_σ} sch `{!TapeOblivious sch_int_σ sch} :=
   SeriesC (sch_lim_exec sch (ζ, cfg)).
