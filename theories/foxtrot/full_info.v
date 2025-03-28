@@ -53,6 +53,8 @@ Section full_info.
     by apply full_info_reachable_prefix in H.
   Qed.
 
+  (** Do nothing oscheduler *)
+
   Program Definition full_info_inhabitant: full_info_oscheduler :=
      {|
       fi_osch :={| oscheduler_f := λ _, None |}
@@ -67,12 +69,13 @@ Section full_info.
     naive_solver.
   Qed.
 
-  Lemma osch_lim_exec_full_info_inhabitant x:
+  Lemma full_info_inhabitant_lim_exec x:
     osch_lim_exec full_info_inhabitant x = dret x.
   Proof.
     by rewrite osch_lim_exec_None.
   Qed.
 
+  (** Append a prefix list to every state *)
   Program Definition full_info_lift_osch prel (osch: full_info_oscheduler) : full_info_oscheduler :=
     {|
       fi_osch := {| oscheduler_f := λ '(l, ρ),
@@ -235,7 +238,7 @@ Section full_info.
     by simplify_eq.
   Qed.
   
-  (* This is a way of building a scheduler that conss one step into many different states 
+  (** This is a way of building a scheduler that conss one step into many different states 
      each of which is a different kind of scheduler
    *)
   Program Definition full_info_cons_osch (μ : distr nat) (f: nat -> full_info_oscheduler) :=
@@ -460,7 +463,11 @@ Section full_info.
           { trans 0; first lra.
             erewrite Sup_seq_ext; first by erewrite sup_seq_const.
             simpl. intros. rewrite Rmult_0_l. rewrite Rmult_0_r. done.  }
-          admit.
+          rewrite -Rmult_assoc -Sup_seq_scal_l'; last first.
+          { apply is_finite_Sup_seq_osch_exec. }
+          { real_solver. }
+          f_equal. 
+          apply Sup_seq_ext. intros. rewrite Rmult_assoc. done. 
         * intros. real_solver.
         * intros. apply Rmult_le_compat; try done; try real_solver.
           apply Rmult_le_compat; try done.
@@ -523,7 +530,29 @@ Section full_info.
              apply SeriesC_le; last done.
              intros; split; first real_solver.
              rewrite <-Rmult_1_r. apply Rmult_le_compat; try done.
-  Admitted.
+  Qed.
       
-    
+
+
+  (** This oscheduler performs a stutter step *)
+  Definition full_info_stutter_osch (ρ:cfg) (osch:full_info_oscheduler) :=
+    full_info_cons_osch (dret (length ρ.1)) (λ _, osch).
+
+  Lemma full_info_stutter_osch_lim_exec ρ osch :
+    osch_lim_exec (full_info_stutter_osch ρ osch) ([], ρ) =
+    dmap (λ '(l, ρ'), (([(cfg_to_cfg' ρ, (length ρ.1))]++l), ρ')) (osch_lim_exec osch ([], ρ)).
+  Proof.
+    rewrite /full_info_stutter_osch.
+    rewrite full_info_cons_osch_lim_exec.
+    rewrite dret_id_left.
+    rewrite /step'.
+    destruct ρ.
+    case_match eqn:H.
+    { apply lookup_lt_Some in H.
+      simpl in *. lia.
+    }
+    rewrite dret_id_left.
+    by rewrite full_info_lift_osch_lim_exec.
+  Qed.
+   
 End full_info.

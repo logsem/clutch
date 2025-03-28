@@ -1223,6 +1223,15 @@ Section exp_val_prop.
     intros; real_solver.
   Qed.
 
+  Lemma Expval_ge_0' μ f :
+    (forall a, 0 <= f a) ->
+    0 <= Expval μ f.
+  Proof.
+    intros Hleq.
+    rewrite /Expval; apply SeriesC_ge_0'.
+    real_solver.
+  Qed.
+
   Lemma Expval_convex_le μ f r :
     (forall a, 0 <= r <= f a) ->
     ex_expval μ f ->

@@ -20,6 +20,18 @@ Definition step' (n: nat) (ρ : mdpstate (con_lang_mdp con_prob_lang)) : distr (
       end
   end.
 
+
+Lemma out_of_bounds_step' n ρ:
+  (length ρ.1<=n)%nat ->
+  step' n ρ = dret ρ.
+Proof.
+  rewrite /step'.
+  intros. destruct ρ.
+  case_match eqn:H'; last done.
+  apply lookup_lt_Some in H'.
+  simpl in *. lia.
+Qed.
+  
 Section oscheduler.
   Context `{Hosch_state: Countable osch_state}.
   
