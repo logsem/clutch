@@ -9,14 +9,24 @@ From clutch.foxtrot Require Import weakestpre primitive_laws oscheduler full_inf
 From clutch.prob Require Import distribution couplings_app.
 Import uPred.
 
+Section iris_lemmas.
+  Context `{!foxtrotGS Σ}.
+  Lemma step_fupd_fupdN_S n (P : iProp Σ) :  ((|={∅}▷=>^(S n) P) ⊣⊢ (|={∅}=> |={∅}▷=>^(S n) P))%I.
+  Proof. iSplit; iIntros; simpl; iApply fupd_idemp; iFrame. Qed.
+
+  Lemma fupd_later_mono n (P Q : iProp Σ) :
+    (P ⊢ Q) ->
+    (|={⊤,∅}=> |={∅}▷=> |={∅}▷=>^n P) -∗
+    (|={⊤,∅}=> |={∅}▷=> |={∅}▷=>^n Q).
+  Proof.
+    iIntros. 
+    by iApply (step_fupdN_mono).
+  Qed.
+  
+End iris_lemmas.
+
 Section adequacy.
   Context `{!foxtrotGS Σ}.
-
-  Lemma fupd_exists {A:Type} (P: A -> Prop) (n:nat):
-    (⊢@{iProp Σ}(|={⊤, ∅}=> |={∅}▷=>^n ⌜ ∃ a:A, P a⌝)-∗
-     ∃ a, |={⊤, ∅}=> |={∅}▷=>^n ⌜P a⌝)%I.
-  Proof.
-  Admitted.
 
   Lemma wp_adequacy_val_fupd `{Countable sch_int_σ} sch ζ `{!TapeOblivious sch_int_σ sch} σ (ε:nonnegreal) e es ρ n v ϕ:
     ∀ ε', ε'>0 -> 
@@ -100,6 +110,51 @@ Section adequacy.
       by iApply step_fupdN_intro. 
     }
     rewrite /sch_step. rewrite <-!dbind_assoc.
+    iAssert (
+        |={⊤,∅}=>
+          |={∅}▷=>
+            |={∅}▷=>^n
+              ⌜∃ (f : _ -> full_info_oscheduler),
+              ∀ ζ' ac, sch (ζ, (e::es, σ)) (ζ', ac) > 0 -> 
+              ARcoupl
+                   ((let '(sch_σ', mdp_a) := (ζ', ac) in
+                     dmap (λ mdp_σ' : mdpstate (con_lang_mdp con_prob_lang), (sch_σ', mdp_σ'))
+                       (step mdp_a (ζ, (e :: es, σ)).2))
+                     ≫= λ b : sch_int_σ * con_language.cfg con_prob_lang, sch_exec sch n b)
+                (osch_lim_exec (f (ζ', ac)) ([], (es', σ')))
+                (λ (v : val) '(_, ρ), ∃ v' : val, ρ.1 !! 0%nat = Some (Val v') ∧ ϕ v v') 
+                (ε + ε')⌝
+      )%I with "[-]" as "H"; last first.
+    { iApply fupd_later_mono; last done.
+      iPureIntro.
+      intros [f Hcoupl].
+      exists (full_info_cons_osch (dmap (λ ac, (length es'+encode_nat ac)%nat) (sch (ζ, (e::es, σ))))
+           (λ x, f (match decode_nat (x - length es')%nat
+                    with |Some ac => ac
+                    | None => (ζ, inhabitant)
+                    end
+           ))
+        ).
+      rewrite full_info_cons_osch_lim_exec/dmap -!dbind_assoc.
+      replace (_+_) with (0+(ε+ε')); last (simpl; lra).
+      eapply ARcoupl_dbind; [done|apply Rplus_le_le_0_compat; [apply cond_nonneg|lra]| |apply ARcoupl_pos_R, ARcoupl_eq].
+      Local Opaque full_info_lift_osch step' step.
+      simpl.
+      intros [s ac][s' ac'](?&?&?). simplify_eq.
+      rewrite dret_id_left.
+      rewrite out_of_bounds_step'; last (simpl; lia).
+      rewrite dret_id_left.
+      replace (_+_-_)%nat with (encode_nat (s', ac')); last lia.
+      rewrite decode_encode_nat.
+      rewrite full_info_lift_osch_lim_exec.
+      rewrite -(dmap_id ((_≫=_)≫=_)).
+      eapply ARcoupl_map.
+      { apply Rplus_le_le_0_compat; [apply cond_nonneg|lra]. }
+      simpl.
+      eapply ARcoupl_mono; last apply Hcoupl; try done.
+      simpl. intros ? [??]. naive_solver.
+    }
+    admit. 
   Admitted.
 
   
