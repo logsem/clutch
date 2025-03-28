@@ -12,16 +12,98 @@ Import uPred.
 Section adequacy.
   Context `{!foxtrotGS Σ}.
 
-  Lemma wp_adequacy_step_fupdN sch_int_σ `{Countable sch_int_σ} sch ζ `{!TapeOblivious sch_int_σ sch} σ σ' (ε:nonnegreal) e es es' ϕ n:
+  Lemma fupd_exists {A:Type} (P: A -> Prop) (n:nat):
+    (⊢@{iProp Σ}(|={⊤, ∅}=> |={∅}▷=>^n ⌜ ∃ a:A, P a⌝)-∗
+     ∃ a, |={⊤, ∅}=> |={∅}▷=>^n ⌜P a⌝)%I.
+  Proof.
+  Admitted.
+
+  Lemma wp_adequacy_val_fupd `{Countable sch_int_σ} sch ζ `{!TapeOblivious sch_int_σ sch} σ (ε:nonnegreal) e es ρ n v ϕ:
+    ∀ ε', ε'>0 -> 
+    to_val e = Some v ->
+    state_interp σ ∗ err_interp ε ∗ spec_interp ρ ∗
+    WP e {{ v, ∃ v' : val, 0 ⤇ Val v' ∗ ⌜ϕ v v'⌝ }} ⊢
+    |={⊤,∅}=>  ⌜∃ (osch:full_info_oscheduler),
+                   ARcoupl (sch_exec sch n (ζ, (e::es, σ))) (osch_lim_exec osch ([], ρ))
+                     (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε + ε') ⌝.
+  Proof.
+    iIntros (ε' Hε' Hval) "(?&?&?&Hwp)".
+    rewrite wp_unfold/wp_pre.
+    iMod ("Hwp" with "[$]") as "H".
+    simpl; rewrite Hval.
+    iRevert (ε' Hε').
+    iRevert (σ ρ ε) "H".
+    iApply spec_coupl_ind.
+    iModIntro.
+    iIntros (σ ρ ε) "[%|[>(?&?&?&(%&?&%))|[H|?]]]"; iIntros (ε' Hε').
+    - iPureIntro. intros.
+      exists full_info_inhabitant.
+      apply ARcoupl_1; lra.
+    - iApply fupd_mask_intro; first done.
+      iDestruct (spec_auth_prog_agree with "[$][$]") as "%".
+      iIntros. iPureIntro.
+      intros. exists full_info_inhabitant.
+      erewrite sch_exec_is_final; last done.
+      rewrite full_info_inhabitant_lim_exec.
+      apply ARcoupl_dret; first apply Rplus_le_le_0_compat.
+      { done. }
+      { lra. }
+      destruct ρ. naive_solver.
+    - unshelve eset (ε_new := mknonnegreal (ε+ε'/2)%R _).
+      { apply Rplus_le_le_0_compat; first apply cond_nonneg.
+        apply Rcomplements.Rdiv_le_0_compat; lra. }
+      simpl in *.
+      iDestruct ("H" $! ε_new with "[]") as "[H _]".
+      { rewrite /ε_new. simpl. iPureIntro.
+        rewrite Rplus_comm. apply Rcomplements.Rlt_minus_l.
+        rewrite Rminus_diag.
+        apply Rcomplements.Rdiv_lt_0_compat; lra.
+      }
+      iDestruct ("H" $! (ε'/2) with "[]") as ">[%osch %Hcoupl]".
+      { iPureIntro.
+        apply Rlt_gt.
+        apply Rcomplements.Rdiv_lt_0_compat; lra. }
+      iPureIntro.
+      exists osch.
+      rewrite /ε_new/= in Hcoupl.
+      rewrite Rplus_assoc in Hcoupl.
+      by rewrite Rplus_half_diag in Hcoupl.
+    - erewrite sch_exec_is_final in *; last done.
+    admit.
+  Admitted.
+
+  Lemma wp_adequacy_step_fupdN `{Countable sch_int_σ} sch ζ `{!TapeOblivious sch_int_σ sch} σ σ' (ε:nonnegreal) e es es' ϕ n:
+    ∀ ε', ε'>0 -> 
     state_interp σ ∗ err_interp ε ∗ spec_interp (es', σ') ∗
     WP e {{ v, ∃ v' : val, 0 ⤇ Val v' ∗ ⌜ϕ v v'⌝ }} ∗ ([∗ list] e' ∈ es, WP e' {{ _, True }})
     ⊢ |={⊤,∅}=> |={∅}▷=>^n
-                 ⌜∀ ε', ε'>0 -> ∃ (osch:full_info_oscheduler),
+                 ⌜∃ (osch:full_info_oscheduler),
                    ARcoupl (sch_exec sch n (ζ, (e::es, σ))) (osch_lim_exec osch ([], (es', σ')))
                      (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε + ε') ⌝.
   Proof.
+    iInduction n as [|n] "IH" forall (ζ σ σ' ε e es es');
+      iIntros (ε' Hε') "(Hσauth & Herrauth & Hspecauth & Hwp & Hwps)".
+    {
+      destruct (to_val e) eqn : Heqn.
+      - apply of_to_val in Heqn as <-.
+        iApply wp_adequacy_val_fupd; try done.
+        iFrame.
+      - iApply fupd_mask_intro; [set_solver|]. iIntros. simpl. iPureIntro.
+        intros. exists full_info_inhabitant. rewrite Heqn.
+        apply ARcoupl_dzero. apply Rplus_le_le_0_compat; [apply cond_nonneg|lra].   
+    }
+    rewrite sch_exec_Sn/sch_step_or_final/=.
+    case_match eqn :Heqn.
+    { iMod (wp_adequacy_val_fupd with "[$]") as "H"; [done..|].
+      iModIntro. repeat iModIntro.
+      rewrite dret_id_left.
+      by iApply step_fupdN_intro. 
+    }
+    rewrite /sch_step. rewrite <-!dbind_assoc.
   Admitted.
-                              
+
+  
+                                                           
 End adequacy.
 
 
@@ -39,7 +121,7 @@ Lemma foxtrot_adequacy_full_info_intermediate_multi Σ `{foxtrotGpreS Σ} (ε:R)
       (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε + ε').
 Proof.
   intros Heps Hwp.
-  intros ????????. 
+  intros ??????????. 
   eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
@@ -49,7 +131,7 @@ Proof.
   - set ε_nonneg := mknonnegreal _ Heps.
     iMod (ec_alloc ε_nonneg) as (?) "[HE He]"; [done|].
     set (HfoxtrotGS := HeapG Σ _ _ _ γH γT HspecGS _).
-    iApply (wp_adequacy_step_fupdN _ _ _ _ _ ε_nonneg).
+    iApply (wp_adequacy_step_fupdN _ _ _ _ ε_nonneg); first lra.
     iFrame.
     simpl.
     iApply (Hwp with "[He][-]").
