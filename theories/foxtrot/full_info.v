@@ -622,5 +622,95 @@ Section full_info.
     rewrite dret_id_left.
     by rewrite full_info_lift_osch_lim_exec.
   Qed.
+
+  (** This is a way of building a scheduler by appending schedulers at the frontier of another
+   *)
+  Program Definition full_info_append_osch
+    (osch:full_info_oscheduler) (f: full_info_state -> full_info_oscheduler) :=
+    {|
+      fi_osch := {| oscheduler_f := λ '(l, ρ),
+                                      match
+                                        decide (∃ prel, prefix prel l /\ is_frontier prel [] osch) with
+                                      | left pro =>
+                                          let prel:=(epsilon pro) in
+                                          (full_info_lift_osch prel (f prel)) (l, ρ)
+                                      | _ => osch (l, ρ)
+                                      end
+                 |}
+    |}.
+  Next Obligation.
+    done.
+  Qed.
+  Next Obligation.
+    simpl. intros ???????.
+    simpl. case_match; by apply fi_osch_tape_oblivious.
+  Qed.
+  Next Obligation.
+    simpl.
+    intros ???????. case_match; apply fi_osch_valid.
+  Qed.
+  Next Obligation.
+    simpl. intros ????. case_match; apply fi_osch_consistent.
+  Qed.
+
+  Lemma is_frontier_prefix_lemma prel prel' osch l:
+    prefix prel l -> is_frontier prel [] osch -> prefix prel' l -> is_frontier prel' [] osch -> prel = prel'.
+  Proof.
+    intros.
+    epose proof prefix_weak_total _ _ l _ _  as [|].
+    - by eapply is_frontier_prefix_unique.
+    - symmetry; by eapply is_frontier_prefix_unique.
+      Unshelve.
+      all: done.
+  Qed.
+  
+  Lemma full_info_append_osch_prefix prel osch f l ρ:
+    is_frontier prel [] osch ->
+    full_info_append_osch osch f (prel ++ l, ρ) = full_info_lift_osch prel (f prel) (prel ++ l, ρ).
+  Proof.
+    rewrite /full_info_append_osch.
+    intros. simpl. case_match; last first.
+    { exfalso. apply n. eexists _; split; last done.
+      by eexists _.
+    }
+    pose proof epsilon_correct _ e as H'. simpl in *.
+    assert (epsilon e = prel) as Hrewrite.
+    { eapply is_frontier_prefix_lemma; [apply H'|naive_solver|by eexists _|done]. }
+    by rewrite Hrewrite in H' *.
+  Qed.
+    
+  Lemma full_info_append_osch_exec_prefix prel l osch f n ρ:
+    is_frontier prel [] osch ->
+    osch_exec (full_info_append_osch osch f) n (prel++l, ρ) =
+    osch_exec (full_info_lift_osch prel (f prel)) n (prel++l, ρ).
+  Proof.
+    revert l ρ.
+    induction n; intros l ρ Hfront.
+    - simpl. case_match eqn :H1; case_match eqn :H2.
+      + pose proof epsilon_correct _ e as H. simpl in *.
+        assert (epsilon e = prel) as Hrewrite.
+        { eapply is_frontier_prefix_lemma; [apply H|naive_solver|by eexists _|done]. }
+        rewrite Hrewrite in H1 *.
+        by rewrite H1.
+      + exfalso.
+        apply n. exists prel. split; last done.
+        by eexists _.
+      + pose proof epsilon_correct _ e. simpl in *.
+        assert (epsilon e = prel) as Hrewrite.
+        { eapply is_frontier_prefix_lemma; [apply H|naive_solver|by eexists _|done]. }
+        rewrite Hrewrite in H1 *. by rewrite H1.
+      + exfalso.
+        apply n.
+        exists prel. split; last done. by eexists _.
+    - rewrite !osch_exec_Sn.
+      rewrite /osch_step_or_none.
+      rewrite full_info_append_osch_prefix; last done.
+      case_match.
+      + rewrite /osch_step. rewrite full_info_append_osch_prefix; last done.
+        case_match; last by rewrite !dbind_dzero.
+        simplify_eq. 
+  Admitted.
+
+    
    
 End full_info.

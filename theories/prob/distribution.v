@@ -399,6 +399,19 @@ Proof.
   rewrite Heq //.
 Qed.
 
+Lemma dbind_ext_right_strong `{Countable A, Countable B} (μ : distr A) (f g : A → distr B) :
+  (∀ a, μ a > 0 -> f a = g a) →
+  dbind f μ = dbind g μ.
+Proof.
+  intro Heq.
+  apply distr_ext=> a.
+  rewrite /dbind/dbind_pmf{1 4}/pmf.
+  apply SeriesC_ext.
+  intros n.
+  pose proof pmf_pos μ n as [|<-]; last lra.
+  by rewrite Heq.
+Qed.
+
 Lemma dbind_ext_right' `{Countable A, Countable B} (μ1 μ2 : distr A) (f g : A → distr B) :
   (∀ a, f a = g a) →
   μ1 = μ2 ->
