@@ -53,6 +53,74 @@ Section full_info.
     by apply full_info_reachable_prefix in H.
   Qed.
 
+  
+  Definition is_frontier_n l n initial_l (osch:full_info_oscheduler) :=
+    ∃ ρ ρ', osch_exec osch n (initial_l, ρ) (l, ρ') > 0.
+  
+  Definition is_frontier l initial_l (osch:full_info_oscheduler) :=
+    ∃ ρ ρ', osch_lim_exec osch (initial_l, ρ) (l, ρ') > 0.
+
+  Lemma is_frontier_n_prefix_unique n initial_l l l' osch:
+    is_frontier_n l n initial_l osch -> is_frontier_n l' n initial_l osch -> prefix l l' -> l = l'.
+  Proof.
+    revert l l' initial_l. rewrite /is_frontier_n.
+    induction n; intros l l' initial_l.
+    - simpl. intros (?&H1&H2) (?&H3&H4).
+      case_match eqn : Heqn1.
+      { rewrite dzero_0 in H4. lra. }
+      apply dret_pos in H4. simplify_eq.
+      erewrite fi_osch_consistent in H2; last done.
+      apply dret_pos in H2. by simplify_eq.
+    - simpl. intros (?&H1&H2) (?&H3&H4).
+      case_match eqn :Heqn1.
+      { apply dbind_pos in H4 as [[f ?][H4 H5]].
+        apply dbind_pos in H4 as [?[??]].
+        case_match eqn:Heqn2; last first.
+        { by erewrite fi_osch_consistent in Heqn1. }
+        apply dbind_pos in H2 as [[f' ?][H6 H7]].
+        apply dbind_pos in H6 as [?[??]].
+        destruct (decide (f=f')) as [|K].
+        - subst.
+          eapply IHn; naive_solver.
+        - apply full_info_reachable_prefix in H, H2.
+          destruct H2, H. simplify_eq.
+          intros [??]. 
+          eapply fi_osch_valid in Heqn1, Heqn2; [|done..].
+          simplify_eq.
+          exfalso.
+          apply K. f_equal.
+          rewrite -!app_assoc in H.
+          simplify_eq. rewrite /cfg_to_cfg'. f_equal. f_equal. by f_equal.
+      }
+      erewrite fi_osch_consistent in H2; last done.
+      apply dret_pos in H2, H4.
+      by simplify_eq.
+  Qed.
+      
+  
+  Lemma is_frontier_prefix_unique initial_l l l' osch:
+    is_frontier l initial_l osch -> is_frontier l' initial_l osch -> prefix l l' -> l = l'.
+  Proof.
+    rewrite /is_frontier.
+    intros (?&?&H1) (?&?&H2).
+    apply osch_lim_exec_pos in H1 as [n H1].
+    apply osch_lim_exec_pos in H2 as [m H2].
+    apply Rlt_gt in H1, H2.
+    destruct (decide (n<=m)%nat).
+    - eapply (is_frontier_n_prefix_unique m); last first. 
+      { rewrite /is_frontier_n. eexists _, _. apply H2. }
+      rewrite /is_frontier_n. eexists _, _.
+      eapply Rge_gt_trans; last apply H1.
+      apply Rle_ge.
+      by apply osch_exec_mono'. 
+    - eapply (is_frontier_n_prefix_unique n).
+      { rewrite /is_frontier_n. eexists _, _. apply H1. }
+      rewrite /is_frontier_n. eexists _, _.
+      eapply Rge_gt_trans; last apply H2.
+      apply Rle_ge.
+      apply osch_exec_mono'. lia.
+  Qed.
+
   (** Do nothing oscheduler *)
 
   Program Definition full_info_inhabitant: full_info_oscheduler :=
