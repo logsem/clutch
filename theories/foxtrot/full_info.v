@@ -761,7 +761,18 @@ Section full_info.
     is_frontier l' [] osch->
     l'=l++[x].
   Proof.
-  Admitted.
+    intros Hneg Hprefix Hfrontier.
+    destruct Hprefix as [suf Hprefix].
+    destruct suf.
+    { rewrite app_nil_r in Hprefix. by subst. }
+    exfalso.
+    assert (prefix l' l); last naive_solver.
+    apply app_eq_app in Hprefix as [l1[[??]|[? H]]]; simplify_eq; first by eexists _.
+    assert (l1 = []) as ->; last by rewrite app_nil_r.
+    destruct l1; first done.
+    apply (f_equal length) in H.
+    exfalso. simpl in H. rewrite app_length/= in H. lia.
+  Qed.
 
   Lemma full_info_append_osch_exec_not_prefix l osch n ρ f: 
     ¬(∃ prel, prefix prel l /\ is_frontier prel [] osch)->
@@ -841,5 +852,88 @@ Section full_info.
   Qed.
       
         
+
+
+
+  Lemma full_info_append_osch_lim_exec_not_prefix l osch ρ f: 
+    ¬(∃ prel, prefix prel l /\ is_frontier prel [] osch)->
+    ∀ x,
+    (osch_lim_exec osch (l, ρ) ≫= (λ '(l', ρ'), 
+                                      match
+                                        decide (∃ prel, prefix prel l' /\ is_frontier prel [] osch) with
+                                      | left pro =>
+                                          let prel:=(epsilon pro) in
+                                          osch_lim_exec (full_info_lift_osch prel (f prel)) (l', ρ')
+                                      | _ => dzero
+                                      end 
+    )) x <=
+      osch_lim_exec (full_info_append_osch osch f) (l, ρ) x.
+  Proof.
+    intros Hneq x.
+    rewrite {1}/dbind{1}/dbind_pmf{1}/pmf.
+    setoid_rewrite osch_lim_exec_unfold at 1.
+    setoid_rewrite <-Sup_seq_scal_r'; last first.
+    { apply is_finite_Sup_seq_osch_exec. }
+    { done. }
+    erewrite SeriesC_Sup_seq_swap.
+    - apply Rbar_le_fin; first done.
+      apply upper_bound_ge_sup.
+      intros n.
+      etrans; last first.
+      { apply rbar_le_rle.
+        by apply full_info_append_osch_exec_not_prefix.
+      }
+      rewrite {1}/dbind{1}/dbind_pmf{3}/pmf.
+      apply SeriesC_le.
+      + intros; split; [real_solver|done].
+      + apply pmf_ex_seriesC_mult_fn; naive_solver.
+    - intros. real_solver.
+    - intros.
+      apply Rmult_le_compat_r; first done.
+      apply osch_exec_mono'. lia.
+    - intros. exists (1*1).
+      intros. by apply Rmult_le_compat.
+    - intros. apply SeriesC_correct.
+      apply pmf_ex_seriesC_mult_fn; naive_solver.
+    - simpl. instantiate (1:=1).
+      intros.
+      trans (SeriesC (osch_exec osch n (l, ρ))); last done.
+      apply SeriesC_le; last done.
+      intros. split; first real_solver.
+      rewrite -{2}(Rmult_1_r (osch_exec _ _ _ _)).
+      real_solver.
+  Qed.
+
+  Lemma full_info_append_osch_lim_exec osch ρ f: 
+    ∀ x,
+    (osch_lim_exec osch ([], ρ) ≫= (λ '(l', ρ'), 
+                                      match
+                                        decide (∃ prel, prefix prel l' /\ is_frontier prel [] osch) with
+                                      | left pro =>
+                                          let prel:=(epsilon pro) in
+                                          osch_lim_exec (full_info_lift_osch prel (f prel)) (l', ρ')
+                                      | _ => dzero
+                                      end 
+    )) x <=
+      osch_lim_exec (full_info_append_osch osch f) ([], ρ) x.
+  Proof.
+    intros x.
+    destruct (decide((∃ prel, prefix prel [] /\ is_frontier prel [] osch))) as [H|].
+    - destruct H as [prel[Hprefix Hfrontier]].
+      assert (prel = []) as ->.
+      { by eapply prefix_nil_inv. }
+      rewrite osch_lim_exec_None; last first.
+      { by eapply is_frontier_None. }
+      rewrite dret_id_left.
+      case_match; last by rewrite dzero_0.
+      pose proof epsilon_correct _ e as [He He'].
+      assert (epsilon e = []) as ->.
+      { by eapply prefix_nil_inv. }
+      simpl.
+      rewrite -{3}(app_nil_r []).
+      erewrite <-full_info_append_osch_lim_exec_prefix; last done.
+      by rewrite app_nil_r.
+    - by apply full_info_append_osch_lim_exec_not_prefix.
+  Qed.
     
 End full_info.
