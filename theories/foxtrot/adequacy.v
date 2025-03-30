@@ -200,6 +200,58 @@ Section adequacy.
       + apply cond_nonneg.
   Qed.
 
+
+  Lemma spec_coupl_erasure `{Countable sch_int_σ} sch ζ `{!TapeOblivious sch_int_σ sch} σ ρ ε Z ϕ n e es:
+    ∀ ε', ε'>0 -> 
+    spec_coupl σ ρ ε Z -∗
+    (∀ σ2 ρ2 ε2, Z σ2 ρ2 ε2 ={∅}=∗ ∀ ε'', ⌜ε''>0⌝-∗ |={∅}▷=>^(n)
+                                                 ⌜∃ (osch:full_info_oscheduler),
+       ARcoupl (sch_exec sch n (ζ, (e::es, σ2))) (osch_lim_exec osch ([], ρ2))
+         (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε2 + ε'')⌝
+    ) -∗
+    |={∅}=> |={∅}▷=>^(n)
+             ⌜∃ (osch:full_info_oscheduler),
+       ARcoupl (sch_exec sch n (ζ, (e::es, σ))) (osch_lim_exec osch ([], ρ))
+         (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε + ε')⌝.
+  Proof.
+  Admitted.
+
+  Lemma spec_coupl_erasure' `{Countable sch_int_σ} sch ζ `{!TapeOblivious sch_int_σ sch} σ ρ ε Z ϕ n e es e' num:
+    ∀ ε', ε'>0 -> 
+    ((e::es)!!num = Some e') ->
+    to_val e = None ->
+    to_val e' = None ->
+    spec_coupl σ ρ ε Z -∗
+    (∀ σ2 ρ2 ε2, Z σ2 ρ2 ε2 ={∅}=∗ ∀ ε'', ⌜ε''>0⌝-∗ |={∅}▷=>^(S n)
+                                                 ⌜∃ (osch:full_info_oscheduler),
+       ARcoupl (prim_step e' σ ≫= λ '(e3, σ3, efs), sch_exec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))) (osch_lim_exec osch ([], ρ2))
+         (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε2 + ε'')⌝
+    ) -∗
+    |={∅}=> |={∅}▷=>^(S n)
+             ⌜∃ (osch:full_info_oscheduler),
+       ARcoupl (prim_step e' σ ≫= λ '(e3, σ3, efs), sch_exec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))) (osch_lim_exec osch ([], ρ))
+         (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε + ε')⌝.
+  Proof.
+  Admitted.
+
+  Lemma prog_coupl_erasure `{Countable sch_int_σ} sch ζ `{!TapeOblivious sch_int_σ sch} σ ρ ε Z ϕ n e es e' num:
+    ∀ ε', ε'>0 -> 
+    ((e::es)!!num = Some e') ->
+    to_val e = None ->
+    to_val e' = None ->
+    prog_coupl e' σ ρ ε Z -∗
+    (∀ e2 σ2 efs ρ2 ε2, Z e2 σ2 efs ρ2 ε2 ={∅}=∗ ∀ ε'', ⌜ε''>0⌝-∗ |={∅}▷=>^(n)
+                                                 ⌜∃ (osch:full_info_oscheduler),
+       ARcoupl (sch_exec sch n (ζ, (<[num:=e2]> (e :: es) ++ efs, σ2))) (osch_lim_exec osch ([], ρ2))
+         (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε2 + ε'')⌝
+    ) -∗
+    |={∅}=> |={∅}▷=>^(n)
+             ⌜∃ (osch:full_info_oscheduler),
+       ARcoupl (prim_step e' σ ≫= λ '(e3, σ3, efs), sch_exec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))) (osch_lim_exec osch ([], ρ))
+         (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε + ε')⌝.
+  Proof.
+  Admitted.
+  
   Lemma wp_adequacy_step_fupdN `{Countable sch_int_σ} sch ζ `{!TapeOblivious sch_int_σ sch} σ σ' (ε:nonnegreal) e es es' ϕ n:
     ∀ ε', ε'>0 -> 
     state_interp σ ∗ err_interp ε ∗ spec_interp (es', σ') ∗
