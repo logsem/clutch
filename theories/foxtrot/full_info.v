@@ -60,6 +60,16 @@ Section full_info.
   Definition is_frontier l initial_l (osch:full_info_oscheduler) :=
     ∃ ρ ρ', osch_lim_exec osch (initial_l, ρ) (l, ρ') > 0.
 
+  Lemma is_frontier_None l initial_l osch ρ:
+    is_frontier l initial_l osch -> osch (l, ρ) = None.
+  Proof.
+    rewrite /is_frontier.
+    intros (?&?&H).
+    apply osch_lim_exec_pos in H as [??].
+    apply osch_exec_pos in H.
+    by eapply fi_osch_consistent.
+  Qed.
+
   Lemma is_frontier_n_prefix_unique n initial_l l l' osch:
     is_frontier_n l n initial_l osch -> is_frontier_n l' n initial_l osch -> prefix l l' -> l = l'.
   Proof.
@@ -678,14 +688,23 @@ Section full_info.
     { eapply is_frontier_prefix_lemma; [apply H'|naive_solver|by eexists _|done]. }
     by rewrite Hrewrite in H' *.
   Qed.
-    
+
+  Lemma full_info_append_osch_not_prefix osch f l ρ:
+    ¬(∃ prel, prefix prel l /\ is_frontier prel [] osch)->
+    full_info_append_osch osch f (l, ρ) = osch (l, ρ).
+  Proof.
+    rewrite /full_info_append_osch.
+    intros H. simpl. case_match; last done.
+    exfalso. naive_solver.
+  Qed.
+  
   Lemma full_info_append_osch_exec_prefix prel l osch f n ρ:
     is_frontier prel [] osch ->
     osch_exec (full_info_append_osch osch f) n (prel++l, ρ) =
     osch_exec (full_info_lift_osch prel (f prel)) n (prel++l, ρ).
   Proof.
     revert l ρ.
-    induction n; intros l ρ Hfront.
+    induction n as [|n IHn]; intros l ρ Hfront.
     - simpl. case_match eqn :H1; case_match eqn :H2.
       + pose proof epsilon_correct _ e as H. simpl in *.
         assert (epsilon e = prel) as Hrewrite.
@@ -707,10 +726,120 @@ Section full_info.
       rewrite full_info_append_osch_prefix; last done.
       case_match.
       + rewrite /osch_step. rewrite full_info_append_osch_prefix; last done.
-        case_match; last by rewrite !dbind_dzero.
-        simplify_eq. 
+        case_match eqn:H0; last by rewrite !dbind_dzero.
+        simplify_eq.
+        rewrite -!dbind_assoc'.
+        apply dbind_ext_right_strong.
+        intros [a ac].
+        intros.
+        eapply fi_osch_valid in H0; last done. subst.
+        rewrite /dmap.
+        rewrite -!(dbind_assoc).
+        apply dbind_ext_right.
+        intro . rewrite !dret_id_left.
+        rewrite -!app_assoc. by apply IHn. 
+      + rewrite !dret_id_left. by apply IHn.
+  Qed.
+
+  Lemma full_info_append_osch_lim_exec_prefix prel l osch f ρ:
+    is_frontier prel [] osch ->
+    osch_lim_exec (full_info_append_osch osch f) (prel++l, ρ) =
+    osch_lim_exec (full_info_lift_osch prel (f prel)) (prel++l, ρ).
+  Proof.
+    intros.
+    apply distr_ext.
+    intros. 
+    rewrite !osch_lim_exec_unfold.
+    erewrite Sup_seq_ext; first done.
+    intros. by rewrite full_info_append_osch_exec_prefix.
+  Qed.
+
+  
+  Lemma append_one_frontier l osch x l': 
+    (¬ ∃ prel : list (cfg' * nat), prel `prefix_of` l ∧ is_frontier prel [] osch)->
+    prefix l' (l++[x])->
+    is_frontier l' [] osch->
+    l'=l++[x].
+  Proof.
   Admitted.
 
+  Lemma full_info_append_osch_exec_not_prefix l osch n ρ f: 
+    ¬(∃ prel, prefix prel l /\ is_frontier prel [] osch)->
+    ∀ x,
+    (osch_exec osch n (l, ρ) ≫= (λ '(l', ρ'), 
+                                      match
+                                        decide (∃ prel, prefix prel l' /\ is_frontier prel [] osch) with
+                                      | left pro =>
+                                          let prel:=(epsilon pro) in
+                                          osch_lim_exec (full_info_lift_osch prel (f prel)) (l', ρ')
+                                      | _ => dzero
+                                      end 
+    )) x <=
+      osch_lim_exec (full_info_append_osch osch f) (l, ρ) x.
+  Proof.
+    revert l ρ.
+    induction n; intros l ρ Hneg x.
+    - simpl. case_match.
+      { by rewrite dbind_dzero dzero_0. }
+      rewrite dret_id_left.
+      case_match; last by rewrite dzero_0.
+      exfalso. naive_solver.
+    - rewrite osch_lim_exec_step/osch_step_or_none.
+      Local Opaque full_info_append_osch.
+      rewrite full_info_append_osch_not_prefix; last done.
+      rewrite /osch_step.
+      rewrite full_info_append_osch_not_prefix; last done.
+      simpl.
+      case_match eqn:H0.
+      + rewrite -!dbind_assoc'.
+        rewrite {1 4}/dbind{1 2}/dbind_pmf{1 4}/pmf.
+        apply SeriesC_le; last first.
+        { apply pmf_ex_seriesC_mult_fn; naive_solver. }
+        intros [a ac].
+        split; first real_solver.
+        destruct (pmf_pos d (a,ac)) as [H|H]; last first.
+        { rewrite -H. lra. }
+        apply Rlt_gt in H.
+        eapply fi_osch_valid in H0; last done. subst.
+        apply Rmult_le_compat_l; first (simpl in *; lra).
+        rewrite /dmap.
+        do 2 rewrite -dbind_assoc.
+        rewrite {1 3}/dbind{1 2}/dbind_pmf{1 4}/pmf.
+        apply SeriesC_le; last (apply pmf_ex_seriesC_mult_fn; naive_solver).
+        intro n0; split; first real_solver.
+        apply Rmult_le_compat_l; first (done).
+        rewrite dret_id_left.
+        destruct (decide ((∃ prel, prefix prel (l ++ [(cfg_to_cfg' ρ, ac)]) /\ is_frontier prel [] osch))) as [H'|H'].
+        * destruct H' as [prel[Hprefix Hfrontier]].
+          destruct Hprefix as [l' Hprefix].
+          destruct l'; last first.
+          { exfalso. apply Hneg. exists prel; split; last done.
+            apply app_eq_app in Hprefix as [l''[[??]|[??]]]; simplify_eq; first by eexists _.
+            destruct l''; first by rewrite app_nil_r.
+            exfalso.
+            rewrite -app_comm_cons in H1. simplify_eq.
+            symmetry in H0.
+            by apply app_nil in H0 as [??]. 
+          }
+          rewrite app_nil_r in Hprefix. subst.
+          rewrite osch_exec_is_none; last by eapply is_frontier_None.
+          rewrite dret_id_left.
+          case_match; last naive_solver.
+          pose proof epsilon_correct _ e as H1. simpl in H1. destruct H1 as [H1 H2].
+          assert (epsilon e = l++[(cfg_to_cfg' ρ, ac)]) as Hrewrite; last rewrite Hrewrite.
+          { by eapply append_one_frontier. }
+          rewrite Hrewrite in H1 H0 H2. 
+          rewrite -{ 3}(app_nil_r (_++[_])).
+          epose proof full_info_append_osch_lim_exec_prefix _ [] osch f n0 _ as H3.
+          right. f_equal. apply distr_ext_pmf.
+          rewrite -H3. by rewrite app_nil_r.
+        * apply IHn. naive_solver.
+      + rewrite !dret_id_left.
+        case_match; first naive_solver.
+        by rewrite dzero_0.
+        Unshelve. 2:{ done. }          
+  Qed.
+      
+        
     
-   
 End full_info.
