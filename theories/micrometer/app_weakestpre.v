@@ -46,17 +46,13 @@ Definition coe_nonnegreal_bar_R : nonnegreal -> \bar R := EFin \o nonneg.
 Section coupl_modalities.
   Context `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
 
-
-  (** [exists-support modality]
-      There exists a set with mass 1 on which the proposition holds *)
+  (** [exists-support modality] There exists a measurable set with mass 1 on which the proposition holds *)
   Definition EXSM (Φ : cfg Λ → iProp Σ) : giryM (cfg Λ) → iProp Σ :=
     (fun (ρ : giryM (cfg Λ)) =>
        ∃ S : set (cfg Λ),
          ⌜ measurable S ⌝ ∗
-         ⌜ ρ S = coe_nonnegreal_bar_R nnreal_one ⌝ ∗
-         ∀ ρ' : cfg Λ, ⌜ S ρ'  ⌝ -∗ Φ ρ' )%I.
-
-
+         ⌜ ρ S = EFin (1)%R⌝ ∗
+          ∀ ρ' : cfg Λ, ⌜ S ρ'  ⌝ ={∅}=∗ Φ ρ' )%I.
     (*
     (λ (ρx : cfg Λ * nonnegreal),
       let '((e1, σ1), x) := ρx in
@@ -99,19 +95,10 @@ Section coupl_modalities.
   Proof. rewrite /ERM/ERM' least_fixpoint_unfold //. Qed.
 *)
 
-
-
   (** ** [meas_spec_coupl]  *)
 
   (** The [meas_spec_coupl] modality allows us to (optionally) prepend spec execution steps and erasable
       distributions, e.g. [state_step]s on both sides. *)
-
-  (*
- HB.lock Definition expectation {d} {T : measurableType d} {R : realType}
-  (P : probability T R) (X : T -> R) := (\int[P]_w (X w)%:E)%E.
-*)
-
-
   (* NOTE: le_ereal due to Scope clash with expressions. Move expval to its own file where this isn't the case. *)
 
 
@@ -210,17 +197,40 @@ Section coupl_modalities.
     iIntros "!#" ([[? [??]] ?]) "H". by iApply "IH".
   Qed.
 
+
+  Axiom gBind_id_left : ∀ {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> giryM T2)
+    (a : T1) (HMF : measurable_fun setT f),
+    gBind' f (gRet a) = f a.
+
+
+  Lemma pexec_0' :  (pexec 0 :  mstate (meas_lang_markov Λ) -> _) = gRet.
+  Proof. apply functional_extensionality; intro a; eapply pexec_O. Qed.
+
+
   Lemma fupd_meas_spec_coupl E σ1 e1' σ1' Z (ε : nonnegreal) :
     (|={E}=> meas_spec_coupl E σ1 e1' σ1' ε Z) ⊢ meas_spec_coupl E σ1 e1' σ1' ε Z.
   Proof.
     iIntros "H".
     iApply meas_spec_coupl_rec.
-    iExists _, 0%nat, (gRet σ1), (gRet σ1'), 0%NNR, (λ _, ε), ε.
+    iExists _ , 0%nat, (gRet σ1), (gRet σ1'), 0%NNR, (λ _, ε), ε.
+    setoid_rewrite gBind_id_left.
+    2: { admit. (* prove gBind_id_left to see if necessary *) }
+    2: { admit. (* prove gBind_id_left to see if necessary *) }
+    rewrite pexec_0'.
+
+    (*  rewrite dret_id_left pexec_O. *)
+    iSplit. { iPureIntro. admit. } (* { by apply ARcoupl_pos_R, (ARcoupl_dret _ _ (λ _ _, True)). } *)
+    iSplit. { done. }
+    iSplit. { iPureIntro. (* Check integral_ge0. *) admit. }
+    iSplit. { iPureIntro. (* gRet erasable *) admit. }
+    iSplit. { iPureIntro. (* gRet erasable *) admit. }
+    (* What about ARcoupl_pos_R do we need to finish this proof? *)
+    iIntros (???).
   Admitted.
+
   (*
     rewrite dret_id_left pexec_O.
     iSplit; [iPureIntro|].
-    { by apply ARcoupl_pos_R, (ARcoupl_dret _ _ (λ _ _, True)). }
     iSplit; [done|].
     iSplit; [iPureIntro|].
     { rewrite Rplus_0_l Expval_dret //. }
@@ -258,13 +268,24 @@ Section coupl_modalities.
     iIntros (Heps) "Hs".
     iApply meas_spec_coupl_rec.
     set (ε' := nnreal_minus ε2 ε1 Heps).
+    iExists _, 0%nat, (gRet σ1), (gRet σ1'), ε', (fun _ => ε1), ε1.
+    setoid_rewrite gBind_id_left.
+    2: { admit. (* prove gBind_id_left to see if necessary *) }
+    2: { admit. (* prove gBind_id_left to see if necessary *) }
+    rewrite pexec_0'.
+    iSplit. { iPureIntro. admit. (* Depends on ARcoupl_pos_R *) }
+    (* { eapply ARcoupl_pos_R, ARcoupl_mon_grading, (ARcoupl_dret _ _ (λ _ _, True)) => /=; [|done|done]. lra. } *)
+    iSplit; [done|].
+    iSplit; [iPureIntro|].
+    { admit. (* rewrite Expval_dret /=. lra.  *) }
+    iSplit. { iPureIntro. (* gRet erasable *) admit. }
+    iSplit. { iPureIntro. (* gRet erasable *) admit. }
+    iIntros (???).
+    (* What do I need to finish this? *)
   Admitted.
   (*
-    iExists _, 0%nat, (dret σ1), (dret σ1'), ε', (λ _, ε1), ε1.
     rewrite dret_id_left pexec_O.
     iSplit; [iPureIntro|].
-    { eapply ARcoupl_pos_R, ARcoupl_mon_grading,
-        (ARcoupl_dret _ _ (λ _ _, True)) => /=; [|done|done]. lra. }
     iSplit; [done|].
     iSplit; [iPureIntro|].
     { rewrite Expval_dret /=. lra. }
@@ -313,6 +334,8 @@ Section coupl_modalities.
     set X2' := (λ (ρ : cfg Λ), X2 ρ.2).
     iExists (λ σ2 '(e2', σ2'), R σ2 σ2' ∧ e2' = e1'), 0%nat, μ1, μ1', ε1, X2', r.
     iSplit; [iPureIntro|].
+
+
   Admitted.
   (*
     { rewrite -(dret_id_right μ1).
@@ -355,19 +378,18 @@ Section coupl_modalities.
   Proof.
     iIntros (-> ??) "H".
     iApply meas_spec_coupl_rec.
-  Admitted.
-  (*
-    iExists R, n, μ1, (dret σ1'), ε1, (λ _, ε2), ε2.
-    rewrite dret_id_left.
-    do 2 (iSplit; [done|]).
-    iSplit; [iPureIntro|].
-    { rewrite Expval_const //.
-      apply Rle_plus_plus; [done|].
-      real_solver. }
-    iSplit; [done|].
-    iSplit; [iPureIntro; apply dret_erasable|].
+    iExists R, n, μ1, (gRet σ1'), ε1, (λ _, ε2), ε2.
+    setoid_rewrite gBind_id_left.
+    2: { admit. (* prove gBind_id_left to see if necessary *) }
+    2: { admit. (* prove gBind_id_left to see if necessary *) }
+    iSplit. { done. }
+    iSplit. { done. }
+    iSplit. { iPureIntro. admit. }
+    (* { rewrite Expval_const //. apply Rle_plus_plus; [done|]. real_solver. }  *)
+    iSplit. { done. }
+    iSplit. { iPureIntro. (* gRet erasable *) admit. }
     done.
-  Qed. *)
+  Admitted.
 
   Lemma meas_spec_coupl_steps n ε2 ε1 ε R E σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
@@ -375,6 +397,10 @@ Section coupl_modalities.
     (∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={E}=∗ meas_spec_coupl E σ2 e2' σ2' ε2 Z)
     ⊢ meas_spec_coupl E σ1 e1' σ1' ε Z.
   Proof.
+    iIntros (-> ?) "H".
+    iApply (meas_spec_coupl_erasable_steps n _ (gRet σ1) ε1 ε2); [done | | |].
+    2: { (* gRet erasable *) admit. }
+    (* ARcoupl_pos_R; what do I need to finish this proof? *)
   Admitted.
   (*
     iIntros (-> ?) "H".
@@ -389,6 +415,10 @@ Section coupl_modalities.
     meas_spec_coupl E σ1 e2' σ2' ε Z ⊢
     meas_spec_coupl E σ1 e1' σ1' ε Z.
   Proof.
+    iIntros (H1) "H".
+    iApply (meas_spec_coupl_steps n ε 0%NNR).
+    { by apply nnreal_ext => /=; lra. }
+    { (* ARcoupl_pos_R ...*) admit. }
   Admitted.
   (*
     iIntros (Hexec%pmf_1_eq_dret) "H".
