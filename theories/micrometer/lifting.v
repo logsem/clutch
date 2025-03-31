@@ -74,6 +74,20 @@ Proof.
   by iApply meas_spec_coupl_ret.
 Qed.
 
+
+Lemma wp_lift_step_later E Φ e1 s :
+  to_val e1 = None ->
+  (∀ σ1, state_interp σ1 ={E,∅}=∗
+      ⌜reducible (e1, σ1) ⌝ ∗
+      EXSM
+        (fun ρ => True ={∅}=∗ ▷ |={∅,E}=> state_interp ρ.2 ∗ WP ρ.1  @ s; E {{ Φ }})
+        (prim_step (e1, σ1))).
+Proof.
+  iIntros (??) "H".
+  pose P := wp_lift_step_meas_prog_couple E Φ e1 s H.
+
+
+
 (*
 Lemma wp_lift_step_later E Φ e1 s :
   to_val e1 = None →
@@ -177,6 +191,7 @@ Proof.
   iIntros (e' σ (?&->)%Hpuredet); auto.
 Qed.
 *)
+  Admitted.
 
 Lemma wp_pure_step_fupd `{!Inhabited (state Λ)} E E' e1 e2 φ n Φ s :
   PureExec φ n e1 e2 →

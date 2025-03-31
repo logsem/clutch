@@ -49,47 +49,6 @@ Section coupl_modalities.
   (** [exists-support modality] There exists a measurable set with mass 1 on which the proposition holds *)
   Definition EXSM {d} {T : measurableType d} (Φ : T → iProp Σ) (ρ : giryM T) : iProp Σ :=
     ∃ S : set T, ⌜measurable S /\ ρ S = EFin (1)%R⌝ ∗ ∀ ρ' : T , ⌜S ρ'⌝ ={∅}=∗ Φ ρ'.
-    (*
-    (λ (ρx : cfg Λ * nonnegreal),
-      let '((e1, σ1), x) := ρx in
-      (* [prim_step] with adv composition *)
-      (∃ (X2 : cfg Λ → nonnegreal),
-          ⌜reducible (e1, σ1)⌝ ∗
-          ⌜∃ r, ∀ ρ, X2 ρ <= r⌝ ∗
-          ⌜(cost e1 + SeriesC (λ ρ, prim_step e1 σ1 ρ * X2 ρ) <= x)%R⌝ ∗
-          ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ Z (e2, σ2) (X2 (e2, σ2))))%I.
-
-  Local Instance exec_state_ub_pre_NonExpansive Z Φ :
-    NonExpansive (ERM_pre Z Φ).
-  Proof.a
-    rewrite /ERM_pre.
-    intros n ((?&?)&?) ((?&?)&?) [ [[=] [=]] [=]].
-    by simplify_eq.
-  Qed.
-
-  Local Instance exec_coupl_pre_mono Z : BiMonoPred (ERM_pre Z).
-  Proof.
-    split; [|apply _].
-    iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
-    rewrite /ERM_pre.
-    iIntros (((e1 & σ1) & x)) "Hexec".
-    done.
-  Qed.
-
-  Definition ERM' Z := bi_least_fixpoint (ERM_pre Z).
-  Definition ERM e σ x Z := ERM' Z ((e, σ), x).
-
-  Lemma ERM_unfold e1 σ1 Z x :
-    ERM e1 σ1 x Z ≡
-      (
-      (* [prim_step] with adv composition *)
-      (∃ (X2 : cfg Λ → nonnegreal),
-          ⌜reducible (e1, σ1)⌝ ∗
-          ⌜∃ r, ∀ ρ, (X2 ρ <= r)%R⌝ ∗
-          ⌜(cost e1 + SeriesC (λ ρ, prim_step e1 σ1 ρ * X2 ρ) <= x)%R⌝ ∗
-          ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ Z (e2, σ2) (X2 (e2, σ2))))%I.
-  Proof. rewrite /ERM/ERM' least_fixpoint_unfold //. Qed.
-*)
 
   (** ** [meas_spec_coupl]  *)
 

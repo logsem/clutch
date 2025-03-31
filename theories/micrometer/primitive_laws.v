@@ -52,9 +52,8 @@ Definition btapes_auth `{micrometerGS Σ} :=
   @ghost_map_auth _ _ _ _ _ micrometerGS_tapes micrometerGS_tapes_name.
 Definition utapes_auth `{micrometerGS Σ} :=
   @ghost_map_auth _ _ _ _ _ micrometerGS_tapes micrometerGS_utapes_name.
-
-Locate meas_spec_updateGS.
 (*
+
 Global Instance micrometerGS_irisGS `{!micrometerGS Σ} : micrometerWpGS meas_lang Σ := {
   micrometerWpGS_invGS := micrometerGS_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(btapes) ∗ utapes_auth 1 σ.(utapes))%I;
