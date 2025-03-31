@@ -204,7 +204,7 @@ Section adequacy.
   Lemma spec_coupl_erasure `{Countable sch_int_σ} sch ζ `{!TapeOblivious sch_int_σ sch} σ ρ ε Z ϕ n e es:
     ∀ ε', ε'>0 -> 
     spec_coupl σ ρ ε Z -∗
-    (∀ σ2 ρ2 ε2, Z σ2 ρ2 ε2 ={∅}=∗ ∀ ε'', ⌜ε''>0⌝-∗ |={∅}▷=>^(n)
+    (∀ σ2 ρ2 ε2, Z σ2 ρ2 ε2 ={∅}=∗ |={∅}▷=>^(n)∀ ε'', ⌜ε''>0⌝-∗ 
                                                  ⌜∃ (osch:full_info_oscheduler),
        ARcoupl (sch_exec sch n (ζ, (e::es, σ2))) (osch_lim_exec osch ([], ρ2))
          (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε2 + ε'')⌝
@@ -222,9 +222,9 @@ Section adequacy.
     to_val e = None ->
     to_val e' = None ->
     spec_coupl σ ρ ε Z -∗
-    (∀ σ2 ρ2 ε2, Z σ2 ρ2 ε2 ={∅}=∗ ∀ ε'', ⌜ε''>0⌝-∗ |={∅}▷=>^(S n)
+    (∀ σ2 ρ2 ε2, Z σ2 ρ2 ε2 ={∅}=∗ |={∅}▷=>^(S n) ∀ ε'', ⌜ε''>0⌝-∗ 
                                                  ⌜∃ (osch:full_info_oscheduler),
-       ARcoupl (prim_step e' σ ≫= λ '(e3, σ3, efs), sch_exec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))) (osch_lim_exec osch ([], ρ2))
+       ARcoupl (prim_step e' σ2 ≫= λ '(e3, σ3, efs), sch_exec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))) (osch_lim_exec osch ([], ρ2))
          (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε2 + ε'')⌝
     ) -∗
     |={∅}=> |={∅}▷=>^(S n)
@@ -240,12 +240,12 @@ Section adequacy.
     to_val e = None ->
     to_val e' = None ->
     prog_coupl e' σ ρ ε Z -∗
-    (∀ e2 σ2 efs ρ2 ε2, Z e2 σ2 efs ρ2 ε2 ={∅}=∗ ∀ ε'', ⌜ε''>0⌝-∗ |={∅}▷=>^(n)
+    (∀ e2 σ2 efs ρ2 ε2, Z e2 σ2 efs ρ2 ε2 ={∅}=∗  |={∅}▷=>^(S n)∀ ε'', ⌜ε''>0⌝-∗
                                                  ⌜∃ (osch:full_info_oscheduler),
        ARcoupl (sch_exec sch n (ζ, (<[num:=e2]> (e :: es) ++ efs, σ2))) (osch_lim_exec osch ([], ρ2))
          (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε2 + ε'')⌝
     ) -∗
-    |={∅}=> |={∅}▷=>^(n)
+    |={∅}=> |={∅}▷=>^(S n)
              ⌜∃ (osch:full_info_oscheduler),
        ARcoupl (prim_step e' σ ≫= λ '(e3, σ3, efs), sch_exec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))) (osch_lim_exec osch ([], ρ))
          (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε + ε')⌝.
@@ -324,10 +324,9 @@ Section adequacy.
       eapply ARcoupl_mono; last apply Hcoupl; try done.
       simpl. intros ? [??]. naive_solver.
     }
-   eset (P:=(λ p (fp:full_info_oscheduler),
-               let '(ζ', ac) := p in
-               sch (ζ, (e :: es, σ)) (ζ', ac) > 0
-               → ARcoupl
+    set (S' := (λ '(ζ', ac), sch (ζ, (e::es, σ)) (ζ', ac) > 0)).
+   eset (P:=(λ (p: sigT S') (fp:full_info_oscheduler),
+               let '(ζ', ac) := projT1 p in ARcoupl
                    (dmap (λ mdp_σ' : mdpstate (con_lang_mdp con_prob_lang), (ζ', mdp_σ'))
                       (step ac (ζ, (e :: es, σ)).2)
                       ≫= λ b : sch_int_σ * con_language.cfg con_prob_lang, sch_exec sch n b)
@@ -347,16 +346,121 @@ Section adequacy.
       iDestruct (iris_choice with "[$]") as "H".
       rewrite /P.
       iDestruct "H" as "(%f & H)".
-      iExists f.
-      iIntros (ζ' ac).
-      by iDestruct ("H" $! (ζ', ac)) as "H".
+      pose (f' := λ x,
+              match (decide (∃ Hx, projT1 Hx = x)) with
+              | left pro => f (epsilon pro)
+              | _ => full_info_inhabitant
+              end
+           ).
+      iExists f'.
+      iIntros (ζ' ac Hpos).
+      assert (S' (ζ', ac)) as HS'.
+      { by rewrite /S'. }
+      iDestruct ("H" $! ((ζ', ac); HS')) as "%Hcoupl".
+      iPureIntro.
+      simpl in *.
+      rewrite /f'.
+      case_match; last first.
+      { exfalso. apply n0. by exists ((ζ',ac); HS'). }
+      assert (epsilon e0=((ζ', ac); HS')) as ->; last done.
+      pose proof epsilon_correct _ e0 as H9.
+      simpl in H9.
+      destruct (epsilon e0) as [x y]. simpl in *. simplify_eq.
+      eapply classic_proof_irrel.PIT.subsetT_eq_compat.
+      by rewrite /S' in y.
     }
     iApply fupd_mask_intro; first done.
     iIntros "Hclose". simpl.
     rewrite /P -fupdN_S.
-    iIntros ([ζ' td]).
-    admit. 
-  Admitted.
+    iIntros ([[ζ' td]HS]).
+    rewrite step_fupd_fupdN_S.
+    iMod "Hclose" as "_".
+    destruct ((e::es)!!td) as [chosen_e|] eqn:Hlookup; last first.
+    {     (* step a thread out of bounds*)
+      Local Transparent step.
+      rewrite /step/= Heqn Hlookup.
+      rewrite dmap_dret dret_id_left'.
+      iApply fupd_mask_intro; first done.
+      iIntros "Hclose".
+      do 2 iModIntro. iMod "Hclose" as "_".
+      iApply "IH"; first done; iFrame.
+    }
+    rewrite {1}/step/= Heqn Hlookup.
+    case_match eqn:Hcheckval.
+    {
+      (* step a thread thats a value *)
+      rewrite dmap_dret dret_id_left'.
+      iApply fupd_mask_intro; first done.
+      iIntros "Hclose".
+      do 2 iModIntro. iMod "Hclose" as "_".
+      iApply "IH"; first done. iFrame.
+    }
+    rewrite dmap_comp/dmap-dbind_assoc.
+    erewrite (distr_ext _ _); last first.
+    { intros x. erewrite (dbind_ext_right _ _ (λ '(_,_,_), _)); last first.
+      - intros [[??]?].
+        by rewrite dret_id_left/=.
+      - done.
+    }
+    destruct td as [|td].
+    - (* step main thread*)
+      rewrite wp_unfold/wp_pre. iSimpl in "Hwp". rewrite Heqn.
+      iMod ("Hwp" with "[$]") as "H".
+      iApply (spec_coupl_erasure' with "[$]"); [done..|]. 
+      iIntros (???) "H".
+      iIntros (ε'' Hε'').
+      simpl in Hlookup; simplify_eq.
+      iApply (prog_coupl_erasure with "[$]"); [done..|].
+      iIntros (?????) "H".
+      iModIntro. simpl. iModIntro. iNext.
+      iIntros (ε''' Hε''').
+      iApply (spec_coupl_erasure with "[$]"); [done..|].
+      iIntros (?[??]?) "H".
+      iIntros (ε'''' Hε'''').
+      iMod "H" as "(?&?&?&?&H)".
+      iMod ("IH" with "[][-]") as "H"; last first.
+      { iModIntro. iApply (step_fupdN_mono with "[$]").
+        iPureIntro.
+        naive_solver.
+      }
+      { iFrame. }
+      done.
+    - simpl in Hlookup.
+      apply elem_of_list_split_length in Hlookup as (l1 & l2 & -> & ->).
+      iDestruct "Hwps" as "[Hl1 [Hwp' Hl2]]".
+      rewrite (wp_unfold _ chosen_e)/wp_pre.
+      iSimpl in "Hwp'".
+      iMod ("Hwp'" with "[$]") as "Hlift".
+      iApply (spec_coupl_erasure' with "[$]"); [done| |done|done|].
+      { simpl.
+        rewrite lookup_app_r//.
+        by replace (_-_)%nat with 0%nat by lia. }
+      rewrite Hcheckval.
+      iIntros (???) "Hlift".
+      iIntros (ε'' Hε'').
+      iApply (prog_coupl_erasure with "[$]"); try done.
+      { simpl. rewrite lookup_app_r//.
+        by replace (_-_)%nat with 0%nat by lia. }
+      iIntros (?????) "H".
+      iModIntro. simpl. iModIntro. iNext.
+      iIntros (ε''' Hε''').
+      iApply (spec_coupl_erasure with "[$]"); [done..|].
+      iIntros (?[??]?) "H".
+      iIntros (ε'''' Hε'''').
+      iMod "H" as "(?&?&?&?&?)".
+      iMod ("IH" with "[][-]") as "H"; last first. 
+      { iModIntro.
+        iApply (step_fupdN_mono with "[$]").
+        iPureIntro.
+        naive_solver.
+      }
+      { iFrame.
+        rewrite insert_app_r_alt; last lia.
+        replace (_-_)%nat with 0%nat by lia.
+        simpl. iFrame. 
+      } done.
+  Qed.
+  
 
   
                                                            
