@@ -214,7 +214,170 @@ Section adequacy.
        ARcoupl (sch_exec sch n (ζ, (e::es, σ))) (osch_lim_exec osch ([], ρ))
          (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε + ε')⌝.
   Proof.
-  Admitted.
+    iIntros (ε' Hε') "H".
+    iRevert (ε' Hε').
+    iRevert (σ ρ ε) "H".
+    iApply spec_coupl_ind.
+    iModIntro.
+    iIntros (σ ρ ε) "[%|[?|[H|H]]]"; iIntros (ε' Hε') "H'".
+    - iModIntro.
+      iApply step_fupdN_intro; first done.
+      iPureIntro. intros.
+      exists full_info_inhabitant.
+      apply ARcoupl_1.
+      replace 1 with (1+0)%R by lra.
+      apply Rplus_le_compat; [done|lra].
+    - iMod ("H'" with "[$]") as "H".
+      iModIntro.
+      iApply (step_fupdN_mono with "[$]").
+      iPureIntro. simpl.
+      intros. naive_solver.
+    - unshelve eset (ε_new := mknonnegreal (ε+ε'/2)%R _).
+      { apply Rplus_le_le_0_compat; first apply cond_nonneg.
+        apply Rcomplements.Rdiv_le_0_compat; lra. }
+      simpl in *.
+      iDestruct ("H" $! ε_new with "[]") as "[H _]".
+      { rewrite /ε_new. simpl. iPureIntro.
+        rewrite Rplus_comm. apply Rcomplements.Rlt_minus_l.
+        rewrite Rminus_diag.
+        apply Rcomplements.Rdiv_lt_0_compat; lra.
+      }
+      iDestruct ("H" $! (ε'/2) with "[][$]") as ">?".
+      { iPureIntro.
+        apply Rlt_gt.
+        apply Rcomplements.Rdiv_lt_0_compat; lra. }
+      iApply (step_fupdN_mono with "[$]").
+      iPureIntro.
+      intros (osch & Hcoupl).
+      exists osch.
+      rewrite /ε_new/= in Hcoupl.
+      rewrite Rplus_assoc in Hcoupl.
+      by rewrite Rplus_half_diag in Hcoupl.
+    - iDestruct "H" as "(%S&%μ&%osch&%ε1 & %X2 & %r &%Herasable&%&%&%Hcoupl&%Hinj&H)".
+      apply sch_erasable_sch_erasable_val in Herasable. rewrite -Herasable.
+      set (S' := (λ '(σ2, l, ρ'), S σ2 (l, ρ'))).
+      eset (P:=(λ (p: sigT S') (fp:full_info_oscheduler),
+                  let '(σ2, l,  ρ') := projT1 p in 
+                     ⌜
+                     ARcoupl (sch_exec sch n (ζ, (e :: es, σ2))) (osch_lim_exec fp ([], ρ'))
+                       (λ (v0 : val) '(_, ρ0), ∃ v' : val, ρ0.1 !! 0%nat = Some (Val v') ∧ ϕ v0 v')
+                       (X2 (l, ρ') + ε')⌝)%I : _-> _-> iProp Σ).
+      iAssert (|={∅}=>
+        |={∅}▷=>^n ∀ p, ∃ fp, P p (fp))%I with "[H H']" as "H".
+      {
+        rewrite /P.
+        iApply fupd_step_fupdN_plain_forall.
+        - intros x. apply exist_plain.
+          intros.
+          destruct  (projT1 x). case_match.
+          apply pure_plain.
+        - iIntros ([([??]&?&?)?]).
+          iMod ("H" with "[//]") as "[H _]".
+          iDestruct ("H" with "[//]") as "H".
+          iMod ("H" with "[$]").
+          iModIntro.
+          iApply (step_fupdN_mono with "[$]").
+          iPureIntro.
+          intros (osch' & Hcoupl'). naive_solver.
+      }
+      iMod "H".
+      iModIntro.
+      iApply step_fupdN_mono; last done.
+      iIntros "H".
+      iDestruct (iris_choice with "[$]") as "[%f H]".
+      pose (f' := λ x,
+              match (decide (∃ Hx, (projT1 Hx).1.2 = x)) with
+              | left pro => f (epsilon pro)
+              | _ => full_info_inhabitant
+              end     
+           ).
+      iExists (full_info_append_osch osch f').
+      iApply (entails_wand ⌜_⌝).
+      { iPureIntro. intros K.
+        replace (_+_)%R with ((ε+ε')+0) by (simpl; lra).
+        eapply ARcoupl_eq_trans_r; last first.
+        - apply ARcoupl_eq_0. intros. apply full_info_append_osch_lim_exec.
+        - apply K.
+        - done.
+        - apply Rplus_le_le_0_compat; [apply cond_nonneg|lra].   
+      }
+      rewrite /P.
+      iApply (pure_mono (∀ a, let
+         '(σ2, l, ρ') := projT1 a in
+          ARcoupl (sch_exec sch n (ζ, (e :: es, σ2))) (osch_lim_exec (f a) ([], ρ'))
+             (λ (v0 : val) '(_, ρ0), ∃ v' : val, ρ0.1 !! 0%nat = Some (Val v') ∧ ϕ v0 v') 
+             (X2 (l, ρ') + ε'))); last first.
+      { iIntros (a).
+        case_match eqn :Heqn. case_match.
+        iDestruct ("H"$! a) as "H".
+        by rewrite Heqn.
+      }
+      intros H'.
+      eapply (ARcoupl_mon_grading _ _ _ (ε1 + (Expval (osch_lim_exec _ _) _ + ε'))).
+      { rewrite -Rplus_assoc. apply Rplus_le_compat_r.
+      done. }
+      eapply ARcoupl_dbind_adv_rhs'; last first.
+      + apply ARcoupl_pos_R. done.
+      + Local Opaque osch_lim_exec full_info_lift_osch. simpl.
+        intros ?[l ?] (H3&?&?).
+        case_match eqn:Heqn; last first.
+        { exfalso. apply n0. exists l; split; first done.
+          rewrite /is_frontier. naive_solver.
+        }
+        pose proof epsilon_correct _ e0 as Hcorrect.
+        simpl in *.
+        assert (epsilon e0=l) as ->.
+        { symmetry. eapply is_frontier_prefix_lemma.
+          - done. 
+          - rewrite /is_frontier. naive_solver.
+          - naive_solver.
+          - naive_solver.
+        }
+        epose proof (H' ((a, l, c); H3)) as H'.
+        do 2 case_match. rewrite /f'.
+        case_match; last first.
+        { exfalso.
+          apply n0.
+          by exists ((a, l, c); H3).
+        }
+        assert (epsilon e1 =  ((a, l, c); H3)) as ->.
+        { pose proof epsilon_correct _ e1 as H9.
+          simpl in H9.
+          destruct (epsilon e1) as [x y]. simpl in *. simplify_eq.
+          eapply classic_proof_irrel.PIT.subsetT_eq_compat.
+          rewrite /S' in y.
+          do 2 case_match.
+          simpl in *.
+          simplify_eq.
+          destruct (Hinj _ _ _ _ _ y H3). by simplify_eq.
+        }
+        rewrite -{3}(app_nil_r l).
+        rewrite full_info_lift_osch_lim_exec.
+        rewrite <-(dmap_id (sch_exec _ _ _)).
+        simpl in *; simplify_eq.
+        apply ARcoupl_map; last first.
+        { eapply ARcoupl_mono; last apply H'; try done.
+          - intros ? [??]. naive_solver.
+          - instantiate (1 := λ _, _ + ε'). simpl. done.
+        }
+        simpl. apply Rplus_le_le_0_compat; last lra. apply cond_nonneg.
+      + simpl. rewrite /Expval.
+        setoid_rewrite (Rmult_plus_distr_l).
+        rewrite SeriesC_plus; last first.
+        { apply ex_seriesC_scal_r. done. }
+        { apply pmf_ex_seriesC_mult_fn; naive_solver. }
+        apply Rplus_le_compat; first done.
+        rewrite SeriesC_scal_r.
+        trans (1*ε'); last lra.
+        apply Rmult_le_compat_r; first lra.
+        done.
+      + exists( r+ε').
+        intros.
+        split; first apply Rplus_le_le_0_compat; try done; try lra.
+        apply Rplus_le_compat_r. done.
+      + apply cond_nonneg.
+  Qed.
+    
 
   Lemma spec_coupl_erasure' `{Countable sch_int_σ} sch ζ `{!TapeOblivious sch_int_σ sch} σ ρ ε Z ϕ n e es e' num:
     ∀ ε', ε'>0 -> 
@@ -232,7 +395,174 @@ Section adequacy.
        ARcoupl (prim_step e' σ ≫= λ '(e3, σ3, efs), sch_exec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))) (osch_lim_exec osch ([], ρ))
          (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε + ε')⌝.
   Proof.
-  Admitted.
+    iIntros (ε' Hε' Hlookup Hval1 Hval2) "H".
+    iRevert (ε' Hε' Hlookup Hval1 Hval2).
+    iRevert (σ ρ ε) "H".
+    iApply spec_coupl_ind.
+    iModIntro.
+    iIntros (σ ρ ε) "[%|[?|[H|H]]]"; iIntros (ε' Hε' Hlookup Hval1 Hval2) "H'".
+    - iModIntro.
+      iApply step_fupdN_intro; first done.
+      iPureIntro. intros.
+      exists full_info_inhabitant.
+      apply ARcoupl_1.
+      replace 1 with (1+0)%R by lra.
+      apply Rplus_le_compat; [done|lra].
+    - iMod ("H'" with "[$]") as "H".
+      iModIntro.
+      iApply (step_fupdN_mono with "[$]").
+      iPureIntro. simpl.
+      intros. naive_solver.
+    - unshelve eset (ε_new := mknonnegreal (ε+ε'/2)%R _).
+      { apply Rplus_le_le_0_compat; first apply cond_nonneg.
+        apply Rcomplements.Rdiv_le_0_compat; lra. }
+      iDestruct ("H" $! ε_new with "[]") as "[H _]".
+      { rewrite /ε_new. simpl. iPureIntro.
+        rewrite Rplus_comm. apply Rcomplements.Rlt_minus_l.
+        rewrite Rminus_diag.
+        apply Rcomplements.Rdiv_lt_0_compat; lra.
+      }
+      iDestruct ("H" $! (ε'/2) with "[][][][][$]") as ">?".
+      { iPureIntro.
+        apply Rlt_gt.
+        apply Rcomplements.Rdiv_lt_0_compat; lra. }
+      { done. }
+      { done. }
+      { done. }
+      iModIntro.
+      iApply (step_fupdN_mono with "[$]").
+      iPureIntro.
+      intros (osch & Hcoupl).
+      exists osch.
+      rewrite /ε_new/= in Hcoupl.
+      rewrite Rplus_assoc in Hcoupl.
+      by rewrite Rplus_half_diag in Hcoupl.
+    - iDestruct "H" as "(%S&%μ&%osch&%ε1 & %X2 & %r &%Herasable&%&%&%Hcoupl&%Hinj&H)".
+      unshelve erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim_sch_erasable _ _ _ _ _ _ _ μ _ _ _ _)); [done..|].
+      set (S' := (λ '(σ2, l, ρ'), S σ2 (l, ρ'))).
+      eset (P:=(λ (p: sigT S') (fp:full_info_oscheduler),
+                  let '(σ2, l,  ρ') := projT1 p in 
+                     ⌜
+                     ARcoupl (prim_step e' σ2
+                 ≫= λ '(e'0, s, l), sch_exec sch n (ζ, (<[num:=e'0]> (e :: es) ++ l, s))) (osch_lim_exec fp ([], ρ'))
+                       (λ (v0 : val) '(_, ρ0), ∃ v' : val, ρ0.1 !! 0%nat = Some (Val v') ∧ ϕ v0 v')
+                       (X2 (l, ρ') + ε')⌝)%I : _-> _-> iProp Σ).
+      iAssert (|={∅}=>
+        |={∅}▷=>^(_) ∀ p, ∃ fp, P p (fp))%I with "[H H']" as "H".
+      {
+        rewrite /P.
+        iApply fupd_step_fupdN_plain_forall.
+        - intros x. apply exist_plain.
+          intros.
+          destruct  (projT1 x). case_match.
+          apply pure_plain.
+        - iIntros ([([??]&?&?)?]).
+          iMod ("H" with "[//]") as "[H _]".
+          iDestruct ("H" with "[//]") as "H".
+          iMod ("H" with "[//][//][//][$]").
+          iModIntro.
+          iApply (step_fupdN_mono with "[$]").
+          iPureIntro.
+          intros (osch' & Hcoupl'). naive_solver.
+      }
+      iMod "H".
+      iModIntro.
+      iApply step_fupdN_mono; last done.
+      iIntros "H".
+      iDestruct (iris_choice with "[$]") as "[%f H]".
+      pose (f' := λ x,
+              match (decide (∃ Hx, (projT1 Hx).1.2 = x)) with
+              | left pro => f (epsilon pro)
+              | _ => full_info_inhabitant
+              end     
+           ).
+      iExists (full_info_append_osch osch f').
+      iApply (entails_wand ⌜_⌝).
+      { iPureIntro. intros K.
+        replace (_+_)%R with ((ε+ε')+0) by (simpl; lra).
+        eapply ARcoupl_eq_trans_r; last first.
+        - apply ARcoupl_eq_0. intros. apply full_info_append_osch_lim_exec.
+        - apply K.
+        - done.
+        - apply Rplus_le_le_0_compat; [apply cond_nonneg|lra].   
+      }
+      rewrite /P.
+      iApply (pure_mono (∀ a, let
+         '(σ2, l, ρ') := projT1 a in
+          ARcoupl (prim_step e' σ2
+                 ≫= λ '(e'0, s, l), sch_exec sch n (ζ, (<[num:=e'0]> (e :: es) ++ l, s))) (osch_lim_exec (f a) ([], ρ'))
+             (λ (v0 : val) '(_, ρ0), ∃ v' : val, ρ0.1 !! 0%nat = Some (Val v') ∧ ϕ v0 v') 
+             (X2 (l, ρ') + ε'))); last first.
+      { iIntros (a).
+        case_match eqn :Heqn. case_match.
+        iDestruct ("H"$! a) as "H".
+        by rewrite Heqn.
+      }
+      intros H'.
+      eapply (ARcoupl_mon_grading _ _ _ (ε1 + (Expval (osch_lim_exec _ _) _ + ε'))).
+      { rewrite -Rplus_assoc. apply Rplus_le_compat_r.
+      done. }
+      eapply ARcoupl_dbind_adv_rhs'; last first.
+      + apply ARcoupl_pos_R. done.
+      + Local Opaque osch_lim_exec full_info_lift_osch. simpl.
+        intros ?[l ?] (H3&?&?).
+        case_match eqn:Heqn; last first.
+        { exfalso. apply n0. exists l; split; first done.
+          rewrite /is_frontier. naive_solver.
+        }
+        pose proof epsilon_correct _ e0 as Hcorrect.
+        simpl in *.
+        assert (epsilon e0=l) as ->.
+        { symmetry. eapply is_frontier_prefix_lemma.
+          - done. 
+          - rewrite /is_frontier. naive_solver.
+          - naive_solver.
+          - naive_solver.
+        }
+        epose proof (H' ((a, l, c); H3)) as H'.
+        do 2 case_match. rewrite /f'.
+        case_match; last first.
+        { exfalso.
+          apply n0.
+          by exists ((a, l, c); H3).
+        }
+        assert (epsilon e1 =  ((a, l, c); H3)) as ->.
+        { pose proof epsilon_correct _ e1 as H9.
+          simpl in H9.
+          destruct (epsilon e1) as [x y]. simpl in *. simplify_eq.
+          eapply classic_proof_irrel.PIT.subsetT_eq_compat.
+          rewrite /S' in y.
+          do 2 case_match.
+          simpl in *.
+          simplify_eq.
+          destruct (Hinj _ _ _ _ _ y H3). by simplify_eq.
+        }
+        rewrite -{3}(app_nil_r l).
+        rewrite full_info_lift_osch_lim_exec.
+        rewrite <-(dmap_id (_≫=_)).
+        simpl in *; simplify_eq.
+        apply ARcoupl_map; last first.
+        { eapply ARcoupl_mono; last apply H'; try done.
+          - intros ? [??]. naive_solver.
+          - instantiate (1 := λ _, _ + ε'). simpl. done.
+        }
+        simpl. apply Rplus_le_le_0_compat; last lra. apply cond_nonneg.
+      + simpl. rewrite /Expval.
+        setoid_rewrite (Rmult_plus_distr_l).
+        rewrite SeriesC_plus; last first.
+        { apply ex_seriesC_scal_r. done. }
+        { apply pmf_ex_seriesC_mult_fn; naive_solver. }
+        apply Rplus_le_compat; first done.
+        rewrite SeriesC_scal_r.
+        trans (1*ε'); last lra.
+        apply Rmult_le_compat_r; first lra.
+        done.
+      + exists( r+ε').
+        intros.
+        split; first apply Rplus_le_le_0_compat; try done; try lra.
+        apply Rplus_le_compat_r. done.
+      + apply cond_nonneg.
+  Qed.
 
   Lemma prog_coupl_erasure `{Countable sch_int_σ} sch ζ `{!TapeOblivious sch_int_σ sch} σ ρ ε Z ϕ n e es e' num:
     ∀ ε', ε'>0 -> 
@@ -250,7 +580,135 @@ Section adequacy.
        ARcoupl (prim_step e' σ ≫= λ '(e3, σ3, efs), sch_exec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))) (osch_lim_exec osch ([], ρ))
          (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε + ε')⌝.
   Proof.
-  Admitted.
+    iIntros (ε' Hε' Hlookup Hval1 Hval2) "H".
+    iDestruct "H" as "(%S&%osch&%ε1 & %X2 & %r &%&%&%Hineq&%Hcoupl&%Hinj&H)".
+    iIntros "H'".
+    set (S' := (λ '(e2, σ2, efs, l, ρ2), S (e2, σ2, efs) (l, ρ2))).
+    eset (P:=(λ (p: sigT S') (fp:full_info_oscheduler),
+                let '(e2, σ2, efs, l, ρ') := projT1 p in 
+                ⌜
+                  ARcoupl (sch_exec sch n (ζ, (<[num:=e2]>(e :: es) ++efs, σ2))) (osch_lim_exec fp ([], ρ'))
+                  (λ (v0 : val) '(_, ρ0), ∃ v' : val, ρ0.1 !! 0%nat = Some (Val v') ∧ ϕ v0 v')
+                  (X2 (l, ρ') + ε')⌝)%I : _-> _-> iProp Σ).
+    iAssert (|={∅}=>
+               |={∅}▷=>^(_) ∀ p, ∃ fp, P p (fp))%I with "[H H']" as "H".
+    {
+      rewrite /P.
+      iApply fupd_step_fupdN_plain_forall.
+      - intros x. apply exist_plain.
+        intros.
+        destruct  (projT1 x). do 3 case_match.
+        apply pure_plain.
+      - rewrite /S'.
+        iIntros ([([[[??]?]?]&?&?)?]).
+        iMod ("H" with "[//]") as "H".
+        iMod ("H'" with "[$]").
+        iModIntro.
+        iApply (step_fupdN_mono with "[$]").
+        iPureIntro.
+        simpl.
+        intros K.
+        apply K in Hε' as (osch' & Hcoupl'). naive_solver.
+    }
+    iMod "H".
+    iModIntro.
+    iApply step_fupdN_mono; last done.
+    iIntros "H".
+    iDestruct (iris_choice with "[$]") as "[%f H]".
+    pose (f' := λ x,
+            match (decide (∃ Hx, (projT1 Hx).1.2 = x)) with
+            | left pro => f (epsilon pro)
+            | _ => full_info_inhabitant
+            end     
+         ).
+    iExists (full_info_append_osch osch f').
+    iApply (entails_wand ⌜_⌝).
+    { iPureIntro. intros K.
+      replace (_+_)%R with ((ε+ε')+0) by (simpl; lra).
+      eapply ARcoupl_eq_trans_r; last first.
+      - apply ARcoupl_eq_0. intros. apply full_info_append_osch_lim_exec.
+      - apply K.
+      - done.
+      - apply Rplus_le_le_0_compat; [apply cond_nonneg|lra].   
+    }
+    rewrite /P.
+    iApply (pure_mono (∀ a, let
+                              '(e2, σ2, efs, l, ρ') := projT1 a in
+                            ARcoupl (sch_exec sch n (ζ, (<[num:=e2]>(e :: es)++efs, σ2))) (osch_lim_exec (f a) ([], ρ'))
+                              (λ (v0 : val) '(_, ρ0), ∃ v' : val, ρ0.1 !! 0%nat = Some (Val v') ∧ ϕ v0 v') 
+                              (X2 (l, ρ') + ε'))); last first.
+    { iIntros (a).
+      case_match eqn :Heqn. case_match.
+      iDestruct ("H"$! a) as "H".
+      subst.
+      rewrite Heqn. by repeat case_match.
+    }
+    intros H'.
+    eapply (ARcoupl_mon_grading _ _ _ (ε1 + (Expval (osch_lim_exec _ _) _ + ε'))).
+    { rewrite -Rplus_assoc. apply Rplus_le_compat_r.
+      done. }
+    eapply ARcoupl_dbind_adv_rhs'; last first.
+    + apply ARcoupl_pos_R. done.
+    + Local Opaque osch_lim_exec full_info_lift_osch. simpl.
+      intros [[e2 s2]efs] [l c] (H3&?&?).
+      case_match eqn:Heqn; last first.
+      { exfalso. apply n0. exists l; split; first done.
+        rewrite /is_frontier. naive_solver.
+      }
+      pose proof epsilon_correct _ e0 as Hcorrect.
+      simpl in *.
+      assert (epsilon e0=l) as ->.
+      { symmetry. eapply is_frontier_prefix_lemma.
+        - done. 
+        - rewrite /is_frontier. naive_solver.
+        - naive_solver.
+        - naive_solver.
+      }
+      epose proof (H' ((e2, s2, efs, l, c); H3)) as H'.
+      do 4  case_match. rewrite /f'.
+      case_match; last first.
+      { exfalso.
+        apply n0.
+        by exists ((e2, s2, efs, l, c); H3).
+      }
+      assert (epsilon e3 =  ((e2, s2, efs, l, c); H3)) as ->.
+      { pose proof epsilon_correct _ e3 as H10.
+        simpl in H10.
+        destruct (epsilon e3) as [x y]. simpl in *. simplify_eq.
+        eapply classic_proof_irrel.PIT.subsetT_eq_compat.
+        rewrite /S' in y.
+        do 2 case_match.
+        simpl in *.
+        simplify_eq.
+        do 2 case_match.
+        destruct (Hinj _ _ _ _ _ y H3). by simplify_eq.
+      }
+      rewrite -{3}(app_nil_r l).
+      rewrite full_info_lift_osch_lim_exec.
+      rewrite <-(dmap_id (sch_exec _ _ _)).
+      simpl in *; simplify_eq.
+      apply ARcoupl_map; last first.
+      { eapply ARcoupl_mono; last apply H'; try done.
+        - intros ? [??]. naive_solver.
+        - instantiate (1 := λ _, _ + ε'). simpl. done.
+      }
+      simpl. apply Rplus_le_le_0_compat; last lra. apply cond_nonneg.
+    + simpl. rewrite /Expval.
+      setoid_rewrite (Rmult_plus_distr_l).
+      rewrite SeriesC_plus; last first.
+      { apply ex_seriesC_scal_r. done. }
+      { apply pmf_ex_seriesC_mult_fn; naive_solver. }
+      apply Rplus_le_compat; first done.
+      rewrite SeriesC_scal_r.
+      trans (1*ε'); last lra.
+      apply Rmult_le_compat_r; first lra.
+      done.
+    + exists( r+ε').
+      intros.
+      split; first apply Rplus_le_le_0_compat; try done; try lra.
+      apply Rplus_le_compat_r. done.
+    + apply cond_nonneg.
+  Qed.
   
   Lemma wp_adequacy_step_fupdN `{Countable sch_int_σ} sch ζ `{!TapeOblivious sch_int_σ sch} σ σ' (ε:nonnegreal) e es es' ϕ n:
     ∀ ε', ε'>0 -> 
