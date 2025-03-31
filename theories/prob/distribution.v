@@ -138,6 +138,14 @@ Section distributions.
     ¬ (μ a > 0) → μ a = 0.
   Proof. intros ?%Rnot_gt_ge%Rge_le. by apply pmf_eq_0_le. Qed.
 
+  Context `{Countable B}.
+  Lemma pmf_mult_eq_0 (μ : distr A) (μ' : distr B) a b:
+    (μ a > 0 -> μ a * μ' b = 0) -> μ a * μ' b = 0.
+  Proof.
+    intros. destruct (pmf_pos μ a) as [|<-]; last lra.
+    naive_solver.
+  Qed.
+
 End distributions.
 
 
@@ -277,6 +285,10 @@ Next Obligation. intros. rewrite SeriesC_singleton //. Qed.
 Section dret.
   Context `{Countable A}.
 
+  Lemma dret_pmf_unfold (a a':A):
+    dret a a' = if bool_decide (a' = a) then 1%R else 0%R.
+  Proof. done. Qed. 
+
   Lemma dret_1 (a a' : A) :
     a = a' ↔ dret a a' = 1.
   Proof.
@@ -385,6 +397,19 @@ Proof.
   apply dbind_pmf_ext; [|done|done].
   intros.
   rewrite Heq //.
+Qed.
+
+Lemma dbind_ext_right_strong `{Countable A, Countable B} (μ : distr A) (f g : A → distr B) :
+  (∀ a, μ a > 0 -> f a = g a) →
+  dbind f μ = dbind g μ.
+Proof.
+  intro Heq.
+  apply distr_ext=> a.
+  rewrite /dbind/dbind_pmf{1 4}/pmf.
+  apply SeriesC_ext.
+  intros n.
+  pose proof pmf_pos μ n as [|<-]; last lra.
+  by rewrite Heq.
 Qed.
 
 Lemma dbind_ext_right' `{Countable A, Countable B} (μ1 μ2 : distr A) (f g : A → distr B) :
@@ -1211,6 +1236,15 @@ Section exp_val_prop.
     intros; real_solver.
   Qed.
 
+  Lemma Expval_ge_0' μ f :
+    (forall a, 0 <= f a) ->
+    0 <= Expval μ f.
+  Proof.
+    intros Hleq.
+    rewrite /Expval; apply SeriesC_ge_0'.
+    real_solver.
+  Qed.
+
   Lemma Expval_convex_le μ f r :
     (forall a, 0 <= r <= f a) ->
     ex_expval μ f ->
@@ -1719,7 +1753,9 @@ Next Obligation. intros. rewrite SeriesC_0 //. lra. Qed.
 
 Section dzero.
   Context `{Countable A}.
-
+  
+  Global Instance distr_inhabited : Inhabited (distr A) := populate (dzero).
+  
   Lemma dzero_ext (μ : distr A) :
     (∀ a, μ a = 0) → μ = dzero.
   Proof. intros ?; by apply distr_ext. Qed.

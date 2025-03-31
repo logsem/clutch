@@ -437,8 +437,6 @@ Proof.
 Qed.
 
 
-(* TODO: Move somwhere else to avoid duplications *)
-
 #[local] Fixpoint Rmax_seq (f : nat -> R) n :=
   match n with
   | 0 => f 0%nat

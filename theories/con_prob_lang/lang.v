@@ -1330,3 +1330,8 @@ Section sch_typeclasses.
   Qed.
   
 End sch_typeclasses.
+
+(* Program Instance TapeOblivious_inhabitant `{Countable sch_int_σ}: TapeOblivious sch_int_σ (@inhabitant _ scheduler_inhabited). *)
+(* Next Obligation. *)
+(*   naive_solver. *)
+(* Qed. *)
