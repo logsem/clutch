@@ -397,7 +397,8 @@ Section ectx_language.
   Admitted.
 
 
-  Lemma head_prim_step e1 σ1 ρ :
+  (* MARKUS: Renamed becuase it was breaking the build *)
+  Lemma head_prim_step' e1 σ1 ρ :
     (lt_ereal 0 (head_step (e1, σ1) ρ)) → lt_ereal 0 (prim_step (e1, σ1) ρ).
   Proof. intros H. erewrite head_prim_step_eq; [done|].
          rewrite /head_reducible.

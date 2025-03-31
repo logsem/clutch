@@ -6,6 +6,7 @@ From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 
 From mathcomp.analysis Require Import measure.
+From mathcomp.classical Require Import classical_sets.
 
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.meas_lang Require Export language erasable.
@@ -39,9 +40,66 @@ Global Arguments MicrometerWpGS {Λ Σ _}.
 
 Canonical Structure NNRO := leibnizO nonnegreal.
 
+Definition coe_nonnegreal_bar_R : nonnegreal -> \bar R := EFin \o nonneg.
+
 (** * Coupling modalities  *)
 Section coupl_modalities.
   Context `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
+
+
+  (** [exists-support modality]
+      There exists a set with mass 1 on which the proposition holds *)
+  Definition EXSM (Φ : cfg Λ → iProp Σ) : giryM (cfg Λ) → iProp Σ :=
+    (fun (ρ : giryM (cfg Λ)) =>
+       ∃ S : set (cfg Λ),
+         ⌜ measurable S ⌝ ∗
+         ⌜ ρ S = coe_nonnegreal_bar_R nnreal_one ⌝ ∗
+         ∀ ρ' : cfg Λ, ⌜ S ρ'  ⌝ -∗ Φ ρ' )%I.
+
+
+    (*
+    (λ (ρx : cfg Λ * nonnegreal),
+      let '((e1, σ1), x) := ρx in
+      (* [prim_step] with adv composition *)
+      (∃ (X2 : cfg Λ → nonnegreal),
+          ⌜reducible (e1, σ1)⌝ ∗
+          ⌜∃ r, ∀ ρ, X2 ρ <= r⌝ ∗
+          ⌜(cost e1 + SeriesC (λ ρ, prim_step e1 σ1 ρ * X2 ρ) <= x)%R⌝ ∗
+          ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ Z (e2, σ2) (X2 (e2, σ2))))%I.
+
+  Local Instance exec_state_ub_pre_NonExpansive Z Φ :
+    NonExpansive (ERM_pre Z Φ).
+  Proof.a
+    rewrite /ERM_pre.
+    intros n ((?&?)&?) ((?&?)&?) [ [[=] [=]] [=]].
+    by simplify_eq.
+  Qed.
+
+  Local Instance exec_coupl_pre_mono Z : BiMonoPred (ERM_pre Z).
+  Proof.
+    split; [|apply _].
+    iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
+    rewrite /ERM_pre.
+    iIntros (((e1 & σ1) & x)) "Hexec".
+    done.
+  Qed.
+
+  Definition ERM' Z := bi_least_fixpoint (ERM_pre Z).
+  Definition ERM e σ x Z := ERM' Z ((e, σ), x).
+
+  Lemma ERM_unfold e1 σ1 Z x :
+    ERM e1 σ1 x Z ≡
+      (
+      (* [prim_step] with adv composition *)
+      (∃ (X2 : cfg Λ → nonnegreal),
+          ⌜reducible (e1, σ1)⌝ ∗
+          ⌜∃ r, ∀ ρ, (X2 ρ <= r)%R⌝ ∗
+          ⌜(cost e1 + SeriesC (λ ρ, prim_step e1 σ1 ρ * X2 ρ) <= x)%R⌝ ∗
+          ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ Z (e2, σ2) (X2 (e2, σ2))))%I.
+  Proof. rewrite /ERM/ERM' least_fixpoint_unfold //. Qed.
+*)
+
+
 
   (** ** [meas_spec_coupl]  *)
 
@@ -53,7 +111,6 @@ Section coupl_modalities.
   (P : probability T R) (X : T -> R) := (\int[P]_w (X w)%:E)%E.
 *)
 
-  Definition coe_nonnegreal_bar_R : nonnegreal -> \bar R := EFin \o nonneg.
 
   (* NOTE: le_ereal due to Scope clash with expressions. Move expval to its own file where this isn't the case. *)
 
@@ -525,9 +582,16 @@ Section coupl_modalities.
     by iApply "H".
   Qed. *)
 
-  (* Unsure
-  Lemma meas_prog_coupl_step_l e1 σ1 e1' σ1' ε Z :
-    reducible (e1, σ1) →
+    (*
+  Lemma meas_prog_coupl_step_l (e1 : expr Λ) (σ1 : state Λ) (* e1' σ1' *) (ε : nonnegreal) (Z : cfg Λ * nonnegreal -> iProp Σ) :
+    let T : cfg Λ * nonnegreal := ((e1, σ1), ε) in
+
+    (* There exists a support for which the postcondition holds on the *)
+    exists S : (set (cfg Λ)), measurable S -> reducible (e1, σ1) ->
+    prim_step (e1, σ1) S = coe_nonnegreal_bar_R nnreal_one ->
+    (⌜ reducible (e1, σ1) ⌝ ⊢ EXSM Z T)%I. *)
+
+  (*
     (∀ e2 σ2, ⌜prim_step (e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ Z e2 σ2 e1' σ1' ε)
     ⊢ meas_prog_coupl e1 σ1 e1' σ1' ε Z.
   Proof.
