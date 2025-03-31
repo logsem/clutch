@@ -11,12 +11,14 @@ From mathcomp.analysis Require Import measure.
 
 From iris.prelude Require Import options.
 
+Local Open Scope classical_set_scope.
+
 Class micrometerGS Σ := HeapG {
   micrometerGS_invG : invGS_gen HasNoLc Σ;
   (* CMRA for the state *)
-  micrometerGS_heap : ghost_mapG Σ loc val;
-  micrometerGS_tapes : ghost_mapG Σ loc btape;
-  micrometerGS_utapes : ghost_mapG Σ loc utape;
+  micrometerGS_heap : ghost_mapG Σ <<discr loc>> val;
+  micrometerGS_tapes : ghost_mapG Σ <<discr loc>> btape;
+  micrometerGS_utapes : ghost_mapG Σ <<discr loc>> utape;
   (* ghost names for the state *)
   micrometerGS_heap_name : gname;
   micrometerGS_tapes_name : gname;
@@ -27,20 +29,21 @@ Class micrometerGS Σ := HeapG {
   micrometerGS_error :: ecGS Σ;
 }.
 
+
 Class micrometerGpreS Σ := MicrometerGpreS {
   micrometerGpreS_iris   :: invGpreS Σ;
-  micrometerGpreS_heap   :: ghost_mapG Σ loc val;
-  micrometerGpreS_tapes  :: ghost_mapG Σ loc btape;
-  micrometerGpreS_utapes :: ghost_mapG Σ loc utape;
+  micrometerGpreS_heap   :: ghost_mapG Σ <<discr loc>> val;
+  micrometerGpreS_tapes  :: ghost_mapG Σ <<discr loc>> btape;
+  micrometerGpreS_utapes :: ghost_mapG Σ <<discr loc>> utape;
   micrometerGpreS_spcec  :: specGpreS Σ;
   micrometerGpreS_err    :: ecGpreS Σ;
 }.
 
 Definition micrometerΣ : gFunctors :=
   #[invΣ;
-    ghost_mapΣ loc val;
-    ghost_mapΣ loc btape;
-    ghost_mapΣ loc utape;
+    ghost_mapΣ <<discr loc>> val;
+    ghost_mapΣ <<discr loc>> btape;
+    ghost_mapΣ <<discr loc>> utape;
     specΣ;
     ecΣ].
 Global Instance subG_micrometerGPreS {Σ} : subG micrometerΣ Σ → micrometerGpreS Σ.
@@ -51,12 +54,12 @@ Definition heap_auth `{micrometerGS Σ} :=
 Definition btapes_auth `{micrometerGS Σ} :=
   @ghost_map_auth _ _ _ _ _ micrometerGS_tapes micrometerGS_tapes_name.
 Definition utapes_auth `{micrometerGS Σ} :=
-  @ghost_map_auth _ _ _ _ _ micrometerGS_tapes micrometerGS_utapes_name.
-(*
+  @ghost_map_auth _ _ _ _ _ micrometerGS_utapes micrometerGS_utapes_name.
 
 Global Instance micrometerGS_irisGS `{!micrometerGS Σ} : micrometerWpGS meas_lang Σ := {
   micrometerWpGS_invGS := micrometerGS_invG;
-  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(btapes) ∗ utapes_auth 1 σ.(utapes))%I;
+  state_interp σ :=
+      (heap_auth 1 (heap σ) ∗ btapes_auth 1 (tapes σ) ∗ utapes_auth 1 (utapes σ))%I;
   err_interp := ec_supply;
 }.
 
@@ -80,6 +83,18 @@ Notation "l ↪{# q } v" := (l ↪{ DfracOwn q } v)%I
 Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
+(** UTapes *)
+Notation "l ↪ℝ{ dq } v" := (@ghost_map_elem _ _ tape _ _ micrometerGS_tapes micrometerGS_tapes_name l dq v)
+  (at level 20, format "l  ↪ℝ{ dq }  v") : bi_scope.
+Notation "l ↪ℝ□ v" := (l ↪ℝ{ DfracDiscarded } v)%I
+  (at level 20, format "l  ↪ℝ□  v") : bi_scope.
+Notation "l ↪ℝ{# q } v" := (l ↪ℝ{ DfracOwn q } v)%I
+  (at level 20, format "l  ↪ℝ{# q }  v") : bi_scope.
+Notation "l ↪ℝ v" := (l ↪ℝ{ DfracOwn 1 } v)%I
+  (at level 20, format "l  ↪ℝ  v") : bi_scope.
+(*
+
+
 (** User-level tapes *)
 Definition nat_tape `{micrometerGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
   ∃ (fs : list (fin (S N))), ⌜fin_to_nat <$> fs = ns⌝ ∗ l ↪ (N; fs).
@@ -87,17 +102,16 @@ Definition nat_tape `{micrometerGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
 Notation "l ↪N ( M ; ns )" := (nat_tape l M ns)%I
   (at level 20, format "l  ↪N  ( M ;  ns )") : bi_scope.
 
-(*
 Definition nat_spec_tape `{micrometerGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
   ∃ (fs : list (fin (S N))), ⌜fin_to_nat <$> fs = ns⌝ ∗ l ↪ₛ (N; fs).
 
 Notation "l ↪ₛN ( M ; ns )" := (nat_spec_tape l M ns)%I
-       (at level 20, format "l ↪ₛN ( M ; ns )") : bi_scope.
-*)
+       (at level 20, format "l ↪ₛN ( M ; ns )") : bi_scope. *)
 
 Section tape_interface.
   Context `{!micrometerGS Σ}.
 
+  (*
   (** Helper lemmas to go back and forth between the user-level representation
       of tapes (using nat) and the backend (using fin) *)
 
@@ -130,7 +144,7 @@ Section tape_interface.
     iSplit; auto.
     iIntros.
     iExists xs; auto.
-  Qed.
+  Qed. *)
 
   (*
   Lemma spec_tapeN_to_empty l M :
@@ -168,18 +182,19 @@ Section tape_interface.
 End tape_interface.
 
 
-  Section lifting.
+Section lifting.
 Context `{!micrometerGS Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
-Implicit Types σ : state.
-Implicit Types v : val.
-Implicit Types l : loc.
+Implicit Types σ : stateO.
+Implicit Types v : valO.
+Implicit Types l : locO.
 
 (** Recursive functions: we do not use this lemma as it is easier to use Löb
     induction directly, but this demonstrates that we can state the expected
     reasoning principle for recursive functions, without any visible ▷. *)
 
+(*
 Lemma wp_rec_löb E f x e Φ Ψ :
   □ ( □ (∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ E {{ Φ }}) -∗
      ∀ v, Ψ v -∗ WP (subst' x v (subst' f (rec: f x := e) e)) @ E {{ Φ }}) -∗
@@ -511,7 +526,7 @@ Proof.
   pose proof (fin_to_nat_lt x); lia.
 Qed.
 
+*)
 End lifting.
 
 Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.
-*)

@@ -9,6 +9,8 @@ From clutch.meas_lang Require Import language ectxi_language.
 From clutch.meas_lang Require Import lang.
 From mathcomp.analysis Require Import measure.
 
+Local Open Scope classical_set_scope.
+
 Definition progUR : ucmra := optionUR (exclR exprO).
 Definition cfgO : ofe := prodO exprO stateO.
 
@@ -17,9 +19,9 @@ Class specG_meas_lang (Σ : gFunctors) := SpecGS {
   #[local] specG_meas_lang_prog_inG :: inG Σ (authR progUR);
   specG_meas_lang_prog_name : gname;
 
-  #[local] specG_meas_lang_heap :: ghost_mapG Σ loc val;
-  #[local] specG_meas_lang_tapes :: ghost_mapG Σ loc btape;
-  #[local] specG_meas_lang_utapes :: ghost_mapG Σ loc utape;
+  #[local] specG_meas_lang_heap :: ghost_mapG Σ <<discr loc>> val;
+  #[local] specG_meas_lang_tapes :: ghost_mapG Σ <<discr loc>> btape;
+  #[local] specG_meas_lang_utapes :: ghost_mapG Σ <<discr loc>> utape;
 
   specG_meas_lang_heap_name : gname;
   specG_meas_lang_tapes_name : gname;
@@ -28,15 +30,15 @@ Class specG_meas_lang (Σ : gFunctors) := SpecGS {
 
 Class specGpreS Σ := SpecGPreS {
   specGpreS_prog_inG :: inG Σ (authR progUR);
-  specGpreS_heap :: ghost_mapG Σ loc val;
-  specGpreS_tapes :: ghost_mapG Σ loc btape;
-  specGpreS_utapes :: ghost_mapG Σ loc utape;
+  specGpreS_heap :: ghost_mapG Σ <<discr loc>> val;
+  specGpreS_tapes :: ghost_mapG Σ <<discr loc>> btape;
+  specGpreS_utapes :: ghost_mapG Σ <<discr loc>> utape;
 }.
 
 Definition specΣ : gFunctors :=
-  #[ghost_mapΣ loc val;
-    ghost_mapΣ loc btape;
-    ghost_mapΣ loc utape;
+  #[ghost_mapΣ <<discr loc>> val;
+    ghost_mapΣ <<discr loc>> btape;
+    ghost_mapΣ <<discr loc>> utape;
     GFunctor (authUR progUR)].
 #[global] Instance subG_clutchGPreS {Σ} : subG specΣ Σ → specGpreS Σ.
 Proof. solve_inG. Qed.
