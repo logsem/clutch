@@ -46,7 +46,7 @@ opam switch link clutch .
 ```
 3. Add the Coq and Iris `opam` repositories.
 ```
-opam repo add coq-released https://coq.inria.fr/opam/released
+opam repo add rocq-released https://coq.inria.fr/opam/released
 opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
 opam update
 ```

@@ -309,3 +309,64 @@ Proof.
     rewrite /f/=.
     done.
 Qed.
+
+Lemma wp_baz_distr E (F : nat -> R) :
+  (forall n:nat, 0 <= F(n)) ->
+  ↯ (1/2 * F(0%nat) + 1/2 * F(1%nat)) -∗ WP baz #() @ E {{ v, ∃ n:nat, ⌜v = #n⌝ ∗ ↯ (F(n))  }}.
+Proof.
+  iIntros (HF) "Herr".
+  wp_pure.
+  iLöb as "IH".
+  wp_pures.
+  set f:= (λ n : fin 3,
+              if bool_decide (n = 0%fin)
+                then F(0%nat)
+                else if bool_decide (n = 1%fin) then F(1%nat)
+                     else ((1/2 * F(0%nat) + 1/2 * F(1%nat)))).
+  unshelve wp_apply (wp_couple_rand_adv_comp _ _ _ _ f with "Herr").
+  {
+    intros; rewrite /f.
+    case_bool_decide; auto.
+    case_bool_decide; auto.
+    apply Rplus_le_le_0_compat.
+    - real_solver.
+    - real_solver.
+  }
+  {
+    rewrite SeriesC_finite_foldr.
+    rewrite /f/=.
+    lra.
+  }
+  iIntros (n) "Hεcont".
+  wp_pures.
+  case_bool_decide.
+  - destruct (decide (n = 0%fin)) as [->|].
+    + wp_pures.
+      rewrite /f /=.
+      iExists 0%nat.
+      iFrame.
+      iPureIntro.
+      done.
+    + assert (n = 1%fin) as ->.
+      { inv_fin n; first done.
+        intros i. inv_fin i; first done.
+        intros i. inv_fin i; first done.
+        intros i. inv_fin i.
+      }
+      rewrite /f/=.
+      wp_pures.
+      iExists 1%nat.
+      iFrame.
+      iPureIntro.
+      done.
+  - assert (n = 2%fin) as ->; [|].
+    { inv_fin n; first done.
+      repeat (intros i; inv_fin i; first done).
+      intros i; inv_fin i.
+    }
+    wp_pure.
+    iApply "IH".
+    rewrite /f/=.
+    done.
+Qed.
+

@@ -803,6 +803,23 @@ Proof.
   iApply (twp_rand_err_amp with "[$Herr Hwp]"); done.
 Qed.
 
+Lemma wp_rand_err_amp_nat (N : nat) (z : Z) (m : nat) (ε0 : R) E Φ :
+  TCEq N (Z.to_nat z) →
+  ↯ ε0 ∗
+  (∀ n : nat, ⌜ n ≤ N ⌝ ∗ (⌜n ≠ m⌝ ∨ ↯ (ε0 * (N + 1))) -∗ Φ #n)
+  ⊢ WP rand #z @ E {{ Φ }}.
+Proof.
+  iIntros (?) "[Herr Hwp]".
+  iApply tgl_wp_pgl_wp'.
+  iApply (twp_rand_err_amp N z m with "[$Herr Hwp]").
+  iIntros (x) "Hx".
+  iApply "Hwp".
+  iSplit.
+  - iPureIntro.
+    pose proof (fin_to_nat_lt x); lia.
+  - done.
+Qed.
+
 Lemma twp_rand_err_list_adv (N : nat) (z : Z) (ns : list nat) (ε0 ε1 : R) E Φ :
   TCEq N (Z.to_nat z) →
   (0 <= ε1)%R ->
