@@ -235,7 +235,6 @@ Section Geometric.
       (%b_tape & Hown_ber & %Hgeo_trans) 
       HΦ
     ]".
-    About twp_presample.
     wp_apply twp_presample_bernoulli; first done.
     iFrame.
     iIntros (i) "Hown_ber".
@@ -292,8 +291,6 @@ Section Geometric.
           Induction with error credit amplification ?
         twp_presample_adv_comp
         *)
-        About tape.
-        About twp_presample_adv_comp.
   Abort.
 
   
@@ -315,7 +312,6 @@ Section Geometric.
       (%b_tape & Hown_ber & %Hgeo_trans) &
       HΦ
     )".
-    About twp_presample_bernoulli_planner.
     wp_apply (twp_presample_bernoulli_planner N M _ _ 1%nat _ _ _ (λ _, [1%fin])); [done.. | iFrame].
     iIntros "(%junk & Hown_ber)".
     case: (list_decomposition junk) => [[[|first_junk junk_repeat] junk_zeros] ->] /=.
