@@ -511,7 +511,6 @@ Section Bernoulli.
       iApply "HΦ".
       by iFrame.
   Qed.
-  About twp_presample_planner_pos.
 
   Lemma twp_presample_bernoulli_planner 
       (N M : nat) (e : expr) (ε : nonnegreal)

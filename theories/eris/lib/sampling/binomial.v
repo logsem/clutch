@@ -222,7 +222,7 @@ Section binomial.
     rewrite -fin_S_inj_to_nat //.
   Qed.
   
-  Lemma twp_binom_split (p q : nat) (n : nat) (D : fin (S n) → R) (ε : R) :
+  Lemma twp_binom_adv_comp (p q : nat) (n : nat) (D : fin (S n) → R) (ε : R) :
     p ≤ (q + 1) →
     SeriesC (λ k : fin (S n), (binom_prob p q n k * D k)%R) = ε →
     ([[{ ↯ ε }]] binom #p #q #n [[{ (k : fin (S n)), RET #k ; ↯ (D k) }]]).
@@ -347,7 +347,7 @@ Section binomial.
     fold (binom_cred p q n k) in HD3.
     rewrite -HD3 HD5.
     iIntros (Φ) "Herr HΦ".
-    wp_apply (twp_binom_split with "Herr"); [done..|].
+    wp_apply (twp_binom_adv_comp with "Herr"); [done..|].
     iIntros (m).
     unfold D4.
     case_bool_decide as Hk.
@@ -645,7 +645,7 @@ Section binomial.
         rewrite Nat.min_l; last first.
         { transitivity (S k'); last lia.
           rewrite -len_pre -Nat.succ_le_mono.
-          etrans; first apply fin_hsum_le; first done.
+          etrans; first apply fin_sum_list_le; first done.
           lia.
         }
         rewrite -Nat2Z.inj_add Nat.add_1_r.
@@ -769,96 +769,7 @@ Section binomial.
     rewrite -app_assoc (bernoulli_to_binomial_app_n k n l) //.
     lia.
   Qed.
-
-  Lemma fin_succ_inj : ∀ (n : nat) (k : fin n), fin_succ (fin_S_inj k) = FS k.
-  Proof.
-    elim=>[|n IH] k; first inv_fin k.
-    inv_fin k; first reflexivity.
-    move=>k /=.
-    by f_equal.
-  Qed.
-
-  Lemma fin_S_inj_not_max :
-    ∀ (n : nat) (k : fin (S n)),
-    k ≠ fin_max n →
-    fin_S_inj (fin_succ k) = FS k.
-  Proof.
-    elim=>[|n IH] k k_not_max; inv_fin k; try done.
-    { move=>k; inv_fin k. }
-    move=>k k_not_max /=.
-    f_equal.
-    apply IH => contra.
-    apply k_not_max.
-    simpl.
-    by f_equal.
-  Qed.
-    
-  Lemma fin_succ_not_max_to_nat :
-    ∀ (n : nat) (k : fin (S n)),
-    k ≠ fin_max n →
-    fin_to_nat (fin_succ k) = S (fin_to_nat k).
-  Proof.
-    elim=>[|n IH] k k_not_max; first full_inv_fin.
-    inv_fin k; first done.
-    move=>k /= k_not_max.
-    f_equal.
-    apply IH.
-    move=>contra.
-    apply k_not_max.
-    by f_equal.
-  Qed.
-
-  Lemma fin_max_to_nat : ∀ (n : nat), fin_to_nat (fin_max n) = n.
-  Proof.
-    elim=>[//|n IH] /=.
-    by f_equal.
-  Qed.
-
-  Lemma fin_not_max_to_nat :
-    ∀ (n : nat) (k : fin (S n)),
-    k ≠ fin_max n →
-    fin_to_nat k < n.
-  Proof.
-    elim=>[|n IH] k; inv_fin k; first done.
-    { move=>k; inv_fin k. }
-    { move=>_ /=. lia. }
-    move=>k k_not_max /=.
-    rewrite -Nat.succ_lt_mono.
-    apply IH.
-    move=>contra.
-    apply k_not_max.
-    simpl.
-    by f_equal.
-  Qed.
-  
-  Lemma fin_sum_list_lt_max :
-    ∀ (n : nat) (l : list (fin 2)),
-    length l < n →
-    fin_sum_list 2 n l ≠ fin_max n.
-  Proof.
-    move=>n l len_l_lt_n contra.
-    assert (fin_to_nat (fin_sum_list 2 n l) = n)as sum_n by rewrite contra fin_max_to_nat //.
-    pose proof (fin_hsum_le n 1 _ l eq_refl) as sum_to_nat.
-    rewrite sum_n in sum_to_nat.
-    lia.
-  Qed.
-  
-  Lemma fin_inj_sum :
-    ∀ (n : nat) (l : list (fin 2)),
-    length l ≤ n →
-    fin_sum_list 2 (S n) l = fin_S_inj (fin_sum_list 2 n l).
-  Proof.
-    move=>n.
-    elim=>[//|h t IH] /= le_h_t.
-    rewrite IH; last lia.
-    inv_fin h; first done.
-    move=>i.
-    inv_fin i; last (move=>i; inv_fin i).
-    simpl.
-    rewrite fin_succ_inj fin_S_inj_not_max //.
-    by apply fin_sum_list_lt_max.
-  Qed.
-    
+   
   Lemma B_tape_multiple_adv_comp :
     ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
       (p q n : nat) (ns : list (fin 2)) (ε : R)
