@@ -156,10 +156,15 @@ Section coupl_modalities.
   Qed.
 
 
+  (** Lemma code (being worked on elsewhere *)
   Theorem gBind_id_left : ∀ {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> giryM T2)
     (a : T1) (HMF : measurable_fun setT f),
     gBind' f (gRet a) = f a.
   Proof. Admitted.
+
+  Lemma gRet_id_right {d1} {T : measurableType d1} (μ : giryM T)  :
+    gBind' gRet μ = μ.
+  Admitted.
 
   Lemma pexec_0' :  (pexec 0 :  mstate (meas_lang_markov Λ) -> _) = gRet.
   Proof. apply functional_extensionality; intro a; eapply pexec_O. Qed.
@@ -274,24 +279,38 @@ Section coupl_modalities.
     set X2' := (λ (ρ : cfg Λ), X2 ρ.2).
     iExists (λ σ2 '(e2', σ2'), R σ2 σ2' ∧ e2' = e1'), 0%nat, μ1, μ1', ε1, X2', r.
     iSplit; [iPureIntro|].
-
-
-  Admitted.
-  (*
-    { rewrite -(dret_id_right μ1).
+    { rewrite -(gRet_id_right μ1).
+      have -> : (gBind' gRet μ1) = gBind gRet_meas_fun μ1 by admit.
+      have XM : measurable_fun setT (pexec 0 \o pair e1') by admit.
+      have -> : (gBind' (pexec 0 \o pair e1') μ1') = (gBind XM μ1') by admit.
+      simpl.
+      have -> : (0 = 0 + 0)%R by admit.
+      have -> : (coe_nonnegreal_bar_R ε1) = (adde (coe_nonnegreal_bar_R ε1) (EFin 0)) by admit.
+      eapply ARcoupl_meas_dbind.
+      { admit. }
+      { done. }
+      { (* ?? *) admit. }
+      2: { by eapply H. }.
+      setoid_rewrite pexec_0'.
+      (* This is a ret-ret coupling with error 0
       eapply (ARcoupl_dbind' ε1 0%NNR); [done|done|simpl; lra|..|done].
       intros ???.
       rewrite pexec_O.
-      by apply ARcoupl_dret. }
+      by apply ARcoupl_dret. *)
+    admit. }
     iSplit; [iPureIntro|].
     { intros []. rewrite /X2' //. }
     iSplit; [iPureIntro|].
-    { rewrite /X2'. setoid_rewrite pexec_O. rewrite Expval_dmap //=.
-      by eapply ex_expval_bounded=>/=. }
+    { rewrite /X2'. setoid_rewrite pexec_0'.
+      (* Not sure *)
+      (*
+      rewrite Expval_dmap //=.
+      by eapply ex_expval_bounded=>/=. *)
+      admit. }
     do 2 (iSplit; [done|]).
     iIntros (??? [? ->]). rewrite /X2' /=.
     by iApply "H".
-  Qed. *)
+  Admitted.
 
   Lemma meas_spec_coupl_erasables R μ1 μ1' ε1 ε2 ε E σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
@@ -355,7 +374,7 @@ Section coupl_modalities.
          Instead, should be a way to take is_det and get an ARcoupl out of it  *)
       admit. }
   Admitted.
-  (*
+    (*
     iIntros (Hexec%pmf_1_eq_dret) "H".
     iApply (meas_spec_coupl_steps n ε 0%NNR).
     { apply nnreal_ext => /=. lra. }
@@ -858,7 +877,7 @@ Proof.
   by iFrame.
 Qed.
 
-Lemma wp_bind K `{!LanguageCtx K} E e Φ s :
+Lemma wp_bind K `{!MeasLanguageCtx K} E e Φ s :
   WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }} ⊢ WP K e @ s; E {{ Φ }}.
 Proof.
   iIntros "H". iLöb as "IH" forall (E e Φ s). rewrite !wp_unfold /wp_pre.
@@ -872,11 +891,9 @@ Proof.
     apply of_to_val in He as <-.
     rewrite wp_unfold /wp_pre.
     by iMod ("H" with "[$]"). }
-Admitted.
-  (*
   rewrite fill_not_val /=; [|done].
   iApply meas_spec_coupl_ret.
-  iApply meas_prog_coupl_ctx_bind; [done|].
+  iApply meas_prog_coupl_ctx_bind; [done|done|].
   iApply (meas_prog_coupl_mono with "[] H").
   iIntros (e3 σ3 e3' σ3' ε3) "H !>".
   iApply (meas_spec_coupl_mono with "[] H"); [done|].
@@ -884,7 +901,7 @@ Admitted.
   iMod "H" as "($ & $ & $ & H)".
   iModIntro.
   by iApply "IH".
-Qed. *)
+Qed.
 
 Lemma spec_update_wp E e Φ a :
   spec_update E (WP e @ a; E {{ Φ }}) ⊢ WP e @ a; E {{ Φ }}.
@@ -893,16 +910,14 @@ Proof.
   iEval (rewrite !wp_unfold /wp_pre).
   iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
   rewrite spec_update_unseal.
-Admitted.
-  (*
   iMod ("Hspec" with "Hs")
-    as ([e2' σ2'] n Hstep%stepN_pexec_det) "(Hs & Hwp)".
+    as ([e2' σ2'] n Hstep) "(Hs & Hwp)". (* Hstep%stepN_pexec_det *)
   iEval (rewrite !wp_unfold /wp_pre) in "Hwp".
   iMod ("Hwp" with "[$]") as "Hwp".
   iModIntro.
-  by iApply meas_spec_coupl_steps_det.
-Qed.
-*)
+  iApply meas_spec_coupl_steps_det; [|done].
+  (* stepN_pexec_det *)  admit.
+Admitted.
 
 Lemma wp_spec_update E e Φ s :
   WP e @ s; E {{ v, spec_update E (Φ v) }} ⊢ WP e @ s; E {{ Φ }}.
@@ -919,12 +934,11 @@ Proof.
   { iApply fupd_meas_spec_coupl.
     iMod "H" as "(?&?&?& Hupd)".
     rewrite spec_update_unseal.
-Admitted.
-  (*
     iMod ("Hupd" with "[$]")
-      as ([e3' σ3'] n Hstep%stepN_pexec_det) "(Hs & Hwp)".
+      as ([e3' σ3'] n Hstep) "(Hs & Hwp)". (* Hstep%stepN_pexec_det *)
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
-    iApply meas_spec_coupl_steps_det; [done|].
+    iApply meas_spec_coupl_steps_det.
+    { (* stepN_pexec_det *)  admit. }
     iApply meas_spec_coupl_ret.
     iMod "Hclose".
     by iFrame. }
@@ -934,8 +948,7 @@ Admitted.
   iApply (meas_spec_coupl_mono with "[] H"); [done|].
   iIntros (σ4 e4' σ4' ε4) "> ($ & $ & $ & H)".
   iApply ("IH" with "H").
-Qed.
-*)
+Admitted.
 
 (** * Derived rules *)
 Lemma wp_mono E e Φ Ψ s : (∀ v, Φ v ⊢ Ψ v) → WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ Ψ }}.
