@@ -326,7 +326,7 @@ Section coupl_modalities.
       { admit. }
       { done. }
       { (* 0 is finite ?? *) admit. }
-      2: { by eapply H. }.
+      2: { by eapply H. }
       setoid_rewrite pexec_0'.
       (* This is a ret-ret coupling with error 0
       eapply (ARcoupl_dbind' ε1 0%NNR); [done|done|simpl; lra|..|done].

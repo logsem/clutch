@@ -268,6 +268,10 @@ Section Lib.
     (f \_ X) t = f t.
   Proof. by rewrite /restrict (mem_set Ht). Qed.
 
+  Lemma rest_map_lemma' {T1 : Type} {T2 : pointedType} (t : T1) (X : set T1) (Ht : ¬ X t) (f : T1 -> T2) :
+    (f \_ X) t = point.
+  Proof. by rewrite /restrict (memNset Ht). Qed.
+
   Lemma measurable_by_cover {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> T2)
       (F : sequences.sequence (set T1))
       (Hmeas: forall i, measurable (F i))

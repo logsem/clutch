@@ -9,6 +9,7 @@ From Coq Require Import Reals.
 From HB Require Import structures.
 
 
+
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -864,10 +865,87 @@ Section ARcoupl_meas.
  Qed.
 
 
-(*
-  Lemma ARcoupl_pos_R R ε :
-    ARcoupl μ1 μ2 R ε → ARcoupl μ1 μ2 (λ a b, R a b ∧ μ1 a > 0 ∧ μ2 b > 0) ε.
+  Local Open Scope classical_set_scope.
+  Lemma ARcoupl_pos_R R' ε δ (SA : set A) (SB : set B) (HA : measurable SA) (HB : measurable SB) :
+    μ1 SA = 1 -> μ2 SB = 1 -> ARcoupl_meas μ1 μ2 R' ε δ → ARcoupl_meas μ1 μ2 (λ a b, R' a b ∧ SA a ∧ SB b) ε δ.
   Proof.
+    intros HSA HSB Hμ1μ2 f Hf Hfg0 Hfl1 g Hg Hgg0 Hgl1 Hfg.
+    rewrite -(setvU SA).
+    rewrite -(setvU SB).
+    rewrite ge0_integral_setU; try done; first last.
+    { by rewrite /disj_set; rewrite setICl; apply eq_refl. }
+    { by rewrite setUCl. }
+    { by apply measurableC. }
+    rewrite ge0_integral_setU; try done; first last.
+    { by rewrite /disj_set; rewrite setICl; apply eq_refl. }
+    { by rewrite setUCl. }
+    { by apply measurableC. }
+    have L1 : forall d (T : measurableType d) (μ : giryM T) (S : set T) (HS : measurable S) (h : T -> \bar R)
+                (Hh : ∀ b : T, h b <= 1), μ S = 1 -> (\int[μ]_(x in ~` S) h x) = 0.
+    { intros.
+      (* Integral is bounded above by integral of cst 1, which is 0 *)
+      apply le_anti_ereal.
+      apply /andP; split.
+      {
+        eapply le_trans_ereal.
+        { eapply (@le_integral _ _ _ _ _ _ _ (cst 1)).
+          { (* idk *) admit. }
+          { (* idk *) admit. }
+          { (* stupid mathcomp stuff I think *) admit. }
+        }
+        { rewrite integral_cst.
+          { admit. }
+          { by eapply @measurableC. }
+        }
+      }
+      { (* integral of nonneg is nonneg *)  admit. }
+    }
+    rewrite L1; last done.
+    rewrite L1; last done.
+    have Lf0 : measurable_fun [set: A] (f \_ SA).
+    { apply (measurable_restrictT f HA), mathcomp_measurable_fun_restiction_setT; done. }
+    have Lf1 : (∀ a : A, 0 <= (f \_ SA) a).
+    { intro a. case (ExcludedMiddle (SA a)); intros HSA'; [rewrite (rest_map_lemma HSA') | rewrite (rest_map_lemma' HSA')].
+      - done.
+      - by rewrite /point//=. }
+    have Lf2 : (∀ a : A, (f \_ SA) a <= 1).
+    { intro a. case (ExcludedMiddle (SA a)); intros HSA'; [rewrite (rest_map_lemma HSA') | rewrite (rest_map_lemma' HSA')].
+      - done.
+      - by rewrite /point//=. }
+    have Lg0 : measurable_fun [set: B] (g \_ SB).
+    { apply (measurable_restrictT g HB), mathcomp_measurable_fun_restiction_setT; done. }
+    have Lg1 : (∀ a : B, 0 <= (g \_ SB) a).
+    { intro a. case (ExcludedMiddle (SB a)); intros HSA'; [rewrite (rest_map_lemma HSA') | rewrite (rest_map_lemma' HSA')].
+      - done.
+      - by rewrite /point//=. }
+    have Lg2 : (∀ a : B, (g \_ SB) a <= 1).
+    { intro a. case (ExcludedMiddle (SB a)); intros HSA'; [rewrite (rest_map_lemma HSA') | rewrite (rest_map_lemma' HSA')].
+      - done.
+      - by rewrite /point//=. }
+    have Lfg : (∀ (a : A) (b : B), R' a b → (f \_ SA) a <= (g \_ SB) b).
+    { intros a b HR.
+      case (ExcludedMiddle (SA a)); intros HSA'.
+      { rewrite (rest_map_lemma HSA').
+        case (ExcludedMiddle (SB b)); intros HSB'.
+        { rewrite (rest_map_lemma HSB'). by apply Hfg. }
+        { rewrite (rest_map_lemma' HSB').
+          rewrite /point//=.
+
+
+          admit. (* Is this true??? *) } }
+      { rewrite (rest_map_lemma' HSA').
+        case (ExcludedMiddle (SB b)); intros HSB'.
+        { rewrite (rest_map_lemma HSB'). by apply Hgg0. }
+        { rewrite (rest_map_lemma' HSB'). done. }
+      }
+    }
+    have Hμ1μ2' :=
+      Hμ1μ2
+      (f \_ SA) Lf0 Lf1 Lf2
+      (g \_ SB) Lg0 Lg1 Lg2
+      Lfg.
+    by rewrite (integral_mkcond SA) (integral_mkcond SB) GRing.add0r GRing.add0r.
+    (*
     intros Hμ1μ2 f g Hf Hg Hfg.
     assert (SeriesC (λ a : A, μ1 a * f a) =
               SeriesC (λ a : A, μ1 a * (if bool_decide (μ1 a > 0) then f a else 0))) as ->.
@@ -891,8 +969,8 @@ Section ARcoupl_meas.
       specialize (Hg b).
       specialize (Hfg a b).
       real_solver.
-  Qed.
-*)
+      *)
+  Admitted.
 
 End ARcoupl_meas.
 
