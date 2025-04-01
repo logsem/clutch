@@ -11,7 +11,7 @@ Section binomial.
   Parameter B_spec :
     ∀ (N M : nat) (ε ε1 ε2 : R) (p := (N / (M + 1))%R),
     N ≤ (M + 1) → 
-    ((ε1 * (1 - p)) + (ε2 * p) = ε)%R ->
+    ((ε1 * (1 - p)) + (ε2 * p) = ε)%R →
     [[{↯ ε}]]
       B #N #M
     [[{
@@ -117,13 +117,13 @@ Section binomial.
       repeat case_bool_decide; try (lia || lra).
       assert (k = n) as -> by lia.
       rewrite !Rcomplements.C_n_n pow_add.
-      simpl_expr.
+      lra.
   Qed.
 
   Lemma binom_prob_eq (p q n : nat) : (binom_prob p q n n = (p / (q + 1))^n)%R.
   Proof.
     rewrite /binom_prob /choose.
-    case_bool_decide; last lia.
+    bool_decide.
     rewrite !Nat.sub_diag Rcomplements.C_n_n.
     lra.
   Qed.
@@ -131,7 +131,7 @@ Section binomial.
   Lemma binom_prob_0 (p q n : nat) : (binom_prob p q n 0 = (1 - p / (q + 1))^n)%R.
   Proof.
     rewrite /binom_prob /choose.
-    case_bool_decide; last lia.
+    bool_decide.
     rewrite Nat.sub_0_r Rcomplements.C_n_0.
     lra.
   Qed.
@@ -178,7 +178,7 @@ Section binomial.
     let ε1 := SeriesC (λ (k : fin (S n)), binom_prob p q n k * D1 k)%R in
     (ε = (1 - (p / (q + 1))) * ε0 + (p / (q + 1))* ε1)%R.
   Proof.
-    move=> D0 D1 ε ε0 ε1.   
+    move=> D0 D1 ε ε0 ε1.
     unfold ε, ε0, ε1, D0, D1 in *.
     set (r := (p / (q + 1))%R).
     set (s := (1 - r)%R).
@@ -203,15 +203,16 @@ Section binomial.
     rewrite -(Series_fin_first (S n) (λ k : fin (S (S n)), binom_prob p q n k * D k))%R Series_fin_last binom_prob_gt; last first.
     { rewrite fin_to_nat_to_fin. lia. }
     rewrite Rmult_0_l Rplus_0_r.
-    apply SeriesC_ext.
-    intros k.
+    apply SeriesC_ext =>>.
     rewrite -fin_S_inj_to_nat //.
   Qed.
   
   Lemma twp_binom_split (p q : nat) (n : nat) (D : fin (S n) → R) (ε : R) :
     p ≤ (q + 1) →
     SeriesC (λ k : fin (S n), (binom_prob p q n k * D k)%R) = ε →
-    ([[{ ↯ ε }]] binom #p #q #n [[{ (k : fin (S n)), RET #k ; ↯ (D k) }]]).
+    [[{ ↯ ε }]] 
+      binom #p #q #n 
+    [[{ (k : fin (S n)), RET #k ; ↯ (D k) }]].
   Proof.
     iIntros (Hpq HD Φ) "Herr HΦ".
     rewrite /binom /binom_tape.
@@ -220,13 +221,11 @@ Section binomial.
     iInduction (n) as [|n] "IH";
       iIntros (D ε HD Φ) "Herr HΦ";
       wp_pures.
-    - iModIntro.
-      iApply ("HΦ"$! 0%fin with "[Herr]").
+    - iApply ("HΦ"$! 0%fin with "[Herr]").
       iApply (ec_eq with "Herr").
       rewrite -HD SeriesC_finite_foldr /= binom_prob_eq Rmult_1_l Rplus_0_r //.
-    - erewrite SeriesC_ext in HD; last first.
-      { intros k.
-        replace (S n) with (n + 1) at 1 by lia.
+    - erewrite SeriesC_ext in HD; last first =>>.
+      { replace (S n) with (n + 1) at 1 by lia.
         reflexivity. } 
       rewrite ec_binom_split in HD.
       match type of HD with

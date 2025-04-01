@@ -97,3 +97,44 @@ Ltac simpl_expr :=
       solve[apply INR_S_not_0]
     ).
 
+Ltac bool_decide :=
+  match goal with 
+  | H : ?P |- context[bool_decide (?P)] => 
+        rewrite (bool_decide_eq_true_2 P); last apply H
+  | H : ¬ ?P |- context[bool_decide (?P)] => 
+        rewrite (bool_decide_eq_false_2 P); last apply H
+
+  | |- context[bool_decide (?a <= ?b)%nat] => 
+        try 
+        ( (rewrite (bool_decide_eq_false_2 (a <= b)%nat); last lia) 
+        || (rewrite (bool_decide_eq_true_2 (a <= b)%nat); last lia)) 
+  | |- context[bool_decide (?a >= ?b)%nat] => 
+        try 
+        ( (rewrite (bool_decide_eq_false_2 (a >= b)%nat); last lia) 
+        || (rewrite (bool_decide_eq_true_2 (a >= b)%nat); last lia)) 
+  | |- context[bool_decide (?a < ?b)%nat] => 
+        try 
+        ( (rewrite (bool_decide_eq_false_2 (a < b)%nat); last lia )
+        || (rewrite (bool_decide_eq_true_2 (a < b)%nat); last lia)) 
+   | |- context[bool_decide (?a > ?b)%nat] => 
+        try 
+        ( (rewrite (bool_decide_eq_false_2 (a > b)%nat); last lia) 
+        || (rewrite (bool_decide_eq_true_2 (a > b)%nat); last lia))
+
+  | |- context[bool_decide (?a <= ?b)%Z] => 
+        try 
+        ( (rewrite (bool_decide_eq_false_2 (a <= b)%Z); last lia) 
+        || (rewrite (bool_decide_eq_true_2 (a <= b)%Z); last lia)) 
+  | |- context[bool_decide (?a >= ?b)%Z] => 
+        try 
+        ( (rewrite (bool_decide_eq_false_2 (a >= b)%Z); last lia) 
+        || (rewrite (bool_decide_eq_true_2 (a >= b)%Z); last lia)) 
+  | |- context[bool_decide (?a < ?b)%Z] => 
+        try 
+        ( (rewrite (bool_decide_eq_false_2 (a < b)%Z); last lia )
+        || (rewrite (bool_decide_eq_true_2 (a < b)%Z); last lia)) 
+   | |- context[bool_decide (?a > ?b)%Z] => 
+        try 
+        ( (rewrite (bool_decide_eq_false_2 (a > b)%Z); last lia) 
+        || (rewrite (bool_decide_eq_true_2 (a > b)%Z); last lia)) 
+  end.
