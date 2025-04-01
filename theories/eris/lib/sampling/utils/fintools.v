@@ -2,7 +2,8 @@ From stdpp Require Import fin finite ssreflect.
 #[local] Set Asymmetric Patterns.
 
 Section fintools.
-Fixpoint fin_S_inj {n : nat} (m : fin n) : fin (S n) :=
+
+  Fixpoint fin_S_inj {n : nat} (m : fin n) : fin (S n) :=
     match m with
     | Fin.F1 _ => Fin.F1
     | Fin.FS _ k=> Fin.FS (fin_S_inj k)
@@ -21,7 +22,6 @@ Fixpoint fin_S_inj {n : nat} (m : fin n) : fin (S n) :=
     intros m n.
     reflexivity.
   Qed.
-
 
   Lemma nat_to_fin_proof_ext : ∀ (k n : nat) (H1 H2 : k < n), nat_to_fin H1 = nat_to_fin H2.
   Proof.
@@ -206,6 +206,25 @@ Fixpoint fin_S_inj {n : nat} (m : fin n) : fin (S n) :=
       rewrite IH //.
   Qed.
 
+  Lemma not_max_FS_not_max :
+    ∀ (n : nat) (k : fin (S n)),
+    k ≠ fin_max n →
+    FS k ≠ fin_max (S n).
+  Proof.
+    move=> /= n k k_not_max contra.
+    by apply FS_inj in contra.
+  Qed.
+
+  Lemma FS_not_max_inv :
+    ∀ (n : nat) (k : fin (S n)),
+    FS k ≠ fin_max (S n) →
+    k ≠ fin_max n.
+  Proof.
+    move=> /= n k Sk_not_max contra.
+    apply Sk_not_max.
+    by f_equal.
+  Qed.
+  
   Lemma fin_succ_hsum :
     ∀ (m n : nat),
     (n ≤ m)%nat →
@@ -224,13 +243,7 @@ Fixpoint fin_S_inj {n : nat} (m : fin n) : fin (S n) :=
       + inv_fin i.
         * move=> _ //.
         * move=>i i_not_max n Hle j.
-          assert (i ≠ fin_max m).
-          {
-            move=>contra.
-            apply: i_not_max.
-            rewrite contra.
-            reflexivity.
-          }
+          apply FS_not_max_inv in i_not_max.
           inv_fin j.
           -- destruct n; simpl.
              ++ rewrite IHm; try done.
@@ -292,12 +305,9 @@ Fixpoint fin_S_inj {n : nat} (m : fin n) : fin (S n) :=
     - move=>i.
       apply (IH (P ∘ FS)).
       { simpl. apply (P_S 0%fin), P_0. discriminate. }
-      { move=>j j_not_max P_Sj.
-        apply (P_S (FS j)), P_Sj.
-        move=>contra.
-        apply j_not_max.
-        by apply FS_inj.
-      }
+      move=>j j_not_max P_Sj.
+      apply (P_S (FS j)), P_Sj.
+      by apply not_max_FS_not_max.
   Qed.
 
   Lemma repeat_not_max : ∀ (A : Set) (a : A) (k : nat) (i : fin (S k)), i ≠ fin_max k → repeat a (fin_succ i) = a::repeat a i.
@@ -313,10 +323,7 @@ Fixpoint fin_S_inj {n : nat} (m : fin n) : fin (S n) :=
       + move=>i_not_max //.
       + move=> i i_not_max /=.
         rewrite IH //.
-        move=>contra.
-        apply i_not_max.
-        simpl.
-        by f_equal.
+        by apply FS_not_max_inv.
   Qed.
 
   Lemma fin_sum_repeat_0 : ∀ (k m : nat), fin_sum_list 2 k (repeat (0%fin : fin 2) m) = 0%fin.
@@ -387,10 +394,8 @@ Fixpoint fin_S_inj {n : nat} (m : fin n) : fin (S n) :=
     { move=>k; inv_fin k. }
     move=>k k_not_max /=.
     f_equal.
-    apply IH => contra.
-    apply k_not_max.
-    simpl.
-    by f_equal.
+    apply IH.
+    by apply FS_not_max_inv.
   Qed.
     
   Lemma fin_succ_not_max_to_nat :
@@ -405,10 +410,7 @@ Fixpoint fin_S_inj {n : nat} (m : fin n) : fin (S n) :=
     inv_fin k; first done.
     move=>k /= k_not_max.
     f_equal.
-    apply IH.
-    move=>contra.
-    apply k_not_max.
-    by f_equal.
+    by apply IH, FS_not_max_inv.
   Qed.
 
   Lemma fin_max_to_nat : ∀ (n : nat), fin_to_nat (fin_max n) = n.
@@ -428,10 +430,7 @@ Fixpoint fin_S_inj {n : nat} (m : fin n) : fin (S n) :=
     move=>k k_not_max /=.
     rewrite -Nat.succ_lt_mono.
     apply IH.
-    move=>contra.
-    apply k_not_max.
-    simpl.
-    by f_equal.
+    by apply FS_not_max_inv.
   Qed.
   
   Lemma fin_sum_list_lt_max :
