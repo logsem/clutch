@@ -653,10 +653,10 @@ Section binomial.
         iApply ("HΦ" with "Htape").
   Qed.
 
-  Lemma twp_binomial_tape_planner :
-    ∀ (N M k : nat) (e : expr) (ε : nonnegreal)
+  Lemma twp_binomial_tape_planner 
+      (N M k : nat) (e : expr) (ε : nonnegreal)
       (L : nat) (α : loc) (Φ : val → iProp Σ)
-      (prefix : list (fin (S k))) (suffix : list (fin (S k)) → list (fin (S k))),
+      (prefix : list (fin (S k))) (suffix : list (fin (S k)) → list (fin (S k))) :
     (0 < N)%nat →
     (N < S M)%nat →
     (0 < k)%nat → 
@@ -668,12 +668,12 @@ Section binomial.
     ( (∃ (junk : list (fin (S k))), own_binomial_tape α N M k (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e [{ Φ }]
     ) ⊢ WP e [{ Φ }].
   Proof.
-    iIntros (M N k e ε L α Φ pref suf M_pos N_lt_SM k_pos e_not_val suf_bound ε_pos)
+    iIntros (N_pos N_lt_SM k_pos e_not_val suf_bound ε_pos)
       "(Herr & (%l & Hα & %is_tl) & Hnext)".
     set (suf_tl (lst : list (fin 2)) :=
            let r := (k - (length lst) `mod` k) `mod` k in
            let padding := repeat 0%fin r in
-           padding ++ binomial_to_bernoulli k (suf (bernoulli_to_binomial k (lst ++ padding)))
+           padding ++ binomial_to_bernoulli k (suffix (bernoulli_to_binomial k (lst ++ padding)))
         ).
     apply bernoulli_to_binomial_translation in is_tl as (n & len_l & pref_eq); last done.
     wp_apply (B_tape_planner _ _ _ _ ((1 + L) * k) _ _ _ suf_tl); last iFrame; try done.
@@ -690,8 +690,8 @@ Section binomial.
           assert (A < k) by (apply Nat.mod_upper_bound; lia);
           assert (0 < B ≤ L) as [bound_left bound_right]by apply suf_bound
       end.
-      unfold A.
-      fold B A.
+      fold A in B.
+      fold B.
       split; first lia.
       rewrite Nat.mul_comm Nat.mul_add_distr_r.
       apply Nat.add_le_mono; first lia.
@@ -707,7 +707,7 @@ Section binomial.
     iPureIntro.
     rewrite bernoulli_to_binomial_translation; last done.
     set (s :=
-           suf
+           suffix
              (bernoulli_to_binomial k
                 ((l ++ junk) ++
                    repeat 0%fin
@@ -757,21 +757,17 @@ Section binomial.
         lia.
       }
       {
-        assert (0 < length junk `mod` k) by lia.
+        assert (0 < length junk `mod` k < k ) by (split; last apply Nat.mod_upper_bound; lia).
         rewrite (Nat.mod_small (_ - _)); last lia.
-        rewrite Nat.add_sub_assoc; last first.
-        {  assert (length junk `mod` k < k) by (apply Nat.mod_upper_bound; lia).
-           lia.
-        }
-        lia.
+        rewrite Nat.add_sub_assoc; lia.
       }
     }
     unfold junk', s.
     rewrite !(Nat.add_comm (n * k) _) Nat.Div0.mod_add.
     f_equal.
     rewrite binomial_to_bernoulli_to_binomial; last lia.
-    rewrite -app_assoc (bernoulli_to_binomial_app_n k n l); try lia.
-    reflexivity.
+    rewrite -app_assoc (bernoulli_to_binomial_app_n k n l) //.
+    lia.
   Qed.
 
   Lemma fin_succ_inj : ∀ (n : nat) (k : fin n), fin_succ (fin_S_inj k) = FS k.

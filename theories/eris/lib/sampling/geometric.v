@@ -57,7 +57,9 @@ Section Tape.
   Qed.
 
   Lemma bernoulli_to_geometric_aux_app (l1 l2 : list (fin 2)) (acc : nat) :
-    bernoulli_to_geometric_aux (l1 ++ [1] ++ l2) acc = bernoulli_to_geometric_aux (l1 ++ [1]) acc ++ bernoulli_to_geometric l2.
+    bernoulli_to_geometric_aux (l1 ++ [1] ++ l2) acc 
+      = 
+    bernoulli_to_geometric_aux (l1 ++ [1]) acc ++ bernoulli_to_geometric l2.
   Proof.
     elim: l1 acc => /= [|h1 t1 IH] acc //.
     rewrite !IH //.
@@ -65,7 +67,9 @@ Section Tape.
   Qed.
 
   Lemma bernoulli_to_geometric_app (l1 l2 : list (fin 2)) :
-    bernoulli_to_geometric (l1 ++ [1] ++ l2) = bernoulli_to_geometric (l1 ++ [1]) ++ bernoulli_to_geometric l2.
+    bernoulli_to_geometric (l1 ++ [1] ++ l2) 
+      = 
+    bernoulli_to_geometric (l1 ++ [1]) ++ bernoulli_to_geometric l2.
   Proof.
     apply bernoulli_to_geometric_aux_app.
   Qed.
@@ -79,7 +83,10 @@ Section Tape.
   Qed.
 
   Lemma list_decomposition (l : list (fin 2)) :
-    { '(ns, n) | l = (flat_map (fun v => repeat 0 v ++ [1]) ns) ++ repeat 0 n }.
+    { 
+      '(ns, n) 
+    | l = (flat_map (fun v => repeat 0 v ++ [1]) ns) ++ repeat 0 n 
+    }.
   Proof.
     elim: l => [|h t [[ns n] ->]]; first (by exists ([], 0%nat));
     full_inv_fin; first case ns => [|hns tns];
@@ -90,8 +97,11 @@ Section Tape.
   Qed.
 
   Lemma bernoulli_to_geometric_to_bernoulli (b : list (fin 2)) :
-    (geometric_to_bernoulli ∘ bernoulli_to_geometric) (b ++ [1]) = b ++ [1].
+    (geometric_to_bernoulli ∘ bernoulli_to_geometric) (b ++ [1])
+      = 
+    b ++ [1].
   Proof.
+
     case: (list_decomposition b) => [[ns n] ->].
     elim: ns => [|hns tns IHns] /=; first rewrite bernoulli_to_geometric_repeat //.
     rewrite -!app_assoc bernoulli_to_geometric_app bernoulli_to_geometric_repeat /=.
@@ -100,8 +110,11 @@ Section Tape.
     rewrite !app_assoc IHns //.
   Qed.
   
-  Lemma bernoulli_to_geometric_translation (v : list (fin 2)) (l : list nat) :
-    is_geometric_translation v l ↔ l = bernoulli_to_geometric v ∧ ∀ l' k, v = l' ++ [k] -> k = 1.
+  Lemma bernoulli_to_geometric_translation
+    (v : list (fin 2)) (l : list nat) :
+    is_geometric_translation v l 
+      ↔ 
+    (l = bernoulli_to_geometric v ∧ ∀ l' k, v = l' ++ [k] -> k = 1).
   Proof.
     elim: l v => [|h l IH] v //=; split.
     - move=> ->. split=>[|[|??] ? ?] //.
@@ -160,17 +173,24 @@ End Tape.
 
 
 Section Geometric.
-  #[local] Ltac done ::= 
-    solve[lia || lra || nra || real_solver || tactics.done || auto].
-
   Context `{!erisGS Σ}.
-  Definition geometric : val :=
-    rec: "geometric" "N" "M" :=
-    if: bernoulli "N" "M" = #1 then #0 else 
-    #1 + "geometric" "N" "M"
+  Definition own_geometric_tape (α : loc) (N M : nat) (t : list nat) : iProp Σ :=
+    ∃ l, 
+    own_bernoulli_tape α N M l ∗ 
+    ⌜is_geometric_translation l t⌝.
+
+  #[local] Ltac done ::= 
+    solve[lia | lra | nra | real_solver | tactics.done | auto].
+
+  Definition geometric_tape : val :=
+    rec: "geometric_tape" "α" "N" "M" :=
+    if: bernoulli_tape "α" "N" "M" = #1 then #0 else 
+    #1 + "geometric_tape" "α" "N" "M"
   .
-  
-  Lemma geometric_spec (N M k : nat) (Hlt : (N <= M)%nat) (p := N / (S M)) :
+  Definition geometric : expr := geometric_tape #().
+
+  Lemma geometric_spec 
+    (N M k : nat) (Hlt : (N <= M)%nat) (p := N / (S M)) :
   [[{↯ (1 - (((1 - p)^k) * p))%R }]]
     geometric #N #M
   [[{RET #k; True}]].
@@ -180,15 +200,15 @@ Section Geometric.
     }
     induction k.
     - iIntros "%Φ Herr HΦ".
-      rewrite /geometric Rmult_1_l.
+      rewrite /geometric /geometric_tape Rmult_1_l.
       wp_pures.
       wp_apply (bernoulli_success_spec_simple with "Herr") as "%v ->".
       wp_pures.
       by iApply "HΦ".
     - iIntros "%Φ Herr HΦ".
-      rewrite /geometric.
+      rewrite /geometric /geometric_tape.
       wp_pures.
-      fold geometric.
+      fold geometric_tape geometric.
       replace (1 - (1 - p)^(S k) * p) with ((1 - p) * (1 - (1 - p)^k * p) + p) by rewrite //=.
       wp_apply (twp_bernoulli_scale _ _ _ (1 - (1 - p) ^ k * p) 1 with "Herr") as "%n [[-> Herr] | [-> Herr]]";
       fold p; try done; last solve[cred_contra].
@@ -202,10 +222,144 @@ Section Geometric.
       by iApply "HΦ".
   Qed.
 
-
-  (* 
-
+  Lemma twp_presample_geometric
+      (e : expr) (α : loc) (N M : nat) (Φ : val → iProp Σ)
+      (ns : list nat) :
+    to_val e = None → 
+    own_geometric_tape α N M ns ∗
+    (∀ (i : nat), own_geometric_tape α N M (ns ++ [i]) -∗ WP e [{ Φ }])
+    ⊢  WP e [{ Φ }]
+  .
+  Proof.
+    iIntros (e_not_val) "[
+      (%b_tape & Hown_ber & %Hgeo_trans) 
+      HΦ
+    ]".
+    About twp_presample.
+    wp_apply twp_presample_bernoulli; first done.
+    iFrame.
+    iIntros (i) "Hown_ber".
+    full_inv_fin; last first.
+    - iApply ("HΦ" $! 0%nat).
+      iFrame.
+      iPureIntro.
+      rewrite ->bernoulli_to_geometric_translation in *.
+      destruct Hgeo_trans as [-> Hb_end_1].
+      destruct b_tape as [| b_end b_tape _] using rev_ind.
+      + simpl; split; first done.
+        move=> ?? Heq.
+        rewrite -(app_nil_l [1%fin]) in Heq.
+        by apply list_snoc_singleton_inv in Heq as [_ ->].
+      + split; last first. 
+        { move=> ?? Heq.
+        rewrite -(app_nil_l [1%fin]) in Heq.
+        by apply list_snoc_singleton_inv in Heq as [_ ->]. }
+        full_inv_fin.
+        { move=> Hb_end_1.
+          specialize Hb_end_1 with b_tape 0%fin.
+          exfalso.
+          assert ((0%fin : fin 2) ≠ 1%fin) as contra by by intro.
+          by apply contra, Hb_end_1. }
+        move=> Hb_end_1.
+        rewrite -app_assoc bernoulli_to_geometric_app //.
+    - wp_apply twp_presample_bernoulli; first done.
+      iFrame.
+      iIntros (i) "Hown_ber".
+      full_inv_fin; last first.
+      + iApply ("HΦ" $! 1%nat).
+        iFrame.
+        iPureIntro.
+        rewrite ->bernoulli_to_geometric_translation in *.
+        destruct Hgeo_trans as [-> Hb_end_1].
+        destruct b_tape as [| b_end b_tape _] using rev_ind.
+        * simpl; split; first done.
+          move=> ?? Heq.
+          by apply (list_snoc_singleton_inv [0%fin]) in Heq as [_ ->].
+        * split; last first. 
+          { move=> ?? Heq.
+            rewrite -(app_nil_l [1%fin]) in Heq.
+            by apply list_snoc_singleton_inv in Heq as [_ ->]. }
+          full_inv_fin.
+          { move=> Hb_end_1.
+            specialize Hb_end_1 with b_tape 0%fin.
+            exfalso.
+            assert ((0%fin : fin 2) ≠ 1%fin) as contra by by intro.
+            by apply contra, Hb_end_1. }
+          move=> Hb_end_1.
+          rewrite -!app_assoc bernoulli_to_geometric_app //.
+      + (* and so on *)
+        (* We have to repeat presampling until we have a 1
+          Induction with error credit amplification ?
+        twp_presample_adv_comp
+        *)
+        About tape.
+        About twp_presample_adv_comp.
+  Abort.
 
   
-  *)
+
+  Lemma twp_presample_several_geometric
+      (e : expr) (α : loc) (N M : nat) (ε : nonnegreal) (Φ : val → iProp Σ)
+      (ns : list nat) :
+    to_val e = None → 
+    (0 < N < S M)%nat →
+    0 < ε → 
+    ↯ ε ∗
+    own_geometric_tape α N M ns ∗
+    (∀ (n : nat) (suf : list nat), own_geometric_tape α N M (ns ++ n::suf) -∗ WP e [{ Φ }])
+    ⊢  WP e [{ Φ }]
+  .
+  Proof.
+    iIntros (e_not_val O_lt_N_lt_SM ε_pos) "(
+      Herr & 
+      (%b_tape & Hown_ber & %Hgeo_trans) &
+      HΦ
+    )".
+    About twp_presample_bernoulli_planner.
+    wp_apply (twp_presample_bernoulli_planner N M _ _ 1%nat _ _ _ (λ _, [1%fin])); [done.. | iFrame].
+    iIntros "(%junk & Hown_ber)".
+    case: (list_decomposition junk) => [[[|first_junk junk_repeat] junk_zeros] ->] /=.
+    - iApply ("HΦ" $! junk_zeros []).
+      iFrame.
+      iPureIntro.
+      apply bernoulli_to_geometric_translation; split; last first.
+      { move=>?? Heq.
+        rewrite app_assoc in Heq.
+        by apply list_snoc_singleton_inv in Heq as [_ ->]. }
+      apply 
+        bernoulli_to_geometric_translation 
+        in Hgeo_trans 
+        as [-> btape_ends_1].
+      destruct b_tape as [| btape_end b_tape ] using rev_ind.
+      { rewrite bernoulli_to_geometric_repeat //. }
+      assert (btape_end = 1%fin) as -> by apply (btape_ends_1 b_tape), eq_refl.
+      rewrite -!app_assoc bernoulli_to_geometric_app bernoulli_to_geometric_repeat //.
+    - rewrite -!app_assoc.
+      set tail : list (fin 2) :=  
+        (flat_map 
+          (λ v : nat, repeat 0%fin v ++ [1%fin]) 
+          (junk_repeat))
+        ++ 
+        repeat 0%fin junk_zeros
+        ++ [1%fin]
+      .
+      iApply ("HΦ" $! first_junk (bernoulli_to_geometric tail)); iFrame.
+      iPureIntro.
+      apply bernoulli_to_geometric_translation; split; last first.
+      { move =>?? Heq.
+        unfold tail in *.
+        rewrite !app_assoc in Heq.
+        by apply list_snoc_singleton_inv in Heq as [_ ->]. }
+      apply 
+        bernoulli_to_geometric_translation 
+        in Hgeo_trans 
+        as [-> btape_ends_1].
+      destruct b_tape as [| btape_end b_tape ] using rev_ind; first by rewrite bernoulli_to_geometric_app bernoulli_to_geometric_repeat.
+      assert (btape_end = 1%fin) as -> by eapply btape_ends_1, eq_refl.
+      rewrite 
+        -!app_assoc bernoulli_to_geometric_app
+        bernoulli_to_geometric_app 
+        bernoulli_to_geometric_repeat //.
+  Qed.
+
 End Geometric.
