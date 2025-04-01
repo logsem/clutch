@@ -285,15 +285,18 @@ Fixpoint fin_S_inj {n : nat} (m : fin n) : fin (S n) :=
   Definition fin_sum_list (m k : nat) (l : list (fin m)) : fin (S k) :=
     foldr fin_hsum 0%fin l.
 
-  Lemma fin_ind_fixed : ∀ (n : nat) (P : fin (S n) → Prop), P 0%fin → (∀ (i : fin (S n)), P i → P (fin_succ i)) → ∀ (i : fin (S n)), P i.
+  Lemma fin_ind_fixed : ∀ (n : nat) (P : fin (S n) → Prop), P 0%fin → (∀ (i : fin (S n)), i ≠ fin_max n → P i → P (fin_succ i)) → ∀ (i : fin (S n)), P i.
   Proof.
     elim=>[|n IH] P P_0 P_S i; (inv_fin i; first done).
     - move=>i. inv_fin i.
     - move=>i.
       apply (IH (P ∘ FS)).
-      { simpl. apply (P_S 0%fin), P_0. }
-      { move=>j P_Sj.
+      { simpl. apply (P_S 0%fin), P_0. discriminate. }
+      { move=>j j_not_max P_Sj.
         apply (P_S (FS j)), P_Sj.
+        move=>contra.
+        apply j_not_max.
+        by apply FS_inj.
       }
   Qed.
 
@@ -329,12 +332,10 @@ Fixpoint fin_S_inj {n : nat} (m : fin n) : fin (S n) :=
     intros k.
     apply fin_ind_fixed.
     - reflexivity.
-    - move=>i IH.
-      destruct (decide (i = fin_max k)) as [-> | i_not_max ].
-      + rewrite fin_succ_max //.
-      + rewrite repeat_not_max /=; last done.
-        f_equal.
-        apply IH.
+    - move=>i i_not_max IH.
+      rewrite repeat_not_max /=; last done.
+      f_equal.
+      apply IH.
   Qed.
 
   Lemma fin_hsum_to_nat :

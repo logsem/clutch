@@ -21,22 +21,22 @@ Section binomial.
     }]]
   .
 
-  Parameter B_tape : ∀ (N M : nat), loc → list (fin 2) → iProp Σ.
+  Parameter B_tape : loc → nat → nat → list (fin 2) → iProp Σ.
   
   Parameter B_tape_presample :
     ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
       (N M : nat) (ns : list (fin 2)),
     to_val e = None →
-    B_tape N M α ns ∗
-    (∀ (i : fin 2), B_tape N M α (ns ++ [i%fin]) -∗ WP e [{ Φ }])
+    B_tape α N M ns ∗
+    (∀ (i : fin 2), B_tape α N M (ns ++ [i%fin]) -∗ WP e [{ Φ }])
     ⊢  WP e [{ Φ }]
   .
 
-  Parameter twp_B_tape :
-    ∀ (N M : nat) (α : loc) (ns : list (fin 2)) (n : fin 2),
-    [[{ B_tape N M α (n::ns) }]]
+  Parameter twp_B_tape  :
+   ∀ (α : loc) (N M : nat) (ns : list (fin 2)) (n : fin 2),
+    [[{ B_tape α N M (n::ns) }]]
       B_lbl (#lbl:α) #N #M
-    [[{ RET #n ; B_tape N M α ns }]]
+    [[{ RET #n ; B_tape α N M ns }]]
   .
 
   Parameter B_tape_planner :
@@ -47,11 +47,25 @@ Section binomial.
     to_val e = None →
     (∀ junk : list (fin 2), (0 < length (suffix (prefix ++ junk)) <= L)%nat) →
     (0 < ε)%R →
-    ↯ ε ∗ B_tape N M α prefix ∗
-    ( (∃ (junk : list (fin 2)), B_tape N M α (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e [{ Φ }]) 
+    ↯ ε ∗ B_tape α N M prefix ∗
+    ( (∃ (junk : list (fin 2)), B_tape α N M (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e [{ Φ }]) 
     ⊢ WP e [{ Φ }]
     .
-  
+
+  Parameter B_tape_adv_comp :
+      ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
+      (N M : nat) (ns : list (fin 2)) (ε : R)
+      (D : fin 2 → R),
+    (N ≤ M + 1)%nat →
+    (∀ (i : fin 2), 0 <= D i)%R →
+    (D 0%fin * (1 - (N / (M + 1))) + D 1%fin * (N / (M + 1)) = ε)%R
+    →  to_val e = None
+    → B_tape α N M ns ∗ ↯ ε ∗
+    (∀ (i : fin 2), ↯ (D i) ∗ B_tape α N M (ns ++ [i]) -∗ WP e [{ Φ }])
+    ⊢  WP e [{ Φ }]
+  .
+ 
+    
   Definition binom_tape : val :=
     λ: "α" "m" "n",
       rec: "binom" "k" :=
@@ -447,6 +461,25 @@ Section binomial.
         is_binomial_translation k vt suf
   end.
 
+  Lemma is_binomial_translation_0 : ∀ (v : list (fin 1)) (l : list (fin 2)), is_binomial_translation 0 v l ↔ l = [].
+  Proof.
+    elim=>[|h t IH] l /=; first done.
+    split.
+    - intros ([|??] & suf & _ & len_pre & -> & is_tl_suf); last (simpl in len_pre; lia).
+      simpl.
+      apply IH, is_tl_suf.
+    - move=> ->.
+      exists [], [].
+      split.
+      { inv_fin h; first reflexivity.
+        move=>h. inv_fin h.
+      }
+      split; first reflexivity.
+      split; first reflexivity.
+      apply IH.
+      reflexivity.
+  Qed.
+
   Lemma bernoulli_to_binomial_translation (k : nat) (l : list (fin 2)) (v : list (fin (S k))) :
     (0 < k)%nat →
     is_binomial_translation k v l ↔ ∃ n, length l = n * k ∧ v = bernoulli_to_binomial k l.
@@ -495,13 +528,13 @@ Section binomial.
   Qed.
     
   Definition own_binomial_tape (α : loc) (m n k : nat) (v : list (fin (S k))) : iProp Σ :=
-    ∃ l, B_tape m n α l ∗ ⌜is_binomial_translation k v l⌝.
+    ∃ l, B_tape α m n l ∗ ⌜is_binomial_translation k v l⌝.
 
   Lemma B_tape_multiple_presample (e : expr) (α : loc) (Φ : val → iProp Σ)
       (N M k : nat) (ns : list (fin 2)) : 
     to_val e = None → 
-    B_tape N M α ns ∗
-    (∀ (l : list (fin 2)), ⌜length l = k⌝ -∗ B_tape N M α (ns ++ l) -∗ WP e [{ Φ }])
+    B_tape α N M ns ∗
+    (∀ (l : list (fin 2)), ⌜length l = k⌝ -∗ B_tape α N M (ns ++ l) -∗ WP e [{ Φ }])
     ⊢  WP e [{ Φ }]
   .
   Proof.
@@ -579,7 +612,7 @@ Section binomial.
       simpl in sum.
       inv_fin hpre.
       + move=>/= sum len_pre.
-        wp_apply (twp_B_tape N M α _ _ _ with "Htape").
+        wp_apply (twp_B_tape α N M _ _ _ with "Htape").
         iIntros "Htape".
         wp_pure.
         replace (S k' - 1)%Z with (k' : Z); last lia.
@@ -596,7 +629,7 @@ Section binomial.
       + move=>/= i.
         inv_fin i; last (move=>i; inv_fin i).
         move=>/= sum len_pre.
-        wp_apply (twp_B_tape N M α _ _ _ with "Htape").
+        wp_apply (twp_B_tape α N M _ _ _ with "Htape").
         iIntros "Htape".
         wp_pure.
         replace (S k' - 1)%Z with (k' : Z); last lia.
@@ -738,6 +771,226 @@ Section binomial.
     f_equal.
     rewrite binomial_to_bernoulli_to_binomial; last lia.
     rewrite -app_assoc (bernoulli_to_binomial_app_n k n l); try lia.
+    reflexivity.
+  Qed.
+
+  Lemma fin_succ_inj : ∀ (n : nat) (k : fin n), fin_succ (fin_S_inj k) = FS k.
+  Proof.
+    elim=>[|n IH] k; first inv_fin k.
+    inv_fin k; first reflexivity.
+    move=>k /=.
+    by f_equal.
+  Qed.
+
+  Lemma fin_S_inj_not_max :
+    ∀ (n : nat) (k : fin (S n)),
+    k ≠ fin_max n →
+    fin_S_inj (fin_succ k) = FS k.
+  Proof.
+    elim=>[|n IH] k k_not_max; inv_fin k; try done.
+    { move=>k; inv_fin k. }
+    move=>k k_not_max /=.
+    f_equal.
+    apply IH => contra.
+    apply k_not_max.
+    simpl.
+    by f_equal.
+  Qed.
+    
+  Lemma fin_succ_not_max_to_nat :
+    ∀ (n : nat) (k : fin (S n)),
+    k ≠ fin_max n →
+    fin_to_nat (fin_succ k) = S (fin_to_nat k).
+  Proof.
+    elim=>[|n IH] k k_not_max; first full_inv_fin.
+    inv_fin k; first done.
+    move=>k /= k_not_max.
+    f_equal.
+    apply IH.
+    move=>contra.
+    apply k_not_max.
+    by f_equal.
+  Qed.
+
+  Lemma fin_max_to_nat : ∀ (n : nat), fin_to_nat (fin_max n) = n.
+  Proof.
+    elim=>[//|n IH] /=.
+    by f_equal.
+  Qed.
+
+  Lemma fin_not_max_to_nat :
+    ∀ (n : nat) (k : fin (S n)),
+    k ≠ fin_max n →
+    fin_to_nat k < n.
+  Proof.
+    elim=>[|n IH] k; inv_fin k; first done.
+    { move=>k; inv_fin k. }
+    { move=>_ /=. lia. }
+    move=>k k_not_max /=.
+    rewrite -Nat.succ_lt_mono.
+    apply IH.
+    move=>contra.
+    apply k_not_max.
+    simpl.
+    by f_equal.
+  Qed.
+  
+  Lemma fin_sum_list_lt_max :
+    ∀ (n : nat) (l : list (fin 2)),
+    length l < n →
+    fin_sum_list 2 n l ≠ fin_max n.
+  Proof.
+    move=>n l len_l_lt_n contra.
+    assert (fin_to_nat (fin_sum_list 2 n l) = n)as sum_n by rewrite contra fin_max_to_nat //.
+    pose proof (fin_hsum_le n 1 _ l eq_refl) as sum_to_nat.
+    rewrite sum_n in sum_to_nat.
+    lia.
+  Qed.
+  
+  Lemma fin_inj_sum :
+    ∀ (n : nat) (l : list (fin 2)),
+    length l ≤ n →
+    fin_sum_list 2 (S n) l = fin_S_inj (fin_sum_list 2 n l).
+  Proof.
+    move=>n.
+    elim=>[//|h t IH] /= le_h_t.
+    rewrite IH; last lia.
+    inv_fin h; first done.
+    move=>i.
+    inv_fin i; last (move=>i; inv_fin i).
+    simpl.
+    rewrite fin_succ_inj fin_S_inj_not_max //.
+    by apply fin_sum_list_lt_max.
+  Qed.
+    
+  Lemma B_tape_multiple_adv_comp :
+    ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
+      (p q n : nat) (ns : list (fin 2)) (ε : R)
+      (D : fin (S n) → R),
+    (∀ (i : fin (S n)), 0 <= D i)%R →
+    SeriesC (λ k : fin (S n), (binom_prob p q n k * D k)%R) = ε →
+    (p ≤ q + 1)%nat →
+    to_val e = None →
+    B_tape α p q ns ∗ ↯ ε ∗
+    (∀ (ts : list (fin 2)), ⌜length ts = n⌝ →  ↯ (D (fin_sum_list _ _ ts)) ∗ B_tape α p q (ns ++ ts) -∗ WP e [{ Φ }])
+    ⊢  WP e [{ Φ }]
+  .
+  Proof.
+    iIntros (e α Φ p q n).
+    iRevert (Φ).
+    iInduction (n) as [|n] "IH";
+      iIntros (Φ l ε D D_pos D_sum p_q_prob e_not_val) "(Hα & Herr & Hnext)".
+    - wp_apply ("Hnext" $! []); first done.
+      simpl.
+      rewrite -D_sum SeriesC_finite_foldr /= Rplus_0_r binom_prob_0 Rmult_1_l app_nil_r.
+      iFrame.
+    - rewrite -{7}(Nat.add_1_r n) ec_binom_split in D_sum.
+      match type of D_sum with
+      | (_ * ?S0 + _ * ?S1 = _)%R => set (s0 := S0);
+                                 set (s1 := S1)
+      end.
+      set (D' (i : fin 2) := match i with Fin.F1 _ => s0 | _ => s1 end). 
+      wp_apply (B_tape_adv_comp _ _ _ p q _ ε D'); try done.
+      { move=>i.
+        unfold D', s0, s1.
+        assert (0 <= p)%R by apply pos_INR.
+        assert (0 <= q)%R by apply pos_INR.
+        assert (0 <= p / (q + 1))%R.
+        {
+          apply Rcomplements.Rdiv_le_0_compat; lra.
+        }
+        assert (0 <= 1 - p / (q + 1))%R.
+        {
+          apply Rle_0_le_minus.
+          apply Rcomplements.Rle_div_l; first lra.
+          rewrite Rmult_1_l -INR_1 -plus_INR.
+          by apply le_INR.
+        } 
+        full_inv_fin; apply: SeriesC_ge_0;
+          [|apply ex_seriesC_finite|..|apply ex_seriesC_finite];
+          move=>k;
+                apply Rmult_le_pos;
+                [|apply D_pos|..|apply D_pos];
+                rewrite /binom_prob;
+                repeat apply Rmult_le_pos;
+                try apply choose_pos; by apply pow_le.
+      }
+      { rewrite -D_sum.
+        fold s0 s1 (D' 0%fin) (D' 1%fin).
+        lra.
+      }
+      iFrame.
+      iIntros (i) "[Herr Hα]".
+      full_inv_fin.
+      { wp_apply ("IH" $! _ _ s0 (D ∘ fin_S_inj)); try done.
+        { iPureIntro.
+          move=>i.
+          apply D_pos.
+        }
+        iFrame.
+        iIntros (ts len_ts) "[Herr Hα]".
+        wp_apply ("Hnext" $! 0%fin::ts); first rewrite /= len_ts //.
+        rewrite -app_assoc /=.
+        iFrame.
+        rewrite fin_inj_sum //.
+        lia.
+      }
+      { wp_apply ("IH" $! _ _ s1 (D ∘ FS)); try done.
+        { iPureIntro.
+          move=>i.
+          apply D_pos.
+        }
+        iFrame.
+        iIntros (ts len_ts) "[Herr Hα]".
+        wp_apply ("Hnext" $! 1%fin::ts); first rewrite /= len_ts //.
+        rewrite -app_assoc /=.
+        iFrame.
+        rewrite fin_inj_sum; last lia.
+        rewrite fin_succ_inj //.
+      }
+  Qed.
+        
+  Lemma twp_binomial_tape_adv_comp :
+    ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
+      (p q n : nat) (ns : list (fin (S n))) (ε : R)
+      (D : fin (S n) → R),
+    (∀ (i : fin (S n)), 0 <= D i)%R →
+    SeriesC (λ k : fin (S n), (binom_prob p q n k * D k)%R) = ε →
+    (p ≤ q + 1)%nat →
+    to_val e = None →
+    own_binomial_tape α p q n ns ∗ ↯ ε ∗
+    (∀ (i : fin (S n)), ↯ (D i) ∗ own_binomial_tape α p q n (ns ++ [i]) -∗ WP e [{ Φ }])
+    ⊢  WP e [{ Φ }]
+  .
+  Proof.
+    iIntros (e α Φ p q n ns ε D D_pos D_sum is_prob e_not_val) "((%l & Htape & %is_tl) & Herr & Hnext)".
+    destruct n as [|n].
+    {
+      rewrite SeriesC_finite_foldr /= binom_prob_0 /= Rplus_0_r Rmult_1_l in D_sum.
+      iApply "Hnext".
+      rewrite -D_sum.
+      iFrame.
+      iPureIntro.
+      apply is_binomial_translation_0 in is_tl.
+      by apply is_binomial_translation_0.
+    } 
+    wp_apply (B_tape_multiple_adv_comp _ _ _ _ _ (S n) _ _ D D_pos D_sum is_prob e_not_val).
+    iFrame.
+    iIntros (ts len_ts) "[Herr Hα]".
+    wp_apply "Hnext".
+    iFrame.
+    iPureIntro.
+    rewrite bernoulli_to_binomial_translation in is_tl; last lia.
+    destruct is_tl as (k & len_l & ns_eq_tl). 
+    rewrite bernoulli_to_binomial_translation; last lia.
+    exists (S k).
+    split.
+    { rewrite app_length.
+      lia.
+    }
+    rewrite ns_eq_tl (bernoulli_to_binomial_app_n _ k); try lia.
+    f_equal.
+    rewrite -{2}(app_nil_r ts) bernoulli_to_binomial_app_1; try lia.
     reflexivity.
   Qed.
 
