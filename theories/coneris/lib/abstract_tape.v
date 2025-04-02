@@ -1,4 +1,5 @@
 (** * Abstract tapes *)
+(** This file describes an auth frag resource algebra specialized for tapes *)
 From stdpp Require Import namespaces.
 From iris Require Import excl_auth invariants list.
 From clutch.coneris Require Import coneris.

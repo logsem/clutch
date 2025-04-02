@@ -1,4 +1,4 @@
-(** This file proves the basic laws of the ProbLang weakest precondition by
+(** This file proves the basic laws of the ConProbLang weakest precondition by
     applying the lifting lemmas. *)
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import auth excl.
