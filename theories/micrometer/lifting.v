@@ -168,7 +168,7 @@ Lemma wp_lift_atomic_step {E Φ} e1 s :
   to_val e1 = None →
   (∀ σ1, state_interp σ1 ={E}=∗
     ⌜reducible (e1, σ1)⌝ ∗
-    EXSM (fun ρ => ▷ True ={E}=∗ state_interp ρ.2 ∗ from_option Φ False (to_val ρ.1)) (prim_step (e1, σ1)))
+    EXSM (fun ρ => ▷ (True ={E}=∗ state_interp ρ.2 ∗ from_option Φ False (to_val ρ.1))) (prim_step (e1, σ1)))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H". iApply wp_lift_atomic_step_fupd; [done|].
@@ -178,7 +178,8 @@ Proof.
   do 2 (iSplitR; [done|]).
   iIntros (ρ Hρ).
   iSpecialize ("H" $! ρ Hρ).
-  iIntros (_) "!> !>".
+  iIntros (_) "!>".
+  iNext.
   by iApply "H".
 Qed.
 
