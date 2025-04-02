@@ -194,21 +194,33 @@ Implicit Types l : locO.
     induction directly, but this demonstrates that we can state the expected
     reasoning principle for recursive functions, without any visible ▷. *)
 
-(*
-Lemma wp_rec_löb E f x e Φ Ψ :
-  □ ( □ (∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ E {{ Φ }}) -∗
-     ∀ v, Ψ v -∗ WP (subst' x v (subst' f (rec: f x := e) e)) @ E {{ Φ }}) -∗
-  ∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ E {{ Φ }}.
+(* Check meas_lang.language.expr .$ *)
+
+
+Lemma wp_rec_löb E f (x : <<discr binders.binder>>) e Φ Ψ :
+  □ ( □ (∀ v, Ψ v -∗ WP (AppC (ValC (RecVC f x e)) (ValC v) : meas_lang.language.expr meas_lang) @ E {{ Φ }}) -∗
+     ∀ v, Ψ v -∗ WP (substU' (x, (v, (substU' (f, ((RecVC f x e), e))))) : meas_lang.language.expr meas_lang) @ E {{ Φ }}) -∗
+  ∀ v, Ψ v -∗ WP (AppC (ValC (RecVU ((f, x), e))) (ValC v) : meas_lang.language.expr meas_lang) @ E {{ Φ }}.
 Proof.
   iIntros "#Hrec". iLöb as "IH". iIntros (v) "HΨ".
-  iApply lifting.wp_pure_step_later; first done.
+  iApply (@lifting.wp_pure_step_later _ _ _ _ _ _ _ _ _ 1).
+  { admit. (* PureExec instance *) }
+  { admit. (* Related ?? *) }
   iNext. iApply ("Hrec" with "[] HΨ"). iIntros "!>" (w) "HΨ".
   iApply ("IH" with "HΨ").
-Qed.
+Admitted.
 
+(*
+Variable (v : meas_lang.language.val meas_lang).
+Variable E : coPset.
+Check {{{ True }}} (AllocC (ValC v) : meas_lang.language.expr meas_lang) @ (); E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
+*)
+
+
+(*
 (** Heap *)
 Lemma wp_alloc E v s :
-  {{{ True }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
+  {{{ True }}} (AllocC (ValC v) : meas_lang.language.expr meas_lang) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
 Proof.
   iIntros (Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
