@@ -48,13 +48,14 @@ Section coupl_modalities.
 
   (** [exists-support modality] There exists a measurable set with mass 1 on which the proposition holds *)
   Definition EXSM {d} {T : measurableType d} (Φ : T → iProp Σ) (ρ : giryM T) : iProp Σ :=
-    ∃ S : set T, ⌜measurable S /\ ρ S = EFin (1)%R⌝ ∗ □ ∀ ρ' : T , ⌜S ρ'⌝ → |={∅}=> Φ ρ'.
+    ∃ S : set T, ⌜measurable S ⌝ ∗ ⌜ρ S = EFin (1)%R⌝ ∗ ∀ ρ' : T , ⌜S ρ'⌝ → Φ ρ'.
 
+  (* Only true for persistent Φ, probably
   Lemma EXSM_ret_idemp {d} {T : measurableType d} (Φ : T → iProp Σ) (ρ : giryM T) :
     EXSM (fun ρ' => EXSM Φ (gRet ρ')) ρ ⊣⊢ (EXSM Φ ρ).
   Proof.
     iSplit.
-    { iIntros "[%S [%HS #X]]".
+    { iIntros "[%S [%HS X]]".
       unfold EXSM.
       iExists S.
       iSplitR; [done|].
@@ -82,16 +83,12 @@ Section coupl_modalities.
       iModIntro.
       iApply "X".
     }
-  Admitted.
-
-
+  Admitted. *)
 
   (** ** [meas_spec_coupl]  *)
 
   (** The [meas_spec_coupl] modality allows us to (optionally) prepend spec execution steps and erasable
       distributions, e.g. [state_step]s on both sides. *)
-  (* NOTE: le_ereal due to Scope clash with expressions. Move expval to its own file where this isn't the case. *)
-
 
   Definition meas_spec_coupl_pre (E : coPset)
       (Z : stateO Λ -> exprO Λ -> stateO Λ -> NNRO -> iProp Σ) (Φ : stateO Λ * (exprO Λ * stateO Λ) * NNRO → iProp Σ) :
@@ -100,17 +97,14 @@ Section coupl_modalities.
        let '(σ1, (e1', σ1'), ε) := x in
        ⌜1 <= ε⌝ ∨
        (Z σ1 e1' σ1' ε) ∨
-
-        (* Change to EXSM? *)
-
-      (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
-         (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
-           ⌜ ARcoupl_meas μ1 (gBind' (pexec n \o pair e1') μ1') S (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
-           ⌜∀ ρ, X2 ρ <= r⌝ ∗
-           ⌜ (le_ereal (EFin (nonneg ε1)) (\int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) ⌝ ∗
-           ⌜erasable μ1 σ1⌝ ∗
-           ⌜erasable μ1' σ1'⌝ ∗
-           ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ Φ (σ2, (e2', σ2'), X2 (e2', σ2'))))%I.
+       (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
+          (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
+            ⌜ ARcoupl_meas μ1 (gBind' (pexec n \o pair e1') μ1') S (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
+            ⌜∀ ρ, X2 ρ <= r⌝ ∗
+            ⌜ (le_ereal (EFin (nonneg ε1)) (\int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) ⌝ ∗
+            ⌜erasable μ1 σ1⌝ ∗
+            ⌜erasable μ1' σ1'⌝ ∗
+            ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ Φ (σ2, (e2', σ2'), X2 (e2', σ2'))))%I.
 
   #[local] Instance meas_spec_coupl_pre_ne Z E Φ :
     NonExpansive (meas_spec_coupl_pre E Z Φ).
@@ -192,7 +186,8 @@ Section coupl_modalities.
   Qed.
 
 
-  (** Lemma code (being worked on elsewhere *)
+  (** ********************* Lemma code (being worked on elsewhere *)
+
   Theorem gBind_id_left : ∀ {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> giryM T2)
     (a : T1) (HMF : measurable_fun setT f),
     gBind' f (gRet a) = f a.
@@ -205,25 +200,51 @@ Section coupl_modalities.
   Lemma pexec_0' :  (pexec 0 :  mstate (meas_lang_markov Λ) -> _) = gRet.
   Proof. apply functional_extensionality; intro a; eapply pexec_O. Qed.
 
+  (* This might not be true of is_det as written because it's a subdistribution, but we can
+     change the definition *)
+  Lemma is_det_dret {d1} {T1 : measurableType d1} {μ1 : giryM T1} {t : T1} (H : is_det t μ1) :
+    μ1 = gRet t.
+  Admitted.
+
+  (** ********************* *)
+
+
+  Local Open Scope classical_set_scope.
+
 
   Lemma fupd_meas_spec_coupl E σ1 e1' σ1' Z (ε : nonnegreal) :
     (|={E}=> meas_spec_coupl E σ1 e1' σ1' ε Z) ⊢ meas_spec_coupl E σ1 e1' σ1' ε Z.
   Proof.
     iIntros "H".
     iApply meas_spec_coupl_rec.
-    iExists (fun A B => A = σ1 ∧ B.1 = e1' ∧ B.2 = σ1') , 0%nat, (gRet σ1), (gRet σ1'), 0%NNR, (λ _, ε), ε.
-    setoid_rewrite gBind_id_left.
-    2: { admit. (* prove gBind_id_left to see if necessary *) }
-    2: { admit. (* prove gBind_id_left to see if necessary *) }
+    iExists _, 0%nat, (gRet σ1), (gRet σ1'), 0%NNR, (λ _, ε), ε.
+    setoid_rewrite gBind_id_left; first last.
+    { (* measurability *) admit.  }
+    { (* measurability *) admit.  }
     rewrite pexec_0'.
-    iSplit. { by iPureIntro; apply ARcoupl_meas_dret. }
-    iSplit. { done. }
-    iSplit. { iPureIntro. (* Check integral_ge0. *) admit. }
+    iSplit; [iPureIntro|].
+    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set σ1] [set (e1', σ1')]).
+      { (* singletons measurable *) admit. }
+      { (* singletons measurable *) admit. }
+      { (* gRet mass *) admit. }
+      { (* gRet mass *) admit. }
+      eapply (ARcoupl_meas_dret); try done.
+      Unshelve.
+      2: { intros _ _. apply True. (* idk why I get typ2 errors when I do this the other way around *) }
+      done.
+    }
+    iSplit; [done|].
+    iSplit; [iPureIntro|].
+    { rewrite integral_cst.
+      {  (* gRet is PMF, epsilon is nonnegative *) admit. }
+      { by eapply @measurableT. }
+    }
     iSplit. { iPureIntro. (* gRet erasable *) admit. }
     iSplit. { iPureIntro. (* gRet erasable *) admit. }
-    iIntros (???); simpl; iIntros ([-> [-> ->]]).
-    iFrame.
+    iIntros (??? (_ & S1 & S2)); simpl. simpl in S1, S2; inversion S2; subst.
+    by iApply "H".
   Admitted. (** OK *)
+
 
   Lemma meas_spec_coupl_mono E1 E2 σ1 e1' σ1' Z1 Z2 ε :
     E1 ⊆ E2 →
@@ -338,11 +359,7 @@ Section coupl_modalities.
     { intros []. rewrite /X2' //. }
     iSplit; [iPureIntro|].
     { rewrite /X2'. setoid_rewrite pexec_0'.
-      (** Not sure *)
-      (* Am I using the wrong epsilons maybe *)
-
-      (*
-      rewrite Expval_dmap //=.
+      (* rewrite Expval_dmap //=.
       by eapply ex_expval_bounded=>/=. *)
       admit. }
     do 2 (iSplit; [done|]).
@@ -412,85 +429,56 @@ Section coupl_modalities.
   Admitted. (** OK *)
 
 
-  (* This might not be true of is_det as written because it's a subdistribution, but we can
-     change the definition *)
-  Lemma is_det_dret {d1} {T1 : measurableType d1} {μ1 : giryM T1} {t : T1} (H : is_det t μ1) :
-    μ1 = gRet t.
-  Admitted.
-
   Lemma meas_spec_coupl_steps_det n ε σ1 e1' σ1' e2' σ2' Z E :
     is_det (e2', σ2') (pexec n (e1', σ1')) →
     meas_spec_coupl E σ1 e2' σ2' ε Z ⊢
     meas_spec_coupl E σ1 e1' σ1' ε Z.
   Proof.
-    iIntros (H1) "H".
-    iApply (meas_spec_coupl_steps n ε 0%NNR _ (fun A B => A = σ1 ∧ B.1 = e1' ∧ B.2 = σ1')).
-    { by apply nnreal_ext => /=; lra. }
-    {
-      (*
-      rewrite (is_det_dret H1).
-      apply ARcoupl_meas_dret; [done | done | ].
-      simpl.  *) (* Need to modify the coupling before dret coupling lemma, somehow *)
-
-      admit. }
-  Admitted. (** UNSURE *)
-    (*
-    iIntros (Hexec%pmf_1_eq_dret) "H".
+    iIntros (Hexec%is_det_dret) "H".
     iApply (meas_spec_coupl_steps n ε 0%NNR).
     { apply nnreal_ext => /=. lra. }
-    { apply A Rcoupl_pos_R, ARcoupl_trivial; [solve_distr_mass|].
-      rewrite Hexec. solve_distr_mass. }
-    rewrite Hexec.
-    iIntros (??? (_ & ->%dret_pos & [=-> ->]%dret_pos)).
+    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set σ1] [set (e2', σ2')]), ARcoupl_meas_trivial.
+      { admit. (* Singletons are measurable *) }
+      { admit. (* Singletons are measurable *) }
+      { admit. (* gRet mass *) }
+      { rewrite Hexec. admit. (* gRet mass *) }
+      { admit. (* gRet is PMF *) }
+      { rewrite Hexec. admit. (* gRet is PMF *) }
+    }
+    iIntros (??? (_ & H1 & H2)).
+    simpl in H1, H2.
+    inversion H2; subst.
     done.
-  Qed. *)
-
-
+  Admitted. (** OK *)
 
   Lemma meas_spec_coupl_step ε E σ1 e1' σ1' Z :
     reducible (e1', σ1') ->
-    ⊢ EXSM
-      (fun (ρ : cfg Λ) => True ={∅}=∗ meas_spec_coupl E σ1 ρ.1 ρ.2 ε Z)%I
-      (prim_step (e1', σ1')).
-  Proof.
-    iStartProof.
-    iIntros (?).
-
-    (* There is a measurable set that is a support for prim_stepping (e1', σ1') once
-       Doable because it's 1 step so mass is preserved
-     *)
-    have S : set (cfg Λ) by admit.
-    have Smeas : measurable S by admit.
-    have Ssupp : prim_step (e1', σ1') S = 1%:E by admit.
-
-    iExists S.
-    iSplit; [iPureIntro; done | ].
-    iModIntro.
-    iIntros (ρ) "H".
-    iModIntro.
-    iIntros.
-    iModIntro.
-    iApply (meas_spec_coupl_steps 1 0%NNR ε ε (fun _ ρ' => ρ' = (e1', σ1'))).
-    { apply nnreal_ext. admit. (* math *) }
-
-    (* ???  *)
-  Admitted. (** UNSURE *)
-  (*
-  Lemma meas_spec_coupl_step ε E σ1 e1' σ1' Z :
-    reducible (e1', σ1') →
-    (∀ e2' σ2', ⌜prim_step e1' σ1' (e2', σ2') > 0%R⌝ ={E}=∗ meas_spec_coupl E σ1 e2' σ2' ε Z)
+    (EXSM (fun ρ' : (cfg Λ) => |={E}=> meas_spec_coupl E σ1 ρ'.1 ρ'.2 ε Z) (prim_step (e1', σ1')))
     ⊢ meas_spec_coupl E σ1 e1' σ1' ε Z.
   Proof.
-    iIntros (?) "H".
+    iIntros (?) "[%S [%H1 [%H2 H3]]]".
+    iStartProof.
     iApply (meas_spec_coupl_steps 1 ε 0%NNR).
     { apply nnreal_ext => /=. lra. }
     { rewrite pexec_1 step_or_final_no_final; [|by apply reducible_not_final].
-      apply ARcoupl_pos_R, ARcoupl_trivial; [solve_distr_mass|].
-      by apply prim_step_mass. }
-    iIntros (??? (?&->%dret_pos&?)).
-    by iApply "H".
-  Qed.
-  *)
+      eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set σ1] S), ARcoupl_meas_trivial.
+      { admit. (* Singletons are measurable *) }
+      { done. }
+      { admit. (* gRet mass *) }
+      { (** IDK but use H2 probably *) admit. }
+      { admit. (* gRet is PMF *) }
+      { apply prim_step_mass.
+        rewrite /is_zero.
+        intro HK.
+        pose HK' := HK S.
+        by rewrite //= in HK'. }
+    }
+    iIntros (??? (_ & H4 & H5)).
+    rewrite //= in H4; subst.
+    iSpecialize ("H3" $! (e2', σ2')); simpl.
+    by iApply "H3".
+  Admitted. (** OK *)
+
 
   (** * [meas_prog_coupl] *)
 
@@ -507,6 +495,7 @@ Section coupl_modalities.
       ∀ e2 σ2 e2' σ2', ⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' (X2 (e2, σ2)).
 
 
+  (*
   (* meas_prog_coupl under EXSM is a meas_prog_coupl? *)
   Lemma meas_prog_coupl_strong_mono e1 σ1 e1' σ1' Z1 Z2 ε :
     (∀ (e2' : expr Λ) (σ2' σ : state Λ) ε',
@@ -529,7 +518,7 @@ Section coupl_modalities.
     { admit. (* Not provable, "strengthen" conclusion to EXSM? *) }
     iSpecialize ("Hcnt" $! e2 σ2 e2' σ2' HR).
     iApply "Hcnt".
-  Admitted. (** UNSURE *)
+  Admitted. (** UNSURE *) *)
 
   (*
   Lemma meas_prog_coupl_strong_mono e1 σ1 e1' σ1' Z1 Z2 ε :
