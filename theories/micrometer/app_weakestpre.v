@@ -553,7 +553,6 @@ Section coupl_modalities.
   Qed.
 
   (*
-
   Lemma meas_prog_coupl_strengthen e1 σ1 e1' σ1' Z ε :
     meas_prog_coupl e1 σ1 e1' σ1' ε Z -∗
     meas_prog_coupl e1 σ1 e1' σ1' ε (λ e2 σ2 e2' σ2' ε', ⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∧ Z e2 σ2 e2' σ2' ε').
@@ -664,47 +663,44 @@ Section coupl_modalities.
     ⊢ meas_prog_coupl e1 σ1 e1' σ1' ε Z.
   Proof.
     iIntros (-> ? ?) "H".
-    (* Not sure! Seems like the postcondition needs to be strengthened somehow?
-       Which means we need to strenghten H0, but we don't have ARcoupl_pos_R...
-     *)
     iApply (meas_prog_coupl_step_l_erasable _ _ (gRet (σ1')) _ _); [done|done| |..].
-  Admitted.
-
-  (*
-    { by apply ARcoupl_pos_R. }
-    { apply dret_erasable. }
-    iIntros (??? (?&?&->%dret_pos)).
+    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ setT [set σ1']).
+      { by eapply @measurableT. }
+      { (* measurable singleton *) admit. }
+      { (* prim step PMF *) admit. }
+      { (* return PMF *) admit. }
+      by apply H0.
+    }
+    { admit. (* gRet erasable *) }
+    iIntros (??? (?&?&H3)).
+    simpl in H3; subst.
     by iApply "H".
-  Qed. *)
+  Admitted. (** OK *)
 
-    (*
-  Lemma meas_prog_coupl_step_l (e1 : expr Λ) (σ1 : state Λ) (* e1' σ1' *) (ε : nonnegreal) (Z : cfg Λ * nonnegreal -> iProp Σ) :
-    let T : cfg Λ * nonnegreal := ((e1, σ1), ε) in
 
-    (* There exists a support for which the postcondition holds on the *)
-    exists S : (set (cfg Λ)), measurable S -> reducible (e1, σ1) ->
-    prim_step (e1, σ1) S = coe_nonnegreal_bar_R nnreal_one ->
-    (⌜ reducible (e1, σ1) ⌝ ⊢ EXSM Z T)%I. *)
-
-  (*
-    (∀ e2 σ2, ⌜prim_step (e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ Z e2 σ2 e1' σ1' ε)
+  Lemma meas_prog_coupl_step_l e1 σ1 e1' σ1' ε Z :
+    reducible (e1, σ1) →
+    EXSM (λ ρ, |={∅}=> Z ρ.1 ρ.2 e1' σ1' ε) (prim_step (e1, σ1))
     ⊢ meas_prog_coupl e1 σ1 e1' σ1' ε Z.
   Proof.
-    iIntros (?) "H".
+    iIntros (?) "[%S [%H1 [%H2 H3]]]".
     iApply (meas_prog_coupl_step_l_dret ε 0%NNR); [|done|..].
     { apply nnreal_ext => /=. lra. }
-    { eapply ARcoupl_pos_R, ARcoupl_trivial.
-      - by apply prim_step_mass.
-      - apply dret_mass. }
-    iIntros (?? (_ & ? & [=]%dret_pos)).
-    by iApply "H".
-  Qed.
+    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ S [set σ1']); try done.
+      { (* measurable singletons *) admit. }
+      { (* gRet property *) admit. }
+      apply ARcoupl_meas_trivial; try done.
+      { (* Follows from H2 + prim_step is subdistribution *) admit. }
+      { (* gRet is PMF *) admit. }
+    }
+    iIntros (?? (_ & ? & [=])).
+    iSpecialize ("H3" $! (e2, σ2)); simpl.
+    by iApply "H3".
+  Admitted. (** OK *)
 
   Lemma meas_prog_coupl_reducible e e' σ σ' Z ε :
     meas_prog_coupl e σ e' σ' ε Z -∗ ⌜reducible (e, σ)⌝.
   Proof. by iIntros "(%&%&%&%&%&%&%&%& _)". Qed.
-
-  *)
 
 End coupl_modalities.
 
@@ -726,23 +722,31 @@ Definition wp_pre `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpG
 Local Instance wp_pre_contractive `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ} :
   Contractive wp_pre.
 Proof.
-  (* rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ. *)
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ.
-  (* Huh? *)
-Admitted.
-(*
-  do 10 f_equiv.
+  do 4 (apply forall_ne; move=>?).
+  apply wand_ne; [f_equiv|].
+  apply fupd_ne.
   apply least_fixpoint_ne_outer; [|done].
-  intros ? [? [? ?]]. rewrite /meas_spec_coupl_pre.
-  do 5 f_equiv.
-  rewrite /meas_prog_coupl.
-  do 27 f_equiv.
+  intros ? [[?[??]]?].
+  rewrite /meas_spec_coupl_pre.
+  apply or_ne; [done|].
+  case (to_val e1); [done|].
+  apply or_ne; [|done].
+  unfold meas_prog_coupl.
+  do 6 (apply exist_ne; move=>?).
+  do 5 (apply sep_ne; [done|]).
+  do 4 (apply forall_ne; move=>?).
+  apply wand_ne; [f_equiv|].
+  apply fupd_ne.
   f_contractive.
   apply least_fixpoint_ne_outer; [|done].
-  intros ? [? [? ?]]. rewrite /meas_spec_coupl_pre.
-  do 8 f_equiv.
+  intros ? [[?[??]]?].
+  rewrite /meas_spec_coupl_pre.
+  do 2 f_equiv.
+  apply fupd_ne.
+  do 3 f_equiv.
   apply Hwp.
-Qed. *)
+Qed.
 
 Local Definition wp_def `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ} :
   Wp (iProp Σ) (expr Λ) (val Λ) () :=
@@ -771,47 +775,78 @@ Lemma wp_unfold E e Φ s :
   WP e @ s; E {{ Φ }} ⊣⊢ wp_pre (wp (PROP:=iProp Σ) s) E e Φ.
 Proof. rewrite wp_unseal. apply (fixpoint_unfold wp_pre). Qed.
 
-(*
 Global Instance wp_ne E e n s :
-  Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
-Proof. Admitted. (*
+  Proper (pointwise_relation _ (ofe.dist n) ==> ofe.dist n) (wp (PROP:=iProp Σ) s E e).
+Proof.
   revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
   rewrite !wp_unfold /wp_pre /=.
-  do 10 f_equiv.
+  do 4 (apply forall_ne; move=>?).
+  apply wand_ne; [f_equiv|].
+  apply fupd_ne.
   apply least_fixpoint_ne_outer; [|done].
-  intros ? [? [? ?]]. rewrite /meas_spec_coupl_pre /meas_prog_coupl.
-  do 32 f_equiv.
-  f_contractive_fin.
+  intros ? [[?[??]]?].
+  rewrite /meas_spec_coupl_pre.
+  apply or_ne; [done|].
+  case (to_val e).
+  { move=>?.
+    f_equiv.
+    apply fupd_ne; f_equiv.
+    apply sep_ne; f_equiv.
+    done.
+  }
+  apply or_ne; [|done].
+  unfold meas_prog_coupl.
+  do 6 (apply exist_ne; move=>?).
+  do 5 (apply sep_ne; [done|]).
+  do 4 (apply forall_ne; move=>?).
+  apply wand_ne; [f_equiv|].
+  apply fupd_ne.
+  f_contractive.
   apply least_fixpoint_ne_outer; [|done].
-  intros ? [? [? ?]]. rewrite /meas_spec_coupl_pre.
-  do 8 f_equiv.
-  rewrite IH; [done|lia|].
-  intros ?. apply dist_S, HΦ.
-Qed. *) *)
-
+  intros ? [[?[??]]?].
+  rewrite /meas_spec_coupl_pre.
+  do 2 f_equiv.
+  apply fupd_ne.
+  do 3 f_equiv.
+  apply IH; [done|].
+  move=>?.
+  eapply ofe.dist_le; [by apply HΦ|].
+  lia.
+Qed.
 
 Global Instance wp_proper E e s :
   Proper (pointwise_relation _ (≡) ==> (≡)) (wp (PROP:=iProp Σ) s E e).
-Proof. Admitted.
-(*
-  by intros Φ Φ' ?; apply equiv_dist=>n; apply wp_ne=>v; apply equiv_dist.
-Qed.  *)
-(*
+Proof. by intros Φ Φ' ?; apply equiv_dist=>n; apply wp_ne=>v; apply equiv_dist. Qed.
+
 Global Instance wp_contractive E e n s :
   TCEq (to_val e) None →
-  Proper (pointwise_relation _ (dist_later n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
-Proof. Admitted. (*
+  Proper (pointwise_relation _ (dist_later n) ==> ofe.dist n) (wp (PROP:=iProp Σ) s E e).
+Proof.
   intros He Φ Ψ HΦ. rewrite !wp_unfold /wp_pre He /=.
-  do 10 f_equiv.
+  do 4 (apply forall_ne; move=>?).
+  apply wand_ne; [f_equiv|].
+  apply fupd_ne.
   apply least_fixpoint_ne_outer; [|done].
-  intros ? [? [? ?]]. rewrite /meas_spec_coupl_pre.
+  intros ? [[?[??]]?].
+  rewrite /meas_spec_coupl_pre.
+  apply or_ne; [done|].
+  apply or_ne; [|done].
   rewrite /meas_prog_coupl.
-  do 31 f_equiv.
+  do 6 (apply exist_ne; move=>?).
+  do 5 (apply sep_ne; [done|]).
+  do 4 (apply forall_ne; move=>?).
+  apply wand_ne; [f_equiv|].
+  apply fupd_ne.
   f_contractive.
   apply least_fixpoint_ne_outer; [|done].
-  intros ? [? [? ?]]. rewrite /meas_spec_coupl_pre.
-  do 22 f_equiv.
-Qed.  *)  *)
+  intros ? [[?[??]]?].
+  rewrite /meas_spec_coupl_pre.
+  do 2 f_equiv.
+  apply fupd_ne.
+  do 3 f_equiv.
+  apply wp_ne.
+  apply HΦ.
+Qed.
 
 Lemma wp_value_fupd' E Φ v s : (|={E}=> Φ v) ⊢ WP of_val v @ s; E {{ Φ }}.
 Proof.
