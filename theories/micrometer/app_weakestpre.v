@@ -494,60 +494,65 @@ Section coupl_modalities.
       ⌜erasable μ1' σ1'⌝ ∗
       ∀ e2 σ2 e2' σ2', ⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' (X2 (e2, σ2)).
 
+(* This one is actually never used outside of the weaker case (wich can be proven
+   independently) and prog_coupl_strengthen.
 
-  (*
-  (* meas_prog_coupl under EXSM is a meas_prog_coupl? *)
+  Can I prove prog_coupl_strengthen independently? This lemma is also only used once, can I get
+  rid of it's usage?
+
   Lemma meas_prog_coupl_strong_mono e1 σ1 e1' σ1' Z1 Z2 ε :
     (∀ (e2' : expr Λ) (σ2' σ : state Λ) ε',
        EXSM (fun '(e2, σ2) => Z1 e2 σ2 e2' σ2' ε' -∗ Z2 e2 σ2 e2' σ2' ε') (prim_step (e1, σ)))
       ⊢ meas_prog_coupl e1 σ1 e1' σ1' ε Z1 -∗ meas_prog_coupl e1 σ1 e1' σ1' ε Z2.
   Proof.
-    iIntros "Hm (%R & %n & %μ1' & %ε1 & %X2 & %r & % & % & % & % & % & Hcnt) /=".
+    iIntros "Hm (%R & %n & %μ1' & %ε1 & %X2 & %r & % & %Hcpl & % & % & % & Hcnt) /=".
     iExists _, _, _, _, _, _.
     iSplit; [done|].
+    (* I want to use Hm here to get S, but I'll eventually need e2', σ2' σ from the application of Hcnt.
+      Does switching the order quantification make it possile? *)
+
     iSplit.
-   { iPureIntro. by apply H0. (* by apply ARcoupl_pos_R. *) }
+    { iPureIntro.
+      eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ _ _); last by apply Hcpl.
+      (* Need sets with with mass 1
+          in (prim_step (e1, σ1)), and
+          in (gBind' (pexec n \o pair e1') μ1') *)
+
+      (* by apply ARcoupl_pos_R. *)  all: admit. }
     iFrame "%".
-    iIntros (e2 σ2 e2' σ2') "%HR".
+    iIntros (e2 σ2 e2' σ2') "[%HR0 [%HR1 %HR2]]".
     iSpecialize ("Hm" $! e2' σ2' σ2 (X2 (e2, σ2))).
     unfold EXSM.
-    iDestruct "Hm" as (S) "[%X Y]".
+    iDestruct "Hm" as (S) "[%X [%X' Y]]".
     iSpecialize ("Y" $! (e2, σ2)).
     iApply fupd_idemp.
     iApply "Y".
-    { admit. (* Not provable, "strengthen" conclusion to EXSM? *) }
-    iSpecialize ("Hcnt" $! e2 σ2 e2' σ2' HR).
+    { iPureIntro. (* S is not in scope... *) admit. }
+    iSpecialize ("Hcnt" $! e2 σ2 e2' σ2' HR0).
     iApply "Hcnt".
-  Admitted. (** UNSURE *) *)
-
-  (*
-  Lemma meas_prog_coupl_strong_mono e1 σ1 e1' σ1' Z1 Z2 ε :
-    (∀ e2 σ2 e2' σ2' ε', ⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∗ Z1 e2 σ2 e2' σ2' ε' -∗ Z2 e2 σ2 e2' σ2' ε') -∗
-       For all (e2 σ2) on (the->a) support of prim_step (e1, σ) for some σ, and for all (e2' σ2' ε'), Z ... -∗ Z ...
-    meas_prog_coupl e1 σ1 e1' σ1' ε Z1 -∗ meas_prog_coupl e1 σ1 e1' σ1' ε Z2.
-  Proof.
-    iIntros "Hm (%R & %n & %μ1' & %ε1 & %X2 & %r & % & % & % & % & % & Hcnt) /=".
-    iExists _, _, _, _, _, _.
-    iSplit; [done|].
-    iSplit.
-    { iPureIntro. by apply ARcoupl_pos_R. }
-    iFrame "%".
-    iIntros (e2 σ2 e2' σ2' (HR & Hprim & ?)).
-    iApply "Hm".
-    iSplitR; [by iExists _|].
-    by iApply "Hcnt".
-  Qed.
+  Admitted. (** UNSURE *)
 *)
 
   Lemma meas_prog_coupl_mono e1 σ1 e1' σ1' Z1 Z2 ε :
     (∀ e2 σ2 e2' σ2' ε', Z1 e2 σ2 e2' σ2' ε' -∗ Z2 e2 σ2 e2' σ2' ε') -∗
     meas_prog_coupl e1 σ1 e1' σ1' ε Z1 -∗ meas_prog_coupl e1 σ1 e1' σ1' ε Z2.
-  Proof. Admitted.
-  (*
+  Proof.
     iIntros "Hm".
-    iApply meas_prog_coupl_strong_mono.
-    iIntros (?????) "[_ H]". by iApply "Hm".
+    unfold meas_prog_coupl.
+    iIntros "(%R & %n & %μ1' & %ε1 & %X2 & %r & %Hred & %Hcpl & %HX2 & %Hε & %Herasable & H)".
+    iExists _, _, _, _, _, _.
+    iSplitR; first done.
+    iSplitR; first by iPureIntro; apply Hcpl.
+    iSplitR; first by iPureIntro; eapply HX2.
+    iSplitR; first by iPureIntro; eapply Hε.
+    iSplitR; first by iPureIntro; eapply Herasable.
+    iIntros (???? HR).
+    iApply "Hm".
+    iApply "H".
+    done.
   Qed.
+
+  (*
 
   Lemma meas_prog_coupl_strengthen e1 σ1 e1' σ1' Z ε :
     meas_prog_coupl e1 σ1 e1' σ1' ε Z -∗
@@ -899,11 +904,9 @@ Proof.
   iIntros (σ2 e2' σ2' ε2) "H".
   destruct (to_val e) as [v|] eqn:?.
   { iDestruct "H" as "> ($ & $ & $ & $)". }
-  Admitted.
-(*
-  iDestruct (meas_prog_coupl_strengthen with "H") as "H".
+  (* iDestruct (meas_prog_coupl_strengthen with "H") as "H". *)
   iApply (meas_prog_coupl_mono with "[] H").
-  iIntros (?????) "[[% %Hstep] H] !>".
+  iIntros (?????) "H !>".
   iApply (meas_spec_coupl_bind with "[] H"); [done|].
   iIntros (????) "H".
   iApply fupd_meas_spec_coupl.
@@ -920,10 +923,15 @@ Proof.
   + iMod ("H" with "[$]") as "H". iModIntro.
     iApply (meas_spec_coupl_mono with "[] H"); [done|].
     iIntros (????) "H".
+    (* Check atomic. My version of atomic is different than theirs so that's the difference *)
+    admit.
+Admitted. (** VERY UNSURE *) (* I don't know if there's some way to prove this without proving prog_coupl_strengthen *)
+    (*
     iDestruct (meas_prog_coupl_reducible with "H") as %[ρ Hr].
     pose proof (atomic _ _ _ Hstep) as [? Hval].
     apply val_stuck in Hr. simplify_eq.
-Qed. *)
+Qed.
+*)
 
 Lemma wp_step_fupd E1 E2 e P Φ s :
   TCEq (to_val e) None → E2 ⊆ E1 →
