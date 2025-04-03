@@ -8,6 +8,7 @@
 *.cmxa
 *.cmxs
 *.glob
+*.html
 *.ml.d
 *.ml4.d
 *.mli.d
