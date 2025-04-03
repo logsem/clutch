@@ -446,7 +446,6 @@ Section implementation.
   Variable adv : val.
   Variable adv_typed : (∅ ⊢ₜ adv : TAdv).
 
-  From clutch.approxis.examples Require Import xor.
   Definition Output' := xor.Output' bit.
   Definition Input' := xor.Output' bit.
   Definition Key' := xor.Output' bit.
