@@ -199,8 +199,12 @@ Implicit Types l : locO.
 
 Lemma wp_rec_löb E f (x : <<discr binders.binder>>) e Φ Ψ :
   □ ( □ (∀ v, Ψ v -∗ WP (AppC (ValC (RecVC f x e)) (ValC v) : meas_lang.language.expr meas_lang) @ E {{ Φ }}) -∗
-     ∀ v, Ψ v -∗ WP (substU' (x, (v, (substU' (f, ((RecVC f x e), e))))) : meas_lang.language.expr meas_lang) @ E {{ Φ }}) -∗
-  ∀ v, Ψ v -∗ WP (AppC (ValC (RecVU ((f, x), e))) (ValC v) : meas_lang.language.expr meas_lang) @ E {{ Φ }}.
+     ∀ v, Ψ v -∗
+          let e' : meas_lang.language.expr meas_lang := (substU' (x, (v, (substU' (f, ((RecVC f x e), e)))))) in
+          WP e' @ E {{ Φ }}) -∗
+  ∀ v, Ψ v -∗
+       let e' : meas_lang.language.expr meas_lang := AppC (ValC (RecVU ((f, x), e))) (ValC v) in
+       WP e' @ E {{ Φ }}.
 Proof.
   iIntros "#Hrec". iLöb as "IH". iIntros (v) "HΨ".
   iApply (@lifting.wp_pure_step_later _ _ _ _ _ _ _ _ _ 1).
