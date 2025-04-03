@@ -1044,7 +1044,6 @@ Qed.
 End ARcoupl_meas.
 
 
-(* TODO: Finish axiomatization of uniform distribution
 
 (*
 Section ARcoupl_unif.
