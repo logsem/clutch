@@ -1301,11 +1301,23 @@ Section giry_has_support_in.
     (* sandwich of extended R? *)
     
   Admitted.
-    
-    
-              
-    
+
+  Global Instance mass_proper : Proper (measure_eq ==> eq ==> eq) mass'.
+  Proof.
+    intros x y Hxy ? S ->.
+    rewrite /mass'.
+    case (ExcludedMiddle (measurable S)); move=> HS; last by rewrite !extern_if_neq.
+    rewrite !extern_if_eq.
+    rewrite /mass.
+    apply eq_measure_integral.
+    move=> A MA ?.
+    by apply Hxy.
+  Qed.
+
 End giry_has_support_in.
+
+
+
 
 Section giry_is_det.
   Local Open Scope classical_set_scope.
@@ -1313,7 +1325,24 @@ Section giry_is_det.
 
   Definition is_det (t : T) (μ : giryM T) : Prop :=
     μ ≡μ gRet t.
-    (* has_support_in μ [set t]. *)
 
-  Lemma is_det_dret (a : T) : is_det a (gRet a). Admitted.
+  Lemma is_det_dret (a : T) : is_det a (gRet a).
+  Proof. by move=>??. Qed.
+
+  Lemma is_det_has_support_in {a : T} {μ : giryM T} (MS : forall x : T, measurable [set x]) :
+    is_det a μ -> has_support_in μ [set a].
+  Proof.
+    rewrite /is_det.
+    move=>H.
+    rewrite /has_support_in.
+    setoid_rewrite H.
+    rewrite /mass'.
+    do 2 rewrite extern_if_eq.
+    rewrite /mass gRetInt_rw; [|done].
+    rewrite integral_cst; [|done].
+    rewrite /dirac//=/dirac//=/numfun.indic.
+    rewrite mem_set //=.
+    by rewrite mul1e.
+  Qed.
+
 End giry_is_det.
