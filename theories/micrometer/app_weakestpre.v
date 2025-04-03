@@ -460,6 +460,7 @@ Section coupl_modalities.
     iStartProof.
     iApply (meas_spec_coupl_steps 1 ε 0%NNR).
     { apply nnreal_ext => /=. lra. }
+    (*
     { rewrite pexec_1 step_or_final_no_final; [|by apply reducible_not_final].
       eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set σ1] S), ARcoupl_meas_trivial.
       { admit. (* Singletons are measurable *) }
@@ -476,8 +477,8 @@ Section coupl_modalities.
     iIntros (??? (_ & H4 & H5)).
     rewrite //= in H4; subst.
     iSpecialize ("H3" $! (e2', σ2')); simpl.
-    by iApply "H3".
-  Admitted. (** OK *)
+    by iApply "H3". *)
+  Admitted. (** UNSURE *)
 
 
   (** * [meas_prog_coupl] *)
