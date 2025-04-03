@@ -514,6 +514,7 @@ Section Bernoulli.
     iIntros "(%junk & Hα)".
     iApply "Hnext".
     iExists (tape_to_bernoulli N M junk), _.
+    iFrame.
     iPureIntro.
     apply tape_to_bernoulli_translation.
     rewrite !tape_to_bernoulli_app.
