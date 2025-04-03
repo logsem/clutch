@@ -166,7 +166,7 @@ Section couplings_theory.
       pose proof (gBindInt_meas_fun μ1 Hf Hmh1) as Haux.
       eapply eq_measurable_fun; eauto.
       intros ??.
-      rewrite gInt_eval //.
+      rewrite /gInt //.
     }
     have Hameas : (measurable_fun setT a).
     {
@@ -207,7 +207,7 @@ Section couplings_theory.
       pose proof (gBindInt_meas_fun μ2 Hg Hmh2) as Haux.
       eapply eq_measurable_fun; eauto.
       intros ??.
-      rewrite gInt_eval //.
+      rewrite /gInt //.
     }
     have Hbmeas : (measurable_fun setT b).
     {
@@ -347,9 +347,10 @@ Section couplings_theory.
     have Hh1measInt : measurable_fun setT (λ x : A1, (\int[f x]_y h1 y)%E).
     {
       pose proof (gBindInt_meas_fun μ1 Hf Hmh1) as Haux.
-      eapply eq_measurable_fun; eauto.
+      eapply eq_measurable_fun.
       intros ??.
-      rewrite gInt_eval //.
+      rewrite /gInt //.
+      auto.
     }
     have Hameas : (measurable_fun setT a).
     {
@@ -388,9 +389,10 @@ Section couplings_theory.
     have Hh2measInt : measurable_fun setT (λ x : B1, (\int[g x]_y h2 y)%E).
     {
       pose proof (gBindInt_meas_fun μ2 Hg Hmh2) as Haux.
-      eapply eq_measurable_fun; eauto.
+      eapply eq_measurable_fun.
       intros ??.
-      rewrite gInt_eval //.
+      rewrite /gInt //.
+      auto.
     }
     have Hbmeas : (measurable_fun setT b).
     {
@@ -514,9 +516,10 @@ Section couplings_theory.
     have Hameas : (measurable_fun setT a).
     {
       pose proof (gBindInt_meas_fun μ1 Hf Hmh1) as Haux.
-      eapply eq_measurable_fun; eauto.
+      eapply eq_measurable_fun.
       intros ??.
-      rewrite gInt_eval //.
+      rewrite /gInt //.
+      auto.
     }
 
     have Ha_ge0 : (forall x, (0 <= a x)%E).
@@ -540,9 +543,10 @@ Section couplings_theory.
     have Hh2measInt : measurable_fun setT (λ x : B1, (\int[g x]_y h2 y)%E).
     {
       pose proof (gBindInt_meas_fun μ2 Hg Hmh2) as Haux.
-      eapply eq_measurable_fun; eauto.
+      eapply eq_measurable_fun.
       intros ??.
-      rewrite gInt_eval //.
+      rewrite /gInt //.
+      auto.
     }
     have Hbmeas : (measurable_fun setT b).
     {
@@ -897,6 +901,9 @@ Section ARcoupl_meas.
 End ARcoupl_meas.
 
 
+(* TODO: Finish axiomatization of uniform distribution
+
+(*
 Section ARcoupl_unif.
 
   Local Open Scope ring_scope.
@@ -947,6 +954,8 @@ Section ARcoupl_unif.
    Search ocitv.
    Unshelve.
    Set Printing All.
+*)
+
 
 (*
 Lemma ARcoupl_dzero_dzero `{Countable A, Countable B} (R : A → B → Prop) :
