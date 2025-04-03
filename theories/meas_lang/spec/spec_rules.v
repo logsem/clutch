@@ -3,7 +3,6 @@ From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.meas_lang Require Import lang notation tactics exec_lang.
 From clutch.meas_lang.spec Require Export spec_ra.
-
 (*
 Section rules.
   Context `{!specG_prob_lang Σ, invGS_gen hasLc Σ}.

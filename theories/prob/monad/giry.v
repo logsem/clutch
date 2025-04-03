@@ -529,6 +529,8 @@ Section giry_ret.
   (** Use bool_decide or as_bool? *)
   (* Axiom gRet_eval : forall S x (H: d.-measurable S), gRet x S = if (S x) then 1%E else 0%E. *)
 
+
+
 End giry_ret.
 
 
@@ -1240,6 +1242,10 @@ Section giry_is_zero.
   Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
 
   Definition is_zero {d} {T : measurableType d} (s : giryM T) : Prop := s ≡μ gZero.
+  
+  Global Instance is_zero_Proper {d} {T:measurableType d}:
+    Proper (measure_eq ==> iff) (@is_zero d T).
+  Proof. intros ?? ?. rewrite !/is_zero. by rewrite H. Qed.
 
   Lemma is_zero_gMap' (m : giryM T1) (f : T1 -> T2) (H : measurable_fun setT f) : is_zero m -> is_zero (gMap' f m).
   Proof.
@@ -1272,9 +1278,33 @@ Section giry_has_support_in.
      fix it to zero for when we axiomatize. *)
   Definition mass' (μ : giryM T) (S : set T) : \bar R :=
     extern_if 0%E (fun (h : d.-measurable S) => mass μ h).
+  
+  Lemma mass'_subset (μ : giryM T) (S1 S2 : set T):
+    d.-measurable S1 -> d.-measurable S2 -> S1 `<=` S2 -> (mass' μ S1 <= mass' μ S2)%E.
+  Proof.
+    rewrite /mass'.
+    intros ?? H1.
+    rewrite !extern_if_eq.
+    rewrite /mass.
+    by apply ge0_subset_integral.
+  Qed.
 
   Definition has_support_in (μ : giryM T) (S : set T) : Prop := mass' μ S = mass' μ setT.
 
+  Lemma has_support_in_subset (μ : giryM T) (S1 S2 : set T) :
+    d.-measurable S1 -> d.-measurable S2 -> S1 `<=` S2 -> has_support_in μ S1 -> has_support_in μ S2.
+  Proof.
+    rewrite /has_support_in.
+    intros ?? H1 H2.
+    unshelve epose proof @mass'_subset μ S1 S2 _ _ H1; try done.
+    epose proof @mass'_subset μ S2 ([set:T]) _ _ _; try done.
+    (* sandwich of extended R? *)
+    
+  Admitted.
+    
+    
+              
+    
 End giry_has_support_in.
 
 Section giry_is_det.
@@ -1282,6 +1312,8 @@ Section giry_is_det.
   Context {d} {T : measurableType d}.
 
   Definition is_det (t : T) (μ : giryM T) : Prop :=
-    has_support_in μ [set t].
+    μ ≡μ gRet t.
+    (* has_support_in μ [set t]. *)
 
+  Lemma is_det_dret (a : T) : is_det a (gRet a). Admitted.
 End giry_is_det.

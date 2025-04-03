@@ -5,6 +5,7 @@ From stdpp Require Import base numbers binders strings gmap.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
+From clutch.prelude Require Import base.
 From clutch.bi Require Import weakestpre.
 From mathcomp.analysis Require Import reals measure ereal Rstruct.
 From clutch.prob.monad Require Export giry meas_markov.
@@ -149,6 +150,7 @@ Section language.
     { intros m T.
       unfold is_zero.
       (* [set: 0] is measurable in the Giry Monad. Prove me in Lean (preimage of [0 : R] by evaluations, extensionality) *)
+      rewrite /measurable/=.
       admit. }
     have X := (@step_meas (meas_lang_markov Λ) H is_zero).
     have X1 := X (H1 _ _).
@@ -180,15 +182,24 @@ Section language.
   Global Instance of_val_inj : Inj (=) (=) (@of_val Λ).
   Proof. by intros v v' Hv; apply (inj Some); rewrite -!to_of_val Hv. Qed.
 
-  (*
+  
   Lemma strongly_atomic_atomic e a :
     Atomic StronglyAtomic e → Atomic a e.
   Proof.
     unfold Atomic. destruct a; eauto.
-    intros ?????. eapply is_final_irreducible.
-    rewrite /is_final /to_final /=. eauto.
+    intros H ?.
+    eapply has_support_in_subset; last apply H.
+    - apply to_val_is_val_meas_set.
+    - apply irreducible_meas_set.
+    - rewrite /subset/to_val_is_val/irreducible.
+      intros [e' σ']. simpl.
+      intros [H1 _].
+      destruct (lem (is_zero (prim_step (e', σ')))) as [|H']; first done.
+      apply val_stuck in H'.
+      rewrite H' in H1.
+      rewrite /option_cov_Some in H1. simpl in H1.
+      naive_solver.
   Qed.
-  *)
 
   Lemma fill_step e σ `{!MeasLanguageCtx K} :
     (¬ is_zero (prim_step (e, σ))) ->
@@ -197,6 +208,9 @@ Section language.
     (* FIXME: is this true? *)
     intros Hs.
     rewrite fill_dmap; [| by eapply val_stuck].
+    intro Hs'. apply Hs.
+    rewrite /is_zero in Hs'.
+    (* strengthen gZero_map to allow sets other than setT *)
   Admitted.
 
   (*
@@ -224,6 +238,7 @@ Section language.
     subst. eauto.
   Qed.
 
+  (** The following lemma is redundant, see fill_dmap *)
   Lemma fill_step_prob e1 σ1 e2 σ2 `{!LanguageCtx K} :
     to_val e1 = None →
     prim_step e1 σ1 (e2, σ2) = prim_step (K e1) σ1 (K e2, σ2).
@@ -231,21 +246,31 @@ Section language.
     intros Hv. rewrite fill_dmap //.
     by erewrite (dmap_elem_eq _ (e2, σ2) _ (λ '(e0, σ0), (K e0, σ0))).
   Qed.
-
-  Lemma reducible_fill `{!@LanguageCtx Λ K} e σ :
+   *)
+  
+  Lemma reducible_fill `{!@MeasLanguageCtx Λ K} e σ :
     reducible (e, σ) → reducible (K e, σ).
   Proof.
-    unfold reducible in *. intros [[] ?]. eexists; by apply fill_step.
-  Qed.
-  Lemma reducible_fill_inv `{!@LanguageCtx Λ K} e σ :
+    unfold reducible in *. intros H1 H2. apply H1. simpl in *.
+    erewrite fill_dmap in H2; last first.
+    { by eapply val_stuck. }
+    (** lemma about gMap is_zero *)
+  Admitted.
+
+  Lemma reducible_fill_inv `{!@MeasLanguageCtx Λ K} e σ :
     to_val e = None → reducible (K e, σ) → reducible (e, σ).
   Proof.
-    intros ? [[e1 σ1] Hstep]; unfold reducible.
-    rewrite /step /= in Hstep.
-    rewrite fill_dmap // in Hstep.
-    apply dmap_pos in Hstep as ([e1' σ2] & ? & Hstep).
-    eauto.
+    rewrite /reducible. simpl.
+    intros H'.
+    erewrite fill_dmap; last done.
+    intros H1 H2. apply H1.
+    rewrite /is_zero in H2.
+    rewrite H2.
+    by rewrite gZero_map.
+    (* TODO: make measure_eq work with rewrite *)
   Qed.
+  
+  (*
   Lemma state_step_reducible e σ σ' α :
     state_step σ α σ' > 0 → reducible (e, σ) ↔ reducible (e, σ').
   Proof. apply state_step_not_stuck. Qed.
@@ -258,15 +283,16 @@ Section language.
     - intros σ σ'. rewrite iterM_Sn. rewrite dbind_pos. elim.
       intros x [??]. pose proof state_step_reducible. naive_solver.
   Qed.
+*)
 
-  Lemma irreducible_fill `{!@LanguageCtx Λ K} e σ :
+  Lemma irreducible_fill `{!@MeasLanguageCtx Λ K} e σ :
     to_val e = None → irreducible (e, σ) → irreducible (K e, σ).
   Proof. rewrite -!not_reducible. naive_solver eauto using reducible_fill_inv. Qed.
-  Lemma irreducible_fill_inv `{!@LanguageCtx Λ K} e σ :
+  Lemma irreducible_fill_inv `{!@MeasLanguageCtx Λ K} e σ :
     irreducible (K e, σ) → irreducible (e, σ).
   Proof. rewrite -!not_reducible. naive_solver eauto using reducible_fill. Qed.
 
-  Lemma not_stuck_fill_inv K `{!@LanguageCtx Λ K} e σ :
+  Lemma not_stuck_fill_inv K `{!@MeasLanguageCtx Λ K} e σ :
     not_stuck (K e, σ) → not_stuck (e, σ).
   Proof.
     rewrite /not_stuck /is_final /to_final /= -!not_eq_None_Some.
@@ -275,10 +301,10 @@ Section language.
     - destruct (decide (to_val e = None)); eauto using reducible_fill_inv.
   Qed.
 
-  Lemma stuck_fill `{!@LanguageCtx Λ K} e σ :
+  Lemma stuck_fill `{!@MeasLanguageCtx Λ K} e σ :
     stuck (e, σ) → stuck (K e, σ).
   Proof. rewrite -!not_not_stuck. eauto using not_stuck_fill_inv. Qed.
-*)
+
 
   Record pure_step (e1 e2 : expr Λ)  := {
     pure_step_safe σ1 : ¬ (is_zero (prim_step (e1, σ1)));
@@ -296,6 +322,8 @@ Section language.
       eapply (fill_step _); first by apply H.
       by apply Hred. }
     { intros σ.
+      rewrite fill_dmap; last by eapply (val_stuck _ σ).
+      (* lemmas about gMap being determinant missing *)
       admit.
       (*
       rewrite -fill_step_prob //.
@@ -337,7 +365,7 @@ Section language.
     by apply (H' p).
   Qed.
 
-  (*
+  
   Lemma PureExec_reducible σ1 φ n e1 e2 :
     φ → PureExec φ (S n) e1 e2 → reducible (e1, σ1).
   Proof. move => Hφ /(_ Hφ). inversion_clear 1. apply H. Qed.
@@ -346,12 +374,10 @@ Section language.
     φ → PureExec φ (S n) e1 e2 → to_val e1 = None.
   Proof.
     intros Hφ Hex.
-    destruct (PureExec_reducible inhabitant _ _ _ _ Hφ Hex) => /=.
-    simpl in *.
+    pose proof (PureExec_reducible inhabitant _ _ _ _ Hφ Hex) as K.
     by eapply val_stuck.
   Qed.
 
-  *)
   
   (* This is a family of frequent assumptions for PureExec *)
   Class IntoVal (e : expr Λ) (v : val Λ) :=

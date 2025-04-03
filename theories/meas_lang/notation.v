@@ -15,29 +15,35 @@ Coercion App : expr >-> Funclass.
 
 Coercion Val : val >-> expr.
 Coercion Var : string >-> expr.
+*)
+
+Delimit Scope val_scope with V.
+Delimit Scope expr_scope with E.
 
 (** Define some derived forms. *)
-Notation Lam x e := (Rec BAnon x e) (only parsing).
-Notation Let x e1 e2 := (App (Lam x e2) e1) (only parsing).
+Notation Lam x e := (RecC BAnon x e) (only parsing).
+Notation Let x e1 e2 := (AppC (Lam x e2) e1) (only parsing).
 Notation Seq e1 e2 := (Let BAnon e1 e2) (only parsing).
-Notation LamV x e := (RecV BAnon x e) (only parsing).
-Notation LetCtx x e2 := (AppRCtx (LamV x e2)) (only parsing).
+Notation LamV x e := (RecVC BAnon x e) (only parsing).
+Notation LetCtx x e2 := (AppRCtxC (LamV x e2)) (only parsing).
 Notation SeqCtx e2 := (LetCtx BAnon e2) (only parsing).
-Notation Alloc e := (AllocN (Val $ LitV $ LitInt 1) e) (only parsing).
-Notation Match e0 x1 e1 x2 e2 := (Case e0 (Lam x1 e1) (Lam x2 e2)) (only parsing).
+Notation Match e0 x1 e1 x2 e2 := (CaseC e0 (Lam x1 e1) (Lam x2 e2)) (only parsing).
 
 (* Skip should be atomic, we sometimes open invariants around
    it. Hence, we need to explicitly use LamV instead of e.g., Seq. *)
-Notation Skip := (App (Val $ LamV BAnon (Val $ LitV LitUnit)) (Val $ LitV LitUnit)).
+Notation Skip := (AppC (ValC $ LamV BAnon (ValC $ LitVC LitUnit)) (ValC $ LitVC LitUnit)).
 
 (* No scope for the values, does not conflict and scope is often not inferred
 properly. *)
-Notation "# l" := (LitV l%Z%V%stdpp) (at level 8, format "# l").
+Notation "# l" := (LitVC l%Z%V%stdpp) (at level 8, format "# l").
 
 (** Syntax inspired by Coq/Ocaml. Constructions with higher precedence come
     first. *)
-Notation "( e1 , e2 , .. , en )" := (Pair .. (Pair e1 e2) .. en) : expr_scope.
-Notation "( e1 , e2 , .. , en )" := (PairV .. (PairV e1 e2) .. en) : val_scope.
+Notation "( e1 , e2 , .. , en )" := (PairC .. (PairC e1 e2) .. en) : expr_scope.
+Notation "( e1 , e2 , .. , en )" := (PairVC .. (PairVC e1 e2) .. en) : val_scope.
+
+(** ... Inconsistent scopes ??? *)
+Set Warnings "-inconsistent-scopes".
 
 (* We implement a destructing let bind (x₁,…,xₙ) for tuples by storing the
    value v that e1 computes in xₙ, bind (fst xₙ) to xₙ₋₁ to hold x₁…xₙ₋₁, bind
@@ -46,7 +52,7 @@ Notation "( e1 , e2 , .. , en )" := (PairV .. (PairV e1 e2) .. en) : val_scope.
 (* I failed to convince Coq that this pattern is recursive, so here's the
    unrolled version for a pairs and triples. *)
 Notation "'let,' ( x1 , x2 ) := e1 'in' e2" :=
-  (Lam x2%E (Lam x1%E (Lam x2%E e2%E (Snd x2)) (Fst x2)) e1%E)
+  (Lam x2%E (Lam x1%E (Lam x2%E e2%E (SndC x2)) (FstC x2)) e1%E)
   (at level 100, x1, x2 at level 1, e1, e2 at level 200) : expr_scope.
 
 (* Notation "'let,' ( x1 , x2 , x3 ) := e1 'in' e2" := *)
@@ -246,4 +252,5 @@ Notation "'letrec:' f x y .. z := e1 'in' e2" :=
   (at level 200, f at level 1, x,y,z at level 1, e1, e2 at level 200,
    format "'[' 'letrec:'  f  x y .. z :=  '/  ' '[' e1 ']'  'in'  '/' e2 ']'")
   : expr_scope.
-*)
+
+Set Warnings "+inconsistent-scopes".

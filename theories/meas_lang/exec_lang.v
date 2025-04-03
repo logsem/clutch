@@ -1,11 +1,14 @@
 (* TODO move into metatheory.v ? *)
 
 From Coq Require Export Reals Psatz.
-From clutch.meas_lang Require Import lang.
+From clutch.meas_lang Require Import lang ectx_language.
+From clutch.prob.monad Require Import giry meas_markov.
+
+Local Open Scope classical_set_scope.
 
 (*
-Lemma exec_det_step_ctx K `{!LanguageCtx K} n ρ (e1 e2 : expr) σ1 σ2 :
-  prim_step e1 σ1 (e2, σ2) = 1%R →
+Lemma exec_det_step_ctx K `{!MeasLanguageCtx K} n ρ e1 e2 σ1 σ2 :
+  is_det ((e2, σ2) : _ * _) (prim_step (e1, σ1))  →
   pexec n ρ (K e1, σ1) = 1%R →
   pexec (S n) ρ (K e2, σ2) = 1%R.
 Proof.

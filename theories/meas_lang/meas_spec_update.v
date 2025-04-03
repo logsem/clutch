@@ -8,8 +8,8 @@ From iris.proofmode Require Import base tactics classes.
 From clutch.prob.monad Require Import meas_markov.
 From mathcomp.analysis Require Import measure.
 
-
 Set Default Proof Using "Type".
+
 
 Class meas_spec_updateGS (δ : meas_markov) (Σ : gFunctors) := MeasSpec_updateGS {
   spec_interp : mstate δ → iProp Σ;
@@ -23,16 +23,16 @@ Section spec_update.
   Context `{meas_spec_updateGS δ Σ, invGS_gen hl Σ}.
   Implicit Types a : mstate δ.
 
-  (*
+
   Definition spec_updateN_def (n : nat) (E : coPset) (P : iProp Σ) : iProp Σ :=
-    (∀ a, spec_interp a -∗ |={E}=> ∃ a', ⌜stepN n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
+    (∀ a, spec_interp a -∗ |={E}=> ∃ a', ⌜is_det a' (stepN n a) ⌝ ∗ spec_interp a' ∗ P)%I.
   Local Definition spec_updateN_aux : seal (@spec_updateN_def). Proof. by eexists. Qed.
   Definition spec_updateN := spec_updateN_aux.(unseal).
   Lemma spec_updateN_unseal : spec_updateN = spec_updateN_def.
   Proof. rewrite -spec_updateN_aux.(seal_eq) //. Qed.
 
   Definition spec_update_def (E : coPset) (P : iProp Σ) : iProp Σ :=
-    (∀ a, spec_interp a -∗ |={E}=> ∃ a' n, ⌜stepN n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
+    (∀ a, spec_interp a -∗ |={E}=> ∃ a' n, ⌜is_det a' (stepN n a)⌝ ∗ spec_interp a' ∗ P)%I.
   Local Definition spec_update_aux : seal (@spec_update_def). Proof. by eexists. Qed.
   Definition spec_update := spec_update_aux.(unseal).
   Lemma spec_update_unseal : spec_update = spec_update_def.
@@ -47,14 +47,16 @@ Section spec_update.
     iExists _, _. iFrame. by iPureIntro.
   Qed.
 
+
   Lemma spec_updateN_ret E P :
     P ⊢ spec_updateN 0 E P.
   Proof.
     rewrite spec_updateN_unseal.
     iIntros "HP" (a) "Ha !#".
-    iExists _.
-    rewrite stepN_O dret_1_1 //.
-    by iFrame.
+    iExists a.
+    iFrame.
+    iPureIntro.
+    by rewrite stepN_0 //.
   Qed.
 
   Lemma spec_update_ret E P :
@@ -63,8 +65,10 @@ Section spec_update.
     rewrite spec_update_unseal.
     iIntros "HP" (a) "Ha !#".
     iExists a, O.
-    rewrite stepN_O dret_1_1 //.
-    by iFrame.
+    iFrame.
+    iPureIntro.
+    rewrite stepN_0.
+    by apply is_det_dret.
   Qed.
 
   Lemma spec_updateN_bind n m E1 E2 P Q :
@@ -77,9 +81,10 @@ Section spec_update.
     iMod "Hclose" as "_".
     iSpecialize ("PQ" with "P").
     iMod ("PQ" $! b with "Hb") as (c Hbc) "[Hc Q]".
-    iModIntro. iExists _.
-    erewrite stepN_det_trans; [|done|done].
-    by iFrame.
+    iModIntro. iExists c.
+    iFrame.
+    iPureIntro.
+    by eapply stepN_is_det_trans.
   Qed.
 
   Lemma spec_update_bind E1 E2 P Q :
@@ -92,8 +97,10 @@ Section spec_update.
     iMod "Hclose" as "_".
     iSpecialize ("PQ" with "P").
     iMod ("PQ" $! b with "Hb") as (c m Hbc) "[Hc Q]".
-    iModIntro. iExists _, (n + m)%nat. iFrame.
-    by erewrite stepN_det_trans.
+    iModIntro. iExists c, (n + m)%nat.
+    iFrame.
+    iPureIntro.
+    by eapply stepN_is_det_trans.
   Qed.
 
   Lemma spec_updateN_mono_fupd n E P Q :
@@ -274,6 +281,6 @@ Section spec_update.
   Global Instance from_assumption_spec_updateN p E P Q :
     FromAssumption p P Q → KnownRFromAssumption p P (spec_updateN 0 E Q).
   Proof. rewrite /KnownRFromAssumption /FromAssumption=>->. apply spec_updateN_ret. Qed.
-   *)
 
 End spec_update.
+

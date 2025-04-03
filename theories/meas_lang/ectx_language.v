@@ -11,7 +11,8 @@ From clutch.bi Require Import weakestpre.
 From mathcomp.analysis Require Import reals measure ereal Rstruct.
 (* From clutch.prob.monad Require Import laws types meas_markov. *)
 From clutch.prob.monad Require Import giry meas_markov.
-From clutch.meas_lang Require Import language.
+From clutch.meas_lang Require Import language prelude.
+
 From Coq Require Import ssrfun.
 Set Warnings "hiding-delimiting-key".
 
@@ -190,6 +191,17 @@ Section ectx_language.
   Definition fill_lift (K : ectx Λ) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
     fun x => fill_liftU (K, x).
 
+  Lemma fill_lift_meas K: measurable_fun setT (fill_lift K).
+  Proof.
+    rewrite /fill_lift.
+    assert ((λ x, fill_liftU (K, x)) = fill_liftU \o (λ x, (K, x))) as Hrewrite.
+    { apply functional_extensionality_dep.
+      by intros [??]. }
+    rewrite Hrewrite.
+    eapply @measurable_comp; [| |apply fill_liftU_meas|]; try done.
+    apply measurable_pair1.
+  Qed.
+  
   Lemma fill_lift_comp (K1 K2 : ectx Λ) :
     fill_lift (comp_ectx K1 K2) = fill_lift K1 ∘ fill_lift K2.
   Proof.
@@ -213,9 +225,45 @@ Section ectx_language.
   Qed.
 
   (** FIXME: What a strange little measurability proof. *)
+  (* Definition prim_step : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type := *)
+  (*   gMap' (fill_liftU \o (fst \o decomp \o fst △ id)) \o head_step \o ((snd \o decomp \o fst) △ snd). *)
   Definition prim_step : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type :=
-    gMap' (fill_liftU \o (fst \o decomp \o fst △ id)) \o head_step \o ((snd \o decomp \o fst) △ snd).
+    λ '(e, σ),
+      let '(K, e') := decomp e in
+      gMap' (fill_lift K) (head_step (e', σ)). 
 
+  Definition prim_step' : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type :=
+    gMap' fill_liftU \o
+    (gProd \o (gRet \o fst △ (head_step \o snd)) \o (fst \o decomp \o fst △ (snd \o decomp \o fst △ snd))).
+
+  Lemma prim_step_prim_step' : prim_step = prim_step'.
+    extensionality ρ. destruct ρ as [e s].
+    rewrite /prim_step/prim_step'.
+    destruct (decomp e) eqn:Hdecomp.
+    simpl. rewrite /fill_lift. rewrite Hdecomp/=.
+    (* need lemmas about gRet and gMap *)
+  Admitted.
+  
+  Lemma prim_step_meas: measurable_fun setT prim_step.
+  Proof.
+    rewrite prim_step_prim_step'.
+    rewrite /prim_step'.
+    eapply measurable_comp; [| |apply gMap'_meas_fun|].
+    { done. }
+    { done. }
+    { apply fill_liftU_meas. }
+    mf_cmp_tree; try done.
+    - mf_cmp_tree; try done.
+      + eapply @gProd_meas_fun.
+      + mf_prod; mf_cmp_tree; try done.
+        * apply gRet_meas_fun.
+        * apply head_step_meas.
+    - mf_prod; repeat mf_cmp_tree; try done.
+      + apply decomp_meas.
+      + mf_prod. repeat mf_cmp_tree; try done.
+        apply decomp_meas.
+  Qed.
+    
   (*
     ssrfun.comp
       ( giryM_map (ssrfun.comp fill_liftU $ mProd (ssrfun.comp fst $ ssrfun.comp decomp fst) (fun x => x)) _ )
@@ -291,41 +339,17 @@ Section ectx_language.
       by rewrite fill_empty. }
   Qed.
 
-  (*
   Lemma fill_prim_step_dbind K e1 σ1 :
     to_val e1 = None →
-    prim_step (fill K e1) σ1 = dbind (fill_lift K) (prim_step e1 σ1).
+    prim_step ((fill (K, e1)), σ1) = gMap' (fill_lift K) (prim_step (e1, σ1)).
   Proof.
     intros Hval. rewrite /prim_step.
     destruct (decomp e1) as [K1 e1'] eqn:Heq.
-    destruct (decomp (fill _ e1)) as [K1' e1''] eqn:Heq'.
+    destruct (decomp (fill (K, e1))) as [K1' e1''] eqn:Heq'.
     apply (decomp_fill_comp K) in Heq; [|done].
     rewrite Heq in Heq'; simplify_eq.
-    rewrite dmap_comp.
-    apply dmap_eq; [|done].
-    intros [] ? =>/=.
-    f_equal. rewrite -fill_comp //.
-  Qed.
-*)
-
-  (*
-  Lemma fill_prim_step K e1 σ1 e2 σ2 :
-    to_val e1 = None →
-    prim_step (e1, σ1) = prim_step (e1, σ1).
-    (* prim_step e1 σ1 (e2, σ2) = prim_step (fill K e1) σ1 (fill K e2, σ2). *)
-  Proof.
-    intros Hval. rewrite /prim_step.
-    destruct (decomp e1) as [K1 e1'] eqn:Heq.
-    destruct (decomp (fill _ e1)) as [K1' e1''] eqn:Heq'.
-    apply (decomp_fill_comp K) in Heq; [|done].
-    rewrite Heq in Heq'; simplify_eq.
-    rewrite fill_lift_comp -/fill_lift.
-    rewrite -dmap_comp.
-    replace (fill K e2, σ2) with (fill_lift K (e2, σ2)); [|done].
-    rewrite (dmap_elem_eq (dmap _ _) (e2, σ2)) //.
-  Qed.
- *)
-
+    (* Need lemmas for gMap', in particular composition of gMaps *)
+  Admitted.
 
   (*  head_prim_step_pmf_eq e1 σ1: Same thing but pointwise *)
 
@@ -333,80 +357,92 @@ Section ectx_language.
     head_reducible e1 σ1 →
     prim_step (e1, σ1) = head_step (e1, σ1).
   Proof.
-    (*
     intros Hred.
     rewrite /= /prim_step.
     destruct (decomp e1) as [K e1'] eqn:Heq.
     edestruct (decomp_fill _ _ _ Heq).
-    destruct Hred as [ρ' Hs].
-    destruct (head_ctx_step_val _ _ _ _ Hs) as [| ->].
+    destruct (head_ctx_step_val _ _ _ Hred) as [| ->].
     - assert (K = empty_ectx) as -> by eauto using decomp_val_empty.
-      rewrite fill_lift_empty fill_empty dmap_id //=.
-    - rewrite fill_lift_empty fill_empty dmap_id //=.
-  Qed.
-*)
+      rewrite fill_lift_empty fill_empty.
+      (** lemma about gMap' id *)
+      admit.
+    - rewrite fill_lift_empty fill_empty.
+      (** same as above *)
+      admit. 
   Admitted.
 
-  (*
-  Lemma head_prim_step_eq e1 σ1 :
-    head_reducible e1 σ1 →
-    prim_step e1 σ1 = head_step e1 σ1.
-  Proof. intros ?. apply distr_ext=>?. by eapply head_prim_step_pmf_eq. Qed.
-*)
 
-(* Not worth
-  Lemma head_prim_step e1 σ1 ρ :
-    head_step e1 σ1 ρ > 0 → prim_step e1 σ1 ρ > 0.
-  Proof. intros ?. erewrite head_prim_step_eq; [done|]. eexists; eauto. Qed.
-*)
+  (* MARKUS: Renamed becuase it was breaking the build *)
+  Lemma head_prim_step' e1 σ1 ρ :
+    (lt_ereal 0 (head_step (e1, σ1) ρ)) → lt_ereal 0 (prim_step (e1, σ1) ρ).
+  Proof. intros H. erewrite head_prim_step_eq; [done|].
+         rewrite /head_reducible.
+         intro H'. assert (head_step (e1, σ1) ρ = 0)%E as Hrewrite.
+         { rewrite H'.
+           - (** lemma about gZero*) admit.
+           - (** hmmmm... ask markus *)
+           admit. }
+         rewrite Hrewrite in H.
+         rewrite lt_def_ereal in H.
+         apply andb_prop_elim in H as [H _].
+         cbv in H. by repeat case_match. 
+  Admitted.
 
   (* Proof breaks when no @ for some reason *)
   Lemma head_prim_step e1 σ1 : ¬ (is_zero (head_step (e1, σ1))) -> ¬ (is_zero (prim_step (e1, σ1))).
   Proof. intros ?. by rewrite (@head_prim_step_eq _ _ _). Qed.
 
 
-  (*
+  Local Open Scope classical_set_scope.
+  
   Lemma prim_step_iff e1 e2 σ1 σ2 :
-    prim_step e1 σ1 (e2, σ2) > 0 ↔
+    lt_ereal 0 (prim_step (e1, σ1) [set (e2, σ2)]) ↔
     ∃ K e1' e2',
-      fill K e1' = e1 ∧
-      fill K e2' = e2 ∧
-      head_step e1' σ1 (e2', σ2) > 0.
+      fill (K, e1') = e1 ∧
+      fill (K, e2') = e2 ∧
+      lt_ereal 0 (head_step (e1', σ1) [set (e2', σ2)]).
   Proof.
     split.
-    - rewrite /= /prim_step. intros Hs.
+    - rewrite /prim_step. intros Hs.
       destruct (decomp e1) as [K e1'] eqn:Heq.
       edestruct (decomp_fill _ _ _ Heq).
-      eapply dmap_pos in Hs as [[] [[=] ?]].
-      simplify_eq. do 3 eexists; eauto.
+    (** Derive lemmas for gMap' pos *)
+      admit. 
+      (* eapply dmap_pos in Hs as [[] [[=] ?]]. *)
+      (* simplify_eq. do 3 eexists; eauto. *)
     - intros (K & e1' & e2' & Hfill1 & Hfill2 & Hs). simplify_eq.
-      rewrite -fill_prim_step //; [by apply head_prim_step|].
-      by eapply val_head_stuck.
-  Qed.
-  *)
+      rewrite fill_prim_step_dbind.
+      + (** Lemmas for gMap' pos *)
+        admit.
+      + eapply head_not_stuck with σ1.
+        intros Hzero; rewrite Hzero in Hs.
+        * (** gZero lemma *) admit.
+        * (** ask markus *) admit.
+  Admitted.
 
-  (*  Markov lemmas
+  (*  Markov lemmas *)
 
-  Lemma head_step_not_stuck e σ : (¬ is_zero (head_step e σ)) → not_stuck (e, σ).
+  Lemma head_step_not_stuck e σ : (¬ is_zero (head_step (e, σ))) → not_stuck (e, σ).
   Proof.
-    rewrite /not_stuck /reducible /=. intros Hs. right.
-    eexists ρ. by apply head_prim_step.
+    rewrite /not_stuck /reducible /=. intros Hs. by right.
   Qed.
 
-  Lemma fill_reducible K e σ : reducible (e, σ) → reducible (fill K e, σ).
+  Lemma fill_reducible K e σ : reducible (e, σ) → reducible (fill (K, e), σ).
   Proof.
-    rewrite /reducible /=. intros [[e2 σ2] (K' & e1' & e2' & <- & <- & Hs)%prim_step_iff].
-    exists (fill (comp_ectx K K') e2', σ2).
-    eapply prim_step_iff. do 3 eexists. rewrite !fill_comp //.
-  Qed.
+    rewrite /reducible /=. (* intros [[e2 σ2] (K' & e1' & e2' & <- & <- & Hs)%prim_step_iff]. *)
+    (* exists (fill (comp_ectx K K') e2', σ2). *)
+    (* eapply prim_step_iff. do 3 eexists. rewrite !fill_comp //. *)
+  Admitted.
   Lemma head_prim_reducible e σ : head_reducible e σ → reducible (e, σ).
-  Proof. intros [ρ Hstep]. exists ρ. by apply head_prim_step. Qed.
+  Proof. intros.
+         by rewrite /reducible/=.
+  Qed.
   Lemma head_prim_fill_reducible e K σ :
-    head_reducible e σ → reducible (fill K e, σ).
+    head_reducible e σ → reducible (fill (K, e), σ).
   Proof. intro. by apply fill_reducible, head_prim_reducible. Qed.
-  Lemma state_step_head_reducible e σ σ' α :
-    state_step σ α σ' > 0 → head_reducible e σ ↔ head_reducible e σ'.
-  Proof. eapply state_step_head_not_stuck. Qed.
+  (* Lemma state_step_head_reducible e σ σ' α : *)
+  (*   state_step σ α σ' > 0 → head_reducible e σ ↔ head_reducible e σ'. *)
+  (* Proof. eapply state_step_head_not_stuck. Qed. *)
   Lemma head_prim_irreducible e σ : irreducible (e, σ) → head_irreducible e σ.
   Proof.
     rewrite -not_reducible -not_head_reducible. eauto using head_prim_reducible.
@@ -418,11 +454,12 @@ Section ectx_language.
     reducible (e, σ) → sub_redexes_are_values e → head_reducible e σ.
   Proof.
     rewrite /reducible.
-    intros [[e2 σ2] (K & e1' & e2' & ? & ? & Hs)%prim_step_iff] Hsub.
-    simplify_eq=>/=; simpl in *.
-    assert (K = empty_ectx) as -> by eauto 10 using val_head_stuck.
-    simplify_eq. rewrite fill_empty. eexists; eauto.
-  Qed.
+  (*   intros [[e2 σ2] (K & e1' & e2' & ? & ? & Hs)%prim_step_iff] Hsub. *)
+  (*   simplify_eq=>/=; simpl in *. *)
+  (*   assert (K = empty_ectx) as -> by eauto 10 using val_head_stuck. *)
+  (*   simplify_eq. rewrite fill_empty. eexists; eauto. *)
+    (* Qed. *)
+  Admitted.
   Lemma prim_head_irreducible e σ :
     head_irreducible e σ → sub_redexes_are_values e → irreducible (e, σ).
   Proof.
@@ -435,16 +472,16 @@ Section ectx_language.
     intros [] ?. split; [by eapply to_final_None_2|].
     by apply prim_head_irreducible.
   Qed.
-  Lemma ectx_language_atomic a e :
-    head_atomic a e → sub_redexes_are_values e → Atomic a e.
-  Proof.
-    intros Hatomic Hsub σ e' σ' (K & e1' & e2' & <- & <- & Hs)%prim_step_iff.
-    assert (K = empty_ectx) as -> by eauto 10 using val_head_stuck.
-    rewrite fill_empty in Hatomic.
-    eapply Hatomic. rewrite fill_empty. eauto.
-  Qed.
+  (* Lemma ectx_language_atomic a e : *)
+  (*   head_atomic a e → sub_redexes_are_values e → Atomic a e. *)
+  (* Proof. *)
+  (*   intros Hatomic Hsub σ e' σ' (K & e1' & e2' & <- & <- & Hs)%prim_step_iff. *)
+  (*   assert (K = empty_ectx) as -> by eauto 10 using val_head_stuck. *)
+  (*   rewrite fill_empty in Hatomic. *)
+  (*   eapply Hatomic. rewrite fill_empty. eauto. *)
+  (* Qed. *)
 
-   *)
+
 
   (*
   Lemma head_reducible_prim_step_ctx K e1 σ1 e2 σ2:

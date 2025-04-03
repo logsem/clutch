@@ -9,6 +9,7 @@ From Coq Require Import Reals.
 From HB Require Import structures.
 
 
+
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -868,35 +869,177 @@ Section ARcoupl_meas.
  Qed.
 
 
-(*
-  Lemma ARcoupl_pos_R R ε :
-    ARcoupl μ1 μ2 R ε → ARcoupl μ1 μ2 (λ a b, R a b ∧ μ1 a > 0 ∧ μ2 b > 0) ε.
-  Proof.
-    intros Hμ1μ2 f g Hf Hg Hfg.
-    assert (SeriesC (λ a : A, μ1 a * f a) =
-              SeriesC (λ a : A, μ1 a * (if bool_decide (μ1 a > 0) then f a else 0))) as ->.
-    { apply SeriesC_ext; intro a.
-      case_bool_decide; auto.
-      assert (0 <= μ1 a); auto.
-      assert (μ1 a = 0); nra.
+
+Local Open Scope classical_set_scope.
+
+(* TODO: Move *)
+Lemma subprobability_setC {d} {T : measurableType d} (S : set T) (μ : giryM T) : measurable S -> μ (~` S) <= 1 - μ S.
+Proof.
+move=> mA.
+Admitted.
+
+(* TODO: Move *)
+Lemma subprobability_1_setC {d} {T : measurableType d} (S : set T) (μ : giryM T) : measurable S -> μ S = 1 -> μ (~` S) = 0.
+Proof.
+Admitted.
+
+Lemma ARcoupl_meas_pos_R R' ε δ (SA : set A) (SB : set B) (HA : measurable SA) (HB : measurable SB) :
+  μ1 SA = 1 -> μ2 SB = 1 -> ARcoupl_meas μ1 μ2 R' ε δ → ARcoupl_meas μ1 μ2 (λ a b, R' a b ∧ SA a ∧ SB b) ε δ.
+Proof.
+  intros HSA HSB Hμ1μ2 f Hf Hfg0 Hfl1 g Hg Hgg0 Hgl1 Hfg.
+
+  (* Split the integrals into S and ~` S *)
+  have R1: forall d (T : measurableType d) (μ : giryM T) (S : set T) (HS : measurable S) (h : T -> \bar R)
+             (Hh : measurable_fun setT h) (Hhp : ∀ x : T, (~` S `|` S) x → 0 <= h x),
+             \int[μ]_x h x = (\int[μ]_(x in ~` S) h x) + (\int[μ]_(x in S) h x).
+  { intros. rewrite -(setvU S) ge0_integral_setU; try done.
+    { by apply measurableC. }
+    { by rewrite setvU. }
+    { by rewrite /disj_set; rewrite setICl; apply eq_refl. }
+  }
+  rewrite (R1 _ _ _ SA) //.
+  rewrite (R1 _ _ _ SB) //.
+
+  (* Integrals on ~` S are 0 *)
+  have L1 : forall d (T : measurableType d) (μ : giryM T) (S : set T) (HS : measurable S) (h : T -> \bar R)
+              (Hm : measurable_fun setT h)(Hh0 : ∀ b : T, 0 <= h b) (Hh : ∀ b : T, h b <= 1),
+      μ S = 1 -> (\int[μ]_(x in ~` S) h x) = 0.
+  { (* Integral is bounded above by integral of cst 1, which is 0, and below by integral of cst 0
+       Can be simplified if there's a "integral over set w/ measure 0 is 0" lemma somewhere (can't find it)
+     *)
+    intros.
+    apply le_anti_ereal; apply /andP; split.
+    { eapply le_trans_ereal.
+      { eapply (@ge0_le_integral _ _ _ _ _ _ _ (cst 1)); try done.
+        apply @mathcomp_measurable_fun_restiction_setT; try done.
+        by apply measurableC. }
+      { rewrite integral_cst.
+        { (* Need that the measure of a comeplement is bounded above by 1 - the measure of the set *)
+          rewrite //= subprobability_1_setC; try done.
+          by rewrite //= GRing.mulr0. }
+        { by eapply @measurableC. }
+      }
     }
-    assert (SeriesC (λ b : B, μ2 b * g b) =
-              SeriesC (λ b : B, μ2 b * (if bool_decide (μ2 b > 0) then g b else 1))) as ->.
-    { apply SeriesC_ext; intro b.
-      case_bool_decide; auto.
-      assert (0 <= μ2 b); auto.
-      assert (μ2 b = 0); nra.
+    { eapply le_trans_ereal.
+      { have -> : 0 = \int[μ]_(x in ~` S) (cst 0) x.
+        { rewrite integral_cst //=; first by rewrite mul0e.
+          by apply measurableC. }
+        { eapply (@ge0_le_integral _ _ _ _ _ _ (cst 0)); try done.
+          { apply @mathcomp_measurable_fun_restiction_setT; try done.
+            by apply measurableC. }
+          { by rewrite /cst//=. }
+        }
+      }
+      apply ge0_le_integral; try done.
+      { by apply measurableC. }
+      { apply @mathcomp_measurable_fun_restiction_setT; try done. by apply measurableC. }
+      { apply @mathcomp_measurable_fun_restiction_setT; try done. by apply measurableC. }
     }
-    apply Hμ1μ2; auto.
-    - intro a; specialize (Hf a); real_solver.
-    - intro b; specialize (Hg b); real_solver.
-    - intros a b Rab.
-      specialize (Hf a).
-      specialize (Hg b).
-      specialize (Hfg a b).
-      real_solver.
-  Qed.
- *)
+  }
+  rewrite L1; try done.
+  rewrite L1; try done.
+  rewrite GRing.add0r GRing.add0r.
+
+  (* Change the left integral to the restriction of f *)
+  rewrite (integral_mkcond SA).
+
+  (* Change the right integral to the patch of g to 1 outside SB *)
+  pose g' := patch (fun _ => 1) SB g.
+  have Hg'M : measurable_fun [set: B] g'.
+  { (* Same argument as if_in... refactor? *)
+    rewrite -(setvU SB).
+    apply <- measurable_funU; try done; first split.
+    { eapply (@mathcomp_measurable_fun_ext _ _ _ _ _ _ (cst 1)); try done.
+      intros b Hb.
+      have Hb' : ¬ (SB b). { by rewrite /setC//= in Hb. }
+      rewrite /g'/patch (memNset Hb').
+      rewrite /cst//=.
+    }
+    { eapply (@mathcomp_measurable_fun_ext _ _ _ _ _ _ g); try done.
+      { apply @mathcomp_measurable_fun_restiction_setT; try done. }
+      intros b Hb.
+      by rewrite /g'/patch (mem_set Hb).
+    }
+    by apply measurableC.
+  }
+  have Hg'g0 : ∀ b : B, 0 <= g' b.
+  { intro b. case (ExcludedMiddle (SB b)); intros Hb.
+    { by rewrite /g'/restrict/patch (mem_set Hb). }
+    { by rewrite /g'/restrict/patch (memNset Hb). }
+  }
+  have Hg'l1 : ∀ a : B, g' a <= 1.
+  { intro b. case (ExcludedMiddle (SB b)); intros Hb.
+    { by rewrite /g'/restrict/patch (mem_set Hb). }
+    { by rewrite /g'/restrict/patch (memNset Hb). }
+  }
+
+  (* Lemmas I'll need soon *)
+  have HxM : measurable_fun [set: B] (g \_ SB).
+  { apply @mathcomp_restriction_is_measurable; try done.
+    apply @mathcomp_measurable_fun_restiction_setT; try done. }
+  have Hxg0 : ∀ x : B, 0 <= (g \_ SB) x.
+  { intro b. case (ExcludedMiddle (SB b)); intros Hb.
+    { by rewrite /g'/restrict/patch (mem_set Hb). }
+    { by rewrite /g'/restrict/patch (memNset Hb). }
+  }
+  have Hxl1 : ∀ b : B, (g \_ SB) b <= 1.
+  { intro b. case (ExcludedMiddle (SB b)); intros Hb.
+    { by rewrite /g'/restrict/patch (mem_set Hb). }
+    { by rewrite /g'/restrict/patch (memNset Hb). }
+  }
+
+  have -> : \int[μ2]_(x in SB) g x = \int[μ2]_x g' x.
+  { rewrite (integral_mkcond SB).
+    (* Split the integrals into SB abs SB' *)
+    rewrite (R1 _ _ _ SB) //.
+    rewrite (R1 _ _ _ SB) //; first last.
+    (* Integrals outside SB are zero *)
+    rewrite L1; try done. rewrite GRing.add0r.
+    rewrite L1; try done. rewrite GRing.add0r.
+    (* On this set, the functions are equal *)
+    apply eq_integral.
+    apply in_setP.
+    intros b Hb.
+    rewrite /g'/restrict/patch.
+    case (ExcludedMiddle (SB b)); intros HBin.
+    { by rewrite (mem_set HBin) //=. }
+    { by rewrite (memNset HBin) //=. }
+  }
+
+  pose f' := (f \_ SA).
+  have Hf'M : measurable_fun [set: A] f'.
+  { apply @mathcomp_restriction_is_measurable; try done.
+    apply @mathcomp_measurable_fun_restiction_setT; try done. }
+  have Hf'g0 : ∀ x : A, 0 <= f' x.
+  { intro b. case (ExcludedMiddle (SA b)); intros Hb.
+    { by rewrite /f'/restrict/patch (mem_set Hb). }
+    { by rewrite /f'/restrict/patch (memNset Hb). }
+  }
+  have Hf'l1 : ∀ b : A, f' b <= 1.
+  { intro b. case (ExcludedMiddle (SA b)); intros Hb.
+    { by rewrite /f'/restrict/patch (mem_set Hb). }
+    { by rewrite /f'/restrict/patch (memNset Hb). }
+  }
+
+  (* Reduced inequality *)
+  have Lfg : (∀ (a : A) (b : B), R' a b → f' a <= g' b).
+  { intros a b HR.
+    case (ExcludedMiddle (SA a)); intros Ha;
+    case (ExcludedMiddle (SB b)); intros Hb.
+    { rewrite /f'/g'/restrict/patch (mem_set Ha) (mem_set Hb).
+      by apply Hfg. }
+    { rewrite /f'/g'/restrict/patch (mem_set Ha) (memNset Hb).
+      done. }
+    { rewrite /f'/g'/restrict/patch (memNset Ha) (mem_set Hb).
+      by rewrite /point//=. }
+    { rewrite /f'/g'/restrict/patch (memNset Ha) (memNset Hb).
+      by rewrite /point//=. }
+  }
+
+  (* Finish *)
+  eapply (Hμ1μ2 _ Hf'M Hf'g0 Hf'l1 _ Hg'M Hg'g0 Hg'l1 Lfg).
+  Unshelve. all: try done; by apply measurableC.
+Qed.
 
 End ARcoupl_meas.
 
