@@ -248,9 +248,11 @@ Section AdditionalMonadLaws.
     unfold is_det, has_support_in, mass'. 
     subst x.
     rewrite /mass.
-    rewrite !(eq_measure_integral (m1 := μ1) μ2); 
-    auto; intros; by apply H1.
+    apply propext; split; by move=><-.
   Qed.
+  (* rewrite !(eq_measure_integral (m1 := μ1) μ2);
+    auto; intros; by apply H1.
+  Qed. *)
 
   Lemma is_det_eq_meas {d} {T : measurableType d} {t : T} {μ1 μ2 : giryM T}: 
     μ1 ≡μ μ2 ->is_det t μ1 ↔ is_det t μ2.

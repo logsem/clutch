@@ -56,8 +56,7 @@ Section spec_update.
     iExists a.
     iFrame.
     iPureIntro.
-    rewrite stepN_0 //.
-    by apply is_det_dret.
+    by rewrite stepN_0 //.
   Qed.
 
   Lemma spec_update_ret E P :

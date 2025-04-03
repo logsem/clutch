@@ -424,7 +424,8 @@ Section giry_is_det.
   Context {d} {T : measurableType d}.
 
   Definition is_det (t : T) (μ : giryM T) : Prop :=
-    has_support_in μ [set t].
+    μ ≡μ gRet t.
+    (* has_support_in μ [set t]. *)
 
   Lemma is_det_dret (a : T) : is_det a (gRet a). Admitted.
 End giry_is_det.
