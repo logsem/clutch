@@ -11,20 +11,40 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+
 Set Default Proof Using "Type".
 
-Section giryM_ax.
+Section giryM_def.
   Local Open Scope classical_set_scope.
   Context `{d : measure_display} (T : measurableType d).
 
   Definition giryM : Type := @subprobability d T R.
 
-  Axiom giry_measurable : set (set giryM).
-  Axiom giry_measurable0 : giry_measurable set0.
-  Axiom giry_measurableC : forall (S : set giryM),
+  Definition gEval (S : set T) (μ : giryM) := μ S.
+  Definition gEvalPreImg (S : set T) := (preimage_class setT (gEval S) measurable).
+
+  Definition giry_measurable := <<s \bigcup_(S in measurable) (gEvalPreImg S)>>.
+
+  (*  Axiom giry_measurable : set (set giryM). *)
+  Lemma giry_measurable0 : giry_measurable set0.
+    Proof.
+      apply sigma_algebra0.
+  Qed.
+
+  Lemma giry_measurableC : forall (S : set giryM),
     giry_measurable S -> giry_measurable (~` S).
-  Axiom giry_measurableU : forall (A : sequences.sequence (set giryM)),
+  Proof.
+    intros ? ?.
+    rewrite -setTD.
+    apply sigma_algebraCD.
+    auto.
+  Qed.
+
+ Lemma giry_measurableU : forall (A : sequences.sequence (set giryM)),
     (forall i : nat, giry_measurable (A i)) -> giry_measurable (\bigcup_i A i).
+ Proof.
+   apply sigma_algebra_bigcup.
+ Qed.
 
   Definition giry_display : measure_display.
   Proof. by constructor. Qed.
@@ -40,7 +60,7 @@ Section giryM_ax.
     @isMeasurable.Build giry_display giryM giry_measurable
       giry_measurable0 giry_measurableC giry_measurableU.
 
-End giryM_ax.
+End giryM_def.
 
 
 
@@ -66,9 +86,27 @@ Section giry_eval.
   Local Open Scope classical_set_scope.
   Context `{d : measure_display} {T : measurableType d}.
 
-  Axiom gEval : forall (S : set T), (d.-measurable S) -> (giryM T -> \bar R).
-  Axiom gEval_meas_fun : forall (S : set T) (H : d.-measurable S), measurable_fun setT (gEval H).
-  Axiom gEval_eval : forall (S : set T) (H : d.-measurable S) (μ : giryM T), gEval H μ = μ S.
+  (* TODO: Make hint *)
+  Lemma gEval_meas_fun : forall (S : set T) (H : d.-measurable S), measurable_fun setT (gEval S).
+  Proof.
+    intros S HmS.
+    simpl.
+    eapply (@measurability giry_display _ (giryM T) _ setT (gEval S)).
+    {
+      rewrite smallest_id; auto.
+      simpl.
+      apply sigma_algebra_measurable.
+    }
+    rewrite /giry_display.-measurable /= /giry_measurable /=.
+    eapply subset_trans; [  | apply sub_gen_smallest].
+    eapply subset_trans; [  | apply bigcup_sup]; eauto.
+    rewrite /gEvalPreImg.
+    apply subset_refl.
+  Qed.
+
+  (*
+  Lemma gEval_eval : forall (S : set T) (H : d.-measurable S) (μ : giryM T), gEval H μ = μ S.
+  *)
 
 End giry_eval.
 
@@ -78,49 +116,715 @@ Section giry_integral.
   Local Open Scope ereal_scope.
   Context `{d : measure_display} {T : measurableType d}.
 
+  Definition gInt (f : T -> \bar R) (μ : giryM T) := (\int[μ]_x f x).
+
   (* TODO: Check if additional conditions on f are needed *)
-  Axiom gInt : forall (f : T -> \bar R), (measurable_fun setT f) -> (giryM T -> \bar R).
-  Axiom gInt_meas_fun : forall (f : T -> \bar R) (H : measurable_fun setT f), measurable_fun setT (gInt H).
+  Lemma gInt_meas_fun : forall (f : T -> \bar R) (Hmf : measurable_fun setT f) (Hfge0 : forall x, 0 <= f x),
+      measurable_fun setT (gInt f).
+    Proof.
+      (*
+        The idea is to reconstruct f from simple functions, then use
+        measurability of gEval. See "Codensity and the Giry monad", Avery
+
+        TODO: The proof could be cleaner
+       *)
+      intros f Hmf Hfge0.
+      rewrite /gInt.
+
+      have HTmeas : d.-measurable [set: T]; auto.
+      have Hfge0' : (forall t, [set: T] t -> 0 <= f t); auto.
+
+      (* f is the limit of a monotone sequence of simple functions *)
+      pose proof (approximation HTmeas Hmf Hfge0') as [g [Hgmono Hgconv]].
+
+      set gE := (fun n => EFin \o (g n)).
+      have HgEmeas : (forall n : nat, measurable_fun [set: T] (gE n)).
+      {
+        intro.
+        rewrite /gE /=.
+        apply EFin_measurable_fun; auto.
+      }
+      have HgEge0: (forall (n : nat) (x : T), [set: T] x -> 0 <= gE n x).
+      {
+        intros.
+        rewrite /gE /= //.
+        apply g.
+      }
+      have HgEmono : (forall x: T, [set: T] x -> {homo gE^~ x : n m / (Order.le n m) >-> n <= m}).
+      {
+        intros x Hx n m Hnm.
+        apply lee_tofin.
+        pose (lefP _ _ (Hgmono n m Hnm)); auto.
+      }
+
+      (* By MCT, limit of the integrals of g_n is the integral of the limit of g_n *)
+      have Hcvg := (cvg_monotone_convergence _ HgEmeas HgEge0 HgEmono).
+
+      set gEInt := (fun n => (fun μ => \int[μ]_x (gE n) x )).
+      have HgEIntmeas : (forall n : nat, measurable_fun [set: giryM T] (gEInt n)).
+      {
+        intro n.
+        rewrite /gEInt /gE /=.
+        eapply eq_measurable_fun.
+        intros μ Hμ.
+        rewrite integralT_nnsfun sintegralE //.
+        apply emeasurable_fun_fsum; auto.
+        intros r.
+        have Hrmeas : d.-measurable (preimage (g n) (set1 r)); auto.
+        apply (measurable_funeM (r%:E)).
+        have : measurable_fun [set: giryM T] (fun x : giryM T => x (g n @^-1` [set r])); auto.
+        eapply eq_measurable_fun.
+        intros ? ?.
+        auto.
+        apply gEval_meas_fun; auto.
+      }
+      (* The μ ↦ int[mu] lim g_n is measurable if every μ ↦ int[mu] g_n is measurable *)
+      apply (emeasurable_fun_cvg _ (fun (μ : giryM T) => \int[μ]_x f x) HgEIntmeas).
+      intros μ Hμ.
+      rewrite /gEInt /=.
+      erewrite (eq_integral _ f); [apply (Hcvg μ HTmeas) |].
+      intros x Hx.
+      have HxT : [set: T] x; [auto |].
+      specialize (Hgconv x HxT).
+      rewrite (topology.cvg_unique _
+                 Hgconv (topology.cvgP _ Hgconv)) //.
+   Qed.
+
+  (*
   Axiom gInt_eval : forall (f : T -> \bar R) (H : measurable_fun setT f) (μ : giryM T), gInt H μ = (\int[μ]_x f x).
+  *)
 
 End giry_integral.
 
-Section giry_join.
+Section giry_cod_meas.
   Local Open Scope classical_set_scope.
-  Context `{d : measure_display} {T : measurableType d}.
 
-  Axiom gJoin : giryM (giryM T) -> giryM T.
-  Axiom gJoin_meas_fun : measurable_fun setT gJoin.
-  Axiom gJoin_proper : (Proper (measure_eq ==> measure_eq) gJoin).
-  Global Existing Instance gJoin_proper.
+  (* TODO: Either move this lemma to a more accessible location, or integrate within
+     the proof below *)
+  Local Lemma measurability_aux d d' (aT : measurableType d) (rT : measurableType d')
+    (f : aT -> rT) (G : set (set rT)) :
+    @measurable _ rT = <<s G >> -> ( forall (S : set rT), G S -> @measurable _ aT (f @^-1` S)) ->
+    measurable_fun setT f.
+  Proof.
+    intros HG S.
+    eapply measurability; eauto.
+    rewrite /preimage_class.
+    apply image_subP.
+    intros ??.
+    rewrite setTI; auto.
+  Qed.
 
-End giry_join.
+  (* Adapted from mathlib induction_on_inter *)
+  (* TODO: Clean up proof, move lemma, change premises to use setX_closed like notations *)
+  Local Lemma dynkin_induction d {T : measurableType d} (G : set (set T)) (P : (set T) -> Prop) :
+    @measurable _ T = <<s G >> ->
+    setI_closed G ->
+    (P setT) ->
+    (forall S, G S -> P S) ->
+    (forall S, measurable S -> P S -> P (setC S)) ->
+    (forall F : sequences.sequence (set T),
+        (forall n, measurable (F n)) ->
+        trivIset setT F ->
+        (forall n, P (F n)) -> P (\bigcup_k F k)) ->
+    (forall S, <<s G >> S -> P S).
+  Proof.
+    intros HG HIclosed HsetT Hgen HsetC Hbigcup S HGS.
+    have HmS : measurable S; [ rewrite HG // |].
+    have Haux : <<s G >> `<=` [set S : (set T) | measurable S /\ P S].
+    {
+      apply lambda_system_subset; auto.
+      apply (dynkin_lambda_system ([set S0 | measurable S0 /\ P S0])).
+      split; auto.
+      - split; auto.
+      - intros ?[??].
+        split; auto.
+        apply measurableC; auto.
+      - intros ?? Hm.
+        split; auto.
+        apply bigcup_measurable; auto.
+        intros k Hk.
+        apply Hm; auto.
+        apply Hbigcup; auto.
+        apply Hm.
+        apply Hm.
+        intros ??.
+        split; auto.
+        rewrite HG //.
+        apply sub_gen_smallest; auto.
+      intros ??. apply subsetT.
+    }
+    apply Haux.
+    rewrite -HG //.
+  Qed.
+
+  Lemma giryM_cod_meas_fun `{d1 : measure_display} `{d2 : measure_display}
+    `{T1 : measurableType d1} `{T2 : measurableType d2}
+    (f : T1 -> giryM T2) :
+    (forall (S : set T2) (HmS : measurable S), measurable_fun setT (fun t => f t S)) ->
+    measurable_fun setT f.
+  Proof.
+    intros HS.
+    eapply measurability_aux.
+    {
+      rewrite /giry_display.-measurable /= /giry_measurable.
+      auto.
+    }
+    simpl.
+    intros S [U HU1 HU2].
+    specialize (HS U HU1).
+    rewrite /gEvalPreImg /preimage_class in HU2.
+    destruct HU2 as [B HB <-].
+    specialize (HS measurableT B HB).
+    rewrite setTI.
+    rewrite -comp_preimage.
+    eapply eq_measurable; eauto.
+    rewrite setTI /gEval /= //.
+  Qed.
+
+  (*
+  Lemma giryM_cod_meas_fun_gen `{d1 : measure_display} `{d2 : measure_display}
+    `{T1 : measurableType d1} `{T2 : measurableType d2}
+    (f : T1 -> giryM T2) (G : set (set T2))
+    (S0 : set T2) (HG : d2.-measurable = <<s G >> )(Hms : d2.-measurable S0) :
+    (forall (S : set T2) (HmS : G S ), measurable_fun setT (fun t => f t S)) ->
+    measurable_fun setT f.
+  Proof.
+    intros HS.
+    apply giryM_cod_meas_fun.
+    eapply (@measurability_aux _ _ _ _ _ (\bigcup_(S in G) gEvalPreImg S)).
+    {
+      rewrite /giry_display.-measurable /= /giry_measurable HG.
+      apply seteqP; split; [|apply sub_sigma_algebra2, bigcup_subset, sub_gen_smallest].
+      apply lambda_system_subset; auto.
+      - rewrite /setI_closed.
+        intros A B [S1 HGS1 HS1] [S2 HGS2 HS2].
+        exists (S1 `&` S2). admit.
+        rewrite /gEvalPreImg /preimage_class.
+        eexists.
+    }
+    intros S [? ? H].
+    rewrite /gEvalPreImg /preimage_class in H.
+    destruct H as [B HB <-].
+    specialize (HS x H0 B HB).
+    rewrite setTI.
+    rewrite -comp_preimage.
+    eapply eq_measurable; eauto.
+    rewrite setTI /gEval /= //.
+
+  Admitted.
+  *)
+
+  (*
+  Lemma giryM_cod_prod_meas_fun `{d : measure_display} `{T: measurableType d}
+    `{d1 : measure_display} `{d2 : measure_display}
+    `{T1 : measurableType d1} `{T2 : measurableType d2}
+    (f: T -> giryM (T1 * T2)%type) :
+    (forall (S1 : set T1) (S2 : set T2) (HmS1 : d1.-measurable S1) (HmS2 : d2.-measurable S2),
+        measurable_fun setT (fun t : T => (f t) (S1 `*` S2))) ->
+    measurable_fun setT f.
+  Proof.
+    intros HI.
+    eapply giryM_cod_meas_fun.
+    rewrite measurable_prod_measurableType.
+    apply dynkin_induction.
+    - intros A B [A1 HA1 [A2 HA2 <-]] [B1 HB1 [B2 HB2 <-]].
+      exists (A1 `&` B1); auto.
+      apply measurable_setI; auto.
+      exists (A2 `&` B2); auto.
+      apply measurable_setI; auto.
+      rewrite setXI //.
+    - rewrite -setXTT.
+      apply HI; auto.
+    - intros S [A HA [B HB <-]].
+      apply HI; auto.
+    - intros S HS.
+
+
+    eapply (dynkin_induction _ _ _ _ _ HmS). auto.
+
+    eapply (@measurability_aux _ _ _ _ _ (\bigcup_(S in [set A `*` B | A in d1.-measurable & B in d2.-measurable]) gEvalPreImg S)).
+    {
+      rewrite /giry_display.-measurable /= /giry_measurable.
+      rewrite measurable_prod_measurableType.
+      apply seteqP; split; [|apply sub_sigma_algebra2, bigcup_subset, sub_gen_smallest].
+      apply lambda_system_subset; auto.
+      - rewrite /setI_closed.
+        intros A B HA HB.
+        admit.
+      - apply g_sigma_algebra_lambda_system.
+        intros ??.
+        apply subsetT.
+      - apply bigcup_sub.
+        intros W HW.
+        rewrite /smallest.
+      - intros ??; apply subsetT.
+    }
+    simpl.
+    intros S [U [W1 HW1 [W2 HW2 <-]] HU2].
+    specialize (HS W1 W2 HW1 HW2).
+    rewrite /gEvalPreImg /preimage_class in HU2.
+    destruct HU2 as [B HB <-].
+    specialize (HS measurableT B HB).
+    rewrite setTI.
+    rewrite -comp_preimage.
+    eapply eq_measurable; eauto.
+    rewrite setTI /gEval /= //.
+  Admitted.
+  *)
+
+End giry_cod_meas.
 
 Section giry_map.
-  Local Open Scope classical_set_scope.
-  Context `{d1 : measure_display} `{d2 : measure_display}.
+    Local Open Scope classical_set_scope.
+    Context `{d1 : measure_display} `{d2 : measure_display}.
   Context {T1 : measurableType d1} {T2 : measurableType d2}.
 
-  Axiom gMap : forall (f : T1 -> T2), measurable_fun setT f -> (giryM T1 -> giryM T2).
-  Axiom gMap_meas_fun : forall (f : T1 -> T2) (H : measurable_fun setT f), measurable_fun setT (gMap H).
-  Axiom gMap_proper : forall (f : T1 -> T2) (H : measurable_fun setT f), (Proper (measure_eq ==> measure_eq) (gMap H)).
-  Global Existing Instance gMap_proper.
+  Variables (f : T1 -> T2) (Hmf : measurable_fun setT f) (μ1 : giryM T1).
 
+  Definition gMap_ev := pushforward μ1 Hmf.
+
+  Let gMap0 : gMap_ev set0 = 0%E.
+  Proof.
+    rewrite /gMap_ev measure0 //.
+  Qed.
+
+  Let gMap_ge0 A : (0 <= gMap_ev A)%E.
+  Proof.
+    rewrite /gMap_ev measure_ge0 //.
+  Qed.
+
+  Let gMap_semi_sigma_additive : semi_sigma_additive (gMap_ev).
+  Proof.
+    rewrite /gMap_ev.
+    apply measure_semi_sigma_additive.
+  Qed.
+
+  Let gMap_setT : (gMap_ev setT <= 1)%E.
+  Proof.
+    rewrite /gMap_ev /pushforward /=.
+    apply sprobability_setT.
+  Qed.
+
+
+  HB.instance Definition _ := isMeasure.Build d2 T2 R gMap_ev gMap0 gMap_ge0 gMap_semi_sigma_additive.
+  HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ gMap_ev gMap_setT.
+
+  Definition gMap : giryM T2 := gMap_ev.
 
 End giry_map.
 
-Section giry_ret.
+Section giry_map_meas.
+
+
   Local Open Scope classical_set_scope.
+  Local Open Scope ereal_scope.
+  Context `{d1 : measure_display} `{d2 : measure_display}.
+  Context {T1 : measurableType d1} {T2 : measurableType d2}.
+
+
+
+  Lemma gMap_to_int : forall (f : T1 -> T2) (H : measurable_fun setT f) (μ1 : giryM T1) (S : set T2) (HmS : measurable S),
+      (gMap H μ1 S = \int[μ1]_x (numfun.indic S (f x))%:E)%E.
+  Proof.
+    intros f Hmf μ1 S HmS.
+    rewrite /gMap /gMap_ev.
+    rewrite -{1}(setIT S).
+    rewrite -(integral_indic (pushforward μ1 Hmf)); auto.
+    rewrite ge0_integral_pushforward; auto.
+    apply EFin_measurable_fun.
+    apply measurable_indic; auto.
+    intros y.
+    rewrite /numfun.indic.
+    case: (y \in S); auto.
+  Qed.
+
+
+
+
+
+  Lemma gMap_meas_fun : forall (f : T1 -> T2) (H : measurable_fun setT f), measurable_fun setT (gMap H).
+  Proof.
+    intros f Hmf.
+    rewrite /gMap.
+    apply (@giryM_cod_meas_fun _ _ (giryM T1)); simpl.
+    intros S HmS.
+    rewrite /gMap_ev /pushforward /=.
+    apply gEval_meas_fun.
+    rewrite -(setTI (f @^-1` S)).
+    apply Hmf; auto.
+  Qed.
+
+
+  Lemma gMap_proper : forall (f : T1 -> T2) (H : measurable_fun setT f), (Proper (measure_eq ==> measure_eq) (gMap H)).
+  Proof.
+    intros.
+    intros ?? Hrw ??.
+    rewrite /= /gMap_ev /pushforward /=.
+    rewrite Hrw //.
+    rewrite -(setTI (f @^-1` S)).
+    apply H; auto.
+  Qed.
+
+
+  Lemma gMapInt (f : T1 -> T2) (Hmf : measurable_fun setT f) (μ : giryM T1)
+    (h : T2 -> \bar R) (Hmh : measurable_fun setT h) (Hpos : forall x, 0 <= h x):
+    gInt h (gMap Hmf μ) = gInt (h \o f) μ.
+  Proof.
+    rewrite /gInt.
+    have Haux : (forall S, d2.-measurable S -> S `<=` [set : T2] -> gMap Hmf μ S = pushforward μ Hmf S); auto.
+    erewrite (eq_measure_integral _ Haux).
+    rewrite ge0_integral_pushforward; auto.
+  Qed.
+
+  (* Axiom gMap : forall (f : T1 -> T2), measurable_fun setT f -> (giryM T1 -> giryM T2).
+  Axiom gMap_meas_fun : forall (f : T1 -> T2) (H : measurable_fun setT f), measurable_fun setT (gMap H).
+  Axiom gMap_proper : forall (f : T1 -> T2) (H : measurable_fun setT f), (Proper (measure_eq ==> measure_eq) (gMap H)). *)
+
+  Global Existing Instance gMap_proper.
+
+
+End giry_map_meas.
+
+Section giry_ret.
+
+  Local Open Scope classical_set_scope.
+  Local Open Scope ring_scope.
+  Local Open Scope ereal_scope.
   Context `{d : measure_display} {T : measurableType d}.
 
+
+  Definition gRet (x:T) : giryM T := (dirac^~ R x)%R.
+
+  Lemma gRet_meas_fun : measurable_fun setT gRet.
+  Proof.
+    rewrite /gRet /dirac.
+    apply giryM_cod_meas_fun; simpl.
+    intros S HmS.
+    rewrite /dirac.
+    apply EFin_measurable_fun.
+    apply measurable_indic; auto.
+  Qed.
+
+
+  Lemma gRetInt (x : T) (h : T -> \bar R) (H : measurable_fun setT h):
+      gInt h (gRet x) = h x.
+  Proof.
+    rewrite /gInt.
+    have Haux : (forall S, d.-measurable S -> S `<=` [set : T] -> gRet x S = dirac x S); auto.
+    erewrite (eq_measure_integral _ Haux).
+    rewrite integral_dirac; auto.
+    rewrite diracT mul1e //.
+  Qed.
+
+  Lemma gRetInt_rw (x : T) (h : T -> \bar R) (H : measurable_fun setT h):
+      \int[gRet x]_x h x = h x.
+  Proof.
+    apply gRetInt; auto.
+  Qed.
+
+  (*
   Axiom gRet : T -> giryM T.
   Axiom gRet_meas_fun : measurable_fun setT gRet.
+  *)
   (** Use bool_decide or as_bool? *)
   (* Axiom gRet_eval : forall S x (H: d.-measurable S), gRet x S = if (S x) then 1%E else 0%E. *)
 
 
 
 End giry_ret.
+
+
+Section giry_join.
+  Local Open Scope classical_set_scope.
+  Local Open Scope ereal_scope.
+  Context `{d : measure_display} {T : measurableType d}.
+  Variable (M : giryM (giryM T)).
+
+  Definition gJoin_ev (S : set T) := gInt (gEval S) M.
+
+  Let gJoin0 : gJoin_ev set0 = 0%E.
+  Proof.
+    rewrite /gJoin_ev /gEval.
+    apply integral0_eq.
+    auto.
+  Qed.
+
+  Let gJoin_ge0 A : (0 <= gJoin_ev A)%E.
+  Proof.
+    rewrite /gJoin_ev.
+    apply integral_ge0.
+    auto.
+  Qed.
+
+  (* TODO: Cleaner proof? *)
+  Let gJoin_semi_sigma_additive : semi_sigma_additive (gJoin_ev).
+  Proof.
+    rewrite /gJoin_ev /gInt.
+    rewrite /gEval /=.
+    intros F HF HFTriv HcupF.
+    have Hμ : (forall (μ : giryM T), semi_sigma_additive μ).
+    {
+      intros; auto.
+      apply measure_semi_sigma_additive.
+    }
+    eapply topology.cvg_trans.
+    {
+      erewrite topology.eq_cvg; last first.
+      intros ?.
+      rewrite -ge0_integral_sum; auto.
+      intros.
+      apply gEval_meas_fun; auto.
+      auto.
+    }
+    eapply topology.cvg_trans.
+    {
+      apply cvg_monotone_convergence; auto.
+      {
+        intros n.
+        apply emeasurable_fun_sum.
+        intros.
+        apply gEval_meas_fun; auto.
+      }
+      {
+        intros n ? ?.
+        rewrite sume_ge0; auto.
+      }
+      intros ? ?.
+      intros ? ? ?.
+      rewrite sequences.ereal_nondecreasing_series //.
+    }
+    apply topology.close_cvgxx.
+    rewrite topology.closeE; auto.
+    f_equal.
+    apply functional_extensionality.
+    intros μ.
+    simpl.
+    rewrite /semi_sigma_additive in Hμ.
+    specialize (Hμ μ F HF HFTriv HcupF).
+    apply topology.cvg_lim; auto.
+    apply topology.eventually_filter.
+  Qed.
+
+  (* TODO: Cleaner proof? *)
+  Let gJoin_setT : (gJoin_ev setT <= 1)%E.
+  Proof.
+    rewrite /gJoin_ev.
+    apply (@Order.le_trans _ _ (1%:E * (M setT))); last first.
+    {
+      rewrite mul1e.
+      apply sprobability_setT.
+    }
+    eapply Order.le_trans; last first.
+    {
+      apply (@integral_le_bound _ _ R M _ (gEval setT) 1); auto.
+      apply gEval_meas_fun; auto.
+      apply (aeW M).
+      intros ??.
+      rewrite gee0_abs; auto.
+      rewrite /gEval.
+      apply (@sprobability_setT d T R x).
+    }
+    apply ge0_le_integral; auto.
+    apply gEval_meas_fun; auto.
+    intros; apply abse_ge0.
+    apply (@measurableT_comp _ _ _ _ _ _ abse).
+    apply abse_measurable.
+    apply gEval_meas_fun; auto.
+    intros ??.
+    rewrite gee0_abs; auto.
+  Qed.
+
+  (*
+  Axiom gJoin : giryM (giryM T) -> giryM T.
+  Axiom gJoin_meas_fun : measurable_fun setT gJoin.
+  Axiom gJoin_proper : (Proper (measure_eq ==> measure_eq) gJoin).
+  *)
+
+  HB.instance Definition _ := isMeasure.Build d _ R gJoin_ev gJoin0 gJoin_ge0 gJoin_semi_sigma_additive.
+  HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ gJoin_ev gJoin_setT.
+
+  Definition gJoin : giryM T := gJoin_ev.
+
+End giry_join.
+
+
+Section giry_join_meas_fun.
+  Local Open Scope classical_set_scope.
+  Local Open Scope ereal_scope.
+  Context `{d : measure_display} {T : measurableType d}.
+
+
+  Lemma gJoin_meas_fun : measurable_fun setT (@gJoin d T).
+  Proof.
+    apply (@giryM_cod_meas_fun _ _ (giryM (giryM T))); simpl.
+    rewrite /gJoin_ev.
+    intros S HmS.
+    eapply (@gInt_meas_fun _ _ (gEval S)).
+    Unshelve.
+    apply gEval_meas_fun; auto.
+    auto.
+  Qed.
+
+  Lemma gJoin_proper : (Proper (measure_eq ==> measure_eq) (@gJoin d T)).
+  Proof.
+    intros ?? Hrw ??.
+    rewrite /= /gJoin_ev.
+    apply eq_measure_integral.
+    intros ???.
+    apply Hrw.
+    auto.
+  Qed.
+
+  (* TODO: Messy proof, cleanup *)
+  Lemma gJoinSInt (M : giryM (giryM T)) (h : {nnsfun T >-> R} )  (Hmh : measurable_fun setT h) :
+    sintegral (gJoin M) h = \int[M]_μ sintegral μ h.
+  Proof.
+    etransitivity; last first.
+    {
+      eapply eq_integral.
+      intros μ Hμ.
+      rewrite sintegralE.
+      auto.
+    }
+    simpl.
+    rewrite ge0_integral_fsum; auto; last first.
+    {
+      intros ???.
+      apply nnsfun_mulemu_ge0.
+    }
+    {
+      intros ?.
+      apply measurable_funeM.
+      apply gEval_meas_fun; auto.
+    }
+    rewrite sintegralE /=.
+    have Heq: forall x, (x%:E * gJoin_ev M (h @^-1` [set x]))%E = (\int[M]_μ (x%:E * μ (h @^-1` [set x])))%E.
+    {
+      intro x.
+      rewrite integralZl; auto.
+      eapply le_integrable; last first.
+      apply (finite_measure_integrable_cst _ 1).
+      intros μ ?.
+      simpl.
+      rewrite Num.Theory.normr1.
+      rewrite gee0_abs.
+      eapply Order.le_trans; [ | apply (@sprobability_setT _ _ _ μ)].
+      apply le_measure; auto.
+      rewrite in_setE.
+      apply measurable_sfunP.
+      apply measurable_set1.
+      rewrite in_setE.
+      auto.
+      apply subsetT.
+      rewrite measure_ge0 //.
+      apply gEval_meas_fun; auto.
+      auto.
+      }
+    f_equal.
+    apply fsbigop.eq_finite_support.
+    intros r Hr; auto.
+    apply functional_extensionality; auto.
+    intros.
+    rewrite Heq //.
+  Qed.
+
+  (* TODO: Messy proof, cleanup *)
+  Lemma gJoinInt (M : giryM (giryM T))
+    (h : T -> \bar R) (Hmh : measurable_fun setT h) (Hpos : forall x, 0 <= h x):
+    gInt h (gJoin M) = gInt (fun (μ : giryM T) => \int[μ]_x h x) M.
+  Proof.
+
+    have HTmeas : d.-measurable [set: T]; auto.
+    have Hhge0' : (forall t, [set: T] t -> 0 <= h t); auto.
+    pose proof (approximation HTmeas Hmh Hhge0') as [g [Hgmono Hgconv]].
+
+    set gE := (fun n => EFin \o (g n)).
+    have HgEmeas : (forall n : nat, measurable_fun [set: T] (gE n)).
+    {
+      intro.
+      rewrite /gE /=.
+      apply EFin_measurable_fun; auto.
+    }
+    have HgEge0: (forall (n : nat) (x : T), [set: T] x -> 0 <= gE n x).
+    {
+      intros.
+      rewrite /gE /= //.
+      apply g.
+    }
+    have HgEmono : (forall x: T, [set: T] x -> {homo gE^~ x : n m / (Order.le n m) >-> n <= m}).
+    {
+      intros x Hx n m Hnm.
+      apply lee_tofin.
+      pose (lefP _ _ (Hgmono n m Hnm)); auto.
+    }
+
+    (* By MCT, limit of the integrals of g_n is the integral of the limit of g_n *)
+    have Hcvg := (monotone_convergence _ _ HgEmeas HgEge0 HgEmono).
+    rewrite /gInt.
+    (* TODO: Fix failing inference? *)
+    have Hgconv' : forall x : T,
+        [set: T] x ->
+        h x = (topology.lim (topology.fmap (EFin \o (fun x0 : nat => g x0 x)) (@topology.nbhs nat (topology.topology_set_system__canonical__topology_Filtered nat) topology.eventually))).
+    {
+      intros x Hx.
+      specialize (Hgconv x Hx).
+      pose (Hgconv2 := topology.cvgP _ Hgconv).
+      rewrite (topology.cvg_unique _ Hgconv Hgconv2); auto.
+    }
+
+    have Hcvg' :
+      forall t : measure T RbaseSymbolsImpl_R__canonical__reals_Real,
+        d.-measurable [set: T] ->
+        \int[t]_x h x =
+          topology.lim (topology.fmap (fun n : nat => \int[t]_x gE n x) (@topology.nbhs nat (topology.topology_set_system__canonical__topology_Filtered nat) topology.eventually)).
+    {
+      intros ??.
+      rewrite -Hcvg; auto.
+      apply eq_integral => x Hx.
+      rewrite Hgconv'; auto.
+      apply set_mem; auto.
+    }
+    rewrite Hcvg'; auto.
+    have ->: (fun n : nat => \int[gJoin M]_x gE n x) = (fun n : nat => \int[M]_μ \int[μ]_x gE n x).
+    {
+      apply functional_extensionality.
+      intros n.
+      rewrite integralT_nnsfun.
+      rewrite gJoinSInt.
+      apply eq_integral.
+      intros ??.
+      rewrite integralT_nnsfun //.
+      auto.
+    }
+    erewrite (@eq_integral _ _ _ M _ _ (fun μ => \int[μ]_x h x)); last first.
+    {
+      intros ??. rewrite Hcvg' //.
+    }
+    rewrite monotone_convergence; auto.
+    {
+      intros n.
+      eapply (gInt_meas_fun (HgEmeas n)); auto.
+      intros.
+      apply HgEge0; auto.
+      apply set_mem.
+      apply in_setT.
+    }
+    {
+      intros.
+      apply integral_ge0; auto.
+    }
+    {
+      intros ?????.
+      apply ge0_le_integral; auto.
+      intros ??; auto.
+      apply HgEmono; auto.
+    }
+  Qed.
+
+
+  Global Existing Instance gJoin_proper.
+
+End giry_join_meas_fun.
 
 Section giry_bind.
   Local Open Scope classical_set_scope.
@@ -129,6 +833,7 @@ Section giry_bind.
 
   Definition gBind (f : T1 -> giryM T2) (H : measurable_fun setT f) : giryM T1 -> giryM T2 :=
     gJoin \o (gMap H).
+
 
   Lemma gBind_meas_fun (f : T1 -> giryM T2) (H : measurable_fun setT f) :  measurable_fun setT (gBind H).
   Proof.
@@ -151,85 +856,84 @@ Section giry_bind.
 
 End giry_bind.
 
-Section giry_monad.
+
+Section giry_bind_meas_fun.
   Local Open Scope classical_set_scope.
   Local Open Scope ereal_scope.
-  Context `{d1 : measure_display} `{d2 : measure_display} `{d3 : measure_display}.
-  Context {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}.
-
-  Axiom gJoin_assoc : forall (x : giryM (giryM (giryM T1))),
-    (gJoin \o (gMap gJoin_meas_fun)) x ≡μ (gJoin \o gJoin) x.
-
-  Axiom gJoin_id1 : forall (x : giryM T1),
-   (gJoin \o (gMap gRet_meas_fun)) x ≡μ (gJoin \o gRet) x.
-
-  Axiom gJoin_id2 : forall (x : giryM (giryM T1)) (f : T1 -> T2) (H : measurable_fun setT f),
-    (gJoin \o gMap (gMap_meas_fun H)) x ≡μ (gMap H \o gJoin) x.
+  Context `{d1 : measure_display} `{d2 : measure_display}.
+  Context {T1 : measurableType d1} {T2 : measurableType d2}.
 
 
-  Axiom gRetInt : forall (x : T1) (f : T1 -> \bar R) (H : measurable_fun setT f),
-      gInt H (gRet x) = f x.
-
-  Lemma gRetInt_rw (x : T1) (f : T1 -> \bar R) (H : measurable_fun setT f) :
-      \int[gRet x]_x f x = f x.
+  Lemma gBindInt_meas_fun (μ : giryM T1) (f : T1 -> giryM T2) (H : measurable_fun setT f)
+    (h : T2 -> \bar R) (mh : measurable_fun setT h) (Hhge0 : forall x, 0 <= h x) :
+      measurable_fun setT (fun x => gInt h (f x)).
   Proof.
-    rewrite -gInt_eval.
-    apply gRetInt.
-  Qed.
-
-  Lemma gBindInt_meas_fun (μ : giryM T1) (f : T1 -> giryM T2) (H : measurable_fun setT f) (h : T2 -> \bar R)
-                          (mh : measurable_fun setT h) :
-      measurable_fun setT (fun x => gInt mh (f x)).
-  Proof.
-    eapply (@measurable_comp _ _ _ _ _ _ setT).
+    eapply (@measurable_comp _ _ _ _ _ _ setT _ _ f).
     { by eapply @measurableT. }
     { by apply subsetT. }
     { by apply gInt_meas_fun. }
     { by apply H. }
   Qed.
 
-  Axiom gBindInt : forall (μ : giryM T1) (f : T1 -> giryM T2) (H : measurable_fun setT f) (h : T2 -> \bar R) (mh : measurable_fun setT h),
-      gInt mh (gBind H μ) = gInt (gBindInt_meas_fun μ H mh) μ.
+  Lemma gBindInt :
+    forall (μ : giryM T1) (f : T1 -> giryM T2) (H : measurable_fun setT f) (h : T2 -> \bar R) (mh : measurable_fun setT h) (Hhge0 : forall x, 0 <= h x),
+      gInt h (gBind H μ) = gInt (fun x => gInt h (f x)) μ.
+  Proof.
+    intros ??????.
+    rewrite /gBind /=.
+    rewrite gJoinInt; auto.
+    rewrite gMapInt; auto.
+    apply gInt_meas_fun; auto.
+    intros.
+    apply integral_ge0; auto.
+  Qed.
 
-  (* TODO : Cleaner proof? *)
-  Lemma gBindInt_rw (μ : giryM T1) (f : T1 -> giryM T2) (H : measurable_fun setT f) (h : T2 -> \bar R) (mh : measurable_fun setT h) :
+  Lemma gBindInt_rw (μ : giryM T1) (f : T1 -> giryM T2) (H : measurable_fun setT f) (h : T2 -> \bar R) (mh : measurable_fun setT h) (Hhge0 : forall x, 0 <= h x) :
     \int[gBind H μ]_y h y = \int[μ]_x \int[f x]_y  h y.
   Proof.
-    pose proof (gBindInt μ H mh) as Haux.
-    do 2 rewrite gInt_eval in Haux.
-    rewrite Haux.
-    f_equal.
-    apply functional_extensionality.
-    intros.
-    rewrite gInt_eval //.
+    apply gBindInt; auto.
   Qed.
 
-  (*
-    Laws in terms of ret and bind
+End giry_bind_meas_fun.
 
-  Axiom gRet_gBind : forall (t : T1) (f : T1 -> giryM T2) (H : measurable_fun setT f),
-    gBind H (gRet t) ≡μ f t.
+Section giry_monad.
+  Local Open Scope classical_set_scope.
+  Local Open Scope ereal_scope.
+  Context `{d1 : measure_display} `{d2 : measure_display} `{d3 : measure_display}.
+  Context {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}.
 
-  Axiom gBind_gRet : forall (t : giryM T1),
-    gBind gRet_measurable t ≡μ t.
-
-  Context (f : T1 -> giryM T2).
-  Context (g : T2 -> giryM T3).
-  Context (Hf : measurable_fun setT f).
-  Context (Hg : measurable_fun setT g).
-  Context (t : giryM T1).
-
-  Lemma Hfg : measurable_fun setT (gBind Hg \o f).
-  Proof using Hf Hg R T1 T2 T3 d1 d2 d3 f g.
-    eapply (@measurable_comp _ _ _ _ _ _ setT).
-    { by eapply @measurableT. }
-    { by apply subsetT. }
-    { by apply gBind_measurable. }
-    { by apply Hf. }
+  Lemma gJoin_assoc : forall (x : giryM (giryM (giryM T1))),
+      (gJoin \o (gMap gJoin_meas_fun)) x ≡μ (gJoin \o gJoin) x.
+  Proof.
+    intros μ S HmS.
+    rewrite /= /gJoin_ev.
+    rewrite gMapInt //.
+    rewrite gJoinInt //.
+    all: apply gEval_meas_fun; auto.
   Qed.
 
-  Axiom gBind_assoc : gBind Hg (gBind Hf t) ≡μ gBind Hfg t.
-   *)
+
+  Lemma gJoin_id1 : forall (x : giryM T1),
+      (gJoin \o (gMap gRet_meas_fun)) x ≡μ (gJoin \o gRet) x.
+  Proof.
+    intros μ S HmS.
+    rewrite /= /gJoin_ev; simpl.
+    rewrite gMapInt; auto; [|apply gEval_meas_fun; auto].
+    rewrite gRetInt; auto; [|apply gEval_meas_fun; auto].
+    rewrite /gInt /gEval /gRet /= /dirac.
+    rewrite integral_indic; auto.
+    rewrite setIT //.
+  Qed.
+
+  Lemma gJoin_id2 : forall (x : giryM (giryM T1)) (f : T1 -> T2) (H : measurable_fun setT f),
+      (gJoin \o gMap (gMap_meas_fun H)) x ≡μ (gMap H \o gJoin) x.
+  Proof.
+    intros μ f Hmf S HmS.
+    rewrite /= /gJoin_ev; simpl.
+    rewrite gMapInt; auto.
+    apply gEval_meas_fun; auto.
+  Qed.
+
 
 End giry_monad.
 
@@ -238,14 +942,22 @@ Section giry_zero.
 
   Section giry_zero_def.
     Context `{d1 : measure_display} {T1 : measurableType d1}.
-    Axiom gZero : giryM T1.
-    Axiom gZero_eval : forall S (H: d1.-measurable S), gZero S = (0% E).
+    Definition gZero := mzero : giryM T1.
+    Lemma gZero_eval : forall S (H: d1.-measurable S), gZero S = (0% E).
+    Proof.
+      intros ??.
+      rewrite /gZero/mzero //.
+    Qed.
   End giry_zero_def.
 
   Context `{d1 : measure_display} `{d2 : measure_display} {T1 : measurableType d1} {T2 : measurableType d2}.
 
-  Axiom gZero_map : forall (f : T1 -> T2) (H : measurable_fun setT f),
+  Lemma gZero_map : forall (f : T1 -> T2) (H : measurable_fun setT f),
     gMap H gZero ≡μ (gZero : giryM T2).
+  Proof.
+    intros f H S HmS.
+    rewrite /=/gMap_ev /mzero //.
+  Qed.
 
 End giry_zero.
 
@@ -288,15 +1000,191 @@ Section giry_prod.
   Local Open Scope classical_set_scope.
   Context `{d1 : measure_display} `{d2 : measure_display}.
   Context {T1 : measurableType d1} {T2 : measurableType d2}.
+  Variable (μ12 : giryM T1 * giryM T2).
 
   (* https://en.wikipedia.org/wiki/Giry_monad#Product_distributions  *)
-  Axiom gProd : (giryM T1 * giryM T2) -> giryM (T1 * T2)%type.
+  Definition gProd_ev  (S : set (T1 * T2)) := product_measure1 μ12.1 μ12.2 S.
+
+
+  Let gProd0 : gProd_ev set0 = 0%E.
+  Proof.
+    rewrite /gProd_ev.
+    auto.
+  Qed.
+
+  Let gProd_ge0 A : (0 <= gProd_ev A)%E.
+  Proof.
+    rewrite /gProd_ev.
+    auto.
+  Qed.
+
+  Let gProd_semi_sigma_additive : semi_sigma_additive (gProd_ev).
+  Proof.
+    rewrite /gProd_ev /=.
+    apply measure_semi_sigma_additive.
+  Qed.
+
+  Let gProd_setT : (gProd_ev setT <= 1)%E.
+  Proof.
+    rewrite /gProd_ev.
+    rewrite -setXTT.
+    rewrite product_measure1E; auto.
+    eapply (@Order.le_trans _ _ (1*1)%E); [ | rewrite mul1e; auto].
+    apply (@lee_pmul _ (μ12.1 setT) 1 (μ12.2 setT) 1); auto.
+    apply (@sprobability_setT d1 T1 _ μ12.1).
+    apply (@sprobability_setT d2 T2 _ μ12.2).
+  Qed.
+
+
+  HB.instance Definition _ := isMeasure.Build _ _ R gProd_ev gProd0 gProd_ge0 gProd_semi_sigma_additive.
+  HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ gProd_ev gProd_setT.
+  Definition gProd : giryM (T1*T2)%type := gProd_ev.
+
   (*  gBind' (fun v1 => gBind' (gRet \o (pair v1)) (snd μ)) (fst μ). *)
 
-  Axiom gProd_meas_fun : measurable_fun setT gProd.
 
 End giry_prod.
 
+
+Section giry_prod_meas_fun.
+  Local Open Scope classical_set_scope.
+  Context `{d1 : measure_display} `{d2 : measure_display}.
+  Context {T1 : measurableType d1} {T2 : measurableType d2}.
+
+  (* Somehow this isn't a mathlib lemma ?? *)
+  Local Lemma measurable_setI `{d : measure_display} `{T: measurableType d}
+  (A B : set T) (HA : d.-measurable A) (HB : d.-measurable B) :
+    d.-measurable (A `&` B).
+  Proof.
+    rewrite -(setCK (A `&` B)).
+    rewrite setCI.
+    apply measurableC.
+    rewrite -bigcup2E.
+    apply bigcup_measurable.
+    intros i ?.
+    simpl.
+    case (i == 0). apply measurableC; auto.
+    case (i == 1). apply measurableC; auto.
+    apply measurable0.
+  Qed.
+
+
+  (* TODO: Clean up, maybe move elsewhere *)
+  Lemma subprobability_prod_setC
+    (P : giryM T1 * giryM T2) (A : set (prod T1 T2)) :
+    measurable A ->
+    (product_measure1 P.1 P.2) (~` A) =
+      ((product_measure1 P.1 P.2) [set: T1 * T2] - (product_measure1 P.1 P.2) A)%E.
+  Proof.
+  move=> mA.
+  rewrite  -(setvU A) measureU ?addeK ?setICl//.
+  - simpl.
+    rewrite ge0_fin_numE //.
+    apply (@Order.POrderTheory.le_lt_trans _ _ (((product_measure1 P.1 P.2) setT))).
+    rewrite le_measure; auto.
+    apply mem_set; auto.
+    apply mem_set; auto.
+    apply subsetT.
+    apply (@Order.POrderTheory.le_lt_trans _ _ 1%E); auto.
+    rewrite -(mul1e 1).
+    rewrite -setXTT product_measure1E; auto.
+    apply (@lee_pmul _ (P.1 setT)); auto.
+    apply sprobability_setT.
+    apply sprobability_setT.
+    apply (ltry (GRing.one R)).
+  - exact: measurableC.
+  Qed.
+
+  (*
+     See "A synthetic approach to Markov kernels, conditional
+     independence and theorems on sufficient statistics", Fritz
+
+     TODO: Clean up proof
+   *)
+  Lemma gProd_meas_fun : measurable_fun setT (@gProd d1 d2 T1 T2).
+  Proof.
+    simpl.
+    apply (@giryM_cod_meas_fun _ _ _ _ gProd).
+
+    rewrite measurable_prod_measurableType; simpl.
+    rewrite /gProd_ev.
+    apply dynkin_induction; simpl.
+    - rewrite measurable_prod_measurableType //.
+    - intros A B [A1 HA1 [A2 HA2 <-]] [B1 HB1 [B2 HB2 <-]].
+      exists (A1 `&` B1); auto.
+      apply measurable_setI; auto.
+      exists (A2 `&` B2); auto.
+      apply measurable_setI; auto.
+      rewrite setXI //.
+    - eapply eq_measurable_fun; [intros ??; rewrite -setXTT product_measure1E // |].
+      apply emeasurable_funM.
+      apply (@measurableT_comp _ _ _ _ _ _ (gEval _) _ fst).
+      apply gEval_meas_fun; auto.
+      apply (@measurable_fst _ _ (giryM T1) (giryM T2)).
+
+      apply (@measurableT_comp _ _ _ _ _ _ (gEval _) _ snd).
+      apply gEval_meas_fun; auto.
+      apply (@measurable_snd _ _ (giryM T1) (giryM T2)).
+    - intros S [A HA [B HB <-]].
+      eapply eq_measurable_fun; [intros ??; rewrite product_measure1E // |].
+      apply emeasurable_funM.
+      apply (@measurableT_comp _ _ _ _ _ _ (gEval _) _ fst).
+      apply gEval_meas_fun; auto.
+      apply (@measurable_fst _ _ (giryM T1) (giryM T2)).
+
+      apply (@measurableT_comp _ _ _ _ _ _ (gEval _) _ snd).
+      apply gEval_meas_fun; auto.
+      apply (@measurable_snd _ _ (giryM T1) (giryM T2)).
+    - intros S HmS HS.
+      eapply (eq_measurable_fun).
+        intros ??. simpl in x. rewrite (subprobability_prod_setC x).
+        rewrite -setXTT product_measure1E; auto.
+        auto.
+      apply emeasurable_funB; auto; simpl.
+      apply emeasurable_funM.
+      apply (@measurableT_comp _ _ _ _ _ _ (gEval _) _ fst).
+      apply gEval_meas_fun; auto.
+      apply (@measurable_fst _ _ (giryM T1) (giryM T2)).
+
+      apply (@measurableT_comp _ _ _ _ _ _ (gEval _) _ snd).
+      apply gEval_meas_fun; auto.
+      apply (@measurable_snd _ _ (giryM T1) (giryM T2)).
+
+    - intros F HmF HF Hn.
+      eapply eq_measurable_fun.
+        intros ??.
+        rewrite measure_semi_bigcup; auto.
+        apply bigcup_measurable; auto.
+        simpl.
+        apply ge0_emeasurable_fun_sum; auto.
+  Qed.
+
+End giry_prod_meas_fun.
+
+
+Section giry_prod_int.
+  Local Open Scope classical_set_scope.
+  Local Open Scope ereal_scope.
+  Context `{d1 : measure_display} `{d2 : measure_display}.
+  Context {T1 : measurableType d1} {T2 : measurableType d2}.
+
+  Lemma gProdInt1 (μ1 : giryM T1) (μ2 : giryM T2)
+    (h : (T1 * T2)%type -> \bar R) (Hmh : measurable_fun setT h) (Hpos : forall x, 0 <= h x):
+    gInt h (gProd (μ1, μ2)) = gInt (fun x => gInt (fun y => h (x, y)) μ2 ) μ1.
+  Proof.
+    rewrite /gInt/=/gProd_ev/=.
+    rewrite fubini_tonelli1; auto.
+  Qed.
+
+  Lemma gProdInt2 (μ1 : giryM T1) (μ2 : giryM T2)
+    (h : (T1 * T2)%type -> \bar R) (Hmh : measurable_fun setT h) (Hpos : forall x, 0 <= h x):
+    gInt h (gProd (μ1, μ2)) = gInt (fun y => gInt (fun x => h (x, y)) μ1 ) μ2.
+  Proof.
+    rewrite /gInt/=/gProd_ev/=.
+    rewrite fubini_tonelli2; auto.
+  Qed.
+
+End giry_prod_int.
 
 Section giry_iterM.
   Local Open Scope classical_set_scope.
@@ -375,8 +1263,8 @@ Section giry_is_prob.
 
   Lemma is_prob_gRet {d} {T : measurableType d} (x:T) : is_prob (gRet x).
   Proof.
-  Admitted.
-  
+    apply probability_setT.
+  Qed.
 End giry_is_prob.
 
 Section giry_has_support_in.

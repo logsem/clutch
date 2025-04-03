@@ -1,8 +1,8 @@
 (** Exact couplings  *)
 From mathcomp Require Import all_ssreflect classical_sets boolp functions.
 From clutch.prelude Require Import classical.
-From mathcomp.algebra Require Import ssralg ssrnum.
-From mathcomp.analysis Require Import reals ereal measure lebesgue_measure lebesgue_integral sequences function_spaces Rstruct.
+From mathcomp.algebra Require Import ssralg ssrnum interval.
+From mathcomp.analysis Require Import reals ereal measure lebesgue_measure lebesgue_integral ftc probability sequences function_spaces Rstruct.
 From clutch.prob.monad Require Import prelude giry.
 From stdpp Require Import base.
 From Coq Require Import Reals.
@@ -167,7 +167,7 @@ Section couplings_theory.
       pose proof (gBindInt_meas_fun μ1 Hf Hmh1) as Haux.
       eapply eq_measurable_fun; eauto.
       intros ??.
-      rewrite gInt_eval //.
+      rewrite /gInt //.
     }
     have Hameas : (measurable_fun setT a).
     {
@@ -208,7 +208,7 @@ Section couplings_theory.
       pose proof (gBindInt_meas_fun μ2 Hg Hmh2) as Haux.
       eapply eq_measurable_fun; eauto.
       intros ??.
-      rewrite gInt_eval //.
+      rewrite /gInt //.
     }
     have Hbmeas : (measurable_fun setT b).
     {
@@ -348,9 +348,10 @@ Section couplings_theory.
     have Hh1measInt : measurable_fun setT (λ x : A1, (\int[f x]_y h1 y)%E).
     {
       pose proof (gBindInt_meas_fun μ1 Hf Hmh1) as Haux.
-      eapply eq_measurable_fun; eauto.
+      eapply eq_measurable_fun.
       intros ??.
-      rewrite gInt_eval //.
+      rewrite /gInt //.
+      auto.
     }
     have Hameas : (measurable_fun setT a).
     {
@@ -389,9 +390,10 @@ Section couplings_theory.
     have Hh2measInt : measurable_fun setT (λ x : B1, (\int[g x]_y h2 y)%E).
     {
       pose proof (gBindInt_meas_fun μ2 Hg Hmh2) as Haux.
-      eapply eq_measurable_fun; eauto.
+      eapply eq_measurable_fun.
       intros ??.
-      rewrite gInt_eval //.
+      rewrite /gInt //.
+      auto.
     }
     have Hbmeas : (measurable_fun setT b).
     {
@@ -515,9 +517,10 @@ Section couplings_theory.
     have Hameas : (measurable_fun setT a).
     {
       pose proof (gBindInt_meas_fun μ1 Hf Hmh1) as Haux.
-      eapply eq_measurable_fun; eauto.
+      eapply eq_measurable_fun.
       intros ??.
-      rewrite gInt_eval //.
+      rewrite /gInt //.
+      auto.
     }
 
     have Ha_ge0 : (forall x, (0 <= a x)%E).
@@ -541,9 +544,10 @@ Section couplings_theory.
     have Hh2measInt : measurable_fun setT (λ x : B1, (\int[g x]_y h2 y)%E).
     {
       pose proof (gBindInt_meas_fun μ2 Hg Hmh2) as Haux.
-      eapply eq_measurable_fun; eauto.
+      eapply eq_measurable_fun.
       intros ??.
-      rewrite gInt_eval //.
+      rewrite /gInt //.
+      auto.
     }
     have Hbmeas : (measurable_fun setT b).
     {
@@ -865,6 +869,7 @@ Section ARcoupl_meas.
  Qed.
 
 
+
 Local Open Scope classical_set_scope.
 
 (* TODO: Move *)
@@ -1037,6 +1042,62 @@ Proof.
 Qed.
 
 End ARcoupl_meas.
+
+
+(* TODO: Finish axiomatization of uniform distribution
+
+(*
+Section ARcoupl_unif.
+
+  Local Open Scope ring_scope.
+  Local Open Scope ereal_scope.
+  Local Open Scope classical_set_scope.
+
+  (* Axioms about Lebesgue integrals over an interval, should be provable with change of variables *)
+  Axiom leb_integral_cov_scale_ge0 :
+    forall a b k (f : R -> \bar R),
+      (a < b)%R ->
+      (0 <= k)%R ->
+      (measurable_fun setT f) ->
+      (forall x, 0 <= (f x)) ->
+      \int[lebesgue_measure]_(x in `[a, b]) (fun x => f (k*x)%R ) x = (1/k) * \int[lebesgue_measure]_(x in `[(k*a)%R, (k*b)%R]) f x.
+
+
+  Axiom leb_integral_cov_scale_le0 :
+    forall (a b : R) k f,
+      (a < b)%R ->
+      (k <= 0) ->
+      (measurable_fun setT f) ->
+      (forall x, 0 <= f x)%E ->
+      \int[lebesgue_measure]_(x in `[a, b]) (fun x => f (k * x)) x = -(1/k) * \int[lebesgue_measure]_(x in `[(k*a)%R, (k*b)%R]) f x.
+
+  Axiom leb_integral_cov_shift :
+    forall (a b : R) d f,
+      (a < b)%R ->
+      (measurable_fun setT f) ->
+      (forall x, 0 <= f x)%E ->
+      \int[lebesgue_measure]_(x in `[a, b]) (fun x => f (x + d)) x = -(1/k) * \int[lebesgue_measure]_(x in `[(a+d)%R, (b+d)%R]) f x.
+
+
+  Lemma ARcoupl_meas_unif_rev (a b : R) (Hab : Order.lt a b) :
+     ARcoupl_meas (uniform_prob Hab) (uniform_prob Hab) (fun n m => m = GRing.add (GRing.add a b) (GRing.opp n) ) GRing.zero 0.
+  Proof.
+    intros f Hfm Hfge0 Hfle1 g Hgm Hgge0 Hgle1 Hfg.
+    rewrite integral_uniform; auto.
+    rewrite integral_uniform; auto.
+    rewrite GRing.add0r.
+    rewrite exp.expR0.
+    rewrite mul1e.
+    rewrite Rintegration_by_parts.
+    rewrite integral_itv_bndo_bndc.
+
+    Search patch.
+   eapply (ARcoupl_meas_preserve).
+   intros S ?.
+   Search ocitv.
+   Unshelve.
+   Set Printing All.
+*)
 
 
 (*
