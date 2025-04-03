@@ -5,8 +5,9 @@ From stdpp Require Import base numbers binders strings gmap.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
+From Coq.ssr Require Import ssreflect ssrfun.
 From clutch.bi Require Import weakestpre.
-From mathcomp.analysis Require Import reals measure ereal Rstruct.
+From mathcomp.analysis Require Import reals measure ereal Rstruct lebesgue_integral.
 From clutch.prob.monad Require Export giry lim.
 Set Warnings "hiding-delimiting-key".
 (*From Coq Require Import Reals Psatz.
@@ -56,7 +57,6 @@ Qed.
 
 Canonical Structure markov_mdp (m : markov) := Mdp _ _ (markov_mdp_mixin m).
 *)
-
 
 Section is_final.
   Context {δ : meas_markov}.
@@ -134,7 +134,7 @@ Section reducible.
     rewrite /irreducible.
     apply is_final_dzero.
     by rewrite //.
-Qed.
+  Qed.
 
   Lemma not_not_stuck a : ¬ not_stuck a ↔ stuck a.
   Proof.
@@ -151,27 +151,134 @@ Qed.
     reducible a → not_stuck a.
   Proof. intros. by right. Qed.
 
-  (*
   Lemma mass_pos_reducible a :
-    SeriesC (step a) > 0 → reducible a.
-  Proof. by intros ?%SeriesC_gtz_ex. Qed.
-
-  Lemma reducible_mass_pos a :
-    reducible a → SeriesC (step a) > 0.
-  Proof.
-    intros [a' Ha].
-    eapply Rlt_le_trans; [done|].
-    apply pmf_le_SeriesC.
+    (0 < mass (step a) (measurableT))%E → reducible a.
+  Proof. 
+    rewrite /reducible /is_zero /not /measure_eq.
+    intros. 
+    assert (mass (step a) (measurableT) = 0)%E.
+    {
+      rewrite /mass. 
+      rewrite (eq_measure_integral gZero). 
+      2 : { intros. apply H0; auto. }
+      rewrite (eq_measure_integral mzero). 
+      2 : { intros. apply gZero_eval; auto. }
+      apply integral_measure_zero.
+    }
+    rewrite H1 lte_fin in H. 
+    apply Is_true_true_1, (elimT (RltbP 0 0)) in H. lra.
   Qed.
-  *)
+
 
 End reducible.
+
+Section AdditionalMonadLaws.
+  Local Open Scope classical_set_scope.
+  Local Open Scope ereal_scope.
+
+  Lemma gMap_gRet: ∀ {d1 d2: measure_display} {T1 : measurableType d1} {T2 : measurableType d2} (t : T1) (f : T1 -> giryM T2) (H : measurable_fun setT f),
+    gMap H (gRet t) = gRet (f t).
+  Admitted.
+
+  Lemma gret_id_left: ∀ {d1 : measure_display} {T1 : measurableType d1} (x : giryM T1),
+    (gJoin \o gRet) x ≡μ x. 
+  Admitted.
+
+  Lemma gRet_gBind: ∀ {d1 d2: measure_display} {T1 : measurableType d1} {T2 : measurableType d2} (t : T1) (f : T1 -> giryM T2) (H : measurable_fun setT f),
+      gBind H (gRet t) ≡μ f t.
+  Proof.
+    intros.
+    rewrite /gBind. simpl. rewrite gMap_gRet. 
+    replace (gJoin (gRet (f t))) with ((gJoin \o gRet) (f t)); auto.
+    by rewrite gret_id_left.
+  Qed.
+
+  Lemma gBind_gRet: ∀ {d1 : measure_display} {T1 : measurableType d1} (t : giryM T1),
+    gBind gRet_meas_fun t ≡μ t.
+  Proof.
+    intros.
+    by rewrite /gBind gJoin_id1 gret_id_left. 
+  Qed.
+
+  Lemma gBind_equiv: ∀ {d1 d2 : measure_display} {T1 : measurableType d1} {T2 : measurableType d2}
+    [f f' : T1 → giryM T2] {H : measurable_fun setT f} {H' : measurable_fun setT f'} {p : giryM T1}, 
+      (∀ a : T1, f a ≡μ f' a) -> gBind H p ≡μ gBind H' p.
+  Proof.
+    Search (gBind).
+  Admitted.
+
+  Lemma gBind_assoc_help: ∀ {d1 d2 d3: measure_display} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+    {f : T1 -> giryM T2} {g : T2 -> giryM T3} (Hf : measurable_fun setT f) (Hg : measurable_fun setT g),
+      measurable_fun setT ((gBind Hg) \o f).
+  Proof.
+    intros.
+    apply measurableT_comp; auto.
+    apply gBind_meas_fun.
+  Qed.
+
+  Lemma gBind_assoc: ∀ {d1 d2 d3: measure_display} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+    {f : T1 -> giryM T2} {g : T2 -> giryM T3} {Hf : measurable_fun setT f} {Hg : measurable_fun setT g} (p : giryM T1),
+      gBind Hg (gBind Hf p) ≡μ gBind (gBind_assoc_help Hf Hg) p.
+  Proof.
+  
+  Admitted.
+
+
+  Lemma gBind'_meas_rw: ∀ {d1 d2: measure_display} {T1 : measurableType d1} {T2 : measurableType d2} {f : T1 -> giryM T2} (H : measurable_fun setT f),
+    gBind' f = gBind H.
+  Proof.
+    intros. 
+    by rewrite /gBind' /gMap' (extern_if_eq H) /gBind.
+  Qed.
+
+  Lemma gIter_plus {d1 : measure_display} {T1 : measurableType d1} (f : T1 → giryM T1) {H : measurable_fun setT f} (t : T1) (n m : nat) :
+    gIter (n + m) f t ≡μ gBind' (gIter m f) (gIter n f t).
+  Proof.
+    rewrite (gBind'_meas_rw (gIter_meas_fun _ _)).
+    revert t. induction n; intros.
+    { rewrite gRet_gBind //. }
+    simpl. rewrite !(gBind'_meas_rw (gIter_meas_fun _ _)). 
+    admit.
+  Admitted.
+
+  Global Instance is_det_proper {d} {T : measurableType d}: 
+    Proper (eq ==> (measure_eq (T:=T)) ==> eq) is_det.
+  Proof.
+    intros x y H0 μ1 μ2 H1.
+    unfold is_det, has_support_in, mass'. 
+    subst x.
+    rewrite /mass.
+    rewrite !(eq_measure_integral (m1 := μ1) μ2); 
+    auto; intros; by apply H1.
+  Qed.
+
+  Lemma is_det_eq_meas {d} {T : measurableType d} {t : T} {μ1 μ2 : giryM T}: 
+    μ1 ≡μ μ2 ->is_det t μ1 ↔ is_det t μ2.
+  Proof.
+  Admitted.
+
+End AdditionalMonadLaws.
 
 Section markov.
   Context {δ : meas_markov}.
   Implicit Types a : mstate δ.
   Implicit Types b : mstate_ret δ.
 
+
+
+  Lemma const_meas_fun {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (a : T2):
+    measurable_fun setT (fun _ : T1 => a).
+  Proof.
+    move => _ A HA.
+    rewrite /preimage setTI.
+    destruct (pselect (A a)) as [Ha | Ha]; 
+    erewrite (eq_set (Q := fun _ => _) _).
+    { apply: measurableT. }
+    { apply: measurable0. }
+    Unshelve. 
+    { intros. rewrite propeqE. tauto. }
+    { intros. rewrite propeqE. tauto. }
+  Qed.
 
   (** * Strict partial evaluation *)
   Program Definition stepN (n : nat) a : giryM (mstate δ) :=
@@ -188,14 +295,16 @@ Section markov.
   Proof. done. Qed.
 
   Lemma stepN_1 a :
-    stepN 1 a = step a.
-  Proof. rewrite stepN_Sn stepN_0. (* dret_id_right //. Qed. *)  Admitted.
+    stepN 1 a ≡μ step a.
+  Proof. 
+    by rewrite stepN_Sn stepN_0 (gBind'_meas_rw gRet_meas_fun) gBind_gRet. 
+  Qed.
 
   Lemma stepN_plus a (n m : nat) :
-    stepN (n + m) a = gBind' (stepN m) (stepN n a) .
-  Proof. Admitted.
-
-
+    stepN (n + m) a ≡μ gBind' (stepN m) (stepN n a) . 
+  Proof. 
+    apply gIter_plus, step_meas.
+  Qed.
 
   (*
     Generalize these ones to eval on sets?
@@ -216,6 +325,23 @@ Section markov.
     is_det a3 (stepN m a2) →
     is_det a3 (stepN (n + m) a1).
   Proof.
+    intros. 
+    erewrite (is_det_eq_meas). 2 : apply stepN_plus.
+    unfold is_det, has_support_in in *.
+    
+(* 
+    destruct (pselect (measurable [set a1])); 
+    destruct (pselect (measurable [set a2]));
+    destruct (pselect (measurable [set a3]));
+    try (rewrite !extern_if_eq in H H0; auto).
+    {
+      rewrite extern_if_eq.
+    } *)
+    (* rewrite !gBind'_meas_rw; try apply stepN_meas. 
+    intros. rewrite /mass' /mass. 
+    rewrite (gBindInt_rw ); simpl.
+    2 : { admit. }
+     *)
   Admitted.
   (*
     rewrite stepN_plus.
@@ -234,8 +360,48 @@ Section markov.
     | None => step a
     end.
 
+  Definition step_or_final' a : giryM (mstate δ) := 
+    if (isSome \o to_final) a then gRet a else step a.
+
+  Lemma step_or_final'_eq: step_or_final = step_or_final'.
+  Proof.
+    apply functional_extensionality. intros.
+    rewrite /step_or_final /step_or_final' /comp.
+    destruct (to_final x); auto.
+  Qed.
+
+  Lemma isSome_is_none {A : Type} (a : option A) : isSome a = false ↔ a = None.
+  Proof.
+    rewrite /isSome. split; destruct a; auto; intros; inversion H.
+  Qed.
+
+  Lemma is_final_meas_fun: measurable_fun setT (isSome \o (to_final : mstate δ -> _)).
+  Proof.
+    Local Open Scope classic.
+    apply measurableT_comp.
+    { 
+      apply (measurable_fun_bool false).
+      rewrite setTI /preimage. 
+      erewrite (eq_set _).
+      apply option_cov_None_meas_set.
+      Unshelve. 
+      intros. 
+      rewrite propeqE /option_cov_None. simpl. 
+      rewrite /isSome. split; destruct x; auto; intros; inversion H.
+    }
+    { apply to_final_meas. }
+  Qed.
+
   Lemma step_or_final_meas : measurable_fun setT step_or_final.
-  Proof. Admitted.
+  Proof. 
+    rewrite step_or_final'_eq.
+    unfold step_or_final'.
+    eapply (measurable_fun_if measurableT is_final_meas_fun (g := gRet) (h := step)); apply (measurable_funS measurableT).
+    { apply subsetT. }
+    { apply gRet_meas_fun. }
+    { apply subsetT. }
+    { apply step_meas. }
+  Qed.
 
   Lemma step_or_final_no_final a :
     ¬ is_final a → step_or_final a = step a.
@@ -248,7 +414,9 @@ Section markov.
   Definition pexec (n : nat) a : giryM (mstate δ) := gIter n step_or_final a.
 
   Lemma pexec_meas (n : nat) : measurable_fun setT (pexec n).
-  Proof. Admitted.
+  Proof. 
+    apply gIter_meas_fun, step_or_final_meas.
+  Qed.
 
   Lemma pexec_O a :
     pexec 0 a = gRet a.
@@ -260,39 +428,46 @@ Section markov.
   Proof. done. Qed.
 
   Lemma pexec_plus ρ n m :
-    pexec (n + m) ρ = gBind' (pexec m) (pexec n ρ).
-  Proof. Admitted.
-
-  Lemma pexec_1 :
-    pexec 1 = step_or_final.
+    pexec (n + m) ρ ≡μ gBind' (pexec m) (pexec n ρ).
   Proof.
+    apply gIter_plus, step_or_final_meas.
+  Qed.
+
+  Lemma pexec_1 a :
+    pexec 1 a ≡μ step_or_final a.
+  Proof. 
     rewrite /pexec//=.
-    apply functional_extensionality.
-    move=> x //=.
-  Admitted.
+    rewrite (gBind'_meas_rw gRet_meas_fun).
+    apply gBind_gRet.
+  Qed.
 
   Lemma pexec_Sn_r a n :
-    pexec (S n) a = gBind' step_or_final (pexec n a).
+    pexec (S n) a ≡μ gBind' step_or_final (pexec n a).
   Proof.
     assert (S n = n + 1)%nat as ->; try lia.
     rewrite pexec_plus.
-    rewrite pexec_1 //.
+    rewrite !(gBind'_meas_rw (pexec_meas _)).
+    rewrite !(gBind'_meas_rw step_or_final_meas).
+    apply gBind_equiv.
+    apply pexec_1.
   Qed.
 
   Lemma pexec_is_final n a :
-    is_final a → pexec n a = gRet a.
+    is_final a → pexec n a ≡μ gRet a.
   Proof.
     intros ?.
     induction n.
     { by rewrite pexec_O //. }
-    { rewrite pexec_Sn.
-      (*
-      rewrite -step_or_final_is_final. //.
-      rewrite dret_id_left -IHn //.
-      *)
-      admit.
+    { 
+      rewrite pexec_Sn.
+      rewrite -step_or_final_is_final; auto.
+      rewrite (gBind'_meas_rw (pexec_meas _)).
+      rewrite /step_or_final. 
+      rewrite /is_final in H. destruct (to_final a); try by inversion H.
+      by rewrite gRet_gBind. 
     }
-  Admitted.
+
+  Qed.
 
   Lemma pexec_no_final a n :
     ¬ is_final a →
@@ -349,44 +524,122 @@ Section markov.
       end.
   Proof. by destruct n. Qed.
 
+  Definition exec_0' a := if (isSome \o to_final) a then ((gRet \o 𝜋_Some_v) \o to_final) a else (fun _ => gZero) a.
+
+  Lemma exec_0'_eq: exec 0 = exec_0'.
+  Proof.
+    apply functional_extensionality.
+    intros a.
+    rewrite /exec /exec_0'.
+    simpl.
+    destruct (to_final a); auto.
+  Qed.
+
+  Definition exec_Sn' n a := if (isSome \o to_final) a then ((gRet \o 𝜋_Some_v) \o to_final) a else (gBind' (exec n) \o step) a.
+
+  Lemma exec_Sn'_eq n : exec (S n) = exec_Sn' n.
+  Proof.
+    apply functional_extensionality.
+    intros a.
+    rewrite /exec_Sn'.
+    simpl.
+    destruct (to_final a); auto.
+  Qed.
+
+  Local Open Scope classic.
+
+  Lemma exec'_true_meas : measurable_fun ((isSome \o to_final) @^-1` [set true]) ((gRet \o 𝜋_Some_v) \o (to_final : mstate δ -> _)).
+  Proof.
+    assert ([set x | isSome x = true] = (option_cov_Some (T := mstate_ret δ))). {
+      apply eq_set.
+      intros. rewrite propeqE /option_cov_Some. simpl. 
+      rewrite /isSome. split; intros.
+      { destruct x; inversion H. exists s; auto. }
+      { destruct H. rewrite H. auto. }
+    }
+    apply (measurable_comp (F := [set x | isSome x = true])).
+    { 
+      rewrite H.
+      apply option_cov_Some_meas_set. 
+    }
+    { 
+      unfold preimage. simpl.     
+      unfold subset. simpl. intros.
+      destruct H0. by subst t.
+    }
+    {
+      apply measurableT_comp. { apply gRet_meas_fun. }
+      rewrite H. apply 𝜋_Some_v_meas_fun.
+      apply None. 
+    }
+    {
+      apply (measurable_funS measurableT).
+      { apply subsetT. }
+      { apply to_final_meas. }
+    }
+  Qed.
+
   Lemma exec_meas_fun (n : nat) : measurable_fun setT (exec n).
-  Proof. Admitted.
-  Hint Resolve exec_meas_fun : mf_fun.
+  Proof. 
+    induction n.
+    {
+      rewrite exec_0'_eq.
+      apply (measurable_fun_if measurableT).
+      { apply is_final_meas_fun. }
+      { rewrite setTI. apply exec'_true_meas. }
+      { 
+        apply (measurable_funS measurableT). { apply subsetT. }
+        apply (const_meas_fun gZero).
+      }
+    }
+    {
+      rewrite exec_Sn'_eq.
+      apply (measurable_fun_if measurableT).
+      { apply is_final_meas_fun. }
+      { rewrite setTI. apply exec'_true_meas. }
+      { apply (measurable_funS measurableT). { apply subsetT. }
+        apply measurableT_comp.
+        { apply (gBind'_meas_fun IHn). }
+        { apply step_meas. }
+      }
+    }
+  Qed.
 
   Lemma exec_is_final a b n :
     to_final a = Some b → exec n a = gRet b.
   Proof. destruct n; simpl; by intros ->. Qed.
 
   Lemma exec_Sn a n :
-    exec (S n) a = gBind' (exec n) (step a).
+    exec (S n) a ≡μ gBind' (exec n) (step_or_final a).
   Proof.
     rewrite /step_or_final /=.
-    case_match; [|done].
-  Admitted.
-  (*
-    rewrite dret_id_left -/exec.
+    case_match; [|done]. 
+    rewrite gBind'_meas_rw. { apply exec_meas_fun. }
+    intros.
+    rewrite gRet_gBind /exec. 
     by erewrite exec_is_final.
   Qed.
-*)
 
   Lemma exec_plus a n1 n2 :
-    exec (n1 + n2) a = gBind' (exec n2) (pexec n1 a).
+    exec (n1 + n2) a ≡μ gBind' (exec n2) (pexec n1 a).
   Proof.
+    rewrite !gBind'_meas_rw. { apply exec_meas_fun. }
+    intros.
     revert a. induction n1.
-    { intro a. rewrite pexec_O. admit. (* dret_id_left //. *) }
-    { admit.
-      (*
+    { 
+      intro a. rewrite pexec_O gRet_gBind //.
+    }
+    { 
       intro a. replace ((S n1 + n2)%nat) with ((S (n1 + n2))); auto.
-      rewrite exec_Sn pexec_Sn.
-      apply distr_ext.
-      intro.
-      rewrite -dbind_assoc.
-      rewrite /pmf/=/dbind_pmf.
-      by setoid_rewrite IHn1.
-      *)
-      }
-  Admitted.
-
+      rewrite exec_Sn pexec_Sn. 
+      intros.
+      rewrite !gBind'_meas_rw. { apply exec_meas_fun. } { apply pexec_meas. }
+      intros.
+      rewrite gBind_assoc.
+      by rewrite gBind_equiv. 
+    }
+  Qed.
+  
   (*
   Lemma exec_pexec_relate a n:
     exec n a = pexec n a ≫=
