@@ -1,6 +1,6 @@
-From clutch.prob_lang.typing Require Import tychk.
+From clutch.prob_lang Require Import advantage typing.tychk.
 From clutch.approxis Require Import approxis map list option.
-From clutch.approxis.examples Require Import symmetric security_aux xor advantage prf.
+From clutch.approxis.examples Require Import symmetric security_aux xor prf.
 Import prf.bounds_check.
 Set Default Proof Using "Type*".
 
@@ -913,17 +913,18 @@ Proof with (rel_pures_l ; rel_pures_r).
   (* Same statement as CPA_bound_st but proven without assuming H_ε_ARC or H_ε_LR. *)
   Theorem CPA_bound_st' Σ `{approxisRGpreS Σ}
     (bla : forall (HΣ' : approxisRGS Σ), @XOR_spec Σ HΣ' Message Output xor_struct)
-    σ σ' :
-    (pr_dist (adversary (CPA_real sym_scheme_F #Q)) (adversary (CPA_rand sym_scheme_F #Q)) σ σ' #true
+    σ :
+    (pr_dist (adversary (CPA_real sym_scheme_F #Q)) (adversary (CPA_rand sym_scheme_F #Q)) σ σ #true
      <= ε_Q + ε_F)%R.
   Proof.
-    eapply pr_dist_triangle.
+    eapply (pr_dist_triangle _ _ _ _ σ).
     1: eapply pr_dist_adv_F.
     1: eapply pr_dist_triangle.
     2: eapply (pr_dist_F_adv bla).
     1: eapply (advantage_ub).
     1: right ; eauto.
-    unfold ε_Q, ε_F. lra.
+    fold ε_F. rewrite Rplus_0_l.
+    rewrite /NNRbar_to_real. lra.
   Qed.
 
   Theorem CPA_bound Σ `{approxisRGpreS Σ}

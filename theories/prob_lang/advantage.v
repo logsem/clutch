@@ -1,9 +1,15 @@
-From clutch.approxis Require Import approxis.
-From clutch.approxis Require Export bounded_oracle.
+Require Import Reals Psatz.
+From clutch.prob Require Import distribution markov.
+From clutch.prob_lang Require Import notation typing.tychk typing.contextual_refinement.
 Set Default Proof Using "Type*".
-
 #[local] Open Scope R_scope.
 
+(** This module defines the (distinguishing) advantage of an adversary against
+two programs as the difference in probability of observing some outcome [v]. *)
+
+(* NB: The definition [pr_dist] could be generalized to any Markov chain, but
+we explicitly mention states and expressions here, since the advantage is
+defined as the least upper bound of distances over all possible states. *)
 Definition pr_dist (X Y : expr)
   (σ σ' : state) (v : val) : nonnegreal.
 Proof.
@@ -18,30 +24,30 @@ Proof.
   rewrite /pr_dist. etrans. 2: apply Rabs_triang. right. simpl. f_equal. lra.
 Qed.
 
-Fact pr_dist_triangle X Y Z v ε1 ε2 ε3 :
-  ((∀ σ σ', pr_dist X Y σ σ' v <= ε1) →
-   (∀ σ σ', pr_dist Y Z σ σ' v <= ε2) →
+Fact pr_dist_triangle X Y Z σ σ' σ'' v ε1 ε2 ε3 :
+  ((pr_dist X Y σ σ' v <= ε1) →
+   (pr_dist Y Z σ' σ'' v <= ε2) →
    (ε1 + ε2 <= ε3) →
-   ∀ σ σ', pr_dist X Z σ σ' v <= ε3).
+   pr_dist X Z σ σ'' v <= ε3)%R.
 Proof.
   intros. etrans.
-  1: eapply (pr_dist_triangle' _ Y _ _ σ).
+  1: eapply (pr_dist_triangle' _ Y _ _ σ').
   etrans. 2: eauto. apply Rplus_le_compat => //.
 Qed.
 
-Definition pr_dist_st X Y v := (λ ε : R, ∃ (σ σ' : state), nonneg (pr_dist X Y σ σ' v) = ε).
+Definition pr_dist_st X Y v := (λ ε : R, ∃ (σ : state), nonneg (pr_dist X Y σ σ v) = ε).
 
 Fact pr_dist_st_bound X Y v : bound (pr_dist_st X Y v).
 Proof.
   assert (∀ (e : expr) (σ : state) (v : val), 0 <= lim_exec (e, σ) v <= 1)
     as h by by intros ; split.
-  exists 1. intros ε (σ & σ' & <-). apply Rabs_le.
-  pose (h X σ v). pose (h Y σ' v). split ; lra.
+  exists 1. intros ε (σ & <-). apply Rabs_le.
+  pose (h X σ v). pose (h Y σ v). split ; lra.
 Qed.
 
 Fact pr_dist_st_inhabited : forall X Y v, (∃ x : R, pr_dist_st X Y v x).
   intros. rewrite /pr_dist_st.
-  exists (pr_dist X Y inhabitant inhabitant v) , inhabitant , inhabitant => //.
+  exists (pr_dist X Y inhabitant inhabitant v) , inhabitant => //.
 Qed.
 
 Definition advantage_R (A : expr) X Y v :=
@@ -53,7 +59,7 @@ Proof.
   destruct completeness as [x [ub lub]] => /=.
   rewrite /is_upper_bound in ub.
   etrans. 2: apply ub.
-  2:{ rewrite /pr_dist_st. exists inhabitant , inhabitant => //. }
+  2:{ rewrite /pr_dist_st. exists inhabitant => //. }
   apply Rabs_pos.
 Qed.
 
@@ -62,27 +68,27 @@ Definition advantage (A X Y : expr) (v : val) : nonnegreal.
 Defined.
 
 Lemma advantage_uniform (A X Y : expr) v (ε : R) :
-  (∀ (σ σ' : state), pr_dist (A X) (A Y) σ σ' v <= ε) →
+  (∀ (σ : state), pr_dist (A X) (A Y) σ σ v <= ε) →
   (advantage A X Y v <= ε).
 Proof.
   intros hε. rewrite /advantage/advantage_R => /=.
   destruct completeness as [x [ub lub]] => /=.
-  apply lub. intros ε' (σ & σ' & hε').
+  apply lub. intros ε' (σ & hε').
   rewrite -hε'. apply hε.
 Qed.
 
-Fact advantage_ub (A X Y : expr) v σ σ' : pr_dist (A X) (A Y) σ σ' v <= advantage A X Y v.
+Fact advantage_ub (A X Y : expr) v σ : pr_dist (A X) (A Y) σ σ v <= advantage A X Y v.
 Proof.
   rewrite /advantage/advantage_R => /=.
   destruct completeness as [x [ub lub]] => /=.
-  apply ub. eexists _, _. done.
+  apply ub. eexists _. done.
 Qed.
 
 Fact advantage_triangle' A X Y Z v :
   (advantage A X Z v <= (advantage A X Y v) + (advantage A Y Z v)).
 Proof.
   apply advantage_uniform. intros.
-  transitivity (pr_dist (A X) (A Y) σ σ' v + (pr_dist (A Y) (A Z) σ' σ' v)).
+  transitivity (pr_dist (A X) (A Y) σ σ v + (pr_dist (A Y) (A Z) σ σ v)).
   1: apply pr_dist_triangle'.
   eapply Rplus_le_compat => //.
   all: apply advantage_ub.
@@ -98,4 +104,27 @@ Proof.
   1: eapply (advantage_triangle' _ _ Y _ _).
   etrans. 2: eauto.
   apply Rplus_le_compat => //.
+Qed.
+
+Lemma ctx_advantage e e' α (_ : ∅ ⊨ e =ctx= e' : α) :
+  forall A (b : bool), (∅ ⊢ₜ A : (α → TBool)) ->
+                       nonneg (advantage A e e' #b) = 0%R.
+Proof.
+  clear -H.
+  intros ?? A_typed.
+  destruct H as [h h'].
+  cut (advantage A e e' #b <= 0)%R.
+  { pose proof (cond_nonneg (advantage A e e' #b)). lra. }
+  apply advantage_uniform.
+  rewrite /pr_dist. simpl.
+  rewrite /ctx_refines in h, h'.
+  intros.
+  simpl in h, h'.
+  opose proof (h [CTX_AppR A] σ b _) as hh ; [by tychk|].
+  opose proof (h' [CTX_AppR A] σ b _) as hh' ; [by tychk|].
+  simpl in hh, hh'.
+  set (x := (pmf #(LitBool b) - pmf #(LitBool b))%R).
+  destruct (Rle_dec 0 x) ; subst x.
+  - rewrite Rabs_right ; lra.
+  - rewrite Rabs_left ; lra.
 Qed.

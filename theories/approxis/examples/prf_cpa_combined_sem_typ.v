@@ -1,12 +1,14 @@
 From Ltac2 Require Import Ltac2.
 Set Default Proof Mode "Classic".
-From clutch.prob_lang.typing Require Import tychk.
+From clutch.prob_lang Require Import advantage typing.tychk.
 From clutch.approxis Require Import approxis map list option.
-From clutch.approxis.examples Require Import symmetric security_aux sum_seq xor advantage prf.
+From clutch.approxis.examples Require Import symmetric security_aux sum_seq xor prf.
 Import prf.sem.
 Import symmetric.CPA_sem.
 Set Default Proof Using "All".
 
+
+Section combined.
 
 (* TODO prove this rule, generalizing the lhs to be an arbitrary term e *)
 Hypothesis refines_tape_couple_avoid : forall `{!approxisRGS Σ} (N:nat) α l z E K K' A,
@@ -16,8 +18,6 @@ Hypothesis refines_tape_couple_avoid : forall `{!approxisRGS Σ} (N:nat) α l z 
     α ↪N (N; []) ∗
     ▷ (∀ (n : fin (S N)), ⌜n ∉ l⌝ -∗ α ↪N (N; []) -∗ REL fill K (Val #n) << fill K' (Val #n) @ E : A)
     ⊢ REL fill K (rand(#lbl:α) #z) << fill K' (rand #z) @ E : A.
-
-Section combined.
 
   (*** A PRF *)
   Context `{PRF}.

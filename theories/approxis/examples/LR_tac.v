@@ -142,6 +142,23 @@ Module LR_prod.
 End LR_prod.
 Export LR_prod.
 
+Module LR_bool.
+  Ltac2 bool_intro (typ : constr) xs k :=
+    (* printf "entering bool_intro, typ: %t" typ ; *)
+    lazy_match! typ with
+    | lrel_bool =>
+        (* printf "found `lrel_bool`, done" ; *)
+        match xs with
+        | [] => Some '"(%&->&->)"
+        | x :: _ => let s := '(append "(%" ($x ++ "&->&->)")) in
+                    Some (eval vm_compute in $s)
+        end
+    | _ => None
+    end.
+  Ltac2 Set Basic.lrintro_tacs as prev := fun () => FMap.add "bool" bool_intro (prev ()).
+End LR_bool.
+Export LR_bool.
+
 Module LR_int.
   Ltac2 int_intro typ xs k :=
     (* printf "entering int_intro, typ: %t" typ ; *)

@@ -32,7 +32,13 @@ Section multiplicative.
   Proof using rfc3526_id18_prime. by rewrite p_eq_rfc3526_id18. Qed.
 
   Definition EG_px := Eval hnf in pk_ots_rnd_ddh (G:=@cg_p _ p_prime) (cgg:=@cgg_p _ p_prime).
+
+  Definition EG_DH := @ElGamal_DH_secure (vg_p _) (cgs_p _) (@cg_p _ p_prime) (@cgg_p _ p_prime).
+
+  (* Set Printing Implicit.
+     Check EG_DH. *)
+
 End multiplicative.
 
 
-(* Print Assumptions EG_p. *)
+(* Print Assumptions EG_DH. *)
