@@ -1,30 +1,27 @@
 From Coq Require Import Reals Psatz.
-From clutch.common Require Export language.
-From clutch.meas_lang Require Export lang tactics notation.
+From clutch.meas_lang Require Export lang tactics notation language lang.types.
 From iris.prelude Require Import options.
 
-
-
-(*
-Global Instance into_val_val v : IntoVal (Val v) v.
+Global Instance into_val_val v : @IntoVal meas_lang (Val v) v.
 Proof. done. Qed.
-Global Instance as_val_val v : AsVal (Val v).
+Global Instance as_val_val v : @AsVal meas_lang (Val v).
 Proof. by eexists. Qed.
-*)
 
 (** * Instances of the [Atomic] class *)
 Section atomic.
+  Local Open Scope classical_set_scope.
 
-
-  (*
   Local Ltac solve_atomic :=
+    admit.
+  (*
     apply strongly_atomic_atomic, ectx_language_atomic;
     [intros ????; simpl; by inv_head_step
-    |apply ectxi_language_sub_redexes_are_values; intros [] **; naive_solver].
+    |apply ectxi_language_sub_redexes_are_values; intros [] **; naive_solver]. *)
 
+  Global Instance rec_atomic s f x e : @Atomic meas_lang s (Rec f x e).
+  Proof. solve_atomic. Admitted.
 
-  Global Instance rec_atomic s f x e : Atomic s (Rec f x e).
-  Proof. solve_atomic. Qed.
+  (*
   Global Instance injl_atomic s v : Atomic s (InjL (Val v)).
   Proof. solve_atomic. Qed.
   Global Instance injr_atomic s v : Atomic s (InjR (Val v)).
@@ -83,7 +80,6 @@ not if [v] contains a lambda/rec that is hidden behind a definition.
 
 To make sure that [wp_rec] and [wp_lam] do reduce lambdas/recs that are hidden
 behind a definition, we activate [AsRecV_recv] by hand in these tactics. *)
-
 (*
 Class AsRecV (v : val) (f x : binder) (erec : expr) :=
   as_recv : v = RecV f x erec.

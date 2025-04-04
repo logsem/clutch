@@ -5,7 +5,7 @@ From clutch.meas_lang Require Import lang ectx_language.
 From iris.prelude Require Import options.
 (*  Import meas_lang. *)
 
-(*
+
 (** The tactic [reshape_expr e tac] decomposes the expression [e] into an
 evaluation context [K] and a subexpression [e']. It calls the tactic [tac K e']
 for each possible decomposition until [tac] succeeds. *)
@@ -26,26 +26,34 @@ Ltac reshape_expr e tac :=
   | InjL ?e => go (InjLCtx :: K) e
   | InjR ?e => go (InjRCtx :: K) e
   | Case ?e0 ?e1 ?e2 => go (CaseCtx e1 e2 :: K) e0
-  | AllocN ?e (Val ?v) => go (AllocNLCtx v :: K) e
-  | AllocN ?e1 ?e2 => go (AllocNRCtx e1 :: K) e2
+  | Alloc ?e1 => go (AllocCtx :: K) e1
   | Load ?e => go (LoadCtx :: K) e
   | Store ?e (Val ?v) => go (StoreLCtx v :: K) e
   | Store ?e1 ?e2 => go (StoreRCtx e1 :: K) e2
   | AllocTape ?e => go (AllocTapeCtx :: K) e
   | Rand ?e (Val ?v) => go (RandLCtx v :: K) e
   | Rand ?e1 ?e2 => go (RandRCtx e1 :: K) e2
+  | URand ?e1 => go (URandCtx :: K) e1
   | Tick ?e => go (TickCtx :: K) e
   end in go (@nil ectx_item) e.
 
 Local Open Scope R.
 
+Locate head_step_rel.
+
+(*
 Lemma head_step_support_eq e1 e2 σ1 σ2 r :
   r > 0 → head_step e1 σ1 (e2, σ2) = r → head_step_rel e1 σ1 e2 σ2.
 Proof. intros ? <-. by eapply head_step_support_equiv_rel. Qed.
+*)
 
+Local Open Scope classical_set_scope.
+(*
 Lemma head_step_support_eq_1 e1 e2 σ1 σ2 :
-  head_step e1 σ1 (e2, σ2) = 1 → head_step_rel e1 σ1 e2 σ2.
+  is_det (e2, σ2) (head_step (e1, σ1)) -> (* why. *)
+  head_step_rel e1 σ1 e2 σ2.
 Proof. eapply head_step_support_eq; lra. Qed.
+*)
 
 (** The tactic [inv_head_step] performs inversion on hypotheses of the shape
     [head_step]. The tactic will discharge head-reductions starting from values,
@@ -53,14 +61,15 @@ Proof. eapply head_step_support_eq; lra. Qed.
     finite map operations. This tactic is slightly ad-hoc and tuned for proving
     our lifting lemmas. *)
 
+(*
 Global Hint Extern 0 (head_reducible _ _) =>
          eexists (_, _); eapply head_step_support_equiv_rel : head_step.
 Global Hint Extern 1 (head_step _ _ _ > 0) =>
          eapply head_step_support_equiv_rel; econstructor : head_step.
-
+*)
 Global Hint Extern 2 (head_reducible _ _) =>
          by eauto with head_step : typeclass_instances.
-
+(*
 Ltac solve_step :=
   simpl;
   match goal with
