@@ -18,38 +18,48 @@ Section adequacy.
   Context `{!micrometerGS Σ}.
   Local Open Scope classical_set_scope.
 
-  Lemma wp_adequacy_spec_coupl n m e1 σ1 e1' σ1' Z φ ε δ :
+  Local Definition coe : ofe_car NNRO -> \bar R :=
+    fun x => EFin (x.(nonneg)).
+
+  Lemma wp_adequacy_spec_coupl n m e1 σ1 e1' σ1' Z φ ε :
     meas_spec_coupl ∅ σ1 e1' σ1' ε Z -∗
-    (∀ σ2 e2' σ2' ε', Z σ2 e2' σ2' ε' ={∅}=∗ |={∅}▷=>^n ⌜ARcoupl_meas (@exec (language.meas_lang_markov meas_lang) m (e1, σ2)) (@lim_exec (language.meas_lang_markov meas_lang) (e2', σ2')) φ ε' δ⌝) -∗
-    |={∅}=> |={∅}▷=>^n ⌜ARcoupl_meas (@exec (language.meas_lang_markov meas_lang) m (e1, σ1)) (@lim_exec (language.meas_lang_markov meas_lang) (e1', σ1')) φ ε δ⌝.
+    (∀ σ2 e2' σ2' ε', Z σ2 e2' σ2' ε' ={∅}=∗ |={∅}▷=>^n
+        ⌜ARcoupl_meas (@exec (language.meas_lang_markov meas_lang) m (e1, σ2)) (@lim_exec (language.meas_lang_markov meas_lang) (e2', σ2')) φ 0%R (coe ε')⌝) -∗
+    |={∅}=> |={∅}▷=>^n ⌜ARcoupl_meas (@exec (language.meas_lang_markov meas_lang) m (e1, σ1)) (@lim_exec (language.meas_lang_markov meas_lang) (e1', σ1')) φ 0%R (coe ε)⌝.
   Proof.
-    iRevert (σ1 e1' σ1' ε δ).
-  Admitted.
-  (*
+    iRevert (σ1 e1' σ1' ε).
+    simpl in *.
     iApply meas_spec_coupl_ind.
     iIntros "!>" (σ1 e1' σ1' ε)
       "[% | [H | (%T & %k & %μ1 & %μ1' & %ε' & %X2 & %r & % & % & % & %Hμ1 & %Hμ1' & H)]] HZ".
     - iApply step_fupdN_intro; [done|].
-      do 2 iModIntro. iPureIntro. by apply ARcoupl_1.
+      do 2 iModIntro. iPureIntro.
+      apply ARcoupl_meas_1.
+      (* math *)
+      admit.
     - by iMod ("HZ" with "[$]").
     - iApply (step_fupdN_mono _ _ _ ⌜_⌝).
-      { iPureIntro. intros. eapply ARcoupl_erasure_erasable_exp_rhs; [..|done]; eauto. }
+      { iPureIntro. intros. (* eapply ARcoupl_meas_erasure_erasable_exp_rhs; [..|done]; eauto. *) admit. (** ERASURE *) }
+  Admitted.
+  (*
       iIntros (σ2 e2' σ2' HT).
       iMod ("H" with "[//]") as "[H _]".
       by iApply "H".
   Qed. *)
 
-  Lemma wp_adequacy_val_fupd e e' σ σ' n φ v ε δ :
-    to_val e = Some v →
+  Lemma wp_adequacy_val_fupd (e e' : measure.Measurable.sort (meas_lang.language.expr meas_lang)) σ σ' n φ v ε δ :
+    fill.to_val e = Some v ->
     state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε ∗
     WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
     |={⊤, ∅}=> ⌜ARcoupl_meas (@exec (language.meas_lang_markov meas_lang) n (e, σ)) (@lim_exec (language.meas_lang_markov meas_lang) (e', σ')) φ ε δ⌝.
   Proof.
     iIntros (He) "(Hσ & Hs & Hε & Hwp)".
-  Admitted.
-  (*
     rewrite wp_unfold /wp_pre /= He.
-    iMod ("Hwp" with "[$]") as "Hwp".
+    iSpecialize ("Hwp" $! σ e' σ' ε with "[Hσ Hs Hε]" ).
+    { iSplitR "Hs Hε"; [iApply "Hσ"|]. iSplitL "Hs"; [iApply "Hs" | iApply "Hε"]. }
+    iMod "Hwp".
+  Admitted.
+    (*
     iApply (wp_adequacy_spec_coupl 0 with "Hwp").
     iIntros (σ1 e1' σ1' ε') "> (? & Hs & Hε & (% & Hv & %)) /=".
     iDestruct (spec_auth_prog_agree with "Hs Hv") as %->.
@@ -66,18 +76,21 @@ Section adequacy.
   Proof.
     iIntros "(Hσ & HspecI_auth & Hε & Hwp)".
     iInduction n as [|n] "IH" forall (e σ e' σ' ε).
+    { destruct (fill.to_val e) eqn:He.
+      - (* iMod (wp_adequacy_val_fupd with "[$]") as %?; [done|].
+        by iApply step_fupdN_intro. *)
+        admit.
+      - iApply fupd_mask_intro; [done|]; iIntros "_ /=".
+        iPureIntro. rewrite He.
+        admit.
+        (* by apply ARcoupl_meas_dzero. *) }
+    destruct (fill.to_val e) eqn:He.
+    { (* iMod (wp_adequacy_val_fupd with "[$]") as %?; [done|].
+      iApply step_fupdN_intro; [done|].
+      do 3 iModIntro. done. *) admit. }
+    iEval (rewrite wp_unfold /wp_pre /= He) in "Hwp".
   Admitted.
   (*
-    { destruct (to_val e) eqn:He.
-      - iMod (wp_adequacy_val_fupd with "[$]") as %?; [done|].
-        by iApply step_fupdN_intro.
-      - iApply fupd_mask_intro; [done|]; iIntros "_ /=".
-        iPureIntro. rewrite He. by apply ARcoupl_dzero. }
-    destruct (to_val e) eqn:He.
-    { iMod (wp_adequacy_val_fupd with "[$]") as %?; [done|].
-      iApply step_fupdN_intro; [done|].
-      do 3 iModIntro. done. }
-    iEval (rewrite wp_unfold /wp_pre /= He) in "Hwp".
     iMod ("Hwp" with "[$]") as "Hwp".
     iApply (wp_adequacy_spec_coupl with "Hwp").
     iIntros (σ2 e2' σ2' ε') "(%R & %m & %μ1' & %ε1 & %X2 & %r & % & % & % & % & % & Hcnt) /=".
@@ -104,31 +117,31 @@ Proof.
   intros Heps Hwp.
   eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
   iIntros (Hinv) "_".
-Admitted.
-(*
-  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
-  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
+  iMod (ghost_map_alloc (heap σ)) as "[%γH [Hh _]]".
+  iMod (ghost_map_alloc (tapes σ)) as "[%γT [Ht _]]".
+  iMod (ghost_map_alloc (utapes σ)) as "[%γU [Hu _]]".
   iMod spec_ra_init as (HspecGS) "(Hs & Hj & ?)".
-  destruct (decide (ε < 1)) as [? | H%Rnot_lt_le].
+  destruct (decide (ε < 1)%R) as [? | H%Rnot_lt_le].
   - set ε' := mknonnegreal _ Heps.
     iMod (ec_alloc ε') as (?) "[HE He]"; [done|].
-    set (HapproxisGS := HeapG Σ _ _ _ γH γT HspecGS _).
+    set (HmicrometerGS := HeapG Σ _ _ _ _ γH γT γU HspecGS _).
     iApply (wp_adequacy_step_fupdN ε').
-    iFrame "Hh Ht Hs HE".
+    iFrame "Hh Ht Hs Hu HE".
     by iApply (Hwp with "[Hj] [He]").
   - iApply fupd_mask_intro; [done|]; iIntros "_".
     iApply step_fupdN_intro; [done|]; iModIntro.
-    iPureIntro. by apply ARcoupl_1.
-Qed. *)
+    iPureIntro.
+    admit.
+Admitted.
 
 Theorem wp_adequacy Σ `{micrometerGpreS Σ} e e' σ σ' (ε : R) δ φ :
   (0 <= ε)%R →
   (∀ `{micrometerGS Σ}, ⊢  ⤇ e' -∗ ↯ ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   ARcoupl_meas (@lim_exec (language.meas_lang_markov meas_lang) (e, σ)) (@lim_exec (language.meas_lang_markov meas_lang) (e', σ')) φ ε δ.
 Proof.
+  intros ? Hwp.
 Admitted.
 (*
-  intros ? Hwp.
   apply lim_exec_ARcoupl; [done|].
   intros n.
   by eapply wp_adequacy_exec_n.
