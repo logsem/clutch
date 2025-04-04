@@ -9,7 +9,7 @@ Section Lemmas.
   Lemma foldr_plus_app (l1 l2 : list R) (acc : R) :
     foldr Rplus acc (l1 ++ l2) = foldr Rplus 0 l1 + foldr Rplus acc l2.
   Proof.
-    elim: l1 =>> //=.
+    elim: l1 => //=.
   Qed.
 
 
@@ -18,13 +18,14 @@ Section Lemmas.
     (∀ a, a ∈ l → P1 a) →
     ∀ b, b ∈ (f <$> l) → P2 b.
   Proof.
+    add_hint @elem_of_list_here.
+    add_hint @elem_of_list_further.
     move=> HPs.
     elim: l => [_ ? /= HinNil| a l IH Hforall /= b Hin].
     - by apply not_elem_of_nil in HinNil.
-    - apply elem_of_cons in Hin as [-> | Hin].
-      + apply HPs, Hforall, elem_of_list_here.
-      + apply IH => // a' Ha'.
-        apply Hforall, elem_of_list_further, Ha'.
+    - add_hint @elem_of_list_here.
+      add_hint @elem_of_list_further.
+      apply elem_of_cons in Hin as [-> | Hin]; done.
   Qed.
 
   Lemma forall_list_eq {A : Type} (l : list A) (a : A) :
@@ -43,7 +44,7 @@ Section Lemmas.
     set f := (λ x : nat, if bool_decide (x < N)%nat then e1 else e2).
     assert (Heq: ∀ e, e ∈ f <$> seq 0 N → e = e1). {
       apply (fmap_prop _ f (λ n, n < N)%nat) => [a Ha | a Ha].
-      - rewrite /f bool_decide_eq_true_2 //.
+      - rewrite /f. by bool_decide.
       - by apply elem_of_seq in Ha as [_ Ha].
     }
     replace N with (length (f <$> seq 0 N)) at 2 by rewrite fmap_length seq_length //.
@@ -56,7 +57,7 @@ Section Lemmas.
     set f := (λ x : nat, if bool_decide (x < N)%nat then e1 else e2).
     assert (Heq: ∀ e, e ∈ f <$> seq N L → e = e2). {
       apply (fmap_prop _ f (λ n, n >= N)%nat) => a Ha.
-      - rewrite /f bool_decide_eq_false_2 //.
+      - rewrite /f. by bool_decide.
       - by apply elem_of_seq in Ha as [].
     }
     rewrite (forall_list_eq _ _ Heq) fmap_length seq_length //.
@@ -84,8 +85,7 @@ Section Lemmas.
     transitivity (
       foldr Rplus 0
       ((λ x : nat, if bool_decide (x < N)%nat then ε2 else ε1) ∘ fin_to_nat <$> enum (fin (S M)))
-    ).
-    { reflexivity. }
+    ); first reflexivity.
     rewrite list_fmap_compose fin.enum_fin_seq.
     assert (seq 0 (S M) = seq 0 N ++ seq N (S M - N)) as ->.
     { replace (S M)%nat with (N + (S M - N))%nat at 1 by lia.
@@ -170,7 +170,6 @@ Section TapeTranslation.
     reflexivity.
   Qed.
 
-
   
   Lemma tape_to_bernoulli_translation (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :
     is_bernoulli_translation N M v l ↔ v = tape_to_bernoulli N M l.
@@ -178,14 +177,12 @@ Section TapeTranslation.
     elim: l v => [[|hv tv]|h t IHt [|hv tv]] /= //; split => H //;
     [apply is_bernoulli_translation_nil | by apply Forall2_length in H..| |].
     - destruct (IHt tv) as [IHt1 IHt2]. 
-      apply Forall2_cons in H as [[[-> HNleh] | [-> HhltN] ] Hforall].
-      + rewrite bool_decide_eq_true_2 // -IHt1 //.
-      + rewrite bool_decide_eq_false_2 // -IHt1 //.
+      apply Forall2_cons in H as [[[-> HNleh] | [-> HhltN] ] Hforall]; 
+        bool_decide; rewrite -IHt1 //.
     - case:H => -> ->.
-      rewrite is_bernoulli_translation_cons;
-      destruct (decide (N ≤ h))%nat as [HNleh | HhltN%not_le].
-      + rewrite IHt bool_decide_eq_true_2 //.
-      + rewrite IHt bool_decide_eq_false_2 //.
+      rewrite is_bernoulli_translation_cons.
+      destruct (decide (N ≤ h))%nat as [HNleh | HhltN%not_le];
+        bool_decide; rewrite IHt //.
   Qed.
 
   Lemma tape_to_bernoulli_app (N M : nat) (l1 l2 : list (fin (S M))) :
@@ -294,10 +291,10 @@ Section Bernoulli.
       λ (n : fin (S M)), 
         if bool_decide (fin_to_nat n < N)%nat then ε2' else ε1' 
     .
-    wp_apply (twp_couple_rand_adv_comp1 _ _ _ ε' f with "Herr") as "%x Herr".
-    { unfold f. move=> n.
+    wp_apply (twp_couple_rand_adv_comp1 _ _ _ ε' f with "Herr") as "%x Herr"; unfold f.
+    { move=>>;
       by case_bool_decide. }
-    { unfold f. rewrite SeriesC_scal_l. rewrite Rmult_comm.
+    { rewrite SeriesC_scal_l. rewrite Rmult_comm.
       simpl_expr.
       Opaque INR.
       setoid_rewrite ssrbool.fun_if.
@@ -309,7 +306,7 @@ Section Bernoulli.
       rewrite -(Rmult_assoc (S M) ε1 _) -(Rmult_comm ε1 (S M)) (Rmult_assoc ε1 (S M) _).
       simpl_expr. }
     wp_pures.
-    unfold f. repeat case_bool_decide; wp_pures; try lia.
+    repeat case_bool_decide; wp_pures; try lia.
     - iApply ("HΦ" $! 1)%nat; auto.
     - iApply ("HΦ" $! 0)%nat; auto.
   Qed.
@@ -322,14 +319,12 @@ Section Bernoulli.
     [[{ v, RET v; ↯ ε' ∗ ⌜v = #1⌝ }]].
   Proof.
     iIntros (Hε' ->) "%Φ [Herr Hcost] HΦ".
-    destruct (decide (S M < N)%nat) as [Hlt |Hge%not_lt].
-    { cred_contra. rewrite Rcomplements.Rlt_minus_l.
-      simpl_expr. }
+    destruct (decide (S M < N)%nat) as [Hlt | Hge%not_lt].
+    { cred_contra. rewrite Rcomplements.Rlt_minus_l. simpl_expr. }
     iPoseProof (ec_combine with "[$Herr $Hcost]") as "Herr".
     wp_apply (twp_bernoulli_scale _ _ _ 1 ε' with "Herr")%R; [lia| lra|lra..|].
-    iIntros "%k [(_ & Herr) | (-> & Herr)]".
-    - cred_contra. 
-    - iApply "HΦ". by iFrame.
+    iIntros "%k [(_ & Herr) | (-> & Herr)]"; first cred_contra. 
+    by iApply "HΦ"; iFrame.
   Qed.
 
   Lemma bernoulli_failure_spec (N M : nat) (ε ε' : R) :
@@ -344,9 +339,8 @@ Section Bernoulli.
     { cred_contra. simpl_expr. }
     iPoseProof (ec_combine with "[$Herr $Hcost]") as "Herr".
     wp_apply (twp_bernoulli_scale _ _ _ ε' 1 with "[$Herr]")%R => //.
-    iIntros "%k [(-> & Herr) | (-> & Herr)]".
-    - iApply "HΦ". by iFrame.
-    - find_contra.
+    iIntros "%k [(-> & Herr) | (-> & Herr)]"; last cred_contra.
+    by iApply "HΦ"; iFrame.
   Qed.
 
   Lemma bernoulli_success_spec_simple (N M : nat) :
@@ -356,8 +350,7 @@ Section Bernoulli.
   Proof.
     iIntros (Φ) "Herr HΦ".
     iMod ec_zero as "Hzero".
-    wp_apply (bernoulli_success_spec _ _ 0%R 0%R with "[$Herr $Hzero]") => //.
-    iIntros (v) "[_ Hv]".
+    wp_apply (bernoulli_success_spec _ _ 0%R 0%R with "[$Herr $Hzero]") as "%v [_ Hv]" => //.
     iApply ("HΦ" with "Hv").
   Qed.
 
@@ -368,8 +361,7 @@ Section Bernoulli.
   Proof.
     iIntros (Φ) "Herr HΦ".
     iMod ec_zero as "Hzero".
-    wp_apply (bernoulli_failure_spec _ _ 0%R 0%R with "[$Herr $Hzero]") => //.
-    iIntros (v) "[_ Hv]".
+    wp_apply (bernoulli_failure_spec _ _ 0%R 0%R with "[$Herr $Hzero]") as "%v [_ Hv]" => //.
     iApply ("HΦ" with "Hv").
   Qed.
 
@@ -417,22 +409,16 @@ Section Bernoulli.
     ⊢  WP e [{ Φ }]
   .
   Proof.
-    iIntros (HNone) "[Hα Hnext]".
-    rewrite {1}/own_bernoulli_tape.
-    iDestruct "Hα" as "(%l & Hα & %Htl)".
+    iIntros (HNone) "[(%l & Hα & %Htl) Hnext]".
     wp_apply twp_presample; first done.
     iFrame.
     iIntros (k) "Htape".
     destruct (decide (N ≤ k)) as [N_le_k | k_lt_N%not_le].
     - iApply "Hnext".
-      rewrite /own_bernoulli_tape.
-      iExists _.
       iFrame.
       iPureIntro.
       by apply is_bernoulli_translation_app_0.
     - iApply "Hnext".
-      rewrite /own_bernoulli_tape.
-      iExists _.
       iFrame.
       iPureIntro.
       by apply is_bernoulli_translation_app_1.
@@ -451,23 +437,19 @@ Section Bernoulli.
     ⊢  WP e [{ Φ }]
   .
   Proof.
-    iIntros (N_le_SM D_nonneg D_expected_ε HNone) "(Hα & Herr & Hnext)".
-    rewrite {1}/own_bernoulli_tape.
-    iDestruct "Hα" as "(%l & Hα & %Htl)".
+    iIntros (N_le_SM D_nonneg D_expected_ε HNone) "((%l & Hα & %Htl) & Herr & Hnext)".
     set f :=
       λ (n : fin (S M)), 
         if bool_decide (fin_to_nat n < N)%nat then D 1%fin else D 0%fin.
-    wp_apply (twp_presample_adv_comp _ M _ _ _ _ _ _ f); first done; last iFrame.
-    { move=>n.
-      unfold f.
+    wp_apply (twp_presample_adv_comp _ M _ _ _ _ _ _ f); unfold f; first done; last iFrame.
+    { move=>>.
       case_bool_decide; apply D_nonneg.
     }
-    { unfold f. rewrite SeriesC_scal_l. rewrite Rmult_comm.
+    { rewrite SeriesC_scal_l. rewrite Rmult_comm.
       simpl_expr.
       Opaque INR.
       rewrite SeriesC_case //=.
-      replace (M + 1)%R with (S M : R) in D_expected_ε; last first.
-      { rewrite -INR_1 -plus_INR. f_equal. lia. }
+      rewrite -S_INR in D_expected_ε.
       rewrite -D_expected_ε Rmult_plus_distr_l -!Rmult_assoc
                  !(Rmult_comm _ (D _)) !Rmult_assoc.
       simpl_expr.
@@ -475,13 +457,12 @@ Section Bernoulli.
       simpl_expr.
     }
     iIntros (n) "[Herr Hα]".
-    unfold f.
     case_bool_decide;
       wp_apply "Hnext";
       iFrame;
       iPureIntro.
-    - apply: is_bernoulli_translation_app_1 => //. 
-    - apply: is_bernoulli_translation_app_0 => //.
+    - apply is_bernoulli_translation_app_1 => //. 
+    - apply is_bernoulli_translation_app_0 => //.
   Qed.
     
 
@@ -493,21 +474,16 @@ Section Bernoulli.
     iIntros (Φ) "Htape HΦ".
     rewrite /bernoulli_tape {1}/own_bernoulli_tape.
     iDestruct "Htape" as "(%l & Hα & %Htl)".
-    case: l Htl => [Hcontra | h t Htl].
-    { by apply is_bernoulli_translation_length in Hcontra. } 
+    case: l Htl => [Hcontra | h t Htl]; first by apply is_bernoulli_translation_length in Hcontra. 
     wp_pures.
     wp_apply (twp_rand_tape with "Hα").
     iIntros "Hα".
     wp_pures.
-    apply is_bernoulli_translation_cons in Htl as [(-> & HNleh & Htl)| (-> & HhltN & Htl)].
-    - case_bool_decide; first lia.
-      wp_pures.
-      iModIntro.
+    apply is_bernoulli_translation_cons in Htl as [(-> & HNleh & Htl)| (-> & HhltN & Htl)]; bool_decide.
+    - wp_pures.
       iApply "HΦ".
       by iFrame.
-    - case_bool_decide; last lia.
-      wp_pures.
-      iModIntro.
+    - wp_pures.
       iApply "HΦ".
       by iFrame.
   Qed.
@@ -530,7 +506,7 @@ Section Bernoulli.
     set suffix2 := bernoulli_to_tape M ∘ suffix ∘ tape_to_bernoulli N M.
     wp_apply (twp_presample_planner_pos _ M _ _ _ _ _ L l suffix2); try done.
     {
-      move=>junk.
+      move=>>.
       rewrite /suffix2 length_bernoulli_to_tape tape_to_bernoulli_app.
       by apply tape_to_bernoulli_translation in Htl as <-.
     }

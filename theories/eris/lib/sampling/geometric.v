@@ -25,11 +25,8 @@ Section Tape.
     
   Definition bernoulli_to_geometric v := bernoulli_to_geometric_aux v 0.
 
-  Fixpoint geometric_to_bernoulli (g : list nat) : list (fin 2) :=
-    match g with 
-    | [] => []
-    | h::g => repeat 0 h ++ [1] ++ geometric_to_bernoulli g
-    end.
+  Definition geometric_to_bernoulli : list nat -> list (fin 2) :=
+    List.flat_map (fun h => repeat 0 h ++ [1]).
 
   Lemma bernoulli_to_geometric_aux_repeat_0 (n acc : nat) :
     bernoulli_to_geometric_aux (repeat 0 n) acc = [].
@@ -75,10 +72,10 @@ Section Tape.
   Qed.
 
   Lemma geometric_to_bernoulli_to_geometric (g : list nat) :
-    (bernoulli_to_geometric ∘ geometric_to_bernoulli) g = g.
+    bernoulli_to_geometric (geometric_to_bernoulli g) = g.
   Proof.
     elim: g => /= [|h g IH] //.
-    rewrite bernoulli_to_geometric_app IH bernoulli_to_geometric_repeat.
+    rewrite -app_assoc bernoulli_to_geometric_app IH bernoulli_to_geometric_repeat.
     reflexivity.
   Qed.
 
@@ -103,11 +100,10 @@ Section Tape.
   Proof.
 
     case: (list_decomposition b) => [[ns n] ->].
-    elim: ns => [|hns tns IHns] /=; first rewrite bernoulli_to_geometric_repeat //.
+    elim: ns => [|hns tns IHns] /=; first rewrite bernoulli_to_geometric_repeat //; first rewrite /= app_nil_r //.
     rewrite -!app_assoc bernoulli_to_geometric_app bernoulli_to_geometric_repeat /=.
-    do 2 f_equal.
     simpl in IHns.
-    rewrite !app_assoc IHns //.
+    rewrite !app_assoc IHns -!app_assoc //.
   Qed.
   
   Lemma bernoulli_to_geometric_translation
@@ -165,7 +161,14 @@ Section Tape.
     rewrite /= Heq app_assoc //.
   Qed.
 
-
+  Lemma geometric_to_bernoulli_ends_with_1 (g_tape : list nat) :
+    g_tape = [] ∨ ∃ b_tape, b_tape ++ [1%fin] = geometric_to_bernoulli g_tape.
+  Proof.
+    destruct g_tape as [|g_end g_tape _] using rev_ind; first by left.
+    right.
+    rewrite /geometric_to_bernoulli flat_map_app /= app_nil_r app_assoc.
+    eauto.
+  Qed.
 
 
 End Tape.
@@ -357,5 +360,115 @@ Section Geometric.
         bernoulli_to_geometric_app 
         bernoulli_to_geometric_repeat //.
   Qed.
+  Search (?f (_ ++ _) = ?f _ +  ?f _).
 
+  Lemma twp_presample_geometric_planner
+    (N M : nat) (e : expr) (ε : nonnegreal)
+      (L : nat) (α : loc) (Φ : val → iProp Σ)
+      (prefix : list nat) (suffix : list nat → list nat) :
+    (0 < N < S M)%nat →
+    to_val e = None →
+    (∀ junk : list nat,
+       (* We have to limit the sum to limit the size of the underlying bernoulli tape *)
+       0 < list_sum (suffix (prefix ++ junk)) <= L ∧
+       0 < length (suffix (prefix ++ junk)) <= L)%nat → 
+    0 < ε →
+    ↯ ε ∗ own_geometric_tape α N M prefix ∗
+    ( (∃ (junk : list nat), own_geometric_tape α N M (prefix ++ junk ++ suffix (prefix ++ junk))%nat) -∗ WP e [{ Φ }]
+    ) ⊢ WP e [{ Φ }].
+  Proof.
+    iIntros
+      (H_0_lt_N_lt_SM He_not_val Hsum_len_suffix ε_pos) 
+      "(Herr & (%prefix_ber & Hber_tape & %Hgeo_trans) & HΦ)".
+    set suffix2 := fun tape => [1]%fin ++ ((geometric_to_bernoulli ∘ suffix ∘ bernoulli_to_geometric) (tape ++ [1]))%fin.
+    wp_apply (
+      twp_presample_bernoulli_planner 
+        N M e ε (S (L + L)) α Φ prefix_ber suffix2 
+        H_0_lt_N_lt_SM He_not_val
+    )%nat.
+    {
+      move=> junk.
+      subst suffix2 =>/=.
+      split; first done.
+      rewrite flat_map_length.
+      assert ((λ x : nat, length (repeat 0%fin x ++ [1%fin : fin 2])) = S) as ->. {
+        apply functional_extensionality => x.
+        rewrite app_length repeat_length /length.
+        lia.
+      }
+      rewrite /list_sum /=.
+      rewrite foldr_fmap.
+      assert ((λ b a, S b + a) = λ b a, 1 + b + a)%nat 
+        as ->
+        by repeat apply functional_extensionality => b //.
+      assert (∀ (l : list nat) (n : nat), foldr (λ b a, n + b + a) 0 l = n * (length l) + foldr Nat.add 0 l)%nat as Hfoldr_add.
+      {
+        elim => [|h t IH] n //=.
+        rewrite IH //.
+      }
+      rewrite Hfoldr_add /= Nat.add_0_r.
+      match goal with 
+      | |- ((S (?a + ?b)) ≤ _)%nat=> 
+        change (S (a + b)) with (S a + b)%nat
+      end.
+      change (S (L + L)) with (S L + L)%nat.
+      assert (
+        (prefix_ber = [] ∧ prefix = []) ∨ 
+        ∃ prefix_ber', 
+        prefix_ber = prefix_ber' ++ [1%fin] ∧
+        prefix = bernoulli_to_geometric (prefix_ber' ++ [1%fin])
+      ) as [[-> ->] | (prefix_ber' & -> & ->)]. {
+        apply bernoulli_to_geometric_translation in Hgeo_trans as [Heq H_ends_1].
+        destruct prefix_ber as [|prefix_ber_end prefix_ber _] using rev_ind; first by subst; left; split.
+        assert (prefix_ber_end = 1%fin) as ->.
+        { full_inv_fin => _ Hcontra.
+          by discriminate (Hcontra prefix_ber 0%fin). }
+        eauto.
+      }
+      all: apply Nat.add_le_mono. 
+      all: try apply le_n_S.
+      all: try rewrite -!app_assoc (bernoulli_to_geometric_app prefix_ber').
+      all: try by destruct (Hsum_len_suffix (bernoulli_to_geometric (junk ++ [1%fin]))) as [[_ Hsum] [_ Hlen]].
+    }
+    { apply ε_pos. }
+    iFrame.
+    iIntros "(%junk & Hown)".
+    iApply "HΦ".
+    subst suffix2. simpl.
+    rewrite -{1}(app_nil_l (1::_))%fin app_assoc.
+    set junk' := junk ++ [1%fin].
+    iExists (bernoulli_to_geometric junk').
+    iFrame.
+    iPureIntro.
+    rewrite bernoulli_to_geometric_translation; split; last first.
+    { move=> l' k Heq.
+      destruct (geometric_to_bernoulli_ends_with_1 (suffix (bernoulli_to_geometric ((prefix_ber ++ junk) ++ [1%fin])))) 
+        as [Heq_nil | (b_tape & Heq_geo)].
+      - rewrite Heq_nil /= in Heq.
+        apply list_snoc_singleton_inv in Heq.
+        by destruct Heq as [_ Heq].
+      - rewrite -Heq_geo /= -app_assoc in Heq.
+        change (1 :: b_tape ++ [1])%fin with ([1] ++ b_tape ++ [1])%fin in Heq.
+        rewrite !app_assoc in Heq.
+        apply list_snoc_singleton_inv in Heq.
+        by destruct Heq as [_ Heq]. }
+    set suf := suffix (bernoulli_to_geometric ((prefix_ber ++ junk))).
+    rewrite !app_nil_l bernoulli_to_geometric_app app_assoc !app_nil_r (bernoulli_to_geometric_app (prefix_ber ++ junk)).
+    f_equal.
+    - apply bernoulli_to_geometric_translation in Hgeo_trans as [Heq H_ends_1].
+      destruct prefix_ber as [|prefix_ber_end prefix_ber _] using rev_ind; first by subst.
+      assert (prefix_ber_end = 1%fin) as ->.
+      { full_inv_fin => _ Hcontra.
+        by discriminate (Hcontra prefix_ber 0%fin). }
+      rewrite -!app_assoc (bernoulli_to_geometric_app prefix_ber) Heq //.
+    - rewrite geometric_to_bernoulli_to_geometric.
+      f_equal.
+      apply bernoulli_to_geometric_translation in Hgeo_trans as [Heq H_ends_1].
+      destruct prefix_ber as [|prefix_ber_end prefix_ber _] using rev_ind; first by subst.
+      assert (prefix_ber_end = 1%fin) as ->.
+      { full_inv_fin => _ Hcontra.
+        by discriminate (Hcontra prefix_ber 0%fin). }
+      rewrite -!app_assoc (bernoulli_to_geometric_app prefix_ber) Heq //.
+  Qed.
 End Geometric.
+

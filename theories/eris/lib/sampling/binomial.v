@@ -11,7 +11,7 @@ Section binomial.
   Parameter B_spec :
     ∀ (N M : nat) (ε ε1 ε2 : R) (p := (N / (M + 1))%R),
     N ≤ (M + 1) → 
-    ((ε1 * (1 - p)) + (ε2 * p) = ε)%R ->
+    ((ε1 * (1 - p)) + (ε2 * p) = ε)%R →
     [[{↯ ε}]]
       B #N #M
     [[{
@@ -131,13 +131,13 @@ Section binomial.
       repeat case_bool_decide; try (lia || lra).
       assert (k = n) as -> by lia.
       rewrite !Rcomplements.C_n_n pow_add.
-      simpl_expr.
+      lra.
   Qed.
 
   Lemma binom_prob_eq (p q n : nat) : (binom_prob p q n n = (p / (q + 1))^n)%R.
   Proof.
     rewrite /binom_prob /choose.
-    case_bool_decide; last lia.
+    bool_decide.
     rewrite !Nat.sub_diag Rcomplements.C_n_n.
     lra.
   Qed.
@@ -145,7 +145,7 @@ Section binomial.
   Lemma binom_prob_0 (p q n : nat) : (binom_prob p q n 0 = (1 - p / (q + 1))^n)%R.
   Proof.
     rewrite /binom_prob /choose.
-    case_bool_decide; last lia.
+    bool_decide.
     rewrite Nat.sub_0_r Rcomplements.C_n_0.
     lra.
   Qed.
@@ -192,7 +192,7 @@ Section binomial.
     let ε1 := SeriesC (λ (k : fin (S n)), binom_prob p q n k * D1 k)%R in
     (ε = (1 - (p / (q + 1))) * ε0 + (p / (q + 1))* ε1)%R.
   Proof.
-    move=> D0 D1 ε ε0 ε1.   
+    move=> D0 D1 ε ε0 ε1.
     unfold ε, ε0, ε1, D0, D1 in *.
     set (r := (p / (q + 1))%R).
     set (s := (1 - r)%R).
@@ -217,15 +217,16 @@ Section binomial.
     rewrite -(Series_fin_first (S n) (λ k : fin (S (S n)), binom_prob p q n k * D k))%R Series_fin_last binom_prob_gt; last first.
     { rewrite fin_to_nat_to_fin. lia. }
     rewrite Rmult_0_l Rplus_0_r.
-    apply SeriesC_ext.
-    intros k.
+    apply SeriesC_ext =>>.
     rewrite -fin_S_inj_to_nat //.
   Qed.
   
   Lemma twp_binom_adv_comp (p q : nat) (n : nat) (D : fin (S n) → R) (ε : R) :
     p ≤ (q + 1) →
     SeriesC (λ k : fin (S n), (binom_prob p q n k * D k)%R) = ε →
-    ([[{ ↯ ε }]] binom #p #q #n [[{ (k : fin (S n)), RET #k ; ↯ (D k) }]]).
+    [[{ ↯ ε }]] 
+      binom #p #q #n 
+    [[{ (k : fin (S n)), RET #k ; ↯ (D k) }]].
   Proof.
     iIntros (Hpq HD Φ) "Herr HΦ".
     rewrite /binom /binom_tape.
@@ -234,13 +235,11 @@ Section binomial.
     iInduction (n) as [|n] "IH";
       iIntros (D ε HD Φ) "Herr HΦ";
       wp_pures.
-    - iModIntro.
-      iApply ("HΦ"$! 0%fin with "[Herr]").
+    - iApply ("HΦ"$! 0%fin with "[Herr]").
       iApply (ec_eq with "Herr").
       rewrite -HD SeriesC_finite_foldr /= binom_prob_eq Rmult_1_l Rplus_0_r //.
-    - erewrite SeriesC_ext in HD; last first.
-      { intros k.
-        replace (S n) with (n + 1) at 1 by lia.
+    - erewrite SeriesC_ext in HD; last first =>>.
+      { replace (S n) with (n + 1) at 1 by lia.
         reflexivity. } 
       rewrite ec_binom_split in HD.
       match type of HD with
@@ -298,8 +297,7 @@ Section binomial.
       { intros k.
         rewrite -fin_S_inj_to_nat //.
       }
-      rewrite -H.
-      rewrite Rmult_minus_distr_l /=.
+      rewrite -H Rmult_minus_distr_l /=.
       unfold s.
       lra.
   Qed.
@@ -328,11 +326,10 @@ Section binomial.
     assert (SeriesC D1 = 1%R) as HD1 by apply sum_binom_prob.
     assert (SeriesC D2 = binom_prob p q n k) as HD2 by apply SeriesC_singleton.
     assert (SeriesC D3 = SeriesC (λ k, D1 k - D2 k)%R) as HD3.
-    { apply SeriesC_ext.
-      intros m.
+    { apply SeriesC_ext => m.
       unfold D1, D2, D3.
       case_bool_decide as H; last lra.
-      rewrite H /fk fin_to_nat_to_fin.
+      rewrite H fin_to_nat_to_fin.
       lra.
     }
     assert (SeriesC D3 = SeriesC D5) as HD5.
@@ -351,28 +348,23 @@ Section binomial.
     iIntros (m).
     unfold D4.
     case_bool_decide as Hk.
-    { rewrite Hk fin_to_nat_to_fin.
+    - rewrite Hk fin_to_nat_to_fin.
       iIntros "?".
       by iApply "HΦ".
-    }
-    {
-      iIntros "Herr".
-      iExFalso.
-      iApply (ec_contradict with "Herr").
-      lra.
-    }
+    - iIntros "Herr".
+      cred_contra.
   Qed.
   
   Definition binomial_to_bernoulli (k : nat) (v : list (fin (S k))) : list (fin 2) :=  
     x ← v ;
     (repeat (1 : fin 2) (fin_to_nat x) ++ repeat (0 : fin 2) (k - fin_to_nat x))%fin.
 
-  Lemma binomial_to_bernoulli_length : ∀ (k : nat) (v : list (fin (S k))),
+  Lemma binomial_to_bernoulli_length (k : nat) (v : list (fin (S k))) :
     length (binomial_to_bernoulli k v) = k * length v.
   Proof.
-    induction v as [|h t]; simpl; first lia.
+    elim: v => [|h t IHt] /=; first lia.
     rewrite !app_length IHt !repeat_length.
-    assert (h < S k) by apply fin_to_nat_lt.
+    pose proof fin_to_nat_lt h.
     lia.
   Qed.
   
@@ -445,7 +437,7 @@ Section binomial.
         fold (fin_sum_list 2 k (repeat 1%fin h)).
         rewrite fin_sum_repeat_1 //.
       + rewrite app_length !repeat_length.
-        assert (h < S k) by apply fin_to_nat_lt.
+        pose proof fin_to_nat_lt h.
         lia.
   Qed.
 
@@ -461,23 +453,18 @@ Section binomial.
         is_binomial_translation k vt suf
   end.
 
-  Lemma is_binomial_translation_0 : ∀ (v : list (fin 1)) (l : list (fin 2)), is_binomial_translation 0 v l ↔ l = [].
+  Lemma is_binomial_translation_0 (v : list (fin 1)) (l : list (fin 2)) :
+    is_binomial_translation 0 v l ↔ l = [].
   Proof.
-    elim=>[|h t IH] l /=; first done.
+    elim: v l =>[|h t IH] /=; first done.
     split.
     - intros ([|??] & suf & _ & len_pre & -> & is_tl_suf); last (simpl in len_pre; lia).
       simpl.
       apply IH, is_tl_suf.
     - move=> ->.
       exists [], [].
-      split.
-      { inv_fin h; first reflexivity.
-        move=>h. inv_fin h.
-      }
-      split; first reflexivity.
-      split; first reflexivity.
-      apply IH.
-      reflexivity.
+      rewrite IH.
+      by full_inv_fin.
   Qed.
 
   Lemma bernoulli_to_binomial_translation (k : nat) (l : list (fin 2)) (v : list (fin (S k))) :
@@ -491,7 +478,7 @@ Section binomial.
     - split; first done.
       move=>/=[[|n] [len tsl]]; first lia.
       contradict tsl.
-      rewrite -{1}(take_drop k (hl::tl)).
+      rewrite -(take_drop k (hl::tl)).
       rewrite bernoulli_to_binomial_app_1; [done|lia|..].
       rewrite take_length Nat.min_l /=; lia.
     - split.
@@ -501,14 +488,13 @@ Section binomial.
       + intros (? & ? & ?).
         discriminate.
     - split.
-      + intros (pre & suf & sum_eq & len_pre & pre_suf & tls).
-        rewrite pre_suf app_length len_pre bernoulli_to_binomial_app_1; [|lia|done].
+      + intros (pre & suf & sum_eq & len_pre & -> & tls).
+        rewrite app_length len_pre bernoulli_to_binomial_app_1 /=; [|lia|done].
         apply IH in tls as (n & -> & ->); last lia.
         exists (S n).
         split; first lia.
-        simpl.
         by f_equal.
-      + move=>[[|n] [len tsl]]; simpl in len; first lia.
+      + move=> /=[[|n] [len tsl]]; first lia.
         rewrite -{1}(take_drop k (hl::tl)) bernoulli_to_binomial_app_1 /= in tsl;
           [..|lia|]; last first.
         { rewrite take_length Nat.min_l /=; lia. }
@@ -645,11 +631,9 @@ Section binomial.
         rewrite Nat.min_l; last first.
         { transitivity (S k'); last lia.
           rewrite -len_pre -Nat.succ_le_mono.
-          etrans; first apply fin_sum_list_le; first done.
-          lia.
+          etrans; [by apply fin_sum_list_le | lia].
         }
         rewrite -Nat2Z.inj_add Nat.add_1_r.
-        iModIntro.
         iApply ("HΦ" with "Htape").
   Qed.
 
@@ -829,7 +813,7 @@ Section binomial.
       iFrame.
       iIntros (i) "[Herr Hα]".
       full_inv_fin.
-      { wp_apply ("IH" $! _ _ s0 (D ∘ fin_S_inj)); try done.
+      + wp_apply ("IH" $! _ _ s0 (D ∘ fin_S_inj)); try done.
         { iPureIntro.
           move=>i.
           apply D_pos.
@@ -841,8 +825,7 @@ Section binomial.
         iFrame.
         rewrite fin_inj_sum //.
         lia.
-      }
-      { wp_apply ("IH" $! _ _ s1 (D ∘ FS)); try done.
+      + wp_apply ("IH" $! _ _ s1 (D ∘ FS)); try done.
         { iPureIntro.
           move=>i.
           apply D_pos.
@@ -850,17 +833,15 @@ Section binomial.
         iFrame.
         iIntros (ts len_ts) "[Herr Hα]".
         wp_apply ("Hnext" $! 1%fin::ts); first rewrite /= len_ts //.
-        rewrite -app_assoc /=.
+        rewrite -app_assoc /= fin_inj_sum; last lia.
+        rewrite fin_succ_inj.
         iFrame.
-        rewrite fin_inj_sum; last lia.
-        rewrite fin_succ_inj //.
-      }
   Qed.
         
-  Lemma twp_binomial_tape_adv_comp :
-    ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
+  Lemma twp_binomial_tape_adv_comp 
+      (e : expr) (α : loc) (Φ : val → iProp Σ)
       (p q n : nat) (ns : list (fin (S n))) (ε : R)
-      (D : fin (S n) → R),
+      (D : fin (S n) → R) :
     (∀ (i : fin (S n)), 0 <= D i)%R →
     SeriesC (λ k : fin (S n), (binom_prob p q n k * D k)%R) = ε →
     (p ≤ q + 1)%nat →
@@ -870,7 +851,7 @@ Section binomial.
     ⊢  WP e [{ Φ }]
   .
   Proof.
-    iIntros (e α Φ p q n ns ε D D_pos D_sum is_prob e_not_val) "((%l & Htape & %is_tl) & Herr & Hnext)".
+    iIntros (D_pos D_sum is_prob e_not_val) "((%l & Htape & %is_tl) & Herr & Hnext)".
     destruct n as [|n].
     {
       rewrite SeriesC_finite_foldr /= binom_prob_0 /= Rplus_0_r Rmult_1_l in D_sum.
@@ -891,14 +872,8 @@ Section binomial.
     destruct is_tl as (k & len_l & ns_eq_tl). 
     rewrite bernoulli_to_binomial_translation; last lia.
     exists (S k).
-    split.
-    { rewrite app_length.
-      lia.
-    }
-    rewrite ns_eq_tl (bernoulli_to_binomial_app_n _ k); try lia.
-    f_equal.
-    rewrite -{2}(app_nil_r ts) bernoulli_to_binomial_app_1; try lia.
-    reflexivity.
+    split; first (rewrite app_length; lia).
+    rewrite ns_eq_tl (bernoulli_to_binomial_app_n _ k) // -{2}(app_nil_r ts) bernoulli_to_binomial_app_1 //.
   Qed.
 
 End binomial.
