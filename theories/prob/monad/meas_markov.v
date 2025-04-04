@@ -204,7 +204,7 @@ Section AdditionalMonadLaws.
     [f f' : T1 → giryM T2] {H : measurable_fun setT f} {H' : measurable_fun setT f'} {p : giryM T1}, 
       (∀ a : T1, f a ≡μ f' a) -> gBind H p ≡μ gBind H' p.
   Proof.
-    Search (gBind).
+    (* Search (gBind). *)
   Admitted.
 
   Lemma gBind_assoc_help: ∀ {d1 d2 d3: measure_display} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}

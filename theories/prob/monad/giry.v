@@ -4,6 +4,7 @@ From mathcomp.analysis Require Import reals ereal measure lebesgue_measure lebes
 From clutch.prob.monad Require Export prelude.
 From clutch.prelude Require Import classical.
 Import Coq.Relations.Relation_Definitions.
+Require Import Coq.micromega.Lra.
 From Coq Require Import Classes.Morphisms Reals.
 From HB Require Import structures.
 
@@ -520,6 +521,21 @@ Section giry_ret.
       \int[gRet x]_x h x = h x.
   Proof.
     apply gRetInt; auto.
+  Qed.
+
+  Lemma gRetMass1Inv {x : T} {S : set T} (HS : measurable S) : gRet x S = 1 <-> S x.
+  Proof.
+    rewrite /gRet/dirac//=/dirac//=/numfun.indic//=.
+    case (ExcludedMiddle (S x)); intro H.
+    { by rewrite mem_set. }
+    { rewrite memNset; [|done].
+      rewrite //=.
+      split; move=>K; last done.
+      exfalso.
+      rewrite /GRing.one//=/GRing.natmul//=/GRing.zero//= in K.
+      inversion K.
+      lra.
+    }
   Qed.
 
   (*

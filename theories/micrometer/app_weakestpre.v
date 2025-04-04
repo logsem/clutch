@@ -50,40 +50,34 @@ Section coupl_modalities.
   Definition EXSM {d} {T : measurableType d} (Φ : T → iProp Σ) (ρ : giryM T) : iProp Σ :=
     ∃ S : set T, ⌜measurable S ⌝ ∗ ⌜ρ S = EFin (1)%R⌝ ∗ ∀ ρ' : T , ⌜S ρ'⌝ → Φ ρ'.
 
-  (* Only true for persistent Φ, probably
   Lemma EXSM_ret_idemp {d} {T : measurableType d} (Φ : T → iProp Σ) (ρ : giryM T) :
     EXSM (fun ρ' => EXSM Φ (gRet ρ')) ρ ⊣⊢ (EXSM Φ ρ).
   Proof.
     iSplit.
-    { iIntros "[%S [%HS X]]".
+    { iIntros "[%S [%HS [%HS1 X]]]".
       unfold EXSM.
       iExists S.
       iSplitR; [done|].
-      iIntros (ρ' Hρ').
-      iSpecialize ("X" $! ρ' Hρ').
-      iModIntro.
-      iMod "X".
-      iDestruct "X" as "[%S' [%HS' Y]]".
-      iApply "Y".
-      iPureIntro.
-      destruct HS'.
-      (* gRet ρ' S' = 1%:E means that ρ' ∈ S' *)
-      admit. }
-    { iIntros "[%S [[%HS1 %HS2] #X]]".
-      iExists S.
       iSplitR; [done|].
       iIntros (ρ' Hρ').
-      iModIntro.
+      iSpecialize ("X" $! ρ' Hρ').
+      iDestruct "X" as "[%S' [%HS' [%HS'' Y]]]".
+      iApply "Y".
+      iPureIntro.
+      apply gRetMass1Inv; done.
+    }
+    { iIntros "[%S [%HS1 [%HS2 X]]]".
       iExists S.
+      iSplitR; [done|].
+      iSplitR; [done|].
+      iIntros (ρ' Hρ').
+      iExists S.
+      iSplitR; [done|].
       iSplitR.
-      { iPureIntro; split; try done.
-        (* True because ρ' ∈ S *)
-        admit. }
-      iModIntro.
-      iModIntro.
+      { by iPureIntro; apply gRetMass1Inv. }
       iApply "X".
     }
-  Admitted. *)
+  Qed.
 
   (** ** [meas_spec_coupl]  *)
 
