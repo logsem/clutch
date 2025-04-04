@@ -214,19 +214,15 @@ Proof.
   iApply ("IH" with "HΨ").
 Admitted.
 
-(*
-Variable (v : meas_lang.language.val meas_lang).
-Variable E : coPset.
-Check {{{ True }}} (AllocC (ValC v) : meas_lang.language.expr meas_lang) @ (); E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
-*)
-
-
-(*
 (** Heap *)
 Lemma wp_alloc E v s :
-  {{{ True }}} (AllocC (ValC v) : meas_lang.language.expr meas_lang) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
+  {{{ True }}}
+    (AllocC (ValC v) : meas_lang.language.expr meas_lang) @ s; E
+  {{{ l, RET (LitVC (LitLocC l) : meas_lang.language.val meas_lang); l ↦ v }}}.
 Proof.
   iIntros (Φ) "_ HΦ".
+Admitted.
+(*
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   solve_red.
@@ -237,8 +233,9 @@ Proof.
   rewrite map_union_empty -insert_union_singleton_l.
   iFrame.
   iIntros "!>". by iApply "HΦ".
-Qed.
+Qed. *)
 
+(*
 Lemma wp_allocN_seq (N : nat) (z : Z) E v s :
   TCEq N (Z.to_nat z) →
   (0 < N)%Z →
