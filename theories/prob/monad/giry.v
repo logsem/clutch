@@ -980,6 +980,9 @@ Section giry_external_map.
     { by rewrite /gMap' extern_if_neq. }
   Qed.
 
+  Lemma gMap'_gMap (f : T1 -> T2) (H: measurable_fun setT f) μ : gMap' f μ ≡μ gMap H μ.
+  Proof. rewrite /gMap'. by rewrite extern_if_eq. Qed.
+
 End giry_external_map.
 
 Section giry_external_bind.
@@ -1254,6 +1257,11 @@ Section giry_is_zero.
     by apply gZero_map.
   Qed.
 
+  Lemma gMap'_is_zero (m : giryM T1) (f : T1 -> T2) (H : measurable_fun setT f) : is_zero (gMap' f m) -> is_zero m.
+  Proof.
+    intros Hzero s Hms. rewrite gZero_eval; last done.
+  Admitted.
+
 End giry_is_zero.
 
 Section giry_is_prob.
@@ -1325,7 +1333,13 @@ Section giry_is_det.
 
   Definition is_det (t : T) (μ : giryM T) : Prop :=
     μ ≡μ gRet t.
-
+  
+  Global Instance is_det_Proper :
+    Proper (eq ==> measure_eq ==> iff) (is_det).
+  Proof. intros ???? ? H'. subst.
+         rewrite /is_det. by rewrite H'.
+  Qed.
+  
   Lemma is_det_dret (a : T) : is_det a (gRet a).
   Proof. by move=>??. Qed.
 

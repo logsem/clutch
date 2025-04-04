@@ -289,8 +289,16 @@ Section ectx_language.
   Lemma fill_not_val K e : to_val e = None → to_val (fill (K, e)) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.
 
-  Definition ectx_lang_mixin : MeasLanguageMixin (@of_val Λ) to_val head_step.
-  Proof. split; by apply ectx_language_mixin. Qed.
+  Definition ectx_lang_mixin : MeasLanguageMixin (@of_val Λ) to_val prim_step.
+  Proof. split.
+         - by apply ectx_language_mixin.
+         - by apply ectx_language_mixin.
+         - apply prim_step_meas.
+         - by apply ectx_language_mixin.
+         - by apply ectx_language_mixin.
+         - admit.
+         - admit.
+  Admitted.
 
   Canonical Structure ectx_lang : meas_language := MeasLanguage ectx_lang_mixin.
 
@@ -424,8 +432,7 @@ Section ectx_language.
 
   Lemma head_step_not_stuck e σ : (¬ is_zero (head_step (e, σ))) → not_stuck (e, σ).
   Proof.
-    rewrite /not_stuck /reducible /=. intros Hs. by right.
-  Qed.
+    rewrite /not_stuck /reducible /=. intros Hs. Admitted.
 
   Lemma fill_reducible K e σ : reducible (e, σ) → reducible (fill (K, e), σ).
   Proof.
@@ -435,7 +442,7 @@ Section ectx_language.
   Admitted.
   Lemma head_prim_reducible e σ : head_reducible e σ → reducible (e, σ).
   Proof. intros.
-         by rewrite /reducible/=.
+         by apply head_prim_step.
   Qed.
   Lemma head_prim_fill_reducible e K σ :
     head_reducible e σ → reducible (fill (K, e), σ).
@@ -472,6 +479,8 @@ Section ectx_language.
     intros [] ?. split; [by eapply to_final_None_2|].
     by apply prim_head_irreducible.
   Qed.
+
+  (** We dont have anything about atomic i think?*)
   (* Lemma ectx_language_atomic a e : *)
   (*   head_atomic a e → sub_redexes_are_values e → Atomic a e. *)
   (* Proof. *)
@@ -483,6 +492,7 @@ Section ectx_language.
 
 
 
+  (** Not sure how to express this in measure theortic terms *)
   (*
   Lemma head_reducible_prim_step_ctx K e1 σ1 e2 σ2:
     head_reducible e1 σ1 →
@@ -500,30 +510,33 @@ Section ectx_language.
   Qed.
 *)
 
-(*
-  Lemma head_reducible_prim_step e1 σ1 ρ :
-    head_reducible e1 σ1 →
-    prim_step e1 σ1 ρ > 0 → head_step e1 σ1 ρ > 0.
-  Proof.
-    intros. destruct ρ.
-    edestruct (head_reducible_prim_step_ctx empty_ectx) as (?&?&?);
-      rewrite ?fill_empty; eauto.
-    by simplify_eq; rewrite fill_empty.
-  Qed.
+  (** Following lemma easily derived from head_prim_step_eq*)
+  (** propose that we remove this *)
+  (* Lemma head_reducible_prim_step e1 σ1 ρ : *)
+  (*   head_reducible e1 σ1 → *)
+  (*   prim_step e1 σ1 ρ > 0 → head_step e1 σ1 ρ > 0. *)
+  (* Proof. *)
+  (*   intros. destruct ρ. *)
+  (*   edestruct (head_reducible_prim_step_ctx empty_ectx) as (?&?&?); *)
+  (*     rewrite ?fill_empty; eauto. *)
+  (*   by simplify_eq; rewrite fill_empty. *)
+  (* Qed. *)
+  
 
-  Lemma not_head_reducible_dzero e σ :
-    head_irreducible e σ → head_step e σ = dzero.
-  Proof.
-    rewrite /reducible.
-    intros Hred%not_head_reducible. apply dzero_ext=> ρ.
-    destruct (Req_dec (head_step e σ ρ) 0); [done|].
-    exfalso. apply Hred.
-    exists ρ.
-    pose proof (pmf_le_1 (head_step e σ) ρ).
-    pose proof (pmf_pos (head_step e σ) ρ).
-    lra.
-  Qed.
-  *)
+  (** Following lemma is true by definition *)
+  (** propose that we remove this *)
+  (* Lemma not_head_reducible_dzero e σ : *)
+  (*   head_irreducible e σ → head_step e σ = dzero. *)
+  (* Proof. *)
+  (*   rewrite /reducible. *)
+  (*   intros Hred%not_head_reducible. apply dzero_ext=> ρ. *)
+  (*   destruct (Req_dec (head_step e σ ρ) 0); [done|]. *)
+  (*   exfalso. apply Hred. *)
+  (*   exists ρ. *)
+  (*   pose proof (pmf_le_1 (head_step e σ) ρ). *)
+  (*   pose proof (pmf_pos (head_step e σ) ρ). *)
+  (*   lra. *)
+  (* Qed. *)
 
   (* Every evaluation context is a context. *)
   Global Program Instance ectx_lang_ctx K : MeasLanguageCtx (curry fill K) := {
@@ -532,32 +545,25 @@ Section ectx_language.
       fill_inj  := _;
       fill_dmap e1 σ1 := _
   }.
-  Next Obligation. move=>Ki; apply (curry_meas_fun R). Admitted.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
-  (*
-  Proof.
-    split; simpl.
-    - eauto using fill_not_val.
-    - apply _.
-    - apply fill_prim_step_dbind.
+  Next Obligation. move=>Ki; apply (curry_meas_fun R). apply fill_meas. Qed.
+  Next Obligation. simpl. apply fill_not_val. Qed.
+  Next Obligation. intros K e σ Hval.
+                   eapply (fill_prim_step_dbind K e σ) in Hval.
+                   erewrite <-gMap'_gMap.
+                   simpl in *. by rewrite Hval.
   Qed.
-   *)
 
 
   Record pure_head_step (e1 e2 : expr Λ) := {
     pure_head_step_safe σ1 : head_reducible e1 σ1;
     pure_head_step_det σ1 : is_det (e2, σ1) (head_step (e1, σ1))
   }.
-
-
-  (*
+  
   Lemma pure_head_step_pure_step e1 e2 : pure_head_step e1 e2 → pure_step e1 e2.
   Proof.
     intros [Hp1 Hp2]. split.
-    - intros σ. destruct (Hp1 σ) as ([e2' σ2] & ?).
-      eexists (e2', σ2). by apply head_prim_step.
-    - intros σ1. rewrite /= head_prim_step_eq //.
+    - intros. apply head_prim_step. naive_solver.
+    - intros σ. simpl. rewrite -/(prim_step (e1, σ)). erewrite head_prim_step_eq; naive_solver.
   Qed.
 
   (** This is not an instance because HeapLang's [wp_pure] tactic already takes
@@ -567,10 +573,9 @@ Section ectx_language.
       register that as an instance. *)
   Lemma pure_exec_fill K φ n e1 e2 :
     PureExec φ n e1 e2 →
-    PureExec φ n (fill K e1) (fill K e2).
+    PureExec φ n (fill (K, e1)) (fill (K, e2)).
   Proof. apply: pure_exec_ctx. Qed.
 
- ***)
 End ectx_language.
 
 Global Arguments ectx_lang : clear implicits.

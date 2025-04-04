@@ -89,7 +89,7 @@ Class MeasLanguageCtx {Λ : meas_language} (K : (expr Λ) -> (expr Λ))  := {
   fill_inj : Inj (=) (=) K;
   fill_dmap e1 σ1 :
     to_val e1 = None →
-    prim_step ((K e1), σ1) = gMap (fill_lift_measurable K K_measurable) (prim_step (e1, σ1))
+    prim_step ((K e1), σ1) ≡μ gMap (fill_lift_measurable K K_measurable) (prim_step (e1, σ1))
 }.
 
 #[global] Existing Instance fill_inj.
