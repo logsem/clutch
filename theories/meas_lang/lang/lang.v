@@ -33,11 +33,6 @@ Set Warnings "+spurious-ssr-injection".
 
 Module meas_lang.
 
-Canonical Structure stateO := leibnizO state.
-Canonical Structure locO := leibnizO loc.
-Canonical Structure valO := leibnizO val.
-Canonical Structure exprO := leibnizO expr.
-
 Local Open Scope classical_set_scope.
 
 Section meas_semantics.

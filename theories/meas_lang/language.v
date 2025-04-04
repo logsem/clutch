@@ -11,6 +11,23 @@ From mathcomp.analysis Require Import reals measure ereal Rstruct.
 From clutch.prob.monad Require Export giry meas_markov.
 Set Warnings "hiding-delimiting-key".
 
+(* FIXME: Dangerous hack
+
+   Here I give the Leibniz OFE to all measurable types
+   The right way to do this is to define a type
+   (MeasO T) for all measurableTypes T, give the Leibniz OFE to T,
+   and lift the sigma algebra from T to (MeasO T).
+
+   I get universe inconsistencies when I try do do this.
+   Unless somebody starts giving default measurableType instances, or
+   measurableType instances for Iris types, this hack should work for now.
+*)
+
+Canonical Structure MeasO_OFE {d} (T : measurableType d) :=
+  (Ofe T (@discrete_ofe_mixin  _ _ eq_equivalence)).
+
+Global Instance MeasO_discrete {d} (T : measurableType d) : OfeDiscrete (MeasO_OFE T).
+Proof. by move=>???. Qed.
 
 Section language_mixin.
   Local Open Scope classical_set_scope.
@@ -18,11 +35,12 @@ Section language_mixin.
   Context {expr : measurableType d_expr}.
   Context {val : measurableType d_val}.
   Context {state : measurableType d_state}.
+
   Context (of_val : val → expr).
   Context (to_val : expr → option val).
-  Context (prim_step : (expr * state)%type -> (giryM (expr * state)%type)).
+  Context (prim_step : ((expr * state)%type) -> ((giryM (expr * state)%type))).
+
   Record MeasLanguageMixin := {
-      
     mixin_of_val_meas : measurable_fun setT of_val;
     mixin_to_val_meas : measurable_fun setT to_val;
     mixin_prim_step_meas : measurable_fun setT prim_step;
@@ -60,11 +78,18 @@ Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments prim_step {_}.
 
+
+(*
+Notation valO Λ := (MeasO val).
+Notation exprO Λ := (MeasO expr).
+Notation stateO Λ := (MeasO state).
+
 Canonical Structure stateO Λ := leibnizO (state Λ).
 Canonical Structure valO Λ := leibnizO (val Λ).
 Canonical Structure exprO Λ := leibnizO (expr Λ).
+*)
 
-Definition cfg (Λ : meas_language) := (exprO Λ * stateO Λ)%type.
+Definition cfg (Λ : meas_language) := (expr Λ * state Λ)%type.
 
 Definition fill_lift {Λ} (K : (expr Λ) -> (expr Λ)) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
   mProd (ssrfun.comp K fst) snd.

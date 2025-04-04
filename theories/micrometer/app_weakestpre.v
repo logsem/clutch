@@ -85,14 +85,14 @@ Section coupl_modalities.
       distributions, e.g. [state_step]s on both sides. *)
 
   Definition meas_spec_coupl_pre (E : coPset)
-      (Z : stateO Λ -> exprO Λ -> stateO Λ -> NNRO -> iProp Σ) (Φ : stateO Λ * (exprO Λ * stateO Λ) * NNRO → iProp Σ) :
-      (stateO Λ) * (exprO Λ * stateO Λ) * NNRO → iProp Σ :=
-    (λ (x : stateO Λ * (exprO Λ * stateO Λ) * NNRO),
+      (Z : state Λ -> expr Λ -> state Λ -> NNRO -> iProp Σ) (Φ : state Λ * (expr Λ * state Λ) * NNRO → iProp Σ) :
+      (state Λ) * (expr Λ * state Λ) * NNRO → iProp Σ :=
+    (λ (x : state Λ * (expr Λ * state Λ) * NNRO),
        let '(σ1, (e1', σ1'), ε) := x in
        ⌜1 <= ε⌝ ∨
        (Z σ1 e1' σ1' ε) ∨
-       (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
-          (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
+       (∃ (S : state Λ → (expr Λ * state Λ)%type → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
+          (ε1 : nonnegreal) (X2 : (expr Λ * state Λ)%type → nonnegreal) (r : R),
             ⌜ ARcoupl_meas μ1 (gBind' (pexec n \o pair e1') μ1') S (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
             ⌜∀ ρ, X2 ρ <= r⌝ ∗
             ⌜ (le_ereal (EFin (nonneg ε1)) (\int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) ⌝ ∗
@@ -124,8 +124,8 @@ Section coupl_modalities.
 
   Implicit Type ε : NNRO.
 
-  Definition meas_spec_coupl' (E : coPset) (Z : stateO Λ -> exprO Λ -> stateO Λ -> NNRO -> iProp Σ) :
-      stateO Λ * (exprO Λ * stateO Λ) * NNRO → iProp Σ :=
+  Definition meas_spec_coupl' (E : coPset) (Z : state Λ -> expr Λ -> state Λ -> NNRO -> iProp Σ) :
+      state Λ * (expr Λ * state Λ) * NNRO → iProp Σ :=
     bi_least_fixpoint (meas_spec_coupl_pre E Z).
 
   Definition meas_spec_coupl E σ e' σ' ε Z := meas_spec_coupl' E Z (σ, (e', σ'), ε).
@@ -170,7 +170,7 @@ Section coupl_modalities.
   Proof.
     iIntros "#IH" (σ e' σ' ε) "H".
     set (Ψ' := (λ '(σ, (e', σ'), ε), Ψ σ e' σ' ε) :
-           (prodO (prodO (stateO Λ) (prodO (exprO Λ) (stateO Λ))) NNRO) → iProp Σ).
+           (prodO (prodO (state Λ) (prodO (expr Λ) (state Λ))) NNRO) → iProp Σ).
     assert (NonExpansive Ψ').
     { intros n [[σ1 [e1' σ1']] ε1] [[σ2 [e2' σ2']] ε2].
       intros ([[=] ([=] & [=])] & [=]).
@@ -479,7 +479,7 @@ Section coupl_modalities.
 
   (** The [meas_prog_coupl] modality allows us to coupl *exactly* one program step with any number of
       spec execution steps and an erasable distribution *)
-  Definition meas_prog_coupl (e1 : exprO Λ) (σ1 : stateO Λ) (e1' : exprO Λ) σ1' (ε : NNRO) Z : iProp Σ :=
+  Definition meas_prog_coupl (e1 : expr Λ) (σ1 : state Λ) (e1' : expr Λ) σ1' (ε : NNRO) Z : iProp Σ :=
     ∃ (R : cfg Λ → cfg Λ → Prop) (n : nat) (μ1' : giryM (state Λ))
       (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : nonnegreal),
       ⌜reducible (e1, σ1)⌝ ∗

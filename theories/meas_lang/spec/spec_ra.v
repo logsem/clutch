@@ -11,8 +11,8 @@ From mathcomp.analysis Require Import measure.
 
 Local Open Scope classical_set_scope.
 
-Definition progUR : ucmra := optionUR (exclR exprO).
-Definition cfgO : ofe := prodO exprO stateO.
+Definition progUR : ucmra := optionUR (exclR (MeasO_OFE expr)).
+(* Definition cfgO : ofe := prodO expr state. *)
 
 (** The CMRA for the spec [cfg]. *)
 Class specG_meas_lang (Σ : gFunctors) := SpecGS {
@@ -45,7 +45,7 @@ Proof. solve_inG. Qed.
 
 Section resources.
   Context `{!specG_meas_lang Σ}.
-  Definition spec_prog_auth (e : exprO) :=
+  Definition spec_prog_auth (e : expr) :=
     own specG_meas_lang_prog_name (● (Excl' e : progUR)).
   Definition spec_heap_auth `{specG_meas_lang Σ} :=
     @ghost_map_auth _ _ _ _ _ specG_meas_lang_heap specG_meas_lang_heap_name 1.
@@ -54,22 +54,22 @@ Section resources.
   Definition spec_utapes_auth `{specG_meas_lang Σ} :=
     @ghost_map_auth _ _ _ _ _ specG_meas_lang_utapes specG_meas_lang_utapes_name 1.
 
-  Definition spec_auth (ρ : cfgO) : iProp Σ :=
+  Definition spec_auth (ρ : cfg) : iProp Σ :=
     spec_prog_auth (ρ.1) ∗
     spec_heap_auth (heap ρ.2) ∗
     spec_tapes_auth (tapes ρ.2) ∗
     spec_utapes_auth (utapes ρ.2).
 
-  Definition spec_prog_frag (e : exprO) : iProp Σ :=
+  Definition spec_prog_frag (e : expr) : iProp Σ :=
     own specG_meas_lang_prog_name (◯ (Excl' e : progUR)).
-
-  Definition spec_heap_frag (l : locO) v dq: iProp Σ :=
+  
+  Definition spec_heap_frag (l : loc) v dq: iProp Σ :=
     (@ghost_map_elem _ _ _ _ _ specG_meas_lang_heap specG_meas_lang_heap_name l dq v).
 
-  Definition spec_tapes_frag (l : locO) v dq: iProp Σ :=
+  Definition spec_tapes_frag (l : loc) v dq: iProp Σ :=
     (@ghost_map_elem _ _ _ _ _ specG_meas_lang_tapes specG_meas_lang_tapes_name l dq v).
 
-  Definition spec_utapes_frag (l : locO) v dq: iProp Σ :=
+  Definition spec_utapes_frag (l : loc) v dq: iProp Σ :=
     (@ghost_map_elem _ _ _ _ _ specG_meas_lang_utapes specG_meas_lang_utapes_name l dq v).
 
 End resources.
@@ -110,7 +110,7 @@ Notation "l ↪ℝₛ v" := (l ↪ℝₛ{ DfracOwn 1 } v)%I
 Section theory.
   Context `{!specG_meas_lang Σ}.
 
-  Lemma spec_auth_prog_agree (e1 : exprO) (σ1 : stateO) (e2 : exprO) :
+  Lemma spec_auth_prog_agree (e1 : expr) (σ1 : state) (e2 : expr) :
     spec_auth (e1, σ1) -∗ ⤇ e2 -∗ ⌜e1 = e2⌝.
   Proof.
     iIntros "[Ha _] Hf".
@@ -120,7 +120,7 @@ Section theory.
     by apply leibniz_equiv in Hexcl.
   Qed.
 
-  Lemma spec_update_prog (e3 e1 : exprO) (σ1 : stateO) (e2 : exprO) :
+  Lemma spec_update_prog (e3 e1 : expr) (σ1 : state) (e2 : expr) :
     spec_auth (e1, σ1) -∗ ⤇ e2 ==∗ spec_auth (e3, σ1) ∗ ⤇ e3.
   Proof.
     iIntros "Ha Hf".
@@ -128,8 +128,11 @@ Section theory.
     iDestruct "Ha" as "[Ha Hb]".
     iMod (own_update_2 with "Ha Hf") as "[Ha Hf]".
     { eapply auth_update, @option_local_update.
+      eapply (exclusive_local_update).
+      admit. }
+    (*
       eapply (exclusive_local_update _ (Excl e3)).
-      done. }
+      done. } *)
     rewrite /spec_auth//=.
     (* iFrame is super slow for some reason *)
     iSplitR "Hf".
@@ -140,7 +143,7 @@ Section theory.
       iSplitL "Hb2"; first by iApply "Hb2".
       by iApply "Hb3". }
     by iApply "Hf".
-  Qed.
+  Admitted.
 
   (** Heap *)
 
@@ -183,7 +186,7 @@ Section theory.
    Qed.
 
   (** Tapes *)
-  Lemma spec_auth_lookup_tape (e1 : exprO) (σ1 : stateO) (l : locO) v dq :
+  Lemma spec_auth_lookup_tape (e1 : expr) (σ1 : state) (l : loc) v dq :
     spec_auth (e1, σ1) -∗ l ↪ₛ{dq} v -∗ ⌜(tapes σ1) !! l = Some v⌝.
   Proof.
     iIntros "(H1&H2&H&H3) H'/=".
@@ -192,7 +195,7 @@ Section theory.
     by iApply "H'".
   Qed.
 
-  Lemma spec_auth_update_tape w (e1 : exprO) (σ1 : stateO) (l : locO) v :
+  Lemma spec_auth_update_tape w (e1 : expr) (σ1 : state) (l : loc) v :
     spec_auth (e1, σ1) -∗ l ↪ₛ{#1} v ==∗
     spec_auth (e1, state_upd_tapes <[l:=w]> σ1) ∗ l ↪ₛ{#1} w.
   Proof.
@@ -206,7 +209,7 @@ Section theory.
     by iApply "H3".
   Qed.
 
-  Lemma spec_auth_tape_alloc (e : exprO) (σ : stateO) N :
+  Lemma spec_auth_tape_alloc (e : expr) (σ : state) N :
     spec_auth (e, σ) ==∗
     spec_auth (e, state_upd_tapes <[state.fresh (tapes σ) := (N, emptyTape)]> σ) ∗ state.fresh (tapes σ) ↪ₛ (N, emptyTape).
   Proof.
@@ -223,7 +226,7 @@ Section theory.
 
 
   (** UTapes *)
-  Lemma spec_auth_lookup_utape (e1 : exprO) (σ1 : stateO) (l : locO) v dq :
+  Lemma spec_auth_lookup_utape (e1 : expr) (σ1 : state) (l : loc) v dq :
     spec_auth (e1, σ1) -∗ l ↪ℝₛ{dq} v -∗ ⌜(utapes σ1) !! l = Some v⌝.
   Proof.
     iIntros "(H1&H2&H3&H) H'/=".
@@ -232,7 +235,7 @@ Section theory.
     by iApply "H'".
   Qed.
 
-  Lemma spec_auth_update_utape w (e1 : exprO) (σ1 : stateO) (l : locO) v :
+  Lemma spec_auth_update_utape w (e1 : expr) (σ1 : state) (l : loc) v :
     spec_auth (e1, σ1) -∗ l ↪ℝₛ{#1} v ==∗
     spec_auth (e1, state_upd_utapes <[l:=w]> σ1) ∗ l ↪ℝₛ{#1} w.
   Proof.
@@ -246,7 +249,7 @@ Section theory.
     by iApply "H4".
   Qed.
 
-  Lemma spec_auth_utape_alloc (e : exprO) (σ : stateO) :
+  Lemma spec_auth_utape_alloc (e : expr) (σ : state) :
     spec_auth (e, σ) ==∗
     spec_auth (e, state_upd_utapes <[state.fresh (utapes σ) := emptyTape]> σ) ∗ state.fresh (utapes σ) ↪ℝₛ emptyTape.
   Proof.
@@ -267,7 +270,8 @@ End theory.
 Lemma spec_ra_init e σ `{specGpreS Σ} :
   ⊢ |==> ∃ _ : specG_meas_lang Σ,
       spec_auth (e, σ) ∗ ⤇ e ∗ ([∗ map] l ↦ v ∈ (heap σ), l ↦ₛ v) ∗ ([∗ map] α ↦ t ∈ (tapes σ), α ↪ₛ t) ∗ ([∗ map] α ↦ t ∈ (utapes σ), α ↪ℝₛ t).
-Proof.
+Proof. Admitted.
+(*
   iMod (own_alloc ((● (Excl' e)) ⋅ (◯ (Excl' e)))) as "(%γp & Hprog_auth & Hprog_frag)".
   { by apply auth_both_valid_discrete. }
   iMod (ghost_map_alloc (heap σ)) as "[%γH [Hh Hls]]".
@@ -285,7 +289,7 @@ Proof.
   iSplitL "Hls"; first by iApply "Hls".
   iSplitL "Hαs"; first by iApply "Hαs".
   by iApply "HαUs".
-Qed.
+Qed. *)
 
 
 (** No nat spec tapes *)

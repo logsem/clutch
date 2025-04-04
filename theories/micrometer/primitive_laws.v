@@ -186,9 +186,9 @@ Section lifting.
 Context `{!micrometerGS Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
-Implicit Types σ : stateO.
-Implicit Types v : valO.
-Implicit Types l : locO.
+Implicit Types σ : state.
+Implicit Types v : val.
+Implicit Types l : loc.
 
 (** Recursive functions: we do not use this lemma as it is easier to use Löb
     induction directly, but this demonstrates that we can state the expected

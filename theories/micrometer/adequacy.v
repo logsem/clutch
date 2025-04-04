@@ -6,7 +6,6 @@ From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
 (*  From clutch.prob_lang Require Import erasure notation. *)
-From clutch.common Require Import language.
 From clutch.base_logic Require Import error_credits.
 From clutch.micrometer Require Import app_weakestpre primitive_laws.
 
@@ -17,11 +16,14 @@ Section adequacy.
   Context `{!micrometerGS Σ}.
   Local Open Scope classical_set_scope.
 
-  Lemma wp_adequacy_spec_coupl (n m : nat) (e1 : exprO meas_lang) σ1 e1' σ1' Z (* φ *) ε :
+  (* Check fun e1 σ2 m => (exec m (e1, σ2)). *)
+
+  (*
+  Lemma wp_adequacy_spec_coupl (n m : nat) e1 σ1 e1' σ1' Z φ ε :
     meas_spec_coupl ∅ σ1 e1' σ1' ε Z -∗
-    (∀ σ2 e2' σ2' ε', Z σ2 e2' σ2' ε' ={∅}=∗ |={∅}▷=>^n True) -∗
+    (∀ σ2 e2' σ2' ε', Z σ2 e2' σ2' ε' ={∅}=∗ |={∅}▷=>^n ⌜ARcoupl_meas (exec m (e1, σ2)) (lim_exec (e2', σ2')) φ ε'⌝) -∗
     True.
-  Admitted.
+  Admitted. *)
   (*
 
     (∀ σ2 e2' σ2' ε', Z σ2 e2' σ2' ε' ={∅}=∗ |={∅}▷=>^n ⌜ARcoupl_meas (exec m (e1, σ2)) (lim_exec (e2', σ2')) φ ε'⌝) -∗
