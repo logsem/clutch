@@ -541,6 +541,7 @@ Section NegativeBinomial.
   Qed.
 
   Lemma fmap_repeat : ∀ (A B : Type) (f : A → B) (a : A) (n : nat), f <$> (repeat a n) = repeat (f a) n.
+  Proof.
     move=>A B f a.
     elim=>[//|n /= <- //].
   Qed.
