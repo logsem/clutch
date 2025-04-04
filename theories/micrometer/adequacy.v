@@ -13,14 +13,19 @@ From clutch.micrometer Require Import app_weakestpre primitive_laws.
 (*  From clutch.prob Require Import distribution couplings_app. *)
 Import uPred.
 
-(*
 Section adequacy.
-  Context `{!approxisGS Σ}.
+  Context `{!micrometerGS Σ}.
+  Local Open Scope classical_set_scope.
 
-  Lemma wp_adequacy_spec_coupl n m e1 σ1 e1' σ1' Z φ ε :
-    spec_coupl ∅ σ1 e1' σ1' ε Z -∗
-    (∀ σ2 e2' σ2' ε', Z σ2 e2' σ2' ε' ={∅}=∗ |={∅}▷=>^n ⌜ARcoupl (exec m (e1, σ2)) (lim_exec (e2', σ2')) φ ε'⌝) -∗
-    |={∅}=> |={∅}▷=>^n ⌜ARcoupl (exec m (e1, σ1)) (lim_exec (e1', σ1')) φ ε⌝.
+  Lemma wp_adequacy_spec_coupl (n m : nat) (e1 : exprO meas_lang) σ1 e1' σ1' Z (* φ *) ε :
+    meas_spec_coupl ∅ σ1 e1' σ1' ε Z -∗
+    (∀ σ2 e2' σ2' ε', Z σ2 e2' σ2' ε' ={∅}=∗ |={∅}▷=>^n True) -∗
+    True.
+  Admitted.
+  (*
+
+    (∀ σ2 e2' σ2' ε', Z σ2 e2' σ2' ε' ={∅}=∗ |={∅}▷=>^n ⌜ARcoupl_meas (exec m (e1, σ2)) (lim_exec (e2', σ2')) φ ε'⌝) -∗
+    |={∅}=> |={∅}▷=>^n ⌜ARcoupl_meas (exec m (e1, σ1)) (lim_exec (e1', σ1')) φ ε⌝.
   Proof.
     iRevert (σ1 e1' σ1' ε).
     iApply spec_coupl_ind.
@@ -86,8 +91,9 @@ Section adequacy.
     iIntros (σ4 e4' σ4' ε) ">(Hσ & Hs & Hε & Hcnt)".
     iApply ("IH" with "Hσ Hs Hε Hcnt").
   Qed.
-
+  *)
 End adequacy.
+(*
 
 Lemma wp_adequacy_exec_n Σ `{!approxisGpreS Σ} (e e' : expr) (σ σ' : state) n φ (ε : R) :
   0 <= ε →

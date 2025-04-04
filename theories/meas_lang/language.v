@@ -64,7 +64,7 @@ Canonical Structure stateO Λ := leibnizO (state Λ).
 Canonical Structure valO Λ := leibnizO (val Λ).
 Canonical Structure exprO Λ := leibnizO (expr Λ).
 
-Definition cfg (Λ : meas_language) := (expr Λ * state Λ)%type.
+Definition cfg (Λ : meas_language) := (exprO Λ * stateO Λ)%type.
 
 Definition fill_lift {Λ} (K : (expr Λ) -> (expr Λ)) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
   mProd (ssrfun.comp K fst) snd.
