@@ -26,8 +26,8 @@ Set Warnings "hiding-delimiting-key".
 Canonical Structure MeasO_OFE {d} (T : measurableType d) :=
   (Ofe T (@discrete_ofe_mixin  _ _ eq_equivalence)).
 
-Global Instance MeasO_discrete {d} (T : measurableType d) : OfeDiscrete (MeasO_OFE T).
-Proof. by move=>???. Qed.
+Global Instance MeasO_discrete {d} (T : measurableType d) : OfeDiscrete (MeasO_OFE T). 
+Proof. by move=>???. Qed. 
 
 Section language_mixin.
   Local Open Scope classical_set_scope.
