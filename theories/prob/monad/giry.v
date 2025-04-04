@@ -1276,6 +1276,14 @@ Section giry_is_zero.
   Lemma gMap'_is_zero (m : giryM T1) (f : T1 -> T2) (H : measurable_fun setT f) : is_zero (gMap' f m) -> is_zero m.
   Proof.
     intros Hzero s Hms. rewrite gZero_eval; last done.
+    unshelve rewrite gMap'_gMap in Hzero; first done.
+    destruct (lt_ereal 0%E (m s)) eqn:Heqn.
+    - (* contradiction *) admit.
+    - rewrite -ltEereal in Heqn.
+      assert (m s<=0)%E as H'.
+      { admit. }
+      rewrite measure_le0 in H'.
+      by rewrite -eq_opE.
   Admitted.
 
 End giry_is_zero.
