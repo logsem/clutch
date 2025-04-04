@@ -48,7 +48,9 @@ Proof.
   iSplit.
   { iPureIntro. admit. (* by apply head_prim_reducible. *) }
   iExists S.
-  do 2 (iSplitR; [done|]).
+  iSplitR; [done|].
+  iSplitR.
+  { admit. }
   iIntros (ρ Hρ _).
   iSpecialize ("H" $! ρ Hρ).
   iIntros "!>".
@@ -68,7 +70,8 @@ Proof.
   iSplit.
   { iPureIntro. (* by apply head_prim_reducible. *) admit. }
   iExists S.
-  do 2 (iSplitR; [done|]).
+  iSplitR; [done|].
+  iSplitR. { admit. }
   iIntros (e2 σ2 Hstep).
   iApply "H"; eauto.
 Admitted.
@@ -81,8 +84,9 @@ Lemma wp_lift_atomic_head_step {E Φ} e1 s :
             (head_step (e1, σ1)))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  iIntros (?) "H". iApply wp_lift_atomic_step; eauto. (* Surely this can't be stated correctly... *)
-Qed.
+  iIntros (?) "H". iApply wp_lift_atomic_step; eauto.
+  (* head_prim_reducible. *)
+Admitted.
   (*
   iIntros (σ1) "Hσ1". iMod ("H" with "Hσ1") as "[% H]"; iModIntro.
   iSplit.
