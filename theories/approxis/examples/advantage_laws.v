@@ -24,6 +24,29 @@ Proof.
   rel_apply (refines_app with "gg"). rel_apply (refines_app with "ff"). rel_values.
 Qed.
 
+
+Lemma app_assoc_lr_v `{!approxisRGS Σ} (f g : val) (a : expr) (x : string) (α β γ : lrel Σ) :
+  (REL a << a : α) -∗
+  (REL f << f : (α → β)) -∗
+  (REL g << g : (β → γ)) -∗
+  REL (g (f a)) << ((λ:x, g (f (Var x))) a)%V : γ.
+Proof.
+  iIntros "aa ff gg". rel_bind_l a ; rel_bind_r a ; rel_apply (refines_bind with "aa").
+  iIntros (v v') "vv". rel_pures_r. case_decide ; [|done].
+  rel_apply (refines_app with "gg"). rel_apply (refines_app with "ff"). rel_values.
+Qed.
+
+Lemma app_assoc_lr_v' `{!approxisRGS Σ} (f g : val) (a : expr) (x : string) (α β γ : lrel Σ) :
+  (REL a << a : α) -∗
+  (REL f << f : (α → β)) -∗
+  (REL g << g : (β → γ)) -∗
+  REL ((λ:x, g (f (Var x))) a)%V << (g (f a)) : γ.
+Proof.
+  iIntros "aa ff gg". rel_bind_l a ; rel_bind_r a ; rel_apply (refines_bind with "aa").
+  iIntros (v v') "vv". rel_pures_l. case_decide ; [|done].
+  rel_apply (refines_app with "gg"). rel_apply (refines_app with "ff"). rel_values.
+Qed.
+
 Lemma app_assoc_ctx_ty (g f : val) (a : expr) (x : string) (α β γ : type) :
   ⊢ᵥ g : (β → γ) ->
   ⊢ᵥ f : (α → β) ->
@@ -141,3 +164,94 @@ Proof.
     simpl in hh, hh'.
     lra.
 Qed.
+
+Lemma lr_advantage_aux (adversary : expr) (e e' : expr)
+  (lr : ∀ `{!approxisRGS Σ} Δ, ⊢ REL adversary e << adversary e' : interp TBool Δ)
+  (lr' : ∀ `{!approxisRGS Σ} Δ, ⊢ REL adversary e' << adversary e : interp TBool Δ) :
+  ∀ (b : bool), (nonneg (advantage adversary e e' #b) <= 0)%R.
+Proof.
+  intros. apply ctx_advantage_alt. split.
+  - apply (refines_sound approxisRΣ). iIntros. iApply lr.
+  - apply (refines_sound approxisRΣ). iIntros. iApply lr'.
+Qed.
+
+Lemma lr_advantage (adversary : expr) (e e' : expr)
+  (τ : ∀ `{!approxisRGS Σ}, lrel Σ)
+  (adversary_typed : ∀ `{!approxisRGS Σ}, ⊢ REL adversary << adversary : τ → lrel_bool)
+  (lr : ∀ `{!approxisRGS Σ}, ⊢ REL e << e' : τ)
+  (lr' : ∀ `{!approxisRGS Σ}, ⊢ REL e' << e : τ)
+  (b : bool) :
+  (nonneg (advantage adversary e e' #b) <= 0)%R.
+Proof.
+  apply lr_advantage_aux.
+  - iIntros. rel_apply refines_app. 1: iApply adversary_typed. iApply lr.
+  - iIntros. rel_apply refines_app. 1: iApply adversary_typed. iApply lr'.
+Qed.
+
+Section comp_laws.
+
+  Context `{!approxisRGS Σ}.
+
+  Variable (A B C D : lrel Σ).
+  Variable (f g h : val).
+  Variable (f_typed : ⊢ REL f << f : A → B).
+  Variable (g_typed : ⊢ REL g << g : B → C).
+  Variable (h_typed : ⊢ REL h << h : C → D).
+
+  (* Definition comp {x : string} (g f : val) : val := (λ:x, g (f x))%V.
+     Infix " ∘ " := comp : expr_scope. *)
+  (* Use as
+     rewrite -/(comp (x := "xyz") _ _). *)
+
+  (* Definition comp : val := Λ: Λ: Λ: λ: "g" "f" "x", "g" ("f" "x").
+     Infix " ∘ " := (comp #() #() #()) : expr_scope.
+
+     Fact comp_typed : ⊢ᵥ comp : (∀:∀:∀: (#1 → #0) → (#2 → #1) → #2 → #0)%ty.
+     Proof.
+       rewrite /comp. do 5 constructor. tychk.
+     Qed. *)
+
+  Definition comp : val := λ: "g" "f" "x", "g" ("f" "x").
+  Infix " ∘ " := comp : expr_scope.
+
+  Fact comp_typed a b c : ⊢ᵥ comp : ((b → c) → (a → b) → a → c)%ty.
+  Proof.
+    rewrite /comp. tychk.
+  Qed.
+
+  Fact gf_typed : ⊢ REL g ∘ f << g ∘ f : A → C.
+  Proof using (f_typed g_typed) with (rel_pures_r ; rel_pures_l).
+    rewrite /comp...
+    rel_arrow_val. iIntros...
+    rel_bind_l (f _). rel_bind_r (f _).
+    rel_apply (refines_bind with "[-]").
+    - rel_apply refines_app. 1: done. rel_values.
+    - iIntros. rel_apply refines_app. 1: done. rel_values.
+  Qed.
+
+  Lemma comp_assoc  :
+    (⊢ REL (h ∘ (g ∘ f)) << ((h ∘ g) ∘ f) : (A → D)%lrel).
+  Proof using (f_typed g_typed h_typed) with (rel_pures_r ; rel_pures_l).
+    rewrite /comp...
+    rel_arrow_val. iIntros...
+    rel_bind_l (f _). rel_bind_r (f _).
+    rel_apply (refines_bind with "[-]").
+    - rel_apply refines_app. 1: done. rel_values.
+    - iIntros... rel_apply refines_app. 1: done.
+      rel_apply refines_app. 2: rel_values. done.
+  Qed.
+
+  Variable (a : expr).
+  Variable (a_typed : ⊢ REL a << a : A).
+
+  Goal ⊢ REL (g (f a)) << (g ∘ f) a : C.
+  Proof using (f_typed g_typed a_typed) with (rel_pures_r ; rel_pures_l).
+    rewrite /comp...
+    rel_bind_r a ; rel_bind_l a.
+    rel_apply (refines_bind $! a_typed).
+    iIntros (v v') "vv"...
+    rel_apply refines_app. 1: done.
+    rel_apply refines_app. 2: rel_values. done.
+  Qed.
+
+End comp_laws.

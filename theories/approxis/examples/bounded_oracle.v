@@ -57,6 +57,30 @@ Section bounded_oracle.
     rewrite /q_calls_poly. do 3 constructor. tychk.
   Qed.
 
+  (* Applying the above fact can be a bit cumbersome, here are some helper lemmas. *)
+  Fact q_calls_poly_sem_typed_mono `{!approxisRGS Σ} α β :
+    ⊢ REL q_calls_poly #() #() << q_calls_poly #() #() : lrel_int → (α → β) → α → lrel_option β.
+  Proof.
+    iPoseProof (q_calls_poly_sem_typed $! α _ _ _) as "#h".
+    rel_bind_l (q_calls_poly _). rel_bind_r (q_calls_poly _).
+    rel_apply refines_bind.
+    1: iApply "h".
+    iIntros (??) "#h'".
+    iApply ("h'" $! β) => //.
+    Unshelve. eauto.
+  Qed.
+
+  Fact q_calls_poly_sem_typed_app `{!approxisRGS Σ} α β (Q : Z) (rf rf' : val) :
+    (REL rf << rf' : α → β)
+    ⊢ (REL q_calls_poly #() #() #Q rf << q_calls_poly #() #() #Q rf' : α → lrel_option β).
+  Proof.
+    iIntros.
+    rel_apply refines_app => //.
+    rel_apply refines_app. 2: iApply refines_typed ; tychk. simpl.
+    iApply q_calls_poly_sem_typed_mono.
+    Unshelve. exact [].
+  Qed.
+
 End bounded_oracle.
 
 Class MaxCalls := { Q : nat }.

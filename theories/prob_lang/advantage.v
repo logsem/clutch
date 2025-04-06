@@ -1,4 +1,5 @@
 Require Import Reals Psatz.
+From clutch.prelude Require Import NNRbar.
 From clutch.prob Require Import distribution markov.
 From clutch.prob_lang Require Import notation typing.tychk typing.contextual_refinement.
 Set Default Proof Using "Type*".
@@ -106,8 +107,32 @@ Proof.
   apply Rplus_le_compat => //.
 Qed.
 
+Fact pr_dist_sym e e' σ σ' v : pr_dist e e' σ σ' v = pr_dist e' e σ' σ v.
+Proof. apply nnreal_ext. rewrite /pr_dist => /=. rewrite Rabs_minus_sym. done. Qed.
+
+Fact pr_dist_st_sym e e' v : pr_dist_st e e' v = pr_dist_st e' e v.
+Proof.
+  rewrite /pr_dist_st.
+  apply functional_extensionality_dep => ε.
+  f_equal.
+  apply functional_extensionality_dep => σ.
+  by rewrite pr_dist_sym.
+Qed.
+
+Fact advantage_sym A e e' v : advantage A e e' v = advantage A e' e v.
+Proof.
+  apply nnreal_ext. rewrite /advantage. simpl.
+  rewrite /advantage_R. simpl.
+  destruct completeness as [x [ub lub]] => /=.
+  destruct completeness as [y [ub' lub']] => /=.
+  rewrite pr_dist_st_sym in ub'.
+  rewrite pr_dist_st_sym in lub'.
+  pose proof (lub y ub').
+  pose proof (lub' x ub). lra.
+Qed.
+
 Lemma ctx_advantage e e' α (_ : ∅ ⊨ e =ctx= e' : α) :
-  forall A (b : bool), (∅ ⊢ₜ A : (α → TBool)) ->
+  ∀ A (b : bool), (∅ ⊢ₜ A : (α → TBool)) ->
                        nonneg (advantage A e e' #b) = 0%R.
 Proof.
   clear -H.
@@ -122,6 +147,26 @@ Proof.
   simpl in h, h'.
   opose proof (h [CTX_AppR A] σ b _) as hh ; [by tychk|].
   opose proof (h' [CTX_AppR A] σ b _) as hh' ; [by tychk|].
+  simpl in hh, hh'.
+  set (x := (pmf #(LitBool b) - pmf #(LitBool b))%R).
+  destruct (Rle_dec 0 x) ; subst x.
+  - rewrite Rabs_right ; lra.
+  - rewrite Rabs_left ; lra.
+Qed.
+
+Lemma ctx_advantage_alt (adversary e e' : expr) (Hctx : ∅ ⊨ adversary e =ctx= adversary e' : TBool) :
+  ∀ (b : bool), (nonneg (advantage adversary e e' #b) <= 0)%R.
+Proof.
+  clear -Hctx.
+  intros.
+  destruct Hctx as [h h'].
+  apply advantage_uniform.
+  rewrite /pr_dist. simpl.
+  rewrite /ctx_refines in h, h'.
+  intros.
+  simpl in h, h'.
+  opose proof (h [] σ b _) as hh ; [by tychk|].
+  opose proof (h' [] σ b _) as hh' ; [by tychk|].
   simpl in hh, hh'.
   set (x := (pmf #(LitBool b) - pmf #(LitBool b))%R).
   destruct (Rle_dec 0 x) ; subst x.
