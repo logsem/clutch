@@ -66,14 +66,20 @@ Module Basic.
     let prog := f_rel_vals lr in
     ().
 
+  Ltac2 rec list_of_glist l :=
+    lazy_match! l with
+    | ?x :: ?t => x :: list_of_glist t
+    | [] => [] end.
+
   Tactic Notation "lrintro" constr(x) :=
     let f :=
       ltac2val:
         (lr xs |-
-           let pat :=
-             (Option.get (lr_intro
-                            (Option.get (Ltac1.to_constr lr))
-                            [(Option.get (Ltac1.to_constr xs))])) in
+           let xs := Option.get (Ltac1.to_constr xs) in
+           let xs := (eval vm_compute in (words $xs)) in
+           let xs := list_of_glist xs in
+           let lr := Option.get (Ltac1.to_constr lr) in
+           let pat := (Option.get (lr_intro lr xs)) in
            Ltac1.of_constr pat) in
     lazymatch goal with
     | |- environments.envs_entails _ (lrel_car ?A _ _ -∗ _) =>
@@ -127,6 +133,20 @@ End LR_unit.
 Export LR_unit.
 
 Module LR_prod.
+    Ltac2 prod_intro (typ : constr) xs k :=
+      (* printf "entering prod_intro, typ: %t" typ ; *)
+      lazy_match! typ with
+      | lrel_prod ?t1 ?t2 =>
+          match xs with
+          | x :: (y :: _) =>
+              let s := '(append "(%" ($x ++ "_l & %" ++ $x ++ "_r & %" ++
+                                        $y ++ "_l & %" ++ $y ++ "_r & ->&->&#" ++
+                                        $x ++ "&#" ++ $y ++ ")" )) in
+                      Some (eval vm_compute in $s)
+          | [_] | [] => Some '"(%&%&%&%&->&->&?&?)"
+          end
+      | _ => None
+      end.
   Ltac2 prod_val typ k :=
     (* printf "entering prod_val, typ: %t" typ ; *)
     lazy_match! typ with
@@ -138,6 +158,7 @@ Module LR_prod.
         ltac1:(iExists _,_,_,_ ; iSplit ; [eauto|iSplit ; [eauto | iSplit]]) ; Progressed
     | _ => Stuck
     end.
+  Ltac2 Set Basic.lrintro_tacs as prev := fun () => FMap.add "prod" prod_intro (prev ()).
   Ltac2 Set Basic.rel_val_tacs as prev := fun () => FMap.add "prod" prod_val (prev ()).
 End LR_prod.
 Export LR_prod.
