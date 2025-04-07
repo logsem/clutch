@@ -21,11 +21,11 @@ Section adequacy.
   Local Definition coe : ofe_car NNRO -> \bar R :=
     fun x => EFin (x.(nonneg)).
 
-  Lemma wp_adequacy_spec_coupl n m e1 σ1 e1' σ1' Z φ ε :
+  Lemma wp_adequacy_spec_coupl n m e1 σ1 e1' σ1' Z φ ε δ :
     meas_spec_coupl ∅ σ1 e1' σ1' ε Z -∗
     (∀ σ2 e2' σ2' ε', Z σ2 e2' σ2' ε' ={∅}=∗ |={∅}▷=>^n
-        ⌜ARcoupl_meas (@exec (language.meas_lang_markov meas_lang) m (e1, σ2)) (@lim_exec (language.meas_lang_markov meas_lang) (e2', σ2')) φ 0%R (coe ε')⌝) -∗
-    |={∅}=> |={∅}▷=>^n ⌜ARcoupl_meas (@exec (language.meas_lang_markov meas_lang) m (e1, σ1)) (@lim_exec (language.meas_lang_markov meas_lang) (e1', σ1')) φ 0%R (coe ε)⌝.
+        ⌜ARcoupl_meas (@exec (language.meas_lang_markov meas_lang) m (e1, σ2)) (@lim_exec (language.meas_lang_markov meas_lang) (e2', σ2')) φ ε δ⌝) -∗
+    |={∅}=> |={∅}▷=>^n ⌜ARcoupl_meas (@exec (language.meas_lang_markov meas_lang) m (e1, σ1)) (@lim_exec (language.meas_lang_markov meas_lang) (e1', σ1')) φ ε δ⌝.
   Proof.
     iRevert (σ1 e1' σ1' ε).
     simpl in *.
@@ -35,7 +35,7 @@ Section adequacy.
     - iApply step_fupdN_intro; [done|].
       do 2 iModIntro. iPureIntro.
       apply ARcoupl_meas_1.
-      (* math *)
+      (* Huh??? *)
       admit.
     - by iMod ("HZ" with "[$]").
     - iApply (step_fupdN_mono _ _ _ ⌜_⌝).
@@ -58,12 +58,12 @@ Section adequacy.
     iSpecialize ("Hwp" $! σ e' σ' ε with "[Hσ Hs Hε]" ).
     { iSplitR "Hs Hε"; [iApply "Hσ"|]. iSplitL "Hs"; [iApply "Hs" | iApply "Hε"]. }
     iMod "Hwp".
-  Admitted.
-    (*
     iApply (wp_adequacy_spec_coupl 0 with "Hwp").
     iIntros (σ1 e1' σ1' ε') "> (? & Hs & Hε & (% & Hv & %)) /=".
     iDestruct (spec_auth_prog_agree with "Hs Hv") as %->.
     erewrite exec_is_final; [|done].
+  Admitted.
+  (*
     erewrite lim_exec_final; [|done].
     iApply fupd_mask_intro; [set_solver|]; iIntros "_".
     iPureIntro. by eapply ARcoupl_dret.
@@ -77,27 +77,42 @@ Section adequacy.
     iIntros "(Hσ & HspecI_auth & Hε & Hwp)".
     iInduction n as [|n] "IH" forall (e σ e' σ' ε).
     { destruct (fill.to_val e) eqn:He.
-      - (* iMod (wp_adequacy_val_fupd with "[$]") as %?; [done|].
-        by iApply step_fupdN_intro. *)
-        admit.
+      - iMod (wp_adequacy_val_fupd with "[Hσ HspecI_auth Hε Hwp]"); first by apply He.
+        { iSplitL "Hσ"; first by iApply "Hσ".
+          iSplitL "HspecI_auth"; first by iApply "HspecI_auth".
+          iSplitL "Hε"; first by iApply "Hε".
+          by iApply "Hwp". }
+        by iApply step_fupdN_intro.
       - iApply fupd_mask_intro; [done|]; iIntros "_ /=".
         iPureIntro. rewrite He.
         admit.
         (* by apply ARcoupl_meas_dzero. *) }
     destruct (fill.to_val e) eqn:He.
-    { (* iMod (wp_adequacy_val_fupd with "[$]") as %?; [done|].
+    { iMod (wp_adequacy_val_fupd with "[Hσ HspecI_auth Hε Hwp]"); first by apply He.
+      { iSplitL "Hσ"; first by iApply "Hσ".
+        iSplitL "HspecI_auth"; first by iApply "HspecI_auth".
+        iSplitL "Hε"; first by iApply "Hε".
+        by iApply "Hwp". }
       iApply step_fupdN_intro; [done|].
-      do 3 iModIntro. done. *) admit. }
+      do 3 iModIntro. done. }
     iEval (rewrite wp_unfold /wp_pre /= He) in "Hwp".
-  Admitted.
-  (*
-    iMod ("Hwp" with "[$]") as "Hwp".
+    iMod ("Hwp" with "[Hσ HspecI_auth Hε]") as "Hwp".
+    { iDestruct "Hσ" as "[A [B C]]".
+      iSplitL "A B C".
+      { iSplitL "A"; [by iApply "A" |].
+        iSplitL "B"; [by iApply "B" |].
+        by iApply "C". }
+      iSplitL "HspecI_auth"; [by iApply "HspecI_auth"|].
+      by iApply "Hε". }
     iApply (wp_adequacy_spec_coupl with "Hwp").
     iIntros (σ2 e2' σ2' ε') "(%R & %m & %μ1' & %ε1 & %X2 & %r & % & % & % & % & % & Hcnt) /=".
     iEval (rewrite He).
     rewrite -step_fupdN_Sn.
     iApply (step_fupdN_mono _ _ _ ⌜_⌝).
-    { iPureIntro. intros. eapply ARcoupl_erasure_erasable_exp_lhs; [..|done]; eauto. }
+    { iPureIntro. intros.
+      (* eapply ARcoupl_erasure_erasable_exp_lhs; [..|done]; eauto. *) admit. }
+  Admitted.
+(*
     iIntros (e2 σ3 e3' σ3' HR).
     iMod ("Hcnt" with "[//]") as "Hcnt".
     clear.
@@ -152,9 +167,10 @@ Corollary wp_adequacy_error_lim Σ `{micrometerGpreS Σ} e e' σ σ' (ε : R) δ
   (∀ `{micrometerGS Σ} (ε' : R),
       (ε < ε')%R → ⊢ ⤇ e' -∗ ↯ ε' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   ARcoupl_meas (@lim_exec (language.meas_lang_markov meas_lang) (e, σ)) (@lim_exec (language.meas_lang_markov meas_lang) (e', σ')) φ ε δ.
-Proof. Admitted.
-(*
+Proof.
   intros ? Hwp.
+Admitted.
+(*
   apply ARcoupl_limit.
   intros ε' Hineq.
   assert (0 <= ε') as Hε'.
