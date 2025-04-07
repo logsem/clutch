@@ -50,7 +50,7 @@ Proof.
   iExists S.
   iSplitR; [done|].
   iSplitR.
-  { admit. }
+  { (* head step and prim step *) admit. }
   iIntros (ρ Hρ _).
   iSpecialize ("H" $! ρ Hρ).
   iIntros "!>".
@@ -71,7 +71,7 @@ Proof.
   { iPureIntro. (* by apply head_prim_reducible. *) admit. }
   iExists S.
   iSplitR; [done|].
-  iSplitR. { admit. }
+  iSplitR. { (* head step and prim ste *) admit. }
   iIntros (e2 σ2 Hstep).
   iApply "H"; eauto.
 Admitted.
@@ -85,41 +85,36 @@ Lemma wp_lift_atomic_head_step {E Φ} e1 s :
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H". iApply wp_lift_atomic_step; eauto.
-  (* head_prim_reducible. *)
-Admitted.
-  (*
   iIntros (σ1) "Hσ1". iMod ("H" with "Hσ1") as "[% H]"; iModIntro.
-  iSplit.
-  { iPureIntro. (* by apply head_prim_reducible. *) admit. }
-[%S [% [% H]]]
+  iSplitR.
+  { iPureIntro. (* Head reducible reducible *) admit. }
+  iDestruct "H" as "[%S [%H1 [%H2 H4]]]".
+  iExists S.
+  iSplitR; [done|].
+  iSplitR.
+  { (* head step prim step *) admit. }
+  done.
+Admitted.
 
-  iNext. iIntros (e2 σ2 Hstep).
-  iApply "H"; eauto.
-Qed. *)
-
-(** How to state these? *)
-(*
 Lemma wp_lift_pure_det_head_step {E E' Φ} e1 e2 s :
   to_val e1 = None →
   (∀ σ1, head_reducible e1 σ1) →
-  (∀ σ1 e2' σ2,
-    head_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2) →
+  (∀ σ : state Λ, is_det (e2, σ) (head_step (e1, σ))) ->
   (|={E}[E']▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
 Proof using Hinh.
-  intros. erewrite !(wp_lift_pure_det_step e1 e2); eauto.
-Qed.
+  intros. erewrite !(wp_lift_pure_det_step e1 e2); first done.
+  { (* head reducuble reducible *) admit. }
+  { (* prim step head step *) admit. }
+Admitted.
 
 Lemma wp_lift_pure_det_head_step' {E Φ} e1 e2 s :
   to_val e1 = None →
   (∀ σ1, head_reducible e1 σ1) →
-  (∀ σ1 e2' σ2,
-    head_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2) →
+  (∀ σ : state Λ, is_det (e2, σ) (head_step (e1, σ))) ->
   ▷ WP e2 @ s; E {{ Φ }} ⊢ WP e1 @ s; E {{ Φ }}.
 Proof using Hinh.
   intros. rewrite -[(WP e1 @ _ ; _ {{ _ }})%I]wp_lift_pure_det_head_step //.
   rewrite -step_fupd_intro //.
 Qed.
-
-*)
 
 End ectx_lifting.

@@ -194,8 +194,6 @@ Implicit Types l : loc.
     induction directly, but this demonstrates that we can state the expected
     reasoning principle for recursive functions, without any visible ▷. *)
 
-(* Check meas_lang.language.expr .$ *)
-
 
 Lemma wp_rec_löb E f (x : <<discr binders.binder>>) e Φ Ψ :
   □ ( □ (∀ v, Ψ v -∗ WP (AppC (ValC (RecVC f x e)) (ValC v) : meas_lang.language.expr meas_lang) @ E {{ Φ }}) -∗
@@ -208,11 +206,15 @@ Lemma wp_rec_löb E f (x : <<discr binders.binder>>) e Φ Ψ :
 Proof.
   iIntros "#Hrec". iLöb as "IH". iIntros (v) "HΨ".
   iApply (@lifting.wp_pure_step_later _ _ _ _ _ _ _ _ _ 1).
-  { admit. (* PureExec instance *) }
-  { admit. (* Related ?? *) }
+  { unfold PureExec.
+    admit. (* rec ctor? *) }
+  { admit. (* Should reduce under no hypotheses *) }
   iNext. iApply ("Hrec" with "[] HΨ"). iIntros "!>" (w) "HΨ".
   iApply ("IH" with "HΨ").
 Admitted.
+
+Unset Printing Notations.
+Set Printing All.
 
 (** Heap *)
 Lemma wp_alloc E v s :
@@ -221,6 +223,36 @@ Lemma wp_alloc E v s :
   {{{ l, RET (LitVC (LitLocC l) : meas_lang.language.val meas_lang); l ↦ v }}}.
 Proof.
   iIntros (Φ) "_ HΦ".
+  Fail iApply wp_lift_atomic_head_step.
+  (*
+  have X :=
+    wp_lift_atomic_head_step (E:=E) (Φ:=Φ)
+      (AllocU (ValU v) : meas_lang.language.expr meas_lang)
+      s.
+  Fail iApply X. (* Why not??? *) *)
+
+  (* What we get from wp_lift_atomic_head_step
+
+   (@wp (uPred (iResUR Σ))
+      (@Measurable.sort (d_expr (meas_lang.ectx_language.ectx_lang ?Λ))
+         (meas_lang.language.expr (meas_lang.ectx_language.ectx_lang ?Λ)))
+      (@Measurable.sort (d_val (meas_lang.ectx_language.ectx_lang ?Λ))
+         (meas_lang.language.val (meas_lang.ectx_language.ectx_lang ?Λ))) unit
+      (@wp' (meas_lang.ectx_language.ectx_lang ?Λ) Σ ?meas_spec_updateGS0 ?micrometerWpGS0) ?Goal0
+      ?E ?Goal ?Φ)).
+
+    What we want
+
+    (@wp (bi_car (uPredI (iResUR Σ))) (@Measurable.sort (d_expr meas_lang) (meas_lang.language.expr meas_lang))
+       (@Measurable.sort (d_val meas_lang) (meas_lang.language.val meas_lang)) unit
+       (@wp' meas_lang Σ (@spec_rules_spec_updateGS Σ (@micrometerGS_spec Σ micrometerGS0))
+          (@micrometerGS_irisGS Σ micrometerGS0)) s E (AllocC (ValC v)) Φ)
+
+    I think bi_car is not the problem here, rather, something funny with the Measurable.sort coercions yet again
+    Probably related to why I need to annotate all of my terms
+  *)
+
+
 Admitted.
 (*
   iApply wp_lift_atomic_head_step; [done|].
