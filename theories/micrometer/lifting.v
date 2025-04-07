@@ -206,29 +206,23 @@ Lemma wp_pure_step_fupd `{!Inhabited (state Λ)} E E' e1 e2 φ n Φ s :
   PureExec φ n e1 e2 →
   φ →
   (|={E}[E']▷=>^n WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
-Proof. Admitted.
-(*
-
+Proof.
   iIntros (Hexec Hφ) "Hwp". specialize (Hexec Hφ).
   iInduction Hexec as [e|n e1 e2 e3 [Hsafe ?]] "IH"; simpl; first done.
-Admitted.
-(*
   iApply wp_lift_pure_det_step.
-  - eauto.
-  - intros σ1 e2' σ2 Hpstep.
-    by injection (pmf_1_supp_eq _ _ _ (pure_step_det σ1) Hpstep).
+  - by eauto.
+  - by apply pure_step_det.
   - by iApply (step_fupd_wand with "Hwp").
-Qed. *) *)
+Qed.
 
 (** Statement shouldn't change as even if lemma statements do *)
 Lemma wp_pure_step_later `{!Inhabited (state Λ)} E e1 e2 φ n Φ s :
   PureExec φ n e1 e2 →
   φ →
   ▷^n WP e2 @ s; E {{ Φ }} ⊢ WP e1 @ s; E {{ Φ }}.
-Proof. Admitted.
-(*
+Proof.
   intros Hexec ?. rewrite -wp_pure_step_fupd //. clear Hexec.
   induction n as [|n IH]; by rewrite //= -step_fupd_intro // IH.
-Qed. *)
+Qed.
 
 End lifting.
