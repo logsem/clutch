@@ -172,6 +172,7 @@ Section reducible.
 
 End reducible.
 
+(* Should eventually be moved to and completed within giry.v *)
 Section AdditionalMonadLaws.
   Local Open Scope classical_set_scope.
   Local Open Scope ereal_scope.
@@ -223,7 +224,6 @@ Section AdditionalMonadLaws.
   
   Admitted.
 
-
   Lemma gBind'_meas_rw: ∀ {d1 d2: measure_display} {T1 : measurableType d1} {T2 : measurableType d2} {f : T1 -> giryM T2} (H : measurable_fun setT f),
     gBind' f = gBind H.
   Proof.
@@ -248,16 +248,19 @@ Section AdditionalMonadLaws.
     unfold is_det, has_support_in, mass'. 
     subst x.
     rewrite /mass.
-    apply propext; split; by move=><-.
+    apply propext; split; 
+    by move =><-.
   Qed.
-  (* rewrite !(eq_measure_integral (m1 := μ1) μ2);
-    auto; intros; by apply H1.
-  Qed. *)
 
   Lemma is_det_eq_meas {d} {T : measurableType d} {t : T} {μ1 μ2 : giryM T}: 
-    μ1 ≡μ μ2 ->is_det t μ1 ↔ is_det t μ2.
+    μ1 ≡μ μ2 -> is_det t μ1 ↔ is_det t μ2.
   Proof.
   Admitted.
+
+  Lemma gRet_not_zero {d} {T : measurableType d} (a : T):
+    ¬ is_zero (gRet a).
+  Proof.
+  Admitted. 
 
 End AdditionalMonadLaws.
 
@@ -327,33 +330,10 @@ Section markov.
     is_det a3 (stepN m a2) →
     is_det a3 (stepN (n + m) a1).
   Proof.
-    intros. 
-    erewrite (is_det_eq_meas). 2 : apply stepN_plus.
-    unfold is_det, has_support_in in *.
-    
-(* 
-    destruct (pselect (measurable [set a1])); 
-    destruct (pselect (measurable [set a2]));
-    destruct (pselect (measurable [set a3]));
-    try (rewrite !extern_if_eq in H H0; auto).
-    {
-      rewrite extern_if_eq.
-    } *)
-    (* rewrite !gBind'_meas_rw; try apply stepN_meas. 
-    intros. rewrite /mass' /mass. 
-    rewrite (gBindInt_rw ); simpl.
-    2 : { admit. }
-     *)
-  Admitted.
-  (*
-    rewrite stepN_plus.
-    intros ->%pmf_1_eq_dret.
-    replace (dret a2 ≫= _)
-      with (stepN m a2); [|by rewrite dret_id_left].
-    intros ->%pmf_1_eq_dret.
-    by apply dret_1.
+    rewrite /is_det stepN_plus (gBind'_meas_rw (stepN_meas _)).
+    intros. by rewrite H gRet_gBind.
   Qed.
-   *)
+
 
   (** * Non-strict partial evaluation *)
   Definition step_or_final a : giryM (mstate δ) :=
@@ -379,7 +359,6 @@ Section markov.
 
   Lemma is_final_meas_fun: measurable_fun setT (isSome \o (to_final : mstate δ -> _)).
   Proof.
-    Local Open Scope classic.
     apply measurableT_comp.
     { 
       apply (measurable_fun_bool false).
@@ -476,24 +455,37 @@ Section markov.
     pexec (S n) a = gBind' (pexec n) (step a).
   Proof. intros. rewrite pexec_Sn step_or_final_no_final //. Qed.
 
-  (*
   Lemma pexec_det_step n a1 a2 a0 :
-    step a1 a2 = 1 →
-    pexec n a0 a1 = 1 →
-    pexec (S n) a0 a2 = 1.
+    is_det a2 (step a1) →
+    is_det a1 (pexec n a0) →
+    is_det a2 (pexec (S n) a0).
   Proof.
-    rewrite pexec_Sn_r.
-    intros Hs ->%pmf_1_eq_dret.
-    rewrite dret_id_left /=.
-    case_match; [|done].
-    assert (step a1 a2 = 0) as Hns; [by eapply to_final_is_final|].
-    lra.
+    rewrite /is_det pexec_Sn_r.
+    rewrite (gBind'_meas_rw step_or_final_meas).
+    intros H H1. rewrite -H H1 gRet_gBind /step_or_final. 
+    case_match; auto.
+    exfalso. apply (gRet_not_zero a2).
+    rewrite -H. apply is_final_dzero; by rewrite /is_final H0.
   Qed.
 
   Lemma pexec_det_steps n m a1 a2 :
-    pexec n a1 a2 = 1 →
-    pexec n a1 ≫= pexec m = pexec m a2.
-  Proof. intros ->%pmf_1_eq_dret. rewrite dret_id_left //. Qed.
+    is_det a2 (pexec n a1) →
+    gBind (pexec_meas m) (pexec n a1) ≡μ pexec m a2.
+  Proof. 
+    rewrite /is_det. intros. by rewrite H gRet_gBind.
+  Qed.
+
+  Lemma stepN_pexec_det n x y:
+    is_det y (stepN n x) → is_det y (pexec n x).
+  Proof.
+    rewrite /is_det.
+    intros.
+    Search (is_det).
+    
+    
+
+  Admitted. 
+  (*
 
   Lemma stepN_pexec_det n x y:
     stepN n x y = 1 → pexec n x y = 1.
