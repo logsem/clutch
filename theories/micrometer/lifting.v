@@ -6,8 +6,11 @@ From clutch.prelude Require Import NNRbar.
 From mathcomp.analysis Require Import measure.
 From clutch.bi Require Import weakestpre.
 From clutch.micrometer Require Import app_weakestpre.
+From mathcomp Require Import classical_sets.
 
 Section lifting.
+Local Open Scope classical_set_scope.
+
 Context `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
 Implicit Types v : val Λ.
 Implicit Types e : expr Λ.
@@ -114,25 +117,6 @@ Proof.
   by iApply "H".
 Qed.
 
-Lemma wp_lift_pure_step `{!Inhabited (state Λ)} E E' Φ e1 s :
-  (∀ σ1, reducible (e1, σ1)) →
-  (∀ σ1 e2 σ2, is_det σ1 (gMap' snd (prim_step (e1, σ1)))) ->
-  (|={E}[E']▷=> ∀ σ, EXSM (fun e => WP e @ s; E {{ Φ }}) (gMap' fst (prim_step (e1, σ))))
-  ⊢ WP e1 @ s; E {{ Φ }}.
-Proof.
-  iIntros (Hsafe Hstep) "H". iApply wp_lift_step.
-  { specialize (Hsafe inhabitant). by eapply (to_final_None_1 (e1, _)), reducible_not_final. }
-  iIntros (σ1) "Hσ". iMod "H".
-  iApply fupd_mask_intro; first set_solver. iIntros "Hclose".
-  iSplit; [done|].
-
-Admitted. (*  Not sure. Can I commute a later out of an EXSM?
-  iNext. iIntros (e2 σ2 Hprim).
-  destruct (Hstep _ _ _ Hprim).
-  iMod "Hclose" as "_". iMod "H".
-  iDestruct ("H" with "[//]") as "H". simpl. by iFrame.
-Qed. *)
-
 (* Atomic steps don't need any mask-changing business here, one can *)
 (* use the generic lemmas here. *)
 Lemma wp_lift_atomic_step_fupd {E1 E2 Φ} e1 s :
@@ -183,20 +167,39 @@ Proof.
   by iApply "H".
 Qed.
 
-(** UNSURE (figure out wp_lift_pure_step first to get statement right *)
-(*
 Lemma wp_lift_pure_det_step `{!Inhabited (state Λ)} {E E' Φ} e1 e2 s :
   (∀ σ1, reducible (e1, σ1)) →
-  (∀ σ1 e2' σ2, prim_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2) →
+  (∀ σ, is_det (e2, σ) (prim_step (e1, σ))) ->
+  (* (∀ σ1 e2' σ2, prim_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2) → *)
   (|={E}[E']▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  iIntros (? Hpuredet) "H". iApply (wp_lift_pure_step E E'); try done.
-  { naive_solver. }
-  iApply (step_fupd_wand with "H"); iIntros "H".
-  iIntros (e' σ (?&->)%Hpuredet); auto.
-Qed.
+  iIntros (? Hpuredet) "H".
+  iApply wp_lift_step.
+  { specialize (H inhabitant). by eapply (to_final_None_1 (e1, _)), reducible_not_final. }
+  iIntros (σ) "Hσ".
+  iMod "H".
+  iApply fupd_mask_intro; first set_solver. iIntros "Hclose".
+  iSplit; [done|].
+  iExists [set (e2, σ)].
+  iSplitR.
+  { admit. (* Singletons measurable *) }
+  iSplitR.
+  { iPureIntro.
+    specialize Hpuredet with σ.
+    rewrite /is_det/measure_eq in Hpuredet.
+    specialize Hpuredet with [set (e2, σ)].
+    rewrite Hpuredet; last admit. (* singletons measurable *)
+    (* yes *)
+    admit. }
+  iIntros (ρ ->).
+  rewrite //=.
+  iNext.
+  iMod "Hclose" as "_".
+  iMod "H".
+  iModIntro.
+  iFrame.
+Admitted.
 
-*)
 
 (** Statement shouldn't change as even if lemma statements do *)
 Lemma wp_pure_step_fupd `{!Inhabited (state Λ)} E E' e1 e2 φ n Φ s :
