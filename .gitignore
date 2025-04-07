@@ -37,6 +37,7 @@ nra.cache
 _opam
 .DS_Store
 *.zip
+.vscode
 
 # Emacs
 *~
