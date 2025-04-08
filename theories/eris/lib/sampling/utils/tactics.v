@@ -93,6 +93,7 @@ Module SimplExpr.
   ].
   #[local] Ltac simpl_le :=
       match goal with 
+      | |- 0 <=  / ?n => apply (Rinv_0_le_compat n)
       | |- _ * ?n <= _ * ?n => apply Rmult_le_compat_r
       | |- ?n * _ <= ?n * _ => apply Rmult_le_compat_l
 
@@ -104,6 +105,7 @@ Module SimplExpr.
       end.
   #[local] Ltac simple_lt :=
     match goal with 
+    | |- 0 <  / ?n => apply (Rinv_0_lt_compat n)
     | |- _ * ?n <  _ * ?n => apply Rmult_lt_compat_r
     | |- ?n * _ <  ?n * _ => apply Rmult_lt_compat_l
     | |- _ <  _ */?n => apply (Rmult_lt_reg_l n)
