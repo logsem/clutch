@@ -21,13 +21,14 @@ Set Warnings "hiding-delimiting-key".
    I get universe inconsistencies when I try do do this.
    Unless somebody starts giving default measurableType instances, or
    measurableType instances for Iris types, this hack should work for now.
-*)
 
 Canonical Structure MeasO_OFE {d} (T : measurableType d) :=
   (Ofe T (@discrete_ofe_mixin  _ _ eq_equivalence)).
 
 Global Instance MeasO_discrete {d} (T : measurableType d) : OfeDiscrete (MeasO_OFE T). 
-Proof. by move=>???. Qed. 
+Proof. by move=>???. Qed.
+
+*)
 
 Section language_mixin.
   Local Open Scope classical_set_scope.
@@ -82,6 +83,10 @@ Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments prim_step {_}.
 
+
+Canonical Structure stateO (Λ : meas_language) := leibnizO (Measurable.sort (state Λ)).
+Canonical Structure valO (Λ : meas_language) := leibnizO (Measurable.sort (val Λ)).
+Canonical Structure exprO (Λ : meas_language):= leibnizO (Measurable.sort (expr Λ)).
 
 (*
 Notation valO Λ := (MeasO val).

@@ -56,6 +56,7 @@ Definition btapes_auth `{micrometerGS Σ} :=
 Definition utapes_auth `{micrometerGS Σ} :=
   @ghost_map_auth _ _ _ _ _ micrometerGS_utapes micrometerGS_utapes_name.
 
+(*
 Global Instance micrometerGS_irisGS `{!micrometerGS Σ} : micrometerWpGS meas_lang Σ := {
   micrometerWpGS_invGS := micrometerGS_invG;
   state_interp σ :=
@@ -213,9 +214,6 @@ Proof.
   iApply ("IH" with "HΨ").
 Admitted.
 
-Unset Printing Notations.
-Set Printing All.
-
 (** Heap *)
 Lemma wp_alloc E v s :
   {{{ True }}}
@@ -223,13 +221,30 @@ Lemma wp_alloc E v s :
   {{{ l, RET (LitVC (LitLocC l) : meas_lang.language.val meas_lang); l ↦ v }}}.
 Proof.
   iIntros (Φ) "_ HΦ".
-  Fail iApply wp_lift_atomic_head_step.
-  (*
+  Check (ectxi_language.MeasEctxLanguageOfEctxi meas_ectxi_lang).
+  Search ectx_language.meas_ectxLanguage.
   have X :=
-    wp_lift_atomic_head_step (E:=E) (Φ:=Φ)
-      (AllocU (ValU v) : meas_lang.language.expr meas_lang)
-      s.
-  Fail iApply X. (* Why not??? *) *)
+    @wp_lift_atomic_head_step
+      (meas_ectx_lang)
+      (* (ectxi_language.MeasEctxLanguageOfEctxi meas_ectxi_lang) *)
+      Σ.
+      (* (@spec_rules_spec_updateGS Σ _). *)
+  Unset Printing Notations.
+  Set Printing Implicit.
+  simpl in X.
+  simpl.
+
+    (* wp_lift_atomic_head_step (E:=E) (Φ:=Φ) (Λ:=(ectxi_language.MeasEctxLanguageOfEctxi meas_ectxi_lang))
+      (AllocU (ValU v) )
+      s. **)
+  simpl in X.
+
+
+  (*
+  iApply X.
+  iApply wp_lift_atomic_head_step.
+*)
+
 
   (* What we get from wp_lift_atomic_head_step
 
@@ -575,3 +590,4 @@ Qed.
 End lifting.
 
 Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.
+*)

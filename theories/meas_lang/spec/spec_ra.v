@@ -11,7 +11,7 @@ From mathcomp.analysis Require Import measure.
 
 Local Open Scope classical_set_scope.
 
-Definition progUR : ucmra := optionUR (exclR (MeasO_OFE expr)).
+Definition progUR : ucmra := optionUR (exclR (leibnizO (@Measurable.sort _ expr))).
 (* Definition cfgO : ofe := prodO expr state. *)
 
 (** The CMRA for the spec [cfg]. *)
@@ -342,11 +342,14 @@ End spec_tape_interface.
 *)
 
 
+(*
 (* FIXME: I feel like this is wrong... *)
 #[global] Instance spec_rules_spec_updateGS `{!specG_meas_lang Σ} :
-  meas_spec_updateGS (meas_lang_markov meas_lang) Σ.
-refine (MeasSpec_updateGS _).
-intro X.
-apply spec_auth.
-apply X.
-Defined.
+  meas_spec_updateGS (meas_lang_markov meas_lang) Σ := MeasSpec_updateGS spec_auth.
+*)
+
+
+(*
+#[global] Instance spec_rules_spec_updateGS `{!specG_prob_lang Σ} :
+  spec_updateGS (lang_markov prob_lang) Σ := Spec_updateGS spec_auth.
+*)

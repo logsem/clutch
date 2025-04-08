@@ -13,9 +13,9 @@ Context
  `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
 
 Implicit Types P : iProp Σ.
-Implicit Types Φ : val Λ → iProp Σ.
-Implicit Types v : val Λ.
-Implicit Types e : expr Λ.
+Implicit Types Φ : Measurable.sort (val Λ) → iProp Σ.
+Implicit Types v : Measurable.sort (val Λ).
+Implicit Types e : Measurable.sort (expr Λ).
 (*
 Local Hint Resolve head_prim_reducible head_reducible_prim_step : core.
 Local Hint Resolve head_stuck_stuck : core.

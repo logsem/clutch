@@ -84,8 +84,8 @@ Section coupl_modalities.
       distributions, e.g. [state_step]s on both sides. *)
 
   Program Definition meas_spec_coupl_pre (E : coPset)
-      (Z : state Λ -> expr Λ -> state Λ -> NNRO -> iProp Σ) (Φ : state Λ * (expr Λ * state Λ) * NNRO → iProp Σ) :
-      (state Λ) * (expr Λ * state Λ) * NNRO → iProp Σ :=
+      (Z : stateO Λ -> exprO Λ -> stateO Λ -> NNRO -> iProp Σ) (Φ : stateO Λ * (exprO Λ * stateO Λ) * NNRO → iProp Σ) :
+      (stateO Λ) * (exprO Λ * stateO Λ) * NNRO → iProp Σ :=
     (λ (x : state Λ * (expr Λ * state Λ) * NNRO),
        let '(σ1, (e1', σ1'), ε) := x in
        ⌜1 <= ε⌝ ∨
@@ -123,8 +123,8 @@ Section coupl_modalities.
 
   Implicit Type ε : NNRO.
 
-  Definition meas_spec_coupl' (E : coPset) (Z : state Λ -> expr Λ -> state Λ -> NNRO -> iProp Σ) :
-      state Λ * (expr Λ * state Λ) * NNRO → iProp Σ :=
+  Definition meas_spec_coupl' (E : coPset) (Z : stateO Λ -> exprO Λ -> stateO Λ -> NNRO -> iProp Σ) :
+      stateO Λ * (exprO Λ * stateO Λ) * NNRO → iProp Σ :=
     bi_least_fixpoint (meas_spec_coupl_pre E Z).
 
   Definition meas_spec_coupl E σ e' σ' ε Z := meas_spec_coupl' E Z (σ, (e', σ'), ε).
@@ -169,7 +169,7 @@ Section coupl_modalities.
   Proof.
     iIntros "#IH" (σ e' σ' ε) "H".
     set (Ψ' := (λ '(σ, (e', σ'), ε), Ψ σ e' σ' ε) :
-           (prodO (prodO (state Λ) (prodO (expr Λ) (state Λ))) NNRO) → iProp Σ).
+           (prodO (prodO (state Λ) (prodO (exprO Λ) (stateO Λ))) NNRO) → iProp Σ).
     assert (NonExpansive Ψ').
     { intros n [[σ1 [e1' σ1']] ε1] [[σ2 [e2' σ2']] ε2].
       intros ([[=] ([=] & [=])] & [=]).
@@ -489,7 +489,7 @@ Section coupl_modalities.
 
   (** The [meas_prog_coupl] modality allows us to coupl *exactly* one program step with any number of
       spec execution steps and an erasable distribution *)
-  Definition meas_prog_coupl (e1 : expr Λ) (σ1 : state Λ) (e1' : expr Λ) σ1' (ε : NNRO) Z : iProp Σ :=
+  Definition meas_prog_coupl (e1 : exprO Λ) (σ1 : stateO Λ) (e1' : exprO Λ) σ1' (ε : NNRO) Z : iProp Σ :=
     ∃ (R : cfg Λ → cfg Λ → Prop) (n : nat) (μ1' : giryM (state Λ))
       (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : nonnegreal),
       ⌜reducible (e1, σ1)⌝ ∗
@@ -711,8 +711,8 @@ End coupl_modalities.
 
 (** * The weakest precondition  *)
 Definition wp_pre `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}
-    (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
-     coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
+    (wp : coPset -d> exprO Λ -d> (valO Λ -d> iPropO Σ) -d> iPropO Σ) :
+     coPset -d> exprO Λ -d> (valO Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
   (∀ σ1 e1' σ1' ε1,
       state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 ={E, ∅}=∗
       meas_spec_coupl ∅ σ1 e1' σ1' ε1 (λ σ2 e2' σ2' ε2,
@@ -754,7 +754,7 @@ Proof.
 Qed.
 
 Local Definition wp_def `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ} :
-  Wp (iProp Σ) (expr Λ) (val Λ) () :=
+  Wp (iProp Σ) (Measurable.sort (expr Λ)) (Measurable.sort (val Λ)) () :=
   {| wp := λ _ : (), fixpoint (wp_pre); wp_default := () |}.
 
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
@@ -770,10 +770,10 @@ Section wp.
 Context `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
-Implicit Types v : val Λ.
-Implicit Types e : expr Λ.
-Implicit Types σ : state Λ.
-Implicit Types ρ : cfg Λ.
+Implicit Types v : Measurable.sort (val Λ).
+Implicit Types e : Measurable.sort (expr Λ).
+Implicit Types σ : Measurable.sort (state Λ).
+Implicit Types ρ : Measurable.sort (cfg Λ).
 
 (* Weakest pre *)
 Lemma wp_unfold E e Φ s :

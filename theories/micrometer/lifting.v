@@ -12,11 +12,11 @@ Section lifting.
 Local Open Scope classical_set_scope.
 
 Context `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
-Implicit Types v : val Λ.
-Implicit Types e : expr Λ.
-Implicit Types σ : state Λ.
+Implicit Types v : Measurable.sort (val Λ).
+Implicit Types e : Measurable.sort (expr Λ).
+Implicit Types σ : Measurable.sort (state Λ).
 Implicit Types P Q : iProp Σ.
-Implicit Types Φ : val Λ → iProp Σ.
+Implicit Types Φ : (Measurable.sort (val Λ)) → iProp Σ.
 
 #[local] Open Scope R.
 
