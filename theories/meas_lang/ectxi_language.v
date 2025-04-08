@@ -1,3 +1,4 @@
+
 (** An axiomatization of languages based on evaluation context items, including
     a proof that these are instances of general ectx-based languages. *)
 Set Warnings "-hiding-delimiting-key".
@@ -249,7 +250,25 @@ Section ectxi_language.
   Qed.
 
   Lemma decomp_fill K e e' : decomp e = (K, e') → fill (K, e') = e.
-  Proof. Admitted.
+  Proof.
+    remember (length K) as n eqn:Heqn.
+    revert K e e' Heqn.
+    induction n as [|n IHn]; intros K e e' Hn.
+    - assert (K= []) as ->.
+      { destruct K; simpl in *; first done. lia. }
+      intros H. apply decomp_inv_nil in H as [? ->].
+      by rewrite /fill.
+    - rewrite decomp_unfold.
+      case_match; last first.
+      { intros; simplify_eq. }
+      repeat case_match. simplify_eq.
+      intros; simplify_eq.
+      rewrite fill_app. apply decomp_fill_item_2.
+      etrans; first exact.
+      f_equal. f_equal.
+      simpl. symmetry. apply IHn; last done.
+      rewrite app_length in Hn. simpl in *. lia.
+  Qed.
 
   Lemma decomp_to_val_emp K e e' : decomp e = (K, e') → is_Some (to_val e') → K = [].
   Proof. Admitted.
