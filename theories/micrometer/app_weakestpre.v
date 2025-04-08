@@ -11,7 +11,7 @@ From mathcomp.classical Require Import classical_sets.
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.meas_lang Require Export language erasable.
 From clutch.meas_lang Require Export meas_spec_update.
-From clutch.prob.monad Require Export couplings_app.
+From clutch.prob.monad Require Export couplings_app tactics.
 From clutch.bi Require Export weakestpre.
 (*  From clutch.prob Require Export couplings_app distribution. *)
 From Coq Require Import ssrfun.
@@ -23,7 +23,6 @@ From stdpp Require Import base.
 From Coq Require Import Reals.
 
 From mathcomp.analysis Require Import constructive_ereal.
-
 
 Import uPred.
 
@@ -205,7 +204,6 @@ Section coupl_modalities.
 
   Local Open Scope classical_set_scope.
 
-
   Lemma fupd_meas_spec_coupl E σ1 e1' σ1' Z (ε : nonnegreal) :
     (|={E}=> meas_spec_coupl E σ1 e1' σ1' ε Z) ⊢ meas_spec_coupl E σ1 e1' σ1' ε Z.
   Proof.
@@ -228,8 +226,9 @@ Section coupl_modalities.
     { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set σ1] ([set e1'] `*` [set σ1'])).
       { by apply state_meas_points. }
       { by apply measurableX; [apply expr_meas_points | apply state_meas_points]. }
-      { (* gRet mass *) admit. }
-      { (* gRet mass *) admit. }
+      { apply gRetMass1Inv; [|done]. by apply state_meas_points. }
+      { apply gRetMass1Inv; [|done].
+        by apply measurableX; [apply expr_meas_points | apply state_meas_points]. }
       eapply (ARcoupl_meas_dret); try done.
       Unshelve.
       2: { intros _ _. apply True. (* idk why I get typ2 errors when I do this the other way around *) }
@@ -238,7 +237,9 @@ Section coupl_modalities.
     iSplit; [done|].
     iSplit; [iPureIntro|].
     { rewrite integral_cst.
-      {  (* gRet is PMF, epsilon is nonnegative *) admit. }
+      { rewrite //=/numfun.indic//=.
+        rewrite mem_set;[|done].
+        destroy_mathcomp; lra. }
       { by eapply @measurableT. }
     }
     iSplit. { iPureIntro. (* gRet erasable *) admit. }
