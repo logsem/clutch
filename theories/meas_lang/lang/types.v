@@ -367,6 +367,10 @@ Definition base_lit : measurableType base_lit_cyl.-sigma := base_lit_T.
 Definition expr : measurableType expr_cyl.-sigma := expr_T.
 Definition val : measurableType val_cyl.-sigma := val_T.
 
+Lemma base_lit_meas_singleton (b : base_lit) : measurable [set b]. Admitted.
+Lemma expr_meas_singleton (e : expr) : measurable [set e]. Admitted.
+Lemma val_meas_singleton (v : val) : measurable [set v]. Admitted.
+
 (** Constructors for expressions with the fixed and measurable base types. *)
 Definition LitIntC   : <<discr Z>> ->  base_lit                         := LitInt.
 Definition LitBoolC  : <<discr bool>> -> base_lit                          := LitBool.

@@ -355,6 +355,7 @@ Admitted.
 HB.instance Definition _ :=
   @isMeasurable.Build state_display state state_measurable state_meas0 state_measC state_measU.
 
+Lemma state_meas_singleton (v : state) : measurable [set v]. Admitted.
 (*
 Definition state_lift_fun {d} {T : measurableType d} f : state -> T := ssrfun.comp f prod_of_state.
 *)

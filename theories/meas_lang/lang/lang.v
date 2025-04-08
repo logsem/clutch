@@ -34,7 +34,6 @@ Set Warnings "+spurious-ssr-injection".
 Module meas_lang.
 
 Local Open Scope classical_set_scope.
-
 Section meas_semantics.
 
 (*
@@ -1483,6 +1482,9 @@ Proof.
   - by apply fill_item_meas_fun.
   - by apply decomp_item_meas_fun.
   - by apply head_stepM_meas_fun.
+  - by apply expr_meas_singleton.
+  - by apply val_meas_singleton.
+  - by apply state_meas_singleton.
   - by apply to_of_val.
   - by apply of_to_val.
   - by apply val_head_stuck.

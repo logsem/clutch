@@ -84,7 +84,7 @@ Section coupl_modalities.
   (** The [meas_spec_coupl] modality allows us to (optionally) prepend spec execution steps and erasable
       distributions, e.g. [state_step]s on both sides. *)
 
-  Definition meas_spec_coupl_pre (E : coPset)
+  Program Definition meas_spec_coupl_pre (E : coPset)
       (Z : state Λ -> expr Λ -> state Λ -> NNRO -> iProp Σ) (Φ : state Λ * (expr Λ * state Λ) * NNRO → iProp Σ) :
       (state Λ) * (expr Λ * state Λ) * NNRO → iProp Σ :=
     (λ (x : state Λ * (expr Λ * state Λ) * NNRO),
@@ -95,7 +95,7 @@ Section coupl_modalities.
           (ε1 : nonnegreal) (X2 : (expr Λ * state Λ)%type → nonnegreal) (r : R),
             ⌜ ARcoupl_meas μ1 (gBind' (pexec n \o pair e1') μ1') S (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
             ⌜∀ ρ, X2 ρ <= r⌝ ∗
-            ⌜ (le_ereal (EFin (nonneg ε1)) (\int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) ⌝ ∗
+            ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
             ⌜erasable μ1 σ1⌝ ∗
             ⌜erasable μ1' σ1'⌝ ∗
             ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ Φ (σ2, (e2', σ2'), X2 (e2', σ2'))))%I.
@@ -138,7 +138,7 @@ Section coupl_modalities.
          (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
          ⌜ARcoupl_meas μ1 (gBind' (pexec n \o pair e1') μ1') S (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
          ⌜∀ ρ, X2 ρ <= r⌝ ∗
-         ⌜ (le_ereal (EFin (nonneg ε1)) (\int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) ⌝ ∗
+          ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
          ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
          ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ meas_spec_coupl E σ2 e2' σ2' (X2 (e2', σ2')) Z))%I.
   Proof. rewrite /meas_spec_coupl /meas_spec_coupl' least_fixpoint_unfold //. Qed.
@@ -156,7 +156,7 @@ Section coupl_modalities.
        (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
        ⌜ARcoupl_meas μ1 (gBind' (pexec n \o pair e1') μ1') S (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
        ⌜∀ ρ, X2 ρ <= r⌝ ∗
-       ⌜ (le_ereal (EFin (nonneg ε1)) (\int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) ⌝ ∗
+       ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
        ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
        ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ meas_spec_coupl E σ2 e2' σ2' (X2 (e2', σ2')) Z)%I
     ⊢ meas_spec_coupl E σ1 e1' σ1' ε Z.
@@ -213,13 +213,21 @@ Section coupl_modalities.
     iApply meas_spec_coupl_rec.
     iExists _, 0%nat, (gRet σ1), (gRet σ1'), 0%NNR, (λ _, ε), ε.
     setoid_rewrite gBind_id_left; first last.
-    { (* measurability *) admit.  }
-    { (* measurability *) admit.  }
+    { apply @measurable_compT.
+      { done. }
+      { by apply pexec_meas. }
+      { by apply measurable_pair1. }
+    }
+    { apply @measurable_compT.
+      { done. }
+      { by apply pexec_meas. }
+      { by apply measurable_pair1. }
+    }
     rewrite pexec_0'.
     iSplit; [iPureIntro|].
-    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set σ1] [set (e1', σ1')]).
-      { (* singletons measurable *) admit. }
-      { (* singletons measurable *) admit. }
+    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set σ1] ([set e1'] `*` [set σ1'])).
+      { by apply state_meas_points. }
+      { by apply measurableX; [apply expr_meas_points | apply state_meas_points]. }
       { (* gRet mass *) admit. }
       { (* gRet mass *) admit. }
       eapply (ARcoupl_meas_dret); try done.
@@ -485,7 +493,7 @@ Section coupl_modalities.
       ⌜reducible (e1, σ1)⌝ ∗
       ⌜ARcoupl_meas (prim_step (e1, σ1)) (gBind' (pexec n \o pair e1') μ1') R (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
       ⌜∀ ρ, X2 ρ <= r⌝ ∗
-      ⌜ (le_ereal (EFin (nonneg ε1)) (\int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) ⌝ ∗
+      ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε))⌝ ∗
       ⌜erasable μ1' σ1'⌝ ∗
       ∀ e2 σ2 e2' σ2', ⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' (X2 (e2, σ2)).
 

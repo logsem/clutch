@@ -39,6 +39,10 @@ Section ectx_language_mixin.
     mixin_fill_meas : measurable_fun setT fill;
     mixin_decomp_meas : measurable_fun setT decomp;
 
+    mixin_expr_meas_points : forall (e : expr), measurable [set e];
+    mixin_val_meas_points : forall (v : val), measurable [set v];
+    mixin_state_meas_points : forall (v : state), measurable [set v];
+
     mixin_to_of_val v : to_val (of_val v) = Some v;
     mixin_of_to_val e v : to_val e = Some v → of_val v = e;
 
@@ -294,6 +298,8 @@ Section ectx_language.
          - by apply ectx_language_mixin.
          - by apply ectx_language_mixin.
          - apply prim_step_meas.
+         - by apply ectx_language_mixin.
+         - by apply ectx_language_mixin.
          - by apply ectx_language_mixin.
          - by apply ectx_language_mixin.
          - admit.

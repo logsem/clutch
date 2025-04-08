@@ -44,6 +44,10 @@ Section ectxi_language_mixin.
     mixin_decomp_item_meas : measurable_fun setT decomp_item;
     mixin_head_step_meas : measurable_fun setT head_step;
 
+    mixin_expr_meas_points : forall (e : expr), measurable [set e];
+    mixin_val_meas_points : forall (v : val), measurable [set v];
+    mixin_state_meas_points : forall (v : state), measurable [set v];
+
     mixin_to_of_val v : to_val (of_val v) = Some v;
     mixin_of_to_val e v : to_val e = Some v → of_val v = e;
     mixin_val_stuck e1 σ1 : (¬ (is_zero (head_step (e1, σ1)))) → to_val e1 = None;
@@ -302,6 +306,9 @@ Section ectxi_language.
     { admit. (* by apply ectxi_language_mixin. (* Works but is hella slow. Why?  *) *) }
     { by apply fill_measurable. }
     { by apply decomp_measurable. }
+    { by apply ectxi_language_mixin. }
+    { by apply ectxi_language_mixin. }
+    { by apply ectxi_language_mixin. }
     { by apply ectxi_language_mixin. }
     { by apply ectxi_language_mixin. }
     { by apply ectxi_language_mixin. }

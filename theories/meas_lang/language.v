@@ -44,7 +44,11 @@ Section language_mixin.
     mixin_of_val_meas : measurable_fun setT of_val;
     mixin_to_val_meas : measurable_fun setT to_val;
     mixin_prim_step_meas : measurable_fun setT prim_step;
-      
+
+    mixin_expr_meas_points : forall (e : expr), measurable [set e];
+    mixin_val_meas_points : forall (v : val), measurable [set v];
+    mixin_state_meas_points : forall (s : state), measurable [set s];
+
     (** val/expr coercions are partial inverses *)
     mixin_to_of_val v : to_val (of_val v) = Some v;
     mixin_of_to_val e v : to_val e = Some v → of_val v = e;
@@ -155,6 +159,12 @@ Section language.
   Lemma to_val_meas : measurable_fun setT (@to_val Λ).
   Proof. apply language_mixin. Qed.
   Lemma prim_step_meas : measurable_fun setT (@prim_step Λ).
+  Proof. apply language_mixin. Qed.
+  Lemma expr_meas_points : forall (e : expr Λ), measurable [set e].
+  Proof. apply language_mixin. Qed.
+  Lemma val_meas_points : forall (e : val Λ), measurable [set e].
+  Proof. apply language_mixin. Qed.
+  Lemma state_meas_points : forall (e : state Λ), measurable [set e].
   Proof. apply language_mixin. Qed.
   Lemma to_of_val v : to_val (of_val v) = Some v.
   Proof. apply language_mixin. Qed.
@@ -437,5 +447,6 @@ Section language.
   Qed.
 
 End language.
+
 
 Global Hint Mode PureExec + - - ! - : typeclass_instances.
