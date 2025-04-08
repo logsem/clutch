@@ -19,6 +19,14 @@ Section erasable.
     ∀ e m, gBind (_ : measurable_fun setT (exec m \o pair e)) μ ≡μ exec m (e, σ).
   Next Obligation. intros; mf_cmp_tree; [ by apply @measurableT | by apply exec_meas_fun ]. Qed.
 
+  Lemma erasable_gRet (σ : state Λ) : erasable (gRet σ) σ.
+  Proof.
+    intros e m.
+    eapply Equivalence_Transitive; [apply gRet_gBind | ].
+    by simpl.
+  Qed.
+
+
 (*
   Definition erasable_dbind (μ1 : distr(state Λ)) (μ2 : state Λ → distr (state Λ)) σ:
     erasable μ1 σ → (∀ σ', μ1 σ' > 0 → erasable (μ2 σ') σ') → erasable (μ1 ≫= μ2) σ.

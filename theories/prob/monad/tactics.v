@@ -21,6 +21,7 @@ From clutch.prob.monad Require Import prelude giry.
 (* From stdpp Require Import base. *)
 From Coq Require Import Reals.
 From Coq.Bool Require Import Bool.
+Require Import Coq.ssr.ssrbool.
 
 From mathcomp.analysis Require Import constructive_ereal.
 
@@ -39,5 +40,8 @@ Ltac unfold_mathcomp :=
 Ltac destroy_mathcomp :=
   unfold_mathcomp;
   match goal with
-  | |- Is_true (Rleb _ _) => apply Is_true_eq_left, (ssrbool.introT (RlebP _ _))
+  | |- Is_true _ => apply Is_true_eq_left
+  | |- ((Rleb _ _) = true) => apply (Coq.ssr.ssrbool.introT (RlebP _ _))
+  | |- is_true (Rleb _ _) => apply (Coq.ssr.ssrbool.introT (RlebP _ _))
+  | _ => idtac
   end.

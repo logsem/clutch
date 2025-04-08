@@ -239,15 +239,15 @@ Section coupl_modalities.
     { rewrite integral_cst.
       { rewrite //=/numfun.indic//=.
         rewrite mem_set;[|done].
-        destroy_mathcomp; lra. }
+        repeat destroy_mathcomp; lra.
+      }
       { by eapply @measurableT. }
     }
-    iSplit. { iPureIntro. (* gRet erasable *) admit. }
-    iSplit. { iPureIntro. (* gRet erasable *) admit. }
+    iSplit. { iPureIntro. by apply erasable_gRet. }
+    iSplit. { iPureIntro. by apply erasable_gRet. }
     iIntros (??? (_ & S1 & S2)); simpl. simpl in S1, S2; inversion S2; subst.
     by iApply "H".
-  Admitted. (** OK *)
-
+  Qed.
 
   Lemma meas_spec_coupl_mono E1 E2 σ1 e1' σ1' Z1 Z2 ε :
     E1 ⊆ E2 →
@@ -288,13 +288,14 @@ Section coupl_modalities.
       iPureIntro.
       apply (@ARcoupl_meas_mon_grading _ _ _ _ _ _ _ 0 _ (EFin 0) _).
       { done. }
-      { (* math *) admit. }
+      { repeat destroy_mathcomp. lra. }
       apply ARcoupl_meas_dret; done.
     }
     iSplit; [iPureIntro; done|].
-    iSplit. {  (* integral of cst function wrt. ret  *) admit. } (* { rewrite Expval_dret /=. lra. } *)
-    iSplit. { iPureIntro. (* gRet erasable *) admit. }
-    iSplit. { iPureIntro. (* gRet erasable *) admit. }
+    iSplit. {
+      (* integral of cst function wrt. ret  *) admit. } (* { rewrite Expval_dret /=. lra. } *)
+    iSplit. { iPureIntro. by apply erasable_gRet. }
+    iSplit. { iPureIntro. by apply erasable_gRet. }
     iIntros (???); simpl; iIntros ([-> [-> ->]]). by iFrame.
   Admitted. (** OK *)
 
@@ -415,7 +416,7 @@ Section coupl_modalities.
       admit. }
     (* { rewrite Expval_const //. apply Rle_plus_plus; [done|]. real_solver. }  *)
     iSplit. { done. }
-    iSplit. { iPureIntro. (* gRet erasable *) admit. }
+    iSplit. { iPureIntro. by apply erasable_gRet. }
     done.
   Admitted. (** UNSURE *)
 
@@ -427,10 +428,9 @@ Section coupl_modalities.
   Proof.
     iIntros (-> ?) "H".
     iApply (meas_spec_coupl_erasable_steps n R (gRet σ1) ε1 ε2); [done | done | |].
-    { (* gRet erasable *) admit. }
-    by iFrame.
-  Admitted. (** OK *)
-
+    { by apply erasable_gRet. }
+    iFrame.
+  Qed.
 
   Lemma meas_spec_coupl_steps_det n ε σ1 e1' σ1' e2' σ2' Z E :
     is_det (e2', σ2') (pexec n (e1', σ1')) →
@@ -440,19 +440,20 @@ Section coupl_modalities.
     iIntros (Hexec%is_det_dret) "H".
     iApply (meas_spec_coupl_steps n ε 0%NNR).
     { apply nnreal_ext => /=. lra. }
-    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set σ1] [set (e2', σ2')]), ARcoupl_meas_trivial.
-      { admit. (* Singletons are measurable *) }
-      { admit. (* Singletons are measurable *) }
-      { admit. (* gRet mass *) }
-      { rewrite Hexec. admit. (* gRet mass *) }
-      { admit. (* gRet is PMF *) }
-      { rewrite Hexec. admit. (* gRet is PMF *) }
+    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set σ1] ([set e2'] `*` [set σ2'])), ARcoupl_meas_trivial.
+      { by apply state_meas_points. }
+      { by apply measurableX; [apply expr_meas_points | apply state_meas_points ]. }
+      { apply gRetMass1Inv; [by apply state_meas_points|done]. }
+      { rewrite Hexec. apply gRetMass1Inv; [|done].
+        by apply measurableX; [apply expr_meas_points | apply state_meas_points ]. }
+      { apply gRetMass1Inv; [|done]. by eapply @measurableT. }
+      { rewrite Hexec. apply gRetMass1Inv; [|done]. by eapply @measurableT. }
     }
     iIntros (??? (_ & H1 & H2)).
     simpl in H1, H2.
     inversion H2; subst.
     done.
-  Admitted. (** OK *)
+  Qed.
 
   Lemma meas_spec_coupl_step ε E σ1 e1' σ1' Z :
     reducible (e1', σ1') ->
