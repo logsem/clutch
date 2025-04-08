@@ -297,7 +297,10 @@ Section ectx_language.
          - by apply ectx_language_mixin.
          - by apply ectx_language_mixin.
          - admit.
-         - admit.
+         - intros e σ.
+           rewrite /prim_step.
+           case_match.
+           admit.
   Admitted.
 
   Canonical Structure ectx_lang : meas_language := MeasLanguage ectx_lang_mixin.
@@ -432,14 +435,31 @@ Section ectx_language.
 
   Lemma head_step_not_stuck e σ : (¬ is_zero (head_step (e, σ))) → not_stuck (e, σ).
   Proof.
-    rewrite /not_stuck /reducible /=. intros Hs. Admitted.
+    rewrite /not_stuck /reducible /=. intros Hs.
+    erewrite <-head_prim_step_eq in Hs; last done.
+    by right.
+  Qed.
 
   Lemma fill_reducible K e σ : reducible (e, σ) → reducible (fill (K, e), σ).
   Proof.
-    rewrite /reducible /=. (* intros [[e2 σ2] (K' & e1' & e2' & <- & <- & Hs)%prim_step_iff]. *)
-    (* exists (fill (comp_ectx K K') e2', σ2). *)
-    (* eapply prim_step_iff. do 3 eexists. rewrite !fill_comp //. *)
-  Admitted.
+    rewrite /reducible/step/=.
+    destruct (decomp e) as [K1 e1] eqn:Heqn1.
+    destruct (decomp (fill (K, e))) as [K2 e2] eqn:Heqn2.
+    intros H. intros H'. apply H.
+    apply is_zero_gMap'; first apply fill_lift_meas.
+    erewrite decomp_fill_comp in Heqn2; last done.
+    - simplify_eq. eapply gMap'_is_zero; last done.
+      apply fill_lift_meas.
+    - assert (to_val e1 = None).
+      { eapply head_not_stuck.
+        intros ?.
+        apply H. 
+        eapply is_zero_gMap'; last done.
+        apply fill_lift_meas.
+      }
+      apply decomp_fill in Heqn1. subst.
+      by apply fill_not_val.
+  Qed.
   Lemma head_prim_reducible e σ : head_reducible e σ → reducible (e, σ).
   Proof. intros.
          by apply head_prim_step.
@@ -460,12 +480,19 @@ Section ectx_language.
   Lemma prim_head_reducible e σ :
     reducible (e, σ) → sub_redexes_are_values e → head_reducible e σ.
   Proof.
-    rewrite /reducible.
-  (*   intros [[e2 σ2] (K & e1' & e2' & ? & ? & Hs)%prim_step_iff] Hsub. *)
-  (*   simplify_eq=>/=; simpl in *. *)
-  (*   assert (K = empty_ectx) as -> by eauto 10 using val_head_stuck. *)
-  (*   simplify_eq. rewrite fill_empty. eexists; eauto. *)
-    (* Qed. *)
+    rewrite /reducible/head_reducible/sub_redexes_are_values/=.
+    destruct (decomp e) as [K e'] eqn:Heqn1.
+    intros Hzero H Hzero'.
+    apply Hzero. clear Hzero.
+    apply decomp_fill in Heqn1; subst.
+    destruct (to_val e') eqn:Heqn2.
+    - apply is_zero_gMap'; first apply fill_lift_meas.
+      (** Obvious *) admit.
+    - assert (K=empty_ectx) as ->.
+      { eapply H; done. }
+      rewrite fill_lift_empty in Hzero' *.
+      rewrite fill_empty in Hzero'.
+      (** Obvious gMap' id lemma *)
   Admitted.
   Lemma prim_head_irreducible e σ :
     head_irreducible e σ → sub_redexes_are_values e → irreducible (e, σ).

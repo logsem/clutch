@@ -6,6 +6,7 @@ From clutch.prelude Require Import classical.
 Import Coq.Relations.Relation_Definitions.
 Require Import Coq.micromega.Lra.
 From Coq Require Import Classes.Morphisms Reals.
+From stdpp Require Import base tactics.
 From HB Require Import structures.
 
 Set Implicit Arguments.
@@ -1278,10 +1279,20 @@ Section giry_is_zero.
     intros Hzero s Hms. rewrite gZero_eval; last done.
     unshelve rewrite gMap'_gMap in Hzero; first done.
     destruct (lt_ereal 0%E (m s)) eqn:Heqn.
-    - (* contradiction *) admit.
+    - simpl in *.
+      case_match.
+      {
+        admit.
+      }
+      { admit. }
+      { done. }
     - rewrite -ltEereal in Heqn.
       assert (m s<=0)%E as H'.
-      { admit. }
+      { rewrite /Order.lt//= in Heqn.
+        case_match.
+        - admit.
+        - admit.
+        - done. }
       rewrite measure_le0 in H'.
       by rewrite -eq_opE.
   Admitted.
