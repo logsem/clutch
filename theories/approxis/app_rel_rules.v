@@ -103,9 +103,9 @@ Section rules.
      quantifies v, which is important e.g. in refines_alloc_r, where v is
      freshly generated. If e2' is known, this variant can be used instead *)
   Lemma refines_steps_r E e1 e2 e2' A K' :
-    (∀ K, (⤇ fill K e2 ={⊤}=∗ ⤇ fill K e2'))
-    ⊢ (|={⊤}=> REL e1 << ectxi_language.fill K' e2' @ E : A)
-    -∗ REL e1 << ectxi_language.fill K' e2 @ E : A.
+    (∀ K, (⤇ fill K e2 -∗ spec_update ⊤ (⤇ fill K e2')))
+    ⊢ (|={⊤}=> refines E e1 (ectxi_language.fill K' e2') A)
+      -∗ refines E e1 (ectxi_language.fill K' e2) A.
   Proof.
     iIntros "upd >Hlog".
     rewrite refines_eq /refines_def.
@@ -704,84 +704,88 @@ Section rules.
     done.
   Qed.
 
- (*
-  TODO: Port other rules by need
 
-  Lemma refines_couple_TU N f `{Bij (fin (S N)) (fin (S N)) f} K' E α A z ns e :
+  Lemma refines_couple_TU N f `{Bij nat nat f} K' E α A z ns e :
     TCEq N (Z.to_nat z) →
-    to_val e = None →
-    ▷ α ↪ (N; ns) ∗
-      (∀ (n : fin (S N)), α ↪ (N; ns ++ [n]) -∗ REL e << fill K' (Val #(f n)) @ E : A)
+    (∀ n : nat, n < S N → f n < S N) ->
+    ▷ α ↪N (N; ns) ∗
+      (∀ (n : nat), ⌜n ≤ N⌝ -∗ α ↪N (N; ns ++ [n]) -∗ REL e << fill K' (Val #(f n)) @ E : A)
     ⊢ REL e << fill K' (rand #z) @ E : A.
   Proof.
-    iIntros (-> ?) "[>Hα Hcnt]".
+    iIntros (-> Hdom) "[>Hα Hcnt]".
     rewrite {2}refines_eq {1}/refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
-    wp_apply wp_couple_tape_rand; [done|done|].
+    iIntros (K2 ε) "Hspec Hnais ε %εpos /=".
+    wp_apply wp_couple_tape_rand; [done|].
     rewrite -fill_app.
     (* [iFrame] is too aggressive.... *)
-    iFrame "Hs Hα Hspec".
-    iIntros (n) "[Hα [_ Hspec]]".
+    iFrame "Hα Hspec".
+    iIntros (n) "[Hα [Hspec %]]".
     rewrite fill_app.
-    rewrite refines_eq /refines_def /refines_right.
-    iSpecialize ("Hcnt" with "Hα [$Hs $Hspec] Hnais").
+    rewrite refines_eq /refines_def.
+    iSpecialize ("Hcnt" $! n).
+    iAssert ⌜n ≤ Z.to_nat z⌝%I as "h". 1: easy.
+    iSpecialize ("Hcnt" with "h Hα Hspec Hnais ε").
+    iSpecialize ("Hcnt" $! εpos).
     wp_apply (wp_mono with "Hcnt").
-    iIntros (v) "[% ([? ?] &?&?)]". iExists _. iFrame.
+    iIntros (v) "[% (%&? &?&?&?)]". iExists _,_. iFrame.
   Qed.
   Definition refines_couple_tape_rand := refines_couple_TU.
 
-  Lemma refines_couple_UT N f `{Bij (fin (S N)) (fin (S N)) f} K E α A z ns e :
+  Lemma refines_couple_UT N f `{Bij nat nat f} K E α A z ns e :
     TCEq N (Z.to_nat z) →
-    ▷ α ↪ₛ (N; ns) ∗
-      ▷ (∀ (n : fin (S N)), α ↪ₛ (N; ns ++ [f n]) -∗ REL fill K (Val #n) << e @ E : A)
+    (∀ n : nat, n < S N → f n < S N) ->
+    ▷ α ↪ₛN (N; ns) ∗
+      ▷ (∀ (n : nat), ⌜n ≤ N⌝ -∗ α ↪ₛN (N; ns ++ [f n]) -∗ REL fill K (Val #n) << e @ E : A)
     ⊢ REL fill K (rand #z) << e @ E : A.
   Proof.
-    iIntros (->) "[H Hcnt]"
+    iIntros (-> Hdom) "[>Hα Hcnt]".
     rewrite refines_eq /refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
+    iIntros (K2 ε) "Hspec Hnais ε %εpos /=".
     wp_apply wp_bind.
-    wp_apply wp_couple_rand_tape; [done|].
-    iFrame "Hs Hα".
-    iIntros "!>" (b) "Hα".
-    iSpecialize ("Hcnt" with "Hα [$Hs $Hspec] Hnais").
+    wp_apply (wp_couple_rand_tape with "Hα").
+    1: intuition auto ; lia.
+    iIntros (n) "[Hα %le_n_z]".
+    iAssert ⌜n ≤ Z.to_nat z⌝%I as "h". 1: easy.
+    iSpecialize ("Hcnt" with "h Hα Hspec Hnais ε").
+    iSpecialize ("Hcnt" $! εpos).
     wp_apply (wp_mono with "Hcnt").
-    iIntros (v) "[% ([? ?] &?&?)]".
+    iIntros (v) "[% (%&? &?&?)]".
     iExists _. iFrame.
   Qed.
   Definition refines_couple_rand_tape := refines_couple_UT.
 
-  Corollary refines_couple_TU_empty N f `{Bij (fin (S N)) (fin (S N)) f} K K' E α A z :
-    TCEq N (Z.to_nat z) →
-    ▷ α ↪ (N; []) ∗
-      ▷ (∀ (n : fin (S N)), α ↪ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #(f n)) @ E : A)
-    ⊢ REL fill K (rand(#lbl:α) #z) << fill K' (rand #z) @ E : A.
-  Proof.
-    iIntros (->) "(>α & H)".
-    iApply refines_couple_tape_rand.
-    { rewrite fill_not_val //. }
-    iFrame => /=. iIntros (n) "Hα".
-    iApply refines_rand_l.
-    iFrame. iModIntro. iApply "H".
-  Qed.
-  Definition refines_couple_rands_l := refines_couple_TU_empty.
+  (* TODO: Port other rules by need *)
+  (* Corollary refines_couple_TU_empty N f `{Bij (fin (S N)) (fin (S N)) f} K K' E α A z :
+       TCEq N (Z.to_nat z) →
+       ▷ α ↪ (N; []) ∗
+         ▷ (∀ (n : fin (S N)), α ↪ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #(f n)) @ E : A)
+       ⊢ REL fill K (rand(#lbl:α) #z) << fill K' (rand #z) @ E : A.
+     Proof.
+       iIntros (->) "(>α & H)".
+       iApply refines_couple_tape_rand.
+       { rewrite fill_not_val //. }
+       iFrame => /=. iIntros (n) "Hα".
+       iApply refines_rand_l.
+       iFrame. iModIntro. iApply "H".
+     Qed.
+     Definition refines_couple_rands_l := refines_couple_TU_empty.
 
-  Corollary refines_couple_UT_empty N f `{Bij (fin (S N)) (fin (S N)) f} K K' E α A z :
-    TCEq N (Z.to_nat z) →
-    ▷ α ↪ₛ (N; []) ∗
-      ▷ (∀ (n : fin (S N)), α ↪ₛ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #(f n)) @ E : A)
-    ⊢ REL fill K (rand #z) << fill K' (rand(#lbl:α) #z) @ E : A.
-  Proof.
-    iIntros (->) "(>Hα & H)".
-    iApply refines_couple_rand_tape.
-    iFrame.
-    iIntros "!>" (n) "Hα".
-    iApply (refines_rand_r with "Hα").
-    iIntros "α".
-    by iApply "H".
-  Qed.
-  Definition refines_couple_rands_r := refines_couple_UT_empty.
+     Corollary refines_couple_UT_empty N f `{Bij (fin (S N)) (fin (S N)) f} K K' E α A z :
+       TCEq N (Z.to_nat z) →
+       ▷ α ↪ₛ (N; []) ∗
+         ▷ (∀ (n : fin (S N)), α ↪ₛ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #(f n)) @ E : A)
+       ⊢ REL fill K (rand #z) << fill K' (rand(#lbl:α) #z) @ E : A.
+     Proof.
+       iIntros (->) "(>Hα & H)".
+       iApply refines_couple_rand_tape.
+       iFrame.
+       iIntros "!>" (n) "Hα".
+       iApply (refines_rand_r with "Hα").
+       iIntros "α".
+       by iApply "H".
+     Qed.
+     Definition refines_couple_rands_r := refines_couple_UT_empty. *)
 
 
-*)
 
 End rules.
