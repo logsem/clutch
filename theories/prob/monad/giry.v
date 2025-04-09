@@ -1,7 +1,7 @@
 (** Axioms of a the Giry Monad type (a sigma algebra for subdistributions) *)
 From mathcomp Require Import all_ssreflect all_algebra boolp classical_sets functions.
 From mathcomp.analysis Require Import reals ereal measure lebesgue_measure lebesgue_integral Rstruct.
-From clutch.prob.monad Require Export prelude.
+From clutch.prob.monad Require Export prelude tactics.
 From clutch.prelude Require Import classical.
 Import Coq.Relations.Relation_Definitions.
 Require Import Coq.micromega.Lra.
@@ -1274,17 +1274,19 @@ Section giry_is_zero.
     by apply gZero_map.
   Qed.
 
+  (**  * IS THIS EVEN TRUE??? *)
   Lemma gMap'_is_zero (m : giryM T1) (f : T1 -> T2) (H : measurable_fun setT f) : is_zero (gMap' f m) -> is_zero m.
   Proof.
     intros Hzero s Hms. rewrite gZero_eval; last done.
     unshelve rewrite gMap'_gMap in Hzero; first done.
     destruct (lt_ereal 0%E (m s)) eqn:Heqn.
     - simpl in *.
-      case_match.
-      {
+      case_match eqn:Heqn'.
+      { unfold_mathcomp. simpl in Heqn. destroy_mathcomp.
+        exfalso.
         admit.
       }
-      { admit. }
+      { unfold_mathcomp. admit. }
       { done. }
     - rewrite -ltEereal in Heqn.
       assert (m s<=0)%E as H'.

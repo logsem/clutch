@@ -17,7 +17,7 @@ From clutch.meas_lang Require Export meas_spec_update. *)
 (*  From clutch.prob Require Export couplings_app distribution. *)
 
 From mathcomp.analysis Require Import reals measure lebesgue_measure lebesgue_integral sequences function_spaces Rstruct.
-From clutch.prob.monad Require Import prelude giry.
+From clutch.prob.monad Require Import prelude.
 (* From stdpp Require Import base. *)
 From Coq Require Import Reals.
 From Coq.Bool Require Import Bool.
@@ -31,17 +31,24 @@ Ltac unfold_mathcomp :=
   unfold order.Order.le,
          ssralg.GRing.mul,
          order.Order.le,
+         order.Order.lt,
          ssralg.GRing.mul,
          ssralg.GRing.natmul,
          ssralg.GRing.one,
-         ssralg.GRing.add;
+         ssralg.GRing.add in *;
   simpl.
 
 Ltac destroy_mathcomp :=
   unfold_mathcomp;
   match goal with
   | |- Is_true _ => apply Is_true_eq_left
+                        
   | |- ((Rleb _ _) = true) => apply (Coq.ssr.ssrbool.introT (RlebP _ _))
   | |- is_true (Rleb _ _) => apply (Coq.ssr.ssrbool.introT (RlebP _ _))
+  | H : ((Rleb _ _) = true) |- _ => apply (Coq.ssr.ssrbool.elimT (RlebP _ _)) in H
+                                        
+  | |- ((Rltb _ _) = true) => apply (Coq.ssr.ssrbool.introT (RltbP _ _))
+  | |- is_true (Rltb _ _) => apply (Coq.ssr.ssrbool.introT (RltbP _ _))
+  | H : ((Rltb _ _) = true) |- _ => apply (Coq.ssr.ssrbool.elimT (RltbP _ _)) in H
   | _ => idtac
   end.
