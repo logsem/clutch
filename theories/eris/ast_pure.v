@@ -355,7 +355,6 @@ Section Pure.
   Lemma is_pure_heads_ectx (e : expr):
     is_pure e = true -> Forall (fun k => is_pure_ectx k = true) (decomp e).1.
   Proof.
-    Search (Forall).
     destruct (decomp e) eqn : Hde.
     simpl.
     remember (length l).
@@ -657,7 +656,6 @@ Section Complete.
       }
       iSplitR.
       { 
-        Search (pgl).
         iPureIntro.
         simpl.
         apply (pgl_mon_pred _ (fun x => (fun _ => True) x ∧ (prim_step e σ1) x > 0)).

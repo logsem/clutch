@@ -1,5 +1,5 @@
 From clutch.approxis Require Import approxis.
-From clutch.approxis.examples Require Import egpk.
+From clutch.approxis.examples Require Import ElGamal_pubkey.
 From clutch.approxis.examples Require valgroup_Zp valgroup_Zpx.
 
 #[local] Definition rfc3526_id18 : N :=
