@@ -2,7 +2,15 @@ From clutch.eris Require Import eris.
 From clutch.eris.lib.sampling Require Import utils.
 #[local] Open Scope R.
 
-#[local] Ltac done ::= solve[lia || lra || nra || real_solver || tactics.done || auto].
+#[local] Ltac done ::= 
+  solve[
+    lia |
+    lra |
+    nra |
+    real_solver  |
+    tactics.done |
+    auto
+  ].
 
 Section Lemmas.
 
@@ -323,7 +331,7 @@ Section Bernoulli.
     destruct (decide (S M < N)%nat) as [Hlt | Hge%not_lt].
     { cred_contra. rewrite Rcomplements.Rlt_minus_l. simpl_expr. }
     iPoseProof (ec_combine with "[$Herr $Hcost]") as "Herr".
-    wp_apply (twp_bernoulli_scale _ _ _ 1 ε' with "Herr")%R; [lia| lra|lra..|].
+    wp_apply (twp_bernoulli_scale _ _ _ 1 ε' with "Herr")%R; [lia|lra..|].
     iIntros "%k [(_ & Herr) | (-> & Herr)]"; first cred_contra. 
     by iApply "HΦ"; iFrame.
   Qed.

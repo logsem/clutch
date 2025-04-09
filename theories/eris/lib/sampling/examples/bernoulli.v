@@ -72,7 +72,7 @@ Section Examples.
       split; subst p; simpl_expr.
     }
     (* Not required but good to note that the error credit assumption is not inconsistent *)
-    assert (0 <= 2 * p * (1 - p) < 1) by nra. 
+    assert (0 <= 2 * p * (1 - p) < 1) by nra.
     wp_apply (twp_bernoulli_scale _ _ _ p (1 - p) with "Herr") 
       as "%k [[-> Herr]|[-> Herr]]"; fold p =>//.
     - wp_apply (bernoulli_failure_spec_simple with "Herr") 
@@ -92,7 +92,7 @@ Section Roulette.
 
   Context `{!erisGS Σ}.
   Variable N M : nat.
-  Hypothesis (H0_lt_N_lt_SM : (0 < N < S M)%nat).
+  Hypothesis H0_lt_N_lt_SM : (0 < N < S M)%nat.
 
   Definition roulette_martingale_aux : val :=
     rec: "loop" "win" "bet" :=
@@ -123,7 +123,6 @@ Section Roulette.
         rewrite Rmult_plus_distr_l Rmult_1_r.
         simpl_expr. }
       wp_pures.
-      change (0 + 1)%Z with (Z.of_nat 1).
       by iApply "HΦ".
     - iIntros "%c %g %Hpos %Hlt %Φ Herr HΦ".
       rewrite /roulette_martingale /roulette_martingale_aux.
@@ -134,45 +133,36 @@ Section Roulette.
       assert (0 < p < 1).
       { subst p. split; first apply Rmult_lt_0_compat; simpl_expr. }
       set ε1 := A / B.
-      set ε2 := ((A / S B) - ε1 * (1 - p)) / p.
-      wp_apply (twp_bernoulli_scale _ _ _ ε1 ε2 with "Herr") as "% [[-> Herr]|[-> Herr]]".
-      { done. }
-      { subst ε1. simpl_expr. }
-      { subst ε2.
-        apply Rmult_le_pos; last simpl_expr.
-        subst ε1.
-        rewrite !Rmult_assoc -(Rmult_minus_distr_l A).
-        apply Rmult_le_pos; first real_solver.
-        apply Rle_0_le_minus.
-        rewrite Rmult_comm.
-        simpl_expr.
-        rewrite Rmult_minus_distr_l.
-        simpl_expr.
-        rewrite S_INR.
-        rewrite -{3}(Rplus_0_r B) Rplus_assoc.
-        simpl_expr.
-        apply Rle_minus.
-        unfold p, B.
-        rewrite -Rmult_assoc.
-        simpl_expr.
-        rewrite -S_INR -mult_INR.
-        destruct N; simpl_expr. }
-      { rewrite -minus_INR // -plus_INR Nat.add_succ_r.
-        fold A B p.
-        rewrite -(Rplus_0_l (A / S B)).
-        rewrite -(Rminus_diag (ε1 * (1 - N / S M))).
-        rewrite !Rminus_def.
-        rewrite !Rplus_assoc.
-        simpl_expr.
-        rewrite Rplus_comm.
-        subst ε2.
-        rewrite -!Rdiv_def.
-        rewrite Rmult_assoc Rinv_l //. }
-      + subst ε1 ε2 A B p.
-        fold roulette_martingale_aux.
+      iAssert (↯ (ε1 * (1 - p))) with "[Herr]" as "Herr".
+      {
+        assert (S M + k > 0) by rewrite -plus_INR //.
+        iApply (ec_weaken with "Herr").
+        split.
+        - subst ε1 A B p. apply Rmult_le_pos; simpl_expr.
+        - subst ε1 A B. rewrite -minus_INR // -plus_INR. simpl_expr.
+          rewrite -!Rmult_assoc (Rmult_comm (S M + S k)%nat) !Rmult_assoc. 
+          rewrite -{2}(Rmult_1_r (S M - N)%nat).
+          simpl_expr.
+          rewrite !plus_INR.
+          rewrite !Rmult_plus_distr_l Rmult_plus_distr_r.
+          simpl_expr.
+          rewrite (Rmult_comm _ p) -!Rmult_assoc.
+          rewrite -!Ropp_mult_distr_l_reverse -!Rmult_plus_distr_r .
+          rewrite {1}(S_INR k) Rplus_assoc.
+          simpl_expr.
+          rewrite -{2}(Rplus_0_r k) Rplus_assoc.
+          simpl_expr.
+          rewrite !Ropp_mult_distr_l_reverse -Rminus_def.
+          apply Rle_minus.
+          simpl_expr.
+          rewrite -plus_INR -mult_INR.
+          destruct N; simpl_expr.
+      }
+      wp_apply (twp_bernoulli_scale _ _ _ ε1 0 with "Herr") as "% [[-> Herr]|[-> Herr]]";  subst ε1 A B p; simpl_expr.
+      + fold roulette_martingale_aux.
         wp_pures.
         wp_apply (IHk with "[Herr]"); try done.
-        { iApply (ec_eq with "Herr"). rewrite minus_INR //. }
+        { rewrite plus_INR minus_INR //. }
         rewrite -Z.add_diag Z.add_assoc Z.sub_add.
         by iApply "HΦ".
       + wp_pures.
@@ -207,18 +197,15 @@ Section Roulette.
   Qed.
 
   Example roulette_martingale_spec (ε : R) :
-    (ε > 0) →
+    ε > 0 →
     [[{↯ ε}]]
       roulette_martingale #()
-    [[{RET #(1); True}]].
+    [[{RET #1; True}]].
   Proof.
     iIntros "%H_ε_pos %Φ Herr HΦ".
-    rewrite /roulette_martingale.
-    wp_pures.
+    do 2 wp_pure.
     by wp_apply (roulette_martingale_aux_spec with "Herr").
   Qed.
-
-
 
 
 
