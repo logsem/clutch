@@ -622,11 +622,8 @@ work.
 Note that this trick no longer works when we switch to canonical projections
 because then the pattern match [let '...] will be desugared into projections. *)
 
-Program Definition MeasLanguageOfEctx (Λ : meas_ectxLanguage) : meas_language :=
+Definition MeasLanguageOfEctx (Λ : meas_ectxLanguage) : meas_language :=
   let '@MeasEctxLanguage _ _ _ _ expr val state ectx of_val to_val empty_ctx comp_ctx _ _ head_step mix := Λ in
-  @MeasLanguage _ _ _ expr val state of_val to_val head_step _.
-Next Obligation.
-  intros.
-  destruct mix.
-  split; try done.
-Qed.
+  @MeasLanguage _ _ _ expr val state of_val to_val _ (@ectx_lang_mixin (@MeasEctxLanguage _ _ _ _ _ _ _ _ _ to_val _ _ _ _ head_step mix)).
+
+Global Arguments MeasLanguageOfEctx : simpl never.

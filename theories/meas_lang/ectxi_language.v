@@ -187,12 +187,19 @@ Section ectxi_language.
   Hint Resolve fill_measurable : measlang.
 
 
-
   Lemma fill_app (K1 K2 : ectx) e : fill ((K1 ++ K2), e) = fill (K2, (fill (K1, e))).
   Proof. apply foldl_app. Qed.
 
   Lemma fill_cons (k : ectx_item Λ) (K2 : ectx) e : fill ((k :: K2), e) = fill (K2, (fill ([k], e))).
   Proof. apply (fill_app [k] K2). Qed.
+
+  Lemma fill_not_val K e : to_val e = None → to_val (fill (K, e)) = None.
+  Proof.
+    revert e.
+    induction K as [|Ki K] using rev_ind; simpl; first naive_solver.
+    intros e Hval; rewrite fill_app/=.
+    apply fill_item_not_val. naive_solver.
+  Qed.
 
   Program Fixpoint decomp (e : expr Λ) {wf expr_ord e} : ectx * expr Λ :=
     match decomp_item e with
@@ -275,23 +282,59 @@ Section ectxi_language.
   Qed.
 
   Lemma decomp_to_val_emp K e e' : decomp e = (K, e') → is_Some (to_val e') → K = [].
-  Proof. Admitted.
+  Proof.
+    revert e e'. induction K as [|Ki K] using rev_ind; [done|].
+    intros ?? (e'' & Hrei & Hre)%decomp_inv_cons Hv.
+    specialize (IHK _ _ Hre Hv). simplify_eq.
+    apply decomp_inv_nil in Hre as [? ?]; simplify_eq.
+    by apply decomp_fill_item_2 in Hrei as [_ ?%eq_None_not_Some].
+  Qed.
 
-  (* FIXME: Rename *)
-  Lemma decomp_lemma_1 e e' K K' :  to_val e = None → decomp e = (K', e') → decomp (fill (K, e)) = (flip app K K', e').
-  Proof. Admitted.
+  Lemma decomp_fill_comp e e' K K' :  to_val e = None → decomp e = (K', e') → decomp (fill (K, e)) = (flip app K K', e').
+  Proof.
+    revert K' e e'.
+    induction K as [|Ki K] using rev_ind.
+    { intros ??? =>/=. rewrite app_nil_r //. }
+    intros K' e e' Hval Hre. rewrite fill_app /=.
+    rewrite decomp_unfold.
+    rewrite decomp_fill_item.
+    - rewrite (IHK K' _ e') //=.
+      rewrite !app_assoc //.
+    - simpl. by apply fill_not_val.
+  Qed.
 
-
-  Lemma decomp_lemma_2 K' K_redex e1' e1_redex σ1  :
+  Lemma decomp_step_by_val K' K_redex e1' e1_redex σ1  :
     fill (K', e1') = fill (K_redex, e1_redex)
     → to_val e1' = None
       → ¬ is_zero (head_step (e1_redex, σ1))
         → ∃ K'' , K_redex = flip app K' K''.
-  Proof. Admitted.
+  Proof.
+    revert K_redex  e1' e1_redex σ1.
+    induction K' as [|Ki K IH] using rev_ind => /= K' e1' e1_redex σ1 Hfill; eauto using app_nil_r.
+    destruct K' as [|Ki' K' _] using @rev_ind; first rewrite {2}/fill/= in Hfill; simplify_eq/=.
+    { intros Hval Hstep. rewrite fill_app in Hstep. apply head_ctx_step_val in Hstep.
+      simpl in Hstep.
+      eapply fill_not_val in Hval.
+      by apply not_eq_None_Some in Hstep. }
+    rewrite !fill_app /= in Hfill.
+    intros Hval Hstep.
+    assert (Ki = Ki') as ->.
+    { eapply fill_item_no_val_inj, Hfill; simpl; first by apply fill_not_val.
+      apply fill_not_val. by eapply ectxi_language_mixin. }
+    simplify_eq. apply fill_item_inj in Hfill. simpl in *.
+    eapply IH in Hfill as [K'' ->]; [|done..].
+    exists K''. by rewrite assoc.
+  Qed.
 
-
-  Lemma decomp_lemma_3 K e σ1 : ¬ is_zero (head_step (fill (K, e), σ1)) → is_Some (to_val e) ∨ K = [].
-  Proof. Admitted.
+  Lemma head_ctx_step_fill_val K e σ1 : ¬ is_zero (head_step (fill (K, e), σ1)) → is_Some (to_val e) ∨ K = [].
+  Proof.
+    destruct K as [|Ki K _] using rev_ind; simpl; first by auto.
+    rewrite fill_app /=.
+    intros H%head_ctx_step_val; eauto using fill_val. simpl in *.
+    left.
+    destruct (to_val e) eqn:Heqn; first done.
+    eapply fill_not_val in Heqn. by erewrite Heqn in H.
+  Qed.
 
   Definition meas_ectxi_lang_ectx_mixin :
     MeasEctxLanguageMixin of_val to_val head_step [] (flip (++)) fill decomp.
@@ -303,7 +346,7 @@ Section ectxi_language.
     split.
     { by apply ectxi_language_mixin. }
     { by apply ectxi_language_mixin. }
-    { admit. (* by apply ectxi_language_mixin. (* Works but is hella slow. Why?  *) *) }
+    { apply head_step_meas. }
     { by apply fill_measurable. }
     { by apply decomp_measurable. }
     { by apply ectxi_language_mixin. }
@@ -332,68 +375,14 @@ Section ectxi_language.
     { done. }
     { by apply decomp_fill. }
     { by apply decomp_to_val_emp. }
-    { by apply decomp_lemma_1. }
-    { by apply decomp_lemma_2. }
-    { by apply decomp_lemma_3. }
-     
-
-    (*
-    - apply ectxi_language_mixin.
-    - apply ectxi_language_mixin.
-    - apply ectxi_language_mixin.
-    - apply ectxi_language_mixin.
-    - apply ectxi_language_mixin.
-    - apply ectxi_language_mixin.
-    - done.
-    - intros K1 K2 e. by rewrite /fill /= foldl_app.
-    - intros K; induction K as [|Ki K IH]; rewrite /Inj; naive_solver.
-    - done.
-
-      ------------
-
-    - induction K as [|Ki K] using rev_ind; intros e e'.
-      { intros [? ->]%decomp_inv_nil=>//. }
-      intros (e'' & Hrei & Hre)%decomp_inv_cons.
-      rewrite fill_app /= (IHK e'') //.
-      by apply decomp_fill_item_2.
-    - intros K. induction K as [|Ki K] using rev_ind; [done|].
-      intros ?? (e'' & Hrei & Hre)%decomp_inv_cons Hv.
-      specialize (IHK _ _ Hre Hv). simplify_eq.
-      apply decomp_inv_nil in Hre as [? ?]; simplify_eq.
-      by apply decomp_fill_item_2 in Hrei as [_ ?%eq_None_not_Some].
-    - intros e e' K K'. revert K' e e'.
-      induction K as [|Ki K] using rev_ind.
-      { intros ??? =>/=. rewrite app_nil_r //. }
-      intros K' e e' Hval Hre. rewrite fill_app /=.
-      rewrite decomp_unfold.
-      rewrite decomp_fill_item; [|auto using fill_item_not_val].
-      rewrite (IHK K' _ e') //=.
-      rewrite !app_assoc //.
-    - intros K K' e1 e1' σ1 [e2 σ2] Hfill Hred Hstep; revert K' Hfill.
-      induction K as [|Ki K IH] using rev_ind=> /= K' Hfill; eauto using app_nil_r.
-      destruct K' as [|Ki' K' _] using @rev_ind; simplify_eq/=.
-      { rewrite fill_app in Hstep. apply head_ctx_step_val in Hstep.
-        apply fill_val in Hstep. by apply not_eq_None_Some in Hstep. }
-      rewrite !fill_app /= in Hfill.
-      assert (Ki = Ki') as ->.
-      { eapply fill_item_no_val_inj, Hfill; eauto using val_head_stuck.
-        apply fill_not_val. revert Hstep. apply ectxi_language_mixin. }
-      simplify_eq. destruct (IH K') as [K'' ->]; auto.
-      exists K''. by rewrite assoc.
-    - intros K e1 σ1 [e2 σ2].
-      destruct K as [|Ki K _] using rev_ind; simpl; first by auto.
-      rewrite fill_app /=.
-      intros ?%head_ctx_step_val; eauto using fill_val.
-     *)
-  Admitted.
-
-
+    { by apply decomp_fill_comp. }
+    { by apply decomp_step_by_val. }
+    { by apply head_ctx_step_fill_val. }
+  Qed.
 
   Canonical Structure meas_ectxi_lang_ectx := MeasEctxLanguage meas_ectxi_lang_ectx_mixin.
   Canonical Structure meas_ectxi_lang := MeasLanguageOfEctx meas_ectxi_lang_ectx.
 
-  Lemma fill_not_val K e : to_val e = None → to_val (fill (K, e)) = None.
-  Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.
 
   Lemma ectxi_language_sub_redexes_are_values e :
     (∀ Ki e', e = fill_item (Ki, e') → is_Some (to_val e')) →
@@ -403,15 +392,8 @@ Section ectxi_language.
     intros []%eq_None_not_Some. eapply fill_val, Hsub. by rewrite /= fill_app.
   Qed.
 
-  Global Program Instance ectxi_lang_ctx_item Ki : MeasLanguageCtx ((curry fill_item) Ki) := {
-      K_measurable := _;
-      fill_not_val e := _;
-      fill_inj  := _;
-      fill_dmap e1 σ1 := _
-  }.
-  Next Obligation. by move=>Ki; apply (curry_meas_fun R), fill_item_meas. Qed.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
+  Global  Instance ectxi_lang_ctx_item Ki : MeasLanguageCtx ((curry fill_item) Ki).
+  Proof. change (MeasLanguageCtx (curry fill [Ki])). apply _. Qed.
 
 End ectxi_language.
 
