@@ -188,6 +188,14 @@ Proof.
   - iIntros. rel_apply refines_app. 1: iApply adversary_typed. iApply lr'.
 Qed.
 
+Lemma lr_advantage_reflexive adversary e
+  (τ : ∀ `{!approxisRGS Σ}, lrel Σ)
+  (adversary_typed : ∀ `{!approxisRGS Σ}, ⊢ REL adversary << adversary : τ → lrel_bool)
+  (lr : ∀ `{!approxisRGS Σ}, ⊢ REL e << e : τ)
+  (b : bool) :
+  (advantage adversary e e #b <= 0)%R.
+Proof. eapply lr_advantage => //. Qed.
+
 Section comp_laws.
 
   Context `{!approxisRGS Σ}.
