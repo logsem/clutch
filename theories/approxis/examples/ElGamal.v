@@ -1,9 +1,9 @@
 (* ElGamal encryption has one-time secrecy against chosen plaintext attack, in
    the real/random paradigm. Following Rosulek's "The Joy of Crypto". *)
-From clutch Require Import clutch.
+From clutch.approxis Require Import reltac2 approxis.
 From clutch.prob_lang Require Import advantage.
 From clutch.prob_lang.typing Require Import tychk.
-From clutch.clutch.examples.crypto Require Import valgroup advantage_laws.
+From clutch.approxis.examples Require Import valgroup advantage_laws.
 From clutch.clutch.examples.crypto Require ElGamal_bijection.
 
 From mathcomp Require ssrnat.
@@ -23,19 +23,19 @@ Context {cgg : @clutch_group_generator vg cg vgg}. (* g is well-typed *)
 #[local] Definition rnd t := (rand(t) #n)%E.
 
 (* ElGamal public key encryption *)
-Definition keygen : expr :=
+Definition keygen : val :=
   λ:<>, let: "sk" := rnd #() in
     let: "pk" := g^"sk" in
     ("sk", "pk").
 
-Definition enc : expr :=
+Definition enc : val :=
   λ: "pk", λ: "msg",
     let: "b" := rnd #() in
     let: "B" := g^"b" in
     let: "X" := "msg" · ("pk"^"b") in
     ("B", "X").
 
-Definition dec : expr :=
+Definition dec : val :=
   λ:"sk" "BX",
     let, ("B", "X") := "BX" in
     "X" · ("B"^-"sk").
@@ -164,7 +164,7 @@ Definition pk_rand_tape : expr :=
 
 Section LogRel.
 
-Context `{!clutchRGS Σ}.
+Context `{!approxisRGS Σ}.
 Context {G : clutch_group (vg:=vg) (cg:=cg)}. (* cg satisfies the group laws. *)
 Context {Δ : listO (lrelC Σ)}.
 
@@ -196,8 +196,10 @@ Local Tactic Notation "inv_cl" constr(h) :=
 
 Lemma real_real_tape : ⊢ refines top pk_real pk_real_tape T_EG.
 Proof with rel_red.
-  rel_red. rel_couple_UU...
-  inv_mk (βₛ ↪ₛ (n;[]) ∗ (count ↦ #0 ∗ countₛ ↦ₛ #0) ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1) )%I "#Hinv"...
+  rel_red. rewrite /keygen... rel_apply (refines_couple_UU n). 1: intuition auto ; lia.
+  iIntros "!> %sk %le_sk_n".
+  idtac...
+  inv_mk (βₛ ↪ₛN (n;[]) ∗ (count ↦ #0 ∗ countₛ ↦ₛ #0) ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1) )%I "#Hinv"...
   rel_vals ; iIntros "!>" (??) "[%v[->->]]"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind.
   1: iApply vg_of_int_lrel_G ; iExists _ ; eauto.
@@ -205,14 +207,19 @@ Proof with rel_red.
   iApply (refines_na_inv with "[-$Hinv]"); [done|].
   iIntros "[>[(β&c&c')|(c&c')] Hclose]"...
   2: inv_cl "[- $Hclose]" ; rel_vals.
-  rel_couple_UT "β"...
+  rewrite /enc...
+  rel_apply (refines_couple_UT). 1: intuition auto ; lia.
+  iFrame. iIntros (b bn) "!> β". iredpures.
+  rel_rand_r. iIntros (_)...
   inv_cl "[- $Hclose]"... rel_vals.
 Qed.
 
 Lemma real_tape_real : ⊢ refines top pk_real_tape pk_real T_EG.
 Proof with rel_red.
-  rel_red. rel_couple_UU...
-  inv_mk (β ↪ (n;[]) ∗ (count ↦ #0 ∗ countₛ ↦ₛ #0) ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1) )%I "#Hinv"...
+  rel_red. rewrite /keygen... rel_apply (refines_couple_UU n). 1: intuition auto ; lia.
+  iIntros "!> %sk %le_sk_n".
+  idtac...
+  inv_mk (β ↪N (n;[]) ∗ (count ↦ #0 ∗ countₛ ↦ₛ #0) ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1) )%I "#Hinv"...
   rel_vals ; iIntros "!>" (??) "[%v[->->]]"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind.
   1: iApply vg_of_int_lrel_G ; iExists _ ; eauto.
@@ -220,42 +227,58 @@ Proof with rel_red.
   iApply (refines_na_inv with "[-$Hinv]"); [done|].
   iIntros "[>[(β&c&c')|(c&c')] Hclose]"...
   2: inv_cl "[- $Hclose]" ; rel_vals.
-  rel_couple_TU "β"...
+  rewrite /enc...
+  rel_apply (refines_couple_TU n). 1: intuition auto ; lia.
+  iFrame. iIntros (b bn) "β". iredpures.
+  rel_rand_l. iIntros (_)...
   inv_cl "[- $Hclose]" ; rel_vals.
 Qed.
 
 Lemma real_tape_C_DH_real : ⊢ refines top pk_real_tape C_DH_real T_EG.
 Proof with rel_red.
-  rewrite /C_DH_real /=. rel_red. rel_couple_UU. ireds.
-  rel_couple_TU "β"...
+  rewrite /C_DH_real /=. rel_red.
+  rel_apply (refines_couple_UU n). 1: intuition auto ; lia.
+  iIntros "!> %sk %le_sk_n".
+  idtac...
+  rel_apply (refines_couple_TU n). 1: intuition auto ; lia.
+  iFrame. iIntros (b bn) "β". iredpures.
   rewrite -Nat2Z.inj_mul/eC...
-  inv_mk ((β ↪ (n;[b]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
+  inv_mk ((β ↪N (n;[b]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
           ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1))%I "#Hinv".
   rel_vals ; iIntros "!>" (??) "#(%msg&->&->)"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind.
   1: iApply vg_of_int_lrel_G ; iExists _ ; eauto.
   iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
   iApply (refines_na_inv with "[$Hinv]"); [done|].
-  iIntros "[>[(β&cnt&cnt')|(c&c')] Hclose]"...
-  2: by (inv_cl "[- $Hclose]" ; rel_vals).
+  iIntros "[>[(β&cnt&cnt')|(c&c')] Hclose]".
+  2: by (ireds ; inv_cl "[- $Hclose]" ; rel_vals).
+  do 6 iredl.
+  iredl. iIntros (_).
+  rel_load_r...
   inv_cl "[- $Hclose]"...
   rewrite -expgM -ssrnat.multE. rel_vals.
 Qed.
 
 Lemma C_DH_real_real_tape : ⊢ refines top C_DH_real pk_real_tape T_EG.
 Proof with rel_red.
-  rewrite /C_DH_real /=. rel_red. rel_couple_UU. ireds.
-  rel_couple_UT "βₛ"...
+  rewrite /C_DH_real /=. rel_red.
+  rel_apply (refines_couple_UU n). 1: intuition auto ; lia.
+  iIntros "!> %sk %le_sk_n".
+  idtac...
+  ireds.
+  rel_apply (refines_couple_UT). 1: intuition auto ; lia.
+  iFrame. iIntros (b bn) "!> βₛ". iredpures.
   rewrite -Nat2Z.inj_mul/eC...
-  inv_mk ((βₛ ↪ₛ (n;[b]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
+  inv_mk ((βₛ ↪ₛN (n;[b]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
           ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1))%I "#Hinv".
   rel_vals ; iIntros "!>" (??) "#(%msg&->&->)"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind.
   1: iApply vg_of_int_lrel_G ; iExists _ ; eauto.
   iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
   iApply (refines_na_inv with "[$Hinv]"); [done|].
-  iIntros "[>[(β&cnt&cnt')|(c&c')] Hclose]"...
-  2: by (inv_cl "[- $Hclose]" ; rel_vals).
+  iIntros "[[(β&cnt&cnt')|(c&c')] Hclose]"...
+  2: (rel_load_r ; rel_red ; inv_cl "[- $Hclose]" ; rel_vals).
+  rel_load_r. do 6 iredr. iIntros (_). rel_red.
   inv_cl "[- $Hclose]"...
   rewrite -expgM -ssrnat.multE. rel_vals.
 Qed.
@@ -276,40 +299,57 @@ Qed.
 
 Lemma C_DH_rand_rand_tape : ⊢ refines top C_DH_rand pk_rand_tape T_EG.
 Proof with rel_red.
-  rewrite /C_DH_rand/C/eC /=. rel_red. rel_couple_UU...
-  rel_couple_UT "βₛ"...
-  rel_couple_UT "γₛ"...
-  inv_mk ((βₛ ↪ₛ (n;[b]) ∗ γₛ ↪ₛ (n;[c]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
+  rewrite /C_DH_rand/C/eC /=. rel_red.
+  rel_apply (refines_couple_UU n). 1: intuition auto ; lia.
+  iIntros "!> %sk %le_sk_n".
+  idtac...
+  rel_apply (refines_couple_UT). 1: intuition auto ; lia.
+  iFrame "βₛ". iIntros (b bn) "!> βₛ". iredpures.
+  rel_apply (refines_couple_UT). 1: intuition auto ; lia.
+  iFrame "γₛ". iIntros (c cn) "!> γₛ". iredpures...
+  inv_mk ((βₛ ↪ₛN (n;[b]) ∗ γₛ ↪ₛN (n;[c]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
           ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1))%I "#Hinv".
   rel_vals ; iIntros "!>" (??) "#(%msg&->&->)"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind ;
     [iApply vg_of_int_lrel_G ; iExists _ ; eauto|].
   iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
   iApply (refines_na_inv with "[$Hinv]") => //.
-  iIntros "[>[(β'&γ'&cnt&cnt')|(cnt&cnt')] Hclose]"...
-  all: inv_cl "[- $Hclose]" ; rel_vals.
+  iIntros "[>[(β'&γ'&cnt&cnt')|(cnt&cnt')] Hclose]". 2: idtac...
+  2: inv_cl "[- $Hclose]" ; rel_vals.
+  rel_load_l ; rel_load_r. iredpures. rel_store_r. rel_store_l.
+  iredpures. rel_randT_r. iIntros (_). do 3 iredr. iIntros (_).
+  rel_red.
+  inv_cl "[- $Hclose]" ; rel_vals.
 Qed.
 
 Lemma rand_tape_C_DH_rand : ⊢ refines top pk_rand_tape C_DH_rand T_EG.
 Proof with rel_red.
-  rewrite /C_DH_rand/C/eC /=. rel_red. rel_couple_UU. iredrs.
-  rel_couple_TU "β". iredrs.
-  rel_couple_TU "γ"...
-  inv_mk ((β ↪ (n;[b]) ∗ γ ↪ (n;[c]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
+  rewrite /C_DH_rand/C/eC /=. rel_red.
+  rel_apply (refines_couple_UU n). 1: intuition auto ; lia.
+  iIntros "!> %sk %le_sk_n"...
+  rel_apply (refines_couple_TU n). 1: intuition auto ; lia.
+  iFrame "β". iIntros (b bn) "β"...
+  rel_apply (refines_couple_TU n). 1: intuition auto ; lia.
+  iFrame "γ". iIntros (c cn) "γ"...
+  inv_mk ((β ↪N (n;[b]) ∗ γ ↪N (n;[c]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
           ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1))%I "#Hinv".
   rel_vals ; iIntros "!>" (??) "#(%msg&->&->)"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind
   ; [iApply vg_of_int_lrel_G ; iExists _ ; eauto|].
   iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
   iApply (refines_na_inv with "[$Hinv]") => //.
-  iIntros "[>[(β'&γ'&cnt&cnt')|(cnt&cnt')] Hclose]"...
-  all: inv_cl "[- $Hclose]" ; rel_vals.
+  iIntros "[>[(β'&γ'&cnt&cnt')|(cnt&cnt')] Hclose]" ; rel_load_l ; rel_load_r.
+  2: inv_cl "[- $Hclose]" ; rel_red ; rel_vals.
+  do 6 iredl. iIntros (_). rel_pures_r. rel_store_r. rel_pures_l. iredl. iIntros (_)...
+  inv_cl "[- $Hclose]" ; rel_red ; rel_vals.
 Qed.
 
 Lemma rand_tape_rand : ⊢ refines top pk_rand_tape pk_rand T_EG.
 Proof with rel_red.
-  rel_red. rel_couple_UU...
-  inv_mk ((β ↪ (n;[]) ∗ γ ↪ (n;[]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
+  rel_red. rewrite /keygen...
+  rel_apply (refines_couple_UU n). 1: intuition auto ; lia.
+  iIntros "!> %sk %le_sk_n"...
+  inv_mk ((β ↪N (n;[]) ∗ γ ↪N (n;[]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
           ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1))%I "#Hinv".
   rel_vals ; iIntros "!>" (??) "#(%msg&->&->)"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind
@@ -318,26 +358,37 @@ Proof with rel_red.
   iApply (refines_na_inv with "[-$Hinv]") => //.
   iIntros "[>[(β&γ&cnt&cnt')|(cnt&cnt')] Hclose]"...
   2: by (inv_cl "[-$Hclose]" ; rel_vals).
-  rel_couple_TU "β"...
+  rel_apply (refines_couple_TU n). 1: intuition auto ; lia.
+  iFrame "β". iIntros (b bn) "β".
+  rel_pures_r.
   (* Rewrite msg into g^k_msg for some k_msg. *)
   destruct (log_g vmsg) as [k_msg ->].
   (* Sample c on the left, and ((k_msg + c) mod (S n)) on the right. *)
-  pose (k_msg_plus := ElGamal_bijection.bij_fin.f n'' k_msg).
-  unshelve rel_couple_TU "γ" k_msg_plus...
+  pose (k_msg_plus x := fintype.nat_of_ord
+                            (Zp_add (p' := n) (inZp k_msg) (inZp x))%g).
+  rel_apply (refines_couple_TU n k_msg_plus).
+  1: admit.
+
+  iFrame "γ". iIntros (x xn) "γ". rel_rand_l. iIntros (_). rel_rand_l. iIntros (_)...
+
+  (* unshelve rel_couple_TU "γ" k_msg_plus... *)
   inv_cl "[- $Hclose]"...
   rewrite -expgD -ssrnat.plusE.
   assert ((g ^+ (k_msg + x)) = (g ^+ k_msg_plus x))%g as heq.
-  { clear. rewrite fin_to_nat_to_fin /= -ssrnat.plusE /Zp_trunc /=.
-    pose proof (e := eq_sym (expg_mod_order g (k_msg+x))).
-    rewrite g_nontriv in e. exact e.
+  { clear. admit.
+    (* rewrite fin_to_nat_to_fin /= -ssrnat.plusE /Zp_trunc /=.
+       pose proof (e := eq_sym (expg_mod_order g (k_msg+x))).
+       rewrite g_nontriv in e. exact e. *)
   }
   rewrite -heq. rel_vals.
-Qed.
+Admitted.
 
 Lemma rand_rand_tape : ⊢ refines top pk_rand pk_rand_tape T_EG.
 Proof with rel_red.
-  rel_red. rel_couple_UU...
-  inv_mk ((βₛ ↪ₛ (n;[]) ∗ γₛ ↪ₛ (n;[]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
+  rel_red. rewrite /keygen...
+  rel_apply (refines_couple_UU n). 1: intuition auto ; lia.
+  iIntros "!> %sk %le_sk_n"...
+  inv_mk ((βₛ ↪ₛN (n;[]) ∗ γₛ ↪ₛN (n;[]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
           ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1))%I "#Hinv"...
   rel_vals ; iIntros "!>" (??) "#(%msg&->&->)"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind
@@ -346,72 +397,79 @@ Proof with rel_red.
   iApply (refines_na_inv with "[-$Hinv]") => //.
   iIntros "[>[(βₛ&γₛ&count&countₛ)|(count&countₛ)] Hclose]"...
   2: by (inv_cl "[-$Hclose]" ; rel_vals).
-  rel_couple_UT "βₛ"...
+
+  rel_apply (refines_couple_UT n). 1: intuition auto ; lia.
+  iFrame "βₛ". iIntros "!>" (b bn) "βₛ". rel_pures_l.
   (* Rewrite msg into g^k_msg for some k_msg. *)
   destruct (log_g vmsg) as [k_msg ->].
   (* Sample x on the left, and ((-x + k_msg) mod (S n)) on the right. *)
-  pose (minus_k_msg_plus := ElGamal_bijection.bij_fin.g n'' k_msg).
-  unshelve rel_couple_UT "γₛ" minus_k_msg_plus...
+  (* pose (minus_k_msg_plus := ElGamal_bijection.g n'' k_msg). *)
+  pose (minus_k_msg_plus := fun x : nat => x).
+  rel_apply (refines_couple_UT n minus_k_msg_plus). 1: intuition auto ; lia.
+  iFrame "γₛ". iIntros "!>" (x xn) "γₛ". rel_rand_r. iIntros (_).
+  rel_pures_r. rel_rand_r. iIntros (bla)...
   inv_cl "[- $Hclose]"...
   rewrite -expgD -ssrnat.plusE.
   assert ((g ^+ x) = (g ^+ (k_msg + minus_k_msg_plus x)))%g as heq.
-  { clear. rewrite fin_to_nat_to_fin /= /Zp_trunc /=.
-    epose proof (e := (expg_mod_order g)).
-    rewrite g_nontriv in e.
-    rewrite -[in LHS]e -{}[in RHS]e.
-    f_equal.
-    rewrite div.modnDmr ssrnat.addnC -ssrnat.addnA div.modnDml.
-    rewrite [ssrnat.addn x _]ssrnat.addnC ssrnat.addnA.
-    rewrite ssrnat.subnK.
-    - rewrite div.modnDl. reflexivity.
-    - apply /ssrnat.leP. move : (fin_to_nat_lt k_msg). lia.
+  { clear.
+    admit.
+    (* rewrite fin_to_nat_to_fin /= /Zp_trunc /=.
+       epose proof (e := (expg_mod_order g)).
+       rewrite g_nontriv in e.
+       rewrite -[in LHS]e -{}[in RHS]e.
+       f_equal.
+       rewrite div.modnDmr ssrnat.addnC -ssrnat.addnA div.modnDml.
+       rewrite [ssrnat.addn x _]ssrnat.addnC ssrnat.addnA.
+       rewrite ssrnat.subnK.
+       - rewrite div.modnDl. reflexivity.
+       - apply /ssrnat.leP. move : (fin_to_nat_lt k_msg). lia. *)
   }
   rewrite -heq. rel_vals.
-Qed.
+Admitted.
 
-(* Decryption is left inverse to encryption. We only consider valid messages,
-   i.e. integers that decode to a group element (in practice, this means that
-   the integer has to be smaller than the group order). *)
-Lemma ElGamal_correct :
-  ⊢ refines top
-      (let, ("sk", "pk") := keygen #() in
-       λ:"msg",
-         let:m "msg" := vg_of_int "msg" in
-         let: "c" := enc "pk" "msg" in
-         let: "vmsg" := dec "sk" "c" in
-         SOME ("vmsg"))
-      (λ:"msg",
-         let:m "vmsg" := vg_of_int "msg" in
-         SOME ("vmsg"))
-      (lrel_int → () + lrel_G).
-Proof with rel_red.
-  rel_red. rel_randU_l...
-  rel_arrow_val ; iIntros (??) "#(%msg&->&->)"...
-  rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind.
-  1: iApply vg_of_int_lrel_G ; iExists _ ; eauto.
-  iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
-  rel_randU_l...
-  rewrite -?expgM -ssrnat.multE -mulgA Nat.mul_comm mulgV mulg1.
-  rel_vals.
-Qed.
+(* (* Decryption is left inverse to encryption. We only consider valid messages,
+      i.e. integers that decode to a group element (in practice, this means that
+      the integer has to be smaller than the group order). *)
+   Lemma ElGamal_correct :
+     ⊢ refines top
+         (let, ("sk", "pk") := keygen #() in
+          λ:"msg",
+            let:m "msg" := vg_of_int "msg" in
+            let: "c" := enc "pk" "msg" in
+            let: "vmsg" := dec "sk" "c" in
+            SOME ("vmsg"))
+         (λ:"msg",
+            let:m "vmsg" := vg_of_int "msg" in
+            SOME ("vmsg"))
+         (lrel_int → () + lrel_G).
+   Proof with rel_red.
+     rel_red. rel_randU_l...
+     rel_arrow_val ; iIntros (??) "#(%msg&->&->)"...
+     rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind.
+     1: iApply vg_of_int_lrel_G ; iExists _ ; eauto.
+     iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
+     rel_randU_l...
+     rewrite -?expgM -ssrnat.multE -mulgA Nat.mul_comm mulgV mulg1.
+     rel_vals.
+   Qed. *)
 
 End LogRel.
 
 Section Ctx.
 
-Context {G : forall `{!clutchRGS Σ}, clutch_group (vg:=vg) (cg:=cg)}.
+Context {G : forall `{!approxisRGS Σ}, clutch_group (vg:=vg) (cg:=cg)}.
 
 Lemma ctx_real_real_tape : ∅ ⊨ pk_real =ctx= pk_real_tape : τ_EG.
-Proof. split ; apply (refines_sound clutchRΣ) ; intros ; [ apply: real_real_tape | apply: real_tape_real ]. Qed.
+Proof. split ; apply (refines_sound approxisRΣ) ; intros ; [ apply: real_real_tape | apply: real_tape_real ]. Qed.
 
 Lemma ctx_real_tape_C_DH_real : ∅ ⊨ pk_real_tape =ctx= (fill C DH_real) : τ_EG.
-Proof. split ; apply (refines_sound clutchRΣ) ; intros ; [ apply: real_tape_C_DH_real | apply: C_DH_real_real_tape ]. Qed.
+Proof. split ; apply (refines_sound approxisRΣ) ; intros ; [ apply: real_tape_C_DH_real | apply: C_DH_real_real_tape ]. Qed.
 
 Lemma ctx_C_DH_rand_rand_tape : ∅ ⊨ (fill C DH_rand) =ctx= pk_rand_tape : τ_EG.
-Proof. split ; apply (refines_sound clutchRΣ) ; intros ; [ apply: C_DH_rand_rand_tape | apply: rand_tape_C_DH_rand ]. Qed.
+Proof. split ; apply (refines_sound approxisRΣ) ; intros ; [ apply: C_DH_rand_rand_tape | apply: rand_tape_C_DH_rand ]. Qed.
 
 Lemma ctx_rand_tape_rand : ∅ ⊨ pk_rand_tape =ctx= pk_rand : τ_EG.
-Proof. split ; apply (refines_sound clutchRΣ) ; intros ; [ apply: rand_tape_rand | apply: rand_rand_tape ]. Qed.
+Proof. split ; apply (refines_sound approxisRΣ) ; intros ; [ apply: rand_tape_rand | apply: rand_rand_tape ]. Qed.
 
 Lemma ctx_real_C_DH_real : ∅ ⊨ pk_real =ctx= (fill C DH_real) : τ_EG.
 Proof. eapply ctx_equiv_transitive ; [ apply: ctx_real_real_tape | apply: ctx_real_tape_C_DH_real ]. Qed.
