@@ -83,9 +83,12 @@ Definition binder_enum (n : nat) : <<discr binder>> :=
   end.
 
 Section binder_countable.
-  Definition binder_pickle : binder -> nat. Admitted.
-  Definition binder_unpickle : nat -> option binder. Admitted.
-  Lemma binder_cancel : ssrfun.pcancel binder_pickle binder_unpickle. Admitted.
+  Definition binder_pickle : binder -> nat := encode_nat. 
+  Definition binder_unpickle : nat -> option binder := decode_nat. 
+  Lemma binder_cancel : ssrfun.pcancel binder_pickle binder_unpickle.
+  Proof. intros ?. rewrite /binder_pickle/binder_unpickle.
+         apply decode_encode_nat.
+  Qed.
   HB.instance Definition _ := Choice_isCountable.Build _ binder_cancel.
 
 End binder_countable.
@@ -104,9 +107,14 @@ Section un_op_countable.
     | _ => MinusUnOp
     end.
 
-  Definition un_op_pickle : un_op -> nat. Admitted.
-  Definition un_op_unpickle : nat -> option un_op. Admitted.
-  Lemma un_op_cancel : ssrfun.pcancel un_op_pickle un_op_unpickle. Admitted.
+  Definition un_op_pickle x :=
+    match x with
+    | NegOp => 0
+    | _ => 1
+    end.
+  Definition un_op_unpickle : nat -> option un_op := λ n, Some (un_op_enum n). 
+  Lemma un_op_cancel : ssrfun.pcancel un_op_pickle un_op_unpickle.
+  Proof. intros []; by rewrite /un_op_pickle/un_op_unpickle/=. Qed.
   HB.instance Definition _ := Choice_isCountable.Build un_op un_op_cancel.
 End un_op_countable.
 
@@ -136,9 +144,27 @@ Section bin_op_countable.
     | _ => OffsetOp
     end.
 
-  Definition bin_op_pickle : bin_op -> nat. Admitted.
-  Definition bin_op_unpickle : nat -> option bin_op. Admitted.
-  Lemma bin_op_cancel : ssrfun.pcancel bin_op_pickle bin_op_unpickle. Admitted.
+  Definition bin_op_pickle x :=
+    match x with 
+    | PlusOp => 0
+    | MinusOp => 1
+    | MultOp => 2
+    | QuotOp => 3
+    | RemOp => 4
+    | AndOp => 5
+    | OrOp => 6
+    | XorOp => 7
+    | ShiftLOp => 8
+    | ShiftROp => 9
+    | LeOp => 10
+    | LtOp => 11
+    | EqOp => 12
+    | _ => 13
+    end.
+  
+  Definition bin_op_unpickle : nat -> option bin_op := λ n, Some (bin_op_enum n).
+  Lemma bin_op_cancel : ssrfun.pcancel bin_op_pickle bin_op_unpickle.
+    Proof. intros x. rewrite /bin_op_pickle/bin_op_unpickle. by case_match. Qed.
   HB.instance Definition _ := Choice_isCountable.Build bin_op bin_op_cancel.
 End bin_op_countable.
 
