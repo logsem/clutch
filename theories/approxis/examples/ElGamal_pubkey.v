@@ -372,6 +372,59 @@ Context {G : forall `{!approxisRGS Σ}, clutch_group (vg:=vg) (cg:=cg)}.
 
 Variable (T_eq : (forall `{!approxisRGS Σ} Δ m1 m2, ⊢ (interp τG Δ m1 m2 -∗ ∃ vmsg : vgG, ⌜m1 = vmsg⌝ ∧ ⌜m2 = vmsg⌝))%I).
 
+Let pkey := (λ (x : gFunctors) (y : approxisRGS x), interp τG []).
+Let skey := (λ (x : gFunctors) (y : approxisRGS x), interp TInt []).
+Let msg := (λ (x : gFunctors) (y : approxisRGS x), interp τG []).
+Let cipher := (λ (x : gFunctors) (y : approxisRGS x), interp (τG * τG) []).
+
+Lemma keygen_typed : ⊢ᵥ keygen : (() → TInt * τG).
+Proof.
+  rewrite /keygen. tychk.
+  1: apply vexp_typed. 2: rewrite /ElGamal.rnd.
+  2: rewrite /rnd/ElGamal.rnd ; apply Subsume_int_nat ; tychk.
+  apply g_typed.
+Qed.
+
+Lemma keygen_sem_typed `{!approxisRGS Σ} :
+  ⊢ refines top keygen keygen (() → skey Σ _ * pkey Σ _).
+Proof.
+  rewrite /skey /pkey.
+  replace (() → interp TInt [] * interp τG [])%lrel with (interp (TUnit → TInt * τG) []) by easy.
+  apply refines_typed. tychk. apply keygen_typed.
+Qed.
+
+Lemma enc_typed : ⊢ᵥ enc : (τG → τG → τG * τG).
+Proof. rewrite /enc. tychk => //. rewrite /rnd/ElGamal.rnd ; apply Subsume_int_nat ; tychk. Qed.
+
+Lemma enc_sem_typed `{!approxisRGS Σ} :
+  ⊢ refines top enc enc (pkey Σ _ → msg Σ _ → cipher Σ _).
+Proof.
+  rewrite /msg /pkey /cipher.
+  replace (interp τG [] → interp τG [] → interp (τG*τG) [])%lrel with (interp (τG → τG → (τG*τG)) []) by easy.
+  apply refines_typed. tychk. apply enc_typed.
+Qed.
+
+Lemma rand_cipher_typed : ⊢ᵥ rand_cipher : (τG → τG * τG).
+Proof. rewrite /rand_cipher. tychk => //. all: rewrite /rnd/ElGamal.rnd ; apply Subsume_int_nat ; tychk. Qed.
+
+Lemma rand_cipher_sem_typed `{!approxisRGS Σ} :
+  ⊢ refines top rand_cipher rand_cipher (msg Σ _ → cipher Σ _).
+Proof.
+  rewrite /msg /cipher.
+  replace (interp τG [] → interp (τG * τG) [])%lrel with (interp (τG → (τG*τG)) []) by easy.
+  apply refines_typed. tychk. apply rand_cipher_typed.
+Qed.
+
+Lemma adversary_sem_typed (A : val) (A_typed : ⊢ᵥ A : (τ_EG → TBool)) `{!approxisRGS Σ} :
+  ⊢ refines top A A (τ_cpa pkey msg cipher → lrel_bool).
+Proof.
+  rewrite /τ_cpa/pkey/msg/cipher.
+  replace (interp τG [] * (interp τG [] → lrel_option (interp (τG * τG) [])) → lrel_bool)%lrel
+    with (interp (τG * (τG → TOption (τG * τG)) → TBool) []) by easy.
+  apply refines_typed => //. rewrite /τ_EG in A_typed. rewrite /TOption. tychk. done.
+Qed.
+
+
 Lemma ctx_real_real_tape : ∅ ⊨ pk_real =ctx= pk_real_tape : τ_EG.
 Proof. split ; apply (refines_sound approxisRΣ) ; intros ; [ apply: real_real_tape | apply: real_tape_real ]. 1,2: apply T_eq. Qed.
 
@@ -391,9 +444,9 @@ Lemma ctx_C_DH_rand_rand : ∅ ⊨ (fill C DH_rand) =ctx= pk_rand : τ_EG.
 Proof. eapply ctx_equiv_transitive ; [ apply: ctx_C_DH_rand_rand_tape | apply: ctx_rand_tape_rand ]. Qed.
 
 Theorem ElGamal_DH_secure :
-  forall (A : val), (⊢ᵥ A : (τ_EG → TBool)) ->
+  forall (A : val) (b : bool), (⊢ᵥ A : (τ_EG → TBool)) ->
   let AC := (λ:"v", A (fill C "v"))%E in
-  (advantage A pk_real pk_rand #true <= advantage AC DH_real DH_rand #true)%R.
+  (advantage A pk_real pk_rand #b <= advantage AC DH_real DH_rand #b)%R.
 Proof.
   intros ; eapply (advantage_triangle _ _ (fill C DH_real) _ _ 0).
   3: right ; rewrite Rplus_0_l ; eauto.
@@ -403,10 +456,70 @@ Proof.
     apply ctx_real_C_DH_real.
   - right. eapply ctx_advantage. 2: by tychk.
     apply ctx_C_DH_rand_rand.
-  - simpl. eapply advantage_reduction_ty ; rewrite /eC /DH_real /DH_rand ; tychk => //.
+  - simpl fill. eapply advantage_reduction_ty ; rewrite /eC /DH_real /DH_rand ; tychk => //.
     all: rewrite /rnd/ElGamal.rnd ; apply Subsume_int_nat ; tychk.
 Qed.
 
+Let hyb_red_EG := (λ (A : val) (A_typed : ⊢ᵥ A : (τ_EG → TBool)) Q b ε' ε_max,
+        Claim_15_5 pkey skey msg cipher
+          keygen enc rand_cipher
+          (@keygen_sem_typed) (@enc_sem_typed) (@rand_cipher_sem_typed) A (@adversary_sem_typed A A_typed) Q b ε' ε_max).
+
+Let hybrid_EG := hybrid enc rand_cipher.
+Let CPA_real_EG := CPA_real keygen enc.
+Let CPA_rand_EG := CPA_rand keygen rand_cipher.
+
+Definition advantage_hyb_EG_DH Q A b k :=
+  (advantage (λ:"v", (λ:"v", A (hybrid_EG k Q "v"))%V (eC "v")) DH_real DH_rand #b).
+
+Definition E (Q : nat) (A : val) (b : bool) : R → Prop :=
+  λ ε, ∃ (k : Z), nonneg (advantage_hyb_EG_DH Q A b k) = ε.
+
+Definition ε_DH_hyb_ub (Q : nat) (A : val) (b : bool) : R.
+Proof.
+  eapply (completeness (E Q A b)).
+  - exists 1. intros x. rewrite /E. intros (k & <-).
+    apply advantage_bound_1.
+  - exists (advantage_hyb_EG_DH Q A b 0).
+    rewrite /E. exists 0. done.
+Defined.
+
+Fact ε_DH_hyb_is_ub (Q : nat) (A : val) (b : bool) :
+  ∀ (k : Z), (advantage_hyb_EG_DH Q A b k <= ε_DH_hyb_ub Q A b)%R.
+Proof.
+  intros. rewrite /ε_DH_hyb_ub.
+  destruct completeness as [x [ub lub]] => /=.
+  apply ub.
+  rewrite /E. exists k. rewrite /advantage_hyb_EG_DH. simpl. done.
+Qed.
+
+Lemma ElGamal_DH_CPA_bound (Q : nat) (b : bool) :
+  ∀ (A : val) (A_typed : ⊢ᵥ A : (τ_EG → TBool)) (ε_DH : R)
+    (H_ε : ∀ (k : Z), (advantage_hyb_EG_DH Q A b k <= ε_DH)%R),
+    (advantage A (CPA_real_EG Q) (CPA_rand_EG Q) #b <= Q * ε_DH)%R.
+Proof.
+  intros.
+  opose proof (hyb_red_EG A A_typed Q b ε_DH) as hyb.
+  rewrite /ε_OTS in hyb.
+  fold CPA_rand_EG CPA_real_EG hybrid_EG in hyb.
+  apply hyb. clear hyb.
+  intros.
+  rewrite -/pk_real -/pk_rand.
+  etrans. 2: apply H_ε.
+  apply (ElGamal_DH_secure (λ: "v", A (hybrid_EG k Q "v")) b).
+  tychk. 1: eassumption.
+  rewrite /hybrid_EG/hybrid. tychk. 1: apply enc_typed. apply rand_cipher_typed.
+Qed.
+
+
+Theorem ElGamal_DH_CPA (Q : nat) (b : bool) :
+  ∀ (A : val) (A_typed : ⊢ᵥ A : (τ_EG → TBool)),
+    (advantage A (CPA_real_EG Q) (CPA_rand_EG Q) #b <= Q * ε_DH_hyb_ub Q A b)%R.
+Proof.
+  intros.
+  eapply ElGamal_DH_CPA_bound => //.
+  apply ε_DH_hyb_is_ub.
+Qed.
 
 (* The following lemmas make the unreasonably strong assumption that
    DH_real/rand are contextually equivalent when they really should only be
