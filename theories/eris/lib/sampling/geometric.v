@@ -1,6 +1,6 @@
 From clutch.eris Require Import eris.
 From clutch.eris.lib.sampling Require Import utils.
-From clutch.eris.lib.sampling Require Import bernoulli.
+From clutch.eris.lib.sampling.bernoulli Require Import tape.interface interface.
 
 Section Tape.
   #[local] Open Scope fin.
@@ -173,8 +173,10 @@ End Tape.
 #[local] Open Scope R.
 
 
-Section Geometric.
-  Context `{!erisGS Σ}.
+Module Geometric (T : BernoulliTapeSpec) (B : BernoulliSpec(T)).
+  Module BLemmas := BernoulliSpecLemmas(T)(B).
+  Import T B BLemmas.
+
   Definition own_geometric_tape (α : loc) (N M : nat) (t : list nat) : iProp Σ :=
     ∃ l, 
     own_bernoulli_tape α N M l ∗ 
@@ -203,7 +205,7 @@ Section Geometric.
     - iIntros "%Φ Herr HΦ".
       rewrite /geometric /geometric_tape Rmult_1_l.
       wp_pures.
-      wp_apply (bernoulli_success_spec_simple with "Herr") as "%v ->".
+      wp_apply (bernoulli_success_spec_simple with "Herr") as "% ->".
       wp_pures.
       by iApply "HΦ".
     - iIntros "%Φ Herr HΦ".
@@ -236,7 +238,8 @@ Section Geometric.
       (%b_tape & Hown_ber & %Hgeo_trans) 
       HΦ
     ]".
-    wp_apply twp_presample_bernoulli; first done.
+    Check twp_presample_bernoulli.
+    wp_apply (twp_presample_bernoulli e α Φ); first done.
     iFrame.
     iIntros (i) "Hown_ber".
     full_inv_fin; last first.
@@ -313,7 +316,7 @@ Section Geometric.
       (%b_tape & Hown_ber & %Hgeo_trans) &
       HΦ
     )".
-    wp_apply (twp_presample_bernoulli_planner N M _ _ 1%nat _ _ _ (λ _, [1%fin])); [done.. | iFrame].
+    wp_apply (twp_presample_bernoulli_planner N M _ _ 1%nat _ Φ _ (λ _, [1%fin])); [done.. | iFrame].
     iIntros "(%junk & Hown_ber)".
     case: (list_decomposition junk) => [[[|first_junk junk_repeat] junk_zeros] ->] /=.
     - iApply ("HΦ" $! junk_zeros []).

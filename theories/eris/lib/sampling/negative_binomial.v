@@ -697,21 +697,20 @@ Section NegativeBinomial.
   Lemma bernoulli_to_negative_translation (r : nat) :
     (0 < r)%nat →
     ∀ (l : list (fin 2)) (v : list nat),
-    is_negative_translation r v l ↔ ∃ perm n, l = expand_perm perm ∧
-                                            length perm = n * r ∧
-                                            v = bernoulli_to_negative r l.
+    is_negative_translation r v l
+    ↔ 
+    ∃ perm n, 
+    l = expand_perm perm ∧
+    length perm = n * r ∧
+    v = bernoulli_to_negative r l.
   Proof.
     move=>r_pos l v.
     elim: v l =>[|vt vh IH] /= l.
     - case: l; split; try done.
       + move=>_.
-        exists [], 0.
-        done.
+        by exists [], 0.
       + intros (perm & n & -> & len_perm & perm_emp).
-        destruct n.
-        { destruct perm; simpl in len_perm; last discriminate.
-          done.
-        }
+        destruct n; first by destruct perm.
         destruct r; first lia.
         rewrite -(take_drop (S r) perm) expand_perm_app in perm_emp.
         rewrite bernoulli_to_negative_expand_perm in perm_emp; last rewrite take_length; try lia.
@@ -728,11 +727,7 @@ Section NegativeBinomial.
         by f_equal.
       + intros (perm & n & -> & len_perm & v_eq).
         exists (take r perm), (expand_perm (drop r perm)).
-        split.
-        { rewrite -expand_perm_app.
-          f_equal.
-          rewrite take_drop //.
-        }
+        split; first by rewrite -expand_perm_app take_drop.
         assert (length (take r perm) = r).
         { rewrite take_length.
           destruct perm, n; try discriminate.
@@ -748,13 +743,12 @@ Section NegativeBinomial.
         eexists _, (n - 1).
         split; first done.
         rewrite drop_length len_perm.
-        split; first (destruct n; lia).
-        done.
+        by split; first (destruct n; lia).
   Qed.
   
-  Lemma B_tape_n_success_presample :
-    ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
-      (p q r : nat) (ns : list (fin 2)) (ε : R),
+  Lemma B_tape_n_success_presample
+    (e : expr) (α : loc) (Φ : val → iProp Σ)
+    (p q r : nat) (ns : list (fin 2)) (ε : R) :
     (0 < p)%nat →
     (p < q + 1)%nat →
     (0 < ε)%R → 
@@ -767,12 +761,10 @@ Section NegativeBinomial.
        ∀ (suf : list (fin 2)), ⌜list_sum $ fin_to_nat <$> suf = r - 1⌝ -∗ B_tape α p q (ns ++ suf ++ [1%fin]) -∗ WP e [{ Φ }])
     ⊢  WP e [{ Φ }].
   Proof.
-    iIntros (e α Φ p q r ns ε p_gt_0 p_lt_Sq).
-    iRevert (Φ ns ε).
-    iInduction (r) as [|r] "IH";
-      iIntros (Φ ns ε ε_pos e_not_val) "(Herr & Hα & Hnext)".
-    - wp_apply "Hnext".
-      iFrame.
+    iIntros (p_gt_0 p_lt_Sq).
+    iInduction (r) as [|r] "IH" forall (Φ ns ε);
+      iIntros (ε_pos e_not_val) "(Herr & Hα & Hnext)".
+    - by wp_apply "Hnext".
     - iRevert "Hα Hnext".
       set (s0 := (p / (q + 1))%R).
       set (s1 := (1 - s0)%R).
@@ -794,17 +786,13 @@ Section NegativeBinomial.
       assert (0 < s0 < 1)%R.
       {
         unfold s0.
-        split; first by apply Rcomplements.Rdiv_lt_0_compat.
-        rewrite -Rcomplements.Rdiv_lt_1 //.
+        split; simpl_expr.
         rewrite -INR_1 -plus_INR.
         by apply lt_INR.
       }
       assert (0 < s1 < 1)%R by (unfold s1; lra).
       assert (1 < s2)%R.
-      { unfold s2.
-        apply (Rmult_lt_reg_l s1); first lra.
-        rewrite Rmult_1_r Rmult_div_assoc Rmult_div_r; lra.
-      }
+      { unfold s2. simpl_expr. }
       assert (1 < s3)%R by (unfold s3; lra).
       assert (0 < s4)%R.
       {
@@ -815,10 +803,7 @@ Section NegativeBinomial.
         rewrite Rmult_plus_distr_r -Rmult_div_swap Rmult_div_l; lra.
       }
       assert (0 < s5)%R.
-      {
-        unfold s5.
-        apply Rcomplements.Rdiv_lt_0_compat; lra.
-      }
+      { unfold s5. simpl_expr. }
       assert (s5 * s0 + s3 * s1 = 1)%R.
       {
         unfold s5, s4.
@@ -837,8 +822,7 @@ Section NegativeBinomial.
       { lia. }
       { unfold D.
         move=>i.
-        inv_fin i; first nra.
-        move=>_. nra.
+        inv_fin i => [|_]; nra.
       }
       { simpl.
         fold s0 s1.
@@ -846,16 +830,14 @@ Section NegativeBinomial.
       }
       iFrame.
       iIntros (i).
-      full_inv_fin.
-      + simpl.
-        iIntros "[Herr Hα]".
+      full_inv_fin; simpl.
+      + iIntros "[Herr Hα]".
         wp_apply ("IHec" with "Herr Hα").
         iIntros (suf sum_suf) "Hα".
         rewrite -app_assoc (app_assoc _ suf).
         wp_apply "Hnext"; last iFrame.
         { rewrite -sum_suf //. }
       + iClear "IHec".
-        simpl.
         iIntros "[Herr Hα]".
         wp_apply "IH"; last iFrame.
         { iPureIntro. nra. }
@@ -872,7 +854,7 @@ Section NegativeBinomial.
         iPureIntro.
         lia.
   Qed.
-
+  
   Lemma twp_negative_presample :
     ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
       (p q r : nat) (ns : list nat) (ε : R),
@@ -906,11 +888,10 @@ Section NegativeBinomial.
     iExists (l ++ suf ++ [1%fin]).
     iFrame.
     iPureIntro.
-    rewrite bernoulli_to_negative_translation in is_tl; last lia.
+    apply bernoulli_to_negative_translation in is_tl as (perm & n & -> & len_perm & ->); last lia.
     rewrite bernoulli_to_negative_translation; last lia.
-    destruct is_tl as (perm & n & -> & len_perm & ->).
     exists (perm ++ contract_perm (suf ++ [1%fin])), (S n).
-    split; first rewrite expand_perm_app expand_contract_perm //.
+    split; first by rewrite expand_perm_app expand_contract_perm.
     split.
     { rewrite app_length contract_perm_length fmap_app list_sum_app sum_suf len_perm /=.
       lia.

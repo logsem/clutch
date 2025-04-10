@@ -87,8 +87,8 @@ Module SimplExpr.
       apply cond_nonneg ||
       apply pos_INR_S   ||
       apply pos_INR     ||
-      apply le_INR; lia ||
-      apply lt_INR; lia ||
+      (apply le_INR; lia) ||
+      (apply lt_INR; lia) ||
       apply INR_S_not_0
   ].
   #[local] Ltac simpl_le :=

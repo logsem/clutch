@@ -1,14 +1,15 @@
 From clutch.eris Require Import eris.
 From clutch.eris.lib.sampling Require Import utils.
-From clutch.eris.lib.sampling Require Import bernoulli.
+From clutch.eris.lib.sampling.bernoulli Require Import tape.interface interface.
 #[local] Open Scope R.
 #[local] Ltac done ::= 
     solve[lia | lra | nra | real_solver | tactics.done | auto].
 
 Set Default Proof Using "Type*".
 
-Section Examples.
-  Context `{!erisGS Σ}.
+Module Examples (T : BernoulliTapeSpec) (B : BernoulliSpec(T)).
+  Module BLemmas := BernoulliSpecLemmas(T)(B).
+  Import T B BLemmas.
 
   Example bernoulli_twice (N M : nat) (p := N / S M) :
     N ≤ S M →
@@ -87,12 +88,13 @@ Section Examples.
 End Examples.
 
 
-Section Roulette.
+Module Roulette (T : BernoulliTapeSpec) (B : BernoulliSpec(T)).
+  Module BLemmas := BernoulliSpecLemmas(T)(B).
+  Import T B BLemmas.
   #[local] Opaque INR.
 
-  Context `{!erisGS Σ}.
-  Variable N M : nat.
-  Hypothesis H0_lt_N_lt_SM : (0 < N < S M)%nat.
+
+  Parameter N M : nat.
 
   Definition roulette_martingale_aux : val :=
     rec: "loop" "win" "bet" :=
@@ -105,16 +107,15 @@ Section Roulette.
     λ: "_", roulette_martingale_aux #0 #1.
 
   Lemma roulette_martingale_aux_spec_aux (k : nat) (c g : Z) :
+    (0 < N < S M)%nat →
     (0 < g)%Z →
     (c < g)%Z →
     [[{↯ ((S M - N) / (S M + k))}]]
       roulette_martingale_aux #c #g
     [[{RET #(c + g); True}]].
   Proof.
-    generalize dependent c.
-    generalize dependent g.
-    induction k as [|k IHk].
-    - iIntros "%c %g %Hpos %Hlt %Φ Herr HΦ".
+    iInduction k as [|k] "IHk" forall (c g).
+    - iIntros "%H0_lt_N_lt_SM %H_g_pos %H_c_lt_g %Φ Herr HΦ".
       rewrite /roulette_martingale /roulette_martingale_aux.
       wp_pures.
       wp_apply (bernoulli_success_spec_simple with "[Herr]") as "% ->".
@@ -124,7 +125,7 @@ Section Roulette.
         simpl_expr. }
       wp_pures.
       by iApply "HΦ".
-    - iIntros "%c %g %Hpos %Hlt %Φ Herr HΦ".
+    - iIntros "%H0_lt_N_lt_SM %H_g_pos %H_c_lt_g %Φ Herr HΦ".
       rewrite /roulette_martingale /roulette_martingale_aux.
       wp_pures.
       set p := (N / S M).
@@ -157,8 +158,8 @@ Section Roulette.
       wp_apply (twp_bernoulli_scale _ _ _ ε1 0 with "Herr") as "% [[-> Herr]|[-> Herr]]";  subst ε1 p; simpl_expr.
       + fold roulette_martingale_aux.
         wp_pures.
-        wp_apply (IHk with "[Herr]"); try done.
-        { rewrite plus_INR minus_INR //. }
+        rewrite plus_INR minus_INR //.
+        wp_apply ("IHk" with "[] [] [] Herr"); try (iPureIntro; done).
         rewrite -Z.add_diag Z.add_assoc Z.sub_add.
         by iApply "HΦ".
       + wp_pures.
@@ -166,6 +167,7 @@ Section Roulette.
   Qed.
 
   Lemma roulette_martingale_aux_spec (ε : R) (c g : Z) :
+    (0 < N < S M)%nat →
     (0 < ε) →
     (0 < g)%Z →
     (c < g)%Z →
@@ -173,9 +175,12 @@ Section Roulette.
       roulette_martingale_aux #c #g
     [[{RET #(c + g); True}]].
   Proof.
-    iIntros "%H_ε_pos %H_g_pos %H_c_lt_g %Φ Herr HΦ".
+    iIntros "%H0_lt_N_lt_SM %H_ε_pos %H_g_pos %H_c_lt_g %Φ Herr HΦ".
     assert (exists k : nat, (S M - N) / (S M + k)  <= ε ) as [k Hk].
-    { assert (0 < S M - N); first rewrite -minus_INR //.
+    { assert (0 < S M - N).
+      {
+        rewrite -minus_INR //.
+      } 
       destruct (Rle_exists_nat (S M - N) ε) as [t Ht]; first rewrite -minus_INR; simpl_expr.
       pose proof (pos_INR N).
       pose proof (pos_INR t).
@@ -193,17 +198,15 @@ Section Roulette.
   Qed.
 
   Example roulette_martingale_spec (ε : R) :
+    (0 < N < S M)%nat →
     ε > 0 →
     [[{↯ ε}]]
       roulette_martingale #()
     [[{RET #1; True}]].
   Proof.
-    iIntros "%H_ε_pos %Φ Herr HΦ".
+    iIntros "%H0_lt_N_lt_SM %H_ε_pos %Φ Herr HΦ".
     do 2 wp_pure.
     by wp_apply (roulette_martingale_aux_spec with "Herr").
   Qed.
-
-
-
 
 End Roulette.
