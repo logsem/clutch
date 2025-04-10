@@ -302,10 +302,27 @@ Section ectx_language.
          - by apply ectx_language_mixin.
          - by apply ectx_language_mixin.
          - by apply ectx_language_mixin.
-         - admit.
+         - by apply ectx_language_mixin. 
          - intros e σ.
            rewrite /prim_step.
            case_match.
+           apply decomp_fill in H. subst.
+           intros Hneg.
+           apply fill_not_val.
+           eapply head_not_stuck.
+           intros Hzero; apply Hneg.
+           apply is_zero_gMap'; [apply fill_lift_meas|done].
+         - intros e σ.
+           rewrite /prim_step.
+           destruct (decomp e) as [K e'] eqn:Heqn.
+           apply decomp_fill in Heqn. subst.
+           intros Hneg.
+           assert (¬ is_zero (head_step (e', σ))).
+           { intros Hzero; apply Hneg. apply is_zero_gMap'; last done.
+             apply fill_lift_meas.
+           }
+           (** need lemma about is_prob and gMap', 
+               see how it is done in pure_step_ctx in language.v file*)
            admit.
   Admitted.
 
@@ -395,9 +412,8 @@ Section ectx_language.
   Proof. intros H. erewrite head_prim_step_eq; [done|].
          rewrite /head_reducible.
          intro H'. assert (head_step (e1, σ1) ρ = 0)%E as Hrewrite.
-         { rewrite H'.
-           - (** lemma about gZero*) admit.
-           - (** hmmmm... ask markus *)
+         { rewrite H'; first done.
+           (** hmmmm... ask markus *)
            admit. }
          rewrite Hrewrite in H.
          rewrite lt_def_ereal in H.
@@ -422,7 +438,7 @@ Section ectx_language.
     split.
     - rewrite /prim_step. intros Hs.
       destruct (decomp e1) as [K e1'] eqn:Heq.
-      edestruct (decomp_fill _ _ _ Heq).
+      apply decomp_fill in Heq.
     (** Derive lemmas for gMap' pos *)
       admit. 
       (* eapply dmap_pos in Hs as [[] [[=] ?]]. *)
@@ -433,7 +449,9 @@ Section ectx_language.
         admit.
       + eapply head_not_stuck with σ1.
         intros Hzero; rewrite Hzero in Hs.
-        * (** gZero lemma *) admit.
+        * simpl in Hs.
+          (** destroy mathcomp urghghghg *)
+          admit. 
         * (** ask markus *) admit.
   Admitted.
 
@@ -493,7 +511,8 @@ Section ectx_language.
     apply decomp_fill in Heqn1; subst.
     destruct (to_val e') eqn:Heqn2.
     - apply is_zero_gMap'; first apply fill_lift_meas.
-      (** Obvious *) admit.
+      destruct (classical.ExcludedMiddle (is_zero (head_step (e', σ)))) as [|H']; first done.
+      apply head_not_stuck in H'. rewrite H' in Heqn2. done.
     - assert (K=empty_ectx) as ->.
       { eapply H; done. }
       rewrite fill_lift_empty in Hzero' *.

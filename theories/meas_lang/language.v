@@ -250,23 +250,10 @@ Section language.
     rewrite fill_dmap; [| by eapply val_stuck].
     intro Hs'. apply Hs.
     rewrite /is_zero in Hs'.
-    (* strengthen gZero_map to allow sets other than setT *)
-  Admitted.
-
-  (*
-    pose HI := (@inj_map_inj_eq R _ _ _ _ (fill_lift K) (fill_lift_measurable _ K_measurable) (inj_fill_lift _ fill_inj)).
-    pose HI' := HI MeasLanguageCtx0  MeasLanguageCtx0.
-    have HI'' := HI' (prim_step (e, σ)) giryM_zero.
-    intro H.
-    apply Hs.
-    unfold is_zero.
-    unfold is_zero in H.
-    apply HI''.
-    rewrite giryM_map_zero.
-    apply H.
+    rewrite -gMap'_gMap in Hs'.
+    eapply gMap'_is_zero; last done. apply fill_lift_measurable.
+    apply K_measurable.
   Qed.
-
-*)
 
   (*
   Lemma fill_step_inv e1' σ1 e2 σ2 `{!LanguageCtx K} :
@@ -294,8 +281,10 @@ Section language.
     unfold reducible in *. intros H1 H2. apply H1. simpl in *.
     erewrite fill_dmap in H2; last first.
     { by eapply val_stuck. }
-    (** lemma about gMap is_zero *)
-  Admitted.
+    rewrite -gMap'_gMap in H2.
+    eapply gMap'_is_zero; last done.
+    apply fill_lift_measurable; apply K_measurable.
+  Qed.
 
   Lemma reducible_fill_inv `{!@MeasLanguageCtx Λ K} e σ :
     to_val e = None → reducible (K e, σ) → reducible (e, σ).

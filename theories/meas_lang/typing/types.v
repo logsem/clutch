@@ -262,7 +262,9 @@ and "⊢ᵥ e : τ" := (val_typed e τ).
 
 Lemma binop_int_typed_safe (op : bin_op) (n1 n2 : Z) τ :
   binop_int_res_type op = Some τ → is_Some (bin_op_eval op (LitV (LitInt n1)) (LitV (LitInt n2))).
-Proof. destruct op; simpl; eauto. Admitted.
+Proof. destruct op; simpl; eauto.
+       
+Admitted.
 
 Lemma binop_bool_typed_safe (op : bin_op) (b1 b2 : bool) τ :
   binop_bool_res_type op = Some τ → is_Some (bin_op_eval op (LitV (LitBool b1)) (LitV (LitBool b2))).
