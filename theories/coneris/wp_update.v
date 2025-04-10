@@ -2,6 +2,14 @@ From iris.base_logic.lib Require Export fancy_updates invariants.
 From iris.proofmode Require Import base tactics classes.
 From clutch.coneris Require Import weakestpre primitive_laws.
 
+(** This file defines the probabilistic update modality from the Coneris paper, 
+    which is called state_update in this development
+    
+    state_update implies wp_update, which is a weaker modality that describes that it 
+    can be eliminated if the goal is a wp.
+
+*)
+
 (** A [wp_update] modality for Coneris that captures propositions that can be elimnated against an
     arbitrary weakest precondition. This includes, e.g., state steps.
 

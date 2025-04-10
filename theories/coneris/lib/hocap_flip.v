@@ -1,6 +1,8 @@
 From clutch.coneris Require Import coneris.
 From clutch.coneris Require Import flip hocap_rand.
 
+(* An abstract spec for a flip module that allows presampling tapes *)
+
 Set Default Proof Using "Type*".
 
 Class flip_spec `{!conerisGS Σ} := FlipSpec

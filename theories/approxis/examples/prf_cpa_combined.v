@@ -1,6 +1,6 @@
-From clutch.prob_lang.typing Require Import tychk.
+From clutch.prob_lang Require Import advantage typing.tychk.
 From clutch.approxis Require Import approxis map list option.
-From clutch.approxis.examples Require Import symmetric security_aux xor advantage prf.
+From clutch.approxis.examples Require Import symmetric security_aux xor prf.
 Import prf.bounds_check.
 Set Default Proof Using "Type*".
 
@@ -727,7 +727,7 @@ Proof with (rel_pures_l ; rel_pures_r).
   Proof using F_typed H_in_out adversary_typed keygen_typed xor_typed. lr_arc ; iApply cpa_F. Qed.
 
   (** The PRF advantage of RED against F. *)
-  Let ε_F := advantage (RED (PRF_real PRF_scheme_F #Q)) (RED (PRF_rand PRF_scheme_F #Q)) #true.
+  Let ε_F := advantage RED (PRF_real PRF_scheme_F #Q) (PRF_rand PRF_scheme_F #Q) #true.
 
   (* We will now explore different ways of stating the assumption that F is a
      PRF. Concretely, we will need to assume that the advantage of the
@@ -740,6 +740,8 @@ Proof with (rel_pures_l ; rel_pures_r).
     (↯ ε_F ⊢ (REL (adversary (PRF_real PRF_scheme_F #Q)) << (adversary (PRF_rand PRF_scheme_F #Q)) : lrel_bool))
     /\
       (↯ ε_F ⊢ (REL (adversary (PRF_rand PRF_scheme_F #Q)) << (adversary (PRF_real PRF_scheme_F #Q)) : lrel_bool)).
+
+  Section ARC_assumptions.
 
   (** This assumption states that owning ↯ ε_F error credits allows to prove
       the refinement about RED in Approxis. **)
@@ -831,19 +833,15 @@ Proof with (rel_pures_l ; rel_pures_r).
     split ; lra.
   Qed.
 
+  End ARC_assumptions.
+
   (** Instead of making an assumption about F at the ARcoupl level, we can work
   directly with pr_dist. Since ε_F is defined to be the advantage, no further
   assumptions are needed. We prove the (ε_Q+ε_F) bound by lowering all the
   reduction lemmas to the pr_dist level and composing there. **)
 
-  (* Reduce from CPA security to a statement about PRF security of F (real side) *)
-  Lemma red_to_prf Σ `{approxisRGpreS Σ} σ σ' :
-    ARcoupl (lim_exec (adversary (CPA_real sym_scheme_F #Q), σ))
-      (lim_exec ((RED (PRF_real PRF_scheme_F #Q)), σ')) eq 0%R.
-  Proof. eapply reduction_ARC => //. Qed.
-
   (* The reverse direction *)
-  Hypothesis red_to_prf' : forall Σ `{approxisRGpreS Σ} σ σ',
+  Hypothesis reduction_ARC' : forall Σ `{approxisRGpreS Σ} σ σ',
     ARcoupl (lim_exec ((RED (PRF_real PRF_scheme_F #Q)), σ'))
       (lim_exec (adversary (CPA_real sym_scheme_F #Q), σ)) eq 0%R.
 
@@ -855,12 +853,12 @@ Proof with (rel_pures_l ; rel_pures_r).
     rewrite /pr_dist.
     eapply Rabs_le.
     split.
-    - opose proof (ARcoupl_eq_elim _ _ _ (red_to_prf' _ σ σ') v) as hred.
+    - opose proof (ARcoupl_eq_elim _ _ _ (reduction_ARC' _ σ σ') v) as hred.
       set (y := (lim_exec (adversary _, σ)) v).
       set (x := lim_exec (RED _, σ') v).
       assert (x <= y + 0)%R by easy.
       lra.
-    - opose proof (ARcoupl_eq_elim _ _ _ (red_to_prf _ σ σ') v) as hred.
+    - opose proof (ARcoupl_eq_elim _ _ _ (reduction_ARC _ σ σ') v) as hred.
       set (x := (lim_exec (adversary _, σ)) v).
       set (y := lim_exec (RED _, σ') v).
       assert (x <= y + 0)%R by easy.
@@ -868,7 +866,7 @@ Proof with (rel_pures_l ; rel_pures_r).
   Qed.
 
   (* Reduce from CPA security to a statement about PRF security of F (rand side) *)
-  Lemma red_from_prf Σ `{approxisRGpreS Σ} σ σ' :
+  Lemma red_from_prf Σ `{approxisRGpreS Σ} (bla : forall (HΣ' : approxisRGS Σ), @XOR_spec Σ HΣ' Message Output xor_struct) σ σ' :
     ARcoupl (lim_exec (RED (PRF_rand PRF_scheme_F #Q), σ))
       (lim_exec (adversary (CPA_rand sym_scheme_F #Q), σ'))
       eq ε_Q.
@@ -885,54 +883,70 @@ Proof with (rel_pures_l ; rel_pures_r).
     1: eapply (cpa_I_ARC _ _ _ σ) => //.
     eapply cpa_F_ARC => //.
     Unshelve. all: eauto.
-    admit.                      (* TODO stupid type classes again *)
-  Admitted.
+  (*   admit.                      (* TODO stupid type classes again *)
+     Admitted. *)
+  Qed.
 
   (* The reverse direction *)
-  Hypothesis red_from_prf' : forall Σ `{approxisRGpreS Σ} σ σ',
+  Hypothesis red_from_prf' : forall Σ `{approxisRGpreS Σ} (bla : forall (HΣ' : approxisRGS Σ), @XOR_spec Σ HΣ' Message Output xor_struct)
+                                    σ σ',
     ARcoupl (lim_exec (adversary (CPA_rand sym_scheme_F #Q), σ'))
       (lim_exec (RED (PRF_rand PRF_scheme_F #Q), σ))
       eq ε_Q.
 
   (* Combine to get the pr_dist bound. *)
-  Lemma pr_dist_F_adv `{approxisRGpreS Σ} v σ σ' :
+  Lemma pr_dist_F_adv `{approxisRGpreS Σ} (bla : forall (HΣ' : approxisRGS Σ), @XOR_spec Σ HΣ' Message Output xor_struct) v σ σ' :
     (pr_dist (RED (PRF_rand PRF_scheme_F #Q)) (adversary (CPA_rand sym_scheme_F #Q)) σ σ' v
      <= ε_Q)%R.
   Proof.
     rewrite /pr_dist. eapply Rabs_le. split.
-    - opose proof (ARcoupl_eq_elim _ _ _ (red_from_prf' _ σ σ') v) as hred.
+    - opose proof (ARcoupl_eq_elim _ _ _ (red_from_prf' _ bla σ σ') v) as hred.
       set (x := lim_exec (RED _, σ) v).
       set (y := (lim_exec (adversary _, σ')) v).
       assert (y <= x + ε_Q)%R by easy. lra.
-    - opose proof (ARcoupl_eq_elim _ _ _ (red_from_prf _ σ σ') v) as hred.
+    - opose proof (ARcoupl_eq_elim _ _ _ (red_from_prf _ bla σ σ') v) as hred.
       set (x := lim_exec (RED _, σ) v).
       set (y := (lim_exec (adversary _, σ')) v).
       assert (x <= y + ε_Q)%R by easy. lra.
   Qed.
 
   (* Same statement as CPA_bound_st but proven without assuming H_ε_ARC or H_ε_LR. *)
-  Theorem CPA_bound_st' Σ `{approxisRGpreS Σ} σ σ' :
-    (pr_dist (adversary (CPA_real sym_scheme_F #Q)) (adversary (CPA_rand sym_scheme_F #Q)) σ σ' #true
+  Theorem CPA_bound_st' Σ `{approxisRGpreS Σ}
+    (bla : forall (HΣ' : approxisRGS Σ), @XOR_spec Σ HΣ' Message Output xor_struct)
+    σ :
+    (pr_dist (adversary (CPA_real sym_scheme_F #Q)) (adversary (CPA_rand sym_scheme_F #Q)) σ σ #true
      <= ε_Q + ε_F)%R.
   Proof.
-    eapply pr_dist_triangle.
+    eapply (pr_dist_triangle _ _ _ _ σ).
     1: eapply pr_dist_adv_F.
     1: eapply pr_dist_triangle.
-    2: eapply pr_dist_F_adv.
+    2: eapply (pr_dist_F_adv bla).
     1: eapply (advantage_ub).
     1: right ; eauto.
-    unfold ε_Q, ε_F. lra.
+    fold ε_F. rewrite Rplus_0_l.
+    rewrite /NNRbar_to_real. lra.
   Qed.
 
-  Theorem CPA_bound Σ `{approxisRGpreS Σ} :
-    (advantage
-       (adversary (CPA_real sym_scheme_F #Q))
-       (adversary (CPA_rand sym_scheme_F #Q))
-       #true
+  Theorem CPA_bound Σ `{approxisRGpreS Σ}
+    (bla : forall (HΣ' : approxisRGS Σ), @XOR_spec Σ HΣ' Message Output xor_struct)
+    :
+    (advantage adversary (CPA_real sym_scheme_F #Q) (CPA_rand sym_scheme_F #Q) #true
      <= ε_Q + ε_F)%R.
-  Proof using prf_cpa_ARC' F_typed H_in_out H_ε_ARC H_ε_LR Key adversary_typed keygen_typed xor_typed.
+  Proof using F_typed H_in_out (* H_ε_ARC H_ε_LR *) adversary_typed keygen_typed xor_typed
+  reduction_ARC'
+red_from_prf'.
     apply advantage_uniform.
-    by eapply CPA_bound_st => //.
+    by eapply (CPA_bound_st' _ bla) => //.
+  Qed.
+
+  Theorem CPA_bound'
+    (bla : forall Σ (HΣ' : approxisRGS Σ), @XOR_spec Σ HΣ' Message Output xor_struct)
+    :
+    (advantage adversary (CPA_real sym_scheme_F #Q) (CPA_rand sym_scheme_F #Q) #true
+     <= ε_Q + ε_F)%R.
+  Proof using F_typed H_in_out (* H_ε_ARC H_ε_LR *) adversary_typed keygen_typed xor_typed
+  reduction_ARC' red_from_prf'.
+    eapply (CPA_bound approxisRΣ). done.
   Qed.
 
   (* TODO Something about PPT and proving that if (isNegligable ε_F) then also
@@ -948,23 +962,25 @@ Recall that a function f is negligible if any n, there exists M_n, s.t. for all
 
 Definition (Advantage).
 
-The distinguishing advantage between two programs X and Y is defined as
+The advantage of a distinguisher A against two programs X and Y is defined as
 
-advantage(X, Y) = max_(σ,σ') | lim_exec(X,σ)(true) - lim_exec(Y,σ')(true) | .
+advantage(A)(X, Y) = max_(σ,σ') | lim_exec(A X,σ)(true) - lim_exec(A Y,σ')(true) | .
 
 
-Nota bene: In security statements, X and Y are typically of the form (A G_real)
-and (A G_rand), but in security reductions they may, for instance, be of the
-form (A G_real) and (RED H_rand) so rather than defining the advantage for a
-fixed adversary and two games, we instead define it directly for two programs.
+Nota bene: In security statements, we typically compare (A G_real) and (A G_rand),
+but in security reductions we may, for instance, compare programs of the form
+(A G_real) and (RED H_rand), so in addition to defining the advantage for a fixed
+adversary and two games, we also use a general notion of distance between
+executions pr_dist(ρ1, ρ2) defined directly for two configurations (ρ1, ρ2). The
+advantage is then obtained as max_(σ,σ') pr_dist(A X, σ)(A Y, σ').
 
 
 Definition (PRF security).
 
 Let F = (F)_λ be a family of functions indexed by a security parameter λ. F is
-a secure PRF if for all adversaries A, if A is PPT, then the function
+a secure PRF if for all adversaries A s.t. A(g) is PPT for any g ∈ PPT, then the function
 
-    f(λ) = advantage (A λ (PRF_real (F λ))) (A λ (PRF_rand (F λ)))
+    f(λ) = advantage (A λ) (PRF_real (F λ)) (PRF_rand (F λ))
 
 is negligible.
 
@@ -975,14 +991,14 @@ Let Σ = (Σ)_λ be a family of symmetric encryption schemes indexed by a securi
 parameter λ. Σ has IND$-CPA security if for all adversaries A, if A is PPT,
 then the function
 
-    f(λ) = advantage (A λ (IND$_CPA_real (Σ λ))) (A λ (IND$_CPA_rand (Σ λ)))
+    f(λ) = advantage (A λ) (IND$_CPA_real (Σ λ)) (IND$_CPA_rand (Σ λ))
 
 is negligible.
 
 
 The theorem CPA_bound states that for any function F, the IND$-CPA advantage of
 any adversary A is bounded by ε = ε_F + ε_Q, where ε_Q = Q²/2N and ε_F is the
-PRF advantage of A against F [TODO "the PRF advantage of A" is undefined]
+PRF advantage of A against F.
 
 If we want to conclude that Σ_F is secure against PPT CPA adversaries because F
 is, then we need to use the fact that RED is a PPT PRF adversary.
@@ -997,3 +1013,68 @@ setting. When λ is fixed to, say, 2048 bits, and ε_F is e.g. 1/2^128, then the
 
 
 End combined.
+
+Section foo.
+  Context `{prf_params_struct : PRF_params}.
+  Context `{prf_struct : @PRF prf_params_struct}.
+  (* Variable (Q : nat). *)
+  Hypothesis prf_typed : ⊢ᵥ prf : TPRF.
+  Hypothesis keygen_typed : ⊢ᵥ keygen : TKeygen.
+  Hypothesis H_in_out : card_input = card_output.
+  Context `{xor_struct : @XOR (@card_output prf_params_struct) (@card_output prf_params_struct)}.
+  Hypothesis xor_typed : ⊢ᵥ xor : (TKey → TInput → TOutput).
+  (* Variable adversary : val. *)
+  (* Hypothesis adversary_typed : ⊢ᵥ adversary : T_IND_CPA_Adv. *)
+  Context (xor_spec_struct : ∀ (Σ : gFunctors) (HΣ' : approxisRGS Σ), @XOR_spec _ _ _ _ xor_struct).
+
+  Axiom red1 : (∀ Q adversary (Σ : gFunctors),
+                   approxisRGpreS Σ
+                   → ∀ σ σ' : common.language.state prob_lang,
+                     ARcoupl
+                       (lim_exec
+                          (RED Q adversary (PRF_real PRF_scheme_F #Q), σ'))
+                       (lim_exec (adversary (CPA_real sym_scheme_F #Q), σ))
+                       eq 0).
+
+  Axiom red2 : (∀ (Q : nat) (adversary : val) (Σ : gFunctors),
+                   approxisRGpreS Σ
+                   → (∀ HΣ' : approxisRGS Σ, XOR_spec)
+                   → ∀ σ σ' : common.language.state prob_lang,
+                       ARcoupl
+                         (lim_exec
+                            (adversary (CPA_rand sym_scheme_F #Q), σ'))
+                         (lim_exec
+                            (RED Q adversary (PRF_rand PRF_scheme_F #Q),
+                               σ)) eq (Q * Q / (2 * S card_input))).
+
+  Check λ Q adversary adversary_typed, CPA_bound' Q prf_typed keygen_typed H_in_out xor_typed adversary adversary_typed (red1 Q adversary) (red2 Q adversary) xor_spec_struct.
+
+  (* We could assume that the adversary only makes Q calls by requiring that the following
+    equivalence holds:
+
+    Definition adv_makes_bounded_calls adversary : ∀ f, ⊢ adversary (q_calls Q f) = A f : bool.
+
+    For an adversary satisfying this predicate, we could rephrase the security game to drop q_calls
+    and introduce it via the equivalence for the sake of the proof.
+   *)
+
+  (* What happens for the concrete non-asymptotic security bounds? How does the time complexity show up in the security statement? *)
+  (*
+    adv. and schemes as security-parameter indexed value families at the meta-level:
+
+    PPT : (nat -> val) -> Prop
+    PPT f := ∃ p : polynomial, ∀ n, worst-case-cost ((f n) #()) <= p(n).
+
+    2nd-order-PPT (adv : nat -> val) := ∀ f : nat -> val, PPT f → PPT (λ n, λ:"_", adv n (f n #()) #() ).
+
+
+    adv. and schemes taking the security parameter as input:
+
+    PPT : val -> Prop
+    PPT f := ∃ p : polynomial, ∀ n, worst-case-cost (f #n) <= p(n).
+
+    2nd-order-PPT (adv : val) := ∀ f : val, PPT f → PPT (λ:"n", adv "n" (f "n") ).
+
+
+   *)
+End foo.

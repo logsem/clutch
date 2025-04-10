@@ -1,5 +1,7 @@
-(** This file extends the Clutch program logic with some derived laws (not
+(** This file extends the Coneris program logic with some derived laws (not
 using the lifting lemmas) about arrays
+
+Most of these are taken from the Clutch program logic
 
 For utility functions on arrays (e.g., freeing/copying an array), see
 [lib.array].  *)

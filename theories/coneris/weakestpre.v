@@ -10,6 +10,7 @@ From clutch.prob Require Export couplings distribution graded_predicate_lifting.
 From clutch.con_prob_lang Require Import lang erasure.
 From clutch.common Require Export sch_erasable con_language.
 
+(** This file contains the definition of the weakest precondition of coneris *)
 Import uPred.
 
 Local Open Scope NNR_scope.

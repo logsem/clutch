@@ -1,5 +1,57 @@
-From Coq Require Import Reals Psatz.
+From Coq Require Import QArith Reals Psatz.
+From Coquelicot Require Import Rcomplements.
 From clutch.prelude Require Import base.
+
+Ltac nat_solver :=
+  by (match goal with |- context [(?m ^ ?n)%nat] => unfold Nat.pow
+                 | _ => idtac
+      end ; lia || nia).
+
+(* try pushing expressions from R to nat *)
+Ltac nify_r :=
+  repeat match goal with
+    | |- context [0%R] => rewrite -INR_0
+    | |- context [1%R] => rewrite -INR_1
+    | |- context [((INR ?m) ^ ?n)%R] => rewrite -pow_INR
+    (* | |- context [exp (?x * INR ?n)%R] => rewrite -(exp_pow x n) *)
+    | |- context [(INR ?n - INR ?m)%R] =>
+        rewrite -(minus_INR n m) ; [|try nat_solver]
+    | |- context [(INR ?n + INR ?m)%R] => rewrite -(plus_INR n m)
+    (* | |- context [(INR ?n + 1)%R] => rewrite -(S_INR n) *)
+    | |- context [(INR ?n * INR ?m)%R] => rewrite -(mult_INR n m)
+    | |- context [IPR ?p] => rewrite -(INR_IPR p)
+    | |- INR _ = INR _ => f_equal
+    | |- not (INR _ = INR _) => apply not_INR
+    | |- (INR _ <= INR _)%R => apply le_INR
+    | |- (INR _ < INR _)%R => apply lt_INR
+    end.
+
+(* Local Coercion inject_Z : Z >-> QArith_base.Q. *)
+Ltac zify_q := unfold Qeq, Qlt, Qle ; simpl Qden ; simpl Qnum.
+
+Lemma IZR_Q2R_inject_Z (z : Z) : IZR z = Q2R (inject_Z z).
+Proof. rewrite /Q2R. simpl Qden. simpl Qnum. rewrite RMicromega.Rinv_1. reflexivity. Qed.
+
+Lemma INR_Q2R_of_nat (n : nat) : INR n = Q2R (inject_Z (Z.of_nat n)).
+Proof. rewrite ?INR_IZR_INZ ?IZR_Q2R_inject_Z. reflexivity. Qed.
+
+Ltac qify_r :=
+  repeat rewrite
+    ?IZR_Q2R_inject_Z ?INR_Q2R_of_nat
+  -?INR_IPR
+  -?RMicromega.Q2R_0 -?RMicromega.Q2R_1
+  -?Qreals.Q2R_plus -?Qreals.Q2R_mult
+  -?Qreals.Q2R_opp -?Qreals.Q2R_minus
+  -?Qreals.Q2R_inv -?Qreals.Q2R_div
+  ;
+    repeat (apply Qreals.Qle_Rle || apply Qreals.Qlt_Rlt || apply Qreals.Qeq_eqR).
+
+Lemma Qminus_0_r x : (x - 0 == x)%Q.
+Proof. zify_q. nia. Qed.
+
+Lemma Qdiv_0_l x : (0 / x == 0)%Q.
+Proof. zify_q. nia. Qed.
+
 
 (* Notation "x ≤ y" := (Rle x y) (at level 70, no associativity) : R_scope. *)
 (* Notation "x ≥ y" := (Rge x y) (at level 70, no associativity) : R_scope. *)
@@ -197,6 +249,8 @@ Ltac real_simpl :=
          | |- ?a * ?b <= ?c * ?b => apply Rmult_le_compat_r
          | |- ?a * ?b <= ?c * ?d => apply Rmult_le_compat
          | |- ?a * ?b * ?c <= ?b => rewrite -{2}(Rmult_1_r b)
+         | |- (0 <= ?r1 / ?r2)%R => apply Rcomplements.Rdiv_le_0_compat
+         | |- (INR 0 <= ?r1 / ?r2)%R => apply Rcomplements.Rdiv_le_0_compat
 
          | |- ?x <= ?x + ?y => apply Rplus_le_0_compat
          | |- ?x - ?y <= ?x => apply Rminus_le_0_compat
@@ -211,6 +265,7 @@ Ltac real_simpl :=
          | |- 0 <= INR _ => apply pos_INR
          | |- INR _ <= INR _ => apply le_INR
          | |- INR _ < INR _ => apply lt_INR
+         | |- INR _ = INR _ => f_equal
                                   
          (* = *)
          | H : ?r1 + ?r = ?r2 + ?r |- _ =>
@@ -231,7 +286,8 @@ Ltac real_simpl :=
 
          (* general solving patterns *)
          | |- ∀ _, _ => intros
-         | _ => done || lra || eauto with real || lia
+         | _ => ( done || lra || eauto with real || lia || nat_solver )
+                || fail "real_simpl: no applicable clauses"
          end.
 
 Ltac real_solver_partial :=

@@ -49,6 +49,8 @@ Section scheduler.
   Record scheduler:= {
       scheduler_f :> (sch_state * mdpstate δ) -> distr (sch_state * mdpaction δ)
     }.
+
+  (* Instance scheduler_inhabited : Inhabited (scheduler) := populate ( {| scheduler_f := inhabitant |} ). *)
   
   Definition sch_int_state_f (s:scheduler) ρ := lmarg (s ρ).
   Definition sch_action_f (s:scheduler) ρ := rmarg (s ρ).
@@ -742,3 +744,5 @@ Section scheduler.
 End scheduler.
 
 #[global] Arguments scheduler (_ _) {_ _}.
+
+
