@@ -1,4 +1,7 @@
-(** * Hocap rand that generates a exclusive token as well
+(** * This file is an experimental attempt in deriving a different spec for the abstract rand module
+    This is not described in the paper
+
+    Hocap rand spec that generates a exclusive token as well
       In most examples, the exclusive token is not needed since the data structure need not need to create 
       an auth view of all the tapes. 
       Useful for building more complex data structures when we need to know all the tapes generated

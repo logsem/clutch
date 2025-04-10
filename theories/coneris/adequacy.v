@@ -14,6 +14,8 @@ Import uPred.
 
 Notation con_prob_lang_mdp := (con_lang_mdp con_prob_lang).
 
+(** This file contains the two adequacy theorems of Coneris, wp_pgl_lim and wp_safety *)
+
 (** Normal adequacy *)
 Section adequacy.
   Context `{!conerisGS Σ}.

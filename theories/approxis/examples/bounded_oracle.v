@@ -57,41 +57,65 @@ Section bounded_oracle.
     rewrite /q_calls_poly. do 3 constructor. tychk.
   Qed.
 
+  (* Applying the above fact can be a bit cumbersome, here are some helper lemmas. *)
+  Fact q_calls_poly_sem_typed_mono `{!approxisRGS Σ} α β :
+    ⊢ REL q_calls_poly #() #() << q_calls_poly #() #() : lrel_int → (α → β) → α → lrel_option β.
+  Proof.
+    iPoseProof (q_calls_poly_sem_typed $! α _ _ _) as "#h".
+    rel_bind_l (q_calls_poly _). rel_bind_r (q_calls_poly _).
+    rel_apply refines_bind.
+    1: iApply "h".
+    iIntros (??) "#h'".
+    iApply ("h'" $! β) => //.
+    Unshelve. eauto.
+  Qed.
+
+  Fact q_calls_poly_sem_typed_app `{!approxisRGS Σ} α β (Q : Z) (rf rf' : val) :
+    (REL rf << rf' : α → β)
+    ⊢ (REL q_calls_poly #() #() #Q rf << q_calls_poly #() #() #Q rf' : α → lrel_option β).
+  Proof.
+    iIntros.
+    rel_apply refines_app => //.
+    rel_apply refines_app. 2: iApply refines_typed ; tychk. simpl.
+    iApply q_calls_poly_sem_typed_mono.
+    Unshelve. exact [].
+  Qed.
+
 End bounded_oracle.
 
-Class MaxCalls := { Q : nat }.
-Class DomainUpperBound := { F_MAX : nat }.
+(* Class MaxCalls := { Q : nat }.
+   Class DomainUpperBound := { F_MAX : nat }.
 
-Section link.
-  Context {max_calls : MaxCalls}.
-  Context {upper_bound : DomainUpperBound}.
-  Definition compose (g f : expr) := (λ:"x", g (f "x"))%E.
-  Definition restr (F : expr) := (q_calls (#Q) (Val #F_MAX) F).
-  Definition link (A F : expr) := compose A (restr F).
-End link.
+   Section link.
+     Context {max_calls : MaxCalls}.
+     Context {upper_bound : DomainUpperBound}.
+     Definition compose (g f : expr) := (λ:"x", g (f "x"))%E.
+     Definition restr (F : expr) := (q_calls (#Q) (Val #F_MAX) F).
+     Definition link (A F : expr) := compose A (restr F).
+   End link. *)
 
-#[global]
-  Hint Unfold compose : core.
+(* #[global]
+     Hint Unfold compose : core.
 
-(* Infix " ∘ " := link : expr_scope. *)
-Infix " ∘ " := compose : expr_scope.
-(* Notation "F '^Q'" := (restr F) (at level 9) : expr_scope. *)
-(* Notation "F 'ꟴ'" := (restr F) (at level 9, format "F ꟴ") : expr_scope. *)
-Notation "F '^q'" := (restr F) (at level 9) : expr_scope.
-Notation "F '𐞥'" := (restr F) (at level 9, format "F 𐞥") : expr_scope.
+   (* Infix " ∘ " := link : expr_scope. *)
+   Infix " ∘ " := compose : expr_scope.
+   (* Notation "F '^Q'" := (restr F) (at level 9) : expr_scope. *)
+   (* Notation "F 'ꟴ'" := (restr F) (at level 9, format "F ꟴ") : expr_scope. *)
+   Notation "F '^q'" := (restr F) (at level 9) : expr_scope.
+   Notation "F '𐞥'" := (restr F) (at level 9, format "F 𐞥") : expr_scope.
 
-Section link_test.
-  Context {max_calls : MaxCalls}.
-  Context {upper_bound : DomainUpperBound}.
-  Open Scope expr_scope.
+   Section link_test.
+     (* Context {max_calls : MaxCalls}.
+        Context {upper_bound : DomainUpperBound}. *)
+     Open Scope expr_scope.
 
-  (* Check Q.
-     Check (λ A F, (App A (q_calls Q F))).
+     (* Check Q.
+        Check (λ A F, (App A (q_calls Q F))).
 
-     Check λ A F G : expr, A (G F).
-     Check λ A F G : expr, A ∘ (G ∘ F).
-     Check λ A F G : expr, A ((G (F 𐞥))𐞥).
-     Check λ A F G : expr, A (G F 𐞥)𐞥.
-     Check λ A F G : expr, A ∘ (G ∘ F^q)^q = (A ∘ G^q) ∘ F^q . *)
+        Check λ A F G : expr, A (G F).
+        Check λ A F G : expr, A ∘ (G ∘ F).
+        Check λ A F G : expr, A ((G (F 𐞥))𐞥).
+        Check λ A F G : expr, A (G F 𐞥)𐞥.
+        Check λ A F G : expr, A ∘ (G ∘ F^q)^q = (A ∘ G^q) ∘ F^q . *)
 
-End link_test.
+   End link_test. *)

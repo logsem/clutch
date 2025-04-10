@@ -1,4 +1,4 @@
-(** * Union bound rules  *)
+(** * Coneris error bound rules rules  *)
 From stdpp Require Import namespaces finite fin_sets.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext.

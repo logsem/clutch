@@ -13,17 +13,6 @@ Module Basic.
     tactics that deals with some of the syntactic built-in types. The bare
     version ("without batteries") of the tactics can be accessed by importing
     LR_tac.Basic. *)
-  Ltac2 mutable pattern_of_lr2 (lr : constr) (xs : constr list) : constr :=
-    lazy_match! lr with
-    | @lrel_unit _ => constr:("(->&->)")
-    | lrel_int =>
-        match xs with
-        | [] => '"(%&->&->)"
-        | x :: _ => let s := '(append "(%" ($x ++ "&->&->)")) in
-                    eval vm_compute in $s
-        end
-    | _ => Control.zero (Tactic_failure (Some (fprintf "no pattern found for lrel %t" lr)))
-    end.
 
   Ltac2 mutable lrintro_tacs () : (string , (constr -> constr list -> (constr -> constr list -> constr option) -> constr option)) FMap.t :=
     FMap.empty (FSet.Tags.string_tag).
@@ -77,22 +66,20 @@ Module Basic.
     let prog := f_rel_vals lr in
     ().
 
-  (* Ltac2 mutable rel_vals (lr : constr) : unit :=
-       lazy_match! lr with
-       | @lrel_unit => eauto
-       (* | _ => Control.zero (Tactic_failure (Some (fprintf "Don't know how to solve lrel %t" lr))) *)
-       | _ => printf "Don't know how to solve lrel %t" lr
-       end. *)
+  Ltac2 rec list_of_glist l :=
+    lazy_match! l with
+    | ?x :: ?t => x :: list_of_glist t
+    | [] => [] end.
 
   Tactic Notation "lrintro" constr(x) :=
     let f :=
       ltac2val:
         (lr xs |-
-           let pat :=
-             (* pattern_of_lr2 *)
-             (Option.get (lr_intro
-                            (Option.get (Ltac1.to_constr lr))
-                            [(Option.get (Ltac1.to_constr xs))])) in
+           let xs := Option.get (Ltac1.to_constr xs) in
+           let xs := (eval vm_compute in (words $xs)) in
+           let xs := list_of_glist xs in
+           let lr := Option.get (Ltac1.to_constr lr) in
+           let pat := (Option.get (lr_intro lr xs)) in
            Ltac1.of_constr pat) in
     lazymatch goal with
     | |- environments.envs_entails _ (lrel_car ?A _ _ -∗ _) =>
@@ -146,6 +133,20 @@ End LR_unit.
 Export LR_unit.
 
 Module LR_prod.
+    Ltac2 prod_intro (typ : constr) xs k :=
+      (* printf "entering prod_intro, typ: %t" typ ; *)
+      lazy_match! typ with
+      | lrel_prod ?t1 ?t2 =>
+          match xs with
+          | x :: (y :: _) =>
+              let s := '(append "(%" ($x ++ "_l & %" ++ $x ++ "_r & %" ++
+                                        $y ++ "_l & %" ++ $y ++ "_r & ->&->&#" ++
+                                        $x ++ "&#" ++ $y ++ ")" )) in
+                      Some (eval vm_compute in $s)
+          | [_] | [] => Some '"(%&%&%&%&->&->&?&?)"
+          end
+      | _ => None
+      end.
   Ltac2 prod_val typ k :=
     (* printf "entering prod_val, typ: %t" typ ; *)
     lazy_match! typ with
@@ -157,9 +158,27 @@ Module LR_prod.
         ltac1:(iExists _,_,_,_ ; iSplit ; [eauto|iSplit ; [eauto | iSplit]]) ; Progressed
     | _ => Stuck
     end.
+  Ltac2 Set Basic.lrintro_tacs as prev := fun () => FMap.add "prod" prod_intro (prev ()).
   Ltac2 Set Basic.rel_val_tacs as prev := fun () => FMap.add "prod" prod_val (prev ()).
 End LR_prod.
 Export LR_prod.
+
+Module LR_bool.
+  Ltac2 bool_intro (typ : constr) xs k :=
+    (* printf "entering bool_intro, typ: %t" typ ; *)
+    lazy_match! typ with
+    | lrel_bool =>
+        (* printf "found `lrel_bool`, done" ; *)
+        match xs with
+        | [] => Some '"(%&->&->)"
+        | x :: _ => let s := '(append "(%" ($x ++ "&->&->)")) in
+                    Some (eval vm_compute in $s)
+        end
+    | _ => None
+    end.
+  Ltac2 Set Basic.lrintro_tacs as prev := fun () => FMap.add "bool" bool_intro (prev ()).
+End LR_bool.
+Export LR_bool.
 
 Module LR_int.
   Ltac2 int_intro typ xs k :=
@@ -205,17 +224,6 @@ Module LR_option.
     end.
   Ltac2 Set Basic.lrintro_tacs as prev := fun () => FMap.add "option" option_intro (prev ()).
 
-  (* Ltac2 Set pattern_of_lr2 as previous :=
-       fun lr (xs : constr list) =>
-         lazy_match! lr with
-         | lrel_option ?a =>
-             let aa := previous a xs in
-             let u := previous 'lrel_unit xs in
-             let s := '(append "#(%" (" " ++ "&% &[(->&->&" ++ $u ++ ") | (->&->&"++$aa++")])")) in
-             eval vm_compute in $s
-         | _ => previous lr xs
-         end. *)
-
   Ltac2 option_val typ k :=
     (* printf "entering option_val, typ: %t" typ ; *)
     lazy_match! typ with
@@ -233,24 +241,28 @@ Module LR_option.
 End LR_option.
 Export LR_option.
 
-Goal forall Σ, ⊢ ∀ v1 v2, @lrel_option Σ (@lrel_int Σ) v1 v2 -∗ ⌜v1 = v2⌝.
-  ltac1:(iIntros (?) ; iStartProof ; lrintro "").
-  1:ltac1:(done).
-  (* lr_printst (). *)
-  (* printf "%a" fmt_constr_opt (lr_intro '(lrel_int) ['"x"]). *)
-  (* printf "%t" (pattern_of_lr2 'lrel_int ['"x"]). *)
-  (* printf "%t" (pattern_of_lr2 '(lrel_option lrel_int) ['"x"]). *)
-  (* printf "%a" fmt_constr_opt (lr_intro '(lrel_option lrel_int) ['"x"]). *)
-  auto.
-Abort.
+Section tests.
 
-Goal forall Σ, ⊢ @lrel_option Σ (@lrel_int Σ) (InjRV #(1/1/4/2)) (InjRV #(0+2)).
-  ltac1:(iIntros (?) ; iStartProof).
-  ltac1:(rel_vals).
-  ltac1:(rel_vals).
-Abort.
+  Goal forall Σ, ⊢ ∀ v1 v2, @lrel_option Σ (@lrel_int Σ) v1 v2 -∗ ⌜v1 = v2⌝.
+    ltac1:(iIntros (?) ; iStartProof ; lrintro "").
+    1:ltac1:(done).
+    (* lr_printst (). *)
+    (* printf "%a" fmt_constr_opt (lr_intro '(lrel_int) ['"x"]). *)
+    (* printf "%t" (pattern_of_lr2 'lrel_int ['"x"]). *)
+    (* printf "%t" (pattern_of_lr2 '(lrel_option lrel_int) ['"x"]). *)
+    (* printf "%a" fmt_constr_opt (lr_intro '(lrel_option lrel_int) ['"x"]). *)
+    auto.
+  Abort.
 
-Goal forall Σ, ⊢ @lrel_option Σ (@lrel_int Σ) (InjLV #()) (InjLV #()).
-  ltac1:(iIntros (?) ; iStartProof).
-  ltac1:(rel_vals).
-Qed.
+  Goal forall Σ, ⊢ @lrel_option Σ (@lrel_int Σ) (InjRV #(1/1/4/2)) (InjRV #(0+2)).
+    ltac1:(iIntros (?) ; iStartProof).
+    ltac1:(rel_vals).
+    ltac1:(rel_vals).
+  Abort.
+
+  Goal forall Σ, ⊢ @lrel_option Σ (@lrel_int Σ) (InjLV #()) (InjLV #()).
+    ltac1:(iIntros (?) ; iStartProof).
+    ltac1:(rel_vals).
+  Abort.
+
+End tests.

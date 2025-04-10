@@ -2,7 +2,7 @@ From iris.base_logic.lib Require Export invariants.
 From clutch.coneris Require Import coneris.
 From clutch.con_prob_lang Require Import notation.
 From iris.prelude Require Import options.
-
+(** Taken from the Iris development *)
 (** A general interface for a lock.
 
 All parameters are implicit, since it is expected that there is only one

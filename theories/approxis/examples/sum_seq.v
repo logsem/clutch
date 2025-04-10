@@ -2,6 +2,7 @@ From Coq Require Import Reals Psatz.
 From clutch Require Import base.
 Set Default Proof Using "Type*".
 
+Definition ε_bday Q N := ((INR Q - 1) * INR Q / (2 * INR N))%R.
 
 Lemma sum_seq N :
   (((INR N - 1) * INR N) / 2)%R = INR (fold_left Nat.add (seq 0 N) 0).
@@ -34,4 +35,9 @@ Proof.
     2:{ replace 1%R with (INR 1) by easy. rewrite -minus_INR => //.
         lia. }
     rewrite -mult_INR. f_equal. lia.
+Qed.
+
+Lemma bday_sum Q N : ε_bday Q N = (INR (fold_left Nat.add (seq 0 Q) 0%nat) / INR N)%R.
+Proof.
+  by rewrite /ε_bday Rdiv_mult_distr sum_seq.
 Qed.

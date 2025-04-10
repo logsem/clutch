@@ -1,3 +1,4 @@
+From clutch.prob_lang Require Import typing.tychk.
 From clutch.approxis Require Import approxis map list security_aux option.
 From clutch.approxis Require Export bounded_oracle.
 Set Default Proof Using "Type*".
@@ -14,6 +15,11 @@ Class PRF_params :=
   ; card_output : nat
   ; prf_params : val := (#card_key, #card_input, #card_output) }.
 
+Definition TKey := TNat.
+Definition TInput := TNat.
+Definition TOutput := TNat.
+Definition T_PRF_params := (TKey * TInput * TOutput)%ty.
+
 Definition get_param_card_key : val := λ:"prf_params", Fst (Fst "prf_params").
 Definition get_param_card_input : val := λ:"prf_params", Snd (Fst "prf_params").
 Definition get_param_card_output : val := λ:"prf_params", Snd "prf_params".
@@ -26,6 +32,13 @@ Class PRF `{PRF_params} :=
   ; rand_output : val
   ; prf_scheme : val := (prf_params, keygen, prf, rand_output)%V
   }.
+
+Definition TKeygen : type := TUnit → TKey.
+Definition TPRF : type := TKey → TInput → TOutput.
+Definition T_rand_output : type := TUnit → TNat.
+Definition T_PRF_scheme := (T_PRF_params * TKeygen * TPRF * T_rand_output)%ty.
+
+Definition T_PRF_Adv := ((TInput → (TOption TOutput)) → TBool)%ty.
 
 Definition get_params : val := λ:"prf_scheme", Fst (Fst (Fst "prf_scheme")).
 Definition get_card_key : val := λ:"prf_scheme", Fst (Fst (Fst (Fst (Fst "prf_scheme")))).
@@ -153,16 +166,6 @@ Module LR_prf.
   Import Ltac2 (* Printf *).
   Export LR_bounded.
 
-  Ltac2 Set pattern_of_lr2 as previous :=
-    fun lr (xs : constr list) =>
-      lazy_match! lr with
-      | lrel_input => bounded (get_head_name xs)
-      | lrel_output => bounded (get_head_name xs)
-      (* | lrel_message => bounded (get_head_name xs) *)
-      | lrel_key => bounded (get_head_name xs)
-      | _ => previous lr xs
-      end.
-
   Ltac2 prf_intro (typ : constr) xs k :=
     (* printf "entering prf_intro, typ: %t" typ ; *)
     lazy_match! typ with
@@ -212,7 +215,7 @@ Module LR_prf.
 End LR_prf.
 Export LR_prf.
 
-Section random_function.
+Section typing.
 
   Fact random_function_sem_typed `{!approxisRGS Σ} {prf_params : PRF_params} :
     ⊢ REL random_function #card_output
@@ -274,6 +277,22 @@ Section random_function.
                eapply map_img_delete_subseteq. done.
       }
       rel_vals. Unshelve. all: apply _.
+  Qed.
+
+  Fact PRF_rand_sem_typed `{!approxisRGS Σ} {_ : PRF_params} {kg f ro kg' f' ro' : val} :
+    ⊢ REL sem.PRF_rand (prf_params, kg, f, ro)%V << sem.PRF_rand (prf_params, kg', f', ro')%V
+      : (interp TInt []) → lrel_input → lrel_option lrel_output.
+  Proof with (rel_pures_l ; rel_pures_r).
+    rewrite /sem.PRF_rand...
+    rel_arrow_val. lrintro "Q"...
+    rewrite /get_card_output.
+    subst...
+    rel_apply refines_app.
+    2: iApply random_function_sem_typed.
+    rel_arrow. iIntros (rf rf') "#hrf"...
+    rel_apply refines_app => //.
+    { rel_arrow. iIntros... done. }
+    by iApply q_calls_poly_sem_typed_app.
   Qed.
 
   Section spec_ideal.
@@ -379,4 +398,4 @@ Section random_function.
 
   End spec_ideal.
 
-End random_function.
+End typing.

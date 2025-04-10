@@ -1,6 +1,8 @@
 (** * Hocap rand specs *)
 From clutch.coneris Require Import coneris.
 
+(** An abstract spec for a rand module that allows presampling tapes *)
+
 Set Default Proof Using "Type*".
 
 Class rand_spec `{!conerisGS Σ} := RandSpec

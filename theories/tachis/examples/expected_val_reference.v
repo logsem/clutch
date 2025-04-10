@@ -1,14 +1,16 @@
 From clutch.prob_lang Require Import lang notation tactics metatheory.
-From clutch.tachis Require Export expected_time_credits ert_weakestpre problang_wp proofmode
+From clutch.tachis Require Export adequacy expected_time_credits ert_weakestpre problang_wp proofmode
   derived_laws cost_models ert_rules.
 From iris.proofmode Require Export proofmode.
+From Coquelicot Require Import Rbar.
 Set Default Proof Using "Type*".
+Open Scope R.
 
 (** * Lohse & Garg 2024, Section 7 *)
 Section loc_cost.
 
   Definition toss l : expr := if: rand #1 = #1 then #()
-                              else l <- (! l) + #1.
+                              else l <- !l + #1.
 
   Lemma wp_op_ert `{!tachisGS Σ CostTick} :
     {{{ ⧖ (1/2) }}}
@@ -28,3 +30,11 @@ Section loc_cost.
   Qed.
 
 End loc_cost.
+
+Fact op_ert : ∀ σ,
+    @lim_ERT CostTick ((let: "l" := ref #0 in toss "l";; tick (! "l"))%E, σ) <= (1/2)%NNR.
+Proof.
+  intros.
+  eapply (wp_ERT_lim CostTick tachisΣ _ _ _ (λ _, True)).
+  iIntros (?) "tc". by iApply (wp_op_ert with "[$tc]").
+Qed.

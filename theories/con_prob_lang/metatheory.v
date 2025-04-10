@@ -828,6 +828,31 @@ Proof.
   - exfalso. apply H0. apply H. simpl in *. lra.
   - rewrite -H'. lra.
 Qed.
+
+Definition empty_lists_state σ:= forall α ls, σ.(tapes)!!α=Some ls -> ∃ N, ls = ((N; []) : tape).
+                                   
+Lemma prim_step_empty_tape_preserve e σ:
+  empty_lists_state σ -> forall e' σ' efs, prim_step e σ (e', σ', efs) > 0 -> empty_lists_state σ'.
+Proof.
+  simpl.
+  intros Hempty ??? H.
+  rewrite /prim_step/= in H.
+  destruct (decomp e) as [? e1] eqn : Heqn.
+  rewrite Heqn in H.
+  apply dmap_pos in H as (([? s]&?)&?&?).
+  simpl in *. simplify_eq.
+  destruct (det_or_prob_or_dzero e1 σ) as [H'|[H'|]].
+  - rewrite /empty_lists_state in Hempty *.
+    replace (tapes s) with (tapes σ); first done.
+    inversion H'; subst; simpl in *; repeat case_match; by inv_distr.
+  - rewrite /empty_lists_state in Hempty *; inversion H'; subst; simpl in *; repeat case_match; inv_distr; simpl; intros ? ?; try rewrite lookup_insert_Some; try naive_solver.
+    + apply Hempty in H1. naive_solver.
+    + apply Hempty in H. naive_solver.
+    + apply Hempty in H2. naive_solver.
+  - rewrite H in H0. inv_distr.
+Qed.
+
+(* Show a coupling between taking steps of an empty tape state, and one whic has no tapes *)
   
 
 (** * commenting out couplings atm *)

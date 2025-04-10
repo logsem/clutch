@@ -196,17 +196,9 @@ Section Zpx.
         |}).
   Defined.
 
-  (* TODO remove once https://github.com/math-comp/math-comp/pull/1041/files is
-     merged and we use mathcomp from the future. *)
-  Lemma units_Zp_cyclic : is_true (cyclic (units_Zp p)).
+  Definition vgg_p : val_group_generator (vg:=vg_p).
   Proof.
-    suff: is_true (cyclic [set: {unit 'F_p}]) by rewrite prime.pdiv_id.
-    exact: field_unit_group_cyclic.
-  Qed.
-
-  Definition cgg_p : clutch_group_generator (vg:=vg_p).
-  Proof.
-    move /cyclicP : units_Zp_cyclic => /= h.
+    move /cyclicP : (units_Zp_cyclic p_prime) => /= h.
     pose ((λ x, units_Zp p == cycle x) : pred {unit 'Z_p}) as P ; simpl in P.
     assert (zpgen : (∃ x, units_Zp p = cycle x) →
                     ∃ x, is_true (units_Zp p == cycle x)).
@@ -221,6 +213,11 @@ Section Zpx.
       apply prime.totient_prime => //.
     - rewrite /generator /=. unfold units_Zp in hg.
       apply Is_true_eq_left. by rewrite hg.
+  Defined.
+
+  Definition cgg_p : @clutch_group_generator vg_p cgs_p vgg_p.
+  Proof.
+    constructor. constructor.
   Defined.
 
 End Zpx.

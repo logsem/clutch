@@ -6,6 +6,8 @@ From iris.base_logic Require Import invariants.
 From iris.prelude Require Import options.
 From clutch.coneris Require Import coneris.
 
+(** Not described in the Coneris paper, but here we define an atomic wp *)
+
 (* This hard-codes the inner mask to be empty, because we have yet to find an
 example where we want it to be anything else.
 

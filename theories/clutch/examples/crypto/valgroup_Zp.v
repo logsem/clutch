@@ -120,7 +120,7 @@ Section Z_p.
         |}).
   Defined.
 
-  Definition cgg_p : clutch_group_generator (vg:=vg_p).
+  Definition vgg_p : val_group_generator (vg:=vg_p).
   Proof.
     unshelve econstructor.
     - exact (Zp1 : z_p).
@@ -128,6 +128,11 @@ Section Z_p.
     - by rewrite ?(order_Zp1 (S p'')).
     - rewrite /= /generator.
       rewrite Zp_cycle. apply Is_true_eq_left. apply eq_refl.
+  Defined.
+
+  Definition cgg_p : @clutch_group_generator vg_p cgs_p vgg_p.
+  Proof.
+    constructor. constructor.
   Defined.
 
 End Z_p.

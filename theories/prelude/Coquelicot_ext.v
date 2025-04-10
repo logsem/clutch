@@ -455,3 +455,18 @@ Proof.
   - by rewrite Rmult_0_r exp_0/=.
   - rewrite S_INR/=Rmult_plus_distr_l exp_plus IHn. rewrite Rmult_1_r. lra.
 Qed.
+
+Lemma Rbar_le_plus_epsilon:
+  ∀ r1 r2 : Rbar, (∀ eps : R, 0 < eps → Rbar_le r1 (Rbar_plus r2 eps)) → Rbar_le r1 r2.
+Proof.
+  intros r1 r2 Hr.
+  destruct r1 as [r1| |]; destruct r2 as [r2| |]; try done.
+  - simpl. apply Rle_plus_epsilon.
+    naive_solver.
+  - exfalso.
+    unshelve epose proof (Hr 1 _); [lra|done].
+  - exfalso.
+    unshelve epose proof (Hr 1 _); [lra|done].
+  - exfalso.
+    unshelve epose proof (Hr 1 _); [lra|done].
+Qed.
