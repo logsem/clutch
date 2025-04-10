@@ -1274,30 +1274,17 @@ Section giry_is_zero.
     by apply gZero_map.
   Qed.
 
-  (**  * IS THIS EVEN TRUE??? *)
   Lemma gMap'_is_zero (m : giryM T1) (f : T1 -> T2) (H : measurable_fun setT f) : is_zero (gMap' f m) -> is_zero m.
   Proof.
     intros Hzero s Hms. rewrite gZero_eval; last done.
     unshelve rewrite gMap'_gMap in Hzero; first done.
-    destruct (lt_ereal 0%E (m s)) eqn:Heqn.
-    - simpl in *.
-      case_match eqn:Heqn'.
-      { unfold_mathcomp. simpl in Heqn. destroy_mathcomp.
-        exfalso.
-        admit.
-      }
-      { unfold_mathcomp. admit. }
-      { done. }
-    - rewrite -ltEereal in Heqn.
-      assert (m s<=0)%E as H'.
-      { rewrite /Order.lt//= in Heqn.
-        case_match.
-        - admit.
-        - admit.
-        - done. }
-      rewrite measure_le0 in H'.
-      by rewrite -eq_opE.
-  Admitted.
+    assert (gMap H m setT = 0%E) as Hzero'.
+    { rewrite Hzero; last done.
+      by apply gZero_eval. }
+    assert (m setT =0%E) as Hzero2 by done.
+    eapply subset_measure0; last done; try naive_solver.
+    apply subsetT.
+  Qed.
 
 End giry_is_zero.
 
