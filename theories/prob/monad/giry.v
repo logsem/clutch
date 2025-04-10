@@ -1308,7 +1308,7 @@ Section giry_is_prob.
     apply probability_setT.
   Qed.
 
-  Lemma is_prob_gMap {d} {T1 T2 : measurableType d} (a:T1) (μ : giryM T1) (f : T1 -> T2) (H : measurable_fun setT f):
+  Lemma is_prob_gMap {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (a:T1) (μ : giryM T1) (f : T1 -> T2) (H : measurable_fun setT f):
     is_prob μ <-> is_prob (gMap H μ).
   Proof. done. Qed.
     
@@ -1401,7 +1401,7 @@ Section giry_is_det.
 End giry_is_det.
 
 Section is_det_lemmas.
-  Context {d} {T1 T2 : measurableType d}.
+  Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
   
   Lemma is_det_gMap (a:T1) (μ : giryM T1) (f : T1 -> T2) (H : measurable_fun setT f):
     is_det a μ -> is_det (f a) (gMap' f μ).
