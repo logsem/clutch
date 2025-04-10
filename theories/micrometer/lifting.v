@@ -8,16 +8,15 @@ From clutch.bi Require Import weakestpre.
 From clutch.micrometer Require Import app_weakestpre.
 From mathcomp Require Import classical_sets.
 
-(*
 Section lifting.
 Local Open Scope classical_set_scope.
 
 Context `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
-Implicit Types v : Measurable.sort (val Λ).
-Implicit Types e : Measurable.sort (expr Λ).
-Implicit Types σ : Measurable.sort (state Λ).
+Implicit Types v : valT Λ.
+Implicit Types e : exprT Λ.
+Implicit Types σ : stateT Λ.
 Implicit Types P Q : iProp Σ.
-Implicit Types Φ : (Measurable.sort (val Λ)) → iProp Σ.
+Implicit Types Φ : (valT Λ) → iProp Σ.
 
 #[local] Open Scope R.
 
@@ -81,7 +80,7 @@ Qed.
 Lemma wp_lift_step_later E Φ e1 s :
   to_val e1 = None ->
   (∀ σ1, state_interp σ1 ={E,∅}=∗
-      ⌜reducible (e1, σ1) ⌝ ∗
+      ⌜reducible (toPacked e1, toPacked σ1) ⌝ ∗
       EXSM
         (fun ρ => True ={∅}=∗ ▷ |={∅,E}=> state_interp ρ.2 ∗ WP ρ.1  @ s; E {{ Φ }})
         (prim_step (e1, σ1)))
@@ -106,7 +105,7 @@ Qed.
 Lemma wp_lift_step E Φ e1 s :
   to_val e1 = None →
   (∀ σ1, state_interp σ1 ={E,∅}=∗
-    ⌜reducible (e1, σ1)⌝ ∗
+    ⌜reducible (toPacked e1, toPacked σ1)⌝ ∗
     EXSM (λ ρ, ▷ |={∅,E}=> state_interp ρ.2 ∗ WP ρ.1 @ s; E {{ Φ }}) (prim_step (e1, σ1)))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
@@ -123,7 +122,7 @@ Qed.
 Lemma wp_lift_atomic_step_fupd {E1 E2 Φ} e1 s :
   to_val e1 = None →
   (∀ σ1, state_interp σ1 ={E1}=∗
-    ⌜reducible (e1, σ1)⌝ ∗
+    ⌜reducible (toPacked e1, toPacked σ1)⌝ ∗
     EXSM
       (fun ρ => True ={E1}[E2]▷=∗  state_interp ρ.2 ∗ from_option Φ False (to_val ρ.1))
       (prim_step (e1, σ1)))
@@ -152,7 +151,7 @@ Qed.
 Lemma wp_lift_atomic_step {E Φ} e1 s :
   to_val e1 = None →
   (∀ σ1, state_interp σ1 ={E}=∗
-    ⌜reducible (e1, σ1)⌝ ∗
+    ⌜reducible (toPacked e1, toPacked σ1)⌝ ∗
     EXSM (fun ρ => ▷ (True ={E}=∗ state_interp ρ.2 ∗ from_option Φ False (to_val ρ.1))) (prim_step (e1, σ1)))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
@@ -169,14 +168,14 @@ Proof.
 Qed.
 
 Lemma wp_lift_pure_det_step `{!Inhabited (state Λ)} {E E' Φ} e1 e2 s :
-  (∀ σ1, reducible (e1, σ1)) →
-  (∀ σ, is_det (e2, σ) (prim_step (e1, σ))) ->
+  (∀ σ1, reducible (toPacked e1, toPacked σ1)) →
+  (∀ σ, is_det (toPacked e2, toPacked σ) (prim_step (e1, σ))) ->
   (* (∀ σ1 e2' σ2, prim_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2) → *)
   (|={E}[E']▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (? Hpuredet) "H".
   iApply wp_lift_step.
-  { specialize (H inhabitant). by eapply (to_final_None_1 (e1, _)), reducible_not_final. }
+  { specialize (H inhabitant). by eapply (to_final_None_1 (toPacked e1, toPacked _)), reducible_not_final. }
   iIntros (σ) "Hσ".
   iMod "H".
   iApply fupd_mask_intro; first set_solver. iIntros "Hclose".
@@ -227,4 +226,3 @@ Proof.
 Qed.
 
 End lifting.
-*)

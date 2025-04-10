@@ -41,7 +41,6 @@ Canonical Structure NNRO := leibnizO nonnegreal.
 
 Definition coe_nonnegreal_bar_R : nonnegreal -> \bar R := EFin \o nonneg.
 
-(*
 (** * Coupling modalities  *)
 Section coupl_modalities.
   Context `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
@@ -83,18 +82,18 @@ Section coupl_modalities.
   (** The [meas_spec_coupl] modality allows us to (optionally) prepend spec execution steps and erasable
       distributions, e.g. [state_step]s on both sides. *)
 
-  Program Definition meas_spec_coupl_pre (E : coPset)
+  Definition meas_spec_coupl_pre (E : coPset)
       (Z : stateO Λ -> exprO Λ -> stateO Λ -> NNRO -> iProp Σ) (Φ : stateO Λ * (exprO Λ * stateO Λ) * NNRO → iProp Σ) :
       (stateO Λ) * (exprO Λ * stateO Λ) * NNRO → iProp Σ :=
-    (λ (x : state Λ * (expr Λ * state Λ) * NNRO),
+    (λ (x : stateO Λ * (exprO Λ * stateO Λ) * NNRO),
        let '(σ1, (e1', σ1'), ε) := x in
        ⌜1 <= ε⌝ ∨
        (Z σ1 e1' σ1' ε) ∨
        (∃ (S : state Λ → (expr Λ * state Λ)%type → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
           (ε1 : nonnegreal) (X2 : (expr Λ * state Λ)%type → nonnegreal) (r : R),
-            ⌜ ARcoupl_meas μ1 (gBind' (pexec n \o pair e1') μ1') S (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
+            ⌜ ARcoupl_meas μ1 (gBind' (pexec n \o pair (toPacked e1')) μ1') S (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
             ⌜∀ ρ, X2 ρ <= r⌝ ∗
-            ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
+            ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1')) μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
             ⌜erasable μ1 σ1⌝ ∗
             ⌜erasable μ1' σ1'⌝ ∗
             ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ Φ (σ2, (e2', σ2'), X2 (e2', σ2'))))%I.
@@ -129,27 +128,26 @@ Section coupl_modalities.
 
   Definition meas_spec_coupl E σ e' σ' ε Z := meas_spec_coupl' E Z (σ, (e', σ'), ε).
 
-  (*
   Lemma meas_spec_coupl_unfold E σ1 e1' σ1' ε Z :
     meas_spec_coupl E σ1 e1' σ1' ε Z ≡
       (⌜1 <= ε⌝ ∨
       (Z σ1 e1' σ1' ε) ∨
       (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM  (state Λ))
          (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
-         ⌜ARcoupl_meas μ1 (gBind' (pexec n \o pair e1') μ1') S (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
+         ⌜ARcoupl_meas μ1 (gBind' (pexec n \o pair (toPacked e1')) μ1') S (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
          ⌜∀ ρ, X2 ρ <= r⌝ ∗
-          ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
+          ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1')) μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
          ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
          ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ meas_spec_coupl E σ2 e2' σ2' (X2 (e2', σ2')) Z))%I.
-  Proof. rewrite /meas_spec_coupl /meas_spec_coupl' least_fixpoint_unfold //. Qed. *)
+  Proof. rewrite /meas_spec_coupl /meas_spec_coupl' least_fixpoint_unfold //. Qed.
 
   Lemma meas_spec_coupl_ret_err_ge_1 E σ1 e1' σ1' Z (ε : nonnegreal) :
     1 <= ε → ⊢ meas_spec_coupl E σ1 e1' σ1' ε Z.
-  Proof. iIntros. Admitted. (* rewrite meas_spec_coupl_unfold. by iLeft. Qed. *)
+  Proof. iIntros. rewrite meas_spec_coupl_unfold. by iLeft. Qed.
 
   Lemma meas_spec_coupl_ret E σ1 e1' σ1' Z ε :
     Z σ1 e1' σ1' ε -∗ meas_spec_coupl E σ1 e1' σ1' ε Z.
-  Proof. iIntros. Admitted. (* rewrite meas_spec_coupl_unfold. by iRight; iLeft. Qed. *)
+  Proof. iIntros. rewrite meas_spec_coupl_unfold. by iRight; iLeft. Qed.
 
   Lemma meas_spec_coupl_rec σ1 e1' σ1' E (ε : nonnegreal) Z :
     (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
@@ -160,7 +158,7 @@ Section coupl_modalities.
        ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
        ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ meas_spec_coupl E σ2 e2' σ2' (X2 (e2', σ2')) Z)%I
     ⊢ meas_spec_coupl E σ1 e1' σ1' ε Z.
-  Proof. iIntros "H". Admitted. (* rewrite meas_spec_coupl_unfold. iRight; iRight. done. Qed. *)
+  Proof. iIntros "H". rewrite meas_spec_coupl_unfold. iRight; iRight. done. Qed.
 
   Lemma meas_spec_coupl_ind E (Ψ Z : state Λ → expr Λ → state Λ → nonnegreal → iProp Σ) :
     ⊢ (□ (∀ σ e' σ' ε,
@@ -210,9 +208,7 @@ Section coupl_modalities.
   Proof.
     iIntros "H".
     iApply meas_spec_coupl_rec.
-  Admitted.
-  (*
-    iExists _, 0%nat, (gRet σ1), (gRet σ1'), 0%NNR, (λ _, ε), ε.
+    iExists _, 0%nat, (gRet (toPacked σ1)), (gRet (toPacked σ1')), 0%NNR, (λ _, ε), ε.
     setoid_rewrite gBind_id_left; first last.
     { apply @measurable_compT.
       { done. }
@@ -226,7 +222,7 @@ Section coupl_modalities.
     }
     rewrite pexec_0'.
     iSplit; [iPureIntro|].
-    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set σ1] ([set e1'] `*` [set σ1'])).
+    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set (toPacked σ1)] ([set (toPacked e1')] `*` [set (toPacked σ1')])).
       { by apply state_meas_points. }
       { by apply measurableX; [apply expr_meas_points | apply state_meas_points]. }
       { apply gRetMass1Inv; [|done]. by apply state_meas_points. }
@@ -250,7 +246,7 @@ Section coupl_modalities.
     iSplit. { iPureIntro. by apply erasable_gRet. }
     iIntros (??? (_ & S1 & S2)); simpl. simpl in S1, S2; inversion S2; subst.
     by iApply "H".
-  Qed. *)
+  Qed.
 
   Lemma meas_spec_coupl_mono E1 E2 σ1 e1' σ1' Z1 Z2 ε :
     E1 ⊆ E2 →
@@ -282,9 +278,7 @@ Section coupl_modalities.
     iIntros (Heps) "Hs".
     iApply meas_spec_coupl_rec.
     set (ε' := nnreal_minus ε2 ε1 Heps).
-  Admitted.
-  (*
-    iExists (fun A B => A = σ1 ∧ B.1 = e1' ∧ B.2 = σ1'), 0%nat, (gRet σ1), (gRet σ1'), ε', (fun _ => ε1), ε1.
+    iExists (fun A B => A = σ1 ∧ B.1 = e1' ∧ B.2 = σ1'), 0%nat, (gRet (toPacked σ1)), (gRet (toPacked σ1')), ε', (fun _ => ε1), ε1.
     setoid_rewrite gBind_id_left.
     2: { admit. (* prove gBind_id_left to see if necessary *) }
     2: { admit. (* prove gBind_id_left to see if necessary *) }
@@ -302,7 +296,7 @@ Section coupl_modalities.
     iSplit. { iPureIntro. by apply erasable_gRet. }
     iSplit. { iPureIntro. by apply erasable_gRet. }
     iIntros (???); simpl; iIntros ([-> [-> ->]]). by iFrame.
-  Admitted. (** OK *) *)
+  Admitted. (** OK *)
 
   Lemma meas_spec_coupl_bind E1 E2 σ1 e1' σ1' Z1 Z2 ε :
     E1 ⊆ E2 →
@@ -347,10 +341,8 @@ Section coupl_modalities.
     iSplit; [iPureIntro|].
     { rewrite -(gRet_id_right μ1).
       have -> : (gBind' gRet μ1) = gBind gRet_meas_fun μ1 by admit.
-  Admitted.
-  (*
-      have XM : measurable_fun setT (pexec 0 \o pair e1') by admit.
-      have -> : (gBind' (pexec 0 \o pair e1') μ1') = (gBind XM μ1') by admit.
+      have XM : measurable_fun setT (pexec 0 \o pair (toPacked e1')) by admit.
+      have -> : (gBind' (pexec 0 \o pair (toPacked e1')) μ1') = (gBind XM μ1') by admit.
       simpl.
       have -> : (0 = 0 + 0)%R by admit.
       have -> : (coe_nonnegreal_bar_R ε1) = (adde (coe_nonnegreal_bar_R ε1) (EFin 0)) by admit.
@@ -376,7 +368,7 @@ Section coupl_modalities.
     do 2 (iSplit; [done|]).
     iIntros (??? [? ->]). rewrite /X2' /=.
     by iApply "H".
-  Admitted. (** UNSURE *) *)
+  Admitted. (** UNSURE *)
 
   Lemma meas_spec_coupl_erasables R μ1 μ1' ε1 ε2 ε E σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
@@ -427,18 +419,17 @@ Section coupl_modalities.
     done.
   Admitted. (** UNSURE *)
 
-  (*
   Lemma meas_spec_coupl_steps n ε2 ε1 ε R E σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
     ARcoupl_meas (gRet σ1) (pexec n (e1', σ1')) R (0)%R (EFin (nonneg ε1)) →
-    (∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={E}=∗ meas_spec_coupl E σ2 e2' σ2' ε2 Z)
+    (∀ (σ2 : stateO Λ) (e2' : exprO Λ) (σ2' : stateO Λ), ⌜R (toPacked σ2) (e2', σ2')⌝ ={E}=∗ meas_spec_coupl E σ2 e2' σ2' ε2 Z)
     ⊢ meas_spec_coupl E σ1 e1' σ1' ε Z.
   Proof.
     iIntros (-> ?) "H".
     iApply (meas_spec_coupl_erasable_steps n R (gRet σ1) ε1 ε2); [done | done | |].
     { by apply erasable_gRet. }
     iFrame.
-  Qed. *)
+  Qed.
 
   Lemma meas_spec_coupl_steps_det n ε σ1 e1' σ1' e2' σ2' Z E :
     is_det (e2', σ2') (pexec n (e1', σ1')) →
@@ -446,11 +437,9 @@ Section coupl_modalities.
     meas_spec_coupl E σ1 e1' σ1' ε Z.
   Proof.
     iIntros (Hexec%is_det_dret) "H".
-  Admitted.
-  (*
     iApply (meas_spec_coupl_steps n ε 0%NNR).
     { apply nnreal_ext => /=. lra. }
-    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set σ1] ([set e2'] `*` [set σ2'])), ARcoupl_meas_trivial.
+    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set (toPacked σ1)] ([set e2'] `*` [set σ2'])), ARcoupl_meas_trivial.
       { by apply state_meas_points. }
       { by apply measurableX; [apply expr_meas_points | apply state_meas_points ]. }
       { apply gRetMass1Inv; [by apply state_meas_points|done]. }
@@ -461,9 +450,10 @@ Section coupl_modalities.
     }
     iIntros (??? (_ & H1 & H2)).
     simpl in H1, H2.
-    inversion H2; subst.
+    destruct H2 as [->->].
+    rewrite /toPacked in H1; subst.
     done.
-  Qed. *)
+  Qed.
 
   Lemma meas_spec_coupl_step ε E σ1 e1' σ1' Z :
     reducible (e1', σ1') ->
@@ -472,8 +462,6 @@ Section coupl_modalities.
   Proof.
     iIntros (?) "[%S [%H1 [%H2 H3]]]".
     iStartProof.
-  Admitted.
-  (*
     iApply (meas_spec_coupl_steps 1 ε 0%NNR).
     { apply nnreal_ext => /=. lra. }
     (*
@@ -494,7 +482,7 @@ Section coupl_modalities.
     rewrite //= in H4; subst.
     iSpecialize ("H3" $! (e2', σ2')); simpl.
     by iApply "H3". *)
-  Admitted. (** UNSURE *) *)
+  Admitted. (** UNSURE *)
 
 
   (** * [meas_prog_coupl] *)
@@ -504,10 +492,10 @@ Section coupl_modalities.
   Definition meas_prog_coupl (e1 : exprO Λ) (σ1 : stateO Λ) (e1' : exprO Λ) σ1' (ε : NNRO) Z : iProp Σ :=
     ∃ (R : cfg Λ → cfg Λ → Prop) (n : nat) (μ1' : giryM (state Λ))
       (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : nonnegreal),
-      ⌜reducible (e1, σ1)⌝ ∗
-      ⌜ARcoupl_meas (prim_step (e1, σ1)) (gBind' (pexec n \o pair e1') μ1') R (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
+      ⌜reducible (toPacked e1, toPacked σ1)⌝ ∗
+      ⌜ARcoupl_meas (prim_step (e1, σ1)) (gBind' (pexec n \o pair (toPacked e1')) μ1') R (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
       ⌜∀ ρ, X2 ρ <= r⌝ ∗
-      ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε))⌝ ∗
+      ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1')) μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε))⌝ ∗
       ⌜erasable μ1' σ1'⌝ ∗
       ∀ e2 σ2 e2' σ2', ⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' (X2 (e2, σ2)).
 
@@ -633,7 +621,6 @@ Section coupl_modalities.
     iIntros (-> Hred Hred' Hcpl) "Hcnt".
     iExists _, 1%nat, (gRet σ1'), ε1, (λ _, ε2), ε2.
     iSplit; [done|].
-  Admitted.
   (*
     rewrite dret_id_left pexec_1.
     rewrite step_or_final_no_final; [|by apply reducible_not_final].
@@ -643,6 +630,7 @@ Section coupl_modalities.
     iSplit; [iPureIntro; apply dret_erasable|].
     done.
   Qed. *)
+  Admitted.
 
   Lemma meas_prog_coupl_step_l_erasable ε2 ε1 μ1' ε R e1 σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
@@ -716,7 +704,7 @@ Section coupl_modalities.
   Admitted. (** OK *)
 
   Lemma meas_prog_coupl_reducible e e' σ σ' Z ε :
-    meas_prog_coupl e σ e' σ' ε Z -∗ ⌜reducible (e, σ)⌝.
+    meas_prog_coupl e σ e' σ' ε Z -∗ ⌜reducible (toPacked e, toPacked σ)⌝.
   Proof. by iIntros "(%&%&%&%&%&%&%&%& _)". Qed.
 
 End coupl_modalities.
@@ -1235,4 +1223,3 @@ Section proofmode_classes.
     by iApply "Hcnt".
   Qed.
 End proofmode_classes.
-*)

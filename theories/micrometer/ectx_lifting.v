@@ -7,16 +7,15 @@ From mathcomp.analysis Require Import measure.
 
 Local Open Scope R.
 
-(*
 Section ectx_lifting.
 Context
   {Λ : meas_ectxLanguage} {Hinh : Inhabited (state Λ)}
  `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
 
 Implicit Types P : iProp Σ.
-Implicit Types Φ : Measurable.sort (val Λ) → iProp Σ.
-Implicit Types v : Measurable.sort (val Λ).
-Implicit Types e : Measurable.sort (expr Λ).
+Implicit Types Φ : (valT Λ) → iProp Σ.
+Implicit Types v : (valT Λ).
+Implicit Types e : (exprT Λ).
 (*
 Local Hint Resolve head_prim_reducible head_reducible_prim_step : core.
 Local Hint Resolve head_stuck_stuck : core.
@@ -100,7 +99,7 @@ Admitted.
 Lemma wp_lift_pure_det_head_step {E E' Φ} e1 e2 s :
   to_val e1 = None →
   (∀ σ1, head_reducible e1 σ1) →
-  (∀ σ : state Λ, is_det (e2, σ) (head_step (e1, σ))) ->
+  (∀ σ : state Λ, is_det (toPacked e2, toPacked σ) (head_step (e1, σ))) ->
   (|={E}[E']▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
 Proof using Hinh.
   intros. erewrite !(wp_lift_pure_det_step e1 e2); first done.
@@ -111,7 +110,7 @@ Admitted.
 Lemma wp_lift_pure_det_head_step' {E Φ} e1 e2 s :
   to_val e1 = None →
   (∀ σ1, head_reducible e1 σ1) →
-  (∀ σ : state Λ, is_det (e2, σ) (head_step (e1, σ))) ->
+  (∀ σ : state Λ, is_det (toPacked e2, toPacked σ) (head_step (e1, σ))) ->
   ▷ WP e2 @ s; E {{ Φ }} ⊢ WP e1 @ s; E {{ Φ }}.
 Proof using Hinh.
   intros. rewrite -[(WP e1 @ _ ; _ {{ _ }})%I]wp_lift_pure_det_head_step //.
@@ -119,4 +118,3 @@ Proof using Hinh.
 Qed.
 
 End ectx_lifting.
-*)

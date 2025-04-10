@@ -54,7 +54,7 @@ Section resources.
   Definition spec_utapes_auth `{specG_meas_lang Σ} :=
     @ghost_map_auth _ _ _ _ _ specG_meas_lang_utapes specG_meas_lang_utapes_name 1.
 
-  Definition spec_auth (ρ : cfg) : iProp Σ :=
+  Definition spec_auth (ρ : mstate (meas_lang_markov meas_lang)) : iProp Σ :=
     spec_prog_auth (ρ.1) ∗
     spec_heap_auth (heap ρ.2) ∗
     spec_tapes_auth (tapes ρ.2) ∗
@@ -342,12 +342,8 @@ End spec_tape_interface.
 *)
 
 
-(*
-(* FIXME: I feel like this is wrong... *)
 #[global] Instance spec_rules_spec_updateGS `{!specG_meas_lang Σ} :
   meas_spec_updateGS (meas_lang_markov meas_lang) Σ := MeasSpec_updateGS spec_auth.
-*)
-
 
 (*
 #[global] Instance spec_rules_spec_updateGS `{!specG_prob_lang Σ} :

@@ -14,7 +14,6 @@ From mathcomp.analysis Require Import ereal.
 (*  From clutch.prob Require Import distribution couplings_app. *)
 Import uPred.
 
-(*
 Section adequacy.
   Context `{!micrometerGS Σ}.
   Local Open Scope classical_set_scope.
@@ -198,5 +197,4 @@ Admitted.
   eapply ARcoupl_mass_leq.
   by eapply wp_adequacy.
 Qed.
-*)
 *)

@@ -56,7 +56,10 @@ Definition btapes_auth `{micrometerGS Σ} :=
 Definition utapes_auth `{micrometerGS Σ} :=
   @ghost_map_auth _ _ _ _ _ micrometerGS_utapes micrometerGS_utapes_name.
 
-(*
+(* meas_spec_updateGS (meas_lang_markov meas_lang) Σ *)
+
+
+
 Global Instance micrometerGS_irisGS `{!micrometerGS Σ} : micrometerWpGS meas_lang Σ := {
   micrometerWpGS_invGS := micrometerGS_invG;
   state_interp σ :=
@@ -221,8 +224,10 @@ Lemma wp_alloc E v s :
   {{{ l, RET (LitVC (LitLocC l) : meas_lang.language.val meas_lang); l ↦ v }}}.
 Proof.
   iIntros (Φ) "_ HΦ".
-  Check (ectxi_language.MeasEctxLanguageOfEctxi meas_ectxi_lang).
-  Search ectx_language.meas_ectxLanguage.
+  iApply wp_lift_atomic_head_step.
+
+
+  (*
   have X :=
     @wp_lift_atomic_head_step
       (meas_ectx_lang)
@@ -237,7 +242,8 @@ Proof.
     (* wp_lift_atomic_head_step (E:=E) (Φ:=Φ) (Λ:=(ectxi_language.MeasEctxLanguageOfEctxi meas_ectxi_lang))
       (AllocU (ValU v) )
       s. **)
-  simpl in X.
+  simpl in X.*)
+
 
 
   (*
@@ -590,4 +596,3 @@ Qed.
 End lifting.
 
 Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.
-*)
