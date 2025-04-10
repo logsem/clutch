@@ -352,15 +352,12 @@ Section language.
       by apply Hred. }
     { intros σ.
       rewrite fill_dmap; last by eapply (val_stuck _ σ).
-      (* lemmas about gMap being determinant missing *)
-      admit.
-      (*
-      rewrite -fill_step_prob //.
-      eapply (to_final_None_1 (_, σ)).
-      by eapply reducible_not_final.
-       *)
+      pose proof Hstep σ as Hdet.
+      eapply (is_det_gMap (f:=fill_lift K)) in Hdet.
+      - by rewrite gMap'_gMap{1}/fill_lift/= in Hdet.
+      - apply fill_lift_measurable. apply K_measurable.
     }
-  Admitted.
+  Qed.
 
   Lemma pure_step_nsteps_ctx K `{!@MeasLanguageCtx Λ K} n e1 e2 :
     relations.nsteps pure_step n e1 e2 →

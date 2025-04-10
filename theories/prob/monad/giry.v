@@ -1384,3 +1384,16 @@ Section giry_is_det.
   Qed.
 
 End giry_is_det.
+
+Section is_det_lemmas.
+  Context {d} {T1 T2 : measurableType d}.
+  
+  Lemma is_det_gMap (a:T1) (μ : giryM T1) (f : T1 -> T2) (H : measurable_fun setT f):
+    is_det a μ -> is_det (f a) (gMap' f μ).
+  Proof.
+    unshelve rewrite gMap'_gMap; first done.
+    rewrite /is_det. intros ->.
+    done.
+  Qed.
+
+End is_det_lemmas.
