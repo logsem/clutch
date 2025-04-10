@@ -21,8 +21,6 @@ Section Tape.
     | _ => []
     end.
 
-  
-    
   Definition bernoulli_to_geometric v := bernoulli_to_geometric_aux v 0.
 
   Definition geometric_to_bernoulli : list nat -> list (fin 2) :=

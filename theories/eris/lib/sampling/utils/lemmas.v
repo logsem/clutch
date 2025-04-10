@@ -49,10 +49,3 @@ Lemma Rpow_le_1 (r : R) (k : nat) :
 Proof.
   elim: k => [|n IH] /=; real_solver.
 Qed.
-
-Lemma Rinv_0_le_compat (r : R) : 0 <= r → 0 <= / r.
-Proof.
-  move=>[H_r_gt_0 | <-]. 
-  - real_solver.
-  - rewrite Rinv_0 //.
-Qed.

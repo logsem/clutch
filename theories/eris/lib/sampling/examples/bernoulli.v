@@ -58,14 +58,13 @@ Section Examples.
       by iApply "HΦ".
   Qed. 
 
-
   Example bernoulli_same (N M : nat) (p := N / S M) :
     (0 < N < S M)%nat →
     [[{ ↯ (2 * p * (1 - p)) }]]
       let v1 := bernoulli #N #M in 
       let v2 := bernoulli #N #M in 
-      v1 ≠ v2
-    [[{ RET #false; True }]].
+      v1 = v2
+    [[{ RET #true; True }]].
   Proof.
     iIntros "%Hlt %Φ Herr HΦ".
     assert (0 < p < 1) as Hp. {
@@ -73,6 +72,7 @@ Section Examples.
     }
     (* Not required but good to note that the error credit assumption is not inconsistent *)
     assert (0 <= 2 * p * (1 - p) < 1) by nra.
+
     wp_apply (twp_bernoulli_scale _ _ _ p (1 - p) with "Herr") 
       as "%k [[-> Herr]|[-> Herr]]"; fold p =>//.
     - wp_apply (bernoulli_failure_spec_simple with "Herr") 
@@ -127,19 +127,16 @@ Section Roulette.
     - iIntros "%c %g %Hpos %Hlt %Φ Herr HΦ".
       rewrite /roulette_martingale /roulette_martingale_aux.
       wp_pures.
-      set A := (S M - N)%nat.
-      set B := (S M + k)%nat.
       set p := (N / S M).
       assert (0 < p < 1).
       { subst p. split; first apply Rmult_lt_0_compat; simpl_expr. }
-      set ε1 := A / B.
+      set ε1 := (S M - N)%nat / (S M + k)%nat.
       iAssert (↯ (ε1 * (1 - p))) with "[Herr]" as "Herr".
-      {
-        assert (S M + k > 0) by rewrite -plus_INR //.
+      { assert (S M + k > 0) by rewrite -plus_INR //.
         iApply (ec_weaken with "Herr").
         split.
-        - subst ε1 A B p. apply Rmult_le_pos; simpl_expr.
-        - subst ε1 A B. rewrite -minus_INR // -plus_INR. simpl_expr.
+        - subst ε1. apply Rmult_le_pos; simpl_expr.
+        - subst ε1. rewrite -minus_INR // -plus_INR. simpl_expr.
           rewrite -!Rmult_assoc (Rmult_comm (S M + S k)%nat) !Rmult_assoc. 
           rewrite -{2}(Rmult_1_r (S M - N)%nat).
           simpl_expr.
@@ -156,9 +153,8 @@ Section Roulette.
           apply Rle_minus.
           simpl_expr.
           rewrite -plus_INR -mult_INR.
-          destruct N; simpl_expr.
-      }
-      wp_apply (twp_bernoulli_scale _ _ _ ε1 0 with "Herr") as "% [[-> Herr]|[-> Herr]]";  subst ε1 A B p; simpl_expr.
+          destruct N; simpl_expr. }
+      wp_apply (twp_bernoulli_scale _ _ _ ε1 0 with "Herr") as "% [[-> Herr]|[-> Herr]]";  subst ε1 p; simpl_expr.
       + fold roulette_martingale_aux.
         wp_pures.
         wp_apply (IHk with "[Herr]"); try done.

@@ -140,7 +140,6 @@ Section NegativeBinomial.
     (* True on paper proof, modulo convergence conditions, enough for now *)
   Admitted.
 
-  
   Lemma twp_negative_binomial_split :
     ∀ (p q : nat),
     0 < p →
@@ -839,7 +838,7 @@ Section NegativeBinomial.
         iPureIntro.
         lia.
   Qed.
-      
+
   Lemma twp_negative_presample :
     ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
       (p q r : nat) (ns : list nat) (ε : R),
