@@ -194,7 +194,6 @@ Module Roulette (T : BernoulliTapeSpec) (B : BernoulliSpec(T)).
     iApply (ec_weaken with "Herr").
     split; last done.
     rewrite -!plus_INR -!minus_INR //.
-    simpl_expr.
   Qed.
 
   Example roulette_martingale_spec (ε : R) :
