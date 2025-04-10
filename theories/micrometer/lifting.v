@@ -8,6 +8,7 @@ From clutch.bi Require Import weakestpre.
 From clutch.micrometer Require Import app_weakestpre.
 From mathcomp Require Import classical_sets.
 
+(*
 Section lifting.
 Local Open Scope classical_set_scope.
 
@@ -226,3 +227,4 @@ Proof.
 Qed.
 
 End lifting.
+*)

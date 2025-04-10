@@ -7,6 +7,7 @@ From mathcomp.analysis Require Import measure.
 
 Local Open Scope R.
 
+(*
 Section ectx_lifting.
 Context
   {Λ : meas_ectxLanguage} {Hinh : Inhabited (state Λ)}
@@ -118,3 +119,4 @@ Proof using Hinh.
 Qed.
 
 End ectx_lifting.
+*)

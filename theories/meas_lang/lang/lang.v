@@ -46,6 +46,7 @@ intros a b c.
 apply (hp_evalC ).
   *)
 
+Notation cfg := (toPackedType expr_cyl.-sigma expr * toPackedType state_display state)%type.
 
 (* TODO: Make this as close to the old definition in Clutch as possible.
     - What stdpp isntances do we need for the new tapes?*)
@@ -489,15 +490,14 @@ Local Lemma set_prod_rewrite {A B} S:
 Proof.
   rewrite eqEsubset; split; subset_solver.
 Qed.
-
+(*
 Lemma head_stepM_rec_meas_fun : measurable_fun cover_rec head_stepM_rec.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
   mf_prod.
   { mf_cmp_tree.
-    { subset_solver. 
-    }
+    { subset_solver.  }
     mf_cmp_tree.
     mf_cmp_tree.
     { by apply ValU_meas_fun. }
@@ -1115,6 +1115,7 @@ Hint Resolve head_stepM_urand_meas_fun      : mf_fun.
 Hint Resolve head_stepM_randT_meas_fun      : mf_fun.
 Hint Resolve head_stepM_urandT_meas_fun     : mf_fun.
 Hint Resolve head_stepM_tick_meas_fun       : mf_fun.
+*)
 
 Definition head_stepM' : cfg -> giryM cfg :=
   if_in cover_rec        head_stepM_rec        $
@@ -1142,6 +1143,7 @@ Definition head_stepM' : cfg -> giryM cfg :=
   if_in cover_tick       head_stepM_tick       $
   cst gZero.
 
+(*
 Lemma head_stepM'_meas_fun : measurable_fun setT head_stepM'.
   rewrite /head_stepM'.
   (eapply @if_in_meas_fun; [ms_done|ms_solve|rewrite setIidl; [eauto with mf_fun|subset_solver]|
@@ -1218,13 +1220,13 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
   repeat case_match; try done.
   all: admit.
 Admitted.
-
+*)
 Lemma head_stepM_meas_fun : measurable_fun setT head_stepM.
+Admitted.
+(*
   rewrite head_stepM_head_stepM'_eq.
   apply head_stepM'_meas_fun.
-Qed.
-
-
+Qed. *)
 
 
 (** Basic properties about the language *)
@@ -1473,9 +1475,8 @@ Qed.
 *)
 
 
-
 Definition meas_lang_mixin :
-  @MeasEctxiLanguageMixin _ _ _ _ expr val state ectx_item
+  @MeasEctxiLanguageMixin _ _ _ _ expr val state ectx_item _ _ _ _
     of_val to_val fill_item decomp_item expr_ord head_stepM.
 Proof.
   split.
@@ -1505,7 +1506,7 @@ End meas_lang.
 
 (** Language *)
 
-Canonical Structure meas_ectxi_lang := MeasEctxiLanguage meas_lang.head_stepM meas_lang.meas_lang_mixin.
+Canonical Structure meas_ectxi_lang := MeasEctxiLanguage _ _ _ _ meas_lang.head_stepM meas_lang.meas_lang_mixin.
 Canonical Structure meas_ectx_lang := MeasEctxLanguageOfEctxi meas_ectxi_lang.
 Canonical Structure meas_lang := MeasLanguageOfEctx meas_ectx_lang.
 

@@ -388,10 +388,19 @@ Section expr_algebra.
 End expr_algebra.
 
 
+Global Instance base_lit_sigma_algebra : SigmaAlgebra base_lit_cyl.-sigma base_lit_T :=
+  {| axioms := @Measurable.class base_lit_cyl.-sigma base_lit_T |}.
+
+Global Instance val_sigma_algebra : SigmaAlgebra val_cyl.-sigma val_T :=
+  {| axioms := @Measurable.class val_cyl.-sigma val_T |}.
+
+Global Instance expr_sigma_algebra : SigmaAlgebra expr_cyl.-sigma expr_T :=
+  {| axioms := @Measurable.class expr_cyl.-sigma expr_T |}.
+
 (** User-facing measurableTypes for base_lit, expr, and val *)
-Definition base_lit : measurableType base_lit_cyl.-sigma := base_lit_T.
-Definition expr : measurableType expr_cyl.-sigma := expr_T.
-Definition val : measurableType val_cyl.-sigma := val_T.
+Definition base_lit : measurableType base_lit_cyl.-sigma := toPackedType base_lit_cyl.-sigma base_lit_T .
+Definition expr : measurableType expr_cyl.-sigma := toPackedType expr_cyl.-sigma expr_T .
+Definition val : measurableType val_cyl.-sigma := toPackedType val_cyl.-sigma val_T .
 
 Lemma base_lit_meas_singleton (b : base_lit) : measurable [set b]. Admitted.
 Lemma expr_meas_singleton (e : expr) : measurable [set e]. Admitted.

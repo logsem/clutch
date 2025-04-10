@@ -3,6 +3,7 @@ From mathcomp Require Import all_ssreflect classical_sets boolp functions.
 From clutch.prelude Require Import classical.
 From mathcomp.analysis Require Import reals ereal measure lebesgue_measure lebesgue_integral sequences function_spaces.
 From stdpp Require Import base decidable.
+From clutch.prob.monad Require Export preprelude.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -751,6 +752,12 @@ Section list_salgebra_instance.
     (@sigma_algebra0 _ setT list_cyl)
     list_meas_obligation
     (@sigma_algebra_bigcup _ setT list_cyl).
+
+  (* NOTE: This is probably bad because it chains typeclass instances through the canonical structures
+     rather than being a regular higher-order typeclass. Does it work through? The lifted types
+     _should_ be defeq to a measurableType right? *)
+  Global Instance list_sigma_algebra : SigmaAlgebra (sigma_display list_cyl) (list T1) :=
+    {| axioms := @Measurable.class (sigma_display list_cyl) (list T1) |}.
 
 End list_salgebra_instance.
 

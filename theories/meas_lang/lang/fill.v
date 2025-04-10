@@ -223,10 +223,11 @@ Section ectx_item_algebra.
 
 End ectx_item_algebra.
 
-
-
+Definition ectx_item_display : measure_display := (sigma_display ectx_item_cyl).
 Definition ectx_item : measurableType ectx_item_cyl.-sigma := ectx_item_T.
 
+Global Instance : SigmaAlgebra ectx_item_display ectx_item_T :=
+  {| axioms := @Measurable.class ectx_item_display ectx_item_T |}.
 
 (** Constructors into the measurableType, curried  *)
 Definition AppLCtxC v2      : ectx_item := AppLCtx v2.
