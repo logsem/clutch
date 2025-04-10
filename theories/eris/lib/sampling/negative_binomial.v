@@ -926,23 +926,6 @@ Section NegativeBinomial.
     lia.
   Qed.
 
-  (*
-  Lemma B_n_success_planner :
-    ∀ (p q n : nat) (α : loc) (e : expr) (ε : R)
-      (L : nat) (Φ : val → iProp Σ)
-      (prefix : list (fin 2)) (suffix : list (fin 2) → list (fin 2)),
-    0 < p < q + 1 →
-    (0 < ε)%R →
-    to_val e = None →
-    (∀ (junk : list (fin 2)),
-       0 < length (suffix (prefix ++ junk)) <= L) →
-    ↯ ε ∗
-    B_tape α p q prefix ∗
-    ((∃ (junk : list (fin 2)),
-         B_tape α p q (prefix ++ junk ++ suffix (prefix ++ junk)))
-     -∗ WP e [{ Φ }])
-    ⊢ WP e [{ Φ }].
-  *)
   Lemma twp_negative_planner :
     ∀ (p q r : nat) (α : loc) (e : expr) (ε : nonnegreal)
       (L_size L_sum : nat) (Φ : val → iProp Σ)
@@ -1093,6 +1076,226 @@ Section NegativeBinomial.
     fold sm k.
     rewrite -app_assoc l_eq (bernoulli_to_negative_expand_perm_n r n); try done.
     rewrite -l_eq -prefix_eq //.
+  Qed.
+
+  Lemma B_tape_presample_adv_comp_n_success :
+    ∀ (p q : nat) (α : loc) (l : list (fin 2)) (e : expr) (Φ : val → iProp Σ),
+    0 < p →
+    p < (q + 1) →
+    to_val e = None →
+    ∀ (r : nat) (D : nat → R) (ε : R) (ε_term : R),
+    (0 < ε_term)%R →
+    (∀ (n : nat), 0 <= D n)%R →
+    SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
+    ↯ ε_term ∗
+    ↯ ε ∗
+    B_tape α p q l ∗
+    (∀ (perm : list nat),
+       ⌜length perm = r⌝ -∗
+       ↯ (D (list_sum perm)%nat) -∗
+         B_tape α p q (l ++ expand_perm perm) -∗ WP e [{ Φ }]) ⊢
+    WP e [{ Φ }].
+  Proof.
+    iIntros (p q α l e Φ Hp Hpq e_not_val r D ε ε_term Hε_term HD HSum) "(Hterm & Herr & Hα & Hnext)".
+    iRevert (D ε ε_term Hε_term HD HSum l Φ) "Herr Hterm Hα Hnext".
+    iInduction (r) as [|r] "IHr".
+    - iIntros (D ε ε_term Hε_term HD HSum l Φ) "Herr Hterm Hα Hnext".
+      rewrite /negative_binom_prob /choose in HSum.
+      erewrite (SeriesC_ext _ (λ k, if bool_decide (k = 0) then D 0 else 0)) in HSum; last first.
+      { intros k.
+        do 2 case_bool_decide; try lia; subst; simpl; last lra.
+        rewrite Rcomplements.C_n_n.
+        lra.
+      }
+      rewrite SeriesC_singleton in HSum.
+      rewrite -HSum.
+      wp_apply ("Hnext" $! [] with "[] Herr"); first done.
+      rewrite app_nil_r //.
+    - iIntros (D ε ε_term Hε_term HD HSum l Φ) "Herr Hterm Hα Hnext".
+      iRevert (D ε HD HSum l) "Herr Hα Hnext".
+      set (s1 := (p / (q + 1))%R).
+      set (s0 := ((1 - s1)%R)).
+      set (sc0 := ((/ s0 + 1) / 2)%R).
+      set (sc1 := ((1 - sc0 * s0) / s1)%R).
+                                      
+      assert (0 < p)%R.
+      {
+        rewrite -INR_0.
+        by apply lt_INR.
+      }
+      assert (0 <= q)%R by apply pos_INR.
+      assert (1 <= q + 1)%R by lra.
+      assert (0 < q + 1)%R by lra.
+      assert (p < q + 1)%R.
+      { rewrite -INR_1 -plus_INR.
+        by apply lt_INR.
+      } 
+      assert (0 < s1 < 1)%R; first split.
+      { unfold s1.
+        by apply Rcomplements.Rdiv_lt_0_compat.
+      }
+      { unfold s1.
+        apply Rcomplements.Rlt_div_l; lra.
+      }
+      assert (0 < s0 < 1)%R by (unfold s0; lra).
+      
+      assert (0 < / s0)%R.
+      { apply Rinv_0_lt_compat. lra. }
+
+      assert (1 < / s0)%R.
+      {
+        apply Rcomplements.Rinv_lt_cancel; first done.
+        rewrite Rinv_inv Rinv_1.
+        lra.
+      }
+
+      assert (1 < sc0)%R by (unfold sc0; lra).
+      assert (sc0 * s0 = (1 + s0) / 2)%R as Hsc0s0.
+      {
+        unfold sc0.
+        rewrite -Rmult_div_swap Rmult_plus_distr_r Rmult_1_l Rinv_l; last lra.
+        reflexivity.
+      }
+
+      assert (0 < sc0 * s0 < 1)%R; first (rewrite Hsc0s0; lra).
+      
+      assert (0 < sc1)%R.
+      { unfold sc1.
+        apply Rcomplements.Rdiv_lt_0_compat; lra.
+      } 
+
+      assert (sc0 * s0 + sc1 * s1 = 1)%R.
+      {
+        unfold sc1.
+        rewrite -Rmult_div_swap Rmult_div_l; lra.
+      }
+      
+      iApply (ec_ind_amp _ sc0 with "[] Hterm"); try done.
+      iModIntro.
+      iIntros (ε' Hε') "IH Hterm".
+      iIntros (D ε HD HDε l) "Herr Hα Hnext".
+      erewrite SeriesC_ext in HDε; last first.
+      {
+        intros.
+        replace (S r) with (r + 1)%nat; first done.
+        lia.
+      }
+      rewrite ec_negative_binom_split in HDε.
+      fold s1 s0 in HDε.
+      match type of HDε with
+      | (s0 * ?A + s1 * ?B)%R = _ => set (ε0 := A);
+                                     set (ε1 := B)
+      end.
+      fold ε0 ε1 in HDε.
+      assert (0 <= ε0)%R.
+      { apply SeriesC_ge_0'.
+        intros n.
+        apply Rmult_le_pos; last done.
+        apply negative_binom_pos.
+        lia.
+      }
+      assert (0 <= ε1)%R.
+      { apply SeriesC_ge_0'.
+        intros n.
+        apply Rmult_le_pos; last done.
+        apply negative_binom_pos.
+        lia.
+      }
+                      
+      iPoseProof (ec_combine with "[Hterm Herr]") as "Hec"; first iFrame.
+      set (D' (k : fin 2) := match k with
+                             | 0%fin => (ε0 + ε' * sc0)%R
+                             | _ => (ε1 + ε' * sc1)%R
+                             end).
+      
+      wp_apply (B_tape_adv_comp _ α _ p q _ _ D' with "[$ Hec Hnext $ Hα IH]"); first lia; try done.
+      { move=>i.
+        full_inv_fin; simpl; nra.
+      } 
+      { rewrite -HDε /=.
+        fold s1 s0.
+        nra.
+      }
+      {
+        iIntros (k) "[Herr Hα]".
+        full_inv_fin.
+        { 
+          iPoseProof (ec_split with "Herr") as "[Herr Hterm]"; try done.
+          
+          { nra. }
+          wp_apply ("IH" with "[Hterm] [] [] Herr Hα [Hnext]").
+          { rewrite Rmult_comm //. }
+          { instantiate (1 := λ k, D (k + 1)). iPureIntro. intros. apply HD. }
+          { iPureIntro.
+            apply SeriesC_ext.
+            intros k.
+            repeat f_equal.
+            lia.
+          }
+          {
+            iIntros (perm len_perm) "Herr Hα".
+            rewrite -app_assoc.
+            destruct perm as [|n perm]; first discriminate.
+            set (perm' := (S n :: perm)).
+            wp_apply ("Hnext" $! perm' with "[] [Herr]"); try done.
+            rewrite Nat.add_1_r //.
+          }
+        } 
+        { iPoseProof (ec_split with "Herr") as "[Herr Hterm]"; try done.
+          { nra. }
+          iApply ("IHr" with "[] [] [] Herr Hterm Hα [Hnext]").
+          { iPureIntro. nra. }
+          { by iPureIntro. }
+          { by iPureIntro. }
+          iIntros (perm len_perm) "Herr Hα".
+          rewrite -app_assoc.
+          wp_apply ("Hnext" $! (0::perm) with "[] Herr Hα"); first rewrite /= len_perm //.
+        }
+      } 
+  Qed.
+
+  Lemma twp_negative_presample_adv_comp :
+    ∀ (p q : nat) (α : loc) (l : list nat) (e : expr) (Φ : val → iProp Σ),
+    0 < p →
+    p < (q + 1) →
+    to_val e = None →
+    ∀ (r : nat) (D : nat → R) (ε : R) (ε_term : R),
+    (0 < ε_term)%R →
+    (∀ (n : nat), 0 <= D n)%R →
+    SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
+    ↯ ε_term ∗
+    ↯ ε ∗
+    own_negative_tape α p q r l ∗
+    (∀ (n : nat),
+       ↯ (D n) -∗
+         own_negative_tape α p q r (l ++ [n]) -∗ WP e [{ Φ }]) ⊢
+    WP e [{ Φ }].
+  Proof.
+    iIntros (p q α l e Φ p_pos p_lt_Sq e_not_val r D ε ε_term ε_term_pos D_pos D_sum) "(Hterm & Herr & (%v & Hα & %is_tl) & Hnext)".
+    unshelve wp_apply (B_tape_presample_adv_comp_n_success _ _ _ _ _ _ _ _ _ r D ε ε_term); last iFrame; try done.
+    iIntros (perm len_perm) "Herr Hα".
+    wp_apply ("Hnext" with "Herr").
+    iFrame.
+    iPureIntro.
+    destruct r.
+    { destruct perm; last discriminate.
+      simpl.
+      rewrite is_negative_translation_0 in is_tl.
+      destruct is_tl as [-> l_eq].
+      rewrite app_nil_r is_negative_translation_0.
+      split; first done.
+      rewrite {1}l_eq app_length repeat_app //.
+    } 
+    rewrite bernoulli_to_negative_translation in is_tl; last lia.
+    rewrite bernoulli_to_negative_translation; last lia.
+    destruct is_tl as (perm' & n & -> & len_perm' & ->).
+    exists (perm' ++ perm), (S n).
+    split; first rewrite expand_perm_app //.
+    split; first (rewrite app_length; lia).
+    rewrite (bernoulli_to_negative_expand_perm_n (S r) n); try lia.
+    f_equal.
+    rewrite -(app_nil_r (expand_perm perm)) bernoulli_to_negative_expand_perm //.
+    lia.
   Qed.
   
 End NegativeBinomial.
