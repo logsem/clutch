@@ -480,8 +480,7 @@ Section markov.
   Proof.
     rewrite /is_det.
     intros.
-    Search (is_det).
-    
+
     
 
   Admitted. 

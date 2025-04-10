@@ -224,64 +224,25 @@ Lemma wp_alloc E v s :
   {{{ l, RET (LitVC (LitLocC l) : meas_lang.language.val meas_lang); l ↦ v }}}.
 Proof.
   iIntros (Φ) "_ HΦ".
-  iApply wp_lift_atomic_head_step.
+  iApply wp_lift_atomic_head_step; [done|];  simpl.
+  iIntros (σ1) "[Hh [Ht Hu]] !#".
+  iSplitR.
+  { iPureIntro. (* solve_red *) admit. }
+  iApply EXSM_ret.
+  { rewrite prod1.
+    apply measurableX; [ by apply expr_meas_singleton | by apply state_meas_singleton ]. }
+  iIntros "!> //=".
 
-
-  (*
-  have X :=
-    @wp_lift_atomic_head_step
-      (meas_ectx_lang)
-      (* (ectxi_language.MeasEctxLanguageOfEctxi meas_ectxi_lang) *)
-      Σ.
-      (* (@spec_rules_spec_updateGS Σ _). *)
-  Unset Printing Notations.
-  Set Printing Implicit.
-  simpl in X.
-  simpl.
-
-    (* wp_lift_atomic_head_step (E:=E) (Φ:=Φ) (Λ:=(ectxi_language.MeasEctxLanguageOfEctxi meas_ectxi_lang))
-      (AllocU (ValU v) )
-      s. **)
-  simpl in X.*)
-
-
-
-  (*
-  iApply X.
-  iApply wp_lift_atomic_head_step.
-*)
-
-
-  (* What we get from wp_lift_atomic_head_step
-
-   (@wp (uPred (iResUR Σ))
-      (@Measurable.sort (d_expr (meas_lang.ectx_language.ectx_lang ?Λ))
-         (meas_lang.language.expr (meas_lang.ectx_language.ectx_lang ?Λ)))
-      (@Measurable.sort (d_val (meas_lang.ectx_language.ectx_lang ?Λ))
-         (meas_lang.language.val (meas_lang.ectx_language.ectx_lang ?Λ))) unit
-      (@wp' (meas_lang.ectx_language.ectx_lang ?Λ) Σ ?meas_spec_updateGS0 ?micrometerWpGS0) ?Goal0
-      ?E ?Goal ?Φ)).
-
-    What we want
-
-    (@wp (bi_car (uPredI (iResUR Σ))) (@Measurable.sort (d_expr meas_lang) (meas_lang.language.expr meas_lang))
-       (@Measurable.sort (d_val meas_lang) (meas_lang.language.val meas_lang)) unit
-       (@wp' meas_lang Σ (@spec_rules_spec_updateGS Σ (@micrometerGS_spec Σ micrometerGS0))
-          (@micrometerGS_irisGS Σ micrometerGS0)) s E (AllocC (ValC v)) Φ)
-
-    I think bi_car is not the problem here, rather, something funny with the Measurable.sort coercions yet again
-    Probably related to why I need to annotate all of my terms
-  *)
-
-
+  iMod (ghost_map_insert (γ:=micrometerGS_heap_name) (heap (state_upd_heap <[state.fresh (heap σ1):=v]> σ1)) with "[Hh]") as "[Hl ?]".
+  2: {
+    unfold heap_auth.
+    admit. (* iApply "Hh". *) }
+  1: admit.
+  (* { apply not_elem_of_dom, fresh_loc_is_fresh. } *)
+  (* ?? *)
 Admitted.
 (*
-  iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "[Hh Ht] !#".
-  solve_red.
-  iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
-  iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[? Hl]".
-  { apply not_elem_of_dom, fresh_loc_is_fresh. }
+
   iFrame.
   rewrite map_union_empty -insert_union_singleton_l.
   iFrame.

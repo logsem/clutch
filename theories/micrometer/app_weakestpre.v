@@ -77,6 +77,22 @@ Section coupl_modalities.
       iApply "X".
     }
   Qed.
+
+  Local Open Scope classical_set_scope.
+  Lemma EXSM_ret {d} {T : measurableType d} (Φ : T → iProp Σ) (t : T) (H : d.-measurable [set t]) :
+    Φ t -∗ EXSM Φ (gRet t).
+  Proof.
+    iIntros "H".
+    iExists [set t].
+    iSplitR; [done|].
+    iSplitR; [by iPureIntro; apply gRetMass1Inv|].
+    simpl.
+    by iIntros (ρ) "->".
+  Qed.
+
+
+
+
   (** ** [meas_spec_coupl]  *)
 
   (** The [meas_spec_coupl] modality allows us to (optionally) prepend spec execution steps and erasable

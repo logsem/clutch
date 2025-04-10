@@ -658,8 +658,6 @@ work.
 Note that this trick no longer works when we switch to canonical projections
 because then the pattern match [let '...] will be desugared into projections. *)
 
-Check MeasEctxLanguage.
-
 Program Definition MeasLanguageOfEctx (Λ : meas_ectxLanguage) : meas_language :=
   let '@MeasEctxLanguage _ _ _ _ exprT valT stateT ectxT _ _ _ _
         of_val to_val empty_ctx comp_ctx _ _ head_step mix := Λ in

@@ -895,3 +895,14 @@ Proof.
   { by apply measurableX. }
   { by apply measurable_snd. }
 Qed.
+
+
+Lemma prod1 (T S : Type) (t : T) (s : S) : [set (t, s)] = [set t] `*` [set s].
+Proof.
+  rewrite /setX.
+  apply functional_extensionality; intro x; simpl.
+  apply propext.
+  split.
+  - by move=>->//.
+  - by move=>[<-<-]; case x.
+Qed.
