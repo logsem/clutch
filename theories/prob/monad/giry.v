@@ -999,8 +999,14 @@ Section giry_external_map.
 
   Lemma gMap'_gMap (f : T1 -> T2) (H: measurable_fun setT f) μ : gMap' f μ ≡μ gMap H μ.
   Proof. rewrite /gMap'. by rewrite extern_if_eq. Qed.
-
+    
 End giry_external_map.
+
+Section giry_external_map_lemmas.
+  Lemma gMap'_id {d} {T : measurableType d} (μ: giryM T) :
+    gMap' (λ x, x) μ ≡μ μ.
+  Proof. by unshelve rewrite gMap'_gMap. Qed.
+End giry_external_map_lemmas.
 
 Section giry_external_bind.
   Local Open Scope classical_set_scope.
@@ -1292,11 +1298,20 @@ Section giry_is_prob.
   Local Open Scope classical_set_scope.
 
   Definition is_prob  {d} {T : measurableType d} (s : giryM T) : Prop := s [set: T] = 1%E.
+  
+  Global Instance is_prob_Proper {d} {T:measurableType d}:
+    Proper (measure_eq ==> iff) (is_prob (T:=T)).
+  Proof. intros ??. rewrite /is_prob. by intros ->. Qed. 
 
   Lemma is_prob_gRet {d} {T : measurableType d} (x:T) : is_prob (gRet x).
   Proof.
     apply probability_setT.
   Qed.
+
+  Lemma is_prob_gMap {d} {T1 T2 : measurableType d} (a:T1) (μ : giryM T1) (f : T1 -> T2) (H : measurable_fun setT f):
+    is_prob μ <-> is_prob (gMap H μ).
+  Proof. done. Qed.
+    
 End giry_is_prob.
 
 Section giry_has_support_in.

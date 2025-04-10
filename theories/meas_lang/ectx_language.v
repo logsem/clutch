@@ -321,10 +321,10 @@ Section ectx_language.
            { intros Hzero; apply Hneg. apply is_zero_gMap'; last done.
              apply fill_lift_meas.
            }
-           (** need lemma about is_prob and gMap', 
-               see how it is done in pure_step_ctx in language.v file*)
-           admit.
-  Admitted.
+           unshelve rewrite gMap'_gMap; first apply fill_lift_meas. 
+           rewrite -is_prob_gMap; last done.
+           by apply head_step_mass.
+  Qed.
 
   Canonical Structure ectx_lang : meas_language := MeasLanguage ectx_lang_mixin.
 
@@ -389,7 +389,7 @@ Section ectx_language.
 
   Lemma head_prim_step_eq e1 σ1:
     head_reducible e1 σ1 →
-    prim_step (e1, σ1) = head_step (e1, σ1).
+    prim_step (e1, σ1) ≡μ head_step (e1, σ1).
   Proof.
     intros Hred.
     rewrite /= /prim_step.
@@ -398,27 +398,25 @@ Section ectx_language.
     destruct (head_ctx_step_val _ _ _ Hred) as [| ->].
     - assert (K = empty_ectx) as -> by eauto using decomp_val_empty.
       rewrite fill_lift_empty fill_empty.
-      (** lemma about gMap' id *)
-      admit.
+      apply gMap'_id. 
     - rewrite fill_lift_empty fill_empty.
-      (** same as above *)
-      admit. 
-  Admitted.
-
+      apply gMap'_id. 
+  Qed.
 
   (* MARKUS: Renamed becuase it was breaking the build *)
   Lemma head_prim_step' e1 σ1 ρ :
     (lt_ereal 0 (head_step (e1, σ1) ρ)) → lt_ereal 0 (prim_step (e1, σ1) ρ).
-  Proof. intros H. erewrite head_prim_step_eq; [done|].
-         rewrite /head_reducible.
-         intro H'. assert (head_step (e1, σ1) ρ = 0)%E as Hrewrite.
-         { rewrite H'; first done.
-           (** hmmmm... ask markus *)
-           admit. }
-         rewrite Hrewrite in H.
-         rewrite lt_def_ereal in H.
-         apply andb_prop_elim in H as [H _].
-         cbv in H. by repeat case_match. 
+  Proof. intros H. erewrite head_prim_step_eq; first done.
+         - rewrite /head_reducible.
+           intro H'. assert (head_step (e1, σ1) ρ = 0)%E as Hrewrite.
+           { rewrite H'; first done.
+             (** hmmmm... ask markus *)
+             admit. }
+           rewrite Hrewrite in H.
+           rewrite lt_def_ereal in H.
+           apply andb_prop_elim in H as [H _].
+           cbv in H. by repeat case_match.
+         - (** same problem as above *)
   Admitted.
 
   (* Proof breaks when no @ for some reason *)
@@ -517,8 +515,8 @@ Section ectx_language.
       { eapply H; done. }
       rewrite fill_lift_empty in Hzero' *.
       rewrite fill_empty in Hzero'.
-      (** Obvious gMap' id lemma *)
-  Admitted.
+      by rewrite gMap'_id.
+  Qed.
   Lemma prim_head_irreducible e σ :
     head_irreducible e σ → sub_redexes_are_values e → irreducible (e, σ).
   Proof.
