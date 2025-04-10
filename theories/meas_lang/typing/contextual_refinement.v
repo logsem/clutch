@@ -1,14 +1,13 @@
-(*
-
 (** Notion of contextual refinement & proof that it is a precongruence wrt the logical relation *)
-From Coq Require Import Reals.
-From clutch.prob Require Import markov. 
-From clutch.prob_lang Require Export lang notation.
+(** Is following needed? *)
+(* From clutch.prob Require Import markov.  *)
+From stdpp Require Export binders.
+From clutch.meas_lang Require Export lang notation.
 From iris.proofmode Require Import proofmode.
 (*
 From clutch.clutch Require Import primitive_laws model.*)
-From clutch.prob_lang.typing Require Export types. (*interp fundamental.*)
-
+From clutch.meas_lang.typing Require Export types. (*interp fundamental.*)
+(*
 Inductive ctx_item :=
   (* Base lambda calculus *)
   | CTX_Rec (f x : binder)
@@ -299,4 +298,5 @@ Proof.
   intros e1 e2 e3 [Hctx11 Hctx12] [Hctx21 Hctx22].
   split ; eapply ctx_refines_transitive ;eauto.
 Qed.
+
 *)

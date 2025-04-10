@@ -555,11 +555,8 @@ Hint Resolve bin_op_eval_real'_meas_fun  : mf_fun.
 
 
 Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
-  if decide (op = EqOp) then
-    if decide (v1 = v2) then
-      Some $ LitV $ LitBool $ bool_decide (v1 = v2)
-    else
-      None
+  if decide (op = EqOp) then    
+    Some $ LitV $ LitBool $ bool_decide (v1 = v2)
   else
     match v1 , v2 with
     | LitV (LitInt n1), LitV (LitInt n2) => Some $ LitV $ bin_op_eval_int op n1 n2
