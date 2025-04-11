@@ -1,9 +1,7 @@
 From clutch.eris Require Import eris.
 From clutch.eris.lib.sampling Require Import utils.
-From clutch.eris.lib.sampling.bernoulli.tape Require Import interface.
 
-
-Module BernoulliTape : BernoulliTapeSpec.
+Section BernoulliTape.
   #[local] Ltac done ::= 
   solve[
     lia |
@@ -18,7 +16,8 @@ Module BernoulliTape : BernoulliTapeSpec.
       λ v l, 
         (v = 0%fin ∧ N ≤ fin_to_nat l) ∨
         (v = 1%fin ∧ fin_to_nat l < N)%nat
-    ).
+      ).
+  
   Lemma is_bernoulli_translation_def (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :
     is_bernoulli_translation N M v l =
     Forall2 (
@@ -29,7 +28,6 @@ Module BernoulliTape : BernoulliTapeSpec.
   Proof.
     reflexivity.
   Qed.
-
   
   Lemma is_bernoulli_translation_dec (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :
     {is_bernoulli_translation N M v l} + {¬ is_bernoulli_translation N M v l}.
@@ -87,7 +85,6 @@ Module BernoulliTape : BernoulliTapeSpec.
   Proof.
     reflexivity.
   Qed.
-
   
   Lemma tape_to_bernoulli_translation (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :
     is_bernoulli_translation N M v l ↔ v = tape_to_bernoulli N M l.
@@ -149,6 +146,44 @@ Module BernoulliTape : BernoulliTapeSpec.
   Proof.
     move=>?.
     apply Forall2_cons =>//.
+  Qed.
+
+  Lemma is_bernoulli_translation_app (N M : nat) (b_tape1 b_tape2 : list (fin 2)) (tape1 tape2 : list (fin (S M))) :
+    is_bernoulli_translation N M b_tape1 tape1 → 
+    is_bernoulli_translation N M b_tape2 tape2 → 
+    is_bernoulli_translation N M (b_tape1 ++ b_tape2) (tape1 ++ tape2).
+  Proof.
+    move=>> Htrans1 Htrans2.
+    apply tape_to_bernoulli_translation in Htrans1.
+    apply tape_to_bernoulli_translation in Htrans2.
+    apply tape_to_bernoulli_translation.
+    by rewrite tape_to_bernoulli_app Htrans1 Htrans2.
+  Qed.
+
+  Lemma is_bernoulli_translation_app_0 
+    (N M : nat) (k : fin (S M))
+    (b_tape : list (fin 2)) (tape : list (fin (S M))) :
+  N ≤ k →
+  is_bernoulli_translation N M b_tape tape →
+  is_bernoulli_translation N M (b_tape ++ [0%fin]) (tape ++ [k]).
+  Proof.
+    move=> H_N_le_k H_ber_trans.
+    by apply 
+          is_bernoulli_translation_app, 
+          is_bernoulli_translation_0.
+  Qed.
+
+  Lemma is_bernoulli_translation_app_1 
+    (N M : nat) (k : fin (S M))
+    (b_tape : list (fin 2)) (tape : list (fin (S M))) :
+  k < N →
+  is_bernoulli_translation N M b_tape tape →
+  is_bernoulli_translation N M (b_tape ++ [1%fin]) (tape ++ [k]).
+  Proof.
+    move=> H_N_le_k H_ber_trans.
+    by apply 
+          is_bernoulli_translation_app, 
+          is_bernoulli_translation_1.
   Qed.
 
 End BernoulliTape.

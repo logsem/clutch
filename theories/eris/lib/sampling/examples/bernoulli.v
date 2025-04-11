@@ -1,21 +1,22 @@
 From clutch.eris Require Import eris.
 From clutch.eris.lib.sampling Require Import utils.
-From clutch.eris.lib.sampling.bernoulli Require Import tape.interface interface.
+From clutch.eris.lib.sampling.bernoulli Require Import interface.
+
 #[local] Open Scope R.
 #[local] Ltac done ::= 
     solve[lia | lra | nra | real_solver | tactics.done | auto].
 
 Set Default Proof Using "Type*".
 
-Module Examples (T : BernoulliTapeSpec) (B : BernoulliSpec(T)).
-  Module BLemmas := BernoulliSpecLemmas(T)(B).
-  Import T B BLemmas.
+Section Examples.
+  Context `{!erisGS Σ}.
+  Context `{!bernoulli_spec bernoulli}.
 
   Example bernoulli_twice (N M : nat) (p := N / S M) :
     N ≤ S M →
     [[{ ↯ (1 - p^2) }]]
-      let v1 := bernoulli #N #M in 
-      let v2 := bernoulli #N #M in 
+      let v1 := bernoulli #() #N #M in 
+      let v2 := bernoulli #() #N #M in 
       (v1, v2)
     [[{ RET (#1, #1); True }]].
   Proof.
@@ -35,8 +36,8 @@ Module Examples (T : BernoulliTapeSpec) (B : BernoulliSpec(T)).
   Example bernoulli_different (N M : nat) (p := N / S M) :
     (0 < N < S M)%nat →
     [[{ ↯ (1 - 2 * p * (1 - p)) }]]
-      let v1 := bernoulli #N #M in 
-      let v2 := bernoulli #N #M in 
+      let v1 := bernoulli #() #N #M in 
+      let v2 := bernoulli #() #N #M in 
       v1 ≠ v2
     [[{ RET #true; True }]].
   Proof.
@@ -62,8 +63,8 @@ Module Examples (T : BernoulliTapeSpec) (B : BernoulliSpec(T)).
   Example bernoulli_same (N M : nat) (p := N / S M) :
     (0 < N < S M)%nat →
     [[{ ↯ (2 * p * (1 - p)) }]]
-      let v1 := bernoulli #N #M in 
-      let v2 := bernoulli #N #M in 
+      let v1 := bernoulli #() #N #M in 
+      let v2 := bernoulli #() #N #M in 
       v1 = v2
     [[{ RET #true; True }]].
   Proof.
@@ -87,10 +88,10 @@ Module Examples (T : BernoulliTapeSpec) (B : BernoulliSpec(T)).
   Qed.
 End Examples.
 
-
-Module Roulette (T : BernoulliTapeSpec) (B : BernoulliSpec(T)).
-  Module BLemmas := BernoulliSpecLemmas(T)(B).
-  Import T B BLemmas.
+Section Roulette.
+  Context `{!erisGS Σ}.
+  Context `{!bernoulli_spec bernoulli}.
+  
   #[local] Opaque INR.
 
 
@@ -98,7 +99,7 @@ Module Roulette (T : BernoulliTapeSpec) (B : BernoulliSpec(T)).
 
   Definition roulette_martingale_aux : val :=
     rec: "loop" "win" "bet" :=
-      if: bernoulli #N #M = #0 
+      if: bernoulli #() #N #M = #0 
       then "loop" ("win" - "bet") (#2 * "bet")
       else "win" + "bet"
     .

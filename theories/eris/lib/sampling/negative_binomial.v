@@ -1,9 +1,15 @@
 From clutch.eris Require Export eris.
 From clutch.eris.lib.sampling Require Import binomial utils. 
+From clutch.eris.lib.sampling.bernoulli Require Import interface.
 
 Section NegativeBinomial.
-  Context `{!erisGS Σ}.
 
+  Set Default Proof Using "Type*".
+  
+  Context `{!erisGS Σ}.
+  Context `{!bernoulli_spec bernoulli}.
+
+  (*
   Parameter (B_lbl : val).
   Definition B : expr := B_lbl #().
 
@@ -62,14 +68,15 @@ Section NegativeBinomial.
     → B_tape α N M ns ∗ ↯ ε ∗
     (∀ (i : fin 2), ↯ (D i) ∗ B_tape α N M (ns ++ [i]) -∗ WP e [{ Φ }])
     ⊢  WP e [{ Φ }].
- 
+   *)
+  
   Definition negative_binomial : val :=
-    λ: "p" "q",
+    λ: "α" "p" "q",
       rec: "negative_binomial" "r" :=
       if: "r" ≤ #0
       then #0
       else
-        let: "b" := B "p" "q" in
+        let: "b" := bernoulli "α" "p" "q" in
         if: "b" = #0
         then "negative_binomial" "r" + #1
         else "negative_binomial" ("r" - #1).
@@ -142,17 +149,17 @@ Section NegativeBinomial.
 
   Lemma twp_negative_binomial_split :
     ∀ (p q : nat),
-    0 < p →
-    p < (q + 1) →
+    (0 < p)%nat →
+    (p < q + 1)%nat →
     ∀ (r : nat) (D : nat → R) (ε : R) (ε_term : R),
     (0 < ε_term)%R →
     (∀ (n : nat), 0 <= D n)%R →
     SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε → ↯ ε_term -∗
-    ↯ ε -∗ WP negative_binomial #p #q #r [{ v, ∃ (k : nat), ⌜v = #k⌝ ∗ ↯ (D k) }].
+    ↯ ε -∗ WP negative_binomial #() #p #q #r [{ v, ∃ (k : nat), ⌜v = #k⌝ ∗ ↯ (D k) }].
   Proof.
     iIntros (p q Hp Hpq r D ε ε_term Hε_term HD HSum) "Hterm Herr".
     rewrite /negative_binomial.
-    do 4 wp_pure.
+    do 6 wp_pure.
     iRevert (D ε ε_term Hε_term HD HSum) "Herr Hterm".
     iInduction (r) as [|r] "IHr".
     - iIntros (D ε ε_term Hε_term HD HDε) "Herr Hterm".
@@ -245,26 +252,39 @@ Section NegativeBinomial.
       | (s0 * ?A + s1 * ?B)%R = _ => set (ε0 := A);
                                      set (ε1 := B)
       end.
+
       fold ε0 ε1 in HDε.
+
+      assert (0 <= ε0)%R.
+      { apply SeriesC_ge_0'.
+        intros n.
+        apply Rmult_le_pos; last done.
+        apply negative_binom_pos.
+        lia.
+      }
+      assert (0 <= ε1)%R.
+      { apply SeriesC_ge_0'.
+        intros n.
+        apply Rmult_le_pos; last done.
+        apply negative_binom_pos.
+        lia.
+      }
+
+      assert (0 <= ε' * sc0)%R by (apply Rmult_le_pos; lra).
+      assert (0 <= ε' * sc1)%R by (apply Rmult_le_pos; lra).
+      
       wp_pures.
       iPoseProof (ec_combine with "[Hterm Herr]") as "Hec"; first iFrame.
       
-      wp_apply (B_spec _ _ _ (ε0 + ε' * sc0) (ε1 + ε' * sc1) with "Hec"); first lia.
-      { rewrite -HDε.
+      wp_apply (twp_bernoulli_scale _ _ _ (ε0 + ε' * sc0) (ε1 + ε' * sc1) with "Hec"); first lia; try lra.
+      { rewrite -HDε -Nat.add_1_r plus_INR INR_1.
         fold s1 s0.
         nra.
       }
       iIntros (k) "[[-> Herr] | [-> Herr]]".
       {
         do 4 wp_pure.
-        iPoseProof (ec_split with "Herr") as "[Herr Hterm]".
-        { apply SeriesC_ge_0'.
-          intros n.
-          apply Rmult_le_pos; last done.
-          apply negative_binom_pos.
-          lia.
-        }
-        { nra. }
+        iPoseProof (ec_split with "Herr") as "[Herr Hterm]"; try assumption.
         iPoseProof ("IH" with "[Hterm] [] [] Herr") as "IHH".
         { rewrite Rmult_comm //. }
         { instantiate (1 := λ k, D (k + 1)). iPureIntro. intros. apply HD. }
@@ -311,11 +331,11 @@ Section NegativeBinomial.
     (∀ (n : nat), 0 <= D n)%R →
     SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
     ↯ ε -∗
-    WP negative_binomial #p #q #r {{ v, ∃ (k : nat), ⌜v = #k⌝ ∗ ↯ (D k) }}.
+    WP negative_binomial #() #p #q #r {{ v, ∃ (k : nat), ⌜v = #k⌝ ∗ ↯ (D k) }}.
   Proof.
     iIntros (p q Hp Hpq r D ε HD HSum) "Herr".
     rewrite /negative_binomial.
-    do 4 wp_pure.
+    do 6 wp_pure.
     iRevert (r D ε HD HSum) "Herr".
     iLöb as "IH".
     iIntros (r D ε HD HSum) "Herr".
@@ -352,11 +372,26 @@ Section NegativeBinomial.
                                      set (ε1 := B)
       end.
       fold ε0 ε1 in HSum.
+      assert (0 <= ε0)%R.
+      { apply SeriesC_ge_0'.
+        intros n.
+        apply Rmult_le_pos; last done.
+        apply negative_binom_pos.
+        lia.
+      }
+      assert (0 <= ε1)%R.
+      { apply SeriesC_ge_0'.
+        intros n.
+        apply Rmult_le_pos; last done.
+        apply negative_binom_pos.
+        lia.
+      }
+      
       wp_pures.
-      wp_bind (B _ _).
+      wp_bind (bernoulli _ _ _).
       wp_apply tgl_wp_pgl_wp'.
-      wp_apply (B_spec p q ε ε0 ε1 Hpq with "Herr").
-      {fold s1 s0. lra. }
+      wp_apply (twp_bernoulli_scale p q ε ε0 ε1 ltac:(lia) with "Herr"); try assumption.
+      { rewrite -Nat.add_1_r plus_INR INR_1. fold s1 s0. lra. }
       iIntros (k) "[[-> Herr] | [-> Herr]]".
       {
         do 4 wp_pure.
@@ -480,7 +515,7 @@ Section NegativeBinomial.
   end.
 
   Definition own_negative_tape (α : loc) (N M r : nat) (v : list nat) : iProp Σ :=
-    (∃ (l : list (fin 2)), B_tape α N M l ∗ ⌜is_negative_translation r v l⌝)%I.
+    (∃ (l : list (fin 2)), own_bernoulli_tape α N M l ∗ ⌜is_negative_translation r v l⌝)%I.
 
    Lemma is_negative_translation_0 :
     ∀ (v : list nat) (l : list (fin 2)),
@@ -746,7 +781,7 @@ Section NegativeBinomial.
         by split; first (destruct n; lia).
   Qed.
   
-  Lemma B_tape_n_success_presample
+  Lemma twp_bernoulli_n_success_presample
     (e : expr) (α : loc) (Φ : val → iProp Σ)
     (p q r : nat) (ns : list (fin 2)) (ε : R) :
     (0 < p)%nat →
@@ -754,11 +789,11 @@ Section NegativeBinomial.
     (0 < ε)%R → 
     to_val e = None →
     ↯ ε ∗
-    B_tape α p q ns ∗
+    own_bernoulli_tape α p q ns ∗
     (if bool_decide (r = 0)
-     then B_tape α p q ns -∗ WP e [{ Φ }]
+     then own_bernoulli_tape α p q ns -∗ WP e [{ Φ }]
      else
-       ∀ (suf : list (fin 2)), ⌜list_sum $ fin_to_nat <$> suf = r - 1⌝ -∗ B_tape α p q (ns ++ suf ++ [1%fin]) -∗ WP e [{ Φ }])
+       ∀ (suf : list (fin 2)), ⌜list_sum $ fin_to_nat <$> suf = r - 1⌝ -∗ own_bernoulli_tape α p q (ns ++ suf ++ [1%fin]) -∗ WP e [{ Φ }])
     ⊢  WP e [{ Φ }].
   Proof.
     iIntros (p_gt_0 p_lt_Sq).
@@ -818,7 +853,7 @@ Section NegativeBinomial.
                             | 0%fin => (s3 * ε)%R
                             | _ => (s5 * ε)%R
                             end).
-      wp_apply (B_tape_adv_comp _ α _ p q _ ε D); try done.
+      wp_apply (twp_presample_bernoulli_adv_comp _ α _ p q _ ε D with "[IHec $Herr $Hα Hnext]"); try done.
       { lia. }
       { unfold D.
         move=>i.
@@ -867,8 +902,7 @@ Section NegativeBinomial.
     ⊢  WP e [{ Φ }].
   Proof.
     iIntros (e α Φ p q r ns ε p_pos p_lt_Sq ε_pos e_not_val) "(Herr & (%l & Hα & %is_tl) & Hnext)".
-    wp_apply (B_tape_n_success_presample _ _ _ p q r); try done.
-    iFrame.
+    wp_apply (twp_bernoulli_n_success_presample _ _ _ p q r with "[$Herr $Hα Hnext]"); try done.
     case_bool_decide.
     { iIntros "Htape".
       iApply ("Hnext" $! 0).
@@ -959,7 +993,7 @@ Section NegativeBinomial.
       { apply Nat.mul_le_mono_l, suffix_bound. }
     }
     
-    unshelve wp_apply (B_tape_planner _ _ _ _ _ _ _ _ suf _ e_not_val suf_bound); last iFrame; try done; try lia.
+    unshelve wp_apply (twp_presample_bernoulli_planner _ _ _ _ _ _ _ _ suf _ e_not_val suf_bound with "[$Herr $Hα Hnext]"); try done; try lia.
     iIntros "(%junk & Hα)".
     wp_apply "Hnext".
     iExists _.
@@ -1059,7 +1093,7 @@ Section NegativeBinomial.
     rewrite -l_eq -prefix_eq //.
   Qed.
 
-  Lemma B_tape_presample_adv_comp_n_success :
+  Lemma twp_bernoulli_presample_adv_comp_n_success :
     ∀ (p q : nat) (α : loc) (l : list (fin 2)) (e : expr) (Φ : val → iProp Σ),
     0 < p →
     p < (q + 1) →
@@ -1070,11 +1104,11 @@ Section NegativeBinomial.
     SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
     ↯ ε_term ∗
     ↯ ε ∗
-    B_tape α p q l ∗
+    own_bernoulli_tape α p q l ∗
     (∀ (perm : list nat),
        ⌜length perm = r⌝ -∗
        ↯ (D (list_sum perm)%nat) -∗
-         B_tape α p q (l ++ expand_perm perm) -∗ WP e [{ Φ }]) ⊢
+         own_bernoulli_tape α p q (l ++ expand_perm perm) -∗ WP e [{ Φ }]) ⊢
     WP e [{ Φ }].
   Proof.
     iIntros (p q α l e Φ Hp Hpq e_not_val r D ε ε_term Hε_term HD HSum) "(Hterm & Herr & Hα & Hnext)".
@@ -1189,7 +1223,7 @@ Section NegativeBinomial.
                              | _ => (ε1 + ε' * sc1)%R
                              end).
       
-      wp_apply (B_tape_adv_comp _ α _ p q _ _ D' with "[$ Hec Hnext $ Hα IH]"); first lia; try done.
+      wp_apply (twp_presample_bernoulli_adv_comp _ α _ p q _ _ D' with "[$Hec Hnext $Hα IH]"); first lia; try done.
       { move=>i.
         full_inv_fin; simpl; nra.
       } 
@@ -1253,7 +1287,7 @@ Section NegativeBinomial.
     WP e [{ Φ }].
   Proof.
     iIntros (p q α l e Φ p_pos p_lt_Sq e_not_val r D ε ε_term ε_term_pos D_pos D_sum) "(Hterm & Herr & (%v & Hα & %is_tl) & Hnext)".
-    unshelve wp_apply (B_tape_presample_adv_comp_n_success _ _ _ _ _ _ _ _ _ r D ε ε_term); last iFrame; try done.
+    unshelve wp_apply (twp_bernoulli_presample_adv_comp_n_success _ _ _ _ _ _ _ _ _ r D ε ε_term); last iFrame; try done.
     iIntros (perm len_perm) "Herr Hα".
     wp_apply ("Hnext" with "Herr").
     iFrame.

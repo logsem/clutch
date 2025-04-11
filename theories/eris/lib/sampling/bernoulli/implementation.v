@@ -1,7 +1,7 @@
 From clutch.eris Require Import eris.
-From clutch.eris.lib.sampling.bernoulli.tape Require Import interface.
-From clutch.eris.lib.sampling.bernoulli Require Import lemmas interface.
+From clutch.eris.lib.sampling.bernoulli Require Import tape lemmas interface.
 From clutch.eris.lib.sampling Require Import utils.
+
 #[local] Open Scope R.
 
 #[local] Ltac done ::= 
@@ -14,19 +14,13 @@ From clutch.eris.lib.sampling Require Import utils.
     auto
   ].
 
-  Print BernoulliSpec.
-Module BernoulliImpl (T : BernoulliTapeSpec) : BernoulliSpec(T).
-  Module Lemmas := BernoulliTapeLemmas(T). 
-  Import Lemmas.
-  Import T.
-
+Section BernoulliImpl.
   Context `{!erisGS Σ}.
-  Definition bernoulli_tape : val := 
+  
+  Definition bernoulli : val := 
     λ: "α" "N" "M",
       let: "x" := rand("α") "M" in 
       if: "x" < "N" then #1 else #0.
-  Definition bernoulli := (bernoulli_tape #())%E.
-
 
   Lemma twp_bernoulli_scale (N M : nat) (ε ε1 ε2 : R) (p := N / S M) :
     (N ≤ S M)%nat →
@@ -34,7 +28,7 @@ Module BernoulliImpl (T : BernoulliTapeSpec) : BernoulliSpec(T).
     0 <= ε2 →
     (ε1 * (1 - p)) + (ε2 * p) = ε →
     [[{↯ ε}]]
-      bernoulli #N #M
+      bernoulli #() #N #M
     [[{
         (k : nat), RET #k; 
         (⌜k = 0%nat⌝ ∗ ↯ ε1) ∨
@@ -42,7 +36,7 @@ Module BernoulliImpl (T : BernoulliTapeSpec) : BernoulliSpec(T).
     }]].
   Proof.
     iIntros (HNleM ε1_pos ε2_pos Heq Φ) "Herr HΦ".
-    rewrite /bernoulli /bernoulli_tape.
+    rewrite /bernoulli.
     wp_pures.
     iPoseProof (ec_valid with "Herr") as "%Hε".
     set ε' := {|nonneg := ε; cond_nonneg := proj1 Hε |}.
@@ -72,13 +66,13 @@ Module BernoulliImpl (T : BernoulliTapeSpec) : BernoulliSpec(T).
     - iApply ("HΦ" $! 0)%nat; auto.
   Qed.
   
-  Lemma bernoulli_spec (N M : nat) :
+  Lemma bernoulli_case (N M : nat) :
     [[{True}]] 
-      bernoulli #N #M 
+      bernoulli #() #N #M 
     [[{ v, RET v; ⌜v = #0⌝ ∨ ⌜v = #1⌝}]].
   Proof.
     iIntros "%Φ _ HΦ".
-    rewrite /bernoulli /bernoulli_tape; wp_pures.
+    rewrite /bernoulli; wp_pures.
     wp_apply (twp_rand with "[$]") as "%n _".
     wp_pures; case_bool_decide;
     wp_pures; iApply "HΦ"; auto.
@@ -153,11 +147,11 @@ Module BernoulliImpl (T : BernoulliTapeSpec) : BernoulliSpec(T).
 
   Lemma twp_bernoulli_tape (N M : nat) (α : loc) (ns : list (fin 2)) (n : fin 2) :
     [[{ own_bernoulli_tape α N M (n::ns) }]]
-      bernoulli_tape (#lbl:α) #N #M
+      bernoulli (#lbl:α) #N #M
     [[{ RET #n ; own_bernoulli_tape α N M ns }]].
   Proof.
     iIntros (Φ) "Htape HΦ".
-    rewrite /bernoulli_tape {1}/own_bernoulli_tape.
+    rewrite /bernoulli {1}/own_bernoulli_tape.
     iDestruct "Htape" as "(%l & Hα & %Htl)".
     case: l Htl => [Hcontra | h t Htl]; first by apply is_bernoulli_translation_length in Hcontra. 
     wp_pures.
@@ -207,4 +201,8 @@ Module BernoulliImpl (T : BernoulliTapeSpec) : BernoulliSpec(T).
     apply tape_to_bernoulli_translation in Htl as ->.
     rewrite -tape_to_bernoulli_app /suffix2 bernoulli_to_tape_to_bernoulli //=.
   Qed.
+
+  #[global] Instance bernoulli_impl : bernoulli_spec bernoulli :=
+    BernoulliSpec _ _ _ twp_bernoulli_scale bernoulli_case own_bernoulli_tape twp_presample_bernoulli twp_presample_bernoulli_adv_comp twp_bernoulli_tape twp_presample_bernoulli_planner.
+  
 End BernoulliImpl.

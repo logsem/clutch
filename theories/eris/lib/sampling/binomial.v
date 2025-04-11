@@ -1,77 +1,21 @@
 From clutch.eris Require Export eris.
 
 From clutch.eris.lib.sampling Require Import utils.
+From clutch.eris.lib.sampling.bernoulli Require Import interface.
 
 Section binomial.
-  Context `{!erisGS Σ}.
 
-  Parameter (B_lbl : val).
-  Definition B : expr := B_lbl #().
-
-  Parameter B_spec :
-    ∀ (N M : nat) (ε ε1 ε2 : R) (p := (N / (M + 1))%R),
-    N ≤ (M + 1) → 
-    ((ε1 * (1 - p)) + (ε2 * p) = ε)%R →
-    [[{↯ ε}]]
-      B #N #M
-    [[{
-        (k : nat), RET #k; 
-        (⌜k = 0⌝ ∗ ↯ ε1) ∨
-        (⌜k = 1⌝ ∗ ↯ ε2)
-    }]]
-  .
-
-  Parameter B_tape : loc → nat → nat → list (fin 2) → iProp Σ.
+  Set Default Proof Using "Type*".
   
-  Parameter B_tape_presample :
-    ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
-      (N M : nat) (ns : list (fin 2)),
-    to_val e = None →
-    B_tape α N M ns ∗
-    (∀ (i : fin 2), B_tape α N M (ns ++ [i%fin]) -∗ WP e [{ Φ }])
-    ⊢  WP e [{ Φ }]
-  .
+  Context `{!erisGS Σ}.
+  Context `{!bernoulli_spec bernoulli}.
 
-  Parameter twp_B_tape  :
-   ∀ (α : loc) (N M : nat) (ns : list (fin 2)) (n : fin 2),
-    [[{ B_tape α N M (n::ns) }]]
-      B_lbl (#lbl:α) #N #M
-    [[{ RET #n ; B_tape α N M ns }]]
-  .
-
-  Parameter B_tape_planner :
-    ∀ (N M : nat) (e : expr) (ε : nonnegreal)
-      (L : nat) (α : loc) (Φ : val → iProp Σ)
-      (prefix : list (fin 2)) (suffix : list (fin 2) → list (fin 2)),
-    (0 < N < S M)%nat →
-    to_val e = None →
-    (∀ junk : list (fin 2), (0 < length (suffix (prefix ++ junk)) <= L)%nat) →
-    (0 < ε)%R →
-    ↯ ε ∗ B_tape α N M prefix ∗
-    ( (∃ (junk : list (fin 2)), B_tape α N M (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e [{ Φ }]) 
-    ⊢ WP e [{ Φ }]
-    .
-
-  Parameter B_tape_adv_comp :
-      ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
-      (N M : nat) (ns : list (fin 2)) (ε : R)
-      (D : fin 2 → R),
-    (N ≤ M + 1)%nat →
-    (∀ (i : fin 2), 0 <= D i)%R →
-    (D 0%fin * (1 - (N / (M + 1))) + D 1%fin * (N / (M + 1)) = ε)%R
-    →  to_val e = None
-    → B_tape α N M ns ∗ ↯ ε ∗
-    (∀ (i : fin 2), ↯ (D i) ∗ B_tape α N M (ns ++ [i]) -∗ WP e [{ Φ }])
-    ⊢  WP e [{ Φ }]
-  .
- 
-    
   Definition binom_tape : val :=
     λ: "α" "m" "n",
       rec: "binom" "k" :=
         if: "k" ≤ #0
         then #0
-        else "binom" ("k" - #1) + B_lbl "α" "m" "n".
+        else "binom" ("k" - #1) + bernoulli "α" "m" "n".
 
   Definition binom : expr := binom_tape #().
   
@@ -101,6 +45,16 @@ Section binomial.
   
   Definition binom_prob (p q n k : nat) : R := (choose n k * (p / (q + 1))^k * (1 - p / (q + 1))^(n - k))%R.
 
+  Lemma binom_prob_pos (p q n k : nat) : (p ≤ q + 1)%nat → (0 <= binom_prob p q n k)%R.
+  Proof.
+    move=>is_prob.
+    unfold binom_prob.
+    repeat apply Rmult_le_pos;
+      first apply choose_pos;
+      apply pow_le.
+    { apply Rcomplements.Rdiv_le_0_compat; real_solver. }
+    { rewrite -INR_1 -plus_INR -Rcomplements.Rminus_le_0 -Rcomplements.Rdiv_le_1; real_solver. }
+  Qed.
 
   Lemma binom_prob_split (p q n k : nat) : 
     ((1 - (p / (q + 1))) * binom_prob p q n (k+1) + (p / (q + 1)) * binom_prob p q n k 
@@ -222,18 +176,19 @@ Section binomial.
   Qed.
   
   Lemma twp_binom_adv_comp (p q : nat) (n : nat) (D : fin (S n) → R) (ε : R) :
-    p ≤ (q + 1) →
+    (p ≤ (q + 1))%nat →
+    (∀ (k : fin (S n)), 0 <= D k)%R → 
     SeriesC (λ k : fin (S n), (binom_prob p q n k * D k)%R) = ε →
     [[{ ↯ ε }]] 
       binom #p #q #n 
     [[{ (k : fin (S n)), RET #k ; ↯ (D k) }]].
   Proof.
-    iIntros (Hpq HD Φ) "Herr HΦ".
+    iIntros (Hpq HD Hpos Φ) "Herr HΦ".
     rewrite /binom /binom_tape.
     do 6 wp_pure.
-    iRevert (D ε HD Φ) "Herr HΦ".
+    iRevert (D ε HD Hpos Φ) "Herr HΦ".
     iInduction (n) as [|n] "IH";
-      iIntros (D ε HD Φ) "Herr HΦ";
+      iIntros (D ε Hpos HD Φ) "Herr HΦ";
       wp_pures.
     - iApply ("HΦ"$! 0%fin with "[Herr]").
       iApply (ec_eq with "Herr").
@@ -248,22 +203,35 @@ Section binomial.
           set (ε1 := B)
       end.
       fold ε0 ε1 in HD.
-      wp_apply (B_spec _ _ _ ε0 ε1%R with "Herr"); [lia | rewrite -HD; lra | ].
+      wp_apply (twp_bernoulli_scale _ _ _ ε0 ε1%R with "Herr"); first lia.
+      { apply SeriesC_ge_0'.
+        move=>k.
+        apply Rmult_le_pos; last done.
+        by apply binom_prob_pos.
+      }
+      { apply SeriesC_ge_0'.
+        move=>k.
+        apply Rmult_le_pos; last done.
+        by apply binom_prob_pos.
+      }
+      {
+        rewrite -HD -Nat.add_1_r plus_INR INR_1.
+        lra.
+      }
       iIntros (?) "[[-> Herr] | [-> Herr]]".
       + wp_pure.
         replace (S n - 1)%Z with (n : Z) by lia.
-        wp_apply ("IH" with "[] Herr [HΦ]") as (k) "Herr"; first done.
+        wp_apply ("IH" $! (D ∘ fin_S_inj) with "[] [] Herr [HΦ]") as (k) "Herr"; [by simpl | done |].
         wp_pures.
         rewrite fin_S_inj_to_nat Z.add_0_r.
         iApply ("HΦ" with "Herr").
       + wp_pure.
         replace (S n - 1)%Z with (n : Z); last lia.
-        wp_apply ("IH" with "[] Herr [HΦ]") as (k) "Herr"; first done.
+        wp_apply ("IH" $! (D ∘ FS) with "[] [] Herr [HΦ]") as (k) "Herr"; [by simpl | done |].
         wp_pures.
         rewrite fin_S_inj_to_nat Z.add_1_r -Nat2Z.inj_succ -fin_S_inj_to_nat.
         iApply ("HΦ" with "Herr").
   Qed.
-      
 
   Definition binom_cred (p q n k : nat) := (1 - binom_prob p q n k)%R.
 
@@ -303,7 +271,7 @@ Section binomial.
   Qed.
   
   Lemma twp_binom_k (p q n k : nat) :
-    p ≤ (q + 1) →
+    (p ≤ (q + 1))%nat →
     k ≤ n →
     [[{ ↯ (binom_cred p q n k) }]] 
       binom #p #q #n
@@ -344,7 +312,11 @@ Section binomial.
     fold (binom_cred p q n k) in HD3.
     rewrite -HD3 HD5.
     iIntros (Φ) "Herr HΦ".
-    wp_apply (twp_binom_adv_comp with "Herr"); [done..|].
+    wp_apply (twp_binom_adv_comp with "Herr"); [done| | done|].
+    { move=>i.
+      unfold D4.
+      case_bool_decide; lra.
+    } 
     iIntros (m).
     unfold D4.
     case_bool_decide as Hk.
@@ -440,7 +412,6 @@ Section binomial.
         pose proof fin_to_nat_lt h.
         lia.
   Qed.
-
   
   Fixpoint is_binomial_translation (k : nat) (v : list (fin (S k))) (l : list (fin 2)) :=
     match v with
@@ -514,13 +485,13 @@ Section binomial.
   Qed.
     
   Definition own_binomial_tape (α : loc) (m n k : nat) (v : list (fin (S k))) : iProp Σ :=
-    ∃ l, B_tape α m n l ∗ ⌜is_binomial_translation k v l⌝.
+    ∃ l, own_bernoulli_tape α m n l ∗ ⌜is_binomial_translation k v l⌝.
 
-  Lemma B_tape_multiple_presample (e : expr) (α : loc) (Φ : val → iProp Σ)
+  Lemma twp_bernoulli_multiple_presample (e : expr) (α : loc) (Φ : val → iProp Σ)
       (N M k : nat) (ns : list (fin 2)) : 
     to_val e = None → 
-    B_tape α N M ns ∗
-    (∀ (l : list (fin 2)), ⌜length l = k⌝ -∗ B_tape α N M (ns ++ l) -∗ WP e [{ Φ }])
+    own_bernoulli_tape α N M ns ∗
+    (∀ (l : list (fin 2)), ⌜length l = k⌝ -∗ own_bernoulli_tape α N M (ns ++ l) -∗ WP e [{ Φ }])
     ⊢  WP e [{ Φ }]
   .
   Proof.
@@ -529,14 +500,12 @@ Section binomial.
        iIntros (Φ ns e_not_val) "[Htape Hlists]".
     - wp_apply ("Hlists" $! []); first done.
       rewrite app_nil_r //.
-    - wp_apply B_tape_presample; first done.
-      iFrame.
-      iIntros (i) "Htape".
+    - wp_apply (twp_presample_bernoulli with "[$Htape Hlists IH]") as (i) "Htape"; first done.
       wp_apply "IH"; first done.
       iFrame.
       iIntros (l length_l_k) "Htape".
-      wp_apply ("Hlists" $! i::l); first rewrite /= length_l_k //.
-      rewrite -app_assoc //.
+      wp_apply ("Hlists" $! i::l with "[] [Htape]"); first rewrite /= length_l_k //.
+      rewrite -app_assoc //. 
   Qed.
 
   Lemma binomial_tape_presample  (e : expr) (α : loc) (Φ : val → iProp Σ)
@@ -549,7 +518,7 @@ Section binomial.
   .
   Proof.
     iIntros (e_not_val k_pos) "[(%l & Hα & %Hl) Hwp]".
-    wp_apply (B_tape_multiple_presample _ α _ N M k); first done.
+    wp_apply (twp_bernoulli_multiple_presample _ α _ N M k); first done.
     iFrame.
     iIntros (l' length_l'_k) "Hα".
     set (i := fin_sum_list 2 k l').
@@ -598,8 +567,7 @@ Section binomial.
       simpl in sum.
       inv_fin hpre.
       + move=>/= sum len_pre.
-        wp_apply (twp_B_tape α N M _ _ _ with "Htape").
-        iIntros "Htape".
+        wp_apply (twp_bernoulli_tape N M α _ _ _ with "Htape") as "Htape".
         wp_pure.
         replace (S k' - 1)%Z with (k' : Z); last lia.
         wp_apply ("IH" $! _ _ ns with "[] Htape [HΦ]"); last first; last (iPureIntro; lia).
@@ -615,8 +583,7 @@ Section binomial.
       + move=>/= i.
         inv_fin i; last (move=>i; inv_fin i).
         move=>/= sum len_pre.
-        wp_apply (twp_B_tape α N M _ _ _ with "Htape").
-        iIntros "Htape".
+        wp_apply (twp_bernoulli_tape N M α _ _ _ with "Htape") as "Htape".
         wp_pure.
         replace (S k' - 1)%Z with (k' : Z); last lia.
         wp_apply ("IH" $! _ _ ns with "[] Htape [HΦ]"); last first; last (iPureIntro; lia).
@@ -660,7 +627,7 @@ Section binomial.
            padding ++ binomial_to_bernoulli k (suffix (bernoulli_to_binomial k (lst ++ padding)))
         ).
     apply bernoulli_to_binomial_translation in is_tl as (n & len_l & pref_eq); last done.
-    wp_apply (B_tape_planner _ _ _ _ ((1 + L) * k) _ _ _ suf_tl); last iFrame; try done.
+    wp_apply (twp_presample_bernoulli_planner N M _ _ ((1 + L) * k) _ _ _ suf_tl with "[$Herr $Hα Hnext]") as "(%junk & Hα)"; try done.
     { move=>junk.
       unfold suf_tl.
       rewrite app_length binomial_to_bernoulli_length.
@@ -681,7 +648,6 @@ Section binomial.
       apply Nat.add_le_mono; first lia.
       by apply Nat.mul_le_mono_r.
     }
-    iIntros "(%junk & Hα)".
     wp_apply "Hnext".
     set (junk' := junk ++ repeat 0%fin ((k - length junk `mod` k) `mod` k)).
     iExists (bernoulli_to_binomial k junk').
@@ -754,7 +720,7 @@ Section binomial.
     lia.
   Qed.
    
-  Lemma B_tape_multiple_adv_comp :
+  Lemma twp_bernoulli_multiple_presample_adv_comp :
     ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
       (p q n : nat) (ns : list (fin 2)) (ε : R)
       (D : fin (S n) → R),
@@ -762,8 +728,8 @@ Section binomial.
     SeriesC (λ k : fin (S n), (binom_prob p q n k * D k)%R) = ε →
     (p ≤ q + 1)%nat →
     to_val e = None →
-    B_tape α p q ns ∗ ↯ ε ∗
-    (∀ (ts : list (fin 2)), ⌜length ts = n⌝ →  ↯ (D (fin_sum_list _ _ ts)) ∗ B_tape α p q (ns ++ ts) -∗ WP e [{ Φ }])
+    own_bernoulli_tape α p q ns ∗ ↯ ε ∗
+    (∀ (ts : list (fin 2)), ⌜length ts = n⌝ →  ↯ (D (fin_sum_list _ _ ts)) ∗ own_bernoulli_tape α p q (ns ++ ts) -∗ WP e [{ Φ }])
     ⊢  WP e [{ Φ }]
   .
   Proof.
@@ -780,8 +746,8 @@ Section binomial.
       | (_ * ?S0 + _ * ?S1 = _)%R => set (s0 := S0);
                                  set (s1 := S1)
       end.
-      set (D' (i : fin 2) := match i with Fin.F1 _ => s0 | _ => s1 end). 
-      wp_apply (B_tape_adv_comp _ _ _ p q _ ε D'); try done.
+      set (D' (i : fin 2) := match i with Fin.F1 _ => s0 | _ => s1 end).
+      wp_apply (twp_presample_bernoulli_adv_comp _ _ _ p q _ ε D' with "[$Hα $Herr Hnext]") as (i) "[Herr Hα]"; try done.
       { move=>i.
         unfold D', s0, s1.
         assert (0 <= p)%R by apply pos_INR.
@@ -810,8 +776,6 @@ Section binomial.
         fold s0 s1 (D' 0%fin) (D' 1%fin).
         lra.
       }
-      iFrame.
-      iIntros (i) "[Herr Hα]".
       full_inv_fin.
       + wp_apply ("IH" $! _ _ s0 (D ∘ fin_S_inj)); try done.
         { iPureIntro.
@@ -862,7 +826,7 @@ Section binomial.
       apply is_binomial_translation_0 in is_tl.
       by apply is_binomial_translation_0.
     } 
-    wp_apply (B_tape_multiple_adv_comp _ _ _ _ _ (S n) _ _ D D_pos D_sum is_prob e_not_val).
+    wp_apply (twp_bernoulli_multiple_presample_adv_comp _ _ _ _ _ (S n) _ _ D D_pos D_sum is_prob e_not_val).
     iFrame.
     iIntros (ts len_ts) "[Herr Hα]".
     wp_apply "Hnext".

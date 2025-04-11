@@ -1,8 +1,11 @@
 From clutch.eris Require Import eris.
 From clutch.eris.lib.sampling Require Import utils.
-From clutch.eris.lib.sampling.bernoulli Require Import tape.interface interface.
+From clutch.eris.lib.sampling.bernoulli Require Import interface.
 
 Section Tape.
+  Context `{!erisGS Σ}.
+  Context `{!bernoulli_spec bernoulli}.
+  
   #[local] Open Scope fin.
 
   Fixpoint is_geometric_translation (b : list (fin 2)) (g : list nat) := 
@@ -173,9 +176,12 @@ End Tape.
 #[local] Open Scope R.
 
 
-Module Geometric (T : BernoulliTapeSpec) (B : BernoulliSpec(T)).
-  Module BLemmas := BernoulliSpecLemmas(T)(B).
-  Import T B BLemmas.
+Section Geometric.
+
+  Set Default Proof Using "Type*".
+  
+  Context `{!erisGS Σ}.
+  Context `{!bernoulli_spec bernoulli}.
 
   Definition own_geometric_tape (α : loc) (N M : nat) (t : list nat) : iProp Σ :=
     ∃ l, 
@@ -187,7 +193,7 @@ Module Geometric (T : BernoulliTapeSpec) (B : BernoulliSpec(T)).
 
   Definition geometric_tape : val :=
     rec: "geometric_tape" "α" "N" "M" :=
-    if: bernoulli_tape "α" "N" "M" = #1 then #0 else 
+    if: bernoulli "α" "N" "M" = #1 then #0 else 
     #1 + "geometric_tape" "α" "N" "M"
   .
   Definition geometric : expr := geometric_tape #().
@@ -238,7 +244,6 @@ Module Geometric (T : BernoulliTapeSpec) (B : BernoulliSpec(T)).
       (%b_tape & Hown_ber & %Hgeo_trans) 
       HΦ
     ]".
-    Check twp_presample_bernoulli.
     wp_apply (twp_presample_bernoulli e α Φ); first done.
     iFrame.
     iIntros (i) "Hown_ber".
@@ -472,4 +477,3 @@ Module Geometric (T : BernoulliTapeSpec) (B : BernoulliSpec(T)).
       rewrite -!app_assoc (bernoulli_to_geometric_app prefix_ber) Heq //.
   Qed.
 End Geometric.
-
