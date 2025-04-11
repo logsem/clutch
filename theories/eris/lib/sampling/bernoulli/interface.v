@@ -83,7 +83,7 @@ Section BernoulliSpecLemmas.
 
   Context `{!erisGS Σ}.
   Context `{!bernoulli_spec bernoulli}.
-  
+ 
   #[local] Ltac done ::= 
     solve[
       lia |

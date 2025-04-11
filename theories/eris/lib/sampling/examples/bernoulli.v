@@ -105,7 +105,7 @@ Section Roulette.
     .
   
   Definition roulette_martingale : expr :=
-    λ: "_", roulette_martingale_aux #0 #1.
+    roulette_martingale_aux #0 #1.
 
   Lemma roulette_martingale_aux_spec_aux (k : nat) (c g : Z) :
     (0 < N < S M)%nat →
@@ -154,8 +154,7 @@ Section Roulette.
           rewrite !Ropp_mult_distr_l_reverse -Rminus_def.
           apply Rle_minus.
           simpl_expr.
-          rewrite -plus_INR -mult_INR.
-          destruct N; simpl_expr. }
+          rewrite -plus_INR -mult_INR //. }
       wp_apply (twp_bernoulli_scale _ _ _ ε1 0 with "Herr") as "% [[-> Herr]|[-> Herr]]";  subst ε1 p; simpl_expr.
       + fold roulette_martingale_aux.
         wp_pures.
@@ -166,6 +165,7 @@ Section Roulette.
       + wp_pures.
         by iApply "HΦ".
   Qed.
+  (* Interesting to explain how it works in the report *)
 
   Lemma roulette_martingale_aux_spec (ε : R) (c g : Z) :
     (0 < N < S M)%nat →
@@ -177,11 +177,8 @@ Section Roulette.
     [[{RET #(c + g); True}]].
   Proof.
     iIntros "%H0_lt_N_lt_SM %H_ε_pos %H_g_pos %H_c_lt_g %Φ Herr HΦ".
-    assert (exists k : nat, (S M - N) / (S M + k)  <= ε ) as [k Hk].
-    { assert (0 < S M - N).
-      {
-        rewrite -minus_INR //.
-      } 
+    assert (exists k : nat, (S M - N) / (S M + k) <= ε ) as [k Hk].
+    { assert (0 < S M - N) by rewrite -minus_INR //.
       destruct (Rle_exists_nat (S M - N) ε) as [t Ht]; first rewrite -minus_INR; simpl_expr.
       pose proof (pos_INR N).
       pose proof (pos_INR t).
@@ -201,12 +198,11 @@ Section Roulette.
     (0 < N < S M)%nat →
     ε > 0 →
     [[{↯ ε}]]
-      roulette_martingale #()
+      roulette_martingale
     [[{RET #1; True}]].
   Proof.
     iIntros "%H0_lt_N_lt_SM %H_ε_pos %Φ Herr HΦ".
-    do 2 wp_pure.
     by wp_apply (roulette_martingale_aux_spec with "Herr").
-  Qed.
+  Qed.  
 
 End Roulette.
