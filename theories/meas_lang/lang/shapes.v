@@ -1,7 +1,7 @@
 (* TODO: Clear imports *)
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
-From stdpp Require Import binders gmap.
+From stdpp Require Import binders gmap countable.
 From mathcomp Require Import functions classical_sets.
 From mathcomp.analysis Require Import reals measure lebesgue_measure.
 From mathcomp Require Import boolp choice.
@@ -106,39 +106,93 @@ Proof. Admitted.
 
 (** Decompose the set of expressions into a countable union over expr_shape *)
 
+(* Global Instance discr_countable `{countable.Countable X}: countable.Countable <<discr X>>. *)
+(* Proof. apply _. Qed. *)
+
+Local Open Scope positive.
+Global Program Instance bin_op_countable : countable.Countable <<discr bin_op>> :=
+  {|
+    encode x := match x with
+                | PlusOp => 14 | MinusOp => 1| MultOp =>2| QuotOp =>3| RemOp=>4 (* Arithmetic *)
+                | AndOp => 5| OrOp => 6| XorOp=> 7 (* Bitwise *)
+                | ShiftLOp => 8| ShiftROp => 9(* Shifts *)
+                | LeOp => 10| LtOp => 11| EqOp => 12(* Relations *)
+                | OffsetOp => 13 end (* Pointer offset *);
+    decode p := match p with 
+  | 14 => Some PlusOp | 1 => Some MinusOp | 2 => Some MultOp | 3 => Some QuotOp | 4 => Some RemOp (* Arithmetic *)
+  | 5 => Some AndOp | 6 => Some OrOp | 7 => Some XorOp (* Bitwise *)
+  | 8 => Some ShiftLOp | 9 => Some ShiftROp (* Shifts *)
+  | 10 => Some LeOp | 11 => Some LtOp | 12 => Some EqOp (* Relations *)
+                | 13 => Some OffsetOp (* Pointer offset *)
+  | _ => None end
+  |}.
+Next Obligation. by intros []. Qed.
+Global Program Instance un_op_countable : countable.Countable <<discr un_op>> :={|
+    encode x := match x with
+                | NegOp => 1 | MinusUnOp => 2 end (* Pointer offset *);
+    decode p := match p with 
+  | 1 => Some NegOp | 2 => Some MinusUnOp | _ => None end
+                                                                                |}.
+Next Obligation. by intros []. Qed.
+Global Program Instance base_lit_pre_countable : countable.Countable (@base_lit_pre () () () ()) :={|
+    encode x := match x with
+                | LitInt _ => 1 | LitBool _ => 2
+                | LitUnit => 3 | LitLoc _ => 4
+                | LitLbl _ => 5 | LitReal _ => 6
+                end (* Pointer offset *);
+    decode p := match p with 
+                | 1 => Some (LitInt ())| 2 => Some (LitBool ())
+                | 3 => Some (LitUnit)| 4 => Some (LitLoc ())
+                | 5 => Some (LitLbl ())| 6 => Some (LitReal ())| _ => None end
+                                                                                |}.
+Next Obligation. by intros []. Qed.
+(** Huh ??? *)
+(* Check base_lit_pre_countable. *)
+(* Global Instance tree_countable : countable.Countable *)
+(*      (gen_tree *)
+(*         (<<discr binder>> + <<discr binder>> + (@base_lit_pre () () () () + (<<discr un_op>> + <<discr bin_op>>)))). *)
+(* Proof. *)
+(*   unshelve epose proof (gen_tree_countable (T:=(<<discr binder>> + <<discr binder>> + (@base_lit_pre () () () () + (<<discr un_op>> + <<discr bin_op>>)))) ) as H. *)
+(*   - unshelve eapply sum_countable. *)
+(*     unshelve eapply sum_countable. *)
+(*     apply _. *)
+(*     apply base_lit_pre_countable. *)
+(*   eapply H. *)
+Local Close Scope positive.
+
 Definition expr_shape_encode :=
   fix go (e:expr_shape) :=
      match e with
-     | Val v => Node 0 [gov v]
-     | Var x => Leaf (inl (inl x))
-     | Rec f x e => Node 1 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); go e]
-     | App e1 e2 => Node 2 [go e1; go e2]
-     | UnOp op e => Node 3 [GenLeaf (inr (inr (inl op))); go e]
-     | BinOp op e1 e2 => Node 4 [GenLeaf (inr (inr (inr op))); go e1; go e2]
-     | If e0 e1 e2 => Node 5 [go e0; go e1; go e2]
-     | Pair e1 e2 => Node 6 [go e1; go e2]
-     | Fst e => Node 7 [go e]
-     | Snd e => Node 8 [go e]
-     | InjL e => Node 9 [go e]
-     | InjR e => Node 10 [go e]
-     | Case e0 e1 e2 => Node 11 [go e0; go e1; go e2]
-     | Alloc e => Node 12 [go e]
-     | Load e => Node 13 [go e]
-     | Store e1 e2 => Node 14 [go e1; go e2]
-     | AllocTape e => Node 15 [go e]
-     | Rand e1 e2 => Node 16 [go e1; go e2]
-     | AllocUTape => Node 17 []
-     | URand e => Node 18 [go e]
-     | Tick e => Node 19 [go e]
+     | Val v => GenNode 0 [gov v]
+     | Var x => GenLeaf (inl (inl x))
+     | Rec f x e => GenNode 1 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); go e]
+     | App e1 e2 => GenNode 2 [go e1; go e2]
+     | UnOp op e => GenNode 3 [GenLeaf (inr (inr (inl op))); go e]
+     | BinOp op e1 e2 => GenNode 4 [GenLeaf (inr (inr (inr op))); go e1; go e2]
+     | If e0 e1 e2 => GenNode 5 [go e0; go e1; go e2]
+     | Pair e1 e2 => GenNode 6 [go e1; go e2]
+     | Fst e => GenNode 7 [go e]
+     | Snd e => GenNode 8 [go e]
+     | InjL e => GenNode 9 [go e]
+     | InjR e => GenNode 10 [go e]
+     | Case e0 e1 e2 => GenNode 11 [go e0; go e1; go e2]
+     | Alloc e => GenNode 12 [go e]
+     | Load e => GenNode 13 [go e]
+     | Store e1 e2 => GenNode 14 [go e1; go e2]
+     | AllocTape e => GenNode 15 [go e]
+     | Rand e1 e2 => GenNode 16 [go e1; go e2]
+     | AllocUTape => GenNode 17 []
+     | URand e => GenNode 18 [go e]
+     | Tick e => GenNode 19 [go e]
      end
    with gov v :=
      match v with
-     | LitV l => Leaf (inr (inl l))
+     | LitV l => GenLeaf (inr (inl l))
      | RecV f x e =>
-        Node 0 [Leaf (inl (inr f)); Leaf (inl (inr x)); go e]
-     | PairV v1 v2 => Node 1 [gov v1; gov v2]
-     | InjLV v => Node 2 [gov v]
-     | InjRV v => Node 3 [gov v]
+        GenNode 0 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); go e]
+     | PairV v1 v2 => GenNode 1 [gov v1; gov v2]
+     | InjLV v => GenNode 2 [gov v]
+     | InjRV v => GenNode 3 [gov v]
      end
        for go.
 Definition expr_shape_decode : _->expr_shape:=
@@ -177,7 +231,11 @@ Definition expr_shape_decode : _->expr_shape:=
      | _ => LitV LitUnit (* dummy *)
      end
    for go.
-Definition expr_shape_enum (n : nat) : expr_shape. Admitted.
+(* Definition expr_shape_enum (n : nat) : expr_shape:= *)
+(*   match decode_nat n with *)
+(*   | Some x => expr_shape_decode x *)
+(*   | _ => Val $ LitV $ LitUnit *)
+(*   end.  *)
 
 Definition val_shape_enum (n : nat) : val_shape. Admitted.
 
