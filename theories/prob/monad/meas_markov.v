@@ -108,6 +108,21 @@ End is_final.
 
 #[global] Hint Immediate to_final_Some_2 to_final_None_2 to_final_None_1: core.
 
+(* Move *)
+Lemma gIter_mono {d} {T : measurableType d} (f g : T → giryM T) n a (a' : set T) (Ha' : measurable a'):
+  (∀ a a', measurable a' -> le_ereal (f a a') (g a a')) → (le_ereal (gIter n f a a') (gIter n g a a')).
+Proof.
+  induction n.
+  { intros.
+    rewrite giryM_iterN_zero giryM_iterN_zero.
+    repeat destroy_mathcomp.
+    reflexivity.
+  }
+  { intros IH.
+    (* unfold gIter *)
+Admitted.
+
+
 Section reducible.
   Context {δ : meas_markov}.
   Implicit Types a : mstate δ.
@@ -475,26 +490,22 @@ Section markov.
     rewrite /is_det. intros. by rewrite H gRet_gBind.
   Qed.
 
-  Lemma stepN_pexec_det n x y:
-    is_det y (stepN n x) → is_det y (pexec n x).
-  Proof.
-    rewrite /is_det.
-    intros.
-
-    
-
-  Admitted. 
-  (*
 
   Lemma stepN_pexec_det n x y:
-    stepN n x y = 1 → pexec n x y = 1.
+    is_det y (stepN n x) -> is_det y (pexec n x).
   Proof.
-    rewrite /stepN /pexec.
-    intros H.
-    apply Rle_antisym; [done|].
+    rewrite /stepN /pexec /is_det.
+    intros H S HS.
     rewrite -H.
+    (* Antisymmetry, gIter_mono, cases on final, done. *)
+  Admitted.
+
+(*
+
     apply iterM_mono => a a'.
-    destruct (decide (is_final a)).
+    destruct (decide (is_final y)).
+    { rewrite to_final_is_final.
+
     - rewrite to_final_is_final //.
     - rewrite step_or_final_no_final //.
   Qed.
@@ -791,8 +802,6 @@ Section markov.
 
   (* Definition lim_exec (a : mstate δ) : distr (mstate_ret δ) := lim_distr (λ n, exec n a) (exec_mono a). *)
 
-
-
   (*
   Lemma lim_exec_unfold a b :
     lim_exec a b = Sup_seq (λ n, (exec n a) b).
@@ -868,13 +877,21 @@ Section markov.
       apply dbind_eq; [|done].
       intros ??. apply IHn.
   Qed.
+*)
 
   Lemma lim_exec_det_final n a a' b :
     to_final a' = Some b →
-    pexec n a a' = 1 →
-    lim_exec a = dret b.
+    is_det a' (pexec n a) →
+    lim_exec a = gRet b.
   Proof.
     intros Hb Hpe.
+    rewrite /lim_exec/limit_measure.
+    (* Not sure... *)
+  Admitted.
+
+(*
+
+
     apply distr_ext.
     intro b'.
     rewrite lim_exec_unfold.
@@ -889,16 +906,19 @@ Section markov.
     - rewrite -(sup_seq_const 0).
       f_equal. apply Sup_seq_ext=> m.
       f_equal. by eapply pexec_exec_det_neg.
-  Qed.
+  Qed. *)
 
   Lemma lim_exec_final a b :
     to_final a = Some b →
-    lim_exec a = dret b.
+    lim_exec a = gRet b.
   Proof.
-    intros. erewrite (lim_exec_det_final 0%nat); [done|done|].
-    rewrite pexec_O. by apply dret_1_1.
+    intros.
+    erewrite (lim_exec_det_final 0%nat); [done|done|].
+    rewrite pexec_O.
+    apply is_det_dret.
   Qed.
 
+  (*
   Lemma lim_exec_not_final a :
     ¬ is_final a →
     lim_exec a = step a ≫= lim_exec.

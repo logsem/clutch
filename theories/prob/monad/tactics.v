@@ -35,6 +35,7 @@ Ltac unfold_mathcomp :=
          ssralg.GRing.mul,
          ssralg.GRing.natmul,
          ssralg.GRing.one,
+         ssralg.GRing.zero,
          ssralg.GRing.add in *;
   simpl.
 
