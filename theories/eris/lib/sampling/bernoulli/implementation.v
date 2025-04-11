@@ -14,7 +14,6 @@ From clutch.eris.lib.sampling Require Import utils.
     auto
   ].
 
-  Print BernoulliSpec.
 Module BernoulliImpl (T : BernoulliTapeSpec) : BernoulliSpec(T).
   Module Lemmas := BernoulliTapeLemmas(T). 
   Import Lemmas.

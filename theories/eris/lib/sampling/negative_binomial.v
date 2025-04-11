@@ -669,7 +669,7 @@ Section NegativeBinomial.
     rewrite expand_perm_app /= app_nil_r -!app_assoc /= app_assoc /bernoulli_to_negative bernoulli_to_negative_aux_prefix.
     { simpl.
       rewrite app_length expand_perm_length repeat_length list_sum_app /=.
-      replace (length pre) with r; last lia.
+      replace (length pre) with r by lia.
       f_equal.
       lia.
     }
@@ -693,7 +693,7 @@ Section NegativeBinomial.
     rewrite drop_length len_perm.
     lia.
   Qed.
-    
+
   Lemma bernoulli_to_negative_translation (r : nat) :
     (0 < r)%nat →
     ∀ (l : list (fin 2)) (v : list nat),
@@ -720,10 +720,10 @@ Section NegativeBinomial.
         intros (perm & suf & -> & len_perm & sum_perm & is_tl).
         apply IH in is_tl as (perm' & n & -> & len_perm' & vt_eq).
         exists (perm ++ perm'), (S n).
-        split; first by rewrite expand_perm_app //.
+        split; first rewrite expand_perm_app //.
         rewrite app_length len_perm' len_perm.
         split; first lia.
-        rewrite bernoulli_to_negative_expand_perm; try lia.
+        rewrite bernoulli_to_negative_expand_perm; try assumption.
         by f_equal.
       + intros (perm & n & -> & len_perm & v_eq).
         exists (take r perm), (expand_perm (drop r perm)).
@@ -735,15 +735,14 @@ Section NegativeBinomial.
         }
         split; first done.
         rewrite -(take_drop r perm) expand_perm_app in v_eq.
-        fold expand_perm in v_eq.
         rewrite bernoulli_to_negative_expand_perm in v_eq; try lia.
         injection v_eq as vt_eq vh_eq.
         split; first done.
         apply IH.
-        eexists _, (n - 1).
+        exists (drop r perm), (n - 1).
         split; first done.
         rewrite drop_length len_perm.
-        by split; first (destruct n; lia).
+        rewrite Nat.mul_sub_distr_r Nat.mul_1_l //.
   Qed.
   
   Lemma B_tape_n_success_presample

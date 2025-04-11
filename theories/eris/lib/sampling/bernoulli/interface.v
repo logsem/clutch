@@ -31,7 +31,7 @@ Module Type BernoulliSpec (T : BernoulliTapeSpec).
 
   Parameter bernoulli_spec :
     ∀ (N M : nat),
-     (*TODO: See to add N <= S M  *)
+     (*TODO: See to add N <= S M, would allow to put in lemmas  *)
     [[{True}]]
       bernoulli #N #M
     [[{v, RET v; ⌜v = #0⌝ ∨ ⌜v = #1⌝}]]
