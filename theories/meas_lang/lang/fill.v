@@ -2,7 +2,7 @@
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
-From stdpp Require Import base numbers binders strings gmap.
+From stdpp Require Import base numbers binders strings gmap countable.
 From mathcomp Require Import functions.
 From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
@@ -371,10 +371,80 @@ Admitted.
 Lemma ectx_item_shape_cyl (s : ectx_item_shape) : [set e | shape_ectx_item e = s] = ectx_item_ST (gen_ectx_item s).
 Proof. Admitted.
 
-Definition ectx_item_shape_enum (n : nat) : ectx_item_shape. Admitted.
+Fixpoint ectx_item_shape_encode (e: ectx_item_shape):=
+  match e with
+  | AppLCtx v2 => GenNode 0 [val_shape_encode v2]
+  | AppRCtx e1 => GenNode 1 [expr_shape_encode e1]
+  | UnOpCtx op => GenNode 2 [GenLeaf (inr (inr (inl op)))]
+  | BinOpLCtx op v2 => GenNode 3 [GenLeaf (inr (inr (inr op))); val_shape_encode v2] 
+  | BinOpRCtx op e1 => GenNode 4 [GenLeaf (inr (inr (inr op))); expr_shape_encode e1]
+  | IfCtx e1 e2 => GenNode 5 [expr_shape_encode e1; expr_shape_encode e2]
+  | PairLCtx v2 => GenNode 6 [val_shape_encode v2]
+  | PairRCtx e1 => GenNode 7 [expr_shape_encode e1]
+  | FstCtx => GenNode 8 []
+  | SndCtx => GenNode 9 []
+  | InjLCtx => GenNode 10 []
+  | InjRCtx => GenNode 11 []
+  | CaseCtx e1 e2 => GenNode 12 [expr_shape_encode e1; expr_shape_encode e2]
+  | AllocCtx => GenNode 13 []
+  | LoadCtx => GenNode 14 []
+  | StoreLCtx v2 => GenNode 15 [val_shape_encode v2]
+  | StoreRCtx e1 => GenNode 16 [expr_shape_encode e1]
+  | AllocTapeCtx => GenNode 17 []
+  | RandLCtx v2 => GenNode 18 [val_shape_encode v2]
+  | RandRCtx e1 => GenNode 19 [expr_shape_encode e1]
+  | URandCtx => GenNode 20 []
+  | TickCtx => GenNode 21 []
+  end.
+
+Fixpoint ectx_item_shape_decode t : ectx_item_shape :=
+  match t with
+    | GenNode 0 [v]=> AppLCtx (val_shape_decode v)
+    | GenNode 1 [e1]=> AppRCtx (expr_shape_decode e1)
+    | GenNode 2 [GenLeaf (inr (inr (inl op)))]=> UnOpCtx op
+    | GenNode 3 [GenLeaf (inr (inr (inr op))); v]=> BinOpLCtx op (val_shape_decode v)
+    | GenNode 4 [GenLeaf (inr (inr (inr op))); e]=> BinOpRCtx op (expr_shape_decode e)
+    | GenNode 5 [e1; e2]=> IfCtx (expr_shape_decode e1) (expr_shape_decode e2)
+    | GenNode 6 [v2]=>  PairLCtx (val_shape_decode v2)
+    | GenNode 7 [e1 ]=> PairRCtx (expr_shape_decode e1)
+    | GenNode 8 []=>  FstCtx
+    | GenNode 9 []=> SndCtx
+    | GenNode 10 []=> InjLCtx
+    | GenNode 11 []=> InjRCtx
+    | GenNode 12 [e1; e2]=> CaseCtx (expr_shape_decode e1) (expr_shape_decode e2)
+    | GenNode 13 []=> AllocCtx
+    | GenNode 14 []=>  LoadCtx
+    | GenNode 15 [v2]=> StoreLCtx (val_shape_decode v2)
+    | GenNode 16 [e1]=> StoreRCtx (expr_shape_decode e1)
+    | GenNode 17 []=> AllocTapeCtx
+    | GenNode 18 [v2]=> RandLCtx (val_shape_decode v2)
+    | GenNode 19 [e1]=> RandRCtx (expr_shape_decode e1)
+    | GenNode 20 []=>  URandCtx
+    | GenNode 21 []=> TickCtx
+    | _ => (* random one*)  AllocTapeCtx
+  end.
+
+Lemma ectx_item_shape_decode_encode e: ectx_item_shape_decode(ectx_item_shape_encode e) = e.
+Proof.
+  revert e.
+  fix FIX 1.
+  Local Opaque val_shape_encode.
+  rewrite /ectx_item_shape_decode/ectx_item_shape_encode.
+  intros [| | | | | | | | | | | | | | | | | | | | |]; simpl; try rewrite val_shape_decode_encode; try rewrite !expr_shape_decode_encode; done.
+Qed.
+
+Definition ectx_item_shape_enum (n : nat) : ectx_item_shape :=
+  match decode_nat n with
+  | Some t => ectx_item_shape_decode t
+  | None => AllocTapeCtx
+  end.
 
 Lemma ectx_item_shape_enum_surj (e : ectx_item_shape) : exists n, ectx_item_shape_enum n = e.
-Proof. Admitted.
+Proof.
+  exists (encode_nat $ ectx_item_shape_encode $ e).
+  rewrite /ectx_item_shape_enum.
+  by rewrite decode_encode_nat ectx_item_shape_decode_encode.
+Qed.
 
 Definition ectx_item_seq : sequences.sequence (set ectx_item) :=
   fun n => shape_ectx_item @^-1` [set ectx_item_shape_enum n].

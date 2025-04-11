@@ -106,9 +106,6 @@ Proof. Admitted.
 
 (** Decompose the set of expressions into a countable union over expr_shape *)
 
-(* Global Instance discr_countable `{countable.Countable X}: countable.Countable <<discr X>>. *)
-(* Proof. apply _. Qed. *)
-
 Local Open Scope positive.
 Global Program Instance bin_op_countable : countable.Countable <<discr bin_op>> :=
   {|
@@ -126,13 +123,32 @@ Global Program Instance bin_op_countable : countable.Countable <<discr bin_op>> 
                 | 13 => Some OffsetOp (* Pointer offset *)
   | _ => None end
   |}.
+Next Obligation. done. Qed.
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed.
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed.
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed. 
 Next Obligation. by intros []. Qed.
+
 Global Program Instance un_op_countable : countable.Countable <<discr un_op>> :={|
     encode x := match x with
                 | NegOp => 1 | MinusUnOp => 2 end (* Pointer offset *);
     decode p := match p with 
   | 1 => Some NegOp | 2 => Some MinusUnOp | _ => None end
                                                                                 |}.
+Next Obligation. done. Qed.
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed. 
 Next Obligation. by intros []. Qed.
 Global Program Instance base_lit_pre_countable : countable.Countable (@base_lit_pre () () () ()) :={|
     encode x := match x with
@@ -145,19 +161,14 @@ Global Program Instance base_lit_pre_countable : countable.Countable (@base_lit_
                 | 3 => Some (LitUnit)| 4 => Some (LitLoc ())
                 | 5 => Some (LitLbl ())| 6 => Some (LitReal ())| _ => None end
                                                                                 |}.
-Next Obligation. by intros []. Qed.
-(** Huh ??? *)
-(* Check base_lit_pre_countable. *)
-(* Global Instance tree_countable : countable.Countable *)
-(*      (gen_tree *)
-(*         (<<discr binder>> + <<discr binder>> + (@base_lit_pre () () () () + (<<discr un_op>> + <<discr bin_op>>)))). *)
-(* Proof. *)
-(*   unshelve epose proof (gen_tree_countable (T:=(<<discr binder>> + <<discr binder>> + (@base_lit_pre () () () () + (<<discr un_op>> + <<discr bin_op>>)))) ) as H. *)
-(*   - unshelve eapply sum_countable. *)
-(*     unshelve eapply sum_countable. *)
-(*     apply _. *)
-(*     apply base_lit_pre_countable. *)
-(*   eapply H. *)
+Next Obligation. done. Qed.
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed. 
+Next Obligation. done. Qed. 
+Next Obligation. by intros [[]|[]| |[]|[]|[]]. Qed.
 Local Close Scope positive.
 
 Definition expr_shape_encode :=
@@ -230,28 +241,66 @@ Definition expr_shape_decode : _->expr_shape:=
      | GenNode 3 [v] => InjRV (gov v)
      | _ => LitV LitUnit (* dummy *)
      end
-   for go.
-Definition expr_shape_enum (n : nat) : expr_shape. Admitted.
-  (* match decode_nat n with *)
-  (* | Some x => expr_shape_decode x *)
-  (* | _ => Val $ LitV $ LitUnit *)
-  (* end. *)
+       for go.
 
-Definition val_shape_enum (n : nat) : val_shape. Admitted.
+Lemma expr_shape_decode_encode e: expr_shape_decode (expr_shape_encode e) = e.
+Proof.
+  revert e.
+  rewrite {1}/expr_shape_decode{1}/expr_shape_encode/=.
+ refine (fix go (e : expr_shape) {struct e} := _ with gov (v : val_shape) {struct v} := _ for go).
+  destruct e as [v| | | | | | | | | | | | | | | | | | | |  ]; simpl; f_equal; [exact (gov v)|done..].
+  destruct v; by f_equal.
+Qed.
 
-Definition base_lit_shape_enum (n : nat) : base_lit_shape. Admitted.
+Definition val_shape_encode v := expr_shape_encode (Val v).
+Definition val_shape_decode t:= match expr_shape_decode t with | Val v => v | _ => LitV LitUnit end.
+Lemma val_shape_decode_encode v : val_shape_decode (val_shape_encode v) = v.
+Proof.
+  by rewrite /val_shape_decode/val_shape_encode expr_shape_decode_encode.
+Qed.
 
+Definition expr_shape_enum (n : nat) : expr_shape :=
+  match decode_nat n with
+  | Some x => expr_shape_decode x
+  | _ => Val $ LitV $ LitUnit
+  end.
+
+Definition val_shape_enum (n : nat) : val_shape:=
+  match expr_shape_decode <$> (decode_nat n) with
+  | Some (Val v) =>v
+  | _ => LitV LitUnit
+  end. 
+
+Definition base_lit_shape_enum (n : nat) : base_lit_shape :=
+  match decode_nat n with
+  | Some x => x
+  | _ => LitUnit
+  end.
 (* I only need surjectivity to prove that I don't miss any trees, so I'll use a definition
    of surjectivity appropriate for that (not the HB one, it gives us nothing) *)
 
 Lemma expr_shape_enum_surj (e : expr_shape) : exists n, expr_shape_enum n = e.
-Proof. Admitted.
+Proof.
+  exists (encode_nat (expr_shape_encode e)).
+  rewrite /expr_shape_enum.
+  rewrite decode_encode_nat.
+  apply expr_shape_decode_encode.
+Qed.
 
 Lemma val_shape_enum_surj (e : val_shape) : exists n, val_shape_enum n = e.
-Proof. Admitted.
+Proof.
+  exists (encode_nat (expr_shape_encode (Val e))).
+  rewrite /val_shape_enum decode_encode_nat.
+  Local Opaque expr_shape_decode expr_shape_encode. simpl.
+  by rewrite expr_shape_decode_encode.
+Qed.
 
 Lemma base_lit_shape_enum_surj (e : base_lit_shape) : exists n, base_lit_shape_enum n = e.
-Proof. Admitted.
+Proof.
+  exists (encode_nat e).
+  rewrite /base_lit_shape_enum.
+  by rewrite decode_encode_nat.
+Qed.
 
 Lemma binder_enum_surj (e : binder) : exists n, binder_enum n = e.
 Proof. by eexists (Pos.to_nat (encode e)); rewrite /binder_enum Pos2Nat.id decode_encode //=. Qed.
