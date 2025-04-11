@@ -4,7 +4,7 @@ From HB Require Import structures.
 From stdpp Require Import binders gmap.
 From mathcomp Require Import functions classical_sets.
 From mathcomp.analysis Require Import reals measure lebesgue_measure.
-From mathcomp Require Import boolp.
+From mathcomp Require Import boolp choice.
 From clutch.prelude Require Export classical.
 From clutch.meas_lang.lang Require Export prelude types.
 Set Warnings "hiding-delimiting-key".
@@ -106,6 +106,77 @@ Proof. Admitted.
 
 (** Decompose the set of expressions into a countable union over expr_shape *)
 
+Definition expr_shape_encode :=
+  fix go (e:expr_shape) :=
+     match e with
+     | Val v => Node 0 [gov v]
+     | Var x => Leaf (inl (inl x))
+     | Rec f x e => Node 1 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); go e]
+     | App e1 e2 => Node 2 [go e1; go e2]
+     | UnOp op e => Node 3 [GenLeaf (inr (inr (inl op))); go e]
+     | BinOp op e1 e2 => Node 4 [GenLeaf (inr (inr (inr op))); go e1; go e2]
+     | If e0 e1 e2 => Node 5 [go e0; go e1; go e2]
+     | Pair e1 e2 => Node 6 [go e1; go e2]
+     | Fst e => Node 7 [go e]
+     | Snd e => Node 8 [go e]
+     | InjL e => Node 9 [go e]
+     | InjR e => Node 10 [go e]
+     | Case e0 e1 e2 => Node 11 [go e0; go e1; go e2]
+     | Alloc e => Node 12 [go e]
+     | Load e => Node 13 [go e]
+     | Store e1 e2 => Node 14 [go e1; go e2]
+     | AllocTape e => Node 15 [go e]
+     | Rand e1 e2 => Node 16 [go e1; go e2]
+     | AllocUTape => Node 17 []
+     | URand e => Node 18 [go e]
+     | Tick e => Node 19 [go e]
+     end
+   with gov v :=
+     match v with
+     | LitV l => Leaf (inr (inl l))
+     | RecV f x e =>
+        Node 0 [Leaf (inl (inr f)); Leaf (inl (inr x)); go e]
+     | PairV v1 v2 => Node 1 [gov v1; gov v2]
+     | InjLV v => Node 2 [gov v]
+     | InjRV v => Node 3 [gov v]
+     end
+       for go.
+Definition expr_shape_decode : _->expr_shape:=
+  fix go e : expr_shape :=
+     match e with
+     | GenNode 0 [v] => Val (gov v)
+     | GenLeaf (inl (inl x)) => Var x
+     | GenNode 1 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); e] => Rec f x (go e)
+     | GenNode 2 [e1; e2] => App (go e1) (go e2)
+     | GenNode 3 [GenLeaf (inr (inr (inl op))); e] => UnOp op (go e)
+     | GenNode 4 [GenLeaf (inr (inr (inr op))); e1; e2] => BinOp op (go e1) (go e2)
+     | GenNode 5 [e0; e1; e2] => If (go e0) (go e1) (go e2)
+     | GenNode 6 [e1; e2] => Pair (go e1) (go e2)
+     | GenNode 7 [e] => Fst (go e)
+     | GenNode 8 [e] => Snd (go e)
+     | GenNode 9 [e] => InjL (go e)
+     | GenNode 10 [e] => InjR (go e)
+     | GenNode 11 [e0; e1; e2] => Case (go e0) (go e1) (go e2)
+     | GenNode 12 [e] => Alloc (go e)
+     | GenNode 13 [e] => Load (go e)
+     | GenNode 14 [e1; e2] => Store (go e1) (go e2)
+     | GenNode 15 [e] => AllocTape (go e)
+     | GenNode 16 [e1; e2] => Rand (go e1) (go e2)
+     | GenNode 17 [] => AllocUTape 
+     | GenNode 18 [e1] => URand (go e1) 
+     | GenNode 19 [e] => Tick (go e)
+     | _ => Val $ LitV LitUnit (* dummy *)
+     end
+   with gov v :val_shape :=
+     match v with
+     | GenLeaf (inr (inl l)) => LitV l
+     | GenNode 0 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); e] => RecV f x (go e)
+     | GenNode 1 [v1; v2] => PairV (gov v1) (gov v2)
+     | GenNode 2 [v] => InjLV (gov v)
+     | GenNode 3 [v] => InjRV (gov v)
+     | _ => LitV LitUnit (* dummy *)
+     end
+   for go.
 Definition expr_shape_enum (n : nat) : expr_shape. Admitted.
 
 Definition val_shape_enum (n : nat) : val_shape. Admitted.
