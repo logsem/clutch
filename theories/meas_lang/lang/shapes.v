@@ -231,11 +231,11 @@ Definition expr_shape_decode : _->expr_shape:=
      | _ => LitV LitUnit (* dummy *)
      end
    for go.
-(* Definition expr_shape_enum (n : nat) : expr_shape:= *)
-(*   match decode_nat n with *)
-(*   | Some x => expr_shape_decode x *)
-(*   | _ => Val $ LitV $ LitUnit *)
-(*   end.  *)
+Definition expr_shape_enum (n : nat) : expr_shape:= Admitted.
+  (* match decode_nat n with *)
+  (* | Some x => expr_shape_decode x *)
+  (* | _ => Val $ LitV $ LitUnit *)
+  (* end. *)
 
 Definition val_shape_enum (n : nat) : val_shape. Admitted.
 
