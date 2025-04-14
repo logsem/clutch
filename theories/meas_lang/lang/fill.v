@@ -466,7 +466,20 @@ Qed.
 
 
 Lemma ectx_item_shape_cyl (s : ectx_item_shape) : [set e | shape_ectx_item e = s] = ectx_item_ST (gen_ectx_item s).
-Proof. Admitted.
+Proof.
+  rewrite eqEsubset; split; intros e; simpl.
+  - intros <-.
+    destruct e; simpl.
+    all: try done.
+    all: try (eexists _; last done; by rewrite <- val_shape_cyl).
+    all: try (eexists _; last done; by rewrite <- expr_shape_cyl).
+    all: (eexists _; last eexists _; last done; by rewrite <-expr_shape_cyl).
+  - destruct s; simpl.
+    all: try (intros [? H]; subst; simpl; f_equal; rewrite -val_shape_cyl in H; simpl in H; by subst).
+    all: try (intros [? H]; subst; simpl; f_equal; rewrite -expr_shape_cyl in H; simpl in H; by subst).
+    all: try by intros ->.
+    all: intros [? H[? H']];subst; simpl; f_equal; rewrite -!expr_shape_cyl in H H'; simpl in H, H'; by subst.
+Qed.
 
 Fixpoint ectx_item_shape_encode (e: ectx_item_shape):=
   match e with
