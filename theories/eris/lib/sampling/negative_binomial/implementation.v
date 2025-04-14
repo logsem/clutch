@@ -1,6 +1,8 @@
 From clutch.eris Require Export eris.
-From clutch.eris.lib.sampling Require Import binomial utils. 
+From clutch.eris.lib.sampling Require Import utils. 
 From clutch.eris.lib.sampling.bernoulli Require Import interface.
+From clutch.eris.lib.sampling.binomial Require Import interface.
+From clutch.eris.lib.sampling.negative_binomial Require Import interface.
 
 Section NegativeBinomial.
 
@@ -9,67 +11,6 @@ Section NegativeBinomial.
   Context `{!erisGS Σ}.
   Context `{!bernoulli_spec bernoulli}.
 
-  (*
-  Parameter (B_lbl : val).
-  Definition B : expr := B_lbl #().
-
-  Parameter B_spec :
-    ∀ (N M : nat) (ε ε1 ε2 : R) (p := (N / (M + 1))%R),
-    N ≤ (M + 1) → 
-    ((ε1 * (1 - p)) + (ε2 * p) = ε)%R ->
-    [[{↯ ε}]]
-      B #N #M
-    [[{
-        (k : nat), RET #k; 
-        (⌜k = 0⌝ ∗ ↯ ε1) ∨
-        (⌜k = 1⌝ ∗ ↯ ε2)
-    }]]
-  .
-
-  Parameter B_tape : loc → nat → nat → list (fin 2) → iProp Σ.
-  
-  Parameter B_tape_presample :
-    ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
-      (N M : nat) (ns : list (fin 2)),
-    to_val e = None →
-    B_tape α N M ns ∗
-    (∀ (i : fin 2), B_tape α N M (ns ++ [i%fin]) -∗ WP e [{ Φ }])
-    ⊢  WP e [{ Φ }]
-  .
-
-  Parameter twp_B_tape  :
-   ∀ (α : loc) (N M : nat) (ns : list (fin 2)) (n : fin 2),
-    [[{ B_tape α N M (n::ns) }]]
-      B_lbl (#lbl:α) #N #M
-    [[{ RET #n ; B_tape α N M ns }]]
-  .
-
-  Parameter B_tape_planner :
-    ∀ (N M : nat) (e : expr) (ε : nonnegreal)
-      (L : nat) (α : loc) (Φ : val → iProp Σ)
-      (prefix : list (fin 2)) (suffix : list (fin 2) → list (fin 2)),
-    (0 < N < S M)%nat →
-    to_val e = None →
-    (∀ junk : list (fin 2), (0 < length (suffix (prefix ++ junk)) <= L)%nat) →
-    (0 < ε)%R →
-    ↯ ε ∗ B_tape α N M prefix ∗
-    ( (∃ (junk : list (fin 2)), B_tape α N M (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e [{ Φ }]) 
-    ⊢ WP e [{ Φ }]
-    .
-
-  Parameter B_tape_adv_comp :
-      ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
-      (N M : nat) (ns : list (fin 2)) (ε : R)
-      (D : fin 2 → R),
-    (N ≤ M + 1)%nat →
-    (∀ (i : fin 2), 0 <= D i)%R →
-    (D 0%fin * (1 - (N / (M + 1))) + D 1%fin * (N / (M + 1)) = ε)%R
-    →  to_val e = None
-    → B_tape α N M ns ∗ ↯ ε ∗
-    (∀ (i : fin 2), ↯ (D i) ∗ B_tape α N M (ns ++ [i]) -∗ WP e [{ Φ }])
-    ⊢  WP e [{ Φ }].
-   *)
-  
   Definition negative_binomial : val :=
     λ: "α" "p" "q",
       rec: "negative_binomial" "r" :=
@@ -80,63 +21,7 @@ Section NegativeBinomial.
         if: "b" = #0
         then "negative_binomial" "r" + #1
         else "negative_binomial" ("r" - #1).
-
-  Definition negative_binom_prob (p q r k : nat) : R :=
-    (choose (k + r - 1) k * (p / (q + 1))^r * (1 - p  / (q + 1))^k)%R.
-
-  Lemma negative_binom_pos (p q r k : nat) : p ≤ (q + 1) → (0 <= negative_binom_prob p q r k)%R.
-  Proof.
-    intros Hpq.
-
-    rewrite /negative_binom_prob.
-    assert (0 <= q)%R by apply pos_INR.
-    repeat apply Rmult_le_pos.
-    { apply choose_pos. }
-    { apply pow_le, Rcomplements.Rdiv_le_0_compat; first apply pos_INR.
-      lra.
-    }
-    { apply pow_le.
-      rewrite -Rcomplements.Rminus_le_0 Rcomplements.Rle_div_l; last lra.
-      rewrite Rmult_1_l -INR_1 -plus_INR.
-      apply le_INR, Hpq.
-    }
-  Qed.
-      
-  Lemma negative_binom_prob_split : ∀ (p q r k : nat),
-    negative_binom_prob p q (r + 1) (k + 1)%nat =
-    ((1 - p / (q + 1)) * negative_binom_prob p q (r + 1) k
-     + (p / (q + 1)) * negative_binom_prob p q r (k + 1))%R.
-  Proof.
-    intros p q r k.
-    rewrite /negative_binom_prob.
-    replace (k + 1 + (r + 1) - 1) with (S (k + r)); last lia.
-    replace (k + 1 + r - 1) with (k + r); last lia.
-    replace (k + 1) with (S k); last lia.
-    replace (k + (r + 1) - 1) with (k + r); last lia.
-    rewrite -pascal' pow_add /=.
-    lra.
-  Qed.
-
-  Lemma negative_binom_prob_is_distr :
-    ∀ (p q r : nat),
-    p ≤ q + 1 →
-    SeriesC (negative_binom_prob p q r) = 1.
-  Admitted.
   
-  Lemma ex_seriesC_negative_binom_prob :
-    ∀ (p q r : nat),
-    p ≤ q + 1 →
-    ex_seriesC (negative_binom_prob p q r).
-  Proof.
-    unfold ex_seriesC.
-    unfold is_seriesC.
-    intros p q r Hpq.
-    exists 1%R.
-    apply Series.is_series_Reals.
-    unfold infinite_sum.
-    intros ε Hε.
-  Admitted.
-
   Lemma ec_negative_binom_split :
     ∀ (p q r : nat) (D : nat → R),
     let ε := SeriesC (λ k, negative_binom_prob p q (r + 1) k * D k)%R in
@@ -166,6 +51,7 @@ Section NegativeBinomial.
       rewrite /negative_binom_prob /choose in HDε.
       erewrite (SeriesC_ext _ (λ k, if bool_decide (k = 0) then D 0 else 0)) in HDε; last first.
       { intros k.
+        unfold interface.choose.
         do 2 case_bool_decide; try lia; subst; simpl; last lra.
         rewrite Rcomplements.C_n_n.
         lra.
@@ -345,6 +231,7 @@ Section NegativeBinomial.
       rewrite /negative_binom_prob /choose in HSum.
       erewrite (SeriesC_ext _ (λ k, if bool_decide (k = 0) then D 0 else 0)) in HSum; last first.
       { intros k.
+        unfold interface.choose.
         do 2 case_bool_decide; try lia; subst; simpl; last lra.
         rewrite Rcomplements.C_n_n.
         lra.
@@ -779,7 +666,61 @@ Section NegativeBinomial.
         rewrite drop_length len_perm.
         rewrite Nat.mul_sub_distr_r Nat.mul_1_l //.
   Qed.
-  
+
+  Lemma twp_negative_tape :
+    ∀ (p q r : nat) (α : loc) (n : nat) (ns : list nat) (Φ : val → iProp Σ),
+    own_negative_tape α p q r (n::ns) -∗
+    (own_negative_tape α p q r ns -∗ Φ #n) -∗
+    WP negative_binomial #lbl:α #p #q #r [{ Φ }].
+  Proof.
+    iIntros (p q r α n ns Φ) "(%l & Hα & %is_tl) Hnext".
+    unfold negative_binomial.
+    do 6 wp_pure.
+    simpl in is_tl.
+    iRevert (α l n ns is_tl Φ) "Hα Hnext".
+    remember r as r' eqn:r_is_r'.
+    rewrite {2 3}r_is_r'.
+    clear r_is_r'.
+    iInduction r' as [| r'] "IH".
+    - iIntros (α l n ns (perm & suf & -> & len_perm & sum_perm & is_tl) Φ) "Hα Hnext".
+      destruct perm; last discriminate.
+      rewrite -sum_perm /=.
+      wp_pures.
+      iModIntro.
+      iApply "Hnext".
+      by iFrame.
+    - iIntros (α l n ns (perm & suf & -> & len_perm & sum_perm & is_tl) Φ) "Hα Hnext".
+      destruct perm as [|h t]; first discriminate.
+      simpl.
+      iRevert (Φ n sum_perm) "Hα Hnext IH".
+      iInduction (h) as [|h] "IHh"; simpl.
+      + iIntros (Φ n sum_perm) "Hα Hnext IH".
+        wp_pures.
+        wp_apply (twp_bernoulli_tape with "Hα") as "Hα".
+        do 5 wp_pure.
+        replace (S r' - 1)%Z with (r' : Z); last lia.
+        wp_apply ("IH" with "[] Hα Hnext").
+        iPureIntro.
+        exists t, suf.
+        split; first done.
+        simpl in len_perm, sum_perm.
+        by split; first lia.
+      + iIntros (Φ n sum_perm) "Hα Hnext IH".
+        wp_pures.
+        wp_apply (twp_bernoulli_tape with "Hα") as "Hα".
+        do 4 wp_pure.
+        simpl in len_perm, sum_perm.
+        destruct n as [| n]; first discriminate.
+        injection sum_perm as sum_perm.
+        unshelve wp_apply ("IHh" $! _ _ n with "[] Hα [Hnext]"); try done.
+        { iIntros "Htape".
+          wp_pures.
+          iModIntro.
+          replace (n + 1)%Z with (S n : Z); last lia.
+          by iApply "Hnext".
+        }
+  Qed.
+         
   Lemma twp_bernoulli_n_success_presample
     (e : expr) (α : loc) (Φ : val → iProp Σ)
     (p q r : nat) (ns : list (fin 2)) (ε : R) :
@@ -1117,6 +1058,7 @@ Section NegativeBinomial.
       rewrite /negative_binom_prob /choose in HSum.
       erewrite (SeriesC_ext _ (λ k, if bool_decide (k = 0) then D 0 else 0)) in HSum; last first.
       { intros k.
+        unfold interface.choose. 
         do 2 case_bool_decide; try lia; subst; simpl; last lra.
         rewrite Rcomplements.C_n_n.
         lra.
@@ -1311,6 +1253,15 @@ Section NegativeBinomial.
     rewrite -(app_nil_r (expand_perm perm)) bernoulli_to_negative_expand_perm //.
     lia.
   Qed.
+
+  #[global] Instance NegativeOfBernoulli : negative_binomial_spec negative_binomial:=
+    NegativeSpec _ _ _
+      twp_negative_binomial_split
+      own_negative_tape
+      twp_negative_tape
+      twp_negative_presample
+      twp_negative_planner
+      twp_negative_presample_adv_comp.
   
 End NegativeBinomial.
 #[global] Opaque negative_binomial.
