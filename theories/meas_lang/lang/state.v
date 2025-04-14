@@ -548,18 +548,22 @@ Hint Resolve state_upd_utapes_meas_fun : measlang.
 
 Lemma state_upd_tapes_twice σ l xs ys :
   state_upd_tapes <[ l := ys ]> (state_upd_tapes <[ l := xs ]> σ) = state_upd_tapes <[ l:= ys ]> σ.
-Proof. Admitted. (* rewrite /state_upd_tapes /=. f_equal. apply insert_insert. Qed. *)
+Proof. rewrite /state_upd_tapes/=. do 3 f_equal. rewrite /state_of_prod/tapes/=.
+       apply: insert_insert.
+Qed.
 
 Lemma state_upd_tapes_same σ σ' l xs ys :
   state_upd_tapes <[l:=ys]> σ = state_upd_tapes <[l:=xs]> σ' -> xs = ys.
 Proof.
-  (* rewrite /state_upd_tapes /=. intros K. simplify_eq.
-       rewrite map_eq_iff in H.
-       specialize (H l).
-       rewrite !lookup_insert in H.
-       by simplify_eq.
-Qed. *) Admitted.
-
+  rewrite /state_upd_tapes/state_of_prod/tapes/=.
+  intros H. simplify_eq.
+  rewrite map_eq_iff in H0.
+  specialize (H0 l).
+  epose proof (lookup_insert (prod_of_state σ).1.2 l ys) as K.
+  epose proof (lookup_insert (prod_of_state σ').1.2 l xs) as K'.
+  rewrite K K' in H0.
+  by simplify_eq.
+Qed.
 (*
 Lemma state_upd_tapes_no_change σ l ys :
   (tapes σ) !! l = Some ys ->

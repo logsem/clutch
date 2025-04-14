@@ -1,7 +1,7 @@
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Export Reals.
-From stdpp Require Import binders.
+From stdpp Require Import binders countable.
 From mathcomp Require Import eqtype choice boolp classical_sets.
 From mathcomp.analysis Require Import measure.
 From mathcomp.analysis Require Export reals Rstruct.
@@ -33,9 +33,15 @@ Hint Resolve gRet_meas_fun : measlang.
 
 Local Open Scope classical_set_scope.
 
-Definition loc_enum : nat -> <<discr loc>>. Admitted.
+Definition loc_enum (n:nat): <<discr loc>> :=
+  Loc (match decode_nat n with | Some x => x | _ => 0%Z end).
 Lemma loc_enum_surj : forall l, exists n, loc_enum n = l.
-Proof. Admitted.
+Proof.
+  intros l. 
+  exists (encode_nat (loc_car l)).
+  rewrite /loc_enum. rewrite decode_encode_nat.
+  by destruct l.
+Qed.
 
 Create HintDb ml_fun.
 Create HintDb ml_set.
