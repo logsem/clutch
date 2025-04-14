@@ -30,7 +30,8 @@ Definition to_val (e : expr) : option val :=
   end.
 
 Lemma to_val_meas : measurable_fun setT to_val.
-Proof. Admitted.
+Proof.
+Admitted.
 
 
 Global Instance of_val_inj : Inj (=) (=) (@of_val).
@@ -280,24 +281,66 @@ Definition TickCtxU                                   := TickCtxC.
 
 Section ConstructorMeasurable.
 
+  (* Lemmas from constructors.v *)
+  Local Lemma MZ {d} {T : measurableType d} (S : set T)  : S = set0 -> measurable S.
+  Proof. by move=>->; apply measurable0. Qed.
+  Hint Resolve MZ : measlang.
+  Ltac ctor_triv_case :=
+    apply MZ; apply /predeqP =>y /=; split; [| by move=>?];
+    (by move=> ?//) +
+    (by move=> [?]//) +
+    (by move=> [??[???]]//) +
+    (by move=> [??[??[???]]]//).
+
   Lemma AppLCtxU_measurable : measurable_fun setT AppLCtxU.
-  Proof. Admitted.
+  Proof. into_gen_measurable. intros ?[? [x ?<-]<-].
+         rewrite setTI.
+         destruct x; rewrite /preimage/=.
+         1:{ apply sub_sigma_algebra.
+             eexists v2; first done.
+             rewrite eqEsubset. split; intros ?.
+             - naive_solver.
+             - intros [???]. unfold AppLCtxU, AppLCtxC in *. by simplify_eq. 
+         }
+         all: ctor_triv_case.
+  Qed.
   Hint Resolve AppLCtxU_measurable : measlang.
 
   Lemma AppRCtxU_measurable : measurable_fun setT AppRCtxU.
-  Proof. Admitted.
+  Proof. into_gen_measurable. intros ?[? [x ?<-]<-].
+         rewrite setTI.
+         destruct x; rewrite /preimage/=.
+         all: try ctor_triv_case.
+         apply sub_sigma_algebra.
+         eexists e1; first done.
+         rewrite eqEsubset. split; intros ?.
+         - naive_solver.
+         - intros [???]. unfold AppRCtxU, AppRCtxC in *. by simplify_eq.
+  Qed.
   Hint Resolve AppRCtxU_measurable : measlang.
 
   Lemma UnOpCtxU_measurable : measurable_fun setT UnOpCtxU.
-  Proof. Admitted.
+  Proof. into_gen_measurable. intros ?[? [x ?<-] <-]. 
+         rewrite setTI.
+         destruct x; rewrite /preimage/=.
+         all: try ctor_triv_case.
+         done.
+  Qed.
   Hint Resolve UnOpCtxU_measurable : measlang.
 
   Lemma BinOpLCtxU_measurable : measurable_fun setT BinOpLCtxU.
-  Proof. Admitted.
+  Proof. into_gen_measurable. intros ?[? [x ?<-] <-]. 
+         rewrite setTI.
+         destruct x; rewrite /preimage/=.
+         all: try ctor_triv_case.
+  Admitted.
   Hint Resolve BinOpLCtxU_measurable : measlang.
 
   Lemma BinOpRCtxU_measurable : measurable_fun setT BinOpRCtxU.
-  Proof. Admitted.
+  Proof. into_gen_measurable. intros ?[? [x ?<-] <-]. 
+         rewrite setTI.
+         destruct x; rewrite /preimage/=.
+         all: try ctor_triv_case. Admitted.
   Hint Resolve BinOpRCtxU_measurable : measlang.
 
   Lemma IfCtxU_measurable : measurable_fun setT IfCtxU.
@@ -305,11 +348,29 @@ Section ConstructorMeasurable.
   Hint Resolve IfCtxU_measurable : measlang.
 
   Lemma PairLCtxU_measurable : measurable_fun setT PairLCtxU.
-  Proof. Admitted.
+  Proof. into_gen_measurable. intros ?[? [x ?<-]<-].
+         rewrite setTI.
+         destruct x; rewrite /preimage/=.
+         all: try ctor_triv_case.
+         apply sub_sigma_algebra.
+         eexists v2; first done.
+         rewrite eqEsubset. split; intros ?.
+         - naive_solver.
+         - intros [???]. unfold PairLCtxU, PairLCtxC in *. by simplify_eq.
+  Qed.
   Hint Resolve PairLCtxU_measurable : measlang.
 
   Lemma PairRCtxU_measurable : measurable_fun setT PairRCtxU.
-  Proof. Admitted.
+  Proof. into_gen_measurable. intros ?[? [x ?<-]<-].
+         rewrite setTI.
+         destruct x; rewrite /preimage/=.
+         all: try ctor_triv_case.
+         apply sub_sigma_algebra.
+         eexists e1; first done.
+         rewrite eqEsubset. split; intros ?.
+         - naive_solver.
+         - intros [???]. unfold PairRCtxU, PairRCtxC in *. by simplify_eq.
+  Qed.
   Hint Resolve PairRCtxU_measurable : measlang.
 
   Lemma CaseCtxU_measurable : measurable_fun setT CaseCtxU.
@@ -317,19 +378,55 @@ Section ConstructorMeasurable.
   Hint Resolve CaseCtxU_measurable : measlang.
 
   Lemma StoreLCtxU_measurable : measurable_fun setT StoreLCtxU.
-  Proof. Admitted.
+  Proof. into_gen_measurable. intros ?[? [x ?<-]<-].
+         rewrite setTI.
+         destruct x; rewrite /preimage/=.
+         all: try ctor_triv_case.
+         apply sub_sigma_algebra.
+         eexists v2; first done.
+         rewrite eqEsubset. split; intros ?.
+         - naive_solver.
+         - intros [???]. unfold StoreLCtxU, StoreLCtxC in *. by simplify_eq.
+  Qed.
   Hint Resolve StoreLCtxU_measurable : measlang.
 
   Lemma StoreRCtxU_measurable : measurable_fun setT StoreRCtxU.
-  Proof. Admitted.
+  Proof. into_gen_measurable. intros ?[? [x ?<-]<-].
+         rewrite setTI.
+         destruct x; rewrite /preimage/=.
+         all: try ctor_triv_case.
+         apply sub_sigma_algebra.
+         eexists e1; first done.
+         rewrite eqEsubset. split; intros ?.
+         - naive_solver.
+         - intros [???]. unfold StoreRCtxU, StoreRCtxC in *. by simplify_eq.
+  Qed. 
   Hint Resolve StoreRCtxU_measurable : measlang.
 
   Lemma RandLCtxU_measurable : measurable_fun setT RandLCtxU.
-  Proof. Admitted.
+  Proof. into_gen_measurable. intros ?[? [x ?<-]<-].
+         rewrite setTI.
+         destruct x; rewrite /preimage/=.
+         all: try ctor_triv_case.
+         apply sub_sigma_algebra.
+         eexists v2; first done.
+         rewrite eqEsubset. split; intros ?.
+         - naive_solver.
+         - intros [???]. unfold RandLCtxU, RandLCtxC in *. by simplify_eq.
+  Qed. 
   Hint Resolve RandLCtxU_measurable : measlang.
 
   Lemma RandRCtxU_measurable : measurable_fun setT RandRCtxU.
-  Proof. Admitted.
+  Proof. into_gen_measurable. intros ?[? [x ?<-]<-].
+         rewrite setTI.
+         destruct x; rewrite /preimage/=.
+         all: try ctor_triv_case.
+         apply sub_sigma_algebra.
+         eexists e1; first done.
+         rewrite eqEsubset. split; intros ?.
+         - naive_solver.
+         - intros [???]. unfold RandRCtxU, RandRCtxC in *. by simplify_eq.
+  Qed. 
   Hint Resolve RandRCtxU_measurable : measlang.
 
   Hint Resolve AppLCtxU_measurable   : mf_fun.
@@ -363,9 +460,9 @@ Definition gen_ectx_item : ectx_item_shape -> ectx_item_S :=
 Lemma ectx_item_generator s : ectx_item_ML (gen_ectx_item s).
 Proof.
   rewrite /ectx_item_ML/gen_ectx_item/ectx_item_pre_F.
-  destruct s; try done.
-  (* Apply the val and expr generator lemmas *)
-Admitted.
+  destruct s; try done; try apply gen_val_generator; try apply gen_expr_generator;
+    split; apply gen_expr_generator.
+Qed.
 
 
 Lemma ectx_item_shape_cyl (s : ectx_item_shape) : [set e | shape_ectx_item e = s] = ectx_item_ST (gen_ectx_item s).
@@ -1088,28 +1185,28 @@ Definition decomp_cov_tick       : set expr :=
 
 Definition decomp_cov_stuck      : set expr. Admitted. (* Complement of the union of the prior cases.*)
 
-Lemma decomp_cov_app_val_meas     : measurable decomp_cov_app_val. Proof. Admitted.
-Lemma decomp_cov_app_expr_meas    : measurable decomp_cov_app_expr. Proof. Admitted.
-Lemma decomp_cov_unop_meas        : measurable decomp_cov_unop. Proof. Admitted.
-Lemma decomp_cov_binop_val_meas   : measurable decomp_cov_binop_val. Proof. Admitted.
-Lemma decomp_cov_binop_expr_meas  : measurable decomp_cov_binop_expr. Proof. Admitted.
-Lemma decomp_cov_if_meas          : measurable decomp_cov_if. Proof. Admitted.
-Lemma decomp_cov_pair_val_meas    : measurable decomp_cov_pair_val. Proof. Admitted.
-Lemma decomp_cov_pair_expr_meas   : measurable decomp_cov_pair_expr. Proof. Admitted.
-Lemma decomp_cov_fst_meas         : measurable decomp_cov_fst. Proof. Admitted.
-Lemma decomp_cov_snd_meas         : measurable decomp_cov_snd. Proof. Admitted.
-Lemma decomp_cov_injl_meas        : measurable decomp_cov_injl. Proof. Admitted.
-Lemma decomp_cov_injr_meas        : measurable decomp_cov_injr. Proof. Admitted.
-Lemma decomp_cov_case_meas        : measurable decomp_cov_case. Proof. Admitted.
-Lemma decomp_cov_alloc_meas       : measurable decomp_cov_alloc. Proof. Admitted.
-Lemma decomp_cov_load_meas        : measurable decomp_cov_load. Proof. Admitted.
-Lemma decomp_cov_store_val_meas   : measurable decomp_cov_store_val. Proof. Admitted.
-Lemma decomp_cov_store_expr_meas  : measurable decomp_cov_store_expr. Proof. Admitted.
-Lemma decomp_cov_alloctape_meas   : measurable decomp_cov_alloctape. Proof. Admitted.
-Lemma decomp_cov_rand_val_meas    : measurable decomp_cov_rand_val. Proof. Admitted.
-Lemma decomp_cov_rand_expr_meas   : measurable decomp_cov_rand_expr. Proof. Admitted.
-Lemma decomp_cov_urand_meas       : measurable decomp_cov_urand. Proof. Admitted.
-Lemma decomp_cov_tick_meas        : measurable decomp_cov_tick. Proof. Admitted.
+Lemma decomp_cov_app_val_meas     : measurable decomp_cov_app_val. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_app_expr_meas    : measurable decomp_cov_app_expr. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_unop_meas        : measurable decomp_cov_unop. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_binop_val_meas   : measurable decomp_cov_binop_val. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_binop_expr_meas  : measurable decomp_cov_binop_expr. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_if_meas          : measurable decomp_cov_if. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_pair_val_meas    : measurable decomp_cov_pair_val. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_pair_expr_meas   : measurable decomp_cov_pair_expr. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_fst_meas         : measurable decomp_cov_fst. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_snd_meas         : measurable decomp_cov_snd. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_injl_meas        : measurable decomp_cov_injl. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_injr_meas        : measurable decomp_cov_injr. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_case_meas        : measurable decomp_cov_case. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_alloc_meas       : measurable decomp_cov_alloc. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_load_meas        : measurable decomp_cov_load. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_store_val_meas   : measurable decomp_cov_store_val. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_store_expr_meas  : measurable decomp_cov_store_expr. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_alloctape_meas   : measurable decomp_cov_alloctape. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_rand_val_meas    : measurable decomp_cov_rand_val. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_rand_expr_meas   : measurable decomp_cov_rand_expr. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_urand_meas       : measurable decomp_cov_urand. Proof. ms_unfold; ms_solve. Qed.
+Lemma decomp_cov_tick_meas        : measurable decomp_cov_tick. Proof. ms_unfold; ms_solve. Qed.
 Lemma decomp_cov_stuck_meas       : measurable decomp_cov_stuck. Proof. Admitted.
 
 Hint Resolve decomp_cov_app_val_meas     : measlang.
@@ -1349,35 +1446,32 @@ Lemma expr_ord_wf : well_founded expr_ord.
 Proof. red; intro; eapply expr_ord_wf'; eauto. Defined.
 
 
-(* TODO: this proof is slow, but I do not see how to make it faster... *)
-(* TODO: Uncomment the slow proof *)
+(* Slow proof, but best we got *)
+(* uncomment the slow proof *)
 Lemma decomp_expr_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e.
 Proof. Admitted.
-(*
-  rewrite /expr_ord /decomp_item.
-  destruct Ki ; repeat destruct_match ; intros [=] ; subst ; cbn ; lia.
-Qed. *)
+(*   rewrite /expr_ord /decomp_item. *)
+(*   destruct Ki; repeat case_match; intros [=]; simplify_eq; simpl; lia.  *)
+(* Qed. *)
 
 Lemma decomp_fill_item Ki e :
   to_val e = None → decomp_item (fill_item (Ki, e)) = Some (Ki, e).
-Proof. Admitted.
-(*  Proof. destruct Ki ; simpl ; by repeat destruct_match. Qed. *)
+Proof. destruct Ki ; simpl ; by repeat destruct_match. Qed.
 
 (* TODO: this proof is slow, but I do not see how to make it faster... *)
 (* TODO: Uncomment the slow proof *)
 Lemma decomp_fill_item_2 e e' Ki :
   decomp_item e = Some (Ki, e') → fill_item (Ki, e') = e ∧ to_val e' = None.
 Proof. Admitted.
-(*
-  rewrite /decomp_item ;
-    destruct e ; try done ;
-    destruct Ki ; cbn ; repeat destruct_match ; intros [=] ; subst ; auto.
-Qed. *)
+(*   rewrite /decomp_item ; *)
+(*     destruct e ; try done ; *)
+(*     destruct Ki ; cbn ; repeat destruct_match ; intros [=] ; subst ; auto. *)
+(* Qed. *)
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
   to_val e1 = None → to_val e2 = None →
   fill_item (Ki1, e1) = fill_item (Ki2, e2) → Ki1 = Ki2.
-Proof. destruct Ki2, Ki1. (*  naive_solver eauto with f_equal. Qed. *) Admitted.
+Proof. destruct Ki2, Ki1;  naive_solver eauto with f_equal. Qed. 
 
 Lemma fill_item_some Ki e : is_Some (to_val (fill_item (Ki, e))) → is_Some (to_val e).
-Proof. Admitted.
+Proof. by destruct Ki, e. Qed.
