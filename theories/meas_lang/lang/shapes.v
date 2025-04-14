@@ -94,28 +94,45 @@ Proof.
       - eexists _; last done. apply FIX'.
       - eexists _; last done. apply FIX'.
     }
-    all: admit.
-  - 
-  (*
-  apply /predeqP =>b.
-  have D1 : [set e | shape_expr e = s] b -> expr_ST (gen_expr s) b.
-  { destruct b.
-    all: move=> H.
-    all: simpl in H.
-    all: destruct s as [?|?|???|??|??|???|???|??|?|?|?|?|???|??|?|??|?|??| |?|?].
-    all: rewrite /gen_expr/=.
-    all: try done.
-    all: admit.
-  }
-  have D2 : expr_ST (gen_expr s) b -> [set e | shape_expr e = s] b.
-  { all: move=> H.
-    all: destruct s as [?|?|???|??|??|???|???|??|?|?|?|?|???|??|?|??|?|??| |?|?].
-    all: simpl in H.
-    all: admit.
-  }
-  by split.
-*)
-Admitted.
+    all: try done; eexists _; try done; try apply FIX.
+    all: try eexists _; try done; try apply FIX.
+    all: try eexists _; try done; apply FIX.
+  - revert s e.
+    fix FIX 1.
+    intros s e.
+    destruct s as [s|?|???|??|??|???|???|??|?|?|?|?|???|??|?|??|?|??| |?|?].
+    (* val case *)
+    { simpl.
+      intros [v ?]; subst.
+      revert s v H.
+      fix FIX' 1.
+      intros s v.
+      destruct s as [l| | | |].
+      - destruct l as [[]|[]| |[]|[]|[]]; simpl.
+        + intros [?[?[]]]; by subst. 
+        + intros [?[?[]]]; by subst. 
+        + intros [??]; subst. by subst.
+        + intros [?[?[]]]; by subst. 
+        + intros [?[?[]]]; by subst.
+        + intros [?[?[]]]; by subst.
+      - simpl.
+        intros [? ]; subst.
+        rewrite /shape_expr. simpl. f_equal. f_equal.
+        by apply FIX in H. 
+      - simpl. intros [? H [? H']]; subst.
+        apply FIX' in H. apply FIX' in H'.
+        rewrite /shape_expr/= in H H' *. by simplify_eq.
+      - intros [? H]; subst.
+        apply FIX' in H. rewrite /shape_expr in H *. simpl in *. by simplify_eq.
+      - intros [? H]; subst.
+        apply FIX' in H. rewrite /shape_expr in H *. simpl in *. by simplify_eq.
+    }
+    all: simpl.
+    all: try (intros [??]; subst; rewrite /shape_expr/=; f_equal; by apply FIX).
+    all: try by intros ->.
+    all: try (intros [??[]]; subst; rewrite /shape_expr/=; f_equal; by apply FIX).
+    all: try (intros [??[??[]]]; subst; rewrite /shape_expr/=; f_equal; by apply FIX).
+Qed.
 
 Lemma val_shape_cyl (s : val_shape) : [set e | shape_val e = s] = val_ST (gen_val s).
 Proof.
