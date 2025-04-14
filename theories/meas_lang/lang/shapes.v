@@ -5,7 +5,7 @@ From stdpp Require Import binders gmap countable.
 From mathcomp Require Import functions classical_sets.
 From mathcomp.analysis Require Import reals measure lebesgue_measure.
 From mathcomp Require Import boolp choice.
-From clutch.prelude Require Export classical.
+From clutch.prelude Require Export base classical.
 From clutch.meas_lang.lang Require Export prelude types.
 Set Warnings "hiding-delimiting-key".
 
@@ -79,6 +79,23 @@ Qed.
 
 Lemma expr_shape_cyl (s : expr_shape) : [set e | shape_expr e = s] = expr_ST (gen_expr s).
 Proof.
+  rewrite eqEsubset; split; intros e; simpl.
+  - intros <-. revert e. fix FIX 1.
+    intros [v|?|???|??|??|???|???|??|?|?|?|?|???|?|?|??|?|??| |?|?]; simpl. 
+    { exists v; last done.
+      revert v. fix FIX' 1.
+      intros [l|f x e|v1 v2| | ]; simpl.
+      - exists l; last done. rewrite -base_lit_shape_cyl/=. done.
+      - eexists _; last done. apply FIX.
+      - eexists _; last eexists _.
+        + apply FIX'.
+        + apply FIX'.
+        + done. 
+      - eexists _; last done. apply FIX'.
+      - eexists _; last done. apply FIX'.
+    }
+    all: admit.
+  - 
   (*
   apply /predeqP =>b.
   have D1 : [set e | shape_expr e = s] b -> expr_ST (gen_expr s) b.
@@ -101,8 +118,32 @@ Proof.
 Admitted.
 
 Lemma val_shape_cyl (s : val_shape) : [set e | shape_val e = s] = val_ST (gen_val s).
-Proof. Admitted.
-
+Proof.
+  rewrite eqEsubset; split; intros v; simpl.
+  - intros <-. revert v. fix FIX 1.
+      intros [l|f x e|v1 v2| | ]; simpl.
+      + exists l; last done. rewrite -base_lit_shape_cyl/=. done.
+      + eexists _; last done. rewrite <- expr_shape_cyl. done. 
+      + eexists _; last eexists _; [apply FIX..|done].
+      + eexists _; last done. apply FIX.
+      + eexists _; last done. apply FIX.
+  - revert s v. fix FIX 1.
+    intros s v. destruct s as [l| | | |].
+    + destruct l as [[]|[]| |[]|[]|[]]; simpl.
+      * intros [?[]]; by subst. 
+      * intros [?[]]; by subst. 
+      * intros [??]; by subst.
+      * intros [?[]]; by subst. 
+      * intros [?[]]; by subst.
+      * intros [?[]]; by subst.
+    + simpl.
+      intros [? H <-].
+      rewrite <-expr_shape_cyl in H; simpl in *. by subst.
+    + simpl. intros [? ?[]]; subst.
+      rewrite /shape_val/=. f_equal; by apply FIX.
+    + simpl. intros [??[]]. rewrite /shape_val/=; f_equal. by apply FIX.
+    + simpl. intros [??[]]. rewrite /shape_val/=; f_equal. by apply FIX.
+Qed.
 
 (** Decompose the set of expressions into a countable union over expr_shape *)
 
@@ -248,8 +289,8 @@ Proof.
   revert e.
   rewrite {1}/expr_shape_decode{1}/expr_shape_encode/=.
  refine (fix go (e : expr_shape) {struct e} := _ with gov (v : val_shape) {struct v} := _ for go).
-  destruct e as [v| | | | | | | | | | | | | | | | | | | |  ]; simpl; f_equal; [exact (gov v)|done..].
-  destruct v; by f_equal.
+  - destruct e as [v| | | | | | | | | | | | | | | | | | | |  ]; simpl; f_equal; [exact (gov v)|done..].
+  - destruct v; by f_equal.
 Qed.
 
 Definition val_shape_encode v := expr_shape_encode (Val v).
@@ -397,8 +438,8 @@ Proof.
       exists (binder_enum i).
       apply /predeqP =>z /=.
       split.
-      + by move=> [? ?].
-      + by move=>->.
+      * by move=> [? ?].
+      * by move=>->.
     + have -> : ([set binder_enum i] `&` y) = set0.
       { rewrite /setI//=.
       apply /predeqP =>z /=.
@@ -432,8 +473,8 @@ Proof.
       exists (un_op_enum i).
       apply /predeqP =>z /=.
       split.
-      + by move=> [? ?].
-      + by move=>->.
+      * by move=> [? ?].
+      * by move=>->.
     + have -> : ([set un_op_enum i] `&` y) = set0.
       { rewrite /setI//=.
       apply /predeqP =>z /=.
@@ -467,8 +508,8 @@ Proof.
       exists (bin_op_enum i).
       apply /predeqP =>z /=.
       split.
-      + by move=> [? ?].
-      + by move=>->.
+      * by move=> [? ?].
+      * by move=>->.
     + have -> : ([set bin_op_enum i] `&` y) = set0.
       { rewrite /setI//=.
       apply /predeqP =>z /=.
