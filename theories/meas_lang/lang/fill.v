@@ -1336,11 +1336,65 @@ Qed.
 Hint Resolve 𝜋_BinOpRCtx_e_meas  : measlang.
 
 Lemma 𝜋_IfCtx_l_meas      : measurable_fun ectx_item_cov_IfCtx 𝜋_IfCtx_l.
-Proof. Admitted.
+Proof. 
+  into_gen_measurable.
+  rewrite /preimage_class.
+  intros ?. simpl.
+  intros [?[e]<-]; subst.
+  have ->: ((ectx_item_cov_IfCtx `&` 𝜋_IfCtx_l @^-1` (expr_ST e))=
+            \bigcup_n [set IfCtx e' e2 | e' in expr_ST e & e2 in (expr_seq n)]
+    ).
+  { rewrite eqEsubset; split; intros ?; rewrite /ectx_item_cov_IfCtx/bigcup/=.
+    - intros [[[e0 e1]??]]. subst.
+      destruct (expr_shape_enum_surj (shape_expr e1)) as [??].
+      repeat eexists _; last done; done.
+    - intros [??[??[??]]]. subst.
+      split; last done.
+      by eexists (_,_). 
+  }
+  apply bigcup_measurable.
+  intros k ?.
+  apply sub_sigma_algebra.
+  eexists (IfCtx e (gen_expr (expr_shape_enum k))).
+  - simpl. split; first done. apply gen_expr_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [??[? H2 ]]. subst.
+      rewrite -expr_shape_cyl in H2.
+      repeat eexists _; last done; done.
+    + intros [??[??<-]]. 
+      repeat eexists _; try done. by rewrite -expr_shape_cyl.
+Qed. 
 Hint Resolve 𝜋_IfCtx_l_meas      : measlang.
 
 Lemma 𝜋_IfCtx_r_meas      : measurable_fun ectx_item_cov_IfCtx 𝜋_IfCtx_r.
-Proof. Admitted.
+Proof. 
+  into_gen_measurable.
+  rewrite /preimage_class.
+  intros ?. simpl.
+  intros [?[e]<-]; subst.
+  have ->: ((ectx_item_cov_IfCtx `&` 𝜋_IfCtx_r @^-1` (expr_ST e))=
+            \bigcup_n [set IfCtx e1 e' | e' in expr_ST e & e1 in (expr_seq n)]
+    ).
+  { rewrite eqEsubset; split; intros ?; rewrite /ectx_item_cov_IfCtx/bigcup/=.
+    - intros [[[e0 e1]??]]. subst.
+      destruct (expr_shape_enum_surj (shape_expr e0)) as [??].
+      repeat eexists _; last done; done.
+    - intros [??[??[??]]]. subst.
+      split; last done.
+      by eexists (_,_). 
+  }
+  apply bigcup_measurable.
+  intros k ?.
+  apply sub_sigma_algebra.
+  eexists (IfCtx (gen_expr (expr_shape_enum k)) e).
+  - simpl. split; last done. apply gen_expr_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [? H1[? ? ]]. subst.
+      rewrite -expr_shape_cyl in H1.
+      repeat eexists _; last done; done.
+    + intros [??[??<-]]. 
+      repeat eexists _; try done. by rewrite -expr_shape_cyl.
+Qed. 
 Hint Resolve 𝜋_IfCtx_r_meas      : measlang.
 
 Lemma 𝜋_PairLCtx_v_meas   : measurable_fun ectx_item_cov_PairLCtx 𝜋_PairLCtx_v.
@@ -1372,11 +1426,65 @@ Qed.
 Hint Resolve 𝜋_PairRCtx_e_meas   : measlang.
 
 Lemma 𝜋_CaseCtx_l_meas    : measurable_fun ectx_item_cov_CaseCtx 𝜋_CaseCtx_l.
-Proof. Admitted.
+Proof. 
+  into_gen_measurable.
+  rewrite /preimage_class.
+  intros ?. simpl.
+  intros [?[e]<-]; subst.
+  have ->: ((ectx_item_cov_CaseCtx `&` 𝜋_CaseCtx_l @^-1` (expr_ST e))=
+            \bigcup_n [set CaseCtx e' e2 | e' in expr_ST e & e2 in (expr_seq n)]
+    ).
+  { rewrite eqEsubset; split; intros ?; rewrite /ectx_item_cov_CaseCtx/bigcup/=.
+    - intros [[[e0 e1]??]]. subst.
+      destruct (expr_shape_enum_surj (shape_expr e1)) as [??].
+      repeat eexists _; last done; done.
+    - intros [??[??[??]]]. subst.
+      split; last done.
+      by eexists (_,_). 
+  }
+  apply bigcup_measurable.
+  intros k ?.
+  apply sub_sigma_algebra.
+  eexists (CaseCtx e (gen_expr (expr_shape_enum k))).
+  - simpl. split; first done. apply gen_expr_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [??[? H2 ]]. subst.
+      rewrite -expr_shape_cyl in H2.
+      repeat eexists _; last done; done.
+    + intros [??[??<-]]. 
+      repeat eexists _; try done. by rewrite -expr_shape_cyl.
+Qed. 
 Hint Resolve 𝜋_CaseCtx_l_meas    : measlang.
 
 Lemma 𝜋_CaseCtx_r_meas    : measurable_fun ectx_item_cov_CaseCtx 𝜋_CaseCtx_r.
-Proof. Admitted.
+Proof. 
+  into_gen_measurable.
+  rewrite /preimage_class.
+  intros ?. simpl.
+  intros [?[e]<-]; subst.
+  have ->: ((ectx_item_cov_CaseCtx `&` 𝜋_CaseCtx_r @^-1` (expr_ST e))=
+            \bigcup_n [set CaseCtx e1 e' | e' in expr_ST e & e1 in (expr_seq n)]
+    ).
+  { rewrite eqEsubset; split; intros ?; rewrite /ectx_item_cov_CaseCtx/bigcup/=.
+    - intros [[[e0 e1]??]]. subst.
+      destruct (expr_shape_enum_surj (shape_expr e0)) as [??].
+      repeat eexists _; last done; done.
+    - intros [??[??[??]]]. subst.
+      split; last done.
+      by eexists (_,_). 
+  }
+  apply bigcup_measurable.
+  intros k ?.
+  apply sub_sigma_algebra.
+  eexists (CaseCtx (gen_expr (expr_shape_enum k)) e).
+  - simpl. split; last done. apply gen_expr_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [? H1[? ? ]]. subst.
+      rewrite -expr_shape_cyl in H1.
+      repeat eexists _; last done; done.
+    + intros [??[??<-]]. 
+      repeat eexists _; try done. by rewrite -expr_shape_cyl.
+Qed. 
 Hint Resolve 𝜋_CaseCtx_r_meas    : measlang.
 
 Lemma 𝜋_StoreLCtx_v_meas  : measurable_fun ectx_item_cov_StoreLCtx 𝜋_StoreLCtx_v.
