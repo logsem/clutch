@@ -705,7 +705,7 @@ End Projections.
 Section Cover.
 
 Definition ectx_item_cov_AppLCtx      : set ectx_item := image setT AppLCtxU.
-Definition ectx_item_cov_AppRCtx      : set ectx_item := image setT AppLCtxU.
+Definition ectx_item_cov_AppRCtx      : set ectx_item := image setT AppRCtxU.
 Definition ectx_item_cov_UnOpCtx      : set ectx_item := image setT UnOpCtxU.
 Definition ectx_item_cov_BinOpLCtx    : set ectx_item := image setT BinOpLCtxU.
 Definition ectx_item_cov_BinOpRCtx    : set ectx_item := image setT BinOpRCtxU.
@@ -729,91 +729,414 @@ Definition ectx_item_cov_TickCtx      : set ectx_item := [set TickCtx].
 
 
 Lemma ectx_item_cov_AppLCtx_meas      : measurable ectx_item_cov_AppLCtx.
-Proof. Admitted.
+Proof.
+  have -> : (ectx_item_cov_AppLCtx = \bigcup_n [set AppLCtxU v|v in (val_seq n)]).
+  { rewrite /bigcup/=.
+    rewrite /ectx_item_cov_AppLCtx.
+    rewrite eqEsubset; split; intros s; simpl.
+    - intros [v ?<-].
+      destruct (val_shape_enum_surj (shape_val v)) as [??].
+      eexists _; first done. by eexists _.
+    - intros [??[]]; subst. naive_solver.
+  }
+  apply bigcup_measurable.
+  intros k _.
+  apply sub_sigma_algebra.
+  eexists (AppLCtx (gen_val (val_shape_enum k))).
+  - rewrite //=. apply gen_val_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [x ?<-]; subst.
+      eexists _; last done.
+      by rewrite -val_shape_cyl/= in H.
+    + intros [? H <-]. eexists _; last done.
+      rewrite /val_seq/= in H. rewrite -H.
+      rewrite -val_shape_cyl. naive_solver.
+Qed.
 Hint Resolve ectx_item_cov_AppLCtx_meas      : measlang.
 
 Lemma ectx_item_cov_AppRCtx_meas      : measurable ectx_item_cov_AppRCtx.
-Proof. Admitted.
+Proof. 
+  have -> : (ectx_item_cov_AppRCtx = \bigcup_n [set AppRCtxU e|e in (expr_seq n)]).
+  { rewrite /bigcup/=.
+    rewrite /ectx_item_cov_AppRCtx.
+    rewrite eqEsubset; split; intros s; simpl.
+    - intros [e ?<-].
+      destruct (expr_shape_enum_surj (shape_expr e)) as [??].
+      eexists _; first done. by eexists _.
+    - intros [??[]]; subst. naive_solver.
+  }
+  apply bigcup_measurable.
+  intros k _.
+  apply sub_sigma_algebra.
+  eexists (AppRCtx (gen_expr (expr_shape_enum k))).
+  - rewrite //=. apply gen_expr_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [x ?<-]; subst.
+      eexists _; last done.
+      by rewrite -expr_shape_cyl/= in H.
+    + intros [? H <-]. eexists _; last done.
+      rewrite /expr_seq/= in H. rewrite -H.
+      rewrite -expr_shape_cyl. naive_solver.
+Qed.
 Hint Resolve ectx_item_cov_AppRCtx_meas      : measlang.
 
 Lemma ectx_item_cov_UnOpCtx_meas      : measurable ectx_item_cov_UnOpCtx.
-Proof. Admitted.
+Proof. 
+  have -> : (ectx_item_cov_UnOpCtx = \bigcup_n [set UnOpCtxU (un_op_enum n)]).
+  { rewrite /bigcup/=.
+    rewrite /ectx_item_cov_UnOpCtx.
+    rewrite eqEsubset; split; intros s; simpl.
+    - intros [op ?<-].
+      destruct (un_op_enum_surj op) as [??].
+      eexists _; first done. by subst. 
+    - intros []; subst. naive_solver.
+  }
+  apply bigcup_measurable.
+  intros k _.
+  apply sub_sigma_algebra.
+  by eexists (UnOpCtx (un_op_enum k)).
+Qed.
 Hint Resolve ectx_item_cov_UnOpCtx_meas      : measlang.
 
 Lemma ectx_item_cov_BinOpLCtx_meas    : measurable ectx_item_cov_BinOpLCtx.
-Proof. Admitted.
+Proof. 
+  have -> : (ectx_item_cov_BinOpLCtx = \bigcup_n \bigcup_m [set BinOpLCtxU ((bin_op_enum n), v)| v in (val_seq m)]).
+  { rewrite /bigcup/=.
+    rewrite /ectx_item_cov_BinOpLCtx.
+    rewrite eqEsubset; split; intros s; simpl.
+    - intros [[op v]? <-].
+      destruct (bin_op_enum_surj op) as [??].
+      destruct (val_shape_enum_surj (shape_val v)) as [??]; subst.
+      eexists _; first done. eexists _; first done. eexists _; last done.
+      by rewrite /val_seq/=.
+    - intros [??[??[]]]; subst.
+      by eexists (_,_).   
+  }
+  apply bigcup_measurable.
+  intros k _.
+  apply bigcup_measurable.
+  intros k' _.
+  apply sub_sigma_algebra.
+  eexists (BinOpLCtx (bin_op_enum k) (gen_val (val_shape_enum k'))).
+  - rewrite //=. apply gen_val_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [x  H <-]; subst.
+      eexists _; last done.
+      by rewrite -val_shape_cyl/= in H.
+    + intros [? H <-]. eexists _; last done.
+      rewrite /val_seq/= in H. rewrite -H.
+      rewrite -val_shape_cyl. naive_solver.
+Qed.
 Hint Resolve ectx_item_cov_BinOpLCtx_meas    : measlang.
 
 Lemma ectx_item_cov_BinOpRCtx_meas    : measurable ectx_item_cov_BinOpRCtx.
-Proof. Admitted.
+Proof. 
+  have -> : (ectx_item_cov_BinOpRCtx = \bigcup_n \bigcup_m [set BinOpRCtxU ((bin_op_enum n), e)| e in (expr_seq m)]).
+  { rewrite /bigcup/=.
+    rewrite /ectx_item_cov_BinOpRCtx.
+    rewrite eqEsubset; split; intros s; simpl.
+    - intros [[op e]? <-].
+      destruct (bin_op_enum_surj op) as [??].
+      destruct (expr_shape_enum_surj (shape_expr e)) as [??]; subst.
+      eexists _; first done. eexists _; first done. eexists _; last done.
+      by rewrite /expr_seq/=.
+    - intros [??[??[]]]; subst.
+      by eexists (_,_).   
+  }
+  apply bigcup_measurable.
+  intros k _.
+  apply bigcup_measurable.
+  intros k' _.
+  apply sub_sigma_algebra.
+  eexists (BinOpRCtx (bin_op_enum k) (gen_expr (expr_shape_enum k'))).
+  - rewrite //=. apply gen_expr_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [x  H <-]; subst.
+      eexists _; last done.
+      by rewrite -expr_shape_cyl/= in H.
+    + intros [? H <-]. eexists _; last done.
+      rewrite /expr_seq/= in H. rewrite -H.
+      rewrite -expr_shape_cyl. naive_solver.
+Qed.
 Hint Resolve ectx_item_cov_BinOpRCtx_meas    : measlang.
 
 Lemma ectx_item_cov_IfCtx_meas        : measurable ectx_item_cov_IfCtx.
-Proof. Admitted.
+Proof. 
+  have -> : (ectx_item_cov_IfCtx = \bigcup_n \bigcup_m [set IfCtxU (e1, e2)| e1 in (expr_seq n )& e2 in (expr_seq m)]).
+  { rewrite /bigcup/=.
+    rewrite /ectx_item_cov_IfCtx.
+    rewrite eqEsubset; split; intros s; simpl.
+    - intros [[e1 e2]? <-].
+      destruct (expr_shape_enum_surj (shape_expr e1)) as [??]; subst.
+      destruct (expr_shape_enum_surj (shape_expr e2)) as [??]; subst.
+      eexists _; first done. eexists _; first done. eexists _; last eexists _; last done; done. 
+    - intros [??[??[??[]]]]; subst.
+      by eexists (_,_).   
+  }
+  apply bigcup_measurable.
+  intros k _.
+  apply bigcup_measurable.
+  intros k' _.
+  apply sub_sigma_algebra.
+  eexists (IfCtx (gen_expr (expr_shape_enum k)) (gen_expr (expr_shape_enum k'))).
+  - rewrite //=; split;  apply gen_expr_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [x  H [? H' <-]].
+      rewrite -!expr_shape_cyl/= in H H'.
+      eexists _; last eexists _; last done; done.
+    + intros [? H [? H' <-]].
+      rewrite -!expr_shape_cyl.
+      repeat eexists _; last done; done.
+Qed.
 Hint Resolve ectx_item_cov_IfCtx_meas        : measlang.
 
 Lemma ectx_item_cov_PairLCtx_meas     : measurable ectx_item_cov_PairLCtx.
-Proof. Admitted.
+Proof. 
+  have -> : (ectx_item_cov_PairLCtx = \bigcup_n [set PairLCtxU v|v in (val_seq n)]).
+  { rewrite /bigcup/=.
+    rewrite /ectx_item_cov_PairLCtx.
+    rewrite eqEsubset; split; intros s; simpl.
+    - intros [v ?<-].
+      destruct (val_shape_enum_surj (shape_val v)) as [??].
+      eexists _; first done. by eexists _.
+    - intros [??[]]; subst. naive_solver.
+  }
+  apply bigcup_measurable.
+  intros k _.
+  apply sub_sigma_algebra.
+  eexists (PairLCtx (gen_val (val_shape_enum k))).
+  - rewrite //=. apply gen_val_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [x ?<-]; subst.
+      eexists _; last done.
+      by rewrite -val_shape_cyl/= in H.
+    + intros [? H <-]. eexists _; last done.
+      rewrite /val_seq/= in H. rewrite -H.
+      rewrite -val_shape_cyl. naive_solver.
+Qed.
 Hint Resolve ectx_item_cov_PairLCtx_meas     : measlang.
 
 Lemma ectx_item_cov_PairRCtx_meas     : measurable ectx_item_cov_PairRCtx.
-Proof. Admitted.
+Proof. 
+  have -> : (ectx_item_cov_PairRCtx = \bigcup_n [set PairRCtxU e|e in (expr_seq n)]).
+  { rewrite /bigcup/=.
+    rewrite /ectx_item_cov_PairRCtx.
+    rewrite eqEsubset; split; intros s; simpl.
+    - intros [e ?<-].
+      destruct (expr_shape_enum_surj (shape_expr e)) as [??].
+      eexists _; first done. by eexists _.
+    - intros [??[]]; subst. naive_solver.
+  }
+  apply bigcup_measurable.
+  intros k _.
+  apply sub_sigma_algebra.
+  eexists (PairRCtx (gen_expr (expr_shape_enum k))).
+  - rewrite //=. apply gen_expr_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [x ?<-]; subst.
+      eexists _; last done.
+      by rewrite -expr_shape_cyl/= in H.
+    + intros [? H <-]. eexists _; last done.
+      rewrite /expr_seq/= in H. rewrite -H.
+      rewrite -expr_shape_cyl. naive_solver.
+Qed.
 Hint Resolve ectx_item_cov_PairRCtx_meas     : measlang.
 
 Lemma ectx_item_cov_FstCtx_meas       : measurable ectx_item_cov_FstCtx.
-Proof. Admitted.
+Proof.
+  apply sub_sigma_algebra.
+  by eexists FstCtx.
+Qed.
 Hint Resolve ectx_item_cov_FstCtx_meas       : measlang.
 
 Lemma ectx_item_cov_SndCtx_meas       : measurable ectx_item_cov_SndCtx.
-Proof. Admitted.
+Proof. 
+  apply sub_sigma_algebra.
+  by eexists SndCtx.
+Qed.
 Hint Resolve ectx_item_cov_SndCtx_meas       : measlang.
 
 Lemma ectx_item_cov_InjLCtx_meas      : measurable ectx_item_cov_InjLCtx.
-Proof. Admitted.
+Proof. 
+  apply sub_sigma_algebra.
+  by eexists InjLCtx.
+Qed.
 Hint Resolve ectx_item_cov_InjLCtx_meas      : measlang.
 
 Lemma ectx_item_cov_InjRCtx_meas      : measurable ectx_item_cov_InjRCtx.
-Proof. Admitted.
+Proof. 
+  apply sub_sigma_algebra.
+  by eexists InjRCtx.
+Qed.
 Hint Resolve ectx_item_cov_InjRCtx_meas      : measlang.
 
 Lemma ectx_item_cov_CaseCtx_meas      : measurable ectx_item_cov_CaseCtx.
-Proof. Admitted.
+Proof. 
+  have -> : (ectx_item_cov_CaseCtx = \bigcup_n \bigcup_m [set CaseCtxU (e1, e2)| e1 in (expr_seq n )& e2 in (expr_seq m)]).
+  { rewrite /bigcup/=.
+    rewrite /ectx_item_cov_CaseCtx.
+    rewrite eqEsubset; split; intros s; simpl.
+    - intros [[e1 e2]? <-].
+      destruct (expr_shape_enum_surj (shape_expr e1)) as [??]; subst.
+      destruct (expr_shape_enum_surj (shape_expr e2)) as [??]; subst.
+      eexists _; first done. eexists _; first done. eexists _; last eexists _; last done; done. 
+    - intros [??[??[??[]]]]; subst.
+      by eexists (_,_).   
+  }
+  apply bigcup_measurable.
+  intros k _.
+  apply bigcup_measurable.
+  intros k' _.
+  apply sub_sigma_algebra.
+  eexists (CaseCtx (gen_expr (expr_shape_enum k)) (gen_expr (expr_shape_enum k'))).
+  - rewrite //=; split;  apply gen_expr_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [x  H [? H' <-]].
+      rewrite -!expr_shape_cyl/= in H H'.
+      eexists _; last eexists _; last done; done.
+    + intros [? H [? H' <-]].
+      rewrite -!expr_shape_cyl.
+      repeat eexists _; last done; done.
+Qed.
 Hint Resolve ectx_item_cov_CaseCtx_meas      : measlang.
 
 Lemma ectx_item_cov_AllocCtx_meas     : measurable ectx_item_cov_AllocCtx.
-Proof. Admitted.
+Proof. 
+  apply sub_sigma_algebra.
+  by eexists AllocCtx.
+Qed.
 Hint Resolve ectx_item_cov_AllocCtx_meas   : measlang.
 
 Lemma ectx_item_cov_LoadCtx_meas      : measurable ectx_item_cov_LoadCtx.
-Proof. Admitted.
+Proof. 
+  apply sub_sigma_algebra.
+  by eexists LoadCtx.
+Qed.
 Hint Resolve ectx_item_cov_LoadCtx_meas      : measlang.
 
 Lemma ectx_item_cov_StoreLCtx_meas    : measurable ectx_item_cov_StoreLCtx.
-Proof. Admitted.
+Proof. 
+  have -> : (ectx_item_cov_StoreLCtx = \bigcup_n [set StoreLCtxU v|v in (val_seq n)]).
+  { rewrite /bigcup/=.
+    rewrite /ectx_item_cov_StoreLCtx.
+    rewrite eqEsubset; split; intros s; simpl.
+    - intros [v ?<-].
+      destruct (val_shape_enum_surj (shape_val v)) as [??].
+      eexists _; first done. by eexists _.
+    - intros [??[]]; subst. naive_solver.
+  }
+  apply bigcup_measurable.
+  intros k _.
+  apply sub_sigma_algebra.
+  eexists (StoreLCtx (gen_val (val_shape_enum k))).
+  - rewrite //=. apply gen_val_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [x ?<-]; subst.
+      eexists _; last done.
+      by rewrite -val_shape_cyl/= in H.
+    + intros [? H <-]. eexists _; last done.
+      rewrite /val_seq/= in H. rewrite -H.
+      rewrite -val_shape_cyl. naive_solver.
+Qed. 
 Hint Resolve ectx_item_cov_StoreLCtx_meas    : measlang.
 
 Lemma ectx_item_cov_StoreRCtx_meas    : measurable ectx_item_cov_StoreRCtx.
-Proof. Admitted.
+Proof. 
+  have -> : (ectx_item_cov_StoreRCtx = \bigcup_n [set StoreRCtxU e|e in (expr_seq n)]).
+  { rewrite /bigcup/=.
+    rewrite /ectx_item_cov_StoreRCtx.
+    rewrite eqEsubset; split; intros s; simpl.
+    - intros [e ?<-].
+      destruct (expr_shape_enum_surj (shape_expr e)) as [??].
+      eexists _; first done. by eexists _.
+    - intros [??[]]; subst. naive_solver.
+  }
+  apply bigcup_measurable.
+  intros k _.
+  apply sub_sigma_algebra.
+  eexists (StoreRCtx (gen_expr (expr_shape_enum k))).
+  - rewrite //=. apply gen_expr_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [x ?<-]; subst.
+      eexists _; last done.
+      by rewrite -expr_shape_cyl/= in H.
+    + intros [? H <-]. eexists _; last done.
+      rewrite /expr_seq/= in H. rewrite -H.
+      rewrite -expr_shape_cyl. naive_solver.
+Qed.
 Hint Resolve ectx_item_cov_StoreRCtx_meas    : measlang.
 
 Lemma ectx_item_cov_AllocTapeCtx_meas : measurable ectx_item_cov_AllocTapeCtx.
-Proof. Admitted.
+Proof. 
+  apply sub_sigma_algebra.
+  by eexists AllocTapeCtx.
+Qed.
 Hint Resolve ectx_item_cov_AllocTapeCtx_meas : measlang.
 
 Lemma ectx_item_cov_RandLCtx_meas     : measurable ectx_item_cov_RandLCtx.
-Proof. Admitted.
+Proof. 
+  have -> : (ectx_item_cov_RandLCtx = \bigcup_n [set RandLCtxU v|v in (val_seq n)]).
+  { rewrite /bigcup/=.
+    rewrite /ectx_item_cov_RandLCtx.
+    rewrite eqEsubset; split; intros s; simpl.
+    - intros [v ?<-].
+      destruct (val_shape_enum_surj (shape_val v)) as [??].
+      eexists _; first done. by eexists _.
+    - intros [??[]]; subst. naive_solver.
+  }
+  apply bigcup_measurable.
+  intros k _.
+  apply sub_sigma_algebra.
+  eexists (RandLCtx (gen_val (val_shape_enum k))).
+  - rewrite //=. apply gen_val_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [x ?<-]; subst.
+      eexists _; last done.
+      by rewrite -val_shape_cyl/= in H.
+    + intros [? H <-]. eexists _; last done.
+      rewrite /val_seq/= in H. rewrite -H.
+      rewrite -val_shape_cyl. naive_solver.
+Qed.
 Hint Resolve ectx_item_cov_RandLCtx_meas     : measlang.
 
 Lemma ectx_item_cov_RandRCtx_meas     : measurable ectx_item_cov_RandRCtx.
-Proof. Admitted.
+Proof. 
+  have -> : (ectx_item_cov_RandRCtx = \bigcup_n [set RandRCtxU e|e in (expr_seq n)]).
+  { rewrite /bigcup/=.
+    rewrite /ectx_item_cov_RandRCtx.
+    rewrite eqEsubset; split; intros s; simpl.
+    - intros [e ?<-].
+      destruct (expr_shape_enum_surj (shape_expr e)) as [??].
+      eexists _; first done. by eexists _.
+    - intros [??[]]; subst. naive_solver.
+  }
+  apply bigcup_measurable.
+  intros k _.
+  apply sub_sigma_algebra.
+  eexists (RandRCtx (gen_expr (expr_shape_enum k))).
+  - rewrite //=. apply gen_expr_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [x ?<-]; subst.
+      eexists _; last done.
+      by rewrite -expr_shape_cyl/= in H.
+    + intros [? H <-]. eexists _; last done.
+      rewrite /expr_seq/= in H. rewrite -H.
+      rewrite -expr_shape_cyl. naive_solver.
+Qed.
 Hint Resolve ectx_item_cov_RandRCtx_meas     : measlang.
 
 Lemma ectx_item_cov_URandCtx_meas     : measurable ectx_item_cov_URandCtx.
-Proof. Admitted.
+Proof. 
+  apply sub_sigma_algebra.
+  by eexists URandCtx.
+Qed.
 Hint Resolve ectx_item_cov_URandCtx_meas     : measlang.
 
 Lemma ectx_item_cov_TickCtx_meas      : measurable ectx_item_cov_TickCtx.
-Proof. Admitted.
+Proof. 
+  apply sub_sigma_algebra.
+  by eexists TickCtx.
+Qed.
 Hint Resolve ectx_item_cov_TickCtx_meas      : measlang.
 
 
