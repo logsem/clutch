@@ -23,8 +23,6 @@ Notation RR := ((R : realType) : measurableType _).
  *)
 
 Section couplings.
-
-
   Local Open Scope classical_set_scope.
 
   Context {dA dB} `{A : measurableType dA} `{B : measurableType dB}.
@@ -39,16 +37,40 @@ Section couplings.
 
 End couplings.
 
+Global Instance integral_proper {d} {T : measurableType d} f :
+  Proper (measure_eq ==> eq) (fun (μ : giryM T) => \int[μ]_(x in setT) f x)%E.
+Proof.
+  intros μ1 μ1' H.
+  eapply eq_measure_integral.
+  intros S HS ?.
+  by apply H.
+Qed.
+
 Section couplings_theory.
-
-
   Local Open Scope classical_set_scope.
   Local Open Scope ring_scope.
   Local Open Scope ereal_scope.
-
   Context {dA1 dB1 dA2 dB2}
     `{A1 : measurableType dA1} `{B1 : measurableType dB1}
     `{A2 : measurableType dA2} `{B2 : measurableType dB2}.
+
+  Lemma ARcoupl_meas_proper_pre {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} S ε δ :
+    Proper (measure_eq ==> measure_eq ==> impl) (fun (μ1 : giryM T1) (μ2 : giryM T2) => ARcoupl_meas μ1 μ2 S ε δ).
+  Proof.
+    intros μ1 μ1' H1 μ2 μ2' H2.
+    intros Hcoupl f Hfm Hfp Hf1 g Hgm Hgp Hg1 Hle.
+    symmetry in H1, H2.
+    rewrite (integral_proper _ H1).
+    rewrite (integral_proper _ H2).
+    by apply Hcoupl.
+  Qed.
+
+  Global Instance ARcoupl_meas_proper {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} S ε δ :
+    Proper (measure_eq ==> measure_eq ==> eq) (fun (μ1 : giryM T1) (μ2 : giryM T2) => ARcoupl_meas μ1 μ2 S ε δ).
+  Proof.
+    intros μ1 μ1' H1 μ2 μ2' H2.
+    apply propext; split; apply ARcoupl_meas_proper_pre; done.
+  Qed.
 
   (* TODO: Fix notation scoping for ε <= ε', etc *)
 

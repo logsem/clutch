@@ -62,10 +62,14 @@ Section adequacy.
     iIntros (σ1 e1' σ1' ε') "> (? & Hs & Hε & (% & Hv & %)) /=".
     iDestruct (spec_auth_prog_agree with "Hs Hv") as %->.
     erewrite exec_is_final; [|done].
+    iApply fupd_mask_intro; [set_solver|]; iIntros "_".
+    iPureIntro.
     Admitted.
     (*
-    erewrite lim_exec_final; [|done].
-    iApply fupd_mask_intro; [set_solver|]; iIntros "_".
+    Check ARcoupl_proper φ.
+    apply
+    Check lim_exec_final.
+    rewrite lim_exec_final; [|done].
     iPureIntro.
     eapply ARcoupl_meas_dret; [| | done].
     { repeat destroy_mathcomp. by apply cond_nonneg. }
