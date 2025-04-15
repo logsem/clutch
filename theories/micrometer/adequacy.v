@@ -62,6 +62,8 @@ Section adequacy.
     iIntros (σ1 e1' σ1' ε') "> (? & Hs & Hε & (% & Hv & %)) /=".
     iDestruct (spec_auth_prog_agree with "Hs Hv") as %->.
     erewrite exec_is_final; [|done].
+    Admitted.
+    (*
     erewrite lim_exec_final; [|done].
     iApply fupd_mask_intro; [set_solver|]; iIntros "_".
     iPureIntro.
@@ -72,7 +74,7 @@ Section adequacy.
       (* repeat destroy_mathcomp.
       destruct δ.
       { repeat destroy_mathcomp.  *)
-  Admitted.
+  Admitted. *)
 
   Lemma wp_adequacy_step_fupdN ε δ e e' σ σ' n φ :
     state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε ∗
