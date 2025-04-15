@@ -35,7 +35,8 @@ Proof.
   rewrite /preimage_class. intros ?. simpl.
   intros [?[x H <-]<-].
   rewrite setTI.
-  destruct x as [|].
+  destruct x as [s|].
+  - rewrite /option_ML/= in H.
 Admitted.
 
 
@@ -1169,47 +1170,205 @@ End Cover.
 Section Projection_measurability.
 
 Lemma 𝜋_AppLCtx_v_meas    : measurable_fun ectx_item_cov_AppLCtx 𝜋_AppLCtx_v.
-Proof. Admitted.
+Proof. into_gen_measurable.
+       rewrite /preimage_class.
+       intros x[?[x1?<-] <-].
+       apply sub_sigma_algebra.
+       eexists (AppLCtx x1); first done.
+       simpl. 
+       rewrite eqEsubset; split; intros ?; simpl.
+       - intros [?? <-]. split; last done. rewrite /ectx_item_cov_AppLCtx. naive_solver.
+       - rewrite /ectx_item_cov_AppLCtx/=.
+         intros [[??<-]?]. simpl in *. naive_solver.
+Qed.
 Hint Resolve 𝜋_AppLCtx_v_meas    : measlang.
 
 Lemma 𝜋_AppRCtx_e_meas    : measurable_fun ectx_item_cov_AppRCtx 𝜋_AppRCtx_e.
-Proof. Admitted.
+Proof. into_gen_measurable.
+       rewrite /preimage_class.
+       intros x[?[x1?<-] <-].
+       apply sub_sigma_algebra.
+       eexists (AppRCtx x1); first done.
+       simpl. 
+       rewrite eqEsubset; split; intros ?; simpl.
+       - intros [?? <-]. split; last done. rewrite /ectx_item_cov_AppRCtx. naive_solver.
+       - rewrite /ectx_item_cov_AppRCtx/=.
+         intros [[??<-]?]. simpl in *. naive_solver.
+Qed.
 Hint Resolve 𝜋_AppRCtx_e_meas    : measlang.
 
 Lemma 𝜋_UnOpCtx_op_meas   : measurable_fun ectx_item_cov_UnOpCtx 𝜋_UnOpCtx_op.
-Proof. Admitted.
+Proof. eapply (measurability un_op_generated_by_singletons). rewrite /preimage_class.
+       intros ? [?[x]?]; subst.
+       apply sub_sigma_algebra.
+       eexists (UnOpCtx x); first done.
+       simpl. 
+       rewrite eqEsubset; split; intros ?; simpl.
+       - intros ->; split; last done.
+         rewrite /ectx_item_cov_UnOpCtx. naive_solver.
+       - rewrite /ectx_item_cov_UnOpCtx/=.
+         intros [[]<-]; by subst.
+Qed.
 Hint Resolve 𝜋_UnOpCtx_op_meas   : measlang.
 
 Lemma 𝜋_BinOpLCtx_op_meas : measurable_fun ectx_item_cov_BinOpLCtx 𝜋_BinOpLCtx_op.
-Proof. Admitted.
+Proof.
+  eapply (measurability bin_op_generated_by_singletons).
+  rewrite /preimage_class.
+  intros ?. simpl.
+  intros [?[op ->]<-].
+  have ->: ((ectx_item_cov_BinOpLCtx `&` 𝜋_BinOpLCtx_op @^-1` [set op])=
+            \bigcup_n [set BinOpLCtx op v|v in (val_seq n)]
+    ).
+  { rewrite eqEsubset; split; intros ?; rewrite /ectx_item_cov_BinOpLCtx/bigcup/=.
+    - intros [[[op' v]]<-]. subst.
+      destruct (val_shape_enum_surj (shape_val v)) as [??].
+      eexists _; first done. by eexists _.
+    - intros [??[??]]. subst.
+      split; last done.
+      eexists (_,_); naive_solver.
+  }
+  apply bigcup_measurable.
+  intros ? _.
+  apply sub_sigma_algebra.
+  eexists (BinOpLCtx op (gen_val (val_shape_enum k))).
+  - simpl. apply gen_val_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [x ?<-]; subst.
+      eexists _; last done.
+      by rewrite -val_shape_cyl/= in H.
+    + intros [? H <-]. eexists _; last done.
+      rewrite /val_seq/= in H. rewrite -H.
+      rewrite -val_shape_cyl. naive_solver.
+Qed.
 Hint Resolve 𝜋_BinOpLCtx_op_meas : measlang.
 
 Lemma 𝜋_BinOpLCtx_v_meas  : measurable_fun ectx_item_cov_BinOpLCtx 𝜋_BinOpLCtx_v.
-Proof. Admitted.
+Proof.
+  into_gen_measurable.
+  rewrite /preimage_class.
+  intros ?. simpl.
+  intros [?[v]<-]; subst.
+  have ->: ((ectx_item_cov_BinOpLCtx `&` 𝜋_BinOpLCtx_v @^-1` (val_ST v))=
+            \bigcup_n [set BinOpLCtx (bin_op_enum n) v' | v' in val_ST v]
+    ).
+  { rewrite eqEsubset; split; intros ?; rewrite /ectx_item_cov_BinOpLCtx/bigcup/=.
+    - intros [[[op]]]; subst; simpl in *. 
+      destruct (bin_op_enum_surj op) as [??].
+      repeat eexists _; [done..|]. by subst.
+    - intros [??[??]]. subst.
+      split; last done.
+      by eexists (_,_). 
+  }
+  apply bigcup_measurable.
+  intros ? _.
+  apply sub_sigma_algebra.
+  eexists (BinOpLCtx (bin_op_enum k) v).
+  - simpl. done. 
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [x ?<-]; subst.
+      by eexists _. 
+    + intros [? H' <-]. eexists _; last done.
+      by rewrite /val_seq/= in H. 
+Qed.
 Hint Resolve 𝜋_BinOpLCtx_v_meas  : measlang.
 
 Lemma 𝜋_BinOpRCtx_op_meas : measurable_fun ectx_item_cov_BinOpRCtx 𝜋_BinOpRCtx_op.
-Proof. Admitted.
+Proof. 
+  eapply (measurability bin_op_generated_by_singletons).
+  rewrite /preimage_class.
+  intros ?. simpl.
+  intros [?[op ->]<-].
+  have ->: ((ectx_item_cov_BinOpRCtx `&` 𝜋_BinOpRCtx_op @^-1` [set op])=
+            \bigcup_n [set BinOpRCtx op e|e in (expr_seq n)]
+    ).
+  { rewrite eqEsubset; split; intros ?; rewrite /ectx_item_cov_BinOpRCtx/bigcup/=.
+    - intros [[[op' e]]<-]. subst.
+      destruct (expr_shape_enum_surj (shape_expr e)) as [??].
+      eexists _; first done. by eexists _.
+    - intros [??[??]]. subst.
+      split; last done.
+      eexists (_,_); naive_solver.
+  }
+  apply bigcup_measurable.
+  intros ? _.
+  apply sub_sigma_algebra.
+  eexists (BinOpRCtx op (gen_expr (expr_shape_enum k))).
+  - simpl. apply gen_expr_generator.
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [x ?<-]; subst.
+      eexists _; last done.
+      by rewrite -expr_shape_cyl/= in H.
+    + intros [? H <-]. eexists _; last done.
+      rewrite /expr_seq/= in H. rewrite -H.
+      rewrite -expr_shape_cyl. naive_solver.
+Qed.
 Hint Resolve 𝜋_BinOpRCtx_op_meas : measlang.
 
 Lemma 𝜋_BinOpRCtx_e_meas  : measurable_fun ectx_item_cov_BinOpRCtx 𝜋_BinOpRCtx_e.
-Proof. Admitted.
+Proof. 
+  into_gen_measurable.
+  rewrite /preimage_class.
+  intros ?. simpl.
+  intros [?[e]<-]; subst.
+  have ->: ((ectx_item_cov_BinOpRCtx `&` 𝜋_BinOpRCtx_e @^-1` (expr_ST e))=
+            \bigcup_n [set BinOpRCtx (bin_op_enum n) e' | e' in expr_ST e]
+    ).
+  { rewrite eqEsubset; split; intros ?; rewrite /ectx_item_cov_BinOpRCtx/bigcup/=.
+    - intros [[[op]]]; subst; simpl in *. 
+      destruct (bin_op_enum_surj op) as [??].
+      repeat eexists _; [done..|]. by subst.
+    - intros [??[??]]. subst.
+      split; last done.
+      by eexists (_,_). 
+  }
+  apply bigcup_measurable.
+  intros ? _.
+  apply sub_sigma_algebra.
+  eexists (BinOpRCtx (bin_op_enum k) e).
+  - simpl. done. 
+  - rewrite eqEsubset; split; intros ?; simpl.
+    + intros [x ?<-]; subst.
+      by eexists _. 
+    + intros [? H' <-]. eexists _; last done.
+      by rewrite /expr_seq/= in H. 
+Qed.
 Hint Resolve 𝜋_BinOpRCtx_e_meas  : measlang.
 
 Lemma 𝜋_IfCtx_l_meas      : measurable_fun ectx_item_cov_IfCtx 𝜋_IfCtx_l.
 Proof. Admitted.
 Hint Resolve 𝜋_IfCtx_l_meas      : measlang.
 
-Lemma 𝜋_IfCtx_r_meas      : measurable_fun ectx_item_cov_IfCtx 𝜋_IfCtx_l.
+Lemma 𝜋_IfCtx_r_meas      : measurable_fun ectx_item_cov_IfCtx 𝜋_IfCtx_r.
 Proof. Admitted.
 Hint Resolve 𝜋_IfCtx_r_meas      : measlang.
 
 Lemma 𝜋_PairLCtx_v_meas   : measurable_fun ectx_item_cov_PairLCtx 𝜋_PairLCtx_v.
-Proof. Admitted.
+Proof. into_gen_measurable.
+       rewrite /preimage_class.
+       intros x[?[x1?<-] <-].
+       apply sub_sigma_algebra.
+       eexists (PairLCtx x1); first done.
+       simpl. 
+       rewrite eqEsubset; split; intros ?; simpl.
+       - intros [?? <-]. split; last done. rewrite /ectx_item_cov_PairLCtx. naive_solver.
+       - rewrite /ectx_item_cov_PairLCtx/=.
+         intros [[??<-]?]. simpl in *. naive_solver.
+Qed.
 Hint Resolve 𝜋_PairLCtx_v_meas   : measlang.
 
 Lemma 𝜋_PairRCtx_e_meas   : measurable_fun ectx_item_cov_PairRCtx 𝜋_PairRCtx_e.
-Proof. Admitted.
+Proof. into_gen_measurable.
+       rewrite /preimage_class.
+       intros x[?[x1?<-] <-].
+       apply sub_sigma_algebra.
+       eexists (PairRCtx x1); first done.
+       simpl. 
+       rewrite eqEsubset; split; intros ?; simpl.
+       - intros [?? <-]. split; last done. rewrite /ectx_item_cov_PairRCtx. naive_solver.
+       - rewrite /ectx_item_cov_PairRCtx/=.
+         intros [[??<-]?]. simpl in *. naive_solver.
+Qed.
 Hint Resolve 𝜋_PairRCtx_e_meas   : measlang.
 
 Lemma 𝜋_CaseCtx_l_meas    : measurable_fun ectx_item_cov_CaseCtx 𝜋_CaseCtx_l.
@@ -1221,19 +1380,59 @@ Proof. Admitted.
 Hint Resolve 𝜋_CaseCtx_r_meas    : measlang.
 
 Lemma 𝜋_StoreLCtx_v_meas  : measurable_fun ectx_item_cov_StoreLCtx 𝜋_StoreLCtx_v.
-Proof. Admitted.
+Proof. into_gen_measurable.
+       rewrite /preimage_class.
+       intros x[?[x1?<-] <-].
+       apply sub_sigma_algebra.
+       eexists (StoreLCtx x1); first done.
+       simpl. 
+       rewrite eqEsubset; split; intros ?; simpl.
+       - intros [?? <-]. split; last done. rewrite /ectx_item_cov_StoreLCtx. naive_solver.
+       - rewrite /ectx_item_cov_StoreLCtx/=.
+         intros [[??<-]?]. simpl in *. naive_solver.
+Qed.
 Hint Resolve 𝜋_StoreLCtx_v_meas  : measlang.
 
 Lemma 𝜋_StoreRCtx_e_meas  : measurable_fun ectx_item_cov_StoreRCtx 𝜋_StoreRCtx_e.
-Proof. Admitted.
+Proof. into_gen_measurable.
+       rewrite /preimage_class.
+       intros x[?[x1?<-] <-].
+       apply sub_sigma_algebra.
+       eexists (StoreRCtx x1); first done.
+       simpl. 
+       rewrite eqEsubset; split; intros ?; simpl.
+       - intros [?? <-]. split; last done. rewrite /ectx_item_cov_StoreRCtx. naive_solver.
+       - rewrite /ectx_item_cov_StoreRCtx/=.
+         intros [[??<-]?]. simpl in *. naive_solver.
+Qed.
 Hint Resolve 𝜋_StoreRCtx_e_meas  : measlang.
 
 Lemma 𝜋_RandLCtx_v_meas   : measurable_fun ectx_item_cov_RandLCtx 𝜋_RandLCtx_v.
-Proof. Admitted.
+Proof. into_gen_measurable.
+       rewrite /preimage_class.
+       intros x[?[x1?<-] <-].
+       apply sub_sigma_algebra.
+       eexists (RandLCtx x1); first done.
+       simpl. 
+       rewrite eqEsubset; split; intros ?; simpl.
+       - intros [?? <-]. split; last done. rewrite /ectx_item_cov_RandLCtx. naive_solver.
+       - rewrite /ectx_item_cov_RandLCtx/=.
+         intros [[??<-]?]. simpl in *. naive_solver.
+Qed.
 Hint Resolve 𝜋_RandLCtx_v_meas   : measlang.
 
 Lemma 𝜋_RandRCtx_e_meas   : measurable_fun ectx_item_cov_RandRCtx 𝜋_RandRCtx_e.
-Proof. Admitted.
+Proof. into_gen_measurable.
+       rewrite /preimage_class.
+       intros x[?[x1?<-] <-].
+       apply sub_sigma_algebra.
+       eexists (RandRCtx x1); first done.
+       simpl. 
+       rewrite eqEsubset; split; intros ?; simpl.
+       - intros [?? <-]. split; last done. rewrite /ectx_item_cov_RandRCtx. naive_solver.
+       - rewrite /ectx_item_cov_RandRCtx/=.
+         intros [[??<-]?]. simpl in *. naive_solver.
+Qed.
 Hint Resolve 𝜋_RandRCtx_e_meas   : measlang.
 
 Hint Resolve 𝜋_AppLCtx_v_meas    : mf_fun.
@@ -1482,7 +1681,8 @@ Lemma fill_item'_meas_fun : measurable_fun setT fill_item'. Admitted.
 
 Lemma fill_item_fill_item'_eq : fill_item' = fill_item. Admitted.
 
-Lemma fill_item_meas_fun : measurable_fun setT fill_item. Admitted.
+Lemma fill_item_meas_fun : measurable_fun setT fill_item.
+Proof. rewrite -fill_item_fill_item'_eq. apply fill_item'_meas_fun. Qed. 
 
 Definition noval (x : expr * ectx_item) : option (ectx_item * expr)%type :=
   match x.1 with
@@ -1846,7 +2046,8 @@ Admitted.
 
 Lemma decomp_item_decomp_eq : decomp_item' = decomp_item. Admitted.
 
-Lemma decomp_item_meas_fun : measurable_fun setT decomp_item. Admitted.
+Lemma decomp_item_meas_fun : measurable_fun setT decomp_item.
+Proof. rewrite -decomp_item_decomp_eq. apply decomp_item'_meas_fun. Qed. 
 
 
 Fixpoint height (e : expr) : nat :=
