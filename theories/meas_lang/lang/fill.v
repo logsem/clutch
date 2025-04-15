@@ -31,6 +31,11 @@ Definition to_val (e : expr) : option val :=
 
 Lemma to_val_meas : measurable_fun setT to_val.
 Proof.
+  into_gen_measurable.
+  rewrite /preimage_class. intros ?. simpl.
+  intros [?[x H <-]<-].
+  rewrite setTI.
+  destruct x as [|].
 Admitted.
 
 
@@ -333,18 +338,91 @@ Section ConstructorMeasurable.
          rewrite setTI.
          destruct x; rewrite /preimage/=.
          all: try ctor_triv_case.
-  Admitted.
+         have ->: ([set t | (exists2 x : val_T, val_ST v2 x & BinOpLCtx op x = BinOpLCtxU t)] =
+                   [set t | (t.1= op)] `&`
+                   [set t | (exists2 x : val_T, val_ST v2 x & t.2 = x)]
+           ).
+         { rewrite eqEsubset; split; intros [??]; simpl.
+           - intros [?? H2].
+             rewrite /BinOpLCtxU/BinOpLCtxC in H2. simplify_eq.
+             naive_solver.
+           - intros [-> [??->]].
+             naive_solver.
+         }
+         apply measurableI.
+         - apply sub_sigma_algebra. rewrite /preimage_class/=.
+           left. exists [set op]; first done.
+           by rewrite setTI.
+         - apply sub_sigma_algebra.
+           right. rewrite /preimage_class/=.
+           exists (val_ST v2).
+           { apply sub_sigma_algebra. rewrite /val_cyl/=. naive_solver. }
+           rewrite setTI.
+           rewrite eqEsubset; split; intros [??]; simpl; first naive_solver.
+           intros [??<-]. naive_solver.
+  Qed.
   Hint Resolve BinOpLCtxU_measurable : measlang.
 
   Lemma BinOpRCtxU_measurable : measurable_fun setT BinOpRCtxU.
   Proof. into_gen_measurable. intros ?[? [x ?<-] <-]. 
          rewrite setTI.
          destruct x; rewrite /preimage/=.
-         all: try ctor_triv_case. Admitted.
+         all: try ctor_triv_case.
+         have ->: ([set t | (exists2 x : expr_T, expr_ST e1 x & BinOpRCtx op x = BinOpRCtxU t)] =
+                   [set t | (t.1= op)] `&`
+                   [set t | (exists2 x : expr_T, expr_ST e1 x & t.2 = x)]
+           ).
+         { rewrite eqEsubset; split; intros [??]; simpl.
+           - intros [?? H2].
+             rewrite /BinOpRCtxU/BinOpRCtxC in H2. simplify_eq.
+             naive_solver.
+           - intros [-> [??->]].
+             naive_solver.
+         }
+         apply measurableI.
+         - apply sub_sigma_algebra. rewrite /preimage_class/=.
+           left. exists [set op]; first done.
+           by rewrite setTI.
+         - apply sub_sigma_algebra.
+           right. rewrite /preimage_class/=.
+           exists (expr_ST e1).
+           { apply sub_sigma_algebra. rewrite /expr_cyl/=. naive_solver. }
+           rewrite setTI.
+           rewrite eqEsubset; split; intros [??]; simpl; first naive_solver.
+           intros [??<-]. naive_solver.
+  Qed.
   Hint Resolve BinOpRCtxU_measurable : measlang.
 
   Lemma IfCtxU_measurable : measurable_fun setT IfCtxU.
-  Proof. Admitted.
+  Proof. into_gen_measurable. intros ?[?[x?<-]<-].
+         rewrite setTI.
+         destruct x; rewrite /preimage/=; try ctor_triv_case.
+         have ->: ([set t | (exists2 x,
+                                expr_ST e1 x & exists2 y : expr_T, expr_ST e2 y & IfCtx x y = IfCtxU t)]=
+                    [set t | (exists2 x, expr_ST e1 x & t.1 = x)] `&`
+                      [set t | (exists2 y, expr_ST e2 y & t.2 = y)]                                              ).
+         { rewrite eqEsubset; split; intros [??]; simpl.
+           - intros [?? [?? H2]].
+             rewrite /IfCtxU/IfCtxC in H2. simplify_eq.
+             naive_solver.
+           - intros [[][]]; subst.
+             naive_solver.
+         }
+         apply measurableI.
+         - apply sub_sigma_algebra. rewrite /preimage_class/=.
+           left. exists (expr_ST e1).
+           { apply sub_sigma_algebra. rewrite /expr_cyl/=. naive_solver. }
+           rewrite setTI.
+           rewrite eqEsubset; split; intros [??]; simpl; first naive_solver.
+           intros [??<-]. naive_solver.
+         - apply sub_sigma_algebra.
+           right. rewrite /preimage_class/=.
+           exists (expr_ST e2).
+           { apply sub_sigma_algebra. rewrite /expr_cyl/=. naive_solver. }
+           rewrite setTI.
+           rewrite eqEsubset; split; intros [??]; simpl; first naive_solver.
+           intros [??<-]. naive_solver.
+  Qed.
   Hint Resolve IfCtxU_measurable : measlang.
 
   Lemma PairLCtxU_measurable : measurable_fun setT PairLCtxU.
@@ -374,7 +452,35 @@ Section ConstructorMeasurable.
   Hint Resolve PairRCtxU_measurable : measlang.
 
   Lemma CaseCtxU_measurable : measurable_fun setT CaseCtxU.
-  Proof. Admitted.
+  Proof. into_gen_measurable. intros ?[?[x?<-]<-].
+         rewrite setTI.
+         destruct x; rewrite /preimage/=; try ctor_triv_case.
+         have ->: ([set t | (exists2 x,
+                                expr_ST e1 x & exists2 y : expr_T, expr_ST e2 y & CaseCtx x y = CaseCtxU t)]=
+                    [set t | (exists2 x, expr_ST e1 x & t.1 = x)] `&`
+                      [set t | (exists2 y, expr_ST e2 y & t.2 = y)]                                              ).
+         { rewrite eqEsubset; split; intros [??]; simpl.
+           - intros [?? [?? H2]].
+             rewrite /CaseCtxU/CaseCtxC in H2. simplify_eq.
+             naive_solver.
+           - intros [[][]]; subst.
+             naive_solver.
+         }
+         apply measurableI.
+         - apply sub_sigma_algebra. rewrite /preimage_class/=.
+           left. exists (expr_ST e1).
+           { apply sub_sigma_algebra. rewrite /expr_cyl/=. naive_solver. }
+           rewrite setTI.
+           rewrite eqEsubset; split; intros [??]; simpl; first naive_solver.
+           intros [??<-]. naive_solver.
+         - apply sub_sigma_algebra.
+           right. rewrite /preimage_class/=.
+           exists (expr_ST e2).
+           { apply sub_sigma_algebra. rewrite /expr_cyl/=. naive_solver. }
+           rewrite setTI.
+           rewrite eqEsubset; split; intros [??]; simpl; first naive_solver.
+           intros [??<-]. naive_solver.
+  Qed.
   Hint Resolve CaseCtxU_measurable : measlang.
 
   Lemma StoreLCtxU_measurable : measurable_fun setT StoreLCtxU.
