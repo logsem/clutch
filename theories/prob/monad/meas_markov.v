@@ -109,7 +109,7 @@ End is_final.
 #[global] Hint Immediate to_final_Some_2 to_final_None_2 to_final_None_1: core.
 
 (* Move *)
-Lemma gIter_mono {d} {T : measurableType d} (f g : T → giryM T) n a (a' : set T) (Ha' : measurable a'):
+Lemma gIter_mono {d} {T : measurableType d} (f g : T → giryM T) (Hf : measurable_fun setT f) (Hg : measurable_fun setT g) n a (a' : set T) (Ha' : measurable a'):
   (∀ a a', measurable a' -> le_ereal (f a a') (g a a')) → (le_ereal (gIter n f a a') (gIter n g a a')).
 Proof.
   induction n.
@@ -119,7 +119,16 @@ Proof.
     reflexivity.
   }
   { intros IH.
-    (* unfold gIter *)
+    rewrite //=/gJoin_ev/gMap'//=.
+    rewrite (extern_if_eq (gIter_meas_fun Hf n)).
+    rewrite (extern_if_eq (gIter_meas_fun Hg n)).
+    apply Is_true_eq_left.
+
+    (*
+    rewrite gMapInt; first last.
+    { (* gEval is nonnegative *) admit. }
+    { by apply (gEval_meas_fun Ha'). }
+    *)
 Admitted.
 
 
@@ -667,9 +676,11 @@ Section markov.
       + rewrite step_or_final_no_final; last by eapply to_final_None_2.
         apply dbind_ext_right. done.
   Qed.
+*)
 
-  Lemma exec_mono a n v :
-    exec n a v <= exec (S n) a v.
+  (*
+  Lemma exec_mono a n v (H : measurable v) :
+    le_ereal (exec n a v) (exec (S n) a v).
   Proof.
     apply refRcoupl_eq_elim.
     move : a.
@@ -683,7 +694,8 @@ Section markov.
       by intros ? ? ->.
   Qed.
 
-  Lemma exec_mono' ρ n m v :
+  Lemma exec_mono' ρ n m v : *)
+  (*
     n ≤ m → exec n ρ v <= exec m ρ v.
   Proof.
     eapply (mon_succ_to_mon (λ x, exec x ρ v)).
@@ -706,52 +718,94 @@ Section markov.
       apply SeriesC_lt; eauto.
       intros b'. by split; [|apply exec_mono'].
   Qed.
+  *)
+
+
 
   Lemma exec_O_not_final a :
     ¬ is_final a →
-    exec 0 a = dzero.
+    exec 0 a = gZero.
   Proof. intros ?%to_final_None_1 =>/=; by case_match. Qed.
 
   Lemma exec_Sn_not_final a n :
     ¬ is_final a →
-    exec (S n) a = step a ≫= exec n.
-  Proof. intros ?. rewrite exec_Sn step_or_final_no_final //. Qed.
+    exec (S n) a ≡μ gBind' (exec n) (step a).
+  Proof. by intros ?; rewrite exec_Sn step_or_final_no_final //. Qed.
 
+
+  (*
+    NOTE 1:
+    Before proving this (and adding singleton measurability to the meas_markov interface,
+     see if it's stated correctly.
+
+     It is only used in this file.
+     Downstream, aside from dependencies in MDP which are ignored.
+       - mdp; ignored
+       - pexec_exec_det
+         - pexec_exec_det_neg
+           - lim_exec_det_final
+         - lim_exec_det_final
+       - exec_pexec_val_neq_le
+         - pexec_exec_det_neg
+           - lim_exec_det_final
+
+      So don't port:
+        - pexec_exec_le_final
+        - pexec_exec_det
+        - pexec_exec_det_neg
+        - exec_pexec_val_neq_le
+      Until it's need arises in lim_exec_det_final.
+   *)
+
+  (*
+
+  NOTE 1
   Lemma pexec_exec_le_final n a a' b :
     to_final a' = Some b →
-    pexec n a a' <= exec n a b.
+    le_ereal (pexec n a [set a']) (exec n a [set b]).
   Proof.
     intros Hb.
     revert a. induction n; intros a.
-    - rewrite pexec_O.
+    { rewrite pexec_O.
       destruct (decide (a = a')) as [->|].
-      + erewrite exec_is_final; [|done].
-        rewrite !dret_1_1 //.
-      + rewrite dret_0 //.
-    - rewrite exec_Sn pexec_Sn.
+      { erewrite exec_is_final; [|done].
+        admit. } (* rewrite !dret_1_1 //. *)
+      { (* rewrite dret_0 //. *) admit. }
+    }
+    { rewrite exec_Sn; last admit.
+      rewrite pexec_Sn.
       destruct (decide (is_final a)).
-      + rewrite step_or_final_is_final //.
-        rewrite 2!dret_id_left -/exec.
-        apply IHn.
-      + rewrite step_or_final_no_final //.
+      { rewrite step_or_final_is_final //.
+        admit.
+        (* rewrite 2!dret_id_left -/exec.
+        apply IHn. *) }
+      { rewrite step_or_final_no_final //.
+        admit.
+        (*
         rewrite /pmf /= /dbind_pmf.
         eapply SeriesC_le.
         * intros a''. split; [by apply Rmult_le_pos|].
           by apply Rmult_le_compat.
         * eapply pmf_ex_seriesC_mult_fn.
-          exists 1. by intros ρ.
-  Qed.
+          exists 1. by intros ρ. *)
+      }
+  Admitted.
+ *)
 
+  (*
+  NOTE 1
   Lemma pexec_exec_det n a a' b :
     to_final a' = Some b →
-    pexec n a a' = 1 → exec n a b = 1.
+    pexec n a [set a'] = (1)%E → exec n a [set b] = (1)%E.
   Proof.
     intros Hf.
     pose proof (pexec_exec_le_final n a a' b Hf).
-    pose proof (pmf_le_1 (exec n a) b).
-    lra.
-  Qed.
+    (* pose proof (pmf_le_1 (exec n a) b). *)
+  Qed. *)
 
+  (*
+
+  NOTE 1
   Lemma exec_pexec_val_neq_le n m a a' b b' :
     to_final a' = Some b' →
     b ≠ b' → exec m a b + pexec n a a' <= 1.
@@ -764,6 +818,7 @@ Section markov.
     by apply pmf_plus_neq_SeriesC.
   Qed.
 
+  NOTE 1
   Lemma pexec_exec_det_neg n m a a' b b' :
     to_final a' = Some b' →
     pexec n a a' = 1 →
@@ -776,6 +831,11 @@ Section markov.
     pose proof (pmf_pos (exec m a) b).
     lra.
   Qed.
+*)
+
+
+(*
+  Sup_seq -> limn_esup (fun n => μ n S).
 
   Lemma is_finite_Sup_seq_exec a b :
     is_finite (Sup_seq (λ n, exec n a b)).
