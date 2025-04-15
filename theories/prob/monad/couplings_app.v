@@ -1120,25 +1120,46 @@ Section ARcoupl_unif.
    Set Printing All.
 *)
 
+Section ARcoupl.
+
+Local Open Scope ring_scope.
+Local Open Scope ereal_scope.
+Local Open Scope classical_set_scope.
+
+Context {d1 d2} {A : measurableType d1} {B : measurableType d2}.
+
+Lemma ARcoupl_dzero_dzero (R : A → B → Prop) :
+  ARcoupl_meas gZero gZero R 0 0.
+Proof.
+  intros f ? ? ? g ? ? ? HR.
+  rewrite /gZero.
+  rewrite integral_measure_zero.
+  (* Mathcomp *)
+Admitted.
+
+Lemma ARcoupl_dzero_r_inv μ1 (R : A → B → Prop) :
+  ARcoupl_meas μ1 gZero R 0 0 → μ1 ≡μ gZero.
+Proof.
+  intros Hz%ARcoupl_meas_mass_leq.
+  intros S HS.
+  rewrite /gZero//=/mzero//= in Hz.
+  rewrite /gZero//=/mzero//=.
+  (* Simpl at Hz; measure S le measure setT le 0; implies eq zero. *)
+Admitted.
+
+
+
+
+
+
+
+End ARcoupl.
+
+
+
 
 (*
-Lemma ARcoupl_dzero_dzero `{Countable A, Countable B} (R : A → B → Prop) :
-  ARcoupl dzero dzero R 0.
-Proof.
-  intros f g Hf Hg HR.
-  rewrite /pmf/=.
-  do 2 rewrite SeriesC_scal_l; lra.
-Qed.
 
-Lemma ARcoupl_dzero_r_inv `{Countable A, Countable B} μ1 (R : A → B → Prop) :
-  ARcoupl μ1 dzero R 0 → μ1 = dzero.
-Proof.
-  intros Hz%ARcoupl_mass_leq.
-  apply SeriesC_zero_dzero.
-  rewrite dzero_mass in Hz.
-  assert (0 <= SeriesC μ1); auto.
-  lra.
-Qed.
 
 Lemma ARcoupl_dzero `{Countable A, Countable B} (μ : distr B) (R: A → B → Prop) ε :
   (0 <= ε) ->

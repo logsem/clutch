@@ -8,7 +8,7 @@ From iris.algebra Require Import ofe.
 From Coq.ssr Require Import ssreflect ssrfun.
 From clutch.bi Require Import weakestpre.
 From mathcomp.analysis Require Import reals measure ereal Rstruct lebesgue_integral sequences.
-From clutch.prob.monad Require Export giry lim.
+From clutch.prob.monad Require Export giry lim couplings_app.
 From clutch.prelude Require Import classical.
 Set Warnings "hiding-delimiting-key".
 (*From Coq Require Import Reals Psatz.
@@ -1126,3 +1126,58 @@ Section markov.
 **)
 End markov.
 #[global] Arguments pexec {_} _ _ : simpl never.
+
+(** Approximate couplings  *)
+Section ARcoupl.
+  Context {δ : meas_markov}.
+
+
+  Lemma lim_exec_ARcoupl {d} {B : measurableType d} (a : mstate δ) (μ2 : giryM B) φ (ε : R) (D : \bar R) :
+    (0 <= EFin ε)%E →
+    (0 <= D)%E →
+    (∀ n, ARcoupl_meas (exec n a) μ2 φ ε D) →
+    ARcoupl_meas (lim_exec a) μ2 φ ε D.
+  Proof.
+    (*
+    intros Hε Hn.
+    assert (∀ a', Rbar.is_finite
+                   (Lim_seq.Sup_seq (λ n, Rbar.Finite (exec n a a')))) as Hfin.
+    { intro a'.
+      apply (is_finite_bounded 0 1).
+      - apply (Lim_seq.Sup_seq_minor_le _ _ 0); simpl.
+        case_match; auto.
+      - by apply upper_bound_ge_sup; intro; simpl. }
+    intros f g Hf Hg Hfg.
+    rewrite {1}/lim_exec.
+    setoid_rewrite lim_distr_pmf at 1.
+    transitivity (Rbar.real (Lim_seq.Sup_seq
+                               (λ n, Rbar.Finite (SeriesC (λ v, exec n a v * f v))))).
+    - right.
+      setoid_rewrite (rbar_scal_r); [|done].
+      setoid_rewrite <- Sup_seq_scal_r; [|apply Hf].
+      simpl.
+      eapply MCT_seriesC.
+      + intros. real_solver.
+      + intros. apply Rmult_le_compat_r; [apply Hf | apply exec_mono].
+      + intros; exists 1; intros. real_solver.
+      + intro n. apply SeriesC_correct.
+        apply (ex_seriesC_le _ (exec n a)); auto.
+        intros; real_solver.
+      + rewrite rbar_finite_real_eq.
+        { apply Lim_seq.Sup_seq_correct. }
+        apply (is_finite_bounded 0 1).
+        * apply (Lim_seq.Sup_seq_minor_le _ _ 0); simpl.
+          apply SeriesC_ge_0' => ?. case_match; real_solver.
+        * apply upper_bound_ge_sup; intro; simpl.
+          etrans.
+          { apply (SeriesC_le _ (exec n a)); [|done]. real_solver. }
+          done.
+    - apply Rbar_le_fin'.
+      { apply Rplus_le_le_0_compat; [|done].
+        apply SeriesC_ge_0'. real_solver. }
+      apply upper_bound_ge_sup.
+      intro; simpl. auto.
+      by eapply Hn.
+      *)
+  Admitted.
+End ARcoupl.

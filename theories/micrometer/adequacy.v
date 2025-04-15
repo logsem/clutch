@@ -166,12 +166,12 @@ Theorem wp_adequacy Σ `{micrometerGpreS Σ} e e' σ σ' (ε : R) δ φ :
   ARcoupl_meas (@lim_exec (language.meas_lang_markov meas_lang) (e, σ)) (@lim_exec (language.meas_lang_markov meas_lang) (e', σ')) φ ε δ.
 Proof.
   intros ? Hwp.
-Admitted.
-(*
-  apply lim_exec_ARcoupl; [done|].
+  apply lim_exec_ARcoupl.
+  { admit. (* mathcomp *) }
+  { admit. (* mathcomp *) }
   intros n.
   by eapply wp_adequacy_exec_n.
-Qed. *)
+Admitted.
 
 Corollary wp_adequacy_error_lim Σ `{micrometerGpreS Σ} e e' σ σ' (ε : R) δ φ :
   (0 <= ε)%R →
