@@ -200,34 +200,87 @@ Definition un_op_eval' : (<<discr un_op>> * val)%type -> option val :=
 Lemma un_op_eval'_meas_fun : measurable_fun setT un_op_eval'.
 Proof.
   mf_unfold_fun.
-  (* ifIn_meas_fun is wrong.
-
-  have X := (@if_in_meas_fun _ _ _ _ setT).
-  eapply X; clear X.
-  { by ms_done. }
-  { by ms_done. }
-  { by rewrite setTI; mf_done. }
-  simpl.
-  Set Printing Parentheses.
-*)
-Admitted.
-
+  apply: if_in_meas_fun; ms_solve.
+  { rewrite setIT. apply un_op_eval'_neg_bool_meas_fun. }
+  apply: if_in_meas_fun; ms_solve.
+  { rewrite setIT.
+    rewrite setIidl.
+    - apply un_op_eval'_neg_int_meas_fun.
+    - rewrite /un_op_eval'_cov_neg_int/un_op_eval'_cov_neg_bool. intros []; simpl.
+      intros [?[[][]]][?[[][]]]; subst; simpl in *; subst; simpl in *; done.
+  }
+  apply: if_in_meas_fun; ms_solve.
+  { rewrite setIT.
+    rewrite setIidl; first apply un_op_eval'_minus_int_meas_fun.
+    rewrite /un_op_eval'_cov_minus_int/un_op_eval'_cov_neg_int/un_op_eval'_cov_neg_bool. intros []; simpl.
+    intros [?[[][]]]; split; intros [?[[][]]]; subst; simpl in *; subst; done.
+  }
+  apply: if_in_meas_fun; ms_solve.
+  { rewrite setIT.
+    rewrite setIidl; first apply un_op_eval'_minus_real_meas_fun.
+    rewrite /un_op_eval'_cov_minus_real/un_op_eval'_cov_minus_int/un_op_eval'_cov_neg_int/un_op_eval'_cov_neg_bool. intros []; simpl.
+    intros [?[[][]]]; repeat split; intros [?[[][]]]; subst; simpl in *; subst; done.
+  }
+Qed.
 
 (* TODO: Make sure this is the right theorem first *)
 Lemma un_op_eval_eq (op : <<discr un_op>>) (v : val) : un_op_eval op v = un_op_eval' (op, v).
-Proof. Admitted.
+Proof.
+  rewrite /un_op_eval/un_op_eval'.
+Admitted.
 
 Definition un_op_eval''_ok : set (<<discr un_op>> * val * state)%type :=
   (un_op_eval'_cov_neg_bool `|` un_op_eval'_cov_neg_int `|` un_op_eval'_cov_minus_int `|` un_op_eval'_cov_minus_real) `*` setT.
 
-Lemma un_op_eval''_ok_meas_set : measurable un_op_eval''_ok. Admitted.
+Lemma un_op_eval''_ok_meas_set : measurable un_op_eval''_ok.
+Proof. rewrite /un_op_eval''_ok.
+       apply measurableX; last done.
+       assert ((setU (setU (setU un_op_eval'_cov_neg_bool un_op_eval'_cov_neg_int) un_op_eval'_cov_minus_int)
+                  un_op_eval'_cov_minus_real) =\bigcup_(i in
+                   ([set
+                       un_op_eval'_cov_neg_bool    ;
+                     un_op_eval'_cov_neg_int   ;
+                     un_op_eval'_cov_minus_int;
+                 un_op_eval'_cov_minus_real ])) i
+              ) as ->.
+       { rewrite eqEsubset; split; intros ?; simpl.
+         - intros [[[|]|]|]; (eexists _; last done); naive_solver.
+         - intros [? [[[|]|]|] ?]; naive_solver.
+       }
+       apply: fin_bigcup_measurable; first apply cardinality.finite_set4.
+       intros ? [[[|]|]|]; simpl in *; subst; ms_solve.
+Qed.
 
 Hint Resolve un_op_eval''_ok_meas_set : mf_set.
 
 Definition un_op_eval'' : (<<discr un_op>> * val * state)%type -> giryM cfg :=
   if_in un_op_eval''_ok (gRet \o (ValU \o of_option un_op_eval' \o fst △ snd)) (cst gZero).
 
-Lemma un_op_eval''_meas_fun : measurable_fun setT un_op_eval''. Admitted.
+
+(* Not sure, should completely rewrite this proof from sketch *)
+Lemma un_op_eval''_meas_fun : measurable_fun setT un_op_eval''.
+Proof.
+  rewrite /un_op_eval''.
+  apply: if_in_meas_fun; ms_solve.
+  mf_cmp_tree; first apply: gRet_meas_fun.
+  mf_prod; last apply: measurable_snd_restriction; ms_solve.
+  rewrite /un_op_eval''_ok.
+  eapply @measurable_comp; last apply: measurable_fst_restriction; last ms_solve; last first.
+  - eapply @measurable_comp; last first.
+    + apply: of_option_meas_fun.
+      apply un_op_eval'_meas_fun.
+    + apply ValU_meas_fun.
+    + done.
+    + done.
+  - Set Printing Notations.
+    intros ?; simpl.
+    intros [[[]][[[[[|]|]|]]]]; simpl in *; subst; rewrite /option_cov_Some/=/un_op_eval'.
+    + eexists _. by rewrite ifIn_eq_left.
+    + admit.
+    + admit.
+    + admit.
+  - admit.
+Admitted.
 
 Hint Resolve un_op_eval''_meas_fun : mf_fun.
 

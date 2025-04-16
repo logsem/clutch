@@ -42,7 +42,15 @@ Lemma load_eval_ok_meas_fun : measurable_fun load_eval_cov_ok load_eval_ok. Admi
 Definition load_eval : (<<discr loc>> * state)%type -> giryM cfg :=
   if_in load_eval_cov_ok load_eval_ok (cst gZero).
 
-Lemma load_eval_meas_fun : measurable_fun setT load_eval. Admitted.
+Lemma load_eval_meas_fun : measurable_fun setT load_eval.
+Proof.
+  mf_unfold_fun.
+  apply: if_in_meas_fun.
+  - apply load_eval_cov_ok_meas_set.
+  - ms_solve.
+  - rewrite setIT. apply load_eval_ok_meas_fun.
+  - apply measurable_cst.
+Qed.
 
 Hint Resolve load_eval_meas_fun : mf_fun.
 
@@ -81,7 +89,15 @@ Hint Resolve alloc_eval_ok_meas_fun : mf_fun.
 Definition alloc_eval : (val * state)%type -> giryM cfg :=
   if_in alloc_eval_cov_ok alloc_eval_ok (cst gZero).
 
-Lemma alloc_eval_meas_fun : measurable_fun setT alloc_eval. Admitted.
+Lemma alloc_eval_meas_fun : measurable_fun setT alloc_eval.
+Proof.
+  mf_unfold_fun.
+  apply: if_in_meas_fun.
+  - apply alloc_eval_cov_ok_meas_set.
+  - ms_solve.
+  - rewrite setIT. apply alloc_eval_ok_meas_fun.
+  - apply measurable_cst.
+Qed.
 
 Hint Resolve alloc_eval_ok_meas_fun : mf_fun.
 
@@ -114,14 +130,23 @@ Definition store_eval_ok : (<<discr loc>> * val * state)%type -> giryM cfg :=
                             △ tapes \o snd
                             △ utapes \o snd)).
 
-Lemma store_eval_ok_meas_fun : measurable_fun store_eval_cov_ok store_eval_ok. Admitted.
+Lemma store_eval_ok_meas_fun : measurable_fun store_eval_cov_ok store_eval_ok.
+Proof. Admitted.
 
 Hint Resolve store_eval_ok_meas_fun : mf_fun.
 
 Definition store_eval : (<<discr loc>> * val * state)%type -> giryM cfg :=
   if_in store_eval_cov_ok store_eval_ok (cst gZero).
 
-Lemma store_eval_meas_fun : measurable_fun setT store_eval. Admitted.
+Lemma store_eval_meas_fun : measurable_fun setT store_eval.
+Proof.
+  mf_unfold_fun.
+  apply: if_in_meas_fun.
+  - apply store_eval_cov_ok_meas_set.
+  - ms_solve.
+  - rewrite setIT. apply store_eval_ok_meas_fun.
+  - apply measurable_cst.
+Qed.
 
 Hint Resolve store_eval_meas_fun : mf_fun.
 
