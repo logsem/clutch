@@ -690,14 +690,13 @@ Section option.
 
   Lemma Some_meas_fun {d1} {T : measurableType d1} : measurable_fun setT (Some : T -> option T).
   Proof.
-    eapply measurability; first done.
-    rewrite /preimage_class/subset//=.
-    intros ? [? [x ? <-] <-].
-    rewrite setTI/preimage//=.
-    unfold option_ML in H.
-    destruct x; rewrite //=.
-    { admit. }
-    { admit. }
+    into_gen_measurable.
+    rewrite /preimage_class. intros ?; simpl.
+    intros [?[[]?]]; subst;
+      rewrite setTI; unfold option_ML in *.
+    - admit. 
+    - eassert ((Some @^-1` option_ST None)=set0) as ->; last done.
+      rewrite eqEsubset; by split. 
   Admitted.
   Hint Resolve Some_meas_fun : measlang.
 
