@@ -16,7 +16,7 @@ From mathcomp.analysis Require Export Rstruct.
 From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
-From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections cfg types.
+From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections cfg types prelude.
 Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.
@@ -31,14 +31,22 @@ Definition to_val (e : expr) : option val :=
 
 Lemma to_val_meas : measurable_fun setT to_val.
 Proof.
-  into_gen_measurable.
-  rewrite /preimage_class. intros ?. simpl.
-  intros [?[x H <-]<-].
-  rewrite setTI.
-  destruct x as [s|].
-  - rewrite /option_ML/= in H.
-Admitted.
-
+  have -> : to_val = if_in ecov_val (Some \o 𝜋_Val_v) (cst None).
+  { apply funext; intro x; rewrite /to_val/if_in.
+    destruct x.
+    1: { rewrite bool_decide_eq_true_2; [by f_equal|by rewrite /ecov_val//=; eexists _; eauto]. }
+    all: rewrite bool_decide_eq_false_2 /ecov_val//=.
+    all: intros [? ? HK]; by inversion HK.
+  }
+  eapply @if_in_meas_fun.
+  { by eauto with mf_set. }
+  { by eapply @measurableT. }
+  { mf_cmp_tree.
+    { by apply Some_meas_fun. }
+    { by rewrite setIT; apply 𝜋_Val_v_meas. }
+  }
+  by eapply measurable_cst.
+Qed.
 
 Global Instance of_val_inj : Inj (=) (=) (@of_val).
 Proof. intros ?? H. by inversion H. Qed.
@@ -1990,7 +1998,28 @@ Definition noval (x : expr * ectx_item) : option (ectx_item * expr)%type :=
   end.
 
 Lemma noval_measurable : measurable_fun setT noval.
-Proof. Admitted.
+  have -> : noval = if_in (setX ecov_val setT) (cst None) (Some \o (snd △ fst)).
+  { apply funext; intro x; rewrite /noval/if_in.
+    destruct x as [[]?]; simpl.
+    1: { rewrite bool_decide_eq_true_2; [done|]. split; [by eexists _; eauto |done]. }
+    all: rewrite bool_decide_eq_false_2 //=.
+    all: intros [HK ?]; by inversion HK.
+  }
+  eapply @if_in_meas_fun.
+  { ms_prod.
+    { by eauto with mf_set. }
+    { by eapply @measurableT. }
+  }
+  { by eapply @measurableT. }
+  { by eapply @measurable_cst. }
+  { apply mathcomp_measurable_fun_restiction_setT.
+    { by ms_solve. }
+    mf_cmp_tree.
+    { by eapply @Some_meas_fun. }
+    { by mf_prod. }
+  }
+Qed.
+
 Hint Resolve noval_measurable : measlang.
 
 Definition decomp_item (e : expr) : option (ectx_item * expr)%type :=
