@@ -653,10 +653,12 @@ Section option_salgebra_instance.
 
   Definition option_S : Type := option (set T1).
   Definition option_T : Type := option T1.
-  Definition option_ST (k : option_S) : set option_T :=
+
+  Check image.
+  Program Definition option_ST (k : option_S) : set option_T :=
     match k with
     | None => [set None]
-    | Some s => image Some s
+    | Some s => image s Some (* (fun y => exists2 x, s x & Some x = y)*)
     end.
   Definition option_ML : set option_S :=
     fun k =>
@@ -688,16 +690,24 @@ End option_salgebra_instance.
 
 Section option.
 
-  Lemma Some_meas_fun {d1} {T : measurableType d1} : measurable_fun setT (Some : T -> option T).
+  Lemma Some_meas_fun {d1} {T : measurableType d1} : measurable_fun (setT : set T) Some.
   Proof.
     into_gen_measurable.
-    rewrite /preimage_class. intros ?; simpl.
-    intros [?[[]?]]; subst;
-      rewrite setTI; unfold option_ML in *.
-    - admit. 
-    - eassert ((Some @^-1` option_ST None)=set0) as ->; last done.
-      rewrite eqEsubset; by split. 
-  Admitted.
+    rewrite /preimage_class. intros ?. simpl.
+    intros [?[[]?]]; subst.
+    { rewrite /option_ML in H.
+      rewrite setTI.
+      have -> : (Some @^-1` option_ST (Some s)) = s; [|done].
+      rewrite /preimage/option_ST//=.
+      rewrite eqEsubset; split.
+      { move=>?[??] [+]. by move=><-. }
+      { move=>??//=. eexists _; done. }
+    }
+    { have -> : ((Some @^-1` option_ST None)=set0).
+      { move=>??; rewrite eqEsubset; by split.  }
+      by eapply @measurableI.
+    }
+  Qed.
   Hint Resolve Some_meas_fun : measlang.
 
   (* Shapes? *)
