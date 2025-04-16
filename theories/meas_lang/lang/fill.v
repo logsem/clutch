@@ -2121,7 +2121,32 @@ Definition decomp_cov_urand      : set expr :=
 Definition decomp_cov_tick       : set expr :=
   ecov_tick.
 
-Definition decomp_cov_stuck      : set expr. Admitted. (* Complement of the union of the prior cases.*)
+Definition decomp_cov_stuck      : set expr :=
+  setC (\bigcup_(i in
+            ([set
+              decomp_cov_app_val    ;
+              decomp_cov_app_expr   ;
+              decomp_cov_unop       ;
+              decomp_cov_binop_val  ;
+              decomp_cov_binop_expr ;
+              decomp_cov_if         ;
+              decomp_cov_pair_val   ;
+              decomp_cov_pair_expr  ;
+              decomp_cov_fst        ;
+              decomp_cov_snd        ;
+              decomp_cov_injl       ;
+              decomp_cov_injr       ;
+              decomp_cov_case       ;
+              decomp_cov_alloc      ;
+              decomp_cov_load       ;
+              decomp_cov_store_val  ;
+              decomp_cov_store_expr ;
+              decomp_cov_alloctape  ;
+              decomp_cov_rand_val   ;
+              decomp_cov_rand_expr  ;
+              decomp_cov_tick])
+              ) i)
+    . (* Complement of the union of the prior cases.*)
 
 Lemma decomp_cov_app_val_meas     : measurable decomp_cov_app_val. Proof. ms_unfold; ms_solve. Qed.
 Lemma decomp_cov_app_expr_meas    : measurable decomp_cov_app_expr. Proof. ms_unfold; ms_solve. Qed.
@@ -2145,7 +2170,17 @@ Lemma decomp_cov_rand_val_meas    : measurable decomp_cov_rand_val. Proof. ms_un
 Lemma decomp_cov_rand_expr_meas   : measurable decomp_cov_rand_expr. Proof. ms_unfold; ms_solve. Qed.
 Lemma decomp_cov_urand_meas       : measurable decomp_cov_urand. Proof. ms_unfold; ms_solve. Qed.
 Lemma decomp_cov_tick_meas        : measurable decomp_cov_tick. Proof. ms_unfold; ms_solve. Qed.
-Lemma decomp_cov_stuck_meas       : measurable decomp_cov_stuck. Proof. Admitted.
+Lemma decomp_cov_stuck_meas       : measurable decomp_cov_stuck.
+Proof.
+  ms_unfold.
+  apply measurableC.
+  apply: fin_bigcup_measurable.
+  { rewrite !cardinality.finite_setU; do! split; apply: cardinality.finite_set1. }
+  intros i. simpl.
+  (* I don't believe in automation. *)
+  intros [[[[[[[[[[[[[[[[[[[[|]|]|]|]|]|]|]|]|]|]|]|]|]|]|]|]|]|]|]|];
+    subst; ms_unfold; ms_solve.
+Qed.
 
 Hint Resolve decomp_cov_app_val_meas     : measlang.
 Hint Resolve decomp_cov_app_expr_meas    : measlang.
