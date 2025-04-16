@@ -1615,7 +1615,7 @@ Definition fill_item_BinOpRCtx    : (ectx_item  * expr)%type -> expr :=
   ssrfun.comp BinOpU $
   mProd
     (mProd
-      (ssrfun.comp 𝜋_BinOpLCtx_op $ fst)
+      (ssrfun.comp 𝜋_BinOpRCtx_op $ fst)
       (ssrfun.comp 𝜋_BinOpRCtx_e $ fst))
     snd.
 
@@ -1725,11 +1725,49 @@ Proof.
   apply: measurable_fst_restriction; ms_solve.
 Qed.
 Lemma fill_item_BinOpLCtx_meas    : measurable_fun (setX ectx_item_cov_BinOpLCtx    setT) fill_item_BinOpLCtx.
-Proof. Admitted.
+Proof. 
+  mf_unfold_fun.
+  mf_cmp_tree; first by apply BinOpU_meas_fun. (* Why doesnt mf_done work here? *)
+  pose proof ectx_item_cov_BinOpLCtx_meas.
+  repeat mf_prod.
+  2:{ apply: measurable_snd_restriction; ms_solve. }
+  - eapply @measurable_comp; [done| | apply 𝜋_BinOpLCtx_op_meas|].
+    { intros ?. simpl. intros [??]. naive_solver. }
+    apply: measurable_fst_restriction; ms_solve.
+  - mf_cmp_tree; first apply ValU_meas_fun.
+    eapply @measurable_comp; [done| | apply 𝜋_BinOpLCtx_v_meas|].
+    { intros ?. simpl. intros [??]. naive_solver. }
+    apply: measurable_fst_restriction; ms_solve.
+Qed.
 Lemma fill_item_BinOpRCtx_meas    : measurable_fun (setX ectx_item_cov_BinOpRCtx    setT) fill_item_BinOpRCtx.
-Proof. Admitted.
+Proof. 
+  mf_unfold_fun.
+  mf_cmp_tree; first by apply BinOpU_meas_fun. 
+  pose proof ectx_item_cov_BinOpRCtx_meas.
+  mf_prod.
+  2: { apply: measurable_snd_restriction; ms_solve. }
+  mf_prod.
+  - eapply @measurable_comp; [done| | apply 𝜋_BinOpRCtx_op_meas|].
+    { intros ?. simpl. intros [??]. naive_solver. }
+    apply: measurable_fst_restriction; ms_solve.
+  - eapply @measurable_comp; [done| | apply 𝜋_BinOpRCtx_e_meas|].
+    { intros ?. simpl. intros [??]. naive_solver. }
+    apply: measurable_fst_restriction; ms_solve.
+Qed.
 Lemma fill_item_IfCtx_meas        : measurable_fun (setX ectx_item_cov_IfCtx        setT) fill_item_IfCtx.
-Proof. Admitted.
+Proof.
+  mf_unfold_fun.
+  mf_cmp_tree; first by apply IfU_meas_fun. 
+  pose proof ectx_item_cov_IfCtx_meas.
+  repeat mf_prod.
+  { apply: measurable_snd_restriction; ms_solve. }
+  - eapply @measurable_comp; [done| | apply 𝜋_IfCtx_l_meas|].
+    { intros ?. simpl. intros [??]. naive_solver. }
+    apply: measurable_fst_restriction; ms_solve.
+  - eapply @measurable_comp; [done| | apply 𝜋_IfCtx_r_meas|].
+    { intros ?. simpl. intros [??]. naive_solver. }
+    apply: measurable_fst_restriction; ms_solve.
+Qed.
 Lemma fill_item_PairLCtx_meas     : measurable_fun (setX ectx_item_cov_PairLCtx     setT) fill_item_PairLCtx.
 Proof. 
   mf_unfold_fun.
@@ -1786,7 +1824,19 @@ Proof.
   apply: measurable_snd_restriction; ms_solve. 
 Qed.
 Lemma fill_item_CaseCtx_meas      : measurable_fun (setX ectx_item_cov_CaseCtx      setT) fill_item_CaseCtx.
-Proof. Admitted.
+Proof.
+  mf_unfold_fun.
+  mf_cmp_tree; first by apply CaseU_meas_fun. 
+  pose proof ectx_item_cov_CaseCtx_meas.
+  repeat mf_prod.
+  { apply: measurable_snd_restriction; ms_solve. }
+  - eapply @measurable_comp; [done| | apply 𝜋_CaseCtx_l_meas|].
+    { intros ?. simpl. intros [??]. naive_solver. }
+    apply: measurable_fst_restriction; ms_solve.
+  - eapply @measurable_comp; [done| | apply 𝜋_CaseCtx_r_meas|].
+    { intros ?. simpl. intros [??]. naive_solver. }
+    apply: measurable_fst_restriction; ms_solve.
+Qed.
 Lemma fill_item_AllocCtx_meas     : measurable_fun (setX ectx_item_cov_AllocCtx   setT) fill_item_AllocCtx.
 Proof. 
   mf_unfold_fun.
