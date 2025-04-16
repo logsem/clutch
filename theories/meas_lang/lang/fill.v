@@ -2232,7 +2232,7 @@ Definition decomp_if         : expr -> (option (ectx_item * expr)%type) :=
 
 Definition decomp_pair_val   : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
-  mProd 𝜋_Pair_l (ssrfun.comp PairLCtxU $ 𝜋_Val_v).
+  mProd 𝜋_Pair_l (ssrfun.comp PairLCtxU $ ssrfun.comp 𝜋_Val_v $ 𝜋_Pair_r).
 
 Definition decomp_pair_expr  : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp Some $
@@ -2297,28 +2297,163 @@ Definition decomp_tick       : expr -> (option (ectx_item * expr)%type) :=
 Definition decomp_stuck      : expr -> (option (ectx_item * expr)%type) :=
   cst None.
 
-Lemma decomp_app_val_meas    : measurable_fun decomp_cov_app_val    decomp_app_val. Proof. Admitted.
-Lemma decomp_app_expr_meas   : measurable_fun decomp_cov_app_expr   decomp_app_expr. Proof. Admitted.
-Lemma decomp_unop_meas       : measurable_fun decomp_cov_unop       decomp_unop. Proof. Admitted.
-Lemma decomp_binop_val_meas  : measurable_fun decomp_cov_binop_val  decomp_binop_val. Proof. Admitted.
-Lemma decomp_binop_expr_meas : measurable_fun decomp_cov_binop_expr decomp_binop_expr. Proof. Admitted.
-Lemma decomp_if_meas         : measurable_fun decomp_cov_if         decomp_if. Proof. Admitted.
-Lemma decomp_pair_val_meas   : measurable_fun decomp_cov_pair_val   decomp_pair_val. Proof. Admitted.
-Lemma decomp_pair_expr_meas  : measurable_fun decomp_cov_pair_expr  decomp_pair_expr. Proof. Admitted.
-Lemma decomp_fst_meas        : measurable_fun decomp_cov_fst        decomp_fst. Proof. Admitted.
-Lemma decomp_snd_meas        : measurable_fun decomp_cov_snd        decomp_snd. Proof. Admitted.
-Lemma decomp_injl_meas       : measurable_fun decomp_cov_injl       decomp_injl. Proof. Admitted.
-Lemma decomp_injr_meas       : measurable_fun decomp_cov_injr       decomp_injr. Proof. Admitted.
-Lemma decomp_case_meas       : measurable_fun decomp_cov_case       decomp_case. Proof. Admitted.
-Lemma decomp_alloc_meas      : measurable_fun decomp_cov_alloc      decomp_alloc. Proof. Admitted.
-Lemma decomp_load_meas       : measurable_fun decomp_cov_load       decomp_load. Proof. Admitted.
-Lemma decomp_store_val_meas  : measurable_fun decomp_cov_store_val  decomp_store_val. Proof. Admitted.
-Lemma decomp_store_expr_meas : measurable_fun decomp_cov_store_expr decomp_store_expr. Proof. Admitted.
-Lemma decomp_alloctape_meas  : measurable_fun decomp_cov_alloctape  decomp_alloctape. Proof. Admitted.
-Lemma decomp_rand_val_meas   : measurable_fun decomp_cov_rand_val   decomp_rand_val. Proof. Admitted.
-Lemma decomp_rand_expr_meas  : measurable_fun decomp_cov_rand_expr  decomp_rand_expr. Proof. Admitted.
-Lemma decomp_urand_meas      : measurable_fun decomp_cov_urand      decomp_urand. Proof. Admitted.
-Lemma decomp_tick_meas       : measurable_fun decomp_cov_tick       decomp_tick. Proof. Admitted.
+Local Lemma setIfront {T} (A B: set T): A `&` B = A `&` (A `&` B).
+Proof.
+  by rewrite setIA setIid.
+Qed.
+
+Local Ltac mf_cmp_tree' :=
+  eapply @measurable_comp; simpl;
+  last (rewrite setIfront;
+        apply @measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done]); last first.
+
+Local Ltac mf_solve' := rewrite setIfront; apply measurable_fun_setI1; last mf_done; ms_solve.
+Local Ltac mf_unfold' := mf_unfold_fun; mf_unfold_dom.
+Lemma decomp_app_val_meas    : measurable_fun decomp_cov_app_val    decomp_app_val.
+Proof.
+  mf_unfold'.
+  mf_cmp_tree; first apply noval_measurable.
+  mf_prod; first mf_solve'.
+  mf_cmp_tree; first apply AppLCtxU_measurable.
+  mf_cmp_tree'; first mf_done; ms_solve.
+  intros ?. simpl. intros [?[[[]][?[]]]?]; subst; simpl in *; subst. naive_solver.
+Qed.
+Lemma decomp_app_expr_meas   : measurable_fun decomp_cov_app_expr   decomp_app_expr.
+Proof.
+  mf_unfold'.
+  mf_cmp_tree; first apply: Some_meas_fun. 
+  mf_prod; last mf_solve'.
+  mf_cmp_tree'; first apply AppRCtxU_measurable; ms_solve.
+Qed. 
+Lemma decomp_unop_meas       : measurable_fun decomp_cov_unop       decomp_unop.
+Proof.
+  mf_unfold'.
+  mf_cmp_tree; first apply noval_measurable.
+  mf_prod.
+  mf_cmp_tree; mf_done.
+Qed.
+Lemma decomp_binop_val_meas  : measurable_fun decomp_cov_binop_val  decomp_binop_val.
+Proof.
+  mf_unfold'.
+  mf_cmp_tree; first apply noval_measurable.
+  mf_prod; first mf_solve'.
+  mf_cmp_tree; first apply BinOpLCtxU_measurable.
+  mf_prod; first mf_solve'.
+  mf_cmp_tree'; first mf_done; ms_solve.
+  intros ?. simpl. intros [?[[[[]]][?[]]]]; subst; simpl in *; subst; naive_solver.
+Qed.
+Lemma decomp_binop_expr_meas : measurable_fun decomp_cov_binop_expr decomp_binop_expr.
+Proof.
+  mf_unfold'.
+  mf_cmp_tree; first apply: Some_meas_fun.
+  mf_prod; last mf_solve'.
+  mf_cmp_tree; first apply BinOpRCtxU_measurable.
+  mf_prod; mf_solve'.
+Qed.
+Lemma decomp_if_meas         : measurable_fun decomp_cov_if         decomp_if.
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply noval_measurable.
+  mf_prod.
+  mf_cmp_tree; first apply IfCtxU_measurable.
+  mf_prod.
+Qed.
+Lemma decomp_pair_val_meas   : measurable_fun decomp_cov_pair_val   decomp_pair_val.
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply noval_measurable.
+  mf_prod; first mf_solve'.
+  mf_cmp_tree; first apply PairLCtxU_measurable.
+  mf_cmp_tree'; first mf_done; ms_solve.
+  intros ?. simpl. intros [?[[[]][?[]]]]; subst; simpl in *; subst.
+  naive_solver.
+Qed.
+Lemma decomp_pair_expr_meas  : measurable_fun decomp_cov_pair_expr  decomp_pair_expr.
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply: Some_meas_fun.
+  mf_prod; last mf_solve'.
+  mf_cmp_tree'; first apply PairRCtxU_measurable; ms_solve.
+Qed.
+Lemma decomp_fst_meas        : measurable_fun decomp_cov_fst        decomp_fst.
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply noval_measurable.
+  mf_prod.
+Qed.
+Lemma decomp_snd_meas        : measurable_fun decomp_cov_snd        decomp_snd.
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply noval_measurable.
+  mf_prod.
+Qed.
+Lemma decomp_injl_meas       : measurable_fun decomp_cov_injl       decomp_injl.
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply noval_measurable.
+  mf_prod.
+Qed.
+Lemma decomp_injr_meas       : measurable_fun decomp_cov_injr       decomp_injr. 
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply noval_measurable.
+  mf_prod.
+Qed.
+Lemma decomp_case_meas       : measurable_fun decomp_cov_case       decomp_case.
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply noval_measurable.
+  mf_prod.
+  mf_cmp_tree; first apply CaseCtxU_measurable.
+  mf_prod.
+Qed.
+Lemma decomp_alloc_meas      : measurable_fun decomp_cov_alloc      decomp_alloc. 
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply noval_measurable.
+  mf_prod.
+Qed.
+Lemma decomp_load_meas       : measurable_fun decomp_cov_load       decomp_load. 
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply noval_measurable.
+  mf_prod.
+Qed.
+Lemma decomp_store_val_meas  : measurable_fun decomp_cov_store_val  decomp_store_val.
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply noval_measurable.
+  mf_prod; first mf_solve'.
+  mf_cmp_tree; first apply StoreLCtxU_measurable.
+  mf_cmp_tree'; first mf_done; ms_solve.
+  intros ?; simpl. intros [?[[[]][?[]]]]; subst; simpl in *; subst.
+  naive_solver.
+Qed.
+Lemma decomp_store_expr_meas : measurable_fun decomp_cov_store_expr decomp_store_expr.
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply: Some_meas_fun.
+  mf_prod; last mf_solve'.
+  mf_cmp_tree'; first apply StoreRCtxU_measurable; ms_solve.
+Qed.
+Lemma decomp_alloctape_meas  : measurable_fun decomp_cov_alloctape  decomp_alloctape. 
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply noval_measurable.
+  mf_prod.
+Qed.
+Lemma decomp_rand_val_meas   : measurable_fun decomp_cov_rand_val   decomp_rand_val.
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply noval_measurable.
+  mf_prod; first mf_solve'.
+  mf_cmp_tree; first apply RandLCtxU_measurable.
+  mf_cmp_tree'; first mf_done; ms_solve.
+  intros ?; simpl. intros [?[[[]][?[]]]]; subst; simpl in *; subst.
+  naive_solver.
+Qed.
+Lemma decomp_rand_expr_meas  : measurable_fun decomp_cov_rand_expr  decomp_rand_expr.
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply: Some_meas_fun.
+  mf_prod; last mf_solve'.
+  mf_cmp_tree'; first apply RandRCtxU_measurable; ms_solve.
+Qed.
+Lemma decomp_urand_meas      : measurable_fun decomp_cov_urand      decomp_urand. 
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply noval_measurable.
+  mf_prod.
+Qed.
+Lemma decomp_tick_meas       : measurable_fun decomp_cov_tick       decomp_tick. 
+Proof.
+  mf_unfold'. mf_cmp_tree; first apply noval_measurable.
+  mf_prod.
+Qed.
 Lemma decomp_stuck_meas      : measurable_fun decomp_cov_stuck      decomp_stuck. Proof. Admitted.
 
 Hint Resolve decomp_app_val_meas    : measlang.
