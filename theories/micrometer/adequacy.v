@@ -47,7 +47,8 @@ Section adequacy.
       by iApply "H".
   Qed. *)
 
-  Lemma wp_adequacy_val_fupd (e e' : measure.Measurable.sort (meas_lang.language.expr meas_lang)) σ σ' n φ v ε δ :
+  Lemma wp_adequacy_val_fupd (e e' : measure.Measurable.sort (meas_lang.language.expr meas_lang))
+    (σ σ' : measure.Measurable.sort (meas_lang.language.state meas_lang)) n φ v ε δ :
     fill.to_val e = Some v ->
     state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε ∗
     WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
@@ -64,13 +65,9 @@ Section adequacy.
     erewrite exec_is_final; [|done].
     iApply fupd_mask_intro; [set_solver|]; iIntros "_".
     iPureIntro.
-    Admitted.
-    (*
-    Check ARcoupl_proper φ.
-    apply
-    Check lim_exec_final.
-    rewrite lim_exec_final; [|done].
-    iPureIntro.
+    erewrite ARcoupl_meas_proper.
+    2: { reflexivity. }
+    2: { rewrite lim_exec_final; [|done]. reflexivity. }
     eapply ARcoupl_meas_dret; [| | done].
     { repeat destroy_mathcomp. by apply cond_nonneg. }
     { (* Oh, we need 0 ≤ δ *)
@@ -78,7 +75,7 @@ Section adequacy.
       (* repeat destroy_mathcomp.
       destruct δ.
       { repeat destroy_mathcomp.  *)
-  Admitted. *)
+  Admitted.
 
   Lemma wp_adequacy_step_fupdN ε δ e e' σ σ' n φ :
     state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε ∗
