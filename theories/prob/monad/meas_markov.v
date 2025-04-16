@@ -1,7 +1,6 @@
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Program.Wf Reals.
-From stdpp Require Import base numbers binders strings gmap.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
@@ -109,29 +108,6 @@ End is_final.
 
 #[global] Hint Immediate to_final_Some_2 to_final_None_2 to_final_None_1: core.
 
-(* Move *)
-Lemma gIter_mono {d} {T : measurableType d} (f g : T → giryM T) (Hf : measurable_fun setT f) (Hg : measurable_fun setT g) n a (a' : set T) (Ha' : measurable a'):
-  (∀ a a', measurable a' -> le_ereal (f a a') (g a a')) → (le_ereal (gIter n f a a') (gIter n g a a')).
-Proof.
-  induction n.
-  { intros.
-    rewrite giryM_iterN_zero giryM_iterN_zero.
-    repeat destroy_mathcomp.
-    reflexivity.
-  }
-  { intros IH.
-    rewrite //=/gJoin_ev/gMap'//=.
-    rewrite (extern_if_eq (gIter_meas_fun Hf n)).
-    rewrite (extern_if_eq (gIter_meas_fun Hg n)).
-    apply Is_true_eq_left.
-
-    (*
-    rewrite gMapInt; first last.
-    { (* gEval is nonnegative *) admit. }
-    { by apply (gEval_meas_fun Ha'). }
-    *)
-Admitted.
-
 
 Section reducible.
   Context {δ : meas_markov}.
@@ -191,7 +167,7 @@ Section reducible.
       apply integral_measure_zero.
     }
     rewrite H1 lte_fin in H. 
-    apply Is_true_true_1, (elimT (RltbP 0 0)) in H. lra.
+    apply (elimT (RltbP 0 0)) in H. lra.
   Qed.
 
 
@@ -248,13 +224,6 @@ Section AdditionalMonadLaws.
   Proof.
   
   Admitted.
-
-  Lemma gBind'_meas_rw: ∀ {d1 d2: measure_display} {T1 : measurableType d1} {T2 : measurableType d2} {f : T1 -> giryM T2} (H : measurable_fun setT f),
-    gBind' f = gBind H.
-  Proof.
-    intros. 
-    by rewrite /gBind' /gMap' (extern_if_eq H) /gBind.
-  Qed.
 
   Lemma gIter_plus {d1 : measure_display} {T1 : measurableType d1} (f : T1 → giryM T1) {H : measurable_fun setT f} (t : T1) (n m : nat) :
     gIter (n + m) f t ≡μ gBind' (gIter m f) (gIter n f t).
@@ -501,14 +470,31 @@ Section markov.
   Qed.
 
 
-  Lemma stepN_pexec_det n x y:
-    is_det y (stepN n x) -> is_det y (pexec n x).
+  Lemma stepN_le_pexec n x : giryM_le (stepN n x) (pexec n x).
   Proof.
-    rewrite /stepN /pexec /is_det.
-    intros H S HS.
-    rewrite -H.
-    (* Antisymmetry, gIter_mono, cases on final, done. *)
-  Admitted.
+    apply gIter_giryM_le.
+    { apply step_meas. }
+    { apply step_or_final_meas. }
+    move => a s Hs.
+    destruct (decide (is_final a)).
+    { 
+      rewrite to_final_is_final; auto.
+      rewrite gZero_eval; auto.
+    }
+    rewrite step_or_final_no_final //.
+  Qed.
+
+  Lemma stepN_pexec_det n x y:
+    is_det y (stepN n x) → is_det y (pexec n x).
+  Proof.
+    unfold is_det.
+    intros.
+    apply giryM_le_is_det.
+    erewrite giryM_le_proper.
+    { apply stepN_le_pexec. }
+    { by rewrite -H. }
+    auto.
+  Qed.
 
 (*
 
@@ -677,49 +663,92 @@ Section markov.
       + rewrite step_or_final_no_final; last by eapply to_final_None_2.
         apply dbind_ext_right. done.
   Qed.
-*)
+  *)
 
-  (*
-  Lemma exec_mono a n v (H : measurable v) :
-    le_ereal (exec n a v) (exec (S n) a v).
+  Lemma exec_mono a n :
+    giryM_le (exec n a) (exec (S n) a).
   Proof.
-    apply refRcoupl_eq_elim.
+    intros.
     move : a.
     induction n.
-    - intros.
-      apply refRcoupl_from_leq.
-      intros b. rewrite /distr_le /=.
-      by case_match.
-    - intros; do 2 rewrite exec_Sn.
-      eapply refRcoupl_dbind; [|apply refRcoupl_eq_refl].
-      by intros ? ? ->.
+    {
+      move => a v Hv.
+      rewrite /=. 
+      case_match; auto.
+      rewrite gZero_eval //.
+    }
+    move => a v Hv.
+    do 2 (rewrite exec_Sn; auto).
+    do 2 rewrite (gBind'_meas_rw (exec_meas_fun _)).
+    apply gBind_giryM_le; auto.
+    apply giryM_le_refl.
   Qed.
 
-  Lemma exec_mono' ρ n m v : *)
-  (*
-    n ≤ m → exec n ρ v <= exec m ρ v.
+  Lemma exec_mono' ρ n m  :
+    n ≤ m → 
+    giryM_le (exec n ρ) (exec m ρ).
   Proof.
-    eapply (mon_succ_to_mon (λ x, exec x ρ v)).
-    intro. apply exec_mono.
+    intros. 
+    remember (m - n).
+    revert n m H Heqn0.
+    induction n0. 
+    {
+      intros.
+      replace m with n. 2: lia.
+      apply giryM_le_refl.
+    }
+    intros.
+    replace m with (S (n0 + n)). 2: lia. 
+    eapply giryM_le_trans.
+    { eapply (IHn0 _ (n0+n)); lia. }
+    apply exec_mono.
   Qed.
 
   Lemma exec_mono_term a b n m :
-    SeriesC (exec n a) = 1 →
+    (mass' (exec n a) setT = 1)%E →
     n ≤ m →
-    exec m a b = exec n a b.
+    exec m a ≡μ exec n a.
   Proof.
     intros Hv Hleq.
-    apply Rle_antisym; [ |by apply exec_mono'].
-    destruct (decide (exec m a b <= exec n a b))
-      as [|?%Rnot_le_lt]; [done|].
-    exfalso.
-    assert (1 < SeriesC (exec m a)); last first.
-    - assert (SeriesC (exec m a) <= 1); [done|]. lra.
-    - rewrite -Hv.
-      apply SeriesC_lt; eauto.
-      intros b'. by split; [|apply exec_mono'].
+    move => s Hm.
+    apply @order.Order.le_anti.
+    apply andb_true_iff.
+    split.
+    2: by apply exec_mono'.
+    destruct (decide (exec m a s <= exec n a s)%E); auto.
+    rewrite /mass' !extern_if_eq /mass !(integral_cst _ measurableT 1) !mul1e // in Hv.
+    assert (exec m a [set: mstate_ret δ] = 1%E).
+    {
+      apply @order.Order.le_anti.
+      rewrite sprobability_setT -Hv exec_mono' //.
+    }
+    assert (false); auto.
+    rewrite -(order.Order.POrderTheory.lt_irreflexive (1: \bar R)%E); auto. 
+    assert (exec n a [set: mstate_ret δ] < exec m a [set: mstate_ret δ])%E.
+    2: by rewrite Hv H in H0. 
+    specialize (measurableC Hm) as Hm'.
+    replace (exec n a _) with (exec n a s + exec n a (~` s))%E.
+    2: {
+      rewrite -measureU; auto. 
+      2: apply subsets_disjoint, subset_refl.
+      by rewrite setUv.
+    }
+    replace (exec m a _) with (exec m a s + exec m a (~` s))%E.
+    2: {
+      rewrite -measureU; auto. 
+      2: apply subsets_disjoint, subset_refl.
+      by rewrite setUv.
+    }
+    apply (lte_leD (eval_is_fin_num (exec n a) Hm')).
+    2: apply exec_mono'; auto.
+    rewrite order.Order.TotalTheory.ltNge.
+    destruct (exec m a s <= exec n a s)%E eqn : Hle.
+    {
+      exfalso.
+      by apply n0.
+    }
+    by rewrite Hle.
   Qed.
-  *)
 
 
 

@@ -539,6 +539,20 @@ Section giry_ret.
     }
   Qed.
 
+  Lemma gRetMass0Inv (S : set T) (a : T) (HS : measurable S):
+    ¬ S a ↔ (gRet a) S = 0.
+  Proof.
+    split; intros.
+    { 
+      rewrite /gRet /GRing.zero //=. 
+      rewrite diracE.
+      rewrite memNset; auto.
+    }
+    move => Hc.
+    apply gRetMass1Inv in Hc; auto.
+    rewrite Hc in H. inversion H.
+    by apply R1_neq_R0.
+  Qed.
   (*
   Axiom gRet : T -> giryM T.
   Axiom gRet_meas_fun : measurable_fun setT gRet.
@@ -870,6 +884,7 @@ Section giry_bind.
     apply gJoin_proper; [|done].
     by apply gMap_proper.
   Qed.
+  
 
 End giry_bind.
 
@@ -911,6 +926,13 @@ Section giry_bind_meas_fun.
     apply gBindInt; auto.
   Qed.
 
+  Lemma gBindEval_rw (μ : giryM T1) (f : T1 -> giryM T2) (H : measurable_fun setT f)
+    (S : set T2) (HS : measurable S) :
+    gBind H μ S = \int[μ]_x (f x S).
+  Proof.
+    rewrite /gBind /= /gJoin_ev gMapInt; auto.
+    by apply gEval_meas_fun.
+  Qed.
 End giry_bind_meas_fun.
 
 Section giry_monad.
@@ -1018,6 +1040,16 @@ Section giry_external_bind.
 
   Lemma gBind'_meas_fun (f : T1 -> giryM T2) (H : measurable_fun setT f) : measurable_fun setT (gBind' f).
   Proof. by rewrite /gBind'/gMap' extern_if_eq; apply gBind_meas_fun. Qed.
+
+
+
+  Lemma gBind'_meas_rw: ∀ {f : T1 -> giryM T2} (H : measurable_fun setT f),
+    gBind' f = gBind H.
+  Proof.
+    intros. 
+    by rewrite /gBind' /gMap' (extern_if_eq H) /gBind.
+  Qed.
+
 
 End giry_external_bind.
 
@@ -1412,3 +1444,168 @@ Section is_det_lemmas.
   Qed.
 
 End is_det_lemmas.
+
+Section le_giry.
+  Local Open Scope classical_set_scope.
+  Local Open Scope ereal_scope.
+
+  Lemma eval_le_1 {d} {T : measurableType d} (μ : giryM T) (S : set T) (HS : measurable S):
+    μ S <= 1.
+  Proof.
+    erewrite @order.Order.le_trans.
+    2:{
+      apply le_measure.
+      3: apply subsetT.
+      2: {
+        apply mem_set.
+        apply (measurableT (s := T)).
+      }
+      by apply mem_set.
+    }
+    2: apply sprobability_setT.
+    auto.
+  Qed.
+
+  Lemma eval_is_fin_num {d} {T : measurableType d} (μ : giryM T) (S : set T) (HS : measurable S):
+    (μ S) \is a fin_num.
+  Proof.
+    rewrite fin_real; auto.
+    erewrite (@order.Order.POrderTheory.lt_le_trans).
+    3: apply measure_ge0.
+    2: apply ltNy0.
+    erewrite (@order.Order.POrderTheory.le_lt_trans).
+    2: by apply eval_le_1.
+    2: {
+      simpl.
+      apply (ltry 1%R).
+    }
+    auto.
+  Qed.
+
+  Definition giryM_le {d} {T : measurableType d} (μ1 μ2: giryM T) := 
+    ∀ s, measurable s -> (μ1 s <= μ2 s).
+  
+  Lemma giryM_le_zero {d} {T : measurableType d} (μ : giryM T):
+    giryM_le gZero μ.
+  Proof.
+    move => s Hs.
+    by rewrite gZero_eval.
+  Qed.
+
+  Lemma giryM_le_refl {d} {T : measurableType d} (μ : giryM T):
+    giryM_le μ μ.
+  Proof.
+    rewrite /giryM_le //.
+  Qed.
+
+  Global Instance giryM_le_proper {d} {T : measurableType d}: 
+    Proper ((measure_eq (T:=T)) ==> (measure_eq (T:=T)) ==> eq) giryM_le.
+  Proof.
+    intros x y H0 μ1 μ2 H1.
+    unfold measure_eq in *.
+    apply propext.
+    split.
+    {
+      move => H s Hs.
+      rewrite -H0; auto. 
+      rewrite -H1; auto.
+    }
+    {
+      move => H s Hs.
+      rewrite H0; auto. 
+      rewrite H1; auto.
+    }
+  Qed.
+
+  Lemma giryM_le_trans {d} {T : measurableType d} (μ1 μ2 μ3 : giryM T):
+    giryM_le μ1 μ2 -> giryM_le μ2 μ3 -> giryM_le μ1 μ3.
+  Proof.
+    move => H1 H2 s Hs.
+    eapply @order.Order.le_trans.
+    { by apply H1. }
+    { by apply H2. }
+  Qed.
+
+  Lemma giryM_le_antisym {d} {T : measurableType d} (μ1 μ2 : giryM T):
+    giryM_le μ1 μ2 -> giryM_le μ2 μ1 -> μ1 ≡μ μ2.
+  Proof.
+    move => H1 H2 s Hs.
+    eapply @order.Order.le_anti.
+    rewrite H1; auto.
+    rewrite H2; auto.
+  Qed.
+
+  Lemma gBind_giryM_le {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (μ1 μ2: giryM T1) (f g : T1 -> giryM T2) (Hf : measurable_fun setT f) (Hg: measurable_fun setT g):
+    giryM_le μ1 μ2 ->
+    (∀ a, giryM_le (f a) (g a)) ->
+    giryM_le (gBind Hf μ1) (gBind Hg μ2).
+  Proof.
+    move => H1 H2 s Hs.
+    rewrite !gBindEval_rw; auto.
+    (*
+    \int[μ1]_x (f x s) <= \int[μ2]_x (g x s) -(monotonicity)-> ...
+    *)
+  Admitted.
+
+  Lemma gIter_giryM_le {d} {T : measurableType d} (f g : T -> giryM T) (Hf : measurable_fun setT f) (Hg: measurable_fun setT g) n a:
+    (∀ a, giryM_le (f a) (g a)) -> 
+    giryM_le (gIter n f a) (gIter n g a).
+  Proof.
+    revert a. induction n.
+    {
+      intros.
+      rewrite /gIter. 
+      apply giryM_le_refl.
+    }
+    intros.
+    simpl. rewrite !gBind'_meas_rw; try apply gIter_meas_fun; try assumption.
+    intros.
+    apply gBind_giryM_le; auto.
+  Qed.
+
+  Lemma giryM_le_is_det {d} {T : measurableType d} (μ : giryM T) a : 
+    giryM_le (gRet a) μ ->
+    is_det a μ.
+  Proof.
+    move => H s Hs.
+    destruct (pselect (s a)).
+    {
+      apply gRetMass1Inv in s0 as Hs0; auto.
+      apply @order.Order.le_anti. 
+      rewrite H; auto.
+      rewrite Hs0.
+      by rewrite eval_le_1.
+    }
+    replace (gRet a s) with (0 : \bar R). 2 : {
+      symmetry. by apply gRetMass0Inv.
+    }
+    assert ((~` s) a); auto.
+    assert (measurable (~` s)). { by apply measurableC. }
+    assert (μ (~`s) = 1). {
+      apply gRetMass1Inv in H0 as Hs0; auto.
+      apply @order.Order.le_anti. 
+      rewrite -Hs0 H; auto.
+      rewrite Hs0.
+      by rewrite eval_le_1.
+    }
+    assert (μ (~`s) + μ s = 1)%E. {
+      rewrite -measureU; auto.
+      2: apply disjoints_subset, subset_refl.
+      rewrite setvU. 
+      simpl.
+      apply @order.Order.le_anti.
+      specialize (H setT measurableT).
+      assert (gRet a setT = 1) as Hrt. {
+        rewrite gRetMass1Inv //.
+      }
+      rewrite Hrt in H. 
+      by rewrite eval_le_1.
+    }
+    apply (f_equal (fun x => x - μ(~`s))) in H3.
+    rewrite H2 in H3. 
+    rewrite GRing.addrC GRing.addrA (GRing.addrC _ 1)%E in H3.
+    rewrite -!EFinB -!RminusE !Rminus_diag add0e in H3.
+    simpl in H3.
+    by rewrite H3.
+  Qed.
+End le_giry.
