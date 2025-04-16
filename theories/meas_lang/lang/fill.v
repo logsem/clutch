@@ -2454,7 +2454,11 @@ Proof.
   mf_unfold'. mf_cmp_tree; first apply noval_measurable.
   mf_prod.
 Qed.
-Lemma decomp_stuck_meas      : measurable_fun decomp_cov_stuck      decomp_stuck. Proof. Admitted.
+Lemma decomp_stuck_meas      : measurable_fun decomp_cov_stuck      decomp_stuck.
+Proof.
+  mf_unfold'.
+  apply measurable_cst.
+Qed.
 
 Hint Resolve decomp_app_val_meas    : measlang.
 Hint Resolve decomp_app_expr_meas   : measlang.
