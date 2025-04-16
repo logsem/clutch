@@ -1946,6 +1946,9 @@ Hint Resolve fill_item_RandRCtx_meas     : mf_fun.
 Hint Resolve fill_item_URandCtx_meas     : mf_fun.
 Hint Resolve fill_item_TickCtx_meas      : mf_fun.
 
+(* This should be rewritten to use the the ectx_cover stuff
+   See head_stepM' in lang.v
+ *)
 Definition fill_item' (x : (ectx_item * expr)%type) : expr :=
   match x.1 with
   | AppLCtx v2      => fill_item_AppLCtx x
@@ -2484,6 +2487,9 @@ Hint Resolve decomp_urand_meas      : measlang.
 Hint Resolve decomp_tick_meas       : measlang.
 Hint Resolve decomp_stuck_meas      : measlang.
 
+(* This should be rewritten to use decomp_cover and if_in 
+   See head_stepM' in lang.v
+*)
 Definition decomp_item' (e : expr) : option (ectx_item * expr)%type :=
   match e with
   | App _ (Val _)      => decomp_app_val e
