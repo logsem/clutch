@@ -17,7 +17,7 @@ Section erasable.
 
   Program Definition erasable (μ : giryM (state Λ)) (σ : state Λ) : Prop :=
     ∀ e m, gBind (_ : measurable_fun setT (exec m \o pair e)) μ ≡μ exec m (e, σ).
-  Next Obligation. intros; mf_cmp_tree; [ by apply @measurableT | by apply exec_meas_fun ]. Qed.
+  Next Obligation. intros; mf_cmp_tree; by apply exec_meas_fun. Qed.
 
   Lemma erasable_gRet (σ : state Λ) : erasable (gRet σ) σ.
   Proof.

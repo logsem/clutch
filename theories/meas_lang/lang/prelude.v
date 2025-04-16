@@ -43,8 +43,8 @@ Proof.
   by destruct l.
 Qed.
 
-Create HintDb ml_fun.
-Create HintDb ml_set.
+Create HintDb mf_fun.
+Create HintDb mf_set.
 
 Hint Resolve gRet_meas_fun : mf_fun.
 
