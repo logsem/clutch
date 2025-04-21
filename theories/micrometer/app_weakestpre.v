@@ -39,8 +39,6 @@ Global Arguments MicrometerWpGS {Λ Σ _}.
 
 Canonical Structure NNRO := leibnizO nonnegreal.
 
-Definition coe_nonnegreal_bar_R : nonnegreal -> \bar R := EFin \o nonneg.
-
 (** * Coupling modalities  *)
 Section coupl_modalities.
   Context `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
@@ -107,7 +105,7 @@ Section coupl_modalities.
        (Z σ1 e1' σ1' ε) ∨
        (∃ (S : state Λ → (expr Λ * state Λ)%type → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
           (ε1 : nonnegreal) (X2 : (expr Λ * state Λ)%type → nonnegreal) (r : R),
-            ⌜ ARcoupl_meas μ1 (gBind' (pexec n \o pair (toPacked e1')) μ1') S (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
+            ⌜ ARcoupl_meas μ1 (gBind' (pexec n \o pair (toPacked e1')) μ1') S (0)%R  (EFin (nonneg ε1)) ⌝ ∗
             ⌜∀ ρ, X2 ρ <= r⌝ ∗
             ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1')) μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
             ⌜erasable μ1 σ1⌝ ∗
@@ -150,9 +148,9 @@ Section coupl_modalities.
       (Z σ1 e1' σ1' ε) ∨
       (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM  (state Λ))
          (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
-         ⌜ARcoupl_meas μ1 (gBind' (pexec n \o pair (toPacked e1')) μ1') S (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
+         ⌜ARcoupl_meas μ1 (gBind' (pexec n \o pair (toPacked e1')) μ1') S (0)%R (EFin (nonneg ε1)) ⌝ ∗
          ⌜∀ ρ, X2 ρ <= r⌝ ∗
-          ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1')) μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
+         ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1')) μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
          ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
          ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ meas_spec_coupl E σ2 e2' σ2' (X2 (e2', σ2')) Z))%I.
   Proof. rewrite /meas_spec_coupl /meas_spec_coupl' least_fixpoint_unfold //. Qed.
@@ -168,7 +166,7 @@ Section coupl_modalities.
   Lemma meas_spec_coupl_rec σ1 e1' σ1' E (ε : nonnegreal) Z :
     (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
        (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
-       ⌜ARcoupl_meas μ1 (gBind' (pexec n \o pair e1') μ1') S (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
+       ⌜ARcoupl_meas μ1 (gBind' (pexec n \o pair e1') μ1') S (0)%R  (EFin (nonneg ε1)) ⌝ ∗
        ⌜∀ ρ, X2 ρ <= r⌝ ∗
        ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
        ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
@@ -208,6 +206,7 @@ Section coupl_modalities.
   Lemma pexec_0' :  (pexec 0 :  mstate (meas_lang_markov Λ) -> _) = gRet.
   Proof. apply functional_extensionality; intro a; eapply pexec_O. Qed.
 
+
   (* This might not be true of is_det as written because it's a subdistribution, but we can
      change the definition *)
   Lemma is_det_dret {d1} {T1 : measurableType d1} {μ1 : giryM T1} {t : T1} (H : is_det t μ1) :
@@ -246,7 +245,7 @@ Section coupl_modalities.
         by apply measurableX; [apply expr_meas_points | apply state_meas_points]. }
       eapply (ARcoupl_meas_dret); try done.
       Unshelve.
-      2: { intros _ _. apply True. (* idk why I get typ2 errors when I do this the other way around *) }
+      2: { intros _ _. apply True. (* idk why I get type errors when I do this the other way around *) }
       done.
     }
     iSplit; [done|].
@@ -361,13 +360,15 @@ Section coupl_modalities.
       have -> : (gBind' (pexec 0 \o pair (toPacked e1')) μ1') = (gBind XM μ1') by admit.
       simpl.
       have -> : (0 = 0 + 0)%R by admit.
-      have -> : (coe_nonnegreal_bar_R ε1) = (adde (coe_nonnegreal_bar_R ε1) (EFin 0)) by admit.
+      have -> : (EFin (nonneg ε1)) = (adde (EFin (nonneg ε1)) (EFin 0)) by admit.
+      (*
       eapply ARcoupl_meas_dbind.
       { admit. }
       { done. }
       { (* 0 is finite ?? *) admit. }
       2: { by eapply H. }
       setoid_rewrite pexec_0'.
+      *)
       (* This is a ret-ret coupling with error 0
       eapply (ARcoupl_dbind' ε1 0%NNR); [done|done|simpl; lra|..|done].
       intros ???.
@@ -509,7 +510,7 @@ Section coupl_modalities.
     ∃ (R : cfg Λ → cfg Λ → Prop) (n : nat) (μ1' : giryM (state Λ))
       (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : nonnegreal),
       ⌜reducible (toPacked e1, toPacked σ1)⌝ ∗
-      ⌜ARcoupl_meas (prim_step (e1, σ1)) (gBind' (pexec n \o pair (toPacked e1')) μ1') R (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
+      ⌜ARcoupl_meas (prim_step (e1, σ1)) (gBind' (pexec n \o pair (toPacked e1')) μ1') R (0)%R  (EFin (nonneg ε1)) ⌝ ∗
       ⌜∀ ρ, X2 ρ <= r⌝ ∗
       ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1')) μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε))⌝ ∗
       ⌜erasable μ1' σ1'⌝ ∗

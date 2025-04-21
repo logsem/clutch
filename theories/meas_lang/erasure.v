@@ -3,9 +3,12 @@ From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From stdpp Require Import fin_maps fin_map_dom.
 From clutch.prelude Require Import stdpp_ext.
-(*  From clutch.common Require Import exec language ectx_language erasable. *)
 From clutch.meas_lang Require Import notation lang metatheory.
-(*  From clutch.prob Require Import couplings couplings_app markov. *)
+From clutch.meas_lang Require Import exec language ectx_language erasable.
+From clutch.prob.monad Require Import couplings_app meas_markov.
+From mathcomp.analysis Require Import reals ereal measure lebesgue_measure lebesgue_integral ftc probability sequences function_spaces Rstruct.
+From clutch.meas_lang Require Import lang.
+
 Set Warnings "hiding-delimiting-key".
 
 Set Default Proof Using "Type*".
@@ -654,7 +657,21 @@ Proof.
   eapply ARcoupl_dbind; try done.
 Qed.
 
-Lemma ARcoupl_erasure_erasable_exp_rhs ε1 μ1 μ1' (E2 : _ → R) R Φ (e1 e1' : expr) σ1 σ1' ε r n m :
+*)
+
+
+(*
+
+
+    (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
+       (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
+       ⌜ARcoupl_meas μ1 (gBind' (pexec n \o pair e1') μ1') S (0)%R  (coe_nonnegreal_bar_R ε1) ⌝ ∗
+       ⌜∀ ρ, X2 ρ <= r⌝ ∗
+       ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
+       ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ meas_spec_coupl E σ2 e2' σ2' (X2 (e2', σ2')) Z)%I
+    ⊢ meas_spec_coupl E σ1 e1' σ1' ε Z.
+
+
   0 <= ε1 →
   ARcoupl μ1 (σ2' ← μ1'; pexec m (e1', σ2')) R ε1 →
   ε1 + Expval (σ2' ← μ1'; pexec m (e1', σ2')) E2 <= ε →
@@ -664,27 +681,55 @@ Lemma ARcoupl_erasure_erasable_exp_rhs ε1 μ1 μ1' (E2 : _ → R) R Φ (e1 e1' 
   (∀ σ2 e2' σ2', R σ2 (e2', σ2') →
                  ARcoupl (exec n (e1, σ2)) (lim_exec (e2', σ2')) Φ (E2 (e2', σ2'))) →
   ARcoupl (exec n (e1, σ1)) (lim_exec (e1', σ1')) Φ ε.
+
+
+  ε1 : RbaseSymbolsImpl.R
+  μ1, μ1' : distr (language.state prob_lang)
+  E2 : mstate (lang_markov prob_lang) → RbaseSymbolsImpl.R
+  R : language.state prob_lang → mstate (lang_markov prob_lang) → Prop
+  Φ : mstate_ret (lang_markov prob_lang) → mstate_ret (lang_markov prob_lang) → Prop
+  e1, e1' : expr
+  σ1, σ1' : language.state prob_lang
+  ε, r : RbaseSymbolsImpl.R
+  n, m : nat
+*)
+
+Lemma ARcoupl_erasure_erasable_exp_rhs
+    (ε1 : R) (μ1 μ1' : giryM (meas_lang.language.state meas_lang)) (E2 : _ → R) R Φ e1' e1 σ1 σ1' ε r n m :
+  0 <= ε1 →
+  ARcoupl_meas μ1 (gBind' (pexec m \o pair e1') μ1') R (0)%R  (EFin ε1) →
+  (le_ereal (EFin ε1 + \int[gBind' (pexec m \o pair e1') μ1']_ρ (EFin (E2 ρ)))) (EFin (nonneg ε)) →
+  (∀ ρ, (0 <= E2 ρ <= r)%R) →
+  erasable μ1 σ1 →
+  erasable μ1' σ1' →
+  (∀ σ2 e2' σ2', R σ2 (e2', σ2') →
+                 ARcoupl_meas (exec n (e1, σ2)) (lim_exec (e2', σ2')) Φ (0)%R (EFin (E2 (e2', σ2')))) →
+  ARcoupl_meas (exec n (e1, σ1)) (lim_exec (e1', σ1')) Φ (0)%R (EFin (nonneg ε)).
 Proof.
   intros H1 Hcoupl Hineq Hbound Hμ1 Hμ2 Hcont.
+Admitted.
+(*
   rewrite -Hμ1.
   rewrite -(erasable_pexec_lim_exec μ1' m) //.
   eapply ARcoupl_mon_grading; [done|].
   eapply (ARcoupl_dbind_adv_rhs' E2); [done|eauto|done| |done].
   intros ? [] ?.
   by eapply Hcont.
-Qed.
+Qed. *)
 
-Lemma ARcoupl_erasure_erasable_exp_lhs ε1 μ1' (E2 : _ → R) R Φ (e1 e1' : expr) σ1 σ1' ε r n m :
+Lemma ARcoupl_erasure_erasable_exp_lhs (ε1 : R) (μ1' : giryM (meas_lang.language.state meas_lang)) (E2 : _ → R) R Φ e1 e1' σ1 σ1' ε r n m :
   0 <= ε1 →
-  ARcoupl (prim_step e1 σ1) (μ1' ≫= λ σ2', pexec m (e1', σ2')) R ε1 →
-  ε1 + Expval (prim_step e1 σ1) E2 <= ε →
+  ARcoupl_meas (prim_step (e1, σ1)) (gBind' (pexec m \o pair e1') μ1') R (0)%R (EFin ε1) ->
+  (le_ereal (EFin ε1 + \int[prim_step (e1, σ1)]_ρ (EFin (E2 ρ)))) (EFin ε) →
   (∀ ρ, (0 <= E2 ρ <= r)%R) →
   erasable μ1' σ1' →
   (∀ e2 σ2 e2' σ2', R (e2, σ2) (e2', σ2') →
-                    ARcoupl (exec n (e2, σ2)) (lim_exec (e2', σ2')) Φ (E2 (e2, σ2))) →
-  ARcoupl (prim_step e1 σ1 ≫= exec n) (lim_exec (e1', σ1')) Φ ε.
+                    ARcoupl_meas (exec n (e2, σ2)) (lim_exec (e2', σ2')) Φ (0)%R (EFin (E2 (e2, σ2)))) →
+  ARcoupl_meas (gBind' (exec n) (prim_step (e1, σ1))) (lim_exec (e1', σ1')) Φ (0)%R (EFin ε).
 Proof.
   intros Hε Hcoupl Hle Hb Hμ1' Hcont.
+Admitted.
+(*
   rewrite -(erasable_pexec_lim_exec μ1' m) //.
   eapply ARcoupl_mon_grading; [done|].
   eapply (ARcoupl_dbind_adv_lhs' E2); [done|eauto|done| |done].

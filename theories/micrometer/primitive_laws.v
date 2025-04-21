@@ -8,6 +8,7 @@ From clutch.meas_lang Require Export class_instances meas_spec_update.
 From clutch.meas_lang Require Import tactics lang notation metatheory tapes.
 From clutch.meas_lang.spec Require Export spec_ra spec_rules spec_tactics.
 From mathcomp.analysis Require Import measure.
+From mathcomp Require Import classical_sets.
 
 From iris.prelude Require Import options.
 
@@ -217,6 +218,8 @@ Proof.
   iApply ("IH" with "HΨ").
 Admitted.
 
+Local Open Scope classical_set_scope.
+
 (** Heap *)
 Lemma wp_alloc E v s :
   {{{ True }}}
@@ -305,48 +308,71 @@ Proof.
       rewrite replicate_length in H1.
       lia.
 Qed.
+*)
 
 Lemma wp_load E l dq v s :
-  {{{ ▷ l ↦{dq} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET v; l ↦{dq} v }}}.
+  {{{ ▷ l ↦{dq} v }}} (Load (Val $ LitV $ LitLoc l) : meas_lang.language.expr meas_lang) @ s; E {{{ RET (v : val); l ↦{dq} v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
+  simpl.
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
-  solve_red.
-  iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
-  iFrame. iModIntro. by iApply "HΦ".
-Qed.
+  iSplitR.
+  { admit. (* solve_red. *) }
+  iExists [set (Val v, σ1)].
+  iSplitR. { iPureIntro. admit. (* Meas. singletons *) }
+  iSplitR. { rewrite H. iPureIntro. apply gRetMass1Inv. all: admit. (* Meas. singletons *) }
+  simpl.
+  iIntros (ρ ->) "!> _ //=".
+  iModIntro.
+  iSplitL "Hh Ht".
+  { iSplitL "Hh"; done. }
+  iApply "HΦ".
+  iAssumption.
+Admitted.
 
 Lemma wp_store E l v' v s :
-  {{{ ▷ l ↦ v' }}} Store (Val $ LitV (LitLoc l)) (Val v) @ s; E
-  {{{ RET LitV LitUnit; l ↦ v }}}.
+  {{{ ▷ l ↦ v' }}} (Store (Val $ LitV (LitLoc l)) (Val v) : meas_lang.language.expr meas_lang) @ s; E
+  {{{ RET (LitV LitUnit : val) ; l ↦ v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
+  simpl.
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
-  solve_red.
-  iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
+  iSplitR. { (* solve_red *) admit. }
+  iExists [set (Val (LitV ()%V), state_upd_heap <[l:=v]> σ1)].
+  iSplitR. { (* sing. meas *) admit. }
+  iSplitR. { rewrite H; iPureIntro; apply gRetMass1Inv. all: admit. (* Meas. singletons *) }
+  iIntros (? ->) "!> /= _".
   iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
-  iFrame. iModIntro. by iApply "HΦ".
-Qed.
+  iModIntro.
+  iSplitR "HΦ Hl"; [done|].
+  iApply "HΦ".
+  iAssumption.
+Admitted.
 
 Lemma wp_rand (N : nat) (z : Z) E s :
   TCEq N (Z.to_nat z) →
-  {{{ True }}} rand #z @ s; E {{{ (n : nat), RET #n; ⌜n <= N⌝ }}}.
+  {{{ True }}} (rand (Val (LitV (LitInt z))) : meas_lang.language.expr meas_lang) @ s; E {{{ (n : nat), RET (#(LitInt $ Z.of_nat n) : val); ⌜n <= N⌝ }}}.
 Proof.
   iIntros (-> Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
+  simpl.
   iIntros (σ1) "Hσ !#".
-  solve_red.
+  iSplitR. { (* red *) admit. }
+
+(*
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iFrame.
   iApply ("HΦ" $! x).
   iPureIntro.
   pose proof (fin_to_nat_lt x); lia.
-Qed.
+Qed. *) Admitted.
+
+(*
 
 (** Tapes  *)
 Lemma wp_alloc_tape N z E s :
