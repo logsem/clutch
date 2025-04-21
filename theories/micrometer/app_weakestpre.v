@@ -103,11 +103,11 @@ Section coupl_modalities.
        let '(σ1, (e1', σ1'), ε) := x in
        ⌜1 <= ε⌝ ∨
        (Z σ1 e1' σ1' ε) ∨
-       (∃ (S : state Λ → (expr Λ * state Λ)%type → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
-          (ε1 : nonnegreal) (X2 : (expr Λ * state Λ)%type → nonnegreal) (r : R),
+       (∃ (S : stateT Λ → (exprT Λ * stateT Λ)%type → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
+          (ε1 : nonnegreal) (X2 : (exprT Λ * stateT Λ)%type → nonnegreal) (r : R),
             ⌜ ARcoupl_meas μ1 (gBind' (pexec n \o pair (toPacked e1')) μ1') S (0)%R  (EFin (nonneg ε1)) ⌝ ∗
             ⌜∀ ρ, X2 ρ <= r⌝ ∗
-            ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1')) μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
+            ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1')) μ1']_ρ (EFin (nonneg (X2 ρ)))) (EFin (nonneg ε))) ⌝ ∗
             ⌜erasable μ1 σ1⌝ ∗
             ⌜erasable μ1' σ1'⌝ ∗
             ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ Φ (σ2, (e2', σ2'), X2 (e2', σ2'))))%I.
@@ -146,8 +146,8 @@ Section coupl_modalities.
     meas_spec_coupl E σ1 e1' σ1' ε Z ≡
       (⌜1 <= ε⌝ ∨
       (Z σ1 e1' σ1' ε) ∨
-      (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM  (state Λ))
-         (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
+      (∃ (S : stateT Λ → (exprT Λ * stateT Λ)%type → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM  (state Λ))
+         (ε1 : nonnegreal) (X2 : (exprT Λ * stateT Λ)%type  → nonnegreal) (r : R),
          ⌜ARcoupl_meas μ1 (gBind' (pexec n \o pair (toPacked e1')) μ1') S (0)%R (EFin (nonneg ε1)) ⌝ ∗
          ⌜∀ ρ, X2 ρ <= r⌝ ∗
          ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1')) μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
@@ -164,8 +164,8 @@ Section coupl_modalities.
   Proof. iIntros. rewrite meas_spec_coupl_unfold. by iRight; iLeft. Qed.
 
   Lemma meas_spec_coupl_rec σ1 e1' σ1' E (ε : nonnegreal) Z :
-    (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
-       (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
+    (∃ (S : stateT Λ → (exprT Λ * stateT Λ)%type  → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
+       (ε1 : nonnegreal) (X2 : (exprT Λ * stateT Λ)%type  → nonnegreal) (r : R),
        ⌜ARcoupl_meas μ1 (gBind' (pexec n \o pair e1') μ1') S (0)%R  (EFin (nonneg ε1)) ⌝ ∗
        ⌜∀ ρ, X2 ρ <= r⌝ ∗
        ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
@@ -174,7 +174,7 @@ Section coupl_modalities.
     ⊢ meas_spec_coupl E σ1 e1' σ1' ε Z.
   Proof. iIntros "H". rewrite meas_spec_coupl_unfold. iRight; iRight. done. Qed.
 
-  Lemma meas_spec_coupl_ind E (Ψ Z : state Λ → expr Λ → state Λ → nonnegreal → iProp Σ) :
+  Lemma meas_spec_coupl_ind E (Ψ Z : stateT Λ → exprT Λ → stateT Λ → nonnegreal → iProp Σ) :
     ⊢ (□ (∀ σ e' σ' ε,
              meas_spec_coupl_pre E Z (λ '(σ, (e', σ'), ε'),
                  Ψ σ e' σ' ε' ∧ meas_spec_coupl E σ e' σ' ε' Z)%I (σ, (e', σ'), ε) -∗ Ψ σ e' σ' ε) →

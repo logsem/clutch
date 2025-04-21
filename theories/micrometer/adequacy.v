@@ -19,10 +19,12 @@ Section adequacy.
   Context `{!micrometerGS Σ}.
   Local Open Scope classical_set_scope.
 
-  Lemma wp_adequacy_spec_coupl n m (e1 : measure.Measurable.sort (meas_lang.language.expr meas_lang)) σ1 e1' σ1' Z φ ε :
+  Lemma wp_adequacy_spec_coupl n m (e1 : meas_lang.language.exprT meas_lang)
+    (σ1 : meas_lang.language.stateT meas_lang) (e1' : meas_lang.language.exprT meas_lang)
+    (σ1' : meas_lang.language.stateT meas_lang)  Z φ ε :
     meas_spec_coupl ∅ σ1 e1' σ1' ε Z -∗
     (∀ σ2 e2' σ2' ε', Z σ2 e2' σ2' ε' ={∅}=∗ |={∅}▷=>^n
-        ⌜ARcoupl_meas (@exec (language.meas_lang_markov meas_lang) m (e1, σ2)) (@lim_exec (language.meas_lang_markov meas_lang) (e2', σ2')) φ (0)%R (EFin $ nonneg ε) ⌝) -∗
+        ⌜ARcoupl_meas (@exec (language.meas_lang_markov meas_lang) m (e1, σ2)) (@lim_exec (language.meas_lang_markov meas_lang) (e2', σ2')) φ (0)%R (EFin $ nonneg ε')⌝ ) -∗
     |={∅}=> |={∅}▷=>^n ⌜ARcoupl_meas (@exec (language.meas_lang_markov meas_lang) m (e1, σ1)) (@lim_exec (language.meas_lang_markov meas_lang) (e1', σ1')) φ (0)%R (EFin $ nonneg ε) ⌝.
   Proof.
     iRevert (σ1 e1' σ1' ε).
@@ -36,46 +38,29 @@ Section adequacy.
       by repeat destroy_mathcomp.
     - by iMod ("HZ" with "[$]").
     - iApply (step_fupdN_mono _ _ _
-                ⌜ forall (σ2 : measure.Measurable.sort (state meas_lang)) (e2' : measure.Measurable.sort (meas_lang.language.expr meas_lang))  (σ2' : measure.Measurable.sort (state meas_lang)),
-                    T σ2 (e2', σ2') →
-                    @ARcoupl_meas
-                      (@measure.sigma_display val_T val_cyl) (@measure.sigma_display val_T val_cyl)
-                      (@toPackedType (@measure.sigma_display val_T val_cyl) val_T val_sigma_algebra)
-                      (@toPackedType (@measure.sigma_display val_T val_cyl) val_T val_sigma_algebra)
-                      (@exec (meas_lang_markov meas_lang) m (e1, σ2))
-                      (@lim_exec (meas_lang_markov meas_lang) (e2', σ2'))
-                      φ (0)%R (EFin $ nonneg $ X2 (e2', σ2'))⌝).
-      { iPureIntro. intros.
-        eapply ARcoupl_erasure_erasable_exp_rhs.
+                ⌜forall (σ2 : (stateT meas_lang))
+                         (e2' : (meas_lang.language.exprT meas_lang))
+                         (σ2' : (stateT meas_lang)),
+                         T σ2 (e2', σ2') →
+                         ARcoupl_meas
+                           (@exec (meas_lang_markov meas_lang) m (e1, σ2))
+                           (@lim_exec (meas_lang_markov meas_lang) (e2', σ2'))
+                           φ (0)%R (EFin (nonneg (X2 (e2', σ2')))) ⌝).
+      { iPureIntro. intros. eapply ARcoupl_erasure_erasable_exp_rhs.
+        3:  { by apply H1. }
         { by apply cond_nonneg. }
         { by apply H. }
-        { by apply H1. }
         { intro ρ. split; [by apply cond_nonneg | by apply H0 ]. }
         { done. }
         { done. }
-        intros σ2 e2 σ2' HT.
-        by apply H2.
+        eauto.
       }
-
-      (* Something is wonky here. Could it be meas_spec_coupl_ind?*)
-
-      (*
-  "HZ" : ∀ (σ0 : language.state prob_lang) (e2'0 : language.expr prob_lang) (σ2'0 : language.state prob_lang)
-           (ε'0 : nonnegreal),
-           Z σ0 e2'0 σ2'0 ε'0 ={∅}=∗ |={∅}▷=>^n ⌜ARcoupl (exec m (e1, σ0)) (lim_exec (e2'0, σ2'0)) φ ε'0⌝
-  "H" : (∀ (σ0 : language.state prob_lang) (e2'0 : language.expr prob_lang) (σ2'0 : language.state prob_lang)
-           (ε'0 : nonnegreal),
-           Z σ0 e2'0 σ2'0 ε'0 ={∅}=∗ |={∅}▷=>^n ⌜ARcoupl (exec m (e1, σ0)) (lim_exec (e2'0, σ2'0)) φ ε'0⌝) ={∅}=∗
-        |={∅}▷=>^n ⌜ARcoupl (exec m (e1, σ2)) (lim_exec (e2', σ2')) φ (X2 (e2', σ2'))⌝
-  --------------------------------------∗
-  |={∅}=> |={∅}▷=>^n ⌜ARcoupl (exec m (e1, σ2)) (lim_exec (e2', σ2')) φ (X2 (e2', σ2'))⌝
-  *)
-
       iIntros (σ2 e2' σ2' HT).
       iMod ("H" with "[//]") as "[H _]".
       iApply "H".
-      (* iApply "HZ". *)
-  Admitted.
+      done.
+  Qed.
+
 
   Lemma wp_adequacy_val_fupd (e e' : measure.Measurable.sort (meas_lang.language.expr meas_lang))
     (σ σ' : measure.Measurable.sort (meas_lang.language.state meas_lang)) n φ v ε :
