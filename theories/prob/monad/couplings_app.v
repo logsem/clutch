@@ -1175,18 +1175,10 @@ Qed.
 *)
 
 
-
 End ARcoupl.
 
-
-
-
 (*
 
-
-
-(*
- *)
 
 Lemma ARcoupl_map `{Countable A, Countable B, Countable A', Countable B'}
   (f : A → A') (g : B → B') (μ1 : distr A) (μ2 : distr B) (R : A' → B' → Prop) ε :

@@ -104,8 +104,8 @@ Section adequacy.
         by iApply step_fupdN_intro.
       - iApply fupd_mask_intro; [done|]; iIntros "_ /=".
         iPureIntro. rewrite He.
-        admit.
-        (* by apply ARcoupl_meas_dzero. *) }
+        apply ARcoupl_dzero.
+        by apply cond_nonneg. }
     destruct (fill.to_val e) eqn:He.
     { iMod (wp_adequacy_val_fupd with "[Hσ HspecI_auth Hε Hwp]"); first by apply He.
       { iSplitL "Hσ"; first by iApply "Hσ".
@@ -125,24 +125,23 @@ Section adequacy.
       by iApply "Hε". }
     iApply (wp_adequacy_spec_coupl with "Hwp").
     iIntros (σ2 e2' σ2' ε') "(%R & %m & %μ1' & %ε1 & %X2 & %r & ? & % & % & % & % & Hcnt)".
-    (*
-    Opaque step. simpl.
+    Opaque step. simpl. Transparent step.
     iEval (rewrite He).
     rewrite -step_fupdN_Sn.
     iApply (step_fupdN_mono _ _ _ ⌜_⌝).
     { iPureIntro. intros.
+
       (*
       eapply ARcoupl_erasure_erasable_exp_lhs.
-      3: { simpl in *. apply H1.
+      3: { simpl in *. admit.  }
       3: { done. }
       1: { done. }
       all: clear H3.
       3: { by apply H2. }
       3: { simpl. admit. }
 *)
-
       all: admit.
-      (* eapply ARcoupl_erasure_erasable_exp_lhs; [..|done]; eauto. *) } *)
+      (* eapply ARcoupl_erasure_erasable_exp_lhs; [..|done]; eauto. *)
   Admitted.
 (*
     iIntros (e2 σ3 e3' σ3' HR).
@@ -217,17 +216,25 @@ Admitted.
 Qed.
 *)
 
-Corollary wp_adequacy_mass Σ `{!micrometerGpreS Σ} e e' σ σ' φ (ε : R) :
+Corollary wp_adequacy_mass Σ `{!micrometerGpreS Σ} (e e' : meas_lang.language.exprT meas_lang)
+  (σ σ' : meas_lang.language.stateT meas_lang) φ (ε : R) :
   (0 <= ε)%R →
   (∀ `{micrometerGS Σ}, ⊢  ⤇ e' -∗ ↯ ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   le_ereal
     (gEval setT (@lim_exec (language.meas_lang_markov meas_lang) (e, σ)))
-    (gEval setT (@lim_exec (language.meas_lang_markov meas_lang) (e', σ'))).
+    (gEval setT (@lim_exec (language.meas_lang_markov meas_lang) (e', σ')) + EFin ε).
 Proof.
   intros ? Hwp.
-Admitted.
-(*
-  eapply ARcoupl_mass_leq.
-  by eapply wp_adequacy.
+  have Z := @ARcoupl_meas_mass_leq _ _ _ _
+              (@lim_exec (language.meas_lang_markov meas_lang) (e, σ))
+              (@lim_exec (language.meas_lang_markov meas_lang) (e', σ'))
+              φ 0 (EFin ε) (wp_adequacy Σ _ _ σ σ' _ _ H Hwp).
+  have Z' := Z micrometerGpreS0; clear Z.
+  inversion Z' as [Z'']; clear Z'.
+  rewrite /gEval//=.
+  apply Is_true_eq_left.
+  rewrite -leEereal.
+  rewrite exp.expR0 in Z''.
+  rewrite mul1e in Z''.
+  apply Z''.
 Qed.
-*)
