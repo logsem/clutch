@@ -445,7 +445,7 @@ Definition head_stepM_allocUTape : cfg -> giryM cfg :=
   AllocUTape_eval \o snd.
 
 Definition head_stepM_rand : cfg -> giryM cfg :=
-  Rand_eval \o (𝜋_LitIntU \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_Rand_t \o fst △ snd).
+  Rand_eval \o (𝜋_LitIntU \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_Rand_N \o fst △ snd).
 
 Definition head_stepM_urand : cfg -> giryM cfg :=
   (URand_eval \o snd).
@@ -453,7 +453,7 @@ Definition head_stepM_urand : cfg -> giryM cfg :=
 Definition head_stepM_randT : cfg -> giryM cfg :=
   let 𝜋_N := 𝜋_LitIntU \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_Rand_N \o fst in
   let 𝜋_l := 𝜋_LitLblU \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_Rand_t \o fst in
-  RandT_eval \o (𝜋_N △ 𝜋_l △ snd).
+  RandT_eval \o ((𝜋_N △ 𝜋_l) △ snd).
 
 Definition head_stepM_urandT : cfg -> giryM cfg :=
   URandT_eval \o (𝜋_LitLblU \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_URand_e \o fst  △ snd).
@@ -467,6 +467,24 @@ Ltac mf_restrictT :=
   end.
 
 (** Ltacs for banging head onto wall *)
+(** [destruct!] destructs things in the context *)
+Ltac destruct_go tac :=
+  repeat match goal with
+         | H : context [ match ?x with | (y, z) => _ end] |- _ =>
+             let y := fresh y in
+             let z := fresh z in
+             destruct x as [y z]
+         | H : ∃ x, _ |- _ => let x := fresh x in destruct H as [x H]
+         | H : (ex2 _ _) |- _ => destruct H
+         | H: (_*_) |- _ => destruct H                          
+         | |- _ => destruct_and!
+         | |- _ => destruct_or!
+         | |- _ => progress simplify_eq
+         | |- _ => tac
+    end.
+
+Tactic Notation "destruct!/=" := destruct_go ltac:( progress csimpl in * ; simpl).
+
 Local Ltac subset_solver :=
     intros ?; try done; elim; naive_solver.
 
@@ -490,13 +508,19 @@ Local Lemma set_prod_rewrite {A B} S:
 Proof.
   rewrite eqEsubset; split; subset_solver.
 Qed.
-(*
+
+Local Lemma set_rewrite {A} (S1 S2:set A) :
+  (S1 `&` S2) = (S1 `&` (S1 `&` S2)).
+Proof. 
+  rewrite eqEsubset; split; subset_solver.
+Qed.
+
 Lemma head_stepM_rec_meas_fun : measurable_fun cover_rec head_stepM_rec.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
   mf_prod.
-  { mf_cmp_tree.
+  { simpl; mf_cmp_tree.
     { subset_solver.  }
     mf_cmp_tree.
     mf_cmp_tree.
@@ -516,7 +540,7 @@ Proof.
   { mf_cmp_tree.
     { mf_cmp_tree; [by apply ValU_meas_fun | by apply PairVU_meas_fun]. }
     mf_prod.
-    { mf_cmp_tree.
+    { simpl; mf_cmp_tree.
       { by ms_solve. }
       - subset_solver.
       - eapply measurable_comp; [| |apply 𝜋_ValU_meas|].
@@ -525,10 +549,8 @@ Proof.
           eauto with projection_subs.
         + (* This is a really annoying trick. Before doing setI1 in this case you want to
              duplicate the intersection with ecov_pair *)
-          rewrite <- (setIid ecov_pair).
-          rewrite <- (setIA ecov_pair).
-
-          apply measurable_fun_setI1; [ by ms_done | | by apply 𝜋_Pair_l_meas].
+          rewrite set_rewrite.
+          apply: measurable_fun_setI1; [ by ms_done | | by apply 𝜋_Pair_l_meas].
           
           (* Now the remaining goal is the preimage intersected with its domain set, which is a lemma
              we already have *)
@@ -536,17 +558,15 @@ Proof.
           ms_prod; by ms_done.
     }
     { (* Should be pretty much the same? *)
-     mf_cmp_tree.
+      simpl; mf_cmp_tree.
       { by ms_solve. }
       - subset_solver.
       - eapply measurable_comp; [| |apply 𝜋_ValU_meas|].
         + ms_done.
         + (* Just pushing on the definitions *)
           eauto with projection_subs.
-        + rewrite <- (setIid ecov_pair).
-          rewrite <- (setIA ecov_pair).
-
-          apply measurable_fun_setI1; [ by ms_done | | by apply 𝜋_Pair_r_meas].
+        + rewrite set_rewrite.
+          apply: measurable_fun_setI1; [ by ms_done | | by apply 𝜋_Pair_r_meas].
           
           (* Now the remaining goal is the preimage intersected with its domain set, which is a lemma
              we already have *)
@@ -562,7 +582,7 @@ Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
   mf_prod.
-  { mf_cmp_tree; first by ms_solve.
+  { simpl; mf_cmp_tree; first by ms_solve.
     { subset_solver. }
     mf_cmp_tree.
     { subset_solver. }
@@ -579,7 +599,7 @@ Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
   mf_prod.
-  { mf_cmp_tree; first by ms_solve.
+  { simpl; mf_cmp_tree; first by ms_solve.
     { subset_solver. }
     mf_cmp_tree.
     { subset_solver. }
@@ -600,7 +620,7 @@ Proof.
     (* Fix eta expansion*)
     erewrite (functional_extensionality _ ( _ \o fst)); last first.
     { intros [??]. by simpl. }
-    mf_cmp_tree; [by ms_solve|subset_solver|].
+    simpl; mf_cmp_tree; [by ms_solve|subset_solver|].
     repeat mf_prod.
     (* Works: eapply @measurable_fun_prod' *)
     - eapply (measurable_comp (f:=𝜋_RecV_f)); [| |apply 𝜋_RecV_f_meas|].
@@ -609,18 +629,16 @@ Proof.
       + eapply (measurable_comp (f:=𝜋_ValU)); [| |apply 𝜋_ValU_meas|].
         * ms_done.
         * subset_solver.
-        * rewrite <- (setIid ecov_app).
-          rewrite <- (setIA ecov_app).
-          apply measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
+        * rewrite set_rewrite. 
+          apply: measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
           apply 𝜋_AppU_meas; try by ms_done.
           ms_prod; last by ms_done.
           apply 𝜋_Val_v_meas; by ms_done.
     - eapply (measurable_comp (f:=𝜋_ValU)); [| |apply 𝜋_ValU_meas|].
       + ms_done.
       + subset_solver.
-      + rewrite <- (setIid ecov_app).
-        rewrite <- (setIA ecov_app).
-        apply measurable_fun_setI1; [ms_done| |apply 𝜋_App_r_meas].
+      + rewrite set_rewrite. 
+        apply: measurable_fun_setI1; [ms_done| |apply 𝜋_App_r_meas].
         apply 𝜋_AppU_meas; try by ms_done.
         ms_prod; last by ms_done.
         apply 𝜋_Val_v_meas; by ms_done.
@@ -634,9 +652,8 @@ Proof.
         * eapply (measurable_comp (f:=𝜋_ValU)); [| |apply 𝜋_ValU_meas|].
           -- ms_done.
           -- subset_solver.
-          -- rewrite <- (setIid ecov_app).
-             rewrite <- (setIA ecov_app).
-             apply measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
+          -- rewrite set_rewrite. 
+             apply: measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
              apply 𝜋_AppU_meas; try by ms_done.
              ms_prod; last by ms_done.
              apply 𝜋_Val_v_meas; by ms_done.
@@ -655,9 +672,8 @@ Proof.
                 **  eapply (measurable_comp (f:=𝜋_ValU)); [| |apply 𝜋_ValU_meas|].
                     --- ms_done.
                     ---  subset_solver.
-                    ---   rewrite <- (setIid ecov_app).
-                          rewrite <- (setIA ecov_app).
-                          apply measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
+                    ---   rewrite set_rewrite.
+                          apply: measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
                           apply 𝜋_AppU_meas; try by ms_done.
                           ms_prod; last by ms_done.
                           apply 𝜋_Val_v_meas; by ms_done.
@@ -667,9 +683,8 @@ Proof.
                 **  eapply (measurable_comp (f:=𝜋_ValU)); [| |apply 𝜋_ValU_meas|].
                     --- ms_done.
                     ---  subset_solver.
-                    ---   rewrite <- (setIid ecov_app).
-                          rewrite <- (setIA ecov_app).
-                          apply measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
+                    ---   rewrite set_rewrite.
+                          apply: measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
                           apply 𝜋_AppU_meas; try by ms_done.
                           ms_prod; last by ms_done.
                           apply 𝜋_Val_v_meas; by ms_done. 
@@ -679,9 +694,8 @@ Proof.
                 **  eapply (measurable_comp (f:=𝜋_ValU)); [| |apply 𝜋_ValU_meas|].
                     --- ms_done.
                     ---  subset_solver.
-                    ---   rewrite <- (setIid ecov_app).
-                          rewrite <- (setIA ecov_app).
-                          apply measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
+                    ---   rewrite set_rewrite.
+                          apply: measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
                           apply 𝜋_AppU_meas; try by ms_done.
                           ms_prod; last by ms_done.
                           apply 𝜋_Val_v_meas; by ms_done.
@@ -691,9 +705,8 @@ Proof.
           --  eapply (measurable_comp (f:=𝜋_ValU)); [| |apply 𝜋_ValU_meas|].
               ++ ms_done.
               ++  subset_solver.
-              ++  rewrite <- (setIid ecov_app).
-                  rewrite <- (setIA ecov_app).
-                  apply measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
+              ++  rewrite set_rewrite.
+                  apply: measurable_fun_setI1; [ms_done| |apply 𝜋_App_l_meas].
                   apply 𝜋_AppU_meas; try by ms_done.
                   ms_prod; last by ms_done.
                   apply 𝜋_Val_v_meas; by ms_done.
@@ -867,7 +880,7 @@ Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
   mf_prod.
-  { mf_cmp_tree; first by ms_solve.
+  { simpl; mf_cmp_tree; first by ms_solve.
     { subset_solver.  }
     rewrite setIfront.
     apply @measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done]. }
@@ -879,7 +892,7 @@ Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
   mf_prod.
-  { mf_cmp_tree; first by ms_solve.
+  { simpl. mf_cmp_tree; first by ms_solve.
     { subset_solver.  }
     rewrite setIfront.
     apply @measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done]. }
@@ -891,7 +904,7 @@ Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
   mf_prod.
-  { mf_cmp_tree; first by ms_solve.
+  { simpl; mf_cmp_tree; first by ms_solve.
     { subset_solver. }
     mf_cmp_tree; first by ms_solve.
     { subset_solver. }
@@ -908,7 +921,7 @@ Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
   mf_prod.
-  { mf_cmp_tree; first by ms_solve.
+  { simpl; mf_cmp_tree; first by ms_solve.
     { subset_solver. }
     mf_cmp_tree; first by ms_solve.
     { subset_solver. }
@@ -927,10 +940,10 @@ Proof.
   {
     mf_cmp_tree; first apply AppU_meas_fun.
     mf_prod.
-    - mf_cmp_tree; first ms_solve.
+    - simpl; mf_cmp_tree; first ms_solve.
       + subset_solver.
       + mf_solve'.
-    - mf_cmp_tree; [ms_solve|subset_solver|].
+    - simpl; mf_cmp_tree; [ms_solve|subset_solver|].
       mf_cmp_tree; [ms_solve|subset_solver|].
       mf_cmp_tree; [subset_solver|mf_cmp_tree].
       apply ValU_meas_fun.
@@ -940,15 +953,15 @@ Qed.
 
 Lemma head_stepM_caseR_meas_fun      : measurable_fun cover_caseR      head_stepM_caseR.
 Proof.
-  mf_unfold_dom; mf_unfold_fun.
+  mf_unfold_dom; mf_unfold_fun. 
   mf_cmp_tree; first by mf_done.
   mf_prod.
   { mf_cmp_tree; first apply AppU_meas_fun.
     mf_prod.
-    - mf_cmp_tree; first ms_solve.
+    - simpl; mf_cmp_tree; first ms_solve.
       + subset_solver.
       + mf_solve'.
-    - mf_cmp_tree; [ms_solve|subset_solver|].
+    - simpl; mf_cmp_tree; [ms_solve|subset_solver|].
       mf_cmp_tree; [ms_solve|subset_solver|].
       mf_cmp_tree; [subset_solver|mf_cmp_tree].
       apply ValU_meas_fun.
@@ -1057,10 +1070,45 @@ Proof.
   mf_cmp_tree; first by mf_done.
   rewrite set_prod_rewrite.
   mf_prod; last eapply @measurable_snd_restriction; ms_solve.
-  mf_prod; mf_cmp_fst; try ms_solve.
-  - mf_cmp_tree'.
-    (** TODO after changing 𝜋_RandU to be right order *)
-Admitted.
+  mf_prod.
+  { apply: measurableX; ms_solve. }
+  -  eapply (measurable_comp (F:=(ecov_rand
+      `&` 𝜋_RandU @^-1`
+          ((ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitInt))
+             `*` (ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitLbl)))))); [ms_solve|..].
+     + remember (_`&`_) as K. intros ?. simpl.
+       intros [[]]; simpl in *. naive_solver.
+     + mf_cmp_tree'.
+       * instantiate (1:= (ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitInt))).
+         mf_cmp_tree.
+         -- ms_solve.
+         -- subset_solver.
+         -- mf_cmp_tree. apply 𝜋_LitIntU_meas.
+       * remember ((ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitInt))) as K eqn:Heqn.
+         rewrite -Heqn.
+         intros ?.  simpl.
+         intros. destruct!/=. repeat split; naive_solver.
+       * ms_solve.
+     + apply: measurable_fst_restriction; last ms_solve.
+  - eapply (measurable_comp (F:=(ecov_rand
+      `&` 𝜋_RandU @^-1`
+          ((ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitInt))
+             `*` (ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitLbl)))))); [ms_solve|..].
+     + remember (_`&`_) as K. intros ?. simpl.
+       intros [[]]; simpl in *. naive_solver.
+     + mf_cmp_tree'.
+       * instantiate (1:= (ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitLbl))).
+         mf_cmp_tree.
+         -- ms_solve.
+         -- subset_solver.
+         -- mf_cmp_tree. apply 𝜋_LitLblU_meas.
+       * remember ((ecov_val `&` 𝜋_ValU @^-1` (vcov_lit `&` 𝜋_LitVU @^-1` bcov_LitLbl))) as K eqn:Heqn.
+         rewrite -Heqn.
+         intros ?.  simpl.
+         intros. destruct!/=. repeat split; naive_solver.
+       * ms_solve.
+     + apply: measurable_fst_restriction; last ms_solve.
+Qed.
 
 Lemma head_stepM_urandT_meas_fun     : measurable_fun cover_urandT     head_stepM_urandT.
 Proof.
@@ -1115,7 +1163,7 @@ Hint Resolve head_stepM_urand_meas_fun      : mf_fun.
 Hint Resolve head_stepM_randT_meas_fun      : mf_fun.
 Hint Resolve head_stepM_urandT_meas_fun     : mf_fun.
 Hint Resolve head_stepM_tick_meas_fun       : mf_fun.
-*)
+
 
 Definition head_stepM' : cfg -> giryM cfg :=
   if_in cover_rec        head_stepM_rec        $
@@ -1143,84 +1191,70 @@ Definition head_stepM' : cfg -> giryM cfg :=
   if_in cover_tick       head_stepM_tick       $
   cst gZero.
 
-(*
+
+(** Slow proof, but can just uncomment *)
 Lemma head_stepM'_meas_fun : measurable_fun setT head_stepM'.
-  rewrite /head_stepM'.
-  (eapply @if_in_meas_fun; [ms_done|ms_solve|rewrite setIidl; [eauto with mf_fun|subset_solver]|
-                             rewrite setIidl; last subset_solver
-  ]).
-  repeat( eapply @if_in_meas_fun; [ms_done|ms_solve|apply @measurable_fun_setI1; [ms_solve|ms_solve|eauto with mf_fun]|]).
-  (* computer goes brrr... *)
-  ms_solve.
-Qed.
+  (* rewrite /head_stepM'. *)
+(*   (eapply @if_in_meas_fun; [ms_done|ms_solve|rewrite setIidl; [eauto with mf_fun|subset_solver]| *)
+(*                              rewrite setIidl; last subset_solver *)
+(*   ]). *)
+(*   repeat( eapply @if_in_meas_fun; [ms_done|ms_solve|apply @measurable_fun_setI1; [ms_solve|ms_solve|eauto with mf_fun]|]). *)
+(*   (* computer goes brrr... *) *)
+(*   ms_solve. *)
+  (* Qed. *)
+Admitted.
 
-(** [destruct!] destructs things in the context *)
-Ltac destruct_go tac :=
-  repeat match goal with
-         | H : context [ match ?x with | (y, z) => _ end] |- _ =>
-             let y := fresh y in
-             let z := fresh z in
-             destruct x as [y z]
-         | H : ∃ x, _ |- _ => let x := fresh x in destruct H as [x H]
-         | H : (ex2 _ _) |- _ => destruct H
-         | H: (_*_) |- _ => destruct H                          
-         | |- _ => destruct_and!
-         | |- _ => destruct_or!
-         | |- _ => progress simplify_eq
-         | |- _ => tac
-         end.
 
-Tactic Notation "destruct!/=" := destruct_go ltac:( progress csimpl in * ; simpl).
 
 Ltac unfold_if_in := match goal with | |- context [(if_in ?X _)] => unfold X end.
 Local Ltac unfold_RHS := match goal with | |- _ _ = ?X _ => unfold X end.
 
 Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
-  apply functional_extensionality_dep.
-  intros [e σ].
-  rewrite /head_stepM/head_stepM'.
-  repeat unfold_if_in.
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  { unfold_RHS; simpl. admit.
-    (** THIS NEEDS CHECKING *) }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  { admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  { admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  { admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  { admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  { admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  { admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  { admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  { admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  { admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  { admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  { admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros].
-  simpl in *.
-  repeat case_match; try done.
-  all: admit.
+  (* apply functional_extensionality_dep. *)
+  (* intros [e σ]. *)
+  (* rewrite /head_stepM/head_stepM'. *)
+  (* repeat unfold_if_in. *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* { unfold_RHS; simpl. admit. *)
+  (*   (** THIS NEEDS CHECKING *) } *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* { admit. } *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* { admit. } *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* { admit. } *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* { admit. } *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* { admit. } *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* { admit. } *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* { admit. } *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* { admit. } *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* { admit. } *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* { admit. } *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* { admit. } *)
+  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
+  (* simpl in *. *)
+  (* repeat case_match; try done. *)
+  (* all: admit. *)
 Admitted.
-*)
+
 Lemma head_stepM_meas_fun : measurable_fun setT head_stepM.
 Admitted.
 (*

@@ -119,7 +119,7 @@ Ltac mf_cmp_tree :=
         | try by eauto with projection_subs
         |
         | rewrite <- (setIid fDom), <- (setIA fDom);
-          apply measurable_fun_setI1;
+          apply: measurable_fun_setI1;
           try (by ms_done || by ms_solve || by mf_done)
         ]
   | |- (measurable_fun ?S (_ \o ?f)) =>

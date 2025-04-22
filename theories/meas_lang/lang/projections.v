@@ -81,8 +81,8 @@ Definition 𝜋_Load_e       (e : expr)     : expr             := match e with |
 Definition 𝜋_Store_l      (e : expr)     : expr             := match e with | Store e _ => e | _ => point end.
 Definition 𝜋_Store_e      (e : expr)     : expr             := match e with | Store _ e => e | _ => point end.
 Definition 𝜋_AllocTape_e  (e : expr)     : expr             := match e with | AllocTape e => e | _ => point end.
-Definition 𝜋_Rand_t       (e : expr)     : expr             := match e with | Rand e _ => e | _ => point end.
-Definition 𝜋_Rand_N       (e : expr)     : expr             := match e with | Rand _ e => e | _ => point end.
+Definition 𝜋_Rand_N       (e : expr)     : expr             := match e with | Rand e _ => e | _ => point end.
+Definition 𝜋_Rand_t       (e : expr)     : expr             := match e with | Rand _ e => e | _ => point end.
 Definition 𝜋_URand_e      (e : expr)     : expr             := match e with | URand e => e | _ => point end.
 Definition 𝜋_Tick_e       (e : expr)     : expr             := match e with | Tick e => e | _ => point end.
 
@@ -117,7 +117,7 @@ Definition 𝜋_AllocU     := 𝜋_Alloc_e.
 Definition 𝜋_LoadU      := 𝜋_Load_e.
 Definition 𝜋_StoreU     := 𝜋_Store_l       △ 𝜋_Store_e.
 Definition 𝜋_AllocTapeU := 𝜋_AllocTape_e.
-Definition 𝜋_RandU      := 𝜋_Rand_t        △ 𝜋_Rand_N.
+Definition 𝜋_RandU      := 𝜋_Rand_N        △ 𝜋_Rand_t.
 Definition 𝜋_URandU     := 𝜋_URand_e.
 Definition 𝜋_TickU      := 𝜋_Tick_e.
 
@@ -1881,7 +1881,7 @@ Hint Resolve 𝜋_AllocTape_e_meas : measlang.
 Hint Resolve 𝜋_AllocTape_e_meas : mf_fun.
 
 
-Lemma 𝜋_Rand_t_meas        : measurable_fun ecov_rand 𝜋_Rand_t.
+Lemma 𝜋_Rand_N_meas        : measurable_fun ecov_rand 𝜋_Rand_N.
 Proof.
   have -> : ecov_rand = [set e  | ∃ e1 e2, e = RandC e1 e2].
   { apply /predeqP =>y //=; rewrite /ecov_app//=; split.
@@ -1895,7 +1895,7 @@ Proof.
   eapply (eq_measurable
             (\bigcup_n [set x | (∃ e1 e2 : expr_pre, x = RandC e1 e2 /\
                                            (expr_ST (gen_expr (expr_shape_enum n)) e2)) ∧
-                                expr_ST C (𝜋_Rand_t x)])); last first.
+                                expr_ST C (𝜋_Rand_N x)])); last first.
   { apply /predeqP =>y /=.
     split.
     - move=> [[? [z ->]] +]; simpl; move=> ?.
@@ -1925,11 +1925,11 @@ Proof.
     eexists _; [done|].
     done.
 Qed.
-Hint Resolve 𝜋_Rand_t_meas : measlang.
-Hint Resolve 𝜋_Rand_t_meas : mf_fun.
+Hint Resolve 𝜋_Rand_N_meas : measlang.
+Hint Resolve 𝜋_Rand_N_meas : mf_fun.
 
 
-Lemma 𝜋_Rand_N_meas        : measurable_fun ecov_rand 𝜋_Rand_N.
+Lemma 𝜋_Rand_t_meas        : measurable_fun ecov_rand 𝜋_Rand_t.
 Proof.
   have -> : ecov_rand = [set e  | ∃ e1 e2, e = RandC e1 e2].
   { apply /predeqP =>y //=; rewrite /ecov_app//=; split.
@@ -1943,7 +1943,7 @@ Proof.
   eapply (eq_measurable
             (\bigcup_n [set x | (∃ e1 e2 : expr_pre, x = RandC e1 e2 /\
                                            (expr_ST (gen_expr (expr_shape_enum n)) e1)) ∧
-                                expr_ST C (𝜋_Rand_N x)])); last first.
+                                expr_ST C (𝜋_Rand_t x)])); last first.
   { apply /predeqP =>y /=.
     split.
     - move=> [[z [? ->]] +]; simpl; move=> ?.
@@ -1973,8 +1973,8 @@ Proof.
     eexists _; [done|].
     done.
 Qed.
-Hint Resolve 𝜋_Rand_N_meas : measlang.
-Hint Resolve 𝜋_Rand_N_meas : mf_fun.
+Hint Resolve 𝜋_Rand_t_meas : measlang.
+Hint Resolve 𝜋_Rand_t_meas : mf_fun.
 
 Lemma 𝜋_URand_e_meas       : measurable_fun ecov_urand 𝜋_URand_e.
 Proof.

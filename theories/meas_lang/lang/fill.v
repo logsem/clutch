@@ -596,7 +596,7 @@ Proof.
     all: intros [? H[? H']];subst; simpl; f_equal; rewrite -!expr_shape_cyl in H H'; simpl in H, H'; by subst.
 Qed.
 
-Fixpoint ectx_item_shape_encode (e: ectx_item_shape):=
+Definition ectx_item_shape_encode (e: ectx_item_shape):=
   match e with
   | AppLCtx v2 => GenNode 0 [val_shape_encode v2]
   | AppRCtx e1 => GenNode 1 [expr_shape_encode e1]
@@ -622,7 +622,7 @@ Fixpoint ectx_item_shape_encode (e: ectx_item_shape):=
   | TickCtx => GenNode 21 []
   end.
 
-Fixpoint ectx_item_shape_decode t : ectx_item_shape :=
+Definition ectx_item_shape_decode t : ectx_item_shape :=
   match t with
     | GenNode 0 [v]=> AppLCtx (val_shape_decode v)
     | GenNode 1 [e1]=> AppRCtx (expr_shape_decode e1)
@@ -2312,11 +2312,11 @@ Definition decomp_alloctape  : expr -> (option (ectx_item * expr)%type) :=
 
 Definition decomp_rand_val   : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
-  mProd 𝜋_Rand_t (ssrfun.comp RandLCtxU $ ssrfun.comp 𝜋_Val_v 𝜋_Rand_N).
+  mProd 𝜋_Rand_N (ssrfun.comp RandLCtxU $ ssrfun.comp 𝜋_Val_v 𝜋_Rand_t).
 
 Definition decomp_rand_expr  : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp Some $
-  mProd (ssrfun.comp RandRCtxU 𝜋_Rand_t) 𝜋_Rand_N.
+  mProd (ssrfun.comp RandRCtxU 𝜋_Rand_N) 𝜋_Rand_t.
 
 Definition decomp_urand      : expr -> (option (ectx_item * expr)%type) :=
   ssrfun.comp noval $
