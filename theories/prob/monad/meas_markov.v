@@ -555,31 +555,36 @@ Section markov.
       by rewrite gBind_equiv. 
     }
   Qed.
-  
-  (*
+
   Lemma exec_pexec_relate a n:
-    exec n a = pexec n a ≫=
-                 (λ e, match to_final e with
-                             | Some b => dret b
-                             | _ => dzero
-                       end).
+    exec n a ≡μ gBind (exec_meas_fun 0) (pexec n a).
   Proof.
     revert a.
-    induction n; intros a.
-    - simpl. rewrite pexec_O.
-      rewrite dret_id_left'.
-      done.
-    - simpl. rewrite pexec_Sn.
-      rewrite -dbind_assoc'.
-      case_match eqn:H.
-      + rewrite step_or_final_is_final; last by eapply to_final_Some_2.
-        rewrite dret_id_left'.
+    induction n; intros.
+    {
+      simpl. rewrite pexec_O.
+      by rewrite gRet_gBind.
+    }
+    {
+      simpl. rewrite pexec_Sn.
+      rewrite !gBind'_meas_rw. 
+      { apply exec_meas_fun. }
+      { apply pexec_meas. }
+      intros.
+      rewrite gBind_assoc.
+      case_match eqn: H.
+      {
+        rewrite step_or_final_is_final; last by eapply to_final_Some_2.
+        rewrite gRet_gBind. simpl. 
         rewrite pexec_is_final; last by eapply to_final_Some_2.
-        rewrite dret_id_left'. rewrite H. done.
-      + rewrite step_or_final_no_final; last by eapply to_final_None_2.
-        apply dbind_ext_right. done.
+        rewrite gRet_gBind. by rewrite H.
+      }
+      {
+        rewrite step_or_final_no_final; last by eapply to_final_None_2.
+        by apply gBind_equiv.
+      }
+    }
   Qed.
-  *)
 
   Lemma exec_mono a n :
     giryM_le (exec n a) (exec (S n) a).
