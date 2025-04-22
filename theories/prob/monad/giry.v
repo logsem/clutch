@@ -934,19 +934,6 @@ Section giry_bind_meas_fun.
     by apply gEval_meas_fun.
   Qed.
 
-  Theorem gBind_id_left (f : T1 -> giryM T2) (a : T1) (HMF : measurable_fun setT f):
-    gBind HMF (gRet a) ≡μ f a.
-  Proof.
-    intros S HS.
-    rewrite gBindEval_rw; [|done].
-    rewrite gRetInt_rw; [done|].
-    have -> : (λ x : T1, f x S) = (gEval S) \o f.
-    { by apply functional_extensionality; intro x; rewrite /gEval//=. }
-    eapply measurable_comp; [| | by apply (gEval_meas_fun HS) | done ].
-    { by apply @measurableT. }
-    { by rewrite //=. }
-  Qed.
-
 End giry_bind_meas_fun.
 
 Section giry_monad.
@@ -985,6 +972,29 @@ Section giry_monad.
     rewrite /= /gJoin_ev; simpl.
     rewrite gMapInt; auto.
     apply gEval_meas_fun; auto.
+  Qed.
+
+  Theorem gBind_id_left (f : T1 -> giryM T2) (a : T1) (HMF : measurable_fun setT f):
+    gBind HMF (gRet a) ≡μ f a.
+  Proof.
+    intros S HS.
+    rewrite gBindEval_rw; [|done].
+    rewrite gRetInt_rw; [done|].
+    have -> : (λ x : T1, f x S) = (gEval S) \o f.
+    { by apply functional_extensionality; intro x; rewrite /gEval//=. }
+    eapply measurable_comp; [| | by apply (gEval_meas_fun HS) | done ].
+    { by apply @measurableT. }
+    { by rewrite //=. }
+  Qed.
+
+  Theorem gBind_id_right (μ : giryM T1) :
+    gBind gRet_meas_fun μ ≡μ μ.
+  Proof.
+    intros S HS.
+    rewrite gBindEval_rw; [|done].
+    rewrite /gRet//=/dirac//=.
+    rewrite integral_indic; [| done | done ].
+    by rewrite setIT.
   Qed.
 
 
@@ -1623,3 +1633,121 @@ Section le_giry.
     by rewrite H3.
   Qed.
 End le_giry.
+
+
+(* Should eventually be moved to and completed within giry.v *)
+Section AdditionalMonadLaws.
+  Local Open Scope classical_set_scope.
+  Local Open Scope ereal_scope.
+
+  Lemma gMap_gRet: ∀ {d1 d2: measure_display} {T1 : measurableType d1} {T2 : measurableType d2} (t : T1) (f : T1 -> giryM T2) (H : measurable_fun setT f),
+    gMap H (gRet t) ≡μ gRet (f t).
+  Proof.
+    intros. intros S HS.
+    rewrite gMap_to_int; [|done].
+    rewrite gRetInt_rw; [done |].
+    have -> : (λ x : T1, (numfun.indic S (f x))%:E) =
+              EFin \o (numfun.indic S) \o f.
+    { intros. done. }
+    eapply (@measurable_comp); [ by eapply @measurableT | by rewrite //= | | done ].
+    (* Stupid *)
+  Admitted.
+
+  Lemma gret_id_left: ∀ {d1 : measure_display} {T1 : measurableType d1} (x : giryM T1),
+    (gJoin \o gRet) x ≡μ x.
+  Proof.
+    intros. intros S HS.
+    rewrite //= /gJoin_ev.
+    rewrite gRetInt; [done|].
+    by apply gEval_meas_fun.
+  Qed.
+
+  Lemma gRet_gBind: ∀ {d1 d2: measure_display} {T1 : measurableType d1} {T2 : measurableType d2} (t : T1) (f : T1 -> giryM T2) (H : measurable_fun setT f),
+      gBind H (gRet t) ≡μ f t.
+  Proof.
+    intros.
+    rewrite /gBind. simpl. rewrite gMap_gRet.
+    replace (gJoin (gRet (f t))) with ((gJoin \o gRet) (f t)); auto.
+    by rewrite gret_id_left.
+  Qed.
+
+  Lemma gBind_gRet: ∀ {d1 : measure_display} {T1 : measurableType d1} (t : giryM T1),
+    gBind gRet_meas_fun t ≡μ t.
+  Proof.
+    intros.
+    by rewrite /gBind gJoin_id1 gret_id_left.
+  Qed.
+
+  Lemma gBind_equiv: ∀ {d1 d2 : measure_display} {T1 : measurableType d1} {T2 : measurableType d2}
+    [f f' : T1 → giryM T2] {H : measurable_fun setT f} {H' : measurable_fun setT f'} {p : giryM T1},
+      (∀ a : T1, f a ≡μ f' a) -> gBind H p ≡μ gBind H' p.
+  Proof.
+    intros.
+  Admitted.
+
+  Lemma gBind_assoc_help: ∀ {d1 d2 d3: measure_display} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+    {f : T1 -> giryM T2} {g : T2 -> giryM T3} (Hf : measurable_fun setT f) (Hg : measurable_fun setT g),
+      measurable_fun setT ((gBind Hg) \o f).
+  Proof.
+    intros.
+    apply measurableT_comp; auto.
+    apply gBind_meas_fun.
+  Qed.
+
+  Lemma gBind_assoc: ∀ {d1 d2 d3: measure_display} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+    {f : T1 -> giryM T2} {g : T2 -> giryM T3} {Hf : measurable_fun setT f} {Hg : measurable_fun setT g} (p : giryM T1),
+      gBind Hg (gBind Hf p) ≡μ gBind (gBind_assoc_help Hf Hg) p.
+  Proof.
+
+  Admitted.
+
+  Lemma gIter_plus {d1 : measure_display} {T1 : measurableType d1} (f : T1 → giryM T1) {H : measurable_fun setT f} (t : T1) (n m : nat) :
+    gIter (n + m) f t ≡μ gBind' (gIter m f) (gIter n f t).
+  Proof.
+    rewrite (gBind'_meas_rw (gIter_meas_fun _ _)).
+    revert t. induction n; intros.
+    { rewrite gRet_gBind //. }
+    simpl. rewrite !(gBind'_meas_rw (gIter_meas_fun _ _)).
+    admit.
+  Admitted.
+
+  Global Instance is_det_proper {d} {T : measurableType d}:
+    Proper (eq ==> (measure_eq (T:=T)) ==> eq) is_det.
+  Proof.
+    intros x y H0 μ1 μ2 H1.
+    unfold is_det, has_support_in, mass'.
+    subst x.
+    rewrite /mass.
+    apply propext; split;
+    by move =><-.
+  Qed.
+
+  Lemma is_det_eq_meas_lem {d} {T : measurableType d} {t : T} {μ1 μ2 : giryM T}:
+    μ1 ≡μ μ2 -> is_det t μ1 -> is_det t μ2.
+  Proof.
+    rewrite /is_det.
+    intros H H1.
+    rewrite -H1.
+    by rewrite H.
+  Qed.
+
+  Lemma is_det_eq_meas {d} {T : measurableType d} {t : T} {μ1 μ2 : giryM T}:
+    μ1 ≡μ μ2 -> is_det t μ1 ↔ is_det t μ2.
+  Proof. intros ?; split; move=>?; eapply @is_det_eq_meas_lem; done. Qed.
+
+  Lemma gRet_not_zero {d} {T : measurableType d} (a : T):
+    ¬ is_zero (gRet a).
+  Proof.
+    rewrite /is_zero/measure_eq//=.
+    intro H.
+    apply R1_neq_R0.
+    have H' : d.-measurable [set: T] by eapply @measurableT.
+    specialize H with setT. apply H in H'.
+    rewrite /mzero//=/dirac/=/numfun.indic//=/mzero//= in H'.
+    rewrite mem_set in H'; [|done].
+    rewrite //= in H'.
+    inversion H'.
+    done.
+  Qed.
+
+End AdditionalMonadLaws.

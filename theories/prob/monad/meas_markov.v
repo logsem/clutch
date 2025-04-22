@@ -173,91 +173,6 @@ Section reducible.
 
 End reducible.
 
-(* Should eventually be moved to and completed within giry.v *)
-Section AdditionalMonadLaws.
-  Local Open Scope classical_set_scope.
-  Local Open Scope ereal_scope.
-
-  Lemma gMap_gRet: ∀ {d1 d2: measure_display} {T1 : measurableType d1} {T2 : measurableType d2} (t : T1) (f : T1 -> giryM T2) (H : measurable_fun setT f),
-    gMap H (gRet t) = gRet (f t).
-  Admitted.
-
-  Lemma gret_id_left: ∀ {d1 : measure_display} {T1 : measurableType d1} (x : giryM T1),
-    (gJoin \o gRet) x ≡μ x. 
-  Admitted.
-
-  Lemma gRet_gBind: ∀ {d1 d2: measure_display} {T1 : measurableType d1} {T2 : measurableType d2} (t : T1) (f : T1 -> giryM T2) (H : measurable_fun setT f),
-      gBind H (gRet t) ≡μ f t.
-  Proof.
-    intros.
-    rewrite /gBind. simpl. rewrite gMap_gRet. 
-    replace (gJoin (gRet (f t))) with ((gJoin \o gRet) (f t)); auto.
-    by rewrite gret_id_left.
-  Qed.
-
-  Lemma gBind_gRet: ∀ {d1 : measure_display} {T1 : measurableType d1} (t : giryM T1),
-    gBind gRet_meas_fun t ≡μ t.
-  Proof.
-    intros.
-    by rewrite /gBind gJoin_id1 gret_id_left. 
-  Qed.
-
-  Lemma gBind_equiv: ∀ {d1 d2 : measure_display} {T1 : measurableType d1} {T2 : measurableType d2}
-    [f f' : T1 → giryM T2] {H : measurable_fun setT f} {H' : measurable_fun setT f'} {p : giryM T1}, 
-      (∀ a : T1, f a ≡μ f' a) -> gBind H p ≡μ gBind H' p.
-  Proof.
-    (* Search (gBind). *)
-  Admitted.
-
-  Lemma gBind_assoc_help: ∀ {d1 d2 d3: measure_display} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
-    {f : T1 -> giryM T2} {g : T2 -> giryM T3} (Hf : measurable_fun setT f) (Hg : measurable_fun setT g),
-      measurable_fun setT ((gBind Hg) \o f).
-  Proof.
-    intros.
-    apply measurableT_comp; auto.
-    apply gBind_meas_fun.
-  Qed.
-
-  Lemma gBind_assoc: ∀ {d1 d2 d3: measure_display} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
-    {f : T1 -> giryM T2} {g : T2 -> giryM T3} {Hf : measurable_fun setT f} {Hg : measurable_fun setT g} (p : giryM T1),
-      gBind Hg (gBind Hf p) ≡μ gBind (gBind_assoc_help Hf Hg) p.
-  Proof.
-  
-  Admitted.
-
-  Lemma gIter_plus {d1 : measure_display} {T1 : measurableType d1} (f : T1 → giryM T1) {H : measurable_fun setT f} (t : T1) (n m : nat) :
-    gIter (n + m) f t ≡μ gBind' (gIter m f) (gIter n f t).
-  Proof.
-    rewrite (gBind'_meas_rw (gIter_meas_fun _ _)).
-    revert t. induction n; intros.
-    { rewrite gRet_gBind //. }
-    simpl. rewrite !(gBind'_meas_rw (gIter_meas_fun _ _)). 
-    admit.
-  Admitted.
-
-  Global Instance is_det_proper {d} {T : measurableType d}: 
-    Proper (eq ==> (measure_eq (T:=T)) ==> eq) is_det.
-  Proof.
-    intros x y H0 μ1 μ2 H1.
-    unfold is_det, has_support_in, mass'. 
-    subst x.
-    rewrite /mass.
-    apply propext; split; 
-    by move =><-.
-  Qed.
-
-  Lemma is_det_eq_meas {d} {T : measurableType d} {t : T} {μ1 μ2 : giryM T}: 
-    μ1 ≡μ μ2 -> is_det t μ1 ↔ is_det t μ2.
-  Proof.
-  Admitted.
-
-  Lemma gRet_not_zero {d} {T : measurableType d} (a : T):
-    ¬ is_zero (gRet a).
-  Proof.
-  Admitted. 
-
-End AdditionalMonadLaws.
-
 Section markov.
   Context {δ : meas_markov}.
   Implicit Types a : mstate δ.
@@ -458,7 +373,8 @@ Section markov.
     rewrite (gBind'_meas_rw step_or_final_meas).
     intros H H1. rewrite -H H1 gRet_gBind /step_or_final. 
     case_match; auto.
-    exfalso. apply (gRet_not_zero a2).
+    exfalso.
+    apply (@gRet_not_zero _ _ a2).
     rewrite -H. apply is_final_dzero; by rewrite /is_final H0.
   Qed.
 

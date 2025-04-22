@@ -194,10 +194,6 @@ Section coupl_modalities.
 
   (** ********************* Lemma code (being worked on elsewhere *)
 
-  Lemma gRet_id_right {d1} {T : measurableType d1} (μ : giryM T)  :
-    gBind' gRet μ = μ.
-  Admitted.
-
   Lemma pexec_0' :  (pexec 0 :  mstate (meas_lang_markov Λ) -> _) = gRet.
   Proof. apply functional_extensionality; intro a; eapply pexec_O. Qed.
 
@@ -348,14 +344,15 @@ Section coupl_modalities.
     set X2' := (λ (ρ : cfg Λ), X2 ρ.2).
     iExists (λ σ2 '(e2', σ2'), R σ2 σ2' ∧ e2' = e1'), 0%nat, μ1, μ1', ε1, X2', r.
     iSplit; [iPureIntro|].
-    { rewrite -(gRet_id_right μ1).
+    { (*
+      rewrite -(gRet_id_right μ1).
       have -> : (gBind' gRet μ1) = gBind gRet_meas_fun μ1 by admit.
       have XM : measurable_fun setT (pexec 0 \o pair (toPacked e1')) by admit.
       have -> : (gBind' (pexec 0 \o pair (toPacked e1')) μ1') = (gBind XM μ1') by admit.
       simpl.
       have -> : (0 = 0 + 0)%R by admit.
       have -> : (EFin (nonneg ε1)) = (adde (EFin (nonneg ε1)) (EFin 0)) by admit.
-      (*
+
       eapply ARcoupl_meas_dbind.
       { admit. }
       { done. }
