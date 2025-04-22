@@ -88,9 +88,9 @@ Section adequacy.
     { repeat destroy_mathcomp. by apply cond_nonneg.  }
   Qed.
 
-  Lemma wp_adequacy_step_fupdN ε e e' σ σ' n φ :
+  Lemma wp_adequacy_step_fupdN ε (e e' : meas_lang.language.exprT meas_lang) (σ σ' :  meas_lang.language.stateT meas_lang) n φ :
     state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε ∗
-    WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
+    WP (e: meas_lang.language.exprT meas_lang) {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜ARcoupl_meas (@exec (language.meas_lang_markov meas_lang) n (e, σ)) (@lim_exec (language.meas_lang_markov meas_lang) (e', σ')) φ 0 (EFin $ nonneg $ ε)⌝.
   Proof.
     iIntros "(Hσ & HspecI_auth & Hε & Hwp)".
@@ -125,14 +125,24 @@ Section adequacy.
       by iApply "Hε". }
     iApply (wp_adequacy_spec_coupl with "Hwp").
     iIntros (σ2 e2' σ2' ε') "(%R & %m & %μ1' & %ε1 & %X2 & %r & ? & % & % & % & % & Hcnt)".
-    Opaque step. simpl. Transparent step.
+    (*
+    Opaque step. simpl.
     iEval (rewrite He).
     rewrite -step_fupdN_Sn.
     iApply (step_fupdN_mono _ _ _ ⌜_⌝).
     { iPureIntro. intros.
-      eapply @ARcoupl_erasure_erasable_exp_lhs; [..|done].
+      (*
+      eapply ARcoupl_erasure_erasable_exp_lhs.
+      3: { simpl in *. apply H1.
+      3: { done. }
+      1: { done. }
+      all: clear H3.
+      3: { by apply H2. }
+      3: { simpl. admit. }
+*)
+
       all: admit.
-      (* eapply ARcoupl_erasure_erasable_exp_lhs; [..|done]; eauto. *) }
+      (* eapply ARcoupl_erasure_erasable_exp_lhs; [..|done]; eauto. *) } *)
   Admitted.
 (*
     iIntros (e2 σ3 e3' σ3' HR).
