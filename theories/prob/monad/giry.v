@@ -933,6 +933,20 @@ Section giry_bind_meas_fun.
     rewrite /gBind /= /gJoin_ev gMapInt; auto.
     by apply gEval_meas_fun.
   Qed.
+
+  Theorem gBind_id_left (f : T1 -> giryM T2) (a : T1) (HMF : measurable_fun setT f):
+    gBind HMF (gRet a) ≡μ f a.
+  Proof.
+    intros S HS.
+    rewrite gBindEval_rw; [|done].
+    rewrite gRetInt_rw; [done|].
+    have -> : (λ x : T1, f x S) = (gEval S) \o f.
+    { by apply functional_extensionality; intro x; rewrite /gEval//=. }
+    eapply measurable_comp; [| | by apply (gEval_meas_fun HS) | done ].
+    { by apply @measurableT. }
+    { by rewrite //=. }
+  Qed.
+
 End giry_bind_meas_fun.
 
 Section giry_monad.

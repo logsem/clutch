@@ -896,7 +896,7 @@ Section markov.
     lim_exec a b = limn_esup (λ n, (exec n a) b).
   Proof. by rewrite /lim_exec. Qed.
 
-  Search measurable setT.
+  (* Search measurable setT. *)
 
   Lemma lim_exec_Sup_seq (a : mstate δ) :
     mass' (lim_exec a) setT = limn_esup (λ n, mass' (exec n a) setT).

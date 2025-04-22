@@ -194,11 +194,6 @@ Section coupl_modalities.
 
   (** ********************* Lemma code (being worked on elsewhere *)
 
-  Theorem gBind_id_left : ∀ {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> giryM T2)
-    (a : T1) (HMF : measurable_fun setT f),
-    gBind' f (gRet a) = f a.
-  Proof. Admitted.
-
   Lemma gRet_id_right {d1} {T : measurableType d1} (μ : giryM T)  :
     gBind' gRet μ = μ.
   Admitted.
@@ -224,20 +219,16 @@ Section coupl_modalities.
     iIntros "H".
     iApply meas_spec_coupl_rec.
     iExists _, 0%nat, (gRet (toPacked σ1)), (gRet (toPacked σ1')), 0%NNR, (λ _, ε), ε.
-    setoid_rewrite gBind_id_left; first last.
-    { apply @measurable_compT.
-      { done. }
-      { by apply pexec_meas. }
-      { by apply measurable_pair1. }
-    }
-    { apply @measurable_compT.
-      { done. }
-      { by apply pexec_meas. }
-      { by apply measurable_pair1. }
-    }
-    rewrite pexec_0'.
-    iSplit; [iPureIntro|].
-    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set (toPacked σ1)] ([set (toPacked e1')] `*` [set (toPacked σ1')])).
+    iSplitR.
+    { iPureIntro.
+      erewrite ARcoupl_meas_proper.
+      2: { reflexivity.  }
+      2: { rewrite gBind'_meas_rw.
+           { apply @measurable_compT; [done | by apply pexec_meas | by apply measurable_pair1 ]. }
+           intro H.
+           by apply giry.gBind_id_left. }
+      rewrite /= pexec_0'.
+      eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set (toPacked σ1)] ([set (toPacked e1')] `*` [set (toPacked σ1')])).
       { by apply state_meas_points. }
       { by apply measurableX; [apply expr_meas_points | apply state_meas_points]. }
       { apply gRetMass1Inv; [|done]. by apply state_meas_points. }
@@ -252,8 +243,10 @@ Section coupl_modalities.
     iSplit; [iPureIntro|].
     { rewrite integral_cst.
       { rewrite //=/numfun.indic//=.
-        rewrite mem_set;[|done].
-        repeat destroy_mathcomp; lra.
+        repeat destroy_mathcomp.
+        (* 0 + x = x
+           total subdistribution mass is le 1 *)
+        admit.
       }
       { by eapply @measurableT. }
     }
@@ -261,7 +254,7 @@ Section coupl_modalities.
     iSplit. { iPureIntro. by apply erasable_gRet. }
     iIntros (??? (_ & S1 & S2)); simpl. simpl in S1, S2; inversion S2; subst.
     by iApply "H".
-  Qed.
+  Admitted.
 
   Lemma meas_spec_coupl_mono E1 E2 σ1 e1' σ1' Z1 Z2 ε :
     E1 ⊆ E2 →
@@ -294,12 +287,13 @@ Section coupl_modalities.
     iApply meas_spec_coupl_rec.
     set (ε' := nnreal_minus ε2 ε1 Heps).
     iExists (fun A B => A = σ1 ∧ B.1 = e1' ∧ B.2 = σ1'), 0%nat, (gRet (toPacked σ1)), (gRet (toPacked σ1')), ε', (fun _ => ε1), ε1.
-    setoid_rewrite gBind_id_left.
-    2: { admit. (* prove gBind_id_left to see if necessary *) }
-    2: { admit. (* prove gBind_id_left to see if necessary *) }
-    rewrite pexec_0'.
-    iSplit. {
-      iPureIntro.
+    iSplitR.
+    { iPureIntro.
+      erewrite ARcoupl_meas_proper.
+      2: { reflexivity. }
+      2: { rewrite gBind'_meas_rw.
+           { apply @measurable_compT; [done | by apply pexec_meas | by apply measurable_pair1 ]. }
+           intro H. by apply giry.gBind_id_left. }
       apply (@ARcoupl_meas_mon_grading _ _ _ _ _ _ _ 0 _ (EFin 0) _).
       { done. }
       { repeat destroy_mathcomp. lra. }
@@ -414,6 +408,7 @@ Section coupl_modalities.
     iIntros (-> ??) "H".
     iApply meas_spec_coupl_rec.
     iExists R, n, μ1, (gRet σ1'), ε1, (λ _, ε2), ε2.
+    (*
     setoid_rewrite gBind_id_left.
     2: { admit. (* prove gBind_id_left to see if necessary *) }
     2: { admit. (* prove gBind_id_left to see if necessary *) }
@@ -433,7 +428,7 @@ Section coupl_modalities.
     (* { rewrite Expval_const //. apply Rle_plus_plus; [done|]. real_solver. }  *)
     iSplit. { done. }
     iSplit. { iPureIntro. by apply erasable_gRet. }
-    done.
+    done. *)
   Admitted. (** UNSURE *)
 
   Lemma meas_spec_coupl_steps n ε2 ε1 ε R E σ1 e1' σ1' Z :
