@@ -388,7 +388,7 @@ Definition head_stepM_app : cfg -> giryM cfg :=
   let 𝜋_x  := 𝜋_RecV_x \o 𝜋_ValU \o 𝜋_App_l \o fst in
   let 𝜋_e1 := 𝜋_RecV_e \o 𝜋_ValU \o 𝜋_App_l \o fst in
   let 𝜋_v2 := 𝜋_ValU \o 𝜋_App_r \o fst in
-  gRet \o (substU' \o (𝜋_f △ (𝜋_v2 △ substU' \o (𝜋_f △ (RecVU \o (𝜋_f △ 𝜋_x △ 𝜋_e1) △ 𝜋_e1)))) △ snd).
+  gRet \o (substU' \o (𝜋_x △ (𝜋_v2 △ substU' \o (𝜋_f △ (RecVU \o (𝜋_f △ 𝜋_x △ 𝜋_e1) △ 𝜋_e1)))) △ snd).
 
 (*
 Definition head_stepM_app' : cfg -> giryM cfg :=
@@ -623,7 +623,7 @@ Proof.
     simpl; mf_cmp_tree; [by ms_solve|subset_solver|].
     repeat mf_prod.
     (* Works: eapply @measurable_fun_prod' *)
-    - eapply (measurable_comp (f:=𝜋_RecV_f)); [| |apply 𝜋_RecV_f_meas|].
+    - eapply (measurable_comp (f:=𝜋_RecV_x)); [| |apply 𝜋_RecV_x_meas|].
       + ms_done.
       + subset_solver.
       + eapply (measurable_comp (f:=𝜋_ValU)); [| |apply 𝜋_ValU_meas|].
@@ -1207,52 +1207,64 @@ Admitted.
 
 
 Ltac unfold_if_in := match goal with | |- context [(if_in ?X _)] => unfold X end.
-Local Ltac unfold_RHS := match goal with | |- _ _ = ?X _ => unfold X end.
+Local Ltac unfold_RHS := match goal with | |- _ = ?X _ => unfold X end.
+
+Ltac smart_intro := match goal with
+                     | |- (@ex2 (_*_*_) _ _) => eexists (_,_,_)
+                     | |- (@ex2 (_*_) _ _) => eexists (_,_)
+                    | |- (@ex2 (_) _ _) => eexists (_)
+                    | |- _ => simpl
+                     end.
+Ltac head_step_solver:= repeat split; try done; smart_intro; naive_solver.
 
 Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
-  (* apply functional_extensionality_dep. *)
-  (* intros [e σ]. *)
-  (* rewrite /head_stepM/head_stepM'. *)
-  (* repeat unfold_if_in. *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* { unfold_RHS; simpl. admit. *)
-  (*   (** THIS NEEDS CHECKING *) } *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* { admit. } *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* { admit. } *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* { admit. } *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* { admit. } *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* { admit. } *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* { admit. } *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* { admit. } *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* { admit. } *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* { admit. } *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* { admit. } *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* { admit. } *)
-  (* apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros]. *)
-  (* simpl in *. *)
-  (* repeat case_match; try done. *)
-  (* all: admit. *)
+  apply functional_extensionality_dep.
+  intros [e σ].
+  rewrite /head_stepM/head_stepM'.
+  repeat unfold_if_in.
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H1].
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H2].
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H3].
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H4].
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H5].
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H6].
+  { admit. }
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H7].
+  { admit. }
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H8].
+  { (* alloc_eval_cov_ok is not defined yet *)
+    admit. }
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H9].
+  { (* load_eval_cov_ok is not defined yet *)
+    admit. }
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H10].
+  { (* store_eval_cov_ok is not defined yet *)
+    admit. }
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H11].
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H12].
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H13].
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H14].
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H15].
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H16].
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H17].
+  { rewrite /head_stepM_allocTape/=. unfold_RHS. admit. }
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H18].
+  { rewrite /head_stepM_allocUTape/=. unfold_RHS. admit. }
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H19].
+  { unfold_RHS. simpl. unfold_RHS. simpl. admit. }
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H20].
+  { unfold_RHS. simpl. unfold_RHS. simpl. admit. }
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H21].
+  { unfold_RHS. simpl. unfold_RHS. simpl.  admit. }
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H22].
+  { unfold_RHS. simpl. unfold_RHS. simpl. admit. }
+  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H23].
+  simpl in *.
+  repeat case_match; try done.
+  all: subst; exfalso.
+  - apply H1. head_step_solver. 
+  - apply H5; head_step_solver. 
+  - apply H6; head_step_solver. 
 Admitted.
 
 Lemma head_stepM_meas_fun : measurable_fun setT head_stepM.
