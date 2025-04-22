@@ -19,9 +19,7 @@ Section adequacy.
   Context `{!micrometerGS Σ}.
   Local Open Scope classical_set_scope.
 
-  Lemma wp_adequacy_spec_coupl n m (e1 : meas_lang.language.exprT meas_lang)
-    (σ1 : meas_lang.language.stateT meas_lang) (e1' : meas_lang.language.exprT meas_lang)
-    (σ1' : meas_lang.language.stateT meas_lang)  Z φ ε :
+  Lemma wp_adequacy_spec_coupl n m e1 σ1 e1' σ1' Z φ ε :
     meas_spec_coupl ∅ σ1 e1' σ1' ε Z -∗
     (∀ σ2 e2' σ2' ε', Z σ2 e2' σ2' ε' ={∅}=∗ |={∅}▷=>^n
         ⌜ARcoupl_meas (@exec (language.meas_lang_markov meas_lang) m (e1, σ2)) (@lim_exec (language.meas_lang_markov meas_lang) (e2', σ2')) φ (0)%R (EFin $ nonneg ε')⌝ ) -∗
@@ -61,9 +59,8 @@ Section adequacy.
       done.
   Qed.
 
-
-  Lemma wp_adequacy_val_fupd (e e' : measure.Measurable.sort (meas_lang.language.expr meas_lang))
-    (σ σ' : measure.Measurable.sort (meas_lang.language.state meas_lang)) n φ v ε :
+  Lemma wp_adequacy_val_fupd (e : measure.Measurable.sort (meas_lang.language.expr meas_lang)) e'
+    σ σ' n φ v ε :
     fill.to_val e = Some v ->
     state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε ∗
     WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
@@ -88,9 +85,9 @@ Section adequacy.
     { repeat destroy_mathcomp. by apply cond_nonneg.  }
   Qed.
 
-  Lemma wp_adequacy_step_fupdN ε (e e' : meas_lang.language.exprT meas_lang) (σ σ' :  meas_lang.language.stateT meas_lang) n φ :
+  Lemma wp_adequacy_step_fupdN ε e e' σ σ' n φ :
     state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε ∗
-    WP (e: meas_lang.language.exprT meas_lang) {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
+    WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜ARcoupl_meas (@exec (language.meas_lang_markov meas_lang) n (e, σ)) (@lim_exec (language.meas_lang_markov meas_lang) (e', σ')) φ 0 (EFin $ nonneg $ ε)⌝.
   Proof.
     iIntros "(Hσ & HspecI_auth & Hε & Hwp)".
@@ -216,8 +213,7 @@ Admitted.
 Qed.
 *)
 
-Corollary wp_adequacy_mass Σ `{!micrometerGpreS Σ} (e e' : meas_lang.language.exprT meas_lang)
-  (σ σ' : meas_lang.language.stateT meas_lang) φ (ε : R) :
+Corollary wp_adequacy_mass Σ `{!micrometerGpreS Σ} e e' σ σ' φ (ε : R) :
   (0 <= ε)%R →
   (∀ `{micrometerGS Σ}, ⊢  ⤇ e' -∗ ↯ ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   le_ereal

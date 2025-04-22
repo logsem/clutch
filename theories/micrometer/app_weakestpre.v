@@ -763,7 +763,7 @@ Proof.
 Qed.
 
 Local Definition wp_def `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ} :
-  Wp (iProp Σ) (Measurable.sort (expr Λ)) (Measurable.sort (val Λ)) () :=
+  Wp (iProp Σ) (exprT Λ) (valT Λ) () :=
   {| wp := λ _ : (), fixpoint (wp_pre); wp_default := () |}.
 
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
@@ -779,10 +779,10 @@ Section wp.
 Context `{!meas_spec_updateGS (meas_lang_markov Λ) Σ, !micrometerWpGS Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
-Implicit Types v : Measurable.sort (val Λ).
-Implicit Types e : Measurable.sort (expr Λ).
-Implicit Types σ : Measurable.sort (state Λ).
-Implicit Types ρ : Measurable.sort (cfg Λ).
+Implicit Types v : valT Λ.
+Implicit Types e : exprT Λ.
+Implicit Types σ : stateT Λ.
+Implicit Types ρ : cfg Λ.
 
 (* Weakest pre *)
 Lemma wp_unfold E e Φ s :
