@@ -882,13 +882,18 @@ Section markov.
   Proof.
     move : a.
     induction n; intro a.
-    { rewrite pexec_O. (* Check gret_id_left. *)
-      (* dret_id_left //. *) admit. }
+    { rewrite pexec_O.
+      rewrite gBind'_meas_rw.
+      { (* lim exec is a measurable fun *)
+        admit. }
+      intro H.
+      by rewrite gRet_gBind. }
     { rewrite pexec_Sn.
       (* -dbind_assoc/=.
       rewrite lim_exec_step.
       apply dbind_eq; [|done].
-      intros ??. apply IHn. *) Admitted.
+      intros ??. apply IHn. *)
+  Admitted.
 
   Lemma lim_exec_det_final n a a' b :
     to_final a' = Some b →

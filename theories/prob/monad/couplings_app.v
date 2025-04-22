@@ -1147,9 +1147,32 @@ Proof.
   (* Simpl at Hz; measure S le measure setT le 0; implies eq zero. *)
 Admitted.
 
+Lemma ARcoupl_dzero (μ : giryM B) (R: A → B → Prop) (ε : nonnegreal) :
+  (0 <= ε)%R ->
+  ARcoupl_meas gZero μ R 0 (EFin (nonneg ε)).
+Proof.
+  intros Hleq f Hfm Hflb Hfub g Hgm Hglb Hgub HR.
+  rewrite /gZero.
+  rewrite exp.expR0.
+  rewrite integral_measure_zero.
+  rewrite mul1e.
+  eapply @adde_ge0.
+  { apply (Coq.ssr.ssrbool.introT (RlebP _ _)).
+    by apply Hleq. }
+  apply integral_ge0.
+  intros x _.
+  by apply Hglb.
+Qed.
 
-
-
+(*
+Lemma Rcoupl_dzero_l_inv `{Countable A, Countable B} μ2 (R : A → B → Prop) :
+  Rcoupl dzero μ2 R → μ2 = dzero.
+Proof.
+  intros Hz%Rcoupl_mass_eq.
+  apply SeriesC_zero_dzero.
+  rewrite -Hz SeriesC_0 //.
+Qed.
+*)
 
 
 
@@ -1161,27 +1184,8 @@ End ARcoupl.
 (*
 
 
-Lemma ARcoupl_dzero `{Countable A, Countable B} (μ : distr B) (R: A → B → Prop) ε :
-  (0 <= ε) ->
-  ARcoupl dzero μ R ε.
-Proof.
-  intros Hleq f g Hf Hg HR.
-  rewrite {1}/pmf SeriesC_scal_l Rmult_0_l.
-  rewrite <- Rplus_0_l at 1.
-  apply Rplus_le_compat; auto.
-  apply SeriesC_ge_0'.
-  intro; apply Rmult_le_pos; auto.
-  apply Hg.
-Qed.
 
 (*
-Lemma Rcoupl_dzero_l_inv `{Countable A, Countable B} μ2 (R : A → B → Prop) :
-  Rcoupl dzero μ2 R → μ2 = dzero.
-Proof.
-  intros Hz%Rcoupl_mass_eq.
-  apply SeriesC_zero_dzero.
-  rewrite -Hz SeriesC_0 //.
-Qed.
  *)
 
 Lemma ARcoupl_map `{Countable A, Countable B, Countable A', Countable B'}
