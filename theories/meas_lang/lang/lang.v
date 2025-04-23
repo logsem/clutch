@@ -468,7 +468,7 @@ Ltac mf_restrictT :=
 
 (** Ltacs for banging head onto wall *)
 (** [destruct!] destructs things in the context *)
-Ltac destruct_go tac :=
+Local Ltac destruct_go tac :=
   repeat match goal with
          | H : context [ match ?x with | (y, z) => _ end] |- _ =>
              let y := fresh y in
@@ -483,7 +483,7 @@ Ltac destruct_go tac :=
          | |- _ => tac
     end.
 
-Tactic Notation "destruct!/=" := destruct_go ltac:( progress csimpl in * ; simpl).
+Local Tactic Notation "destruct!/=" := destruct_go ltac:( progress csimpl in * ; simpl).
 
 Local Ltac subset_solver :=
     intros ?; try done; elim; naive_solver.

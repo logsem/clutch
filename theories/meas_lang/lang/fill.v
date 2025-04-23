@@ -1954,9 +1954,6 @@ Hint Resolve fill_item_RandRCtx_meas     : mf_fun.
 Hint Resolve fill_item_URandCtx_meas     : mf_fun.
 Hint Resolve fill_item_TickCtx_meas      : mf_fun.
 
-(* This should be rewritten to use the the ectx_cover stuff
-   See head_stepM' in lang.v
- *)
 
 Definition fill_item': (ectx_item * expr)%type -> expr :=
   if_in (ectx_item_cov_AppLCtx \o fst) fill_item_AppLCtx $
@@ -1973,6 +1970,7 @@ Definition fill_item': (ectx_item * expr)%type -> expr :=
   if_in (ectx_item_cov_InjRCtx \o fst) fill_item_InjRCtx $
   if_in (ectx_item_cov_CaseCtx \o fst) fill_item_CaseCtx $
   if_in (ectx_item_cov_AllocCtx \o fst) fill_item_AllocCtx $
+  if_in (ectx_item_cov_LoadCtx \o fst) fill_item_LoadCtx $
   if_in (ectx_item_cov_StoreLCtx \o fst) fill_item_StoreLCtx $
   if_in (ectx_item_cov_StoreRCtx \o fst) fill_item_StoreRCtx $
   if_in (ectx_item_cov_AllocTapeCtx \o fst) fill_item_AllocTapeCtx $
@@ -1981,32 +1979,6 @@ Definition fill_item': (ectx_item * expr)%type -> expr :=
   if_in (ectx_item_cov_URandCtx \o fst) fill_item_URandCtx $
   if_in (ectx_item_cov_TickCtx \o fst) fill_item_TickCtx $
     cst inhabitant.
-
-(* Definition fill_item' (x : (ectx_item * expr)%type) : expr := *)
-(*   match x.1 with *)
-(*   | AppLCtx v2      => fill_item_AppLCtx x *)
-(*   | AppRCtx e1      => fill_item_AppRCtx x *)
-(*   | UnOpCtx op      => fill_item_UnOpCtx x *)
-(*   | BinOpLCtx op v2 => fill_item_BinOpLCtx x *)
-(*   | BinOpRCtx op e1 => fill_item_BinOpRCtx x *)
-(*   | IfCtx e1 e2     => fill_item_IfCtx x *)
-(*   | PairLCtx v2     => fill_item_PairLCtx x *)
-(*   | PairRCtx e1     => fill_item_PairRCtx x *)
-(*   | FstCtx          => fill_item_FstCtx x *)
-(*   | SndCtx          => fill_item_SndCtx x *)
-(*   | InjLCtx         => fill_item_InjLCtx x *)
-(*   | InjRCtx         => fill_item_InjRCtx x *)
-(*   | CaseCtx e1 e2   => fill_item_CaseCtx x *)
-(*   | AllocCtx        => fill_item_AllocCtx x *)
-(*   | LoadCtx         => fill_item_LoadCtx x *)
-(*   | StoreLCtx v2    => fill_item_StoreLCtx x *)
-(*   | StoreRCtx e1    => fill_item_StoreRCtx x *)
-(*   | AllocTapeCtx    => fill_item_AllocTapeCtx x *)
-(*   | RandLCtx v2     => fill_item_RandLCtx x *)
-(*   | RandRCtx e1     => fill_item_RandRCtx x *)
-(*   | URandCtx        => fill_item_URandCtx x *)
-(*   | TickCtx         => fill_item_TickCtx x *)
-(*   end. *)
 
 Local Ltac force_ectx_item_cov:=
   (first [apply ectx_item_cov_AppLCtx_meas|
@@ -2050,7 +2022,49 @@ Proof.
           ]).
   apply measurable_cst.
 Qed.
-Lemma fill_item_fill_item'_eq : fill_item' = fill_item. Admitted.
+
+
+Local Ltac unfold_if_in := match goal with | |- context [(if_in (?X \o _) _)] => unfold X end.
+Local Ltac destruct_go tac :=
+  repeat match goal with
+         | H : context [ match ?x with | (y, z) => _ end] |- _ =>
+             let y := fresh y in
+             let z := fresh z in
+             destruct x as [y z]
+         | H : ∃ x, _ |- _ => let x := fresh x in destruct H as [x H]
+         | H : (ex2 _ _) |- _ => destruct H
+         | H: (_*_) |- _ => destruct H                          
+         | |- _ => destruct_and!
+         | |- _ => destruct_or!
+         | |- _ => progress simplify_eq
+         | |- _ => tac
+    end.
+
+Local Tactic Notation "destruct!/=" := destruct_go ltac:( progress csimpl in * ; simpl).
+
+Lemma fill_item_fill_item'_eq : fill_item' = fill_item.
+Proof.
+  apply functional_extensionality_dep.
+  intros [Ki e].
+  rewrite /fill_item'/fill_item/=.
+  repeat unfold_if_in.
+  repeat (apply if_in_split; simpl; intros; destruct!/=; first done).
+  exfalso.
+  destruct Ki; try done.
+  - apply H. naive_solver.
+  - apply H0; naive_solver.
+  - apply H1; naive_solver.
+  - apply H2; eexists (_,_); naive_solver.
+  - apply H3; eexists (_,_); naive_solver.
+  - apply H4; eexists (_,_); naive_solver.
+  - apply H5; naive_solver.
+  - apply H6; naive_solver.
+  - apply H11; eexists (_,_); naive_solver.
+  - apply H14; naive_solver.
+  - apply H15; naive_solver.
+  - apply H17; naive_solver.
+  - apply H18; naive_solver.
+Qed.
 
 Lemma fill_item_meas_fun : measurable_fun setT fill_item.
 Proof. rewrite -fill_item_fill_item'_eq. apply fill_item'_meas_fun. Qed. 
