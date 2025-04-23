@@ -1222,6 +1222,7 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
   intros [e σ].
   rewrite /head_stepM/head_stepM'.
   repeat unfold_if_in.
+  destruct!/=.
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H1].
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H2].
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H3].
@@ -1258,21 +1259,44 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
   { unfold_RHS. simpl. unfold_RHS. simpl.  admit. }
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H22].
   { unfold_RHS. simpl. unfold_RHS. simpl. admit. }
+  destruct!/=.
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H23].
   simpl in *.
   repeat case_match; try done.
   all: subst; exfalso.
   - apply H1. head_step_solver. 
   - apply H5; head_step_solver. 
-  - apply H6; head_step_solver. 
+  - apply H6; head_step_solver.
+  - apply H7; head_step_solver.
+  - apply H11; head_step_solver.
+  - apply H12; head_step_solver.
+  - apply H2; head_step_solver.
+  - apply H13; head_step_solver.
+  - apply H14; head_step_solver.
+  - apply H3; head_step_solver.
+  - apply H4; head_step_solver.
+  - apply H15; head_step_solver.
+  - apply H16; head_step_solver.
+  - apply H8; head_step_solver.
+  - apply H9; head_step_solver.
+  - apply H10; head_step_solver.
+  - apply H17; head_step_solver.
+  - apply H19; head_step_solver.
+  - apply H21; head_step_solver.
+  - apply H21; head_step_solver.
+  - apply H21; head_step_solver.
+  - apply H18; head_step_solver.
+  - apply H20; head_step_solver.
+  - apply H22; head_step_solver.
+  - apply H22; head_step_solver.
+  - apply H23; head_step_solver.
 Admitted.
 
 Lemma head_stepM_meas_fun : measurable_fun setT head_stepM.
-Admitted.
-(*
+Proof.
   rewrite head_stepM_head_stepM'_eq.
   apply head_stepM'_meas_fun.
-Qed. *)
+Qed.
 
 
 (** Basic properties about the language *)
@@ -1284,30 +1308,15 @@ Lemma fill_item_val Ki e :
 Proof. intros [v ?]. induction Ki; simplify_option_eq; eauto. Qed.
 
 Lemma val_head_stuck e1 σ1 : ¬ is_zero (head_stepM (e1, σ1)) → to_val e1 = None.
-Proof. Admitted.
-
-(*
-Lemma val_head_stuck e σ ρ :
-  head_step e σ ρ > 0 → to_val e = None.
-Proof. destruct ρ, e; [|done..]. rewrite /pmf /=. lra. Qed.
-*)
-
-
+Proof. destruct e1; try done.
+       intros H. exfalso. apply H.
+       done.
+Qed. 
 
 Lemma head_step_ctx_val Ki e σ1 : ¬ is_zero (head_stepM (fill_item (Ki, e), σ1)) → is_Some (to_val e).
-Proof. Admitted.
-
-(*
-
-Lemma head_ctx_step_val Ki e σ ρ :
-  head_step (fill_item Ki e) σ ρ > 0 → is_Some (to_val e).
 Proof.
-  destruct ρ, Ki ;
-    rewrite /pmf/= ;
-    repeat case_match; clear -H ; inversion H; intros ; (lra || done).
+  destruct e, Ki; try done; simpl; repeat case_match; intros H'; exfalso; by apply H'.
 Qed.
-
-*)
 
 End meas_semantics.
 
