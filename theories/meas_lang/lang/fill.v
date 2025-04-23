@@ -2,7 +2,7 @@
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
-From stdpp Require Import base numbers binders strings gmap countable.
+From stdpp Require Import base numbers binders strings gmap countable tactics.
 From mathcomp Require Import functions.
 From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
@@ -1957,35 +1957,99 @@ Hint Resolve fill_item_TickCtx_meas      : mf_fun.
 (* This should be rewritten to use the the ectx_cover stuff
    See head_stepM' in lang.v
  *)
-Definition fill_item' (x : (ectx_item * expr)%type) : expr :=
-  match x.1 with
-  | AppLCtx v2      => fill_item_AppLCtx x
-  | AppRCtx e1      => fill_item_AppRCtx x
-  | UnOpCtx op      => fill_item_UnOpCtx x
-  | BinOpLCtx op v2 => fill_item_BinOpLCtx x
-  | BinOpRCtx op e1 => fill_item_BinOpRCtx x
-  | IfCtx e1 e2     => fill_item_IfCtx x
-  | PairLCtx v2     => fill_item_PairLCtx x
-  | PairRCtx e1     => fill_item_PairRCtx x
-  | FstCtx          => fill_item_FstCtx x
-  | SndCtx          => fill_item_SndCtx x
-  | InjLCtx         => fill_item_InjLCtx x
-  | InjRCtx         => fill_item_InjRCtx x
-  | CaseCtx e1 e2   => fill_item_CaseCtx x
-  | AllocCtx        => fill_item_AllocCtx x
-  | LoadCtx         => fill_item_LoadCtx x
-  | StoreLCtx v2    => fill_item_StoreLCtx x
-  | StoreRCtx e1    => fill_item_StoreRCtx x
-  | AllocTapeCtx    => fill_item_AllocTapeCtx x
-  | RandLCtx v2     => fill_item_RandLCtx x
-  | RandRCtx e1     => fill_item_RandRCtx x
-  | URandCtx        => fill_item_URandCtx x
-  | TickCtx         => fill_item_TickCtx x
-  end.
 
+Definition fill_item': (ectx_item * expr)%type -> expr :=
+  if_in (ectx_item_cov_AppLCtx \o fst) fill_item_AppLCtx $
+  if_in (ectx_item_cov_AppRCtx \o fst) fill_item_AppRCtx $
+  if_in (ectx_item_cov_UnOpCtx \o fst) fill_item_UnOpCtx $
+  if_in (ectx_item_cov_BinOpLCtx \o fst) fill_item_BinOpLCtx $
+  if_in (ectx_item_cov_BinOpRCtx \o fst) fill_item_BinOpRCtx $
+  if_in (ectx_item_cov_IfCtx \o fst) fill_item_IfCtx $
+  if_in (ectx_item_cov_PairLCtx \o fst) fill_item_PairLCtx $
+  if_in (ectx_item_cov_PairRCtx \o fst) fill_item_PairRCtx $
+  if_in (ectx_item_cov_FstCtx \o fst) fill_item_FstCtx $
+  if_in (ectx_item_cov_SndCtx \o fst) fill_item_SndCtx $
+  if_in (ectx_item_cov_InjLCtx \o fst) fill_item_InjLCtx $
+  if_in (ectx_item_cov_InjRCtx \o fst) fill_item_InjRCtx $
+  if_in (ectx_item_cov_CaseCtx \o fst) fill_item_CaseCtx $
+  if_in (ectx_item_cov_AllocCtx \o fst) fill_item_AllocCtx $
+  if_in (ectx_item_cov_StoreLCtx \o fst) fill_item_StoreLCtx $
+  if_in (ectx_item_cov_StoreRCtx \o fst) fill_item_StoreRCtx $
+  if_in (ectx_item_cov_AllocTapeCtx \o fst) fill_item_AllocTapeCtx $
+  if_in (ectx_item_cov_RandLCtx \o fst) fill_item_RandLCtx $
+  if_in (ectx_item_cov_RandRCtx \o fst) fill_item_RandRCtx $
+  if_in (ectx_item_cov_URandCtx \o fst) fill_item_URandCtx $
+  if_in (ectx_item_cov_TickCtx \o fst) fill_item_TickCtx $
+    cst inhabitant.
 
-Lemma fill_item'_meas_fun : measurable_fun setT fill_item'. Admitted.
+(* Definition fill_item' (x : (ectx_item * expr)%type) : expr := *)
+(*   match x.1 with *)
+(*   | AppLCtx v2      => fill_item_AppLCtx x *)
+(*   | AppRCtx e1      => fill_item_AppRCtx x *)
+(*   | UnOpCtx op      => fill_item_UnOpCtx x *)
+(*   | BinOpLCtx op v2 => fill_item_BinOpLCtx x *)
+(*   | BinOpRCtx op e1 => fill_item_BinOpRCtx x *)
+(*   | IfCtx e1 e2     => fill_item_IfCtx x *)
+(*   | PairLCtx v2     => fill_item_PairLCtx x *)
+(*   | PairRCtx e1     => fill_item_PairRCtx x *)
+(*   | FstCtx          => fill_item_FstCtx x *)
+(*   | SndCtx          => fill_item_SndCtx x *)
+(*   | InjLCtx         => fill_item_InjLCtx x *)
+(*   | InjRCtx         => fill_item_InjRCtx x *)
+(*   | CaseCtx e1 e2   => fill_item_CaseCtx x *)
+(*   | AllocCtx        => fill_item_AllocCtx x *)
+(*   | LoadCtx         => fill_item_LoadCtx x *)
+(*   | StoreLCtx v2    => fill_item_StoreLCtx x *)
+(*   | StoreRCtx e1    => fill_item_StoreRCtx x *)
+(*   | AllocTapeCtx    => fill_item_AllocTapeCtx x *)
+(*   | RandLCtx v2     => fill_item_RandLCtx x *)
+(*   | RandRCtx e1     => fill_item_RandRCtx x *)
+(*   | URandCtx        => fill_item_URandCtx x *)
+(*   | TickCtx         => fill_item_TickCtx x *)
+(*   end. *)
 
+Local Ltac force_ectx_item_cov:=
+  (first [apply ectx_item_cov_AppLCtx_meas|
+          apply ectx_item_cov_AppRCtx_meas|
+          apply ectx_item_cov_UnOpCtx_meas|
+          apply ectx_item_cov_BinOpLCtx_meas|
+          apply ectx_item_cov_BinOpRCtx_meas|
+          apply ectx_item_cov_IfCtx_meas|
+          apply ectx_item_cov_PairLCtx_meas|
+          apply ectx_item_cov_PairRCtx_meas|
+          apply ectx_item_cov_FstCtx_meas|
+          apply ectx_item_cov_SndCtx_meas|
+          apply ectx_item_cov_InjLCtx_meas|
+          apply ectx_item_cov_InjRCtx_meas|
+          apply ectx_item_cov_CaseCtx_meas|
+          apply ectx_item_cov_AllocCtx_meas|
+          apply ectx_item_cov_LoadCtx_meas|
+          apply ectx_item_cov_StoreLCtx_meas|
+          apply ectx_item_cov_StoreRCtx_meas|
+          apply ectx_item_cov_AllocTapeCtx_meas|
+          apply ectx_item_cov_RandLCtx_meas|
+          apply ectx_item_cov_RandRCtx_meas|
+          apply ectx_item_cov_URandCtx_meas|
+           apply ectx_item_cov_TickCtx_meas|simpl]).
+
+Local Ltac subset_solver :=
+  intros []; simpl; elim; first [intros ->? |intros []?]; repeat split; subst; first [by intros []|intros [[]]]; subst;simplify_eq.
+
+Lemma fill_item'_meas_fun : measurable_fun setT fill_item'.
+Proof.
+  rewrite /fill_item'.
+  assert (∀ x, x \o fst (A:=ectx_item) (B:=expr) = x `*` setT) as Hrewrite; last rewrite !Hrewrite.
+  { intros. rewrite eqEsubset; split; intros ?; naive_solver. }
+  eapply @if_in_meas_fun; [ms_solve; force_ectx_item_cov |
+                            ms_solve |
+                            rewrite setIT; eauto with mf_fun|
+    ].
+  repeat  (eapply @if_in_meas_fun; [ms_solve; force_ectx_item_cov|
+                            ms_solve; force_ectx_item_cov|
+                            rewrite setIT setIidl; [eauto with mf_fun|subset_solver]|
+          ]).
+  apply measurable_cst.
+Qed.
 Lemma fill_item_fill_item'_eq : fill_item' = fill_item. Admitted.
 
 Lemma fill_item_meas_fun : measurable_fun setT fill_item.
