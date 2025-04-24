@@ -2648,7 +2648,11 @@ Local Ltac smart_intro := match goal with
 Local Ltac unfold_left' :=
   repeat (match goal with
   | H : ¬ (?X _) |- _ => unfold X in H; simpl in *
-  end).
+          end).
+
+Local Ltac decomp_solver := repeat split; smart_intro; naive_solver.
+Local Ltac decomp_solver' e2 H1 H2:=
+  let Heqn:= fresh "e2" in destruct (to_val e2) eqn:Heqn; first apply of_to_val in Heqn; subst; [apply H1; decomp_solver|apply H2;repeat split; smart_intro; [naive_solver..|]; intros []; simplify_eq ].
 Lemma decomp_item_decomp_eq : decomp_item' = decomp_item.
 Proof.
   apply functional_extensionality_dep.
@@ -2660,11 +2664,25 @@ Proof.
     destruct!/=;
       first (unfold_left; case_match; naive_solver)).
   unfold_left'.
-  destruct e as [?|?|???|e1 e2|??|??|???|??|?|?|?|?|???|?|?|??|?|??| |?|?]; try done; exfalso.
-  - destruct (to_val e2) eqn:Heqn.
-    + apply of_to_val in Heqn; subst; apply H.
-    
-Admitted.
+  destruct e as [?|?|???|e1 e2|e1 e2|op e1 e2|???|e1 e2|?|?|?|?|???|?|?|e1 e2|?|e1 e2| |?|?]; try done; exfalso.
+  - decomp_solver' e2 H H0.
+  - apply H1. decomp_solver.
+  - decomp_solver' e2 H2 H3.
+  - apply H4. decomp_solver.
+  - decomp_solver' e2 H5 H6.
+  - apply H7. decomp_solver.
+  - apply H8. decomp_solver.
+  - apply H9. decomp_solver.
+  - apply H10. decomp_solver.
+  - apply H11. decomp_solver.
+  - apply H12. decomp_solver.
+  - apply H13. decomp_solver.
+  - decomp_solver' e2 H14 H15.
+  - apply H16. decomp_solver.
+  - decomp_solver' e2 H17 H18.
+  - apply H19. decomp_solver.
+  - apply H20. decomp_solver.
+Qed.
 
 Lemma decomp_item_meas_fun : measurable_fun setT decomp_item.
 Proof. rewrite -decomp_item_decomp_eq. apply decomp_item'_meas_fun. Qed. 
