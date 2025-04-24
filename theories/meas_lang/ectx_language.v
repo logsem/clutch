@@ -467,8 +467,11 @@ Section ectx_language.
       + eapply head_not_stuck with σ1.
         intros Hzero; rewrite Hzero in Hs.
         * simpl in Hs.
-          (** destroy mathcomp urghghghg *)
-          admit. 
+          destroy_mathcomp; simpl in *.
+          epose proof elimT (RltbP 0 0) _; first lra.
+          Unshelve.
+          rewrite /is_true/Is_true in Hs *.
+          by case_match.
         * (** ask markus *) admit.
   Admitted.
 
@@ -481,6 +484,14 @@ Section ectx_language.
     by right.
   Qed.
 
+  
+  Lemma head_val_stuck e σ : is_Some (to_val e) -> (is_zero (head_step (e, σ))).
+  Proof.
+    pose proof head_not_stuck e σ.
+    apply contraPP.
+    by intros ->%H.
+  Qed.
+  
   Lemma fill_reducible K e σ : reducible (e, σ) → reducible (fill (K, e), σ).
   Proof.
     rewrite /reducible/step/=.
@@ -489,8 +500,13 @@ Section ectx_language.
     intros H. intros H'. apply H.
     apply is_zero_gMap'; first apply fill_lift_meas.
     erewrite decomp_fill_comp in Heqn2; last done.
-    - simplify_eq. (* eapply gMap'_is_zero; last done. *) admit.
-      (* apply fill_lift_meas. *)
+    - simplify_eq. (* apply decomp_fill in Heqn1 as Heqn2. subst. *)
+      (* rewrite fill_comp in H'. *)
+      destruct (to_val e2) eqn:Hval.
+      + by apply head_val_stuck.
+      + erewrite decomp_fill_comp in H'; last done.
+        * eapply gMap'_is_zero; last done. apply fill_lift_meas.
+        * apply decomp_fill in Heqn1. subst. by apply fill_not_val.
     - assert (to_val e1 = None).
       { eapply head_not_stuck.
         intros ?.
@@ -500,7 +516,7 @@ Section ectx_language.
       }
       apply decomp_fill in Heqn1. subst.
       by apply fill_not_val.
-  Admitted.
+  Qed. 
   Lemma head_prim_reducible e σ : head_reducible e σ → reducible (e, σ).
   Proof. intros.
          by apply head_prim_step.
