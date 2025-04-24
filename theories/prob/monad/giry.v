@@ -5,7 +5,7 @@ From clutch.prob.monad Require Export prelude tactics.
 From clutch.prelude Require Import classical.
 Import Coq.Relations.Relation_Definitions.
 Require Import Coq.micromega.Lra.
-From Coq Require Import Classes.Morphisms Reals.
+From Coq Require Import Classes.Morphisms Reals Classes.RelationPairs.
 From stdpp Require Import base tactics.
 From HB Require Import structures.
 
@@ -1239,6 +1239,33 @@ Section giry_prod_meas_fun.
         apply bigcup_measurable; auto.
         simpl.
         apply ge0_emeasurable_fun_sum; auto.
+  Qed.
+
+  Lemma gProd_proper  :
+    (Proper ((measure_eq * measure_eq) ==> measure_eq) (@gProd d1 d2 T1 T2)).
+  Proof.
+    intros [g1 g2][g1' g2'].
+    rewrite /gProd/gProd_ev/=.
+    intros K. destruct K as [K1 K2].
+    intros ??. simpl.
+    rewrite /gProd_ev/=.
+    assert (g1 ≡μ g1') as H1.
+    { intros S' HS'.
+      by specialize (K1 (S') HS'). 
+    }
+    assert (g2 ≡μ g2') as H2.
+    { intros S' HS'.
+      by specialize (K2 (S') HS'). 
+    }
+    rewrite /product_measure1.
+    etrans.
+    apply: (eq_measure_integral ).
+    { intros ???. by apply H1. }
+    apply eq_integral.
+    intros x ?.
+    simpl.
+    apply H2.
+    by apply (measurable_xsection R).
   Qed.
 
 End giry_prod_meas_fun.
