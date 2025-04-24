@@ -403,16 +403,15 @@ Section ectxi_language.
   Proof.
     intros Hsub K e' ->. destruct K as [|Ki K _] using @rev_ind=> //=.
     intros []%eq_None_not_Some.
-    (*
-    eapply fill_val, Hsub. by rewrite /= fill_app.
-  Qed. *)
-  Admitted.
+    simpl in *.
+    eapply (fill_val (Λ := meas_ectxi_lang_ectx)), Hsub.
+    by rewrite /= fill_app.
+  Qed.
 
-
-  (*
-  Global Instance ectxi_lang_ctx_item Ki : MeasLanguageCtx ((curry fill_item) Ki).
-  Proof. change (MeasLanguageCtx (curry fill [Ki])). apply _. Qed.
-   *)
+  Definition curry_fill_item := curry (@fill_item Λ).
+  
+  Global Instance ectxi_lang_ctx_item Ki : MeasLanguageCtx (Λ := meas_ectxi_lang)(curry_fill_item Ki).
+  Proof. change (MeasLanguageCtx (Λ := meas_ectxi_lang) (curry fill [Ki])). apply _. Qed.
 
 End ectxi_language.
 
