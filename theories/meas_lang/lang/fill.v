@@ -2633,7 +2633,38 @@ Proof.
   apply: measurable_funS; last eauto with measlang; done.
 Qed. 
 
-Lemma decomp_item_decomp_eq : decomp_item' = decomp_item. Admitted.
+Local Ltac unfold_left :=
+  match goal with
+  | |- ?X _ = _ => unfold X; simpl
+  end.
+
+Local Ltac smart_intro := match goal with
+                     | |- (@ex2 (_*_*_) _ _) => eexists (_,_,_)
+                     | |- (@ex2 (_*_) _ _) => eexists (_,_)
+                    | |- (@ex2 (_) _ _) => eexists (_)
+                    | |- _ => simpl
+                    end.
+
+Local Ltac unfold_left' :=
+  repeat (match goal with
+  | H : ¬ (?X _) |- _ => unfold X in H; simpl in *
+  end).
+Lemma decomp_item_decomp_eq : decomp_item' = decomp_item.
+Proof.
+  apply functional_extensionality_dep.
+  intros e.
+  rewrite /decomp_item'/decomp_item.
+  repeat unfold_if_in.
+  apply if_in_split; simpl; [intros []|intros]; destruct!/=; simpl; first done.
+  repeat (apply if_in_split; simpl; [intros []|intros]; simpl in *;
+    destruct!/=;
+      first (unfold_left; case_match; naive_solver)).
+  unfold_left'.
+  destruct e as [?|?|???|e1 e2|??|??|???|??|?|?|?|?|???|?|?|??|?|??| |?|?]; try done; exfalso.
+  - destruct (to_val e2) eqn:Heqn.
+    + apply of_to_val in Heqn; subst; apply H.
+    
+Admitted.
 
 Lemma decomp_item_meas_fun : measurable_fun setT decomp_item.
 Proof. rewrite -decomp_item_decomp_eq. apply decomp_item'_meas_fun. Qed. 

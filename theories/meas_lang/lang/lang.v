@@ -1206,16 +1206,16 @@ Admitted.
 
 
 
-Ltac unfold_if_in := match goal with | |- context [(if_in ?X _)] => unfold X end.
+Local Ltac unfold_if_in := match goal with | |- context [(if_in ?X _)] => unfold X end.
 Local Ltac unfold_RHS := match goal with | |- _ = ?X _ => unfold X end.
 
-Ltac smart_intro := match goal with
+Local Ltac smart_intro := match goal with
                      | |- (@ex2 (_*_*_) _ _) => eexists (_,_,_)
                      | |- (@ex2 (_*_) _ _) => eexists (_,_)
                     | |- (@ex2 (_) _ _) => eexists (_)
                     | |- _ => simpl
                      end.
-Ltac head_step_solver:= repeat split; try done; smart_intro; naive_solver.
+Local Ltac head_step_solver:= repeat split; try done; smart_intro; naive_solver.
 
 Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
   apply functional_extensionality_dep.
