@@ -2564,9 +2564,9 @@ Proof.
   mf_unfold'. mf_cmp_tree; first apply noval_measurable.
   mf_prod.
 Qed.
-Lemma decomp_stuck_meas      : measurable_fun decomp_cov_stuck      decomp_stuck.
+(* technically no need for decomp_cov_stuck *)
+Lemma decomp_stuck_meas      : measurable_fun setT     decomp_stuck.
 Proof.
-  mf_unfold'.
   apply measurable_cst.
 Qed.
 
@@ -2594,38 +2594,44 @@ Hint Resolve decomp_urand_meas      : measlang.
 Hint Resolve decomp_tick_meas       : measlang.
 Hint Resolve decomp_stuck_meas      : measlang.
 
-(* This should be rewritten to use decomp_cover and if_in 
-   See head_stepM' in lang.v
-*)
-Definition decomp_item' (e : expr) : option (ectx_item * expr)%type :=
-  match e with
-  | App _ (Val _)      => decomp_app_val e
-  | App _ _            => decomp_app_expr e
-  | UnOp _ _           => decomp_unop e
-  | BinOp _ _ (Val _)  => decomp_binop_val e
-  | BinOp _ _ _        => decomp_binop_expr e
-  | If _ _ _           => decomp_if e
-  | Pair _ (Val _)     => decomp_pair_val e
-  | Pair _ _           => decomp_pair_expr e
-  | Fst _              => decomp_fst e
-  | Snd _              => decomp_snd e
-  | InjL _             => decomp_injl e
-  | InjR _             => decomp_injr e
-  | Case _ _ _         => decomp_case e
-  | Alloc _            => decomp_alloc e
-  | Load _             => decomp_load e
-  | Store _ (Val _)    => decomp_store_val e
-  | Store _ _          => decomp_store_expr e
-  | AllocTape _        => decomp_alloctape e
-  | Rand _ (Val _)     => decomp_rand_val e
-  | Rand _ _           => decomp_rand_expr e
-  | URand _            => decomp_urand e
-  | Tick _             => decomp_tick e
-  | _                  => decomp_stuck e
-  end.
+
+Definition decomp_item' : expr -> option (ectx_item * expr)%type :=
+  if_in decomp_cov_app_val decomp_app_val $
+  if_in decomp_cov_app_expr decomp_app_expr $
+  if_in decomp_cov_unop decomp_unop $
+  if_in decomp_cov_binop_val decomp_binop_val $
+  if_in decomp_cov_binop_expr decomp_binop_expr $
+  if_in decomp_cov_if decomp_if $
+  if_in decomp_cov_pair_val decomp_pair_val $
+  if_in decomp_cov_pair_expr decomp_pair_expr $
+  if_in decomp_cov_fst decomp_fst $
+  if_in decomp_cov_snd decomp_snd $
+  if_in decomp_cov_injl decomp_injl $
+  if_in decomp_cov_injr decomp_injr $
+  if_in decomp_cov_case decomp_case $
+  if_in decomp_cov_alloc decomp_alloc $
+  if_in decomp_cov_load decomp_load $
+  if_in decomp_cov_store_val decomp_store_val $
+  if_in decomp_cov_store_expr decomp_store_expr $
+  if_in decomp_cov_alloctape decomp_alloctape $
+  if_in decomp_cov_rand_val decomp_rand_val $
+  if_in decomp_cov_rand_expr decomp_rand_expr $
+  if_in decomp_cov_urand decomp_urand $
+  if_in decomp_cov_tick decomp_tick $
+        decomp_stuck.
+
+Local Ltac subset_solver' :=
+    intros ?; simpl; intros []; simpl in *; destruct!/=; repeat split; intros []; simpl in *; destruct!/=; naive_solver.
 
 Lemma decomp_item'_meas_fun : measurable_fun setT decomp_item'.
-Admitted.
+Proof.
+  rewrite /decomp_item'.
+  eapply @if_in_meas_fun; [ms_unfold; ms_solve|ms_solve| rewrite setIT; eauto with measlang|].
+  do 21 (eapply @if_in_meas_fun; [ms_unfold; ms_solve|ms_solve; ms_unfold; ms_solve
+                          |rewrite setIT setIidl; [eauto with measlang|subset_solver']|
+    ]).
+  apply: measurable_funS; last eauto with measlang; done.
+Qed. 
 
 Lemma decomp_item_decomp_eq : decomp_item' = decomp_item. Admitted.
 
