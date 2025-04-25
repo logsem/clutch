@@ -2,7 +2,7 @@
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
-From stdpp Require Import base. (* numbers binders strings gmap. **)
+From stdpp Require Import base gmap. (* numbers binders strings gmap. **)
 From mathcomp Require Import functions.
 From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
@@ -133,11 +133,9 @@ Definition head_stepM (c : cfg) : giryM cfg :=
               end
             (* Bound mismatch *)
           else
-            gProd (gMap'
-                (fun (n : <<discr Z>>) => ((Val $ LitV $ LitInt n) : expr))
-                (unifN_base N),
-                     gRet σ1
-              )
+            gMap'
+              (λ x0 , (ValU (LitVU (LitIntU x0.1)), x0.2.2))
+              (gProd (unifN_base N, gRet (N, l, σ1)))
               (* gMap' *)
               (*   (fun (n : <<discr Z>>) => ((Val $ LitV $ LitInt n, σ1) : cfg)) *)
               (*   (unifN_base N) *)
@@ -1269,7 +1267,44 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H19].
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H20].
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H21].
-  { unfold_RHS. simpl. unfold_RHS. simpl.  admit. }
+  { unfold_RHS. simpl. unfold_RHS. simpl. clear.
+    apply if_in_split.
+    { intros [? ? [??[? H ]]]. simplify_eq.
+      rewrite /RandT_eval_cov_noTape'/option_cov_None/hp_eval/= in H.
+      by rewrite /lookup H/=. }
+    intros H1 .
+    case_match eqn:Heqn; last first.
+    { exfalso. apply H1. rewrite /RandT_eval_cov_noTape. eexists _; first done.
+      eexists _; first done. simpl. eexists _; last done.
+      rewrite /RandT_eval_cov_noTape'/option_cov_None/hp_eval/=.
+      by rewrite /lookup in Heqn.
+    }
+    case_match. case_match. simplify_eq.
+    rewrite /lookup in Heqn.
+    apply if_in_split.
+    { intros H2.
+      rewrite bool_decide_eq_false_2.
+      - by rewrite /RandT_eval_boundMismatch/=.
+      - rewrite /RandT_eval_cov_boundMismatch in H2.
+        destruct H2 as [?? [?? [?[? H2 ]?]]]; simplify_eq.
+        simpl in *. rewrite /hp_eval/= in H2.
+        intros ->. apply H2. by rewrite /of_option /𝜋_Some_v/= Heqn.
+    }
+    intros H2.
+    rewrite bool_decide_eq_true_2; last first.
+    { apply NNP_P. intros H. apply H2.
+      eexists _; first done. eexists _; first done. eexists _; last done.
+      rewrite /RandT_eval_cov_boundMismatch'/hp_eval/=; split.
+      - rewrite Heqn. rewrite /option_cov_Some. eexists _. naive_solver.
+      - by rewrite /of_option/𝜋_Some_v/=Heqn. 
+    }
+    apply if_in_split.
+    { intros [??[??[?[[H3 H4] H5]]]]; simpl in *; simplify_eq.
+      rewrite /option_cov_None/= in H5.
+      admit.
+    }
+    
+    admit. }
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H22].
   { unfold_RHS. simpl. unfold_RHS. simpl. admit. }
   destruct!/=.
