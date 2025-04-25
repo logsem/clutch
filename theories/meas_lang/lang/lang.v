@@ -110,8 +110,14 @@ Definition head_stepM (c : cfg) : giryM cfg :=
       (*   (fun (n : <<discr Z>>) => ((Val $ LitV $ LitInt n, σ1) : cfg)) *)
       (*   (unifN_base N) *)
   | AllocTape (Val (LitV (LitInt z))) =>
-      let ι := state.fresh (tapes σ1) in (* FIXME: stdpp-ify *)
-      gRet ((Val $ LitV $ LitLbl ι, state_upd_tapes (fun h => hp_update ι (Some (Z.to_nat z, emptyTape), h)) σ1) : cfg)
+      if_in AllocTape_eval_cov_ok
+        (λ '(x, σ1),
+           let ι := state.fresh (tapes σ1) in (* FIXME: stdpp-ify *)
+           gRet ((Val $ LitV $ LitLbl ι, state_upd_tapes (fun h => hp_update ι (Some (Z.to_nat z, emptyTape), h)) σ1) : cfg))
+        (cst gZero)
+        (z, σ1)
+      (* let ι := state.fresh (tapes σ1) in (* FIXME: stdpp-ify *) *)
+      (* gRet ((Val $ LitV $ LitLbl ι, state_upd_tapes (fun h => hp_update ι (Some (Z.to_nat z, emptyTape), h)) σ1) : cfg) *)
   (* Rand with a tape *)
   | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) =>
       match ((tapes σ1) !! l : option btape) with
@@ -157,8 +163,12 @@ Definition head_stepM (c : cfg) : giryM cfg :=
       end
 
   | AllocUTape =>
-      let ι := state.fresh (utapes σ1) in (* FIXME: stdpp-ify *)
-      gRet ((Val $ LitV $ LitLbl ι, state_upd_utapes (fun h => hp_update ι (Some emptyTape, h)) σ1) : cfg)
+      if_in AllocUTape_eval_cov_ok
+            (λ σ1, let ι := state.fresh (utapes σ1) in (* FIXME: stdpp-ify *)
+                   gRet ((Val $ LitV $ LitLbl ι, state_upd_utapes (fun h => hp_update ι (Some emptyTape, h)) σ1) : cfg)) (cst gZero)
+            σ1 
+      (* let ι := state.fresh (utapes σ1) in (* FIXME: stdpp-ify *) *)
+      (* gRet ((Val $ LitV $ LitLbl ι, state_upd_utapes (fun h => hp_update ι (Some emptyTape, h)) σ1) : cfg) *)
   (* Urand with no tape *)
   | URand (Val (LitV LitUnit)) =>
       gProd (gMap'
@@ -1261,37 +1271,35 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
   rewrite /head_stepM/head_stepM'.
   repeat unfold_if_in.
   destruct!/=.
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H1].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H2].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H3].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H4].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H5].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H6].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H1].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H2].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H3].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H4].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H5].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H6].
   { admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H7].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H7].
   { admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H8].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H8].
   { (* alloc_eval_cov_ok is not defined yet *)
     admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H9].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H9].
   { (* load_eval_cov_ok is not defined yet *)
     admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H10].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H10].
   { (* store_eval_cov_ok is not defined yet *)
     admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H11].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H12].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H13].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H14].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H15].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H16].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H17].
-  { rewrite /head_stepM_allocTape/=. unfold_RHS. admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H18].
-  { rewrite /head_stepM_allocUTape/=. unfold_RHS. admit. }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H19].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H20].
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H21].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H11].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H12].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H13].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H14].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H15].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H16].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H17].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H18].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H19].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H20].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H21].
   { unfold_RHS. simpl. unfold_RHS. simpl. clear.
     apply if_in_split.
     { intros [? ? [??[? H ]]]. simplify_eq.
@@ -1346,7 +1354,7 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
     - by rewrite /of_option/𝜋_Some_v/=/hp_eval Heqn /= /sequence_eval Heqn'.
     - rewrite /state_upd_tapes/=. rewrite /of_option/=/hp_eval Heqn/=. do 8 f_equal. lia.
   }
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H22].
+  apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H22].
   { unfold_RHS. simpl. unfold_RHS. simpl. clear.
     apply if_in_split.
     { intros [?? [? H ?]]. unfold URandT_eval_cov_noTape', option_cov_None, hp_eval in *. simpl in *; simplify_eq.
@@ -1384,7 +1392,7 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
     - simpl. lia. 
   }
   destruct!/=.
-  apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H23].
+  apply (if_in_split (f1 := (head_stepM_tick))); [intros; destruct!/=; try by unfold_RHS|intros H23].
   simpl in *.
   repeat case_match; try done.
   all: subst; exfalso.
