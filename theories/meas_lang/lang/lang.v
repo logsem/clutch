@@ -1264,7 +1264,13 @@ Local Ltac smart_intro := match goal with
                     | |- _ => simpl
                      end.
 Local Ltac head_step_solver:= repeat split; try done; smart_intro; naive_solver.
-
+Local Ltac reject_right H :=rewrite ifIn_eq_right; last 
+         (intros H1; destruct H as [? [[][]]]; destruct H1 as [? [[][]]];
+          simpl in *; simplify_eq; simpl in *; simplify_eq; simpl; done).
+Local Ltac accept_left H :=rewrite ifIn_eq_left; last done;
+        destruct H as [? [[][]]]; simpl in *; simplify_eq; simpl in *; simplify_eq; simpl;
+        done.
+        
 Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
   apply functional_extensionality_dep.
   intros [e σ].
@@ -1277,7 +1283,24 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H4].
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H5].
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H6].
-  { admit. }
+  { rewrite /head_stepM_unop/=/un_op_eval''. clear.
+    apply if_in_split.
+    - (* un_op ok*)
+      intros [[[[H|H]|H]|H] _]; simpl in *; rewrite /un_op_eval'/of_option/𝜋_Some_v/=.
+      + accept_left H.
+      + reject_right H. accept_left H.
+      + do 2 reject_right H. accept_left H.
+      + do 3 reject_right H. accept_left H.
+    - intros H.
+      case_match eqn: H'; last done.
+      exfalso. apply H.
+      unfold un_op_eval, un_op_eval''_ok in *. simpl. split; last done.
+      repeat case_match; try done; simplify_eq.
+      + do 2 left. right. repeat split; try done. simpl. naive_solver.
+      + repeat left; repeat split; try done; naive_solver.
+      + left. right. repeat split; naive_solver.
+      + right; repeat split; naive_solver.
+  }
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H7].
   { admit. }
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H8].
