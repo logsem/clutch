@@ -1086,6 +1086,14 @@ End markov.
 Section ARcoupl.
   Context {δ : meas_markov}.
 
+  Lemma esup_ub {f : nat -> \bar R} (b : \bar R) : (forall n, (f n <= b)%E) -> (limn_esup f <= b)%E.
+  Proof.
+    intro H.
+    rewrite limn_esup_lim.
+    (* Search topology.lim topology.fmap order.Order.le. *)
+    (* Check @normedtype.limr_le _ topology.eventually _ R.  *)
+    (*  lim_series_le *)
+  Admitted.
 
   Lemma lim_exec_ARcoupl {d} {B : measurableType d} (a : mstate δ) (μ2 : giryM B) φ (ε : R) (D : \bar R) :
     (0 <= EFin ε)%E →
@@ -1093,8 +1101,10 @@ Section ARcoupl.
     (∀ n, ARcoupl_meas (exec n a) μ2 φ ε D) →
     ARcoupl_meas (lim_exec a) μ2 φ ε D.
   Proof.
+    intros Hε HD Hn f Hfmeas Hflb Hfub g Hgmeas Hglb Hgub Hfg.
+    rewrite /lim_exec.
+    rewrite /limit_measure.
     (*
-    intros Hε Hn.
     assert (∀ a', Rbar.is_finite
                    (Lim_seq.Sup_seq (λ n, Rbar.Finite (exec n a a')))) as Hfin.
     { intro a'.
@@ -1102,8 +1112,30 @@ Section ARcoupl.
       - apply (Lim_seq.Sup_seq_minor_le _ _ 0); simpl.
         case_match; auto.
       - by apply upper_bound_ge_sup; intro; simpl. }
-    intros f g Hf Hg Hfg.
-    rewrite {1}/lim_exec.
+    *)
+    eapply (order.Order.le_trans (y:=limn_esup(fun n => \int[exec n a]_x f x)%E));
+      last (by apply esup_ub; intros ?; apply Hn).
+    suffices -> :
+      (\int[λ S : set (mstate_ret δ), limn_esup (λ n : nat, exec n a S)]_x f x =
+       limn_esup (λ n : nat, \int[exec n a]_x f x))%E by done.
+    rewrite limn_esup_lim.
+
+    (* Goal
+        topology.lim (topology.fmap
+          (esups (R:=R) (λ n : nat, (\int[exec n a]_x f x)%E))
+          (topology.nbhs topology.eventually))
+        MCT RHS:
+        topology.lim (topology.fmap
+          (λ n : nat, (\int[mu]_(x in D) g' n x)%E)
+          (topology.nbhs topology.eventually))
+     *)
+
+
+
+
+    (*  have HX := monotone_convergence _ measurableT . *)
+
+    (*
     setoid_rewrite lim_distr_pmf at 1.
     transitivity (Rbar.real (Lim_seq.Sup_seq
                                (λ n, Rbar.Finite (SeriesC (λ v, exec n a v * f v))))).
