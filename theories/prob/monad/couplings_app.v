@@ -1134,8 +1134,12 @@ Proof.
   intros f ? ? ? g ? ? ? HR.
   rewrite /gZero.
   rewrite integral_measure_zero.
-  (* Mathcomp *)
-Admitted.
+  rewrite add0e.
+  rewrite exp.expR0.
+  rewrite mul1e.
+  rewrite integral_measure_zero.
+  done.
+Qed.
 
 Lemma ARcoupl_dzero_r_inv μ1 (R : A → B → Prop) :
   ARcoupl_meas μ1 gZero R 0 0 → μ1 ≡μ gZero.
@@ -1144,8 +1148,13 @@ Proof.
   intros S HS.
   rewrite /gZero//=/mzero//= in Hz.
   rewrite /gZero//=/mzero//=.
-  (* Simpl at Hz; measure S le measure setT le 0; implies eq zero. *)
-Admitted.
+  rewrite adde0 in Hz.
+  rewrite mule0 in Hz.
+  eapply subset_measure0; [done | by eapply @measurableT | by rewrite /subset//= | ].
+  apply le_anti_ereal; apply /andP; split.
+  { unfold Order.le in Hz. by apply Hz. }
+  { have X := measure_ge0 μ1 setT. unfold Order.le in X. by apply X. }
+Qed.
 
 Lemma ARcoupl_dzero (μ : giryM B) (R: A → B → Prop) (ε : nonnegreal) :
   (0 <= ε)%R ->
@@ -1172,13 +1181,6 @@ Proof.
   apply SeriesC_zero_dzero.
   rewrite -Hz SeriesC_0 //.
 Qed.
-*)
-
-
-End ARcoupl.
-
-(*
-
 
 Lemma ARcoupl_map `{Countable A, Countable B, Countable A', Countable B'}
   (f : A → A') (g : B → B') (μ1 : distr A) (μ2 : distr B) (R : A' → B' → Prop) ε :
@@ -1189,7 +1191,7 @@ Proof.
   rewrite -(Rplus_0_r ε).
   eapply (ARcoupl_dbind _ _ _ _ (λ (a : A) (a' : B), R (f a) (g a')) _ ε 0); auto; [lra |].
   intros a b Hab.
-  by eapply ARcoupl_dret. 
+  by eapply ARcoupl_dret.
 Qed.
 
 Lemma ARcoupl_eq_trans_l `{Countable A, Countable B} μ1 μ2 μ3 (R: A → B → Prop) ε1 ε2 :
@@ -1234,6 +1236,7 @@ Proof.
   apply (ARcoupl_mon_grading _ _ _ 0); auto.
   apply ARcoupl_eq.
 Qed.
+
 
 Lemma ARcoupl_dunif (N : nat) f `{Bij (fin N) (fin N) f} :
   ARcoupl (dunif N) (dunif N) (λ n m, m = f n) 0.
@@ -1314,6 +1317,7 @@ Proof.
     apply ARcoupl_map; first done.
     eapply ARcoupl_mono; last apply (ARcoupl_dunif _ id); naive_solver.
 Qed.
+
 
 Lemma ARcoupl_dunif_leq_inj (N M : nat) h `{Inj (fin N) (fin M) (=) (=) h}:
   (0 < N <= M) -> ARcoupl (dunif N) (dunif M) (λ n m, m = h n) ((M-N)/M).
@@ -1547,7 +1551,7 @@ Proof.
   rewrite SeriesC_finite_foldr; simpl.
   rewrite dret_1_1; last done.
   rewrite Rmult_1_l Rplus_0_r.
-  remember ((λ a:A, negb (bool_decide (P a)))) as q. 
+  remember ((λ a:A, negb (bool_decide (P a)))) as q.
   rewrite (SeriesC_split_pred _ q).
   - rewrite Rplus_comm.
     apply Rplus_le_compat.
@@ -1578,7 +1582,6 @@ Proof.
   - intros. apply Rmult_le_pos; naive_solver.
   - apply pmf_ex_seriesC_mult_fn. naive_solver.
 Qed.
-
 
 Lemma ARcoupl_to_UB `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (ε : R) :
   ARcoupl μ1 μ2 (λ a _, P a) ε -> pgl μ1 P ε.
@@ -1961,3 +1964,5 @@ Proof.
 Qed.
     
 *)
+
+End ARcoupl.
