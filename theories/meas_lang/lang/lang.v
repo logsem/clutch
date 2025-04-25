@@ -1302,7 +1302,17 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
       + right; repeat split; naive_solver.
   }
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H7].
-  { admit. }
+  { rewrite /head_stepM_binop/=/bin_op_eval'''. clear.
+    apply if_in_split.
+    - (* bin_op ok*)
+      intros [[[[[H|H]|H]|H]|H] _]; simpl in *; rewrite /bin_op_eval''/of_option/𝜋_Some_v/=/bin_op_eval'.
+      (* sets as such bin_op_eval'_cov_eq not defined*)
+      + admit.
+      + admit.
+      + admit.
+      + admit.
+      + admit. 
+    - admit. }
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H8].
   { (* alloc_eval_cov_ok is not defined yet *)
     admit. }
