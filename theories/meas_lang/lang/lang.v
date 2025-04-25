@@ -181,10 +181,22 @@ Definition head_stepM (c : cfg) : giryM cfg :=
           (* Next is empty *)
           | None =>
               gMap'
-                (fun s =>
-                   let σ' := state_upd_utapes (fun h => hp_update l (Some (i + 1, sequence_update i (Some s, τ)), h)) σ1 in
-                   ((Val $ LitV $ LitReal s, σ') : cfg))
-                (unif_base)
+    (λ x0,
+       (ValU (LitVU (LitRealU x0.1)),
+        state_of_prod
+          (heap x0.2.2, tapes x0.2.2,
+           hp_update x0.2.1
+             (Some
+                (S (of_option hp_evalC (x0.2.1, utapes x0.2.2)).1,
+                 sequence_update (of_option hp_evalC (x0.2.1, utapes x0.2.2)).1
+                   (Some x0.1, (of_option hp_evalC (x0.2.1, utapes x0.2.2)).2)), 
+              utapes x0.2.2)))) (gProd (unif_base, gRet (l, σ1)))
+              (** Rewritten to match head_stepM' more *)
+              (* gMap' *)
+              (*   (fun s => *)
+              (*      let σ' := state_upd_utapes (fun h => hp_update l (Some (i + 1, sequence_update i (Some s, τ)), h)) σ1 in *)
+              (*      ((Val $ LitV $ LitReal s, σ') : cfg)) *)
+              (*   (unif_base) *)
           end
       (* No tape allocated (get stuck) *)
       | None => gZero
@@ -1335,7 +1347,42 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
     - rewrite /state_upd_tapes/=. rewrite /of_option/=/hp_eval Heqn/=. do 8 f_equal. lia.
   }
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H22].
-  { unfold_RHS. simpl. unfold_RHS. simpl. admit. }
+  { unfold_RHS. simpl. unfold_RHS. simpl. clear.
+    apply if_in_split.
+    { intros [?? [? H ?]]. unfold URandT_eval_cov_noTape', option_cov_None, hp_eval in *. simpl in *; simplify_eq.
+      by rewrite /lookup/Lookup_instance_0/hp_eval H.
+    }
+    intros H1.
+    case_match; last first.
+    { exfalso. apply H1. repeat eexists _; last done; done. }
+    case_match.
+    subst.
+    apply if_in_split.
+    { intros [??[? [[x' H'] H''] ?]].
+      simplify_eq.
+      unfold lookup, Lookup_instance_0, hp_eval in *. simpl in *.
+      simplify_eq.
+      unfold  option_cov_None, of_option, 𝜋_Some_v in *. simpl in *.
+      rewrite H in H''.
+      rewrite /sequence_evalC/sequence_eval/= in H''. rewrite H''.
+      by rewrite /URandT_eval_nextEmpty/=. }
+    intros H2.
+    case_match eqn:H0; last first.
+    { exfalso. apply H2.
+      repeat eexists _; last done; first done.
+      rewrite /URandT_eval_cov_nextEmpty'/=.
+      split.
+      - rewrite /option_cov_Some/hp_eval/=. setoid_rewrite H. naive_solver.
+      - rewrite /option_cov_None/of_option/hp_eval/𝜋_Some_v/=.
+        by setoid_rewrite H. 
+    }
+    rewrite /URandT_eval_ok/=. rewrite /state_upd_utapes/=.
+    rewrite /of_option/𝜋_Some_v/hp_evalC/hp_eval/=.
+    setoid_rewrite H.
+    repeat f_equal.
+    - by setoid_rewrite H0.
+    - simpl. lia. 
+  }
   destruct!/=.
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H23].
   simpl in *.
