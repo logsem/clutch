@@ -101,9 +101,14 @@ Definition head_stepM (c : cfg) : giryM cfg :=
       end
   (* Uniform sampling from [0, 1 , ..., N] *)
   | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
-      gMap'
-        (fun (n : <<discr Z>>) => ((Val $ LitV $ LitInt n, σ1) : cfg))
-        (unifN_base N)
+      gProd (gMap'
+        (fun (n : <<discr Z>>) => (Val $ LitV $ LitInt n):expr)
+        (unifN_base N),
+               gRet σ1
+        )
+      (* gMap' *)
+      (*   (fun (n : <<discr Z>>) => ((Val $ LitV $ LitInt n, σ1) : cfg)) *)
+      (*   (unifN_base N) *)
   | AllocTape (Val (LitV (LitInt z))) =>
       let ι := state.fresh (tapes σ1) in (* FIXME: stdpp-ify *)
       gRet ((Val $ LitV $ LitLbl ι, state_upd_tapes (fun h => hp_update ι (Some (Z.to_nat z, emptyTape), h)) σ1) : cfg)
@@ -123,14 +128,19 @@ Definition head_stepM (c : cfg) : giryM cfg :=
                   gMap'
                     (fun (s : <<discr Z>>) =>
                        let σ' := state_upd_tapes (fun h => hp_update l (Some (M, (i + 1, sequence_update i (Some s, τ))), h)) σ1 in
-                       ((Val $ LitV $ LitInt s, σ1) : cfg))
+                       ((Val $ LitV $ LitInt s, σ') : cfg))
                     (unifN_base N)
               end
             (* Bound mismatch *)
-            else
-              gMap'
-                (fun (n : <<discr Z>>) => ((Val $ LitV $ LitInt n, σ1) : cfg))
-                (unifN_base N)
+          else
+            gProd (gMap'
+                (fun (n : <<discr Z>>) => ((Val $ LitV $ LitInt n) : expr))
+                (unifN_base N),
+                     gRet σ1
+              )
+              (* gMap' *)
+              (*   (fun (n : <<discr Z>>) => ((Val $ LitV $ LitInt n, σ1) : cfg)) *)
+              (*   (unifN_base N) *)
       (* No tape allocated (get stuck) *)
       | None => gZero
       end
@@ -140,9 +150,14 @@ Definition head_stepM (c : cfg) : giryM cfg :=
       gRet ((Val $ LitV $ LitLbl ι, state_upd_utapes (fun h => hp_update ι (Some emptyTape, h)) σ1) : cfg)
   (* Urand with no tape *)
   | URand (Val (LitV LitUnit)) =>
-      gMap'
-        (fun r => (ValC $ LitVC $ LitReal r, σ1) : cfg)
-        unif_base
+      gProd (gMap'
+        (fun r => (ValC $ LitVC $ LitReal r) : expr)
+        unif_base,
+               gRet σ1
+        )
+      (* gMap' *)
+      (*   (fun r => (ValC $ LitVC $ LitReal r, σ1) : cfg) *)
+      (*   unif_base *)
   (* Urand with a tape *)
   | URand  (Val (LitV (LitLbl l))) =>
       match ((utapes σ1) !! l : option utape) with
@@ -157,7 +172,7 @@ Definition head_stepM (c : cfg) : giryM cfg :=
               gMap'
                 (fun s =>
                    let σ' := state_upd_utapes (fun h => hp_update l (Some (i + 1, sequence_update i (Some s, τ)), h)) σ1 in
-                   ((Val $ LitV $ LitReal s, σ1) : cfg))
+                   ((Val $ LitV $ LitReal s, σ') : cfg))
                 (unif_base)
           end
       (* No tape allocated (get stuck) *)
@@ -1252,9 +1267,7 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H18].
   { rewrite /head_stepM_allocUTape/=. unfold_RHS. admit. }
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H19].
-  { unfold_RHS. simpl. unfold_RHS. simpl. admit. }
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H20].
-  { unfold_RHS. simpl. unfold_RHS. simpl. admit. }
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H21].
   { unfold_RHS. simpl. unfold_RHS. simpl.  admit. }
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H22].
