@@ -68,7 +68,7 @@ Definition RandT_eval_cov_boundMismatch : set (<<discr Z>> * <<discr loc>> * sta
 (* Location ℓ has a tape with the right bound but the next space empty *)
 Definition RandT_eval_cov_nextEmpty' (z : <<discr Z>>) (ℓ  : <<discr loc>>) : set state :=
       ((hp_eval ℓ \o tapes) @^-1` option_cov_Some)
-  `&` ((fst \o of_option (hp_eval ℓ \o tapes)) @^-1` [set t : <<discr nat>> | t ≠ Z.to_nat z])
+  `&` ((fst \o of_option (hp_eval ℓ \o tapes)) @^-1` [set t : <<discr nat>> | t = Z.to_nat z])
   `&` ((sequence_evalC \o snd \o (of_option (hp_eval ℓ \o tapes))) @^-1` option_cov_None).
 
 Definition RandT_eval_cov_nextEmpty : set (<<discr Z>> * <<discr loc>> * state)%type :=
@@ -76,7 +76,7 @@ Definition RandT_eval_cov_nextEmpty : set (<<discr Z>> * <<discr loc>> * state)%
 
 Definition RandT_eval_cov_ok' (z : <<discr Z>>) (ℓ  : <<discr loc>>) : set state :=
       ((hp_eval ℓ \o tapes) @^-1` option_cov_Some)
-  `&` ((fst \o of_option (hp_eval ℓ \o tapes)) @^-1` [set t : <<discr nat>> | t ≠ Z.to_nat z])
+  `&` ((fst \o of_option (hp_eval ℓ \o tapes)) @^-1` [set t : <<discr nat>> | t = Z.to_nat z])
   `&` ((sequence_evalC \o snd \o (of_option (hp_eval ℓ \o tapes))) @^-1` option_cov_Some).
 
 Definition RandT_eval_cov_ok : set (<<discr Z>> * <<discr loc>> * state)%type :=
@@ -207,7 +207,7 @@ Definition RandT_eval_ok : (<<discr Z>> * <<discr loc>> * state)%type -> giryM c
              ( heap \o snd
              △ (hp_updateC \o
                   (    snd \o fst
-                  △ ( Some \o (S' \o fst △ snd) \o of_option hp_evalC \o (snd \o fst △ tapes \o snd)
+                  △ ( Some \o (fst △ (S' \o fst \o snd △ snd \o snd)) \o of_option hp_evalC \o (snd \o fst △ tapes \o snd)
                   △   tapes \o snd)))
              △ utapes \o snd)).
 

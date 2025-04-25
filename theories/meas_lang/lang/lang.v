@@ -126,10 +126,23 @@ Definition head_stepM (c : cfg) : giryM cfg :=
               (* Next is empty *)
               | None =>
                   gMap'
-                    (fun (s : <<discr Z>>) =>
-                       let σ' := state_upd_tapes (fun h => hp_update l (Some (M, (i + 1, sequence_update i (Some s, τ))), h)) σ1 in
-                       ((Val $ LitV $ LitInt s, σ') : cfg))
-                    (unifN_base N)
+    (λ x0,
+       (ValU (LitVU (LitIntU x0.1)),
+        state_of_prod
+          (heap x0.2.2,
+           hp_update x0.2.1.2
+             (Some
+                ((of_option hp_evalC (x0.2.1.2, tapes x0.2.2)).1,
+                 (S (of_option hp_evalC (x0.2.1.2, tapes x0.2.2)).2.1,
+                  sequence_update (of_option hp_evalC (x0.2.1.2, tapes x0.2.2)).2.1
+                    (Some x0.1, (of_option hp_evalC (x0.2.1.2, tapes x0.2.2)).2.2))), 
+              tapes x0.2.2), utapes x0.2.2))) (gProd (unifN_base N, gRet (N, l, σ1)))
+                  (** Rewritten to match that in head_stepM' *)
+                  (* gMap' *)
+                  (*   (fun (s : <<discr Z>>) => *)
+                  (*      let σ' := state_upd_tapes (fun h => hp_update l (Some (M, (i + 1, sequence_update i (Some s, τ))), h)) σ1 in *)
+                  (*      ((Val $ LitV $ LitInt s, σ') : cfg)) *)
+                  (*   (unifN_base N) *)
               end
             (* Bound mismatch *)
           else
@@ -1291,20 +1304,36 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
         intros ->. apply H2. by rewrite /of_option /𝜋_Some_v/= Heqn.
     }
     intros H2.
-    rewrite bool_decide_eq_true_2; last first.
+    case_bool_decide as Heqn'; last first. 
     { apply NNP_P. intros H. apply H2.
       eexists _; first done. eexists _; first done. eexists _; last done.
       rewrite /RandT_eval_cov_boundMismatch'/hp_eval/=; split.
       - rewrite Heqn. rewrite /option_cov_Some. eexists _. naive_solver.
       - by rewrite /of_option/𝜋_Some_v/=Heqn. 
     }
+    subst. 
     apply if_in_split.
     { intros [??[??[?[[H3 H4] H5]]]]; simpl in *; simplify_eq.
       rewrite /option_cov_None/= in H5.
-      admit.
+      unfold hp_eval, of_option, 𝜋_Some_v in *.
+      simpl in *. rewrite Heqn/= in H4 H5. subst.
+      rewrite /sequence_eval in H5. rewrite H5.
+      by rewrite /RandT_eval_nextEmpty/=.
     }
-    
-    admit. }
+    intros H3.
+    case_match eqn :Heqn'; last first.
+    { exfalso. apply H3. rewrite /RandT_eval_cov_nextEmpty.
+      repeat eexists _; last done; try done.
+      repeat split; simpl.
+      - rewrite /hp_eval Heqn/option_cov_Some/=. naive_solver.
+      - by rewrite /of_option/hp_eval/𝜋_Some_v/= Heqn.
+      - by rewrite /option_cov_None/=/of_option/𝜋_Some_v/=/hp_eval Heqn /= /sequence_eval. 
+    }
+    rewrite /RandT_eval_ok/=.
+    repeat f_equal.
+    - by rewrite /of_option/𝜋_Some_v/=/hp_eval Heqn /= /sequence_eval Heqn'.
+    - rewrite /state_upd_tapes/=. rewrite /of_option/=/hp_eval Heqn/=. do 8 f_equal. lia.
+  }
   apply if_in_split; [intros; destruct!/=; try by unfold_RHS|intros H22].
   { unfold_RHS. simpl. unfold_RHS. simpl. admit. }
   destruct!/=.
