@@ -320,9 +320,19 @@ Proof.
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   iSplitR.
   { admit. (* solve_red. *) }
-  iExists [set (Val v, σ1)].
-  iSplitR. { iPureIntro. admit. (* Meas. singletons *) }
-  iSplitR. { rewrite H. iPureIntro. apply gRetMass1Inv. all: admit. (* Meas. singletons *) }
+  iExists [set (ValC v, σ1)].
+  iSplitR. {
+    iPureIntro.
+    rewrite prod1.
+    by apply measurableX; [apply expr_meas_singleton | apply state_meas_singleton]. }
+  iSplitR. {
+    rewrite H.
+    iPureIntro.
+    apply gRetMass1Inv.
+    { rewrite prod1.
+      by apply measurableX; [apply expr_meas_singleton | apply state_meas_singleton]. }
+    { by rewrite //=. }
+  }
   simpl.
   iIntros (ρ ->) "!> _ //=".
   iModIntro.
@@ -342,9 +352,16 @@ Proof.
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   iSplitR. { (* solve_red *) admit. }
-  iExists [set (Val (LitV ()%V), state_upd_heap <[l:=v]> σ1)].
-  iSplitR. { (* sing. meas *) admit. }
-  iSplitR. { rewrite H; iPureIntro; apply gRetMass1Inv. all: admit. (* Meas. singletons *) }
+  iExists [set (Val (LitVU ()%V), state_upd_heap <[l:=v]> σ1)].
+  iSplitR. {
+    iPureIntro.
+    rewrite prod1.
+    by apply (measurableX (T1:=expr)); [apply expr_meas_singleton | apply state_meas_singleton]. }
+  iSplitR. { rewrite H; iPureIntro; apply gRetMass1Inv.
+    { rewrite prod1.
+      by apply (measurableX (T1:=expr)); [apply expr_meas_singleton | apply state_meas_singleton]. }
+    { by rewrite //=. }
+  }
   iIntros (? ->) "!> /= _".
   iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
   iModIntro.
@@ -363,6 +380,7 @@ Proof.
   iIntros (σ1) "Hσ !#".
   iSplitR. { (* red *) admit. }
 
+
 (*
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
@@ -372,12 +390,13 @@ Proof.
   pose proof (fin_to_nat_lt x); lia.
 Qed. *) Admitted.
 
-(*
 
 (** Tapes  *)
+
+(*
 Lemma wp_alloc_tape N z E s :
   TCEq N (Z.to_nat z) →
-  {{{ True }}} alloc #z @ s; E {{{ α, RET #lbl:α; α ↪N (N; []) }}}.
+  {{{ True }}} (alloc (Val (LitV (LitInt z))) :  meas_lang.language.expr meas_lang)@ s; E {{{ α, RET #lbl:α; α ↪N (N; []) }}}.
 Proof.
   iIntros (-> Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
