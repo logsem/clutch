@@ -479,13 +479,12 @@ Section NegativeBinomial.
         rewrite IH //=.
         f_equal.
         lia.
-      + move=>suf acc c /= c_eq.
-        destruct c as [|c]; first discriminate.
-        injection c_eq as c_eq.
+      + move=>suf acc [|c] //= [=->].
         rewrite IH //=.
         f_equal.
         lia.
   Qed.
+
 
   Lemma fmap_repeat : ∀ (A B : Type) (f : A → B) (a : A) (n : nat), f <$> (repeat a n) = repeat (f a) n.
   Proof.

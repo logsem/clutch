@@ -251,8 +251,8 @@ Section Geometric.
     - iApply ("HΦ" $! 0%nat).
       iFrame.
       iPureIntro.
-      rewrite ->bernoulli_to_geometric_translation in *.
-      destruct Hgeo_trans as [-> Hb_end_1].
+      apply bernoulli_to_geometric_translation in Hgeo_trans as [-> Hb_end_1].
+      rewrite bernoulli_to_geometric_translation.
       destruct b_tape as [| b_end b_tape _] using rev_ind.
       + simpl; split; first done.
         move=> ?? Heq.
@@ -366,7 +366,6 @@ Section Geometric.
         bernoulli_to_geometric_app 
         bernoulli_to_geometric_repeat //.
   Qed.
-  Search (?f (_ ++ _) = ?f _ +  ?f _).
 
   Lemma twp_presample_geometric_planner
     (N M : nat) (e : expr) (ε : nonnegreal)

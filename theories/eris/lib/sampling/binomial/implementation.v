@@ -75,8 +75,9 @@ Section binomial.
     - iApply ("HΦ"$! 0%fin with "[Herr]").
       iApply (ec_eq with "Herr").
       rewrite -HD SeriesC_finite_foldr /= binom_prob_eq Rmult_1_l Rplus_0_r //.
-    - erewrite SeriesC_ext in HD; last first =>>.
-      { replace (S n) with (n + 1) at 1 by lia.
+    - erewrite SeriesC_ext in HD; last first.
+      { move=>>. 
+        replace (S n) with (n + 1) at 1 by lia.
         reflexivity. } 
       rewrite ec_binom_split in HD.
       match type of HD with

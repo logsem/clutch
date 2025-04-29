@@ -89,8 +89,10 @@ Section BernoulliTape.
   Lemma tape_to_bernoulli_translation (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :
     is_bernoulli_translation N M v l ↔ v = tape_to_bernoulli N M l.
   Proof.
-    elim: l v => [[|hv tv]|h t IHt [|hv tv]] /= //; split => H //;
-    [apply is_bernoulli_translation_nil | by apply Forall2_length in H..| |].
+    elim: l v => [[|hv tv]|h t IHt [|hv tv]] /= //; split => H //.
+    - exact: Forall2_nil_2.
+    - by apply Forall2_length in H.
+    - by apply Forall2_length in H.
     - destruct (IHt tv) as [IHt1 IHt2]. 
       apply Forall2_cons in H as [[[-> HNleh] | [-> HhtapeN] ] Hforall]; 
         bool_decide; rewrite -IHt1 //.
@@ -123,29 +125,25 @@ Section BernoulliTape.
   Proof.
     move=> [zero_tape_N N_le_M].
     elim: l =>[// |h t IHt].
-    inv_fin h;
-      last (move=>h; inv_fin h; last (move=>h; inv_fin h));
-      simpl;
-      rewrite IHt;
-      first rewrite fin_to_nat_to_fin;
-      case_bool_decide;
-      done.
+    full_inv_fin.
+    - rewrite /= IHt fin_to_nat_to_fin bool_decide_eq_true_2 //.
+    - rewrite /= IHt bool_decide_eq_false_2 //.
   Qed.
     
   Lemma is_bernoulli_translation_0 (N M : nat) (k : fin (S M)) :
     N ≤ k →
     is_bernoulli_translation N M [0%fin] [k].
-  Proof.
+  Proof with auto.
     move=>?.
-    apply Forall2_cons =>//.
+    apply Forall2_cons...
   Qed.
 
   Lemma is_bernoulli_translation_1 (N M : nat) (k : fin (S M)) :
     k < N →
     is_bernoulli_translation N M [1%fin] [k].
-  Proof.
+  Proof with auto.
     move=>?.
-    apply Forall2_cons =>//.
+    apply Forall2_cons...
   Qed.
 
   Lemma is_bernoulli_translation_app (N M : nat) (b_tape1 b_tape2 : list (fin 2)) (tape1 tape2 : list (fin (S M))) :
@@ -153,11 +151,9 @@ Section BernoulliTape.
     is_bernoulli_translation N M b_tape2 tape2 → 
     is_bernoulli_translation N M (b_tape1 ++ b_tape2) (tape1 ++ tape2).
   Proof.
-    move=>> Htrans1 Htrans2.
-    apply tape_to_bernoulli_translation in Htrans1.
-    apply tape_to_bernoulli_translation in Htrans2.
+    intros * ->%tape_to_bernoulli_translation ->%tape_to_bernoulli_translation.
     apply tape_to_bernoulli_translation.
-    by rewrite tape_to_bernoulli_app Htrans1 Htrans2.
+    by rewrite tape_to_bernoulli_app.
   Qed.
 
   Lemma is_bernoulli_translation_app_0 
@@ -167,10 +163,9 @@ Section BernoulliTape.
   is_bernoulli_translation N M b_tape tape →
   is_bernoulli_translation N M (b_tape ++ [0%fin]) (tape ++ [k]).
   Proof.
-    move=> H_N_le_k H_ber_trans.
-    by apply 
-          is_bernoulli_translation_app, 
-          is_bernoulli_translation_0.
+    add_hint is_bernoulli_translation_app.
+    add_hint is_bernoulli_translation_0.
+    done.
   Qed.
 
   Lemma is_bernoulli_translation_app_1 
@@ -180,10 +175,9 @@ Section BernoulliTape.
   is_bernoulli_translation N M b_tape tape →
   is_bernoulli_translation N M (b_tape ++ [1%fin]) (tape ++ [k]).
   Proof.
-    move=> H_N_le_k H_ber_trans.
-    by apply 
-          is_bernoulli_translation_app, 
-          is_bernoulli_translation_1.
+    add_hint is_bernoulli_translation_app.
+    add_hint is_bernoulli_translation_1.
+    done.
   Qed.
 
 End BernoulliTape.

@@ -14,17 +14,17 @@ From clutch.eris.lib.sampling Require Import utils.
     auto
   ].
 
-Lemma foldr_plus_app (l1 l2 : list R) (acc : R) :
+#[local] Lemma foldr_plus_app (l1 l2 : list R) (acc : R) :
   foldr Rplus acc (l1 ++ l2) = foldr Rplus 0 l1 + foldr Rplus acc l2.
 Proof.
   elim: l1 => //=.
 Qed.
 
 
-Lemma fmap_prop {A B : Type} (l : list A) (f : A → B) (P1 : A → Prop) (P2 : B → Prop) :
-  (∀ a, P1 a → P2 (f a)) →
-  (∀ a, a ∈ l → P1 a) →
-  ∀ b, b ∈ (f <$> l) → P2 b.
+#[local] Lemma fmap_prop {A B : Type} (l : list A) (f : A → B) (P₁ : A → Prop) (P₂ : B → Prop) :
+  (∀ a, P₁ a → P₂ (f a)) →
+  (∀ a, a ∈ l → P₁ a) →
+  ∀ b, b ∈ (f <$> l) → P₂ b.
 Proof.
   add_hint @elem_of_list_here.
   add_hint @elem_of_list_further.
@@ -36,17 +36,17 @@ Proof.
     apply elem_of_cons in Hin as [-> | Hin]; done.
 Qed.
 
-Lemma forall_list_eq {A : Type} (l : list A) (a : A) :
+#[local] Lemma forall_list_eq {A : Type} (l : list A) (a : A) :
   (∀ e, e ∈ l → e = a) →
   l = repeat a (length l).
 Proof.
   add_hint @elem_of_list_here.
   add_hint @elem_of_list_further.
-  elim: l => //= e l IH Hl.
+  elim: l => //= e ? IH Hl.
   rewrite (Hl e) // -IH //.
 Qed.
 
-Lemma map_seq_if_lt {A : Type} (e1 e2 : A) (N : nat):
+#[local] Lemma map_seq_if_lt {A : Type} (e1 e2 : A) (N : nat):
   (λ x, if bool_decide (x < N)%nat then e1 else e2) <$> seq 0 N = repeat e1 N.
 Proof.
   set f := (λ x : nat, if bool_decide (x < N)%nat then e1 else e2).
@@ -59,7 +59,7 @@ Proof.
   exact: forall_list_eq Heq.
 Qed.
 
-Lemma map_seq_if_ge {A : Type} (e1 e2 : A) (N L : nat):
+#[local] Lemma map_seq_if_ge {A : Type} (e1 e2 : A) (N L : nat):
   (λ x, if bool_decide (x < N)%nat then e1 else e2) <$> seq N L = repeat e2 L.
 Proof.
   set f := (λ x : nat, if bool_decide (x < N)%nat then e1 else e2).
@@ -72,7 +72,7 @@ Proof.
 Qed.
 
 
-Lemma foldr_plus_repeat (ε : R) (L : nat) :
+#[local] Lemma foldr_plus_repeat (ε : R) (L : nat) :
   foldr Rplus 0 (repeat ε L) = ε * L.
 Proof.
   elim: L =>> //.
@@ -88,7 +88,7 @@ Lemma SeriesC_case (N M : nat) (ε1 ε2 : R) :
     else ε1
   ) = (ε1 * (S M - N) + ε2 * N)%R.
 Proof.
-  move=> HNleM.
+  move=> ?.
   rewrite SeriesC_finite_foldr -foldr_fmap.
   transitivity (
     foldr Rplus 0
@@ -96,8 +96,8 @@ Proof.
   ); first reflexivity.
   rewrite list_fmap_compose fin.enum_fin_seq.
   assert (seq 0 (S M) = seq 0 N ++ seq N (S M - N)) as ->.
-  { replace (S M)%nat with (N + (S M - N))%nat at 1 by lia.
-    apply seq_app. }
+  { add_hint @seq_app. 
+    by replace (S M)%nat with (N + (S M - N))%nat at 1 by lia. }
   rewrite fmap_app foldr_plus_app Rplus_comm.
   rewrite map_seq_if_ge map_seq_if_lt.
   rewrite !foldr_plus_repeat minus_INR //.

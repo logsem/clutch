@@ -12,29 +12,11 @@ Qed.
 Lemma INR_S_not_0 (n : nat) : 
   INR (S n) ≠ 0.
 Proof.
-  Set Printing Coercions.
-  intros Heq.
-  assert (S n ≠ 0)%nat as Heq' by lia.
-  by apply Heq', INR_eq.
-  Unset Printing Coercions. 
+  move=> Heq.
+  rewrite -INR_0 in Heq.
+  by apply INR_eq in Heq.
 Qed.
 
-
-Lemma Rmult_le_1_le_r (r1 r2 : R) :
-  0 <= r1 <= 1 -> 
-  0 <= r2 ->
-  0 <= r1 * r2 <= r2.
-Proof.
-  real_solver.
-Qed.
-
-Lemma Rmult_le_1_le_l (r1 r2 : R) :
-  0 <= r1 <= 1 -> 
-  0 <= r2 ->
-  0 <= r2 * r1 <= r2.
-Proof.
-  real_solver.
-Qed.
 
 Lemma Rmult_le_1 (r1 r2 : R) :
   0 <= r1 <= 1 -> 
@@ -49,6 +31,15 @@ Lemma Rpow_le_1 (r : R) (k : nat) :
   0 <= r ^ k <= 1.
 Proof.
   elim: k => [|n IH] /=; real_solver.
+Qed. 
+
+Lemma foldr_last {A : Type} (l : list A) (x y : A) (f : A → A → A) :
+  Assoc eq f ->
+  Comm eq f ->
+  foldr f x (l ++ [y]) = f y (foldr f x l).
+Proof.
+  move => Ha Hc.
+  rewrite -!fold_symmetric // fold_left_app //=.
 Qed.
 
 Lemma Series_fin_first (n : nat) (D : fin (S n) → R) : 
@@ -57,21 +48,14 @@ Proof.
   rewrite !SeriesC_finite_foldr /= foldr_fmap //.
 Qed.
 
-Lemma foldr_last {A : Type} (l : list A) (x y : A) (f : A → A → A) :
-  (∀ x y z, f x (f y z) = f (f x y) z) →
-  (∀ x y, f x y = f y x) →
-  foldr f x (l ++ [y]) = f y (foldr f x l).
-Proof.
-  move => Ha Hc.
-  elim: l => [|h t IH] //.
-  rewrite /= IH Hc -Ha (Hc _ h) //.
-Qed.
-
 Lemma Series_fin_last (n : nat) (D : fin (S n) → R) : 
   SeriesC D = (SeriesC (λ (k : fin n), D (fin_S_inj k)) + D (@nat_to_fin n (S n) (Nat.lt_succ_diag_r n)))%R.
 Proof.
-  rewrite !SeriesC_finite_foldr -foldr_fmap enum_fin_split fmap_app /= foldr_last; try (intros; lra).
-  rewrite Rplus_comm.
-  f_equal.
-  rewrite !foldr_fmap //.
+  assert (Assoc eq Rplus ∧ Comm eq Rplus) as [??]. {
+    pose proof Rplus_assoc.
+    pose proof Rplus_comm.
+    by split=>>.
+  }
+  rewrite !SeriesC_finite_foldr -foldr_fmap enum_fin_split fmap_app /= foldr_last.
+  rewrite Rplus_comm !foldr_fmap //.
 Qed.

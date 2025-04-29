@@ -1,3 +1,7 @@
+(**
+  This file aims to give some examples of usage of the bernoulli distribution in programs and their specification
+*)
+
 From clutch.eris Require Import eris.
 From clutch.eris.lib.sampling Require Import utils.
 From clutch.eris.lib.sampling.bernoulli Require Import interface.
@@ -12,6 +16,11 @@ Section Examples.
   Context `{!erisGS Σ}.
   Context `{!bernoulli_spec bernoulli}.
 
+  (**
+    In this example, we prove that with error credit `1 - p²`, we can do 2 independant bernoulli experiments that both succeed.
+
+    To do so, we split the credit into 2 credits of value `1 - p`, used to ensure the success of the first call, and `p(1 - p)`, which can be scaled up to `1 - p`, to ensure the success of the second call
+   *)
   Example bernoulli_twice (N M : nat) (p := N / S M) :
     N ≤ S M →
     [[{ ↯ (1 - p^2) }]]
@@ -33,6 +42,10 @@ Section Examples.
     by iApply "HΦ".
   Qed.
 
+
+  (** 
+    The next 2 examples showcase how to do 2 independant bernoulli draw, with the first expecting different outcomes and the second the same outcome twice. These examples showcase the use of credit scaling, as doing a naive approach where we require credits where we need credit `max(p, (1 - p))` 
+  *)
   Example bernoulli_different (N M : nat) (p := N / S M) :
     (0 < N < S M)%nat →
     [[{ ↯ (1 - 2 * p * (1 - p)) }]]
@@ -44,9 +57,9 @@ Section Examples.
     iIntros "%Hlt %Φ Herr HΦ".
     assert (0 < p < 1) as Hp. {
       split; subst p; simpl_expr.
-    }
+    } 
     (* Not required but good to note that the error credit assumption is not impossible *)
-    assert (0 <= 1 - 2 * p * (1 - p) < 1) by nra. 
+    assert (0 <= 1 - 2 * p * (1 - p) < 1) by nra.
     assert (1 - 2 * p * (1 - p) = (1 - p)^2 + p^2) by lra.
     wp_apply (twp_bernoulli_scale _ _ _ (1 - p) p with "Herr") 
       as "%k [[-> Herr]|[-> Herr]]"; fold p =>//.
@@ -58,7 +71,7 @@ Section Examples.
         as "%v ->".
       wp_pures.
       by iApply "HΦ".
-  Qed. 
+  Qed.
 
   Example bernoulli_same (N M : nat) (p := N / S M) :
     (0 < N < S M)%nat →
@@ -74,7 +87,6 @@ Section Examples.
     }
     (* Not required but good to note that the error credit assumption is not inconsistent *)
     assert (0 <= 2 * p * (1 - p) < 1) by nra.
-
     wp_apply (twp_bernoulli_scale _ _ _ p (1 - p) with "Herr") 
       as "%k [[-> Herr]|[-> Herr]]"; fold p =>//.
     - wp_apply (bernoulli_failure_spec_simple with "Herr") 
@@ -89,13 +101,17 @@ Section Examples.
 End Examples.
 
 Section Roulette.
+  (**
+    This section defines a betting strategy where a player starts to bet that a bernoulli experiment will succeed with 1 unit, and doubles the bet everytime it fails until one succeds, leading to an almost sure gain of 1 unit (assuming infinite money to place bets)
+    
+  *)
   Context `{!erisGS Σ}.
   Context `{!bernoulli_spec bernoulli}.
   
   #[local] Opaque INR.
 
-
-  Parameter N M : nat.
+  Variables N M : nat.
+  Hypothesis H0_lt_N_lt_SM : (0 < N < S M)%nat.
 
   Definition roulette_martingale_aux : val :=
     rec: "loop" "win" "bet" :=
@@ -107,8 +123,17 @@ Section Roulette.
   Definition roulette_martingale : expr :=
     roulette_martingale_aux #0 #1.
 
+
+  (**
+    This is the main lemma, from which we derive almost sure termination with expected outcome. It works as follows:
+
+    First we proceed by error induction, as can be seen in the spline examples.
+    - For the base case, we have `1 - p` error credits, enough to ensure a success.
+    - For the inductive case, we can use error scaling to transform `(1 - p) * (S M - N) / (S M + k)` credits into `(S M - N) / (S M + k)` in the case of a failure of the experiment, which is what is needed to apply the induction hypothesis, or 0 credits in the case of a success, where the required property is ensured.
+      We just need to be sure that we have at least `(1 - p) * (S M - N) / (S M + k)` credits, which we verify.
+
+  *)
   Lemma roulette_martingale_aux_spec_aux (k : nat) (c g : Z) :
-    (0 < N < S M)%nat →
     (0 < g)%Z →
     (c < g)%Z →
     [[{↯ ((S M - N) / (S M + k))}]]
@@ -116,7 +141,7 @@ Section Roulette.
     [[{RET #(c + g); True}]].
   Proof.
     iInduction k as [|k] "IHk" forall (c g).
-    - iIntros "%H0_lt_N_lt_SM %H_g_pos %H_c_lt_g %Φ Herr HΦ".
+    - iIntros "%H_g_pos %H_c_lt_g %Φ Herr HΦ".
       rewrite /roulette_martingale /roulette_martingale_aux.
       wp_pures.
       wp_apply (bernoulli_success_spec_simple with "[Herr]") as "% ->".
@@ -126,7 +151,7 @@ Section Roulette.
         simpl_expr. }
       wp_pures.
       by iApply "HΦ".
-    - iIntros "%H0_lt_N_lt_SM %H_g_pos %H_c_lt_g %Φ Herr HΦ".
+    - iIntros "%H_g_pos %H_c_lt_g %Φ Herr HΦ".
       rewrite /roulette_martingale /roulette_martingale_aux.
       wp_pures.
       set p := (N / S M).
@@ -159,16 +184,15 @@ Section Roulette.
       + fold roulette_martingale_aux.
         wp_pures.
         rewrite plus_INR minus_INR //.
-        wp_apply ("IHk" with "[] [] [] Herr"); try (iPureIntro; done).
+        wp_apply ("IHk" with "[] [] Herr"); try (iPureIntro; done).
         rewrite -Z.add_diag Z.add_assoc Z.sub_add.
         by iApply "HΦ".
       + wp_pures.
         by iApply "HΦ".
   Qed.
-  (* Interesting to explain how it works in the report *)
 
+  (** This lemma proves almost sure termination, as in the spline examples *)
   Lemma roulette_martingale_aux_spec (ε : R) (c g : Z) :
-    (0 < N < S M)%nat →
     (0 < ε) →
     (0 < g)%Z →
     (c < g)%Z →
@@ -176,7 +200,7 @@ Section Roulette.
       roulette_martingale_aux #c #g
     [[{RET #(c + g); True}]].
   Proof.
-    iIntros "%H0_lt_N_lt_SM %H_ε_pos %H_g_pos %H_c_lt_g %Φ Herr HΦ".
+    iIntros "%H_ε_pos %H_g_pos %H_c_lt_g %Φ Herr HΦ".
     assert (exists k : nat, (S M - N) / (S M + k) <= ε ) as [k Hk].
     { assert (0 < S M - N) by rewrite -minus_INR //.
       destruct (Rle_exists_nat (S M - N) ε) as [t Ht]; first rewrite -minus_INR; simpl_expr.
@@ -195,14 +219,13 @@ Section Roulette.
   Qed.
 
   Example roulette_martingale_spec (ε : R) :
-    (0 < N < S M)%nat →
     ε > 0 →
     [[{↯ ε}]]
       roulette_martingale
     [[{RET #1; True}]].
   Proof.
-    iIntros "%H0_lt_N_lt_SM %H_ε_pos %Φ Herr HΦ".
-    by wp_apply (roulette_martingale_aux_spec with "Herr").
+    iIntros "%H_ε_pos %Φ Herr HΦ".
+    by iApply (roulette_martingale_aux_spec with "Herr").
   Qed.  
 
 End Roulette.
