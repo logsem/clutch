@@ -6,7 +6,7 @@ From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From Coq.ssr Require Import ssreflect ssrfun.
 From clutch.bi Require Import weakestpre.
-From mathcomp.analysis Require Import reals measure ereal Rstruct lebesgue_integral sequences.
+From mathcomp.analysis Require Import reals measure ereal Rstruct lebesgue_integral sequences lebesgue_integral.
 From clutch.prob.monad Require Export giry lim couplings_app.
 From clutch.prelude Require Import classical.
 Set Warnings "hiding-delimiting-key".
@@ -1095,6 +1095,57 @@ Section ARcoupl.
     (*  lim_series_le *)
   Admitted.
 
+
+  Lemma limit_exchange {d} {T : measurableType d} (f : T → \bar R) (Hflb : ∀ a : T, (0 <= f a)%E)
+    (μ : nat → giryM T) :
+    (\int[λ S : set T, limn_esup (λ n : nat, μ n S)]_x f x)%E =
+    topology.lim (topology.fmap (esups (R:=R) (λ n : nat, (\int[μ n]_x f x)%E))
+        (@topology.nbhs nat (topology.topology_set_system__canonical__topology_Filtered nat) topology.eventually)).
+  Proof.
+    (* This lemma almost works but (λ S : set T, limn_esup (λ n : nat, μ n S)) is not
+       a measure apparently so I officially no longer care.
+    rewrite ge0_integralTE.
+     *)
+
+    unfold integral.
+    (* I have to play these stupid^D^D^D^D^D^D cool pattern matching games becaue HB confuses itself
+        whenever I write out the ereal_sup term on its own. If anyone knows how to do this better please
+        tell me.
+      *)
+    have cool (x y : \bar R) : x = (0)%E -> (y - x = y)%E by (move=>->//; eapply @sube0).
+    rewrite cool; last first.
+    { (* true... by antisymmetry I guess? *)
+      admit. }
+    have esups_are_cool f1 f2 : f1 = f2 -> esups (R:=R) f1 = esups (R:=R) f2.
+    { by move=>->//. }
+
+    (* more cool stuff *)
+    eapply @etrans; last first.
+    { eapply congr_lim.
+      eapply esups_are_cool.
+      eapply functional_extensionality.
+      intro n.
+      symmetry.
+      rewrite cool; [reflexivity |].
+      (* Just copy-paste the proof above unless I can figure out how to
+         actually write its statement in fewer than 50 lines *)
+      admit.
+    }
+    clear cool esups_are_cool.
+
+    (* Simplify *)
+    have -> : (numfun.funepos (R:=R) (functions.patch (fun=> point) [set: T] [eta f]) = f).
+    { apply functional_extensionality.
+      intro x.
+      rewrite /numfun.funepos/functions.patch//=.
+      rewrite mem_set; [|done].
+      (* Search (maxe ?x _ = ?x). seriously? *)
+      admit.
+    }
+
+    (* Now the MSE argument should apply? *)
+  Admitted.
+
   Lemma lim_exec_ARcoupl {d} {B : measurableType d} (a : mstate δ) (μ2 : giryM B) φ (ε : R) (D : \bar R) :
     (0 <= EFin ε)%E →
     (0 <= D)%E →
@@ -1104,7 +1155,29 @@ Section ARcoupl.
     intros Hε HD Hn f Hfmeas Hflb Hfub g Hgmeas Hglb Hgub Hfg.
     rewrite /lim_exec.
     rewrite /limit_measure.
-    (*
+    eapply (order.Order.le_trans (y:=limn_esup(fun n => \int[exec n a]_x f x)%E));
+      last (by apply esup_ub; intros ?; apply Hn).
+    suffices -> :
+      (\int[λ S : set (mstate_ret δ), limn_esup (λ n : nat, exec n a S)]_x f x =
+       limn_esup (λ n : nat, \int[exec n a]_x f x))%E by done.
+    rewrite limn_esup_lim.
+    apply limit_exchange.
+    intro a'.
+    remember (f a') as ok. (* Surely there's a better way *)
+    destruct ok.
+    { (* It's Hflb even if mathcomp is too stupid to see it *)
+      admit. }
+    { done. }
+    { exfalso.
+      (* Whatever *)
+      admit.
+    }
+  Admitted.
+
+
+
+
+(*
     assert (∀ a', Rbar.is_finite
                    (Lim_seq.Sup_seq (λ n, Rbar.Finite (exec n a a')))) as Hfin.
     { intro a'.
@@ -1113,27 +1186,6 @@ Section ARcoupl.
         case_match; auto.
       - by apply upper_bound_ge_sup; intro; simpl. }
     *)
-    eapply (order.Order.le_trans (y:=limn_esup(fun n => \int[exec n a]_x f x)%E));
-      last (by apply esup_ub; intros ?; apply Hn).
-    suffices -> :
-      (\int[λ S : set (mstate_ret δ), limn_esup (λ n : nat, exec n a S)]_x f x =
-       limn_esup (λ n : nat, \int[exec n a]_x f x))%E by done.
-    rewrite limn_esup_lim.
-
-    (* Goal
-        topology.lim (topology.fmap
-          (esups (R:=R) (λ n : nat, (\int[exec n a]_x f x)%E))
-          (topology.nbhs topology.eventually))
-        MCT RHS:
-        topology.lim (topology.fmap
-          (λ n : nat, (\int[mu]_(x in D) g' n x)%E)
-          (topology.nbhs topology.eventually))
-     *)
-
-
-
-
-    (*  have HX := monotone_convergence _ measurableT . *)
 
     (*
     setoid_rewrite lim_distr_pmf at 1.
@@ -1166,5 +1218,4 @@ Section ARcoupl.
       intro; simpl. auto.
       by eapply Hn.
       *)
-  Admitted.
 End ARcoupl.
