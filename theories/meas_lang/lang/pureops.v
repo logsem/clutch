@@ -53,15 +53,44 @@ Proof.
   by apply: measurable_neg.
 Qed.
 Lemma neg_int_meas_fun    : measurable_fun setT neg_int.
-Proof. Admitted.
-Lemma minus_int_meas_fun  : measurable_fun setT minus_int. Admitted.
+Proof. apply: discr_meas_fun. Qed. 
+Lemma minus_int_meas_fun  : measurable_fun setT minus_int.
+Proof. apply: discr_meas_fun. Qed. 
 Lemma minus_real_meas_fun : measurable_fun setT minus_real.
 Proof.
   apply oppr_measurable.
 Qed. 
-Lemma loc_offset_meas_fun : measurable_fun setT loc_offset. Admitted.
-Lemma loc_le_meas_fun     : measurable_fun setT loc_le. Admitted.
-Lemma loc_lt_meas_fun     : measurable_fun setT loc_lt. Admitted.
+Lemma loc_offset_meas_fun : measurable_fun setT loc_offset. 
+Proof. rewrite /loc_offset/=.
+       apply: uncurry_loc_measurable.
+       intros. apply: discr_meas_fun.
+Qed.
+Lemma loc_le_meas_fun     : measurable_fun setT loc_le.
+Proof.
+  replace (loc_le) with (uncurry (λ x y, loc_car x <=? loc_car y))%Z; last first.
+  { 
+  rewrite /loc_le/=.
+  rewrite /locations.loc_le.
+  extensionality x. destruct x. simpl. symmetry.
+  apply: asbool_equiv_eqP; last done.
+  apply Z.leb_spec0.
+  }
+  apply: uncurry_loc_measurable.
+  intros. apply discr_meas_fun.
+Qed.
+Lemma loc_lt_meas_fun     : measurable_fun setT loc_lt.
+Proof.  
+  replace (loc_lt) with (uncurry (λ x y, loc_car x <? loc_car y))%Z; last first.
+  { 
+  rewrite /loc_lt/=.
+  rewrite /locations.loc_lt.
+  extensionality x. destruct x. simpl. symmetry.
+  apply: asbool_equiv_eqP; last done.
+  apply Z.ltb_spec0.
+  }
+  apply: uncurry_loc_measurable.
+  intros. apply discr_meas_fun.
+Qed.
 Lemma plus_real_meas_fun  : measurable_fun setT plus_real.
 Proof.
   rewrite /plus_real.
@@ -89,22 +118,28 @@ Proof.
   extensionality x.
   destruct x. rewrite /le_real/=.
   destroy_mathcomp.
-Admitted.
+  apply: asbool_equiv_eqP; first apply RlebP; done.
+Qed.
 Lemma lt_real_meas_fun    : measurable_fun setT lt_real.
 Proof.
   eassert (lt_real=_)%R as ->;last by apply: (measurable_fun_ltr (f:=fst) (g:=snd)).
   extensionality x.
   destruct x. rewrite /lt_real/=.
   destroy_mathcomp.
-Admitted.
+  apply: asbool_equiv_eqP; first apply RltbP; done.
+Qed.
 Lemma eq_real_meas_fun    : measurable_fun setT eq_real.
 Proof.
   eassert (eq_real=_)%R as ->;last by apply: (measurable_fun_eqr (f:=fst) (g:=snd)).
   extensionality x.
   destruct x. rewrite /eq_real/=.
-  destroy_mathcomp.
-Admitted.
-
+  destroy_mathcomp. 
+  apply: asbool_equiv_eqP; last done.
+  rewrite /eq_op/=/eqr.
+  case_match.
+  - by apply ReflectT.
+  - by apply ReflectF.
+Qed.
 Hint Resolve neg_bool_meas_fun   : mf_fun.
 Hint Resolve neg_int_meas_fun    : mf_fun.
 Hint Resolve minus_int_meas_fun  : mf_fun.

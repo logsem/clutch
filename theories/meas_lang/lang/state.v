@@ -99,7 +99,7 @@ Section hp_measure.
   Lemma uncurry_loc_measurable {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
           (f : <<discr loc>> -> T1 -> T2) (Hf : forall i, measurable_fun setT (f i)) :
         measurable_fun setT (uncurry f).
-   Proof using T d.
+   Proof.
     intros _ Y HY.
     have -> : ((uncurry f) @^-1` Y) = \bigcup_i ((setX [set loc_enum i] ((f $ loc_enum i) @^-1` Y)) : set (<<discr loc>> * _)%type).
     { rewrite /uncurry/preimage/setX//=.
