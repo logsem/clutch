@@ -369,3 +369,37 @@ Section Mcoupl.
   Qed.
 
 End Mcoupl.
+
+Lemma Mcoupl_eq_trans_l `{Countable A, Countable B} μ1 μ2 μ3 (R: A → B → Prop) ε1 ε2 :
+  (0 <= ε1) ->
+  (0 <= ε2) ->
+  Mcoupl μ1 μ2 (=) ε1 ->
+  Mcoupl μ2 μ3 R ε2 ->
+  Mcoupl μ1 μ3 R (ε1 + ε2).
+Proof.
+  intros Hleq1 Hleq2 Heq HR f g Hf Hg Hfg.
+  specialize (HR f g Hf Hg Hfg).
+  eapply Rle_trans; [apply Heq | ]; auto.
+  - intros ? ? ->; lra.
+  - rewrite exp_plus Rmult_assoc.
+    apply Rmult_le_compat => //.
+    1: etrans. 2: by apply exp_pos_ge_1.
+    2: apply SeriesC_ge_0'. all: real_solver.
+Qed.
+
+Lemma Mcoupl_eq_trans_r `{Countable A, Countable B} μ1 μ2 μ3 (R: A → B → Prop) ε1 ε2 :
+  (0 <= ε1) ->
+  (0 <= ε2) ->
+  Mcoupl μ1 μ2 R ε1 ->
+  Mcoupl μ2 μ3 (=) ε2 ->
+  Mcoupl μ1 μ3 R (ε1 + ε2).
+Proof.
+  intros Hleq1 Hleq2 HR Heq f g Hf Hg Hfg.
+  specialize (HR f g Hf Hg Hfg).
+  eapply Rle_trans ; eauto.
+  rewrite exp_plus Rmult_assoc.
+  apply Rmult_le_compat_l.
+  1: etrans ; [| apply exp_pos_ge_1]. 1: lra. 1: lra.
+  apply Heq; eauto.
+  intros; simplify_eq; lra.
+Qed.

@@ -49,6 +49,8 @@ Inductive expr :=
   (* Probabilistic choice *)
   | AllocTape (e : expr)
   | Rand (e1 e2 : expr)
+  (* Sample from discrete Laplace distribution, with scale e1/e2, located at e3 *)
+  | Laplace (e1 : expr) (e2 : expr) (e3 : expr)
   (* No-op operator used for cost *)
   | Tick (e : expr)
 with val :=
@@ -185,6 +187,7 @@ Proof.
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | AllocTape e, AllocTape e' => cast_if (decide (e = e'))
      | Rand e1 e2, Rand e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
+     | Laplace e1 e2 e3, Laplace e1' e2' e3' => cast_if_and3 (decide (e1 = e1')) (decide (e2 = e2')) (decide (e3 = e3'))
      | Tick e, Tick e' => cast_if (decide (e = e'))
      | _, _ => right _
      end
@@ -262,7 +265,8 @@ Proof.
      | Store e1 e2 => GenNode 14 [go e1; go e2]
      | AllocTape e => GenNode 15 [go e]
      | Rand e1 e2 => GenNode 16 [go e1; go e2]
-     | Tick e => GenNode 17 [go e]
+     | Laplace e1 e2 e3 => GenNode 17 [go e1; go e2; go e3]
+     | Tick e => GenNode 18 [go e]
      end
    with gov v :=
      match v with
@@ -295,7 +299,8 @@ Proof.
      | GenNode 14 [e1; e2] => Store (go e1) (go e2)
      | GenNode 15 [e] => AllocTape (go e)
      | GenNode 16 [e1; e2] => Rand (go e1) (go e2)
-     | GenNode 17 [e] => Tick (go e)
+     | GenNode 17 [e1; e2; e3] => Laplace (go e1) (go e2) (go e3)
+     | GenNode 18 [e] => Tick (go e)
      | _ => Val $ LitV LitUnit (* dummy *)
      end
    with gov v :=
@@ -310,7 +315,7 @@ Proof.
    for go).
  refine (inj_countable' enc dec _).
  refine (fix go (e : expr) {struct e} := _ with gov (v : val) {struct v} := _ for go).
- - destruct e as [v| | | | | | | | | | | | | | | | | | ]; simpl; f_equal;
+ - destruct e as [v| | | | | | | | | | | | | | | | | | | ]; simpl; f_equal;
      [exact (gov v)|done..].
  - destruct v; by f_equal.
 Qed.
@@ -354,6 +359,9 @@ Inductive ectx_item :=
   | AllocTapeCtx
   | RandLCtx (v2 : val)
   | RandRCtx (e1 : expr)
+  | LaplaceNumCtx (v2 : val) (v3 : val)
+  | LaplaceDenCtx (e1 : expr) (v3 : val)
+  | LaplaceLocCtx (e1 : expr) (e2 : expr)
   | TickCtx.
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
@@ -379,6 +387,9 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | AllocTapeCtx => AllocTape e
   | RandLCtx v2 => Rand e (Val v2)
   | RandRCtx e1 => Rand e1 e
+  | LaplaceNumCtx v2 v3 => Laplace e (Val v2) (Val v3)
+  | LaplaceDenCtx e1 v3 => Laplace e1 e (Val v3)
+  | LaplaceLocCtx e1 e2 => Laplace e1 e2 e
   | TickCtx => Tick e
   end.
 
@@ -426,6 +437,15 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
       | Val v      => noval e1 (RandLCtx v)
       | _          => Some (RandRCtx e1, e2)
       end
+  | Laplace e1 e2 e3 =>
+      match e3 with
+      | Val v3 =>
+          match e2 with
+          | Val v2 => noval e1 (LaplaceNumCtx v2 v3)
+          | _ => Some (LaplaceDenCtx e1 v3, e2)
+          end
+      | _ => Some (LaplaceLocCtx e1 e2, e3)
+      end
   | Tick e         => noval e TickCtx
   | _              => None
   end.
@@ -452,6 +472,7 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | Store e1 e2 => Store (subst x v e1) (subst x v e2)
   | AllocTape e => AllocTape (subst x v e)
   | Rand e1 e2 => Rand (subst x v e1) (subst x v e2)
+  | Laplace e1 e2 e3 => Laplace (subst x v e1) (subst x v e2) (subst x v e3)
   | Tick e => Tick (subst x v e)
   end.
 
@@ -726,6 +747,12 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
             dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N))
       | None => dzero
       end
+  | Laplace (Val (LitV (LitInt num))) (Val (LitV (LitInt den))) (Val (LitV (LitInt loc))) =>
+      dmap (λ z : Z, (Val $ LitV $ LitInt z, σ1))
+        (match decide (0 < IZR num / IZR den) with
+         | left εpos => laplace_rat num den loc εpos
+         | right _ => dzero
+         end)
   | Tick (Val (LitV (LitInt n))) => dret (Val $ LitV $ LitUnit, σ1)
   | _ => dzero
   end.
@@ -811,7 +838,7 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   σ.(heap) !! l = Some v →
   head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
     (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
-| RandNoTapeS z N (n : fin (S N)) σ:
+| RandNoTapeS z N (n : fin (S N)) σ :
   N = Z.to_nat z →
   head_step_rel (Rand (Val $ LitV $ LitInt z) (Val $ LitV LitUnit)) σ (Val $ LitV $ LitInt n) σ
 | AllocTapeS z N σ l :
@@ -833,6 +860,11 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   σ.(tapes) !! l = Some ((M; ms) : tape) →
   N ≠ M →
   head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
+
+| LaplaceS num den loc (z : Z) σ :
+  (0 < IZR num / IZR den) →
+  head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt loc)) σ (Val $ LitV $ LitInt z) σ
+
 | TickS σ z :
   head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ.
 
@@ -872,8 +904,8 @@ Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
   head_step e1 σ1 (e2, σ2) > 0 ↔ head_step_rel e1 σ1 e2 σ2.
 Proof.
   split.
-  - intros ?. destruct e1; inv_head_step; eauto with head_step.
-  - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr; done.
+  - intros ?. destruct e1; inv_head_step ; eauto with head_step.
+  - inversion 1; simplify_map_eq/= ; try case_bool_decide ; try case_decide ; simplify_eq; solve_distr; try done.
 Qed.
 
 Lemma state_step_support_equiv_rel σ1 α σ2 :
@@ -932,7 +964,8 @@ Lemma head_step_mass e σ :
 Proof.
   intros [[] Hs%head_step_support_equiv_rel].
   inversion Hs;
-    repeat (simplify_map_eq/=; solve_distr_mass || case_match; try (case_bool_decide; done)).
+    repeat (simplify_map_eq/=; solve_distr_mass || (case_match ; try done) ;
+            try (case_bool_decide; done)).
 Qed.
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
@@ -960,6 +993,7 @@ Fixpoint height (e : expr) : nat :=
   | Store e1 e2 => 1 + height e1 + height e2
   | AllocTape e => 1 + height e
   | Rand e1 e2 => 1 + height e1 + height e2
+  | Laplace e1 e2 e3 => 1 + height e1 + height e2 + height e3
   | Tick e => 1 + height e
   end.
 

@@ -269,6 +269,44 @@ Section erasure_helpers.
     apply IH; auto.
   Qed.
 
+  Local Lemma ind_case_laplace σ α K (M N : nat) z ns (num den loc : Z) :
+
+    N = Z.to_nat z →
+    tapes σ !! α = Some (M; ns) →
+
+  Rcoupl
+    (dmap (fill_lift K) (head_step (Laplace #num #den #loc) σ) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))
+    (dunifP M ≫=
+     λ n : fin (S M),
+       dmap (fill_lift K)
+         (head_step (Laplace #num #den #loc)
+               (state_upd_tapes <[α:=(M; ns ++ [n]) : tape]> σ))
+          ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))
+    eq.
+  Proof using m IH.
+    intros Hz Hα.
+    rewrite /head_step.
+    rewrite {1 2}/dmap.
+    erewrite (dbind_ext_right (dunifP M)); last first.
+    { intro.
+      rewrite {1 2}/dmap.
+      do 2 rewrite -dbind_assoc //. }
+    rewrite -/exec /=.
+    rewrite -!dbind_assoc -/exec.
+    erewrite (dbind_ext_right (dunifP M)); last first.
+    { intros n. rewrite -!dbind_assoc. done. }
+    rewrite dbind_comm.
+    eapply Rcoupl_dbind; [|apply Rcoupl_eq].
+    intros; simplify_eq.
+    do 2 rewrite dret_id_left.
+    erewrite (distr_ext (dunifP M ≫=_ )); last first.
+    { intros. apply dbind_pmf_ext; [|done..].
+      intros. rewrite !dret_id_left; done.
+    }
+    rewrite -dmap_dbind.
+    apply IH; auto.
+  Qed.
+
 End erasure_helpers.
 
 
@@ -323,6 +361,7 @@ Proof.
         -- by eapply ind_case_rand_empty.
         -- by eapply ind_case_rand_some_neq.
         -- by eapply ind_case_rand.
+        -- by eapply ind_case_laplace. Unshelve. exact 0%Z.
       * by eapply ind_case_dzero.
 Qed.
 
