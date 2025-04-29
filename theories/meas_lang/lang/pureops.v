@@ -48,19 +48,62 @@ Definition eq_real : (RR * RR)%type -> <<discr bool>> := asbool \o uncurry eq.
    The discrete ones should follow from generalized uncurry lemmas (since they're discr + countable)
    Search measurable_fun realType "lt". *)
 
-Lemma neg_bool_meas_fun   : measurable_fun setT neg_bool. Admitted.
-Lemma neg_int_meas_fun    : measurable_fun setT neg_int. Admitted.
+Lemma neg_bool_meas_fun   : measurable_fun setT neg_bool.
+Proof.
+  by apply: measurable_neg.
+Qed.
+Lemma neg_int_meas_fun    : measurable_fun setT neg_int.
+Proof. Admitted.
 Lemma minus_int_meas_fun  : measurable_fun setT minus_int. Admitted.
-Lemma minus_real_meas_fun : measurable_fun setT minus_real. Admitted.
+Lemma minus_real_meas_fun : measurable_fun setT minus_real.
+Proof.
+  apply oppr_measurable.
+Qed. 
 Lemma loc_offset_meas_fun : measurable_fun setT loc_offset. Admitted.
 Lemma loc_le_meas_fun     : measurable_fun setT loc_le. Admitted.
 Lemma loc_lt_meas_fun     : measurable_fun setT loc_lt. Admitted.
-Lemma plus_real_meas_fun  : measurable_fun setT plus_real. Admitted.
-Lemma sub_real_meas_fun   : measurable_fun setT sub_real. Admitted.
-Lemma mul_real_meas_fun   : measurable_fun setT mul_real. Admitted.
-Lemma le_real_meas_fun    : measurable_fun setT le_real. Admitted.
-Lemma lt_real_meas_fun    : measurable_fun setT lt_real. Admitted.
-Lemma eq_real_meas_fun    : measurable_fun setT eq_real. Admitted.
+Lemma plus_real_meas_fun  : measurable_fun setT plus_real.
+Proof.
+  rewrite /plus_real.
+  assert (uncurry Rplus=GRing.add_fun fst snd)%R as ->; last by apply: measurable_funD.
+  extensionality x.
+  by destruct x.
+Qed. 
+Lemma sub_real_meas_fun   : measurable_fun setT sub_real.
+Proof.
+  rewrite /sub_real.
+  assert (uncurry Rminus=GRing.sub_fun fst snd)%R as ->; last by apply: measurable_funB.
+  extensionality x.
+  by destruct x.
+Qed. 
+Lemma mul_real_meas_fun   : measurable_fun setT mul_real.
+Proof. 
+  rewrite /mul_real.
+  assert (uncurry Rmult=GRing.mul_fun fst snd)%R as ->; last by apply: measurable_funM.
+  extensionality x.
+  by destruct x.
+Qed. 
+Lemma le_real_meas_fun    : measurable_fun setT le_real.
+Proof.
+  eassert (le_real=_)%R as ->;last by apply: (measurable_fun_ler (f:=fst) (g:=snd)).
+  extensionality x.
+  destruct x. rewrite /le_real/=.
+  destroy_mathcomp.
+Admitted.
+Lemma lt_real_meas_fun    : measurable_fun setT lt_real.
+Proof.
+  eassert (lt_real=_)%R as ->;last by apply: (measurable_fun_ltr (f:=fst) (g:=snd)).
+  extensionality x.
+  destruct x. rewrite /lt_real/=.
+  destroy_mathcomp.
+Admitted.
+Lemma eq_real_meas_fun    : measurable_fun setT eq_real.
+Proof.
+  eassert (eq_real=_)%R as ->;last by apply: (measurable_fun_eqr (f:=fst) (g:=snd)).
+  extensionality x.
+  destruct x. rewrite /eq_real/=.
+  destroy_mathcomp.
+Admitted.
 
 Hint Resolve neg_bool_meas_fun   : mf_fun.
 Hint Resolve neg_int_meas_fun    : mf_fun.
