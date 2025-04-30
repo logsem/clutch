@@ -1138,8 +1138,9 @@ Section ARcoupl.
     { apply functional_extensionality.
       intro x.
       rewrite /numfun.funepos/functions.patch//=.
-      rewrite mem_set; [|done].
-      (* Search (maxe ?x _ = ?x). seriously? *)
+      rewrite mem_set; [|done]. rewrite /maxe.
+      specialize (Hflb x).
+      (* Mathcomp reflection nightmare *)
       admit.
     }
 
@@ -1165,14 +1166,14 @@ Section ARcoupl.
     intro a'.
     remember (f a') as ok. (* Surely there's a better way *)
     destruct ok.
-    { (* It's Hflb even if mathcomp is too stupid to see it *)
-      admit. }
+    { rewrite Heqok. apply Hflb. }
     { done. }
     { exfalso.
-      (* Whatever *)
-      admit.
+      specialize (Hflb a').
+      by rewrite -Heqok in Hflb. 
     }
-  Admitted.
+  Qed. 
+  
 
 
 
