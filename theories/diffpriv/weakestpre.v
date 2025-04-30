@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.common Require Export language erasable.
 From clutch.base_logic Require Export spec_update.
-From clutch.prob Require Import couplings_exp.
+From clutch.prob Require Export couplings_exp distribution.
 
 Import uPred.
 

@@ -2441,7 +2441,7 @@ Section laplace.
   Program Definition laplace' ε : distr (Z) :=
     MkDistr (λ z, laplace_f ε z / SeriesC (λ z, laplace_f ε z)) _ _ _.
   Next Obligation.
-    intros. rewrite /laplace_f.
+    intros.
     apply Rdiv_le_0_compat.
     - left. apply exp_pos.
     - eapply Rlt_le_trans; last eapply (SeriesC_ge_elem _ 0%Z).
@@ -2516,16 +2516,10 @@ Section laplace.
       intros. repeat case_bool_decide; try lia; done.
   Qed.
 
-
   Lemma laplace_mass ε loc :
     SeriesC (laplace ε loc) = 1.
   Proof.
     rewrite /laplace/pmf/laplace'.
-    opose proof (SeriesC_le_inj (laplace_f ε) (λ z, Some (z - loc))%Z _ _ _) as lb.
-    { intros. rewrite /laplace_f/laplace_f_nat. left. apply exp_pos. }
-    { clear. intros ??? h h'. inversion h ; inversion h'. lia. }
-    { apply ex_seriesC_laplace_f. }
-    simpl in lb.
     rewrite SeriesC_scal_r.
     cut (SeriesC (λ z0 : Z, laplace_f ε (z0 - loc)) = SeriesC (λ z1 : Z, laplace_f ε z1)).
     { intros ->. apply Rdiv_diag.
@@ -2538,82 +2532,11 @@ Section laplace.
          ++ rewrite dzero_0. done.
          ++ rewrite dzero_0. left. apply exp_pos.
       -- simpl. exists 0%Z. rewrite dzero_0. apply exp_pos.
-      --  done.
+      -- done.
     }
-
-    opose proof (SeriesC_le_inj (λ z, laplace_f ε (z - loc)) (λ z, Some (z + loc))%Z _ _ _) as ub.
-    4: { simpl in ub. setoid_rewrite Z.add_simpl_r in ub.
-         apply Rle_antisym => //. }
+    apply SeriesC_translate.
     { intros. rewrite /laplace_f/laplace_f_nat. left. apply exp_pos. }
-    { intros ??? h h'. inversion h ; inversion h'. lia. }
-
-    {
-      clear.
-
-      pose (h:=(λ '(n,z), if Z.to_nat (Z.abs (z-loc)%Z) =? n then laplace_f_nat ε n else 0)).
-      apply (ex_seriesC_ext (λ z, SeriesC (λ n, h (n,z)))).
-      { rewrite /h.
-        intros z.
-        erewrite SeriesC_ext. 1: erewrite (SeriesC_singleton_dependent (Z.to_nat (Z.abs (z-loc))) (laplace_f_nat ε)). 1: done.
-        simpl.
-        intros n.
-        case_match eqn:H.
-        - apply Nat.eqb_eq in H. subst. by rewrite bool_decide_eq_true_2.
-        - apply Nat.eqb_neq in H. by rewrite bool_decide_eq_false_2.
-      }
-      apply fubini_pos_seriesC_ex_double.
-      - rewrite /h. intros. case_match; last done.
-        rewrite /laplace_f_nat. left. apply exp_pos.
-      - rewrite /h.
-        intros n.
-        destruct n.
-        + eapply ex_seriesC_ext ; last apply (ex_seriesC_singleton loc).
-          simpl.
-          intros z.
-          case_bool_decide; subst; simpl; first done.
-          case_match eqn :H'; last done.
-          apply Nat.eqb_eq in H'. lia.
-        + apply (ex_seriesC_ext (λ b, if bool_decide (b∈ [Z.of_nat (S n) + loc; (- (Z.of_nat (S n)) + loc)]%Z) then laplace_f_nat ε (S n) else 0)); last apply ex_seriesC_list.
-          intros. case_bool_decide as H.
-          * set_unfold. destruct H as [| [|[]]]; subst; simpl.
-            -- by rewrite -Zabs2Nat.abs_nat_spec Z.add_simpl_r Zabs2Nat.id/=Nat.eqb_refl.
-            -- by rewrite Z.add_simpl_r Z.abs_opp -Zabs2Nat.abs_nat_spec Zabs2Nat.id/=Nat.eqb_refl.
-          * case_match eqn:H'; last done.
-            exfalso. apply H.
-            apply Nat.eqb_eq in H'.
-            set_unfold. lia.
-      - rewrite /h.
-        apply (ex_seriesC_ext
-                 (λ n : nat,
-                    if bool_decide (n=0)%nat
-                    then laplace_f_nat ε 0 else 2 * laplace_f_nat ε n)).
-        + intros.
-          case_bool_decide as H1.
-          * erewrite SeriesC_ext; first (erewrite (SeriesC_singleton loc); first done).
-            intros z. simpl. subst.
-            case_bool_decide; subst; simpl.
-            -- replace (Z.abs (loc-loc)) with 0%Z by lia. done.
-            -- case_match eqn :H'; last done.
-               apply Nat.eqb_eq in H'. lia.
-          * erewrite (SeriesC_ext _ (λ b, if bool_decide (b ∈ [Z.of_nat n+loc; -(Z.of_nat n - loc)]%Z) then laplace_f_nat ε (n) else 0)) ; last first.
-            -- intros. case_bool_decide as H.
-               ++ set_unfold. destruct H as [| [|[]]]; subst; simpl.
-                  ** replace (Z.of_nat n+loc-loc)%Z with (Z.of_nat n) by lia => /=.
-                     by rewrite -Zabs2Nat.abs_nat_spec Zabs2Nat.id/=Nat.eqb_refl.
-                  ** replace (-(Z.of_nat n-loc)-loc)%Z with (- Z.of_nat n)%Z by lia.
-                     by rewrite Z.abs_opp -Zabs2Nat.abs_nat_spec Zabs2Nat.id/=Nat.eqb_refl.
-               ++ case_match eqn:H'; last done.
-                  exfalso. apply H.
-                  apply Nat.eqb_eq in H'.
-                  set_unfold. lia.
-            -- rewrite SeriesC_list /=.
-               ++ lra.
-               ++ assert (Z.of_nat n + loc ≠ - (Z.of_nat n - loc))%Z by lia.
-                  repeat constructor; set_solver.
-        + apply (ex_seriesC_le _ (λ n, 2*laplace_f_nat ε n)).
-          * intros n. pose proof laplace_f_nat_pos ε n. case_bool_decide; split; subst; lra.
-          * apply ex_seriesC_scal_l, ex_seriesC_laplace_f_nat.
-    }
+    apply ex_seriesC_laplace_f.
   Qed.
 
   Definition laplace_rat (num den loc : Z) (εpos : (0 < IZR num / IZR den)%R) : distr Z

@@ -14,10 +14,10 @@ Section couplings.
 
   (* The M stands for multiplicative *)
   Definition Mcoupl (ε : R) :=
-    forall (f: A → R) (g: B -> R),
-      (forall a, 0 <= f a <= 1) ->
-      (forall b, 0 <= g b <= 1) ->
-      (forall a b, S a b -> f a <= g b) ->
+    ∀ (f : A → R) (g : B -> R)
+      (Hf : ∀ a, 0 <= f a <= 1)
+      (Hg : ∀ b, 0 <= g b <= 1)
+      (Hfg : ∀ a b, S a b -> f a <= g b),
       SeriesC (λ a, μ1 a * f a) <= exp(ε) * SeriesC (λ b, μ2 b * g b).
 
 End couplings.
