@@ -301,11 +301,17 @@ Proof.
   }
 Qed.
 
-(* TODO: Make sure this is the right theorem first *)
 Lemma un_op_eval_eq (op : <<discr un_op>>) (v : val) : un_op_eval op v = un_op_eval' (op, v).
 Proof.
   rewrite /un_op_eval/un_op_eval'.
-Admitted.
+  repeat apply if_in_split; try (intros [?[[][]]]; simpl in *; subst; simpl in *; by subst).
+  simpl. intros H1 H2 H3 H4.
+  repeat case_match; try done; exfalso; subst.
+  - apply H3. rewrite /un_op_eval'_cov_neg_int. naive_solver.
+  - apply H4. rewrite /un_op_eval'_cov_neg_bool. naive_solver.
+  - apply H2. rewrite /un_op_eval'_cov_minus_int. naive_solver.
+  - apply H1. rewrite /un_op_eval'_cov_minus_real. naive_solver.
+Qed. 
 
 Definition un_op_eval''_ok : set (<<discr un_op>> * val * state)%type :=
   (un_op_eval'_cov_neg_bool `|` un_op_eval'_cov_neg_int `|` un_op_eval'_cov_minus_int `|` un_op_eval'_cov_minus_real) `*` setT.
@@ -335,7 +341,6 @@ Definition un_op_eval'' : (<<discr un_op>> * val * state)%type -> giryM cfg :=
   if_in un_op_eval''_ok (gRet \o (ValU \o of_option un_op_eval' \o fst △ snd)) (cst gZero).
 
 
-(* Not sure, should completely rewrite this proof from sketch *)
 Lemma un_op_eval''_meas_fun : measurable_fun setT un_op_eval''.
 Proof.
   rewrite /un_op_eval''.
@@ -350,16 +355,49 @@ Proof.
     + apply ValU_meas_fun.
     + done.
     + done.
-  - Set Printing Notations.
-    intros ?; simpl.
-    intros [[[]][[[[[|]|]|]]]]; simpl in *; subst; rewrite /option_cov_Some/=/un_op_eval'.
+  - intros ?; simpl.
+    intros [[[]][[[[[H|H]|H]|H]]]]; simpl in *; subst; rewrite /option_cov_Some/=/un_op_eval'.
     + eexists _. by rewrite ifIn_eq_left.
-    + admit.
-    + admit.
-    + admit.
-  - admit.
-Admitted.
-
+    + eexists _. rewrite ifIn_eq_right; first by rewrite ifIn_eq_left.
+      intros H'. destruct H as [?[[][]]]. destruct H' as [?[[][]]].
+       repeat (subst; simpl in * ). simplify_eq.
+    + eexists _. rewrite ifIn_eq_right; first rewrite ifIn_eq_right; first by rewrite ifIn_eq_left.
+      all: intros H'; destruct H as [?[[][]]]; destruct H' as [?[[][]]];
+        repeat (subst; simpl in * ); simplify_eq.
+    + eexists _. rewrite ifIn_eq_right;
+        first rewrite ifIn_eq_right; first rewrite ifIn_eq_right; first by rewrite ifIn_eq_left.
+      all: intros H'; destruct H as [?[[][]]]; destruct H' as [?[[][]]];
+        repeat (subst; simpl in * ); simplify_eq.
+  - simpl. 
+    rewrite /un_op_eval'.
+    replace (preimage _ _) with (setU un_op_eval'_cov_neg_bool
+                                   (setU un_op_eval'_cov_neg_int
+                                         (setU un_op_eval'_cov_minus_int un_op_eval'_cov_minus_real)
+                                )).
+    { repeat apply: measurableU; ms_solve. }
+    rewrite eqEsubset. split; intros []; simpl.
+    + intros [H'|[H'|[H'|H']]].
+      * rewrite ifIn_eq_left; last done.
+        destruct H' as [?[[][]]]; repeat (subst; simpl in * ).
+        rewrite /option_cov_Some/=. naive_solver.
+      * rewrite ifIn_eq_right; first rewrite ifIn_eq_left; try done;
+          destruct H' as [?[[][]]]; repeat (subst; simpl in * ).
+        -- rewrite /option_cov_Some/=. naive_solver.
+        -- intros [?[[][]]]; repeat (subst; simpl in * ). simplify_eq.
+      * rewrite ifIn_eq_right; first rewrite ifIn_eq_right; first rewrite ifIn_eq_left; try done;
+          destruct H' as [?[[][]]]; repeat (subst; simpl in * ).
+        -- rewrite /option_cov_Some; naive_solver.
+        -- intros [?[[][]]]; repeat (subst; simpl in * ). simplify_eq.
+        -- intros [?[[][]]]; repeat (subst; simpl in * ). simplify_eq.
+      * rewrite ifIn_eq_right; first rewrite ifIn_eq_right; first rewrite ifIn_eq_right; first rewrite ifIn_eq_left; try done;
+          destruct H' as [?[[][]]]; repeat (subst; simpl in * ).
+        -- rewrite /option_cov_Some; naive_solver.
+        -- intros [?[[][]]]; repeat (subst; simpl in * ). simplify_eq.
+        -- intros [?[[][]]]; repeat (subst; simpl in * ). simplify_eq.
+        -- intros [?[[][]]]; repeat (subst; simpl in * ). simplify_eq.
+    + rewrite /option_cov_Some/=. elim. intros x.
+      repeat apply if_in_split; try done; intros; naive_solver.
+Qed. 
 Hint Resolve un_op_eval''_meas_fun : mf_fun.
 
 (* Only one version of bin_op_eval_int because its uncurry is measurable *)
