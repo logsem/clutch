@@ -40,25 +40,150 @@ Section NegativeBinomialProbability.
     lra.
   Qed.
 
-  Lemma negative_binom_prob_is_distr :
-    ∀ (p q r : nat),
-    p ≤ q + 1 →
-    SeriesC (negative_binom_prob p q r) = 1.
-  Admitted.
-  
-  Lemma ex_seriesC_negative_binom_prob :
-    ∀ (p q r : nat),
-    p ≤ q + 1 →
-    ex_seriesC (negative_binom_prob p q r).
+    Lemma prod_sub_n_opp_nat :
+    ∀ (k n : nat), (0 < n) → prod_sub_n k (-n) = (fact (n + k - 1) / fact (n - 1) * (-1)^k)%R.
   Proof.
-    unfold ex_seriesC.
-    unfold is_seriesC.
-    intros p q r Hpq.
-    exists 1%R.
-    apply Series.is_series_Reals.
-    unfold infinite_sum.
-    intros ε Hε.
-  Admitted.
+    elim=>[|k IH] n sum_lt.
+    { simpl.
+      rewrite Nat.add_0_r Rmult_1_r.
+      pose proof (INR_fact_lt_0 (n - 1)).
+      rewrite Rdiv_diag; lra.
+    }
+    rewrite prod_sub_n_last IH //=
+            Rminus_def -Ropp_plus_distr
+            -(Nat.add_sub_assoc n (S k) 1) /=; last lia.
+    rewrite Nat.sub_0_r.
+    replace (fact (n + k) : R) with (fact (n + k - 1) * (n + k))%R; last first.
+    { destruct n; first lia.
+      rewrite S_INR fact_R plus_INR.
+      fold Nat.add.
+      rewrite /= Nat.sub_0_r.
+      lra.
+    }
+    lra.
+  Qed.
+    
+  Lemma prod_sub_n_choose : ∀ (k n : nat), (0 < n)%nat → (prod_sub_n k (-n) / fact k = interface.choose (k + n - 1) k * (-1)^k)%R.
+  Proof.
+    move=>k n n_pos.
+    rewrite prod_sub_n_opp_nat //.
+    unfold interface.choose.
+    case_bool_decide; last lia.
+    unfold C.
+    replace (k + n - 1 - k) with (n - 1) by lia.
+    rewrite (Nat.add_comm n k) -Rmult_div_assoc !Rmult_assoc.
+    f_equal.
+    rewrite Rinv_mult.
+    lra.
+  Qed.
+
+  Lemma is_seriesC_negative_choose_0 :
+    ∀ (q : R),
+    is_seriesC (λ k, interface.choose (k - 1) k * q ^ k)%R 1%R.
+  Proof.
+    move=> q.
+    eapply is_seriesC_ext.
+    { instantiate (1 := (λ (k : nat), if bool_decide (k = 0) then 1%R else 0%R)).
+      move=>i /=.
+      case_bool_decide as is_i_0.
+      { rewrite is_i_0 interface.choose_n_0 Rmult_1_r //. }
+      { unfold interface.choose.
+        case_bool_decide; first lia.
+        rewrite Rmult_0_l //.
+      }
+    }
+    apply is_seriesC_singleton.
+  Qed.
+
+  Lemma is_seriesC_negative_choose_pos :
+    ∀ (r : nat) (q : R),
+    (0 < r)%nat →
+    (Rabs q < 1)%R →
+    is_seriesC (λ k, interface.choose (k + r - 1) k * q ^ k)%R (/ ((1 - q)^r))%R.
+  Proof.
+    move=>r q r_pos q_bounds.
+    unfold negative_binom_prob.
+    
+    assert (0 < (1 - q))%R.
+    {
+      apply Rabs_def2 in q_bounds.
+      lra.
+    }
+    rewrite -gpow_pow; last lra.
+    rewrite -gpow_opp.
+    rewrite Rminus_def (Rplus_comm 1 (-q)).
+    fold (spow (-r) (- q)).
+    eapply is_seriesC_ext; last apply is_seriesC_is_series_nat, is_series_spow; last rewrite Rabs_Ropp //.
+    move=>k /=.
+    rewrite Rmult_assoc (Rmult_comm (/ fact k)) -Rdiv_def prod_sub_n_choose //
+            -{2}(Rmult_1_l q) Ropp_mult_distr_l Rpow_mult_distr.
+    repeat rewrite (Rmult_comm ((-1)^k)) Rmult_assoc.
+    rewrite -Rpow_mult_distr -Ropp_mult_distr_l -Ropp_mult_distr_r
+            Ropp_involutive Rmult_1_l pow1 Rmult_1_r Rmult_comm //.
+  Qed.
+ 
+ Lemma is_seriesC_negative_choose :
+    ∀ (r : nat) (q : R),
+    (Rabs q < 1)%R →
+    is_seriesC (λ k, interface.choose (k + r - 1) k * q ^ k)%R (/ ((1 - q)^r))%R.
+  Proof.
+    move=>r q q_bounds.
+    destruct (Nat.lt_dec 0 r); first by apply is_seriesC_negative_choose_pos.
+    replace r with 0 by lia.
+    rewrite Rinv_1.
+    eapply is_seriesC_ext; last apply is_seriesC_negative_choose_0.
+    move=>i /=.
+    rewrite Nat.add_0_r //.
+  Qed.
+ 
+  Lemma is_seriesC_negative_binomial :
+    ∀ (p q r : nat),
+    (0 < p ≤ q + 1)%nat →
+    is_seriesC (negative_binom_prob p q r) 1%R.
+  Proof.
+    move=>p q r r_pos p_bounds.
+    unfold negative_binom_prob.
+    set (s := (p / (q + 1))%R).
+    set (t := (1 - s)%R).
+    eapply is_seriesC_ext.
+    { move=>k.
+      rewrite Rmult_assoc (Rmult_comm (s ^ r)%R) -Rmult_assoc //.
+    }
+
+    assert (0 < s <= 1)%R.
+    {
+      assert (0 < q + 1)%R as q1_pos.
+      {
+        rewrite -INR_1 -plus_INR.
+        apply lt_0_INR.
+        lia.
+      }
+      assert (0 < p)%R.
+      {
+        apply lt_0_INR.
+        lia.
+      }
+      unfold s.
+      split.
+      - apply Rcomplements.Rdiv_lt_0_compat;
+          lra.
+      - rewrite -Rcomplements.Rdiv_le_1 // -INR_1 -plus_INR.
+        apply le_INR.
+        lia.
+    }
+    
+    replace 1%R with (s ^ r * / s ^ r)%R; last first.
+    {
+      apply Rdiv_diag, pow_nonzero.
+      lra.
+    }
+    rewrite Rmult_comm.
+    apply is_seriesC_scal_r.
+    replace s with (1 - t)%R by (unfold t; lra).
+    apply is_seriesC_negative_choose.
+    unfold t;
+    apply Rabs_def1; lra.
+  Qed.
 
 End NegativeBinomialProbability.
 
