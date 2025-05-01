@@ -849,7 +849,12 @@ Definition bin_op_eval' : (<<discr bin_op>> * val * val) -> option val :=
   if_in bin_op_eval'_cov_locX bin_op_eval'_locX  $
   cst None.
 
-Lemma bin_op_eval'_meas_fun : measurable_fun setT bin_op_eval'. Admitted.
+
+Lemma bin_op_eval'_meas_fun : measurable_fun setT bin_op_eval'.
+Proof.
+  rewrite /bin_op_eval'.
+  repeat apply: if_in_meas_fun; ms_solve; rewrite setIT; try mf_done. 
+Admitted.
 
 Hint Resolve bin_op_eval'_meas_fun : mf_fun.
 
