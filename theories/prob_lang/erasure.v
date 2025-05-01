@@ -4,7 +4,7 @@ From stdpp Require Import fin_maps fin_map_dom.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.common Require Import exec language ectx_language erasable.
 From clutch.prob_lang Require Import notation lang metatheory.
-From clutch.prob Require Import couplings couplings_app markov.
+From clutch.prob Require Import couplings couplings_app couplings_exp markov.
 
 Set Default Proof Using "Type*".
 Local Open Scope R.
@@ -725,4 +725,34 @@ Proof.
   eapply ARcoupl_mon_grading; [done|].
   eapply (ARcoupl_dbind_adv_lhs' E2); [done|eauto|done| |done].
   intros [] [] ?. by eapply Hcont.
+Qed.
+
+Lemma Mcoupl_erasure_erasable_rhs e1 e1' ε ε' X2 σ1 σ1' μ1 μ1' R φ k m
+  (H0 : ε' + X2 <= ε)
+  (H : Mcoupl μ1 (μ1' ≫= λ σ2' : language.state prob_lang, pexec k (e1', σ2')) R ε')
+  (Hμ1 : erasable μ1 σ1)
+  (Hμ1' : erasable μ1' σ1')
+  (Hcpl : (∀ (σ2 : state) ρ2',
+              R σ2 ρ2'
+              → Mcoupl (exec m (e1, σ2)) (lim_exec ρ2') φ X2))
+  : Mcoupl (exec m (e1, σ1)) (lim_exec (e1', σ1')) φ ε.
+Proof.
+  rewrite -Hμ1. erewrite <-(erasable_pexec_lim_exec (Λ := prob_lang) _ _ _ _ Hμ1') => /=.
+  eapply Mcoupl_mon_grading. 2: eapply Mcoupl_dbind ; try done.
+  1: eauto.
+Qed.
+
+Lemma Mcoupl_erasure_erasable_lhs' (e1 e1' : expr) ε ε1 X2 σ1 σ1' μ1' R φ k m
+  (Hred : reducible (e1, σ1))
+  (H0 : ε1 + X2 <= ε)
+  (H : Mcoupl (prim_step e1 σ1) (μ1' ≫= λ σ2' : state, pexec k (e1', σ2')) R ε1)
+  (Hμ1' : erasable μ1' σ1')
+  (Hcpl : (∀ (e2 : expr) (σ2 : state) (e2' : expr) (σ2' : state),
+              R (e2, σ2) (e2', σ2')
+              → Mcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ X2))
+  : Mcoupl (prim_step e1 σ1 ≫= exec m) (lim_exec (e1', σ1')) φ ε.
+Proof.
+  erewrite <-(erasable_pexec_lim_exec (Λ := prob_lang) _ _ _ _ Hμ1') => /=.
+  eapply Mcoupl_mon_grading. 2: eapply Mcoupl_dbind ; try done.
+  1: eauto. intros [] []. apply Hcpl.
 Qed.

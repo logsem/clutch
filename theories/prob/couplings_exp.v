@@ -226,7 +226,6 @@ Section couplings_theory.
       * by apply Hcoup_fg.
    Qed.
 
-
   Lemma Mcoupl_dbind' (ε1 ε2 ε : R) (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop) :
     ε = ε1 + ε2 →
@@ -234,6 +233,17 @@ Section couplings_theory.
     Mcoupl μ1 μ2 R ε1 →
     Mcoupl (dbind f μ1) (dbind g μ2) S ε.
   Proof. intros ->. by eapply Mcoupl_dbind. Qed.
+
+  Lemma Mcoupl_mass_leq (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) ε :
+    Mcoupl μ1 μ2 R ε → SeriesC μ1 <= exp ε * SeriesC μ2.
+  Proof.
+    intros Hcoupl.
+    rewrite /Mcoupl in Hcoupl.
+    rewrite -(Rmult_1_r (SeriesC μ1)).
+    rewrite -(Rmult_1_r (SeriesC μ2)).
+    do 2 rewrite -SeriesC_scal_r.
+    apply Hcoupl; intros; lra.
+  Qed.
 
   Lemma Mcoupl_eq_elim (μ1 μ2 : distr A) ε :
     Mcoupl μ1 μ2 (=) ε → forall a, μ1 a <= exp ε * μ2 a.
@@ -277,6 +287,14 @@ End couplings_theory.
 Section Mcoupl.
   Context `{Countable A, Countable B}.
   Variable (μ1 : distr A) (μ2 : distr B).
+
+  Lemma Mcoupl_dzero (μ : distr B) φ ε :
+    Mcoupl (dzero (A:=A)) μ φ ε.
+  Proof.
+    intros ?????. rewrite SeriesC_scal_l. field_simplify.
+    apply Rmult_le_pos. 1: left ; apply exp_pos.
+    apply SeriesC_ge_0'. intros ; apply Rmult_le_pos => //. apply Hg.
+  Qed.
 
   Lemma Mcoupl_trivial :
     SeriesC μ1 = 1 ->
