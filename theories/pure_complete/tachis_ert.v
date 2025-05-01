@@ -81,7 +81,9 @@ Lemma prim_step_fin e σ:
   reducible (e, σ) ->
   (∃ ρ, prim_step e σ = dret ρ) 
   ∨ (∃ n (g : (fin n) -> cfg), 
-    prim_step e σ = dmap g (dunif n) ∧ (Inj eq eq g)).
+    prim_step e σ = dmap g (dunif n) ∧ (Inj eq eq g))
+  ∨ (∃ (num den loc : Z) (εpos : (0 < IZR num / IZR den)) l,
+       prim_step e σ = dmap (fill_lift l ∘ λ z : Z, (Val #z, σ)) (laplace_rat num den loc εpos)).
 Proof.
   rewrite /reducible.
   simpl.
@@ -102,29 +104,31 @@ Proof.
   apply dmap_pos in H as [[e1 σ1] [Hf H]].
   destruct e0; inv_head_step; 
   try by (rewrite dmap_dret; do 3 econstructor).
-  - rewrite dmap_comp. do 4 econstructor; try by econstructor. 
+  - rewrite dmap_comp. do 5 econstructor; try by econstructor.
     apply (compose_inj eq eq eq).
     + unfold Inj.
       intros.
       inversion H.
       by apply Nat2Z.inj, fin_to_nat_inj in H2.
     + apply inj_fill.
-  - rewrite dmap_comp. do 4 econstructor; try by econstructor.
+  - rewrite dmap_comp. do 5 econstructor; try by econstructor.
     apply (compose_inj eq eq eq).
     + unfold Inj.
       intros.
       inversion H.
       by apply Nat2Z.inj, fin_to_nat_inj in H2.
     + apply inj_fill.
-  - rewrite dmap_comp. do 4 econstructor; try by econstructor. 
+  - rewrite dmap_comp. do 5 econstructor; try by econstructor.
     apply (compose_inj eq eq eq).
     + unfold Inj.
       intros.
       inversion H1.
       by apply Nat2Z.inj, fin_to_nat_inj in H3.
     + apply inj_fill.
+  - rewrite dmap_comp. right. right. do 5 eexists _ => //.
 Qed.
 
+(* TODO NOT TRUE *)
 Lemma pos_step_exExpval e σ f: 
   (∀ ρ : mstate (lang_markov prob_lang), 0 <= f ρ) ->
   ex_seriesC (λ ρ , step (e, σ) ρ * f ρ).
@@ -141,16 +145,24 @@ Proof.
     - by apply Rnot_lt_le.
     - apply pmf_SeriesC_ge_0.
   }
-  epose proof (prim_step_fin e σ _) as [[ρ Hd] | [m [g [Hd _]]]];
+  epose proof (prim_step_fin e σ _) as [[ρ Hd] | [[m [g [Hd _]]]| (num&den&loc&εpos&K&Hd)]];
   rewrite Hd.
   - apply ex_expval_dret.
   - rewrite /dmap. apply ex_expval_dbind.
     + apply H.
     + apply ex_seriesC_finite.
     + intros. apply ex_expval_dret.
+  - rewrite /dmap. apply ex_expval_dbind.
+    + apply H.
+    + simpl in *.
+      rewrite /ex_expval.
+      rewrite /Expval.
+
+      admit. (* apply ex_seriesC_finite. *)
+    + intros. apply ex_expval_dret.
   Unshelve.
   by apply mass_pos_reducible.
-Qed.
+Admitted.
 
 Lemma bounded_finite_sup (h : nat -> R): 
   is_finite (Sup_seq h) ↔ ∃ r, ∀ x, h x <= r.
@@ -187,6 +199,7 @@ Proof.
   by rewrite /ERT H0.
 Qed.
 
+(* TODO NOT TRUE *)
 Lemma ERT_n_exExpval n e σ: 
   ex_seriesC (λ ρ , step (e, σ) ρ * ERT n ρ).
 Proof.
@@ -319,6 +332,7 @@ Lemma lim_ERT_bounded_inv ρ:
   is_finite (lim_ERT ρ) ->
   ∃ r, 0 <= r ∧ ∀ ρ', step ρ ρ' > 0 -> (lim_ERT ρ') <= r.
 Proof.
+  (* TODO this comment is no longer true, a different proof strategy is needed. *)
   (*
   step ρ has finite support, simply take 
   r := max{lim_ERT ρ' | step ρ ρ' > 0}
@@ -327,26 +341,48 @@ Proof.
   destruct (reducible_dec ρ) as [Hr | Hnr].
   2 : {
     exists 0. split; try lra.
-    intros. exfalso. apply Hnr.
+    intros ? H0. exfalso. apply Hnr.
     econstructor. apply H0.
   }
   destruct ρ.
-  destruct (prim_step_fin _ _ Hr) as [[ρ' Hd]| [n [g [Hd Hg]]]]. 
+  destruct (prim_step_fin _ _ Hr) as [[ρ' Hd]| [[n [g [Hd Hg]]] | (num&den&loc&εpos&K&Hd) ]].
   {
     exists (lim_ERT ρ'). split.
     { apply lim_ERT_ge0. }
     simpl. rewrite Hd.
-    intros. apply dret_pos in H0. by subst.
+    intros ? H0. apply dret_pos in H0. by subst.
   }
+  {
   simpl. rewrite Hd. 
   destruct (finite_bounded n (lim_ERT ∘ g)) as [r [Hrp He]]. 
   { intros. simpl. apply lim_ERT_ge0. }
   exists r.
   split; auto.
-  intros.
+  intros ? H0.
   apply dmap_pos in H0 as [m [H1 H2]]; subst.
   simpl in *. apply He.
-Qed.
+  }
+(*   {
+     simpl.
+     apply is_finite_correct in H.
+     destruct H.
+     exists x. split => //.
+     {
+       etrans.
+       1: eapply lim_ERT_ge0. erewrite H. done.
+     }
+     rewrite Hd.
+     (* destruct (finite_bounded n (lim_ERT ∘ g)) as [r [Hrp He]].  *)
+     (* { intros. simpl. apply lim_ERT_ge0. } *)
+     exists r.
+     split; auto.
+     intros.
+     apply dmap_pos in H0 as [m [H1 H2]]; subst.
+     simpl in *. apply He.
+     }
+   Qed. *)
+
+Admitted.
 
 
 Definition lim_ERTNN ρ := mknonnegreal (lim_ERT ρ) (lim_ERT_ge0 ρ).
@@ -460,16 +496,17 @@ Proof.
     apply Rmult_le_compat_l; auto.
     destruct a.
     apply ERT_mono.
-  - intros. 
+  - intros.
     exists r.
     intros.
     destruct (Rle_dec (step (e,σ) a) 0).
     + replace (step (e,σ) a) with 0; real_solver.
-    + apply Rnot_le_lt in n0 as Hst. apply Hr2 in Hst.
+    + apply Rnot_le_lt in n0 as Hst.
+      apply Hr2 in Hst.
       rewrite -(Rmult_1_l r).
       apply Rmult_le_compat; auto.
       { apply ERT_nonneg. }
-      { 
+      {
         destruct a.
         specialize (lim_ERT_ge e0 s (mknonnegreal r Hr1)). simpl.
         intros. apply H2.
