@@ -739,14 +739,36 @@ Section option.
   Definition 𝜋_Some_v {d1} {T : measurableType d1} (k : option T) : T := match k with | Some v => v | _ => point end.
   Definition option_cov_Some {d1} {T : measurableType d1} : set (option T) := [set e | exists x, e = Some x].
   Definition option_cov_None {d1} {T : measurableType d1} : set (option T) := [set e | e = None].
-  Lemma option_cov_Some_meas_set {d1} {T : measurableType d1} : measurable (option_cov_Some : set (option T)).
-  Proof. Admitted.
-  Hint Resolve option_cov_Some_meas_set : measlang.
   Lemma option_cov_None_meas_set {d1} {T : measurableType d1} : measurable (option_cov_None : set (option T)).
-  Proof. Admitted.
+  Proof.
+    assert ((option_cov_None : set (option T))=set1 None) as -> by done.
+    apply: sub_sigma_algebra. rewrite /option_cyl/=.
+    by exists None.
+  Qed. 
   Hint Resolve option_cov_None_meas_set : measlang.
-  Lemma 𝜋_Some_v_meas_fun {d1} {T : measurableType d1} (k : option T) : measurable_fun (option_cov_Some : set (option T)) 𝜋_Some_v.
-  Proof. Admitted.
+  Lemma option_cov_Some_meas_set {d1} {T : measurableType d1} : measurable (option_cov_Some : set (option T)).
+  Proof.
+    assert ((option_cov_Some : set (option T)) = setC option_cov_None) as ->.
+    { rewrite eqEsubset; split; simpl; intros ?.
+      - intros []; by subst.
+      - intros H. destruct t.
+        + rewrite /option_cov_Some. simpl. by eexists _.
+        + exfalso. by apply H.
+    } 
+    apply measurableC.
+    apply: option_cov_None_meas_set.
+  Qed. 
+  Hint Resolve option_cov_Some_meas_set : measlang.
+  Lemma 𝜋_Some_v_meas_fun {d1} {T : measurableType d1} : measurable_fun (option_cov_Some : set (option T)) 𝜋_Some_v.
+  Proof.
+    rewrite /option_cov_Some.
+    intros _H S HS.
+    apply sub_sigma_algebra.
+    exists (Some S); first done.
+    rewrite eqEsubset; split; simpl; intros ?; simpl.
+    - intros []; subst; simpl; split; [by eexists _|done].
+    - intros [[]]; subst; simpl in *. eexists _; done. 
+  Qed.
   Hint Resolve 𝜋_Some_v_meas_fun : measlang.
 
 End option.
@@ -799,7 +821,32 @@ Section list.
   Definition consU {d1} {T : measurableType d1} : (T * list T)%type -> list T := uncurry List.cons.
 
   Lemma cons_meas_fun {d1} {T : measurableType d1} : measurable_fun setT (consU : (T * list T)%type -> list T).
-  Proof. Admitted.
+  Proof.
+    into_gen_measurable.
+    rewrite /preimage_class. intros ?. simpl.
+    intros [?[[|s l]H]]; subst.
+    { rewrite /list_ML in H.
+      rewrite setTI.
+      have -> : (consU @^-1` list_ST ([])) = set0; [|done].
+      rewrite /preimage/list_ST//=. intros. 
+      rewrite eqEsubset; split; by intros [].
+    }
+    { rewrite setTI.
+      have -> : ((consU @^-1` list_ST (s::l))= s `*` list_ST l).
+      { rewrite eqEsubset; split; simpl; intros []; simpl.
+        - intros [??[?? H2]]. inversion H2. subst. split; done.
+        - intros [K1 K2]. eexists _; first apply K1.
+          eexists _; first apply K2. done.
+      }
+      apply: measurableX.
+      destruct H; first done.
+      apply: sub_sigma_algebra.
+      destruct H as [? H0].
+      rewrite /list_cyl. simpl. eexists _.
+      - apply H0.
+      - done.
+    } 
+  Qed.
   Hint Resolve cons_meas_fun : measlang.
 
   (* Shapes? *)
@@ -808,17 +855,34 @@ Section list.
   Definition 𝜋_cons_vs {d1} {T : measurableType d1} (k : list T) : list T := match k with | (_ :: v) => v | _ => point end.
   Definition list_cov_cons {d1} {T : measurableType d1} : set (list T) := [set e | exists x y, e = x :: y].
   Definition list_cov_empty {d1} {T : measurableType d1} : set (list T) := [set e | e = [::]].
-  Lemma list_cov_cons_meas_set {d1} {T : measurableType d1} : measurable (list_cov_cons : set (list T)).
-  Proof. Admitted.
-  Hint Resolve list_cov_cons_meas_set : measlang.
   Lemma list_cov_empty_meas_set {d1} {T : measurableType d1} : measurable (list_cov_empty : set (list T)).
-  Proof. Admitted.
+  Proof. 
+    apply: sub_sigma_algebra. rewrite /list_cyl/=.
+    by exists [].
+  Qed. 
   Hint Resolve list_cov_empty_meas_set : measlang.
+  Lemma list_cov_cons_meas_set {d1} {T : measurableType d1} : measurable (list_cov_cons : set (list T)).
+  Proof.
+    assert ((list_cov_cons : set (list T)) = setC list_cov_empty) as ->.
+    { rewrite eqEsubset; split; simpl; intros t.
+      - intros [?[]]; by subst. 
+      - intros H. destruct t.
+        + exfalso. by apply H. 
+        + eexists _, _. done. 
+    } 
+    apply measurableC.
+    apply: list_cov_empty_meas_set.
+  Qed. 
+  Hint Resolve list_cov_cons_meas_set : measlang.
   Lemma 𝜋_cons_v_meas_fun {d1} {T : measurableType d1} (k : list T) : measurable_fun (list_cov_cons : set (list T)) 𝜋_cons_v.
-  Proof. Admitted.
+  Proof.
+    (* See 𝜋_PairV_l_meas in projections.v *)
+  Admitted.
   Hint Resolve 𝜋_cons_v_meas_fun : measlang.
   Lemma 𝜋_cons_vs_meas_fun {d1} {T : measurableType d1} (k : list T) : measurable_fun (list_cov_cons : set (list T)) 𝜋_cons_vs.
-  Proof. Admitted.
+  Proof. 
+    (* See 𝜋_PairV_l_meas in projections.v *)
+  Admitted.
   Hint Resolve 𝜋_cons_vs_meas_fun : measlang.
 End list.
 
@@ -859,7 +923,13 @@ Section of_option.
 
   Lemma of_option_meas_fun (f : T1 -> option T2) (Hf : measurable_fun setT f) :
     measurable_fun (preimage f option_cov_Some) (of_option f).
-  Proof. Admitted.
+  Proof.
+    rewrite /of_option.
+    apply: measurable_comp; [| |apply 𝜋_Some_v_meas_fun|].
+    - apply option_cov_Some_meas_set.
+    - intros ?; simpl. intros []. by subst.
+    - by apply measurable_funTS.
+  Qed. 
   Hint Resolve of_option_meas_fun : measlang.
 
 End of_option.
@@ -939,3 +1009,18 @@ Proof.
   - by move=>->//.
   - by move=>[<-<-]; case x.
 Qed.
+
+Lemma measurable_setU `{T:measurableType d} (D1 D2:set T) :
+  measurable D1 -> measurable D2 -> measurable (D1 `|` D2).
+Proof. 
+  intros.
+  assert (setU D1 D2 =\bigcup_(i in
+              ([set D1;D2 ])) i
+         ) as ->.
+  { rewrite eqEsubset; split; intros ?; simpl.
+    - intros [H'|H']; (eexists _; last apply H'); simpl; [by left|by right].
+    - intros [?[]]; simpl in *; subst; [by left|by right].   
+  }
+  apply: fin_bigcup_measurable; first apply cardinality.finite_set2.
+  intros ?[]; simpl in *; by subst.
+Qed. 

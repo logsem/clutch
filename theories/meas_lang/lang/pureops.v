@@ -761,7 +761,7 @@ Qed.
 
 Hint Resolve bin_op_eval_real'_meas_fun  : mf_fun.
 
-
+(* Unlike prob_lang, we are allowing ALL values to be compared *)
 Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
   if decide (op = EqOp) then    
     Some $ LitV $ LitBool $ bool_decide (v1 = v2)
@@ -775,17 +775,46 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
     end.
 
 
-Definition bin_op_eval'_cov_eq   : set (<<discr bin_op>> * val * val)%type. Admitted.
-Definition bin_op_eval'_cov_int  : set (<<discr bin_op>> * val * val)%type. Admitted.
-Definition bin_op_eval'_cov_real : set (<<discr bin_op>> * val * val)%type. Admitted.
-Definition bin_op_eval'_cov_bool : set (<<discr bin_op>> * val * val)%type. Admitted.
-Definition bin_op_eval'_cov_locX : set (<<discr bin_op>> * val * val)%type. Admitted.
+Definition bin_op_eval'_cov_eq   : set (<<discr bin_op>> * val * val)%type :=
+  (([set EqOp] `*` setT) `*` setT).
+Definition bin_op_eval'_cov_int  : set (<<discr bin_op>> * val * val)%type :=
+  ((setT `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitInt)) `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitInt)).
+Definition bin_op_eval'_cov_real : set (<<discr bin_op>> * val * val)%type :=
+  (([set PlusOp; MinusOp; MultOp; LeOp; LtOp; EqOp] `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitReal)) `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitReal)).
+Definition bin_op_eval'_cov_bool : set (<<discr bin_op>> * val * val)%type:=
+  (([set AndOp; OrOp; XorOp; EqOp] `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitBool)) `*`
+  (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitBool)).
+Definition bin_op_eval'_cov_locX : set (<<discr bin_op>> * val * val)%type:=
+  (([set OffsetOp] `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitLoc)) `*`
+     (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitInt)) `|`
+    (([set LeOp; LtOp] `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitLoc)) `*`
+     (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitLoc))
+.
 
-Lemma bin_op_eval'_cov_eq_meas_set   : measurable bin_op_eval'_cov_eq. Admitted.
-Lemma bin_op_eval'_cov_int_meas_set  : measurable bin_op_eval'_cov_int. Admitted.
-Lemma bin_op_eval'_cov_real_meas_set : measurable bin_op_eval'_cov_real. Admitted.
-Lemma bin_op_eval'_cov_bool_meas_set : measurable bin_op_eval'_cov_bool. Admitted.
-Lemma bin_op_eval'_cov_locX_meas_set : measurable bin_op_eval'_cov_locX. Admitted.
+Lemma bin_op_eval'_cov_eq_meas_set   : measurable bin_op_eval'_cov_eq.
+Proof.
+  rewrite /bin_op_eval'_cov_eq. ms_solve.
+Qed. 
+Lemma bin_op_eval'_cov_int_meas_set  : measurable bin_op_eval'_cov_int.
+Proof.
+  rewrite /bin_op_eval'_cov_int.
+  ms_solve.
+Qed. 
+Lemma bin_op_eval'_cov_real_meas_set : measurable bin_op_eval'_cov_real.
+Proof.
+  rewrite /bin_op_eval'_cov_real.
+  ms_solve.
+Qed. 
+Lemma bin_op_eval'_cov_bool_meas_set : measurable bin_op_eval'_cov_bool.
+Proof.
+  rewrite /bin_op_eval'_cov_bool.
+  ms_solve.
+Qed.  
+Lemma bin_op_eval'_cov_locX_meas_set : measurable bin_op_eval'_cov_locX. 
+Proof.
+  rewrite /bin_op_eval'_cov_locX.
+  apply: measurable_setU; ms_solve.
+Qed. 
 
 Hint Resolve bin_op_eval'_cov_eq_meas_set   : mf_set.
 Hint Resolve bin_op_eval'_cov_int_meas_set  : mf_set.
