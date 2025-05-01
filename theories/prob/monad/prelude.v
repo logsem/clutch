@@ -103,7 +103,6 @@ End curry.
 
 Section uncurry_nat.
 
-  (* TODO: Generalize to all genSingletonType *)
   Lemma uncurry_nat_measurable {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
           (f : nat -> T1 -> T2) (Hf : forall i, measurable_fun setT (f i)) :
         measurable_fun setT (uncurry f).
@@ -128,7 +127,32 @@ Section uncurry_nat.
 
 End uncurry_nat.
 
-
+Lemma uncurry_measurable {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} {T: pointedType}
+  (f : <<discr T>> -> T1 -> T2) (Hf : forall i, measurable_fun setT (f i)) (T_enum: nat -> <<discr T>>):
+  (forall x, ∃ (n:nat), T_enum n = x) ->
+        measurable_fun setT (uncurry f).
+   Proof.
+    intros Hsurj ? Y HY.
+    have -> : ((uncurry f) @^-1` Y) = \bigcup_i ((setX [set T_enum i] ((f $ T_enum i) @^-1` Y)) : set (_ * _)%type).
+    { rewrite /uncurry/preimage/setX//=.
+      apply /predeqP =>[[l ]] /=.
+      split.
+      { intros H'.
+        destruct (Hsurj l) as [i Hi].
+        exists i; [done|].
+        by rewrite Hi //=. }
+      { move=>[x ?]//=. by move=>[-> ?]//=. }
+    }
+    rewrite setTI.
+    apply bigcup_measurable.
+    intros i ?.
+    apply measurableX.
+    { by rewrite /measurable//=. }
+    rewrite <-(setTI (preimage _ _)).
+    by eapply (Hf _ _ Y HY).
+    Unshelve. by apply @measurableT.
+   Qed.
+   
 #[short(type=genSingletonType)]
 HB.structure Definition GenSingletons := {T of isPointed T & Countable T}.
 

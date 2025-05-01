@@ -420,8 +420,18 @@ Definition bin_op_eval_int (op : <<discr bin_op>>) (n1 n2 : <<discr Z>>) : base_
   end%Z.
 
 
-Lemma bin_op_eval_int_measurable_fun : measurable_fun setT (uncurry (uncurry bin_op_eval_int)).
-Proof. (* Generalized uncurry *) Admitted.
+Lemma bin_op_eval_int_measurable_fun : measurable_fun setT (uncurry
+                                                              (λ x, uncurry (bin_op_eval_int x))).
+Proof.
+  simpl.
+  apply : uncurry_measurable; last apply bin_op_enum_surj.
+  intros. apply: uncurry_measurable; last first.
+  { instantiate (1:= λ x, match decode_nat x with | None => 0%Z | Some z => z end).
+    intros x. Local Opaque decode_nat. simpl. exists (encode_nat x).
+    by rewrite decode_encode_nat.
+  }
+  intros. apply: discr_meas_fun.
+Qed. 
 
 (* Only one version of bin_op_eval_bool because its uncurry is measurable *)
 Definition bin_op_eval_bool (op : <<discr bin_op>>) (b1 b2 : <<discr bool>>) : option base_lit :=
@@ -436,8 +446,17 @@ Definition bin_op_eval_bool (op : <<discr bin_op>>) (b1 b2 : <<discr bool>>) : o
   | OffsetOp => None
   end.
 
-Lemma bin_op_eval_bool_measurable_fun : measurable_fun setT (uncurry (uncurry bin_op_eval_bool)).
-Proof. (* Generalized uncurry *) Admitted.
+Lemma bin_op_eval_bool_measurable_fun : measurable_fun setT (uncurry (λ x, uncurry (bin_op_eval_bool x))).
+Proof.
+  simpl.
+  apply : uncurry_measurable; last apply bin_op_enum_surj.
+  intros. apply: uncurry_measurable; last first.
+  { instantiate (1:= λ x, match decode_nat x with | None => true | Some z => z end).
+    intros x. Local Opaque decode_nat. simpl. exists (encode_nat x).
+    by rewrite decode_encode_nat.
+  }
+  intros. apply: discr_meas_fun.
+Qed. 
 
 Definition bin_op_eval_loc (op : <<discr bin_op>>) (l1 : <<discr loc>>) (v2 : base_lit) : option base_lit :=
   match op, v2 with
@@ -531,7 +550,21 @@ Definition bin_op_eval'_loc : (<<discr bin_op>> * <<discr loc>> * base_lit) -> o
   if_in bin_op_eval'_loc_cov_lt_loc     bin_op_eval'_loc_lt_loc $
   cst None.
 
-Lemma bin_op_eval'_loc_meas_fun : measurable_fun setT bin_op_eval'_loc. Admitted.
+Lemma bin_op_eval'_loc_meas_fun : measurable_fun setT bin_op_eval'_loc.
+Proof.
+  rewrite /bin_op_eval'_loc.
+  simpl.
+  apply: if_in_meas_fun; try ms_solve.
+  { rewrite setIT. mf_done. }
+  rewrite setIT.
+  apply: if_in_meas_fun; try ms_solve.
+  { rewrite setIidl; first mf_done.
+    intros []. intros [?[]][?[]]; simpl in *; subst. simplify_eq.
+  }
+  apply: if_in_meas_fun; try ms_solve.
+  rewrite setIidl; first mf_done.
+  intros [[]]. intros [[][]]; simpl in *. split; intros [[][]]; simpl in *; subst; simplify_eq.
+Qed. 
 
 Hint Resolve bin_op_eval'_loc_meas_fun : mf_fun.
 
@@ -718,7 +751,13 @@ Definition bin_op_eval_real' :=
   cst None.
 
 Lemma bin_op_eval_real'_meas_fun : measurable_fun setT bin_op_eval_real'.
-Admitted.
+Proof.
+  rewrite /bin_op_eval_real'.
+  simpl.
+  repeat (apply: if_in_meas_fun; try ms_solve;
+   first (rewrite setIidl; first mf_done;
+          intros [[]]; intros [[][]]; repeat split; intros[[][]]; simpl in *; subst; simplify_eq)).
+Qed. 
 
 Hint Resolve bin_op_eval_real'_meas_fun  : mf_fun.
 
