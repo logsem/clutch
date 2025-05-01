@@ -856,19 +856,35 @@ Hint Resolve bin_op_eval'_meas_fun : mf_fun.
 Definition bin_op_eval''_ok : set (<<discr bin_op>> * val * val * state)%type :=
   (bin_op_eval'_cov_eq  `|` bin_op_eval'_cov_int `|` bin_op_eval'_cov_real `|` bin_op_eval'_cov_bool `|` bin_op_eval'_cov_locX) `*` setT.
 
-Lemma bin_op_eval''_ok_meas_set :  measurable bin_op_eval''_ok. Admitted.
+Lemma bin_op_eval''_ok_meas_set :  measurable bin_op_eval''_ok.
+  rewrite /bin_op_eval''_ok.
+  apply measurableX; last done.
+  repeat apply: measurable_setU; ms_solve.
+Qed. 
 
 Hint Resolve bin_op_eval''_ok_meas_set  : mf_set.
 
 Definition bin_op_eval'' : (<<discr bin_op>> * val * val * state)%type -> giryM cfg :=
   gRet \o (ValU \o of_option bin_op_eval' \o fst △ snd).
 
-Lemma bin_op_eval''_meas_fun : measurable_fun bin_op_eval''_ok bin_op_eval''. Admitted.
+Lemma bin_op_eval''_meas_fun : measurable_fun bin_op_eval''_ok bin_op_eval''.
+Proof.
+  rewrite /bin_op_eval''_ok/bin_op_eval''.
+  mf_cmp_tree.
+  { apply measurable_funTS. apply: gRet_meas_fun. }
+  mf_prod; last apply: measurable_snd_restriction; ms_solve.
+Admitted.
 
 Hint Resolve bin_op_eval''_meas_fun : mf_fun.
 
 Definition bin_op_eval''' : (<<discr bin_op>> * val * val * state)%type -> giryM cfg := if_in bin_op_eval''_ok bin_op_eval'' (cst gZero).
 
-Definition bin_op_eval'''_meas_fun : measurable_fun setT bin_op_eval'''. Admitted.
+Definition bin_op_eval'''_meas_fun : measurable_fun setT bin_op_eval'''.
+Proof.
+  rewrite /bin_op_eval'''.
+  apply: if_in_meas_fun; ms_solve.
+  rewrite setIT.
+  apply bin_op_eval''_meas_fun.
+Qed. 
 
 Hint Resolve bin_op_eval'''_meas_fun : mf_fun.
