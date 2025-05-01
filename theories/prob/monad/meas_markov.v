@@ -486,7 +486,6 @@ Section markov.
     {
       apply measurableT_comp. { apply gRet_meas_fun. }
       rewrite H. apply 𝜋_Some_v_meas_fun.
-      apply None. 
     }
     {
       apply (measurable_funS measurableT).
