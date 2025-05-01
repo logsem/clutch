@@ -873,6 +873,26 @@ Proof.
   mf_cmp_tree.
   { apply measurable_funTS. apply: gRet_meas_fun. }
   mf_prod; last apply: measurable_snd_restriction; ms_solve.
+  apply: measurable_comp; last apply: measurable_fst_restriction; last ms_solve; last first.
+  2:{ instantiate (1:= (bin_op_eval'_cov_eq `|` bin_op_eval'_cov_int `|` bin_op_eval'_cov_real
+                          `|` bin_op_eval'_cov_bool `|` bin_op_eval'_cov_locX)).
+      intros ?. simpl. intros [[[[]] ] [[[[[|]|]|]|] ]]; subst; simpl; naive_solver.
+  }
+  2:{ repeat apply: measurableU; ms_solve. }
+  apply: measurable_comp; [| | apply ValU_meas_fun|]; try done.
+  assert ((bin_op_eval'_cov_eq `|` bin_op_eval'_cov_int `|` bin_op_eval'_cov_real `|` bin_op_eval'_cov_bool
+             `|` bin_op_eval'_cov_locX) = bin_op_eval' @^-1` option_cov_Some) as ->; last apply of_option_meas_fun, bin_op_eval'_meas_fun.
+  rewrite /bin_op_eval'.
+  rewrite eqEsubset; split; intros [[]]; simpl.
+  - rewrite !Logic.or_assoc.
+    assert (∀ P Q, P \/ Q <-> P \/ (¬ P /\ Q)) as Hrewrite.
+    { split; last naive_solver.
+      pose proof lem P as [|]; naive_solver.
+    }
+    rewrite Hrewrite; elim.
+    { admit. }
+    admit. 
+  - elim. intros ?. repeat apply if_in_split; naive_solver.
 Admitted.
 
 Hint Resolve bin_op_eval''_meas_fun : mf_fun.
