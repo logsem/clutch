@@ -167,10 +167,44 @@ HB.structure Definition GenSingletons := {T of isPointed T & Countable T}.
 Section discr_gen_singletons.
   Context {T : genSingletonType}.
 
+  Local Definition T_enum (n:nat) : T:= match pickle_inv n with |Some x => x | None => point end.
+  Local Lemma T_enum_surj (t:T) : ∃ n, T_enum n = t.
+  Proof.
+    exists (pickle t).
+    rewrite /T_enum. by rewrite pickleK_inv.
+  Qed. 
   Lemma discr_generated_by_singletons : T.-discr.-measurable = <<s singletons>>.
   Proof.
-    (* The type is countable so setT is the union of singletons *)
-  Admitted.
+    apply /predeqP =>y //=.
+    simpl in *.
+    split.
+    - move=> _.
+      have ->: y = \bigcup_i ([set (T_enum i)] `&` y).
+      { rewrite /bigcup//=.
+        apply /predeqP =>z /=.
+        split.
+        - move=> ?.
+          destruct (T_enum_surj z) as [i ?].
+          by exists i.
+               - by move=> [i ?][-> ?].
+      }
+      apply sigma_algebra_bigcup.
+      move=> i.
+      destruct (ExcludedMiddle (y (T_enum i))).
+      + apply sub_sigma_algebra.
+        exists (T_enum i); try done.
+        rewrite eqEsubset; split; intros z; simpl.
+        * intros ->. by split. 
+        * by intros []. 
+      + have -> : ([set T_enum i] `&` y) = set0.
+        { rewrite /setI//=.
+          apply /predeqP =>z /=.
+          split.
+          + by move=>[-> ?].
+          + by move=>?. }
+        apply sigma_algebra0.
+    - move=> _. by rewrite /measurable/=/discr_measurable/=.
+  Qed.
 
   (*
 
