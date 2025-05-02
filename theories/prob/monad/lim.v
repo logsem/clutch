@@ -34,8 +34,8 @@ Section setwise_measure_limit.
     f_equal.
     apply funext; intro x.
     apply propext; simpl; split.
-    { intros [??<-]. (* whatever *) admit. }
-    { move=>->//=; exists 0. all: admit. }
+    { by intros [??<-]. }
+    { move=>->//=; by exists n. }
   Admitted.
 
   Lemma limit_measure_ge0 X : (0 <= limit_measure X)%E.
