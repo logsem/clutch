@@ -833,12 +833,17 @@ Hint Resolve bin_op_eval'_cov_real_meas_set : mf_set.
 Hint Resolve bin_op_eval'_cov_bool_meas_set : mf_set.
 Hint Resolve bin_op_eval'_cov_locX_meas_set  : mf_set.
 
+Definition bin_op_eval'_eq_cov' := (image [set x: (val * val)| ∃ y, x =(y,y)] (λ '(x1,x2), ((EqOp:<<discr bin_op>>, x1), x2))).
+Lemma bin_op_eval'_eq_cov'_meas_set : measurable bin_op_eval'_eq_cov'.
+Admitted.
+Hint Resolve bin_op_eval'_eq_cov'_meas_set   : mf_set.
+
 Definition bin_op_eval'_eq   : (<<discr bin_op>> * val * val)%type -> option val :=
-  if_in (image [set x: (val * val)| ∃ y, x =(y,y)] (λ '(x1,x2), ((EqOp:<<discr bin_op>>, x1), x2)))
+  if_in bin_op_eval'_eq_cov'
     (cst ((Some $ LitV $ LitBool $ true):option val))
     (cst (Some $ LitV $ LitBool $ false)).
 Definition bin_op_eval'_int  : (<<discr bin_op>> * val * val)%type -> option val :=
-  Some \o LitV \o (uncurry  (λ x, uncurry (bin_op_eval_int x))) \o (fst \o fst△ (𝜋_LitInt_z \o 𝜋_LitV_v  \o snd \o fst△𝜋_LitInt_z \o 𝜋_LitV_v \o snd)).
+  Some \o LitVU \o (uncurry  (λ x, uncurry (bin_op_eval_int x))) \o (fst \o fst△ (𝜋_LitInt_z \o 𝜋_LitV_v  \o snd \o fst△𝜋_LitInt_z \o 𝜋_LitV_v \o snd)).
 Definition bin_op_eval'_real : (<<discr bin_op>> * val * val)%type -> option val :=
   bin_op_eval_real' \o ((fst \o fst △ 𝜋_LitReal_r \o 𝜋_LitV_v \o snd \o fst) △ 𝜋_LitReal_r \o 𝜋_LitV_v \o snd).
 Definition bin_op_eval'_bool : (<<discr bin_op>> * val * val)%type -> option val :=
@@ -846,11 +851,147 @@ Definition bin_op_eval'_bool : (<<discr bin_op>> * val * val)%type -> option val
 Definition bin_op_eval'_locX : (<<discr bin_op>> * val * val)%type -> option val :=
   bin_op_eval'_loc \o  ((fst \o fst △ 𝜋_LitLoc_l \o 𝜋_LitV_v \o snd \o fst) △  𝜋_LitV_v \o snd).
 
-Lemma bin_op_eval'_eq_meas_fun   : measurable_fun bin_op_eval'_cov_eq   bin_op_eval'_eq. Admitted.
-Lemma bin_op_eval'_int_meas_fun  : measurable_fun bin_op_eval'_cov_int  bin_op_eval'_int. Admitted.
-Lemma bin_op_eval'_real_meas_fun : measurable_fun bin_op_eval'_cov_real bin_op_eval'_real. Admitted.
-Lemma bin_op_eval'_bool_meas_fun : measurable_fun bin_op_eval'_cov_bool bin_op_eval'_bool. Admitted.
-Lemma bin_op_eval'_locX_meas_fun : measurable_fun bin_op_eval'_cov_locX bin_op_eval'_locX. Admitted.
+
+
+Local Ltac destruct_go tac :=
+  repeat match goal with
+         | H : context [ match ?x with | (y, z) => _ end] |- _ =>
+             let y := fresh y in
+             let z := fresh z in
+             destruct x as [y z]
+         | H : ∃ x, _ |- _ => let x := fresh x in destruct H as [x H]
+         | H : (ex2 _ _) |- _ => destruct H
+         | H: (_*_) |- _ => destruct H                          
+         | |- _ => destruct_and!
+         | |- _ => destruct_or!
+         | |- _ => progress simplify_eq
+         | |- _ => tac
+    end.
+
+Local Tactic Notation "destruct!/=" := destruct_go ltac:( progress csimpl in * ; simpl).
+
+
+
+Lemma bin_op_eval'_eq_meas_fun   : measurable_fun bin_op_eval'_cov_eq   bin_op_eval'_eq.
+Proof.
+  rewrite /bin_op_eval'_eq.
+  apply: if_in_meas_fun.
+  - ms_solve. 
+  - ms_solve.
+  - apply: measurable_cst.
+  - apply: measurable_cst.
+Qed. 
+Lemma bin_op_eval'_int_meas_fun  : measurable_fun bin_op_eval'_cov_int  bin_op_eval'_int.
+Proof.
+  rewrite /bin_op_eval'_int.
+  mf_cmp_tree.
+  { repeat mf_cmp_tree; last apply: bin_op_eval_int_measurable_fun.
+    - apply Some_meas_fun.
+    - apply LitVU_meas_fun.
+  }
+  repeat mf_prod.
+  - mf_cmp_tree; apply: measurable_fst_restriction; ms_solve.
+  - rewrite /bin_op_eval'_cov_int.
+    apply: (measurable_comp (F:=[set~ EqOp :<<discr bin_op>>] `*` (vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitInt))); last apply: measurable_fst_restriction; last ms_solve; last first.
+    { apply: (measurable_comp (F:=(vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitInt))); last apply: measurable_snd_restriction; [| |apply:measurable_comp
+                                                                                                                       |].
+      4: apply 𝜋_LitV_v_sub.
+      all: ms_solve.
+      - intros ?; simpl. intros. destruct!/=. naive_solver.
+      - apply 𝜋_LitInt_z_meas.
+      - rewrite <- (setIid vcov_lit), <- (setIA vcov_lit);
+                                 apply: measurable_fun_setI1;
+                                 try (by ms_done || by ms_solve || by mf_done).
+    }
+    + intros ?. simpl. intros. destruct!/=. naive_solver. 
+    + ms_solve.
+  - rewrite /bin_op_eval'_cov_int.
+    apply: (measurable_comp (F:=(vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitInt))); last apply: measurable_snd_restriction; [| |apply:measurable_comp
+                                                                                                                     |].
+    4: apply 𝜋_LitV_v_sub.
+    all: ms_solve.
+    +  intros ?; simpl. intros. destruct!/=. naive_solver.
+    +  apply 𝜋_LitInt_z_meas.
+    +  rewrite <- (setIid vcov_lit), <- (setIA vcov_lit);
+                                 apply: measurable_fun_setI1;
+                                 try (by ms_done || by ms_solve || by mf_done).
+Qed. 
+Lemma bin_op_eval'_real_meas_fun : measurable_fun bin_op_eval'_cov_real bin_op_eval'_real.
+Proof.
+  rewrite /bin_op_eval'_real.
+  mf_cmp_tree; first apply bin_op_eval_real'_meas_fun.
+  repeat mf_prod.
+  { mf_cmp_tree; apply: measurable_fst_restriction; ms_solve. }
+  - rewrite /bin_op_eval'_cov_real.
+    apply: (measurable_comp (F:=setT`*`(vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitReal))); last first.
+    { apply: measurable_fst_restriction; ms_solve. }
+    { apply: (measurable_comp (F:=(vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitReal))); last apply: measurable_snd_restriction.
+      - ms_solve.
+      - intros ?; simpl. intros. destruct!/=. naive_solver.
+      - mf_cmp_tree; last mf_done.
+        intros ?. simpl. intros. destruct!/=. naive_solver.
+      - ms_solve.
+    }
+    + intros ?; simpl. intros. destruct!/=; naive_solver.
+    + ms_solve.
+  - rewrite /bin_op_eval'_cov_real.
+    apply: (measurable_comp (F:=(vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitReal))); last apply: measurable_snd_restriction.
+      + ms_solve.
+      + intros ?; simpl. intros. destruct!/=; naive_solver.
+      + mf_cmp_tree; last mf_done.
+        intros ?. simpl. intros. destruct!/=; naive_solver.
+      + ms_solve.
+Qed. 
+Lemma bin_op_eval'_bool_meas_fun : measurable_fun bin_op_eval'_cov_bool bin_op_eval'_bool.
+Proof.
+  rewrite /bin_op_eval'_bool.
+  mf_cmp_tree; first apply: bin_op_eval_bool_measurable_fun.
+  repeat mf_prod.
+  { mf_cmp_tree; apply: measurable_fst_restriction; ms_solve. }
+  all: rewrite /bin_op_eval'_cov_bool.
+  - apply: (measurable_comp (F:=setT`*`(vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitBool))); last first.
+    { apply: measurable_fst_restriction; ms_solve. }
+    { apply: (measurable_comp (F:=(vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitBool))); last apply: measurable_snd_restriction.
+      - ms_solve.
+      - intros ?; simpl. intros. destruct!/=. naive_solver.
+      - mf_cmp_tree; last mf_done.
+        intros ?. simpl. intros. destruct!/=. naive_solver.
+      - ms_solve.
+    }
+    + intros ?; simpl. intros. destruct!/=; naive_solver.
+    + ms_solve.
+  - apply: (measurable_comp (F:=(vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitBool))); last apply: measurable_snd_restriction.
+      + ms_solve.
+      + intros ?; simpl. intros. destruct!/=; naive_solver.
+      + mf_cmp_tree; last mf_done.
+        intros ?. simpl. intros. destruct!/=; naive_solver.
+      + ms_solve.
+Qed.
+Lemma bin_op_eval'_locX_meas_fun : measurable_fun bin_op_eval'_cov_locX bin_op_eval'_locX.
+Proof.
+  rewrite /bin_op_eval'_locX.
+  mf_cmp_tree; first apply: bin_op_eval'_loc_meas_fun.
+  repeat mf_prod.
+  { mf_cmp_tree; apply: measurable_fst_restriction; ms_solve. }
+  all: rewrite /bin_op_eval'_cov_locX.
+  - apply: (measurable_comp (F:=setT`*`(vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitLoc))); last first.
+    { apply: measurable_fst_restriction; ms_solve. }
+    { apply: (measurable_comp (F:=(vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitLoc))); last apply: measurable_snd_restriction.
+      - ms_solve.
+      - intros ?; simpl. intros. destruct!/=. naive_solver.
+      - mf_cmp_tree; last mf_done.
+        intros ?. simpl. intros. destruct!/=. naive_solver.
+      - ms_solve.
+    }
+    + intros ?; simpl. intros. destruct!/=; naive_solver.
+    + ms_solve.
+  - apply: (measurable_comp (F:=(vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitInt) `|` (vcov_lit `&` 𝜋_LitV_v @^-1` bcov_LitLoc))); last apply: measurable_snd_restriction.
+      + apply: measurableU;  ms_solve.
+      + intros ?; simpl. intros. destruct!/=; naive_solver.
+      + apply: measurable_funS; last apply 𝜋_LitV_v_meas; ms_solve. 
+        intros ?. simpl. intros. destruct!/=; naive_solver.
+      + ms_solve.
+Qed.
 
 Hint Resolve bin_op_eval'_eq_meas_fun   : mf_fun.
 Hint Resolve bin_op_eval'_int_meas_fun  : mf_fun.
@@ -871,7 +1012,25 @@ Definition bin_op_eval' : (<<discr bin_op>> * val * val) -> option val :=
 Lemma bin_op_eval'_meas_fun : measurable_fun setT bin_op_eval'.
 Proof.
   rewrite /bin_op_eval'.
-Admitted.
+  apply: if_in_meas_fun; ms_solve.
+  { rewrite setIT. mf_done. }
+  rewrite setIT. 
+  apply: if_in_meas_fun; ms_solve.
+  { rewrite setIidl; first mf_done.
+    intros ?. intros [][]. simpl in *. destruct!/=.
+  }
+  apply: if_in_meas_fun; ms_solve.
+  { rewrite setIidl; first mf_done.
+    intros ?; intros []; split; intros []; simpl in *; destruct!/=.
+  }
+  apply: if_in_meas_fun; ms_solve.
+  { rewrite setIidl; first mf_done.
+    intros ?; intros []; repeat split; intros []; simpl in *; destruct!/=.
+  }
+  apply: if_in_meas_fun; ms_solve.
+  rewrite setIidl; first mf_done.
+  intros ?; intros []; repeat split; intros []; simpl in *; destruct!/=.
+Qed. 
 
 Hint Resolve bin_op_eval'_meas_fun : mf_fun.
 
@@ -912,11 +1071,56 @@ Proof.
       pose proof lem P as [|]; naive_solver.
     }
     rewrite Hrewrite; elim.
-    { admit. }
-    admit. 
-  - elim. intros ?. repeat apply if_in_split; naive_solver.
-Admitted.
-
+    { intros ?. setoid_rewrite ifIn_eq_left; last done.
+      apply: if_in_split; rewrite /option_cov_Some/=; naive_solver.
+    }
+    elim. intros H1.
+    rewrite Hrewrite. elim.
+    { intros ?. setoid_rewrite ifIn_eq_right; last done.
+      setoid_rewrite ifIn_eq_left; last done.
+      rewrite /bin_op_eval'_int/option_cov_Some/=. naive_solver.
+    }
+    elim. intros H2.
+    rewrite Hrewrite. elim.
+    { intros H. do 2 (setoid_rewrite ifIn_eq_right; last done).
+      setoid_rewrite ifIn_eq_left; last done.
+      rewrite /bin_op_eval'_real/bin_op_eval_real'/option_cov_Some/=.
+      rewrite /bin_op_eval_real'_plus/bin_op_eval_real'_minus/bin_op_eval_real'_mul/bin_op_eval_real'_le/bin_op_eval_real'_lt.
+      repeat eapply if_in_split; simpl; [naive_solver..|].
+      destruct H. 
+      intros K1 K2 K3 K4 K5. exfalso.
+      rewrite /bin_op_eval'_cov_real in H. destruct!/=.
+      - apply K5. rewrite /bin_op_eval_real'_cov_plus. naive_solver.
+      - apply K4. rewrite /bin_op_eval_real'_cov_minus. naive_solver.
+      - apply K3. rewrite /bin_op_eval_real'_cov_mul. naive_solver.
+      - apply K2. rewrite /bin_op_eval_real'_cov_le. naive_solver.
+      - apply K1. rewrite /bin_op_eval_real'_cov_lt. naive_solver.   
+    }
+    elim. intros H3.
+    rewrite Hrewrite. elim.
+    { intros H. do 3 (setoid_rewrite ifIn_eq_right; last done).
+      setoid_rewrite ifIn_eq_left; last done.
+      rewrite /bin_op_eval'_bool/option_cov_Some/=.
+      rewrite /bin_op_eval_bool.
+      destruct H. destruct!/=; naive_solver.
+    }
+    elim.
+    intros H4.
+    intros H. do 4 (setoid_rewrite ifIn_eq_right; last done).
+    setoid_rewrite ifIn_eq_left; last done.
+    rewrite /bin_op_eval'_locX/=.
+    rewrite /bin_op_eval'_loc.
+    rewrite /bin_op_eval'_loc_offset_int/bin_op_eval'_loc_le_loc/bin_op_eval'_loc_lt_loc/option_cov_Some/=.
+    repeat eapply if_in_split; simpl; [naive_solver..|].
+    intros K1 K2 K3. exfalso.
+    rewrite /bin_op_eval'_cov_locX in H.
+    destruct!/=.
+    + apply K3. rewrite /bin_op_eval'_loc_cov_offset_int. naive_solver. 
+    + apply K2. rewrite /bin_op_eval'_loc_cov_le_loc. naive_solver.
+    + apply K1. rewrite /bin_op_eval'_loc_cov_lt_loc. naive_solver.
+  - do 5 (eapply if_in_split; first naive_solver).
+    rewrite /option_cov_Some. naive_solver.
+Qed.
 Hint Resolve bin_op_eval''_meas_fun : mf_fun.
 
 Definition bin_op_eval''' : (<<discr bin_op>> * val * val * state)%type -> giryM cfg := if_in bin_op_eval''_ok bin_op_eval'' (cst gZero).
