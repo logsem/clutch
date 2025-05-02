@@ -1305,14 +1305,81 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
   { rewrite /head_stepM_binop/=/bin_op_eval'''. clear.
     apply if_in_split.
     - (* bin_op ok*)
-      intros [[[[[H|H]|H]|H]|H] _]; simpl in *; rewrite /bin_op_eval''/of_option/𝜋_Some_v/=/bin_op_eval'.
-      (* sets as such bin_op_eval'_cov_eq not defined*)
-      + admit.
-      + admit.
-      + admit.
-      + admit.
-      + admit. 
-    - admit. }
+      rewrite /bin_op_eval''_ok/bin_op_eval''/of_option/𝜋_Some_v/=/bin_op_eval'.
+      rewrite !Logic.or_assoc.
+      assert (∀ P Q, P \/ Q <-> P \/ (¬ P /\ Q)) as Hrewrite.
+      { split; last naive_solver.
+        pose proof lem P as [|]; naive_solver.
+      }
+      rewrite Hrewrite.
+      elim. intros H _; revert H.
+      elim.
+      { intros H. rewrite ifIn_eq_left; last done.
+        rewrite /bin_op_eval'_eq.
+        rewrite /bin_op_eval'_cov_eq in H.
+        eapply if_in_split.
+        - rewrite /bin_op_eval'_eq_cov'; intros. destruct!/=.
+          rewrite /bin_op_eval. 
+          by repeat rewrite bool_decide_eq_true_2.
+        - intros H'. destruct!/=. rewrite /bin_op_eval.
+          rewrite bool_decide_eq_true_2; last done.
+          rewrite bool_decide_eq_false_2; first done.
+          intros ->. apply H'. rewrite /bin_op_eval'_eq_cov'/=. naive_solver.
+      }
+      elim. intros K1. rewrite Hrewrite. elim.
+      { intros H. rewrite ifIn_eq_right; last done.
+        rewrite ifIn_eq_left; last done.
+        rewrite /bin_op_eval'_int/=.
+        rewrite /bin_op_eval'_cov_int in H. destruct!/=.
+        rewrite /bin_op_eval. by rewrite bool_decide_eq_false_2.
+      }
+      elim. intros K2. rewrite Hrewrite. elim.
+      { intros H. do 2 (rewrite ifIn_eq_right; last done).
+        rewrite ifIn_eq_left; last done.
+        rewrite /bin_op_eval'_real/bin_op_eval_real'/=.
+        repeat eapply if_in_split; rewrite /bin_op_eval. 
+        - intros []; destruct!/=. rewrite /bin_op_eval'_cov_real in H; destruct!/=; by rewrite bool_decide_eq_false_2.
+        - intros []; destruct!/=. rewrite /bin_op_eval'_cov_real in H; destruct!/=; by rewrite bool_decide_eq_false_2.
+        - intros []; destruct!/=. rewrite /bin_op_eval'_cov_real in H; destruct!/=; by rewrite bool_decide_eq_false_2.
+        - intros []; destruct!/=. rewrite /bin_op_eval'_cov_real in H; destruct!/=; rewrite bool_decide_eq_false_2; last done.
+          intros. repeat f_equal.
+          admit.
+        - intros []; destruct!/=. rewrite /bin_op_eval'_cov_real in H; destruct!/=; rewrite bool_decide_eq_false_2; last done.
+          intros. repeat f_equal.
+          admit.
+        - intros H1 H2 H3 H4 H5. exfalso. rewrite /bin_op_eval'_cov_real in H. destruct!/=.
+          + apply H5. rewrite /bin_op_eval_real'_cov_plus; naive_solver.
+          + apply H4. rewrite /bin_op_eval_real'_cov_minus; naive_solver.
+          + apply H3. rewrite /bin_op_eval_real'_cov_mul; naive_solver.
+          + apply H2. rewrite /bin_op_eval_real'_cov_le; naive_solver.
+          + apply H1. rewrite /bin_op_eval_real'_cov_lt; naive_solver.
+      }
+      elim. intros K3. rewrite Hrewrite. elim.
+      { intros H. do 3 (rewrite ifIn_eq_right; last done).
+        rewrite ifIn_eq_left; last done.
+        rewrite /bin_op_eval'_bool/bin_op_eval_bool/=.
+        rewrite /bin_op_eval'_cov_bool in H. destruct!/=; rewrite /bin_op_eval/=; by rewrite bool_decide_eq_false_2.
+      }
+      elim.
+      intros K4.
+      intros K5.
+      do 4 (rewrite ifIn_eq_right; last done).
+      rewrite ifIn_eq_left; last done.
+      admit. 
+    - rewrite /bin_op_eval. case_match eqn:Heqn1; last done.
+      intros H.
+      exfalso. apply H.
+      rewrite /bin_op_eval''_ok.
+      simpl. split; last done.
+      case_bool_decide as Heqn2.
+      { subst. by repeat left. }
+      repeat case_match; try done; destruct!/=.
+      + do 3 left. right. split; naive_solver.
+      + left. right.
+        rewrite /bin_op_eval_bool in Heqn1. repeat case_match; try done; split; simplify_eq; naive_solver.
+      + right. rewrite /bin_op_eval'_cov_locX. rewrite /bin_op_eval_loc in Heqn1. repeat case_match; simplify_eq; simpl in *; simplify_eq; naive_solver.
+      + do 2 left. right. rewrite /bin_op_eval'_cov_real/bin_op_eval_real in Heqn1 *.
+        repeat case_match; simplify_eq; simpl in *; simplify_eq; naive_solver. }
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H8].
   { (* alloc_eval_cov_ok is not defined yet *)
     admit. }

@@ -774,7 +774,7 @@ Hint Resolve bin_op_eval_real'_meas_fun  : mf_fun.
 
 (* Unlike prob_lang, we are allowing ALL values to be compared *)
 Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
-  if decide (op = EqOp) then    
+  if bool_decide (op = EqOp) then    
     Some $ LitV $ LitBool $ bool_decide (v1 = v2)
   else
     match v1 , v2 with
