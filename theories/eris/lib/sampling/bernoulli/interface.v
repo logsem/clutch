@@ -179,30 +179,75 @@ Section BernoulliSpecLemmas.
     { iApply (ec_eq with "Herr"). simpl_expr. }
     done.
   Qed.
-
-
-  #[local] Open Scope nat.
   
+  Lemma twp_bernoulli_n_success_presample_1
+    (e : expr) (α : loc) (Φ : val → iProp Σ)
+    (p q r : nat) (ns : list (fin 2)) :
+    (p = q + 1)%nat →
+    to_val e = None →
+    own_bernoulli_tape α p q ns ∗
+    (own_bernoulli_tape α p q (ns ++ repeat 1%fin r) -∗ WP e [{ Φ }])
+    ⊢  WP e [{ Φ }].
+  Proof.
+    iIntros (-> e_not_val) "[Hα Hnext]".
+    iInduction (r) as [|r] "IH" forall (Φ ns).
+    - wp_apply "Hnext".
+      rewrite app_nil_r //.
+    - iMod ec_zero as "Herr".
+      wp_apply
+        (twp_presample_bernoulli_adv_comp _ α _ (q + 1) q _ 0%R
+           (λ k, if bool_decide (k = 0)%fin then 1%R else 0%R)
+           ltac:(reflexivity) with "[$Hα Hnext $Herr]")
+        as (i) "H";
+        try done.
+      {
+        rewrite plus_INR INR_1 Rdiv_diag //.
+      }
+      case_bool_decide;
+        iDestruct "H" as "[Herr Hα]";
+        first cred_contra.
+      replace i with (1%fin : fin 2) by full_inv_fin.
+      wp_apply ("IH" with "Hα") as "Hα".
+      wp_apply "Hnext".
+      rewrite -app_assoc //.
+  Qed.
+
   Lemma twp_bernoulli_n_success_presample
     (e : expr) (α : loc) (Φ : val → iProp Σ)
     (p q r : nat) (ns : list (fin 2)) (ε : R) :
     (0 < p)%nat →
-    (p < q + 1)%nat →
+    (p ≤ q + 1)%nat →
     (0 < ε)%R → 
     to_val e = None →
     ↯ ε ∗
     own_bernoulli_tape α p q ns ∗
-    (if bool_decide (r = 0)
+    (if bool_decide (r = 0)%nat
      then own_bernoulli_tape α p q ns -∗ WP e [{ Φ }]
      else
-       ∀ (suf : list (fin 2)), ⌜list_sum $ fin_to_nat <$> suf = r - 1⌝ -∗ own_bernoulli_tape α p q (ns ++ suf ++ [1%fin]) -∗ WP e [{ Φ }])
+       ∀ (suf : list (fin 2)), ⌜list_sum $ fin_to_nat <$> suf = (r - 1)%nat⌝ -∗ own_bernoulli_tape α p q (ns ++ suf ++ [1%fin]) -∗ WP e [{ Φ }])
     ⊢  WP e [{ Φ }].
   Proof.
-    iIntros (p_gt_0 p_lt_Sq).
+    iIntros (p_gt_0 p_le_Sq).
+    destruct (decide (p = q + 1)%nat) as [-> | p_ne_Sq].
+    {
+      iIntros (_ e_not_val) "(_ & Hα & Hnext)".
+      wp_apply (twp_bernoulli_n_success_presample_1 _ _ _ _ _ r with "[$Hα Hnext]") as "Hα"; try done.
+      case_bool_decide as is_r_0.
+      { rewrite is_r_0 app_nil_r.
+        by wp_apply "Hnext".
+      }
+      destruct r; first lia.
+      rewrite -(Nat.add_1_r r) repeat_app.
+      wp_apply ("Hnext" with "[] Hα").
+      iPureIntro.
+      rewrite fmap_repeat list_sum_repeat /=.
+      lia.
+    }
     iInduction (r) as [|r] "IH" forall (Φ ns ε);
       iIntros (ε_pos e_not_val) "(Herr & Hα & Hnext)".
     - by wp_apply "Hnext".
     - iRevert "Hα Hnext".
+      assert (p < q + 1)%nat as p_lt_Sq by lia.
       set (s0 := (p / (q + 1))%R).
       set (s1 := (1 - s0)%R).
       set (s2 := (1 / s1)%R).
@@ -281,4 +326,5 @@ Section BernoulliSpecLemmas.
         iPureIntro.
         lia.
   Qed.
+  
 End BernoulliSpecLemmas.

@@ -7,10 +7,10 @@ Class geometric_spec `{!erisGS Σ} (geometric_prog : val) :=
     twp_geometric_adv_comp :
     ∀ (p q : nat),
       (0 < p)%nat →
-      (p < q + 1)%nat →
-      ∀ (D : nat → R) (ε : R) (ε_term : R),
+      (p ≤ q + 1)%nat →
+      ∀ (D : nat → R) (L : R) (ε : R) (ε_term : R),
       (0 < ε_term)%R →
-      (∀ (n : nat), 0 <= D n)%R →
+      (∀ (n : nat), 0 <= D n <= L)%R →
       SeriesC (λ k, ((p / (q + 1)) * (1 - p / (q + 1))^k * D k)%R) = ε → ↯ ε_term -∗
       ↯ ε -∗ WP geometric_prog #() #p #q [{ v, ∃ (k : nat), ⌜v = #k⌝ ∗ ↯ (D k) }];
 
@@ -18,15 +18,15 @@ Class geometric_spec `{!erisGS Σ} (geometric_prog : val) :=
 
     twp_geometric_tape :
     ∀ (p q r : nat) (α : loc) (n : nat) (ns : list nat) (Φ : val → iProp Σ),
-    own_geometric_tape α p q (n::ns) -∗
-    (own_geometric_tape α p q ns -∗ Φ #n) -∗
-    WP geometric_prog #lbl:α #p #q #r [{ Φ }];
+      own_geometric_tape α p q (n::ns) -∗
+      (own_geometric_tape α p q ns -∗ Φ #n) -∗
+      WP geometric_prog #lbl:α #p #q #r [{ Φ }];
  
     twp_geometric_presample :
     ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
       (p q r : nat) (ns : list nat) (ε : R),
       (0 < p)%nat →
-      (p < q + 1)%nat →
+      (p ≤ q + 1)%nat →
       (0 < ε)%R → 
       to_val e = None →
       ↯ ε ∗ own_geometric_tape α p q ns ∗
@@ -53,11 +53,11 @@ Class geometric_spec `{!erisGS Σ} (geometric_prog : val) :=
     twp_geometric_presample_adv_comp :
     ∀ (p q : nat) (α : loc) (l : list nat) (e : expr) (Φ : val → iProp Σ),
       0 < p →
-      p < (q + 1) →
+      p ≤ (q + 1) →
       to_val e = None →
-      ∀ (r : nat) (D : nat → R) (ε : R) (ε_term : R),
+      ∀ (r : nat) (D : nat → R) (L : R) (ε : R) (ε_term : R),
       (0 < ε_term)%R →
-      (∀ (n : nat), 0 <= D n)%R →
+      (∀ (n : nat), 0 <= D n <= L)%R →
       SeriesC (λ k, ((p / (q + 1)) * (1 - p / (q + 1))^k * D k)%R) = ε →
       ↯ ε_term ∗
       ↯ ε ∗

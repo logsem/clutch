@@ -322,12 +322,12 @@ Section GeometricToNegative.
   Proof.
     refine (NegativeSpec _ _ _ _ _ _ _ _ _).
     {
-      iIntros (p q p_pos p_lt_Sq r D ε ε_term term_pos D_pos D_sum) "Hterm Herr".
+      iIntros (p q p_pos p_lt_Sq r D L ε ε_term term_pos D_bounds D_sum) "Hterm Herr".
       unfold negative_of_geometric.
       do 8 wp_pure.
-      iRevert (D ε ε_term term_pos D_pos D_sum) "Hterm Herr".
+      iRevert (D L ε ε_term term_pos D_bounds D_sum) "Hterm Herr".
       iInduction (r) as [|r] "IH";
-        iIntros (D ε ε_term term_pos D_pos D_sum) "Hterm Herr".
+        iIntros (D L ε ε_term term_pos D_bounds D_sum) "Hterm Herr".
       - wp_pures.
         iModIntro.
         iExists 0.
@@ -346,14 +346,14 @@ Section GeometricToNegative.
         { move=> n.
           rewrite -Nat.add_1_r //.
         }
-        rewrite negative_sum_geometric_split in D_sum.
+        rewrite (negative_sum_geometric_split _ _ _ _ L) // in D_sum.
         wp_pures.
         wp_bind (geometric _ _ _).
         iApply tgl_wp_wand_r.
         rewrite -(Rplus_half_diag ε_term).
         iPoseProof (ec_split with "Hterm") as "[Hterm_now Hterm_next]"; try lra.
         iSplitL "Hterm_now Herr";
-          first wp_apply (twp_geometric_adv_comp _ _ _ _ _ _ _ _ _ D_sum with "Hterm_now Herr").
+          first wp_apply (twp_geometric_adv_comp _ _ _ _ _ _ _ _ _ _ D_sum with "Hterm_now Herr").
         iIntros (v) "(%k & -> & H)".
          wp_pure.
          replace (S r - 1 : Z) with (r : Z) by lia.

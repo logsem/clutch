@@ -35,9 +35,9 @@ Section Examples.
     }
     replace (1 - p ^ 2) with ((1 - p) + (p - p^2)) by lra.
     iPoseProof (ec_split with "Herr") as "[Herr1 Herr2]" => //.
-    wp_apply (bernoulli_success_spec _ _ (p - p^2) (1 - p) with "[$Herr1 $Herr2]") as "%v [Herr ->]" => //.
+    wp_apply (bernoulli_success_spec _ _ (p - p^2) (1 - p) with "[$Herr1 $Herr2]") as "Herr" => //.
     { fold p; nra. }
-    wp_apply (bernoulli_success_spec_simple with "Herr") as (?) "->".
+    wp_apply (bernoulli_success_spec_simple with "Herr") as "_".
     wp_pures.
     by iApply "HΦ".
   Qed.
@@ -64,11 +64,11 @@ Section Examples.
     wp_apply (twp_bernoulli_scale _ _ _ (1 - p) p with "Herr") 
       as "%k [[-> Herr]|[-> Herr]]"; fold p =>//.
     - wp_apply (bernoulli_success_spec_simple with "Herr") 
-        as "%v ->".
+        as "_".
       wp_pures.
       by iApply "HΦ".
     - wp_apply (bernoulli_failure_spec_simple with "Herr") 
-        as "%v ->".
+        as "_".
       wp_pures.
       by iApply "HΦ".
   Qed.
@@ -90,11 +90,11 @@ Section Examples.
     wp_apply (twp_bernoulli_scale _ _ _ p (1 - p) with "Herr") 
       as "%k [[-> Herr]|[-> Herr]]"; fold p =>//.
     - wp_apply (bernoulli_failure_spec_simple with "Herr") 
-        as "%v ->".
+        as "_".
       wp_pures.
       by iApply "HΦ".
     - wp_apply (bernoulli_success_spec_simple with "Herr") 
-        as "%v ->".
+        as "_".
       wp_pures.
       by iApply "HΦ".
   Qed.
@@ -144,7 +144,7 @@ Section Roulette.
     - iIntros "%H_g_pos %H_c_lt_g %Φ Herr HΦ".
       rewrite /roulette_martingale /roulette_martingale_aux.
       wp_pures.
-      wp_apply (bernoulli_success_spec_simple with "[Herr]") as "% ->".
+      wp_apply (bernoulli_success_spec_simple with "[Herr]") as "_".
       { iApply (ec_eq with "Herr"). 
         simpl_expr.
         rewrite Rmult_plus_distr_l Rmult_1_r.

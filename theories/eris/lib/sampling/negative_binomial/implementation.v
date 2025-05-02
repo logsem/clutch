@@ -21,33 +21,156 @@ Section NegativeBinomial.
         if: "b" = #0
         then "negative_binomial" "r" + #1
         else "negative_binomial" ("r" - #1).
+
+  Lemma SeriesC_first_nat :
+    ∀ (D : nat → R),
+    ex_seriesC D → SeriesC D = (D 0%nat + SeriesC (D ∘ S))%R.
+  Proof.
+    move=>D ex_D.
+    rewrite !SeriesC_nat Series.Series_incr_1 //.
+    by apply ex_seriesC_nat.
+  Qed.
   
   Lemma ec_negative_binom_split :
-    ∀ (p q r : nat) (D : nat → R),
+    ∀ (p q r : nat) (D : nat → R) (L : R),
+    (0 < p ≤ q + 1)%nat →
+    (∀ k, 0 <= D k <= L)%R →
     let ε := SeriesC (λ k, negative_binom_prob p q (r + 1) k * D k)%R in
     let ε0 := SeriesC (λ k, negative_binom_prob p q (r + 1) k * D (k + 1)%nat)%R in
     let ε1 := SeriesC (λ k, negative_binom_prob p q r k * D k)%R in
     (ε = (1 - (p / (q + 1))) * ε0 + (p / (q + 1))* ε1)%R.
   Proof.
-    (* True on paper proof, modulo convergence conditions, enough for now *)
-  Admitted.
+    move=>p q r D L p_bounds D_bounds ε ε0 ε1.
+    unfold ε, ε0, ε1.
+    set (s := (p / (q + 1))%R).
+    set (t := (1 - s)%R).
+    move=>[:ex_series_neg_D].
+    rewrite SeriesC_first_nat; last first.
+    { generalize (r + 1).
+      set (id := λ (n : nat), n).
+      replace D with (D ∘ id); last done.
+      generalize id.
+      abstract: ex_series_neg_D.
+      move=>f r'.
+      apply (ex_seriesC_le _ (λ k, negative_binom_prob p q r' k * L)%R).
+      { move=>k.
+        split.
+        - apply Rmult_le_pos.
+          + apply negative_binom_pos.
+            lia.
+          + apply D_bounds.
+        - apply Rmult_le_compat_l.
+          + apply negative_binom_pos.
+            lia.
+          + apply D_bounds.
+      }
+      apply ex_seriesC_scal_r.
+      exists 1%R.
+      by apply is_seriesC_negative_binomial.
+    }
+    
+    setoid_rewrite SeriesC_first_nat at 3; last apply (ex_series_neg_D (λ n, n)).
+    unfold negative_binom_prob at 1.
+    rewrite Nat.add_0_l Nat.add_sub.
+    fold s t.
+    rewrite interface.choose_n_0 -(interface.choose_n_0 (r - 1)) pow_add -Rmult_assoc (Rmult_assoc _ (s^1)) (Rmult_comm (s^1)) -Rmult_assoc -{1}(Nat.add_0_l r).
+    unfold t ,s.
+    fold (negative_binom_prob p q r 0).
+    fold s t.
+    rewrite pow_1 (Rmult_comm _ s) (Rmult_assoc s).
+    erewrite SeriesC_ext; last first.
+    {
+      move=>k /=.
+      rewrite -{1}(Nat.add_1_r k) negative_binom_prob_split.
+      fold s t.
+      rewrite Rmult_plus_distr_r Rplus_comm -{2}(Nat.add_1_r k) {1}(Nat.add_1_r k) //.
+    }
+    rewrite SeriesC_plus; last first.
+    { eapply ex_seriesC_ext; first (move=>k; rewrite Rmult_assoc //).
+      apply ex_seriesC_scal_l, ex_series_neg_D.
+    }
+    { eapply ex_seriesC_ext; first (move=>k; rewrite Rmult_assoc //).
+      apply ex_seriesC_scal_l.
+      rewrite -ex_seriesC_nat.
+      rewrite -(@Series.ex_series_incr_1 _ Hierarchy.R_NormedModule (λ k, negative_binom_prob p q r k * D k)%R).
+      rewrite ex_seriesC_nat.
+      apply ex_series_neg_D.
+    }
+    setoid_rewrite SeriesC_ext at 1 2; [..| (move=>k; rewrite Rmult_assoc //) | (move=>k; rewrite Rmult_assoc //)].
+    rewrite !SeriesC_scal_l Rmult_plus_distr_l -Rplus_assoc Rplus_comm //.
+  Qed.
 
+  Lemma twp_negative_binomial_split_p_eq_q_plus_1 :
+    ∀ (p q r : nat),
+    (0 < p)%nat →
+    (p = q + 1)%nat →
+    ⊢ WP negative_binomial #() #p #q #r [{ v, ⌜v = #0⌝ }].
+  Proof.
+    move=>p q r p_pos ->.
+    rewrite /negative_binomial.
+    do 6 wp_pure.
+    iInduction (r) as [|r] "IH"; first by wp_pures.
+    wp_pures.
+    iMod ec_zero as "ε0".
+    wp_apply (bernoulli_success_spec_simple with "[ε0]") as "_".
+    { 
+      replace (1 - (q + 1)%nat / S q)%R with 0%R; last first.
+      { rewrite S_INR plus_INR INR_1 Rdiv_diag; first lra.
+        pose proof (pos_INR q).
+        lra.
+      }
+      iFrame.
+    }
+    do 5 wp_pure.
+    replace (S r - 1)%Z with (r : Z) by lia.
+    wp_apply "IH".
+  Qed.
+  
   Lemma twp_negative_binomial_split :
     ∀ (p q : nat),
     (0 < p)%nat →
-    (p < q + 1)%nat →
-    ∀ (r : nat) (D : nat → R) (ε : R) (ε_term : R),
+    (p ≤ q + 1)%nat →
+    ∀ (r : nat) (D : nat → R) (L : R) (ε : R) (ε_term : R),
     (0 < ε_term)%R →
-    (∀ (n : nat), 0 <= D n)%R →
+    (∀ (n : nat), 0 <= D n <= L)%R →
     SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε → ↯ ε_term -∗
     ↯ ε -∗ WP negative_binomial #() #p #q #r [{ v, ∃ (k : nat), ⌜v = #k⌝ ∗ ↯ (D k) }].
   Proof.
-    iIntros (p q Hp Hpq r D ε ε_term Hε_term HD HSum) "Hterm Herr".
+    iIntros (p q Hp Hpq r D L ε ε_term Hε_term HD HSum) "Hterm Herr".
+    destruct (Nat.eq_dec p (q + 1)) as [-> | p_ne_q_add_1].
+    { rewrite (SeriesC_ext _ (λ k, if bool_decide (k = 0) then D 0 else 0%R)) in HSum; last first.
+      { move=>n.
+        unfold negative_binom_prob.
+        rewrite plus_INR Rdiv_diag /=; last first.
+        { pose proof (pos_INR q).
+          lra.
+        }
+        rewrite pow1 Rminus_diag.
+        case_bool_decide.
+        { subst.
+          rewrite interface.choose_n_0 pow_O /=.
+          lra.
+        }
+        {
+          rewrite pow_i; last lia.
+          lra.
+        }
+      }
+      rewrite SeriesC_singleton in HSum.
+      subst.
+      iApply tgl_wp_wand_r.
+      iSplitR;
+        first by wp_apply twp_negative_binomial_split_p_eq_q_plus_1.
+      iIntros (?) "->".
+      iExists 0.
+      by iFrame.
+    }
+    assert (p < q + 1)%nat by lia.
     rewrite /negative_binomial.
     do 6 wp_pure.
-    iRevert (D ε ε_term Hε_term HD HSum) "Herr Hterm".
+    iRevert (D L ε ε_term Hε_term HD HSum) "Herr Hterm".
     iInduction (r) as [|r] "IHr".
-    - iIntros (D ε ε_term Hε_term HD HDε) "Herr Hterm".
+    - iIntros (D L ε ε_term Hε_term HD HDε) "Herr Hterm".
       rewrite /negative_binom_prob /choose in HDε.
       erewrite (SeriesC_ext _ (λ k, if bool_decide (k = 0) then D 0 else 0)) in HDε; last first.
       { intros k.
@@ -62,7 +185,7 @@ Section NegativeBinomial.
       iModIntro.
       iExists 0.
       by iFrame.
-    - iIntros (D ε ε_term Hε_term HD HDε) "Herr Hterm".
+    - iIntros (D L ε ε_term Hε_term HD HDε) "Herr Hterm".
       iRevert (D ε HD HDε) "Herr".
       set (s1 := (p / (q + 1))%R).
       set (s0 := ((1 - s1)%R)).
@@ -132,7 +255,7 @@ Section NegativeBinomial.
         replace (S r) with (r + 1)%nat; first done.
         lia.
       }
-      rewrite ec_negative_binom_split in HDε.
+      rewrite (ec_negative_binom_split _ _ _ _ L) // in HDε.
       fold s1 s0 in HDε.
       match type of HDε with
       | (s0 * ?A + s1 * ?B)%R = _ => set (ε0 := A);
@@ -144,14 +267,14 @@ Section NegativeBinomial.
       assert (0 <= ε0)%R.
       { apply SeriesC_ge_0'.
         intros n.
-        apply Rmult_le_pos; last done.
+        apply Rmult_le_pos; last apply HD.
         apply negative_binom_pos.
         lia.
       }
       assert (0 <= ε1)%R.
       { apply SeriesC_ge_0'.
         intros n.
-        apply Rmult_le_pos; last done.
+        apply Rmult_le_pos; last apply HD.
         apply negative_binom_pos.
         lia.
       }
@@ -197,7 +320,7 @@ Section NegativeBinomial.
         iPoseProof (ec_split with "Herr") as "[Herr Hterm]".
         { apply SeriesC_ge_0'.
           intros n.
-          apply Rmult_le_pos; last done.
+          apply Rmult_le_pos; last apply HD.
           apply negative_binom_pos.
           lia.
         }
@@ -213,18 +336,18 @@ Section NegativeBinomial.
     ∀ (p q : nat),
     0 < p →
     p ≤ (q + 1) →
-    ∀ (r : nat) (D : nat → R) (ε : R),
-    (∀ (n : nat), 0 <= D n)%R →
+    ∀ (r : nat) (D : nat → R) (L : R) (ε : R),
+    (∀ (n : nat), 0 <= D n <= L)%R →
     SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
     ↯ ε -∗
     WP negative_binomial #() #p #q #r {{ v, ∃ (k : nat), ⌜v = #k⌝ ∗ ↯ (D k) }}.
   Proof.
-    iIntros (p q Hp Hpq r D ε HD HSum) "Herr".
+    iIntros (p q Hp Hpq r D L ε HD HSum) "Herr".
     rewrite /negative_binomial.
     do 6 wp_pure.
-    iRevert (r D ε HD HSum) "Herr".
+    iRevert (r D L ε HD HSum) "Herr".
     iLöb as "IH".
-    iIntros (r D ε HD HSum) "Herr".
+    iIntros (r D L ε HD HSum) "Herr".
     wp_pures.
     case_bool_decide.
     - assert (r = 0) as -> by lia.
@@ -252,7 +375,7 @@ Section NegativeBinomial.
         replace (S r) with (r + 1)%nat; first done.
         lia.
       }
-      rewrite ec_negative_binom_split in HSum.
+      rewrite (ec_negative_binom_split _ _ _ _ L) // in HSum.
       fold s1 s0 in HSum.
       match type of HSum with
       | (s0 * ?A + s1 * ?B)%R = _ => set (ε0 := A);
@@ -262,14 +385,14 @@ Section NegativeBinomial.
       assert (0 <= ε0)%R.
       { apply SeriesC_ge_0'.
         intros n.
-        apply Rmult_le_pos; last done.
+        apply Rmult_le_pos; last apply HD.
         apply negative_binom_pos.
         lia.
       }
       assert (0 <= ε1)%R.
       { apply SeriesC_ge_0'.
         intros n.
-        apply Rmult_le_pos; last done.
+        apply Rmult_le_pos; last apply HD.
         apply negative_binom_pos.
         lia.
       }
@@ -336,6 +459,12 @@ Section NegativeBinomial.
     move=>l1 l2.
     unfold expand_perm.
     rewrite flat_map_app //.
+  Qed.
+
+  Lemma expand_perm_repeat_0 :
+    ∀ (r : nat), expand_perm (repeat 0 r) = repeat 1%fin r.
+  Proof.
+    elim=>[|/= ? ->] //.
   Qed.
   
   Lemma exists_perm : ∀ (l : list (fin 2)), ∃ perm n, l = expand_perm perm ++ repeat 0%fin n.
@@ -483,19 +612,6 @@ Section NegativeBinomial.
         rewrite IH //=.
         f_equal.
         lia.
-  Qed.
-
-
-  Lemma fmap_repeat : ∀ (A B : Type) (f : A → B) (a : A) (n : nat), f <$> (repeat a n) = repeat (f a) n.
-  Proof.
-    move=>A B f a.
-    elim=>[//|n /= <- //].
-  Qed.
-
-  Lemma list_sum_repeat : ∀ (n k : nat), list_sum (repeat n k) = n * k.
-  Proof.
-    move=>n.
-    elim=>[/=|k /= ->]; lia.
   Qed.
 
   Lemma list_sum_negative_to_bernoulli (r : nat) :
@@ -720,12 +836,11 @@ Section NegativeBinomial.
         }
   Qed.
          
-  
   Lemma twp_negative_presample :
     ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
       (p q r : nat) (ns : list nat) (ε : R),
     (0 < p)%nat →
-    (p < q + 1)%nat →
+    (p ≤ q + 1)%nat →
     (0 < ε)%R → 
     to_val e = None →
     ↯ ε ∗ own_negative_tape α p q r ns ∗
@@ -927,11 +1042,11 @@ Section NegativeBinomial.
   Lemma twp_bernoulli_presample_adv_comp_n_success :
     ∀ (p q : nat) (α : loc) (l : list (fin 2)) (e : expr) (Φ : val → iProp Σ),
     0 < p →
-    p < (q + 1) →
+    p ≤ (q + 1) →
     to_val e = None →
-    ∀ (r : nat) (D : nat → R) (ε : R) (ε_term : R),
+    ∀ (r : nat) (D : nat → R) (L : R) (ε : R) (ε_term : R),
     (0 < ε_term)%R →
-    (∀ (n : nat), 0 <= D n)%R →
+    (∀ (n : nat), 0 <= D n <= L)%R →
     SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
     ↯ ε_term ∗
     ↯ ε ∗
@@ -942,10 +1057,29 @@ Section NegativeBinomial.
          own_bernoulli_tape α p q (l ++ expand_perm perm) -∗ WP e [{ Φ }]) ⊢
     WP e [{ Φ }].
   Proof.
-    iIntros (p q α l e Φ Hp Hpq e_not_val r D ε ε_term Hε_term HD HSum) "(Hterm & Herr & Hα & Hnext)".
-    iRevert (D ε ε_term Hε_term HD HSum l Φ) "Herr Hterm Hα Hnext".
+    iIntros (p q α l e Φ Hp Hpq e_not_val r D L ε ε_term Hε_term HD HSum) "(Hterm & Herr & Hα & Hnext)".
+    destruct (decide (p = q + 1)) as [-> | p_ne_Sq].
+    {
+      rewrite (SeriesC_ext _ (λ k, if bool_decide (k = 0)%nat then D 0 else 0%R)) in HSum; last first.
+      {
+        move=>k.
+        rewrite /negative_binom_prob plus_INR INR_1 Rdiv_diag; last (pose proof (pos_INR q); lra).
+        case_bool_decide as is_k_0.
+        - rewrite is_k_0 choose_n_0 pow1 pow_O /=.
+          lra.
+        - rewrite Rminus_diag pow_i; [lra | lia].
+      }
+      rewrite SeriesC_singleton in HSum.
+      subst.
+      wp_apply (twp_bernoulli_n_success_presample_1 _ _ _ _ _ r with "[$Hα Hnext Herr]") as "Hα"; try done.
+      wp_apply ("Hnext" $! (repeat 0 r) with "[] [Herr] [Hα]").
+      { rewrite repeat_length //. }
+      { rewrite list_sum_repeat Nat.mul_0_l //. }
+      rewrite expand_perm_repeat_0 //.
+    }
+    iRevert (D L ε ε_term Hε_term HD HSum l Φ) "Herr Hterm Hα Hnext".
     iInduction (r) as [|r] "IHr".
-    - iIntros (D ε ε_term Hε_term HD HSum l Φ) "Herr Hterm Hα Hnext".
+    - iIntros (D L ε ε_term Hε_term HD HSum l Φ) "Herr Hterm Hα Hnext".
       rewrite /negative_binom_prob /choose in HSum.
       erewrite (SeriesC_ext _ (λ k, if bool_decide (k = 0) then D 0 else 0)) in HSum; last first.
       { intros k.
@@ -958,8 +1092,8 @@ Section NegativeBinomial.
       rewrite -HSum.
       wp_apply ("Hnext" $! [] with "[] Herr"); first done.
       rewrite app_nil_r //.
-    - iIntros (D ε ε_term Hε_term HD HSum l Φ) "Herr Hterm Hα Hnext".
-      iRevert (D ε HD HSum l) "Herr Hα Hnext".
+    - iIntros (D L ε ε_term Hε_term HD HSum l Φ) "Herr Hterm Hα Hnext".
+      iRevert (D L ε HD HSum l) "Herr Hα Hnext".
       set (s1 := (p / (q + 1))%R).
       set (s0 := ((1 - s1)%R)).
       set (sc0 := ((/ s0 + 1) / 2)%R).
@@ -970,6 +1104,7 @@ Section NegativeBinomial.
         rewrite -INR_0.
         by apply lt_INR.
       }
+      assert (p < q + 1)%nat by lia.
       assert (0 <= q)%R by apply pos_INR.
       assert (1 <= q + 1)%R by lra.
       assert (0 < q + 1)%R by lra.
@@ -1020,14 +1155,14 @@ Section NegativeBinomial.
       iApply (ec_ind_amp _ sc0 with "[] Hterm"); try done.
       iModIntro.
       iIntros (ε' Hε') "IH Hterm".
-      iIntros (D ε HD HDε l) "Herr Hα Hnext".
+      iIntros (D L ε HD HDε l) "Herr Hα Hnext".
       erewrite SeriesC_ext in HDε; last first.
       {
         intros.
         replace (S r) with (r + 1)%nat; first done.
         lia.
       }
-      rewrite ec_negative_binom_split in HDε.
+      rewrite (ec_negative_binom_split _ _ _ _ L) in HDε; try done.
       fold s1 s0 in HDε.
       match type of HDε with
       | (s0 * ?A + s1 * ?B)%R = _ => set (ε0 := A);
@@ -1037,14 +1172,14 @@ Section NegativeBinomial.
       assert (0 <= ε0)%R.
       { apply SeriesC_ge_0'.
         intros n.
-        apply Rmult_le_pos; last done.
+        apply Rmult_le_pos; last apply HD.
         apply negative_binom_pos.
         lia.
       }
       assert (0 <= ε1)%R.
       { apply SeriesC_ge_0'.
         intros n.
-        apply Rmult_le_pos; last done.
+        apply Rmult_le_pos; last apply HD.
         apply negative_binom_pos.
         lia.
       }
@@ -1072,7 +1207,7 @@ Section NegativeBinomial.
           { nra. }
           wp_apply ("IH" with "[Hterm] [] [] Herr Hα [Hnext]").
           { rewrite Rmult_comm //. }
-          { instantiate (1 := λ k, D (k + 1)). iPureIntro. intros. apply HD. }
+          { instantiate (2 := λ k, D (k + 1)). iPureIntro. intros. apply HD. }
           { iPureIntro.
             apply SeriesC_ext.
             intros k.
@@ -1104,11 +1239,11 @@ Section NegativeBinomial.
   Lemma twp_negative_presample_adv_comp :
     ∀ (p q : nat) (α : loc) (l : list nat) (e : expr) (Φ : val → iProp Σ),
     0 < p →
-    p < (q + 1) →
+    p ≤ (q + 1) →
     to_val e = None →
-    ∀ (r : nat) (D : nat → R) (ε : R) (ε_term : R),
+    ∀ (r : nat) (D : nat → R) (L : R) (ε : R) (ε_term : R),
     (0 < ε_term)%R →
-    (∀ (n : nat), 0 <= D n)%R →
+    (∀ (n : nat), 0 <= D n <= L)%R →
     SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
     ↯ ε_term ∗
     ↯ ε ∗
@@ -1118,8 +1253,8 @@ Section NegativeBinomial.
          own_negative_tape α p q r (l ++ [n]) -∗ WP e [{ Φ }]) ⊢
     WP e [{ Φ }].
   Proof.
-    iIntros (p q α l e Φ p_pos p_lt_Sq e_not_val r D ε ε_term ε_term_pos D_pos D_sum) "(Hterm & Herr & (%v & Hα & %is_tl) & Hnext)".
-    unshelve wp_apply (twp_bernoulli_presample_adv_comp_n_success _ _ _ _ _ _ _ _ _ r D ε ε_term); last iFrame; try done.
+    iIntros (p q α l e Φ p_pos p_lt_Sq e_not_val r D L ε ε_term ε_term_pos D_pos D_sum) "(Hterm & Herr & (%v & Hα & %is_tl) & Hnext)".
+    unshelve wp_apply (twp_bernoulli_presample_adv_comp_n_success _ _ _ _ _ _ _ _ _ r D L ε ε_term); last iFrame; try done.
     iIntros (perm len_perm) "Herr Hα".
     wp_apply ("Hnext" with "Herr").
     iFrame.
