@@ -1,3 +1,8 @@
+(**
+  This file implements contains functions to transform usual probability tapes into ones using the bernoulli distribution, as well as lemmas to reason about them
+*)
+
+
 From clutch.eris Require Import eris.
 From clutch.eris.lib.sampling Require Import utils.
 
@@ -11,6 +16,8 @@ Section BernoulliTape.
     tactics.done |
     auto
   ].
+
+  (** The translation mimics the behavior of the bernoulli function *)
   Definition is_bernoulli_translation (N M : nat) : list (fin 2) → list (fin (S M)) → Prop :=
     Forall2 (
       λ v l, 
@@ -28,29 +35,16 @@ Section BernoulliTape.
   Proof.
     reflexivity.
   Qed.
-  
-  Lemma is_bernoulli_translation_dec (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :
-    {is_bernoulli_translation N M v l} + {¬ is_bernoulli_translation N M v l}.
-  Proof.
-    rewrite is_bernoulli_translation_def.
-    apply Forall2_dec => b_tape_h tape_h.
-    repeat inv_fin b_tape_h =>[|b_tape_h]; destruct (decide (N ≤ tape_h)) as [? | ?%not_le];
-    solve
-      [ left; done 
-      | right; move=> [[_ Hcontra] | [Hcontra _]] // ].
-  Qed.
 
   Lemma is_bernoulli_translation_length (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :
     is_bernoulli_translation N M v l → length v = length l.
   Proof.
-    rewrite is_bernoulli_translation_def.
     apply Forall2_length.
   Qed.
   
   Lemma is_bernoulli_translation_nil (N M : nat) :
     is_bernoulli_translation N M [] [].
   Proof.
-    rewrite is_bernoulli_translation_def.
     apply Forall2_nil_2.
   Qed.
 
@@ -77,6 +71,7 @@ Section BernoulliTape.
     reflexivity.
   Qed.
   
+  (** When going from bernoulli tape to usual tape, there is some information we can't recover. Therefore 0 becomes M and 1 becomes N  *)
   Definition bernoulli_to_tape (M : nat) : list (fin 2) → list (fin (S M)) :=
     map (λ v, if bool_decide (v = 1)%fin then 0%fin else (nat_to_fin (Nat.lt_succ_diag_r M))).
   
@@ -93,7 +88,7 @@ Section BernoulliTape.
     - exact: Forall2_nil_2.
     - by apply Forall2_length in H.
     - by apply Forall2_length in H.
-    - destruct (IHt tv) as [IHt1 IHt2]. 
+    - case (IHt tv) => [IHt1 IHt2]. 
       apply Forall2_cons in H as [[[-> HNleh] | [-> HhtapeN] ] Hforall]; 
         bool_decide; rewrite -IHt1 //.
     - case:H => -> ->.
@@ -124,8 +119,7 @@ Section BernoulliTape.
     tape_to_bernoulli N M (bernoulli_to_tape M l) = l.
   Proof.
     move=> [zero_tape_N N_le_M].
-    elim: l =>[// |h t IHt].
-    full_inv_fin.
+    elim: l =>[// |h t IHt]; full_inv_fin.
     - rewrite /= IHt fin_to_nat_to_fin bool_decide_eq_true_2 //.
     - rewrite /= IHt bool_decide_eq_false_2 //.
   Qed.
@@ -133,17 +127,17 @@ Section BernoulliTape.
   Lemma is_bernoulli_translation_0 (N M : nat) (k : fin (S M)) :
     N ≤ k →
     is_bernoulli_translation N M [0%fin] [k].
-  Proof with auto.
+  Proof.
     move=>?.
-    apply Forall2_cons...
+    apply Forall2_cons; auto.
   Qed.
 
   Lemma is_bernoulli_translation_1 (N M : nat) (k : fin (S M)) :
     k < N →
     is_bernoulli_translation N M [1%fin] [k].
-  Proof with auto.
+  Proof.
     move=>?.
-    apply Forall2_cons...
+    apply Forall2_cons; auto.
   Qed.
 
   Lemma is_bernoulli_translation_app (N M : nat) (b_tape1 b_tape2 : list (fin 2)) (tape1 tape2 : list (fin (S M))) :
@@ -151,7 +145,8 @@ Section BernoulliTape.
     is_bernoulli_translation N M b_tape2 tape2 → 
     is_bernoulli_translation N M (b_tape1 ++ b_tape2) (tape1 ++ tape2).
   Proof.
-    intros * ->%tape_to_bernoulli_translation ->%tape_to_bernoulli_translation.
+    intros ->%tape_to_bernoulli_translation 
+           ->%tape_to_bernoulli_translation.
     apply tape_to_bernoulli_translation.
     by rewrite tape_to_bernoulli_app.
   Qed.

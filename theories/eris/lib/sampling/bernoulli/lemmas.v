@@ -1,3 +1,5 @@
+(* This file contains some lemmas used in the specification of bernoulli. They are quite specific, and probably won't be useful in other places. Most of them are local as only the final lemma is useful in bernoulli.v *)
+
 From clutch.eris Require Import eris.
 From clutch.eris.lib.sampling Require Import utils.
 
@@ -31,9 +33,7 @@ Proof.
   move=> HPs.
   elim: l => [_ ? /= HinNil| a l IH Hforall /= b Hin].
   - by apply not_elem_of_nil in HinNil.
-  - add_hint @elem_of_list_here.
-    add_hint @elem_of_list_further.
-    apply elem_of_cons in Hin as [-> | Hin]; done.
+  - apply elem_of_cons in Hin as [-> | Hin]; done.
 Qed.
 
 #[local] Lemma forall_list_eq {A : Type} (l : list A) (a : A) :
@@ -71,7 +71,6 @@ Proof.
   rewrite (forall_list_eq _ _ Heq) fmap_length seq_length //.
 Qed.
 
-
 #[local] Lemma foldr_plus_repeat (ε : R) (L : nat) :
   foldr Rplus 0 (repeat ε L) = ε * L.
 Proof.
@@ -79,6 +78,8 @@ Proof.
   rewrite S_INR //=.
 Qed.
 
+
+(** This is the main lemma of the file. It is used to prove error credit scaling for the bernoulli implementation *)
 Lemma SeriesC_case (N M : nat) (ε1 ε2 : R) :
   (N <= S M)%nat →
   SeriesC (
@@ -90,14 +91,13 @@ Lemma SeriesC_case (N M : nat) (ε1 ε2 : R) :
 Proof.
   move=> ?.
   rewrite SeriesC_finite_foldr -foldr_fmap.
-  transitivity (
+  trans (
     foldr Rplus 0
     ((λ x : nat, if bool_decide (x < N)%nat then ε2 else ε1) ∘ fin_to_nat <$> enum (fin (S M)))
   ); first reflexivity.
   rewrite list_fmap_compose fin.enum_fin_seq.
-  assert (seq 0 (S M) = seq 0 N ++ seq N (S M - N)) as ->.
-  { add_hint @seq_app. 
-    by replace (S M)%nat with (N + (S M - N))%nat at 1 by lia. }
+  replace (S M) with (N + (S M - N))%nat at 1 by lia.
+  rewrite seq_app.
   rewrite fmap_app foldr_plus_app Rplus_comm.
   rewrite map_seq_if_ge map_seq_if_lt.
   rewrite !foldr_plus_repeat minus_INR //.

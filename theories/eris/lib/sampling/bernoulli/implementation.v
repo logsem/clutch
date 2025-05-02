@@ -219,6 +219,6 @@ Section BernoulliImpl.
   
 
   #[global] Instance bernoulli_impl : bernoulli_spec bernoulli :=
-    BernoulliSpec _ _ bernoulli twp_bernoulli_scale bernoulli_case own_bernoulli_tape twp_presample_bernoulli twp_presample_bernoulli_adv_comp twp_bernoulli_tape twp_presample_bernoulli_planner.
+    BernoulliSpec _ _ bernoulli twp_bernoulli_scale own_bernoulli_tape twp_presample_bernoulli twp_presample_bernoulli_adv_comp twp_bernoulli_tape twp_presample_bernoulli_planner.
   
 End BernoulliImpl.

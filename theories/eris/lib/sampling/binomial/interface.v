@@ -31,8 +31,15 @@ Section BinomialProbability.
   Lemma choose_n_0 (n : nat) : choose n 0 = 1.
   Proof.
     unfold choose.
-    case_bool_decide; last lia.
+    bool_decide.
     rewrite Rcomplements.C_n_0 //.
+  Qed.
+
+  Lemma choose_n_n (n : nat) : choose n n = 1.
+  Proof.
+    unfold choose.
+    bool_decide.
+    rewrite Rcomplements.C_n_n //.
   Qed.
   
   Definition binom_prob (p q n k : nat) : R := (choose n k * (p / (q + 1))^k * (1 - p / (q + 1))^(n - k))%R.
