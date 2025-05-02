@@ -1270,7 +1270,15 @@ Local Ltac reject_right H :=rewrite ifIn_eq_right; last
 Local Ltac accept_left H :=rewrite ifIn_eq_left; last done;
         destruct H as [? [[][]]]; simpl in *; simplify_eq; simpl in *; simplify_eq; simpl;
         done.
-        
+
+Lemma bool_decide_asbool P Q: (bool_decide (dec:=Q) P) = (asbool P).
+Proof.
+  rewrite /bool_decide.
+  destruct Q; simpl.
+  - by rewrite asboolT.
+  - by rewrite asboolF.
+Qed.
+
 Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
   apply functional_extensionality_dep.
   intros [e σ].
@@ -1343,10 +1351,11 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
         - intros []; destruct!/=. rewrite /bin_op_eval'_cov_real in H; destruct!/=; by rewrite bool_decide_eq_false_2.
         - intros []; destruct!/=. rewrite /bin_op_eval'_cov_real in H; destruct!/=; rewrite bool_decide_eq_false_2; last done.
           intros. repeat f_equal.
-          admit.
+          rewrite /le_real/=.
+          apply bool_decide_asbool.
         - intros []; destruct!/=. rewrite /bin_op_eval'_cov_real in H; destruct!/=; rewrite bool_decide_eq_false_2; last done.
           intros. repeat f_equal.
-          admit.
+          apply bool_decide_asbool.
         - intros H1 H2 H3 H4 H5. exfalso. rewrite /bin_op_eval'_cov_real in H. destruct!/=.
           + apply H5. rewrite /bin_op_eval_real'_cov_plus; naive_solver.
           + apply H4. rewrite /bin_op_eval_real'_cov_minus; naive_solver.
@@ -1365,7 +1374,16 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
       intros K5.
       do 4 (rewrite ifIn_eq_right; last done).
       rewrite ifIn_eq_left; last done.
-      admit. 
+      rewrite /bin_op_eval'_locX/bin_op_eval'_loc/=.
+      repeat eapply if_in_split.
+      1, 2, 3: intros []; destruct K5; destruct!/=; rewrite /bin_op_eval; rewrite bool_decide_eq_false_2; simpl; try done.
+      { rewrite /pureops.loc_le/=. by rewrite bool_decide_asbool. }
+      { rewrite /pureops.loc_lt/=. by rewrite bool_decide_asbool. }
+      intros H1 H2 H3.
+      destruct K5; destruct!/=; exfalso.
+      + apply H3; split ;naive_solver.
+      + apply H2; split; naive_solver.
+      + apply H1; split; naive_solver.
     - rewrite /bin_op_eval. case_match eqn:Heqn1; last done.
       intros H.
       exfalso. apply H.

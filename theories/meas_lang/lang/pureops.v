@@ -577,8 +577,8 @@ Definition bin_op_eval_real (op : <<discr bin_op>>) (r1 r2 : RR) : option base_l
   | PlusOp => Some $ LitReal (r1 + r2)
   | MinusOp => Some $ LitReal (r1 - r2)
   | MultOp => Some $ LitReal (r1 * r2)
-  | LeOp => Some $ LitBool $ bool_decide $ classical.make_decision (r1 <= r2)%R
-  | LtOp => Some $ LitBool $ bool_decide $ classical.make_decision (r1 < r2)%R
+  | LeOp => Some $ LitBool $ bool_decide (dec:=make_decision _) (r1 <= r2)%R
+  | LtOp => Some $ LitBool $ bool_decide (dec:=make_decision _) (r1 < r2)%R
   (* | EqOp => Some $ LitBool $ bool_decide $ classical.make_decision (r1 = r2)%R *)
   | _ => None
   end%R.
