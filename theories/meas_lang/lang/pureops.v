@@ -434,15 +434,15 @@ Proof.
 Qed. 
 
 (* Only one version of bin_op_eval_bool because its uncurry is measurable *)
-Definition bin_op_eval_bool (op : <<discr bin_op>>) (b1 b2 : <<discr bool>>) : option base_lit :=
+Definition bin_op_eval_bool (op : <<discr bin_op>>) (b1 b2 : <<discr bool>>) : option val :=
   match op with
   | PlusOp | MinusOp | MultOp | QuotOp | RemOp => None (* Arithmetic *)
-  | AndOp => Some (LitBool (b1 && b2))
-  | OrOp => Some (LitBool (b1 || b2))
-  | XorOp => Some (LitBool (xorb b1 b2))
+  | AndOp => Some (LitV $ LitBool (b1 && b2))
+  | OrOp => Some (LitV $LitBool (b1 || b2))
+  | XorOp => Some (LitV $LitBool (xorb b1 b2))
   | ShiftLOp | ShiftROp => None (* Shifts *)
   | LeOp | LtOp => None (* InEquality *)
-  | EqOp => Some (LitBool (bool_decide (b1 = b2)))
+  | EqOp => Some (LitV $LitBool (bool_decide (b1 = b2)))
   | OffsetOp => None
   end.
 
@@ -486,22 +486,23 @@ Hint Resolve bin_op_eval'_loc_cov_offset_int_meas_set : mf_set.
 Hint Resolve bin_op_eval'_loc_cov_le_loc_meas_set     : mf_set.
 Hint Resolve bin_op_eval'_loc_cov_lt_loc_meas_set     : mf_set.
 
-Definition bin_op_eval'_loc_offset_int : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option base_lit :=
-  Some \o LitLocU \o loc_offset \o (snd \o fst △ 𝜋_LitInt_z \o snd).
+Definition bin_op_eval'_loc_offset_int : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option val :=
+  Some \o LitVU \o LitLocU \o loc_offset \o (snd \o fst △ 𝜋_LitInt_z \o snd).
 
-Definition bin_op_eval'_loc_le_loc : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option base_lit :=
-  Some \o LitBoolU \o loc_le \o (snd \o fst △ 𝜋_LitLoc_l \o snd).
+Definition bin_op_eval'_loc_le_loc : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option val :=
+  Some \o LitVU \o LitBoolU \o loc_le \o (snd \o fst △ 𝜋_LitLoc_l \o snd).
 
-Definition bin_op_eval'_loc_lt_loc : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option base_lit :=
-  Some \o LitBoolU \o loc_lt \o (snd \o fst △ 𝜋_LitLoc_l \o snd).
+Definition bin_op_eval'_loc_lt_loc : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option val :=
+  Some \o LitVU \o LitBoolU \o loc_lt \o (snd \o fst △ 𝜋_LitLoc_l \o snd).
 
 Lemma bin_op_eval'_loc_offset_int_meas_fun : measurable_fun bin_op_eval'_loc_cov_offset_int bin_op_eval'_loc_offset_int.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree.
   - mf_cmp_tree; last by eapply loc_offset_meas_fun.
-    mf_cmp_tree.
-    by apply Some_meas_fun.
+    repeat mf_cmp_tree.
+    + by apply Some_meas_fun.
+    + apply LitVU_meas_fun.
   - mf_prod.
     + mf_cmp_fst; first by ms_solve.
       eapply (@measurable_snd_restriction _ _ <<discr bin_op>> <<discr loc>>).
@@ -515,8 +516,9 @@ Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree.
   - mf_cmp_tree; last by eapply loc_le_meas_fun.
-    mf_cmp_tree.
-    by apply Some_meas_fun.
+    repeat mf_cmp_tree.
+    + by apply Some_meas_fun.
+    + apply LitVU_meas_fun.
   - mf_prod.
     + mf_cmp_fst; first by ms_solve.
       eapply (@measurable_snd_restriction _ _ <<discr bin_op>> <<discr loc>>).
@@ -530,8 +532,9 @@ Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree.
   - mf_cmp_tree; last by eapply loc_lt_meas_fun.
-    mf_cmp_tree.
-    by apply Some_meas_fun.
+    repeat mf_cmp_tree.
+    + by apply Some_meas_fun.
+    + apply LitVU_meas_fun.
   - mf_prod.
     + mf_cmp_fst; first by ms_solve.
       eapply (@measurable_snd_restriction _ _ <<discr bin_op>> <<discr loc>>).
@@ -544,7 +547,7 @@ Hint Resolve bin_op_eval'_loc_offset_int_meas_fun : mf_fun.
 Hint Resolve bin_op_eval'_loc_le_loc_meas_fun     : mf_fun.
 Hint Resolve bin_op_eval'_loc_lt_loc_meas_fun     : mf_fun.
 
-Definition bin_op_eval'_loc : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option base_lit :=
+Definition bin_op_eval'_loc : (<<discr bin_op>> * <<discr loc>> * base_lit) -> option val :=
   if_in bin_op_eval'_loc_cov_offset_int bin_op_eval'_loc_offset_int $
   if_in bin_op_eval'_loc_cov_le_loc     bin_op_eval'_loc_le_loc $
   if_in bin_op_eval'_loc_cov_lt_loc     bin_op_eval'_loc_lt_loc $
@@ -576,7 +579,7 @@ Definition bin_op_eval_real (op : <<discr bin_op>>) (r1 r2 : RR) : option base_l
   | MultOp => Some $ LitReal (r1 * r2)
   | LeOp => Some $ LitBool $ bool_decide $ classical.make_decision (r1 <= r2)%R
   | LtOp => Some $ LitBool $ bool_decide $ classical.make_decision (r1 < r2)%R
-  | EqOp => Some $ LitBool $ bool_decide $ classical.make_decision (r1 = r2)%R
+  (* | EqOp => Some $ LitBool $ bool_decide $ classical.make_decision (r1 = r2)%R *)
   | _ => None
   end%R.
 
@@ -595,8 +598,8 @@ Definition bin_op_eval_real'_cov_le : set (<<discr bin_op>> * RR * RR)%type :=
 Definition bin_op_eval_real'_cov_lt : set (<<discr bin_op>> * RR * RR)%type :=
   ([set (LtOp : <<discr bin_op>>)] `*` setT `*` setT).
 
-Definition bin_op_eval_real'_cov_eq : set (<<discr bin_op>> * RR * RR)%type :=
-  ([set (EqOp : <<discr bin_op>>)] `*` setT `*` setT).
+(* Definition bin_op_eval_real'_cov_eq : set (<<discr bin_op>> * RR * RR)%type := *)
+(*   ([set (EqOp : <<discr bin_op>>)] `*` setT `*` setT). *)
 
 Lemma bin_op_eval_real'_cov_plus_meas_set  : measurable bin_op_eval_real'_cov_plus.
 Proof. by ms_unfold; ms_solve. Qed.
@@ -613,41 +616,43 @@ Proof. by ms_unfold; ms_solve. Qed.
 Lemma bin_op_eval_real'_cov_lt_meas_set : measurable bin_op_eval_real'_cov_lt.
 Proof. by ms_unfold; ms_solve. Qed.
 
-Lemma bin_op_eval_real'_cov_eq_meas_set : measurable bin_op_eval_real'_cov_eq.
-Proof. by ms_unfold; ms_solve. Qed.
+(* Lemma bin_op_eval_real'_cov_eq_meas_set : measurable bin_op_eval_real'_cov_eq. *)
+(* Proof. by ms_unfold; ms_solve. Qed. *)
 
 Hint Resolve bin_op_eval_real'_cov_plus_meas_set  : mf_set.
 Hint Resolve bin_op_eval_real'_cov_minus_meas_set : mf_set.
 Hint Resolve bin_op_eval_real'_cov_mul_meas_set   : mf_set.
 Hint Resolve bin_op_eval_real'_cov_le_meas_set    : mf_set.
 Hint Resolve bin_op_eval_real'_cov_lt_meas_set    : mf_set.
-Hint Resolve bin_op_eval_real'_cov_eq_meas_set    : mf_set.
+(* Hint Resolve bin_op_eval_real'_cov_eq_meas_set    : mf_set. *)
 
-Definition bin_op_eval_real'_plus  : (<<discr bin_op>> * RR * RR)%type -> option base_lit :=
-  Some \o LitRealU \o plus_real \o (snd \o fst △ snd).
+Definition bin_op_eval_real'_plus  : (<<discr bin_op>> * RR * RR)%type -> option val :=
+  Some \o LitVU \o  LitRealU \o plus_real \o (snd \o fst △ snd).
 
-Definition bin_op_eval_real'_minus : (<<discr bin_op>> * RR * RR)%type -> option base_lit :=
-  Some \o LitRealU \o sub_real \o (snd \o fst △ snd).
+Definition bin_op_eval_real'_minus : (<<discr bin_op>> * RR * RR)%type -> option val :=
+  Some \o LitVU \o LitRealU \o sub_real \o (snd \o fst △ snd).
 
-Definition bin_op_eval_real'_mul   : (<<discr bin_op>> * RR * RR)%type -> option base_lit :=
-  Some \o LitRealU \o mul_real \o (snd \o fst △ snd).
+Definition bin_op_eval_real'_mul   : (<<discr bin_op>> * RR * RR)%type -> option val :=
+  Some \o LitVU \o LitRealU \o mul_real \o (snd \o fst △ snd).
 
-Definition bin_op_eval_real'_le    : (<<discr bin_op>> * RR * RR)%type -> option base_lit :=
-  Some \o LitBoolU \o le_real \o (snd \o fst △ snd).
+Definition bin_op_eval_real'_le    : (<<discr bin_op>> * RR * RR)%type -> option val :=
+  Some \o LitVU \o LitBoolU \o le_real \o (snd \o fst △ snd).
 
-Definition bin_op_eval_real'_lt    : (<<discr bin_op>> * RR * RR)%type -> option base_lit :=
-  Some \o LitBoolU \o lt_real \o (snd \o fst △ snd).
+Definition bin_op_eval_real'_lt    : (<<discr bin_op>> * RR * RR)%type -> option val :=
+  Some \o LitVU \o LitBoolU \o lt_real \o (snd \o fst △ snd).
 
-Definition bin_op_eval_real'_eq    : (<<discr bin_op>> * RR * RR)%type -> option base_lit :=
-  Some \o LitBoolU \o eq_real \o (snd \o fst △ snd).
+(* Definition bin_op_eval_real'_eq    : (<<discr bin_op>> * RR * RR)%type -> option base_lit := *)
+(*   Some \o LitBoolU \o eq_real \o (snd \o fst △ snd). *)
+
 
 Lemma bin_op_eval_real'_plus_meas_fun  : measurable_fun bin_op_eval_real'_cov_plus  bin_op_eval_real'_plus.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree.
   { mf_cmp_tree; last by apply plus_real_meas_fun.
-    mf_cmp_tree.
+    repeat mf_cmp_tree.
     { by apply Some_meas_fun. }
+    { by apply LitVU_meas_fun. }
     { by apply LitRealU_meas_fun. }}
   { mf_prod.
     { mf_cmp_fst; first by ms_solve.
@@ -662,8 +667,9 @@ Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree.
   { mf_cmp_tree; last by apply sub_real_meas_fun.
-    mf_cmp_tree.
+    repeat mf_cmp_tree.
     { by apply Some_meas_fun. }
+    { by apply LitVU_meas_fun. }
     { by apply LitRealU_meas_fun. }}
   { mf_prod.
     { mf_cmp_fst; first by ms_solve.
@@ -678,8 +684,9 @@ Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree.
   { mf_cmp_tree; last by apply mul_real_meas_fun.
-    mf_cmp_tree.
+    repeat mf_cmp_tree.
     { by apply Some_meas_fun. }
+    { by apply LitVU_meas_fun. }
     { by apply LitRealU_meas_fun. }}
   { mf_prod.
     { mf_cmp_fst; first by ms_solve.
@@ -694,8 +701,10 @@ Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree.
   { mf_cmp_tree; last by apply le_real_meas_fun.
-    mf_cmp_tree.
-    by apply Some_meas_fun. }
+    repeat mf_cmp_tree.
+    - by apply Some_meas_fun.
+    - by apply LitVU_meas_fun. 
+  }
   { mf_prod.
     { mf_cmp_fst; first by ms_solve.
       apply @measurable_snd_restriction.
@@ -709,8 +718,10 @@ Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree.
   { mf_cmp_tree; last by apply lt_real_meas_fun.
-    mf_cmp_tree.
-    by apply Some_meas_fun. }
+    repeat mf_cmp_tree.
+    - by apply Some_meas_fun.
+    - by apply LitVU_meas_fun. 
+  }
   { mf_prod.
     { mf_cmp_fst; first by ms_solve.
       apply @measurable_snd_restriction.
@@ -719,27 +730,27 @@ Proof.
       by ms_solve. }}
 Qed.
 
-Lemma bin_op_eval_real'_eq_meas_fun    : measurable_fun bin_op_eval_real'_cov_eq    bin_op_eval_real'_eq.
-Proof.
-  mf_unfold_dom; mf_unfold_fun.
-  mf_cmp_tree.
-  { mf_cmp_tree; last by apply eq_real_meas_fun.
-    mf_cmp_tree.
-    by apply Some_meas_fun. }
-  { mf_prod.
-    { mf_cmp_fst; first by ms_solve.
-      apply @measurable_snd_restriction.
-      by ms_solve. }
-    { apply @measurable_snd_restriction.
-      by ms_solve. }}
-Qed.
+(* Lemma bin_op_eval_real'_eq_meas_fun    : measurable_fun bin_op_eval_real'_cov_eq    bin_op_eval_real'_eq. *)
+(* Proof. *)
+(*   mf_unfold_dom; mf_unfold_fun. *)
+(*   mf_cmp_tree. *)
+(*   { mf_cmp_tree; last by apply eq_real_meas_fun. *)
+(*     mf_cmp_tree. *)
+(*     by apply Some_meas_fun. } *)
+(*   { mf_prod. *)
+(*     { mf_cmp_fst; first by ms_solve. *)
+(*       apply @measurable_snd_restriction. *)
+(*       by ms_solve. } *)
+(*     { apply @measurable_snd_restriction. *)
+(*       by ms_solve. }} *)
+(* Qed. *)
 
 Hint Resolve bin_op_eval_real'_plus_meas_fun  : mf_fun.
 Hint Resolve bin_op_eval_real'_minus_meas_fun : mf_fun.
 Hint Resolve bin_op_eval_real'_mul_meas_fun   : mf_fun.
 Hint Resolve bin_op_eval_real'_le_meas_fun    : mf_fun.
 Hint Resolve bin_op_eval_real'_lt_meas_fun    : mf_fun.
-Hint Resolve bin_op_eval_real'_eq_meas_fun    : mf_fun.
+(* Hint Resolve bin_op_eval_real'_eq_meas_fun    : mf_fun. *)
 
 Definition bin_op_eval_real' :=
   if_in bin_op_eval_real'_cov_plus  bin_op_eval_real'_plus $
@@ -747,7 +758,7 @@ Definition bin_op_eval_real' :=
   if_in bin_op_eval_real'_cov_mul   bin_op_eval_real'_mul $
   if_in bin_op_eval_real'_cov_le    bin_op_eval_real'_le $
   if_in bin_op_eval_real'_cov_lt    bin_op_eval_real'_lt $
-  if_in bin_op_eval_real'_cov_eq    bin_op_eval_real'_eq $
+  (* if_in bin_op_eval_real'_cov_eq    bin_op_eval_real'_eq $ *)
   cst None.
 
 Lemma bin_op_eval_real'_meas_fun : measurable_fun setT bin_op_eval_real'.
@@ -769,7 +780,7 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
     match v1 , v2 with
     | LitV (LitInt n1), LitV (LitInt n2) => Some $ LitV $ bin_op_eval_int op n1 n2
     | LitV (LitReal r1), LitV (LitReal r2) => LitV <$> bin_op_eval_real op r1 r2
-    | LitV (LitBool b1), LitV (LitBool b2) => LitV <$> bin_op_eval_bool op b1 b2
+    | LitV (LitBool b1), LitV (LitBool b2) => bin_op_eval_bool op b1 b2
     | LitV (LitLoc l1), LitV v2 => LitV <$> bin_op_eval_loc op l1 v2
     | _, _ => None
     end.
@@ -778,11 +789,11 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
 Definition bin_op_eval'_cov_eq   : set (<<discr bin_op>> * val * val)%type :=
   (([set EqOp] `*` setT) `*` setT).
 Definition bin_op_eval'_cov_int  : set (<<discr bin_op>> * val * val)%type :=
-  ((setT `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitInt)) `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitInt)).
+  (((setC [set EqOp]) `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitInt)) `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitInt)).
 Definition bin_op_eval'_cov_real : set (<<discr bin_op>> * val * val)%type :=
-  (([set PlusOp; MinusOp; MultOp; LeOp; LtOp; EqOp] `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitReal)) `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitReal)).
+  (([set PlusOp; MinusOp; MultOp; LeOp; LtOp] `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitReal)) `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitReal)).
 Definition bin_op_eval'_cov_bool : set (<<discr bin_op>> * val * val)%type:=
-  (([set AndOp; OrOp; XorOp; EqOp] `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitBool)) `*`
+  (([set AndOp; OrOp; XorOp] `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitBool)) `*`
   (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitBool)).
 Definition bin_op_eval'_cov_locX : set (<<discr bin_op>> * val * val)%type:=
   (([set OffsetOp] `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitLoc)) `*`
@@ -822,11 +833,18 @@ Hint Resolve bin_op_eval'_cov_real_meas_set : mf_set.
 Hint Resolve bin_op_eval'_cov_bool_meas_set : mf_set.
 Hint Resolve bin_op_eval'_cov_locX_meas_set  : mf_set.
 
-Definition bin_op_eval'_eq   : (<<discr bin_op>> * val * val)%type -> option val. Admitted.
-Definition bin_op_eval'_int  : (<<discr bin_op>> * val * val)%type -> option val. Admitted.
-Definition bin_op_eval'_real : (<<discr bin_op>> * val * val)%type -> option val. Admitted.
-Definition bin_op_eval'_bool : (<<discr bin_op>> * val * val)%type -> option val. Admitted.
-Definition bin_op_eval'_locX : (<<discr bin_op>> * val * val)%type -> option val. Admitted.
+Definition bin_op_eval'_eq   : (<<discr bin_op>> * val * val)%type -> option val :=
+  if_in (image [set x: (val * val)| ∃ y, x =(y,y)] (λ '(x1,x2), ((EqOp:<<discr bin_op>>, x1), x2)))
+    (cst ((Some $ LitV $ LitBool $ true):option val))
+    (cst (Some $ LitV $ LitBool $ false)).
+Definition bin_op_eval'_int  : (<<discr bin_op>> * val * val)%type -> option val :=
+  Some \o LitV \o (uncurry  (λ x, uncurry (bin_op_eval_int x))) \o (fst \o fst△ (𝜋_LitInt_z \o 𝜋_LitV_v  \o snd \o fst△𝜋_LitInt_z \o 𝜋_LitV_v \o snd)).
+Definition bin_op_eval'_real : (<<discr bin_op>> * val * val)%type -> option val :=
+  bin_op_eval_real' \o ((fst \o fst △ 𝜋_LitReal_r \o 𝜋_LitV_v \o snd \o fst) △ 𝜋_LitReal_r \o 𝜋_LitV_v \o snd).
+Definition bin_op_eval'_bool : (<<discr bin_op>> * val * val)%type -> option val :=
+  (uncurry (λ x, uncurry (bin_op_eval_bool x))) \o (fst \o fst△ (𝜋_LitBool_b \o 𝜋_LitV_v  \o snd \o fst△𝜋_LitBool_b \o 𝜋_LitV_v \o snd)).
+Definition bin_op_eval'_locX : (<<discr bin_op>> * val * val)%type -> option val :=
+  bin_op_eval'_loc \o  ((fst \o fst △ 𝜋_LitLoc_l \o 𝜋_LitV_v \o snd \o fst) △  𝜋_LitV_v \o snd).
 
 Lemma bin_op_eval'_eq_meas_fun   : measurable_fun bin_op_eval'_cov_eq   bin_op_eval'_eq. Admitted.
 Lemma bin_op_eval'_int_meas_fun  : measurable_fun bin_op_eval'_cov_int  bin_op_eval'_int. Admitted.
@@ -853,7 +871,6 @@ Definition bin_op_eval' : (<<discr bin_op>> * val * val) -> option val :=
 Lemma bin_op_eval'_meas_fun : measurable_fun setT bin_op_eval'.
 Proof.
   rewrite /bin_op_eval'.
-  repeat apply: if_in_meas_fun; ms_solve; rewrite setIT; try mf_done. 
 Admitted.
 
 Hint Resolve bin_op_eval'_meas_fun : mf_fun.
