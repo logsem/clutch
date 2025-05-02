@@ -41,6 +41,12 @@ Section BinomialProbability.
     bool_decide.
     rewrite Rcomplements.C_n_n //.
   Qed.
+
+  Lemma choose_n_1 : ∀ (n : nat), choose n 1 = n.
+  Proof.
+    elim=>[|n IH]; first done.
+    rewrite -pascal' IH choose_n_0 -plus_INR //.
+  Qed.
   
   Definition binom_prob (p q n k : nat) : R := (choose n k * (p / (q + 1))^k * (1 - p / (q + 1))^(n - k))%R.
 
