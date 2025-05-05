@@ -842,6 +842,25 @@ Proof.
 Qed.
 Hint Resolve safe_val_pair_meas_set   : mf_set.
 
+
+
+Local Ltac destruct_go tac :=
+  repeat match goal with
+         | H : context [ match ?x with | (y, z) => _ end] |- _ =>
+             let y := fresh y in
+             let z := fresh z in
+             destruct x as [y z]
+         | H : ∃ x, _ |- _ => let x := fresh x in destruct H as [x H]
+         | H : (ex2 _ _) |- _ => destruct H
+         | H: (_*_) |- _ => destruct H                          
+         | |- _ => destruct_and!
+         | |- _ => destruct_or!
+         | |- _ => progress simplify_eq
+         | |- _ => tac
+    end.
+
+Local Tactic Notation "destruct!/=" := destruct_go ltac:( progress csimpl in * ; simpl).
+
 Definition bin_op_eval'_cov_eq :=
   (image safe_val_pair (λ '(x1,x2), ((EqOp:<<discr bin_op>>, x1), x2))).
 Lemma bin_op_eval'_cov_eq_meas_set : measurable bin_op_eval'_cov_eq.
@@ -849,13 +868,15 @@ Proof.
   assert (bin_op_eval'_cov_eq=
           (([set EqOp:<<discr bin_op>>] `*` setT) `*` setT) `&`
             preimage (fst \o fst △ (snd \o fst△snd)) (setT `*` safe_val_pair)) as ->.
-  { admit. }
+  { rewrite eqEsubset; split; simpl; intros [[]]; rewrite /bin_op_eval'_cov_eq/safe_val_pair/safe_val;  simpl in *.
+    - intros. destruct!/=; simpl in *; simplify_eq; naive_solver.
+    - intros. destruct!/=; eexists (_,_); try done; simpl; naive_solver. }
   apply: apply_measurable_fun; ms_solve.
   repeat mf_prod.
   - mf_cmp_tree; apply: measurable_fst_restriction; ms_solve.
   - mf_cmp_tree; [apply: measurable_snd_restriction| apply: measurable_fst_restriction]; ms_solve.
   - apply: measurable_snd_restriction; ms_solve.
-Admitted.
+Qed. 
 Hint Resolve bin_op_eval'_cov_eq_meas_set   : mf_set.
   
 Definition bin_op_eval'_cov_eq_same := (image safe_val_diag (λ '(x1,x2), ((EqOp:<<discr bin_op>>, x1), x2))).
@@ -941,23 +962,6 @@ Definition bin_op_eval'_locX : (<<discr bin_op>> * val * val)%type -> option val
   bin_op_eval'_loc \o  ((fst \o fst △ 𝜋_LitLoc_l \o 𝜋_LitV_v \o snd \o fst) △  𝜋_LitV_v \o snd).
 
 
-
-Local Ltac destruct_go tac :=
-  repeat match goal with
-         | H : context [ match ?x with | (y, z) => _ end] |- _ =>
-             let y := fresh y in
-             let z := fresh z in
-             destruct x as [y z]
-         | H : ∃ x, _ |- _ => let x := fresh x in destruct H as [x H]
-         | H : (ex2 _ _) |- _ => destruct H
-         | H: (_*_) |- _ => destruct H                          
-         | |- _ => destruct_and!
-         | |- _ => destruct_or!
-         | |- _ => progress simplify_eq
-         | |- _ => tac
-    end.
-
-Local Tactic Notation "destruct!/=" := destruct_go ltac:( progress csimpl in * ; simpl).
 
 
 
