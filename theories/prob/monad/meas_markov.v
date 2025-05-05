@@ -1089,11 +1089,18 @@ Section ARcoupl.
   Proof.
     intro H.
     rewrite limn_esup_lim.
-    (* Search topology.lim topology.fmap order.Order.le. *)
-    (* Check @normedtype.limr_le _ topology.eventually _ R.  *)
-    (*  lim_series_le *)
-  Admitted.
-
+    apply @normedtype.lime_le.
+    { by apply topology.eventually_filter. }
+    { by apply is_cvg_esups. }
+    apply topology.nearW.
+    { by apply topology.eventually_filter. }
+    intro n.
+    rewrite /esups //=.
+    apply ub_ereal_sup.
+    rewrite /ubound /sdrop //=.
+    intros x [? ? <-].
+    by apply H.
+  Qed.
 
   Lemma limit_exchange {d} {T : measurableType d} (f : T → \bar R) (Hflb : ∀ a : T, (0 <= f a)%E)
     (μ : nat → giryM T) :
@@ -1114,7 +1121,74 @@ Section ARcoupl.
     have cool (x y : \bar R) : x = (0)%E -> (y - x = y)%E by (move=>->//; eapply @sube0).
     rewrite cool; last first.
     { (* true... by antisymmetry I guess? *)
-      admit. }
+
+      (* Idk how to write this set equality *)
+      have HX : ereal_sup (R:=R) [set EFin 0%R] = EFin 0%R.
+      { admit. }
+      eapply eq_trans; last apply HX.
+      clear HX; f_equal.
+      have HX : forall h, ([set h | ∀ x : T, ((h x)%:E <= numfun.funeneg (R:=R) (functions.patch (fun=> point) [set: T] [eta f]) x)%E])%classic h ->
+                      sintegral (R:=R) (λ S : set T, limn_esup (λ n : nat, μ n S)) h = 0%R%:E.
+      { admit. }
+      apply /predeqP =>y //=.
+      split.
+      { intros [h Hh].
+        rewrite <- H.
+        apply HX.
+        by rewrite //=.
+      }
+      { intros ->.
+        (* The set can't be empty so we need at least one element *)
+
+        (* There's got to be a better way *)
+        have W : is_true (order.Order.le GRing.zero (GRing.zero : R)).
+        { rewrite /order.Order.le /GRing.zero //=. apply (introT (RlebP 0 0)). lra. }
+
+        have Lemma1 : ∀ x, order.Order.le (EFin GRing.zero) (order.Order.max (oppe (f x)) GRing.zero).
+        { intro x.
+          rewrite /maxe//=/order.Order.lt//=.
+          destruct (ExcludedMiddle (f x = EFin 0%R)) as [-> | H].
+          { simpl.
+            admit. }
+          { (* When f x is nonzero, it must be the case that - f x is  less than zero *)
+            have -> : (lt_ereal (- f x) (EFin 0%R)) = true.
+            { rewrite /lt_ereal //=.
+              rewrite /oppe //=.
+              destruct (f x)%E as [ | | ] eqn:fx.
+              { rewrite /order.Order.lt //= /GRing.opp //=.
+                apply (introT (RltbP _ _)).
+                apply Ropp_pos.
+                apply Rlt_gt.
+                have HR1 : (Rle 0 r)%R.
+                { admit. }
+                have HR2 : not (0 = r)%R.
+                { admit. }
+                lra. }
+              { rewrite <- real_ltry. by rewrite ltry. }
+              { exfalso.
+                specialize Hflb with x.
+                rewrite fx in Hflb.
+                by rewrite /order.Order.le //= in Hflb.
+              }
+            }
+            { by rewrite /order.Order.le //=. }
+          }
+        }
+       exists (@cst_nnsfun d T R (signed.NngNum W)).
+       { intro x.
+         rewrite  /cst_nnsfun //= /numfun.funeneg //= /functions.patch //=.
+         rewrite mem_set; [|done].
+         by apply Lemma1. }
+        { apply HX.
+          rewrite //=.
+          intro x.
+          rewrite  /cst_nnsfun //= /numfun.funeneg //= /functions.patch //=.
+          rewrite mem_set; [|done].
+          by apply Lemma1.
+        }
+      }
+    }
+
     have esups_are_cool f1 f2 : f1 = f2 -> esups (R:=R) f1 = esups (R:=R) f2.
     { by move=>->//. }
 
@@ -1139,9 +1213,25 @@ Section ARcoupl.
       rewrite /numfun.funepos/functions.patch//=.
       rewrite mem_set; [|done]. rewrite /maxe.
       specialize (Hflb x).
-      (* Mathcomp reflection nightmare *)
-      admit.
+      simpl.
+      destruct (f x < (EFin 0%R))%E as [|] eqn:Hx.
+      { rewrite /order.Order.lt //= /lt_ereal //= in Hx.
+        destruct (f x) as [| |] eqn:Hf; [  | done | done ].
+        rewrite /order.Order.lt //= /Rltb //= andb_true_iff in Hx.
+        destruct Hx as [Hx _].
+        rewrite /is_true //= /order.Order.le //= /order.Order.le //= in Hflb.
+        have -> : r = 0%R.
+        { apply (elimT (RlebP _ _)) in Hx.
+          apply (elimT (RlebP _ _)) in Hflb.
+          rewrite /GRing.zero //= in Hflb.
+          lra.
+        }
+        rewrite /order.Order.lt //= /GRing.zero //= /order.Order.lt //=.
+        by destruct (Rltb 0 0).
+      }
+      { by rewrite Hx. }
     }
+
 
     (* Now the MSE argument should apply? *)
   Admitted.
