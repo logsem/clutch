@@ -1322,17 +1322,22 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
       rewrite Hrewrite.
       elim. intros H _; revert H.
       elim.
-      { intros H. rewrite ifIn_eq_left; last done.
+      { rewrite /bin_op_eval'_cov_eq/safe_val_pair/safe_val.
+        intros H. rewrite ifIn_eq_left; last done.
         rewrite /bin_op_eval'_eq.
         rewrite /bin_op_eval'_cov_eq in H.
+        rewrite /bin_op_eval'_cov_eq_same/safe_val_pair/safe_val/safe_val_diag/base_lit_diag.
         eapply if_in_split.
-        - rewrite /bin_op_eval'_eq_cov'; intros. destruct!/=.
-          rewrite /bin_op_eval. 
-          by repeat rewrite bool_decide_eq_true_2.
-        - intros H'. destruct!/=. rewrite /bin_op_eval.
-          rewrite bool_decide_eq_true_2; last done.
-          rewrite bool_decide_eq_false_2; first done.
-          intros ->. apply H'. rewrite /bin_op_eval'_eq_cov'/=. naive_solver.
+        - rewrite /bin_op_eval'_cov_eq_same; intros.
+          destruct!/=; rewrite /bin_op_eval/=;
+            repeat rewrite bool_decide_eq_true_2; try done; rewrite /lit_is_unboxed;repeat case_match; naive_solver.
+        - intros H'. rewrite /bin_op_eval.
+          rewrite bool_decide_eq_true_2; last by destruct!/=.
+          rewrite /vals_compare_safe/val_is_unboxed/lit_is_unboxed.
+          rewrite bool_decide_eq_true_2; last (destruct!/=; repeat case_match; auto).
+          simpl. repeat f_equal.
+          apply bool_decide_eq_false_2.
+          intros ->. apply H'. simpl in *. destruct!/=; eexists (_,_); try done; naive_solver.
       }
       elim. intros K1. rewrite Hrewrite. elim.
       { intros H. rewrite ifIn_eq_right; last done.
@@ -1390,7 +1395,12 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
       rewrite /bin_op_eval''_ok.
       simpl. split; last done.
       case_bool_decide as Heqn2.
-      { subst. by repeat left. }
+      { subst. repeat left.
+        case_bool_decide; last done.
+        eexists (_,_); last done.
+        unfold safe_val_pair, vals_compare_safe,val_is_unboxed, safe_val in *; simpl.
+        destruct!/=; repeat case_match; naive_solver.
+      }
       repeat case_match; try done; destruct!/=.
       + do 3 left. right. split; naive_solver.
       + left. right.

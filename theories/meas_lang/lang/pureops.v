@@ -772,10 +772,36 @@ Qed.
 
 Hint Resolve bin_op_eval_real'_meas_fun  : mf_fun.
 
-(* Unlike prob_lang, we are allowing ALL values to be compared *)
+
+Definition lit_is_unboxed (l: base_lit) : Prop :=
+  match l with
+  (** Disallow comparing (erased) prophecies with (erased) prophecies, by
+  considering them boxed. *)
+  (* | LitProphecy _ | LitPoison => False *)
+  | LitInt _ | LitBool _  | LitLoc _ | LitLbl _ | LitUnit | LitReal _ => True
+  end.
+Definition val_is_unboxed (v : val) : Prop :=
+  match v with
+  | LitV l => lit_is_unboxed l
+  | InjLV (LitV l) => lit_is_unboxed l
+  | InjRV (LitV l) => lit_is_unboxed l
+  | _ => False
+  end.
+Global Instance lit_is_unboxed_dec l : Decision (lit_is_unboxed l).
+Proof. destruct l; simpl; exact (decide _). Defined.
+Global Instance val_is_unboxed_dec v : Decision (val_is_unboxed v).
+Proof. destruct v as [ | | | [] | [] ]; simpl; exact (decide _). Defined.
+
+
+Definition vals_compare_safe (vl v1 : val) : Prop :=
+  val_is_unboxed vl ∨ val_is_unboxed v1.
+Global Arguments vals_compare_safe !_ !_ /.
+
 Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
-  if bool_decide (op = EqOp) then    
-    Some $ LitV $ LitBool $ bool_decide (v1 = v2)
+  if bool_decide (op = EqOp) then
+    if (bool_decide (vals_compare_safe v1 v2)) then
+      Some $ LitV $ LitBool $ bool_decide (v1 = v2)
+    else None
   else
     match v1 , v2 with
     | LitV (LitInt n1), LitV (LitInt n2) => Some $ LitV $ bin_op_eval_int op n1 n2
@@ -786,8 +812,72 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
     end.
 
 
-Definition bin_op_eval'_cov_eq   : set (<<discr bin_op>> * val * val)%type :=
-  (([set EqOp] `*` setT) `*` setT).
+
+Definition base_lit_diag := [set x: (base_lit * base_lit)| ∃ y, x =(y,y)].
+Lemma base_lit_diag_meas_set : measurable base_lit_diag.
+Proof.
+Admitted.
+Hint Resolve base_lit_diag_meas_set   : mf_set.
+
+Definition safe_val_diag := image base_lit_diag (LitVU \o fst △ LitVU \o snd) `|`
+                              image base_lit_diag (InjLVU \o LitVU \o fst △ InjLVU \o LitVU \o snd) `|`
+
+                              image base_lit_diag (InjRVU \o LitVU \o fst △ InjRVU \o LitVU \o snd).
+Lemma safe_val_diag_meas_set : measurable safe_val_diag.
+Proof.
+Admitted.
+Hint Resolve safe_val_diag_meas_set   : mf_set.
+
+Definition safe_val:= image setT LitVU `|` image setT (InjLVU \o LitVU)
+                         `|` image setT (InjRVU \o LitVU).
+Lemma safe_val_meas_set: measurable safe_val.
+Proof.
+Admitted.
+Hint Resolve safe_val_meas_set   : mf_set.
+
+Definition safe_val_pair := (setT `*` safe_val) `|` (safe_val `*` setT).
+Lemma safe_val_pair_meas_set : measurable safe_val_pair.
+Proof.
+  apply: measurable_setU; ms_solve.
+Qed.
+Hint Resolve safe_val_pair_meas_set   : mf_set.
+
+Definition bin_op_eval'_cov_eq :=
+  (image safe_val_pair (λ '(x1,x2), ((EqOp:<<discr bin_op>>, x1), x2))).
+Lemma bin_op_eval'_cov_eq_meas_set : measurable bin_op_eval'_cov_eq.
+Proof. 
+  assert (bin_op_eval'_cov_eq=
+          (([set EqOp:<<discr bin_op>>] `*` setT) `*` setT) `&`
+            preimage (fst \o fst △ (snd \o fst△snd)) (setT `*` safe_val_pair)) as ->.
+  { admit. }
+  apply: apply_measurable_fun; ms_solve.
+  repeat mf_prod.
+  - mf_cmp_tree; apply: measurable_fst_restriction; ms_solve.
+  - mf_cmp_tree; [apply: measurable_snd_restriction| apply: measurable_fst_restriction]; ms_solve.
+  - apply: measurable_snd_restriction; ms_solve.
+Admitted.
+Hint Resolve bin_op_eval'_cov_eq_meas_set   : mf_set.
+  
+Definition bin_op_eval'_cov_eq_same := (image safe_val_diag (λ '(x1,x2), ((EqOp:<<discr bin_op>>, x1), x2))).
+Lemma bin_op_eval'_cov_eq_same_meas_set : measurable bin_op_eval'_cov_eq_same.
+  assert (bin_op_eval'_cov_eq_same=
+          (([set EqOp:<<discr bin_op>>] `*` setT) `*` setT) `&`
+            preimage (fst \o fst △ (snd \o fst△snd)) (setT `*` safe_val_diag)) as ->.
+  { rewrite eqEsubset; split; simpl; intros [[]]; rewrite /bin_op_eval'_cov_eq_same /safe_val_diag/=.
+    - intros [[][[|]|]]; simplify_eq; naive_solver.
+    - intros [[[]][?[[|]|]]]; simplify_eq; naive_solver.
+  }
+  apply: apply_measurable_fun; ms_solve.
+  repeat mf_prod.
+  - mf_cmp_tree; apply: measurable_fst_restriction; ms_solve.
+  - mf_cmp_tree; [apply: measurable_snd_restriction| apply: measurable_fst_restriction]; ms_solve.
+  - apply: measurable_snd_restriction; ms_solve.
+Qed. 
+Hint Resolve bin_op_eval'_cov_eq_same_meas_set   : mf_set.
+
+
+
+
 Definition bin_op_eval'_cov_int  : set (<<discr bin_op>> * val * val)%type :=
   (((setC [set EqOp]) `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitInt)) `*` (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitInt)).
 Definition bin_op_eval'_cov_real : set (<<discr bin_op>> * val * val)%type :=
@@ -802,10 +892,6 @@ Definition bin_op_eval'_cov_locX : set (<<discr bin_op>> * val * val)%type:=
      (setI vcov_lit $ preimage 𝜋_LitV_v $ bcov_LitLoc))
 .
 
-Lemma bin_op_eval'_cov_eq_meas_set   : measurable bin_op_eval'_cov_eq.
-Proof.
-  rewrite /bin_op_eval'_cov_eq. ms_solve.
-Qed. 
 Lemma bin_op_eval'_cov_int_meas_set  : measurable bin_op_eval'_cov_int.
 Proof.
   rewrite /bin_op_eval'_cov_int.
@@ -827,39 +913,24 @@ Proof.
   apply: measurable_setU; ms_solve.
 Qed. 
 
-Hint Resolve bin_op_eval'_cov_eq_meas_set   : mf_set.
 Hint Resolve bin_op_eval'_cov_int_meas_set  : mf_set.
 Hint Resolve bin_op_eval'_cov_real_meas_set : mf_set.
 Hint Resolve bin_op_eval'_cov_bool_meas_set : mf_set.
 Hint Resolve bin_op_eval'_cov_locX_meas_set  : mf_set.
 
 
-Definition val_diag := [set x: (val * val)| ∃ y, x =(y,y)].
-Lemma val_diag_measurable : measurable val_diag.
-Proof.
-Admitted.
-
-Definition bin_op_eval'_eq_cov' := (image [set x: (val * val)| ∃ y, x =(y,y)] (λ '(x1,x2), ((EqOp:<<discr bin_op>>, x1), x2))).
-Lemma bin_op_eval'_eq_cov'_meas_set : measurable bin_op_eval'_eq_cov'.
-  assert (bin_op_eval'_eq_cov'=
-          (([set EqOp:<<discr bin_op>>] `*` setT) `*` setT) `&`
-            preimage (fst \o fst △ (snd \o fst△snd)) (setT `*` val_diag)) as ->.
-  { rewrite eqEsubset; split; simpl; intros [[]]; rewrite /bin_op_eval'_eq_cov' /val_diag/=.
-    - intros [[][]]. simplify_eq. naive_solver.
-    - intros [[[]][?[]]]. simplify_eq. naive_solver.
-  }
-  apply: apply_measurable_fun; ms_solve; last apply val_diag_measurable.
-  repeat mf_prod.
-  - mf_cmp_tree; apply: measurable_fst_restriction; ms_solve.
-  - mf_cmp_tree; [apply: measurable_snd_restriction| apply: measurable_fst_restriction]; ms_solve.
-  - apply: measurable_snd_restriction; ms_solve.
-Qed. 
-Hint Resolve bin_op_eval'_eq_cov'_meas_set   : mf_set.
-
 Definition bin_op_eval'_eq   : (<<discr bin_op>> * val * val)%type -> option val :=
-  if_in bin_op_eval'_eq_cov'
-    (cst ((Some $ LitV $ LitBool $ true):option val))
-    (cst (Some $ LitV $ LitBool $ false)).
+    (if_in bin_op_eval'_cov_eq_same
+       (cst ((Some $ LitV $ LitBool $ true):option val))
+       (cst ((Some $ LitV $ LitBool $ false):option val))).
+
+(* Definition bin_op_eval'_eq   : (<<discr bin_op>> * val * val)%type -> option val := *)
+(*   if_in (bin_op_eval'_eq_safe_cov `&` bin_op_eval'_eq_cov') *)
+(*     (cst ((Some $ LitV $ LitBool $ true):option val)) $ *)
+(*     if_in (bin_op_eval'_eq_safe_cov `&` setC bin_op_eval'_eq_cov') *)
+(*     (cst ((Some $ LitV $ LitBool $ false):option val)) $ *)
+(*     cst None.  *)
+
 Definition bin_op_eval'_int  : (<<discr bin_op>> * val * val)%type -> option val :=
   Some \o LitVU \o (uncurry  (λ x, uncurry (bin_op_eval_int x))) \o (fst \o fst△ (𝜋_LitInt_z \o 𝜋_LitV_v  \o snd \o fst△𝜋_LitInt_z \o 𝜋_LitV_v \o snd)).
 Definition bin_op_eval'_real : (<<discr bin_op>> * val * val)%type -> option val :=
