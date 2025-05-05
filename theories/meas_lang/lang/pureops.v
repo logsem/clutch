@@ -833,9 +833,27 @@ Hint Resolve bin_op_eval'_cov_real_meas_set : mf_set.
 Hint Resolve bin_op_eval'_cov_bool_meas_set : mf_set.
 Hint Resolve bin_op_eval'_cov_locX_meas_set  : mf_set.
 
+
+Definition val_diag := [set x: (val * val)| ∃ y, x =(y,y)].
+Lemma val_diag_measurable : measurable val_diag.
+Proof.
+Admitted.
+
 Definition bin_op_eval'_eq_cov' := (image [set x: (val * val)| ∃ y, x =(y,y)] (λ '(x1,x2), ((EqOp:<<discr bin_op>>, x1), x2))).
 Lemma bin_op_eval'_eq_cov'_meas_set : measurable bin_op_eval'_eq_cov'.
-Admitted.
+  assert (bin_op_eval'_eq_cov'=
+          (([set EqOp:<<discr bin_op>>] `*` setT) `*` setT) `&`
+            preimage (fst \o fst △ (snd \o fst△snd)) (setT `*` val_diag)) as ->.
+  { rewrite eqEsubset; split; simpl; intros [[]]; rewrite /bin_op_eval'_eq_cov' /val_diag/=.
+    - intros [[][]]. simplify_eq. naive_solver.
+    - intros [[[]][?[]]]. simplify_eq. naive_solver.
+  }
+  apply: apply_measurable_fun; ms_solve; last apply val_diag_measurable.
+  repeat mf_prod.
+  - mf_cmp_tree; apply: measurable_fst_restriction; ms_solve.
+  - mf_cmp_tree; [apply: measurable_snd_restriction| apply: measurable_fst_restriction]; ms_solve.
+  - apply: measurable_snd_restriction; ms_solve.
+Qed. 
 Hint Resolve bin_op_eval'_eq_cov'_meas_set   : mf_set.
 
 Definition bin_op_eval'_eq   : (<<discr bin_op>> * val * val)%type -> option val :=
