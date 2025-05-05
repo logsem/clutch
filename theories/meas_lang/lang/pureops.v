@@ -813,36 +813,6 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
 
 
 
-Definition base_lit_diag := [set x: (base_lit * base_lit)| ∃ y, x =(y,y)].
-Lemma base_lit_diag_meas_set : measurable base_lit_diag.
-Proof.
-Admitted.
-Hint Resolve base_lit_diag_meas_set   : mf_set.
-
-Definition safe_val_diag := image base_lit_diag (LitVU \o fst △ LitVU \o snd) `|`
-                              image base_lit_diag (InjLVU \o LitVU \o fst △ InjLVU \o LitVU \o snd) `|`
-
-                              image base_lit_diag (InjRVU \o LitVU \o fst △ InjRVU \o LitVU \o snd).
-Lemma safe_val_diag_meas_set : measurable safe_val_diag.
-Proof.
-Admitted.
-Hint Resolve safe_val_diag_meas_set   : mf_set.
-
-Definition safe_val:= image setT LitVU `|` image setT (InjLVU \o LitVU)
-                         `|` image setT (InjRVU \o LitVU).
-Lemma safe_val_meas_set: measurable safe_val.
-Proof.
-Admitted.
-Hint Resolve safe_val_meas_set   : mf_set.
-
-Definition safe_val_pair := (setT `*` safe_val) `|` (safe_val `*` setT).
-Lemma safe_val_pair_meas_set : measurable safe_val_pair.
-Proof.
-  apply: measurable_setU; ms_solve.
-Qed.
-Hint Resolve safe_val_pair_meas_set   : mf_set.
-
-
 
 Local Ltac destruct_go tac :=
   repeat match goal with
@@ -860,6 +830,116 @@ Local Ltac destruct_go tac :=
     end.
 
 Local Tactic Notation "destruct!/=" := destruct_go ltac:( progress csimpl in * ; simpl).
+
+Definition base_lit_diag := [set x: (base_lit * base_lit)| ∃ y, x =(y,y)].
+Lemma base_lit_diag_meas_set : measurable base_lit_diag.
+Proof.
+  assert (base_lit_diag = image setT ((λ x,x) △ (λ x,x))) as ->.
+  { rewrite eqEsubset; simpl; split; intros []; rewrite /base_lit_diag/=.
+    - intros. destruct!/=. naive_solver.
+    - intros. destruct!/=. naive_solver.
+  }
+Admitted.
+Hint Resolve base_lit_diag_meas_set   : mf_set.
+
+Definition safe_val_diag := image base_lit_diag (LitVU \o fst △ LitVU \o snd) `|`
+                              image base_lit_diag (InjLVU \o LitVU \o fst △ InjLVU \o LitVU \o snd) `|`
+
+                              image base_lit_diag (InjRVU \o LitVU \o fst △ InjRVU \o LitVU \o snd).
+Lemma safe_val_diag_meas_set : measurable safe_val_diag.
+Proof.
+  repeat apply: measurable_setU.
+Admitted.
+Hint Resolve safe_val_diag_meas_set   : mf_set.
+
+Definition safe_val:= image setT LitVU `|` image setT (InjLVU \o LitVU)
+                         `|` image setT (InjRVU \o LitVU).
+Lemma safe_val_meas_set: measurable safe_val.
+Proof.
+  repeat apply: measurable_setU.
+  - ms_solve.
+  - assert (image setT (InjLVC \o LitVC) =
+            val_ST (InjLV (LitV (LitInt setT))) `|`
+            val_ST (InjLV (LitV (LitBool setT))) `|`
+            val_ST (InjLV (LitV (LitUnit))) `|`
+            val_ST (InjLV (LitV (LitLoc setT))) `|`
+            val_ST (InjLV (LitV (LitLbl setT))) `|`
+            val_ST (InjLV (LitV (LitReal setT)))
+           ) as ->.
+    { rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; [|naive_solver..].
+      destruct x; naive_solver. }
+    repeat apply: measurable_setU.
+    + apply sub_sigma_algebra.
+      rewrite /val_cyl/=.
+      eexists (InjLV (LitV (LitInt setT))); last done.
+      rewrite /val_ML/base_lit_ML. ms_solve. 
+    + apply sub_sigma_algebra.
+      rewrite /val_cyl/=.
+      eexists (InjLV (LitV (LitBool setT))); last done.
+      rewrite /val_ML/base_lit_ML. ms_solve. 
+    + apply sub_sigma_algebra.
+      rewrite /val_cyl/=.
+      eexists (InjLV (LitV (LitUnit))); last done.
+      rewrite /val_ML/base_lit_ML. ms_solve. 
+    + apply sub_sigma_algebra.
+      rewrite /val_cyl/=.
+      eexists (InjLV (LitV (LitLoc setT))); last done.
+      rewrite /val_ML/base_lit_ML. ms_solve. 
+    + apply sub_sigma_algebra.
+      rewrite /val_cyl/=.
+      eexists (InjLV (LitV (LitLbl setT))); last done.
+      rewrite /val_ML/base_lit_ML. ms_solve. 
+    + apply sub_sigma_algebra.
+      rewrite /val_cyl/=.
+      eexists (InjLV (LitV (LitReal setT))); last done.
+      rewrite /val_ML/base_lit_ML. ms_solve.
+  - assert (image setT (InjRVC \o LitVC) =
+            val_ST (InjRV (LitV (LitInt setT))) `|`
+            val_ST (InjRV (LitV (LitBool setT))) `|`
+            val_ST (InjRV (LitV (LitUnit))) `|`
+            val_ST (InjRV (LitV (LitLoc setT))) `|`
+            val_ST (InjRV (LitV (LitLbl setT))) `|`
+            val_ST (InjRV (LitV (LitReal setT)))
+           ) as ->.
+    { rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; [|naive_solver..].
+      destruct x; naive_solver. }
+    repeat apply: measurable_setU.
+    + apply sub_sigma_algebra.
+      rewrite /val_cyl/=.
+      eexists (InjRV (LitV (LitInt setT))); last done.
+      rewrite /val_ML/base_lit_ML. ms_solve. 
+    + apply sub_sigma_algebra.
+      rewrite /val_cyl/=.
+      eexists (InjRV (LitV (LitBool setT))); last done.
+      rewrite /val_ML/base_lit_ML. ms_solve. 
+    + apply sub_sigma_algebra.
+      rewrite /val_cyl/=.
+      eexists (InjRV (LitV (LitUnit))); last done.
+      rewrite /val_ML/base_lit_ML. ms_solve. 
+    + apply sub_sigma_algebra.
+      rewrite /val_cyl/=.
+      eexists (InjRV (LitV (LitLoc setT))); last done.
+      rewrite /val_ML/base_lit_ML. ms_solve. 
+    + apply sub_sigma_algebra.
+      rewrite /val_cyl/=.
+      eexists (InjRV (LitV (LitLbl setT))); last done.
+      rewrite /val_ML/base_lit_ML. ms_solve. 
+    + apply sub_sigma_algebra.
+      rewrite /val_cyl/=.
+      eexists (InjRV (LitV (LitReal setT))); last done.
+      rewrite /val_ML/base_lit_ML. ms_solve.
+Qed. 
+
+Hint Resolve safe_val_meas_set   : mf_set.
+
+Definition safe_val_pair := (setT `*` safe_val) `|` (safe_val `*` setT).
+Lemma safe_val_pair_meas_set : measurable safe_val_pair.
+Proof.
+  apply: measurable_setU; ms_solve.
+Qed.
+Hint Resolve safe_val_pair_meas_set   : mf_set.
+
+
 
 Definition bin_op_eval'_cov_eq :=
   (image safe_val_pair (λ '(x1,x2), ((EqOp:<<discr bin_op>>, x1), x2))).
