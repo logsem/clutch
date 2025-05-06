@@ -834,12 +834,152 @@ Local Tactic Notation "destruct!/=" := destruct_go ltac:( progress csimpl in * ;
 Definition base_lit_diag := [set x: (base_lit * base_lit)| ∃ y, x =(y,y)].
 Lemma base_lit_diag_meas_set : measurable base_lit_diag.
 Proof.
-  assert (base_lit_diag = image setT ((λ x,x) △ (λ x,x))) as ->.
-  { rewrite eqEsubset; simpl; split; intros []; rewrite /base_lit_diag/=.
-    - intros. destruct!/=. naive_solver.
-    - intros. destruct!/=. naive_solver.
+  assert (base_lit_diag =
+          ((bcov_LitInt `*` bcov_LitInt) `&` preimage (𝜋_LitInt_z \o fst△𝜋_LitInt_z \o snd)[set x| ∃ y, x =(y,y)] ) `|`
+          ((bcov_LitBool `*` bcov_LitBool) `&` preimage (𝜋_LitBool_b \o fst△𝜋_LitBool_b \o snd)[set x| ∃ y, x =(y,y)] ) `|`
+          ((bcov_LitUnit `*` bcov_LitUnit)) `|`
+          ((bcov_LitLoc `*` bcov_LitLoc) `&` preimage (𝜋_LitLoc_l \o fst△𝜋_LitLoc_l \o snd)[set x| ∃ y, x =(y,y)] ) `|`
+          ((bcov_LitLbl `*` bcov_LitLbl) `&` preimage (𝜋_LitLbl_l \o fst△𝜋_LitLbl_l \o snd)[set x| ∃ y, x =(y,y)] ) `|`
+          ((bcov_LitReal `*` bcov_LitReal) `&` preimage (eq_real\o (𝜋_LitReal_r \o fst△𝜋_LitReal_r \o snd)) ([set true]) ) 
+         ) as ->.
+  { rewrite eqEsubset; split; intros []; simpl; rewrite /base_lit_diag/=.
+    - intros [x ?]. destruct!/=.
+      destruct x; simpl; [naive_solver..|].
+      right. repeat split; [naive_solver..|].
+      rewrite /eq_real/=. 
+      apply: asbool_equiv_eqP; last done.
+      by apply ReflectT.
+    - intros. destruct!/=; [naive_solver..|].
+      unfold eq_real in *.
+      simpl in *.
+      assert (asbool True = true) as Hrewrite.
+      { apply: asbool_equiv_eqP; last done. by apply ReflectT. }
+      rewrite -Hrewrite in H1.
+      apply asbool_eq_equiv in H1.
+      eexists _. f_equal. f_equal. naive_solver.
   }
-Admitted.
+  repeat apply: measurable_setU.
+  - apply: apply_measurable_fun.
+    { mf_prod; apply: measurable_comp; last first.
+      - apply measurable_snd_restriction. ms_solve.
+      - mf_done.
+      - intros ?. simpl. intros. destruct!/=. naive_solver.
+      - ms_solve.
+      - apply measurable_fst_restriction. ms_solve.
+      - mf_done.
+      - intros ?. simpl. intros. destruct!/=. naive_solver.
+      - ms_solve.
+    }
+    { ms_solve. }
+    assert ([set x | ∃ y : <<discr Z>>, x = (y, y)] = \bigcup_i ([set (match decode_nat i with
+                                                                       | Some x => (x, x)
+                                                                       | None => (0,0)%Z
+                                                                                     end
+           )] ) )as ->.
+    { rewrite eqEsubset; split; intros ?; simpl; intros [x ]; destruct!/=.
+      - exists (encode_nat x); first done. by rewrite decode_encode_nat.
+      - case_match; destruct!/=; naive_solver.
+    }
+    apply: bigcup_measurable.    
+    intros. case_match;
+      rewrite measurable_prod_measurableType/=; apply:sub_sigma_algebra; simpl; eexists (set1 _); try done. eexists (set1 _); try done.
+    rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; naive_solver.
+  - apply: apply_measurable_fun.
+    { mf_prod; apply: measurable_comp; last first.
+      - apply measurable_snd_restriction. ms_solve.
+      - mf_done.
+      - intros ?. simpl. intros. destruct!/=. naive_solver.
+      - ms_solve.
+      - apply measurable_fst_restriction. ms_solve.
+      - mf_done.
+      - intros ?. simpl. intros. destruct!/=. naive_solver.
+      - ms_solve.
+    }
+    { ms_solve. }
+    assert ([set x | ∃ y : <<discr bool>>, x = (y, y)] = \bigcup_i ([set (match decode_nat i with
+                                                                       | Some x => (x, x)
+                                                                       | None => (inhabitant, inhabitant)
+                                                                                     end
+           )] ) )as ->.
+    { rewrite eqEsubset; split; intros ?; simpl; intros [x ]; destruct!/=.
+      - exists (encode_nat x); first done. by rewrite decode_encode_nat.
+      - case_match; destruct!/=; naive_solver.
+    }
+    apply: bigcup_measurable.
+    intros. case_match;
+      rewrite measurable_prod_measurableType/=; apply:sub_sigma_algebra; simpl; eexists (set1 _); try done; eexists (set1 _); try done;
+    rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; naive_solver.
+  - ms_solve.
+  - apply: apply_measurable_fun.
+    { mf_prod; apply: measurable_comp; last first.
+      - apply measurable_snd_restriction. ms_solve.
+      - mf_done.
+      - intros ?. simpl. intros. destruct!/=. naive_solver.
+      - ms_solve.
+      - apply measurable_fst_restriction. ms_solve.
+      - mf_done.
+      - intros ?. simpl. intros. destruct!/=. naive_solver.
+      - ms_solve.
+    }
+    { ms_solve. }
+    assert ([set x | ∃ y, x = (y, y)] = \bigcup_i ([set (match decode_nat i with
+                                                                       | Some x => (x, x)
+                                                                       | None => (inhabitant, inhabitant)
+                                                                                     end
+           )] ) )as ->.
+    { rewrite eqEsubset; split; intros ?; simpl; intros [x ]; destruct!/=.
+      - exists (encode_nat x); first done. by rewrite decode_encode_nat.
+      - case_match; destruct!/=; naive_solver.
+    }
+    apply: bigcup_measurable.
+    intros. case_match;
+      rewrite measurable_prod_measurableType/=; apply:sub_sigma_algebra; simpl; eexists (set1 _); try done; eexists (set1 _); try done;
+    rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; naive_solver.
+  - apply: apply_measurable_fun.
+    { mf_prod; apply: measurable_comp; last first.
+      - apply measurable_snd_restriction. ms_solve.
+      - mf_done.
+      - intros ?. simpl. intros. destruct!/=. naive_solver.
+      - ms_solve.
+      - apply measurable_fst_restriction. ms_solve.
+      - mf_done.
+      - intros ?. simpl. intros. destruct!/=. naive_solver.
+      - ms_solve.
+    }
+    { ms_solve. }
+    assert ([set x | ∃ y, x = (y, y)] = \bigcup_i ([set (match decode_nat i with
+                                                                       | Some x => (x, x)
+                                                                       | None => (inhabitant, inhabitant)
+                                                                                     end
+           )] ) )as ->.
+    { rewrite eqEsubset; split; intros ?; simpl; intros [x ]; destruct!/=.
+      - exists (encode_nat x); first done. by rewrite decode_encode_nat.
+      - case_match; destruct!/=; naive_solver.
+    }
+    apply: bigcup_measurable.
+    intros. case_match;
+      rewrite measurable_prod_measurableType/=; apply:sub_sigma_algebra; simpl; eexists (set1 _); try done; eexists (set1 _); try done;
+    rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; naive_solver.
+  - apply: apply_measurable_fun.
+    { mf_prod; apply: measurable_comp.
+      3: apply: eq_real_meas_fun.
+      - ms_solve.
+      - by intros.
+      - mf_prod; apply: measurable_comp; last first.
+        + apply measurable_snd_restriction. ms_solve.
+        + mf_done.
+        + intros ?. simpl. intros. destruct!/=. naive_solver.
+        + ms_solve.
+        + apply measurable_fst_restriction. ms_solve.
+        + mf_done.
+        + intros ?. simpl. intros. destruct!/=. naive_solver.
+        + ms_solve.
+    }
+    { ms_solve. }
+    ms_solve.
+    Unshelve.
+    all: apply: inhabitant.
+Qed. 
 Hint Resolve base_lit_diag_meas_set   : mf_set.
 
 Definition safe_val_diag := image base_lit_diag (LitVU \o fst △ LitVU \o snd) `|`
