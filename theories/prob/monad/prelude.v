@@ -1,8 +1,8 @@
+From stdpp Require Import base decidable tactics.
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect classical_sets boolp functions.
 From clutch.prelude Require Import classical.
 From mathcomp.analysis Require Import reals ereal measure lebesgue_measure lebesgue_integral sequences function_spaces.
-From stdpp Require Import base decidable.
 From clutch.prob.monad Require Export preprelude.
 
 Set Implicit Arguments.
@@ -762,7 +762,7 @@ Section option.
       { move=>??//=. eexists _; done. }
     }
     { have -> : ((Some @^-1` option_ST None)=set0).
-      { move=>??; rewrite eqEsubset; by split.  }
+      { move=>??; rewrite eqEsubset. by split.  }
       by eapply @measurableI.
     }
   Qed.
@@ -908,15 +908,72 @@ Section list.
     apply: list_cov_empty_meas_set.
   Qed. 
   Hint Resolve list_cov_cons_meas_set : measlang.
+
+  Local Ltac destruct_go tac :=
+    repeat match goal with
+      | H : context [ match ?x with | (y, z) => _ end] |- _ =>
+          let y := fresh y in
+          let z := fresh z in
+          destruct x as [y z]
+      | H : ∃ x, _ |- _ => let x := fresh x in destruct H as [x H]
+      | H : (ex2 _ _) |- _ => destruct H
+      | H: (_*_) |- _ => destruct H                          
+      | |- _ => destruct_and!
+      | |- _ => destruct_or!
+      | |- _ => progress simplify_eq
+      | |- _ => tac
+      end.
+
+  Local Tactic Notation "destruct!/=" := destruct_go ltac:( progress csimpl in * ; simpl).
+
+  Local Lemma list_ST_length {d1} {T : measurableType d1} (l: seq T) S n: list_ST (repeat S n) l -> length l = n.
+  Proof.
+    revert l. induction n as [|? IHn].
+    - simpl. intros. by subst.
+    - intros. simpl in *. destruct!/=. f_equal. by apply (IHn).
+  Qed. 
+  Local Lemma list_ST_length' {d1} {T : measurableType d1} (l: seq T): list_ST (repeat setT (length l)) l.
+  Proof.
+    induction l; first done.
+    simpl. eexists _; first done. naive_solver.
+  Qed. 
   Lemma 𝜋_cons_v_meas_fun {d1} {T : measurableType d1} (k : list T) : measurable_fun (list_cov_cons : set (list T)) 𝜋_cons_v.
   Proof.
-    (* See 𝜋_PairV_l_meas in projections.v *)
-  Admitted.
+    rewrite /list_cov_cons.
+    intros ? Y HY.
+    replace ([set e | _] `&` _) with (\bigcup_i ([set e | ∃ (x : T) (y : seq.seq T), (length y = i)%nat /\ e = (x :: y)%SEQ] `&` 𝜋_cons_v @^-1` Y)).
+    { eapply bigcup_measurable.
+      intros x _.
+      apply sub_sigma_algebra.
+      rewrite /list_cyl/=.
+      exists (Y:: (repeat setT x)).
+      - by induction x as [|? []].
+      - rewrite eqEsubset; split; intros ?; simpl.
+        + intros [?? [? ? H1]]; subst; simpl. split; last done.
+          eexists _,_; split; last done.
+          by apply (list_ST_length (S:=setT)). 
+        + intros [[x1[x0[]]]]; simpl in *; subst; simpl in *.
+          eexists x1; first done.
+          eexists _; last done.
+          apply list_ST_length'.
+    }
+    rewrite eqEsubset; split; intros ?; simpl; rewrite /bigcup/=; intros; destruct!/=; first naive_solver.
+    eexists _; naive_solver.
+  Qed. 
   Hint Resolve 𝜋_cons_v_meas_fun : measlang.
+  
   Lemma 𝜋_cons_vs_meas_fun {d1} {T : measurableType d1} (k : list T) : measurable_fun (list_cov_cons : set (list T)) 𝜋_cons_vs.
-  Proof. 
-    (* See 𝜋_PairV_l_meas in projections.v *)
-  Admitted.
+  Proof.
+    rewrite /list_cov_cons.
+    into_gen_measurable.
+    rewrite /preimage_class/list_cyl/=.
+    intros ?. simpl.
+    intros. destruct!/=.
+    apply: sub_sigma_algebra.
+    rewrite /list_cyl/=.
+    eexists (setT::_); first (split; [done|apply H]).
+    simpl. rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; naive_solver.
+  Qed. 
   Hint Resolve 𝜋_cons_vs_meas_fun : measlang.
 End list.
 
