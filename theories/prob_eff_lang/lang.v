@@ -218,7 +218,7 @@ Proof.
      | Rand e1 e2, Rand e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | Tick e, Tick e' => cast_if (decide (e = e'))
      | Do e, Do e' => cast_if (decide (e = e'))
-     | Eff e k, Eff e' k' => cast_if_and (decide (e = e')) (decide (k = k')) (* define equality on list ectx_item *)
+     | Eff e k, Eff e' k' => cast_if_and (decide (e = e')) (decide (k = k'))
      | TryWith e1 e2 e3, TryWith e1' e2' e3' => cast_if_and3 (decide (e1 = e1')) (decide (e2 = e2')) (decide (e3 = e3'))
      | _, _ => right _
      end
@@ -234,7 +234,41 @@ Proof.
      | Cont k, Cont k' => cast_if (decide (k = k')) 
      | _, _ => right _
      end
-   for go); try (clear go gov; abstract intuition congruence); admit. Admitted.
+   with goectxi (ki1 ki2 : ectx_item) {struct ki1} : Decision (ki1 = ki2) :=
+     match ki1, ki2 with
+     | AppLCtx v1, AppLCtx v2 => cast_if (decide (v1 = v2))
+     | AppRCtx e1, AppRCtx e2 => cast_if (decide (e1 = e2))
+     | UnOpCtx op1, UnOpCtx op2 => cast_if (decide (op1 = op2))
+     | BinOpLCtx op1 v1, BinOpLCtx op2 v2 => cast_if_and (decide (op1 = op2)) (decide (v1 = v2))
+     | BinOpRCtx op1 e1, BinOpRCtx op2 e2 => cast_if_and (decide (op1 = op2)) (decide (e1 = e2))
+     | IfCtx e1 e1', IfCtx e2 e2' => cast_if_and (decide (e1 = e2)) (decide (e1' = e2'))
+     | PairLCtx v1, PairLCtx v2 => cast_if (decide (v1 = v2))
+     | PairRCtx e1, PairRCtx e2 => cast_if (decide (e1 = e2))
+     | FstCtx, FstCtx => left _
+     | SndCtx, SndCtx => left _
+     | InjLCtx, InjLCtx => left _
+     | InjRCtx, InjRCtx => left _
+     | CaseCtx e1 e2, CaseCtx e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
+     | AllocNLCtx v2, AllocNLCtx v2' => cast_if (decide (v2 = v2'))
+     | AllocNRCtx e1, AllocNRCtx e1' => cast_if (decide (e1 = e1'))
+     | LoadCtx, LoadCtx => left _
+     | StoreLCtx v2, StoreLCtx v2' => cast_if (decide (v2 = v2'))
+     | StoreRCtx e1, StoreRCtx e1' => cast_if (decide (e1 = e1'))
+     | AllocTapeCtx, AllocTapeCtx => left _
+     | RandLCtx v2, RandLCtx v2' => cast_if (decide (v2 = v2'))
+     | RandRCtx e1, RandRCtx e1' => cast_if (decide (e1 = e1'))
+     | TickCtx, TickCtx => left _
+     | DoCtx, DoCtx => left _
+     | TryWithCtx e1 e2, TryWithCtx e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
+     | _, _ => right _
+     end
+   with goectx (k1 k2 : list ectx_item) {struct k1} : Decision (k1 = k2) :=
+     match k1, k2 with
+     | [], [] => left _
+     | ki1 :: k1', ki2 :: k2' => cast_if_and (decide (ki1 = ki2)) (decide (k1' = k2'))
+     | _, _ => right _
+     end 
+   for go); try (clear go gov; abstract intuition congruence). 
 
 Global Instance val_eq_dec : EqDecision val.
 Admitted.
