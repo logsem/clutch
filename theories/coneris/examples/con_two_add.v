@@ -374,3 +374,18 @@ Section complex'.
   Qed.
 
 End complex'.
+
+From clutch.coneris Require Import adequacy. 
+Lemma two_add_prog'_verification :
+  ∀ `{Countable sch_int_state} (ζ : sch_int_state) 
+    σ (sch: scheduler con_prob_lang_mdp sch_int_state) `{!TapeOblivious sch_int_state sch},
+  pgl (sch_lim_exec sch (ζ, ([two_add_prog'], σ))) (λ x, ∃ (n:nat), x=#n /\ (0<n)%nat) (1/16)%R
+.
+Proof.
+  intros.
+  apply (wp_pgl_lim (#[spawnΣ;ghost_varΣ T; conerisΣ])).
+  - done.
+  - lra.
+  - iIntros. wp_apply (complex_parallel_add_spec' with "[$]").
+    iIntros. iPureIntro. naive_solver.
+Qed. 
