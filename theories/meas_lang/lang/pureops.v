@@ -989,7 +989,31 @@ Definition safe_val_diag := image base_lit_diag (LitVU \o fst △ LitVU \o snd) 
 Lemma safe_val_diag_meas_set : measurable safe_val_diag.
 Proof.
   repeat apply: measurable_setU.
-Admitted.
+  - assert (image base_lit_diag (LitVU \o fst △ LitVU \o snd) =
+            (vcov_lit `*` vcov_lit) `&` preimage (𝜋_LitV_v \o fst △ 𝜋_LitV_v \o snd) base_lit_diag 
+           ) as ->.
+    { rewrite eqEsubset; split; intros []; simpl; intros; destruct!/=; naive_solver. }
+    apply: apply_measurable_fun; ms_solve.
+    mf_prod; apply: measurable_comp; last first.
+    + apply measurable_snd_restriction. ms_solve.
+    + mf_done.
+    + intros ?. simpl. intros. destruct!/=. naive_solver.
+    + ms_solve.
+    + apply measurable_fst_restriction. ms_solve.
+    + mf_done.
+    + intros ?. simpl. intros. destruct!/=. naive_solver.
+    + ms_solve.
+  - assert (image base_lit_diag (InjLVU \o LitVU \o fst △ InjLVU \o LitVU \o snd) =
+             (vcov_injlv `*` vcov_injlv)`&` preimage (𝜋_InjLV_v  \o fst △ 𝜋_InjLV_v  \o snd)
+              ((vcov_lit `*` vcov_lit) `&` preimage (𝜋_LitV_v \o fst △ 𝜋_LitV_v \o snd) base_lit_diag )) as ->.
+    { rewrite eqEsubset; split; intros []; simpl; intros; destruct!/=; naive_solver. }
+    apply: apply_measurable_fun; ms_solve; mf_prod; apply: measurable_comp; try apply: measurable_fst_restriction; try apply:  measurable_snd_restriction; last first; try mf_done; ms_solve; intros ?; simpl; intros; destruct!/=; naive_solver.
+  - assert (image base_lit_diag (InjRVU \o LitVU \o fst △ InjRVU \o LitVU \o snd) =
+             (vcov_injrv `*` vcov_injrv)`&` preimage (𝜋_InjRV_v  \o fst △ 𝜋_InjRV_v  \o snd)
+              ((vcov_lit `*` vcov_lit) `&` preimage (𝜋_LitV_v \o fst △ 𝜋_LitV_v \o snd) base_lit_diag )) as ->.
+    { rewrite eqEsubset; split; intros []; simpl; intros; destruct!/=; naive_solver. }
+    apply: apply_measurable_fun; ms_solve; mf_prod; apply: measurable_comp; try apply: measurable_fst_restriction; try apply:  measurable_snd_restriction; last first; try mf_done; ms_solve; intros ?; simpl; intros; destruct!/=; naive_solver.
+Qed. 
 Hint Resolve safe_val_diag_meas_set   : mf_set.
 
 Definition safe_val:= image setT LitVU `|` image setT (InjLVU \o LitVU)
