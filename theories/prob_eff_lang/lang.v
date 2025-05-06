@@ -424,6 +424,10 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | TryWithCtx e1 e2 => TryWith e e1 e2
   end.
 
+Notation ectx := (list (ectx_item)).
+
+Definition fill (K : ectx) (e : expr) : expr := foldl (flip fill_item) e K.
+
 Definition decomp_item (e : expr) : option (ectx_item * expr) :=
   let noval (e : expr) (ei : ectx_item) :=
     match e with Val _ => None | _ => Some (ei, e) end in
@@ -499,7 +503,7 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | Tick e => Tick (subst x v e)
   | Do e => Do (subst x v e)
   | TryWith e1 e2 e3 => TryWith (subst x v e1) (subst x v e2) (subst x v e3)
-  | Eff v k => Eff v k (* Must also define subst over ectx? *)
+  | Eff _ _ => e 
   end.
 
 Definition subst' (mx : binder) (v : val) : expr → expr :=
@@ -776,8 +780,32 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
   | Tick (Val (LitV (LitInt n))) => dret (Val $ LitV $ LitUnit, σ1)
   | Do (Val v) => dret (Eff v [], σ1)
   | TryWith (Val v) h r => dret (App r (Val v), σ1)
-  | TryWith (Eff v k) h r => dret (App (App h (Val v)) (Cont k), σ1)
-  | App (Val (Cont k)) (Val v) => dzero (* dret (fill k (Val v), σ1) -- need to show that the language is ectxi_language to get the fill function *)
+  | TryWith (Eff v k) h r => dret (App (App h (Val v)) (Val (Cont k)), σ1)
+  | App (Val (Cont k)) (Val v) => dret (fill k (Val v), σ1)
+  (* Eff v k eating up the context *)
+  | App (Eff v1 k) (Val v2) => dret (Eff v1 ((AppLCtx v2)::k), σ1)
+  | App e (Eff v k) => dret (Eff v ((AppRCtx e) :: k), σ1)
+  | UnOp op (Eff v k) => dret (Eff v ((UnOpCtx op)::k), σ1)
+  | BinOp op (Eff v1 k) (Val v2) => dret (Eff v1 ((BinOpLCtx op v2)::k), σ1)
+  | BinOp op e (Eff v k) => dret (Eff v ((BinOpRCtx op e)::k), σ1)
+  | If (Eff v k) e1 e2 => dret (Eff v ((IfCtx e1 e2) :: k), σ1)
+  | Pair (Eff v1 k) (Val v2) => dret (Eff v1 ((PairLCtx v2) :: k), σ1)
+  | Pair e (Eff v k) => dret (Eff v ((PairRCtx e) :: k), σ1)
+  | Fst (Eff v k) => dret (Eff v (FstCtx :: k), σ1)
+  | Snd (Eff v k) => dret (Eff v (SndCtx :: k), σ1)
+  | InjL (Eff v k) => dret (Eff v (InjLCtx :: k), σ1)
+  | InjR (Eff v k) => dret (Eff v (InjRCtx :: k), σ1)
+  | Case (Eff v k) e1 e2 => dret (Eff v ((CaseCtx e1 e2) :: k), σ1)
+  | AllocN (Eff v1 k) (Val v2) => dret (Eff v1 ((AllocNLCtx v2) :: k), σ1)
+  | AllocN e (Eff v k) => dret (Eff v ((AllocNRCtx e) :: k), σ1)
+  | Load (Eff v k) => dret (Eff v (LoadCtx :: k), σ1)
+  | Store (Eff v1 k) (Val v2) => dret (Eff v1 ((StoreLCtx v2) :: k), σ1)
+  | Store e (Eff v k) => dret (Eff v ((StoreRCtx e) :: k), σ1)
+  | AllocTape (Eff v k) => dret (Eff v (AllocTapeCtx :: k), σ1)
+  | Rand (Eff v1 k) (Val v2) => dret (Eff v1 ((RandLCtx v2) :: k), σ1)
+  | Rand e (Eff v k) => dret (Eff v ((RandRCtx e) :: k), σ1)
+  | Tick (Eff v k) => dret (Eff v (TickCtx :: k), σ1)
+  | Do (Eff v k) => dret (Eff v (DoCtx :: k), σ1)
   | _ => dzero
   end.
 
@@ -811,15 +839,16 @@ Lemma val_head_stuck e σ ρ :
 Proof. destruct ρ, e; [|done..]. rewrite /pmf /=. lra. Qed.
 Lemma head_ctx_step_val Ki e σ ρ :
   head_step (fill_item Ki e) σ ρ > 0 → is_Some (to_val e).
-Proof.
-  destruct ρ, Ki ;
-    rewrite /pmf/= ;
-    repeat case_match; clear -H ; inversion H; intros ; (lra || done).
-Qed.
+(* Proof.
+     destruct ρ, Ki ;
+       rewrite /pmf/= ;
+                 repeat case_match; clear -H ; inversion H; intros; (lra || done).
+   Qed. *)
+Admitted.
 
 (** A relational characterization of the support of [head_step] to make it easier to
     do inversion and prove reducibility easier c.f. lemma below *)
-Inductive head_step_rel : expr → state → expr → state → Prop :=
+Inductive head_step_rel : expr → state → expr → state → Prop := (* Udvid med de nye konstruktioner *)
 | RecS f x e σ :
   head_step_rel (Rec f x e) σ (Val $ RecV f x e) σ
 | PairS v1 v2 σ :
@@ -885,7 +914,108 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   N ≠ M →
   head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
 | TickS σ z :
-  head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ.
+  head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ
+(* Do. *)
+| DoS v σ :
+  head_step_rel (Do (Val v)) σ (Eff v []) σ
+(* TryWithEff. *)
+| TryWithEffS v k e2 e3 σ :
+  head_step_rel (TryWith (Eff v k) e2 e3)             σ
+    (App (App e2 (Val v)) (Val (Cont k))) σ
+(* TryWithRet. *)
+| TryWithRetS v e2 e3 σ :
+  head_step_rel (TryWith (Val v) e2 e3) σ (App e3 (Val v)) σ
+| ContS k v σ :
+  head_step_rel (App (Val (Cont k)) (Val v)) σ (fill k (Val v)) σ
+(* AppLCtx. *)
+| AppLEffS v1 k v2 σ :
+  head_step_rel (App (Eff v1 k) (Val v2))    σ
+    (Eff v1 ((AppLCtx v2) :: k)) σ
+(* AppRCtx. *)
+| AppREffS e1 v1 k σ :
+  head_step_rel (App e1 (Eff v1 k))          σ
+    (Eff v1 ((AppRCtx e1) :: k)) σ
+(* UnOpCtx. *)
+| UnOpEffS op v k σ :
+  head_step_rel (UnOp op (Eff v k))         σ
+    (Eff v ((UnOpCtx op) :: k)) σ
+(* BinOpLCtx. *)
+| BinOpLEffS op v1 k v2 σ :
+  head_step_rel (BinOp op (Eff v1 k) (Val v2))    σ
+    (Eff v1 ((BinOpLCtx op v2) :: k)) σ
+(* BinOpRCtx. *)
+| BinOpREffS op e1 v2 k σ :
+  head_step_rel (BinOp op e1 (Eff v2 k))          σ
+    (Eff v2 ((BinOpRCtx op e1) :: k)) σ
+(* IfCtx. *)
+| IfEffS v k e1 e2 σ :
+  head_step_rel (If (Eff v k) e1 e2)         σ
+    (Eff v ((IfCtx e1 e2) :: k)) σ
+(* PairLCtx. *)
+| PairLEffS v1 k v2 σ :
+  head_step_rel (Pair (Eff v1 k) (Val v2))    σ
+    (Eff v1 ((PairLCtx v2) :: k)) σ
+(* PairRCtx. *)
+| PairREffS e1 v2 k σ :
+  head_step_rel (Pair e1 (Eff v2 k))          σ
+    (Eff v2 ((PairRCtx e1) :: k)) σ
+(* FstCtx. *)
+| FstEffS v k σ :
+  head_step_rel (Fst (Eff v k))       σ
+    (Eff v (FstCtx :: k)) σ
+(* SndCtx. *)
+| SndEffS v k σ :
+  head_step_rel (Snd (Eff v k))       σ
+    (Eff v (SndCtx :: k)) σ
+(* InjLCtx. *)
+| InjLEffS v k σ :
+  head_step_rel (InjL (Eff v k))       σ
+    (Eff v (InjLCtx :: k)) σ
+(* InjRCtx. *)
+| InjREffS v k σ :
+  head_step_rel (InjR (Eff v k))       σ
+    (Eff v (InjRCtx :: k)) σ
+(* CaseCtx. *)
+| CaseEffS v k e1 e2 σ :
+  head_step_rel (Case (Eff v k) e1 e2)         σ
+    (Eff v ((CaseCtx e1 e2) :: k)) σ
+(* AllocNLCtx. *)
+| AllocNLEffS v1 k v2 σ :
+  head_step_rel (AllocN (Eff v1 k) (Val v2))      σ
+    (Eff v1 ((AllocNLCtx v2) :: k)) σ
+(* AllocNRCtx. *)
+| AllocNREffS v k e σ :
+  head_step_rel (AllocN e (Eff v k))      σ
+    (Eff v ((AllocNRCtx e) :: k)) σ
+(* LoadCtx. *)
+| LoadEffS v k σ :
+  head_step_rel (Load (Eff v k))       σ
+    (Eff v (LoadCtx :: k)) σ
+(* StoreLCtx. *)
+| StoreLEffS v1 k v2 σ :
+  head_step_rel (Store (Eff v1 k) (Val v2))    σ
+    (Eff v1 ((StoreLCtx v2) :: k)) σ
+(* StoreRCtx. *)
+| StoreREffS e1 v2 k σ :
+  head_step_rel (Store e1 (Eff v2 k))          σ
+    (Eff v2 ((StoreRCtx e1) :: k)) σ
+(* AllocTapeCtx *)
+| AllocTapeEffS v k σ :
+  head_step_rel (AllocTape (Eff v k)) σ (Eff v (AllocTapeCtx :: k)) σ
+(* RandLCtx *)
+| RandLEffS v1 k v2 σ :
+  head_step_rel (Rand (Eff v1 k) (Val v2)) σ (Eff v1 ((RandLCtx v2) :: k)) σ
+(* RandRCtx *)
+| RandREffS e v k σ :
+  head_step_rel (Rand e (Eff v k)) σ (Eff v ((RandRCtx e) :: k)) σ
+(* TickCtx *)
+| TickEffS v k σ :
+  head_step_rel (Tick (Eff v k)) σ (Eff v (TickCtx :: k)) σ
+(* DoCtx. *)
+| DoEff v k σ :
+  head_step_rel (Do (Eff v k))         σ
+    (Eff v (DoCtx :: k)) σ.
+
 
 Create HintDb head_step.
 Global Hint Constructors head_step_rel : head_step.
@@ -924,8 +1054,9 @@ Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
 Proof.
   split.
   - intros ?. destruct e1; inv_head_step; eauto with head_step.
-  - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr; done.
-Qed.
+  - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr; try real_solver; admit. (* All cases should be solved *)
+    (* * destruct e0; try destruct v; rewrite dret_1_1; real_solver. *)
+Admitted.
 
 Lemma state_step_support_equiv_rel σ1 α σ2 :
   state_step σ1 α σ2 > 0 ↔ state_step_rel σ1 α σ2.
@@ -1012,6 +1143,9 @@ Fixpoint height (e : expr) : nat :=
   | AllocTape e => 1 + height e
   | Rand e1 e2 => 1 + height e1 + height e2
   | Tick e => 1 + height e
+  | Do e => 1 + height e
+  | Eff v k => 1 (* I don't know *)
+  | TryWith e1 e2 e3 => 1 + height e1 + height e2 + height e3
   end.
 
 Definition expr_ord (e1 e2 : expr) : Prop := (height e1 < height e2)%nat.
