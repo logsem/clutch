@@ -1,6 +1,5 @@
 From Coq Require Import Reals Psatz.
 From clutch.prob Require Export distribution.
-From clutch.common Require Export language. 
 From clutch.con_prob_lang Require Export lang.
 From clutch.con_prob_lang Require Import tactics notation.
 From iris.prelude Require Import options.
