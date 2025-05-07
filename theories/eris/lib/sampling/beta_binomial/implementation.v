@@ -428,5 +428,676 @@ Section Polya.
         iApply ("HΦ" with "[Herr]").
         rewrite fin_to_nat_FS //.
   Qed.
+
+(*  Section BetaTapeNat.
+    Definition β_tape := nat → nat → list (fin 2).
+
+    Definition β_head (τ : β_tape) : option (fin 2)
+      := match τ 0%nat 0%nat with
+         | v::_ => Some v
+         | _ => None
+         end.
+   
+  Definition β_pop_00 (τ : β_tape) : option β_tape
+    := match τ 0%nat 0%nat with
+       | _::t =>
+           let τ' (k i : nat) :=
+             match k, i with 
+             | 0, 0 => t
+             | _, _  => τ k i
+             end
+           in
+           Some τ'
+       | _ => None
+       end.
+
+  Definition β_split (τ : β_tape) : option (fin 2 * β_tape) :=
+    v ← β_head τ ;
+    τ' ← β_pop_00 τ ;
+    Some (v , τ').
+
+  Definition β_next (τ : β_tape) : option (β_tape) :=
+    (λ '(v, τ') k i, match v with
+                     | 0%fin => τ (S k) i
+                     | _ => τ (S k) (S i)
+                     end) <$> β_split τ.
   
+  Definition β_read (τ : β_tape) : option (fin 2 * β_tape) :=
+    v ← β_head τ ;
+    τ' ← β_next τ ;
+    Some (v , τ').
+
+  Fixpoint β_inspect (n : nat) (τ : β_tape) : option (fin (S n)) :=
+    match n as n0 return β_tape → option (fin (S n0)) with
+    | 0 => λ _, Some 0%fin
+    | S m => λ τ,
+        '(v, τ') ← β_read τ ;
+         k ← β_inspect m τ' ;
+         Some (fin_hsum v (fin_S_inj k))
+  end τ.
+
+  Definition β_push (n : nat) (τ : β_tape) (v : fin (S n)) : β_tape :=
+    λ k i,
+      let l := τ k i in
+      if bool_decide (k < v)%nat && bool_decide (i = k)
+      then 1%fin::l
+      else if bool_decide (v ≤ k)%nat && bool_decide (i = v)
+      then 0%fin::l
+      else l.          
+
+  Definition β_empty : β_tape := λ _ _, [].
+
+  Definition β_encode_aux (n : nat) (l : list (fin (S n))) (τ : β_tape) :=
+    foldr (flip (β_push n)) τ l.
+
+  Definition β_encode (n : nat) (l : list (fin (S n))) := β_encode_aux n l β_empty.
+
+  End BetaTapeNat.
+ *)
+
+  Inductive fin_list (A : Type) : nat → Type :=
+  | fin_nil : fin_list A 0
+  | fin_cons {n : nat} : A → fin_list A n → fin_list A (S n).
+
+  Inductive triangle (A : Type) : nat → Type :=
+  | trig_nil : triangle A 0
+  | trig_snoc {n : nat} : triangle A n → fin_list A (S n) → triangle A (S n).
+
+  Arguments fin_nil {A}.
+  Arguments fin_cons {A} {n}.
+  Arguments trig_nil {A}.
+  Arguments trig_snoc {A} {n}.
+
+  Definition fin_list_0_inv
+    {A : Type}
+    (P : fin_list A 0 → Type)
+    (H : P fin_nil)
+    (l : fin_list A 0) : P l :=
+    match l as l0 in (fin_list _ 0) return
+          ∀ (P : fin_list A 0 → Type),
+            P fin_nil →
+            P l0
+    with
+    | fin_nil => λ P H, H 
+    end P H.
+  
+  Definition fin_list_S_inv
+    {n : nat} {A : Type}
+    (P : fin_list A (S n) → Type)
+    (f : ∀ (a : A) (l : fin_list A n), P (fin_cons a l))
+    (l : fin_list A (S n)) : P l :=
+    match l as l0 in (fin_list _ (S n0)) return
+          ∀ (P : fin_list A (S n0) → Type)
+            (f : ∀ (a : A) (l : fin_list A n0), P (fin_cons a l)),
+            P l0
+    with
+    | fin_cons n0 a l => λ P f, f a l
+    end P f.
+
+  Definition triangle_0_inv
+    {A : Type}
+    (P : triangle A 0 → Type)
+    (H : P trig_nil)
+    (t : triangle A 0) : P t :=
+    match t as t0 in (triangle _ 0) return
+          ∀ (P : triangle A 0 → Type),
+            P trig_nil →
+            P t0
+    with
+    | trig_nil => λ P H, H 
+    end P H.
+  
+  Definition triangle_S_inv
+    {n : nat} {A : Type}
+    (P : triangle A (S n) → Type)
+    (f : ∀ (t : triangle A n) (l : fin_list A (S n)), P (trig_snoc t l))
+    (l : triangle A (S n)) : P l :=
+    match l as l0 in (triangle _ (S n0)) return
+          ∀ (P : triangle A (S n0) → Type)
+            (f : ∀ (t : triangle A n0) (l : fin_list A (S n0)), P (trig_snoc t l)),
+            P l0
+    with
+    | trig_snoc n0 t l => λ P f, f t l
+    end P f.
+
+  Ltac inv_fin_list l :=
+  let T := type of l in
+  match eval hnf in T with
+  | fin_list _ ?n =>
+    match eval hnf in n with
+    | 0%nat =>
+      generalize dependent l;
+      match goal with |- ∀ l, @?P l => apply (fin_list_0_inv P) end
+    | S ?n =>
+      generalize dependent l;
+      match goal with |- ∀ l, @?P l => apply (fin_list_S_inv P) end
+    end
+  end.
+
+  Ltac inv_triangle t :=
+  let T := type of t in
+  match eval hnf in T with
+  | triangle _ ?n =>
+    match eval hnf in n with
+    | 0%nat =>
+      generalize dependent t;
+      match goal with |- ∀ t, @?P t => apply (triangle_0_inv P) end
+    | S ?n =>
+      generalize dependent t;
+      match goal with |- ∀ t, @?P t => apply (triangle_S_inv P) end
+    end
+  end.
+
+  Definition fin_list_head {A : Type} {n : nat} : fin_list A (S n) → A :=
+    fin_list_S_inv (const A) const.
+
+  Definition fin_list_tail {A : Type} {n : nat} : fin_list A (S n) → fin_list A n :=
+    fin_list_S_inv (const (fin_list A n)) (flip const).
+
+  Lemma fin_list_cons_head_tail : ∀ {A : Type} {n : nat} (l : fin_list A (S n)),
+    l = fin_cons (fin_list_head l) (fin_list_tail l).
+  Proof.
+    move=>A n l.
+    inv_fin_list l => a l //.
+  Qed.
+
+  Lemma fin_list_head_cons : ∀ {A : Type} {n : nat} (h : A) (t : fin_list A n),
+    fin_list_head (fin_cons h t) = h.
+  Proof.
+    trivial.
+  Qed.
+
+  Lemma fin_list_tail_cons : ∀ {A : Type} {n : nat} (h : A) (t : fin_list A n),
+    fin_list_tail (fin_cons h t) = t.
+  Proof.
+    trivial.
+  Qed.
+  
+  Fixpoint fin_list_snoc {A : Type} {n : nat} : fin_list A n → A → fin_list A (S n) :=
+    match n as n0 return fin_list A n0 → A → fin_list A (S n0) with
+    | 0 => λ l a, fin_cons a l
+    | S m => λ l a, fin_list_S_inv (const (fin_list A (S (S m))))
+                      (λ h t, fin_cons h (fin_list_snoc t a))
+                      l
+
+    end.
+  
+  Fixpoint fin_list_last {A : Type} {n : nat} : fin_list A (S n) → A :=
+    match n as n0 return fin_list A (S n0) → A with
+    | 0 => fin_list_head
+    | S m => fin_list_last ∘ fin_list_tail
+    end.
+
+  Fixpoint fin_list_liat {A : Type} {n : nat} : fin_list A (S n) → fin_list A n :=
+    match n as n0 return fin_list A (S n0) → fin_list A n0 with
+    | 0 => fin_list_tail
+    | S m => fin_list_S_inv (const (fin_list A (S m))) (λ h t, fin_cons h (fin_list_liat t))
+    end.
+  
+  Lemma fin_list_snoc_liat_last :
+    ∀ {A : Type} {n : nat} (l : fin_list A (S n)),
+    l = fin_list_snoc (fin_list_liat l) (fin_list_last l).
+  Proof.
+    move=>A.
+    elim=>[|n IH] l; inv_fin_list l => a l //=.
+    rewrite -IH //.
+  Qed.
+
+  Lemma fin_list_last_snoc :
+    ∀ {A : Type} {n : nat} (h : A) (t : fin_list A n),
+    fin_list_last (fin_list_snoc t h) = h.
+  Proof.
+    move=>A.
+    elim=>[|n IH] h t; inv_fin_list t => //=.
+  Qed.
+
+  Lemma fin_list_liat_snoc :
+    ∀ {A : Type} {n : nat} (h : A) (t : fin_list A n),
+    fin_list_liat (fin_list_snoc t h) = t.
+  Proof.
+    move=>A.
+    elim=>[|n IH] h t; inv_fin_list t => //=.
+    move=>a l.
+    rewrite IH //.
+  Qed.
+
+  #[global] Opaque fin_list_snoc fin_list_last fin_list_liat.
+  
+  Fixpoint fin_list_get {A : Type} {n : nat} : fin_list A n → fin n → A :=
+    match n as n0 return fin_list A n0 → fin n0 → A with
+    | 0 => λ _, fin_0_inv _
+    | S m => λ l i,
+               fin_list_S_inv (const A)
+                 (λ h t,
+                    fin_S_inv (const A) h (λ j, fin_list_get t j) i) l
+    end.
+  
+  Fixpoint fin_list_set {A : Type} {n : nat} : fin_list A n → fin n → A → fin_list A n :=
+     match n as n0 return fin_list A n0 → fin n0 → A → fin_list A n0 with
+     | 0 => λ _, fin_0_inv _
+     | S m => λ l i a, fin_list_S_inv (const (fin_list A (S m)))
+                         (λ h t,
+                            fin_S_inv (const (fin_list A (S m)))
+                              (fin_cons a t)
+                              (λ j, fin_cons h (fin_list_set t j a)) i)
+                         l
+     end.
+
+  Lemma fin_list_get_set :
+    ∀ {A : Type} {n : nat} (l : fin_list A n) (i : fin n) (a : A),
+    fin_list_get (fin_list_set l i a) i = a.
+  Proof.
+    move=>A.
+    elim=>[|n IH] l i a; inv_fin i => [|i]; inv_fin_list l => //=.
+  Qed.
+
+  Lemma fin_list_set_get :
+    ∀ {A : Type} {n : nat} (l : fin_list A n) (i : fin n),
+    fin_list_set l i (fin_list_get l i) = l.
+  Proof.
+    move=>A.
+    elim=>[|n IH] l i ; inv_fin i => [|i]; inv_fin_list l => //= a l.
+    rewrite IH //.
+  Qed.
+  
+  Fixpoint triangle_column {A : Type} {n : nat} : triangle A n → ∀ (i : fin n), fin_list A (n - i)%nat.
+  Proof.
+    move=>t i.
+    destruct n; inv_fin i.
+    { simpl.
+      inv_triangle t => t l /=.
+      exact l.
+    }
+    {
+      simpl.
+      inv_triangle t => t l /=.
+      exact (triangle_column _ _ t).
+    }
+  Defined.
+
+  Lemma nat_sub_sub : ∀ n i, i ≤ n → i = (n - (n - i))%nat.
+  Proof.
+    move=>n i i_le_n.
+    lia.
+  Qed.
+  
+  Definition triangle_column_rev {A : Type} {n : nat} : triangle A n → ∀ (i : fin n), fin_list A (FS i).
+  Proof.
+    move=>t i.
+    destruct n; first inv_fin i.
+    pose (fin_to_nat_lt i).
+    rewrite (nat_sub_sub (S n) (FS i)) /=; last assumption.
+    assert (n - i < S n)%nat by lia.
+    rewrite -(fin_to_nat_to_fin (n - i)%nat (S n)).
+    apply triangle_column, t.
+  Defined.
+  
+  Fixpoint triangle_top {A : Type} {n : nat} : triangle A n → fin_list A n :=
+    match n as n0 return triangle A n0 → fin_list A n0 with
+    | 0 => const fin_nil
+    | S m => triangle_S_inv (const (fin_list A (S m)))
+               (λ t l, fin_list_snoc (triangle_top t) (fin_list_head l))
+    end.
+
+  Fixpoint triangle_bottom {A : Type} {n : nat} : triangle A n → fin_list A n :=
+    match n as n0 return triangle A n0 → fin_list A n0 with
+    | 0 => const fin_nil
+    | S m => triangle_S_inv (const (fin_list A (S m)))
+               (λ t l, fin_list_snoc (triangle_bottom t) (fin_list_last l))
+    end.
+
+  Fixpoint triangle_glue_top {A : Type} {n : nat} : triangle A n → fin_list A (S n) → triangle A (S n) :=
+    match n as n0 return triangle A n0 → fin_list A (S n0) → triangle A (S n0) with
+    | 0 => trig_snoc
+    | S m => λ t l, triangle_S_inv (const (triangle A (S (S m))))
+                      (λ t' l',
+                           trig_snoc (triangle_glue_top t' (fin_list_liat l)) (fin_cons (fin_list_last l) l')
+                      ) t
+    end.
+
+  Fixpoint triangle_glue_bottom {A : Type} {n : nat} : triangle A n → fin_list A (S n) → triangle A (S n) :=
+    match n as n0 return triangle A n0 → fin_list A (S n0) → triangle A (S n0) with
+    | 0 => trig_snoc
+    | S m => λ t l, triangle_S_inv (const (triangle A (S (S m))))
+                      (λ t' l',
+                           trig_snoc (triangle_glue_bottom t' (fin_list_liat l)) (fin_list_snoc l' (fin_list_last l))
+                      ) t
+    end.
+
+  Fixpoint triangle_remove_top {A : Type} {n : nat} : triangle A (S n) → triangle A n :=
+    match n as n0 return triangle A (S n0) → triangle A n0 with
+    | 0 => const trig_nil
+    | S m => triangle_S_inv (const (triangle A (S m)))
+               (λ t' l,
+                  trig_snoc (triangle_remove_top t') (fin_list_tail l))
+    end.
+
+  Fixpoint triangle_remove_bottom {A : Type} {n : nat} : triangle A (S n) → triangle A n :=
+    match n as n0 return triangle A (S n0) → triangle A n0 with
+    | 0 => const trig_nil
+    | S m => triangle_S_inv (const (triangle A (S m)))
+               (λ t' l,
+                  trig_snoc (triangle_remove_bottom t') (fin_list_liat l))
+    end.
+
+  Lemma triangle_glue_remove_top :
+    ∀ {A : Type} {n : nat} (t : triangle A (S n)),
+    t = triangle_glue_top (triangle_remove_top t) (triangle_top t).
+  Proof.
+    move=>A.
+    elim=>[|n IH] t; inv_triangle t => t l.
+    - inv_triangle t.
+      inv_fin_list l.
+      move=>a l.
+      by inv_fin_list l.
+    - inv_triangle t => t l'.
+      simpl.
+      rewrite fin_list_liat_snoc.
+      rewrite -IH fin_list_last_snoc -fin_list_cons_head_tail //.
+  Qed.
+
+  Lemma triangle_glue_remove_bottom :
+    ∀ {A : Type} {n : nat} (t : triangle A (S n)),
+    t = triangle_glue_bottom (triangle_remove_bottom t) (triangle_bottom t).
+  Proof.
+    move=>A.
+    elim=>[|n IH] t; inv_triangle t => t l.
+    - inv_triangle t.
+      inv_fin_list l.
+      move=>a l.
+      by inv_fin_list l.
+    - inv_triangle t => t l'.
+      simpl.
+      rewrite fin_list_liat_snoc.
+      rewrite -IH fin_list_last_snoc -fin_list_snoc_liat_last //.
+  Qed.
+
+  Lemma triangle_remove_glue_top :
+    ∀ {A : Type} {n : nat} (t : triangle A n) (l : fin_list A (S n)),
+    triangle_remove_top (triangle_glue_top t l) = t.
+  Proof.
+    move=>A.
+    elim=>[|n IH] t l; inv_triangle t => //= t l'.
+    rewrite IH //.
+  Qed.
+
+  Lemma triangle_remove_glue_bottom :
+    ∀ {A : Type} {n : nat} (t : triangle A n) (l : fin_list A (S n)),
+    triangle_remove_bottom (triangle_glue_bottom t l) = t.
+  Proof.
+    move=>A.
+    elim=>[|n IH] t l; inv_triangle t => //= t l'.
+    rewrite IH fin_list_liat_snoc //.
+  Qed.
+
+  Lemma triangle_top_glue :
+    ∀ {A : Type} {n : nat} (t : triangle A n) (l : fin_list A (S n)),
+    triangle_top (triangle_glue_top t l) = l.
+  Proof.
+    move=>A.
+    elim=>[|n /= IH] t l; inv_triangle t.
+    { inv_fin_list l => a l /=.
+      by inv_fin_list l.
+    }
+    move=>t l' /=.
+    rewrite IH -fin_list_snoc_liat_last //.
+  Qed.
+
+  Lemma triangle_bottom_glue :
+    ∀ {A : Type} {n : nat} (t : triangle A n) (l : fin_list A (S n)),
+    triangle_bottom (triangle_glue_bottom t l) = l.
+  Proof.
+    move=>A.
+    elim=>[|n /= IH] t l; inv_triangle t.
+    { inv_fin_list l => a l /=.
+      by inv_fin_list l.
+    }
+    move=>t l' /=.
+    rewrite IH fin_list_last_snoc -fin_list_snoc_liat_last //.
+  Qed.
+
+  (** A tape has a list at each pair of coordinates (k,i)
+      for k the number of balls drawn so far and i the number
+      of red balls seen while doing so.
+
+      So a β_tape might look something like this
+      (a star represents there being a list) :
+
+     i\k 0 1 2 3 4 5
+     0   * * * * * * 
+     1     * * * * *
+     2       * * * *
+     3         * * *
+     4           * *
+     5             *
+
+   **)
+  
+  Definition β_tape := triangle (list (fin 2)).
+
+(** Another way of doing it, however the performance is tremendously bad **)
+(*
+  Definition β_tape (n : nat) := ∀ (k : fin n), fin (S k) → list (fin 2).
+
+  Definition β_head {n : nat} (τ : β_tape (S n)) : option (fin 2)
+    := match τ 0%fin 0%fin with
+       | v::_ => Some v
+       | _ => None
+       end.
+   
+  Definition β_pop_00 {n : nat} (τ : β_tape (S n)) : option (β_tape (S n))
+    := match τ 0%fin 0%fin with
+       | _::t =>
+           let τ' (k : fin (S n)) (i : fin (S k)) :=
+             match k with 
+             | 0%fin =>
+                 match i with
+                 | 0%fin => t
+                 | _ => τ k i
+                 end
+             | _  => τ k i
+             end
+           in
+           Some τ'
+       | _ => None
+       end.
+
+  Definition β_split {n : nat} (τ : β_tape (S n)) : option (fin 2 * β_tape (S n)) :=
+    v ← β_head τ ;
+    τ' ← β_pop_00 τ ;
+    Some (v , τ').
+
+  Definition β_next {n : nat} (τ : β_tape (S n)) : option (β_tape n).
+  Proof.
+    refine (option_map
+      _
+      (β_split τ)).
+    move=>[v τ'].
+    refine (match v in fin (S _) with
+            | 0%fin => _
+            | _ => _
+            end).
+    - move=>k i.
+      unshelve eapply τ'.
+      + apply FS, k.
+      + apply fin_S_inj, i.
+    - move=>k i.
+        unshelve eapply τ'.
+      + apply FS, k.
+      + apply FS, i.
+  Defined.
+
+  Definition β_read {n : nat} (τ : β_tape (S n)) : option (fin 2 * β_tape n) :=
+    v ← β_head τ ;
+    τ' ← β_next τ ;
+    Some (v , τ').
+
+  Fixpoint β_inspect {n : nat} (τ : β_tape n) : option (fin (S n)) :=
+    match n as n0 return β_tape n0 → option (fin (S n0)) with
+    | 0 => λ _, Some 0%fin
+    | S m => λ τ,
+        '(v, τ') ← β_read τ ;
+         k ← β_inspect τ' ;
+         Some (fin_hsum v (fin_S_inj k))
+  end τ.
+
+  Definition β_push {n : nat} (τ : β_tape n) (v : fin (S n)) : β_tape n :=
+    λ k i,
+      let l := τ k i in
+      if bool_decide (k < v)%nat && bool_decide (fin_to_nat i = fin_to_nat k)
+      then 1%fin::l
+      else if bool_decide (v ≤ k)%nat && bool_decide (fin_to_nat i = fin_to_nat v)
+      then 0%fin::l
+      else l.          
+
+  Definition β_empty {n : nat} : β_tape n := λ _ _, [].
+
+  Definition β_encode_aux {n : nat} (l : list (fin (S n))) (τ : β_tape n) :=
+    foldr (flip β_push) τ l.
+
+  Definition β_encode {n : nat} (l : list (fin (S n))) := β_encode_aux l β_empty.
+
+  (*
+    if k > 0
+      if v = 0
+         if i < k
+           index in τ'
+         else
+           index in τ
+       if v = 1
+          if i > 0
+             index in τ'
+          else
+            index in τ
+     else
+      index in τ
+   *)
+
+  Definition fin_prev : ∀ {n : nat} (k : fin (S n)), k ≠ 0%fin → fin n.
+  Proof.
+    move=>n k k_ne_0.
+    destruct n; first full_inv_fin.
+    inv_fin k => [_|i _].
+    { exact 0%fin. }
+    { exact i. }
+  Defined.
+
+  Lemma fin_prev_to_nat : ∀ {n : nat} (k : fin (S n)) (k_ne_0 : k ≠ 0%fin), fin_to_nat (fin_prev k k_ne_0) = (fin_to_nat k - 1)%nat.
+  Proof.
+    move=>n k k_ne_0.
+    full_inv_fin => k_ne_0.
+    destruct n; first inv_fin k.
+    simpl.
+    lia.
+  Qed.
+  
+  Program Definition β_merge {n : nat} (τ : β_tape (S n)) (τ' : β_tape n) (v : fin 2) : β_tape (S n) :=
+    λ k i,
+      match Fin.eq_dec k 0%fin with
+      | left _ => τ k i
+      | right k_ne_0 =>
+          if bool_decide (v = 0)%fin && bool_decide (fin_to_nat i ≠ fin_to_nat k)%nat
+          then τ' (fin_prev k k_ne_0) _
+          else if bool_decide (v = 1)%fin && bool_decide (0 < i)%nat
+               then τ' (fin_prev k k_ne_0) _
+               else τ k i
+      end.
+  Next Obligation.
+  Proof.
+    move=>n τ τ' v k i _ k_ne_0 _.
+    inv_fin k=>[//|k i Sk_ne_0].
+    destruct n; first inv_fin k.
+    simpl.
+    inv_fin i => [|//].
+    exact 0%fin.
+  Defined.
+
+  Next Obligation.
+  Proof.
+    move=>n τ τ' v k i _ k_ne_0 _.
+    inv_fin k=>[//|k i Sk_ne_0].
+    destruct n; first inv_fin k.
+    simpl.
+    inv_fin i => [|//].
+    exact 0%fin.
+  Defined.
+
+  Definition fin_list_cons {n : nat} {A : Type} (a : A) (f : fin n → A) : fin (S n) -> A :=
+    λ (k : fin (S n)),
+      match k in (fin (S n0)) return (fin n0 → A) → A with
+      | 0%fin => λ _, a
+      | FS _ j => λ f, f j
+      end f
+  .
+(*
+  Definition fin_2S_inv
+    {n : nat}
+    {A : fin (S (S n)) → Type}
+    (a0 : A 0%fin)
+    (a1 : A 1%fin)
+    (a2S : ∀ (k : fin n), A (FS (FS k)))
+    (k : fin (S (S n))) :  A k :=
+    fin_S_inv A a0 (fin_S_inv (A ∘ FS) a1 a2S) k.
+*)
+
+  Fixpoint fin_prev_opt {n : nat} (k : fin (S n)) : option (fin n) :=
+    match n as n0 return fin (S n0) → option (fin n0) with
+    | 0 => λ _, None
+    | S m => fin_S_inv (const (option (fin (S m))))
+               (Some 0%fin)
+               (λ i, FS <$> fin_prev_opt i)
+    end k.
+ 
+  Definition fin_list_snoc {n : nat} {A : Type} (f : fin n → A) (a : A) :=
+    λ (k : fin (S n)),
+      match fin_prev_opt k with
+      | None => a
+      | Some i => f i
+      end. 
+
+  Fixpoint β_pop {n : nat} (τ : β_tape n) : option (β_tape n)
+    := match n as n0 return β_tape n0 → option (β_tape n0) with
+       | 0 => Some
+       | S m => λ (τ : β_tape (S m)),
+                  '(v, τ_next) ← β_read τ ;
+                  τ_pop ← β_pop_00 τ;
+                  τ_rec ← β_pop τ_next ;
+                  Some (fin_S_inv (λ k, fin (S k) → list (fin 2))
+                        (const (τ_pop 0%fin 0%fin))
+                        (λ k, if bool_decide (v = 0)%fin
+                              then
+                                fin_list_snoc (τ_rec k) (τ_pop (FS k) (fin_max _))
+                              else 
+                                fin_list_cons (τ_pop (FS k) 0%fin) (τ_rec k)
+                        ))
+                    
+       end τ.
+  
+  Fixpoint foldrM {M : Type → Type} `{!MBind M} {A B : Type}
+    (f : B → A → M A) (m : M A) (l : list (M B)) : M A
+    := match l with
+       | [] => m
+       | mh::t =>
+           h ← mh ;
+           r ← foldrM f m t ;
+           f h r
+  end.
+
+
+  Fixpoint list_option_swap {A : Type} (l : list (option A)) : option (list A) :=
+    match l with
+    | [] => Some []
+    | mh::mt =>
+        h ← mh ;
+        t ← list_option_swap mt ;
+        Some (h::t)
+  end.
+
+  Definition β_extract {n : nat} (τ : β_tape n) : list (option (fin 2)) :=
+    match n as n0
+          return β_tape n0 → list (option (fin 2)) with
+    | 0 => const []
+    | S m => λ τ, β_head τ
+    end τ.
+*)
 End Polya.
