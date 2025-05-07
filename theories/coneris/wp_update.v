@@ -14,7 +14,7 @@ From clutch.coneris Require Import weakestpre primitive_laws.
     arbitrary weakest precondition. This includes, e.g., state steps.
 
     The definition generilizable to any [WP] (modulo elminiating [fupd]). The [TCEq (to_val e) None]
-    could be lifted for logics like Approxis that do not require this to do, e.g. state steps. *)
+    could be lifted for other logics that do not require this to do, e.g. state steps. *)
 
 Section wp_update.
   Context `{!conerisGS Σ}.
