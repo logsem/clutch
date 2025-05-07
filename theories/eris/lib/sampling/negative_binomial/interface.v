@@ -40,7 +40,7 @@ Section NegativeBinomialProbability.
     lra.
   Qed.
 
-    Lemma prod_sub_n_opp_nat :
+  Lemma prod_sub_n_opp_nat :
     ∀ (k n : nat), (0 < n) → prod_sub_n k (-n) = (fact (n + k - 1) / fact (n - 1) * (-1)^k)%R.
   Proof.
     elim=>[|k IH] n sum_lt.
@@ -193,10 +193,10 @@ Class negative_binomial_spec `{!erisGS Σ} (negative_prog : val) :=
     twp_negative_binomial_adv_comp :
     ∀ (p q : nat),
       (0 < p)%nat →
-      (p < q + 1)%nat →
-      ∀ (r : nat) (D : nat → R) (ε : R) (ε_term : R),
+      (p ≤ q + 1)%nat →
+      ∀ (r : nat) (D : nat → R) (L : R) (ε : R) (ε_term : R),
       (0 < ε_term)%R →
-      (∀ (n : nat), 0 <= D n)%R →
+      (∀ (n : nat), 0 <= D n <= L)%R →
       SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε → ↯ ε_term -∗
       ↯ ε -∗ WP negative_prog #() #p #q #r [{ v, ∃ (k : nat), ⌜v = #k⌝ ∗ ↯ (D k) }];
 
@@ -212,7 +212,7 @@ Class negative_binomial_spec `{!erisGS Σ} (negative_prog : val) :=
     ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
       (p q r : nat) (ns : list nat) (ε : R),
       (0 < p)%nat →
-      (p < q + 1)%nat →
+      (p ≤ q + 1)%nat →
       (0 < ε)%R → 
       to_val e = None →
       ↯ ε ∗ own_negative_tape α p q r ns ∗
@@ -239,11 +239,11 @@ Class negative_binomial_spec `{!erisGS Σ} (negative_prog : val) :=
     twp_negative_binomial_presample_adv_comp :
     ∀ (p q : nat) (α : loc) (l : list nat) (e : expr) (Φ : val → iProp Σ),
       0 < p →
-      p < (q + 1) →
+      p ≤ (q + 1) →
       to_val e = None →
-      ∀ (r : nat) (D : nat → R) (ε : R) (ε_term : R),
+      ∀ (r : nat) (D : nat → R) (L : R) (ε : R) (ε_term : R),
       (0 < ε_term)%R →
-      (∀ (n : nat), 0 <= D n)%R →
+      (∀ (n : nat), 0 <= D n <= L)%R →
       SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
       ↯ ε_term ∗
       ↯ ε ∗

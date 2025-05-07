@@ -211,7 +211,7 @@ Section Geometric.
     - iIntros "%Φ Herr HΦ".
       rewrite /geometric /geometric_tape Rmult_1_l.
       wp_pures.
-      wp_apply (bernoulli_success_spec_simple with "Herr") as "% ->".
+      wp_apply (bernoulli_success_spec_simple with "Herr") as "_".
       wp_pures.
       by iApply "HΦ".
     - iIntros "%Φ Herr HΦ".

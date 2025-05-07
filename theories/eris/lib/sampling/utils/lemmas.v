@@ -59,3 +59,16 @@ Proof.
   rewrite !SeriesC_finite_foldr -foldr_fmap enum_fin_split fmap_app /= foldr_last.
   rewrite Rplus_comm !foldr_fmap //.
 Qed.
+
+
+  Lemma fmap_repeat : ∀ (A B : Type) (f : A → B) (a : A) (n : nat), f <$> (repeat a n) = repeat (f a) n.
+  Proof.
+    move=>A B f a.
+    elim=>[//|n /= <- //].
+  Qed.
+
+  Lemma list_sum_repeat : ∀ (n k : nat), list_sum (repeat n k) = (n * k)%nat.
+  Proof.
+    move=>n.
+    elim=>[/=|k /= ->]; lia.
+  Qed.

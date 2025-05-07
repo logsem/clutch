@@ -428,3 +428,5 @@ Section Polya.
         iApply ("HΦ" with "[Herr]").
         rewrite fin_to_nat_FS //.
   Qed.
+  
+End Polya.
