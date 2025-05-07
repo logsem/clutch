@@ -1102,16 +1102,45 @@ Section ARcoupl.
     by apply H.
   Qed.
 
+
+  Lemma le_measure_integral {d} {T : measurableType d} (f : T → \bar R) (μ1 μ2 : measure T R)
+    (HA : forall A, measurable A -> (μ1 A <= μ2 A)%E) : (\int[μ1]_x (f x) <= \int[μ2]_x (f x))%E.
+  Proof.
+  Admitted.
+
+  (* What's the mathcomp way to write a montonce sequence? *)
+  Lemma measure_mono_le_esup (s : nat → \bar R) (Hmono : forall (n n' : nat), n <= n' -> (s n <= s n')%E) :
+    forall n, (s n <= limn_esup s)%E.
+  Proof. Admitted.
+
   Lemma limit_exchange {d} {T : measurableType d} (f : T → \bar R) (Hflb : ∀ a : T, (0 <= f a)%E)
-    (μ : nat → giryM T) :
-    (\int[λ S : set T, limn_esup (λ n : nat, μ n S)]_x f x)%E =
+    (μ : nat → giryM T) (Hmono :  forall S, measurable S -> ∀ n n' : nat, n <= n' -> (μ n S <= μ n' S)%E) :
+    (\int[limit_measure μ]_x f x)%E =
     topology.lim (topology.fmap (esups (R:=R) (λ n : nat, (\int[μ n]_x f x)%E))
         (@topology.nbhs nat (topology.topology_set_system__canonical__topology_Filtered nat) topology.eventually)).
   Proof.
-    (* This lemma almost works but (λ S : set T, limn_esup (λ n : nat, μ n S)) is not
-       a measure apparently so I officially no longer care.
-    rewrite ge0_integralTE.
-     *)
+    (* Antisymmetry *)
+    apply @order.Order.le_anti.
+    apply (introT andP); split; last first.
+    { (* ∀ n, ∫ f d(μ_n) ≤ ∫ f d(limit_measure μ)       by def. pointwise monotonicity (add hypothesis) *)
+      (* so lim_n ∫ f d(μ_n) = sup_n ∫ f d(μ_n)         true for every convergent limit
+                             ≤  ∫ f d(limit_measure μ)  by inequality above *)
+
+      (* Change the limsup to the the sup of the sequence *)
+      rewrite <- limn_esup_lim.
+      apply esup_ub.
+      intro n.
+      apply le_measure_integral.
+      intros S HS.
+      rewrite //= /limit_measure//=.
+      eapply le_trans_ereal; last apply measure_mono_le_esup.
+      { by eapply le_refl_ereal. }
+      { by apply Hmono. }
+    }
+    { rewrite ge0_integralTE; [|done].
+      admit. }
+
+    (*
 
     unfold integral.
     (* I have to play these stupid^D^D^D^D^D^D cool pattern matching games becaue HB confuses itself
@@ -1123,13 +1152,27 @@ Section ARcoupl.
     { (* true... by antisymmetry I guess? *)
 
       (* Idk how to write this set equality *)
-      have HX : ereal_sup (R:=R) [set EFin 0%R] = EFin 0%R.
-      { admit. }
-      eapply eq_trans; last apply HX.
-      clear HX; f_equal.
+      eapply eq_trans; last apply ereal_sup1.
+      f_equal.
       have HX : forall h, ([set h | ∀ x : T, ((h x)%:E <= numfun.funeneg (R:=R) (functions.patch (fun=> point) [set: T] [eta f]) x)%E])%classic h ->
                       sintegral (R:=R) (λ S : set T, limn_esup (λ n : nat, μ n S)) h = 0%R%:E.
-      { admit. }
+      { rewrite //=.
+        intros h Hh.
+        simpl.
+        (* I can't write (λ S : set T, limn_esup (λ n : nat, μ n S)) as a measure,
+           even when Printing All, for some reason. Hence I cannot apply sintegral0.
+
+         Doing it in this weird order works a little better though? *)
+        eapply eq_trans.
+        { eapply (eq_sintegral (functions.cst 0%R)).
+          intro x.
+          rewrite //=.
+
+          admit. }
+
+        (* eapply  @sintegral0.  This step hangs *)
+
+        admit. }
       apply /predeqP =>y //=.
       split.
       { intros [h Hh].
@@ -1149,7 +1192,11 @@ Section ARcoupl.
           rewrite /maxe//=/order.Order.lt//=.
           destruct (ExcludedMiddle (f x = EFin 0%R)) as [-> | H].
           { simpl.
-            admit. }
+            rewrite /order.Order.lt //= /GRing.opp /GRing.zero //=.
+            destruct (Rltb (Ropp 0) 0); rewrite /order.Order.le //=.
+            rewrite /order.Order.le //=.
+            by rewrite Ropp_0 //=.
+          }
           { (* When f x is nonzero, it must be the case that - f x is  less than zero *)
             have -> : (lt_ereal (- f x) (EFin 0%R)) = true.
             { rewrite /lt_ereal //=.
@@ -1234,6 +1281,8 @@ Section ARcoupl.
 
 
     (* Now the MSE argument should apply? *)
+
+     *)
   Admitted.
 
   Lemma lim_exec_ARcoupl {d} {B : measurableType d} (a : mstate δ) (μ2 : giryM B) φ (ε : R) (D : \bar R) :
@@ -1244,24 +1293,21 @@ Section ARcoupl.
   Proof.
     intros Hε HD Hn f Hfmeas Hflb Hfub g Hgmeas Hglb Hgub Hfg.
     rewrite /lim_exec.
-    rewrite /limit_measure.
     eapply (order.Order.le_trans (y:=limn_esup(fun n => \int[exec n a]_x f x)%E));
       last (by apply esup_ub; intros ?; apply Hn).
     suffices -> :
-      (\int[λ S : set (mstate_ret δ), limn_esup (λ n : nat, exec n a S)]_x f x =
-       limn_esup (λ n : nat, \int[exec n a]_x f x))%E by done.
+      (\int[limit_measure (exec^~ a)]_x f x = limn_esup (λ n : nat, \int[exec n a]_x f x))%E by done.
     rewrite limn_esup_lim.
     apply limit_exchange.
-    intro a'.
-    remember (f a') as ok. (* Surely there's a better way *)
-    destruct ok.
-    { rewrite Heqok. apply Hflb. }
-    { done. }
-    { exfalso.
-      specialize (Hflb a').
-      by rewrite -Heqok in Hflb. 
+    { intro a'.
+      remember (f a') as ok. (* Surely there's a better way *)
+      destruct ok.
+      { rewrite Heqok. apply Hflb. }
+      { done. }
+      { exfalso. specialize (Hflb a'). by rewrite -Heqok in Hflb. }
     }
-  Qed. 
+    { intros S HSmeas n1 n2 Hn1n2. by apply exec_mono'.  }
+  Qed.
   
 
 
