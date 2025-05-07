@@ -1102,16 +1102,37 @@ Section ARcoupl.
     by apply H.
   Qed.
 
-
-  Lemma le_measure_integral {d} {T : measurableType d} (f : T → \bar R) (μ1 μ2 : measure T R)
-    (HA : forall A, measurable A -> (μ1 A <= μ2 A)%E) : (\int[μ1]_x (f x) <= \int[μ2]_x (f x))%E.
+  Lemma le_measure_integral {d} {T : measurableType d} (f : T → \bar R) (Hf :  ∀ x : T, (0 <= f x)%E)
+    (μ1 μ2 : measure T R) (HA : forall A, measurable A -> (μ1 A <= μ2 A)%E) : (\int[μ1]_x (f x) <= \int[μ2]_x (f x))%E.
   Proof.
+    do 2 (rewrite ge0_integralTE; [|done]).
   Admitted.
+
+  Lemma ereal_sup_lb (S : set (\bar R)) (y : \bar R) :
+    (forall x, S x → (x <= y)%E) -> (ereal_sup (R:=RbaseSymbolsImpl_R__canonical__reals_Real) S <= y)%E.
+  Proof. Admitted.
 
   (* What's the mathcomp way to write a montonce sequence? *)
   Lemma measure_mono_le_esup (s : nat → \bar R) (Hmono : forall (n n' : nat), n <= n' -> (s n <= s n')%E) :
     forall n, (s n <= limn_esup s)%E.
-  Proof. Admitted.
+  Proof.
+    intro n.
+    rewrite limn_esup_lim.
+    (* Check nondecreasing_cvgn_le. (* This only works for R-valued sequences *) *)
+    (* eapply le_trans_ereal; last eapply nondecreasing_cvgn_le. *)  (* Prove that u s n <= esups u s n? *)
+  Admitted.
+
+
+  Lemma lim_le_lim (f g : nat → \bar R) (H : forall n, (f n <= g n)%E) :
+    ((topology.lim (topology.fmap f (@topology.nbhs nat (topology.topology_set_system__canonical__topology_Filtered nat) topology.eventually))) <=
+     (topology.lim (topology.fmap g (@topology.nbhs nat (topology.topology_set_system__canonical__topology_Filtered nat) topology.eventually))))%E.
+  Proof.
+    (* Doesn't work because it's R not \bar R, copy-paste this proof and generalize?
+        Check @normedtype.ler_lim topology.Datatypes_nat__canonical__topology_Topological
+              (@topology.nbhs nat (topology.topology_set_system__canonical__topology_Filtered nat) topology.eventually)
+              _ R.
+        *)
+  Admitted.
 
   Lemma limit_exchange {d} {T : measurableType d} (f : T → \bar R) (Hflb : ∀ a : T, (0 <= f a)%E)
     (μ : nat → giryM T) (Hmono :  forall S, measurable S -> ∀ n n' : nat, n <= n' -> (μ n S <= μ n' S)%E) :
@@ -1130,7 +1151,7 @@ Section ARcoupl.
       rewrite <- limn_esup_lim.
       apply esup_ub.
       intro n.
-      apply le_measure_integral.
+      apply le_measure_integral; [done|].
       intros S HS.
       rewrite //= /limit_measure//=.
       eapply le_trans_ereal; last apply measure_mono_le_esup.
@@ -1138,9 +1159,35 @@ Section ARcoupl.
       { by apply Hmono. }
     }
     { rewrite ge0_integralTE; [|done].
-      admit. }
+
+      (* Apply the theorem in the case of simple integrals *)
+      suffices HSimple :
+        forall h, ([set h | ∀ x : T, ((h x)%:E <= f x)%E] h)%classic →
+             sintegral (limit_measure μ) h =
+             topology.lim (topology.fmap (esups (R:=R) (fun n : nat => sintegral (μ n) h))
+               (@topology.nbhs nat (topology.topology_set_system__canonical__topology_Filtered nat) topology.eventually)).
+      { apply ereal_sup_lb.
+        intros ?; rewrite //=; intros [h Hnn <-].
+        rewrite HSimple; [|done].
+        rewrite //=.
+        apply lim_le_lim.
+        intro n.
+        rewrite /esups//=.
+        (* Similar issue to one of the lemmas above: Need to compare ereal_sups
+           where every element in the first is less than an element of the second. *)
+        admit.
+      }
+      { (* The lemma for simple functions *)
+        simpl.
+        intros s Hsf.
+        admit.
+      }
+    }
+    Admitted.
 
     (*
+
+    Old proof attempt, keeping around just to salvage individual lines
 
     unfold integral.
     (* I have to play these stupid^D^D^D^D^D^D cool pattern matching games becaue HB confuses itself
@@ -1278,12 +1325,7 @@ Section ARcoupl.
       }
       { by rewrite Hx. }
     }
-
-
-    (* Now the MSE argument should apply? *)
-
      *)
-  Admitted.
 
   Lemma lim_exec_ARcoupl {d} {B : measurableType d} (a : mstate δ) (μ2 : giryM B) φ (ε : R) (D : \bar R) :
     (0 <= EFin ε)%E →
