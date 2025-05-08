@@ -632,7 +632,7 @@ Section ectx_language.
       fill_inj  := _;
       fill_dmap e1 σ1 := _
   }.
-  Next Obligation. Admitted. (* move=>Ki; apply (curry_meas_fun R). apply fill_meas. Qed. *)
+  Next Obligation. move=>Ki; apply curry_meas_fun. apply fill_meas. Qed.
   Next Obligation. simpl. apply fill_not_val. Qed.
   Next Obligation. intros K e σ Hval.
                    eapply (fill_prim_step_dbind K e σ) in Hval.

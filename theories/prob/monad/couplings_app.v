@@ -823,17 +823,12 @@ Section ARcoupl_meas.
     }
     rewrite ge0_integral_pushforward; auto.
     apply ge0_le_integral; auto.
-Admitted.
-  (*
-    {
-      intros; simpl; auto.
-    }
-    {
-      apply measurableT_comp; auto.
-    }
-    intros; simpl; auto.
+    { rewrite <- (setTI (preimage _ _)). by apply Hmt. }
+    { intros. rewrite /ssrfun.comp. apply Hgge0. }
+    { apply measurableT_comp; auto. }
+    { intros. by apply Hfg. }
+    { apply @in_setP. intros. apply Hgge0. }
   Qed.
-  *)
 
   Lemma ARcoupl_meas_preserve_mZl (t : A -> B) (Hmt : measurable_fun setT t)
     (Z : set A) (HZ: measurable Z):
@@ -874,7 +869,8 @@ Admitted.
       apply measurableC; auto.
     }
     rewrite ge0_integral_pushforward; auto; last first.
-    (*
+    { admit. }
+(*
     apply ge0_le_integral; auto.
     {
       intros x ?.
