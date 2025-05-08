@@ -181,3 +181,20 @@ Proof.
   - apply Rmult_le_pos. 2: subst ε ; lra. apply IZR_le. lia.
   - etrans. 2: right ; apply Rmult_1_l. apply Rmult_le_compat_r. 1: lra. done.
 Qed.
+
+(* wp_diffpriv implies pure diffpriv *)
+Fact wp_diffpriv_pure f ε (εpos : (0 < ε)%R) :
+  (∀ `{diffprivGS Σ}, wp_diffpriv f ε)
+  →
+    ∀ σ,
+    diffpriv_pure
+      (λ x y, IZR (Z.abs (x - y)))
+      (λ x, lim_exec (f #x, σ))
+      ε.
+Proof.
+  intros hwp ?.
+  eapply (adequacy.wp_diffpriv diffprivΣ) ; eauto ; try lra.
+  iIntros (????) "f' ε".
+  iApply (hwp _ _ [] 1%R with "[$f' ε]") => //. 1: rewrite Rmult_1_l ; done.
+  iNext. iIntros. iExists _. eauto.
+Qed.
