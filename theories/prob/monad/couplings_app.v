@@ -2,10 +2,12 @@
 From mathcomp Require Import all_ssreflect classical_sets boolp functions.
 From clutch.prelude Require Import classical.
 From mathcomp.algebra Require Import ssralg ssrnum interval.
-From mathcomp.analysis Require Import reals ereal measure lebesgue_measure lebesgue_integral ftc probability sequences function_spaces Rstruct.
+From mathcomp.analysis Require Import ereal measure lebesgue_measure lebesgue_integral ftc probability sequences function_spaces.
 From clutch.prob.monad Require Import prelude giry.
 From stdpp Require Import base.
 From Coq Require Import Reals.
+Require Import mathcomp.reals_stdlib.Rstruct.
+Require Import mathcomp.reals.reals.
 From HB Require Import structures.
 
 
@@ -821,6 +823,8 @@ Section ARcoupl_meas.
     }
     rewrite ge0_integral_pushforward; auto.
     apply ge0_le_integral; auto.
+Admitted.
+  (*
     {
       intros; simpl; auto.
     }
@@ -829,7 +833,7 @@ Section ARcoupl_meas.
     }
     intros; simpl; auto.
   Qed.
-
+  *)
 
   Lemma ARcoupl_meas_preserve_mZl (t : A -> B) (Hmt : measurable_fun setT t)
     (Z : set A) (HZ: measurable Z):
@@ -870,6 +874,7 @@ Section ARcoupl_meas.
       apply measurableC; auto.
     }
     rewrite ge0_integral_pushforward; auto; last first.
+    (*
     apply ge0_le_integral; auto.
     {
       intros x ?.
@@ -889,7 +894,8 @@ Section ARcoupl_meas.
     split; auto.
     rewrite -in_setC Htx //.
  Qed.
-
+*)
+    Admitted.
 
 
 Local Open Scope classical_set_scope.

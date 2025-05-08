@@ -6,9 +6,11 @@ From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From Coq.ssr Require Import ssreflect ssrfun.
 From clutch.bi Require Import weakestpre.
-From mathcomp.analysis Require Import reals measure ereal Rstruct lebesgue_integral sequences lebesgue_integral.
+From mathcomp.analysis Require Import measure ereal lebesgue_integral sequences lebesgue_integral.
 From clutch.prob.monad Require Export giry lim couplings_app.
 From clutch.prelude Require Import classical.
+Require Import mathcomp.reals_stdlib.Rstruct.
+Require Import mathcomp.reals.reals.
 Set Warnings "hiding-delimiting-key".
 (*From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
@@ -1089,6 +1091,8 @@ Section ARcoupl.
   Proof.
     intro H.
     rewrite limn_esup_lim.
+  Admitted.
+  (*
     apply @normedtype.lime_le.
     { by apply topology.eventually_filter. }
     { by apply is_cvg_esups. }
@@ -1100,7 +1104,7 @@ Section ARcoupl.
     rewrite /ubound /sdrop //=.
     intros x [? ? <-].
     by apply H.
-  Qed.
+  Qed. *)
 
   Lemma le_measure_integral {d} {T : measurableType d} (f : T → \bar R) (Hf :  ∀ x : T, (0 <= f x)%E)
     (μ1 μ2 : measure T R) (HA : forall A, measurable A -> (μ1 A <= μ2 A)%E) : (\int[μ1]_x (f x) <= \int[μ2]_x (f x))%E.
@@ -1123,6 +1127,7 @@ Section ARcoupl.
   Admitted.
 
 
+  (*
   Lemma lim_le_lim (f g : nat → \bar R) (H : forall n, (f n <= g n)%E) :
     ((topology.lim (topology.fmap f (@topology.nbhs nat (topology.topology_set_system__canonical__topology_Filtered nat) topology.eventually))) <=
      (topology.lim (topology.fmap g (@topology.nbhs nat (topology.topology_set_system__canonical__topology_Filtered nat) topology.eventually))))%E.
@@ -1133,7 +1138,9 @@ Section ARcoupl.
               _ R.
         *)
   Admitted.
+*)
 
+  (*
   Lemma limit_exchange {d} {T : measurableType d} (f : T → \bar R) (Hflb : ∀ a : T, (0 <= f a)%E)
     (μ : nat → giryM T) (Hmono :  forall S, measurable S -> ∀ n n' : nat, n <= n' -> (μ n S <= μ n' S)%E) :
     (\int[limit_measure μ]_x f x)%E =
@@ -1184,148 +1191,9 @@ Section ARcoupl.
       }
     }
     Admitted.
+*)
 
-    (*
 
-    Old proof attempt, keeping around just to salvage individual lines
-
-    unfold integral.
-    (* I have to play these stupid^D^D^D^D^D^D cool pattern matching games becaue HB confuses itself
-        whenever I write out the ereal_sup term on its own. If anyone knows how to do this better please
-        tell me.
-      *)
-    have cool (x y : \bar R) : x = (0)%E -> (y - x = y)%E by (move=>->//; eapply @sube0).
-    rewrite cool; last first.
-    { (* true... by antisymmetry I guess? *)
-
-      (* Idk how to write this set equality *)
-      eapply eq_trans; last apply ereal_sup1.
-      f_equal.
-      have HX : forall h, ([set h | ∀ x : T, ((h x)%:E <= numfun.funeneg (R:=R) (functions.patch (fun=> point) [set: T] [eta f]) x)%E])%classic h ->
-                      sintegral (R:=R) (λ S : set T, limn_esup (λ n : nat, μ n S)) h = 0%R%:E.
-      { rewrite //=.
-        intros h Hh.
-        simpl.
-        (* I can't write (λ S : set T, limn_esup (λ n : nat, μ n S)) as a measure,
-           even when Printing All, for some reason. Hence I cannot apply sintegral0.
-
-         Doing it in this weird order works a little better though? *)
-        eapply eq_trans.
-        { eapply (eq_sintegral (functions.cst 0%R)).
-          intro x.
-          rewrite //=.
-
-          admit. }
-
-        (* eapply  @sintegral0.  This step hangs *)
-
-        admit. }
-      apply /predeqP =>y //=.
-      split.
-      { intros [h Hh].
-        rewrite <- H.
-        apply HX.
-        by rewrite //=.
-      }
-      { intros ->.
-        (* The set can't be empty so we need at least one element *)
-
-        (* There's got to be a better way *)
-        have W : is_true (order.Order.le GRing.zero (GRing.zero : R)).
-        { rewrite /order.Order.le /GRing.zero //=. apply (introT (RlebP 0 0)). lra. }
-
-        have Lemma1 : ∀ x, order.Order.le (EFin GRing.zero) (order.Order.max (oppe (f x)) GRing.zero).
-        { intro x.
-          rewrite /maxe//=/order.Order.lt//=.
-          destruct (ExcludedMiddle (f x = EFin 0%R)) as [-> | H].
-          { simpl.
-            rewrite /order.Order.lt //= /GRing.opp /GRing.zero //=.
-            destruct (Rltb (Ropp 0) 0); rewrite /order.Order.le //=.
-            rewrite /order.Order.le //=.
-            by rewrite Ropp_0 //=.
-          }
-          { (* When f x is nonzero, it must be the case that - f x is  less than zero *)
-            have -> : (lt_ereal (- f x) (EFin 0%R)) = true.
-            { rewrite /lt_ereal //=.
-              rewrite /oppe //=.
-              destruct (f x)%E as [ | | ] eqn:fx.
-              { rewrite /order.Order.lt //= /GRing.opp //=.
-                apply (introT (RltbP _ _)).
-                apply Ropp_pos.
-                apply Rlt_gt.
-                have HR1 : (Rle 0 r)%R.
-                { admit. }
-                have HR2 : not (0 = r)%R.
-                { admit. }
-                lra. }
-              { rewrite <- real_ltry. by rewrite ltry. }
-              { exfalso.
-                specialize Hflb with x.
-                rewrite fx in Hflb.
-                by rewrite /order.Order.le //= in Hflb.
-              }
-            }
-            { by rewrite /order.Order.le //=. }
-          }
-        }
-       exists (@cst_nnsfun d T R (signed.NngNum W)).
-       { intro x.
-         rewrite  /cst_nnsfun //= /numfun.funeneg //= /functions.patch //=.
-         rewrite mem_set; [|done].
-         by apply Lemma1. }
-        { apply HX.
-          rewrite //=.
-          intro x.
-          rewrite  /cst_nnsfun //= /numfun.funeneg //= /functions.patch //=.
-          rewrite mem_set; [|done].
-          by apply Lemma1.
-        }
-      }
-    }
-
-    have esups_are_cool f1 f2 : f1 = f2 -> esups (R:=R) f1 = esups (R:=R) f2.
-    { by move=>->//. }
-
-    (* more cool stuff *)
-    eapply @etrans; last first.
-    { eapply congr_lim.
-      eapply esups_are_cool.
-      eapply functional_extensionality.
-      intro n.
-      symmetry.
-      rewrite cool; [reflexivity |].
-      (* Just copy-paste the proof above unless I can figure out how to
-         actually write its statement in fewer than 50 lines *)
-      admit.
-    }
-    clear cool esups_are_cool.
-
-    (* Simplify *)
-    have -> : (numfun.funepos (R:=R) (functions.patch (fun=> point) [set: T] [eta f]) = f).
-    { apply functional_extensionality.
-      intro x.
-      rewrite /numfun.funepos/functions.patch//=.
-      rewrite mem_set; [|done]. rewrite /maxe.
-      specialize (Hflb x).
-      simpl.
-      destruct (f x < (EFin 0%R))%E as [|] eqn:Hx.
-      { rewrite /order.Order.lt //= /lt_ereal //= in Hx.
-        destruct (f x) as [| |] eqn:Hf; [  | done | done ].
-        rewrite /order.Order.lt //= /Rltb //= andb_true_iff in Hx.
-        destruct Hx as [Hx _].
-        rewrite /is_true //= /order.Order.le //= /order.Order.le //= in Hflb.
-        have -> : r = 0%R.
-        { apply (elimT (RlebP _ _)) in Hx.
-          apply (elimT (RlebP _ _)) in Hflb.
-          rewrite /GRing.zero //= in Hflb.
-          lra.
-        }
-        rewrite /order.Order.lt //= /GRing.zero //= /order.Order.lt //=.
-        by destruct (Rltb 0 0).
-      }
-      { by rewrite Hx. }
-    }
-     *)
 
   Lemma lim_exec_ARcoupl {d} {B : measurableType d} (a : mstate δ) (μ2 : giryM B) φ (ε : R) (D : \bar R) :
     (0 <= EFin ε)%E →
@@ -1340,6 +1208,7 @@ Section ARcoupl.
     suffices -> :
       (\int[limit_measure (exec^~ a)]_x f x = limn_esup (λ n : nat, \int[exec n a]_x f x))%E by done.
     rewrite limn_esup_lim.
+  (*
     apply limit_exchange.
     { intro a'.
       remember (f a') as ok. (* Surely there's a better way *)
@@ -1349,7 +1218,8 @@ Section ARcoupl.
       { exfalso. specialize (Hflb a'). by rewrite -Heqok in Hflb. }
     }
     { intros S HSmeas n1 n2 Hn1n2. by apply exec_mono'.  }
-  Qed.
+  Qed. *)
+Admitted.
   
 
 

@@ -4,7 +4,7 @@ From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
 From stdpp Require Import base numbers binders strings gmap.
 From mathcomp Require Import functions.
-From mathcomp.analysis Require Import reals measure itv lebesgue_measure probability.
+From mathcomp.analysis Require Import measure lebesgue_measure probability.
 From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
 From iris.algebra Require Export ofe.
@@ -13,12 +13,14 @@ From clutch.common Require Export locations.
 From clutch.meas_lang Require Import ectxi_language ectx_language.
 From Coq Require Export Reals.
 From clutch.prob.monad Require Export giry.
-From mathcomp.analysis Require Export Rstruct.
 From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
 From clutch.meas_lang.lang Require Export prelude types constructors shapes cover projections tapes state cfg.
 Require Import ssrfun.
+
+Require Import mathcomp.reals_stdlib.Rstruct.
+Require Import mathcomp.reals.reals.
 Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.

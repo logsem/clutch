@@ -14,15 +14,18 @@ From clutch.meas_lang Require Export meas_spec_update.
 From clutch.prob.monad Require Export couplings_app tactics.
 From clutch.bi Require Export weakestpre.
 (*  From clutch.prob Require Export couplings_app distribution. *)
+
 From Coq Require Import ssrfun.
 
 
-From mathcomp.analysis Require Import reals measure lebesgue_measure lebesgue_integral sequences function_spaces Rstruct.
+From mathcomp.analysis Require Import measure lebesgue_measure lebesgue_integral sequences function_spaces.
 From clutch.prob.monad Require Import prelude giry.
 From stdpp Require Import base.
 From Coq Require Import Reals.
 
-From mathcomp.analysis Require Import constructive_ereal.
+Require Import mathcomp.reals_stdlib.Rstruct.
+Require Import mathcomp.reals.constructive_ereal.
+Require Import mathcomp.reals.reals.
 
 Import uPred.
 

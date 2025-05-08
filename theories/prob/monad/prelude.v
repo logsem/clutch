@@ -2,8 +2,9 @@ From stdpp Require Import base decidable tactics.
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect classical_sets boolp functions.
 From clutch.prelude Require Import classical.
-From mathcomp.analysis Require Import reals ereal measure lebesgue_measure lebesgue_integral sequences function_spaces.
+From mathcomp.analysis Require Import ereal measure lebesgue_measure lebesgue_integral sequences function_spaces.
 From clutch.prob.monad Require Export preprelude.
+Require Import mathcomp.reals.all_reals.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -72,7 +73,6 @@ Section fin_pointed.
 End fin_pointed.
 
 Section curry.
-  Context (R : realType). (* This is due to a bug in mathcomp analysis, delete me. *)
 
   Context {d1 d2 d3 : measure_display}.
   Context {T1 : measurableType d1}.
@@ -84,12 +84,12 @@ Section curry.
   Context (x : T1).
 
   Lemma curry_meas_fun : measurable_fun setT ((curry f) x).
-  Proof using R T1 T2 T3 d1 d2 d3 f mf x.
+  Proof using T1 T2 T3 d1 d2 d3 f mf x.
     intros _ U MU.
     rewrite setTI /curry //=.
     suffices H : ((fun y : T2 => f (x, y)) @^-1` U) = xsection (f @^-1` U) x.
     { rewrite H.
-      eapply (measurable_xsection R _). (* I can see no reason why measurable_xsection needs R? *)
+      eapply (measurable_xsection  _).
       rewrite <- (setTI (preimage _ _)).
       eapply (@mf _ U MU).
       Unshelve. by apply @measurableT.
@@ -594,7 +594,7 @@ Section products.
     split.
     - intro H.
       apply (@mathcomp_restriction_is_measurable _ _ _ _ S HS h) in H.
-      apply (prod_measurable_funP (h \_ S)) in H.
+      apply (measurable_fun_pairP (h \_ S)) in H.
       destruct H as [H1 H2].
       by split; apply (@mathcomp_restriction_measurable_of_measurable _ _ _ _ S HS); rewrite restrict_comp.
     - intros [H1 H2].
@@ -602,7 +602,7 @@ Section products.
       eapply (@mathcomp_restriction_is_measurable _ _ _ _ S HS _) in H2.
       rewrite restrict_comp in H1; [|done].
       rewrite restrict_comp in H2; [|done].
-      have X := iffRL (prod_measurable_funP (h \_ S)) (conj H1 H2).
+      have X := iffRL (measurable_fun_pairP (h \_ S)) (conj H1 H2).
       apply (@mathcomp_restriction_measurable_of_measurable _ _ _ _ S HS _ X).
   Qed.
 
@@ -712,7 +712,6 @@ Section option_salgebra_instance.
   Definition option_S : Type := option (set T1).
   Definition option_T : Type := option T1.
 
-  Check image.
   Program Definition option_ST (k : option_S) : set option_T :=
     match k with
     | None => [set None]
@@ -751,7 +750,7 @@ Section option.
   Lemma Some_meas_fun {d1} {T : measurableType d1} : measurable_fun (setT : set T) Some.
   Proof.
     into_gen_measurable.
-    rewrite /preimage_class. intros ?. simpl.
+    rewrite /preimage_set_system. intros ?. simpl.
     intros [?[[]?]]; subst.
     { rewrite /option_ML in H.
       rewrite setTI.
@@ -857,7 +856,7 @@ Section list.
   Lemma cons_meas_fun {d1} {T : measurableType d1} : measurable_fun setT (consU : (T * list T)%type -> list T).
   Proof.
     into_gen_measurable.
-    rewrite /preimage_class. intros ?. simpl.
+    rewrite /preimage_set_system. intros ?. simpl.
     intros [?[[|s l]H]]; subst.
     { rewrite /list_ML in H.
       rewrite setTI.
@@ -966,7 +965,7 @@ Section list.
   Proof.
     rewrite /list_cov_cons.
     into_gen_measurable.
-    rewrite /preimage_class/list_cyl/=.
+    rewrite /preimage_set_system/list_cyl/=.
     intros ?. simpl.
     intros. destruct!/=.
     apply: sub_sigma_algebra.

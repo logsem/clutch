@@ -16,16 +16,15 @@ From clutch.meas_lang Require Export meas_spec_update. *)
 (* From clutch.bi Require Export weakestpre. *)
 (*  From clutch.prob Require Export couplings_app distribution. *)
 
-From mathcomp.analysis Require Import reals measure lebesgue_measure lebesgue_integral sequences function_spaces Rstruct.
+From mathcomp.analysis Require Import measure lebesgue_measure lebesgue_integral sequences function_spaces.
 From clutch.prob.monad Require Import prelude.
 (* From stdpp Require Import base. *)
 From Coq Require Import Reals.
 From Coq.Bool Require Import Bool.
 Require Import Coq.ssr.ssrbool.
+Require Import mathcomp.reals_stdlib.Rstruct.
 
-From mathcomp.analysis Require Import constructive_ereal.
-
-Local Open Scope R.
+(* From mathcomp.analysis Require Import constructive_ereal. *)
 
 Ltac unfold_mathcomp :=
   unfold order.Order.le,

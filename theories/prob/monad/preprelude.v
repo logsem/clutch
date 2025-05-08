@@ -1,7 +1,7 @@
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect classical_sets boolp functions.
 From clutch.prelude Require Import classical.
-From mathcomp.analysis Require Import reals ereal measure lebesgue_measure lebesgue_integral sequences function_spaces.
+From mathcomp.analysis Require Import ereal measure lebesgue_measure lebesgue_integral sequences function_spaces.
 From stdpp Require Import base decidable.
 
 (* I have abosolutely no idea why it does this but when I put this code at the top of prelude

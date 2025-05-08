@@ -6,9 +6,11 @@ From clutch.prelude Require Import stdpp_ext.
 From clutch.meas_lang Require Import notation lang metatheory.
 From clutch.meas_lang Require Import exec language ectx_language erasable.
 From clutch.prob.monad Require Import couplings_app meas_markov.
-From mathcomp.analysis Require Import reals ereal measure lebesgue_measure lebesgue_integral ftc probability sequences function_spaces Rstruct.
+From mathcomp.analysis Require Import ereal measure lebesgue_measure lebesgue_integral ftc probability sequences function_spaces.
 From clutch.meas_lang Require Import lang.
 
+Require Import mathcomp.reals_stdlib.Rstruct.
+Require Import mathcomp.reals.reals.
 Set Warnings "hiding-delimiting-key".
 
 Set Default Proof Using "Type*".

@@ -2,8 +2,10 @@ Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Program.Wf Reals.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
-From mathcomp.analysis Require Import reals measure ereal Rstruct sequences.
+From mathcomp.analysis Require Import measure ereal sequences.
 From clutch.prob.monad Require Export giry.
+Require Import mathcomp.reals_stdlib.Rstruct.
+Require Import mathcomp.reals.reals.
 
 From mathcomp.analysis Require Import topology.
 

@@ -3,10 +3,13 @@ From HB Require Import structures.
 From Coq Require Export ssrfun.
 From stdpp Require Import binders gmap.
 From mathcomp Require Import eqtype choice boolp functions classical_sets.
-From mathcomp.analysis Require Import reals measure lebesgue_measure sequences.
+From mathcomp.analysis Require Import measure lebesgue_measure sequences.
 From clutch.common Require Export locations.
 From clutch.meas_lang.lang Require Export prelude types tapes.
 Import Coq.Logic.FunctionalExtensionality.
+
+Require Import mathcomp.reals_stdlib.Rstruct.
+Require Import mathcomp.reals.reals.
 Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.

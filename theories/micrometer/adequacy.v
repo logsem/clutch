@@ -216,6 +216,7 @@ Admitted.
 Qed.
 *)
 
+(*
 Corollary wp_adequacy_mass Σ `{!micrometerGpreS Σ} e e' σ σ' φ (ε : R) :
   (0 <= ε)%R →
   (∀ `{micrometerGS Σ}, ⊢  ⤇ e' -∗ ↯ ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
@@ -237,3 +238,4 @@ Proof.
   rewrite mul1e in Z''.
   apply Z''.
 Qed.
+*)

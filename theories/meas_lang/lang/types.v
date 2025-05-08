@@ -3,11 +3,13 @@ From HB Require Import structures.
 From Coq Require Import Reals.
 From stdpp Require Import binders gmap.
 From mathcomp Require Import functions classical_sets.
-From mathcomp.analysis Require Import Rstruct reals measure lebesgue_measure.
+From mathcomp.analysis Require Import measure lebesgue_measure.
 From mathcomp Require Import eqtype choice boolp.
 From clutch.prelude Require Export stdpp_ext.
 From clutch.common Require Export locations.
 From clutch.meas_lang.lang Require Export prelude.
+Require Import mathcomp.reals_stdlib.Rstruct.
+Require Import mathcomp.reals.reals.
 Set Warnings "hiding-delimiting-key".
 
 (** Syntax for an expressions with general leaves *)

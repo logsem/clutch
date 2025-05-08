@@ -3,9 +3,11 @@ From HB Require Import structures.
 From Coq Require Export ssrfun Reals.
 From stdpp Require Import binders.
 From mathcomp Require Import eqtype choice boolp functions classical_sets.
-From mathcomp.analysis Require Import Rstruct reals measure lebesgue_measure sequences.
+From mathcomp.analysis Require Import measure lebesgue_measure sequences.
 From clutch.common Require Export locations.
 From clutch.meas_lang.lang Require Export prelude.
+Require Import mathcomp.reals_stdlib.Rstruct.
+Require Import mathcomp.reals.reals.
 Set Warnings "hiding-delimiting-key".
 
 Set Default Proof Using "Type*".

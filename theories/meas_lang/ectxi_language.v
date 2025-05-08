@@ -8,9 +8,12 @@ From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_s
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Import weakestpre.
-From mathcomp.analysis Require Import reals measure ereal Rstruct.
+From mathcomp.analysis Require Import measure ereal.
 From clutch.prob.monad Require Export giry meas_markov.
 From clutch.meas_lang Require Import language ectx_language prelude.
+
+Require Import mathcomp.reals_stdlib.Rstruct.
+Require Import mathcomp.reals.reals.
 Set Warnings "hiding-delimiting-key".
 
 

@@ -4,11 +4,12 @@ From Coq Require Export Reals.
 From stdpp Require Import binders countable.
 From mathcomp Require Import eqtype choice boolp classical_sets.
 From mathcomp.analysis Require Import measure.
-From mathcomp.analysis Require Export reals Rstruct.
 From clutch.common Require Import locations.
 From clutch.prob.monad Require Import giry.
 From clutch.prob.monad Require Export prelude.
 From Coq Require Import ssrfun.
+Require Import mathcomp.reals_stdlib.Rstruct.
+Require Import mathcomp.reals.reals.
 Set Warnings "hiding-delimiting-key".
 
 (* Instances for Z *)

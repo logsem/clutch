@@ -3,10 +3,13 @@ Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From stdpp Require Import binders gmap countable.
 From mathcomp Require Import functions classical_sets.
-From mathcomp.analysis Require Import reals measure lebesgue_measure.
+From mathcomp.analysis Require Import measure lebesgue_measure.
 From mathcomp Require Import boolp choice.
 From clutch.prelude Require Export base classical.
 From clutch.meas_lang.lang Require Export prelude types.
+
+Require Import mathcomp.reals_stdlib.Rstruct.
+Require Import mathcomp.reals.reals.
 Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.

@@ -6,10 +6,12 @@ From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_s
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Import weakestpre.
-From mathcomp.analysis Require Import reals measure ereal.
+From mathcomp.analysis Require Import measure ereal.
 From clutch.prob.monad Require Import giry.
 From clutch.meas_lang Require Import language prelude.
 From Coq Require Import ssrfun.
+Require Import mathcomp.reals_stdlib.Rstruct.
+Require Import mathcomp.reals.reals.
 Set Warnings "hiding-delimiting-key".
 
 Section erasable.
