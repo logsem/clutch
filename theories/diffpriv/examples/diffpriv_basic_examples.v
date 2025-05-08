@@ -7,13 +7,13 @@ Section wp_example.
 
   #[local] Open Scope R.
 
-  Fact wp_laplace_diffpriv (loc loc' k' : Z)
-    (num den : Z) :
+  Fact wp_laplace_diffpriv (loc loc' : Z)
+    (num den : Z) K :
     0 < IZR num / IZR den →
     let e := (λ: "loc", Laplace #num #den "loc")%E in
-    {{{ ⤇ (e #loc') ∗ ↯ (IZR (Z.abs (loc - loc')) * (IZR num / IZR den)) }}}
+    {{{ ⤇ fill K (e #loc') ∗ ↯ (IZR (Z.abs (loc - loc')) * (IZR num / IZR den)) }}}
       (e #loc)%E
-      {{{ (z : Z), RET #z; ⤇ (Val #z) }}}.
+      {{{ (z : Z), RET #z; ⤇ fill K (Val #z) }}}.
   Proof.
     iIntros (???) "(f' & ε) post". subst e.
     tp_pures.
@@ -22,6 +22,128 @@ Section wp_example.
     iApply (wp_couple_laplace _ _ 0%Z with "[$]") => //.
     setoid_rewrite Z.add_0_r. done.
   Qed.
+
+  Definition wp_ne (f : expr) := ∀ K (x x' : Z),
+    {{{ ⤇ fill K (f #x') }}}
+      f #x
+      {{{ (v : Z), RET #v; ∃ v' : Z, ⤇ fill K (Val #v') ∧ ⌜IZR (Z.abs (v - v')) <= IZR (Z.abs (x - x'))⌝ }}}.
+
+  Definition wp_diffpriv (f : expr) ε := ∀ K c (x x' : Z), IZR (Z.abs (x - x')) <= c →
+      {{{ ⤇ fill K (f #x') ∗ ↯ (c * ε) }}} f #x {{{ (z : Z), RET #z; ⤇ fill K (Val #z) }}}.
+
+  Fact wp_lap_dipr (num den : Z) :
+    0 < IZR num / IZR den →
+    wp_diffpriv (λ: "loc", Laplace #num #den "loc")%E ((IZR num / IZR den)).
+  Proof.
+    intros. rewrite /wp_diffpriv. intros K c x x' adj.
+    iIntros (φ) "[f' ε] hφ".
+    opose proof (wp_laplace_diffpriv x x' num den _ _) as h => //. simpl in h.
+    iPoseProof (h φ with "[f' ε]") as "h".
+    { iFrame. iApply ec_weaken. 2: iFrame.
+      split. 1: rewrite abs_IZR ; real_solver_partial. 1: apply Rabs_pos. 1: lra.
+      apply Rmult_le_compat => //. 1: rewrite abs_IZR ; apply Rabs_pos. lra.
+    }
+    iApply "h". done.
+  Qed.
+
+  Fact ne_ne_comp (g f : val) : wp_ne g → wp_ne f → wp_ne (λ:"x", g (f "x")).
+  Proof.
+    rewrite /wp_ne. intros g_ne f_ne. intros. iIntros "f' hΦ".
+    wp_pures. wp_bind (f _). tp_pures. tp_bind (f _).
+    iApply (f_ne with "[$f']").
+    iIntros "!>" (?) "(%v' & gv' & %ne)".
+    iApply (g_ne with "[$gv']") => //.
+    iIntros "!>" (?) "(%v'' & vv' & %ne')".
+    iApply "hΦ". iExists _. iFrame. iPureIntro. lra.
+  Qed.
+
+  Fact diffpriv_diffpriv_comp (g f : val) εg εf (εg_pos : 0 <= εg) (εf_pos : 0 <= εf) :
+    wp_diffpriv g εg → wp_diffpriv f εf → wp_diffpriv (λ:"x", g (f "x")) εf.
+  Proof.
+    rewrite /wp_ne/wp_diffpriv. intros g_dipr f_dipr. intros. iIntros "[gf' εf] hΦ".
+    wp_pures. wp_bind (f _). tp_pures. tp_bind (f _).
+    iApply (f_dipr with "[$gf' $εf]") => //. iNext. iIntros (?) "g'".
+    iPoseProof (g_dipr K 0 z z) as "g_dipr".
+    { rewrite !abs_IZR. replace (z-z)%Z with 0%Z by lia. rewrite Rabs_R0. done. }
+    iMod ec_zero as "ε0".
+    replace (0 * εg) with 0 by lra.
+    iApply ("g_dipr" with "[$ε0 $g']"). done.
+  Qed.
+
+  Fact diffpriv_ne_comp (g f : val) ε : wp_diffpriv g ε → wp_ne f → wp_diffpriv (λ:"x", g (f "x")) ε.
+  Proof.
+    rewrite /wp_ne/wp_diffpriv. intros g_dipr f_ne. intros. iIntros "[f' ε] hΦ".
+    wp_pures. wp_bind (f _). tp_pures. tp_bind (f _).
+    iApply (f_ne with "[$f']").
+    iIntros "!>" (?) "(%v' & gv' & %ne)".
+    iApply (g_dipr with "[$gv' $ε]") => //. lra.
+  Qed.
+
+  Fact ne_diffpriv_comp (g f : val) ε : wp_diffpriv g ε → wp_ne f → wp_diffpriv (λ:"x", f (g "x")) ε.
+  Proof.
+    rewrite /wp_ne/wp_diffpriv. intros g_dipr f_ne. intros. iIntros "[g ε] hΦ".
+    wp_pures. wp_bind (g _). tp_pures. tp_bind (g _).
+    iApply (g_dipr with "[$g $ε]") => //. iNext. iIntros (?) "f'".
+    iApply (f_ne with "[$f']").
+    iIntros "!>" (?) "(%v' & gv' & %ne)".
+    iApply "hΦ".
+    assert (v = v') as -> => //.
+    move: ne. rewrite !abs_IZR. replace (z-z)%Z with 0%Z by lia. rewrite Rabs_R0.
+    pose proof (Rabs_pos (IZR (v - v'))). intros. assert (Rabs (IZR (v - v')) = 0) by lra.
+    rewrite -abs_IZR in H1. revert H1. apply Zabs_ind.
+    - intros. assert (v - v' = 0)%Z by apply eq_IZR =>//. lia.
+    - intros. assert (- (v - v') = 0)%Z by apply eq_IZR =>//. lia.
+  Qed.
+
+  Definition ID := Fst.
+  Definition age := Snd.
+  (* Two example databases with three rows each containing a ID number and an age. *)
+  Definition db : val := ( (#3, #12), (#1, #42), (#0, #57) ).
+  Definition db' : val := ( (#3, #12), (#2, #24), (#0, #57) ).
+
+  (* If we count the database entries with age over 40, the results we get for db and db' differ by 1. *)
+  Definition over_40 : val := λ:"r", if: #40 < age "r" then #1 else #0.
+  Definition setmap : val := λ: "f" "db", ("f" (Fst (Fst "db")) , "f" (Snd (Fst "db")) , "f" (Snd "db")).
+  Definition setsum : val := λ: "db", (Fst (Fst "db")) + (Snd (Fst "db")) + (Snd "db").
+  Definition count_query (num den : Z) : val := λ:"b", setsum (setmap (λ:"z", Laplace #num #den "z") (setmap over_40 "b")).
+
+  (* By adding (num/den) Laplacian noise, we get equal results for both databases.
+     NB: Since this is done for a specific pair of databases, it doesn't quite
+     fit the notion of pure differential privacy defined at the meta-level. *)
+  Lemma count_query_db : ∀ (num den : Z),
+      (0 < IZR num / IZR den) ->
+      {{{ ⤇ count_query num den db' ∗  ↯ (IZR num / IZR den) }}}
+        count_query num den db
+      {{{ z, RET #z; ⤇ #z }}}.
+  Proof.
+    intros. rewrite /wp_diffpriv. intros.
+    iIntros "[f' ε] hΦ" ; iRevert "f'" ; iIntros "f'".
+    rewrite {2}/count_query /over_40/setmap/setsum/age/db. wp_pures.
+    rewrite /count_query /over_40/setmap/setsum/age/db ; tp_pures.
+
+    wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
+    iMod ec_zero as "ε0".
+    iApply (wp_couple_laplace 1 1 0%Z with "[$ε0 $f']") => //.
+    { rewrite {2}abs_IZR. replace (IZR (0 + 1 - 1)) with 0%R by easy. rewrite Rabs_R0. lra. }
+    iNext. iIntros (z) "f'". simpl. tp_pures ; wp_pures.
+
+    wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
+    iApply (wp_couple_laplace 1 0 0%Z with "[$ε $f']") => //.
+    { rewrite abs_IZR. replace (IZR (0 + 1 - 0)) with 1%R by easy. rewrite Rabs_R1. lra. }
+    iNext. iIntros (z') "f'". simpl. tp_pures ; wp_pures.
+
+    wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
+    iMod ec_zero as "ε0".
+    iApply (wp_couple_laplace 0 0 0%Z with "[$ε0 $f']") => //.
+    { rewrite {2}abs_IZR. replace (IZR (0 + 0 - 0)) with 0%R by easy. rewrite Rabs_R0. lra. }
+    iNext. iIntros (z'') "f'". simpl. tp_pures ; wp_pures.
+
+    iApply "hΦ". iModIntro. assert ((z'' + 0 + (z' + 0) + (z + 0)) = z'' + z' + z)%Z as -> by lia. done.
+
+  Qed.
+
+  (* Definition hist_query (num den : Z) : val :=
+       λ:"b", listmap (λ:"z", Laplace #num #den "z") (hist (setmap age "b")). *)
 
 End wp_example.
 
@@ -35,9 +157,9 @@ Fact Laplace_diffpriv σ (num den : Z) :
     ε.
 Proof.
   intros ε εpos.
-  eapply (wp_diffpriv diffprivΣ) ; eauto ; try lra.
+  eapply (adequacy.wp_diffpriv diffprivΣ) ; eauto ; try lra.
   iIntros (????) "f' ε".
-  iApply (wp_laplace_diffpriv with "[f' ε]") => //.
+  iApply (wp_laplace_diffpriv _ _ _ _ [] with "[f' ε]") => //.
   2: eauto.
   iFrame.
   iApply ec_weaken. 2: iFrame.
