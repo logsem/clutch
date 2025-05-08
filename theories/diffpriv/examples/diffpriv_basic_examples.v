@@ -1,4 +1,3 @@
-From clutch Require Import prob_lang.class_instances.
 From clutch.prob Require Import differential_privacy.
 From clutch.diffpriv Require Import adequacy diffpriv proofmode.
 
