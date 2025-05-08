@@ -661,6 +661,13 @@ Section Polya.
     rewrite IH //.
   Qed.
 
+  Lemma fin_list_head_snoc : ∀ {A : Type} {n : nat} (h : A) (t : fin_list A (S n)),
+    fin_list_head (fin_list_snoc t h) = fin_list_head t.
+  Proof.
+    move=>A n h t.
+    by inv_fin_list t.
+  Qed.
+
   #[global] Opaque fin_list_snoc fin_list_last fin_list_liat.
   
   Fixpoint fin_list_get {A : Type} {n : nat} : fin_list A n → fin n → A :=
@@ -699,23 +706,20 @@ Section Polya.
     elim=>[|n IH] l i ; inv_fin i => [|i]; inv_fin_list l => //= a l.
     rewrite IH //.
   Qed.
+ (* 
+  (* i + 1 is the remaining number of balls to draw *)
+  Fixpoint triangle_column {A : Type} {n : nat} : triangle A n → ∀ (i : fin n), fin_list A (n - i)%nat :=
+  match n as n0 return triangle A n0 → ∀ (i : fin n0), fin_list A (n0 - i)%nat with
+  | 0 => λ _, fin_0_inv _
+  | S m => λ t i,
+             triangle_S_inv (const (fin_list A (S m - i)))
+               (λ t' l,  
+                  fin_S_inv (λ i, fin_list A (S m - i)%nat)
+                    l
+                    (λ j, triangle_column t' j) i) t
+  end.
   
-  Fixpoint triangle_column {A : Type} {n : nat} : triangle A n → ∀ (i : fin n), fin_list A (n - i)%nat.
-  Proof.
-    move=>t i.
-    destruct n; inv_fin i.
-    { simpl.
-      inv_triangle t => t l /=.
-      exact l.
-    }
-    {
-      simpl.
-      inv_triangle t => t l /=.
-      exact (triangle_column _ _ t).
-    }
-  Defined.
-
-  Lemma nat_sub_sub : ∀ n i, i ≤ n → i = (n - (n - i))%nat.
+ Lemma nat_sub_sub : ∀ n i, i ≤ n → i = (n - (n - i))%nat.
   Proof.
     move=>n i i_le_n.
     lia.
@@ -731,6 +735,7 @@ Section Polya.
     rewrite -(fin_to_nat_to_fin (n - i)%nat (S n)).
     apply triangle_column, t.
   Defined.
+  *)
   
   Fixpoint triangle_top {A : Type} {n : nat} : triangle A n → fin_list A n :=
     match n as n0 return triangle A n0 → fin_list A n0 with
@@ -856,7 +861,53 @@ Section Polya.
     rewrite IH fin_list_last_snoc -fin_list_snoc_liat_last //.
   Qed.
 
-  (** A tape has a list at each pair of coordinates (k,i)
+  Lemma triangle_top_bottom_first :
+    ∀ {A : Type} {n : nat} (t : triangle A (S n)),
+    fin_list_head (triangle_top t) = fin_list_head (triangle_bottom t).
+  Proof.
+    move=>A.
+    elim=>[|n IH] t; inv_triangle t => t l //=.
+    rewrite !fin_list_head_snoc IH //.
+  Qed.
+    
+  #[global] Opaque
+    triangle_top
+    triangle_bottom
+    triangle_remove_top
+    triangle_remove_bottom
+    triangle_glue_top
+    triangle_glue_bottom.
+  
+  Fixpoint triangle_column {A : Type} {n : nat} : triangle A n → ∀ (i : fin n), fin_list A (FS i)%nat :=
+  match n as n0 return triangle A n0 → ∀ (i : fin n0), fin_list A (FS i)%nat with
+  | 0 => λ _, fin_0_inv _
+  | S m => λ t i,
+             fin_S_inv (fin_list A ∘ FS)
+               (fin_cons
+                  (fin_list_head (triangle_top t))
+                  fin_nil)
+               (λ j,
+                  fin_cons
+                    (fin_list_get
+                       (triangle_top t)
+                       (FS j)
+                    )
+                    (triangle_column (triangle_remove_top t) j)
+               )
+               i
+  end.
+
+  Fixpoint triangle_row {A : Type} {n : nat} : triangle A n → ∀ (i : fin n), fin_list A (n - i)%nat :=
+  match n as n0 return triangle A n0 → ∀ (i : fin n0), fin_list A (n0 - i)%nat with
+  | 0 => λ _, fin_0_inv _
+  | S m => λ t i,
+             fin_S_inv (λ i, fin_list A (S m - i))
+               (triangle_top t)
+               (triangle_row (triangle_remove_top t))
+               i
+  end.
+
+  (** A β_tape has a list at each pair of coordinates (k,i)
       for k the number of balls drawn so far and i the number
       of red balls seen while doing so.
 
@@ -875,6 +926,235 @@ Section Polya.
   
   Definition β_tape := triangle (list (fin 2)).
 
+  Fixpoint β_empty_list {n : nat} : fin_list (list (fin 2)) n :=
+    match n as n0 return fin_list (list (fin 2)) n0 with
+    | 0 => fin_nil
+    | S m => fin_cons [] β_empty_list
+    end.
+  
+  Fixpoint β_empty {n : nat} : β_tape n :=
+    match n as n0 return β_tape n0 with
+    | 0 => trig_nil
+    | S m => trig_snoc β_empty β_empty_list
+    end.
+
+  Lemma β_empty_list_cons_snoc : ∀ {n : nat}, fin_list_snoc (@β_empty_list n) [] = fin_cons [] β_empty_list.
+  Proof.
+    elim=>[|n IH] //=.
+    rewrite -{2}IH //.
+  Qed.
+    
+  Lemma β_empty_top : ∀ {n : nat}, triangle_top (@β_empty n) = β_empty_list.
+  Proof.
+    elim=>[|n IH] //=.
+    cbv [triangle_top].
+    simpl.
+    cbv [triangle_top] in IH.
+    rewrite IH.
+    apply β_empty_list_cons_snoc.
+  Qed.
+  
+  Definition tl_error {A : Type} (l : list A) : option (list A) :=
+    match l with
+    | [] => None
+    | _::t => Some t
+    end.
+   
+  Definition β_list_push_first {n : nat}
+    (l : fin_list (list (fin 2)) (S n)) (v : fin 2) : fin_list (list (fin 2)) (S n)
+    :=
+    fin_list_S_inv (const (fin_list (list (fin 2)) (S n)))
+      (λ hd tl, fin_cons (v::hd) tl)
+      l.
+
+  Definition β_list_pop_first {n : nat}
+    (l : fin_list (list (fin 2)) (S n))
+    : option (fin_list (list (fin 2)) (S n))
+    :=
+    fin_list_S_inv (const (option (fin_list (list (fin 2)) (S n))))
+      (λ hd tl,
+         hd' ← tl_error hd ;
+         Some (fin_cons hd' tl))
+      l.
+
+  Definition β_list_head_first {n : nat}
+    (l : fin_list (list (fin 2)) (S n)) : option (fin 2) := 
+      head (fin_list_head l)
+  .
+  
+  Lemma β_list_push_pop_first {n : nat} :
+    ∀ (l : fin_list (list (fin 2)) (S n))
+      (v : fin 2),
+    β_list_pop_first (β_list_push_first l v) = Some l.
+  Proof.
+    move=>l v.
+    by inv_fin_list l.
+  Qed.
+
+  Lemma β_list_push_head_first {n : nat} :
+    ∀ (l : fin_list (list (fin 2)) (S n))
+      (v : fin 2),
+    β_list_head_first (β_list_push_first l v) = Some v.
+  Proof.
+    move=>l v.
+    by inv_fin_list l.
+  Qed.
+
+  Lemma β_list_head_first_top_bottom {n : nat} :
+    ∀ (t : β_tape (S n)), β_list_head_first (triangle_top t) = β_list_head_first (triangle_bottom t).
+  Proof.
+    move=>t.
+    unfold β_list_head_first.
+    f_equal.
+    apply triangle_top_bottom_first.
+  Qed.
+    
+  Lemma β_list_push_first_fin_head {n : nat} :
+    ∀ (l : fin_list (list (fin 2)) (S n))
+      (v : fin 2),
+    fin_list_head (β_list_push_first l v) = v::fin_list_head l.
+  Proof.
+    move=>l v.
+    by inv_fin_list l.
+  Qed.
+
+  #[local] Opaque
+   β_list_push_first
+   β_list_pop_first
+   β_list_head_first.
+  
+  Fixpoint β_push {n : nat} : β_tape n → fin (S n) → β_tape n :=
+      match n as n0 return β_tape n0 → fin (S n0) → β_tape n0 with
+      | 0 => λ _ _, trig_nil
+      | S m => λ t i,
+                 fin_S_inv (const (β_tape (S m)))
+                   (triangle_glue_bottom
+                      (β_push (triangle_remove_bottom t) 0%fin)
+                      (β_list_push_first (triangle_bottom t) 0%fin)
+                   )
+                   (λ j,
+                      triangle_glue_top
+                        (β_push (triangle_remove_top t) j)
+                        (β_list_push_first (triangle_top t) 1%fin)
+                   )
+                   i
+      end.
+
+  Lemma β_push_length_first_top {n : nat} :
+    ∀ (t : β_tape (S n))
+      (v : fin (S (S n))),
+    length (fin_list_head (triangle_top (β_push t v))) =
+    S (length (fin_list_head (triangle_top t))).
+  Proof.
+    move=>t v.
+    inv_fin v => [|i] /=.
+    - rewrite !triangle_top_bottom_first triangle_bottom_glue β_list_push_first_fin_head //.
+    - rewrite triangle_top_glue β_list_push_first_fin_head //.
+  Qed.
+  
+  Definition β_encode {n : nat} : list (fin (S n)) → β_tape n :=
+    foldr (flip β_push) β_empty.
+
+  Definition β_first {n : nat} (t : β_tape (S n)) : option (fin 2) :=
+    β_list_head_first (triangle_top t).
+  
+  Fixpoint β_head {n : nat} : β_tape n → option (fin (S n)) :=
+      match n as n0 return β_tape n0 → option (fin (S n0)) with
+      | 0 => λ _, Some 0%fin
+      | S m => λ t,
+                 v ← β_first t ;
+                 match v with
+                 | 0%fin => fin_S_inj <$> β_head (triangle_remove_bottom t)
+                 | _ => FS <$> β_head (triangle_remove_top t)
+                 end
+  end.
+
+  Fixpoint β_pop {n : nat} : β_tape n → option (β_tape n) :=
+      match n as n0 return β_tape n0 → option (β_tape n0) with
+      | 0 => λ _, Some β_empty
+      | S m => λ t,
+                 v ← β_first t ;
+                 match v with
+                 | 0%fin =>
+                     l' ← β_list_pop_first (triangle_bottom t);
+                     t' ← β_pop $ triangle_remove_bottom t;
+                     Some (triangle_glue_bottom t' l')
+                                 
+                 | _ =>
+                     l' ← β_list_pop_first (triangle_top t);
+                     t' ← β_pop $ triangle_remove_top t;
+                     Some (triangle_glue_top t' l')
+                 end
+  end.
+
+  Definition β_split {n : nat} (t : β_tape n) : option (fin (S n) * β_tape n) :=
+    h ← β_head t ;
+    t' ← β_pop t;
+    Some (h, t').
+
+  Fixpoint β_decode_k {n : nat} (t : β_tape n) (k : nat) : option (list (fin (S n))) :=
+    match k with
+    | 0 => Some []
+    | S k' => '(hd, t') ← β_split t ;
+               tl ← β_decode_k t' k' ;
+               Some (hd::tl)
+  end.
+
+  Definition β_decode {n : nat} : β_tape n → option (list (fin (S n))) :=
+    match n as n0 return β_tape n0 → option (list (fin (S n0))) with
+    | 0 => const (Some [])
+    | S m => λ t, β_decode_k t (length $ fin_list_head $ triangle_top t)
+    end.
+  
+  Lemma β_push_head :
+    ∀ {n : nat} (t : β_tape n) (v : fin (S n)),
+    β_head (β_push t v) = Some v.
+  Proof.
+    elim=>[|n IH] t v; first by full_inv_fin.
+    inv_fin v => [|i].
+    - simpl.
+      unfold β_first.
+      rewrite β_list_head_first_top_bottom triangle_bottom_glue β_list_push_head_first /= triangle_remove_glue_bottom IH //.
+    - simpl.
+      unfold β_first.
+      rewrite triangle_top_glue β_list_push_head_first /= triangle_remove_glue_top IH //.
+  Qed.
+
+   Lemma β_push_pop :
+    ∀ {n : nat} (t : β_tape n) (v : fin (S n)),
+    β_pop (β_push t v) = Some t.
+  Proof.
+    elim=>[|n IH] t v; first by (full_inv_fin; inv_triangle t).
+    inv_fin v => [|i].
+    - simpl.
+      unfold β_first.
+      rewrite β_list_head_first_top_bottom triangle_bottom_glue β_list_push_head_first /= triangle_remove_glue_bottom IH β_list_push_pop_first /= -triangle_glue_remove_bottom //.
+    - simpl.
+      unfold β_first.
+      rewrite triangle_top_glue β_list_push_head_first /= triangle_remove_glue_top IH β_list_push_pop_first /= -triangle_glue_remove_top //.
+  Qed.
+
+  Lemma β_push_split :
+    ∀ {n : nat} (t : β_tape n) (v : fin (S n)),
+    β_split (β_push t v) = Some (v, t).
+  Proof.
+    move=> n t v.
+    unfold β_split.
+    rewrite β_push_head /= β_push_pop //.
+  Qed.
+  
+  Lemma β_encode_decode :
+    ∀ {n : nat} (l : list (fin (S (S n)))),
+    β_decode (β_encode l) = Some l.
+  Proof.
+    move=>n.
+    elim=>[|h t IH] /=.
+    - rewrite β_empty_top //.
+    - rewrite β_push_length_first_top /= β_push_split /=.
+      unfold β_decode in IH.
+      rewrite IH //=.
+  Qed.
+  
 (** Another way of doing it, however the performance is tremendously bad **)
 (*
   Definition β_tape (n : nat) := ∀ (k : fin n), fin (S k) → list (fin 2).
