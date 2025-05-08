@@ -23,10 +23,10 @@ Section wp_example.
     setoid_rewrite Z.add_0_r. done.
   Qed.
 
-  Definition wp_ne (f : expr) := ∀ K (x x' : Z),
+  Definition wp_sensitive (f : expr) (c : R) := ∀ (c_pos : 0 <= c) K (x x' : Z),
     {{{ ⤇ fill K (f #x') }}}
       f #x
-      {{{ (v : Z), RET #v; ∃ v' : Z, ⤇ fill K (Val #v') ∧ ⌜IZR (Z.abs (v - v')) <= IZR (Z.abs (x - x'))⌝ }}}.
+      {{{ (v : Z), RET #v; ∃ v' : Z, ⤇ fill K (Val #v') ∧ ⌜IZR (Z.abs (v - v')) <= c * IZR (Z.abs (x - x'))⌝ }}}.
 
   Definition wp_diffpriv (f : expr) ε := ∀ K c (x x' : Z), IZR (Z.abs (x - x')) <= c →
       {{{ ⤇ fill K (f #x') ∗ ↯ (c * ε) }}} f #x {{{ (z : Z), RET #z; ⤇ fill K (Val #z) }}}.
@@ -46,21 +46,25 @@ Section wp_example.
     iApply "h". done.
   Qed.
 
-  Fact ne_ne_comp (g f : val) : wp_ne g → wp_ne f → wp_ne (λ:"x", g (f "x")).
+  Fact sensitive_comp (g f : val) cg cf (cg_pos : 0 <= cg) (cf_pos : 0 <= cf) :
+    wp_sensitive g cg → wp_sensitive f cf → wp_sensitive (λ:"x", g (f "x")) (cg * cf).
   Proof.
-    rewrite /wp_ne. intros g_ne f_ne. intros. iIntros "f' hΦ".
+    rewrite /wp_sensitive. intros g_sens f_sens. intros. iIntros "f' hΦ".
     wp_pures. wp_bind (f _). tp_pures. tp_bind (f _).
-    iApply (f_ne with "[$f']").
-    iIntros "!>" (?) "(%v' & gv' & %ne)".
-    iApply (g_ne with "[$gv']") => //.
-    iIntros "!>" (?) "(%v'' & vv' & %ne')".
-    iApply "hΦ". iExists _. iFrame. iPureIntro. lra.
+    iApply (f_sens with "[$f']") => //.
+    iIntros "!>" (fx) "(%fx' & gv' & %sens)".
+    iApply (g_sens with "[$gv']") => //.
+    iIntros "!>" (gfx) "(%gfx'' & vv' & %sens')".
+    iApply "hΦ". iExists _. iFrame. iPureIntro.
+    etrans => //.
+    rewrite Rmult_assoc.
+    eapply Rmult_le_compat_l => //.
   Qed.
 
   Fact diffpriv_diffpriv_comp (g f : val) εg εf (εg_pos : 0 <= εg) (εf_pos : 0 <= εf) :
     wp_diffpriv g εg → wp_diffpriv f εf → wp_diffpriv (λ:"x", g (f "x")) εf.
   Proof.
-    rewrite /wp_ne/wp_diffpriv. intros g_dipr f_dipr. intros. iIntros "[gf' εf] hΦ".
+    rewrite /wp_sensitive/wp_diffpriv. intros g_dipr f_dipr. intros. iIntros "[gf' εf] hΦ".
     wp_pures. wp_bind (f _). tp_pures. tp_bind (f _).
     iApply (f_dipr with "[$gf' $εf]") => //. iNext. iIntros (?) "g'".
     iPoseProof (g_dipr K 0 z z) as "g_dipr".
@@ -70,27 +74,37 @@ Section wp_example.
     iApply ("g_dipr" with "[$ε0 $g']"). done.
   Qed.
 
-  Fact diffpriv_ne_comp (g f : val) ε : wp_diffpriv g ε → wp_ne f → wp_diffpriv (λ:"x", g (f "x")) ε.
+  Fact diffpriv_sensitive_comp (g f : val) ε c (c_pos : 0 <= c) : wp_diffpriv g ε → wp_sensitive f c → wp_diffpriv (λ:"x", g (f "x")) (c*ε).
   Proof.
-    rewrite /wp_ne/wp_diffpriv. intros g_dipr f_ne. intros. iIntros "[f' ε] hΦ".
+    rewrite /wp_sensitive/wp_diffpriv. intros g_dipr f_sens. intros K c'. intros. iIntros "[f' ε] hΦ".
     wp_pures. wp_bind (f _). tp_pures. tp_bind (f _).
-    iApply (f_ne with "[$f']").
-    iIntros "!>" (?) "(%v' & gv' & %ne)".
-    iApply (g_dipr with "[$gv' $ε]") => //. lra.
+    iApply (f_sens with "[$f']") => //.
+    iIntros "!>" (?) "(%v' & gv' & %sens)".
+    iPoseProof (g_dipr K (c * c')) as "g_dipr".
+    { etrans => //. apply Rmult_le_compat_l => //. }
+    iApply ("g_dipr" with "[$gv' ε]") => //. rewrite (Rmult_comm c) Rmult_assoc. done.
   Qed.
 
-  Fact ne_diffpriv_comp (g f : val) ε : wp_diffpriv g ε → wp_ne f → wp_diffpriv (λ:"x", f (g "x")) ε.
+  Fact ne_diffpriv_comp (g f : val) ε c (c_pos : 0 < c) (f_ne : c <= 1)
+    : wp_diffpriv g ε → wp_sensitive f c → wp_diffpriv (λ:"x", f (g "x")) (ε/c).
   Proof.
-    rewrite /wp_ne/wp_diffpriv. intros g_dipr f_ne. intros. iIntros "[g ε] hΦ".
+    rewrite /wp_sensitive/wp_diffpriv. intros g_dipr f_sens. intros K c' ?? adj ?. intros. iIntros "[g ε] hΦ".
     wp_pures. wp_bind (g _). tp_pures. tp_bind (g _).
-    iApply (g_dipr with "[$g $ε]") => //. iNext. iIntros (?) "f'".
-    iApply (f_ne with "[$f']").
+    iApply (g_dipr _ (c' / c) with "[$g ε]") => //. 2: rewrite Rmult_assoc ; iFrame.
+    { transitivity (c' * 1). 1: lra. rewrite /Rdiv. apply Rmult_le_compat_l.
+      { rewrite abs_IZR in adj. pose proof (Rabs_pos (IZR (x - x'))). lra. }
+      rewrite -Rinv_1.
+      apply Rinv_le_contravar => //.
+    }
+    { rewrite /Rdiv. rewrite (Rmult_comm ε). done. }
+    iNext. iIntros (?) "f'".
+    iApply (f_sens with "[$f']"). 1: lra.
     iIntros "!>" (?) "(%v' & gv' & %ne)".
     iApply "hΦ".
     assert (v = v') as -> => //.
     move: ne. rewrite !abs_IZR. replace (z-z)%Z with 0%Z by lia. rewrite Rabs_R0.
-    pose proof (Rabs_pos (IZR (v - v'))). intros. assert (Rabs (IZR (v - v')) = 0) by lra.
-    rewrite -abs_IZR in H1. revert H1. apply Zabs_ind.
+    pose proof (Rabs_pos (IZR (v - v'))) as h. intros. assert (Rabs (IZR (v - v')) = 0) as h' by lra.
+    rewrite -abs_IZR in h'. revert h'. apply Zabs_ind.
     - intros. assert (v - v' = 0)%Z by apply eq_IZR =>//. lia.
     - intros. assert (- (v - v') = 0)%Z by apply eq_IZR =>//. lia.
   Qed.
