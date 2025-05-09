@@ -76,17 +76,17 @@ Lemma app_assoc_ctx_lr (g f : val) (a : expr) (x : string) (γ : type) :
       (⊢ REL g << g : (β → (interp γ Δ))%lrel) /\
       (⊢ REL f << f : (α → β)) /\
       (⊢ REL a << a : α)) ->
-  ∅ ⊨ (g (f a)) =ctx= ((λ:x, g (f (Var x))) a) : γ.
+  ∅ ⊨ (g (f a)) =ctx= ((λ:x, g (f (Var x))) a)%V : γ.
 Proof.
   intros.
   split ; apply (refines_sound approxisRΣ) ; intros.
   - destruct (H _ _ Δ) as (α & β & Hg & Hf & Ha).
-    iApply (app_assoc_lr).
+    iApply (app_assoc_lr_v).
     + iApply Ha.
     + iApply Hf.
     + iApply Hg.
   - destruct (H _ _ Δ) as (α & β & Hg & Hf & Ha).
-    iApply (app_assoc_lr').
+    iApply (app_assoc_lr_v').
     + iApply Ha.
     + iApply Hf.
     + iApply Hg.
@@ -102,7 +102,7 @@ Lemma advantage_reduction_lr (adv red : val) (e e' : expr) (b : bool)
       (⊢ REL e << e : α) /\ (⊢ REL e' << e' : α))
   ->
     (advantage adv (red e) (red e') #b <=
-       advantage (λ: "v", adv (red "v")) e e' #b)%R.
+       advantage (λ: "v", adv (red "v"))%V e e' #b)%R.
 Proof.
   intros.
   apply advantage_uniform.

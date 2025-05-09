@@ -38,12 +38,17 @@ Qed.
 
 Definition pr_dist_st X Y v := (λ ε : R, ∃ (σ : state), nonneg (pr_dist X Y σ σ v) = ε).
 
-Fact pr_dist_st_bound X Y v : bound (pr_dist_st X Y v).
+Fact pr_dist_st_bound_1 X Y v : is_upper_bound (pr_dist_st X Y v) 1.
 Proof.
   assert (∀ (e : expr) (σ : state) (v : val), 0 <= lim_exec (e, σ) v <= 1)
     as h by by intros ; split.
-  exists 1. intros ε (σ & <-). apply Rabs_le.
+  intros ε (σ & <-). apply Rabs_le.
   pose (h X σ v). pose (h Y σ v). split ; lra.
+Qed.
+
+Fact pr_dist_st_bound X Y v : bound (pr_dist_st X Y v).
+Proof.
+  exists 1. apply pr_dist_st_bound_1.
 Qed.
 
 Fact pr_dist_st_inhabited : forall X Y v, (∃ x : R, pr_dist_st X Y v x).
@@ -67,6 +72,14 @@ Qed.
 Definition advantage (A X Y : expr) (v : val) : nonnegreal.
   econstructor ; apply (advantage_R_pos A X Y v).
 Defined.
+
+Lemma advantage_bound_1 A e e' v : (advantage A e e' v <= 1)%R.
+Proof.
+  simpl. rewrite /advantage_R.
+  destruct completeness as [x [ub lub]] => /=.
+  apply lub.
+  apply pr_dist_st_bound_1.
+Qed.
 
 Lemma advantage_uniform (A X Y : expr) v (ε : R) :
   (∀ (σ : state), pr_dist (A X) (A Y) σ σ v <= ε) →

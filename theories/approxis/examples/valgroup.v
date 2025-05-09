@@ -295,6 +295,11 @@ Module valgroup_tactics.
     repeat (iredpuresr ; try first [rel_exp_r | rel_mult_r | rel_inv_r]) ;
     repeat (iredpuresl ; try first [rel_exp_l | rel_mult_l | rel_inv_l]).
 
+  Ltac rel_red :=
+    iStartProof ;
+    repeat (iredrs ; try first [rel_exp_r | rel_mult_r | rel_inv_r]) ;
+    repeat (iredls ; try first [rel_exp_l | rel_mult_l | rel_inv_l]).
+
   (* TODO: make this into a general purpose tactic for solving log. rel.s at base
    type, and add a clause to use a hint database to which local solutions such
    as τG_subtype can be added. *)

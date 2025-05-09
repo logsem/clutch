@@ -255,7 +255,7 @@ Qed.
 Context (adversary : val).
 Context (adversary_typed : forall `{!approxisRGS Σ}, ⊢ REL adversary << adversary : τ_cpa → lrel_bool).
 
-Definition ε_OTS h Q b := advantage (λ:"v", adversary (hybrid h Q "v")) CPA_OTS_real CPA_OTS_rand #b.
+Definition ε_OTS h Q b := advantage (λ:"v", adversary (hybrid h Q "v"))%V CPA_OTS_real CPA_OTS_rand #b.
 
 Fact advantage_hybrid_OTS h Q (b : bool) :
   (advantage adversary (hybrid h Q CPA_OTS_real) (hybrid h Q CPA_OTS_rand) #b <= ε_OTS h Q b)%R.
@@ -394,13 +394,11 @@ Qed.
 
 (* TODO define ε' instead of assuming it exists. *)
 (* the fact that ε_OTS varies with Q is annoying in the proof; we can just take ε' to be the max over ε_OTS. *)
-Variable ε' : forall (Q : Z) (b : bool), R.
-Hypothesis (ε_max : forall Q (b : bool) k, (ε_OTS k Q b <= ε' Q b)%R).
 
-Lemma Claim_15_5_aux_alt (Q : Z) (k : nat) (b : bool) :
-  (advantage adversary (hybrid 0 Q CPA_OTS_rand) (hybrid k Q CPA_OTS_rand) #b <= k * ε' Q b)%R.
+Lemma Claim_15_5_aux_alt (Q : Z) (k : nat) (b : bool) (ε' : R) (ε_max : ∀ k, (ε_OTS k Q b <= ε')%R) :
+  (advantage adversary (hybrid 0 Q CPA_OTS_rand) (hybrid k Q CPA_OTS_rand) #b <= k * ε')%R.
 Proof.
-  intros. set (ε := ε' Q b). induction k.
+  intros. set (ε := ε'). induction k.
   - replace (0%nat * ε)%R with 0%R. 2: real_solver. replace (_ 0%nat) with 0%Z by lia.
     eapply lr_advantage_reflexive.
     1: apply adversary_typed. apply hybrid_OTS_rand_typed.
@@ -427,8 +425,8 @@ Lemma cpa_hyb_rand_adv_alt (b : bool) Q :
   (nonneg (advantage adversary (CPA_rand Q) (hybrid 0 Q CPA_OTS_rand) #b) <= 0)%R.
 Proof. apply (lr_advantage _ _ _ _ adversary_typed (@cpa_hyb_rand_alt Q) (@cpa_hyb_rand_alt' Q)). Qed.
 
-Lemma Claim_15_5 (Q : nat) (b : bool) :
-    (advantage adversary (CPA_real Q) (CPA_rand Q) #b <= Q * ε' Q b)%R.
+Lemma Claim_15_5 (Q : nat) (b : bool) (ε' : R) (ε_max : ∀ k, (ε_OTS k Q b <= ε')%R) :
+    (advantage adversary (CPA_real Q) (CPA_rand Q) #b <= Q * ε')%R.
 Proof.
   intros.
   eapply advantage_triangle.
@@ -438,6 +436,7 @@ Proof.
   2: apply cpa_hyb_rand_adv_alt.
   1: rewrite advantage_sym.
   1: apply Claim_15_5_aux_alt.
+  1: apply ε_max.
   1: reflexivity. field_simplify. reflexivity.
 Qed.
 
