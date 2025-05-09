@@ -18,7 +18,7 @@ In [lib/hocap_rand_atomic.v](lib/hocap_rand_atomic.v), we consider a different s
 (We also mention the somewhat experimental specification in [lib/hocap_rand_alt.v](lib/hocap_rand_alt.v) that also create an exclusive token describing the tape label for the tape allocation operation. This is used in first attempts of the examples written, and we then realize that it is not necessary.)
 
 ## Lazy Random Sampler ##
-In the appendix, we consider a concurrent lazy one-shot lazy random sampler. The implementation and specification of this can be found in [examples/lazy_rand/lazy_rand_interface.v](examples/lazy_rand/lazy_rand_impl.v), respectively. The `lazyRace` program can be found in [examples/lazy_rand/lazy_rand.v](examples/lazy_rand/lazy_rand_race.v) where we highlight the need to allow presampling to be performed within the `lazyRandf` call.
+In the case studies section, we consider a concurrent lazy one-shot lazy random sampler. The implementation and specification of this can be found in [examples/lazy_rand/lazy_rand_interface.v](examples/lazy_rand/lazy_rand_impl.v), respectively. The `lazyRace` program can be found in [examples/lazy_rand/lazy_rand.v](examples/lazy_rand/lazy_rand_race.v) where we highlight the need to allow presampling to be performed within the `lazyRandf` call.
 
 This lazy random sampler is a client of the random module presented above. 
 
