@@ -75,22 +75,6 @@ Section BernoulliImpl.
     - iApply ("HΦ" $! 0)%nat; done.
   Qed.
 
-  (**
-    This is a lemma to do a case disjunction, it cannot be derived from `twp_bernoulli_scale` because it doesn't require 
-    `N ≤ M + 1`, but isn't very useful as it can't scale credits
-  *)
-  Lemma bernoulli_case (N M : nat) :
-    [[{True}]] 
-      bernoulli #() #N #M 
-    [[{ v, RET v; ⌜v = #0⌝ ∨ ⌜v = #1⌝}]].
-  Proof.
-    iIntros "%Φ _ HΦ".
-    rewrite /bernoulli; wp_pures.
-    wp_apply (twp_rand with "[$]") as "%n _".
-    wp_pures; case_bool_decide;
-    wp_pures; iApply "HΦ"; auto.
-  Qed.
-
 
   Definition own_bernoulli_tape α N M v : iProp Σ := ∃ l, α ↪ (M; l) ∗ ⌜is_bernoulli_translation N M v l⌝.
 

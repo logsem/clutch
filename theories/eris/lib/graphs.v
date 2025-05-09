@@ -1,16 +1,12 @@
 From clutch Require Import eris.
 From clutch.eris.lib Require Import list.
 
-
 (* 
 For Karger's algorithm (https://en.wikipedia.org/wiki/Karger's_algorithm): 2 solutions
 
 Either do specific things, or use an union find structure
 
 *)
-
-
-
 
 Section graph_code.
   #[local] Open Scope expr_scope.
@@ -54,9 +50,7 @@ Section graph_code.
   Definition get_nodes : val :=
     rec: "get_nodes" "g" :=
       let: "nodes" := "get_nodes" (list_tail "g") in
-      let: "h" := list_head "g" in
-      let: "n1" := Fst "h" in
-      let: "n2" := Snd "h" in
+      let, ("n1", "n2") := list_head "g" in
       let: "new_nodes" := 
         if: list_mem "n1" "nodes" 
         then "g" 
@@ -69,22 +63,53 @@ Section graph_code.
 
 End graph_code.
 
-
 Section karger.
-  Definition karger : val :=
+
+  Definition pick_random_edge : val :=
+    λ: "g", 
+      let: "len" := list_length "g" in
+      let: "n" := rand ("len" - #1) in
+      match: list_nth "g" "n" with 
+      | SOME "v" => "v"
+      | NONE => #() (* Not possible *)
+      end
+  .
+  
+  Definition fuse : val :=
+    λ: "p" "g",
+      let, ("repr", "to_replace") := "p" in
+      let: "f" := λ: "e", 
+        let, ("src", "dst") := "e" in 
+        let: "new_src" := 
+          if: "src" = "to_replace" 
+          then "repr" else "src"
+        in
+        let: "new_dst" := 
+          if: "dst" = "to_replace" 
+          then "repr" else "dst"
+        in
+        ("new_src", "new_dst") 
+      in
+      list_map "f" "g"
+  . 
+
+  Definition cut : val :=
     λ: "g",
-    let: "pick_random_edge" := "todo" in
-    let: "go" := 
-      rec: "g" "nodes" "assoc" := 
-        let: "size" := list_length "nodes" in 
-        if: "size" = #2 
-        then "assoc"
-        else 
-          let: "p" := "pick_random_edge" "g" in
-          let: "e" := Fst "p" in
-          let: "g" := Snd "p" in
-          let: "assoc" := "todo" in
-          "todo"
-    in 
-    "".
+    let: "g" := ref "g" in
+    while #2 < list_length (get_nodes !"g") do
+      let: "e" := pick_random_edge !"g" in
+      "g" <- fuse "e" !"g"
+    end;;
+    !"g"
+  .
+
+  Definition cut_size : val :=
+    λ: "g",
+    let: "f" := λ: "e",
+      let, ("src", "dst") := "e" in
+      "src" ≠ "dst"
+    in
+    list_length (list_filter "f" "g")
+  .
+  
 End karger.
