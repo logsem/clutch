@@ -1,0 +1,162 @@
+From clutch.common Require Import inject.
+From clutch.prob_lang Require Export notation tactics metatheory.
+From clutch.prob_lang Require Export lang.
+From clutch.prob_lang.spec Require Export spec_rules spec_tactics.
+From clutch.diffpriv Require Export weakestpre lifting ectx_lifting primitive_laws coupling_rules proofmode.
+
+Section diffpriv.
+  Context `{!diffprivGS Σ}.
+
+  #[local] Open Scope R.
+
+  Class Distance A := { carrier :: Inject A val
+                      ; distance : A -> A -> R
+                      ; distance_pos a1 a2 : 0 <= distance a1 a2
+                      ; distance_0 a : distance a a = 0
+                      ; distance_sep a1 a2 : distance a1 a2 <= 0 -> a1 = a2
+                      (* leaving out symmetry and triangle inequality until they're needed. *)
+                      (* ; distance_sym a1 a2 : distance a1 a2 = distance a2 a1 *)
+                      (* ; distance_triangle a1 a2 a3 : distance a1 a3 <= distance a1 a2 + distance a2 a3 *)
+    }.
+  Arguments carrier {_} _.
+  Coercion carrier : Distance >-> Inject.
+  Arguments distance {_} _ _ _.
+  Coercion distance : Distance >-> Funclass.
+
+  Program Definition dZ : Distance Z := {| distance z z' := Rabs (IZR (z - z')) |}.
+  Next Obligation. intros => /= ; eauto using Rabs_pos. Qed.
+  Next Obligation. intros => /= ; replace (a - a)%Z with 0%Z by lia. exact Rabs_R0. Qed.
+  Next Obligation.
+    intros ?? => /= ; rewrite -abs_IZR. pose proof (IZR_le _ _ $ Zabs_pos (a1-a2)).
+    intros h. assert (IZR (Z.abs (a1 - a2)) = 0) as h' by lra. revert h'.
+    apply Zabs_ind ; intros ? h' ; apply eq_IZR in h' ; lia.
+  Qed.
+
+
+  Definition wp_sensitive (f : expr) (c : R) `(d_in : Distance A) `(d_out : Distance B)
+    :=
+    ∀ (c_pos : 0 <= c) K (x x' : A),
+    {{{ ⤇ fill K (f $ Val $ inject x') }}}
+      f $ Val $ inject x
+      {{{ (v : val), RET (v);
+          ∃ b b' : B, ⌜v = inject b⌝ ∧ ⤇ fill K (inject b')
+                      ∧ ⌜d_out b b' <= c * d_in x x'⌝
+      }}}.
+
+  Definition wp_diffpriv (f : expr) ε `(dA : Distance A) := ∀ K c (x x' : A), dA x x' <= c →
+      {{{ ⤇ fill K (f (Val (inject x'))) ∗ ↯ (c * ε) }}} f (Val (inject x)) {{{ (v : val), RET v; ⤇ fill K (Val v) }}}.
+
+  Fact wp_laplace_diffpriv (num den : Z) :
+    0 < IZR num / IZR den →
+    wp_diffpriv (λ: "loc", Laplace #num #den "loc")%E ((IZR num / IZR den)) dZ.
+  Proof.
+    intros. rewrite /wp_diffpriv/dZ /=. intros K c x x' adj.
+    iIntros (φ) "[f' ε] hφ".
+    tp_pures. wp_pures.
+    tp_bind (Laplace _ _ _).
+    iApply (wp_couple_laplace _ _ 0%Z with "[$f' ε]") => //.
+    2: setoid_rewrite Z.add_0_r ; iNext ; iIntros ; iApply "hφ" ; iFrame.
+    iFrame. iApply ec_weaken. 2: iFrame.
+    split. all: rewrite abs_IZR ; real_solver_partial. 1: apply Rabs_pos.
+    3: rewrite Z.add_0_l. all: lra.
+  Qed.
+
+  Fact sensitive_comp (f g : val) cg cf
+    `(dA : Distance A) `(dB : Distance B) {C : Type} `(dC : Distance C) (cf_pos : 0 <= cf) (cg_pos : 0 <= cg) :
+    wp_sensitive f cf dA dB → wp_sensitive g cg dB dC → wp_sensitive (λ:"x", g (f "x")) (cg * cf) dA dC.
+  Proof.
+    rewrite /wp_sensitive. intros f_sens g_sens. intros. iIntros "f' hΦ".
+    tp_pures. wp_pures. wp_bind (f _). tp_bind (f _).
+    iApply (f_sens with "[$f']") => //.
+    iIntros "!>" (vfx) "(%fx & %fx' & -> & gv' & %sens)".
+    iApply (g_sens with "[$gv']") => //.
+    iIntros "!>" (vgfx) "(%gfx & %gfx'' & -> & vv' & %sens')".
+    iApply "hΦ". iExists _,_. iFrame. iPureIntro.
+    split ; [eauto|].
+    etrans => //.
+    rewrite Rmult_assoc.
+    eapply Rmult_le_compat_l => //.
+  Qed.
+
+  Fact diffpriv_sensitive_comp (f g : val) ε c
+    `(dA : Distance A) `(dB : Distance B) {C : Type} `(dC : Distance C)
+    (c_pos : 0 <= c) :
+    wp_sensitive f c dA dB → wp_diffpriv g ε dB → wp_diffpriv (λ:"x", g (f "x")) (c*ε) dA.
+  Proof.
+    rewrite /wp_sensitive/wp_diffpriv. intros f_sens g_dipr. intros K c'. intros. iIntros "[f' ε] hΦ".
+    wp_pures. wp_bind (f _). tp_pures. tp_bind (f _).
+    iApply (f_sens with "[$f']") => //.
+    iIntros "!>" (?) "(%b & %v' & -> & gv' & %sens)".
+    iPoseProof (g_dipr K (c * c')) as "g_dipr".
+    { etrans => //. apply Rmult_le_compat_l => //. }
+    iApply ("g_dipr" with "[$gv' ε]") => //. rewrite (Rmult_comm c) Rmult_assoc. done.
+  Qed.
+
+  Definition wp_functional_on (A : Type) {_ : Inject A val} (f : expr) := ∀ K (x : A) ,
+    {{{ ⤇ fill K (f $ Val $ inject x) }}}
+      f $ Val $ inject x
+      {{{ (v : val), RET v; ⤇ fill K (Val v) }}}.
+
+  Definition wp_has_codomain (B : Type) {_ : Inject B val} (f : expr) :=
+    ∀ x P Q, {{{ P }}} f x {{{ v , RET v ; Q v }}} → {{{ P }}} f x {{{ v , RET v ; ∃ b, ⌜ v = inject b ⌝ ∧ Q v }}}.
+
+  Fact well_typed_diffpriv_comp (f g : val) ε c `(dA : Distance A) `(dB : Distance B) (c_pos : 0 <= c) :
+    wp_diffpriv f ε dA → wp_has_codomain B f → wp_functional_on B g → wp_diffpriv (λ:"x", g (f "x")) ε dA.
+  Proof.
+    rewrite /wp_sensitive/wp_diffpriv. intros f_dipr f_cod g_dom. intros K c' ?? adj ?. iIntros "[g ε] hΦ".
+    wp_pures. wp_bind (f _). tp_pures. tp_bind (f _).
+    opose proof (f_cod _ _ _ (f_dipr _ c' _ _ _)) as Hg. 1: eauto.
+    iApply (Hg with "[$g ε]") => //.
+    iNext. iIntros (?) "(%gix & -> & f')".
+    iApply (g_dom with "[$f']").
+    iIntros "!>" (?) "gv'".
+    iApply "hΦ". done.
+  Qed.
+
+  Fact diffpriv_functional (f : val) ε `(dA : Distance A) :
+    wp_diffpriv f ε dA → wp_functional_on A f.
+  Proof.
+    iIntros (f_dipr K z Φ) "fz hΦ".
+    iMod ec_zero as "ε0".
+    rewrite /wp_diffpriv in f_dipr.
+    iApply (f_dipr K 0 with "[$fz ε0]") => //.
+    - right ; apply distance_0.
+    - rewrite Rmult_0_l. done.
+  Qed.
+
+  Fact sensitive_functional (f : val) c `(dA : Distance A) `(dB : Distance B) (c_pos : 0 <= c) :
+    wp_sensitive f c dA dB → wp_functional_on A f.
+  Proof.
+    iIntros (f_sens K z Φ) "f' hΦ".
+    rewrite /wp_sensitive in f_sens.
+    iApply (f_sens c_pos K with "[$f']").
+    iNext. iIntros (v) "(%b & %b' & -> & b' & %sens)".
+    iApply "hΦ".
+    assert (b = b') as -> => //.
+    move: sens.
+    rewrite distance_0. rewrite Rmult_0_r. apply distance_sep.
+  Qed.
+
+  Corollary diffpriv_diffpriv_comp (f g : val) εf εg
+    `(dA : Distance A) `(dB : Distance B) {C : Type} `(dC : Distance C)
+    (εg_pos : 0 <= εg) (εf_pos : 0 <= εf) :
+    wp_has_codomain B f → wp_diffpriv f εf dA →
+    wp_diffpriv g εg dB → wp_diffpriv (λ:"x", g (f "x")) εf dA.
+  Proof.
+    intros f_cod f_dipr g_dipr. intros ???? h.
+    opose proof (diffpriv_functional _ _ _ g_dipr) as g_fun.
+    eapply (well_typed_diffpriv_comp f g ε c dA dB _ f_dipr f_cod g_fun) => //.
+    Unshelve. etrans. 2: apply h. apply distance_pos.
+  Qed.
+
+  Corollary sensitive_diffpriv_comp (g f : val) ε c (c_pos : 0 <= c)
+    `(dA : Distance A) `(dB : Distance B) {C : Type} `(dC : Distance C) :
+    wp_diffpriv f ε dA → wp_has_codomain B f →
+    wp_sensitive g c dB dC → wp_diffpriv (λ:"x", g (f "x")) ε dA.
+  Proof.
+    intros f_dipr f_cod g_sens.
+    opose proof (sensitive_functional _ _ _ _ _ g_sens) as g_fun => //.
+    eapply (well_typed_diffpriv_comp _ _ _ _ _ _ c_pos f_dipr f_cod g_fun).
+  Qed.
+
+End diffpriv.

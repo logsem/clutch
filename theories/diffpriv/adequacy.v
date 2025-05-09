@@ -8,7 +8,7 @@ From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.prob_lang Require Import erasure notation.
 From clutch.common Require Import language.
 From clutch.base_logic Require Import error_credits.
-From clutch.diffpriv Require Import weakestpre primitive_laws.
+From clutch.diffpriv Require Import weakestpre primitive_laws diffpriv_rules.
 From clutch.prob Require Import differential_privacy distribution couplings_exp.
 Import uPred.
 
@@ -156,7 +156,7 @@ Proof.
   intros ? Hwp. eapply Mcoupl_mass_leq. by eapply wp_adequacy.
 Qed.
 
-Corollary wp_diffpriv Σ `{diffprivGpreS Σ} (e : expr) (σ σ' : state) (ε : R) :
+Corollary wp_diffpriv_Z Σ `{diffprivGpreS Σ} (e : expr) (σ σ' : state) (ε : R) :
   0 <= ε →
   (∀ x y, (IZR (Z.abs (x - y)) <= 1) →
           ∀ `{diffprivGS Σ}, ⊢ ⤇ e #y -∗ ↯ ε -∗ WP e #x {{ v, ∃ v', ⤇ Val v' ∗ ⌜v = v'⌝ }})
@@ -167,4 +167,22 @@ Proof.
   intros. eapply wp_adequacy.
   1: eauto. 1: apply Hε.
   intros. apply Hwp. done.
+Qed.
+
+(* wp_diffpriv implies pure diffpriv *)
+Fact wp_diffpriv_pure f ε (εpos : (0 < ε)%R) :
+  (∀ `{diffprivGS Σ}, wp_diffpriv f ε dZ)
+  →
+    ∀ σ,
+    diffpriv_pure
+      (λ x y, IZR (Z.abs (x - y)))
+      (λ x, lim_exec (f #x, σ))
+      ε.
+Proof.
+  intros hwp ?.
+  eapply (wp_diffpriv_Z diffprivΣ) ; eauto ; try lra.
+  iIntros (????) "f' ε".
+  iApply (hwp _ _ [] 1%R with "[$f' ε]") => //. 2: rewrite Rmult_1_l ; done.
+  1: rewrite /dZ /= -abs_IZR //.
+  iNext. iIntros. iExists _. eauto.
 Qed.
