@@ -1081,6 +1081,74 @@ Section Polya.
                   (q + i)
                   (triangle_get τ i j)
            )
-       )%I. 
+       )%I.
   
-End Polya.
+  (** Need predicates for :
+      - owning the top of a β_tape
+      - owning the top of a β_tape and knowing the first number
+      - owning the bottom triangle 
+      - owning the bottom triangle and knowing the first encoded number
+      - keeping track of how they used to combine
+    Same for bottom and top switched
+
+    The idea is to do 
+      
+      own_trig t : t  * * * * *
+                        * * * *
+                          * * *
+                            * *
+                              *
+
+      ------------------------------- (Remove top)
+
+      own_bernoulli_list (top t) : * * * * *
+
+      own_trig (remove_top t)  :  * * * *   
+                                    * * *
+                                      * *
+                                        *
+
+      -------------------------------
+
+      own_bernoulli (head (top t)) : *
+
+      own_bernoulli_list (tail (top t)) : * * * *
+
+      own_trig (remove_top t)  :  * * * *   
+                                    * * *
+                                      * *
+                                        *
+
+      ------------------------------- (Presample)
+
+      own_bernoulli (push 1 (head (top t))) : push 1 *
+
+      own_bernoulli_list (tail (top t)) : * * * *
+
+      own_trig (remove_top t)  :  * * * *   
+                                    * * *
+                                      * *
+                                        *
+
+      ------------------------------- (Rec) 
+
+      own_bernoulli (push 1 (head (top t))) : push 1 *
+
+      own_bernoulli_list (tail (top t)) : * * * *
+
+      own_trig (push v (remove_top t))  :  * * * *   
+                                             * * *
+                                               * *
+                                                 *
+
+      ------------------------------- (Cons)
+
+      own_ttrig (push (v+1) t)  :  * * * * *
+                                     * * * *
+                                       * * *
+                                         * *
+                                           *
+   *)
+End Polya.                        
+
+
