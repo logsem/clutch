@@ -361,11 +361,11 @@ Section ConstructorMeasurable.
              naive_solver.
          }
          apply measurableI.
-         - apply sub_sigma_algebra. rewrite /preimage_class/=.
+         - apply sub_sigma_algebra. rewrite /preimage_set_system/=.
            left. exists [set op]; first done.
            by rewrite setTI.
          - apply sub_sigma_algebra.
-           right. rewrite /preimage_class/=.
+           right. rewrite /preimage_set_system/=.
            exists (val_ST v2).
            { apply sub_sigma_algebra. rewrite /val_cyl/=. naive_solver. }
            rewrite setTI.
@@ -391,11 +391,11 @@ Section ConstructorMeasurable.
              naive_solver.
          }
          apply measurableI.
-         - apply sub_sigma_algebra. rewrite /preimage_class/=.
+         - apply sub_sigma_algebra. rewrite /preimage_set_system/=.
            left. exists [set op]; first done.
            by rewrite setTI.
          - apply sub_sigma_algebra.
-           right. rewrite /preimage_class/=.
+           right. rewrite /preimage_set_system/=.
            exists (expr_ST e1).
            { apply sub_sigma_algebra. rewrite /expr_cyl/=. naive_solver. }
            rewrite setTI.
@@ -420,14 +420,14 @@ Section ConstructorMeasurable.
              naive_solver.
          }
          apply measurableI.
-         - apply sub_sigma_algebra. rewrite /preimage_class/=.
+         - apply sub_sigma_algebra. rewrite /preimage_set_system/=.
            left. exists (expr_ST e1).
            { apply sub_sigma_algebra. rewrite /expr_cyl/=. naive_solver. }
            rewrite setTI.
            rewrite eqEsubset; split; intros [??]; simpl; first naive_solver.
            intros [??<-]. naive_solver.
          - apply sub_sigma_algebra.
-           right. rewrite /preimage_class/=.
+           right. rewrite /preimage_set_system/=.
            exists (expr_ST e2).
            { apply sub_sigma_algebra. rewrite /expr_cyl/=. naive_solver. }
            rewrite setTI.
@@ -478,14 +478,14 @@ Section ConstructorMeasurable.
              naive_solver.
          }
          apply measurableI.
-         - apply sub_sigma_algebra. rewrite /preimage_class/=.
+         - apply sub_sigma_algebra. rewrite /preimage_set_system/=.
            left. exists (expr_ST e1).
            { apply sub_sigma_algebra. rewrite /expr_cyl/=. naive_solver. }
            rewrite setTI.
            rewrite eqEsubset; split; intros [??]; simpl; first naive_solver.
            intros [??<-]. naive_solver.
          - apply sub_sigma_algebra.
-           right. rewrite /preimage_class/=.
+           right. rewrite /preimage_set_system/=.
            exists (expr_ST e2).
            { apply sub_sigma_algebra. rewrite /expr_cyl/=. naive_solver. }
            rewrite setTI.
@@ -1181,7 +1181,7 @@ Section Projection_measurability.
 
 Lemma 𝜋_AppLCtx_v_meas    : measurable_fun ectx_item_cov_AppLCtx 𝜋_AppLCtx_v.
 Proof. into_gen_measurable.
-       rewrite /preimage_class.
+       rewrite /preimage_set_system.
        intros x[?[x1?<-] <-].
        apply sub_sigma_algebra.
        eexists (AppLCtx x1); first done.
@@ -1195,7 +1195,7 @@ Hint Resolve 𝜋_AppLCtx_v_meas    : measlang.
 
 Lemma 𝜋_AppRCtx_e_meas    : measurable_fun ectx_item_cov_AppRCtx 𝜋_AppRCtx_e.
 Proof. into_gen_measurable.
-       rewrite /preimage_class.
+       rewrite /preimage_set_system.
        intros x[?[x1?<-] <-].
        apply sub_sigma_algebra.
        eexists (AppRCtx x1); first done.
@@ -1208,7 +1208,7 @@ Qed.
 Hint Resolve 𝜋_AppRCtx_e_meas    : measlang.
 
 Lemma 𝜋_UnOpCtx_op_meas   : measurable_fun ectx_item_cov_UnOpCtx 𝜋_UnOpCtx_op.
-Proof. eapply (measurability un_op_generated_by_singletons). rewrite /preimage_class.
+Proof. eapply (measurability un_op_generated_by_singletons). rewrite /preimage_set_system.
        intros ? [?[x]?]; subst.
        apply sub_sigma_algebra.
        eexists (UnOpCtx x); first done.
@@ -1224,7 +1224,7 @@ Hint Resolve 𝜋_UnOpCtx_op_meas   : measlang.
 Lemma 𝜋_BinOpLCtx_op_meas : measurable_fun ectx_item_cov_BinOpLCtx 𝜋_BinOpLCtx_op.
 Proof.
   eapply (measurability bin_op_generated_by_singletons).
-  rewrite /preimage_class.
+  rewrite /preimage_set_system.
   intros ?. simpl.
   intros [?[op ->]<-].
   have ->: ((ectx_item_cov_BinOpLCtx `&` 𝜋_BinOpLCtx_op @^-1` [set op])=
@@ -1256,7 +1256,7 @@ Hint Resolve 𝜋_BinOpLCtx_op_meas : measlang.
 Lemma 𝜋_BinOpLCtx_v_meas  : measurable_fun ectx_item_cov_BinOpLCtx 𝜋_BinOpLCtx_v.
 Proof.
   into_gen_measurable.
-  rewrite /preimage_class.
+  rewrite /preimage_set_system.
   intros ?. simpl.
   intros [?[v]<-]; subst.
   have ->: ((ectx_item_cov_BinOpLCtx `&` 𝜋_BinOpLCtx_v @^-1` (val_ST v))=
@@ -1286,7 +1286,7 @@ Hint Resolve 𝜋_BinOpLCtx_v_meas  : measlang.
 Lemma 𝜋_BinOpRCtx_op_meas : measurable_fun ectx_item_cov_BinOpRCtx 𝜋_BinOpRCtx_op.
 Proof. 
   eapply (measurability bin_op_generated_by_singletons).
-  rewrite /preimage_class.
+  rewrite /preimage_set_system.
   intros ?. simpl.
   intros [?[op ->]<-].
   have ->: ((ectx_item_cov_BinOpRCtx `&` 𝜋_BinOpRCtx_op @^-1` [set op])=
@@ -1318,7 +1318,7 @@ Hint Resolve 𝜋_BinOpRCtx_op_meas : measlang.
 Lemma 𝜋_BinOpRCtx_e_meas  : measurable_fun ectx_item_cov_BinOpRCtx 𝜋_BinOpRCtx_e.
 Proof. 
   into_gen_measurable.
-  rewrite /preimage_class.
+  rewrite /preimage_set_system.
   intros ?. simpl.
   intros [?[e]<-]; subst.
   have ->: ((ectx_item_cov_BinOpRCtx `&` 𝜋_BinOpRCtx_e @^-1` (expr_ST e))=
@@ -1348,7 +1348,7 @@ Hint Resolve 𝜋_BinOpRCtx_e_meas  : measlang.
 Lemma 𝜋_IfCtx_l_meas      : measurable_fun ectx_item_cov_IfCtx 𝜋_IfCtx_l.
 Proof. 
   into_gen_measurable.
-  rewrite /preimage_class.
+  rewrite /preimage_set_system.
   intros ?. simpl.
   intros [?[e]<-]; subst.
   have ->: ((ectx_item_cov_IfCtx `&` 𝜋_IfCtx_l @^-1` (expr_ST e))=
@@ -1379,7 +1379,7 @@ Hint Resolve 𝜋_IfCtx_l_meas      : measlang.
 Lemma 𝜋_IfCtx_r_meas      : measurable_fun ectx_item_cov_IfCtx 𝜋_IfCtx_r.
 Proof. 
   into_gen_measurable.
-  rewrite /preimage_class.
+  rewrite /preimage_set_system.
   intros ?. simpl.
   intros [?[e]<-]; subst.
   have ->: ((ectx_item_cov_IfCtx `&` 𝜋_IfCtx_r @^-1` (expr_ST e))=
@@ -1409,7 +1409,7 @@ Hint Resolve 𝜋_IfCtx_r_meas      : measlang.
 
 Lemma 𝜋_PairLCtx_v_meas   : measurable_fun ectx_item_cov_PairLCtx 𝜋_PairLCtx_v.
 Proof. into_gen_measurable.
-       rewrite /preimage_class.
+       rewrite /preimage_set_system.
        intros x[?[x1?<-] <-].
        apply sub_sigma_algebra.
        eexists (PairLCtx x1); first done.
@@ -1423,7 +1423,7 @@ Hint Resolve 𝜋_PairLCtx_v_meas   : measlang.
 
 Lemma 𝜋_PairRCtx_e_meas   : measurable_fun ectx_item_cov_PairRCtx 𝜋_PairRCtx_e.
 Proof. into_gen_measurable.
-       rewrite /preimage_class.
+       rewrite /preimage_set_system.
        intros x[?[x1?<-] <-].
        apply sub_sigma_algebra.
        eexists (PairRCtx x1); first done.
@@ -1438,7 +1438,7 @@ Hint Resolve 𝜋_PairRCtx_e_meas   : measlang.
 Lemma 𝜋_CaseCtx_l_meas    : measurable_fun ectx_item_cov_CaseCtx 𝜋_CaseCtx_l.
 Proof. 
   into_gen_measurable.
-  rewrite /preimage_class.
+  rewrite /preimage_set_system.
   intros ?. simpl.
   intros [?[e]<-]; subst.
   have ->: ((ectx_item_cov_CaseCtx `&` 𝜋_CaseCtx_l @^-1` (expr_ST e))=
@@ -1469,7 +1469,7 @@ Hint Resolve 𝜋_CaseCtx_l_meas    : measlang.
 Lemma 𝜋_CaseCtx_r_meas    : measurable_fun ectx_item_cov_CaseCtx 𝜋_CaseCtx_r.
 Proof. 
   into_gen_measurable.
-  rewrite /preimage_class.
+  rewrite /preimage_set_system.
   intros ?. simpl.
   intros [?[e]<-]; subst.
   have ->: ((ectx_item_cov_CaseCtx `&` 𝜋_CaseCtx_r @^-1` (expr_ST e))=
@@ -1499,7 +1499,7 @@ Hint Resolve 𝜋_CaseCtx_r_meas    : measlang.
 
 Lemma 𝜋_StoreLCtx_v_meas  : measurable_fun ectx_item_cov_StoreLCtx 𝜋_StoreLCtx_v.
 Proof. into_gen_measurable.
-       rewrite /preimage_class.
+       rewrite /preimage_set_system.
        intros x[?[x1?<-] <-].
        apply sub_sigma_algebra.
        eexists (StoreLCtx x1); first done.
@@ -1513,7 +1513,7 @@ Hint Resolve 𝜋_StoreLCtx_v_meas  : measlang.
 
 Lemma 𝜋_StoreRCtx_e_meas  : measurable_fun ectx_item_cov_StoreRCtx 𝜋_StoreRCtx_e.
 Proof. into_gen_measurable.
-       rewrite /preimage_class.
+       rewrite /preimage_set_system.
        intros x[?[x1?<-] <-].
        apply sub_sigma_algebra.
        eexists (StoreRCtx x1); first done.
@@ -1527,7 +1527,7 @@ Hint Resolve 𝜋_StoreRCtx_e_meas  : measlang.
 
 Lemma 𝜋_RandLCtx_v_meas   : measurable_fun ectx_item_cov_RandLCtx 𝜋_RandLCtx_v.
 Proof. into_gen_measurable.
-       rewrite /preimage_class.
+       rewrite /preimage_set_system.
        intros x[?[x1?<-] <-].
        apply sub_sigma_algebra.
        eexists (RandLCtx x1); first done.
@@ -1541,7 +1541,7 @@ Hint Resolve 𝜋_RandLCtx_v_meas   : measlang.
 
 Lemma 𝜋_RandRCtx_e_meas   : measurable_fun ectx_item_cov_RandRCtx 𝜋_RandRCtx_e.
 Proof. into_gen_measurable.
-       rewrite /preimage_class.
+       rewrite /preimage_set_system.
        intros x[?[x1?<-] <-].
        apply sub_sigma_algebra.
        eexists (RandRCtx x1); first done.

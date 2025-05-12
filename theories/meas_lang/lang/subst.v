@@ -104,7 +104,7 @@ Proof.
   eapply measurability; [by eauto|].
   simpl.
   move=> S.
-  rewrite /preimage_class.
+  rewrite /preimage_set_system.
   rewrite -bigcup_imset1 /bigcup/=.
   move=> [SB + ->]; clear S.
   move=> [s ? <-].

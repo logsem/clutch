@@ -243,7 +243,7 @@ Proof.
     - move=> [??]<-; by eexists _.
     - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.                       (* codomain is generated SA *)
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.    (* Separate S into union of preimages *)
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.    (* Separate S into union of preimages *)
   move=> [SB + ->].                                    (* Destruct facts about S *)
   move=> [C ? <-].
 
@@ -269,7 +269,7 @@ Proof.
     - by move=> [a[b[c->]]]; eexists (a, b, c). }
   eapply (measurability binder_generated_by_singletons).
   move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [b ->].
 
@@ -323,7 +323,7 @@ Proof.
     - by move=> [a[b[c->]]]; eexists (a, b, c). }
   eapply (measurability binder_generated_by_singletons).
   move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [b ->].
 
@@ -376,7 +376,7 @@ Proof.
     - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
     - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   eapply (eq_measurable
@@ -427,7 +427,7 @@ Proof.
     - by move=> [[??]?]<-; eexists _; eexists _.
     - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   rewrite /vcov_pair/setI/=.
@@ -474,7 +474,7 @@ Proof.
     - by move=> [[??]?]<-; eexists _; eexists _.
     - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   rewrite /vcov_pair/setI/=.
@@ -522,7 +522,7 @@ Proof.
     - move=> [??]<-; by eexists _.
     - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
 
@@ -547,7 +547,7 @@ Proof.
     - move=> [??]<-; by eexists _.
     - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
 
@@ -574,7 +574,7 @@ Proof.
     - move=> [??]<-; by eexists _.
     - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
 
@@ -604,7 +604,7 @@ Proof.
       by points *)
   eapply (measurability binder_generated_by_singletons).
   move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [b ->].
 
@@ -632,7 +632,7 @@ Proof.
     - by move=> [a[b[c->]]]; eexists (a, b, c). }
   eapply (measurability binder_generated_by_singletons).
   move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [b ->].
 
@@ -686,7 +686,7 @@ Proof.
     - by move=> [a[b[c->]]]; eexists (a, b, c). }
   eapply (measurability binder_generated_by_singletons).
   move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [b ->].
 
@@ -740,7 +740,7 @@ Proof.
     - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
     - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   eapply (eq_measurable
@@ -790,7 +790,7 @@ Proof.
     - by move=> [[??]?]<-; eexists _; eexists _.
     - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   rewrite /ecov_app/setI/=.
@@ -837,7 +837,7 @@ Proof.
     - by move=> [[??]?]<-; eexists _; eexists _.
     - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   rewrite /ecov_app/setI/=.
@@ -887,7 +887,7 @@ Proof.
   rewrite //=.
   eapply (measurability un_op_generated_by_singletons).
   move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [b ->].
 
@@ -936,7 +936,7 @@ Proof.
     - by move=> [[??]?]<-; eexists _; eexists _.
     - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   eapply (eq_measurable
@@ -985,7 +985,7 @@ Proof.
   rewrite //=.
   eapply (measurability bin_op_generated_by_singletons).
   move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [b ->].
 
@@ -1039,7 +1039,7 @@ Proof.
     - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
     - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   eapply (eq_measurable
@@ -1095,7 +1095,7 @@ Proof.
     - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
     - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   eapply (eq_measurable
@@ -1150,7 +1150,7 @@ Proof.
     - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
     - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   rewrite /ecov_if/setI/=.
@@ -1213,7 +1213,7 @@ Proof.
     - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
     - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   rewrite /ecov_if/setI/=.
@@ -1276,7 +1276,7 @@ Proof.
     - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
     - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   rewrite /ecov_if/setI/=.
@@ -1339,7 +1339,7 @@ Proof.
     - by move=> [[??]?]<-; eexists _; eexists _.
     - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   rewrite /ecov_pair/setI/=.
@@ -1386,7 +1386,7 @@ Proof.
     - by move=> [[??]?]<-; eexists _; eexists _.
     - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   rewrite /ecov_pair/setI/=.
@@ -1433,7 +1433,7 @@ Proof.
     - move=> [??]<-; by eexists _.
     - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
 
@@ -1458,7 +1458,7 @@ Proof.
     - move=> [??]<-; by eexists _.
     - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
 
@@ -1483,7 +1483,7 @@ Proof.
     - move=> [??]<-; by eexists _.
     - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
 
@@ -1508,7 +1508,7 @@ Proof.
     - move=> [??]<-; by eexists _.
     - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
 
@@ -1533,7 +1533,7 @@ Proof.
     - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
     - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   rewrite /ecov_case/setI/=.
@@ -1596,7 +1596,7 @@ Proof.
     - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
     - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   rewrite /ecov_if/setI/=.
@@ -1659,7 +1659,7 @@ Proof.
     - by move=> [[[??]?]?]<-; eexists _; eexists _; eexists _.
     - by move=> [a[b[c->]]]; eexists (a, b, c). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   rewrite /ecov_case/setI/=.
@@ -1722,7 +1722,7 @@ Proof.
     - move=> [??]<-; by eexists _.
     - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   apply sub_sigma_algebra.
@@ -1745,7 +1745,7 @@ Proof.
     - move=> [??]<-; by eexists _.
     - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
 
@@ -1770,7 +1770,7 @@ Proof.
     - by move=> [[??]?]<-; eexists _; eexists _.
     - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   rewrite /ecov_store/setI/=.
@@ -1817,7 +1817,7 @@ Proof.
     - by move=> [[??]?]<-; eexists _; eexists _.
     - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   rewrite /ecov_store/setI/=.
@@ -1864,7 +1864,7 @@ Proof.
     - move=> [??]<-; by eexists _.
     - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
 
@@ -1890,7 +1890,7 @@ Proof.
     - by move=> [[??]?]<-; eexists _; eexists _.
     - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   rewrite /ecov_pair/setI/=.
@@ -1938,7 +1938,7 @@ Proof.
     - by move=> [[??]?]<-; eexists _; eexists _.
     - by move=> [a[b->]]; eexists (a, b). }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
   rewrite /ecov_pair/setI/=.
@@ -1985,7 +1985,7 @@ Proof.
     - move=> [??]<-; by eexists _.
     - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
 
@@ -2010,7 +2010,7 @@ Proof.
     - move=> [??]<-; by eexists _.
     - move=> [?->]; by eexists _. }
   into_gen_measurable; move=> S.
-  rewrite /preimage_class -bigcup_imset1 /bigcup/=.
+  rewrite /preimage_set_system -bigcup_imset1 /bigcup/=.
   move=> [SB + ->].
   move=> [C ? <-].
 
