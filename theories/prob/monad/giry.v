@@ -27,7 +27,7 @@ Section giryM_def.
   Definition giryM : Type := @subprobability d T R.
 
   Definition gEval (S : set T) (μ : giryM) := μ S.
-  Definition gEvalPreImg (S : set T) := (preimage_class setT (gEval S) measurable).
+  Definition gEvalPreImg (S : set T) := (preimage_set_system setT (gEval S) measurable).
 
   Definition giry_measurable := <<s \bigcup_(S in measurable) (gEvalPreImg S)>>.
 
@@ -141,15 +141,14 @@ Section giry_integral.
       have Hfge0' : (forall t, [set: T] t -> 0 <= f t); auto.
 
       (* f is the limit of a monotone sequence of simple functions *)
-      pose proof (approximation HTmeas Hmf Hfge0') as [g [Hgmono Hgconv]].
-
       (*
+      pose proof (approximation HTmeas Hmf Hfge0') as [g [Hgmono Hgconv]].
       set gE := (fun n => EFin \o (g n)).
       have HgEmeas : (forall n : nat, measurable_fun [set: T] (gE n)).
       {
         intro.
         rewrite /gE /=.
-        apply EFin_measurable_fun; auto.
+        apply measurable_EFinP; auto.
       }
       have HgEge0: (forall (n : nat) (x : T), [set: T] x -> 0 <= gE n x).
       {
@@ -217,7 +216,7 @@ Section giry_cod_meas.
   Proof.
     intros HG S.
     eapply measurability; eauto.
-    rewrite /preimage_class.
+    rewrite /preimage_set_system.
     apply image_subP.
     intros ??.
     rewrite setTI; auto.
@@ -281,7 +280,7 @@ Section giry_cod_meas.
     simpl.
     intros S [U HU1 HU2].
     specialize (HS U HU1).
-    rewrite /gEvalPreImg /preimage_class in HU2.
+    rewrite /gEvalPreImg /preimage_set_system in HU2.
     destruct HU2 as [B HB <-].
     specialize (HS measurableT B HB).
     rewrite setTI.
@@ -308,11 +307,11 @@ Section giry_cod_meas.
       - rewrite /setI_closed.
         intros A B [S1 HGS1 HS1] [S2 HGS2 HS2].
         exists (S1 `&` S2). admit.
-        rewrite /gEvalPreImg /preimage_class.
+        rewrite /gEvalPreImg /preimage_set_system.
         eexists.
     }
     intros S [? ? H].
-    rewrite /gEvalPreImg /preimage_class in H.
+    rewrite /gEvalPreImg /preimage_set_system in H.
     destruct H as [B HB <-].
     specialize (HS x H0 B HB).
     rewrite setTI.
@@ -371,7 +370,7 @@ Section giry_cod_meas.
     simpl.
     intros S [U [W1 HW1 [W2 HW2 <-]] HU2].
     specialize (HS W1 W2 HW1 HW2).
-    rewrite /gEvalPreImg /preimage_class in HU2.
+    rewrite /gEvalPreImg /preimage_set_system in HU2.
     destruct HU2 as [B HB <-].
     specialize (HS measurableT B HB).
     rewrite setTI.
@@ -440,7 +439,7 @@ Section giry_map_meas.
     rewrite -{1}(setIT S).
     rewrite -(integral_indic (pushforward μ1 Hmf)); auto.
     rewrite ge0_integral_pushforward; auto.
-    apply EFin_measurable_fun.
+    apply measurable_EFinP.
     apply measurable_indic; auto.
     intros y.
     rewrite /numfun.indic.
@@ -510,7 +509,7 @@ Section giry_ret.
     apply giryM_cod_meas_fun; simpl.
     intros S HmS.
     rewrite /dirac.
-    apply EFin_measurable_fun.
+    apply measurable_EFinP.
     apply measurable_indic; auto.
   Qed.
 
@@ -780,15 +779,15 @@ Section giry_join_meas_fun.
 
     have HTmeas : d.-measurable [set: T]; auto.
     have Hhge0' : (forall t, [set: T] t -> 0 <= h t); auto.
-    pose proof (approximation HTmeas Hmh Hhge0') as [g [Hgmono Hgconv]].
   Admitted.
   (*
+    pose proof (approximation HTmeas Hmh Hhge0') as [g [Hgmono Hgconv]].
     set gE := (fun n => EFin \o (g n)).
     have HgEmeas : (forall n : nat, measurable_fun [set: T] (gE n)).
     {
       intro.
       rewrite /gE /=.
-      apply EFin_measurable_fun; auto.
+      apply measurable_EFinP; auto.
     }
     have HgEge0: (forall (n : nat) (x : T), [set: T] x -> 0 <= gE n x).
     {
@@ -1253,7 +1252,7 @@ Section giry_prod_meas_fun.
         rewrite measure_semi_bigcup; auto.
         apply bigcup_measurable; auto.
         simpl.
-        apply ge0_emeasurable_fun_sum; auto.
+        apply ge0_emeasurable_sum; auto.
   Qed.
 
   Lemma gProd_proper  :
@@ -1280,11 +1279,8 @@ Section giry_prod_meas_fun.
     intros x ?.
     simpl.
     apply H2.
-  Admitted.
-  (*
-    by apply (measurable_xsection R).
+    by apply measurable_xsection.
   Qed.
-  *)
 
 End giry_prod_meas_fun.
 
