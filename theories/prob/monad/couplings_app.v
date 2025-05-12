@@ -869,11 +869,10 @@ Section ARcoupl_meas.
       apply measurableC; auto.
     }
     rewrite ge0_integral_pushforward; auto; last first.
-    { admit. }
-(*
+    { intros x _. by apply Hgge0. }
     apply ge0_le_integral; auto.
-    {
-      intros x ?.
+    { rewrite <- (setTI (preimage _ _)). apply Hmt; done. }
+    { intros x ?.
       rewrite /patch /=.
       case (x \in ~`Z); simpl; auto.
     }
@@ -890,9 +889,6 @@ Section ARcoupl_meas.
     split; auto.
     rewrite -in_setC Htx //.
  Qed.
-*)
-    Admitted.
-
 
 Local Open Scope classical_set_scope.
 
