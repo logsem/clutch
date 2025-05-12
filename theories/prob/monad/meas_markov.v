@@ -1127,10 +1127,9 @@ Section ARcoupl.
   Admitted.
 
 
-  (*
   Lemma lim_le_lim (f g : nat → \bar R) (H : forall n, (f n <= g n)%E) :
-    ((topology.lim (topology.fmap f (@topology.nbhs nat (topology.topology_set_system__canonical__topology_Filtered nat) topology.eventually))) <=
-     (topology.lim (topology.fmap g (@topology.nbhs nat (topology.topology_set_system__canonical__topology_Filtered nat) topology.eventually))))%E.
+    ((filter.lim (filter.fmap f (@filter.nbhs nat (filter.filter_set_system__canonical__filter_Filtered nat) filter.eventually))) <=
+     (filter.lim (filter.fmap g (@filter.nbhs nat (filter.filter_set_system__canonical__filter_Filtered nat) filter.eventually))))%E.
   Proof.
     (* Doesn't work because it's R not \bar R, copy-paste this proof and generalize?
         Check @normedtype.ler_lim topology.Datatypes_nat__canonical__topology_Topological
@@ -1138,14 +1137,13 @@ Section ARcoupl.
               _ R.
         *)
   Admitted.
-*)
 
-  (*
+
   Lemma limit_exchange {d} {T : measurableType d} (f : T → \bar R) (Hflb : ∀ a : T, (0 <= f a)%E)
     (μ : nat → giryM T) (Hmono :  forall S, measurable S -> ∀ n n' : nat, n <= n' -> (μ n S <= μ n' S)%E) :
     (\int[limit_measure μ]_x f x)%E =
-    topology.lim (topology.fmap (esups (R:=R) (λ n : nat, (\int[μ n]_x f x)%E))
-        (@topology.nbhs nat (topology.topology_set_system__canonical__topology_Filtered nat) topology.eventually)).
+    filter.lim (filter.fmap (esups (R:=R) (λ n : nat, (\int[μ n]_x f x)%E))
+        (@filter.nbhs nat (filter.filter_set_system__canonical__filter_Filtered nat) filter.eventually)).
   Proof.
     (* Antisymmetry *)
     apply @order.Order.le_anti.
@@ -1171,8 +1169,8 @@ Section ARcoupl.
       suffices HSimple :
         forall h, ([set h | ∀ x : T, ((h x)%:E <= f x)%E] h)%classic →
              sintegral (limit_measure μ) h =
-             topology.lim (topology.fmap (esups (R:=R) (fun n : nat => sintegral (μ n) h))
-               (@topology.nbhs nat (topology.topology_set_system__canonical__topology_Filtered nat) topology.eventually)).
+             filter.lim (filter.fmap (esups (R:=R) (fun n : nat => sintegral (μ n) h))
+                (@filter.nbhs nat (filter.filter_set_system__canonical__filter_Filtered nat) filter.eventually)).
       { apply ereal_sup_lb.
         intros ?; rewrite //=; intros [h Hnn <-].
         rewrite HSimple; [|done].
@@ -1191,7 +1189,6 @@ Section ARcoupl.
       }
     }
     Admitted.
-*)
 
 
 
@@ -1208,62 +1205,15 @@ Section ARcoupl.
     suffices -> :
       (\int[limit_measure (exec^~ a)]_x f x = limn_esup (λ n : nat, \int[exec n a]_x f x))%E by done.
     rewrite limn_esup_lim.
-  (*
     apply limit_exchange.
     { intro a'.
       remember (f a') as ok. (* Surely there's a better way *)
       destruct ok.
       { rewrite Heqok. apply Hflb. }
-      { done. }
+      { by apply le0y. }
       { exfalso. specialize (Hflb a'). by rewrite -Heqok in Hflb. }
     }
     { intros S HSmeas n1 n2 Hn1n2. by apply exec_mono'.  }
-  Qed. *)
-Admitted.
-  
+  Qed.
 
-
-
-
-(*
-    assert (∀ a', Rbar.is_finite
-                   (Lim_seq.Sup_seq (λ n, Rbar.Finite (exec n a a')))) as Hfin.
-    { intro a'.
-      apply (is_finite_bounded 0 1).
-      - apply (Lim_seq.Sup_seq_minor_le _ _ 0); simpl.
-        case_match; auto.
-      - by apply upper_bound_ge_sup; intro; simpl. }
-    *)
-
-    (*
-    setoid_rewrite lim_distr_pmf at 1.
-    transitivity (Rbar.real (Lim_seq.Sup_seq
-                               (λ n, Rbar.Finite (SeriesC (λ v, exec n a v * f v))))).
-    - right.
-      setoid_rewrite (rbar_scal_r); [|done].
-      setoid_rewrite <- Sup_seq_scal_r; [|apply Hf].
-      simpl.
-      eapply MCT_seriesC.
-      + intros. real_solver.
-      + intros. apply Rmult_le_compat_r; [apply Hf | apply exec_mono].
-      + intros; exists 1; intros. real_solver.
-      + intro n. apply SeriesC_correct.
-        apply (ex_seriesC_le _ (exec n a)); auto.
-        intros; real_solver.
-      + rewrite rbar_finite_real_eq.
-        { apply Lim_seq.Sup_seq_correct. }
-        apply (is_finite_bounded 0 1).
-        * apply (Lim_seq.Sup_seq_minor_le _ _ 0); simpl.
-          apply SeriesC_ge_0' => ?. case_match; real_solver.
-        * apply upper_bound_ge_sup; intro; simpl.
-          etrans.
-          { apply (SeriesC_le _ (exec n a)); [|done]. real_solver. }
-          done.
-    - apply Rbar_le_fin'.
-      { apply Rplus_le_le_0_compat; [|done].
-        apply SeriesC_ge_0'. real_solver. }
-      apply upper_bound_ge_sup.
-      intro; simpl. auto.
-      by eapply Hn.
-      *)
 End ARcoupl.
