@@ -167,7 +167,7 @@ Section constructor_measurability.
 
   Local Ltac expr_ctor_meas_fun_cases :=
     into_gen_measurable;
-    rewrite /preimage_class/subset//=;
+    rewrite /preimage_set_system/subset//=;
     move=> S //= [_ [+ + <-] <-];
     move=> [+|+|+ + +|+ + |+ +|+ + +|+ + +|+ +|+|+|+|+|+ + +|+|+|+ +|+|+ +||+|+];
     rewrite /preimage/=.
@@ -228,7 +228,7 @@ Section constructor_measurability.
           [set t | t.1.2 = x ]).
       { apply measurableI.
         - apply sub_sigma_algebra.
-          rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+          rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
           right.
           simpl in H.
           exists (expr_ST D).
@@ -239,7 +239,7 @@ Section constructor_measurability.
           + by move=>[??]->.
         - apply measurableI.
           + apply sub_sigma_algebra.
-            rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+            rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
             left.
             simpl in H.
             exists [set t | t.1 = f].
@@ -250,7 +250,7 @@ Section constructor_measurability.
               by rewrite setTI /=. }
             by rewrite setTI /=.
           + apply sub_sigma_algebra.
-            rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+            rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
             left.
             simpl in H.
             exists [set t | t.2 = x].
@@ -288,7 +288,7 @@ Section constructor_measurability.
       + by eexists _; [done|]; eexists _; [done|]; rewrite //=.
       + by move=> [??[??][?<-]].
      - apply sub_sigma_algebra.
-       rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+       rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
        left.
        exists (expr_ST D0).
        { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D0. }
@@ -311,7 +311,7 @@ Section constructor_measurability.
       [set t | exists x0 : expr_T, exists o, (expr_ST D x0 /\ UnOp o x0 = UnOpU t)] `&`
       [set t | t.1 = op ].
     { apply measurableI.
-      + rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+      + rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
         apply sub_sigma_algebra.
         simpl.
         right.
@@ -323,7 +323,7 @@ Section constructor_measurability.
         + move=> [? [? [? H]]].
           inversion H.
           by rewrite <- H2.
-      + rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+      + rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
         apply sub_sigma_algebra.
         simpl.
         left.
@@ -343,7 +343,7 @@ Section constructor_measurability.
     have -> : BinOpU = (fun x => BinOpC x.1.1 x.1.2 x.2) by
       apply functional_extensionality; intros [[??]?]; rewrite //=.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     6: {
@@ -356,7 +356,7 @@ Section constructor_measurability.
         destruct HD as [HD0 HD1].
         apply measurableI.
         apply measurableI.
-        - apply sub_sigma_algebra; rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+        - apply sub_sigma_algebra; rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
           left.
           exists (setT `*` (expr_ST D1)).
           { apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=.
@@ -377,7 +377,7 @@ Section constructor_measurability.
           + destruct x as [[x1 x2] x3]; simpl.
             move=> [??][??][?][?<-?].
             by intuition.
-        - apply sub_sigma_algebra; rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+        - apply sub_sigma_algebra; rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
           right.
           exists (expr_ST D2).
           { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D2. }
@@ -391,7 +391,7 @@ Section constructor_measurability.
             by rewrite /BinOpU/=.
           + destruct y as [[??]?].
             by move=> [? _ [? ?]] [? [? ?]] <-.
-        - apply sub_sigma_algebra; rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+        - apply sub_sigma_algebra; rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
           left.
           exists ([set op] `*` setT).
           { apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=.
@@ -437,7 +437,7 @@ Section constructor_measurability.
     have -> : IfU = (fun x => IfC x.1.1 x.1.2 x.2) by
       apply functional_extensionality; intros [[??]?]; rewrite //=.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     7: {
@@ -447,7 +447,7 @@ Section constructor_measurability.
       apply measurableI.
       apply measurableI.
       - apply sub_sigma_algebra.
-        rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+        rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
         left.
         exists (expr_ST D1 `*` setT).
         { apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=.
@@ -469,7 +469,7 @@ Section constructor_measurability.
           move=> [??][??][??][<-]??.
           by intuition.
       - apply sub_sigma_algebra.
-        rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+        rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
         left.
         exists (setT `*` expr_ST D2).
         { apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=.
@@ -491,7 +491,7 @@ Section constructor_measurability.
           move=> [??][??][??][? <- ?].
           by intuition.
       - apply sub_sigma_algebra.
-        rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+        rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
         right.
         exists (expr_ST D3).  { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D3. }
         rewrite setTI.
@@ -526,7 +526,7 @@ Section constructor_measurability.
       + by eexists _; [done|]; eexists _; [done|]; rewrite //=.
       + by move=> [??[??][?<-]].
      - apply sub_sigma_algebra.
-       rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+       rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
        left.
        exists (expr_ST D0).
        { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D0. }
@@ -541,7 +541,7 @@ Section constructor_measurability.
   Lemma FstU_meas_fun : measurable_fun setT FstU.
   Proof.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     9: {
@@ -562,7 +562,7 @@ Section constructor_measurability.
   Lemma SndU_meas_fun : measurable_fun setT SndU.
   Proof.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     10: {
@@ -583,7 +583,7 @@ Section constructor_measurability.
   Lemma InjLU_meas_fun : measurable_fun setT InjLU.
   Proof.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     11: {
@@ -604,7 +604,7 @@ Section constructor_measurability.
   Lemma InjRU_meas_fun : measurable_fun setT InjRU.
   Proof.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     12: {
@@ -627,7 +627,7 @@ Section constructor_measurability.
     have -> : CaseU = (fun x => CaseC x.1.1 x.1.2 x.2) by
       apply functional_extensionality; intros [[??]?]; rewrite //=.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     13: {
@@ -637,7 +637,7 @@ Section constructor_measurability.
       apply measurableI.
       apply measurableI.
       - apply sub_sigma_algebra.
-        rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+        rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
         left.
         exists (expr_ST D1 `*` setT).
         { apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=.
@@ -658,7 +658,7 @@ Section constructor_measurability.
         + move=> [??][??][??][<-]??.
           by intuition.
       - apply sub_sigma_algebra.
-        rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+        rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
         left.
         exists (setT `*` expr_ST D2).
         { apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=.
@@ -679,7 +679,7 @@ Section constructor_measurability.
         + move=> [??][??][??][? <- ?].
           by intuition.
       - apply sub_sigma_algebra.
-        rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+        rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
         right.
         exists (expr_ST D3).  { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D3. }
         rewrite setTI.
@@ -702,7 +702,7 @@ Section constructor_measurability.
   Lemma AllocU_meas_fun : measurable_fun setT AllocU.
   Proof.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     14: {
@@ -723,7 +723,7 @@ Section constructor_measurability.
   Lemma LoadU_meas_fun : measurable_fun setT LoadU.
   Proof.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     15: {
@@ -755,7 +755,7 @@ Section constructor_measurability.
       + by eexists _; [done|]; eexists _; [done|]; rewrite //=.
       + by move=> [??[??][?<-]].
      - apply sub_sigma_algebra.
-       rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+       rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
        left.
        exists (expr_ST D0).
        { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D0. }
@@ -770,7 +770,7 @@ Section constructor_measurability.
   Lemma AllocTapeU_meas_fun : measurable_fun setT AllocTapeU.
   Proof.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     17: {
@@ -801,7 +801,7 @@ Section constructor_measurability.
       + by eexists _; [done|]; eexists _; [done|]; rewrite //=.
       + by move=> [??[??][?<-]].
      - apply sub_sigma_algebra.
-       rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+       rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
        left.
        exists (expr_ST D0).
        { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D0. }
@@ -820,7 +820,7 @@ Section constructor_measurability.
   Lemma UrandU_meas_fun : measurable_fun setT UrandU.
   Proof.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     20: {
@@ -840,7 +840,7 @@ Section constructor_measurability.
   Lemma TickU_meas_fun : measurable_fun setT TickU.
   Proof.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     21: {
@@ -862,7 +862,7 @@ Section constructor_measurability.
   Lemma LitVU_meas_fun : measurable_fun setT LitVU.
   Proof.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     1: {
@@ -884,7 +884,7 @@ Section constructor_measurability.
     have -> : RecVU = (fun x => RecVC x.1.1 x.1.2 x.2) by
       apply functional_extensionality; intros [[??]?]; rewrite //=.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     2: {
@@ -896,7 +896,7 @@ Section constructor_measurability.
           [set t | t.1.2 = x ]).
       { apply measurableI.
         - apply sub_sigma_algebra.
-          rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+          rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
           right.
           simpl in HD.
           eexists _.
@@ -913,7 +913,7 @@ Section constructor_measurability.
           }
         - apply measurableI.
           + apply sub_sigma_algebra.
-            rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+            rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
             left.
             simpl in HD.
             exists [set t | t.1 = f].
@@ -924,7 +924,7 @@ Section constructor_measurability.
               by rewrite setTI /=. }
             by rewrite setTI /=.
           + apply sub_sigma_algebra.
-            rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+            rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
             left.
             simpl in HD.
             exists [set t | t.2 = x].
@@ -956,7 +956,7 @@ Section constructor_measurability.
     have -> : PairVU = (fun x => PairVC x.1 x.2) by
       apply functional_extensionality; intros [??]; rewrite //=.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     3: {
@@ -965,7 +965,7 @@ Section constructor_measurability.
          rewrite Prod2Decomp.
          { apply measurableI.
            - apply sub_sigma_algebra.
-             rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+             rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
              right.
              exists (val_ST D2).
              { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D2. }
@@ -974,7 +974,7 @@ Section constructor_measurability.
              + by move=>?; exists x.1; [done|]; exists x.2; done.
              + by move=> [??[??][?<-]].
            - apply sub_sigma_algebra.
-             rewrite /measurable/=/preimage_classes/preimage_class/preimage/=.
+             rewrite /measurable/=/preimage_set_system/preimage_set_system/preimage/=.
              left.
              exists (val_ST D1).
              { by apply sub_sigma_algebra; rewrite /measurable/=/expr_cyl/=; exists D1. }
@@ -993,7 +993,7 @@ Section constructor_measurability.
   Lemma InjLVU_meas_fun : measurable_fun setT InjLVU.
   Proof.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     4: {
@@ -1013,7 +1013,7 @@ Section constructor_measurability.
   Lemma InjRVU_meas_fun : measurable_fun setT InjRVU.
   Proof.
     eapply measurability; [by eauto|].
-    rewrite /preimage_class/subset.
+    rewrite /preimage_set_system/subset.
     move=> S /= [_ [D HD <-] <-]; rewrite setTI.
     destruct D; rewrite /preimage/=.
     5: {

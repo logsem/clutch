@@ -223,7 +223,7 @@ Section coupl_modalities.
       erewrite ARcoupl_meas_proper.
       2: { reflexivity.  }
       2: { rewrite gBind'_meas_rw.
-           { apply @measurable_compT; [done | by apply pexec_meas | by apply measurable_pair1 ]. }
+           { apply @measurable_compT; [done | by apply pexec_meas | by apply pair1_measurable ]. }
            intro H.
            by apply giry.gBind_id_left. }
       rewrite /= pexec_0'.
@@ -291,7 +291,7 @@ Section coupl_modalities.
       erewrite ARcoupl_meas_proper.
       2: { reflexivity. }
       2: { rewrite gBind'_meas_rw.
-           { apply @measurable_compT; [done | by apply pexec_meas | by apply measurable_pair1 ]. }
+           { apply @measurable_compT; [done | by apply pexec_meas | by apply pair1_measurable ]. }
            intro H. by apply giry.gBind_id_left. }
       apply (@ARcoupl_meas_mon_grading _ _ _ _ _ _ _ 0 _ (EFin 0) _).
       { done. }

@@ -66,7 +66,7 @@ Section hp_measure.
 
 
   Definition hp_generators : set (set hp) :=
-    (\bigcup_i (preimage_class setT (fun f => f !! i) measurable)).
+    (\bigcup_i (preimage_set_system setT (fun f => f !! i) measurable)).
 
   Definition hp_measurable : set (set hp) := <<s hp_generators>>.
 
@@ -92,7 +92,7 @@ Section hp_measure.
     { by apply ((@sub_gen_smallest _ _ hp_generators) _ H). }
     exists i; [done|].
     rewrite /hp_eval.
-    rewrite /preimage_class//=.
+    rewrite /preimage_set_system//=.
     exists Y; [done|].
     rewrite setTI.
     done.
@@ -138,9 +138,9 @@ Section hp_measure.
 
   (* Translate this to gmaps
     eapply @measurability; [done|].
-    rewrite //=/hp_update/subset/preimage_class//=.
+    rewrite //=/hp_update/subset/preimage_set_system//=.
     intro S.
-    rewrite /hp_generators/preimage_class//=.
+    rewrite /hp_generators/preimage_set_system//=.
     move=> [S' [k _ +]].
     rewrite setTI//=; move=>[S'' HS'' +].
     rewrite setTI//=; move=><-<-//=.
