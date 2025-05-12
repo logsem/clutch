@@ -2,7 +2,10 @@
 
 This repository contains the mechanized development of Coneris.
 
-For the sake of supplementing the paper, we provide the following brief pointers:
+A detailed paper mapping table can be found in [paper_mapping.md](paper_mapping.md).
+A relatively detailed summary of the examples (some not mentioned in the paper) in the Coneris repository can be found in [theories/coneris/README.md](theories/coneris/README.md).
+
+For a brief overview, we provide the following brief pointers:
 - the operational semantics is defined in `theories/con_prob_lang/lang.v`
 - scheduler definitions can be found in `theories/prob/mdp.v`
 - the adequacy theorems are proven in `theories/coneris/adequacy.v`. In particular, `wp_pgl_lim` and `wp_safety` are theorems 4.1 and 4.2 in the paper, respectively.
@@ -10,7 +13,7 @@ For the sake of supplementing the paper, we provide the following brief pointers
 - the probabilistic update modality is defined in `theories/coneris/wp_update.v` under the name `state_update`
 - `theories/coneris/primitive_laws.v` contains simple stepping rules, such as reading from a location
 - `theories/coneris/error_rules.v` contains more complex rules that involve error credits. For example, the rule `HT-RAND-EXP` from the paper is proven via the lemma `wp_couple_rand_adv_comp`.
-- a relatively detailed summary of the examples in the Coneris repository can be found in [theories/coneris/README.md](theories/coneris/README.md).
+
 
 
 ## Building the development
