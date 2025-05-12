@@ -159,4 +159,26 @@ Section diffpriv.
     eapply (well_typed_diffpriv_comp _ _ _ _ _ _ c_pos f_dipr f_cod g_fun).
   Qed.
 
+  (* The typing here is a bit weird with `f : A → B` and `g : B → A → C` ; it
+  is stated like this because the assumption that g is diffpriv in A for all b
+  has to refer to g's last argument, and reasoning about `λ a, g a b` is
+  annoying. *)
+  Theorem diffpriv_diffpriv_seq_comp (f g : val) εf εg
+    `(dA : Distance A) `(dB : Distance B)
+    (εg_pos : 0 <= εg) (εf_pos : 0 <= εf)
+    (f_cod : wp_has_codomain B f) (f_dipr : wp_diffpriv f εf dA)
+    (g_dipr : ∀ b, wp_diffpriv (g b) εg dA) :
+    wp_diffpriv (λ:"a", g (f "a") "a") (εf+εg) dA.
+  Proof.
+    iIntros (?? a a' adj Φ) "[gfa' ε] HΦ".
+    rewrite Rmult_plus_distr_l.
+    assert (0 <= c). { etrans. 2: eauto. apply distance_pos. }
+    iDestruct (ec_split with "ε") as "[εf εg]" => //. 1,2: real_solver.
+    tp_pures ; wp_pures. tp_bind (f _). wp_bind (f _).
+    iApply (f_dipr with "[$gfa' $εf]") => // ; iIntros "!>" (b) "gb" => /=.
+    iPoseProof (g_dipr b K c a a' adj with "[$gb $εg]") as "g_dipr".
+    iApply "g_dipr". done.
+  Qed.
+
+
 End diffpriv.
