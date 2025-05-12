@@ -190,14 +190,12 @@ Section language.
     have H1 : giry_display.-measurable is_zero.
     { intros m T.
       unfold is_zero.
-      (* [set: 0] is measurable in the Giry Monad. Prove me in Lean (preimage of [0 : R] by evaluations, extensionality) *)
-      rewrite /measurable/=.
-      admit. }
+      by eapply eq_gZero_measurable.}
     have X := (@step_meas (meas_lang_markov Λ) H is_zero).
     have X1 := X (H1 _ _).
     rewrite setTI in X1.
     by apply X1.
-  Admitted.
+  Qed.
 
   Definition to_val_is_val : set (expr Λ * state Λ) := (preimage to_val option_cov_Some) `*` setT.
 

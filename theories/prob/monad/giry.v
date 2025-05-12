@@ -1791,4 +1791,8 @@ Section AdditionalMonadLaws.
     done.
   Qed.
 
+  Lemma eq_gZero_measurable {d} {T : measurableType d} :
+      giry_display.-measurable (measure_eq^~ (gZero : giryM T)).
+  Proof. Admitted.
+
 End AdditionalMonadLaws.

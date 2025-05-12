@@ -24,7 +24,7 @@ Section sequence_measure.
   HB.instance Definition _ := isPointed.Build T^nat (cst point).
 
   Definition sequence_generators : set (set T^nat) :=
-    \bigcup_i (preimage_class setT (fun f => f i) measurable).
+    \bigcup_i (preimage_set_system setT (fun f => f i) measurable).
 
   Definition sequence_measurable : set (set T^nat) := <<s sequence_generators>>.
 
@@ -51,7 +51,7 @@ Section sequence_measure.
     { by apply ((@sub_gen_smallest _ _ sequence_generators) _ H). }
     exists i; [done|].
     rewrite /sequence_eval.
-    rewrite /preimage_class//=.
+    rewrite /preimage_set_system//=.
     exists Y; [done|].
     rewrite setTI.
     done.
@@ -73,9 +73,9 @@ Section sequence_measure.
   Lemma sequence_update_meas_fun (i : nat) : measurable_fun setT (sequence_update i).
   Proof.
     eapply @measurability; [done|].
-    rewrite //=/sequence_update/subset/preimage_class//=.
+    rewrite //=/sequence_update/subset/preimage_set_system//=.
     intro S.
-    rewrite /sequence_generators/preimage_class//=.
+    rewrite /sequence_generators/preimage_set_system//=.
     move=> [S' [k _ +]].
     rewrite setTI//=; move=>[S'' HS'' +].
     rewrite setTI//=; move=><-<-//=.
