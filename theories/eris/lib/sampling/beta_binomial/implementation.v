@@ -550,9 +550,8 @@ Section Polya.
   Fixpoint fin_list_snoc {A : Type} {n : nat} : fin_list A n → A → fin_list A (S n) :=
     match n as n0 return fin_list A n0 → A → fin_list A (S n0) with
     | 0 => λ l a, fin_cons a l
-    | S m => λ l a, fin_list_S_inv (const (fin_list A (S (S m))))
-                      (λ h t, fin_cons h (fin_list_snoc t a))
-                      l
+    | S m => λ l a, fin_cons (fin_list_head l) (fin_list_snoc (fin_list_tail l) a)
+                    
 
     end.
   
@@ -562,10 +561,18 @@ Section Polya.
     | S m => fin_list_last ∘ fin_list_tail
     end.
 
+  Lemma fin_list_last_tail :
+    ∀ {A : Type} {n : nat} (t : fin_list A (S (S n))),
+    fin_list_last (fin_list_tail t) = fin_list_last t.
+  Proof.
+    move=>A n t.
+    inv_fin_list t => t l //.
+  Qed.
+  
   Fixpoint fin_list_liat {A : Type} {n : nat} : fin_list A (S n) → fin_list A n :=
     match n as n0 return fin_list A (S n0) → fin_list A n0 with
     | 0 => fin_list_tail
-    | S m => fin_list_S_inv (const (fin_list A (S m))) (λ h t, fin_cons h (fin_list_liat t))
+    | S m => λ l, fin_cons (fin_list_head l) (fin_list_liat (fin_list_tail l))
     end.
   
   Lemma fin_list_snoc_liat_last :
@@ -575,6 +582,14 @@ Section Polya.
     move=>A.
     elim=>[|n IH] l; inv_fin_list l => a l //=.
     rewrite -IH //.
+  Qed.
+
+  Lemma fin_list_tail_snoc :
+    ∀ {A : Type} {n : nat} (h : A) (t : fin_list A (S n)),
+    fin_list_tail (fin_list_snoc t h) = fin_list_snoc (fin_list_tail t) h.
+  Proof.
+    move=>A.
+    elim=>[|n IH] h t; inv_fin_list t => //=.
   Qed.
 
   Lemma fin_list_last_snoc :
@@ -602,28 +617,52 @@ Section Polya.
     by inv_fin_list t.
   Qed.
 
+  Lemma fin_list_liat_cons :
+    ∀ {A : Type} {n : nat} (h : A) (t : fin_list A (S n)),
+    fin_list_liat (fin_cons h t) = fin_cons h (fin_list_liat t).
+  Proof.
+    move=>A.
+    elim=>[|n IH] h t; inv_fin_list t => //=.
+  Qed.
+
+  Lemma fin_list_cons_snoc :
+    ∀ {A : Type} {n : nat} (h1 h2 : A) (t : fin_list A n),
+    fin_cons h1 (fin_list_snoc t h2) = fin_list_snoc (fin_cons h1 t) h2.
+  Proof.
+    move=>A n h1 h2 t //.
+  Qed.
+
   #[global] Opaque fin_list_snoc fin_list_last fin_list_liat.
   
   Fixpoint fin_list_get {A : Type} {n : nat} : fin_list A n → fin n → A :=
     match n as n0 return fin_list A n0 → fin n0 → A with
     | 0 => λ _, fin_0_inv _
     | S m => λ l i,
-               fin_list_S_inv (const A)
-                 (λ h t,
-                    fin_S_inv (const A) h (λ j, fin_list_get t j) i) l
+               fin_S_inv (const A) (fin_list_head l) (λ j, fin_list_get (fin_list_tail l) j) i
     end.
   
   Fixpoint fin_list_set {A : Type} {n : nat} : fin_list A n → fin n → A → fin_list A n :=
      match n as n0 return fin_list A n0 → fin n0 → A → fin_list A n0 with
      | 0 => λ _, fin_0_inv _
-     | S m => λ l i a, fin_list_S_inv (const (fin_list A (S m)))
-                         (λ h t,
-                            fin_S_inv (const (fin_list A (S m)))
-                              (fin_cons a t)
-                              (λ j, fin_cons h (fin_list_set t j a)) i)
-                         l
+     | S m => λ l i a, fin_S_inv (const (fin_list A (S m)))
+                         (fin_cons a (fin_list_tail l))
+                         (λ j, fin_cons (fin_list_head l) (fin_list_set (fin_list_tail l) j a)) i
      end.
 
+  Lemma fin_list_get_cons_0 :
+    ∀ {A : Type} {n : nat} (l : fin_list A (S n)) (a : A),
+    fin_list_get (fin_cons a l) 0%fin = a.
+  Proof.
+    move=>* //.
+  Qed.
+
+  Lemma fin_list_get_cons_S :
+    ∀ {A : Type} {n : nat} (l : fin_list A n) (a : A) (i : fin n),
+    fin_list_get (fin_cons a l) (FS i)%fin = fin_list_get l i.
+  Proof.
+    move=>* //.
+  Qed.
+    
   Lemma fin_list_get_set :
     ∀ {A : Type} {n : nat} (l : fin_list A n) (i : fin n) (a : A),
     fin_list_get (fin_list_set l i a) i = a.
@@ -639,6 +678,17 @@ Section Polya.
     move=>A.
     elim=>[|n IH] l i ; inv_fin i => [|i]; inv_fin_list l => //= a l.
     rewrite IH //.
+  Qed.
+
+  Lemma fin_list_get_inj :
+    ∀ {A : Type} {n : nat} (l : fin_list A (S n)) (i : fin n),
+    fin_list_get l (fin_S_inj i) = fin_list_get (fin_list_liat l) i.
+  Proof.
+    move=>A.
+    elim=>[|n IH] l i; inv_fin i.
+    - inv_fin_list l => a l //.
+    - move=>i /=.
+      rewrite -IH //.
   Qed.
   
   Fixpoint triangle_top {A : Type} {n : nat} : triangle A n → fin_list A n :=
@@ -765,6 +815,16 @@ Section Polya.
     rewrite IH fin_list_last_snoc -fin_list_snoc_liat_last //.
   Qed.
 
+  Lemma triangle_remove_top_bottom : 
+    ∀ {A : Type} {n : nat} (t : triangle A (S (S n))),
+    triangle_remove_top (triangle_remove_bottom t) = 
+    triangle_remove_bottom (triangle_remove_top t).
+  Proof.
+    move=>A.
+    elim=>[|n IH] t; inv_triangle t => t l //=.
+    rewrite IH //.
+  Qed.
+      
   Lemma triangle_top_bottom_first :
     ∀ {A : Type} {n : nat} (t : triangle A (S n)),
     fin_list_head (triangle_top t) = fin_list_head (triangle_bottom t).
@@ -773,15 +833,7 @@ Section Polya.
     elim=>[|n IH] t; inv_triangle t => t l //=.
     rewrite !fin_list_head_snoc IH //.
   Qed.
-    
-  #[global] Opaque
-    triangle_top
-    triangle_bottom
-    triangle_remove_top
-    triangle_remove_bottom
-    triangle_glue_top
-    triangle_glue_bottom.
-  
+ 
   Fixpoint triangle_column {A : Type} {n : nat} : triangle A n → ∀ (i : fin n), fin_list A (FS i)%nat :=
   match n as n0 return triangle A n0 → ∀ (i : fin n0), fin_list A (FS i)%nat with
   | 0 => λ _, fin_0_inv _
@@ -814,6 +866,203 @@ Section Polya.
   Definition triangle_get {A : Type} {n : nat} (t : triangle A n) (i : fin n) (j : fin (FS i)) : A :=
     fin_list_get (triangle_column t i) j.
 
+  Lemma triangle_get_top : ∀ {A : Type} {n : nat} (t : triangle A n) (i : fin n),
+    triangle_get t i 0 = fin_list_get (triangle_top t) i.
+  Proof.
+    move=>A [|n] t i; first inv_fin i.
+    inv_triangle t => t l .
+    inv_fin_list l => a l.
+    inv_fin i => [|i] //=.
+  Qed.
+
+  Lemma triangle_bottom_split_snoc :
+    ∀ {A : Type} {n : nat}
+      (t : triangle A n) (l : fin_list A (S n)),
+    triangle_bottom (trig_snoc t l) = fin_list_snoc (triangle_bottom t) (fin_list_last l).
+  Proof.
+    move=>A n t l //=.
+  Qed.
+
+  Lemma triangle_bottom_split_cons :
+    ∀ {A : Type} {n : nat}
+      (t : triangle A (S n)),
+    triangle_bottom t = fin_cons (fin_list_head (triangle_top t)) (triangle_bottom (triangle_remove_top t)).
+  Proof.
+    move=>A.
+    elim=>[|n IH] t /=.
+    - inv_triangle t => t l /=.
+      inv_fin_list l => a l.
+      inv_fin_list l => //.
+    - inv_triangle t => t l /=.
+      rewrite fin_list_cons_snoc fin_list_last_tail.
+      f_equal.
+      rewrite -IH //.
+  Qed.
+  
+  Lemma triangle_get_bottom :
+    ∀ {A : Type} {n : nat} (t : triangle A n) (i : fin n),
+    triangle_get t i (nat_to_fin (Nat.lt_succ_diag_r i)) =
+    fin_list_get (triangle_bottom t) i.
+  Proof.
+    move=>A.
+    elim=>[|n IH] t i; first inv_fin i.
+    destruct n.
+    - inv_fin i => [|i]; last inv_fin i.
+      inv_triangle t => t l /=.
+      unfold triangle_get.
+      simpl.
+      inv_fin_list l => a l //.
+    - inv_triangle t => t l.
+      rewrite triangle_bottom_split_cons.
+      inv_fin i => [//|i].
+      simpl nat_to_fin.
+      rewrite fin_list_get_cons_S -IH.
+      remember (nat_to_fin _) as Hii.
+      remember (nat_to_fin (Nat.lt_succ_diag_r i)) as Hi.
+      replace Hii with Hi; last first.
+      {
+        subst.
+        apply nat_to_fin_proof_ext.
+      }
+      done.
+  Qed.
+
+  (*
+
+   A 
+    triangle_column (triangle_remove_bottom t) i
+    t : S (S n).
+    i = 0 => fin_cons (fin_list_head (triangle_top (triangle_remove_bottom t))) fin_nil
+    i = FS j =>
+      fin_cons (fin_get (triangle_top (triangle_remove_bottom t)) (FS j))
+               (triangle_column
+                 (triangle_remove_top
+                   (triangle_remove_bottom t)
+                 ) j
+               )
+
+   B
+    fin_list_liat (triangle_column t (FS i))
+
+    fin_list_liat (fin_cons
+                    (fin_get (triangle_top t) (FS i))
+                    (triangle_column (triangle_remove_top t) i)
+
+    n = 0
+    t = trig_snoc
+          (trig_snoc trig_nil (fin_cons a fin_nil))
+          (fin_cons b (fin_cons c fin_nil))
+    i = 0
+    A
+      fin_cons c fin_nil
+    B
+     triangle_column (fin_cons c fin_nil) 0
+     fin_cons c fin_nil
+
+    Proven
+
+    n = S m
+    i = 0
+
+     Similar
+
+    i = S j
+
+    A
+     fin_cons (fin_get (triangle_top (triangle_remove_bottom t)) (FS j))
+              (triangle_column
+                (triangle_remove_top
+                  (triangle_remove_bottom t)
+                ) j
+              )
+
+    swap-remove-bottom-top
+
+    fin_cons (fin_get (triangle_top (triangle_remove_bottom t)) (FS j))
+              (triangle_column
+               (triangle_remove_bottom
+                  (triangle_remove_top t)
+               ) j
+              )
+
+    IH
+
+        fin_cons (fin_get (triangle_top (triangle_remove_bottom t)) (FS j))
+              (fin_list_liat (triangle_column (triangle_remove_top t) (FS j)))
+    
+
+
+    B   fin_list_liat (fin_cons
+                      (fin_get (triangle_top t) (FS (FS j)))
+                      (triangle_column (triangle_remove_top t) (FS j))
+
+        fin_cons (fin_get (triangle_top t) (FS (FS j)))
+                 (fin_list_liat (triangle_column (triangle_remove_top t) (FS j)))
+
+   *)
+  
+  Lemma triangle_top_remove_bottom :
+     ∀ {A : Type} {n : nat} (t : triangle A (S n)),
+    triangle_top (triangle_remove_bottom t) =
+    fin_list_tail (triangle_top t).
+  Proof.
+    move=>A.
+    elim=>[|n IH] t;
+          inv_triangle t => t l.
+    - by inv_triangle t.
+    - simpl.
+      rewrite IH fin_list_tail_snoc //.
+  Qed.
+    
+  Lemma triangle_column_bottom :
+    ∀ {A : Type} {n : nat} (t : triangle A (S n)) (i : fin n),
+    triangle_column (triangle_remove_bottom t) i =
+    fin_list_liat (triangle_column t (FS i)).
+  Proof.
+    move=>A.
+    elim=>[|n IH] t i; first inv_fin i.
+    destruct n.
+    - inv_fin i => [|i]; last inv_fin i.
+      inv_triangle t => t l /=.
+      inv_fin_list l => a l /=.
+      inv_fin_list l => b l /=.
+      inv_fin_list l.
+      inv_triangle t => t l' //=.
+    - inv_fin i => [|i].
+      + inv_triangle t => t l /=.
+        specialize (IH t 0%fin).
+        inv_fin_list l => a l /=.
+        inv_fin_list l => b l /=.
+        inv_triangle t => t l' IH //=.
+      + #[local] Opaque triangle_remove_bottom triangle_remove_top fin_list_get triangle_top.
+        remember (S n) as k.
+        simpl.
+        rewrite triangle_remove_top_bottom IH.
+        subst k.
+        setoid_rewrite fin_list_liat_cons at 2.
+        f_equal.
+        rewrite triangle_top_remove_bottom //.
+  Qed.
+  
+  Lemma triangle_get_remove_bottom :
+    ∀ {A : Type} {n : nat} (t : triangle A (S n)) (i : fin n) (j : fin (S i)),
+    triangle_get t (FS i) (fin_S_inj j) =
+    triangle_get (triangle_remove_bottom t) i j.
+  Proof.
+    move=>A [|n] t i j; first inv_fin i.
+    unfold triangle_get.
+    rewrite triangle_column_bottom fin_list_get_inj //.
+  Qed.
+  
+  #[global] Opaque
+    triangle_top
+    triangle_bottom
+    triangle_remove_top
+    triangle_remove_bottom
+    triangle_glue_top
+    triangle_glue_bottom.
+  
+    
   (** A β_tape has a list at each pair of coordinates (k,i)
       for k the number of balls drawn so far and i the number
       of red balls seen while doing so.
@@ -1066,6 +1315,275 @@ Section Polya.
     ∀ (i : fin n) (j : fin (S i)),
     ⊢ WP α #i #j [{ v, ⌜v = #(triangle_get Δ i j)⌝ }].
 
+  Definition own_top_list
+    {n : nat}
+    (p q : nat)
+    (αs : fin_list loc n)
+    (ls : fin_list (list (fin 2)) n)
+    :=
+    ([∗ list] i ∈ fin_enum n,
+         own_bernoulli_tape
+           (fin_list_get αs i)
+           p
+           (q + i)%nat
+           (fin_list_get ls i)
+    )%I.
+
+  Definition own_bottom_list
+    {n : nat}
+    (p q : nat)
+    (αs : fin_list loc n)
+    (ls : fin_list (list (fin 2)) n)
+    :=
+    ([∗ list] i ∈ fin_enum n,
+         own_bernoulli_tape
+           (fin_list_get αs i)
+           (p + i)%nat
+           (q + i)%nat
+           (fin_list_get ls i)
+    )%I.
+  
+  Definition own_trig
+    {n : nat}
+    (p q : nat)
+    (Δ : triangle loc n)
+    (τ : β_tape n)
+    :=
+    ([∗ list] i ∈ fin_enum n,
+       [∗ list] j ∈ fin_enum (S i),
+         own_bernoulli_tape
+           (triangle_get Δ i j)
+           (p + j)%nat
+           (q + i)
+           (triangle_get τ i j)
+    )%I.
+  
+  Lemma own_trig_split_top_1
+    {n : nat}
+    (p q : nat)
+    (Δ : triangle loc (S n))
+    (τ : β_tape (S n)) :
+    own_trig p q Δ τ -∗
+    own_trig (S p) (S q) (triangle_remove_top Δ) (triangle_remove_top τ) ∗
+    own_top_list p q (triangle_top Δ) (triangle_top τ).
+  Proof.
+    iIntros "Hτ".
+    unfold own_trig at 1.
+    simpl.
+    rewrite big_sepL_sep.
+    iDestruct "Hτ" as "([Hhd _]  & Htltop & Htl)".
+    iSplitL "Htl".
+    { do 2 setoid_rewrite big_sepL_fmap.
+      erewrite big_opL_ext; first done.
+      move=>_ i _ /=.
+      simpl.
+      rewrite Nat.add_1_r Nat.add_succ_r Nat.add_0_r.
+      f_equal.
+      apply big_opL_ext.
+      move=>_ j _ /=.
+      rewrite Nat.add_succ_r //.
+    }
+    unfold own_top_list.
+    rewrite big_sepL_cons.
+    fold fin_enum.
+    rewrite !Nat.add_0_r !triangle_get_top.
+    iFrame.
+    #[local] Opaque triangle_get triangle_top fin_list_get.
+    erewrite big_opL_ext; first done.
+    move=>_ i _ /=.
+    rewrite !triangle_get_top //.
+  Qed.
+  
+  Lemma own_trig_split_top_2
+    {n : nat}
+    (p q : nat)
+    (Δ : triangle loc (S n))
+    (τ : β_tape (S n)) :
+    own_trig (S p) (S q) (triangle_remove_top Δ) (triangle_remove_top τ) ∗
+    own_top_list p q (triangle_top Δ) (triangle_top τ) -∗
+    own_trig p q Δ τ.
+  Proof.
+    iIntros "[Hτ Htop]".
+    unfold own_trig at 2.
+    simpl.
+    rewrite big_sepL_sep.
+    unfold own_top_list.
+    simpl.
+    iDestruct "Htop" as "[Hhd Htltop]".
+    iSplitL "Hhd".
+    { rewrite !Nat.add_0_r !triangle_get_top //. }
+    iSplitL "Htltop".
+    {
+      erewrite big_opL_ext; first done.
+      move=>_ i _ /=.
+      rewrite !triangle_get_top Nat.add_0_r //.
+    }
+    do 2 setoid_rewrite big_sepL_fmap.
+    erewrite big_opL_ext; first done.
+    move=>_ i _ /=.
+    simpl.
+    rewrite Nat.add_1_r Nat.add_succ_r Nat.add_0_r.
+    f_equal.
+    apply big_opL_ext.
+    move=>_ j _ /=.
+    rewrite Nat.add_succ_r //.
+  Qed.
+  
+  Lemma own_trig_split_top
+    {n : nat}
+    (p q : nat)
+    (Δ : triangle loc (S n))
+    (τ : β_tape (S n)) :
+    own_trig p q Δ τ ⊣⊢
+    own_trig (S p) (S q) (triangle_remove_top Δ) (triangle_remove_top τ) ∗
+    own_top_list p q (triangle_top Δ) (triangle_top τ).
+  Proof.
+    iSplit.
+    - iApply own_trig_split_top_1.
+    - iApply own_trig_split_top_2.
+  Qed.
+
+  Lemma fin_enum_split : ∀ {n : nat}, fin_enum (S n) = (fin_S_inj <$> fin_enum n) ++ [nat_to_fin (Nat.lt_succ_diag_r n)].
+  Proof.
+    move=>n.
+    rewrite -enum_fin_split //.
+  Qed.
+  
+  Lemma own_trig_split_bottom_1
+    {n : nat}
+    (p q : nat)
+    (Δ : triangle loc (S n))
+    (τ : β_tape (S n)) :
+    own_trig p q Δ τ -∗
+    own_trig p (S q) (triangle_remove_bottom Δ) (triangle_remove_bottom τ) ∗
+    own_bottom_list p q (triangle_bottom Δ) (triangle_bottom τ).
+  Proof.
+    iIntros "Hτ".
+    unfold own_trig at 1.
+    erewrite big_opL_ext; last first.
+    {
+      move=>? i ?.
+      rewrite fin_enum_split //.
+    }
+    setoid_rewrite big_sepL_app.
+    rewrite big_sepL_sep.
+    setoid_rewrite big_sepL_singleton.
+    iDestruct "Hτ" as "([_ Hτ] & Hbot)".
+    iSplitL "Hτ".
+    { do 2 setoid_rewrite big_sepL_fmap.
+      fold fin_enum.
+      erewrite big_opL_ext; first done.
+      move=>_ i _ /=.
+      simpl.
+      rewrite !Nat.add_succ_r !Nat.add_0_r.
+      rewrite -!triangle_get_remove_bottom //.
+      f_equal. 
+      apply big_opL_ext.
+      move=>_ j _ /=.
+      rewrite -!fin_S_inj_to_nat !triangle_get_remove_bottom //.
+    } 
+    unfold own_bottom_list.
+    erewrite big_opL_ext; first done.
+    move=>_ i _ /=.
+    rewrite !fin_to_nat_to_fin !triangle_get_bottom //.
+  Qed.
+
+  Lemma own_trig_split_bottom_2
+    {n : nat}
+    (p q : nat)
+    (Δ : triangle loc (S n))
+    (τ : β_tape (S n)) :
+    own_trig p (S q) (triangle_remove_bottom Δ) (triangle_remove_bottom τ) ∗
+    own_bottom_list p q (triangle_bottom Δ) (triangle_bottom τ) -∗
+    own_trig p q Δ τ.
+  Proof.
+    iIntros "[Hτ Hbot]".
+    unfold own_trig at 2.
+    erewrite big_opL_ext; last first.
+    {
+      move=>? i ?.
+      rewrite fin_enum_split //.
+    }
+    setoid_rewrite big_sepL_app.
+    rewrite big_sepL_sep.
+    setoid_rewrite big_sepL_singleton.
+    iSplitL "Hτ".
+    { setoid_rewrite big_sepL_fmap.
+      simpl.
+      iSplitR; first done.
+      setoid_rewrite big_sepL_fmap.
+      erewrite big_opL_ext; first done.
+      move=>_ i _ /=.
+      simpl.
+      rewrite !Nat.add_succ_r !Nat.add_0_r.
+      rewrite -!triangle_get_remove_bottom //.
+      f_equal. 
+      apply big_opL_ext.
+      move=>_ j _ /=.
+      rewrite -!fin_S_inj_to_nat !triangle_get_remove_bottom //.
+    } 
+    unfold own_bottom_list.
+    erewrite big_opL_ext; first done.
+    move=>_ i _ /=.
+    rewrite !fin_to_nat_to_fin !triangle_get_bottom //.
+  Qed.
+  
+ Lemma own_trig_split_bottom
+   {n : nat}
+   (p q : nat)
+   (Δ : triangle loc (S n))
+   (τ : β_tape (S n)) :
+   own_trig p q Δ τ ⊣⊢
+   own_trig p (S q) (triangle_remove_bottom Δ) (triangle_remove_bottom τ) ∗
+   own_bottom_list p q (triangle_bottom Δ) (triangle_bottom τ).
+ Proof.
+   iSplit.
+   - iApply own_trig_split_bottom_1.
+   - iApply own_trig_split_bottom_2.
+ Qed.
+
+  Lemma own_trig_glue_top
+   {n : nat}
+   (p q : nat)
+   (Δ : triangle loc n)
+   (τ : β_tape n)
+   (αs : fin_list loc (S n))
+   (ls : fin_list (list (fin 2)) (S n)) :
+   own_trig (S p) (S q) Δ τ ∗
+   own_top_list p q αs ls ⊣⊢
+   own_trig p q (triangle_glue_top Δ αs) (triangle_glue_top τ ls).
+  Proof.
+    rewrite -{1}(triangle_top_glue Δ αs) -{1}(triangle_top_glue τ ls)
+            -{1}(triangle_remove_glue_top Δ αs) -{1}(triangle_remove_glue_top τ ls).
+    remember (triangle_glue_top Δ αs) as Δ'.
+    remember (triangle_glue_top τ ls) as τ'.
+    rewrite own_trig_split_top.
+    iSplit;
+      iIntros "[Hτ Hl]";
+      iFrame.
+  Qed.
+
+  Lemma own_trig_glue_bottom
+   {n : nat}
+   (p q : nat)
+   (Δ : triangle loc n)
+   (τ : β_tape n)
+   (αs : fin_list loc (S n))
+   (ls : fin_list (list (fin 2)) (S n)) :
+   own_trig p (S q) Δ τ ∗
+   own_bottom_list p q αs ls ⊣⊢
+   own_trig p q (triangle_glue_bottom Δ αs) (triangle_glue_bottom τ ls).
+  Proof.
+    rewrite -{1}(triangle_bottom_glue Δ αs) -{1}(triangle_bottom_glue τ ls)
+            -{1}(triangle_remove_glue_bottom Δ αs) -{1}(triangle_remove_glue_bottom τ ls).
+    remember (triangle_glue_bottom Δ αs) as Δ'.
+    remember (triangle_glue_bottom τ ls) as τ'.
+    rewrite own_trig_split_bottom.
+    iSplit;
+      iIntros "[Hτ Hl]";
+      iFrame.
+  Qed.
+
   Definition own_polya_tape
     {n : nat}
     (p q : nat)
@@ -1073,14 +1591,7 @@ Section Polya.
     (l : list (fin (S n)))
     := (∃ (τ : β_tape n),
            ⌜β_decode τ = Some l⌝ ∗
-           ([∗ list] i ∈ fin_enum n,
-              [∗ list] j ∈ fin_enum (S i),
-                own_bernoulli_tape
-                  (triangle_get Δ i j)
-                  (p + j)%nat
-                  (q + i)
-                  (triangle_get τ i j)
-           )
+           own_trig p q Δ τ
        )%I.
   
   (** Need predicates for :
