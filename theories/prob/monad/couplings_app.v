@@ -896,16 +896,6 @@ Section ARcoupl_meas.
 
 Local Open Scope classical_set_scope.
 
-(* TODO: Move *)
-Lemma subprobability_setC {d} {T : measurableType d} (S : set T) (μ : giryM T) : measurable S -> μ (~` S) <= 1 - μ S.
-Proof.
-move=> mA.
-Admitted.
-
-(* TODO: Move *)
-Lemma subprobability_1_setC {d} {T : measurableType d} (S : set T) (μ : giryM T) : measurable S -> μ S = 1 -> μ (~` S) = 0.
-Proof.
-Admitted.
 
 Lemma ARcoupl_meas_pos_R R' ε δ (SA : set A) (SB : set B) (HA : measurable SA) (HB : measurable SB) :
   μ1 SA = 1 -> μ2 SB = 1 -> ARcoupl_meas μ1 μ2 R' ε δ → ARcoupl_meas μ1 μ2 (λ a b, R' a b ∧ SA a ∧ SB b) ε δ.

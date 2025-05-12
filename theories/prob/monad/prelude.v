@@ -4,7 +4,9 @@ From mathcomp Require Import all_ssreflect classical_sets boolp functions.
 From clutch.prelude Require Import classical.
 From mathcomp.analysis Require Import ereal measure lebesgue_measure lebesgue_integral sequences function_spaces.
 From clutch.prob.monad Require Export preprelude.
-Require Import mathcomp.reals.all_reals.
+From Coq Require Import Reals.
+Require Import mathcomp.reals_stdlib.Rstruct.
+Require Import mathcomp.reals.reals.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -1114,3 +1116,21 @@ Proof.
   apply: fin_bigcup_measurable; first apply cardinality.finite_set2.
   intros ?[]; simpl in *; by subst.
 Qed. 
+
+
+Local Open Scope classical_set_scope.
+Local Open Scope ring_scope.
+Local Open Scope ereal_scope.
+
+(* TODO: Move *)
+Lemma subprobability_setC {d} {T : measurableType d} (S : set T) (μ : @subprobability d T R) :
+  measurable S -> (μ (~` S) <= (1 : \bar R) - μ S).
+Proof.
+move=> mA.
+Admitted.
+
+(* TODO: Move *)
+Lemma subprobability_1_setC {d} {T : measurableType d} (S : set T) (μ : @subprobability d T R) :
+  measurable S -> μ S = 1 -> (μ (~` S) = (EFin (0 : R))).
+Proof.
+Admitted.
