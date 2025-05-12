@@ -224,7 +224,7 @@ Section ectx_language.
       by intros [??]. }
     rewrite Hrewrite.
     eapply @measurable_comp; [| |apply fill_liftU_meas|]; try done.
-    apply measurable_pair1.
+    apply pair1_measurable.
   Qed.
   
   Lemma fill_lift_comp (K1 K2 : ectx Λ) :
@@ -424,7 +424,12 @@ Section ectx_language.
       apply gMap'_id. 
   Qed.
 
+  (*
   (* MARKUS: Renamed becuase it was breaking the build *)
+  (* MARKUS: Commented out because it's not used, and I think the pointwise evaluations shouldn't be used anyways.
+     The "right" version of this lemma should say that measure_eq (head_step (e1, σ1) ρ) gZero iff
+     measure_eq (prim_step (e1, σ1) ρ) gZero. But I'm not sure we even need that yet.
+   *)
   Lemma head_prim_step' e1 σ1 ρ :
     (lt_ereal 0 (head_step (e1, σ1) ρ)) → lt_ereal 0 (prim_step (e1, σ1) ρ).
   Proof. intros H. erewrite head_prim_step_eq; first done.
@@ -439,6 +444,7 @@ Section ectx_language.
            cbv in H. by repeat case_match.
          - (** same problem as above *)
   Admitted.
+*)
 
   (* Proof breaks when no @ for some reason *)
   Lemma head_prim_step e1 σ1 : ¬ (is_zero (head_step (e1, σ1))) -> ¬ (is_zero (prim_step (e1, σ1))).
@@ -474,7 +480,8 @@ Section ectx_language.
           Unshelve.
           rewrite /is_true/Is_true in Hs *.
           by case_match.
-        * (** ask markus *) admit.
+        * rewrite prod1.
+          eapply @measurableX; [apply expr_meas_points | apply state_meas_points].
   Admitted.
 
   (*  Markov lemmas *)
@@ -632,7 +639,7 @@ Section ectx_language.
       fill_inj  := _;
       fill_dmap e1 σ1 := _
   }.
-  Next Obligation. move=>Ki; apply curry_meas_fun. apply fill_meas. Qed.
+  Next Obligation. move=>Ki; apply curry_meas_fun. apply fill_meas. Qed. 
   Next Obligation. simpl. apply fill_not_val. Qed.
   Next Obligation. intros K e σ Hval.
                    eapply (fill_prim_step_dbind K e σ) in Hval.

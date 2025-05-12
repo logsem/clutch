@@ -190,7 +190,7 @@ Section language.
     have H1 : giry_display.-measurable is_zero.
     { intros m T.
       unfold is_zero.
-      by eapply eq_gZero_measurable.}
+      by eapply eq_gZero_measurable. }
     have X := (@step_meas (meas_lang_markov Λ) H is_zero).
     have X1 := X (H1 _ _).
     rewrite setTI in X1.
