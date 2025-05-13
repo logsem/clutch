@@ -182,15 +182,30 @@ Proof.
   iSplit; [done|].
   iExists [set (e2, σ)].
   iSplitR.
-  { admit. (* Singletons measurable *) }
+  { rewrite prod1.
+    iPureIntro; apply measurableX.
+    { apply expr_meas_points. }
+    { apply state_meas_points. }
+  }
   iSplitR.
   { iPureIntro.
     specialize Hpuredet with σ.
     rewrite /is_det/measure_eq in Hpuredet.
     specialize Hpuredet with [set (e2, σ)].
-    rewrite Hpuredet; last admit. (* singletons measurable *)
-    (* yes *)
-    admit. }
+    rewrite Hpuredet; last first.
+    { rewrite prod1.
+      apply measurableX.
+      { apply expr_meas_points. }
+      { apply state_meas_points. }
+    }
+    rewrite gRetMass1Inv.
+    { by rewrite /toPacked //=. }
+    { rewrite prod1.
+      apply measurableX.
+      { apply expr_meas_points. }
+      { apply state_meas_points. }
+    }
+    }
   iIntros (ρ ->).
   rewrite //=.
   iNext.
@@ -198,7 +213,7 @@ Proof.
   iMod "H".
   iModIntro.
   iFrame.
-Admitted.
+Qed.
 
 
 (** Statement shouldn't change as even if lemma statements do *)
