@@ -269,14 +269,6 @@ Section ectxi_language.
     end.
   Solve Obligations with eauto using decomp_ord, expr_ord_wf.
 
-
-  (* How to prove this? *)
-  Lemma decomp_measurable : measurable_fun setT decomp.
-  Proof.
-  Admitted.
-  Hint Resolve decomp_measurable : measlang.
-
-
   Lemma decomp_unfold e :
     decomp e =
       match decomp_item e with
@@ -387,6 +379,77 @@ Section ectxi_language.
     exists K''. by rewrite assoc.
   Qed.
 
+
+  Fixpoint decomp' n (e:expr Λ) :=
+    match n with
+    | 0 => match decomp_item e with
+          | Some _ => None
+          | None => Some ([], e)
+          end
+    | S n' => match decomp_item e with
+            | None => None
+            | Some (Ki, e') =>
+                match decomp' n' e' with
+                | Some (K, e'') => Some (K++[Ki], e'')
+                | None => None
+                end
+             end
+    end.
+
+  Lemma decomp_decomp' n e K e': decomp' n e = Some (K, e') -> decomp e = (K, e').
+  Proof.
+    revert e K e'.
+    induction n; simpl.
+    - intros. case_match; first done.
+      simplify_eq. rewrite decomp_unfold. by case_match.
+    - intros. case_match eqn:Hx; last done.
+      case_match. subst. case_match eqn:Hy; last done.
+      case_match. subst. apply IHn in Hy.
+      simplify_eq. rewrite decomp_unfold. by rewrite Hx Hy.
+  Qed.
+
+  Lemma decomp_decomp2' e : decomp' (length (decomp e).1) e = Some (decomp e).
+  Proof.
+    remember (length (decomp e).1) as n eqn:Heqn.
+    revert e Heqn.
+    induction n; simpl.
+    - intros ? Hlength.
+      destruct (decomp e) as [l ?] eqn:Heqn.
+      assert (l=[]) as ->.
+      { by apply nil_length_inv. }
+      apply decomp_inv_nil in Heqn as [H ?]. subst. by rewrite H.
+    - intros e Hlength.
+      case_match eqn:H; last first.
+      { rewrite decomp_unfold in Hlength. rewrite H in Hlength.
+        simplify_eq.
+      }
+      case_match.
+      subst.
+      rewrite decomp_unfold in Hlength. rewrite H in Hlength.
+      case_match eqn:H'.
+      simpl in *.
+      rewrite app_length in Hlength. simpl in *.
+      assert (length l = n) by lia.
+      subst. erewrite IHn; last by rewrite H'.
+      rewrite H'. by rewrite decomp_unfold H H'.
+  Qed. 
+  
+  (* How to prove this? *)
+  Lemma decomp_measurable : measurable_fun setT decomp.
+  Proof.
+    assert (setT = \bigcup_i (preimage (decomp' i) option_cov_Some)) as Hrewrite; last rewrite Hrewrite.
+    { rewrite eqEsubset; split; intros t; simpl; last done.
+      intros _.
+      exists (length (decomp t).1); first done.
+      simpl. rewrite decomp_decomp2'. by eexists _.
+    } 
+    rewrite measurable_fun_bigcup; last first.
+    - (* induction over i *)
+      admit.
+    - admit.
+  Admitted.
+  Hint Resolve decomp_measurable : measlang.
+  
   Lemma head_ctx_step_fill_val K e σ1 : ¬ is_zero (head_step (fill (K, e), σ1)) → is_Some (to_val e) ∨ K = [].
   Proof.
     destruct K as [|Ki K _] using rev_ind; simpl; first by auto.
