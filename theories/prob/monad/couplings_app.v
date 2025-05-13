@@ -27,13 +27,12 @@ Notation RR := ((R : realType) : measurableType _).
 Section couplings.
   Local Open Scope classical_set_scope.
 
-  Context {dA dB} `{A : measurableType dA} `{B : measurableType dB}.
-  Context (μ1 : giryM A) (μ2 : giryM B) (S : A -> B -> Prop) (ε : R) (δ : \bar R).
-
+  Context {dA dB} {A B : Type} `{SigmaAlgebra dA A} `{SigmaAlgebra dB B}.
+  Context (μ1 : giryM (toPackedType dA A)) (μ2 : giryM (toPackedType dB B)) (S : A -> B -> Prop) (ε : R) (δ : \bar R).
 
   Definition ARcoupl_meas : Prop :=
-    forall (f : A -> \bar R) (Hmf : measurable_fun setT f) (Hfge0 : forall (a : A), (0 <= f a)%E) (Hfle1 : forall (a : A), (f a <= 1)%E)
-      (g : B -> \bar R) (Hmg : measurable_fun setT g) (Hgge0 : forall (b : B), (0 <= g b)%E) (Hgle1 : forall (b : B), (g b <= 1)%E),
+    forall (f : toPackedType dA A -> \bar R) (Hmf : measurable_fun setT f) (Hfge0 : forall (a : A), (0 <= f a)%E) (Hfle1 : forall (a : A), (f a <= 1)%E)
+      (g : toPackedType dB B -> \bar R) (Hmg : measurable_fun setT g) (Hgge0 : forall (b : B), (0 <= g b)%E) (Hgle1 : forall (b : B), (g b <= 1)%E),
       (forall (a : A) (b : B), S a b -> (f a <= g b)%E) ->
       (\int[μ1]_(x in setT) f x <= ( δ + (expR ε)%:E* \int[μ2]_(x in setT) g x))%E.
 
@@ -52,12 +51,11 @@ Section couplings_theory.
   Local Open Scope classical_set_scope.
   Local Open Scope ring_scope.
   Local Open Scope ereal_scope.
-  Context {dA1 dB1 dA2 dB2}
-    `{A1 : measurableType dA1} `{B1 : measurableType dB1}
-    `{A2 : measurableType dA2} `{B2 : measurableType dB2}.
+  Context {dA1 dB1 dA2 dB2} {A1 A2 B1 B2 : Type}
+    `{HSigA1 : SigmaAlgebra dA1 A1} `{HSigA2 : SigmaAlgebra dA2 A2} `{HSigB1 : SigmaAlgebra dB1 B1} `{HSigB2 : SigmaAlgebra dB2 B2}.
 
-  Lemma ARcoupl_meas_proper_pre {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} S ε δ :
-    Proper (measure_eq ==> measure_eq ==> impl) (fun (μ1 : giryM T1) (μ2 : giryM T2) => ARcoupl_meas μ1 μ2 S ε δ).
+  Lemma ARcoupl_meas_proper_pre {d1 d2} {T1 T2 : Type} `{SigmaAlgebra d1 T1} `{SigmaAlgebra d2 T2} S ε δ :
+    Proper (measure_eq ==> measure_eq ==> impl) (fun (μ1 : giryM (toPackedType d1 T1)) (μ2 : giryM (toPackedType d2 T2)) => ARcoupl_meas μ1 μ2 S ε δ).
   Proof.
     intros μ1 μ1' H1 μ2 μ2' H2.
     intros Hcoupl f Hfm Hfp Hf1 g Hgm Hgp Hg1 Hle.
@@ -67,8 +65,8 @@ Section couplings_theory.
     by apply Hcoupl.
   Qed.
 
-  Global Instance ARcoupl_meas_proper {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} S ε δ :
-    Proper (measure_eq ==> measure_eq ==> eq) (fun (μ1 : giryM T1) (μ2 : giryM T2) => ARcoupl_meas μ1 μ2 S ε δ).
+  Global Instance ARcoupl_meas_proper {d1 d2} {T1 T2 : Type} `{SigmaAlgebra d1 T1} `{SigmaAlgebra d2 T2} S ε δ :
+    Proper (measure_eq ==> measure_eq ==> eq) (fun (μ1 : giryM (toPackedType d1 T1)) (μ2 : giryM (toPackedType d2 T2)) => ARcoupl_meas μ1 μ2 S ε δ).
   Proof.
     intros μ1 μ1' H1 μ2 μ2' H2.
     apply propext; split; apply ARcoupl_meas_proper_pre; done.
@@ -76,7 +74,7 @@ Section couplings_theory.
 
   (* TODO: Fix notation scoping for ε <= ε', etc *)
 
-  Lemma ARcoupl_meas_mono (μ1 μ1': giryM A1) (μ2 μ2': giryM B1) S S' (ε ε': R) (δ δ': \bar R) :
+  Lemma ARcoupl_meas_mono (μ1 μ1': giryM (toPackedType dA1 A1)) (μ2 μ2': giryM (toPackedType dB1 B1)) S S' (ε ε': R) (δ δ': \bar R) :
     (μ1 ≡μ μ1') ->
     (μ2 ≡μ μ2') ->
     (∀ x y, S x y -> S' x y) ->
@@ -115,7 +113,7 @@ Section couplings_theory.
     apply (leeD2r ((expR ε')%:E * \int[μ2]_x g x)); auto.
  Qed.
 
-  Lemma ARcoupl_meas_1 (μ1 : giryM A1) (μ2 : giryM B1) S (ε : R) (δ : \bar R) :
+  Lemma ARcoupl_meas_1 (μ1 : giryM (toPackedType dA1 A1)) (μ2 : giryM (toPackedType dB1 B1)) S (ε : R) (δ : \bar R) :
     (1 <= δ) -> ARcoupl_meas μ1 μ2 S ε δ.
   Proof.
     intros Hδ f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1 Hfg.
@@ -137,7 +135,7 @@ Section couplings_theory.
  Qed.
 
 
-  Lemma ARcoupl_meas_mon_grading (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) ε1 ε2 δ1 δ2 :
+  Lemma ARcoupl_meas_mon_grading (μ1 : giryM (toPackedType dA1 A1)) (μ2 : giryM (toPackedType dB1 B1)) (S : A1 → B1 → Prop) ε1 ε2 δ1 δ2 :
     (Order.le ε1 ε2) ->
     (δ1 <= δ2) ->
     ARcoupl_meas μ1 μ2 S ε1 δ1 ->
@@ -153,7 +151,7 @@ Section couplings_theory.
     (Order.le (GRing.zero) ε) ->
     0 <= δ →
     S a b →
-    ARcoupl_meas (gRet a) (gRet b) S ε δ.
+    ARcoupl_meas (gRet (toPacked a)) (gRet (toPacked b)) S ε δ.
   Proof.
     intros Hε Hδ HS f Hmf Hfge0 Hfle1 g Hmg Hgge0 Hgle1 Hfg.
     rewrite gRetInt_rw; auto.
@@ -172,8 +170,8 @@ Section couplings_theory.
 
 
   (* The hypothesis (0 ≤ δ1) is not really needed, I just kept it for symmetry *)
-  Lemma ARcoupl_meas_dbind (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
-    (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) ε1 ε2 δ1 δ2 :
+  Lemma ARcoupl_meas_dbind (f : (toPackedType dA1 A1) → giryM (toPackedType dA2 A2)) (Hf : measurable_fun setT f) (g : (toPackedType dB1 B1) → giryM (toPackedType dB2 B2)) (Hg : measurable_fun setT g)
+    (μ1 : giryM (toPackedType dA1 A1)) (μ2 : giryM (toPackedType dB1 B1)) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) ε1 ε2 δ1 δ2 :
     (0 <= δ1) -> (0 <= δ2) -> (δ2 \is a fin_num) ->
     (∀ a b, S a b → ARcoupl_meas (f a) (g b) T ε2 δ2) →
     ARcoupl_meas μ1 μ2 S ε1 δ1 →
@@ -185,8 +183,8 @@ Section couplings_theory.
     intros Hh1h2.
     rewrite gBindInt_rw; auto.
     rewrite gBindInt_rw; auto.
-    set (a := fun (x:A1) => maxe ((\int[f x]_y h1 y) - δ2)%E 0%:E).
-    have Hh1measInt : measurable_fun setT (λ x : A1, (\int[f x]_y h1 y)%E).
+    set (a := fun (x: toPackedType dA1 A1) => maxe ((\int[f x]_y h1 y) - δ2)%E 0%:E).
+    have Hh1measInt : measurable_fun setT (λ x : toPackedType dA1 A1, (\int[f x]_y h1 y)%E).
     {
       pose proof (gBindInt_meas_fun μ1 Hf Hmh1) as Haux.
       eapply eq_measurable_fun; eauto.
@@ -226,8 +224,8 @@ Section couplings_theory.
       apply (lee_paddl Hδ2); auto.
     }
 
-    set (b := fun (x:B1) => mine ((expR ε2)%:E * \int[g x]_y h2 y)%E 1%:E).
-    have Hh2measInt : measurable_fun setT (λ x : B1, (\int[g x]_y h2 y)%E).
+    set (b := fun (x: toPackedType dB1 B1) => mine ((expR ε2)%:E * \int[g x]_y h2 y)%E 1%:E).
+    have Hh2measInt : measurable_fun setT (λ x : toPackedType dB1 B1, (\int[g x]_y h2 y)%E).
     {
       pose proof (gBindInt_meas_fun μ2 Hg Hmh2) as Haux.
       eapply eq_measurable_fun; eauto.
@@ -355,8 +353,8 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma ARcoupl_meas_dbind_exp_l (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
-    (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) δ1 (Δ2 : A1 -> \bar R) (HΔ2 : measurable_fun setT Δ2) ε1 ε2 :
+  Lemma ARcoupl_meas_dbind_exp_l (f : (toPackedType dA1 A1) → giryM (toPackedType dA2 A2)) (Hf : measurable_fun setT f) (g : (toPackedType dB1 B1) → giryM (toPackedType dB2 B2)) (Hg : measurable_fun setT g)
+    (μ1 : giryM (toPackedType dA1 A1)) (μ2 : giryM (toPackedType dB1 B1)) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) δ1 (Δ2 : (toPackedType dA1 A1) -> \bar R) (HΔ2 : measurable_fun setT Δ2) ε1 ε2 :
     (0 <= δ1) -> (forall a, 0 <= Δ2 a) -> (forall a, (Δ2 a) \is a fin_num) ->
     (∀ a b, S a b → ARcoupl_meas (f a) (g b) T ε2 (Δ2 a)) →
     ARcoupl_meas μ1 μ2 S ε1 δ1 →
@@ -368,8 +366,8 @@ Section couplings_theory.
     intros Hh1h2.
     rewrite gBindInt_rw; auto.
     rewrite gBindInt_rw; auto.
-    set (a := fun (x:A1) => maxe ((\int[f x]_y h1 y) - Δ2(x))%E 0%:E).
-    have Hh1measInt : measurable_fun setT (λ x : A1, (\int[f x]_y h1 y)%E).
+    set (a := fun (x: toPackedType dA1 A1) => maxe ((\int[f x]_y h1 y) - Δ2(x))%E 0%:E).
+    have Hh1measInt : measurable_fun setT (λ x : toPackedType dA1 A1, (\int[f x]_y h1 y)%E).
     {
       pose proof (gBindInt_meas_fun μ1 Hf Hmh1) as Haux.
       eapply eq_measurable_fun.
@@ -410,8 +408,8 @@ Section couplings_theory.
       apply (lee_paddl (Hδ2 x)); auto.
     }
 
-    set (b := fun (x:B1) => mine ((expR ε2)%:E * \int[g x]_y h2 y)%E 1%:E).
-    have Hh2measInt : measurable_fun setT (λ x : B1, (\int[g x]_y h2 y)%E).
+    set (b := fun (x: toPackedType dB1 B1) => mine ((expR ε2)%:E * \int[g x]_y h2 y)%E 1%:E).
+    have Hh2measInt : measurable_fun setT (λ x : toPackedType dB1 B1, (\int[g x]_y h2 y)%E).
     {
       pose proof (gBindInt_meas_fun μ2 Hg Hmh2) as Haux.
       eapply eq_measurable_fun.
@@ -524,8 +522,8 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma ARcoupl_meas_dbind_exp_r (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
-    (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) δ1 (Δ2 : B1 -> \bar R) (HΔ2 : measurable_fun setT Δ2) ε1 ε2 :
+  Lemma ARcoupl_meas_dbind_exp_r (f : toPackedType dA1 A1 → giryM (toPackedType dA2 A2)) (Hf : measurable_fun setT f) (g : toPackedType dB1 B1 → giryM (toPackedType dB2 B2)) (Hg : measurable_fun setT g)
+    (μ1 : giryM (toPackedType dA1 A1)) (μ2 : giryM (toPackedType dB1 B1)) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) δ1 (Δ2 : toPackedType dB1 B1 -> \bar R) (HΔ2 : measurable_fun setT Δ2) ε1 ε2 :
     (0 <= δ1) -> (forall b, 0 <= Δ2 b) -> (forall b, (Δ2 b) \is a fin_num) ->
     (∀ a b, S a b → ARcoupl_meas (f a) (g b) T ε2 (Δ2 b)) →
     ARcoupl_meas μ1 μ2 S ε1 δ1 →
@@ -537,7 +535,7 @@ Section couplings_theory.
     intros Hh1h2.
     rewrite gBindInt_rw; auto.
     rewrite gBindInt_rw; auto.
-    set (a := fun (x:A1) => (\int[f x]_y h1 y)%E).
+    set (a := fun (x:toPackedType dA1 A1) => (\int[f x]_y h1 y)%E).
     have Hameas : (measurable_fun setT a).
     {
       pose proof (gBindInt_meas_fun μ1 Hf Hmh1) as Haux.
@@ -564,8 +562,8 @@ Section couplings_theory.
     }
     have Ha_le1 : (forall x, (a x <= 1)%E); [rewrite /a // |].
 
-    set (b := fun (x:B1) => mine (Δ2(x) + (expR ε2)%:E * (\int[g x]_y h2 y))%E 1%:E).
-    have Hh2measInt : measurable_fun setT (λ x : B1, (\int[g x]_y h2 y)%E).
+    set (b := fun (x:toPackedType dB1 B1) => mine (Δ2(x) + (expR ε2)%:E * (\int[g x]_y h2 y))%E 1%:E).
+    have Hh2measInt : measurable_fun setT (λ x : toPackedType dB1 B1, (\int[g x]_y h2 y)%E).
     {
       pose proof (gBindInt_meas_fun μ2 Hg Hmh2) as Haux.
       eapply eq_measurable_fun.
@@ -663,8 +661,8 @@ Section couplings_theory.
 
 
 
-  Lemma ARcoupl_meas_dbind_exp_r_eps0 (f : A1 → giryM A2) (Hf : measurable_fun setT f) (g : B1 → giryM B2) (Hg : measurable_fun setT g)
-    (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) δ1 (Δ2 : B1 -> \bar R) (HΔ2 : measurable_fun setT Δ2) :
+  Lemma ARcoupl_meas_dbind_exp_r_eps0 (f : toPackedType dA1 A1 → giryM (toPackedType dA2 A2)) (Hf : measurable_fun setT f) (g : toPackedType dB1 B1 → giryM (toPackedType dB2 B2)) (Hg : measurable_fun setT g)
+    (μ1 : giryM (toPackedType dA1 A1)) (μ2 : giryM (toPackedType dB1 B1)) (S : A1 → B1 → Prop) (T : A2 → B2 → Prop) δ1 (Δ2 : toPackedType dB1 B1 -> \bar R) (HΔ2 : measurable_fun setT Δ2) :
     (0 <= δ1) -> (forall b, 0 <= Δ2 b) -> (forall b, (Δ2 b) \is a fin_num) ->
     (∀ a b, S a b → ARcoupl_meas (f a) (g b) T GRing.zero (Δ2 b)) →
     ARcoupl_meas μ1 μ2 S GRing.zero δ1 →
@@ -677,7 +675,7 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma ARcoupl_meas_mass_leq (μ1 : giryM A1) (μ2 : giryM B1) (S : A1 → B1 → Prop) ε δ :
+  Lemma ARcoupl_meas_mass_leq (μ1 : giryM (toPackedType dA1 A1)) (μ2 : giryM (toPackedType dB1 B1)) (S : A1 → B1 → Prop) ε δ :
     ARcoupl_meas μ1 μ2 S ε δ → μ1 [set: A1] <= (expR ε)%:E * μ2 [set: B1] + δ.
   Proof.
     intros Hcoupl.
@@ -691,7 +689,7 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma ARcoupl_meas_eq (μ1 : giryM A1) :
+  Lemma ARcoupl_meas_eq (μ1 : giryM (toPackedType dA1 A1)) :
     ARcoupl_meas μ1 μ1 (=) GRing.zero 0.
   Proof.
     intros f Hfmeas Hfge0 Hfle1 g Hgmeas Hgge0 Hgle1 Hfg.
@@ -701,8 +699,8 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma ARcoupl_meas_eq_elim (μ1 μ2 : giryM A1) ε δ :
-    ARcoupl_meas μ1 μ2 (=) ε δ → forall (S : set A1), (dA1.-measurable S) -> μ1 S <= (expR ε)%:E * μ2 S + δ.
+  Lemma ARcoupl_meas_eq_elim (μ1 μ2 : giryM (toPackedType dA1 A1)) ε δ :
+    ARcoupl_meas μ1 μ2 (=) ε δ → forall (S : set (toPackedType dA1 A1)), (dA1.-measurable S) -> μ1 S <= (expR ε)%:E * μ2 S + δ.
   Proof.
     intros Hcoupl S HSmeas.
     rewrite GRing.addrC.
@@ -714,28 +712,28 @@ Section couplings_theory.
     rewrite (@integral_mkcond _ _ _ μ2).
     apply Hcoupl; auto.
     {
-      apply (measurable_restrictT (@cst A1 (\bar R) 1)); auto.
+      apply (measurable_restrictT (@cst _ (\bar R) 1)); auto.
     }
     {
       intros.
-      apply (@numfun.erestrict_ge0 _ _ S (@cst A1 (\bar R) 1)); auto.
+      apply (@numfun.erestrict_ge0 _ _ S (@cst _ (\bar R) 1)); auto.
     }
     {
       rewrite /patch.
       intros a.
-      case (a \in S); simpl; auto.
+      case (_ \in S); simpl; auto.
     }
     {
-      apply (measurable_restrictT (@cst A1 (\bar R) 1)); auto.
+      apply (measurable_restrictT (@cst _ (\bar R) 1)); auto.
     }
     {
       intros.
-      apply (@numfun.erestrict_ge0 _ _ S (@cst A1 (\bar R) 1)); auto.
+      apply (@numfun.erestrict_ge0 _ _ S (@cst _ (\bar R) 1)); auto.
     }
     {
       rewrite /patch.
       intros b.
-      case (b \in S); simpl; auto.
+      case (_ \in S); simpl; auto.
     }
     intros ? ? ->; auto.
   Qed.
@@ -751,10 +749,9 @@ Section ARcoupl_meas.
   Local Open Scope ring_scope.
   Local Open Scope ereal_scope.
 
-  Context {dA dB}
-    `{A : measurableType dA} `{B : measurableType dB}.
+  Context {dA dB} {A B : Type} `{HSigA : SigmaAlgebra dA A} `{HSigB : SigmaAlgebra dB B}.
 
-  Variable (μ1 : giryM A) (μ2 : giryM B).
+  Variable (μ1 : giryM (toPackedType dA A)) (μ2 : giryM (toPackedType dB B)).
 
 
 
@@ -804,12 +801,12 @@ Section ARcoupl_meas.
       exists (g b); auto.
   Qed.
 
-  Lemma ARcoupl_meas_preserve (t : A -> B) (Hmt : measurable_fun setT t) :
+  Lemma ARcoupl_meas_preserve (t : toPackedType dA A -> toPackedType dB B) (Hmt : measurable_fun setT t) :
     (*
        This condition is precisely measure preservation,
        i.e. forall S, measurable S -> μ2 S = μ1 (f @^-1` A)
      *)
-    (forall (S : set B), measurable S -> μ2 S = pushforward μ1 Hmt S) ->
+    (forall (S : set (toPackedType dB B)), measurable S -> μ2 S = pushforward μ1 Hmt S) ->
     ARcoupl_meas μ1 μ2 (λ n m, m = t n) GRing.zero 0.
   Proof.
     intros Hpres f Hfm Hfge0 Hfle1 g Hgm Hgge0 Hgle1 Hfg.
@@ -830,13 +827,13 @@ Section ARcoupl_meas.
     { apply @in_setP. intros. apply Hgge0. }
   Qed.
 
-  Lemma ARcoupl_meas_preserve_mZl (t : A -> B) (Hmt : measurable_fun setT t)
-    (Z : set A) (HZ: measurable Z):
+  Lemma ARcoupl_meas_preserve_mZl (t : toPackedType dA A -> toPackedType dB B) (Hmt : measurable_fun setT t)
+    (Z : set (toPackedType dA A)) (HZ: measurable Z):
     (*
        This condition is precisely measure preservation,
        i.e. forall S, measurable S -> μ2 S = μ1 (f @^-1` A)
      *)
-    (forall (S : set B), measurable S -> μ2 S = pushforward μ1 Hmt S) ->
+    (forall (S : set (toPackedType dB B)), measurable S -> μ2 S = pushforward μ1 Hmt S) ->
     (μ1 Z = 0) ->
     ARcoupl_meas μ1 μ2 (λ n m, (n \notin Z) /\ m = t n) GRing.zero 0.
   Proof.
@@ -861,7 +858,7 @@ Section ARcoupl_meas.
       apply Hpres.
       auto.
     }
-    have HmfrestrZ : measurable_fun [set: A] (f \_ (~` Z)).
+    have HmfrestrZ : measurable_fun [set: _] (f \_ (~` Z)).
     {
       apply measurable_restrict; auto.
       apply measurableC; auto.
@@ -874,7 +871,7 @@ Section ARcoupl_meas.
     { rewrite <- (setTI (preimage _ _)). apply Hmt; done. }
     { intros x ?.
       rewrite /patch /=.
-      case (x \in ~`Z); simpl; auto.
+      case (_ \in ~`Z); simpl; auto.
     }
     {
       intros; simpl; auto.
@@ -885,15 +882,14 @@ Section ARcoupl_meas.
     intros x ?.
     rewrite /patch /=.
     case (x \in ~`Z) eqn:Htx ; simpl; auto.
-    apply Hfg.
-    split; auto.
-    rewrite -in_setC Htx //.
+    {  rewrite Htx; simpl; auto. apply Hfg. split; auto.  rewrite -in_setC Htx //. }
+    { rewrite Htx; simpl; auto. }
  Qed.
 
 Local Open Scope classical_set_scope.
 
 
-Lemma ARcoupl_meas_pos_R R' ε δ (SA : set A) (SB : set B) (HA : measurable SA) (HB : measurable SB) :
+Lemma ARcoupl_meas_pos_R R' ε δ (SA : set (toPackedType dA A)) (SB : set (toPackedType dB B)) (HA : measurable SA) (HB : measurable SB) :
   μ1 SA = 1 -> μ2 SB = 1 -> ARcoupl_meas μ1 μ2 R' ε δ → ARcoupl_meas μ1 μ2 (λ a b, R' a b ∧ SA a ∧ SB b) ε δ.
 Proof.
   intros HSA HSB Hμ1μ2 f Hf Hfg0 Hfl1 g Hg Hgg0 Hgl1 Hfg.
@@ -955,7 +951,7 @@ Proof.
 
   (* Change the right integral to the patch of g to 1 outside SB *)
   pose g' := patch (fun _ => 1) SB g.
-  have Hg'M : measurable_fun [set: B] g'.
+  have Hg'M : measurable_fun [set: (toPackedType dB B)] g'.
   { (* Same argument as if_in... refactor? *)
     rewrite -(setvU SB).
     apply <- measurable_funU; try done; first split.
@@ -984,7 +980,7 @@ Proof.
   }
 
   (* Lemmas I'll need soon *)
-  have HxM : measurable_fun [set: B] (g \_ SB).
+  have HxM : measurable_fun [set: (toPackedType dB B)] (g \_ SB).
   { apply @mathcomp_restriction_is_measurable; try done.
     apply @mathcomp_measurable_fun_restiction_setT; try done. }
   have Hxg0 : ∀ x : B, 0 <= (g \_ SB) x.
@@ -1017,7 +1013,7 @@ Proof.
   }
 
   pose f' := (f \_ SA).
-  have Hf'M : measurable_fun [set: A] f'.
+  have Hf'M : measurable_fun [set: (toPackedType dA A)] f'.
   { apply @mathcomp_restriction_is_measurable; try done.
     apply @mathcomp_measurable_fun_restiction_setT; try done. }
   have Hf'g0 : ∀ x : A, 0 <= f' x.
@@ -1114,7 +1110,7 @@ Local Open Scope ring_scope.
 Local Open Scope ereal_scope.
 Local Open Scope classical_set_scope.
 
-Context {d1 d2} {A : measurableType d1} {B : measurableType d2}.
+Context {d1 d2} {A B : Type} `{HSigA : SigmaAlgebra d1 A} `{HSigB : SigmaAlgebra d2 B}.
 
 Lemma ARcoupl_dzero_dzero (R : A → B → Prop) :
   ARcoupl_meas gZero gZero R 0 0.
@@ -1144,7 +1140,7 @@ Proof.
   { have X := measure_ge0 μ1 setT. unfold Order.le in X. by apply X. }
 Qed.
 
-Lemma ARcoupl_dzero (μ : giryM B) (R: A → B → Prop) (ε : nonnegreal) :
+Lemma ARcoupl_dzero (μ : giryM (toPackedType d2 B)) (R: A → B → Prop) (ε : nonnegreal) :
   (0 <= ε)%R ->
   ARcoupl_meas gZero μ R 0 (EFin (nonneg ε)).
 Proof.

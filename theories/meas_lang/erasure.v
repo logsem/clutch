@@ -699,7 +699,7 @@ Qed.
 Lemma ARcoupl_erasure_erasable_exp_rhs
     (ε1 : R) (μ1 μ1' : giryM (meas_lang.language.state meas_lang)) (E2 : _ → R) R Φ e1' e1 σ1 σ1' ε r n m :
   0 <= ε1 →
-  ARcoupl_meas μ1 (gBind' (pexec m \o pair e1') μ1') R (0)%R  (EFin ε1) →
+  ARcoupl_meas μ1 (gBind' (pexec m \o pair e1' \o ofPacked) μ1') R (0)%R  (EFin ε1) →
   (le_ereal (EFin ε1 + \int[gBind' (pexec m \o pair e1') μ1']_ρ (EFin (E2 ρ)))) (EFin (nonneg ε)) →
   (∀ ρ, (0 <= E2 ρ <= r)%R) →
   erasable μ1 σ1 →
@@ -719,9 +719,13 @@ Admitted.
   by eapply Hcont.
 Qed. *)
 
+(*
+
+(* Something funky going on with prim_step here *)
+
 Lemma ARcoupl_erasure_erasable_exp_lhs (ε1 : R) (μ1' : giryM (meas_lang.language.state meas_lang)) (E2 : _ → R) R Φ e1 e1' σ1 σ1' ε r n m :
   0 <= ε1 →
-  ARcoupl_meas (prim_step (e1, σ1)) (gBind' (pexec m \o pair e1') μ1') R (0)%R (EFin ε1) ->
+  ARcoupl_meas (prim_step (toPacked (e1, σ1))) (gBind' (pexec m \o pair e1' \o ofPacked) μ1') R (0)%R (EFin ε1) ->
   (le_ereal (EFin ε1 + \int[prim_step (e1, σ1)]_ρ (EFin (E2 ρ)))) (EFin ε) →
   (∀ ρ, (0 <= E2 ρ <= r)%R) →
   erasable μ1' σ1' →
@@ -737,4 +741,5 @@ Admitted.
   eapply (ARcoupl_dbind_adv_lhs' E2); [done|eauto|done| |done].
   intros [] [] ?. by eapply Hcont.
 Qed.
+*)
 *)

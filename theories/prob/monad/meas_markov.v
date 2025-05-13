@@ -21,10 +21,11 @@ Set Default Proof Using "Type*".
 (** * Markov Chains *)
 Section meas_markov_mixin.
   Context {mstate_disp mstate_ret_disp : measure_display}.
-  Context {mstate : measurableType mstate_disp}.
-  Context {mstate_ret : measurableType mstate_ret_disp}.
-  Context (step : mstate → giryM mstate).
-  Context (to_final : mstate → option mstate_ret).
+  Context {mstate mstate_ret : Type}.
+  Context `{Sig_state : SigmaAlgebra mstate_disp mstate}.
+  Context `{Sig_state_ret : SigmaAlgebra mstate_ret_disp mstate_ret}.
+  Context (step : toPackedType mstate_disp mstate → giryM (toPackedType mstate_disp mstate)).
+  Context (to_final : toPackedType mstate_disp mstate → option (toPackedType mstate_ret_disp mstate_ret)).
 
   Record MeasMarkovMixin := {
     mixin_step_meas : measurable_fun setT step;
@@ -37,16 +38,21 @@ End meas_markov_mixin.
 Structure meas_markov := MeasMarkov {
   mstate_disp : measure_display;
   mstate_ret_disp : measure_display;
-  mstate : measurableType mstate_disp ;
-  mstate_ret : measurableType mstate_ret_disp ;
-  step     : mstate → giryM mstate;
-  to_final : mstate → option mstate_ret;
+  mstate : Type;
+  mstate_ret : Type;
+  Sig_state : SigmaAlgebra mstate_disp mstate;
+  Sig_state_ret : SigmaAlgebra mstate_ret_disp mstate_ret;
+  step     : toPackedType mstate_disp mstate → giryM (toPackedType mstate_disp mstate);
+  to_final : toPackedType mstate_disp mstate → option (toPackedType mstate_ret_disp mstate_ret);
   markov_mixin : MeasMarkovMixin step to_final;
 }.
 
 #[global] Arguments MeasMarkov {_ _ _ _} _ _ _.
 #[global] Arguments step {_}.
 #[global] Arguments to_final {_}.
+
+Global Existing Instance Sig_state.
+Global Existing Instance Sig_state_ret.
 
 (*
 Definition markov_mdp_mixin (m : markov):
@@ -177,10 +183,8 @@ End reducible.
 
 Section markov.
   Context {δ : meas_markov}.
-  Implicit Types a : mstate δ.
-  Implicit Types b : mstate_ret δ.
-
-
+  Implicit Types a : toPackedType (mstate_disp δ) (mstate δ).
+  Implicit Types b : toPackedType (mstate_ret_disp δ) (mstate_ret δ).
 
   Lemma const_meas_fun {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (a : T2):
     measurable_fun setT (fun _ : T1 => a).
@@ -197,7 +201,7 @@ Section markov.
   Qed.
 
   (** * Strict partial evaluation *)
-  Program Definition stepN (n : nat) a : giryM (mstate δ) :=
+  Program Definition stepN (n : nat) a : giryM (toPackedType (mstate_disp δ) (mstate δ)) :=
     gIter n step a.
 
   Lemma stepN_meas (n : nat) : measurable_fun setT (stepN n).
@@ -247,13 +251,13 @@ Section markov.
 
 
   (** * Non-strict partial evaluation *)
-  Definition step_or_final a : giryM (mstate δ) :=
+  Definition step_or_final a : giryM (toPackedType _ (mstate δ)) :=
     match to_final a with
     | Some _ => gRet a
     | None => step a
     end.
 
-  Definition step_or_final' a : giryM (mstate δ) := 
+  Definition step_or_final' a : giryM (toPackedType _ (mstate δ))  :=
     if (isSome \o to_final) a then gRet a else step a.
 
   Lemma step_or_final'_eq: step_or_final = step_or_final'.
@@ -268,7 +272,7 @@ Section markov.
     rewrite /isSome. split; destruct a; auto; intros; inversion H.
   Qed.
 
-  Lemma is_final_meas_fun: measurable_fun setT (isSome \o (to_final : mstate δ -> _)).
+  Lemma is_final_meas_fun: measurable_fun setT (isSome \o (to_final : toPackedType _ (mstate δ) -> _)).
   Proof.
     apply measurableT_comp.
     { 
@@ -303,7 +307,7 @@ Section markov.
     is_final a → step_or_final a = gRet a.
   Proof. rewrite /step_or_final /=. by intros [? ->]. Qed.
 
-  Definition pexec (n : nat) a : giryM (mstate δ) := gIter n step_or_final a.
+  Definition pexec (n : nat) a : giryM (toPackedType _ (mstate δ)) := gIter n step_or_final a.
 
   Lemma pexec_meas (n : nat) : measurable_fun setT (pexec n).
   Proof. 
@@ -426,7 +430,7 @@ Section markov.
 *)
 
   (** * Stratified evaluation to a final state *)
-  Fixpoint exec (n : nat) (a : mstate δ) {struct n} : giryM (mstate_ret δ) :=
+  Fixpoint exec (n : nat) (a : toPackedType _ (mstate δ)) {struct n} : giryM (toPackedType _ (mstate_ret δ)) :=
     match to_final a, n with
       | Some b, _ => gRet b
       | None, 0 => gZero
@@ -466,9 +470,9 @@ Section markov.
 
   Local Open Scope classic.
 
-  Lemma exec'_true_meas : measurable_fun ((isSome \o to_final) @^-1` [set true]) ((gRet \o 𝜋_Some_v) \o (to_final : mstate δ -> _)).
+  Lemma exec'_true_meas : measurable_fun ((isSome \o to_final) @^-1` [set true]) ((gRet \o 𝜋_Some_v) \o (to_final : toPackedType _ (mstate δ) -> _)).
   Proof.
-    assert ([set x | isSome x = true] = (option_cov_Some (T := mstate_ret δ))). {
+    assert ([set x | isSome x = true] = (option_cov_Some (T := toPackedType _ (mstate_ret δ)))). {
       apply eq_set.
       intros. rewrite propeqE /option_cov_Some. simpl. 
       rewrite /isSome. split; intros.
@@ -809,7 +813,7 @@ Section markov.
 
   (** * Full evaluation (limit of stratification) *)
 
-  Definition lim_exec (a : mstate δ) : giryM (mstate_ret δ) :=
+  Definition lim_exec (a : toPackedType _ (mstate δ)) : giryM (toPackedType _ (mstate_ret δ)) :=
     limit_measure (fun n => exec n a).
 
   (* Definition lim_exec (a : mstate δ) : distr (mstate_ret δ) := lim_distr (λ n, exec n a) (exec_mono a). *)
@@ -835,7 +839,7 @@ Section markov.
       + by apply upper_bound_ge_sup=>/=.
   Qed. *)
 
-  Lemma lim_exec_step (a : mstate δ) :
+  Lemma lim_exec_step (a : toPackedType _ (mstate δ)) :
     lim_exec a ≡μ gBind' lim_exec (step_or_final a).
   Proof. Admitted.
 (*
@@ -1191,8 +1195,7 @@ Section ARcoupl.
     Admitted.
 
 
-
-  Lemma lim_exec_ARcoupl {d} {B : measurableType d} (a : mstate δ) (μ2 : giryM B) φ (ε : R) (D : \bar R) :
+  Lemma lim_exec_ARcoupl {d} {B : Type} `{BSig : SigmaAlgebra d B} (a : mstate δ) (μ2 : giryM (toPackedType _ B)) φ (ε : R) (D : \bar R) :
     (0 <= EFin ε)%E →
     (0 <= D)%E →
     (∀ n, ARcoupl_meas (exec n a) μ2 φ ε D) →

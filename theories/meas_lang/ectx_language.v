@@ -481,7 +481,9 @@ Section ectx_language.
           rewrite /is_true/Is_true in Hs *.
           by case_match.
         * rewrite prod1.
-          eapply @measurableX; [apply expr_meas_points | apply state_meas_points].
+          eapply @measurableX.
+          { eapply @expr_meas_points. }
+          { eapply @state_meas_points. }
   Admitted.
 
   (*  Markov lemmas *)

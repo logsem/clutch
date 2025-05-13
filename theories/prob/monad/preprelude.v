@@ -21,3 +21,10 @@ Definition toPackedType (d : measure_display) (T : Type) `{ SigmaAlgebra d T } :
    but this takes a value and lifts it to a vlaue *)
 Definition toPacked {d : measure_display} {T : Type} `{ SigmaAlgebra d T } (v : T) :
   @Measurable.sort d (toPackedType d T) := v.
+
+Definition ofPacked {d : measure_display} {T : Type} `{ SigmaAlgebra d T }
+  (v : @Measurable.sort d (toPackedType d T)) : T := v.
+
+Instance SigmaAlgebra_Prod (d1 d2: measure_display) (T1 T2 : Type) `{SigmaAlgebra d1 T1} `{SigmaAlgebra d2 T2} :
+    SigmaAlgebra ((d1, d2).-prod) (T1 * T2) :=
+  {| axioms := @Measurable.class _ ((toPackedType d1 T1) * (toPackedType d2 T2))%type |}.

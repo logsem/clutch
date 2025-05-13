@@ -82,7 +82,7 @@ Lemma wp_lift_step_later E Φ e1 s :
   (∀ σ1, state_interp σ1 ={E,∅}=∗
       ⌜reducible (toPacked e1, toPacked σ1) ⌝ ∗
       EXSM
-        (fun ρ => True ={∅}=∗ ▷ |={∅,E}=> state_interp ρ.2 ∗ WP ρ.1  @ s; E {{ Φ }})
+        (fun (ρ : toPackedType _ (_ * _)%type) => True ={∅}=∗ ▷ |={∅,E}=> state_interp ρ.2 ∗ WP ρ.1  @ s; E {{ Φ }})
         (prim_step (e1, σ1)))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
@@ -106,7 +106,7 @@ Lemma wp_lift_step E Φ e1 s :
   to_val e1 = None →
   (∀ σ1, state_interp σ1 ={E,∅}=∗
     ⌜reducible (toPacked e1, toPacked σ1)⌝ ∗
-    EXSM (λ ρ, ▷ |={∅,E}=> state_interp ρ.2 ∗ WP ρ.1 @ s; E {{ Φ }}) (prim_step (e1, σ1)))
+    EXSM (λ ρ : toPackedType _ (_ * _)%type, ▷ |={∅,E}=> state_interp ρ.2 ∗ WP ρ.1 @ s; E {{ Φ }}) (prim_step (e1, σ1)))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H". iApply wp_lift_step_later; [done|]. iIntros (?) "Hσ".

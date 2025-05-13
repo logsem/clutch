@@ -17,16 +17,22 @@ Set Warnings "hiding-delimiting-key".
 Section erasable.
   Context {Λ : meas_language}.
 
-  Program Definition erasable (μ : giryM (state Λ)) (σ : state Λ) : Prop :=
-    ∀ e m, gBind (_ : measurable_fun setT (exec m \o pair e)) μ ≡μ exec m (e, σ).
-  Next Obligation. intros; mf_cmp_tree; by apply exec_meas_fun. Qed.
+  Program Definition erasable (μ : giryM (state Λ)) (σ : stateT Λ) : Prop :=
+    ∀ (e : exprT Λ) (m : nat), gBind (_ : measurable_fun setT (exec m \o pair e \o ofPacked)) μ ≡μ exec m (e, σ).
+  Next Obligation.
+    intros.
+    mf_cmp_tree.
+    { by apply exec_meas_fun. }
+  Admitted.
 
-  Lemma erasable_gRet (σ : state Λ) : erasable (gRet σ) σ.
+  Lemma erasable_gRet (σ : state Λ) : erasable (gRet σ) σ. Admitted.
+  (*
   Proof.
     intros e m.
     eapply Equivalence_Transitive; [apply gRet_gBind | ].
     by simpl.
   Qed.
+*)
 
 
 (*

@@ -108,9 +108,9 @@ Section coupl_modalities.
        (Z σ1 e1' σ1' ε) ∨
        (∃ (S : stateT Λ → (exprT Λ * stateT Λ)%type → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
           (ε1 : nonnegreal) (X2 : (exprT Λ * stateT Λ)%type → nonnegreal) (r : R),
-            ⌜ ARcoupl_meas μ1 (gBind' (pexec n \o pair (toPacked e1')) μ1') S (0)%R  (EFin (nonneg ε1)) ⌝ ∗
+            ⌜ ARcoupl_meas μ1 (gBind' (pexec n \o pair (toPacked e1') \o ofPacked ) μ1') S (0)%R  (EFin (nonneg ε1)) ⌝ ∗
             ⌜∀ ρ, X2 ρ <= r⌝ ∗
-            ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1')) μ1']_ρ (EFin (nonneg (X2 ρ)))) (EFin (nonneg ε))) ⌝ ∗
+            ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1') \o ofPacked) μ1']_ρ (EFin (nonneg (X2 ρ)))) (EFin (nonneg ε))) ⌝ ∗
             ⌜erasable μ1 σ1⌝ ∗
             ⌜erasable μ1' σ1'⌝ ∗
             ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ Φ (σ2, (e2', σ2'), X2 (e2', σ2'))))%I.
@@ -151,9 +151,9 @@ Section coupl_modalities.
       (Z σ1 e1' σ1' ε) ∨
       (∃ (S : stateT Λ → (exprT Λ * stateT Λ)%type → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM  (state Λ))
          (ε1 : nonnegreal) (X2 : (exprT Λ * stateT Λ)%type  → nonnegreal) (r : R),
-         ⌜ARcoupl_meas μ1 (gBind' (pexec n \o pair (toPacked e1')) μ1') S (0)%R (EFin (nonneg ε1)) ⌝ ∗
+         ⌜ARcoupl_meas μ1 (gBind' (pexec n \o pair (toPacked e1') \o ofPacked) μ1') S (0)%R (EFin (nonneg ε1)) ⌝ ∗
          ⌜∀ ρ, X2 ρ <= r⌝ ∗
-         ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1')) μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
+         ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1') \o ofPacked) μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
          ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
          ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ meas_spec_coupl E σ2 e2' σ2' (X2 (e2', σ2')) Z))%I.
   Proof. rewrite /meas_spec_coupl /meas_spec_coupl' least_fixpoint_unfold //. Qed.
@@ -169,9 +169,9 @@ Section coupl_modalities.
   Lemma meas_spec_coupl_rec σ1 e1' σ1' E (ε : nonnegreal) Z :
     (∃ (S : stateT Λ → (exprT Λ * stateT Λ)%type  → Prop) (n : nat) (μ1 : giryM (state Λ)) (μ1' : giryM (state Λ))
        (ε1 : nonnegreal) (X2 : (exprT Λ * stateT Λ)%type  → nonnegreal) (r : R),
-       ⌜ARcoupl_meas μ1 (gBind' (pexec n \o pair e1') μ1') S (0)%R  (EFin (nonneg ε1)) ⌝ ∗
+       ⌜ARcoupl_meas μ1 (gBind' (pexec n \o pair e1' \o ofPacked) μ1') S (0)%R  (EFin (nonneg ε1)) ⌝ ∗
        ⌜∀ ρ, X2 ρ <= r⌝ ∗
-       ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair e1') μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
+       ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair e1' \o ofPacked) μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε)) ⌝ ∗
        ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
        ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ meas_spec_coupl E σ2 e2' σ2' (X2 (e2', σ2')) Z)%I
     ⊢ meas_spec_coupl E σ1 e1' σ1' ε Z.
@@ -196,8 +196,7 @@ Section coupl_modalities.
 
 
   (** ********************* Lemma code (being worked on elsewhere *)
-
-  Lemma pexec_0' :  (pexec 0 :  mstate (meas_lang_markov Λ) -> _) = gRet.
+  Lemma pexec_0' :  (pexec 0 : toPackedType _ (mstate (meas_lang_markov Λ)) -> _) = gRet.
   Proof. apply functional_extensionality; intro a; eapply pexec_O. Qed.
 
 
@@ -223,11 +222,11 @@ Section coupl_modalities.
       erewrite ARcoupl_meas_proper.
       2: { reflexivity.  }
       2: { rewrite gBind'_meas_rw.
-           { apply @measurable_compT; [done | by apply pexec_meas | by apply pair1_measurable ]. }
+           { apply @measurable_compT; [done | by apply pexec_meas | admit (* by apply pair1_measurable *) ]. }
            intro H.
            by apply giry.gBind_id_left. }
       rewrite /= pexec_0'.
-      eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set (toPacked σ1)] ([set (toPacked e1')] `*` [set (toPacked σ1')])).
+      eapply (@ARcoupl_meas_pos_R  _ _ _ _ _ _ _ _ _ _ _ [set (toPacked σ1)]  ([set (toPacked e1')] `*` [set (toPacked σ1')])).
       { by apply state_meas_points. }
       { by apply measurableX; [apply expr_meas_points | apply state_meas_points]. }
       { apply gRetMass1Inv; [|done]. by apply state_meas_points. }
@@ -291,9 +290,9 @@ Section coupl_modalities.
       erewrite ARcoupl_meas_proper.
       2: { reflexivity. }
       2: { rewrite gBind'_meas_rw.
-           { apply @measurable_compT; [done | by apply pexec_meas | by apply pair1_measurable ]. }
+           { apply @measurable_compT; [done | by apply pexec_meas | admit (* by apply pair1_measurable *) ]. }
            intro H. by apply giry.gBind_id_left. }
-      apply (@ARcoupl_meas_mon_grading _ _ _ _ _ _ _ 0 _ (EFin 0) _).
+      apply (@ARcoupl_meas_mon_grading _ _ _ _ _ _ _ _ _ 0 _ (EFin 0) _).
       { done. }
       { repeat destroy_mathcomp. lra. }
       apply ARcoupl_meas_dret; done.
@@ -407,7 +406,7 @@ Section coupl_modalities.
   Proof.
     iIntros (-> ??) "H".
     iApply meas_spec_coupl_rec.
-    iExists R, n, μ1, (gRet σ1'), ε1, (λ _, ε2), ε2.
+    (* iExists R, n, μ1, (gRet σ1'), ε1, (λ _, ε2), ε2. *)
     (*
     setoid_rewrite gBind_id_left.
     2: { admit. (* prove gBind_id_left to see if necessary *) }
@@ -444,14 +443,14 @@ Section coupl_modalities.
   Qed.
 
   Lemma meas_spec_coupl_steps_det n ε σ1 e1' σ1' e2' σ2' Z E :
-    is_det (e2', σ2') (pexec n (e1', σ1')) →
+    is_det (toPacked (e2', σ2')) (pexec n (e1', σ1')) →
     meas_spec_coupl E σ1 e2' σ2' ε Z ⊢
     meas_spec_coupl E σ1 e1' σ1' ε Z.
   Proof.
     iIntros (Hexec%is_det_dret) "H".
     iApply (meas_spec_coupl_steps n ε 0%NNR).
     { apply nnreal_ext => /=. lra. }
-    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ [set (toPacked σ1)] ([set e2'] `*` [set σ2'])), ARcoupl_meas_trivial.
+    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ _ _ [set (toPacked σ1)] ([set e2'] `*` [set σ2'])), ARcoupl_meas_trivial.
       { by apply state_meas_points. }
       { by apply measurableX; [apply expr_meas_points | apply state_meas_points ]. }
       { apply gRetMass1Inv; [by apply state_meas_points|done]. }
@@ -505,9 +504,9 @@ Section coupl_modalities.
     ∃ (R : cfg Λ → cfg Λ → Prop) (n : nat) (μ1' : giryM (state Λ))
       (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : nonnegreal),
       ⌜reducible (toPacked e1, toPacked σ1)⌝ ∗
-      ⌜ARcoupl_meas (prim_step (e1, σ1)) (gBind' (pexec n \o pair (toPacked e1')) μ1') R (0)%R  (EFin (nonneg ε1)) ⌝ ∗
+      ⌜ARcoupl_meas (prim_step (e1, σ1)) (gBind' (pexec n \o pair (toPacked e1') \o ofPacked) μ1') R (0)%R  (EFin (nonneg ε1)) ⌝ ∗
       ⌜∀ ρ, X2 ρ <= r⌝ ∗
-      ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1')) μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε))⌝ ∗
+      ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1') \o ofPacked) μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε))⌝ ∗
       ⌜erasable μ1' σ1'⌝ ∗
       ∀ e2 σ2 e2' σ2', ⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' (X2 (e2, σ2)).
 
@@ -631,9 +630,9 @@ Section coupl_modalities.
     ⊢ meas_prog_coupl e1 σ1 e1' σ1' ε Z.
   Proof.
     iIntros (-> Hred Hred' Hcpl) "Hcnt".
+  (*
     iExists _, 1%nat, (gRet σ1'), ε1, (λ _, ε2), ε2.
     iSplit; [done|].
-  (*
     rewrite dret_id_left pexec_1.
     rewrite step_or_final_no_final; [|by apply reducible_not_final].
     do 2 (iSplit; [done|]).
@@ -681,7 +680,7 @@ Section coupl_modalities.
   Proof.
     iIntros (-> ? ?) "H".
     iApply (meas_prog_coupl_step_l_erasable _ _ (gRet (σ1')) _ _); [done|done| |..].
-    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ setT [set σ1']).
+    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ _ _ setT [set σ1']).
       { by eapply @measurableT. }
       { (* measurable singleton *) admit. }
       { (* prim step PMF *) admit. }
@@ -697,13 +696,13 @@ Section coupl_modalities.
 
   Lemma meas_prog_coupl_step_l e1 σ1 e1' σ1' ε Z :
     reducible (e1, σ1) →
-    EXSM (λ ρ, |={∅}=> Z ρ.1 ρ.2 e1' σ1' ε) (prim_step (e1, σ1))
+    EXSM (λ ρ : (toPackedType _ (exprT _ * stateT _)%type), |={∅}=> Z ρ.1 ρ.2 e1' σ1' ε) (prim_step (e1, σ1))
     ⊢ meas_prog_coupl e1 σ1 e1' σ1' ε Z.
   Proof.
     iIntros (?) "[%S [%H1 [%H2 H3]]]".
     iApply (meas_prog_coupl_step_l_dret ε 0%NNR); [|done|..].
     { apply nnreal_ext => /=. lra. }
-    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ S [set σ1']); try done.
+    { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ _ _ S [set σ1']); try done.
       { (* measurable singletons *) admit. }
       { (* gRet property *) admit. }
       apply ARcoupl_meas_trivial; try done.

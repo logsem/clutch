@@ -25,14 +25,14 @@ Section spec_update.
 
 
   Definition spec_updateN_def (n : nat) (E : coPset) (P : iProp Σ) : iProp Σ :=
-    (∀ a, spec_interp a -∗ |={E}=> ∃ a', ⌜is_det a' (stepN n a) ⌝ ∗ spec_interp a' ∗ P)%I.
+    (∀ a, spec_interp a -∗ |={E}=> ∃ a', ⌜is_det (toPacked a') (stepN n a) ⌝ ∗ spec_interp a' ∗ P)%I.
   Local Definition spec_updateN_aux : seal (@spec_updateN_def). Proof. by eexists. Qed.
   Definition spec_updateN := spec_updateN_aux.(unseal).
   Lemma spec_updateN_unseal : spec_updateN = spec_updateN_def.
   Proof. rewrite -spec_updateN_aux.(seal_eq) //. Qed.
 
   Definition spec_update_def (E : coPset) (P : iProp Σ) : iProp Σ :=
-    (∀ a, spec_interp a -∗ |={E}=> ∃ a' n, ⌜is_det a' (stepN n a)⌝ ∗ spec_interp a' ∗ P)%I.
+    (∀ a, spec_interp a -∗ |={E}=> ∃ a' n, ⌜is_det (toPacked a') (stepN n a)⌝ ∗ spec_interp a' ∗ P)%I.
   Local Definition spec_update_aux : seal (@spec_update_def). Proof. by eexists. Qed.
   Definition spec_update := spec_update_aux.(unseal).
   Lemma spec_update_unseal : spec_update = spec_update_def.

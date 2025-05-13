@@ -29,7 +29,8 @@ Section language_mixin.
 
   Context (of_val : val -> expr).
   Context (to_val : expr → option val).
-  Context (prim_step : ((expr * state)%type) -> ((giryM (expr * state)%type))).
+  Context (prim_step : (toPackedType (measure_prod_display (d_expr, d_state)) (exprT * stateT)%type) ->
+                       ((giryM (toPackedType (measure_prod_display (d_expr, d_state)) (exprT * stateT)%type)))).
 
   Record MeasLanguageMixin := {
     mixin_of_val_meas : measurable_fun setT of_val;
@@ -64,7 +65,7 @@ Structure meas_language := MeasLanguage {
   state_SigmaAlgebra : SigmaAlgebra d_state stateT;
   of_val : (toPackedType d_val valT) → (toPackedType d_expr exprT);
   to_val : (toPackedType d_expr exprT) → option (toPackedType d_val valT);
-  prim_step : ((toPackedType d_expr exprT) * (toPackedType d_state stateT))%type -> (giryM ((toPackedType d_expr exprT) * (toPackedType d_state stateT))%type);
+  prim_step : (toPackedType _ (exprT * stateT)%type) -> giryM (toPackedType _ (exprT * stateT)%type);
   language_mixin : MeasLanguageMixin of_val to_val prim_step
 }.
 
@@ -140,7 +141,7 @@ Proof.
     { by eapply @measurableT. }
     { done. }
     { by apply language_mixin. }
-    { by apply measurable_fst. }
+    { simpl. by eapply @measurable_fst. }
   }
   intros [e σ]; simpl.
   pose proof (lem (is_zero (prim_step (e, σ)))) as [|H]; first done.
@@ -149,7 +150,7 @@ Proof.
   naive_solver.
 Qed.
 
-Canonical Structure meas_lang_markov (Λ : meas_language) := MeasMarkov _ _ (meas_lang_markov_mixin Λ).
+Canonical Structure meas_lang_markov (Λ : meas_language) := MeasMarkov _ _ _ _ (meas_lang_markov_mixin Λ).
 
 
 Section language.
@@ -186,13 +187,12 @@ Section language.
   Lemma irreducible_meas_set : measurable (irreducible : set (expr Λ * state Λ)%type).
   Proof.
     unfold irreducible.
-    have H : (mstate_disp (meas_lang_markov Λ)).-measurable [set: mstate (meas_lang_markov Λ)] by eapply @measurableT.
     have H1 : giry_display.-measurable is_zero.
     { intros m T.
       unfold is_zero.
       by eapply eq_gZero_measurable. }
-    have X := (@step_meas (meas_lang_markov Λ) H is_zero).
-    have X1 := X (H1 _ _).
+    have X := (@step_meas (meas_lang_markov Λ) _ is_zero).
+    have X1 := X _ (H1 _ _).
     rewrite setTI in X1.
     by apply X1.
   Qed.
