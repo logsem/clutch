@@ -444,9 +444,38 @@ Section ectxi_language.
       simpl. rewrite decomp_decomp2'. by eexists _.
     } 
     rewrite measurable_fun_bigcup; last first.
-    - (* induction over i *)
-      admit.
-    - admit.
+    - intros n.
+      induction n.
+      + assert (preimage (decomp' 0) option_cov_Some = preimage decomp_item option_cov_None) as ->.
+        * rewrite eqEsubset; split; intros ?; simpl; rewrite /option_cov_Some/option_cov_None/=.
+          -- intros []. by case_match.
+          -- intros ->. naive_solver.
+        * rewrite <-setTI.
+          apply: decomp_item_meas; ms_solve.
+          apply: option_cov_None_meas_set.
+      + assert (preimage (decomp' (S n)) option_cov_Some =
+                (preimage decomp_item (option_cov_Some`&`
+                  (preimage (snd \o 𝜋_Some_v) (preimage (decomp' n) option_cov_Some))))
+               ) as ->.
+        { rewrite eqEsubset; split; intros ?; simpl; rewrite /option_cov_Some/=.
+          - intros []. case_match eqn:H1; last done.
+            case_match. case_match eqn:H2; last done. case_match.
+            subst. simplify_eq. naive_solver.
+          - intros [[[] H][[]H']]. rewrite H in H'. simpl in *.
+            rewrite H H'. naive_solver.
+        }
+        rewrite <-setTI.
+        apply decomp_item_meas; ms_solve; try apply option_cov_Some_meas_set.
+        apply: measurable_comp; last first.
+        * apply: 𝜋_Some_v_meas_fun.
+        * apply measurable_snd_restriction.
+          apply: measurableT.
+        * done.
+        * done.
+    - intros n.
+      induction n as [|n' IHn].
+      + admit.
+      + admit.
   Admitted.
   Hint Resolve decomp_measurable : measlang.
   
