@@ -699,6 +699,39 @@ Ltac mcrunch_prod := ( eapply @measurable_fun_prod'; first by eauto with measlan
 
 
 
+Lemma measurable_setU `{T:measurableType d} (D1 D2:set T) :
+  measurable D1 -> measurable D2 -> measurable (D1 `|` D2).
+Proof. 
+  intros.
+  assert (setU D1 D2 =\bigcup_(i in
+              ([set D1;D2 ])) i
+         ) as ->.
+  { rewrite eqEsubset; split; intros ?; simpl.
+    - intros [H'|H']; (eexists _; last apply H'); simpl; [by left|by right].
+    - intros [?[]]; simpl in *; subst; [by left|by right].   
+  }
+  apply: fin_bigcup_measurable; first apply cardinality.finite_set2.
+  intros ?[]; simpl in *; by subst.
+Qed.
+
+
+
+Lemma measurable_setI `{T:measurableType d} (D1 D2:set T) :
+  measurable D1 -> measurable D2 -> measurable (D1 `&` D2).
+Proof. 
+  intros.
+  assert (setI D1 D2 =
+          setC (setU (setC D1) (setC D2))
+         ) as ->.
+  { rewrite eqEsubset; split; intros ?; simpl.
+    - intros [] [|]; naive_solver.
+    - intros H1; split; apply NNP_P; intro; apply H1; naive_solver.
+  }
+  apply: measurableC.
+  apply measurable_setU; by apply: measurableC.
+Qed. 
+
+
 
 
 
@@ -927,18 +960,23 @@ Section list.
 
   Local Tactic Notation "destruct!/=" := destruct_go ltac:( progress csimpl in * ; simpl).
 
-  Local Lemma list_ST_length {d1} {T : measurableType d1} (l: seq T) S n: list_ST (repeat S n) l -> length l = n.
+  Definition list_length_cov {d1} {T : measurableType d1} n := list_ST (T1 := T)(repeat setT n).
+  
+  Lemma list_length_cov_length {d1} {T : measurableType d1} (l: seq T) n: list_length_cov n l -> length l = n.
   Proof.
+    rewrite /list_length_cov.
     revert l. induction n as [|? IHn].
     - simpl. intros. by subst.
     - intros. simpl in *. destruct!/=. f_equal. by apply (IHn).
   Qed. 
-  Local Lemma list_ST_length' {d1} {T : measurableType d1} (l: seq T): list_ST (repeat setT (length l)) l.
+  Lemma list_length_cov_length' {d1} {T : measurableType d1} (l: seq T): list_length_cov (length l) l.
   Proof.
+    rewrite /list_length_cov.
     induction l; first done.
     simpl. eexists _; first done. naive_solver.
-  Qed. 
-  Lemma 𝜋_cons_v_meas_fun {d1} {T : measurableType d1} (k : list T) : measurable_fun (list_cov_cons : set (list T)) 𝜋_cons_v.
+  Qed.
+
+  Lemma 𝜋_cons_v_meas_fun {d1} {T : measurableType d1}  : measurable_fun (list_cov_cons : set (list T)) 𝜋_cons_v.
   Proof.
     rewrite /list_cov_cons.
     intros ? Y HY.
@@ -952,18 +990,18 @@ Section list.
       - rewrite eqEsubset; split; intros ?; simpl.
         + intros [?? [? ? H1]]; subst; simpl. split; last done.
           eexists _,_; split; last done.
-          by apply (list_ST_length (S:=setT)). 
+          by apply (list_length_cov_length). 
         + intros [[x1[x0[]]]]; simpl in *; subst; simpl in *.
           eexists x1; first done.
           eexists _; last done.
-          apply list_ST_length'.
+          apply list_length_cov_length'.
     }
     rewrite eqEsubset; split; intros ?; simpl; rewrite /bigcup/=; intros; destruct!/=; first naive_solver.
     eexists _; naive_solver.
   Qed. 
   Hint Resolve 𝜋_cons_v_meas_fun : measlang.
   
-  Lemma 𝜋_cons_vs_meas_fun {d1} {T : measurableType d1} (k : list T) : measurable_fun (list_cov_cons : set (list T)) 𝜋_cons_vs.
+  Lemma 𝜋_cons_vs_meas_fun {d1} {T : measurableType d1}  : measurable_fun (list_cov_cons : set (list T)) 𝜋_cons_vs.
   Proof.
     rewrite /list_cov_cons.
     into_gen_measurable.
@@ -976,6 +1014,29 @@ Section list.
     simpl. rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; naive_solver.
   Qed. 
   Hint Resolve 𝜋_cons_vs_meas_fun : measlang.
+
+  
+  Lemma list_length_cov_0 {d1} {T : measurableType d1} : list_length_cov (T:=T) 0%nat = list_cov_empty.
+  Proof.
+    done.
+  Qed.
+
+  Lemma list_length_cov_Sn {d1} {T : measurableType d1} n  : list_length_cov (T:=T) (S n) = list_cov_cons `&` preimage 𝜋_cons_vs (list_length_cov n).
+  Proof.
+    rewrite eqEsubset; split; intros ?; simpl; rewrite /list_length_cov/list_cov_cons/=; intros; destruct!/=.
+    - split; last done. simpl. naive_solver.
+    - repeat eexists _; naive_solver.
+  Qed. 
+
+  Lemma list_length_cov_meas_set {d1} {T : measurableType d1} n : measurable (list_length_cov (T:=T) n).
+  Proof.
+    induction n.
+    - rewrite list_length_cov_0. apply list_cov_empty_meas_set.
+    - rewrite list_length_cov_Sn.
+      apply: 𝜋_cons_vs_meas_fun; last done.
+      apply: list_cov_cons_meas_set.
+  Qed. 
+  Hint Resolve list_length_cov_meas_set : measlang.
 End list.
 
 Section extern_if.
@@ -1101,21 +1162,6 @@ Proof.
   - by move=>->//.
   - by move=>[<-<-]; case x.
 Qed.
-
-Lemma measurable_setU `{T:measurableType d} (D1 D2:set T) :
-  measurable D1 -> measurable D2 -> measurable (D1 `|` D2).
-Proof. 
-  intros.
-  assert (setU D1 D2 =\bigcup_(i in
-              ([set D1;D2 ])) i
-         ) as ->.
-  { rewrite eqEsubset; split; intros ?; simpl.
-    - intros [H'|H']; (eexists _; last apply H'); simpl; [by left|by right].
-    - intros [?[]]; simpl in *; subst; [by left|by right].   
-  }
-  apply: fin_bigcup_measurable; first apply cardinality.finite_set2.
-  intros ?[]; simpl in *; by subst.
-Qed. 
 
 
 Local Open Scope classical_set_scope.

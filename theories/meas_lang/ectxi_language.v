@@ -196,10 +196,55 @@ Section ectxi_language.
 
   Definition fill (K : (ectx * expr Λ)%type) : expr Λ := foldl (fun e' k => fill_item (k, e')) (snd K) (fst K).
 
+  
+  Local Open Scope classical_set_scope.
   Lemma fill_measurable : measurable_fun setT fill.
-  Proof.
-    (* Stratify by shape of ectx (AKA length) and do induction. *)
-  Admitted.
+  Proof with ms_solve; apply list_length_cov_meas_set.
+    rewrite /fill.
+    assert (setT (T:=ectx* _) = \bigcup_n  (list_length_cov n `*` setT)) as ->.
+    { rewrite eqEsubset; split; intros [l s]; simpl; last done.
+      intros _.
+      exists (length l); first done.
+      simpl. split; last done. apply: list_length_cov_length'.
+    }
+    apply measurable_fun_bigcup.
+    { intros. ms_solve. apply list_length_cov_meas_set. }
+    intros n; induction n as [|n IHn].
+    { simpl. apply: (mathcomp_measurable_fun_ext _ _ (snd)).
+      - ms_solve. apply list_length_cov_meas_set.
+      - apply: measurable_snd_restriction.
+        ms_solve. apply list_length_cov_meas_set.
+      - rewrite list_length_cov_0/list_cov_empty. intros []. simpl. by intros [->].
+    }
+    apply: (mathcomp_measurable_fun_ext _ _ ((λ K : list (ectx_item Λ) * expr Λ,
+                                                foldl (λ e' (k : ectx_item Λ), fill_item (k, e')) K.2 K.1) \o (𝜋_cons_vs \o fst △ (fill_item \o (𝜋_cons_v \o fst △ snd))))).
+    - ms_solve. apply list_length_cov_meas_set.
+    - apply: measurable_comp; [| |apply:IHn |].
+      + ms_solve. apply list_length_cov_meas_set.
+      + rewrite list_length_cov_Sn. intros [l s]. rewrite /list_cov_cons.
+        simpl.
+        intros [[][[[?[]]]]]; simpl in *; subst; simpl in *; simplify_eq. naive_solver.
+      + mf_prod.
+        * ms_solve. apply list_length_cov_meas_set.
+        * apply: measurable_comp; [| |apply:𝜋_cons_vs_meas_fun|].
+          -- apply list_cov_cons_meas_set.
+          -- rewrite list_length_cov_Sn. intros ?. simpl. intros [?[[]]]; by subst.
+          -- apply: measurable_fst_restriction. idtac...
+        * apply: measurable_compT.
+          -- ms_solve. apply list_length_cov_meas_set.
+          -- apply fill_item_meas.
+          -- mf_prod; last apply: measurable_snd_restriction.
+             ++ idtac...
+             ++ apply:  measurable_comp; last apply: measurable_fst_restriction; last first.
+                ** idtac...
+                ** apply 𝜋_cons_v_meas_fun.
+                ** rewrite list_length_cov_Sn. intros ?. simpl.
+                   intros [[][[]]]; by subst.
+                ** apply list_cov_cons_meas_set.
+             ++ idtac...
+    - rewrite list_length_cov_Sn. intros []. simpl. rewrite /list_cov_cons/=.
+      intros [[[?[]]]]; by subst.
+  Qed. 
   Hint Resolve fill_measurable : measlang.
 
 
