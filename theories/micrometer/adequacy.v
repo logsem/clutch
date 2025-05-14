@@ -85,7 +85,7 @@ Section adequacy.
     { repeat destroy_mathcomp. by apply cond_nonneg.  }
   Qed.
 
-  Lemma wp_adequacy_step_fupdN ε e e' σ σ' n φ :
+  Lemma wp_adequacy_step_fupdN ε (e e' : (meas_lang.language.exprT meas_lang)) (σ σ' : (meas_lang.language.stateT meas_lang)) n φ :
     state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε ∗
     WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜ARcoupl_meas (@exec (language.meas_lang_markov meas_lang) n (e, σ)) (@lim_exec (language.meas_lang_markov meas_lang) (e', σ')) φ 0 (EFin $ nonneg $ ε)⌝.
@@ -127,19 +127,16 @@ Section adequacy.
     rewrite -step_fupdN_Sn.
     iApply (step_fupdN_mono _ _ _ ⌜_⌝).
     { iPureIntro. intros.
-      eapply ARcoupl_erasure_erasable_exp_lhs.
+      (* Need to stop blowing up goal 3 somehow *)
+      eapply (@ARcoupl_erasure_erasable_exp_lhs _ _ X2 _ φ ); last done.
       2: { by apply H. }
       1: { by apply cond_nonneg. }
       3: { by apply H2. }
-      all: clear H3.
-      (*
-      3: { by apply H2. }
-      3: { simpl. admit. }
-       *)
-      all: admit.
-      (* eapply ARcoupl_erasure_erasable_exp_lhs; [..|done]; eauto. *)
-  Admitted.
-(*
+      2: { simpl. move=>?. split.
+           { simpl. eauto. }
+           { apply H0. } }
+      1: { admit. }
+    }
     iIntros (e2 σ3 e3' σ3' HR).
     iMod ("Hcnt" with "[//]") as "Hcnt".
     clear.
@@ -147,8 +144,7 @@ Section adequacy.
     iApply (wp_adequacy_spec_coupl with "Hcnt").
     iIntros (σ4 e4' σ4' ε) ">(Hσ & Hs & Hε & Hcnt)".
     iApply ("IH" with "Hσ Hs Hε Hcnt").
-  Qed.
-  *)
+  Admitted.
 End adequacy.
 
 Lemma wp_adequacy_exec_n Σ `{!micrometerGpreS Σ} e e' σ σ' n φ (ε : R) :

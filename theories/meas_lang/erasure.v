@@ -721,9 +721,13 @@ Qed. *)
 
 (* Something funky going on here, big expansion of the term that is breaking the adequacy proof *)
 
-Lemma ARcoupl_erasure_erasable_exp_lhs (ε1 : R) (μ1' : giryM (meas_lang.language.state meas_lang)) (E2 : _ → R) R Φ e1 e1' σ1 σ1' ε r n m :
+Lemma ARcoupl_erasure_erasable_exp_lhs (ε1 : R) (μ1' : giryM (meas_lang.language.state meas_lang))
+  (E2 : (toPackedType _ ((meas_lang.language.exprT meas_lang) * (meas_lang.language.stateT meas_lang))%type) → R)
+  (R : (toPackedType _ ((meas_lang.language.exprT meas_lang) * (meas_lang.language.stateT meas_lang))%type) → mstate (meas_lang_markov meas_lang) → Prop)
+  Φ (e1 e1' : toPackedType _ (meas_lang.language.exprT meas_lang))
+  (σ1 σ1' : toPackedType _ (meas_lang.language.stateT meas_lang)) ε r n m :
   0 <= ε1 →
-  ARcoupl_meas (prim_step (toPacked (e1, σ1))) (gBind' (pexec m \o pair e1' \o ofPacked) μ1') R (0)%R (EFin ε1) ->
+  ARcoupl_meas (prim_step (toPacked (e1, σ1))) (gBind' (pexec m \o pair e1') μ1') R (0)%R (EFin ε1) ->
   (le_ereal (EFin ε1 + \int[prim_step (e1, σ1)]_ρ (EFin (E2 ρ)))) (EFin ε) →
   (∀ ρ, (0 <= E2 ρ <= r)%R) →
   erasable μ1' σ1' →
@@ -731,8 +735,10 @@ Lemma ARcoupl_erasure_erasable_exp_lhs (ε1 : R) (μ1' : giryM (meas_lang.langua
                     ARcoupl_meas (exec n (e2, σ2)) (lim_exec (e2', σ2')) Φ (0)%R (EFin (E2 (e2, σ2)))) →
   ARcoupl_meas (gBind' (exec n) (prim_step (e1, σ1))) (lim_exec (e1', σ1')) Φ (0)%R (EFin ε).
 Proof.
+  simpl.
   intros Hε Hcoupl Hle Hb Hμ1' Hcont.
 Admitted.
+
 (*
   rewrite -(erasable_pexec_lim_exec μ1' m) //.
   eapply ARcoupl_mon_grading; [done|].
