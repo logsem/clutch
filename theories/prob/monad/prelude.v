@@ -8,7 +8,7 @@ From Coq Require Import Reals.
 Require Import mathcomp.reals_stdlib.Rstruct.
 Require Import mathcomp.reals.reals.
 
-Global Set Bullet Behavior "Strict Subproofs".
+(* Global Set Bullet Behavior "Strict Subproofs". *)
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
