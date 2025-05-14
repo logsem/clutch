@@ -252,12 +252,12 @@ Section ectx_language.
   (** FIXME: What a strange little measurability proof. *)
   (* Definition prim_step : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type := *)
   (*   gMap' (fill_liftU \o (fst \o decomp \o fst △ id)) \o head_step \o ((snd \o decomp \o fst) △ snd). *)
-  Definition prim_step : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type :=
+  Definition prim_step : (toPackedType _ (exprT Λ * stateT Λ)%type) -> giryM (toPackedType _ (exprT Λ * stateT Λ)%type) :=
     λ '(e, σ),
       let '(K, e') := decomp e in
       gMap' (fill_lift K) (head_step (e', σ)). 
 
-  Definition prim_step' : (expr Λ * state Λ)%type -> giryM (expr Λ * state Λ)%type :=
+  Definition prim_step' : (toPackedType _ (exprT Λ * stateT Λ)%type) -> giryM (toPackedType _ (exprT Λ * stateT Λ)%type) :=
     gMap' fill_liftU \o
     (gProd \o (gRet \o fst △ (head_step \o snd)) \o (fst \o decomp \o fst △ (snd \o decomp \o fst △ snd))).
 
@@ -419,9 +419,11 @@ Section ectx_language.
     destruct (head_ctx_step_val _ _ _ Hred) as [| ->].
     - assert (K = empty_ectx) as -> by eauto using decomp_val_empty.
       rewrite fill_lift_empty fill_empty.
-      apply gMap'_id. 
+      rewrite gMap'_id.
+      reflexivity.
     - rewrite fill_lift_empty fill_empty.
-      apply gMap'_id. 
+      rewrite gMap'_id.
+      reflexivity.
   Qed.
 
   (*

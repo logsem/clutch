@@ -719,9 +719,7 @@ Admitted.
   by eapply Hcont.
 Qed. *)
 
-(*
-
-(* Something funky going on with prim_step here *)
+(* Something funky going on here, big expansion of the term that is breaking the adequacy proof *)
 
 Lemma ARcoupl_erasure_erasable_exp_lhs (ε1 : R) (μ1' : giryM (meas_lang.language.state meas_lang)) (E2 : _ → R) R Φ e1 e1' σ1 σ1' ε r n m :
   0 <= ε1 →
@@ -741,5 +739,4 @@ Admitted.
   eapply (ARcoupl_dbind_adv_lhs' E2); [done|eauto|done| |done].
   intros [] [] ?. by eapply Hcont.
 Qed.
-*)
 *)

@@ -60,7 +60,7 @@ Section adequacy.
   Qed.
 
   Lemma wp_adequacy_val_fupd (e : measure.Measurable.sort (meas_lang.language.expr meas_lang)) e'
-    σ σ' n φ v ε :
+    (σ σ' : stateT _) n φ v ε :
     fill.to_val e = Some v ->
     state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε ∗
     WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
@@ -127,19 +127,15 @@ Section adequacy.
     rewrite -step_fupdN_Sn.
     iApply (step_fupdN_mono _ _ _ ⌜_⌝).
     { iPureIntro. intros.
-      (*
       eapply ARcoupl_erasure_erasable_exp_lhs.
       2: { by apply H. }
       1: { by apply cond_nonneg. }
       3: { by apply H2. }
-      eapply ARcoupl_erasure_erasable_exp_lhs.
-      3: { simpl in *. admit.  }
-      3: { done. }
-      1: { done. }
       all: clear H3.
+      (*
       3: { by apply H2. }
       3: { simpl. admit. }
-*)
+       *)
       all: admit.
       (* eapply ARcoupl_erasure_erasable_exp_lhs; [..|done]; eauto. *)
   Admitted.
