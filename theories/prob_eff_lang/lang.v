@@ -62,6 +62,9 @@ with val :=
   | InjLV (v : val)
   | InjRV (v : val)
   | Cont (k : list ectx_item)
+(* with ectx :=
+     | EmptyCtx
+     | ConsCtx (ki : ectx_item) (k : ectx) *)
 with ectx_item :=
   | AppLCtx (v2 : val)
   | AppRCtx (e1 : expr)
@@ -92,6 +95,8 @@ with ectx_item :=
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
+Definition ectx := list ectx_item.
+
 Notation of_val := Val (only parsing).
 
 Definition to_val (e : expr) : option val :=
@@ -99,6 +104,12 @@ Definition to_val (e : expr) : option val :=
   | Val v => Some v
   | _ => None
   end.
+
+Definition to_eff (e : expr) : option (val * ectx) :=
+  match e with
+  | Eff v k => Some (v, k)
+  | _ => None
+  end. 
 
 (** We assume the following encoding of values to 64-bit words: The least 3
 significant bits of every word are a "tag", and we have 61 bits of payload,
@@ -234,6 +245,17 @@ Proof.
      | Cont k, Cont k' => cast_if (decide (k = k')) 
      | _, _ => right _
      end
+       with goectx (k1 k2 : ectx) {struct k1} : Decision (k1 = k2) := (* Something goes wrong here *)
+       (* match k1, k2 with
+          | EmptyCtx, EmptyCtx => left _
+          | ConsCtx ki1 k1, ConsCtx ki2 k2 => cast_if_and (decide (ki1 = ki2)) (decide (k1 = k2))
+          | _, _ => right _
+          end  *)
+      match k1, k2 with
+      | [], [] => left _
+      | ki1 :: k1', ki2 :: k2' => cast_if_and (decide (k1' = k2')) (decide (ki1 = ki2))
+      | _, _ => right _
+      end
    with goectxi (ki1 ki2 : ectx_item) {struct ki1} : Decision (ki1 = ki2) :=
      match ki1, ki2 with
      | AppLCtx v1, AppLCtx v2 => cast_if (decide (v1 = v2))
@@ -262,20 +284,18 @@ Proof.
      | TryWithCtx e1 e2, TryWithCtx e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | _, _ => right _
      end
-   with goectx (k1 k2 : list ectx_item) {struct k1} : Decision (k1 = k2) :=
-     match k1, k2 with
-     | [], [] => left _
-     | ki1 :: k1', ki2 :: k2' => cast_if_and (decide (ki1 = ki2)) (decide (k1' = k2'))
-     | _, _ => right _
-     end 
-   for go); try (clear go gov; abstract intuition congruence). 
+   (*  *)
+       for go); try (clear go gov goectx goectxi; abstract intuition congruence). Admitted. 
 
 Global Instance val_eq_dec : EqDecision val.
-Admitted.
-(* Proof. solve_decision. Defined. *)
+Proof.
+  intros ??. case (expr_eq_dec (Val x) (Val y)).
+  - intros [= ->]. by left.
+  - right. by intros ->.
+Qed.
+
 Global Instance state_eq_dec : EqDecision state.
 Proof. solve_decision. Defined.
-(* Add decidability of ectx *)
 
 Global Instance base_lit_countable : Countable base_lit.
 Proof.
@@ -310,84 +330,176 @@ Proof.
   | 10 => LeOp | 11 => LtOp | 12 => EqOp | _ => OffsetOp
   end) _); by intros [].
 Qed.
-Global Instance expr_countable : Countable expr. Admitted.
-(* Proof.
-    set (enc :=
-      fix go e :=
-        match e with
-        | Val v => GenNode 0 [gov v]
-        | Var x => GenLeaf (inl (inl x))
-        | Rec f x e => GenNode 1 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); go e]
-        | App e1 e2 => GenNode 2 [go e1; go e2]
-        | UnOp op e => GenNode 3 [GenLeaf (inr (inr (inl op))); go e]
-        | BinOp op e1 e2 => GenNode 4 [GenLeaf (inr (inr (inr op))); go e1; go e2]
-        | If e0 e1 e2 => GenNode 5 [go e0; go e1; go e2]
-        | Pair e1 e2 => GenNode 6 [go e1; go e2]
-        | Fst e => GenNode 7 [go e]
-        | Snd e => GenNode 8 [go e]
-        | InjL e => GenNode 9 [go e]
-        | InjR e => GenNode 10 [go e]
-        | Case e0 e1 e2 => GenNode 11 [go e0; go e1; go e2]
-        | AllocN e1 e2 => GenNode 12 [go e1; go e2]
-        | Load e => GenNode 13 [go e]
-        | Store e1 e2 => GenNode 14 [go e1; go e2]
-        | AllocTape e => GenNode 15 [go e]
-        | Rand e1 e2 => GenNode 16 [go e1; go e2]
-        | Tick e => GenNode 17 [go e]
-        | Do e => GenNode 18 [go e]
-        | Eff e k => (* I don't know how to do this *)
-        | TryWith e1 e2 e3 => GenNode 20 [go e1; go e2; go e3]
-        end
-      with gov v :=
-        match v with
-        | LitV l => GenLeaf (inr (inl l))
-        | RecV f x e =>
-           GenNode 0 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); go e]
-        | PairV v1 v2 => GenNode 1 [gov v1; gov v2]
-        | InjLV v => GenNode 2 [gov v]
-        | InjRV v => GenNode 3 [gov v]
-        end
-      for go).
-    set (dec :=
-      fix go e :=
-        match e with
-        | GenNode 0 [v] => Val (gov v)
-        | GenLeaf (inl (inl x)) => Var x
-        | GenNode 1 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); e] => Rec f x (go e)
-        | GenNode 2 [e1; e2] => App (go e1) (go e2)
-        | GenNode 3 [GenLeaf (inr (inr (inl op))); e] => UnOp op (go e)
-        | GenNode 4 [GenLeaf (inr (inr (inr op))); e1; e2] => BinOp op (go e1) (go e2)
-        | GenNode 5 [e0; e1; e2] => If (go e0) (go e1) (go e2)
-        | GenNode 6 [e1; e2] => Pair (go e1) (go e2)
-        | GenNode 7 [e] => Fst (go e)
-        | GenNode 8 [e] => Snd (go e)
-        | GenNode 9 [e] => InjL (go e)
-        | GenNode 10 [e] => InjR (go e)
-        | GenNode 11 [e0; e1; e2] => Case (go e0) (go e1) (go e2)
-        | GenNode 12 [e1 ; e2] => AllocN (go e1) (go e2)
-        | GenNode 13 [e] => Load (go e)
-        | GenNode 14 [e1; e2] => Store (go e1) (go e2)
-        | GenNode 15 [e] => AllocTape (go e)
-        | GenNode 16 [e1; e2] => Rand (go e1) (go e2)
-        | GenNode 17 [e] => Tick (go e)
-        | _ => Val $ LitV LitUnit (* dummy *)
-        end
-      with gov v :=
-        match v with
-        | GenLeaf (inr (inl l)) => LitV l
-        | GenNode 0 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); e] => RecV f x (go e)
-        | GenNode 1 [v1; v2] => PairV (gov v1) (gov v2)
-        | GenNode 2 [v] => InjLV (gov v)
-        | GenNode 3 [v] => InjRV (gov v)
-        | _ => LitV LitUnit (* dummy *)
-        end
-      for go).
-    refine (inj_countable' enc dec _).
-    refine (fix go (e : expr) {struct e} := _ with gov (v : val) {struct v} := _ for go).
-    - destruct e as [v| | | | | | | | | | | | | | | | | | ]; simpl; f_equal;
-        [exact (gov v)|done..].
-    - destruct v; by f_equal.
-   Qed. *)
+Global Instance expr_countable : Countable expr.
+Proof.
+    (* set (enc :=
+         fix go e :=
+           match e with
+           | Val v => GenNode 0 [gov v]
+           | Var x => GenLeaf (inl (inl x))
+           | Rec f x e => GenNode 1 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); go e]
+           | App e1 e2 => GenNode 2 [go e1; go e2]
+           | UnOp op e => GenNode 3 [GenLeaf (inr (inr (inl op))); go e]
+           | BinOp op e1 e2 => GenNode 4 [GenLeaf (inr (inr (inr op))); go e1; go e2]
+           | If e0 e1 e2 => GenNode 5 [go e0; go e1; go e2]
+           | Pair e1 e2 => GenNode 6 [go e1; go e2]
+           | Fst e => GenNode 7 [go e]
+           | Snd e => GenNode 8 [go e]
+           | InjL e => GenNode 9 [go e]
+           | InjR e => GenNode 10 [go e]
+           | Case e0 e1 e2 => GenNode 11 [go e0; go e1; go e2]
+           | AllocN e1 e2 => GenNode 12 [go e1; go e2]
+           | Load e => GenNode 13 [go e]
+           | Store e1 e2 => GenNode 14 [go e1; go e2]
+           | AllocTape e => GenNode 15 [go e]
+           | Rand e1 e2 => GenNode 16 [go e1; go e2]
+           | Tick e => GenNode 17 [go e]
+           | Do e => GenNode 18 [go e]
+           | Eff v k => GenNode 19 [gov v; goectx k]
+           | TryWith e1 e2 e3 => GenNode 20 [go e1; go e2; go e3]
+           end
+         with gov v :=
+           match v with
+           | LitV l => GenLeaf (inr (inl l))
+           | RecV f x e =>
+              GenNode 0 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); go e]
+           | PairV v1 v2 => GenNode 1 [gov v1; gov v2]
+           | InjLV v' => GenNode 2 [gov v']
+           | InjRV v' => GenNode 3 [gov v']
+           | Cont k => GenNode 4 [goectx k]
+           end
+       
+            (* with goectx k :=
+             match k with
+                | EmptyCtx => GenNode 0 []
+                | ConsCtx ki k => GenNode 1 [goectxi ki; goectx k]
+                end *)
+       
+         with goectx k :=
+           match k with
+           | [] => GenNode 0 []
+           | ki :: k => GenNode 1 [goectxi ki; goectx k]
+           end
+       
+         with goectxi ki :=
+           match ki with
+           | AppLCtx v2 => GenNode 0 [gov v2]
+           | AppRCtx e1 => GenNode 1 [go e1]
+           | DoCtx =>  GenNode 2 []
+           | TryWithCtx e2 e3 => GenNode 3 [go e2; go e3]
+           | UnOpCtx op => GenNode 4 [GenLeaf (inr (inr (inl op)))]
+           | BinOpLCtx op v2 => GenNode 5 [GenLeaf (inr (inr (inr op))); gov v2]
+           | BinOpRCtx op e1 => GenNode 6 [GenLeaf (inr (inr (inr op))); go e1]
+           | IfCtx e1 e2 => GenNode 7 [go e1; go e2]
+           | PairLCtx v2 => GenNode 8 [gov v2]
+           | PairRCtx e1 => GenNode 9 [go e1]
+           | FstCtx => GenNode 10 []
+           | SndCtx => GenNode 11 []
+           | InjLCtx => GenNode 12 []
+           | InjRCtx => GenNode 13 []
+           | CaseCtx e1 e2 => GenNode 14 [go e1; go e2]
+           | AllocNLCtx v => GenNode 15 [gov v]
+           | AllocNRCtx e => GenNode 16 [go e]
+           | LoadCtx => GenNode 17 []
+           | StoreLCtx v2 => GenNode 18 [gov v2]
+           | StoreRCtx e1 => GenNode 19 [go e1]
+           | AllocTapeCtx => GenNode 20 []
+           | RandLCtx v => GenNode 21 [gov v]
+           | RandRCtx e => GenNode 22 [go e]
+           | TickCtx => GenNode 23 []
+           end
+       
+             
+         for go).
+       set (dec :=
+         fix go e :=
+           match e with
+           | GenNode 0 [v] => Val (gov v)
+           | GenLeaf (inl (inl x)) => Var x
+           | GenNode 1 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); e] => Rec f x (go e)
+           | GenNode 2 [e1; e2] => App (go e1) (go e2)
+           | GenNode 3 [GenLeaf (inr (inr (inl op))); e] => UnOp op (go e)
+           | GenNode 4 [GenLeaf (inr (inr (inr op))); e1; e2] => BinOp op (go e1) (go e2)
+           | GenNode 5 [e0; e1; e2] => If (go e0) (go e1) (go e2)
+           | GenNode 6 [e1; e2] => Pair (go e1) (go e2)
+           | GenNode 7 [e] => Fst (go e)
+           | GenNode 8 [e] => Snd (go e)
+           | GenNode 9 [e] => InjL (go e)
+           | GenNode 10 [e] => InjR (go e)
+           | GenNode 11 [e0; e1; e2] => Case (go e0) (go e1) (go e2)
+           | GenNode 12 [e1 ; e2] => AllocN (go e1) (go e2)
+           | GenNode 13 [e] => Load (go e)
+           | GenNode 14 [e1; e2] => Store (go e1) (go e2)
+           | GenNode 15 [e] => AllocTape (go e)
+           | GenNode 16 [e1; e2] => Rand (go e1) (go e2)
+           | GenNode 17 [e] => Tick (go e)
+           | GenNode 18 [e] => Do (go e)
+           | GenNode 19 [v ; k] => Eff (gov v) (goectx k)
+           | GenNode 20 [e1; e2; e3] => TryWith (go e1) (go e2) (go e3)
+           | _ => Val $ LitV LitUnit (* dummy *)
+           end
+         with gov v :=
+           match v with
+           | GenLeaf (inr (inl l)) => LitV l
+           | GenNode 0 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); e] => RecV f x (go e)
+           | GenNode 1 [v1; v2] => PairV (gov v1) (gov v2)
+           | GenNode 2 [v'] => InjLV (gov v')
+           | GenNode 3 [v'] => InjRV (gov v')
+           | GenNode 4 [k] => Cont (goectx k)
+           | _ => LitV LitUnit (* dummy *)
+           end
+             with goectx k :=
+           (* match k with
+              | GenNode 0 _ => EmptyCtx
+              | GenNode 1 [ki; k] => ConsCtx (goectxi ki) (goectx k)
+              | _ => EmptyCtx (* dummy *)
+              end *)
+         with goectx k :=
+           match k with
+           | GenNode 0 _ => []
+           | GenNode 1 [ki; k] => (goectxi ki) :: (goectx k)
+           | _ => [] (* dummy *)
+           end
+         with goectxi ki :=
+           match ki with
+           | GenNode 0 [v] => AppLCtx (gov v)
+           | GenNode 1 [e] => AppRCtx (go e)
+           | GenNode 2 [] => DoCtx
+           | GenNode 3 [e1; e2] => TryWithCtx (go e1) (go e2)
+           | GenNode 4 [GenLeaf (inr (inr (inl op)))] => UnOpCtx op
+           | GenNode 5 [GenLeaf (inr (inr (inr op))); v] => BinOpLCtx op (gov v)
+           | GenNode 6 [GenLeaf (inr (inr (inr op))); e] => BinOpRCtx op (go e)
+           | GenNode 7 [e1; e2] => IfCtx (go e1) (go e2)
+           | GenNode 8 [v] => PairLCtx (gov v)
+           | GenNode 9 [e] => PairRCtx (go e)
+           | GenNode 10 [] => FstCtx
+           | GenNode 11 [] => SndCtx
+           | GenNode 12 [] => InjLCtx
+           | GenNode 13 [] => InjRCtx
+           | GenNode 14 [e1; e2] => CaseCtx (go e1) (go e2)
+           | GenNode 15 [v] => AllocNLCtx (gov v)
+           | GenNode 16 [e] => AllocNRCtx (go e)
+           | GenNode 17 [] => LoadCtx
+           | GenNode 18 [v] => StoreLCtx (gov v)
+           | GenNode 19 [e] => StoreRCtx (go e)
+           | GenNode 20 [] => AllocTapeCtx 
+           | GenNode 21 [v] => RandLCtx (gov v)
+           | GenNode 22 [e] => RandRCtx (go e)
+           | GenNode 23 [] => TickCtx
+           | _ => DoCtx (* dummy *)
+           end 
+         for go).
+       refine (inj_countable' enc dec _).
+       refine (fix  go      (e  : expr)      {struct e}  := _
+             with gov            (v  : val)       {struct v}  := _
+             with goectx         (k  : ectx)      {struct k}  := _
+             with goectxi        (ki : ectx_item) {struct ki} := _ for go).
+       - destruct e as [v| | | | | | | | | | | | | | | | | | | | |  ]; simpl; f_equal;
+           [exact (gov v)| try done.. ]; exact (goectx k).
+       - exact (gov v); f_equal.
+       - destruct k as [|ki k]; simpl; f_equal; try done; exact (goectxi ki).
+       - destruct ki; by f_equal. *)
+      Admitted. 
 Global Instance val_countable : Countable val.
 Proof. refine (inj_countable of_val to_val _); auto using to_of_val. Qed.
 Global Program Instance state_countable : Countable state :=
@@ -405,30 +517,7 @@ Canonical Structure locO := leibnizO loc.
 Canonical Structure valO := leibnizO val.
 Canonical Structure exprO := leibnizO expr.
 
-(** Evaluation contexts 
-Inductive ectx_item :=
-  | AppLCtx (v2 : val)
-  | AppRCtx (e1 : expr)
-  | UnOpCtx (op : un_op)
-  | BinOpLCtx (op : bin_op) (v2 : val)
-  | BinOpRCtx (op : bin_op) (e1 : expr)
-  | IfCtx (e1 e2 : expr)
-  | PairLCtx (v2 : val)
-  | PairRCtx (e1 : expr)
-  | FstCtx
-  | SndCtx
-  | InjLCtx
-  | InjRCtx
-  | CaseCtx (e1 : expr) (e2 : expr)
-  | AllocNLCtx (v2 : val)
-  | AllocNRCtx (e1 : expr)
-  | LoadCtx
-  | StoreLCtx (v2 : val)
-  | StoreRCtx (e1 : expr)
-  | AllocTapeCtx
-  | RandLCtx (v2 : val)
-  | RandRCtx (e1 : expr)
-  | TickCtx. *)
+
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   match Ki with
@@ -458,9 +547,15 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | TryWithCtx e1 e2 => TryWith e e1 e2
   end.
 
-Notation ectx := (list (ectx_item)).
 
-Definition fill (K : ectx) (e : expr) : expr := foldl (flip fill_item) e K.
+
+Fixpoint fill (K : ectx) (e : expr) : expr :=   foldl (flip fill_item) e K.
+  (* match K with
+     | EmptyCtx => e
+     | ConsCtx ki k => fill_item ki (fill k e)
+     end. *)
+      
+
 
 Definition decomp_item (e : expr) : option (ectx_item * expr) :=
   let noval (e : expr) (ei : ectx_item) :=
@@ -812,11 +907,35 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
       | None => dzero
       end
   | Tick (Val (LitV (LitInt n))) => dret (Val $ LitV $ LitUnit, σ1)
+  (* | Do (Val v) => dret (Eff v EmptyCtx, σ1) *)
   | Do (Val v) => dret (Eff v [], σ1)
   | TryWith (Val v) h r => dret (App r (Val v), σ1)
   | TryWith (Eff v k) h r => dret (App (App h (Val v)) (Val (Cont k)), σ1)
   | App (Val (Cont k)) (Val v) => dret (fill k (Val v), σ1)
   (* Eff v k eating up the context *)
+  (* | App (Eff v1 k) (Val v2) => dret (Eff v1 (ConsCtx (AppLCtx v2) k), σ1)
+     | App e (Eff v k) => dret (Eff v (ConsCtx (AppRCtx e) k), σ1)
+     | UnOp op (Eff v k) => dret (Eff v (ConsCtx (UnOpCtx op) k), σ1)
+     | BinOp op (Eff v1 k) (Val v2) => dret (Eff v1 (ConsCtx (BinOpLCtx op v2) k), σ1)
+     | BinOp op e (Eff v k) => dret (Eff v (ConsCtx (BinOpRCtx op e) k), σ1)
+     | If (Eff v k) e1 e2 => dret (Eff v (ConsCtx(IfCtx e1 e2) k), σ1)
+     | Pair (Eff v1 k) (Val v2) => dret (Eff v1 (ConsCtx (PairLCtx v2) k), σ1)
+     | Pair e (Eff v k) => dret (Eff v (ConsCtx (PairRCtx e) k), σ1)
+     | Fst (Eff v k) => dret (Eff v (ConsCtx FstCtx k), σ1)
+     | Snd (Eff v k) => dret (Eff v (ConsCtx SndCtx k), σ1)
+     | InjL (Eff v k) => dret (Eff v (ConsCtx InjLCtx k), σ1)
+     | InjR (Eff v k) => dret (Eff v (ConsCtx InjRCtx k), σ1)
+     | Case (Eff v k) e1 e2 => dret (Eff v (ConsCtx (CaseCtx e1 e2) k), σ1)
+     | AllocN (Eff v1 k) (Val v2) => dret (Eff v1 (ConsCtx (AllocNLCtx v2) k), σ1)
+     | AllocN e (Eff v k) => dret (Eff v (ConsCtx (AllocNRCtx e) k), σ1)
+     | Load (Eff v k) => dret (Eff v (ConsCtx LoadCtx k), σ1)
+     | Store (Eff v1 k) (Val v2) => dret (Eff v1 (ConsCtx (StoreLCtx v2) k), σ1)
+     | Store e (Eff v k) => dret (Eff v (ConsCtx (StoreRCtx e) k), σ1)
+     | AllocTape (Eff v k) => dret (Eff v (ConsCtx AllocTapeCtx k), σ1)
+     | Rand (Eff v1 k) (Val v2) => dret (Eff v1 (ConsCtx (RandLCtx v2) k), σ1)
+     | Rand e (Eff v k) => dret (Eff v (ConsCtx (RandRCtx e) k), σ1)
+     | Tick (Eff v k) => dret (Eff v (ConsCtx TickCtx k), σ1)
+     | Do (Eff v k) => dret (Eff v (ConsCtx DoCtx k), σ1) *)
   | App (Eff v1 k) (Val v2) => dret (Eff v1 ((AppLCtx v2)::k), σ1)
   | App e (Eff v k) => dret (Eff v ((AppRCtx e) :: k), σ1)
   | UnOp op (Eff v k) => dret (Eff v ((UnOpCtx op)::k), σ1)
@@ -871,14 +990,23 @@ Proof. intros [v ?]. induction Ki; simplify_option_eq; eauto. Qed.
 Lemma val_head_stuck e σ ρ :
   head_step e σ ρ > 0 → to_val e = None.
 Proof. destruct ρ, e; [|done..]. rewrite /pmf /=. lra. Qed.
+(* The following lemma doens't hold any longer, since Eff v N is not a value, but do take computional steps
 Lemma head_ctx_step_val Ki e σ ρ :
-  head_step (fill_item Ki e) σ ρ > 0 → is_Some (to_val e).
-(* Proof.
+     head_step (fill_item Ki e) σ ρ > 0 → is_Some (to_val e).
+   Proof.
      destruct ρ, Ki ;
        rewrite /pmf/= ;
                  repeat case_match; clear -H ; inversion H; intros; (lra || done).
-   Qed. *)
-Admitted.
+   Qed.
+However, the following modification holds. *)
+Lemma head_ctx_step_val Ki e σ ρ :
+  to_eff e = None -> 
+     head_step (fill_item Ki e) σ ρ > 0 → is_Some (to_val e).
+Proof.
+  destruct ρ, Ki ;
+              rewrite /pmf/= ;
+              repeat case_match; clear -H ; inversion H; intros; (lra || done).
+Qed. 
 
 (** A relational characterization of the support of [head_step] to make it easier to
     do inversion and prove reducibility easier c.f. lemma below *)
@@ -1083,14 +1211,20 @@ Ltac inv_head_step :=
     | H : is_Some (_ !! _) |- _ => destruct H
     end.
 
+(* TODO: Automate the proof *)
 Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
   head_step e1 σ1 (e2, σ2) > 0 ↔ head_step_rel e1 σ1 e2 σ2.
 Proof.
   split.
   - intros ?. destruct e1; inv_head_step; eauto with head_step.
-  - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr; try real_solver; admit. (* All cases should be solved *)
-    (* * destruct e0; try destruct v; rewrite dret_1_1; real_solver. *)
-Admitted.
+  - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr; try real_solver.
+    + unfold head_step; induction e0; solve_distr; destruct v; solve_distr.
+    + unfold head_step; induction e0; solve_distr; destruct v; solve_distr.
+    + unfold head_step; induction e0; solve_distr; destruct v; solve_distr.
+    + unfold head_step; induction e; solve_distr; destruct v0; solve_distr; destruct l; solve_distr.
+    + unfold head_step; induction e0; solve_distr; destruct v; solve_distr; destruct l; solve_distr.
+    + unfold head_step; induction e; solve_distr; destruct v0; solve_distr; destruct l; solve_distr.
+Qed.
 
 Lemma state_step_support_equiv_rel σ1 α σ2 :
   state_step σ1 α σ2 > 0 ↔ state_step_rel σ1 α σ2.
@@ -1240,7 +1374,7 @@ Proof.
     + rewrite lookup_insert_ne //.
       apply elem_of_dom. eapply elem_of_elements, Hact. by right.
 Qed.
-
+(* mixin_head_ctx_step_val doesn't hold with effects, since eff v k is not a value, but takes a step -- eating the context *)
 Lemma prob_lang_mixin :
   EctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step state_step get_active.
 Proof.
@@ -1248,7 +1382,7 @@ Proof.
     state_step_head_step_not_stuck, state_step_get_active_mass, head_step_mass,
     fill_item_val, fill_item_no_val_inj, head_ctx_step_val,
     decomp_fill_item, decomp_fill_item_2, expr_ord_wf, decomp_expr_ord.
-Qed.
+Admitted.
 
 End prob_lang.
 
