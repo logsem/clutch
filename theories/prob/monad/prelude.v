@@ -8,6 +8,7 @@ From Coq Require Import Reals.
 Require Import mathcomp.reals_stdlib.Rstruct.
 Require Import mathcomp.reals.reals.
 
+Global Set Bullet Behavior "Strict Subproofs".
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -306,8 +307,8 @@ Section Lib.
         rewrite H'.
         apply propext.
         split; last first.
-        - intros [H1 H2]; split; assumption.
-        - intros [H1 H2].
+        + intros [H1 H2]; split; assumption.
+        + intros [H1 H2].
           split; last assumption.
           exists t; [assumption|reflexivity].
       - rewrite (memNset H).

@@ -255,11 +255,11 @@ Section giry_cod_meas.
         apply Hbigcup; auto.
         apply Hm.
         apply Hm.
-        intros ??.
+      - intros ??.
         split; auto.
         rewrite HG //.
         apply sub_gen_smallest; auto.
-      intros ??. apply subsetT.
+      - intros ??. apply subsetT.
     }
     apply Haux.
     rewrite -HG //.

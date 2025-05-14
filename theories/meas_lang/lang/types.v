@@ -429,7 +429,7 @@ Qed.
 
 Local Lemma expr_meas_singleton_lemma x: exists2 x0 : expr_S, expr_ML x0 & expr_ST x0 = [set x].
 Proof.
-  revert x.fix FIX 1.
+  revert x. fix FIX 1.
   intros e.
   destruct e as [x|x|f x e| e1 e2| e1| e1 e2|e1 e2 e3|e1 e2|e1|e1|e1|e1|e1 e2 e3|e1|e1|e1 e2|e1|e1 e2| |e1|e1].
   - (* Val case, do destruction on x*)
@@ -594,25 +594,25 @@ Proof.
     exists (RecV x y e'); first done.
     rewrite eqEsubset; split; intros ?; simpl.
     + intros [? H2]; subst. rewrite H1 in H2. simpl in *. by subst.
-    * intros ->. rewrite H1. naive_solver.
-  + pose proof FIX v1 as [v1' ? H1].
+    + intros ->. rewrite H1. naive_solver.
+  - pose proof FIX v1 as [v1' ? H1].
     pose proof FIX v2 as [v2' ? H2].
     exists (PairV v1' v2'); first done.
     simpl. rewrite H1 H2.
     rewrite eqEsubset; split; intros ?; simpl; last (intros ->; naive_solver).
     intros [??[]]; by subst.
-  + pose proof FIX v as [v' ? H1].
+  - pose proof FIX v as [v' ? H1].
     simpl in H1.
     exists (InjLV v'); first done.
     rewrite eqEsubset; split; intros ?; simpl.
-    * intros [? H2]. subst. rewrite H1 in H2. simpl in *. by subst.
-    * intros ->. rewrite H1. naive_solver.
-  + pose proof FIX v as [v' ? H1].
+    + intros [? H2]. subst. rewrite H1 in H2. simpl in *. by subst.
+    + intros ->. rewrite H1. naive_solver.
+  - pose proof FIX v as [v' ? H1].
     simpl in H1.
     exists (InjRV v'); first done.
     rewrite eqEsubset; split; intros ?; simpl.
-    * intros [? H2]. subst. rewrite H1 in H2. simpl in *. by subst.
-    * intros ->. rewrite H1. naive_solver.
+    + intros [? H2]. subst. rewrite H1 in H2. simpl in *. by subst.
+    + intros ->. rewrite H1. naive_solver.
 Qed. 
 
 (** Constructors for expressions with the fixed and measurable base types. *)
