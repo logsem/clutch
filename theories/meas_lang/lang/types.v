@@ -404,9 +404,216 @@ Definition base_lit : measurableType base_lit_cyl.-sigma := toPackedType base_li
 Definition expr : measurableType expr_cyl.-sigma := toPackedType expr_cyl.-sigma expr_T .
 Definition val : measurableType val_cyl.-sigma := toPackedType val_cyl.-sigma val_T .
 
-Lemma base_lit_meas_singleton (b : base_lit) : measurable [set b]. Admitted.
-Lemma expr_meas_singleton (e : expr) : measurable [set e]. Admitted.
-Lemma val_meas_singleton (v : val) : measurable [set v]. Admitted.
+Lemma base_lit_meas_singleton (b : base_lit) : measurable [set b].
+Proof.
+  apply sub_sigma_algebra.
+  rewrite /base_lit_cyl/base_lit_ML/base_lit_ST/=.
+  destruct b as [n | b | | s | s | s].
+  - exists (LitInt (set1 n)).
+    + done.
+    + apply image_set1.
+  - exists (LitBool (set1 b)).
+    + done.
+    + apply image_set1.
+  - by exists (LitUnit). 
+  - exists (LitLoc (set1 s)).
+    + done.
+    + apply image_set1.
+  - exists (LitLbl (set1 s)).
+    + done.
+    + apply image_set1.
+  - exists (LitReal (set1 s)).
+    + done.
+    + apply image_set1.
+Qed.
+
+Local Lemma expr_meas_singleton_lemma x: exists2 x0 : expr_S, expr_ML x0 & expr_ST x0 = [set x].
+Proof.
+  revert x.fix FIX 1.
+  intros e.
+  destruct e as [x|x|f x e| e1 e2| e1| e1 e2|e1 e2 e3|e1 e2|e1|e1|e1|e1|e1 e2 e3|e1|e1|e1 e2|e1|e1 e2| |e1|e1].
+  - (* Val case, do destruction on x*)
+    assert (forall x, exists2 x0 : val_S, val_ML x0 & val_ST x0 = [set x]) as K.
+    { clear x.
+    fix FIX' 1.
+    intros v.
+    destruct v as [v|x y e|v1 v2|v|v].
+    + destruct v as [s | s | | s | s | s].
+      * eexists (LitV $ LitInt $ set1 s); first done.
+        rewrite eqEsubset; split; intros ?; simpl; last (intros ->; naive_solver).
+        intros [?[?[] <-]<-]; by subst.
+      * eexists (LitV $ LitBool $ set1 s); first done.
+        rewrite eqEsubset; split; intros ?; simpl; last (intros ->; naive_solver).
+        intros [?[?[] <-]<-]; by subst.
+      * eexists (LitV $ LitUnit); first done; simpl.
+        rewrite eqEsubset; split; intros ?; simpl; last (intros ->; naive_solver).
+        intros [??<-]; by subst.
+      * eexists (LitV $ LitLoc $ set1 s); first done.
+        rewrite eqEsubset; split; intros ?; simpl; last (intros ->; naive_solver).
+        intros [?[?[] <-]<-]; by subst.
+      * eexists (LitV $ LitLbl $ set1 s); first done.
+        rewrite eqEsubset; split; intros ?; simpl; last (intros ->; naive_solver).
+        intros [?[?[] <-]<-]; by subst.
+      * eexists (LitV $ LitReal $ set1 s); simpl; ms_solve.
+        rewrite eqEsubset; split; intros ?; simpl; last (intros ->; naive_solver).
+        intros [?[?[] <-]<-]; by subst.
+    + pose proof FIX e as [e' ? H1].
+      exists (RecV x y e'); first done.
+      rewrite eqEsubset; split; intros ?; simpl.
+      * intros [? H2]; subst. rewrite H1 in H2. simpl in *. by subst.
+      * intros ->. rewrite H1. naive_solver.
+    + pose proof FIX' v1 as [v1' ? H1].
+      pose proof FIX' v2 as [v2' ? H2].
+      exists (PairV v1' v2'); first done.
+      simpl. rewrite H1 H2.
+      rewrite eqEsubset; split; intros ?; simpl; last (intros ->; naive_solver).
+      intros [??[]]; by subst.
+    + pose proof FIX' v as [v' ? H1].
+      simpl in H1.
+      exists (InjLV v'); first done.
+      rewrite eqEsubset; split; intros ?; simpl.
+      * intros [? H2]. subst. rewrite H1 in H2. simpl in *. by subst.
+      * intros ->. rewrite H1. naive_solver.
+    + pose proof FIX' v as [v' ? H1].
+      simpl in H1.
+      exists (InjRV v'); first done.
+      rewrite eqEsubset; split; intros ?; simpl.
+      * intros [? H2]. subst. rewrite H1 in H2. simpl in *. by subst.
+      * intros ->. rewrite H1. naive_solver.
+    }
+    pose proof K x as [x' H1 H2].
+    exists (Val x'); first done.
+    simpl. rewrite H2. apply image_set1.
+  - exists (Var x).
+    + done.
+    + done.
+  - pose proof (FIX e) as [e' ? H].
+    exists (Rec f x e'); [done|simpl; rewrite H; apply image_set1].
+  - pose proof (FIX e1) as [e1' ? H1].
+    pose proof (FIX e2) as [e2' ? H2].
+    exists (App e1' e2'); [done|simpl; rewrite H1 H2].
+    rewrite eqEsubset; split; intros ?; simpl.
+    + by intros [? -> [? ->]].
+    + intros ->. naive_solver.
+  - pose proof (FIX e) as [e' ? H].
+    exists (UnOp e1 e'); [done|simpl; rewrite H; apply image_set1].
+  - pose proof (FIX e2) as [e1' ? H1].
+    pose proof (FIX e3) as [e2' ? H2].
+    exists (BinOp e1 e1' e2'); [done|simpl; rewrite H1 H2].
+    rewrite eqEsubset; split; intros ?; simpl.
+    + by intros [? -> [? ->]].
+    + intros ->. naive_solver.
+  - pose proof (FIX e1) as [e1' ? H1].
+    pose proof (FIX e2) as [e2' ? H2].
+    pose proof (FIX e3) as [e3' ? H3].
+    exists (If e1' e2' e3'); [done|simpl; rewrite H1 H2 H3].
+    rewrite eqEsubset; split; intros ?; simpl.
+    + by intros [? -> [? -> [? ->]]].
+    + intros ->. naive_solver.
+  - pose proof (FIX e1) as [e1' ? H1].
+    pose proof (FIX e2) as [e2' ? H2].
+    exists (Pair e1' e2'); [done|simpl; rewrite H1 H2].
+    rewrite eqEsubset; split; intros ?; simpl.
+    + by intros [? -> [? ->]].
+    + intros ->. naive_solver.
+  - pose proof (FIX e1) as [e' ? H].
+    exists (Fst e'); [done|simpl; rewrite H; apply image_set1].
+  - pose proof (FIX e1) as [e' ? H].
+    exists (Snd e'); [done|simpl; rewrite H; apply image_set1].
+  - pose proof (FIX e1) as [e' ? H].
+    exists (InjL e'); [done|simpl; rewrite H; apply image_set1].
+  - pose proof (FIX e1) as [e' ? H].
+    exists (InjR e'); [done|simpl; rewrite H; apply image_set1].
+  - pose proof (FIX e1) as [e1' ? H1].
+    pose proof (FIX e2) as [e2' ? H2].
+    pose proof (FIX e3) as [e3' ? H3].
+    exists (Case e1' e2' e3'); [done|simpl; rewrite H1 H2 H3].
+    rewrite eqEsubset; split; intros ?; simpl.
+    + by intros [? -> [? -> [? ->]]].
+    + intros ->. naive_solver.
+  - pose proof (FIX e1) as [e' ? H].
+    exists (Alloc e'); [done|simpl; rewrite H; apply image_set1].
+  - pose proof (FIX e1) as [e' ? H].
+    exists (Load e'); [done|simpl; rewrite H; apply image_set1].
+  - pose proof (FIX e1) as [e1' ? H1].
+    pose proof (FIX e2) as [e2' ? H2].
+    exists (Store e1' e2'); [done|simpl; rewrite H1 H2].
+    rewrite eqEsubset; split; intros ?; simpl.
+    + by intros [? -> [? ->]].
+    + intros ->. naive_solver.
+  - pose proof (FIX e1) as [e' ? H].
+    exists (AllocTape e'); [done|simpl; rewrite H; apply image_set1].
+  - pose proof (FIX e1) as [e1' ? H1].
+    pose proof (FIX e2) as [e2' ? H2].
+    exists (Rand e1' e2'); [done|simpl; rewrite H1 H2].
+    rewrite eqEsubset; split; intros ?; simpl.
+    + by intros [? -> [? ->]].
+    + intros ->. naive_solver.
+  - by exists AllocUTape.
+  - pose proof (FIX e1) as [e' ? H].
+    exists (URand e'); [done|simpl; rewrite H; apply image_set1].
+  - pose proof (FIX e1) as [e' ? H].
+    exists (Tick e'); [done|simpl; rewrite H; apply image_set1].
+Qed. 
+Lemma expr_meas_singleton (e : expr) : measurable [set e].
+Proof.
+  apply sub_sigma_algebra.
+  rewrite /expr_cyl/=.
+  apply expr_meas_singleton_lemma.
+Qed. 
+  
+  
+Lemma val_meas_singleton (v : val) : measurable [set v].
+Proof.
+  apply sub_sigma_algebra.
+  rewrite /val_cyl/=.
+  revert v.
+  fix FIX 1.
+  intros v.
+  destruct v as [v|x y e|v1 v2|v|v].
+  - destruct v as [s | s | | s | s | s].
+    + eexists (LitV $ LitInt $ set1 s); first done.
+      rewrite eqEsubset; split; intros ?; simpl; last (intros ->; naive_solver).
+      intros [?[?[] <-]<-]; by subst.
+    + eexists (LitV $ LitBool $ set1 s); first done.
+      rewrite eqEsubset; split; intros ?; simpl; last (intros ->; naive_solver).
+      intros [?[?[] <-]<-]; by subst.
+    + eexists (LitV $ LitUnit); first done; simpl.
+      rewrite eqEsubset; split; intros ?; simpl; last (intros ->; naive_solver).
+      intros [??<-]; by subst.
+    + eexists (LitV $ LitLoc $ set1 s); first done.
+      rewrite eqEsubset; split; intros ?; simpl; last (intros ->; naive_solver).
+      intros [?[?[] <-]<-]; by subst.
+    + eexists (LitV $ LitLbl $ set1 s); first done.
+      rewrite eqEsubset; split; intros ?; simpl; last (intros ->; naive_solver).
+      intros [?[?[] <-]<-]; by subst.
+    + eexists (LitV $ LitReal $ set1 s); simpl; ms_solve.
+      rewrite eqEsubset; split; intros ?; simpl; last (intros ->; naive_solver).
+      intros [?[?[] <-]<-]; by subst.
+  - pose proof expr_meas_singleton_lemma e as [e' ? H1].
+    exists (RecV x y e'); first done.
+    rewrite eqEsubset; split; intros ?; simpl.
+    + intros [? H2]; subst. rewrite H1 in H2. simpl in *. by subst.
+    * intros ->. rewrite H1. naive_solver.
+  + pose proof FIX v1 as [v1' ? H1].
+    pose proof FIX v2 as [v2' ? H2].
+    exists (PairV v1' v2'); first done.
+    simpl. rewrite H1 H2.
+    rewrite eqEsubset; split; intros ?; simpl; last (intros ->; naive_solver).
+    intros [??[]]; by subst.
+  + pose proof FIX v as [v' ? H1].
+    simpl in H1.
+    exists (InjLV v'); first done.
+    rewrite eqEsubset; split; intros ?; simpl.
+    * intros [? H2]. subst. rewrite H1 in H2. simpl in *. by subst.
+    * intros ->. rewrite H1. naive_solver.
+  + pose proof FIX v as [v' ? H1].
+    simpl in H1.
+    exists (InjRV v'); first done.
+    rewrite eqEsubset; split; intros ?; simpl.
+    * intros [? H2]. subst. rewrite H1 in H2. simpl in *. by subst.
+    * intros ->. rewrite H1. naive_solver.
+Qed. 
 
 (** Constructors for expressions with the fixed and measurable base types. *)
 Definition LitIntC   : <<discr Z>> ->  base_lit                         := LitInt.
