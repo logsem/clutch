@@ -1037,6 +1037,70 @@ Section list.
       apply: list_cov_cons_meas_set.
   Qed. 
   Hint Resolve list_length_cov_meas_set : measlang.
+
+  Definition appU {d1} {T:measurableType d1} : (list T * list T) %type -> list T := uncurry List.app.
+
+  Lemma app_meas_fun {d1} {T : measurableType d1} : measurable_fun setT (appU : (list T * list T)%type -> list T).
+  Proof with (apply measurableX; try done; apply: list_length_cov_meas_set).
+    simpl.
+    assert (setT (T:=seq T* _) = \bigcup_n  (list_length_cov n `*` setT)) as ->.
+    { rewrite eqEsubset; split; intros [l s]; simpl; last done.
+      intros _.
+      exists (length l); first done.
+      simpl. split; last done. apply: list_length_cov_length'.
+    }
+    apply measurable_fun_bigcup.
+    { intros... }
+    intros n.
+    induction n as [|n IHn].
+    { simpl. apply: (mathcomp_measurable_fun_ext _ _ (snd)).
+      - idtac... 
+      - apply: measurable_snd_restriction.
+        idtac...
+      - rewrite list_length_cov_0/list_cov_empty. intros []. simpl. by intros [->]. }
+    apply: (mathcomp_measurable_fun_ext _ _ (consU \o (𝜋_cons_v \o fst △ appU \o snd) \o (fst △ (𝜋_cons_vs\o fst△snd)))).
+    { idtac... }
+    2:{ simpl. intros [x y].
+        simpl.
+        intros [H1 _].
+        apply list_length_cov_length in H1 as H2.
+        destruct x; [(simpl in *; lia)|done].
+    }
+    apply: measurable_comp; last first.
+    { apply: @measurable_fun_prod'.
+      - idtac...
+      - apply: measurable_fst_restriction...
+      - apply: measurable_fun_prod'.
+        + idtac...
+        + apply: measurable_comp; last first.
+          * apply: measurable_fst_restriction...
+          * apply 𝜋_cons_vs_meas_fun.
+          * intros ?. simpl.
+            intros [[] [H]]. simpl in *. subst.
+            rewrite /list_cov_cons. simpl.
+            apply list_length_cov_length in H. destruct t; last naive_solver.
+            simpl in *. lia.
+          * eauto with measlang.
+        + apply: measurable_snd_restriction...
+    }
+    (* do second goal first *)
+    Admitted.
+    (* { apply: measurable_comp; [| |eauto with measlang|]; try done. *)
+    (*   apply: measurable_fun_prod'; last first. *)
+    (*   - apply: measurable_comp; [| |eauto with measlang|]. *)
+    (*     4: { apply: measurable_comp; [| |eauto with measlang|]. *)
+    (*          - eauto with measlang. *)
+    (*          - instantiate (1:= list_cov_cons`*` setT). *)
+    (*            intros ?. simpl. *)
+    (*            intros [?[]]. by subst. *)
+    (*          - apply: measurable_fst_restriction. *)
+    (*            apply: measurableX; eauto with measlang. *)
+    (*     } *)
+    (*   - idtac... *)
+    (*   - intros []. simpl. intros [[]]. simpl in *. subst. *)
+    (* } *)
+    
+    
 End list.
 
 Section extern_if.
