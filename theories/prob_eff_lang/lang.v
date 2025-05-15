@@ -10,7 +10,7 @@ From iris.prelude Require Import options.
 Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.
 
-Module prob_lang.
+Module eff_prob_lang.
 
 Inductive base_lit : Set :=
   | LitInt (n : Z) | LitBool (b : bool) | LitUnit | LitLoc (l : loc) | LitLbl (l : loc).
@@ -554,58 +554,63 @@ Fixpoint fill (K : ectx) (e : expr) : expr :=   foldl (flip fill_item) e K.
      | EmptyCtx => e
      | ConsCtx ki k => fill_item ki (fill k e)
      end. *)
-      
 
 
-Definition decomp_item (e : expr) : option (ectx_item * expr) :=
+Definition decomp_item' (e : expr) : option (ectx_item * expr) :=
   let noval (e : expr) (ei : ectx_item) :=
-    match e with Val _ => None | _ => Some (ei, e) end in
+    match e with Val _ | Eff _ _ => None |  _ => Some (ei, e) end in
   match e with
   | App e1 e2      =>
       match e2 with
-      | (Val v)    => noval e1 (AppLCtx v)
-      | _          => Some (AppRCtx e1, e2)
+      | (Val v)      => noval e1 (AppLCtx v)
+      | Eff _ _      => None
+      | _            => Some (AppRCtx e1, e2)
       end
-  | UnOp op e      => noval e (UnOpCtx op)
-  | BinOp op e1 e2 =>
+  | UnOp op e        => noval e (UnOpCtx op)
+  | BinOp op e1 e2   =>
       match e2 with
-      | Val v      => noval e1 (BinOpLCtx op v)
-      | _          => Some (BinOpRCtx op e1, e2)
+      | Val v        => noval e1 (BinOpLCtx op v)
+      | Eff _ _      => None
+      | _            => Some (BinOpRCtx op e1, e2)
       end
-  | If e0 e1 e2    => noval e0 (IfCtx e1 e2)
-  | Pair e1 e2     =>
+  | If e0 e1 e2      => noval e0 (IfCtx e1 e2)
+  | Pair e1 e2       =>
       match e2 with
-      | Val v      => noval e1 (PairLCtx v)
-      | _          => Some (PairRCtx e1, e2)
+      | Val v        => noval e1 (PairLCtx v)
+      | Eff _ _      => None
+      | _            => Some (PairRCtx e1, e2)
       end
-  | Fst e          => noval e FstCtx
-  | Snd e          => noval e SndCtx
-  | InjL e         => noval e InjLCtx
-  | InjR e         => noval e InjRCtx
-  | Case e0 e1 e2  => noval e0 (CaseCtx e1 e2)
-  | AllocN e1 e2        =>
+  | Fst e            => noval e FstCtx
+  | Snd e            => noval e SndCtx
+  | InjL e           => noval e InjLCtx
+  | InjR e           => noval e InjRCtx
+  | Case e0 e1 e2    => noval e0 (CaseCtx e1 e2)
+  | AllocN e1 e2     =>
       match e2 with
-      | Val v      => noval e1 (AllocNLCtx v)
-      | _          => Some (AllocNRCtx e1, e2)
+      | Val v        => noval e1 (AllocNLCtx v)
+      | Eff _ _      => None
+      | _            => Some (AllocNRCtx e1, e2)
       end
-
-  | Load e         => noval e LoadCtx
-  | Store e1 e2    =>
+  | Load e           => noval e LoadCtx
+  | Store e1 e2      =>
       match e2 with
-      | Val v      => noval e1 (StoreLCtx v)
-      | _          => Some (StoreRCtx e1, e2)
+      | Val v        => noval e1 (StoreLCtx v)
+      | Eff _ _      => None
+      | _            => Some (StoreRCtx e1, e2)
       end
-  | AllocTape e    => noval e AllocTapeCtx
-  | Rand e1 e2     =>
+  | AllocTape e      => noval e AllocTapeCtx
+  | Rand e1 e2       =>
       match e2 with
-      | Val v      => noval e1 (RandLCtx v)
-      | _          => Some (RandRCtx e1, e2)
+      | Val v        => noval e1 (RandLCtx v)
+      | Eff _ _      => None
+      | _            => Some (RandRCtx e1, e2)
       end
-  | Tick e         => noval e TickCtx
-  | Do e           => noval e DoCtx
-  | TryWith e1 e2 e3 => noval e1 (TryWithCtx e2 e3)
-  | _              => None
+  | Tick e           => noval e TickCtx
+  | Do e             => noval e DoCtx
+  | TryWith e0 e1 e2 => noval e0 (TryWithCtx e1 e2)
+  | _ => None
   end.
+
 
 (** Substitution *)
 Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
@@ -1330,21 +1335,22 @@ Lemma expr_ord_wf : well_founded expr_ord.
 Proof. red; intro; eapply expr_ord_wf'; eauto. Defined.
 
 (* TODO: this proof is slow, but I do not see how to make it faster... *)
-Lemma decomp_expr_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e.
+Lemma decomp_expr_ord Ki (e e' : expr) : decomp_item' e = Some (Ki, e') → expr_ord e' e.
 Proof.
-  rewrite /expr_ord /decomp_item.
+  rewrite /expr_ord /decomp_item'.
   destruct Ki ; repeat destruct_match ; intros [=] ; subst ; cbn ; lia.
 Qed.
 
 Lemma decomp_fill_item Ki e :
-  to_val e = None → decomp_item (fill_item Ki e) = Some (Ki, e).
-Proof. destruct Ki ; simpl ; by repeat destruct_match. Qed.
+  to_eff e = None →
+  to_val e = None → decomp_item' (fill_item Ki e) = Some (Ki, e).
+Proof. destruct Ki ; simpl ; try by repeat destruct_match. Qed.
 
 (* TODO: this proof is slow, but I do not see how to make it faster... *)
 Lemma decomp_fill_item_2 e e' Ki :
-  decomp_item e = Some (Ki, e') → fill_item Ki e' = e ∧ to_val e' = None.
+  decomp_item' e = Some (Ki, e') → fill_item Ki e' = e ∧ to_val e' = None.
 Proof.
-  rewrite /decomp_item ;
+  rewrite /decomp_item' ;
     destruct e ; try done ;
     destruct Ki ; cbn ; repeat destruct_match ; intros [=] ; subst ; auto.
 Qed.
@@ -1374,24 +1380,67 @@ Proof.
     + rewrite lookup_insert_ne //.
       apply elem_of_dom. eapply elem_of_elements, Hact. by right.
 Qed.
-(* mixin_head_ctx_step_val doesn't hold with effects, since eff v k is not a value, but takes a step -- eating the context *)
-Lemma prob_lang_mixin :
-  EctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step state_step get_active.
+
+Program Fixpoint decomp' (e : expr) {wf expr_ord e} : ectx * expr :=
+    match decomp_item' e with
+    | Some (Ki, e') => let '(K, e'') := decomp' e' in (K ++ [Ki], e'')
+    | None => ([], e)
+    end.
+
+Solve Obligations with eauto using decomp_expr_ord, expr_ord_wf.
+
+Definition fill_lift (K : ectx) : (expr * state) → (expr * state) :=
+    λ '(e, σ), (fill K e, σ).
+
+Definition prim_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
+    let '(K, e1') := decomp' e1 in
+    dmap (fill_lift K) (head_step e1' σ1).
+
+Lemma val_prim_stuck e σ ρ : prim_step e σ ρ > 0 → to_val e = None.
 Proof.
-  split; apply _ || eauto using to_of_val, of_to_val, val_head_stuck,
-    state_step_head_step_not_stuck, state_step_get_active_mass, head_step_mass,
-    fill_item_val, fill_item_no_val_inj, head_ctx_step_val,
-    decomp_fill_item, decomp_fill_item_2, expr_ord_wf, decomp_expr_ord.
-Admitted.
+  intros. destruct e; eauto. unfold prim_step in H; simpl in H.
+  rewrite dmap_dzero in H. rewrite dzero_0 in H. real_solver.
+Qed.
 
-End prob_lang.
+Lemma state_step_prim_step_not_stuck e σ σ' α :
+  state_step σ α σ' > 0 → (∃ ρ, prim_step e σ ρ > 0) ↔ (∃ ρ', prim_step e σ' ρ' > 0).
+Proof.
+  rewrite /prim_step.
+  destruct (decomp' e) as [K e'] eqn:Heq.
+  intros Hs. split.
+  + intros [[e2 σ2] [[e2' σ2'] [_ Hh]]%dmap_pos].
+    assert (∃ ρ, head_step e' σ' ρ > 0) as [[e2'' σ2''] Hs'].
+    { erewrite <-state_step_head_step_not_stuck; [|done]. eauto. }
+    eexists (fill K e2'', σ2'').
+    eapply dmap_pos.
+    eexists (_, _). eauto.
+  + intros [[e2 σ2] [[e2' σ2'] [_ Hh]]%dmap_pos].
+    assert (∃ ρ, head_step e' σ ρ > 0) as [[e2'' σ2''] Hs'].
+    { erewrite state_step_head_step_not_stuck; [|done]. eauto. }
+    eexists (fill K e2'', σ2'').
+    eapply dmap_pos.
+    eexists (_, _); eauto.
+Qed.
 
-(** Language *)
-Canonical Structure prob_ectxi_lang := EctxiLanguage prob_lang.get_active prob_lang.prob_lang_mixin.
-Canonical Structure prob_ectx_lang := EctxLanguageOfEctxi prob_ectxi_lang.
-Canonical Structure prob_lang := LanguageOfEctx prob_ectx_lang.
+Lemma prim_step_mass e σ :
+      (∃ ρ, prim_step e σ ρ > 0) → SeriesC (prim_step e σ) = 1.
+Proof.
+  intros [[e' σ'] Hs]. revert Hs. rewrite /prim_step.
+  destruct (decomp' e) as [K e1'] eqn:Heq.
+  intros [[e2' σ2'] [? Hs]]%dmap_pos.
+  assert (SeriesC (head_step e1' σ) = 1) as Hsum; [eauto using head_step_mass|].
+  rewrite dmap_mass //.
+Qed.
+  
+Lemma eff_prob_lang_mixing :
+  LanguageMixin of_val to_val prim_step state_step get_active.
+Proof.
+  split; eauto using to_of_val, of_to_val, val_prim_stuck, state_step_prim_step_not_stuck, state_step_get_active_mass, prim_step_mass.
+Qed.  
+
+End eff_prob_lang.
 
 (* Prefer prob_lang names over ectx_language names. *)
-Export prob_lang.
+Export eff_prob_lang.
 
 Definition cfg : Type := expr * state.
