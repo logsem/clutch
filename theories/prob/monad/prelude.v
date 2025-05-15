@@ -1084,23 +1084,35 @@ Section list.
           * eauto with measlang.
         + apply: measurable_snd_restriction...
     }
-    (* do second goal first *)
-    Admitted.
-    (* { apply: measurable_comp; [| |eauto with measlang|]; try done. *)
-    (*   apply: measurable_fun_prod'; last first. *)
-    (*   - apply: measurable_comp; [| |eauto with measlang|]. *)
-    (*     4: { apply: measurable_comp; [| |eauto with measlang|]. *)
-    (*          - eauto with measlang. *)
-    (*          - instantiate (1:= list_cov_cons`*` setT). *)
-    (*            intros ?. simpl. *)
-    (*            intros [?[]]. by subst. *)
-    (*          - apply: measurable_fst_restriction. *)
-    (*            apply: measurableX; eauto with measlang. *)
-    (*     } *)
-    (*   - idtac... *)
-    (*   - intros []. simpl. intros [[]]. simpl in *. subst. *)
-    (* } *)
-    
+    { apply: measurable_comp; [| |eauto with measlang|]; try done.
+      apply: measurable_fun_prod'; last first.
+      - apply: measurable_comp; [| |apply IHn|].
+        4: { apply: measurable_comp; [| |eauto with measlang|].
+             - eauto with measlang.
+             - instantiate (1:= list_length_cov (S n)`*` (list_length_cov n`*`setT)).
+               intros ?. simpl.
+               intros [[?[]][H ]]; simpl in *. subst.
+               apply list_length_cov_length in H. destruct t; first (simpl in *; lia).
+               eexists _. naive_solver.
+             - apply: measurable_fst_restriction.
+               apply: measurableX; eauto with measlang...
+        }
+      - idtac...
+      - intros []. simpl. intros [[][?[]]]. simpl in *. subst. naive_solver.
+      - apply: measurable_snd_restriction.
+        apply: measurableX; eauto with measlang...
+      - apply: measurableX; eauto with measlang... 
+    }
+    { intros [s[]]; simpl. intros [[][H]]. simpl in *; subst. simplify_eq.
+      split; first done. split; last done.
+      apply list_length_cov_length in H.
+      destruct s as [|s ss]; first (simpl in *; lia).
+      simpl.
+      replace n with (length ss); first apply list_length_cov_length'.
+      simpl in *. lia.
+    }
+    apply: measurableX; eauto with measlang...
+  Qed. 
     
 End list.
 
