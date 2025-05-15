@@ -4,7 +4,7 @@ Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Program.Wf Reals.
 From stdpp Require Import base numbers binders strings gmap.
-From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
+From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets functions.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Import weakestpre.
@@ -432,28 +432,19 @@ Section ectxi_language.
       assert (length l = n) by lia.
       subst. erewrite IHn; last by rewrite H'.
       rewrite H'. by rewrite decomp_unfold H H'.
-  Qed. 
-  
-  (* How to prove this? *)
-  Lemma decomp_measurable : measurable_fun setT decomp.
+  Qed.
+
+  Definition decomp'_meas_set n: measurable (decomp' n @^-1` option_cov_Some).
   Proof.
-    assert (setT = \bigcup_i (preimage (decomp' i) option_cov_Some)) as Hrewrite; last rewrite Hrewrite.
-    { rewrite eqEsubset; split; intros t; simpl; last done.
-      intros _.
-      exists (length (decomp t).1); first done.
-      simpl. rewrite decomp_decomp2'. by eexists _.
-    } 
-    rewrite measurable_fun_bigcup; last first.
-    - intros n.
-      induction n.
-      + assert (preimage (decomp' 0) option_cov_Some = preimage decomp_item option_cov_None) as ->.
+    induction n.
+    - assert (preimage (decomp' 0) option_cov_Some = preimage decomp_item option_cov_None) as ->.
         * rewrite eqEsubset; split; intros ?; simpl; rewrite /option_cov_Some/option_cov_None/=.
           -- intros []. by case_match.
           -- intros ->. naive_solver.
         * rewrite <-setTI.
           apply: decomp_item_meas; ms_solve.
           apply: option_cov_None_meas_set.
-      + assert (preimage (decomp' (S n)) option_cov_Some =
+    - assert (preimage (decomp' (S n)) option_cov_Some =
                 (preimage decomp_item (option_cov_Some`&`
                   (preimage (snd \o 𝜋_Some_v) (preimage (decomp' n) option_cov_Some))))
                ) as ->.
@@ -472,10 +463,60 @@ Section ectxi_language.
           apply: measurableT.
         * done.
         * done.
+  Qed. 
+  Hint Resolve decomp'_meas_set : measlang.
+  
+  (* How to prove this? *)
+  Lemma decomp_measurable : measurable_fun setT decomp.
+  Proof.
+    assert (setT = \bigcup_i (preimage (decomp' i) option_cov_Some)) as Hrewrite; last rewrite Hrewrite.
+    { rewrite eqEsubset; split; intros t; simpl; last done.
+      intros _.
+      exists (length (decomp t).1); first done.
+      simpl. rewrite decomp_decomp2'. by eexists _.
+    } 
+    rewrite measurable_fun_bigcup; last first.
+    - intros n. apply decomp'_meas_set.
     - intros n.
       induction n as [|n' IHn].
-      + admit.
-      + admit.
+      + assert ((decomp' 0 @^-1` option_cov_Some) =
+                setT `&` (decomp_item  @^-1` (option_cov_None))) as ->.
+        { rewrite eqEsubset; split; intros ?; rewrite /option_cov_Some/option_cov_None/=.
+          - intros [[]]. case_match; by simplify_eq.
+          - intros [_ ->]. naive_solver.
+        }
+        apply: (mathcomp_measurable_fun_ext _ _ (cst []△(λ x,x))).
+        * apply decomp_item_meas; first done. apply option_cov_None_meas_set.
+        * mf_prod. ms_solve; last apply option_cov_None_meas_set.
+          apply decomp_item_meas.
+        * rewrite /option_cov_None/=. intros ?[? H]. by rewrite decomp_unfold H. 
+      + assert ((decomp' (S n') @^-1` option_cov_Some) =
+                preimage decomp_item (option_cov_Some `&` preimage 𝜋_Some_v (setT `*` (decomp' (n') @^-1` option_cov_Some)))) as ->.
+        { rewrite eqEsubset; split; intros ?; rewrite /option_cov_Some/=.
+          - intros [[]].
+            repeat case_match; simplify_eq.
+            repeat split; [naive_solver..|].
+            simpl. naive_solver.
+          - intros [[[]H][?[[]H']]]. 
+            rewrite H in H'. simpl in *. rewrite H H'. naive_solver.
+        }
+        apply: (mathcomp_measurable_fun_ext _ _
+                  ((appU\o fst △ snd)
+                    \o ((fst \o snd △ consU \o fst)△snd \o snd)
+                     \o ((fst△ cst []) △decomp \o snd)
+                     \o (𝜋_Some_v \o decomp_item))). 
+        { rewrite <-setTI.
+          apply: decomp_item_meas; first done.
+          apply 𝜋_Some_v_meas_fun; first apply option_cov_Some_meas_set.
+          apply measurableX; first done.
+          apply decomp'_meas_set.
+        }
+        { admit. }
+        rewrite /option_cov_Some/=.
+        intros ? [[[]H][?[[]H']]].
+        rewrite H in H'. simpl in *.
+        rewrite H/=. rewrite (decomp_unfold x). rewrite H.
+        by erewrite decomp_decomp'.
   Admitted.
   Hint Resolve decomp_measurable : measlang.
   
