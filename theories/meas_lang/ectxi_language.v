@@ -511,13 +511,45 @@ Section ectxi_language.
           apply measurableX; first done.
           apply decomp'_meas_set.
         }
-        { admit. }
+        { apply: (measurable_comp (F:=setT `*` (decomp' n' @^-1` option_cov_Some))).
+          - ms_solve. apply decomp'_meas_set.
+          - intros []. rewrite /option_cov_Some/=.
+            intros [?[[[] H][_ [[] H' ]  ]] H''].
+            rewrite H in H' H''.  simpl in *. simplify_eq. rewrite H'.
+            naive_solver.
+          - mf_cmp_tree.
+            + mf_cmp_tree; repeat mf_prod; repeat mf_cmp_tree.
+              * apply app_meas_fun.
+              * apply: measurable_fst.
+              * apply cons_meas_fun.
+              * apply: measurable_snd.
+            + mf_prod; first (ms_solve; apply decomp'_meas_set).
+              * mf_prod; first (ms_solve; apply decomp'_meas_set).
+                apply: measurable_fst_restriction. ms_solve. apply decomp'_meas_set.
+              * apply snd_setX_meas_fun; first done; first apply decomp'_meas_set.
+                done. 
+          - rewrite <-(setTI (preimage _ _)).
+            mf_cmp_tree.
+            + ms_solve; [apply 𝜋_Some_v_meas_fun|apply option_cov_Some_meas_set|apply decomp'_meas_set].
+            + intros ?. rewrite /option_cov_Some/=.
+              intros [?[?[[[]H][?[[]H']]]]H''].
+              rewrite H in H' H''. subst. simpl in *.
+              naive_solver.
+            + apply: measurable_funS; last apply: 𝜋_Some_v_meas_fun.
+              * apply option_cov_Some_meas_set.
+              * apply subIsetl.
+            + ms_solve.
+              * apply: decomp_item_meas.
+              * apply 𝜋_Some_v_meas_fun.
+              * apply option_cov_Some_meas_set.
+              * apply decomp'_meas_set.
+            + apply decomp_item_meas. }
         rewrite /option_cov_Some/=.
         intros ? [[[]H][?[[]H']]].
         rewrite H in H'. simpl in *.
         rewrite H/=. rewrite (decomp_unfold x). rewrite H.
         by erewrite decomp_decomp'.
-  Admitted.
+  Qed. 
   Hint Resolve decomp_measurable : measlang.
   
   Lemma head_ctx_step_fill_val K e σ1 : ¬ is_zero (head_step (fill (K, e), σ1)) → is_Some (to_val e) ∨ K = [].
