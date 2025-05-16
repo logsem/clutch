@@ -47,6 +47,11 @@ Section setwise_measure_limit.
   Lemma semi_sigma_additive_limit_measure : semi_sigma_additive limit_measure.
   Proof.
     rewrite /semi_sigma_additive.
+    intros F HF HFTriv HcupF.
+    eassert (limit_measure (\bigcup_n F n) =
+            limn (fun n  => (bigop.bigop.body GRing.zero (bigop.index_iota 0 n) (fun i => bigop.BigBody i GRing.add true (limit_measure (F i))))%R)
+           ) as ->.
+    { admit. }
     (* ? *)
   Admitted.
 
