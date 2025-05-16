@@ -165,6 +165,59 @@ Proof.
     + simpl. intros [??[]]. rewrite /shape_val/=; f_equal. by apply FIX.
 Qed.
 
+
+Lemma base_lit_ST_shape s b : base_lit_ST s b -> shape_base_lit s = shape_base_lit b.
+Proof.
+  destruct s; simpl.
+  all: try by (intros []; subst; simpl).
+  by intros ->.
+Qed.
+
+Local Ltac expr_ST_shape1 e FIX:= intros [x']; subst; rewrite /shape_expr /expr_pre_F/= -/(expr_pre_F _ _ _ _ _ e)-/(expr_pre_F _ _ _ _ _ x')-!/shape_expr; f_equal; by apply FIX.
+Local Ltac expr_ST_shape2 e1 e2 FIX :=intros [x1 ? [x2]]; subst; rewrite /shape_expr /expr_pre_F/= -/(expr_pre_F _ _ _ _ _ e1)-/(expr_pre_F _ _ _ _ _ e2)-/(expr_pre_F _ _ _ _ _ x1)-/(expr_pre_F _ _ _ _ _ x2)-!/shape_expr;
+                                      f_equal; by apply FIX.
+Local Ltac expr_ST_shape3 e1 e2 e3 FIX :=intros [x1 ? [x2 ? [x3]]]; subst; rewrite /shape_expr /expr_pre_F/= -/(expr_pre_F _ _ _ _ _ e1)-/(expr_pre_F _ _ _ _ _ e2)-/(expr_pre_F _ _ _ _ _ e3)-/(expr_pre_F _ _ _ _ _ x1)-/(expr_pre_F _ _ _ _ _ x2)-/(expr_pre_F _ _ _ _ _ x3)-!/shape_expr;
+    f_equal; by apply FIX.
+Lemma expr_ST_shape s e : expr_ST s e -> shape_expr s = shape_expr e.
+Proof.
+  revert s e.
+  fix FIX 1.
+  intros [v'|x|f x e|e1 e2|x e|x e1 e2|e1 e2 e3|e1 e2|e|e|e|e|e1 e2 e3|e|e|e1 e2|e|e1 e2| |e|e] e'; simpl.
+  all: try expr_ST_shape1 e FIX.
+  all: try expr_ST_shape2 e1 e2 FIX.
+  all: try expr_ST_shape3 e1 e2 e3 FIX.
+  all: try (by intros ->).
+  assert (forall s v, val_ST s v -> shape_val s = shape_val v) as Hcut.
+  { clear v' e'.
+    fix FIX' 1.
+    intros [l|f x e|v1 v2|v|v] v'; simpl.
+    - intros []; subst. rewrite /shape_expr/=.
+      rewrite /shape_val/=-!/shape_base_lit. f_equal. by apply base_lit_ST_shape.
+    - intros []. subst.
+      rewrite /shape_val/=-!/shape_expr. f_equal. by apply FIX.
+    - intros [??[]]. subst. rewrite /shape_val/=-!/shape_val. f_equal; by apply FIX'.
+    - intros []. subst. rewrite /shape_val/=-!/shape_val. f_equal; by apply FIX'.
+    - intros []. subst. rewrite /shape_val/=-!/shape_val. f_equal; by apply FIX'. }
+  intros [x].
+  subst.
+  rewrite /shape_expr /expr_pre_F/=-/(val_pre_F _ _ _ _ _ v')-/(val_pre_F _ _ _ _ _ x)-!/shape_val.
+  f_equal. by apply Hcut.
+Qed. 
+
+Lemma val_ST_shape s v : val_ST s v -> shape_val s = shape_val v.
+Proof.
+  revert s v.
+  fix FIX' 1.
+  intros [l|f x e|v1 v2|v|v] v'; simpl.
+  - intros []; subst. rewrite /shape_expr/=.
+    rewrite /shape_val/=-!/shape_base_lit. f_equal. by apply base_lit_ST_shape.
+  - intros []. subst.
+    rewrite /shape_val/=-!/shape_expr. f_equal. by apply expr_ST_shape.
+  - intros [??[]]. subst. rewrite /shape_val/=-!/shape_val. f_equal; by apply FIX'.
+  - intros []. subst. rewrite /shape_val/=-!/shape_val. f_equal; by apply FIX'.
+  - intros []. subst. rewrite /shape_val/=-!/shape_val. f_equal; by apply FIX'.
+Qed. 
+
 (** Decompose the set of expressions into a countable union over expr_shape *)
 
 Local Open Scope positive.

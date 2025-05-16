@@ -94,6 +94,59 @@ Lemma subst_preimage_emp (x : string) (s1 : val_shape) (s2 : expr_shape) (s : ex
 Proof. Admitted.
 *)
 
+
+Lemma shape_subst_respect s b v e: expr_ST s (substU b (v, e))-> shape_subst b (shape_val v) (shape_expr e) = shape_expr s.
+Proof.
+  revert s e b v.
+  fix FIX 1.
+  intros [v'|x|f x e|e1 e2|x e|x e1 e2|e1 e2 e3|e1 e2|e|e|e|e|e1 e2 e3|e|e|e1 e2|e|e1 e2| |e|e] s b v; simpl.
+  all: try (intros [? ? H];
+    rewrite /substU/= in H;
+    destruct s; try done; simpl in *; [by case_match|];
+    simplify_eq;
+    rewrite /shape_expr/expr_pre_F-!/(expr_pre_F _ _ _ _ _ _)-!/shape_expr;
+    f_equal; simplify_eq; by apply FIX).
+  all: try (intros [? ? [y ? H]];
+    rewrite /substU/= in H;
+    destruct s; try done; simpl in *; [by case_match|];
+    simplify_eq;
+    rewrite /shape_expr/expr_pre_F-!/(expr_pre_F _ _ _ _ _ _)-!/shape_expr;
+    f_equal; simplify_eq; by apply FIX).
+  all: try (intros [x ? [y ? [z ? H]]];
+    rewrite /substU/= in H;
+    destruct s; try done; simpl in *; [by case_match|];
+    simplify_eq;
+    rewrite /shape_expr/expr_pre_F-!/(expr_pre_F _ _ _ _ _ _)-!/shape_expr;
+    f_equal; simplify_eq; by apply FIX).
+  - intros [x ? H].
+    rewrite /substU/= in H;
+      destruct s; try done; simpl in *; last first.
+    { case_match; simplify_eq.
+      rewrite /shape_expr/=. f_equal.
+      by erewrite <-val_ST_shape.
+    }
+    rewrite /shape_expr/=. f_equal. simplify_eq.
+    rewrite -!/(shape_val). 
+    by erewrite <-val_ST_shape.
+  - destruct s; rewrite /substU/=; try done.
+    case_match.
+    + subst. intros. simplify_eq.
+    + intros. by simplify_eq.
+  - intros [?? H].
+    destruct s; try done.
+    { rewrite /substU/= in H. by case_match. }
+    rewrite /substU/= in H.
+    simplify_eq.
+    rewrite /shape_subst/=-/shape_subst.
+    case_match.
+    + rewrite /shape_expr/expr_pre_F-/(expr_pre_F _ _ _ _ _ s)-/(expr_pre_F _ _ _ _ _ e)-!/shape_expr.
+      f_equal. by apply FIX.
+    + rewrite /shape_expr/expr_pre_F-/(expr_pre_F _ _ _ _ _ s)-/(expr_pre_F _ _ _ _ _ e)-!/shape_expr.
+      f_equal. by erewrite expr_ST_shape.
+  - intros H;
+    rewrite /substU/= in H.
+    destruct s; try done; simpl in *; by case_match.
+Qed. 
 (* Alternatively, prove something like "subst respects the shapes of shape_subst"? *)
 
 
@@ -128,6 +181,27 @@ Proof.
   rewrite setI_bigcupl.
   apply (@bigcup_measurable _ (val * expr)%type).
   move=>j _.
+
+  (* Checking whether the set is definitely empty because of mismatch of shape *)
+  rewrite -val_shape_cyl-expr_shape_cyl.
+  destruct (decide (shape_subst b (val_shape_enum i) (expr_shape_enum j) = shape_expr s)) as [H|H]; last first.
+  { (* the set is empty *)
+    assert (([set e | shape_val e = val_shape_enum i] `*` [set e | shape_expr e = expr_shape_enum j]
+               `&` substU b @^-1` expr_ST s) = set0) as Hrewrite; last rewrite Hrewrite; ms_solve.
+    rewrite -subset0. intros []; simpl.
+    intros [[H1 H2] H3].
+    rewrite -H1 -H2 in H. apply H.
+    by apply shape_subst_respect.
+  }
+
+  
+  (** Attempt *)
+  generalize dependent s.
+  fix FIX 1.
+  destruct s; simpl.
+  - intros H.
+  (** End of attempt*)
+  
   (*
   rewrite -(expr_shape_decomp (expr_ST s)).
   rewrite preimage_bigcup.
