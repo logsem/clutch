@@ -147,8 +147,17 @@ Proof.
     rewrite /substU/= in H.
     destruct s; try done; simpl in *; by case_match.
 Qed. 
-(* Alternatively, prove something like "subst respects the shapes of shape_subst"? *)
 
+
+(* Lemma substU_measurable_lemma b v_shape e_shape (s:expr_S): *)
+(*   shape_subst b v_shape e_shape = shape_expr s -> *)
+(*   ∃ v' e', *)
+(*     val_ML v' /\ *)
+(*     expr_ML e' /\ *)
+(*     shape_val v' = v_shape /\ *)
+(*     shape_expr e'= e_shape /\ *)
+    
+(* . *)
 
 
 Lemma substU_measurable (b : string) : measurable_fun setT (substU b).
@@ -228,6 +237,7 @@ Proof.
     *)
 
 Admitted.
+
 
 
 (** Uncurried substitution 2: can prove that this is a measurable function, by a covering argument *)
