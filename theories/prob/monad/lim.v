@@ -2,7 +2,7 @@ Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Program.Wf Reals.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
-From mathcomp.analysis Require Import measure ereal sequences.
+From mathcomp.analysis Require Import measure ereal sequences normedtype.
 From clutch.prob.monad Require Export giry.
 Require Import mathcomp.reals_stdlib.Rstruct.
 Require Import mathcomp.reals.reals.
@@ -26,10 +26,7 @@ Section setwise_measure_limit.
   Proof.
     rewrite /limit_measure.
     rewrite limn_esup_lim.
-    suffices -> : (esups (R := R) (fun n : nat => μ n set0)) = (fun n => (0)%E).
-    { (* why is this hard *)
-      admit.
-    }
+    suffices -> : (esups (R := R) (fun n : nat => μ n set0)) = (fun n => (0)%E) by rewrite lim_cst.
     apply funext; intro n.
     rewrite /esups/sdrop//=.
     eapply eq_trans_r; last (symmetry; eapply ereal_sup1).
@@ -38,15 +35,18 @@ Section setwise_measure_limit.
     apply propext; simpl; split.
     { by intros [??<-]. }
     { move=>->//=; by exists n. }
-  Admitted.
+  Qed. 
 
   Lemma limit_measure_ge0 X : (0 <= limit_measure X)%E.
   Proof.
-    (* Because measuring a set is always nonnegative *)
-  Admitted.
+    rewrite /limit_measure.
+    rewrite /limn_esup/=.
+    by apply: limf_esup_ge0.
+  Qed. 
 
   Lemma semi_sigma_additive_limit_measure : semi_sigma_additive limit_measure.
   Proof.
+    rewrite /semi_sigma_additive.
     (* ? *)
   Admitted.
 
@@ -56,9 +56,21 @@ Section setwise_measure_limit.
 
   Lemma limit_measure_setT : (limit_measure setT <= 1)%E.
   Proof.
-    (* Because each is bounded above by 1 *)
-  Admitted.
-
+    rewrite /limit_measure.
+    rewrite /limn_esup.
+    rewrite /limf_esup.
+    apply ereal_inf_le.
+    eexists _.
+    { simpl. exists setT.
+      - rewrite /eventually.
+        rewrite /filter_from. simpl.
+        by exists 0.       
+             - done. }
+    apply: ub_ereal_sup.
+    rewrite /ubound/=.
+    intros ?[??<-].
+    apply: sprobability_setT.
+  Qed. 
   HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ limit_measure limit_measure_setT.
 
 End setwise_measure_limit.
