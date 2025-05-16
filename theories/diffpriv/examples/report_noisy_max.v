@@ -6,19 +6,9 @@ From clutch.diffpriv Require Import adequacy diffpriv proofmode.
 
 Definition logN : namespace := nroot .@ "logN".
 
-Class diffprivRGS Σ := DiffprivRGS {
-                           diffprivRGS_diffprivGS :: diffprivGS Σ;
-                           diffprivRGS_na_invG :: na_invG Σ;
-                           diffprivRGS_nais : na_inv_pool_name;
-                         }.
-
-Definition na_ownP `{!diffprivRGS Σ} := na_own diffprivRGS_nais.
-Definition na_invP `{!diffprivRGS Σ} := na_inv diffprivRGS_nais.
-Definition na_closeP `{!diffprivRGS Σ} P N E := (▷ P ∗ na_ownP (E ∖ ↑N) ={⊤}=∗ na_ownP E)%I.
-
 
 Section rnm.
-  Context `{!diffprivRGS Σ}.
+  Context `{!diffprivGS Σ}.
 
   #[local] Open Scope R.
 
@@ -80,7 +70,7 @@ Section rnm.
                 {{{ ↯ (IZR num / IZR den) ∗
                     ⤇ fill K (report_noisy_max num den evalQ #N (inject db')) }}}
                   report_noisy_max num den evalQ #N (inject db)
-                  {{{ v, RET v ; ∃ v', ⤇ fill K v' ∗ ⌜ v = #j → v' = #j ⌝  }}}
+                  {{{ v, RET v ; ∃ (v' : val), ⤇ fill K v' ∗ ⌜ v = #j → v' = #j ⌝  }}}
   .
   Proof with (tp_pures ; wp_pures).
     intros εpos qi_sens.
@@ -300,21 +290,82 @@ Section rnm.
         - do 2 (tp_store ; tp_pures ; wp_store ; wp_pures).
           iApply ("IH" with "[-HΦ]") ; iFrame.
           iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
-          iPureIntro.
-          intuition try lia.
+          iPureIntro ; lia.
         - wp_store ; wp_pures ; wp_store ; wp_pures.
           iApply ("IH" $! (i+1)%Z with "[-HΦ]") ; iFrame.
           iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
-          all: iPureIntro ; repeat split ; try by intuition lia.
+          iPureIntro ; lia.
         - tp_store ; tp_pures ; tp_store ; tp_pures.
           iApply ("IH" $! (i+1)%Z with "[-HΦ]") ; iFrame.
           iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
-          all: iPureIntro ; repeat split ; try by intuition lia.
+          iPureIntro ; lia.
         - iApply ("IH" $! (i+1)%Z with "[-HΦ]") ; iFrame.
           iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
-          all: iPureIntro ; repeat split ; try by intuition lia.
+          iPureIntro ; lia.
       }
   Qed.
+
+End rnm.
+
+
+Lemma rnm_pw_diffpriv_cpl num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
+  (0 < IZR num / IZR (2 * den))%R →
+  (0 <= IZR num / IZR den)%R →
+  (∀ `{!diffprivGS Σ}, ∀ i : Z, wp_sensitive (evalQ #i) 1 dDB dZ) →
+  ∀ db db',
+    (dDB db db' <= 1)%R →
+    ∀ σ,
+    ∀ j : nat,
+      Mcoupl
+        (lim_exec ((report_noisy_max num den evalQ #N (inject db)), σ))
+        (lim_exec ((report_noisy_max num den evalQ #N (inject db')), σ))
+        (λ v v', v = #j → v' = #j)
+        (IZR num / IZR den)
+.
+Proof.
+  intros.
+  eapply (adequacy.wp_adequacy diffprivΣ) => //.
+  iIntros (?) "rnm' ε".
+  iPoseProof (rnm_pw_diffpriv num den evalQ DB dDB N [] H (H1 _ _) db db' H2 j
+    %I) as "h" => //.
+  simpl.
+  iSpecialize ("h" with "[$]").
+  iApply "h". iNext. iIntros (?) "[% [? %h]]".
+  iExists v' ; iFrame.
+  subst. iPureIntro. intros. subst. apply h. reflexivity.
+Qed.
+
+
+Lemma rnm_diffpriv_cpl num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
+  (0 < IZR num / IZR (2 * den))%R →
+  (0 <= IZR num / IZR den)%R →
+  (∀ `{!diffprivGS Σ}, ∀ i : Z, wp_sensitive (evalQ #i) 1 dDB dZ) →
+  ∀ db db',
+    (dDB db db' <= 1)%R →
+    ∀ σ,
+    ∀ j : nat,
+      Mcoupl
+        (lim_exec ((report_noisy_max num den evalQ #N (inject db)), σ))
+        (lim_exec ((report_noisy_max num den evalQ #N (inject db')), σ))
+        (λ v v', v = v')
+        (IZR num / IZR den)
+.
+Proof.
+  intros.
+  apply Mcoupl_pweq => //.
+  simpl.
+  intros x'.
+  eapply (adequacy.wp_adequacy diffprivΣ) => //.
+  iIntros (?) "rnm' ε".
+  unshelve iPoseProof (rnm_pw_diffpriv num den evalQ DB dDB N [] H (H1 _ _) db db' H2 j
+    (λ v, ∃ v' : val, ⤇ v' ∗ ⌜v = x' → v' = x'⌝)%I) as "h" => //.
+  simpl.
+  iSpecialize ("h" with "[$]").
+  iApply "h". iNext. iIntros (?) "[% [? %]]".
+  iExists v' ; iFrame.
+  subst. iPureIntro. intro. subst.
+Abort.
+
 
 
   (* sketchy concrete example below *)
