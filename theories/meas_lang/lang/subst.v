@@ -182,8 +182,31 @@ Proof.
       * by right; left.
   - simpl.
     repeat (try apply Forall_cons; split); last by apply List.Forall_nil.
-    + (* Function restrited to this set the substU'*)
-      admit.
-    + (* Function restrited to this set the identity *)
-      admit.
-Admitted.
+    + apply: (mathcomp_measurable_fun_ext _ _ (snd \o snd)); first ms_solve.
+      * apply: snd_setX_meas_fun; ms_solve.
+      * simpl. intros [?[]]. simpl. intros []. subst. rewrite /substU'/=. rewrite /patch.
+        simpl. 
+        rewrite /in_mem/mem/=/in_set. 
+        by rewrite asboolT.
+    + pose ((λ x, match x with |BNamed s => s | _ => "" end):<<discr binder>>-><<discr string>>) as f.
+      apply: (mathcomp_measurable_fun_ext _ _ ((uncurry substU) \o (f \o fst △snd))); ms_solve.
+      * simpl. apply: measurable_comp; last first.
+        { mf_prod.
+          - apply: fst_setX_meas_fun; ms_solve.
+          - apply: measurable_snd_restriction. ms_solve.
+        }
+        { apply: uncurry_measurable.
+          - intros. apply: substU_measurable.
+          - intros x.
+            exists (encode_nat x).
+            instantiate (1:= λ x, match decode_nat x with |Some y => y | _ => inhabitant end).
+            Local Opaque decode_nat. simpl.
+            by rewrite decode_encode_nat.
+        }
+        { done. }
+        ms_solve.
+      * intros [?[]]. simpl. intros []. subst. rewrite /substU'/=. rewrite /patch.
+        simpl. rewrite /in_mem/mem/=/in_set.
+        rewrite asboolT; last done.
+        rewrite /f. by destruct s.
+Qed. 

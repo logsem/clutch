@@ -19,6 +19,12 @@ HB.instance Definition _ := isPointed.Build Z inhabitant.
 HB.saturate Z.
 
 (* Instances for binder *)
+HB.instance Definition _ := gen_eqMixin string.
+HB.instance Definition _ := gen_choiceMixin string.
+HB.instance Definition _ := isPointed.Build string inhabitant.
+HB.saturate string.
+
+(* Instances for binder *)
 HB.instance Definition _ := gen_eqMixin binder.
 HB.instance Definition _ := gen_choiceMixin binder.
 HB.instance Definition _ := isPointed.Build binder inhabitant.
