@@ -427,55 +427,33 @@ Lemma Mcoupl_pweq `{Countable A} (μ μ' : distr A) ε (εpos : 0 <= ε) (pw : �
 Proof.
   intros ?????.
   rewrite -SeriesC_scal_l.
-  (* follows from lem. 4.2.4 applied to the assumption pw *)
-  (* assert (∀ i, μ i <= exp ε * μ' i) as Lemma_4_2_4.
-     {
-       intros x.
-       cut (SeriesC (λ a, if bool_decide (a = x) then μ x else 0) <=
-              SeriesC (λ a, if bool_decide (a = x) then exp ε * μ' x else 0)).
-       { intros h. rewrite !SeriesC_singleton in h. done. }
-       specialize (pw x).
-       replace (SeriesC (λ a : A, if bool_decide (a = x) then exp ε * μ' x else 0))
-         with (exp ε * SeriesC (λ a : A, if bool_decide (a = x) then μ' x else 0)) by admit.
-       opose proof (pw f g Hf Hg _) as pw'.
-       1: admit.
-
-       1: intros ; apply Hfg.
-     } *)
-  (* too hard? *)
-
-  (* is this enough instead? *)
-  assert (∀ i, μ i * f i <= exp ε * μ' i * g i) as Lemma_4_2_4.
-  {
-    intros x.
-    cut (SeriesC (λ a, if bool_decide (a = x) then μ a * f x else 0) <=
-           SeriesC (λ a, if bool_decide (a = x) then exp ε * μ' a * g x else 0)).
-    { intros h. rewrite !SeriesC_singleton_dependent in h. done. }
-    specialize (pw x).
-    (* pull out exp ε *)
-    replace (SeriesC (λ a : A, if bool_decide (a = x) then exp ε * μ' a * g x else 0))
-      with (exp ε * SeriesC (λ a : A, if bool_decide (a = x) then μ' a * g x else 0)) by admit.
-    set (f' := λ a, if bool_decide (a = x) then f x else 0).
-    set (g' := λ a, if bool_decide (a = x) then g x else 0).
-    opose proof (pw f' g' _ _ _) as pw'.
-    1,2: intros ; subst f' g' => /= ; case_bool_decide ; (apply Hf || apply Hg || lra).
-    {
-      intros. subst f' g' => /=. repeat case_bool_decide. 4: done.
-      - subst. by apply Hfg.
-      - subst. exfalso. eauto.
-      - apply Hg.
-    }
-    replace (λ a : A, if bool_decide (a = x) then μ a * f x else 0)
-      with (λ a : A, μ a * if bool_decide (a = x) then f x else 0) by admit.
-    replace (λ a : A, if bool_decide (a = x) then μ' a * g x else 0)
-      with (λ a : A, μ' a * if bool_decide (a = x) then g x else 0) by admit.
-    subst f' g' ; simpl in pw'. apply pw'.
-  }
-
-  setoid_rewrite (eq_sym (Rmult_assoc _ _ _)).
   eapply SeriesC_le.
-  2: admit.
+  2:{
+    apply ex_seriesC_scal_l.
+    apply (ex_seriesC_le _ μ') => //.
+    intros b ; specialize (Hg b) ; real_solver. }
   intros x.
   split. 1: apply Rmult_le_pos => // ; apply Hf.
-  apply Lemma_4_2_4.
-Admitted.
+  cut (SeriesC (λ a, if bool_decide (a = x) then μ a * f x else 0) <=
+         SeriesC (λ a, if bool_decide (a = x) then exp ε * μ' a * g x else 0)).
+  { intros h. rewrite !SeriesC_singleton_dependent in h. rewrite -Rmult_assoc ; done. }
+  specialize (pw x).
+  replace (SeriesC (λ a : A, if bool_decide (a = x) then exp ε * μ' a * g x else 0))
+    with (exp ε * SeriesC (λ a : A, if bool_decide (a = x) then μ' a * g x else 0)).
+  2: rewrite -SeriesC_scal_l ; apply SeriesC_ext ; intros ; case_bool_decide ; field.
+  set (f' := λ a, if bool_decide (a = x) then f x else 0).
+  set (g' := λ a, if bool_decide (a = x) then g x else 0).
+  opose proof (pw f' g' _ _ _) as pw'.
+  1,2: intros ; subst f' g' => /= ; case_bool_decide ; (apply Hf || apply Hg || lra).
+  {
+    intros. subst f' g' => /=. repeat case_bool_decide. 4: done.
+    - subst. by apply Hfg.
+    - subst. exfalso. eauto.
+    - apply Hg.
+  }
+  etrans.
+  1: etrans.
+  2: exact pw'. 1,2: right ; subst f' g'.
+  2: apply Rmult_eq_compat_l.
+  all: apply SeriesC_ext ; intros ; case_bool_decide ; field.
+Qed.
