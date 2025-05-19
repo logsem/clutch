@@ -2027,22 +2027,6 @@ Qed.
 
 
 Local Ltac unfold_if_in := match goal with | |- context [(if_in (?X \o _) _)] => unfold X end.
-Local Ltac destruct_go tac :=
-  repeat match goal with
-         | H : context [ match ?x with | (y, z) => _ end] |- _ =>
-             let y := fresh y in
-             let z := fresh z in
-             destruct x as [y z]
-         | H : ∃ x, _ |- _ => let x := fresh x in destruct H as [x H]
-         | H : (ex2 _ _) |- _ => destruct H
-         | H: (_*_) |- _ => destruct H                          
-         | |- _ => destruct_and!
-         | |- _ => destruct_or!
-         | |- _ => progress simplify_eq
-         | |- _ => tac
-    end.
-
-Local Tactic Notation "destruct!/=" := destruct_go ltac:( progress csimpl in * ; simpl).
 
 Lemma fill_item_fill_item'_eq : fill_item' = fill_item.
 Proof.

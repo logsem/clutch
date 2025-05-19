@@ -592,3 +592,39 @@ Proof.
       apply sigma_algebra0.
   - move=> _. by rewrite /measurable/=/discr_measurable/=.
 Qed.
+
+Lemma shape_expr_gen_expr (e_shape: expr_shape):
+  shape_expr (gen_expr e_shape) = e_shape.
+Proof.
+  revert e_shape.
+  fix FIX 1.
+  intros [v'|x|f x e|e1 e2|x e|x e1 e2|e1 e2 e3|e1 e2|e|e|e|e|e1 e2 e3|e|e|e1 e2|e|e1 e2| |e|e]; rewrite /shape_expr/gen_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _ _)-!/(expr_pre_F _ _ _ _ _ _)-/gen_val-/gen_expr-/shape_expr; last first.
+  all: try (f_equal; apply FIX).
+  f_equal.
+  assert (forall (v_shape: val_shape), shape_val (gen_val v_shape) = v_shape) as H; last apply H.
+  assert (forall (x:()), x=()).
+  { by intros []. }
+  fix FIX' 1.
+  intros [l|f x e|v1 v2|v|v]; simpl; rewrite /gen_val/shape_val/val_pre_F/=-!/(val_pre_F _ _ _ _ _ _)-!/(expr_pre_F _ _ _ _ _ _)-/gen_val-/gen_expr-/shape_expr.
+  all: try (f_equal; apply FIX').
+  2:{ f_equal. apply FIX. }
+  f_equal.
+  destruct l; rewrite /base_lit_pre_F/=; by f_equal.
+Qed. 
+
+Lemma shape_val_gen_val v_shape:
+  shape_val (gen_val v_shape) = v_shape.
+Proof.
+  assert (forall (x:()), x=()).
+  { by intros []. }
+  revert v_shape.
+  fix FIX' 1.
+  intros [l|f x e|v1 v2|v|v]; simpl; rewrite /gen_val/shape_val/val_pre_F/=-!/(val_pre_F _ _ _ _ _ _)-!/(expr_pre_F _ _ _ _ _ _)-/gen_val-/gen_expr-/shape_expr.
+  all: try (f_equal; apply FIX').
+  2:{ f_equal. apply shape_expr_gen_expr. }
+  f_equal.
+  destruct l; rewrite /base_lit_pre_F/=; by f_equal.
+Qed. 
+
+
+

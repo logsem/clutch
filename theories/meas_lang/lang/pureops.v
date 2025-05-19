@@ -815,24 +815,6 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
 
 
 
-
-Local Ltac destruct_go tac :=
-  repeat match goal with
-         | H : context [ match ?x with | (y, z) => _ end] |- _ =>
-             let y := fresh y in
-             let z := fresh z in
-             destruct x as [y z]
-         | H : ∃ x, _ |- _ => let x := fresh x in destruct H as [x H]
-         | H : (ex2 _ _) |- _ => destruct H
-         | H: (_*_) |- _ => destruct H                          
-         | |- _ => destruct_and!
-         | |- _ => destruct_or!
-         | |- _ => progress simplify_eq
-         | |- _ => tac
-    end.
-
-Local Tactic Notation "destruct!/=" := destruct_go ltac:( progress csimpl in * ; simpl).
-
 Definition base_lit_diag := [set x: (base_lit * base_lit)| ∃ y, x =(y,y)].
 Lemma base_lit_diag_meas_set : measurable base_lit_diag.
 Proof.

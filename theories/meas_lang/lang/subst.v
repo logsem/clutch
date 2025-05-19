@@ -148,17 +148,43 @@ Proof.
     destruct s; try done; simpl in *; by case_match.
 Qed. 
 
-
-(* Lemma substU_measurable_lemma b v_shape e_shape (s:expr_S): *)
-(*   shape_subst b v_shape e_shape = shape_expr s -> *)
-(*   ∃ v' e', *)
-(*     val_ML v' /\ *)
-(*     expr_ML e' /\ *)
-(*     shape_val v' = v_shape /\ *)
-(*     shape_expr e'= e_shape /\ *)
-    
-(* . *)
-
+Lemma substU_measurable_induction_lemma b v_shape e_shape (s: expr_S):
+  expr_ML s->
+  shape_subst b v_shape e_shape = shape_expr s ->
+  exists v e,
+    shape_val v = v_shape /\
+    shape_expr e = e_shape /\
+    val_ML v /\
+    expr_ML e /\
+    ([set e | shape_val e = v_shape] `*` [set e | shape_expr e = e_shape]
+       `&` substU b @^-1` expr_ST s) = (val_ST v`*`expr_ST e).
+Proof.
+  revert e_shape s b v_shape.
+  fix FIX 1.
+  intros [v'|x|f x e|e1 e2|x e|x e1 e2|e1 e2 e3|e1 e2|e|e|e|e|e1 e2 e3|e|e|e1 e2|e|e1 e2| |e|e] s b v_shape Hs Hsubst; simpl in *; simpl.
+  - destruct s as [x|x|f x e|e1 e2|x e|x e1 e2|e1 e2 e3|e1 e2|e|e|e|e|e1 e2 e3|e|e|e1 e2|e|e1 e2| |e|e]; simpl in *; try done. 
+    inversion Hsubst as [Hrewrite]; rewrite -/(shape_val) in Hrewrite. subst.
+    clear Hsubst.
+    eexists (gen_val v_shape), (Val x).
+    repeat split.
+    + apply shape_val_gen_val.
+    + apply gen_val_generator. 
+    + done. 
+    +  rewrite eqEsubset; split; intros []; simpl; intros; destruct!/=; repeat split.
+      * by rewrite -val_shape_cyl /=.
+      * destruct e; simpl in *; try done.
+        by eexists _.
+      * cut ([set e | shape_val e = v_shape] v); first done.
+        by rewrite val_shape_cyl.
+      * rewrite /shape_expr/expr_pre_F/=. f_equal. rewrite -/(shape_val _). by erewrite <-val_ST_shape.
+      * rewrite /substU/=.
+        by eexists _.
+  - admit.
+  - admit.
+  - destruct s; simpl in *; try done.
+    inversion Hsubst as [[Hrewrite1 Hrewrite2]]; rewrite -/(shape_val) in Hrewrite1.
+    clear Hsubst. rewrite -!/(shape_expr _) in Hrewrite1 Hrewrite2.
+Admitted.
 
 Lemma substU_measurable (b : string) : measurable_fun setT (substU b).
 Proof.
@@ -202,14 +228,17 @@ Proof.
     rewrite -H1 -H2 in H. apply H.
     by apply shape_subst_respect.
   }
-
   
-  (** Attempt *)
-  generalize dependent s.
-  fix FIX 1.
-  destruct s; simpl.
-  - intros H.
-  (** End of attempt*)
+  unshelve epose proof substU_measurable_induction_lemma _ _ _ _ _ H as (v&e&?&?&?&?&Hrewrite); first done.
+  rewrite Hrewrite.
+  ms_solve; apply: sub_sigma_algebra; by eexists _.
+Qed. 
+  (* (** Attempt *) *)
+  (* generalize dependent s. *)
+  (* fix FIX 1. *)
+  (* destruct s; simpl. *)
+  (* - intros H. *)
+  (* (** End of attempt*) *)
   
   (*
   rewrite -(expr_shape_decomp (expr_ST s)).
@@ -235,8 +264,6 @@ Proof.
   - intro H.
     admit.
     *)
-
-Admitted.
 
 
 

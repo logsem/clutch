@@ -516,24 +516,6 @@ Ltac mf_restrictT :=
   | |- (measurable_fun _ _) => apply mathcomp_measurable_fun_restiction_setT; [ try by ms_solve | ]
   end.
 
-(** Ltacs for banging head onto wall *)
-(** [destruct!] destructs things in the context *)
-Local Ltac destruct_go tac :=
-  repeat match goal with
-         | H : context [ match ?x with | (y, z) => _ end] |- _ =>
-             let y := fresh y in
-             let z := fresh z in
-             destruct x as [y z]
-         | H : ∃ x, _ |- _ => let x := fresh x in destruct H as [x H]
-         | H : (ex2 _ _) |- _ => destruct H
-         | H: (_*_) |- _ => destruct H                          
-         | |- _ => destruct_and!
-         | |- _ => destruct_or!
-         | |- _ => progress simplify_eq
-         | |- _ => tac
-    end.
-
-Local Tactic Notation "destruct!/=" := destruct_go ltac:( progress csimpl in * ; simpl).
 
 Local Ltac subset_solver :=
     intros ?; try done; elim; naive_solver.

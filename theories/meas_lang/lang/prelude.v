@@ -136,3 +136,21 @@ Ltac mf_cmp_tree :=
         |
         | try by mf_done ]
   end.
+
+(** [destruct!] destructs things in the context *)
+Ltac destruct_go tac :=
+  repeat match goal with
+         | H : context [ match ?x with | (y, z) => _ end] |- _ =>
+             let y := fresh y in
+             let z := fresh z in
+             destruct x as [y z]
+         | H : ∃ x, _ |- _ => let x := fresh x in destruct H as [x H]
+         | H : (ex2 _ _) |- _ => destruct H
+         | H: (_*_) |- _ => destruct H                          
+         | |- _ => destruct_and!
+         | |- _ => destruct_or!
+         | |- _ => progress simplify_eq
+         | |- _ => tac
+    end.
+
+Tactic Notation "destruct!/=" := destruct_go ltac:( progress csimpl in * ; simpl).
