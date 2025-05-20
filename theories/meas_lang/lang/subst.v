@@ -207,9 +207,234 @@ Lemma combine_val_pre_correct v_shape (v1:val_pre) v2 :
   shape_val (combine_val_pre v1 v2) = v_shape /\
   val_ML (combine_val_pre v1 v2) /\
   val_ST (combine_val_pre v1 v2) = val_ST v1 `&` val_ST v2.
-Proof.
-  
-Admitted.
+Proof with rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; naive_solver.
+  intros <-. intros H. symmetry in H. revert H.
+  revert v2.
+  apply (val_pre_mut _ _ _ _
+           (fun e1 => ∀ (e2:expr_pre),
+           shape_expr e1 = shape_expr e2 ->
+           expr_ML e1 ->
+           expr_ML e2->
+           shape_expr (combine_expr_pre e1 e2) = shape_expr e1 /\
+           expr_ML (combine_expr_pre e1 e2) /\
+           expr_ST (combine_expr_pre e1 e2) = expr_ST e1 `&` expr_ST e2)
+           (fun v1 => ∀ v2 : val_pre,
+              shape_val v1 = shape_val v2
+              → val_ML v1
+              → val_ML v2
+              → shape_val (combine_val_pre v1 v2) = shape_val v1
+              ∧ val_ML (combine_val_pre v1 v2) ∧ val_ST (combine_val_pre v1 v2) = val_ST v1 `&` val_ST v2)).
+  - intros v H.
+    intros [v'|x|f x e|e1 e2|x e|x e1 e2|e1 e2 e3|e1 e2|e|e|e|e|e1 e2 e3|e|e|e1 e2|e|e1 e2| |e|e]; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    inversion H1 as [H4].
+    apply H in H4 as (K1 & K2 & K3); try done.
+    rewrite K1 K3.
+    destruct!/=; repeat split; try done...
+  - intros x. intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    inversion H1 as [H4].
+    subst. repeat split...
+  - intros f x e H.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    inversion H1 as [[H4 H5 H6]]. subst.
+    apply H in H6 as (K1 & K2 & K3); try done.
+    rewrite K1 K3.
+    destruct!/=; repeat split; try done...
+  - intros e1 K1 e2 K2.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    destruct!/=.
+    apply K1 in H1 as (L1 & L2 & L3); try done.
+    apply K2 in H2 as (L4 & L5 & L6); try done.
+    rewrite L1 L3 L4 L6.
+    repeat split; try done...
+  - intros op e H.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    inversion H1 as [[H4 H5]]. subst.
+    apply H in H5 as (K1 & K2 & K3); try done.
+    rewrite K1 K3.
+    destruct!/=; repeat split; try done...
+  - intros op e1 K1 e2 K2.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    destruct!/=.
+    apply K1 in H2 as (L1 & L2 & L3); try done.
+    apply K2 in H5 as (L4 & L5 & L6); try done.
+    rewrite L1 L3 L4 L6.
+    repeat split; try done...
+  - intros e1 K1 e2 K2 e3 K3.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    destruct!/=.
+    apply K1 in H1 as (L1 & L2 & L3); try done.
+    apply K2 in H5 as (L4 & L5 & L6); try done.
+    apply K3 in H7 as (L7 & L8 & L9); try done.
+    rewrite L1 L3 L4 L6 L7 L9.
+    repeat split; try done.
+    rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; repeat split; by repeat eexists _.
+  - intros e1 K1 e2 K2.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    destruct!/=.
+    apply K1 in H1 as (L1 & L2 & L3); try done.
+    apply K2 in H2 as (L4 & L5 & L6); try done.
+    rewrite L1 L3 L4 L6.
+    repeat split; try done...
+  - intros e H.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    inversion H1 as [[H4 H5 H6]]. subst. simplify_eq.
+    apply H in H1 as (K1 & K2 & K3); try done.
+    rewrite K1 K3.
+    destruct!/=; repeat split; try done...
+  - intros e H.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    inversion H1 as [[H4 H5 H6]]. subst. simplify_eq.
+    apply H in H1 as (K1 & K2 & K3); try done.
+    rewrite K1 K3.
+    destruct!/=; repeat split; try done...
+  - intros e H.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    inversion H1 as [[H4 H5 H6]]. subst. simplify_eq.
+    apply H in H1 as (K1 & K2 & K3); try done.
+    rewrite K1 K3.
+    destruct!/=; repeat split; try done...
+  - intros e H.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    inversion H1 as [[H4 H5 H6]]. subst. simplify_eq.
+    apply H in H1 as (K1 & K2 & K3); try done.
+    rewrite K1 K3.
+    destruct!/=; repeat split; try done...
+  - intros e1 K1 e2 K2 e3 K3.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    destruct!/=.
+    apply K1 in H1 as (L1 & L2 & L3); try done.
+    apply K2 in H5 as (L4 & L5 & L6); try done.
+    apply K3 in H7 as (L7 & L8 & L9); try done.
+    rewrite L1 L3 L4 L6 L7 L9.
+    repeat split; try done.
+    rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; repeat split; by repeat eexists _.
+  - intros e H.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    inversion H1 as [[H4 H5 H6]]. subst. simplify_eq.
+    apply H in H1 as (K1 & K2 & K3); try done.
+    rewrite K1 K3.
+    destruct!/=; repeat split; try done...
+  - intros e H.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    inversion H1 as [[H4 H5 H6]]. subst. simplify_eq.
+    apply H in H1 as (K1 & K2 & K3); try done.
+    rewrite K1 K3.
+    destruct!/=; repeat split; try done...
+  - intros e1 K1 e2 K2.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    destruct!/=.
+    apply K1 in H1 as (L1 & L2 & L3); try done.
+    apply K2 in H2 as (L4 & L5 & L6); try done.
+    rewrite L1 L3 L4 L6.
+    repeat split; try done...
+  - intros e H.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    inversion H1 as [[H4 H5 H6]]. subst. simplify_eq.
+    apply H in H1 as (K1 & K2 & K3); try done.
+    rewrite K1 K3.
+    destruct!/=; repeat split; try done...
+  - intros e1 K1 e2 K2.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    destruct!/=.
+    apply K1 in H1 as (L1 & L2 & L3); try done.
+    apply K2 in H2 as (L4 & L5 & L6); try done.
+    rewrite L1 L3 L4 L6.
+    repeat split; try done...
+  - intros []; try done.
+    intros. simpl. repeat split...
+  - intros e H.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    inversion H1 as [[H4 H5 H6]]. subst. simplify_eq.
+    apply H in H1 as (K1 & K2 & K3); try done.
+    rewrite K1 K3.
+    destruct!/=; repeat split; try done...
+  - intros e H.
+    intros []; try done.
+    rewrite /shape_expr/expr_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3.
+    inversion H1 as [[H4 H5 H6]]. subst. simplify_eq.
+    apply H in H1 as (K1 & K2 & K3); try done.
+    rewrite K1 K3.
+    destruct!/=; repeat split; try done...
+  - intros l[l'| | | |] ; try done.
+    rewrite /shape_val/val_pre_F/=.
+    destruct l, l'; try done; intros; simpl;
+                try (repeat split; try done;
+      rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; naive_solver).
+    repeat split; try done; first apply measurableI; try done...
+  - intros f x e H.
+    intros []; try done.
+    rewrite /shape_val/val_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros H1 H2 H3. inversion H1 as [[H4 H5 H6]].
+    subst.
+    apply H in H6; try done.
+    destruct!/=. repeat split; try done.
+    { by f_equal. }
+    rewrite H6...
+  - intros v2 H2 v3 H3.
+    intros []; try done.
+    rewrite /shape_val/val_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros K1 K2 K3. simplify_eq.
+    destruct!/=.
+    apply H2 in K1 as (L1 & ? & L2); try done.
+    apply H3 in H as (L3 & ? & L4); try done.
+    rewrite L1 L2 L3 L4.
+    repeat split; try done...
+  - intros v2 H2.
+    intros []; try done.
+    rewrite /shape_val/val_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros K1 K2 K3. simplify_eq.
+    destruct!/=.
+    apply H2 in K1 as (L1 & ? & L2); try done.
+    rewrite L1 L2.
+    repeat split; try done...
+  - intros v2 H2.
+    intros []; try done.
+    rewrite /shape_val/val_pre_F/=-!/(val_pre_F _ _ _ _ _) -!/shape_val -!/(expr_pre_F _ _ _ _ _) -!/shape_expr.
+    intros K1 K2 K3. simplify_eq.
+    destruct!/=.
+    apply H2 in K1 as (L1 & ? & L2); try done.
+    rewrite L1 L2.
+    repeat split; try done...
+Qed.
 
 Lemma substU_measurable_induction_lemma b v_shape e_shape (s: expr_S):
   expr_ML s->
