@@ -239,6 +239,165 @@ Proof.
   - destruct s; simpl in *; try done.
     inversion Hsubst as [[Hrewrite1 Hrewrite2]]; rewrite -/(shape_val) in Hrewrite1.
     clear Hsubst. rewrite -!/(shape_expr _) in Hrewrite1 Hrewrite2.
+    admit.
+  - destruct s; try done; unfold shape_expr, expr_pre_F in Hsubst;
+    rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst;
+    simplify_eq;
+    unshelve epose proof FIX _ _ _ _ _ _ as (v_pre & e_pre & K); [| | | | |exact|]; first by simpl in *.
+    destruct K as (?&?&?&?&Heq); simplify_eq;
+    eexists v_pre, (UnOp _ _); simplify_eq. repeat split; try done.
+    rewrite !eqEsubset in Heq *. destruct Heq as [Heq1 Heq2].
+    split; intros [v e]; simpl; intros; destruct!/=. 
+    * destruct e; simplify_eq. unshelve epose proof Heq1 (v,e) _; destruct!/=; repeat split; try done;
+        unfold substU, shape_expr, expr_pre_F in *; simplify_eq; simpl in *; naive_solver.
+    * unshelve epose proof Heq2 (v,_) _; [|naive_solver|].
+      destruct!/=; repeat split; first naive_solver.
+      -- rewrite {1}/shape_expr/expr_pre_F. by f_equal.
+      -- rewrite /substU/=. naive_solver.
+  - admit.
+  - admit.
+  - admit.
+  - destruct s; try done. unfold shape_expr, expr_pre_F in Hsubst.
+    rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst.
+    simplify_eq.
+    unshelve epose proof FIX _ _ _ _ _ _ as (v_pre & e_pre & K); [| | | | |exact|]; first by simpl in *.
+    destruct K as (?&?&?&?&Heq). simplify_eq.
+    eexists v_pre, (Fst _); simplify_eq. repeat split; try done.
+    rewrite !eqEsubset in Heq *. destruct Heq as [Heq1 Heq2].
+    split; intros [v e]; simpl; intros; destruct!/=. 
+    * destruct e; simplify_eq. unshelve epose proof Heq1 (v,e) _; destruct!/=; repeat split; try done;
+        unfold substU, shape_expr, expr_pre_F in *; simplify_eq; simpl in *; naive_solver.
+    * unshelve epose proof Heq2 (v,_) _; [|naive_solver|].
+      destruct!/=; repeat split; first naive_solver.
+      -- rewrite {1}/shape_expr/expr_pre_F. by f_equal.
+      -- rewrite /substU/=. naive_solver.
+  - destruct s; try done. unfold shape_expr, expr_pre_F in Hsubst.
+    rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst.
+    simplify_eq.
+    unshelve epose proof FIX _ _ _ _ _ _ as (v_pre & e_pre & K); [| | | | |exact|]; first by simpl in *.
+    destruct K as (?&?&?&?&Heq). simplify_eq.
+    eexists v_pre, (Snd _); simplify_eq. repeat split; try done.
+    rewrite !eqEsubset in Heq *. destruct Heq as [Heq1 Heq2].
+    split; intros [v e]; simpl; intros; destruct!/=. 
+    * destruct e; simplify_eq. unshelve epose proof Heq1 (v,e) _; destruct!/=; repeat split; try done;
+        unfold substU, shape_expr, expr_pre_F in *; simplify_eq; simpl in *; naive_solver.
+    * unshelve epose proof Heq2 (v,_) _; [|naive_solver|].
+      destruct!/=; repeat split; first naive_solver.
+      -- rewrite {1}/shape_expr/expr_pre_F. by f_equal.
+      -- rewrite /substU/=. naive_solver.
+  - destruct s; try done. unfold shape_expr, expr_pre_F in Hsubst.
+    rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst.
+    simplify_eq.
+    unshelve epose proof FIX _ _ _ _ _ _ as (v_pre & e_pre & K); [| | | | |exact|]; first by simpl in *.
+    destruct K as (?&?&?&?&Heq). simplify_eq.
+    eexists v_pre, (InjL _); simplify_eq. repeat split; try done.
+    rewrite !eqEsubset in Heq *. destruct Heq as [Heq1 Heq2].
+    split; intros [v e]; simpl; intros; destruct!/=. 
+    * destruct e; simplify_eq. unshelve epose proof Heq1 (v,e) _; destruct!/=; repeat split; try done;
+        unfold substU, shape_expr, expr_pre_F in *; simplify_eq; simpl in *; naive_solver.
+    * unshelve epose proof Heq2 (v,_) _; [|naive_solver|].
+      destruct!/=; repeat split; first naive_solver.
+      -- rewrite {1}/shape_expr/expr_pre_F. by f_equal.
+      -- rewrite /substU/=. naive_solver.
+  - destruct s; try done. unfold shape_expr, expr_pre_F in Hsubst.
+    rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst.
+    simplify_eq.
+    unshelve epose proof FIX _ _ _ _ _ _ as (v_pre & e_pre & K); [| | | | |exact|]; first by simpl in *.
+    destruct K as (?&?&?&?&Heq). simplify_eq.
+    eexists v_pre, (InjR _); simplify_eq. repeat split; try done.
+    rewrite !eqEsubset in Heq *. destruct Heq as [Heq1 Heq2].
+    split; intros [v e]; simpl; intros; destruct!/=. 
+    * destruct e; simplify_eq. unshelve epose proof Heq1 (v,e) _; destruct!/=; repeat split; try done;
+        unfold substU, shape_expr, expr_pre_F in *; simplify_eq; simpl in *; naive_solver.
+    * unshelve epose proof Heq2 (v,_) _; [|naive_solver|].
+      destruct!/=; repeat split; first naive_solver.
+      -- rewrite {1}/shape_expr/expr_pre_F. by f_equal.
+      -- rewrite /substU/=. naive_solver.
+  - admit.
+  - destruct s; try done. unfold shape_expr, expr_pre_F in Hsubst.
+    rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst.
+    simplify_eq.
+    unshelve epose proof FIX _ _ _ _ _ _ as (v_pre & e_pre & K); [| | | | |exact|]; first by simpl in *.
+    destruct K as (?&?&?&?&Heq). simplify_eq.
+    eexists v_pre, (Alloc _); simplify_eq. repeat split; try done.
+    rewrite !eqEsubset in Heq *. destruct Heq as [Heq1 Heq2].
+    split; intros [v e]; simpl; intros; destruct!/=. 
+    * destruct e; simplify_eq. unshelve epose proof Heq1 (v,e) _; destruct!/=; repeat split; try done;
+        unfold substU, shape_expr, expr_pre_F in *; simplify_eq; simpl in *; naive_solver.
+    * unshelve epose proof Heq2 (v,_) _; [|naive_solver|].
+      destruct!/=; repeat split; first naive_solver.
+      -- rewrite {1}/shape_expr/expr_pre_F. by f_equal.
+      -- rewrite /substU/=. naive_solver.
+  - destruct s; try done. unfold shape_expr, expr_pre_F in Hsubst.
+    rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst.
+    simplify_eq.
+    unshelve epose proof FIX _ _ _ _ _ _ as (v_pre & e_pre & K); [| | | | |exact|]; first by simpl in *.
+    destruct K as (?&?&?&?&Heq). simplify_eq.
+    eexists v_pre, (Load _); simplify_eq. repeat split; try done.
+    rewrite !eqEsubset in Heq *. destruct Heq as [Heq1 Heq2].
+    split; intros [v e]; simpl; intros; destruct!/=. 
+    * destruct e; simplify_eq. unshelve epose proof Heq1 (v,e) _; destruct!/=; repeat split; try done;
+        unfold substU, shape_expr, expr_pre_F in *; simplify_eq; simpl in *; naive_solver.
+    * unshelve epose proof Heq2 (v,_) _; [|naive_solver|].
+      destruct!/=; repeat split; first naive_solver.
+      -- rewrite {1}/shape_expr/expr_pre_F. by f_equal.
+      -- rewrite /substU/=. naive_solver.
+  - admit.
+  - destruct s; try done. unfold shape_expr, expr_pre_F in Hsubst.
+    rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst.
+    simplify_eq.
+    unshelve epose proof FIX _ _ _ _ _ _ as (v_pre & e_pre & K); [| | | | |exact|]; first by simpl in *.
+    destruct K as (?&?&?&?&Heq). simplify_eq.
+    eexists v_pre, (AllocTape _); simplify_eq. repeat split; try done.
+    rewrite !eqEsubset in Heq *. destruct Heq as [Heq1 Heq2].
+    split; intros [v e]; simpl; intros; destruct!/=. 
+    * destruct e; simplify_eq. unshelve epose proof Heq1 (v,e) _; destruct!/=; repeat split; try done;
+        unfold substU, shape_expr, expr_pre_F in *; simplify_eq; simpl in *; naive_solver.
+    * unshelve epose proof Heq2 (v,_) _; [|naive_solver|].
+      destruct!/=; repeat split; first naive_solver.
+      -- rewrite {1}/shape_expr/expr_pre_F. by f_equal.
+      -- rewrite /substU/=. naive_solver.
+  - admit.
+  - destruct s; try done. unfold shape_expr, expr_pre_F in Hsubst.
+    rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst.
+    simplify_eq.
+    eexists (gen_val v_shape), (AllocUTape); simplify_eq. repeat split; try done.
+    + apply shape_val_gen_val.
+    + apply gen_val_generator.
+    + rewrite eqEsubset.
+      split; intros [v e]; simpl; intros; destruct!/=. 
+      * destruct e; simplify_eq. split; last done.
+        by rewrite -val_shape_cyl.
+      * repeat split; try done. cut ([set e | shape_val e = v_shape] v); first done.
+        by rewrite val_shape_cyl.
+  - destruct s; try done. unfold shape_expr, expr_pre_F in Hsubst.
+    rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst.
+    simplify_eq.
+    unshelve epose proof FIX _ _ _ _ _ _ as (v_pre & e_pre & K); [| | | | |exact|]; first by simpl in *.
+    destruct K as (?&?&?&?&Heq). simplify_eq.
+    eexists v_pre, (URand _); simplify_eq. repeat split; try done.
+    rewrite !eqEsubset in Heq *. destruct Heq as [Heq1 Heq2].
+    split; intros [v e]; simpl; intros; destruct!/=. 
+    * destruct e; simplify_eq. unshelve epose proof Heq1 (v,e) _; destruct!/=; repeat split; try done;
+        unfold substU, shape_expr, expr_pre_F in *; simplify_eq; simpl in *; naive_solver.
+    * unshelve epose proof Heq2 (v,_) _; [|naive_solver|].
+      destruct!/=; repeat split; first naive_solver.
+      -- rewrite {1}/shape_expr/expr_pre_F. by f_equal.
+      -- rewrite /substU/=. naive_solver.
+  - destruct s; try done. unfold shape_expr, expr_pre_F in Hsubst.
+    rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst.
+    simplify_eq.
+    unshelve epose proof FIX _ _ _ _ _ _ as (v_pre & e_pre & K); [| | | | |exact|]; first by simpl in *.
+    destruct K as (?&?&?&?&Heq). simplify_eq.
+    eexists v_pre, (Tick _); simplify_eq. repeat split; try done.
+    rewrite !eqEsubset in Heq *. destruct Heq as [Heq1 Heq2].
+    split; intros [v e]; simpl; intros; destruct!/=. 
+    * destruct e; simplify_eq. unshelve epose proof Heq1 (v,e) _; destruct!/=; repeat split; try done;
+        unfold substU, shape_expr, expr_pre_F in *; simplify_eq; simpl in *; naive_solver.
+    * unshelve epose proof Heq2 (v,_) _; [|naive_solver|].
+      destruct!/=; repeat split; first naive_solver.
+      -- rewrite {1}/shape_expr/expr_pre_F. by f_equal.
+      -- rewrite /substU/=. naive_solver.
 Admitted.
 
 Lemma substU_measurable (b : string) : measurable_fun setT (substU b).
