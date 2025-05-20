@@ -154,7 +154,7 @@ Section BinomialProbability.
   
 End BinomialProbability.
 
-Class binomial_spec `{!erisGS Σ} (binomial_prog : val) :=
+Class binomial_spec `{!erisGS Σ} (binomial_prog : val) (binomial_alloc : val) :=
   BinomialSpec {
  
   twp_binom_adv_comp (p q : nat) (n : nat) (D : fin (S n) → R) (ε : R) :
@@ -166,6 +166,11 @@ Class binomial_spec `{!erisGS Σ} (binomial_prog : val) :=
     [[{ (k : fin (S n)), RET #k ; ↯ (D k) }]];
    
   own_binomial_tape (α : loc) (m n k : nat) (v : list (fin (S k))) : iProp Σ;
+
+  twp_binomial_alloc (p q k : nat) :
+      [[{ True }]]
+        binomial_alloc #p #q #k
+      [[{ (α : loc), RET #lbl:α; own_binomial_tape α p q k [] }]];
 
   twp_binomial_tape (N M k : nat) (α : loc) (ns : list (fin (S k))) (n : fin (S k)) :   [[{ own_binomial_tape α N M k (n::ns) }]]
       binomial_prog (#lbl:α) #N #M #k
@@ -210,7 +215,7 @@ Class binomial_spec `{!erisGS Σ} (binomial_prog : val) :=
 Section BinomialLemmas.
 
   Context `{!erisGS Σ}.
-  Context `{!binomial_spec binom}.
+  Context `{!binomial_spec binom binalloc}.
   
   Set Default Proof Using "Type*".
 

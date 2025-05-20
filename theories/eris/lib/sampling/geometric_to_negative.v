@@ -5,7 +5,7 @@ From Coquelicot Require Import PSeries ElemFct RInt RInt_analysis Continuity.
 
 Section GeometricToNegative.
   Context `{!erisGS Σ}.
-  Context `{!geometric_spec geometric}.
+  Context `{!geometric_spec geometric galloc}.
   
   Definition negative_of_geometric : val :=
     λ: "α" "p" "q" "r",
@@ -14,7 +14,12 @@ Section GeometricToNegative.
           then #0
           else "loop" ("r" - #1) + geometric "α" "p" "q") "r".
 
-  Lemma choose_sum_split_fin : ∀ (r j : nat), interface.choose (j + r) j = SeriesC (λ (i : fin (S j)), interface.choose (i + r - 1) i).
+  Definition nalloc : val :=
+    λ: "p" "q" "r", galloc "p" "q".
+  
+  Lemma choose_sum_split_fin :
+    ∀ (r j : nat),
+    interface.choose (j + r) j = SeriesC (λ (i : fin (S j)), interface.choose (i + r - 1) i).
   Proof.
     move=>r j.
     elim: j =>/=[|j IH].
@@ -318,9 +323,9 @@ Section GeometricToNegative.
     lra.
   Qed.
   
-  Instance NegativeOfGeometric : negative_binomial_spec negative_of_geometric.
+  Instance NegativeOfGeometric : negative_binomial_spec negative_of_geometric nalloc.
   Proof.
-    refine (NegativeSpec _ _ _ _ _ _ _ _ _).
+    refine (NegativeSpec _ _ _ _ _ _ _ _ _ _ _).
     {
       iIntros (p q p_pos p_lt_Sq r D L ε ε_term term_pos D_bounds D_sum) "Hterm Herr".
       unfold negative_of_geometric.

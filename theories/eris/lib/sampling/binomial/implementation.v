@@ -9,7 +9,7 @@ Section binomial.
   Set Default Proof Using "Type*".
   
   Context `{!erisGS Σ}.
-  Context `{!bernoulli_spec bernoulli}.
+  Context `{!bernoulli_spec bernoulli balloc}.
 
   Definition binom_tape : val :=
     λ: "α" "m" "n",
@@ -18,6 +18,9 @@ Section binomial.
         then #0
         else "binom" ("k" - #1) + bernoulli "α" "m" "n".
 
+  Definition binalloc : val :=
+    λ: "m" "n" "k", balloc "m" "n".
+  
   Definition binom : expr := binom_tape #().
  
   Lemma ec_binom_split (p q n : nat) (D : fin (S (S n)) → R):
@@ -276,6 +279,20 @@ Section binomial.
   Definition own_binomial_tape (α : loc) (m n k : nat) (v : list (fin (S k))) : iProp Σ :=
     ∃ l, own_bernoulli_tape α m n l ∗ ⌜is_binomial_translation k v l⌝.
 
+  Lemma twp_binom_alloc (m n k : nat) :
+    [[{ True }]]
+      binalloc #m #n #k
+      [[{ (α : loc), RET #lbl:α ; own_binomial_tape α m n k [] }]].
+  Proof.
+    iIntros (Φ) "_ HΦ".
+    unfold binalloc.
+    wp_pures.
+    wp_apply (twp_bernoulli_alloc with "[$]") as (α) "Hα".
+    iApply "HΦ".
+    iExists [].
+    by iFrame.
+  Qed.
+  
   Lemma twp_bernoulli_multiple_presample (e : expr) (α : loc) (Φ : val → iProp Σ)
       (N M k : nat) (ns : list (fin 2)) : 
     to_val e = None → 
@@ -629,10 +646,11 @@ Section binomial.
     rewrite ns_eq_tl (bernoulli_to_binomial_app_n _ k) // -{2}(app_nil_r ts) bernoulli_to_binomial_app_1 //.
   Qed.
 
-  #[global] Instance BinomialOfBernoulli : binomial_spec binom_tape :=
-    BinomialSpec _ _ binom_tape
+  #[global] Instance BinomialOfBernoulli : binomial_spec binom_tape binalloc :=
+    BinomialSpec _ _ binom_tape binalloc
       twp_binom_adv_comp
       own_binomial_tape
+      twp_binom_alloc
       twp_binomial_tape
       binomial_tape_presample
       twp_binomial_tape_planner

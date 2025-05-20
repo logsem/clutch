@@ -7,7 +7,7 @@ Section Polya.
   
   Set Default Proof Using "Type*".
   Context `{!erisGS Σ}.
-  Context `{!bernoulli_spec bernoulli}.
+  Context `{!bernoulli_spec bernoulli balloc}.
 
   #[local] Ltac done ::= solve[
     lia |
@@ -27,6 +27,29 @@ Section Polya.
         then #1 + "polya" "α" ("red" + #1) "black" ("n" - #1)
         else "polya" "α" "red" ("black" + #1) ("n" - #1).
   
+  Definition polyalloc_row : val :=
+    rec: "polyalloc_row" "red" "black" "n" :=
+      if: "n" = #0 then (λ: "x", "x")
+      else
+        let: "α0" := balloc "red" ("red" + "black") in
+        let: "α" := "polyalloc_row" "red" ("black" + #1) ("n" - #1) in
+        (λ: "i",
+           if: "i" = #0
+           then "α0"
+           else "α" ("i" - #1)
+        ).
+  
+  Definition polyalloc : val :=
+      rec: "polyalloc" "red" "black" "n" :=
+      if: "n" = #0 then (λ: "x", "x")
+      else
+        let: "αr" := polyalloc_row "red" "black" "n" in
+        let: "α" := "polyalloc" ("red" + #1) "black" ("n" - #1) in
+        (λ: "i" "j",
+           if: "j" = #0
+           then "αr" "i"
+           else "α" "i" ("j" - #1))
+  .
   
   Definition Beta x y := ((fact (x - 1)) * (fact (y - 1)) / (fact (x + y - 1)))%R.
   
@@ -746,49 +769,53 @@ Section Polya.
   Fixpoint triangle_top {A : Type} {n : nat} : triangle A n → fin_list A n :=
     match n as n0 return triangle A n0 → fin_list A n0 with
     | 0 => const fin_nil
-    | S m => triangle_S_inv (const (fin_list A (S m)))
-               (λ t l, fin_list_snoc (triangle_top t) (fin_list_head l))
+    | S m => λ t,
+               fin_list_snoc
+                 (triangle_top (triangle_head t))
+                 (fin_list_head (triangle_tail t))
     end.
 
   Fixpoint triangle_bottom {A : Type} {n : nat} : triangle A n → fin_list A n :=
     match n as n0 return triangle A n0 → fin_list A n0 with
     | 0 => const fin_nil
-    | S m => triangle_S_inv (const (fin_list A (S m)))
-               (λ t l, fin_list_snoc (triangle_bottom t) (fin_list_last l))
+    | S m => λ t,
+               fin_list_snoc
+                 (triangle_bottom (triangle_head t))
+                 (fin_list_last (triangle_tail t))
     end.
 
   Fixpoint triangle_glue_top {A : Type} {n : nat} : triangle A n → fin_list A (S n) → triangle A (S n) :=
     match n as n0 return triangle A n0 → fin_list A (S n0) → triangle A (S n0) with
     | 0 => trig_snoc
-    | S m => λ t l, triangle_S_inv (const (triangle A (S (S m))))
-                      (λ t' l',
-                           trig_snoc (triangle_glue_top t' (fin_list_liat l)) (fin_cons (fin_list_last l) l')
-                      ) t
+    | S m => λ t l, trig_snoc
+                      (triangle_glue_top (triangle_head t) (fin_list_liat l))
+                      (fin_cons (fin_list_last l) (triangle_tail t))
     end.
 
   Fixpoint triangle_glue_bottom {A : Type} {n : nat} : triangle A n → fin_list A (S n) → triangle A (S n) :=
     match n as n0 return triangle A n0 → fin_list A (S n0) → triangle A (S n0) with
     | 0 => trig_snoc
-    | S m => λ t l, triangle_S_inv (const (triangle A (S (S m))))
-                      (λ t' l',
-                           trig_snoc (triangle_glue_bottom t' (fin_list_liat l)) (fin_list_snoc l' (fin_list_last l))
-                      ) t
+    | S m => λ t l, trig_snoc
+                      (triangle_glue_bottom (triangle_head t) (fin_list_liat l))
+                      (fin_list_snoc (triangle_tail t) (fin_list_last l))
     end.
 
   Fixpoint triangle_remove_top {A : Type} {n : nat} : triangle A (S n) → triangle A n :=
     match n as n0 return triangle A (S n0) → triangle A n0 with
     | 0 => const trig_nil
-    | S m => triangle_S_inv (const (triangle A (S m)))
-               (λ t' l,
-                  trig_snoc (triangle_remove_top t') (fin_list_tail l))
+    | S m => λ t,
+               trig_snoc
+                 (triangle_remove_top (triangle_head t))
+                 (fin_list_tail (triangle_tail t))
     end.
 
   Fixpoint triangle_remove_bottom {A : Type} {n : nat} : triangle A (S n) → triangle A n :=
     match n as n0 return triangle A (S n0) → triangle A n0 with
     | 0 => const trig_nil
-    | S m => triangle_S_inv (const (triangle A (S m)))
-               (λ t' l,
-                  trig_snoc (triangle_remove_bottom t') (fin_list_liat l))
+    | S m => λ t,
+               trig_snoc
+                 (triangle_remove_bottom (triangle_head t))
+                 (fin_list_liat (triangle_tail t))
     end.
 
   Lemma triangle_remove_top_0 :
@@ -812,13 +839,11 @@ Section Polya.
     move=>A.
     elim=>[|n IH] t; inv_triangle t => t l.
     - inv_triangle t.
-      inv_fin_list l.
-      move=>a l.
+      inv_fin_list l => a l.
       by inv_fin_list l.
-    - inv_triangle t => t l'.
-      simpl.
-      rewrite fin_list_liat_snoc.
-      rewrite -IH fin_list_last_snoc -fin_list_cons_head_tail //.
+    - inv_triangle t => t l' /=.
+      rewrite fin_list_liat_snoc -IH fin_list_last_snoc
+              -fin_list_cons_head_tail //.
   Qed.
 
   Lemma triangle_glue_remove_bottom :
@@ -828,13 +853,11 @@ Section Polya.
     move=>A.
     elim=>[|n IH] t; inv_triangle t => t l.
     - inv_triangle t.
-      inv_fin_list l.
-      move=>a l.
+      inv_fin_list l => a l.
       by inv_fin_list l.
-    - inv_triangle t => t l'.
-      simpl.
-      rewrite fin_list_liat_snoc.
-      rewrite -IH fin_list_last_snoc -fin_list_snoc_liat_last //.
+    - inv_triangle t => t l' /=.
+      rewrite fin_list_liat_snoc -IH fin_list_last_snoc
+              -fin_list_snoc_liat_last //.
   Qed.
 
   Lemma triangle_remove_glue_top :
@@ -1535,28 +1558,31 @@ Section Polya.
       do 2 f_equal.
       apply sum_arbitrary.
   Qed.
-(*
-  Fixpoint β_well_formed {n : nat} : β_tape n → Prop :=
-    match n as n0 return β_tape n0 → Prop with
-    | 0 | 1 => const True
-    | S (S m) => triangle_S_inv (const Prop)
-                   (λ t l,
-                      let fst := fin_list_head l in
-                      let mid := fin_list_tail (fin_list_liat l) in 
-                      let lst := fin_list_last l in
-                      β_well_formed t ∧
-                      length fst =
-                      length (fin_list_last (triangle_top t)) -
-                        list_sum (fin_to_nat <$> fin_list_last (triangle_top t)) ∧
-                      length lst = list_sum (fin_to_nat <$> fin_list_last (triangle_top t)) ∧
-                      ∀ (i : fin m),
-                      length (fin_list_get mid i) = 
-                      length (triangle_get t (S m) i) -
-                        list_sum (triangle_get t (S m) i) + 
-                        list_sum (triangle_get t (S m) (FS i))
-                   )%nat
+  
+  Fixpoint β_well_formed {n : nat} : β_tape (S n) → Prop :=
+    match n as n0 return β_tape (S n0) → Prop with
+    | 0 => const True
+    | S m =>
+        (λ t,
+           let ht := triangle_head t in
+           let l := triangle_tail t in
+           let fst := fin_list_head l in
+           let mid := fin_list_tail (fin_list_liat l) in 
+           let lst := fin_list_last l in
+           β_well_formed ht 
+           ∧
+             length fst =
+           length (fin_list_last (triangle_top ht)) -
+             list_sum (fin_to_nat <$> fin_list_last (triangle_top ht)) ∧
+           length lst = list_sum (fin_to_nat <$> fin_list_last (triangle_top ht)) ∧
+           ∀ (i : fin m),
+           length (fin_list_get mid i) = 
+           length (fin_list_get (triangle_tail ht) (fin_S_inj i)) -
+             list_sum (fin_to_nat <$> fin_list_get (triangle_tail ht) (fin_S_inj i)) + 
+             list_sum (fin_to_nat <$> fin_list_get (triangle_tail ht) (FS i))
+        )%nat
     end.
-  *)
+  
   Definition is_abs_loc (n : nat) (α : val) (Δ : triangle loc n) :=
     ∀ (i : fin n) (j : fin (S i)),
     ⊢ WP α #i #j [{ v, ⌜v = #(triangle_get Δ i j)⌝ }].
@@ -2086,5 +2112,3 @@ Section Polya.
   Qed.
   
 End Polya.                        
-
-

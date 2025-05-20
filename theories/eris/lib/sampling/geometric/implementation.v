@@ -4,7 +4,7 @@ From clutch.eris.lib.sampling.bernoulli Require Import interface.
 
 Section Tape.
   Context `{!erisGS Σ}.
-  Context `{!bernoulli_spec bernoulli}.
+  Context `{!bernoulli_spec bernoulli balloc}.
   
   #[local] Open Scope fin.
 
@@ -181,7 +181,7 @@ Section Geometric.
   Set Default Proof Using "Type*".
   
   Context `{!erisGS Σ}.
-  Context `{!bernoulli_spec bernoulli}.
+  Context `{!bernoulli_spec bernoulli balloc}.
 
   Definition own_geometric_tape (α : loc) (N M : nat) (t : list nat) : iProp Σ :=
     ∃ l, 

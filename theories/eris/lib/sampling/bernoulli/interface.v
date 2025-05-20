@@ -3,7 +3,7 @@ From clutch.eris.lib.sampling Require Import utils.
 
 #[local] Open Scope R.
 
-Class bernoulli_spec `{!erisGS Σ} (bernoulli_prog : val) :=
+Class bernoulli_spec `{!erisGS Σ} (bernoulli_prog : val) (bernoulli_alloc : val) :=
   BernoulliSpec {
     twp_bernoulli_scale (N M : nat) (ε ε1 ε2 : R) (p := N / S M) :
       N ≤ S M →
@@ -18,63 +18,66 @@ Class bernoulli_spec `{!erisGS Σ} (bernoulli_prog : val) :=
         (⌜k = 1%nat⌝ ∗ ↯ ε2)
       }]];
 
-  own_bernoulli_tape :
+    own_bernoulli_tape :
       loc → nat → nat → list (fin 2) → iPropI Σ;
 
+    twp_bernoulli_alloc (N M : nat) :
+      [[{ True }]]
+        bernoulli_alloc #N #M
+      [[{ (α : loc), RET #lbl:α; own_bernoulli_tape α N M [] }]];
 
-  twp_presample_bernoulli 
+    twp_presample_bernoulli 
       (e : expr) (α : loc) (Φ : val → iProp Σ) 
       (N M : nat) (ns : list (fin 2)) : 
-    to_val e = None →
-    own_bernoulli_tape α N M ns ∗ 
-    (∀ i : fin 2, own_bernoulli_tape α N M (ns ++ [i]) -∗ WP e [{ v, Φ v }]) 
-    ⊢ WP e [{ v, Φ v }];
+      to_val e = None →
+      own_bernoulli_tape α N M ns ∗ 
+      (∀ i : fin 2, own_bernoulli_tape α N M (ns ++ [i]) -∗ WP e [{ v, Φ v }]) 
+      ⊢ WP e [{ v, Φ v }];
 
 
-  twp_presample_bernoulli_adv_comp 
+    twp_presample_bernoulli_adv_comp 
       (e : expr) (α : loc) (Φ : val → iProp Σ) 
       (N M : nat) (ns : list (fin 2)) (ε : R) (D : fin 2 → R): 
-    N ≤ M + 1 →
-    (∀ i : fin 2, 0 <= D i) →
-    D 0%fin * (1 - N / (M + 1)) + D 1%fin * (N / (M + 1)) = ε →
-    to_val e = None → 
-    ↯ ε ∗ 
-    own_bernoulli_tape α N M ns ∗ 
-    (∀ i : fin 2, 
-        ↯ (D i) ∗ own_bernoulli_tape α N M (ns ++ [i]) -∗ 
-        WP e [{ v, Φ v }])
-    ⊢ WP e [{ v, Φ v }];
+      N ≤ M + 1 →
+      (∀ i : fin 2, 0 <= D i) →
+      D 0%fin * (1 - N / (M + 1)) + D 1%fin * (N / (M + 1)) = ε →
+      to_val e = None → 
+      ↯ ε ∗ 
+      own_bernoulli_tape α N M ns ∗ 
+      (∀ i : fin 2, 
+         ↯ (D i) ∗ own_bernoulli_tape α N M (ns ++ [i]) -∗ 
+         WP e [{ v, Φ v }])
+      ⊢ WP e [{ v, Φ v }];
 
 
-  twp_bernoulli_tape (N M : nat) (α : loc) (ns : list (fin 2)) (n : fin 2) :
-    [[{ own_bernoulli_tape α N M (n::ns) }]]
-      bernoulli_prog (#lbl:α) #N #M
-    [[{ RET #n ; own_bernoulli_tape α N M ns }]];
+    twp_bernoulli_tape (N M : nat) (α : loc) (ns : list (fin 2)) (n : fin 2) :
+      [[{ own_bernoulli_tape α N M (n::ns) }]]
+        bernoulli_prog (#lbl:α) #N #M
+      [[{ RET #n ; own_bernoulli_tape α N M ns }]];
 
-
-  twp_presample_bernoulli_planner 
+    twp_presample_bernoulli_planner 
       (N M : nat) (e : expr) (ε : nonnegreal) (L : nat) 
       (α : loc) (Φ : val → iProp Σ) (prefix : list (fin 2)) 
       (suffix : list (fin 2) → list (fin 2)) :
-    (0 < N < S M)%nat →
-    to_val e = None →
-    (∀ junk : list (fin 2), 
-        (0 < length (suffix (prefix ++ junk)) <= L)%nat) → 
-    0 < ε → 
-    ↯ ε ∗ 
-    own_bernoulli_tape α N M prefix ∗
-    ((∃ junk : list (fin 2), 
-        own_bernoulli_tape α N M (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ 
-      WP e [{ v, Φ v }])
-    ⊢ WP e [{ v, Φ v }]
-}.
+      (0 < N < S M)%nat →
+      to_val e = None →
+      (∀ junk : list (fin 2), 
+         (0 < length (suffix (prefix ++ junk)) <= L)%nat) → 
+      0 < ε → 
+      ↯ ε ∗ 
+      own_bernoulli_tape α N M prefix ∗
+      ((∃ junk : list (fin 2), 
+           own_bernoulli_tape α N M (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ 
+       WP e [{ v, Φ v }])
+      ⊢ WP e [{ v, Φ v }]
+    }.
 
 Set Default Proof Using "Type*".
 
 Section BernoulliSpecLemmas.
 
   Context `{!erisGS Σ}.
-  Context `{!bernoulli_spec bernoulli}.
+  Context `{!bernoulli_spec bernoulli balloc}.
  
   #[local] Ltac done ::= 
     solve[

@@ -29,6 +29,9 @@ Section BernoulliImpl.
       let: "x" := rand("α") "M" in 
       if: "x" < "N" then #1 else #0.
 
+  Definition balloc : val :=
+    λ: "N" "M", alloc "M".
+  
   (**
     The base specification for tapeless usage, every other one can be derived from it
   *)
@@ -144,7 +147,22 @@ Section BernoulliImpl.
     - apply is_bernoulli_translation_app_1 => //. 
     - apply is_bernoulli_translation_app_0 => //.
   Qed.
-    
+
+  Lemma twp_bernoulli_alloc (N M : nat) :
+    [[{ True }]]
+      balloc #N #M
+    [[{ (α : loc), RET #lbl:α ; own_bernoulli_tape α N M [] }]].
+  Proof.
+    unfold balloc.
+    iIntros (Φ) "_ HΦ".
+    wp_pures.
+    wp_apply (twp_alloc_tape with "[$]") as (α) "Hα".
+    iApply "HΦ".
+    iExists [].
+    iFrame.
+    iPureIntro.
+    rewrite /is_bernoulli_translation //.
+  Qed.
 
   (**
     Specification of the bernoulli function with tapes
@@ -202,7 +220,14 @@ Section BernoulliImpl.
   Qed.
   
 
-  #[global] Instance bernoulli_impl : bernoulli_spec bernoulli :=
-    BernoulliSpec _ _ bernoulli twp_bernoulli_scale own_bernoulli_tape twp_presample_bernoulli twp_presample_bernoulli_adv_comp twp_bernoulli_tape twp_presample_bernoulli_planner.
+  #[global] Instance bernoulli_impl : bernoulli_spec bernoulli balloc :=
+    BernoulliSpec _ _ bernoulli balloc
+      twp_bernoulli_scale
+      own_bernoulli_tape
+      twp_bernoulli_alloc
+      twp_presample_bernoulli
+      twp_presample_bernoulli_adv_comp
+      twp_bernoulli_tape
+      twp_presample_bernoulli_planner.
   
 End BernoulliImpl.

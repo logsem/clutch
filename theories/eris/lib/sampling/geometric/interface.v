@@ -1,7 +1,7 @@
 From clutch.eris Require Export eris.
 From clutch.eris.lib.sampling Require Import utils. 
 
-Class geometric_spec `{!erisGS Σ} (geometric_prog : val) :=
+Class geometric_spec `{!erisGS Σ} (geometric_prog geometric_alloc : val) :=
   GeometricSpec
   {
     twp_geometric_adv_comp :
@@ -16,6 +16,11 @@ Class geometric_spec `{!erisGS Σ} (geometric_prog : val) :=
 
     own_geometric_tape (α : loc) (N M : nat) (v : list nat) : iProp Σ;
 
+    twp_geometric_alloc (p q : nat) :
+      [[{ True }]]
+        geometric_alloc #p #q
+      [[{ (α : loc), RET #lbl:α; own_geometric_tape α p q [] }]];
+    
     twp_geometric_tape :
     ∀ (p q r : nat) (α : loc) (n : nat) (ns : list nat) (Φ : val → iProp Σ),
       own_geometric_tape α p q (n::ns) -∗
