@@ -179,8 +179,63 @@ Proof.
       * rewrite /shape_expr/expr_pre_F/=. f_equal. rewrite -/(shape_val _). by erewrite <-val_ST_shape.
       * rewrite /substU/=.
         by eexists _.
-  - admit.
-  - admit.
+  - case_match; subst.
+    + destruct s as [x|x|f x e|e1 e2|x e|x e1 e2|e1 e2 e3|e1 e2|e|e|e|e|e1 e2 e3|e|e|e1 e2|e|e1 e2| |e|e]; simpl in *; try done.
+      inversion Hsubst as [Hrewrite]. subst.
+      clear Hsubst.
+      eexists (x), (Var b). repeat split; try done.
+      rewrite -/(shape_val _).
+      rewrite eqEsubset; split; intros [v e]; simpl; intros; destruct!/=; repeat split.
+      * destruct e; try done. unfold shape_expr in *. simpl in *.
+        unfold substU in *. simpl in *. case_match; last done; subst.
+        by simplify_eq.
+      * destruct e; try done. unfold shape_expr in *. simpl in *. f_equal. naive_solver.
+      * by erewrite <-val_ST_shape.
+      * rewrite /substU; simpl. case_match; last done. naive_solver.
+    + destruct s as [x'|x'|f x' e|e1 e2|x' e|x' e1 e2|e1 e2 e3|e1 e2|e|e|e|e|e1 e2 e3|e|e|e1 e2|e|e1 e2| |e|e]; simpl in *; try done.
+      exists (gen_val v_shape), (Var x); simplify_eq. repeat split; try done.
+      * apply shape_val_gen_val.
+      * apply gen_val_generator.
+      * rewrite eqEsubset; split; intros []; simpl; intros; destruct!/=; repeat split; simplify_eq.
+        -- by rewrite -val_shape_cyl.
+        -- destruct e; try done. unfold substU, shape_expr, expr_pre_F in *. by simplify_eq.
+        -- cut ([set e | shape_val e = v_shape] v); first done.
+           by rewrite val_shape_cyl.
+        -- rewrite /substU/=. case_match; first done.
+           unfold shape_expr, expr_pre_F in *; by simplify_eq.
+  - case_match; destruct!/=.
+    + destruct s ; simpl in *; try done. unfold shape_expr, expr_pre_F in Hsubst. simplify_eq.
+      unshelve epose proof FIX e s b v_shape _ _ as [v_pre [e_pre H2]]; try done.
+      destruct H2 as (?&?&?&?&Heq); subst.
+      eexists (v_pre), (Rec _ _ e_pre); repeat split; try done.
+      rewrite !eqEsubset in Heq *. destruct Heq as [Heq1 Heq2].
+      split; intros [v e]; simpl; intros; destruct!/=. 
+      * destruct e; simplify_eq. unshelve epose proof Heq1 (v,e) _; destruct!/=; repeat split; try done;
+        unfold substU, shape_expr, expr_pre_F in *; simplify_eq; simpl in *;
+        case_match; simplify_eq; naive_solver.
+      * unshelve epose proof Heq2 (v,_) _; [|naive_solver|].
+        destruct!/=; repeat split; first naive_solver.
+        -- rewrite {1}/shape_expr/expr_pre_F. by f_equal.
+        -- rewrite /substU/=. case_match; naive_solver.
+    + destruct s; try done. unfold shape_expr, expr_pre_F in Hsubst.
+      rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst.
+      simplify_eq.
+      eexists (gen_val v_shape), (_); simplify_eq. repeat split; try done.
+      * apply shape_val_gen_val.
+      * by rewrite /shape_expr/expr_pre_F.
+      * apply gen_val_generator.
+      * rewrite eqEsubset; split; intros [v e']; simpl; intros; destruct!/=; repeat split; simplify_eq.
+        -- by rewrite -val_shape_cyl.
+        -- destruct e'; try done. unfold substU in *. simpl in *.
+           case_match; last (simplify_eq; naive_solver).
+           exfalso. naive_solver.
+        -- cut ([set e | shape_val e = v_shape] v); first done.
+           by rewrite val_shape_cyl.
+        -- rewrite /substU/=. rewrite /shape_expr/expr_pre_F/=; f_equal. symmetry.
+           by apply expr_ST_shape.
+        -- eexists _; first done.
+           rewrite /substU/=. case_match; last done.
+           exfalso; naive_solver.
   - destruct s; simpl in *; try done.
     inversion Hsubst as [[Hrewrite1 Hrewrite2]]; rewrite -/(shape_val) in Hrewrite1.
     clear Hsubst. rewrite -!/(shape_expr _) in Hrewrite1 Hrewrite2.
