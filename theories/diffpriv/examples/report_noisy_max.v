@@ -4,9 +4,6 @@ From clutch.prelude Require Import tactics.
 From clutch.prob Require Import differential_privacy.
 From clutch.diffpriv Require Import adequacy diffpriv proofmode.
 
-Definition logN : namespace := nroot .@ "logN".
-
-
 Section rnm.
   Context `{!diffprivGS Σ}.
 
