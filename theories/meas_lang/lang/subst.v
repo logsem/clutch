@@ -146,7 +146,20 @@ Proof.
   - intros H;
     rewrite /substU/= in H.
     destruct s; try done; simpl in *; by case_match.
-Qed. 
+Qed.
+
+Definition combine_val_pre (v1 v2:val_S) : val_S. Admitted.
+
+Lemma combine_val_pre_correct v_shape (v1:val_pre) v2 :
+  shape_val v1 = v_shape ->
+  shape_val v2 = v_shape ->
+  val_ML v1 ->
+  val_ML v2->
+  shape_val (combine_val_pre v1 v2) = v_shape /\
+  val_ML (combine_val_pre v1 v2) /\
+  val_ST (combine_val_pre v1 v2) = val_ST v1 `&` val_ST v2.
+Proof. 
+Admitted.
 
 Lemma substU_measurable_induction_lemma b v_shape e_shape (s: expr_S):
   expr_ML s->
@@ -237,9 +250,35 @@ Proof.
            rewrite /substU/=. case_match; last done.
            exfalso; naive_solver.
   - destruct s; simpl in *; try done.
+    destruct Hs.
     inversion Hsubst as [[Hrewrite1 Hrewrite2]]; rewrite -/(shape_val) in Hrewrite1.
     clear Hsubst. rewrite -!/(shape_expr _) in Hrewrite1 Hrewrite2.
-    admit.
+    unshelve epose proof FIX _ _ _ _ _ Hrewrite1 as (v_pre1 & e_pre1 & ?&?&?&?&K1); first done.
+    unshelve epose proof FIX _ _ _ _ _ Hrewrite2 as (v_pre2 & e_pre2 & ?&?&?&?&K2); first done.
+    unshelve epose proof combine_val_pre_correct _ v_pre1 v_pre2 _ _ _ _ as (Hval1 & Hval2 & Hval3); try done.
+    exists (combine_val_pre v_pre1 v_pre2), (App e_pre1 e_pre2).
+    subst.
+    repeat split; try done.
+    rewrite Hval3.
+    rewrite !eqEsubset in K1 K2 *; split; intros [v e]; simpl; intros; destruct K1 as [Hineq1 Hineq2]; destruct K2 as [Hineq3 Hineq4]; destruct!/=.
+    + destruct e as [x'|x'|f x' e|e1 e2|x' e|x' e1 e2|e1 e2 e3|e1 e2|e|e|e|e|e1 e2 e3|e|e|e1 e2|e|e1 e2| |e|e]; simplify_eq.
+      unshelve epose proof Hineq1 (v, e1) _.
+      { simpl. repeat split; first done.
+        - unfold shape_expr, expr_pre_F in *; by simplify_eq.
+        - unfold substU in *. simpl in *. by simplify_eq.
+      }
+      unshelve epose proof Hineq3 (v, e2) _.
+      { simpl. repeat split; first done.
+        - unfold shape_expr, expr_pre_F in *; by simplify_eq.
+        - unfold substU in *. simpl in *. by simplify_eq.
+      }
+      simpl in *. naive_solver.
+    + unshelve epose proof Hineq2 (v,_) _; [|naive_solver|].
+      unshelve epose proof Hineq4 (v,_) _; [|naive_solver|].
+      simpl in *. destruct!/=.
+      repeat split; try done.
+      { rewrite /shape_expr/expr_pre_F. simpl. f_equal; naive_solver. }
+      naive_solver.
   - destruct s; try done; unfold shape_expr, expr_pre_F in Hsubst;
     rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst;
     simplify_eq;
@@ -254,9 +293,104 @@ Proof.
       destruct!/=; repeat split; first naive_solver.
       -- rewrite {1}/shape_expr/expr_pre_F. by f_equal.
       -- rewrite /substU/=. naive_solver.
-  - admit.
-  - admit.
-  - admit.
+  - destruct s; simpl in *; try done.
+    destruct Hs.
+    inversion Hsubst as [[H' Hrewrite1 Hrewrite2]]. subst.
+    clear Hsubst. rewrite -!/(shape_expr _) in Hrewrite1 Hrewrite2.
+    unshelve epose proof FIX _ _ _ _ _ Hrewrite1 as (v_pre1 & e_pre1 & ?&?&?&?&K1); first done.
+    unshelve epose proof FIX _ _ _ _ _ Hrewrite2 as (v_pre2 & e_pre2 & ?&?&?&?&K2); first done.
+    unshelve epose proof combine_val_pre_correct _ v_pre1 v_pre2 _ _ _ _ as (Hval1 & Hval2 & Hval3); try done.
+    eexists (combine_val_pre v_pre1 v_pre2), (BinOp _ e_pre1 e_pre2).
+    subst.
+    repeat split; try done.
+    rewrite Hval3.
+    rewrite !eqEsubset in K1 K2 *; split; intros [v e]; simpl; intros; destruct K1 as [Hineq1 Hineq2]; destruct K2 as [Hineq3 Hineq4]; destruct!/=.
+    + destruct e as [x'|x'|f x' e|e1 e2|x' e|x' e1 e2|e1 e2 e3|e1 e2|e|e|e|e|e1 e2 e3|e|e|e1 e2|e|e1 e2| |e|e]; simplify_eq.
+      unshelve epose proof Hineq1 (v, e1) _.
+      { simpl. repeat split; first done.
+        - unfold shape_expr, expr_pre_F in *; by simplify_eq.
+        - unfold substU in *. simpl in *. by simplify_eq.
+      }
+      unshelve epose proof Hineq3 (v, e2) _.
+      { simpl. repeat split; first done.
+        - unfold shape_expr, expr_pre_F in *; by simplify_eq.
+        - unfold substU in *. simpl in *. by simplify_eq.
+      }
+      simpl in *. unfold substU in *. simpl in *. simplify_eq. naive_solver. 
+    + unshelve epose proof Hineq2 (v,_) _; [|naive_solver|].
+      unshelve epose proof Hineq4 (v,_) _; [|naive_solver|].
+      simpl in *. destruct!/=.
+      repeat split; try done.
+      { rewrite /shape_expr/expr_pre_F. simpl. f_equal; naive_solver. }
+      naive_solver.
+  - destruct s; simpl in *; try done.
+    destruct Hs as [?[]].
+    inversion Hsubst as [[Hrewrite1 Hrewrite2 Hrewrite3]].
+    clear Hsubst. rewrite -!/(shape_expr _) in Hrewrite1 Hrewrite2 Hrewrite3.
+    unshelve epose proof FIX _ _ _ _ _ Hrewrite1 as (v_pre1 & e_pre1 & ?&?&?&?&K1); first done.
+    unshelve epose proof FIX _ _ _ _ _ Hrewrite2 as (v_pre2 & e_pre2 & ?&?&?&?&K2); first done.
+    unshelve epose proof FIX _ _ _ _ _ Hrewrite3 as (v_pre3 & e_pre3 & ?&?&?&?&K3); first done.
+    unshelve epose proof combine_val_pre_correct _ v_pre1 v_pre2 _ _ _ _ as (Hval1 & Hval2 & Hval3); try done.
+    unshelve epose proof combine_val_pre_correct _ (combine_val_pre v_pre1 v_pre2) v_pre3 _ _ _ _ as (Hval4 & Hval5 & Hval6); try done.
+    exists (combine_val_pre (combine_val_pre v_pre1 v_pre2) v_pre3), (If e_pre1 e_pre2 e_pre3).
+    subst.
+    repeat split; try done.
+    rewrite Hval6 Hval3.
+    rewrite !eqEsubset in K1 K2 K3 *; split; intros [v e]; simpl; intros; destruct K1 as [Hineq1 Hineq2]; destruct K2 as [Hineq3 Hineq4]; destruct K3 as [Hineq5 Hineq6]; destruct!/=.
+    + destruct e as [x'|x'|f x' e|e1 e2|x' e|x' e1 e2|e1 e2 e3|e1 e2|e|e|e|e|e1 e2 e3|e|e|e1 e2|e|e1 e2| |e|e]; simplify_eq.
+      unshelve epose proof Hineq1 (v, e1) _.
+      { simpl. repeat split; first done.
+        - unfold shape_expr, expr_pre_F in *; by simplify_eq.
+        - unfold substU in *. simpl in *. by simplify_eq.
+      }
+      unshelve epose proof Hineq3 (v, e2) _.
+      { simpl. repeat split; first done.
+        - unfold shape_expr, expr_pre_F in *; by simplify_eq.
+        - unfold substU in *. simpl in *. by simplify_eq.
+      }
+      unshelve epose proof Hineq5 (v, e3) _.
+      { simpl. repeat split; first done.
+        - unfold shape_expr, expr_pre_F in *; by simplify_eq.
+        - unfold substU in *. simpl in *. by simplify_eq.
+      }
+      simpl in *. naive_solver.
+    + unshelve epose proof Hineq2 (v,_) _; [|naive_solver|].
+      unshelve epose proof Hineq4 (v,_) _; [|naive_solver|].
+      unshelve epose proof Hineq6 (v,_) _; [|naive_solver|].
+      simpl in *. destruct!/=.
+      repeat split; try done.
+      { rewrite /shape_expr/expr_pre_F. simpl. f_equal; naive_solver. }
+      naive_solver.
+  - destruct s; simpl in *; try done.
+    destruct Hs.
+    inversion Hsubst as [[Hrewrite1 Hrewrite2]]; rewrite -/(shape_val) in Hrewrite1.
+    clear Hsubst. rewrite -!/(shape_expr _) in Hrewrite1 Hrewrite2.
+    unshelve epose proof FIX _ _ _ _ _ Hrewrite1 as (v_pre1 & e_pre1 & ?&?&?&?&K1); first done.
+    unshelve epose proof FIX _ _ _ _ _ Hrewrite2 as (v_pre2 & e_pre2 & ?&?&?&?&K2); first done.
+    unshelve epose proof combine_val_pre_correct _ v_pre1 v_pre2 _ _ _ _ as (Hval1 & Hval2 & Hval3); try done.
+    exists (combine_val_pre v_pre1 v_pre2), (Pair e_pre1 e_pre2).
+    subst.
+    repeat split; try done.
+    rewrite Hval3.
+    rewrite !eqEsubset in K1 K2 *; split; intros [v e]; simpl; intros; destruct K1 as [Hineq1 Hineq2]; destruct K2 as [Hineq3 Hineq4]; destruct!/=.
+    + destruct e as [x'|x'|f x' e|e1 e2|x' e|x' e1 e2|e1 e2 e3|e1 e2|e|e|e|e|e1 e2 e3|e|e|e1 e2|e|e1 e2| |e|e]; simplify_eq.
+      unshelve epose proof Hineq1 (v, e1) _.
+      { simpl. repeat split; first done.
+        - unfold shape_expr, expr_pre_F in *; by simplify_eq.
+        - unfold substU in *. simpl in *. by simplify_eq.
+      }
+      unshelve epose proof Hineq3 (v, e2) _.
+      { simpl. repeat split; first done.
+        - unfold shape_expr, expr_pre_F in *; by simplify_eq.
+        - unfold substU in *. simpl in *. by simplify_eq.
+      }
+      simpl in *. naive_solver.
+    + unshelve epose proof Hineq2 (v,_) _; [|naive_solver|].
+      unshelve epose proof Hineq4 (v,_) _; [|naive_solver|].
+      simpl in *. destruct!/=.
+      repeat split; try done.
+      { rewrite /shape_expr/expr_pre_F. simpl. f_equal; naive_solver. }
+      naive_solver.
   - destruct s; try done. unfold shape_expr, expr_pre_F in Hsubst.
     rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst.
     simplify_eq.
@@ -313,7 +447,44 @@ Proof.
       destruct!/=; repeat split; first naive_solver.
       -- rewrite {1}/shape_expr/expr_pre_F. by f_equal.
       -- rewrite /substU/=. naive_solver.
-  - admit.
+  - destruct s; simpl in *; try done.
+    destruct Hs as [?[]].
+    inversion Hsubst as [[Hrewrite1 Hrewrite2 Hrewrite3]].
+    clear Hsubst. rewrite -!/(shape_expr _) in Hrewrite1 Hrewrite2 Hrewrite3.
+    unshelve epose proof FIX _ _ _ _ _ Hrewrite1 as (v_pre1 & e_pre1 & ?&?&?&?&K1); first done.
+    unshelve epose proof FIX _ _ _ _ _ Hrewrite2 as (v_pre2 & e_pre2 & ?&?&?&?&K2); first done.
+    unshelve epose proof FIX _ _ _ _ _ Hrewrite3 as (v_pre3 & e_pre3 & ?&?&?&?&K3); first done.
+    unshelve epose proof combine_val_pre_correct _ v_pre1 v_pre2 _ _ _ _ as (Hval1 & Hval2 & Hval3); try done.
+    unshelve epose proof combine_val_pre_correct _ (combine_val_pre v_pre1 v_pre2) v_pre3 _ _ _ _ as (Hval4 & Hval5 & Hval6); try done.
+    exists (combine_val_pre (combine_val_pre v_pre1 v_pre2) v_pre3), (Case e_pre1 e_pre2 e_pre3).
+    subst.
+    repeat split; try done.
+    rewrite Hval6 Hval3.
+    rewrite !eqEsubset in K1 K2 K3 *; split; intros [v e]; simpl; intros; destruct K1 as [Hineq1 Hineq2]; destruct K2 as [Hineq3 Hineq4]; destruct K3 as [Hineq5 Hineq6]; destruct!/=.
+    + destruct e as [x'|x'|f x' e|e1 e2|x' e|x' e1 e2|e1 e2 e3|e1 e2|e|e|e|e|e1 e2 e3|e|e|e1 e2|e|e1 e2| |e|e]; simplify_eq.
+      unshelve epose proof Hineq1 (v, e1) _.
+      { simpl. repeat split; first done.
+        - unfold shape_expr, expr_pre_F in *; by simplify_eq.
+        - unfold substU in *. simpl in *. by simplify_eq.
+      }
+      unshelve epose proof Hineq3 (v, e2) _.
+      { simpl. repeat split; first done.
+        - unfold shape_expr, expr_pre_F in *; by simplify_eq.
+        - unfold substU in *. simpl in *. by simplify_eq.
+      }
+      unshelve epose proof Hineq5 (v, e3) _.
+      { simpl. repeat split; first done.
+        - unfold shape_expr, expr_pre_F in *; by simplify_eq.
+        - unfold substU in *. simpl in *. by simplify_eq.
+      }
+      simpl in *. naive_solver.
+    + unshelve epose proof Hineq2 (v,_) _; [|naive_solver|].
+      unshelve epose proof Hineq4 (v,_) _; [|naive_solver|].
+      unshelve epose proof Hineq6 (v,_) _; [|naive_solver|].
+      simpl in *. destruct!/=.
+      repeat split; try done.
+      { rewrite /shape_expr/expr_pre_F. simpl. f_equal; naive_solver. }
+      naive_solver.
   - destruct s; try done. unfold shape_expr, expr_pre_F in Hsubst.
     rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst.
     simplify_eq.
@@ -342,7 +513,36 @@ Proof.
       destruct!/=; repeat split; first naive_solver.
       -- rewrite {1}/shape_expr/expr_pre_F. by f_equal.
       -- rewrite /substU/=. naive_solver.
-  - admit.
+  - destruct s; simpl in *; try done.
+    destruct Hs.
+    inversion Hsubst as [[Hrewrite1 Hrewrite2]]; rewrite -/(shape_val) in Hrewrite1.
+    clear Hsubst. rewrite -!/(shape_expr _) in Hrewrite1 Hrewrite2.
+    unshelve epose proof FIX _ _ _ _ _ Hrewrite1 as (v_pre1 & e_pre1 & ?&?&?&?&K1); first done.
+    unshelve epose proof FIX _ _ _ _ _ Hrewrite2 as (v_pre2 & e_pre2 & ?&?&?&?&K2); first done.
+    unshelve epose proof combine_val_pre_correct _ v_pre1 v_pre2 _ _ _ _ as (Hval1 & Hval2 & Hval3); try done.
+    exists (combine_val_pre v_pre1 v_pre2), (Store e_pre1 e_pre2).
+    subst.
+    repeat split; try done.
+    rewrite Hval3.
+    rewrite !eqEsubset in K1 K2 *; split; intros [v e]; simpl; intros; destruct K1 as [Hineq1 Hineq2]; destruct K2 as [Hineq3 Hineq4]; destruct!/=.
+    + destruct e as [x'|x'|f x' e|e1 e2|x' e|x' e1 e2|e1 e2 e3|e1 e2|e|e|e|e|e1 e2 e3|e|e|e1 e2|e|e1 e2| |e|e]; simplify_eq.
+      unshelve epose proof Hineq1 (v, e1) _.
+      { simpl. repeat split; first done.
+        - unfold shape_expr, expr_pre_F in *; by simplify_eq.
+        - unfold substU in *. simpl in *. by simplify_eq.
+      }
+      unshelve epose proof Hineq3 (v, e2) _.
+      { simpl. repeat split; first done.
+        - unfold shape_expr, expr_pre_F in *; by simplify_eq.
+        - unfold substU in *. simpl in *. by simplify_eq.
+      }
+      simpl in *. naive_solver.
+    + unshelve epose proof Hineq2 (v,_) _; [|naive_solver|].
+      unshelve epose proof Hineq4 (v,_) _; [|naive_solver|].
+      simpl in *. destruct!/=.
+      repeat split; try done.
+      { rewrite /shape_expr/expr_pre_F. simpl. f_equal; naive_solver. }
+      naive_solver.
   - destruct s; try done. unfold shape_expr, expr_pre_F in Hsubst.
     rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst.
     simplify_eq.
@@ -357,7 +557,36 @@ Proof.
       destruct!/=; repeat split; first naive_solver.
       -- rewrite {1}/shape_expr/expr_pre_F. by f_equal.
       -- rewrite /substU/=. naive_solver.
-  - admit.
+  - destruct s; simpl in *; try done.
+    destruct Hs.
+    inversion Hsubst as [[Hrewrite1 Hrewrite2]]; rewrite -/(shape_val) in Hrewrite1.
+    clear Hsubst. rewrite -!/(shape_expr _) in Hrewrite1 Hrewrite2.
+    unshelve epose proof FIX _ _ _ _ _ Hrewrite1 as (v_pre1 & e_pre1 & ?&?&?&?&K1); first done.
+    unshelve epose proof FIX _ _ _ _ _ Hrewrite2 as (v_pre2 & e_pre2 & ?&?&?&?&K2); first done.
+    unshelve epose proof combine_val_pre_correct _ v_pre1 v_pre2 _ _ _ _ as (Hval1 & Hval2 & Hval3); try done.
+    exists (combine_val_pre v_pre1 v_pre2), (Rand e_pre1 e_pre2).
+    subst.
+    repeat split; try done.
+    rewrite Hval3.
+    rewrite !eqEsubset in K1 K2 *; split; intros [v e]; simpl; intros; destruct K1 as [Hineq1 Hineq2]; destruct K2 as [Hineq3 Hineq4]; destruct!/=.
+    + destruct e as [x'|x'|f x' e|e1 e2|x' e|x' e1 e2|e1 e2 e3|e1 e2|e|e|e|e|e1 e2 e3|e|e|e1 e2|e|e1 e2| |e|e]; simplify_eq.
+      unshelve epose proof Hineq1 (v, e1) _.
+      { simpl. repeat split; first done.
+        - unfold shape_expr, expr_pre_F in *; by simplify_eq.
+        - unfold substU in *. simpl in *. by simplify_eq.
+      }
+      unshelve epose proof Hineq3 (v, e2) _.
+      { simpl. repeat split; first done.
+        - unfold shape_expr, expr_pre_F in *; by simplify_eq.
+        - unfold substU in *. simpl in *. by simplify_eq.
+      }
+      simpl in *. naive_solver.
+    + unshelve epose proof Hineq2 (v,_) _; [|naive_solver|].
+      unshelve epose proof Hineq4 (v,_) _; [|naive_solver|].
+      simpl in *. destruct!/=.
+      repeat split; try done.
+      { rewrite /shape_expr/expr_pre_F. simpl. f_equal; naive_solver. }
+      naive_solver.
   - destruct s; try done. unfold shape_expr, expr_pre_F in Hsubst.
     rewrite -/(expr_pre_F _ _ _ _ _ _)-/shape_expr in Hsubst.
     simplify_eq.
@@ -398,7 +627,7 @@ Proof.
       destruct!/=; repeat split; first naive_solver.
       -- rewrite {1}/shape_expr/expr_pre_F. by f_equal.
       -- rewrite /substU/=. naive_solver.
-Admitted.
+Qed.
 
 Lemma substU_measurable (b : string) : measurable_fun setT (substU b).
 Proof.
@@ -478,7 +707,6 @@ Qed.
   - intro H.
     admit.
     *)
-
 
 
 (** Uncurried substitution 2: can prove that this is a measurable function, by a covering argument *)
