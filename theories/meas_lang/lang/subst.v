@@ -148,7 +148,56 @@ Proof.
     destruct s; try done; simpl in *; by case_match.
 Qed.
 
-Definition combine_val_pre (v1 v2:val_S) : val_S. Admitted.
+Definition combine_base_lit_pre (b1 b2: base_lit_S):base_lit_S :=
+  match b1, b2 with
+    | LitInt s1, LitInt s2 => LitInt (s1 `&` s2)
+    | LitBool s1, LitBool s2 => LitBool (s1 `&` s2)
+    | LitUnit, LitUnit => LitUnit
+    | LitLoc s1, LitLoc s2 => LitLoc (s1 `&` s2)
+    | LitLbl s1, LitLbl s2 => LitLbl (s1 `&` s2)
+    | LitReal s1, LitReal s2 => LitReal (s1 `&` s2)
+    | _,_ => LitUnit
+  end.
+
+Fixpoint test (e1 e2: expr_S) : expr_S:=
+  match e1, e2 with
+  |App s1 s2, App s3 s4 => App (test s1 s3) (test s2 s4)
+  | _,_ => Var BAnon
+  end. 
+
+Fixpoint combine_expr_pre (e1 e2:expr_S): expr_S :=
+  match e1, e2 with
+  | Val s1, Val s2          => Val (combine_val_pre s1 s2)
+  | Var x, Var x'          => Var x
+  | Rec f x s1, Rec f' x' s2      => Rec f x (combine_expr_pre s1 s2)
+  | App s1 s2, App s3 s4      => App (combine_expr_pre s1 s3) (combine_expr_pre s2 s4)
+  | UnOp op s1, UnOp op' s2      => UnOp op (combine_expr_pre s1 s2)
+  | BinOp op s1 s2, BinOp op' s3 s4 => BinOp op (combine_expr_pre s1 s3) (combine_expr_pre s2 s4)
+  | If s1 s2 s3, If s4 s5 s6    => If (combine_expr_pre s1 s4) (combine_expr_pre s2 s5) (combine_expr_pre s3 s6)
+  | Pair s1 s2, Pair s3 s4     => Pair (combine_expr_pre s1 s3) (combine_expr_pre s2 s4)
+  | Fst s1, Fst s2          => Fst (combine_expr_pre s1 s2)
+  | Snd s1, Snd s2          => Snd (combine_expr_pre s1 s2)
+  | InjL s1, InjL s2         => InjL (combine_expr_pre s1 s2)
+  | InjR s1, InjR s2         => InjR (combine_expr_pre s1 s2)
+  | Case s1 s2 s3, Case s4 s5 s6  => Case (combine_expr_pre s1 s4) (combine_expr_pre s2 s5) (combine_expr_pre s3 s6)
+  | Alloc s1, Alloc s2       => Alloc (combine_expr_pre s1 s2)
+  | Load s1, Load s2         => Load (combine_expr_pre s1 s2)
+  | Store s1 s2, Store s3 s4    => Store (combine_expr_pre s1 s3) (combine_expr_pre s2 s4)
+  | AllocTape s1, AllocTape s2    => AllocTape (combine_expr_pre s1 s2)
+  | Rand s1 s2, Rand s3 s4     => Rand (combine_expr_pre s1 s3) (combine_expr_pre s2 s4)
+  | AllocUTape, AllocUTape     => AllocUTape
+  | URand s1, URand s2        => URand (combine_expr_pre s1 s2)
+  | Tick s1, Tick s2         => Tick (combine_expr_pre s1 s2)
+  | _, _ => AllocUTape
+  end with combine_val_pre (v1 v2 : val_S) {struct v1}:=
+  match v1, v2 with
+  | LitV s1, LitV s2          => LitV (combine_base_lit_pre s1 s2)
+  | RecV f x s1, RecV f' x' s2     => RecV f x (combine_expr_pre s1 s2)
+  | PairV s1 s2, PairV s3 s4    => PairV (combine_val_pre s1 s3) (combine_val_pre s2 s4)
+  | InjLV s1, InjLV s2       => InjLV (combine_val_pre s1 s2)
+  | InjRV s1, InjRV s2       => InjRV (combine_val_pre s1 s2)
+  | _, _ => LitV LitUnit
+  end.
 
 Lemma combine_val_pre_correct v_shape (v1:val_pre) v2 :
   shape_val v1 = v_shape ->
@@ -158,7 +207,8 @@ Lemma combine_val_pre_correct v_shape (v1:val_pre) v2 :
   shape_val (combine_val_pre v1 v2) = v_shape /\
   val_ML (combine_val_pre v1 v2) /\
   val_ST (combine_val_pre v1 v2) = val_ST v1 `&` val_ST v2.
-Proof. 
+Proof.
+  
 Admitted.
 
 Lemma substU_measurable_induction_lemma b v_shape e_shape (s: expr_S):
