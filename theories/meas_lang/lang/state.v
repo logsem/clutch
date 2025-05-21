@@ -217,20 +217,19 @@ Section hp.
   (* Qed. *)
   (* Hint Resolve hp_finite_meas_set : measlang. *)
 
-  (* Definition get_fresh (m : hp T) (H : hasMax (dom m)): <<discr loc>>. *)
-  (*   (* The minimum loc that is greater than every element of ... *)
+  Definition get_fresh (m : hp T) : <<discr loc>>.
+    (* The minimum loc that is greater than every element of ... *)
   (*      Exists because of H. *)
-  (*    *) *)
-  (* Admitted. *)
+  (*    *)
+  Admitted.
 
-  (* Definition fresh : hp T -> <<discr loc>> := *)
-  (*   fun m => extern_if point (get_fresh m). *)
-
-  Definition fresh :(hp T -> <<discr loc>>) :=
-    fun m => fresh_loc m.
+  Definition fresh : hp T -> <<discr loc>> :=
+    fun m => (get_fresh m).
 
   Lemma fresh_meas_fun : measurable_fun setT fresh.
   Proof.
+    rewrite /fresh.
+    
     (*
       On this set, it's equal to...
 
@@ -331,20 +330,42 @@ Qed.
 
 Lemma state_measC X : (state_measurable X) -> state_measurable (~` X).
 Proof.
-  move=>H.
-  (*
-  destruct (exists_prod_measurable_of_state_measurable H) as [P [HP ->]].
-  have -> : (~` [set state_of_prod x | x in P]) = image (~` P) state_of_prod.
-  { apply functional_extensionality; intro x; apply propext.
-    admit. }
-  apply state_measurable_of_prod_measurable.
-  by apply measurableC, HP. *)
-Admitted.
+  rewrite /state_measurable.
+  rewrite measurable_prod_measurableType.
+  simpl. intros H. destruct!/=.
+  apply sigma_algebraC in H.
+  eexists _; try done.
+  rewrite eqEsubset; split; intros [[[]]]; simpl.
+  - intros [[[]]? K1][[[]]? K2]. rewrite -K1 in K2.
+    rewrite /state_of_prod/= in K2. simplify_eq. naive_solver.
+  - intros H'.
+    eexists _; last done.
+    intros H''.
+    apply H'. naive_solver.
+Qed. 
 
 Lemma state_measU (F : sequences.sequence (set state)) : (forall i, state_measurable (F i)) -> state_measurable (\bigcup_i F i).
 Proof.
-  intro H.
-Admitted.
+  rewrite /state_measurable.
+  rewrite measurable_prod_measurableType/=.
+  intros H.
+  assert (forall i : nat,
+  smallest (sigma_algebra setT)
+    (image2 measurable measurable
+       (fun (A : set (prod (hp val) (hp btape))) (B : set (hp utape)) => setX A B)) (((λ i, image (F i) state_v) i))) as H'.
+  { intros i. pose proof H i as [x H1 H2].
+    rewrite -H2.
+    assert (([set state_v x | x in [set state_of_prod x | x in x]]) = x) as Hrewrite; last by rewrite Hrewrite.
+    rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; naive_solver.
+  }
+  apply sigma_algebra_bigcup in H'.
+  eexists _; first done.
+  rewrite eqEsubset; split; intros s; simpl.
+  - intros [[[]][? ? K] ]; subst. simpl in *. destruct K as [[[[]]]]; simpl in *. simplify_eq.
+    eexists _; last done. done.
+  - intros []. destruct s. eexists _; try done.
+    eexists _; last naive_solver. done.
+Qed. 
 
 HB.instance Definition _ :=
   @isMeasurable.Build state_display state state_measurable state_meas0 state_measC state_measU.
