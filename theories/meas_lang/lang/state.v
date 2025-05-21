@@ -223,18 +223,24 @@ Section hp.
   (* Qed. *)
   (* Hint Resolve hp_finite_meas_set : measlang. *)
 
-  Definition get_fresh (m : hp T) : <<discr loc>>.
+  (* Definition get_fresh (m : hp T) : <<discr loc>>:= *)
+  (* fresh_loc m. *)
     (* The minimum loc that is greater than every element of ... *)
   (*      Exists because of H. *)
   (*    *)
-  Admitted.
 
   Definition fresh : hp T -> <<discr loc>> :=
-    fun m => (get_fresh m).
+    fun m => (fresh_loc m).
+  Local Transparent fresh_loc.
 
+  Local Ltac fresh_unfold :=
+    rewrite /fresh_loc/base.fresh/set_fresh/=/base.fresh/infinite_fresh/=/base.fresh/infinite_fresh/=.
+  
   Lemma fresh_meas_fun : measurable_fun setT fresh.
   Proof.
     rewrite /fresh.
+    fresh_unfold.
+    
     
     (*
       On this set, it's equal to...
