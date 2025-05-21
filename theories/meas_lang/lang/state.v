@@ -83,6 +83,11 @@ Section hp_measure.
   HB.instance Definition _ :=
     @isMeasurable.Build (sigma_display hp_measurable) hp hp_measurable hp_meas0 hp_measC hp_measU.
 
+  Lemma hp_meas_singleton (f:hp): (∀ t:T, measurable [set t]) -> measurable [set f].
+  Proof.
+  Admitted.
+  Hint Resolve hp_meas_singleton: measlang.
+
   Definition hp_eval (i : <<discr loc>>) : hp -> option T := fun f => (gmap_lookup i f).
 
   Lemma hp_eval_meas_fun (i : <<discr loc>>) : measurable_fun setT (hp_eval i).
@@ -130,6 +135,7 @@ Section hp_measure.
   Lemma hp_evalC_meas_fun : measurable_fun setT hp_evalC.
   Proof. by apply (@uncurry_loc_measurable _ _ _ _ hp_eval), hp_eval_meas_fun. Qed.
   Hint Resolve hp_evalC_meas_fun : measlang.
+
 
   Definition hp_update (i : <<discr loc>>) : ((option T) * hp)%type -> hp :=
     fun x => gmap_partial_alter (cst (fst x)) i (snd x).
@@ -373,7 +379,29 @@ HB.instance Definition _ :=
 Global Instance : SigmaAlgebra state_display state :=
   {| axioms := @Measurable.class state_display state |}.
 
-Lemma state_meas_singleton (v : state) : measurable [set v]. Admitted.
+Lemma state_meas_singleton (v : state) : measurable [set v].
+Proof.
+  rewrite /measurable/=/state_measurable/=.
+  exists (set1 (prod_of_state v)); last by rewrite image_set1 state_of_prod_of_state.
+  rewrite measurable_prod_measurableType.
+  apply: sub_sigma_algebra.
+  destruct v as [[[x y] z]]. simpl.
+  eexists (set1 (x, y)); last first.
+  { exists (set1 z); last by rewrite -prod1.
+    apply: hp_meas_singleton.
+    intros.
+    apply utape_meas_singleton.
+  }
+  rewrite measurable_prod_measurableType.
+  apply: sub_sigma_algebra.
+  simpl.
+  exists (set1 x); last exists (set1 y);
+                     last by rewrite -prod1.
+                     - apply: hp_meas_singleton. intros.
+                       apply: val_meas_singleton. 
+                     - apply: hp_meas_singleton.
+                       apply: btape_meas_singleton.
+Qed. 
 (*
 Definition state_lift_fun {d} {T : measurableType d} f : state -> T := ssrfun.comp f prod_of_state.
 *)

@@ -183,9 +183,21 @@ Lemma btape_bound_meas_fun : measurable_fun setT btape_bound.
 Proof. unfold btape_bound; by eauto with measlang. Qed.
 Hint Resolve btape_bound_meas_fun : measlang.
 
+Lemma btape_meas_singleton (t:btape):
+  measurable (set1 t).
+Proof.
+Admitted.
+Hint Resolve btape_meas_singleton: measlang.
 
 (** Tape of real numbers *)
 Definition utape := tape ((R : realType) : measurableType _).
+
+
+Lemma utape_meas_singleton (t:utape):
+  measurable (set1 t).
+Proof.
+Admitted.
+Hint Resolve utape_meas_singleton: measlang.
 
 (* All values of the tape are within the tape bound *)
 Definition btape_inbounds (t : btape): Prop :=
