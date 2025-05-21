@@ -44,13 +44,14 @@ Section unif.
 
 End unif.
 
+(* These changed to setT since all tape maps are finite*)
 (* The set of states with a finite number of tapes *)
 Definition AllocTape_eval_cov_ok : set (<<discr Z>> * state)%type :=
-  setT `*` (setT `&` tapes @^-1` hp_finite).
+  setT.
 
 (* The set of states with a finite number of utapes *)
 Definition AllocUTape_eval_cov_ok : set state :=
-  setT `&` utapes @^-1` hp_finite.
+  setT.
 
 Definition RandT_eval_cov_noTape' (_ : <<discr Z>>) (ℓ  : <<discr loc>>) : set state :=
   (hp_eval ℓ \o tapes) @^-1` option_cov_None.
