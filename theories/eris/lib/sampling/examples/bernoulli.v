@@ -14,7 +14,7 @@ Set Default Proof Using "Type*".
 
 Section Examples.
   Context `{!erisGS Σ}.
-  Context `{!bernoulli_spec bernoulli}.
+  Context `{!bernoulli_spec bernoulli balloc}.
 
   (**
     In this example, we prove that with error credit `1 - p²`, we can do 2 independant bernoulli experiments that both succeed.
@@ -106,7 +106,7 @@ Section Roulette.
     
   *)
   Context `{!erisGS Σ}.
-  Context `{!bernoulli_spec bernoulli}.
+  Context `{!bernoulli_spec bernoulli balloc}.
   
   #[local] Opaque INR.
 

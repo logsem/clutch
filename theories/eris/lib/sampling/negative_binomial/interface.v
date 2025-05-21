@@ -187,7 +187,7 @@ Section NegativeBinomialProbability.
 
 End NegativeBinomialProbability.
 
-Class negative_binomial_spec `{!erisGS Σ} (negative_prog : val) :=
+Class negative_binomial_spec `{!erisGS Σ} (negative_prog negative_alloc : val) :=
   NegativeSpec
   {
     twp_negative_binomial_adv_comp :
@@ -201,6 +201,11 @@ Class negative_binomial_spec `{!erisGS Σ} (negative_prog : val) :=
       ↯ ε -∗ WP negative_prog #() #p #q #r [{ v, ∃ (k : nat), ⌜v = #k⌝ ∗ ↯ (D k) }];
 
     own_negative_tape (α : loc) (N M r : nat) (v : list nat) : iProp Σ;
+
+    twp_negative_alloc (p q r : nat) :
+      [[{ True }]]
+        negative_alloc #p #q #r
+      [[{ (α : loc), RET #lbl:α; own_negative_tape α p q r [] }]];
 
     twp_negative_tape :
     ∀ (p q r : nat) (α : loc) (n : nat) (ns : list nat) (Φ : val → iProp Σ),

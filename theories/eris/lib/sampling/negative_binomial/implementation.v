@@ -9,7 +9,7 @@ Section NegativeBinomial.
   Set Default Proof Using "Type*".
   
   Context `{!erisGS Σ}.
-  Context `{!bernoulli_spec bernoulli}.
+  Context `{!bernoulli_spec bernoulli balloc}.
 
   Definition negative_binomial : val :=
     λ: "α" "p" "q",
@@ -22,6 +22,9 @@ Section NegativeBinomial.
         then "negative_binomial" "r" + #1
         else "negative_binomial" ("r" - #1).
 
+  Definition nalloc : val :=
+    λ: "p" "q" "r", balloc "p" "q".
+  
   Lemma SeriesC_first_nat :
     ∀ (D : nat → R),
     ex_seriesC D → SeriesC D = (D 0%nat + SeriesC (D ∘ S))%R.
@@ -533,7 +536,21 @@ Section NegativeBinomial.
   Definition own_negative_tape (α : loc) (N M r : nat) (v : list nat) : iProp Σ :=
     (∃ (l : list (fin 2)), own_bernoulli_tape α N M l ∗ ⌜is_negative_translation r v l⌝)%I.
 
-   Lemma is_negative_translation_0 :
+  Lemma twp_negative_alloc (p q r : nat) :
+    [[{ True }]]
+      nalloc #p #q #r
+    [[{ (α : loc), RET #lbl:α; own_negative_tape α p q r [] }]].
+  Proof.
+    iIntros (Φ) "_ HΦ".
+    unfold nalloc.
+    wp_pures.
+    wp_apply (twp_bernoulli_alloc with "[$]") as (α) "Hα".
+    iApply "HΦ".
+    iExists [].
+    by iFrame.
+  Qed.
+  
+  Lemma is_negative_translation_0 :
     ∀ (v : list nat) (l : list (fin 2)),
     is_negative_translation 0 v l ↔ l = [] ∧ v = repeat 0 (length v).
   Proof.
@@ -1280,10 +1297,11 @@ Section NegativeBinomial.
     lia.
   Qed.
 
-  #[global] Instance NegativeOfBernoulli : negative_binomial_spec negative_binomial:=
-    NegativeSpec _ _ _
+  #[global] Instance NegativeOfBernoulli : negative_binomial_spec negative_binomial nalloc :=
+    NegativeSpec _ _ _ _
       twp_negative_binomial_split
       own_negative_tape
+      twp_negative_alloc
       twp_negative_tape
       twp_negative_presample
       twp_negative_planner
