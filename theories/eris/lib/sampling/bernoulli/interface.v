@@ -30,7 +30,6 @@ Class bernoulli_spec `{!erisGS Σ} (bernoulli_prog : val) :=
     (∀ i : fin 2, own_bernoulli_tape α N M (ns ++ [i]) -∗ WP e [{ v, Φ v }]) 
     ⊢ WP e [{ v, Φ v }];
 
-
   twp_presample_bernoulli_adv_comp 
       (e : expr) (α : loc) (Φ : val → iProp Σ) 
       (N M : nat) (ns : list (fin 2)) (ε : R) (D : fin 2 → R): 
@@ -99,17 +98,18 @@ Section BernoulliSpecLemmas.
 
   Lemma bernoulli_success_spec (N M : nat) (ε ε' : R) (p := N / S M) :
     (0 <= ε')%R →
-    ε = (ε' * (N / S M)) → 
-    [[{↯ ε ∗ ↯ (1 - (N / S M))}]]
+    ε = (ε' * p) → 
+    [[{↯ ε ∗ ↯ (1 - p)}]]
       bernoulli #() #N #M 
     [[{ RET #1; ↯ ε'}]].
   Proof.
     iIntros (Hε' ->) "%Φ [Herr Hcost] HΦ".
     iAssert (⌜N ≤ S M⌝)%I with "[Hcost]" as "%H_N_le_SM".
     { destruct (decide (S M < N)%nat); last by iPureIntro; done.
-      cred_contra. rewrite Rcomplements.Rlt_minus_l. simpl_expr. }
+      cred_contra. rewrite Rcomplements.Rlt_minus_l /p. simpl_expr. }
     iPoseProof (ec_combine with "[$Herr $Hcost]") as "Herr".
-    wp_apply (twp_bernoulli_scale _ _ _ 1 ε' with "Herr")%R; try done.
+    wp_apply (twp_bernoulli_scale _ _ _ 1 ε' with "Herr")%R;
+      rewrite /p //.
     iIntros "%k [(_ & Herr) | (-> & Herr)]"; first cred_contra. 
     by iApply "HΦ"; iFrame.
   Qed.

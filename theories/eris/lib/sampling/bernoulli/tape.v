@@ -22,8 +22,8 @@ Section BernoulliTape.
     Forall2 (
       λ v l, 
         (v = 0%fin ∧ N ≤ fin_to_nat l) ∨
-        (v = 1%fin ∧ fin_to_nat l < N)%nat
-      ).
+        (v = 1%fin ∧ fin_to_nat l < N)
+      )%nat.
   
   Lemma is_bernoulli_translation_def (N M : nat) (v : list (fin 2)) (l : list (fin (S M))) :
     is_bernoulli_translation N M v l =
@@ -57,13 +57,17 @@ Section BernoulliTape.
     (b_tape_h = 1%fin ∧ (tape_h < N)%nat ∧ is_bernoulli_translation N M b_tape tape)
   .
   Proof.
-    rewrite is_bernoulli_translation_def.
-    rewrite Forall2_cons; tauto.
+    rewrite is_bernoulli_translation_def Forall2_cons. tauto.
   Qed.
   
 
-  Definition tape_to_bernoulli (N M : nat) : list (fin (S M)) → list (fin 2) :=
-    map (λ v, if bool_decide (N ≤ fin_to_nat v)%nat then 0%fin else 1%fin).
+  Definition tape_to_bernoulli (N M : nat) (t : list (fin (S M))) : list (fin 2) :=
+    let f v :=
+      if bool_decide (N ≤ fin_to_nat v)%nat 
+      then 0%fin 
+      else 1%fin
+    in
+    f <$> t.
 
   Lemma tape_to_bernoulli_def (N M : nat) (l : list (fin (S M))) :
     tape_to_bernoulli N M l = map (λ v, if bool_decide (N ≤ fin_to_nat v)%nat then 0%fin else 1%fin) l.
@@ -72,8 +76,13 @@ Section BernoulliTape.
   Qed.
   
   (** When going from bernoulli tape to usual tape, there is some information we can't recover. Therefore 0 becomes M and 1 becomes N  *)
-  Definition bernoulli_to_tape (M : nat) : list (fin 2) → list (fin (S M)) :=
-    map (λ v, if bool_decide (v = 1)%fin then 0%fin else (nat_to_fin (Nat.lt_succ_diag_r M))).
+  Definition bernoulli_to_tape (M : nat) (b : list (fin 2)) : list (fin (S M)) :=
+    let f v := 
+      if bool_decide (v = 1)%fin 
+      then 0%fin 
+      else (nat_to_fin (Nat.lt_succ_diag_r M))
+    in 
+    f <$> b.
   
   Lemma bernoulli_to_tape_def (M : nat) (l : list (fin 2)) :
     bernoulli_to_tape M l = map (λ v, if bool_decide (v = 1)%fin then 0%fin else (nat_to_fin (Nat.lt_succ_diag_r M))) l.
@@ -97,21 +106,22 @@ Section BernoulliTape.
         bool_decide; rewrite IHt //.
   Qed.
 
+
   Lemma tape_to_bernoulli_app (N M : nat) (l1 l2 : list (fin (S M))) :
     tape_to_bernoulli N M (l1 ++ l2) = tape_to_bernoulli N M l1 ++ tape_to_bernoulli N M l2.
   Proof.
-    apply map_app.
+    apply fmap_app.
   Qed.
     
   Lemma tape_to_bernoulli_length (N M : nat) (l : list (fin (S M))) :
     length (tape_to_bernoulli N M l) = length l.
   Proof.
-    apply map_length.
+    apply fmap_length.
   Qed.
 
   Lemma bernoulli_to_tape_length (M : nat) (l : list (fin 2)) : length (bernoulli_to_tape M l) = length l.
   Proof.
-    apply map_length.
+    apply fmap_length.
   Qed.
 
   Lemma bernoulli_to_tape_to_bernoulli (N M : nat) (l : list (fin 2)) :
@@ -176,3 +186,7 @@ Section BernoulliTape.
   Qed.
 
 End BernoulliTape.
+
+#[global] Opaque is_bernoulli_translation.
+#[global] Opaque tape_to_bernoulli.
+#[global] Opaque bernoulli_to_tape.
