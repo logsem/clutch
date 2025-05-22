@@ -169,4 +169,48 @@ Section xcache.
   Qed.
 
 
+  Definition online_xcache : val :=
+    λ:"M" "db",
+      let: "cache" := init_map #() in
+      (λ: "q",
+         match: get "cache" "q" with
+         | SOME "v" => "v"
+         | NONE =>
+             let: "v" := "M" "q" "db" in
+             set "cache" "q" "v" ;;
+             "v"
+          end).
+
+  (* online spec:
+
+     { ↯ (c*ε) ∗ bigSep c-times (∀ q, (M q) is ε-dipr) }
+       mk_cache M c
+     { f .
+         F(∅, c) ∗
+         ∀ q A k, q ∈ A → { F(A, k) } f q { v ∗ F(A, k) } ∗
+         ∀ q A k, q ∉ A → { F(A, S k) } f q { v ∗ F(A ∪ {q}, k) }
+     }
+
+     or alternatively:
+
+     { □ ∀ q, (M q) is ε-dipr }
+       mk_cache M c
+     { f .
+         F(∅, c) ∗
+         ∀ q A k, q ∈ A → { F(A, k) } f q { v ∗ F(A, k) } ∗
+         ∀ q A k, q ∉ A → { ↯ ε ∗ F(A, S k) } f q { v ∗ F(A ∪ {q}, k) }
+     }
+
+     or even:
+
+     {  }
+       mk_cache M c
+     { f .
+         F(∅, c) ∗
+         ∀ q A k, q ∈ A → { F(A, k) } f q { v ∗ F(A, k) } ∗
+         ∀ q A k, q ∉ A → { (M q) is ε-dipr ∗ ↯ ε ∗ F(A, S k) } f q { v ∗ F(A ∪ {q}, k) }
+     }
+
+   *)
+
 End xcache.

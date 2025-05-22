@@ -87,3 +87,7 @@ Section svt.
               SOME "v"
           | NONE => NONE (* should never happen because we always reset AT diligently *)
           end.
+
+  (* In Justin's thesis, the discussion of choice couplings (p.70) and
+  especially of randomized privacy cost (p.71) is relevant ; it suggests that
+  the point-wise equality proof may not be required for SVT. *)
