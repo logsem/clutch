@@ -273,12 +273,11 @@ Section hp.
 
   Local Ltac fresh_unfold :=
     rewrite /fresh_loc/base.fresh/set_fresh/=/base.fresh/infinite_fresh/=/base.fresh/infinite_fresh/=.
+
   
   Lemma fresh_meas_fun : measurable_fun setT fresh.
   Proof.
-    rewrite /fresh.
-    fresh_unfold.
-    
+    apply: measurability; first apply discr_generated_by_singletons.
     
     (*
       On this set, it's equal to...

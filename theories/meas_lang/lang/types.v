@@ -97,6 +97,29 @@ End binder_countable.
 
 HB.saturate binder.
 
+(* Definition *)
+
+Definition loc_enum (n : nat) : <<discr loc>> :=
+  match (decode $ Pos.of_nat n) with
+  | Some x => x
+  | None => point
+  end.
+
+(* Instances for loc *)
+Section loc_countable.
+  Definition loc_pickle : loc -> nat := encode_nat. 
+  Definition loc_unpickle : nat -> option loc := decode_nat. 
+  Lemma loc_cancel : ssrfun.pcancel loc_pickle loc_unpickle.
+  Proof. intros ?. rewrite /loc_pickle/loc_unpickle.
+         apply decode_encode_nat.
+  Qed.
+  HB.instance Definition _ := Choice_isCountable.Build _ loc_cancel.
+  
+End loc_countable.
+
+HB.saturate loc.
+(* Check @discr_generated_by_singletons loc. *)
+
 (* Instances for un_op *)
 HB.instance Definition _ := gen_eqMixin un_op.
 HB.instance Definition _ := gen_choiceMixin un_op.
