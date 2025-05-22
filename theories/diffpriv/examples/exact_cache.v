@@ -40,6 +40,12 @@ Section xcache.
     else
          we pay ↯ε to make sure that the call to M qi produces the same result
          in the left and right programs, keeping the cache always synchronised.
+
+    NB: No assumption about the sensitivity of qs is made; this is encompassed
+    by the premise that for each q ∈ qs, (M q) is ε-dipr. In practice, M may
+    well decode q into a sensitive query function and add noise to the result
+    of the query to achieve this privacy guarantee.
+
    *)
 
   Definition exact_cache_body {DB} {dDB : Distance DB} (M : val) (db : DB) (cache_loc : loc) : expr :=
@@ -54,7 +60,6 @@ Section xcache.
   Lemma exact_cache_dipr (M : val) DB (dDB : Distance DB) (qs : list nat) (QS : val) (is_qs : is_list qs QS)
     ε (εpos : 0 <= ε)
     (M_dipr : Forall (λ q : nat, wp_diffpriv (M #q) ε dDB) qs)
-    (qs_sens : Forall (λ q : nat, wp_sensitive #q 1 dDB dZ) qs)
     :
     let k := size ((list_to_set qs) : gset _) in
     wp_diffpriv (exact_cache M QS) (k*ε) dDB.
@@ -67,7 +72,7 @@ Section xcache.
     iMod (spec_init_map with "rhs") as "(%cache_r & rhs & cache_r)" => /=...
     rewrite -!/(exact_cache_body _ _ _).
 
-    revert qs QS is_qs qs_sens k M_dipr.
+    revert qs QS is_qs k M_dipr.
     cut
       (∀ (qs : list nat)
          (qs_pre qs' : list nat) (QS' : val)
@@ -77,7 +82,6 @@ Section xcache.
           dom cache_map ∪ list_to_set qs' = list_to_set qs →
           is_list qs' QS' →
           Forall (λ q : nat, wp_diffpriv (M #q) ε dDB) qs →
-          Forall (λ q : nat, wp_sensitive #q 1 dDB dZ) qs →
           let k := size (list_to_set qs : gset nat) in
           let k' := size cache_map in
           {{{
@@ -98,7 +102,7 @@ Section xcache.
     clear φ.
     iLöb as "IH".
     iIntros (qs qs_pre qs' QS' acc cache qs_pre_qs' dom_cache_pre dom_cache_qs'_qs is_qs'
-               M_dipr qs_sens φ) "(ε & rhs & cache_l & cache_r) hφ".
+               M_dipr φ) "(ε & rhs & cache_l & cache_r) hφ".
     set (k := size (list_to_set qs : gset nat)).
     set (k' := size cache).
     rewrite {4}/exact_cache_body/list_fold... rewrite -!/(exact_cache_body _ _ _) -/list_fold.
@@ -109,11 +113,9 @@ Section xcache.
     wp_apply (wp_get with "cache_l"). iIntros (?) "[cache_l ->]".
     tp_bind (get _ _). iMod (spec_get with "cache_r rhs") as "[rhs cache_r]" => /=.
     rewrite -!/(exact_cache_body _ _ _) -/list_fold.
-    rewrite qs_pre_qs' in M_dipr, qs_sens.
+    rewrite qs_pre_qs' in M_dipr.
     destruct ((proj1 (List.Forall_app _ _ _)) M_dipr) as [M_dipr_qs_pre M_dipr_qs'].
-    destruct ((proj1 (List.Forall_app _ _ _)) qs_sens) as [sens_qs_pre sens_qs'].
     destruct (Forall_cons_1 _ _ _ M_dipr_qs') as [M_dipr_q' M_dipr_qs''].
-    destruct (Forall_cons_1 _ _ _ sens_qs') as [sens_q' sens_qs''].
     assert (0 <= dDB db db') by apply distance_pos.
     destruct (cache !! q') eqn:cache_q' => /=.
     - opose proof (elem_of_dom_2 _ _ _ cache_q') as h...
