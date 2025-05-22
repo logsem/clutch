@@ -272,23 +272,173 @@ Section hp.
   Local Transparent fresh_loc.
 
   Local Ltac fresh_unfold :=
-    rewrite /fresh_loc/base.fresh/set_fresh/=/base.fresh/infinite_fresh/=/base.fresh/infinite_fresh/=.
+    rewrite /fresh/fresh_loc/base.fresh/set_fresh/=/base.fresh/infinite_fresh/=/base.fresh/infinite_fresh/=.
 
+  Local Lemma fresh_meas_fun_lemma1 l:
+    (0<=foldr (Z.max ∘ Z.succ) 0 l)%Z.
+  Proof.
+    induction l; first done.
+    simpl.
+    rewrite Z.max_le_iff. right. lia.
+  Qed.
+
+  
+  Local Lemma fresh_meas_fun_lemma2 i l:
+    i∈l ->
+    (i<foldr (Z.max ∘ Z.succ) 0 l)%Z.
+  Proof.
+    induction l as [|a l IHl]; simpl; first by rewrite elem_of_nil.
+    rewrite elem_of_cons.
+    intros [->|H].
+    - apply Z.max_lt_iff. left. lia.
+    - apply IHl in H.
+      apply Z.max_lt_iff. right. lia.
+  Qed. 
+
+  Local Lemma fresh_meas_fun_lemma3 l bound:
+    (0<=bound)%Z-> 
+    (forall i, bound<=i -> i∉l)%Z <->
+    (foldr (Z.max ∘ Z.succ) 0%Z l <= bound)%Z.
+  Proof.
+    intros H.
+    induction l as [|a l IHl]; split.
+    - simpl. lia.
+    - intros. apply not_elem_of_nil.
+    - intros H'. simpl.
+      apply Z.max_lub.
+      + apply Z.nlt_ge.
+        intros ?.
+        assert (bound <= a)%Z by lia.
+        apply H' in H1. apply H1. rewrite elem_of_cons. naive_solver.
+      + apply IHl.
+        intros ? H''. apply H' in H''. intros H1. apply H''. rewrite elem_of_cons. naive_solver.
+    - simpl. rewrite Z.max_lub_iff.
+      intros [H1 H2].
+      intros i H0.
+      rewrite elem_of_cons.
+      intros [->|H']; first lia.
+      rewrite -IHl in H2. apply H2 in H0. naive_solver.
+  Qed. 
+
+  Local Lemma fresh_meas_fun_lemma4 l:
+    (0<foldr (Z.max ∘ Z.succ) 0%Z l)%Z-> 
+    (foldr (Z.max ∘ Z.succ) 0%Z l-1)%Z ∈ l.
+  Proof.
+    induction l as [|a l IHl]; simpl; first lia.
+    intros H.
+    destruct (decide (Z.succ a <= foldr (Z.max ∘ Z.succ) 0 l))%Z as [Heqn|Heqn].
+    - rewrite Z.max_r; last lia.
+      rewrite elem_of_cons. right.
+      apply IHl.
+      rewrite Z.max_lt_iff in H. destruct H; lia.
+    - rewrite Z.max_l; last lia.
+      rewrite elem_of_cons. left. lia.
+  Qed.
   
   Lemma fresh_meas_fun : measurable_fun setT fresh.
   Proof.
     apply: measurability; first apply discr_generated_by_singletons.
-    
-    (*
-      On this set, it's equal to...
-
-      Suffices to consider the preimage of each [set l]
-      This preimage (when restructred to hp_finite) is the empty map when l = 0
-      Otherwise, the preimage (when restructred to hp_finite) is the set of all heaps
-      with (l-1) set to (Some _).
-      This is a generator of the function sigma algebra.
-     *)
-  Admitted.
+    rewrite /preimage_set_system/=. intros s. simpl.
+    rewrite /function_spaces.singletons/=.
+    elim.
+    intros ?.
+    elim.
+    intros l. intros. subst.
+    destruct l as [z].
+    rewrite setTI.
+    destruct (Z.lt_total z 0) as [H'|[H'|H']].
+    { assert (fresh @^-1` [set Loc z] = set0) as Hrewrite; last by rewrite Hrewrite.
+      rewrite eqEsubset; split; intros ?; last done.
+      fresh_unfold.
+      intros Heq. simplify_eq.
+      revert H'.
+      apply Zle_not_lt.
+      apply fresh_meas_fun_lemma1.
+    } 
+    { subst.
+      assert ((fresh @^-1` [set Loc 0]) =
+              \bigcap_i (preimage (λ (f:hp T), f !! (Loc (Z.of_nat i) )) (set1 None))
+             ) as Hrewrite; last rewrite Hrewrite; last first.
+      - apply: bigcapT_measurable.
+        intros k.
+        apply hp_sigma_algebra_singleton.
+        apply: sub_sigma_algebra.
+        exists None; naive_solver.
+      - rewrite eqEsubset; split; intros t; simpl; rewrite /bigcap/=; fresh_unfold.
+        + intros H'. simplify_eq. 
+          intros i _.
+          apply: not_elem_of_dom_1.
+          rewrite -elem_of_elements.
+          intros H2.
+          symmetry in H'.
+          revert H'.
+          apply Z.lt_neq.
+          eapply Z.le_lt_trans; last apply(fresh_meas_fun_lemma2 i); first lia.
+          rewrite elem_of_list_omap.
+          naive_solver.
+        + intros H'.
+          f_equal.
+          apply Z.le_antisymm; last apply fresh_meas_fun_lemma1.
+          apply fresh_meas_fun_lemma3; first done.
+          intros.
+          rewrite elem_of_list_omap.
+          intros [x [H1 H2]].
+          rewrite elem_of_elements in H1. simplify_eq.
+          destruct x as [x]. simpl in *.
+          unshelve epose proof H' (Z.to_nat x) _; first done.
+          rewrite Z2Nat.id in H2; last lia.
+          rewrite elem_of_dom in H1. rewrite H2 in H1. by destruct H1.
+    }
+    assert ((fresh @^-1` [set Loc z]) =
+            (preimage (λ (f:hp T), f !! (Loc (z-1)%Z )) option_cov_Some)
+            `&`
+              \bigcap_(i in [set j| (Z.to_nat z<=Z.of_nat j)%Z])  (preimage (λ (f:hp T), f !! (Loc (Z.of_nat i) )) (set1 None))
+           ) as Hrewrite; last rewrite Hrewrite; last first.
+    { apply: measurable_setI.
+      - apply hp_sigma_algebra_singleton.
+        ms_solve. apply option_cov_Some_meas_set.
+      - apply: bigcap_measurableType.
+        intros k ?.
+        apply hp_sigma_algebra_singleton.
+        apply: sub_sigma_algebra.
+        exists None; naive_solver.
+    }
+    rewrite eqEsubset; split; intros t; simpl; rewrite /bigcap/=; fresh_unfold.
+    - intros H1; simplify_eq.
+      split.
+      + apply fresh_meas_fun_lemma4 in H'.
+        rewrite elem_of_list_omap in H'.
+        destruct H' as [[x] [H1 H2]].
+        simplify_eq. simpl in *. subst.
+        by rewrite elem_of_elements elem_of_dom in H1.
+      + intros i H1.
+        rewrite Z2Nat.id in H1; last apply fresh_meas_fun_lemma1.
+        rewrite -fresh_meas_fun_lemma3 in H1; last lia.
+        unshelve epose proof H1 (Z.of_nat i) _ as H2; first lia.
+        rewrite elem_of_list_omap in H2.
+        destruct (t!!Loc (Z.of_nat i)) eqn:Heqn; last done.
+        exfalso.
+        apply H2. eexists (Loc _); split; last done.
+        by rewrite elem_of_elements elem_of_dom Heqn.
+    - intros [H1 H2].
+      f_equal.
+      apply Z.le_antisymm.
+      + apply fresh_meas_fun_lemma3; first lia.
+        intros ??. rewrite elem_of_list_omap.
+        intros [[x][H3 H4]].
+        simplify_eq. simpl in *.
+        unshelve epose proof H2 (Z.to_nat x) _.
+        { rewrite Z2Nat.id; lia. }
+        rewrite Z2Nat.id in H4; last lia.
+        rewrite elem_of_elements elem_of_dom H4 in H3. by destruct H3.
+      + apply Z.lt_succ_r.
+        rewrite /Z.succ.
+        apply Z.lt_sub_lt_add_r.
+        apply fresh_meas_fun_lemma2.
+        rewrite elem_of_list_omap.
+        eexists (Loc _); split; last done.
+        rewrite elem_of_elements elem_of_dom. naive_solver.
+  Qed. 
   Hint Resolve fresh_meas_fun : measlang.
 
 End hp.
