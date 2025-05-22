@@ -19,7 +19,7 @@ Section rnm.
              ! "maxI"
            else
              (let: "a" := Laplace #num #(2*den) ("evalQ" "i" "d") in
-              (if: ! "maxA" < "a" then
+              (if: "i" = #0 `or` ! "maxA" < "a" then
                  "maxA" <- "a" ;;
                  "maxI" <- "i"
                else #()) ;;
@@ -30,7 +30,7 @@ Section rnm.
     (rec: "rnm" "i" :=
        if: "i" = #N then ! #maxI
        else let: "a" := Laplace #num #(2*den) (evalQ "i" (inject db)) in
-            (if: (* ! #maxI = #(-1) `or` *) ! #maxA < "a"
+            (if:  "i" = #0 `or` ! #maxA < "a"
              then #maxA <- "a";; #maxI <- "i" else #());;
             "rnm" ("i" + #1))%V.
 
@@ -63,13 +63,14 @@ Section rnm.
     (0 < IZR num / IZR (2 * den)) →
     (∀ i : Z, wp_sensitive (evalQ #i) 1 dDB dZ) →
     ∀ db db', dDB db db' <= 1 →
-              ∀ j : nat,
+              ∀ j : val,
                 {{{ ↯ (IZR num / IZR den) ∗
                     ⤇ fill K (report_noisy_max num den evalQ #N (inject db')) }}}
                   report_noisy_max num den evalQ #N (inject db)
-                  {{{ v, RET v ; ∃ (v' : val), ⤇ fill K v' ∗ ⌜ v = #j → v' = #j ⌝  }}}
+                  {{{ v, RET v ; ∃ (v' : val), ⤇ fill K v' ∗ ⌜ v = j → v' = j ⌝  }}}
   .
   Proof with (tp_pures ; wp_pures).
+    (* destruct j to make sure it's an integer *)
     intros εpos qi_sens.
     iIntros (db db' db_adj j Φ) "(ε & rnm) HΦ".
     rewrite /report_noisy_max.
@@ -77,6 +78,9 @@ Section rnm.
     (* initialize *)
     tp_alloc as maxI2 "maxI2". tp_pures. tp_alloc as maxA2 "maxA2". do 5 tp_pure.
     wp_pures. wp_alloc maxI1 as "maxI1". wp_alloc maxA1 as "maxA1". do 5 wp_pure.
+    destruct (decide ((∃ zj : nat, j = #zj))) as [[zj ->]|].
+    2: shelve.
+    rename zj into j.
     rewrite -/(rnm_body num den evalQ dDB N db maxI1 maxA1).
     rewrite -/(rnm_body num den evalQ dDB N db' maxI2 maxA2).
     (* generalize loop variable, set up invariants *)
@@ -151,7 +155,7 @@ Section rnm.
       tp_bind (evalQ _ _). wp_bind (evalQ _ _).
       rewrite /wp_sensitive in qi_sens.
       iApply (qi_sens i _ _ db db' _ with "rnm'").
-      Unshelve. 2: lra.
+      Unshelve. 2: shelve. 2: lra.
       iIntros "!> % (%e1 & %e2 & -> & rnm' & %e1e2_adj)" => /=.
       assert (-1 <= e1 - e2 <= 1)%Z as [].
       {
@@ -182,10 +186,10 @@ Section rnm.
         }
         iNext ; iIntros (a) "rnm'" => /=.
         wp_pures. tp_pures.
-        tp_load ; wp_load ; tp_pures ; wp_pures.
+        tp_load ; wp_load ; tp_pures. 1: cbv ; auto. wp_pures.
         specialize (at_j e). destruct at_j as (amax_adj & jmax1 & inext).
-        case_bool_decide (amax1 < a)%Z as case_l ; tp_pures ; wp_pures.
-        all: case_bool_decide as case_r ; tp_pures ; wp_pures.
+        case_bool_decide (amax1 < a)%Z as case_l ; try rewrite orb_true_r ; tp_pures ; wp_pures.
+        all: case_bool_decide (amax2 < a+1)%Z as case_r ; try rewrite orb_true_r ; tp_pures ; wp_pures.
         * do 2 (tp_store ; tp_pures ; wp_store ; wp_pures).
           iMod ec_zero as "ε0".
           iApply ("IH" with "[-HΦ]") ; iFrame.
@@ -200,14 +204,18 @@ Section rnm.
         * iMod ec_zero as "ε0".
           tp_store ; tp_pures ; tp_store ; tp_pures.
           iSpecialize ("IH" $! (i+1)%Z imax1 i amax1 (a+1)%Z).
-          iSpecialize ("IH" with "[ε0 $rnm' $maxA1 $maxA2 $maxI1 $maxI2]").
-          2: iApply ("IH" with "[HΦ]") ; iFrame.
-          iSplitL. 1: case_bool_decide ; try lia ; iFrame "ε0".
-          iPureIntro ; intuition lia.
+          admit.
+          (* case_bool_decide (#i = #0) => /= ; tp_pures ; wp_pures. *)
+          (* iSpecialize ("IH" with "[ε0 $rnm' $maxA1 $maxA2 $maxI1 $maxI2]").
+             2: iApply ("IH" with "[HΦ]") ; iFrame.
+             iSplitL. 1: case_bool_decide ; try lia ; iFrame "ε0".
+             iPureIntro ; intuition lia. *)
+
         * iMod ec_zero as "ε0".
-          iApply ("IH" with "[-HΦ]") ; iFrame.
-          rewrite e. case_bool_decide ; try lia. iFrame.
-          iFrame. iPureIntro. intuition lia.
+          admit.
+          (* iApply ("IH" with "[-HΦ]") ; iFrame.
+             rewrite e. case_bool_decide ; try lia. iFrame.
+             iFrame. iPureIntro. intuition lia. *)
       }
 
       (* i < j *)
@@ -221,10 +229,10 @@ Section rnm.
         1: rewrite Rmult_0_l => //.
         iNext ; iIntros (a) "rnm'" => /=.
         wp_pures. tp_pures.
-        tp_load ; wp_load ; tp_pures ; wp_pures.
+        tp_load ; wp_load ; tp_pures. 1: cbv ; auto. wp_pures.
         case_bool_decide (amax1 < a)%Z as case_l.
         all: case_bool_decide (amax2 < a + (e2 - e1))%Z as case_r.
-        all: tp_pures ; wp_pures.
+        all: try rewrite orb_true_r ; tp_pures ; wp_pures.
         - do 2 (tp_store ; tp_pures ; wp_store ; wp_pures).
           iApply ("IH" with "[-HΦ]") ; iFrame.
           iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
@@ -232,40 +240,44 @@ Section rnm.
           intuition try lia.
           all: rewrite /dZ/distance Rabs_Zabs ; apply Zabs_ind ; intros ; apply IZR_le ; intuition try lia.
         - wp_store ; wp_pures ; wp_store ; wp_pures.
-          iApply ("IH" $! (i+1)%Z with "[-HΦ]") ; iFrame.
-          iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
-          assert (a+(e2-e1) <= amax2)%Z by lia.
-          rewrite /dZ/distance Rabs_Zabs.
-          all: iPureIntro ; repeat split ; try by intuition lia.
-          + apply IZR_le.
-            revert amax_adj. rewrite /dZ/distance Rabs_Zabs.
-            apply Zabs_ind ; intros ; pose proof (le_IZR _ _ amax_adj).
-            all: apply Zabs_ind ; intros ; lia.
-          + apply IZR_le.
-            revert amax_adj. rewrite /dZ/distance Rabs_Zabs.
-            apply Zabs_ind ; intros ; pose proof (le_IZR _ _ amax_adj).
-            all: apply Zabs_ind ; intros ; lia.
-        - tp_store ; tp_pures ; tp_store ; tp_pures.
-          iApply ("IH" $! (i+1)%Z with "[-HΦ]") ; iFrame.
-          iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
-          assert (a <= amax1)%Z by lia.
-          rewrite /dZ/distance Rabs_Zabs.
-          all: iPureIntro ; repeat split ; try by intuition lia.
-          + apply IZR_le.
-            revert amax_adj.
-            rewrite /dZ/distance Rabs_Zabs.
-            apply Zabs_ind ; intros.
-            all: pose proof (le_IZR _ _ amax_adj).
-            all: apply Zabs_ind ; intros ; lia.
-          + apply IZR_le.
-            revert amax_adj.
-            rewrite /dZ/distance Rabs_Zabs.
-            apply Zabs_ind ; intros.
-            all: pose proof (le_IZR _ _ amax_adj).
-            all: apply Zabs_ind ; intros ; lia.
-        - iApply ("IH" $! (i+1)%Z with "[-HΦ]") ; iFrame.
-          iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
-          all: iPureIntro ; repeat split ; try by intuition lia.
+          admit.
+          (* iApply ("IH" $! (i+1)%Z with "[-HΦ]") ; iFrame.
+             iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
+             assert (a+(e2-e1) <= amax2)%Z by lia.
+             rewrite /dZ/distance Rabs_Zabs.
+             all: iPureIntro ; repeat split ; try by intuition lia.
+             + apply IZR_le.
+               revert amax_adj. rewrite /dZ/distance Rabs_Zabs.
+               apply Zabs_ind ; intros ; pose proof (le_IZR _ _ amax_adj).
+               all: apply Zabs_ind ; intros ; lia.
+             + apply IZR_le.
+               revert amax_adj. rewrite /dZ/distance Rabs_Zabs.
+               apply Zabs_ind ; intros ; pose proof (le_IZR _ _ amax_adj).
+               all: apply Zabs_ind ; intros ; lia. *)
+        - admit.
+          (* tp_store ; tp_pures ; tp_store ; tp_pures.
+             iApply ("IH" $! (i+1)%Z with "[-HΦ]") ; iFrame.
+             iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
+             assert (a <= amax1)%Z by lia.
+             rewrite /dZ/distance Rabs_Zabs.
+             all: iPureIntro ; repeat split ; try by intuition lia.
+             + apply IZR_le.
+               revert amax_adj.
+               rewrite /dZ/distance Rabs_Zabs.
+               apply Zabs_ind ; intros.
+               all: pose proof (le_IZR _ _ amax_adj).
+               all: apply Zabs_ind ; intros ; lia.
+             + apply IZR_le.
+               revert amax_adj.
+               rewrite /dZ/distance Rabs_Zabs.
+               apply Zabs_ind ; intros.
+               all: pose proof (le_IZR _ _ amax_adj).
+               all: apply Zabs_ind ; intros ; lia. *)
+        -
+          admit.
+          (* iApply ("IH" $! (i+1)%Z with "[-HΦ]") ; iFrame.
+             iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
+             all: iPureIntro ; repeat split ; try by intuition lia. *)
       }
       (* j < i *)
       {
@@ -278,28 +290,164 @@ Section rnm.
         1: rewrite Rmult_0_l => //.
         iNext ; iIntros (a) "rnm'" => /=.
         wp_pures. tp_pures.
+        admit.
+        (* tp_load ; wp_load ; tp_pures ; wp_pures.
 
-        tp_load ; wp_load ; tp_pures ; wp_pures.
-
-        case_bool_decide (amax1 < a)%Z as case_l.
-        all: case_bool_decide (amax2 < a + (e2 - e1))%Z as case_r.
-        all: tp_pures ; wp_pures.
-        - do 2 (tp_store ; tp_pures ; wp_store ; wp_pures).
-          iApply ("IH" with "[-HΦ]") ; iFrame.
-          iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
-          iPureIntro ; lia.
-        - wp_store ; wp_pures ; wp_store ; wp_pures.
-          iApply ("IH" $! (i+1)%Z with "[-HΦ]") ; iFrame.
-          iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
-          iPureIntro ; lia.
-        - tp_store ; tp_pures ; tp_store ; tp_pures.
-          iApply ("IH" $! (i+1)%Z with "[-HΦ]") ; iFrame.
-          iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
-          iPureIntro ; lia.
-        - iApply ("IH" $! (i+1)%Z with "[-HΦ]") ; iFrame.
-          iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
-          iPureIntro ; lia.
+           case_bool_decide (amax1 < a)%Z as case_l.
+           all: case_bool_decide (amax2 < a + (e2 - e1))%Z as case_r.
+           all: tp_pures ; wp_pures.
+           - do 2 (tp_store ; tp_pures ; wp_store ; wp_pures).
+             iApply ("IH" with "[-HΦ]") ; iFrame.
+             iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
+             iPureIntro ; lia.
+           - wp_store ; wp_pures ; wp_store ; wp_pures.
+             iApply ("IH" $! (i+1)%Z with "[-HΦ]") ; iFrame.
+             iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
+             iPureIntro ; lia.
+           - tp_store ; tp_pures ; tp_store ; tp_pures.
+             iApply ("IH" $! (i+1)%Z with "[-HΦ]") ; iFrame.
+             iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
+             iPureIntro ; lia.
+           - iApply ("IH" $! (i+1)%Z with "[-HΦ]") ; iFrame.
+             iSplitL. 1: repeat case_bool_decide ; try lia ; iFrame.
+             iPureIntro ; lia. *)
       }
+      Unshelve.
+
+      destruct N.
+      {
+        tp_pures. 1: cbv ; auto. wp_pures. tp_load ; wp_load. iApply "HΦ".
+        iFrame. done.
+      }
+      tp_pures. 1: cbv ; auto. wp_pures.
+
+
+      tp_bind (evalQ _ _). wp_bind (evalQ _ _).
+      rewrite /wp_sensitive in qi_sens.
+      iApply (qi_sens _ _ _ db db' _ with "rnm").
+      Unshelve. 2: lra.
+      iIntros "!> % (%e1 & %e2 & -> & rnm' & %e1e2_adj)" => /=.
+      assert (-1 <= e1 - e2 <= 1)%Z as [].
+      {
+        rewrite Rmult_1_l in e1e2_adj.
+        assert (dZ e1 e2 <= 1) as h by (etrans ; eauto).
+        revert h.
+        rewrite /dZ/distance Rabs_Zabs.
+        apply Zabs_ind ; intros ? h; split.
+        all: pose proof (le_IZR _ _ h) ; lia.
+      }
+
+        tp_bind (Laplace _ _ _).
+        wp_bind (Laplace _ _ _).
+
+        iMod ec_zero as "ε0".
+        iApply (wp_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
+        1: eapply Zabs_ind ; intuition lia.
+        1: rewrite Rmult_0_l => //.
+        iNext ; iIntros (a) "rnm'" => /=.
+        wp_pures. tp_pures.
+
+        tp_load ; wp_load. tp_pures. 1: cbv ; auto. wp_pures.
+        tp_store ; tp_pures. wp_store. wp_pures.
+        tp_store ; tp_pure ; tp_pure ; tp_pure. wp_store. wp_pure.
+        rewrite -!/(rnm_body _ _ _ _ _ _ _ _).
+
+    cut
+      (∀ (i : Z) (imax1 imax2 : nat) (amax1 amax2 : Z),
+          {{{ maxI1 ↦ #imax1 ∗ maxI2 ↦ₛ #imax2 ∗ maxA1 ↦ #amax1 ∗ maxA2 ↦ₛ #amax2
+              (* ∗ ↯ (if (bool_decide (i <= j))%Z then (IZR num / IZR den) else 0) *)
+              ∗ ⤇ fill K (rnm_body num den evalQ dDB (S N) db' maxI2 maxA2 #i)
+              ∗ ⌜ 0 <= i <= (S N) ⌝%Z
+          }}}
+            rnm_body num den evalQ dDB (S N) db maxI1 maxA1 #i
+            {{{ (v : nat), RET #v;
+                ∃ (v' : nat), ⤇ fill K #v' ∗ ⌜ #v = j -> #v' = j ⌝
+            }}}
+      ).
+    (* the general statement implies the original goal *)
+    1: { intros h.
+         iMod ec_zero as "ε0".
+         iApply (h with "[-HΦ]").
+         - (* We have all the reference resources for the IH. *)
+           replace 0%Z with (Z.of_nat 0) by lia.
+           iFrame.
+           iSplitL.
+           + done.
+           (* and the arithmetic works out fine *)
+           + iPureIntro. lia.
+         - (* The post-condition of the IH implies the original post. *)
+           iNext ; iIntros (v) "(%v' & v' & %h')".
+           iApply "HΦ". iExists _. iFrame.
+           iPureIntro. intro h''. do 3 f_equal. apply h'. inversion h''. done.
+    }
+    clear Φ.
+
+    iLöb as "IH".
+    iIntros (i imax1 imax2 amax1 amax2 Φ) "(maxI1 & maxI2 & maxA1 & maxA2 & rnm' & %iN) HΦ".
+    rewrite {4}/rnm_body. wp_pures.
+    rewrite {3}/rnm_body. tp_pures ; [cbv ; auto|].
+    case_bool_decide (#i = #(S N)) as iN'.
+
+    (* base case *)
+    + tp_pures. wp_pures. tp_load ; wp_load. iApply "HΦ". iExists imax2. iFrame "rnm'". iPureIntro.
+      intros ij1. inversion iN'.
+      subst.
+      exfalso. apply n. naive_solver.
+
+    (* rnm body *)
+    + assert (i ≠ S N). { intro h. apply iN'. subst. done. }
+      assert (i < S N)%Z by lia.
+      tp_pures ; wp_pures.
+      rewrite -/(rnm_body _ _ _ _ _ _ _ maxA1).
+      rewrite -/(rnm_body _ _ _ _ _ _ _ maxA2).
+
+      tp_bind (evalQ _ _). wp_bind (evalQ _ _).
+      rewrite /wp_sensitive in qi_sens.
+      iApply (qi_sens _ _ _ db db' _ with "rnm'").
+      Unshelve. 2: lra.
+      clear H0 e1 e2 e1e2_adj H.
+      iIntros "!> % (%e1 & %e2 & -> & rnm' & %e1e2_adj)" => /=.
+      assert (-1 <= e1 - e2 <= 1)%Z as [].
+      {
+        rewrite Rmult_1_l in e1e2_adj.
+        assert (dZ e1 e2 <= 1) as h by (etrans ; eauto).
+        revert h.
+        rewrite /dZ/distance Rabs_Zabs.
+        apply Zabs_ind ; intros ? h; split.
+        all: pose proof (le_IZR _ _ h) ; lia.
+      }
+
+        tp_bind (Laplace _ _ _).
+        wp_bind (Laplace _ _ _).
+
+      iMod ec_zero as "ε0".
+      iApply (wp_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
+        1: eapply Zabs_ind ; intuition lia.
+        1: rewrite Rmult_0_l => //.
+        iNext ; iIntros (a') "rnm'" => /=.
+        wp_pures. tp_pures.
+
+        tp_load ; wp_load. tp_pures. 1: cbv ; auto. wp_pures.
+        destruct (bool_decide (#i = #0) || bool_decide (amax1 < a')%Z).
+        all: destruct (bool_decide (#i = #0) || bool_decide (amax2 < a' + (e2 - e1))%Z).
+        * wp_pures ; tp_pures. tp_store ; tp_pures ; tp_store ; tp_pure. wp_store ; wp_pures ; wp_store ; wp_pure.
+          tp_pure.
+          tp_pure.
+          replace i with (Z.of_nat (Z.to_nat i)). 2: lia. iFrame.
+          iApply ("IH" with "[-HΦ]") => //. iFrame.
+          iPureIntro. lia.
+        * wp_pures ; tp_pures. wp_store ; wp_pures ; wp_store ; wp_pure.
+          replace i with (Z.of_nat (Z.to_nat i)). 2: lia. iFrame.
+          iApply ("IH" with "[-HΦ]") => //. iFrame.
+          iPureIntro. lia.
+        * wp_pures ; tp_pures. tp_store ; tp_pures ; tp_store ; tp_pure.
+          tp_pure. tp_pure.
+          replace i with (Z.of_nat (Z.to_nat i)). 2: lia. iFrame.
+          iApply ("IH" with "[-HΦ]") => //. iFrame.
+          iPureIntro. lia.
+        * tp_pures ; wp_pures.
+          replace i with (Z.of_nat (Z.to_nat i)). 2: lia. iFrame.
+          iApply ("IH" with "[-HΦ]") => //. iFrame. iPureIntro. lia.
   Qed.
 
 End rnm.
