@@ -460,11 +460,17 @@ Section hpfuns.
       to make porting the logic easier.
    *)
 
-  Global Instance : PartialAlter <<discr loc>> T (hp T) := {
-      partial_alter f l h := hp_updateC (l, (f $ hp_evalC (l, h), h)) }.
+  (* Global Instance : PartialAlter <<discr loc>> T (hp T) := { *)
+  (*     partial_alter f l h := hp_updateC (l, (f $ hp_evalC (l, h), h)) }. *)
 
-  Global Instance : Lookup <<discr loc>> T (hp T) := hp_eval.
+  (* Global Instance : Lookup <<discr loc>> T (hp T) := hp_eval. *)
 
+  (* Definition hp_to_gmap (f :hp T) : gmap loc T := f. *)
+
+  (* Lemma hp_to_gmap_eq f: f= hp_to_gmap f. *)
+  (* Proof. *)
+  (*   done. *)
+  (* Qed.  *)
 (*  Global Program Instance hp_insert {d} {T : measurableType d} : Insert (<<discr loc>>) T (hp T) :=
   _. *)
 
@@ -800,27 +806,27 @@ Proof.
   rewrite K K' in H0.
   by simplify_eq.
 Qed.
-(*
+
 Lemma state_upd_tapes_no_change σ l ys :
   (tapes σ) !! l = Some ys ->
   state_upd_tapes <[l := ys]> σ = σ .
 Proof.
-  destruct σ as [? t]. simpl.
-  intros Ht.
-  f_equal.
-  (* apply insert_id. done. *)
-Admitted. *)
+  destruct σ as [[[? h0 ]]]. rewrite /tapes. simpl.
+  intros Ht. rewrite /state_upd_tapes/state_of_prod/=.
+  repeat f_equal.
+  rewrite /tapes/=.
+  by rewrite insert_id.
+Qed. 
 
-(*
-Lemma state_upd_tapes_same' σ σ' l n xs (x y : stdpp.fin.fin (S n)) :
-  state_upd_tapes <[l:=(fin (n; xs++[x]))]> σ = state_upd_tapes <[l:=(fin(n; xs++[y]))]> σ' -> x = y.
-Proof. intros H. apply state_upd_tapes_same in H. by simplify_eq. Qed.
 
-Lemma state_upd_tapes_neq' σ σ' l n xs (x y : stdpp.fin.fin (S n)) :
-  x≠y -> state_upd_tapes <[l:=(fin(n; xs++[x]))]> σ ≠ state_upd_tapes <[l:=(fin(n; xs++[y]))]> σ'.
-Proof. move => H /state_upd_tapes_same ?. simplify_eq. Qed.
-*)
-(*
+(* Lemma state_upd_tapes_same' σ σ' l n m xs (x y : Z) : *)
+(*   state_upd_tapes <[l:=((n, (m, xs++[x])))]> σ = state_upd_tapes <[l:=(n, (m, xs++[y]))]> σ' -> x = y. *)
+(* Proof. intros H. apply state_upd_tapes_same in H. by simplify_eq. Qed. *)
+
+(* Lemma state_upd_tapes_neq' σ σ' l n xs (x y : stdpp.fin.fin (S n)) : *)
+(*   x≠y -> state_upd_tapes <[l:=(fin(n; xs++[x]))]> σ ≠ state_upd_tapes <[l:=(fin(n; xs++[y]))]> σ'. *)
+(* Proof. move => H /state_upd_tapes_same ?. simplify_eq. Qed. *)
+
 Fixpoint heap_array (l : <<discr loc>>) (vs : list val) : gmap <<discr loc>> val :=
   match vs with
   | [] => ∅
@@ -850,8 +856,6 @@ Lemma heap_array_lookup l vs v k :
   ∃ j, (0 ≤ j)%Z ∧ k = l +ₗ j ∧ vs !! (Z.to_nat j) = Some v.
 Proof.
   revert k l; induction vs as [|v' vs IH] => l' l /=.
-Admitted.
-(*
   { rewrite lookup_empty. naive_solver lia. }
   rewrite -insert_union_singleton_l lookup_insert_Some IH. split.
   - intros [[-> ?] | (Hl & j & ? & -> & ?)].
@@ -867,7 +871,6 @@ Admitted.
     eexists (j - 1)%Z. rewrite loc_add_assoc Z.add_sub_assoc Z.add_simpl_l.
     auto with lia.
 Qed.
-*)
 
 Lemma heap_array_map_disjoint (h : gmap <<discr loc>> val) (l : loc) (vs : list val) :
   (∀ i, (0 ≤ i)%Z → (i < length vs)%Z → h !! (l +ₗ i) = None) →
@@ -877,37 +880,35 @@ Proof.
   intros (j&?&->&Hj%lookup_lt_Some%inj_lt)%heap_array_lookup.
   move: Hj. rewrite Z2Nat.id // => ?. by rewrite Hdisj.
 Qed.
-**)
-
-(*
-Definition state_upd_hp_N : (<<discr loc>> * <<discr Z>> * val * (hp (option val)))%type -> (hp (option val)).
-Admitted.
 
 
-Lemma
-                              (l : loc) (n : nat) (v : val) (σ : state) : state :=
-  state_upd_heap (λ h, heap_array l (replicate n v) ∪ h) σ.
-*)
+(* Definition state_upd_hp_N : (<<discr loc>> * <<discr Z>> * val * (hp (option val)))%type -> (hp (option val)). *)
+(* Admitted. *)
+
+
+(* Lemma *)
+(*                               (l : loc) (n : nat) (v : val) (σ : state) : state := *)
+(*   state_upd_heap (λ h, heap_array l (replicate n v) ∪ h) σ. *)
 
 
 
-(*
-Lemma state_upd_heap_singleton l v σ :
-  state_upd_heap_N l 1 v σ = state_upd_heap <[l:= v]> σ.
-Proof.
-  destruct σ as [h p]. rewrite /state_upd_heap_N /=. f_equiv.
-Admitted.
-(*
-  rewrite right_id insert_union_singleton_l. done.
-Qed.
-*)
 
-Lemma state_upd_tapes_heap σ l1 l2 xs m v :
-  state_upd_tapes <[l2:=xs]> (state_upd_heap_N l1 m v σ) =
-  state_upd_heap_N l1 m v (state_upd_tapes <[l2:=xs]> σ).
-Proof.
-  by rewrite /state_upd_tapes /state_upd_heap_N /=.
-Qed.
+(* Lemma state_upd_heap_singleton l v σ : *)
+(*   state_upd_heap_N l 1 v σ = state_upd_heap <[l:= v]> σ. *)
+(* Proof. *)
+(*   destruct σ as [h p]. rewrite /state_upd_heap_N /=. f_equiv. *)
+(* Admitted. *)
+(* (* *)
+(*   rewrite right_id insert_union_singleton_l. done. *)
+(* Qed. *)
+(* *) *)
+
+(* Lemma state_upd_tapes_heap σ l1 l2 xs m v : *)
+(*   state_upd_tapes <[l2:=xs]> (state_upd_heap_N l1 m v σ) = *)
+(*   state_upd_heap_N l1 m v (state_upd_tapes <[l2:=xs]> σ). *)
+(* Proof. *)
+(*   by rewrite /state_upd_tapes /state_upd_heap_N /=. *)
+(* Qed. *)
 
 Lemma heap_array_replicate_S_end l v n :
   heap_array l (replicate (S n) v) = heap_array l (replicate n v) ∪ {[l +ₗ n:= v]}.
@@ -922,7 +923,6 @@ Proof.
      IHn /=.
     rewrite map_union_empty replicate_length //.
 Qed.
-*)
 
 Global Instance state_inhabited : Inhabited state := populate point.
 
