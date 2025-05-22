@@ -128,6 +128,42 @@ Section tapes.
 
   Definition emptyTape : tape := (0, emptyTapeContents).
 
+  
+  Lemma sequence_sigma_algebra_singleton (s:set (option A)) (i:nat):
+    measurable s -> 
+    measurable (preimage (λ (f:(option A)^nat), f i) s).
+  Proof.
+    intros H.
+    apply sub_sigma_algebra.
+    exists i; first done.
+    exists s; first done. by rewrite setTI.
+  Qed. 
+  
+  Lemma tape_meas_singleton (f:tape): (∀ t:A, measurable [set t]) -> measurable [set f].
+  Proof.
+    destruct f as [n f].
+    intros H.
+    rewrite measurable_prod_measurableType.
+    apply sub_sigma_algebra. simpl.
+    exists (set1 n); first done.
+    exists (set1 f); last by rewrite -prod1.
+    assert (set1 f = \bigcap_i (preimage (λ (f:(option A)^nat), f (i)) (set1 (f ( i)))) ) as Hrewrite; last rewrite Hrewrite.
+    { rewrite eqEsubset; split; intros ?; simpl.
+      - by intros -> i _.
+      - intros H'.
+        apply funext. intros i.
+        unshelve epose proof H' i _ as H''; first done.
+        simpl in *. by subst.
+    } 
+    apply: bigcapT_measurable.
+    intros k.
+    apply sequence_sigma_algebra_singleton.
+    destruct (f k); apply: sub_sigma_algebra; rewrite /option_cyl/=.
+    - eexists (Some _); last apply image_set1.
+      naive_solver.
+    - exists None; naive_solver.
+  Qed. 
+
   (* History lookup: look through absolute history *)
   (** Don't use lookup if you expect the function to be measurable in the index! *)
   Global Instance tape_content_lookup : Lookup nat A tape := fun i => ((sequence_eval i) \o tape_contents).
@@ -186,7 +222,14 @@ Hint Resolve btape_bound_meas_fun : measlang.
 Lemma btape_meas_singleton (t:btape):
   measurable (set1 t).
 Proof.
-Admitted.
+  destruct t as [n1[n2 t]].
+  rewrite measurable_prod_measurableType.
+  apply sub_sigma_algebra. simpl.
+  exists (set1 n1); first done.
+  exists (set1 (n2, t)); last by rewrite -prod1.
+  apply tape_meas_singleton.
+  naive_solver.
+Qed. 
 Hint Resolve btape_meas_singleton: measlang.
 
 (** Tape of real numbers *)
@@ -196,7 +239,8 @@ Definition utape := tape ((R : realType) : measurableType _).
 Lemma utape_meas_singleton (t:utape):
   measurable (set1 t).
 Proof.
-Admitted.
+  by apply tape_meas_singleton.
+Qed. 
 Hint Resolve utape_meas_singleton: measlang.
 
 (* All values of the tape are within the tape bound *)

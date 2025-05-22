@@ -83,9 +83,47 @@ Section hp_measure.
   HB.instance Definition _ :=
     @isMeasurable.Build (sigma_display hp_measurable) hp hp_measurable hp_meas0 hp_measC hp_measU.
 
+  Lemma hp_sigma_algebra_singleton (s:set (option T)) (i:loc):
+    measurable s -> 
+    measurable (preimage (λ (f:hp), f!!i) s).
+  Proof.
+    intros H.
+    apply sub_sigma_algebra.
+    exists i; first done.
+    exists s; first done. by rewrite setTI.
+  Qed.
+
+  Lemma hp_ext (f g: hp):
+    (forall i, f !! i = g!!i) -> f=g.
+  Proof.
+    intros H. 
+    replace f with (filter (λ _, True) f); last by apply map_filter_id.
+    replace g with (filter (λ _, True) g); last by apply map_filter_id.
+    apply map_filter_strong_ext_1.
+    intros. by rewrite H.
+  Qed. 
+
   Lemma hp_meas_singleton (f:hp): (∀ t:T, measurable [set t]) -> measurable [set f].
   Proof.
-  Admitted.
+    intros H.
+    assert (set1 f = \bigcap_i (preimage (λ (f:hp), f!!(loc_enum i)) (set1 (f!!(loc_enum i)))) ) as Hrewrite; last rewrite Hrewrite.
+    { rewrite eqEsubset; split; intros ?; simpl.
+      - by intros -> i _.
+      - intros H'.
+        apply: hp_ext.
+        intros i.
+        pose proof loc_enum_surj i as [n Hn].
+        unshelve epose proof H' n _ as H''; first done.
+        simpl in *. by subst.
+    } 
+    apply: bigcapT_measurable.
+    intros k.
+    apply hp_sigma_algebra_singleton.
+    destruct (f !! loc_enum k); apply: sub_sigma_algebra; rewrite /option_cyl/=.
+    - eexists (Some _); last apply image_set1.
+      naive_solver.
+    - exists None; naive_solver.
+  Qed. 
   Hint Resolve hp_meas_singleton: measlang.
 
   Definition hp_eval (i : <<discr loc>>) : hp -> option T := fun f => (gmap_lookup i f).
