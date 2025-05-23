@@ -1393,14 +1393,33 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
       + do 2 left. right. rewrite /bin_op_eval'_cov_real/bin_op_eval_real in Heqn1 *.
         repeat case_match; simplify_eq; simpl in *; simplify_eq; naive_solver. }
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H8].
-  { (* alloc_eval_cov_ok is not defined yet *)
-    admit. }
+  { unfold_RHS. simpl. unfold_RHS. rewrite /alloc_eval_cov_ok.
+    rewrite ifIn_eq_left; last done.
+    by rewrite /alloc_eval_ok/=. }
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H9].
-  { (* load_eval_cov_ok is not defined yet *)
-    admit. }
+  { unfold_RHS. simpl. unfold_RHS.
+    apply if_in_split.
+    - rewrite /load_eval_cov_ok/=.
+      rewrite /hp_eval/lookup.
+      intros [a Ha]; rewrite Ha.
+      destruct σ as [[[]]].
+      rewrite /load_eval_ok/=/hp_evalC/hp_eval/=/uncurry/=/of_option/=/heap/=.
+      rewrite /heap/= in Ha. by rewrite Ha/=.
+    - case_match eqn:H; last done.
+      intros H'. exfalso.
+      apply H'. rewrite /load_eval_cov_ok/=/hp_eval. setoid_rewrite H. eexists _. naive_solver.
+  }
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H10].
-  { (* store_eval_cov_ok is not defined yet *)
-    admit. }
+  { unfold_RHS. simpl. unfold_RHS.
+    apply if_in_split.
+    - rewrite /store_eval_cov_ok/=/state_heap_alloc_at/=.
+      rewrite /hp_eval/lookup.
+      intros [a Ha]. by rewrite Ha.
+    - case_match eqn:H; last done.
+      intros H'. exfalso.
+      apply H'.
+      rewrite /store_eval_cov_ok/=/state_heap_alloc_at/=/hp_eval/lookup. setoid_rewrite H.
+      by eexists _. }
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H11].
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H12].
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H13].
@@ -1534,7 +1553,7 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
   - apply H22; head_step_solver.
   - apply H22; head_step_solver.
   - apply H23; head_step_solver.
-Admitted.
+Qed. 
 
 Lemma head_stepM_meas_fun : measurable_fun setT head_stepM.
 Proof.

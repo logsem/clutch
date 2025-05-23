@@ -23,23 +23,38 @@ Set Warnings "hiding-delimiting-key".
 
 Local Open Scope classical_set_scope.
 
-Definition load_eval_cov_ok : set (<<discr loc>> * state)%type. Admitted.
+Definition load_eval_cov_ok : set (<<discr loc>> * state)%type :=
+  preimage (ssrfun.comp hp_evalC $ mProd fst (ssrfun.comp heap snd)) option_cov_Some.
 (*
 Definition auxcov_load_ok : set (<<discr loc>> * state)%type :=
   preimage (ssrfun.comp hp_evalC $ mProd fst (ssrfun.comp heap snd)) option_cov_Some.
 *)
 
-Lemma load_eval_cov_ok_meas_set : measurable load_eval_cov_ok. Admitted.
-(*
-By the measurablity of that function
- *)
-
+Lemma load_eval_cov_ok_meas_set : measurable load_eval_cov_ok.
+Proof.
+  rewrite /load_eval_cov_ok.
+  erewrite <-setTI.
+  apply: apply_measurable_fun; ms_solve; last apply: option_cov_Some_meas_set.
+  apply: measurable_comp; [| |apply: hp_evalC_meas_fun|]; first done; last (mf_prod; apply: measurable_comp); last apply: measurable_snd_restriction; last done; last apply: heap_meas_fun; ms_solve.
+Qed. 
 Hint Resolve load_eval_cov_ok_meas_set : mf_set.
 
 Definition load_eval_ok : (<<discr loc>> * state)%type -> giryM cfg :=
   gRet \o (ValU \o of_option (hp_evalC \o (fst △ heap \o snd)) △ snd).
 
-Lemma load_eval_ok_meas_fun : measurable_fun load_eval_cov_ok load_eval_ok. Admitted.
+Lemma load_eval_ok_meas_fun : measurable_fun load_eval_cov_ok load_eval_ok.
+  rewrite /load_eval_ok.
+  apply: measurable_compT; [ms_solve|apply gRet_meas_fun|].
+  mf_prod; last (apply: measurable_snd_restriction; ms_solve).
+  apply: measurable_comp; [| |apply ValU_meas_fun|]; ms_solve.
+  rewrite /load_eval_cov_ok.
+  apply of_option_meas_fun.
+  apply: measurable_comp; [| |apply hp_evalC_meas_fun|]; ms_solve.
+  mf_prod.
+  rewrite -setXTT.
+  apply: snd_setX_meas_fun; ms_solve.
+  apply: heap_meas_fun.
+Qed. 
 
 Definition load_eval : (<<discr loc>> * state)%type -> giryM cfg :=
   if_in load_eval_cov_ok load_eval_ok (cst gZero).
@@ -69,10 +84,11 @@ Hint Resolve load_eval_meas_fun : mf_fun.
           else giryM_zero
 *)
 
-(* Case split on whether a finite or infinite *)
-Definition alloc_eval_cov_ok : set (val * state)%type. Admitted.
+Definition alloc_eval_cov_ok : set (val * state)%type:=
+  setT.
 
-Lemma alloc_eval_cov_ok_meas_set : measurable alloc_eval_cov_ok. Admitted.
+Lemma alloc_eval_cov_ok_meas_set : measurable alloc_eval_cov_ok.
+Proof. by rewrite /alloc_eval_cov_ok. Qed. 
 
 Hint Resolve alloc_eval_cov_ok_meas_set : mf_set.
 
@@ -84,8 +100,36 @@ Definition alloc_eval_ok : (val * state)%type -> giryM cfg :=
             △ tapes \o snd
             △ utapes \o snd))).
 
-Lemma alloc_eval_ok_meas_fun : measurable_fun alloc_eval_cov_ok alloc_eval_ok. Admitted.
-
+Lemma alloc_eval_ok_meas_fun : measurable_fun alloc_eval_cov_ok alloc_eval_ok.
+Proof.
+  apply: measurable_comp; [| |apply gRet_meas_fun|]; ms_solve.
+  mf_prod.
+  - rewrite /alloc_eval_cov_ok.
+    rewrite -setXTT.
+    apply: snd_setX_meas_fun; ms_solve.
+    apply: measurable_compT; last apply heap_meas_fun; first done.
+    apply: measurable_compT; last apply: fresh_meas_fun; first done.
+    apply: measurable_compT; last apply LitLocU_meas_fun; first done.
+    apply: measurable_compT; last apply LitVU_meas_fun; first done.
+    apply: ValU_meas_fun.
+  - apply: measurable_compT; [ms_solve|apply state_of_prod_meas_fun; ms_solve|].
+    rewrite /alloc_eval_cov_ok.
+    rewrite -setXTT.
+    repeat mf_prod; last first.
+    { apply: snd_setX_meas_fun; ms_solve.
+      apply utapes_meas_fun. }
+    { apply: snd_setX_meas_fun; ms_solve.
+      apply tapes_meas_fun. }
+    apply: measurable_compT; [ms_solve|apply: hp_updateC_meas_fun|].
+    mf_prod.
+    + apply: snd_setX_meas_fun; ms_solve.
+      apply measurable_compT; [ms_solve|apply fresh_meas_fun|apply heap_meas_fun].
+    + mf_prod.
+      * apply: fst_setX_meas_fun; ms_solve.
+        apply Some_meas_fun.
+      * apply: snd_setX_meas_fun; ms_solve.
+        apply heap_meas_fun.
+Qed. 
 Hint Resolve alloc_eval_ok_meas_fun : mf_fun.
 
 Definition alloc_eval : (val * state)%type -> giryM cfg :=
@@ -113,17 +157,28 @@ Hint Resolve alloc_eval_ok_meas_fun : mf_fun.
  *)
 
 (* The set of all states that are allocated at l. *)
-Definition state_heap_alloc_at : set (<<discr loc>> * state)%type. Admitted.
+Definition state_heap_alloc_at : set (<<discr loc>> * state)%type :=
+  preimage (ssrfun.comp hp_evalC $ mProd fst (ssrfun.comp heap snd)) option_cov_Some.
 
-(* Suffices to show it's measurable for every l because discrete + countable
-The set is the preimage of [set Some _] under heap evaluation at l. *)
-Lemma state_heap_alloc_at_meas_set : measurable state_heap_alloc_at. Admitted.
+Lemma state_heap_alloc_at_meas_set : measurable state_heap_alloc_at.
+Proof.
+  rewrite /state_heap_alloc_at.
+  apply: load_eval_cov_ok_meas_set.
+Qed. 
+Hint Resolve state_heap_alloc_at_meas_set : mf_set.
 
 (* Plonk a value into the middle of state_heap_alloc_at *)
-Definition store_eval_cov_ok : set (<<discr loc>> * val * state)%type. Admitted.
+Definition store_eval_cov_ok : set (<<discr loc>> * val * state)%type :=
+  preimage (fst\o fst△snd) state_heap_alloc_at.
 
-Lemma store_eval_cov_ok_meas_set : measurable store_eval_cov_ok. Admitted.
-
+Lemma store_eval_cov_ok_meas_set : measurable store_eval_cov_ok.
+  rewrite <-setTI.
+  rewrite /store_eval_cov_ok.
+  apply: apply_measurable_fun; ms_solve.
+  mf_prod.
+  rewrite -setXTT.
+  apply: fst_setX_meas_fun; ms_solve.
+Qed. 
 Hint Resolve store_eval_cov_ok_meas_set : mf_set.
 
 Definition store_eval_ok : (<<discr loc>> * val * state)%type -> giryM cfg :=
@@ -133,8 +188,31 @@ Definition store_eval_ok : (<<discr loc>> * val * state)%type -> giryM cfg :=
                             △ utapes \o snd)).
 
 Lemma store_eval_ok_meas_fun : measurable_fun store_eval_cov_ok store_eval_ok.
-Proof. Admitted.
-
+Proof.
+  apply: measurable_compT; [ms_solve|apply gRet_meas_fun|].
+  mf_prod.
+  apply: measurable_compT; [ms_solve|apply state_of_prod_meas_fun; ms_solve|].
+  mf_prod; last first.
+  { apply: measurable_compT; ms_solve.
+    - apply utapes_meas_fun.
+    - apply: measurable_snd_restriction. ms_solve.
+  }
+  mf_prod.
+  { apply: measurable_compT; [ms_solve|apply: hp_updateC_meas_fun|].
+    repeat mf_prod.
+    + apply measurable_compT; ms_solve.
+      apply: measurable_fst_restriction. ms_solve.
+    + apply measurable_compT; ms_solve; first apply measurable_compT; ms_solve.
+      * apply Some_meas_fun.
+      * apply: measurable_fst_restriction. ms_solve.
+    + apply measurable_compT; ms_solve.
+      * apply heap_meas_fun.
+      * apply: measurable_snd_restriction. ms_solve.
+  }
+  apply measurable_compT; ms_solve.
+  - apply tapes_meas_fun.
+  - apply: measurable_snd_restriction. ms_solve.
+Qed. 
 Hint Resolve store_eval_ok_meas_fun : mf_fun.
 
 Definition store_eval : (<<discr loc>> * val * state)%type -> giryM cfg :=
