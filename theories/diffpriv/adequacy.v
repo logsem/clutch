@@ -171,7 +171,7 @@ Qed.
 
 (* hoare_diffpriv implies pure diffpriv *)
 Fact hoare_diffpriv_pure f ε (εpos : (0 < ε)%R) :
-  (∀ `{diffprivGS Σ}, hoare_diffpriv f ε dZ)
+  (∀ `{diffprivGS Σ}, ⊢ hoare_diffpriv f ε dZ)
   →
     ∀ σ,
     diffpriv_pure
@@ -182,7 +182,9 @@ Proof.
   intros hwp ?.
   eapply (wp_diffpriv_Z diffprivΣ) ; eauto ; try lra.
   iIntros (????) "f' ε".
-  iApply (hwp _ _ [] 1%R with "[$f' ε]") => //. 2: rewrite Rmult_1_l ; done.
+  tp_bind (f _).
+  iApply (hwp with "[] [$f' ε]").
+  2: erewrite Rmult_1_l ; iFrame.
   1: rewrite /dZ /= -abs_IZR //.
   iNext. iIntros. iExists _. eauto.
 Qed.
