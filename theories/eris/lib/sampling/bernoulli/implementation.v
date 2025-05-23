@@ -161,7 +161,7 @@ Section BernoulliImpl.
     iExists [].
     iFrame.
     iPureIntro.
-    rewrite /is_bernoulli_translation //.
+    apply is_bernoulli_translation_nil.
   Qed.
 
   (**
