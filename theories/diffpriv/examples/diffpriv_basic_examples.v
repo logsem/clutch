@@ -44,7 +44,7 @@ Section wp_example.
         count_query num den db
       {{{ z, RET #z; ⤇ #z }}}.
   Proof.
-    intros. rewrite /wp_diffpriv. intros.
+    intros. rewrite /hoare_diffpriv. intros.
     iIntros "[f' ε] hΦ" ; iRevert "f'" ; iIntros "f'".
     rewrite {2}/count_query /over_40/setmap/setsum/age/db. wp_pures.
     rewrite /count_query /over_40/setmap/setsum/age/db ; tp_pures.

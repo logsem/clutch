@@ -169,9 +169,9 @@ Proof.
   intros. apply Hwp. done.
 Qed.
 
-(* wp_diffpriv implies pure diffpriv *)
-Fact wp_diffpriv_pure f ε (εpos : (0 < ε)%R) :
-  (∀ `{diffprivGS Σ}, wp_diffpriv f ε dZ)
+(* hoare_diffpriv implies pure diffpriv *)
+Fact hoare_diffpriv_pure f ε (εpos : (0 < ε)%R) :
+  (∀ `{diffprivGS Σ}, hoare_diffpriv f ε dZ)
   →
     ∀ σ,
     diffpriv_pure

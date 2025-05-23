@@ -59,10 +59,10 @@ Section xcache.
 
   Lemma exact_cache_dipr (M : val) DB (dDB : Distance DB) (qs : list nat) (QS : val) (is_qs : is_list qs QS)
     ε (εpos : 0 <= ε)
-    (M_dipr : Forall (λ q : nat, wp_diffpriv (M #q) ε dDB) qs)
+    (M_dipr : Forall (λ q : nat, hoare_diffpriv (M #q) ε dDB) qs)
     :
     let k := size ((list_to_set qs) : gset _) in
-    wp_diffpriv (exact_cache M QS) (k*ε) dDB.
+    hoare_diffpriv (exact_cache M QS) (k*ε) dDB.
   Proof with (tp_pures ; wp_pures).
     iIntros (k K c db db' adj φ) "[rhs ε] hφ".
     rewrite {2}/exact_cache...
@@ -81,7 +81,7 @@ Section xcache.
           dom cache_map = list_to_set qs_pre →
           dom cache_map ∪ list_to_set qs' = list_to_set qs →
           is_list qs' QS' →
-          Forall (λ q : nat, wp_diffpriv (M #q) ε dDB) qs →
+          Forall (λ q : nat, hoare_diffpriv (M #q) ε dDB) qs →
           let k := size (list_to_set qs : gset nat) in
           let k' := size cache_map in
           {{{

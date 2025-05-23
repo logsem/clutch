@@ -84,7 +84,7 @@ Section rnm.
 
   Lemma rnm_pw_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
     (0 < IZR num / IZR (2 * den)) →
-    (∀ i : Z, wp_sensitive (evalQ #i) 1 dDB dZ) →
+    (∀ i : Z, hoare_sensitive (evalQ #i) 1 dDB dZ) →
     ∀ db db', dDB db db' <= 1 →
               ∀ j : val,
                 {{{ ↯ (IZR num / IZR den) ∗
@@ -176,7 +176,7 @@ Section rnm.
 
       (* sensitivity of evalQ *)
       tp_bind (evalQ _ _). wp_bind (evalQ _ _).
-      rewrite /wp_sensitive in qi_sens.
+      rewrite /hoare_sensitive in qi_sens.
       iApply (qi_sens i _ _ db db' _ with "rnm'").
       Unshelve. 2: shelve. 2: lra.
       iIntros "!> % (%e1 & %e2 & -> & rnm' & %e1e2_adj)" => /=.
@@ -346,7 +346,7 @@ Section rnm.
 
 
       tp_bind (evalQ _ _). wp_bind (evalQ _ _).
-      rewrite /wp_sensitive in qi_sens.
+      rewrite /hoare_sensitive in qi_sens.
       iApply (qi_sens _ _ _ db db' _ with "rnm").
       Unshelve. 2: lra.
       iIntros "!> % (%e1 & %e2 & -> & rnm' & %e1e2_adj)" => /=.
@@ -425,7 +425,7 @@ Section rnm.
       rewrite -/(rnm_body _ _ _ _ _ _ _ maxA2).
 
       tp_bind (evalQ _ _). wp_bind (evalQ _ _).
-      rewrite /wp_sensitive in qi_sens.
+      rewrite /hoare_sensitive in qi_sens.
       iApply (qi_sens _ _ _ db db' _ with "rnm'").
       Unshelve. 2: lra.
       clear H0 e1 e2 e1e2_adj H.
@@ -480,7 +480,7 @@ End rnm.
 Lemma rnm_pw_diffpriv_cpl num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
   (0 < IZR num / IZR (2 * den))%R →
   (0 <= IZR num / IZR den)%R →
-  (∀ `{!diffprivGS Σ}, ∀ i : Z, wp_sensitive (evalQ #i) 1 dDB dZ) →
+  (∀ `{!diffprivGS Σ}, ∀ i : Z, hoare_sensitive (evalQ #i) 1 dDB dZ) →
   ∀ db db',
     (dDB db db' <= 1)%R →
     ∀ σ,
@@ -508,7 +508,7 @@ Qed.
 Lemma rnm_diffpriv_cpl num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
   (0 < IZR num / IZR (2 * den))%R →
   (0 <= IZR num / IZR den)%R →
-  (∀ `{!diffprivGS Σ}, ∀ i : Z, wp_sensitive (evalQ #i) 1 dDB dZ) →
+  (∀ `{!diffprivGS Σ}, ∀ i : Z, hoare_sensitive (evalQ #i) 1 dDB dZ) →
   ∀ db db',
     (dDB db db' <= 1)%R →
     ∀ σ,
