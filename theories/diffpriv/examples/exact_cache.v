@@ -168,6 +168,8 @@ Section xcache.
       all: subst ; assumption || set_solver.
   Qed.
 
+  (* TODO instantiate exact_cache with a mechanism *)
+
 
   Definition online_xcache : val :=
     λ:"M" "db",
@@ -181,20 +183,103 @@ Section xcache.
              "v"
           end).
 
+  (* pay as you go, cache map exposed, M only needs to be private on the queries it gets executed on *)
+  Lemma oxc_spec0 (M : val) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K :
+    ⤇ fill K (online_xcache M (Val (inject db')))
+    ⊢ WP online_xcache M (Val (inject db))
+        {{ f, ∃ f', ⤇ fill K (Val f') ∗
+              ∃ (F : gmap nat val → iProp Σ),
+              F ∅ ∗
+              (∀ (q : nat) A K,
+                  ⌜q ∈ dom A⌝ -∗
+                  F(A) -∗
+                  ⤇ fill K (Val f' #q) -∗
+                  WP (Val f) #q {{ v, F(A) ∗ ⤇ fill K (Val v) ∗  ⌜A !! q = Some v⌝ }}) ∗
+              (∀ (q : nat) A ε K,
+                  ⌜q ∉ dom A⌝ -∗
+                  wp_diffpriv (M #q) ε dDB -∗
+                  ↯ ε -∗
+                  F(A) -∗
+                  ⤇ fill K (Val f' #q) -∗
+                  WP (Val f) #q {{ v, F( <[q := v]> A) ∗ ⤇ fill K (Val v) ∗ ⌜<[q := v]> A !! q = Some v⌝ }})
+        }}.
+  Proof.
+    iIntros "rhs".
+    rewrite /online_xcache. wp_pures.
+    tp_pures. tp_bind (init_map _). iMod (spec_init_map with "rhs") as "[%cache_r [rhs cache_r]]".
+    simpl. tp_pures.
+    wp_apply wp_init_map => //. iIntros (cache_l) "?". wp_pures.
+
+    iModIntro. iExists _. simpl. iFrame "rhs".
+
+    iExists (λ A, map_list cache_l A ∗ map_slist cache_r A)%I.
+    iFrame.
+    iSplitR.
+    - iIntros (??? cached) "[cache_l cache_r] rhs". tp_pures. wp_pures.
+      tp_bind (get _ _).
+      iMod (spec_get with "[$cache_r] [$rhs]") as "[rhs cache_r]".
+      wp_apply (wp_get with "cache_l") ; iIntros (vq) "[cache_l %hvq]".
+      simpl. subst.
+      apply elem_of_dom in cached. rewrite /opt_to_val.
+      destruct cached as [vq hvq]. rewrite hvq.
+      tp_pures. wp_pures. iFrame. done.
+    - iIntros (???? cached) "M_dipr ε [cache_l cache_r] rhs". tp_pures. wp_pures.
+      tp_bind (get _ _).
+      iMod (spec_get with "[$cache_r] [$rhs]") as "[rhs cache_r]".
+      wp_apply (wp_get with "cache_l") ; iIntros (vq) "[cache_l %hvq]".
+      simpl. subst.
+      apply not_elem_of_dom_1 in cached. rewrite /opt_to_val.
+      rewrite !cached. tp_pures ; wp_pures.
+      tp_bind (M _ _). wp_bind (M _ _).
+      rewrite /wp_diffpriv. iSpecialize ("M_dipr" $! _ 1 db db' adj).
+      rewrite Rmult_1_l.
+      iSpecialize ("M_dipr" with "[$rhs $ε]").
+      iPoseProof (wp_frame_l with "[cache_r $M_dipr]") as "M_dipr". 1: iAssumption.
+      iPoseProof (wp_frame_l with "[cache_l $M_dipr]") as "M_dipr". 1: iAssumption.
+      iApply (wp_mono with "M_dipr").
+      iIntros (vq) "[cache_l [cache_r rhs]]" => /=.
+      tp_pures. wp_pures. tp_bind (set _ _ _). iMod (spec_set with "[$cache_r] [$rhs]") as "[rhs cache_r]".
+      wp_apply (wp_set with "cache_l") ; iIntros "cache_l".
+      simpl. tp_pures. wp_pures. iFrame. iPureIntro. by rewrite lookup_insert.
+  Qed.
+
+
+  Lemma oxc_spec1 (M : val) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K :
+    (* (∀ q : nat, hoare_diffpriv (M #q) ε dDB) ∗ *)
+    ⤇ fill K (online_xcache M (Val (inject db')))
+    ⊢ WP online_xcache M (Val (inject db))
+        {{ f, ∃ f', ⤇ fill K (Val f') ∗
+              ∃ (F : gmap nat val → iProp Σ),
+              F ∅ ∗
+              (∀ (q : nat) A K,
+                  ⌜q ∈ dom A⌝ -∗
+                  F(A) -∗
+                  ⤇ fill K (Val f' #q) -∗
+                  WP (Val f) #q {{ v, F(A) ∗ ⤇ fill K (Val v) ∗  ⌜A !! q = Some v⌝ }}) ∗
+              (∀ (q : nat) A ε K,
+                  ⌜q ∉ dom A⌝ -∗
+                  ↯ ε -∗
+                  F(A) -∗
+                  ⤇ fill K (Val f' #q) -∗
+                  WP (Val f) #q {{ v, F( <[q := v]> A) ∗ ⤇ fill K (Val v) ∗ ⌜<[q := v]> A !! q = Some v⌝ }})
+        }}.
+  Proof.
+
+
   (* online spec:
 
      { ↯ (c*ε) ∗ bigSep c-times (∀ q, (M q) is ε-dipr) }
-       mk_cache M c
-     { f .
-         F(∅, c) ∗
-         ∀ q A k, q ∈ A → { F(A, k) } f q { v ∗ F(A, k) } ∗
-         ∀ q A k, q ∉ A → { F(A, S k) } f q { v ∗ F(A ∪ {q}, k) }
+       online_xcache M c
+     { f . ∃ (F : gmap(Query,val) * nat → iProp),
+           F(∅, c) ∗
+           ∀ q A k, q ∈ A → { F(A, k) } f q { v ∗ F(A, k) } ∗
+           ∀ q A k, q ∉ A → { F(A, S k) } f q { v ∗ F(A ∪ {q}, k) }
      }
 
      or alternatively:
 
      { □ ∀ q, (M q) is ε-dipr }
-       mk_cache M c
+       online_xcache M c
      { f .
          F(∅, c) ∗
          ∀ q A k, q ∈ A → { F(A, k) } f q { v ∗ F(A, k) } ∗
@@ -204,11 +289,22 @@ Section xcache.
      or even:
 
      {  }
-       mk_cache M c
+       online_xcache M c
      { f .
          F(∅, c) ∗
+         ( ∀ A k, ↯ ε ∗ F(A, k) -∗ F(A, S k) )
          ∀ q A k, q ∈ A → { F(A, k) } f q { v ∗ F(A, k) } ∗
-         ∀ q A k, q ∉ A → { (M q) is ε-dipr ∗ ↯ ε ∗ F(A, S k) } f q { v ∗ F(A ∪ {q}, k) }
+         ∀ q A k, q ∉ A → { (M q) is ε-dipr ∗ F(A, S k) } f q { v ∗ F(A ∪ {q}, k) }
+     }
+
+     or even:
+
+     {  }
+       online_xcache M
+     { f .
+         F(∅) ∗
+         ∀ q A k, q ∈ A → { F(A) } f q { v ∗ F(A) } ∗
+         ∀ q A k, q ∉ A → { (M q) is ε-dipr ∗ ↯ ε ∗ F(A) } f q { v ∗ F(A ∪ {q}) }
      }
 
    *)
