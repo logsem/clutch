@@ -33,7 +33,7 @@ Section diffpriv.
   Qed.
 
 
-  Definition hoare_sensitive (f : expr) (c : R) `(d_in : Distance A) `(d_out : Distance B)
+  Definition hoare_sensitive (f : expr) (c : R) `(d_in : Distance A) `(d_out : Distance B) : iProp Σ
     :=
     ∀ (c_pos : 0 <= c) K (x x' : A),
     {{{ ⤇ fill K (f $ Val $ inject x') }}}
@@ -43,18 +43,18 @@ Section diffpriv.
                       ∧ ⌜d_out b b' <= c * d_in x x'⌝
       }}}.
 
-  Definition wp_diffpriv (f : expr) ε `(dA : Distance A) := ∀ K c (x x' : A), dA x x' <= c →
-      ⤇ fill K (f (Val (inject x'))) ∗ ↯ (c * ε) ⊢ WP f (Val (inject x)) {{ v, ⤇ fill K (Val v) }}.
+  Definition wp_diffpriv (f : expr) ε `(dA : Distance A) : iProp Σ := ∀ K c (x x' : A), ⌜dA x x' <= c⌝ →
+      ⤇ fill K (f (Val (inject x'))) ∗ ↯ (c * ε) -∗ WP f (Val (inject x)) {{ v, ⤇ fill K (Val v) }}.
 
-  Definition hoare_diffpriv (f : expr) ε `(dA : Distance A) := ∀ K c (x x' : A), dA x x' <= c →
+  Definition hoare_diffpriv (f : expr) ε `(dA : Distance A) : iProp Σ := ∀ K c (x x' : A), ⌜dA x x' <= c⌝ →
       {{{ ⤇ fill K (f (Val (inject x'))) ∗ ↯ (c * ε) }}} f (Val (inject x)) {{{ (v : val), RET v; ⤇ fill K (Val v) }}}.
 
   Fact hoare_laplace_diffpriv (num den : Z) :
-    0 < IZR num / IZR den →
+    ⌜0 < IZR num / IZR den⌝ -∗
     hoare_diffpriv (λ: "loc", Laplace #num #den "loc")%E ((IZR num / IZR den)) dZ.
   Proof.
-    intros. rewrite /hoare_diffpriv/dZ /=. intros K c x x' adj.
-    iIntros (φ) "[f' ε] hφ".
+    iIntros. rewrite /hoare_diffpriv/dZ /=. iIntros (K c x x' adj).
+    iIntros (φ) "!> [f' ε] hφ".
     tp_pures. wp_pures.
     tp_bind (Laplace _ _ _).
     iApply (wp_couple_laplace _ _ 0%Z with "[$f' ε]") => //.
@@ -66,73 +66,78 @@ Section diffpriv.
 
   Fact sensitive_comp (f g : val) cg cf
     `(dA : Distance A) `(dB : Distance B) {C : Type} `(dC : Distance C) (cf_pos : 0 <= cf) (cg_pos : 0 <= cg) :
-    hoare_sensitive f cf dA dB → hoare_sensitive g cg dB dC → hoare_sensitive (λ:"x", g (f "x")) (cg * cf) dA dC.
+    hoare_sensitive f cf dA dB -∗ hoare_sensitive g cg dB dC -∗ hoare_sensitive (λ:"x", g (f "x")) (cg * cf) dA dC.
   Proof.
-    rewrite /hoare_sensitive. intros f_sens g_sens. intros. iIntros "f' hΦ".
+    rewrite /hoare_sensitive. iIntros "#f_sens #g_sens". iIntros. iIntros (Φ). iIntros "!> f' hΦ".
     tp_pures. wp_pures. wp_bind (f _). tp_bind (f _).
-    iApply (f_sens with "[$f']") => //.
+    iApply ("f_sens" $! _ _ _ _ _ with "[$f']") => //.
     iIntros "!>" (vfx) "(%fx & %fx' & -> & gv' & %sens)".
-    iApply (g_sens with "[$gv']") => //.
+    iApply ("g_sens" $! _ _ _ _ _ with "[$gv']") => //.
     iIntros "!>" (vgfx) "(%gfx & %gfx'' & -> & vv' & %sens')".
     iApply "hΦ". iExists _,_. iFrame. iPureIntro.
     split ; [eauto|].
     etrans => //.
     rewrite Rmult_assoc.
     eapply Rmult_le_compat_l => //.
+    Unshelve. all: done.
   Qed.
 
   Fact diffpriv_sensitive_comp (f g : val) ε c
     `(dA : Distance A) `(dB : Distance B) {C : Type} `(dC : Distance C)
     (c_pos : 0 <= c) :
-    hoare_sensitive f c dA dB → hoare_diffpriv g ε dB → hoare_diffpriv (λ:"x", g (f "x")) (c*ε) dA.
+    hoare_sensitive f c dA dB -∗ hoare_diffpriv g ε dB -∗ hoare_diffpriv (λ:"x", g (f "x")) (c*ε) dA.
   Proof.
-    rewrite /hoare_sensitive/hoare_diffpriv. intros f_sens g_dipr. intros K c'. intros. iIntros "[f' ε] hΦ".
+    rewrite /hoare_sensitive/hoare_diffpriv. iIntros "#f_sens #g_dipr". iIntros (K c'). iIntros. iIntros (Φ) "!> [f' ε] hΦ".
     wp_pures. wp_bind (f _). tp_pures. tp_bind (f _).
-    iApply (f_sens with "[$f']") => //.
+    iApply ("f_sens" $! _ _ _ _ _ with "[$f']") => //.
     iIntros "!>" (?) "(%b & %v' & -> & gv' & %sens)".
-    iPoseProof (g_dipr K (c * c')) as "g_dipr".
-    { etrans => //. apply Rmult_le_compat_l => //. }
-    iApply ("g_dipr" with "[$gv' ε]") => //. rewrite (Rmult_comm c) Rmult_assoc. done.
+    iApply ("g_dipr" $! K (c * c') _ _ _ with "[$gv' ε]").
+    { rewrite (Rmult_comm c c') Rmult_assoc. iFrame. } iFrame.
+    Unshelve. 1: done.
+    etrans => //. apply Rmult_le_compat_l => //.
   Qed.
 
-  Definition hoare_functional_on (A : Type) {_ : Inject A val} (f : expr) := ∀ K (x : A) ,
+  Definition hoare_functional_on (A : Type) {_ : Inject A val} (f : expr) : iProp Σ := ∀ K (x : A) ,
     {{{ ⤇ fill K (f $ Val $ inject x) }}}
       f $ Val $ inject x
       {{{ (v : val), RET v; ⤇ fill K (Val v) }}}.
 
-  Definition hoare_has_codomain (B : Type) {_ : Inject B val} (f : expr) :=
-    ∀ x P Q, {{{ P }}} f x {{{ v , RET v ; Q v }}} → {{{ P }}} f x {{{ v , RET v ; ∃ b, ⌜ v = inject b ⌝ ∧ Q v }}}.
+  Definition hoare_has_codomain (B : Type) {_ : Inject B val} (f : expr) : iProp Σ :=
+    ∀ x P Q, {{{ P }}} f x {{{ v , RET v ; Q v }}} -∗ {{{ P }}} f x {{{ v , RET v ; ∃ b, ⌜ v = inject b ⌝ ∧ Q v }}}.
 
   Fact well_typed_diffpriv_comp (f g : val) ε c `(dA : Distance A) `(dB : Distance B) (c_pos : 0 <= c) :
-    hoare_diffpriv f ε dA → hoare_has_codomain B f → hoare_functional_on B g → hoare_diffpriv (λ:"x", g (f "x")) ε dA.
+    hoare_diffpriv f ε dA -∗ hoare_has_codomain B f -∗ hoare_functional_on B g -∗ hoare_diffpriv (λ:"x", g (f "x")) ε dA.
   Proof.
-    rewrite /hoare_sensitive/hoare_diffpriv. intros f_dipr f_cod g_dom. intros K c' ?? adj ?. iIntros "[g ε] hΦ".
+    rewrite /hoare_sensitive/hoare_diffpriv. iIntros "#f_dipr f_cod #g_dom". iIntros (K c' ?? adj ?).
+    iSpecialize (("f_dipr" $! _ c' _ _ _)).
+    iPoseProof ("f_cod" with "[$f_dipr]") as "#Hg".
+    iIntros "!> [g ε] hΦ".
     wp_pures. wp_bind (f _). tp_pures. tp_bind (f _).
-    opose proof (f_cod _ _ _ (f_dipr _ c' _ _ _)) as Hg. 1: eauto.
-    iApply (Hg with "[$g ε]") => //.
+    iApply ("Hg" with "[$g ε]") => //.
     iNext. iIntros (?) "(%gix & -> & f')".
-    iApply (g_dom with "[$f']").
+    iApply ("g_dom" with "[$f']").
     iIntros "!>" (?) "gv'".
     iApply "hΦ". done.
+    Unshelve. auto.
   Qed.
 
   Fact diffpriv_functional (f : val) ε `(dA : Distance A) :
-    hoare_diffpriv f ε dA → hoare_functional_on A f.
+    hoare_diffpriv f ε dA -∗ hoare_functional_on A f.
   Proof.
-    iIntros (f_dipr K z Φ) "fz hΦ".
+    iIntros "#f_dipr" (K z Φ) "!> fz hΦ".
     iMod ec_zero as "ε0".
-    rewrite /hoare_diffpriv in f_dipr.
-    iApply (f_dipr K 0 with "[$fz ε0]") => //.
+    rewrite /hoare_diffpriv.
+    unshelve iApply ("f_dipr" $! K 0 _ _ _ with "[$fz ε0]") => //.
     - right ; apply distance_0.
     - rewrite Rmult_0_l. done.
   Qed.
 
   Fact sensitive_functional (f : val) c `(dA : Distance A) `(dB : Distance B) (c_pos : 0 <= c) :
-    hoare_sensitive f c dA dB → hoare_functional_on A f.
+    hoare_sensitive f c dA dB -∗ hoare_functional_on A f.
   Proof.
-    iIntros (f_sens K z Φ) "f' hΦ".
-    rewrite /hoare_sensitive in f_sens.
-    iApply (f_sens c_pos K with "[$f']").
+    iIntros "#f_sens" (K z Φ) "!> f' hΦ".
+    rewrite /hoare_sensitive.
+    iApply ("f_sens" $! c_pos K with "[$f']").
     iNext. iIntros (v) "(%b & %b' & -> & b' & %sens)".
     iApply "hΦ".
     assert (b = b') as -> => //.
@@ -143,23 +148,24 @@ Section diffpriv.
   Corollary diffpriv_diffpriv_comp (f g : val) εf εg
     `(dA : Distance A) `(dB : Distance B) {C : Type} `(dC : Distance C)
     (εg_pos : 0 <= εg) (εf_pos : 0 <= εf) :
-    hoare_has_codomain B f → hoare_diffpriv f εf dA →
-    hoare_diffpriv g εg dB → hoare_diffpriv (λ:"x", g (f "x")) εf dA.
+    hoare_has_codomain B f -∗ hoare_diffpriv f εf dA -∗
+    hoare_diffpriv g εg dB -∗ hoare_diffpriv (λ:"x", g (f "x")) εf dA.
   Proof.
-    intros f_cod f_dipr g_dipr. intros ???? h.
-    opose proof (diffpriv_functional _ _ _ g_dipr) as g_fun.
-    eapply (well_typed_diffpriv_comp f g ε c dA dB _ f_dipr f_cod g_fun) => //.
+    iIntros "f_cod #f_dipr #g_dipr". iIntros (???? h).
+    iPoseProof (diffpriv_functional _ _ _ with "g_dipr") as "g_fun".
+    iApply (well_typed_diffpriv_comp f g ε c dA dB _ with "f_dipr f_cod g_fun") => //.
     Unshelve. etrans. 2: apply h. apply distance_pos.
   Qed.
 
   Corollary sensitive_diffpriv_comp (g f : val) ε c (c_pos : 0 <= c)
     `(dA : Distance A) `(dB : Distance B) {C : Type} `(dC : Distance C) :
-    hoare_diffpriv f ε dA → hoare_has_codomain B f →
-    hoare_sensitive g c dB dC → hoare_diffpriv (λ:"x", g (f "x")) ε dA.
+    hoare_diffpriv f ε dA -∗ hoare_has_codomain B f -∗
+    hoare_sensitive g c dB dC -∗ hoare_diffpriv (λ:"x", g (f "x")) ε dA.
   Proof.
-    intros f_dipr f_cod g_sens.
-    opose proof (sensitive_functional _ _ _ _ _ g_sens) as g_fun => //.
-    eapply (well_typed_diffpriv_comp _ _ _ _ _ _ c_pos f_dipr f_cod g_fun).
+    iIntros "#f_dipr f_cod #g_sens".
+    iPoseProof (sensitive_functional _ _ _ _ _ with "g_sens") as "g_fun" => //.
+    iApply (well_typed_diffpriv_comp _ _ _ _ _ _ c_pos with "f_dipr f_cod g_fun").
+    Unshelve. auto.
   Qed.
 
   (* The typing here is a bit weird with `f : A → B` and `g : B → A → C` ; it
@@ -168,19 +174,20 @@ Section diffpriv.
   annoying. *)
   Theorem diffpriv_diffpriv_seq_comp (f g : val) εf εg
     `(dA : Distance A) `(dB : Distance B)
-    (εg_pos : 0 <= εg) (εf_pos : 0 <= εf)
-    (f_cod : hoare_has_codomain B f) (f_dipr : hoare_diffpriv f εf dA)
-    (g_dipr : ∀ b, hoare_diffpriv (g b) εg dA) :
+    (εg_pos : 0 <= εg) (εf_pos : 0 <= εf) :
+    hoare_diffpriv f εf dA -∗
+    (∀ b, hoare_diffpriv (g b) εg dA) -∗
     hoare_diffpriv (λ:"a", g (f "a") "a") (εf+εg) dA.
   Proof.
-    iIntros (?? a a' adj Φ) "[gfa' ε] HΦ".
+    iIntros "#f_dipr #g_dipr" (?? a a' adj Φ) "!> [gfa' ε] HΦ".
     rewrite Rmult_plus_distr_l.
     assert (0 <= c). { etrans. 2: eauto. apply distance_pos. }
     iDestruct (ec_split with "ε") as "[εf εg]" => //. 1,2: real_solver.
     tp_pures ; wp_pures. tp_bind (f _). wp_bind (f _).
-    iApply (f_dipr with "[$gfa' $εf]") => // ; iIntros "!>" (b) "gb" => /=.
-    iPoseProof (g_dipr b K c a a' adj with "[$gb $εg]") as "g_dipr".
+    iApply ("f_dipr" $! _ _ _ _ _ with "[$gfa' $εf]") => // ; iIntros "!>" (b) "gb" => /=.
+    iSpecialize ("g_dipr" $! b K c a a' adj with "[$gb $εg]").
     iApply "g_dipr". done.
+    Unshelve. auto.
   Qed.
 
 
