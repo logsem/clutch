@@ -1470,7 +1470,7 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
   { unfold_RHS. simpl. unfold_RHS. simpl. clear.
     apply if_in_split.
     { intros [?? [? H ?]]. unfold URandT_eval_cov_noTape', option_cov_None, hp_eval in *. simpl in *; simplify_eq.
-      by rewrite /lookup/Lookup_instance_0/hp_eval H.
+      by rewrite /lookup H.
     }
     intros H1.
     case_match; last first.
@@ -1480,7 +1480,7 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
     apply if_in_split.
     { intros [??[? [[x' H'] H''] ?]].
       simplify_eq.
-      unfold lookup, Lookup_instance_0, hp_eval in *. simpl in *.
+      unfold lookup, hp_eval in *. simpl in *.
       simplify_eq.
       unfold  option_cov_None, of_option, 𝜋_Some_v in *. simpl in *.
       rewrite H in H''.
