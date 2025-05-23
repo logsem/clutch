@@ -373,6 +373,25 @@ Hint Resolve URandT_eval_cov_nextEmpty_meas_set     : mf_set.
 (* FIXME: Move *)
 Definition Z_to_nat' : <<discr Z>> -> <<discr nat>> := Z.to_nat.
 
+
+Definition lookup_eval_cov_ok {d} {T:measurableType d}: set (<<discr loc>> * hp T)%type :=
+  preimage (hp_evalC) option_cov_Some.
+
+Lemma lookup_eval_cov_ok_meas_set {d} {T:measurableType d}: measurable (lookup_eval_cov_ok (T:=T)).
+Proof.
+  rewrite /lookup_eval_cov_ok.
+  erewrite <-setTI.
+  apply: apply_measurable_fun; ms_solve; last apply: option_cov_Some_meas_set.
+  apply hp_evalC_meas_fun.
+Qed. 
+Hint Resolve lookup_eval_cov_ok_meas_set : mf_set.
+
+(*
+Definition auxcov_load_ok : set (<<discr loc>> * state)%type :=
+  preimage (ssrfun.comp hp_evalC $ mProd fst (ssrfun.comp heap snd)) option_cov_Some.
+*)
+
+
 Definition AllocTape_eval_ok : (<<discr Z>> * state)%type -> giryM cfg :=
   gRet \o (ValU \o LitVU \o LitLblU \o fresh \o tapes \o snd
           △ state_of_prod \o
@@ -513,7 +532,8 @@ Proof.
   rewrite /RandT_eval_cov_ok/RandT_eval_ok.
   apply: measurable_compT; first ms_solve; first apply: gRet_meas_fun.
   mf_prod.
-  - apply: measurable_comp. 
+  - (* Need to account of of_option sequence_evalC in _ below *)
+    apply: (measurable_comp (F:=lookup_eval_cov_ok `&` _)); ms_solve.
 Admitted.
 Lemma RandT_eval_nextEmpty_meas_fun      : measurable_fun RandT_eval_cov_nextEmpty RandT_eval_nextEmpty. Admitted.
 Lemma RandT_eval_boundMismatch_meas_fun  : measurable_fun RandT_eval_cov_boundMismatch RandT_eval_boundMismatch. Admitted.
