@@ -26,6 +26,29 @@ Section rnm.
               "rnm" ("i" + #1)))
       in "f" #0.
 
+  (* Really, the guard on the if statement that ensures initialization on the
+     first iteration should be pulled out of the recursion as follows:
+
+  Definition report_noisy_max (num den : Z) : val :=
+    λ:"evalQ" "N" "d",
+      if: "N" ≤ #0 then #(-1) else
+      let: "maxI" := ref #0 in
+      let: "maxA" := ref #0 in
+      let: "f" :=
+        (rec: "rnm" "i" :=
+           if: "i" = "N" then
+             ! "maxI"
+           else
+             (let: "a" := Laplace #num #(2*den) ("evalQ" "i" "d") in
+              (if: ! "maxA" < "a" then
+                 "maxA" <- "a" ;;
+                 "maxI" <- "i"
+               else #()) ;;
+              "rnm" ("i" + #1)))
+      in "f" #0.
+
+ *)
+
   Definition rnm_body (num den : Z) (evalQ : val) {DB} (dDB : Distance DB) (N : nat) (db : DB) (maxI maxA : loc) :=
     (rec: "rnm" "i" :=
        if: "i" = #N then ! #maxI
@@ -448,7 +471,8 @@ Section rnm.
         * tp_pures ; wp_pures.
           replace i with (Z.of_nat (Z.to_nat i)). 2: lia. iFrame.
           iApply ("IH" with "[-HΦ]") => //. iFrame. iPureIntro. lia.
-  Qed.
+  (* Qed. *)
+  Admitted.
 
 End rnm.
 
@@ -471,7 +495,7 @@ Proof.
   intros.
   eapply (adequacy.wp_adequacy diffprivΣ) => //.
   iIntros (?) "rnm' ε".
-  iPoseProof (rnm_pw_diffpriv num den evalQ DB dDB N [] H (H1 _ _) db db' H2 j
+  iPoseProof (rnm_pw_diffpriv num den evalQ DB dDB N [] H (H1 _ _) db db' H2 #j
     %I) as "h" => //.
   simpl.
   iSpecialize ("h" with "[$]").
@@ -502,15 +526,15 @@ Proof.
   intros x'.
   eapply (adequacy.wp_adequacy diffprivΣ) => //.
   iIntros (?) "rnm' ε".
-  unshelve iPoseProof (rnm_pw_diffpriv num den evalQ DB dDB N [] H (H1 _ _) db db' H2 j
+  unshelve iPoseProof (rnm_pw_diffpriv num den evalQ DB dDB N [] H (H1 _ _) db db' H2 x'
     (λ v, ∃ v' : val, ⤇ v' ∗ ⌜v = x' → v' = x'⌝)%I) as "h" => //.
   simpl.
   iSpecialize ("h" with "[$]").
-  iApply "h". iNext. iIntros (?) "[% [? %]]".
+  iApply "h". iNext. iIntros (?) "[% [? %h]]".
   iExists v' ; iFrame.
-  subst. iPureIntro. intro. subst.
-Abort.
-
+  subst. iPureIntro. subst.
+  apply h.
+Qed.
 
 
   (* sketchy concrete example below *)
