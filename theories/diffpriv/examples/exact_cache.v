@@ -59,12 +59,12 @@ Section xcache.
 
   Lemma exact_cache_dipr (M : val) DB (dDB : Distance DB) (qs : list nat) (QS : val) (is_qs : is_list qs QS)
     ε (εpos : 0 <= ε)
-    (M_dipr : Forall (λ q : nat, hoare_diffpriv (M #q) ε dDB) qs)
+    (M_dipr : Forall (λ q : nat, ⊢ hoare_diffpriv (M #q) ε dDB) qs)
     :
     let k := size ((list_to_set qs) : gset _) in
-    hoare_diffpriv (exact_cache M QS) (k*ε) dDB.
+    ⊢ hoare_diffpriv (exact_cache M QS) (k*ε) dDB.
   Proof with (tp_pures ; wp_pures).
-    iIntros (k K c db db' adj φ) "[rhs ε] hφ".
+    iIntros (k K c db db' adj φ) "!> [rhs ε] hφ".
     rewrite {2}/exact_cache...
     wp_apply wp_init_map => // ; iIntros (cache_l) "cache_l"...
     rewrite /exact_cache...
@@ -81,7 +81,7 @@ Section xcache.
           dom cache_map = list_to_set qs_pre →
           dom cache_map ∪ list_to_set qs' = list_to_set qs →
           is_list qs' QS' →
-          Forall (λ q : nat, hoare_diffpriv (M #q) ε dDB) qs →
+          Forall (λ q : nat, ⊢ hoare_diffpriv (M #q) ε dDB) qs →
           let k := size (list_to_set qs : gset nat) in
           let k' := size cache_map in
           {{{
@@ -147,7 +147,7 @@ Section xcache.
         apply le_INR.
         apply subseteq_size. set_solver.
       }
-      iApply (M_dipr_q' with "[rhs ε]") => // ; iFrame.
+      iApply (M_dipr_q' with "[] [rhs ε]") => // ; iFrame.
       iNext. iIntros (vq') "rhs" => /=...
       tp_bind (set _ _ _).
       iMod (spec_set with "cache_r rhs") as "[rhs cache_r]".
@@ -243,30 +243,56 @@ Section xcache.
       simpl. tp_pures. wp_pures. iFrame. iPureIntro. by rewrite lookup_insert.
   Qed.
 
-
-  Lemma oxc_spec1 (M : val) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K :
-    (* (∀ q : nat, hoare_diffpriv (M #q) ε dDB) ∗ *)
+  (* F can store error credits ; could also ask for N*ε error credits upfront and hand out F(∅, N) instead of F(∅, 0). *)
+  (* This should be provable from oxc_spec_0. *)
+  Lemma oxc_spec1 (M : val) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K ε :
+    (∀ q : nat, hoare_diffpriv (M #q) ε dDB) ∗
     ⤇ fill K (online_xcache M (Val (inject db')))
     ⊢ WP online_xcache M (Val (inject db))
         {{ f, ∃ f', ⤇ fill K (Val f') ∗
-              ∃ (F : gmap nat val → iProp Σ),
-              F ∅ ∗
-              (∀ (q : nat) A K,
+              ∃ (F : gmap nat val * nat → iProp Σ),
+              F (∅, 0%nat) ∗
+              (∀ A k, ↯ ε ∗ F(A, k) -∗ F(A, S k)) ∗
+              (∀ (q : nat) A K (N : nat),
                   ⌜q ∈ dom A⌝ -∗
-                  F(A) -∗
+                  F(A, N) -∗
                   ⤇ fill K (Val f' #q) -∗
-                  WP (Val f) #q {{ v, F(A) ∗ ⤇ fill K (Val v) ∗  ⌜A !! q = Some v⌝ }}) ∗
-              (∀ (q : nat) A ε K,
+                  WP (Val f) #q {{ v, F(A, N) ∗ ⤇ fill K (Val v) ∗  ⌜A !! q = Some v⌝ }}) ∗
+              (∀ (q : nat) A ε K (N : nat),
                   ⌜q ∉ dom A⌝ -∗
                   ↯ ε -∗
-                  F(A) -∗
+                  F(A, S N) -∗
                   ⤇ fill K (Val f' #q) -∗
-                  WP (Val f) #q {{ v, F( <[q := v]> A) ∗ ⤇ fill K (Val v) ∗ ⌜<[q := v]> A !! q = Some v⌝ }})
+                  WP (Val f) #q {{ v, F( <[q := v]> A, N) ∗ ⤇ fill K (Val v) ∗ ⌜<[q := v]> A !! q = Some v⌝ }})
         }}.
   Proof.
+  Admitted.
 
+  (* Does it make sense to store f' (the result of the rhs) in F? Probably not. *)
+  Lemma oxc_spec2 (M : val) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K ε :
+    (∀ q : nat, hoare_diffpriv (M #q) ε dDB) ∗
+    ⤇ fill K (online_xcache M (Val (inject db')))
+    ⊢ WP online_xcache M (Val (inject db))
+        {{ f,
+              ∃ f' (F : gmap nat val * nat * bool → iProp Σ),
+              F (∅, 0%nat, true) ∗
+              (∀ A k b, ↯ ε ∗ F(A, k, b) -∗ F(A, S k, b)) ∗
+              (∀ A k, F(A, k, true) -∗ F(A, k, false) ∗ ∃ K, ⤇ fill K (Val f')) ∗
+              (∀ A k K, F(A, k, false) ∗ ⤇ fill K (Val f') -∗ F(A, k, true)) ∗
+              (∀ (q : nat) A (N : nat),
+                  ⌜q ∈ dom A⌝ -∗
+                  F(A, N, true) -∗
+                  WP (Val f) #q {{ v, F(A, N, true) ∗  ⌜A !! q = Some v⌝ }}) ∗
+              (∀ (q : nat) A ε (N : nat),
+                  ⌜q ∉ dom A⌝ -∗
+                  ↯ ε -∗
+                  F(A, S N, true) -∗
+                  WP (Val f) #q {{ v, F( <[q := v]> A, N, true) ∗ ⌜<[q := v]> A !! q = Some v⌝ }})
+        }}.
+  Proof.
+  Admitted.
 
-  (* online spec:
+  (* some ideas for online specs:
 
      { ↯ (c*ε) ∗ bigSep c-times (∀ q, (M q) is ε-dipr) }
        online_xcache M c
