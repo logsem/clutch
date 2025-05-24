@@ -30,19 +30,55 @@ Section svt.
     λ:"num" "den" "T",
       let: "T'" := Laplace "num" (#2*"den") "T" in
       let: "reset" := #false in
-      let: "f" :=
-        λ:"db",
+      λ:"db",
+        let: "f" :=
           (λ: "qi",
-            if: ! "reset" then
-              NONE
-            else
-              (let: "vi" := Laplace "num" (#4*"den") ("qi" "db") in
-               (if: "T'" ≤ "vi" then
-                  "reset" <- #true ;;
-                  SOME #true
-                else
-                  SOME #false)))
-      in "f".
+             if: ! "reset" then
+               NONE
+             else
+               (let: "vi" := Laplace "num" (#4*"den") ("qi" "db") in
+                (if: "T'" ≤ "vi" then
+                   "reset" <- #true ;;
+                   SOME #true
+                 else
+                   SOME #false)))
+        in "f".
+
+  Definition wp_sensitive (f : expr) (c : R) `(d_in : Distance A) `(d_out : Distance B) : iProp Σ
+    :=
+    ∀ (c_pos : 0 <= c) K (x x' : A),
+    ⤇ fill K (f $ Val $ inject x') -∗
+    WP
+      f $ Val $ inject x
+      {{ v,
+           ∃ b b' : B, ⌜v = inject b⌝ ∧ ⤇ fill K (inject b')
+                      ∧ ⌜d_out b b' <= c * d_in x x'⌝
+      }}.
+
+  (* NB: could postpone introducing db and db' *)
+  Lemma above_threshold_online_spec (num den T : Z) (_ : 0 <= IZR num / IZR den) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K :
+    ↯ (IZR num / IZR den) -∗
+    ⤇ fill K ((Val above_threshold) #num #den #T (Val (inject db')))
+    -∗
+    WP (Val above_threshold) #num #den #T (Val (inject db))
+       {{ f, ∃ f' : val,
+             ⤇ fill K (Val f') ∗
+             ∃ AUTH : iProp Σ,
+               (∀ q, wp_sensitive (Val q) 1 dDB dZ -∗
+                     AUTH -∗
+                     ⤇ fill K (f' q) -∗
+                     WP (Val f) (Val q)
+                       {{ v, ⤇ fill K (Val v) ∗
+                             ∃ b : bool, ⌜v = #b⌝ ∗
+                                         if b then emp else AUTH
+                       }}
+
+               )
+       }}.
+  Proof.
+    iIntros "ε rhs". rewrite /above_threshold.
+    tp_pures. wp_pures.
+  Admitted.
 
   (* SVT calibrates the noise by simply dividing up the initial budget ε =
   num/den over the number of queries c exceeding the threshold T and running
