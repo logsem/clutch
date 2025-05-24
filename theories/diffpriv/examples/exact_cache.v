@@ -244,8 +244,7 @@ Section xcache.
   Qed.
 
   (* F can store error credits ; could also ask for N*ε error credits upfront and hand out F(∅, N) instead of F(∅, 0). *)
-  (* This should be provable from oxc_spec_0. *)
-  Lemma oxc_spec1 (M : val) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K ε :
+  Lemma oxc_spec1 (M : val) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K ε (εpos : 0 <= ε) :
     (∀ q : nat, hoare_diffpriv (M #q) ε dDB) ∗
     ⤇ fill K (online_xcache M (Val (inject db')))
     ⊢ WP online_xcache M (Val (inject db))
@@ -258,15 +257,46 @@ Section xcache.
                   F(A, N) -∗
                   ⤇ fill K (Val f' #q) -∗
                   WP (Val f) #q {{ v, F(A, N) ∗ ⤇ fill K (Val v) ∗  ⌜A !! q = Some v⌝ }}) ∗
-              (∀ (q : nat) A ε K (N : nat),
+              (∀ (q : nat) A K (N : nat),
                   ⌜q ∉ dom A⌝ -∗
-                  ↯ ε -∗
                   F(A, S N) -∗
                   ⤇ fill K (Val f' #q) -∗
                   WP (Val f) #q {{ v, F( <[q := v]> A, N) ∗ ⤇ fill K (Val v) ∗ ⌜<[q := v]> A !! q = Some v⌝ }})
         }}.
   Proof.
-  Admitted.
+    iIntros "(#M_dipr & rhs)".
+    unshelve iPoseProof (oxc_spec0 with "[rhs]") as "spec0" => //.
+    iMod ec_zero as "ε0".
+    iPoseProof (wp_frame_l with "[ε0 $spec0]") as "spec0". 1: iApply "ε0".
+    iPoseProof (wp_frame_l with "[M_dipr $spec0]") as "spec0". 1: iApply "M_dipr".
+    iApply (wp_mono with "spec0").
+    iIntros "%f (#M_dipr & ε0 & %f' & rhs & (%F & F0 & f_cached & f_fresh))".
+    iExists f'. iFrame "rhs".
+    iExists (λ Ak : gmap nat val * nat, let (A, k) := Ak in F A ∗ ↯ (k * ε))%I.
+    rewrite Rmult_0_l. iFrame "F0 ε0".
+    iSplitR ; [|iSplitL "f_cached"].
+    - iIntros (??) "(?&?&?)". iFrame. iPoseProof (ec_combine with "[-]") as "ε" ; iFrame.
+      iApply ec_eq. 2: iFrame. replace (S k) with (k+1)%nat by lia. replace (INR (k+1)) with (k+1)%R.
+      2: real_solver. lra.
+    - simpl. iIntros (?????) "[FA ε] rhs".
+      iSpecialize ("f_cached" with "[] [$FA] [$rhs]") => //.
+      iPoseProof (wp_frame_l with "[$f_cached ε]") as "f_cached". 1: iApply "ε".
+      iApply (wp_mono with "f_cached"). iIntros (?) "(ε & FA & rhs & %)". iFrame => //.
+    - iIntros (?????) "[FA ε] rhs".
+      replace ((S N)) with (N + 1)%nat by lia. replace (INR (N+1)) with (N+1) by real_solver.
+      rewrite Rmult_plus_distr_r. rewrite Rmult_1_l. iDestruct (ec_split with "ε") as "[Nε ε]".
+      1,2: real_solver.
+      iSpecialize ("f_fresh" with "[] [] [$ε] [$FA] [$rhs]") => //.
+      { iIntros (?????) "[??]". iApply ("M_dipr" with "[] [-]") => //. 2: iNext ; iIntros => //.
+        iFrame. }
+      iPoseProof (wp_frame_l with "[$f_fresh Nε]") as "f_fresh". 1: iApply "Nε".
+      iApply (wp_mono with "f_fresh"). iIntros (?) "(ε & FA & rhs & %)". iFrame => //.
+  Qed.
+
+
+  (* TODO define the original exact_cache as a client of the online spec (keeping the direct def.) *)
+  (* TODO prove exact_cache_dipr from the online spec *)
+
 
   (* Does it make sense to store f' (the result of the rhs) in F? Probably not. *)
   Lemma oxc_spec2 (M : val) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K ε :
