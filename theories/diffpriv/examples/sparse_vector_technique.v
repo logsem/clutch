@@ -29,7 +29,7 @@ Section svt.
   Definition above_threshold : val :=
     λ:"num" "den" "T",
       let: "T'" := Laplace "num" (#2*"den") "T" in
-      let: "reset" := #false in
+      let: "reset" := ref #false in
       λ:"db",
         let: "f" :=
           (λ: "qi",
@@ -56,7 +56,7 @@ Section svt.
       }}.
 
   (* NB: could postpone introducing db and db' *)
-  Lemma above_threshold_online_spec (num den T : Z) (_ : 0 <= IZR num / IZR den) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K :
+  Lemma above_threshold_online_spec (num den T : Z) (εpos : 0 < IZR num / IZR den) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K :
     ↯ (IZR num / IZR den) -∗
     ⤇ fill K ((Val above_threshold) #num #den #T (Val (inject db')))
     -∗
@@ -64,20 +64,97 @@ Section svt.
        {{ f, ∃ f' : val,
              ⤇ fill K (Val f') ∗
              ∃ AUTH : iProp Σ,
+               AUTH ∗
                (∀ q, wp_sensitive (Val q) 1 dDB dZ -∗
                      AUTH -∗
                      ⤇ fill K (f' q) -∗
+                     ∀ R : bool,
                      WP (Val f) (Val q)
-                       {{ v, ⤇ fill K (Val v) ∗
-                             ∃ b : bool, ⌜v = #b⌝ ∗
-                                         if b then emp else AUTH
+                       {{ v, ∃ v', ⤇ fill K (Val v') ∗
+                                   ⌜ v = SOMEV #R → v' = SOMEV #R ⌝ ∗
+                                   (⌜R = false⌝ -∗ AUTH)
                        }}
 
                )
        }}.
-  Proof.
-    iIntros "ε rhs". rewrite /above_threshold.
-    tp_pures. wp_pures.
+  Proof with (tp_pures ; wp_pures).
+    iIntros "ε rhs". rewrite /above_threshold...
+    tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+    set (ε := (IZR num / IZR den)). replace ε with (ε / 2 + ε / 2) by real_solver.
+    fold ε in εpos.
+    iDestruct (ec_split with "ε") as "[ε ε']". 1,2: real_solver.
+    iApply (wp_couple_laplace _ _ 1%Z 1%Z with "[$rhs ε']") => //.
+    1: apply Zabs_ind ; lia.
+    1: admit.
+    { iApply ec_eq. 2: iFrame. subst ε. replace (IZR (2 * den)) with (2 * IZR den).
+      2: qify_r ; zify_q ; lia.
+      field. admit. }
+    iIntros (T') "!> rhs" => /=...
+    tp_alloc as reset_r "reset_r". wp_alloc reset_l as "reset_l"...
+    iModIntro. iExists _. iFrame.
+    iExists (↯ (ε / 2) ∗ reset_r ↦ₛ #false ∗ reset_l ↦ #false)%I. iFrame.
+    iIntros "%q q_sens (ε & reset_r & reset_l) rhs %R"... tp_load. wp_load...
+
+    tp_bind (q _). wp_bind (q _). rewrite /wp_sensitive.
+    iSpecialize ("q_sens" $! _ _ db db'). iSpecialize ("q_sens" with "rhs").
+    Unshelve. 2: lra.
+    iPoseProof (wp_frame_l with "[reset_r $q_sens]") as "q_sens". 1: iAssumption.
+    iPoseProof (wp_frame_l with "[reset_l $q_sens]") as "q_sens". 1: iAssumption.
+    iPoseProof (wp_frame_l with "[ε $q_sens]") as "q_sens". 1: iAssumption.
+    iApply (wp_mono with "q_sens").
+    iIntros (?) "(ε & reset_l & reset_r & %vq_l & %vq_r & -> & rhs & %adj')" => /=...
+    assert (-1 <= vq_l - vq_r <= 1)%Z as [].
+    {
+      rewrite Rmult_1_l in adj'.
+      assert (dZ vq_l vq_r <= 1) as h by (etrans ; eauto).
+      revert h.
+      rewrite /dZ/distance Rabs_Zabs.
+      apply Zabs_ind ; intros ? h; split.
+      all: pose proof (le_IZR _ _ h) ; lia.
+    }
+    (* want to case on whether the result is the one that will get released (pweq) *)
+    destruct R eqn:HR.
+    (* could we have case'd on T' ≤ vq_l instead? *)
+    - tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+      (* set (ε := (IZR num / IZR den)). replace ε with (ε / 2 + ε / 2) by real_solver.
+         fold ε in εpos.
+         iDestruct (ec_split with "ε") as "[ε ε']". 1,2: real_solver. *)
+      iApply (wp_couple_laplace vq_l vq_r 1%Z 2%Z with "[$rhs ε]") => //.
+      1: apply Zabs_ind ; lia.
+      1: admit.
+      { subst ε. admit. }
+      iIntros "%vi !> rhs" => /=...
+      case_bool_decide (_ (T' + 1)%Z _) ; tp_pures ; try tp_store ; tp_pures. all: case_bool_decide...
+      all: try tp_store ; try wp_store ; try tp_pures ; try wp_pures.
+      + iFrame. iModIntro.
+        iSplitR. 1: done. iIntros (h).
+        inversion h.
+      + exfalso. lia.
+      + exfalso. lia.
+      + iFrame. iSplitR. 1: done. iModIntro. iIntros (h). done.
+    - tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+      (* set (ε := (IZR num / IZR den)). replace ε with (ε / 2 + ε / 2) by real_solver.
+         fold ε in εpos.
+         iDestruct (ec_split with "ε") as "[ε ε']". 1,2: real_solver. *)
+      iApply (wp_couple_laplace vq_l vq_r (vq_r - vq_l)%Z 0%Z with "[$rhs]") => //.
+      1: apply Zabs_ind ; lia.
+      1: admit.
+      { rewrite Rmult_0_l. admit. }
+      iIntros "%vi !> rhs" => /=...
+      case_bool_decide (_ (T' + 1)%Z _) ; tp_pures ; try tp_store ; tp_pures. all: case_bool_decide...
+      all: try tp_store ; try wp_store ; try tp_pures ; try wp_pures.
+      + iFrame. iModIntro.
+        iSplitR. 1: done. iIntros (h).
+        inversion h.
+        (* lost connection between return values and R *)
+        give_up.
+      + exfalso. lia.
+      + iFrame. iSplitR. 1: done.
+        (* lost connection between return values and R *)
+        give_up.
+      + iFrame. iSplitR. 1: done. done.
+
+
   Admitted.
 
   (* SVT calibrates the noise by simply dividing up the initial budget ε =
