@@ -793,10 +793,199 @@ Proof.
       * rewrite prod1. ms_solve.
       * apply: measurable_funS; last apply: tapes_meas_fun; ms_solve.
 Qed. 
-Lemma RandT_eval_nextEmpty_meas_fun      : measurable_fun RandT_eval_cov_nextEmpty RandT_eval_nextEmpty. Admitted.
-Lemma RandT_eval_boundMismatch_meas_fun  : measurable_fun RandT_eval_cov_boundMismatch RandT_eval_boundMismatch. Admitted.
-Lemma URandT_eval_ok_meas_fun            : measurable_fun URandT_eval_cov_ok URandT_eval_ok. Admitted.
-Lemma URandT_eval_nextEmpty_meas_fun     : measurable_fun URandT_eval_cov_nextEmpty URandT_eval_nextEmpty. Admitted.
+Lemma RandT_eval_nextEmpty_meas_fun      : measurable_fun RandT_eval_cov_nextEmpty RandT_eval_nextEmpty.
+Proof. 
+  rewrite /RandT_eval_cov_nextEmpty.
+  rewrite bigcup_Z.
+   assert (forall i i0, [set (ConstructiveExtra.Z_inj_nat_rev i, loc_enum i0, σ)
+              | σ in RandT_eval_cov_nextEmpty' (ConstructiveExtra.Z_inj_nat_rev i) (loc_enum i0)] =
+              set1 ((ConstructiveExtra.Z_inj_nat_rev i), (loc_enum i0)) `*`
+                   RandT_eval_cov_nextEmpty' (ConstructiveExtra.Z_inj_nat_rev i) (loc_enum i0)
+             ) as Hrewrite.
+   { intros; rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; naive_solver. }
+  apply measurable_fun_bigcup.
+  { intros i. rewrite bigcup_l.
+      apply: bigcup_measurable.
+      intros k ?.
+      rewrite measurable_prod_measurableType.
+      apply sub_sigma_algebra.
+      simpl.
+      rewrite Hrewrite.
+      eexists _; last eexists _; last done.
+      - rewrite measurable_prod_measurableType.
+        apply sub_sigma_algebra; simpl.
+        rewrite prod1. naive_solver.
+      - ms_solve. 
+  }
+  intros i.
+  rewrite bigcup_l.
+  rewrite measurable_fun_bigcup; last first.
+  { intros i0.
+    rewrite measurable_prod_measurableType.
+    apply sub_sigma_algebra.
+    simpl.
+    rewrite Hrewrite.
+    eexists _; last eexists _; last done.
+    - rewrite measurable_prod_measurableType.
+      apply sub_sigma_algebra; simpl.
+      rewrite prod1. repeat eexists _; last done; done. 
+    - ms_solve. 
+  }
+  intros i0.
+  rewrite /RandT_eval_nextEmpty.
+  rewrite -compA.
+Admitted.
+Lemma RandT_eval_boundMismatch_meas_fun  : measurable_fun RandT_eval_cov_boundMismatch RandT_eval_boundMismatch.
+Proof.
+  rewrite /RandT_eval_boundMismatch/RandT_eval_cov_boundMismatch.
+  rewrite bigcup_Z.
+   assert (forall i i0, [set (ConstructiveExtra.Z_inj_nat_rev i, loc_enum i0, σ)
+              | σ in RandT_eval_cov_boundMismatch' (ConstructiveExtra.Z_inj_nat_rev i) (loc_enum i0)] =
+              set1 ((ConstructiveExtra.Z_inj_nat_rev i), (loc_enum i0)) `*`
+                   RandT_eval_cov_boundMismatch' (ConstructiveExtra.Z_inj_nat_rev i) (loc_enum i0)
+             ) as Hrewrite.
+   { intros; rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; naive_solver. }
+  apply measurable_fun_bigcup.
+  { intros i. rewrite bigcup_l.
+      apply: bigcup_measurable.
+      intros k ?.
+      rewrite measurable_prod_measurableType.
+      apply sub_sigma_algebra.
+      simpl.
+      rewrite Hrewrite.
+      eexists _; last eexists _; last done.
+      - rewrite measurable_prod_measurableType.
+        apply sub_sigma_algebra; simpl.
+        rewrite prod1. naive_solver.
+      - ms_solve. 
+  }
+  intros i.
+  rewrite bigcup_l.
+  rewrite measurable_fun_bigcup; last first.
+  { intros i0.
+    rewrite measurable_prod_measurableType.
+    apply sub_sigma_algebra.
+    simpl.
+    rewrite Hrewrite.
+    eexists _; last eexists _; last done.
+    - rewrite measurable_prod_measurableType.
+      apply sub_sigma_algebra; simpl.
+      rewrite prod1. repeat eexists _; last done; done. 
+    - ms_solve. 
+  }
+  intros i0.
+  rewrite Hrewrite.
+  rewrite prod1.
+  apply: (measurable_comp (F:=setT `*` [set gRet x| x in _])).
+Admitted.
+Lemma URandT_eval_ok_meas_fun            : measurable_fun URandT_eval_cov_ok URandT_eval_ok.
+Proof.
+  rewrite /URandT_eval_ok. rewrite /URandT_eval_cov_ok.
+  apply: measurable_compT; first ms_solve; first apply: gRet_meas_fun.
+  assert (forall i, [set (loc_enum i, σ)
+               | σ in URandT_eval_cov_ok' (loc_enum i)] =
+               set1 ((loc_enum i)) `*`URandT_eval_cov_ok' (loc_enum i)
+         ) as Hrewrite.
+  { intros; rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; naive_solver. }
+  
+  rewrite bigcup_l.
+  rewrite measurable_fun_bigcup; last first.
+  { intros i0.
+    rewrite measurable_prod_measurableType.
+    apply sub_sigma_algebra.
+    simpl.
+    rewrite Hrewrite.
+    eexists _; last eexists _; last done; ms_solve.  
+  }
+  intros i.
+  rewrite Hrewrite.
+  mf_prod.
+  - apply (measurable_comp (F:=[set loc_enum i] `*`((hp_eval (loc_enum i)) @^-1` option_cov_Some
+                                                                           
+                                                      `&` ((sequence_evalC \o (of_option (hp_eval(loc_enum i)))) @^-1` option_cov_Some)
+          ))).
+    { ms_solve; last first.
+      - apply option_cov_Some_meas_set.
+      - rewrite <-setTI.
+        apply: apply_measurable_fun; ms_solve.
+        +  apply hp_eval_meas_fun.
+        + apply option_cov_Some_meas_set.
+      - apply: measurable_compT; ms_solve.
+        + rewrite <-setTI.
+          apply: apply_measurable_fun; ms_solve.
+          *  apply hp_eval_meas_fun.
+          * apply option_cov_Some_meas_set.
+        + apply sequence_evalC_meas_fun.
+        + apply: of_option_meas_fun.
+          apply hp_eval_meas_fun.
+    }
+    { intros []. simpl. rewrite /URandT_eval_cov_ok'. intros.  destruct!/=. naive_solver. }
+    { apply: measurable_comp; last first.
+      - apply: measurable_funS; last apply: of_option_meas_fun.
+        + rewrite <-setTI.
+          apply: apply_measurable_fun; ms_solve.
+          *  apply hp_evalC_meas_fun.
+          * apply option_cov_Some_meas_set.
+        + intros []; intros; destruct!/=. done.
+        + apply: hp_evalC_meas_fun.
+      - apply: measurable_compT; last apply: of_option_meas_fun; ms_solve.
+        + rewrite <-setTI.
+          apply: apply_measurable_fun; ms_solve.
+          * apply sequence_evalC_meas_fun.
+          * apply option_cov_Some_meas_set.
+        + apply: measurable_compT; ms_solve.
+          * apply: measurable_compT; ms_solve.
+            -- apply ValU_meas_fun.
+            -- apply LitVU_meas_fun.
+          * apply LitRealU_meas_fun.
+        + apply: sequence_evalC_meas_fun.
+      - intros ?. rewrite /of_option/option_cov_Some. intros [H H'].  destruct!/=.
+        naive_solver.
+      - rewrite <-setTI.
+        apply: apply_measurable_fun; ms_solve.
+        + apply sequence_evalC_meas_fun.
+        + apply option_cov_Some_meas_set.
+    }
+    mf_prod.
+    { apply: measurable_fst_restriction. ms_solve. }
+    apply: snd_setX_meas_fun; ms_solve.
+    apply: measurable_funS; last apply utapes_meas_fun; ms_solve.
+  - apply measurable_compT; ms_solve.
+    { apply state_of_prod_meas_fun. ms_solve. }
+    apply: measurable_fun_prod'; ms_solve.
+    + mf_prod.
+      * apply: snd_setX_meas_fun; ms_solve.
+        apply: measurable_funS; last apply: heap_meas_fun; ms_solve.
+      * apply: snd_setX_meas_fun; ms_solve.
+        apply: measurable_funS; last apply: tapes_meas_fun; ms_solve.
+    + apply: measurable_compT; ms_solve.
+      * apply: hp_updateC_meas_fun.
+      * apply: measurable_fun_prod'; ms_solve.
+        { apply: measurable_fst_restriction. ms_solve. }
+        mf_prod; last first.
+        { apply: snd_setX_meas_fun; ms_solve.
+          apply: measurable_funS; last apply utapes_meas_fun; ms_solve.
+        }
+        apply: measurable_comp; last first.
+        { mf_prod; first apply: measurable_fst_restriction; ms_solve.
+          apply: snd_setX_meas_fun; ms_solve.
+          apply: measurable_funS; last apply utapes_meas_fun; ms_solve.
+        }
+        { apply: measurable_compT; last apply: of_option_meas_fun; ms_solve; last apply: hp_evalC_meas_fun.
+          apply: measurable_compT; ms_solve.
+          - apply: Some_meas_fun.
+          - mf_prod.
+            rewrite -setXTT.
+            apply: fst_setX_meas_fun; ms_solve.
+        }
+        { rewrite /URandT_eval_cov_ok'. intros []. simpl. intros. destruct!/=. done. }
+        rewrite <-setTI.
+        apply: apply_measurable_fun; first apply: hp_evalC_meas_fun; ms_solve.
+        apply option_cov_Some_meas_set.
+Qed. 
+  Lemma URandT_eval_nextEmpty_meas_fun     : measurable_fun URandT_eval_cov_nextEmpty URandT_eval_nextEmpty.
+  Proof.
+  Admitted.
 
 Hint Resolve AllocTape_eval_ok_meas_fun         : mf_fun.
 Hint Resolve AllocUTape_eval_ok_meas_fun        : mf_fun.

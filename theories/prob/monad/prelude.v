@@ -1162,6 +1162,32 @@ Section of_option.
   Qed. 
   Hint Resolve of_option_meas_fun : measlang.
 
+  
+  Lemma of_option_meas_fun' (f : T1 -> option T2) (Hf : measurable_fun setT f) :
+    measurable_fun (setT) (of_option f).
+  Proof.
+    rewrite /of_option.
+    apply measurable_compT; try done.
+    assert (setT (T:= option T2) = option_cov_Some `|` option_cov_None) as Hrewrite; last rewrite Hrewrite.
+    { rewrite eqEsubset; split; intros []; simpl; last done; last done;
+        rewrite /option_cov_Some/option_cov_None; naive_solver.
+    }
+    apply measurable_funU.
+    { apply: option_cov_Some_meas_set. }
+    { apply: option_cov_None_meas_set. }
+    split.
+    { apply: 𝜋_Some_v_meas_fun. }
+    intros ? S HS.
+    destruct (lem (S point)).
+    { rewrite setIidl; first apply: option_cov_None_meas_set.
+      rewrite /𝜋_Some_v. intros ?. simpl.
+      by intros ->.
+    }
+    assert ((option_cov_None `&` 𝜋_Some_v @^-1` S) = set0) as Hrewrite'; last by rewrite Hrewrite'.
+    rewrite eqEsubset; split; intros []; simpl; rewrite /option_cov_None; naive_solver.
+  Qed. 
+  Hint Resolve of_option_meas_fun' : measlang.
+
 End of_option.
 
 Section if_in.
