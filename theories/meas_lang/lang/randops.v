@@ -834,7 +834,132 @@ Proof.
   intros i0.
   rewrite /RandT_eval_nextEmpty.
   rewrite -compA.
-Admitted.
+  apply: measurable_compT.
+  { rewrite Hrewrite. ms_solve.
+    rewrite prod1. ms_solve.
+  }
+  { apply: gMap'_meas_fun.
+    mf_prod.
+    - rewrite -setXTT.
+      apply: fst_setX_meas_fun; ms_solve.
+    - apply: measurable_compT; ms_solve.
+      + apply state_of_prod_meas_fun.
+        ms_solve.
+      + apply: (measurable_fun_prod'); ms_solve.
+        * shelve. 
+        * rewrite -setXTT.
+          apply: snd_setX_meas_fun; ms_solve.
+          rewrite -setXTT.
+          apply: snd_setX_meas_fun; ms_solve.
+          apply: utapes_meas_fun.
+  }
+  apply:measurable_compT.
+  { rewrite Hrewrite. ms_solve. rewrite prod1. ms_solve. }
+  { apply: gProd_meas_fun. }
+  mf_prod.
+  { rewrite Hrewrite. ms_solve. rewrite prod1. ms_solve. }
+  { rewrite Hrewrite. apply: fst_setX_meas_fun; ms_solve.
+    - rewrite prod1. ms_solve.
+    - rewrite prod1. apply: fst_setX_meas_fun; ms_solve.
+  }
+  apply: measurable_funS; last apply gRet_meas_fun; ms_solve.
+  Unshelve.
+  mf_prod.
+  { rewrite -setXTT.
+    apply: snd_setX_meas_fun; ms_solve.
+    rewrite -setXTT.
+    apply: snd_setX_meas_fun; ms_solve.
+    apply: heap_meas_fun.
+  }
+  apply: measurable_compT; ms_solve.
+  { apply: hp_updateC_meas_fun. }
+  apply: measurable_fun_prod'; ms_solve.
+  { rewrite -setXTT.
+    apply:snd_setX_meas_fun; ms_solve.
+    rewrite -setXTT.
+    apply: fst_setX_meas_fun; ms_solve.
+  }
+  
+  mf_prod; last first.
+  { rewrite -setXTT.
+    apply: snd_setX_meas_fun; ms_solve.
+    rewrite -setXTT.
+    apply: snd_setX_meas_fun; ms_solve.
+    apply: tapes_meas_fun.
+  }
+  apply: measurable_compT; ms_solve.
+  { apply: Some_meas_fun. }
+  rewrite -setXTT.
+  mf_prod.
+  { apply: measurable_compT; ms_solve.
+    - apply: measurable_compT; ms_solve.
+      apply: of_option_meas_fun'.
+      apply: hp_evalC_meas_fun.
+    - mf_prod.
+      + apply: snd_setX_meas_fun; ms_solve.
+        rewrite -setXTT.
+        apply: fst_setX_meas_fun; ms_solve.
+      + apply: snd_setX_meas_fun; ms_solve.
+        rewrite -setXTT.
+        apply: snd_setX_meas_fun; ms_solve.
+        apply: tapes_meas_fun.
+  }
+  mf_prod.
+  { apply: measurable_compT; ms_solve.
+    - apply: measurable_compT; ms_solve.
+      + rewrite -setXTT.
+        apply: snd_setX_meas_fun; ms_solve.
+        rewrite -setXTT.
+        apply: fst_setX_meas_fun; ms_solve.
+      + apply: of_option_meas_fun'.
+        apply: hp_evalC_meas_fun.
+    - mf_prod.
+      + apply: snd_setX_meas_fun; ms_solve.
+        rewrite -setXTT.
+        apply: fst_setX_meas_fun; ms_solve.
+      + apply: snd_setX_meas_fun; ms_solve.
+        rewrite -setXTT.
+        apply: snd_setX_meas_fun; ms_solve.
+        apply: tapes_meas_fun.
+  }
+  apply: measurable_compT; ms_solve.
+  { apply: sequence_updateC_meas_fun. }
+  mf_prod.
+  { apply: measurable_compT; ms_solve.
+    - apply: measurable_compT; ms_solve.
+      + rewrite -setXTT.
+        apply: snd_setX_meas_fun; ms_solve.
+      + apply: of_option_meas_fun'.
+        apply: hp_evalC_meas_fun.
+    - mf_prod.
+      + apply: snd_setX_meas_fun; ms_solve.
+        rewrite -setXTT.
+        apply: fst_setX_meas_fun; ms_solve.
+      + apply: snd_setX_meas_fun; ms_solve.
+        rewrite -setXTT.
+        apply: snd_setX_meas_fun; ms_solve.
+        apply: tapes_meas_fun.
+  }
+  mf_prod.
+  { apply: fst_setX_meas_fun;
+      ms_solve. }
+  apply: measurable_compT; ms_solve.
+  { apply: measurable_compT; ms_solve.
+    - rewrite -setXTT.
+      apply: snd_setX_meas_fun; ms_solve.
+    - apply: of_option_meas_fun'.
+      apply: hp_evalC_meas_fun.
+  }
+  mf_prod.
+  { apply: snd_setX_meas_fun; ms_solve.
+    rewrite -setXTT.
+    apply: fst_setX_meas_fun; ms_solve.
+  }
+  apply: snd_setX_meas_fun; ms_solve.
+  rewrite -setXTT.
+  apply: snd_setX_meas_fun; ms_solve.
+  apply: tapes_meas_fun.
+Qed. 
 Lemma RandT_eval_boundMismatch_meas_fun  : measurable_fun RandT_eval_cov_boundMismatch RandT_eval_boundMismatch.
 Proof.
   rewrite /RandT_eval_boundMismatch/RandT_eval_cov_boundMismatch.
@@ -876,8 +1001,22 @@ Proof.
   intros i0.
   rewrite Hrewrite.
   rewrite prod1.
-  apply: (measurable_comp (F:=setT `*` [set gRet x| x in _])).
-Admitted.
+  apply: measurable_compT; ms_solve.
+  { apply: measurable_compT; ms_solve; last apply: gProd_meas_fun.
+    apply: gMap'_meas_fun.
+    mf_prod.
+    - rewrite -setXTT.
+      apply: fst_setX_meas_fun; ms_solve.
+    - rewrite -setXTT.
+      apply: snd_setX_meas_fun; ms_solve.
+  }
+  mf_prod.
+  { apply: fst_setX_meas_fun; ms_solve.
+    apply: fst_setX_meas_fun; ms_solve.
+  }
+  apply: measurable_funS; last
+                            apply: gRet_meas_fun; ms_solve.
+Qed. 
 Lemma URandT_eval_ok_meas_fun            : measurable_fun URandT_eval_cov_ok URandT_eval_ok.
 Proof.
   rewrite /URandT_eval_ok. rewrite /URandT_eval_cov_ok.
@@ -985,7 +1124,80 @@ Proof.
 Qed. 
   Lemma URandT_eval_nextEmpty_meas_fun     : measurable_fun URandT_eval_cov_nextEmpty URandT_eval_nextEmpty.
   Proof.
-  Admitted.
+    rewrite /URandT_eval_nextEmpty /URandT_eval_cov_nextEmpty.
+    rewrite bigcup_l.
+    assert (forall i, [set (loc_enum i, σ)
+                 | σ in  URandT_eval_cov_nextEmpty' (loc_enum i)] =
+                 set1 ((loc_enum i)) `*` URandT_eval_cov_nextEmpty' (loc_enum i)
+           ) as Hrewrite.
+  { intros; rewrite eqEsubset; split; intros ?; simpl; intros; destruct!/=; naive_solver. }
+  rewrite measurable_fun_bigcup; last first.
+  { intros i0.
+    rewrite measurable_prod_measurableType.
+    apply sub_sigma_algebra.
+    simpl.
+    rewrite Hrewrite.
+    eexists _; last eexists _; last done; ms_solve.  
+  }
+  intros i.
+  rewrite Hrewrite.
+  apply: measurable_compT; ms_solve.
+  { apply: measurable_compT; ms_solve; last apply:gProd_meas_fun.
+    apply: gMap'_meas_fun.
+    mf_prod.
+    - rewrite -setXTT.
+      apply: fst_setX_meas_fun; ms_solve.
+      apply: measurable_compT; ms_solve.
+      + apply: measurable_compT; ms_solve.
+        * apply ValU_meas_fun.
+        * apply LitVU_meas_fun.
+      + apply: LitRealU_meas_fun.
+    - apply: measurable_compT; ms_solve.
+      + apply: state_of_prod_meas_fun; ms_solve.
+      + apply: (measurable_fun_prod'); ms_solve.
+        * mf_prod; rewrite -setXTT; apply: snd_setX_meas_fun; ms_solve; rewrite -setXTT;
+            apply: snd_setX_meas_fun; ms_solve.
+          -- apply: heap_meas_fun.
+          -- apply: tapes_meas_fun.
+        * apply: measurable_compT; ms_solve; first apply: hp_updateC_meas_fun.
+          apply: measurable_fun_prod'; ms_solve.
+          -- rewrite -setXTT; apply: snd_setX_meas_fun; ms_solve.
+          -- mf_prod; last first.
+             ++ rewrite -setXTT; apply: snd_setX_meas_fun; ms_solve; rewrite -setXTT;
+                  apply: snd_setX_meas_fun; ms_solve; apply: utapes_meas_fun.
+             ++ apply: measurable_compT; ms_solve; first apply: Some_meas_fun.
+                mf_prod.
+                ** apply: measurable_compT; ms_solve.
+                   --- apply: measurable_compT; ms_solve.
+                       +++ rewrite -setXTT; ms_solve; apply: fst_setX_meas_fun; ms_solve.
+                       +++ apply: of_option_meas_fun'. apply: hp_evalC_meas_fun.
+                   --- mf_prod; rewrite -setXTT; apply: snd_setX_meas_fun; ms_solve.
+                       rewrite -setXTT; apply: snd_setX_meas_fun; ms_solve.
+                       apply: utapes_meas_fun.
+                ** apply: measurable_compT; ms_solve; first apply: sequence_updateC_meas_fun.
+                   mf_prod.
+                   --- apply: measurable_compT; ms_solve.
+                       +++ apply: measurable_compT; ms_solve.
+                           apply: of_option_meas_fun'; ms_solve.
+                           apply: hp_evalC_meas_fun.
+                       +++ rewrite -setXTT; mf_prod; apply: snd_setX_meas_fun; ms_solve.
+                           rewrite -setXTT; apply: snd_setX_meas_fun; ms_solve.
+                           apply: utapes_meas_fun.
+                   --- mf_prod.
+                       +++ rewrite -setXTT. apply: fst_setX_meas_fun; ms_solve.
+                           apply: Some_meas_fun.
+                       +++ apply: measurable_compT; ms_solve.
+                           *** apply: measurable_compT; ms_solve.
+                               apply: of_option_meas_fun'.
+                               apply: hp_evalC_meas_fun.
+                           *** mf_prod; rewrite -setXTT; apply: snd_setX_meas_fun; ms_solve.
+                               rewrite -setXTT; apply: snd_setX_meas_fun; ms_solve.
+                               apply: utapes_meas_fun.
+  }
+  mf_prod.
+  apply: measurable_funS; last
+                            apply: gRet_meas_fun; ms_solve.
+  Qed. 
 
 Hint Resolve AllocTape_eval_ok_meas_fun         : mf_fun.
 Hint Resolve AllocUTape_eval_ok_meas_fun        : mf_fun.
