@@ -4,10 +4,35 @@ From clutch.prelude Require Import tactics.
 From clutch.prob Require Import differential_privacy.
 From clutch.diffpriv Require Import adequacy diffpriv proofmode.
 
+
 Section svt.
   Context `{!diffprivGS Σ}.
 
   #[local] Open Scope R.
+
+  Lemma Rdiv_pos_pos x y a (div_pos: 0 < x/y) (den_pos : 0 < a) : 0 < x / (a*y).
+  Proof.
+    destruct (Rdiv_pos_cases _ _ div_pos) as [[]|[]].
+    - apply Rdiv_pos_pos ; real_solver.
+    - apply Rdiv_neg_neg ; try real_solver.
+      rewrite Rmult_comm.
+      apply Rmult_neg_pos => //.
+  Qed.
+
+  Lemma Rdiv_nneg_nneg x y a (div_nneg: 0 <= x/y) (den_nneg : 0 <= a) : 0 <= x / (a*y).
+  Proof.
+    destruct (Rle_lt_or_eq _ _ div_nneg) as [|h].
+    - destruct (Rle_lt_or_eq _ _ den_nneg).
+      + left. apply Rdiv_pos_pos => //.
+      + subst. rewrite Rmult_0_l. rewrite Rdiv_0_r. done.
+    - rewrite Rmult_comm. rewrite Rdiv_mult_distr. rewrite -h. rewrite /Rdiv. lra.
+  Qed.
+
+  Lemma Rdiv_pos_den_0 x y (div_pos : 0 < x/y) : ¬ y = 0.
+  Proof.
+    intro d0. rewrite d0 in div_pos. rewrite Rdiv_0_r in div_pos. lra.
+  Qed.
+
 
   (* above_threshold ((num/den) : Q) (T : Z) (db : DB) (qᵢ : DB -o Z) : option (DB -o Z)  *)
   (* "give me ↯ε and I'll privately find a query qᵢ above T" *)
@@ -18,14 +43,15 @@ Section svt.
 
 
   (* { ↯ ε } A_T T { f . f : (DB -o Z) -> DB -o option Z }  *)
-  (* { ↯ ε } A_T T
-     { f . AUTH
-           ∗ ∀ db qᵢ,
-               { AUTH ∗ { ⊤ } qᵢ db { v . T ≤ v } } f db qi { true }
-             ∗ { AUTH ∗ { ⊤ } qᵢ db { v . v < T } } f db qi { false ∗ AUTH }
-[or this:]
-             { AUTH } f db qi { b : bool . if b = false then AUTH }
-             ∀ R , { AUTH } f db qi ~ f db' qi { b b' : bool . b = R -> b' R ∗ if b = false then AUTH }
+
+  (* We can give the following naive specs: *)
+  (* { ↯ ε } A_T T ~ AT T
+     { f f' . AUTH
+            ∗ ∀ db db' : adjacent, ∀ q : 1-sensitive,
+[equality post:]
+              { AUTH } f db q ~ f' db' q { b : bool . b = false -∗ AUTH }
+[or pointwise eq:]
+              ∀ R , { AUTH } f db qi ~ f db' qi { b b' : bool . ⌜b = R -> b' = R⌝ ∗ (⌜R = false⌝ -∗ AUTH) }
      }  *)
   Definition above_threshold : val :=
     λ:"num" "den" "T",
@@ -45,18 +71,8 @@ Section svt.
                    SOME #false)))
         in "f".
 
-  Definition wp_sensitive (f : expr) (c : R) `(d_in : Distance A) `(d_out : Distance B) : iProp Σ
-    :=
-    ∀ (c_pos : 0 <= c) K (x x' : A),
-    ⤇ fill K (f $ Val $ inject x') -∗
-    WP
-      f $ Val $ inject x
-      {{ v,
-           ∃ b b' : B, ⌜v = inject b⌝ ∧ ⤇ fill K (inject b')
-                      ∧ ⌜d_out b b' <= c * d_in x x'⌝
-      }}.
-
-  (* NB: could postpone introducing db and db' *)
+  (* Here's the first spec with equal return values in the postcondition. I was only able to
+  conclude the proof by assuming some dubious rules. *)
   Lemma above_threshold_online_spec (num den T : Z) (εpos : 0 < IZR num / IZR den) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K :
     ↯ (IZR num / IZR den) -∗
     ⤇ fill K ((Val above_threshold) #num #den #T (Val (inject db')))
@@ -333,15 +349,9 @@ Section svt.
     Fail Qed.
   Abort.
 
-  Lemma Rdiv_pos_pos x y a (div_pos: 0 < x/y) (den_pos : 0 < a) : 0 < x / (a*y).
-  Admitted.
-  Lemma Rdiv_nonneg_nonneg x y a (div_noneg: 0 <= x/y) (den_noneg : 0 <= a) : 0 <= x / (a*y).
-  Admitted.
-  Lemma Rdiv_pos_den_0 x y (div_pos : 0 < x/y) : ¬ y = 0.
-  Proof.
-    intro d0. rewrite d0 in div_pos. rewrite Rdiv_0_r in div_pos. lra.
-  Qed.
-
+  (* We can prove the following point-wise spec where the postcondition does some additional
+  book-keeping to connect the result R to the return values when we decide on whether AUTH should be
+  returned. *)
   Lemma above_threshold_online_spec_pw (num den T : Z) (εpos : 0 < IZR num / IZR den) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K :
     ↯ (IZR num / IZR den) -∗
     ⤇ fill K ((Val above_threshold) #num #den #T (Val (inject db')))
@@ -431,6 +441,7 @@ Section svt.
   Qed.
 
 
+  (* We don't actually need `reset` since it is always set to `false` so long as a client holds AUTH. *)
   Definition above_threshold_no_flag : val :=
     λ:"num" "den" "T",
       let: "T'" := Laplace "num" (#2*"den") "T" in
@@ -438,6 +449,8 @@ Section svt.
         let: "vi" := Laplace "num" (#4*"den") ("qi" "db") in
         "T'" ≤ "vi".
 
+  (* Removing ownership of the references from AUTH actually makes the postcondition simpler.
+     This is basically the less-naive version of the point-wise equality spec. *)
   Lemma above_threshold_online_no_flag_spec_pw (num den T : Z) (εpos : 0 < IZR num / IZR den) K :
     ↯ (IZR num / IZR den) -∗
     ⤇ fill K ((Val above_threshold_no_flag) #num #den #T)
@@ -520,6 +533,10 @@ Section svt.
       + done.
   Qed.
 
+
+  (* Question: If we had a WP rule for pointwise equality, could we use it to strengthen the
+  pointwise AT spec into the exact one? This seems rather difficult since the ⌜RES = false⌝ -∗ AUTH
+  part of the postcondition also mentions the variable that the pointwise equality quantifies over. *)
 
   Definition WP_PWEQ : iProp Σ :=
     ∀ (e e' : expr) K,
@@ -650,12 +667,21 @@ Section svt.
         give_up.
       + done.
   Admitted.
+  (* Doesn't seem doable :( *)
 
 
-
+  (* Clearly, getting the result of the comparison helps. How much does it help? *)
   (* If we get R before having to pick the coupling for the noisy T', then we can just couple the first
-     Laplacian so that the comparisons are synchronised and use the error for the second Laplace instead.
-     Probably not a very useful spec. *)
+     Laplacian so that the comparisons are synchronised and use the error for the second Laplace instead. *)
+  (* Only half of the error has to be provided upfront, the other half is to be paid for a query
+     that produces an above-threshold result. *)
+  (* We can reformulate the postcondition to be an equality; no need to return AUTH since the error
+     was only provided in the case where it would have been consumed. *)
+  (* At first glance, this spec may seem silly. But for now, it is unclear if this spec is
+     substantially worse than the other pointwise-equality spec. If Above Threshold is simply run in
+     a loop until a good query is found, then we would presumably have to know the index of the good
+     query in advance in both cases; maybe that would suffice to conjure up `b` at the time of
+     initialization of AT. *)
   Lemma above_threshold_online_no_flag_spec_pw_no_AUTH' (num den T : Z) (εpos : 0 < IZR num / IZR den) K (R : bool) :
     ↯ (IZR num / (2 * IZR den)) -∗
     ⤇ fill K ((Val above_threshold_no_flag) #num #den #T)
@@ -750,7 +776,7 @@ Section svt.
       1: rewrite Rmult_1_l mult_IZR.
       (* Actually, only half the error we have is needed. *)
       { subst ε. iApply ec_weaken. 2: iFrame. split.
-        - apply Rdiv_nonneg_nonneg ; lra.
+        - apply Rdiv_nneg_nneg ; lra.
         - rewrite (Rmult_comm 4). rewrite (Rmult_comm 2).
           rewrite Rdiv_mult_distr. rewrite Rdiv_mult_distr.
           rewrite /Rdiv. apply Rmult_le_compat_l.
