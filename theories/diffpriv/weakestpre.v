@@ -577,6 +577,16 @@ Proof.
   by iMod ("Hw" with "[$]").
 Qed.
 
+Lemma wp_strong_mono'' e Φ Ψ :
+  WP e {{ Φ }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ WP e {{ Ψ }}.
+Proof.
+  iIntros "Hwp Hw".
+  iApply (wp_strong_mono with "Hwp"); [done|].
+  iIntros (?????) "(?&?&?&?)".
+  iApply spec_coupl_ret.
+  iFrame. iApply "Hw". done.
+Qed.
+
 Lemma fupd_wp E e Φ s: (|={E}=> WP e @ s; E {{ Φ }}) ⊢ WP e @ s; E {{ Φ }}.
 Proof.
   rewrite wp_unfold /wp_pre.
