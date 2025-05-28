@@ -227,6 +227,111 @@ Section modalities.
       by iApply "H".
   Qed.
 
+  Lemma spec_coupl_step_l_dret_adv R μ (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal) ρ1 σ1 Z ε :
+    sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1  ->
+    (exists r, forall ρ, (ε2 ρ <= r)%R) ->
+    (ε1 + Expval μ ε2 <= ε)%R ->
+    pgl μ R ε1->
+    (∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ spec_coupl σ2 ρ1 (ε2 σ2) Z)%I
+    ⊢ spec_coupl σ1 ρ1 ε Z.
+  Proof.
+    iIntros (Herasable [r Hound] Hineq Hpgl) "H".
+    iApply spec_coupl_rec.
+    pose (n:=length ρ1.1).
+    iExists (λ σ' '(l, ρ'),
+               R σ' /\ ρ' = ρ1 /\ l=[(cfg_to_cfg' ρ1, n+ encode_nat σ')%nat; (cfg_to_cfg' ρ1, n)]
+            ).
+    iExists μ.
+    iExists (full_info_cons_osch (dmap (λ x, n+encode_nat x)%nat μ)
+                                 (λ _, full_info_stutter_osch ρ1 full_info_inhabitant)
+            ).
+    iExists ε1, (λ '(l, ρ'),
+                   match l!!0%nat with
+                   | Some p =>
+                       match decode_nat (p.2-n)%nat with
+                       | Some x => ε2 x
+                       | None => nnreal_zero
+                       end
+                   | None => nnreal_zero
+                   end
+                ).
+    iExists r.
+    assert (0<=r).
+    { trans (ε2 inhabitant); naive_solver. }
+    repeat iSplit.
+    - done.
+    - iPureIntro. intros [??]. by repeat case_match.
+    - iPureIntro.
+      etrans; last exact.
+      apply Rplus_le_compat_l.
+      rewrite full_info_cons_osch_lim_exec.
+      rewrite Expval_dbind; last first.
+      { eapply ex_expval_bounded with r.
+        intros [??]. by repeat case_match.
+      }
+      { intros [??]. by repeat case_match. }
+      rewrite Expval_dmap; last first.
+      { apply ex_expval_bounded with r.
+        intros ?. split.
+        - apply Expval_ge_0'.
+          intros [??]. by repeat case_match.
+        - Local Opaque full_info_lift_osch.
+          simpl.
+          rewrite out_of_bounds_step'; last first.
+          { rewrite /n. lia. }
+          rewrite dret_id_left.
+          rewrite full_info_lift_osch_lim_exec full_info_stutter_osch_lim_exec full_info_inhabitant_lim_exec.
+          rewrite Expval_dmap; last first.
+          + simpl. 
+            apply ex_expval_bounded with r.
+            intros [??]. simpl; by repeat case_match.
+          + intros [??]. by repeat case_match.
+          + rewrite dmap_dret. rewrite Expval_dret. simpl.
+            by case_match.
+      }
+      { intros. apply Expval_ge_0'. intros [??]. by case_match.
+      }
+      apply Expval_le; last first.
+      { apply ex_expval_bounded with r. naive_solver. }
+      intros σ.
+      simpl.
+      rewrite out_of_bounds_step'; last (rewrite /n; lia).
+      rewrite dret_id_left.
+      rewrite full_info_lift_osch_lim_exec full_info_stutter_osch_lim_exec full_info_inhabitant_lim_exec.
+      rewrite !dmap_dret Expval_dret.
+      simpl. replace (_+_-_)%nat with (encode_nat (σ)); last first.
+      { simpl. lia. }
+      rewrite decode_encode_nat. done.
+    - rewrite full_info_cons_osch_lim_exec.
+      rewrite /dmap -!dbind_assoc.
+      rewrite -{1}(dret_id_right (μ)).
+      iPureIntro.
+      replace (ε1) with (ε1+0)%NNR; last (apply nnreal_ext; simpl; lra).
+      eapply (ARcoupl_dbind _ _ _ _ (λ x y, x=y /\ R x)); [try done..|]; last first.
+      { replace (ε1) with (0+ε1)%NNR; last (apply nnreal_ext; simpl; lra).
+        eapply up_to_bad_lhs; last done.
+        eapply ARcoupl_mono; [done|done| |done|apply ARcoupl_eq].
+        intros. naive_solver.
+      }
+      intros σ ?[??].
+      simplify_eq.
+      rewrite dret_id_left out_of_bounds_step'; last (rewrite /n; lia).
+      rewrite dret_id_left full_info_lift_osch_lim_exec full_info_stutter_osch_lim_exec full_info_inhabitant_lim_exec.
+      rewrite !dmap_dret.
+      by apply ARcoupl_dret.
+    - iPureIntro. intros x1 x2 ???(?&?&?)(?&?&?).
+      subst. simplify_eq.
+      assert (encode_nat x1 = encode_nat x2) as H' by lia.
+      apply encode_nat_inj in H'. subst. naive_solver.
+    - iIntros (σ l ?(?&->&->)).
+      simpl.
+      replace (_+_-_)%nat with (encode_nat σ); last first.
+      { simpl. lia. }
+      rewrite decode_encode_nat. by iApply "H".
+      Local Transparent full_info_lift_osch.
+  Qed.
+    
+
   (** TODO: state step for LHS *)
 (*   Lemma spec_coupl_state_step α σ1 Z (ε ε' : nonnegreal) : *)
 (*     α ∈ get_active σ1 → *)
