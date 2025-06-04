@@ -3,7 +3,7 @@ From Coq Require Import Reals Lia Lra.
 From clutch.prelude Require Export Reals_ext.
 From stdpp Require Export ssreflect.
 From Coquelicot Require Import Rcomplements.
-From clutch.eris Require Export primitive_laws.
+From clutch.eris Require Export primitive_laws proofmode.
 
 Section RealSequence.
 
@@ -356,21 +356,20 @@ Section Planner.
   Context `{!erisGS Σ}.
   Context {A : Type}.
   Context `{Countable A}.
-  Context `{EqDecision A}.
   Context (μ : A → R).
   Context (μ_pos : ∀ (a : A), 0 < μ a).
 
-  (* Note : this excludes dirac distributions *)
+  (* Note : this excludes dirac distributions but they are a very trivial case*)
   Context (μ_lt_1 : ∀ (a : A), μ a < 1).
   Context (is_seriesC_μ : is_seriesC μ 1).
   Context (ψ : list A → iProp Σ).
-  Context (presample_planner :
+  Context (presample_adv_comp :
             ∀ (e : expr) (ε : R) (D : A → R) (L : R)
               (l : list A) (Φ : val → iProp Σ),
               0 < ε →
-              (∀ a, 0 <= D a < L) →
+              (∀ a, 0 <= D a <= L) →
               SeriesC (λ a, μ a * D a) = ε →
-              ψ l ∗ (∀ a, ↯ (D a) -∗ ψ (l ++ [a]) -∗ WP e [{ Φ }])
+              ψ l ∗ ↯ ε ∗ (∀ a, ↯ (D a) -∗ ψ (l ++ [a]) -∗ WP e [{ Φ }])
                       ⊢ WP e [{ Φ }]
           ).
 
@@ -428,6 +427,40 @@ Section Planner.
 
     Definition ε' (n : nat) := P n (λ k, 1 - θ k) * ε.
 
+    Lemma k_pos : ∀ (i : nat), (i < length suf)%nat → 0 < k i.
+    Proof.
+      move=>i i_lt_len.
+      unfold k.
+      pose proof (θ_bounds i i_lt_len).
+      pose proof (Δ_bounds i).
+      apply Rplus_lt_0_compat; first lra.
+      apply Rmult_lt_0_compat; first lra.
+      apply Rmult_lt_0_compat; first lra.
+      apply Rinv_pos.
+      lra.
+    Qed.
+    
+    Lemma ε'0 : ε' 0%nat = ε.
+    Proof. rewrite /ε' Rmult_1_l //. Qed.
+
+    Lemma ε'S : ∀ (i : nat), ε' (S i) = ε' i * (1 - θ i).
+    Proof.
+      move=>i.
+      rewrite /ε' P_last.
+      lra.
+    Qed.
+
+    Lemma ε'_pos : ∀ (i : nat), i ≤ length suf → 0 < ε' i.
+    Proof.
+      move=>i i_le_len.
+      unfold ε'.
+      apply Rmult_lt_0_compat; last done.
+      apply P_gt_0.
+      move=>j j_lt_i.
+      pose proof (θ_bounds j ltac:(lia)).
+      lra.
+    Qed.
+    
     Lemma kε' : ∀ (i : nat), (i < length suf)%nat → ε < k i * ε' i.
     Proof.
       move=>i i_lt_len.
@@ -453,6 +486,97 @@ Section Planner.
       lra.
     Qed.
 
+    Lemma presample_suffix_increase :
+      ∀ (e : expr) (i : nat) (Φ : val → iProp Σ),
+      (i < length suf)%nat →
+      ψ (l ++ take i suf) ∗
+      ↯ (ε' i) ∗ 
+      (ψ (l ++ take (S i) suf) -∗ ↯ (ε' (S i)) -∗ WP e [{ Φ }]) ∗
+      (∀ (j : list A), ψ (l ++ j) -∗ ↯ (k i * ε' i) -∗ WP e [{ Φ }])
+      ⊢ WP e [{ Φ }].
+    Proof.
+      iIntros (e i Φ i_lt_len) "(Hψ & Herr & Hsc & Hfl)".
+      pose proof (lookup_lt_is_Some_2 _ _ i_lt_len) as [c lookup_suf_i].
+      rewrite (take_S_r _ _ c) //.
+      assert (Δ i = μ c) as Δμ.
+      {
+        unfold Δ, Δ'.
+        rewrite lookup_suf_i //.
+      }
+      set (D a := if bool_decide (a = c) then ε' (S i) else k i * ε' i).
+      assert (∀ a, 0 <= D a <= Rmax (ε' (S i)) (k i * ε' i)) as D_bounds.
+      {
+        move=>a.
+        unfold D.
+        pose proof (ε'_pos i ltac:(lia)).
+        pose proof (ε'_pos (S i) i_lt_len).
+        pose proof (k_pos i i_lt_len).
+        pose proof (Rmax_l (ε' (S i)) (k i * ε' i)).
+        pose proof (Rmax_r (ε' (S i)) (k i * ε' i)).
+        case_bool_decide; nra.
+      }
+      
+      wp_apply (presample_adv_comp _ _ D (Rmax (ε' (S i)) (k i * ε' i)) with "[$Herr $Hψ Hsc Hfl]"); try assumption.
+      { apply ε'_pos. lia. }.
+      {
+        rewrite (SeriesC_split_elem _ c); last first.
+        {
+          eapply (ex_seriesC_le _ (λ a, μ a * _)).
+          { move=>a.
+            split; last first.
+            - apply Rmult_le_compat_l; last apply D_bounds.
+              apply Rlt_le, μ_pos.
+            - apply Rmult_le_pos; last apply D_bounds.
+              apply Rlt_le, μ_pos.
+          }
+          apply ex_seriesC_scal_r.
+          by eexists.
+        }
+        {
+          move=>a.
+          apply Rmult_le_pos; last apply D_bounds.
+          apply Rlt_le, μ_pos.
+        }
+        rewrite SeriesC_singleton_dependent.
+        unfold D.
+        case_bool_decide; last done.
+        rewrite ε'S (SeriesC_ext _ (λ a, k i * ε' i * if bool_decide (a ≠ c) then μ a else 0)); last first.
+        {
+          move=>a.
+          repeat case_bool_decide; try contradiction; lra.
+        }
+        rewrite SeriesC_scal_l.
+        replace (SeriesC _) with (1 - μ c); last first.
+        {
+          rewrite -(is_seriesC_unique _ _ is_seriesC_μ).
+          rewrite (SeriesC_split_elem _ c); last first.
+          { by eexists. }
+          { move=>a. apply Rlt_le. apply μ_pos. }
+          rewrite SeriesC_singleton_dependent.
+          lra.
+        }
+        unfold k.
+        rewrite Δμ.
+        rewrite
+          Rmult_assoc (Rmult_comm (ε' i) (1 - μ c))
+          (Rmult_comm (ε' i)) -(Rmult_assoc (μ c))
+          -(Rmult_assoc _ (1 - μ c)) -Rmult_plus_distr_r
+          -{2}(Rmult_1_l (ε' i)) 
+        .
+        f_equal.
+        pose proof (μ_lt_1 c).
+        rewrite Rmult_plus_distr_r Rdiv_def Rmult_assoc
+          (Rmult_assoc _ _ (1 - μ c)) Rinv_l; lra.
+      }
+      iIntros (a) "Herr Hψ".
+      rewrite /D -!app_assoc.
+      case_bool_decide.
+      - subst.
+        wp_apply ("Hsc" with "Hψ Herr").
+      - wp_apply ("Hfl" with "Hψ Herr").
+    Qed.
+  
   End FixedSuffix.
 
+  
 End Planner.
