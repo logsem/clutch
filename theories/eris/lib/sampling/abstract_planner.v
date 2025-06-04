@@ -375,8 +375,6 @@ Section Planner.
 
   Section FixedSuffix.
 
-    Set Default Proof Using "Type*".
-    
     Context (l suf : list A).
     Context (ε : R).
     Context (ε_pos : 0 < ε).
@@ -391,7 +389,7 @@ Section Planner.
       end.
 
     Lemma Δ_bounds : ∀ (n : nat), 0 < Δ n < 1.
-    Proof.
+    Proof using μ_pos μ_lt_1.
       move=>n.
       unfold Δ, Δ'.
       destruct (decide (n < length suf)%nat) as [n_lt_len | n_ge_len].
@@ -405,19 +403,19 @@ Section Planner.
     Definition r (n : nat) := / (1 - Δ n).
     
     Lemma r_gt_1 : ∀ (n : nat), 1 < r n.
-    Proof.
+    Proof using μ_pos μ_lt_1.
       move=>n.
       unfold r.
       rewrite -{1}Rinv_1.
       pose proof (Δ_bounds n).
       apply Rinv_lt_contravar; lra.
-   Qed.
-
+    Qed.
+    
     Definition θ := β (length suf) r.
 
     Lemma θ_bounds :
       ∀ (i : nat), (i < length suf)%nat → 0 <= (L i θ - 1) / (r i - 1) < θ i ∧ θ i < 1.
-    Proof.
+    Proof using μ_pos μ_lt_1.
       move=>i i_lt_len.
       apply β_bounds; last lia.
       move=>j _. apply r_gt_1.
@@ -428,7 +426,7 @@ Section Planner.
     Definition ε' (n : nat) := P n (λ k, 1 - θ k) * ε.
 
     Lemma k_pos : ∀ (i : nat), (i < length suf)%nat → 0 < k i.
-    Proof.
+    Proof using μ_pos μ_lt_1.
       move=>i i_lt_len.
       unfold k.
       pose proof (θ_bounds i i_lt_len).
@@ -451,7 +449,7 @@ Section Planner.
     Qed.
 
     Lemma ε'_pos : ∀ (i : nat), i ≤ length suf → 0 < ε' i.
-    Proof.
+    Proof using ε_pos μ_pos μ_lt_1.
       move=>i i_le_len.
       unfold ε'.
       apply Rmult_lt_0_compat; last done.
@@ -462,7 +460,7 @@ Section Planner.
     Qed.
     
     Lemma kε' : ∀ (i : nat), (i < length suf)%nat → ε < k i * ε' i.
-    Proof.
+    Proof using ε_pos μ_pos μ_lt_1.
       move=>i i_lt_len.
       unfold k, ε'.
       pose proof (θ_bounds i i_lt_len) as [[_ almost_goal] _].
@@ -493,7 +491,7 @@ Section Planner.
       ↯ (ε' i) ∗ 
       ((ψ (l ++ take (S i) suf) ∗ ↯ (ε' (S i)) ∨ ∃ (j : list A), ψ (l ++ j) ∗ ↯ (k i * ε' i)) -∗ WP e [{ Φ }])
       ⊢ WP e [{ Φ }].
-    Proof.
+    Proof using ε_pos μ_pos μ_lt_1 is_seriesC_μ presample_adv_comp.
       iIntros (e i Φ i_lt_len) "(Hψ & Herr & Hnext)".
       pose proof (lookup_lt_is_Some_2 _ _ i_lt_len) as [c lookup_suf_i].
       rewrite (take_S_r _ _ c) //.
@@ -577,7 +575,7 @@ Section Planner.
     Definition κ (n : nat) : R := (k n * ε' n) / ε.
 
     Lemma κ_gt_1 : ∀ n, (n < length suf)%nat → 1 < κ n.
-    Proof.
+    Proof using ε_pos μ_pos μ_lt_1.
       move=>n n_lt_len.
       pose proof (kε' n n_lt_len).
       unfold κ.
@@ -591,7 +589,7 @@ Section Planner.
       ↯ (ε' i) ∗ 
       ((ψ (l ++ take (S i) suf) ∗ ↯ (ε' (S i)) ∨ ∃ (j : list A), ψ (l ++ j) ∗ ↯ (κ i * ε)) -∗ WP e [{ Φ }])
       ⊢ WP e [{ Φ }].
-    Proof.
+    Proof using ε_pos μ_pos μ_lt_1 is_seriesC_μ presample_adv_comp.
       move=>e i.
       rewrite /κ Rmult_assoc Rinv_l; last lra.
       rewrite Rmult_1_r.
@@ -608,7 +606,7 @@ Section Planner.
     Definition κ_min : R := κ_min_aux (length suf).
 
     Lemma κ_min_aux_gt_1 : ∀ (i : nat), i ≤ length suf → 1 < κ_min_aux i.
-    Proof.
+    Proof using ε_pos μ_pos μ_lt_1.
       unfold κ_min_aux.
       elim=>[|i IH] i_le_suf /=; first lra.
       apply Rmin_glb_lt; first by apply κ_gt_1.
@@ -628,6 +626,7 @@ Section Planner.
     Qed.
 
     Lemma κ_min_is_min : ∀ (i : nat), (i < length suf)%nat → κ_min <= κ i.
+    Proof.
       move=>i i_lt_len.
       by apply κ_min_aux_is_min.
     Qed.
@@ -645,7 +644,7 @@ Section Planner.
        ) -∗ WP e [{ Φ }]
       )
       ⊢ WP e [{ Φ }].
-    Proof.
+    Proof using ε_pos μ_pos μ_lt_1 is_seriesC_μ presample_adv_comp.
       iIntros (e i).
       iInduction (i) as [|i] "IH";
         iIntros (Φ Si_lt_len) "(Hψ & Herr & Hnext)".
@@ -690,7 +689,7 @@ Section Planner.
        ) -∗ WP e [{ Φ }]
       )
       ⊢ WP e [{ Φ }].
-    Proof.
+    Proof using ε_pos μ_pos μ_lt_1 is_seriesC_μ presample_adv_comp suf_len.
       iIntros (e Φ) "(Hψ & Herr & Hnext)".
       destruct (decide (suf = [])) as [-> | suf_not_nil].
       {
@@ -714,5 +713,5 @@ Section Planner.
     Qed.
         
   End FixedSuffix.
-  
+
 End Planner.
