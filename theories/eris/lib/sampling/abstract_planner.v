@@ -491,11 +491,10 @@ Section Planner.
       (i < length suf)%nat →
       ψ (l ++ take i suf) ∗
       ↯ (ε' i) ∗ 
-      (ψ (l ++ take (S i) suf) -∗ ↯ (ε' (S i)) -∗ WP e [{ Φ }]) ∗
-      (∀ (j : list A), ψ (l ++ j) -∗ ↯ (k i * ε' i) -∗ WP e [{ Φ }])
+      ((ψ (l ++ take (S i) suf) ∗ ↯ (ε' (S i)) ∨ ∃ (j : list A), ψ (l ++ j) ∗ ↯ (k i * ε' i)) -∗ WP e [{ Φ }])
       ⊢ WP e [{ Φ }].
     Proof.
-      iIntros (e i Φ i_lt_len) "(Hψ & Herr & Hsc & Hfl)".
+      iIntros (e i Φ i_lt_len) "(Hψ & Herr & Hnext)".
       pose proof (lookup_lt_is_Some_2 _ _ i_lt_len) as [c lookup_suf_i].
       rewrite (take_S_r _ _ c) //.
       assert (Δ i = μ c) as Δμ.
@@ -516,8 +515,8 @@ Section Planner.
         case_bool_decide; nra.
       }
       
-      wp_apply (presample_adv_comp _ _ D (Rmax (ε' (S i)) (k i * ε' i)) with "[$Herr $Hψ Hsc Hfl]"); try assumption.
-      { apply ε'_pos. lia. }.
+      wp_apply (presample_adv_comp _ _ D (Rmax (ε' (S i)) (k i * ε' i)) with "[$Herr $Hψ Hnext]"); try assumption.
+      { apply ε'_pos. lia. }
       {
         rewrite (SeriesC_split_elem _ c); last first.
         {
@@ -570,13 +569,150 @@ Section Planner.
       }
       iIntros (a) "Herr Hψ".
       rewrite /D -!app_assoc.
-      case_bool_decide.
-      - subst.
-        wp_apply ("Hsc" with "Hψ Herr").
-      - wp_apply ("Hfl" with "Hψ Herr").
+      case_bool_decide; 
+        wp_apply ("Hnext" with "[Hψ Herr]");
+        [subst; iLeft | iRight]; iFrame.
     Qed.
-  
-  End FixedSuffix.
 
+    Definition κ (n : nat) : R := (k n * ε' n) / ε.
+
+    Lemma κ_gt_1 : ∀ n, (n < length suf)%nat → 1 < κ n.
+    Proof.
+      move=>n n_lt_len.
+      pose proof (kε' n n_lt_len).
+      unfold κ.
+      rewrite -Rlt_div_r; lra.
+    Qed.
+
+    Lemma presample_suffix_increase' :
+     ∀ (e : expr) (i : nat) (Φ : val → iProp Σ),
+      (i < length suf)%nat →
+      ψ (l ++ take i suf) ∗
+      ↯ (ε' i) ∗ 
+      ((ψ (l ++ take (S i) suf) ∗ ↯ (ε' (S i)) ∨ ∃ (j : list A), ψ (l ++ j) ∗ ↯ (κ i * ε)) -∗ WP e [{ Φ }])
+      ⊢ WP e [{ Φ }].
+    Proof.
+      move=>e i.
+      rewrite /κ Rmult_assoc Rinv_l; last lra.
+      rewrite Rmult_1_r.
+      apply presample_suffix_increase.
+    Qed.
+
+    Fixpoint iter_index {T : Type} (n : nat) (f : nat → T → T) (x : T) : T
+      := match n with
+         | 0 => x
+         | S m => f m (iter_index m f x)
+         end.
+      
+    Definition κ_min_aux (i : nat) : R := iter_index i (λ i m, Rmin (κ i) m) 2.
+    Definition κ_min : R := κ_min_aux (length suf).
+
+    Lemma κ_min_aux_gt_1 : ∀ (i : nat), i ≤ length suf → 1 < κ_min_aux i.
+    Proof.
+      unfold κ_min_aux.
+      elim=>[|i IH] i_le_suf /=; first lra.
+      apply Rmin_glb_lt; first by apply κ_gt_1.
+      apply IH.
+      lia.
+    Qed.
+
+    Definition κ_min_gt_1 : 1 < κ_min := κ_min_aux_gt_1 (length suf) ltac:(reflexivity).
+
+    Lemma κ_min_aux_is_min : ∀ (i j : nat), (j < i ≤ length suf)%nat → κ_min_aux i <= κ j.
+    Proof.
+      elim=>[|i IH] j i_g_len; first lia.
+      unfold κ_min_aux.
+      destruct (decide (i = j)) as [-> | i_not_j]; first apply Rmin_l.
+      etrans; last apply IH; last lia.
+      apply Rmin_r.
+    Qed.
+
+    Lemma κ_min_is_min : ∀ (i : nat), (i < length suf)%nat → κ_min <= κ i.
+      move=>i i_lt_len.
+      by apply κ_min_aux_is_min.
+    Qed.
+      
+    Lemma presample_suffix_partial :
+      ∀ (e : expr) (i : nat) (Φ : val → iProp Σ),
+      (i < length suf)%nat →
+      ψ l ∗
+      ↯ ε ∗ 
+      ((ψ (l ++ take (S i) suf) ∗
+        ↯ (ε' (S i))
+        ∨ ∃ (j : list A),
+            ψ (l ++ j) ∗
+            ↯ (κ_min * ε)
+       ) -∗ WP e [{ Φ }]
+      )
+      ⊢ WP e [{ Φ }].
+    Proof.
+      iIntros (e i).
+      iInduction (i) as [|i] "IH";
+        iIntros (Φ Si_lt_len) "(Hψ & Herr & Hnext)".
+      - wp_apply (presample_suffix_increase' _ 0); first lia.
+        rewrite app_nil_r ε'0.
+        iFrame.
+        iIntros "Hψ".
+        wp_apply "Hnext".
+        iDestruct "Hψ" as "[Hψ | (%j & Hψ & Herr)]"; first iFrame.
+        iRight.
+        iFrame.
+        iApply (ec_weaken with "Herr").
+        pose proof (κ_min_is_min 0 ltac:(lia)).
+        pose proof κ_min_gt_1.
+        nra.
+      - wp_apply "IH"; first (iPureIntro; lia).
+        iFrame.
+        iIntros "[[Hψ Herr] | (%j & Hψ & Herr)]".
+        + wp_apply (presample_suffix_increase' _ (S i)); first lia.
+          iFrame.
+          iIntros "[[Hψ Herr] | (%j & Hψ & Herr)]";
+            wp_apply "Hnext";
+            [iLeft | iRight];
+            iFrame.
+          iApply (ec_weaken with "Herr").
+          pose proof (κ_min_is_min (S i) ltac:(lia)).
+          pose proof κ_min_gt_1.
+          nra.
+        + wp_apply "Hnext".
+          iRight.
+          iFrame.
+    Qed.
+
+    Lemma presample_suffix_total :
+      ∀ (e : expr) (Φ : val → iProp Σ),
+      ψ l ∗
+      ↯ ε ∗ 
+      ((ψ (l ++ suf)
+        ∨ ∃ (j : list A),
+            ψ (l ++ j) ∗
+            ↯ (κ_min * ε)
+       ) -∗ WP e [{ Φ }]
+      )
+      ⊢ WP e [{ Φ }].
+    Proof.
+      iIntros (e Φ) "(Hψ & Herr & Hnext)".
+      destruct (decide (suf = [])) as [-> | suf_not_nil].
+      {
+        wp_apply "Hnext".
+        rewrite app_nil_r.
+        by iLeft.
+      }
+      assert (length suf ≠ 0)%nat.
+      {
+        move=>len_suf.
+        by destruct suf.
+      }
+      wp_apply (presample_suffix_partial _ (length suf - 1)); first lia.
+      iFrame.
+      replace (S (length suf - 1)) with (length suf) by lia.
+      rewrite firstn_all.
+      iIntros "[[Hψ _] | (%j & Hψ & Herr)]";
+        wp_apply "Hnext";
+        [iLeft | iRight];
+        iFrame.
+    Qed.
+        
+  End FixedSuffix.
   
 End Planner.
