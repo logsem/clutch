@@ -2,6 +2,7 @@ From clutch.eris.lib.sampling Require Import utils.
 From Coq Require Import Reals Lia Lra.
 From clutch.prelude Require Export Reals_ext.
 From stdpp Require Export ssreflect.
+From stdpp Require Export base.
 From Coquelicot Require Import Rcomplements.
 From clutch.eris Require Export primitive_laws proofmode.
 
@@ -572,14 +573,20 @@ Section Planner.
         [subst; iLeft | iRight]; iFrame.
     Qed.
 
-    Definition κ (n : nat) : R := (k n * ε' n) / ε.
+    Definition κ (n : nat) : R := (k n * P n (λ k, 1 - θ k)).
+
+    Lemma κ_def : ∀ n, κ n = (k n * ε' n) / ε.
+    Proof using ε_pos.
+      move=>n.
+      unfold κ, ε'.
+      rewrite -Rmult_assoc -!Rmult_div_assoc Rdiv_diag; lra.
+    Qed.
 
     Lemma κ_gt_1 : ∀ n, (n < length suf)%nat → 1 < κ n.
     Proof using ε_pos μ_pos μ_lt_1.
       move=>n n_lt_len.
       pose proof (kε' n n_lt_len).
-      unfold κ.
-      rewrite -Rlt_div_r; lra.
+      rewrite κ_def -Rlt_div_r; lra.
     Qed.
 
     Lemma presample_suffix_increase' :
@@ -591,7 +598,7 @@ Section Planner.
       ⊢ WP e [{ Φ }].
     Proof using ε_pos μ_pos μ_lt_1 is_seriesC_μ presample_adv_comp.
       move=>e i.
-      rewrite /κ Rmult_assoc Rinv_l; last lra.
+      rewrite κ_def Rmult_assoc Rinv_l; last lra.
       rewrite Rmult_1_r.
       apply presample_suffix_increase.
     Qed.
@@ -603,6 +610,7 @@ Section Planner.
          end.
       
     Definition κ_min_aux (i : nat) : R := iter_index i (λ i m, Rmin (κ i) m) 2.
+    
     Definition κ_min : R := κ_min_aux (length suf).
 
     Lemma κ_min_aux_gt_1 : ∀ (i : nat), i ≤ length suf → 1 < κ_min_aux i.
@@ -714,4 +722,165 @@ Section Planner.
         
   End FixedSuffix.
 
+  Section SuffixFunction.
+
+    Context (l : list A).
+    Context {n : nat}.
+    Context (suf : list A → list A).
+    Context (L : nat).
+    Context (suf_bounds :
+              ∀ (j : list A),
+               (0 <= length (suf (l ++ j)) <= L)%nat).
+    Context (range : list A).
+    Context (finite_range : ∀ (a : A) (j : list A), a ∈ suf (l ++ j) → a ∈ range).
+    
+    Fixpoint suffixes_of_length (k : nat) : list (list A) :=
+      match k with
+      | 0 => [[]]
+      | S k0 =>
+            h ← range ;
+            t ← suffixes_of_length k0 ;
+            [h::t]
+    end.
+
+    Lemma elem_of_bind :
+      ∀ {T : Type} (h : T) (l1 : list (list T)),
+      let l2 := (t ← l1 ;
+                 [h::t]) in
+      ∀ (x : T) (t : list T), x::t ∈ l2 ↔ x = h ∧ t ∈ l1.
+    Proof.
+      move=>T h.
+      elim=>[|h1 t1 IH] /= x t /=.
+      { split.
+        - move=>contra.
+          inversion contra.
+        - move=>[_ contra].
+          inversion contra.
+      }
+      split.
+      - move=>elem.
+        apply elem_of_cons in elem as [xt_eq_hh1 | xt_in_t1].
+        + injection xt_eq_hh1 as -> ->.
+          split; first done.
+          constructor.
+        + simpl in IH.
+          apply IH in xt_in_t1 as [-> elem].
+          split; first done.
+          by constructor.
+      - move=>[-> elem].
+        apply elem_of_cons in elem as [-> | t_in_t1];
+          first constructor.
+        apply elem_of_cons.
+        right.
+        by apply IH.
+    Qed.
+    
+    Lemma elem_of_cons_bind :
+      ∀ {T : Type} (l1 : list T) (l2 : list (list T)),
+      let l3 := (h ← l1 ;
+                 t ← l2 ;
+                 [h::t]) in
+      ∀ (h : T) (t : list T), h::t ∈ l3 ↔ h ∈ l1 ∧ t ∈ l2.
+    Proof.
+      move=>T.
+      elim=>[|h1 t1 IH] l2 l3 h t /=.
+      { unfold l3. simpl.
+        split.
+        - move=>contra.
+          inversion contra.
+        - move=>[contra _].
+          inversion contra.
+      }
+      unfold l3.
+      simpl.
+      split.
+      - move=>elem.
+        apply elem_of_app in elem as [elem | elem].
+        + apply elem_of_bind in elem as [-> t_in_l2].
+          split; last done.
+          constructor.
+        + apply IH in elem as [h_in_t1 t_in_t2].
+          split; last done.
+          by constructor.
+      - move=>[h_in_h1t1 t_in_l2].
+        apply elem_of_app.
+        apply elem_of_cons in h_in_h1t1 as [-> | h_in_t1].
+        + left.
+          by apply elem_of_bind.
+        + right.
+          by apply IH.
+    Qed.
+      
+    Lemma suffixes_of_length_range :
+      ∀ (k : nat) (s : list A),
+      length s = k →
+      (∀ a, a ∈ s → a ∈ range) →
+      s ∈ suffixes_of_length k.
+    Proof.
+      elim=>[|k IH] s s_len s_range.
+      - destruct s; last discriminate.
+        simpl.
+        constructor.
+      - destruct s as [| a t]; first discriminate.
+        simpl.
+        apply elem_of_cons_bind.
+        simpl in s_len.
+        split.
+        + apply s_range. constructor.
+        + apply IH; first lia.
+          move=>b b_in_t.
+          apply s_range.
+          by constructor.
+    Qed.
+
+    Fixpoint suffixes_up_to_length (k : nat) : list (list A) :=
+      match k with
+      | 0 => []
+      | S k0 => suffixes_of_length k0 ++ suffixes_up_to_length k0
+      end.
+
+    Lemma suffixes_up_to_length_range :
+      ∀ (k : nat) (s : list A),
+      (length s < k)%nat →
+      (∀ a, a ∈ s → a ∈ range) →
+      s ∈ suffixes_up_to_length k.
+    Proof.
+      elim=>[|k IH] s s_len s_range /=; first lia.
+      rewrite Nat.lt_succ_r Nat.le_lteq in s_len.
+      apply elem_of_app.
+      destruct s_len as [s_len_lt | s_len_eq].
+      - right. by apply IH.
+      - left. by apply suffixes_of_length_range.
+    Qed.
+
+    Definition possible_suffixes : list (list A) := suffixes_up_to_length (S L).
+    
+    Lemma suf_in_possible_suffixes :
+      ∀ (j : list A), suf (l ++ j) ∈ possible_suffixes.
+    Proof using finite_range suf_bounds.
+      move=>j.
+      specialize (suf_bounds j).
+      apply suffixes_up_to_length_range; first lia.
+      move=>a.
+      apply finite_range.
+    Qed.
+
+    Definition ξ := foldr (λ s m, Rmin (κ_min s) m) 2 possible_suffixes.
+
+    Lemma ξ_min :
+      ∀ (s : list A), s ∈ possible_suffixes → ξ <= κ_min s.
+    Proof.
+      unfold ξ.
+      generalize possible_suffixes.
+      elim=>[|h t IH] s elem; first inversion elem.
+      apply elem_of_cons in elem as [-> | elem].
+      - simpl.
+        apply Rmin_l.
+      - simpl.
+        etransitivity; last by apply IH.
+        apply Rmin_r.
+    Qed.
+
+  End SuffixFunction.
+  
 End Planner.
