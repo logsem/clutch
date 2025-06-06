@@ -360,7 +360,8 @@ Section Planner.
   Context (μ : A → R).
   Context (μ_pos : ∀ (a : A), 0 < μ a).
 
-  (* Note : this excludes dirac distributions but they are a very trivial case*)
+  (* Note : this excludes dirac distributions but they are a very trivial case *)
+  (* These could be restricted to only the letters appearing in suffixes *)
   Context (μ_lt_1 : ∀ (a : A), μ a < 1).
   Context (is_seriesC_μ : is_seriesC μ 1).
   Context (ψ : list A → iProp Σ).
@@ -736,8 +737,7 @@ Section Planner.
     Context (suf : list A → list A).
     Context (L : nat).
     Context (suf_bounds :
-              ∀ (j : list A),
-               (0 <= length (suf (l ++ j)) <= L)%nat).
+              ∀ (j : list A), (length (suf (l ++ j)) <= L)%nat).
     Context (range : list A).
     Context (finite_range : ∀ (a : A) (j : list A), a ∈ suf (l ++ j) → a ∈ range).
     
@@ -872,6 +872,7 @@ Section Planner.
       apply finite_range.
     Qed.
 
+    #[local]
     Definition ξ := foldr (λ s m, Rmin (κ_min s) m) 2 possible_suffixes.
 
     Lemma ξ_min :
@@ -929,11 +930,10 @@ Section Planner.
       nra.
     Qed.
 
-     Lemma presample_planner :
+    Lemma presample_planner :
       ∀ (ε : R),
       0 < ε →
-      ψ l ∗
-      ↯ ε ∗ 
+      ψ l ∗ ↯ ε ∗ 
       (∀ (j : list A), ψ (l ++ j ++ suf (l ++ j)) -∗ Φ)
       ⊢ Φ.
     Proof using
@@ -957,5 +957,43 @@ Section Planner.
     Qed.
     
   End SuffixFunction.
-  
+
 End Planner.
+
+Lemma abstract_planner
+  `{!erisGS Σ} {A : Type} `{Countable A}
+  (μ : A → R) (ψ : list A → iProp Σ) (Φ : iProp Σ)
+  (l : list A) (suf : list A → list A)
+  (L : nat) (range : list A) (ε : R):
+
+  (∀ a : A, (0 < μ a < 1)%R) →
+  is_seriesC μ 1%R →
+  
+  (∀ (ε : R) (D : A → R) 
+     (L0 : R) (l : list A),
+     (0 < ε)%R
+     → (∀ a : A, (0 <= D a <= L0)%R)
+     → SeriesC (λ a : A, (μ a * D a)%R) =
+     ε
+     → ψ l ∗ ↯ ε ∗
+     (∀ a : A,
+        ↯ (D a) -∗ ψ (l ++ [a]) -∗ Φ)
+     ⊢ Φ) → 
+
+  (∀ j : list A, length (suf (l ++ j)) <= L) →
+  (∀ (a : A) (j : list A), a ∈ suf (l ++ j) → a ∈ range) →
+
+  (0 < ε)%R  →
+
+  ψ l ∗
+  ↯ ε ∗
+  (∀ j : list A, ψ (l ++ j ++ suf (l ++ j)) -∗  Φ)
+  ⊢ Φ.
+Proof.
+  move=>μ_bounds *.
+  eapply presample_planner;
+    try done;
+     move=>a;
+     specialize (μ_bounds a);
+      lra.
+  Qed.

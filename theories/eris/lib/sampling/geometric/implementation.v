@@ -395,7 +395,6 @@ Section Geometric.
     {
       move=> junk.
       subst suffix2 =>/=.
-      split; first done.
       rewrite flat_map_length.
       assert ((λ x : nat, length (repeat 0%fin x ++ [1%fin : fin 2])) = S) as ->. {
         apply functional_extensionality => x.

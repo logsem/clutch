@@ -938,18 +938,13 @@ Section NegativeBinomial.
         ).
     apply bernoulli_to_negative_translation in is_tl as (perm & n & l_eq & len_perm & prefix_eq); last done.
     set (L := S r + (L_sum + r * L_size)).
-    assert (∀ (junk : list (fin 2)), 0 < length (suf (l ++ junk)) ≤ L) as suf_bound.
+    assert (∀ (junk : list (fin 2)), length (suf (l ++ junk)) ≤ L) as suf_bound.
     {
       move=>junk.
       unfold suf.
       rewrite -app_assoc l_eq (bernoulli_to_negative_expand_perm_n _ n); try done.
       rewrite -l_eq -prefix_eq !app_length negative_to_bernoulli_length.
       unfold L.
-      split.
-      { repeat apply Nat.lt_lt_add_l.
-        apply Nat.mul_pos_cancel_l; first done.
-        apply suffix_bound.
-      } 
       repeat apply Nat.add_le_mono.
       { rewrite repeat_length. lia. }
       { apply suffix_bound. }

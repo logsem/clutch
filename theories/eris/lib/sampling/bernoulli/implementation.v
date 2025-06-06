@@ -186,40 +186,7 @@ Section BernoulliImpl.
       iApply "HΦ".
       by iFrame.
   Qed.
-
-  (**
-    Adaptation of the planner lemma for the bernoulli distribution
-  *)
-  Lemma twp_presample_bernoulli_planner 
-      (N M : nat) (e : expr) (ε : nonnegreal)
-      (L : nat) (α : loc) (Φ : val → iProp Σ)
-      (prefix : list (fin 2)) (suffix : list (fin 2) → list (fin 2)) :
-    (0 < N < S M)%nat →
-    to_val e = None →
-    (∀ junk : list (fin 2),
-       (0 < length (suffix (prefix ++ junk)) <= L)%nat) →
-    0 < ε →
-    ↯ ε ∗ 
-    own_bernoulli_tape α N M prefix ∗
-    ((∃ (junk : list (fin 2)), own_bernoulli_tape α N M (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e [{ Φ }]
-    ) ⊢ WP e [{ Φ }].
-  Proof.
-    iIntros ([H_zero_lt_N H_N_lt_SM] H_e_not_val H_suff_bound H_ε_pos)
-      "(Herr & (%l & Hα & %Htl) & Hnext)".
-    set suffix2 := bernoulli_to_tape M ∘ suffix ∘ tape_to_bernoulli N M.
-    wp_apply (twp_presample_planner_pos _ M _ _ _ _ _ L l suffix2 with "[$Herr $Hα Hnext]") as "(%junk & Hα)"; try done.
-    { move=>>. rewrite /suffix2 bernoulli_to_tape_length tape_to_bernoulli_app.
-      by apply tape_to_bernoulli_translation in Htl as <-. }
-    iApply "Hnext".
-    iFrame.
-    iExists (tape_to_bernoulli N M junk).
-    iPureIntro.
-    apply tape_to_bernoulli_translation.
-    apply tape_to_bernoulli_translation in Htl as ->.
-    rewrite !tape_to_bernoulli_app -tape_to_bernoulli_app /suffix2 bernoulli_to_tape_to_bernoulli //=.
-  Qed.
   
-
   #[global] Instance bernoulli_impl : bernoulli_spec bernoulli balloc :=
     BernoulliSpec _ _ bernoulli balloc
       twp_bernoulli_scale
@@ -227,7 +194,6 @@ Section BernoulliImpl.
       twp_bernoulli_alloc
       twp_presample_bernoulli
       twp_presample_bernoulli_adv_comp
-      twp_bernoulli_tape
-      twp_presample_bernoulli_planner.
+      twp_bernoulli_tape.
   
 End BernoulliImpl.

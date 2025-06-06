@@ -441,7 +441,7 @@ Section binomial.
       rewrite -pref_eq.
       rewrite repeat_length app_length.
       match goal with
-      | |- (_ < ?X + k * ?Y ≤ _)%nat =>
+      | |- (?X + k * ?Y ≤ _)%nat =>
           set (A := X);
           set (B := Y);
           assert (A < k) by (apply Nat.mod_upper_bound; lia);
@@ -449,7 +449,6 @@ Section binomial.
       end.
       fold A in B.
       fold B.
-      split; first lia.
       rewrite Nat.mul_comm Nat.mul_add_distr_r.
       apply Nat.add_le_mono; first lia.
       by apply Nat.mul_le_mono_r.

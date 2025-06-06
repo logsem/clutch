@@ -1,5 +1,5 @@
 From clutch.eris Require Import eris.
-From clutch.eris.lib.sampling Require Import utils.
+From clutch.eris.lib.sampling Require Import abstract_planner utils.
 
 #[local] Open Scope R.
 
@@ -54,21 +54,6 @@ Class bernoulli_spec `{!erisGS Σ} (bernoulli_prog : val) (bernoulli_alloc : val
         bernoulli_prog (#lbl:α) #N #M
       [[{ RET #n ; own_bernoulli_tape α N M ns }]];
 
-    twp_presample_bernoulli_planner 
-      (N M : nat) (e : expr) (ε : nonnegreal) (L : nat) 
-      (α : loc) (Φ : val → iProp Σ) (prefix : list (fin 2)) 
-      (suffix : list (fin 2) → list (fin 2)) :
-      (0 < N < S M)%nat →
-      to_val e = None →
-      (∀ junk : list (fin 2), 
-         (0 < length (suffix (prefix ++ junk)) <= L)%nat) → 
-      0 < ε → 
-      ↯ ε ∗ 
-      own_bernoulli_tape α N M prefix ∗
-      ((∃ junk : list (fin 2), 
-           own_bernoulli_tape α N M (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ 
-       WP e [{ v, Φ v }])
-      ⊢ WP e [{ v, Φ v }]
     }.
 
 Set Default Proof Using "Type*".
@@ -86,7 +71,8 @@ Section BernoulliSpecLemmas.
       real_solver  |
       tactics.done |
       auto
-    ].
+      ].
+  
   Lemma bernoulli_case (N M : nat) :
     N ≤ S M →
     [[{True}]]
@@ -328,6 +314,64 @@ Section BernoulliSpecLemmas.
         rewrite /= sum_suf //.
         iPureIntro.
         lia.
+  Qed.
+
+  Lemma twp_presample_bernoulli_planner
+      (N M : nat) (e : expr) (ε : nonnegreal) (L : nat) 
+      (α : loc) (Φ : val → iProp Σ) (prefix : list (fin 2)) 
+      (suffix : list (fin 2) → list (fin 2)) :
+      (0 < N < S M)%nat →
+      to_val e = None →
+      (∀ junk : list (fin 2), 
+         (length (suffix (prefix ++ junk)) <= L)%nat) → 
+      0 < ε → 
+      ↯ ε ∗ 
+      own_bernoulli_tape α N M prefix ∗
+      ((∃ junk : list (fin 2), 
+           own_bernoulli_tape α N M (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ 
+       WP e [{ v, Φ v }])
+      ⊢ WP e [{ v, Φ v }].
+  Proof.
+    iIntros (N_bounds e_not_val suf_bounds ε_pos) "(Herr & Htape & Hnext)".
+    set (μ := λ (i : fin 2), fin_S_inv (const R) (1 - N / (M + 1))%R (const (N / (M + 1))) i).
+    wp_apply (abstract_planner μ (own_bernoulli_tape α N M) _ prefix suffix L (enum (fin 2)) ε); try done.
+    { move=>[:prob_bounds] i.
+      inv_fin i => [|i]/=; last first.
+      {
+        abstract: prob_bounds.
+        rewrite -INR_1 -plus_INR.
+        split.
+        - apply Rdiv_lt_0_compat;
+              apply (lt_INR 0);
+              lia.
+        - rewrite -Rcomplements.Rdiv_lt_1.
+          + apply lt_INR. lia.
+          + apply (lt_INR 0). lia.
+      }
+      split.
+      - apply Rlt_0_minus, (proj2 prob_bounds).
+      - rewrite -{3}(Rminus_0_r 1).
+        apply Rplus_lt_compat_l, Ropp_lt_contravar, (proj1 prob_bounds).
+    }
+    {
+      apply SeriesC_correct'; last apply ex_seriesC_finite.
+      rewrite SeriesC_finite_foldr /=.
+      lra.
+    }
+      
+    { iIntros (ε' D L' l ε'_pos D_bounds D_sum) "(Htape & Herr & Hnext)".
+      wp_apply twp_presample_bernoulli_adv_comp; last iFrame; try done.
+      - rewrite SeriesC_finite_foldr /= in D_sum.
+        lra.
+      - iIntros (i) "[Herr Htape]".
+        iApply ("Hnext" with "Herr Htape").
+    }
+    { move=>a j _. apply elem_of_enum. }
+    { iFrame.
+      iIntros (j) "Htape".
+      wp_apply "Hnext".
+      iFrame.
+    }
   Qed.
   
 End BernoulliSpecLemmas.
