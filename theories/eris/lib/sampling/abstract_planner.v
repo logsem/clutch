@@ -364,14 +364,15 @@ Section Planner.
   Context (μ_lt_1 : ∀ (a : A), μ a < 1).
   Context (is_seriesC_μ : is_seriesC μ 1).
   Context (ψ : list A → iProp Σ).
+  Context (Φ : iProp Σ).
   Context (presample_adv_comp :
-            ∀ (e : expr) (ε : R) (D : A → R) (L : R)
-              (l : list A) (Φ : val → iProp Σ),
+            ∀ (ε : R) (D : A → R) (L : R)
+              (l : list A),
               0 < ε →
               (∀ a, 0 <= D a <= L) →
               SeriesC (λ a, μ a * D a) = ε →
-              ψ l ∗ ↯ ε ∗ (∀ a, ↯ (D a) -∗ ψ (l ++ [a]) -∗ WP e [{ Φ }])
-                      ⊢ WP e [{ Φ }]
+              ψ l ∗ ↯ ε ∗ (∀ a, ↯ (D a) -∗ ψ (l ++ [a]) -∗ Φ)
+                      ⊢ Φ
           ).
 
   Section FixedSuffix.
@@ -494,14 +495,14 @@ Section Planner.
     Qed.
       
     Lemma presample_suffix_increase :
-      ∀ (e : expr) (i : nat) (Φ : val → iProp Σ),
+      ∀ (i : nat),
       (i < length suf)%nat →
       ψ (l ++ take i suf) ∗
       ↯ (ε' i) ∗ 
-      ((ψ (l ++ take (S i) suf) ∗ ↯ (ε' (S i)) ∨ ∃ (j : list A), ψ (l ++ j) ∗ ↯ (k i * ε' i)) -∗ WP e [{ Φ }])
-      ⊢ WP e [{ Φ }].
+      ((ψ (l ++ take (S i) suf) ∗ ↯ (ε' (S i)) ∨ ∃ (j : list A), ψ (l ++ j) ∗ ↯ (k i * ε' i)) -∗ Φ)
+      ⊢ Φ.
     Proof using ε_pos μ_pos μ_lt_1 is_seriesC_μ presample_adv_comp.
-      iIntros (e i Φ i_lt_len) "(Hψ & Herr & Hnext)".
+      iIntros (i i_lt_len) "(Hψ & Herr & Hnext)".
       pose proof (lookup_lt_is_Some_2 _ _ i_lt_len) as [c lookup_suf_i].
       rewrite (take_S_r _ _ c) //.
       assert (Δ i = μ c) as Δμ.
@@ -522,7 +523,7 @@ Section Planner.
         case_bool_decide; nra.
       }
       
-      wp_apply (presample_adv_comp _ _ D (Rmax (ε' (S i)) (k i * ε' i)) with "[$Herr $Hψ Hnext]"); try assumption.
+      iApply (presample_adv_comp _ D (Rmax (ε' (S i)) (k i * ε' i)) with "[$Herr $Hψ Hnext]"); try assumption.
       { apply ε'_pos. lia. }
       {
         rewrite (SeriesC_split_elem _ c); last first.
@@ -577,7 +578,7 @@ Section Planner.
       iIntros (a) "Herr Hψ".
       rewrite /D -!app_assoc.
       case_bool_decide; 
-        wp_apply ("Hnext" with "[Hψ Herr]");
+        iApply ("Hnext" with "[Hψ Herr]");
         [subst; iLeft | iRight]; iFrame.
     Qed.
 
@@ -597,14 +598,14 @@ Section Planner.
     Qed.
 
     Lemma presample_suffix_increase' :
-     ∀ (e : expr) (i : nat) (Φ : val → iProp Σ),
+     ∀ (i : nat),
       (i < length suf)%nat →
       ψ (l ++ take i suf) ∗
       ↯ (ε' i) ∗ 
-      ((ψ (l ++ take (S i) suf) ∗ ↯ (ε' (S i)) ∨ ∃ (j : list A), ψ (l ++ j) ∗ ↯ (κ i * ε)) -∗ WP e [{ Φ }])
-      ⊢ WP e [{ Φ }].
+      ((ψ (l ++ take (S i) suf) ∗ ↯ (ε' (S i)) ∨ ∃ (j : list A), ψ (l ++ j) ∗ ↯ (κ i * ε)) -∗ Φ)
+      ⊢ Φ.
     Proof using ε_pos μ_pos μ_lt_1 is_seriesC_μ presample_adv_comp.
-      move=>e i.
+      move=>i.
       rewrite κ_def Rmult_assoc Rinv_l; last lra.
       rewrite Rmult_1_r.
       apply presample_suffix_increase.
@@ -647,7 +648,7 @@ Section Planner.
     Qed.
       
     Lemma presample_suffix_partial :
-      ∀ (e : expr) (i : nat) (Φ : val → iProp Σ),
+      ∀ (i : nat),
       (i < length suf)%nat →
       ψ l ∗
       ↯ ε ∗ 
@@ -656,18 +657,18 @@ Section Planner.
         ∨ ∃ (j : list A),
             ψ (l ++ j) ∗
             ↯ (κ_min * ε)
-       ) -∗ WP e [{ Φ }]
+       ) -∗ Φ
       )
-      ⊢ WP e [{ Φ }].
+      ⊢ Φ.
     Proof using ε_pos μ_pos μ_lt_1 is_seriesC_μ presample_adv_comp.
-      iIntros (e i).
+      iIntros (i).
       iInduction (i) as [|i] "IH";
-        iIntros (Φ Si_lt_len) "(Hψ & Herr & Hnext)".
-      - wp_apply (presample_suffix_increase' _ 0); first lia.
+        iIntros (Si_lt_len) "(Hψ & Herr & Hnext)".
+      - iApply (presample_suffix_increase' 0); first lia.
         rewrite app_nil_r ε'0.
         iFrame.
         iIntros "Hψ".
-        wp_apply "Hnext".
+        iApply "Hnext".
         iDestruct "Hψ" as "[Hψ | (%j & Hψ & Herr)]"; first iFrame.
         iRight.
         iFrame.
@@ -675,40 +676,39 @@ Section Planner.
         pose proof (κ_min_is_min 0 ltac:(lia)).
         pose proof κ_min_gt_1.
         nra.
-      - wp_apply "IH"; first (iPureIntro; lia).
+      - iApply "IH"; first (iPureIntro; lia).
         iFrame.
         iIntros "[[Hψ Herr] | (%j & Hψ & Herr)]".
-        + wp_apply (presample_suffix_increase' _ (S i)); first lia.
+        + iApply (presample_suffix_increase' (S i)); first lia.
           iFrame.
           iIntros "[[Hψ Herr] | (%j & Hψ & Herr)]";
-            wp_apply "Hnext";
+            iApply "Hnext";
             [iLeft | iRight];
             iFrame.
           iApply (ec_weaken with "Herr").
           pose proof (κ_min_is_min (S i) ltac:(lia)).
           pose proof κ_min_gt_1.
           nra.
-        + wp_apply "Hnext".
+        + iApply "Hnext".
           iRight.
           iFrame.
     Qed.
 
     Lemma presample_suffix_total :
-      ∀ (e : expr) (Φ : val → iProp Σ),
       ψ l ∗
       ↯ ε ∗ 
       ((ψ (l ++ suf)
         ∨ ∃ (j : list A),
             ψ (l ++ j) ∗
             ↯ (κ_min * ε)
-       ) -∗ WP e [{ Φ }]
+       ) -∗ Φ
       )
-      ⊢ WP e [{ Φ }].
+      ⊢ Φ.
     Proof using ε_pos μ_pos μ_lt_1 is_seriesC_μ presample_adv_comp.
-      iIntros (e Φ) "(Hψ & Herr & Hnext)".
+      iIntros "(Hψ & Herr & Hnext)".
       destruct (decide (suf = [])) as [-> | suf_not_nil].
       {
-        wp_apply "Hnext".
+        iApply "Hnext".
         rewrite app_nil_r.
         by iLeft.
       }
@@ -717,12 +717,12 @@ Section Planner.
         move=>len_suf.
         by destruct suf.
       }
-      wp_apply (presample_suffix_partial _ (length suf - 1)); first lia.
+      iApply (presample_suffix_partial (length suf - 1)); first lia.
       iFrame.
       replace (S (length suf - 1)) with (length suf) by lia.
       rewrite firstn_all.
       iIntros "[[Hψ _] | (%j & Hψ & Herr)]";
-        wp_apply "Hnext";
+        iApply "Hnext";
         [iLeft | iRight];
         iFrame.
     Qed.
@@ -897,7 +897,7 @@ Section Planner.
     Qed.
       
     Lemma presample_function_increase :
-      ∀ (e : expr) (ε : R) (Φ : val → iProp Σ) (j1 : list A),
+      ∀ (ε : R) (j1 : list A),
       0 < ε →
       ψ (l ++ j1) ∗
       ↯ ε ∗ 
@@ -905,9 +905,9 @@ Section Planner.
         ∨ ∃ (j2 : list A),
            ψ (l ++ j2) ∗
            ↯ (ξ * ε)
-       ) -∗ WP e [{ Φ }]
+       ) -∗ Φ
       )
-      ⊢ WP e [{ Φ }].
+      ⊢ Φ.
     Proof using
       finite_range
       is_seriesC_μ
@@ -915,11 +915,11 @@ Section Planner.
       suf_bounds
       μ_lt_1 μ_pos.
       
-      iIntros (e ε Φ j1 ε_pos) "(Hψ & Herr & Hnext)".
-      wp_apply (presample_suffix_total _ (suf (l ++ j1)) with "[$Herr $Hψ Hnext]"); try done.
+      iIntros (ε j1 ε_pos) "(Hψ & Herr & Hnext)".
+      iApply (presample_suffix_total _ (suf (l ++ j1)) with "[$Herr $Hψ Hnext]"); try done.
       rewrite -app_assoc.
       iIntros "[HΦ | (%j & Hψ & Herr)]";
-        wp_apply "Hnext"; first iFrame.
+        iApply "Hnext"; first iFrame.
       rewrite -app_assoc.
       iRight.
       iFrame.
@@ -930,12 +930,12 @@ Section Planner.
     Qed.
 
      Lemma presample_planner :
-      ∀ (e : expr) (ε : R) (Φ : val → iProp Σ),
+      ∀ (ε : R),
       0 < ε →
       ψ l ∗
       ↯ ε ∗ 
-      (∀ (j : list A), ψ (l ++ j ++ suf (l ++ j)) -∗ WP e [{ Φ }])
-      ⊢ WP e [{ Φ }].
+      (∀ (j : list A), ψ (l ++ j ++ suf (l ++ j)) -∗ Φ)
+      ⊢ Φ.
     Proof using
       finite_range
       is_seriesC_μ
@@ -945,15 +945,15 @@ Section Planner.
       
       rewrite -{1}(app_nil_r l).
       generalize (@nil A).
-      iIntros (j1 e ε Φ ε_pos) "(Hψ & Herr & Hnext)".
-      iRevert (j1 Φ) "Hψ Hnext".
+      iIntros (j1 ε ε_pos) "(Hψ & Herr & Hnext)".
+      iRevert (j1) "Hψ Hnext".
       iApply (ec_ind_amp _ ξ _ ε_pos ξ_gt_1 with "[] Herr").
       iModIntro.
       clear ε ε_pos.
-      iIntros (ε ε_pos) "#IH Herr %j1 %Φ Hψ Hnext".
-      wp_apply (presample_function_increase _ _ _ _ ε_pos with "[$Hψ $Herr Hnext]")
-        as "[Hψ | (%j2 & Hψ & Herr)]"; first by wp_apply "Hnext".
-      wp_apply ("IH" with "Herr Hψ Hnext").
+      iIntros (ε ε_pos) "#IH Herr %j1 Hψ Hnext".
+      iApply (presample_function_increase _ _ ε_pos with "[$Hψ $Herr Hnext]");
+        iIntros "[Hψ | (%j2 & Hψ & Herr)]"; first by iApply "Hnext".
+      iApply ("IH" with "Herr Hψ Hnext").
     Qed.
     
   End SuffixFunction.
