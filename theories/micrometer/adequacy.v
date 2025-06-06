@@ -8,9 +8,14 @@ From clutch.prelude Require Import stdpp_ext iris_ext.
 (*  From clutch.prob_lang Require Import erasure notation. *)
 From clutch.base_logic Require Import error_credits.
 From clutch.micrometer Require Import app_weakestpre primitive_laws.
-From clutch.meas_lang Require Import erasure.
+From clutch.meas_lang Require Import ectx_language ectxi_language  lang erasure.
+
+
+From mathcomp.analysis Require Import ereal measure lebesgue_measure lebesgue_integral ftc probability sequences function_spaces.
 From mathcomp Require Import classical_sets.
 From mathcomp.analysis Require Import ereal.
+Require Import mathcomp.reals_stdlib.Rstruct.
+Require Import mathcomp.reals.reals.
 
 (*  From clutch.prob Require Import distribution couplings_app. *)
 Import uPred.
@@ -36,9 +41,9 @@ Section adequacy.
       by repeat destroy_mathcomp.
     - by iMod ("HZ" with "[$]").
     - iApply (step_fupdN_mono _ _ _
-                ⌜forall (σ2 : (stateT meas_lang))
+                ⌜forall (σ2 : (meas_lang.language.stateT meas_lang))
                          (e2' : (meas_lang.language.exprT meas_lang))
-                         (σ2' : (stateT meas_lang)),
+                         (σ2' : (meas_lang.language.stateT meas_lang)),
                          T σ2 (e2', σ2') →
                          ARcoupl_meas
                            (@exec (meas_lang_markov meas_lang) m (e1, σ2))
@@ -127,7 +132,6 @@ Section adequacy.
     rewrite -step_fupdN_Sn.
     iApply (step_fupdN_mono _ _ _ ⌜_⌝).
     { iPureIntro. intros.
-      (* Need to stop blowing up goal 3 somehow *)
       eapply (@ARcoupl_erasure_erasable_exp_lhs _ _ X2 _ φ ); last done.
       2: { by apply H. }
       1: { by apply cond_nonneg. }
