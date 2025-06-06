@@ -506,7 +506,7 @@ Section coupl_modalities.
       ⌜reducible (toPacked e1, toPacked σ1)⌝ ∗
       ⌜ARcoupl_meas (prim_step (e1, σ1)) (gBind' (pexec n \o pair (toPacked e1') \o ofPacked) μ1') R (0)%R  (EFin (nonneg ε1)) ⌝ ∗
       ⌜∀ ρ, X2 ρ <= r⌝ ∗
-      ⌜ (le_ereal (EFin (nonneg ε1) + \int[gBind' (pexec n \o pair (toPacked e1') \o ofPacked) μ1']_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε))⌝ ∗
+      ⌜ (le_ereal (EFin (nonneg ε1) + \int[prim_step (e1, σ1)]_ρ (EFin (nonneg (X2 ρ))))) (EFin (nonneg ε))⌝ ∗
       ⌜erasable μ1' σ1'⌝ ∗
       ∀ e2 σ2 e2' σ2', ⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' (X2 (e2, σ2)).
 
