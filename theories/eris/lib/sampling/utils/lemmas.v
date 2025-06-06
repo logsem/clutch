@@ -72,3 +72,33 @@ Qed.
     move=>n.
     elim=>[/=|k /= ->]; lia.
   Qed.
+
+  Lemma SeriesC_finite_elem_lt :
+    ∀ (n : nat) (f : (fin (S (S n)) → R)) (r : R),
+    (0 < r)%R →
+    (∀ k, 0 < f k) →
+    is_seriesC f r →
+    ∀ k, f k < r.
+  Proof.
+    move=>n f r r_pos f_pos is_seriesC_f k.
+    rewrite -(is_seriesC_unique _ _ is_seriesC_f).
+    rewrite (SeriesC_split_elem _ k);
+      last first.
+    { by eexists. }
+    { move=>b.
+      pose proof (f_pos b).
+      lra.
+    }
+    rewrite SeriesC_singleton_dependent Series_fin_first Series_fin_first /=.
+    pose proof (f_pos 0%fin).
+    pose proof (f_pos 1%fin).
+    match goal with
+    | |- context [SeriesC ?f] => unshelve epose proof (SeriesC_ge_0' f _)
+    end.
+    { move=>i /=.
+      case_bool_decide; last lra.
+      pose proof (f_pos (FS (FS i))).
+      lra.
+    }
+    do 2 case_bool_decide; subst; last discriminate; lra.
+  Qed.

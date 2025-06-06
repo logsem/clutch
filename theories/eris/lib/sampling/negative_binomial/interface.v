@@ -223,7 +223,8 @@ Class negative_binomial_spec `{!erisGS Σ} (negative_prog negative_alloc : val) 
       ↯ ε ∗ own_negative_tape α p q r ns ∗
       (∀ (i : nat), own_negative_tape α p q r (ns ++ [i]) -∗ WP e [{ Φ }])
       ⊢  WP e [{ Φ }];
-  
+
+    (* It might be possible to do this one using the abstract planner rule by setting ψ l := (∃ ε, ⌜0 < ε⌝ ∗ own_negative_tape α p q r l) and using half of ε for each call to twp_negative_binomial_presample_adv_comp *)
     twp_negative_binomial_planner :
     ∀ (p q r : nat) (α : loc) (e : expr) (ε : nonnegreal)
       (L_size L_sum : nat) (Φ : val → iProp Σ)
