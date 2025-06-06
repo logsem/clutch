@@ -4,7 +4,7 @@ From clutch.prelude Require Export Reals_ext.
 From stdpp Require Export ssreflect.
 From stdpp Require Export base.
 From Coquelicot Require Import Rcomplements.
-From clutch.eris Require Export primitive_laws proofmode.
+From clutch.eris Require Export total_primitive_laws proofmode.
 
 Section RealSequence.
 
@@ -379,7 +379,6 @@ Section Planner.
     Context (l suf : list A).
     Context (ε : R).
     Context (ε_pos : 0 < ε).
-    Context (suf_len : 0 < length suf).
 
     Definition Δ' (n : nat) : option R := μ <$> suf !! n.
 
@@ -424,7 +423,9 @@ Section Planner.
 
     Definition k (n : nat) := (1 + θ n * (Δ n / (1 - Δ n))).
 
-    Definition ε' (n : nat) := P n (λ k, 1 - θ k) * ε.
+    Definition χ (n : nat) := P n (λ k, 1 - θ k).
+    
+    Definition ε' (n : nat) := χ n * ε.
 
     Lemma k_pos : ∀ (i : nat), (i < length suf)%nat → 0 < k i.
     Proof using μ_pos μ_lt_1.
@@ -445,7 +446,7 @@ Section Planner.
     Lemma ε'S : ∀ (i : nat), ε' (S i) = ε' i * (1 - θ i).
     Proof.
       move=>i.
-      rewrite /ε' P_last.
+      rewrite /ε' /χ P_last.
       lra.
     Qed.
 
@@ -460,17 +461,15 @@ Section Planner.
       lra.
     Qed.
     
-    Lemma kε' : ∀ (i : nat), (i < length suf)%nat → ε < k i * ε' i.
-    Proof using ε_pos μ_pos μ_lt_1.
+    Lemma kχ : ∀ (i : nat), (i < length suf)%nat → 1 < k i * χ i.
+    Proof using μ_pos μ_lt_1.
       move=>i i_lt_len.
-      unfold k, ε'.
+      unfold k, χ.
       pose proof (θ_bounds i i_lt_len) as [[_ almost_goal] _].
       rewrite Rlt_div_l in almost_goal; last first.
       { pose proof (r_gt_1 i). lra. }
       rewrite Rlt_minus_l in almost_goal. 
       unfold r in almost_goal.
-      rewrite -Rmult_assoc -{1}(Rmult_1_l ε).
-      apply Rmult_lt_compat_r; first done.
       replace (/ (1 - Δ i) - 1) with (Δ i / (1 - Δ i)) in almost_goal; last first.
       {
         replace (Δ i) with (1 - (1 - Δ i)) at 1 by lra.
@@ -485,6 +484,15 @@ Section Planner.
       lra.
     Qed.
 
+    Lemma kε' : ∀ (i : nat), (i < length suf)%nat → ε < k i * ε' i.
+    Proof using μ_pos μ_lt_1 ε_pos.
+      move=>i i_lt_len.
+      pose proof (kχ i i_lt_len).
+      unfold ε'.
+      rewrite -Rmult_assoc -{1}(Rmult_1_l ε).
+      by apply Rmult_lt_compat_r.
+    Qed.
+      
     Lemma presample_suffix_increase :
       ∀ (e : expr) (i : nat) (Φ : val → iProp Σ),
       (i < length suf)%nat →
@@ -573,20 +581,19 @@ Section Planner.
         [subst; iLeft | iRight]; iFrame.
     Qed.
 
-    Definition κ (n : nat) : R := (k n * P n (λ k, 1 - θ k)).
+    Definition κ (n : nat) : R := (k n * χ n).
 
     Lemma κ_def : ∀ n, κ n = (k n * ε' n) / ε.
     Proof using ε_pos.
       move=>n.
-      unfold κ, ε'.
+      unfold κ, ε', χ.
       rewrite -Rmult_assoc -!Rmult_div_assoc Rdiv_diag; lra.
     Qed.
 
     Lemma κ_gt_1 : ∀ n, (n < length suf)%nat → 1 < κ n.
-    Proof using ε_pos μ_pos μ_lt_1.
+    Proof using μ_pos μ_lt_1.
       move=>n n_lt_len.
-      pose proof (kε' n n_lt_len).
-      rewrite κ_def -Rlt_div_r; lra.
+      by apply kχ.
     Qed.
 
     Lemma presample_suffix_increase' :
@@ -614,7 +621,7 @@ Section Planner.
     Definition κ_min : R := κ_min_aux (length suf).
 
     Lemma κ_min_aux_gt_1 : ∀ (i : nat), i ≤ length suf → 1 < κ_min_aux i.
-    Proof using ε_pos μ_pos μ_lt_1.
+    Proof using μ_pos μ_lt_1.
       unfold κ_min_aux.
       elim=>[|i IH] i_le_suf /=; first lra.
       apply Rmin_glb_lt; first by apply κ_gt_1.
@@ -697,7 +704,7 @@ Section Planner.
        ) -∗ WP e [{ Φ }]
       )
       ⊢ WP e [{ Φ }].
-    Proof using ε_pos μ_pos μ_lt_1 is_seriesC_μ presample_adv_comp suf_len.
+    Proof using ε_pos μ_pos μ_lt_1 is_seriesC_μ presample_adv_comp.
       iIntros (e Φ) "(Hψ & Herr & Hnext)".
       destruct (decide (suf = [])) as [-> | suf_not_nil].
       {
@@ -881,6 +888,74 @@ Section Planner.
         apply Rmin_r.
     Qed.
 
+    Lemma ξ_gt_1 : 1 < ξ.
+    Proof using μ_lt_1 μ_pos.
+      unfold ξ.
+      generalize possible_suffixes.
+      elim=>[|h t IH] /=; first lra.
+      by apply Rmin_glb_lt; first apply κ_min_gt_1.
+    Qed.
+      
+    Lemma presample_function_increase :
+      ∀ (e : expr) (ε : R) (Φ : val → iProp Σ) (j1 : list A),
+      0 < ε →
+      ψ (l ++ j1) ∗
+      ↯ ε ∗ 
+      ((ψ (l ++ j1 ++ suf (l ++ j1))
+        ∨ ∃ (j2 : list A),
+           ψ (l ++ j2) ∗
+           ↯ (ξ * ε)
+       ) -∗ WP e [{ Φ }]
+      )
+      ⊢ WP e [{ Φ }].
+    Proof using
+      finite_range
+      is_seriesC_μ
+      presample_adv_comp
+      suf_bounds
+      μ_lt_1 μ_pos.
+      
+      iIntros (e ε Φ j1 ε_pos) "(Hψ & Herr & Hnext)".
+      wp_apply (presample_suffix_total _ (suf (l ++ j1)) with "[$Herr $Hψ Hnext]"); try done.
+      rewrite -app_assoc.
+      iIntros "[HΦ | (%j & Hψ & Herr)]";
+        wp_apply "Hnext"; first iFrame.
+      rewrite -app_assoc.
+      iRight.
+      iFrame.
+      iApply (ec_weaken with "Herr").
+      pose proof (ξ_min (suf (l ++ j1)) (suf_in_possible_suffixes j1)).
+      pose proof ξ_gt_1.
+      nra.
+    Qed.
+
+     Lemma presample_planner :
+      ∀ (e : expr) (ε : R) (Φ : val → iProp Σ),
+      0 < ε →
+      ψ l ∗
+      ↯ ε ∗ 
+      (∀ (j : list A), ψ (l ++ j ++ suf (l ++ j)) -∗ WP e [{ Φ }])
+      ⊢ WP e [{ Φ }].
+    Proof using
+      finite_range
+      is_seriesC_μ
+      presample_adv_comp
+      suf_bounds
+      μ_lt_1 μ_pos.
+      
+      rewrite -{1}(app_nil_r l).
+      generalize (@nil A).
+      iIntros (j1 e ε Φ ε_pos) "(Hψ & Herr & Hnext)".
+      iRevert (j1 Φ) "Hψ Hnext".
+      iApply (ec_ind_amp _ ξ _ ε_pos ξ_gt_1 with "[] Herr").
+      iModIntro.
+      clear ε ε_pos.
+      iIntros (ε ε_pos) "#IH Herr %j1 %Φ Hψ Hnext".
+      wp_apply (presample_function_increase _ _ _ _ ε_pos with "[$Hψ $Herr Hnext]")
+        as "[Hψ | (%j2 & Hψ & Herr)]"; first by wp_apply "Hnext".
+      wp_apply ("IH" with "Herr Hψ Hnext").
+    Qed.
+    
   End SuffixFunction.
   
 End Planner.
