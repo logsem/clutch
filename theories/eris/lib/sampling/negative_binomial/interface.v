@@ -1,5 +1,5 @@
 From clutch.eris Require Export eris.
-From clutch.eris.lib.sampling Require Import utils. 
+From clutch.eris.lib.sampling Require Import abstract_planner utils. 
 From clutch.eris.lib.sampling.binomial Require Import interface.
 
 Section NegativeBinomialProbability.
@@ -24,7 +24,32 @@ Section NegativeBinomialProbability.
       apply le_INR, Hpq.
     }
   Qed.
-      
+
+  Lemma negative_binom_gt_0 (p q r k : nat) : 0 < p < (q + 1) → 0 < r → (0 < negative_binom_prob p q r k)%R.
+  Proof.
+    intros Hpq Hr.
+    rewrite /negative_binom_prob.
+    assert (0 <= q)%R by apply pos_INR.
+    repeat apply Rmult_lt_0_compat.
+    { unfold choose.
+      bool_decide.
+      unfold C.
+      apply Rmult_lt_0_compat; first apply INR_fact_lt_0.
+      apply Rinv_pos.
+      apply Rmult_lt_0_compat; apply INR_fact_lt_0.
+    }
+    { apply pow_lt, Rdiv_lt_0_compat.
+      - apply (lt_INR 0), Hpq.
+      - rewrite -INR_1 -plus_INR.
+         apply (lt_INR 0). lia.
+    }
+    { apply pow_lt.
+      rewrite -Rcomplements.Rminus_lt_0 Rcomplements.Rlt_div_l; last lra.
+      rewrite Rmult_1_l -INR_1 -plus_INR.
+      apply lt_INR, Hpq.
+    }
+  Qed.
+  
   Lemma negative_binom_prob_split : ∀ (p q r k : nat),
     negative_binom_prob p q (r + 1) (k + 1)%nat =
     ((1 - p / (q + 1)) * negative_binom_prob p q (r + 1) k
@@ -224,24 +249,6 @@ Class negative_binomial_spec `{!erisGS Σ} (negative_prog negative_alloc : val) 
       (∀ (i : nat), own_negative_tape α p q r (ns ++ [i]) -∗ WP e [{ Φ }])
       ⊢  WP e [{ Φ }];
 
-    (* It might be possible to do this one using the abstract planner rule by setting ψ l := (∃ ε, ⌜0 < ε⌝ ∗ own_negative_tape α p q r l) and using half of ε for each call to twp_negative_binomial_presample_adv_comp *)
-    twp_negative_binomial_planner :
-    ∀ (p q r : nat) (α : loc) (e : expr) (ε : nonnegreal)
-      (L_size L_sum : nat) (Φ : val → iProp Σ)
-      (prefix : list nat) (suffix : list nat → list nat) ,
-      (0 < p < q + 1)%nat →
-      0 < r →
-      to_val e = None →
-      (∀ (junk : list nat),
-         0 < length (suffix (prefix ++ junk)) <= L_size ∧ list_sum (suffix (prefix ++ junk)) ≤ L_sum) →
-      (0 < ε)%R →
-      ↯ ε ∗
-      own_negative_tape α p q r prefix ∗
-      ((∃ (junk : list nat),
-           own_negative_tape α p q r (prefix ++ junk ++ suffix (prefix ++ junk)))
-       -∗ WP e [{ Φ }])
-      ⊢ WP e [{ Φ }];
-
     twp_negative_binomial_presample_adv_comp :
     ∀ (p q : nat) (α : loc) (l : list nat) (e : expr) (Φ : val → iProp Σ),
       0 < p →
@@ -259,3 +266,75 @@ Class negative_binomial_spec `{!erisGS Σ} (negative_prog negative_alloc : val) 
          own_negative_tape α p q r (l ++ [n]) -∗ WP e [{ Φ }]) ⊢
       WP e [{ Φ }]
   }.
+
+Section NegativeLemmas.
+  Context `{!erisGS Σ}.
+  Context `{!negative_binomial_spec negative_prog negative_alloc}.
+
+  Lemma list_sum_le : ∀ (l : list nat) (n : nat), n ∈ l → n ≤ list_sum l.
+  Proof.
+    elim=>[|h t IH] n elem /=; first by apply elem_of_nil in elem.
+    apply elem_of_cons in elem as [-> | elem]; first lia.
+    specialize (IH n elem).
+    lia.
+  Qed.
+  
+  Lemma twp_negative_binomial_planner :
+    ∀ (p q r : nat) (α : loc) (e : expr) (ε : R)
+      (L_size L_sum : nat) (Φ : val → iProp Σ)
+      (prefix : list nat) (suffix : list nat → list nat) ,
+      (0 < p < q + 1)%nat →
+      0 < r →
+      to_val e = None →
+      (∀ (junk : list nat),
+         0 < length (suffix (prefix ++ junk)) <= L_size ∧ list_sum (suffix (prefix ++ junk)) ≤ L_sum) →
+      (0 < ε)%R →
+      ↯ ε ∗
+      own_negative_tape α p q r prefix ∗
+      ((∃ (junk : list nat),
+           own_negative_tape α p q r (prefix ++ junk ++ suffix (prefix ++ junk)))
+       -∗ WP e [{ Φ }])
+      ⊢ WP e [{ Φ }].
+  Proof.
+    iIntros (p q r α e ε L_size L_sum Φ prefix suffix
+               p_bounds r_pos e_not_val suf_bounds
+               ε_pos) "(Herr & Htape & Hnext)".
+    set (ψ l := (own_negative_tape α p q r l ∗ ∃ (ε0 : R), ⌜(0 < ε0)%R⌝ ∗ ↯ ε0)%I).
+    unshelve wp_apply (abstract_planner (negative_binom_prob p q r) ψ _ prefix suffix L_size (seq 0 (S L_sum)) (ε / 2) _ (is_seriesC_negative_binomial p q r ltac:(lia))).
+    {
+      split; first by apply negative_binom_gt_0.
+      unshelve epose proof (SeriesC_nat_elem_lt (negative_binom_prob p q r) _ _ _ (is_seriesC_negative_binomial p q r ltac:(lia))); first lra.
+      { move=>k. apply negative_binom_gt_0; lia. }
+      auto.
+    }
+    { iIntros (ε0 D L0 l ε0_pos D_bounds D_sum) "([Htape (%ε1 & %ε1_pos & Hfuel)] & Herr & Hnext)".
+      replace ε1 with (ε1 / 2 + ε1 / 2)%R by lra.
+      iPoseProof (ec_split with "Hfuel") as "[Hfuel_now Hfuel_later]"; try lra.
+      wp_apply (twp_negative_binomial_presample_adv_comp p q α with "[$Hfuel_now $Herr $Htape Hnext Hfuel_later]"); try lia; try done.
+      { lra. }
+      iIntros (n) "Herr Htape".
+      wp_apply ("Hnext" with "Herr").
+      iFrame.
+      iPureIntro.
+      lra.
+    }
+    { apply suf_bounds. }
+    { move=>a j a_elem_suf.
+      apply elem_of_seq.
+      split; first lia.
+      pose proof (list_sum_le _ _ a_elem_suf).
+      pose proof (suf_bounds j) as [_ sum_bound].
+      lia.
+    }
+    { lra. }
+    assert (ε = (ε / 2 + ε / 2)%R) as ε_half by lra.
+    rewrite {1}ε_half.
+    iPoseProof (ec_split with "Herr") as "[Hfuel1 Hfuel2]"; try lra.
+    iFrame.
+    iSplitR; first (iPureIntro; lra).
+    iIntros (j) "[Htape _]".
+    wp_apply "Hnext".
+    iFrame.
+  Qed.
+  
+End NegativeLemmas.

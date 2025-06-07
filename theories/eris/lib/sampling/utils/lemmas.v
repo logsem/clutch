@@ -102,3 +102,39 @@ Qed.
     }
     do 2 case_bool_decide; subst; last discriminate; lra.
   Qed.
+  
+  Lemma SeriesC_nat_elem_lt :
+    ∀ (f : nat → R) (r : R),
+    (0 < r)%R →
+    (∀ k, 0 < f k) →
+    is_seriesC f r →
+    ∀ k, f k < r.
+  Proof.
+    move=>f r r_pos f_pos is_seriesC_f k.
+    rewrite -(is_seriesC_unique _ _ is_seriesC_f).
+    rewrite (SeriesC_split_elem _ k);
+      last first.
+    { by eexists. }
+    { move=>b.
+      pose proof (f_pos b).
+      lra.
+    }
+    rewrite SeriesC_singleton_dependent SeriesC_Series_nat (Series.Series_incr_n _ 2) /=; try lia; last first.
+    { apply ex_seriesC_nat, (ex_seriesC_le _ f); last by eexists.
+      move=>i.
+      pose proof (f_pos i).
+      case_bool_decide; lra.
+    } 
+    pose proof (f_pos 0%nat).
+    pose proof (f_pos 1%nat).
+    rewrite -SeriesC_Series_nat.
+    match goal with
+    | |- context [SeriesC ?f] => unshelve epose proof (SeriesC_ge_0' f _)
+    end.
+    { move=>i /=.
+      case_bool_decide; last lra.
+      pose proof (f_pos (S (S i))).
+      lra.
+    }
+    do 2 case_bool_decide; subst; last discriminate; lra.
+  Qed.
