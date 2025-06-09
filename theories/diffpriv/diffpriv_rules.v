@@ -32,6 +32,17 @@ Section diffpriv.
     apply Zabs_ind ; intros ? h' ; apply eq_IZR in h' ; lia.
   Qed.
 
+  Program Definition dtensor `(dA : Distance A) `(dB : Distance B) : Distance (A * B) :=
+    {| distance x y := let (x1, x2) := x in let (y1, y2) := y in dA x1 y1 + dB x2 y2 |}.
+  Next Obligation. intros ???? [] []. apply Rplus_le_le_0_compat ; apply distance_pos. Qed.
+  Next Obligation. intros ???? []. rewrite !distance_0. lra. Qed.
+  Next Obligation.
+    intros ???? [a b] [a' b'] ?.
+    pose proof (distance_pos a a'). pose proof (distance_pos b b').
+    assert (dA a a' <= 0) by lra. assert (dB b b' <= 0) by lra.
+    pose proof (distance_sep a a'). pose proof (distance_sep b b').
+    f_equal ; intuition auto.
+  Qed.
 
   Definition wp_sensitive (f : expr) (c : R) `(d_in : Distance A) `(d_out : Distance B) : iProp Σ
     :=
@@ -62,6 +73,45 @@ Section diffpriv.
       {{{ ⤇ fill K (f (Val (inject x'))) ∗ ↯m (c * ε) ∗ ↯ (c * δ) }}}
         f (Val (inject x))
       {{{ (v : val), RET v; ⤇ fill K (Val v) }}}.
+
+  Lemma wp_diffpriv_mono (f : val) ε ε' `(dA : Distance A)
+    (ε_pos : 0 <= ε) (hε' : ε <= ε') :
+    wp_diffpriv f ε dA -∗
+    wp_diffpriv f ε' dA.
+  Proof.
+    iIntros "fε" (?? a a' ?) "[rhs ε]".
+    rewrite /wp_diffpriv.
+    pose proof (distance_pos a a').
+    assert (0 <= ε') as ε'pos by lra.
+    iMod (ec_zero) as "ε0".
+    destruct (Rle_lt_or_eq _ _ ε_pos) ; last first.
+    { subst. iApply "fε" => //. iFrame. rewrite Rmult_0_r. done. }
+    destruct (Rle_lt_or_eq _ _ ε'pos) ; last first.
+    { subst. assert (ε = 0) by lra. subst. iApply "fε" => //. iFrame. }
+    iSpecialize ("fε" $! K).
+    assert (1 <= ε' / ε) by (apply Rcomplements.Rle_div_r ; lra).
+    set (c' := c * (ε' / ε)).
+    unshelve iSpecialize ("fε" $! c' a a' _).
+    1: etrans ; [eassumption|]. 1: subst c'.
+    1: rewrite -{1}(Rmult_1_r c) ; real_solver.
+    iApply ("fε" with "[$rhs ε]") => //.
+    iApply ec_weaken => //. subst c'. split. 1: real_solver.
+    right. field. lra.
+  Qed.
+
+  Lemma wp_sensitive_mono (f : val) c c' `(dA : Distance A) `(dB : Distance B)
+    (c_pos : 0 <= c) (hc' : c <= c') :
+    wp_sensitive f c dA dB -∗
+    wp_sensitive f c' dA dB.
+  Proof.
+    iIntros "fsens" (?? a a') "rhs". rewrite /wp_sensitive.
+    pose proof (distance_pos a a').
+    iSpecialize ("fsens" $! c_pos K a a' with "rhs").
+    iApply (wp_mono with "fsens").
+    iIntros "% (% & % & % & rhs & %)".
+    iExists _,_. iFrame. iPureIntro. intuition eauto.
+    etrans. 1: eassumption. real_solver.
+  Qed.
 
   Fact hoare_laplace_diffpriv (num den : Z) :
     ⌜0 < IZR num / IZR den⌝ -∗
@@ -204,6 +254,49 @@ Section diffpriv.
     iSpecialize ("g_dipr" $! b K c a a' adj with "[$gb $εg $δg]").
     iApply "g_dipr". done.
     Unshelve. auto.
+  Qed.
+
+  Theorem wp_diffpriv_diffpriv_par_comp (f g : val) ε
+    `(dA : Distance A) `(dB : Distance B)
+    (ε_pos : 0 <= ε) :
+    wp_diffpriv f ε dA -∗
+    wp_diffpriv g ε dB -∗
+    wp_diffpriv (λ:"xy", (f (Fst "xy"), g (Snd "xy"))) ε (dtensor dA dB).
+  Proof.
+    iIntros "f_dipr g_dipr" (?? [a b] [a' b'] adj) "[fa_gb' ε]".
+    rewrite /dtensor in adj. simpl in adj.
+    pose proof (distance_pos a a'). pose proof (distance_pos b b').
+    iDestruct (ec_weaken _ ((dA a a' + dB b b') * ε) with "ε") as "ε". 1: real_solver.
+    rewrite Rmult_plus_distr_r. iDestruct (ec_split with "ε") as "[εf εg]" => //. 1,2: real_solver.
+    tp_pures ; wp_pures. tp_bind (g _). wp_bind (g _).
+    iApply (wp_strong_mono'' with "[g_dipr fa_gb' εg] [-]").
+    1: iApply "g_dipr". 2: iFrame. 1: iPureIntro ; lra.
+    iIntros (gb) "rhs /=". tp_pures. wp_pures.
+    tp_bind (f _) ; wp_bind (f _).
+    iApply (wp_strong_mono'' with "[f_dipr rhs εf] [-]").
+    1: iApply "f_dipr". 2: iFrame. 1: iPureIntro ; lra.
+    iIntros (fa) "rhs /=". tp_pures. wp_pures.
+    done.
+  Qed.
+
+  Theorem diffpriv_diffpriv_par_comp (f g : val) ε
+    `(dA : Distance A) `(dB : Distance B)
+    (ε_pos : 0 <= ε) :
+    hoare_diffpriv f ε dA -∗
+    hoare_diffpriv g ε dB -∗
+    hoare_diffpriv (λ:"xy", (f (Fst "xy"), g (Snd "xy"))) ε (dtensor dA dB).
+  Proof.
+    iIntros "#f_dipr #g_dipr" (?? [a b] [a' b'] adj Φ) "!> [fa_gb' ε] HΦ".
+    rewrite /dtensor in adj. simpl in adj.
+    pose proof (distance_pos a a'). pose proof (distance_pos b b').
+    iDestruct (ec_weaken _ ((dA a a' + dB b b') * ε) with "ε") as "ε". 1: real_solver.
+    rewrite Rmult_plus_distr_r. iDestruct (ec_split with "ε") as "[εf εg]" => //. 1,2: real_solver.
+    tp_pures ; wp_pures. tp_bind (g _). wp_bind (g _).
+    iApply ("g_dipr" $! _ _ _ _ _ with "[$fa_gb' $εg]") => // ; iIntros "!>" (gb) "fa_gb" => /=.
+    tp_pures. wp_pures. tp_bind (f _). wp_bind (f _).
+    iApply ("f_dipr" $! _ _ _ _ _ with "[$fa_gb $εf]") => // ; iIntros "!>" (fa) "fa_gb" => /=.
+    tp_pures. wp_pures. iApply "HΦ". done.
+    Unshelve. all: lra.
   Qed.
 
 
