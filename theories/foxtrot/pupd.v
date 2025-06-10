@@ -86,28 +86,6 @@ Section pupd.
     iApply pupd_mono; last done.
     by iIntros.
   Qed.
-
-  (** To be proved in primitive laws *)
-  (* Lemma pupd_epsilon_err E: *)
-  (*   ⊢ pupd E E (∃ ε, ⌜(0<ε)%R⌝ ∗ ↯ ε)%I. *)
-  (* Proof. *)
-  (*   rewrite pupd_unseal/pupd_def. *)
-  (*   iIntros (? ε) "[Hstate Herr]". *)
-  (*   iApply fupd_mask_intro; first set_solver. *)
-  (*   iIntros "Hclose". *)
-  (*   iApply spec_coupl_ampl'. *)
-  (*   iIntros (ε' ?). *)
-  (*   iApply spec_coupl_ret. *)
-  (*   assert (ε<=ε')%R as H' by lra. *)
-  (*   pose (diff :=((ε' - ε) H')%NNR). *)
-  (*   replace (ε') with (ε + diff)%NNR; last (apply nnreal_ext; rewrite /diff; simpl; lra). *)
-  (*   iMod (ec_supply_increase _ diff with "[$]") as "[??]". *)
-  (*   { rewrite /diff. simpl. lra. } *)
-  (*   iFrame. iMod "Hclose". iPureIntro. *)
-  (*   rewrite /diff. *)
-  (*   simpl. *)
-  (*   lra. *)
-  (* Qed. *)
   
   Lemma pupd_fupd_change E1 E2 E3 P Q:
     (|={E1, E2}=> P) -∗ (P-∗ pupd E2 E3 Q) -∗ pupd E1 E3 Q.
