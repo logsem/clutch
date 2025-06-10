@@ -3,7 +3,7 @@
 From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Export ghost_map.
 From clutch.base_logic Require Export error_credits.
-From clutch.foxtrot Require Export weakestpre ectx_lifting pupd.
+From clutch.foxtrot Require Export weakestpre pupd ectx_lifting.
 From clutch.con_prob_lang Require Export class_instances.
 From clutch.con_prob_lang Require Import tactics lang notation metatheory.
 From clutch.con_prob_lang.spec Require Export spec_ra.
@@ -481,6 +481,59 @@ Section lifting.
     iFrame. iModIntro. iSplitL; last done. by iApply "HΦ".
   Qed.
 
+
+  (** spec *)
+  Lemma pupd_step_pure (P: Prop) n e e' j K E:
+    P →
+    PureExec P n e e' →
+    j ⤇ fill K e ⊢ pupd E E (j ⤇ fill K e').
+  Proof.
+    intros H1 H2.
+    apply H2 in H1.
+    clear H2.
+    revert e e' H1.
+    iInduction n as [|n] "IH".
+    - simpl. iIntros (?? H). inversion H; subst.
+      iIntros. 
+      by iFrame.
+    - iIntros (?? H). inversion H as [|? ??? H']. subst.
+      iIntros "H".
+      iAssert (pupd E E (j⤇ fill K y))%I with "[H]" as ">H"; last by iApply "IH".
+      rewrite pupd_unseal/pupd_def.
+      iIntros (?[??]?) "(?&?&?)".
+      iDestruct (spec_auth_prog_agree with "[$][$]") as "%".
+      iApply fupd_mask_intro; first set_solver.
+      iIntros "Hclose".
+      iApply (spec_coupl_step_r_dret_adv _ _ _ _ (_,_) with "[-]").
+      + eapply pure_step_safe. eapply pure_step_ctx; last done.
+        apply con_ectx_lang_ctx.
+      + done.
+      + instantiate (1:=(λ _, ε1)%NNR).
+        by eexists ε1%R.
+      + right.
+        rewrite Expval_const; last done.
+        instantiate (1:=0%NNR).
+        erewrite Rplus_0_l.
+        rewrite prim_step_mass; last first.
+        { eapply pure_step_safe. eapply pure_step_ctx; last done.
+          apply _. }
+        by rewrite Rmult_1_r.
+      + eapply pure_step_det in H' as H''.
+        setoid_rewrite fill_prim_step_dbind; last first.
+        { simpl. erewrite val_stuck; try done. erewrite H''. lra. }
+        instantiate (2:= λ '(e', σ', efs), e' = fill K y /\ σ' = s /\ efs = []).
+        simpl in *.
+        apply pmf_1_eq_dret in H''. rewrite H''.
+        rewrite dmap_dret.
+        apply pgl_dret. naive_solver.
+      + iIntros (???) "[(%&%&%) %K']".
+        subst.
+        iMod (spec_update_prog with "[$][$]") as "[??]".
+        iModIntro.
+        rewrite app_nil_r. simpl.
+        iApply spec_coupl_ret. iFrame. by iMod "Hclose".
+        Unshelve. done.
+  Qed.   
 
   (* (** spec [rand] *) *)
   (* Lemma wp_rand_r N z E e K Φ : *)

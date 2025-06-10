@@ -756,7 +756,7 @@ Section adequacy.
     { iApply fupd_later_mono; last done.
       iPureIntro.
       intros [f Hcoupl].
-      exists (full_info_cons_osch (dmap (λ ac, (length es'+encode_nat ac)%nat) (sch (ζ, (e::es, σ))))
+      exists (full_info_cons_osch (λ _, dmap (λ ac, (length es'+encode_nat ac)%nat) (sch (ζ, (e::es, σ))))
            (λ x, f (match decode_nat (x - length es')%nat
                     with |Some ac => ac
                     | None => (ζ, inhabitant)
