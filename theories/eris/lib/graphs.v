@@ -1,5 +1,34 @@
+From Coq Require Import List.
 From clutch Require Import eris.
-From clutch.eris.lib Require Import list.
+From clutch.eris.lib Require Import list array.
+From GraphTheory Require mgraph.
+From mathcomp Require Import fintype.
+About Finite.type.
+
+Definition Graph := mgraph.graph () ().
+Notation "g '.vertices'" := (mgraph.vertex g) (at level 0).
+Notation "g '.edges'" := (mgraph.edge g) (at level 0).
+
+
+Notation source := (mgraph.endpoint false).
+Notation target := (mgraph.endpoint true).
+
+Definition is_graph (vertex_count : nat) (v : val) (g : Graph) : Prop :=
+  ∃ (l : list (nat * nat)) 
+    (eq_vertices : Finite.sort g.vertices = 'I_vertex_count) 
+    (eq_edges : Finite.sort g.edges = 'I_(length l)),
+    is_list l v ∧
+    ∀ i : g.edges,
+      let vertex_to_nat v := 
+        nat_of_ord (ssrAC.change_type v eq_vertices) 
+      in
+      let edge_to_nat e := 
+        nat_of_ord (ssrAC.change_type e eq_edges) 
+      in
+      let src_res : nat := vertex_to_nat (source i) in
+      let trgt_res : nat := vertex_to_nat (target i) in
+      let nat_i : nat := edge_to_nat i in
+      nth_error l nat_i = Some (src_res, trgt_res).
 
 (* 
 For Karger's algorithm (https://en.wikipedia.org/wiki/Karger's_algorithm): 2 solutions
@@ -7,6 +36,31 @@ For Karger's algorithm (https://en.wikipedia.org/wiki/Karger's_algorithm): 2 sol
 Either do specific things, or use an union find structure
 
 *)
+
+(* 
+Need:
+- multigraph structure, possibilities:
+  - list of edges
+  - associative list of vertex -> list of vertices
+  - matrices (might be complicated due to rescaling)
+- linking with Rocq's multigraphs
+- Function to pick a random edge. HTS:
+  - Always returns a result if graph is non-empty, the result is an edge of the graph
+- Function to merge along an edge (and eventually remove reflexive edges: bounded number of steps).
+  - Do we keep the same label or reconstruct a graph  with vertices from 0 to |G| - 1 every time ? (might be easier, but with more overhead, the merge function exists for multigraphs but does not remove reflexive edges, might be just as easy to recreate one)
+
+Algorithm:
+  def f(G : Graph):
+    if |G| = 2:
+      return G
+    else:
+      e := random edge
+      G' := fuse the endpoints of e in G
+      f G'
+*)
+
+
+
 
 Section graph_code.
   #[local] Open Scope expr_scope.
@@ -63,6 +117,7 @@ Section graph_code.
 
 End graph_code.
 
+
 Section karger.
 
   Definition pick_random_edge : val :=
@@ -74,6 +129,7 @@ Section karger.
       | NONE => #() (* Not possible *)
       end
   .
+
   
   Definition fuse : val :=
     λ: "p" "g",
