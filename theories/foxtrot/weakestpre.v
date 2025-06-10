@@ -749,9 +749,9 @@ Lemma wp_strong_mono E1 E2 e Φ Ψ s :
   E1 ⊆ E2 →
   WP e @ s; E1 {{ Φ }} -∗
  (∀ σ1 ρ1 ε1 v,
-     state_interp σ1 ∗ spec_interp ρ1 ∗ err_interp ε1 ∗ Φ v -∗
+     state_interp σ1 ∗ spec_interp ρ1 ∗ err_interp ε1 ∗ Φ v ={E2, ∅}=∗
      spec_coupl σ1 ρ1 ε1 (λ σ2 ρ2 ε2,
-          |={E2}=> state_interp σ2 ∗ spec_interp ρ2 ∗ err_interp ε2 ∗ Ψ v)) -∗
+          |={∅, E2}=> state_interp σ2 ∗ spec_interp ρ2 ∗ err_interp ε2 ∗ Ψ v)) -∗
   WP e @ s; E2 {{ Ψ }}.
 Proof.
   iIntros (HE) "H HΦ". iLöb as "IH" forall (e E1 E2 HE Φ Ψ s).
@@ -765,13 +765,12 @@ Proof.
   case_match eqn:Hv.
   { iApply fupd_spec_coupl.
     iMod "H" as "(?&?&?)".
-    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSpecialize ("HΦ" with "[$]").
-    iApply (spec_coupl_bind with "[-HΦ] HΦ").
+    iMod "Hclose" as "_".
+    iMod ("HΦ" with "[$]").
+    iModIntro.
+    iApply (spec_coupl_bind with "[][$]").
     iIntros (???) "Hσ".
-    iApply spec_coupl_ret.
-    iMod "Hclose'". iMod "Hclose".
-    by iMod "Hσ". }
+    by iApply spec_coupl_ret. }
   iApply spec_coupl_ret.
   iApply (prog_coupl_mono with "[HΦ Hclose] H").
   iIntros (e2 σ3 efs ρ3 ε3) "H !>".
@@ -794,8 +793,29 @@ Proof.
   iApply (wp_strong_mono with "Hwp"); [done|].
   iIntros (????) "(?&?&?&?)".
   iApply spec_coupl_ret.
-  by iMod ("Hw" with "[$]").
+  iApply fupd_mask_intro; first set_solver.
+  iIntros ">?".
+  iApply "Hw". iFrame.
 Qed.
+
+Lemma spec_coupl_wp E e Φ s :
+  (∀ σ1 ρ1 ε1, state_interp σ1 ∗ spec_interp ρ1 ∗ err_interp ε1 ={E, ∅}=∗
+            spec_coupl σ1 ρ1 ε1
+              (λ σ2 ρ2 ε2, |={∅, E}=> state_interp σ2 ∗ spec_interp ρ2 ∗ err_interp ε2 ∗ WP e @ s ; E {{Φ}})) -∗
+  WP e @ s ; E {{ Φ }}.
+Proof.
+  iIntros "H".
+  erewrite wp_unfold. rewrite /wp_pre.
+  iIntros (???) "(?&?&?)". 
+  iSpecialize ("H" with "[$]").
+  iMod "H". iModIntro.
+  iApply (spec_coupl_bind with "[][$]").
+  iIntros (???) "H".
+  iApply fupd_spec_coupl.
+  iMod "H" as "(?&?&?&H)".
+  rewrite wp_unfold/wp_pre.
+  iApply "H". iFrame.
+Qed. 
 
 Lemma fupd_wp E e Φ s: (|={E}=> WP e @ s; E {{ Φ }}) ⊢ WP e @ s; E {{ Φ }}.
 Proof.
@@ -810,9 +830,9 @@ Lemma wp_fupd E e Φ s : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {{ Φ
 Proof.
   iIntros "H".
   iApply (wp_strong_mono E with "H"); [done|].
-  iIntros (????) "(? & ? & ? & ?)".
-  iApply spec_coupl_ret.
-  by iFrame.
+  iIntros (????) "(? & ? & ? & >?)".
+  iApply spec_coupl_ret. iFrame.
+  iApply fupd_mask_intro_subseteq; set_solver.
 Qed.
 
 Lemma wp_atomic E1 E2 e Φ `{!Atomic StronglyAtomic e} s :
@@ -870,7 +890,8 @@ Proof.
   iIntros "!>" (????) "(? & ? & ? & H)".
   iApply spec_coupl_ret.
   iMod ("H" with "[$]").
-  by iFrame.
+  iFrame.
+  iApply fupd_mask_intro_subseteq; set_solver.
 Qed.
 
 Lemma wp_bind K `{!ConLanguageCtx K} E e Φ s :
@@ -926,7 +947,9 @@ Proof.
   iIntros "[? H]".
   iApply (wp_strong_mono with "H"); [done|].
   iIntros (????) "(? & ? & ? & ?)".
-  iApply spec_coupl_ret. by iFrame.
+  iApply spec_coupl_ret.
+  iFrame.
+  iApply fupd_mask_intro_subseteq; set_solver.
 Qed.
 Lemma wp_frame_r E e Φ R s : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
 Proof. iIntros "[H ?]". iApply (wp_strong_mono' with "H"); auto with iFrame. Qed.
