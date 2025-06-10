@@ -612,7 +612,7 @@ Section Polya.
     fin_list_tail (fin_list_snoc t h) = fin_list_snoc (fin_list_tail t) h.
   Proof.
     move=>A.
-    elim=>[|n IH] h t; inv_fin_list t => //=.
+    elim=>[|n IH] h t; inv_fin_list t => //.
   Qed.
 
   Lemma fin_list_head_liat :

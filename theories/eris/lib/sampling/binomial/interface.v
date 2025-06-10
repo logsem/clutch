@@ -1,5 +1,5 @@
 From clutch.eris Require Export eris.
-From clutch.eris.lib.sampling Require Import utils.
+From clutch.eris.lib.sampling Require Import abstract_planner utils.
 From clutch.eris.lib.sampling.bernoulli Require Import interface.
 
 Section BinomialProbability.
@@ -108,7 +108,30 @@ Section BinomialProbability.
     rewrite Nat.sub_0_r Rcomplements.C_n_0.
     lra.
   Qed.
-  
+
+  Lemma binom_prob_gt_0 (p q n k : nat) :
+    0 < p < q + 1 → k ≤ n → (0 < binom_prob p q n k)%R.
+  Proof.
+    move=>[p_pos p_lt_Sq] k_le_n.
+    apply lt_INR in p_pos.
+    apply lt_INR in p_lt_Sq.
+    rewrite plus_INR in p_lt_Sq.
+    simpl in p_pos, p_lt_Sq.
+    rewrite /binom_prob /choose.
+    bool_decide.
+    apply Rmult_lt_0_compat.
+    - apply Rmult_lt_0_compat.
+      + unfold C.
+        apply Rdiv_lt_0_compat;
+          last apply Rmult_lt_0_compat;
+          apply INR_fact_lt_0.
+      + apply pow_lt.
+        apply Rdiv_lt_0_compat; lra.
+    - apply pow_lt.
+      apply Rlt_0_minus.
+      rewrite Rcomplements.Rlt_div_l; lra.
+  Qed.
+   
   Lemma binom_prob_gt (p q n k : nat) : n < k → binom_prob p q n k = 0%R.
   Proof.
     intros Hnk.
@@ -151,6 +174,25 @@ Section BinomialProbability.
       unfold s.
       lra.
   Qed.
+
+  Lemma binom_prob_lt_1 (p q n : nat) (k : fin (S (S n))) : 0 < p < q + 1 → (binom_prob p q (S n) k < 1)%R.
+  Proof.
+    move=>p_bounds.
+    rewrite -(sum_binom_prob p q (S n)).
+    apply (SeriesC_finite_elem_lt n (binom_prob p q (S n))).
+    { rewrite sum_binom_prob.
+      lra.
+    }
+    { move=>i.
+      apply binom_prob_gt_0; first done.
+      pose proof (fin_to_nat_lt i).
+      lia.
+    }
+    { apply SeriesC_correct.
+      apply ex_seriesC_finite.
+    }
+  Qed.
+
   
 End BinomialProbability.
 
@@ -184,21 +226,6 @@ Class binomial_spec `{!erisGS Σ} (binomial_prog : val) (binomial_alloc : val) :
     (∀ (i : fin (S k)), own_binomial_tape α N M k (ns ++ [i%fin]) -∗ WP e [{ Φ }])
     ⊢  WP e [{ Φ }];
       
-  twp_binomial_presample_planner 
-      (N M k : nat) (e : expr) (ε : nonnegreal)
-      (L : nat) (α : loc) (Φ : val → iProp Σ)
-      (prefix : list (fin (S k))) (suffix : list (fin (S k)) → list (fin (S k))) :
-    (0 < N)%nat →
-    (N < S M)%nat →
-    (0 < k)%nat → 
-    to_val e = None →
-    (∀ junk : list (fin (S k)),
-       (0 < length (suffix (prefix ++ junk)) <= L)%nat) →
-    (0 < ε)%R →
-    ↯ ε ∗ own_binomial_tape α N M k prefix ∗
-    ( (∃ (junk : list (fin (S k))), own_binomial_tape α N M k (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e [{ Φ }]
-    ) ⊢ WP e [{ Φ }];
-
    twp_binomial_presample_adv_comp 
       (e : expr) (α : loc) (Φ : val → iProp Σ)
       (p q n : nat) (ns : list (fin (S n))) (ε : R)
@@ -219,6 +246,53 @@ Section BinomialLemmas.
   
   Set Default Proof Using "Type*".
 
+   Lemma twp_binomial_presample_planner 
+      (N M k : nat) (e : expr) (ε : nonnegreal)
+      (L : nat) (α : loc) (Φ : val → iProp Σ)
+      (prefix : list (fin (S k))) (suffix : list (fin (S k)) → list (fin (S k))) :
+    (0 < N < S M)%nat →
+    (0 < k)%nat → 
+    to_val e = None →
+    (∀ junk : list (fin (S k)),
+       (length (suffix (prefix ++ junk)) <= L)%nat) →
+    (0 < ε)%R →
+    ↯ ε ∗ own_binomial_tape α N M k prefix ∗
+    ( (∃ (junk : list (fin (S k))), own_binomial_tape α N M k (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e [{ Φ }]
+    ) ⊢ WP e [{ Φ }].
+   Proof.
+     iIntros (N_bounds k_pos e_not_val suf_bounds ε_pos) "(Herr & Htape & Hnext)".
+     wp_apply (abstract_planner (binom_prob N M k ∘ fin_to_nat) (own_binomial_tape α N M k) _ prefix suffix L (enum (fin (S k))) ε); try done.
+     { move=>i.
+       simpl.
+       destruct k; first lia.
+       split; last (apply binom_prob_lt_1; last lia).
+       pose proof (fin_to_nat_lt i).
+       apply binom_prob_gt_0; lia.
+     }
+     {
+       apply SeriesC_correct'; last apply ex_seriesC_finite.
+       apply sum_binom_prob.
+     }
+     {
+       clear ε ε_pos L suf_bounds.
+       iIntros (ε D L l ε_pos D_bounds D_sum) "(Htape & Herr & Hnext)".
+       wp_apply (twp_binomial_presample_adv_comp _ _ _ _ _ _ _ _ D); try done.
+       { move=>i. apply D_bounds. }
+       { lia. }
+       iFrame.
+       iIntros (i) "[Herr Htape]".
+       by iApply ("Hnext" with "Herr").
+     }
+     {
+       move=>a j _.
+       apply elem_of_enum.
+     }
+     iFrame.
+     iIntros (j) "Htape".
+     wp_apply "Hnext".
+     iFrame.
+   Qed.
+  
   Definition binom_cred (p q n k : nat) := (1 - binom_prob p q n k)%R.
   
   Lemma twp_binom_k (p q n k : nat) :
