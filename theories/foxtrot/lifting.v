@@ -40,17 +40,7 @@ Lemma wp_lift_step_spec_couple E Φ e1 s :
                    err_interp ε2 ∗ WP e1 @ s; E {{ Φ }}))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  iIntros "H".
-  iApply wp_lift_step_couple.
-  iIntros (???) "Hs".
-  iMod ("H" with "[$]") as "H".
-  iModIntro.
-  iApply (spec_coupl_bind with "[] H").
-  iIntros (???) "H".
-  iApply fupd_spec_coupl.
-  iMod "H" as "(?&?&?&H)".
-  rewrite wp_unfold /wp_pre.
-  iApply ("H" with "[$]").
+  iApply spec_coupl_wp.
 Qed.
 
 Lemma wp_lift_step_prog_couple E Φ e1 s :
