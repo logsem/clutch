@@ -3,6 +3,7 @@
 From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Export ghost_map.
 From clutch.base_logic Require Export error_credits.
+From clutch.prelude Require Import tactics.
 From clutch.foxtrot Require Export weakestpre pupd ectx_lifting.
 From clutch.con_prob_lang Require Export class_instances.
 From clutch.con_prob_lang Require Import tactics lang notation metatheory.
@@ -504,7 +505,7 @@ Section lifting.
       iDestruct (spec_auth_prog_agree with "[$][$]") as "%".
       iApply fupd_mask_intro; first set_solver.
       iIntros "Hclose".
-      iApply (spec_coupl_step_r_dret_adv _ _ _ _ (_,_) with "[-]").
+      iApply (spec_coupl_step_r_adv _ _ _ _ (_,_) with "[-]").
       + eapply pure_step_safe. eapply pure_step_ctx; last done.
         apply con_ectx_lang_ctx.
       + done.
@@ -533,7 +534,116 @@ Section lifting.
         rewrite app_nil_r. simpl.
         iApply spec_coupl_ret. iFrame. by iMod "Hclose".
         Unshelve. done.
-  Qed.   
+  Qed.
+  
+  (** Alloc, load, and store *)
+  Lemma pupd_alloc E K e v j :
+    IntoVal e v →
+    j ⤇ fill K (ref e) ⊢ pupd E E (∃ l, j ⤇ fill K (#l) ∗ l ↦ₛ v).
+  Proof.
+    iIntros (<-) "HK".
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ1 [] ε1) "(H1 & H2 & H3)".
+    iDestruct (spec_auth_prog_agree with "[$][$]") as "%".
+    iMod (spec_auth_heap_alloc with "[$]") as "[Hs Hl]".
+    iMod (spec_update_prog with "[$][$]") as "[HK Hs]".
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    iApply spec_coupl_step_r; [|done|..].
+    - apply reducible_fill. apply head_prim_reducible. solve_red.
+    - instantiate (2:=0%NNR). instantiate (1:= ε1). simpl.
+      lra.
+    - simpl.
+      rewrite fill_dmap //=.
+      rewrite head_prim_step_eq//.
+      simpl.
+      rewrite dmap_dret/=.
+      apply pgl_dret.
+      rewrite /prim_step/=.
+      instantiate (2:= λ x, x = (fill K #(fresh_loc (heap s)), state_upd_heap_N (fresh_loc (heap s)) (Z.to_nat 1) v s, [])).
+      naive_solver.
+    - iIntros (???) "%".
+      destruct!/=.
+      iApply spec_coupl_ret.
+      iModIntro.
+      iMod "Hclose".
+      iFrame. rewrite state_upd_heap_singleton.
+      rewrite app_nil_r. by iFrame.
+  Qed.
+  
+  Lemma step_load E K l q v j:
+    j ⤇ fill K (!#l) ∗ l ↦ₛ{q} v
+    ⊢ pupd E E (j ⤇ fill K (of_val v) ∗ l ↦ₛ{q} v).
+  Proof.
+    iIntros "[HK HL]".
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ1 [] ε1) "(H1 & H2 & H3)".
+    iDestruct (spec_auth_prog_agree with "[$][$]") as "%".
+    iDestruct (spec_auth_lookup_heap with "[$][$]") as "%".
+    iMod (spec_update_prog with "[$][$]") as "[HK Hs]".
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    iApply spec_coupl_step_r; [|done|..].
+    - apply reducible_fill. apply head_prim_reducible. solve_red.
+    - instantiate (2:=0%NNR). instantiate (1:= ε1). simpl.
+      lra.
+    - simpl.
+      rewrite fill_dmap //=.
+      rewrite head_prim_step_eq//.
+      simpl.
+      case_match; last done.
+      rewrite dmap_dret/=.
+      apply pgl_dret.
+      rewrite /prim_step/=.
+      simplify_eq.
+      instantiate (2:= λ x, x =(fill K v, s, [])).
+      naive_solver.
+    - iIntros (???) "%".
+      destruct!/=.
+      iApply spec_coupl_ret.
+      iModIntro.
+      iMod "Hclose".
+      iFrame. 
+      rewrite app_nil_r. by iFrame.
+  Qed.
+
+  Lemma step_store E K l v' e v j:
+    IntoVal e v →
+    j ⤇ fill K (#l <- e) ∗ l ↦ₛ v'
+    ⊢ pupd E E (j ⤇ fill K #() ∗ l ↦ₛ v).
+  Proof.
+    iIntros (<-) "[HK HL]".
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ1 [] ε1) "(H1 & H2 & H3)".
+    iDestruct (spec_auth_prog_agree with "[$][$]") as "%".
+    iDestruct (spec_auth_lookup_heap with "[$][$]") as "%".
+    iMod (spec_auth_update_heap with "[$][$]") as "[??]".
+    iMod (spec_update_prog with "[$][$]") as "[HK Hs]".
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    iApply spec_coupl_step_r; [|done|..].
+    - apply reducible_fill. apply head_prim_reducible. solve_red.
+    - instantiate (2:=0%NNR). instantiate (1:= ε1). simpl.
+      lra.
+    - simpl.
+      rewrite fill_dmap //=.
+      rewrite head_prim_step_eq//.
+      simpl.
+      case_match; last done.
+      rewrite dmap_dret/=.
+      apply pgl_dret.
+      rewrite /prim_step/=.
+      simplify_eq.
+      instantiate (2:= λ x, x =(fill K #(), state_upd_heap <[l:=v]> s, [])).
+      naive_solver.
+    - iIntros (???) "%".
+      destruct!/=.
+      iApply spec_coupl_ret.
+      iModIntro.
+      iMod "Hclose".
+      iFrame. 
+      rewrite app_nil_r. by iFrame.
+  Qed.
 
   (* (** spec [rand] *) *)
   (* Lemma wp_rand_r N z E e K Φ : *)

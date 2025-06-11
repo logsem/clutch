@@ -331,7 +331,7 @@ Section modalities.
       Local Transparent full_info_lift_osch.
   Qed.
 
-  Lemma spec_coupl_step_r_dret_adv R (ε1 : nonnegreal) m (ε2 : _ -> nonnegreal) ρ1 σ1 Z ε j e:
+  Lemma spec_coupl_step_r_adv R (ε1 : nonnegreal) m (ε2 : _ -> nonnegreal) ρ1 σ1 Z ε j e:
     reducible e ρ1.2 ->
     ρ1.1 !! j = Some e ->
     (exists r, forall ρ, (ε2 ρ <= r)%R) ->
@@ -474,8 +474,23 @@ Section modalities.
       { by f_equal. }
       rewrite !list_lookup_insert in K'; first by simplify_eq.
       all: by eapply lookup_lt_Some.
-  Qed.     
+  Qed.
 
+  Lemma spec_coupl_step_r R (ε1 : nonnegreal) m (ε2 : nonnegreal) ρ1 σ1 Z ε j e:
+    reducible e ρ1.2 ->
+    ρ1.1 !! j = Some e ->
+    (ε1 + ε2 <= ε)%R ->
+    pgl (prim_step e ρ1.2) (λ '(e', σ', efs), R(e', σ', efs)/\ tapes σ' = m) ε1->
+    (∀ e' σ' efs, ⌜ R (e', σ', efs) /\ tapes σ' = m⌝ ={∅}=∗ spec_coupl σ1 (<[j:=e']>ρ1.1++efs, σ') ε2 Z)%I
+    ⊢ spec_coupl σ1 ρ1 ε Z.
+  Proof.
+    intros.
+    iApply spec_coupl_step_r_adv; try done; first naive_solver.
+    rewrite Expval_const; last done.
+    rewrite prim_step_mass; first lra.
+    naive_solver.
+  Qed.
+  
   (** TODO: state step for LHS *)
 (*   Lemma spec_coupl_state_step α σ1 Z (ε ε' : nonnegreal) : *)
 (*     α ∈ get_active σ1 → *)
