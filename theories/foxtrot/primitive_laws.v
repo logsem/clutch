@@ -571,7 +571,7 @@ Section lifting.
       rewrite app_nil_r. by iFrame.
   Qed.
   
-  Lemma step_load E K l q v j:
+  Lemma pupd_load E K l q v j:
     j ⤇ fill K (!#l) ∗ l ↦ₛ{q} v
     ⊢ pupd E E (j ⤇ fill K (of_val v) ∗ l ↦ₛ{q} v).
   Proof.
@@ -607,7 +607,7 @@ Section lifting.
       rewrite app_nil_r. by iFrame.
   Qed.
 
-  Lemma step_store E K l v' e v j:
+  Lemma pupd_store E K l v' e v j:
     IntoVal e v →
     j ⤇ fill K (#l <- e) ∗ l ↦ₛ v'
     ⊢ pupd E E (j ⤇ fill K #() ∗ l ↦ₛ v).
@@ -645,6 +645,197 @@ Section lifting.
       rewrite app_nil_r. by iFrame.
   Qed.
 
+  Lemma pupd_fork E K e j:
+    j ⤇ fill K (Fork e)
+    ⊢ pupd E E (j ⤇ fill K #() ∗ ∃ k, k ⤇ e).
+  Proof.
+    iIntros "HK".
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ1 [] ε1) "(H1 & H2 & H3)".
+    iDestruct (spec_auth_prog_agree with "[$][$]") as "%".
+    iMod (spec_update_prog with "[$][$]") as "[HK Hs]".
+    iMod (spec_fork_prog with "[$]") as "[??]".    
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    iApply spec_coupl_step_r; [|done|..].
+    - apply reducible_fill. apply head_prim_reducible. solve_red.
+    - instantiate (2:=0%NNR). instantiate (1:= ε1). simpl.
+      lra.
+    - simpl.
+      rewrite fill_dmap //=.
+      rewrite head_prim_step_eq//.
+      simpl.
+      rewrite dmap_dret/=.
+      apply pgl_dret.
+      instantiate (2:= λ x, x =(fill K #(), s, [e])).
+      naive_solver.
+    - iIntros (???) "%".
+      destruct!/=.
+      iApply spec_coupl_ret.
+      iModIntro.
+      iMod "Hclose".
+      by iFrame.
+  Qed.
+
+  Lemma pupd_cmpxchg_fail E K l q v v1 v2 j:
+    vals_compare_safe v v1 ->
+    v ≠ v1 ->
+    j ⤇ fill K (CmpXchg #l v1 v2) ∗ l ↦ₛ{q} v
+    ⊢ pupd E E (j ⤇ fill K (v, #false)%V ∗ l ↦ₛ{q} v).
+  Proof.
+    iIntros (??) "[HK HL]".
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ1 [] ε1) "(H1 & H2 & H3)".
+    iDestruct (spec_auth_prog_agree with "[$][$]") as "%".
+    iDestruct (spec_auth_lookup_heap with "[$][$]") as "%".
+    iMod (spec_update_prog with "[$][$]") as "[HK Hs]".
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    iApply spec_coupl_step_r; [|done|..].
+    - apply reducible_fill. apply head_prim_reducible. solve_red.
+    - instantiate (2:=0%NNR). instantiate (1:= ε1). simpl.
+      lra.
+    - simpl.
+      rewrite fill_dmap //=.
+      rewrite head_prim_step_eq//.
+      simpl.
+      case_match; last done.
+      simplify_eq.
+      case_match; last done.
+      rewrite bool_decide_eq_false_2; last done.
+      rewrite dmap_dret/=.
+      apply pgl_dret.
+      rewrite /prim_step/=.
+      simplify_eq.
+      instantiate (2:= λ x, x =(fill K (v, #false)%V, s, [])).
+      naive_solver.
+    - iIntros (???) "%".
+      destruct!/=.
+      iApply spec_coupl_ret.
+      iModIntro.
+      iMod "Hclose".
+      iFrame. 
+      rewrite app_nil_r. by iFrame.
+  Qed.
+    
+  Lemma pupd_cmpxchg_suc E K l v v1 v2 j:
+    vals_compare_safe v v1 ->
+    v = v1 ->
+    j ⤇ fill K (CmpXchg #l v1 v2) ∗ l ↦ₛ v
+    ⊢ pupd E E (j ⤇ fill K (v, #true)%V ∗ l ↦ₛ v2).
+  Proof.
+    iIntros (??) "[HK HL]".
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ1 [] ε1) "(H1 & H2 & H3)".
+    iDestruct (spec_auth_prog_agree with "[$][$]") as "%".
+    iDestruct (spec_auth_lookup_heap with "[$][$]") as "%".
+    iMod (spec_auth_update_heap with "[$][$]") as "[??]".
+    iMod (spec_update_prog with "[$][$]") as "[HK Hs]".
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    iApply spec_coupl_step_r; [|done|..].
+    - apply reducible_fill. apply head_prim_reducible. solve_red.
+    - instantiate (2:=0%NNR). instantiate (1:= ε1). simpl.
+      lra.
+    - simpl.
+      rewrite fill_dmap //=.
+      rewrite head_prim_step_eq//.
+      simpl.
+      case_match; last done.
+      simplify_eq.
+      case_match; last done.
+      rewrite bool_decide_eq_true_2; last done.
+      rewrite dmap_dret/=.
+      apply pgl_dret.
+      rewrite /prim_step/=.
+      simplify_eq.
+      instantiate (2:= λ x, x =(fill K (v, #true)%V, state_upd_heap <[l:=v2]> s, [])).
+      naive_solver.
+    - iIntros (???) "%".
+      destruct!/=.
+      iApply spec_coupl_ret.
+      iModIntro.
+      iMod "Hclose".
+      iFrame. 
+      rewrite app_nil_r. by iFrame.
+  Qed. 
+
+  Lemma pupd_xchg E K l v1 v2 j:
+    j ⤇ fill K (Xchg #l v2) ∗ l ↦ₛ v1
+    ⊢ pupd E E (j ⤇ fill K v1 ∗ l ↦ₛ v2).
+  Proof.
+    iIntros "[HK HL]".
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ1 [] ε1) "(H1 & H2 & H3)".
+    iDestruct (spec_auth_prog_agree with "[$][$]") as "%".
+    iDestruct (spec_auth_lookup_heap with "[$][$]") as "%".
+    iMod (spec_auth_update_heap with "[$][$]") as "[??]".
+    iMod (spec_update_prog with "[$][$]") as "[HK Hs]".
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    iApply spec_coupl_step_r; [|done|..].
+    - apply reducible_fill. apply head_prim_reducible. solve_red.
+    - instantiate (2:=0%NNR). instantiate (1:= ε1). simpl.
+      lra.
+    - simpl.
+      rewrite fill_dmap //=.
+      rewrite head_prim_step_eq//.
+      simpl.
+      case_match; last done.
+      simplify_eq.
+      rewrite dmap_dret/=.
+      apply pgl_dret.
+      rewrite /prim_step/=.
+      simplify_eq.
+      instantiate (2:= λ x, x =(fill K v1, state_upd_heap <[l:=v2]> s, [])).
+      naive_solver.
+    - iIntros (???) "%".
+      destruct!/=.
+      iApply spec_coupl_ret.
+      iModIntro.
+      iMod "Hclose".
+      iFrame. 
+      rewrite app_nil_r. by iFrame.
+  Qed.
+
+  Lemma pupd_faa E K l (i1 i2:Z) j:
+    j ⤇ fill K (FAA #l #i2) ∗ l ↦ₛ #i1
+    ⊢ pupd E E (j ⤇ fill K #i1 ∗ l ↦ₛ #(i1+i2)%Z).
+  Proof.
+    iIntros "[HK HL]".
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ1 [] ε1) "(H1 & H2 & H3)".
+    iDestruct (spec_auth_prog_agree with "[$][$]") as "%".
+    iDestruct (spec_auth_lookup_heap with "[$][$]") as "%".
+    iMod (spec_auth_update_heap with "[$][$]") as "[??]".
+    iMod (spec_update_prog with "[$][$]") as "[HK Hs]".
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    iApply spec_coupl_step_r; [|done|..].
+    - apply reducible_fill. apply head_prim_reducible. solve_red.
+    - instantiate (2:=0%NNR). instantiate (1:= ε1). simpl.
+      lra.
+    - simpl.
+      rewrite fill_dmap //=.
+      rewrite head_prim_step_eq//.
+      simpl.
+      case_match; last done.
+      simplify_eq.
+      rewrite dmap_dret/=.
+      apply pgl_dret.
+      rewrite /prim_step/=.
+      simplify_eq.
+      instantiate (2:= λ x, x =(fill K #i1, state_upd_heap <[l:=#(i1 + i2)]> s, [])).
+      naive_solver.
+    - iIntros (???) "%".
+      destruct!/=.
+      iApply spec_coupl_ret.
+      iModIntro.
+      iMod "Hclose".
+      iFrame. 
+      rewrite app_nil_r. by iFrame.
+  Qed. 
+  
   (* (** spec [rand] *) *)
   (* Lemma wp_rand_r N z E e K Φ : *)
   (*   TCEq N (Z.to_nat z) → *)
