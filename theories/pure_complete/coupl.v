@@ -36,20 +36,16 @@ Proof.
   lra. 
 Qed.
 
-Lemma dbind_det_inv1 `{Countable A, Countable B} (μ : distr A) (f : A -> distr B):
-  SeriesC (dbind f μ) = 1 ->
-  SeriesC μ = 1.
+Lemma dmap_one `{Countable A, Countable B} (μ : distr A) (f : A -> B) a b :
+  μ a = 1 ->
+  b = f a ->
+  dmap f μ b = 1.
 Proof.
   intros.
-  rewrite dbind_mass in H1.
-  apply Rle_antisym; auto.
-  rewrite -H1.
-  apply SeriesC_le; auto.
-  intros.
-  split.
-  - apply Rmult_le_pos; auto.
-  - rewrite -(Rmult_1_r (μ n)) Rmult_assoc. 
-    apply Rmult_le_compat_l; auto; real_solver.
+  apply pmf_1_eq_dret in H1.
+  subst. 
+  rewrite dmap_dret.
+  by apply dret_1_1.
 Qed.
 
 Lemma SeriesC_0_nonneg `{Countable A} (f : A -> R):
@@ -69,6 +65,22 @@ Proof.
     apply pos_series_le_one; auto.
   }
   lra.
+Qed.
+
+Lemma dbind_det_inv1 `{Countable A, Countable B} (μ : distr A) (f : A -> distr B):
+  SeriesC (dbind f μ) = 1 ->
+  SeriesC μ = 1.
+Proof.
+  intros.
+  rewrite dbind_mass in H1.
+  apply Rle_antisym; auto.
+  rewrite -H1.
+  apply SeriesC_le; auto.
+  intros.
+  split.
+  - apply Rmult_le_pos; auto.
+  - rewrite -(Rmult_1_r (μ n)) Rmult_assoc. 
+    apply Rmult_le_compat_l; auto; real_solver.
 Qed.
 
 Lemma dbind_det_inv2 `{Countable A, Countable B} (μ : distr A) (f : A -> distr B):
@@ -99,6 +111,20 @@ Proof.
     simpl.
     apply Rmult_le_pos; try real_solver. by apply Rle_0_le_minus. 
 Qed.
+
+Lemma erasable_execN_det e μ σ n: 
+  erasable μ σ ->
+  SeriesC (exec n (e, σ)) = 1 ->
+  ∀ σ', μ σ' > 0 ->
+    SeriesC (exec n (e, σ')) = 1.
+Proof.
+  rewrite /erasable.
+  intros.
+  pose proof (H e n). 
+  rewrite -H2 in H0. 
+  eapply dbind_det_inv2 in H0; eauto.
+Qed.
+    
 
 Definition is_det `{Countable A} (μ : distr A) :=
   ∃ a, μ = dret a.
@@ -149,12 +175,6 @@ Inductive SamplesOneTape : loc -> expr -> Prop :=
     SamplesOneTape t (if: e2 then e3 else e4)%E
   | SamplesOneTapeVar t s : 
     SamplesOneTape t (Var s)
-  | SamplesOneTapeAllocN t e1 e2 (H : SamplesOneTape t e1) (H1 : SamplesOneTape t e2):
-    SamplesOneTape t (AllocN e1 e2)
-  | SamplesOneTapeLoad t e1 (H : SamplesOneTape t e1) :
-    SamplesOneTape t (Load e1)
-  | SamplesOneTapeStore t e1 e2 (H : SamplesOneTape t e1) (H1 : SamplesOneTape t e2) :
-    SamplesOneTape t (Store e1 e2)
   | SamplesOneTapePair t e2 e3 (H : SamplesOneTape t e2) (H1 : SamplesOneTape t e3) :
     SamplesOneTape t (Pair e2 e3)
   | SamplesOneTapeFst t e2 (H : SamplesOneTape t e2) :
@@ -206,11 +226,6 @@ Inductive SamplesOneTapeItem (t : loc) : ectx_item -> Prop :=
   | SamplesOneTapeItemInjLCtx : SamplesOneTapeItem t InjLCtx
   | SamplesOneTapeItemInjRCtx : SamplesOneTapeItem t InjRCtx
   | SamplesOneTapeItemCaseCtx e1 e2 : SamplesOneTape t e1 -> SamplesOneTape t e2 -> SamplesOneTapeItem t (CaseCtx e1 e2)
-  | SamplesOneTapeItemAllocNLCtx v : SamplesOneTapeV t v -> SamplesOneTapeItem t (AllocNLCtx v)
-  | SamplesOneTapeItemAllocNRCtx e : SamplesOneTape t e -> SamplesOneTapeItem t (AllocNRCtx e)
-  | SamplesOneTapeItemLoadCtx : SamplesOneTapeItem t LoadCtx
-  | SamplesOneTapeItemStoreLCtx v : SamplesOneTapeV t v -> SamplesOneTapeItem t (StoreLCtx v)
-  | SamplesOneTapeItemStoreRCtx e : SamplesOneTape t e -> SamplesOneTapeItem t (StoreRCtx e)
   | SamplesOneTapeItemRandLCtx : SamplesOneTapeItem t (RandLCtx #t)
   | SamplesOneTapeItemTickCtx : SamplesOneTapeItem t TickCtx.
 
@@ -272,15 +287,9 @@ Lemma SamplesOneTape_head l e ei e' :
 Proof.
   intros.
   inversion H; subst; simpl in *; inversion H0;
-  try (destruct e2; inversion H3; done).
-  - destruct e2; inversion H5; done.
-  - destruct e2; destruct e1; inversion H4; done.
-  - destruct e1; inversion H3; done.
-  - destruct e2; destruct e1; inversion H4; done.
-  - destruct e3; destruct e2; inversion H4; done.
-  - destruct e2; inversion H5; done.
-  - destruct e2; destruct e3; inversion H4; done.
-  - destruct e2; destruct e3; inversion H4; done.
+  try (destruct e2; inversion H3; done);
+  try (destruct e3; destruct e2; inversion H4; done);
+  (destruct e2; inversion H5; done). 
 Qed.
 
 Lemma SamplesOneTape_ectx e l :
@@ -318,14 +327,10 @@ Proof.
   rewrite /decomp_item in Hde'.
   inversion H; subst; simpl in *;
   try by inversion Hde';
-  try by (destruct e3; inversion Hde'; econstructor).
-  - destruct e4; destruct e3; inversion Hde'; econstructor; auto; by inversion H1. 
-  - destruct e4; destruct e3; inversion Hde'; econstructor; auto; by inversion H1. 
-  - destruct e4; destruct e3; inversion Hde'; econstructor; auto; by inversion H1. 
-  - destruct e4; destruct e3; inversion Hde'; econstructor; auto; by inversion H1. 
-  - destruct e4; destruct e3; inversion Hde'; econstructor; auto; by inversion H1. 
+  try (destruct e3; inversion Hde'; econstructor; done);
+  try (destruct e4; destruct e3; inversion Hde'; econstructor; auto; by inversion H1). 
 Qed.
-
+  
 Lemma SamplesOneTape_decomp l e : 
   SamplesOneTape l e ->
   SamplesOneTape l (decomp e).2.
@@ -391,18 +396,6 @@ Proof.
   auto; inversion H. 
 Qed.
 
-Lemma dmap_one `{Countable A, Countable B} (μ : distr A) (f : A -> B) a b :
-  μ a = 1 ->
-  b = f a ->
-  dmap f μ b = 1.
-Proof.
-  intros.
-  apply pmf_1_eq_dret in H1.
-  subst. 
-  rewrite dmap_dret.
-  by apply dret_1_1.
-Qed.
-
 Lemma SamplesOneTape_step_det l e σ N v t e' σ':
   SamplesOneTape l e ->
   σ.(tapes) !! l = Some (N; v :: t) ->
@@ -441,6 +434,44 @@ Proof.
   - eauto.
 Qed.
 
+Lemma SamplesOneTape_subst l x v e : 
+  SamplesOneTape l e ->
+  SamplesOneTapeV l v ->
+  SamplesOneTape l (subst x v e).
+Proof.
+  intros.
+  induction e; simpl; auto;
+  try (inversion H; subst; case_decide; auto; econstructor; by eauto); 
+  try (inversion H; subst; econstructor; by eauto).  
+Qed.
+
+Lemma SamplesOneTape_head_inv l e σ e' σ':
+  SamplesOneTape l e ->
+  head_step e σ (e', σ') > 0 ->
+  SamplesOneTape l e'.
+Proof.
+  intros.
+  inversion H; inv_head_step;
+  auto;
+  try (inversion H1; inversion H5; subst; econstructor; eauto; econstructor; done);
+  try (do 2 econstructor; done); 
+  try (econstructor; econstructor; inversion H1; inversion H2; subst; done);
+  try (inversion H1; inversion H3; subst; econstructor; done). 
+  - inversion H1. inversion H4. inversion H2. subst. 
+    destruct x, f; simpl; auto; 
+    apply SamplesOneTape_subst; auto;
+    apply SamplesOneTape_subst; auto.
+  - destruct op; destruct v; inversion H3;
+    destruct l0; inversion H3; do 2 econstructor. 
+  - destruct op, v; inversion H5; 
+    try (destruct l0; inversion H5; destruct v0; inversion H5;
+    destruct l0; inversion H5; econstructor; try econstructor;
+    destruct l1; inversion H5; by econstructor);
+    try (unfold bin_op_eval in *;
+    case_decide; try contradiction; case_decide; inversion H5;
+    subst; do 2 econstructor). 
+Qed.
+
 Lemma SamplesOneTape_inv l e σ e' σ':
   SamplesOneTape l e ->
   step (e, σ) (e', σ') > 0 ->
@@ -455,11 +486,67 @@ Proof.
   destruct H0 as [[e1 σ1] [Hfl Hs]].
   inversion Hfl.
   apply SamplesOneTape_fill.
-  - admit.
+  - eapply SamplesOneTape_head_inv.
+    + eapply (SamplesOneTape_decomp'); last first; eauto.  
+    + eauto.
   - replace l0 with (decomp e).1; try by rewrite Hde. 
-    apply SamplesOneTape_ectx.
-    
-Admitted.
+    by apply SamplesOneTape_ectx. 
+Qed.
+  
+Lemma presamples_execN_det l σ n N t e:
+  σ.(tapes) !! l = Some (N; t) ->
+  (n <= length t)%nat ->
+  SeriesC (exec n (e, σ)) = 1 ->
+  SamplesOneTape l e -> 
+  is_det (exec n (e, σ)).
+Proof.
+  revert σ e t.
+  induction n.
+  {
+    intros.
+    destruct (to_val e) eqn : Hve.
+    { 
+      erewrite exec_is_final; try by simpl.
+      by econstructor. 
+    }
+    rewrite exec_O_not_final in H1; auto.
+    rewrite dzero_mass in H1.
+    lra.
+  }
+  intros.
+  destruct (to_val e) eqn : Hve.
+  { 
+    erewrite exec_is_final; try by simpl.
+    by econstructor. 
+  }
+  rewrite exec_Sn_not_final; auto.
+  destruct t; simpl in H0; try lia.
+  apply is_det_bind.
+  {
+    epose proof (exec_pos_step_pos (e, σ) (S n) _ _) as [[e' σ'] Hr].
+    Unshelve.
+    2 : auto.
+    2 : rewrite H1; lra.
+    exists (e', σ').
+    apply pmf_1_eq_dret.
+    eapply SamplesOneTape_step_det; eauto.
+  }
+  intros.
+  destruct a as [e' σ'].
+  rewrite exec_Sn_not_final in H1; auto.
+  epose proof (dbind_det_inv2 _ _ H1 _ H3).
+  epose proof (SamplesOneTape_step_state _ _ _ _ _ _ _ _ H2 H H3) as [Ht | Ht].
+  - eapply IHn.
+    + by rewrite Ht. 
+    + simpl. lia.
+    + auto.
+    + by eapply SamplesOneTape_inv. 
+  - eapply IHn.
+    + rewrite Ht. rewrite lookup_insert. done.
+    + lia.
+    + auto.
+    + by eapply SamplesOneTape_inv. 
+Qed. 
 
 Definition state_stepN σ l n := iterM n (λ σ', state_step σ' l) σ.
 
@@ -517,159 +604,31 @@ Proof.
     by inversion H2.
 Qed.
 
-Lemma presamples_execN_det l σ n N t e:
-  σ.(tapes) !! l = Some (N; t) ->
-  (n <= length t)%nat ->
-  SeriesC (exec n (e, σ)) = 1 ->
-  SamplesOneTape l e -> 
-  is_det (exec n (e, σ)).
-Proof.
-  revert σ e t.
-  induction n.
-  {
-    intros.
-    destruct (to_val e) eqn : Hve.
-    { 
-      erewrite exec_is_final; try by simpl.
-      by econstructor. 
-    }
-    rewrite exec_O_not_final in H1; auto.
-    rewrite dzero_mass in H1.
-    lra.
-  }
-  intros.
-  destruct (to_val e) eqn : Hve.
-  { 
-    erewrite exec_is_final; try by simpl.
-    by econstructor. 
-  }
-  rewrite exec_Sn_not_final; auto.
-  destruct t; simpl in H0; try lia.
-  apply is_det_bind.
-  {
-    epose proof (exec_pos_step_pos (e, σ) (S n) _ _) as [[e' σ'] Hr].
-    Unshelve.
-    2 : auto.
-    2 : rewrite H1; lra.
-    exists (e', σ').
-    apply pmf_1_eq_dret.
-    eapply SamplesOneTape_step_det; eauto.
-  }
-  intros.
-  destruct a as [e' σ'].
-  rewrite exec_Sn_not_final in H1; auto.
-  epose proof (dbind_det_inv2 _ _ H1 _ H3).
-  epose proof (SamplesOneTape_step_state _ _ _ _ _ _ _ _ H2 H H3) as [Ht | Ht].
-  - eapply IHn.
-    + by rewrite Ht. 
-    + simpl. lia.
-    + auto.
-    + by eapply SamplesOneTape_inv. 
-  - eapply IHn.
-    + rewrite Ht. rewrite lookup_insert. done.
-    + lia.
-    + auto.
-    + by eapply SamplesOneTape_inv. 
-Qed.
-
-(* Lemma SamplesOneTape_state_stepN_det l σ σ' n N t e:
+ Lemma SamplesOneTape_state_stepN_det l σ σ' n N t e:
   σ.(tapes) !! l = Some (N; t) ->
   SeriesC (exec n (e, σ)) = 1 ->
   SamplesOneTape l e -> 
   (state_stepN σ l n) σ' > 0 ->
   is_det (exec n (e, σ')).
 Proof.
-  revert e σ σ' t.
-  induction n.
-  - intros.
-    destruct (to_val e) eqn : Hve.
-    { 
-      erewrite exec_is_final; try by simpl.
-      by econstructor. 
-    }
-    rewrite exec_O_not_final in H0; auto.
-    rewrite dzero_mass in H0.
-    lra.
-  - intros.
-    destruct (to_val e) eqn : Hve.
-    { 
-      erewrite exec_is_final; try by simpl.
-      by econstructor. 
-    }
-    rewrite exec_Sn_not_final; auto.
-    apply (state_stepN_heap _ _ _ _ _ _ H) in H2 as Hh.
-    apply (state_stepN_tape _ _ _ _ _ _ H) in H2 as [t' [Ht Hst]].
-    apply is_det_bind.
-    { admit. }
-    intros.
-    eapply IHn.
-
-
-
-Admitted. *)
-
-
-(* Lemma SamplesOneTape_presamples_n' (l : loc) σ n N t :
-  σ.(tapes) !! l = Some (N; t) ->
-  ∃ μ, erasable μ σ ∧
-    ∀ σ', μ σ' > 0 -> 
-      σ'.(heap) = σ.(heap) ∧
-      (∃ t', σ'.(tapes) = <[l:=(N; t')]>(σ.(tapes))) ∧
-      (∀ e, (SeriesC (exec n (e, σ)) = 1 ->
-       SamplesOneTape l e -> is_det (exec n (e, σ')))).
-Proof.
   intros.
-  induction n.
-  {
-    exists (dret σ).
-     split.
-    { apply dret_erasable. }
-    intros.
-    apply dret_pos in H0.
-    subst.
-    split; auto.
-    split. { exists t. by rewrite insert_id. }
-    intros.
-    destruct (to_val e) eqn : Hve.
-    { erewrite exec_is_final; try by simpl. by econstructor. }
-    rewrite exec_O_not_final in H0; auto.
-    rewrite dzero_mass in H0.
-    lra.
+  destruct (to_val e) eqn : Hve.
+  { 
+    erewrite exec_is_final; try by simpl.
+    by econstructor. 
   }
-  destruct IHn as (μ0 & Heμ0 & Hes).
-  exists (dbind (fun s => state_step s l) μ0).
-  split.
-  - apply erasable_dbind; auto.
-    intros. 
-    apply Hes in H0 as (? & (?&?) &?).
-    eapply erasure.state_step_erasable. 
-    rewrite H1 lookup_insert //.
-  - intros.
+  apply (state_stepN_heap _ _ _ _ _ _ H) in H2 as Hh.
+  pose proof (state_stepN_tape _ _ _ _ _ _ H H2) as [t' [Ht Hst]]. 
+  eapply presamples_execN_det; eauto.
+  - rewrite Hst. apply lookup_insert. 
+  - rewrite app_length Ht. lia.
+  - eapply erasable_execN_det.
+    + eapply erasure.iterM_state_step_erasable; eauto.
+    + auto.
+    + by rewrite /state_stepN in H2.
+Qed.
 
-    
-
-
-    (* 
-    destruct (to_val e) eqn : Hve.
-    2 : { 
-      rewrite exec_O_not_final in H0; auto.
-      rewrite dzero_mass in H0.
-      lra.
-    }
-    split; auto.
-    split.
-    2 : { erewrite exec_is_final; try by simpl. by econstructor. }
-    exists t.
-    rewrite insert_id; auto.
-  }
-  destruct IHn as (μ0 & Heμ0 & Hes).
-  exists (dbind (fun s => state_step s l) μ0).
-  split.
-  - apply erasable_dbind; auto.
-    intros. eapply erasure.state_step_erasable. apply H. *)
-
-  
-Admitted.
+(* 
 
 Lemma SamplesOneTape_presamples_n (l : loc) e σ n N t :
   SeriesC (exec n (e, σ)) = 1 ->
