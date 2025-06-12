@@ -793,7 +793,7 @@ Section probability_lemmas.
     rewrite /prob{1}/pmf/=/dbind_pmf/=.
     assert (∀ a,
                (if P a then SeriesC (λ a0 : A, μ a0 * f a0 a) else 0) =
-               SeriesC (λ a0 : A, if P a then μ a0 * f a0 a else 0)) as Haux.
+                 SeriesC (λ a0 : A, if P a then μ a0 * f a0 a else 0)) as Haux.
     {intro a. destruct (P a); [done|]. rewrite SeriesC_0 //. }
     setoid_rewrite Haux.
     rewrite -(fubini_pos_seriesC (λ '(a, a0), if P a then μ a0 * f a0 a else 0)).
@@ -813,6 +813,8 @@ Section probability_lemmas.
           exists 1. real_solver.
       + apply (pmf_ex_seriesC (dbind f μ)).
   Qed.
+
+
 
   Lemma union_bound (μ : distr A) (P Q : A → bool) :
     prob μ (λ a, orb (P a) (Q a)) <= prob μ P + prob μ Q.
@@ -1465,6 +1467,8 @@ Section dmap.
       intros [=]. eauto.
   Qed.
 
+
+
   Lemma Expval_dmap (μ : distr A) (f : A → B) (g : B → R) :
     (∀ b, 0 <= g b) →
     ex_expval μ (g ∘ f) →
@@ -1478,6 +1482,18 @@ Section dmap.
       + eapply ex_seriesC_ext; [|done].
         intros ?. rewrite Expval_dret //.
       + intros a. apply ex_expval_dret.
+  Qed.
+
+  Lemma prob_dmap `{Countable B} (μ : distr A) (f : A → B) (P : B → bool) :
+    prob (dmap f μ) P = prob μ (λ a, P (f a)).
+  Proof.
+    rewrite /dmap prob_dbind.
+    apply SeriesC_ext => a.
+    case (P (f a)) eqn:HP.
+    - rewrite prob_dret_true; auto.
+      real_solver.
+    - rewrite prob_dret_false; auto.
+      real_solver.
   Qed.
   
 End dmap.
