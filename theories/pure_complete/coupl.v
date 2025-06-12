@@ -192,6 +192,28 @@ with SamplesOneTapeV : loc -> val -> Prop :=
     SamplesOneTapeV t (LitV v)
 .
 
+Inductive SamplesOneTapeItem (t : loc) : ectx_item -> Prop :=
+  | SamplesOneTapeItemAppLCtx v : SamplesOneTapeV t v -> SamplesOneTapeItem t (AppLCtx  v)
+  | SamplesOneTapeItemAppRCtx e : SamplesOneTape t e -> SamplesOneTapeItem t (AppRCtx  e)
+  | SamplesOneTapeItemUnOpCtx op : SamplesOneTapeItem t (UnOpCtx  op)
+  | SamplesOneTapeItemBinOpLCtx op v : SamplesOneTapeV t v -> SamplesOneTapeItem t (BinOpLCtx op v)
+  | SamplesOneTapeItemBinOpRCtx op e : SamplesOneTape t e -> SamplesOneTapeItem t (BinOpRCtx op e)
+  | SamplesOneTapeItemIfCtx e1 e2 : SamplesOneTape t e1 -> SamplesOneTape t e2 -> SamplesOneTapeItem t (IfCtx e1 e2)
+  | SamplesOneTapeItemPairLCtx v : SamplesOneTapeV t v -> SamplesOneTapeItem t (PairLCtx v)
+  | SamplesOneTapeItemPairRCtx e : SamplesOneTape t e -> SamplesOneTapeItem t (PairRCtx e)
+  | SamplesOneTapeItemFstCtx : SamplesOneTapeItem t FstCtx
+  | SamplesOneTapeItemSndCtx : SamplesOneTapeItem t SndCtx
+  | SamplesOneTapeItemInjLCtx : SamplesOneTapeItem t InjLCtx
+  | SamplesOneTapeItemInjRCtx : SamplesOneTapeItem t InjRCtx
+  | SamplesOneTapeItemCaseCtx e1 e2 : SamplesOneTape t e1 -> SamplesOneTape t e2 -> SamplesOneTapeItem t (CaseCtx e1 e2)
+  | SamplesOneTapeItemAllocNLCtx v : SamplesOneTapeV t v -> SamplesOneTapeItem t (AllocNLCtx v)
+  | SamplesOneTapeItemAllocNRCtx e : SamplesOneTape t e -> SamplesOneTapeItem t (AllocNRCtx e)
+  | SamplesOneTapeItemLoadCtx : SamplesOneTapeItem t LoadCtx
+  | SamplesOneTapeItemStoreLCtx v : SamplesOneTapeV t v -> SamplesOneTapeItem t (StoreLCtx v)
+  | SamplesOneTapeItemStoreRCtx e : SamplesOneTape t e -> SamplesOneTapeItem t (StoreRCtx e)
+  | SamplesOneTapeItemRandLCtx : SamplesOneTapeItem t (RandLCtx #t)
+  | SamplesOneTapeItemTickCtx : SamplesOneTapeItem t TickCtx.
+
 
 Lemma SamplesOneTape_presamples_n_val (l : loc) e σ n N t v:
   to_val e = Some v ->
@@ -218,6 +240,31 @@ Proof.
   rewrite insert_id; auto.
 Qed.
 
+Lemma SamplesOneTape_fill_item Ki e l :
+  SamplesOneTape l e ->
+  SamplesOneTapeItem l Ki ->
+  SamplesOneTape l (fill_item Ki e).
+Proof.
+  intros.
+  inversion H0; simpl; 
+  econstructor; auto;
+  econstructor; auto.
+Qed.
+
+Lemma SamplesOneTape_fill K e l :
+  SamplesOneTape l e ->
+  Forall (SamplesOneTapeItem l) K ->
+  SamplesOneTape l (fill K e).
+Proof.
+  intros. 
+  revert e H.
+  induction K; auto. 
+  intros. simpl.
+  inversion H0; subst.
+  apply IHK; auto.
+  by apply SamplesOneTape_fill_item. 
+Qed.
+
 Lemma SamplesOneTape_head l e ei e' : 
   SamplesOneTape l e ->
   decomp_item e = Some (ei, e') ->
@@ -234,6 +281,49 @@ Proof.
   - destruct e2; inversion H5; done.
   - destruct e2; destruct e3; inversion H4; done.
   - destruct e2; destruct e3; inversion H4; done.
+Qed.
+
+Lemma SamplesOneTape_ectx e l :
+  SamplesOneTape l e ->
+  Forall (SamplesOneTapeItem l)(decomp e).1.
+Proof.
+  simpl.
+  destruct (decomp e) eqn : Hde.
+  remember (length l0).
+  revert e e0 l0 Hde Heqn.
+  induction n.
+  {
+    intros.
+    destruct l0; inversion Heqn.
+    apply decomp_inv_nil in Hde as [Hd Hde].
+    by subst e.
+  }
+  intros.
+  rewrite decomp_unfold in Hde.
+  destruct (ectxi_language.decomp_item e) eqn : Hde'; intros.
+  2: {inversion Hde. by subst e. }
+  destruct p.
+  destruct (decomp e2) eqn: Hde2.
+  inversion Hde. subst.
+  apply Forall_app_2. 
+  {
+    eapply IHn.
+    - apply Hde2.
+    - rewrite app_length Nat.add_1_r in Heqn. by inversion Heqn.
+    - simpl in *.
+      eapply SamplesOneTape_head; eauto.
+  }
+  apply Forall_singleton. 
+  simpl in *.
+  rewrite /decomp_item in Hde'.
+  inversion H; subst; simpl in *;
+  try by inversion Hde';
+  try by (destruct e3; inversion Hde'; econstructor).
+  - destruct e4; destruct e3; inversion Hde'; econstructor; auto; by inversion H1. 
+  - destruct e4; destruct e3; inversion Hde'; econstructor; auto; by inversion H1. 
+  - destruct e4; destruct e3; inversion Hde'; econstructor; auto; by inversion H1. 
+  - destruct e4; destruct e3; inversion Hde'; econstructor; auto; by inversion H1. 
+  - destruct e4; destruct e3; inversion Hde'; econstructor; auto; by inversion H1. 
 Qed.
 
 Lemma SamplesOneTape_decomp l e : 
@@ -277,7 +367,6 @@ Proof.
   2 : by rewrite H0.
   by apply SamplesOneTape_decomp.
 Qed.
-
 
 Lemma SamplesOneTape_head_step_det l e σ N v t e' σ':
   SamplesOneTape l e ->
@@ -357,6 +446,19 @@ Lemma SamplesOneTape_inv l e σ e' σ':
   step (e, σ) (e', σ') > 0 ->
   SamplesOneTape l e'.
 Proof.
+  unfold step.
+  simpl. unfold prim_step.
+  intros. 
+  destruct (decomp e) eqn : Hde.
+  simpl in *.
+  rewrite Hde dmap_pos in H0.
+  destruct H0 as [[e1 σ1] [Hfl Hs]].
+  inversion Hfl.
+  apply SamplesOneTape_fill.
+  - admit.
+  - replace l0 with (decomp e).1; try by rewrite Hde. 
+    apply SamplesOneTape_ectx.
+    
 Admitted.
 
 Definition state_stepN σ l n := iterM n (λ σ', state_step σ' l) σ.
