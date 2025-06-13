@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
-From clutch.prob Require Import distribution couplings couplings_app couplings_exp mdp.
+From clutch.prob Require Import distribution couplings couplings_app couplings_exp couplings_dp mdp.
 Set Default Proof Using "Type*".
 
 (** * Markov Chains *)
@@ -1338,9 +1338,9 @@ End lex_martingales.
 
 (** Couplings  *)
 Section Coupl.
-  Context {δ : markov}.
+  Context {M : markov}.
 
-  Lemma lim_exec_ARcoupl `{Countable B} (a : mstate δ) (μ2 : distr B) φ ε :
+  Lemma lim_exec_ARcoupl `{Countable B} (a : mstate M) (μ2 : distr B) φ ε :
     0 <= ε →
     (∀ n, ARcoupl (exec n a) μ2 φ ε) →
     ARcoupl (lim_exec a) μ2 φ ε.
@@ -1386,7 +1386,7 @@ Section Coupl.
       by eapply Hn.
   Qed.
 
-  Lemma lim_exec_Mcoupl `{Countable B} (a : mstate δ) (μ2 : distr B) φ ε :
+  Lemma lim_exec_Mcoupl `{Countable B} (a : mstate M) (μ2 : distr B) φ ε :
     0 <= ε →
     (∀ n, Mcoupl (exec n a) μ2 φ ε) →
     Mcoupl (lim_exec a) μ2 φ ε.
@@ -1426,6 +1426,54 @@ Section Coupl.
           done.
     - apply Rbar_le_fin'.
       { apply Rmult_le_pos. 1: left ; apply exp_pos.
+        apply SeriesC_ge_0'. real_solver. }
+      apply upper_bound_ge_sup.
+      intro; simpl. auto.
+      by eapply Hn.
+  Qed.
+
+
+  Lemma lim_exec_DPcoupl `{Countable B} (a : mstate M) (μ2 : distr B) φ ε δ :
+    0 <= ε → 0 <= δ ->
+    (∀ n, DPcoupl (exec n a) μ2 φ ε δ) →
+    DPcoupl (lim_exec a) μ2 φ ε δ.
+  Proof.
+    intros Hε Hδ Hn.
+    assert (∀ a', Rbar.is_finite
+                   (Lim_seq.Sup_seq (λ n, Rbar.Finite (exec n a a')))) as Hfin.
+    { intro a'.
+      apply (is_finite_bounded 0 1).
+      - apply (Lim_seq.Sup_seq_minor_le _ _ 0); simpl.
+        case_match; auto.
+      - by apply upper_bound_ge_sup; intro; simpl. }
+    intros f g Hf Hg Hfg.
+    rewrite {1}/lim_exec.
+    setoid_rewrite lim_distr_pmf at 1.
+    transitivity (Rbar.real (Lim_seq.Sup_seq
+                               (λ n, Rbar.Finite (SeriesC (λ v, exec n a v * f v))))).
+    - right.
+      setoid_rewrite (rbar_scal_r); [|done].
+      setoid_rewrite <- Sup_seq_scal_r; [|apply Hf].
+      simpl.
+      eapply MCT_seriesC.
+      + intros. real_solver.
+      + intros. apply Rmult_le_compat_r; [apply Hf | apply exec_mono].
+      + intros; exists 1; intros. real_solver.
+      + intro n. apply SeriesC_correct.
+        apply (ex_seriesC_le _ (exec n a)); auto.
+        intros; real_solver.
+      + rewrite rbar_finite_real_eq.
+        { apply Lim_seq.Sup_seq_correct. }
+        apply (is_finite_bounded 0 1).
+        * apply (Lim_seq.Sup_seq_minor_le _ _ 0); simpl.
+          apply SeriesC_ge_0' => ?. case_match; real_solver.
+        * apply upper_bound_ge_sup; intro; simpl.
+          etrans.
+          { apply (SeriesC_le _ (exec n a)); [|done]. real_solver. }
+          done.
+    - apply Rbar_le_fin'.
+      { apply Rplus_le_le_0_compat; auto.
+        apply Rmult_le_pos. 1: left ; apply exp_pos.
         apply SeriesC_ge_0'. real_solver. }
       apply upper_bound_ge_sup.
       intro; simpl. auto.

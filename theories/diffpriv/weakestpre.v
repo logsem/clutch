@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.common Require Export language erasable.
 From clutch.base_logic Require Export spec_update.
-From clutch.prob Require Export couplings_exp distribution.
+From clutch.prob Require Export couplings_dp distribution.
 
 Import uPred.
 
@@ -17,7 +17,7 @@ Class diffprivWpGS (Λ : language) (Σ : gFunctors) `{!spec_updateGS (lang_marko
   #[global] diffprivWpGS_invGS :: invGS_gen HasNoLc Σ;
 
   state_interp : state Λ → iProp Σ;
-  err_interp : nonnegreal → iProp Σ;
+  err_interp : nonnegreal → nonnegreal -> iProp Σ;
 }.
 Global Opaque diffprivWpGS_invGS.
 Global Arguments DiffprivWpGS {Λ Σ _}.
@@ -34,23 +34,24 @@ Section coupl_modalities.
 
   (** The [spec_coupl] modality allows us to (optionally) prepend spec execution steps and erasable
       distributions, e.g. [state_step]s on both sides. *)
-  Definition spec_coupl_pre E Z (Φ : state Λ * cfg Λ * nonnegreal → iProp Σ) : state Λ * cfg Λ * nonnegreal → iProp Σ :=
-    (λ (x : state Λ * cfg Λ * nonnegreal),
-      let '(σ1, (e1', σ1'), ε) := x in
-      (Z σ1 e1' σ1' ε) ∨
+  Definition spec_coupl_pre E Z (Φ : state Λ * cfg Λ * nonnegreal * nonnegreal → iProp Σ) :
+    state Λ * cfg Λ * nonnegreal * nonnegreal → iProp Σ :=
+    (λ (x : state Λ * cfg Λ * nonnegreal * nonnegreal),
+      let '(σ1, (e1', σ1'), ε, δ) := x in
+      (Z σ1 e1' σ1' ε δ) ∨
       (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : distr (state Λ)) (μ1' : distr (state Λ))
-         (ε1 : nonnegreal)
-         (ε2 : nonnegreal),
-         ⌜Mcoupl μ1 (σ2' ← μ1'; pexec n (e1', σ2')) S ε1⌝ ∗
-         ⌜(ε1 + ε2) <= ε⌝ ∗
+         (ε1 : nonnegreal) (δ1 : nonnegreal)
+         (ε2 : nonnegreal) (δ2 : nonnegreal),
+         ⌜DPcoupl μ1 (σ2' ← μ1'; pexec n (e1', σ2')) S ε1 δ1⌝ ∗
+         ⌜(ε1 + ε2) <= ε⌝ ∗ ⌜(δ1 + δ2) <= δ⌝ ∗
          ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
-         ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ Φ (σ2, (e2', σ2'), ε2)))%I.
+         ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ Φ (σ2, (e2', σ2'), ε2, δ2)))%I.
 
   #[local] Instance spec_coupl_pre_ne Z E Φ :
     NonExpansive (spec_coupl_pre E Z Φ).
   Proof.
     rewrite /spec_coupl_pre.
-    intros ? ((?&?&?) & ?) ((?&?&?) & ?) ([[=] ([=] & [=])] & [=]).
+    intros ? (((?&?&?)&?)&?) (((?&?&?)&?)&?) ([[[=] [[=] [=]]] [=]] & [=]).
     by simplify_eq/=.
   Qed.
 
@@ -58,8 +59,8 @@ Section coupl_modalities.
   Proof.
     split; [|apply _].
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
-    iIntros (((σ1 & e1' & σ1') & ε))
-      "[? | (% & % & % & % & % & % & % & % & % & % & H)]".
+    iIntros ((((σ1 & e1' & σ1')& ε) & δ))
+      "[? | (% & % & % & % & % & % & % & % & % & % & % & % & % & H)]".
     - iLeft. done.
     - iRight.
       repeat iExists _.
@@ -67,124 +68,152 @@ Section coupl_modalities.
       iIntros (????). iApply "Hwand". by iApply "H".
   Qed.
 
-  Implicit Type ε : nonnegreal.
+  Implicit Type ε δ: nonnegreal.
 
   Definition spec_coupl' E Z := bi_least_fixpoint (spec_coupl_pre E Z).
-  Definition spec_coupl E σ e' σ' ε Z := spec_coupl' E Z (σ, (e', σ'), ε).
+  Definition spec_coupl E σ e' σ' ε δ Z := spec_coupl' E Z (σ, (e', σ'), ε, δ).
 
-  Lemma spec_coupl_unfold E σ1 e1' σ1' ε Z :
-    spec_coupl E σ1 e1' σ1' ε Z ≡
-      ((Z σ1 e1' σ1' ε) ∨
+  Lemma spec_coupl_unfold E σ1 e1' σ1' ε δ Z :
+    spec_coupl E σ1 e1' σ1' ε δ Z ≡
+      ((Z σ1 e1' σ1' ε δ) ∨
       (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : distr (state Λ)) (μ1' : distr (state Λ))
-         ε1 ε2,
-         ⌜Mcoupl μ1 (σ2' ← μ1'; pexec n (e1', σ2')) S ε1⌝ ∗
-         ⌜ε1 + ε2 <= ε⌝ ∗
+         ε1 δ1 ε2 δ2,
+         ⌜DPcoupl μ1 (σ2' ← μ1'; pexec n (e1', σ2')) S ε1 δ1⌝ ∗
+         ⌜ε1 + ε2 <= ε⌝ ∗ ⌜(δ1 + δ2) <= δ⌝ ∗
          ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
-         ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ spec_coupl E σ2 e2' σ2' ε2 Z))%I.
+         ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ spec_coupl E σ2 e2' σ2' ε2 δ2 Z))%I.
   Proof. rewrite /spec_coupl /spec_coupl' least_fixpoint_unfold //. Qed.
 
-  Lemma spec_coupl_ret E σ1 e1' σ1' Z ε :
-    Z σ1 e1' σ1' ε -∗ spec_coupl E σ1 e1' σ1' ε Z.
+  Lemma spec_coupl_ret E σ1 e1' σ1' Z ε δ:
+    Z σ1 e1' σ1' ε δ -∗ spec_coupl E σ1 e1' σ1' ε δ Z.
   Proof. iIntros. rewrite spec_coupl_unfold. by iLeft. Qed.
 
-  Lemma spec_coupl_rec σ1 e1' σ1' E ε Z :
+  Lemma spec_coupl_rec σ1 e1' σ1' E ε δ Z :
     (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : distr (state Λ)) (μ1' : distr (state Λ))
-       ε1 ε2,
-       ⌜Mcoupl μ1 (σ2' ← μ1'; pexec n (e1', σ2')) S ε1⌝ ∗
-       ⌜ε1 + ε2 <= ε⌝ ∗
+       ε1 δ1 ε2 δ2,
+       ⌜DPcoupl μ1 (σ2' ← μ1'; pexec n (e1', σ2')) S ε1 δ1⌝ ∗
+       ⌜ε1 + ε2 <= ε⌝ ∗ ⌜(δ1 + δ2) <= δ⌝ ∗
        ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
-       ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ spec_coupl E σ2 e2' σ2' ε2 Z)%I
-    ⊢ spec_coupl E σ1 e1' σ1' ε Z.
+       ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ spec_coupl E σ2 e2' σ2' ε2 δ2 Z)%I
+    ⊢ spec_coupl E σ1 e1' σ1' ε δ Z.
   Proof. iIntros "H". rewrite spec_coupl_unfold. iRight. done. Qed.
 
-  Lemma spec_coupl_ind E (Ψ Z : state Λ → expr Λ → state Λ → nonnegreal → iProp Σ) :
-    ⊢ (□ (∀ σ e' σ' ε,
-             spec_coupl_pre E Z (λ '(σ, (e', σ'), ε'),
-                 Ψ σ e' σ' ε' ∧ spec_coupl E σ e' σ' ε' Z)%I (σ, (e', σ'), ε) -∗ Ψ σ e' σ' ε) →
-       ∀ σ e' σ' ε, spec_coupl E σ e' σ' ε Z -∗ Ψ σ e' σ' ε)%I.
+  Lemma spec_coupl_ind E (Ψ Z : state Λ → expr Λ → state Λ → nonnegreal → nonnegreal -> iProp Σ) :
+    ⊢ (□ (∀ σ e' σ' ε δ,
+             spec_coupl_pre E Z (λ '(σ, (e', σ'), ε', δ'),
+                 Ψ σ e' σ' ε' δ' ∧ spec_coupl E σ e' σ' ε' δ' Z)%I (σ, (e', σ'), ε, δ) -∗ Ψ σ e' σ' ε δ) →
+       ∀ σ e' σ' ε δ, spec_coupl E σ e' σ' ε δ Z -∗ Ψ σ e' σ' ε δ)%I.
   Proof.
-    iIntros "#IH" (σ e' σ' ε) "H".
-    set (Ψ' := (λ '(σ, (e', σ'), ε), Ψ σ e' σ' ε) :
-           (prodO (prodO (stateO Λ) (prodO (exprO Λ) (stateO Λ))) NNRO) → iProp Σ).
+    iIntros "#IH" (σ e' σ' ε δ) "H".
+    set (Ψ' := (λ '(σ, (e', σ'), ε, δ), Ψ σ e' σ' ε δ) :
+           (prodO (prodO (prodO (stateO Λ) (prodO (exprO Λ) (stateO Λ))) NNRO) NNRO) → iProp Σ).
     assert (NonExpansive Ψ').
-    { intros n [[σ1 [e1' σ1']] ε1] [[σ2 [e2' σ2']] ε2].
-      intros ([[=] ([=] & [=])] & [=]).
+    { intros n [[[σ1 [e1' σ1']] ε1] δ1] [[[σ2 [e2' σ2']] ε2] δ2].
+      intros (([[=] ([=] & [=])] & [=]) & [=]).
       by simplify_eq/=. }
     iApply (least_fixpoint_ind _ Ψ' with "[] H").
-    iIntros "!#" ([[? [??]] ?]) "H". by iApply "IH".
+    iIntros "!#" ([[[? [??]] ?] ?]) "H". by iApply "IH".
   Qed.
 
-  Lemma fupd_spec_coupl E σ1 e1' σ1' Z ε :
-    (|={E}=> spec_coupl E σ1 e1' σ1' ε Z) ⊢ spec_coupl E σ1 e1' σ1' ε Z.
+  Lemma fupd_spec_coupl E σ1 e1' σ1' Z ε δ :
+    (|={E}=> spec_coupl E σ1 e1' σ1' ε δ Z) ⊢ spec_coupl E σ1 e1' σ1' ε δ Z.
   Proof.
     iIntros "H".
     iApply spec_coupl_rec.
-    iExists _, 0%nat, (dret σ1), (dret σ1'), 0%NNR, ε.
+    iExists _, 0%nat, (dret σ1), (dret σ1'), 0%NNR, 0%NNR , ε, δ.
     rewrite dret_id_left pexec_O.
     iSplit; [iPureIntro|].
-    { by apply Mcoupl_pos_R, (Mcoupl_dret _ _ (λ _ _, True)). }
+    { by apply DPcoupl_pos_R, (DPcoupl_dret _ _ (λ _ _, True)). }
     iSplit.
     { iPureIntro. destruct ε => /= ; lra. }
+    iSplit.
+    { iPureIntro. destruct δ => /= ; lra. }
     do 2 (iSplit; [iPureIntro; apply dret_erasable|]).
     by iIntros (??? (_ & ->%dret_pos & [=-> ->]%dret_pos)).
   Qed.
 
-  Lemma spec_coupl_mono E1 E2 σ1 e1' σ1' Z1 Z2 ε :
+  Lemma spec_coupl_mono E1 E2 σ1 e1' σ1' Z1 Z2 ε δ :
     E1 ⊆ E2 →
-    (∀ σ2 e2' σ2' ε', Z1 σ2 e2' σ2' ε' -∗ Z2 σ2 e2' σ2' ε') -∗
-    spec_coupl E1 σ1 e1' σ1' ε Z1 -∗ spec_coupl E2 σ1 e1' σ1' ε Z2.
+    (∀ σ2 e2' σ2' ε' δ', Z1 σ2 e2' σ2' ε' δ' -∗ Z2 σ2 e2' σ2' ε' δ') -∗
+    spec_coupl E1 σ1 e1' σ1' ε δ Z1 -∗ spec_coupl E2 σ1 e1' σ1' ε δ Z2.
   Proof.
     iIntros (HE) "HZ Hs".
     iRevert "HZ".
-    iRevert (σ1 e1' σ1' ε) "Hs".
+    iRevert (σ1 e1' σ1' ε δ) "Hs".
     iApply spec_coupl_ind.
-    iIntros "!#" (σ e' σ' ε)
-      "[? | (% & % & % & % & % & % & % & % & % & % & H)] Hw".
+    iIntros "!#" (σ e' σ' ε δ)
+      "[? | (% & % & % & % & % & % & % & % & % & % & % & % & % & H)] Hw".
     - iApply spec_coupl_ret. by iApply "Hw".
     - iApply spec_coupl_rec.
       repeat iExists _.
       iSplit; [done|].
       iSplit; [iPureIntro; by etrans|].
-      do 2 (iSplit; [done|]).
+      do 3 (iSplit; [done|]).
       iIntros (????).
       iApply fupd_mask_mono; [done|].
       iMod ("H" with "[//]") as "[IH _]".
       by iApply "IH".
   Qed.
 
-  Lemma spec_coupl_mono_err ε1 ε2 E σ1 e1' σ1' Z :
-    ε1 <= ε2 → spec_coupl E σ1 e1' σ1' ε1 Z -∗ spec_coupl E σ1 e1' σ1' ε2 Z.
+  Lemma spec_coupl_mono_err_1 ε1 ε2 δ E σ1 e1' σ1' Z :
+    ε1 <= ε2 → spec_coupl E σ1 e1' σ1' ε1 δ Z -∗ spec_coupl E σ1 e1' σ1' ε2 δ Z.
   Proof.
     iIntros (Heps) "Hs".
     iApply spec_coupl_rec.
     set (ε' := nnreal_minus ε2 ε1 Heps).
-    iExists _, 0%nat, (dret σ1), (dret σ1'), ε', ε1.
+    iExists _, 0%nat, (dret σ1), (dret σ1'), ε', 0%NNR , ε1 , δ.
     rewrite dret_id_left pexec_O.
     iSplit; [iPureIntro|].
-    { eapply Mcoupl_pos_R, Mcoupl_mon_grading,
-        (Mcoupl_dret _ _ (λ _ _, True)) => /=; [|done|done]. lra. }
+    { eapply DPcoupl_pos_R,
+        (DPcoupl_mon_grading _ _ _ ε' _ 0%NNR),
+        (DPcoupl_dret _ _ (λ _ _, True)) => /=; [lra| done| lra| done |lra]. }
     iSplit; [iPureIntro|].
     { rewrite /ε' => /=. lra. }
+    iSplit; [iPureIntro|].
+    { simpl. lra. }
     do 2 (iSplit; [iPureIntro; apply dret_erasable|]).
     by iIntros (??? (_ & ->%dret_pos & [=-> ->]%dret_pos)).
   Qed.
 
-  Lemma spec_coupl_bind E1 E2 σ1 e1' σ1' Z1 Z2 ε :
+
+  Lemma spec_coupl_mono_err_2 ε δ1 δ2 E σ1 e1' σ1' Z :
+    δ1 <= δ2 → spec_coupl E σ1 e1' σ1' ε δ1 Z -∗ spec_coupl E σ1 e1' σ1' ε δ2 Z.
+  Proof.
+    iIntros (Heps) "Hs".
+    iApply spec_coupl_rec.
+    set (δ' := nnreal_minus δ2 δ1 Heps).
+    iExists _, 0%nat, (dret σ1), (dret σ1'), 0%NNR, δ' , ε , δ1.
+    rewrite dret_id_left pexec_O.
+    iSplit; [iPureIntro|].
+    { eapply DPcoupl_pos_R,
+        (DPcoupl_mon_grading _ _ _ 0%NNR _ δ'),
+        (DPcoupl_dret _ _ (λ _ _, True)) => /=; [ done | done | done | lra | done ]. }
+    iSplit; [iPureIntro|].
+    { simpl. lra. }
+    iSplit; [iPureIntro|].
+    { rewrite /δ' => /=. lra. }
+    do 2 (iSplit; [iPureIntro; apply dret_erasable|]).
+    by iIntros (??? (_ & ->%dret_pos & [=-> ->]%dret_pos)).
+  Qed.
+
+  Lemma spec_coupl_bind E1 E2 σ1 e1' σ1' Z1 Z2 ε δ :
     E1 ⊆ E2 →
-    (∀ σ2 e2' σ2' ε', Z1 σ2 e2' σ2' ε' -∗ spec_coupl E2 σ2 e2' σ2' ε' Z2) -∗
-    spec_coupl E1 σ1 e1' σ1' ε Z1 -∗
-    spec_coupl E2 σ1 e1' σ1' ε Z2.
+    (∀ σ2 e2' σ2' ε' δ', Z1 σ2 e2' σ2' ε' δ' -∗ spec_coupl E2 σ2 e2' σ2' ε' δ' Z2) -∗
+    spec_coupl E1 σ1 e1' σ1' ε δ Z1 -∗
+    spec_coupl E2 σ1 e1' σ1' ε δ Z2.
   Proof.
     iIntros (HE) "HZ Hs".
     iRevert "HZ".
-    iRevert (σ1 e1' σ1' ε) "Hs".
+    iRevert (σ1 e1' σ1' ε δ) "Hs".
     iApply spec_coupl_ind.
-    iIntros "!#" (σ e' σ' ε)
-      "[H | (%R & %n & %μ1 & %μ1' & %ε1' & %ε2 & %r & % & % & % & H)] HZ".
+    iIntros "!#" (σ e' σ' ε δ)
+      "[H | (%R & %n & %μ1 & %μ1' & %ε1' & %δ1' & %ε2 & %δ2 & %r & % & % & % & % & H)] HZ".
     - iApply ("HZ" with "H").
     - iApply spec_coupl_rec.
-      iExists R, n, μ1, μ1', ε1', ε2.
+      iExists R, n, μ1, μ1', ε1', δ1', ε2, δ2.
       iSplit; [done|].
+      iSplit; [iPureIntro|].
+      { by etrans. }
       iSplit; [iPureIntro|].
       { by etrans. }
       do 2 (iSplit; [done|]).
@@ -195,84 +224,88 @@ Section coupl_modalities.
       by iApply "H".
   Qed.
 
-  Lemma spec_coupl_erasables R μ1 μ1' ε1 ε2 ε E σ1 e1' σ1' Z :
+  Lemma spec_coupl_erasables R μ1 μ1' ε1 ε2 ε δ1 δ2 δ E σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
-    Mcoupl μ1 μ1' R ε1 →
+    δ = (δ1 + δ2)%NNR →
+    DPcoupl μ1 μ1' R ε1 δ1 →
     erasable μ1 σ1 →
     erasable μ1' σ1' →
-    (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={E}=∗ spec_coupl E σ2 e1' σ2' ε2 Z)
-    ⊢ spec_coupl E σ1 e1' σ1' ε Z.
+    (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={E}=∗ spec_coupl E σ2 e1' σ2' ε2 δ2 Z)
+    ⊢ spec_coupl E σ1 e1' σ1' ε δ Z.
   Proof.
-    iIntros (-> ???) "H".
+    iIntros (-> -> ???) "H".
     iApply spec_coupl_rec.
-    iExists (λ σ2 '(e2', σ2'), R σ2 σ2' ∧ e2' = e1'), 0%nat, μ1, μ1', ε1, ε2.
+    iExists (λ σ2 '(e2', σ2'), R σ2 σ2' ∧ e2' = e1'), 0%nat, μ1, μ1', ε1, δ1, ε2, δ2.
     iSplit; [iPureIntro|].
     { rewrite -(dret_id_right μ1).
-      eapply (Mcoupl_dbind' ε1 0) ; [lra|..|done].
+      eapply (DPcoupl_dbind' ε1 0 _ δ1 0 _) ; [lra|done|lra|lra | |done].
       intros ???.
       rewrite pexec_O.
-      by apply Mcoupl_dret. }
+      by apply DPcoupl_dret. }
     iSplit; [by iPureIntro|].
-    do 2 (iSplit; [done|]).
+    do 3 (iSplit; [done|]).
     iIntros (??? [? ->]).
     by iApply "H".
   Qed.
 
-  Lemma spec_coupl_erasable_steps n R μ1 ε1 ε2 ε E σ1 e1' σ1' Z :
+  Lemma spec_coupl_erasable_steps n R μ1 ε1 ε2 ε δ1 δ2 δ E σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
-    Mcoupl μ1 (pexec n (e1', σ1')) R ε1 →
+    δ = (δ1 + δ2)%NNR →
+    DPcoupl μ1 (pexec n (e1', σ1')) R ε1 δ1 →
     erasable μ1 σ1 →
-    (∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={E}=∗ spec_coupl E σ2 e2' σ2' ε2 Z)
-    ⊢ spec_coupl E σ1 e1' σ1' ε Z.
+    (∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={E}=∗ spec_coupl E σ2 e2' σ2' ε2 δ2 Z)
+      ⊢ spec_coupl E σ1 e1' σ1' ε δ Z.
   Proof.
-    iIntros (-> ??) "H".
+    iIntros (-> -> ??) "H".
     iApply spec_coupl_rec.
-    iExists R, n, μ1, (dret σ1'), ε1, ε2.
+    iExists R, n, μ1, (dret σ1'), ε1, δ1, ε2, δ2.
     rewrite dret_id_left.
-    do 2 (iSplit; [done|]).
-    iSplit; [done|].
+    do 4 (iSplit; [done|]).
     iSplit; [iPureIntro; apply dret_erasable|].
     done.
   Qed.
 
-  Lemma spec_coupl_steps n ε2 ε1 ε R E σ1 e1' σ1' Z :
+  Lemma spec_coupl_steps n ε2 ε1 ε δ2 δ1 δ R E σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
-    Mcoupl (dret σ1) (pexec n (e1', σ1')) R ε1 →
-    (∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={E}=∗ spec_coupl E σ2 e2' σ2' ε2 Z)
-      ⊢ spec_coupl E σ1 e1' σ1' ε Z.
+    δ = (δ1 + δ2)%NNR →
+    DPcoupl (dret σ1) (pexec n (e1', σ1')) R ε1 δ1 →
+    (∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={E}=∗ spec_coupl E σ2 e2' σ2' ε2 δ2 Z)
+      ⊢ spec_coupl E σ1 e1' σ1' ε δ Z.
   Proof.
-    iIntros (-> ?) "H".
-    iApply (spec_coupl_erasable_steps n _ _ ε1 ε2); [done| |apply dret_erasable|].
-    { by apply Mcoupl_pos_R. }
+    iIntros (-> -> ?) "H".
+    iApply (spec_coupl_erasable_steps n _ _ ε1 ε2 _ δ1 δ2); [done| done | |apply dret_erasable|].
+    { by apply DPcoupl_pos_R. }
     iIntros (??? (? & ->%dret_pos & ?)).
     by iApply "H".
   Qed.
 
-  Lemma spec_coupl_steps_det n ε σ1 e1' σ1' e2' σ2' Z E :
+  Lemma spec_coupl_steps_det n ε δ σ1 e1' σ1' e2' σ2' Z E :
     pexec n (e1', σ1') (e2', σ2') = 1 →
-    spec_coupl E σ1 e2' σ2' ε Z ⊢
-      spec_coupl E σ1 e1' σ1' ε Z.
+    spec_coupl E σ1 e2' σ2' ε δ Z ⊢
+      spec_coupl E σ1 e1' σ1' ε δ Z.
   Proof.
     iIntros (Hexec%pmf_1_eq_dret) "H".
-    iApply (spec_coupl_steps n ε 0%NNR).
+    iApply (spec_coupl_steps n ε 0%NNR _ δ 0%NNR).
     { apply nnreal_ext => /=. lra. }
-    { apply Mcoupl_pos_R, Mcoupl_trivial; [solve_distr_mass|].
+    { apply nnreal_ext => /=. lra. }
+    { apply DPcoupl_pos_R, DPcoupl_trivial; [solve_distr_mass|].
       rewrite Hexec. solve_distr_mass. }
     rewrite Hexec.
     iIntros (??? (_ & ->%dret_pos & [=-> ->]%dret_pos)).
     done.
   Qed.
 
-  Lemma spec_coupl_step ε E σ1 e1' σ1' Z :
+  Lemma spec_coupl_step ε δ E σ1 e1' σ1' Z :
     reducible (e1', σ1') →
-    (∀ e2' σ2', ⌜prim_step e1' σ1' (e2', σ2') > 0%R⌝ ={E}=∗ spec_coupl E σ1 e2' σ2' ε Z)
-      ⊢ spec_coupl E σ1 e1' σ1' ε Z.
+    (∀ e2' σ2', ⌜prim_step e1' σ1' (e2', σ2') > 0%R⌝ ={E}=∗ spec_coupl E σ1 e2' σ2' ε δ Z)
+      ⊢ spec_coupl E σ1 e1' σ1' ε δ Z.
   Proof.
     iIntros (?) "H".
-    iApply (spec_coupl_steps 1 ε 0%NNR).
+    iApply (spec_coupl_steps 1 ε 0%NNR _ δ 0%NNR).
+    { apply nnreal_ext => /=. lra. }
     { apply nnreal_ext => /=. lra. }
     { rewrite pexec_1 step_or_final_no_final; [|by apply reducible_not_final].
-      apply Mcoupl_pos_R, Mcoupl_trivial; [solve_distr_mass|].
+      apply DPcoupl_pos_R, DPcoupl_trivial; [solve_distr_mass|].
       by apply prim_step_mass. }
     iIntros (??? (?&->%dret_pos&?)).
     by iApply "H".
@@ -282,24 +315,24 @@ Section coupl_modalities.
 
   (** The [prog_coupl] modality allows us to coupl *exactly* one program step with any number of
       spec execution steps and an erasable distribution *)
-  Definition prog_coupl e1 σ1 e1' σ1' ε Z : iProp Σ :=
+  Definition prog_coupl e1 σ1 e1' σ1' ε δ Z : iProp Σ :=
     ∃ (R : cfg Λ → cfg Λ → Prop) (n : nat) (μ1' : distr (state Λ))
-      ε1 ε2,
+      ε1 δ1 ε2 δ2,
       ⌜reducible (e1, σ1)⌝ ∗
-      ⌜Mcoupl (prim_step e1 σ1) (σ2' ← μ1'; pexec n (e1', σ2')) R ε1⌝ ∗
-      ⌜ε1 + ε2 <= ε⌝ ∗
+      ⌜DPcoupl (prim_step e1 σ1) (σ2' ← μ1'; pexec n (e1', σ2')) R ε1 δ1⌝ ∗
+      ⌜ε1 + ε2 <= ε⌝ ∗ ⌜δ1 + δ2 <= δ⌝ ∗
       ⌜erasable μ1' σ1'⌝ ∗
-      ∀ e2 σ2 e2' σ2', ⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' ε2.
+      ∀ e2 σ2 e2' σ2', ⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' ε2 δ2.
 
-  Lemma prog_coupl_strong_mono e1 σ1 e1' σ1' Z1 Z2 ε :
-    (∀ e2 σ2 e2' σ2' ε', ⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∗ Z1 e2 σ2 e2' σ2' ε' -∗ Z2 e2 σ2 e2' σ2' ε') -∗
-    prog_coupl e1 σ1 e1' σ1' ε Z1 -∗ prog_coupl e1 σ1 e1' σ1' ε Z2.
+  Lemma prog_coupl_strong_mono e1 σ1 e1' σ1' Z1 Z2 ε δ :
+    (∀ e2 σ2 e2' σ2' ε' δ', ⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∗ Z1 e2 σ2 e2' σ2' ε' δ' -∗ Z2 e2 σ2 e2' σ2' ε' δ') -∗
+    prog_coupl e1 σ1 e1' σ1' ε δ Z1 -∗ prog_coupl e1 σ1 e1' σ1' ε δ Z2.
   Proof.
-    iIntros "Hm (%R & %n & %μ1' & %ε1 & %X2 & %r & % & % & % & Hcnt) /=".
-    iExists _, _, _, _, _.
+    iIntros "Hm (%R & %n & %μ1' & %ε1 & %X2 & %δ1 & %Y2 & %r & % & % & % & % & Hcnt) /=".
+    iExists _, _, _, _, _, _, _.
     iSplit; [done|].
     iSplit.
-    { iPureIntro. by apply Mcoupl_pos_R. }
+    { iPureIntro. by apply DPcoupl_pos_R. }
     iFrame "%".
     iIntros (e2 σ2 e2' σ2' (HR & Hprim & ?)).
     iApply "Hm".
@@ -307,115 +340,121 @@ Section coupl_modalities.
     by iApply "Hcnt".
   Qed.
 
-  Lemma prog_coupl_mono e1 σ1 e1' σ1' Z1 Z2 ε :
-    (∀ e2 σ2 e2' σ2' ε', Z1 e2 σ2 e2' σ2' ε' -∗ Z2 e2 σ2 e2' σ2' ε') -∗
-    prog_coupl e1 σ1 e1' σ1' ε Z1 -∗ prog_coupl e1 σ1 e1' σ1' ε Z2.
+  Lemma prog_coupl_mono e1 σ1 e1' σ1' Z1 Z2 ε δ:
+    (∀ e2 σ2 e2' σ2' ε' δ', Z1 e2 σ2 e2' σ2' ε' δ' -∗ Z2 e2 σ2 e2' σ2' ε' δ') -∗
+    prog_coupl e1 σ1 e1' σ1' ε δ Z1 -∗ prog_coupl e1 σ1 e1' σ1' ε δ Z2.
   Proof.
     iIntros "Hm".
     iApply prog_coupl_strong_mono.
-    iIntros (?????) "[_ H]". by iApply "Hm".
+    iIntros (??????) "[_ H]". by iApply "Hm".
   Qed.
 
-  Lemma prog_coupl_strengthen e1 σ1 e1' σ1' Z ε :
-    prog_coupl e1 σ1 e1' σ1' ε Z -∗
-    prog_coupl e1 σ1 e1' σ1' ε (λ e2 σ2 e2' σ2' ε', ⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∧ Z e2 σ2 e2' σ2' ε').
+  Lemma prog_coupl_strengthen e1 σ1 e1' σ1' Z ε δ:
+    prog_coupl e1 σ1 e1' σ1' ε δ Z -∗
+    prog_coupl e1 σ1 e1' σ1' ε δ (λ e2 σ2 e2' σ2' ε' δ', ⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∧ Z e2 σ2 e2' σ2' ε' δ').
   Proof.
-    iApply prog_coupl_strong_mono. iIntros (?????) "[$ $]".
+    iApply prog_coupl_strong_mono. iIntros (??????) "[$ $]".
   Qed.
 
-  Lemma prog_coupl_ctx_bind K `{!LanguageCtx K} e1 σ1 e1' σ1' Z ε:
+  Lemma prog_coupl_ctx_bind K `{!LanguageCtx K} e1 σ1 e1' σ1' Z ε δ:
     to_val e1 = None →
-    prog_coupl e1 σ1 e1' σ1' ε (λ e2, Z (K e2)) -∗ prog_coupl (K e1) σ1 e1' σ1' ε Z.
+    prog_coupl e1 σ1 e1' σ1' ε δ (λ e2, Z (K e2)) -∗ prog_coupl (K e1) σ1 e1' σ1' ε δ Z.
   Proof.
-    iIntros (Hv) "(%R & %n & %μ1' & %ε1 & %ε2 & % & % & % & % & Hcnt) /=".
-    iExists (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ'), n, μ1', ε1, ε2.
+    iIntros (Hv) "(%R & %n & %μ1' & %ε1 & %δ1 & %ε2 & %δ2 & % & % & % & % & % & Hcnt) /=".
+    iExists (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ'), n, μ1', ε1, δ1, ε2, δ2.
     iSplit; [eauto using reducible_fill|].
     iSplit.
     { iPureIntro.
       rewrite fill_dmap //.
       rewrite -(dret_id_right (μ1' ≫= _ )) //.
       rewrite /dmap.
-      eapply (Mcoupl_dbind' _ 0); [..|done]; [simpl; lra|..].
-      intros [] ?? => /=. apply Mcoupl_dret; [done|]. eauto. }
-    iSplit; [done|].
-    iSplit; [done|].
+      eapply (DPcoupl_dbind' ε1 0 _ δ1 0); [lra | done | lra | lra | | done].
+      intros [] ?? => /=. apply DPcoupl_dret; [done|done|]. eauto. }
+    do 3 (iSplit; [done|]).
     iIntros (e2 σ2 e2' σ2' (e3 & -> & HR)).
     by iApply "Hcnt".
   Qed.
 
-  Lemma prog_coupl_steps ε2 ε1 ε R e1 σ1 e1' σ1' Z :
+  Lemma prog_coupl_steps ε2 ε1 ε δ2 δ1 δ R e1 σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
+    δ = (δ1 + δ2)%NNR →
     reducible (e1, σ1) →
     reducible (e1', σ1') →
-    Mcoupl (prim_step e1 σ1) (prim_step e1' σ1') R ε1 →
-    (∀ e2 σ2 e2' σ2', ⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' ε2)
-    ⊢ prog_coupl e1 σ1 e1' σ1' ε Z.
+    DPcoupl (prim_step e1 σ1) (prim_step e1' σ1') R ε1 δ1 →
+    (∀ e2 σ2 e2' σ2', ⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' ε2 δ2)
+      ⊢ prog_coupl e1 σ1 e1' σ1' ε δ Z.
   Proof.
-    iIntros (-> Hred Hred' Hcpl) "Hcnt".
-    iExists _, 1%nat, (dret σ1'), ε1, ε2.
+    iIntros (-> -> Hred Hred' Hcpl) "Hcnt".
+    iExists _, 1%nat, (dret σ1'), ε1, δ1, ε2, δ2.
     iSplit; [done|].
     rewrite dret_id_left pexec_1.
     rewrite step_or_final_no_final; [|by apply reducible_not_final].
     (iSplit; [done|]).
     iSplit; [by iPureIntro|].
+    iSplit; [by iPureIntro|].
     iSplit; [iPureIntro; apply dret_erasable|].
     done.
   Qed.
 
-  Lemma prog_coupl_step_l_erasable ε2 ε1 μ1' ε R e1 σ1 e1' σ1' Z :
+  Lemma prog_coupl_step_l_erasable ε2 ε1 δ2 δ1 μ1' ε δ R e1 σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
+    δ = (δ1 + δ2)%NNR →
     reducible (e1, σ1) →
-    Mcoupl (prim_step e1 σ1) μ1' R ε1 →
+    DPcoupl (prim_step e1 σ1) μ1' R ε1 δ1  →
     erasable μ1' σ1' →
-    (∀ e2 σ2 σ2', ⌜R (e2, σ2) σ2'⌝ ={∅}=∗ Z e2 σ2 e1' σ2' ε2)
-    ⊢ prog_coupl e1 σ1 e1' σ1' ε Z.
+    (∀ e2 σ2 σ2', ⌜R (e2, σ2) σ2'⌝ ={∅}=∗ Z e2 σ2 e1' σ2' ε2 δ2)
+    ⊢ prog_coupl e1 σ1 e1' σ1' ε δ Z.
   Proof.
-    iIntros (-> ? ? ?) "H".
-    iExists (λ ρ2 '(e2', σ2'), R ρ2 σ2' ∧ e2' = e1'), 0%nat, μ1', ε1, ε2.
+    iIntros (-> -> ? ? ?) "H".
+    iExists (λ ρ2 '(e2', σ2'), R ρ2 σ2' ∧ e2' = e1'), 0%nat, μ1', ε1, δ1, ε2, δ2.
     iSplit; [done|].
     iSplit; [iPureIntro|].
     { setoid_rewrite pexec_O.
       rewrite -(dret_id_right (prim_step _ _)).
       replace ε1 with (ε1 + 0)%NNR ; [|apply nnreal_ext => /= ; lra].
-      eapply Mcoupl_dbind => //.
-      intros ???. by apply Mcoupl_dret. }
+      replace δ1 with (δ1 + 0)%NNR ; [|apply nnreal_ext => /= ; lra].
+      eapply DPcoupl_dbind => //.
+      intros ???. by apply DPcoupl_dret. }
+    iSplit; [by iPureIntro|].
     iSplit; [by iPureIntro|].
     iSplit; [done|].
     iIntros (e2 σ2 e2' σ2' [? ->]).
     by iApply "H".
   Qed.
 
-  Lemma prog_coupl_step_l_dret ε2 ε1 ε R e1 σ1 e1' σ1' Z :
+  Lemma prog_coupl_step_l_dret ε2 ε1 ε δ2 δ1 δ R e1 σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
+    δ = (δ1 + δ2)%NNR →
     reducible (e1, σ1) →
-    Mcoupl (prim_step e1 σ1) (dret σ1') R ε1 →
-    (∀ e2 σ2, ⌜R (e2, σ2) σ1'⌝ ={∅}=∗ Z e2 σ2 e1' σ1' ε2)
-    ⊢ prog_coupl e1 σ1 e1' σ1' ε Z.
+    DPcoupl (prim_step e1 σ1) (dret σ1') R ε1 δ1 →
+    (∀ e2 σ2, ⌜R (e2, σ2) σ1'⌝ ={∅}=∗ Z e2 σ2 e1' σ1' ε2 δ2)
+    ⊢ prog_coupl e1 σ1 e1' σ1' ε δ Z.
   Proof.
-    iIntros (-> ? ?) "H".
-    iApply (prog_coupl_step_l_erasable _ _ (dret (σ1'))); [done|done|..].
-    { by apply Mcoupl_pos_R. }
+    iIntros (-> -> ? ?) "H".
+    iApply (prog_coupl_step_l_erasable _ _ _ _ (dret (σ1'))); [done|done|done|..].
+    { by apply DPcoupl_pos_R. }
     { apply dret_erasable. }
     iIntros (??? (?&?&->%dret_pos)).
     by iApply "H".
   Qed.
 
-  Lemma prog_coupl_step_l e1 σ1 e1' σ1' ε Z :
+  Lemma prog_coupl_step_l e1 σ1 e1' σ1' ε δ Z :
     reducible (e1, σ1) →
-    (∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ Z e2 σ2 e1' σ1' ε)
-    ⊢ prog_coupl e1 σ1 e1' σ1' ε Z.
+    (∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ Z e2 σ2 e1' σ1' ε δ)
+    ⊢ prog_coupl e1 σ1 e1' σ1' ε δ Z.
   Proof.
     iIntros (?) "H".
-    iApply (prog_coupl_step_l_dret ε 0%NNR); [apply nnreal_ext => /= ; lra|done|..].
-    { eapply Mcoupl_pos_R, Mcoupl_trivial.
+    iApply (prog_coupl_step_l_dret ε 0%NNR _ δ 0%NNR);
+      [apply nnreal_ext => /= ; lra| apply nnreal_ext => /= ; lra | done|..].
+    { eapply DPcoupl_pos_R, DPcoupl_trivial.
       - by apply prim_step_mass.
       - apply dret_mass. }
     iIntros (?? (_ & ? & [=]%dret_pos)).
     by iApply "H".
   Qed.
 
-  Lemma prog_coupl_reducible e e' σ σ' Z ε :
-    prog_coupl e σ e' σ' ε Z -∗ ⌜reducible (e, σ)⌝.
+  Lemma prog_coupl_reducible e e' σ σ' Z ε δ :
+    prog_coupl e σ e' σ' ε δ Z -∗ ⌜reducible (e, σ)⌝.
   Proof. by iIntros "(%&%&%&%&%&%&%&%& _)". Qed.
 
 End coupl_modalities.
@@ -425,31 +464,31 @@ End coupl_modalities.
 Definition wp_pre `{!spec_updateGS (lang_markov Λ) Σ, !diffprivWpGS Λ Σ}
     (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
      coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
-  (∀ σ1 e1' σ1' ε1,
-      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 ={E, ∅}=∗
-      spec_coupl ∅ σ1 e1' σ1' ε1 (λ σ2 e2' σ2' ε2,
+  (∀ σ1 e1' σ1' ε1 δ1,
+      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 δ1 ={E, ∅}=∗
+      spec_coupl ∅ σ1 e1' σ1' ε1 δ1 (λ σ2 e2' σ2' ε2 δ2,
         match to_val e1 with
-        | Some v => |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 ∗ Φ v
+        | Some v => |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 δ2 ∗ Φ v
         | None =>
-            prog_coupl e1 σ2 e2' σ2' ε2 (λ e3 σ3 e3' σ3' ε3,
-                ▷ spec_coupl ∅ σ3 e3' σ3' ε3 (λ σ4 e4' σ4' ε4,
-                    |={∅, E}=> state_interp σ4 ∗ spec_interp (e4', σ4') ∗ err_interp ε4 ∗ wp E e3 Φ))
+            prog_coupl e1 σ2 e2' σ2' ε2 δ2 (λ e3 σ3 e3' σ3' ε3 δ3,
+                ▷ spec_coupl ∅ σ3 e3' σ3' ε3 δ3 (λ σ4 e4' σ4' ε4 δ4,
+                    |={∅, E}=> state_interp σ4 ∗ spec_interp (e4', σ4') ∗ err_interp ε4 δ4 ∗ wp E e3 Φ))
       end))%I.
 
 Local Instance wp_pre_contractive `{!spec_updateGS (lang_markov Λ) Σ, !diffprivWpGS Λ Σ} :
   Contractive wp_pre.
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ.
-  do 10 f_equiv.
+  do 12 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? ?]. rewrite /spec_coupl_pre.
   do 4 f_equiv.
   rewrite /prog_coupl.
-  do 24 f_equiv.
+  do 30 f_equiv.
   f_contractive.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? ?]. rewrite /spec_coupl_pre.
-  do 7 f_equiv.
+  do 8 f_equiv.
   apply Hwp.
 Qed.
 
@@ -483,10 +522,10 @@ Global Instance wp_ne E e n s :
 Proof.
   revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
   rewrite !wp_unfold /wp_pre /=.
-  do 10 f_equiv.
+  do 12 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? ?]. rewrite /spec_coupl_pre /prog_coupl.
-  do 28 f_equiv.
+  do 34 f_equiv.
   f_contractive_fin.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? ?]. rewrite /spec_coupl_pre.
@@ -504,11 +543,11 @@ Global Instance wp_contractive E e n s :
   Proper (pointwise_relation _ (dist_later n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
 Proof.
   intros He Φ Ψ HΦ. rewrite !wp_unfold /wp_pre He /=.
-  do 10 f_equiv.
+  do 12 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? ?]. rewrite /spec_coupl_pre.
   rewrite /prog_coupl.
-  do 27 f_equiv.
+  do 33 f_equiv.
   f_contractive.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? ?]. rewrite /spec_coupl_pre.
@@ -518,7 +557,7 @@ Qed.
 Lemma wp_value_fupd' E Φ v s : (|={E}=> Φ v) ⊢ WP of_val v @ s; E {{ Φ }}.
 Proof.
   rewrite wp_unfold /wp_pre to_of_val.
-  iIntros "H" (????) "(?&?&?)".
+  iIntros "H" (?????) "(?&?&?)".
   iApply spec_coupl_ret.
   iMod "H". iFrame.
   iApply fupd_mask_subseteq.
@@ -528,35 +567,35 @@ Qed.
 Lemma wp_strong_mono E1 E2 e Φ Ψ s :
   E1 ⊆ E2 →
   WP e @ s; E1 {{ Φ }} -∗
- (∀ σ1 e1' σ1' ε1 v,
-     state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 ∗ Φ v -∗
-     spec_coupl ∅ σ1 e1' σ1' ε1 (λ σ2 e2' σ2' ε2,
-          |={E2}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 ∗ Ψ v)) -∗
+ (∀ σ1 e1' σ1' ε1 δ1 v,
+     state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 δ1 ∗ Φ v -∗
+     spec_coupl ∅ σ1 e1' σ1' ε1 δ1 (λ σ2 e2' σ2' ε2 δ2,
+          |={E2}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 δ2 ∗ Ψ v)) -∗
   WP e @ s; E2 {{ Ψ }}.
 Proof.
   iIntros (HE) "H HΦ". iLöb as "IH" forall (e E1 E2 HE Φ Ψ s).
   rewrite !wp_unfold /wp_pre /=.
-  iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
+  iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hs & Hε)".
   iSpecialize ("H" with "[$]").
   iMod (fupd_mask_subseteq E1) as "Hclose"; [done|].
   iMod "H"; iModIntro.
   iApply (spec_coupl_bind with "[-H] H"); [done|].
-  iIntros (????) "H".
+  iIntros (?????) "H".
   destruct (to_val e) as [v|] eqn:?.
   { iApply fupd_spec_coupl.
     iMod "H" as "(?&?&?)".
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     iSpecialize ("HΦ" with "[$]").
     iApply (spec_coupl_bind with "[-HΦ] HΦ"); [done|].
-    iIntros (????) "Hσ".
+    iIntros (?????) "Hσ".
     iApply spec_coupl_ret.
     iMod "Hclose'". iMod "Hclose".
     by iMod "Hσ". }
   iApply spec_coupl_ret.
   iApply (prog_coupl_mono with "[HΦ Hclose] H").
-  iIntros (e2 σ3 e3' σ3' ε3) "H !>".
+  iIntros (e2 σ3 e3' σ3' ε3 δ3) "H !>".
   iApply (spec_coupl_mono with "[HΦ Hclose] H"); [done|].
-  iIntros (σ4 e4' σ4' ε4) "> ($ & $ & $ & H)".
+  iIntros (σ4 e4' σ4' ε4 δ4) "> ($ & $ & $ & H)".
   iMod "Hclose" as "_".
   iModIntro.
   by iApply ("IH" with "[] H").
@@ -565,14 +604,14 @@ Qed.
 Lemma wp_strong_mono' E1 E2 e Φ Ψ s :
   E1 ⊆ E2 →
   WP e @ s; E1 {{ Φ }} -∗
-  (∀ σ ρ v ε,
-      state_interp σ ∗ spec_interp ρ ∗ err_interp ε ∗ Φ v ={E2}=∗
-      state_interp σ ∗ spec_interp ρ ∗ err_interp ε ∗ Ψ v) -∗
+  (∀ σ ρ v ε δ,
+      state_interp σ ∗ spec_interp ρ ∗ err_interp ε δ ∗ Φ v ={E2}=∗
+      state_interp σ ∗ spec_interp ρ ∗ err_interp ε δ ∗ Ψ v) -∗
   WP e @ s; E2 {{ Ψ }}.
 Proof.
   iIntros (?) "Hwp Hw".
   iApply (wp_strong_mono with "Hwp"); [done|].
-  iIntros (?????) "(?&?&?&?)".
+  iIntros (??????) "(?&?&?&?)".
   iApply spec_coupl_ret.
   by iMod ("Hw" with "[$]").
 Qed.
@@ -582,7 +621,7 @@ Lemma wp_strong_mono'' e Φ Ψ :
 Proof.
   iIntros "Hwp Hw".
   iApply (wp_strong_mono with "Hwp"); [done|].
-  iIntros (?????) "(?&?&?&?)".
+  iIntros (??????) "(?&?&?&?)".
   iApply spec_coupl_ret.
   iFrame. iApply "Hw". done.
 Qed.
@@ -590,7 +629,7 @@ Qed.
 Lemma fupd_wp E e Φ s: (|={E}=> WP e @ s; E {{ Φ }}) ⊢ WP e @ s; E {{ Φ }}.
 Proof.
   rewrite wp_unfold /wp_pre.
-  iIntros "H" (????) "(?&?&?)".
+  iIntros "H" (?????) "(?&?&?)".
   destruct (to_val e) as [v|] eqn:?.
   { by iMod ("H" with "[$]"). }
   by iMod ("H" with "[$]").
@@ -600,7 +639,7 @@ Lemma wp_fupd E e Φ s : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {{ Φ
 Proof.
   iIntros "H".
   iApply (wp_strong_mono E with "H"); [done|].
-  iIntros (?????) "(? & ? & ? & ?)".
+  iIntros (??????) "(? & ? & ? & ?)".
   iApply spec_coupl_ret.
   by iFrame.
 Qed.
@@ -609,32 +648,32 @@ Lemma wp_atomic E1 E2 e Φ `{!Atomic StronglyAtomic e} s :
   (|={E1,E2}=> WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ s; E1 {{ Φ }}.
 Proof.
   iIntros "H". rewrite !wp_unfold /wp_pre.
-  iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
+  iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hs & Hε)".
   iDestruct ("H" with "[$]") as ">> H".
   iModIntro.
   iApply (spec_coupl_mono with "[] H"); [done|].
-  iIntros (σ2 e2' σ2' ε2) "H".
+  iIntros (σ2 e2' σ2' ε2 δ2) "H".
   destruct (to_val e) as [v|] eqn:?.
   { iDestruct "H" as "> ($ & $ & $ & $)". }
   iDestruct (prog_coupl_strengthen with "H") as "H".
   iApply (prog_coupl_mono with "[] H").
-  iIntros (?????) "[[% %Hstep] H] !>".
+  iIntros (??????) "[[% %Hstep] H] !>".
   iApply (spec_coupl_bind with "[] H"); [done|].
-  iIntros (????) "H".
+  iIntros (?????) "H".
   iApply fupd_spec_coupl.
   iMod "H" as "(Hσ & Hρ & Hε & H)".
   rewrite !wp_unfold /wp_pre.
   destruct (to_val e2) as [v2|] eqn:He2.
   + iMod ("H" with "[$]") as "H". iModIntro.
     iApply (spec_coupl_mono with "[] H"); [done|].
-    iIntros (????) "> ($ & $ & $ & >H)".
+    iIntros (?????) "> ($ & $ & $ & >H)".
     rewrite -(of_to_val e2 v2) //.
     iApply wp_value_fupd'.
     iApply fupd_mask_intro_subseteq; [|done].
     set_solver.
   + iMod ("H" with "[$]") as "H". iModIntro.
     iApply (spec_coupl_mono with "[] H"); [done|].
-    iIntros (????) "H".
+    iIntros (?????) "H".
     iDestruct (prog_coupl_reducible with "H") as %[ρ Hr].
     pose proof (atomic _ _ _ Hstep) as [? Hval].
     apply val_stuck in Hr. simplify_eq.
@@ -645,19 +684,19 @@ Lemma wp_step_fupd E1 E2 e P Φ s :
   (|={E1}[E2]▷=> P) -∗ WP e @ s; E2 {{ v, P ={E1}=∗ Φ v }} -∗ WP e @ s; E1 {{ Φ }}.
 Proof.
   rewrite !wp_unfold /wp_pre. iIntros (-> ?) "HR H".
-  iIntros (σ1 e1' σ1' ε1) "Hs". iMod "HR".
+  iIntros (σ1 e1' σ1' ε1 δ1) "Hs". iMod "HR".
   iMod ("H" with "Hs") as "H".
   iModIntro.
   iApply (spec_coupl_mono with "[HR] H"); [done|].
-  iIntros (σ2 e2' σ2' ε2) "H".
+  iIntros (σ2 e2' σ2' ε2 δ2) "H".
   iApply (prog_coupl_mono with "[HR] H").
-  iIntros (e3 σ3 e3' σ3' ε3) "H !>".
+  iIntros (e3 σ3 e3' σ3' ε3 δ3) "H !>".
   iApply (spec_coupl_mono with "[HR] H"); [done|].
-  iIntros (σ4 e4' σ4' ε4) "H".
+  iIntros (σ4 e4' σ4' ε4 δ4) "H".
   iMod "H" as "($ & $ & $ & H)".
   iMod "HR".
   iApply (wp_strong_mono E2 with "H"); [done..|].
-  iIntros "!>" (?????) "(? & ? & ? & H)".
+  iIntros "!>" (??????) "(? & ? & ? & H)".
   iApply spec_coupl_ret.
   iMod ("H" with "[$]").
   by iFrame.
@@ -667,10 +706,10 @@ Lemma wp_bind K `{!LanguageCtx K} E e Φ s :
   WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }} ⊢ WP K e @ s; E {{ Φ }}.
 Proof.
   iIntros "H". iLöb as "IH" forall (E e Φ s). rewrite !wp_unfold /wp_pre.
-  iIntros (σ1 e1' σ1' ε1) "Hs".
+  iIntros (σ1 e1' σ1' ε1 δ1) "Hs".
   iMod ("H" with "[$]") as "H".
   iApply (spec_coupl_bind with "[] H"); [done|].
-  iIntros (σ2 e2' σ2' ε2) "H".
+  iIntros (σ2 e2' σ2' ε2 δ2) "H".
   destruct (to_val e) as [v|] eqn:He.
   { iApply fupd_spec_coupl.
     iMod "H" as "(Hσ & Hs & Hε & H)".
@@ -681,9 +720,9 @@ Proof.
   iApply spec_coupl_ret.
   iApply prog_coupl_ctx_bind; [done|].
   iApply (prog_coupl_mono with "[] H").
-  iIntros (e3 σ3 e3' σ3' ε3) "H !>".
+  iIntros (e3 σ3 e3' σ3' ε3 δ3) "H !>".
   iApply (spec_coupl_mono with "[] H"); [done|].
-  iIntros (σ4 e4' σ4' ε4) "H".
+  iIntros (σ4 e4' σ4' ε4 δ4) "H".
   iMod "H" as "($ & $ & $ & H)".
   iModIntro.
   by iApply "IH".
@@ -694,7 +733,7 @@ Lemma spec_update_wp E e Φ a :
 Proof.
   iIntros "Hspec".
   iEval (rewrite !wp_unfold /wp_pre).
-  iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
+  iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hs & Hε)".
   rewrite spec_update_unseal.
   iMod ("Hspec" with "Hs")
     as ([e2' σ2'] n Hstep%stepN_pexec_det) "(Hs & Hwp)".
@@ -710,11 +749,11 @@ Proof.
   iIntros "Hwp".
   iLöb as "IH" forall (e E Φ s).
   rewrite !wp_unfold /wp_pre.
-  iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
+  iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hs & Hε)".
   iMod ("Hwp" with "[$]") as "Hwp".
   iModIntro.
   iApply (spec_coupl_bind with "[] Hwp"); [done|].
-  iIntros (????) "H".
+  iIntros (?????) "H".
   destruct (to_val e).
   { iApply fupd_spec_coupl.
     iMod "H" as "(?&?&?& Hupd)".
@@ -728,9 +767,9 @@ Proof.
     by iFrame. }
   iApply spec_coupl_ret.
   iApply (prog_coupl_mono with "[] H").
-  iIntros (e2 σ3 e3' σ3' ε3) "H !>".
+  iIntros (e2 σ3 e3' σ3' ε3 δ3) "H !>".
   iApply (spec_coupl_mono with "[] H"); [done|].
-  iIntros (σ4 e4' σ4' ε4) "> ($ & $ & $ & H)".
+  iIntros (σ4 e4' σ4' ε4 δ4) "> ($ & $ & $ & H)".
   iApply ("IH" with "H").
 Qed.
 
@@ -738,7 +777,7 @@ Qed.
 Lemma wp_mono E e Φ Ψ s : (∀ v, Φ v ⊢ Ψ v) → WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ Ψ }}.
 Proof.
   iIntros (HΦ) "H"; iApply (wp_strong_mono' with "H"); auto.
-  iIntros (????) "($ & $ & $ & ?)". by iApply HΦ.
+  iIntros (?????) "($ & $ & $ & ?)". by iApply HΦ.
 Qed.
 Lemma wp_mask_mono E1 E2 e Φ s : E1 ⊆ E2 → WP e @ s; E1 {{ Φ }} ⊢ WP e @ s; E2 {{ Φ }}.
 Proof. iIntros (?) "H"; iApply (wp_strong_mono' with "H"); auto. Qed.
@@ -760,7 +799,7 @@ Lemma wp_frame_l E e Φ R s : R ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, R
 Proof.
   iIntros "[? H]".
   iApply (wp_strong_mono with "H"); [done|].
-  iIntros (?????) "(? & ? & ? & ?)".
+  iIntros (??????) "(? & ? & ? & ?)".
   iApply spec_coupl_ret. by iFrame.
 Qed.
 Lemma wp_frame_r E e Φ R s : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
@@ -792,7 +831,7 @@ Lemma wp_wand E e Φ Ψ s :
   WP e @ s; E {{ Φ }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ WP e @ s; E {{ Ψ }}.
 Proof.
   iIntros "Hwp H". iApply (wp_strong_mono' with "Hwp"); auto.
-  iIntros (????) "($ & $ & $ & ?)". by iApply "H".
+  iIntros (?????) "($ & $ & $ & ?)". by iApply "H".
 Qed.
 Lemma wp_wand_l E e Φ Ψ s :
   (∀ v, Φ v -∗ Ψ v) ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ Ψ }}.

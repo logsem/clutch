@@ -110,57 +110,57 @@ Section nonnegreal.
 
 End nonnegreal.
 
-Class ecGpreS (Σ : gFunctors) := EcGpreS {
-  ecGpreS_inG :: inG Σ (authR nonnegrealUR)
+Class ecmGpreS (Σ : gFunctors) := EcmGpreS {
+  ecmGpreS_inG :: inG Σ (authR nonnegrealUR)
 }.
 
-Class ecGS (Σ : gFunctors) := EcGS {
-  ecGS_inG : inG Σ (authR nonnegrealUR);
-  ecGS_name : gname;
+Class ecmGS (Σ : gFunctors) := EcmGS {
+  ecmGS_inG : inG Σ (authR nonnegrealUR);
+  ecmGS_name : gname;
 }.
 
-Global Hint Mode ecGS - : typeclass_instances.
-Local Existing Instances ecGS_inG ecGpreS_inG.
+Global Hint Mode ecmGS - : typeclass_instances.
+Local Existing Instances ecmGS_inG ecmGpreS_inG.
 
-Definition ecΣ := #[GFunctor (authR (nonnegrealUR))].
-Global Instance subG_ecΣ {Σ} : subG ecΣ Σ → ecGpreS Σ.
+Definition ecmΣ := #[GFunctor (authR (nonnegrealUR))].
+Global Instance subG_ecmΣ {Σ} : subG ecmΣ Σ → ecmGpreS Σ.
 Proof. solve_inG. Qed.
 
 (** The internal authoritative part of the credit ghost state,
   tracking how many credits are available in total.
   Users should not directly interface with this. *)
-Local Definition ec_supply_def `{!ecGS Σ} (ε : nonnegreal) : iProp Σ := own ecGS_name (● ε).
-Local Definition ec_supply_aux : seal (@ec_supply_def). Proof. by eexists. Qed.
-Definition ec_supply := ec_supply_aux.(unseal).
-Local Definition ec_supply_unseal :
-  @ec_supply = @ec_supply_def := ec_supply_aux.(seal_eq).
-Global Arguments ec_supply {Σ _} ε.
+Local Definition ecm_supply_def `{!ecmGS Σ} (ε : nonnegreal) : iProp Σ := own ecmGS_name (● ε).
+Local Definition ecm_supply_aux : seal (@ecm_supply_def). Proof. by eexists. Qed.
+Definition ecm_supply := ecm_supply_aux.(unseal).
+Local Definition ecm_supply_unseal :
+  @ecm_supply = @ecm_supply_def := ecm_supply_aux.(seal_eq).
+Global Arguments ecm_supply {Σ _} ε.
 
 (** The user-facing error resource, denoting ownership of [ε] error credits. *)
-Local Definition ec_def `{!ecGS Σ} (ε : nonnegreal) : iProp Σ := own ecGS_name (◯ ε).
-Local Definition ec_aux : seal (@ec_def). Proof. by eexists. Qed.
-Definition ec := ec_aux.(unseal).
-Local Definition ec_unseal :
-  @ec = @ec_def := ec_aux.(seal_eq).
-Global Arguments ec {Σ _} ε.
+Local Definition ecm_def `{!ecmGS Σ} (ε : nonnegreal) : iProp Σ := own ecmGS_name (◯ ε).
+Local Definition ecm_aux : seal (@ecm_def). Proof. by eexists. Qed.
+Definition ecm := ecm_aux.(unseal).
+Local Definition ecm_unseal :
+  @ecm = @ecm_def := ecm_aux.(seal_eq).
+Global Arguments ecm {Σ _} ε.
 
-Notation "'↯'  ε" := (∃ (x : nonnegreal), ⌜x.(nonneg) = ε%R⌝ ∗ ec x)%I
+Notation "'↯m'  ε" := (∃ (x : nonnegreal), ⌜x.(nonneg) = ε%R⌝ ∗ ecm x)%I
   (at level 1).
 
 Section error_credit_theory.
-  Context `{!ecGS Σ}.
+  Context `{!ecmGS Σ}.
   Implicit Types (P Q : iProp Σ).
 
   #[local] Open Scope R.
 
   (** Error credit rules *)
-  Lemma ec_split (ε1 ε2 : R) :
+  Lemma ecm_split (ε1 ε2 : R) :
     0 <= ε1 →
     0 <= ε2 →
-    ↯ (ε1 + ε2) ⊢ ↯ ε1 ∗ ↯ ε2.
+    ↯m (ε1 + ε2) ⊢ ↯m ε1 ∗ ↯m ε2.
   Proof.
     iIntros (Hx1 Hx2) "(%x & %Hx & Hx)".
-    rewrite ec_unseal /ec_def.
+    rewrite ecm_unseal /ecm_def.
     set (x1' := mknonnegreal _ Hx1).
     set (x2' := mknonnegreal _ Hx2).
     assert (x = (x1' + x2')%NNR) as -> by apply nnreal_ext => //=.
@@ -169,49 +169,49 @@ Section error_credit_theory.
     iSplitL "Hx1"; by iExists _; iFrame.
   Qed.
 
-  Lemma ec_split_le (r1 r2 : R) :
+  Lemma ecm_split_le (r1 r2 : R) :
     0 <= r1 <= r2 →
-    ↯ r2 ⊢ ↯ r1 ∗ ↯ (r2 - r1).
+    ↯m r2 ⊢ ↯m r1 ∗ ↯m (r2 - r1).
   Proof.
     iIntros (?).
     assert (r2 = (r1 + (r2 - r1))%R) as Hr2 by lra.
     rewrite {1}Hr2.
-    apply ec_split; lra.
+    apply ecm_split; lra.
   Qed.
 
-  Lemma ec_combine (r1 r2 : R) :
-    ↯ r1 ∗ ↯ r2 ⊢ ↯ (r1 + r2).
+  Lemma ecm_combine (r1 r2 : R) :
+    ↯m r1 ∗ ↯m r2 ⊢ ↯m (r1 + r2).
   Proof.
     iIntros "[(%x1 & <- & Hr1) (%x2 & <- & Hr2)]".
-    rewrite ec_unseal /ec_def.
+    rewrite ecm_unseal /ecm_def.
     iExists (x1 + x2)%NNR.
     iSplit; [done|].
     rewrite auth_frag_op own_op.
     iFrame.
   Qed.
 
-  Lemma ec_zero : ⊢ |==> ↯ 0.
+  Lemma ecm_zero : ⊢ |==> ↯m 0.
   Proof.
-    rewrite ec_unseal /ec_def.
+    rewrite ecm_unseal /ecm_def.
     iExists nnreal_zero.
     iMod own_unit as "H".
     iModIntro. iSplit; done.
   Qed.
 
-  Lemma ec_supply_bound (ε1 : R) (ε2 : nonnegreal) :
-    ec_supply ε2 -∗ ↯ ε1 -∗ ⌜ε1 <= ε2⌝.
+  Lemma ecm_supply_bound (ε1 : R) (ε2 : nonnegreal) :
+    ecm_supply ε2 -∗ ↯m ε1 -∗ ⌜ε1 <= ε2⌝.
   Proof.
-    rewrite ec_unseal /ec_def ec_supply_unseal /ec_supply_def.
+    rewrite ecm_unseal /ecm_def ecm_supply_unseal /ecm_supply_def.
     iIntros "H1 (%r & <- & H2)".
     iDestruct (own_valid_2 with "H1 H2") as "%Hop".
     by eapply auth_both_valid_discrete in Hop as [Hlt%nonnegreal_included ?].
   Qed.
 
-  Lemma ec_supply_ec_inv r1 x2 :
-    ec_supply x2 -∗ ↯ r1 -∗ ∃ x1 x3, ⌜x2 = (x1 + x3)%NNR⌝ ∗ ⌜x1.(nonneg) = r1⌝.
+  Lemma ecm_supply_ecm_inv r1 x2 :
+    ecm_supply x2 -∗ ↯m r1 -∗ ∃ x1 x3, ⌜x2 = (x1 + x3)%NNR⌝ ∗ ⌜x1.(nonneg) = r1⌝.
   Proof.
     iIntros "Hx2 Hr1".
-    iDestruct (ec_supply_bound with "Hx2 Hr1") as %Hb.
+    iDestruct (ecm_supply_bound with "Hx2 Hr1") as %Hb.
     iDestruct "Hr1" as (x1) "[<- Hx1]".
     set (x3 := nnreal_minus x2 x1 Hb).
     iExists _, x3. iSplit; [|done].
@@ -220,13 +220,13 @@ Section error_credit_theory.
 
   (** The statement of this lemma is a bit convoluted, because only implicitly (by validity and
       unfolding) can we conclude that [0 <= r1 <= x2] so thus that [x2 - r1] is nonnegative *)
-  Lemma ec_supply_decrease (r1 : R) (x2 : nonnegreal) :
-    ec_supply x2 -∗ ↯ r1 -∗ |==> ∃ x1 x3, ⌜(x2 = x3 + x1)%NNR⌝ ∗ ⌜x1.(nonneg) = r1⌝ ∗ ec_supply x3.
+  Lemma ecm_supply_decrease (r1 : R) (x2 : nonnegreal) :
+    ecm_supply x2 -∗ ↯m r1 -∗ |==> ∃ x1 x3, ⌜(x2 = x3 + x1)%NNR⌝ ∗ ⌜x1.(nonneg) = r1⌝ ∗ ecm_supply x3.
   Proof.
     iIntros "Hx2 Hr1".
-    iDestruct (ec_supply_ec_inv with "Hx2 Hr1") as %(x1 & x3 & -> & <-).
+    iDestruct (ecm_supply_ecm_inv with "Hx2 Hr1") as %(x1 & x3 & -> & <-).
     iDestruct "Hr1" as (x1') "[% Hx1]".
-    rewrite ec_unseal /ec_def ec_supply_unseal /ec_supply_def.
+    rewrite ecm_unseal /ecm_def ecm_supply_unseal /ecm_supply_def.
     iMod (own_update_2 with "Hx2 Hx1") as "Hown".
     { eapply (auth_update_dealloc _ _ x3), nonnegreal_local_update.
       - apply cond_nonneg.
@@ -236,12 +236,12 @@ Section error_credit_theory.
     iPureIntro. apply nnreal_ext=>/=; lra.
   Qed.
 
-  Lemma ec_supply_increase (ε1 ε2 : nonnegreal) :
+  Lemma ecm_supply_increase (ε1 ε2 : nonnegreal) :
     (* ε1 + ε2 < 1 → *)
-    ec_supply ε1 -∗ |==> ec_supply (ε1 + ε2)%NNR ∗ ↯ ε2.
+    ecm_supply ε1 -∗ |==> ecm_supply (ε1 + ε2)%NNR ∗ ↯m ε2.
   Proof.
-    rewrite ec_unseal /ec_def.
-    rewrite ec_supply_unseal /ec_supply_def.
+    rewrite ecm_unseal /ecm_def.
+    rewrite ecm_supply_unseal /ecm_supply_def.
     iIntros (* (?) *) "H".
     iMod (own_update with "H") as "[$ $]"; [|done].
     eapply auth_update_alloc.
@@ -253,20 +253,20 @@ Section error_credit_theory.
     rewrite H2 /=. lra.
   Qed.
 
-  Lemma ec_weaken (r1 r2 : R) :
-    0 <= r2 <= r1 → ↯ r1 -∗ ↯ r2.
+  Lemma ecm_weaken (r1 r2 : R) :
+    0 <= r2 <= r1 → ↯m r1 -∗ ↯m r2.
   Proof.
     iIntros (?) "Hr1".
     assert (r1 = (r1 - r2) + r2) as -> by lra.
-    iDestruct (ec_split with "Hr1") as "[? $]"; lra.
+    iDestruct (ecm_split with "Hr1") as "[? $]"; lra.
   Qed.
 
-  Lemma ec_eq x1 x2 :
-    x1 = x2 → ↯ x1 -∗ ↯ x2.
+  Lemma ecm_eq x1 x2 :
+    x1 = x2 → ↯m x1 -∗ ↯m x2.
   Proof. iIntros (->) "$". Qed.
 
-  Lemma ec_supply_eq x1 x2 :
-    (x1.(nonneg) = x2.(nonneg)) → ec_supply x1 -∗ ec_supply x2.
+  Lemma ecm_supply_eq x1 x2 :
+    (x1.(nonneg) = x2.(nonneg)) → ecm_supply x1 -∗ ecm_supply x2.
   Proof.
     iIntros (?) "?".
     replace x1 with x2; [iFrame|by apply nnreal_ext].
@@ -284,10 +284,10 @@ Section error_credit_theory.
        lra.
      Qed. *)
 
-  Lemma ec_valid (ε : R) : ↯ ε -∗ ⌜(0<=ε(* <1 *))%R⌝.
+  Lemma ecm_valid (ε : R) : ↯m ε -∗ ⌜(0<=ε(* <1 *))%R⌝.
   Proof.
     iIntros "(%&<-&H)".
-    rewrite ec_unseal /ec_def.
+    rewrite ecm_unseal /ecm_def.
     iDestruct (own_valid with "H") as %?%auth_frag_valid_1.
     destruct x. compute in H. simpl in *. iPureIntro. lra.
   Qed. 
@@ -484,34 +484,34 @@ Section error_credit_theory.
          + simpl in Hn. lra.
      Qed. *)
 
-  Global Instance ec_timeless r : Timeless (↯ r).
-  Proof. rewrite ec_unseal /ec_def. apply _. Qed.
+  Global Instance ecm_timeless r : Timeless (↯m r).
+  Proof. rewrite ecm_unseal /ecm_def. apply _. Qed.
 
-  Global Instance from_sep_ec_combine r1 r2 :
-    FromSep (↯ (r1 + r2)) (↯ r1) (↯ r2) | 0.
-  Proof. rewrite /FromSep ec_combine //. Qed.
+  Global Instance from_sep_ecm_combine r1 r2 :
+    FromSep (↯m (r1 + r2)) (↯m r1) (↯m r2) | 0.
+  Proof. rewrite /FromSep ecm_combine //. Qed.
 
-  Global Instance into_sep_ec_add r1 r2 :
+  Global Instance into_sep_ecm_add r1 r2 :
     0 <= r1 → 0 <= r2 →
-    IntoSep (↯ (r1 + r2)) (↯ r1) (↯ r2) | 0.
-  Proof. rewrite /IntoSep. apply ec_split. Qed.
+    IntoSep (↯m (r1 + r2)) (↯m r1) (↯m r2) | 0.
+  Proof. rewrite /IntoSep. apply ecm_split. Qed.
 
-  Global Instance combine_sep_as_ec_add r1 r2 :
-    CombineSepAs (↯ r1) (↯ r2) (↯ (r1 + r2)) | 0.
-  Proof. rewrite /CombineSepAs ec_combine //. Qed.
+  Global Instance combine_sep_as_ecm_add r1 r2 :
+    CombineSepAs (↯m r1) (↯m r2) (↯m (r1 + r2)) | 0.
+  Proof. rewrite /CombineSepAs ecm_combine //. Qed.
 
 End error_credit_theory.
 
-Lemma ec_alloc `{!ecGpreS Σ} (n : nonnegreal) :
-  (* (n < 1)%R → *) ⊢ |==> ∃ _ : ecGS Σ, ec_supply n ∗ ↯ n.
+Lemma ecm_alloc `{!ecmGpreS Σ} (n : nonnegreal) :
+  (* (n < 1)%R → *) ⊢ |==> ∃ _ : ecmGS Σ, ecm_supply n ∗ ↯m n.
 Proof.
   (* iIntros (?). *)
-  rewrite ec_unseal /ec_def ec_supply_unseal /ec_supply_def.
-  iMod (own_alloc (● n ⋅ ◯ n)) as (γEC) "[H● H◯]".
+  rewrite ecm_unseal /ecm_def ecm_supply_unseal /ecm_supply_def.
+  iMod (own_alloc (● n ⋅ ◯ n)) as (γECM) "[H● H◯]".
   - apply auth_both_valid_2.
     + compute. destruct n; simpl in *. lra.
     + apply nonnegreal_included; lra.
-  - pose (C := EcGS _ _ γEC).
+  - pose (C := EcmGS _ _ γECM).
     iModIntro. iExists C. by iFrame.
 Qed.
 

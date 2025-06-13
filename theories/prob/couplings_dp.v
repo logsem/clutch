@@ -3,7 +3,7 @@ From Coq.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Lim_seq Rbar.
 From stdpp Require Export countable.
 From clutch.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
-From clutch.prob Require Export countable_sum distribution couplings graded_predicate_lifting.
+From clutch.prob Require Export countable_sum distribution couplings graded_predicate_lifting couplings_app couplings_exp.
 
 Open Scope R.
 
@@ -61,6 +61,22 @@ Section couplings_theory.
     - apply Rplus_le_compat; auto.
       apply Rmult_le_compat_r; first by series.
       by apply exp_mono.
+  Qed.
+
+
+  Lemma DPcoupl_1 (μ1 : distr A') (μ2 : distr B') R ε δ:
+    (1 <= δ) -> DPcoupl μ1 μ2 R ε δ.
+  Proof.
+    rewrite /DPcoupl.
+    intros Hδ f g Hf Hg Hfg.
+    trans 1.
+    - trans (SeriesC μ1); last auto.
+      apply SeriesC_le; last auto.
+      real_solver.
+    - replace 1 with (0+1); last lra.
+      apply Rplus_le_compat; last lra.
+      apply Rmult_le_pos; [left; apply exp_pos |].
+      apply SeriesC_ge_0'; real_solver.
   Qed.
 
 
@@ -359,6 +375,40 @@ Section couplings_theory.
             = SeriesC (λ a : A, μ2 a * (if bool_decide (P a) then 1 else 0))) as ->.
     { apply SeriesC_ext; real_solver. }
     apply Hcoupl; real_solver.
+  Qed.
+
+  Lemma DPcoupl_to_Mcoupl (μ1 μ2 : distr A) Q ε :
+    DPcoupl μ1 μ2 Q ε 0 -> Mcoupl μ1 μ2 Q ε.
+  Proof.
+    intros Hcoupl f g Hf Hg HQ.
+    rewrite <- Rplus_0_r.
+    by apply Hcoupl.
+  Qed.
+
+  Lemma Mcoupl_to_DPcoupl (μ1 μ2 : distr A) Q ε :
+    Mcoupl μ1 μ2 Q ε -> DPcoupl μ1 μ2 Q ε 0.
+  Proof.
+    intros Hcoupl f g Hf Hg HQ.
+    etransitivity; first by apply Hcoupl.
+    real_solver.
+  Qed.
+
+  Lemma DPcoupl_to_ARcoupl (μ1 μ2 : distr A) Q δ :
+    DPcoupl μ1 μ2 Q 0 δ -> ARcoupl μ1 μ2 Q δ.
+  Proof.
+    intros Hcoupl f g Hf Hg HQ.
+    etransitivity; first by apply Hcoupl.
+    rewrite exp_0.
+    real_solver.
+  Qed.
+
+  Lemma ARcoupl_to_DPcoupl (μ1 μ2 : distr A) Q δ :
+    ARcoupl μ1 μ2 Q δ -> DPcoupl μ1 μ2 Q 0 δ.
+  Proof.
+    intros Hcoupl f g Hf Hg HQ.
+    etransitivity; first by apply Hcoupl.
+    rewrite exp_0.
+    real_solver.
   Qed.
 
 End couplings_theory.

@@ -4,7 +4,7 @@ From stdpp Require Import fin_maps fin_map_dom.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.common Require Import exec language ectx_language erasable.
 From clutch.prob_lang Require Import notation lang metatheory.
-From clutch.prob Require Import couplings couplings_app couplings_exp markov.
+From clutch.prob Require Import couplings couplings_app couplings_exp couplings_dp markov.
 
 Set Default Proof Using "Type*".
 Local Open Scope R.
@@ -755,4 +755,42 @@ Proof.
   erewrite <-(erasable_pexec_lim_exec (Λ := prob_lang) _ _ _ _ Hμ1') => /=.
   eapply Mcoupl_mon_grading. 2: eapply Mcoupl_dbind ; try done.
   1: eauto. intros [] []. apply Hcpl.
+Qed.
+
+
+Lemma DPcoupl_erasure_erasable_rhs e1 e1' ε ε1 ε2 δ δ1 δ2 σ1 σ1' μ1 μ1' R φ k m
+  (Hεsum : ε1 + ε2 <= ε)
+  (Hδ1 : 0 <= δ1)
+  (Hδ2 : 0 <= δ2)
+  (Hδsum : δ1 + δ2 <= δ)
+  (H : DPcoupl μ1 (μ1' ≫= λ σ2' : language.state prob_lang, pexec k (e1', σ2')) R ε1 δ1)
+  (Hμ1 : erasable μ1 σ1)
+  (Hμ1' : erasable μ1' σ1')
+  (Hcpl : (∀ (σ2 : state) ρ2',
+              R σ2 ρ2'
+              → DPcoupl (exec m (e1, σ2)) (lim_exec ρ2') φ ε2 δ2))
+  : DPcoupl (exec m (e1, σ1)) (lim_exec (e1', σ1')) φ ε δ.
+Proof.
+  rewrite -Hμ1. erewrite <-(erasable_pexec_lim_exec (Λ := prob_lang) _ _ _ _ Hμ1') => /=.
+  eapply DPcoupl_mon_grading; [apply Hεsum | apply Hδsum |].
+  eapply DPcoupl_dbind ; try done.
+Qed.
+
+Lemma DPcoupl_erasure_erasable_lhs' (e1 e1' : expr) ε ε1 ε2 δ δ1 δ2 σ1 σ1' μ1' R φ k m
+  (Hred : reducible (e1, σ1))
+  (Hεsum : ε1 + ε2 <= ε)
+  (Hδ1 : 0 <= δ1)
+  (Hδ2 : 0 <= δ2)
+  (Hδsum : δ1 + δ2 <= δ)
+  (H : DPcoupl (prim_step e1 σ1) (μ1' ≫= λ σ2' : state, pexec k (e1', σ2')) R ε1 δ1)
+  (Hμ1' : erasable μ1' σ1')
+  (Hcpl : (∀ (e2 : expr) (σ2 : state) (e2' : expr) (σ2' : state),
+              R (e2, σ2) (e2', σ2')
+              → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2 δ2))
+  : DPcoupl (prim_step e1 σ1 ≫= exec m) (lim_exec (e1', σ1')) φ ε δ.
+Proof.
+  erewrite <-(erasable_pexec_lim_exec (Λ := prob_lang) _ _ _ _ Hμ1') => /=.
+  eapply DPcoupl_mon_grading; [apply Hεsum | apply Hδsum |].
+  eapply DPcoupl_dbind ; try done.
+  intros [] []. apply Hcpl.
 Qed.

@@ -20,16 +20,16 @@ Local Hint Resolve head_stuck_stuck : core.
 
 Lemma wp_lift_head_step_prog_couple {E Φ} e1 s :
   to_val e1 = None →
-  (∀ σ1 e1' σ1' ε1,
-    state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 ={E,∅}=∗
+  (∀ σ1 e1' σ1' ε1 δ1,
+    state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 δ1 ={E,∅}=∗
     ⌜head_reducible e1 σ1⌝ ∗
-    prog_coupl e1 σ1 e1' σ1' ε1 (λ e2 σ2 e2' σ2' ε2,
+    prog_coupl e1 σ1 e1' σ1' ε1 δ1 (λ e2 σ2 e2' σ2' ε2 δ2,
       ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗
-                  err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
+                  err_interp ε2 δ2 ∗ WP e2 @ s; E {{ Φ }}))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H". iApply wp_lift_step_prog_couple; [done|].
-  iIntros (σ1 e1' σ1' ε1) "Hσ".
+  iIntros (σ1 e1' σ1' ε1 δ1) "Hσ".
   by iMod ("H" with "Hσ") as "[% H]".
 Qed.
 

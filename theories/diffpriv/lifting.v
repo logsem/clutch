@@ -16,36 +16,36 @@ Implicit Types Φ : val Λ → iProp Σ.
 #[local] Open Scope R.
 
 Lemma wp_lift_step_couple E Φ e1 s :
-  (∀ σ1 e1' σ1' ε1,
-      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 ={E, ∅}=∗
-      spec_coupl ∅ σ1 e1' σ1' ε1 (λ σ2 e2' σ2' ε2 ,
+  (∀ σ1 e1' σ1' ε1 δ1,
+      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 δ1 ={E, ∅}=∗
+      spec_coupl ∅ σ1 e1' σ1' ε1 δ1 (λ σ2 e2' σ2' ε2 δ2,
         match to_val e1 with
         | Some v => |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗
-                               err_interp ε2 ∗ Φ v
+                               err_interp ε2 δ2 ∗ Φ v
         | None =>
-            prog_coupl e1 σ2 e2' σ2' ε2 (λ e3 σ3 e3' σ3' ε3,
-                ▷ spec_coupl ∅ σ3 e3' σ3' ε3 (λ σ4 e4' σ4' ε4,
+            prog_coupl e1 σ2 e2' σ2' ε2 δ2 (λ e3 σ3 e3' σ3' ε3 δ3,
+                ▷ spec_coupl ∅ σ3 e3' σ3' ε3 δ3 (λ σ4 e4' σ4' ε4 δ4,
                     |={∅, E}=> state_interp σ4 ∗ spec_interp (e4', σ4') ∗
-                               err_interp ε4 ∗ WP e3 @ s; E {{ Φ }}))
+                               err_interp ε4 δ4 ∗ WP e3 @ s; E {{ Φ }}))
         end))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof. rewrite wp_unfold /wp_pre //. Qed.
 
 Lemma wp_lift_step_spec_couple E Φ e1 s :
-  (∀ σ1 e1' σ1' ε1,
-      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 ={E, ∅}=∗
-      spec_coupl ∅ σ1 e1' σ1' ε1 (λ σ2 e2' σ2' ε2,
+  (∀ σ1 e1' σ1' ε1 δ1,
+      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 δ1 ={E, ∅}=∗
+      spec_coupl ∅ σ1 e1' σ1' ε1 δ1 (λ σ2 e2' σ2' ε2 δ2,
         |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗
-                   err_interp ε2 ∗ WP e1 @ s; E {{ Φ }}))
+                   err_interp ε2 δ2 ∗ WP e1 @ s; E {{ Φ }}))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros "H".
   iApply wp_lift_step_couple.
-  iIntros (????) "Hs".
+  iIntros (?????) "Hs".
   iMod ("H" with "[$]") as "H".
   iModIntro.
   iApply (spec_coupl_bind with "[] H"); [done|].
-  iIntros (????) "H".
+  iIntros (?????) "H".
   iApply fupd_spec_coupl.
   iMod "H" as "(?&?&?&H)".
   rewrite wp_unfold /wp_pre.
@@ -54,21 +54,21 @@ Qed.
 
 Lemma wp_lift_step_prog_couple E Φ e1 s :
   to_val e1 = None →
-  (∀ σ1 e1' σ1' ε1,
-      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 ={E, ∅}=∗
-      prog_coupl e1 σ1 e1' σ1' ε1 (λ e2 σ2 e2' σ2' ε2,
+  (∀ σ1 e1' σ1' ε1 δ1,
+      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 δ1 ={E, ∅}=∗
+      prog_coupl e1 σ1 e1' σ1' ε1 δ1 (λ e2 σ2 e2' σ2' ε2 δ2,
         ▷ |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗
-                     err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
+                     err_interp ε2 δ2 ∗ WP e2 @ s; E {{ Φ }}))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (Hv) "H".
   iApply wp_lift_step_couple.
-  iIntros (????) "Hs".
+  iIntros (?????) "Hs".
   iMod ("H" with "[$]") as "H".
   iApply spec_coupl_ret.
   iModIntro. rewrite Hv.
   iApply (prog_coupl_mono with "[] H").
-  iIntros (?????) "H !>".
+  iIntros (??????) "H !>".
   by iApply spec_coupl_ret.
 Qed.
 
@@ -83,7 +83,7 @@ Lemma wp_lift_step_later E Φ e1 s :
 Proof.
   iIntros (?) "H".
   iApply wp_lift_step_prog_couple; [done|].
-  iIntros (σ1 e1' σ1' ε1) "(Hσ & Hρ & Hε)".
+  iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hρ & Hε)".
   iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
   iApply prog_coupl_step_l; [done|].
   iIntros (???).

@@ -2,7 +2,7 @@
     applying the lifting lemmas. *)
 From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Export ghost_map.
-From clutch.base_logic Require Export error_credits_mult.
+From clutch.base_logic Require Export error_credits_mult error_credits.
 From clutch.diffpriv Require Export weakestpre ectx_lifting.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation metatheory.
@@ -19,8 +19,9 @@ Class diffprivGS Σ := HeapG {
   diffprivGS_tapes_name : gname;
   (* CMRA and ghost name for the spec *)
   diffprivGS_spec :: specG_prob_lang Σ;
-  (* CMRA and ghost name for the error *)
-  diffprivGS_error :: ecGS Σ;
+  (* CMRA and ghost names for the error *)
+  diffprivGS_error_eps :: ecmGS Σ;
+  diffprivGS_error_del :: ecGS Σ;
 }.
 
 Class diffprivGpreS Σ := DiffprivGpreS {
@@ -28,7 +29,8 @@ Class diffprivGpreS Σ := DiffprivGpreS {
   diffprivGpreS_heap  :: ghost_mapG Σ loc val;
   diffprivGpreS_tapes :: ghost_mapG Σ loc tape;
   diffprivGpreS_spcec :: specGpreS Σ;
-  diffprivGpreS_err   :: ecGpreS Σ;
+  diffprivGpreS_err_eps   :: ecmGpreS Σ;
+  diffprivGpreS_err_del   :: ecGpreS Σ;
 }.
 
 Definition diffprivΣ : gFunctors :=
@@ -36,6 +38,7 @@ Definition diffprivΣ : gFunctors :=
     ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
     specΣ;
+    ecmΣ;
     ecΣ].
 Global Instance subG_diffprivGPreS {Σ} : subG diffprivΣ Σ → diffprivGpreS Σ.
 Proof. solve_inG. Qed.
@@ -44,11 +47,15 @@ Definition heap_auth `{diffprivGS Σ} :=
   @ghost_map_auth _ _ _ _ _ diffprivGS_heap diffprivGS_heap_name.
 Definition tapes_auth `{diffprivGS Σ} :=
   @ghost_map_auth _ _ _ _ _ diffprivGS_tapes diffprivGS_tapes_name.
+Definition mult_ec_supply `{diffprivGS Σ} :=
+  @ecm_supply _ diffprivGS_error_eps.
+Definition add_ec_supply `{diffprivGS Σ} :=
+  @ec_supply _ diffprivGS_error_del.
 
 Global Instance diffprivGS_irisGS `{!diffprivGS Σ} : diffprivWpGS prob_lang Σ := {
   diffprivWpGS_invGS := diffprivGS_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
-  err_interp := ec_supply;
+  err_interp ε δ := ((mult_ec_supply ε) ∗ (add_ec_supply δ))%I;
 }.
 
 (** Heap *)
@@ -389,7 +396,7 @@ Lemma wp_rand_r N z E e K Φ :
 Proof.
   iIntros (->) "(Hj & Hwp)".
   iApply wp_lift_step_spec_couple.
-  iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
+  iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hs & Hε)".
   iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
   iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
   iApply spec_coupl_step; [solve_red|].
@@ -432,7 +439,7 @@ Lemma wp_rand_empty_r N z E e K α Φ :
 Proof.
   iIntros (->) "(Hj & Hα & Hwp)".
   iApply wp_lift_step_spec_couple.
-  iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
+  iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hs & Hε)".
   iPoseProof (spec_tapeN_to_empty with "Hα") as "Hα".
   iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
   iDestruct (spec_auth_lookup_tape with "Hs Hα") as %?.
@@ -482,7 +489,7 @@ Qed.
 Proof.
   iIntros (-> ?) "(Hj & Hα & Hwp)".
   iApply wp_lift_step_spec_couple.
-  iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
+  iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hs & Hε)".
   iDestruct "Hα" as (?) "(%&Hα)".
   iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
   iDestruct (spec_auth_lookup_tape with "Hs Hα") as %?.
