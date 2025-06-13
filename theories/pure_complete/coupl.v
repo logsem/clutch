@@ -8,7 +8,7 @@ From clutch.prob_lang.spec Require Import spec_ra spec_rules spec_tactics.
 From clutch.approxis Require Import ectx_lifting app_weakestpre model.
 From clutch.approxis Require Export proofmode primitive_laws coupling_rules.
 From clutch.base_logic Require Export spec_update.
-From clutch.pure_complete Require Import pure tachis_ert.
+From clutch.pure_complete Require Import pure tachis_ert prob_additional.
 
 Local Open Scope R.
 
@@ -36,80 +36,26 @@ Proof.
   lra. 
 Qed.
 
-Lemma dmap_one `{Countable A, Countable B} (μ : distr A) (f : A -> B) a b :
-  μ a = 1 ->
-  b = f a ->
-  dmap f μ b = 1.
+
+Lemma stepN_pos_step_pos {δ : markov} (x : mstate δ) n :
+  SeriesC (stepN (S n) x) > 0 ->
+  ∃ y, step x y > 0.
 Proof.
   intros.
-  apply pmf_1_eq_dret in H1.
-  subst. 
-  rewrite dmap_dret.
-  by apply dret_1_1.
-Qed.
-
-Lemma SeriesC_0_nonneg `{Countable A} (f : A -> R):
-  ex_seriesC f ->
-  (∀ x, 0 <= f x) ->
-  SeriesC f = 0 ->
-  ∀ x, f x = 0.
-Proof.
-  intros ???.
-  destruct (ExcludedMiddle (∀ x, f x = 0)); auto.
-  pose proof (Classical_Pred_Type.not_all_ex_not _ _ H3) as (a & ?).
-  assert (f a > 0). {
-    specialize (H1 a). lra.
-  }
-  assert (f a <= 0). {
-    rewrite -H2.
-    apply pos_series_le_one; auto.
-  }
-  lra.
-Qed.
-
-Lemma dbind_det_inv1 `{Countable A, Countable B} (μ : distr A) (f : A -> distr B):
-  SeriesC (dbind f μ) = 1 ->
-  SeriesC μ = 1.
-Proof.
-  intros.
-  rewrite dbind_mass in H1.
+  destruct (ExcludedMiddle (∃ y, step x y > 0)); auto.
+  pose proof (not_exists_forall_not _ _ H0).
+  assert (SeriesC (stepN (S n) x) = 0). 
+  2 : { rewrite H2 in H. lra. } 
+  simpl in *. 
+  apply SeriesC_0. 
+  intros. rewrite stepN_Sn.
+  replace (step x) with (dzero : distr (mstate δ)). 
+  { by rewrite dbind_dzero_pmf.  }
+  erewrite dzero_ext; auto. 
+  intros. 
   apply Rle_antisym; auto.
-  rewrite -H1.
-  apply SeriesC_le; auto.
-  intros.
-  split.
-  - apply Rmult_le_pos; auto.
-  - rewrite -(Rmult_1_r (μ n)) Rmult_assoc. 
-    apply Rmult_le_compat_l; auto; real_solver.
-Qed.
-
-Lemma dbind_det_inv2 `{Countable A, Countable B} (μ : distr A) (f : A -> distr B):
-  SeriesC (dbind f μ) = 1 ->
-  ∀ a, μ a > 0 ->  
-  SeriesC (f a) = 1.
-Proof.
-  intros.
-  apply dbind_det_inv1 in H1 as H3.
-  rewrite dbind_mass in H1.
-  rewrite -H1 in H3.
-  assert (SeriesC (fun x => μ x * (1 - SeriesC (f x))) = 0). {
-    erewrite SeriesC_ext. 
-    2 : intros; by rewrite Rmult_minus_distr_l Rmult_1_r.
-    rewrite SeriesC_minus; auto.
-    { rewrite H3. real_solver. }
-    apply (ex_seriesC_le _ μ); auto.
-    split; try real_solver.
-  }
-  epose proof (SeriesC_0_nonneg _ _ _ H4 a).
-  simpl in H5. 
-  apply Rmult_integral in H5 as [H5 | H5]; lra.
-  Unshelve.
-  - apply (ex_seriesC_le _ μ); auto.
-    split; try real_solver. 
-    apply Rmult_le_pos; try real_solver. by apply Rle_0_le_minus. 
-  - intros.
-    simpl.
-    apply Rmult_le_pos; try real_solver. by apply Rle_0_le_minus. 
+  specialize (H1 a). 
+  lra. 
 Qed.
 
 Lemma erasable_execN_det e μ σ n: 
@@ -126,37 +72,6 @@ Proof.
 Qed.
     
 
-Definition is_det `{Countable A} (μ : distr A) :=
-  ∃ a, μ = dret a.
-
-Lemma is_det_bind `{Countable A, Countable B} (μ : distr A) (f : A -> distr B) :
-  is_det μ ->
-  (∀ a, μ a > 0 -> is_det (f a)) ->
-  is_det (dbind f μ).
-Proof.
-  intros [a Ha] Hd.
-  epose proof (Hd a _) as [b Hdb].
-  exists b.
-  apply pmf_1_eq_dret.
-  rewrite dbind_unfold_pmf.
-  rewrite Ha.
-  pose proof (Expval_dret (fun x => f x b) a).
-  unfold Expval in*.
-  rewrite H1 Hdb.
-  by apply dret_1.
-  Unshelve.
-  rewrite Ha.
-  rewrite dret_1_1; auto; lra. 
-Qed.
-
-Lemma ARcoupl_map_rev `{Countable A, Countable B, Countable A', Countable B'} 
-  (μ1 : distr A) (μ2 : distr B) (f1 : A → A') (f2 : B → B') ψ ε :
-  ARcoupl (dmap f1 μ1) (dmap f2 μ2) ψ ε -> ARcoupl μ1 μ2 (fun x y =>  ψ (f1 x) (f2 y)) ε.
-Proof.
-  rewrite /ARcoupl.
-  intros.
-Admitted.
-
 Definition skip_one (e : expr) := (λ: <>, e)%V #().
 
 Lemma skip_one_after e σ: step (skip_one e, σ) = dret (e, σ).
@@ -168,6 +83,7 @@ Proof.
   simpl. by rewrite dmap_dret.
 Qed.
 
+Section SamplesOneTape.
 Inductive SamplesOneTape : loc -> expr -> Prop :=
   | SamplesOneTapeRand t e2 (H1 : SamplesOneTape t e2) :
     SamplesOneTape t (Rand e2 (Val (LitV (LitLoc t))))
@@ -548,6 +464,49 @@ Proof.
     + by eapply SamplesOneTape_inv. 
 Qed. 
 
+Lemma presamples_stepN_det l σ n N t e:
+  σ.(tapes) !! l = Some (N; t) ->
+  (n <= length t)%nat ->
+  SeriesC (stepN n (e, σ)) = 1 ->
+  SamplesOneTape l e -> 
+  is_det (stepN n (e, σ)).
+Proof.
+  revert σ e t.
+  induction n.
+  {
+    intros.
+    rewrite stepN_O.
+    by econstructor. 
+  }
+  intros.
+  destruct t; simpl in H0; try lia.
+  rewrite stepN_Sn. 
+  apply is_det_bind.
+  {
+    epose proof (stepN_pos_step_pos (e, σ) n _) as [[e' σ'] Hr]. 
+    Unshelve.
+    2 : rewrite H1; lra.
+    exists (e', σ').
+    apply pmf_1_eq_dret.
+    eapply SamplesOneTape_step_det; eauto. 
+  }
+  intros.
+  destruct a as [e' σ'].
+  rewrite stepN_Sn in H1; auto.
+  epose proof (dbind_det_inv2 _ _ H1 _ H3). 
+  epose proof (SamplesOneTape_step_state _ _ _ _ _ _ _ _ H2 H H3) as [Ht | Ht]. 
+  - eapply IHn.
+    + by rewrite Ht. 
+    + simpl. lia.
+    + auto.
+    + by eapply SamplesOneTape_inv. 
+  - eapply IHn.
+    + rewrite Ht. rewrite lookup_insert. done.
+    + lia.
+    + auto.
+    + by eapply SamplesOneTape_inv. 
+Qed. 
+
 Definition state_stepN σ l n := iterM n (λ σ', state_step σ' l) σ.
 
 Lemma state_stepN_tape σ l n σ' N t : 
@@ -604,7 +563,7 @@ Proof.
     by inversion H2.
 Qed.
 
- Lemma SamplesOneTape_state_stepN_det l σ σ' n N t e:
+Lemma SamplesOneTape_state_stepN_exec_det l σ σ' n N t e:
   σ.(tapes) !! l = Some (N; t) ->
   SeriesC (exec n (e, σ)) = 1 ->
   SamplesOneTape l e -> 
@@ -628,50 +587,7 @@ Proof.
     + by rewrite /state_stepN in H2.
 Qed.
 
-(* 
-
-Lemma SamplesOneTape_presamples_n (l : loc) e σ n N t :
-  SeriesC (exec n (e, σ)) = 1 ->
-  SamplesOneTape l e ->
-  σ.(tapes) !! l = Some (N; t) ->
-  ∃ μ, erasable μ σ ∧
-    (∀ σ', μ σ' > 0 -> 
-    σ'.(heap) = σ.(heap) ∧
-    (∃ t', σ'.(tapes) = <[l:=(N; t')]>(σ.(tapes))) ∧
-    is_det (exec n (e, σ'))).
-Proof.
-  revert e σ t.
-  induction n.
-  {
-    intros.
-    destruct (to_val e) eqn: Hve.
-    { by eapply SamplesOneTape_presamples_n_val. }
-    intros.
-    rewrite exec_O_not_final in H; auto.
-    rewrite dzero_mass in H.
-    lra.
-  }
-  intros.
-  destruct (to_val e) eqn: Hve.
-  { by eapply SamplesOneTape_presamples_n_val. }
-
-  (* Search (state_step).
-  exists (state_step σ l).
-  split.
-  { eapply erasure.state_step_erasable. apply H1. }
-  intros. *)
-
-
-  (* induction n.
-  - destruct (to_val e) eqn: Hve.
-    + rewrite /exec in H.
-      simpl in H.
-      rewrite Hve in H. *)
-       *)
-
-
-
-Lemma SamplesOneTape_presamples_lim (l : loc) e σ N t :
+(* Lemma SamplesOneTape_presamples_lim (l : loc) e σ N t :
   SeriesC (lim_exec (e, σ)) = 1 ->
   SamplesOneTape l e ->
   σ.(tapes) !! l = Some (N; t) ->
@@ -680,8 +596,11 @@ Lemma SamplesOneTape_presamples_lim (l : loc) e σ N t :
     σ'.(heap) = σ.(heap) ∧
     (∃ t', σ'.(tapes) = <[l:=(N; t')]>(σ.(tapes))) ∧
     is_det (lim_exec (e, σ')) ).    
-Admitted.
+Admitted. *)
 
+End SamplesOneTape.
+
+Section Coupl.
 Context `{!approxisGS Σ}.
 
 Notation σ₀ := {| heap := ∅; tapes := ∅ |}.
@@ -705,3 +624,4 @@ Proof.
   
 
 Admitted.
+End Coupl.
