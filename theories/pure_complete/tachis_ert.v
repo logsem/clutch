@@ -425,8 +425,6 @@ Proof.
           reflexivity.
     }
     simpl. do 5 f_equal. 
-    apply functional_extensionality.
-    intros. case_bool_decide; auto.
   }
   erewrite SeriesC_ext.
   2 : {

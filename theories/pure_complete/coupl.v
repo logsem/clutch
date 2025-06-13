@@ -1,4 +1,4 @@
-From stdpp Require Import coPset namespaces.
+From stdpp Require Import prelude coPset namespaces.
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import list.
 From clutch.common Require Import language ectx_language ectxi_language locations.
@@ -9,8 +9,28 @@ From clutch.approxis Require Import ectx_lifting app_weakestpre model.
 From clutch.approxis Require Export proofmode primitive_laws coupling_rules.
 From clutch.base_logic Require Export spec_update.
 From clutch.pure_complete Require Import pure tachis_ert prob_additional.
-
+From Coq.Logic Require Import ClassicalEpsilon.
 Local Open Scope R.
+
+Definition det_exec_result n (ρ : cfg) :=
+  match decide (is_det (exec n ρ)) with
+  | left P => proj1_sig (constructive_indefinite_description _ P)
+  | right _ => #()
+end.
+
+Lemma det_exec_result_correct n ρ v : 
+  (exec n ρ) = dret v ->
+  det_exec_result n ρ = v.
+Proof.
+  intros.
+  unfold det_exec_result.
+  case_decide.
+  2 : { exfalso. apply H0. by econstructor. }
+  epose proof (proj2_sig (constructive_indefinite_description _ H0)).
+  simpl in H1. 
+  rewrite H1 in H.
+  by apply dret_ext_inv.
+Qed.
 
 Lemma exec_pos_step_pos {δ : markov} (x : mstate δ) n :
   to_final x = None ->
@@ -331,6 +351,16 @@ Proof.
   - eauto.
 Qed.
 
+Lemma SamplesOneTape_step_det' l e σ N v t e' σ':
+  SamplesOneTape l e ->
+  σ.(tapes) !! l = Some (N; v :: t) ->
+  step (e, σ) (e', σ') > 0 ->
+  step (e, σ) = dret (e', σ').
+Proof.
+  intros.
+  by eapply pmf_1_eq_dret, SamplesOneTape_step_det. 
+Qed.
+
 Lemma SamplesOneTape_step_state l e σ N v t e' σ':
   SamplesOneTape l e ->
   σ.(tapes) !! l = Some (N; v :: t) ->
@@ -408,103 +438,146 @@ Proof.
   - replace l0 with (decomp e).1; try by rewrite Hde. 
     by apply SamplesOneTape_ectx. 
 Qed.
-  
-Lemma presamples_execN_det l σ n N t e:
-  σ.(tapes) !! l = Some (N; t) ->
-  (n <= length t)%nat ->
-  SeriesC (exec n (e, σ)) = 1 ->
-  SamplesOneTape l e -> 
-  is_det (exec n (e, σ)).
-Proof.
-  revert σ e t.
-  induction n.
-  {
-    intros.
-    destruct (to_val e) eqn : Hve.
-    { 
-      erewrite exec_is_final; try by simpl.
-      by econstructor. 
-    }
-    rewrite exec_O_not_final in H1; auto.
-    rewrite dzero_mass in H1.
-    lra.
-  }
-  intros.
-  destruct (to_val e) eqn : Hve.
-  { 
-    erewrite exec_is_final; try by simpl.
-    by econstructor. 
-  }
-  rewrite exec_Sn_not_final; auto.
-  destruct t; simpl in H0; try lia.
-  apply is_det_bind.
-  {
-    epose proof (exec_pos_step_pos (e, σ) (S n) _ _) as [[e' σ'] Hr].
-    Unshelve.
-    2 : auto.
-    2 : rewrite H1; lra.
-    exists (e', σ').
-    apply pmf_1_eq_dret.
-    eapply SamplesOneTape_step_det; eauto.
-  }
-  intros.
-  destruct a as [e' σ'].
-  rewrite exec_Sn_not_final in H1; auto.
-  epose proof (dbind_det_inv2 _ _ H1 _ H3).
-  epose proof (SamplesOneTape_step_state _ _ _ _ _ _ _ _ H2 H H3) as [Ht | Ht].
-  - eapply IHn.
-    + by rewrite Ht. 
-    + simpl. lia.
-    + auto.
-    + by eapply SamplesOneTape_inv. 
-  - eapply IHn.
-    + rewrite Ht. rewrite lookup_insert. done.
-    + lia.
-    + auto.
-    + by eapply SamplesOneTape_inv. 
-Qed. 
 
-Lemma presamples_stepN_det l σ n N t e:
+Lemma presamples_stepN_det_part l σ n N t e:
   σ.(tapes) !! l = Some (N; t) ->
   (n <= length t)%nat ->
-  SeriesC (stepN n (e, σ)) = 1 ->
   SamplesOneTape l e -> 
-  is_det (stepN n (e, σ)).
+  stepN n (e, σ) = dzero ∨ is_det (stepN n (e, σ)).
 Proof.
   revert σ e t.
   induction n.
   {
     intros.
-    rewrite stepN_O.
+    rewrite stepN_O. right.
     by econstructor. 
   }
   intros.
   destruct t; simpl in H0; try lia.
   rewrite stepN_Sn. 
-  apply is_det_bind.
+  destruct (ExcludedMiddle (∃ ρ', step (e,σ) ρ' > 0)).
+  2 : {
+    pose proof (not_exists_forall_not _ _ H2) as H2'.
+    assert (step (e, σ) = dzero). {
+      apply dzero_ext.
+      intros.
+      apply Rle_antisym; try real_solver.
+      specialize (H2' a).
+      simpl in *.
+      real_solver.
+    }
+    rewrite H3.
+    left.
+    apply dbind_dzero.
+  }
+  destruct H2 as [[e' σ'] Hst]. 
+  pose proof H as H'.
+  eapply SamplesOneTape_inv in Hst as He'; eauto.
+  erewrite SamplesOneTape_step_det'; eauto.  
+  rewrite dret_id_left'. 
+  epose proof (SamplesOneTape_step_state _ _ _ _ _ _ _ _ H1 H Hst) as [Ht | Ht].
+  - eapply IHn; eauto. 
+    { by rewrite Ht. }
+    simpl. lia.
+  - eapply IHn; eauto. 
+    { rewrite Ht. by apply lookup_insert. }
+    lia.
+Qed. 
+
+Lemma presamples_pexec_det_part l σ n N t e:
+  σ.(tapes) !! l = Some (N; t) ->
+  (n <= length t)%nat ->
+  SamplesOneTape l e -> 
+  pexec n (e, σ) = dzero ∨ is_det (pexec n (e, σ)).
+Proof.
+  revert σ e t.
+  induction n.
   {
-    epose proof (stepN_pos_step_pos (e, σ) n _) as [[e' σ'] Hr]. 
-    Unshelve.
-    2 : rewrite H1; lra.
-    exists (e', σ').
-    apply pmf_1_eq_dret.
-    eapply SamplesOneTape_step_det; eauto. 
+    intros.
+    rewrite pexec_O. right.
+    by econstructor. 
   }
   intros.
-  destruct a as [e' σ'].
-  rewrite stepN_Sn in H1; auto.
-  epose proof (dbind_det_inv2 _ _ H1 _ H3). 
-  epose proof (SamplesOneTape_step_state _ _ _ _ _ _ _ _ H2 H H3) as [Ht | Ht]. 
-  - eapply IHn.
-    + by rewrite Ht. 
-    + simpl. lia.
-    + auto.
-    + by eapply SamplesOneTape_inv. 
-  - eapply IHn.
-    + rewrite Ht. rewrite lookup_insert. done.
-    + lia.
-    + auto.
-    + by eapply SamplesOneTape_inv. 
+  destruct t; simpl in H0; try lia.
+  rewrite pexec_Sn.
+  destruct (decide (is_final (e, σ))).
+  {
+    rewrite step_or_final_is_final; auto.
+    rewrite dret_id_left'. 
+    eapply IHn; eauto.
+    simpl. lia.
+  }
+  rewrite step_or_final_no_final; auto.
+  destruct (ExcludedMiddle (∃ ρ', step (e,σ) ρ' > 0)).
+  2 : {
+    pose proof (not_exists_forall_not _ _ H2) as H2'.
+    assert (step (e, σ) = dzero). {
+      apply dzero_ext.
+      intros.
+      apply Rle_antisym; try real_solver.
+      specialize (H2' a).
+      simpl in *.
+      real_solver.
+    }
+    rewrite H3.
+    left.
+    apply dbind_dzero.
+  }
+  destruct H2 as [[e' σ'] Hst]. 
+  pose proof H as H'.
+  eapply SamplesOneTape_inv in Hst as He'; eauto.
+  erewrite SamplesOneTape_step_det'; eauto.  
+  rewrite dret_id_left'. 
+  epose proof (SamplesOneTape_step_state _ _ _ _ _ _ _ _ H1 H Hst) as [Ht | Ht].
+  - eapply IHn; eauto. 
+    { by rewrite Ht. }
+    simpl. lia.
+  - eapply IHn; eauto. 
+    { rewrite Ht. by apply lookup_insert. }
+    lia.
+Qed.
+
+Lemma presamples_stepN_det l σ n N t e:
+  σ.(tapes) !! l = Some (N; t) ->
+  (n <= length t)%nat ->
+  SeriesC (stepN n (e, σ)) > 0 ->
+  SamplesOneTape l e -> 
+  is_det (stepN n (e, σ)).
+Proof.
+  intros.
+  epose proof (presamples_stepN_det_part _ _ _ _ _ _) as [? | ?]; eauto.
+  rewrite H3 dzero_mass in H1.
+  lra.
+Qed.
+
+Lemma presamples_exec_det_part l σ n N t e:
+  σ.(tapes) !! l = Some (N; t) ->
+  (n <= length t)%nat ->
+  SamplesOneTape l e -> 
+  (exec n (e, σ)) = dzero ∨ is_det (exec n (e, σ)).
+Proof.
+  intros.
+  rewrite exec_pexec_relate.
+  epose proof (presamples_pexec_det_part _ _ _ _ _ _) as [? | (? & ?)]; eauto;
+  rewrite H2. 
+  - left. by rewrite dbind_dzero.  
+  - rewrite dret_id_left'. 
+    destruct (to_final x).
+    + right. by econstructor.
+    + by left. 
+Qed.
+
+Lemma presamples_exec_det l σ n N t e:
+  σ.(tapes) !! l = Some (N; t) ->
+  (n <= length t)%nat ->
+  SeriesC (exec n (e, σ)) > 0 ->
+  SamplesOneTape l e -> 
+  is_det (exec n (e, σ)).
+Proof.
+  intros.
+  epose proof (presamples_exec_det_part _ _ _ _ _ _) as [? | ?]; eauto.
+  rewrite H3 dzero_mass in H1.
+  lra.
 Qed. 
 
 Definition state_stepN σ l n := iterM n (λ σ', state_step σ' l) σ.
@@ -563,40 +636,31 @@ Proof.
     by inversion H2.
 Qed.
 
-Lemma SamplesOneTape_state_stepN_exec_det l σ σ' n N t e:
+Lemma SamplesOneTape_state_stepN_exec_det_part l σ σ' n N t e:
   σ.(tapes) !! l = Some (N; t) ->
-  SeriesC (exec n (e, σ)) = 1 ->
   SamplesOneTape l e -> 
   (state_stepN σ l n) σ' > 0 ->
+  exec n (e, σ') = dzero ∨ is_det (exec n (e, σ')).
+Proof.
+  intros.
+  apply (state_stepN_heap _ _ _ _ _ _ H) in H1 as Hh.
+  pose proof (state_stepN_tape _ _ _ _ _ _ H H1) as [t' [Ht Hst]].
+  eapply presamples_exec_det_part; eauto.
+  - rewrite Hst. apply lookup_insert. 
+  - rewrite app_length Ht. lia.
+Qed.
+
+Lemma SamplesOneTape_state_stepN_exec_det l σ σ' n N t e:
+  σ.(tapes) !! l = Some (N; t) ->
+  SamplesOneTape l e -> 
+  (state_stepN σ l n) σ' > 0 ->
+  SeriesC (exec n (e, σ')) > 0 ->
   is_det (exec n (e, σ')).
 Proof.
   intros.
-  destruct (to_val e) eqn : Hve.
-  { 
-    erewrite exec_is_final; try by simpl.
-    by econstructor. 
-  }
-  apply (state_stepN_heap _ _ _ _ _ _ H) in H2 as Hh.
-  pose proof (state_stepN_tape _ _ _ _ _ _ H H2) as [t' [Ht Hst]]. 
-  eapply presamples_execN_det; eauto.
-  - rewrite Hst. apply lookup_insert. 
-  - rewrite app_length Ht. lia.
-  - eapply erasable_execN_det.
-    + eapply erasure.iterM_state_step_erasable; eauto.
-    + auto.
-    + by rewrite /state_stepN in H2.
-Qed.
-
-(* Lemma SamplesOneTape_presamples_lim (l : loc) e σ N t :
-  SeriesC (lim_exec (e, σ)) = 1 ->
-  SamplesOneTape l e ->
-  σ.(tapes) !! l = Some (N; t) ->
-  ∃ μ, erasable μ σ ∧
-    (∀ σ', μ σ' > 0 -> 
-    σ'.(heap) = σ.(heap) ∧
-    (∃ t', σ'.(tapes) = <[l:=(N; t')]>(σ.(tapes))) ∧
-    is_det (lim_exec (e, σ')) ).    
-Admitted. *)
+  epose proof (SamplesOneTape_state_stepN_exec_det_part _ _ _ _ _ _ _) as [? | ?]; eauto.
+  rewrite H3 dzero_mass in H2. lra.
+Qed. 
 
 End SamplesOneTape.
 

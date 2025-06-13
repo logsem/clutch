@@ -8,6 +8,16 @@ From clutch.pure_complete Require Import pure fiber_bounds.
 
 Local Open Scope R.
 
+Lemma dret_ext_inv `{Countable A} (a a' : A) :
+  dret a = dret a' ->
+  a = a'.
+Proof.
+  intros.
+  eapply dret_1.
+  rewrite H0.
+  by apply dret_1.
+Qed.
+
 Lemma pos_series_le_one `{Countable A} (f : A -> R) (x : A):
   (∀ y, 0 <= f y) ->
   ex_seriesC f ->
@@ -246,3 +256,73 @@ Proof.
     case_bool_decide; case_bool_decide; try lra.
     subst. done.
 Qed.
+
+Definition ssdp `{Countable A} (P : A -> Prop) μ := 
+  ssd (fun a => bool_decide (P a)) μ.
+
+Lemma ARcoupl_ssdp_inv `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) ɛ R P1 P2:
+  ARcoupl (ssdp P1 μ1) (ssdp P2 μ2) R ɛ ->
+  ARcoupl μ1 μ2 (λ a b, R a b ∧ P1 a ∧ P2 b) (ɛ + probp μ1 (λ a, ¬ P1 a)).
+Proof.
+  rewrite /ARcoupl.
+  intros.
+  epose proof (H1 (fun a => if bool_decide (P1 a) then f a else 0) (fun b => if bool_decide (P2 b) then g b else 1) _ _ _).
+  erewrite (SeriesC_ext _ (λ a : A, ssdp P1 μ1 a * f a)) in H5.
+  2 : {
+    intros. case_bool_decide; auto.
+    unfold ssdp, pmf. simpl. unfold ssd_pmf.
+    simpl. case_bool_decide; real_solver.
+  }
+  erewrite (SeriesC_ext _ (λ b : B, ssdp P2 μ2 b * g b)) in H5.
+  2 : {
+    intros. case_bool_decide; auto.
+    unfold ssdp, pmf. simpl. unfold ssd_pmf.
+    simpl. case_bool_decide; real_solver.
+  }
+
+  erewrite (SeriesC_ext _ (λ a : A, (ssdp P1 μ1 a) * f a + (ssdp (λ a : A, ¬ P1 a) μ1 a) * f a)).
+  2 : {
+    intros.
+    rewrite -Rmult_plus_distr_r /ssdp.
+    replace (λ a : A, bool_decide (¬ P1 a)) with (λ a : A, negb (bool_decide (P1 a))). 2 : {
+      apply functional_extensionality. intros.
+      case_bool_decide; case_bool_decide; done. 
+    }
+    by rewrite -(ssd_sum _ μ1).
+  }
+  rewrite SeriesC_plus;
+  try by eapply ex_expval_unit.
+  etrans.
+  {
+    eapply Rplus_le_compat_r.
+    apply H5.
+  }
+  rewrite -Rplus_assoc. 
+  apply Rplus_le_compat.
+  {
+    apply Rplus_le_compat_r.
+    apply SeriesC_le.
+    2 : by eapply ex_expval_unit.
+    intros. split.
+    - apply Rmult_le_pos; real_solver.
+    - apply Rmult_le_compat_r; try real_solver.
+      unfold pmf at 1.
+      simpl. unfold ssd_pmf.
+      case_bool_decide; real_solver.
+  }
+  unfold probp.
+  apply SeriesC_le.
+  2 : by eapply ex_seriesC_filter_bool_pos.
+  intros.
+  split; try real_solver.
+  unfold pmf at 1.
+  simpl. rewrite /ssd_pmf.
+  case_bool_decide; case_bool_decide; try real_solver.
+  Unshelve.
+  - intros. simpl. case_bool_decide; real_solver.
+  - intros. simpl. case_bool_decide; real_solver.
+  - intros. simpl. case_bool_decide; case_bool_decide; try real_solver. 
+Qed.
+
+
+
