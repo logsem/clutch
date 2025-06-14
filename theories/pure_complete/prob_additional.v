@@ -8,6 +8,15 @@ From clutch.pure_complete Require Import pure fiber_bounds.
 
 Local Open Scope R.
 
+Lemma dzero_neq_dret `{Countable A} (a : A) :
+  dzero ≠ dret a.
+Proof.
+  move => Ha.
+  assert (0 = 1); try lra.
+  rewrite -(dzero_0 a) Ha.
+  by apply dret_1. 
+Qed.
+
 Lemma dret_ext_inv `{Countable A} (a a' : A) :
   dret a = dret a' ->
   a = a'.
@@ -255,6 +264,16 @@ Proof.
   - intros. simpl. 
     case_bool_decide; case_bool_decide; try lra.
     subst. done.
+Qed.
+
+Lemma ssd_zero `{Countable A} (μ : distr A) P a:
+  μ a = 0 ->
+  ssd P μ a = 0.
+Proof.
+  intros.
+  unfold pmf. simpl. 
+  unfold ssd_pmf. 
+  destruct (P a); auto.
 Qed.
 
 Definition ssdp `{Countable A} (P : A -> Prop) μ := 

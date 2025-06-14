@@ -6,10 +6,11 @@ From clutch.prelude Require Import fin.
 From clutch.prob_lang Require Import notation lang.
 From clutch.prob_lang.spec Require Import spec_ra spec_rules spec_tactics.
 From clutch.approxis Require Import ectx_lifting app_weakestpre model.
-From clutch.approxis Require Export proofmode primitive_laws coupling_rules.
+From clutch.approxis Require Export proofmode primitive_laws coupling_rules app_rel_rules.
 From clutch.base_logic Require Export spec_update.
-From clutch.pure_complete Require Import pure tachis_ert prob_additional.
 From Coq.Logic Require Import ClassicalEpsilon.
+From clutch.pure_complete Require Import pure term prob_additional samples_one.
+
 Local Open Scope R.
 
 Definition det_exec_result n (ρ : cfg) :=
@@ -56,7 +57,6 @@ Proof.
   lra. 
 Qed.
 
-
 Lemma stepN_pos_step_pos {δ : markov} (x : mstate δ) n :
   SeriesC (stepN (S n) x) > 0 ->
   ∃ y, step x y > 0.
@@ -90,7 +90,75 @@ Proof.
   rewrite -H2 in H0. 
   eapply dbind_det_inv2 in H0; eauto.
 Qed.
-    
+
+Lemma lim_exec_mass_lim {δ : markov} (x : mstate δ) ɛ :
+  0 < ɛ ->
+  ∃ n, SeriesC (lim_exec x) - SeriesC (exec n x) < ɛ.
+Proof.
+  intros.
+  rewrite lim_exec_Sup_seq. 
+  pose proof (Lim_seq.Sup_seq_correct (λ n0 : nat, Rbar.Finite (SeriesC (exec n0 x)))). 
+  unfold Lim_seq.is_sup_seq in *.
+  pose proof (is_finite_Sup_seq_SeriesC_exec x). 
+  rewrite -H1 in H0. 
+  specialize H0 with (mkposreal ɛ H).
+  destruct H0 as [? [n ?]].
+  exists n.
+  simpl in *. 
+  lra. 
+Qed.
+
+Lemma lim_exec_approx_coupl {δ1 δ2 : markov} (x : mstate δ1) (y : mstate δ2) ɛ R :
+  0 <= ɛ ->
+  ARcoupl (lim_exec x) (lim_exec y) R ɛ ->
+  ∀ ɛ', ɛ < ɛ' ->
+    ∃ m, ∀ n, ARcoupl (exec n x) (exec m y) R ɛ'.
+Proof.
+  unfold ARcoupl.
+  intros.
+  destruct (lim_exec_mass_lim y (ɛ' - ɛ)) as [m Hm].
+  { real_solver. }
+  exists m.
+  intros.
+  apply H0 in H4; auto. 
+  etrans. {
+    eapply SeriesC_le.
+    - intros. split. { real_solver. }
+      eapply (Rmult_le_compat_r _ _ (lim_exec x n0)). { real_solver. }
+      rewrite lim_exec_unfold.
+      apply rbar_le_finite. { apply is_finite_Sup_seq_exec. } 
+      eapply Lim_seq.Sup_seq_minor_le. reflexivity. 
+    - by apply ex_expval_unit.
+  }
+  etrans. { apply H4. }
+  trans (SeriesC (λ b : mstate_ret δ2, exec m y b * g b) + (SeriesC (lim_exec y) - SeriesC (exec m y)) + ɛ). 
+  2 : { real_solver. }
+  apply Rplus_le_compat_r. 
+  rewrite Rplus_minus_assoc Rplus_minus_swap. 
+  apply (Rplus_le_reg_r (-SeriesC (lim_exec y))), Ropp_le_cancel. 
+  ring_simplify. 
+  rewrite Rplus_comm -Rminus_def. 
+  do 2 (rewrite -SeriesC_minus; auto; try by apply ex_expval_unit). 
+  apply SeriesC_le.
+  2 :{
+    eapply ex_seriesC_ext.
+    { intros. by rewrite Rminus_def. } 
+    apply ex_seriesC_plus; auto. 
+    apply (ex_seriesC_ext (λ x0 : mstate_ret δ2, (-1) * (lim_exec y x0 * g x0))).
+    { intros. by real_solver. } 
+    by apply ex_seriesC_scal_l, ex_expval_unit. 
+  }
+  intros.
+  split. 
+  - apply -> Rcomplements.Rminus_le_0. real_solver. 
+  - rewrite -(Rmult_1_r (exec m y n0)) -(Rmult_1_r (lim_exec y n0)). 
+    rewrite !Rmult_assoc -!Rmult_minus_distr_l Rmult_1_l. 
+    apply Rmult_le_compat_r.
+    { apply Rle_0_le_minus. real_solver. }
+    rewrite lim_exec_unfold.
+    apply rbar_le_finite. { apply is_finite_Sup_seq_exec. } 
+    eapply Lim_seq.Sup_seq_minor_le. reflexivity. 
+Qed.
 
 Definition skip_one (e : expr) := (λ: <>, e)%V #().
 
@@ -103,341 +171,7 @@ Proof.
   simpl. by rewrite dmap_dret.
 Qed.
 
-Section SamplesOneTape.
-Inductive SamplesOneTape : loc -> expr -> Prop :=
-  | SamplesOneTapeRand t e2 (H1 : SamplesOneTape t e2) :
-    SamplesOneTape t (Rand e2 (Val (LitV (LitLoc t))))
-  | SamplesOneTapeIf t e2 e3 e4 (H1 : SamplesOneTape t e2) (H2 : SamplesOneTape t e3) (H3 : SamplesOneTape t e4) :
-    SamplesOneTape t (if: e2 then e3 else e4)%E
-  | SamplesOneTapeVar t s : 
-    SamplesOneTape t (Var s)
-  | SamplesOneTapePair t e2 e3 (H : SamplesOneTape t e2) (H1 : SamplesOneTape t e3) :
-    SamplesOneTape t (Pair e2 e3)
-  | SamplesOneTapeFst t e2 (H : SamplesOneTape t e2) :
-    SamplesOneTape t (Fst e2)
-  | SamplesOneTapeSnd t e2 (H : SamplesOneTape t e2) :
-    SamplesOneTape t (Snd e2)
-  | SamplesOneTapeInjL t e2 (H : SamplesOneTape t e2) :
-    SamplesOneTape t (InjL e2)
-  | SamplesOneTapeInjR t e2 (H : SamplesOneTape t e2) :
-    SamplesOneTape t (InjR e2)
-  | SamplesOneTapeCase t e2 e3 e4 (H : SamplesOneTape t e2) (H1 : SamplesOneTape t e3) (H2 : SamplesOneTape t e4) :
-    SamplesOneTape t (Case e2 e3 e4)
-  | SamplesOneTapeRec f x t e2 (H : SamplesOneTape t e2) :
-    SamplesOneTape t (Rec f x e2)
-  | SamplesOneTapeApp t e2 e3 (H : SamplesOneTape t e2) (H1 : SamplesOneTape t e3) :
-    SamplesOneTape t (App e2 e3)
-  | SamplesOneTapeTick t e2 (H : SamplesOneTape t e2) :
-    SamplesOneTape t (Tick e2)
-  | SamplesOneTapeUnOp t e2 (H : SamplesOneTape t e2) (op : un_op) :
-    SamplesOneTape t (UnOp op e2)
-  | SamplesOneTapeBinOp t e2 e3 (H : SamplesOneTape t e2) (H1 : SamplesOneTape t e3) (op : bin_op) :
-    SamplesOneTape t (BinOp op e2 e3)
-  | SamplesOneTapeVal t v (H : SamplesOneTapeV t v) :
-    SamplesOneTape t (Val v)
-with SamplesOneTapeV : loc -> val -> Prop :=
-  | SamplesOneTapeVRecV f x t e2 (H : SamplesOneTape t e2) :
-    SamplesOneTapeV t (RecV f x e2)
-  | SamplesOneTapeVPairV v1 v2 t (H : SamplesOneTapeV t v1) (H1 : SamplesOneTapeV t v2) :
-    SamplesOneTapeV t (PairV v1 v2)
-  | SamplesOneTapeVInjLV v t (H : SamplesOneTapeV t v) :
-    SamplesOneTapeV t (InjLV v)
-  | SamplesOneTapeVInjRV v t (H : SamplesOneTapeV t v) :
-    SamplesOneTapeV t (InjRV v)
-  | SamplesOneTapeVLitV v t :
-    SamplesOneTapeV t (LitV v)
-.
-
-Inductive SamplesOneTapeItem (t : loc) : ectx_item -> Prop :=
-  | SamplesOneTapeItemAppLCtx v : SamplesOneTapeV t v -> SamplesOneTapeItem t (AppLCtx  v)
-  | SamplesOneTapeItemAppRCtx e : SamplesOneTape t e -> SamplesOneTapeItem t (AppRCtx  e)
-  | SamplesOneTapeItemUnOpCtx op : SamplesOneTapeItem t (UnOpCtx  op)
-  | SamplesOneTapeItemBinOpLCtx op v : SamplesOneTapeV t v -> SamplesOneTapeItem t (BinOpLCtx op v)
-  | SamplesOneTapeItemBinOpRCtx op e : SamplesOneTape t e -> SamplesOneTapeItem t (BinOpRCtx op e)
-  | SamplesOneTapeItemIfCtx e1 e2 : SamplesOneTape t e1 -> SamplesOneTape t e2 -> SamplesOneTapeItem t (IfCtx e1 e2)
-  | SamplesOneTapeItemPairLCtx v : SamplesOneTapeV t v -> SamplesOneTapeItem t (PairLCtx v)
-  | SamplesOneTapeItemPairRCtx e : SamplesOneTape t e -> SamplesOneTapeItem t (PairRCtx e)
-  | SamplesOneTapeItemFstCtx : SamplesOneTapeItem t FstCtx
-  | SamplesOneTapeItemSndCtx : SamplesOneTapeItem t SndCtx
-  | SamplesOneTapeItemInjLCtx : SamplesOneTapeItem t InjLCtx
-  | SamplesOneTapeItemInjRCtx : SamplesOneTapeItem t InjRCtx
-  | SamplesOneTapeItemCaseCtx e1 e2 : SamplesOneTape t e1 -> SamplesOneTape t e2 -> SamplesOneTapeItem t (CaseCtx e1 e2)
-  | SamplesOneTapeItemRandLCtx : SamplesOneTapeItem t (RandLCtx #t)
-  | SamplesOneTapeItemTickCtx : SamplesOneTapeItem t TickCtx.
-
-
-Lemma SamplesOneTape_presamples_n_val (l : loc) e σ n N t v:
-  to_val e = Some v ->
-  SeriesC (exec n (e, σ)) = 1 ->
-  SamplesOneTape l e ->
-  σ.(tapes) !! l = Some (N; t) ->
-  ∃ μ, erasable μ σ ∧
-    (∀ σ', μ σ' > 0 -> 
-    σ'.(heap) = σ.(heap) ∧
-    (∃ t', σ'.(tapes) = <[l:=(N; t')]>(σ.(tapes))) ∧
-    is_det (exec n (e, σ'))).
-Proof.
-  intros.
-  exists (dret σ).
-  split.
-  { apply dret_erasable. }
-  intros.
-  apply dret_pos in H3.
-  subst.
-  split; auto.
-  split.
-  2 : { erewrite exec_is_final; try by simpl. by econstructor. }
-  exists t.
-  rewrite insert_id; auto.
-Qed.
-
-Lemma SamplesOneTape_fill_item Ki e l :
-  SamplesOneTape l e ->
-  SamplesOneTapeItem l Ki ->
-  SamplesOneTape l (fill_item Ki e).
-Proof.
-  intros.
-  inversion H0; simpl; 
-  econstructor; auto;
-  econstructor; auto.
-Qed.
-
-Lemma SamplesOneTape_fill K e l :
-  SamplesOneTape l e ->
-  Forall (SamplesOneTapeItem l) K ->
-  SamplesOneTape l (fill K e).
-Proof.
-  intros. 
-  revert e H.
-  induction K; auto. 
-  intros. simpl.
-  inversion H0; subst.
-  apply IHK; auto.
-  by apply SamplesOneTape_fill_item. 
-Qed.
-
-Lemma SamplesOneTape_head l e ei e' : 
-  SamplesOneTape l e ->
-  decomp_item e = Some (ei, e') ->
-  SamplesOneTape l e'.
-Proof.
-  intros.
-  inversion H; subst; simpl in *; inversion H0;
-  try (destruct e2; inversion H3; done);
-  try (destruct e3; destruct e2; inversion H4; done);
-  (destruct e2; inversion H5; done). 
-Qed.
-
-Lemma SamplesOneTape_ectx e l :
-  SamplesOneTape l e ->
-  Forall (SamplesOneTapeItem l)(decomp e).1.
-Proof.
-  simpl.
-  destruct (decomp e) eqn : Hde.
-  remember (length l0).
-  revert e e0 l0 Hde Heqn.
-  induction n.
-  {
-    intros.
-    destruct l0; inversion Heqn.
-    apply decomp_inv_nil in Hde as [Hd Hde].
-    by subst e.
-  }
-  intros.
-  rewrite decomp_unfold in Hde.
-  destruct (ectxi_language.decomp_item e) eqn : Hde'; intros.
-  2: {inversion Hde. by subst e. }
-  destruct p.
-  destruct (decomp e2) eqn: Hde2.
-  inversion Hde. subst.
-  apply Forall_app_2. 
-  {
-    eapply IHn.
-    - apply Hde2.
-    - rewrite app_length Nat.add_1_r in Heqn. by inversion Heqn.
-    - simpl in *.
-      eapply SamplesOneTape_head; eauto.
-  }
-  apply Forall_singleton. 
-  simpl in *.
-  rewrite /decomp_item in Hde'.
-  inversion H; subst; simpl in *;
-  try by inversion Hde';
-  try (destruct e3; inversion Hde'; econstructor; done);
-  try (destruct e4; destruct e3; inversion Hde'; econstructor; auto; by inversion H1). 
-Qed.
-  
-Lemma SamplesOneTape_decomp l e : 
-  SamplesOneTape l e ->
-  SamplesOneTape l (decomp e).2.
-Proof.
-  destruct (decomp e) eqn : Hde.
-  simpl.
-  remember (length l0).
-  revert e l0 e0 Hde Heqn.
-  induction n.
-  {
-    intros.
-    destruct l0; simpl in *; try by inversion Heqn.
-    apply decomp_inv_nil in Hde as [Hd Hde].
-    by subst.
-  }
-  intros.
-  rewrite decomp_unfold in Hde.
-  destruct (ectxi_language.decomp_item e) eqn : Hde'; intros.
-  2: {inversion Hde. by subst e. }
-  destruct p.
-  destruct (decomp e2) eqn: Hde2.
-  inversion Hde. subst.
-  assert (n = length l1).
-  { 
-    rewrite app_length in Heqn. 
-    rewrite Nat.add_1_r in Heqn. auto.
-  }
-  apply (IHn _ _ _ Hde2 H0).
-  by eapply SamplesOneTape_head. 
-Qed.
-
-Lemma SamplesOneTape_decomp' l e e' Ks : 
-  SamplesOneTape l e ->
-  decomp e = (Ks, e') ->
-  SamplesOneTape l e'.
-Proof.
-  intros.
-  replace e' with (decomp e).2.
-  2 : by rewrite H0.
-  by apply SamplesOneTape_decomp.
-Qed.
-
-Lemma SamplesOneTape_head_step_det l e σ N v t e' σ':
-  SamplesOneTape l e ->
-  σ.(tapes) !! l = Some (N; v :: t) ->
-  head_step e σ (e', σ') > 0 ->
-  head_step e σ (e', σ') = 1.
-Proof.
-  intros.
-  destruct e; inv_head_step;
-  try by inversion H;
-  try by apply dret_1.
-Qed.
-
-Lemma SamplesOneTape_head_step_tape l e σ N v t e' σ':
-  SamplesOneTape l e ->
-  σ.(tapes) !! l = Some (N; v :: t) ->
-  head_step e σ (e', σ') > 0 ->
-  σ'.(tapes) = σ.(tapes) ∨ σ'.(tapes) = <[l := (N; t)]>σ.(tapes).
-Proof.
-  intros.
-  destruct e; inv_head_step; 
-  auto; inversion H. 
-Qed.
-
-Lemma SamplesOneTape_step_det l e σ N v t e' σ':
-  SamplesOneTape l e ->
-  σ.(tapes) !! l = Some (N; v :: t) ->
-  step (e, σ) (e', σ') > 0 ->
-  step (e, σ) (e', σ') = 1.
-Proof.
-  rewrite /step.
-  simpl. rewrite /prim_step.
-  intros. simpl in *. 
-  destruct (decomp e) eqn : Hde.
-  rewrite Hde.
-  rewrite Hde in H1.
-  apply dmap_pos in H1 as [(e1 & σ1) (?&?)].
-  eapply dmap_one.
-  - eapply SamplesOneTape_head_step_det; eauto.
-    eapply SamplesOneTape_decomp'; eauto.
-  - eauto.
-Qed.
-
-Lemma SamplesOneTape_step_det' l e σ N v t e' σ':
-  SamplesOneTape l e ->
-  σ.(tapes) !! l = Some (N; v :: t) ->
-  step (e, σ) (e', σ') > 0 ->
-  step (e, σ) = dret (e', σ').
-Proof.
-  intros.
-  by eapply pmf_1_eq_dret, SamplesOneTape_step_det. 
-Qed.
-
-Lemma SamplesOneTape_step_state l e σ N v t e' σ':
-  SamplesOneTape l e ->
-  σ.(tapes) !! l = Some (N; v :: t) ->
-  step (e, σ) (e', σ') > 0 ->
-  σ'.(tapes) = σ.(tapes) ∨ σ'.(tapes) = <[l := (N; t)]>σ.(tapes).
-Proof.
-  rewrite /step.
-  simpl. rewrite /prim_step.
-  intros. simpl in *. 
-  destruct (decomp e) eqn : Hde.
-  rewrite Hde in H1.
-  apply dmap_pos in H1 as [(e1 & σ1) (?&?)].
-  inversion H1; subst.
-  eapply SamplesOneTape_head_step_tape.
-  - eapply SamplesOneTape_decomp'; eauto.
-  - eauto.
-  - eauto.
-Qed.
-
-Lemma SamplesOneTape_subst l x v e : 
-  SamplesOneTape l e ->
-  SamplesOneTapeV l v ->
-  SamplesOneTape l (subst x v e).
-Proof.
-  intros.
-  induction e; simpl; auto;
-  try (inversion H; subst; case_decide; auto; econstructor; by eauto); 
-  try (inversion H; subst; econstructor; by eauto).  
-Qed.
-
-Lemma SamplesOneTape_head_inv l e σ e' σ':
-  SamplesOneTape l e ->
-  head_step e σ (e', σ') > 0 ->
-  SamplesOneTape l e'.
-Proof.
-  intros.
-  inversion H; inv_head_step;
-  auto;
-  try (inversion H1; inversion H5; subst; econstructor; eauto; econstructor; done);
-  try (do 2 econstructor; done); 
-  try (econstructor; econstructor; inversion H1; inversion H2; subst; done);
-  try (inversion H1; inversion H3; subst; econstructor; done). 
-  - inversion H1. inversion H4. inversion H2. subst. 
-    destruct x, f; simpl; auto; 
-    apply SamplesOneTape_subst; auto;
-    apply SamplesOneTape_subst; auto.
-  - destruct op; destruct v; inversion H3;
-    destruct l0; inversion H3; do 2 econstructor. 
-  - destruct op, v; inversion H5; 
-    try (destruct l0; inversion H5; destruct v0; inversion H5;
-    destruct l0; inversion H5; econstructor; try econstructor;
-    destruct l1; inversion H5; by econstructor);
-    try (unfold bin_op_eval in *;
-    case_decide; try contradiction; case_decide; inversion H5;
-    subst; do 2 econstructor). 
-Qed.
-
-Lemma SamplesOneTape_inv l e σ e' σ':
-  SamplesOneTape l e ->
-  step (e, σ) (e', σ') > 0 ->
-  SamplesOneTape l e'.
-Proof.
-  unfold step.
-  simpl. unfold prim_step.
-  intros. 
-  destruct (decomp e) eqn : Hde.
-  simpl in *.
-  rewrite Hde dmap_pos in H0.
-  destruct H0 as [[e1 σ1] [Hfl Hs]].
-  inversion Hfl.
-  apply SamplesOneTape_fill.
-  - eapply SamplesOneTape_head_inv.
-    + eapply (SamplesOneTape_decomp'); last first; eauto.  
-    + eauto.
-  - replace l0 with (decomp e).1; try by rewrite Hde. 
-    by apply SamplesOneTape_ectx. 
-Qed.
+Section Presample.
 
 Lemma presamples_stepN_det_part l σ n N t e:
   σ.(tapes) !! l = Some (N; t) ->
@@ -662,30 +396,206 @@ Proof.
   rewrite H3 dzero_mass in H2. lra.
 Qed. 
 
-End SamplesOneTape.
+Lemma SamplesOneTape_exec_decompose l σ n N t e:
+  σ.(tapes) !! l = Some (N; t) ->
+  SamplesOneTape l e -> 
+  exec n (e, σ) = 
+    dmap (fun σ' => det_exec_result n (e, σ')) 
+    (ssdp (fun σ' => is_det (exec n (e, σ'))) (state_stepN σ l n)).
+Proof.
+  intros.
+  apply distr_ext.
+  intros v.
+  rewrite -dmap_fold.
+  rewrite dbind_unfold_pmf.
+  rewrite (SeriesC_ext _ (fun a => (state_stepN σ l n) a * exec n (e, a) v)). {
+    rewrite -dbind_unfold_pmf.
+    f_equal. symmetry.
+    by eapply erasure.iterM_state_step_erasable. 
+  }
+  intros σ'.
+  destruct (decide (state_stepN σ l n σ' > 0)). 
+  2 : {
+    assert (state_stepN σ l n σ' = 0). 
+    { apply Rle_antisym; real_solver. }
+    rewrite H1.
+    rewrite ssd_zero; auto.
+    real_solver. 
+  }
+  unfold pmf at 1. simpl. unfold ssd_pmf.
+  epose proof (SamplesOneTape_state_stepN_exec_det_part _ _ _ _ _ _ _) as [? | ?]; eauto.
+  - case_bool_decide. 
+    2 : rewrite H1 dzero_0; real_solver.
+    destruct H2. 
+    rewrite H1 in H2.
+    by apply dzero_neq_dret in H2.
+  - case_bool_decide; try done. 
+    destruct H1. 
+    erewrite det_exec_result_correct; eauto.  
+    by rewrite H1. 
+Qed.
+
+Lemma SamplesOneTape_exec_state_determinize l1 l2 e1 σ1 e2 σ2 N M t1 t2 n m ɛ ɛ' ψ:
+  σ1.(tapes) !! l1 = Some (N; t1) ->
+  σ2.(tapes) !! l2 = Some (M; t2) ->
+  SamplesOneTape l1 e1 ->
+  SamplesOneTape l2 e2 ->
+  0 <= ɛ ->
+  ɛ' = 1 - SeriesC (exec n (e1, σ1)) ->
+  ARcoupl (exec n (e1, σ1)) (exec m (e2, σ2)) ψ ɛ ->
+  ARcoupl (state_stepN σ1 l1 n) (state_stepN σ2 l2 m) 
+    (λ σ'1 σ'2, ∃ v1 v2, ψ v1 v2 ∧ exec n (e1, σ'1) = dret v1 ∧ exec m (e2, σ'2) = dret v2) 
+    (ɛ + ɛ').
+Proof.
+  intros ???? He He' ?.
+  eapply (ARcoupl_mono _ _ _ _ (λ σ'1 σ'2 : state, ψ (det_exec_result n (e1, σ'1)) (det_exec_result m (e2, σ'2)) ∧ is_det (exec n (e1, σ'1)) ∧ is_det (exec m (e2, σ'2))));
+  intros; try reflexivity. 
+  {
+    destruct H4 as (Hres & [v1 Hv1] & [v2 Hv2]).
+    erewrite !det_exec_result_correct in Hres; eauto.
+  }
+  assert (ɛ' = probp (state_stepN σ1 l1 n) (λ a, ¬ is_det (exec n (e1, a)))). {
+    rewrite He'.
+    rewrite /probp. 
+    erewrite SamplesOneTape_exec_decompose; eauto.
+    rewrite dmap_mass.
+    unfold pmf at 1. simpl. unfold ssd_pmf. 
+    simpl. symmetry. apply Rminus_diag_uniq_sym. 
+    rewrite -Rminus_plus_distr.
+    apply Rminus_diag_eq.
+    rewrite -SeriesC_plus;
+    try (apply (ex_seriesC_le _ (state_stepN σ1 l1 n)); auto; intros; simpl; case_bool_decide; real_solver).
+    erewrite SeriesC_ext.
+    2 : {
+      intros.
+      case_bool_decide; case_bool_decide; try contradiction.
+      - ring_simplify. reflexivity.
+      - ring_simplify. reflexivity.
+    }
+    rewrite /state_stepN.
+    erewrite metatheory.iterM_state_step_unfold; eauto.
+    by rewrite dmap_mass dunifv_mass. 
+  }
+  rewrite H4. 
+  eapply ARcoupl_ssdp_inv.
+  eapply ARcoupl_map_inv; auto.
+  erewrite SamplesOneTape_exec_decompose in H3; eauto.
+  rewrite (SamplesOneTape_exec_decompose l2 _ m M t2) in H3; auto.
+Qed.
+
+Lemma SamplesOneTape_lim_exec_state_determinize l1 l2 e1 σ1 e2 σ2 N M t1 t2 ɛ ɛ' ψ:
+  σ1.(tapes) !! l1 = Some (N; t1) ->
+  σ2.(tapes) !! l2 = Some (M; t2) ->
+  SamplesOneTape l1 e1 ->
+  SamplesOneTape l2 e2 ->
+  0 <= ɛ < ɛ' ->
+  SeriesC (lim_exec (e1, σ1)) = 1 ->
+  ARcoupl (lim_exec (e1, σ1)) (lim_exec (e2, σ2)) ψ ɛ ->
+  ∃ n m, ARcoupl (state_stepN σ1 l1 n) (state_stepN σ2 l2 m) 
+    (λ σ'1 σ'2, ∃ v1 v2, ψ v1 v2 ∧ exec n (e1, σ'1) = dret v1 ∧ exec m (e2, σ'2) = dret v2) 
+    ɛ'.
+Proof.
+  intros.
+  eapply lim_exec_approx_coupl in H5 as [m ?].
+  Unshelve.
+  4 : exact ((ɛ + ɛ')/2).
+  2 : real_solver.
+  2 : real_solver.
+  set ɛ1 := (ɛ' - ɛ) / 2.
+  assert (0 < ɛ1). {
+    rewrite /ɛ1. real_solver. 
+  }
+  assert (1 - ɛ1 < 1). { real_solver. }
+  pose proof (AST_pt_lim _ _ H4 H7) as [n Hn].
+  exists n, m.
+  replace ɛ' with ((ɛ + ɛ')/2 + ɛ1). 
+  2 : { rewrite /ɛ1. real_solver. } 
+  eapply ARcoupl_mono; try eauto.
+  { intros. apply H8. }
+  { 
+    eapply Rplus_le_compat_l. 
+    assert (1 - pterm n (e1, σ1) <= ɛ1).
+    { real_solver. }
+    { apply H8. } 
+  }
+  eapply SamplesOneTape_exec_state_determinize; eauto.
+  real_solver. 
+Qed.
+
+End Presample.
 
 Section Coupl.
 Context `{!approxisGS Σ}.
 
 Notation σ₀ := {| heap := ∅; tapes := ∅ |}.
 
-Lemma det_ARcoupl_rwp (e1 e2 : expr) (σ1 σ2 : state) l1 l2 ψ ε :
-  SeriesC (lim_exec (e1, σ1)) = 1 -> SeriesC (lim_exec (e2, σ2)) = 1 ->
+Lemma det_result_wp (e1 e2 : expr) (σ1 σ2 : state) l1 l2 n m N M t1 t2 v1 v2 :
   SamplesOneTape l1 e1 -> SamplesOneTape l2 e2 ->
-  is_det (lim_exec (e1, σ1)) -> is_det (lim_exec (e2, σ2)) ->
-  ARcoupl (lim_exec (e1, σ1)) (lim_exec (e2, σ2)) ψ ε ->
-  ↯ ε -∗ ⤇ e2 -∗ WP e1 {{ v, ∃ v', ⤇ (Val v') ∗ ⌜ψ v v'⌝ }}.
+  (n <= length t1)%nat -> (m <= length t2)%nat ->
+  (exec n (e1, σ1)) = dret v1 -> (exec m (e2, σ2)) = dret v2 ->
+  l1 ↪ (N; t1) ∗ l2 ↪ₛ (M; t2) ∗ ⤇ e2 -∗ 
+    WP e1 {{ v, ∃ v', ⤇ (Val v') ∗ ⌜v = v1 ∧ v' = v2⌝ }}.
 Proof.
-  iIntros "%%%%%%% He Hspec".
-  rewrite wp_unfold /wp_pre.
-  simpl.
-  iIntros "%%%% ((Hsa & Hta) & Hspeca & Hea)".
+  (* iLöb as "IH"  forall (e1 σ1 e2 σ2 n m t1 t2).
+  iIntros "%%%%% (Hl1 & Hl2 & Hsp)".
+  iApply wp_lift_step_couple. simpl.
+  iIntros "%%%% ((Hsa & Hta) & Hspeca & Hea)". 
   iApply fupd_mask_intro.
   { set_solver. }
   iIntros "hclose".
-  
+  destruct (to_val e1) eqn : Hev.
+  { 
+    iApply spec_coupl_steps_det.
+    { 
 
-  
+    }
+    (* erewrite exec_is_final in x2; eauto. 
+    apply dret_ext_inv in x2; subst.
+    iMod "hclose". 
+    iMod ((spec_update_prog v2) with "Hspeca Hsp") as "[Hspeca Hsp]".
+    
+    iApply fupd_mask_intro.
+    { set_solver. }
+    iIntros "hclose'".
+    iFrame. by iPureIntro. *)
+  } *)
 
+
+  (* 
+  iInduction m as [|m] "IH" forall (e1 σ1 e2 σ2 n t1 t2 H1 H2 H3 H0 H).
+  {
+    unfold exec in H3. simpl in H3.
+    destruct (to_val e2) eqn : Hev.
+    2 : by apply dzero_neq_dret in H3. 
+    apply dret_ext_inv in H3; subst.
+    apply of_to_val in Hev; subst.
+    iLöb as "IH". 
+    iApply wp_lift_step_couple. simpl.
+    iIntros "%%%% ((Hsa & Hta) & Hspeca & Hea)". 
+    iApply fupd_mask_intro.
+    { set_solver. }
+    iIntros "hclose".
+    iApply spec_coupl_ret.
+    destruct (to_val e1) eqn : Hev.
+    { 
+      erewrite exec_is_final in H2; eauto. 
+      apply dret_ext_inv in H2; subst.
+      iMod "hclose". 
+      iApply fupd_mask_intro.
+      { set_solver. }
+      iIntros "hclose'".
+      iFrame. by iPureIntro.
+    }
+    iApply prog_coupl_step_l.
+
+  }
+    *)
 Admitted.
+
+Theorem SamplesOneTape_ARcoupl_wp e1 e2 σ1 σ2 l1 l2 t1 t2 N M ψ ɛ ɛ' :
+  SamplesOneTape l1 e1 ->
+  SamplesOneTape l2 e2 ->
+  SeriesC (lim_exec (e1, σ1)) = 1 ->
+  0 <= ɛ -> ɛ < ɛ' ->
+  ARcoupl (lim_exec (e1, σ1)) (lim_exec (e2, σ2)) ψ ɛ ->
 End Coupl.
