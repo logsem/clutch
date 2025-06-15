@@ -214,6 +214,17 @@ Proof.
   auto; inversion H. 
 Qed.
 
+Lemma SamplesOneTape_head_step_heap l e σ N v t e' σ':
+  SamplesOneTape l e ->
+  σ.(tapes) !! l = Some (N; v :: t) ->
+  head_step e σ (e', σ') > 0 ->
+  σ'.(heap) = σ.(heap).
+Proof.
+  intros.
+  destruct e; inv_head_step; 
+  auto; inversion H. 
+Qed.
+
 Lemma SamplesOneTape_step_det l e σ N v t e' σ':
   SamplesOneTape l e ->
   σ.(tapes) !! l = Some (N; v :: t) ->
@@ -243,7 +254,7 @@ Proof.
   by eapply pmf_1_eq_dret, SamplesOneTape_step_det. 
 Qed.
 
-Lemma SamplesOneTape_step_state l e σ N v t e' σ':
+Lemma SamplesOneTape_step_tapes l e σ N v t e' σ':
   SamplesOneTape l e ->
   σ.(tapes) !! l = Some (N; v :: t) ->
   step (e, σ) (e', σ') > 0 ->
@@ -260,6 +271,156 @@ Proof.
   - eapply SamplesOneTape_decomp'; eauto.
   - eauto.
   - eauto.
+Qed.
+
+Lemma SamplesOneTape_step_heap l e σ N v t e' σ':
+  SamplesOneTape l e ->
+  σ.(tapes) !! l = Some (N; v :: t) ->
+  step (e, σ) (e', σ') > 0 ->
+  σ'.(heap) = σ.(heap) .
+Proof.
+  rewrite /step.
+  simpl. rewrite /prim_step.
+  intros. simpl in *. 
+  destruct (decomp e) eqn : Hde.
+  rewrite Hde in H1.
+  apply dmap_pos in H1 as [(e1 & σ1) (?&?)].
+  inversion H1; subst.
+  eapply SamplesOneTape_head_step_heap. 
+  - eapply SamplesOneTape_decomp'; eauto.
+  - eauto.
+  - eauto.
+Qed.
+
+Lemma SamplesOneTape_head_step_expr_var l e σ1 σ2 N v t e'1 σ'1 e'2 σ'2:
+  SamplesOneTape l e ->
+  σ1.(tapes) !! l = Some (N; v :: t) -> 
+  σ2.(tapes) !! l = Some (N; v :: t) ->
+  head_step e σ1 (e'1, σ'1) > 0 ->
+  head_step e σ2 (e'2, σ'2) > 0 ->
+  e'1 = e'2.
+Proof. 
+  intros.
+  destruct e; inv_head_step; 
+  auto; inversion H. 
+Qed.
+
+(* Lemma SamplesOneTape_head_step_expr_var_nd l e σ1 σ2 N t e'1 σ'1 e'2 σ'2:
+  SamplesOneTape l e ->
+  σ1.(tapes) !! l = Some (N; t) -> 
+  σ2.(tapes) !! l = Some (N; t) ->
+  head_step e σ1 (e'1, σ'1) > 0 ->
+  head_step e σ2 (e'2, σ'2) > 0 ->
+  e'1 = e'2.
+Proof.
+  intros.
+  destruct e; inv_head_step; auto.
+  Unset Printing Notations. 
+  (* ; 
+  auto; inversion H.   *)
+Qed.  *)
+
+
+Lemma SamplesOneTape_step_expr_var l e σ1 σ2 N v t e'1 σ'1 e'2 σ'2:
+  SamplesOneTape l e ->
+  σ1.(tapes) !! l = Some (N; v :: t) -> 
+  σ2.(tapes) !! l = Some (N; v :: t) ->
+  step (e, σ1) (e'1, σ'1) > 0 ->
+  step (e, σ2) (e'2, σ'2) > 0 ->
+  e'1 = e'2.
+Proof.
+  rewrite /step.
+  simpl. rewrite /prim_step.
+  intros. simpl in *. 
+  destruct (decomp e) eqn : Hde. 
+  rewrite Hde in H2.
+  apply dmap_pos in H2 as [(?&?) (?&?)].
+  inversion H2; subst. 
+  rewrite Hde in H3.
+  apply dmap_pos in H3 as [(?&?) (?&?)]. 
+  inversion H3; subst. 
+  f_equal.
+  eapply SamplesOneTape_head_step_expr_var. 
+  - eapply SamplesOneTape_decomp'; eauto. 
+  - apply H0.
+  - apply H1.
+  - eauto.
+  - eauto. 
+Qed.
+
+Lemma SamplesOneTape_head_step_state_var l e σ1 σ2 N v t e'1 σ'1 e'2 σ'2:
+  SamplesOneTape l e ->
+  σ1.(tapes) !! l = Some (N; v :: t) -> 
+  σ2.(tapes) !! l = Some (N; v :: t) ->
+  head_step e σ1 (e'1, σ'1) > 0 ->
+  head_step e σ2 (e'2, σ'2) > 0 ->
+  σ'1.(tapes) !! l = σ'2.(tapes) !! l .
+Proof. 
+  intros.
+  destruct e; inv_head_step; 
+  auto; inversion H. 
+Qed.
+
+Lemma SamplesOneTape_head_step_pos_var l e σ1 σ2 N v t e' σ'1:
+  SamplesOneTape l e ->
+  σ1.(tapes) !! l = Some (N; v :: t) -> 
+  σ2.(tapes) !! l = Some (N; v :: t) ->
+  head_step e σ1 (e', σ'1) > 0 ->
+  ∃ σ'2, head_step e σ2 (e', σ'2) > 0.
+Proof.
+  intros.
+  destruct e; inv_head_step;
+  try (econstructor; erewrite dret_1_1; try lra; reflexivity);
+  try (by inversion H). 
+Qed. 
+
+Lemma SamplesOneTape_step_pos_var l e σ1 σ2 N v t e' σ'1:
+  SamplesOneTape l e ->
+  σ1.(tapes) !! l = Some (N; v :: t) -> 
+  σ2.(tapes) !! l = Some (N; v :: t) ->
+  step (e, σ1) (e', σ'1) > 0 ->
+  ∃ σ'2, step (e, σ2) (e', σ'2) > 0.
+Proof.
+  rewrite /step.
+  simpl. rewrite /prim_step.
+  intros. simpl in *. 
+  destruct (decomp e) eqn : Hde. 
+  rewrite Hde in H2.
+  apply dmap_pos in H2 as [(?&?) (?&?)].
+  inversion H2; subst. 
+  rewrite Hde. 
+  eapply SamplesOneTape_head_step_pos_var in H3 as [σ'2 H3]; eauto. 
+  2 : {eapply SamplesOneTape_decomp'; eauto. }
+  exists σ'2. 
+  apply dmap_pos. 
+  exists (e1, σ'2). 
+  split; auto.
+Qed.
+
+Lemma SamplesOneTape_step_state_var l e σ1 σ2 N v t e'1 σ'1 e'2 σ'2:
+  SamplesOneTape l e ->
+  σ1.(tapes) !! l = Some (N; v :: t) -> 
+  σ2.(tapes) !! l = Some (N; v :: t) ->
+  step (e, σ1) (e'1, σ'1) > 0 ->
+  step (e, σ2) (e'2, σ'2) > 0 ->
+  σ'1.(tapes) !! l = σ'2.(tapes) !! l .
+Proof. 
+  rewrite /step.
+  simpl. rewrite /prim_step.
+  intros. simpl in *. 
+  destruct (decomp e) eqn : Hde. 
+  rewrite Hde in H2.
+  apply dmap_pos in H2 as [(?&?) (?&?)].
+  inversion H2; subst. 
+  rewrite Hde in H3.
+  apply dmap_pos in H3 as [(?&?) (?&?)]. 
+  inversion H3; subst. 
+  eapply SamplesOneTape_head_step_state_var. 
+  - eapply SamplesOneTape_decomp'; eauto. 
+  - apply H0.
+  - apply H1.
+  - eauto.
+  - eauto. 
 Qed.
 
 Lemma SamplesOneTape_subst l x v e : 
