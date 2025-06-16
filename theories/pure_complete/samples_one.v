@@ -665,3 +665,20 @@ Proof.
   eapply dmap_pos. 
   econstructor; eauto.  
 Qed.
+
+Lemma SamplesOneTape_lim_exec_state_rel l t e σ1 σ2:
+  SamplesOneTape l e ->
+  σ1.(tapes) !! l = σ2.(tapes) !! l ->
+  σ1.(tapes) !! l = Some (2%nat; t) -> 
+  lim_exec (e, σ1) = lim_exec (e, σ2).
+Proof.
+  intros.
+  unfold lim_exec. 
+  apply distr_ext. 
+  intros. rewrite !lim_distr_pmf. 
+  do 2 f_equal.  
+  apply functional_extensionality.
+  intros. f_equal. 
+  erewrite SamplesOneTape_exec_state_rel';
+  eauto. 
+Qed.

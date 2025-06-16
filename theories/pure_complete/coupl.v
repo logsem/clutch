@@ -824,14 +824,103 @@ Proof.
   - eapply SamplesOneTape_inv; eauto.
 Qed.
 
-Lemma det_result_rel_wp' (e1 e2 : expr) (σ1 σ2 : state) l1 l2 t1 t2 ψ ɛ ɛ':
+Theorem SamplesOneTape_coupl_wp (e1 e2 : expr) (σ1 σ2 : state) l1 l2 t1 t2 ψ ɛ ɛ':
   SamplesOneTape l1 e1 -> SamplesOneTape l2 e2 ->
   σ1.(tapes) !! l1 = Some (2%nat; t1) -> σ2.(tapes) !! l2 = Some (2%nat; t2) -> 
   SeriesC (lim_exec (e1, σ1)) = 1 ->
   0 <= ɛ -> ɛ < ɛ' ->
   ARcoupl (lim_exec (e1, σ1)) (lim_exec (e2, σ2)) ψ ɛ -> 
   ↯ ɛ' ∗ l1 ↪ (2%nat; t1) ∗ l2 ↪ₛ (2%nat; t2) ∗ ⤇ e2 -∗ 
-    WP e1 {{ v, ∃ v', ⤇ (Val v') ∗ ⌜ψ v v'⌝ }}.
+    WP skip_one e1 {{ v, ∃ v', ⤇ (Val v') ∗ ⌜ψ v v'⌝ }}.
 Proof.
-Admitted.  
+  iIntros "%%%%%%%% (He&Hl1&Hl2&Hsp)".
+  iApply wp_lift_step_couple. simpl.
+  iIntros "%%%% ((Hsa & Hta) & Hspa & Hea)". 
+  iPoseProof (spec_auth_prog_agree with "Hspa Hsp") as "%He2".
+  subst.
+  iDestruct "Hspa" as "(Hspa & (Hsha & Hsta))".
+  simpl. 
+  iApply fupd_mask_intro.
+  { set_solver. } 
+  iIntros "hclose". 
+  iPoseProof (ghost_map_lookup with "Hta Hl1") as "%Hl1". 
+  iPoseProof (ghost_map_lookup with "Hsta Hl2") as "%Hl2".  
+  iApply spec_coupl_ret.
+  iApply (prog_coupl_step_l_dret ε1 0%NNR _ (fun r s => r = (e1, σ0) ∧ s = σ1')).
+  { apply nnreal_ext =>/=. lra. }
+  { exists (e1, σ0). rewrite skip_one_after dret_1_1; auto; lra.  }
+  { 
+    pose proof (skip_one_after e1 σ0). 
+    simpl in *. rewrite H7. 
+    apply ARcoupl_dret; auto; lra.
+  }
+  iIntros "%% (%&%)". 
+  inversion H7; subst.   
+  clear H7 H8. 
+  iMod "hclose".
+  iApply fupd_mask_intro.
+  { set_solver. } 
+  iIntros "hclose'". 
+  iNext.
+  erewrite (SamplesOneTape_lim_exec_state_rel _ _ _ _ σ0) in H6, H3; eauto;
+  try by rewrite Hl1.   
+  erewrite (SamplesOneTape_lim_exec_state_rel _ _ _ σ2 σ1') in H6; eauto.
+  2 : by rewrite Hl2. 
+  eapply SamplesOneTape_lim_exec_state_determinize in H6 as [n [m H6]]; eauto. 
+  assert (0 <= ɛ'). { lra. }
+  set e'nnr := mknonnegreal ɛ' H7. 
+  iPoseProof (ec_supply_bound with "Hea He") as "%He".
+  set ɛ0 := ε1 - ɛ'. 
+  assert (0 <= ɛ0). { rewrite /ɛ0. lra. } 
+  set e0nnr := mknonnegreal ɛ0 H8. 
+  iApply (spec_coupl_erasables_exp (fun _ => e0nnr) ɛ0 e'nnr); simpl in *.
+  { eapply ARcoupl_pos_R, H6. } 
+  { eapply erasure.iterM_state_step_erasable; eauto. }
+  { eapply erasure.iterM_state_step_erasable; eauto. }
+  { intros. lra. }
+  { 
+    rewrite Expval_const; auto. 
+    rewrite Rplus_comm. 
+    apply Rcomplements.Rle_minus_r. 
+    rewrite -(Rmult_1_r (ε1 - ɛ')) /ɛ0.
+    apply Rmult_le_compat_l; real_solver.   
+  }
+  simpl. 
+  iIntros "%s1 %s2 ((%v1&%v2&%Hp&%Hex1&%Hex2) & %Hs1 & %Hs2)". 
+  iMod "hclose'".  
+  iApply fupd_mask_intro.
+  { set_solver. }  
+  iIntros "hclose''". 
+  iApply spec_coupl_ret.  
+  
+  eapply state_stepN_heap in Hs1 as Hs1'; eauto. 
+  eapply state_stepN_heap in Hs2 as Hs2'; eauto. 
+  eapply state_stepN_tape in Hs1 as [t1' [Hlt1 Ht1']]; eauto. 
+  eapply state_stepN_tape in Hs2 as [t2' [Hlt2 Ht2']]; eauto. 
+  unfold spec_auth. simpl. 
+  rewrite -Hs1' -Hs2' Ht1' Ht2'. 
+  iMod (ec_supply_decrease with "Hea He") as "(%&%&%&%&Hea)". 
+  replace x3 with e0nnr. 2 : {
+    apply nnreal_ext. 
+    simpl. rewrite /ɛ0. 
+    subst. simpl. lra. 
+  }     
+  iMod (ghost_map_update with "Hta Hl1") as "[Hta Hl1]". 
+  iMod (ghost_map_update with "Hsta Hl2") as "[Hsta Hl2]". 
+  iMod "hclose''". 
+  iApply fupd_mask_intro.
+  { set_solver. }  
+  iIntros.
+  iFrame. 
+  iPoseProof ((det_result_rel_wp _ _ s1 s2 l1 l2 n m) with "[Hl1 Hl2 Hsp]") as "Hwp";
+  try iFrame; eauto. 
+  { rewrite app_length Hlt1; lia. }
+  { rewrite app_length Hlt2; lia. }
+  { by rewrite Ht1' lookup_insert. } 
+  { by rewrite Ht2' lookup_insert. } 
+  iApply (wp_mono with "Hwp"). 
+  iIntros "% (Hsv & %)"; subst; iFrame. 
+  by iPureIntro. 
+Qed.  
+  
 End Coupl.
