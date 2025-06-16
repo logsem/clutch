@@ -173,8 +173,8 @@ Qed.
 
 Section Presample.
 
-Lemma presamples_stepN_det_part l σ n N t e:
-  σ.(tapes) !! l = Some (N; t) ->
+Lemma presamples_stepN_det_part l σ n t e:
+  σ.(tapes) !! l = Some (2%nat; t) ->
   (n <= length t)%nat ->
   SamplesOneTape l e -> 
   stepN n (e, σ) = dzero ∨ is_det (stepN n (e, σ)).
@@ -209,7 +209,7 @@ Proof.
   eapply SamplesOneTape_inv in Hst as He'; eauto.
   erewrite SamplesOneTape_step_det'; eauto.  
   rewrite dret_id_left'. 
-  epose proof (SamplesOneTape_step_tapes _ _ _ _ _ _ _ _ H1 H Hst) as [Ht | Ht].
+  epose proof (SamplesOneTape_step_tapes _ _ _ _ _ _ _ H1 H Hst) as [Ht | Ht]. 
   - eapply IHn; eauto. 
     { by rewrite Ht. }
     simpl. lia.
@@ -218,8 +218,8 @@ Proof.
     lia.
 Qed. 
 
-Lemma presamples_pexec_det_part l σ n N t e:
-  σ.(tapes) !! l = Some (N; t) ->
+Lemma presamples_pexec_det_part l σ n t e:
+  σ.(tapes) !! l = Some (2%nat; t) ->
   (n <= length t)%nat ->
   SamplesOneTape l e -> 
   pexec n (e, σ) = dzero ∨ is_det (pexec n (e, σ)).
@@ -262,22 +262,22 @@ Proof.
   eapply SamplesOneTape_inv in Hst as He'; eauto.
   erewrite SamplesOneTape_step_det'; eauto.  
   rewrite dret_id_left'. 
-  epose proof (SamplesOneTape_step_tapes _ _ _ _ _ _ _ _ H1 H Hst) as [Ht | Ht].
+  epose proof (SamplesOneTape_step_tapes _ _ _ _ _ _ _ H1 H Hst) as [Ht | Ht].  
   - eapply IHn; eauto. 
     { by rewrite Ht. }
-    simpl. lia.
+    simpl. lia. 
   - eapply IHn; eauto. 
     { rewrite Ht. by apply lookup_insert. }
     lia.
 Qed.
 
-Lemma presamples_pexec_det_state l σ σ' n N t e e':
-  σ.(tapes) !! l = Some (N; t) ->
+Lemma presamples_pexec_det_state l σ σ' n t e e':
+  σ.(tapes) !! l = Some (2%nat; t) ->
   (n <= length t)%nat ->
   SamplesOneTape l e -> 
   pexec n (e, σ) = dret (e', σ') ->
   heap σ' = heap σ ∧ 
-  ∃ t', tapes σ' = <[l := (N; t')]>(tapes σ).
+  ∃ t', tapes σ' = <[l := (2%nat; t')]>(tapes σ).
 Proof.
   revert σ e e' σ' t.
   induction n; intros.
@@ -318,7 +318,7 @@ Proof.
   rewrite dret_id_left' in H2. 
   eapply SamplesOneTape_step_heap in Hst as Hh; eauto.
   eapply SamplesOneTape_step_tapes in Hst as Ht; eauto.
-  assert (∃ t', tapes σ1 = <[l:=(N; t')]> (tapes σ) ∧ n ≤ length t' ) as [t' [Ht' Ht'l]]. {
+  assert (∃ t', tapes σ1 = <[l:=(2%nat; t')]> (tapes σ) ∧ n ≤ length t' ) as [t' [Ht' Ht'l]]. {
     destruct Ht as [-> | ->].
     - exists (nv :: t). split.  
       2 : { simpl. lia. }
@@ -334,28 +334,28 @@ Proof.
   by rewrite Ht' insert_insert in H2. 
 Qed. 
 
-Lemma presamples_stepN_det l σ n N t e:
-  σ.(tapes) !! l = Some (N; t) ->
+Lemma presamples_stepN_det l σ n t e:
+  σ.(tapes) !! l = Some (2%nat; t) ->
   (n <= length t)%nat ->
   SeriesC (stepN n (e, σ)) > 0 ->
   SamplesOneTape l e -> 
   is_det (stepN n (e, σ)).
 Proof.
   intros.
-  epose proof (presamples_stepN_det_part _ _ _ _ _ _) as [? | ?]; eauto.
+  epose proof (presamples_stepN_det_part _ _ _ _ _) as [? | ?]; eauto. 
   rewrite H3 dzero_mass in H1.
-  lra.
+  lra. 
 Qed.
 
-Lemma presamples_exec_det_part l σ n N t e:
-  σ.(tapes) !! l = Some (N; t) ->
+Lemma presamples_exec_det_part l σ n t e:
+  σ.(tapes) !! l = Some (2%nat; t) ->
   (n <= length t)%nat ->
   SamplesOneTape l e -> 
   (exec n (e, σ)) = dzero ∨ is_det (exec n (e, σ)).
 Proof.
   intros.
   rewrite exec_pexec_relate.
-  epose proof (presamples_pexec_det_part _ _ _ _ _ _) as [? | (? & ?)]; eauto;
+  epose proof (presamples_pexec_det_part _ _  _ _ _) as [? | (? & ?)]; eauto;
   rewrite H2. 
   - left. by rewrite dbind_dzero.  
   - rewrite dret_id_left'. 
@@ -364,21 +364,21 @@ Proof.
     + by left. 
 Qed.
 
-Lemma presamples_exec_det l σ n N t e:
-  σ.(tapes) !! l = Some (N; t) ->
+Lemma presamples_exec_det l σ n t e:
+  σ.(tapes) !! l = Some (2%nat; t) ->
   (n <= length t)%nat ->
   SeriesC (exec n (e, σ)) > 0 ->
   SamplesOneTape l e -> 
   is_det (exec n (e, σ)).
 Proof.
   intros.
-  epose proof (presamples_exec_det_part _ _ _ _ _ _) as [? | ?]; eauto.
+  epose proof (presamples_exec_det_part _ _ _ _ _) as [? | ?]; eauto.
   rewrite H3 dzero_mass in H1.
-  lra.
-Qed. 
+  lra. 
+Qed.
 
-Lemma presamples_exec_det_pexec l σ n N t e v:
-  σ.(tapes) !! l = Some (N; t) ->
+Lemma presamples_exec_det_pexec l σ n t e v:
+  σ.(tapes) !! l = Some (2%nat; t) ->
   (n <= length t)%nat ->
   SamplesOneTape l e -> 
   exec n (e, σ) = dret v ->
@@ -386,7 +386,7 @@ Lemma presamples_exec_det_pexec l σ n N t e v:
 Proof.
   intros ??? H3. 
   rewrite exec_pexec_relate in H3. 
-  epose proof (presamples_pexec_det_part _ _ _ _ _ _) as [? | [[e' σ'] ?]]; eauto.
+  epose proof (presamples_pexec_det_part _ _ _ _ _) as [? | [[e' σ'] ?]]; eauto.
   - rewrite H2 dbind_dzero in H3. 
     by apply dzero_neq_dret in H3.
   - rewrite H2 dret_id_left' in H3. 
@@ -397,9 +397,9 @@ Proof.
     by econstructor.  
 Qed. 
 
-Lemma presamples_pexec_var l e e' σ1 σ2 n N t σ'1:
-  σ1.(tapes) !! l = Some (N; t) -> 
-  σ2.(tapes) !! l = Some (N; t) ->
+Lemma presamples_pexec_var l e e' σ1 σ2 n t σ'1:
+  σ1.(tapes) !! l = Some (2%nat; t) -> 
+  σ2.(tapes) !! l = Some (2%nat; t) ->
   (n <= length t)%nat ->
   SamplesOneTape l e ->
   pexec n (e, σ1) = dret (e', σ'1) ->
@@ -458,7 +458,7 @@ Proof.
   rewrite Hst'.
   rewrite dret_id_left'. 
   eapply SamplesOneTape_step_tapes in Hst'' as Ht'; eauto.
-  assert (∃ t', tapes σ''1 = <[l:=(N; t')]> (tapes σ1) ∧ n ≤ length t' ) as [t' [Ht'' Ht''l]]. {
+  assert (∃ t', tapes σ''1 = <[l:=(2%nat; t')]> (tapes σ1) ∧ n ≤ length t' ) as [t' [Ht'' Ht''l]]. {
     destruct Ht' as [-> | ->].
     - exists (nv :: t). split.  
       2 : { simpl. lia. }
@@ -475,12 +475,12 @@ Qed.
 
 Definition state_stepN σ l n := iterM n (λ σ', state_step σ' l) σ.
 
-Lemma state_stepN_tape σ l n σ' N t : 
-  σ.(tapes) !! l = Some (N; t) ->
+Lemma state_stepN_tape σ l n σ' t : 
+  σ.(tapes) !! l = Some (2%nat; t) ->
   (state_stepN σ l n) σ' > 0 ->
   ∃ t', 
     length t' = n ∧
-    σ'.(tapes) = <[l := (N; t ++ t')]>σ.(tapes).
+    σ'.(tapes) = <[l := (2%nat; t ++ t')]>σ.(tapes).
 Proof.
   intros.
   eapply metatheory.iterM_state_step_unfold in H.
@@ -495,8 +495,8 @@ Proof.
   apply n.
 Qed.
 
-Lemma state_stepN_heap σ l n σ' N t : 
-  σ.(tapes) !! l = Some (N; t) ->
+Lemma state_stepN_heap σ l n σ' t : 
+  σ.(tapes) !! l = Some (2%nat; t) ->
   (state_stepN σ l n) σ' > 0 ->
   σ.(heap) = σ'.(heap).
 Proof.
@@ -509,7 +509,7 @@ Proof.
   - intros.
     rewrite /state_stepN iterM_Sn // in H0.
     apply dbind_pos in H0 as (σ1 & H1 & H2).
-    epose proof (state_stepN_tape _ _ 1 _ _ _ H _).
+    epose proof (state_stepN_tape _ _ 1 _ _ H _). 
     Unshelve.
     3 : {
       rewrite /state_stepN iterM_Sn.
@@ -529,34 +529,34 @@ Proof.
     by inversion H2.
 Qed.
 
-Lemma SamplesOneTape_state_stepN_exec_det_part l σ σ' n N t e:
-  σ.(tapes) !! l = Some (N; t) ->
+Lemma SamplesOneTape_state_stepN_exec_det_part l σ σ' n t e:
+  σ.(tapes) !! l = Some (2%nat; t) ->
   SamplesOneTape l e -> 
   (state_stepN σ l n) σ' > 0 ->
   exec n (e, σ') = dzero ∨ is_det (exec n (e, σ')).
 Proof.
   intros.
-  apply (state_stepN_heap _ _ _ _ _ _ H) in H1 as Hh.
-  pose proof (state_stepN_tape _ _ _ _ _ _ H H1) as [t' [Ht Hst]].
+  apply (state_stepN_heap _ _ _ _ _ H) in H1 as Hh.
+  pose proof (state_stepN_tape _ _ _ _ _ H H1) as [t' [Ht Hst]].
   eapply presamples_exec_det_part; eauto.
   - rewrite Hst. apply lookup_insert. 
   - rewrite app_length Ht. lia.
 Qed.
 
-Lemma SamplesOneTape_state_stepN_exec_det l σ σ' n N t e:
-  σ.(tapes) !! l = Some (N; t) ->
+Lemma SamplesOneTape_state_stepN_exec_det l σ σ' n t e:
+  σ.(tapes) !! l = Some (2%nat; t) ->
   SamplesOneTape l e -> 
   (state_stepN σ l n) σ' > 0 ->
   SeriesC (exec n (e, σ')) > 0 ->
   is_det (exec n (e, σ')).
 Proof.
   intros.
-  epose proof (SamplesOneTape_state_stepN_exec_det_part _ _ _ _ _ _ _) as [? | ?]; eauto.
+  epose proof (SamplesOneTape_state_stepN_exec_det_part _  _ _ _ _ _) as [? | ?]; eauto.
   rewrite H3 dzero_mass in H2. lra.
-Qed. 
+Qed.
 
-Lemma SamplesOneTape_exec_decompose l σ n N t e:
-  σ.(tapes) !! l = Some (N; t) ->
+Lemma SamplesOneTape_exec_decompose l σ n t e:
+  σ.(tapes) !! l = Some (2%nat; t) ->
   SamplesOneTape l e -> 
   exec n (e, σ) = 
     dmap (fun σ' => det_exec_result n (e, σ')) 
@@ -582,7 +582,7 @@ Proof.
     real_solver. 
   }
   unfold pmf at 1. simpl. unfold ssd_pmf.
-  epose proof (SamplesOneTape_state_stepN_exec_det_part _ _ _ _ _ _ _) as [? | ?]; eauto.
+  epose proof (SamplesOneTape_state_stepN_exec_det_part _ _ _ _ _ _) as [? | ?]; eauto. 
   - case_bool_decide. 
     2 : rewrite H1 dzero_0; real_solver.
     destruct H2. 
@@ -592,11 +592,11 @@ Proof.
     destruct H1. 
     erewrite det_exec_result_correct; eauto.  
     by rewrite H1. 
-Qed.
+Qed. 
 
-Lemma SamplesOneTape_exec_state_determinize l1 l2 e1 σ1 e2 σ2 N M t1 t2 n m ɛ ɛ' ψ:
-  σ1.(tapes) !! l1 = Some (N; t1) ->
-  σ2.(tapes) !! l2 = Some (M; t2) ->
+Lemma SamplesOneTape_exec_state_determinize l1 l2 e1 σ1 e2 σ2 t1 t2 n m ɛ ɛ' ψ:
+  σ1.(tapes) !! l1 = Some (2%nat; t1) ->
+  σ2.(tapes) !! l2 = Some (2%nat; t2) ->
   SamplesOneTape l1 e1 ->
   SamplesOneTape l2 e2 ->
   0 <= ɛ ->
@@ -639,12 +639,12 @@ Proof.
   eapply ARcoupl_ssdp_inv.
   eapply ARcoupl_map_inv; auto.
   erewrite SamplesOneTape_exec_decompose in H3; eauto.
-  rewrite (SamplesOneTape_exec_decompose l2 _ m M t2) in H3; auto.
+  rewrite (SamplesOneTape_exec_decompose l2 _ m t2) in H3; auto.
 Qed.
 
-Lemma SamplesOneTape_lim_exec_state_determinize l1 l2 e1 σ1 e2 σ2 N M t1 t2 ɛ ɛ' ψ:
-  σ1.(tapes) !! l1 = Some (N; t1) ->
-  σ2.(tapes) !! l2 = Some (M; t2) ->
+Lemma SamplesOneTape_lim_exec_state_determinize l1 l2 e1 σ1 e2 σ2 t1 t2 ɛ ɛ' ψ:
+  σ1.(tapes) !! l1 = Some (2%nat; t1) ->
+  σ2.(tapes) !! l2 = Some (2%nat; t2) ->
   SamplesOneTape l1 e1 ->
   SamplesOneTape l2 e2 ->
   0 <= ɛ < ɛ' ->
@@ -688,15 +688,13 @@ Context `{!approxisGS Σ}.
 
 Notation σ₀ := {| heap := ∅; tapes := ∅ |}.
 
-Notation "[[ l |-> N ; t ]]" := {| heap := ∅; tapes := <[l := (N; t)]>∅ |}.
-
-Lemma det_result_rel_wp (e1 e2 : expr) (σ1 σ2 : state) l1 l2 n m N M t1 t2 v1 v2 :
+Lemma det_result_rel_wp (e1 e2 : expr) (σ1 σ2 : state) l1 l2 n m t1 t2 v1 v2 :
   SamplesOneTape l1 e1 -> SamplesOneTape l2 e2 ->
   (n <= length t1)%nat -> (m <= length t2)%nat ->
-  σ1.(tapes) !! l1 = Some (N; t1) ->
-  σ2.(tapes) !! l2 = Some (M; t2) ->
+  σ1.(tapes) !! l1 = Some (2%nat; t1) ->
+  σ2.(tapes) !! l2 = Some (2%nat; t2) ->
   (exec n (e1, σ1)) = dret v1 -> (exec m (e2, σ2)) = dret v2 ->
-  l1 ↪ (N; t1) ∗ l2 ↪ₛ (M; t2) ∗ ⤇ e2 -∗ 
+  l1 ↪ (2%nat; t1) ∗ l2 ↪ₛ (2%nat; t2) ∗ ⤇ e2 -∗ 
     WP e1 {{ v,  ⤇ (Val v2) ∗ ⌜v = v1⌝ }}.
 Proof.
   iLöb as "IH"  forall (e1 σ1 e2 σ2 n m t1 t2).
@@ -727,7 +725,7 @@ Proof.
     iApply spec_coupl_ret.
     iMod (spec_update_prog (Val v2) with "[Hspa Hsha Hsta] Hsp") as "[Hspa Hsp]".
     { iFrame. }    
-    iMod (spec_auth_update_tape (M; t'') with "Hspa Hl2") as "[Hspa Hl2]".
+    iMod (spec_auth_update_tape (2%nat; t'') with "Hspa Hl2") as "[Hspa Hl2]".
     iMod "hclose".
     iApply fupd_mask_intro.
     { set_solver. }
@@ -745,6 +743,11 @@ Proof.
     rewrite exec_unfold in x5. simpl in x5.
     rewrite Hev in x5. by apply dzero_neq_dret in x5. 
   }
+  pose proof Hl1 as Hl1'. 
+  eapply SamplesOneTape_exec_state_rel' in Hl1'. 
+  3 : simpl; by rewrite Hl1 -x3.
+  2 : eauto. 
+  erewrite x5 in Hl1'. 
   rewrite exec_Sn step_or_final_no_final in x5; auto.
    
   assert (∃ e' σ', step (e1, σ0) = dret (e', σ')) as [ e' [ σ' H] ].
@@ -787,7 +790,7 @@ Proof.
   destruct t1; simpl in x1; try lia.
   pose proof H0 as H0'.
   eapply SamplesOneTape_step_heap in H0 as <- ; eauto.
-  assert (∃ t', tapes σ' = <[l1 :=(N; t')]> (tapes σ0) ∧ n ≤ length t' ) as [t' [Ht' Ht'l] ]. {
+  assert (∃ t', tapes σ' = <[l1 :=(2%nat; t')]> (tapes σ0) ∧ n ≤ length t' ) as [t' [Ht' Ht'l] ]. {
     eapply SamplesOneTape_step_tapes in H0' as Ht' ; eauto.   
     destruct Ht' as [-> | ->].
     - exists (t :: t1). split.  
@@ -796,7 +799,7 @@ Proof.
     - exists t1; split; auto; lia. 
   }
   iMod (ghost_map_update with "Hta Hl1") as "[Hta Hl1]". 
-  Unshelve. 2 : (exact (N; t')).
+  Unshelve. 2 : (exact (2%nat; t')).
   iApply fupd_mask_intro.
   { set_solver. }
   iIntros "hclose'".
@@ -813,20 +816,21 @@ Proof.
   iPureIntro; eauto. 
   - Unshelve. 2 : exact σ'2.
     eapply SamplesOneTape_step_det in H0'; eauto.
-    apply pmf_1_eq_dret in H0'. rewrite H0' in x5. 
-  admit.
+    apply pmf_1_eq_dret in H0'. 
+    rewrite exec_Sn step_or_final_no_final in Hl1'; auto. 
+    by rewrite H0' dret_id_left' in Hl1'. 
   - eapply SamplesOneTape_step_state_var in H0; eauto. 
     rewrite H0 Ht'. apply lookup_insert.  
   - eapply SamplesOneTape_inv; eauto.
-Admitted.
+Qed.
 
-Lemma det_result_rel_wp' (e1 e2 : expr) (σ1 σ2 : state) l1 l2 N M t1 t2 ψ ɛ ɛ':
+Lemma det_result_rel_wp' (e1 e2 : expr) (σ1 σ2 : state) l1 l2 t1 t2 ψ ɛ ɛ':
   SamplesOneTape l1 e1 -> SamplesOneTape l2 e2 ->
-  σ1.(tapes) !! l1 = Some (N; t1) -> σ2.(tapes) !! l2 = Some (M; t2) -> 
+  σ1.(tapes) !! l1 = Some (2%nat; t1) -> σ2.(tapes) !! l2 = Some (2%nat; t2) -> 
   SeriesC (lim_exec (e1, σ1)) = 1 ->
   0 <= ɛ -> ɛ < ɛ' ->
   ARcoupl (lim_exec (e1, σ1)) (lim_exec (e2, σ2)) ψ ɛ -> 
-  ↯ ɛ' ∗ l1 ↪ (N; t1) ∗ l2 ↪ₛ (M; t2) ∗ ⤇ e2 -∗ 
+  ↯ ɛ' ∗ l1 ↪ (2%nat; t1) ∗ l2 ↪ₛ (2%nat; t2) ∗ ⤇ e2 -∗ 
     WP e1 {{ v, ∃ v', ⤇ (Val v') ∗ ⌜ψ v v'⌝ }}.
 Proof.
 Admitted.  
