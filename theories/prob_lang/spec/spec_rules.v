@@ -106,6 +106,8 @@ Section rules.
     ⤇ fill K (rand(#lbl:l) #z) ∗ l ↪ₛ (N; n :: ns)
       ⊢ spec_update E (⤇ fill K #n ∗ l ↪ₛ (N; ns)).
   Proof.
+    Unset Printing Notations.
+    
     iIntros (->) "[HK Hl]". rewrite spec_update_unseal.
     iIntros ([? σ]) "Hs".
     iDestruct (spec_auth_prog_agree with "[$][$]") as "->".

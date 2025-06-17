@@ -7,21 +7,11 @@ From clutch.tachis Require Export expected_time_credits ert_weakestpre problang_
   derived_laws cost_models ert_rules.
 From iris.proofmode Require Export proofmode.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
-From clutch.pure_complete Require Import pure term.
+From clutch.pure_complete Require Import pure term prob_additional.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
 (* Some misc lemmas *)
-
-Lemma pos_series_le_one `{Countable A} (f : A -> R) (x : A):
-  (∀ y, 0 <= f y) ->
-  ex_seriesC f ->
-  f x <= SeriesC f.
-Proof.
-  intros.
-  rewrite -(SeriesC_singleton_dependent).
-  by apply SeriesC_filter_leq.
-Qed.
 
 Lemma is_finite_dec x:
   {is_finite x} + {¬ is_finite x}.
@@ -435,8 +425,6 @@ Proof.
           reflexivity.
     }
     simpl. do 5 f_equal. 
-    apply functional_extensionality.
-    intros. case_bool_decide; auto.
   }
   erewrite SeriesC_ext.
   2 : {
