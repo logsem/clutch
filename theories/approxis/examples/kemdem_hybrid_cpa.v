@@ -74,7 +74,7 @@ Definition dec_hyb : val :=
     let: "c_dem" := Fst "msg'" in
     let: "c_kem" := Snd "msg'" in
     let: "k" := decaps "sk" "c_kem" in
-    (prf_enc Input SymOutput xor_struct) "k" "c_dem".
+    rf_dec "k" "c_dem".
 
 (* Idealised kem. *)
 Definition encaps_ideal : val :=
@@ -248,7 +248,11 @@ Ltac simpl_mult := try (rel_apply refines_mult_l; rel_pures_l);
   try (rel_apply refines_mult_r; rel_pures_r).
 Ltac rel_bind x := rel_bind_l x; rel_bind_r x.
 
-(* currently having trouble with writing the symmetric decryption *)
+(* cannot write the symmetric decryption: the random function used initializes a
+  map that has to stay local to the scheme, otherwise it would compromise its
+  security. However, the decryption also needs access to this map.
+  Several ways it could work:
+  - *)
 
 Lemma hybrid_scheme_correct :
   ⊢ refines top
@@ -290,6 +294,11 @@ Proof with rel_pures_l; rel_pures_r.
     rewrite /decaps/dec...
     simpl_exp. simpl_mult. rel_apply refines_inv_l. simpl_mult.
     rewrite -fingroup.expgM. rewrite -fingroup.expgM.
+    rewrite -ssrnat.multE.
+    rewrite Nat.mul_comm.
+
+    rewrite fingroup.mulgV.
+    Search (mulg (mulg _ _) _).
 
 
   (* rewrite -?expgM -?ssrnat.multE -?mulgA ?Nat.mul_comm ?mulgV ?mulg1. *)
