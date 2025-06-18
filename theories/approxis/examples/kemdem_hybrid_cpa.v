@@ -296,13 +296,12 @@ Proof with rel_pures_l; rel_pures_r.
     rewrite -fingroup.expgM. rewrite -fingroup.expgM.
     rewrite -ssrnat.multE.
     rewrite Nat.mul_comm.
-
+    rewrite -fingroup.mulgA.
     rewrite fingroup.mulgV.
-    Search (mulg (mulg _ _) _).
-
-
-  (* rewrite -?expgM -?ssrnat.multE -?mulgA ?Nat.mul_comm ?mulgV ?mulg1. *)
-  rel_vals.
+    rewrite fingroup.mulg1.
+    (* would need two things here:
+      - an hypothesis stating that `kg` is obtained from `vg_of_int k`
+      - an hypothesis stating that `rf_dec k (enc k msg)` reduces to `msg` *)
 Admitted.
 
 Lemma pk_real_real_tape : ⊢ REL pk_real << pk_real_tape :
