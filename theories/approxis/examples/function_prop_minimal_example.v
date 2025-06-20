@@ -141,12 +141,23 @@ Section rules.
   End LocalRef.
 
   Section RandCouple.
-
+    (* FIXME seems a bit weird to write it this way. Even though it's this way,
+      by showing the states of sampling tapes after the execution etc,
+      that we could prove the potential_coupling property in practice,
+      maybe it's equivalent to just the conclusion of the magic wand... *)
     Definition potential_coupling (f : list loc -> val) (n : Z) (v : val) (lιr : list loc) (llrand : list (list nat)) (lN : list nat) : iProp Σ :=
       ForallSep3 (fun i l n => (i ↪ₛN (n;l))%I) lιr llrand lN ∗
       ((ForallSep3 (fun i l n => (i ↪ₛN (n;l))%I) lιr llrand lN) -∗
        (∀ (E' : coPset) (K' : list (ectxi_language.ectx_item prob_ectxi_lang)) (e' : expr) (B : lrel Σ),
           (refines E' e' (fill K' v) B) -∗ (refines E' e' (fill K' ((f lιr) #n)) B))).
+
+    Lemma refines_potential_coupling_now (f : list loc -> val) (n : Z) (v : val) (lιr : list loc) (llrand : list (list nat)) (lN : list nat) :
+    potential_coupling f n v lιr llrand lN -∗
+    (∀ (E' : coPset) (K' : list (ectxi_language.ectx_item prob_ectxi_lang)) (e' : expr) (B : lrel Σ),
+          (refines E' e' (fill K' v) B) -∗ (refines E' e' (fill K' ((f lιr) #n)) B)).
+    Proof.
+      iIntros "[H H']". iApply "H'". iAssumption.
+    Qed.
 
     Definition couplable_rand (f : list loc -> val) (C : lrel Σ) (lN : list nat) : Prop :=
       ∀ (E : coPset)
@@ -216,19 +227,12 @@ Section rules.
     ⊢ REL (eager_exec' li) << lazy_exec'  li' : () → lrel_int.
   Proof with rel_pures_l; rel_pures_r. rewrite /eager_exec'. iIntros "[Hi Hi']".
     rel_bind_l (foo' _ _).
-    About couplable_rand.
-    iPoseProof (test with "[Hi Hi']") as "H"; last iAssumption. iFrame. iIntros (v Hsemtyped llrand) "[Hι' Hiter]".
+    iPoseProof (test with "[Hi Hi']") as "H"; last iAssumption. iFrame. iIntros (v Hsemtyped llrand) "Hpotential".
     rel_pures_l. rewrite /lazy_exec'.
     rel_alloc_r x as "Hx"...
     set (P := (
-      (  x ↦ₛ NONEV
-      ∗ (ForallSep3 (λ (i : loc) (l0 : list nat) (n : nat), i↪ₛN(n;l0)) li' llrand l)
-      ∗ (ForallSep3
-        (λ (i : loc) (l0 : list nat) (n : nat),
-        i↪ₛN(n;l0)) li' llrand l -∗
-        ∀ (E' : coPset) (K' : list ectx_item) (e' : expr) (B : lrel Σ),
-        (REL e' << fill K' v @ E' : B) -∗
-        REL e' << fill K' (foo' li' #0%nat) @ E' : B)) ∨
+       (x ↦ₛ NONEV
+      ∗ potential_coupling foo' 0 v li' llrand l) ∨
         x ↦ₛ SOMEV v
     )%I).
     rel_apply (refines_na_alloc P (nroot.@"lazyeager_exec")).
@@ -237,10 +241,10 @@ Section rules.
     rel_arrow_val.
     iIntros (v1 v2 [eq1 eq2]); subst.
     rel_apply refines_na_inv; iSplitL; first iAssumption.
-    iIntros "[[[Hx [Hi H]]|Hx] Hclose]";
+    iIntros "[[[Hx Hpotential]|Hx] Hclose]";
     replace (0)%Z with (Z.of_nat 0)%Z by lia; rel_pures_l; rel_pures_r; rel_load_r...
-    - iPoseProof ("H" with "Hi") as "H". rel_bind_r (foo' _ _). 
-      rel_apply "H"... rel_store_r... rel_apply refines_na_close; iFrame.
+    - rel_apply (refines_potential_coupling_now with "Hpotential")...
+      rel_store_r... rel_apply refines_na_close; iFrame.
       rel_values.
     - rel_apply refines_na_close; iFrame.
       rel_values.
