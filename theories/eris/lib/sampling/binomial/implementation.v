@@ -119,92 +119,6 @@ Section binomial.
         iApply ("HΦ" with "Herr").
   Qed.
  
-  Definition binomial_to_bernoulli (k : nat) (v : list (fin (S k))) : list (fin 2) :=  
-    x ← v ;
-    (repeat (1 : fin 2) (fin_to_nat x) ++ repeat (0 : fin 2) (k - fin_to_nat x))%fin.
-
-  Lemma binomial_to_bernoulli_length (k : nat) (v : list (fin (S k))) :
-    length (binomial_to_bernoulli k v) = k * length v.
-  Proof.
-    elim: v => [|h t IHt] /=; first lia.
-    rewrite !app_length IHt !repeat_length.
-    pose proof fin_to_nat_lt h.
-    lia.
-  Qed.
-  
-  Fixpoint bernoulli_to_binomial_aux (k c : nat) (l : list (fin 2)) (acc : fin (S k)) : list (fin (S k)) :=
-    match l,c with
-    | [], _ => []
-    | h::t, 0 => [fin_hsum h acc] ++ bernoulli_to_binomial_aux k (k - 1) t 0%fin
-    | h::t, S m => bernoulli_to_binomial_aux k m t (fin_hsum h acc)
-    end.
-
-  Definition bernoulli_to_binomial (k : nat) (l : list (fin 2)) : list (fin (S k)) :=
-    bernoulli_to_binomial_aux k (k - 1) l 0%fin.
-  
-  Lemma bernoulli_to_binomial_aux_app (k ct : nat) (l1 l2: list (fin 2)) (acc : fin (S k)) :
-    length l1 = S ct → 
-    bernoulli_to_binomial_aux k ct (l1 ++ l2) acc 
-      = 
-    [fin_hsum acc $ fin_sum_list 2 k l1] ++ bernoulli_to_binomial_aux k (k - 1) l2 0%fin.
-  Proof.
-    elim: l1 l2 k ct acc => /= [|h t IH] l2 k ct acc len_ct_eq_k; first lia.
-    case: ct len_ct_eq_k => /= [len_ct_eq_k | ct len_ct_eq_k].
-    - case: t IH len_ct_eq_k => // IH _ /=.
-      f_equal.
-      rewrite fin_hsum_comm fin_hsum_assoc; last done.
-      fold (@fin_sum (S k)).
-      rewrite fin_sum_0 //.
-    - rewrite IH; last lia.
-      rewrite fin_hsum_comm fin_hsum_assoc //.
-  Qed.
-
-  Lemma bernoulli_to_binomial_app_1 (k : nat) (l1 l2: list (fin 2)) :
-    k ≠ 0 →
-    length l1 = k → 
-    bernoulli_to_binomial k (l1 ++ l2) = [fin_sum_list 2 k l1] ++ bernoulli_to_binomial k l2.
-  Proof.
-    move=> k_not_0 len_k.
-    rewrite /bernoulli_to_binomial bernoulli_to_binomial_aux_app //; last lia.
-  Qed.
-
-  Lemma bernoulli_to_binomial_app_n (k n : nat) (l1 l2: list (fin 2)) :
-    k ≠ 0 →
-    length l1 = n * k →
-    bernoulli_to_binomial k (l1 ++ l2) = bernoulli_to_binomial k l1 ++ bernoulli_to_binomial k l2.
-  Proof.
-    elim:n l1 l2 =>[|n IH l1 l2].
-    - by case.
-    - move=> k_pos len_l1.
-      rewrite -{1}(take_drop k l1) -app_assoc
-             bernoulli_to_binomial_app_1; try done; last first.
-      { rewrite take_length Nat.min_l /=; lia. }
-      rewrite IH; try done; last first.
-      { rewrite drop_length len_l1; lia. }
-      rewrite app_assoc -bernoulli_to_binomial_app_1; try lia; last first.
-      { rewrite take_length Nat.min_l /=; lia. }
-      rewrite (take_drop k l1) //.
-  Qed.
-
-  Lemma binomial_to_bernoulli_to_binomial (k : nat) (l : list (fin (S k))) : 
-    (k ≠ 0)%nat → bernoulli_to_binomial k (binomial_to_bernoulli k l) = l.
-  Proof.
-    move=>k_pos.
-    elim:l =>[|h t IHt].
-    - rewrite /binomial_to_bernoulli /bernoulli_to_binomial /bernoulli_to_binomial_aux //.
-    - rewrite (bernoulli_to_binomial_app_1 _ _ _ k_pos).
-      + rewrite IHt /=.
-        f_equal.
-        rewrite /fin_sum_list foldr_app.
-        fold (fin_sum_list 2 k (repeat 0%fin (k - h))).
-        rewrite fin_sum_repeat_0.
-        fold (fin_sum_list 2 k (repeat 1%fin h)).
-        rewrite fin_sum_repeat_1 //.
-      + rewrite app_length !repeat_length.
-        pose proof fin_to_nat_lt h.
-        lia.
-  Qed.
-  
   Fixpoint is_binomial_translation (k : nat) (v : list (fin (S k))) (l : list (fin 2)) :=
     match v with
     | [] => l = []
@@ -229,53 +143,7 @@ Section binomial.
       rewrite IH.
       by full_inv_fin.
   Qed.
-
-  Lemma bernoulli_to_binomial_translation (k : nat) (l : list (fin 2)) (v : list (fin (S k))) :
-    (0 < k)%nat →
-    is_binomial_translation k v l ↔ ∃ n, length l = n * k ∧ v = bernoulli_to_binomial k l.
-  Proof.
-    elim: v l =>[|hv tv IH] [|hl tl] k_pos.
-    - split; last done.
-      move=>_.
-      by exists 0.
-    - split; first done.
-      move=>/=[[|n] [len tsl]]; first lia.
-      contradict tsl.
-      rewrite -(take_drop k (hl::tl)).
-      rewrite bernoulli_to_binomial_app_1; [done|lia|..].
-      rewrite take_length Nat.min_l /=; lia.
-    - split.
-      + intros (pre & suf & sum_eq & len_pre & pre_suf & tls).
-        destruct pre;
-          simpl in len_pre, pre_suf; [lia | discriminate].
-      + intros (? & ? & ?).
-        discriminate.
-    - split.
-      + intros (pre & suf & sum_eq & len_pre & -> & tls).
-        rewrite app_length len_pre bernoulli_to_binomial_app_1 /=; [|lia|done].
-        apply IH in tls as (n & -> & ->); last lia.
-        exists (S n).
-        split; first lia.
-        by f_equal.
-      + move=> /=[[|n] [len tsl]]; first lia.
-        rewrite -{1}(take_drop k (hl::tl)) bernoulli_to_binomial_app_1 /= in tsl;
-          [..|lia|]; last first.
-        { rewrite take_length Nat.min_l /=; lia. }
-        injection tsl as hv_eq tv_eq.
-        simpl.
-        eexists _, _.
-        split; first done.
-        split.
-        { rewrite take_length Nat.min_l /=; lia. }
-        rewrite -{1}(take_drop k (hl::tl)).
-        split; first done.
-        apply IH; first done.
-        exists n.
-        split; last done.
-        rewrite drop_length /= len.
-        lia.
-  Qed.
-    
+   
   Definition own_binomial_tape (α : loc) (m n k : nat) (v : list (fin (S k))) : iProp Σ :=
     ∃ l, own_bernoulli_tape α m n l ∗ ⌜is_binomial_translation k v l⌝.
 
@@ -332,15 +200,18 @@ Section binomial.
     iExists (l ++ l').
     iFrame.
     iPureIntro.
-    rewrite bernoulli_to_binomial_translation in Hl; last done.
-    destruct Hl as (n & len & ->).
-    rewrite bernoulli_to_binomial_translation; last done.
-    rewrite (bernoulli_to_binomial_app_n _ n); [..|lia|done].
-    exists (S n).
-    rewrite app_length len length_l'_k.
-    split; first lia.
-    f_equal.
-    rewrite -(app_nil_r l') bernoulli_to_binomial_app_1; [done|lia|done].
+    generalize dependent l.
+    induction ns as [|n ns IH]; move=>/= l is_tl.
+    { subst; simpl.
+      exists l', [].
+      rewrite app_nil_r //.
+    } 
+    destruct is_tl as (pre & suf & sum_pre & len_pre & -> & is_tl).
+    simpl.
+    exists pre, (suf ++ l').
+    rewrite -app_assoc.
+    repeat split; try done.
+    by apply IH.
   Qed.
 
   Lemma twp_binomial_tape (N M k : nat) (α : loc) (ns : list (fin (S k))) (n : fin (S k)) :

@@ -79,6 +79,13 @@ Section Polya.
 
   Definition Beta_prob (r b n k : nat) := (choose n k * Beta (k + r) (n - k + b) / Beta r b)%R.
 
+  Lemma Beta_prob_0_0 (r b : nat) : Beta_prob r b 0 0 = 1.
+  Proof.
+    rewrite /Beta_prob choose_n_0 /= Rmult_1_l Rdiv_diag //.
+    pose proof (Beta_pos r b).
+    lra.
+  Qed.
+
   Lemma Beta_prob_pos (r b n k : nat) : (0 <= Beta_prob r b n k)%R.
   Proof.
     add_hint Beta_pos.
@@ -2008,58 +2015,6 @@ Section Polya.
       do 2 f_equal.
       apply sum_arbitrary.
   Qed.
-   
-  Definition β_last_row_well_formed {n : nat} : β_tape (S n) → Prop :=
-    match n as n0 return β_tape (S n0) → Prop with
-    | 0 => const True
-    | S m => (λ t,
-                let ht := triangle_head t in
-                let l := triangle_tail t in
-                let fst := fin_list_head l in
-                let mid := fin_list_tail (fin_list_liat l) in 
-                let lst := fin_list_last l in
-                length fst =
-                length (fin_list_last (triangle_top ht)) -
-                  list_sum (fin_to_nat <$> fin_list_last (triangle_top ht)) ∧
-                length lst = list_sum (fin_to_nat <$> fin_list_last (triangle_top ht)) ∧
-                ∀ (i : fin m),
-                length (fin_list_get mid i) = 
-                length (fin_list_get (triangle_tail ht) (FS i)) -
-                  list_sum (fin_to_nat <$> fin_list_get (triangle_tail ht) (FS i)) + 
-                  list_sum (fin_to_nat <$> fin_list_get (triangle_tail ht) (fin_S_inj i))
-             )%nat
-    end.
-
- Fixpoint β_well_formed {n : nat} : β_tape n → Prop :=
-    match n as n0 return β_tape n0 → Prop with
-    | 0 => const True
-    | S m => λ t,
-               β_well_formed (triangle_head t) ∧ β_last_row_well_formed t
-    end.
-
- Lemma empty_last_row : ∀ (n : nat), β_last_row_well_formed (@β_empty (S n)).
-  Proof.
-    case=>[//|n] ht l fst mid lst.
-    simpl in ht.
-    change ht with (@β_empty (S n)).
-    change l with (@β_empty_list (S (S n))) in *.
-    change fst with ([] : list (fin 2)).
-    replace lst with ([] : list (fin 2)) by (rewrite /lst fin_list_const_last //).
-    replace mid with (@β_empty_list n) by  (rewrite /mid fin_list_const_liat fin_list_const_tail //).
-    clear ht l fst mid lst.
-    rewrite trig_const_top trig_const_tail fin_list_const_last /=.
-    split; first reflexivity.
-    split; first reflexivity.
-    move=>i.
-    rewrite !fin_list_const_get //=.
-  Qed.
-    
- Lemma empty_well_formed : ∀ (n : nat), β_well_formed (@β_empty n).
-  Proof.
-    elim=>[|n IH] //=.
-    split; first assumption.
-    apply empty_last_row.
-  Qed.
 
   Lemma β_hsup_head :
     ∀ (n : nat) (τ : β_tape (S n))
@@ -2148,62 +2103,7 @@ Section Polya.
     rewrite fmap_cons.
     inv_fin h=>[|h]; last (inv_fin h=>[|h]; last inv_fin h); simpl; lia.
   Qed.
-    
-  Lemma β_hsup_well_formed_last_row :
-    ∀ (n : nat) (τ : β_tape (S n))
-      (i : fin_list (fin 2) (S n)),
-    β_last_row_well_formed τ → β_last_row_well_formed (β_hsup τ i).
-  Proof.
-    move=>[|n] τ i τ_wf; first done.
-    unfold β_last_row_well_formed.
-    rewrite triangle_top_last_tail_first !β_hsup_head !β_hsup_tail.
-    set (k := fin_list_fin_2_sum (fin_list_liat i)).
-    rewrite -!fin_list_get_0.
-    destruct τ_wf as (head_wf & last_wf & mid_wf).
-    destruct (decide (k = 0)%fin) as [k_eq_0 | k_ne_0];
-      last destruct (decide (k = fin_max _)%fin) as [k_eq_max | k_ne_max].
-    - rewrite k_eq_0.
-      apply (fin_list_fin_2_sum_0_const_0) in k_eq_0 as sum_0.
-      rewrite sum_0 fin_list_const_liat fin_list_const_last
-        fin_list_fin_2_sum_const_0_eq_0 !fin_list_get_set_eq.
-      split; last split.
-      + rewrite !app_length fmap_app list_sum_app Nat.add_0_r !fin_list_get_0 head_wf triangle_top_last_tail_first /=.
-        pose proof (list_sum_fin_2_le_len (fin_list_head (triangle_tail (triangle_head τ)))).
-        lia.
-      + rewrite -fin_list_get_max fin_list_get_set_ne; last done.
-        rewrite fmap_app list_sum_app Nat.add_0_r
-          fin_list_get_0 fin_list_get_max -triangle_top_last_tail_first //.
-      + move=>j.
-        rewrite -fin_list_get_FS -fin_list_get_inj /=
-                (fin_list_get_set_ne _ _ (FS (fin_S_inj j)));
-        last done.
-        rewrite (fin_list_get_set_ne _ _ (FS j)); last done.
-        destruct n; inv_fin j => [|j].
-        * rewrite fin_list_get_set_eq fin_list_get_FS fin_list_get_inj fmap_app list_sum_app Nat.add_0_r -fin_list_tail_liat mid_wf //.
-        * rewrite fin_list_get_set_ne; last done.
-          rewrite fin_list_get_FS fin_list_get_inj /=.
-          by specialize (mid_wf (FS j)%fin).
-    - (* Add lemma for fin_list_fin_2_sum l = fin_max n → l = fin_list_const 1%fin *)
-          
-        
-  Admitted.
-
-  Lemma β_hsup_well_formed :
-    ∀ (n : nat) (τ : β_tape n)
-      (i : fin_list (fin 2) n),
-    β_well_formed τ → β_well_formed (β_hsup τ i).
-  Proof.
-    elim=>[//|n IH] τ i τ_wf /=.
-    rewrite β_hsup_head.
-    split; first apply IH.
-    { destruct n; first done.
-      by destruct τ_wf.
-    }
-    apply β_hsup_well_formed_last_row.
-    destruct n; first done.
-    by destruct τ_wf.
-  Qed.
-    
+ 
   Definition is_abs_loc (n : nat) (α : val) (Δ : triangle loc n) :=
     ∀ (i : fin n) (j : fin (S i)),
     ⊢ WP α #i #j [{ v, ⌜v = #(triangle_get Δ i j)⌝ }].
@@ -2650,74 +2550,136 @@ Section Polya.
            own_trig p q Δ (β_fold lτ) ∗ ⌜l = fin_list_fin_2_sum <$> lτ⌝
        )%I.
   
+  (** TODO : Make this expectation preserving w/ regards to Beta_prob **)
   Lemma own_top_list_presample :
-    ∀ (e : expr) (p q n : nat)
+    ∀ (e : expr) (p q n : nat) (ε : R) (D : fin 2 → R)
       (αs : fin_list loc (S n))
       (ls : fin_list (list (fin 2)) (S n))
       (Φ : val → iProp Σ),
+    (p ≤ q + 1)%nat →
+    (0 <= D 0%fin) →
+    (0 <= D 1%fin) →
+    (D 0%fin * (1 - p / (q + 1)) + D 1%fin * (p / (q + 1))  = ε) →
     to_val e = None →
+    ↯ ε ∗
     own_top_list p q αs ls ∗
     (∀ (i : fin 2),
+       ↯ (D i) ∗
        own_top_list p q αs (β_list_hsup_first ls i) -∗
        WP e [{ v, Φ v }]
     ) ⊢ WP e [{ v, Φ v }].
   Proof.
-    iIntros (e p q n αs ls Φ e_not_val) "[Hαs Hnext]".
+    iIntros (e p q n ε D αs ls Φ p_le_Sq D0_pos D1_pos D_sum e_not_val) "(Herr & Hαs & Hnext)".
     iPoseProof (own_top_list_split_1 with "Hαs") as "[Hα Hαs]".
-    wp_apply (twp_presample_bernoulli with "[$Hα Hαs Hnext]"); first done.
-    iIntros (i) "Hα".
+    wp_apply (twp_presample_bernoulli_adv_comp _ _ _ _ _ _ _ D with "[$Herr $Hα Hαs Hnext]"); try done.
+    { move=>i.
+      inv_fin i=>[//|i].
+      inv_fin i=>[//|i].
+      inv_fin i.
+    } 
+    iIntros (i) "[Herr Hα]".
     wp_apply "Hnext".
+    iFrame.
     iPoseProof (own_top_list_cons_1 with "[$Hα $Hαs]") as "Hαs".
     rewrite -fin_list_cons_head_tail //.
   Qed.
 
   Lemma own_trig_presample :
-    ∀ (e : expr) (p q n : nat)
+    ∀ (e : expr) (p q n : nat) (ε : R)
+      (D : fin (S n) → R)
       (Δ : triangle loc n)
       (τ : β_tape n)
       (Φ : val → iProp Σ),
+    (0 < p < q + 1)%nat →
     to_val e = None →
+    (∀ (i : fin (S n)), 0 <= D i) →
+    SeriesC (λ (i : fin (S n)), Beta_prob p (q + 1 - p)%nat n i * D i) = ε →
+    ↯ ε ∗
     own_trig p q Δ τ ∗
     (∀ (i : fin_list (fin 2) n),
+       ↯ (D (fin_list_fin_2_sum i)) ∗
        own_trig p q Δ (β_hsup τ i) -∗
        WP e [{ v, Φ v }]
     ) ⊢ WP e [{ v, Φ v }].
   Proof.
     iIntros (e p q n).
     iInduction (n) as [|n] "IH" forall (p q).
-    - iIntros (Δ τ Φ e_not_val) "[HΔ Hnext]".
+    - iIntros (ε D Δ τ Φ p_le_Sq e_not_val D_pos D_sum) "(Herr & HΔ & Hnext)".
       inv_triangle Δ.
       inv_triangle τ.
       simpl.
-      wp_apply ("Hnext" $! fin_nil with "HΔ").
-    - iIntros (Δ τ Φ e_not_val) "[HΔ Hnext]".
+      wp_apply ("Hnext" $! fin_nil with "[Herr $HΔ]").
+      rewrite SeriesC_finite_foldr /= Beta_prob_0_0 Rmult_1_l Rplus_0_r in D_sum.
+      by subst.
+    - iIntros (ε D Δ τ Φ p_le_Sq e_not_val D_pos D_sum) "(Herr & HΔ & Hnext)".
+      rewrite Beta_sum_split in D_sum; try lia.
+      match type of D_sum with
+      | _ * ?d1 + _ * ?d0 = _ => set (d (i : fin 2) := match i with
+                                                       | 0%fin => d0
+                                                       | _ => d1
+                                                       end)
+      end.
+      assert (∀ (i : fin 2), 0 <= d i).
+      {
+        move=>i.
+        inv_fin i=>[|i]; apply SeriesC_ge_0'.
+        - move=>k.
+          apply Rmult_le_pos; first apply Beta_prob_pos.
+          apply D_pos.
+        - move=>k.
+          apply Rmult_le_pos; first apply Beta_prob_pos.
+          apply D_pos.
+      }
+
+      assert (d 0%fin * (1 - p / (q + 1)) + d 1%fin * (p / (q + 1)) = ε).
+      { rewrite -D_sum /= -plus_INR.
+        replace (p + (q + 1 - p))%nat with (q + 1)%nat by lia.
+        replace ((q + 1 - p)%nat / (q + 1)%nat : R)%nat with (1 - p / (q + 1)); last first.
+        {
+          rewrite minus_INR; last lia.
+          rewrite Rdiv_minus_distr Rdiv_diag; last first.
+          { rewrite Nat.add_1_r. apply INR_S_not_0. }
+          rewrite plus_INR //.
+        }
+        rewrite !plus_INR /=.
+        lra.
+      }
+ 
       destruct n.
-        { inv_triangle τ => τ lτ.
-          inv_triangle Δ => Δ lΔ.
-          inv_triangle τ.
-          inv_triangle Δ.
-          rewrite own_trig_1.
-          wp_apply (twp_presample_bernoulli with "[$HΔ Hnext]") as (i) "Hα";
-            first done.
-          wp_apply ("Hnext" $! (fin_cons i fin_nil)).
-          full_inv_fin.
-          - simpl.
-            rewrite own_trig_1 //.
-          - simpl.
-            rewrite own_trig_1 //.
-        } 
-      iPoseProof (own_trig_split_top with "HΔ") as "[HΔ Hα]".
-        wp_apply (own_top_list_presample with "[$Hα HΔ Hnext]") as (i) "Hα";
-          first done.
-      full_inv_fin.
+      { inv_triangle τ => τ lτ.
+        inv_triangle Δ => Δ lΔ.
+        inv_triangle τ.
+        inv_triangle Δ.
+        rewrite own_trig_1.
+        wp_apply (twp_presample_bernoulli_adv_comp _ _ _ _ _ _ _ d with "[$HΔ $Herr Hnext]") as (i) "[Herr Hα]"; first lia; try done.
+        wp_apply ("Hnext" $! (fin_cons i fin_nil)).
+       full_inv_fin; rewrite /= SeriesC_finite_foldr.
+        - rewrite /= Beta_prob_0_0 Rmult_1_l Rplus_0_r own_trig_1.
+          iFrame.
+        - rewrite /= Beta_prob_0_0 Rmult_1_l Rplus_0_r own_trig_1.
+          iFrame.
+     }
+     iPoseProof (own_trig_split_top with "HΔ") as "[HΔ Hα]".
+     wp_apply (own_top_list_presample _ _ _ _ _ d with "[$Hα $Herr HΔ Hnext]"); try done.
+     iIntros (i) "[Herr Hα]".
+     full_inv_fin.
       + iPoseProof (own_trig_glue_top_1 with "[$Hα $HΔ]") as "HΔ".
         rewrite -triangle_glue_remove_top.
         iPoseProof (own_trig_split_bottom with "HΔ") as "[HΔ Hα]".
         rewrite !triangle_remove_bottom_glue_top !triangle_bottom_glue_top
                 -triangle_remove_top_bottom β_list_hsup_first_fin_tail
                 -triangle_top_remove_bottom -triangle_glue_remove_top.
-        wp_apply ("IH" with "[] [$HΔ Hα Hnext]") as (i) "HΔ"; first done.
+        wp_apply ("IH" $! _ _ _ (D ∘ fin_S_inj) with "[] [] [] [] [$HΔ Hα Hnext $Herr]") as (i) "[Herr HΔ]"; try done.
+        { iPureIntro. lia. }
+        { iPureIntro.
+          simpl.
+          apply SeriesC_ext.
+          move=>i //.
+          repeat f_equal.
+          lia.
+        } 
         wp_apply ("Hnext" $! (fin_cons 0%fin i)).
+        iFrame.
         cbv [β_list_hsup_first].
         rewrite fin_list_head_cons triangle_top_bottom_first.
         iPoseProof (own_trig_glue_bottom_1 with "[$Hα $HΔ]") as "HΔ".
@@ -2725,10 +2687,40 @@ Section Polya.
         simpl.
         cbv [β_list_hsup_first].
         rewrite !triangle_bottom_split_cons //.
-      + wp_apply ("IH" with "[] [$HΔ Hα Hnext]") as (i) "HΔ"; first done.
+      + wp_apply ("IH" $! _ _ _ (D ∘ FS) with "[] [] [] [] [$HΔ Hα Hnext Herr]"); try done.
+        { iPureIntro. lia. }
+        iFrame.
+        iIntros (i) "[Herr HΔ]".
         wp_apply ("Hnext" $! (fin_cons 1%fin i)).
         iPoseProof (own_trig_glue_top_1 with "[$Hα $HΔ]") as "HΔ".
-        rewrite -triangle_glue_remove_top //.
+        rewrite -triangle_glue_remove_top (fin_list_fin_2_sum_S _ (fin_cons 1%fin i)) /= fin_succ_inj.
+        iFrame.
   Qed.
-  
+
+  Lemma own_polya_presample :
+    ∀ (e : expr) (p q n : nat) (ε : R)
+      (D : fin (S n) → R)
+      (Δ : triangle loc n)
+      (l : list (fin (S n)))
+      (Φ : val → iProp Σ),
+    (0 < p < q + 1)%nat →
+    to_val e = None →
+    (∀ (i : fin (S n)), 0 <= D i) →
+    SeriesC (λ (i : fin (S n)), Beta_prob p (q + 1 - p)%nat n i * D i) = ε →
+    ↯ ε ∗
+    own_polya_tape p q Δ l ∗
+    (∀ (i : fin (S n)),
+       own_polya_tape p q Δ (l ++ [i]) -∗
+       WP e [{ v, Φ v }]
+    ) ⊢ WP e [{ v, Φ v }].
+  Proof.
+    iIntros (e p q n ε D Δ l Φ p_bounds e_not_val D_bounds D_sum) "(Herr & (%lτ & Hτ & %sum_lτ) & Hnext)".
+    wp_apply (own_trig_presample _ _ _ _ _ D with "[$Hτ $Herr Hnext]") as (i) "[Herr Hτ]"; try done.
+    rewrite β_hsup_fold.
+    wp_apply "Hnext".
+    iFrame.
+    iPureIntro.
+    rewrite fmap_app sum_lτ //.
+  Qed.
+
 End Polya.                        
