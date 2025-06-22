@@ -2005,6 +2005,13 @@ Section Polya.
     elim=>[|n /= ->] //.
   Qed.
 
+  
+  Lemma fin_list_fin_2_sum_const_1_eq_max : ∀ (n : nat), fin_list_fin_2_sum (@fin_list_const n _ 1%fin) = fin_max n.
+  Proof.
+    elim=>[//|n /= ->].
+    apply fin_succ_inj. 
+  Qed.
+
   Lemma sum_arbitrary : ∀ {n : nat} (i : fin (S n)), fin_list_fin_2_sum (β_arbitrary i) = i.
   Proof.
     elim=>[|n IH] i /=; full_inv_fin => /=; rewrite IH //=.
@@ -2897,13 +2904,109 @@ Section Polya.
     rewrite -fin_list_cons_head_tail //.
   Qed.
 
+  Lemma own_trig_presample_0_q :
+    ∀ (e : expr) (q n : nat)
+      (Δ : triangle loc n)
+      (τ : β_tape n)
+      (Φ : val → iProp Σ),
+    to_val e = None →
+    own_trig 0 q Δ τ ∗
+      ( own_trig 0 q Δ (β_hsup τ (fin_list_const (0%fin : fin 2))) -∗
+        WP e [{ v, Φ v }])
+      ⊢ WP e [{ v, Φ v }].
+  Proof.
+    iIntros (e q n).
+    iInduction (n) as [|n] "IH" forall (q);
+      iIntros (Δ τ Φ e_not_val) "[HΔ Hnext]".
+    { wp_apply "Hnext".
+      by unfold own_trig.
+    }
+    iPoseProof (own_trig_split_bottom_1 with "HΔ") as "[HΔ Hα]".
+    iPoseProof (own_bottom_list_split_1 with "Hα") as "[Hh Hα]".
+    iMod ec_zero as "Herr".
+    set (d (i : fin 2) := match i with
+                | 0%fin => 0%R
+                | _ => 1%R
+                end).
+    wp_apply (twp_presample_bernoulli_adv_comp _ _ _ _ _ _ _ d with "[$Hh $Herr Hα HΔ Hnext]"); first lia; try done.
+    { move=>i.
+      inv_fin i=>[|i] /=; lra.
+    }
+    { rewrite /= Rmult_0_l Rdiv_0_l Rmult_0_r Rplus_0_r //. }
+    iIntros (i) "[Herr Htape]".
+    inv_fin i=>[| i] /=; last first.
+    { iPoseProof (ec_contradict with "[$Herr]") as "HFalse"; first lra.
+      iDestruct "HFalse" as "[]".
+    }
+    iClear (d) "Herr".
+    wp_apply "IH"; try done.
+    iFrame.
+    iIntros "HΔ".
+    wp_apply "Hnext".
+    rewrite {4}(triangle_glue_remove_bottom Δ).
+    iApply own_trig_glue_bottom_1.
+    iFrame.
+    iApply own_bottom_list_split_2.
+    iFrame.
+  Qed.
+
+  Lemma own_trig_presample_Sq_q :
+    ∀ (e : expr) (q n : nat)
+      (Δ : triangle loc n)
+      (τ : β_tape n)
+      (Φ : val → iProp Σ),
+    to_val e = None →
+    own_trig (S q) q Δ τ ∗
+      ( own_trig (S q) q Δ (β_hsup τ (fin_list_const (1%fin : fin 2))) -∗
+        WP e [{ v, Φ v }])
+      ⊢ WP e [{ v, Φ v }].
+  Proof.
+    iIntros (e q n).
+    iInduction (n) as [|n] "IH" forall (q);
+      iIntros (Δ τ Φ e_not_val) "[HΔ Hnext]".
+    { wp_apply "Hnext".
+      by unfold own_trig.
+    }
+    iPoseProof (own_trig_split_top_1 with "HΔ") as "[HΔ Hα]".
+    iPoseProof (own_top_list_split_1 with "Hα") as "[Hh Hα]".
+    iMod ec_zero as "Herr".
+    set (d (i : fin 2) := match i with
+                | 0%fin => 1%R
+                | _ => 0%R
+                end).
+    wp_apply (twp_presample_bernoulli_adv_comp _ _ _ _ _ _ _ d with "[$Hh $Herr Hα HΔ Hnext]"); first lia; try done.
+    { move=>i.
+      inv_fin i=>[|i] /=; lra.
+    }
+    { pose proof (pos_INR q).
+      rewrite S_INR /= Rmult_0_l Rmult_1_l Rplus_0_r Rdiv_diag; last lra.
+      apply Rminus_diag.
+    } 
+    iIntros (i) "[Herr Htape]".
+    inv_fin i=>[| i] /=.
+    { iPoseProof (ec_contradict with "[$Herr]") as "HFalse"; first lra.
+      iDestruct "HFalse" as "[]".
+    }
+    inv_fin i=>[|i]; last inv_fin i.
+    iClear (d) "Herr".
+    wp_apply "IH"; try done.
+    iFrame.
+    iIntros "HΔ".
+    wp_apply "Hnext".
+    rewrite {4}(triangle_glue_remove_top Δ).
+    iApply own_trig_glue_top_1.
+    iFrame.
+    iApply own_top_list_split_2.
+    iFrame.
+  Qed.
+  
   Lemma own_trig_presample :
     ∀ (e : expr) (p q n : nat) (ε : R)
       (D : fin (S n) → R)
       (Δ : triangle loc n)
       (τ : β_tape n)
       (Φ : val → iProp Σ),
-    (0 < p < q + 1)%nat →
+    (p ≤ q + 1)%nat →
     to_val e = None →
     (∀ (i : fin (S n)), 0 <= D i) →
     SeriesC (λ (i : fin (S n)), Beta_prob p (q + 1 - p)%nat n i * D i) = ε →
@@ -2916,16 +3019,73 @@ Section Polya.
     ) ⊢ WP e [{ v, Φ v }].
   Proof.
     iIntros (e p q n).
-    iInduction (n) as [|n] "IH" forall (p q).
-    - iIntros (ε D Δ τ Φ p_le_Sq e_not_val D_pos D_sum) "(Herr & HΔ & Hnext)".
-      inv_triangle Δ.
+    destruct (decide (0 < p)%nat); last first.
+    {
+      replace p with 0%nat by lia.
+      clear.
+      iIntros (ε D Δ τ Φ p_le_Sq e_not_val D_pos D_sum) "(Herr & HΔ & Hnext)".
+      rewrite -D_sum Series_fin_first {1}/Beta_prob choose_n_0 !Beta_0_l Rdiv_1_r !Rmult_1_l.
+      iPoseProof (ec_split with "Herr") as "[Herr _]"; first apply D_pos.
+      { apply SeriesC_ge_0'=>i.
+        apply Rmult_le_pos; last apply D_pos.
+        apply Beta_prob_pos.
+      }
+      wp_apply own_trig_presample_0_q; try done.
+      iFrame.
+      iIntros "HΔ".
+      wp_apply "Hnext".
+      iFrame.
+      rewrite fin_list_fin_2_sum_const_0_eq_0 //.
+    }
+    destruct (decide (p < q + 1)%nat); last first.
+    {
+      iIntros (ε D Δ τ Φ p_le_Sq e_not_val D_pos D_sum) "(Herr & HΔ & Hnext)".
+      rewrite -D_sum Series_fin_last {2}/Beta_prob fin_to_nat_to_fin Nat.sub_diag choose_n_n.
+      replace p with (q + 1)%nat by lia.
+      rewrite Nat.sub_diag !Beta_0_r Rdiv_1_r !Rmult_1_l.
+      iPoseProof (ec_split with "Herr") as "[_ Herr]"; try apply D_pos.
+      { apply SeriesC_ge_0'=>i.
+        apply Rmult_le_pos; last apply D_pos.
+        apply Beta_prob_pos.
+      }
+      wp_apply own_trig_presample_Sq_q; try done.
+      rewrite Nat.add_1_r.
+      iFrame.
+      iIntros "HΔ".
+      wp_apply "Hnext".
+      iFrame.
+      rewrite fin_list_fin_2_sum_const_1_eq_max.
+      iApply (ec_eq with "Herr").
+      f_equal.
+      destruct (decide (nat_to_fin (Nat.lt_succ_diag_r n) = fin_max n))
+        as [-> | contra]; first done.
+      pose proof (fin_to_nat_lt (fin_max n)).
+      assert (nat_to_fin H ≠ nat_to_fin (Nat.lt_succ_diag_r n)) as contra'.
+      {
+        move=>ntf_eq.
+        apply contra.
+        rewrite -ntf_eq nat_to_fin_to_nat //.
+      }
+      contradict contra'.
+      pose proof (fin_max_to_nat n) as fin_max_nat.
+      symmetry in fin_max_nat.
+      destruct fin_max_nat.
+      apply nat_to_fin_proof_ext.
+    }
+    assert (0 < p < q + 1)%nat as p_bounds by lia.
+    iIntros (ε D Δ τ Φ p_le_Sq).
+    clear p_le_Sq.
+    iRevert (ε D Δ τ Φ p_bounds).
+    clear.
+    iInduction (n) as [|n] "IH" forall (p q);
+     iIntros (ε D Δ τ Φ p_bounds e_not_val D_pos D_sum) "(Herr & HΔ & Hnext)".
+    - inv_triangle Δ.
       inv_triangle τ.
       simpl.
       wp_apply ("Hnext" $! fin_nil with "[Herr $HΔ]").
       rewrite SeriesC_finite_foldr /= Beta_prob_0_0 Rmult_1_l Rplus_0_r in D_sum.
       by subst.
-    - iIntros (ε D Δ τ Φ p_le_Sq e_not_val D_pos D_sum) "(Herr & HΔ & Hnext)".
-      rewrite Beta_sum_split in D_sum; try lia.
+    - rewrite Beta_sum_split in D_sum; try lia.
       match type of D_sum with
       | _ * ?d1 + _ * ?d0 = _ => set (d (i : fin 2) := match i with
                                                        | 0%fin => d0
@@ -3016,8 +3176,7 @@ Section Polya.
       (Δ : triangle loc n)
       (l : list (fin (S n)))
       (Φ : val → iProp Σ),
-    (0 < red)%nat →
-    (0 < black)%nat →
+    (0 < red + black)%nat →
     to_val e = None →
     (∀ (i : fin (S n)), 0 <= D i) →
     SeriesC (λ (i : fin (S n)), Beta_prob red black n i * D i) = ε →
@@ -3028,7 +3187,7 @@ Section Polya.
        WP e [{ v, Φ v }]
     ) ⊢ WP e [{ v, Φ v }].
   Proof.
-    iIntros (e red black n ε D Δ l Φ red_pos black_pos e_not_val D_bounds D_sum) "(Herr & (%lτ & Hτ & %sum_lτ) & Hnext)".
+    iIntros (e red black n ε D Δ l Φ sum_red_black_pos e_not_val D_bounds D_sum) "(Herr & (%lτ & Hτ & %sum_lτ) & Hnext)".
     wp_apply (own_trig_presample _ _ _ _ _ D with "[$Hτ $Herr Hnext]") as (i) "[Herr Hτ]"; try done.
     { rewrite -D_sum.
       apply SeriesC_ext.
