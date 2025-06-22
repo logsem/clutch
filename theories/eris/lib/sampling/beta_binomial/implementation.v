@@ -48,7 +48,7 @@ Section Polya.
         (λ: "i" "j",
            if: "j" = #0
            then "αr" "i"
-           else "α" "i" ("j" - #1))
+           else "α" ("i" - #1) ("j" - #1))
   .
   
   Definition Beta x y := ((fact (x - 1)) * (fact (y - 1)) / (fact (x + y - 1)))%R.
@@ -1228,6 +1228,18 @@ Section Polya.
         f_equal.
         rewrite triangle_top_remove_bottom //.
   Qed.
+
+  Lemma triangle_column_top :
+    ∀ {A : Type} {n : nat} (t : triangle A (S n)) (i : fin n),
+    triangle_column (triangle_remove_top t) i =
+    fin_list_tail (triangle_column t (FS i)).
+  Proof. reflexivity. Qed.
+
+  Lemma triangle_get_remove_top :
+    ∀ {A : Type} {n : nat} (t : triangle A (S n)) (i : fin n) (j : fin (S i)),
+    triangle_get t (FS i) (FS j) =
+    triangle_get (triangle_remove_top t) i j.
+  Proof. reflexivity. Qed.
   
   Lemma triangle_get_remove_bottom :
     ∀ {A : Type} {n : nat} (t : triangle A (S n)) (i : fin n) (j : fin (S i)),
@@ -2104,10 +2116,12 @@ Section Polya.
     inv_fin h=>[|h]; last (inv_fin h=>[|h]; last inv_fin h); simpl; lia.
   Qed.
  
-  Definition is_abs_loc (n : nat) (α : val) (Δ : triangle loc n) :=
-    ∀ (i : fin n) (j : fin (S i)),
-    ⊢ WP α #i #j [{ v, ⌜v = #(triangle_get Δ i j)⌝ }].
+  Definition is_abs_loc (n : nat) (α : val) (Δ : triangle loc n) : iProp Σ :=
+    □ (∀ (i : fin n) (j : fin (S i)), WP α #i #j [{ v, ⌜v = #lbl:(triangle_get Δ i j)⌝ }])%I.
 
+  Definition is_abs_row (n : nat) (α : val) (r : fin_list loc n) : iProp Σ :=
+    □ (∀ (i : fin n), WP α #i [{ v, ⌜v = #lbl:(fin_list_get r i)⌝ }]).
+ 
   Definition own_top_list
     {n : nat}
     (p q : nat)
@@ -2550,7 +2564,107 @@ Section Polya.
            own_trig p q Δ (β_fold lτ) ∗ ⌜l = fin_list_fin_2_sum <$> lτ⌝
        )%I.
   
-  (** TODO : Make this expectation preserving w/ regards to Beta_prob **)
+  Lemma polyalloc_row_spec :
+    ∀ (n red black : nat),
+    ⊢ WP polyalloc_row #red #black #n
+        [{α, ∃ (r : fin_list loc n), is_abs_row n α r ∗ own_top_list red (red + black) r β_empty_list }].
+  Proof.
+    iIntros (n).
+    iInduction (n) as [|n] "IH"; iIntros (red black); unfold polyalloc_row.
+    - wp_pures.
+      iModIntro.
+      iExists fin_nil.
+      iSplit.
+      { iIntros (i). inv_fin i. }
+      by unfold own_top_list.
+    - wp_pures.
+      rewrite -Nat2Z.inj_add.
+      wp_apply (twp_bernoulli_alloc with "[$]") as (α) "Hα".
+      fold polyalloc_row.
+      wp_pures.
+      rewrite -(Nat2Z.inj_add _ 1) -(Nat2Z.inj_sub _ 1); last lia.
+      rewrite /= Nat.sub_0_r.
+      wp_bind (polyalloc_row _ _ _)%E.
+      wp_apply tgl_wp_wand_r.
+      iSplitR "Hα"; first wp_apply "IH".
+      iIntros (v) "(%r & #Hrow & Htop)".
+      wp_pures.
+      iModIntro.
+      iExists (fin_cons α r).
+      iSplitL "Hrow".
+      + iIntros (i).
+        inv_fin i=>[|i].
+        { iModIntro.
+          by wp_pures.
+        }
+        iModIntro.
+        wp_pures.
+        rewrite -(Nat2Z.inj_sub _ 1); last lia.
+        rewrite /= Nat.sub_0_r fin_list_get_cons_S //.
+      + rewrite Nat.add_1_r Nat.add_succ_r.
+        iApply own_top_list_cons_1.
+        iFrame.
+  Qed.
+    
+  Lemma polyalloc_spec_trig :
+    ∀ (n red black : nat),
+    ⊢ WP polyalloc #red #black #n
+        [{α, ∃ (Δ : triangle loc n), is_abs_loc n α Δ ∗ own_trig red (red + black) Δ β_empty }].
+  Proof.
+    iIntros (n).
+    iInduction (n) as [|n] "IH"; iIntros (red black); unfold polyalloc.
+    - wp_pures.
+      iExists trig_nil.
+      iModIntro.
+      iSplit.
+      { iIntros (i). inv_fin i. }
+      by unfold own_trig.
+    - wp_pures.
+      fold polyalloc.
+      wp_bind (polyalloc_row _ _ _)%E.
+      wp_apply tgl_wp_wand_r.
+      iSplitL; first wp_apply polyalloc_row_spec.
+      iIntros (v) "(%r & #Hrow & Hown)".
+      wp_pures.
+      rewrite -(Nat2Z.inj_add _ 1) -(Nat2Z.inj_sub _ 1); last lia.
+      rewrite /= Nat.sub_0_r.
+      wp_bind (polyalloc _ _ _)%E.
+      wp_apply tgl_wp_wand_r.
+      iSplitR "Hown"; first wp_apply "IH".
+      iIntros (w) "(%Δ & #Hloc & HΔ)".
+      wp_pures.
+      iModIntro.
+      iExists (triangle_glue_top Δ r).
+      iSplitR "Hown HΔ".
+      + iIntros (i j).
+        iModIntro.
+        inv_fin j=>[|j]; wp_pures.
+        { rewrite triangle_get_top triangle_top_glue //. }
+        inv_fin i=>[|i] j; first inv_fin j.
+        rewrite -!(Nat2Z.inj_sub _ 1) /=; [|lia..].
+        rewrite /= !Nat.sub_0_r triangle_get_remove_top triangle_remove_glue_top //.
+      + rewrite Nat.add_1_r /=.
+        iApply own_trig_split_top_2.
+        rewrite triangle_remove_glue_top trig_const_remove_top triangle_top_glue trig_const_top.
+        iFrame.
+  Qed.
+
+  Lemma polyalloc_spec :
+    ∀ (n red black : nat),
+    ⊢ WP polyalloc #red #black #n
+        [{α, ∃ (Δ : triangle loc n), is_abs_loc n α Δ ∗ own_polya_tape red (red + black) Δ [] }].
+  Proof.
+    iIntros (n red black).
+    wp_apply tgl_wp_wand_r.
+    iSplitL; first wp_apply polyalloc_spec_trig.
+    iIntros (v) "(%Δ & Hloc & HΔ)".
+    iExists Δ.
+    iFrame.
+    unfold own_polya_tape.
+    iExists [].
+    by iFrame.
+  Qed.
+ 
   Lemma own_top_list_presample :
     ∀ (e : expr) (p q n : nat) (ε : R) (D : fin 2 → R)
       (αs : fin_list loc (S n))
