@@ -143,7 +143,28 @@ Section binomial.
       rewrite IH.
       by full_inv_fin.
   Qed.
-   
+
+  Lemma is_binomial_translation_snoc :
+    ∀ (n : nat) (l : list (fin 2)) (ns : list (fin (S n))) (i : list (fin 2)),
+    length i = n → 
+    is_binomial_translation n ns l →
+  is_binomial_translation n (ns ++ [fin_sum_list 2 n i])
+    (l ++ i).
+  Proof.
+    move=>n l ns.
+    elim:ns l=>[|h t IH] l /= i len_i is_tl.
+    - subst.
+      exists i, [].
+      rewrite app_nil_r //.
+    - destruct is_tl as (pre & suf & sum_pre & len_pre & -> & is_tl).
+      exists pre, (suf ++ i).
+      split; first assumption.
+      split; first assumption.
+      split; first rewrite app_assoc //.
+      by apply IH.
+  Qed.
+
+  
   Definition own_binomial_tape (α : loc) (m n k : nat) (v : list (fin (S k))) : iProp Σ :=
     ∃ l, own_bernoulli_tape α m n l ∗ ⌜is_binomial_translation k v l⌝.
 
@@ -200,18 +221,7 @@ Section binomial.
     iExists (l ++ l').
     iFrame.
     iPureIntro.
-    generalize dependent l.
-    induction ns as [|n ns IH]; move=>/= l is_tl.
-    { subst; simpl.
-      exists l', [].
-      rewrite app_nil_r //.
-    } 
-    destruct is_tl as (pre & suf & sum_pre & len_pre & -> & is_tl).
-    simpl.
-    exists pre, (suf ++ l').
-    rewrite -app_assoc.
-    repeat split; try done.
-    by apply IH.
+    by apply is_binomial_translation_snoc.
   Qed.
 
   Lemma twp_binomial_tape (N M k : nat) (α : loc) (ns : list (fin (S k))) (n : fin (S k)) :
@@ -393,12 +403,7 @@ Section binomial.
     wp_apply "Hnext".
     iFrame.
     iPureIntro.
-    rewrite bernoulli_to_binomial_translation in is_tl; last lia.
-    destruct is_tl as (k & len_l & ns_eq_tl). 
-    rewrite bernoulli_to_binomial_translation; last lia.
-    exists (S k).
-    split; first (rewrite app_length; lia).
-    rewrite ns_eq_tl (bernoulli_to_binomial_app_n _ k) // -{2}(app_nil_r ts) bernoulli_to_binomial_app_1 //.
+    by apply is_binomial_translation_snoc.
   Qed.
 
   #[global] Instance BinomialOfBernoulli : binomial_spec binom_tape binalloc :=
