@@ -16,22 +16,26 @@ Section Polya.
     real_solver  |
     tactics.done |
     auto
-  ].
+   ].
+
+  Definition sub_loc_fail : val := λ: "α" "i" "j", "α" ("i" + #1) "j".
+  
+  Definition sub_loc_success : val := λ: "α" "i" "j", "α" ("i" + #1) ("j" + #1).  
 
   Definition polya : val :=
-    rec: "polya" "α" "red" "black" "n" :=
+      rec: "polya" "α" "red" "black" "n" :=
       if: "n" = #0 then #0
       else
-        let: "x" := bernoulli "α" "red" ("red" + "black" - #1)  in
+        let: "x" := bernoulli ("α" #0 #0) "red" ("red" + "black" - #1)  in
         if: "x" = #1 
-        then #1 + "polya" "α" ("red" + #1) "black" ("n" - #1)
-        else "polya" "α" "red" ("black" + #1) ("n" - #1).
+        then #1 + "polya" (sub_loc_success "α") ("red" + #1) "black" ("n" - #1)
+        else "polya" (sub_loc_fail "α") "red" ("black" + #1) ("n" - #1).
   
   Definition polyalloc_row : val :=
     rec: "polyalloc_row" "red" "black" "n" :=
       if: "n" = #0 then (λ: "x", "x")
       else
-        let: "α0" := balloc "red" ("red" + "black") in
+        let: "α0" := balloc "red" ("red" + "black" - #1) in
         let: "α" := "polyalloc_row" "red" ("black" + #1) ("n" - #1) in
         (λ: "i",
            if: "i" = #0
@@ -50,6 +54,45 @@ Section Polya.
            then "αr" "i"
            else "α" ("i" - #1) ("j" - #1))
   .
+
+  Definition loc_unit : val := λ: "i" "j", #().
+
+  Definition is_loc_unit (n : nat) (α : val) : iProp Σ :=
+    □ (∀ (i : fin n) (j : fin (S i)), WP α #i #j [{ v, ⌜v = #()⌝ }])%I.
+
+  Lemma loc_unit_is_unit : ∀ (n : nat), ⊢ is_loc_unit n loc_unit.
+  Proof.
+    iIntros (n i j).
+    iModIntro.
+    unfold loc_unit.
+    by wp_pures.
+  Qed.
+
+  Lemma sub_loc_fail_unit : ∀ (n : nat) (α : val), is_loc_unit (S n) α -∗ WP sub_loc_fail α [{ β, is_loc_unit n β }].
+  Proof.
+    iIntros (n α) "#Hα".
+    unfold sub_loc_fail.
+    wp_pures.
+    iModIntro.
+    iIntros (i j).
+    iModIntro.
+    wp_pures.
+    rewrite -(Nat2Z.inj_add _ 1) Nat.add_1_r (fin_S_inj_to_nat _ j).
+    wp_apply ("Hα" $! (FS i)).
+  Qed.
+
+  Lemma sub_loc_success_unit : ∀ (n : nat) (α : val), is_loc_unit (S n) α -∗ WP sub_loc_success α [{ β, is_loc_unit n β }].
+  Proof.
+    iIntros (n α) "#Hα".
+    unfold sub_loc_success.
+    wp_pures.
+    iModIntro.
+    iIntros (i j).
+    iModIntro.
+    wp_pures.
+    rewrite -!(Nat2Z.inj_add _ 1) !Nat.add_1_r.
+    wp_apply ("Hα" $! (FS i) (FS j)).
+  Qed.
   
   Definition Beta x y := ((fact (x - 1)) * (fact (y - 1)) / (fact (x + y - 1)))%R.
   
@@ -271,71 +314,88 @@ Section Polya.
       rewrite -!Nat.add_sub_assoc //= Nat.sub_0_r -INR_1 -!plus_INR -!mult_INR Nat.add_1_r Nat.add_succ_r Nat.mul_comm //=.
   Qed.
 
-  Lemma polya_0_b (black n : nat) :
+  Lemma polya_0_b (black n : nat) (α : val) :
     (black > 0)%nat →
-    [[{True}]]
-      polya #() #0 #black #n
+    [[{is_loc_unit n α}]]
+      polya α #0 #black #n
     [[{RET #0; True}]].
   Proof.
-    iInduction n as [|n] "IH" forall (black).
-    - iIntros "%Hb %Φ _ HΦ".
+    iInduction n as [|n] "IH" forall (black α).
+    - iIntros "%Hb %Φ #Hα HΦ".
       unfold polya.
       wp_pures.
       by iApply "HΦ".
-    - iIntros "%Hb %Φ _ HΦ".
+    - iIntros "%Hb %Φ #Hα HΦ".
       unfold polya.
       wp_pures.
       fold polya.
       rewrite Z.add_0_l.
       replace (black - 1)%Z with ((black - 1)%nat : Z) by lia.
+      wp_bind (α _ _)%E.
+      wp_apply tgl_wp_wand_r.
+      iSplitR; first wp_apply ("Hα" $! 0%fin 0%fin).
+      iIntros (?) "->".
       wp_apply (bernoulli_0 with "[$]") as "_".
       wp_pures.
       replace (S n - 1)%Z with (n : Z) by lia.
       rewrite Z.add_1_r -Nat2Z.inj_succ.
-      iApply "IH"; done.
+      wp_bind (sub_loc_fail α).
+      wp_apply tgl_wp_wand_r.
+      iSplitR; first by wp_apply sub_loc_fail_unit.
+      iIntros (β) "#Hβ".
+      wp_apply "IH"; done.
   Qed.
 
-  Lemma polya_r_0 (red n : nat) :
+  Lemma polya_r_0 (red n : nat) (α : val):
     (red > 0)%nat →
-    [[{True}]]
-      polya #() #red #0 #n
+    [[{is_loc_unit n α}]]
+      polya α #red #0 #n
     [[{RET #n; True}]].
   Proof.
-    iInduction n as [|n] "IH" forall (red).
-    - iIntros "%Hr %Φ _ HΦ".
+    iInduction n as [|n] "IH" forall (red α).
+    - iIntros "%Hr %Φ #Hα HΦ".
       unfold polya.
       wp_pures.
       by iApply "HΦ".
-    - iIntros "%Hr %Φ _ HΦ".
+    - iIntros "%Hr %Φ #Hα HΦ".
       unfold polya.
       wp_pures.
       fold polya.
       destruct red; first lia.
       replace (S red + 0 - 1)%Z with (red : Z) by lia.
+      wp_bind (α _ _).
+      wp_apply tgl_wp_wand_r.
+      iSplitR; first wp_apply ("Hα" $! 0%fin 0%fin).
+      iIntros (?) "->".
       wp_apply (bernoulli_1 with "[$]") as "_".
       wp_pures.
       replace (S n - 1)%Z with (n : Z) by lia.
       rewrite Z.add_1_r -Nat2Z.inj_succ.
-      wp_apply "IH" as "_" => //.
-      wp_pures. 
+      wp_bind (sub_loc_success α).
+      wp_apply tgl_wp_wand_r.
+      iSplitR; first by wp_apply sub_loc_success_unit.
+      iIntros (β) "#Hβ".
+      wp_apply "IH" as (_) ""; [done..|].
+      wp_pures.
       rewrite Z.add_1_l -Nat2Z.inj_succ.
       iApply ("HΦ" with "[$]").
   Qed.
   
-  Lemma polya_spec (red black n : nat) (E : fin (S n) → R) (ε : R) :
+  Lemma polya_spec (red black n : nat) (E : fin (S n) → R) (α : val) (ε : R) :
     (red + black > 0)%nat →
     (∀ k, E k >= 0) →
-    ε = (SeriesC (fun k : fin (S n) => Beta_prob red black n k * E k )%R) →
+    ε = (SeriesC (λ (k : fin (S n)), Beta_prob red black n k * E k )%R) →
     [[{
-      ↯ ε
+      ↯ ε ∗
+      is_loc_unit n α
     }]]
-    polya #() #red #black #n
+    polya α #red #black #n
     [[{
       (v : fin (S n)), RET #v; 
       ↯ (E v)
     }]].
   Proof.
-    iIntros "%H_red_black_gt_0 %HE_nonneg %Heq %Φ Herr HΦ".
+    iIntros (H_red_black_gt_0 HE_nonneg Heq Φ) "[Herr #Hα] HΦ".
     destruct (decide (red = 0)%nat) as [-> | Hr_not_0].
     {
       rewrite Series_fin_first in Heq.
@@ -361,7 +421,7 @@ Section Polya.
         done. }
       wp_apply polya_r_0 as "_" => //.
       assert (n = (fin_to_nat (nat_to_fin (Nat.lt_succ_diag_r n)))) as Heqn by rewrite fin_to_nat_to_fin //.
-      rewrite ->Heqn at 2.
+      rewrite ->Heqn at 3.
       iApply ("HΦ" with "[Herr]").
       rewrite /Beta_prob !fin_to_nat_to_fin choose_n_n Nat.sub_diag !Beta_0_r.
       iApply (ec_eq with "Herr") => //=.
@@ -391,7 +451,7 @@ Section Polya.
     clear Heq' E' HE'_nonneg.
 
     (* Here starts the proof *)
-    iInduction n as [|n] "IH" forall (E HE_nonneg red Hr_not_0 black Hb_not_0 ε H_red_black_gt_0 Heq Φ).
+    iInduction n as [|n] "IH" forall (E HE_nonneg red α Hr_not_0 black Hb_not_0 ε H_red_black_gt_0 Heq Φ).
     - unfold polya. wp_pures.
       rewrite SeriesC_finite_foldr /= in Heq.
       rewrite choose_n_0 Rmult_1_l in Heq.
@@ -409,6 +469,10 @@ Section Polya.
         fold ε1 ε2 in Heq
       end.
       replace ((red + black)%nat - 1)%Z with ((red + black - 1)%nat : Z) by lia.
+      wp_bind (α _ _).
+      wp_apply tgl_wp_wand_r.
+      iSplitR; first wp_apply ("Hα" $! 0%fin 0%fin).
+      iIntros (?) "->".
       wp_apply (twp_bernoulli_scale _ _ ε ε1 ε2 with "Herr") as "% [[-> Herr]| [-> Herr]]".
       { lia. }
       { unfold ε1. 
@@ -431,7 +495,11 @@ Section Polya.
       + wp_pures.
         rewrite Z.add_1_r -Nat2Z.inj_succ.
         rewrite Z.sub_1_r (Nat2Z.inj_succ n) Z.pred_succ.
-        wp_apply ("IH" $! E HE_nonneg with "[] [] [] [] Herr") as "%v [%Hv_le_n Herr]".
+        wp_bind (sub_loc_fail α).
+        wp_apply tgl_wp_wand_r.
+        iSplitR; first by wp_apply sub_loc_fail_unit.
+        iIntros (β) "#Hβ".
+        wp_apply ("IH" $! E HE_nonneg with "[] [] [] [] Hβ Herr") as "%v [%Hv_le_n Herr]".
         { iPureIntro. lia. }
         { iPureIntro. lia. }
         { iPureIntro. lia. }
@@ -443,7 +511,11 @@ Section Polya.
       + wp_pures.
         rewrite Z.add_1_r -Nat2Z.inj_succ.
         rewrite Z.sub_1_r (Nat2Z.inj_succ n) Z.pred_succ.
-        wp_apply ("IH" $! (E ∘ S) with "[] [] [] [] [] Herr") as "%v Herr".
+        wp_bind (sub_loc_success α).
+        wp_apply tgl_wp_wand_r.
+        iSplitR; first by wp_apply sub_loc_success_unit.
+        iIntros (β) "#Hβ".
+        wp_apply ("IH" $! (E ∘ S) with "[] [] [] [] [] Hβ Herr") as "%v Herr".
         { real_solver. }
         { iPureIntro. lia. }
         { iPureIntro. lia. }
@@ -1484,7 +1556,14 @@ Section Polya.
   Proof.
     move=>l v //.
   Qed.
+  
+  Lemma β_list_push_first_fin_tail {n : nat} :
+    ∀ (l : fin_list (list (fin 2)) (S n))
+      (v : fin 2),
+    fin_list_tail (β_list_push_first l v) = fin_list_tail l.
+  Proof. reflexivity. Qed.
 
+  
    Lemma β_list_hsup_first_fin_head {n : nat} :
     ∀ (l : fin_list (list (fin 2)) (S n))
       (v : fin 2),
@@ -1707,6 +1786,24 @@ Section Polya.
                  )
                  (fin_list_head l)
     end.
+
+  Lemma β_push_0_split :
+    ∀ (n : nat) (t : β_tape (S n)) (l : fin_list (fin 2) n),
+    β_push t (fin_cons 0%fin l) =
+    triangle_glue_bottom
+      (β_push (triangle_remove_bottom t) l)
+      (β_list_push_first (triangle_bottom t) 0%fin)
+  .
+  Proof. reflexivity. Qed.
+
+  Lemma β_push_1_split :
+    ∀ (n : nat) (t : β_tape (S n)) (l : fin_list (fin 2) n),
+    β_push t (fin_cons 1%fin l) =
+    triangle_glue_top
+      (β_push (triangle_remove_top t) l)
+      (β_list_push_first (triangle_top t) 1%fin).
+  Proof. reflexivity. Qed.
+
   
   Fixpoint β_hsup {n : nat} : β_tape n → fin_list (fin 2) n → β_tape n :=
     match n as n0 return β_tape n0 → fin_list (fin 2) n0 → β_tape n0 with
@@ -2540,6 +2637,106 @@ Section Polya.
     iApply (bi.equiv_entails_1_2 _ _ (own_top_list_cons _ _ _ _ _ _)).
   Qed.
 
+   
+  Lemma own_bottom_list_split_1
+    {n : nat}
+    (p q : nat)
+    (αs : fin_list loc (S n))
+    (ls : fin_list (list (fin 2)) (S n)) :
+    own_bottom_list p q αs ls -∗
+    own_bernoulli_tape (fin_list_head αs) p q (fin_list_head ls) ∗
+    own_bottom_list (S p) (S q) (fin_list_tail αs) (fin_list_tail ls).
+  Proof.
+    iIntros "[Hh Hτ]".
+    fold fin_enum.
+    iSplitL "Hh".
+    - rewrite !Nat.add_0_r //.
+    - rewrite big_sepL_fmap.
+      erewrite big_opL_ext; first done.
+      move=>_ i _ /=.
+      rewrite !Nat.add_succ_r !fin_list_get_FS //.
+  Qed.
+
+   Lemma own_bottom_list_split_2
+    {n : nat}
+    (p q : nat)
+    (αs : fin_list loc (S n))
+    (ls : fin_list (list (fin 2)) (S n)) :
+    own_bernoulli_tape (fin_list_head αs) p q (fin_list_head ls) ∗
+    own_bottom_list (S p) (S q) (fin_list_tail αs) (fin_list_tail ls) -∗
+    own_bottom_list p q αs ls.
+  Proof.
+    iIntros "[Hh Hτ]".
+    fold fin_enum.
+    iSplitL "Hh".
+    - rewrite !Nat.add_0_r //.
+    - rewrite big_sepL_fmap.
+      erewrite big_opL_ext; first done.
+      move=>_ i _ /=.
+      rewrite !Nat.add_succ_r !fin_list_get_FS //.
+  Qed.
+
+  Lemma own_bottom_list_split
+    {n : nat}
+    (p q : nat)
+    (αs : fin_list loc (S n))
+    (ls : fin_list (list (fin 2)) (S n)) :
+    own_bottom_list p q αs ls ⊣⊢
+    own_bernoulli_tape (fin_list_head αs) p q (fin_list_head ls) ∗
+    own_bottom_list (S p) (S q) (fin_list_tail αs) (fin_list_tail ls).
+  Proof.
+    iSplit.
+    - iApply own_bottom_list_split_1.
+    - iApply own_bottom_list_split_2.
+  Qed.
+
+  Lemma own_bottom_list_cons
+    {n : nat}
+    (p q : nat)
+    (α : loc)
+    (l : list (fin 2))
+    (αs : fin_list loc n)
+    (ls : fin_list (list (fin 2)) n) :
+    own_bernoulli_tape α p q l ∗
+    own_bottom_list (S p) (S q) αs ls ⊣⊢
+    own_bottom_list p q (fin_cons α αs) (fin_cons l ls).
+  Proof.
+    rewrite -{1}(fin_list_head_cons α αs)
+            -{1}(fin_list_head_cons l ls)
+            -{1}(fin_list_tail_cons α αs)
+            -{1}(fin_list_tail_cons l ls).
+    rewrite own_bottom_list_split //.
+  Qed.
+
+  Lemma own_bottom_list_cons_1
+    {n : nat}
+    (p q : nat)
+    (α : loc)
+    (l : list (fin 2))
+    (αs : fin_list loc n)
+    (ls : fin_list (list (fin 2)) n) :
+    own_bernoulli_tape α p q l ∗
+    own_bottom_list (S p) (S q) αs ls -∗
+    own_bottom_list p q (fin_cons α αs) (fin_cons l ls).
+  Proof.
+    iApply (bi.equiv_entails_1_1 _ _ (own_bottom_list_cons _ _ _ _ _ _)).
+  Qed.
+
+  Lemma own_bottom_list_cons_2
+    {n : nat}
+    (p q : nat)
+    (α : loc)
+    (l : list (fin 2))
+    (αs : fin_list loc n)
+    (ls : fin_list (list (fin 2)) n) :
+    own_bottom_list p q (fin_cons α αs) (fin_cons l ls) -∗
+    own_bernoulli_tape α p q l ∗
+    own_bottom_list (S p) (S q) αs ls.
+  Proof.
+    iApply (bi.equiv_entails_1_2 _ _ (own_bottom_list_cons _ _ _ _ _ _)).
+  Qed.
+
+  
   Lemma own_trig_1
     (p q : nat)
     (αs : fin_list loc 1)
@@ -2557,20 +2754,20 @@ Section Polya.
 
   Definition own_polya_tape
     {n : nat}
-    (p q : nat)
+    (red black : nat)
     (Δ : triangle loc n)
     (l : list (fin (S n)))
     := (∃ (lτ : list (fin_list (fin 2) n)),
-           own_trig p q Δ (β_fold lτ) ∗ ⌜l = fin_list_fin_2_sum <$> lτ⌝
+           own_trig red (red + black - 1) Δ (β_fold lτ) ∗ ⌜l = fin_list_fin_2_sum <$> lτ⌝
        )%I.
   
   Lemma polyalloc_row_spec :
-    ∀ (n red black : nat),
+    ∀ (n red black : nat), (0 < red + black)%nat →
     ⊢ WP polyalloc_row #red #black #n
-        [{α, ∃ (r : fin_list loc n), is_abs_row n α r ∗ own_top_list red (red + black) r β_empty_list }].
+        [{α, ∃ (r : fin_list loc n), is_abs_row n α r ∗ own_top_list red (red + black - 1) r β_empty_list }].
   Proof.
     iIntros (n).
-    iInduction (n) as [|n] "IH"; iIntros (red black); unfold polyalloc_row.
+    iInduction (n) as [|n] "IH"; iIntros (red black sum_red_black_pos); unfold polyalloc_row.
     - wp_pures.
       iModIntro.
       iExists fin_nil.
@@ -2578,7 +2775,7 @@ Section Polya.
       { iIntros (i). inv_fin i. }
       by unfold own_top_list.
     - wp_pures.
-      rewrite -Nat2Z.inj_add.
+      rewrite -Nat2Z.inj_add -(Nat2Z.inj_sub _ 1); last lia.
       wp_apply (twp_bernoulli_alloc with "[$]") as (α) "Hα".
       fold polyalloc_row.
       wp_pures.
@@ -2586,7 +2783,7 @@ Section Polya.
       rewrite /= Nat.sub_0_r.
       wp_bind (polyalloc_row _ _ _)%E.
       wp_apply tgl_wp_wand_r.
-      iSplitR "Hα"; first wp_apply "IH".
+      iSplitR "Hα"; first (wp_apply "IH"; iPureIntro; lia).
       iIntros (v) "(%r & #Hrow & Htop)".
       wp_pures.
       iModIntro.
@@ -2601,18 +2798,19 @@ Section Polya.
         wp_pures.
         rewrite -(Nat2Z.inj_sub _ 1); last lia.
         rewrite /= Nat.sub_0_r fin_list_get_cons_S //.
-      + rewrite Nat.add_1_r Nat.add_succ_r.
+      + rewrite Nat.add_assoc Nat.add_sub.
         iApply own_top_list_cons_1.
+        replace (S (red + black - 1))%nat with (red + black)%nat by lia.
         iFrame.
   Qed.
     
   Lemma polyalloc_spec_trig :
-    ∀ (n red black : nat),
+    ∀ (n red black : nat), (0 < red + black)%nat →
     ⊢ WP polyalloc #red #black #n
-        [{α, ∃ (Δ : triangle loc n), is_abs_loc n α Δ ∗ own_trig red (red + black) Δ β_empty }].
+        [{α, ∃ (Δ : triangle loc n), is_abs_loc n α Δ ∗ own_trig red (red + black - 1) Δ β_empty }].
   Proof.
     iIntros (n).
-    iInduction (n) as [|n] "IH"; iIntros (red black); unfold polyalloc.
+    iInduction (n) as [|n] "IH"; iIntros (red black sum_red_black_pos); unfold polyalloc.
     - wp_pures.
       iExists trig_nil.
       iModIntro.
@@ -2623,14 +2821,14 @@ Section Polya.
       fold polyalloc.
       wp_bind (polyalloc_row _ _ _)%E.
       wp_apply tgl_wp_wand_r.
-      iSplitL; first wp_apply polyalloc_row_spec.
+      iSplitL; first by wp_apply polyalloc_row_spec.
       iIntros (v) "(%r & #Hrow & Hown)".
       wp_pures.
       rewrite -(Nat2Z.inj_add _ 1) -(Nat2Z.inj_sub _ 1); last lia.
       rewrite /= Nat.sub_0_r.
       wp_bind (polyalloc _ _ _)%E.
       wp_apply tgl_wp_wand_r.
-      iSplitR "Hown"; first wp_apply "IH".
+      iSplitR "Hown"; first (wp_apply "IH"; iPureIntro; lia).
       iIntros (w) "(%Δ & #Hloc & HΔ)".
       wp_pures.
       iModIntro.
@@ -2643,20 +2841,21 @@ Section Polya.
         inv_fin i=>[|i] j; first inv_fin j.
         rewrite -!(Nat2Z.inj_sub _ 1) /=; [|lia..].
         rewrite /= !Nat.sub_0_r triangle_get_remove_top triangle_remove_glue_top //.
-      + rewrite Nat.add_1_r /=.
+      + rewrite Nat.add_1_r /= Nat.sub_0_r.
         iApply own_trig_split_top_2.
         rewrite triangle_remove_glue_top trig_const_remove_top triangle_top_glue trig_const_top.
+        replace (S (red + black - 1))%nat with (red + black)%nat by lia.
         iFrame.
   Qed.
 
   Lemma polyalloc_spec :
-    ∀ (n red black : nat),
+    ∀ (n red black : nat), (0 < red + black)%nat →
     ⊢ WP polyalloc #red #black #n
-        [{α, ∃ (Δ : triangle loc n), is_abs_loc n α Δ ∗ own_polya_tape red (red + black) Δ [] }].
+        [{α, ∃ (Δ : triangle loc n), is_abs_loc n α Δ ∗ own_polya_tape red black Δ [] }].
   Proof.
-    iIntros (n red black).
+    iIntros (n red black sum_red_black_pos).
     wp_apply tgl_wp_wand_r.
-    iSplitL; first wp_apply polyalloc_spec_trig.
+    iSplitL; first by wp_apply polyalloc_spec_trig.
     iIntros (v) "(%Δ & Hloc & HΔ)".
     iExists Δ.
     iFrame.
@@ -2812,24 +3011,31 @@ Section Polya.
   Qed.
 
   Lemma own_polya_presample :
-    ∀ (e : expr) (p q n : nat) (ε : R)
+    ∀ (e : expr) (red black n : nat) (ε : R)
       (D : fin (S n) → R)
       (Δ : triangle loc n)
       (l : list (fin (S n)))
       (Φ : val → iProp Σ),
-    (0 < p < q + 1)%nat →
+    (0 < red)%nat →
+    (0 < black)%nat →
     to_val e = None →
     (∀ (i : fin (S n)), 0 <= D i) →
-    SeriesC (λ (i : fin (S n)), Beta_prob p (q + 1 - p)%nat n i * D i) = ε →
+    SeriesC (λ (i : fin (S n)), Beta_prob red black n i * D i) = ε →
     ↯ ε ∗
-    own_polya_tape p q Δ l ∗
+    own_polya_tape red black Δ l ∗
     (∀ (i : fin (S n)),
-       own_polya_tape p q Δ (l ++ [i]) -∗
+       own_polya_tape red black Δ (l ++ [i]) -∗
        WP e [{ v, Φ v }]
     ) ⊢ WP e [{ v, Φ v }].
   Proof.
-    iIntros (e p q n ε D Δ l Φ p_bounds e_not_val D_bounds D_sum) "(Herr & (%lτ & Hτ & %sum_lτ) & Hnext)".
+    iIntros (e red black n ε D Δ l Φ red_pos black_pos e_not_val D_bounds D_sum) "(Herr & (%lτ & Hτ & %sum_lτ) & Hnext)".
     wp_apply (own_trig_presample _ _ _ _ _ D with "[$Hτ $Herr Hnext]") as (i) "[Herr Hτ]"; try done.
+    { rewrite -D_sum.
+      apply SeriesC_ext.
+      move=>i.
+      repeat f_equal.
+      lia.
+    } 
     rewrite β_hsup_fold.
     wp_apply "Hnext".
     iFrame.
@@ -2837,4 +3043,144 @@ Section Polya.
     rewrite fmap_app sum_lτ //.
   Qed.
 
+  Lemma is_abs_loc_sub_loc_fail :
+    ∀ (n : nat) (Δ : triangle loc (S n)) (α : val),
+    [[{ is_abs_loc (S n) α Δ }]]
+      sub_loc_fail α
+      [[{ β, RET β; is_abs_loc n β (triangle_remove_bottom Δ)}]].
+  Proof.
+    iIntros (n Δ α Φ) "#Hα HΦ".
+    unfold sub_loc_fail.
+    wp_pures.
+    iModIntro.
+    iApply "HΦ".
+    iModIntro.
+    iIntros (i j).
+    wp_pures.
+    rewrite -(Nat2Z.inj_add _ 1) Nat.add_1_r.
+    iSpecialize ("Hα" $! (FS i) (fin_S_inj j)).
+    rewrite -fin_S_inj_to_nat triangle_get_remove_bottom //.
+  Qed.
+
+   Lemma is_abs_loc_sub_loc_success :
+    ∀ (n : nat) (Δ : triangle loc (S n)) (α : val),
+    [[{ is_abs_loc (S n) α Δ }]]
+      sub_loc_success α
+      [[{ β, RET β; is_abs_loc n β (triangle_remove_top Δ)}]].
+  Proof.
+    iIntros (n Δ α Φ) "#Hα HΦ".
+    unfold sub_loc_success.
+    wp_pures.
+    iModIntro.
+    iApply "HΦ".
+    iModIntro.
+    iIntros (i j).
+    wp_pures.
+    rewrite -!(Nat2Z.inj_add _ 1) !Nat.add_1_r.
+    iApply ("Hα" $! (FS i) (FS j)).
+  Qed.
+  
+  Lemma twp_polya_trig_load :
+    ∀ (red black n : nat)
+      (α : val)
+      (Δ : triangle loc n)
+      (τ : β_tape n)
+      (i : fin_list (fin 2) n),
+    (0 < red + black)%nat →
+    [[{ own_trig red (red + black - 1) Δ (β_push τ i) ∗ is_abs_loc n α Δ }]]
+      polya α #red #black #n
+    [[{ RET #(fin_list_fin_2_sum i); own_trig red (red + black - 1) Δ τ }]].
+  Proof.
+    iIntros (red black n).
+    iInduction (n) as [|n] "IH" forall (red black);
+      iIntros (α Δ τ i sum_red_black_pos Φ) "[Htape #Hloc] HΦ".
+    - inv_fin_list i.
+      unfold polya.
+      wp_pures.
+      by iApply "HΦ".
+    - inv_fin_list i=>hi ti.
+      unfold polya.
+      wp_pures.
+      fold polya.
+      wp_bind (α _ _).
+      wp_apply tgl_wp_wand_r.
+      iSplitR; first (wp_apply ("Hloc" $! 0%fin 0%fin)).
+      iIntros (?) "->".
+      inv_fin hi=>[|hi]; last inv_fin hi=>[|hi]; last inv_fin hi.
+      + rewrite β_push_0_split {2}(triangle_glue_remove_bottom Δ).
+        iPoseProof (own_trig_glue_bottom_2 with "Htape") as "[Htape Hbot]".
+        iPoseProof (own_bottom_list_split_1 with "Hbot") as "[Hhead Hbot]".
+        rewrite triangle_get_top fin_list_get_0 triangle_top_bottom_first
+                                 -Nat2Z.inj_add -(Nat2Z.inj_sub _ 1)
+        ; last lia.
+        wp_apply (twp_bernoulli_tape with "Hhead") as "Hhead".
+        wp_pures.
+        rewrite -(Nat2Z.inj_add _ 1) -(Nat2Z.inj_sub _ 1); last lia.
+        rewrite /= Nat.sub_0_r.
+        wp_apply (is_abs_loc_sub_loc_fail n Δ α with "Hloc") as (β) "#Hβ".
+        wp_apply ("IH" $! _ _ _ _ _ _ with "[] [Htape] [HΦ Hhead Hbot]") as "Htape"; first (iPureIntro; lia).
+        { rewrite Nat.add_assoc Nat.add_sub.
+          replace (S (red + black - 1)) with (red + black)%nat by lia.
+          iFrame.
+          iApply "Hβ".
+        }
+        rewrite fin_list_fin_2_sum_S -fin_S_inj_to_nat.
+        iApply "HΦ".
+        rewrite β_list_push_first_fin_tail.
+        iPoseProof (own_bottom_list_split_2 with "[$Hhead $Hbot]") as "Hbot".
+        rewrite Nat.add_assoc Nat.add_sub_swap; last lia.
+        rewrite Nat.add_1_r.
+        iApply own_trig_split_bottom_2.
+        iFrame.
+      + rewrite β_push_1_split {2}(triangle_glue_remove_top Δ).
+        iPoseProof (own_trig_glue_top_2 with "Htape") as "[Htape Hbot]".
+        iPoseProof (own_top_list_split_1 with "Hbot") as "[Hhead Hbot]".
+        rewrite triangle_get_top fin_list_get_0
+                -Nat2Z.inj_add -(Nat2Z.inj_sub _ 1)
+        ; last lia.
+        wp_apply (twp_bernoulli_tape with "Hhead") as "Hhead".
+        wp_pures.
+        rewrite -(Nat2Z.inj_add _ 1) -(Nat2Z.inj_sub _ 1); last lia.
+        rewrite /= Nat.sub_0_r.
+        wp_apply (is_abs_loc_sub_loc_success n Δ α with "Hloc") as (β) "#Hβ".
+        wp_apply ("IH" $! _ _ _ _ _ _ with "[] [Htape] [HΦ Hhead Hbot]") as "Htape"; first (iPureIntro; lia).
+        { rewrite -(Nat.add_assoc) (Nat.add_comm 1 black) Nat.add_assoc Nat.add_sub.
+          replace (S (red + black - 1)) with (red + black)%nat by lia.
+          rewrite Nat.add_1_r.
+          iFrame.
+          iApply "Hβ".
+        }
+        rewrite fin_list_fin_2_sum_S /= fin_succ_inj.
+        wp_pures.
+        rewrite -(Nat2Z.inj_add 1 _).
+        iApply "HΦ".
+        iModIntro.
+        rewrite β_list_push_first_fin_tail.
+        iPoseProof (own_top_list_split_2 with "[$Hhead $Hbot]") as "Hbot".
+        rewrite Nat.add_1_r.
+        iApply own_trig_split_top_2.
+        replace (S (red + black - 1)) with (S red + black - 1)%nat by lia.
+        iFrame.
+  Qed.
+
+  Lemma twp_polya_tape :
+    ∀ (red black n : nat)
+      (α : val)
+      (Δ : triangle loc n)
+      (l : list (fin (S n)))
+      (i : fin (S n)),
+    (0 < red + black)%nat →
+    [[{ own_polya_tape red black Δ (i::l) ∗ is_abs_loc n α Δ }]]
+      polya α #red #black #n
+    [[{ RET #i; own_polya_tape red black Δ l }]].
+  Proof.
+    iIntros (red black n α Δ l i sum_red_black_pos Φ) "[(%lτ & Hτ & %sum_lτ) Hα] HΦ".
+    destruct lτ; first discriminate.
+    injection sum_lτ as -> ->.
+    simpl.
+    wp_apply (twp_polya_trig_load with "[$Hτ $Hα]") as "Hτ"; first assumption.
+    iApply "HΦ".
+    by iFrame.
+  Qed.
+  
 End Polya.                        
