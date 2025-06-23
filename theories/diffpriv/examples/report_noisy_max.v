@@ -239,7 +239,7 @@ Section rnm.
       ).
     (* the general statement implies the original goal *)
     1: { intros h.
-         iMod ec_zero as "ε0".
+         iMod ecm_zero as "ε0".
          iApply (h with "[-HΦ]").
          - (* We have all the reference resources for the IH. *)
            iFrame.
@@ -305,7 +305,7 @@ Section rnm.
         iApply (hoare_couple_laplace e1 e2 1%Z 2%Z with "[$rnm' ε]") => //.
         1: apply Zabs_ind ; lia.
         { case_bool_decide. 2: lia.
-          iApply ec_eq. 2: iFrame.
+          iApply ecm_eq. 2: iFrame.
           rewrite /Rdiv. rewrite mult_IZR. field. clear -εpos.
           intro d0.
           rewrite mult_IZR in εpos.
@@ -321,7 +321,7 @@ Section rnm.
         case_bool_decide (amax1 < a)%Z as case_l ; try rewrite orb_true_r ; tp_pures ; wp_pures.
         all: case_bool_decide (amax2 < a+1)%Z as case_r ; try rewrite orb_true_r ; tp_pures ; wp_pures.
         * do 2 (tp_store ; tp_pures ; wp_store ; wp_pures).
-          iMod ec_zero as "ε0".
+          iMod ecm_zero as "ε0".
           iApply ("IH" with "[-HΦ]") ; iFrame.
           rewrite e. case_bool_decide ; try lia. iFrame.
           iPureIntro. intuition lia.
@@ -331,7 +331,7 @@ Section rnm.
           rewrite /dZ/distance Rabs_Zabs. apply Zabs_ind ; intros.
           -- lia.
           -- pose proof (le_IZR _ _ amax_adj). lia.
-        * iMod ec_zero as "ε0".
+        * iMod ecm_zero as "ε0".
           tp_store ; tp_pures ; tp_store ; tp_pures.
           iSpecialize ("IH" $! (i+1)%Z imax1 i amax1 (a+1)%Z).
           admit.
@@ -341,7 +341,7 @@ Section rnm.
              iSplitL. 1: case_bool_decide ; try lia ; iFrame "ε0".
              iPureIntro ; intuition lia. *)
 
-        * iMod ec_zero as "ε0".
+        * iMod ecm_zero as "ε0".
           admit.
           (* iApply ("IH" with "[-HΦ]") ; iFrame.
              rewrite e. case_bool_decide ; try lia. iFrame.
@@ -353,7 +353,7 @@ Section rnm.
         destruct (below_j ij) as (amax_adj & imax1i & imax2i & inext).
         tp_bind (Laplace _ _ _).
         wp_bind (Laplace _ _ _).
-        iMod ec_zero as "ε0".
+        iMod ecm_zero as "ε0".
         iApply (hoare_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
         1: eapply Zabs_ind ; intuition lia.
         1: rewrite Rmult_0_l => //.
@@ -414,7 +414,7 @@ Section rnm.
         specialize (above_j ij).
         tp_bind (Laplace _ _ _).
         wp_bind (Laplace _ _ _).
-        iMod ec_zero as "ε0".
+        iMod ecm_zero as "ε0".
         iApply (hoare_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
         1: eapply Zabs_ind ; intuition lia.
         1: rewrite Rmult_0_l => //.
@@ -470,7 +470,7 @@ Section rnm.
         tp_bind (Laplace _ _ _).
         wp_bind (Laplace _ _ _).
 
-        iMod ec_zero as "ε0".
+        iMod ecm_zero as "ε0".
         iApply (hoare_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
         1: eapply Zabs_ind ; intuition lia.
         1: rewrite Rmult_0_l => //.
@@ -496,7 +496,7 @@ Section rnm.
       ).
     (* the general statement implies the original goal *)
     1: { intros h.
-         iMod ec_zero as "ε0".
+         iMod ecm_zero as "ε0".
          iApply (h with "[-HΦ]").
          - (* We have all the reference resources for the IH. *)
            replace 0%Z with (Z.of_nat 0) by lia.
@@ -550,7 +550,7 @@ Section rnm.
         tp_bind (Laplace _ _ _).
         wp_bind (Laplace _ _ _).
 
-      iMod ec_zero as "ε0".
+      iMod ecm_zero as "ε0".
       iApply (hoare_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
         1: eapply Zabs_ind ; intuition lia.
         1: rewrite Rmult_0_l => //.
@@ -592,11 +592,11 @@ Lemma rnm_pw_diffpriv_cpl num den (evalQ : val) DB (dDB : Distance DB) (N : nat)
     (dDB db db' <= 1)%R →
     ∀ σ,
     ∀ j : nat,
-      Mcoupl
+      DPcoupl
         (lim_exec ((report_noisy_max num den evalQ #N (inject db)), σ))
         (lim_exec ((report_noisy_max num den evalQ #N (inject db')), σ))
         (λ v v', v = #j → v' = #j)
-        (IZR num / IZR den)
+        (IZR num / IZR den) 0
 .
 Proof.
   intros.
@@ -606,6 +606,7 @@ Proof.
     %I) as "h" => //.
   simpl.
   iSpecialize ("h" with "[$]").
+  iIntros.
   iApply "h". iNext. iIntros (?) "[% [? %h]]".
   iExists v' ; iFrame.
   subst. iPureIntro. intros. subst. apply h. reflexivity.
@@ -620,15 +621,16 @@ Lemma rnm_diffpriv_cpl num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
     (dDB db db' <= 1)%R →
     ∀ σ,
     ∀ j : nat,
-      Mcoupl
+      DPcoupl
         (lim_exec ((report_noisy_max num den evalQ #N (inject db)), σ))
         (lim_exec ((report_noisy_max num den evalQ #N (inject db')), σ))
         (λ v v', v = v')
-        (IZR num / IZR den)
+        (IZR num / IZR den) 0
 .
 Proof.
   intros.
-  apply Mcoupl_pweq => //.
+  replace 0%R with (SeriesC (λ _ : val, 0)). 2: by by apply SeriesC_0.
+  apply DPcoupl_pweq => //. 1: apply ex_seriesC_0.
   simpl.
   intros x'.
   eapply (adequacy.wp_adequacy diffprivΣ) => //.
@@ -636,7 +638,7 @@ Proof.
   unshelve iPoseProof (rnm_pw_diffpriv num den evalQ DB dDB N [] H (H1 _ _) db db' H2 x'
     (λ v, ∃ v' : val, ⤇ v' ∗ ⌜v = x' → v' = x'⌝)%I) as "h" => //.
   simpl.
-  iSpecialize ("h" with "[$]").
+  iSpecialize ("h" with "[$]"). iIntros.
   iApply "h". iNext. iIntros (?) "[% [? %h]]".
   iExists v' ; iFrame.
   subst. iPureIntro. subst.
@@ -709,7 +711,7 @@ Definition evalQ : val :=
        rewrite /count_under_40/setsum/setmap/under_40/age. wp_pures. tp_pures.
 
        wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
-       iMod ec_zero as "ε0".
+       iMod ecm_zero as "ε0".
        unshelve iApply (hoare_couple_laplace 1 2 1 0 _ (num) (2*den) _ _  (AppRCtx _ :: K)
            with "[ε0 $rnm']" ) => //=.
        1: by cbv.
@@ -729,7 +731,7 @@ Definition evalQ : val :=
        rewrite {2 4}/evalQ. tp_pures. 1,2: cbv ; auto. wp_pures.
        rewrite /count_over_80/setsum/setmap/over_80/age. wp_pures. tp_pures.
        wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
-       iMod ec_zero as "ε0".
+       iMod ecm_zero as "ε0".
        unshelve iApply (hoare_couple_laplace _ _ 0 0 _ (num) (2*den) _ _  (AppRCtx _ :: K)
            with "[ε ε0 $f']" ) => //=.
        1: by cbv.

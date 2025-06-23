@@ -25,6 +25,10 @@ Definition diffpriv_approx {A B : Type} `{Countable B}
       <=
         exp ε * prob (f a2) (λ b, bool_decide (P b)) + δ.
 
+Fact diffpriv_approx_pure {A B : Type} `{Countable B} (d : A → A → R) (f : A → distr B) (ε : R)
+  : diffpriv_approx d f ε 0 → diffpriv_pure d f ε.
+Proof. intros h ????. etrans. 1: apply h. 1: eassumption. lra. Qed.
+
 Fact Mcoupl_diffpriv {A B : Type} `{Countable B}
   (d : A → A → R) (f : A → distr B) (ε : R) :
   (∀ a1 a2, d a1 a2 <= 1 → Mcoupl (f a1) (f a2) eq ε)

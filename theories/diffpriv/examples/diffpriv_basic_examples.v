@@ -50,7 +50,7 @@ Section wp_example.
     rewrite /count_query /over_40/setmap/setsum/age/db ; tp_pures.
 
     wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
-    iMod ec_zero as "ε0".
+    iMod ecm_zero as "ε0".
     iApply (hoare_couple_laplace 1 1 0%Z with "[$ε0 $f']") => //.
     { rewrite {2}abs_IZR. replace (IZR (0 + 1 - 1)) with 0%R by easy. rewrite Rabs_R0. lra. }
     iNext. iIntros (z) "f'". simpl. tp_pures ; wp_pures.
@@ -61,7 +61,7 @@ Section wp_example.
     iNext. iIntros (z') "f'". simpl. tp_pures ; wp_pures.
 
     wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
-    iMod ec_zero as "ε0".
+    iMod ecm_zero as "ε0".
     iApply (hoare_couple_laplace 0 0 0%Z with "[$ε0 $f']") => //.
     { rewrite {2}abs_IZR. replace (IZR (0 + 0 - 0)) with 0%R by easy. rewrite Rabs_R0. lra. }
     iNext. iIntros (z'') "f'". simpl. tp_pures ; wp_pures.
@@ -85,12 +85,13 @@ Fact Laplace_diffpriv σ (num den : Z) :
     ε.
 Proof.
   intros ε εpos.
+  eapply diffpriv_approx_pure.
   eapply (adequacy.wp_diffpriv_Z diffprivΣ) ; eauto ; try lra.
-  iIntros (????) "f' ε".
+  iIntros (????) "f' ε ?".
   iApply (wp_laplace_diffpriv _ _ _ _ [] with "[f' ε]") => //.
   2: eauto.
   iFrame.
-  iApply ec_weaken. 2: iFrame.
+  iApply ecm_weaken. 2: iFrame.
   split.
   - apply Rmult_le_pos. 2: subst ε ; lra. apply IZR_le. lia.
   - etrans. 2: right ; apply Rmult_1_l. apply Rmult_le_compat_r. 1: lra. done.
