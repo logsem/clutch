@@ -19,7 +19,7 @@ Section wp_example.
     tp_pures.
     wp_pures.
     tp_bind (Laplace _ _ _).
-    iApply (wp_couple_laplace _ _ 0%Z with "[$]") => //.
+    iApply (hoare_couple_laplace _ _ 0%Z with "[$]") => //.
     setoid_rewrite Z.add_0_r. done.
   Qed.
 
@@ -51,18 +51,18 @@ Section wp_example.
 
     wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
     iMod ec_zero as "ε0".
-    iApply (wp_couple_laplace 1 1 0%Z with "[$ε0 $f']") => //.
+    iApply (hoare_couple_laplace 1 1 0%Z with "[$ε0 $f']") => //.
     { rewrite {2}abs_IZR. replace (IZR (0 + 1 - 1)) with 0%R by easy. rewrite Rabs_R0. lra. }
     iNext. iIntros (z) "f'". simpl. tp_pures ; wp_pures.
 
     wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
-    iApply (wp_couple_laplace 1 0 0%Z with "[$ε $f']") => //.
+    iApply (hoare_couple_laplace 1 0 0%Z with "[$ε $f']") => //.
     { rewrite abs_IZR. replace (IZR (0 + 1 - 0)) with 1%R by easy. rewrite Rabs_R1. lra. }
     iNext. iIntros (z') "f'". simpl. tp_pures ; wp_pures.
 
     wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
     iMod ec_zero as "ε0".
-    iApply (wp_couple_laplace 0 0 0%Z with "[$ε0 $f']") => //.
+    iApply (hoare_couple_laplace 0 0 0%Z with "[$ε0 $f']") => //.
     { rewrite {2}abs_IZR. replace (IZR (0 + 0 - 0)) with 0%R by easy. rewrite Rabs_R0. lra. }
     iNext. iIntros (z'') "f'". simpl. tp_pures ; wp_pures.
 

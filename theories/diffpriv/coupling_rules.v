@@ -67,7 +67,7 @@ Section rules.
   Qed.
 
 
-  Lemma wp_couple_laplace (loc loc' k k' : Z)
+  Lemma hoare_couple_laplace (loc loc' k k' : Z)
     (Hdist : (Z.abs (k + loc - loc') <= k')%Z)
     (num den : Z) (ε ε' : R) K E :
     IZR num / IZR den = ε →
@@ -99,6 +99,39 @@ Section rules.
     simplify_eq. rewrite Hε'' Hε''' in Herr.
     rewrite Rplus_comm in Herr. apply Rplus_eq_reg_r in Herr. clear -Herr.
     apply nnreal_ext in Herr. subst. done.
+    Unshelve. all: exact 0%Z.
+  Qed.
+
+  Lemma wp_couple_laplace (loc loc' k k' : Z)
+    (Hdist : (Z.abs (k + loc - loc') <= k')%Z)
+    (num den : Z) (ε ε' : R) K E :
+    IZR num / IZR den = ε →
+    0 < IZR num / IZR den →
+    ε' = (IZR k' * ε) →
+    ⤇ fill K (Laplace #num #den #loc') -∗ ↯ ε' -∗
+    WP (Laplace #num #den #loc) @ E
+      {{ v, ∃ z : Z, ⌜v = #z⌝ ∗ ⤇ fill K #(z+k) }}.
+  Proof.
+    iIntros (Hε εpos Hε').
+    iIntros "Hr Hε".
+    iApply wp_lift_step_prog_couple; [done|].
+    iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
+    iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iDestruct (ec_supply_ec_inv with "Hε2 Hε") as %(? &?& -> & Hε'').
+    iApply prog_coupl_steps ; [done|solve_red|solve_red|..].
+    { apply Mcoupl_steps_ctx_bind_r => //. rewrite Hε''.
+      eapply Mcoupl_laplace_step => //. }
+    iIntros (???? (?& [=->] & (z & [=-> ->] & [=-> ->]))).
+    iMod (spec_update_prog (fill K #(_)) with "Hauth2 Hr") as "[$ Hspec0]".
+    iMod (ec_supply_decrease with "Hε2 Hε") as (???Herr Hε''') "H".
+    do 2 iModIntro.
+    iMod "Hclose'" as "_".
+    iModIntro. iFrame.
+    rewrite -wp_value.
+    simplify_eq. rewrite Hε'' Hε''' in Herr.
+    rewrite Rplus_comm in Herr. apply Rplus_eq_reg_r in Herr. clear -Herr.
+    apply nnreal_ext in Herr. subst. iSplitL. 2: done. done.
     Unshelve. all: exact 0%Z.
   Qed.
 

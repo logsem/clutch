@@ -121,7 +121,7 @@ Section diffpriv.
     iIntros (φ) "!> [f' [ε δ]] hφ".
     tp_pures. wp_pures.
     tp_bind (Laplace _ _ _).
-    iApply (wp_couple_laplace _ _ 0%Z with "[$f' ε]") => //.
+    iApply (hoare_couple_laplace _ _ 0%Z with "[$f' ε]") => //.
     2: setoid_rewrite Z.add_0_r ; iNext ; iIntros ; iApply "hφ" ; iFrame.
     iFrame. iApply ecm_weaken. 2: iFrame.
     split. all: rewrite abs_IZR ; real_solver_partial. 1: apply Rabs_pos.

@@ -57,34 +57,141 @@ Section rnm.
              then #maxA <- "a";; #maxI <- "i" else #());;
             "rnm" ("i" + #1))%V.
 
-  (* Definition rwp (e e' : expr) E (R : val → val → iProp Σ) : iProp Σ :=
-       (⤇ e' -∗ WP e @ E {{ v, ∃ v', R v v' }})%I.
+  (* An online version of RNM (oRNM) providing two methods:
+- add_query receives and evaluates queries one at a time, storing the highest (noisy) result,
+- release outputs the index of the query with the highest result. *)
+  Definition report_noisy_max_online : val :=
+    λ:"num" "den" "evalQ" "d",
+      let: "maxI" := ref #(-1) in
+      let: "maxA" := ref #0 in
+      let: "add_query" :=
+        λ:"i",
+          (let: "a" := Laplace "num" (#2 * "den") ("evalQ" "i" "d") in
+           (if: "i" = #0 `or` ! "maxA" < "a" then
+              "maxA" <- "a" ;;
+              "maxI" <- "i"
+            else #())) in
+      let: "release" :=
+        λ:"_",
+          ! "maxI"
+      in ("add_query", "release").
 
-     (* Notation "'RWP' e ~ e' {{ Φ } } " := (rwp e e' top Φ) (only parsing).
-        Notation "'RWP' e ~ e' @ E {{ Φ } } " := (rwp e e' E Φ) (only parsing). *)
-     (* Notation "'RWP' e ~ e' @ E {{ v v' , Φ } } " := (rwp e e' E (λ v v', Φ)). *)
+  (* Given the error credits for one run of RNM, initializing oRNM provides an abstract token AUTH
+  that is required to call the add_query and release methods, and...
+- add_query processes a query and returns AUTH back to the caller
+- release consumes the AUTH token and ensures that both db and db' yield (pointwise) equal results *)
+  Lemma rnm_online (i : Z) (num den : Z) (evalQ : val)
+    (εpos : 0 < IZR num / IZR den) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K
+    :
+    (∀ i, wp_sensitive (Val evalQ i) 1 dDB dZ) -∗
+    ↯ (IZR num / IZR den) -∗
 
-     Notation "'RWP' e << e' {{ v , v' , Φ } } " := (rwp e e' top (λ v v', Φ))
-       (at level 20, e, e', Φ at level 200,
-      format "'[hv' 'RWP'  e  <<  e'  '/' {{  '[' v ,  v' ,  Φ  ']' } } ']'") : bi_scope.
+    ⤇ fill K (report_noisy_max_online #num #den (Val evalQ) (inject db')) -∗
+    WP report_noisy_max_online #num #den evalQ (inject db)
 
-     Lemma pweq (e e' : expr) :
-       (⊢ RWP e << e' {{ v , v' ,  ⌜ v = v' ⌝ }})
-       →
-       (∀ x : val, ⤇ e' ⊢ WP e {{ v, ∃ v', ⤇ (of_val v') ∗ ⌜v = x -> v' = x⌝}})
-       →
-         (⤇ e' ⊢ WP e {{ v, ∃ v', ⤇ (of_val v') ∗ ⌜v = v'⌝ }}). *)
+      {{ add_release,
+           ∃ (add' release' : val) (AUTH : iProp Σ),
 
-  Lemma pweq (e e' : expr) K :
-    (∀ x : Z, ⤇ fill K e' -∗ WP e {{ v, ∃ v', ⤇ fill K (of_val v') ∗ ⌜v = #x -> v' = #x⌝}})
-    -∗
-    ({{{ ⤇ fill K e'}}} e {{{ (v : Z), RET #v; ⤇ fill K (of_val #v) }}}).
-  Admitted.
+             ⤇ fill K (add', release')%V ∗
+
+             AUTH ∗
+
+             (∀ K,
+                 AUTH -∗
+                 ⤇ fill K (add' #i) -∗
+                 WP (Fst (Val add_release) #i) {{ _, ⤇ fill K #() ∗ AUTH }}) ∗
+
+             (∀ K,
+                 AUTH -∗
+                 ⤇ fill K (release' #()) -∗
+                 WP (Snd (Val add_release) #())
+                   {{ v, ∃ v' : val, ⌜ v = #i → v' = #i ⌝ }})
+            }}.
+  Proof with (tp_pures ; wp_pures).
+    (* The privacy proof of RNM hinges on the fact that the credit gets spent when the "winning"
+    query gets evaluated, i.e., when the index matches that of the result in the point-wise
+    equality.
+
+    For oRNM, the result index in the point-wise equality of the release method can either be
+    quantified before or after the initialisation of oRNM. Knowing the index is required to decide
+    which coupling to spend the credit on. If the index is quantified in the spec for `release`,
+    then `add` cannot know about it, and we don't know how to couple.
+
+    This is why this current spec quantifies over `i : Z` before initialising oRNM. *)
+
+    iIntros "sens ε rhs".
+    rewrite /report_noisy_max_online... simpl...
+    tp_alloc as maxI2 "maxI2". tp_pures. tp_alloc as maxA2 "maxA2". do 5 tp_pure.
+    wp_pures. wp_alloc maxI1 as "maxI1". wp_alloc maxA1 as "maxA1". do 5 wp_pure.
+    simpl...
+    iExists _,_.
+    (* TODO: This is too simple-minded; the availability of ε in AUTH has to depend on whether or
+    not `i` has been queried. *)
+    iExists (
+        maxI2 ↦ₛ #(-1) ∗
+        maxA2 ↦ₛ #0 ∗
+        maxI1 ↦ #(-1) ∗
+        maxA1 ↦ #0 ∗
+        ↯ (IZR num / IZR den)
+      )%I.
+    iFrame.
+    clear K.
+    iModIntro. iSplitL.
+    - iIntros "%K (maxI2 & maxA2 & maxI1 & maxA1 & ε) rhs".
+      admit.
+    - iIntros "%K (maxI2 & maxA2 & maxI1 & maxA1 & ε) rhs".
+      admit.
+  Abort.
+
+  (* The above-mentioned issue with anticipating when an error-credit gets spent by examining the
+  index returned as final result can be exhibited in an example simpler than oRNM.
+
+   This problem can be stated in Eris. Sufficient use of laziness in `get` might solve the problem. *)
+
+  Goal
+    ↯ (1/4)  -∗
+    WP
+      let: "res" := ref (rand #3) in
+      let: "resample" := λ:"_", "res" <- rand #3 in
+      let: "get" := λ:"_", !"res" in
+      ("resample", "get")
+        {{ resample_get ,
+             let (resample, get) := ((Fst (Val resample_get))%E, (Snd (Val resample_get))%E) in
+             ∃ TOKEN : iProp Σ,
+               TOKEN ∗
+               (TOKEN -∗ WP resample #() {{ _, TOKEN }}) ∗
+               (TOKEN -∗ WP get #() {{ v, ∃ k : Z, ⌜v = #k⌝ ∗ ⌜0 < k⌝%Z }})
+        }}.
+  Abort.
+
+  (* One can generalize this argument by parametrising `resample` by some function `f` which is
+  (i) known to be safe, and (ii) produces the result 1 if given some resource `X`.
+
+    This is now a problem in unary separation logic, although it is not immediate what `X` and `f` should be.
+   *)
+  Goal
+    ∀ (f : val), ∃ (X : iProp Σ),
+      (X -∗ WP (Val f) #()  {{ v, ⌜v = #1⌝}}) -∗
+      (WP (Val f) #()  {{ _, ⌜True⌝ }}) -∗
+      X -∗
+      WP
+        let: "res" := ref (f #()) in
+        let: "resample" := (λ:"_", "res" <- f #()) in
+        let: "get" := (λ:"_", !"res") in
+        ("resample", "get")
+          {{ resample_get ,
+               let (resample, get) := ((Fst (Val resample_get))%E, (Snd (Val resample_get))%E) in
+               ∃ TOKEN,
+                 TOKEN ∗
+                 (TOKEN -∗ WP resample #() {{ _, TOKEN }}) ∗
+                 (TOKEN -∗ WP get #() {{ v, ∃ k : Z, ⌜v = #k⌝ ∗ ⌜0 < k⌝%Z }})
+          }}.
+  Abort.
 
 
   Lemma rnm_pw_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
     (0 < IZR num / IZR (2 * den)) →
-    (∀ i : Z, hoare_sensitive (evalQ #i) 1 dDB dZ) →
+    (∀ i : Z, ⊢ hoare_sensitive (evalQ #i) 1 dDB dZ) →
     ∀ db db', dDB db db' <= 1 →
               ∀ j : val,
                 {{{ ↯ (IZR num / IZR den) ∗
@@ -177,7 +284,7 @@ Section rnm.
       (* sensitivity of evalQ *)
       tp_bind (evalQ _ _). wp_bind (evalQ _ _).
       rewrite /hoare_sensitive in qi_sens.
-      iApply (qi_sens i _ _ db db' _ with "rnm'").
+      iApply (qi_sens i $! _ _ db db' _ with "rnm'").
       Unshelve. 2: shelve. 2: lra.
       iIntros "!> % (%e1 & %e2 & -> & rnm' & %e1e2_adj)" => /=.
       assert (-1 <= e1 - e2 <= 1)%Z as [].
@@ -195,7 +302,7 @@ Section rnm.
       2:{                       (* i = j *)
         tp_bind (Laplace _ _ _).
         wp_bind (Laplace _ _ _).
-        iApply (wp_couple_laplace e1 e2 1%Z 2%Z with "[$rnm' ε]") => //.
+        iApply (hoare_couple_laplace e1 e2 1%Z 2%Z with "[$rnm' ε]") => //.
         1: apply Zabs_ind ; lia.
         { case_bool_decide. 2: lia.
           iApply ec_eq. 2: iFrame.
@@ -247,7 +354,7 @@ Section rnm.
         tp_bind (Laplace _ _ _).
         wp_bind (Laplace _ _ _).
         iMod ec_zero as "ε0".
-        iApply (wp_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
+        iApply (hoare_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
         1: eapply Zabs_ind ; intuition lia.
         1: rewrite Rmult_0_l => //.
         iNext ; iIntros (a) "rnm'" => /=.
@@ -308,7 +415,7 @@ Section rnm.
         tp_bind (Laplace _ _ _).
         wp_bind (Laplace _ _ _).
         iMod ec_zero as "ε0".
-        iApply (wp_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
+        iApply (hoare_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
         1: eapply Zabs_ind ; intuition lia.
         1: rewrite Rmult_0_l => //.
         iNext ; iIntros (a) "rnm'" => /=.
@@ -347,7 +454,7 @@ Section rnm.
 
       tp_bind (evalQ _ _). wp_bind (evalQ _ _).
       rewrite /hoare_sensitive in qi_sens.
-      iApply (qi_sens _ _ _ db db' _ with "rnm").
+      iApply (qi_sens _ $! _ _ db db' _ with "rnm").
       Unshelve. 2: lra.
       iIntros "!> % (%e1 & %e2 & -> & rnm' & %e1e2_adj)" => /=.
       assert (-1 <= e1 - e2 <= 1)%Z as [].
@@ -364,7 +471,7 @@ Section rnm.
         wp_bind (Laplace _ _ _).
 
         iMod ec_zero as "ε0".
-        iApply (wp_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
+        iApply (hoare_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
         1: eapply Zabs_ind ; intuition lia.
         1: rewrite Rmult_0_l => //.
         iNext ; iIntros (a) "rnm'" => /=.
@@ -426,7 +533,7 @@ Section rnm.
 
       tp_bind (evalQ _ _). wp_bind (evalQ _ _).
       rewrite /hoare_sensitive in qi_sens.
-      iApply (qi_sens _ _ _ db db' _ with "rnm'").
+      iApply (qi_sens _ $! _ _ db db' _ with "rnm'").
       Unshelve. 2: lra.
       clear H0 e1 e2 e1e2_adj H.
       iIntros "!> % (%e1 & %e2 & -> & rnm' & %e1e2_adj)" => /=.
@@ -444,7 +551,7 @@ Section rnm.
         wp_bind (Laplace _ _ _).
 
       iMod ec_zero as "ε0".
-      iApply (wp_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
+      iApply (hoare_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
         1: eapply Zabs_ind ; intuition lia.
         1: rewrite Rmult_0_l => //.
         iNext ; iIntros (a') "rnm'" => /=.
@@ -480,7 +587,7 @@ End rnm.
 Lemma rnm_pw_diffpriv_cpl num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
   (0 < IZR num / IZR (2 * den))%R →
   (0 <= IZR num / IZR den)%R →
-  (∀ `{!diffprivGS Σ}, ∀ i : Z, hoare_sensitive (evalQ #i) 1 dDB dZ) →
+  (∀ `{!diffprivGS Σ}, ∀ i : Z, ⊢ hoare_sensitive (evalQ #i) 1 dDB dZ) →
   ∀ db db',
     (dDB db db' <= 1)%R →
     ∀ σ,
@@ -508,7 +615,7 @@ Qed.
 Lemma rnm_diffpriv_cpl num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
   (0 < IZR num / IZR (2 * den))%R →
   (0 <= IZR num / IZR den)%R →
-  (∀ `{!diffprivGS Σ}, ∀ i : Z, hoare_sensitive (evalQ #i) 1 dDB dZ) →
+  (∀ `{!diffprivGS Σ}, ∀ i : Z, ⊢ hoare_sensitive (evalQ #i) 1 dDB dZ) →
   ∀ db db',
     (dDB db db' <= 1)%R →
     ∀ σ,
@@ -537,50 +644,50 @@ Proof.
 Qed.
 
 
-  (* sketchy concrete example below *)
+(* sketchy obsolete concrete example below *)
 
-  Definition DB := (Z * Z * Z)%type.
-  Definition dDB : Distance DB.
-    unshelve econstructor.
-    - exact (λ (x y : DB), match (x,y) with
-                           | ((x1, x2, x3), (y1, y2, y3)) =>
-                               (if Z.eqb x1 y1 then 0 else 1)
-                               + (if Z.eqb x2 y2 then 0 else 1)
-                               + (if Z.eqb x3 y3 then 0 else 1)
-                           end).
-    - apply _.
-    - intros [[x1 x2] x3] [[y1 y2] y3]. destruct (x1 =? y1)%Z, (x2 =? y2)%Z, (x3 =? y3)%Z.
-      all: lra.
-    - simpl. intros [[x1 x2] x3]. rewrite !Z.eqb_refl. lra.
-    - simpl. intros [[x1 x2] x3] [[y1 y2] y3].
-      destruct (x1 =? y1)%Z eqn:h1, (x2 =? y2)%Z eqn:h2, (x3 =? y3)%Z eqn:h3 ; intuition auto ; try lra.
-      rewrite (Z.eqb_eq x1 y1) in h1.
-      rewrite (Z.eqb_eq x2 y2) in h2.
-      rewrite (Z.eqb_eq x3 y3) in h3. subst ; done.
-  Defined.
+Definition DB := (Z * Z * Z)%type.
+Definition dDB : Distance DB.
+  unshelve econstructor.
+  - exact (λ (x y : DB), match (x,y) with
+                         | ((x1, x2, x3), (y1, y2, y3)) =>
+                             (if Z.eqb x1 y1 then 0 else 1)
+                             + (if Z.eqb x2 y2 then 0 else 1)
+                             + (if Z.eqb x3 y3 then 0 else 1)
+                         end).
+  - apply _.
+  - intros [[x1 x2] x3] [[y1 y2] y3]. destruct (x1 =? y1)%Z, (x2 =? y2)%Z, (x3 =? y3)%Z.
+    all: compute ; lra.
+  - simpl. intros [[x1 x2] x3]. rewrite !Z.eqb_refl. compute ; lra.
+  - simpl. intros [[x1 x2] x3] [[y1 y2] y3].
+    destruct (x1 =? y1)%Z eqn:h1, (x2 =? y2)%Z eqn:h2, (x3 =? y3)%Z eqn:h3 ; try (compute ; intuition auto ; try lra).
+    rewrite (Z.eqb_eq x1 y1) in h1.
+    rewrite (Z.eqb_eq x2 y2) in h2.
+    rewrite (Z.eqb_eq x3 y3) in h3. subst ; done.
+Defined.
 
-  Definition ID := Fst.
-  Definition age := Snd.
-  (* Two example databases with three rows each containing a ID number and an age. *)
-  Definition db : val := ( (#3, #12), (#1, #42), (#0, #57) ).
-  Definition db' : val := ( (#3, #12), (#2, #24), (#0, #57) ).
+Definition ID := Fst.
+Definition age := Snd.
+(* Two example databases with three rows each containing a ID number and an age. *)
+Definition db : val := ( (#3, #12), (#1, #42), (#0, #57) ).
+Definition db' : val := ( (#3, #12), (#2, #24), (#0, #57) ).
 
-  Definition under_40 : val := λ:"r", if: age "r" < #40 then #1 else #0.
-  Definition over_80 : val := λ:"r", if: #80 < age "r" then #1 else #0.
-  Definition setmap : val := λ: "f" "db", ("f" (Fst (Fst "db")) , "f" (Snd (Fst "db")) , "f" (Snd "db")).
-  Definition setsum : val := λ: "db", (Fst (Fst "db")) + (Snd (Fst "db")) + (Snd "db").
-  Definition count_query (num den : Z) : val := λ:"b", setsum (setmap (λ:"z", Laplace #num #den "z") (setmap under_40 "b")).
+Definition under_40 : val := λ:"r", if: age "r" < #40 then #1 else #0.
+Definition over_80 : val := λ:"r", if: #80 < age "r" then #1 else #0.
+Definition setmap : val := λ: "f" "db", ("f" (Fst (Fst "db")) , "f" (Snd (Fst "db")) , "f" (Snd "db")).
+Definition setsum : val := λ: "db", (Fst (Fst "db")) + (Snd (Fst "db")) + (Snd "db").
+Definition count_query (num den : Z) : val := λ:"b", setsum (setmap (λ:"z", Laplace #num #den "z") (setmap under_40 "b")).
 
-  Definition count_under_40 : val := λ:"db", setsum $ setmap under_40 "db".
-  Definition count_over_80 : val := λ:"db", setsum $ setmap over_80 "db".
+Definition count_under_40 : val := λ:"db", setsum $ setmap under_40 "db".
+Definition count_over_80 : val := λ:"db", setsum $ setmap over_80 "db".
 
-  Definition evalQ : val :=
-    λ:"i" "db", if: "i" = #0 then count_under_40 "db"
-                else if: "i" = #1 then count_over_80 "db"
-                     else #0.
+Definition evalQ : val :=
+  λ:"i" "db", if: "i" = #0 then count_under_40 "db"
+              else if: "i" = #1 then count_over_80 "db"
+                   else #0.
 
-  (* concrete example run *)
-  (* Lemma rnm_diffpriv_3 num den :
+(* concrete example run *)
+(* Lemma rnm_diffpriv_3 num den :
        (0 < IZR num / IZR den) →
        ∀ (K : list (ectxi_language.ectx_item prob_ectxi_lang)),
          {{{ ⤇ fill K (report_noisy_max num den evalQ #2 (inject db')) ∗
@@ -603,7 +710,7 @@ Qed.
 
        wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
        iMod ec_zero as "ε0".
-       unshelve iApply (wp_couple_laplace 1 2 1 0 _ (num) (2*den) _ _  (AppRCtx _ :: K)
+       unshelve iApply (hoare_couple_laplace 1 2 1 0 _ (num) (2*den) _ _  (AppRCtx _ :: K)
            with "[ε0 $rnm']" ) => //=.
        1: by cbv.
        { rewrite mult_IZR.
@@ -623,7 +730,7 @@ Qed.
        rewrite /count_over_80/setsum/setmap/over_80/age. wp_pures. tp_pures.
        wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
        iMod ec_zero as "ε0".
-       unshelve iApply (wp_couple_laplace _ _ 0 0 _ (num) (2*den) _ _  (AppRCtx _ :: K)
+       unshelve iApply (hoare_couple_laplace _ _ 0 0 _ (num) (2*den) _ _  (AppRCtx _ :: K)
            with "[ε ε0 $f']" ) => //=.
        1: by cbv.
        { rewrite mult_IZR.
@@ -657,5 +764,3 @@ Qed.
          Unshelve.
          all: f_equal.
      Qed. *)
-
-End rnm.
