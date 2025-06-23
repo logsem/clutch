@@ -12,7 +12,7 @@ From clutch.clutch.examples.crypto Require Import ElGamal.
 Set Default Proof Using "Type*".
 
 Section Stream.
-Print expr.
+
 Definition eager_stream (N : nat) : val :=
   rec: "f" "x" := (rand #N, λ:<>, "f" "x").
 

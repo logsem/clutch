@@ -281,7 +281,6 @@ Proof. rewrite /prime_proba. rewrite /prime_error.
   rel_arrow_val. iIntros (v1 v2) "%H". destruct H as [k_iter [eq1 eq2]]; subst.
   rel_rec_r.
   destruct n as [ | n | n]; try (rel_pures_l; rel_pures_r; rel_values).
-  Search Positive_as_OT.to_nat Z.pos. 
   rewrite -positive_nat_Z. remember (Pos.to_nat n) as N eqn:eqN.
   clear eqN. clear n. destruct (le_le_S_dec N 1).
   - rel_pures_l. rel_pures_r. assert (H : bool_decide (N ≤ 1)%Z = true).
@@ -316,7 +315,7 @@ Proof. rewrite /prime_proba. rewrite /prime_error.
         iLöb as "IH". clear H.
         { destruct K as [|K'].
         - rel_pures_l. rel_pures_r. rel_values.
-        - rel_pures_l. rel_pures_r. About rel_couple_UU.
+        - rel_pures_l. rel_pures_r.
           rel_couple_UU. remember (bij_subset_div (Z.to_nat N)) as f.
           assert (eqtype : Z.to_nat N - 2 = Z.to_nat (N-2)).
           { lia. } admit. }

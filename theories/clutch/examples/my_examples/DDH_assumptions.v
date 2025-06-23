@@ -21,8 +21,6 @@ Context {cgg : @clutch_group_generator vg cg vgg}. (* g is well-typed *)
 #[local] Notation n := (S n'').
 #[local] Definition rnd t := (rand(t) #n)%E.
 
-Print τ_DH.
-
 (* decisional DH game *)
 Definition DH_decisional_real : expr := DH_real.
 Definition DH_decisional_rand : expr := DH_rand.
