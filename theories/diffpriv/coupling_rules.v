@@ -108,23 +108,24 @@ Section rules.
     IZR num / IZR den = ε →
     0 < IZR num / IZR den →
     ε' = (IZR k' * ε) →
-    ⤇ fill K (Laplace #num #den #loc') -∗ ↯ ε' -∗
+    ⤇ fill K (Laplace #num #den #loc') -∗ ↯m ε' -∗
     WP (Laplace #num #den #loc) @ E
       {{ v, ∃ z : Z, ⌜v = #z⌝ ∗ ⤇ fill K #(z+k) }}.
   Proof.
     iIntros (Hε εpos Hε').
     iIntros "Hr Hε".
     iApply wp_lift_step_prog_couple; [done|].
-    iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
+    iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1) & Hauth2 & Hε2 & Hδ2)".
     iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iDestruct (ec_supply_ec_inv with "Hε2 Hε") as %(? &?& -> & Hε'').
-    iApply prog_coupl_steps ; [done|solve_red|solve_red|..].
-    { apply Mcoupl_steps_ctx_bind_r => //. rewrite Hε''.
-      eapply Mcoupl_laplace_step => //. }
+    iDestruct (ecm_supply_ecm_inv with "Hε2 Hε") as %(? &?& -> & Hε'').
+    iApply (prog_coupl_steps _ _ _ δ_now 0%NNR) ;
+      [done| apply nnreal_ext; simpl; lra |solve_red|solve_red|..].
+    { apply DPcoupl_steps_ctx_bind_r => //. rewrite Hε''.
+      eapply DPcoupl_laplace_step => //. }
     iIntros (???? (?& [=->] & (z & [=-> ->] & [=-> ->]))).
     iMod (spec_update_prog (fill K #(_)) with "Hauth2 Hr") as "[$ Hspec0]".
-    iMod (ec_supply_decrease with "Hε2 Hε") as (???Herr Hε''') "H".
+    iMod (ecm_supply_decrease with "Hε2 Hε") as (???Herr Hε''') "H".
     do 2 iModIntro.
     iMod "Hclose'" as "_".
     iModIntro. iFrame.
