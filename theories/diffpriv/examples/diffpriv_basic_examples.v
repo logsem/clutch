@@ -11,7 +11,7 @@ Section wp_example.
     (num den : Z) K :
     0 < IZR num / IZR den →
     let e := (λ: "loc", Laplace #num #den "loc")%E in
-    {{{ ⤇ fill K (e #loc') ∗ ↯ (IZR (Z.abs (loc - loc')) * (IZR num / IZR den)) }}}
+    {{{ ⤇ fill K (e #loc') ∗ ↯m (IZR (Z.abs (loc - loc')) * (IZR num / IZR den)) }}}
       (e #loc)%E
       {{{ (z : Z), RET #z; ⤇ fill K (Val #z) }}}.
   Proof.
@@ -40,7 +40,7 @@ Section wp_example.
      fit the notion of pure differential privacy defined at the meta-level. *)
   Lemma count_query_db : ∀ (num den : Z),
       (0 < IZR num / IZR den) ->
-      {{{ ⤇ count_query num den db' ∗  ↯ (IZR num / IZR den) }}}
+      {{{ ⤇ count_query num den db' ∗  ↯m (IZR num / IZR den) }}}
         count_query num den db
       {{{ z, RET #z; ⤇ #z }}}.
   Proof.

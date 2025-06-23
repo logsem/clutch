@@ -84,7 +84,7 @@ Section rnm.
     (εpos : 0 < IZR num / IZR den) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K
     :
     (∀ i, wp_sensitive (Val evalQ i) 1 dDB dZ) -∗
-    ↯ (IZR num / IZR den) -∗
+    ↯m (IZR num / IZR den) -∗
 
     ⤇ fill K (report_noisy_max_online #num #den (Val evalQ) (inject db')) -∗
     WP report_noisy_max_online #num #den evalQ (inject db)
@@ -132,7 +132,7 @@ Section rnm.
         maxA2 ↦ₛ #0 ∗
         maxI1 ↦ #(-1) ∗
         maxA1 ↦ #0 ∗
-        ↯ (IZR num / IZR den)
+        ↯m (IZR num / IZR den)
       )%I.
     iFrame.
     clear K.
@@ -149,7 +149,7 @@ Section rnm.
    This problem can be stated in Eris. Sufficient use of laziness in `get` might solve the problem. *)
 
   Goal
-    ↯ (1/4)  -∗
+    ↯m (1/4)  -∗
     WP
       let: "res" := ref (rand #3) in
       let: "resample" := λ:"_", "res" <- rand #3 in
@@ -194,7 +194,7 @@ Section rnm.
     (∀ i : Z, ⊢ hoare_sensitive (evalQ #i) 1 dDB dZ) →
     ∀ db db', dDB db db' <= 1 →
               ∀ j : val,
-                {{{ ↯ (IZR num / IZR den) ∗
+                {{{ ↯m (IZR num / IZR den) ∗
                     ⤇ fill K (report_noisy_max num den evalQ #N (inject db')) }}}
                   report_noisy_max num den evalQ #N (inject db)
                   {{{ v, RET v ; ∃ (v' : val), ⤇ fill K v' ∗ ⌜ v = j → v' = j ⌝  }}}
@@ -217,7 +217,7 @@ Section rnm.
     cut
       (∀ (i imax1 imax2 : Z) (amax1 amax2 : Z),
           {{{ maxI1 ↦ #imax1 ∗ maxI2 ↦ₛ #imax2 ∗ maxA1 ↦ #amax1 ∗ maxA2 ↦ₛ #amax2
-              ∗ ↯ (if (bool_decide (i <= j))%Z then (IZR num / IZR den) else 0)
+              ∗ ↯m (if (bool_decide (i <= j))%Z then (IZR num / IZR den) else 0)
               ∗ ⤇ fill K (rnm_body num den evalQ dDB N db' maxI2 maxA2 #i)
               ∗ ⌜ 0 <= i <= N ⌝%Z
               ∗ ⌜ i < j
@@ -485,7 +485,7 @@ Section rnm.
     cut
       (∀ (i : Z) (imax1 imax2 : nat) (amax1 amax2 : Z),
           {{{ maxI1 ↦ #imax1 ∗ maxI2 ↦ₛ #imax2 ∗ maxA1 ↦ #amax1 ∗ maxA2 ↦ₛ #amax2
-              (* ∗ ↯ (if (bool_decide (i <= j))%Z then (IZR num / IZR den) else 0) *)
+              (* ∗ ↯m (if (bool_decide (i <= j))%Z then (IZR num / IZR den) else 0) *)
               ∗ ⤇ fill K (rnm_body num den evalQ dDB (S N) db' maxI2 maxA2 #i)
               ∗ ⌜ 0 <= i <= (S N) ⌝%Z
           }}}
@@ -691,8 +691,8 @@ Definition evalQ : val :=
        (0 < IZR num / IZR den) →
        ∀ (K : list (ectxi_language.ectx_item prob_ectxi_lang)),
          {{{ ⤇ fill K (report_noisy_max num den evalQ #2 (inject db')) ∗
-             ↯ (IZR num / IZR den)
-               (* ↯ 0 *)
+             ↯m (IZR num / IZR den)
+               (* ↯m 0 *)
          }}}
            (report_noisy_max num den evalQ #2 (inject db))
            {{{ (v : val), RET v; ⤇ fill K v }}}.
