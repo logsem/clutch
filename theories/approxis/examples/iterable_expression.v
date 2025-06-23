@@ -115,13 +115,15 @@ Section rules.
 
   Section deterministic.
 
-    Definition det_val_fun (f : val) (f_sem : Z -> Z) : Prop :=
+    Definition det_val_fun (f : expr) (f_sem : list val -> val)
+      (types : list (lrel Σ)) : Prop :=
       ∀ (E : coPset)
       (K : list (ectxi_language.ectx_item prob_ectxi_lang))
-      (n : Z) (e : expr) (A : lrel Σ),
-      (refines E (fill K (#(f_sem n))) e A ⊢ refines E (fill K (f #n)) e A) ∧
-      (refines E e (fill K (#(f_sem n))) A ⊢ refines E e (fill K (f #n)) A).
-    
+      (args : list val) (e : expr) (A : lrel Σ),
+      ForallSep2 (fun x T => (lrel_car T) x x) args types ⊢
+      (refines E (fill K (f_sem args)) e A -∗ refines E (fill K (iter_appl f args)) e A) ∧
+      (refines E e (fill K (f_sem args)) A -∗ refines E e (fill K (iter_appl f args)) A).
+
     Definition det_val_rel (f : expr) (types : list (lrel Σ)) : Prop :=
       ∀ (E : coPset)
       (K : list (ectxi_language.ectx_item prob_ectxi_lang))
@@ -130,6 +132,16 @@ Section rules.
       ∃ (v : val),
       (refines E (fill K v) e A -∗ refines E (fill K (iter_appl f args)) e A) ∧
       (refines E e (fill K v) A -∗ refines E e (fill K (iter_appl f args)) A).
+    
+    Theorem det_val_fun_rel : forall e f_sem types, det_val_fun e f_sem types ->
+      det_val_rel e types.
+    Proof. intros *.
+      rewrite /det_val_fun/det_val_rel. intro H.
+      intros *. iIntros "H".
+      pose proof (H E K args e0 A) as H'.
+      iExists (f_sem args).
+      iPoseProof (H' with "H") as "G". iApply "G".
+    Qed.
     
     Definition val1 : val := λ: "v", "v" + #1.
 
@@ -147,12 +159,12 @@ Section rules.
       rewrite /val1; rel_pures_l; rel_pures_r;
       iApply "H".
     Qed.
-
+    (* PROBLEM : hard to write functions from `val` to `val`...
     Lemma det_val_fun1 : det_val_fun val1 (fun n => (n+1)%Z).
     Proof. rewrite /det_val_fun. intros *. split;
       iIntros "H";
       rewrite /val1; rel_pures_l; rel_pures_r; iApply "H".
-    Qed.
+    Qed.*) 
 
   End deterministic.
 
