@@ -325,7 +325,7 @@ Section GeometricToNegative.
   
   Instance NegativeOfGeometric : negative_binomial_spec negative_of_geometric nalloc.
   Proof.
-    refine (NegativeSpec _ _ _ _ _ _ _ _ _ _).
+    refine (NegativeSpec _ _ _ _ _ _ _ _ _).
     {
       iIntros (p q p_pos p_lt_Sq r D L ε ε_term term_pos D_bounds D_sum) "Hterm Herr".
       unfold negative_of_geometric.

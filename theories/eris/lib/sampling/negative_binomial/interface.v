@@ -238,17 +238,6 @@ Class negative_binomial_spec `{!erisGS Σ} (negative_prog negative_alloc : val) 
     (own_negative_tape α p q r ns -∗ Φ #n) -∗
     WP negative_prog #lbl:α #p #q #r [{ Φ }];
  
-    twp_negative_binomial_presample :
-    ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
-      (p q r : nat) (ns : list nat) (ε : R),
-      (0 < p)%nat →
-      (p ≤ q + 1)%nat →
-      (0 < ε)%R → 
-      to_val e = None →
-      ↯ ε ∗ own_negative_tape α p q r ns ∗
-      (∀ (i : nat), own_negative_tape α p q r (ns ++ [i]) -∗ WP e [{ Φ }])
-      ⊢  WP e [{ Φ }];
-
     twp_negative_binomial_presample_adv_comp :
     ∀ (p q : nat) (α : loc) (l : list nat) (e : expr) (Φ : val → iProp Σ),
       0 < p →
@@ -335,6 +324,31 @@ Section NegativeLemmas.
     iIntros (j) "[Htape _]".
     wp_apply "Hnext".
     iFrame.
+  Qed.
+
+  Lemma twp_negative_binomial_presample :
+    ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
+      (p q r : nat) (ns : list nat) (ε : R),
+      (0 < p)%nat →
+      (p ≤ q + 1)%nat →
+      (0 < ε)%R → 
+      to_val e = None →
+      ↯ ε ∗ own_negative_tape α p q r ns ∗
+      (∀ (i : nat), own_negative_tape α p q r (ns ++ [i]) -∗ WP e [{ Φ }])
+      ⊢  WP e [{ Φ }].
+  Proof.
+    iIntros (e α Φ p q r ns ε p_pos p_le_Sq ε_pos e_not_val) "(Hfuel & Htape & Hnext)".
+    iMod ec_zero as "Herr".
+    unshelve wp_apply (twp_negative_binomial_presample_adv_comp p q _ _ _ _ _ _ _ r (const 0%R) _ 0%R ε); last iFrame; try done.
+    { move=> /= _.
+      lra.
+    }
+    { apply SeriesC_0.
+      move=>i /=.
+      lra.
+    }
+    iIntros (i) "_".
+    iApply "Hnext".
   Qed.
   
 End NegativeLemmas.
