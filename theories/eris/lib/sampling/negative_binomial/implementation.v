@@ -580,11 +580,11 @@ Section NegativeBinomial.
   Qed.
  
   Lemma twp_bernoulli_presample_adv_comp_n_success :
-    ∀ (p q : nat) (α : loc) (l : list (fin 2)) (e : expr) (Φ : val → iProp Σ),
+    ∀ (p q r : nat) (α : loc) (l : list (fin 2)) (e : expr)
+      (D : nat → R) (L : R) (ε : R) (ε_term : R) (Φ : val → iProp Σ),
     0 < p →
     p ≤ (q + 1) →
     to_val e = None →
-    ∀ (r : nat) (D : nat → R) (L : R) (ε : R) (ε_term : R),
     (0 < ε_term)%R →
     (∀ (n : nat), 0 <= D n <= L)%R →
     SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
@@ -594,10 +594,10 @@ Section NegativeBinomial.
     (∀ (perm : list nat),
        ⌜length perm = r⌝ -∗
        ↯ (D (list_sum perm)%nat) -∗
-         own_bernoulli_tape α p q (l ++ expand_perm perm) -∗ WP e [{ Φ }]) ⊢
+       own_bernoulli_tape α p q (l ++ expand_perm perm) -∗ WP e [{ Φ }]) ⊢
     WP e [{ Φ }].
   Proof.
-    iIntros (p q α l e Φ Hp Hpq e_not_val r D L ε ε_term Hε_term HD HSum) "(Hterm & Herr & Hα & Hnext)".
+    iIntros (p q r α l e D L ε ε_term Φ Hp Hpq e_not_val Hε_term HD HSum) "(Hterm & Herr & Hα & Hnext)".
     destruct (decide (p = q + 1)) as [-> | p_ne_Sq].
     {
       rewrite (SeriesC_ext _ (λ k, if bool_decide (k = 0)%nat then D 0 else 0%R)) in HSum; last first.
@@ -777,24 +777,24 @@ Section NegativeBinomial.
   Qed.
   
   Lemma twp_negative_presample_adv_comp :
-    ∀ (p q : nat) (α : loc) (l : list nat) (e : expr) (Φ : val → iProp Σ),
-    0 < p →
-    p ≤ (q + 1) →
-    to_val e = None →
-    ∀ (r : nat) (D : nat → R) (L : R) (ε : R) (ε_term : R),
-    (0 < ε_term)%R →
-    (∀ (n : nat), 0 <= D n <= L)%R →
-    SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
-    ↯ ε_term ∗
-    ↯ ε ∗
-    own_negative_tape α p q r l ∗
-    (∀ (n : nat),
-       ↯ (D n) -∗
+    ∀ (p q r : nat) (α : loc) (l : list nat) (e : expr)
+      (D : nat → R) (L : R) (ε : R) (ε_term : R) (Φ : val → iProp Σ),
+      0 < p →
+      p ≤ (q + 1) →
+      to_val e = None →
+      (0 < ε_term)%R →
+      (∀ (n : nat), 0 <= D n <= L)%R →
+      SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
+      ↯ ε_term ∗
+      ↯ ε ∗
+      own_negative_tape α p q r l ∗
+      (∀ (n : nat),
+         ↯ (D n) -∗
          own_negative_tape α p q r (l ++ [n]) -∗ WP e [{ Φ }]) ⊢
-    WP e [{ Φ }].
+      WP e [{ Φ }].
   Proof.
-    iIntros (p q α l e Φ p_pos p_lt_Sq e_not_val r D L ε ε_term ε_term_pos D_pos D_sum) "(Hterm & Herr & (%v & Hα & %is_tl) & Hnext)".
-    unshelve wp_apply (twp_bernoulli_presample_adv_comp_n_success _ _ _ _ _ _ _ _ _ r D L ε ε_term); last iFrame; try done.
+    iIntros (p q r α l e D L ε ε_term Φ p_pos p_lt_Sq e_not_val ε_term_pos D_pos D_sum) "(Hterm & Herr & (%v & Hα & %is_tl) & Hnext)".
+    unshelve wp_apply (twp_bernoulli_presample_adv_comp_n_success p q r _ _ _ D L ε ε_term); last iFrame; try done.
     iIntros (perm len_perm) "Herr Hα".
     wp_apply ("Hnext" with "Herr").
     iFrame.

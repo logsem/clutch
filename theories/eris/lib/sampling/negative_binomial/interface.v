@@ -239,22 +239,22 @@ Class negative_binomial_spec `{!erisGS Σ} (negative_prog negative_alloc : val) 
     WP negative_prog #lbl:α #p #q #r [{ Φ }];
  
     twp_negative_binomial_presample_adv_comp :
-    ∀ (p q : nat) (α : loc) (l : list nat) (e : expr) (Φ : val → iProp Σ),
-      0 < p →
-      p ≤ (q + 1) →
-      to_val e = None →
-      ∀ (r : nat) (D : nat → R) (L : R) (ε : R) (ε_term : R),
-      (0 < ε_term)%R →
-      (∀ (n : nat), 0 <= D n <= L)%R →
-      SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
-      ↯ ε_term ∗
-      ↯ ε ∗
-      own_negative_tape α p q r l ∗
-      (∀ (n : nat),
-         ↯ (D n) -∗
-         own_negative_tape α p q r (l ++ [n]) -∗ WP e [{ Φ }]) ⊢
-      WP e [{ Φ }]
-  }.
+      ∀ (p q r : nat) (α : loc) (l : list nat) (e : expr)
+        (D : nat → R) (L : R) (ε : R) (ε_term : R) (Φ : val → iProp Σ),
+        0 < p →
+        p ≤ (q + 1) →
+        to_val e = None →
+        (0 < ε_term)%R →
+        (∀ (n : nat), 0 <= D n <= L)%R →
+        SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
+        ↯ ε_term ∗
+        ↯ ε ∗
+        own_negative_tape α p q r l ∗
+        (∀ (n : nat),
+           ↯ (D n) -∗
+           own_negative_tape α p q r (l ++ [n]) -∗ WP e [{ Φ }]) ⊢
+        WP e [{ Φ }]
+    }.
 
 Section NegativeLemmas.
   Context `{!erisGS Σ}.
@@ -299,7 +299,7 @@ Section NegativeLemmas.
     { iIntros (ε0 D L0 l ε0_pos D_bounds D_sum) "([Htape (%ε1 & %ε1_pos & Hfuel)] & Herr & Hnext)".
       replace ε1 with (ε1 / 2 + ε1 / 2)%R by lra.
       iPoseProof (ec_split with "Hfuel") as "[Hfuel_now Hfuel_later]"; try lra.
-      wp_apply (twp_negative_binomial_presample_adv_comp p q α with "[$Hfuel_now $Herr $Htape Hnext Hfuel_later]"); try lia; try done.
+      wp_apply (twp_negative_binomial_presample_adv_comp p q r α with "[$Hfuel_now $Herr $Htape Hnext Hfuel_later]"); try lia; try done.
       { lra. }
       iIntros (n) "Herr Htape".
       wp_apply ("Hnext" with "Herr").
@@ -339,7 +339,7 @@ Section NegativeLemmas.
   Proof.
     iIntros (e α Φ p q r ns ε p_pos p_le_Sq ε_pos e_not_val) "(Hfuel & Htape & Hnext)".
     iMod ec_zero as "Herr".
-    unshelve wp_apply (twp_negative_binomial_presample_adv_comp p q _ _ _ _ _ _ _ r (const 0%R) _ 0%R ε); last iFrame; try done.
+    unshelve wp_apply (twp_negative_binomial_presample_adv_comp p q r _ _ _ (const 0%R) _ 0%R ε); last iFrame; try done.
     { move=> /= _.
       lra.
     }
