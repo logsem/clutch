@@ -1,5 +1,5 @@
 (* (* PRF based on a PRG. *) alternative definitions of intermediary
-    steps of the proof, neither allow us to carry out the proof to the end...
+    steps of the proof, neither allow us to carry out the proof to the end... *)
 From clutch.approxis Require Import approxis map prg prf list.
 From clutch.approxis.examples Require Import option.
 From clutch.approxis Require Export bounded_oracle.
@@ -542,7 +542,7 @@ Section defs.
               by lia.
           rewrite Hxbase2.
           rewrite Z2Nat.id; last apply Nat2Z.is_nonneg.
-          rel_pures_l. Locate "`rem`".
+          rel_pures_l.
           assert (eqlastbit :
             (Z.rem
               (Z.of_nat (2 * Z.to_nat (x ≫ (Z.of_nat input - Z.of_nat l)) + 1)) 2) = 1).
@@ -668,7 +668,8 @@ Section defs.
       (Z.of_nat (Z.to_nat (Z.shiftr x (input - S l)))).
     - rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
       iIntros (res) "Hmap %Heq"; subst. 
-
+Admitted.
+(* here, wr can prove d-1 <~> d,5 but not d,5 <~> d *)
 
 
 
@@ -731,4 +732,4 @@ End defs.
         replace (n' + 0) with n' by lia. reflexivity. }
       rewrite H; reflexivity.
   Qed.
-*) *)
+*)

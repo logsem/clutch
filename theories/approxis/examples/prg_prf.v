@@ -562,25 +562,25 @@ Section defs.
     rewrite /get_card_input...
     rel_alloc_l cnt as "Hcnt".
     rel_alloc_r cnt' as "Hcnt'"...
-    set (P := (∃ (M : gmap nat val) (q : nat),
+    set (P := (∃ (M M': gmap nat val) (q : nat),
         cnt  ↦  #q
       ∗ cnt' ↦ₛ #q
       ∗ map_slist  mapref  M
       ∗ map_list maprefinf M
-      ∗ map_list maprefsup M
+      ∗ map_list maprefsup M'
       ∗ ⌜∀ (x : nat) (v : val), M !! x = Some v -> (∃ n, v = #n)⌝
     )%I).
     rel_apply (refines_na_alloc P (nroot.@"prfhybd_Sd")).
     iSplitL.
     {
-      iExists ∅, 0. iFrame.
+      iExists ∅, ∅, 0. iFrame.
       iPureIntro. intros * contra. inversion contra.
     }
     iIntros "#Inv".
     rel_arrow_val.
     iIntros (v1 v2 [x [eq1 eq2]]); subst...
     rel_apply refines_na_inv; iSplitL; first iApply "Inv".
-    iIntros "[[%M [%q [Hcnt [Hcnt' [Hmap [Hmapinf [Hmapsup >%HimgM]]]]]]] Hclose]".
+    iIntros "[[%M [%M' [%q [Hcnt [Hcnt' [Hmap [Hmapinf [Hmapsup >%HimgM]]]]]]]] Hclose]".
     rel_load_l; rel_load_r...
     destruct (bool_decide (q < Q)%Z) eqn:Hqbound;
     destruct (bool_decide (0 ≤ x)%Z) eqn:Hxpos;
@@ -595,6 +595,7 @@ Section defs.
     replace (Z.shiftr x (input - S l)) with
       (Z.of_nat (Z.to_nat (Z.shiftr x (input - S l)))).
 Admitted.
+(* here, we cannot prove d-1 <~> d,5 but we could prove d,5 <~> d *)
     
 
       
