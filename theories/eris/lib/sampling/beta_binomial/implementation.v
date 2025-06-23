@@ -3123,5 +3123,18 @@ Section Polya.
     iApply "HΦ".
     by iFrame.
   Qed.
-  
+
+  #[global] Instance BetaOfBernoulli : beta_binomial_spec polya polyalloc.
+  Proof.
+    refine (BetaSpec _ _ _ _ (triangle loc) (λ red black n, @own_polya_tape n red black) (λ n, flip (is_abs_loc n)) (const loc_unit) _ _ own_polya_presample twp_polya_tape).
+    - iIntros (red black n D ε sum_red_black_pos D_pos D_sum Φ) "Herr HΦ".
+      wp_apply (polya_spec with "[$Herr]"); try done.
+      iApply loc_unit_is_unit.
+    - iIntros (red black n sum_red_black_pos Φ) "Hnext HΦ".
+      wp_apply tgl_wp_wand_r.
+      iSplitR; first by wp_apply polyalloc_spec.
+      iIntros (α) "(%Δ & Hα & HΔ)".
+      iApply "HΦ".
+      iFrame.
+  Qed.
 End Polya.                        
