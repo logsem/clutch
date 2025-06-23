@@ -39,11 +39,9 @@ Section motivating_example.
   (* Hence, the semantic typing assumption is not enough, we need something stronger *)
 End motivating_example.
 
+Section defs.
 
-Section rules.
-  Context `{!approxisRGS Σ}.
-
-  Fixpoint ForallSep {A} (P : A → iProp Σ) (l : list A) : (iProp Σ) := match l with
+  Fixpoint ForallSep {Σ} {A} (P : A → iProp Σ) (l : list A) : (iProp Σ) := match l with
     | [] => True
     | h :: t => P h ∗ (ForallSep P t)
   end.
@@ -62,6 +60,59 @@ Section rules.
     | _, _, _ => False
   end.
 
+  (* generalize this to a resctricted notion of syntactic
+    typing, and prove it entails determinism, then do the same
+    with randoms and memory manipulations. *)
+  Inductive deterministic_syn : expr -> Prop :=
+    | detsyn_lit : forall (b : base_lit), deterministic_syn #b
+    | detsyn_rec : forall f x e, deterministic_syn e ->
+      deterministic_syn (rec: f x := e)
+    | detsyn_pair : forall e1 e2, 
+      deterministic_syn e1 -> deterministic_syn e2 ->
+        deterministic_syn (e1, e2)%E
+    | detsyn_injl : forall e, deterministic_syn e ->
+      deterministic_syn (InjL e)
+    | detsyn_injr : forall e, deterministic_syn e ->
+      deterministic_syn (InjR e)
+    | detsyn_var : forall s, deterministic_syn (Var s)
+    | detsyn_app : forall e1 e2, 
+      deterministic_syn e1 -> deterministic_syn e2 ->
+        deterministic_syn (e1 e2)
+    | detsyn_UnOp : forall o e, deterministic_syn e ->
+      deterministic_syn (UnOp o e)
+    | detsyn_BinOp : forall o e1 e2, 
+      deterministic_syn e1 -> deterministic_syn e2 ->
+        deterministic_syn (BinOp o e1 e2)
+    | detsyn_if : forall e1 e2 e3,
+      deterministic_syn e1 -> deterministic_syn e2 ->
+      deterministic_syn e3 -> deterministic_syn (if: e1 then e2 else e3)
+    | detsyn_fst : forall e, deterministic_syn e ->
+      deterministic_syn (Fst e)
+    | detsyn_snd : forall e, deterministic_syn e ->
+      deterministic_syn (Snd e)
+    | detsyn_case : forall e1 e2 e3,
+      deterministic_syn e1 -> deterministic_syn e2 ->
+      deterministic_syn e3 -> deterministic_syn (Case e1 e2 e3).
+
+  Fixpoint iter_appl (e : expr) (args : list val) : expr := match args with
+    | [] => e
+    | h :: t => App (iter_appl e t) h
+  end.
+
+  (* in the following, capture is avoided by autosubst *)
+  Definition counter : expr :=
+    let: "x" := ref #0 in
+    λ: <>, !"x";; "x" <- !"x" + #1.
+
+  Definition counter_client (e : expr) : expr :=
+    let: "cnt" := counter in
+    e.
+
+End defs.
+
+Section rules.
+  Context `{!approxisRGS Σ}.
+
   Section deterministic.
 
     Definition det_val_fun (f : val) (f_sem : Z -> Z) : Prop :=
@@ -70,20 +121,31 @@ Section rules.
       (n : Z) (e : expr) (A : lrel Σ),
       (refines E (fill K (#(f_sem n))) e A ⊢ refines E (fill K (f #n)) e A) ∧
       (refines E e (fill K (#(f_sem n))) A ⊢ refines E e (fill K (f #n)) A).
-
-    Definition det_val_rel (f : val) : Prop :=
+    
+    Definition det_val_rel (f : expr) (types : list (lrel Σ)) : Prop :=
       ∀ (E : coPset)
       (K : list (ectxi_language.ectx_item prob_ectxi_lang))
-      (n : Z) (e : expr) (A : lrel Σ), ∃ (m : Z),
-      (refines E (fill K (#(m))) e A ⊢ refines E (fill K (f #n)) e A) ∧
-      (refines E e (fill K (#(m))) A ⊢ refines E e (fill K (f #n)) A).
-
+      (args : list val) (e : expr) (A : lrel Σ),
+      ForallSep2 (fun x T => (lrel_car T) x x) args types ⊢
+      ∃ (v : val),
+      (refines E (fill K v) e A -∗ refines E (fill K (iter_appl f args)) e A) ∧
+      (refines E e (fill K v) A -∗ refines E e (fill K (iter_appl f args)) A).
+    
     Definition val1 : val := λ: "v", "v" + #1.
 
-    Lemma det_val_rel1 : det_val_rel val1.
-    Proof. rewrite /det_val_rel. intros *. eexists. split;
-      iIntros "H";
-      rewrite /val1; rel_pures_l; rel_pures_r; iApply "H".
+    Lemma det_val_rel1 : det_val_rel val1 [lrel_int].
+    Proof. rewrite /det_val_rel. intros *.
+      iIntros "Htypes".
+      destruct args as [|x t]; try destruct t as [|h t];
+      simpl; try (try iDestruct "Htypes" as "[_ contra]";
+        iExFalso; iAssumption).
+      iDestruct "Htypes" as "[Hrel _]".
+      iDestruct "Hrel" as (n) "[%eq1 %eq2]".
+      iExists _.
+      iSplit; iIntros "H";
+      subst;
+      rewrite /val1; rel_pures_l; rel_pures_r;
+      iApply "H".
     Qed.
 
     Lemma det_val_fun1 : det_val_fun val1 (fun n => (n+1)%Z).
