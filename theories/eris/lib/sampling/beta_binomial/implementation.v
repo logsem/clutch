@@ -1136,7 +1136,8 @@ Section Polya.
   Lemma fin_list_const_last : ∀ {n : nat} {A : Type} (a : A), @fin_list_last A n (fin_list_const a) = a.
   Proof.
     elim=>[//|n IH /=] A a.
-    rewrite fin_list_last_cons_S //.
+    rewrite fin_list_last_cons_S.
+    real_solver.
   Qed.
 
   Lemma fin_list_const_tail : ∀ {n : nat} {A : Type} (a : A), @fin_list_tail A n (fin_list_const a) = fin_list_const a.
@@ -2923,7 +2924,7 @@ Section Polya.
         rewrite !triangle_remove_bottom_glue_top !triangle_bottom_glue_top
                 -triangle_remove_top_bottom β_list_hsup_first_fin_tail
                 -triangle_top_remove_bottom -triangle_glue_remove_top.
-        wp_apply ("IH" $! _ _ _ (D ∘ fin_S_inj) with "[] [] [] [] [$HΔ Hα Hnext $Herr]") as (i) "[Herr HΔ]"; try done.
+        wp_apply ("IH" $! _ _ _ (D ∘ fin_S_inj) with "[] [] [] [] [$HΔ Hα Hnext $Herr]") as (i) "[Herr HΔ]"; try (done || real_solver).
         { iPureIntro. lia. }
         { iPureIntro.
           simpl.
@@ -2941,7 +2942,7 @@ Section Polya.
         simpl.
         cbv [β_list_hsup_first].
         rewrite !triangle_bottom_split_cons //.
-      + wp_apply ("IH" $! _ _ _ (D ∘ FS) with "[] [] [] [] [$HΔ Hα Hnext Herr]"); try done.
+      + wp_apply ("IH" $! _ _ _ (D ∘ FS) with "[] [] [] [] [$HΔ Hα Hnext Herr]"); try (done || real_solver).
         { iPureIntro. lia. }
         iFrame.
         iIntros (i) "[Herr HΔ]".
@@ -3127,7 +3128,7 @@ Section Polya.
   Proof.
     refine (BetaSpec _ _ _ _ (triangle loc) (λ red black n, @own_polya_tape n red black) (λ n, flip (is_abs_loc n)) (const loc_unit) _ _ own_polya_presample twp_polya_tape).
     - iIntros (red black n D ε sum_red_black_pos D_pos D_sum Φ) "Herr HΦ".
-      wp_apply (polya_spec with "[$Herr]"); try done.
+      wp_apply (polya_spec with "[$Herr]"); try (done || real_solver).
       iApply loc_unit_is_unit.
     - iIntros (red black n sum_red_black_pos Φ) "Hnext HΦ".
       wp_apply tgl_wp_wand_r.
