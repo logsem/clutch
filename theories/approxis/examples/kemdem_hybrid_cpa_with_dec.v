@@ -421,8 +421,11 @@ Proof with rel_pures_l; rel_pures_r.
       Unshelve. apply gset_fin_set.
   Admitted.
 
-Lemma pk_real_real_tape : ⊢ refines top (init_scheme pk_real) (init_scheme pk_real_tape)
-  (lrel_G * (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G)))).
+Lemma pk_real_real_tape :
+  ⊢ refines top
+      (init_scheme pk_real)
+      (init_scheme pk_real_tape)
+      (lrel_G * (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G)))).
 Proof with (rel_pures_l; rel_pures_r).
   rel_init_scheme mapref "Hmap" mapref' "Hmap'"...
   rewrite /pk_real; rewrite /pk_real_tape...
@@ -509,9 +512,11 @@ Proof with (rel_pures_l; rel_pures_r).
     rel_vals.
 Qed.
 
-Lemma pk_real_tape_DDH_real : ⊢
-  refines top (init_scheme pk_real_tape) (init_scheme Csenc_DDH_real) 
-  (lrel_G * (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G)))).
+Lemma pk_real_tape_DDH_real :
+  ⊢ refines top
+      (init_scheme pk_real_tape)
+      (init_scheme Csenc_DDH_real) 
+    (lrel_G * (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G)))).
 Proof with rel_pures_l; rel_pures_r.
   rel_init_scheme mapref "Hmap" mapref' "Hmap'"...
   rewrite /pk_real_tape;
@@ -594,12 +599,12 @@ Qed.
 
 (* here we use the DDH assumption: we replace C[DDHreal] by C[DDHrand] *)
 
-Lemma Csenc_DDH_rand_pk_rand_senc_delay : ⊢
-  refines top
-  (init_scheme Csenc_DDH_rand)
-  (init_scheme pk_rand_senc_delay)
-  (lrel_G *
-  (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G)))).
+Lemma Csenc_DDH_rand_pk_rand_senc_delay :
+  ⊢ refines top
+      (init_scheme Csenc_DDH_rand)
+      (init_scheme pk_rand_senc_delay)
+      (lrel_G *
+      (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G)))).
 Proof with rel_pures_l; rel_pures_r.
   rel_init_scheme mapref "Hmap" mapref' "Hmap'"...
   rewrite /eCsenc...
@@ -716,10 +721,10 @@ Definition pk_rand_srand : expr :=
 
 Lemma pk_rand_senc_delay_pk_rand_senc_mult_free :
   ⊢ refines top 
-  (init_scheme pk_rand_senc_delay)
-  (init_scheme pk_rand_senc_mult_free)
-  (lrel_G *
-  (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G)))).
+      (init_scheme pk_rand_senc_delay)
+      (init_scheme pk_rand_senc_mult_free)
+      (lrel_G *
+      (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G)))).
 Proof with rel_pures_l; rel_pures_r.
   rel_init_scheme mapref "Hmap" mapref' "Hmap'"...
   rel_alloctape_l γ as "Hγ"...
@@ -810,6 +815,22 @@ Qed.
   an adversary returning a boolean, for
   compatibility with the CPA assumption on
   the symmetric scheme *)
+(* To both be compatble with `rf_is_CPA`,
+  and with the type of `adv_rand` and so on,
+  We need 2, non equivalent assumption on the boolean
+  adversary:
+  - Semantic typing with the oracle taking an `lrel_input`, i.e.,
+    the boolean adversary can only call the oracle on messages within
+    the bounds [0; Input]:
+    refines top
+      adv
+      adv
+      ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool).
+  - Syntactic typing: ⊢ᵥ adv : ((τG * TOracle) → TBool).
+  These are not equivalent because TOracle is a syntactic type,
+  it this don't enforce the bounds on the input of the oracle,
+  only that it should be an int.
+*)
 
 Definition adv_rand : val :=
   λ: "oracle",
@@ -872,12 +893,14 @@ Proof.
 Qed.
 
 Lemma pk_rand_senc_mult_free_adv_sym_cpa (adv : val) :
-  refines top adv
-    adv ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool)
+  refines top
+    adv
+    adv
+    ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool)
   ⊢ refines top
-    (adv (init_scheme pk_rand_senc_mult_free))
-    ((CPA SymKey Input SymOutput) #true (λ: "oracle", adv (adv_rand "oracle"))%V (rf_scheme Input SymOutput xor_struct) #1)
-  lrel_bool.
+      (adv (init_scheme pk_rand_senc_mult_free))
+      ((CPA SymKey Input SymOutput) #true (λ: "oracle", adv (adv_rand "oracle"))%V (rf_scheme Input SymOutput xor_struct) #1)
+      lrel_bool.
 Proof with rel_pures_l; rel_pures_r.
   iIntros "Hadvtyped".
   rewrite /rf_scheme.
@@ -1007,11 +1030,10 @@ Qed.
 
 Lemma rf_is_CPA_instantiated_adv_rand (adv : val)
   (Hadvtype : ⊢ᵥ adv : ((τG * TOracle) → TBool)) :
-  ⊢
-  (refines top
-  ((CPA SymKey Input SymOutput) #true (λ: "oracle", adv (adv_rand "oracle"))%V (rf_scheme Input SymOutput xor_struct) #1)
-  ((CPA SymKey Input SymOutput) #false (λ: "oracle", adv (adv_rand "oracle"))%V (rf_scheme Input SymOutput xor_struct) #1)
-  lrel_bool).
+  ⊢ refines top
+      ((CPA SymKey Input SymOutput) #true (λ: "oracle", adv (adv_rand "oracle"))%V (rf_scheme Input SymOutput xor_struct) #1)
+      ((CPA SymKey Input SymOutput) #false (λ: "oracle", adv (adv_rand "oracle"))%V (rf_scheme Input SymOutput xor_struct) #1)
+      lrel_bool.
 Proof. iStartProof.
   iPoseProof ec_zero as "Hec".
   iMod "Hec".
@@ -1032,13 +1054,14 @@ Proof. iStartProof.
 Qed.
 
 Lemma rf_CPA_pk_rand_srand (adv : val) : 
-  refines top adv
-    adv ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool)
-  ⊢
   refines top
-  ((CPA SymKey Input SymOutput) #false (λ: "oracle", adv (adv_rand "oracle"))%V (rf_scheme Input SymOutput xor_struct) #1)
-  (adv pk_rand_srand)
-  lrel_bool.
+    adv
+    adv
+    ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool)
+  ⊢ refines top
+      ((CPA SymKey Input SymOutput) #false (λ: "oracle", adv (adv_rand "oracle"))%V (rf_scheme Input SymOutput xor_struct) #1)
+      (adv pk_rand_srand)
+      lrel_bool.
 Proof with rel_pures_l; rel_pures_r. iIntros "Hadvtyped".
   rewrite /rf_scheme.
   rel_init_scheme_l mapref "Hmap".
@@ -1131,10 +1154,14 @@ Definition pk_rand_tape : expr :=
   in ("pk", "query").
 
 Lemma pk_rand_srand_rand_tape (adv : val) :
-  refines top adv
-    adv ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool)
-  ⊢
-  refines top (adv pk_rand_srand) (adv pk_rand_tape) lrel_bool.
+  refines top
+    adv
+    adv
+    ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool)
+  ⊢ refines top
+      (adv pk_rand_srand)
+      (adv pk_rand_tape)
+      lrel_bool.
 Proof with rel_pures_l; rel_pures_r.
   iIntros "Hadvtyped".
   rel_apply (refines_app with "Hadvtyped").
@@ -1194,10 +1221,14 @@ Proof with rel_pures_l; rel_pures_r.
 Qed.
 
 Lemma pk_rand_tape_pk_rand (adv : val) :
-  refines top adv
-    adv ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool)
-  ⊢
-  refines top (adv pk_rand_tape) (adv pk_rand) lrel_bool.
+  refines top
+    adv
+    adv
+    ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool)
+  ⊢ refines top
+      (adv pk_rand_tape)
+      (adv pk_rand)
+      lrel_bool.
 Proof with rel_pures_l; rel_pures_r. iIntros "Hadvtyped".
   rel_apply (refines_app with "Hadvtyped").
   rewrite /pk_rand_tape. rewrite /pk_rand.
