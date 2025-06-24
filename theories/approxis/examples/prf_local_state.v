@@ -9,11 +9,11 @@ Set Default Proof Using "Type*".
    Notation "( e1 ; e2 )" := (PairV e1 e2) : val_scope.
    Notation "( e1 ; e2 ; .. ; en' ; en )" := (PairV e1 (PairV e2 .. (PairV en' en) ..)) : val_scope. *)
 
-Class PRF_params :=
+Class PRF_localstate_params :=
   { card_key : nat
   ; card_input : nat
   ; card_output : nat
-  ; prf_params : val := (#card_key, #card_input, #card_output) }.
+  ; prf_localstate_params : val := (#card_key, #card_input, #card_output) }.
 
 Definition TKey := TNat.
 Definition TInput := TNat.
@@ -26,11 +26,11 @@ Definition get_param_card_output : val := λ:"prf_params", Snd "prf_params".
 
 (* rand_output is currently unused ; it would be useful if a PRF module had
    abstract types. *)
-Class PRF `{PRF_params} :=
+Class PRF_localstate `{PRF_localstate_params} :=
   { keygen : val
   ; prf : val
   ; rand_output : val
-  ; prf_scheme : val := (prf_params, keygen, prf, rand_output)%V
+  ; prf_scheme : val := (prf_localstate_params, keygen, prf, rand_output)%V
   }.
 
 Definition TKeygen : type := TUnit → TKey.
@@ -155,7 +155,7 @@ End sem.
 
 
 Section prf_lrel.
-  Context `{PRF_params : PRF}.
+  Context `{PRF_localstate_params : PRF_localstate}.
 
   Definition lrel_key {Σ} : lrel Σ := lrel_int_bounded 0 card_key.
   Definition lrel_input {Σ} : lrel Σ := lrel_int_bounded 0 card_input.
@@ -222,35 +222,29 @@ Export LR_prf.
 
 Section typing.
 
-  Fact random_function_sem_typed `{!approxisRGS Σ} {prf_params : PRF_params} lm lm' (M : gmap nat val) :
-    map_list lm M ∗ map_slist lm' M
-    ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+  Lemma random_function_sem_typed_inv `{!approxisRGS Σ} {prf_params : PRF_localstate_params}
+    lm lm' (𝒩 : namespace) (P : iProp Σ):
+    (∃ Q,
+      P ⊣⊢
+        (Q
+      ∗ (∃ (M : gmap nat val),
+        map_list  lm  M
+      ∗ map_slist lm' M
+      ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
         → ∃ k : nat, y = #k ∧ k <= card_output ⌝
-    ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝
-    ⊢ REL random_function #lm #card_output
-        << random_function #lm' #card_output : lrel_input → lrel_output.
+      ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝))
+    ) ->
+    na_invP 𝒩 P
+     ⊢ refines top (random_function #lm #card_output)
+      (random_function #lm' #card_output) (lrel_input → lrel_output).
   Proof with (rel_pures_l ; rel_pures_r).
-  intros *.
-    iIntros "[Hmap [Hmap' [%H %H']]]".
-    rewrite /random_function...
-    iApply (refines_na_alloc
-              ( ∃ (M : gmap nat val),
-                    map_list  lm  M
-                  ∗ map_slist lm' M
-                  ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
-                           → ∃ k : nat, y = #k ∧ k <= card_output ⌝
-                  ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝
-              )%I
-              (nroot.@"RED") with "[Hmap Hmap']") ; iFrame.
-    iSplitL ; iFrame.
-    1: { iPureIntro; split ; [|set_solver].
-         intros y hy.
-         apply H in hy. assumption.
-    }
+    intros [Q HP]. apply bi.equiv_entails in HP. destruct HP as [HP1 HP2].
     iIntros "#Hinv".
-    rel_arrow_val. lrintro "x"... clear H H' M.
+    rewrite /random_function...
+    rel_arrow_val. lrintro "x"...
     iApply (refines_na_inv with "[$Hinv]"); [done|].
-    iIntros "(> (%M & map_l & map_r & %range_int & %dom_range) & Hclose)".
+    iIntros "[HP Hclose]".
+    iPoseProof (HP1 with "HP") as "(HQ & >(%M & map_l & map_r & %range_int & %dom_range))".
     rel_bind_l (get _ _). rel_bind_r (get _ _).
     opose proof (IZN x _) as [x' ->] => //. rename x' into x.
     rel_apply_l (refines_get_l with "[-map_l] [$map_l]"). iIntros (?) "map_l #->"...
@@ -258,7 +252,7 @@ Section typing.
     destruct (M !! x) as [y |] eqn:x_fresh ...
     + iApply (refines_na_close with "[-]") ;
         iFrame ; repeat iSplitL.
-      { iFrame. iNext. iFrame. iPureIntro. split. 2: set_solver. done. }
+      { iApply HP2. iFrame. iNext. iFrame. iPureIntro. split. 2: set_solver. done. }
       opose proof (elem_of_map_img_2 M x y x_fresh) as hy.
       destruct (range_int y hy) as [y' [??]]. subst.
       rel_vals.
@@ -267,26 +261,56 @@ Section typing.
       rel_apply_r (refines_set_r with "[-map_r] [$map_r]"). iIntros "map_r"...
       rel_apply_l (refines_set_l with "[-map_l] [$map_l]"). iIntros "map_l"...
       iApply (refines_na_close with "[-]") ;
-        iFrame ; repeat iSplitL. 1: iExists _ ; iFrame.
-      1: { iPureIntro.
-           repeat split ; last first.
-           - rewrite -Forall_forall.
-             rewrite dom_insert.
-             rewrite elements_union_singleton.
-             + apply Forall_cons_2. 1: lia. rewrite Forall_forall. done.
-             + apply not_elem_of_dom_2. done.
-           - intros y' hy'. rewrite (map_img_insert M x (#y)) in hy'.
-             rewrite elem_of_union in hy'. destruct hy'.
-             + exists y. set_solver.
-             + apply range_int.
-               opose proof (delete_subseteq M x).
-               eapply map_img_delete_subseteq. done.
-      }
-      rel_vals. Unshelve. all: apply _.
+        iFrame ; repeat iSplitL. 2: rel_vals; iExists _ ; iFrame.
+      iApply HP2; iFrame.
+      iPureIntro.
+      repeat split ; last first.
+      - rewrite -Forall_forall.
+        rewrite dom_insert.
+        rewrite elements_union_singleton.
+        * apply Forall_cons_2. 1: lia. rewrite Forall_forall. done.
+        * apply not_elem_of_dom_2. done.
+      - intros y' hy'. rewrite (map_img_insert M x (#y)) in hy'.
+        rewrite elem_of_union in hy'. destruct hy'.
+        * exists y. set_solver.
+        * apply range_int.
+          opose proof (delete_subseteq M x).
+          eapply map_img_delete_subseteq. done.
+      Unshelve. all: apply _.
   Qed.
 
-  Fact PRF_rand_sem_typed `{!approxisRGS Σ} {_ : PRF_params} {kg f ro kg' f' ro' : val} :
-    ⊢ REL sem.PRF_rand (prf_params, kg, f, ro)%V << sem.PRF_rand (prf_params, kg', f', ro')%V
+  Lemma random_function_sem_typed `{!approxisRGS Σ} {prf_params : PRF_localstate_params}
+    (lm lm' : loc) (M : gmap nat val) :
+        map_list  lm  M
+      ∗ map_slist lm' M
+      ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+        → ∃ k : nat, y = #k ∧ k <= card_output ⌝
+      ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝
+     ⊢ refines top (random_function #lm #card_output)
+      (random_function #lm' #card_output) (lrel_input → lrel_output).
+  Proof with (rel_pures_l ; rel_pures_r).
+    iIntros "[Hmap [Hmap' [%Himg %Hdom]]]".
+    set (P := (∃ (M : gmap nat val),
+        map_list  lm  M
+      ∗ map_slist lm' M
+      ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+        → ∃ k : nat, y = #k ∧ k <= card_output ⌝
+      ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝)%I).
+    rel_apply (refines_na_alloc P (nroot.@"random_function_sem_typed")).
+    iFrame. iSplitL.
+    {
+      iPureIntro. split; assumption.
+    }
+    iIntros "Hinv".
+    rel_apply random_function_sem_typed_inv; last iAssumption.
+    exists True%I. rewrite /P.
+    apply bi.equiv_entails; split;
+    [iIntros "HP"; iSplitR; first done | iIntros "[_ HP]"];
+    iAssumption.
+  Qed.
+
+  Fact PRF_rand_sem_typed `{!approxisRGS Σ} {_ : PRF_localstate_params} {kg f ro kg' f' ro' : val} :
+    ⊢ REL sem.PRF_rand (prf_localstate_params, kg, f, ro)%V << sem.PRF_rand (prf_localstate_params, kg', f', ro')%V
       : (interp TInt []) → lrel_input → lrel_option lrel_output.
   Proof with (rel_pures_l ; rel_pures_r).
     rewrite /sem.PRF_rand...
