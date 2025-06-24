@@ -11,7 +11,6 @@ From clutch.eris.lib.sampling Require Import utils.
     lia |
     lra |
     nra |
-    real_solver  |
     tactics.done |
     auto
   ].
@@ -19,7 +18,7 @@ From clutch.eris.lib.sampling Require Import utils.
 #[local] Lemma foldr_plus_app (l1 l2 : list R) (acc : R) :
   foldr Rplus acc (l1 ++ l2) = foldr Rplus 0 l1 + foldr Rplus acc l2.
 Proof.
-  elim: l1 => //=.
+  elim: l1 =>> //=.
 Qed.
 
 
@@ -74,8 +73,9 @@ Qed.
 #[local] Lemma foldr_plus_repeat (ε : R) (L : nat) :
   foldr Rplus 0 (repeat ε L) = ε * L.
 Proof.
-  elim: L =>> //.
-  rewrite S_INR //=.
+  elim: L =>>.
+  - real_solver.
+  - rewrite S_INR //=.
 Qed.
 
 

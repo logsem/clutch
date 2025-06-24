@@ -13,7 +13,6 @@ Section Polya.
     lia |
     lra |
     nra |
-    real_solver  |
     tactics.done |
     auto
   ].
@@ -58,14 +57,14 @@ Section Polya.
   Proof.
     add_hint INR_fact_lt_0.
     rewrite /Beta /=.
-    simpl_expr.
+    real_solver.
   Qed.
   Lemma Beta_0_r (x : nat) :
     Beta x 0 = 1.
   Proof.
     add_hint INR_fact_lt_0.
     rewrite /Beta /=.
-    simpl_expr.
+    simpl_expr; try real_solver.
     do 2 f_equal.
     lia.
   Qed.
@@ -74,7 +73,7 @@ Section Polya.
   Proof.
     add_hint INR_fact_lt_0.
     unfold Beta.
-    simpl_expr.
+    simpl_expr; real_solver.
   Qed.
 
   Definition Beta_prob (r b n k : nat) := (choose n k * Beta (k + r) (n - k + b) / Beta r b)%R.
@@ -99,7 +98,7 @@ Section Polya.
     intros H_r_pos H_b_pos.
     apply lt_INR in H_r_pos as H_r_pos'.
     apply lt_INR in H_b_pos as H_b_pos'.
-    assert (0 < r + b) as H_rb_pos by rewrite -plus_INR //.
+    assert (0 < r + b) as H_rb_pos by (rewrite -plus_INR; real_solver).
     add_hint INR_fact_lt_0.
     add_hint Beta_pos.
     add_hint fact_neq_0.
@@ -151,20 +150,20 @@ Section Polya.
       remember (fact (n + r) * fact (b - 1)) as C.
       destruct r; first lia.
       rewrite fact_simpl mult_INR S_INR /= Nat.sub_0_r -!Rmult_assoc (Rmult_comm A) !Rmult_assoc.
-      simpl_expr.
+      simpl_expr; try real_solver.
       rewrite -!mult_INR.
       rewrite -(Rmult_assoc (fact r)) -mult_INR.
       set D := (fact r * fact (b - 1))%nat.
-      assert (0 < D) by rewrite mult_INR //.
+      assert (0 < D) by (rewrite mult_INR; real_solver).
       rewrite Rinv_mult Rinv_inv (Rmult_comm (/D)) -!Rmult_assoc.
       simpl_expr.
       rewrite Rmult_comm -Rmult_assoc.
-      simpl_expr.
+      simpl_expr; try real_solver.
 
       rewrite (Rmult_comm B A) !(Rmult_assoc A) -Rmult_assoc.
-      replace (fact (A - 1) * A) with (fact A : R) by rewrite HeqA -mult_INR /= Nat.sub_0_r //.
+      replace (fact (A - 1) * A) with (fact A : R) by (rewrite HeqA -mult_INR /= Nat.sub_0_r; real_solver).
       rewrite (Rmult_comm _ C) -!Rmult_assoc.
-      simpl_expr.
+      simpl_expr; real_solver.
     }
     assert (T0 = p2 * T0') as <-. {
       subst T0 p2 T0'.
@@ -211,12 +210,12 @@ Section Polya.
     - rewrite !Rdiv_def Rmult_assoc.
       rewrite (Rmult_comm (r * / (r + b))).
       rewrite !(Rmult_assoc (choose n k)).
-      simpl_expr.
+      simpl_expr; try real_solver.
       rewrite Nat.add_succ_r (Rmult_comm (Beta r b)) Rmult_assoc Rmult_assoc -{1}(Rmult_1_r (Beta _ _)).
       simpl.
       simpl_expr.
       rewrite Rmult_comm.
-      simpl_expr.
+      simpl_expr; try real_solver.
       rewrite Rmult_comm -Rmult_assoc.
       simpl_expr.
       unfold Beta.
@@ -227,12 +226,13 @@ Section Polya.
       destruct r; first lia.
       rewrite !Nat.add_succ_l !Nat.sub_succ !Nat.sub_0_r.
       rewrite (Rmult_comm _ (S r + b)) !Rdiv_def -!Rmult_assoc.
-      simpl_expr.
+      simpl_expr; try real_solver.
       rewrite -!Rmult_assoc.
-      simpl_expr.
-      rewrite (Rmult_comm _ (S r + b)) -plus_INR -!mult_INR Nat.add_succ_l -!fact_simpl //.
+      simpl_expr; try real_solver.
+      rewrite (Rmult_comm _ (S r + b)) -plus_INR -!mult_INR Nat.add_succ_l -!fact_simpl.
+      real_solver.
     - rewrite (Rmult_comm (b / (r + b))) !Rdiv_def !(Rmult_assoc (choose n (S k))).
-      simpl_expr.
+      simpl_expr; try real_solver.
       simpl.
       replace (n - S k + S b)%nat with (n - k + b)%nat; last first.
       {
@@ -242,14 +242,12 @@ Section Polya.
       unfold Beta.
       simpl.
       rewrite !Nat.sub_0_r.
-      simpl_expr.
+      simpl_expr; try real_solver.
       rewrite -!Rmult_assoc.
       simpl_expr.
       rewrite (Rmult_comm _ b) -!Rmult_assoc.
-      assert (0 < fact (r - 1) * fact b * / fact (r + S b - 1)). {
-        simpl_expr.
-      }
-      simpl_expr.
+      assert (0 < fact (r - 1) * fact b * / fact (r + S b - 1)) by real_solver.
+      simpl_expr; try real_solver.
       rewrite (Rmult_comm b) !Rmult_assoc.
       simpl_expr.
       rewrite (Rmult_comm b) !Rmult_assoc.
@@ -258,9 +256,9 @@ Section Polya.
       destruct b; first lia.
 
       rewrite -mult_INR !S_INR /= Nat.sub_0_r.
-      simpl_expr.
+      simpl_expr; try real_solver.
       rewrite (Rmult_comm _ (r + (b + 1))) -!Rmult_assoc.
-      simpl_expr.
+      simpl_expr; try real_solver.
       rewrite -!Nat.add_sub_assoc //= Nat.sub_0_r -INR_1 -!plus_INR -!mult_INR Nat.add_1_r Nat.add_succ_r Nat.mul_comm //=.
   Qed.
 
@@ -334,9 +332,9 @@ Section Polya.
       rewrite Series_fin_first in Heq.
       subst.
       iPoseProof (ec_split with "Herr") as "[Herr _]".
-      { add_hint Beta_prob_pos. done. }
+      { add_hint Beta_prob_pos. real_solver. }
       { add_hint Beta_prob_pos.
-        apply SeriesC_ge_0' => k //. }
+        apply SeriesC_ge_0' => k. real_solver. }
       rewrite /Beta_prob choose_n_0 !Beta_0_l.
       wp_apply polya_0_b as "_" => //.
       iApply ("HΦ" $! 0%fin with "[Herr]").
@@ -349,9 +347,8 @@ Section Polya.
       subst.
       iPoseProof (ec_split with "Herr") as "[_ Herr]".
       { add_hint Beta_prob_pos.
-        apply SeriesC_ge_0' => k //. }
-      { add_hint Beta_prob_pos.
-        done. }
+        apply SeriesC_ge_0' => k. real_solver. }
+      { add_hint Beta_prob_pos. real_solver. }
       wp_apply polya_r_0 as "_" => //.
       assert (n = (fin_to_nat (nat_to_fin (Nat.lt_succ_diag_r n)))) as Heqn by rewrite fin_to_nat_to_fin //.
       rewrite ->Heqn at 2.
@@ -389,7 +386,8 @@ Section Polya.
       rewrite SeriesC_finite_foldr /= in Heq.
       rewrite choose_n_0 Rmult_1_l in Heq.
       add_hint Beta_pos.
-      rewrite Rdiv_diag // Rplus_0_r Rmult_1_l in Heq.
+      rewrite Rdiv_diag in Heq; last real_solver.
+      rewrite Rplus_0_r Rmult_1_l in Heq.
       rewrite Heq.
       iApply ("HΦ" $! 0%fin with "[$Herr]").
     - wp_rec. wp_pures.

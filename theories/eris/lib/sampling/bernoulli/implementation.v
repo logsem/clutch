@@ -13,7 +13,6 @@ From clutch.eris.lib.sampling Require Import utils.
     lia |
     lra |
     nra |
-    real_solver  |
     tactics.done |
     auto
   ].

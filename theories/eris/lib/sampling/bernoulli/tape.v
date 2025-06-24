@@ -12,7 +12,6 @@ Section BernoulliTape.
     lia |
     lra |
     nra |
-    real_solver  |
     tactics.done |
     auto
   ].

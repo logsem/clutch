@@ -7,8 +7,13 @@ From clutch.eris.lib.sampling Require Import utils.
 From clutch.eris.lib.sampling.bernoulli Require Import interface.
 
 #[local] Open Scope R.
-#[local] Ltac done ::= 
-    solve[lia | lra | nra | real_solver | tactics.done | auto].
+#[local] Ltac done ::= solve[
+  lia |
+  lra |
+  nra |
+  tactics.done |
+  auto
+].
 
 Set Default Proof Using "Type*".
 
@@ -57,6 +62,7 @@ Section Examples.
     iIntros "%Hlt %Φ Herr HΦ".
     assert (0 < p < 1) as Hp. {
       split; subst p; simpl_expr.
+      real_solver.
     } 
     (* Not required but good to note that the error credit assumption is not impossible *)
     assert (0 <= 1 - 2 * p * (1 - p) < 1) by nra.
@@ -84,6 +90,7 @@ Section Examples.
     iIntros "%Hlt %Φ Herr HΦ".
     assert (0 < p < 1) as Hp. {
       split; subst p; simpl_expr.
+      real_solver.
     }
     (* Not required but good to note that the error credit assumption is not inconsistent *)
     assert (0 <= 2 * p * (1 - p) < 1) by nra.
@@ -156,10 +163,10 @@ Section Roulette.
       wp_pures.
       set p := (N / S M).
       assert (0 < p < 1).
-      { subst p. split; first apply Rmult_lt_0_compat; simpl_expr. }
+      { subst p. split; first apply Rmult_lt_0_compat; simpl_expr. real_solver. }
       set ε1 := (S M - N)%nat / (S M + k)%nat.
       iAssert (↯ (ε1 * (1 - p))) with "[Herr]" as "Herr".
-      { assert (S M + k > 0) by rewrite -plus_INR //.
+      { assert (S M + k > 0) by (rewrite -plus_INR; real_solver).
         iApply (ec_weaken with "Herr").
         split.
         - subst ε1. apply Rmult_le_pos; simpl_expr.
@@ -179,7 +186,8 @@ Section Roulette.
           rewrite !Ropp_mult_distr_l_reverse -Rminus_def.
           apply Rle_minus.
           simpl_expr.
-          rewrite -plus_INR -mult_INR //. }
+          rewrite -plus_INR -mult_INR //.
+          real_solver. }
       wp_apply (twp_bernoulli_scale _ _ _ ε1 0 with "Herr") as "% [[-> Herr]|[-> Herr]]";  subst ε1 p; simpl_expr.
       + fold roulette_martingale_aux.
         wp_pures.
@@ -202,7 +210,7 @@ Section Roulette.
   Proof.
     iIntros "%H_ε_pos %H_g_pos %H_c_lt_g %Φ Herr HΦ".
     assert (exists k : nat, (S M - N) / (S M + k) <= ε ) as [k Hk].
-    { assert (0 < S M - N) by rewrite -minus_INR //.
+    { assert (0 < S M - N) by (rewrite -minus_INR; real_solver).
       destruct (Rle_exists_nat (S M - N) ε) as [t Ht]; first rewrite -minus_INR; simpl_expr.
       pose proof (pos_INR N).
       pose proof (pos_INR t).
@@ -215,7 +223,7 @@ Section Roulette.
     wp_apply (roulette_martingale_aux_spec_aux k with "[Herr]"); auto.
     iApply (ec_weaken with "Herr").
     split; last done.
-    rewrite -!plus_INR -!minus_INR //.
+    rewrite -!plus_INR -!minus_INR; real_solver.
   Qed.
 
   Example roulette_martingale_spec (ε : R) :
