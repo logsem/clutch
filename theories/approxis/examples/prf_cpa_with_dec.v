@@ -23,7 +23,6 @@ We prove the portions of the above theorems that are concerned with the reductio
   Variable Key : nat.
   Variable Input : nat.
   Variable Output : nat.
-  Variable HleInOut : Input ≤ Output.
 
   Let Message := Output.
   Let Cipher := Input * Output.
@@ -100,8 +99,6 @@ We prove the portions of the above theorems that are concerned with the reductio
       ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
           → ∃ k : nat, y = #k ∧ k <= card_output ⌝
       ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝
-      (* FIXME we will maybe need to change, card_input <~> Input
-        when we try to get rid of HleInOut *)
       ⊢ refines top
         (let: "rf_dec" := (rf_enc #lm, rf_dec #lm) in
         let: "rf_enc" := Fst "rf_dec" in
@@ -193,7 +190,7 @@ We prove the portions of the above theorems that are concerned with the reductio
             rewrite elem_of_union in Hx. destruct Hx as [Hxeq | Hx].
             + rewrite elem_of_singleton in Hxeq; subst.
               rewrite /card_input. simpl. rewrite /Message.
-              eapply Nat.le_lt_trans; first apply Hrbound. (* TODO here, using HleInOut *) lia.
+              eapply Nat.le_lt_trans; first apply Hrbound. lia.
             + apply Hdom. apply elem_of_elements. apply Hx.
         }
         rel_vals. iExists _.
@@ -207,6 +204,7 @@ We prove the portions of the above theorems that are concerned with the reductio
           apply xor_dom; try (rewrite Nat2Z.id; apply xor_dom); try lia.
       Unshelve. apply gset_fin_set.
     Qed.
+
   End Correctness.
 
   (** We will prove CPA security of the scheme using the idealised random
@@ -447,7 +445,6 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
         Unshelve. apply xor_bij.
     Qed.
 
-
     Theorem rf_is_CPA' (Q : nat) :
       ↯ ((Q-1) * Q / (2 * S Input)) ⊢ (REL (CPA #false adv rf_scheme #Q) << (CPA #true adv rf_scheme #Q) : lrel_bool).
     Proof with (rel_pures_l ; rel_pures_r).
@@ -634,7 +631,6 @@ Section implementation.
   Definition Output' := xor.Output' bit.
   Definition Input' := xor.Output' bit.
   Definition Key' := xor.Output' bit.
-  Variable HleInOut : Input' ≤ Output'.
 
   #[local] Instance XOR_mod : @xor.XOR Output' Output' := xor.XOR_mod bit.
   #[local] Instance XOR_spec_mod `{!approxisRGS Σ} : @xor.XOR_spec _ _ _ _ XOR_mod := xor.XOR_spec_mod bit.
@@ -643,8 +639,7 @@ Section implementation.
     (Rabs (((lim_exec (((CPA Key' Input' Output') #true adv (rf_scheme Key' Output' _) #Q), σ)) #true) -
              ((lim_exec (((CPA Key' Input' Output') #false adv (rf_scheme Key' Output' _) #Q), σ')) #true)) <= ((Q-1) * Q / (2 * S Input')))%R.
   Proof.
-    unshelve epose proof CPA_bound Key' Input' Output' _ _ adv _ _ σ σ' Q as H.
-    - assumption.
+    unshelve epose proof CPA_bound Key' Input' Output' _ adv _ _ σ σ' Q as H.
     - apply _.
     - assumption.
     - apply approxisRΣ.

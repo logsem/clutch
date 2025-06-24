@@ -259,23 +259,23 @@ Definition init_scheme (e : expr) : expr :=
 
 Ltac rel_init_scheme l1 s1 l2 s2 := 
   rewrite /init_scheme;
-  rel_apply refines_rf_scheme_l; first lia;
+  rel_apply refines_rf_scheme_l;
   iIntros (l1) s1;
-  rel_apply refines_rf_scheme_r; first lia;
+  rel_apply refines_rf_scheme_r;
   iIntros (l2) s2;
   rewrite /rf_enc;
   rewrite /rf_dec.
 
 Ltac rel_init_scheme_l l1 s1 := 
   rewrite /init_scheme;
-  rel_apply refines_rf_scheme_l; first lia;
+  rel_apply refines_rf_scheme_l;
   iIntros (l1) s1;
   rewrite /rf_enc;
   rewrite /rf_dec.
 
 Ltac rel_init_scheme_r l2 s2 := 
   rewrite /init_scheme;
-  rel_apply refines_rf_scheme_r; first lia;
+  rel_apply refines_rf_scheme_r;
   iIntros (l2) s2;
   rewrite /rf_enc;
   rewrite /rf_dec.
@@ -296,8 +296,8 @@ Lemma hybrid_scheme_correct :
       (lrel_input → () + lrel_input).
 Proof with rel_pures_l; rel_pures_r.
   rewrite /keygen.
-  rel_init_scheme_l mapref "Hmap"...
   rewrite -/N.
+  rel_init_scheme_l mapref "Hmap"...
   rel_apply refines_randU_l.
   iIntros (sk Hskbound)...
   simpl_exp.
@@ -368,7 +368,7 @@ Proof with rel_pures_l; rel_pures_r.
       rel_apply xor_correct_l; try lia.
       { rewrite Nat2Z.id. apply xor_dom; lia. }
       rewrite Nat2Z.id.
-      rewrite (xor_sem_inverse_r _ Input SymOutput _ xor_struct); last by lia.
+      rewrite (xor_sem_inverse_r _ Input SymOutput xor_struct).
       2 : { exact 0. }
       rewrite Z2Nat.id; last lia.
       rel_apply refines_na_close; iFrame.
@@ -396,7 +396,7 @@ Proof with rel_pures_l; rel_pures_r.
       rel_apply xor_correct_l; try lia.
       { rewrite Nat2Z.id. apply xor_dom; lia. }
       rewrite Nat2Z.id.
-      rewrite (xor_sem_inverse_r _ Input SymOutput _ xor_struct); last by lia.
+      rewrite (xor_sem_inverse_r _ Input SymOutput xor_struct).
       2 : { exact 0. }
       rewrite Z2Nat.id; last lia.
       rel_apply refines_na_close; iFrame.
@@ -595,8 +595,9 @@ Qed.
 (* here we use the DDH assumption: we replace C[DDHreal] by C[DDHrand] *)
 
 Lemma Csenc_DDH_rand_pk_rand_senc_delay : ⊢
-  refines top (init_scheme Csenc_DDH_rand)
-    (init_scheme pk_rand_senc_delay)
+  refines top
+  (init_scheme Csenc_DDH_rand)
+  (init_scheme pk_rand_senc_delay)
   (lrel_G *
   (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G)))).
 Proof with rel_pures_l; rel_pures_r.
@@ -1014,7 +1015,7 @@ Lemma rf_is_CPA_instantiated_adv_rand (adv : val)
 Proof. iStartProof.
   iPoseProof ec_zero as "Hec".
   iMod "Hec".
-  iPoseProof (rf_is_CPA SymKey Input SymOutput _ xor_struct (λ: "oracle", adv (adv_rand "oracle")) _ _ 1) as "H".
+  iPoseProof (rf_is_CPA SymKey Input SymOutput xor_struct (λ: "oracle", adv (adv_rand "oracle")) _ _ 1) as "H".
   rewrite INR_1; simpl.
   rewrite Rminus_diag.
   rewrite Rmult_0_l.
@@ -1023,7 +1024,6 @@ Proof. iStartProof.
   iApply "H". iClear "H".
   iAssumption.
   Unshelve.
-  1: lia.
   constructor.
   constructor.
   type_expr 1.
