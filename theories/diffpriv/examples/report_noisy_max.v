@@ -80,7 +80,7 @@ Section rnm.
   that is required to call the add_query and release methods, and...
 - add_query processes a query and returns AUTH back to the caller
 - release consumes the AUTH token and ensures that both db and db' yield (pointwise) equal results *)
-  Lemma rnm_online (i : Z) (num den : Z) (evalQ : val)
+  Lemma rnm_online (j : Z) (num den : Z) (evalQ : val)
     (εpos : 0 < IZR num / IZR den) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K
     :
     (∀ i, wp_sensitive (Val evalQ i) 1 dDB dZ) -∗
@@ -96,7 +96,7 @@ Section rnm.
 
              AUTH ∗
 
-             (∀ K,
+             (∀ K i,
                  AUTH -∗
                  ⤇ fill K (add' #i) -∗
                  WP (Fst (Val add_release) #i) {{ _, ⤇ fill K #() ∗ AUTH }}) ∗
@@ -105,7 +105,7 @@ Section rnm.
                  AUTH -∗
                  ⤇ fill K (release' #()) -∗
                  WP (Snd (Val add_release) #())
-                   {{ v, ∃ v' : val, ⌜ v = #i → v' = #i ⌝ }})
+                   {{ v, ∃ v' : val, ⌜ v = #j → v' = #j ⌝ }})
             }}.
   Proof with (tp_pures ; wp_pures).
     (* The privacy proof of RNM hinges on the fact that the credit gets spent when the "winning"
@@ -118,6 +118,9 @@ Section rnm.
     then `add` cannot know about it, and we don't know how to couple.
 
     This is why this current spec quantifies over `i : Z` before initialising oRNM. *)
+
+    (* NB: Actually, since we require to know `j` in advance, we could also make the queries on
+    `i≠j` free and only require ↯ε on the j-th query. *)
 
     iIntros "sens ε rhs".
     rewrite /report_noisy_max_online... simpl...
@@ -137,7 +140,7 @@ Section rnm.
     iFrame.
     clear K.
     iModIntro. iSplitL.
-    - iIntros "%K (maxI2 & maxA2 & maxI1 & maxA1 & ε) rhs".
+    - iIntros "%K %i (maxI2 & maxA2 & maxI1 & maxA1 & ε) rhs".
       admit.
     - iIntros "%K (maxI2 & maxA2 & maxI1 & maxA1 & ε) rhs".
       admit.
@@ -146,7 +149,8 @@ Section rnm.
   (* The above-mentioned issue with anticipating when an error-credit gets spent by examining the
   index returned as final result can be exhibited in an example simpler than oRNM.
 
-   This problem can be stated in Eris. Sufficient use of laziness in `get` might solve the problem. *)
+   This problem can be stated in Eris as follows. Sufficient use of laziness in `get` might solve
+   this particular problem. *)
 
   Goal
     ↯m (1/4)  -∗
@@ -188,7 +192,8 @@ Section rnm.
           }}.
   Abort.
 
-
+  (* This proof is *almost* completed modulo the (impossible) case where the return value `j` is
+     not a positive integer. *)
   Lemma rnm_pw_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
     (0 < IZR num / IZR (2 * den)) →
     (∀ i : Z, ⊢ hoare_sensitive (evalQ #i) 1 dDB dZ) →
@@ -620,7 +625,6 @@ Lemma rnm_diffpriv_cpl num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
   ∀ db db',
     (dDB db db' <= 1)%R →
     ∀ σ,
-    ∀ j : nat,
       DPcoupl
         (lim_exec ((report_noisy_max num den evalQ #N (inject db)), σ))
         (lim_exec ((report_noisy_max num den evalQ #N (inject db')), σ))
@@ -645,6 +649,20 @@ Proof.
   apply h.
 Qed.
 
+Lemma rnm_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
+  (0 < IZR num / IZR (2 * den))%R →
+  (0 <= IZR num / IZR den)%R →
+  (∀ `{!diffprivGS Σ}, ∀ i : Z, ⊢ hoare_sensitive (evalQ #i) 1 dDB dZ) →
+  ∀ σ,
+    diffpriv_pure
+      dDB
+      (λ db, lim_exec ((report_noisy_max num den evalQ #N (inject db)), σ))
+      (IZR num / IZR den)
+.
+Proof.
+  intros. apply diffpriv_approx_pure. apply DPcoupl_diffpriv.
+  intros. apply rnm_diffpriv_cpl => //.
+Qed.
 
 (* sketchy obsolete concrete example below *)
 
