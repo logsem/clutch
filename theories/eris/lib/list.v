@@ -343,6 +343,15 @@ Section list_specs.
     {{{ v, RET v; ⌜is_list [] v⌝}}}.
   Proof. iIntros (Φ) "_ HΦ". unfold list_nil. wp_pure. by iApply "HΦ". Qed.
 
+  Lemma twp_list_cons a l lv E :
+    [[{ ⌜is_list l lv⌝ }]]
+      list_cons (inject a) lv @ E
+    [[{ v, RET v; ⌜is_list (a::l) v⌝}]].
+  Proof.
+    iIntros (Φ) "% HΦ". wp_lam. wp_pures.
+    iApply "HΦ". iPureIntro; by eexists.
+  Qed.
+
   Lemma wp_list_cons a l lv E :
     {{{ ⌜is_list l lv⌝ }}}
       list_cons (inject a) lv @ E
@@ -1125,7 +1134,42 @@ Section list_specs_extra.
 
   Context `{!erisGS Σ}.
   Context `[!Inject A val].
-
+  Lemma twp_list_map `{!Inject B val} (l : list A) (f : A -> B) (fv lv : val)
+    (P : A -> iProp Σ) (Q : A -> val -> iProp Σ) E :
+    [[{ (∀ (x : A),
+          [[{ P x }]]
+            fv (inject x) @ E
+          [[{ fr, RET fr; ⌜fr = inject $ f x ⌝ ∗ Q x fr }]]) ∗
+        ⌜is_list l lv⌝ ∗
+        [∗ list] x∈l, P x
+    }]]
+      list_map fv lv @ E
+      [[{ rv, RET rv; ⌜is_list (List.map f l) rv⌝ ∗
+                      [∗ list] p ∈ zip l (List.map f l), Q (fst p) (inject $ snd p)
+      }]].
+  Proof.
+      iIntros (Φ) "[#Hf [%Hil HP]] HΦ".
+      iInduction l as [ | h t] "IH" forall (lv Hil Φ); simpl in Hil; try subst; rewrite /list_map.
+      - wp_pures.
+        iApply "HΦ".
+        iModIntro. iSplitR; last done.
+        iPureIntro. rewrite /is_list; done.
+      - wp_pures.
+        destruct Hil as (lv' & -> & Hil').
+        do 4 wp_pure _.
+        fold list_map.
+        rewrite big_sepL_cons.
+        iDestruct "HP" as "[HP HP']".
+        wp_apply ("IH" with "[][HP']"); [done|done|].
+        iIntros (rv) "[%Hil_rv Hzip]"; wp_pures.
+        wp_apply ("Hf" with "[$]").
+        iIntros (fr) "[-> HQ]".
+        wp_apply (twp_list_cons); [done|].
+        iIntros (v) "%Hilf".
+        iApply "HΦ"; auto.
+        iSplitR; first done.
+        rewrite map_cons. simpl. iFrame.
+  Qed.
   Lemma wp_list_map `{!Inject B val} (l : list A) (f : A -> B) (fv lv : val)
     (P : A -> iProp Σ) (Q : A -> val -> iProp Σ) E :
     {{{ (∀ (x : A),
@@ -1161,7 +1205,7 @@ Section list_specs_extra.
         iApply "HΦ"; auto.
         iSplitR; first done.
         rewrite map_cons. simpl. iFrame.
-  Qed. 
+  Qed.
   
   Lemma wp_list_map_pure `{!Inject B val} (l : list A) (f : A -> B) (fv lv : val) E :
     {{{ (∀ (x : A),

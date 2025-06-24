@@ -68,10 +68,9 @@ Section BernoulliSpecLemmas.
       lia |
       lra |
       nra |
-      real_solver  |
       tactics.done |
       auto
-      ].
+    ].
   
   Lemma bernoulli_case (N M : nat) :
     N ≤ S M →
@@ -165,7 +164,7 @@ Section BernoulliSpecLemmas.
     iMod ec_zero as "Herr".
     rewrite -Nat2Z.inj_0.
     iApply (bernoulli_success_spec_simple with "[Herr]").
-    { iApply (ec_eq with "Herr"). simpl_expr. }
+    { iApply (ec_eq with "Herr"). simpl_expr. real_solver. }
     done.
   Qed.
   
@@ -189,8 +188,11 @@ Section BernoulliSpecLemmas.
            ltac:(reflexivity) with "[$Hα Hnext $Herr]")
         as (i) "H";
         try done.
+      { move => i. full_inv_fin. real_solver. }
       {
+        simpl.
         rewrite plus_INR INR_1 Rdiv_diag //.
+        real_solver.
       }
       case_bool_decide;
         iDestruct "H" as "[Herr Hα]";
@@ -360,8 +362,8 @@ Section BernoulliSpecLemmas.
     }
       
     { iIntros (ε' D L' l ε'_pos D_bounds D_sum) "(Htape & Herr & Hnext)".
-      wp_apply twp_presample_bernoulli_adv_comp; last iFrame; try done.
-      - rewrite SeriesC_finite_foldr /= in D_sum.
+      wp_apply twp_presample_bernoulli_adv_comp; last iFrame; try real_solver.
+      - rewrite SeriesC_finite_foldr /= Rplus_0_r in D_sum.
         lra.
       - iIntros (i) "[Herr Htape]".
         iApply ("Hnext" with "Herr Htape").

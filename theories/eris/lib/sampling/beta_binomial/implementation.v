@@ -14,7 +14,6 @@ Section Polya.
     lia |
     lra |
     nra |
-    real_solver  |
     tactics.done |
     auto
    ].
@@ -183,9 +182,9 @@ Section Polya.
       rewrite Series_fin_first in Heq.
       subst.
       iPoseProof (ec_split with "Herr") as "[Herr _]".
-      { add_hint Beta_prob_pos. done. }
+      { add_hint Beta_prob_pos. real_solver. }
       { add_hint Beta_prob_pos.
-        apply SeriesC_ge_0' => k //. }
+        apply SeriesC_ge_0' => k. real_solver. }
       rewrite /Beta_prob choose_n_0 !Beta_0_l.
       wp_apply polya_0_b as "_" => //.
       iApply ("HΦ" $! 0%fin with "[Herr]").
@@ -198,9 +197,8 @@ Section Polya.
       subst.
       iPoseProof (ec_split with "Herr") as "[_ Herr]".
       { add_hint Beta_prob_pos.
-        apply SeriesC_ge_0' => k //. }
-      { add_hint Beta_prob_pos.
-        done. }
+        apply SeriesC_ge_0' => k. real_solver. }
+      { add_hint Beta_prob_pos. real_solver. }
       wp_apply polya_r_0 as "_" => //.
       assert (n = (fin_to_nat (nat_to_fin (Nat.lt_succ_diag_r n)))) as Heqn by rewrite fin_to_nat_to_fin //.
       rewrite ->Heqn at 3.
@@ -238,7 +236,8 @@ Section Polya.
       rewrite SeriesC_finite_foldr /= in Heq.
       rewrite choose_n_0 Rmult_1_l in Heq.
       add_hint Beta_pos.
-      rewrite Rdiv_diag // Rplus_0_r Rmult_1_l in Heq.
+      rewrite Rdiv_diag in Heq; last real_solver.
+      rewrite Rplus_0_r Rmult_1_l in Heq.
       rewrite Heq.
       iApply ("HΦ" $! 0%fin with "[$Herr]").
     - wp_rec. wp_pures.

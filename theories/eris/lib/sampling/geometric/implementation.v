@@ -188,9 +188,14 @@ Section Geometric.
     own_bernoulli_tape α N M l ∗ 
     ⌜is_geometric_translation l t⌝.
 
-  #[local] Ltac done ::= 
-    solve[lia | lra | nra | real_solver | tactics.done | auto].
-
+  #[local] Ltac done ::= solve[
+    lia |
+    lra |
+    nra |
+    tactics.done |
+    auto
+  ].
+  
   Definition geometric_tape : val :=
     rec: "geometric_tape" "α" "N" "M" :=
     if: bernoulli "α" "N" "M" = #1 then #0 else 
