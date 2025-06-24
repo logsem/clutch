@@ -74,39 +74,19 @@ Section diffpriv.
         f (Val (inject x))
       {{{ (v : val), RET v; ⤇ fill K (Val v) }}}.
 
-  Lemma wp_diffpriv_mono_ε (f : val) ε δ ε' `(dA : Distance A)
-    (ε_pos : 0 <= ε) (hε' : ε <= ε') :
+  Lemma wp_diffpriv_mono (f : val) ε δ ε' δ' `(dA : Distance A)
+    (ε_pos : 0 <= ε) (hε' : ε <= ε')
+    (δ_pos : 0 <= δ) (hδ' : δ <= δ') :
     wp_diffpriv f ε δ dA -∗
     wp_diffpriv f ε' δ dA.
   Proof.
-    iIntros "fε" (?? a a' ?) "[rhs [ε δ]]".
-    rewrite /wp_diffpriv.
+    iIntros "fεδ" (?? a a' ?) "[rhs [ε δ]]".
     pose proof (distance_pos a a').
-    assert (0 <= ε') as ε'pos by lra.
-    iMod (ecm_zero) as "ε0".
-    destruct (Rle_lt_or_eq _ _ ε_pos) ; last first.
-    { subst. iApply "fε" => //. iFrame. rewrite Rmult_0_r. done. }
-    destruct (Rle_lt_or_eq _ _ ε'pos) ; last first.
-    { subst. assert (ε = 0) by lra. subst. iApply "fε" => //. iFrame. }
-    iSpecialize ("fε" $! K).
-    assert (1 <= ε' / ε) by (apply Rcomplements.Rle_div_r ; lra).
-    set (c' := c * (ε' / ε)).
-    unshelve iSpecialize ("fε" $! c' a a' _).
-    1: etrans ; [eassumption|]. 1: subst c'.
-    1: rewrite -{1}(Rmult_1_r c) ; real_solver.
-    iApply ("fε" with "[$rhs ε δ]") => //.
+    iApply ("fεδ" with "[] [$rhs ε δ]") => //.
     iSplitL "ε".
-    - iApply (ecm_weaken with "[$ε]"). subst c' ; split. 1: real_solver.
-      right. field. lra.
-    - give_up.
-  Abort.
-
-  Lemma wp_diffpriv_mono_δ (f : val) ε δ δ' `(dA : Distance A)
-    (δ_pos : 0 <= δ) (hδ' : δ <= δ') :
-    wp_diffpriv f ε δ dA -∗
-    wp_diffpriv f ε δ' dA.
-  Proof.
-  Abort.
+    - iApply (ecm_weaken with "[$ε]"). real_solver.
+    - iApply (ec_weaken with "[$δ]"). real_solver.
+  Qed.
 
   Lemma wp_sensitive_mono (f : val) c c' `(dA : Distance A) `(dB : Distance B)
     (c_pos : 0 <= c) (hc' : c <= c') :
