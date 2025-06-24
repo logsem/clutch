@@ -33,7 +33,7 @@ We prove the portions of the above theorems that are concerned with the reductio
   (** Parameters of the generic PRF-based encryption scheme. *)
   Variable xor_struct : XOR (Key := Message) (Support := Output).
 
-  Local Instance prf_param : PRF_params :=
+  Local Instance prf_param : PRF_localstate_params :=
     {|
       card_key := Key ;
       card_input := Input ;
