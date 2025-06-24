@@ -280,146 +280,168 @@ Ltac rel_init_scheme_r l2 s2 :=
   rewrite /rf_enc;
   rewrite /rf_dec.
 
-(* cannot write the symmetric decryption: the random function used initializes a
-  map that has to stay local to the scheme, otherwise it would compromise its
-  security. However, the decryption also needs access to this map.
-  Several ways it could work:
-  - *)
+Section Correctness.
 
-Import mathcomp.fingroup.fingroup.
+  Import mathcomp.fingroup.fingroup.
 
-Lemma hybrid_scheme_correct :
-  ⊢ refines top
-      (init_scheme (λ: "scheme", (let, ("sk", "pk") := keygen #() in
-       λ:"msg", dec_hyb "scheme" "sk" (enc_hyb "scheme" "pk" "msg"))))
-      (λ: "msg", let:m "kg" := vg_of_int (rand #N) in SOME "msg")%V
-      (lrel_input → () + lrel_input).
-Proof with rel_pures_l; rel_pures_r.
-  rewrite /keygen.
-  rewrite -/N.
-  rel_init_scheme_l mapref "Hmap"...
-  rel_apply refines_randU_l.
-  iIntros (sk Hskbound)...
-  simpl_exp.
-  set (P := (∃ (M : gmap nat val),
-      map_list  mapref  M
-    ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
-      → ∃ k : nat, y = #k ∧ k <= card_output ⌝
-    ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝
-  )%I).
-  rel_apply (refines_na_alloc P (nroot.@"hybrid_scheme_correct")).
-  iSplitL; iFrame.
-  { iPureIntro; split.
-    - intros y Hy. rewrite map_img_empty in Hy.
-      rewrite elem_of_empty in Hy. exfalso; apply Hy.
-    - intros y Hy. rewrite elements_empty in Hy.
-      rewrite elem_of_nil in Hy. exfalso; apply Hy.
-  }
-  iIntros "#Inv".
-  rel_arrow_val.
-  iIntros (v1 v2 [msg [eq1 [eq2 Hmsgbound]]]); subst...
-  rewrite /enc_hyb...
-  rewrite /encaps...
-  rewrite /SymKey.
-  rel_apply refines_couple_UU; first done.
-  iIntros (k Hkbound); iModIntro...
-  rel_bind (vg_of_int #k).
-  rel_apply refines_bind.
-  { rel_apply refines_app.
-    - rel_vals. iApply vg_of_int_lrel_G.
-    - rel_vals. }
-  iIntros (kg1 kg2 [tmp [tmp' [[eq1 [eq2 [eq3 eq4]]]|[eq1 [eq2 [kg [eq3 eq4]]]]]]]); subst...
-  - rewrite /dec_hyb... rel_vals.
-  - rewrite /enc... rel_apply refines_randU_l. iIntros (b Hbbound)...
-    simpl_exp. simpl_exp. simpl_mult.
-    rewrite /prf_enc... rewrite /random_function...
-    rewrite -/random_function.
+  Variable vg_of_int_sem : ∀ {T : baseFinGroupType}, Z → option T.
+  Variable int_of_vg_sem : ∀ {T : baseFinGroupType}, T → Z.
+
+  Axiom int_of_vg_of_int_sem : ∀ (xg : vgG),
+    vg_of_int_sem (int_of_vg_sem xg) = Some xg.
+
+  Axiom vg_of_int_of_vg_sem : ∀ (n : Z) (xg : vgG),
+    @vg_of_int_sem vgG n = Some xg →
+    int_of_vg_sem xg = n.
+  
+  Definition opt_vg_to_val (x : option vgG) : expr := match x with
+    | None => NONE
+    | Some y => SOME (vgval y)
+  end.
+
+  Axiom vg_of_int_correct_l : ∀  E K e A (n : Z),
+    refines E (fill K (opt_vg_to_val (@vg_of_int_sem vgG n))) e A
+    -∗ refines E (fill K (vg_of_int #n)) e A.
+
+  Axiom vg_of_int_correct_r : ∀ E K e A (n : Z),
+    refines E e (fill K (opt_vg_to_val (@vg_of_int_sem vgG n))) A
+    -∗ refines E e (fill K (vg_of_int #n)) A.
+  
+  Axiom int_of_vg_correct_l : ∀ E K e A (xg : vgG),
+    refines E (fill K (Val #(@int_of_vg_sem vgG xg))) e A
+    -∗ refines E (fill K (int_of_vg (vgval xg))) e A.
+  
+  Axiom int_of_vg_correct_r : ∀ E K e A (xg : vgG),
+    refines E e (fill K (Val #(@int_of_vg_sem vgG xg))) A
+    -∗ refines E e (fill K (int_of_vg (vgval xg))) A.
+
+  Lemma hybrid_scheme_correct :
+    ⊢ refines top
+        (init_scheme (λ: "scheme", (let, ("sk", "pk") := keygen #() in
+        λ:"msg", dec_hyb "scheme" "sk" (enc_hyb "scheme" "pk" "msg"))))
+        (λ: "msg", let:m "kg" := vg_of_int (rand #N) in SOME "msg")%V
+        (lrel_input → () + lrel_input).
+  Proof with rel_pures_l; rel_pures_r.
+    rewrite /keygen.
+    rewrite -/N.
+    rel_init_scheme_l mapref "Hmap"...
     rel_apply refines_randU_l.
-    iIntros (r Hrbound)...
-    rel_apply refines_na_inv; iSplitL; first iAssumption.
-    iIntros "[>[%M [Hmap [%Himg %Hdom]]] Hclose]".
-    rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
-    iIntros (res) "Hmap %eqres"; subst.
-    rewrite /card_input in Hmsgbound. simpl in Hmsgbound.
-    assert (Hintofvgofint :
-      ∀ E K e A, refines E (fill K ((λ: "x", "x") #k)) e A ⊢ refines E (fill K (int_of_vg kg)) e A).
-    { admit. } (* here, we lack lemmas stating
-    1. that `vg_of_int` can be postponed (i.e. is deterministic)
-    2. that `int_of_vf vg_of_int = id` *)
-    destruct (M !! r) as [y|] eqn:eqlookup; simpl...
-    + eapply elem_of_map_img_2 in eqlookup as Hyimg.
-      apply Himg in Hyimg. destruct Hyimg as [yn [eqyn Hynbound]]; subst.
-      rewrite /card_output in Hynbound. simpl in Hynbound.
-      rel_apply xor_correct_l; try lia...
-      rewrite /dec_hyb...
-      rewrite /decaps...
-      rewrite /dec...
-      simpl_exp.
-      rel_apply refines_inv_l.
-      simpl_mult.
-      rewrite -?expgM -ssrnat.multE -mulgA Nat.mul_comm mulgV mulg1.
-      rel_bind_l (int_of_vg _).
-      rel_apply Hintofvgofint...
-      rewrite /prf_dec...
-      rewrite /random_function...
+    iIntros (sk Hskbound)...
+    simpl_exp.
+    set (P := (∃ (M : gmap nat val),
+        map_list  mapref  M
+      ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+        → ∃ k : nat, y = #k ∧ k <= card_output ⌝
+      ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝
+    )%I).
+    rel_apply (refines_na_alloc P (nroot.@"hybrid_scheme_correct")).
+    iSplitL; iFrame.
+    { iPureIntro; split.
+      - intros y Hy. rewrite map_img_empty in Hy.
+        rewrite elem_of_empty in Hy. exfalso; apply Hy.
+      - intros y Hy. rewrite elements_empty in Hy.
+        rewrite elem_of_nil in Hy. exfalso; apply Hy.
+    }
+    iIntros "#Inv".
+    rel_arrow_val.
+    iIntros (v1 v2 [msg [eq1 [eq2 Hmsgbound]]]); subst...
+    rewrite /enc_hyb...
+    rewrite /encaps...
+    rewrite /SymKey.
+    rel_apply refines_couple_UU; first done.
+    iIntros (k Hkbound); iModIntro...
+    rel_apply vg_of_int_correct_l.
+    rel_apply vg_of_int_correct_r.
+    destruct (vg_of_int_sem k) as [kg|] eqn:eqkg; first last.
+    - rewrite /dec_hyb... rel_vals.
+    - rewrite /enc... rel_apply refines_randU_l. iIntros (b Hbbound)...
+      simpl_exp. simpl_exp. simpl_mult.
+      rewrite /prf_enc... rewrite /random_function...
+      rewrite -/random_function.
+      rel_apply refines_randU_l.
+      iIntros (r Hrbound)...
+      rel_apply refines_na_inv; iSplitL; first iAssumption.
+      iIntros "[>[%M [Hmap [%Himg %Hdom]]] Hclose]".
       rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
-      iIntros (res') "Hmap %eqres'"; subst. rewrite eqlookup.
-      simpl...
-      rel_apply xor_correct_l; try lia.
-      { rewrite Nat2Z.id. apply xor_dom; lia. }
-      rewrite Nat2Z.id.
-      rewrite (xor_sem_inverse_r _ Input SymOutput xor_struct).
-      2 : { exact 0. }
-      rewrite Z2Nat.id; last lia.
-      rel_apply refines_na_close; iFrame.
-      iSplitL...
-      { iFrame. iPureIntro; split; assumption. }
-      rel_vals.
-    + rel_apply refines_randU_l. iIntros (y Hybound)...
-      rel_apply (refines_set_l with "[-Hmap]"); last by iAssumption.
-      iIntros "Hmap"...
-      rel_apply xor_correct_l; try lia...
-      rewrite /dec_hyb...
-      rewrite /decaps...
-      rewrite /dec...
-      simpl_exp.
-      rel_apply refines_inv_l.
-      simpl_mult.
-      rewrite -?expgM -ssrnat.multE -mulgA Nat.mul_comm mulgV mulg1.
-      rel_bind_l (int_of_vg _).
-      rel_apply Hintofvgofint...
-      rewrite /prf_dec...
-      rewrite /random_function...
-      rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
-      iIntros (res') "Hmap %eqres'"; subst.
-      rewrite lookup_insert; simpl...
-      rel_apply xor_correct_l; try lia.
-      { rewrite Nat2Z.id. apply xor_dom; lia. }
-      rewrite Nat2Z.id.
-      rewrite (xor_sem_inverse_r _ Input SymOutput xor_struct).
-      2 : { exact 0. }
-      rewrite Z2Nat.id; last lia.
-      rel_apply refines_na_close; iFrame.
-      iSplitL...
-      {
-        iFrame. iPureIntro; split.
-        - intros x Hx. rewrite map_img_insert in Hx.
-          rewrite elem_of_union in Hx.
-          destruct Hx as [Hx | Hx].
-          + rewrite elem_of_singleton in Hx; subst.
-            exists y; split; done.
-          + apply Himg. eapply map_img_delete_subseteq. apply Hx.
-        - intros x Hx. rewrite dom_insert in Hx.
-          rewrite elements_union_singleton in Hx.
-          2: { apply not_elem_of_dom_2. assumption. }
-          apply elem_of_cons in Hx.
-          destruct Hx as [Hx | Hx]; first subst.
-          + rewrite /card_input; simpl; lia.
-          + apply Hdom. apply Hx.
-      }
-      rel_vals.
-      Unshelve. apply gset_fin_set.
-  Admitted.
+      iIntros (res) "Hmap %eqres"; subst.
+      rewrite /card_input in Hmsgbound. simpl in Hmsgbound.
+      destruct (M !! r) as [y|] eqn:eqlookup; simpl...
+      + eapply elem_of_map_img_2 in eqlookup as Hyimg.
+        apply Himg in Hyimg. destruct Hyimg as [yn [eqyn Hynbound]]; subst.
+        rewrite /card_output in Hynbound. simpl in Hynbound.
+        rel_apply xor_correct_l; try lia...
+        rewrite /dec_hyb...
+        rewrite /decaps...
+        rewrite /dec...
+        simpl_exp.
+        rel_apply refines_inv_l.
+        simpl_mult.
+        rewrite -?expgM -ssrnat.multE -mulgA Nat.mul_comm mulgV mulg1.
+        rel_bind_l (int_of_vg _).
+        rel_apply int_of_vg_correct_l.
+        rewrite (vg_of_int_of_vg_sem (Z.of_nat k)); last by apply eqkg.
+        rewrite /prf_dec...
+        rewrite /random_function...
+        rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
+        iIntros (res') "Hmap %eqres'"; subst. rewrite eqlookup.
+        simpl...
+        rel_apply xor_correct_l; try lia.
+        { rewrite Nat2Z.id. apply xor_dom; lia. }
+        rewrite Nat2Z.id.
+        rewrite (xor_sem_inverse_r _ Input SymOutput xor_struct).
+        2 : { exact 0. }
+        rewrite Z2Nat.id; last lia.
+        rel_apply refines_na_close; iFrame.
+        iSplitL...
+        { iFrame. iPureIntro; split; assumption. }
+        rel_vals.
+      + rel_apply refines_randU_l. iIntros (y Hybound)...
+        rel_apply (refines_set_l with "[-Hmap]"); last by iAssumption.
+        iIntros "Hmap"...
+        rel_apply xor_correct_l; try lia...
+        rewrite /dec_hyb...
+        rewrite /decaps...
+        rewrite /dec...
+        simpl_exp.
+        rel_apply refines_inv_l.
+        simpl_mult.
+        rewrite -?expgM -ssrnat.multE -mulgA Nat.mul_comm mulgV mulg1.
+        rel_apply int_of_vg_correct_l.
+        rewrite (vg_of_int_of_vg_sem (Z.of_nat k)); last by apply eqkg.
+        rewrite /prf_dec...
+        rewrite /random_function...
+        rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
+        iIntros (res') "Hmap %eqres'"; subst.
+        rewrite lookup_insert; simpl...
+        rel_apply xor_correct_l; try lia.
+        { rewrite Nat2Z.id. apply xor_dom; lia. }
+        rewrite Nat2Z.id.
+        rewrite (xor_sem_inverse_r _ Input SymOutput xor_struct).
+        2 : { exact 0. }
+        rewrite Z2Nat.id; last lia.
+        rel_apply refines_na_close; iFrame.
+        iSplitL...
+        {
+          iFrame. iPureIntro; split.
+          - intros x Hx. rewrite map_img_insert in Hx.
+            rewrite elem_of_union in Hx.
+            destruct Hx as [Hx | Hx].
+            + rewrite elem_of_singleton in Hx; subst.
+              exists y; split; done.
+            + apply Himg. eapply map_img_delete_subseteq. apply Hx.
+          - intros x Hx. rewrite dom_insert in Hx.
+            rewrite elements_union_singleton in Hx.
+            2: { apply not_elem_of_dom_2. assumption. }
+            apply elem_of_cons in Hx.
+            destruct Hx as [Hx | Hx]; first subst.
+            + rewrite /card_input; simpl; lia.
+            + apply Hdom. apply Hx.
+        }
+        rel_vals.
+    Unshelve. apply gset_fin_set.
+  Qed.
+
+End Correctness.
 
 Lemma pk_real_real_tape :
   ⊢ refines top
