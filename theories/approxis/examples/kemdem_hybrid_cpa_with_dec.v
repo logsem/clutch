@@ -69,14 +69,7 @@ Definition dec_hyb : val :=
     let: "c_dem" := Fst "msg'" in
     let: "c_kem" := Snd "msg'" in
     let: "k" := decaps "sk" "c_kem" in
-    (Snd "sym_scheme") "k" "c_dem".
-
-(* random encryption *)
-Definition enc_hyb_rand : val :=
-  λ: "msg",
-    let: "c_dem" := rand #SymOutput in
-    let: "c_kem" := rand #N in
-    ("c_dem", "c_kem").
+    SOME ((Snd "sym_scheme") "k" "c_dem").
 
 Definition pk_rand : expr :=
   let, ("sk", "pk") := keygen #() in
@@ -260,24 +253,6 @@ Ltac simpl_mult := try (rel_apply refines_mult_l; rel_pures_l);
   try (rel_apply refines_mult_r; rel_pures_r).
 Ltac rel_bind x := rel_bind_l x; rel_bind_r x.
 
-(* cannot write the symmetric decryption: the random function used initializes a
-  map that has to stay local to the scheme, otherwise it would compromise its
-  security. However, the decryption also needs access to this map.
-  Several ways it could work:
-  - *)
-
-Lemma hybrid_scheme_correct :
-  ⊢ refines top
-      (let, ("sk", "pk") := keygen #() in
-       λ:"msg", dec_hyb "sk" (enc_hyb "pk" "msg"))
-      (λ:"msg", let:m "kg" := vg_of_int (rand #N) in "msg")
-      (lrel_input → lrel_G).
-Proof with rel_pures_l; rel_pures_r.
-    (* TODO would need two things here:
-      - an hypothesis stating that `kg` is obtained from `vg_of_int k`
-      - an hypothesis stating that `rf_dec k (enc k msg)` reduces to `msg` *)
-Admitted.
-
 Definition init_scheme (e : expr) : expr :=
   let: "scheme" := (rf_scheme Input SymOutput xor_struct) in
   e "scheme".
@@ -305,8 +280,149 @@ Ltac rel_init_scheme_r l2 s2 :=
   rewrite /rf_enc;
   rewrite /rf_dec.
 
-Lemma pk_real_real_tape : ⊢ REL init_scheme pk_real << init_scheme pk_real_tape :
-  lrel_G * (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G))).
+(* cannot write the symmetric decryption: the random function used initializes a
+  map that has to stay local to the scheme, otherwise it would compromise its
+  security. However, the decryption also needs access to this map.
+  Several ways it could work:
+  - *)
+
+Import mathcomp.fingroup.fingroup.
+
+Lemma hybrid_scheme_correct :
+  ⊢ refines top
+      (init_scheme (λ: "scheme", (let, ("sk", "pk") := keygen #() in
+       λ:"msg", dec_hyb "scheme" "sk" (enc_hyb "scheme" "pk" "msg"))))
+      (λ: "msg", let:m "kg" := vg_of_int (rand #N) in SOME "msg")%V
+      (lrel_input → () + lrel_input).
+Proof with rel_pures_l; rel_pures_r.
+  rewrite /keygen.
+  rel_init_scheme_l mapref "Hmap"...
+  rewrite -/N.
+  rel_apply refines_randU_l.
+  iIntros (sk Hskbound)...
+  simpl_exp.
+  set (P := (∃ (M : gmap nat val),
+      map_list  mapref  M
+    ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+      → ∃ k : nat, y = #k ∧ k <= card_output ⌝
+    ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝
+  )%I).
+  rel_apply (refines_na_alloc P (nroot.@"hybrid_scheme_correct")).
+  iSplitL; iFrame.
+  { iPureIntro; split.
+    - intros y Hy. rewrite map_img_empty in Hy.
+      rewrite elem_of_empty in Hy. exfalso; apply Hy.
+    - intros y Hy. rewrite elements_empty in Hy.
+      rewrite elem_of_nil in Hy. exfalso; apply Hy.
+  }
+  iIntros "#Inv".
+  rel_arrow_val.
+  iIntros (v1 v2 [msg [eq1 [eq2 Hmsgbound]]]); subst...
+  rewrite /enc_hyb...
+  rewrite /encaps...
+  rewrite /SymKey.
+  rel_apply refines_couple_UU; first done.
+  iIntros (k Hkbound); iModIntro...
+  rel_bind (vg_of_int #k).
+  rel_apply refines_bind.
+  { rel_apply refines_app.
+    - rel_vals. iApply vg_of_int_lrel_G.
+    - rel_vals. }
+  iIntros (kg1 kg2 [tmp [tmp' [[eq1 [eq2 [eq3 eq4]]]|[eq1 [eq2 [kg [eq3 eq4]]]]]]]); subst...
+  - rewrite /dec_hyb... rel_vals.
+  - rewrite /enc... rel_apply refines_randU_l. iIntros (b Hbbound)...
+    simpl_exp. simpl_exp. simpl_mult.
+    rewrite /prf_enc... rewrite /random_function...
+    rewrite -/random_function.
+    rel_apply refines_randU_l.
+    iIntros (r Hrbound)...
+    rel_apply refines_na_inv; iSplitL; first iAssumption.
+    iIntros "[>[%M [Hmap [%Himg %Hdom]]] Hclose]".
+    rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
+    iIntros (res) "Hmap %eqres"; subst.
+    rewrite /card_input in Hmsgbound. simpl in Hmsgbound.
+    assert (Hintofvgofint :
+      ∀ E K e A, refines E (fill K ((λ: "x", "x") #k)) e A ⊢ refines E (fill K (int_of_vg kg)) e A).
+    { admit. } (* here, we lack lemmas stating
+    1. that `vg_of_int` can be postponed (i.e. is deterministic)
+    2. that `int_of_vf vg_of_int = id` *)
+    destruct (M !! r) as [y|] eqn:eqlookup; simpl...
+    + eapply elem_of_map_img_2 in eqlookup as Hyimg.
+      apply Himg in Hyimg. destruct Hyimg as [yn [eqyn Hynbound]]; subst.
+      rewrite /card_output in Hynbound. simpl in Hynbound.
+      rel_apply xor_correct_l; try lia...
+      rewrite /dec_hyb...
+      rewrite /decaps...
+      rewrite /dec...
+      simpl_exp.
+      rel_apply refines_inv_l.
+      simpl_mult.
+      rewrite -?expgM -ssrnat.multE -mulgA Nat.mul_comm mulgV mulg1.
+      rel_bind_l (int_of_vg _).
+      rel_apply Hintofvgofint...
+      rewrite /prf_dec...
+      rewrite /random_function...
+      rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
+      iIntros (res') "Hmap %eqres'"; subst. rewrite eqlookup.
+      simpl...
+      rel_apply xor_correct_l; try lia.
+      { rewrite Nat2Z.id. apply xor_dom; lia. }
+      rewrite Nat2Z.id.
+      rewrite (xor_sem_inverse_r _ Input SymOutput _ xor_struct); last by lia.
+      2 : { exact 0. }
+      rewrite Z2Nat.id; last lia.
+      rel_apply refines_na_close; iFrame.
+      iSplitL...
+      { iFrame. iPureIntro; split; assumption. }
+      rel_vals.
+    + rel_apply refines_randU_l. iIntros (y Hybound)...
+      rel_apply (refines_set_l with "[-Hmap]"); last by iAssumption.
+      iIntros "Hmap"...
+      rel_apply xor_correct_l; try lia...
+      rewrite /dec_hyb...
+      rewrite /decaps...
+      rewrite /dec...
+      simpl_exp.
+      rel_apply refines_inv_l.
+      simpl_mult.
+      rewrite -?expgM -ssrnat.multE -mulgA Nat.mul_comm mulgV mulg1.
+      rel_bind_l (int_of_vg _).
+      rel_apply Hintofvgofint...
+      rewrite /prf_dec...
+      rewrite /random_function...
+      rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
+      iIntros (res') "Hmap %eqres'"; subst.
+      rewrite lookup_insert; simpl...
+      rel_apply xor_correct_l; try lia.
+      { rewrite Nat2Z.id. apply xor_dom; lia. }
+      rewrite Nat2Z.id.
+      rewrite (xor_sem_inverse_r _ Input SymOutput _ xor_struct); last by lia.
+      2 : { exact 0. }
+      rewrite Z2Nat.id; last lia.
+      rel_apply refines_na_close; iFrame.
+      iSplitL...
+      {
+        iFrame. iPureIntro; split.
+        - intros x Hx. rewrite map_img_insert in Hx.
+          rewrite elem_of_union in Hx.
+          destruct Hx as [Hx | Hx].
+          + rewrite elem_of_singleton in Hx; subst.
+            exists y; split; done.
+          + apply Himg. eapply map_img_delete_subseteq. apply Hx.
+        - intros x Hx. rewrite dom_insert in Hx.
+          rewrite elements_union_singleton in Hx.
+          2: { apply not_elem_of_dom_2. assumption. }
+          apply elem_of_cons in Hx.
+          destruct Hx as [Hx | Hx]; first subst.
+          + rewrite /card_input; simpl; lia.
+          + apply Hdom. apply Hx.
+      }
+      rel_vals.
+      Unshelve. apply gset_fin_set.
+  Admitted.
+
+Lemma pk_real_real_tape : ⊢ refines top (init_scheme pk_real) (init_scheme pk_real_tape)
+  (lrel_G * (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G)))).
 Proof with (rel_pures_l; rel_pures_r).
   rel_init_scheme mapref "Hmap" mapref' "Hmap'"...
   rewrite /pk_real; rewrite /pk_real_tape...
@@ -394,8 +510,8 @@ Proof with (rel_pures_l; rel_pures_r).
 Qed.
 
 Lemma pk_real_tape_DDH_real : ⊢
-  REL init_scheme pk_real_tape << init_scheme Csenc_DDH_real : 
-  lrel_G * (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G))).
+  refines top (init_scheme pk_real_tape) (init_scheme Csenc_DDH_real) 
+  (lrel_G * (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G)))).
 Proof with rel_pures_l; rel_pures_r.
   rel_init_scheme mapref "Hmap" mapref' "Hmap'"...
   rewrite /pk_real_tape;
@@ -461,7 +577,6 @@ Proof with rel_pures_l; rel_pures_r.
   rel_apply refines_na_close; iFrame; iSplitL; first (iRight; iFrame).
   rel_bind_l (prf_enc _ _ _ _ _ _).
   rel_bind_r (prf_enc _ _ _ _ _ _).
-  (* TAKE IT UP HERE *)
   rel_apply refines_bind.
   { repeat (rel_apply refines_app); first rel_apply prf_enc_sem_typed; try by rel_vals.
     rel_arrow_val. iIntros (v1 v2 [tmp [eq1 eq2]]); subst...
@@ -480,10 +595,10 @@ Qed.
 (* here we use the DDH assumption: we replace C[DDHreal] by C[DDHrand] *)
 
 Lemma Csenc_DDH_rand_pk_rand_senc_delay : ⊢
-  REL init_scheme Csenc_DDH_rand <<
-    init_scheme pk_rand_senc_delay : 
-  lrel_G *
-  (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G))).
+  refines top (init_scheme Csenc_DDH_rand)
+    (init_scheme pk_rand_senc_delay)
+  (lrel_G *
+  (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G)))).
 Proof with rel_pures_l; rel_pures_r.
   rel_init_scheme mapref "Hmap" mapref' "Hmap'"...
   rewrite /eCsenc...
@@ -574,36 +689,36 @@ Definition pk_rand_senc_mult_free : expr :=
     in ("pk", "query").
 
 Definition pk_rand_srand : expr :=
-  λ: "sym_scheme",
-    let: "sk" := rand #N in
-    let: "b" := rand #N in
-    let: "pk" := g^"sk" in
-    let: "B" := g^"b" in
-    let: "count" := ref #0 in
-    let: "query" := λ: "msg",
-    let: "k" := rand #SymKey in
-    let:m "kg" := vg_of_int "k" in
-    assert (! "count" = #0);;;
-    "count" <- #1;;
-    let: "X" := g^(rand #N) in
-    let: "ckem" := ("B", "X") in
-    if: #0 ≤ "msg" `and` "msg" ≤ #SymOutput then
-      let: "cdem" := (let: "i" := rand #Input in
-        let: "o" := rand #SymOutput in
-        ("i", "o")) in
-      SOME ("cdem", "ckem")
-    else NONEV
-    in ("pk", "query").
+  let: "sk" := rand #N in
+  let: "b" := rand #N in
+  let: "pk" := g^"sk" in
+  let: "B" := g^"b" in
+  let: "count" := ref #0 in
+  let: "query" := λ: "msg",
+  let: "k" := rand #SymKey in
+  let:m "kg" := vg_of_int "k" in
+  assert (! "count" = #0);;;
+  "count" <- #1;;
+  let: "X" := g^(rand #N) in
+  let: "ckem" := ("B", "X") in
+  if: #0 ≤ "msg" `and` "msg" ≤ #SymOutput then
+    let: "cdem" := (let: "i" := rand #Input in
+      let: "o" := rand #SymOutput in
+      ("i", "o")) in
+    SOME ("cdem", "ckem")
+  else NONEV
+  in ("pk", "query").
 
 (* Here, we get rid of the multiplication by
   the public key, using a nontrivial bijection in the coupling, as in
   ElGamal_semantic *)
 
-Lemma pk_rand_senc_delay_pk_rand_senc_mult_free : ⊢ REL 
-  init_scheme pk_rand_senc_delay <<
-  init_scheme pk_rand_senc_mult_free :
-  lrel_G *
-  (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G))).
+Lemma pk_rand_senc_delay_pk_rand_senc_mult_free :
+  ⊢ refines top 
+  (init_scheme pk_rand_senc_delay)
+  (init_scheme pk_rand_senc_mult_free)
+  (lrel_G *
+  (lrel_input → () + (() + (lrel_int * lrel_int) * (lrel_G * lrel_G)))).
 Proof with rel_pures_l; rel_pures_r.
   rel_init_scheme mapref "Hmap" mapref' "Hmap'"...
   rel_alloctape_l γ as "Hγ"...
@@ -758,8 +873,9 @@ Qed.
 Lemma pk_rand_senc_mult_free_adv_sym_cpa (adv : val) :
   refines top adv
     adv ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool)
-  ⊢ REL adv (init_scheme pk_rand_senc_mult_free) <<
-    (CPA SymKey Input SymOutput) #true (λ: "oracle", adv (adv_rand "oracle"))%V (rf_scheme Input SymOutput xor_struct) #1 :
+  ⊢ refines top
+    (adv (init_scheme pk_rand_senc_mult_free))
+    ((CPA SymKey Input SymOutput) #true (λ: "oracle", adv (adv_rand "oracle"))%V (rf_scheme Input SymOutput xor_struct) #1)
   lrel_bool.
 Proof with rel_pures_l; rel_pures_r.
   iIntros "Hadvtyped".
@@ -891,9 +1007,10 @@ Qed.
 Lemma rf_is_CPA_instantiated_adv_rand (adv : val)
   (Hadvtype : ⊢ᵥ adv : ((τG * TOracle) → TBool)) :
   ⊢
-  (REL ((CPA SymKey Input SymOutput) #true (λ: "oracle", adv (adv_rand "oracle"))%V (rf_scheme Input SymOutput xor_struct) #1)
-        <<
-        ((CPA SymKey Input SymOutput) #false (λ: "oracle", adv (adv_rand "oracle"))%V (rf_scheme Input SymOutput xor_struct) #1) : lrel_bool).
+  (refines top
+  ((CPA SymKey Input SymOutput) #true (λ: "oracle", adv (adv_rand "oracle"))%V (rf_scheme Input SymOutput xor_struct) #1)
+  ((CPA SymKey Input SymOutput) #false (λ: "oracle", adv (adv_rand "oracle"))%V (rf_scheme Input SymOutput xor_struct) #1)
+  lrel_bool).
 Proof. iStartProof.
   iPoseProof ec_zero as "Hec".
   iMod "Hec".
@@ -914,16 +1031,17 @@ Proof. iStartProof.
   - type_expr 1; last tychk. apply Val_typed. apply adv_rand_syn_typed.
 Qed.
 
-(* pickup here *)
 Lemma rf_CPA_pk_rand_srand (adv : val) : 
   refines top adv
     adv ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool)
   ⊢
-  REL ((CPA SymKey Input SymOutput) #false (λ: "oracle", adv (adv_rand "oracle"))%V (rf_scheme Input SymOutput xor_struct) #1)
-  << adv (init_scheme pk_rand_srand) : lrel_bool.
+  refines top
+  ((CPA SymKey Input SymOutput) #false (λ: "oracle", adv (adv_rand "oracle"))%V (rf_scheme Input SymOutput xor_struct) #1)
+  (adv pk_rand_srand)
+  lrel_bool.
 Proof with rel_pures_l; rel_pures_r. iIntros "Hadvtyped".
   rewrite /rf_scheme.
-  rel_init_scheme mapref "Hmap" mapref' "Hmap'".
+  rel_init_scheme_l mapref "Hmap".
   rewrite /CPA...
   rewrite /rf_keygen...
   rel_apply refines_randU_l.
@@ -935,6 +1053,7 @@ Proof with rel_pures_l; rel_pures_r. iIntros "Hadvtyped".
   rel_apply (refines_bind with "[-]").
   2:{ iIntros (v v') "Hrel"... rel_vals. }
   rel_apply (refines_app with "Hadvtyped").
+  rewrite /pk_rand_srand.
   rel_apply refines_couple_UU; first done.
   iIntros (sk Hskbound). iModIntro...
   rel_apply refines_couple_UU; first done.
@@ -949,23 +1068,11 @@ Proof with rel_pures_l; rel_pures_r. iIntros "Hadvtyped".
   rel_pure_r.
   rel_apply refines_pair; first rel_vals.
   set (P := (
-     ((cnt ↦ #0 ∗ cnt' ↦ₛ #0 ∗ cnt2 ↦ #0)
-    ∨ (cnt ↦ #1 ∗ cnt' ↦ₛ #1 ∗ cnt2 ↦ #1))
-    ∗ (∃ (M : gmap nat val),
-        map_list  mapref  M
-      ∗ map_slist mapref' M
-      ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
-        → ∃ k : nat, y = #k ∧ k <= card_output ⌝
-      ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝)
+      (cnt ↦ #0 ∗ cnt' ↦ₛ #0 ∗ cnt2 ↦ #0)
+    ∨ (cnt ↦ #1 ∗ cnt' ↦ₛ #1 ∗ cnt2 ↦ #1)
   )%I).
   rel_apply (refines_na_alloc P (nroot.@"prf_rand_adv_cpa")).
-  iSplitL.
-  { iSplitR "Hmap Hmap'"; first (iLeft; iFrame).
-    iExists ∅. iFrame. iPureIntro; split.
-    - intros y Hy. rewrite map_img_empty in Hy.
-      rewrite elem_of_empty in Hy. exfalso; apply Hy.
-    - intros y Hy. rewrite elements_empty in Hy.
-      rewrite elem_of_nil in Hy. exfalso; apply Hy. }
+  iSplitL; first (iLeft; iFrame).
   iIntros "#Inv".
   rel_arrow_val.
   iIntros (v1 v2 [msg [eq1 [eq2 Hmsgbound]]]); subst...
@@ -977,7 +1084,7 @@ Proof with rel_pures_l; rel_pures_r. iIntros "Hadvtyped".
   iIntros (kg1 kg2 [tmp1 [tmp2 [[eq1 [eq2 [eq3 eq4]]]|[eq1 [eq2 [kg [eq3 eq4]]]]]]]);
   subst; rel_pures_l; rel_pures_r; first rel_vals.
   rel_apply refines_na_inv; iSplitL; first iAssumption.
-  iIntros "[[[[Hcnt [Hcnt' Hcnt2]]|[Hcnt [Hcnt' Hcnt2]]] Hmaps] Hclose]".
+  iIntros "[[[Hcnt [Hcnt' Hcnt2]]|[Hcnt [Hcnt' Hcnt2]]] Hclose]".
   2 : {
     rel_load_l; rel_load_r... rel_apply refines_na_close; iFrame; iSplitL.
     + iRight. iFrame.
@@ -1027,7 +1134,7 @@ Lemma pk_rand_srand_rand_tape (adv : val) :
   refines top adv
     adv ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool)
   ⊢
-  REL adv pk_rand_srand << adv pk_rand_tape : lrel_bool.
+  refines top (adv pk_rand_srand) (adv pk_rand_tape) lrel_bool.
 Proof with rel_pures_l; rel_pures_r.
   iIntros "Hadvtyped".
   rel_apply (refines_app with "Hadvtyped").
@@ -1090,7 +1197,7 @@ Lemma pk_rand_tape_pk_rand (adv : val) :
   refines top adv
     adv ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool)
   ⊢
-  REL adv pk_rand_tape << adv pk_rand : lrel_bool.
+  refines top (adv pk_rand_tape) (adv pk_rand) lrel_bool.
 Proof with rel_pures_l; rel_pures_r. iIntros "Hadvtyped".
   rel_apply (refines_app with "Hadvtyped").
   rewrite /pk_rand_tape. rewrite /pk_rand.
