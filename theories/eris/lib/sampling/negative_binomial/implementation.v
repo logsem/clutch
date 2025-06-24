@@ -447,79 +447,11 @@ Section NegativeBinomial.
 
   Definition expand_perm : list nat → list (fin 2) :=
     flat_map (λ (i : nat), repeat (0%fin : fin 2) i ++ [1%fin : fin 2]).
-
-  Fixpoint contract_perm_aux (l : list (fin 2)) (acc : nat) : list nat :=
-    match l with
-    | [] => []
-    | 0%fin::t => contract_perm_aux t (S acc)
-    | _%fin::t => [acc] ++ contract_perm_aux t 0
-    end.
-
-  Definition contract_perm (l : list (fin 2)) : list nat := contract_perm_aux l 0.
-
-  Lemma expand_perm_app : ∀ (l1 l2 : list nat), expand_perm (l1 ++ l2) = expand_perm l1 ++ expand_perm l2.
-  Proof.
-    move=>l1 l2.
-    unfold expand_perm.
-    rewrite flat_map_app //.
-  Qed.
-
-  Lemma expand_perm_repeat_0 :
+  
+   Lemma expand_perm_repeat_0 :
     ∀ (r : nat), expand_perm (repeat 0 r) = repeat 1%fin r.
   Proof.
     elim=>[|/= ? ->] //.
-  Qed.
-  
-  Lemma exists_perm : ∀ (l : list (fin 2)), ∃ perm n, l = expand_perm perm ++ repeat 0%fin n.
-  Proof.
-    elim=>[|h t [perm_t [n_t ->]]];
-          last (full_inv_fin;
-                first destruct perm_t as [|h_perm t_perm]);
-          by [ exists [], 0
-             | exists [], (S n_t)
-             | exists (S h_perm :: t_perm) , n_t
-             | exists (0::perm_t) , n_t
-             ].
-  Qed.
-  
-  Lemma contract_perm_aux_repeat : ∀ (n acc : nat) (suf : list (fin 2)), contract_perm_aux (repeat 0%fin n ++ 1%fin :: suf) acc = n + acc :: contract_perm_aux suf 0.
-  Proof.
-    elim=>[//|n IH] acc suf.
-    simpl.
-    rewrite IH.
-    f_equal.
-    lia.
-  Qed.
-  
-  Lemma contract_expand_perm_suf : ∀ (perm : list nat) (suf : list (fin 2)), contract_perm (expand_perm perm ++ suf ) = perm ++ contract_perm suf.
-  Proof.
-    elim=>[//|h t IH] suf /=.
-    rewrite /contract_perm -!app_assoc contract_perm_aux_repeat Nat.add_0_r.
-    fold (contract_perm (expand_perm t ++ suf)).
-    rewrite IH //.
-  Qed.
-
-  Lemma contract_expand_perm : ∀ (perm : list nat), contract_perm (expand_perm perm) = perm.
-  Proof.
-    move=>perm.
-    rewrite -(app_nil_r (expand_perm perm)) contract_expand_perm_suf app_nil_r //.
-  Qed.
-
-  Lemma expand_contract_perm_suf : ∀ (l : list (fin 2)) (suf : list nat), expand_perm (contract_perm (l ++ [1%fin]) ++ suf) = l ++ [1%fin] ++ expand_perm suf.
-  Proof.
-    move=>l suf.
-    destruct (exists_perm l) as (perm & n & ->).
-    rewrite -!app_assoc -(app_nil_r [1%fin]) (app_assoc _ [1%fin]).
-    change ((repeat _ _ ++ [_]) ++ []) with (expand_perm [n]).
-    rewrite -expand_perm_app.
-    rewrite contract_expand_perm.
-    rewrite !expand_perm_app !app_assoc //.
-  Qed.
-
-  Lemma expand_contract_perm : ∀ (l : list (fin 2)), expand_perm (contract_perm (l ++ [1%fin])) = l ++ [1%fin].
-  Proof.
-    move=>l.
-    rewrite -(app_nil_r (contract_perm _)) expand_contract_perm_suf app_nil_r //.
   Qed.
   
   Fixpoint is_negative_translation (r : nat) (v : list nat) (l : list (fin 2)) :=
@@ -571,234 +503,28 @@ Section NegativeBinomial.
       apply IH.
       by split.
   Qed.
-
-  Definition negative_to_bernoulli (r : nat) (v : list nat) : list (fin 2) :=
-    i ← v ;
-  repeat (0%fin : fin 2) i ++ repeat (1%fin : fin 2) r.
-
-  Lemma negative_to_bernoulli_last (r : nat) :
-    0 < r →
-    ∀ (v : list nat), v ≠ [] →
-    ∃ (l : list (fin 2)), negative_to_bernoulli r v = l ++ [1%fin].
+  
+  Lemma is_negative_translation_snoc :
+    ∀ (r : nat) (v : list (fin 2)) (l : list nat) (perm : list nat),
+    length perm = r → 
+    is_negative_translation r l v →
+    is_negative_translation r (l ++ [list_sum perm])
+      (v ++ expand_perm perm).
   Proof.
-    move=>r_pos.
-    elim=>[//|vh vt IH] _.
-    destruct vt.
-    { destruct r; first lia.
-      rewrite -(Nat.add_1_r r) /= repeat_app app_nil_r app_assoc /=.
-      by eexists.
-    }
-    simpl in *.
-    destruct IH as [l ->]; first done.
-    rewrite app_assoc.
-    by eexists.
-  Qed.
-      
-  Lemma negative_to_bernoulli_length (r : nat) :
-    ∀ (v : list nat), length (negative_to_bernoulli r v) = list_sum v + r * length v.
-  Proof.
-    elim=>[|vh vt IH] /=; first lia.
-    rewrite !app_length !repeat_length IH.
-    lia.
+    move=>r v l.
+    elim:l v =>[|hl tl IH] v perm len_perm /= is_tl.
+    - rewrite is_tl /=.
+      exists perm, [].
+      rewrite app_nil_r len_perm //.
+    - destruct is_tl as (pre & suf & -> & len_pre & sum_pre & is_tl).
+      exists pre, (suf ++ expand_perm perm).
+      rewrite app_assoc len_pre sum_pre.
+      split; first reflexivity.
+      split; first reflexivity.
+      split; first reflexivity.
+      by apply IH.
   Qed.
   
-  Fixpoint bernoulli_to_negative_aux (r c : nat) (l : list (fin 2)) (acc : nat) : list nat :=
-    match l,c with
-    | [], _ => []
-    | 1%fin::t, 0 => [acc] ++ bernoulli_to_negative_aux r (r - 1) t 0
-    | 1%fin::t, S m => bernoulli_to_negative_aux r m t acc
-    | _::t, _ => bernoulli_to_negative_aux r c t (S acc)
-    end.
-
-  Definition bernoulli_to_negative (r : nat) (l : list (fin 2)) := bernoulli_to_negative_aux r (r - 1) l 0.
-
-  Lemma bernoulli_to_negative_aux_prefix (r : nat) :
-    ∀ (pre suf : list (fin 2)) (acc c : nat),
-    c = (list_sum $ fin_to_nat <$> pre) →
-    bernoulli_to_negative_aux r c (pre ++ 1%fin :: suf) acc = [acc + length pre - c] ++ bernoulli_to_negative_aux r (r - 1) suf 0.
-  Proof.
-    elim=>[|hpre tpre IH].
-    - move=>/= suf acc c -> /=.
-      rewrite Nat.add_0_r Nat.sub_0_r //.
-    - full_inv_fin.
-      + move=> suf acc c /= c_eq.
-        rewrite IH //=.
-        f_equal.
-        lia.
-      + move=>suf acc [|c] //= [=->].
-        rewrite IH //=.
-        f_equal.
-        lia.
-  Qed.
-
-  Lemma list_sum_negative_to_bernoulli (r : nat) :
-    ∀ (l : list nat), list_sum $ fin_to_nat <$> negative_to_bernoulli r l = r * length l.
-  Proof.
-    elim=>[|h t IH] /=; first rewrite Nat.mul_0_r //.
-    rewrite !fmap_app !fmap_repeat !list_sum_app !list_sum_repeat Nat.mul_0_l Nat.mul_1_l Nat.add_0_l IH.
-    lia.
-  Qed.
-  
-  Lemma negative_to_bernoulli_to_negative (r : nat) :
-    (0 < r)%nat →
-    ∀ (l : list nat), bernoulli_to_negative r (negative_to_bernoulli r l) = l.
-  Proof.
-    case: r=>[|r] r_pos; first lia.
-    elim=>[//|h t IH].
-    rewrite -{2}Nat.add_1_r /= repeat_app -!app_assoc /= app_assoc
-               /bernoulli_to_negative bernoulli_to_negative_aux_prefix; last first.
-    { 
-      rewrite /= Nat.sub_0_r fmap_app !fmap_repeat list_sum_app /= !list_sum_repeat.
-      lia.
-    }
-    unfold bernoulli_to_negative in IH.
-    rewrite !Nat.add_1_r IH /= app_length !repeat_length.
-    f_equal.
-    lia.
-  Qed.
-
-  Lemma list_sum_expand_perm : ∀ (perm : list nat), list_sum (fin_to_nat <$> expand_perm perm) = length perm.
-  Proof.
-    elim=>[//|h t IH] /=.
-    rewrite !fmap_app fmap_repeat !list_sum_app list_sum_repeat IH //.
-  Qed.
-
-  Lemma list_sum_le : ∀ (l : list (fin 2)), list_sum $ fin_to_nat <$> l ≤ length l.
-  Proof.
-    elim=>[//|h t IH].
-    unfold fmap in *.
-    full_inv_fin; simpl; lia.
-  Qed.
-  
-  Lemma list_sum_contract_perm_aux : ∀ (l : list (fin 2)) (acc : nat), list_sum (contract_perm_aux (l ++ [1%fin]) acc) = acc + length l - (list_sum $ fin_to_nat <$> l).
-  Proof.
-    elim=>[|h t IH] acc /=; first lia.
-    full_inv_fin.
-    - rewrite IH /= Nat.add_succ_r //.
-    - rewrite /= IH /= -Nat.add_sub_assoc //.
-      rewrite -Nat.succ_le_mono.
-      apply list_sum_le.
-  Qed.
-
-  Lemma list_sum_contract_perm : ∀ (l : list (fin 2)), list_sum (contract_perm (l ++ [1%fin])) = length l - (list_sum $ fin_to_nat <$> l).
-  Proof.
-    move=>l.
-    rewrite list_sum_contract_perm_aux //.
-  Qed.
-    
-  Lemma expand_perm_length : ∀ (perm : list nat), length (expand_perm perm) = list_sum perm + length perm.
-  Proof.
-    elim=>[//|h t IH] /=.
-    rewrite !app_length IH repeat_length /=.
-    lia.
-  Qed.
-
-  Lemma contract_perm_aux_length : ∀ (l : list (fin 2)) (acc : nat),
-    length (contract_perm_aux l acc) = list_sum $ fin_to_nat <$> l.
-  Proof.
-    elim=>[//|h t IH] acc /=.
-    full_inv_fin; rewrite /= IH //.
-  Qed.
-
-  Lemma contract_perm_length : ∀ (l : list (fin 2)),
-    length (contract_perm l) = list_sum $ fin_to_nat <$> l.
-  Proof.
-    move=>l.
-    rewrite contract_perm_aux_length //.
-  Qed.
-  
-  Lemma bernoulli_to_negative_expand_perm :
-    ∀ (r : nat) (perm : list nat) (suf : list (fin 2)),
-    (0 < r)%nat →
-    length perm = r →
-    bernoulli_to_negative r (expand_perm perm ++ suf) = list_sum perm :: bernoulli_to_negative r suf.
-  Proof.
-    case=>[|r] perm suf r_pos len_perm; first lia.
-    assert (perm ≠ []) as perm_not_emp.
-    { destruct perm; first discriminate.
-      done.
-    }
-    destruct (exists_last perm_not_emp) as (pre & k & ->).
-    rewrite app_length /= in len_perm.
-    rewrite expand_perm_app /= app_nil_r -!app_assoc /= app_assoc /bernoulli_to_negative bernoulli_to_negative_aux_prefix.
-    { simpl.
-      rewrite app_length expand_perm_length repeat_length list_sum_app /=.
-      replace (length pre) with r by lia.
-      f_equal.
-      lia.
-    }
-    rewrite fmap_app fmap_repeat list_sum_app list_sum_repeat list_sum_expand_perm /=.
-    lia.
-  Qed.
-  
-  Lemma bernoulli_to_negative_expand_perm_n :
-    ∀ (r n : nat) (perm : list nat) (suf : list (fin 2)),
-    (0 < r)%nat →
-    length perm = n * r →
-    bernoulli_to_negative r (expand_perm perm ++ suf) = bernoulli_to_negative r (expand_perm perm) ++ bernoulli_to_negative r suf.
-  Proof.
-    move=>r.
-    elim=>[|n IH] perm suf r_pos len_perm;
-          first by destruct perm.
-    rewrite -(take_drop r perm) expand_perm_app -!app_assoc !(bernoulli_to_negative_expand_perm _ (take r perm)) /=;
-      try rewrite take_length; try lia.
-    f_equal.
-    apply IH; first done.
-    rewrite drop_length len_perm.
-    lia.
-  Qed.
-
-  Lemma bernoulli_to_negative_translation (r : nat) :
-    (0 < r)%nat →
-    ∀ (l : list (fin 2)) (v : list nat),
-    is_negative_translation r v l
-    ↔ 
-    ∃ perm n, 
-    l = expand_perm perm ∧
-    length perm = n * r ∧
-    v = bernoulli_to_negative r l.
-  Proof.
-    move=>r_pos l v.
-    elim: v l =>[|vt vh IH] /= l.
-    - case: l; split; try done.
-      + move=>_.
-        by exists [], 0.
-      + intros (perm & n & -> & len_perm & perm_emp).
-        destruct n; first by destruct perm.
-        destruct r; first lia.
-        rewrite -(take_drop (S r) perm) expand_perm_app in perm_emp.
-        rewrite bernoulli_to_negative_expand_perm in perm_emp; last rewrite take_length; try lia.
-        discriminate.
-    - split.
-      + destruct r; first lia. 
-        intros (perm & suf & -> & len_perm & sum_perm & is_tl).
-        apply IH in is_tl as (perm' & n & -> & len_perm' & vt_eq).
-        exists (perm ++ perm'), (S n).
-        split; first rewrite expand_perm_app //.
-        rewrite app_length len_perm' len_perm.
-        split; first lia.
-        rewrite bernoulli_to_negative_expand_perm; try assumption.
-        by f_equal.
-      + intros (perm & n & -> & len_perm & v_eq).
-        exists (take r perm), (expand_perm (drop r perm)).
-        split; first by rewrite -expand_perm_app take_drop.
-        assert (length (take r perm) = r).
-        { rewrite take_length.
-          destruct perm, n; try discriminate.
-          lia.
-        }
-        split; first done.
-        rewrite -(take_drop r perm) expand_perm_app in v_eq.
-        rewrite bernoulli_to_negative_expand_perm in v_eq; try lia.
-        injection v_eq as vt_eq vh_eq.
-        split; first done.
-        apply IH.
-        exists (drop r perm), (n - 1).
-        split; first done.
-        rewrite drop_length len_perm.
-        rewrite Nat.mul_sub_distr_r Nat.mul_1_l //.
-  Qed.
-
   Lemma twp_negative_tape :
     ∀ (p q r : nat) (α : loc) (n : nat) (ns : list nat) (Φ : val → iProp Σ),
     own_negative_tape α p q r (n::ns) -∗
@@ -852,64 +578,13 @@ Section NegativeBinomial.
           by iApply "Hnext".
         }
   Qed.
-         
-  Lemma twp_negative_presample :
-    ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
-      (p q r : nat) (ns : list nat) (ε : R),
-    (0 < p)%nat →
-    (p ≤ q + 1)%nat →
-    (0 < ε)%R → 
-    to_val e = None →
-    ↯ ε ∗ own_negative_tape α p q r ns ∗
-    (∀ (i : nat), own_negative_tape α p q r (ns ++ [i]) -∗ WP e [{ Φ }])
-    ⊢  WP e [{ Φ }].
-  Proof.
-    iIntros (e α Φ p q r ns ε p_pos p_lt_Sq ε_pos e_not_val) "(Herr & (%l & Hα & %is_tl) & Hnext)".
-    wp_apply (twp_bernoulli_n_success_presample _ _ _ p q r with "[$Herr $Hα Hnext]"); try done.
-    case_bool_decide.
-    { iIntros "Htape".
-      iApply ("Hnext" $! 0).
-      unfold own_negative_tape.
-      subst r.
-      apply is_negative_translation_0 in is_tl as [-> ns_eq].
-      iExists [].
-      iFrame.
-      iPureIntro.
-      apply is_negative_translation_0.
-      split; first done.
-      rewrite {1}ns_eq app_length /= repeat_app //.
-    } 
-    iIntros (suf sum_suf) "Hα".
-    wp_apply ("Hnext" $! (length suf - (r - 1))).
-    unfold own_negative_tape.
-    iExists (l ++ suf ++ [1%fin]).
-    iFrame.
-    iPureIntro.
-    apply bernoulli_to_negative_translation in is_tl as (perm & n & -> & len_perm & ->); last lia.
-    rewrite bernoulli_to_negative_translation; last lia.
-    exists (perm ++ contract_perm (suf ++ [1%fin])), (S n).
-    split; first by rewrite expand_perm_app expand_contract_perm.
-    split.
-    { rewrite app_length contract_perm_length fmap_app list_sum_app sum_suf len_perm /=.
-      lia.
-    }
-    rewrite (bernoulli_to_negative_expand_perm_n _ n); [|lia|done].
-    f_equal.
-    rewrite -(expand_contract_perm suf) -(app_nil_r (expand_perm _)) bernoulli_to_negative_expand_perm; try lia.
-    { unfold bernoulli_to_negative.
-      simpl.
-      rewrite list_sum_contract_perm sum_suf //.
-    }
-    rewrite contract_perm_length fmap_app list_sum_app sum_suf /=.
-    lia.
-  Qed.
-  
+ 
   Lemma twp_bernoulli_presample_adv_comp_n_success :
-    ∀ (p q : nat) (α : loc) (l : list (fin 2)) (e : expr) (Φ : val → iProp Σ),
+    ∀ (p q r : nat) (α : loc) (l : list (fin 2)) (e : expr)
+      (D : nat → R) (L : R) (ε : R) (ε_term : R) (Φ : val → iProp Σ),
     0 < p →
     p ≤ (q + 1) →
     to_val e = None →
-    ∀ (r : nat) (D : nat → R) (L : R) (ε : R) (ε_term : R),
     (0 < ε_term)%R →
     (∀ (n : nat), 0 <= D n <= L)%R →
     SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
@@ -919,10 +594,10 @@ Section NegativeBinomial.
     (∀ (perm : list nat),
        ⌜length perm = r⌝ -∗
        ↯ (D (list_sum perm)%nat) -∗
-         own_bernoulli_tape α p q (l ++ expand_perm perm) -∗ WP e [{ Φ }]) ⊢
+       own_bernoulli_tape α p q (l ++ expand_perm perm) -∗ WP e [{ Φ }]) ⊢
     WP e [{ Φ }].
   Proof.
-    iIntros (p q α l e Φ Hp Hpq e_not_val r D L ε ε_term Hε_term HD HSum) "(Hterm & Herr & Hα & Hnext)".
+    iIntros (p q r α l e D L ε ε_term Φ Hp Hpq e_not_val Hε_term HD HSum) "(Hterm & Herr & Hα & Hnext)".
     destruct (decide (p = q + 1)) as [-> | p_ne_Sq].
     {
       rewrite (SeriesC_ext _ (λ k, if bool_decide (k = 0)%nat then D 0 else 0%R)) in HSum; last first.
@@ -1100,49 +775,31 @@ Section NegativeBinomial.
         }
       } 
   Qed.
-
+  
   Lemma twp_negative_presample_adv_comp :
-    ∀ (p q : nat) (α : loc) (l : list nat) (e : expr) (Φ : val → iProp Σ),
-    0 < p →
-    p ≤ (q + 1) →
-    to_val e = None →
-    ∀ (r : nat) (D : nat → R) (L : R) (ε : R) (ε_term : R),
-    (0 < ε_term)%R →
-    (∀ (n : nat), 0 <= D n <= L)%R →
-    SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
-    ↯ ε_term ∗
-    ↯ ε ∗
-    own_negative_tape α p q r l ∗
-    (∀ (n : nat),
-       ↯ (D n) -∗
+    ∀ (p q r : nat) (α : loc) (l : list nat) (e : expr)
+      (D : nat → R) (L : R) (ε : R) (ε_term : R) (Φ : val → iProp Σ),
+      0 < p →
+      p ≤ (q + 1) →
+      to_val e = None →
+      (0 < ε_term)%R →
+      (∀ (n : nat), 0 <= D n <= L)%R →
+      SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
+      ↯ ε_term ∗
+      ↯ ε ∗
+      own_negative_tape α p q r l ∗
+      (∀ (n : nat),
+         ↯ (D n) -∗
          own_negative_tape α p q r (l ++ [n]) -∗ WP e [{ Φ }]) ⊢
-    WP e [{ Φ }].
+      WP e [{ Φ }].
   Proof.
-    iIntros (p q α l e Φ p_pos p_lt_Sq e_not_val r D L ε ε_term ε_term_pos D_pos D_sum) "(Hterm & Herr & (%v & Hα & %is_tl) & Hnext)".
-    unshelve wp_apply (twp_bernoulli_presample_adv_comp_n_success _ _ _ _ _ _ _ _ _ r D L ε ε_term); last iFrame; try done.
+    iIntros (p q r α l e D L ε ε_term Φ p_pos p_lt_Sq e_not_val ε_term_pos D_pos D_sum) "(Hterm & Herr & (%v & Hα & %is_tl) & Hnext)".
+    unshelve wp_apply (twp_bernoulli_presample_adv_comp_n_success p q r _ _ _ D L ε ε_term); last iFrame; try done.
     iIntros (perm len_perm) "Herr Hα".
     wp_apply ("Hnext" with "Herr").
     iFrame.
     iPureIntro.
-    destruct r.
-    { destruct perm; last discriminate.
-      simpl.
-      rewrite is_negative_translation_0 in is_tl.
-      destruct is_tl as [-> l_eq].
-      rewrite app_nil_r is_negative_translation_0.
-      split; first done.
-      rewrite {1}l_eq app_length repeat_app //.
-    } 
-    rewrite bernoulli_to_negative_translation in is_tl; last lia.
-    rewrite bernoulli_to_negative_translation; last lia.
-    destruct is_tl as (perm' & n & -> & len_perm' & ->).
-    exists (perm' ++ perm), (S n).
-    split; first rewrite expand_perm_app //.
-    split; first (rewrite app_length; lia).
-    rewrite (bernoulli_to_negative_expand_perm_n (S r) n); try lia.
-    f_equal.
-    rewrite -(app_nil_r (expand_perm perm)) bernoulli_to_negative_expand_perm //.
-    lia.
+    by apply is_negative_translation_snoc.
   Qed.
 
   #[global] Instance NegativeOfBernoulli : negative_binomial_spec negative_binomial nalloc :=
@@ -1151,7 +808,6 @@ Section NegativeBinomial.
       own_negative_tape
       twp_negative_alloc
       twp_negative_tape
-      twp_negative_presample
       twp_negative_presample_adv_comp.
   
 End NegativeBinomial.
