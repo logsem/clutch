@@ -78,7 +78,7 @@ Section diffpriv.
     (ε_pos : 0 <= ε) (hε' : ε <= ε')
     (δ_pos : 0 <= δ) (hδ' : δ <= δ') :
     wp_diffpriv f ε δ dA -∗
-    wp_diffpriv f ε' δ dA.
+    wp_diffpriv f ε' δ' dA.
   Proof.
     iIntros "fεδ" (?? a a' ?) "[rhs [ε δ]]".
     pose proof (distance_pos a a').
