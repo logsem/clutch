@@ -69,6 +69,11 @@ Section diffpriv.
     ⤇ fill K (f (Val (inject x'))) ∗ ↯m (c * ε) ∗ ↯(c * δ) -∗
       WP f (Val (inject x)) {{ v, ⤇ fill K (Val v) }}.
 
+  Definition wp_diffpriv_pw (f : expr) ε δ `(dA : Distance A) : iProp Σ := ∀ K c (x x' : A), ⌜dA x x' <= c⌝ →
+    ⤇ fill K (f (Val (inject x'))) ∗ ↯m (c * ε) ∗ ↯(c * δ) -∗
+    ∀ r,
+      WP f (Val (inject x)) {{ v, ∃ (v' : val), ⤇ fill K (Val v') ∗ ⌜v = r → v' = r⌝ }}.
+
   Definition hoare_diffpriv (f : expr) ε δ `(dA : Distance A) : iProp Σ := ∀ K c (x x' : A), ⌜dA x x' <= c⌝ →
       {{{ ⤇ fill K (f (Val (inject x'))) ∗ ↯m (c * ε) ∗ ↯ (c * δ) }}}
         f (Val (inject x))
@@ -143,11 +148,26 @@ Section diffpriv.
     rewrite /hoare_sensitive/hoare_diffpriv. iIntros "#f_sens #g_dipr". iIntros (K c'). iIntros. iIntros (Φ) "!> [f' [ε δ]] hΦ".
     wp_pures. wp_bind (f _). tp_pures. tp_bind (f _).
     iApply ("f_sens" $! _ _ _ _ _ with "[$f']") => //.
-    iIntros "!>" (?) "(%b & %v' & -> & gv' & %sens)".
+    iIntros "!>" (_v) "(%v & %v' & -> & gv' & %sens)".
     iApply ("g_dipr" $! K (c * c') _ _ _ with "[$gv' ε δ]").
     { rewrite (Rmult_comm c c') 2!Rmult_assoc. iFrame. }
     Unshelve. 1-2: done.
     etrans => //. apply Rmult_le_compat_l => //.
+  Qed.
+
+  Fact diffpriv_pw_sensitive_comp (f g : val) ε δ c
+    `(dA : Distance A) `(dB : Distance B) {C : Type} `(dC : Distance C)
+    (c_pos : 0 <= c) :
+    wp_sensitive f c dA dB -∗ wp_diffpriv_pw g ε δ dB -∗ wp_diffpriv_pw (λ:"x", g (f "x")) (c*ε) (c*δ) dA.
+  Proof.
+    rewrite /wp_sensitive/wp_diffpriv_pw. iIntros "f_sens g_dipr". iIntros (K c'). iIntros (??) "% [f' [ε δ]] %".
+    wp_pures. wp_bind (f _). tp_pures. tp_bind (f _).
+    iSpecialize ("f_sens" $! c_pos _ x x' with "f'").
+    iApply (wp_strong_mono'' with "f_sens").
+    iIntros "% (% & % & -> & gb' & %sens) /=".
+    unshelve iApply ("g_dipr" $! _ (c * c') b b' _ with "[$gb' ε δ]").
+    2:{ rewrite (Rmult_comm c c') 2!Rmult_assoc. iFrame. }
+    etrans. 1: eauto. real_solver.
   Qed.
 
   Definition hoare_functional_on (A : Type) {_ : Inject A val} (f : expr) : iProp Σ := ∀ K (x : A) ,
