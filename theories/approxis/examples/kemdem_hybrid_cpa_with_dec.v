@@ -5,7 +5,7 @@ From clutch.approxis Require Import map reltac2 approxis option.
 From clutch.clutch.examples.crypto Require ElGamal_bijection.
 From clutch.approxis.examples Require Import
   valgroup diffie_hellman prf_local_state prf_cpa_with_dec security_aux option xor
-  ElGamal_defs bounded_oracle pubkey advantage_laws.
+  ElGamal_defs bounded_oracle pubkey advantage_laws iterable_expression.
 From mathcomp Require Import ssrbool.
 From mathcomp Require fingroup.fingroup.
 Set Default Proof Using "All".
@@ -299,21 +299,16 @@ Section Correctness.
     | Some y => SOME (vgval y)
   end.
 
-  Axiom vg_of_int_correct_l : ∀  E K e A (n : Z),
-    refines E (fill K (opt_vg_to_val (@vg_of_int_sem vgG n))) e A
-    -∗ refines E (fill K (vg_of_int #n)) e A.
+  Axiom vg_of_int_correct :
+    @det_val_fun1 _ _ Z (option vgG) lrel_int (() + lrel_G)%lrel (λ x, #x)
+      (λ x, match x with
+        | None => NONEV
+        | Some x => SOMEV (vgval x) end) vg_of_int vg_of_int_sem.
 
-  Axiom vg_of_int_correct_r : ∀ E K e A (n : Z),
-    refines E e (fill K (opt_vg_to_val (@vg_of_int_sem vgG n))) A
-    -∗ refines E e (fill K (vg_of_int #n)) A.
-  
-  Axiom int_of_vg_correct_l : ∀ E K e A (xg : vgG),
-    refines E (fill K (Val #(@int_of_vg_sem vgG xg))) e A
-    -∗ refines E (fill K (int_of_vg (vgval xg))) e A.
-  
-  Axiom int_of_vg_correct_r : ∀ E K e A (xg : vgG),
-    refines E e (fill K (Val #(@int_of_vg_sem vgG xg))) A
-    -∗ refines E e (fill K (int_of_vg (vgval xg))) A.
+  Axiom int_of_vg_correct :
+    @det_val_fun1 _ _ vgG Z lrel_G lrel_int vgval (λ x, #x) int_of_vg int_of_vg_sem.
+
+  Axiom vgval_sem_typed : ⊢ to_val_type_rel lrel_G vgval.
 
   Lemma hybrid_scheme_correct :
     ⊢ refines top
@@ -350,8 +345,27 @@ Section Correctness.
     rewrite /SymKey.
     rel_apply refines_couple_UU; first done.
     iIntros (k Hkbound); iModIntro...
-    rel_apply vg_of_int_correct_l.
-    rel_apply vg_of_int_correct_r.
+
+    (* TODO application of det_val_fun, to change when det_val_fun1
+      definition is modified for better application (cf. iterable_expression) *)
+    rel_apply_l (vg_of_int_correct _ _ k _ (() + lrel_input)%lrel).
+    {
+      iSplit.
+      - iIntros (x). iExists _. iSplit; done.
+      - iIntros (x). destruct x as [xv|].
+        + iExists _, _; iRight. repeat iSplit; try done.
+          iApply vgval_sem_typed.
+        + iExists _, _; iLeft. repeat iSplit; try done.
+    }
+    rel_apply_r (vg_of_int_correct _ _ k _ (() + lrel_input)%lrel).
+    {
+      iSplit.
+      - iIntros (x). iExists _. iSplit; done.
+      - iIntros (x). destruct x as [xv|].
+        + iExists _, _; iRight. repeat iSplit; try done.
+          iApply vgval_sem_typed.
+        + iExists _, _; iLeft. repeat iSplit; try done.
+    }
     destruct (vg_of_int_sem k) as [kg|] eqn:eqkg; first last.
     - rewrite /dec_hyb... rel_vals.
     - rewrite /enc... rel_apply refines_randU_l. iIntros (b Hbbound)...
@@ -378,7 +392,10 @@ Section Correctness.
         simpl_mult.
         rewrite -?expgM -ssrnat.multE -mulgA Nat.mul_comm mulgV mulg1.
         rel_bind_l (int_of_vg _).
-        rel_apply int_of_vg_correct_l.
+        rel_apply_l (int_of_vg_correct);
+          first (iSplit; iIntros (x); iExists _; iSplit; done).
+
+
         rewrite (vg_of_int_of_vg_sem (Z.of_nat k)); last by apply eqkg.
         rewrite /prf_dec...
         rewrite /random_function...
@@ -406,7 +423,8 @@ Section Correctness.
         rel_apply refines_inv_l.
         simpl_mult.
         rewrite -?expgM -ssrnat.multE -mulgA Nat.mul_comm mulgV mulg1.
-        rel_apply int_of_vg_correct_l.
+        rel_apply_l (int_of_vg_correct);
+          first (iSplit; iIntros (x); iExists _; iSplit; done).
         rewrite (vg_of_int_of_vg_sem (Z.of_nat k)); last by apply eqkg.
         rewrite /prf_dec...
         rewrite /random_function...
