@@ -94,12 +94,25 @@ Section defs.
       deterministic_syn e1 -> deterministic_syn e2 ->
       deterministic_syn e3 -> deterministic_syn (Case e1 e2 e3).
 
-  Fixpoint iter_appl (e : expr) (args : list val) : expr := match args with
-    | [] => e
-    | h :: t => App (iter_appl e t) h
+  Definition iter_appl_expr (e : expr) (args : list val) : expr :=
+    fold_left (λ e arg, App e (Val arg)) args e.
+  
+  Fixpoint type_of_list_type (As : list Set) : Set := match As with
+    | [] => unit
+    | A::t => A * (type_of_list_type t)
   end.
 
+  (* FIXME probleme typechecking abstract types etc *)
+  Fail Fixpoint iter_appl {As : list Set} {B : Set}
+    (f_sem : (fold_right (λ A B : Set, A → B) B As))
+    (args : type_of_list_type As) : B := match As with
+    | [] => f_sem
+    | A::t => (@iter_appl t B (f_sem (fst args)) (snd args))
+  end.
+
+  (** Example to display why local state should work *)
   (* in the following, capture is avoided by autosubst *)
+
   Definition counter : expr :=
     let: "x" := ref #0 in
     λ: <>, !"x";; "x" <- !"x" + #1.
@@ -108,12 +121,60 @@ Section defs.
     let: "cnt" := counter in
     e.
 
+  (* So, in fact, when we declare some references before providing
+    package/library functions, the refs declared should stay local
+    to the functions of the package/library and opaque outside *)
 End defs.
 
-Section rules.
+Module rules.
   Context `{!approxisRGS Σ}.
 
   Section deterministic.
+
+    (*
+    Definition det_val_fun {A : Type} {As : list Type} (f : expr) (f_sem : list val -> val)
+      (types : list (lrel Σ)) : Prop :=
+      ∀ (E : coPset)
+      (K : list (ectxi_language.ectx_item prob_ectxi_lang))
+      (args : list val) (e : expr) (A : lrel Σ),
+      ForallSep2 (fun x T => (lrel_car T) x x) args types ⊢
+      (refines E (fill K (f_sem args)) e A -∗ refines E (fill K (iter_appl_expr f args)) e A) ∧
+      (refines E e (fill K (f_sem args)) A -∗ refines E e (fill K (iter_appl_expr f args)) A).
+    *)
+    
+    (* Check [nat : Type] : list Type. *)(*
+    Print Inject.
+    Definition det_val_fun {As : list Type} {B : Type} (rel_types : list (lrel Σ))
+      (to_vals : ∀ A, A ∈ As → Inject A val)
+      (to_val_ret : B → val)
+      (f : expr) (f_sem : (fold_right (λ A B : Type, A → B) B As)) :=
+      ∀ (E : coPset)
+      (K : list (ectxi_language.ectx_item prob_ectxi_lang))
+      (args : ∀ A, A ∈ As → A) (e : expr) (A : lrel Σ),
+      ForallSep2 (λ A Arel, ∀ x : A,
+          (lrel_car Arel) ((inject (to_vals A _)) x) ((inject (to_vals A _)) x)) As rel_types
+      ⊢ True.
+      (refines E (fill K (to_val (fold_right (λ f x, f x) f_sem args))) e A
+        -∗ refines E (fill K (iter_appl_expr f args)) e A) ∧
+      (refines E e (fill K (to_val (fold_right (λ f x, f x) f_sem args))) A
+        -∗ refines E e (fill K (iter_appl_expr f args)) A).*)
+
+    Definition to_val_type_rel {A : Type} (Arel : lrel Σ) (to_val : A → val) : iProp Σ :=
+      ∀ x : A, (lrel_car Arel) (to_val x) (to_val x).
+
+    Definition det_val_fun1 {A B : Type} (Alrel Blrel : lrel Σ)
+      (to_valA : A → val) (* (of_valA : val → option A) *)
+      (to_valB : B → val) (* (of_valB : val → option B) *)
+      (f : expr) (f_sem : A → B) :=
+      ∀ (E : coPset)
+      (K : list (ectxi_language.ectx_item prob_ectxi_lang))
+      (arg : A) (e : expr) (T : lrel Σ),
+      to_val_type_rel Alrel to_valA ∗
+      to_val_type_rel Blrel to_valB ⊢
+      (refines E (fill K (to_valB (f_sem arg))) e T
+        -∗ refines E (fill K (f (to_valA arg))) e T) ∧
+      (refines E e (fill K (to_valB (f_sem arg))) T
+        -∗ refines E e (fill K (f (to_valA arg))) T).
 
     Definition det_val_fun (f : expr) (f_sem : list val -> val)
       (types : list (lrel Σ)) : Prop :=
@@ -121,8 +182,8 @@ Section rules.
       (K : list (ectxi_language.ectx_item prob_ectxi_lang))
       (args : list val) (e : expr) (A : lrel Σ),
       ForallSep2 (fun x T => (lrel_car T) x x) args types ⊢
-      (refines E (fill K (f_sem args)) e A -∗ refines E (fill K (iter_appl f args)) e A) ∧
-      (refines E e (fill K (f_sem args)) A -∗ refines E e (fill K (iter_appl f args)) A).
+      (refines E (fill K (f_sem args)) e A -∗ refines E (fill K (iter_appl_expr f args)) e A) ∧
+      (refines E e (fill K (f_sem args)) A -∗ refines E e (fill K (iter_appl_expr f args)) A).
 
     Definition det_val_rel (f : expr) (types : list (lrel Σ)) : Prop :=
       ∀ (E : coPset)
@@ -130,8 +191,8 @@ Section rules.
       (args : list val) (e : expr) (A : lrel Σ),
       ForallSep2 (fun x T => (lrel_car T) x x) args types ⊢
       ∃ (v : val),
-      (refines E (fill K v) e A -∗ refines E (fill K (iter_appl f args)) e A) ∧
-      (refines E e (fill K v) A -∗ refines E e (fill K (iter_appl f args)) A).
+      (refines E (fill K v) e A -∗ refines E (fill K (iter_appl_expr f args)) e A) ∧
+      (refines E e (fill K v) A -∗ refines E e (fill K (iter_appl_expr f args)) A).
     
     Theorem det_val_fun_rel : forall e f_sem types, det_val_fun e f_sem types ->
       det_val_rel e types.
@@ -159,6 +220,16 @@ Section rules.
       rewrite /val1; rel_pures_l; rel_pures_r;
       iApply "H".
     Qed.
+
+    Definition val1_sem (n : Z) : Z := n + 1.
+
+    Theorem det_fun_val1 :
+      @det_val_fun1 Z Z lrel_int lrel_int (λ x, #x) (λ x, #x) val1 val1_sem.
+    Proof. rewrite /det_val_fun1.
+      intros *. iIntros "[#HrelA #HrelB]". iSplit; iIntros "H";
+        rewrite /val1; rel_pures_l; rel_pures_r; rewrite /val1_sem; rel_apply "H".
+    Qed.
+
     (* PROBLEM : hard to write functions from `val` to `val`...
     Lemma det_val_fun1 : det_val_fun val1 (fun n => (n+1)%Z).
     Proof. rewrite /det_val_fun. intros *. split;
@@ -217,7 +288,8 @@ Section rules.
   Section RandCouple.
     
     Definition potential_coupling (f : val) (n : Z) (v : val) : iProp Σ :=
-       (∀ (E' : coPset) (K' : list (ectxi_language.ectx_item prob_ectxi_lang)) (e' : expr) (B : lrel Σ),
+       (∀ (E' : coPset) (K' : list (ectxi_language.ectx_item prob_ectxi_lang))
+        (e' : expr) (B : lrel Σ),
           (refines E' e' (fill K' v) B) -∗ (refines E' e' (fill K' (f #n)) B)).
 
     Definition couplable (f : list loc -> val) (C : lrel Σ) (lN : list nat) : Prop :=
@@ -311,6 +383,18 @@ Section rules.
       rel_values.
   Qed.
   
-End opaque_example.
+  End opaque_example.
+
+  Definition eager_exec'3 := eager_exec' val3.
+  Definition lazy_exec'3 := lazy_exec' val3.
+
+  Lemma lazy_eager'3coucou (i i' : loc) :
+    i ↪N (10;[]) ∗ i' ↪ₛN (10;[])
+    ⊢ REL (eager_exec'3 [i]) << lazy_exec'3 [i'] : () → lrel_int.
+  Proof. iIntros "[Hi Hi']".
+    rel_apply (lazy_eager' val3 [10] iterable_val3).
+    iFrame.
+  Qed.
+
 
 End rules.
