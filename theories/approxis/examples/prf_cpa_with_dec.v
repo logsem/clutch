@@ -1,6 +1,7 @@
 (* CPA security of a PRF based symmetric encryption scheme. *)
 From clutch.approxis Require Import approxis map list.
-From clutch.approxis.examples Require Import prf_local_state security_aux option xor.
+From clutch.approxis.examples Require Import symmetric_init security_aux option xor.
+From clutch.approxis.examples Require prf_local_state.
 Set Default Proof Using "Type*".
 
 Section defs.
@@ -24,6 +25,12 @@ We prove the portions of the above theorems that are concerned with the reductio
   Variable Input : nat.
   Variable Output : nat.
 
+  Local Instance prf_params : prf_local_state.PRF_localstate_params := {|
+      prf_local_state.card_key := Key
+    ; prf_local_state.card_input := Input
+    ; prf_local_state.card_output := Output
+  |}.
+
   Let Message := Output.
   Let Cipher := Input * Output.
 
@@ -31,12 +38,6 @@ We prove the portions of the above theorems that are concerned with the reductio
 
   (** Parameters of the generic PRF-based encryption scheme. *)
   Variable xor_struct : XOR (Key := Message) (Support := Output).
-
-  Local Instance prf_param : PRF_localstate_params :=
-    {|
-      card_key := Key ;
-      card_input := Input ;
-      card_output := Output |}.
 
   (** Generic PRF-based symmetric encryption. *)
   Definition prf_enc : val :=
@@ -59,23 +60,20 @@ We prove the portions of the above theorems that are concerned with the reductio
   (** We specialize the construction to an idealized random function family. *)
   Definition rf_keygen : val := λ:<>, rand #Key.
   Definition rf_enc : val :=
-    λ: "mapref" "key", prf_enc (λ:<>, random_function "mapref" #Output) "key".
+    λ: "mapref" "key", prf_enc (λ:<>, prf_local_state.random_function "mapref" #Output) "key".
   Definition rf_rand_cipher : val :=
     λ:<>, let:"i" := rand #Input in let:"o" := rand #Output in ("i", "o").
   Definition rf_dec : val :=
-    λ: "mapref" "key", prf_dec (λ:<>, random_function "mapref" #Output) "key".
-  (* PROBLEM : with the current definition, we cannot use our scheme to instantiate
-    `SYM`...
-  Local Instance SYM_param : SYM_params :=
-    {| card_key := Key ; card_message := Message ; card_cipher := Cipher |}.
-  Local Instance sym_rf_scheme : SYM :=
-    {| keygen := rf_keygen ;
-      enc := rf_enc ; rand_cipher := rf_rand_cipher ; dec := rf_dec |}.
-  Definition rf_scheme : val := sym_scheme.*)
+    λ: "mapref" "key", prf_dec (λ:<>, prf_local_state.random_function "mapref" #Output) "key".
   
   Definition rf_scheme : expr :=
     let: "mapref" := init_map #() in
-    (rf_enc "mapref", rf_dec "mapref").
+    (rf_keygen, rf_enc "mapref", rf_dec "mapref").
+  Local Instance SYM_param : SYM_init_params :=
+    {| card_key := Key ; card_message := Message ; card_cipher := Cipher |}.
+  Local Instance sym_rf_scheme : SYM_init :=
+    {| enc_scheme := rf_scheme
+      ; rand_cipher := rf_rand_cipher |}.
 
   (** RandML types of the scheme. *)
   Definition TMessage := TInt.
@@ -88,17 +86,11 @@ We prove the portions of the above theorems that are concerned with the reductio
     Context `{!approxisRGS Σ}.
     Variable xor_spec : XOR_spec.
 
-    Lemma xor_sem_inverse_l : forall (x y : nat), xor_sem x (xor_sem x y) = y.
-    Admitted. (* should be added directily in XOR_SPEC on the long run*)
-
-    Lemma xor_sem_inverse_r : forall (x y : nat), xor_sem (xor_sem x y) y = x.
-    Admitted. (* should be added directily in XOR_SPEC on the long run*)
-
     Theorem rf_scheme_correct lm M :
         map_list lm M
       ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
-          → ∃ k : nat, y = #k ∧ k <= card_output ⌝
-      ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝
+          → ∃ k : nat, y = #k ∧ k <= prf_local_state.card_output ⌝
+      ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S prf_local_state.card_input)%nat ⌝
       ⊢ refines top
         (let: "rf_dec" := (rf_enc #lm, rf_dec #lm) in
         let: "rf_enc" := Fst "rf_dec" in
@@ -106,14 +98,14 @@ We prove the portions of the above theorems that are concerned with the reductio
         let: "k" := rf_keygen #() in
         λ: "msg",
           "rf_dec" "k" ("rf_enc" "k" "msg"))
-        (λ: "msg", "msg") (lrel_output → lrel_output).
+        (λ: "msg", "msg") (prf_local_state.lrel_output → prf_local_state.lrel_output).
     Proof with rel_pures_l; rel_pures_r.
       iIntros "[Hmap [%Himg %Hdom]]".
       rewrite /rf_enc/rf_dec...
       set (P :=
         (∃ M, map_list lm M
         ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
-            → ∃ k : nat, y = #k ∧ k <= card_output ⌝
+            → ∃ k : nat, y = #k ∧ k <= Output ⌝
         ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S Input)%nat ⌝
       )%I).
       rel_apply (refines_na_alloc P (nroot.@"rf_scheme_correc"));
@@ -124,10 +116,10 @@ We prove the portions of the above theorems that are concerned with the reductio
       iIntros (k Hkbound)...
       rel_arrow_val.
       iIntros (v1 v2 [msg [eq1 [eq2 Hmsgbound]]]); subst...
-      rewrite /card_input in Hmsgbound. simpl in Hmsgbound.
+      rewrite /prf_local_state.card_input in Hmsgbound. simpl in Hmsgbound.
       rewrite /prf_enc...
-      rewrite /random_function...
-      rewrite -/random_function. clear Himg Hdom M.
+      rewrite /prf_local_state.random_function...
+      rewrite -/prf_local_state.random_function. clear Himg Hdom M.
       rel_apply refines_na_inv; iSplitL; first iAssumption.
       iIntros "[[%M >[Hmap [%Himg %Hdom]]] Hclose]".
       rel_apply refines_randU_l.
@@ -137,12 +129,12 @@ We prove the portions of the above theorems that are concerned with the reductio
       destruct (M !! r) as [y |] eqn:eq; simpl...
       - eapply elem_of_map_img_2 in eq as Hy.
         apply Himg in Hy as [z [eqyz Hzbound]]; subst...
-        rewrite /card_output in Hzbound. simpl in Hzbound.
+        rewrite /prf_local_state.card_output in Hzbound. simpl in Hzbound.
         rel_bind_l (xor _ _).
         replace msg with (Z.of_nat (Z.to_nat msg)) by lia.
         rel_apply xor_correct_l; try lia.
         rewrite /prf_dec...
-        rewrite /random_function...
+        rewrite /prf_local_state.random_function...
         rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
         iIntros (tmpres) "Hmap %eq'".
         rewrite eq in eq'. simpl in eq'. subst...
@@ -157,7 +149,7 @@ We prove the portions of the above theorems that are concerned with the reductio
         * rewrite Nat2Z.id. rewrite xor_sem_inverse_r. symmetry.
           rewrite Z2Nat.id; try lia. reflexivity.
         * apply Nat2Z.is_nonneg.
-        * rewrite /card_input; simpl.
+        * rewrite /prf_local_state.card_input; simpl.
           apply inj_le.
           apply PeanoNat.lt_n_Sm_le.
           apply xor_dom; last lia.
@@ -169,7 +161,7 @@ We prove the portions of the above theorems that are concerned with the reductio
         replace msg with (Z.of_nat (Z.to_nat msg)) by lia.
         rel_apply xor_correct_l; try lia...
         rewrite /prf_dec...
-        rewrite /random_function...
+        rewrite /prf_local_state.random_function...
         rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
         iIntros (tmpres) "Hmap %Hreseq".
         rewrite lookup_insert in Hreseq.
@@ -189,7 +181,7 @@ We prove the portions of the above theorems that are concerned with the reductio
           - intros x Hx. rewrite dom_insert in Hx. rewrite elem_of_elements in Hx.
             rewrite elem_of_union in Hx. destruct Hx as [Hxeq | Hx].
             + rewrite elem_of_singleton in Hxeq; subst.
-              rewrite /card_input. simpl. rewrite /Message.
+              rewrite /prf_local_state.card_input. simpl. rewrite /Message.
               eapply Nat.le_lt_trans; first apply Hrbound. lia.
             + apply Hdom. apply elem_of_elements. apply Hx.
         }
@@ -198,7 +190,7 @@ We prove the portions of the above theorems that are concerned with the reductio
         * rewrite Nat2Z.id. rewrite xor_sem_inverse_r. symmetry.
           rewrite Nat2Z.id. reflexivity.
         * apply Nat2Z.is_nonneg.
-        * rewrite /card_input; simpl.
+        * rewrite /prf_local_state.card_input; simpl.
           apply inj_le.
           apply PeanoNat.lt_n_Sm_le.
           apply xor_dom; try (rewrite Nat2Z.id; apply xor_dom); try lia.
@@ -219,7 +211,7 @@ We prove the portions of the above theorems that are concerned with the reductio
 
     Lemma refines_rf_scheme_l K E e A :
       (∀ lm, map_list lm ∅ -∗
-        refines E (fill K (rf_enc #lm, rf_dec #lm)) e A)
+        refines E (fill K (rf_keygen, rf_enc #lm, rf_dec #lm)) e A)
       ⊢ refines E (fill K rf_scheme) e A.
     Proof. iIntros "H".
       rewrite /rf_scheme.
@@ -231,7 +223,7 @@ We prove the portions of the above theorems that are concerned with the reductio
 
     Lemma refines_rf_scheme_r K E e A :
       (∀ lm, map_slist lm ∅ -∗
-        refines E e (fill K (rf_enc #lm, rf_dec #lm)) A)
+        refines E e (fill K (rf_keygen, rf_enc #lm, rf_dec #lm)) A)
       ⊢ refines E e (fill K rf_scheme) A.
     Proof. iIntros "H".
       rewrite /rf_scheme.
@@ -315,39 +307,28 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
       intros ->. simpl. iIntros "[??]". iFrame.
     Defined.
 
-    Definition CPA : val :=
-      λ: "b" "adv" "scheme" "Q",
-        let: "rr_key_b" :=
-          let: "rf_scheme" := "scheme" in
-          let: "rf_enc" := Fst "rf_scheme" in
-          let: "k" := rf_keygen #() in
-          if: "b" then
-            "rf_enc" "k" 
-          else
-            rf_rand_cipher in
-        let: "oracle" := q_calls #Message "Q" "rr_key_b" in
-        let: "b'" := "adv" "oracle" in
-        "b'".
-
     Theorem rf_is_CPA (Q : nat) :
       ↯ ((Q-1) * Q / (2 * S Input))
       ⊢
-      (REL (CPA #true adv rf_scheme #Q)
+      (REL (CPA #true adv sym_scheme #Q)
            <<
-           (CPA #false adv rf_scheme #Q) : lrel_bool).
+           (CPA #false adv sym_scheme #Q) : lrel_bool).
     Proof with (rel_pures_l ; rel_pures_r).
       iIntros "ε".
-      rewrite /rf_scheme.
+      rewrite /CPA...
+      rewrite /get_enc_scheme/get_keygen...
+      rewrite /rf_scheme...
       rel_apply refines_init_map_l;
       iIntros (mapref) "Hmap".
       rel_apply refines_init_map_r;
       iIntros (mapref') "Hmap'"...
       rewrite /rf_enc/rf_dec...
-      rewrite /CPA...
       rewrite /rf_keygen...
       rel_apply (refines_couple_UU Key id) => //.
       iIntros (key) "!> %"...
-      rewrite /rf_enc /prf_enc /random_function...
+      rewrite /get_enc...
+      rewrite /prf_enc /prf_local_state.random_function...
+      rewrite /get_rand_cipher...
       rel_bind_l (q_calls _ _ _)%E ; rel_bind_r (q_calls _ _ _)%E.
       unshelve iApply (refines_bind with "[-] []").
       1: exact (interp (TMessage → (TOption TCipher)) []).
@@ -363,6 +344,7 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
         replace (_ → _)%lrel with (interp TAdv []) by easy.
         iApply refines_typed. assumption.
       }
+      rewrite /get_card_message...
       rewrite /q_calls...
       rel_alloc_l counter as "counter" ; rel_alloc_r counter' as "counter'"...
 
@@ -446,20 +428,24 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
     Qed.
 
     Theorem rf_is_CPA' (Q : nat) :
-      ↯ ((Q-1) * Q / (2 * S Input)) ⊢ (REL (CPA #false adv rf_scheme #Q) << (CPA #true adv rf_scheme #Q) : lrel_bool).
+      ↯ ((Q-1) * Q / (2 * S Input)) ⊢
+        (REL (CPA #false adv sym_scheme #Q) << (CPA #true adv sym_scheme #Q) : lrel_bool).
     Proof with (rel_pures_l ; rel_pures_r).
       iIntros "ε".
-      rewrite /rf_scheme.
+      rewrite /CPA...
+      rewrite /get_enc_scheme/get_keygen...
+      rewrite /rf_scheme...
       rel_apply refines_init_map_l;
       iIntros (mapref') "Hmap'".
       rel_apply refines_init_map_r;
       iIntros (mapref) "Hmap"...
       rewrite /rf_enc/rf_dec...
-      rewrite /CPA...
       rewrite /rf_keygen...
       rel_apply (refines_couple_UU Key id) => //.
       iIntros (key) "!> %"...
-      rewrite /rf_enc /prf_enc /random_function...
+      rewrite /get_enc...
+      rewrite /prf_enc /prf_local_state.random_function...
+      rewrite /get_rand_cipher...
       rel_bind_l (q_calls _ _ _)%E ; rel_bind_r (q_calls _ _ _)%E.
       unshelve iApply (refines_bind with "[-] []").
       1: exact (interp (TMessage → (TOption TCipher)) []).
@@ -475,6 +461,7 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
         replace (_ → _)%lrel with (interp TAdv []) by easy.
         iApply refines_typed. assumption.
       }
+      rewrite /get_card_message...
       rewrite /q_calls...
       rel_alloc_l counter as "counter" ; rel_alloc_r counter' as "counter'"...
 
@@ -565,8 +552,8 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
 
   Lemma rf_CPA_ARC `{approxisRGpreS Σ} `{forall foo, @XOR_spec Σ foo _ _ xor_struct} σ σ' (Q : nat) :
     ARcoupl
-      (lim_exec ((CPA #true adv rf_scheme #Q), σ))
-      (lim_exec ((CPA #false adv rf_scheme #Q), σ'))
+      (lim_exec ((CPA #true adv sym_scheme #Q), σ))
+      (lim_exec ((CPA #false adv sym_scheme #Q), σ'))
       (=)
       ((Q-1) * Q / (2 * S Input)).
   Proof.
@@ -579,8 +566,8 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
 
   Lemma rf_CPA_ARC' Σ `{approxisRGpreS Σ} `{forall foo, @XOR_spec Σ foo _ _ xor_struct} σ σ' (Q : nat) :
     ARcoupl
-      (lim_exec ((CPA #false adv rf_scheme #Q), σ))
-      (lim_exec ((CPA #true adv rf_scheme #Q), σ'))
+      (lim_exec ((CPA #false adv sym_scheme #Q), σ))
+      (lim_exec ((CPA #true adv sym_scheme #Q), σ'))
       (=)
       ((Q-1) * Q / (2 * S Input)).
   Proof.
@@ -592,26 +579,26 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
   Qed.
 
   Corollary CPA_bound_1 Σ `{approxisRGpreS Σ} `{forall foo, @XOR_spec Σ foo _ _ xor_struct} σ σ' (Q : nat) :
-    (((lim_exec ((CPA #true adv rf_scheme #Q), σ)) #true)
+    (((lim_exec ((CPA #true adv sym_scheme #Q), σ)) #true)
      <=
-       ((lim_exec ((CPA #false adv rf_scheme #Q), σ')) #true) + ((Q-1) * Q / (2 * S Input)))%R.
+       ((lim_exec ((CPA #false adv sym_scheme #Q), σ')) #true) + ((Q-1) * Q / (2 * S Input)))%R.
   Proof.
     apply ARcoupl_eq_elim.
     by eapply rf_CPA_ARC.
   Qed.
 
   Corollary CPA_bound_2 Σ `{approxisRGpreS Σ} `{forall foo, @XOR_spec Σ foo _ _ xor_struct} σ σ' (Q : nat) :
-    (((lim_exec ((CPA #false adv rf_scheme #Q), σ)) #true)
+    (((lim_exec ((CPA #false adv sym_scheme #Q), σ)) #true)
      <=
-       ((lim_exec ((CPA #true adv rf_scheme #Q), σ')) #true) + ((Q-1) * Q / (2 * S Input)))%R.
+       ((lim_exec ((CPA #true adv sym_scheme #Q), σ')) #true) + ((Q-1) * Q / (2 * S Input)))%R.
   Proof.
     apply ARcoupl_eq_elim.
     by eapply rf_CPA_ARC'.
   Qed.
 
   Lemma CPA_bound Σ `{approxisRGpreS Σ} `{forall foo, @XOR_spec Σ foo _ _ xor_struct} σ σ' (Q : nat) :
-    (Rabs (((lim_exec ((CPA #true adv rf_scheme #Q), σ)) #true) -
-           ((lim_exec ((CPA #false adv rf_scheme #Q), σ')) #true)) <= ((Q-1) * Q / (2 * S Input)))%R.
+    (Rabs (((lim_exec ((CPA #true adv sym_scheme #Q), σ)) #true) -
+           ((lim_exec ((CPA #false adv sym_scheme #Q), σ')) #true)) <= ((Q-1) * Q / (2 * S Input)))%R.
   Proof.
     apply Rabs_le.
     pose proof CPA_bound_1 Σ σ σ' Q.
@@ -622,6 +609,7 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
 End defs.
 
 Section implementation.
+
   (* Definition bit:=64. *)
   Variable bit : nat.
   Variable Q : nat.
@@ -634,14 +622,15 @@ Section implementation.
 
   #[local] Instance XOR_mod : @xor.XOR Output' Output' := xor.XOR_mod bit.
   #[local] Instance XOR_spec_mod `{!approxisRGS Σ} : @xor.XOR_spec _ _ _ _ XOR_mod := xor.XOR_spec_mod bit.
-  
+
+  Let truc := sym_rf_scheme Key' Input' Output' _.
+
   Lemma CPA_bound_realistic σ σ' :
-    (Rabs (((lim_exec (((CPA Key' Input' Output') #true adv (rf_scheme Key' Output' _) #Q), σ)) #true) -
-             ((lim_exec (((CPA Key' Input' Output') #false adv (rf_scheme Key' Output' _) #Q), σ')) #true)) <= ((Q-1) * Q / (2 * S Input')))%R.
+    (Rabs (((lim_exec ((CPA #true adv (@sym_scheme (SYM_param Key' Input' Output') (sym_rf_scheme Key' Input' Output' XOR_mod)) #Q), σ)) #true) -
+             ((lim_exec ((CPA #false adv (@sym_scheme (SYM_param Key' Input' Output') (sym_rf_scheme Key' Input' Output' XOR_mod)) #Q), σ')) #true)) <= ((Q-1) * Q / (2 * S Input')))%R.
   Proof.
-    unshelve epose proof CPA_bound Key' Input' Output' _ adv _ _ σ σ' Q as H.
-    - apply _.
-    - assumption.
+    unshelve epose proof CPA_bound Key' Input' Output' XOR_mod adv _ _ σ σ' Q as H.
+    - apply adv_typed.
     - apply approxisRΣ.
     - apply subG_approxisRGPreS. apply subG_refl.
     - intros. apply _.
