@@ -172,6 +172,21 @@ Section svt.
       + iFrame. done.
   Qed.
 
+  Definition AT_spec (AUTH : iProp Σ) (f f' : val) : iProp Σ :=
+    ∀ (DB : Type) (dDB : Distance DB) (db db' : DB)
+      (_ : dDB db db' <= 1) (q : val) (K0 : list ectx_item),
+      wp_sensitive q 1 dDB dZ -∗
+      AUTH -∗
+      ⤇ fill K0 (f' (inject db') q) -∗
+      ∀ R2 : bool,
+        WP f (inject db) q
+          {{ v,
+               ∃ v' : val, ⤇ fill K0 v' ∗ ⌜v = #R2 → v' = #R2⌝ ∗
+                           ∃ (b b' : bool), ⌜v = #b⌝ ∗ ⌜v' = #b'⌝ ∗
+                           (⌜R2 = false⌝ -∗ AUTH) }}
+  .
+
+
   (* Removing ownership of the references from AUTH actually makes the postcondition simpler.
      This is basically the less-naive version of the point-wise equality spec. *)
   Lemma above_threshold_online_no_flag_spec_pw (num den T : Z) (εpos : 0 < IZR num / IZR den) K :
@@ -183,17 +198,19 @@ Section svt.
              ⤇ fill K (Val f') ∗
              ∃ AUTH : iProp Σ,
                AUTH ∗
-               ( ∀ `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) q K,
-                   wp_sensitive (Val q) 1 dDB dZ -∗
-                   AUTH -∗
-                   ⤇ fill K (f' (Val (inject db')) q) -∗
-                   ∀ R : bool,
-                     WP (Val f) (Val (inject db)) (Val q)
-                       {{ v, ∃ v', ⤇ fill K (Val v') ∗
-                                   ⌜ v = #R → v' = #R ⌝ ∗
-                                   (⌜R = false⌝ -∗ AUTH)
-                       }}
-               )
+AT_spec AUTH f f'
+               (* ( ∀ `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) q K,
+                      wp_sensitive (Val q) 1 dDB dZ -∗
+                      AUTH -∗
+                      ⤇ fill K (f' (Val (inject db')) q) -∗
+                      ∀ R : bool,
+                        WP (Val f) (Val (inject db)) (Val q)
+                          {{ v, ∃ v', ⤇ fill K (Val v') ∗
+                                      ⌜ v = #R → v' = #R ⌝ ∗
+                                      ∃ (b b' : bool), ⌜v = #b⌝ ∗ ⌜v' = #b'⌝ ∗
+                                      (⌜R = false⌝ -∗ AUTH)
+                          }}
+                  ) *)
        }}.
   Proof with (tp_pures ; wp_pures).
     iIntros "ε rhs". rewrite /above_threshold_no_flag...
@@ -237,10 +254,10 @@ Section svt.
       case_bool_decide (_ (T' + 1)%Z _)...
       all: destruct_decide (bool_decide_reflect (T' ≤ z_l)%Z) as res_l.
       all: iFrame "rhs" ; iModIntro.
-      + iSplitR => //. iIntros (h_R). exfalso. inversion h_R.
+      + iSplitR => //. iExists true,true. do 2 iSplitR => //. iIntros (h_R). exfalso. inversion h_R.
       + exfalso. lia.
       + exfalso. lia.
-      + iSplitR => //. iIntros (h_R). exfalso. inversion h_R.
+      + iSplitR => //. iExists false, false. do 2 iSplitR => //. iIntros (h_R). exfalso. inversion h_R.
     - iMod ecm_zero as "ε0".
       iApply (hoare_couple_laplace vq_l vq_r (vq_r - vq_l)%Z 0%Z with "[$rhs ε0]") => //.
       1: apply Zabs_ind ; lia.
@@ -249,7 +266,7 @@ Section svt.
       iIntros "%z_l !> rhs" => /=...
       case_bool_decide (_ (T' + 1)%Z _).
       all: destruct_decide (bool_decide_reflect (T' ≤ z_l)%Z) as res_l ; iModIntro ; iFrame "rhs".
-      all: iSplitR ; [|by iFrame "ε"].
+      all: iSplitR ; [|by (iExists _,_ ; iFrame "ε")].
       + iIntros (Rf). inversion Rf.
       + exfalso. lia.
       + iIntros (Rf). inversion Rf.
@@ -443,6 +460,8 @@ Section svt.
   privacy cost (p.71) is relevant ; it suggests that the point-wise equality proof may not be
   required for SVT. How exactly do choice couplings help? *)
 
+
+
   Lemma SVT_online_diffpriv (num den T : Z) (N : nat) (Npos : (0 < N)%nat) K :
     let ε := IZR num / IZR den in
     ∀ (εpos : 0 < ε),
@@ -460,63 +479,80 @@ Section svt.
                          WP Val f (inject db) q {{v, ∃ v' : val, ⌜v = #RES → v' = #RES⌝ ∗ iSVT (if RES then n else S n) }}
         )}}.
   Proof with (tp_pures ; wp_pures).
-    destruct N as [|N] ; [lia|] ; clear Npos.
+    (* make sure we have at least enough credit to initialise AT once *)
+    destruct N as [|N'] ; [lia|] ; clear Npos.
     iIntros (??) "SNε rhs". rewrite /SVT_AT_NF_NC_online...
     tp_bind (above_threshold_no_flag _ _ _) ; wp_bind (above_threshold_no_flag _ _ _).
-    assert (INR (N+1)%nat ≠ 0). { replace 0 with (INR 0) => //. intros ?%INR_eq. lia. }
-    replace (ε) with (ε / (N + 1) + N * ε / (N + 1)).
-    2: { field. pose proof (INR_le 0 _ (pos_INR N)). replace 1 with (INR 1) => //. rewrite -plus_INR => //. }
-    rewrite Rmult_plus_distr_l.
+    assert (INR (N'+1)%nat ≠ 0). { replace 0 with (INR 0) => //. intros ?%INR_eq. lia. }
+    replace (S N' * ε) with (ε + N' * ε).
+    2:{ replace (S N') with (N'+1)%nat by lia. replace (INR (N'+1)) with (N' + 1) by real_solver. lra. }
     iDestruct (ecm_split with "SNε") as "[ε Nε]". 1,2: real_solver.
     opose proof (above_threshold_online_no_flag_spec_pw num den T _) as AT_pw.
-    (* 1: rewrite mult_IZR ; apply Rdiv_pos_pos ; real_solver. *)
     1: done.
-    (* 1: admit. *)
     iPoseProof (AT_pw with "[ε] [rhs]") as "AT_pw" => // ; clear AT_pw.
-    { subst ε. iApply ecm_eq. 2: iFrame. rewrite ?mult_IZR.
-      replace (INR N + 1) with (INR (N+1)%nat) by by rewrite plus_INR.
-      rewrite -?INR_IZR_INZ. replace (S N) with (N + 1)%nat by lia.
-      field. split.
-      - eapply Rdiv_pos_den_0 => //.
-      - done.
-    }
-    iApply (wp_strong_mono'' with "AT_pw [Nε]").
+    iApply (wp_strong_mono'' with "AT_pw").
+    replace (S N') with (N'+1)%nat by lia.
     iIntros "%f (%f' & rhs & %AUTH & auth & AT) /=".
     tp_alloc as ref_f' "ref_f'". wp_alloc ref_f as "ref_f"...
-    iModIntro. iExists _. iFrame "rhs". set (iSVT := (λ n, ↯m (n * ε / (N + 1)) ∗ AUTH)%I). iExists iSVT. iFrame.
-Abort.
-  (*   iIntros (???????) "q_sens rhs %n (Snε & auth) %RES"...
-       tp_load ; wp_load. tp_bind (f' _ _) ; wp_bind (f _ _).
-       iSpecialize ("AT" $! _ _ _ _ adj _ _).
-       iSpecialize ("AT" with "q_sens auth rhs").
-       iSpecialize ("AT" $! RES).
-       iApply (wp_strong_mono'' with "AT [-]").
-       iIntros (vq) "(%vq' & rhs & %pweq & maybe_auth)".
-       iSimpl in "rhs"...
-       assert (∃ bq : bool, vq = #bq) as [bq ->] by admit.
-       assert (∃ bq' : bool, vq' = #bq') as [bq' ->] by admit.
-       destruct bq eqn:case_bq, RES eqn:case_RES.
-       - rewrite pweq => //...
-         replace (S n * ε / (N + 1)) with (ε / (N + 1) + n * ε / (N + 1)).
-         2: { replace (S n) with (1 + n)%nat by lia. rewrite plus_INR. replace (INR 1%nat) with 1 => //.
-              field. pose proof (INR_le 0 _ (pos_INR N)). replace 1 with (INR 1) => //. rewrite -plus_INR => //. }
-         iDestruct (ecm_split with "Snε") as "[ε nε]". 1,2: real_solver.
-         tp_bind (above_threshold_no_flag _ _ _) ; wp_bind (above_threshold_no_flag _ _ _).
-         opose proof (above_threshold_online_no_flag_spec_pw num (S N * den)%Z T _) as AT_pw.
-         1: rewrite mult_IZR ; apply Rdiv_pos_pos ; real_solver.
-         iPoseProof (AT_pw with "[ε] [rhs]") as "AT_pw" => // ; clear AT_pw.
-         { subst ε. iApply ecm_eq. 2: iFrame. rewrite mult_IZR.
-           replace (INR N + 1) with (INR (N+1)%nat) by by rewrite plus_INR.
-           rewrite -INR_IZR_INZ. replace (S N) with (N + 1)%nat by lia.
-           field. split.
-           - eapply Rdiv_pos_den_0 => //.
-           - done.
-         }
-         iApply (wp_strong_mono'' with "AT_pw [-]").
-         iIntros "%g (%g' & rhs & %AUTH' & auth & AT) /=".
-         tp_store ; wp_store.
-         iFrame. iExists #true.
-     Admitted. *)
+    iModIntro. iExists _. iFrame "rhs".
+    set (iSVT := (λ n : nat,
+                       if Nat.ltb 0%nat n then
+                         ↯m ((n-1)%nat * ε) ∗ ∃ token f f',
+                           token ∗ ref_f ↦ f ∗ ref_f' ↦ₛ f' ∗ AT_spec token f f'
+                       else emp
+                 )%I). iExists iSVT.
+    iSplitL.
+    { rewrite /iSVT /=. destruct (0 <? N'+1)%nat => //. replace (N'+1-1)%nat with N' by lia. iFrame. }
+    clear f f'.
+    iIntros (???????) "q_sens rhs %n (nε & (%TOKEN & %f & %f' & auth & ref_f & ref_f' & AT)) %RES"...
+    replace (S n - 1)%nat with n by lia.
+    tp_load ; wp_load. tp_bind (f' _ _) ; wp_bind (f _ _).
+    iSpecialize ("AT" $! _ _ _ _ adj _ _).
+    iSpecialize ("AT" with "q_sens auth rhs").
+    iSpecialize ("AT" $! RES).
+    iApply (wp_strong_mono'' with "AT").
+    iIntros "%vq (%vq' & rhs & %pweq & %bq & %bq' & -> & -> & maybe_auth)".
+    iSimpl in "rhs"...
+    iAssert (AT_spec TOKEN f f') as "AT". 1: admit. (* should have been persistent *)
+    destruct bq eqn:case_bq, RES eqn:case_RES.
+    - rewrite pweq //...
+      (* We should only end up in this case if 0<n holds!
+         SVT shouldn't re-allocate another AT on the last (Nth) invocation since it won't get used.
+         Maybe it needs a counter?
+       *)
+      destruct (0 <? n)%nat eqn:n_pos => //.
+      2: admit.
+      iFrame.
+      tp_bind (above_threshold_no_flag _ _ _) ; wp_bind (above_threshold_no_flag _ _ _).
+      opose proof (above_threshold_online_no_flag_spec_pw num den T _) as AT_pw.
+      1: done.
+      iMod ecm_zero as "ε0".
+      iPoseProof (AT_pw with "[ε0] [rhs]") as "AT_pw" => // ; clear AT_pw.
+      1: admit.
+      iApply (wp_strong_mono'' with "AT_pw [-]").
+      iIntros "%g (%g' & rhs & %AUTH' & auth & AT') /=".
+      tp_store ; wp_store.
+      iFrame. iExists #true. iSplitR. 1: done.
+      rewrite /iSVT.
+      admit.
+    - simpl...
+      iSpecialize ("maybe_auth" $! eq_refl).
+      (* still should only be doing this if 0<n. *)
+      destruct bq' eqn:case_bq'.
+      + simpl...
+        admit.
+      + simpl...
+        admit.
+    - simpl... iExists _. iSplitR. 1: done.
+      subst.
+      admit.
+    - rewrite pweq //... iExists _. iSplitR. 1: done.
+      rewrite /iSVT. destruct (0 <? S n)%nat => //. iFrame.
+      replace (S n -1)%nat with n by lia. iFrame.
+      iExists TOKEN.
+      iSpecialize ("maybe_auth" $! eq_refl).
+      iFrame. done.
+  Admitted.
 
   (* Iterate online SVT over a list of queries. *)
   Definition SVT : val :=
