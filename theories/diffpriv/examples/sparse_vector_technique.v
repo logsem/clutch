@@ -456,6 +456,20 @@ AT_spec AUTH f f'
         "bq"
   .
 
+  (* SVT with counting but w/o flag *)
+  Definition SVT_AT_NF_online : val :=
+    λ:"num" "den" "T" "N",
+      let: "count" := ref "N" in
+      let: "AT" := ref (above_threshold_no_flag "num" "den" "T") in
+      λ:"db" "qi",
+        let: "bq" := !"AT" "db" "qi" in
+        (if: "bq" `and` #0 < !"count" then
+           ("AT" <- (above_threshold_no_flag "num" "den" "T") ;;
+           "count" <- !"count" - #1)
+         else #()) ;;
+        "bq".
+
+
   (* In Justin's thesis, the discussion of choice couplings (p.70) and especially of randomized
   privacy cost (p.71) is relevant ; it suggests that the point-wise equality proof may not be
   required for SVT. How exactly do choice couplings help? *)
