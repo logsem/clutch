@@ -1379,7 +1379,7 @@ Proof.
   eapply ARcoupl_dunif_no_coll_r.
 Qed.
 
-Lemma UB_to_ARcoupl `{Countable A, Countable B} (μ1 : distr A) (P : A -> Prop) (ε : R) :
+Lemma UB_to_ARcoupl `{Countable A} (μ1 : distr A) (P : A -> Prop) (ε : R) :
   pgl μ1 P ε ->
   ARcoupl μ1 (dret tt) (λ a _, P a) ε.
 Proof.
