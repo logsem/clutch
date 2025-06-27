@@ -429,11 +429,6 @@ Hypothesis refines_tape_couple_avoid : forall `{!approxisRGS Σ} (N:nat) α l z 
       iFrame ; iFrame "α". rel_vals. Unshelve. 1: assumption.
   Qed.
 
-  Definition q_calls' {Q : nat} {counter : loc} (f : val) : val :=
-    λ: "x",
-      if: ! #counter < #Q
-      then #counter <- ! #counter + #1;; InjR (f "x") else
-        InjLV #().
   Definition rand_fun {map_l} :=
     (λ: "x",
        match: get #map_l "x" with
@@ -449,7 +444,8 @@ Hypothesis refines_tape_couple_avoid : forall `{!approxisRGS Σ} (N:nat) α l z 
     ↯ ε_Q
     ⊢ (REL (adversary (CPA_real sym_scheme_I #Q))
          << (adversary (CPA_rand sym_scheme_I #Q)) : lrel_bool).
-  Proof with (rel_pures_l ; rel_pures_r).
+  Proof with (rel_pures_r ; rel_pures_l ;
+              rewrite -?/(@q_calls' _ _ _) -?/(@q_calls'' _ _ _)).
     iIntros "ε".
     rel_apply refines_app ; [iApply adversary_sem_typed|].
     rewrite /CPA_real/CPA_rand.
@@ -462,7 +458,7 @@ Hypothesis refines_tape_couple_avoid : forall `{!approxisRGS Σ} (N:nat) α l z 
     rel_bind_l (init_map #())%E. iApply refines_init_map_l. iIntros (map_l) "map_l" => /=...
     rewrite /q_calls_poly...
     rel_alloc_r counter_r as "counter_r"...
-    rel_alloctape_l α as "α".
+    rel_alloctape_l α as "α"...
     rel_alloc_l counter_l as "counter_l"...
 
     iApply (refines_na_alloc
@@ -488,12 +484,11 @@ Hypothesis refines_tape_couple_avoid : forall `{!approxisRGS Σ} (N:nat) α l z 
 
     fold (@rand_fun map_l).
     fold (@prf_enc' (@rand_fun map_l) α).
-    fold (@q_calls' Q counter_l (@prf_enc' (@rand_fun map_l) α)).
-    fold F_rand_cipher. fold (@q_calls' Q counter_r F_rand_cipher).
+    fold F_rand_cipher. rewrite -/(@q_calls'' _ _ _).
     (* At this point, we should be able to use some general lemma about q_calls'.
        Or a general lemma about q_calls at some earlier point. *)
 
-    rewrite /q_calls'...
+    rewrite /q_calls''...
 
     rel_load_l ; rel_load_r...
     case_bool_decide as Hq.

@@ -27,7 +27,7 @@ The set of keys, messages, and ciphertexts are modelled by finite sets of intege
 
   (* rand_cipher is currently unused ; it would be useful if a SYM module had
    abstract types. *)
-  Class SYM `{SYM_params} :=
+  Class SYM `{Sym_params : SYM_params} :=
     { keygen : val
     ; enc : val
     ; dec : val
