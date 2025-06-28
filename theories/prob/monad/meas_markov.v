@@ -823,6 +823,9 @@ Section markov.
   Proof. by rewrite /lim_exec. Qed.
 
   (* Search measurable setT. *)
+  Lemma lim_exec_meas_fun : measurable_fun setT lim_exec.
+  Proof.
+  Admitted.
 
   Lemma lim_exec_Sup_seq (a : mstate δ) :
     mass' (lim_exec a) setT = limn_esup (λ n, mass' (exec n a) setT).

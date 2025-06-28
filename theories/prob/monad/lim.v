@@ -2,7 +2,7 @@ Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Program.Wf Reals.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
-From mathcomp.analysis Require Import measure ereal sequences normedtype.
+From mathcomp.analysis Require Import measure ereal sequences normedtype lebesgue_integral.
 From clutch.prob.monad Require Export giry.
 Require Import mathcomp.reals_stdlib.Rstruct.
 Require Import mathcomp.reals.reals.
@@ -28,7 +28,7 @@ Section setwise_measure_limit.
     rewrite limn_esup_lim.
     suffices -> : (esups (R := R) (fun n : nat => μ n set0)) = (fun n => (0)%E) by rewrite lim_cst.
     apply funext; intro n.
-    rewrite /esups/sdrop//=.
+    rewrite /esups/sdrop//=. 
     eapply eq_trans_r; last (symmetry; eapply ereal_sup1).
     f_equal.
     apply funext; intro x.
@@ -46,13 +46,17 @@ Section setwise_measure_limit.
 
   Lemma semi_sigma_additive_limit_measure : semi_sigma_additive limit_measure.
   Proof.
+    Local Open Scope ereal_scope.
     rewrite /semi_sigma_additive.
     intros F HF HFTriv HcupF.
     eassert (limit_measure (\bigcup_n F n) =
             limn (fun n  => (bigop.bigop.body GRing.zero (bigop.index_iota 0 n) (fun i => bigop.BigBody i GRing.add true (limit_measure (F i))))%R)
-           ) as ->.
-    { admit. }
-    (* ? *)
+           ) as ->. 
+    { 
+      admit.
+    }
+    exact (is_cvg_nneseries (fun n _ _ => limit_measure_ge0 (F n))).
+    Local Close Scope ereal_scope.
   Admitted.
 
   HB.instance Definition _ :=
