@@ -86,6 +86,108 @@ We prove the portions of the above theorems that are concerned with the reductio
     Context `{!approxisRGS Σ}.
     Variable xor_spec : XOR_spec.
 
+    Lemma prf_enc_sem_typed (HleInOut : Input ≤ Output) : ⊢
+      REL prf_enc <<
+        prf_enc :
+          (lrel_int → prf_local_state.lrel_input → prf_local_state.lrel_output) →
+          lrel_int → prf_local_state.lrel_input →
+            lrel_int * lrel_int.
+    Proof with rel_pures_l; rel_pures_r.
+      rewrite /prf_enc... rel_arrow_val.
+      iIntros (prf1 prf2) "#H"...
+      rel_arrow_val.
+      iIntros (v1 v2 [x [eq1 eq2]]); subst...
+      rel_bind_l (prf1 _); rel_bind_r (prf2 _).
+      rel_apply (refines_bind _ _ _ (prf_local_state.lrel_input → prf_local_state.lrel_output)).
+      { rel_apply "H". rewrite /lrel_car. simpl. iExists _. done. }
+      clear x; iIntros (prfkeyed1 prfkeyed2) "#H'"...
+      rel_arrow_val.
+      iIntros (v1 v2 [msg [eq1 [eq2 ineqmsg]]]); subst...
+      rel_apply refines_couple_UU; first done.
+      iIntros (n Hbound). iModIntro...
+      rel_bind_l (prfkeyed1 _); rel_bind_r (prfkeyed2 _).
+      rel_apply refines_bind.
+      - rel_apply "H'". iPureIntro.
+        exists n. repeat split; try done; try (rewrite /card_input; rewrite /dummy_prf_params); try lia.
+        rewrite /prf_local_state.card_input. simpl. lia.
+      - iIntros (v v' [x [eq1 [eq2 ineq]]]); subst...
+        rel_apply refines_pair; first rel_values.
+        rewrite /prf_local_state.card_input in ineqmsg. simpl in ineqmsg.
+        rewrite /prf_local_state.card_output in ineq. simpl in ineq.
+        replace x with (Z.of_nat (Z.to_nat x)) by lia.
+        rel_apply_l (xor_correct_l ⊤ []); try lia.
+        rel_apply_r (xor_correct_r ⊤ []); try lia.
+        rel_values.
+    Qed.
+
+    Lemma rf_enc_sem_typed_applied (HleInOut : Input ≤ Output) lm lm' M :
+        map_list lm M ∗ map_slist lm' M
+      ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+          → ∃ k : nat, y = #k ∧ k <= prf_local_state.card_output ⌝
+      ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S prf_local_state.card_input)%nat ⌝ ⊢
+      REL prf_enc (λ: <>, prf_local_state.random_function #lm #prf_local_state.card_output)%V <<
+      prf_enc (λ: <>, prf_local_state.random_function #lm' #prf_local_state.card_output)%V :
+          lrel_int → prf_local_state.lrel_input → lrel_int * lrel_int.
+    Proof with rel_pures_l; rel_pures_r.
+      iIntros "[Hmap [Hmap' [%Himg %Hdom]]]".
+      rewrite /rf_enc...
+      set (P := ( ∃ (M : gmap nat val),
+                      map_list  lm  M
+                    ∗ map_slist lm' M
+                    ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+                            → ∃ k : nat, y = #k ∧ k <= prf_local_state.card_output ⌝
+                    ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S prf_local_state.card_input)%nat ⌝
+                )%I).
+      rel_apply (refines_na_alloc P
+        (nroot.@"RED") with "[Hmap Hmap']") ; iFrame.
+      iSplitL. { iPureIntro. split; assumption. }
+      iIntros "#Hinv".
+      repeat rel_apply refines_app.
+      - rel_apply prf_enc_sem_typed. assumption. 
+      - rel_arrow_val. lrintro "tmp"...
+        rel_apply prf_local_state.random_function_sem_typed_inv; last iAssumption.
+        exists True%I. rewrite /P.
+        apply bi.equiv_entails; split;
+        [iIntros "HP"; iSplitR; first done | iIntros "[_ HP]"];
+        iAssumption.
+    Qed.
+    
+
+    Lemma rf_enc_sem_typed (HleInOut : Input ≤ Output) lm lm' M :
+        map_list lm M ∗ map_slist lm' M
+      ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+          → ∃ k : nat, y = #k ∧ k <= prf_local_state.card_output ⌝
+      ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S prf_local_state.card_input)%nat ⌝ ⊢
+      REL rf_enc #lm <<
+        rf_enc #lm' :
+          lrel_int → prf_local_state.lrel_input → lrel_int * lrel_int.
+    Proof with rel_pures_l; rel_pures_r.
+      iIntros "[Hmap [Hmap' [%Himg %Hdom]]]".
+      rewrite /rf_enc...
+      set (P := ( ∃ (M : gmap nat val),
+                      map_list  lm  M
+                    ∗ map_slist lm' M
+                    ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+                            → ∃ k : nat, y = #k ∧ k <= prf_local_state.card_output ⌝
+                    ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S prf_local_state.card_input)%nat ⌝
+                )%I).
+      rel_apply (refines_na_alloc P
+        (nroot.@"RED") with "[Hmap Hmap']") ; iFrame.
+      iSplitL. { iPureIntro. split; assumption. }
+      iIntros "#Hinv".
+      rel_arrow_val.
+      iIntros (v1 v2 [x [eq1 eq2]]); subst...
+      repeat rel_apply refines_app.
+      - rel_apply prf_enc_sem_typed. assumption. 
+      - rel_arrow_val. clear x. lrintro "tmp"...
+        rel_apply prf_local_state.random_function_sem_typed_inv; last iAssumption.
+        exists True%I. rewrite /P.
+        apply bi.equiv_entails; split;
+        [iIntros "HP"; iSplitR; first done | iIntros "[_ HP]"];
+        iAssumption.
+      - rel_vals.
+    Qed.
+
     Theorem rf_scheme_correct lm M :
         map_list lm M
       ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
@@ -146,7 +248,7 @@ We prove the portions of the above theorems that are concerned with the reductio
         first (iPureIntro; split; assumption).
         rel_vals. iExists _.
         iPureIntro. repeat split.
-        * rewrite Nat2Z.id. rewrite xor_sem_inverse_r. symmetry.
+        * rewrite Nat2Z.id. rewrite xor_sem_inverse_r; try lia; symmetry.
           rewrite Z2Nat.id; try lia. reflexivity.
         * apply Nat2Z.is_nonneg.
         * rewrite /prf_local_state.card_input; simpl.
@@ -187,7 +289,7 @@ We prove the portions of the above theorems that are concerned with the reductio
         }
         rel_vals. iExists _.
         iPureIntro. repeat split.
-        * rewrite Nat2Z.id. rewrite xor_sem_inverse_r. symmetry.
+        * rewrite Nat2Z.id. rewrite xor_sem_inverse_r; try lia. symmetry.
           rewrite Nat2Z.id. reflexivity.
         * apply Nat2Z.is_nonneg.
         * rewrite /prf_local_state.card_input; simpl.
@@ -620,21 +722,25 @@ Section implementation.
   Definition Input' := xor.Output' bit.
   Definition Key' := xor.Output' bit.
 
-  #[local] Instance XOR_mod : @xor.XOR Output' Output' := xor.XOR_mod bit.
-  #[local] Instance XOR_spec_mod `{!approxisRGS Σ} : @xor.XOR_spec _ _ _ _ XOR_mod := xor.XOR_spec_mod bit.
-
-  Let truc := sym_rf_scheme Key' Input' Output' _.
+  #[local] Instance XOR_minus_mod : @xor.XOR Output' Output' := xor.XOR_minus_mod bit.
+  #[local] Instance XOR_spec_mod `{!approxisRGS Σ} : @xor.XOR_spec _ _ _ _ XOR_minus_mod :=
+    xor.XOR_spec_minus_mod bit.
 
   Lemma CPA_bound_realistic σ σ' :
-    (Rabs (((lim_exec ((CPA #true adv (@sym_scheme (SYM_param Key' Input' Output') (sym_rf_scheme Key' Input' Output' XOR_mod)) #Q), σ)) #true) -
-             ((lim_exec ((CPA #false adv (@sym_scheme (SYM_param Key' Input' Output') (sym_rf_scheme Key' Input' Output' XOR_mod)) #Q), σ')) #true)) <= ((Q-1) * Q / (2 * S Input')))%R.
+    (Rabs (((lim_exec ((CPA #true adv
+      (@sym_scheme (SYM_param Key' Input' Output') (sym_rf_scheme Key' Input' Output' XOR_minus_mod))
+      #Q), σ)) #true) -
+             ((lim_exec ((CPA #false adv
+      (@sym_scheme (SYM_param Key' Input' Output') (sym_rf_scheme Key' Input' Output' XOR_minus_mod))
+      #Q), σ')) #true)) <= ((Q-1) * Q / (2 * S Input')))%R.
   Proof.
-    unshelve epose proof CPA_bound Key' Input' Output' XOR_mod adv _ _ σ σ' Q as H.
+    unshelve epose proof CPA_bound Key' Input' Output' XOR_minus_mod adv _ _ σ σ' Q as H.
     - apply adv_typed.
     - apply approxisRΣ.
     - apply subG_approxisRGPreS. apply subG_refl.
     - intros. apply _.
     - done.
   Qed.
+
 
 End implementation.

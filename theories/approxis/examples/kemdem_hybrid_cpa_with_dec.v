@@ -174,73 +174,6 @@ Section logrel.
   Context {Δ : listO (lrelC Σ)}.
     Variable xor_spec : XOR_spec.
   
-  Lemma prf_enc_sem_typed : ⊢
-    REL (prf_enc SymOutput SymOutput xor_struct) <<
-      (prf_enc SymOutput SymOutput xor_struct) :
-        (lrel_int → lrel_input → lrel_output) →
-        lrel_int → lrel_input → lrel_int * lrel_int.
-  Proof with rel_pures_l; rel_pures_r.
-    rewrite /prf_enc... rel_arrow_val.
-    iIntros (prf1 prf2) "#H"...
-    rel_arrow_val.
-    iIntros (v1 v2 [x [eq1 eq2]]); subst...
-    rel_bind_l (prf1 _); rel_bind_r (prf2 _).
-    rel_apply (refines_bind _ _ _ (lrel_input → lrel_output)).
-    { rel_apply "H". rewrite /lrel_car. simpl. iExists _. done. }
-    clear x; iIntros (prfkeyed1 prfkeyed2) "#H'"...
-    rel_arrow_val.
-    iIntros (v1 v2 [msg [eq1 [eq2 ineqmsg]]]); subst...
-    rel_apply refines_couple_UU; first done.
-    iIntros (n Hbound). iModIntro...
-    rel_bind_l (prfkeyed1 _); rel_bind_r (prfkeyed2 _).
-    rel_apply refines_bind.
-    - rel_apply "H'". iPureIntro.
-      exists n. repeat split; try done; try (rewrite /card_input; rewrite /dummy_prf_params); try lia.
-    - iIntros (v v' [x [eq1 [eq2 ineq]]]); subst...
-      rel_apply refines_pair; first rel_values.
-      rewrite /card_input in ineqmsg. simpl in ineqmsg.
-      rewrite /card_output in ineq. simpl in ineq.
-      replace x with (Z.of_nat (Z.to_nat x)) by lia.
-      rel_apply_l (xor_correct_l ⊤ []); try lia.
-      rel_apply_r (xor_correct_r ⊤ []); try lia.
-      rel_values.
-  Qed.
-      
-  Lemma rf_enc_sem_typed lm lm' M :
-      map_list lm M ∗ map_slist lm' M
-    ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
-        → ∃ k : nat, y = #k ∧ k <= card_output ⌝
-    ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝ ⊢
-    REL (rf_enc SymOutput SymOutput xor_struct) #lm <<
-      (rf_enc SymOutput SymOutput xor_struct) #lm' :
-        lrel_int → lrel_input → lrel_int * lrel_int.
-  Proof with rel_pures_l; rel_pures_r.
-    iIntros "[Hmap [Hmap' [%Himg %Hdom]]]".
-    rewrite /rf_enc...
-    set (P := ( ∃ (M : gmap nat val),
-                    map_list  lm  M
-                  ∗ map_slist lm' M
-                  ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
-                           → ∃ k : nat, y = #k ∧ k <= card_output ⌝
-                  ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝
-              )%I).
-    rel_apply (refines_na_alloc P
-      (nroot.@"RED") with "[Hmap Hmap']") ; iFrame.
-    iSplitL. { iPureIntro. split; assumption. }
-    iIntros "#Hinv".
-    rel_arrow_val.
-    iIntros (v1 v2 [x [eq1 eq2]]); subst...
-    repeat rel_apply refines_app.
-    - rel_apply prf_enc_sem_typed.
-    - rel_arrow_val. clear x. lrintro "tmp"...
-      rel_apply random_function_sem_typed_inv; last iAssumption.
-      exists True%I. rewrite /P.
-      apply bi.equiv_entails; split;
-      [iIntros "HP"; iSplitR; first done | iIntros "[_ HP]"];
-      iAssumption.
-    - rel_vals.
-Qed.
-
 Ltac simpl_exp := try (rel_apply refines_exp_l; rel_pures_l);
   try (rel_apply refines_exp_r; rel_pures_r).
 Ltac simpl_mult := try (rel_apply refines_mult_l; rel_pures_l);
@@ -404,7 +337,7 @@ Section Correctness.
         simpl...
         rel_apply xor_correct_l; try lia.
         { rewrite Nat2Z.id. apply xor_dom; lia. }
-        rewrite Nat2Z.id. rewrite xor_sem_inverse_r.
+        rewrite Nat2Z.id. rewrite xor_sem_inverse_r; try lia.
         rewrite Z2Nat.id; last lia.
         rel_apply refines_na_close; iFrame.
         iSplitL...
@@ -432,7 +365,7 @@ Section Correctness.
         rel_apply xor_correct_l; try lia.
         { rewrite Nat2Z.id. apply xor_dom; lia. }
         rewrite Nat2Z.id.
-        rewrite xor_sem_inverse_r.
+        rewrite xor_sem_inverse_r; try lia.
         rewrite Z2Nat.id; last lia.
         rel_apply refines_na_close; iFrame.
         iSplitL...
@@ -535,7 +468,8 @@ Proof with (rel_pures_l; rel_pures_r).
       rewrite /lrel_car; simpl; iExists _; done.
     }
     repeat (rel_apply refines_app);
-    first rel_apply prf_enc_sem_typed; [|rel_vals|rel_vals].
+    first rel_apply prf_enc_sem_typed; first lia;
+    [|rel_vals|rel_vals].
     rel_arrow_val.
     iIntros (v1 v2 [tmp [eq1 eq2]]); subst... clear tmp.
     rel_apply random_function_sem_typed_inv; last iAssumption.
