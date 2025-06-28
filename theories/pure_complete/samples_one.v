@@ -423,42 +423,6 @@ Proof.
   exists (e1, σ'2). 
   split; auto.
 Qed.
-  
-(* 
-Lemma SamplesOneTape_head_step_state_rel l e σ1 σ2:
-  SamplesOneTape l e ->
-  σ1.(tapes) !! l = σ2.(tapes) !! l ->
-  ∀ e' σ'1, ∃ σ'2, 
-  σ'1.(tapes) !! l = σ'2.(tapes) !! l ∧
-  head_step e σ1 (e', σ'1) = head_step e σ2 (e', σ'2).
-Proof.
-  intros.
-  (* destruct (tapes σ1 !! l) eqn : Ht.  *)
-  destruct (decide (head_step e σ1 (e', σ'1) > 0)). 2 : {
-
-    admit.
-  } 
-  
-  assert ( ∀ x1 : fin (S (Z.to_nat 2)), dmap (λ n : fin (S (Z.to_nat 2)), (#n : expr, σ1)) (dunifP (Z.to_nat 2)) (#x1 : expr, σ1) = dmap (λ n : fin (S (Z.to_nat 2)), (#n : expr, σ2)) (dunifP (Z.to_nat 2)) (#x1 : expr, σ2)) as H'. {
-    intros. 
-    erewrite !dmap_unif_nonzero; auto; 
-    move => a b Ha; inversion Ha; 
-    by apply Nat2Z.inj, fin_to_nat_inj in H2. 
-  }
-
-  inversion H; inv_head_step;
-  try (econstructor; split; eauto; rewrite !dret_1_1; auto; done);
-  try (rewrite H0 H5 in H1; inversion H1; done);
-  try (rewrite H1 H4 in H0; inversion H0; done).  
-  - rewrite H1 H5 in H0. inversion H0; subst. 
-    apply inj_pair2 in H4; subst. 
-    set σ'2 := (state_upd_tapes <[l:=(Z.to_nat 2; l3)]> σ2). 
-    exists σ'2. unfold σ'2. simpl. rewrite lookup_insert. 
-    split; auto. rewrite !dret_1_1; auto. 
-    apply inj_pair2 in H3; by subst. 
-  - rewrite H1 H4 in H0. inversion H0; subst. 
-    apply inj_pair2 in H7; subst. econstructor; split; eauto.
-Admitted.   *)
 
 Lemma SamplesOneTape_head_step_state_rel' l t e σ1 σ2:
   SamplesOneTape l e ->
@@ -470,21 +434,6 @@ Lemma SamplesOneTape_head_step_state_rel' l t e σ1 σ2:
 Proof. 
   intros.
   pose proof H1 as H1'. rewrite H0 in H1'.
-  (* destruct (ExcludedMiddle (∃ e' σ', head_step e σ1 (e', σ') > 0)). 2 : {
-    pose proof (not_exists_forall_not _ _ H2) as H2'. 
-    assert (head_step e σ1 = dzero). {
-      apply dzero_ext.
-      intros. 
-      apply Rle_antisym; try real_solver.
-      
-      (* apply Rle_antisym; try real_solver.
-      
-      simpl in *.
-      real_solver. *)
-    }
-    admit. 
-  }
-  destruct H2 as [e' [σ' Hst]]. *) 
   destruct (ExcludedMiddle (∃ ρ, head_step e σ1 ρ > 0)). 
   2 : { 
     pose proof (not_exists_forall_not _ _ H2) as H2'. 
@@ -540,36 +489,6 @@ Proof.
   rewrite -!dmap_comp. 
   econstructor; eauto.
 Qed.
-
-(* Lemma SamplesOneTape_step_state_rel l e σ1 σ2:
-  SamplesOneTape l e ->
-  σ1.(tapes) !! l = σ2.(tapes) !! l ->
-  ∀ e' σ'1, ∃ σ'2, 
-  σ'1.(tapes) !! l = σ'2.(tapes) !! l ∧
-  step (e, σ1) (e', σ'1) = step (e, σ2) (e', σ'2).
-Proof.
-  intros.
-
-Admitted. *)
-
-(* Lemma SamplesOneTape_exec_state_rel l e σ1 σ2 n:
-  SamplesOneTape l e ->
-  σ1.(tapes) !! l = σ2.(tapes) !! l ->
-  exec n (e, σ1) = exec n (e, σ2).
-Proof.
-  revert e σ1 σ2.
-  induction n. {
-    intros. 
-    rewrite exec_unfold. simpl. 
-    destruct (to_val e) eqn : Hve; auto.
-  }
-  intros.
-  rewrite !exec_Sn. 
-  apply distr_ext. 
-  intros.
-  rewrite !dbind_unfold_pmf.
-  Search (Bij). 
-Admitted. *)
 
 Lemma SamplesOneTape_subst l x v e : 
   SamplesOneTape l e ->

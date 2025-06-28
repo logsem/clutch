@@ -2,13 +2,42 @@ From clutch Require Import approxis.
 From clutch.prob_lang Require Import advantage.
 From clutch.prob_lang.typing Require Import tychk.
 
+
+Lemma app_assoc_lr_e `{!approxisRGS Σ} (g : val) (f a : expr) (x : string) (α β γ : lrel Σ)
+  (fclosed : ∀ v', (prob_lang.subst x v' f) = f)
+  :
+  (REL a << a : α) -∗
+  (REL f << f : (α → β)) -∗
+  (REL g << g : (β → γ)) -∗
+  REL (g (f a)) << ((λ:x, g (f (Var x))) a)%V : γ.
+Proof.
+  iIntros "aa ff gg". rel_bind_l a ; rel_bind_r a ; rel_apply (refines_bind with "aa").
+  iIntros (v v') "vv". rel_pures_r. case_decide ; [|done].
+  rewrite fclosed.
+  rel_apply (refines_app with "gg"). rel_apply (refines_app with "ff"). rel_values.
+Qed.
+
+Lemma app_assoc_lr_e' `{!approxisRGS Σ} (g : val) (f a : expr) (x : string) (α β γ : lrel Σ)
+  (fclosed : ∀ v', (prob_lang.subst x v' f) = f) :
+  (REL a << a : α) -∗
+  (REL f << f : (α → β)) -∗
+  (REL g << g : (β → γ)) -∗
+  REL ((λ:x, g (f (Var x))) a)%V << (g (f a)) : γ.
+Proof.
+  iIntros "aa ff gg". rel_bind_l a ; rel_bind_r a ; rel_apply (refines_bind with "aa").
+  iIntros (v v') "vv". rel_pures_l. case_decide ; [|done].
+  rewrite fclosed.
+  rel_apply (refines_app with "gg"). rel_apply (refines_app with "ff"). rel_values.
+Qed.
+
 Lemma app_assoc_lr `{!approxisRGS Σ} (f g : val) (a : expr) (x : string) (α β γ : lrel Σ) :
   (REL a << a : α) -∗
   (REL f << f : (α → β)) -∗
   (REL g << g : (β → γ)) -∗
   REL (g (f a)) << ((λ:x, g (f (Var x))) a) : γ.
 Proof.
-  iIntros "aa ff gg". rel_bind_l a ; rel_bind_r a ; rel_apply (refines_bind with "aa").
+  iIntros "aa ff gg".
+  rel_bind_l a ; rel_bind_r a ; rel_apply (refines_bind with "aa").
   iIntros (v v') "vv". rel_pures_r. case_decide ; [|done].
   rel_apply (refines_app with "gg"). rel_apply (refines_app with "ff"). rel_values.
 Qed.
@@ -118,6 +147,68 @@ Proof.
   }
   opose proof (app_assoc_ctx_lr adv red e' "v" _ _) as [i i'] => //.
   { intros. destruct (H Σ _) as (α' & β' & Hadv & Hred & He & He').
+    exists α', β'. split. 2: split.
+    - replace (interp _ Δ) with (interp TBool Δ) by eauto. simpl. done.
+    - done.
+    - done.
+  }
+  rewrite /ctx_refines in h, h', i, i'.
+  intros.
+  simpl in h, h', i, i'.
+  right. f_equal. f_equal.
+  + opose proof (h [] σ b _) as hh ; [by tychk|].
+    opose proof (h' [] σ b _) as hh' ; [by tychk|].
+    simpl in hh, hh'.
+    lra.
+  + opose proof (i [] σ b _) as hh ; [by tychk|].
+    opose proof (i' [] σ b _) as hh' ; [by tychk|].
+    simpl in hh, hh'.
+    lra.
+Qed.
+
+Lemma app_assoc_ctx_lr_exp (g : val) (f a : expr) (x : string) (γ : type) (fclosed : ∀ v', (prob_lang.subst x v' f) = f) :
+  (forall Σ `{!approxisRGS Σ} Δ,
+    exists
+      (α β : lrel _),
+      (⊢ REL g << g : (β → (interp γ Δ))%lrel) /\
+      (⊢ REL f << f : (α → β)) /\
+      (⊢ REL a << a : α)) ->
+  ∅ ⊨ (g (f a)) =ctx= ((λ:x, g (f (Var x))) a)%V : γ.
+Proof.
+  intros h.
+  split ; apply (refines_sound approxisRΣ) ; intros.
+  - destruct (h _ _ Δ) as (α & β & Hg & Hf & Ha).
+    iApply (app_assoc_lr_e) => //.
+  - destruct (h _ _ Δ) as (α & β & Hg & Hf & Ha).
+    iApply (app_assoc_lr_e') => //.
+Qed.
+
+Lemma advantage_reduction_lr_exp (adv : val) (red e e' : expr) (x : string) (b : bool) (fclosed : ∀ v', (prob_lang.subst x v' red) = red)
+  :
+  (forall `{!approxisRGS Σ},
+    exists
+      (α β : lrel _),
+      (⊢ REL adv << adv : (β → lrel_bool)%lrel) /\
+      (⊢ REL red << red : (α → β)) /\
+      (⊢ REL e << e : α) /\ (⊢ REL e' << e' : α))
+  ->
+    (advantage adv (red e) (red e') #b <=
+       advantage (λ: x, adv (red x))%V e e' #b)%R.
+Proof.
+  intros Hlr.
+  apply advantage_uniform.
+  etrans.
+  2: apply (advantage_ub _ _ _ _ σ).
+  rewrite /pr_dist => /=.
+  opose proof (app_assoc_ctx_lr_exp adv red e x _ _) as [h h'] => //.
+  { intros. destruct (Hlr Σ _) as (α' & β' & Hadv & Hred & He & He').
+    exists α', β'. split. 2: split.
+    - replace (interp _ Δ) with (interp TBool Δ) by eauto. simpl. done.
+    - done.
+    - done.
+  }
+  opose proof (app_assoc_ctx_lr_exp adv red e' x _ _) as [i i'] => //.
+  { intros. destruct (Hlr Σ _) as (α' & β' & Hadv & Hred & He & He').
     exists α', β'. split. 2: split.
     - replace (interp _ Δ) with (interp TBool Δ) by eauto. simpl. done.
     - done.

@@ -17,12 +17,25 @@ Section bounded_oracle.
              then ("counter" <- !"counter" + #1 ;; SOME ("f" "x"))
              else NONEV.
 
+  (* The following two definitions serve to hide the body of q_calls_poly
+  before (q_calls') and after (q_calls'') the counter has been allocated via
+
+  rewrite -?/(@q_calls' _ _ _) -?/(@q_calls'' _ _ _). *)
+  Definition q_calls' {Q : expr} {counter : expr} (f : expr) : expr :=
+    λ: "x", if: ! counter < Q
+            then counter <- ! counter + #1;; InjR (f "x")
+            else NONEV.
+
+  Definition q_calls'' {Q : val} {counter : val} (f : val) : val :=
+    λ: "x",
+      if: ! counter < Q
+      then counter <- ! counter + #1;; InjR (f "x") else
+        InjLV #().
+
   Definition q_calls_poly : val :=
     Λ: Λ: λ:"Q" "f",
       let: "counter" := ref #0 in
-      λ:"x", if: (! "counter" < "Q")
-             then ("counter" <- !"counter" + #1 ;; SOME ("f" "x"))
-             else NONEV.
+      @q_calls' "Q" "counter" "f".
 
   Fact q_calls_typed_int (B : type) :
     ⊢ᵥ q_calls : (TInt → TInt → (TInt → B) → TInt → TOption B)%ty.
@@ -42,7 +55,7 @@ Section bounded_oracle.
   Fact q_calls_poly_typed :
     (⊢ᵥ q_calls_poly : ∀: ∀: (TInt → (#1 → #0) → #1 → TOption #0))%ty.
   Proof.
-    rewrite /q_calls_poly.
+    rewrite /q_calls_poly/q_calls'.
     apply TLam_val_typed. constructor. apply TLam_val_typed.
     tychk.
   Qed.
@@ -54,7 +67,7 @@ Section bounded_oracle.
     replace (∀ A B : lrel Σ, lrel_int → (A → B) → A → lrel_option B)%lrel
       with (interp (∀: ∀: TInt → (#1 → #0) → #1 → TOption #0) []) by easy.
     iApply fundamental_val.
-    rewrite /q_calls_poly. do 3 constructor. tychk.
+    rewrite /q_calls_poly/q_calls'. do 3 constructor. tychk.
   Qed.
 
   (* Applying the above fact can be a bit cumbersome, here are some helper lemmas. *)
