@@ -60,39 +60,10 @@ Section defs.
     | _, _, _ => False
   end.
 
-  (* generalize this to a resctricted notion of syntactic
-    typing, and prove it entails determinism, then do the same
-    with randoms and memory manipulations. *)
-  Inductive deterministic_syn : expr -> Prop :=
-    | detsyn_lit : forall (b : base_lit), deterministic_syn #b
-    | detsyn_rec : forall f x e, deterministic_syn e ->
-      deterministic_syn (rec: f x := e)
-    | detsyn_pair : forall e1 e2, 
-      deterministic_syn e1 -> deterministic_syn e2 ->
-        deterministic_syn (e1, e2)%E
-    | detsyn_injl : forall e, deterministic_syn e ->
-      deterministic_syn (InjL e)
-    | detsyn_injr : forall e, deterministic_syn e ->
-      deterministic_syn (InjR e)
-    | detsyn_var : forall s, deterministic_syn (Var s)
-    | detsyn_app : forall e1 e2, 
-      deterministic_syn e1 -> deterministic_syn e2 ->
-        deterministic_syn (e1 e2)
-    | detsyn_UnOp : forall o e, deterministic_syn e ->
-      deterministic_syn (UnOp o e)
-    | detsyn_BinOp : forall o e1 e2, 
-      deterministic_syn e1 -> deterministic_syn e2 ->
-        deterministic_syn (BinOp o e1 e2)
-    | detsyn_if : forall e1 e2 e3,
-      deterministic_syn e1 -> deterministic_syn e2 ->
-      deterministic_syn e3 -> deterministic_syn (if: e1 then e2 else e3)
-    | detsyn_fst : forall e, deterministic_syn e ->
-      deterministic_syn (Fst e)
-    | detsyn_snd : forall e, deterministic_syn e ->
-      deterministic_syn (Snd e)
-    | detsyn_case : forall e1 e2 e3,
-      deterministic_syn e1 -> deterministic_syn e2 ->
-      deterministic_syn e3 -> deterministic_syn (Case e1 e2 e3).
+  (* We could probably add a restrictive syntactic typing that
+    entails each property here. E.g. a syntactically typed
+    term containing no mmemory manipulation nor random sampling
+    would be deterministic. *)
 
   Definition iter_appl_expr (e : expr) (args : list val) : expr :=
     fold_left (λ e arg, App e (Val arg)) args e.
@@ -126,7 +97,7 @@ Section defs.
     to the functions of the package/library and opaque outside *)
 End defs.
 
-Module rules.
+Section rules.
   Context `{!approxisRGS Σ}.
 
   Section deterministic.
@@ -395,6 +366,5 @@ Module rules.
     rel_apply (lazy_eager' val3 [10] iterable_val3).
     iFrame.
   Qed.
-
 
 End rules.
