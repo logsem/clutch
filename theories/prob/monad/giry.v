@@ -1673,6 +1673,28 @@ Section le_giry.
     simpl in H3.
     by rewrite H3.
   Qed.
+
+  Lemma giryM_le_mono_equiv {d} {T : measurableType d} (μ : nat -> giryM T) : 
+    (∀ n, giryM_le (μ n) (μ (S n))) ↔ (∀ n m, (n ≤ m)%N -> giryM_le (μ n) (μ m)).
+  Proof.
+    split.
+    - intros.
+      remember (m - n)%nat.
+      revert n m H0 Heqn0. 
+      induction n0. {
+        intros.
+        replace m with n; try lia.
+        apply giryM_le_refl.
+      }
+      intros.
+      replace m with (S (n0 + n)). 2: lia.
+      eapply giryM_le_trans.
+      { eapply (IHn0 _ (n0+n)%nat); lia. }
+      apply H.
+    - intros.
+      apply H. lia.
+  Qed.
+
 End le_giry.
 
 
@@ -1691,8 +1713,8 @@ Section AdditionalMonadLaws.
               EFin \o (numfun.indic S) \o f.
     { intros. done. }
     eapply (@measurable_comp); [ by eapply @measurableT | by rewrite //= | | done ].
-    (* Stupid *)
-  Admitted.
+    eapply (@measurable_comp); [ by eapply @measurableT | by rewrite //= | done | done ].
+  Qed.
 
   Lemma gret_id_left: ∀ {d1 : measure_display} {T1 : measurableType d1} (x : giryM T1),
     (gJoin \o gRet) x ≡μ x.

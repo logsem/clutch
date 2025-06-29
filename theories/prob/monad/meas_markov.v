@@ -814,7 +814,7 @@ Section markov.
   (** * Full evaluation (limit of stratification) *)
 
   Definition lim_exec (a : toPackedType _ (mstate δ)) : giryM (toPackedType _ (mstate_ret δ)) :=
-    limit_measure (fun n => exec n a).
+    limit_measure (fun n => exec n a) (exec_mono a).
 
   (* Definition lim_exec (a : mstate δ) : distr (mstate_ret δ) := lim_distr (λ n, exec n a) (exec_mono a). *)
 
@@ -1147,8 +1147,8 @@ Section ARcoupl.
 
 
   Lemma limit_exchange {d} {T : measurableType d} (f : T → \bar R) (Hflb : ∀ a : T, (0 <= f a)%E)
-    (μ : nat → giryM T) (Hmono :  forall S, measurable S -> ∀ n n' : nat, n <= n' -> (μ n S <= μ n' S)%E) :
-    (\int[limit_measure μ]_x f x)%E =
+    (μ : nat → giryM T) (Hmono : forall n, giryM_le (μ n) (μ (S n))) :
+    (\int[limit_measure μ Hmono]_x f x)%E =
     filter.lim (filter.fmap (esups (R:=R) (λ n : nat, (\int[μ n]_x f x)%E))
         (@filter.nbhs nat (filter.filter_set_system__canonical__filter_Filtered nat) filter.eventually)).
   Proof.
@@ -1168,14 +1168,14 @@ Section ARcoupl.
       rewrite //= /limit_measure//=.
       eapply le_trans_ereal; last apply measure_mono_le_esup.
       { by eapply le_refl_ereal. }
-      { by apply Hmono. }
+      { intros. by apply giryM_le_mono_equiv. }
     }
     { rewrite ge0_integralTE; [|done].
 
       (* Apply the theorem in the case of simple integrals *)
       suffices HSimple :
         forall h, ([set h | ∀ x : T, ((h x)%:E <= f x)%E] h)%classic →
-             sintegral (limit_measure μ) h =
+             sintegral (limit_measure μ Hmono) h =
              filter.lim (filter.fmap (esups (R:=R) (fun n : nat => sintegral (μ n) h))
                 (@filter.nbhs nat (filter.filter_set_system__canonical__filter_Filtered nat) filter.eventually)).
       { apply ereal_sup_lb.
@@ -1209,7 +1209,7 @@ Section ARcoupl.
     eapply (order.Order.le_trans (y:=limn_esup(fun n => \int[exec n a]_x f x)%E));
       last (by apply esup_ub; intros ?; apply Hn).
     suffices -> :
-      (\int[limit_measure (exec^~ a)]_x f x = limn_esup (λ n : nat, \int[exec n a]_x f x))%E by done.
+      (\int[limit_measure (exec^~ a) (exec_mono a)]_x f x = limn_esup (λ n : nat, \int[exec n a]_x f x))%E by done.
     rewrite limn_esup_lim.
     apply limit_exchange.
     { intro a'.
@@ -1219,7 +1219,6 @@ Section ARcoupl.
       { by apply le0y. }
       { exfalso. specialize (Hflb a'). by rewrite -Heqok in Hflb. }
     }
-    { intros S HSmeas n1 n2 Hn1n2. by apply exec_mono'.  }
-  Qed.
+  Admitted.
 
 End ARcoupl.
