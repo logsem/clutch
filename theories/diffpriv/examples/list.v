@@ -1174,7 +1174,7 @@ Section list_specs_extra.
       destruct Hil as (lv' & -> & Hil').
       do 4 wp_pure _.
       fold list_map.
-      wp_apply ("IH" with "[] Htl"); [done |].
+      wp_apply ("IH" $! lv' with "[] Htl"); [done |].
       iIntros (rv) "(%Hil_rv&Htl)"; wp_pures.
       wp_apply ("Hf" with "Hd").
       iIntros (fr) "(->&Hhd)".
