@@ -6,7 +6,7 @@ From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From Coq.ssr Require Import ssreflect ssrfun.
 From clutch.bi Require Import weakestpre.
-From mathcomp.analysis Require Import measure ereal lebesgue_integral sequences lebesgue_integral.
+From mathcomp.analysis Require Import measure ereal lebesgue_integral sequences lebesgue_integral realfun measurable_realfun.
 From clutch.prob.monad Require Export giry lim couplings_app.
 From clutch.prelude Require Import classical.
 Require Import mathcomp.reals_stdlib.Rstruct.
@@ -816,20 +816,39 @@ Section markov.
   Definition lim_exec (a : toPackedType _ (mstate δ)) : giryM (toPackedType _ (mstate_ret δ)) :=
     limit_measure (fun n => exec n a) (exec_mono a).
 
-  (* Definition lim_exec (a : mstate δ) : distr (mstate_ret δ) := lim_distr (λ n, exec n a) (exec_mono a). *)
-
   Lemma lim_exec_unfold a (b : set _) :
     lim_exec a b = limn_esup (λ n, (exec n a) b).
   Proof. by rewrite /lim_exec. Qed.
 
-  (* Search measurable setT. *)
   Lemma lim_exec_meas_fun : measurable_fun setT lim_exec.
   Proof.
-  Admitted.
+    eapply giryM_cod_meas_fun.
+    intros. 
+    eapply bounded_cvg_pointwise_meas_fun.
+    { 
+      intros.
+      apply /andP. split.
+      { apply /limit_measure_ge0. }
+      { by apply /eval_le_1. }
+    }
+    {
+      intros.
+      rewrite lim_exec_unfold is_cvg_limn_esupE;
+      by apply (cvg_limit_measure _ (exec_mono x)). 
+    }
+    {
+      move => n //=.
+      have -> : (λ x : mstate δ, exec n x S) = ((gEval S) \o (exec n)). 
+      { apply /funext=>x //. }
+      exact (measurableT_comp (gEval_meas_fun HmS) (exec_meas_fun n)).
+    }
+  Qed.
 
   Lemma lim_exec_Sup_seq (a : mstate δ) :
     mass' (lim_exec a) setT = limn_esup (λ n, mass' (exec n a) setT).
-  Proof. Admitted.
+  Proof. 
+
+  Admitted.
   (*
     erewrite SeriesC_ext; last first.
     { intros ?. rewrite lim_exec_unfold //. }
@@ -844,7 +863,9 @@ Section markov.
 
   Lemma lim_exec_step (a : toPackedType _ (mstate δ)) :
     lim_exec a ≡μ gBind' lim_exec (step_or_final a).
-  Proof. Admitted.
+  Proof. 
+
+  Admitted.
 (*
   Proof.
    apply distr_ext.
@@ -896,17 +917,21 @@ Section markov.
     move : a.
     induction n; intro a.
     { rewrite pexec_O.
-      rewrite gBind'_meas_rw.
-      { (* lim exec is a measurable fun *)
-        admit. }
-      intro H.
-      by rewrite gRet_gBind. }
+      rewrite (gBind'_meas_rw lim_exec_meas_fun).
+      intros.
+      by rewrite gRet_gBind.
+    }
     { rewrite pexec_Sn.
-      (* -dbind_assoc/=.
       rewrite lim_exec_step.
-      apply dbind_eq; [|done].
-      intros ??. apply IHn. *)
-  Admitted.
+      rewrite !(gBind'_meas_rw lim_exec_meas_fun).
+      rewrite (gBind'_meas_rw (pexec_meas n)).
+      rewrite (gBind_assoc).
+      apply gBind_equiv => a'.
+      simpl. 
+      rewrite (gBind'_meas_rw lim_exec_meas_fun) in IHn.
+      apply IHn.
+    }
+  Qed.
 
   Lemma lim_exec_det_final n a a' b :
     to_final a' = Some b →
@@ -962,6 +987,7 @@ Section markov.
   Proof.
     intro Hexec.
     rewrite lim_exec_unfold.
+
   Admitted.
   (*
     apply finite_rbar_le; [apply is_finite_Sup_seq_exec|].
@@ -971,7 +997,8 @@ Section markov.
   Lemma lim_exec_leq_mass  a r :
     (∀ n, mass' (exec n a) setT <= EFin r)%E →
     (mass' (lim_exec a) setT <= EFin r)%E.
-  Proof. Admitted.
+  Proof. 
+  Admitted.
   (*
     intro Hm.
     erewrite SeriesC_ext; last first.

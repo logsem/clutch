@@ -3,7 +3,7 @@ From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Program.Wf Reals Lia.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
 From Coq.ssr Require Import ssreflect ssrfun.
-From mathcomp.analysis Require Import measure ereal sequences normedtype lebesgue_integral esum.
+From mathcomp.analysis Require Import measure ereal sequences normedtype lebesgue_measure lebesgue_integral esum realfun.
 From mathcomp.ssreflect Require Import order.
 From clutch.prob.monad Require Export giry.
 Require Import mathcomp.reals_stdlib.Rstruct.
@@ -15,6 +15,23 @@ From mathcomp.analysis Require Import topology.
 From Coq.ssr Require Import ssreflect ssrfun.
 
 Set Warnings "hiding-delimiting-key".
+
+Section Dynkin.
+Local Open Scope classical_set_scope.
+Lemma dynkin_induction {d} {T : measurableType d} (G : set (set T)) (P : (set T) -> Prop) :
+  @measurable _ T = <<s G >> ->
+  setI_closed G ->
+  (P setT) ->
+  (forall S, G S -> P S) ->
+  (forall S, measurable S -> P S -> P (setC S)) ->
+  (forall F : sequences.sequence (set T),
+      (forall n, measurable (F n)) ->
+      trivIset setT F ->
+      (forall n, P (F n)) -> P (\bigcup_k F k)) ->
+  (forall S, <<s G >> S -> P S).
+Proof.
+Admitted.
+End Dynkin.
 
 Section setwise_measure_limit.
   Context {d} {T : measurableType d}.
@@ -135,3 +152,28 @@ Section setwise_measure_limit.
   HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ limit_measure limit_measure_setT.
 
 End setwise_measure_limit.
+
+Section Measurable. 
+  Context {d} {T : measurableType d}.
+
+  Local Open Scope classical_set_scope.
+
+  Lemma bounded_cvg_pointwise_meas_fun (f : nat -> T -> (measurable_realfun.constructive_ereal_extended__canonical__measure_SigmaRing R)) (g : T ->  (measurable_realfun.constructive_ereal_extended__canonical__measure_SigmaRing R)) (l u : R):
+    (forall x, l%:E <= g x <= u%:E)%E ->
+    (forall x, f n x @[n --> \oo] --> g x)%E -> 
+    (forall n, measurable_fun setT (f n)) ->
+    measurable_fun setT g.
+  Proof.
+    intros.
+    simpl in *.
+    move => _ s Hs.
+    rewrite -(preimage_range g) -preimage_setI. 
+    (* 
+    Print emeasurable.
+    set P := fun x : set R => d.-measurable (g @^-1` [set r%:E | r in x]).
+    eapply (dynkin_induction _ P); rewrite /P //=.
+    rewrite /'measurable //= /emeasurable /measurable //=.
+    (* set pp := (measurable (s := (constructive_ereal_extended__canonical__measure_SigmaRing R))).
+    unfold emeasurable.  *) *)
+  Admitted.
+End Measurable.

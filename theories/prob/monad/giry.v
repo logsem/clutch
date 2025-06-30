@@ -224,7 +224,7 @@ Section giry_cod_meas.
 
   (* Adapted from mathlib induction_on_inter *)
   (* TODO: Clean up proof, move lemma, change premises to use setX_closed like notations *)
-  Local Lemma dynkin_induction d {T : measurableType d} (G : set (set T)) (P : (set T) -> Prop) :
+  Lemma dynkin_induction d {T : measurableType d} (G : set (set T)) (P : (set T) -> Prop) :
     @measurable _ T = <<s G >> ->
     setI_closed G ->
     (P setT) ->
