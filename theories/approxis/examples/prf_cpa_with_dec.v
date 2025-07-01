@@ -68,11 +68,13 @@ We prove the portions of the above theorems that are concerned with the reductio
   
   Definition rf_scheme : expr :=
     let: "mapref" := init_map #() in
-    (rf_keygen, rf_enc "mapref", rf_dec "mapref").
+    (rf_enc "mapref", rf_dec "mapref").
   Local Instance SYM_param : SYM_init_params :=
     {| card_key := Key ; card_message := Message ; card_cipher := Cipher |}.
+
   Local Instance sym_rf_scheme : SYM_init :=
-    {| enc_scheme := rf_scheme
+    {|  keygen := rf_keygen
+      ; enc_scheme := rf_scheme
       ; rand_cipher := rf_rand_cipher |}.
 
   (** RandML types of the scheme. *)
@@ -313,7 +315,7 @@ We prove the portions of the above theorems that are concerned with the reductio
 
     Lemma refines_rf_scheme_l K E e A :
       (∀ lm, map_list lm ∅ -∗
-        refines E (fill K (rf_keygen, rf_enc #lm, rf_dec #lm)) e A)
+        refines E (fill K (rf_enc #lm, rf_dec #lm)) e A)
       ⊢ refines E (fill K rf_scheme) e A.
     Proof. iIntros "H".
       rewrite /rf_scheme.
@@ -325,7 +327,7 @@ We prove the portions of the above theorems that are concerned with the reductio
 
     Lemma refines_rf_scheme_r K E e A :
       (∀ lm, map_slist lm ∅ -∗
-        refines E e (fill K (rf_keygen, rf_enc #lm, rf_dec #lm)) A)
+        refines E e (fill K (rf_enc #lm, rf_dec #lm)) A)
       ⊢ refines E e (fill K rf_scheme) A.
     Proof. iIntros "H".
       rewrite /rf_scheme.

@@ -5,7 +5,8 @@ From clutch.approxis Require Import map reltac2 approxis option.
 From clutch.clutch.examples.crypto Require ElGamal_bijection.
 From clutch.approxis.examples Require Import
   valgroup diffie_hellman prf_local_state prf_cpa_with_dec security_aux option xor
-  ElGamal_defs bounded_oracle pubkey advantage_laws iterable_expression symmetric_init.
+  ElGamal_defs bounded_oracle pubkey advantage_laws iterable_expression.
+From clutch.approxis.examples Require symmetric_init.
 From mathcomp Require Import ssrbool.
 From mathcomp Require fingroup.fingroup.
 Set Default Proof Using "All".
@@ -36,8 +37,11 @@ Variable xor_struct : XOR (Key := SymOutput) (Support := SymOutput).
 Definition keygen_kem : val := keygen.
 
 Definition encaps : val :=
-  λ: "enc_scheme" "pk",
-    let: "k" := get_keygen "enc_scheme" #() in
+  λ: "pk",
+    let: "k" := symmetric_init.get_keygen
+      (@symmetric_init.sym_scheme
+        (SYM_param SymKey Input SymOutput)
+        (sym_rf_scheme SymKey Input SymOutput xor_struct)) #() in
     let:m "kg" := vg_of_int "k" in
     let: "c_kem" := enc "pk" "kg" in
     SOME ("c_kem", "k").
@@ -48,12 +52,12 @@ Definition decaps : val :=
 
 Definition enc_hyb : val :=
   λ: "enc_scheme" "pk" "msg",
-    match: encaps "enc_scheme" "pk" with
+    match: encaps "pk" with
       | NONE => NONE
       | SOME "caps" =>
       let: "c_kem" := Fst "caps" in
       let: "k" := Snd "caps" in
-      let: "c_dem" := (get_enc "enc_scheme") "k" "msg" in
+      let: "c_dem" := (symmetric_init.get_enc "enc_scheme") "k" "msg" in
       SOME ("c_dem", "c_kem")
     end.
 
@@ -63,7 +67,7 @@ Definition dec_hyb : val :=
     let: "c_dem" := Fst "msg'" in
     let: "c_kem" := Snd "msg'" in
     let: "k" := decaps "sk" "c_kem" in
-    SOME ((get_dec "enc_scheme") "k" "c_dem").
+    SOME ((symmetric_init.get_dec "enc_scheme") "k" "c_dem").
 
 Definition pk_rand : expr :=
   let, ("sk", "pk") := keygen #() in
@@ -88,12 +92,12 @@ Definition pk_real : expr :=
     let, ("sk", "pk") := keygen #() in
     let: "count" := ref #0 in
     let: "query" := λ: "msg",
-      let:m "caps" := encaps "enc_scheme" "pk" in
+      let:m "caps" := encaps "pk" in
       assert (!"count" = #0);;;
       "count" <- !"count"+#1;;
       let: "c_kem" := Fst "caps" in
       let: "k" := Snd "caps" in
-      let: "c_dem" := (get_enc "enc_scheme") "k" "msg" in
+      let: "c_dem" := (symmetric_init.get_enc "enc_scheme") "k" "msg" in
       SOME ("c_dem", "c_kem")
     in
     ("pk", "query").
@@ -105,7 +109,7 @@ Definition pk_real_tape : expr :=
     let: "pk" := g^"sk" in
     let: "count" := ref #0 in
     let: "query" := λ:"msg",
-      let: "k" := rand #N in
+      let: "k" := rand #N in (* should make use of keygen, towards modularity *)
       let:m "kg" := vg_of_int "k" in
       let: "b" := rand("β") #N in
       let: "B" := g^"b" in
@@ -114,7 +118,7 @@ Definition pk_real_tape : expr :=
       let: "C" := "pk"^"b" in
       let: "X" := "kg" · "C" in
       let: "c_kem" := ("B", "X") in
-      let: "c_dem" := (get_enc "enc_scheme") "k" "msg" in
+      let: "c_dem" := (symmetric_init.get_enc "enc_scheme") "k" "msg" in
       SOME ("c_dem", "c_kem")
       in
     ("pk", "query").
@@ -125,13 +129,13 @@ Definition eCsenc : val :=
       let, ("pk", "B", "C") := "DDH_real_or_rand" in
       let: "count" := ref #0 in
       let: "query" := λ: "msg",
-        let: "k" := rand #N in
+        let: "k" := rand #N in (* should make use of keygen, towards modularity *)
         let:m "kg" := vg_of_int "k" in
         assert (!"count" = #0) ;;;
         "count" <- #1 ;;
         let: "X" := "kg" · "C" in
         let: "c_kem" := ("B", "X") in
-        let: "c_dem" := (get_enc "enc_scheme") "k" "msg" in
+        let: "c_dem" := (symmetric_init.get_enc "enc_scheme") "k" "msg" in
         SOME ("c_dem", "c_kem")
       in ("pk", "query")).
 
@@ -144,7 +148,7 @@ Definition pk_rand_senc_delay : expr :=
     let: "B" := g^"b" in
     let: "count" := ref #0 in
     let: "query" := λ: "msg",
-      let: "k" := rand #N in
+      let: "k" := rand #N in (* should make use of keygen, towards modularity *)
       let:m "kg" := vg_of_int "k" in
       assert (!"count" = #0) ;;;
       "count" <- #1 ;;
@@ -152,7 +156,7 @@ Definition pk_rand_senc_delay : expr :=
       let: "C" := g^"c" in
       let: "X" := "kg" · "C" in
       let: "c_kem" := ("B", "X") in
-      let: "c_dem" := (get_enc "enc_scheme") "k" "msg" in
+      let: "c_dem" := (symmetric_init.get_enc "enc_scheme") "k" "msg" in
       SOME ("c_dem", "c_kem")
     in ("pk", "query").
 
@@ -178,16 +182,18 @@ Ltac simpl_exp := try (rel_apply refines_exp_l; rel_pures_l);
   try (rel_apply refines_exp_r; rel_pures_r).
 Ltac simpl_mult := try (rel_apply refines_mult_l; rel_pures_l);
   try (rel_apply refines_mult_r; rel_pures_r).
-Ltac rel_bind x := rel_bind_l x; rel_bind_r x.
+Local Tactic Notation "rel_bind" constr(pat) :=
+  rel_bind_l pat; rel_bind_r pat.
+
 
 Definition init_scheme (e : expr) : expr :=
-  let: "scheme" := get_enc_scheme
-    (@sym_scheme (SYM_param SymKey Input SymOutput) (sym_rf_scheme SymKey Input SymOutput xor_struct))
+  let: "scheme" := symmetric_init.get_enc_scheme
+    (@symmetric_init.sym_scheme (SYM_param SymKey Input SymOutput) (sym_rf_scheme SymKey Input SymOutput xor_struct))
     #() in
   e "scheme".
 
 Ltac rel_init_scheme l1 s1 l2 s2 := 
-  rewrite /init_scheme/sym_scheme/get_enc_scheme;
+  rewrite /init_scheme/symmetric_init.sym_scheme/symmetric_init.get_enc_scheme;
   rel_pures_l; rel_pures_r;
   rel_apply refines_rf_scheme_l;
   iIntros (l1) s1;
@@ -197,7 +203,7 @@ Ltac rel_init_scheme l1 s1 l2 s2 :=
   rewrite /rf_dec.
 
 Ltac rel_init_scheme_l l1 s1 := 
-  rewrite /init_scheme/sym_scheme/get_enc_scheme;
+  rewrite /init_scheme/symmetric_init.sym_scheme/symmetric_init.get_enc_scheme;
   rel_pures_l;
   rel_apply refines_rf_scheme_l;
   iIntros (l1) s1;
@@ -205,7 +211,7 @@ Ltac rel_init_scheme_l l1 s1 :=
   rewrite /rf_dec.
 
 Ltac rel_init_scheme_r l2 s2 := 
-  rewrite /init_scheme/sym_scheme/get_enc_scheme;
+  rewrite /init_scheme/symmetric_init.sym_scheme/symmetric_init.get_enc_scheme;
   rel_pures_r;
   rel_apply refines_rf_scheme_r;
   iIntros (l2) s2;
@@ -218,9 +224,6 @@ Section Correctness.
 
   Variable vg_of_int_sem : ∀ {T : baseFinGroupType}, Z → option T.
   Variable int_of_vg_sem : ∀ {T : baseFinGroupType}, T → Z.
-
-  Axiom int_of_vg_of_int_sem : ∀ (xg : vgG),
-    vg_of_int_sem (int_of_vg_sem xg) = Some xg.
 
   Axiom vg_of_int_of_vg_sem : ∀ (n : Z) (xg : vgG),
     @vg_of_int_sem vgG n = Some xg →
@@ -274,7 +277,8 @@ Section Correctness.
     iIntros (v1 v2 [msg [eq1 [eq2 Hmsgbound]]]); subst...
     rewrite /enc_hyb...
     rewrite /encaps...
-    rewrite /get_keygen/rf_keygen...
+    rewrite /symmetric_init.get_keygen...
+    rewrite /rf_keygen...
     rewrite /SymKey.
     rel_apply refines_couple_UU; first done.
     iIntros (k Hkbound); iModIntro...
@@ -303,7 +307,7 @@ Section Correctness.
     - rewrite /dec_hyb... rel_vals.
     - rewrite /enc... rel_apply refines_randU_l. iIntros (b Hbbound)...
       simpl_exp. simpl_exp. simpl_mult.
-      rewrite /get_enc/prf_enc... rewrite /random_function...  
+      rewrite /symmetric_init.get_enc/prf_enc... rewrite /random_function...  
       rewrite -/random_function.
       rel_apply refines_randU_l.
       iIntros (r Hrbound)...
@@ -330,7 +334,7 @@ Section Correctness.
 
 
         rewrite (vg_of_int_of_vg_sem (Z.of_nat k)); last by apply eqkg.
-        rewrite /get_dec/prf_dec...
+        rewrite /symmetric_init.get_dec/prf_dec...
         rewrite /random_function...
         rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
         iIntros (res') "Hmap %eqres'"; subst. rewrite eqlookup.
@@ -357,7 +361,7 @@ Section Correctness.
         rel_apply_l (int_of_vg_correct);
           first (iSplit; iIntros (x); iExists _; iSplit; done).
         rewrite (vg_of_int_of_vg_sem (Z.of_nat k)); last by apply eqkg.
-        rewrite /get_dec/prf_dec...
+        rewrite /symmetric_init.get_dec/prf_dec...
         rewrite /random_function...
         rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
         iIntros (res') "Hmap %eqres'"; subst.
@@ -432,7 +436,8 @@ Proof with (rel_pures_l; rel_pures_r).
   }
   iIntros "#Inv". rel_arrow_val.
   iIntros (v1 v2 [msg [eq1 [eq2 Hmsgbound]]]); subst...
-  rewrite /get_keygen/SymKey/rf_keygen...
+  rewrite /symmetric_init.get_keygen/SymKey...
+  rewrite /rf_keygen...
   rel_apply refines_couple_UU; first done.
   iIntros (k Hkbound).
   iModIntro...
@@ -458,7 +463,7 @@ Proof with (rel_pures_l; rel_pures_r).
     rel_apply refines_na_close; iFrame; iSplitL.
     { iFrame. iRight; replace (0+1)%Z with 1%Z by lia; iFrame. }
     rel_apply refines_injr.
-    rewrite /get_enc...
+    rewrite /symmetric_init.get_enc...
     rel_bind_l (prf_enc _ _ _ _ _ _).
     rel_bind_r (prf_enc _ _ _ _ _ _).
     rel_apply refines_bind.
@@ -552,7 +557,7 @@ Proof with rel_pures_l; rel_pures_r.
   rewrite /ssrnat.muln. rewrite /ssrnat.muln_rec.
   simpl_mult.
   rel_apply refines_na_close; iFrame; iSplitL; first (iRight; iFrame).
-  rewrite /get_enc...
+  rewrite /symmetric_init.get_enc...
   rel_bind_l (prf_enc _ _ _ _ _ _).
   rel_bind_r (prf_enc _ _ _ _ _ _).
   rel_apply refines_bind.
@@ -631,7 +636,7 @@ Proof with rel_pures_l; rel_pures_r.
   rel_apply (refines_randT_r with "Hγ").
   iIntros "Hγ _"...
   simpl_exp. simpl_mult.
-  rewrite /get_enc...
+  rewrite /symmetric_init.get_enc...
   rel_bind_l (prf_enc _ _ _ _ _ _).
   rel_bind_r (prf_enc _ _ _ _ _ _).
   rel_apply (refines_bind with "[-]").
@@ -656,14 +661,14 @@ Definition pk_rand_senc_mult_free : expr :=
     let: "B" := g^"b" in
     let: "count" := ref #0 in
     let: "query" := λ: "msg",
-    let: "k" := rand #SymKey in
+    let: "k" := rand #SymKey in (* should make use of keygen, towards modularity *)
     let:m "kg" := vg_of_int "k" in
     assert (! "count" = #0);;;
     "count" <- #1;;
     let: "X" := g^(rand #N) in
     let: "ckem" := ("B", "X") in
     if: #0 ≤ "msg" `and` "msg" ≤ #SymOutput then
-      let: "cdem" := (get_enc "sym_scheme") "k" "msg" in
+      let: "cdem" := (symmetric_init.get_enc "sym_scheme") "k" "msg" in
       SOME ("cdem", "ckem")
     else NONEV
     in ("pk", "query").
@@ -675,7 +680,7 @@ Definition pk_rand_srand : expr :=
   let: "B" := g^"b" in
   let: "count" := ref #0 in
   let: "query" := λ: "msg",
-  let: "k" := rand #SymKey in
+  let: "k" := rand #SymKey in (* should make use of keygen, towards modularity *)
   let:m "kg" := vg_of_int "k" in
   assert (! "count" = #0);;;
   "count" <- #1;;
@@ -754,7 +759,7 @@ Proof with rel_pures_l; rel_pures_r.
     assert (Hxbound' : bool_decide (0 ≤ x)%Z && bool_decide (x ≤ SymOutput)%Z = true).
     { rewrite andb_true_iff; split; apply bool_decide_eq_true; lia. }
     rewrite Hxbound'...
-    rewrite /get_enc...
+    rewrite /symmetric_init.get_enc...
     rel_bind_l (prf_enc _ _ _ _ _ _).
     rel_bind_r (prf_enc _ _ _ _ _ _).
     rel_apply (refines_bind with "[-]").
@@ -815,7 +820,7 @@ Definition adv_rand : val :=
     let: "B" := g^"b" in
     let: "count" := ref #0 in
     let: "query" := λ: "msg",
-      let: "k" := rand #SymKey in
+      let: "k" := rand #SymKey in (* should make use of keygen, towards modularity *)
       let:m "kg" := vg_of_int "k" in
       assert (! "count" = #0);;;
       "count" <- #1;;
@@ -874,25 +879,25 @@ Lemma pk_rand_senc_mult_free_adv_sym_cpa (adv : val) :
     ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool)
   ⊢ refines top
       (adv (init_scheme pk_rand_senc_mult_free))
-      (CPA #true (λ: "oracle", adv (adv_rand "oracle"))%V
-        (@sym_scheme (SYM_param SymKey Input SymOutput)
+      (symmetric_init.CPA #true (λ: "oracle", adv (adv_rand "oracle"))%V
+        (@symmetric_init.sym_scheme (SYM_param SymKey Input SymOutput)
           (sym_rf_scheme SymKey Input SymOutput xor_struct)) #1)
       lrel_bool.
 Proof with rel_pures_l; rel_pures_r.
   iIntros "Hadvtyped".
-  rewrite /sym_scheme/CPA...
-  rewrite /get_enc_scheme...
+  rewrite /symmetric_init.sym_scheme/symmetric_init.CPA...
+  rewrite /symmetric_init.get_enc_scheme...
   rel_apply refines_rf_scheme_r.
   iIntros (mapref') "Hmap'"...
   rewrite /rf_enc/rf_dec...
-  rewrite /get_keygen/rf_keygen; rel_pures_r.
+  rewrite /symmetric_init.get_keygen/rf_keygen; rel_pures_r.
   rel_init_scheme_l mapref "Hmap"...
   rel_apply refines_randU_r.
   iIntros (k Hkbound); rel_pures_r.
-  rewrite /get_enc/prf_enc; rel_pures_r.
+  rewrite /symmetric_init.get_enc/prf_enc; rel_pures_r.
   rewrite /random_function; rel_pures_r.
   rewrite -/random_function; rel_pures_r.
-  rewrite /q_calls/get_card_message; rel_pures_r.
+  rewrite /q_calls/symmetric_init.get_card_message; rel_pures_r.
   rel_alloc_r cnt2 as "Hcnt2".
   rel_pure_r. rel_pure_r.
   rel_pure_r. rel_pure_r.
@@ -1029,11 +1034,11 @@ Qed.
 Lemma rf_is_CPA_instantiated_adv_rand (adv : val)
   (Hadvtype : ⊢ᵥ adv : ((τG * TOracle) → TBool)) :
   ⊢ refines top
-      ((CPA #true (λ: "oracle", adv (adv_rand "oracle"))%V
-        (@sym_scheme (SYM_param SymKey Input SymOutput)
+      ((symmetric_init.CPA #true (λ: "oracle", adv (adv_rand "oracle"))%V
+        (@symmetric_init.sym_scheme (SYM_param SymKey Input SymOutput)
           (sym_rf_scheme SymKey Input SymOutput xor_struct)) #1))
-      ((CPA #false (λ: "oracle", adv (adv_rand "oracle"))%V
-        (@sym_scheme (SYM_param SymKey Input SymOutput)
+      ((symmetric_init.CPA #false (λ: "oracle", adv (adv_rand "oracle"))%V
+        (@symmetric_init.sym_scheme (SYM_param SymKey Input SymOutput)
           (sym_rf_scheme SymKey Input SymOutput xor_struct)) #1))
       lrel_bool.
 Proof. iStartProof.
@@ -1061,18 +1066,18 @@ Lemma rf_CPA_pk_rand_srand (adv : val) :
     adv
     ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool)
   ⊢ refines top
-      ((CPA #false (λ: "oracle", adv (adv_rand "oracle"))%V
-        (@sym_scheme (SYM_param SymKey Input SymOutput)
+      ((symmetric_init.CPA #false (λ: "oracle", adv (adv_rand "oracle"))%V
+        (@symmetric_init.sym_scheme (SYM_param SymKey Input SymOutput)
           (sym_rf_scheme SymKey Input SymOutput xor_struct)) #1))
       (adv pk_rand_srand)
       lrel_bool.
 Proof with rel_pures_l; rel_pures_r. iIntros "Hadvtyped".
-  rewrite /sym_scheme/CPA...
+  rewrite /symmetric_init.sym_scheme/symmetric_init.CPA...
   rel_init_scheme_l mapref "Hmap"...
-  rewrite /get_keygen/rf_keygen...
+  rewrite /symmetric_init.get_keygen/rf_keygen...
   rel_apply refines_randU_l.
   iIntros (k Hkbound)...
-  rewrite /get_rand_cipher/get_card_message...
+  rewrite /symmetric_init.get_rand_cipher/symmetric_init.get_card_message...
   rewrite /q_calls.
   rel_alloc_l cnt2 as "Hcnt2"...
   rewrite /adv_rand...
@@ -1143,7 +1148,7 @@ Definition pk_rand_tape : expr :=
   let: "pk" := g^"sk" in
   let: "count" := ref #0 in
   let: "query" := λ: "msg",
-    let: "k" := rand #SymKey in
+    let: "k" := rand #SymKey in (* should make use of keygen, towards modularity *)
     let:m "kg" := vg_of_int "k" in
     assert (! "count" = #0);;;
     "count" <- #1;;

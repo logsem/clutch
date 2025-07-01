@@ -4,6 +4,8 @@ Set Default Proof Using "Type*".
 
 Section symmetric.
 
+  Context `{approxisRGS Σ}.
+
   (** A symmetric encryption [scheme] is given by three functions (keygen, encrypt, decrypt).
 
 The set of keys, messages, and ciphertexts are modelled by finite sets of integers [0, Key], [0, Input], and [0, Output].
@@ -35,9 +37,11 @@ The set of keys, messages, and ciphertexts are modelled by finite sets of intege
   For now, the state is also shared with `keygen`, we'll see if it's relevant.
   *)
   Class SYM_init `{SYM_init_params} :=
-    { enc_scheme : expr
+    { keygen : val
+    ; enc_scheme : expr
     ; rand_cipher : val
-    ; sym_scheme : val := (sym_params, λ: <>, enc_scheme, rand_cipher)%V
+    
+    ; sym_scheme : val := (sym_params, (keygen, λ: <>, enc_scheme), rand_cipher)%V
     }.
 
   (* `get_keygen`, `get_enc` and `get_dec` shoudl now be called with an
@@ -47,9 +51,9 @@ The set of keys, messages, and ciphertexts are modelled by finite sets of intege
   Definition get_card_key : val := λ:"sym_scheme", Fst (Fst (Fst (Fst "sym_scheme"))).
   Definition get_card_message : val := λ:"sym_scheme", Snd (Fst (Fst (Fst "sym_scheme"))).
   Definition get_card_cipher : val := λ:"sym_scheme", Snd (Fst (Fst "sym_scheme")).
-  Definition get_enc_scheme : val := λ:"sym_scheme", Snd (Fst "sym_scheme").
-  Definition get_keygen : val := λ:"enc_scheme", Fst (Fst "enc_scheme").
-  Definition get_enc : val := λ:"enc_scheme", Snd (Fst "enc_scheme").
+  Definition get_enc_scheme : val := λ:"sym_scheme", Snd (Snd (Fst "sym_scheme")).
+  Definition get_keygen : val := λ:"sym_scheme", Fst (Snd (Fst "sym_scheme")).
+  Definition get_enc : val := λ:"enc_scheme", Fst "enc_scheme".
   Definition get_dec : val := λ:"enc_scheme", Snd "enc_scheme".
   Definition get_rand_cipher : val := λ:"sym_scheme", Snd "sym_scheme".
 
@@ -69,12 +73,11 @@ Our definition deviates from Rosulek's and Katz/Lindell in that we wrap the encr
 Our definition further differs from Katz/Lindell in that, depending on the value of [b], the encryption oracle either encrypts the adversary's message or return a random ciphertext, whereas in Katz/Lindell, the encryption oracle encrypts one of two messages provided by the adversary. These two notions are equivalent by Claim 7.3 in Rosulek's book.
      *)
 
-
     Definition CPA : val :=
       λ:"b" "adv" "scheme" "Q",
         let: "rr_key_b" :=
           let: "enc_scheme" := get_enc_scheme "scheme" #() in
-          let: "key" := get_keygen "enc_scheme" #() in
+          let: "key" := get_keygen "scheme" #() in
           (* let: "enc_key" := enc "scheme" "key" in *)
           if: "b" then
             (* "enc_key" *)
@@ -88,7 +91,7 @@ Our definition further differs from Katz/Lindell in that, depending on the value
     Definition CPA_real : val :=
       λ:"scheme" "Q",
         let: "enc_scheme" := get_enc_scheme "scheme" #() in
-        let: "key" := get_keygen "enc_scheme" #() in
+        let: "key" := get_keygen "scheme" #() in
         q_calls (get_card_message "scheme") "Q" (get_enc "enc_scheme" "key").
 
     (* TODO this should just use `rand` instead of get_rand_cipher. *)
@@ -105,7 +108,7 @@ Module CPA_sem.
   Definition CPA_real : val :=
     λ:"scheme" "Q",
       let: "enc_scheme" := get_enc_scheme "scheme" #() in
-      let: "key" := get_keygen "enc_scheme" #() in
+      let: "key" := get_keygen "scheme" #() in
       q_calls_poly #() #() "Q" (get_enc "enc_scheme" "key").
 
   (* TODO this should just use `rand` instead of get_rand_cipher. *)
