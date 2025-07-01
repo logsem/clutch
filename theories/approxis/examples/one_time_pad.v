@@ -21,7 +21,6 @@ Section defs.
 
   Local Opaque INR.
 
-  (** Parameters of the generic PRF-based encryption scheme. *)
   Variable xor_struct : XOR (Key := Message) (Support := Cipher).
 
   (** We specialize the construction to an idealized random function family. *)
