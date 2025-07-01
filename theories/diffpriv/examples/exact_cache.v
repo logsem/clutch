@@ -900,6 +900,28 @@ Section xcache.
    *)
   (* END TEMP COMMENT *)
 
+  (* TODO fix condition on M to be safety *)
+  Definition oxc_spec0_pw_fresh_safe (M : val) `(dDB : Distance DB) (f f' : val)
+    (* (F : gmap nat val → iProp Σ) *)
+    (G : gmap nat val → gmap nat val → iProp Σ)
+    : iProp Σ :=
+    (∀ (q : nat) B B' ε δ K,
+        ⌜q ∉ dom B⌝ -∗
+        ⌜q ∉ dom B'⌝ -∗
+        wp_diffpriv_pw (M #q) ε δ dDB -∗
+        (* ↯m (c * ε) -∗
+           ↯ (c * δ) -∗ *)
+        G B B' -∗
+        ⤇ fill K (Val f' #q) -∗
+        (* ∀ RES, *)
+          (* WP (Val f) #q {{ v, ∃ (v' : val) A', F A' ∗ ⤇ fill K (Val v') ∗ ⌜v = RES → (v' = RES ∧ A' = <[q := v]> A)⌝ }}). *)
+          WP (Val f) #q {{ v, ∃ (v' : val),
+                  G ((<[q := v]> B)) (<[q := v']> B') ∗
+                  ⤇ fill K (Val v')
+                  (* ∗ (⌜v = RES ∧ B = B'⌝ -∗ G ((<[q := v]> B)) (<[q := v']> B') -∗ F (<[q := v]> B) ∗ ⌜(v' = RES)⌝) *)
+    }}).
+          (* WP (Val f) #q {{ v, ⌜v = RES⌝ -∗ F( <[q := v]> A) ∗ ⤇ fill K (Val v) ∗ ⌜<[q := v]> A !! q = Some v⌝ }}). *)
+
   (* list_map offline XC from online, but pointwise *)
   Lemma exact_cache_dipr_offline_map_pw (M : val) DB (dDB : Distance DB) (qs : list nat) (QS : val) (is_qs : is_list qs QS)
     ε δ (εpos : 0 <= ε) (δpos : 0 <= δ)
@@ -1053,12 +1075,26 @@ Section xcache.
        - exfalso. eauto.
        - exfalso. eauto.
   }
-      tp_bind (list_map f' _) ; wp_bind (list_map f _).
+  iIntros "rhs F".
+  (* TODO don't do another induction here, instead factor out another lemma about list_map safety. *)
+  iInduction qs' as [|q'' qs''] "IH" forall (RES HRES QS' is_qs').
+  - simpl in * ; subst. rewrite /list_map...
+    tp_bind (f' _) ; wp_bind (f _).
+    (* destruct_decide (make_decision (q' ∈ qs')) as cache_q'. *)
+    iAssert (□ oxc_spec0_pw_fresh_safe M dDB f f' G)%I as "#safe". 1: admit.
+    iDestruct ("FG" with "F") as "G".
+    iSpecialize ("safe" with "[] [] [] G [rhs]") => //.
+    iApply (wp_strong_mono'' with "safe").
+    iIntros "%vq (%vq' & G & rhs) /=".
+    rewrite /list_cons... iFrame. iModIntro. iExists [vq],[vq'].
+    iPureIntro. intuition eauto. 3,4: set_solver.
+    all: cbn ; intuition eauto.
+  - simpl in *.
+    tp_bind (list_map _ _) ; wp_bind (list_map _ _).
+    destruct is_qs' as (QS'' & -> & is_qs'').
+    iSpecialize ("IH" $! _ _ _ _ QS'' is_qs'' with "[rhs]").
 
-
-}
-
-  Qed.
+Qed.
 
   (* offline XC from online, but pointwise *)
   Lemma exact_cache_dipr_offline_pw (M : val) DB (dDB : Distance DB) (qs : list nat) (QS : val) (is_qs : is_list qs QS)
