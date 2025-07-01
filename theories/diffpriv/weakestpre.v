@@ -317,17 +317,17 @@ Section coupl_modalities.
       spec execution steps and an erasable distribution *)
   Definition prog_coupl e1 σ1 e1' σ1' ε δ Z : iProp Σ :=
     ∃ P (R R' : cfg Λ → cfg Λ → Prop) (n : nat) (μ1' : distr (state Λ))
-      ε1 δ1 ε2 δ2 ε1' δ1' ε2' δ2',
+      ε1 δ1 ε2 δ2 ε1' δ1' ε2',
       ⌜reducible (e1, σ1)⌝ ∗
       ⌜ forall a a' b, P a -> ¬ P a' -> ¬(R a b /\ R' a' b) ⌝ ∗
       ⌜DPcoupl (prim_step e1 σ1) (σ2' ← μ1'; pexec n (e1', σ2')) R ε1 δ1⌝ ∗
       ⌜DPcoupl (prim_step e1 σ1) (σ2' ← μ1'; pexec n (e1', σ2')) R' ε1' δ1'⌝ ∗
       ⌜ε1 + ε2 <= ε⌝ ∗
-      ⌜ε1' + ε2' <= ε⌝ ∗ ⌜δ1 + δ1' + δ2 + δ2' <= δ⌝ ∗
+      ⌜ε1' + ε2' <= ε⌝ ∗ ⌜δ1 + δ1' + δ2 <= δ⌝ ∗
       ⌜erasable μ1' σ1'⌝ ∗
       (∀ e2 σ2 e2' σ2',
          (⌜P (e2, σ2) /\ R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' ε2 δ2) ∗
-         (⌜¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' ε2' δ2')).
+         (⌜¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' ε2' δ2)).
 
 
  Definition prog_coupl_no_choice e1 σ1 e1' σ1' ε δ Z : iProp Σ :=
@@ -339,12 +339,13 @@ Section coupl_modalities.
       ⌜erasable μ1' σ1'⌝ ∗
       (∀ e2 σ2 e2' σ2', ⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' ε2 δ2).
 
+ (*
  Lemma prog_coupl_simple e1 σ1 e1' σ1' ε δ Z :
    prog_coupl_no_choice e1 σ1 e1' σ1' ε δ Z -∗
    prog_coupl e1 σ1 e1' σ1' ε (2*δ)%NNR Z.
  Proof.
    iIntros "(%R & %n & %μ1' & %ε1 & %δ1 & %ε2 & %δ2 & % & %&%&%&%&Hcnt) /=".
-   iExists (λ _,True),_,_,_,_,ε1,δ1,ε2,δ2,ε1,δ1,ε2,δ2.
+   iExists (λ _,True),_,_,_,_,ε1,δ1,ε2,δ2,ε1,δ1,ε2.
    iSplit;[done|].
    iSplit;[done|].
    iSplit;[done|].
@@ -363,14 +364,15 @@ Section coupl_modalities.
      destruct H4 as [? ?].
      done.
  Qed.
+ *)
 
 
  Lemma prog_coupl_strong_mono e1 σ1 e1' σ1' Z1 Z2 ε δ :
    (∀ e2 σ2 e2' σ2' ε' δ', ⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∗ Z1 e2 σ2 e2' σ2' ε' δ' -∗ Z2 e2 σ2 e2' σ2' ε' δ') -∗
    prog_coupl e1 σ1 e1' σ1' ε δ Z1 -∗ prog_coupl e1 σ1 e1' σ1' ε δ Z2.
  Proof.
-   iIntros "Hm (%P & %R & %R' & %n & %μ1' & %ε1 & %δ1 & %ε2 & %δ2 & %ε1' & %δ1' & % & % & % & %Hindep & % & % & % & % & % & % & Hcnt) /=".
-   iExists P, _, _, _, _, ε1, δ1, ε2, δ2, ε1', δ1', ε2', δ2'.
+   iIntros "Hm (%P & %R & %R' & %n & %μ1' & %ε1 & %δ1 & %ε2 & %δ2 & %ε1' & %δ1' & % & % & %Hindep & % & % & % & % & % & % & Hcnt) /=".
+   iExists P, _, _, _, _, ε1, δ1, ε2, δ2, ε1', δ1', ε2'.
    iSplit; [done|].
    iSplit; last first.
    - iSplit.
@@ -424,12 +426,12 @@ Section coupl_modalities.
     to_val e1 = None →
     prog_coupl e1 σ1 e1' σ1' ε δ (λ e2, Z (K e2)) -∗ prog_coupl (K e1) σ1 e1' σ1' ε δ Z.
   Proof.
-    iIntros (Hv) "(%P & %R & %R' & %n & %μ1' & %ε1 & %δ1 & %ε2 & %δ2 & %ε1' & %δ1' & %ε2' & %δ2' & % & %Hindep & % & % &%&%&%&%&Hcnt) /=".
+    iIntros (Hv) "(%P & %R & %R' & %n & %μ1' & %ε1 & %δ1 & %ε2 & %δ2 & %ε1' & %δ1' & %ε2' & % & %Hindep & % & % &%&%&%&%&Hcnt) /=".
     iExists (λ '(e2, σ2), ∃ e2', e2 = K e2' ∧ P (e2', σ2)),
       (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ'),
       (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R' (e2', σ2) ρ'),
       n, μ1', ε1, δ1, ε2, δ2.
-    iExists ε1', δ1', ε2', δ2'.
+    iExists ε1', δ1', ε2'.
     iSplit; [eauto using reducible_fill|].
     iSplit.
     {
@@ -497,10 +499,10 @@ Section coupl_modalities.
         eexists; auto.
   Qed.
 
-  Lemma prog_coupl_steps ε2 ε1 ε2' ε1' ε δ2 δ1 δ2' δ1' δ P R R' e1 σ1 e1' σ1' Z :
+  Lemma prog_coupl_steps ε2 ε1 ε2' ε1' ε δ2 δ1 δ1' δ P R R' e1 σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
     ε = (ε1' + ε2')%NNR →
-    δ = (δ1 + δ2 + δ1' + δ2')%NNR →
+    δ = (δ1 + δ2 + δ1')%NNR →
     reducible (e1, σ1) →
     reducible (e1', σ1') →
     (forall a a' b, P a -> ¬ P a' -> ¬(R a b /\ R' a' b)) ->
@@ -508,12 +510,12 @@ Section coupl_modalities.
     DPcoupl (prim_step e1 σ1) (prim_step e1' σ1') R' ε1' δ1' →
     (∀ e2 σ2 e2' σ2',
         (⌜P (e2, σ2) /\ R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' ε2 δ2) ∗
-        (⌜ ¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' ε2' δ2'))
+        (⌜ ¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' ε2' δ2))
       ⊢ prog_coupl e1 σ1 e1' σ1' ε δ Z.
   Proof.
     iIntros (? ? ? Hred Hred' Hindep Hcpl1 Hcpl2) "Hcnt".
     iExists P,_,_, 1%nat, (dret σ1'), ε1, δ1, ε2, δ2.
-    iExists ε1', δ1', ε2', δ2'.
+    iExists ε1', δ1', ε2'.
     iSplit; [done|].
     rewrite dret_id_left pexec_1.
     rewrite step_or_final_no_final; [|by apply reducible_not_final].
@@ -543,7 +545,7 @@ Section coupl_modalities.
     iIntros (? ? Hred Hred' Hcpl) "Hcnt".
 
     iExists (λ _, True),_, (λ _ _, True), 1%nat, (dret σ1'), ε1, δ1, ε2, δ2.
-    iExists 0%NNR, 0%NNR, 0%NNR, 0%NNR.
+    iExists 0%NNR, 0%NNR, 0%NNR.
     iSplit; [done|].
     rewrite dret_id_left pexec_1.
     rewrite step_or_final_no_final; [|by apply reducible_not_final].
@@ -588,7 +590,7 @@ Section coupl_modalities.
 
     iIntros (-> -> Hred ? Hcpl) "Hcnt".
     iExists (λ _, True),(λ ρ2 '(e2', σ2'), R ρ2 σ2' ∧ e2' = e1'), (λ _ _, True), 0%nat, μ1', ε1, δ1, ε2, δ2.
-    iExists 0%NNR, 0%NNR, 0%NNR, 0%NNR.
+    iExists 0%NNR, 0%NNR, 0%NNR.
     iSplit; [done|].
     iSplit; [done|].
     iSplit.
@@ -714,7 +716,7 @@ Proof.
   intros ? [? ?]. rewrite /spec_coupl_pre.
   do 4 f_equiv.
   rewrite /prog_coupl.
-  do 46 f_equiv;
+  do 44 f_equiv;
   f_contractive.
   - apply least_fixpoint_ne_outer; [|done].
     intros ? [? ?]. rewrite /spec_coupl_pre.
@@ -759,7 +761,7 @@ Proof.
   do 12 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? ?]. rewrite /spec_coupl_pre /prog_coupl.
-  do 50 f_equiv;
+  do 48 f_equiv;
   f_contractive_fin.
   - apply least_fixpoint_ne_outer; [|done].
     intros ? [? ?]. rewrite /spec_coupl_pre.
@@ -786,7 +788,7 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? ?]. rewrite /spec_coupl_pre.
   rewrite /prog_coupl.
-  do 49 f_equiv;
+  do 47 f_equiv;
   f_contractive.
   - apply least_fixpoint_ne_outer; [|done].
     intros ? [? ?]. rewrite /spec_coupl_pre.

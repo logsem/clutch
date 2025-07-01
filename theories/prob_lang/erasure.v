@@ -796,15 +796,14 @@ Proof.
 Qed.
 
 
-Lemma DPcoupl_erasure_erasable_lhs_choice (e1 e1' : expr) ε ε1 ε2 ε1' ε2' δ δ1 δ2 δ1' δ2' σ1 σ1' μ1' P R R' φ k m
+Lemma DPcoupl_erasure_erasable_lhs_choice (e1 e1' : expr) ε ε1 ε2 ε1' ε2' δ δ1 δ2 δ1' σ1 σ1' μ1' P R R' φ k m
   (Hred : reducible (e1, σ1))
   (Hεsum : ε1 + ε2 <= ε)
   (Hε'sum : ε1' + ε2' <= ε)
   (Hδ1 : 0 <= δ1)
   (Hδ2 : 0 <= δ2)
   (Hδ1' : 0 <= δ1')
-  (Hδ2' : 0 <= δ2')
-  (Hδsum : δ1 + δ1' + δ2 + δ2' <= δ)
+  (Hδsum : δ1 + δ1' + δ2 <= δ)
   (Hindep : (forall a a' b, P a -> ¬ P a' -> ¬(R a b /\ R' a' b)))
   (H : DPcoupl (prim_step e1 σ1) (μ1' ≫= λ σ2' : state, pexec k (e1', σ2')) R ε1 δ1)
   (H' : DPcoupl (prim_step e1 σ1) (μ1' ≫= λ σ2' : state, pexec k (e1', σ2')) R' ε1' δ1')
@@ -814,11 +813,11 @@ Lemma DPcoupl_erasure_erasable_lhs_choice (e1 e1' : expr) ε ε1 ε2 ε1' ε2' �
               → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2 δ2))
   (Hcpl2 : (∀ (e2 : expr) (σ2 : state) (e2' : expr) (σ2' : state),
               (¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2'))
-              → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2' δ2'))
+              → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2' δ2))
   : DPcoupl (prim_step e1 σ1 ≫= exec m) (lim_exec (e1', σ1')) φ ε δ.
 Proof.
   erewrite <-(erasable_pexec_lim_exec (Λ := prob_lang) _ _ _ _ Hμ1') => /=.
-  eapply (DPcoupl_dbind_choice _ _ _ _ P _ _ _  ε1 ε2 δ1 δ2 ε1' ε2' δ1' δ2' ε δ); try done.
+  eapply (DPcoupl_dbind_choice _ _ _ _ P _ _ _  ε1 ε2 δ1 δ2 ε1' ε2' δ1' ε δ); try done.
   - intros (e, σ) (e', σ') (HP & HR).
     by apply Hcpl1.
   - intros (e, σ) (e', σ') (HP & HR).
