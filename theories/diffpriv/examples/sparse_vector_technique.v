@@ -473,51 +473,8 @@ Section svt.
         "bq".
 
 
-  Lemma hoare_couple_laplace_fragmented (loc loc' T : Z)
-    (dist_loc : (Z.abs (loc - loc') <= 1)%Z)
-    (num den : Z) (ε ε' : R) K E :
-    IZR num / IZR den = ε →
-    0 < IZR num / IZR den →
-    ε' = (2*ε) →
-    {{{ ⤇ fill K (Laplace #num #den #loc') ∗ ↯m ε' }}}
-      Laplace #num #den #loc @ E
-      {{{ (z : Z), RET #z;
-          ∃ z' : Z, ⤇ fill K #z'
-                 ∗
-                   ( ⌜(T <= z ∧ T + 1 <= z')⌝
-                     ∨
-                       (⌜z < T ∧ z' < T + 1⌝ ∗ ↯m ε'))%Z
-           }}}.
-  Proof.
-    iIntros (Hε εpos Hε').
-    iIntros (?) "(Hr & Hε) Hcnt".
-
-    (* iMod (ecm_zero) as "ε0".
-       iApply (hoare_couple_laplace _ _ (loc' - loc)%Z 0%Z with "[$Hr ε0]") => //.
-       1: apply Zabs_ind ; lia.
-       1: rewrite Rmult_0_l ; iFrame.
-       iIntros "!>**". iApply "Hcnt". iFrame. iRight. iFrame. iPureIntro.
-
-       (* iApply (hoare_couple_laplace _ _ 1%Z 2%Z with "[$Hr Hε]") => //. *)
-       1: admit.
-       iIntros "!> **".
-       iApply "Hcnt". iFrame.
-       iLeft. iPureIntro. *)
-
-    iApply wp_lift_step_prog_couple; [done|]. simpl.
-    iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1) & Hauth2 & (Hε2 & Hδ))".
-    iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
-    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iDestruct (ecm_supply_ecm_inv with "Hε2 Hε") as %(? &?& -> & Hε'').
-    iApply (prog_coupl_steps _ _ _ δ_now 0%NNR) ;
-      [done| apply nnreal_ext; simpl; lra |solve_red|solve_red|..].
-    { apply DPcoupl_steps_ctx_bind_r => //. rewrite Hε''.
-      (* eapply DPcoupl_laplace_step => //.
-    } *)
-  Admitted.
-
   (* Hypothetically, if we didn't work with pointwise equalities, would things get easier? *)
-  (* Let's assume hoare_couple_laplace_fragmented and prove the non-pw spec for AT. *)
+  (* Let's prove the non-pw spec for AT from hoare_couple_laplace_choice. *)
   Lemma above_threshold_online_no_flag_spec (num den T : Z) (εpos : 0 < IZR num / IZR den) K :
     ↯m (IZR num / IZR den) -∗
     ⤇ fill K ((Val above_threshold_no_flag) #num #den #T)
@@ -562,7 +519,7 @@ Section svt.
       all: pose proof (le_IZR _ _ h) ; lia.
     }
   tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
-  iApply (hoare_couple_laplace_fragmented vq_l (vq_r) T' with "[$]") => //.
+  iApply (hoare_couple_laplace_choice vq_l (vq_r) T' with "[$]") => //.
   1: apply Zabs_ind ; lia.
   1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
   { subst ε. rewrite mult_IZR. field. eapply Rdiv_pos_den_0 => //. }
@@ -669,11 +626,14 @@ Section svt.
       iFrame. iSplitR => //. iExists _ ; iSplitR => //. iSimpl. iFrame. iExists TOKEN. iFrame. done.
   Qed.
 
+  (* TODO move *)
   Lemma AT_NF_safe num den T :
     ⊢ WP (above_threshold_no_flag #num #den #T) {{ v, ⌜True⌝ }}.
   Proof.
     rewrite /above_threshold_no_flag.
+  Admitted.
 
+  (* TODO move *)
   (* Pointwise equality spec for oSVT based on pweq oAT. *)
   (* Crucially, the whole post-condition is guarded by ⌜v = #RES⌝. This is analogous to the
      point-wise equality postcondition: only if the "guess" of RES was correct do we guarantee
@@ -762,29 +722,29 @@ Section svt.
       tp_load ; wp_load...
       destruct n as [|n']...
       { rewrite /iSVT. iFrame. iModIntro. iIntros (h). inversion h. }
-TODO
       wp_bind (above_threshold_no_flag _ _ _).
-      iApply (wp_strong_mono'' with "AT_NF_safe"). iIntros...
-      wp_store ; wp_load ; wp_store. iExists _. iIntros "!>**". exfalso. done.
-    - simpl... rewrite /= !Nat.sub_0_r. tp_load ; wp_load...
-      destruct n as [|n']...
-      { rewrite /iSVT. iFrame. iModIntro. iIntros (h). inversion h. }
-      iExists _. iIntros "!>**". exfalso. done.
-    - rewrite pweq //... tp_load ; wp_load...
-      case_bool_decide...
-      +
-        iExists _. iIntros "!>**". iFrame. iSplitR. 1: done.
-        iExists TOKEN.
-        iSpecialize ("maybe_auth" $! eq_refl).
-        iFrame. done.
-      +
-        iExists _. iIntros "!>**". iFrame. iSplitR. 1: done.
-        iExists TOKEN.
-        iSpecialize ("maybe_auth" $! eq_refl).
-        iFrame. done.
-        Unshelve. all: easy.
-  Qed.
 
+  (*     iApply (wp_strong_mono'' with "AT_NF_safe"). iIntros...
+         wp_store ; wp_load ; wp_store. iExists _. iIntros "!>**". exfalso. done.
+       - simpl... rewrite /= !Nat.sub_0_r. tp_load ; wp_load...
+         destruct n as [|n']...
+         { rewrite /iSVT. iFrame. iModIntro. iIntros (h). inversion h. }
+         iExists _. iIntros "!>**". exfalso. done.
+       - rewrite pweq //... tp_load ; wp_load...
+         case_bool_decide...
+         +
+           iExists _. iIntros "!>**". iFrame. iSplitR. 1: done.
+           iExists TOKEN.
+           iSpecialize ("maybe_auth" $! eq_refl).
+           iFrame. done.
+         +
+           iExists _. iIntros "!>**". iFrame. iSplitR. 1: done.
+           iExists TOKEN.
+           iSpecialize ("maybe_auth" $! eq_refl).
+           iFrame. done.
+           Unshelve. all: easy.
+     Qed. *)
+  Abort.
 
   Lemma SVT_online_diffpriv (num den T : Z) (N : nat) (Npos : (0 < N)%nat) K :
     let ε := IZR num / IZR den in
@@ -822,7 +782,7 @@ TODO
     set (iSVT := (λ n : nat,
                        if Nat.ltb 0%nat n then
                          ↯m ((n-1)%nat * ε) ∗ ∃ token f f',
-                           token ∗ ref_f ↦ f ∗ ref_f' ↦ₛ f' ∗ AT_spec token f f'
+                           token ∗ ref_f ↦ f ∗ ref_f' ↦ₛ f' ∗ AT_spec_pw token f f'
                        else emp
                  )%I). iExists iSVT.
     iSplitL.
@@ -837,7 +797,7 @@ TODO
     iApply (wp_strong_mono'' with "AT").
     iIntros "%vq (%vq' & rhs & %pweq & %bq & %bq' & -> & -> & maybe_auth)".
     iSimpl in "rhs"...
-    iAssert (AT_spec TOKEN f f') as "AT". 1: admit. (* should have been persistent *)
+    iAssert (AT_spec_pw TOKEN f f') as "AT". 1: admit. (* should have been persistent *)
     destruct bq eqn:case_bq, RES eqn:case_RES.
     - rewrite pweq //...
       (* We should only end up in this case if 0<n holds!
