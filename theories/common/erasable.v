@@ -109,6 +109,27 @@ Section erasable.
     - by rewrite H2.
   Qed.
 
+  (* An erasable distribution must be total as long as the language contains has at least a value *)
+  Lemma erasable_mass (μ : distr (state Λ)) σ (v : val Λ)   :
+    erasable μ σ -> SeriesC μ = 1.
+  Proof.
+    rewrite /erasable.
+    intros Herr.
+    specialize (Herr (of_val v) 0%nat).
+    simpl in Herr.
+    rewrite to_of_val in Herr.
+    assert (SeriesC (μ ≫= (λ _ : state Λ, dret v)) = 1) as Haux.
+    {
+      rewrite Herr.
+      apply dret_mass.
+    }
+    rewrite -Haux.
+    rewrite dbind_mass.
+    setoid_rewrite dret_mass.
+    rewrite SeriesC_scal_r.
+    lra.
+  Qed.
+
 End erasable.
 
 Section erasable_functions.

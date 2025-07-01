@@ -42,12 +42,57 @@ Section adequacy.
     iIntros (Hnone).
     rewrite exec_Sn.
     rewrite /step_or_final /= Hnone.
-    iIntros "(%R & %k & %μ1' & %ε1 & % & % & % & % & % & % & % & % & Hcnt) Hcoupl /=".
-    iApply (step_fupdN_mono _ _ _ ⌜_⌝).
-    { iPureIntro. intros. eapply DPcoupl_erasure_erasable_lhs'. 8: by eauto. all: eauto. }
-    iIntros (e2 σ2 e2' σ2' HR).
-    iMod ("Hcnt" with "[//]") as "Hcnt".
-    by iApply "Hcoupl".
+    iIntros "(%P & %R & %R' & %k & %μ1' & %ε1 & % & % & % & % & % & % & % & % & % & % & % & % & % & % & % & Hcnt) Hcoupl /=".
+
+
+    (*
+    set (Q := ∀ (e2 : expr) (σ2 : state) (e2' : expr) (σ2' : state),
+            ⌜((P (e2, σ2) /\ R (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2 δ2)⌝ ∗
+            ⌜((¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2' δ2') ⌝
+        )%I.
+    *)
+    iApply (step_fupdN_mono _ _ _
+              (∀ (e2 : expr) (σ2 : state) (e2' : expr) (σ2' : state),
+                  ⌜((P (e2, σ2) /\ R (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2 δ2)⌝ ∗
+                    ⌜((¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2' δ2') ⌝)
+           ).
+    { iPureIntro. intros.
+      eapply (DPcoupl_erasure_erasable_lhs_choice _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ P).
+      10: apply H1.
+      10: apply H2.
+      all: eauto.
+      - intros.
+        destruct (H7 e2 σ2 e2' σ2').
+        by apply H9.
+      - intros.
+        destruct (H7 e2 σ2 e2' σ2').
+        by apply H10.
+    }
+    iIntros (e2 σ2 e2' σ2').
+    iDestruct ("Hcnt" $! e2 σ2 e2' σ2') as "[Hcnt1  Hcnt2]".
+    destruct (decide (P (e2, σ2))).
+    - iApply (step_fupdN_mono _ _ _
+                  ⌜((P (e2, σ2) /\ R (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2 δ2)⌝).
+      {
+        iIntros (?).
+        iSplit; auto.
+        iIntros ((?&?)).
+        done.
+      }
+      iIntros ((?&?)).
+      iMod ("Hcnt1" with "[//]") as "Hcnt1".
+      by iApply "Hcoupl".
+    - iApply (step_fupdN_mono _ _ _
+                  ⌜((¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2' δ2')⌝).
+      {
+        iIntros (?).
+        iSplit; auto.
+        iIntros ((?&?)).
+        done.
+      }
+      iIntros ((?&?)).
+      iMod ("Hcnt2" with "[//]") as "Hcnt2".
+      by iApply "Hcoupl".
   Qed.
 
   Lemma wp_adequacy_val_fupd (e e' : expr) (σ σ' : state) n φ v ε δ:

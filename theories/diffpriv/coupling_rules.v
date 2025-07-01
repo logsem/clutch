@@ -84,7 +84,7 @@ Section rules.
     iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     iDestruct (ecm_supply_ecm_inv with "Hε2 Hε") as %(? &?& -> & Hε'').
-    iApply (prog_coupl_steps _ _ _ δ_now 0%NNR) ;
+    iApply (prog_coupl_steps_simple _ _ _ δ_now 0%NNR);
       [done| apply nnreal_ext; simpl; lra |solve_red|solve_red|..].
     { apply DPcoupl_steps_ctx_bind_r => //. rewrite Hε''.
       eapply DPcoupl_laplace_step => //. }
@@ -119,7 +119,7 @@ Section rules.
     iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     iDestruct (ecm_supply_ecm_inv with "Hε2 Hε") as %(? &?& -> & Hε'').
-    iApply (prog_coupl_steps _ _ _ δ_now 0%NNR) ;
+    iApply (prog_coupl_steps_simple _ _ _ δ_now 0%NNR) ;
       [done| apply nnreal_ext; simpl; lra |solve_red|solve_red|..].
     { apply DPcoupl_steps_ctx_bind_r => //. rewrite Hε''.
       eapply DPcoupl_laplace_step => //. }
