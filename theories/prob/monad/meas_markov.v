@@ -1,6 +1,6 @@
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
-From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Program.Wf Reals.
+From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Reals.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
@@ -418,17 +418,6 @@ Section markov.
     auto.
   Qed.
 
-(*
-
-    apply iterM_mono => a a'.
-    destruct (decide (is_final y)).
-    { rewrite to_final_is_final.
-
-    - rewrite to_final_is_final //.
-    - rewrite step_or_final_no_final //.
-  Qed.
-*)
-
   (** * Stratified evaluation to a final state *)
   Fixpoint exec (n : nat) (a : toPackedType _ (mstate δ)) {struct n} : giryM (toPackedType _ (mstate_ret δ)) :=
     match to_final a, n with
@@ -824,24 +813,12 @@ Section markov.
   Proof.
     eapply giryM_cod_meas_fun.
     intros. 
-    eapply bounded_cvg_pointwise_meas_fun.
-    { 
-      intros.
-      apply /andP. split.
-      { apply /limit_measure_ge0. }
-      { by apply /eval_le_1. }
-    }
-    {
-      intros.
-      rewrite lim_exec_unfold is_cvg_limn_esupE;
-      by apply (cvg_limit_measure _ (exec_mono x)). 
-    }
-    {
-      move => n //=.
-      have -> : (λ x : mstate δ, exec n x S) = ((gEval S) \o (exec n)). 
-      { apply /funext=>x //. }
-      exact (measurableT_comp (gEval_meas_fun HmS) (exec_meas_fun n)).
-    }
+    simpl. unfold limit_measure. 
+    apply measurable_fun_limn_esup.
+    intros. 
+    have -> : (λ x : mstate δ, exec n x S) = ((gEval S) \o (exec n)). 
+    { apply /funext=>x //. }
+    exact (measurableT_comp (gEval_meas_fun HmS) (exec_meas_fun n)).
   Qed.
 
   Lemma lim_exec_Sup_seq (a : mstate δ) :
@@ -861,52 +838,40 @@ Section markov.
     lim_exec a ≡μ gBind' lim_exec (step_or_final a).
   Proof. 
     move => s Hs.
-    rewrite lim_exec_unfold /gBind'.
-  Admitted.
-(*
-  Proof.
-   apply distr_ext.
-   intro b.
-   rewrite {2}/pmf /= /dbind_pmf.
-   rewrite lim_exec_unfold.
-   setoid_rewrite lim_exec_unfold.
-   assert
-     (SeriesC (λ a', step_or_final a a' * Sup_seq (λ n, exec n a' b)) =
-      SeriesC (λ a', Sup_seq (λ n, step_or_final a a' * exec n a' b))) as ->.
-   { apply SeriesC_ext; intro b'.
-     apply eq_rbar_finite.
-     rewrite rmult_finite.
-     rewrite (rbar_finite_real_eq).
-     - rewrite -Sup_seq_scal_l //.
-     - apply (Rbar_le_sandwich 0 1).
-       + by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
-       + by apply upper_bound_ge_sup=>/=. }
-   rewrite (MCT_seriesC _ (λ n, exec (S n) a b) (lim_exec a b)) //.
-   - intros. by apply Rmult_le_pos.
-   - intros.
-     apply Rmult_le_compat; [done|done|done|].
-     apply exec_mono.
-   - intros a'.
-     exists (step_or_final a a').
-     intros n.
-     rewrite <- Rmult_1_r. by apply Rmult_le_compat_l.
-   - intro n.
-     rewrite exec_Sn.
-     rewrite {3}/pmf/=/dbind_pmf.
-     apply SeriesC_correct.
-     apply (ex_seriesC_le _ (step_or_final a)); [|done].
-     intros a'. split.
-     + by apply Rmult_le_pos.
-     + rewrite <- Rmult_1_r. by apply Rmult_le_compat_l.
-   - rewrite lim_exec_unfold.
-     rewrite mon_sup_succ.
-     + rewrite (Rbar_le_sandwich 0 1).
-       * apply Sup_seq_correct.
-       * by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
-       * by apply upper_bound_ge_sup=>/=.
-     + intro; apply exec_mono.
+    rewrite lim_exec_unfold (gBind'_meas_rw (lim_exec_meas_fun)). 
+    rewrite gBindEval_rw //.
+    eassert (_ = fun x => lim_exec x s) as <-. {
+      apply /funext => x. rewrite lim_exec_unfold.
+      rewrite is_cvg_limn_esupE; auto.
+      apply (cvg_limit_measure _ (exec_mono x) _ Hs).
+    }
+    eassert (_ = (\int[step_or_final a]_x _)%E) as <-. {
+      rewrite monotone_convergence; auto.
+      { 
+        intros. simpl. 
+        have -> : (λ x : mstate δ, exec n x s) = ((gEval s) \o (exec n)). 
+        { apply /funext=>x //. }
+        exact (measurableT_comp (gEval_meas_fun Hs) (exec_meas_fun n)).
+      }
+      { 
+        move => n _ x y. 
+        rewrite -(rwP ssrnat.leP) => Hxy. 
+        pose proof (exec_mono n).
+        rewrite giryM_le_mono_equiv in H.
+        by apply H.
+      }
+    }
+    rewrite is_cvg_limn_esupE; auto.
+    2 : apply (cvg_limit_measure _ (exec_mono a) _ Hs).
+    eassert (_ = (λ n : nat, (\int[_]_x exec n x s)%E)) as <-. {
+      apply /funext => n.
+      rewrite -(gBindEval_rw) //.
+      { apply exec_meas_fun. }
+      intros.
+      by erewrite <- gBind'_meas_rw, exec_Sn.
+    }
+    apply lim_n_Sn, (cvg_limit_measure _ (exec_mono a) _ Hs).
   Qed.
-*)
 
   Lemma lim_exec_pexec n a :
     lim_exec a ≡μ gBind' lim_exec (pexec n a).
@@ -937,15 +902,21 @@ Section markov.
   Proof.
     intros Hb Hpe.
     intros b' Hb'.
-    rewrite lim_exec_unfold.
     rewrite /gRet.
     rewrite /dirac//=/dirac//=/numfun.indic.
     destruct (ExcludedMiddle (b' b)).
-    { rewrite (mem_set H) //=.
-      admit. }
-    { rewrite (memNset H) //=.
+    { 
+      rewrite (mem_set H) //=.
+      apply @order.Order.le_anti. 
+      apply /andP. split.
+      { by apply /eval_le_1. } 
+      admit. 
+    }
+    { 
+      rewrite (memNset H) //=.
       (* Rewrite by constant sequence... *)
-      admit. }
+      admit. 
+    }
   Admitted.
 (*
     rewrite {2}/pmf /= /dret_pmf.

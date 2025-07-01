@@ -1,7 +1,7 @@
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Program.Wf Reals Lia.
-From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets num_normedtype complete_normed_module.
+From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets num_normedtype complete_normed_module. 
 From Coq.ssr Require Import ssreflect ssrfun.
 From mathcomp.analysis Require Import measure ereal sequences normedtype lebesgue_measure lebesgue_integral esum realfun measurable_realfun.
 From mathcomp.ssreflect Require Import order.
@@ -11,7 +11,6 @@ Require Import Coq.micromega.Lra.
 Require Import mathcomp.reals.reals.
 
 From mathcomp.analysis Require Import topology.
-
 From Coq.ssr Require Import ssreflect ssrfun.
 
 Set Warnings "hiding-delimiting-key".
@@ -136,75 +135,31 @@ Section setwise_measure_limit.
 
 End setwise_measure_limit.
 
-Section Measurable. 
-  Import Order.TTheory GRing.Theory Num.Def Num.Theory.
-  Import numFieldTopology.Exports.
+Section lim.
 
   Local Open Scope classical_set_scope.
 
-  Context {d} {T : measurableType d}.
-
-  Search ((_ : realType) -> (_ : realType) -> bool).
-
-  Lemma cvg_pointwise_meas_fun (R : realType) (f : nat -> T -> R) (g : T -> R):
-    (forall n x, f n x <= f (S n) x)%O ->
-    (forall x, (f n x) @[n --> \oo] --> (g x)) -> 
-    (forall n, measurable_fun (U := Real_sort__canonical__measure_SigmaRing R) setT (f n)) ->
-    measurable_fun (U := Real_sort__canonical__measure_SigmaRing R)  setT g.
+  (* Lemma limsup_of_mono_is_sup (f : nat -> \bar R) : 
+    (forall n, f n <= f (S n))%E ->
+    cvgn f ->
+    forall n, (f n <= limn f)%E.
   Proof.
     intros.
-    simpl in *.
-    move => _ s Hs.
-    rewrite setTI.
-    Search ocitv.
-    set P := fun x : set R => d.-measurable (g @^-1` x).
-    assert (forall b, g @^-1` (`] b, +oo[) = \bigcup_n ((f n) @^-1` (`] b, +oo[))). {
-      move => b. 
-      apply eq_set => x //=.
-      rewrite propeqE. split; [intros | intros [n H2]].
-      - admit.
-      - admit.
-    }
-    assert (forall x, ocitv x -> measurable (g @^-1` x)). {
-      intros.
-      apply ocitvP in H3 as [Hx | [[a b] Hx]];
-      [by rewrite Hx preimage_set0| simpl in *].
-      rewrite H3. 
-      have -> : `]a, b] = `]a, +oo[ `\` `]b, +oo[. {
-        admit.
-      }
-      Search (preimage).
-      admit.
-    }
-    (* 
+  Admitted. *)
 
-    eapply (dynkin_induction (ocitv (R := R)) P); rewrite /P //=.
-    { apply ocitvI. }
-    { apply H1. }
-    { } *)
-
-  Admitted.
-
-  Lemma bounded_cvg_pointwise_meas_fun (f : nat -> T -> \bar R) (g : T -> \bar R) (l u : R):
-    (forall x, l%:E <= g x <= u%:E)%E ->
-    (forall x, f n x @[n --> \oo] --> g x)%E -> 
-    (forall n, measurable_fun setT (f n)) ->
-    measurable_fun setT g.
+  Lemma lim_n_Sn (f : nat -> \bar R) : 
+    cvgn f ->
+    limn f = limn (fun n => f (S n)).
   Proof.
-    Check cvg_nbhsP.
-    Check (realfun.cvg_pinftyP (R:=R)).
     intros.
-    simpl in *.
-    move => _ s Hs.
-    rewrite -(preimage_range g) -preimage_setI. 
-    Print emeasurable.
-    set P := fun x : set R => d.-measurable (g @^-1` [set r%:E | r in x]).
-    Search (image).
-    Search (preimage).
-    (* eapply (dynkin_induction _ P); rewrite /P //=.
-    rewrite /'measurable //= /emeasurable /measurable //=.
-    (* set pp := (measurable (s := (constructive_ereal_extended__canonical__measure_SigmaRing R))).
-    unfold emeasurable.  *) *)
-    
-  Admitted.
-End Measurable.
+    epose proof (cvg_shiftn 1 f).
+    rewrite -H0 in H. simpl in *.
+    assert ((fun n => f (ssrnat.addn n 1)) = (fun n => f (S n))). {
+      apply /funext => n //=. rewrite ssrnat.addn1 //.
+    }
+    rewrite H1 in H.
+    by erewrite <- (separation_axioms.cvg_lim (@ereal_hausdorff _) H).
+  Qed.
+
+End lim.
+
