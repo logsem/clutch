@@ -1,9 +1,9 @@
 Set Warnings "-hiding-delimiting-key".
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Program.Wf Reals Lia.
-From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
+From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets num_normedtype complete_normed_module.
 From Coq.ssr Require Import ssreflect ssrfun.
-From mathcomp.analysis Require Import measure ereal sequences normedtype lebesgue_measure lebesgue_integral esum realfun.
+From mathcomp.analysis Require Import measure ereal sequences normedtype lebesgue_measure lebesgue_integral esum realfun measurable_realfun.
 From mathcomp.ssreflect Require Import order.
 From clutch.prob.monad Require Export giry.
 Require Import mathcomp.reals_stdlib.Rstruct.
@@ -15,23 +15,6 @@ From mathcomp.analysis Require Import topology.
 From Coq.ssr Require Import ssreflect ssrfun.
 
 Set Warnings "hiding-delimiting-key".
-
-Section Dynkin.
-Local Open Scope classical_set_scope.
-Lemma dynkin_induction {d} {T : measurableType d} (G : set (set T)) (P : (set T) -> Prop) :
-  @measurable _ T = <<s G >> ->
-  setI_closed G ->
-  (P setT) ->
-  (forall S, G S -> P S) ->
-  (forall S, measurable S -> P S -> P (setC S)) ->
-  (forall F : sequences.sequence (set T),
-      (forall n, measurable (F n)) ->
-      trivIset setT F ->
-      (forall n, P (F n)) -> P (\bigcup_k F k)) ->
-  (forall S, <<s G >> S -> P S).
-Proof.
-Admitted.
-End Dynkin.
 
 Section setwise_measure_limit.
   Context {d} {T : measurableType d}.
@@ -154,26 +137,74 @@ Section setwise_measure_limit.
 End setwise_measure_limit.
 
 Section Measurable. 
-  Context {d} {T : measurableType d}.
+  Import Order.TTheory GRing.Theory Num.Def Num.Theory.
+  Import numFieldTopology.Exports.
 
   Local Open Scope classical_set_scope.
 
-  Lemma bounded_cvg_pointwise_meas_fun (f : nat -> T -> (measurable_realfun.constructive_ereal_extended__canonical__measure_SigmaRing R)) (g : T ->  (measurable_realfun.constructive_ereal_extended__canonical__measure_SigmaRing R)) (l u : R):
+  Context {d} {T : measurableType d}.
+
+  Search ((_ : realType) -> (_ : realType) -> bool).
+
+  Lemma cvg_pointwise_meas_fun (R : realType) (f : nat -> T -> R) (g : T -> R):
+    (forall n x, f n x <= f (S n) x)%O ->
+    (forall x, (f n x) @[n --> \oo] --> (g x)) -> 
+    (forall n, measurable_fun (U := Real_sort__canonical__measure_SigmaRing R) setT (f n)) ->
+    measurable_fun (U := Real_sort__canonical__measure_SigmaRing R)  setT g.
+  Proof.
+    intros.
+    simpl in *.
+    move => _ s Hs.
+    rewrite setTI.
+    Search ocitv.
+    set P := fun x : set R => d.-measurable (g @^-1` x).
+    assert (forall b, g @^-1` (`] b, +oo[) = \bigcup_n ((f n) @^-1` (`] b, +oo[))). {
+      move => b. 
+      apply eq_set => x //=.
+      rewrite propeqE. split; [intros | intros [n H2]].
+      - admit.
+      - admit.
+    }
+    assert (forall x, ocitv x -> measurable (g @^-1` x)). {
+      intros.
+      apply ocitvP in H3 as [Hx | [[a b] Hx]];
+      [by rewrite Hx preimage_set0| simpl in *].
+      rewrite H3. 
+      have -> : `]a, b] = `]a, +oo[ `\` `]b, +oo[. {
+        admit.
+      }
+      Search (preimage).
+      admit.
+    }
+    (* 
+
+    eapply (dynkin_induction (ocitv (R := R)) P); rewrite /P //=.
+    { apply ocitvI. }
+    { apply H1. }
+    { } *)
+
+  Admitted.
+
+  Lemma bounded_cvg_pointwise_meas_fun (f : nat -> T -> \bar R) (g : T -> \bar R) (l u : R):
     (forall x, l%:E <= g x <= u%:E)%E ->
     (forall x, f n x @[n --> \oo] --> g x)%E -> 
     (forall n, measurable_fun setT (f n)) ->
     measurable_fun setT g.
   Proof.
+    Check cvg_nbhsP.
+    Check (realfun.cvg_pinftyP (R:=R)).
     intros.
     simpl in *.
     move => _ s Hs.
     rewrite -(preimage_range g) -preimage_setI. 
-    (* 
     Print emeasurable.
     set P := fun x : set R => d.-measurable (g @^-1` [set r%:E | r in x]).
-    eapply (dynkin_induction _ P); rewrite /P //=.
+    Search (image).
+    Search (preimage).
+    (* eapply (dynkin_induction _ P); rewrite /P //=.
     rewrite /'measurable //= /emeasurable /measurable //=.
     (* set pp := (measurable (s := (constructive_ereal_extended__canonical__measure_SigmaRing R))).
     unfold emeasurable.  *) *)
+    
   Admitted.
 End Measurable.

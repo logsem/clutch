@@ -847,24 +847,21 @@ Section markov.
   Lemma lim_exec_Sup_seq (a : mstate δ) :
     mass' (lim_exec a) setT = limn_esup (λ n, mass' (exec n a) setT).
   Proof. 
-
-  Admitted.
-  (*
-    erewrite SeriesC_ext; last first.
-    { intros ?. rewrite lim_exec_unfold //. }
-    erewrite MCT_seriesC; eauto.
-    - intros. apply exec_mono.
-    - intros. by eapply SeriesC_correct.
-    - rewrite (Rbar_le_sandwich 0 1).
-      + apply Sup_seq_correct.
-      + by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
-      + by apply upper_bound_ge_sup=>/=.
-  Qed. *)
+    rewrite /mass' !extern_if_eq /mass.
+    rewrite integral_cst //=.
+    eassert (_ = (fun n : nat => extern_if GRing.zero (fun _ : measurable setT => integral (exec n a) setT (fun _ : mstate_ret δ => EFin (GRing.one R))))) as <-. 
+    {
+      apply /funext=>x. rewrite !extern_if_eq; [auto| ].
+      rewrite integral_cst; [by rewrite mul1e| auto].
+    }
+    rewrite mul1e //.
+  Qed.
 
   Lemma lim_exec_step (a : toPackedType _ (mstate δ)) :
     lim_exec a ≡μ gBind' lim_exec (step_or_final a).
   Proof. 
-
+    move => s Hs.
+    rewrite lim_exec_unfold /gBind'.
   Admitted.
 (*
   Proof.
