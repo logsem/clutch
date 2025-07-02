@@ -900,37 +900,30 @@ Section markov.
     is_det a' (pexec n a) →
     lim_exec a ≡μ gRet b.
   Proof.
-    intros Hb Hpe.
-    intros b' Hb'.
-    rewrite /gRet.
-    rewrite /dirac//=/dirac//=/numfun.indic.
-    destruct (ExcludedMiddle (b' b)).
+    intros.
+    apply giryM_le_is_det. 
+    move => s Hs.
+    assert (gRet b ≡μ exec n a) as ->; auto.
     { 
-      rewrite (mem_set H) //=.
-      apply @order.Order.le_anti. 
-      apply /andP. split.
-      { by apply /eval_le_1. } 
-      admit. 
+      rewrite exec_pexec_relate. 
+      unfold is_det in H0. 
+      rewrite H0 gRet_gBind /exec H //.
+    }
+    rewrite lim_exec_unfold (is_cvg_limn_esupE).
+    2 : apply (cvg_limit_measure _ (exec_mono a) _ Hs).
+    eapply (ebounded_nondecreasing_cvgn_le (f := (λ n0 : nat, exec n0 a s))). 
+    { 
+      intros. apply /andP. split. 
+      { apply /measure_ge0. }
+      { by apply /eval_le_1. }
     }
     { 
-      rewrite (memNset H) //=.
-      (* Rewrite by constant sequence... *)
-      admit. 
+      move => x y Hxy.
+      apply /exec_mono'; auto.
+      rewrite (rwP ssrnat.leP); auto.
     }
-  Admitted.
-(*
-    rewrite {2}/pmf /= /dret_pmf.
-    case_bool_decide; simplify_eq.
-    - apply Rle_antisym.
-      + apply finite_rbar_le; [eapply is_finite_Sup_seq_exec|].
-        by apply upper_bound_ge_sup=>/=.
-      + apply rbar_le_finite; [eapply is_finite_Sup_seq_exec|].
-        apply (Sup_seq_minor_le _ _ n)=>/=.
-        by erewrite pexec_exec_det.
-    - rewrite -(sup_seq_const 0).
-      f_equal. apply Sup_seq_ext=> m.
-      f_equal. by eapply pexec_exec_det_neg.
-  Qed. *)
+    { apply (cvg_limit_measure _ (exec_mono a) _ Hs). }
+  Qed.
 
   Lemma lim_exec_final a b :
     to_final a = Some b →
@@ -954,34 +947,30 @@ Section markov.
     (lim_exec a b <= EFin r)%E.
   Proof.
     intro Hexec.
-    rewrite lim_exec_unfold.
-
-  Admitted.
-  (*
-    apply finite_rbar_le; [apply is_finite_Sup_seq_exec|].
-    by apply upper_bound_ge_sup=>/=.
-  Qed. *)
+    rewrite lim_exec_unfold (is_cvg_limn_esupE (cvg_limit_measure _ (exec_mono a) _ H)).
+    apply ebounded_nondecreasing_lub; auto.
+    {
+      move => x y Hxy. 
+      apply exec_mono'; auto.
+      by apply /ssrnat.leP. 
+    }
+    { apply (cvg_limit_measure _ (exec_mono a) _ H). }
+  Qed.
 
   Lemma lim_exec_leq_mass  a r :
     (∀ n, mass' (exec n a) setT <= EFin r)%E →
     (mass' (lim_exec a) setT <= EFin r)%E.
   Proof. 
-  Admitted.
-  (*
-    intro Hm.
-    erewrite SeriesC_ext; last first.
-    { intros. rewrite lim_exec_unfold //. }
-    erewrite (MCT_seriesC _ (λ n, SeriesC (exec n a)) (Sup_seq (λ n, SeriesC (exec n a)))); eauto.
-    - apply finite_rbar_le; [apply is_finite_Sup_seq_SeriesC_exec|].
-      by apply upper_bound_ge_sup.
-    - apply exec_mono.
-    - intros. by apply SeriesC_correct.
-    - rewrite (Rbar_le_sandwich 0 1).
-      + apply (Sup_seq_correct (λ n, SeriesC (exec n a))).
-      + by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
-      + by apply upper_bound_ge_sup=>/=.
-  Qed. *)
-
+    rewrite /mass' !extern_if_eq /mass !integral_cst // mul1e.
+    intros.
+    apply lim_exec_leq; auto.
+    intros.
+    specialize (H n). 
+    rewrite extern_if_eq in H; auto.
+    rewrite integral_cst in H; auto.
+    by rewrite mul1e in H.
+  Qed.
+  
   (*
   No need to port now
 

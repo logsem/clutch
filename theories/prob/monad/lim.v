@@ -55,7 +55,6 @@ Section setwise_measure_limit.
     by rewrite -(rwP ssrnat.leP) in Hnm.  
   Qed. 
 
-
   Local Open Scope ereal_scope.
 
   Lemma semi_sigma_additive_limit_measure : semi_sigma_additive limit_measure.
@@ -139,13 +138,80 @@ Section lim.
 
   Local Open Scope classical_set_scope.
 
-  (* Lemma limsup_of_mono_is_sup (f : nat -> \bar R) : 
-    (forall n, f n <= f (S n))%E ->
-    cvgn f ->
-    forall n, (f n <= limn f)%E.
+  Lemma ebounded_nondecreasing_lub [u : R] [f : nat -> \bar R] :
+    (forall n, f n <= u%:E)%E ->
+    {homo f : n m / ssrnat.leq n m >-> (n <= m)%E} ->
+    cvgn f -> 
+    (limn f <= u%:E)%E.
   Proof.
     intros.
-  Admitted. *)
+    destruct ((limn f <= u%:E)%E) eqn : He; auto.
+    assert (u%:E < limn f)%E. { 
+      apply /(Order.TotalTheory.contraTlt (b := true)); simpl; auto.
+      by rewrite He.
+    }
+    eapply lte_lim in H2; auto. 
+    assert (\forall n \near \oo, f n = u%:E). {
+      erewrite eq_near. 
+      { exact H2. }
+      intros. split.
+      { intros. by rewrite H3. }
+      { intros. apply Order.le_anti. by rewrite H3 (H x). }
+    }
+    apply (lim_near_cst (@ereal_hausdorff _)) in H3.
+    rewrite H3 in He. rewrite -He.
+    apply Order.le_refl.
+  Qed.
+
+  Lemma ebounded_nondecreasing_cvgn_le [l u : R] [f : nat -> \bar R] : 
+    (forall n, l%:E <= f n <= u%:E)%E ->
+    {homo f : n m / ssrnat.leq n m >-> (n <= m)%E} ->
+    cvgn f -> 
+    forall n : nat, (f n <= limn f)%E.
+  Proof. 
+    intros.
+    set f' := fine \o f.
+    assert (forall n, f n = (f' n)%:E). {
+      rewrite /f' //=.
+      intro. specialize (H n0).
+      destruct (f n0) eqn: Hf'; auto.
+      { rewrite leye_eq in H. 
+        apply andb_prop in H as [_ H]. 
+        inversion H. }
+      {  
+        rewrite leeNy_eq in H. 
+        apply andb_prop in H as [H _]. 
+        inversion H.
+      }
+    }
+    replace f with (EFin \o f'). 2 : {
+      apply /funext => n'. by rewrite H2.
+    }
+    assert ({homo f' : n0 m / ssrnat.leq n0 m >-> (Order.le n0 m)}). {
+      move => x y Hxy.
+      pose proof (H0 x y Hxy).
+      by rewrite !H2 lee_fin in H3. 
+    }
+    epose proof (nondecreasing_is_cvgn (u_ := f') _ _).
+    rewrite EFin_lim //.
+    apply lee_tofin, nondecreasing_cvgn_le; auto.
+    Unshelve. all: auto.
+    unfold has_ubound, nonempty, ubound. 
+    exists u. simpl.
+    intros x [m Hs].
+    rewrite -H4 -lee_fin -H2.
+    specialize (H m). 
+    by apply andb_prop in H as [_ H]. 
+  Qed.
+
+  Lemma ecvg_lim_le_lim (f g : nat -> \bar R) (H : forall n, (f n <= g n)%E):
+    cvgn f -> cvgn g ->
+    (limn f <= limn g)%E.
+  Proof.
+    intros.
+    apply (lee_lim (f:=f) (g:=g)); auto.
+    by exists 0.
+  Qed.
 
   Lemma lim_n_Sn (f : nat -> \bar R) : 
     cvgn f ->
@@ -160,6 +226,15 @@ Section lim.
     rewrite H1 in H.
     by erewrite <- (separation_axioms.cvg_lim (@ereal_hausdorff _) H).
   Qed.
+
+  (* Lemma limit_exchange {d} {T : measurableType d} (f : T -> \bar R) (Hflb : forall a : T, (0 <= f a)%E)
+    (μ : nat -> giryM T) (Hmono : forall n, giryM_le (μ n) (μ (S n))) :
+    (\int[limit_measure μ Hmono]_x f x)%E =
+    filter.lim (filter.fmap (esups (R:=R) (fun n : nat => (\int[μ n]_x f x)%E))
+        (@filter.nbhs nat (filter.filter_set_system__canonical__filter_Filtered nat) filter.eventually)).
+  Proof.
+    rewrite -limn_esup_lim is_cvg_limn_esupE. 
+  Admitted. *)
 
 End lim.
 
