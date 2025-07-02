@@ -1,3 +1,11 @@
+(* Some examples of how mapping pointwise equal functions (f,f') onto a list xs yields pointwise equal results.
+
+The difficulty lies in reconstructing the intermediate results required to call (f,f') from the result of map f xs.
+
+The proofs are completed, but only apply to functions that are unconditionally safe (see f_safe, f'_safe).
+
+This can serve as a blueprint for proving that (list_map f) is pointwise DP if f is pw-PD.
+ *)
 From iris.base_logic Require Export na_invariants.
 From clutch.common Require Import inject.
 From clutch.prelude Require Import tactics.

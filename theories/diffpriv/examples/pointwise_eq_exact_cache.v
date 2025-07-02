@@ -1,3 +1,15 @@
+(* Pointwise differential privacy of exact_cache.
+
+A mechanism M may only satisfy pointwise DP. We prove that (exact_cache M) is also differentially
+private, and that caching provides the expected cost reduction in privacy budget.
+
+The online version satisfies a resourceful spec that is close to pw-DP (see oxc_spec0_pw).
+
+The offline version is a client of the online version, and reuses the spec proven in oxc_spec0_pw.
+The proof that this client is pointwise-DP is complete modulo the safety part that proves that if
+list_map f xs returns a value v, then v is a list. The real missing lemma is more subtle because it
+also has to preserve some resources. It should be possible to complete the proof. *)
+
 From iris.base_logic Require Export na_invariants.
 From clutch.common Require Import inject.
 From clutch.prelude Require Import tactics.
@@ -9,7 +21,8 @@ Section xcache_pw.
   Context `{!diffprivGS Σ}.
 
   #[local] Open Scope R.
-  (* If we want to use OXC with a mechanism M that only satisfies pw-DP, we need weaker/more general specs. *)
+  (* If we want to use OXC with a mechanism M that only satisfies pw-DP, we need weaker/more
+     general specs than for regular DP. *)
   Definition oxc_spec0_pw_cached (f f' : val) (G : gmap nat val → gmap nat val → iProp Σ) : iProp Σ :=
     (∀ (q : nat) B B' K,
           ⌜q ∈ dom B⌝ -∗
@@ -39,7 +52,7 @@ Section xcache_pw.
                   (⌜v = RES ∧ B = B'⌝ -∗ G ((<[q := v]> B)) (<[q := v']> B') -∗ F (<[q := v]> B) ∗ ⌜(v' = RES)⌝) }}).
           (* WP (Val f) #q {{ v, ⌜v = RES⌝ -∗ F( <[q := v]> A) ∗ ⤇ fill K (Val v) ∗ ⌜<[q := v]> A !! q = Some v⌝ }}). *)
 
-  (* TODO fix condition on M to be safety instead of wp_diffpriv_pw *)
+  (* TODO: fix condition on M to be safety instead of wp_diffpriv_pw *)
   Definition oxc_spec0_pw_fresh_safe (M : val) `(dDB : Distance DB) (f f' : val)
     (* (F : gmap nat val → iProp Σ) *)
     (G : gmap nat val → gmap nat val → iProp Σ)
@@ -62,6 +75,7 @@ Section xcache_pw.
           (* WP (Val f) #q {{ v, ⌜v = RES⌝ -∗ F( <[q := v]> A) ∗ ⤇ fill K (Val v) ∗ ⌜<[q := v]> A !! q = Some v⌝ }}). *)
 
   (* We can prove the point-wise online spec. *)
+  (* TODO: prove that some sort of safety holds for f and f'. *)
   Lemma oxc_spec0_pw (M : val) `(dDB : Distance DB) (db db' : DB) `(adj : dDB db db' <= c) K :
     ⤇ fill K (online_xcache M (Val (inject db')))
     ⊢ WP online_xcache M (Val (inject db))

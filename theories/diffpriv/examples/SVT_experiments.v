@@ -16,9 +16,9 @@ Section svt_experiments.
   conclude the proof by assuming some dubious rules. *)
   Lemma above_threshold_online_spec (num den T : Z) (εpos : 0 < IZR num / IZR den) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K :
     ↯m (IZR num / IZR den) -∗
-    ⤇ fill K ((Val above_threshold) #num #den #T (Val (inject db')))
+    ⤇ fill K ((Val above_threshold_reset) #num #den #T (Val (inject db')))
     -∗
-    WP (Val above_threshold) #num #den #T (Val (inject db))
+    WP (Val above_threshold_reset) #num #den #T (Val (inject db))
        {{ f, ∃ f' : val,
              ⤇ fill K (Val f') ∗
              ∃ AUTH : iProp Σ,
@@ -35,7 +35,7 @@ Section svt_experiments.
                )
        }}.
   Proof with (tp_pures ; wp_pures).
-    iIntros "ε rhs". rewrite /above_threshold...
+    iIntros "ε rhs". rewrite /above_threshold_reset...
     tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
     set (ε := (IZR num / IZR den)). replace ε with (ε / 2 + ε / 2) by real_solver.
     fold ε in εpos.
@@ -346,9 +346,9 @@ Section svt_experiments.
 
   Lemma above_threshold_online_no_flag_spec_pw_no_AUTH (num den T : Z) (εpos : 0 < IZR num / IZR den) K :
     ↯m (IZR num / (2 * IZR den)) -∗
-    ⤇ fill K ((Val above_threshold_no_flag) #num #den #T)
+    ⤇ fill K ((Val above_threshold) #num #den #T)
     -∗
-    WP (Val above_threshold_no_flag) #num #den #T
+    WP (Val above_threshold) #num #den #T
        {{ f, ∃ f' : val,
              ⤇ fill K (Val f') ∗
                ( ∀ `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1)
@@ -361,7 +361,7 @@ Section svt_experiments.
                }} )
        }}.
   Proof with (tp_pures ; wp_pures).
-    iIntros "ε rhs". rewrite /above_threshold_no_flag...
+    iIntros "ε rhs". rewrite /above_threshold...
     tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
     set (ε := (IZR num / 2 * IZR den)).
     fold ε in εpos.
