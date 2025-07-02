@@ -222,29 +222,6 @@ Section Correctness.
 
   Import mathcomp.fingroup.fingroup.
 
-  Variable vg_of_int_sem : ∀ {T : baseFinGroupType}, Z → option T.
-  Variable int_of_vg_sem : ∀ {T : baseFinGroupType}, T → Z.
-
-  Axiom vg_of_int_of_vg_sem : ∀ (n : Z) (xg : vgG),
-    @vg_of_int_sem vgG n = Some xg →
-    int_of_vg_sem xg = n.
-  
-  Definition opt_vg_to_val (x : option vgG) : expr := match x with
-    | None => NONE
-    | Some y => SOME (vgval y)
-  end.
-
-  Axiom vg_of_int_correct :
-    @det_val_fun1 _ _ Z (option vgG) lrel_int (() + lrel_G)%lrel (λ x, #x)
-      (λ x, match x with
-        | None => NONEV
-        | Some x => SOMEV (vgval x) end) vg_of_int vg_of_int_sem.
-
-  Axiom int_of_vg_correct :
-    @det_val_fun1 _ _ vgG Z lrel_G lrel_int vgval (λ x, #x) int_of_vg int_of_vg_sem.
-
-  Axiom vgval_sem_typed : ⊢ to_val_type_rel lrel_G vgval.
-
   Lemma hybrid_scheme_correct :
     ⊢ refines top
         (init_scheme (λ: "scheme", (let, ("sk", "pk") := keygen #() in
@@ -331,8 +308,6 @@ Section Correctness.
         rel_bind_l (int_of_vg _).
         rel_apply_l (int_of_vg_correct);
           first (iSplit; iIntros (x); iExists _; iSplit; done).
-
-
         rewrite (vg_of_int_of_vg_sem (Z.of_nat k)); last by apply eqkg.
         rewrite /symmetric_init.get_dec/prf_dec...
         rewrite /random_function...
