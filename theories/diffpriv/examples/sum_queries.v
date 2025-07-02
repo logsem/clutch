@@ -94,8 +94,8 @@ Admitted.
 
 
 Inductive neighbour {T} (xs ys : list T) : Prop :=
-| Addition a b n : xs = a ++ b → ys = a ++ [n] ++ b → neighbour xs ys
-| Deletion a b n : xs = a ++ [n] ++ b → ys = a ++ b → neighbour xs ys.
+| neighbour_add_l a b n : xs = a ++ [n] ++ b → ys = a ++ b → neighbour xs ys
+| neighbour_add_r a b n : xs = a ++ b → ys = a ++ [n] ++ b → neighbour xs ys.
 
 Lemma neighbour_dist `{Countable T} (xs ys : list T) :
   neighbour xs ys → list_dist xs ys = 1.

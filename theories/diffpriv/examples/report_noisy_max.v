@@ -254,10 +254,10 @@ Section rnm.
            (* and the arithmetic works out fine *)
            + iPureIntro. split ; [|split ; [|split]]. 1: lia.
              * clear. intros. repeat split.
-               -- rewrite distance_0 ; lra.
+               -- rewrite distance_0 //. lra.
                -- intros []. lia.
              * clear. intros. repeat split. all: try lia.
-               -- rewrite distance_0 ; lra.
+               -- rewrite distance_0 // ; lra.
              * clear. intros. lia.
          - (* The post-condition of the IH implies the original post. *)
            iNext ; iIntros (v) "(%v' & v' & %h')".
@@ -678,12 +678,12 @@ Definition dDB : Distance DB.
   - apply _.
   - intros [[x1 x2] x3] [[y1 y2] y3]. destruct (x1 =? y1)%Z, (x2 =? y2)%Z, (x3 =? y3)%Z.
     all: compute ; lra.
-  - simpl. intros [[x1 x2] x3]. rewrite !Z.eqb_refl. compute ; lra.
+  - simpl. intros [[x1 x2] x3] [[y1 y2] y3] [[-> ->] ->]. rewrite !Z.eqb_refl. compute ; lra.
   - simpl. intros [[x1 x2] x3] [[y1 y2] y3].
     destruct (x1 =? y1)%Z eqn:h1, (x2 =? y2)%Z eqn:h2, (x3 =? y3)%Z eqn:h3 ; try (compute ; intuition auto ; try lra).
-    rewrite (Z.eqb_eq x1 y1) in h1.
-    rewrite (Z.eqb_eq x2 y2) in h2.
-    rewrite (Z.eqb_eq x3 y3) in h3. subst ; done.
+    + rewrite (Z.eqb_eq x1 y1) // in h1.
+    + rewrite (Z.eqb_eq x2 y2) // in h2.
+    + rewrite (Z.eqb_eq x3 y3) // in h3. 
 Defined.
 
 Definition ID := Fst.
