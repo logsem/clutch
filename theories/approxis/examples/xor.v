@@ -45,39 +45,39 @@ Class XOR_spec `{!approxisRGS Σ} `{XOR} :=
 
 Section xor_minus_mod.
   Variable bit : nat.
-  Definition Output2' := 2^bit - 1.
-  Definition Input2' := 2^bit-1.
-  Definition Key2' := 2^bit-1.
-  Notation Message2' := Output2'.
-  Notation Output2 := (S Output2').
-  Lemma Output2_pos: 0<Output2.
+  Definition Output' := 2^bit - 1.
+  Definition Input' := 2^bit-1.
+  Definition Key' := 2^bit-1.
+  Notation Message2' := Output'.
+  Notation Output := (S Output').
+  Lemma Output_pos: 0 < Output.
   Proof. lia. Qed.
 
   Definition xor_minus_mod : val :=
     (λ: "x" "y", let: "diff" := "y" - "x" in
-      if: "y" < "x" then "diff" + #Output2 else "diff")%V.
+      if: "y" < "x" then "diff" + #Output else "diff")%V.
 
   Definition xor_minus_mod_sem (x y : nat) : nat :=
-    (if bool_decide (0 ≤ x) && bool_decide (x ≤ Output2')
-     then if bool_decide (0 ≤ y) && bool_decide (y ≤ Output2')
+    (if bool_decide (0 ≤ x) && bool_decide (x ≤ Output')
+     then if bool_decide (0 ≤ y) && bool_decide (y ≤ Output')
           then if bool_decide (y < x)
-               then (Output2 + y - x)
+               then (Output + y - x)
                else (y - x)
           else y
      else y).
 
   Fact xor_minus_mod_sem_inverse_r : forall (x y : nat),
-    x < S Key2' → y < S Input2' →
+    x < S Key' → y < S Input' →
       xor_minus_mod_sem (xor_minus_mod_sem x y) y = x.
   Proof. intros x y H1 H2.
-    rewrite /Key2' in H1.
-    rewrite /Input2' in H2.
+    rewrite /Key' in H1.
+    rewrite /Input' in H2.
     assert (Hxpos : bool_decide (0 ≤ x) = true) by (apply bool_decide_eq_true; lia).
     assert (Hypos : bool_decide (0 ≤ y) = true) by (apply bool_decide_eq_true; lia).
-    assert (Hxbound : bool_decide (x ≤ Output2') = true) by
-      (apply bool_decide_eq_true; rewrite /Output2'; lia).
-    assert (Hybound : bool_decide (y ≤ Output2') = true) by
-      (apply bool_decide_eq_true; rewrite /Output2'; lia).
+    assert (Hxbound : bool_decide (x ≤ Output') = true) by
+      (apply bool_decide_eq_true; rewrite /Output'; lia).
+    assert (Hybound : bool_decide (y ≤ Output') = true) by
+      (apply bool_decide_eq_true; rewrite /Output'; lia).
     rewrite /xor_minus_mod_sem.
     rewrite Hxpos Hypos Hxbound Hybound. simpl.
     destruct (bool_decide (y < x)) eqn:Hyx.
@@ -116,9 +116,9 @@ Section xor_minus_mod.
       rewrite /xor_minus_mod_sem.
       destruct (bool_decide (0 ≤ x)) eqn:Hxpos; simpl; last done.
       destruct (bool_decide (0 ≤ y)) eqn:Hypos; simpl;
-      destruct (bool_decide (x ≤ Output2')) eqn:Hxbound; try done.
-      destruct (bool_decide (y ≤ Output2')) eqn:Hy'bound; simpl;
-      destruct (bool_decide (y' ≤ Output2')) eqn:Hybound; simpl; try done;
+      destruct (bool_decide (x ≤ Output')) eqn:Hxbound; try done.
+      destruct (bool_decide (y ≤ Output')) eqn:Hy'bound; simpl;
+      destruct (bool_decide (y' ≤ Output')) eqn:Hybound; simpl; try done;
       destruct (bool_decide (y < x)) eqn:Hyx; simpl;
       try apply bool_decide_eq_true in Hxpos;
       try apply bool_decide_eq_true in Hypos;
@@ -139,11 +139,11 @@ Section xor_minus_mod.
       try (intros H; lia).
     - intros y.
       destruct (bool_decide (0 ≤ x)) eqn:Hxpos; simpl;
-      destruct (bool_decide (x ≤ Output2')) eqn:Hxbound; simpl;
+      destruct (bool_decide (x ≤ Output')) eqn:Hxbound; simpl;
       try (exists y; rewrite /xor_minus_mod_sem;
         rewrite Hxpos Hxbound; simpl; reflexivity).
       destruct (bool_decide (0 ≤ y)) eqn:Hypos; simpl;
-      destruct (bool_decide (y ≤ Output2')) eqn:Hybound; simpl;
+      destruct (bool_decide (y ≤ Output')) eqn:Hybound; simpl;
       try (exists y; rewrite /xor_minus_mod_sem;
         rewrite Hxpos Hxbound Hypos Hybound; simpl; reflexivity).
       destruct (bool_decide (y + x ≤ Message2')) eqn:Hyplusxbound.
@@ -152,7 +152,7 @@ Section xor_minus_mod.
         assert (Hyxx : bool_decide (y + x < x) = false)
           by (apply bool_decide_eq_false; lia).
         rewrite Hyxx. lia.
-      * exists (y+x - Output2).
+      * exists (y+x - Output).
         rewrite /xor_minus_mod_sem.
         rewrite Hxpos Hxbound; simpl.
         apply bool_decide_eq_true in Hxpos;
@@ -160,15 +160,15 @@ Section xor_minus_mod.
         apply bool_decide_eq_true in Hxbound;
         apply bool_decide_eq_true in Hybound;
         apply bool_decide_eq_false in Hyplusxbound.
-        assert (Hargbound : bool_decide (y + x - Output2 ≤ Message2') = true)
+        assert (Hargbound : bool_decide (y + x - Output ≤ Message2') = true)
           by (apply bool_decide_eq_true; lia).
         rewrite Hargbound.
-        assert (Hargx : bool_decide (y + x - Output2 < x) = true)
+        assert (Hargx : bool_decide (y + x - Output < x) = true)
           by (apply bool_decide_eq_true; lia).
         rewrite Hargx. lia.
   Qed.
   
-  Lemma xor_minus_mod_sem_dom: forall x, x < S Message2' -> (∀ n : nat, n < S Output2' →  (xor_minus_mod_sem x n) < S Output2').
+  Lemma xor_minus_mod_sem_dom: forall x, x < S Message2' -> (∀ n : nat, n < S Output' →  (xor_minus_mod_sem x n) < S Output').
   Proof.
     intros.
     rewrite /xor_minus_mod_sem.
@@ -187,8 +187,8 @@ Section xor_minus_mod.
   Proof with rel_pures_l.
     iIntros "H".
     rewrite /xor_minus_mod...
-    rewrite /Output2' in Hx.
-    rewrite /Output2' in Hy.
+    rewrite /Output' in Hx.
+    rewrite /Output' in Hy.
     rewrite /xor_minus_mod_sem.
     assert (Hxpos : bool_decide (0 ≤ Z.to_nat x) = true);
     assert (Hypos : bool_decide (0 ≤ y) = true);
@@ -225,8 +225,8 @@ Section xor_minus_mod.
   Proof with rel_pures_r.
     iIntros "H".
     rewrite /xor_minus_mod...
-    rewrite /Output2' in Hx.
-    rewrite /Output2' in Hy.
+    rewrite /Output' in Hx.
+    rewrite /Output' in Hy.
     rewrite /xor_minus_mod_sem.
     assert (Hxpos : bool_decide (0 ≤ Z.to_nat x) = true);
     assert (Hypos : bool_decide (0 ≤ y) = true);
@@ -254,7 +254,7 @@ Section xor_minus_mod.
         lia.
   Qed.
 
-  #[local] Instance XOR_minus_mod : @XOR Output2' Output2'.
+  #[local] Instance XOR_minus_mod : @XOR Output' Output'.
   Proof.
     unshelve econstructor.
     2: exact xor_minus_mod.
@@ -264,7 +264,7 @@ Section xor_minus_mod.
   Defined.
 
   Fact xor_minus_mod_sem_typed : forall `{!approxisRGS Σ},
-      ⊢ (lrel_int_bounded 0 Key2' → lrel_int_bounded 0 Input2' → lrel_int_bounded 0 Output2')%lrel
+      ⊢ (lrel_int_bounded 0 Key' → lrel_int_bounded 0 Input' → lrel_int_bounded 0 Output')%lrel
           xor_minus_mod xor_minus_mod.
   Proof with (rel_pures_r ; rel_pures_l).
     intros *. rel_vals.
@@ -273,11 +273,11 @@ Section xor_minus_mod.
     rel_arrow_val.
     iIntros (v1 v2 [y [eq1 [eq2 [Hypos Hybound]]]]); subst...
     case_bool_decide as Hyminusx; rel_pures_l; rel_pures_r; rel_vals;
-      rewrite /Message2'; rewrite /Key2' in Hxbound; rewrite /Input2' in Hybound;
+      rewrite /Message2'; rewrite /Key' in Hxbound; rewrite /Input' in Hybound;
       lia.
   Qed.
 
-  #[local] Instance XOR_spec_minus_mod `{!approxisRGS Σ} : @XOR_spec _ _ Output2' Output2' XOR_minus_mod.
+  #[local] Instance XOR_spec_minus_mod `{!approxisRGS Σ} : @XOR_spec _ _ Output' Output' XOR_minus_mod.
   Proof.
     unshelve econstructor.
     - intros. eapply xor_minus_mod_correct_l => //.
@@ -287,4 +287,3 @@ Section xor_minus_mod.
   Qed.
 
 End xor_minus_mod.
- 

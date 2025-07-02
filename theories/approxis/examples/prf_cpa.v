@@ -445,13 +445,13 @@ Section implementation.
   Variable Q : nat.
   Variable adv : val.
   Variable adv_typed : (∅ ⊢ₜ adv : TAdv).
-
+  
   Definition Output' := xor.Output' bit.
   Definition Input' := xor.Output' bit.
   Definition Key' := xor.Output' bit.
 
-  #[local] Instance XOR_mod : @xor.XOR Output' Output' := xor.XOR_mod bit.
-  #[local] Instance XOR_spec_mod `{!approxisRGS Σ} : @xor.XOR_spec _ _ _ _ XOR_mod := xor.XOR_spec_mod bit.
+  #[local] Instance XOR_minus_mod : @xor.XOR Output' Output' := xor.XOR_minus_mod bit.
+  #[local] Instance XOR_spec_mod `{!approxisRGS Σ} : @xor.XOR_spec _ _ _ _ XOR_minus_mod := xor.XOR_spec_minus_mod bit.
 
 
   Lemma CPA_bound_realistic σ σ' :
