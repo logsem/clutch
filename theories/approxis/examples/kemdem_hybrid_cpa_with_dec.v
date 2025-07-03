@@ -306,7 +306,7 @@ Ltac rel_init_scheme_r l2 s2 :=
   Local Instance sym_rf_scheme_inst : symmetric_init.SYM_init :=
     sym_rf_scheme SymKey Input SymOutput xor_struct.
 
-  Lemma refines_init_scheme_l : forall K e E A,
+  Lemma refines_init_rf_scheme_l : forall K e E A,
     (∀ lls,
       P0l lls -∗
       refines E
@@ -344,7 +344,7 @@ Ltac rel_init_scheme_r l2 s2 :=
     iApply "H".
   Qed.
 
-  Lemma refines_init_scheme_r : forall K e E A,
+  Lemma refines_init_rf_scheme_r : forall K e E A,
     (∀ lls,
       P0r lls -∗
       refines E
@@ -385,7 +385,7 @@ Ltac rel_init_scheme_r l2 s2 :=
     iApply "H".
   Qed.
 
-  Lemma sym_keygen_sem_typed :
+  Lemma sym_rf_keygen_sem_typed :
     ⊢ refines top
       symmetric_init.keygen
       symmetric_init.keygen
@@ -401,7 +401,47 @@ Ltac rel_init_scheme_r l2 s2 :=
     iExists n. repeat iSplit; iPureIntro; try done; last rewrite /card_key; simpl; try lia.
   Qed.
 
-  Lemma refines_senc_l : ∀ (lls : list loc) (msg : val) (k : val) K e E A,
+  Lemma refines_rf_keygen_l : forall K e E A,
+    (∀ key,
+      (lrel_car lrel_key) key key -∗
+      refines E
+        (fill K (Val key))
+        e A)
+    ⊢ refines E
+        (fill K (symmetric_init.keygen #()))
+        e A.
+  Proof with rel_pures_l. intros *. iIntros "H".
+    rewrite /symmetric_init.keygen... simpl.
+    rewrite /rf_keygen...
+    rel_apply refines_randU_l.
+    iIntros (n Hnbound).
+    rel_apply "H".
+    iExists n. rewrite /card_key; simpl;
+    iPureIntro; repeat split; lia.
+  Qed.
+
+  Lemma refines_rf_keygen_r : forall K e E A,
+    (∀ key,
+      (lrel_car lrel_key) key key -∗
+      refines E
+        e
+        (fill K (Val key))
+        A)
+    ⊢ refines E
+        e
+        (fill K (symmetric_init.keygen #()))
+        A.
+  Proof with rel_pures_r. intros *. iIntros "H".
+    rewrite /symmetric_init.keygen... simpl.
+    rewrite /rf_keygen...
+    rel_apply refines_randU_r.
+    iIntros (n Hnbound).
+    rel_apply "H".
+    iExists n. rewrite /card_key; simpl;
+    iPureIntro; repeat split; lia.
+  Qed.
+
+  Lemma refines_rf_senc_l : ∀ (lls : list loc) (msg : val) (k : val) K e E A,
     (lrel_car lrel_input) msg msg ∗ Pl lls ⊢
       ((∀ (c : val),
          @kemdem_hybrid_cpa_generic.sym_is_cipher_l Σ _
@@ -561,10 +601,10 @@ Section Correctness.
     - exact P0_P_l.
     - exact P0_P_r.
     - exact P0lr_Plr.
-    - exact refines_init_scheme_l.
-    - exact refines_init_scheme_r.
-    - exact sym_keygen_sem_typed.
-    - exact refines_senc_l.
+    - exact refines_init_rf_scheme_l.
+    - exact refines_init_rf_scheme_r.
+    - exact sym_rf_keygen_sem_typed.
+    - exact refines_rf_senc_l.
     - rewrite /kemdem_hybrid_cpa_generic.init_scheme/init_scheme...
       rewrite /kemdem_hybrid_cpa_generic.dec_hyb/dec_hyb...
       rewrite /kemdem_hybrid_cpa_generic.enc_hyb/enc_hyb...

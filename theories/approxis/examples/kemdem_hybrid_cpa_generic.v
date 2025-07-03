@@ -168,13 +168,13 @@ Definition Csenc_DDH_real : expr := fill Csenc DDH_real.
 Definition Csenc_DDH_rand : expr := fill Csenc DDH_rand.
 
 Section logrel.
-  Section types.
 
-    Definition TInput := TInt.
-    Definition TCipher := TInt.
-    Definition TOracle := (TInput → TOption (TOption ((TInt * TInt) * (τG * τG))))%ty.
-
-  End types.
+  Variable TMessage : type.
+  Variable TKey : type.
+  Variable TOutput : type.
+  Variable TInput : type.
+  Variable TCipher : type.
+  Definition TOracle := (TInput → TOption (TOption (TCipher * (τG * τG))))%ty.
 
   Context `{!approxisRGS Σ}.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
@@ -249,6 +249,29 @@ Section logrel.
       symmetric_init.keygen
       (() → lrel_key).
   Hypothesis sym_keygen_sem_typed : sym_keygen_sem_typed_prop.
+
+  Definition refines_keygen_l_prop := forall K e E A,
+    (∀ key,
+      (lrel_car lrel_key) key key -∗
+      refines E
+        (fill K (Val key))
+        e A)
+    ⊢ refines E
+        (fill K (symmetric_init.keygen #()))
+        e A.
+  Definition refines_keygen_r_prop := forall K e E A,
+    (∀ key,
+      (lrel_car lrel_key) key key -∗
+      refines E
+        e
+        (fill K (Val key))
+        A)
+    ⊢ refines E
+        e
+        (fill K (symmetric_init.keygen #()))
+        A.
+  Hypothesis refines_keygen_l : refines_keygen_l_prop.
+  Hypothesis refines_keygen_r : refines_keygen_r_prop.
 
   Definition sym_is_cipher_l {lls : list loc} (msg : val) (c k : val) : iProp Σ :=
     ∀ K e E A,
@@ -646,7 +669,7 @@ Section logrel.
     rel_apply (refines_pair with "[Hrel]"); first (rel_vals; iAssumption).
     rel_vals; rewrite /lrel_car; simpl; iExists _; done.
   Qed.
-(*
+
   Definition pk_rand_senc_mult_free : expr :=
     λ: "sym_scheme",
       let: "sk" := rand #N in
@@ -662,10 +685,8 @@ Section logrel.
       "count" <- #1;;
       let: "X" := g^(rand #N) in
       let: "ckem" := ("B", "X") in
-      if: #0 ≤ "msg" `and` "msg" ≤ #SymOutput then
-        let: "cdem" := (symmetric_init.get_enc "sym_scheme") "k" "msg" in
-        SOME ("cdem", "ckem")
-      else NONEV
+      let: "cdem" := (symmetric_init.get_enc "sym_scheme") "k" "msg" in
+      SOME ("cdem", "ckem")
       in ("pk", "query").
 
   Definition pk_rand_srand : expr :=
@@ -682,12 +703,10 @@ Section logrel.
     "count" <- #1;;
     let: "X" := g^(rand #N) in
     let: "ckem" := ("B", "X") in
-    if: #0 ≤ "msg" `and` "msg" ≤ #SymOutput then
-      let: "cdem" := (let: "i" := rand #Input in
-        let: "o" := rand #SymOutput in
-        ("i", "o")) in
-      SOME ("cdem", "ckem")
-    else NONEV
+    let: "cdem" := (let: "i" := rand #Input in
+      let: "o" := rand #SymOutput in
+      ("i", "o")) in
+    SOME ("cdem", "ckem")
     in ("pk", "query").
 
   (* Here, we get rid of the multiplication by
@@ -701,7 +720,11 @@ Section logrel.
         (lrel_G *
         (lrel_input → () + (() + lrel_output * (lrel_G * lrel_G)))).
   Proof with rel_pures_l; rel_pures_r.
-    rel_init_scheme mapref "Hmap" mapref' "Hmap'"...
+    rewrite /init_scheme...
+    rel_apply refines_init_scheme_l.
+    iIntros (lls) "HP".
+    rel_apply refines_init_scheme_r.
+    iIntros (rls) "HP'"...
     rel_alloctape_l γ as "Hγ"...
     rel_apply refines_couple_UU; first done.
     iModIntro; iIntros (sk Hskbound)...
@@ -715,27 +738,23 @@ Section logrel.
     rel_apply refines_pair; first rel_values.
     set (P := (
       (γ ↪N (N; []) ∗ ((cnt ↦ #0 ∗ cnt' ↦ₛ #0) ∨ (cnt ↦ #1 ∗ cnt' ↦ₛ #1)))
-      ∗ (∃ (M : gmap nat val),
-          map_list  mapref  M
-        ∗ map_slist mapref' M
-        ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
-          → ∃ k : nat, y = #k ∧ k <= card_output ⌝
-        ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝)
+      ∗ Plr lls rls
     )%I).
     rel_apply (refines_na_alloc P (nroot.@"pk_rand_delay_tape")).
     iSplitL.
-    { iSplitR "Hmap Hmap'"; first (iFrame; iLeft; iFrame).
-      iExists ∅. iFrame. iPureIntro; split.
-      - intros y Hy. rewrite map_img_empty in Hy.
-        rewrite elem_of_empty in Hy. exfalso; apply Hy.
-      - intros y Hy. rewrite elements_empty in Hy.
-        rewrite elem_of_nil in Hy. exfalso; apply Hy. }
+    { iFrame; iSplitR "HP HP'"; last (iApply (P0lr_Plr with "HP HP'")).
+      iLeft. iFrame. }
     iIntros "#Inv".
     rel_arrow_val.
-    iIntros (v1 v2 [x [eq1 [eq2 Hxbound]]]); subst...
-    rewrite /card_input in Hxbound; simpl in Hxbound.
-    rel_apply refines_couple_UU; first done.
-    iModIntro; iIntros (k Hkbound)...
+    iIntros (msg1 msg2) "#Hmsgrel"...
+    rewrite /symmetric_init.get_keygen...
+    rel_bind (symmetric_init.keygen _).
+    rel_apply refines_bind.
+    {
+      rel_apply refines_app; first rel_apply sym_keygen_sem_typed.
+      rel_vals.
+    }
+    iIntros (v1 v2 [k [eq1 [eq2 Hkbounds]]]); subst...
     rel_bind (vg_of_int #k).
     rel_apply refines_bind.
     { rel_apply refines_app; rel_values; try iApply vg_of_int_lrel_G; rel_vals. }
@@ -752,29 +771,28 @@ Section logrel.
       iIntros (logX HlogXbound) "Hγ"; simpl.
       rel_rand_l. iIntros "_"...
       simpl_exp. simpl_mult.
-      assert (Hxbound' : bool_decide (0 ≤ x)%Z && bool_decide (x ≤ SymOutput)%Z = true).
+      (* assert (Hxbound' : bool_decide (0 ≤ x)%Z && bool_decide (x ≤ SymOutput)%Z = true).
       { rewrite andb_true_iff; split; apply bool_decide_eq_true; lia. }
-      rewrite Hxbound'...
+      rewrite Hxbound'... *)
       rewrite /symmetric_init.get_enc...
-      rel_bind_l (prf_enc _ _ _ _ _ _).
-      rel_bind_r (prf_enc _ _ _ _ _ _).
+      rel_bind_l (senc _ _ _).
+      rel_bind_r (senc _ _ _).
       rel_apply (refines_bind with "[-]").
       {
         rel_apply refines_na_close; iFrame.
         iSplitL; iFrame; first (iRight; iFrame).
-        repeat (rel_apply refines_app); first rel_apply prf_enc_sem_typed; try by rel_vals.
-        rel_arrow_val. iIntros (v1 v2 [tmp [eq1 eq2]]); subst...
-        rel_apply random_function_sem_typed_inv; last iAssumption.
-        exists (γ ↪N (N; []) ∗ ((cnt ↦ #0 ∗ cnt' ↦ₛ #0) ∨ (cnt ↦ #1 ∗ cnt' ↦ₛ #1)))%I.
-        apply bi.equiv_entails; split; iIntros "H"; rewrite /P; iFrame.
+        repeat (rel_apply refines_app); first rel_apply senc_sem_typed; try by rel_vals.
+        eexists. apply bi.equiv_entails; split.
+        - iIntros "HP". iFrame.
+        - iIntros "HP"; iFrame.
       }
       iIntros (v v') "Hrel"...
       rel_vals; try iAssumption; first last.
       + rewrite -fingroup.expgD -ssrnat.plusE.
         rewrite /mod_plus.
         rewrite -/N.
-        assert (H : logX <? S N = true); first (apply Nat.ltb_lt; lia).
-        rewrite H; clear H.
+        assert (Hlogbound : logX <? S N = true); first (apply Nat.ltb_lt; lia).
+        rewrite Hlogbound; clear Hlogbound.
         pose proof (e := eq_sym (fingroup.expg_mod_order g (k_msg+logX))).
         rewrite g_nontriv in e.
         rewrite e.
@@ -791,22 +809,6 @@ Section logrel.
     an adversary returning a boolean, for
     compatibility with the CPA assumption on
     the symmetric scheme *)
-  (* To both be compatble with `rf_is_CPA`,
-    and with the type of `adv_rand` and so on,
-    We need 2, non equivalent assumption on the boolean
-    adversary:
-    - Semantic typing with the oracle taking an `lrel_input`, i.e.,
-      the boolean adversary can only call the oracle on messages within
-      the bounds [0; Input]:
-      refines top
-        adv
-        adv
-        ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool).
-    - Syntactic typing: ⊢ᵥ adv : ((τG * TOracle) → TBool).
-    These are not equivalent because TOracle is a syntactic type,
-    it this don't enforce the bounds on the input of the oracle,
-    only that it should be an int.
-  *)
 
   Definition adv_rand : val :=
     λ: "oracle",
@@ -817,7 +819,7 @@ Section logrel.
       let: "count" := ref #0 in
       let: "query" := λ: "msg",
         let: "k" :=
-          symmetric_init.get_keygen symmetric_init.sym_scheme #() in
+          symmetric_init.keygen #() in
         let:m "kg" := vg_of_int "k" in
         assert (! "count" = #0);;;
         "count" <- #1;;
@@ -827,47 +829,40 @@ Section logrel.
         SOME ("cdem", "ckem")
       in ("pk", "query").
 
-  Lemma adv_rand_syn_typed : ⊢ᵥ adv_rand :
-    ((TMessage → TOption prf_cpa_with_dec.TCipher) → τG * TOracle).
-  Proof.
-    rewrite /adv_rand.
-    apply Rec_val_typed.
-    type_expr 1. 2 : { apply Subsume_int_nat. tychk. }
-    type_expr 1.
-    type_expr 1. 2 : { apply Subsume_int_nat. tychk. }
-    type_expr 1.
-    type_expr 1; last try tychk; first last.
-    { apply g_typed. }
-    { apply vexp_typed. }
-    type_expr 1.
-    type_expr 1; last try tychk; first last.
-    { apply g_typed. }
-    { apply vexp_typed. }
-    type_expr 1.
-    type_expr 1; last try tychk.
-    type_expr 1.
-    type_expr 1; first tychk.
-    type_expr 1.
-    type_expr 1. 2 : { apply Subsume_int_nat. tychk. }
-    type_expr 1.
-    type_expr 1.
-    { tychk. apply vg_of_int_typed. }
-    { tychk. }
-    type_expr 1.
-    type_expr 1; first tychk.
-    2 : { apply InjL_typed. tychk. }
-    apply InjR_typed.
-    type_expr 1; last tychk.
-    type_expr 1.
-    type_expr 1. 2 : {
-      type_expr 1. 2 : { apply Subsume_int_nat. tychk. }
-      tychk.
-      { apply vexp_typed. }
-      { apply g_typed. }
-    }
-    type_expr 1.
-    type_expr 1; try tychk.
-  Qed.
+(* Definition sym_OTS_real : val :=
+  λ:"msg",
+    (* TODO should be using sym.keygen instead of sampling "by hand". *)
+    (* let: "key" := sym.keygen #() in *)
+    let: "key" := KEM.rnd Sym_SecretKey #() in
+    sym.enc "key" "msg".
+
+Definition sym_OTS_rand : val :=
+  λ:"msg",
+    (* let: "key" := sym.keygen #() in *)
+    sym.rand_cipher #(). *)
+
+  (* One Time Secrecy assumption on symmetric encryption scheme
+    tweaked version of `CPA _ _ _ #1`, the only difference is
+    the place where we generate the key. *)
+  Definition OTS : val :=
+      λ:"b" "adv" "scheme",
+        let: "enc_scheme" := symmetric_init.get_enc_scheme "scheme" #() in
+        let: "oracle" :=
+          let: "counter" := ref #0 in
+          λ: "msg",
+            if: ! "counter" = #0 then
+              "counter" <- ! "counter" + #1;;
+              let: "key" := symmetric_init.get_keygen "scheme" #() in
+              InjR (
+                (if: "b" then
+                  symmetric_init.get_enc "enc_scheme" "key"
+                else
+                  symmetric_init.get_rand_cipher "scheme") "msg")
+            else
+              InjLV #()
+        in
+        let: "b'" := "adv" "oracle" in
+        "b'".
 
   Lemma pk_rand_senc_mult_free_adv_sym_cpa (adv : val) :
     refines top
@@ -876,30 +871,18 @@ Section logrel.
       ((lrel_G * (lrel_input → () + (() + lrel_int * lrel_int * (lrel_G * lrel_G)))) → lrel_bool)
     ⊢ refines top
         (adv (init_scheme pk_rand_senc_mult_free))
-        (symmetric_init.CPA #true (λ: "oracle", adv (adv_rand "oracle"))%V
-          (@symmetric_init.sym_scheme (SYM_param SymKey Input SymOutput)
-            (sym_rf_scheme SymKey Input SymOutput xor_struct)) #1)
+        (OTS #true (λ: "oracle", adv (adv_rand "oracle"))%V
+          symmetric_init.sym_scheme)
         lrel_bool.
   Proof with rel_pures_l; rel_pures_r.
     iIntros "Hadvtyped".
-    rewrite /symmetric_init.sym_scheme/symmetric_init.CPA...
-    rewrite /symmetric_init.get_enc_scheme...
-    rel_apply refines_rf_scheme_r.
-    iIntros (mapref') "Hmap'"...
-    rewrite /rf_enc/rf_dec...
-    rewrite /symmetric_init.get_keygen/rf_keygen; rel_pures_r.
-    rel_init_scheme_l mapref "Hmap"...
-    rel_apply refines_randU_r.
-    iIntros (k Hkbound); rel_pures_r.
-    rewrite /symmetric_init.get_enc/prf_enc; rel_pures_r.
-    rewrite /random_function; rel_pures_r.
-    rewrite -/random_function; rel_pures_r.
-    rewrite /q_calls/symmetric_init.get_card_message; rel_pures_r.
-    rel_alloc_r cnt2 as "Hcnt2".
-    rel_pure_r. rel_pure_r.
-    rel_pure_r. rel_pure_r.
-    rel_pure_r. rel_pure_r.
-    rewrite /pk_rand_senc_mult_free.
+    rewrite /symmetric_init.sym_scheme/OTS...
+    rewrite /init_scheme...
+    rel_apply refines_init_scheme_l.
+    iIntros (lls) "HP".
+    rel_apply refines_init_scheme_r.
+    iIntros (rls) "HP'"; rel_pures_r...
+    rel_alloc_r cnt2 as "Hcnt2"...
     rel_bind_l (adv _).
     rel_bind_r (adv _).
     rel_apply (refines_bind with "[-]").
@@ -926,28 +909,24 @@ Section logrel.
     set (P := (
         ((cnt ↦ #0 ∗ cnt' ↦ₛ #0 ∗ cnt2 ↦ₛ #0)
       ∨ (cnt ↦ #1 ∗ cnt' ↦ₛ #1 ∗ cnt2 ↦ₛ #1))
-      ∗ (∃ (M : gmap nat val),
-          map_list  mapref  M
-        ∗ map_slist mapref' M
-        ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
-          → ∃ k : nat, y = #k ∧ k <= card_output ⌝
-        ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝)
+      ∗ Plr lls rls
     )%I).
     rel_apply (refines_na_alloc P (nroot.@"prf_rand_adv_cpa")).
     iSplitL.
-    { iSplitR "Hmap Hmap'"; first (iFrame; iLeft; iFrame).
-      iExists ∅. iFrame. iPureIntro; split.
-      - intros y Hy. rewrite map_img_empty in Hy.
-        rewrite elem_of_empty in Hy. exfalso; apply Hy.
-      - intros y Hy. rewrite elements_empty in Hy.
-        rewrite elem_of_nil in Hy. exfalso; apply Hy. }
+    { iSplitR "HP HP'"; first (iFrame; iLeft; iFrame).
+      iApply (P0lr_Plr with "HP HP'"). }
     iIntros "#Inv".
     rel_arrow_val.
-    iIntros (v1 v2 [x [eq1 [eq2 Hxbound]]]); subst...
-    rewrite /card_input in Hxbound. simpl in Hxbound.
-    rel_apply refines_couple_UU; first done.
-    iIntros (k_dummy Hkdummy_bound); iModIntro...
-    rel_bind (vg_of_int #k_dummy); rel_apply refines_bind.
+    iIntros (msg1 msg2) "Hmsgrel"...
+    rewrite /symmetric_init.get_keygen...
+    rel_bind (symmetric_init.keygen _).
+    rel_apply refines_bind.
+    {
+      rel_apply refines_app; first rel_apply sym_keygen_sem_typed.
+      rel_vals.
+    }
+    iIntros (v1 v2 [k_dummy [eq1 [eq2 Hkbounds]]]); subst...
+    rel_bind (vg_of_int _); rel_apply refines_bind.
     { rel_apply refines_app; rel_values; try iApply vg_of_int_lrel_G; rel_vals. }
     iIntros (kg1 kg2 [tmp1 [tmp2 [[eq1 [eq2 [eq3 eq4]]]|[eq1 [eq2 [kg [eq3 eq4]]]]]]]);
     subst; rel_pures_l; rel_pures_r; first rel_vals.
@@ -963,9 +942,6 @@ Section logrel.
     rel_apply refines_couple_UU; first done.
     iIntros (logX HlogXbound); iModIntro; simpl_exp...
     rel_load_r...
-    assert (Hxbound' : bool_decide (0 ≤ x)%Z && bool_decide (x ≤ SymOutput)%Z = true).
-    { rewrite andb_true_iff; split; apply bool_decide_eq_true; lia. }
-    rewrite Hxbound'. clear Hxbound'.
     rel_pures_l; rel_pures_r.
     rel_load_r... rel_store_r...
     rewrite /rf_enc. rewrite /prf_enc.
