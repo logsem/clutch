@@ -7,14 +7,16 @@ From clutch.diffpriv Require Export weakestpre lifting ectx_lifting primitive_la
 Section diffpriv.
   Context `{!diffprivGS Σ}.
 
-  #[local] Open Scope R.
+  #[local] Open Scope R. 
 
-  Class Distance A := { distance_car :: Inject A val
-                      ; distance_equiv :: Equiv A
+  Class Distance (A : Type) : Type := { distance_car :: Inject A val                                                  
                       ; distance : A -> A -> R
+                      (* Not using [Equiv A] directly to avoid universe issues when quantifying over
+                         [Distance] in the logic, in particular. *)
+                      ; distance_equiv : A -> A -> Prop   
                       ; distance_pos a1 a2 : 0 <= distance a1 a2
-                      ; distance_0 a1 a2 : a1 ≡ a2 → distance a1 a2 = 0
-                      ; distance_sep a1 a2 : distance a1 a2 <= 0 -> a1 ≡ a2
+                      ; distance_0 a1 a2 : distance_equiv a1 a2 → distance a1 a2 = 0
+                      ; distance_sep a1 a2 : distance a1 a2 <= 0 -> distance_equiv a1 a2
                       (* leaving out symmetry and triangle inequality until they're needed. *)
                       (* ; distance_sym a1 a2 : distance a1 a2 = distance a2 a1 *)
                       (* ; distance_triangle a1 a2 a3 : distance a1 a3 <= distance a1 a2 + distance a2 a3 *)
@@ -23,6 +25,8 @@ Section diffpriv.
   Coercion distance_car : Distance >-> Inject.
   Arguments distance {_} _ _ _.
   Coercion distance : Distance >-> Funclass.
+
+  #[global] Instance Distance_equiv `{Distance A} : Equiv A := distance_equiv. 
 
   Program Definition dZ : Distance Z := {| distance z z' := Rabs (IZR (z - z')); distance_equiv := (=) |}.
   Next Obligation. intros => /= ; eauto using Rabs_pos. Qed.
@@ -82,6 +86,12 @@ Section diffpriv.
   Definition hoare_diffpriv (f : expr) ε δ `(dA : Distance A) `(dB : Distance B) : iProp Σ :=
     ∀ K c (x x' : A), ⌜dA x x' <= c⌝ -∗
       {{{ ⤇ fill K (f (Val (inject x'))) ∗ ↯m (c * ε) ∗ ↯ (c * δ) }}}
+        f (Val (inject x))
+      {{{ (y y' : B), RET (inject y); ⌜y ≡ y'⌝ ∗ ⤇ fill K (inject y') }}}.
+
+  Definition hoare_diffpriv' (f f' : expr) ε δ `(dA : Distance A) `(dB : Distance B) : iProp Σ :=
+    ∀ K c (x x' : A), ⌜dA x x' <= c⌝ -∗
+      {{{ ⤇ fill K (f' (Val (inject x'))) ∗ ↯m (c * ε) ∗ ↯ (c * δ) }}}
         f (Val (inject x))
       {{{ (y y' : B), RET (inject y); ⌜y ≡ y'⌝ ∗ ⤇ fill K (inject y') }}}.
 
@@ -252,7 +262,7 @@ Section diffpriv.
     `(dA : Distance A) `(dB : Distance B) {C : Type} `(dC : Distance C)
     (εg_pos : 0 <= εg) (δg_pos : 0 <= δg) (εf_pos : 0 <= εf) (δf_pos : 0 <= δf):
     hoare_diffpriv f εf δf dA dB -∗
-    (∀ b, hoare_diffpriv (g b) εg δg dA dC) -∗
+    (∀ b b', hoare_diffpriv' (g b) (g b') εg δg dA dC) -∗
     hoare_diffpriv (λ:"a", g (f "a") "a") (εf+εg) (δf+δg) dA dC.
   Proof.
     iIntros "#f_dipr #g_dipr" (?? a a' adj Φ) "!> [gfa' [ε δ]] HΦ".
@@ -264,14 +274,9 @@ Section diffpriv.
     iApply ("f_dipr" $! _ _ _ _ _ with "[$gfa' $εf $δf]") => //.
     iIntros "!>" (b b') "[% gb]" => /=.
     iEval (rewrite /hoare_diffpriv) in "g_dipr".
-    iSpecialize ("g_dipr" $! _ K c a a' adj with "[$gb $εg $δg]").
-
-    (* TODO: I think [hoare_diffpriv] might need to be generalized to two programs so the input can
-       be varied (i.e. [b] on one side and [b'] on the other? *)
-    (* iApply "g_dipr". done. *)
-    (* Unshelve. auto. *)
-  Admitted.
-  (* Qed. *)
+    by wp_apply ("g_dipr" $! _ _ K c a a' adj with "[$gb $εg $δg]").
+    Unshelve. auto.
+  Qed.
 
   Theorem wp_diffpriv_diffpriv_par_comp (f g : val) ε δ
     `(dA : Distance A) `(dB : Distance B) {C : Type} `(dC : Distance C) `(dD : Distance D)

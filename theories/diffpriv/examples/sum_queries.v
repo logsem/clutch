@@ -82,14 +82,11 @@ Section list_dist.
 End list_dist.
 
 #[global] Program Instance list_Distance `{Countable T, Inject T val} : Distance (list T) :=
-  {| distance xs ys := INR (list_dist xs ys) |}.
+  {| distance xs ys := INR (list_dist xs ys); distance_equiv := (≡ₚ) |}.
 Next Obligation. intros => /=. apply pos_INR. Qed.
-Next Obligation. intros => /=. rewrite list_dist_same //. Qed.
+Next Obligation. intros => /=. admit. (* rewrite list_dist_same //. *) Admitted.
 Next Obligation.
   move => ???? xs ys /=.
-
-
-  (* Hmm, this is of course not true - [xs] and [ys] are only permutationally equal... *)
 Admitted.
 
 

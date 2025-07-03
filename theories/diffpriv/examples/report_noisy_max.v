@@ -666,25 +666,25 @@ Qed.
 
 (* sketchy obsolete concrete example below *)
 
-Definition DB := (Z * Z * Z)%type.
-Definition dDB : Distance DB.
-  unshelve econstructor.
-  - exact (λ (x y : DB), match (x,y) with
-                         | ((x1, x2, x3), (y1, y2, y3)) =>
-                             (if Z.eqb x1 y1 then 0 else 1)
-                             + (if Z.eqb x2 y2 then 0 else 1)
-                             + (if Z.eqb x3 y3 then 0 else 1)
-                         end).
-  - apply _.
-  - intros [[x1 x2] x3] [[y1 y2] y3]. destruct (x1 =? y1)%Z, (x2 =? y2)%Z, (x3 =? y3)%Z.
-    all: compute ; lra.
-  - simpl. intros [[x1 x2] x3] [[y1 y2] y3] [[-> ->] ->]. rewrite !Z.eqb_refl. compute ; lra.
-  - simpl. intros [[x1 x2] x3] [[y1 y2] y3].
-    destruct (x1 =? y1)%Z eqn:h1, (x2 =? y2)%Z eqn:h2, (x3 =? y3)%Z eqn:h3 ; try (compute ; intuition auto ; try lra).
-    + rewrite (Z.eqb_eq x1 y1) // in h1.
-    + rewrite (Z.eqb_eq x2 y2) // in h2.
-    + rewrite (Z.eqb_eq x3 y3) // in h3. 
-Defined.
+(* Definition DB := (Z * Z * Z)%type. *)
+(* Definition dDB : Distance DB. *)
+(*   unshelve econstructor. *)
+(*   - exact (λ (x y : DB), match (x,y) with *)
+(*                          | ((x1, x2, x3), (y1, y2, y3)) => *)
+(*                              (if Z.eqb x1 y1 then 0 else 1) *)
+(*                              + (if Z.eqb x2 y2 then 0 else 1) *)
+(*                              + (if Z.eqb x3 y3 then 0 else 1) *)
+(*                          end). *)
+(*   - apply _. *)
+(*   - intros [[x1 x2] x3] [[y1 y2] y3]. destruct (x1 =? y1)%Z, (x2 =? y2)%Z, (x3 =? y3)%Z. *)
+(*     all: compute ; lra. *)
+(*   - simpl. intros [[x1 x2] x3] [[y1 y2] y3] [[-> ->] ->]. rewrite !Z.eqb_refl. compute ; lra. *)
+(*   - simpl. intros [[x1 x2] x3] [[y1 y2] y3]. *)
+(*     destruct (x1 =? y1)%Z eqn:h1, (x2 =? y2)%Z eqn:h2, (x3 =? y3)%Z eqn:h3 ; try (compute ; intuition auto ; try lra). *)
+(*     + rewrite (Z.eqb_eq x1 y1) // in h1. *)
+(*     + rewrite (Z.eqb_eq x2 y2) // in h2. *)
+(*     + rewrite (Z.eqb_eq x3 y3) // in h3.  *)
+(* Defined. *)
 
 Definition ID := Fst.
 Definition age := Snd.
