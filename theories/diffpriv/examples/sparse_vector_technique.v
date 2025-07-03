@@ -359,7 +359,7 @@ Section svt.
   Lemma SVT_stream_diffpriv (num den T : Z) (N : nat) (Npos : (0 < N)%nat) (stream_qs : val) `(dDB : Distance DB) :
     let ε := IZR num / IZR den in
     ∀ (εpos : 0 < ε),
-      □ (∀ K bs,
+      □ (∀ K (bs : val),
             ⤇ fill K (stream_qs bs) -∗
             WP stream_qs bs
               {{ qopt, ⤇ fill K (Val qopt) ∗
@@ -398,5 +398,48 @@ Section svt.
       Unshelve. auto.
   Qed.
 
+  Fact list_stream_sens
+    (qs : list val) (QS : val) (is_qs : is_list qs QS) `(dDB : Distance DB)
+    (sens : Forall (λ q : val, ⊢ wp_sensitive q 1 dDB dZ) qs) :
+    let list_stream_qs := (λ:"_bs", stream_list QS "_bs")%V in
+    ⊢
+      □ (∀ K (bs : val),
+            ⤇ fill K (list_stream_qs bs) -∗
+            WP list_stream_qs bs
+              {{ qopt, ⤇ fill K (Val qopt) ∗
+                       (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ wp_sensitive q 1 dDB dZ) }})
+  .
+  Proof with (tp_pures ; wp_pures).
+    iIntros.
+    iModIntro. iIntros. subst list_stream_qs.
+    rewrite /stream_list...
+    tp_alloc as qs_r "qs_r". wp_alloc qs_l as "qs_l"...
+    tp_load ; wp_load...
+    destruct qs ; simpl in is_qs ; subst...
+    - iFrame. iModIntro. iLeft. done.
+    - destruct is_qs as [?[]]. simplify_eq...
+      tp_store ; wp_store... iFrame. iModIntro. iRight. iExists v. iSplit. 1: done.
+      destruct (Forall_cons_1 _ _ _ sens) as [sens_q' sens_qs'].
+      iApply sens_q'.
+  Qed.
+
+  Corollary SVT_list_diffpriv (num den T : Z) (N : nat) (Npos : (0 < N)%nat) `(dDB : Distance DB)
+    (qs : list val) (QS : val) (is_qs : is_list qs QS)
+    (sens : Forall (λ q : val, ⊢ wp_sensitive q 1 dDB dZ) qs)
+    :
+    let ε := IZR num / IZR den in
+    let list_stream_qs := (λ:"_bs", stream_list QS "_bs")%V in
+    ∀ (εpos : 0 < ε),
+    ∀ (db db' : DB) (adj : dDB db db' <= 1) K,
+      ↯m (N * ε) -∗
+      ⤇ fill K (SVT_stream #num #den #T #N list_stream_qs (Val (inject db'))) -∗
+      WP SVT_stream #num #den #T #N list_stream_qs (Val (inject db))
+        {{ v, ⤇ fill K (Val v) }}.
+  Proof with (tp_pures ; wp_pures).
+    intros. iIntros "ε rhs".
+    iPoseProof (list_stream_sens _ _ is_qs) as "qs" => //.
+    iPoseProof (SVT_stream_diffpriv num den T N Npos with "qs") as "h" => //.
+    iSpecialize ("h" with "[] ε rhs") => //.
+  Qed.
 
 End svt.
