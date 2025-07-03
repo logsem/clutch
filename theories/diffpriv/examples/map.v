@@ -172,7 +172,7 @@ Section map.
     rewrite /find_list. iInduction vs as [|(k', v') vs] "IH" forall (l).
     - tp_pures. rewrite /assoc_list. rewrite /rec_unfold. tp_pures. tp_load. tp_pures. iModIntro. iFrame.
     - tp_pures. iDestruct "H" as (?) "(Hl&Hassoc)".
-      rewrite /rec_unfold. tp_pure. tp_load. tp_pures; first solve_vals_compare_safe. case_bool_decide as Hcase.
+      rewrite /rec_unfold. tp_pure. tp_load. tp_pures. case_bool_decide as Hcase.
       { tp_pures. simpl. rewrite bool_decide_true //; last first.
         { inversion Hcase; auto. lia. }
         iModIntro. iFrame "Hr". iExists _; iFrame; eauto. }
@@ -193,7 +193,7 @@ Section map.
     - tp_pures. rewrite /assoc_list. rewrite /rec_unfold. tp_pure. tp_load. tp_pures. iModIntro. iFrame.
       rewrite /=. iFrame. destruct (bool_decide _) => //=.
     - tp_pures. iDestruct "H" as (?) "(Hl&Hassoc)".
-      rewrite /rec_unfold. tp_pure. tp_load. tp_pures; first solve_vals_compare_safe.
+      rewrite /rec_unfold. tp_pure. tp_load. tp_pures.
       destruct (bool_decide (#k' = #z)) eqn:Hbool.
       { apply bool_decide_eq_true_1 in Hbool.
         tp_pures. simpl. inversion Hbool. subst.

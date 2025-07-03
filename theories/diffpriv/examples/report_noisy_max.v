@@ -270,7 +270,7 @@ Section rnm.
     iLöb as "IH".
     iIntros (i imax1 imax2 amax1 amax2 Φ) "(maxI1 & maxI2 & maxA1 & maxA2 & ε & rnm' & %iN & %below_j & %at_j & %above_j) HΦ".
     rewrite {4}/rnm_body. wp_pures.
-    rewrite {3}/rnm_body. tp_pures ; [cbv ; auto|].
+    rewrite {3}/rnm_body. tp_pures.
     case_bool_decide (#i = #N) as iN'.
 
     (* base case *)
@@ -321,7 +321,7 @@ Section rnm.
         }
         iNext ; iIntros (a) "rnm'" => /=.
         wp_pures. tp_pures.
-        tp_load ; wp_load ; tp_pures. 1: cbv ; auto. wp_pures.
+        tp_load ; wp_load ; tp_pures. wp_pures.
         specialize (at_j e). destruct at_j as (amax_adj & jmax1 & inext).
         case_bool_decide (amax1 < a)%Z as case_l ; try rewrite orb_true_r ; tp_pures ; wp_pures.
         all: case_bool_decide (amax2 < a+1)%Z as case_r ; try rewrite orb_true_r ; tp_pures ; wp_pures.
@@ -364,7 +364,7 @@ Section rnm.
         1: rewrite Rmult_0_l => //.
         iNext ; iIntros (a) "rnm'" => /=.
         wp_pures. tp_pures.
-        tp_load ; wp_load ; tp_pures. 1: cbv ; auto. wp_pures.
+        tp_load ; wp_load ; tp_pures. wp_pures.
         case_bool_decide (amax1 < a)%Z as case_l.
         all: case_bool_decide (amax2 < a + (e2 - e1))%Z as case_r.
         all: try rewrite orb_true_r ; tp_pures ; wp_pures.
@@ -451,10 +451,10 @@ Section rnm.
 
       destruct N.
       {
-        tp_pures. 1: cbv ; auto. wp_pures. tp_load ; wp_load. iApply "HΦ".
+        tp_pures. wp_pures. tp_load ; wp_load. iApply "HΦ".
         iFrame. done.
       }
-      tp_pures. 1: cbv ; auto. wp_pures.
+      tp_pures. wp_pures.
 
 
       tp_bind (evalQ _ _). wp_bind (evalQ _ _).
@@ -482,7 +482,7 @@ Section rnm.
         iNext ; iIntros (a) "rnm'" => /=.
         wp_pures. tp_pures.
 
-        tp_load ; wp_load. tp_pures. 1: cbv ; auto. wp_pures.
+        tp_load ; wp_load. tp_pures. wp_pures.
         tp_store ; tp_pures. wp_store. wp_pures.
         tp_store ; tp_pure ; tp_pure ; tp_pure. wp_store. wp_pure.
         rewrite -!/(rnm_body _ _ _ _ _ _ _ _).
@@ -520,7 +520,7 @@ Section rnm.
     iLöb as "IH".
     iIntros (i imax1 imax2 amax1 amax2 Φ) "(maxI1 & maxI2 & maxA1 & maxA2 & rnm' & %iN) HΦ".
     rewrite {4}/rnm_body. wp_pures.
-    rewrite {3}/rnm_body. tp_pures ; [cbv ; auto|].
+    rewrite {3}/rnm_body. tp_pures.
     case_bool_decide (#i = #(S N)) as iN'.
 
     (* base case *)
@@ -562,7 +562,7 @@ Section rnm.
         iNext ; iIntros (a') "rnm'" => /=.
         wp_pures. tp_pures.
 
-        tp_load ; wp_load. tp_pures. 1: cbv ; auto. wp_pures.
+        tp_load ; wp_load. tp_pures. wp_pures.
         destruct (bool_decide (#i = #0) || bool_decide (amax1 < a')%Z).
         all: destruct (bool_decide (#i = #0) || bool_decide (amax2 < a' + (e2 - e1))%Z).
         * wp_pures ; tp_pures. tp_store ; tp_pures ; tp_store ; tp_pure. wp_store ; wp_pures ; wp_store ; wp_pure.
@@ -724,8 +724,8 @@ Definition evalQ : val :=
        tp_alloc as maxI2 "maxI2". tp_pures. tp_alloc as maxA2 "maxA2". do 5 tp_pure.
        wp_pures. wp_alloc maxI1 as "maxI1". wp_alloc maxA1 as "maxA1". do 5 wp_pure.
        wp_rec. wp_pures.
-       tp_pures. 1: cbv ; auto.
-       rewrite {2 4}/evalQ. tp_pures. 1: cbv ; auto. wp_pures.
+       tp_pures.
+       rewrite {2 4}/evalQ. tp_pures. wp_pures.
        rewrite /count_under_40/setsum/setmap/under_40/age. wp_pures. tp_pures.
 
        wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
@@ -744,15 +744,15 @@ Definition evalQ : val :=
        1: rewrite Rmult_0_l => //.
        simpl. tp_pures.
        iIntros "!> %z f'" => /=. wp_pures. tp_pures. tp_load ; wp_load. wp_pures.
-       wp_load. tp_pures. tp_load. tp_pures. 1: cbv ; auto. wp_pures.
-       tp_store. tp_pures. tp_store. do 2 wp_store. wp_pures. tp_pures. 1: cbv ; auto.
-       rewrite {2 4}/evalQ. tp_pures. 1,2: cbv ; auto. wp_pures.
+       wp_load. tp_pures. tp_load. tp_pures. wp_pures.
+       tp_store. tp_pures. tp_store. do 2 wp_store. wp_pures. tp_pures.
+       rewrite {2 4}/evalQ. tp_pures. 1,2: try naive_solver. wp_pures.
        rewrite /count_over_80/setsum/setmap/over_80/age. wp_pures. tp_pures.
        wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
        iMod ecm_zero as "ε0".
        unshelve iApply (hoare_couple_laplace _ _ 0 0 _ (num) (2*den) _ _  (AppRCtx _ :: K)
            with "[ε ε0 $f']" ) => //=.
-       1: by cbv.
+       1: try naive_solver.
        { rewrite mult_IZR.
          rewrite Rmult_comm.
          rewrite Rdiv_mult_distr.
@@ -766,19 +766,19 @@ Definition evalQ : val :=
        simpl. tp_pures.
        iIntros "!> %z2 f'" => /=. wp_pures. tp_pures. tp_load ; wp_load. wp_pures.
        wp_load. wp_pures.
-       tp_pures. tp_load. tp_pures ; [cbv ; auto|].
+       tp_pures. tp_load. tp_pures.
        rewrite !Zplus_0_r ?Zplus_0_l.
        case_bool_decide.
        - do 2 wp_store. wp_pures.
          tp_pures. tp_store ; tp_pures ; tp_store ; tp_pures.
-         1: cbv ; auto. tp_load.
+         tp_load.
          wp_load.
          iApply "hφ". done.
          Unshelve.
          2: f_equal. simpl.
        - wp_pures.
          tp_pures.
-         1: cbv ; auto. tp_load.
+         tp_load.
          wp_load.
          iApply "hφ". done.
          Unshelve.
