@@ -2,54 +2,12 @@ From clutch.common Require Import inject.
 From clutch.prob_lang Require Export notation tactics metatheory.
 From clutch.prob_lang Require Export lang.
 From clutch.prob_lang.spec Require Export spec_rules spec_tactics.
-From clutch.diffpriv Require Export weakestpre lifting ectx_lifting primitive_laws coupling_rules proofmode.
+From clutch.diffpriv Require Export weakestpre lifting ectx_lifting primitive_laws coupling_rules proofmode distance.
+
+#[local] Open Scope R. 
 
 Section diffpriv.
   Context `{!diffprivGS Σ}.
-
-  #[local] Open Scope R. 
-
-  Class Distance (A : Type) : Type := { distance_car :: Inject A val                                                  
-                      ; distance : A -> A -> R
-                      (* Not using [Equiv A] directly to avoid universe issues when quantifying over
-                         [Distance] in the logic, in particular. *)
-                      ; distance_equiv : A -> A -> Prop   
-                      ; distance_pos a1 a2 : 0 <= distance a1 a2
-                      ; distance_0 a1 a2 : distance_equiv a1 a2 → distance a1 a2 = 0
-                      ; distance_sep a1 a2 : distance a1 a2 <= 0 -> distance_equiv a1 a2
-                      (* leaving out symmetry and triangle inequality until they're needed. *)
-                      (* ; distance_sym a1 a2 : distance a1 a2 = distance a2 a1 *)
-                      (* ; distance_triangle a1 a2 a3 : distance a1 a3 <= distance a1 a2 + distance a2 a3 *)
-    }.
-  Arguments distance_car {_} _.
-  Coercion distance_car : Distance >-> Inject.
-  Arguments distance {_} _ _ _.
-  Coercion distance : Distance >-> Funclass.
-
-  #[global] Instance Distance_equiv `{Distance A} : Equiv A := distance_equiv. 
-
-  Program Definition dZ : Distance Z := {| distance z z' := Rabs (IZR (z - z')); distance_equiv := (=) |}.
-  Next Obligation. intros => /= ; eauto using Rabs_pos. Qed.
-  Next Obligation. intros ?? -> => /=; replace (a2 - a2)%Z with 0%Z by lia. exact Rabs_R0. Qed.
-  Next Obligation.
-    intros ?? => /= ; rewrite -abs_IZR. pose proof (IZR_le _ _ $ Zabs_pos (a1-a2)).
-    intros h. assert (IZR (Z.abs (a1 - a2)) = 0) as h' by lra. revert h'.
-    rewrite /equiv. apply Zabs_ind ; intros ? h' ; apply eq_IZR in h' ; lia.
-  Qed.
-
-  Program Definition dtensor `(dA : Distance A) `(dB : Distance B) : Distance (A * B) :=
-    {| distance x y := let (x1, x2) := x in let (y1, y2) := y in dA x1 y1 + dB x2 y2;
-       distance_equiv x y := let (x1, x2) := x in let (y1, y2) := y in x1 ≡ y1 ∧ x2 ≡ y2;
-    |}.
-  Next Obligation. intros ???? [] []. apply Rplus_le_le_0_compat ; apply distance_pos. Qed.
-  Next Obligation. intros ???? [] [] []. rewrite !distance_0 //. lra. Qed.
-  Next Obligation.
-    intros ???? [a b] [a' b'] ?.
-    pose proof (distance_pos a a'). pose proof (distance_pos b b').
-    assert (dA a a' <= 0) by lra. assert (dB b b' <= 0) by lra.
-    pose proof (distance_sep a a'). pose proof (distance_sep b b').
-    rewrite /equiv. intuition auto.
-  Qed.
 
   Definition wp_sensitive (f : expr) (c : R) `(d_in : Distance A) `(d_out : Distance B) : iProp Σ
     :=

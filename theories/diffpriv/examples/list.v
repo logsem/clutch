@@ -1,5 +1,7 @@
 From clutch.common Require Export inject.
-From clutch Require Import diffpriv.
+From clutch.prob_lang Require Export notation tactics metatheory.
+From clutch.prob_lang Require Export lang.
+From clutch.diffpriv Require Export weakestpre lifting ectx_lifting primitive_laws proofmode.
 Set Default Proof Using "Type*".
 
 Section list_code.
