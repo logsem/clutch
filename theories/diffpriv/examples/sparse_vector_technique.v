@@ -76,16 +76,14 @@ Section svt.
 
   (* The spec that AT satisfies after initialising T'. *)
   Definition AT_spec (c : R) (AUTH : iProp Σ) (f f' : val) : iProp Σ :=
-    □ ∀ (DB : Type) (dDB : Distance DB) (db db' : DB)
+    □ ∀ `(dDB : Distance DB) (db db' : DB)
       (_ : dDB db db' <= c) (q : val) (K0 : list ectx_item),
       wp_sensitive q 1 dDB dZ -∗
       AUTH -∗
       ⤇ fill K0 (f' (inject db') q) -∗
       WP f (inject db) q
-        {{ v,
-             ∃ v' : val, ⤇ fill K0 v' ∗ ⌜v = v'⌝ ∗
-                           ∃ (b b' : bool), ⌜v = #b⌝ ∗ ⌜v' = #b'⌝ ∗
-                           (⌜b = false⌝ -∗ AUTH) }}.
+        {{ v, ∃ (b : bool), ⌜v = #b⌝ ∗ ⤇ fill K0 #b ∗
+                            (⌜b = false⌝ -∗ AUTH) }}.
 
   Definition SVT_spec (f f' : val) (iSVT : nat → iProp Σ) : iProp Σ :=
       (∀ `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) (q : val) K,
@@ -189,13 +187,11 @@ Section svt.
     iIntros "%z !> (%z' & rhs & hh)".
     iDestruct "hh" as "[%h_above | [%h_below ε]]".
     - simpl... case_bool_decide.
-      + iFrame. iModIntro. case_bool_decide. 2: lia. iSplit => //.
-        iExists true,true. repeat iSplitR => //. iIntros (?). done.
+      + iFrame. iModIntro. case_bool_decide. 2: lia. iSplit => //. by iIntros (?).
       + lia.
     - simpl... destruct h_below. case_bool_decide.
       + lia.
-      + iModIntro. iFrame. case_bool_decide ; try lia.
-        repeat iSplitR => //. iExists false,false. done.
+      + iModIntro. iFrame. case_bool_decide ; try lia. repeat iSplitR => //.
   Qed.
 
 
@@ -259,10 +255,9 @@ Section svt.
     iSpecialize ("AT" $! _ _ _ _ adj _ _) as #.
     iSpecialize ("AT" with "q_sens auth rhs").
     iApply (wp_strong_mono'' with "AT").
-    iIntros "%vq (%vq' & rhs & %not_pweq & %bq & %bq' & -> & -> & maybe_auth)".
-    rewrite <-not_pweq. inversion not_pweq.
+    iIntros "%vq (%b & -> & rhs & maybe_auth)".
     iSimpl in "rhs"...
-    destruct bq eqn:case_bq.
+    destruct b eqn:case_bq.
     - tp_load ; wp_load...
       rewrite /= !Nat.sub_0_r.
       destruct n as [|n']...
