@@ -223,7 +223,7 @@ Qed.
 
 (* hoare_diffpriv implies approximate diffpriv *)
 Fact hoare_diffpriv_pure f ε δ (εpos : (0 <= ε)%R) (δpos : (0 <= δ)%R) :
-  (∀ `{diffprivGS Σ}, ⊢ hoare_diffpriv f ε δ dZ dZ)
+  (∀ `{diffprivGS Σ}, ⊢ hoare_diffpriv f ε δ dZ (=))
   →
     ∀ σ,
     diffpriv_approx

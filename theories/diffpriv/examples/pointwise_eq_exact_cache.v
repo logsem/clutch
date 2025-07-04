@@ -1,4 +1,4 @@
-(* (* Pointwise differential privacy of exact_cache. *)
+(* Pointwise differential privacy of exact_cache. *)
 
 (* A mechanism M may only satisfy pointwise DP. We prove that (exact_cache M) is also differentially *)
 (* private, and that caching provides the expected cost reduction in privacy budget. *)
@@ -8,21 +8,23 @@
 (* The offline version is a client of the online version, and reuses the spec proven in oxc_spec0_pw. *)
 (* The proof that this client is pointwise-DP is complete modulo the safety part that proves that if *)
 (* list_map f xs returns a value v, then v is a list. The real missing lemma is more subtle because it *)
-(* also has to preserve some resources. It should be possible to complete the proof. *) *)
+(* also has to preserve some resources. It should be possible to complete the proof. *)
 
-(* From iris.base_logic Require Export na_invariants. *)
-(* From clutch.common Require Import inject. *)
-(* From clutch.prelude Require Import tactics. *)
-(* From clutch.prob Require Import differential_privacy. *)
-(* From clutch.diffpriv Require Import adequacy diffpriv proofmode. *)
-(* From clutch.diffpriv.examples Require Import list map exact_cache. *)
+From iris.base_logic Require Export na_invariants.
+From clutch.common Require Import inject.
+From clutch.prelude Require Import tactics.
+From clutch.prob Require Import differential_privacy.
+From clutch.diffpriv Require Import adequacy diffpriv proofmode.
+From clutch.diffpriv.examples Require Import list map exact_cache.
 
-(* Section xcache_pw. *)
-(*   Context `{!diffprivGS Σ}. *)
+Section xcache_pw.
+  Context `{!diffprivGS Σ}.
+
+  (* SIMON: left commented out since there were admits and TODOs anyway *)
 
 (*   #[local] Open Scope R. *)
-(*   (* If we want to use OXC with a mechanism M that only satisfies pw-DP, we need weaker/more *)
-(*      general specs than for regular DP. *) *)
+(*   (* If we want to use OXC with a mechanism M that only satisfies pw-DP, we need weaker/more *) *)
+(* (*      general specs than for regular DP. *) *)
 (*   Definition oxc_spec0_pw_cached (f f' : val) (G : gmap nat val → gmap nat val → iProp Σ) : iProp Σ := *)
 (*     (∀ (q : nat) B B' K, *)
 (*           ⌜q ∈ dom B⌝ -∗ *)
@@ -61,8 +63,8 @@
 (*         ⌜q ∉ dom B⌝ -∗ *)
 (*         ⌜q ∉ dom B'⌝ -∗ *)
 (*         wp_diffpriv_pw (M #q) ε δ dDB -∗ *)
-(*         (* ↯m (c * ε) -∗ *)
-(*            ↯ (c * δ) -∗ *) *)
+(*         (* ↯m (c * ε) -∗ *) *)
+(* (*            ↯ (c * δ) -∗ *) *)
 (*         G B B' -∗ *)
 (*         ⤇ fill K (Val f' #q) -∗ *)
 (*         (* ∀ RES, *) *)
@@ -114,10 +116,11 @@
 (*       iIntros "[F_l F_r]". iFrame. done. *)
 (*   Qed. *)
 
-(*   (* list_map offline exact_cache from online, but pointwise *) *)
-(*   (* This proof is complete modulo the safety part that proves that if list_map f xs returns a *)
+
+  (* list_map offline exact_cache from online, but pointwise *)
+  (* This proof is complete modulo the safety part that proves that if list_map f xs returns a *)
 (*      value v, then v is a list. The real lemma is more subtle because it also has to preserve some *)
-(*      resources. It should be possible to complete the proof. *) *)
+(*      resources. It should be possible to complete the proof. *)
 (*   Lemma exact_cache_dipr_offline_map_pw (M : val) DB (dDB : Distance DB) (qs : list nat) (QS : val) (is_qs : is_list qs QS) *)
 (*     ε δ (εpos : 0 <= ε) (δpos : 0 <= δ) *)
 (*     (M_dipr : Forall (λ q : nat, ⊢ wp_diffpriv_pw (M #q) ε δ dDB) qs) *)
@@ -238,8 +241,8 @@
 (*   iRevert "rhs". *)
 (*   iAssert ( *)
 (*               (* ↯m (c * (k * ε)) ∗ ↯ (c * (k * δ)) ∗ *) *)
-(*               (* □ oxc_spec0_pw_cached f f' G ∗ *)
-(*                  □ oxc_spec0_pw_fresh M c dDB f f' F G ∗ *) *)
+(*               (* □ oxc_spec0_pw_cached f f' G ∗ *) *)
+(* (*                  □ oxc_spec0_pw_fresh M c dDB f f' F G ∗ *) *)
 (*               ⤇ fill K' (list_cons (f' (Fst (#q', QS')%V)) (list_map f' QS')) -∗ *)
 (*               F ∅ *)
 (*               (* □ (∀ A : gmap nat val, F A ∗-∗ G A A) *) *)
@@ -284,4 +287,4 @@
 
 (* Abort. *)
 
-(* End xcache_pw. *)
+End xcache_pw.
