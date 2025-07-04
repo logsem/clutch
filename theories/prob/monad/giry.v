@@ -1,6 +1,6 @@
 (** Axioms of a the Giry Monad type (a sigma algebra for subdistributions) *)
 From mathcomp Require Import all_ssreflect all_algebra boolp classical_sets functions.
-From mathcomp.analysis Require Import ereal measure lebesgue_measure lebesgue_integral.
+From mathcomp.analysis Require Import ereal esum measure lebesgue_measure lebesgue_integral charge simple_functions.
 From mathcomp.reals Require Import reals.
 From clutch.prob.monad Require Export prelude tactics.
 From clutch.prelude Require Import classical.
@@ -445,10 +445,6 @@ Section giry_map_meas.
     rewrite /numfun.indic.
     case: (y \in S); auto.
   Qed.
-
-
-
-
 
   Lemma gMap_meas_fun : forall (f : T1 -> T2) (H : measurable_fun setT f), measurable_fun setT (gMap H).
   Proof.
@@ -1497,6 +1493,42 @@ Section giry_is_det.
 
 End giry_is_det.
 
+(* note: this has been merged into newer versions of mathcomp*)
+Section integral_le_meas.
+  Local Open Scope ereal_scope.
+  Local Open Scope classical_set_scope.
+  Context {d} {T : measurableType d}.
+  Context [R : realType].
+  Context {μ1 μ2 : measure T R}.
+  Hypothesis (H : (∀ S, measurable S -> μ1 S <= μ2 S)).
+  Import HBNNSimple. 
+
+  Lemma le_measure_sintegral (h : {nnsfun T >-> R}):
+    (sintegral μ1 h <= sintegral μ2 h)%E.
+  Proof using H.
+    rewrite !sintegralE //.
+    eapply lee_fsum; auto.
+    move => i [a Ha <-]. 
+    apply /lee_pmul; auto.
+    by apply /lee_tofin.
+  Qed.
+
+  Lemma ge0_le_measure_integral (f : T -> \bar R) S (Hms: measurable S): 
+    (∀ x, 0%:E <= f x) -> 
+    measurable_fun setT f ->
+    (\int[μ1]_(x in S) f x <= \int[μ2]_(x in S) f x).
+  Proof using H.
+    move => Hnf Hmf.
+    rewrite !ge0_integralE //=.
+    eapply ub_ereal_sup. 
+    rewrite /ubound //= => x [h Hh] <-. 
+    apply ereal_sup_le. simpl.
+    exists (sintegral μ2 h).
+    exists h; auto. 
+    by apply le_measure_sintegral.
+  Qed.
+End integral_le_meas.
+
 Section is_det_lemmas.
   Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
   
@@ -1606,11 +1638,25 @@ Section le_giry.
     giryM_le (gBind Hf μ1) (gBind Hg μ2).
   Proof.
     move => H1 H2 s Hs.
+    assert (measurable_fun setT (λ x : T1, f x s)). {
+      replace (λ x : T1, f x s) with (gEval s \o f);
+      try by apply funext.
+      exact (measurableT_comp (gEval_meas_fun Hs) Hf).
+    }
+    assert (measurable_fun setT (λ x : T1, g x s)).
+    { 
+      replace (λ x : T1, g x s) with (gEval s \o g);
+      try by apply funext.
+      exact (measurableT_comp (gEval_meas_fun Hs) Hg).
+    }
     rewrite !gBindEval_rw; auto.
-    (*
-    \int[μ1]_x (f x s) <= \int[μ2]_x (g x s) -(monotonicity)-> ...
-    *)
-  Admitted.
+    eapply @order.Order.le_trans.
+    { apply ge0_le_measure_integral; eauto. }
+    simpl. 
+    apply /ge0_le_integral; auto.
+    intros. 
+    by apply H2.
+  Qed.
 
   Lemma gIter_giryM_le {d} {T : measurableType d} (f g : T -> giryM T) (Hf : measurable_fun setT f) (Hg: measurable_fun setT g) n a:
     (∀ a, giryM_le (f a) (g a)) -> 
@@ -1698,7 +1744,6 @@ Section le_giry.
 End le_giry.
 
 
-(* Should eventually be moved to and completed within giry.v *)
 Section AdditionalMonadLaws.
   Local Open Scope classical_set_scope.
   Local Open Scope ereal_scope.

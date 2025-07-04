@@ -970,7 +970,7 @@ Section markov.
     rewrite integral_cst in H; auto.
     by rewrite mul1e in H.
   Qed.
-  
+
   (*
   No need to port now
 
@@ -1078,110 +1078,6 @@ End markov.
 Section ARcoupl.
   Context {δ : meas_markov}.
 
-  Lemma esup_ub {f : nat -> \bar R} (b : \bar R) : (forall n, (f n <= b)%E) -> (limn_esup f <= b)%E.
-  Proof.
-    intro H.
-    rewrite limn_esup_lim.
-  Admitted.
-  (*
-    apply @normedtype.lime_le.
-    { by apply topology.eventually_filter. }
-    { by apply is_cvg_esups. }
-    apply topology.nearW.
-    { by apply topology.eventually_filter. }
-    intro n.
-    rewrite /esups //=.
-    apply ub_ereal_sup.
-    rewrite /ubound /sdrop //=.
-    intros x [? ? <-].
-    by apply H.
-  Qed. *)
-
-  Lemma le_measure_integral {d} {T : measurableType d} (f : T → \bar R) (Hf :  ∀ x : T, (0 <= f x)%E)
-    (μ1 μ2 : measure T R) (HA : forall A, measurable A -> (μ1 A <= μ2 A)%E) : (\int[μ1]_x (f x) <= \int[μ2]_x (f x))%E.
-  Proof.
-    do 2 (rewrite ge0_integralTE; [|done]).
-  Admitted.
-
-  Lemma ereal_sup_lb (S : set (\bar R)) (y : \bar R) :
-    (forall x, S x → (x <= y)%E) -> (ereal_sup (R:=RbaseSymbolsImpl_R__canonical__reals_Real) S <= y)%E.
-  Proof. Admitted.
-
-  (* What's the mathcomp way to write a montonce sequence? *)
-  Lemma measure_mono_le_esup (s : nat → \bar R) (Hmono : forall (n n' : nat), n <= n' -> (s n <= s n')%E) :
-    forall n, (s n <= limn_esup s)%E.
-  Proof.
-    intro n.
-    rewrite limn_esup_lim.
-    (* Check nondecreasing_cvgn_le. (* This only works for R-valued sequences *) *)
-    (* eapply le_trans_ereal; last eapply nondecreasing_cvgn_le. *)  (* Prove that u s n <= esups u s n? *)
-  Admitted.
-
-
-  Lemma lim_le_lim (f g : nat → \bar R) (H : forall n, (f n <= g n)%E) :
-    ((filter.lim (filter.fmap f (@filter.nbhs nat (filter.filter_set_system__canonical__filter_Filtered nat) filter.eventually))) <=
-     (filter.lim (filter.fmap g (@filter.nbhs nat (filter.filter_set_system__canonical__filter_Filtered nat) filter.eventually))))%E.
-  Proof.
-    (* Doesn't work because it's R not \bar R, copy-paste this proof and generalize?
-        Check @normedtype.ler_lim topology.Datatypes_nat__canonical__topology_Topological
-              (@topology.nbhs nat (topology.topology_set_system__canonical__topology_Filtered nat) topology.eventually)
-              _ R.
-        *)
-  Admitted.
-
-
-  Lemma limit_exchange {d} {T : measurableType d} (f : T → \bar R) (Hflb : ∀ a : T, (0 <= f a)%E)
-    (μ : nat → giryM T) (Hmono : forall n, giryM_le (μ n) (μ (S n))) :
-    (\int[limit_measure μ Hmono]_x f x)%E =
-    filter.lim (filter.fmap (esups (R:=R) (λ n : nat, (\int[μ n]_x f x)%E))
-        (@filter.nbhs nat (filter.filter_set_system__canonical__filter_Filtered nat) filter.eventually)).
-  Proof.
-    (* Antisymmetry *)
-    apply @order.Order.le_anti.
-    apply (introT andP); split; last first.
-    { (* ∀ n, ∫ f d(μ_n) ≤ ∫ f d(limit_measure μ)       by def. pointwise monotonicity (add hypothesis) *)
-      (* so lim_n ∫ f d(μ_n) = sup_n ∫ f d(μ_n)         true for every convergent limit
-                             ≤  ∫ f d(limit_measure μ)  by inequality above *)
-
-      (* Change the limsup to the the sup of the sequence *)
-      rewrite <- limn_esup_lim.
-      apply esup_ub.
-      intro n.
-      apply le_measure_integral; [done|].
-      intros S HS.
-      rewrite //= /limit_measure//=.
-      eapply le_trans_ereal; last apply measure_mono_le_esup.
-      { by eapply le_refl_ereal. }
-      { intros. by apply giryM_le_mono_equiv. }
-    }
-    { rewrite ge0_integralTE; [|done].
-
-      (* Apply the theorem in the case of simple integrals *)
-      suffices HSimple :
-        forall h, ([set h | ∀ x : T, ((h x)%:E <= f x)%E] h)%classic →
-             sintegral (limit_measure μ Hmono) h =
-             filter.lim (filter.fmap (esups (R:=R) (fun n : nat => sintegral (μ n) h))
-                (@filter.nbhs nat (filter.filter_set_system__canonical__filter_Filtered nat) filter.eventually)).
-      { apply ereal_sup_lb.
-        intros ?; rewrite //=; intros [h Hnn <-].
-        rewrite HSimple; [|done].
-        rewrite //=.
-        apply lim_le_lim.
-        intro n.
-        rewrite /esups//=.
-        (* Similar issue to one of the lemmas above: Need to compare ereal_sups
-           where every element in the first is less than an element of the second. *)
-        admit.
-      }
-      { (* The lemma for simple functions *)
-        simpl.
-        intros s Hsf.
-        admit.
-      }
-    }
-    Admitted.
-
-
   Lemma lim_exec_ARcoupl {d} {B : Type} `{BSig : SigmaAlgebra d B} (a : mstate δ) (μ2 : giryM (toPackedType _ B)) φ (ε : R) (D : \bar R) :
     (0 <= EFin ε)%E →
     (0 <= D)%E →
@@ -1190,19 +1086,19 @@ Section ARcoupl.
   Proof.
     intros Hε HD Hn f Hfmeas Hflb Hfub g Hgmeas Hglb Hgub Hfg.
     rewrite /lim_exec.
-    eapply (order.Order.le_trans (y:=limn_esup(fun n => \int[exec n a]_x f x)%E));
-      last (by apply esup_ub; intros ?; apply Hn).
+    assert (homomorphism_2 (fun n : nat => integral (T:=toPackedType (mstate_ret_disp δ) (mstate_ret δ)) (R:=R) (exec n a) setT (fun x : mstate_ret δ => f x)) (fun n m : nat => ssrnat.leq n m) (fun n m : extended R => order.Order.le n m)). {
+      by move => n m Hnm; apply ge0_le_measure_integral => //=; apply /exec_mono' /ssrnat.leP.
+    }
+    eapply (order.Order.le_trans (y:=limn_esup(fun n => \int[exec n a]_x f x)%E)).
+    2: {
+      apply elimn_esup_nondecreasing_lub => //=; first by intros; apply Hn.
+      apply /ereal_nondecreasing_is_cvgn => //=.
+    }
     suffices -> :
       (\int[limit_measure (exec^~ a) (exec_mono a)]_x f x = limn_esup (λ n : nat, \int[exec n a]_x f x))%E by done.
     rewrite limn_esup_lim.
-    apply limit_exchange.
-    { intro a'.
-      remember (f a') as ok. (* Surely there's a better way *)
-      destruct ok.
-      { rewrite Heqok. apply Hflb. }
-      { by apply le0y. }
-      { exfalso. specialize (Hflb a'). by rewrite -Heqok in Hflb. }
-    }
-  Admitted.
+    apply /limit_exchange => //= => x.
+    apply /andP; split => //=.
+  Qed.
 
 End ARcoupl.
