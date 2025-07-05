@@ -69,10 +69,10 @@ We prove the portions of the above theorems that are concerned with the reductio
   Definition rf_scheme : expr :=
     let: "mapref" := init_map #() in
     (rf_enc "mapref", rf_dec "mapref").
-  Local Instance SYM_param : SYM_init_params :=
+  #[local] Instance SYM_param : SYM_init_params :=
     {| card_key := Key ; card_message := Message ; card_cipher := Cipher |}.
 
-  Local Instance sym_rf_scheme : SYM_init :=
+  #[local] Instance sym_rf_scheme : SYM_init :=
     {|  keygen := rf_keygen
       ; enc_scheme := rf_scheme
       ; rand_cipher := rf_rand_cipher |}.
