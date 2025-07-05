@@ -120,19 +120,11 @@ Section xor_minus_mod.
       destruct (bool_decide (y ≤ Output')) eqn:Hy'bound; simpl;
       destruct (bool_decide (y' ≤ Output')) eqn:Hybound; simpl; try done;
       destruct (bool_decide (y < x)) eqn:Hyx; simpl;
-      try apply bool_decide_eq_true in Hxpos;
-      try apply bool_decide_eq_true in Hypos;
-      try apply bool_decide_eq_true in Hxbound;
-      try apply bool_decide_eq_true in Hybound;
-      try apply bool_decide_eq_true in Hy'bound;
-      try apply bool_decide_eq_true in Hyx;
-      try apply bool_decide_eq_false in Hxpos;
-      try apply bool_decide_eq_false in Hypos;
-      try apply bool_decide_eq_false in Hxbound;
-      try apply bool_decide_eq_false in Hybound;
-      try apply bool_decide_eq_false in Hy'bound;
-      try apply bool_decide_eq_false in Hyx;
-      try (intros H; exfalso; lia);
+      repeat 
+      match goal with 
+        | H : bool_decide (_) = true |- _ => apply bool_decide_eq_true in H
+        | H : bool_decide (_) = false |- _ => apply bool_decide_eq_false in H
+      end; try (intros H; exfalso; lia);
       destruct (bool_decide (y' < x)) eqn:Hy'x; simpl;
       try apply bool_decide_eq_true in Hy'x;
       try apply bool_decide_eq_false in Hy'x;
