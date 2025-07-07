@@ -208,29 +208,28 @@ Section queries.
     iIntros (?? zs1 zs2 Φ) "!# [Hspec %Hcond] HΦ".
     wp_rec; wp_pures.
     tp_rec; tp_pures.
-    tp_bind (age_sum_query _ _).
     assert (#(b + 1) = #(b + 1)%nat) as ->.
     { do 2 f_equal. lia. }
-    wp_apply (wp_age_sum_query_sensitivity (b + 1) with "[%] [$Hspec //]").
-    { real_solver. }
-    iIntros (?) "/= (%z1 & %z1' & -> & Hspec & %Hd1)".
     tp_bind (age_sum_query _ _).
-    wp_apply (wp_age_sum_query_sensitivity b with "[%] [$Hspec //]").
-    { real_solver. }
-    iIntros (?) "/= (%z2 & %z2' & -> & Hspec & %Hd2)".
-    tp_pures. wp_pures.
-    iApply "HΦ".
-    iModIntro. iFrame. iExists _. iPureIntro.
-    split; [done|].
-    move: Hd1 Hd2.
+    iMod (tp_age_sum_query with "Hspec") as "Hspec /=".
+    { rewrite is_list_inject //. }
+    tp_bind (age_sum_query _ _).
+    iMod (tp_age_sum_query with "Hspec") as "Hspec /=".
+    { rewrite is_list_inject //. }
+    tp_pures.
+    wp_apply wp_age_sum_query.
+    { rewrite is_list_inject //. }
+    iIntros "_". wp_pures.
+    wp_apply wp_age_sum_query.
+    { rewrite is_list_inject //. }
+    iIntros "_".
+    wp_pures. iModIntro.
+    iApply "HΦ". iFrame.
+    iExists _. iSplit; [done|]. iPureIntro.
     rewrite neighbour_dist //=.
-    rewrite !Rabs_Zabs Rmult_1_l !INR_IZR_INZ -!mult_IZR !Z.mul_1_r Nat2Z.inj_add /=.
-    intros ?%le_IZR ?%le_IZR. apply IZR_le.
-    assert (z2 - z1 - (z2' - z1') = z2 - z2' - (z1 - z1')) as -> by lia.
-
-    (* ehhh....  *)
-
-  Admitted.
-
+    rewrite Rabs_Zabs Rmult_1_l. apply IZR_le.
+    destruct Hcond; simplify_eq/=;
+      rewrite !clip_app !sum_list_app /= /clipZ; lia.
+  Qed.
 
 End queries.
