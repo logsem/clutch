@@ -256,7 +256,7 @@ Section logrel.
 
   Definition refines_keygen_l_prop := forall K e E A,
     (∀ key,
-      (lrel_car lrel_key) key key -∗
+      left_lrel lrel_key key -∗
       refines E
         (fill K (Val key))
         e A)
@@ -265,7 +265,7 @@ Section logrel.
         e A.
   Definition refines_keygen_r_prop := forall K e E A,
     (∀ key,
-      (lrel_car lrel_key) key key -∗
+      right_lrel lrel_key key -∗
       refines E
         e
         (fill K (Val key))
@@ -367,7 +367,7 @@ Section logrel.
       rewrite /encaps...
       rewrite /symmetric_init.get_keygen...
       rel_apply refines_keygen_l.
-      iIntros (key) "#Hkrel".
+      iIntros (key) "[%vk' #Hkrel]".
       iPoseProof (lrel_keyG with "Hkrel") as "%HkGrel".
       destruct HkGrel as [kg [eq1 eq2]]; subst...
         rewrite /dec_hyb/enc...
@@ -381,7 +381,7 @@ Section logrel.
         rewrite /symmetric_init.get_enc.
         rel_pure_l...
         rel_apply (refines_senc_l with "[HPl]");
-        try iSplit; try iFrame; try iAssumption.
+        try iSplit; try iFrame; try iExists _; try iAssumption.
         iIntros (c) "Hcipher".
         simpl...
         rewrite /dec_hyb...
@@ -784,7 +784,7 @@ Section logrel.
           bool_decide (∃ m : nat, (m ≤ N ∧ mod_minus (S n'') k_msg m = logX)%type)
         = true).
       {
-        apply bool_decide_eq_true. About k_msg.
+        apply bool_decide_eq_true.
         exists (mod_plus _ k_msg logX); rewrite -/N.
         split.
         - apply PeanoNat.lt_n_Sm_le. apply mod_plus_lt; lia.
