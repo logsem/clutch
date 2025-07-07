@@ -6,8 +6,7 @@ From clutch.clutch.examples.crypto Require ElGamal_bijection.
 From clutch.approxis.examples Require Import
   valgroup diffie_hellman security_aux option
   ElGamal_defs bounded_oracle pubkey advantage_laws iterable_expression.
-(* We use `lrel_input`, etc, defined in prf_local_state is used *)
-From clutch.approxis.examples Require symmetric_init prf_local_state.
+From clutch.approxis.examples Require symmetric_init.
 From mathcomp Require Import ssrbool.
 From mathcomp Require fingroup.fingroup.
 Set Default Proof Using "All".
@@ -187,6 +186,9 @@ Section logrel.
 
   (* ASSUMPTIONS ON THE SYMMETRIC SCHEME FOR CORRECTNESS *)
 
+  Definition left_lrel (τ : lrel Σ) (v : val) : iProp Σ := ∃ v', (lrel_car τ) v v'.
+  Definition right_lrel (τ : lrel Σ) (v : val) : iProp Σ := ∃ v', (lrel_car τ) v' v.
+  
   (* the key must be compatible with ElGamal *)
   Variable lrel_key : lrel Σ.
 
@@ -261,7 +263,7 @@ Section logrel.
     ⊢ refines E
         (fill K (symmetric_init.keygen #()))
         e A.
-  (* Definition refines_keygen_r_prop := forall K e E A,
+  Definition refines_keygen_r_prop := forall K e E A,
     (∀ key,
       (lrel_car lrel_key) key key -∗
       refines E
@@ -271,9 +273,9 @@ Section logrel.
     ⊢ refines E
         e
         (fill K (symmetric_init.keygen #()))
-        A. *)
+        A.
   Hypothesis refines_keygen_l : refines_keygen_l_prop.
-  (* Hypothesis refines_keygen_r : refines_keygen_r_prop. *)
+  Hypothesis refines_keygen_r : refines_keygen_r_prop.
 
   Definition sym_is_cipher_l {lls : list loc} (msg : val) (c k : val) : iProp Σ :=
     ∀ K e E A,
@@ -296,11 +298,37 @@ Section logrel.
         (fill K (Val c))
         e A.
 
+  Definition sym_correct {lls} (msg c k : val) (senc sdec : list loc → val) : iProp Σ :=
+    ∀ K e E (A : lrel Σ),
+      refines E (fill K (Val msg)) e A
+    -∗ refines E (fill K (sdec lls k (senc lls k msg))) e A.
+
+  Lemma is_cipher_is_cipher' {lls : list loc} (msg : val) (c k : val) :
+    @sym_correct lls msg c k senc sdec ⊢
+    @sym_is_cipher_l' lls msg c k -∗ @sym_is_cipher_l lls msg c k.
+  Proof. rewrite /sym_is_cipher_l/sym_is_cipher_l'.
+    iIntros "Hcorrect H" (K e E A) "Hdec".
+    rel_apply "H". iIntros "HP". rel_apply "Hcorrect".
+    rel_apply "Hdec". iAssumption.
+  Qed.
+
   Definition refines_senc_l_prop :=
     ∀ (lls : list loc) (msg : val) (k : val) K e E A,
-    (lrel_car lrel_key) k k ∗ (lrel_car lrel_input) msg msg ∗ Pl lls ⊢
+    left_lrel lrel_key k ∗ left_lrel lrel_input msg ∗ Pl lls ⊢
       ((∀ (c : val),
          @sym_is_cipher_l lls msg c k
+      -∗ refines E
+          (fill K (Val c))
+          e A)
+    -∗ refines E
+        (fill K (senc lls k msg))
+        e A).
+  
+  Definition refines_senc_l_prop' :=
+    ∀ (lls : list loc) (msg : val) (k : val) K e E A,
+    left_lrel lrel_key k ∗ left_lrel lrel_input msg ∗ Pl lls ⊢
+      ((∀ (c : val),
+         @sym_is_cipher_l' lls msg c k
       -∗ refines E
           (fill K (Val c))
           e A)
@@ -353,7 +381,7 @@ Section logrel.
         rewrite /symmetric_init.get_enc.
         rel_pure_l...
         rel_apply (refines_senc_l with "[HPl]");
-        try iFrame; try iSplitL "Hkrel".
+        try iSplit; try iFrame; try iAssumption.
         iIntros (c) "Hcipher".
         simpl...
         rewrite /dec_hyb...
