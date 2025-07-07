@@ -30,6 +30,16 @@ Section diffpriv.
                       ∧ ⌜d_out b b' <= c * d_in x x'⌝
       }}}.
 
+  Definition hoare_sensitive_cond (f : expr) (c : R) `(d_in : Distance A) (cond : relation A) `(d_out : Distance B) : iProp Σ
+    :=
+    ∀ (c_pos : 0 <= c) K (x x' : A),    
+    {{{ ⤇ fill K (f $ Val $ inject x') ∗ ⌜cond x x'⌝ }}}
+      f $ Val $ inject x
+      {{{ (v : val), RET (v);
+          ∃ b b' : B, ⌜v = inject b⌝ ∧ ⤇ fill K (inject b')
+                      ∧ ⌜d_out b b' <= c * d_in x x'⌝
+      }}}.  
+
   Definition wp_diffpriv (f : expr) ε δ `(dA : Distance A) `{Inject B val} (eqB : Equiv B) : iProp Σ :=
     ∀ K c (x x' : A), ⌜dA x x' <= c⌝ →
     ⤇ fill K (f (Val (inject x'))) ∗ ↯m (c * ε) ∗ ↯(c * δ) -∗

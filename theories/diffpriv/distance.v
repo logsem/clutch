@@ -146,7 +146,7 @@ Section list_dist.
 
 End list_dist.
 
-Program Definition dlist `{Countable T, Inject T val} : Distance (list T) :=
+Program Definition dlist T `{Countable T, Inject T val} : Distance (list T) :=
   {| distance xs ys := INR (list_dist xs ys); distance_equiv := (≡ₚ) |}.
 Next Obligation. intros => /=. apply pos_INR. Qed.
 Next Obligation. move => ?????? ->. rewrite -INR_0 list_dist_same //. Qed.
