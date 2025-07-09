@@ -1,8 +1,9 @@
 From clutch.con_prob_lang Require Import lang notation class_instances tactics.
-From clutch.con_prob_lang Require Export wp_tactics.
+From clutch.con_prob_lang Require Export wp_tactics spec_tactics.
 From clutch.foxtrot Require Import weakestpre primitive_laws derived_laws.
 From iris.prelude Require Import options.
 
+(* LHS *)
 #[global] Program Instance rel_logic_wptactics_base `{!foxtrotGS Σ} : GwpTacticsBase Σ unit wp.
 Next Obligation. intros. by apply wp_value. Qed.
 Next Obligation. intros. by apply wp_fupd. Qed.
@@ -37,3 +38,24 @@ Next Obligation. intros. by apply wp_cmpxchg_suc. Qed.
 Next Obligation. intros. by apply wp_xchg. Qed.
 Next Obligation. intros. by apply wp_faa. Qed. 
   
+(* RHS *)
+#[global] Program Instance rel_logic_tptactics_pure `{!foxtrotGS Σ} : UpdPure pupd.
+Next Obligation. intros. epose proof pupd_step_pure _ _ _ _ _ [] _ as H'.
+                 simpl in H'. apply H'; last first; done.
+Qed.
+
+#[global] Program Instance rel_logic_tptactics_heap `{!foxtrotGS Σ} : UpdHeap pupd.
+Next Obligation. iIntros. by iMod (pupd_alloc with "[$]") as (?) "[$$]". Qed.
+Next Obligation. iIntros. by iMod (pupd_load with "[$]") as "[$$]". Qed.
+Next Obligation. iIntros. by iMod (pupd_store with "[$]") as "[$$]". Qed.
+
+#[global] Program Instance rel_logic_tptactics_concurrency `{!foxtrotGS Σ} : UpdAtomicConcurrency pupd.
+Next Obligation. iIntros. by iMod (pupd_cmpxchg_fail with "[$]") as "[$$]". Qed.
+Next Obligation. iIntros. by iMod (pupd_cmpxchg_suc with "[$]") as "[$$]". Qed.
+Next Obligation. iIntros. by iMod (pupd_xchg with "[$]") as "[$$]". Qed.
+Next Obligation. iIntros. by iMod (pupd_faa with "[$]") as "[$$]". Qed.
+Next Obligation. iIntros. by iMod (pupd_fork with "[$]") as "[$ [% $]]". Qed.
+
+(** TODO instantiate class for spec tape*)
+
+                 
