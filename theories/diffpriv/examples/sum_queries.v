@@ -2,48 +2,15 @@ From iris.base_logic Require Export na_invariants.
 From clutch.common Require Import inject.
 From clutch.prelude Require Import tactics.
 From clutch.prob Require Import differential_privacy.
-From clutch.diffpriv Require Import adequacy diffpriv proofmode.
-From clutch.diffpriv.examples Require Import list sparse_vector_technique.
-
-Definition max : val :=
-  λ: "n" "m",
-    if: "m" ≤ "n" then "n" else "m".
-
-Definition min : val :=
-  λ: "n" "m",
-    if: "n" ≤ "m" then "n" else "m".
-
-#[local] Open Scope Z.
-
-(* TODO: move and generalize to GWP *)
-Section Z_theory.
-  Context `{diffprivGS Σ}.
-
-  Lemma wp_max (z1 z2 : Z) :
-    {{{ True }}} max #z1 #z2 {{{ z, RET #z; ⌜z = z1 `max` z2⌝ }}}.
-  Proof.
-    iIntros (Φ) "_ HΦ".
-    wp_rec. wp_pures.
-    case_bool_decide; simplify_eq; wp_pures;
-      iApply "HΦ"; iPureIntro; lia.
-  Qed.
-
-  Lemma wp_min (z1 z2 : Z) :
-    {{{ True }}} min #z1 #z2 {{{ z, RET #z; ⌜z = z1 `min` z2⌝ }}}.
-  Proof.
-    iIntros (Φ) "_ HΦ".
-    wp_rec. wp_pures.
-    case_bool_decide; simplify_eq; wp_pures;
-      iApply "HΦ"; iPureIntro; lia.
-  Qed.
-
-End Z_theory.
+From clutch.diffpriv Require Import adequacy diffpriv proofmode derived_laws.
+From clutch.diffpriv.examples Require Import sparse_vector_technique.
+From clutch.prob_lang.gwp Require Import gen_weakestpre list arith.
 
 (** Dataset operators *)
 
 Definition list_clip : val :=
   λ: "lower" "upper",
-    list_map (λ: "z", min (max "lower" "z") "upper").
+    list_map (λ: "z", Arith.min (Arith.max "lower" "z") "upper").
 
 Definition list_sum : val :=
   rec: "list_sum" "zs" :=
@@ -54,8 +21,10 @@ Definition list_sum : val :=
         "z" + "list_sum" "zs"
     end.
 
+#[local] Open Scope Z.
+
 Section dataset_operators.
-  Context `{!diffprivGS Σ}.
+  Context `{invGS_gen hlc Σ} (g : GenWp Σ).
 
   Definition clipZ (lower upper z : Z) := Z.min (Z.max lower z) upper.
 
@@ -70,40 +39,20 @@ Section dataset_operators.
     lower ≤ upper → z ∈ clip lower upper zs → lower ≤ z ≤ upper.
   Proof. intros ? (?&->&?)%elem_of_list_fmap. rewrite /clipZ. lia. Qed.
 
-  Lemma wp_clip (zs : list Z) v (lower upper : Z) :
+  Lemma gwp_clip (zs : list Z) v (lower upper : Z) E :
     lower ≤ upper →
-    {{{ ⌜is_list zs v⌝ }}}
-      list_clip #lower #upper v
+    G{{{ ⌜is_list zs v⌝ }}}
+      list_clip #lower #upper v @ g ; E
     {{{ w, RET w; ⌜is_list (clip lower upper zs) w⌝ }}}.
   Proof.
     iIntros (? Φ) "Hzs HΦ".
-    wp_rec; wp_pures.
-    wp_apply (wp_list_map with "[$Hzs] HΦ").
+    gwp_rec; gwp_pures.
+    gwp_apply (gwp_list_map with "[$Hzs] HΦ").
     iIntros (z Ψ) "!# _ HΨ".
-    wp_pures.
-    wp_apply wp_max; [done|].
-    iIntros (z' ->).
-    wp_apply wp_min; [done|].
-    iIntros (z'' ->).
+    gwp_pures.
+    gwp_apply gwp_max.
+    gwp_apply gwp_min.
     by iApply "HΨ".
-  Qed.
-
-  Lemma spec_clip (zs : list Z) v (lower upper : Z) K E :
-    lower ≤ upper →
-    is_list zs v →
-    ⤇ fill K (list_clip #lower #upper v) ⊢
-    spec_update E (∃ (w : val), ⤇ fill K w ∗ ⌜is_list (clip lower upper zs) w⌝).
-  Proof.
-    iIntros (??) "Hspec". tp_rec; tp_pures.
-    iMod (spec_list_map _ _ (λ z, Z.min (Z.max lower z) upper)
-           with "[] [//] Hspec") as (?) "[Hspec %]".
-    { iIntros "!#" (??) "Hs". tp_pures.
-      tp_rec. tp_pures.
-      case_bool_decide; simplify_eq => /=;
-        tp_pures; tp_rec; tp_pures;
-        case_bool_decide; tp_pures;
-        iFrame; iModIntro; iPureIntro; do 3 f_equal; lia. }
-    by iFrame.
   Qed.
 
   Definition sum_list (zs : list Z) : Z := foldr Z.add 0 zs.
@@ -120,29 +69,18 @@ Section dataset_operators.
     sum_list (zs1 ++ zs2) = sum_list zs1 + sum_list zs2.
   Proof. induction zs1; [done|]. rewrite /= IHzs1. lia. Qed.
 
-  Lemma wp_sum (zs : list Z) v :
-    {{{ ⌜is_list zs v⌝ }}} list_sum v {{{ RET #(sum_list zs); True }}}.
-  Proof.
-    iIntros (Φ Hzs) "HΦ".
-    iInduction zs as [|z zs] "IH" forall (v Hzs Φ); wp_rec; wp_pures.
-    - rewrite Hzs /=. wp_pures. by iApply "HΦ".
-    - destruct Hzs as (w & -> & Hzs'). wp_pures.
-      wp_bind (list_sum _).
-      wp_apply ("IH" with "[//]").
-      iIntros "_". wp_pures. by iApply "HΦ".
-  Qed.
-
-  Lemma spec_sum (zs : list Z) v K E :
+  Lemma gwp_sum (zs : list Z) v E Φ :
     is_list zs v →
-    ⤇ fill K (list_sum v) ⊢ spec_update E (⤇ fill K #(sum_list zs)).
+    Φ #(sum_list zs) -∗
+    GWP list_sum v @ g ; E {{ Φ }}.
   Proof.
-    iIntros (Hzs) "Hs".
-    iInduction zs as [|z zs] "IH" forall (v Hzs K); tp_rec; tp_pures.
-    - rewrite Hzs /=. tp_pures. by iFrame.
-    - destruct Hzs as (w & -> & Hzs'). tp_pures.
-      tp_bind (list_sum _).
-      iMod ("IH" with "[//] Hs") as "Hs /=".
-      tp_pures. done.
+    iIntros (Hzs) "HΦ".
+    iInduction zs as [|z zs] "IH" forall (v Hzs Φ); gwp_rec; gwp_pures.
+    - rewrite Hzs /=. gwp_pures. by iApply "HΦ".
+    - destruct Hzs as (w & -> & Hzs'). gwp_pures.
+      gwp_bind (list_sum _).
+      gwp_apply ("IH" with "[//]").
+      gwp_pures. by iApply "HΦ".
   Qed.
 
 End dataset_operators.
@@ -156,42 +94,34 @@ Definition create_query : val :=
   λ: "b" "df", (age_sum_query "b" "df") - (age_sum_query ("b" + #1) "df").
 
 Section queries.
-  Context `{!diffprivGS Σ}.
+  Context `{invGS_gen hlc Σ} (g : GenWp Σ).
 
-  Lemma wp_age_sum_query zs v (b : nat) :
-    {{{ ⌜is_list zs v⌝ }}}
-      age_sum_query #b v
-    {{{ RET #(sum_list (clip 0 b zs)); True }}}.
-  Proof.
-    iIntros (Φ?) "HΦ". wp_rec. wp_pures.
-    wp_apply wp_clip; [lia|done|].
-    iIntros (??).
-    by wp_apply wp_sum.
-  Qed.
-
-  Lemma tp_age_sum_query zs v (b : nat) K E :
+  Lemma gwp_age_sum_query zs v (b : nat) E Φ :
     is_list zs v →
-    ⤇ fill K (age_sum_query #b v) ⊢ spec_update E (⤇ fill K #(sum_list (clip 0 b zs))).
+    ▷? (gwp_laters g) Φ #(sum_list (clip 0 b zs)) -∗
+    GWP age_sum_query #b v @ g ; E {{ Φ }}.
   Proof.
-    iIntros (Hzs) "Hspec". tp_rec. tp_pures.
-    tp_bind (list_clip _ _ _).
-    iMod (spec_clip with "Hspec") as (w) "[Hspec %] /="; [lia|done|].
-    iMod (spec_sum with "Hspec") as "Hspec"; [done|].
-    done.
+    iIntros (Hzs) "HΦ". gwp_rec. gwp_pures.
+    gwp_apply gwp_clip; [lia|done|].
+    iIntros (??).
+    by gwp_apply gwp_sum.
   Qed.
+
+End queries.
+
+Section queries.
+  Context `{diffprivGS Σ}.
 
   Lemma wp_age_sum_query_sensitivity (b : nat) :
     ⊢ hoare_sensitive_cond (age_sum_query #b) b (dlist Z) neighbour dZ.
   Proof.
     iIntros (?? zs1 zs2 Φ) "!# [Hspec %Hcond] HΦ".
-    iApply wp_spec_update.
-    wp_apply wp_age_sum_query.
+    iMod (gwp_age_sum_query gwp_spec _ _ _ _ (λ v, ⌜v = #(sum_list (clip 0 b zs2))⌝%I)
+           with "[//] Hspec") as (?) "[Hspec ->]".
     { rewrite is_list_inject //. }
-    iIntros "_".
-    iMod (tp_age_sum_query with "Hspec") as "Hspec".
+    wp_apply gwp_age_sum_query.
     { rewrite is_list_inject //. }
-    iModIntro.
-    iApply "HΦ". iFrame. iPureIntro.
+    iApply "HΦ". iFrame "Hspec". iPureIntro.
     eexists. split; [done|]. simpl.
     rewrite Rabs_Zabs -mult_INR INR_IZR_INZ. apply IZR_le.
     rewrite neighbour_dist //.
@@ -211,18 +141,21 @@ Section queries.
     assert (#(b + 1) = #(b + 1)%nat) as ->.
     { do 2 f_equal. lia. }
     tp_bind (age_sum_query _ _).
-    iMod (tp_age_sum_query with "Hspec") as "Hspec /=".
+    iMod (gwp_age_sum_query gwp_spec _ _ _ _
+           (λ v, ⌜v = #(sum_list (clip 0 (b + 1)%nat zs2))⌝%I)
+           with "[//] Hspec") as (?) "[Hspec ->] /=".
     { rewrite is_list_inject //. }
     tp_bind (age_sum_query _ _).
-    iMod (tp_age_sum_query with "Hspec") as "Hspec /=".
+    iMod (gwp_age_sum_query gwp_spec _ _ _ _
+           (λ v, ⌜v = #(sum_list (clip 0 b zs2))⌝%I)
+           with "[//] Hspec") as (?) "[Hspec ->] /=".
     { rewrite is_list_inject //. }
     tp_pures.
-    wp_apply wp_age_sum_query.
+    wp_apply gwp_age_sum_query.
     { rewrite is_list_inject //. }
-    iIntros "_". wp_pures.
-    wp_apply wp_age_sum_query.
+    wp_pures.
+    wp_apply gwp_age_sum_query.
     { rewrite is_list_inject //. }
-    iIntros "_".
     wp_pures. iModIntro.
     iApply "HΦ". iFrame.
     iExists _. iSplit; [done|]. iPureIntro.
