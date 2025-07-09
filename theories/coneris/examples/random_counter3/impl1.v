@@ -44,11 +44,11 @@ Section impl1.
   Lemma incr_counter_spec1 N E c γ1 (Q:_->_->nat->nat->iProp Σ)  :
     ↑N⊆E ->
     {{{ is_counter1 N c γ1 ∗
-        |={E, ∅}=>
+        |={E∖↑N, ∅}=>
           (∃ ε (ε2 : fin 4%nat -> R),
               ↯ ε ∗ ⌜(∀ x, 0<=ε2 x)%R⌝∗
               ⌜(SeriesC (λ n, 1 / 4 * ε2 n)%R <= ε)%R ⌝ ∗
-              (∀ n, ↯ (ε2 n) ={∅, E}=∗
+              (∀ n, ↯ (ε2 n) ={∅, E∖↑N}=∗
           (∀ (z:nat), own γ1 (●F z) ={E∖↑N}=∗
                       own γ1 (●F (z+n)%nat) ∗ Q ε ε2 z n)))
     }}}
@@ -59,7 +59,8 @@ Section impl1.
     rewrite /incr_counter1.
     wp_pures.
     wp_bind (rand _)%E.
-    iMod "Hvs" as "(%&%&?&%&%&Hvs)".
+    iApply pgl_wp_mask_mono; last iMod "Hvs" as "(%&%&?&%&%&Hvs)".
+    { by apply namespaces.coPset_subseteq_difference_l. }
     wp_apply (wp_couple_rand_adv_comp1' with "[$]"); [done|simpl|].
     { replace (_+_+_+_)%R with 4%R; [done|lra]. }
     iIntros.
