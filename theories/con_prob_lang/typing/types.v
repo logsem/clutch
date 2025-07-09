@@ -230,8 +230,8 @@ typing for AllocN could work. *)
   | Subsume_int_nat Γ e : Γ ⊢ₜ e : TNat → Γ ⊢ₜ e : TInt
   | Fork_typed Γ e τ : Γ ⊢ₜ e : τ -> Γ ⊢ₜ Fork e : TUnit
   | CmpXchg_typed Γ e1 e2 e3 τ : UnboxedType τ -> Γ ⊢ₜ e1 : ref τ -> Γ ⊢ₜ e2 : τ -> Γ ⊢ₜ e3 : τ -> Γ ⊢ₜ CmpXchg e1 e2 e3 : TBool
-  | Xchg Γ e1 e2 τ : Γ ⊢ₜ e1 : ref τ -> Γ ⊢ₜ e2 : τ -> Γ ⊢ₜ Xchg e1 e2 : τ
-  | Faa Γ e1 e2 : Γ ⊢ₜ e1 : ref TInt -> Γ ⊢ₜ e2 : TInt -> Γ ⊢ₜ FAA e1 e2 : TInt
+  | Xchg_typed Γ e1 e2 τ : Γ ⊢ₜ e1 : ref τ -> Γ ⊢ₜ e2 : τ -> Γ ⊢ₜ Xchg e1 e2 : τ
+  | Faa_typed Γ e1 e2 : Γ ⊢ₜ e1 : ref TInt -> Γ ⊢ₜ e2 : TInt -> Γ ⊢ₜ FAA e1 e2 : TInt
 with val_typed : val → type → Prop :=
   | Unit_val_typed : ⊢ᵥ LitV LitUnit : TUnit                                       
   | Int_val_typed (n : Z) : ⊢ᵥ LitV (LitInt n) : TInt

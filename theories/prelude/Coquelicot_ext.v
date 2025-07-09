@@ -1,5 +1,5 @@
 From Coq Require Import Reals Psatz.
-From Coquelicot Require Import Rcomplements Rbar Series Lim_seq.
+From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Lub.
 From stdpp Require Import numbers.
 From clutch.prelude Require Import base Reals_ext.
 Import Hierarchy.
@@ -469,4 +469,22 @@ Proof.
     unshelve epose proof (Hr 1 _); [lra|done].
   - exfalso.
     unshelve epose proof (Hr 1 _); [lra|done].
+Qed.
+
+
+Lemma Rbar_le_lub R S : (∀ r, R r -> ∀ ε, (ε > 0)%R -> ∃ r', r-ε<= r' /\ S r') ->
+                        Rbar_le (Lub_Rbar R) (Lub_Rbar S).
+Proof.
+  intros H.
+  apply Lub_Rbar_correct.
+  rewrite /is_ub_Rbar.
+  intros r Hr.
+  apply Rbar_le_plus_epsilon.
+  intros eps Heps.
+  replace eps with (- - eps) by lra.
+  apply Rbar_le_opp.
+  pose proof (H _ Hr eps Heps) as (r' & Hr' & Hs).
+  trans r'.
+  { simpl. lra. }
+  by apply Lub_Rbar_correct.
 Qed.
