@@ -6,7 +6,8 @@ From clutch.clutch.examples.crypto Require ElGamal_bijection.
 From clutch.approxis.examples Require Import
   valgroup diffie_hellman security_aux option xor
   ElGamal_defs bounded_oracle pubkey advantage_laws iterable_expression.
-From clutch.approxis.examples Require symmetric_init kemdem_hybrid_cpa_generic one_time_pad.
+From clutch.approxis.examples Require symmetric_init kemdem_hybrid_cpa_generic
+  one_time_pad kemdem_hybrid_cpa_instance_rf.
 From mathcomp Require Import ssrbool.
 From mathcomp Require fingroup.fingroup.
 Set Default Proof Using "All".
@@ -658,6 +659,10 @@ Section logrel.
       rewrite Z2Nat.id; last lia.
       rel_apply "H".
   Qed.
+
+  (* ASSUMPTIONS ON THE ASYMMETRIC SCHEME *)
+
+  (* Fetched from random function-based instance *)
 
 Section Correctness.
 
