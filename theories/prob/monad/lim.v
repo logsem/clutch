@@ -141,6 +141,8 @@ Section lim.
   Import cardinality.
   Import fintype.
   Import ssrnum.
+  Import eqtype.
+  Import numFieldTopology.
 
   Lemma ebounded_nondecreasing_lub [u : R] [f : nat -> \bar R] :
     (forall n, f n <= u%:E)%E ->
@@ -248,33 +250,17 @@ Section lim.
     cvgn f ->
     (limn f) \is a fin_num.
   Proof.
-    intros.
-    rewrite fin_real; auto.
-    apply /andP; split.
-    { 
-      eapply Order.POrderTheory.lt_le_trans.
-      { by apply/ (ltNyr l ) => //=.  } 
-      apply /lime_ge => //=.
-      apply: nearW => a; specialize (H a); rewrite -(rwP andP) in H.
-      by destruct H.
-    }
-    {
-      eapply Order.POrderTheory.le_lt_trans.
-      2 : { by apply/ (ltry u) => //=.  } 
-      apply /lime_le => //=.
-      apply: nearW => a; specialize (H a); rewrite -(rwP andP) in H.
-      by destruct H.
-    }
+    move=> Huv Hcvg; rewrite fin_real //; apply /andP; split.
+    - eapply Order.POrderTheory.lt_le_trans; first exact/(ltNyr l).
+      by apply/lime_ge => //; apply: nearW => m; move: (Huv m) => /andP[??].   
+    - eapply Order.POrderTheory.le_lt_trans; last exact/(ltry u).
+      by apply/lime_le => //; apply: nearW => m; move: (Huv m) => /andP[??].
   Qed.
 
   Lemma ecvg_lim_le_lim (f g : nat -> \bar R) (H : forall n, (f n <= g n)%E):
     cvgn f -> cvgn g ->
     (limn f <= limn g)%E.
-  Proof.
-    intros.
-    apply (lee_lim (f:=f) (g:=g)); auto.
-    by exists 0.
-  Qed.
+  Proof. by move=> ??; apply: lee_lim => //; first exists 0. Qed.
 
   Lemma lim_n_Sn (f : nat -> \bar R) : 
     cvgn f ->
@@ -290,81 +276,54 @@ Section lim.
     by erewrite <- (cvg_lim (@ereal_hausdorff _) H).
   Qed.
 
-  Lemma fin_sum_lim_cvg {T : choiceType} n (f : nat -> nat -> \bar R): 
+  Section fs_lim.
+  Context {R : realType}.
+
+  Lemma fin_sum_lim_cvg n (f : nat -> nat -> \bar R): 
     (forall n, cvgn (f n)) -> 
     (forall n, (limn (f n)) \is a fin_num) ->
     cvgn (fun m => (\sum_(i \in `I_n) (f i m))%E).
   Proof.
-    revert f.
-    induction n.
-    {
-      intros.
-      have -> : ((fun m : nat => (\sum_(i \in `I_0) f i m)%E) = functions.cst 0%E). {
-        apply/ funext => m. 
-        by rewrite -!fsbig_ord //= big_ord0.
-      }
-      apply /ereal_nondecreasing_is_cvgn => ??? //=.
-    }
-    intros.
-    have -> : ((fun m : nat => (\sum_(i \in `I_(S n)) f i m)%E) = ((f 0%nat) \+ (fun m : nat => (\sum_(i \in `I_n) f (bump 0 i) m)%E))%E). {
-      apply/ funext => m. 
-      rewrite -!fsbig_ord big_ord_recl //=. 
-    }
+    elim: n f => [|n IH] f cvg_f fin_f.
+      rewrite (_ : (fun _ => _%E) = fun=>0%E); first by apply/ ereal_nondecreasing_is_cvgn.
+      by rewrite funeqE => n; rewrite -!fsbig_ord //= big_ord0.
+    rewrite (_ : (fun _ => _%E) = fun m => (f 0%nat m + \sum_(i \in `I_n) f (bump 0 i) m)%E); last by rewrite funeqE => m; rewrite -!fsbig_ord big_ord_recl.
     apply/ is_cvgeD => //=. 
-    { apply fin_num_adde_defr => //=. }
-    apply IHn => //=.
+    - by apply/ fin_num_adde_defr. 
+    - by apply/ IH.
   Qed.
 
-  Lemma fin_sum_lim_exchange_ord {T : choiceType} n (f : nat -> nat -> \bar R): 
+  Lemma fin_sum_lim_exchange_ord n (f : nat -> nat -> \bar R): 
     (forall n, cvgn (f n)) -> 
     (forall n, (limn (f n)) \is a fin_num) ->
     (\sum_(i \in `I_n) (limn (f i)))%E = limn (fun m => (\sum_(i \in `I_n) (f i m))%E).
   Proof.
-    rewrite -!fsbig_ord //=.
-    revert f.
-    induction n. 
-    { 
-      intros.
-      rewrite big_ord0.
-      have -> : ((fun m : nat => (\sum_(i \in `I_0) f i m)%E) = functions.cst 0%E). {
-        apply/ funext => m. 
-        by rewrite -!fsbig_ord //= big_ord0.
-      }
-      by rewrite lim_cst.
-    }
-    intros.
-    rewrite big_ord_recl //=.
-    have -> : ((fun m : nat => (\sum_(i \in `I_(S n)) f i m)%E) = ((f 0%nat) \+ (fun m : nat => (\sum_(i \in `I_n) f (bump 0 i) m)%E))%E). {
-      apply/ funext => m. 
-      rewrite -!fsbig_ord big_ord_recl //=. 
-    }
-    symmetry.
-    apply/ (cvg_lim (@ereal_hausdorff _)).
-    apply/ cvgeD => //=. 
-    { apply fin_num_adde_defr => //=. }
-    rewrite (IHn (fun i => f (bump 0 i))) //=. 
-    apply /fin_sum_lim_cvg => //=.
+    move=> cvg_f fin_f; rewrite -!fsbig_ord //.
+    elim: n f cvg_f fin_f => [|n IH] f cvg_f fin_f //=.
+      rewrite big_ord0 (_ : (fun _ => _%E) = fun=> 0%E) ?lim_cst// funeqE => n.
+      by rewrite -!fsbig_ord //= big_ord0.
+    rewrite big_ord_recl // (IH (fun i => f (bump 0 i))) //=.
+    symmetry; apply/ (cvg_lim (@ereal_hausdorff _)) => //=.
+    rewrite (_ : (fun _ => _%E) = fun m => (f 0%nat m + \sum_(i \in `I_n) f (bump 0 i) m)%E); last by rewrite funeqE => m; rewrite -!fsbig_ord big_ord_recl.
+    apply/ cvgeD => //=.
+    - by apply/ fin_num_adde_defr. 
+    - by apply/ fin_sum_lim_cvg.
   Qed.
 
-  (* To check: does T have to be pointed? *)
-  Lemma fin_sum_lim_exchange {T : pointedType} [A : set T] (f : T -> nat -> \bar R): 
+  (* T probably doesn't have to be pointed, 
+    but I don't see an elegant way to prove this if that was the case *)
+  Local Lemma fin_sum_lim_exchange {T : pointedType} [A : set T] (f : T -> nat -> \bar R): 
     finite_set A ->
     (forall n, cvgn (f n)) -> 
     (forall n, (limn (f n)) \is a fin_num) ->
     (\sum_(i \in A) (limn (f i)))%E = limn (fun n => (\sum_(i \in A) (f i n))%E).
   Proof.
-    intros.
-    destruct H.
-    rewrite card_eq_sym in H.
-    apply <- rwP in H.
-    2 : apply card_set_bijP.
-    destruct H as [h H].
-    rewrite (reindex_fsbig h _ _ _ H) //=. 
-    rewrite fin_sum_lim_exchange_ord //=.
-    2 : exact (classical_sets_Pointed__to__choice_Choice T).
-    do 2 f_equal; apply/ funext => n.
-    rewrite (reindex_fsbig h _ _ _ H) //=. 
+    move=> /finite_setP [p eqA] cvg_f fin_f. 
+    move: eqA; rewrite card_eq_sym => /card_set_bijP [h bij]. 
+    rewrite (reindex_fsbig _ _ _ _ bij) //= fin_sum_lim_exchange_ord //=.
+    by congr (limn _); rewrite funeqE => n; rewrite (reindex_fsbig h _ _ _ bij) //=.
   Qed.
+  End fs_lim.
 
   Lemma limit_exchange {d} {T : measurableType d} (f : T -> \bar R) (Hflb : forall a : T, (0 <= f a)%E)
     (μ : nat -> giryM T) (Hmono : forall n, giryM_le (μ n) (μ (S n))) l u:
