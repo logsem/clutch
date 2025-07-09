@@ -59,3 +59,15 @@ Next Obligation. iIntros. by iMod (pupd_fork with "[$]") as "[$ [% $]]". Qed.
 (** TODO instantiate class for spec tape*)
 
                  
+Section foxtrot_test.
+  Context `{!foxtrotGS Σ}.
+
+  Local Lemma test_wp_tp_pures j E K:
+    {{{ j ⤇ fill K (#2 + #2 + #2)%E }}} #3 + #3 @ E {{{ RET #6; j ⤇ fill K #6 }}}.
+  Proof.
+    iIntros (Ψ) "Hs HΨ".
+    tp_pures j.
+    wp_pures.
+    by iApply "HΨ".
+  Qed.
+End foxtrot_test.
