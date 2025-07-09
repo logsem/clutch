@@ -4,7 +4,7 @@ From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 
 (*From clutch.bi Require Import weakestpre.*)
-From clutch.con_prob_lang Require Import lang tactics notation class_instances spec_ra.
+From clutch.con_prob_lang Require Import lang tactics notation class_instances spec_ra wp_tactics.
 Set Default Proof Using "Type*".
 
 (** ** bind *)
@@ -293,31 +293,269 @@ Tactic Notation "tp_alloc" constr(j) "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloc" constr(j) "as" ident(j') :=
   let H := iFresh in tp_alloc j as j' H.
 
-(* Lemma tac_tp_alloctape `{specG_prob_lang Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e N z Q : *)
-(*   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) → *)
-(*   TCEq N (Z.to_nat z) → *)
-(*   envs_lookup i1 Δ1 = Some (false, ⤇ e)%I → *)
-(*   e = fill K (alloc #z) → *)
-(*   (∀ α : loc, ∃ Δ2, *)
-(*     envs_simple_replace i1 false *)
-(*        (Esnoc Enil i1 (⤇ fill K #lbl:α)) Δ1 = Some Δ2 ∧ *)
-(*     (envs_entails Δ2 ((α ↪ₛ (N; [])) -∗ Q)%I)) → *)
-(*   envs_entails Δ1 Q. *)
-(* Proof. *)
-(*   rewrite envs_entails_unseal. intros ??? Hfill HQ. *)
-(*   rewrite (envs_lookup_sound' Δ1 false i1); last by eassumption. *)
-(*   rewrite Hfill /=. *)
-(*   rewrite step_alloctape //. *)
-(*   rewrite -[Q]elim_modal //. *)
-(*   apply bi.sep_mono_r, bi.wand_intro_l. *)
-(*   rewrite bi.sep_exist_r. *)
-(*   apply bi.exist_elim=> l. *)
-(*   destruct (HQ l) as (Δ2 & HΔ2 & HQ'). *)
-(*   rewrite (envs_simple_replace_sound' _ _ i1 _ _ HΔ2) /=. *)
-(*   rewrite HQ' right_id. *)
-(*   iIntros "[[H Hl] Hcnt]". *)
-(*   iApply ("Hcnt" with "H Hl"). *)
-(* Qed. *)
+
+(** Atomic Concurrency *)
+Class UpdAtomicConcurrency `{specG_con_prob_lang Σ} (upd : coPset -> coPset -> iProp Σ -> iProp Σ):= {
+    
+    tptac_upd_cmpxchg_fail j K E l dq v v1 v2:
+    v≠v1->
+    vals_compare_safe v v1 ->
+    (l ↦ₛ{dq} v) -∗
+    j ⤇ fill K (CmpXchg (Val $ LitV $ LitLoc $ l) (Val v1) (Val v2)) -∗
+    upd E E (l ↦ₛ{dq} v ∗ j⤇ fill K((PairV v (LitV $ LitBool false)))%V);
+    
+    tptac_upd_cmpxchg_suc j K E l v v1 v2:
+    v=v1->
+    vals_compare_safe v v1 ->
+    (l ↦ₛ v) -∗
+    j ⤇ fill K (CmpXchg (Val $ LitV $ LitLoc $ l) (Val v1) (Val v2)) -∗
+    upd E E (l ↦ₛ v2 ∗ j⤇ fill K((PairV v (LitV $ LitBool true)))%V); 
+    
+    tptac_upd_xchg j K E l v1 v2:
+    (l ↦ₛ v1) -∗
+    j ⤇ fill K (Xchg (Val $ LitV $ LitLoc $ l) (Val v2)) -∗
+    upd E E (l ↦ₛ v2 ∗ j⤇ fill K v1); 
+    
+    tptac_upd_faa j K E l i1 i2:
+    (l ↦ₛ (LitV $ LitInt $ i1)) -∗
+    j ⤇ fill K (FAA (Val $ LitV $ LitLoc $ l) (Val $ LitV $ LitInt i2) ) -∗
+    upd E E (l ↦ₛ (LitV $ LitInt $ (i1+i2)%Z) ∗ j⤇ fill K (LitV $ LitInt i1));
+
+    tptac_upd_fork j K E e:
+    j ⤇ fill K (Fork e) -∗
+    upd E E (∃ k, k ⤇ e ∗ j⤇ fill K (LitV LitUnit));
+  }.
+
+Lemma tac_tp_cmpxchg_fail `{!specG_con_prob_lang Σ, !UpdAtomicConcurrency upd} j K Δ1 Δ2 E1 i1 i2 e enew (l : loc) e1 e2 v' v1 v2 Q q :
+  (∀ P, ElimModal True false false (upd E1 E1 P) P Q Q) →
+  envs_lookup_delete false i1 Δ1 = Some (false, j ⤇ e, Δ2)%I →
+  e = fill K (CmpXchg #l e1 e2) →
+  IntoVal e1 v1 →
+  IntoVal e2 v2 →
+  envs_lookup i2 Δ2 = Some (false, l ↦ₛ{q} v')%I →
+  v' ≠ v1 →
+  vals_compare_safe v' v1 →
+  enew = fill K (v', #false)%V →
+  match envs_simple_replace i2 false
+    (Esnoc (Esnoc Enil i1 (j ⤇ enew)) i2 (l ↦ₛ{q} v')%I) Δ2 with
+  | Some Δ3 => envs_entails Δ3 Q
+  | None    =>  False
+  end →
+  envs_entails Δ1 Q.
+Proof.
+  rewrite envs_entails_unseal. intros ?? -> Hv1 Hv2 ??? -> HQ.
+  rewrite envs_lookup_delete_sound //; simpl.
+  destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done.
+  rewrite (envs_simple_replace_sound Δ2 Δ3 i2) //; simpl.
+  rewrite right_id.
+  rewrite assoc.
+  rewrite -[Q]elim_modal //.
+  apply bi.sep_mono.
+  - iIntros "[??]". simpl.
+    rewrite -Hv1-Hv2.
+    by iApply (tptac_upd_cmpxchg_fail with "[$][$]").
+  - simpl.
+    apply bi.wand_intro_l.
+    rewrite HQ.
+    apply bi.wand_elim_r.
+Qed. 
+
+Tactic Notation "tp_cmpxchg_fail" constr(j) :=
+  iStartProof;
+  eapply (tac_tp_cmpxchg_fail j);
+    [tc_solve || fail "tp_cmpxchg_fail: cannot eliminate modality in the goal"
+    |iAssumptionCore || fail "tp_cmpxchg_fail: cannot find the RHS '" j "'"
+    |tp_bind_helper (* e = K'[CmpXchg _ _ _] *)
+    |tc_solve || fail "tp_cmpxchg_fail: argument is not a value"
+    |tc_solve || fail "tp_cmpxchg_fail: argument is not a value"
+    |iAssumptionCore || fail "tp_cmpxchg_fail: cannot find '? ↦ ?'"
+    |try (simpl; congruence) (* v' ≠ v1 *)
+    |try solve_vals_compare_safe
+    |simpl; reflexivity || fail "tp_cmpxchg_fail: this should not happen"
+    |pm_reduce (* new goal *)].
+
+Lemma tac_tp_cmpxchg_suc `{!specG_con_prob_lang Σ, !UpdAtomicConcurrency upd} j K Δ1 Δ2 E1 i1 i2 e enew (l : loc) e1 e2 v' v1 v2 Q :
+  (∀ P, ElimModal True false false (upd E1 E1 P) P Q Q) →
+  envs_lookup_delete false i1 Δ1 = Some (false, j ⤇ e, Δ2)%I →
+  e = fill K (CmpXchg #l e1 e2) →
+  IntoVal e1 v1 →
+  IntoVal e2 v2 →
+  envs_lookup i2 Δ2 = Some (false, l ↦ₛ v')%I →
+  v' = v1 →
+  vals_compare_safe v' v1 →
+  enew = fill K (v', #true)%V →
+  match envs_simple_replace i2 false
+    (Esnoc (Esnoc Enil i1 (j ⤇ enew)) i2 (l ↦ₛ v2)%I) Δ2 with
+  | Some Δ3 => envs_entails Δ3 Q
+  | None => False
+  end →
+  envs_entails Δ1 Q.
+Proof.
+  rewrite envs_entails_unseal. intros ?? -> Hv1 Hv2 ??? -> HQ.
+  rewrite envs_lookup_delete_sound //; simpl.
+  destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done.
+  rewrite (envs_simple_replace_sound Δ2 Δ3 i2) //; simpl.
+  rewrite right_id.
+  rewrite assoc. 
+  rewrite -[Q]elim_modal //.
+  apply bi.sep_mono.
+  - iIntros "[??]". simpl.
+    rewrite -Hv1-Hv2.
+    by iApply (tptac_upd_cmpxchg_suc with "[$][$]").
+  - apply bi.wand_intro_l.
+    rewrite HQ. by apply bi.wand_elim_r.
+Qed.
+
+Tactic Notation "tp_cmpxchg_suc" constr(j) :=
+  iStartProof;
+  eapply (tac_tp_cmpxchg_suc j);
+  [tc_solve || fail "tp_cmpxchg_suc: cannot eliminate modality in the goal"
+  |iAssumptionCore || fail "tp_cmpxchg_suc: cannot the RHS '" j "'"
+  |tp_bind_helper (* e = K'[CmpXchg _ _ _] *)
+  |tc_solve || fail "tp_cmpxchg_suc: argument is not a value"
+  |tc_solve || fail "tp_cmpxchg_suc: argument is not a value"
+  |iAssumptionCore || fail "tp_cmpxchg_suc: cannot find '? ↦ ?'"
+  |try (simpl; congruence)     (* v' = v1 *)
+  |try solve_vals_compare_safe
+  |simpl; reflexivity || fail "tp_cmpxchg_suc: this should not happen"
+  |pm_reduce (* new goal *)].
+
+
+Lemma tac_tp_xchg `{!specG_con_prob_lang Σ, !UpdAtomicConcurrency upd} j K Δ1 Δ2 E1 i1 i2 e (l : loc) e' e2 v' v Q :
+  (∀ P, ElimModal True false false (upd E1 E1 P) P Q Q) →
+  envs_lookup_delete false i1 Δ1 = Some (false, j ⤇ e, Δ2)%I →
+  e = fill K (Xchg (# l) e') →
+  IntoVal e' v →
+  (* re-compose the expression and the evaluation context *)
+  envs_lookup i2 Δ2 = Some (false, l ↦ₛ v')%I →
+  e2 = fill K (of_val v') →
+  match envs_simple_replace i2 false
+     (Esnoc (Esnoc Enil i1 (j ⤇ e2)) i2 (l ↦ₛ v)) Δ2 with
+  | None => False
+  | Some Δ3 => envs_entails Δ3 Q
+  end →
+  envs_entails Δ1 Q.
+Proof.
+  rewrite /IntoVal.
+  rewrite envs_entails_unseal. intros ?? -> <- ? -> HQ.
+  rewrite envs_lookup_delete_sound //; simpl.
+  destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done.
+  rewrite envs_simple_replace_sound //; simpl.
+  rewrite right_id.
+  rewrite assoc.
+  rewrite -[Q]elim_modal //.
+  apply bi.sep_mono.
+  - iIntros "[??]". simpl.
+    by iApply (tptac_upd_xchg with "[$][$]").
+  - apply bi.wand_intro_l.
+    by rewrite bi.wand_elim_r.
+Qed.
+
+Tactic Notation "tp_xchg" constr(j) :=
+  iStartProof;
+  eapply (tac_tp_xchg j);
+  [tc_solve || fail "tp_xchg: cannot eliminate modality in the goal"
+  |iAssumptionCore || fail "tp_xchg: cannot find '" j " ' RHS"
+  |tp_bind_helper
+  |tc_solve || fail "tp_xchg: cannot convert the argument to a value"
+  |iAssumptionCore || fail "tp_xchg: cannot find '? ↦ₛ ?'"
+  |simpl; reflexivity || fail "tp_xchg: this should not happen"
+  |pm_reduce (* new goal *)].
+
+Lemma tac_tp_faa `{!specG_con_prob_lang Σ, !UpdAtomicConcurrency upd} j K Δ1 Δ2 E1 i1 i2 e enew (l : loc)  e2 (z1 z2 : Z) Q :
+  (∀ P, ElimModal True false false (upd E1 E1 P) P Q Q) →
+  envs_lookup_delete false i1 Δ1 = Some (false, j ⤇ e, Δ2)%I →
+  e = fill K (FAA #l e2) →
+  IntoVal e2 #z2 →
+  envs_lookup i2 Δ2 = Some (false, l ↦ₛ #z1)%I →
+  enew = fill K #z1 →
+  match envs_simple_replace i2 false
+    (Esnoc (Esnoc Enil i1 (j ⤇ enew)) i2 (l ↦ₛ #(z1+z2))%I) Δ2 with
+    | Some Δ3 =>   envs_entails Δ3 Q
+    | None => False
+  end →
+  envs_entails Δ1 Q.
+Proof.
+  rewrite envs_entails_unseal. intros ?? -> <- ? -> HQ.
+  rewrite envs_lookup_delete_sound //; simpl.
+  destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done.
+  rewrite (envs_simple_replace_sound Δ2 Δ3 i2) //; simpl.
+  rewrite right_id.
+  rewrite assoc.
+  rewrite -[Q]elim_modal //.
+  apply bi.sep_mono.
+  - iIntros "[??]". simpl.
+    iApply (tptac_upd_faa with "[$][$]").
+  - apply bi.wand_intro_l.
+    rewrite HQ. by apply bi.wand_elim_r.
+Qed.
+
+Tactic Notation "tp_faa" constr(j) :=
+  iStartProof;
+  eapply (tac_tp_faa j);
+  [tc_solve || fail "tp_faa: cannot eliminate modality in the goal"
+  |iAssumptionCore || fail "tp_faa: cannot find the RHS '" j "'"
+  |tp_bind_helper (* e = K'[FAA _ _ _] *)
+  |tc_solve (* IntoVal *)
+  |iAssumptionCore || fail "tp_faa: cannot find '? ↦ ?'"
+  |simpl;reflexivity || fail "tp_faa: this should not happen"
+  |pm_reduce (* new goal *)].
+
+
+Lemma tac_tp_fork `{!specG_con_prob_lang Σ, !UpdAtomicConcurrency upd} j K Δ1 E1 i1 e enew e' Q :
+  (∀ P, ElimModal True false false (upd E1 E1 P) P Q Q) →
+  envs_lookup i1 Δ1 = Some (false, j ⤇ e)%I →
+  e = fill K (Fork e') →
+  enew = fill K #() →
+  match envs_simple_replace i1 false
+      (Esnoc Enil i1 (j ⤇ enew )) Δ1 with
+  | Some Δ2 => envs_entails Δ2 (∀ j', j' ⤇ e' -∗ Q)%I
+  | None => False
+  end →
+  envs_entails Δ1 Q.
+Proof.
+  rewrite envs_entails_unseal. intros ??->-> HQ.
+  destruct (envs_simple_replace _ _ _ _) as [Δ2|] eqn:HΔ2; last done.
+  rewrite (envs_simple_replace_sound Δ1 Δ2 i1) //; simpl.
+  rewrite right_id.
+  rewrite -[Q]elim_modal //.
+  apply bi.sep_mono.
+  - iIntros "?".
+    by iApply (tptac_upd_fork with "[$]").
+  - apply bi.wand_intro_l.
+    rewrite bi.sep_exist_r.
+    apply bi.exist_elim. intros j'.
+    rewrite -assoc.
+    rewrite bi.wand_elim_r.
+    rewrite HQ. 
+    rewrite (bi.forall_elim j') /=.
+    by rewrite bi.wand_elim_r.
+Qed.
+
+Tactic Notation "tp_fork" constr(j) :=
+  iStartProof;
+  eapply (tac_tp_fork j);
+  [tc_solve || fail "tp_fork: cannot eliminate modality in the goal"
+  |iAssumptionCore || fail "tp_fork: cannot find the RHS '" j "'"
+  |tp_bind_helper
+  |simpl; reflexivity || fail "tp_fork: this should not happen"
+  |pm_reduce (* new goal *)].
+
+Tactic Notation "tp_fork" constr(j) "as" ident(j') constr(H) :=
+  iStartProof;
+  eapply (tac_tp_fork j);
+  [tc_solve || fail "tp_fork: cannot eliminate modality in the goal"
+  |iAssumptionCore || fail "tp_fork: cannot find the RHS '" j "'"
+  |tp_bind_helper
+  |simpl; reflexivity || fail "tp_fork: this should not happen"
+  |pm_reduce;
+   (iIntros (j') || fail 1 "tp_fork: " j' " not fresh ");
+   (iIntros H || fail 1 "tp_fork: " H " not fresh")
+(* new goal *)].
+
+Tactic Notation "tp_fork" constr(j) "as" ident(j') :=
+  let H := iFresh in tp_fork j as j' H.
+
 
 (* (** Tapes *) *)
 (* Class GwpTacticsTapes Σ A (laters : bool) (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ):= { *)
@@ -336,34 +574,6 @@ Tactic Notation "tp_alloc" constr(j) "as" ident(j') :=
 (*     gwp a E (Rand (LitV (LitInt z)) (LitV (LitLbl l))) Φ; *)
 (*   }. *)
 
-(* (** Atomic Concurrency *) *)
-(* Class GwpTacticsAtomicConcurrency Σ A (laters : bool) (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ):= { *)
-(*     wptac_mapsto_conc : loc → dfrac → val → iProp Σ; *)
-
-(*     wptac_wp_cmpxchg_fail E Φ l dq v v1 v2 a: *)
-(*     v≠v1-> *)
-(*     vals_compare_safe v v1 -> *)
-(*     ( ▷ wptac_mapsto_conc l dq v ) -∗ *)
-(*     (▷?laters ((wptac_mapsto_conc l dq v) -∗ Φ ((PairV v (LitV $ LitBool false)))%V)) -∗ *)
-(*     gwp a E (CmpXchg (Val $ LitV $ LitLoc $ l) (Val v1) (Val v2)) Φ; *)
-    
-(*     wptac_wp_cmpxchg_suc E Φ l v v1 v2 a: *)
-(*     v=v1-> *)
-(*     vals_compare_safe v v1 -> *)
-(*     ( ▷ wptac_mapsto_conc l (DfracOwn 1) v ) -∗ *)
-(*     (▷?laters ((wptac_mapsto_conc l (DfracOwn 1) v2) -∗ Φ ((PairV v (LitV $ LitBool true)))%V)) -∗ *)
-(*     gwp a E (CmpXchg (Val $ LitV $ LitLoc $ l) (Val v1) (Val v2)) Φ; *)
-    
-(*     wptac_wp_xchg E Φ l v1 v2 a: *)
-(*     ( ▷ wptac_mapsto_conc l (DfracOwn 1) v1 ) -∗ *)
-(*     (▷?laters ((wptac_mapsto_conc l (DfracOwn 1) v2) -∗ Φ v1)) -∗ *)
-(*     gwp a E (Xchg (Val $ LitV $ LitLoc $ l) (Val v2)) Φ; *)
-    
-(*     wptac_wp_faa E Φ l i1 i2 a: *)
-(*     ( ▷ wptac_mapsto_conc l (DfracOwn 1) (LitV $ LitInt $ i1) ) -∗ *)
-(*     (▷?laters ((wptac_mapsto_conc l (DfracOwn 1) (LitV $ LitInt $ (i1+i2)%Z)) -∗ Φ (LitV $ LitInt i1))) -∗ *)
-(*     gwp a E (FAA (Val $ LitV $ LitLoc $ l) (Val $ LitV $ LitInt i2) ) Φ; *)
-(*   }. *)
 
 (* Section wp_tactics. *)
 (*   Context `{GwpTacticsBase Σ A hlc gwp}. *)
