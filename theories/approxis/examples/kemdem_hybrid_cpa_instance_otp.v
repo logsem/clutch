@@ -53,7 +53,7 @@ Section logrel.
     → ∃ x, vg_of_int_sem n = Some x.
   Axiom int_of_vg_img : ∀ x, int_of_vg_sem x ∈ G_Z_img.
   Axiom len_G_Z_img : length G_Z_img = N.
-  Axiom nodup_G_Z_img : NoDup G_Z_img.    
+  Axiom nodup_G_Z_img : NoDup G_Z_img.
 
   Fixpoint val_of_list {X} (l : list X) (f : X → val) : val := match l with
     | [] => #()
@@ -100,7 +100,7 @@ Section logrel.
     - inversion H.
     - simpl. destruct (h =? n)%Z eqn:eqhead.
       + lia.
-      + apply Z.eqb_neq in eqhead. Search (S _ < S _).
+      + apply Z.eqb_neq in eqhead.
         rewrite <- Nat.succ_lt_mono.
         apply IHt.
         apply elem_of_cons in H; destruct H as [H|H]; last assumption.
@@ -607,7 +607,7 @@ Section logrel.
   Qed.
 
   Lemma refines_otp_senc_l :
-    (kemdem_hybrid_cpa_generic.refines_senc_l_prop lrel_key lrel_input senc sdec Pl).
+    (kemdem_hybrid_cpa_generic.refines_senc_l_prop lrel_input lrel_key senc sdec Pl).
   Proof with rel_pures_l.
     rewrite /kemdem_hybrid_cpa_generic.refines_senc_l_prop.
     iIntros (lls vmsg k K e E A) "[[%vk' %Hrelk] [[%msg' [%msg [%eq [%eq2 %Hmsgbound]]]] HP]] H".
@@ -663,7 +663,7 @@ Section logrel.
   (* ASSUMPTIONS ON THE ASYMMETRIC SCHEME *)
 
   (* Fetched from random function-based instance *)
-
+(*
 Section Correctness.
 
   Import mathcomp.fingroup.fingroup.
@@ -1103,7 +1103,7 @@ Proof with rel_pures_l; rel_pures_r.
   - iIntros (x y z x' y'). iApply otp_enc_sem_typed. assumption.
   - iApply otp_rand_cipher_sem_typed.
 Qed.
-
+*)
 End logrel.
 
 End Hybrid_scheme.
