@@ -5,6 +5,8 @@ From clutch.approxis Require Import map reltac2 approxis option.
 From clutch.approxis.examples Require Import
   security_aux option symmetric_init
   bounded_oracle pubkey advantage_laws iterable_expression.
+From clutch.approxis.examples Require
+  kemdem_hybrid_cpa_generic.
 From mathcomp Require Import ssrbool.
 Set Default Proof Using "All".
 Import map.
@@ -24,9 +26,9 @@ Let N := 2^η.
 Variable Key : nat.
 Variable Output : nat.
 
-#[local] Instance sym_params : SYM_init_params := {|
+#[local] Instance SYM_params : SYM_init_params := {|
     card_key := Key
-  ; card_message := 2*N
+  ; card_message := N
   ; card_cipher := Output
 |}.
 
@@ -181,7 +183,7 @@ Definition init_scheme (e : expr) : expr :=
     #() in
   e "scheme".
 
-Definition a_to_s : val :=
+(* Definition a_to_s : val :=
   λ: "b" "nonce_count" "senc",
   λ: "i" "j" "k",
     if: get "nonce_count" ("i", "j", "k") = #false then
@@ -207,7 +209,7 @@ Definition s_to_b : val :=
         if: "sender" = A "i" `and` "dest" = A "j" then
           "senc" ("ka" "j") ("sender", "nonce")
         else #()
-    else #().
+    else #(). *)
 
 Definition a_to_s_once : val :=
   λ: "b" "senc" "ka", (* parameters of the protocol *)
@@ -229,7 +231,7 @@ Definition s_to_b_once : val :=
       else #().
 
 Definition b_recv_once : val :=
-  λ: "b" "kb" "sdec", (* parameters of the protocol *)
+  λ: "b" "kb", (* parameters of the protocol *)
     λ: "input", #().
       (* let: "nonce" := "sdec" "kb" "input" in
       let: "sender" := Fst "nonce" in
@@ -261,7 +263,7 @@ Definition wmf_once : expr :=
               (symmetric_init.get_dec "scheme")
               "ka" "kb" "msg1" in
           ("msg2",
-           b_recv_once "b" "kb" (symmetric_init.get_dec "scheme") #())
+           b_recv_once "b" "kb" #())
         )
       ).
   
@@ -271,8 +273,12 @@ Definition wmf_once : expr :=
         let: "sender" := #0 in
         let: "dest" := #1 in
         let: "nonce" := rand #N in
+        let: "senc2" :=
+          if: "b" then "senc"
+          else λ: <>, get_rand_cipher symmetric_init.sym_scheme in
         if: "sender" = #0 `and` "dest" = #1 then
-          ("senc" "kb" ("sender", "nonce"), ("sender", "senc" "ka" ("dest", "nonce")))
+          ("senc2" "kb" ("sender", "nonce"),
+            ("sender", "senc2" "ka" ("dest", "nonce")))
         else #().
       
   Definition wmf_eav_delay : expr :=
@@ -288,7 +294,7 @@ Definition wmf_once : expr :=
         (Snd "msg2",
           (
             Fst "msg2",
-            b_recv_once "b" "kb" (symmetric_init.get_dec "scheme") #()
+            b_recv_once "b" "kb" #()
           )
         )
       ).
@@ -364,7 +370,8 @@ Definition wmf_once : expr :=
         let: "dest" := #1 in
         let: "nonce" := rand #N in
         if: "sender" = #0 `and` "dest" = #1 then
-          ("senc" "kb" ("sender", "nonce"), ("sender", "oracle" ("dest", "nonce")))
+          let:m "cipher" :=  "oracle" ("dest", "nonce") in
+          ("senc" "kb" ("sender", "nonce"), ("sender", "cipher"))
         else #().
 
   Definition wmf_eav_adv : expr :=
@@ -374,32 +381,44 @@ Definition wmf_once : expr :=
         let: "ka" := keygen #() in
         let: "kb" := keygen #() in
         let: "msg2" :=
-          s_to_b_delay "b"
-            (symmetric_init.get_enc "enc" "oracle")
+          s_to_b_adv "b" "enc" "oracle"
             "ka" "kb" #() in
         (Snd "msg2",
           (
             Fst "msg2",
-            b_recv_once "b" "kb" (symmetric_init.get_dec "scheme") #()
+            b_recv_once "b" "kb" #()
           )
         )
       ).
+  
+  Definition is_plaintext_inst : val :=
+    λ: "params" "x",
+        (Fst "x" = #0 `or` Fst "x" = #1)
+      `and` #0 ≤ Snd "x"
+      `and` Snd "x" ≤ symmetric_init.get_card_cipher "params".
 
-    Definition CPA' : val :=
-      λ:"b" "adv" "scheme" "Q",
-        let: "rr_key_b" :=
-          let: "enc_scheme" := get_enc_scheme "scheme" #() in
-          let: "key" := get_keygen "scheme" #() in
-          (* let: "enc_key" := enc "scheme" "key" in *)
-          if: "b" then
-            (* "enc_key" *)
-            let: "enc" := get_enc "enc_scheme" in
-            λ: "msg", "enc" "key" "msg"
-          else
-            get_rand_cipher "scheme" in
-        let: "oracle" := q_calls (get_card_message "scheme") "Q" "rr_key_b" in
-        let: "b'" := "adv" "enc" "oracle" in
-        "b'".
+  Definition q_calls : val :=
+    λ: "test_is_plaintext" "Q" "f",
+      let: "counter" := ref #0 in
+      λ:"x", if: (BinOp AndOp (! "counter" < "Q") ("test_is_plaintext" "x"))
+             then ("counter" <- !"counter" + #1 ;; SOME ("f" "x"))
+             else NONEV.
+
+  Definition CPA' : val :=
+    λ:"b" "adv" "scheme" "Q",
+      let: "enc_scheme" := get_enc_scheme "scheme" #() in
+      let: "enc" := get_enc "enc_scheme" in
+      let: "rr_key_b" :=
+        let: "key" := get_keygen "scheme" #() in
+        (* let: "enc_key" := enc "scheme" "key" in *)
+        if: "b" then
+          (* "enc_key" *)
+          λ: "msg", "enc" "key" "msg"
+        else
+          get_rand_cipher "scheme" in
+      let: "oracle" := q_calls (is_plaintext_inst sym_params) "Q" "rr_key_b" in
+      let: "b'" := "adv" "enc" "oracle" in
+      "b'".
   
   Lemma wmf_eav_adv__adv (adv : val) :
     (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ())) → lrel_bool)%lrel
@@ -419,20 +438,201 @@ Definition wmf_once : expr :=
     iIntros (rls) "HP'"...
     rel_apply refines_couple_UT; first done; iFrame.
     iModIntro. iIntros (r_dummy Hrdummybound) "Hα"; simpl...
-    rewrite /get_keygen...
+    rewrite /get_keygen/get_enc...
     rel_apply refines_sym_keygen_couple.
     iIntros (ka) "#Hrelka"...
-    rewrite /get_enc/q_calls/get_card_message...
+    rewrite /get_card_message/sym_scheme...
+    rewrite /get_enc/q_calls/is_plaintext_inst...
     rel_alloc_r cnt2 as "Hcnt2"...
     rel_bind_l (adv _).
     rel_bind_r (adv _).
-    rel_apply refines_bind.
+    rel_apply (refines_bind with "[-]").
     2:{
       iIntros (v v') "Hrel"...
       rel_vals.
     }
-    rel_apply (refines_app with "[-]").
+    rel_apply refines_app.
     { rel_vals. }
+    rel_apply (refines_randT_r with "Hα").
+    iIntros "Hα _"...
+    rel_apply refines_pair;
+      first (rel_vals; iExists _; iPureIntro; repeat split; lia).
+    rel_apply refines_keygen_r.
+    iIntros (kadummy) "_"...
+    rel_apply refines_sym_keygen_couple.
+    iIntros (kb) "#Hrelkb"...
+    rewrite /s_to_b_delay/s_to_b_adv...
+    rel_apply refines_couple_UU; first done; iModIntro.
+    iIntros (nonce Hnoncebound)...
+    rel_apply (refines_na_alloc (Plr lls rls) (nroot.@"wmf_delay__adv")).
+    iSplitL "HP HP'".
+    { iApply (P0lr_Plr with "HP HP'"). }
+    iIntros "#Inv"...
+    rewrite /get_card_cipher...
+    assert (Hbool1 : bool_decide (0 ≤ nonce)%Z = true); last
+    assert (Hbool2 : bool_decide (nonce ≤ N)%Z = true);
+      try (apply bool_decide_eq_true; lia);
+    rewrite Hbool1 Hbool2; clear Hbool1 Hbool2.
+    rel_load_r... rel_load_r; rel_store_r...
+    rel_bind_l (senc _ _ _).
+    rel_bind_r (senc _ _ _).
+    rel_apply refines_bind.
+    - repeat rel_apply refines_app;
+        first (rel_apply senc_sem_typed; last iAssumption).
+      + exists True%I. apply bi.equiv_entails. split; iIntros "H";
+        try iDestruct "H" as "[_ H]"; iFrame.
+      + rel_vals.
+      + rel_vals.
+        apply Z2Nat.inj_le; try lia. rewrite /N.
+        rewrite Nat2Z.id. replace (Z.to_nat 1) with 1 by lia.
+        apply fin.pow_ge_1. lia.
+    - iIntros (c1 c1') "Hrelcipher"...
+      rel_bind_l (senc _ _ _).
+      rel_bind_r (senc _ _ _).
+      { rel_apply refines_bind.
+    - repeat rel_apply refines_app;
+        first (rel_apply senc_sem_typed; last iAssumption).
+      + exists True%I. apply bi.equiv_entails. split; iIntros "H";
+        try iDestruct "H" as "[_ H]"; iFrame.
+      + rel_vals.
+      + rel_vals.
+    - iIntros (c2 c2') "Hrelcipher2"...
+      rewrite /b_recv_once...
+      rel_vals; try iAssumption.
+      + iExists 0. done.
+      + done. }
+  Qed. 
+
+  (* Intermediate step, really encrypts when senc is called
+    with kb, but returns a random cipher when encrypting
+    with key ka *)
+
+  Definition s_to_b_delay_adv_kb : val :=
+    λ: "b" "senc" "ka" "kb", (* parameters of the protocol *)
+      λ: "input",
+        let: "sender" := #0 in
+        let: "dest" := #1 in
+        let: "nonce" := rand #N in
+        if: "sender" = #0 `and` "dest" = #1 then
+          ("senc" "kb" ("sender", "nonce"),
+            ("sender", (λ: <>, get_rand_cipher symmetric_init.sym_scheme) "ka" ("dest", "nonce")))
+        else #().
+  
+  Definition wmf_eav_adv_kb : val :=
+    λ: "α" "b" "enc" "oracle",
+      let: "r_adv" := rand("α") #N in
+      ("r_adv",
+        let: "ka" := keygen #() in
+        let: "kb" := keygen #() in
+        let: "msg2" :=
+          s_to_b_delay_adv_kb "b" "oracle"
+            "ka" "kb" #() in
+        (Snd "msg2",
+          (
+            Fst "msg2",
+            b_recv_once "b" "kb" #()
+          )
+        )
+      ).
+
+  Hypothesis rand_cipher_sem_typed :
+    ⊢ REL rand_cipher << rand_cipher :
+      kemdem_hybrid_cpa_generic.lrel_trivial → lrel_output.
+
+  (* Lemma wmf_eav_adv__adv_false (adv : val) :
+    (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ())) → lrel_bool)%lrel
+      adv adv
+    ⊢ REL
+        (let: "α" := alloc #N in
+          CPA' #false (λ: "senc" "oracle",
+            adv (wmf_eav_adv "α" #true "senc" "oracle"))
+          (symmetric_init.sym_scheme) #2)
+        << (adv (init_scheme (wmf_eav_delay_rand_ka_senc_kb #false))) : lrel_bool.
+  Proof with (rel_pures_l; rel_pures_r).
+    iIntros "#Hreladv".
+    rel_alloctape_l α as "Hα".
+    rewrite /sym_scheme/CPA'...
+    rel_apply refines_init_scheme_l.
+    iIntros (lls) "HP"...
+    rewrite /get_enc/get_keygen...
+    rewrite /init_scheme...
+    rel_apply refines_init_scheme_r.
+    iIntros (rls) "HP'"...
+    rel_apply refines_couple_TU; first done.
+    iFrame. iIntros (rdummy Hrdummybound) "Hα"; simpl...
+    rel_apply refines_sym_keygen_couple.
+    iIntros (ka) "Hrelka"...
+    rewrite /get_rand_cipher...
+    rewrite /is_plaintext_inst/get_card_cipher/sym_params/q_calls...
+    rel_alloc_l cnt2 as "Hcnt2"...
+    rel_bind_l (adv _).
+    rel_bind_r (adv _).
+    rel_apply (refines_bind with "[-]").
+    2: { iIntros (v v') "Hrelv"... rel_vals. }
+    rel_apply refines_app; first (rel_vals; iAssumption).
+    rel_apply refines_randT_l. iFrame.
+    iModIntro. iIntros "Hα _"... rel_apply refines_pair; first rel_vals.
+    { iExists rdummy. iPureIntro; repeat split; lia. }
+    rel_apply refines_keygen_l.
+    iIntros (kdummy) "_"...
+    rel_apply refines_sym_keygen_couple.
+    iIntros (kb) "#Hrelkb"...
+    rewrite /s_to_b_adv/s_to_b_delay_rand_ka_senc_kb/get_enc...
+    rel_apply refines_couple_UU; first done.
+    iIntros (nonce Hnoncebound); iModIntro...
+    rewrite /get_card_cipher/get_rand_cipher...
+    assert (Hbool1 : bool_decide (0 ≤ nonce)%Z = true); last
+    assert (Hbool2 : bool_decide (nonce ≤ N)%Z = true);
+      try (apply bool_decide_eq_true; lia);
+    rewrite Hbool1 Hbool2; clear Hbool1 Hbool2.
+    rel_load_l... rel_load_l; rel_store_l...
+    rel_apply (refines_na_alloc (Plr lls rls) (nroot.@"wmf_delay__adv")).
+    iSplitL "HP HP'".
+    { iApply (P0lr_Plr with "HP HP'"). }
+    iIntros "#Inv"...
+    rel_bind_l (rand_cipher _).
+    rel_bind_r (rand_cipher _).
+    rel_apply refines_bind.
+    - rel_apply refines_app.
+      + rel_apply rand_cipher_sem_typed.
+      + rel_vals.
+    - iIntros (c1 c1') "Hrelcipher"...
+      rel_bind_l (senc _ _ _).
+      rel_bind_r (senc _ _ _).
+      { rel_apply refines_bind.
+    - repeat rel_apply refines_app;
+        first (rel_apply senc_sem_typed; last iAssumption).
+      + exists True%I. apply bi.equiv_entails. split; iIntros "H";
+        try iDestruct "H" as "[_ H]"; iFrame.
+      + rel_vals.
+      + rel_vals.
+    - iIntros (c2 c2') "Hrelcipher2"...
+      rewrite /b_recv_once...
+      rel_vals; try iAssumption.
+      + iExists 0. done.
+      + done. }
+  Qed.  *)
+
+  Lemma wmf_eav_adv__adv_false (adv : val) :
+    (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ())) → lrel_bool)%lrel
+      adv adv
+    ⊢ REL
+        (let: "α" := alloc #N in
+          CPA' #false (λ: "senc" "oracle",
+            adv (wmf_eav_adv "α" #true "senc" "oracle"))
+          (symmetric_init.sym_scheme) #2)
+        <<
+        (let: "α" := alloc #N in
+          CPA' #true (λ: "senc" "oracle",
+            adv (wmf_eav_adv_kb "α" #true "senc"))
+          (symmetric_init.sym_scheme) #2).
+    
+
+
+(* TODO REPLACE CPA' #2 with CPA' #1 *)
+
+    
+
 
     
 
