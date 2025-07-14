@@ -1,6 +1,6 @@
 (** (Syntactic) Typing for System F_mu_ref with tapes *)
 From Autosubst Require Export Autosubst.
-From stdpp Require Export stringmap fin_map_dom gmap.
+From stdpp Require Export stringmap fin_map_dom gmap binders.
 From clutch.meas_lang Require Import lang notation.
 
 (* Canonical Structure varO := leibnizO var. *)
@@ -23,10 +23,11 @@ Inductive type :=
   | TExists : {bind 1 of type} → type
   | TVar : var → type
   | TRef : type → type
+  | TUTape : type
   | TTape : type
   | TReal : type.
 
-(*
+
 (** Which types are unboxed -- we can only do CAS on locations which hold unboxed types *)
 Inductive UnboxedType : type → Prop :=
   | UnboxedTUnit : UnboxedType TUnit
@@ -34,7 +35,7 @@ Inductive UnboxedType : type → Prop :=
   | UnboxedTInt : UnboxedType TInt
   | UnboxedTBool : UnboxedType TBool
   | UnboxedTRef τ : UnboxedType (TRef τ).
-*)
+
 
 (** Types which support direct equality test (which coincides with ctx equiv).
     This is an auxiliary notion. *)
@@ -124,7 +125,7 @@ Notation "⤉ Γ" := (Autosubst_Classes.subst (ren (+1)) <$> Γ) (at level 10, f
 
 Notation "Λ: e" := (λ: binders.BAnon, e)%E (at level 200, only parsing).
 Notation "Λ: e" := (λ: binders.BAnon, e)%V (at level 200, only parsing) : val_scope.
-Notation "'TApp' e" := (App e%E #()%E) (at level 200, only parsing).
+Notation "'TApp' e" := (App e%E (Val #())) (at level 200, only parsing).
 
 (* To unfold a recursive type, we need to take a step. We thus define the
 unfold operator to be the identity function. *)
@@ -143,11 +144,17 @@ Notation "'unpack:' x := e1 'in' e2" := (unpack e1%E (LamV x e2%E))
 Global Instance insert_binder (A : Type): Insert binders.binder A (stringmap A) :=
   binders.binder_insert.
 
+Definition binder_lookup `{Lookup string A M} (b : binder) (m : M) :=
+  match b with BAnon => None | BNamed s => m !! s end.
+
+Global Instance lookup_binder (A : Type): Lookup binder A (stringmap A) :=
+   binder_lookup.
+
 (** Typing Clutch *)
 Inductive typed : stringmap type → (* expr *) _ → type → Prop :=
-  (* | Var_typed Γ x τ :
+  | Var_typed Γ x τ :
      Γ !! x = Some τ →
-     Γ ⊢ₜ Var x : τ *)
+     Γ ⊢ₜ Var x : τ
   | Val_typed Γ v τ :
      ⊢ᵥ v : τ →
      Γ ⊢ₜ Val v : τ
@@ -174,10 +181,10 @@ typing for AllocN could work. *)
      Γ ⊢ₜ e : TBool →
      unop_bool_res_type op = Some τ →
      Γ ⊢ₜ UnOp op e : τ
-  (* | UnboxedEq_typed Γ e1 e2 τ :
+  | UnboxedEq_typed Γ e1 e2 τ :
      UnboxedType τ →
      Γ ⊢ₜ e1 : τ → Γ ⊢ₜ e2 : τ →
-     Γ ⊢ₜ BinOp EqOp e1 e2 : TBool *)
+     Γ ⊢ₜ BinOp EqOp e1 e2 : TBool
   | Pair_typed Γ e1 e2 τ1 τ2 :
      Γ ⊢ₜ e1 : τ1 → Γ ⊢ₜ e2 : τ2 →
      Γ ⊢ₜ Pair e1 e2 : τ1 * τ2
@@ -213,34 +220,38 @@ typing for AllocN could work. *)
  | TLam_typed Γ e τ :
      ⤉ Γ ⊢ₜ e : τ →
      Γ ⊢ₜ (Λ: e) : ∀: τ
-  (* | TApp_typed Γ e τ τ' :
+  | TApp_typed Γ e τ τ' :
      Γ ⊢ₜ e : (∀: τ) →
-     Γ ⊢ₜ e #() : τ.[τ'/] *)
+     Γ ⊢ₜ (App e (Val #())) : τ.[τ'/]
   | TFold Γ e τ :
      Γ ⊢ₜ e : τ.[(μ: τ)%ty/] →
      Γ ⊢ₜ e : (μ: τ)
-  (* | TUnfold Γ e τ :
+  | TUnfold Γ e τ :
      Γ ⊢ₜ e : (μ: τ)%ty →
-     Γ ⊢ₜ rec_unfold e : τ.[(μ: τ)%ty/] *)
+     Γ ⊢ₜ (App (Val rec_unfold) e) : τ.[(μ: τ)%ty/]
   | TPack Γ e τ τ' :
      Γ ⊢ₜ e : τ.[τ'/] →
      Γ ⊢ₜ e : (∃: τ)
-  (* | TUnpack Γ e1 x e2 τ τ2 :
+  | TUnpack Γ e1 x e2 τ τ2 :
      Γ ⊢ₜ e1 : (∃: τ) →
      <[x:=τ]>(⤉ Γ) ⊢ₜ e2 : (Autosubst_Classes.subst (ren (+1)) τ2) →
-     Γ ⊢ₜ (unpack: x := e1 in e2) : τ2 *)
+     Γ ⊢ₜ (App (App (Val unpack) e1) (Rec BAnon x e2)) : τ2
   | TAlloc Γ e τ : Γ ⊢ₜ e : τ → Γ ⊢ₜ Alloc e : ref τ
   | TLoad Γ e τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ Load e : τ
   | TStore Γ e e' τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ e' : τ → Γ ⊢ₜ Store e e' : ()
   | TAllocTape e Γ : Γ ⊢ₜ e : TNat →  Γ ⊢ₜ AllocTape e : TTape
   | TRand  Γ e1 e2 : Γ ⊢ₜ e1 : TNat → Γ ⊢ₜ e2 : TTape → Γ ⊢ₜ Rand e1 e2 : TNat
   | TRandU Γ e1 e2 : Γ ⊢ₜ e1 : TNat → Γ ⊢ₜ e2 : TUnit → Γ ⊢ₜ Rand e1 e2 : TNat
+  | TUAllocTape Γ : Γ ⊢ₜ AllocUTape : TUTape
+  | TURand Γ e : Γ ⊢ₜ e : TUTape → Γ ⊢ₜ URand e : TReal
+  | TURandU Γ e : Γ ⊢ₜ e : TUnit → Γ ⊢ₜ URand e : TReal
   | Subsume_int_nat Γ e : Γ ⊢ₜ e : TNat → Γ ⊢ₜ e : TInt
 with val_typed : (* val *) _  → type → Prop :=
   | Unit_val_typed : ⊢ᵥ LitV LitUnit : TUnit                                       
   | Int_val_typed (n : Z) : ⊢ᵥ LitV (LitInt n) : TInt
-  (* | Nat_val_typed (n : nat) : ⊢ᵥ LitV (LitInt n) : TNat *)
+  | Nat_val_typed (n : nat) : ⊢ᵥ LitV (LitInt (Z.of_nat n)) : TNat
   | Bool_val_typed (b : bool) : ⊢ᵥ LitV (LitBool b) : TBool
+  | Real_val_typed (r : R) : ⊢ᵥ LitV (LitReal r) : TReal
   | Pair_val_typed v1 v2 τ1 τ2 :
      ⊢ᵥ v1 : τ1 →
      ⊢ᵥ v2 : τ2 →
@@ -254,9 +265,9 @@ with val_typed : (* val *) _  → type → Prop :=
   | Rec_val_typed f x e τ1 τ2 :
      <[f:=TArrow τ1 τ2]>(<[x:=τ1]>∅) ⊢ₜ e : τ2 →
      ⊢ᵥ RecV f x e : (τ1 → τ2)
-  (* | TLam_val_typed e τ :
+  | TLam_val_typed e τ :
      ∅ ⊢ₜ e : τ →
-     ⊢ᵥ (Λ: e) : (∀: τ) *)
+     ⊢ᵥ (Λ: e)%V : (∀: τ)
 where "Γ ⊢ₜ e : τ" := (typed Γ e τ)
 and "⊢ᵥ e : τ" := (val_typed e τ).
 

@@ -7,35 +7,37 @@ From iris.proofmode Require Import proofmode.
 (*
 From clutch.clutch Require Import primitive_laws model.*)
 From clutch.meas_lang.typing Require Export types. (*interp fundamental.*)
-(*
+
+Notation exprT := (measure.Measurable.sort expr).
+
 Inductive ctx_item :=
   (* Base lambda calculus *)
   | CTX_Rec (f x : binder)
-  | CTX_AppL (e2 : expr)
-  | CTX_AppR (e1 : expr)
+  | CTX_AppL (e2 : exprT)
+  | CTX_AppR (e1 : exprT)
   (* Base types and their operations *)
   | CTX_UnOp (op : un_op)
-  | CTX_BinOpL (op : bin_op) (e2 : expr)
-  | CTX_BinOpR (op : bin_op) (e1 : expr)
-  | CTX_IfL (e1 : expr) (e2 : expr)
-  | CTX_IfM (e0 : expr) (e2 : expr)
-  | CTX_IfR (e0 : expr) (e1 : expr)
+  | CTX_BinOpL (op : bin_op) (e2 : exprT)
+  | CTX_BinOpR (op : bin_op) (e1 : exprT)
+  | CTX_IfL (e1 : exprT) (e2 : exprT)
+  | CTX_IfM (e0 : exprT) (e2 : exprT)
+  | CTX_IfR (e0 : exprT) (e1 : exprT)
   (* Products *)
-  | CTX_PairL (e2 : expr)
-  | CTX_PairR (e1 : expr)
+  | CTX_PairL (e2 : exprT)
+  | CTX_PairR (e1 : exprT)
   | CTX_Fst
   | CTX_Snd
   (* Sums *)
   | CTX_InjL
   | CTX_InjR
-  | CTX_CaseL (e1 : expr) (e2 : expr)
-  | CTX_CaseM (e0 : expr) (e2 : expr)
-  | CTX_CaseR (e0 : expr) (e1 : expr)
+  | CTX_CaseL (e1 : exprT) (e2 : exprT)
+  | CTX_CaseM (e0 : exprT) (e2 : exprT)
+  | CTX_CaseR (e0 : exprT) (e1 : exprT)
   (* Heap *)
   | CTX_Alloc
   | CTX_Load
-  | CTX_StoreL (e2 : expr)
-  | CTX_StoreR (e1 : expr)
+  | CTX_StoreL (e2 : exprT)
+  | CTX_StoreR (e1 : exprT)
   (* Recursive Types *)
   | CTX_Fold
   | CTX_Unfold
@@ -44,14 +46,14 @@ Inductive ctx_item :=
   | CTX_TApp
   (* Existential types *)
     (* Nb: we do not have an explicit PACK operation *)
-  | CTX_UnpackL (x : binder) (e2 : expr)
-  | CTX_UnpackR (x : binder) (e1 : expr)
+  | CTX_UnpackL (x : binder) (e2 : exprT)
+  | CTX_UnpackR (x : binder) (e1 : exprT)
   | CTX_AllocTape
-  | CTX_RandL (e2 : expr)
-  | CTX_RandR (e1 : expr)
+  | CTX_RandL (e2 : exprT)
+  | CTX_RandR (e1 : exprT)
 .
 
-Definition fill_ctx_item (ctx : ctx_item) (e : expr) : expr :=
+Definition fill_ctx_item (ctx : ctx_item) (e : exprT) : exprT :=
   match ctx with
   (* Base lambda calculus *)
   | CTX_Rec f x => Rec f x e
@@ -83,11 +85,11 @@ Definition fill_ctx_item (ctx : ctx_item) (e : expr) : expr :=
   | CTX_StoreR e1 => Store e1 e
   (* Recursive & polymorphic types *)
   | CTX_Fold => e
-  | CTX_Unfold => rec_unfold e
+  | CTX_Unfold => (App (Val rec_unfold) e)
   | CTX_TLam => Λ: e
   | CTX_TApp => TApp e
-  | CTX_UnpackL x e1 => unpack: x:=e in e1
-  | CTX_UnpackR x e0 => unpack: x:=e0 in e
+  | CTX_UnpackL x e1 => (App (App (Val unpack) e) (Rec BAnon x e1))
+  | CTX_UnpackR x e0 => (App (App (Val unpack) e0) (Rec BAnon x e))
   | CTX_AllocTape => AllocTape e
   | CTX_RandL e2 => Rand e e2
   | CTX_RandR e1 => Rand e1 e
@@ -96,7 +98,7 @@ Definition fill_ctx_item (ctx : ctx_item) (e : expr) : expr :=
 Definition ctx := list ctx_item.
 
 (* TODO: consider using foldl here *)
-Definition fill_ctx (K : ctx) (e : expr) : expr := foldr fill_ctx_item e K.
+Definition fill_ctx (K : ctx) (e : exprT) : exprT := foldr fill_ctx_item e K.
 
 (** typed ctx *)
 Inductive typed_ctx_item :
@@ -223,6 +225,8 @@ Inductive typed_ctx: ctx → stringmap type → type → stringmap type → type
      typed_ctx_item k Γ2 τ2 Γ3 τ3 →
      typed_ctx K Γ1 τ1 Γ2 τ2 →
      typed_ctx (k :: K) Γ1 τ1 Γ3 τ3.
+(*
+
 
 (** The main definition of contextual refinement that we use. An
     alternative (equivalent) formulation which observes only
