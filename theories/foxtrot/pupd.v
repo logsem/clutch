@@ -189,6 +189,17 @@ Section pupd.
     - iApply fupd_mask_intro; first exact; iIntros "Hclose"; iMod "H1"; iMod "Hclose"; by iModIntro.
   Qed.
 
+  Global Instance elim_modal_pupd_wp' e Φ p E P :
+    ElimModal (True) p false (pupd E E P) P (WP e @ E {{ Φ }}) (WP e @ E {{ Φ }}).
+  Proof.
+    intros ?. simpl.
+    iIntros "[H H']".
+    destruct p.
+    1: simpl; iDestruct (bi.intuitionistically_elim with "[$]") as ">H".
+    2: simpl; iMod "H".
+    all: by iApply "H'".
+  Qed.
+  
   Global Instance is_except_0_pupd E1 E2 Q : IsExcept0 (pupd E1 E2 Q).
   Proof.
     rewrite /IsExcept0.
@@ -287,6 +298,12 @@ Section pupd.
     iIntros (????) "(?&?&?&H)".
     iMod ("H" with "[$]").
     by iModIntro.
+  Qed.
+
+  Lemma pupd_wp Φ E e:
+    pupd E E (WP e @ E {{ Φ }}) ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros ">$".
   Qed.
   
   (** pupd works for allocation of invariants and ghost resources *)
