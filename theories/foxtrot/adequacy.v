@@ -1010,31 +1010,45 @@ Proof.
   Unshelve. done.
 Qed.
 
-Lemma foxtrot_adequacy Σ `{foxtrotGpreS Σ} ϕ e e' σ σ' : 
-  (∀ `{foxtrotGS Σ}, ⊢ 0%nat ⤇ e' -∗ WP e {{ v, ∃ v', 0%nat ⤇ Val v' ∗ ⌜ ϕ v v' ⌝ }}) ->
-  Rbar_le (lub_termination_prob e σ) (lub_termination_prob e' σ').
+Lemma ARcoupl_lub e e' σ σ' ε ϕ: 
+  (∀ n sch_int_σ `(Countable sch_int_σ) sch ζ `{!TapeOblivious sch_int_σ sch} ε',
+  ε'>0 ->
+  ∃ `(Countable sch_int_σ') sch' ζ' `(!TapeOblivious sch_int_σ' sch'),
+    ARcoupl (sch_exec sch n (ζ, ([e], σ))) (sch_lim_exec sch' (ζ', ([e'], σ'))) ϕ (ε + ε')) ->
+      Rbar_le (lub_termination_prob e σ) (Rbar_plus (lub_termination_prob e' σ') ε).
 Proof.
-  intros Hwp.
   rewrite lub_termination_sup_seq_termination_n.
+  intros H. 
   apply upper_bound_ge_sup.
   intros n.
+  rewrite lub_plus_const.
   apply Rbar_le_lub.
-  rewrite /termination_prob'.
+  rewrite /termination_n_prob'.
   intros r [(sch_int_σ&ζ&Heqdecision&Hcountable&sch&Htape) <-].
-  simpl.
-  intros ε Hε.
-  epose proof foxtrot_adequacy_intermediate Σ 0 ϕ n e e' _ _ as Hwp'. Unshelve.
-  2: { done. }
-  2: { iIntros. by iApply Hwp. }
-  epose proof Hwp' sch_int_σ Heqdecision Hcountable sch ζ Htape σ σ' ε Hε as
+  intros ε' Hε'.
+  epose proof H _ _ _ _ _ _ _ _ _ as 
     (sch_int_σ'&Heqdeicision'&Hcountable'&sch'&ζ'&Htape'&Hcoupl).
   apply ARcoupl_mass_leq in Hcoupl.
-  replace (0+_) with ε in Hcoupl by lra.
-  exists (SeriesC (sch_lim_exec sch' (ζ', ([e'], σ')))). split.
+  rewrite -Rplus_assoc in Hcoupl.
+  exists (SeriesC (sch_lim_exec sch' (ζ', ([e'], σ'))) + ε). split.
   - rewrite /termination_n_prob. rewrite Rcomplements.Rle_minus_l.
     apply Hcoupl.
   - rewrite /termination_prob_type.
+    eexists _; split; last done.
     eexists (sch_int_σ'; _); simpl.
     instantiate (1:=(ζ', (_;(_;(_;Htape'))))).
     by rewrite /termination_prob.
-Qed.
+    Unshelve.
+    done.
+Qed. 
+
+Lemma foxtrot_adequacy Σ `{foxtrotGpreS Σ} ϕ e e' σ σ' ε:
+  (0 <= ε)%R ->
+  (∀ `{foxtrotGS Σ}, ⊢ ↯ ε -∗ 0%nat ⤇ e' -∗ WP e {{ v, ∃ v', 0%nat ⤇ Val v' ∗ ⌜ ϕ v v' ⌝ }}) ->
+  Rbar_le (lub_termination_prob e σ) (Rbar_plus (lub_termination_prob e' σ') ε).
+Proof.
+  intros Hpos Hwp.
+  eapply ARcoupl_lub.
+  intros.
+  by eapply foxtrot_adequacy_intermediate.
+Qed. 

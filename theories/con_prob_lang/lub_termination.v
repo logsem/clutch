@@ -105,7 +105,6 @@ Proof.
          }
          exact 0%nat.
 Qed.
-Set Printing Coercions.
 
 Lemma lub_termination_prob_eq e σ: Rbar.Finite $ real $ lub_termination_prob e σ = lub_termination_prob e σ.
 Proof.
