@@ -56,8 +56,8 @@ Next Obligation. iIntros. by iMod (pupd_xchg with "[$]") as "[$$]". Qed.
 Next Obligation. iIntros. by iMod (pupd_faa with "[$]") as "[$$]". Qed.
 Next Obligation. iIntros. by iMod (pupd_fork with "[$]") as "[$ [% $]]". Qed.
 
-(** TODO instantiate class for spec tape*)
-
+#[global] Program Instance rel_logic_tptactics_tapes `{!foxtrotGS Σ} : UpdTapes pupd.
+Next Obligation. intros ???????->. iIntros. by iMod (pupd_alloc_tape with "[$]"). Qed. 
                  
 Section foxtrot_test.
   Context `{!foxtrotGS Σ}.

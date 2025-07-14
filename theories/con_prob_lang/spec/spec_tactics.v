@@ -558,6 +558,7 @@ Tactic Notation "tp_fork" constr(j) "as" ident(j') :=
 
 
 (** Tapes *)
+(** Note no presampling on RHS *)
 Class UpdTapes `{specG_con_prob_lang Σ} (upd : coPset -> coPset -> iProp Σ -> iProp Σ):= {
 
   tptac_upd_alloctape j K E (N : nat) (z : Z) :
@@ -566,11 +567,16 @@ Class UpdTapes `{specG_con_prob_lang Σ} (upd : coPset -> coPset -> iProp Σ -> 
     j ⤇ fill K (AllocTape (Val $ LitV $ LitInt $ z)) -∗
     upd E E (∃ l, l ↪ₛN (N; []) ∗ j ⤇ fill K (LitV (LitLbl l))) ;
 
-    tptac_upd_rand_tape j K E N (n : nat) (z : Z) ns l :
-    TCEq N (Z.to_nat z) ->
-    (l ↪ₛN (N; (n::ns))) -∗
-    j ⤇ fill K (Rand (LitV (LitInt z)) (LitV (LitLbl l))) -∗
-    upd E E ((l ↪ₛN (N; (ns))) ∗ ⌜ n ≤ N ⌝ ∗ j ⤇ fill K (LitV $ LitInt $ n)%V)
+    (* tptac_upd_rand j K E N (z : Z) : *)
+    (* TCEq N (Z.to_nat z) -> *)
+    (* j ⤇ fill K (Rand (LitV (LitInt z)) (LitV LitUnit)) -∗ *)
+    (* upd E E (∃ n, ⌜ n ≤ N ⌝ ∗ j ⤇ fill K (LitV $ LitInt $ n)%V); *)
+
+    (* tptac_upd_rand_tape j K E N (z : Z) l : *)
+    (* TCEq N (Z.to_nat z) -> *)
+    (* (l ↪ₛN (N; [])) -∗ *)
+    (* j ⤇ fill K (Rand (LitV (LitInt z)) (LitV (LitLbl l))) -∗ *)
+    (* upd E E (∃ n, (l ↪ₛN (N; [])) ∗ ⌜ n ≤ N ⌝ ∗ j ⤇ fill K (LitV $ LitInt $ n)%V) *)
   }.
 
 Lemma tac_tp_allocnattape `{!specG_con_prob_lang Σ, !UpdTapes upd} j K Δ1 E1 i1 e N z Q :
@@ -617,52 +623,104 @@ Tactic Notation "tp_allocnattape" constr(j) ident(l) "as"  constr(H) :=
 Tactic Notation "tp_allocnattape" constr(j) ident(j') :=
   let H := iFresh in tp_allocnattape j j' as H.
 
+(* Lemma tac_tp_randnat `{specG_con_prob_lang Σ, !UpdTapes upd} j K Δ1 E1 i1 e N z Q : *)
+(*   (∀ P, ElimModal True false false (upd E1 E1 P) P Q Q) → *)
+(*   TCEq N (Z.to_nat z) → *)
+(*   envs_lookup i1 Δ1 = Some (false, j ⤇ e)%I -> *)
+(*   e = fill K (rand #z) → *)
+(*   (∀ n, n<=N -> ∃ Δ2, *)
+(*        envs_simple_replace i1 false *)
+(*          (Esnoc Enil i1 (j ⤇ fill K #n)) Δ1 = Some Δ2 ∧ *)
+(*        envs_entails Δ2 Q *)
+(*   ) → *)
+(*   envs_entails Δ1 Q. *)
+(* Proof. *)
+(*   rewrite envs_entails_unseal. intros ??? -> ? . *)
+(*   rewrite (envs_lookup_sound' Δ1 false i1); last by eassumption. *)
+(*   rewrite -[Q]elim_modal // /=. *)
+(*   apply bi.sep_mono, bi.wand_intro_l. *)
+(* Admitted.  *)
+(*   simpl.  *)
+(*   rewrite envs_lookup_delete_sound //; simpl. *)
+(*   destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done. *)
+(*   rewrite (envs_simple_replace_sound Δ2 Δ3 i2) //; simpl. *)
+(*   rewrite right_id. *)
+(*   rewrite assoc. *)
+(*   (* rewrite step_randnat //=. *) *)
+(*   rewrite -[Q]elim_modal //. *)
+(*   apply bi.sep_mono. *)
+(*   - iIntros "[??]"; simpl. *)
+(*     iApply (tptac_upd_rand_tape with "[$][$]"). *)
+(*   - apply bi.wand_intro_l. simpl. *)
+(*     rewrite HQ//. *)
+(*     iIntros "[(?&?&?) H]". *)
+(*     iApply ("H" with "[$][$]"). *)
+(* Qed. *)
 
-Lemma tac_tp_randnat `{specG_con_prob_lang Σ, !UpdTapes upd} j K Δ1 Δ2 E1 i1 i2 e e2 (l : loc) N z n ns Q :
-  (∀ P, ElimModal True false false (upd E1 E1 P) P Q Q) →
-  TCEq N (Z.to_nat z) →
-  envs_lookup_delete false i1 Δ1 = Some (false, j ⤇ e, Δ2)%I →
-  e = fill K (rand(#lbl:l) #z) →
-  envs_lookup i2 Δ2 = Some (false, l ↪ₛN (N; n::ns))%I →
-  e2 = fill K (of_val #n) →
-  match envs_simple_replace i2 false
-    (Esnoc (Esnoc Enil i1 (j ⤇ e2)) i2 (l ↪ₛN (N; ns))%I) Δ2 with
-  | Some Δ3 => envs_entails Δ3 ((⌜n ≤ N⌝ -∗ Q)%I)
-  | None    => False
-  end →
-  envs_entails Δ1 Q.
-Proof.
-  rewrite envs_entails_unseal. intros ??? -> ? -> HQ.
-  rewrite envs_lookup_delete_sound //; simpl.
-  destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done.
-  rewrite (envs_simple_replace_sound Δ2 Δ3 i2) //; simpl.
-  rewrite right_id.
-  rewrite assoc.
-  (* rewrite step_randnat //=. *)
-  rewrite -[Q]elim_modal //.
-  apply bi.sep_mono.
-  - iIntros "[??]"; simpl.
-    iApply (tptac_upd_rand_tape with "[$][$]").
-  - apply bi.wand_intro_l. simpl.
-    rewrite HQ//.
-    iIntros "[(?&?&?) H]".
-    iApply ("H" with "[$][$]").
-Qed.
+(* Tactic Notation "tp_randnat" constr(j) "as" constr(H) := *)
+(*   let finish _ := *)
+(*         ((iIntros H; tp_normalise j) || fail 1 "tp_alloctape:" H "not correct intro pattern") in *)
+(*   iStartProof; *)
+(*   eapply (tac_tp_randnat j); *)
+(*   [tc_solve || fail "tp_rand: cannot eliminate modality in the goal" *)
+(*   | (* postpone solving [TCEq ...] until after the tape has been unified *) *)
+(*   |iAssumptionCore || fail "tp_rand: cannot find the RHS" *)
+(*   |tp_bind_helper *)
+(*   |iAssumptionCore || fail "tp_rand: cannot find '? ↪ₛ ?'" *)
+(*   |simpl; reflexivity || fail "tp_rand: this should not happen" *)
+(*   |pm_reduce (* new goal *)]; *)
+(*   [ try tc_solve (*|| fail "tp_rand: cannot convert bound to a natural number"*) *)
+(*   | finish () ]. *)
 
-Tactic Notation "tp_randnat" constr(j) "as" constr(H) :=
-  let finish _ :=
-        ((iIntros H; tp_normalise j) || fail 1 "tp_alloctape:" H "not correct intro pattern") in
-  iStartProof;
-  eapply (tac_tp_randnat j);
-  [tc_solve || fail "tp_rand: cannot eliminate modality in the goal"
-  | (* postpone solving [TCEq ...] until after the tape has been unified *)
-  |iAssumptionCore || fail "tp_rand: cannot find the RHS"
-  |tp_bind_helper
-  |iAssumptionCore || fail "tp_rand: cannot find '? ↪ₛ ?'"
-  |simpl; reflexivity || fail "tp_rand: this should not happen"
-  |pm_reduce (* new goal *)];
-  [ try tc_solve (*|| fail "tp_rand: cannot convert bound to a natural number"*)
-  | finish () ].
+(* Tactic Notation "tp_randnat" constr(j) := *)
+(*   tp_randnat j as "%". *)
 
-Tactic Notation "tp_randnat" constr(j) :=
-  tp_randnat j as "%".
+
+(* Lemma tac_tp_randnat `{specG_con_prob_lang Σ, !UpdTapes upd} j K Δ1 Δ2 E1 i1 i2 e e2 (l : loc) N z Q : *)
+(*   (∀ P, ElimModal True false false (upd E1 E1 P) P Q Q) → *)
+(*   TCEq N (Z.to_nat z) → *)
+(*   envs_lookup_delete false i1 Δ1 = Some (false, j ⤇ e, Δ2)%I → *)
+(*   e = fill K (rand(#lbl:l) #z) → *)
+(*   envs_lookup i2 Δ2 = Some (false, l ↪ₛN (N; []))%I → *)
+(*   e2 = fill K (of_val #n) → *)
+(*   match envs_simple_replace i2 false *)
+(*     (Esnoc (Esnoc Enil i1 (j ⤇ e2)) i2 (l ↪ₛN (N; ns))%I) Δ2 with *)
+(*   | Some Δ3 => envs_entails Δ3 ((⌜n ≤ N⌝ -∗ Q)%I) *)
+(*   | None    => False *)
+(*   end → *)
+(*   envs_entails Δ1 Q. *)
+(* Proof. *)
+(*   rewrite envs_entails_unseal. intros ??? -> ? -> HQ. *)
+(*   rewrite envs_lookup_delete_sound //; simpl. *)
+(*   destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done. *)
+(*   rewrite (envs_simple_replace_sound Δ2 Δ3 i2) //; simpl. *)
+(*   rewrite right_id. *)
+(*   rewrite assoc. *)
+(*   (* rewrite step_randnat //=. *) *)
+(*   rewrite -[Q]elim_modal //. *)
+(*   apply bi.sep_mono. *)
+(*   - iIntros "[??]"; simpl. *)
+(*     iApply (tptac_upd_rand_tape with "[$][$]"). *)
+(*   - apply bi.wand_intro_l. simpl. *)
+(*     rewrite HQ//. *)
+(*     iIntros "[(?&?&?) H]". *)
+(*     iApply ("H" with "[$][$]"). *)
+(* Qed. *)
+
+(* Tactic Notation "tp_randnat" constr(j) "as" constr(H) := *)
+(*   let finish _ := *)
+(*         ((iIntros H; tp_normalise j) || fail 1 "tp_alloctape:" H "not correct intro pattern") in *)
+(*   iStartProof; *)
+(*   eapply (tac_tp_randnat j); *)
+(*   [tc_solve || fail "tp_rand: cannot eliminate modality in the goal" *)
+(*   | (* postpone solving [TCEq ...] until after the tape has been unified *) *)
+(*   |iAssumptionCore || fail "tp_rand: cannot find the RHS" *)
+(*   |tp_bind_helper *)
+(*   |iAssumptionCore || fail "tp_rand: cannot find '? ↪ₛ ?'" *)
+(*   |simpl; reflexivity || fail "tp_rand: this should not happen" *)
+(*   |pm_reduce (* new goal *)]; *)
+(*   [ try tc_solve (*|| fail "tp_rand: cannot convert bound to a natural number"*) *)
+(*   | finish () ]. *)
+
+(* Tactic Notation "tp_randnat" constr(j) := *)
+(*   tp_randnat j as "%". *)

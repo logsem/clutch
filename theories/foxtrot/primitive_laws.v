@@ -834,8 +834,44 @@ Section lifting.
       iMod "Hclose".
       iFrame. 
       rewrite app_nil_r. by iFrame.
+  Qed.
+
+  Lemma pupd_alloc_tape E K j z N :
+    TCEq N (Z.to_nat z)->
+    j ⤇ fill K (alloc #z)
+    ⊢ pupd E E (∃ α, α ↪ₛN (N; []) ∗ j⤇ fill K #lbl:α).
+  Proof. 
+    iIntros (->) "HK".
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ1 [] ε1) "(H1 & H2 & H3)".
+    iDestruct (spec_auth_prog_agree with "[$][$]") as "%".
+    iMod (spec_auth_tape_alloc with "[$]") as "[Hs Hl]".
+    iMod (spec_update_prog with "[$][$]") as "[HK Hs]".
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    iApply spec_coupl_step_r; [|done|..].
+    - apply reducible_fill. apply head_prim_reducible. solve_red.
+    - instantiate (2:=0%NNR). instantiate (1:= ε1). simpl.
+      lra.
+    - simpl.
+      rewrite fill_dmap //=.
+      rewrite head_prim_step_eq//.
+      simpl.
+      rewrite dmap_dret/=.
+      apply pgl_dret.
+      rewrite /prim_step/=.
+      instantiate (2:= λ x, x = (fill K #lbl:(fresh_loc (tapes s)), state_upd_tapes <[fresh_loc (tapes s):=(Z.to_nat z; [])]> s,
+     [])).
+      naive_solver.
+    - iIntros (???) "%".
+      destruct!/=.
+      iApply spec_coupl_ret.
+      iModIntro.
+      iMod "Hclose".
+      iFrame. 
+      rewrite app_nil_r. by iFrame.
   Qed. 
-  
+          
   (* (** spec [rand] *) *)
   (* Lemma wp_rand_r N z E e K Φ : *)
   (*   TCEq N (Z.to_nat z) → *)
