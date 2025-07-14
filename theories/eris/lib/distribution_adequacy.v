@@ -15,7 +15,6 @@ Proof.
     first by destruct (φ a), (ψ a).
   rewrite ext //.
 Qed.
-
                
 Section DistributionAdequacy.
 
@@ -23,7 +22,6 @@ Section DistributionAdequacy.
   
   Context (μ : distr val).
   Context (μ_impl : expr).
-  Context (pmf_total : SeriesC μ = 1%R).
   Hypothesis (twp_μ_adv_comp :
                ∀ `{erisGS Σ} (ε : R) (D : val → R) (L : R),
                 (0 <= ε)%R →
@@ -31,16 +29,18 @@ Section DistributionAdequacy.
                 SeriesC (λ (v : val), D v * μ v)%R = ε →
                 [[{ ↯ ε }]] μ_impl [[{ v, RET v; ↯ (D v)}]]
              ).
-
+  
+  Definition pmf_sum : R := SeriesC μ.
+  
   Lemma twp_eq :
     ∀ `{erisGS Σ} (v : val),
-    [[{ ↯ (1 - μ v) }]] μ_impl [[{ RET v; True }]].
+    [[{ ↯ (pmf_sum - μ v) }]] μ_impl [[{ RET v; True }]].
   Proof.
     iIntros (Σ erisGS0 v Φ) "Herr HΦ".
     iPoseProof ("HΦ" with "[$]") as "HΦ".
     set (D w := if bool_decide (v = w) then 0%R else 1%R).
-    wp_apply (twp_μ_adv_comp (1 - μ v) D 1%R with "Herr").
-    { apply Rle_0_le_minus, pmf_le_1. }
+    wp_apply (twp_μ_adv_comp (pmf_sum - μ v) D 1%R with "Herr").
+    { apply Rle_0_le_minus, pmf_le_SeriesC. }
     { move=>w.
       unfold D.
       case_bool_decide;
@@ -56,7 +56,6 @@ Section DistributionAdequacy.
       }
       rewrite SeriesC_minus; try done; last first.
       { apply ex_seriesC_singleton. } 
-      rewrite pmf_total.
       f_equal.
       apply SeriesC_singleton.
     }
@@ -96,11 +95,11 @@ Section DistributionAdequacy.
     by iApply "HΦ".
   Qed.
 
-  Lemma μ_tgl : ∀ `{erisGpreS Σ} (σ : state) (v : val), tgl (lim_exec (μ_impl, σ)) (λ w, v = w) (1 - μ v).
+  Lemma μ_tgl : ∀ `{erisGpreS Σ} (σ : state) (v : val), tgl (lim_exec (μ_impl, σ)) (λ w, v = w) (pmf_sum - μ v).
   Proof.
     iIntros (Σ erisGpreS0 σ v).
     apply (@twp_tgl Σ erisGpreS0).
-    { apply Rle_0_le_minus, pmf_le_1. }
+    { apply Rle_0_le_minus, pmf_le_SeriesC. }
     iIntros (erisGS0) "Herr".
     by iApply (twp_eq v with "Herr").
   Qed.    
@@ -113,6 +112,31 @@ Section DistributionAdequacy.
     wp_apply (twp_neq with "Herr") as (w) "$".
   Qed.
 
+  Lemma pmf_sum_1 :
+    ∀ `{erisGpreS Σ} (σ : state) (v : val),
+    pmf_sum = 1%R.
+  Proof.
+    move=>Σ erisGpreS0 σ v.
+    specialize (μ_tgl σ v) as μ_tgl0.
+    specialize (μ_pgl σ v) as μ_pgl0.
+    unfold tgl in μ_tgl0.
+    unfold pgl in μ_pgl0.
+    rewrite Rminus_plus_distr Rminus_def Ropp_involutive Rplus_comm in μ_tgl0.
+    rewrite (prob_ext _ _ (λ w, bool_decide (v = w))) in μ_pgl0; last first.
+    { move=>w _. by do 2 case_bool_decide. }
+    assert (μ v + (1 - pmf_sum) <= μ v)%R as bounds.
+    {
+      etrans; first apply μ_tgl0.
+      erewrite prob_ext; first done.
+      move=>w _ /=.
+      by do 2 case_bool_decide.
+    }
+    rewrite Rplus_minus_assoc Rcomplements.Rle_minus_l in bounds.
+    apply Rplus_le_reg_l in bounds.
+    assert (pmf_sum <= 1)%R by apply pmf_SeriesC.
+    lra.
+  Qed.
+  
   Lemma μ_impl_is_μ :
     ∀ `{erisGpreS Σ} (σ : state) (v : val),
     prob (lim_exec (μ_impl, σ)) (λ w, bool_decide (v = w)) = μ v.
@@ -122,8 +146,7 @@ Section DistributionAdequacy.
     specialize (μ_pgl σ v) as μ_pgl0.
     unfold tgl in μ_tgl0.
     unfold pgl in μ_pgl0.
-    rewrite Rminus_plus_distr Rminus_diag
-      Rminus_def Ropp_involutive Rplus_0_l in μ_tgl0.
+    rewrite pmf_sum_1 // Rminus_plus_distr Rminus_def Ropp_involutive Rminus_diag Rplus_0_l in μ_tgl0.
     rewrite (prob_ext _ _ (λ w, bool_decide (v = w))) in μ_pgl0; last first.
     { move=>w _. by do 2 case_bool_decide. }
     apply Rle_le_eq.
