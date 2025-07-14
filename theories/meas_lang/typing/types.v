@@ -78,6 +78,14 @@ Definition binop_bool_res_type (op : bin_op) : option type :=
   | EqOp => Some TBool
   | OffsetOp => None
   end.
+Definition binop_real_res_type (op : bin_op) : option type :=
+  match op with
+  | PlusOp | MinusOp | MultOp  => Some TReal
+  | AndOp | OrOp | XorOp => None
+  | QuotOp | RemOp | ShiftLOp | ShiftROp => None
+  | LeOp | LtOp | EqOp => Some TBool
+  | OffsetOp => None
+  end.
 Definition unop_int_res_type (op : un_op) : option type :=
   match op with
   | NegOp => None
@@ -87,6 +95,11 @@ Definition unop_bool_res_type (op : un_op) : option type :=
   match op with
   | NegOp => Some TBool
   | MinusUnOp => None
+  end.
+Definition unop_real_res_type (op : un_op) : option type :=
+  match op with
+  | NegOp => None
+  | MinusUnOp => Some TReal
   end.
 
 Declare Scope FType_scope.
@@ -166,6 +179,10 @@ Inductive typed : stringmap type → (* expr *) _ → type → Prop :=
      Γ ⊢ₜ e1 : TBool → Γ ⊢ₜ e2 : TBool →
      binop_bool_res_type op = Some τ →
      Γ ⊢ₜ BinOp op e1 e2 : τ
+  | BinOp_typed_real Γ op e1 e2 τ :
+     Γ ⊢ₜ e1 : TReal → Γ ⊢ₜ e2 : TReal →
+     binop_real_res_type op = Some τ →
+     Γ ⊢ₜ BinOp op e1 e2 : τ
 (* NB: The below typing rule for Offsets is not safe: even when the premises
 hold, the location computed by offsetting e1 with e2 may not hold a value of
 type τ, and evaluation will get stuck. A separate type of arrays together with
@@ -180,6 +197,10 @@ typing for AllocN could work. *)
   | UnOp_typed_bool Γ op e τ :
      Γ ⊢ₜ e : TBool →
      unop_bool_res_type op = Some τ →
+     Γ ⊢ₜ UnOp op e : τ
+  | UnOp_typed_real Γ op e τ :
+     Γ ⊢ₜ e : TReal →
+     unop_real_res_type op = Some τ →
      Γ ⊢ₜ UnOp op e : τ
   | UnboxedEq_typed Γ e1 e2 τ :
      UnboxedType τ →

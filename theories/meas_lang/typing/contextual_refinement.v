@@ -1,13 +1,18 @@
 (** Notion of contextual refinement & proof that it is a precongruence wrt the logical relation *)
 (** Is following needed? *)
-(* From clutch.prob Require Import markov.  *)
+(*  *)
 From stdpp Require Export binders.
-From clutch.meas_lang Require Export lang notation.
+From clutch.prob.monad Require Import meas_markov. 
+From mathcomp Require Import classical_sets constructive_ereal ssrnum.
+From mathcomp.analysis Require Import measure ereal.
+From clutch.meas_lang Require Export lang language notation.
+From Coq.ssr Require Import ssreflect ssrfun ssrbool.
 From iris.proofmode Require Import proofmode.
 (*
 From clutch.clutch Require Import primitive_laws model.*)
 From clutch.meas_lang.typing Require Export types. (*interp fundamental.*)
 
+Local Open Scope classical_set_scope.
 Notation exprT := (measure.Measurable.sort expr).
 
 Inductive ctx_item :=
@@ -51,6 +56,7 @@ Inductive ctx_item :=
   | CTX_AllocTape
   | CTX_RandL (e2 : exprT)
   | CTX_RandR (e1 : exprT)
+  | CTX_URand
 .
 
 Definition fill_ctx_item (ctx : ctx_item) (e : exprT) : exprT :=
@@ -93,6 +99,7 @@ Definition fill_ctx_item (ctx : ctx_item) (e : exprT) : exprT :=
   | CTX_AllocTape => AllocTape e
   | CTX_RandL e2 => Rand e e2
   | CTX_RandR e1 => Rand e1 e
+  | CTX_URand => URand e
   end.
 
 Definition ctx := list ctx_item.
@@ -119,6 +126,9 @@ Inductive typed_ctx_item :
   | TP_CTX_UnOp_Bool op Γ τ :
      unop_bool_res_type op = Some τ →
      typed_ctx_item (CTX_UnOp op) Γ TBool Γ τ
+  | TP_CTX_UnOp_Real op Γ τ :
+     unop_real_res_type op = Some τ →
+     typed_ctx_item (CTX_UnOp op) Γ TReal Γ τ
   | TP_CTX_BinOpL_Nat op Γ e2 τ :
      typed Γ e2 TInt →
      binop_int_res_type op = Some τ →
@@ -127,6 +137,14 @@ Inductive typed_ctx_item :
      typed Γ e1 TInt →
      binop_int_res_type op = Some τ →
      typed_ctx_item (CTX_BinOpR op e1) Γ TInt Γ τ
+  | TP_CTX_BinOpL_Real op Γ e2 τ :
+     typed Γ e2 TReal →
+     binop_real_res_type op = Some τ →
+     typed_ctx_item (CTX_BinOpL op e2) Γ TReal Γ τ
+  | TP_CTX_BinOpR_Real op e1 Γ τ :
+     typed Γ e1 TReal →
+     binop_real_res_type op = Some τ →
+     typed_ctx_item (CTX_BinOpR op e1) Γ TReal Γ τ
   | TP_CTX_BinOpL_Bool op Γ e2 τ :
      typed Γ e2 TBool →
      binop_bool_res_type op = Some τ →
@@ -216,6 +234,10 @@ Inductive typed_ctx_item :
     typed Γ e1 TNat → typed_ctx_item (CTX_RandR e1) Γ TUnit Γ TNat
   | TP_CTX_RandTapeR Γ e1 :
      typed Γ e1 TNat → typed_ctx_item (CTX_RandR e1) Γ TTape Γ TNat
+  | TP_CTX_URandUnit Γ :
+     typed_ctx_item CTX_URand Γ (TUnit) Γ TReal
+  | TP_CTX_URandTape Γ :
+     typed_ctx_item CTX_URand Γ (TUTape) Γ TReal
 .
 
 Inductive typed_ctx: ctx → stringmap type → type → stringmap type → type → Prop :=
@@ -225,16 +247,21 @@ Inductive typed_ctx: ctx → stringmap type → type → stringmap type → type
      typed_ctx_item k Γ2 τ2 Γ3 τ3 →
      typed_ctx K Γ1 τ1 Γ2 τ2 →
      typed_ctx (k :: K) Γ1 τ1 Γ3 τ3.
-(*
 
+Section ctx_refine.
+
+Local Open Scope ereal_scope.
+Import mathcomp.ssreflect.order.
+Import Order.TTheory.
 
 (** The main definition of contextual refinement that we use. An
     alternative (equivalent) formulation which observes only
     termination can be found in [contextual_refinement_alt.v] *)
 Definition ctx_refines (Γ : stringmap type)
-    (e e' : expr) (τ : type) : Prop := ∀ K σ₀ (b : bool),
+    (e e' : exprT) (τ : type) : Prop := ∀ K σ₀ (b : bool),
   typed_ctx K Γ τ ∅ TBool →
-  (lim_exec (fill_ctx K e, σ₀) #b <= lim_exec (fill_ctx K e', σ₀) #b)%R.
+   (@lim_exec (meas_lang_markov meas_lang) (fill_ctx K e, σ₀) [set (LitVC $ LitBool $ b)]) <= 
+   (@lim_exec (meas_lang_markov meas_lang) (fill_ctx K e', σ₀) [set (LitVC $ LitBool $ b)]).
 
 Notation "Γ ⊨ e '≤ctx≤' e' : τ" :=
   (ctx_refines Γ e e' τ) (at level 100, e, e' at next level, τ at level 200).
@@ -250,15 +277,15 @@ Proof. induction 2; simpl; eauto using typed_ctx_item_typed. Qed.
 
 Global Instance ctx_refines_reflexive Γ τ :
   Reflexive (fun e1 e2 => ctx_refines Γ e1 e2 τ).
-Proof. intros ?????. done. Qed.
+Proof. intros ?????. rewrite @order.Order.POrderTheory.le_refl //. Qed.
 
 Global Instance ctx_refines_transitive Γ τ :
   Transitive (fun e1 e2 => ctx_refines Γ e1 e2 τ).
 Proof.
   intros e1 e2 e3 Hctx1 Hctx2 K σ₀ b Hty.
   pose proof (Hctx1 K σ₀ b Hty) as H1.
-  pose proof (Hctx2 K σ₀ b Hty) as H2.
-  by etrans.
+  pose proof (Hctx2 K σ₀ b Hty) as H2. 
+  erewrite le_trans; first done; rewrite -(rwP (Is_true_reflect _)) //.
 Qed.
 
 Lemma fill_ctx_app (K K' : ctx) (e : expr) :
@@ -303,4 +330,4 @@ Proof.
   split ; eapply ctx_refines_transitive ;eauto.
 Qed.
 
-*)
+End ctx_refine.
