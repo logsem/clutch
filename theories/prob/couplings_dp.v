@@ -22,7 +22,7 @@ Section couplings.
 End couplings.
 
 Section couplings_theory.
-  Context `{Countable A, Countable B, Countable A', Countable B'}.
+  (* Context `{Countable A, Countable B, Countable A', Countable B'}. *)
 
 
   Lemma exp_mono (r s : R) : r <= s -> exp r <= exp s.
@@ -42,7 +42,7 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma DPcoupl_mono (μ1 μ1': distr A') (μ2 μ2': distr B') R R' ε ε' δ δ':
+  Lemma DPcoupl_mono `{Countable A', Countable B'} (μ1 μ1': distr A') (μ2 μ2': distr B') R R' ε ε' δ δ':
     (∀ a, μ1 a = μ1' a) ->
     (∀ b, μ2 b = μ2' b) ->
     (∀ x y, R x y -> R' x y) ->
@@ -64,7 +64,7 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma DPcoupl_1 (μ1 : distr A') (μ2 : distr B') R ε δ:
+  Lemma DPcoupl_1 `{Countable A', Countable B'} (μ1 : distr A') (μ2 : distr B') R ε δ:
     (1 <= δ) -> DPcoupl μ1 μ2 R ε δ.
   Proof.
     rewrite /DPcoupl.
@@ -80,7 +80,7 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma DPcoupl_mon_grading (μ1 : distr A') (μ2 : distr B') (R : A' → B' → Prop) ε1 ε2 δ1 δ2:
+  Lemma DPcoupl_mon_grading `{Countable A', Countable B'} (μ1 : distr A') (μ2 : distr B') (R : A' → B' → Prop) ε1 ε2 δ1 δ2:
     (ε1 <= ε2) ->
     (δ1 <= δ2) ->
     DPcoupl μ1 μ2 R ε1 δ1 ->
@@ -91,7 +91,7 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma DPcoupl_dret (a : A) (b : B) (R : A → B → Prop) ε δ :
+  Lemma DPcoupl_dret `{Countable A, Countable B} (a : A) (b : B) (R : A → B → Prop) ε δ :
     0 <= ε →
     0 <= δ →
     R a b → DPcoupl (dret a) (dret b) R ε δ.
@@ -116,7 +116,7 @@ Section couplings_theory.
 
 
 
-  Lemma DPcoupl_dbind_adv_lhs (f : A → distr A') (g : B → distr B')
+  Lemma DPcoupl_dbind_adv_lhs `{Countable A, Countable B, Countable A', Countable B'} (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (S : A → B → Prop) (S' : A' → B' → Prop)
     ε1 ε2 δ1 δ2 (Δ2 : A → R) :
     (0 <= δ1) → (∀ a, 0 <= (Δ2 a) <= 1) →
@@ -324,7 +324,7 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma DPcoupl_dbind_choice (f : A → distr A') (g : B → distr B')
+  Lemma DPcoupl_dbind_choice `{Countable A, Countable B, Countable A', Countable B'} (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (S1 : A → B → Prop) (S2 : A → B → Prop) (S' : A' → B' → Prop)
     ε1 ε2 δ1 δ2 ε1' ε2' δ1' ε δ:
     (0 <= δ1) → (0 <= δ2) → (0 <= δ1') →
@@ -1069,7 +1069,7 @@ Section couplings_theory.
   *)
 
   (* The hypothesis (0 ≤ δ1) is not really needed, I just kept it for symmetry *)
-  Lemma DPcoupl_dbind (f : A → distr A') (g : B → distr B')
+  Lemma DPcoupl_dbind `{Countable A, Countable B, Countable A', Countable B'} (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop) ε1 ε2 δ1 δ2:
     (0 <= δ1) ->
     (0 <= δ2) ->
@@ -1291,7 +1291,7 @@ Section couplings_theory.
   Qed.
   *)
 
-  Lemma DPcoupl_dbind' (ε1 ε2 ε : R) (δ1 δ2 δ : R)
+  Lemma DPcoupl_dbind' `{Countable A, Countable B, Countable A', Countable B'} (ε1 ε2 ε : R) (δ1 δ2 δ : R)
     (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop) :
     ε = ε1 + ε2 →
@@ -1303,7 +1303,19 @@ Section couplings_theory.
     DPcoupl (dbind f μ1) (dbind g μ2) S ε δ.
   Proof. intros -> ? ? ->. by eapply DPcoupl_dbind. Qed.
 
-  Lemma DPcoupl_mass_leq (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) ε δ :
+  Lemma DPcoupl_map `{Countable A, Countable B, Countable A', Countable B'}
+    (f : A → A') (g : B → B') (μ1 : distr A) (μ2 : distr B) (R : A' → B' → Prop) ε δ:
+    (0 <= ε) -> (0 <= δ) ->
+    DPcoupl μ1 μ2 (λ a a', R (f a) (g a')) ε δ → DPcoupl (dmap f μ1) (dmap g μ2) R ε δ.
+  Proof.
+    intros Hleq1 Hleq2 Hcoupl. rewrite /dmap.
+    rewrite -(Rplus_0_r ε) -(Rplus_0_r δ).
+    eapply (DPcoupl_dbind _ _ _ _ (λ (a : A) (a' : B), R (f a) (g a')) _); auto; [lra|].
+    intros a b Hab.
+    by eapply DPcoupl_dret.
+  Qed.
+
+  Lemma DPcoupl_mass_leq `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) ε δ :
     DPcoupl μ1 μ2 R ε δ → SeriesC μ1 <= exp ε * SeriesC μ2 + δ.
   Proof.
     intros Hcoupl.
@@ -1314,7 +1326,7 @@ Section couplings_theory.
     apply Hcoupl; intros; lra.
   Qed.
 
-  Lemma DPcoupl_eq_elim (μ1 μ2 : distr A) ε δ :
+  Lemma DPcoupl_eq_elim `{Countable A} (μ1 μ2 : distr A) ε δ :
     DPcoupl μ1 μ2 (=) ε δ → forall a, μ1 a <= exp ε * μ2 a + δ.
   Proof.
     intros Hcoupl a.
@@ -1335,7 +1347,7 @@ Section couplings_theory.
   Qed.
 
 
-  Lemma DPcoupl_eq_elim_dp (μ1 μ2 : distr A) ε δ:
+  Lemma DPcoupl_eq_elim_dp `{Countable A} (μ1 μ2 : distr A) ε δ:
     DPcoupl μ1 μ2 (=) ε δ →
     forall (P : A -> Prop),
     SeriesC (λ a : A, if bool_decide (P a) then μ1 a else 0) <=
@@ -1352,7 +1364,7 @@ Section couplings_theory.
     apply Hcoupl; real_solver.
   Qed.
 
-  Lemma DPcoupl_to_Mcoupl (μ1 : distr A) (μ2 : distr B) Q ε :
+  Lemma DPcoupl_to_Mcoupl `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) Q ε :
     DPcoupl μ1 μ2 Q ε 0 -> Mcoupl μ1 μ2 Q ε.
   Proof.
     intros Hcoupl f g Hf Hg HQ.
@@ -1360,7 +1372,7 @@ Section couplings_theory.
     by apply Hcoupl.
   Qed.
 
-  Lemma Mcoupl_to_DPcoupl (μ1 : distr A) (μ2 : distr B) Q ε :
+  Lemma Mcoupl_to_DPcoupl `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) Q ε :
     Mcoupl μ1 μ2 Q ε -> DPcoupl μ1 μ2 Q ε 0.
   Proof.
     intros Hcoupl f g Hf Hg HQ.
@@ -1368,7 +1380,7 @@ Section couplings_theory.
     real_solver.
   Qed.
 
-  Lemma DPcoupl_to_ARcoupl (μ1 : distr A) (μ2 : distr B) Q δ :
+  Lemma DPcoupl_to_ARcoupl `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) Q δ :
     DPcoupl μ1 μ2 Q 0 δ -> ARcoupl μ1 μ2 Q δ.
   Proof.
     intros Hcoupl f g Hf Hg HQ.
@@ -1377,7 +1389,7 @@ Section couplings_theory.
     real_solver.
   Qed.
 
-  Lemma ARcoupl_to_DPcoupl (μ1 : distr A) (μ2 : distr B) Q δ :
+  Lemma ARcoupl_to_DPcoupl `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) Q δ :
     ARcoupl μ1 μ2 Q δ -> DPcoupl μ1 μ2 Q 0 δ.
   Proof.
     intros Hcoupl f g Hf Hg HQ.
@@ -1386,7 +1398,7 @@ Section couplings_theory.
     real_solver.
   Qed.
 
-  Lemma DPcoupl_to_UB (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (δ : R) :
+  Lemma DPcoupl_to_UB `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (δ : R) :
     DPcoupl μ1 μ2 (λ a _, P a) 0 δ -> pgl μ1 P δ.
   Proof.
     intros Hcoupl.

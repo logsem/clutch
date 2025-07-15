@@ -7,7 +7,7 @@ For utility functions on arrays (e.g., freeing/copying an array), see
 From stdpp Require Import fin_maps.
 From iris.bi Require Import lib.fractional.
 From iris.proofmode Require Import proofmode.
-From clutch.prob_lang Require Import tactics lang notation.
+From clutch.prob_lang Require Import tactics lang notation gwp.gen_weakestpre.
 From clutch.diffpriv Require Export primitive_laws.
 From iris.prelude Require Import options.
 
@@ -183,8 +183,22 @@ Proof.
   eexists. by apply vlookup_lookup.
 Qed.
 
-
-
 End lifting.
 
 Global Typeclasses Opaque array.
+
+#[local] Lemma gwp_mixin `{!diffprivGS Σ} :
+  GenWpMixin true (wp wp_default) (λ l dq v, l ↦{dq} v)%I.
+Proof.
+  constructor; intros.
+  - apply _.
+  - by iApply wp_value.
+  - by iApply wp_fupd.
+  - by iApply wp_bind.
+  - by iApply lifting.wp_pure_step_later.
+  - by iApply wp_alloc.
+  - by iApply wp_load.
+  - by iApply wp_store.
+Qed.
+
+Canonical Structure gwp_wpre `{!diffprivGS Σ} := Build_GenWp gwp_mixin.

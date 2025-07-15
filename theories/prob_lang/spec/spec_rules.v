@@ -160,3 +160,36 @@ Section rules.
 
 
 End rules.
+
+
+From clutch.prob_lang.gwp Require Import gen_weakestpre.
+
+Notation spec_wp :=
+  (λ E e Ψ, ∀ K,
+      ⤇ fill K e -∗ spec_update E (∃ (v : val), ⤇ fill K v ∗ Ψ v))%I.
+
+Lemma gwp_mixin_spec `{!specG_prob_lang Σ, invGS_gen hasLc Σ} :
+  GenWpMixin false spec_wp (λ l dq v, l ↦ₛ{dq} v)%I.
+Proof.
+  constructor; intros.
+  - apply _.
+  - by iIntros "H" (?) "$".
+  - iIntros "H" (?) "Hs". by iMod ("H" with "[$Hs //]") as (?) "[$ >$]".
+  - iIntros "H" (?) "Hs". rewrite fill_comp.
+    iMod ("H" with "[$Hs //]") as (?) "[Hs Hcnt]". rewrite -fill_comp.
+    by iMod ("Hcnt" with "[$Hs //]").
+  - iIntros "H" (?) "Hs".
+    iMod (step_pure with "Hs") as "Hs"; [done|].
+    by iMod ("H" with "[$Hs //]").
+  - iIntros "H" (?) "Hs".
+    iMod (step_alloc with "Hs") as (l) "($ & Hl)".
+    by iApply "H".
+  - iIntros "Hl H" (?) "Hs".
+    iMod (step_load with "[$Hl $Hs]") as "($ & Hl)".
+    by iApply "H".
+  - iIntros "Hl H" (?) "Hs".
+    iMod (step_store with "[$Hl $Hs]") as "($ & Hl)".
+    by iApply "H".
+Qed.
+
+Canonical Structure gwp_spec `{!specG_prob_lang Σ, invGS_gen hasLc Σ} := Build_GenWp gwp_mixin_spec.
