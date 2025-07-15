@@ -377,7 +377,7 @@ Proof.
   rewrite envs_entails_unseal. intros ???; subst.
   rewrite into_laterN_env_sound /=.
   rewrite -(refines_alloc_l _ ⊤); eauto.
-  rewrite -fupd_intro.
+  (* rewrite -fupd_intro. *)
   apply bi.later_mono.
 Qed.
 
@@ -435,7 +435,6 @@ Proof.
   rewrite envs_entails_unseal. intros -> ???; subst.
   rewrite into_laterN_env_sound /=.
   rewrite -(refines_alloctape_l _ ⊤); eauto.
-  rewrite -fupd_intro.
   now apply bi.later_mono.
 Qed.
 

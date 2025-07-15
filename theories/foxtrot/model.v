@@ -76,7 +76,7 @@ Section semtypes.
   Definition refines_def (E : coPset) (e : expr) (e' : expr) (A : lrel Σ)
     : iProp Σ :=
     (∀ K j, j ⤇ fill K e' -∗
-          pupd E ⊤ (WP e {{ v, ∃ v', j ⤇ fill K (of_val v')
+          (* pupd E ⊤ *) (WP e {{ v, ∃ v', j ⤇ fill K (of_val v')
                                ∗ A v v' }}))%I.
 
   Definition refines_aux : seal refines_def. Proof. by eexists. Qed.
@@ -260,38 +260,58 @@ Section related_facts.
   Context `{!foxtrotRGS Σ}.
   Implicit Types e : expr.
 
-  Lemma fupd_refines E1 E2 e t A :
-    (|={E1, E2}=> refines E2 e t A) -∗ refines E1 e t A.
+
+    Lemma fupd_refines E e t A :
+    (|={⊤}=> refines E e t A) -∗ refines E e t A.
   Proof.
     rewrite refines_eq /refines_def.
-    iIntros "H". iIntros (K j) "Hr /=".
-    iMod "H" as "H". iApply ("H" with "Hr").
+    iIntros "H". iIntros (j ε) "Hr  /=".
+    iMod "H" as "H". iApply ("H" with "Hr ").
   Qed.
 
-  Global Instance elim_fupd_refines p E1 E2 e t P A :
-   ElimModal True p false (|={E1, E2}=> P) P
-     (refines E1 e t A) (refines E2 e t A).
+  Global Instance elim_fupd_refines p E e t P A :
+   ElimModal True p false (|={⊤}=> P) P
+     (refines E e t A) (refines E e t A).
   Proof.
     rewrite /ElimModal. intros _.
     iIntros "[HP HI]". iApply fupd_refines.
     destruct p; simpl; rewrite ?bi.intuitionistically_elim;
     iMod "HP"; iModIntro; by iApply "HI".
   Qed.
+  
+  (* Lemma fupd_refines E1 E2 e t A : *)
+  (*   (|={E1, E2}=> refines E2 e t A) -∗ refines E1 e t A. *)
+  (* Proof. *)
+  (*   rewrite refines_eq /refines_def. *)
+  (*   iIntros "H". iIntros (K j) "Hr /=". *)
+  (*   iMod "H" as "H". iApply ("H" with "Hr"). *)
+  (* Qed. *)
+
+  (* Global Instance elim_fupd_refines p E1 E2 e t P A : *)
+  (*  ElimModal True p false (|={E1, E2}=> P) P *)
+  (*    (refines E1 e t A) (refines E2 e t A). *)
+  (* Proof. *)
+  (*   rewrite /ElimModal. intros _. *)
+  (*   iIntros "[HP HI]". iApply fupd_refines. *)
+  (*   destruct p; simpl; rewrite ?bi.intuitionistically_elim; *)
+  (*   iMod "HP"; iModIntro; by iApply "HI". *)
+  (* Qed. *)
 
   Global Instance elim_bupd_logrel p E e t P A :
    ElimModal True p false (|==> P) P
      (refines E e t A) (refines E e t A).
   Proof.
-    rewrite /ElimModal (bupd_fupd E). apply: elim_fupd_refines.
+    rewrite /ElimModal (bupd_fupd ⊤).
+    apply: elim_fupd_refines.
   Qed.
 
   (* This + elim_modal_timless_bupd' is useful for stripping off laters of timeless propositions. *)
-  Global Instance is_except_0_logrel E e t A :
-    IsExcept0 (refines E e t A).
-  Proof.
-    rewrite /IsExcept0. iIntros "HL".
-    iApply fupd_refines. by iMod "HL".
-  Qed.
+  (* Global Instance is_except_0_logrel E e t A : *)
+  (*   IsExcept0 (refines E e t A). *)
+  (* Proof. *)
+  (*   rewrite /IsExcept0. iIntros "HL". *)
+  (*   iApply fupd_refines. by iMod "HL". *)
+  (* Qed. *)
 
 End related_facts.
 
@@ -310,13 +330,13 @@ Section monadic.
     iIntros (K'' j) "Hjis /=".
     rewrite -fill_app.
     iSpecialize ("Hm" $! (K' ++ K'') with "[$Hjis]").
-    iMod "Hm".
-    iModIntro. 
+    (* iMod "Hm". *)
+    (* iModIntro.  *)
     iApply wp_bind.
     iApply (wp_wand with "Hm").
     simpl. iIntros (v). iDestruct 1 as (v') "[Hj HA]".
     rewrite fill_app.
-    by iMod ("Hf" with "HA Hj").
+    by iApply ("Hf" with "HA Hj").
   Qed.
 
   (* Lemma refines_ret_na E e1 e2 v1 v2 (A : lrel Σ) : *)

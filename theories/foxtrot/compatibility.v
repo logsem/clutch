@@ -27,8 +27,8 @@ Section compatibility.
     iIntros "IH1 IH2" (K j) "Hspec".
     tp_bind j (e2')%E.
     iSpecialize ("IH2" $! _ j with "[$]").
-    iMod "IH2".
-    iModIntro.
+    (* iMod "IH2". *)
+    (* iModIntro. *)
     wp_bind e2.
     wp_apply (wp_wand with "[$]").
     iIntros (?) "(%&?&?)".
@@ -36,7 +36,7 @@ Section compatibility.
     simpl.
     tp_bind j e1'.
     iSpecialize ("IH1" with "[$]").
-    iMod ("IH1").
+    (* iMod ("IH1"). *)
     wp_apply (wp_wand with "[$]").
     iIntros (?) "(%&?&?)".
     simpl.
@@ -53,8 +53,7 @@ Section compatibility.
     iIntros "IH".
     iIntros (??) "?".
     tp_bind j e'.
-    iDestruct ("IH" with "[$]") as ">IH".
-    iModIntro.
+    iDestruct ("IH" with "[$]") as "IH".
     wp_apply (wp_wand with "[$]").
     iIntros (?) "(%&?&?)".
     simpl. tp_pures j.
@@ -71,8 +70,7 @@ Section compatibility.
     iIntros "IH".
     iIntros (??) "?".
     tp_bind j e'.
-    iDestruct ("IH" with "[$]") as ">IH".
-    iModIntro.
+    iDestruct ("IH" with "[$]") as "IH".
     wp_apply (wp_wand with "[$]").
     iIntros (?) "(%&?&?)".
     simpl. tp_pures j.
@@ -90,8 +88,6 @@ Section compatibility.
     iIntros "IH1 IH2" (K j) "Hspec".
     tp_bind j (e2')%E.
     iSpecialize ("IH2" $! _ j with "[$]").
-    iMod ("IH2").
-    iModIntro.
     wp_bind e2.
     wp_apply (wp_wand with "[$]").
     iIntros (?) "(%&?&?)".
@@ -99,7 +95,6 @@ Section compatibility.
     simpl.
     tp_bind j e1'.
     iSpecialize ("IH1" with "[$]").
-    iMod "IH1".
     wp_apply (wp_wand with "[$]").
     iIntros (?) "(%&?&Hiff)".
     simpl.
@@ -107,7 +102,7 @@ Section compatibility.
     wp_pures.
     iDestruct ("Hiff" with "[$]") as "Hiff".
     unfold_rel.
-    by iMod ("Hiff" with "[$]").
+    by iApply ("Hiff" with "[$]").
   Qed.
   
   Lemma refines_seq A e1 e2 e1' e2' B :
@@ -118,16 +113,15 @@ Section compatibility.
     unfold_rel.
     iIntros "IH1 IH2".
     iIntros.
-    iModIntro.
     wp_bind e1.
     tp_bind j e1'.
-    iDestruct ("IH1" with "[$]") as ">?".
+    iDestruct ("IH1" with "[$]") as "?".
     wp_apply (wp_wand with "[$]").
     iIntros (?) "(%&?&?)".
     wp_pures.
     simpl.
     tp_pures j.
-    by iMod ("IH2" with "[$]").
+    by iApply ("IH2" with "[$]").
   Qed.
   
   Lemma refines_pack (A : lrel Σ) e e' (C : lrel Σ → lrel Σ) :
@@ -137,8 +131,7 @@ Section compatibility.
     unfold_rel.
     iIntros "H".
     iIntros.
-    iDestruct ("H" with "[$]") as ">?".
-    iModIntro.
+    iDestruct ("H" with "[$]") as "?".
     wp_apply (wp_mono with "[$]").
     iIntros (?) "(%&?&?)".
     iFrame.
@@ -151,7 +144,6 @@ Section compatibility.
     unfold_rel.
     iIntros "#H".
     iIntros.
-    iModIntro.
     wp_pures.
     iFrame.
     iModIntro.
@@ -160,11 +152,10 @@ Section compatibility.
     unfold_rel.
     iIntros (? j').
     iIntros.
-    iModIntro.
     wp_pures.
     tp_pures j'.
     iDestruct ("H" with "[$]") as "H'".
-    by iMod "H'".
+    by iApply "H'".
   Qed.
   
 (* Tactic Notation "rel_store_l_atomic" := rel_apply_l refines_store_l. *)
@@ -178,8 +169,6 @@ Section compatibility.
     iIntros "IH1 IH2" (K j) "Hspec".
     tp_bind j (e2')%E.
     iSpecialize ("IH2" $! _ j with "[$]").
-    iMod "IH2".
-    iModIntro.
     wp_bind e2.
     wp_apply (wp_wand with "[$]").
     iIntros (?) "(%&?&HA)".
@@ -187,7 +176,6 @@ Section compatibility.
     simpl.
     tp_bind j e1'.
     iSpecialize ("IH1" with "[$]").
-    iMod "IH1".
     wp_apply (wp_wand with "[$]").
     iIntros (?) "(%&?&#H)".
     iDestruct ("H") as "(%&%&%&%&H)".
@@ -208,8 +196,7 @@ Section compatibility.
     unfold_rel.
     iIntros.
     tp_bind j e'.
-    iDestruct ("H" with "[$]") as ">H".
-    iModIntro.
+    iDestruct ("H" with "[$]") as "H".
     wp_apply (wp_wand with "[$]").
     iIntros (?) "(%&?&#H)".
     simpl.
@@ -232,13 +219,12 @@ Section compatibility.
     iIntros "IH1 IH2".
     iIntros.
     tp_bind j e2'.
-    iDestruct ("IH2" with "[$]") as ">H".
-    iModIntro.
+    iDestruct ("IH2" with "[$]") as "H".
     wp_apply (wp_wand with "[$]").
     iIntros (?) "(%&?&HA)".
     simpl.
     tp_bind j e1'.
-    iDestruct ("IH1" with "[$]") as ">H".
+    iDestruct ("IH1" with "[$]") as "H".
     wp_apply (wp_wand with "[$]").
     iIntros (?) "(%&?&HA')".
     simpl.
@@ -273,8 +259,7 @@ Section compatibility.
     iIntros "H".
     iIntros.
     tp_bind j e'.
-    iDestruct ("H" with "[$]") as ">H".
-    iModIntro.
+    iDestruct ("H" with "[$]") as "H".
     wp_apply (wp_wand with "[$]").
     iIntros (?) "(%&?&HA)".
     iDestruct "HA" as "(%&->&->)".

@@ -35,7 +35,7 @@ Proof.
   iSpecialize ("Hlog" with "Herr").
   rewrite refines_eq /refines_def.
   rewrite -(fill_empty e').
-  iDestruct ("Hlog" with "[$]") as ">Hlog".
+  iDestruct ("Hlog" with "[$]") as "Hlog".
   iApply (wp_mono with "Hlog").
   iIntros (?) "(% &?&?) /=".
   iFrame.
