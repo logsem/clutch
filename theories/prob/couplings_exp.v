@@ -422,7 +422,8 @@ Proof.
   intros; simplify_eq; lra.
 Qed.
 
-Lemma Mcoupl_pweq `{Countable A} (μ μ' : distr A) ε (εpos : 0 <= ε) (pw : ∀ x, Mcoupl μ μ' (λ a a', a = x → a' = x) ε) :
+Lemma Mcoupl_pweq `{Countable A} (μ μ' : distr A) ε (εpos : 0 <= ε)
+  (pw : ∀ x, Mcoupl μ μ' (λ a a', a = x → a' = x) ε) :
   Mcoupl μ μ' eq ε.
 Proof.
   intros ?????.

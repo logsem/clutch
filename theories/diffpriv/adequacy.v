@@ -56,7 +56,7 @@ Section adequacy.
                   ⌜((P (e2, σ2) /\ R (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2 δ2)⌝ ∗
                     ⌜((¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2' δ2) ⌝)
            ).
-    { iPureIntro. intros.
+    { iPureIntro. simpl. intros.
       eapply (DPcoupl_erasure_erasable_lhs_choice _ _ _ _ _ _ _ _ _ _ _ _ _ _ P).
       9: apply H1.
       9: apply H2.
@@ -134,7 +134,7 @@ Section adequacy.
     iEval (rewrite wp_unfold /wp_pre /= He) in "Hwp".
     iMod ("Hwp" with "[$]") as "Hwp".
     iApply (wp_adequacy_spec_coupl with "Hwp").
-    iIntros (σ2 e2' σ2' ε' δ') "Hprog".
+    iIntros (σ2 e2' σ2' ε' δ') "Hprog". simpl in φ.
     iApply (wp_adequacy_prog_coupl with "Hprog"); [done|].
     iIntros (e3 σ3 e3' σ3' ε3 δ3) "Hspec".
     iIntros "!> !> !>".
