@@ -1,4 +1,5 @@
 From iris.base_logic.lib Require Export fancy_updates invariants.
+From clutch.prelude Require Import iris_ext.
 From iris.proofmode Require Import base tactics classes.
 From clutch.con_prob_lang Require Import lang.
 From clutch.foxtrot Require Import weakestpre.
@@ -17,6 +18,16 @@ Section pupd.
   Definition pupd := pupd_aux.(unseal).
   Lemma pupd_unseal : pupd = pupd_def.
   Proof. rewrite -pupd_aux.(seal_eq) //. Qed.
+    
+  Global Instance pupd_ne n:
+    Proper ((=) ==> (=) ==> (dist n) ==> (dist n)) pupd.
+  Proof. rewrite pupd_unseal/pupd_def.
+         rewrite /spec_coupl/spec_coupl'.
+         intros ?????????. subst.
+         do 8 f_equiv.
+         apply least_fixpoint_ne_outer; [|done].
+         solve_proper.
+  Qed.
 
   Lemma pupd_ret E P:
     P -∗ pupd E E P.
@@ -137,6 +148,23 @@ Section pupd.
     iApply "H".
     iMod "K".
     by iModIntro.
+  Qed.
+
+  Lemma pupd_fupd' E1 E2 P:
+    E2⊆E1->
+    pupd E1 E1 P -∗ pupd E1 E2 (|={E2,E1}=>P).
+  Proof.
+    rewrite pupd_unseal/pupd_def.
+    intros.
+    iIntros "H" (???) "(?&?&?)".
+    iMod ("H" with "[$]") as "H".
+    iModIntro.
+    iApply spec_coupl_mono; last done.
+    iIntros (???) ">(?&?&?&?)".
+    iApply (fupd_mask_intro); first done.
+    iIntros "Hclose".
+    iFrame.
+    by iMod "Hclose".
   Qed.
   
   Lemma pupd_bind E1 E2 E3 P Q:

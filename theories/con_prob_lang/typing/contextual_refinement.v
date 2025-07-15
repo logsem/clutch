@@ -238,15 +238,15 @@ Inductive typed_ctx_item :
   | TP_CTX_CmpXchgL Γ e1 e2 τ :
      UnboxedType τ →
      typed Γ e1 τ → typed Γ e2 τ →
-     typed_ctx_item (CTX_CmpXchgL e1 e2) Γ (TRef τ) Γ TBool
+     typed_ctx_item (CTX_CmpXchgL e1 e2) Γ (TRef τ) Γ (TBool * τ)
   | TP_CTX_CmpXchgM Γ e0 e2 τ :
      UnboxedType τ →
      typed Γ e0 (TRef τ) → typed Γ e2 τ →
-     typed_ctx_item (CTX_CmpXchgM e0 e2) Γ τ Γ TBool
+     typed_ctx_item (CTX_CmpXchgM e0 e2) Γ τ Γ (TBool * τ)
   | TP_CTX_CmpXchgR Γ e0 e1 τ:
      UnboxedType τ →
      typed Γ e0 (TRef τ) → typed Γ e1 τ →
-     typed_ctx_item (CTX_CmpXchgR e0 e1) Γ τ Γ TBool
+     typed_ctx_item (CTX_CmpXchgR e0 e1) Γ τ Γ (TBool * τ)
   | TP_CTX_XchgL Γ e2 τ :
      typed Γ e2 τ → typed_ctx_item (CTX_XchgL e2) Γ (TRef τ) Γ τ
   | TP_CTX_XchgR Γ e1 τ :

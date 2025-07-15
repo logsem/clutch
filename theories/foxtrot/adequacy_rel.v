@@ -29,15 +29,15 @@ Proof.
   intros H'.
   iIntros "Herr Hspec".
   iMod na_alloc as "[%γ Htok]".
-  set (HclutchR := FoxtrotRGS Σ _ _ γ).
+  set (HclutchR := FoxtrotRGS Σ _).
   iPoseProof (Hlog _) as "Hlog".
   (* iDestruct ((ec_split_le ε ε') with "Herr") as "[ε ε']" ; [real_solver|]. *)
   iSpecialize ("Hlog" with "Herr").
   rewrite refines_eq /refines_def.
   rewrite -(fill_empty e').
-  iDestruct ("Hlog" with "[$][$]") as "Hlog".
+  iDestruct ("Hlog" with "[$]") as ">Hlog".
   iApply (wp_mono with "Hlog").
-  iIntros (?) "(% &?&?&?) /=".
+  iIntros (?) "(% &?&?) /=".
   iFrame.
   by iApply HA.
 Qed.

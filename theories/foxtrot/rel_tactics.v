@@ -90,11 +90,6 @@ Ltac rel_values :=
   (* TODO: check that we have actually succeeded in solving the previous conditions, or add rel_pure_l/r beforehand *)
   rel_finish.
 
-Ltac rel_values_na :=
-  iStartProof;
-  iApply refines_ret_na;
-  rel_finish.
-
 Tactic Notation "rel_apply_l" open_constr(lem) :=
   (iPoseProofCore lem as false (fun H =>
     rel_reshape_cont_l ltac:(fun K e =>
@@ -141,7 +136,7 @@ Lemma tac_rel_pure_l `{!foxtrotRGS Σ} K e1 ℶ ℶ' E e e2 eres ϕ n m t A :
   e = fill K e1 →
   PureExec ϕ n e1 e2 →
   ϕ →
-  m = n ∨ m = 0 →
+  (m = n /\ E=⊤) ∨ m = 0 →
   MaybeIntoLaterNEnvs m ℶ ℶ' →
   eres = fill K e2 →
   envs_entails ℶ' (REL eres << t @ E : A) →
@@ -149,9 +144,9 @@ Lemma tac_rel_pure_l `{!foxtrotRGS Σ} K e1 ℶ ℶ' E e e2 eres ϕ n m t A :
 Proof.
   rewrite envs_entails_unseal.
   intros Hfill Hpure Hϕ Hm ?? Hp. subst.
-  destruct Hm as [-> | ->]; rewrite into_laterN_env_sound /= Hp.
+  destruct Hm as [[-> ->] | ->]; rewrite into_laterN_env_sound /= Hp.
   - rewrite -refines_pure_l //.
-  - rewrite -refines_pure_l //. apply bi.laterN_intro.
+  - rewrite -refines_masked_l //.
 Qed.
 
 Lemma tac_rel_pure_r `{!foxtrotRGS Σ} K e1 ℶ E (e e2 eres : expr) ϕ n t A :
@@ -176,8 +171,8 @@ Tactic Notation "rel_pure_l" open_constr(ef) "in" open_constr(Kf) :=
       |tc_solve                     (** PureExec ϕ n e1 e2 *)
       | .. ]);
       [try solve_vals_compare_safe                (** φ *)
-      |first [left; reflexivity
-             | right; reflexivity]                  (** (m = n) ∨ (m = 0) *)
+      |first [left; split; reflexivity
+             | right; reflexivity]                  (** (m = n /\ E=top) ∨ (m = 0) *)
       |tc_solve                                     (** IntoLaters *)
       |simpl; reflexivity           (** eres = fill K e2 *)
       |rel_finish                   (** new goal *)]
@@ -371,17 +366,18 @@ Ltac rel_pures_r :=
 (** Alloc *)
 (* Tactic Notation "rel_alloc_l_atomic" := rel_apply_l refines_alloc_l. *)
 
-Lemma tac_rel_alloc_l_simpl `{!foxtrotRGS Σ} K ℶ1 ℶ2 e t e' v' A E :
+Lemma tac_rel_alloc_l_simpl `{!foxtrotRGS Σ} K ℶ1 ℶ2 e t e' v' A :
   e = fill K (Alloc e') →
   IntoVal e' v' →
   MaybeIntoLaterNEnvs 1 ℶ1 ℶ2 →
   (envs_entails ℶ2 (∀ (l : loc),
-     (l ↦ v' -∗ refines E (fill K (of_val #l)) t A))) →
-  envs_entails ℶ1 (refines E e t A).
+     (l ↦ v' -∗ refines ⊤ (fill K (of_val #l)) t A))) →
+  envs_entails ℶ1 (refines ⊤ e t A).
 Proof.
   rewrite envs_entails_unseal. intros ???; subst.
   rewrite into_laterN_env_sound /=.
   rewrite -(refines_alloc_l _ ⊤); eauto.
+  rewrite -fupd_intro.
   apply bi.later_mono.
 Qed.
 
@@ -428,17 +424,18 @@ Tactic Notation "rel_alloc_r" simple_intropattern(l) "as" constr(H) :=
 (** AllocTape *)
 (* Tactic Notation "rel_alloctape_l_atomic" := rel_apply_l refines_alloctape_l. *)
 
-Lemma tac_rel_alloctape_l_simpl `{!foxtrotRGS Σ} K ℶ1 ℶ2 e N z t A E :
+Lemma tac_rel_alloctape_l_simpl `{!foxtrotRGS Σ} K ℶ1 ℶ2 e N z t A :
   TCEq N (Z.to_nat z) →
   e = fill K (AllocTape #z) →
   MaybeIntoLaterNEnvs 1 ℶ1 ℶ2 →
   (envs_entails ℶ2 (∀ (α : loc),
-     (α ↪N (N; []) -∗ refines E (fill K (of_val #lbl:α)) t A))) →
-  envs_entails ℶ1 (refines E e t A).
+     (α ↪N (N; []) -∗ refines ⊤ (fill K (of_val #lbl:α)) t A))) →
+  envs_entails ℶ1 (refines ⊤ e t A).
 Proof.
   rewrite envs_entails_unseal. intros -> ???; subst.
   rewrite into_laterN_env_sound /=.
   rewrite -(refines_alloctape_l _ ⊤); eauto.
+  rewrite -fupd_intro.
   now apply bi.later_mono.
 Qed.
 

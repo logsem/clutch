@@ -494,6 +494,53 @@ Section fundamental.
     asimpl. eauto.
   Qed.
 
+  Lemma bin_log_related_fork Δ Γ e e' :
+    (〈Δ;Γ〉 ⊨ e ≤log≤ e' : ()) -∗
+    〈Δ;Γ〉 ⊨ Fork e ≤log≤ Fork e' : ().
+  Proof.
+    iIntros "IH".
+    intro_clause.
+    iApply refines_fork.
+    by iApply "IH".
+  Qed.
+
+  (* Lemma bin_log_related_CmpXchg Δ Γ e1 e2 e3 e1' e2' e3' τ :  *)
+  (*   UnboxedType τ ->  *)
+  (*   (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : TRef τ) -∗ *)
+  (*   (〈Δ;Γ〉 ⊨ e2 ≤log≤ e2' : τ) -∗ *)
+  (*   (〈Δ;Γ〉 ⊨ e3 ≤log≤ e3' : τ) -∗ *)
+  (*   〈Δ;Γ〉 ⊨ CmpXchg e1 e2 e3 ≤log≤ CmpXchg e1' e2' e3' : TProd TBool τ. *)
+  (* Proof. *)
+  (*   intros Hτ. *)
+  (*   iIntros "IH1 IH2 IH3". *)
+  (*   intro_clause. *)
+  (*   rel_bind_ap e3 e3' "IH3" v3 v3' "#IH3". *)
+  (*   rel_bind_ap e2 e2' "IH2" v2 v2' "#IH2". *)
+  (*   rel_bind_ap e1 e1' "IH1" v1 v1' "#IH1". *)
+  (*   iDestruct "IH1" as (l l') "(% & % & Hinv)"; simplify_eq/=. *)
+  (*   iDestruct (unboxed_type_sound with "IH2") as "[% %]"; try fast_done. *)
+  (*   iInv (logN .@ (l,l')) as "?" (* "[Hv1 [>Hv2 #Hv]]" *) "Hclose". *)
+  (*   iModIntro. iExists _; iFrame. simpl. *)
+  (*   destruct (decide (v1 = v2')) as [|Hneq]; subst. *)
+  (*   - iSplitR; first by (iIntros (?); contradiction). *)
+  (*     iIntros (?). iNext. iIntros "Hv1". *)
+  (*     iDestruct (eq_type_sound with "Hv") as "%"; first fast_done. *)
+  (*     rel_cmpxchg_suc_r. *)
+  (*     iMod ("Hclose" with "[-]"). *)
+  (*     { iNext; iExists _, _; by iFrame. } *)
+  (*     rel_values. iExists _, _, _, _. do 2 (iSplitL; first done). *)
+  (*     iFrame "Hv". iExists _. done. *)
+  (*   - iSplitL; last by (iIntros (?); congruence). *)
+  (*     iIntros (?). iNext. iIntros "Hv1". *)
+  (*     iDestruct (eq_type_sound with "Hv") as "%"; first fast_done. *)
+  (*     rel_cmpxchg_fail_r. *)
+  (*     iMod ("Hclose" with "[-]"). *)
+  (*     { iNext; iExists _, _; by iFrame. } *)
+  (*     rel_values. iExists _, _, _, _. do 2 (iSplitL; first done). *)
+  (*     iFrame "Hv". iExists _. done. *)
+
+  (* Qed. *)
+
   (** TODO bin_log_for fork, cmpxchg, xchg, and Faa *)
   
   (* Theorem fundamental Δ Γ e τ : *)

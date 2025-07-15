@@ -10,8 +10,8 @@ Definition logN : namespace := nroot .@ "logN".
 
 Class foxtrotRGS Σ := FoxtrotRGS {
                         foxtrotRGS_foxtrotGS :: foxtrotGS Σ;
-                        foxtrotRGS_na_invG :: na_invG Σ;
-                        foxtrotRGS_nais : na_inv_pool_name;
+                        (* foxtrotRGS_na_invG :: na_invG Σ; *)
+                        (* foxtrotRGS_nais : na_inv_pool_name; *)
                       }.
 
 (** Semantic intepretation of types *)
@@ -60,9 +60,9 @@ Arguments lrelC : clear implicits.
 
 Canonical Structure ectx_itemO := leibnizO ectx_item.
 
-Definition na_ownP `{!foxtrotRGS Σ} := na_own foxtrotRGS_nais.
-Definition na_invP `{!foxtrotRGS Σ} := na_inv foxtrotRGS_nais.
-Definition na_closeP `{!foxtrotRGS Σ} P N E := (▷ P ∗ na_ownP (E ∖ ↑N) ={⊤}=∗ na_ownP E)%I.
+(* Definition na_ownP `{!foxtrotRGS Σ} := na_own foxtrotRGS_nais. *)
+(* Definition na_invP `{!foxtrotRGS Σ} := na_inv foxtrotRGS_nais. *)
+(* Definition na_closeP `{!foxtrotRGS Σ} P N E := (▷ P ∗ na_ownP (E ∖ ↑N) ={⊤}=∗ na_ownP E)%I. *)
 
 Section semtypes.
   Context `{!foxtrotRGS Σ}.
@@ -76,10 +76,8 @@ Section semtypes.
   Definition refines_def (E : coPset) (e : expr) (e' : expr) (A : lrel Σ)
     : iProp Σ :=
     (∀ K j, j ⤇ fill K e' -∗
-          na_ownP E -∗
-          WP e {{ v, ∃ v', j ⤇ fill K (of_val v')
-                               ∗ na_ownP ⊤
-                               ∗ A v v' }})%I.
+          pupd E ⊤ (WP e {{ v, ∃ v', j ⤇ fill K (of_val v')
+                               ∗ A v v' }}))%I.
 
   Definition refines_aux : seal refines_def. Proof. by eexists. Qed.
   Definition refines := unseal refines_aux.
@@ -262,17 +260,17 @@ Section related_facts.
   Context `{!foxtrotRGS Σ}.
   Implicit Types e : expr.
 
-  Lemma fupd_refines E e t A :
-    (|={⊤}=> refines E e t A) -∗ refines E e t A.
+  Lemma fupd_refines E1 E2 e t A :
+    (|={E1, E2}=> refines E2 e t A) -∗ refines E1 e t A.
   Proof.
     rewrite refines_eq /refines_def.
-    iIntros "H". iIntros (K j) "Hr Hna /=".
-    iMod "H" as "H". iApply ("H" with "Hr Hna").
+    iIntros "H". iIntros (K j) "Hr /=".
+    iMod "H" as "H". iApply ("H" with "Hr").
   Qed.
 
-  Global Instance elim_fupd_refines p E e t P A :
-   ElimModal True p false (|={⊤}=> P) P
-     (refines E e t A) (refines E e t A).
+  Global Instance elim_fupd_refines p E1 E2 e t P A :
+   ElimModal True p false (|={E1, E2}=> P) P
+     (refines E1 e t A) (refines E2 e t A).
   Proof.
     rewrite /ElimModal. intros _.
     iIntros "[HP HI]". iApply fupd_refines.
@@ -284,7 +282,7 @@ Section related_facts.
    ElimModal True p false (|==> P) P
      (refines E e t A) (refines E e t A).
   Proof.
-    rewrite /ElimModal (bupd_fupd ⊤). apply: elim_fupd_refines.
+    rewrite /ElimModal (bupd_fupd E). apply: elim_fupd_refines.
   Qed.
 
   (* This + elim_modal_timless_bupd' is useful for stripping off laters of timeless propositions. *)
@@ -293,41 +291,6 @@ Section related_facts.
   Proof.
     rewrite /IsExcept0. iIntros "HL".
     iApply fupd_refines. by iMod "HL".
-  Qed.
-
-  Lemma refines_na_alloc P N E e1 e2 A :
-    (▷ P ∗ (na_invP N P -∗ REL e1 << e2 @ E : A))
-    ⊢ REL e1 << e2 @ E : A.
-  Proof.
-    iIntros "[HP Hcont]".
-    iMod (na_inv_alloc with "HP").
-    iApply ("Hcont" with "[$]").
-  Qed.
-
-  Lemma refines_na_inv P E N e1 e2 A :
-    ↑N ⊆ E →
-    na_invP N P ∗
-    (▷ P ∗ na_closeP P N E -∗ REL e1 << e2 @ (E ∖ ↑N) : A)%I
-    ⊢ REL e1 << e2 @ E : A.
-  Proof.
-    iIntros (NE) "[Hinv IH]".
-    rewrite refines_eq /refines_def.
-    iIntros (K j) "Hs Hnais".
-    iMod (na_inv_acc with "Hinv Hnais") as "(HP & Hnais & Hclose)" ; auto.
-    iDestruct ("IH" with "[HP Hclose]") as "IH". 1: iFrame.
-    iApply ("IH" $! K with "Hs Hnais").
-  Qed.
-
-  Lemma refines_na_close P E N e1 e2 A :
-    (▷ P ∗ na_closeP P N E ∗
-    REL e1 << e2 @ E : A)
-    ⊢ REL e1 << e2 @ (E ∖ ↑N) : A.
-  Proof.
-    iIntros "(HP & Hclose & IH)".
-    rewrite refines_eq /refines_def.
-    iIntros (K j) "Hs own_FN".
-    iDestruct ("Hclose" with "[$HP $own_FN]") as "own_F".
-    iMod "own_F". iApply ("IH" with "Hs own_F").
   Qed.
 
 End related_facts.
@@ -344,47 +307,49 @@ Section monadic.
   Proof.
     iIntros "Hm Hf".
     rewrite refines_eq /refines_def.
-    iIntros (K'' j) "Hj Hnais /=".
+    iIntros (K'' j) "Hjis /=".
     rewrite -fill_app.
-    iSpecialize ("Hm" $! (K' ++ K'') with "[$Hj] Hnais").
+    iSpecialize ("Hm" $! (K' ++ K'') with "[$Hjis]").
+    iMod "Hm".
+    iModIntro. 
     iApply wp_bind.
     iApply (wp_wand with "Hm").
-    iIntros (v). iDestruct 1 as (v') "[Hj (Hnais & HA)]".
+    simpl. iIntros (v). iDestruct 1 as (v') "[Hj HA]".
     rewrite fill_app.
-    iApply ("Hf" with "HA Hj Hnais").
+    by iMod ("Hf" with "HA Hj").
   Qed.
 
-  Lemma refines_ret_na E e1 e2 v1 v2 (A : lrel Σ) :
-    IntoVal e1 v1 →
-    IntoVal e2 v2 →
-    (na_ownP E ={⊤}=∗ na_ownP ⊤ ∗ A v1 v2) -∗
-    REL e1 << e2 @ E : A.
-  Proof.
-    rewrite /IntoVal.
-    rewrite refines_eq /refines_def.
-    iIntros (<-<-) "HFA". iIntros (K j) "HK Hnais/=".
-    iMod ("HFA" with "Hnais") as "[HF HA]".
-    iApply wp_value. iExists _. iFrame.
-  Qed.
+  (* Lemma refines_ret_na E e1 e2 v1 v2 (A : lrel Σ) : *)
+  (*   IntoVal e1 v1 → *)
+  (*   IntoVal e2 v2 → *)
+  (*   (na_ownP E ={⊤}=∗ na_ownP ⊤ ∗ A v1 v2) -∗ *)
+  (*   REL e1 << e2 @ E : A. *)
+  (* Proof. *)
+  (*   rewrite /IntoVal. *)
+  (*   rewrite refines_eq /refines_def. *)
+  (*   iIntros (<-<-) "HFA". iIntros (K j) "HK/=". *)
+  (*   iMod ("HFA" with "Hnais") as "[HF HA]". *)
+  (*   iApply wp_value. iExists _. iFrame. *)
+  (* Qed. *)
 
-  Lemma refines_ret_na' E e1 e2 v1 v2 (A : lrel Σ) :
-    IntoVal e1 v1 →
-    IntoVal e2 v2 →
-    (|={⊤}=> na_ownP (⊤ ∖ E) ∗ A v1 v2) -∗
-    REL e1 << e2 @ E : A.
-  Proof.
-    rewrite /IntoVal.
-    rewrite refines_eq /refines_def.
-    iIntros (<-<-) "HFA". iIntros (K j) "Hj Hnais /=".
-    iMod "HFA" as "[HF HA]".
-    iApply wp_value. iExists _. iFrame.
-    assert (E ## (⊤ ∖ E)) as H by set_solver.
-    iPoseProof (na_own_union _ _ _ H with "[$HF $Hnais]") as "HL".
-    assert ((E ∪ (⊤ ∖ E)) = ⊤) as ->. 2: iFrame.
-    rewrite union_comm_L.
-    rewrite difference_union_L.
-    set_solver.
-  Qed.
+  (* Lemma refines_ret_na' E e1 e2 v1 v2 (A : lrel Σ) : *)
+  (*   IntoVal e1 v1 → *)
+  (*   IntoVal e2 v2 → *)
+  (*   (|={⊤}=> na_ownP (⊤ ∖ E) ∗ A v1 v2) -∗ *)
+  (*   REL e1 << e2 @ E : A. *)
+  (* Proof. *)
+  (*   rewrite /IntoVal. *)
+  (*   rewrite refines_eq /refines_def. *)
+  (*   iIntros (<-<-) "HFA". iIntros (K j) "Hjis /=". *)
+  (*   iMod "HFA" as "[HF HA]". *)
+  (*   iApply wp_value. iExists _. iFrame. *)
+  (*   assert (E ## (⊤ ∖ E)) as H by set_solver. *)
+  (*   iPoseProof (na_own_union _ _ _ H with "[$HF $Hnais]") as "HL". *)
+  (*   assert ((E ∪ (⊤ ∖ E)) = ⊤) as ->. 2: iFrame. *)
+  (*   rewrite union_comm_L. *)
+  (*   rewrite difference_union_L. *)
+  (*   set_solver. *)
+  (* Qed. *)
 
   Lemma refines_ret e1 e2 v1 v2 (A : lrel Σ) :
     IntoVal e1 v1 →
@@ -392,9 +357,10 @@ Section monadic.
     (|={⊤}=> A v1 v2) -∗
     REL e1 << e2 : A.
   Proof.
-    iIntros (hv1 hv2) "HA".
-    iApply refines_ret_na.
-    iIntros "Hnais". iMod "HA". now iFrame.
+    rewrite /IntoVal.
+    rewrite refines_eq /refines_def.
+    iIntros (<-<-) ">HFA". iIntros (K j) "HK/=".
+    iApply wp_value. iExists _. by iFrame.
   Qed.
 
 
