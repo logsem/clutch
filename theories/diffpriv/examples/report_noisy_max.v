@@ -586,6 +586,135 @@ Section rnm.
   (* Qed. *)
   Admitted.
 
+  Definition WP_PWEQ := ∀ e e' K E,
+    (
+      ⤇ fill K e' ⊢
+      ∀ (RES : val),
+          WP e @ E
+            {{ v, ∃ v' : val, ⤇ fill K (Val v') ∗ ⌜v = RES → v' = RES⌝ }} )
+→
+    (⤇ fill K e'
+    ⊢
+     WP e @ E
+      {{ v, ∃ v' : val, ⤇ fill K (Val v') ∗ ⌜v = v'⌝ }}).
+
+
+  Lemma rnm_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
+    (0 < IZR num / IZR (2 * den)) →
+    (∀ i : Z, ⊢ hoare_sensitive (evalQ #i) 1 dDB dZ) →
+    ∀ db db', dDB db db' <= 1 →
+              WP_PWEQ →
+                ↯m (IZR num / IZR den) ∗
+                    ⤇ fill K (report_noisy_max num den evalQ #N (inject db'))
+                    ⊢
+                      WP report_noisy_max num den evalQ #N (inject db)
+                        {{ v, ∃ (v' : val), ⤇ fill K v' ∗ ⌜ v = v' ⌝  }}
+  .
+  Proof.
+    intros ????? wp_pweq. iIntros "(ε & rhs)".
+    iPoseProof (wp_pweq with "rhs") as "pweq".
+    iApply (wp_pweq with "[$rhs]") ; iIntros "rhs %RES".
+    iApply (rnm_pw_diffpriv with "[$ε $rhs]") => //.
+    by iNext ; iIntros.
+  Qed.
+
+  Lemma wp_pweq_couple : WP_PWEQ.
+  Proof.
+    iLöb as "IH". iIntros (e e' K E).
+    iIntros "[rhs pw] /=".
+    rewrite wp_unfold /wp_pre //=.
+    setoid_rewrite wp_unfold at 3.
+    rewrite {1}/wp_pre /=.
+    iIntros (?????) "([H T] & S & ε & δ)".
+    iSpecialize ("pw" with "rhs").
+    destruct (to_val e) eqn:ev.
+    -
+      iSpecialize ("pw" $! v).
+      iMod ("pw" with "[$]") as "pw". iModIntro.
+      iApply (spec_coupl_mono ∅ with "[] pw") => //=.
+      iIntros (?????) "> (HT & S & E & %v' & rhs & %pweq)". iFrame.
+      rewrite pweq => //.
+    -
+      iApply spec_coupl_ret.
+      iSpecialize ("pw" with "[$H $T $S $ε $δ]").
+
+      fail.
+
+      iApply (prog_coupl_mono with "[pw] ") => //=.
+
+
+    (*   iApply fupd_mask_intro => //.
+         iIntros "hclose".
+       iApply spec_coupl_ret. iFrame.
+
+       rewrite spec_coupl_unfold /spec_coupl_pre //=.
+       iLeft.
+
+       rewrite wp_unfold /wp_pre //=.
+       rewrite ev.
+       iSpecialize ("pw" $! _ _ _ _ _).
+       iSpecialize ("pw" with "[$H $T $S $ε $δ]").
+         iFrame. iMod "hclose". iModIntro.
+         admit.
+       - *)
+  Admitted.
+
+
+  Corollary wp_pweq_couple_swap K (* E  *)e e' :
+    ⤇ fill K e' ∗
+    (∀ (RES : val),
+        ⤇ fill K e' -∗
+          WP e (* @ E *)
+            {{ v, ∃ v' : val, ⤇ fill K (Val v') ∗ ⌜v = RES → v' = RES⌝ }} )
+    -∗
+     WP e (* @ E *)
+      {{ v, ∃ v' : val, ⤇ fill K (Val v') ∗ ⌜v = v'⌝ }}.
+  Proof.
+    iIntros "[rhs pw]". iPoseProof (wp_pweq_couple e e' K with "[$rhs pw]") as "h".
+    2: iApply "h".
+    iIntros. iApply "pw". done.
+  Qed.
+
+
+  (* Lemma hoare_pweq_couple K E e e' ε :
+       {{{ ⤇ fill K e' ∗ ↯m ε ∗
+           (∀ (RES : val),
+               {{{ ⤇ fill K e' ∗ ↯m ε }}}
+                 e @ E
+                 {{{ (v : val), RET v; ∃ v' : val, ⤇ fill K (Val v') ∗ ⌜v = RES → v' = RES⌝ }}} )
+       }}}
+         e @ E
+         {{{ (v : val), RET v; ∃ v' : val, ⤇ fill K (Val v') ∗ ⌜v = v'⌝ }}}.
+     Proof.
+       iIntros (Φ) "[rhs [ε pw]] HΦ".
+       iPoseProof (wp_pweq_couple_swap with "[$rhs pw ε HΦ]") as "wppw" => //.
+       { iIntros "%RES rhs". iSpecialize ("pw" $! RES with "[$]").
+     Admitted.
+
+     (* persistence is annoying *)
+     Lemma hoare_pweq_couple' K E e e' num den :
+       {{{ ⤇ fill K e' ∗ ↯m (IZR num / IZR den) ∗
+           (∀ (RES : val),
+               {{{ ⤇ fill K e' ∗ ↯m (IZR num / IZR den) }}}
+                 e @ E
+                 {{{ (v : val), RET v; ∃ v' : val, ⤇ fill K (Val v') ∗ ⌜v = RES → v' = RES⌝ }}} )
+       }}}
+         e @ E
+         {{{ (v : val), RET v; ∃ v' : val, ⤇ fill K (Val v') ∗ ⌜v = v'⌝ }}}.
+     Proof.
+       (* iIntros "%φ [rhs [ε h]] hφ".
+          iApply (pweq_couple with "[$rhs h ε]") => //.
+          iIntros.
+          iIntros (ψ).
+          iSpecialize ("h" $! RES _).
+          iApply (wp_strong_mono'' with "h").
+          iApply "h".
+          iRevert "ε". *)
+     Admitted. *)
+
+
+
+
 End rnm.
 
 
