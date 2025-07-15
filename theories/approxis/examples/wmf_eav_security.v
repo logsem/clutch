@@ -967,3 +967,5 @@ Section logrel.
     Qed.
 
   End eavesdropping_attacker.
+
+End logrel.
