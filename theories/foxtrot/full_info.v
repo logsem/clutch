@@ -633,6 +633,21 @@ Section full_info.
     by rewrite full_info_lift_osch_lim_exec.
   Qed.
 
+  Definition full_info_one_step_stutter_osch j :=
+    full_info_cons_osch (λ _, dret j) (λ _, full_info_stutter_osch full_info_inhabitant).
+
+  Lemma full_info_one_step_stutter_osch_lim_exec j ρ:
+    osch_lim_exec (full_info_one_step_stutter_osch j) ([], ρ) =
+    dmap (λ ρ', ([(cfg_to_cfg' ρ, j); (cfg_to_cfg' ρ', length ρ'.1)], ρ')) (step' j ρ).
+  Proof.
+    rewrite /full_info_one_step_stutter_osch.
+    rewrite full_info_cons_osch_lim_exec.
+    rewrite dret_id_left.
+    apply dbind_ext_right.
+    intros ρ'.
+    by rewrite full_info_lift_osch_lim_exec full_info_stutter_osch_lim_exec full_info_inhabitant_lim_exec !dmap_dret /=.
+  Qed. 
+
   (** This is a way of building a scheduler by appending schedulers at the frontier of another
    *)
   Program Definition full_info_append_osch

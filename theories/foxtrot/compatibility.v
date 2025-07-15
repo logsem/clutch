@@ -1,7 +1,7 @@
 (** Compataibility rules *)
 From stdpp Require Import namespaces.
 From clutch.con_prob_lang Require Import lang notation.
-From clutch.foxtrot Require Import primitive_laws proofmode model .
+From clutch.foxtrot Require Import primitive_laws proofmode model coupling_rules.
 
 Section compatibility.
   Context `{!foxtrotRGS Σ}.
@@ -185,78 +185,85 @@ Section compatibility.
     by iFrame.
   Qed.
   
-  (* Lemma refines_load e e' A : *)
-  (*   (REL e << e' : ref A) -∗ *)
-  (*   REL !e << !e' : A. *)
-  (* Proof. *)
-  (*   iIntros "H". *)
-  (*   rel_bind_ap e e' "H" v v' "H". *)
-  (*   iDestruct "H" as (l l' -> ->) "#H". *)
-  (*   (* TODO: maybe fix tactic? *) *)
-  (*   (* rel_load_l_atomic. *) *)
-  (*   iApply (refines_atomic_l _ _ []); simpl. *)
-  (*   iIntros (K') "Hr". *)
-  (*   iInv (logN .@ (l,l')) as (w w') "[Hw1 [>Hw2 #Hw]]" "Hclose"; simpl. *)
-  (*   iModIntro. *)
-  (*   tp_load. *)
-  (*   wp_load. *)
-  (*   iMod ("Hclose" with "[Hw1 Hw2]") as "_". *)
-  (*   { iNext. iExists w,w'; by iFrame. } *)
-  (*   iModIntro. iExists _. iFrame. *)
-  (*   value_case. *)
-  (* Qed. *)
+  Lemma refines_load e e' A :
+    (REL e << e' : ref A) -∗
+    REL !e << !e' : A.
+  Proof.
+    iIntros "H".
+    unfold_rel.
+    iIntros.
+    tp_bind j e'.
+    iDestruct ("H" with "[$][$]") as "H".
+    wp_apply (wp_wand with "[$]").
+    iIntros (?) "(%&?&?&#H)".
+    simpl.
+    iDestruct ("H") as "(%&%&%&%&H)".
+    subst.
+    iInv "H" as "(%&%&>l1&>l2&#H')" "Hclose".
+    simpl.
+    tp_load j.
+    wp_load.
+    iMod ("Hclose" with "[$H' $l1 $l2]") as "_".
+    by iFrame.
+  Qed.
+  
+  Lemma refines_rand_tape e1 e1' e2 e2' :
+    (REL e1 << e1' : lrel_nat) -∗
+    (REL e2 << e2' : lrel_tape) -∗
+    REL rand(e2) e1  << rand(e2') e1' : lrel_nat.
+  Proof.
+    unfold_rel.
+    iIntros "IH1 IH2".
+    iIntros.
+    tp_bind j e2'.
+    iDestruct ("IH2" with "[$][$]") as "H".
+    wp_apply (wp_wand with "[$]").
+    iIntros (?) "(%&?&?&HA)".
+    simpl.
+    tp_bind j e1'.
+    iDestruct ("IH1" with "[$][$]") as "H".
+    wp_apply (wp_wand with "[$]").
+    iIntros (?) "(%&?&?&HA')".
+    simpl.
+    iDestruct "HA'" as (M) "[-> ->]".
+    iDestruct "HA" as (α α' N -> ->) "#H".
+    iInv (logN.@ (α, α')) as ">[Hα Hα']" "Hclose".
+    iPoseProof (empty_to_spec_tapeN with "Hα'") as "Hα'".
+    iPoseProof (empty_to_tapeN with "Hα") as "Hα".
+    destruct (decide (N = M)); simplify_eq.
+    - iApply (wp_couple_rand_lbl_rand_lbl with "[$]"); auto.
+      iNext. iIntros (?) "(?&?&?&%)".
+      iPoseProof (spec_tapeN_to_empty with "[$]") as "Hαs".
+      iPoseProof (tapeN_to_empty with "[$]") as "Hα".
+      iMod ("Hclose" with "[$]").
+      iModIntro.
+      iExists _. simpl. iFrame. by iExists _. 
+    - iApply (wp_couple_rand_lbl_rand_lbl_wrong
+               with "[$]"); [done|done|].
+      iNext. iIntros (?) "(?&?&?&%)".
+      iPoseProof (spec_tapeN_to_empty with "[$]") as "Hαs".
+      iPoseProof (tapeN_to_empty with "[$]") as "Hα".
+      iMod ("Hclose" with "[$]").
+      iModIntro.
+      iExists _. simpl. iFrame. by iExists _.
+  Qed.
 
-  (* Lemma refines_rand_tape e1 e1' e2 e2' : *)
-  (*   (REL e1 << e1' : lrel_nat) -∗ *)
-  (*   (REL e2 << e2' : lrel_tape) -∗ *)
-  (*   REL rand(e2) e1  << rand(e2') e1' : lrel_nat. *)
-  (* Proof. *)
-  (*   iIntros "IH1 IH2". *)
-  (*   rel_bind_ap e2 e2' "IH2" w w' "IH2". *)
-  (*   rel_bind_ap e1 e1' "IH1" v v' "IH1". *)
-  (*   iDestruct "IH1" as (M) "[-> ->]". *)
-  (*   iDestruct "IH2" as (α α' N -> ->) "#H". *)
-  (*   iApply (refines_atomic_l _ _ []); simpl. *)
-  (*   iIntros (K') "Hr". *)
-  (*   iInv (logN.@ (α, α')) as ">[Hα Hα']" "Hclose". *)
-  (*   iModIntro. *)
-  (*   iPoseProof (empty_to_spec_tapeN with "Hα'") as "Hα'". *)
-  (*   iPoseProof (empty_to_tapeN with "Hα") as "Hα". *)
-  (*   destruct (decide (N = M)); simplify_eq. *)
-  (*   - iApply (wp_couple_rand_lbl_rand_lbl with "[$Hα $Hα' $Hr]"); auto. *)
-  (*     iIntros "!>" (N) "(Hα & Hαs & Hr & %)". *)
-  (*     iPoseProof (spec_tapeN_to_empty with "Hαs") as "Hαs". *)
-  (*     iPoseProof (tapeN_to_empty with "Hα") as "Hα". *)
-  (*     iMod ("Hclose" with "[$Hα $Hαs]") as "_". *)
-  (*     iModIntro. *)
-  (*     iExists _. simpl. iFrame "Hr". *)
-  (*     rel_values. *)
-  (*   - iApply (wp_couple_rand_lbl_rand_lbl_wrong *)
-  (*              with "[$Hα $Hα' $Hr]"); [done|done|]. *)
-  (*     iIntros "!>" (m) "(Hα & Hα' & Hr & %)". *)
-  (*     iPoseProof (spec_tapeN_to_empty with "Hα'") as "Hα'". *)
-  (*     iPoseProof (tapeN_to_empty with "Hα") as "Hα". *)
-  (*     iMod ("Hclose" with "[$Hα $Hα']") as "_". *)
-  (*     iModIntro. *)
-  (*     iExists _. iFrame "Hr". *)
-  (*     rel_values. *)
-  (* Qed. *)
-
-  (* Lemma refines_rand_unit e e' : *)
-  (*   (REL e << e' : lrel_nat) -∗ *)
-  (*   REL rand e << rand e' : lrel_nat. *)
-  (* Proof. *)
-  (*   iIntros "H". *)
-  (*   rel_bind_ap e e' "H" v v' "H". *)
-  (*   iDestruct "H" as (n) "%H". *)
-  (*   destruct H as [-> ->]. *)
-  (*   rel_bind_l (rand(_) _)%E. *)
-  (*   rel_bind_r (rand(_) _)%E. *)
-  (*   iApply (refines_couple_rands_lr); auto. *)
-  (*   iIntros (b). *)
-  (*   iModIntro. *)
-  (*   iIntros "%". *)
-  (*   value_case. *)
-  (* Qed. *)
-
+  Lemma refines_rand_unit e e' :
+    (REL e << e' : lrel_nat) -∗
+    REL rand e << rand e' : lrel_nat.
+  Proof.
+    unfold_rel.
+    iIntros "H".
+    iIntros.
+    tp_bind j e'.
+    iDestruct ("H" with "[$][$]") as "H".
+    wp_apply (wp_wand with "[$]").
+    iIntros (?) "(%&?&?&HA)".
+    iDestruct "HA" as "(%&->&->)".
+    simpl.
+    wp_apply (wp_couple_rand_rand with "[$]"); first done.
+    iIntros (?) "[% ?]". iFrame.
+    by iExists _.
+  Qed.
+  
 End compatibility.

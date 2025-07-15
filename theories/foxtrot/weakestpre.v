@@ -790,8 +790,6 @@ Section modalities.
     iIntros (??? (_ & ?)).
     by iApply "H".
   Qed.
-  
-(** TODO: add nice lemmas for using prog_coupl, e.g. prim_step only on the left*)
 
 End modalities.
 
