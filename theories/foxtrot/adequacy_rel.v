@@ -7,10 +7,10 @@ From clutch.con_prob_lang Require Import lang lub_termination.
 
 Class foxtrotRGpreS Σ := FoxtrotRGPreS {
   foxtrotRGpreS_foxtrot :: foxtrotGpreS Σ;
-  prelorelGpreS_na_inv :: na_invG Σ;
+  (* prelorelGpreS_na_inv :: na_invG Σ; *)
 }.
 
-Definition foxtrotRΣ : gFunctors := #[foxtrotΣ; na_invΣ].
+Definition foxtrotRΣ : gFunctors := #[foxtrotΣ].
 Global Instance subG_foxtrotRGPreS {Σ} : subG foxtrotRΣ Σ → foxtrotRGpreS Σ.
 Proof. solve_inG. Qed.
 
@@ -28,7 +28,7 @@ Proof.
   eapply (foxtrot_adequacy_intermediate Σ); try done. 
   intros H'.
   iIntros "Herr Hspec".
-  iMod na_alloc as "[%γ Htok]".
+  (* iMod na_alloc as "[%γ Htok]". *)
   set (HclutchR := FoxtrotRGS Σ _).
   iPoseProof (Hlog _) as "Hlog".
   (* iDestruct ((ec_split_le ε ε') with "Herr") as "[ε ε']" ; [real_solver|]. *)
