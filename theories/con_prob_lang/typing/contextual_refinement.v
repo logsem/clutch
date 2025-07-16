@@ -233,30 +233,30 @@ Inductive typed_ctx_item :
     typed Γ e1 TNat → typed_ctx_item (CTX_RandR e1) Γ TUnit Γ TNat
   | TP_CTX_RandTapeR Γ e1 :
      typed Γ e1 TNat → typed_ctx_item (CTX_RandR e1) Γ TTape Γ TNat
-  | TP_CTX_Fork Γ τ:
-     typed_ctx_item (CTX_Fork) Γ τ Γ TUnit
+  | TP_CTX_Fork Γ :
+     typed_ctx_item (CTX_Fork) Γ TUnit Γ TUnit
   | TP_CTX_CmpXchgL Γ e1 e2 τ :
      UnboxedType τ →
      typed Γ e1 τ → typed Γ e2 τ →
-     typed_ctx_item (CTX_CmpXchgL e1 e2) Γ (TRef τ) Γ (TBool * τ)
+     typed_ctx_item (CTX_CmpXchgL e1 e2) Γ (TRef τ) Γ (τ * TBool)
   | TP_CTX_CmpXchgM Γ e0 e2 τ :
      UnboxedType τ →
      typed Γ e0 (TRef τ) → typed Γ e2 τ →
-     typed_ctx_item (CTX_CmpXchgM e0 e2) Γ τ Γ (TBool * τ)
+     typed_ctx_item (CTX_CmpXchgM e0 e2) Γ τ Γ (τ * TBool)
   | TP_CTX_CmpXchgR Γ e0 e1 τ:
      UnboxedType τ →
      typed Γ e0 (TRef τ) → typed Γ e1 τ →
-     typed_ctx_item (CTX_CmpXchgR e0 e1) Γ τ Γ (TBool * τ)
+     typed_ctx_item (CTX_CmpXchgR e0 e1) Γ τ Γ (τ * TBool)
   | TP_CTX_XchgL Γ e2 τ :
      typed Γ e2 τ → typed_ctx_item (CTX_XchgL e2) Γ (TRef τ) Γ τ
   | TP_CTX_XchgR Γ e1 τ :
      typed Γ e1 (TRef τ) →
      typed_ctx_item (CTX_XchgR e1) Γ τ Γ τ
   | TP_CTX_FAAL Γ e2 :
-     typed Γ e2 TInt → typed_ctx_item (CTX_FAAL e2) Γ (TRef TInt) Γ TInt
+     typed Γ e2 TNat → typed_ctx_item (CTX_FAAL e2) Γ (TRef TNat) Γ TNat
   | TP_CTX_FAAR Γ e1 :
-     typed Γ e1 (TRef TInt) →
-     typed_ctx_item (CTX_FAAR e1) Γ TInt Γ TInt
+     typed Γ e1 (TRef TNat) →
+     typed_ctx_item (CTX_FAAR e1) Γ TNat Γ TNat
 .
 
 Inductive typed_ctx: ctx → stringmap type → type → stringmap type → type → Prop :=

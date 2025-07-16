@@ -46,7 +46,7 @@ Inductive EqType : type → Prop :=
 .
 
 Lemma unboxed_type_ref_or_eqtype τ :
-  UnboxedType τ → (EqType τ ∨ (∃ τ', τ = TRef τ') ∨ τ = TTape).
+  UnboxedType τ → (EqType τ ∨ (∃ τ', τ = TRef τ') (* ∨ τ = TTape *)).
 Proof. inversion 1; first [ left; by econstructor | right; naive_solver ]. Qed.
 
 (** Autosubst instances *)
@@ -228,10 +228,10 @@ typing for AllocN could work. *)
   | TRand  Γ e1 e2 : Γ ⊢ₜ e1 : TNat → Γ ⊢ₜ e2 : TTape → Γ ⊢ₜ Rand e1 e2 : TNat
   | TRandU Γ e1 e2 : Γ ⊢ₜ e1 : TNat → Γ ⊢ₜ e2 : TUnit → Γ ⊢ₜ Rand e1 e2 : TNat
   | Subsume_int_nat Γ e : Γ ⊢ₜ e : TNat → Γ ⊢ₜ e : TInt
-  | Fork_typed Γ e τ : Γ ⊢ₜ e : τ -> Γ ⊢ₜ Fork e : TUnit
-  | CmpXchg_typed Γ e1 e2 e3 τ : UnboxedType τ -> Γ ⊢ₜ e1 : ref τ -> Γ ⊢ₜ e2 : τ -> Γ ⊢ₜ e3 : τ -> Γ ⊢ₜ CmpXchg e1 e2 e3 : (TBool * τ)
+  | Fork_typed Γ e : Γ ⊢ₜ e : TUnit -> Γ ⊢ₜ Fork e : TUnit
+  | CmpXchg_typed Γ e1 e2 e3 τ : UnboxedType τ -> Γ ⊢ₜ e1 : ref τ -> Γ ⊢ₜ e2 : τ -> Γ ⊢ₜ e3 : τ -> Γ ⊢ₜ CmpXchg e1 e2 e3 : (τ * TBool)
   | Xchg_typed Γ e1 e2 τ : Γ ⊢ₜ e1 : ref τ -> Γ ⊢ₜ e2 : τ -> Γ ⊢ₜ Xchg e1 e2 : τ
-  | Faa_typed Γ e1 e2 : Γ ⊢ₜ e1 : ref TInt -> Γ ⊢ₜ e2 : TInt -> Γ ⊢ₜ FAA e1 e2 : TInt
+  | Faa_typed Γ e1 e2 : Γ ⊢ₜ e1 : ref TNat -> Γ ⊢ₜ e2 : TNat -> Γ ⊢ₜ FAA e1 e2 : TNat
 with val_typed : val → type → Prop :=
   | Unit_val_typed : ⊢ᵥ LitV LitUnit : TUnit                                       
   | Int_val_typed (n : Z) : ⊢ᵥ LitV (LitInt n) : TInt

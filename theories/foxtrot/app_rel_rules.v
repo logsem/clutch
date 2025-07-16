@@ -93,6 +93,7 @@ Section rules.
     iMod "Hlog" as (t') "[Hr Hlog]".
     iApply ("Hlog" with "Hr ").
   Qed.
+  
   Lemma pupd_fupd' E1 E2 P:
     E2⊆E1->
     pupd E1 E1 P -∗ pupd E1 E2 (|={E2,E1}=>P).

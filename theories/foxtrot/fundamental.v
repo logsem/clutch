@@ -3,7 +3,7 @@ From iris.base_logic Require Export invariants.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext. 
 From clutch.con_prob_lang Require Import metatheory notation lang.
-From clutch.foxtrot Require Import primitive_laws model compatibility rel_tactics app_rel_rules.
+From clutch.foxtrot Require Import primitive_laws model compatibility rel_tactics app_rel_rules proofmode.
 From clutch.con_prob_lang.typing Require Import types.
 From clutch.foxtrot Require Import interp.
 
@@ -504,259 +504,361 @@ Section fundamental.
     by iApply "IH".
   Qed.
 
-  (* Lemma bin_log_related_CmpXchg Δ Γ e1 e2 e3 e1' e2' e3' τ :  *)
-  (*   UnboxedType τ ->  *)
-  (*   (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : TRef τ) -∗ *)
-  (*   (〈Δ;Γ〉 ⊨ e2 ≤log≤ e2' : τ) -∗ *)
-  (*   (〈Δ;Γ〉 ⊨ e3 ≤log≤ e3' : τ) -∗ *)
-  (*   〈Δ;Γ〉 ⊨ CmpXchg e1 e2 e3 ≤log≤ CmpXchg e1' e2' e3' : TProd TBool τ. *)
-  (* Proof. *)
-  (*   intros Hτ. *)
-  (*   iIntros "IH1 IH2 IH3". *)
-  (*   intro_clause. *)
-  (*   rel_bind_ap e3 e3' "IH3" v3 v3' "#IH3". *)
-  (*   rel_bind_ap e2 e2' "IH2" v2 v2' "#IH2". *)
-  (*   rel_bind_ap e1 e1' "IH1" v1 v1' "#IH1". *)
-  (*   iDestruct "IH1" as (l l') "(% & % & Hinv)"; simplify_eq/=. *)
-  (*   iDestruct (unboxed_type_sound with "IH2") as "[% %]"; try fast_done. *)
-  (*   iInv (logN .@ (l,l')) as "?" (* "[Hv1 [>Hv2 #Hv]]" *) "Hclose". *)
-  (*   iModIntro. iExists _; iFrame. simpl. *)
-  (*   destruct (decide (v1 = v2')) as [|Hneq]; subst. *)
-  (*   - iSplitR; first by (iIntros (?); contradiction). *)
-  (*     iIntros (?). iNext. iIntros "Hv1". *)
-  (*     iDestruct (eq_type_sound with "Hv") as "%"; first fast_done. *)
-  (*     rel_cmpxchg_suc_r. *)
-  (*     iMod ("Hclose" with "[-]"). *)
-  (*     { iNext; iExists _, _; by iFrame. } *)
-  (*     rel_values. iExists _, _, _, _. do 2 (iSplitL; first done). *)
-  (*     iFrame "Hv". iExists _. done. *)
-  (*   - iSplitL; last by (iIntros (?); congruence). *)
-  (*     iIntros (?). iNext. iIntros "Hv1". *)
-  (*     iDestruct (eq_type_sound with "Hv") as "%"; first fast_done. *)
-  (*     rel_cmpxchg_fail_r. *)
-  (*     iMod ("Hclose" with "[-]"). *)
-  (*     { iNext; iExists _, _; by iFrame. } *)
-  (*     rel_values. iExists _, _, _, _. do 2 (iSplitL; first done). *)
-  (*     iFrame "Hv". iExists _. done. *)
+  Lemma bin_log_related_CmpXchg_EqType Δ Γ e1 e2 e3 e1' e2' e3' τ :
+    EqType τ ->
+    UnboxedType τ ->
+    (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : TRef τ) -∗
+    (〈Δ;Γ〉 ⊨ e2 ≤log≤ e2' : τ) -∗
+    (〈Δ;Γ〉 ⊨ e3 ≤log≤ e3' : τ) -∗
+    〈Δ;Γ〉 ⊨ CmpXchg e1 e2 e3 ≤log≤ CmpXchg e1' e2' e3' : TProd τ TBool.
+  Proof.
+    intros Hτ Hτ'.
+    iIntros "IH1 IH2 IH3".
+    intro_clause.
+    rel_bind_ap e3 e3' "IH3" v3 v3' "#IH3".
+    rel_bind_ap e2 e2' "IH2" v2 v2' "#IH2".
+    rel_bind_ap e1 e1' "IH1" v1 v1' "#IH1".
+    iDestruct "IH1" as (l l') "(% & % & Hinv)"; simplify_eq/=.
+    iDestruct (unboxed_type_sound with "IH2") as "[% %]"; try fast_done.
+    iDestruct (eq_type_sound with "IH2") as "%"; first fast_done.
+    iDestruct (eq_type_sound with "IH3") as "%"; first fast_done.
+    subst.
+    rewrite -(fill_empty (CmpXchg #l _ _)).
+    iApply refines_atomic_l.
+    iIntros (? j) "Hspec".
+    iInv (logN .@ (l,l')) as (v1 v1') "[>Hv1 [>Hv2 #Hv]]" "Hclose".
+    iModIntro.
+    destruct (decide (v1 = v2')) as [|Hneq]; subst.
+    - iApply wp_pupd.
+      wp_cmpxchg_suc.
+      iModIntro.
+      iDestruct (eq_type_sound with "Hv") as "%"; first fast_done.
+      tp_cmpxchg_suc j.
+      iModIntro.
+      iMod ("Hclose" with "[-Hspec]").
+      { iNext; iExists _, _; by iFrame. }
+      iModIntro.
+      iFrame. 
+      rel_values. subst.
+      iExists _, _, _, _. do 2 (iSplitL; first done).
+      iFrame "Hv". iExists _. done.
+    - iApply wp_pupd.
+      wp_cmpxchg_fail.
+      iModIntro.
+      iDestruct (eq_type_sound with "Hv") as "%"; first fast_done.
+      tp_cmpxchg_fail j.
+      iModIntro.
+      iMod ("Hclose" with "[-Hspec]").
+      { iNext; iExists _, _; by iFrame. }
+      iModIntro. iFrame. 
+      rel_values. iExists _, _, _, _. do 2 (iSplitL; first done).
+      iFrame "Hv". iExists _. done.
+  Qed.
 
-  (* Qed. *)
-
-  (** TODO bin_log_for fork, cmpxchg, xchg, and Faa *)
   
-  (* Theorem fundamental Δ Γ e τ : *)
-  (*   Γ ⊢ₜ e : τ → ⊢ 〈Δ;Γ〉 ⊨ e ≤log≤ e : τ *)
-  (* with fundamental_val Δ v τ : *)
-  (*   ⊢ᵥ v : τ → ⊢ interp τ Δ v v. *)
-  (* Proof. *)
-  (*   - intros Ht. destruct Ht. *)
-  (*     + by iApply bin_log_related_var. *)
-  (*     + iIntros (γ) "#H". simpl. rel_values. *)
-  (*       iModIntro. by iApply fundamental_val. *)
-  (*     + iApply bin_log_related_int_binop; first done; *)
-  (*         by iApply fundamental. *)
-  (*     + iApply bin_log_related_bool_binop; first done; *)
-  (*         by iApply fundamental. *)
-  (*     + iApply bin_log_related_int_unop; first done. *)
-  (*       by iApply fundamental. *)
-  (*     + iApply bin_log_related_bool_unop; first done. *)
-  (*       by iApply fundamental. *)
-  (*     + iApply bin_log_related_unboxed_eq; try done; *)
-  (*         by iApply fundamental. *)
-  (*     + iApply bin_log_related_pair; *)
-  (*         by iApply fundamental. *)
-  (*     + iApply bin_log_related_fst; *)
-  (*         by iApply fundamental. *)
-  (*     + iApply bin_log_related_snd; *)
-  (*         by iApply fundamental. *)
-  (*     + iApply bin_log_related_injl; *)
-  (*         by iApply fundamental. *)
-  (*     + iApply bin_log_related_injr; *)
-  (*         by iApply fundamental. *)
-  (*     + iApply bin_log_related_case; *)
-  (*         by iApply fundamental. *)
-  (*     + iApply bin_log_related_if; *)
-  (*         by iApply fundamental. *)
-  (*     + iApply bin_log_related_rec. *)
-  (*       iModIntro. by iApply fundamental. *)
-  (*     + iApply bin_log_related_app; *)
-  (*         by iApply fundamental. *)
-  (*     + iApply bin_log_related_tlam. *)
-  (*       iIntros (A). iModIntro. by iApply fundamental. *)
-  (*     + iApply bin_log_related_tapp'; by iApply fundamental. *)
-  (*     + iApply bin_log_related_fold; by iApply fundamental. *)
-  (*     + iApply bin_log_related_unfold; by iApply fundamental. *)
-  (*     + iApply bin_log_related_pack'; by iApply fundamental. *)
-  (*     + iApply bin_log_related_unpack; try by iApply fundamental. *)
-  (*       iIntros (A). by iApply fundamental. *)
-  (*     + iApply bin_log_related_alloc; by iApply fundamental. *)
-  (*     + iApply bin_log_related_load; by iApply fundamental. *)
-  (*     + iApply bin_log_related_store; by iApply fundamental. *)
-  (*     + iApply bin_log_related_alloctape. by iApply fundamental. *)
-  (*     + iApply bin_log_related_rand_tape; by iApply fundamental. *)
-  (*     + iApply bin_log_related_rand_unit; by iApply fundamental. *)
-  (*     + iApply bin_log_related_subsume_int_nat ; by iApply fundamental. *)
-  (*   - intros Hv. destruct Hv; simpl. *)
-  (*     + iSplit; eauto. *)
-  (*     + iExists _; iSplit; eauto. *)
-  (*     + iExists _; iSplit; eauto. *)
-  (*     + iExists _; iSplit; eauto. *)
-  (*     + iExists _,_,_,_. *)
-  (*       repeat iSplit; eauto; by iApply fundamental_val. *)
-  (*     + iExists _,_. iLeft. *)
-  (*       repeat iSplit; eauto; by iApply fundamental_val. *)
-  (*     + iExists _,_. iRight. *)
-  (*       repeat iSplit; eauto; by iApply fundamental_val. *)
-  (*     + iLöb as "IH". iModIntro. *)
-  (*       iIntros (v1 v2) "#Hv". *)
-  (*       pose (Γ := (<[f:=(τ1 → τ2)%ty]> (<[x:=τ1]> ∅)):stringmap type). *)
-  (*       pose (γ := (binder_insert f ((rec: f x := e)%V,(rec: f x := e)%V) *)
-  (*                    (binder_insert x (v1, v2) ∅)):stringmap (val*val)). *)
-  (*       rel_pure_l. rel_pure_r. *)
-  (*       iPoseProof (fundamental Δ Γ e τ2 $! γ with "[]") as "H"; eauto. *)
-  (*       { rewrite /γ /Γ. rewrite !binder_insert_fmap fmap_empty. *)
-  (*         iApply (env_ltyped2_insert with "IH"). *)
-  (*         iApply (env_ltyped2_insert with "Hv"). *)
-  (*         iApply env_ltyped2_empty. } *)
-  (*       rewrite /γ /=. rewrite !binder_insert_fmap !fmap_empty /=. *)
-  (*       by rewrite !subst_map_binder_insert_2_empty. *)
-  (*     + iIntros (A). iModIntro. iIntros (v1 v2) "_". *)
-  (*       rel_pures_l. rel_pures_r. *)
-  (*       iPoseProof (fundamental (A::Δ) ∅ e τ $! ∅ with "[]") as "H"; eauto. *)
-  (*       { rewrite fmap_empty. iApply env_ltyped2_empty. } *)
-  (*       by rewrite !fmap_empty subst_map_empty. *)
-  (* Qed. *)
+  Lemma bin_log_related_CmpXchg Δ Γ e1 e2 e3 e1' e2' e3' τ:
+    UnboxedType τ ->
+    (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : TRef τ) -∗
+    (〈Δ;Γ〉 ⊨ e2 ≤log≤ e2' : τ) -∗
+    (〈Δ;Γ〉 ⊨ e3 ≤log≤ e3' : τ) -∗
+    〈Δ;Γ〉 ⊨ CmpXchg e1 e2 e3 ≤log≤ CmpXchg e1' e2' e3' : TProd τ TBool.
+  Proof.
+    intros. 
+    cut (EqType τ ∨ ∃ τ', τ = TRef τ').
+    { intros [Hτ | [τ' ->]].
+      - by iApply bin_log_related_CmpXchg_EqType.
+      - iIntros "H1 H2 H3". intro_clause.
+        iSpecialize ("H1" with "Hvs").
+        iSpecialize ("H2" with "Hvs").
+        iSpecialize ("H3" with "Hvs").
+        iApply (refines_cmpxchg_ref with "H1 H2 H3"). }
+    by apply unboxed_type_ref_or_eqtype.
+  Qed.
 
-  (* Theorem refines_typed τ Δ e : *)
-  (*   ∅ ⊢ₜ e : τ → *)
-  (*   ⊢ REL e << e : interp τ Δ. *)
-  (* Proof. *)
-  (*   move=> /fundamental Hty. *)
-  (*   iPoseProof (Hty Δ with "[]") as "H". *)
-  (*   { rewrite fmap_empty. iApply env_ltyped2_empty. } *)
-  (*   by rewrite !fmap_empty !subst_map_empty. *)
-  (* Qed. *)
+  Lemma bin_log_related_xchg Δ Γ e1 e2 e1' e2' τ :
+    (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : TRef τ) -∗
+    (〈Δ;Γ〉 ⊨ e2 ≤log≤ e2' : τ) -∗
+    〈Δ;Γ〉 ⊨ Xchg e1 e2 ≤log≤ Xchg e1' e2' : τ.
+  Proof.
+    iIntros "IH1 IH2".
+    intro_clause.
+    iApply (refines_xchg with "[IH1] [IH2]").
+    - by iApply "IH1".
+    - by iApply "IH2".
+  Qed.
+
+  Lemma bin_log_related_FAA Δ Γ e1 e2 e1' e2' :
+    (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : TRef TNat) -∗
+    (〈Δ;Γ〉 ⊨ e2 ≤log≤ e2' : TNat) -∗
+    〈Δ;Γ〉 ⊨ FAA e1 e2 ≤log≤ FAA e1' e2' : TNat.
+  Proof.
+    iIntros "IH1 IH2".
+    intro_clause.
+    rel_bind_ap e2 e2' "IH2" v2 v2' "#IH2".
+    rel_bind_ap e1 e1' "IH1" v1 v1' "#IH1".
+    iDestruct "IH1" as (l l') "(% & % & Hinv)"; simplify_eq/=.
+    iDestruct "IH2" as (n) "[% %]". simplify_eq.
+    rewrite -(fill_empty (FAA #l _)).
+    iApply refines_atomic_l.
+    iIntros (? j) "Hspec".
+    iInv (logN.@ (l,l')) as (v1 v1') "[Hv1 [>Hv2 #>Hv]]" "Hclose".
+    iDestruct "Hv" as (n1) "[% %]"; simplify_eq.
+    iApply wp_pupd.
+    iModIntro.
+    wp_faa.
+    iModIntro.
+    tp_faa j.
+    iModIntro.
+    iMod ("Hclose" with "[-Hspec]") as "_".
+    { iNext. iExists _,_. iFrame. rewrite -Nat2Z.inj_add. by iExists _. }
+    iFrame. iModIntro. simpl. rel_values.
+  Qed.
+  
+  Theorem fundamental Δ Γ e τ :
+    Γ ⊢ₜ e : τ → ⊢ 〈Δ;Γ〉 ⊨ e ≤log≤ e : τ
+  with fundamental_val Δ v τ :
+    ⊢ᵥ v : τ → ⊢ interp τ Δ v v.
+  Proof.
+    - intros Ht. destruct Ht.
+      + by iApply bin_log_related_var.
+      + iIntros (γ) "#H". simpl. rel_values.
+        iModIntro. by iApply fundamental_val.
+      + iApply bin_log_related_int_binop; first done;
+          by iApply fundamental.
+      + iApply bin_log_related_bool_binop; first done;
+          by iApply fundamental.
+      + iApply bin_log_related_int_unop; first done.
+        by iApply fundamental.
+      + iApply bin_log_related_bool_unop; first done.
+        by iApply fundamental.
+      + iApply bin_log_related_unboxed_eq; try done;
+          by iApply fundamental.
+      + iApply bin_log_related_pair;
+          by iApply fundamental.
+      + iApply bin_log_related_fst;
+          by iApply fundamental.
+      + iApply bin_log_related_snd;
+          by iApply fundamental.
+      + iApply bin_log_related_injl;
+          by iApply fundamental.
+      + iApply bin_log_related_injr;
+          by iApply fundamental.
+      + iApply bin_log_related_case;
+          by iApply fundamental.
+      + iApply bin_log_related_if;
+          by iApply fundamental.
+      + iApply bin_log_related_rec.
+        iModIntro. by iApply fundamental.
+      + iApply bin_log_related_app;
+          by iApply fundamental.
+      + iApply bin_log_related_tlam.
+        iIntros (A). iModIntro. by iApply fundamental.
+      + iApply bin_log_related_tapp'; by iApply fundamental.
+      + iApply bin_log_related_fold; by iApply fundamental.
+      + iApply bin_log_related_unfold; by iApply fundamental.
+      + iApply bin_log_related_pack'; by iApply fundamental.
+      + iApply bin_log_related_unpack; try by iApply fundamental.
+        iIntros (A). by iApply fundamental.
+      + iApply bin_log_related_alloc; by iApply fundamental.
+      + iApply bin_log_related_load; by iApply fundamental.
+      + iApply bin_log_related_store; by iApply fundamental.
+      + iApply bin_log_related_alloctape. by iApply fundamental.
+      + iApply bin_log_related_rand_tape; by iApply fundamental.
+      + iApply bin_log_related_rand_unit; by iApply fundamental.
+      + iApply bin_log_related_subsume_int_nat ; by iApply fundamental.
+      + iApply bin_log_related_fork ; by iApply fundamental.
+      + iApply bin_log_related_CmpXchg; first done; by iApply fundamental.
+      + iApply bin_log_related_xchg; by iApply fundamental.
+      + iApply bin_log_related_FAA ; by iApply fundamental.
+    - intros Hv. destruct Hv; simpl.
+      + iSplit; eauto.
+      + iExists _; iSplit; eauto.
+      + iExists _; iSplit; eauto.
+      + iExists _; iSplit; eauto.
+      + iExists _,_,_,_.
+        repeat iSplit; eauto; by iApply fundamental_val.
+      + iExists _,_. iLeft.
+        repeat iSplit; eauto; by iApply fundamental_val.
+      + iExists _,_. iRight.
+        repeat iSplit; eauto; by iApply fundamental_val.
+      + iLöb as "IH". iModIntro.
+        iIntros (v1 v2) "#Hv".
+        pose (Γ := (<[f:=(τ1 → τ2)%ty]> (<[x:=τ1]> ∅)):stringmap type).
+        pose (γ := (binder_insert f ((rec: f x := e)%V,(rec: f x := e)%V)
+                     (binder_insert x (v1, v2) ∅)):stringmap (val*val)).
+        rel_pure_l. rel_pure_r.
+        iPoseProof (fundamental Δ Γ e τ2 $! γ with "[]") as "H"; eauto.
+        { rewrite /γ /Γ. rewrite !binder_insert_fmap fmap_empty.
+          iApply (env_ltyped2_insert with "IH").
+          iApply (env_ltyped2_insert with "Hv").
+          iApply env_ltyped2_empty. }
+        rewrite /γ /=. rewrite !binder_insert_fmap !fmap_empty /=.
+        by rewrite !subst_map_binder_insert_2_empty.
+      + iIntros (A). iModIntro. iIntros (v1 v2) "_".
+        rel_pures_l. rel_pures_r.
+        iPoseProof (fundamental (A::Δ) ∅ e τ $! ∅ with "[]") as "H"; eauto.
+        { rewrite fmap_empty. iApply env_ltyped2_empty. }
+        by rewrite !fmap_empty subst_map_empty.
+  Qed.
+
+  Theorem refines_typed τ Δ e :
+    ∅ ⊢ₜ e : τ →
+    ⊢ REL e << e : interp τ Δ.
+  Proof.
+    move=> /fundamental Hty.
+    iPoseProof (Hty Δ with "[]") as "H".
+    { rewrite fmap_empty. iApply env_ltyped2_empty. }
+    by rewrite !fmap_empty !subst_map_empty.
+  Qed.
 
 End fundamental.
 
 
-(* Section bin_log_related_under_typed_ctx. *)
-(*   Context `{!approxisRGS Σ}. *)
+Section bin_log_related_under_typed_ctx.
+  Context `{!foxtrotRGS Σ}.
 
-(*   (* Precongruence *) *)
-(*   Lemma bin_log_related_under_typed_ctx Γ e e' τ Γ' τ' K : *)
-(*     (typed_ctx K Γ τ Γ' τ') → *)
-(*     (□ ∀ Δ, (〈Δ;Γ〉 ⊨ e ≤log≤ e' : τ)) -∗ *)
-(*       (∀ Δ, 〈Δ;Γ'〉 ⊨ fill_ctx K e ≤log≤ fill_ctx K e' : τ')%I. *)
-(*   Proof. *)
-(*     revert Γ τ Γ' τ' e e'. *)
-(*     induction K as [|k K]=> Γ τ Γ' τ' e e'; simpl. *)
-(*     - inversion_clear 1; trivial. iIntros "#H". *)
-(*       iIntros (Δ). by iApply "H". *)
-(*     - inversion_clear 1 as [|? ? ? ? ? ? ? ? Hx1 Hx2]. *)
-(*       specialize (IHK _ _ _ _ e e' Hx2). *)
-(*       inversion Hx1; subst; simpl; iIntros "#Hrel"; *)
-(*         iIntros (Δ). *)
-(*       + iApply (bin_log_related_rec with "[-]"); auto. *)
-(*         iModIntro. iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply (bin_log_related_app with "[]"). *)
-(*         { iApply (IHK with "[Hrel]"); auto. } *)
-(*         by iApply fundamental. *)
-(*       + iApply (bin_log_related_app _ _ _ _ _ _ τ2 with "[]"). *)
-(*         { by iApply fundamental. } *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply bin_log_related_int_unop; eauto. *)
-(*         by iApply (IHK with "Hrel"). *)
-(*       + iApply bin_log_related_bool_unop; eauto. *)
-(*         by iApply (IHK with "Hrel"). *)
-(*       + iApply bin_log_related_int_binop; *)
-(*           try (by iApply fundamental); eauto. *)
-(*         by iApply (IHK with "Hrel"). *)
-(*       + iApply bin_log_related_int_binop; *)
-(*           try (by iApply fundamental); eauto. *)
-(*         by iApply (IHK with "Hrel"); auto. *)
-(*       + iApply bin_log_related_bool_binop; *)
-(*           try (by iApply fundamental); eauto. *)
-(*         by iApply (IHK with "Hrel"). *)
-(*       + iApply bin_log_related_bool_binop; *)
-(*           try (by iApply fundamental); eauto. *)
-(*         by iApply (IHK with "Hrel"). *)
-(*       + iApply bin_log_related_unboxed_eq; try (eassumption || by iApply fundamental). *)
-(*         by iApply (IHK with "Hrel"). *)
-(*       + iApply bin_log_related_unboxed_eq; try (eassumption || by iApply fundamental). *)
-(*         by iApply (IHK with "Hrel"). *)
-(*       + iApply (bin_log_related_if with "[] []"); *)
-(*           try by iApply fundamental. *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply (bin_log_related_if with "[] []"); *)
-(*           try by iApply fundamental. *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply (bin_log_related_if with "[] []"); *)
-(*           try by iApply fundamental. *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply (bin_log_related_pair with "[]"). *)
-(*         { iApply (IHK with "[Hrel]"); auto. } *)
-(*         by iApply fundamental. *)
-(*       + iApply (bin_log_related_pair with "[]"). *)
-(*         { by iApply fundamental. } *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply bin_log_related_fst. *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply bin_log_related_snd. *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply bin_log_related_injl. *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply bin_log_related_injr. *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply (bin_log_related_case with "[] []"). *)
-(*         { iApply (IHK with "[Hrel]"); auto. } *)
-(*         { by iApply fundamental. } *)
-(*         by iApply fundamental. *)
-(*       + iApply (bin_log_related_case with "[] []"). *)
-(*         { by iApply fundamental. } *)
-(*         { iApply (IHK with "[Hrel]"); auto. } *)
-(*         by iApply fundamental. *)
-(*       + iApply (bin_log_related_case with "[] []"). *)
-(*         { by iApply fundamental. } *)
-(*         { by iApply fundamental. } *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply (bin_log_related_alloc with "[]"). *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply (bin_log_related_load with "[]"). *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply (bin_log_related_store with "[]"); *)
-(*           try by iApply fundamental. *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply (bin_log_related_store with "[]"); *)
-(*           try by iApply fundamental. *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply (bin_log_related_fold with "[]"). *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply (bin_log_related_unfold with "[]"). *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply (bin_log_related_tlam with "[]"). *)
-(*         iIntros (τi). iModIntro. *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply (bin_log_related_tapp' with "[]"). *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply bin_log_related_unpack. *)
-(*         * iApply (IHK with "[Hrel]"); auto. *)
-(*         * iIntros (A). by iApply fundamental. *)
-(*       + iApply bin_log_related_unpack. *)
-(*         * by iApply fundamental. *)
-(*         * iIntros (A). iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply bin_log_related_alloctape. *)
-(*         iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply bin_log_related_rand_unit. *)
-(*         * iApply (IHK with "[Hrel]"); auto. *)
-(*         * by iApply fundamental. *)
-(*       + iApply bin_log_related_rand_tape. *)
-(*         * iApply (IHK with "[Hrel]"); auto. *)
-(*         * by iApply fundamental. *)
-(*       + iApply bin_log_related_rand_unit. *)
-(*         * by iApply fundamental. *)
-(*         * iApply (IHK with "[Hrel]"); auto. *)
-(*       + iApply bin_log_related_rand_tape. *)
-(*         * by iApply fundamental. *)
-(*         * iApply (IHK with "[Hrel]"); auto. *)
-(*   Qed. *)
-(* End bin_log_related_under_typed_ctx. *)
+  (* Precongruence *)
+  Lemma bin_log_related_under_typed_ctx Γ e e' τ Γ' τ' K :
+    (typed_ctx K Γ τ Γ' τ') →
+    (□ ∀ Δ, (〈Δ;Γ〉 ⊨ e ≤log≤ e' : τ)) -∗
+      (∀ Δ, 〈Δ;Γ'〉 ⊨ fill_ctx K e ≤log≤ fill_ctx K e' : τ')%I.
+  Proof.
+    revert Γ τ Γ' τ' e e'.
+    induction K as [|k K]=> Γ τ Γ' τ' e e'; simpl.
+    - inversion_clear 1; trivial. iIntros "#H".
+      iIntros (Δ). by iApply "H".
+    - inversion_clear 1 as [|? ? ? ? ? ? ? ? Hx1 Hx2].
+      specialize (IHK _ _ _ _ e e' Hx2).
+      inversion Hx1; subst; simpl; iIntros "#Hrel";
+        iIntros (Δ).
+      + iApply (bin_log_related_rec with "[-]"); auto.
+        iModIntro. iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_app with "[]").
+        { iApply (IHK with "[Hrel]"); auto. }
+        by iApply fundamental.
+      + iApply (bin_log_related_app _ _ _ _ _ _ τ2 with "[]").
+        { by iApply fundamental. }
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_int_unop; eauto.
+        by iApply (IHK with "Hrel").
+      + iApply bin_log_related_bool_unop; eauto.
+        by iApply (IHK with "Hrel").
+      + iApply bin_log_related_int_binop;
+          try (by iApply fundamental); eauto.
+        by iApply (IHK with "Hrel").
+      + iApply bin_log_related_int_binop;
+          try (by iApply fundamental); eauto.
+        by iApply (IHK with "Hrel"); auto.
+      + iApply bin_log_related_bool_binop;
+          try (by iApply fundamental); eauto.
+        by iApply (IHK with "Hrel").
+      + iApply bin_log_related_bool_binop;
+          try (by iApply fundamental); eauto.
+        by iApply (IHK with "Hrel").
+      + iApply bin_log_related_unboxed_eq; try (eassumption || by iApply fundamental).
+        by iApply (IHK with "Hrel").
+      + iApply bin_log_related_unboxed_eq; try (eassumption || by iApply fundamental).
+        by iApply (IHK with "Hrel").
+      + iApply (bin_log_related_if with "[] []");
+          try by iApply fundamental.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_if with "[] []");
+          try by iApply fundamental.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_if with "[] []");
+          try by iApply fundamental.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_pair with "[]").
+        { iApply (IHK with "[Hrel]"); auto. }
+        by iApply fundamental.
+      + iApply (bin_log_related_pair with "[]").
+        { by iApply fundamental. }
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_fst.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_snd.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_injl.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_injr.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_case with "[] []").
+        { iApply (IHK with "[Hrel]"); auto. }
+        { by iApply fundamental. }
+        by iApply fundamental.
+      + iApply (bin_log_related_case with "[] []").
+        { by iApply fundamental. }
+        { iApply (IHK with "[Hrel]"); auto. }
+        by iApply fundamental.
+      + iApply (bin_log_related_case with "[] []").
+        { by iApply fundamental. }
+        { by iApply fundamental. }
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_alloc with "[]").
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_load with "[]").
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_store with "[]");
+          try by iApply fundamental.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_store with "[]");
+          try by iApply fundamental.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_fold with "[]").
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_unfold with "[]").
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_tlam with "[]").
+        iIntros (τi). iModIntro.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_tapp' with "[]").
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_unpack.
+        * iApply (IHK with "[Hrel]"); auto.
+        * iIntros (A). by iApply fundamental.
+      + iApply bin_log_related_unpack.
+        * by iApply fundamental.
+        * iIntros (A). iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_alloctape.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_rand_unit.
+        * iApply (IHK with "[Hrel]"); auto.
+        * by iApply fundamental.
+      + iApply bin_log_related_rand_tape.
+        * iApply (IHK with "[Hrel]"); auto.
+        * by iApply fundamental.
+      + iApply bin_log_related_rand_unit.
+        * by iApply fundamental.
+        * iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_rand_tape.
+        * by iApply fundamental.
+        * iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_fork.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_CmpXchg; auto.
+        * iApply (IHK with "[Hrel]"); auto.
+        * by iApply fundamental.
+        * by iApply fundamental.
+      + iApply bin_log_related_CmpXchg; auto.
+        * by iApply fundamental.
+        * iApply (IHK with "[Hrel]"); auto.
+        * by iApply fundamental.
+      + iApply bin_log_related_CmpXchg; auto.
+        * by iApply fundamental.
+        * by iApply fundamental.
+        * iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_xchg.
+        * iApply (IHK with "[Hrel]"); auto.
+        * by iApply fundamental.
+      + iApply bin_log_related_xchg.
+        * by iApply fundamental.
+        * iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_FAA.
+        * iApply (IHK with "[Hrel]"); auto.
+        * by iApply fundamental.
+      + iApply bin_log_related_FAA.
+        * by iApply fundamental.
+        * iApply (IHK with "[Hrel]"); auto.
+  Qed.
+  
+End bin_log_related_under_typed_ctx.
