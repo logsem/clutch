@@ -42,3 +42,41 @@ Proof.
   wp_apply (par_spec Ψ1 Ψ2 with "[H1] [H2] [H]"); [by wp_lam..|auto].
 Qed.
 End proof.
+
+Section proof'.
+  Context `{!foxtrotGS Σ}.
+  Lemma tp_par j K e1 e2 E:
+    j ⤇ fill K (e1 ||| e2) -∗
+    pupd E E
+      (∃ j1 j2 K1 K2, j1 ⤇ fill K1 e1 ∗ j2 ⤇ fill K2 e2 ∗
+                   (∀ (v1 v2 : val) E', j1 ⤇ fill K1 v1 ∗ j2 ⤇ fill K2 v2 -∗
+                                        pupd E' E' (j ⤇ fill K (v1, v2)%V)
+                   )
+      ).
+  Proof.
+    rewrite /par.
+    iIntros "Hspec".
+    rewrite /spawn.
+    tp_pures j.
+    tp_alloc j as l "Hl".
+    tp_pures j.
+    tp_fork j.
+    iIntros (j') "Hspec'".
+    tp_pures j'.
+    tp_pures j.
+    tp_bind j (e2).
+    tp_bind j' e1.
+    iFrame.
+    iModIntro.
+    iIntros (???) "[??]".
+    simpl.
+    tp_pures j.
+    tp_pures j'.
+    tp_store j'.
+    rewrite /join.
+    tp_pures j.
+    tp_load j.
+    tp_pures j.
+    by iFrame.
+  Qed.  
+End proof'.
