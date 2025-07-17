@@ -451,14 +451,13 @@ Section error_credit_theory.
   Qed.
 
 
-  Lemma ec_ind_incr (ε ε' k : R) P :
+  Lemma ec_ind_incr (ε ε': R) P :
     0 < ε →
     ε < ε' →
-    1 < k →
     □((↯ ε' -∗ P) ∗ ↯ ε -∗ P) ⊢
     (↯ ε -∗ P).
   Proof.
-    iIntros (Hε Hε' Hk) "#Hamp Herr".
+    iIntros (Hε Hε') "#Hamp Herr".
     iApply (ec_ind_simpl ε (ε'/ε) with "[Hamp]"); auto.
     - apply Rcomplements.Rlt_div_r; lra.
     - iModIntro.
