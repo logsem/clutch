@@ -385,3 +385,5 @@ Section monadic.
 
 
 End monadic.
+
+Ltac unfold_rel := rewrite refines_eq /refines_def.

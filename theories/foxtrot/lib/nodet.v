@@ -15,7 +15,7 @@ Section proof.
 Local Set Default Proof Using "Type*".
 Context `{!foxtrotGS Σ}.
 
-Lemma wp_nondet:
+Lemma wp_nodet:
   {{{ True }}}
     nodet #()
     {{{ (x:nat), RET (#x); True}}}.
