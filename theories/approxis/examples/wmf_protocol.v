@@ -154,26 +154,26 @@ Section defs.
   Section Once_eav.
 
     Definition a_to_s_once_eav : val :=
-      λ: "A" "B" "b" "senc" "ka", (* parameters of the protocol *)
+      λ: "b" "senc" "ka", (* parameters of the protocol *)
         λ: "r_adv", (* attacker provided random *)
           if: "b" then
-            ("A", "senc" "ka" ("B", rand #N))
+            (#0, "senc" "ka" (#1, rand #N))
           else
-            ("A", "senc" "ka" ("B", "r_adv")).
+            (#0, "senc" "ka" (#1, "r_adv")).
 
     Definition s_to_b_once_eav : val :=
-      λ: "A" "B" "b" "senc" "sdec" "ka" "kb", (* parameters of the protocol *)
+      λ: "b" "senc" "sdec" "ka" "kb", (* parameters of the protocol *)
         λ: "input",
           let: "nonce" := "sdec" "ka" (Snd "input") in
           let: "sender" := Fst "input" in
           let: "dest" := Fst "nonce" in
           let: "nonce" := Snd "nonce" in
-          if: "sender" = "A" `and` "dest" = "B" then
+          if: "sender" = #0 `and` "dest" = #1 then
             "senc" "kb" ("sender", "nonce")
           else #().
 
     Definition b_recv_once_eav : val :=
-      λ: "A" "B" "b" "kb", (* parameters of the protocol *)
+      λ: "b" "kb", (* parameters of the protocol *)
         λ: "input", #().
           (* let: "nonce" := "sdec" "kb" "input" in
           let: "sender" := Fst "nonce" in
