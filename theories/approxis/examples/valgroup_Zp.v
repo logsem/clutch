@@ -210,7 +210,7 @@ Section Z_p.
 
   Fact τG_subtype_p v1 v2 Δ : lrel_G v1 v2 ⊢ interp τG Δ v1 v2.
   Proof. iIntros ((w&->&->)). iExists _. eauto. Qed.
-  Print clutch_group.
+  
   Definition cg_p : clutch_group (cg := cgs_p).
     unshelve eapply (
         {| int_of_vg_lrel_G := int_of_vg_lrel_G_p
