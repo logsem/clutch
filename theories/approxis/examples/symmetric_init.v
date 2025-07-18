@@ -1,4 +1,4 @@
-From clutch.approxis Require Import approxis map list.
+From clutch.approxis Require Import approxis map list linked_list.
 From clutch.approxis Require Export bounded_oracle.
 Set Default Proof Using "Type*".
 
@@ -40,7 +40,6 @@ The set of keys, messages, and ciphertexts are modelled by finite sets of intege
     { keygen : val
     ; enc_scheme : expr
     ; rand_cipher : val
-    
     ; sym_scheme : val := (sym_params, (keygen, λ: <>, enc_scheme), rand_cipher)%V
     }.
 
@@ -50,7 +49,7 @@ The set of keys, messages, and ciphertexts are modelled by finite sets of intege
   Definition get_params : val := λ:"sym_scheme", Fst (Fst "sym_scheme").
   Definition get_card_key : val := λ:"sym_scheme", Fst (Fst (Fst (Fst "sym_scheme"))).
   Definition get_card_message : val := λ:"sym_scheme", Snd (Fst (Fst (Fst "sym_scheme"))).
-  Definition get_card_cipher : val := λ:"sym_scheme", Snd (Fst (Fst "sym_scheme")).
+  Definition get_card_cipher : val := λ:"sym_scheme", Snd (Fst "sym_scheme").
   Definition get_enc_scheme : val := λ:"sym_scheme", Snd (Snd (Fst "sym_scheme")).
   Definition get_keygen : val := λ:"sym_scheme", Fst (Snd (Fst "sym_scheme")).
   Definition get_enc : val := λ:"enc_scheme", Fst "enc_scheme".
@@ -117,3 +116,65 @@ Module CPA_sem.
       q_calls_poly #() #() "Q" (get_rand_cipher "scheme").
 
 End CPA_sem.
+
+Section INT_PTXT.
+
+  (** Integrity of plaintexts game for symmetric encryption
+    References:
+    - Daniel Jost, 2018, Christian Badertscher, Fabio Banfi,
+      A note on the equivalence of IND-CCA & INT-PTXT and IND-CCA & INT-CTXT 
+    - Nicolas Klose, 2021, Characterizing Notions For Secure Cryptographic Channels
+    - Mihir Bellare, Chanathip Namprempre, 2007,
+      Authenticated Encryption: Relations among notions
+      and analysis of the generic composition paradigm *)
+  
+  Variable is_plaintext : val.
+  Variable is_ciphertext : val.
+
+  Variable elem_eq : val.
+
+  Definition PTXT : val :=
+    λ: "b" "adv" "scheme" "Q_enc" "Q_dec" "Q_lr",
+      let: "record_plaintext" := init_linked_list #() in
+      let: "enc_scheme" := get_enc_scheme "scheme" #() in
+      let: "enc" := get_enc "enc_scheme" in
+      let: "dec" := get_dec "enc_scheme" in
+      let: "key" := get_keygen "scheme" #() in
+      let: "enc_key" := λ: "msg", add_list "record_plaintext" "msg";;
+        "enc" "key" "msg" in
+      let: "dec_key" := λ: "msg", "dec" "key" "msg" in
+      let: "rr_key_b" :=
+        if: "b" then
+          λ: "c", 
+          let: "decrypted'" := "dec" "key" "c" in
+          elem_of_linked_list elem_eq "record_plaintext" "decrypted'"
+        else
+          λ: <>, #true in
+      let: "oracle_enc" := q_calls_general_test is_plaintext "Q_enc" "enc_key" in
+      let: "oracle_dec" := q_calls_general_test_eager is_ciphertext "Q_dec" "dec_key" in
+      let: "oracle_lr" := q_calls_general_test is_ciphertext "Q_lr" "rr_key_b" in
+      let: "b'" := "adv" "oracle_enc" "oracle_dec" "oracle_lr" in
+      "b'".
+
+  Context `{!approxisRGS Σ}.
+
+  Section lrel_types_defs.
+
+  Variable lrel_msg : lrel Σ.
+  Variable lrel_cipher : lrel Σ.
+
+  Definition lrel_enc_oracle : lrel Σ :=
+    lrel_msg → (() + lrel_cipher).
+    
+  Definition lrel_dec_oracle : lrel Σ :=
+    lrel_cipher → (() + lrel_msg).
+    
+  Definition lrel_oracle_lr : lrel Σ :=
+    lrel_cipher → (() + lrel_bool).
+
+  Definition lrel_adv : lrel Σ :=
+    lrel_enc_oracle → lrel_dec_oracle → lrel_oracle_lr → lrel_bool.
+
+  End lrel_types_defs.
+
+End INT_PTXT.
