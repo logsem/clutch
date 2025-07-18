@@ -224,7 +224,7 @@ Section logrel.
 
     Let wmf_eav := @wmf_eav η Key Output sym.
 
-    Lemma wmf_eav__wmf_eav_delay : 
+    Lemma wmf_eav_true__wmf_eav_delay_true : 
       ⊢ REL init_scheme (wmf_eav #true) <<
         init_scheme (wmf_eav_delay #true #true) :
           (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ()))).
@@ -246,6 +246,68 @@ Section logrel.
       rel_apply refines_couple_UU; first done.
       iModIntro; iIntros (nonce Hnoncebound)...
       rel_apply (refines_couple_senc_lr_l with "[HP HP']").
+      {
+        iSplitR; first iAssumption.
+        iSplitR; last (iApply (P0lr_Plr with "HP HP'")).
+        iExists _, _, _, _.
+        repeat iSplit; try (iPureIntro; done).
+        - iExists 1. repeat iSplit; iPureIntro; try done.
+          apply Z2Nat.inj_le; try lia. rewrite /N.
+          rewrite Nat2Z.id. rewrite Nat2Z.id.
+          apply fin.pow_ge_1. lia.
+        - iExists nonce; repeat iSplit; iPureIntro; try done; try lia.
+      }
+      iIntros (c c') "#Hrelcipher Hcipher"...
+      rewrite /s_to_b_once_eav...
+      rel_apply "Hcipher".
+      iIntros "HP"...
+      rel_bind_l (senc _ _ _).
+      rel_bind_r (senc _ _ _).
+      rel_apply (refines_bind with "[HP]").
+      {
+        rel_apply (refines_na_alloc (Plr lls rls) (nroot.@"wmf__delay")).
+        iFrame.
+        iIntros "#Inv".
+        repeat rel_apply refines_app.
+        - rel_apply senc_sem_typed; last iAssumption. exists True%I.
+          apply bi.equiv_entails; split; iIntros "H";
+          try iDestruct "H" as "[_ H]"; iFrame.
+        - rel_vals.
+        - rel_vals.
+      }
+      iIntros (c2 c2') "#Hcipher2"... rel_apply refines_pair...
+      {
+        rel_vals; last iAssumption.
+        iExists 0; done.
+      }
+      rel_apply refines_pair...
+      { rel_vals. }
+      rewrite /b_recv_once_eav...
+      rel_vals.
+    Qed.
+
+    Lemma wmf_eav_delay_true__wmf_eav_true : 
+      ⊢ REL init_scheme (wmf_eav_delay #true #true) <<
+          init_scheme (wmf_eav #true):
+          (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ()))).
+    Proof with (rel_pures_l; rel_pures_r).
+      rewrite /init_scheme/wmf_protocol.init_scheme...
+      rel_apply refines_init_scheme_l.
+      iIntros (lls) "HP".
+      rel_apply refines_init_scheme_r.
+      iIntros (rls) "HP'"...
+      rel_apply refines_couple_UU; first done.
+      iIntros (r_dummy Hrdummybound). iModIntro...
+      rel_apply refines_sym_keygen_couple.
+      iIntros (ka) "#Hrelka"...
+      rel_apply refines_sym_keygen_couple.
+      iIntros (kb) "#Hrelkb"...
+      rel_apply refines_pair.
+      { rel_vals. iExists r_dummy. iPureIntro; repeat split; lia. }
+      rewrite /a_to_s_once_eav/s_to_b_delay/get_dec/get_enc...
+      rel_apply refines_couple_UU; first done.
+      iModIntro; iIntros (nonce Hnoncebound)...
+      rel_apply (refines_couple_senc_lr_r with "[HP HP']").
       {
         iSplitR; first iAssumption.
         iSplitR; last (iApply (P0lr_Plr with "HP HP'")).
@@ -314,7 +376,7 @@ Section logrel.
           )
         ).
     
-    Lemma wmf_eav_adv__adv (adv : val) :
+    Lemma wmf_eav_delay_true__adv_true (adv : val) :
       (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ())) → lrel_bool)%lrel
         adv adv
       ⊢ REL (adv (init_scheme (wmf_eav_delay #true #true))) <<
@@ -398,6 +460,90 @@ Section logrel.
         + done. }
     Qed.
 
+    Lemma wmf_eav_adv_true__wmf_eav_delay_true (adv : val) :
+      (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ())) → lrel_bool)%lrel
+        adv adv
+      ⊢ REL (let: "α" := alloc #N in
+            CPA' #true (λ: "senc" "oracle",
+              adv (wmf_eav_adv "α" #true "senc" "oracle"))
+            (symmetric_init.sym_scheme) #1) <<
+          (adv (init_scheme (wmf_eav_delay #true #true))) : lrel_bool.
+    Proof with (rel_pures_l; rel_pures_r).
+      iIntros "#Hreladv".
+      rewrite /wmf_eav_delay/wmf_eav_adv/CPA'/wmf_protocol.CPA'
+      /init_scheme/wmf_protocol.init_scheme...
+      rel_alloctape_l α as "Hα"...
+      rel_apply refines_init_scheme_l.
+      iIntros (lls) "HP"...
+      rel_apply refines_init_scheme_r.
+      iIntros (rls) "HP'"...
+      rel_apply refines_couple_TU; first done; iFrame.
+      iIntros (r_dummy Hrdummybound) "Hα"; simpl...
+      rewrite /get_keygen/get_enc...
+      rel_apply refines_sym_keygen_couple.
+      iIntros (ka) "#Hrelka"...
+      rewrite /get_card_message/sym_scheme...
+      rewrite /get_enc/q_calls/is_plaintext_inst...
+      rel_alloc_l cnt2 as "Hcnt2"...
+      rel_bind_l (adv _).
+      rel_bind_r (adv _).
+      rel_apply (refines_bind with "[-]").
+      2:{
+        iIntros (v v') "Hrel"...
+        rel_vals.
+      }
+      rel_apply refines_app.
+      { rel_vals. }
+      rel_apply (refines_randT_l). iFrame. iModIntro.
+      iIntros "Hα _"...
+      rel_apply refines_pair;
+        first (rel_vals; iExists _; iPureIntro; repeat split; lia).
+      rel_apply refines_keygen_l.
+      iIntros (kadummy) "_"...
+      rel_apply refines_sym_keygen_couple.
+      iIntros (kb) "#Hrelkb"...
+      rewrite /s_to_b_delay/s_to_b_adv...
+      rel_apply refines_couple_UU; first done; iModIntro.
+      iIntros (nonce Hnoncebound)...
+      rel_apply (refines_na_alloc (Plr lls rls) (nroot.@"wmf_delay__adv")).
+      iSplitL "HP HP'".
+      { iApply (P0lr_Plr with "HP HP'"). }
+      iIntros "#Inv"...
+      rewrite /get_card_cipher...
+      assert (Hbool1 : bool_decide (0 ≤ nonce)%Z = true); last
+      assert (Hbool2 : bool_decide (nonce ≤ N)%Z = true);
+        try (apply bool_decide_eq_true; lia);
+      rewrite Hbool1 Hbool2; clear Hbool1 Hbool2.
+      rel_load_l... rel_load_l; rel_store_l...
+      rel_bind_l (senc _ _ _).
+      rel_bind_r (senc _ _ _).
+      rel_apply refines_bind.
+      - repeat rel_apply refines_app;
+          first (rel_apply senc_sem_typed; last iAssumption).
+        + exists True%I. apply bi.equiv_entails. split; iIntros "H";
+          try iDestruct "H" as "[_ H]"; iFrame.
+        + rel_vals.
+        + rel_vals.
+          apply Z2Nat.inj_le; try lia. rewrite /N.
+          rewrite Nat2Z.id. replace (Z.to_nat 1) with 1 by lia.
+          apply fin.pow_ge_1. lia.
+      - iIntros (c1 c1') "Hrelcipher"...
+        rel_bind_l (senc _ _ _).
+        rel_bind_r (senc _ _ _).
+        { rel_apply refines_bind.
+      - repeat rel_apply refines_app;
+          first (rel_apply senc_sem_typed; last iAssumption).
+        + exists True%I. apply bi.equiv_entails. split; iIntros "H";
+          try iDestruct "H" as "[_ H]"; iFrame.
+        + rel_vals.
+        + rel_vals.
+      - iIntros (c2 c2') "Hrelcipher2"...
+        rewrite /b_recv_once_eav...
+        rel_vals; try iAssumption.
+        + iExists 0. done.
+        + done. }
+    Qed.
+
     Definition s_to_b_delay_adv_kb : val :=
       λ: "b" "r_adv" "senc" "ka" "kb", (* parameters of the protocol *)
         λ: "input",
@@ -432,7 +578,7 @@ Section logrel.
       ⊢ REL rand_cipher << rand_cipher :
         kemdem_hybrid_cpa_generic.lrel_trivial → lrel_output.
 
-    Lemma wmf_eav_adv__adv_false (adv : val) :
+    Lemma wmf_eav_adv__adv_kb_false (adv : val) :
       (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ())) → lrel_bool)%lrel
         adv adv
       ⊢ REL
@@ -523,34 +669,96 @@ Section logrel.
         + done. }
     Qed.
       
-    (* Definition s_to_b_delay_rand : val :=
-      λ: "b" "ka" "kb", (* parameters of the protocol *)
-        λ: "input",
-          let: "sender" := #0 in
-          let: "dest" := #1 in
-          let: "nonce" := rand #N in
-          let: "cipher1" := (λ: <>, get_rand_cipher symmetric_init.sym_scheme) "ka" ("dest", "nonce") in
-          let: "cipher2" := (λ: <>, get_rand_cipher symmetric_init.sym_scheme) "kb" ("sender", "nonce") in
-          if: "sender" = #0 `and` "dest" = #1 then
-            ("cipher2",
-              ("sender", "cipher1"))
-          else #().
-    
-    Definition wmf_eav_adv_kb : val :=
-      λ: "α" "b",
-        let: "r_adv" := rand("α") #N in
-        ("r_adv",
-          let: "ka" := keygen #() in
-          let: "kb" := keygen #() in
-          let: "msg2" :=
-            s_to_b_delay_adv_kb "b" "ka" "kb" #() in
-          (Snd "msg2",
-            (
-              Fst "msg2",
-              b_recv_once_eav "b" "kb" #()
-            )
-          )
-        ). *)
+    Lemma wmf_eav_adv_kb__adv_false (adv : val) :
+      (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ())) → lrel_bool)%lrel
+        adv adv
+      ⊢ REL
+          (let: "α" := alloc #N in
+            CPA' #true (λ: "senc" "oracle",
+              adv (wmf_eav_adv_kb "α" #true "senc" "oracle"))
+            (symmetric_init.sym_scheme) #1)
+          <<
+          (let: "α" := alloc #N in
+            CPA' #false (λ: "senc" "oracle",
+              adv (wmf_eav_adv "α" #true "senc" "oracle"))
+            (symmetric_init.sym_scheme) #1) : lrel_bool.
+    Proof with rel_pures_l; rel_pures_r.
+      iIntros "#Hreladv".
+      rel_alloctape_l α as "Hα";
+      rel_alloctape_r α' as "Hα'"...
+      rewrite /CPA'/wmf_protocol.CPA'...
+      rel_apply refines_init_scheme_l.
+      iIntros (lls) "HP".
+      rel_apply refines_init_scheme_r.
+      iIntros (rls) "HP'"...
+      rewrite /get_enc/get_keygen/get_rand_cipher...
+      rel_apply refines_keygen_r.
+      iIntros (ka_dummy) "#Hrelka_dummy"...
+      rewrite /q_calls/is_plaintext_inst...
+      rel_alloc_r cnt' as "Hcnt'"...
+      rel_apply refines_couple_TT; iFrame.
+      iIntros (r_adv) "[Hα [Hα' %Hradvbound]]"...
+      rel_apply (refines_randT_r with "Hα'"); iFrame.
+      iIntros "Hα' _"...
+      rel_apply refines_keygen_r.
+      iIntros (ka_dummy') "#Hrelka_dummy'"...
+      rel_apply refines_sym_keygen_couple.
+      iIntros (kb) "#Hrelkb"...
+      rel_alloc_l cnt as "Hcnt"...
+      rel_bind_l (adv _).
+      rel_bind_r (adv _).
+      rel_apply (refines_bind with "[-]").
+      2:{
+        iIntros (v v') "Hrel"...
+        rel_vals.
+      }
+      rel_apply refines_app; first (rel_vals; iAssumption).
+      rewrite /wmf_eav_adv_kb...
+      rel_apply refines_randT_l; iFrame.
+      iModIntro; iIntros "Hα _"...
+      rel_apply refines_pair;
+        first (rel_vals; iExists r_adv; iPureIntro; repeat split; lia).
+      rel_apply refines_keygen_l.
+      iIntros (kb_dummy) "#Hrelkb_dummy"...
+      rel_apply refines_keygen_l.
+      iIntros (kb_dummy') "#Hrelkb_dummy'"...
+      rewrite /s_to_b_adv/s_to_b_delay_adv_kb...
+      rel_apply refines_couple_UU; first done.
+      iModIntro; iIntros (nonce Hnoncebound)...
+      rewrite /get_card_cipher/get_rand_cipher...
+      assert (Hbool1 : bool_decide (0 ≤ nonce)%Z = true); last
+      assert (Hbool2 : bool_decide (nonce ≤ N)%Z = true);
+        try (apply bool_decide_eq_true; lia);
+      rewrite Hbool1 Hbool2.
+      rel_load_r; rel_load_r; rel_store_r...
+      rel_apply (refines_na_alloc (Plr lls rls) (nroot.@"wmf_delay__adv")).
+      iSplitL "HP HP'".
+      { iApply (P0lr_Plr with "HP HP'"). }
+      iIntros "#Inv"...
+      rel_bind_l (rand_cipher _).
+      rel_bind_r (rand_cipher _).
+      rel_apply refines_bind.
+      - rel_apply refines_app.
+        + rel_apply rand_cipher_sem_typed.
+        + rel_vals.
+      - iIntros (c1 c1') "Hrelcipher"...
+        rewrite Hbool1 Hbool2; clear Hbool1 Hbool2...
+        rel_load_l; rel_load_l; rel_store_l...
+        rel_bind_l (senc _ _ _).
+        rel_bind_r (senc _ _ _).
+        { rel_apply refines_bind.
+      - repeat rel_apply refines_app;
+          first (rel_apply senc_sem_typed; last iAssumption).
+        + exists True%I. apply bi.equiv_entails. split; iIntros "H";
+          try iDestruct "H" as "[_ H]"; iFrame.
+        + rel_vals.
+        + rel_vals.
+      - iIntros (c2 c2') "Hrelcipher2"...
+        rewrite /b_recv_once_eav...
+        rel_vals; try iAssumption.
+        + iExists 0. done.
+        + done. }
+    Qed.
 
     Lemma wmf_eav_adv_false__wmf_eav_false (adv : val) :
       (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ())) → lrel_bool)%lrel
@@ -622,6 +830,76 @@ Section logrel.
         + done. }
     Qed.
 
+    Lemma wmf_eav_false__wmf_eav_adv_false (adv : val) :
+      (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ())) → lrel_bool)%lrel
+        adv adv
+      ⊢ REL
+          (adv (init_scheme (wmf_eav_delay #true #false)))
+          <<
+          (let: "α" := alloc #N in
+            CPA' #false (λ: "senc" "oracle",
+              adv (wmf_eav_adv_kb "α" #true "senc" "oracle"))
+            (symmetric_init.sym_scheme) #1) : lrel_bool.
+    Proof with rel_pures_l; rel_pures_r.
+      iIntros "#Hreladv".
+      rel_alloctape_r α as "Hα"...
+      rewrite /CPA'/wmf_protocol.CPA'/init_scheme/wmf_protocol.init_scheme...
+      rel_apply refines_init_scheme_l.
+      iIntros (lls) "HP".
+      rel_apply refines_init_scheme_r.
+      iIntros (rls) "HP'"...
+      rewrite /get_enc/get_keygen/get_rand_cipher...
+      rel_apply refines_keygen_r.
+      iIntros (ka_dummy) "#Hrelka_dummy"...
+      rewrite /q_calls/is_plaintext_inst...
+      rel_alloc_r cnt' as "Hcnt'"...
+      rel_apply refines_couple_UT; first done; iFrame.
+      iModIntro; iIntros (r_adv Hradv_bound) "Hα".
+      rewrite /wmf_eav_adv_kb...
+      rel_apply (refines_randT_r with "Hα"); iIntros "Hα _"...
+      rel_bind_l (adv _).
+      rel_bind_r (adv _).
+      rel_apply (refines_bind with "[-]").
+      2:{
+        iIntros (v v') "Hrel"...
+        rel_vals.
+      }
+      rel_apply refines_app; first (rel_vals; iAssumption).
+      rel_apply refines_pair;
+        first (rel_vals; iExists r_adv; iPureIntro; repeat split; lia).
+      rel_apply refines_sym_keygen_couple.
+      iIntros (ka_dummy') "#Hrelka_dummy'"...
+      rel_apply refines_sym_keygen_couple.
+      iIntros (kb_dummy) "#Hrelkb_dummy"...
+      rewrite /s_to_b_delay_adv_kb/s_to_b_delay...
+      rel_apply refines_couple_UU; first done.
+      iModIntro; iIntros (nonce Hnoncebound)...
+      rewrite /get_card_cipher/get_rand_cipher/sym_scheme...
+      rel_bind_l (rand_cipher _).
+      rel_bind_r (rand_cipher _).
+      rel_apply refines_bind.
+      - rel_apply refines_app.
+        + rel_apply rand_cipher_sem_typed.
+        + rel_vals.
+      - iIntros (c1 c1') "Hrelcipher"...
+        assert (Hbool1 : bool_decide (0 ≤ nonce)%Z = true); last
+        assert (Hbool2 : bool_decide (nonce ≤ N)%Z = true);
+          try (apply bool_decide_eq_true; lia);
+        rewrite Hbool1 Hbool2. clear Hbool1 Hbool2.
+        rel_load_r; rel_load_r; rel_store_r...
+        rel_bind_l (rand_cipher _).
+        rel_bind_r (rand_cipher _).
+        { rel_apply refines_bind.
+      - repeat rel_apply refines_app;
+          first (rel_apply rand_cipher_sem_typed).
+        rel_vals.
+      - iIntros (c2 c2') "Hrelcipher2"...
+        rewrite /b_recv_once_eav...
+        rel_vals; try iAssumption.
+        + iExists 0. done.
+        + done. }
+    Qed.
+
     Lemma wmf_delay_true_false__wmf_delay_false_false (adv : val) :
       ⊢ REL
           init_scheme (wmf_eav_delay #true #false) <<
@@ -662,33 +940,73 @@ Section logrel.
       rewrite /b_recv_once_eav...
       rel_vals; try iExists _; try iPureIntro; repeat split; try lia; try done.
     Qed.
+
+    Lemma wmf_delay_false_false__wmf_delay_true_false (adv : val) :
+      ⊢ REL
+          init_scheme (wmf_eav_delay #false #false) <<
+          init_scheme (wmf_eav_delay #true #false) :
+          (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ()))).
+    Proof with rel_pures_l; rel_pures_r.
+      rewrite /init_scheme/wmf_protocol.init_scheme.
+      rel_apply refines_init_scheme_l.
+      iIntros (lls) "HP".
+      rel_apply refines_init_scheme_r.
+      iIntros (rls) "HP'"...
+      rel_apply refines_couple_UU; first done.
+      iModIntro; iIntros (r_adv Hradvbound)...
+      rel_apply refines_sym_keygen_couple.
+      iIntros (ka) "#Hrelka"...
+      rel_apply refines_sym_keygen_couple.
+      iIntros (kb) "#Hrelkb".
+      rewrite /get_enc/s_to_b_delay...
+      rel_apply refines_randU_r.
+      iIntros (nonce_dummy Hnoncebound)...
+      rewrite /get_rand_cipher/sym_scheme...
+      rel_bind_l (rand_cipher _).
+      rel_bind_r (rand_cipher _).
+      rel_apply refines_bind.
+      {
+        rel_apply refines_app; first rel_apply rand_cipher_sem_typed.
+        rel_vals.
+      }
+      iIntros (c1 c1') "#Hrelc1"...
+      rel_bind_l (rand_cipher _).
+      rel_bind_r (rand_cipher _).
+      rel_apply refines_bind.
+      {
+        rel_apply refines_app; first rel_apply rand_cipher_sem_typed.
+        rel_vals.
+      }
+      iIntros (c2 c2') "#Hrelc2"...
+      rewrite /b_recv_once_eav...
+      rel_vals; try iExists _; try iPureIntro; repeat split; try lia; try done.
+    Qed.
     
-    Lemma wmf_delay_false_false__wmf_adv_false_false (adv : val) :
+    Lemma wmf_adv_false_false__wmf_delay_false_false (adv : val) :
       (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ())) → lrel_bool)%lrel
         adv adv
       ⊢ REL
-          adv (init_scheme (wmf_eav_delay #false #false))
-          <<
           (let: "α" := alloc #N in
             CPA' #false (λ: "senc" "oracle",
               adv (wmf_eav_adv_kb "α" #false "senc" "oracle"))
-            (symmetric_init.sym_scheme) #1) : lrel_bool.
+            (symmetric_init.sym_scheme) #1) <<
+          adv (init_scheme (wmf_eav_delay #false #false)): lrel_bool.
     Proof with rel_pures_l; rel_pures_r.
       iIntros "#Hreladv".
-      rel_alloctape_r α as "Hα"...
+      rel_alloctape_l α as "Hα"...
       rewrite /CPA'/wmf_protocol.CPA'
         /init_scheme/wmf_protocol.init_scheme...
       rel_apply refines_init_scheme_l.
       iIntros (lls) "HP".
       rel_apply refines_init_scheme_r.
       iIntros (rls) "HP'"...
-      rel_apply refines_couple_UT; first done; iFrame.
-      iModIntro; iIntros (r_adv Hradvbound) "Hα"; simpl...
+      rel_apply refines_couple_TU; first done; iFrame.
+      iIntros (r_adv Hradvbound) "Hα"; simpl...
       rewrite /get_enc/get_keygen/get_rand_cipher...
       rel_apply refines_sym_keygen_couple.
       iIntros (ka) "#Hrelka"...
       rewrite /q_calls/is_plaintext_inst...
-      rel_alloc_r cnt as "Hcnt"...
+      rel_alloc_l cnt as "Hcnt"...
       rel_bind_l (adv _).
       rel_bind_r (adv _).
       rel_apply (refines_bind with "[-]").
@@ -699,9 +1017,9 @@ Section logrel.
       rel_apply refines_app.
       { rel_vals. }
       rewrite /wmf_eav_adv_kb...
-      rel_apply (refines_randT_r with "Hα").
-      iIntros "Hα _"... 
-      rel_apply refines_keygen_r.
+      rel_apply refines_randT_l. iFrame.
+      iModIntro; iIntros "Hα _"... 
+      rel_apply refines_keygen_l.
       iIntros (ka_dummy) "#Hrelkadummy"...
       rel_apply refines_sym_keygen_couple.
       iIntros (kb) "#Hrelkb"...
@@ -719,7 +1037,7 @@ Section logrel.
       assert (Hbool2 : bool_decide (r_adv ≤ N)%Z = true);
         try (apply bool_decide_eq_true; lia);
       rewrite Hbool1 Hbool2; clear Hbool1 Hbool2.
-      rel_load_r... rel_load_r; rel_store_r...
+      rel_load_l... rel_load_l; rel_store_l...
       rel_bind_l (rand_cipher _).
       rel_bind_r (rand_cipher _).
       rel_apply refines_bind.
@@ -825,6 +1143,99 @@ Section logrel.
       rel_vals.
     Qed.
 
+    Lemma wmf_eav_adv_false_false__wmf_eav_adv_kb_true_false (adv : val) :
+      (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ())) → lrel_bool)%lrel
+        adv adv
+      ⊢ REL
+          (let: "α" := alloc #N in
+            CPA' #true (λ: "senc" "oracle",
+              adv (wmf_eav_adv_kb "α" #false "senc" "oracle"))
+            (symmetric_init.sym_scheme) #1) <<
+          (let: "α" := alloc #N in
+            CPA' #false (λ: "senc" "oracle",
+              adv (wmf_eav_adv "α" #false "senc" "oracle"))
+            (symmetric_init.sym_scheme) #1) : lrel_bool.
+    Proof with rel_pures_l; rel_pures_r.
+      iIntros "#Hreladv".
+      rel_alloctape_l α as "Hα".
+      rel_alloctape_r α' as "Hα'"...
+      rel_apply refines_couple_TT; iFrame.
+      iIntros (r_adv) "[Hα [Hα' %Hradvbound]]".
+      rewrite /CPA'/wmf_protocol.CPA'...
+      rel_apply refines_init_scheme_l.
+      iIntros (lls) "HP".
+      rel_apply refines_init_scheme_r;
+      iIntros (rls) "HP'".
+      rewrite /get_enc/get_keygen...
+      rel_apply refines_keygen_r;
+      iIntros (kb') "#Hrelkb'"...
+      rewrite /get_rand_cipher/q_calls/is_plaintext_inst...
+      rel_alloc_r cnt' as "Hcnt'"...
+      rel_apply (refines_randT_r with "Hα'")...
+      iIntros "Hα' _"...
+      rel_apply refines_keygen_r.
+      iIntros (ka2) "#Hrelka2"...
+      rel_apply refines_sym_keygen_couple;
+      iIntros (ka) "#Hrelka".
+      rel_alloc_l cnt as "Hcnt"...
+      rel_bind_l (adv _).
+      rel_bind_r (adv _).
+      rel_apply (refines_bind with "[-]").
+      2:{
+        iIntros (v v') "Hrel"...
+        rel_vals.
+      }
+      rel_apply refines_app.
+      { rel_vals. }
+      rewrite /wmf_eav_adv_kb...
+      rel_apply refines_randT_l; iFrame.
+      iModIntro; iIntros "Hα _"...
+      rel_apply refines_pair; first (rel_vals; iExists _; iPureIntro; repeat split; lia).
+      rel_apply refines_keygen_l.
+      iIntros (ka_dummy) "#Hrelkadummy"...
+      rel_apply refines_keygen_l.
+      iIntros (kb_dummy) "#Hrelkbdummy"...
+      rewrite /s_to_b_adv/s_to_b_delay_adv_kb/get_rand_cipher/get_card_cipher...
+      assert (Hbool1 : bool_decide (0 ≤ r_adv)%Z = true); last
+      assert (Hbool2 : bool_decide (r_adv ≤ N)%Z = true);
+        try (apply bool_decide_eq_true; lia);
+      rewrite Hbool1 Hbool2.
+      rel_load_r... rel_load_r; rel_store_r...
+      rel_bind_l (rand_cipher _).
+      rel_bind_r (rand_cipher _).
+      rel_apply refines_bind.
+      {
+        rel_apply refines_app; first rel_apply rand_cipher_sem_typed.
+        rel_vals.
+      }
+      iIntros (c1 c1') "#Hrelc1"...
+      rewrite Hbool1 Hbool2; clear Hbool1 Hbool2.
+      rel_load_l... rel_load_l; rel_store_l...
+      rel_bind_l (senc _ _ _).
+      rel_bind_r (senc _ _ _).
+      rel_apply (refines_bind with "[HP HP']").
+      {
+        rel_apply (refines_na_alloc (Plr lls rls) (nroot.@"wmf__delay")).
+        iSplitL "HP HP'"; first iApply (P0lr_Plr with "HP HP'").
+        iIntros "#Inv".
+        repeat rel_apply refines_app.
+        - rel_apply senc_sem_typed; last iAssumption. exists True%I.
+          apply bi.equiv_entails; split; iIntros "H";
+          try iDestruct "H" as "[_ H]"; iFrame.
+        - rel_vals.
+        - rel_vals.
+      }
+      iIntros (c2 c2') "#Hcipher2"... rel_apply refines_pair...
+      {
+        rel_vals; last iAssumption.
+        iExists 0; done.
+      }
+      rel_apply refines_pair...
+      { rel_vals. }
+      rewrite /b_recv_once_eav...
+      rel_vals.
+    Qed.
+
     Lemma wmf_eav_adv_true_false__wmf_eav_delay_true_false (adv : val) :
       (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ())) → lrel_bool)%lrel
         adv adv
@@ -838,18 +1249,18 @@ Section logrel.
       rel_alloctape_l α as "Hα"...
       rewrite /CPA'/init_scheme
         /wmf_protocol.CPA'/wmf_protocol.init_scheme...
-        rel_apply refines_init_scheme_l.
-        iIntros (lls) "HP".
-        rel_apply refines_init_scheme_r.
-        iIntros (rls) "HP'"...
-        rewrite /get_enc/get_keygen...
-        rel_apply refines_couple_TU; first done.
-        iFrame.
-        iIntros (r_adv Hradvbound) "Hα"...
-        rel_apply refines_sym_keygen_couple.
-        iIntros (ka) "#Hrelka"...
-        rewrite /q_calls/is_plaintext_inst...
-        rel_alloc_l cnt as "Hcnt"...
+      rel_apply refines_init_scheme_l.
+      iIntros (lls) "HP".
+      rel_apply refines_init_scheme_r.
+      iIntros (rls) "HP'"...
+      rewrite /get_enc/get_keygen...
+      rel_apply refines_couple_TU; first done.
+      iFrame.
+      iIntros (r_adv Hradvbound) "Hα"...
+      rel_apply refines_sym_keygen_couple.
+      iIntros (ka) "#Hrelka"...
+      rewrite /q_calls/is_plaintext_inst...
+      rel_alloc_l cnt as "Hcnt"...
       rel_bind_l (adv _).
       rel_bind_r (adv _).
       rel_apply (refines_bind with "[-]").
@@ -873,6 +1284,93 @@ Section logrel.
         try (apply bool_decide_eq_true; lia);
       rewrite Hbool1 Hbool2; clear Hbool1 Hbool2.
       rel_load_l... rel_load_l; rel_store_l...
+      rel_apply (refines_na_alloc (Plr lls rls) (nroot.@"wmf__delay")).
+      iSplitL "HP HP'"; first iApply (P0lr_Plr with "HP HP'").
+      iIntros "#Inv".
+      rel_bind_l (senc _ _ _).
+      rel_bind_r (senc _ _ _).
+      rel_apply refines_bind.
+      {
+        repeat rel_apply refines_app.
+        - rel_apply senc_sem_typed; last iAssumption. exists True%I.
+          apply bi.equiv_entails; split; iIntros "H";
+          try iDestruct "H" as "[_ H]"; iFrame.
+        - rel_vals.
+        - rel_vals. apply Z2Nat.inj_le; try lia. rewrite /N.
+          rewrite Nat2Z.id. replace (Z.to_nat 1) with 1 by lia.
+          apply fin.pow_ge_1. lia.
+      }
+      iIntros (c1 c1') "#Hrelc1"...
+      rel_bind_l (senc _ _ _).
+      rel_bind_r (senc _ _ _).
+      rel_apply refines_bind.
+      {
+        repeat rel_apply refines_app.
+        - rel_apply senc_sem_typed; last iAssumption. exists True%I.
+          apply bi.equiv_entails; split; iIntros "H";
+          try iDestruct "H" as "[_ H]"; iFrame.
+        - rel_vals.
+        - rel_vals.
+      }
+      iIntros (c2 c2') "#Hcipher2"... rel_apply refines_pair...
+      {
+        rel_vals; last iAssumption.
+        iExists 0; done.
+      }
+      rel_apply refines_pair...
+      { rel_vals. }
+      rewrite /b_recv_once_eav...
+      rel_vals.
+    Qed.
+
+    Lemma wmf_eav_delay_true_false__wmf_eav_adv_true_false (adv : val) :
+      (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ())) → lrel_bool)%lrel
+        adv adv
+      ⊢ REL adv (init_scheme (wmf_eav_delay #false #true)) <<
+          (let: "α" := alloc #N in
+            CPA' #true (λ: "senc" "oracle",
+              adv (wmf_eav_adv "α" #false "senc" "oracle"))
+            (symmetric_init.sym_scheme) #1) : lrel_bool.
+    Proof with rel_pures_l; rel_pures_r.
+      iIntros "#Hreladv".
+      rel_alloctape_r α as "Hα"...
+      rewrite /CPA'/init_scheme
+        /wmf_protocol.CPA'/wmf_protocol.init_scheme...
+        rel_apply refines_init_scheme_l.
+      iIntros (lls) "HP".
+      rel_apply refines_init_scheme_r.
+      iIntros (rls) "HP'"...
+      rewrite /get_enc/get_keygen...
+      rel_apply refines_couple_UT; first done.
+      iFrame. iModIntro.
+      iIntros (r_adv Hradvbound) "Hα"...
+      rel_apply refines_sym_keygen_couple.
+      iIntros (ka) "#Hrelka"...
+      rewrite /q_calls/is_plaintext_inst...
+      rel_alloc_r cnt as "Hcnt"...
+      rel_bind_l (adv _).
+      rel_bind_r (adv _).
+      rel_apply (refines_bind with "[-]").
+      2:{
+        iIntros (v v') "Hrel"...
+        rel_vals.
+      }
+      rel_apply refines_app.
+      { rel_vals. }
+      rel_apply (refines_randT_r with "Hα").
+      iIntros "Hα _"...
+      rel_apply refines_pair;
+        first (rel_vals; iExists _; iPureIntro; repeat split; lia).
+      rel_apply refines_keygen_r.
+      iIntros (ka2) "#Hrelka2"...
+      rel_apply refines_sym_keygen_couple.
+      iIntros (kb) "#Hrelkb"...
+      rewrite /s_to_b_adv/s_to_b_delay/get_rand_cipher/get_card_cipher...
+      assert (Hbool1 : bool_decide (0 ≤ r_adv)%Z = true); last
+      assert (Hbool2 : bool_decide (r_adv ≤ N)%Z = true);
+        try (apply bool_decide_eq_true; lia);
+      rewrite Hbool1 Hbool2; clear Hbool1 Hbool2.
+      rel_load_r... rel_load_r; rel_store_r...
       rel_apply (refines_na_alloc (Plr lls rls) (nroot.@"wmf__delay")).
       iSplitL "HP HP'"; first iApply (P0lr_Plr with "HP HP'").
       iIntros "#Inv".
@@ -944,6 +1442,59 @@ Section logrel.
       }
       iIntros (c1 c1') "#Hrelc1 Hcipher1"...
       rewrite /get_dec/sym_is_cipher_lr_r...
+      rel_apply "Hcipher1".
+      iIntros "HP"...
+      rel_apply (refines_na_alloc (Plr lls rls) (nroot.@"wmf__delay")).
+      iSplitL "HP"; first iAssumption.
+      iIntros "#Inv".
+      rel_bind_l (senc _ _ _).
+      rel_bind_r (senc _ _ _).
+      rel_apply refines_bind.
+      {
+        repeat rel_apply refines_app.
+        - rel_apply senc_sem_typed; last iAssumption. exists True%I.
+          apply bi.equiv_entails; split; iIntros "H";
+          try iDestruct "H" as "[_ H]"; iFrame.
+        - rel_vals.
+        - rel_vals.
+      }
+      iIntros (c2 c2') "#Hrelc2"...
+      rewrite /b_recv_once_eav...
+      rel_vals; try iExists _; try iPureIntro; repeat split; done.
+    Qed.
+
+    Lemma wmf_eav_false__wmf_eav_delay_false_true : 
+      ⊢ REL init_scheme (wmf_eav #false) <<
+          init_scheme (wmf_eav_delay #false #true) :
+          (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ()))).
+    Proof with rel_pures_l; rel_pures_r.
+      rewrite /init_scheme/wmf_protocol.init_scheme.
+      rel_apply refines_init_scheme_l.
+      iIntros (lls) "HP".
+      rel_apply refines_init_scheme_r.
+      iIntros (rls) "HP'"...
+      rel_apply refines_couple_UU; first done.
+      iModIntro. iIntros (r_adv Hradvbound)...
+      rel_apply refines_pair;
+        first (rel_vals; iExists r_adv; iPureIntro; repeat split; lia).
+      rel_apply refines_sym_keygen_couple.
+      iIntros (ka) "#Hrelka"...
+      rel_apply refines_sym_keygen_couple.
+      iIntros (kb) "#Hrelkb"...
+      rewrite /get_enc/s_to_b_delay/a_to_s_once_eav/s_to_b_once_eav...
+      rel_apply (refines_couple_senc_lr_l with "[HP HP']").
+      {
+        iSplitR; first iAssumption.
+        iSplitR.
+        - iExists _, _, _, _. iPureIntro.
+          repeat split; eexists; repeat split; try lia.
+          apply Z2Nat.inj_le; try lia. rewrite /N.
+          rewrite Nat2Z.id. replace (Z.to_nat 1) with 1 by lia.
+          apply fin.pow_ge_1. lia.
+        - iApply (P0lr_Plr with "HP HP'").
+      }
+      iIntros (c1 c1') "#Hrelc1 Hcipher1"...
+      rewrite /get_dec/sym_is_cipher_lr_l...
       rel_apply "Hcipher1".
       iIntros "HP"...
       rel_apply (refines_na_alloc (Plr lls rls) (nroot.@"wmf__delay")).
