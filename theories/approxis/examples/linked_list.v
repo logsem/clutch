@@ -1,5 +1,15 @@
 From clutch.approxis Require Import approxis map iterable_expression.
 
+(*
+  What's needed to fully instantiate this module (in order):
+  - `elem_eq : val` the equality on the chosen subset of value;
+  - `carrier : val → iProp Σ` the elements that can appear in the list;
+  - `carrier_pers` the carrier must be persistent;
+  - `carrier_comparable : ∀ x y, carrier x -∗ carrier y -∗ ⌜vals_comparable x y⌝`;
+  - `refines_elem_eq_l : refines_elem_eq_l_prop`;
+  - `refines_elem_eq_r : refines_elem_eq_r_prop`.
+*)
+
 Section defs.
     
   Definition init_linked_list : val :=
@@ -99,45 +109,7 @@ Section defs.
       rewrite H1 in H2. discriminate H2.
   Qed.
 
-  Definition comp_pair_fst {v1 v1' v2 v2' : val} (H : vals_comparable (PairV v1 v2) (PairV v1' v2')) : vals_comparable v1 v1' :=
-    match H in vals_comparable (PairV v10 v20) (PairV v10' v20') 
-    return vals_comparable v10 v10' with
-    | comp_pair _ _ _ _ H1 _ => H1
-    end.
-
-  Definition comp_pair_snd {v1 v1' v2 v2' : val} (H : vals_comparable (PairV v1 v2) (PairV v1' v2')) : vals_comparable v2 v2' :=
-    match H in vals_comparable (PairV v10 v20) (PairV v10' v20') 
-    return vals_comparable v20 v20' with
-    | comp_pair _ _ _ _ _ H2 => H2
-    end.
-
-  Definition comp_injl_inv {v1 v1' : val} (H : vals_comparable (InjLV v1) (InjLV v1')) : vals_comparable v1 v1' :=
-    match H in vals_comparable (InjLV v10) (InjLV v10') 
-    return vals_comparable v10 v10' with
-    | comp_injl _ _ H1 => H1
-    end.
-
-  Definition comp_injr_inv {v2 v2' : val} (H : vals_comparable (InjRV v2) (InjRV v2')) : vals_comparable v2 v2' :=
-    match H in vals_comparable (InjRV v20) (InjRV v20') 
-    return vals_comparable v20 v20' with
-    | comp_injr _ _ H2 => H2
-    end.
-
-  Definition comp_injl_injr {v1 v2 : val} (H : vals_comparable (InjLV v1) (InjRV v2)) : False :=
-  match H in vals_comparable (InjLV v10) (InjRV v20) return False with
-  end.
-
-  Fixpoint meta_elem_eq_bool_prop (x y : val) (H : vals_comparable x y) : bool :=
-  match  x as x0 , y as y0 return vals_comparable x0 y0 -> bool with 
-    | LitV l, LitV l' => fun _ => bool_decide (x = y)
-    | PairV v1 v2, PairV v1' v2' => fun H0 => meta_elem_eq_bool_prop v1 v1' (comp_pair_fst H0) && meta_elem_eq_bool_prop v2 v2' (comp_pair_snd H0)
-    | InjLV v, InjLV v' => fun H0 => meta_elem_eq_bool_prop v v' (comp_injl_inv H0)
-    | InjRV v, InjRV v' => fun H0 => meta_elem_eq_bool_prop v v' (comp_injr_inv H0)
-    | InjLV v, InjRV v' => λ H0, False_rect _ (comp_injl_injr H0)
-    | _, _ => fun _ => true
-    end H.
-
-  Definition elem_of_list : val :=
+  Definition elem_of_const_list : val :=
     rec: "elem_of" "h" "k" :=
           match: ! (rec_unfold "h") with
             NONE => #false
@@ -149,19 +121,23 @@ Section defs.
 
   Definition elem_of_linked_list : val :=
     λ: "l" "x",
-      elem_of_list !"l" "x".
+      elem_of_const_list !"l" "x".
 
   Section logrel.
   
     Context `{!approxisRGS Σ}.
     
+    Variable carrier : val → iProp Σ.
+    Hypothesis carrier_pers : ∀ x, Persistent (carrier x).
+    Hypothesis carrier_comparable : ∀ x y, carrier x -∗ carrier y -∗ ⌜vals_comparable x y⌝.
+
     Definition refines_elem_eq_l_prop :=
-      ∀ (x y : val) (H : vals_comparable x y) K e E A,
-          refines E (fill K (Val #(meta_elem_eq x y))) e A
+      ∀ (x y : val) K e E A,
+          carrier x ∗ carrier y ∗ refines E (fill K (Val #(meta_elem_eq x y))) e A
           ⊢ refines E (fill K (elem_eq x y)) e A.
     Definition refines_elem_eq_r_prop :=
-      ∀ (x y : val) (H : vals_comparable x y) K e E A,
-          refines E e (fill K (Val #(meta_elem_eq x y))) A
+      ∀ (x y : val) K e E A,
+          carrier x ∗ carrier y ∗ refines E e (fill K (Val #(meta_elem_eq x y))) A
         ⊢ refines E e (fill K (elem_eq x y)) A.
 
     Hypothesis refines_elem_eq_l : refines_elem_eq_l_prop.
@@ -240,26 +216,47 @@ Section defs.
         (∀ (b : bool), const_linked_list l_list l
           -∗ (⌜b = true ↔ v ∈ l⌝ -∗ refines E (fill K (Val #b)) e A))
       -∗ const_linked_list l_list l
-      -∗ ⌜Forall (λ x, vals_comparable (inject x) (inject v)) l⌝
-      -∗ refines E (fill K (elem_of_list #l_list (Val (inject v)))) e A.
-    Proof with rel_pures_l using X approxisRGS0 elem_eq refines_elem_eq_l to_val Σ.
-      iIntros (K e E A l_list l v) "H Hlist %Hcomparable".
+      -∗ ForallSep (λ x, carrier (inject x)) l ∗ carrier (inject v)
+      -∗ refines E (fill K (elem_of_const_list #l_list (Val (inject v)))) e A.
+    Proof with rel_pures_l
+      using X approxisRGS0 carrier carrier_comparable carrier_pers elem_eq refines_elem_eq_l to_val Σ.
+      iIntros (K e E A l_list l v);
+      epose proof (@ForallSep_pers_is_pers Σ X l (λ x, carrier (inject x)) _)
+        as Hlstpers;
+      iIntros "H Hlist [#Hcarl #Hcarv]".
+      iAssert (⌜Forall (λ x, vals_comparable (inject x) (inject v)) l⌝)%I with "[]" as "%Hcomparable".
+      {
+        
+        iApply ForallSep_Forall.
+              { iRevert "Hcarl".
+                iInduction l as [|h t] "IHt"; iIntros "#Hcarl".
+              - done.
+              - simpl. iDestruct "Hcarl" as "[Hcarhead Hcartail]". iSplit.
+                + iPoseProof (carrier_comparable with "Hcarhead Hcarv") as "%H".
+                  iPureIntro; assumption.
+                + iApply "IHt"; last iModIntro.
+                  * iPureIntro. apply ForallSep_pers_is_pers.
+                    intros x. done.
+                  * iAssumption.  } 
+      }
       iRevert "Hlist H". iRevert (l_list).
       iInduction l as [|h t] "IH"; iIntros (l_list) "Hlist H".
-      - rewrite /elem_of_list/linked_list. simpl.
+      - rewrite /elem_of_const_list/linked_list. simpl.
         rewrite /elem_of_linked_list/rec_unfold...
         rel_load_l...
         iPoseProof ("H" with "Hlist") as "H".
         rel_apply "H".
         iPureIntro. split; intros H; first discriminate H.
         exfalso. apply not_elem_of_nil in H. apply H.
-      - rewrite /elem_of_list/linked_list.
+      - rewrite /elem_of_const_list/linked_list.
         simpl. iDestruct "Hlist" as (lt) "[Hlt Htail]".
+        iDestruct "Hcarl" as "[Hcarhead Hcartail]".
         rewrite /elem_of_linked_list/rec_unfold...
         rewrite /elem_of_linked_list;
         rel_load_l...
-        rel_apply refines_elem_eq_l.
-        { inversion Hcomparable. assumption. }
+        rel_apply refines_elem_eq_l. iSplitR; last iSplitR.
+        { iAssumption. }
+        { iAssumption. }
         destruct (meta_elem_eq (inject h) (inject v)) eqn:eq.
         + iAssert (∃ lt0 : loc, l_list ↦ InjRV (inject h, #lt0) ∗
             const_linked_list lt0 t)%I with "[Hlt Htail]" as "G".
@@ -271,8 +268,11 @@ Section defs.
           apply inject_inj in eq. rewrite eq.
           split; intros H; first constructor.
           reflexivity.
-        + rel_pure_l. rel_apply ("IH" with "[] [Htail] [Hlt H]").
+        + rel_pure_l. rel_apply ("IH" with "[] [] [] [Htail] [Hlt H]").
+          * iPureIntro. apply ForallSep_pers_is_pers.
+            intros x. apply carrier_pers.
           * iPureIntro. inversion Hcomparable. assumption.
+          * iAssumption.
           * iAssumption.
           * iIntros (b) "G".
             iAssert (∃ lt0 : loc, l_list ↦ InjRV (inject h, #lt0) ∗
@@ -296,44 +296,66 @@ Section defs.
         (∀ (b : bool), linked_list l_list l
           -∗ (⌜b = true ↔ v ∈ l⌝ -∗ refines E (fill K (Val #b)) e A))
       -∗ linked_list l_list l
-      -∗ ⌜Forall (λ x, vals_comparable (inject x) (inject v)) l⌝
+      -∗ ForallSep (λ x, carrier (inject x)) l ∗ carrier (inject v)
       -∗ refines E (fill K (elem_of_linked_list #l_list (Val (inject v)))) e A.
-    Proof with rel_pures_l using X approxisRGS0 elem_eq refines_elem_eq_l to_val Σ.
-      iIntros (K e E A ll l v) "H Hlist %Hcomparable".
+    Proof with rel_pures_l using X approxisRGS0 carrier carrier_comparable
+      carrier_pers elem_eq refines_elem_eq_l to_val Σ.
+      iIntros (K e E A ll l v) "H Hlist Hcomparable".
       rewrite /elem_of_linked_list...
       iDestruct "Hlist" as (l_list) "[Hll Hlist]".
       rel_load_l.
-      rel_apply (refines_elem_of_const_list_l with "[H Hll] [Hlist] []").
+      rel_apply (refines_elem_of_const_list_l with "[H Hll] [Hlist] [Hcomparable]").
       - iIntros (b) "H1 Hin". iApply ("H" with "[-Hin]"); last iAssumption.
         iExists l_list. iFrame.
       - iAssumption.
-      - iPureIntro; assumption.
+      - iAssumption.
     Qed.
 
     Lemma refines_elem_of_const_list_r : ∀ K e E A l_list l v,
         (∀ (b : bool), const_linked_slist l_list l
           -∗ (⌜b = true ↔ v ∈ l⌝ -∗ refines E e (fill K (Val #b)) A))
       -∗ const_linked_slist l_list l
-      -∗ ⌜Forall (λ x, vals_comparable (inject x) (inject v)) l⌝
-      -∗ refines E e (fill K (elem_of_list #l_list (Val (inject v)))) A.
-    Proof with rel_pures_r using X approxisRGS0 elem_eq refines_elem_eq_r to_val Σ.
-      iIntros (K e E A l_list l v) "H Hlist %Hcomparable".
+      -∗ ForallSep (λ x, carrier (inject x)) l ∗ carrier (inject v)
+      -∗ refines E e (fill K (elem_of_const_list #l_list (Val (inject v)))) A.
+    Proof with rel_pures_r using X approxisRGS0 carrier carrier_comparable
+      carrier_pers elem_eq refines_elem_eq_r to_val Σ.
+      iIntros (K e E A l_list l v);
+      epose proof (@ForallSep_pers_is_pers Σ X l (λ x, carrier (inject x)) _)
+        as Hlstpers;
+      iIntros "H Hlist [#Hcarl #Hcarv]".
+      iAssert (⌜Forall (λ x, vals_comparable (inject x) (inject v)) l⌝)%I with "[]" as "%Hcomparable".
+      {
+        
+        iApply ForallSep_Forall.
+              { iRevert "Hcarl".
+                iInduction l as [|h t] "IHt"; iIntros "#Hcarl".
+              - done.
+              - simpl. iDestruct "Hcarl" as "[Hcarhead Hcartail]". iSplit.
+                + iPoseProof (carrier_comparable with "Hcarhead Hcarv") as "%H".
+                  iPureIntro; assumption.
+                + iApply "IHt"; last iModIntro.
+                  * iPureIntro. apply ForallSep_pers_is_pers.
+                    intros x. done.
+                  * iAssumption.  } 
+      }
       iRevert "Hlist H". iRevert (l_list).
       iInduction l as [|h t] "IH"; iIntros (l_list) "Hlist H".
-      - rewrite /elem_of_list/linked_list. simpl.
+      - rewrite /elem_of_const_list/linked_list. simpl.
         rewrite /elem_of_linked_list/rec_unfold...
         rel_load_r...
         iPoseProof ("H" with "Hlist") as "H".
         rel_apply "H".
         iPureIntro. split; intros H; first discriminate H.
         exfalso. apply not_elem_of_nil in H; assumption.
-      - rewrite /elem_of_list/linked_list.
+      - rewrite /elem_of_const_list/linked_list.
         simpl. iDestruct "Hlist" as (lt) "[Hlt Htail]".
         rewrite /elem_of_linked_list/rec_unfold...
         rewrite /elem_of_linked_list;
         rel_load_r...
-        rel_apply refines_elem_eq_r.
-        { inversion Hcomparable. assumption. }
+        iDestruct "Hcarl" as "[Hcarhead Hcartail]".
+        rel_apply refines_elem_eq_r. iSplitR; last iSplitR.
+        { iAssumption. }
+        { iAssumption. }
         destruct (meta_elem_eq (inject h) (inject v)) eqn:eq.
         + iAssert (∃ lt0 : loc, l_list ↦ₛ InjRV (inject h, #lt0) ∗
             const_linked_slist lt0 t)%I with "[Hlt Htail]" as "G".
@@ -345,8 +367,11 @@ Section defs.
           apply inject_inj in eq. rewrite eq. split; intros H.
           * constructor.
           * reflexivity.
-        + rel_pure_r. rel_apply ("IH" with "[] [Htail] [Hlt H]").
+        + rel_pure_r. rel_apply ("IH" with "[] [] [] [Htail] [Hlt H]").
+          * iPureIntro. apply ForallSep_pers_is_pers.
+            intros x. apply carrier_pers.
           * iPureIntro. inversion Hcomparable. assumption.
+          * iAssumption.
           * iAssumption.
           * iIntros (b) "G".
             iAssert (∃ lt0 : loc, l_list ↦ₛ InjRV (inject h, #lt0) ∗
@@ -370,18 +395,30 @@ Section defs.
         (∀ (b : bool), linked_slist l_list l
           -∗ (⌜b = true ↔ v ∈ l⌝ -∗ refines E e (fill K (Val #b)) A))
       -∗ linked_slist l_list l
-      -∗ ⌜Forall (λ x, vals_comparable (inject x) (inject v)) l⌝
+      -∗ ForallSep (λ x, carrier (inject x)) l ∗ carrier (inject v)
       -∗ refines E e (fill K (elem_of_linked_list #l_list (inject v))) A.
-    Proof with rel_pures_r using X approxisRGS0 elem_eq refines_elem_eq_r to_val Σ.
-      iIntros (K e E A ll l v) "H Hlist %Hcomparable".
+    Proof with rel_pures_r using X approxisRGS0 carrier carrier_comparable
+      carrier_pers elem_eq refines_elem_eq_r to_val Σ.
+      iIntros (K e E A l_list l v);
+      epose proof (@ForallSep_pers_is_pers Σ X l (λ x, carrier (inject x)) _)
+        as Hlstpers;
+      iIntros "H Hlist [#Hcarl #Hcarv]".
+      iAssert (⌜Forall (λ x, vals_comparable (inject x) (inject v)) l⌝)%I with "[]" as "%Hcomparable".
+      {
+        
+        iApply ForallSep_Forall.
+              { iRevert "Hcarl".
+                iInduction l as [|h t] "IHt"; iIntros "#Hcarl".
+              - done.
+              - simpl. iDestruct "Hcarl" as "[Hcarhead Hcartail]". iSplit.
+                + iPoseProof (carrier_comparable with "Hcarhead Hcarv") as "%H".
+                  iPureIntro; assumption.
+                + iApply "IHt"; last iModIntro.
+                  * iPureIntro. apply ForallSep_pers_is_pers.
+                    intros x. done.
+                  * iAssumption.  } 
+      }
       rewrite /elem_of_linked_list...
-      iDestruct "Hlist" as (l_list) "[Hll Hlist]"...
-      (* rel_load_r.
-      rel_apply (refines_elem_of_const_list_r with "[H Hll] [Hlist] []").
-      - iIntros "H1". iApply "H". iExists l_list. iFrame.
-      - iAssumption.
-      - iPureIntro; assumption.
-    Qed. *)
     Admitted.
 
   End logrel.
