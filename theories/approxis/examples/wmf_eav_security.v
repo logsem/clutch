@@ -186,7 +186,6 @@ Section logrel.
 
   Hypothesis senc_sem_typed : senc_sem_typed_prop.
 
-
     Section eavesdropping_attacker.
     
     Definition s_to_b_delay : val :=
@@ -218,7 +217,7 @@ Section logrel.
           (Snd "msg2",
             (
               Fst "msg2",
-              b_recv_once "b" "kb" #()
+              b_recv_once_eav "b" "kb" #()
             )
           )
         ).
@@ -243,7 +242,7 @@ Section logrel.
       iIntros (kb) "#Hrelkb"...
       rel_apply refines_pair.
       { rel_vals. iExists r_dummy. iPureIntro; repeat split; lia. }
-      rewrite /a_to_s_once/s_to_b_delay/get_dec/get_enc...
+      rewrite /a_to_s_once_eav/s_to_b_delay/get_dec/get_enc...
       rel_apply refines_couple_UU; first done.
       iModIntro; iIntros (nonce Hnoncebound)...
       rel_apply (refines_couple_senc_lr_l with "[HP HP']").
@@ -259,7 +258,7 @@ Section logrel.
         - iExists nonce; repeat iSplit; iPureIntro; try done; try lia.
       }
       iIntros (c c') "#Hrelcipher Hcipher"...
-      rewrite /s_to_b_once...
+      rewrite /s_to_b_once_eav...
       rel_apply "Hcipher".
       iIntros "HP"...
       rel_bind_l (senc _ _ _).
@@ -283,7 +282,7 @@ Section logrel.
       }
       rel_apply refines_pair...
       { rel_vals. }
-      rewrite /b_recv_once...
+      rewrite /b_recv_once_eav...
       rel_vals.
     Qed.
 
@@ -310,7 +309,7 @@ Section logrel.
           (Snd "msg2",
             (
               Fst "msg2",
-              b_recv_once "b" "kb" #()
+              b_recv_once_eav "b" "kb" #()
             )
           )
         ).
@@ -393,7 +392,7 @@ Section logrel.
         + rel_vals.
         + rel_vals.
       - iIntros (c2 c2') "Hrelcipher2"...
-        rewrite /b_recv_once...
+        rewrite /b_recv_once_eav...
         rel_vals; try iAssumption.
         + iExists 0. done.
         + done. }
@@ -424,7 +423,7 @@ Section logrel.
           (Snd "msg2",
             (
               Fst "msg2",
-              b_recv_once "b" "kb" #()
+              b_recv_once_eav "b" "kb" #()
             )
           )
         ).
@@ -518,7 +517,7 @@ Section logrel.
         + rel_vals.
         + rel_vals.
       - iIntros (c2 c2') "Hrelcipher2"...
-        rewrite /b_recv_once...
+        rewrite /b_recv_once_eav...
         rel_vals; try iAssumption.
         + iExists 0. done.
         + done. }
@@ -548,7 +547,7 @@ Section logrel.
           (Snd "msg2",
             (
               Fst "msg2",
-              b_recv_once "b" "kb" #()
+              b_recv_once_eav "b" "kb" #()
             )
           )
         ). *)
@@ -617,7 +616,7 @@ Section logrel.
           first (rel_apply rand_cipher_sem_typed).
         rel_vals.
       - iIntros (c2 c2') "Hrelcipher2"...
-        rewrite /b_recv_once...
+        rewrite /b_recv_once_eav...
         rel_vals; try iAssumption.
         + iExists 0. done.
         + done. }
@@ -660,7 +659,7 @@ Section logrel.
         rel_vals.
       }
       iIntros (c2 c2') "#Hrelc2"...
-      rewrite /b_recv_once...
+      rewrite /b_recv_once_eav...
       rel_vals; try iExists _; try iPureIntro; repeat split; try lia; try done.
     Qed.
     
@@ -729,7 +728,7 @@ Section logrel.
         rel_vals.
       }
       iIntros (c2 c2') "#Hrelc2"...
-      rewrite /b_recv_once...
+      rewrite /b_recv_once_eav...
       rel_vals; try iExists _; try iPureIntro; repeat split; try lia; try done.
     Qed.
 
@@ -822,7 +821,7 @@ Section logrel.
       }
       rel_apply refines_pair...
       { rel_vals. }
-      rewrite /b_recv_once...
+      rewrite /b_recv_once_eav...
       rel_vals.
     Qed.
 
@@ -909,7 +908,7 @@ Section logrel.
       }
       rel_apply refines_pair...
       { rel_vals. }
-      rewrite /b_recv_once...
+      rewrite /b_recv_once_eav...
       rel_vals.
     Qed.
 
@@ -931,7 +930,7 @@ Section logrel.
       iIntros (ka) "#Hrelka"...
       rel_apply refines_sym_keygen_couple.
       iIntros (kb) "#Hrelkb"...
-      rewrite /get_enc/s_to_b_delay/a_to_s_once/s_to_b_once...
+      rewrite /get_enc/s_to_b_delay/a_to_s_once_eav/s_to_b_once_eav...
       rel_apply (refines_couple_senc_lr_r with "[HP HP']").
       {
         iSplitR; first iAssumption.
@@ -962,7 +961,7 @@ Section logrel.
         - rel_vals.
       }
       iIntros (c2 c2') "#Hrelc2"...
-      rewrite /b_recv_once...
+      rewrite /b_recv_once_eav...
       rel_vals; try iExists _; try iPureIntro; repeat split; done.
     Qed.
 
