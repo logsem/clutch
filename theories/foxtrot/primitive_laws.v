@@ -645,6 +645,49 @@ Section lifting.
       rewrite app_nil_r. by iFrame.
   Qed.
 
+  (* TODO: prove adv comp version *)
+  Lemma pupd_rand j K N z E:
+    TCEq N (Z.to_nat z) →
+    j⤇ fill K (rand #z) -∗
+    pupd E E (∃ (n:nat), j⤇ fill K #n ∗ ⌜(n<=N)%nat⌝).
+  Proof.
+    iIntros (->) "HK".
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ1 [] ε1) "(H1 & H2 & H3)".
+    iDestruct (spec_auth_prog_agree with "[$][$]") as "%".
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    iApply spec_coupl_step_r; [|done|..].
+    - apply reducible_fill. apply head_prim_reducible. solve_red.
+    - instantiate (2:=0%NNR). instantiate (1:= ε1). simpl.
+      lra.
+    - simpl.
+      rewrite fill_dmap //=.
+      rewrite head_prim_step_eq//.
+      simpl.
+      rewrite dmap_comp.
+      rewrite /dmap.
+      replace 0%R with (0+0)%R; last lra.
+      eapply pgl_dbind; last first.
+      + by apply pgl_trivial.
+      + simpl.
+        intros a ?. apply pgl_dret.
+        split; last done.
+        instantiate (1:= λ x, ∃ (n:nat), x =(fill K #n, s, []) /\ (n<=Z.to_nat z)%nat ).
+        simpl. eexists _; split; first done.
+        pose proof fin_to_nat_lt a. lia.
+      + done.
+      + done. 
+    - simpl. iIntros (???) "%".
+      destruct!/=.
+      iMod (spec_update_prog with "[$][$]") as "[HK Hs]".
+      iApply spec_coupl_ret.
+      iModIntro.
+      iMod "Hclose".
+      rewrite app_nil_r.
+      by iFrame.
+  Qed. 
+
   Lemma pupd_fork E K e j:
     j ⤇ fill K (Fork e)
     ⊢ pupd E E (j ⤇ fill K #() ∗ ∃ k, k ⤇ e).

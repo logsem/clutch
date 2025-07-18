@@ -483,6 +483,32 @@ Section rules.
       iModIntro. iPureIntro.
       pose proof fin_to_nat_lt a. lia.
   Qed.
+
+  
+  Lemma wp_couple_rand_rand' N f `{Bij nat nat f} j z K E :
+    TCEq N (Z.to_nat z) →
+    (forall n:nat, (n < S N)%nat -> (f n < S N)%nat) ->
+    {{{ j ⤇ fill K (rand #z) }}}
+      rand #z @ E
+      {{{ (n : nat), RET #(f n); ⌜ n ≤ N ⌝ ∗ j ⤇ fill K #n }}}.
+  Proof.
+    iIntros (Heq Hdom Ψ) "Hr HΨ".
+    rewrite Heq.
+    wp_apply (wp_couple_rand_rand _ (f_inv f) with "[$]").
+    - intros.
+      apply f_inv_restr; naive_solver.
+    - iIntros (?) "(%&Hspec)".
+      replace n with (f (f_inv f n)); last apply f_inv_cancel_r.
+      iApply "HΨ".
+      rewrite f_inv_cancel_l.
+      iFrame.
+      iPureIntro.
+      rewrite -Heq.
+      assert (f_inv f n< S N)%nat; last lia.
+      apply f_inv_restr; try lia; naive_solver.
+      Unshelve.
+      apply f_inv_bij.
+  Qed. 
   
   (* (** coupling rand and rand but avoid certain values*) *)
   (* Lemma wp_couple_rand_rand_avoid N (l:list _) z K E : *)
