@@ -53,8 +53,23 @@ Section logrel.
   Hypothesis refines_is_plaintext_l : refines_is_plaintext_l_prop. 
 
   Variable elem_eq : val.
-  Hypothesis refines_elem_eq_l : refines_elem_eq_l_prop elem_eq.
-  Hypothesis refines_elem_eq_r : refines_elem_eq_r_prop elem_eq.
+
+  Lemma half_lrel_pers : ∀ (A : lrel Σ) x, Persistent (half_lrel A x).
+  Proof. intros A x. rewrite /Persistent.
+    iIntros "[[%y #H] | [%y #H]]".
+    - iModIntro. iLeft. iExists y. iAssumption.
+    - iModIntro. iRight. iExists y. iAssumption.
+  Qed.
+
+  Hypothesis lrel_msg_comparable : ∀ x y, (λ x, half_lrel lrel_msg x) x
+    -∗ (λ x, half_lrel lrel_msg x) y
+    -∗ ⌜vals_comparable x y⌝.
+  Hypothesis lrel_msg_eq : ∀ x y, lrel_msg x y ⊢ ⌜x = y⌝.
+
+  Hypothesis refines_elem_eq_l : refines_elem_eq_l_prop elem_eq
+    (λ x, half_lrel lrel_msg x).
+  Hypothesis refines_elem_eq_r : refines_elem_eq_r_prop elem_eq
+    (λ x, half_lrel lrel_msg x).
 
   #[local] Instance val_inj : Inject val val.
   Proof. unshelve econstructor.
@@ -62,8 +77,12 @@ Section logrel.
     - intros x y H'; assumption.
   Defined.
 
-  Definition refines_elem_of_l := @refines_elem_of_l elem_eq _ _ refines_elem_eq_l val val_inj.
-  Definition refines_elem_of_r := @refines_elem_of_r elem_eq _ _ refines_elem_eq_r val val_inj.
+  Definition refines_elem_of_l :=
+    @refines_elem_of_l elem_eq _ _ (λ x, half_lrel lrel_msg x)
+      (half_lrel_pers lrel_msg) lrel_msg_comparable refines_elem_eq_l val val_inj.
+  Definition refines_elem_of_r :=
+    @refines_elem_of_r elem_eq _ _ (λ x, half_lrel lrel_msg x)
+      (half_lrel_pers lrel_msg) lrel_msg_comparable refines_elem_eq_r val val_inj.
 
   Definition PTXT' : val :=
     λ: "b" "adv" "scheme" "Q_enc" "Q_dec",
@@ -205,25 +224,11 @@ Section logrel.
 
   Hypothesis sdec_sem_typed : sdec_sem_typed_prop.
 
-  Hypothesis lrel_msg_comparable : ∀ x y,
-    half_lrel lrel_msg x ∗ half_lrel lrel_msg y ⊢ ⌜vals_comparable x y⌝.
-  Hypothesis lrel_msg_eq : ∀ x y, lrel_msg x y ⊢ ⌜x = y⌝.
-
   Lemma forall_lrel_pers : ∀ l l' (A : lrel Σ),
     Persistent (@ForallSep2 Σ val val A l l').
-  Proof. intros l l' A. rewrite /Persistent.
-    iRevert (l').
-    iInduction l as [|h t] "IHt"; iIntros (l') "H".
-    - destruct l' as [|h' t'].
-      + iModIntro; done.
-      + iExFalso; iAssumption.
-    - destruct l' as [|h' t'].
-      + iExFalso; iAssumption.
-      + simpl. iApply bi.persistently_sep_2.
-        iDestruct "H" as "[#Hrel H]".
-        iSplitR.
-        * iModIntro; iAssumption.
-        * iApply "IHt". iAssumption.
+  Proof. intros l l' A.
+    apply ForallSep2_pers_is_pers.
+    apply lrel_persistent.
   Qed.
 
   Lemma in_forall2_in_l : ∀ l l' f x,
@@ -475,20 +480,18 @@ Section logrel.
                 assumption.
             ++ iApply "Hlst'".
             ++ iClear "Inv encInv Hrelkey Hrelcipher Hreladv".
-              clear -lrel_msg_comparable lrel_msg_eq.
-              iApply ForallSep_Forall.
-              { iRevert "Hl_l'". iRevert (l).
-                iInduction l' as [|h' t'] "IHt'"; iIntros (l) "Hl_l'".
-              - done.
-              - destruct l as [|h t].
-                { simpl. iExFalso; iAssumption. }
-                simpl. iDestruct "Hl_l'" as "[#Hh_h' #Ht_t']".
-                iSplit.
-                + iApply lrel_msg_comparable. iSplit.
-                  * iRight. iExists h. iAssumption.
-                  * iRight. iExists dec2. iAssumption.
-                + iApply "IHt'". iModIntro.
-                  iApply "Ht_t'". }
+              clear -lrel_msg_comparable lrel_msg_eq. iSplit.
+              {
+                iRevert "Hl_l'". iRevert (l).
+                iInduction l' as [|h' t'] "IHt'"; iIntros (l) "#Hrel_lst".
+                - simpl. done.
+                - destruct l as [|h t].
+                  + iExFalso; iAssumption.
+                  + simpl. iDestruct "Hrel_lst" as "[Hrel_head Hrel_tail]". iSplit.
+                    * iRight. iExists h. iAssumption.
+                    * iApply "IHt'". iModIntro. iAssumption.  
+              }
+              iRight. iExists dec2. iAssumption.
           ** rel_apply (refines_elem_of_r with
             "[Hlst Hcntenc Hcntenc' Hcntlr Hcntdec Hcntdec' Hclose] [Hlst'] []").
             ++ iIntros (b') "Hlst' %Hb'". destruct b'...
@@ -516,36 +519,32 @@ Section logrel.
                 rel_vals.
             ++ iApply "Hlst'".
             ++ iClear "Inv encInv Hrelkey Hrelcipher Hreladv".
-              clear -lrel_msg_comparable lrel_msg_eq.
-              iApply ForallSep_Forall.
-              { iRevert "Hl_l'". iRevert (l).
-                iInduction l' as [|h' t'] "IHt'"; iIntros (l) "Hl_l'".
-              - done.
-              - destruct l as [|h t].
-                { simpl. iExFalso; iAssumption. }
-                simpl. iDestruct "Hl_l'" as "[#Hh_h' #Ht_t']".
-                iSplit.
-                + iApply lrel_msg_comparable. iSplit.
-                  * iRight. iExists h. iAssumption.
-                  * iRight. iExists dec2. iAssumption.
-                + iApply "IHt'". iModIntro.
-                  iApply "Ht_t'". }
+              clear -lrel_msg_comparable lrel_msg_eq. iSplit.
+              {
+                iRevert "Hl_l'". iRevert (l).
+                iInduction l' as [|h' t'] "IHt'"; iIntros (l) "#Hrel_lst".
+                - simpl. done.
+                - destruct l as [|h t].
+                  + iExFalso; iAssumption.
+                  + simpl. iDestruct "Hrel_lst" as "[Hrel_head Hrel_tail]". iSplit.
+                    * iRight. iExists h. iAssumption.
+                    * iApply "IHt'". iModIntro. iAssumption.  
+              }
+              iRight. iExists dec2. iAssumption.
         * iAssumption.
         * iClear "Inv encInv Hrelkey Hrelcipher Hreladv".
-          clear -lrel_msg_comparable lrel_msg_eq.
-          iApply ForallSep_Forall.
-          { iRevert "Hl_l'". iRevert (l').
-            iInduction l as [|h t] "IHt'"; iIntros (l') "Hl_l'".
-          - done.
-          - destruct l' as [|h' t'].
-            { simpl. iExFalso; iAssumption. }
-            simpl. iDestruct "Hl_l'" as "[#Hh_h' #Ht_t']".
-            iSplit.
-            + iApply lrel_msg_comparable. iSplit.
-              * iLeft. iExists h'. iAssumption.
-              * iLeft. iExists dec2'. iAssumption.
-            + iApply "IHt'". iModIntro.
-              iApply "Ht_t'". }
+          clear -lrel_msg_comparable lrel_msg_eq. iSplit.
+          {
+            iRevert "Hl_l'". iRevert (l').
+            iInduction l as [|h t] "IHt'"; iIntros (l') "#Hrel_lst".
+            - simpl. done.
+            - destruct l' as [|h' t'].
+              + iExFalso; iAssumption.
+              + simpl. iDestruct "Hrel_lst" as "[Hrel_head Hrel_tail]". iSplit.
+                * iLeft. iExists h'. iAssumption.
+                * iApply "IHt'". iModIntro. iAssumption.  
+          }
+          iLeft. iExists dec2'. iAssumption.
       + rel_apply refines_is_ciphertext_r...
         { iExists c1; iAssumption. }
         rel_load_r... rewrite qltQdec...
@@ -757,20 +756,18 @@ Section logrel.
                 assumption.
             ++ iApply "Hlst'".
             ++ iClear "Inv encInv Hrelkey Hrelcipher Hreladv".
-              clear -lrel_msg_comparable lrel_msg_eq.
-              iApply ForallSep_Forall.
-              { iRevert "Hl_l'". iRevert (l).
-                iInduction l' as [|h' t'] "IHt'"; iIntros (l) "Hl_l'".
-              - done.
-              - destruct l as [|h t].
-                { simpl. iExFalso; iAssumption. }
-                simpl. iDestruct "Hl_l'" as "[#Hh_h' #Ht_t']".
-                iSplit.
-                + iApply lrel_msg_comparable. iSplit.
-                  * iRight. iExists h. iAssumption.
-                  * iRight. iExists dec2. iAssumption.
-                + iApply "IHt'". iModIntro.
-                  iApply "Ht_t'". }
+              clear -lrel_msg_comparable lrel_msg_eq. iSplit.
+              {
+                iRevert "Hl_l'". iRevert (l).
+                iInduction l' as [|h' t'] "IHt'"; iIntros (l) "#Hrel_lst".
+                - simpl. done.
+                - destruct l as [|h t].
+                  + iExFalso; iAssumption.
+                  + simpl. iDestruct "Hrel_lst" as "[Hrel_head Hrel_tail]". iSplit.
+                    * iRight. iExists h. iAssumption.
+                    * iApply "IHt'". iModIntro. iAssumption.  
+              }
+              iRight. iExists dec2. iAssumption.
           ** rel_apply (refines_elem_of_r with
             "[Hlst Hcntenc Hcntenc' Hcntlr Hcntdec Hcntdec' Hclose] [Hlst'] []").
             ++ iIntros (b') "Hlst' %Hb'". destruct b'...
@@ -798,36 +795,32 @@ Section logrel.
                 rel_vals.
             ++ iApply "Hlst'".
             ++ iClear "Inv encInv Hrelkey Hrelcipher Hreladv".
-              clear -lrel_msg_comparable lrel_msg_eq.
-              iApply ForallSep_Forall.
-              { iRevert "Hl_l'". iRevert (l).
-                iInduction l' as [|h' t'] "IHt'"; iIntros (l) "Hl_l'".
-              - done.
-              - destruct l as [|h t].
-                { simpl. iExFalso; iAssumption. }
-                simpl. iDestruct "Hl_l'" as "[#Hh_h' #Ht_t']".
-                iSplit.
-                + iApply lrel_msg_comparable. iSplit.
-                  * iRight. iExists h. iAssumption.
-                  * iRight. iExists dec2. iAssumption.
-                + iApply "IHt'". iModIntro.
-                  iApply "Ht_t'". }
+              clear -lrel_msg_comparable lrel_msg_eq. iSplit.
+              {
+                iRevert "Hl_l'". iRevert (l).
+                iInduction l' as [|h' t'] "IHt'"; iIntros (l) "#Hrel_lst".
+                - simpl. done.
+                - destruct l as [|h t].
+                  + iExFalso; iAssumption.
+                  + simpl. iDestruct "Hrel_lst" as "[Hrel_head Hrel_tail]". iSplit.
+                    * iRight. iExists h. iAssumption.
+                    * iApply "IHt'". iModIntro. iAssumption.  
+              }
+              iRight. iExists dec2. iAssumption.
         * iAssumption.
         * iClear "Inv encInv Hrelkey Hrelcipher Hreladv".
-          clear -lrel_msg_comparable lrel_msg_eq.
-          iApply ForallSep_Forall.
-          { iRevert "Hl_l'". iRevert (l').
-            iInduction l as [|h t] "IHt'"; iIntros (l') "Hl_l'".
-          - done.
-          - destruct l' as [|h' t'].
-            { simpl. iExFalso; iAssumption. }
-            simpl. iDestruct "Hl_l'" as "[#Hh_h' #Ht_t']".
-            iSplit.
-            + iApply lrel_msg_comparable. iSplit.
-              * iLeft. iExists h'. iAssumption.
-              * iLeft. iExists dec2'. iAssumption.
-            + iApply "IHt'". iModIntro.
-              iApply "Ht_t'". }
+          clear -lrel_msg_comparable lrel_msg_eq. iSplit.
+          {
+            iRevert "Hl_l'". iRevert (l').
+            iInduction l as [|h t] "IHt'"; iIntros (l') "#Hrel_lst".
+            - simpl. done.
+            - destruct l' as [|h' t'].
+              + iExFalso; iAssumption.
+              + simpl. iDestruct "Hrel_lst" as "[Hrel_head Hrel_tail]". iSplit.
+                * iLeft. iExists h'. iAssumption.
+                * iApply "IHt'". iModIntro. iAssumption.  
+          }
+          iLeft. iExists dec2'. iAssumption.
       + rel_apply refines_is_ciphertext_l...
         { iExists c2; iAssumption. }
         rel_load_l... rewrite qltQdec...
