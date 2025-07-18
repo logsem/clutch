@@ -89,6 +89,59 @@ Section defs.
   Proof. (* TODO *)
   Abort.
 
+  Lemma ForallSep_pers_is_pers : ∀ {Σ X} l (P : X → iProp Σ)
+    (H : ∀ x, Persistent (P x)), Persistent (@ForallSep Σ X P l).
+  Proof.
+    intros * H. rewrite /Persistent.
+    iInduction l as [|h t] "IHt"; iIntros "H".
+    - iModIntro; done.
+    - simpl. iApply bi.persistently_sep_2.
+      iDestruct "H" as "[#Hrel H]".
+      iSplitR.
+      * iModIntro; iAssumption.
+      * iApply "IHt". iAssumption.
+  Qed.
+
+  Lemma ForallSep2_pers_is_pers : ∀ {Σ X Y} l l' (P : X → Y → iProp Σ)
+    (H : ∀ x y, Persistent (P x y)), Persistent (@ForallSep2 Σ X Y P l l').
+  Proof.
+    intros * H. rewrite /Persistent.
+    iRevert (l').
+    iInduction l as [|h t] "IHt"; iIntros (l') "H".
+    - destruct l' as [|h' t'].
+      + iModIntro; done.
+      + iExFalso; iAssumption.
+    - destruct l' as [|h' t'].
+      + iExFalso; iAssumption.
+      + simpl. iApply bi.persistently_sep_2.
+        iDestruct "H" as "[#Hrel H]".
+        iSplitR.
+        * iModIntro; iAssumption.
+        * iApply "IHt". iAssumption.
+  Qed.
+
+  Lemma ForallSep3_pers_is_pers : ∀ {Σ X Y Z} l l' l'' (P : X → Y → Z → iProp Σ)
+    (H : ∀ x y z, Persistent (P x y z)),
+      Persistent (@ForallSep3 Σ X Y Z P l l' l'').
+  Proof.
+    intros * H. rewrite /Persistent.
+    iRevert (l' l'').
+    iInduction l as [|h t] "IHt"; iIntros (l' l'') "H".
+    - destruct l' as [|h' t'].
+      + destruct l'' as [|h'' t''].
+        * iModIntro; done.
+        * iExFalso; iAssumption.
+      + iExFalso; iAssumption.
+    - destruct l' as [|h' t'].
+      + iExFalso; iAssumption.
+      + destruct l'' as [|h'' t''].
+        * iExFalso; iAssumption.
+        * simpl. iApply bi.persistently_sep_2.
+          iDestruct "H" as "[#Hrel H]".
+          iSplitR.
+          -- iModIntro; iAssumption.
+          -- iApply "IHt". iAssumption.
+  Qed.
   (* We could probably add a restrictive syntactic typing that
     entails each property here. E.g. a syntactically typed
     term containing no mmemory manipulation nor random sampling
@@ -146,7 +199,6 @@ Section rules.
     *)
     
     (* Check [nat : Type] : list Type. *)(*
-    Print Inject.
     Definition det_val_fun {As : list Type} {B : Type} (rel_types : list (lrel Σ))
       (to_vals : ∀ A, A ∈ As → Inject A val)
       (to_val_ret : B → val)
@@ -492,57 +544,67 @@ Section rules.
       end.
 
     Definition package_function_spec
+      {N_locs N_functions : nat}
       {P_l P_r : list nat → list loc → iProp Σ}
       {P_lr : list nat → list nat → list loc → list loc → iProp Σ}
-      {R_l R_r : list nat → list val → val → iProp Σ}
-      {lls rls : list loc}
+      {R_l R_r : list nat → list loc → list val → val → iProp Σ}
       (lrel_args : list (lrel Σ)) (lrel_return : lrel Σ)
       (method : list loc → val) (i : nat) : Prop :=
+      ∀ (lls rls : list loc),
+        length lls = N_locs → length rls = N_locs → (
         ∀ (args : list val),
+          length args = length lrel_args → ( 
             (* left execution *)
             ∀ (ns : list nat) K e E (A : lrel Σ),
+            length ns = N_functions →
               Forall2 (λ arg t, ⊢ (lrel_car t) arg arg) args lrel_args →
               (P_l ns lls ⊢
                 (∃ v,
-                  (R_l ns args v ∗ P_l (next_package_state i ns) lls
+                  (R_l ns lls args v ∗ P_l (next_package_state i ns) lls
                     -∗ refines E (fill K (Val v)) e A)
                   -∗ refines E (fill K (iter_appl_expr (method lls) args)) e A))
             (* right execution *)
           ∧ ∀ (ms : list nat) K e E (A : lrel Σ),
+            length ms = N_functions →
               Forall2 (λ arg t, ⊢ (lrel_car t) arg arg) args lrel_args →
               (P_r ms rls ⊢
                 (∃ v,
-                  (R_r ms args v ∗ P_l (next_package_state i ms) rls
+                  (R_r ms rls args v ∗ P_l (next_package_state i ms) rls
                     -∗ refines E e (fill K (Val v)) A)
                   -∗ refines E e (fill K (iter_appl_expr (method rls) args)) A))
             (* for an execution on both sides, we can use
               a semantic typing assumption *)
+          )
           ∧ ∀ (ns ms : list nat) (𝒩 : namespace) (P : iProp Σ),
-              (∃ Q, P ⊣⊢ (P_lr ns ms lls rls) ∗ Q) →
+            length ns = N_functions → length ms = N_functions →
+              ((∃ Q, (P ⊣⊢ (P_lr ns ms lls rls) ∗ Q)) →
               (na_invP 𝒩 P
               ⊢ refines top (method lls) (method rls)
-                (fold_right (λ A B : lrel Σ, (A → B)%lrel) lrel_return lrel_args)).
+                (fold_right (λ A B : lrel Σ, (A → B)%lrel) lrel_return lrel_args)))
+      ).
 
-    Definition initialized_package
+    Definition initialized_package_getters
+      {N_locs N_functions : nat}
       {P_l P_r : list nat → list loc → iProp Σ}
       {P_lr : list nat → list nat → list loc → list loc → iProp Σ}
-      {R_l R_r : list nat → list val → val → iProp Σ}
+      {R_l R_r : list nat → list loc → list val → val → iProp Σ}
       (lrel_car_argss : list (list (lrel Σ))) (lrel_car_returns : list (lrel Σ))
-      (lls rls : list loc) (getters : list val) (package_initialized : list loc → val) :=
-      @ForallIndex3 val (list (lrel Σ)) (lrel Σ)
-        (λ i getter lrel_car_args lrel_car_return,
-          (∃ (method : list loc → val),
-          (* A getter provides a value v... *)
-              (∀ K e E A,
-                 (refines E (fill K (Val (method lls))) e A
-                ⊢ refines E (fill K (getter (package_initialized lls))) e A)
-              ∧  (refines E e (fill K (method rls)) A
-                ⊢ refines E e (fill K (getter (package_initialized rls))) A))
-              ∧ @package_function_spec P_l P_r P_lr R_l R_r
-                  lls rls lrel_car_args lrel_car_return method i))
-        getters lrel_car_argss lrel_car_returns.
+      (getters : list val) (package_initialized : list loc → val) :=
+      ∀ (lls rls : list loc),
+        @ForallIndex3 val (list (lrel Σ)) (lrel Σ)
+          (λ i getter lrel_car_args lrel_car_return,
+            (∃ (method : list loc → val),
+            (* A getter provides a value v... *)
+                (∀ K e E A,
+                  (refines E (fill K (Val (method lls))) e A
+                  ⊢ refines E (fill K (getter (package_initialized lls))) e A)
+                ∧  (refines E e (fill K (method rls)) A
+                  ⊢ refines E e (fill K (getter (package_initialized rls))) A))
+                ∧ @package_function_spec N_locs N_functions P_l P_r P_lr R_l R_r
+                    lrel_car_args lrel_car_return method i))
+          getters lrel_car_argss lrel_car_returns.
     
-    Class PACKAGE_PARAMS (N_functions : nat) (*(N_loc : nat)*) := {
+    Class PACKAGE_PARAMS (N_locs N_functions : nat) (*(N_loc : nat)*) := {
         n_arg : list nat
       ; n_arg_len : length n_arg = N_functions
       ; P_l   : list nat → list loc → iProp Σ
@@ -551,15 +613,9 @@ Section rules.
       ; P_r   : list nat → list loc → iProp Σ
         (* idem, on the RHS *)
       ; P_lr  : list nat → list nat → list loc → list loc → iProp Σ
-      ; P_rem : list nat → list nat → list loc → list loc → iProp Σ
       (* properties got on the return value of each method *)
-      ; Rval_l : list nat → list val → val → iProp Σ
-      ; Rval_r : list nat → list val → val → iProp Σ
-        (* to replace with semantic type of each method*)
-      ; Plr_l_r : ∀ ns ms lls rls,
-          P_lr ns ms lls rls ⊣⊢
-          P_l ns lls ∗ P_r ms rls ∗ P_rem ns ms lls rls : Prop
-        (* ...then I wonder if P_lr is really needed *)
+      ; Rval_l : list nat → list loc → list val → val → iProp Σ
+      ; Rval_r : list nat → list loc → list val → val → iProp Σ
     }.
 
     Class PACKAGE_STRUCT (N_functions : nat) := {
@@ -568,28 +624,28 @@ Section rules.
       ; len_getters : length getters = N_functions
     }.
 
-    Class PACKAGE `{package_struct : !PACKAGE_STRUCT N_functions}
-      {package_params : PACKAGE_PARAMS N_functions} := {
+    Class PACKAGE (N_locs : nat) `{package_struct : !PACKAGE_STRUCT N_functions}
+      {package_params : PACKAGE_PARAMS N_locs N_functions} := {
         lrel_car_return : list (lrel Σ)
       ; lrel_car_args : list (list (lrel Σ))
       ; lrel_car_args_len : Forall2 (λ lrel_args n_args,
         length lrel_args = n_args) lrel_car_args n_arg
-      ; rel_init : ⊢ (∀ K e E A,
-          ∃ (package_initialized : list loc → val) (lls rls : list loc),
-              P_l (list_full_of N_functions 0) lls
-            ∗ P_r (list_full_of N_functions 0) rls
-            ∗ ⌜@initialized_package
+      ; rel_init : ∀ K e E A,
+          ∃ (package_initialized : list loc → val),
+              @initialized_package_getters
+                N_locs N_functions
                 P_l P_r P_lr
                 Rval_l Rval_r
                 lrel_car_args lrel_car_return
-                lls rls
-                getters package_initialized⌝
-            ∗  ⌜refines E (fill K (Val (package_initialized lls))) e A
-              ⊢ refines E (fill K package) e A⌝
-            ∧  ⌜refines E e (fill K (Val (package_initialized rls))) A
-              ⊢ refines E e (fill K package) A⌝)%I
-    }.
-
+                getters package_initialized
+            /\  (⌜(∀ lls, P_l (list_full_of N_functions 0) lls
+                ⊢ refines E (fill K (Val (package_initialized lls))) e A)⌝
+              ⊢ refines E (fill K package) e A)
+            ∧  (⌜(∀ rls, P_r (list_full_of N_functions 0) rls
+                ⊢ (refines E e (fill K (Val (package_initialized rls))) A))⌝
+              ⊢ refines E e (fill K package) A)
+    }. 
+    
     Lemma package_getter_valid_index `{!PACKAGE_STRUCT n} {i : nat} (Hltin : i < n)
       : i < length getters.
     Proof. rewrite len_getters. apply Hltin. Qed.
