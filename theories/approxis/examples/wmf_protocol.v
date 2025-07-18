@@ -121,26 +121,26 @@ Section defs.
   Section Once.
 
     Definition a_to_s_once : val :=
-      λ: "b" "senc" "ka", (* parameters of the protocol *)
+      λ: "A" "B" "b" "senc" "ka", (* parameters of the protocol *)
         λ: "r_adv", (* attacker provided random *)
           if: "b" then
-            (#0, "senc" "ka" (#1, rand #N))
+            ("A", "senc" "ka" ("B", rand #N))
           else
-            (#0, "senc" "ka" (#1, "r_adv")).
+            ("A", "senc" "ka" ("B", "r_adv")).
 
     Definition s_to_b_once : val :=
-      λ: "b" "senc" "sdec" "ka" "kb", (* parameters of the protocol *)
+      λ: "A" "B" "b" "senc" "sdec" "ka" "kb", (* parameters of the protocol *)
         λ: "input",
           let: "nonce" := "sdec" "ka" (Snd "input") in
           let: "sender" := Fst "input" in
           let: "dest" := Fst "nonce" in
           let: "nonce" := Snd "nonce" in
-          if: "sender" = #0 `and` "dest" = #1 then
+          if: "sender" = "A" `and` "dest" = "B" then
             "senc" "kb" ("sender", "nonce")
           else #().
 
     Definition b_recv_once : val :=
-      λ: "b" "kb", (* parameters of the protocol *)
+      λ: "A" "B" "b" "kb", (* parameters of the protocol *)
         λ: "input", #().
           (* let: "nonce" := "sdec" "kb" "input" in
           let: "sender" := Fst "nonce" in
@@ -151,19 +151,58 @@ Section defs.
   
   End Once.
 
+  Section Once_eav.
+
+    Definition a_to_s_once_eav : val :=
+      λ: "A" "B" "b" "senc" "ka", (* parameters of the protocol *)
+        λ: "r_adv", (* attacker provided random *)
+          if: "b" then
+            ("A", "senc" "ka" ("B", rand #N))
+          else
+            ("A", "senc" "ka" ("B", "r_adv")).
+
+    Definition s_to_b_once_eav : val :=
+      λ: "A" "B" "b" "senc" "sdec" "ka" "kb", (* parameters of the protocol *)
+        λ: "input",
+          let: "nonce" := "sdec" "ka" (Snd "input") in
+          let: "sender" := Fst "input" in
+          let: "dest" := Fst "nonce" in
+          let: "nonce" := Snd "nonce" in
+          if: "sender" = "A" `and` "dest" = "B" then
+            "senc" "kb" ("sender", "nonce")
+          else #().
+
+    Definition b_recv_once_eav : val :=
+      λ: "A" "B" "b" "kb", (* parameters of the protocol *)
+        λ: "input", #().
+          (* let: "nonce" := "sdec" "kb" "input" in
+          let: "sender" := Fst "nonce" in
+          let: "nonce" := Snd "nonce" in
+          if: "sender" = #0 then
+            #()
+          else #(). *)
+  
+  End Once_eav.
+
   Section protocols.
 
-    Definition wmf : expr :=
-      λ: "b" "enc_scheme",
-        (a_to_s_once "b" (symmetric_init.get_enc "enc_scheme"),
-        s_to_b_once "b" "nonce_count" (symmetric_init.get_enc "enc_scheme")
-          (symmetric_init.get_dec "enc_scheme")).
+    Definition init_id : val :=
+      λ: <>,
+        let: "A" := ref #() in
+        let: "B" := ref #() in
+        ("A", "B").
 
     Definition wmf_once : expr :=
-      λ: "b" "enc_scheme",
-        (a_to_s_once "b" (symmetric_init.get_enc "enc_scheme"),
-        s_to_b_once "b" "nonce_count" (symmetric_init.get_enc "enc_scheme")
-          (symmetric_init.get_dec "enc_scheme")).
+      let: "B" := init_id #() in
+      let: "A" := Fst "B" in
+      let: "B" := Snd "B" in
+      λ: "b" "enc_scheme" "ka" "kb",
+        (a_to_s_once "A" "B" "b" (symmetric_init.get_enc "enc_scheme") "ka",
+         s_to_b_once "A" "B" "b"
+          (symmetric_init.get_enc "enc_scheme")
+          (symmetric_init.get_dec "enc_scheme")
+          "ka" "kb",
+         b_recv_once "A" "B" "b" "kb").
 
     Definition wmf_eav : expr :=
       λ: "b" "enc_scheme",
@@ -172,15 +211,15 @@ Section defs.
           let: "ka" := keygen #() in
           let: "kb" := keygen #() in
           let: "msg1" :=
-            a_to_s_once "b" (symmetric_init.get_enc "enc_scheme") "ka" "r_adv" in
+            a_to_s_once_eav "b" (symmetric_init.get_enc "enc_scheme") "ka" "r_adv" in
           ("msg1",
             let: "msg2" :=
-              s_to_b_once "b"
+              s_to_b_once_eav "b"
                 (symmetric_init.get_enc "enc_scheme")
                 (symmetric_init.get_dec "enc_scheme")
                 "ka" "kb" "msg1" in
             ("msg2",
-            b_recv_once "b" "kb" #())
+            b_recv_once_eav "b" "kb" #())
           )
         ).
 
