@@ -64,6 +64,31 @@ Section defs.
     | _, _, _ => False
   end.
 
+  Lemma ForallSep_Forall : ∀ {Σ} {A} P l,
+    @ForallSep Σ A (λ x, ⌜P x⌝) l ⊣⊢ ⌜Forall P l⌝.
+  Proof. intros *. apply bi.equiv_entails. split.
+    - iIntros "H". iInduction l as [|h t] "IHt".
+      + iPureIntro; done.
+      + simpl. iDestruct "H" as "[%Hhead Htail]".
+        iPoseProof ("IHt" with "Htail") as "%H".
+        iPureIntro. constructor; assumption.
+    - iInduction l as [|h t] "IHt"; iIntros "%H".
+      + done.
+      + simpl. inversion H; subst. iSplit.
+        * iPureIntro; assumption.
+        * iApply "IHt". iPureIntro; assumption.
+  Qed.
+
+  Lemma ForallSep_Forall2 : ∀ {Σ} {A B} P l1 l2,
+    @ForallSep2 Σ A B (λ x y, ⌜P x y⌝) l1 l2 ⊣⊢ ⌜Forall2 P l1 l2⌝.
+  Proof. (* TODO *)
+  Abort.  
+
+  Lemma ForallSep_Forall3 : ∀ {Σ} {A B C} P l1 l2 l3,
+    @ForallSep3 Σ A B C (λ x y z, ⌜P x y z⌝) l1 l2 l3 ⊣⊢ ⌜Forall3 P l1 l2 l3⌝.
+  Proof. (* TODO *)
+  Abort.
+
   (* We could probably add a restrictive syntactic typing that
     entails each property here. E.g. a syntactically typed
     term containing no mmemory manipulation nor random sampling
