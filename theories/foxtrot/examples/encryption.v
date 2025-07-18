@@ -137,7 +137,6 @@ Section encr.
         iFrame.
         iExists _; iPureIntro; split; first done.
         do 2 f_equal.
-        Set Printing Coercions.
         rewrite -Nat2Z.inj_add.
         rewrite Z.rem_mod_nonneg; try lia.
         rewrite Nat2Z.inj_mod.
