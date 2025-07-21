@@ -523,6 +523,61 @@ Section rules.
       rand #x @ E
       {{{ (x:nat), RET #x; ∃ (n m:nat), ⌜n<=N⌝ ∗ ⌜m<=M⌝ ∗ ⌜x=f n m⌝ ∗ j ⤇ fill K #n ∗ j'⤇ fill K' #m }}}.
   Proof.
+    iIntros (->->-> Hcond1 Hcond2 Hcond3 Φ) "[Hj Hj'] HΦ".
+    iApply wp_lift_step_prog_couple; first done.
+    iIntros (σ1 ρ1 ε) "[Hσ [Hs Hε]]".
+    iDestruct (spec_auth_prog_agree with "Hs Hj") as "%Hsome".
+    iDestruct (spec_auth_prog_agree with "Hs Hj'") as "%Hsome'".
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+    rewrite /prog_coupl.
+    destruct ρ1 as [l s].
+    assert (j < length l)%nat.
+    { by eapply lookup_lt_Some. }
+    assert (j' < length l)%nat.
+    { by eapply lookup_lt_Some. }
+    iDestruct (ghost_map_elem_ne with "[$][$]") as "%".
+    iExists _, (full_info_cons_osch (λ _, dret j) (λ _, full_info_one_step_stutter_osch j')), 0%NNR, (λ _, ε), ε.
+    solve_red.
+    repeat iSplit.
+    - done.
+    - rewrite Expval_const; last done.
+      iPureIntro.
+      rewrite Rplus_0_l.
+      trans (ε*1); last (simpl; lra).
+      by apply Rmult_le_compat.
+    - iPureIntro.
+      Local Opaque full_info_cons_osch.
+      Local Opaque full_info_one_step_stutter_osch full_info_lift_osch. simpl.
+      rewrite full_info_cons_osch_lim_exec/=.
+      rewrite dret_id_left Hsome.
+      rewrite fill_not_val; last done.
+      rewrite fill_dmap //=.
+      rewrite !head_prim_step_eq /= !dmap_comp.
+      erewrite dbind_ext_right_strong; last first.
+      { instantiate (1:= (λ '(_,_), _)).
+        intros [l0 ] Hpos.
+        apply dmap_pos in Hpos. simpl in *. destruct!/=.
+        rewrite full_info_lift_osch_lim_exec.
+        rewrite full_info_one_step_stutter_osch_lim_exec.
+        rewrite dmap_comp.
+        rewrite app_nil_r.
+        instantiate (1:= dmap _ _).
+        rewrite /step'. f_equal. 
+        rewrite list_lookup_insert_ne; last done.
+        rewrite Hsome'.
+        rewrite fill_not_val; last done.
+        rewrite fill_dmap//=.
+        rewrite head_prim_step_eq/=.
+        rewrite !dmap_comp. repeat f_equal.
+        - instantiate (1:=( λ '(e,s0,l''), (<[j':=e]>l0++l'', _))).
+          extensionality x.
+          destruct x as [[]]. f_equal. 
+        - instantiate (1:= (λ _, _)). f_equal.
+      }
+      rewrite {4}/dmap.
+      rewrite -dbind_assoc'.
+      erewrite dbind_ext_right; last first.
+      { intros. by rewrite dret_id_left/= dmap_comp/=. }
   Admitted.
   
   (* (** coupling rand and rand but avoid certain values*) *)
