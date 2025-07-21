@@ -508,7 +508,22 @@ Section rules.
       apply f_inv_restr; try lia; naive_solver.
       Unshelve.
       apply f_inv_bij.
-  Qed. 
+  Qed.
+
+  (** * Coupling a rand on LHS with two rands on the RHS *)
+
+  Lemma wp_couple_rand_two_rands N M f K K' E z z' x j j':
+    TCEq N (Z.to_nat z) →
+    TCEq M (Z.to_nat z')->
+    x=Z.of_nat ((S N)*(S M)-1) -> 
+    (∀ n m, n < S N -> m< S M -> f n m < (S N)*(S M))%nat →
+    (∀ n n' m m', n < S N -> n' < S N -> m < S M -> m' < S M -> f n m = f n' m' -> n=n' /\ m=m')%nat ->
+    (forall x, x<(S N)*(S M) -> exists n m, n< S N /\ m < S M /\ f n m = x)%nat ->
+    {{{ j ⤇ fill K (rand #N) ∗ j'⤇ fill K' (rand #M) }}}
+      rand #x @ E
+      {{{ (x:nat), RET #x; ∃ (n m:nat), ⌜n<=N⌝ ∗ ⌜m<=M⌝ ∗ ⌜x=f n m⌝ ∗ j ⤇ fill K #n ∗ j'⤇ fill K' #m }}}.
+  Proof.
+  Admitted.
   
   (* (** coupling rand and rand but avoid certain values*) *)
   (* Lemma wp_couple_rand_rand_avoid N (l:list _) z K E : *)
@@ -1454,6 +1469,90 @@ Section rules.
       iPureIntro; split; first done.
       pose proof fin_to_nat_lt x. lia.
   Qed.
+
+  
+  Lemma pupd_couple_two_tapes_rand N M f K E α α' z z' x ns ms j:
+    TCEq N (Z.to_nat z) →
+    TCEq M (Z.to_nat z')->
+    x= Z.of_nat ((S N)*(S M)-1) ->
+    (∀ n m, n < S N -> m< S M -> f n m < (S N)*(S M))%nat →
+    (∀ n n' m m', n < S N -> n' < S N -> m < S M -> m' < S M -> f n m = f n' m' -> n=n' /\ m=m')%nat ->
+    (forall x, x<(S N)*(S M) -> exists n m, n< S N /\ m < S M /\ f n m = x)%nat ->
+    ▷ α ↪N (N; ns) -∗ ▷α'↪N (M;ms)-∗ j ⤇ fill K (rand #x) -∗
+    pupd E E (∃ (n m:nat), α ↪N (N; ns ++ [n]) ∗ α' ↪N (M; ms ++ [m]) ∗ j ⤇ fill K #(f n m) ∗ ⌜ n ≤ N ⌝ ∗ ⌜m<=M⌝).
+  Proof.
+  Admitted. 
+  (*   iIntros (-> Hdom) ">Hα Hj". *)
+  (*   iDestruct "Hα" as (fs) "(<-&Hα)". *)
+  (*   destruct (restr_bij_fin (_) f Hdom) as [ff [Hbij Hff]]. *)
+  (*   rewrite pupd_unseal/pupd_def. *)
+  (*   iIntros (σ ρ1 ε1) "([? Ht]&Hs&?)". *)
+  (*   iDestruct (ghost_map_lookup with "Ht [$]") as %?. *)
+  (*   iDestruct (spec_auth_prog_agree with "Hs Hj") as "%Hsome". *)
+  (*   iApply spec_coupl_rec. *)
+  (*   iApply fupd_mask_intro; first set_solver. *)
+  (*   iIntros "Hclose". *)
+  (*   destruct ρ1 as [es σ']. *)
+  (*   assert (j < length es)%nat. *)
+  (*   { by eapply lookup_lt_Some. } *)
+  (*   iExists _, (state_step σ α), (full_info_one_step_stutter_osch j), 0%NNR, (λ _, ε1), ε1. *)
+  (*   repeat iSplit. *)
+  (*   - iPureIntro. by eapply state_step_sch_erasable. *)
+  (*   - done. *)
+  (*   - iPureIntro. rewrite Rplus_0_l. *)
+  (*     rewrite Expval_const; last done. *)
+  (*     trans (ε1 * 1)%R; last (simpl; lra). *)
+  (*     by apply Rmult_le_compat. *)
+  (*   - rewrite full_info_one_step_stutter_osch_lim_exec/state_step. *)
+  (*     rewrite bool_decide_eq_true_2; last first. *)
+  (*     { rewrite elem_of_dom. naive_solver. } *)
+  (*     setoid_rewrite lookup_total_correct; last done. *)
+  (*     simpl. *)
+  (*     replace 0%R with (0+0)%R by lra. *)
+  (*     rewrite /dmap. *)
+  (*     iPureIntro. *)
+  (*     rewrite /step'. *)
+  (*     rewrite Hsome//. *)
+  (*     rewrite fill_not_val; last done. *)
+  (*     rewrite fill_dmap//=. *)
+  (*     rewrite head_prim_step_eq///=. *)
+  (*     rewrite -dbind_assoc'. *)
+  (*     rewrite dmap_comp. *)
+  (*     rewrite /dmap. *)
+  (*     rewrite -!dbind_assoc'. *)
+  (*     eapply ARcoupl_dbind; [lra|lra| |]; last first. *)
+  (*     { apply ARcoupl_exact.  *)
+  (*       apply (Rcoupl_dunif); apply Hbij. *)
+  (*     } *)
+  (*     intros ??->. *)
+  (*     rewrite !dbind_assoc'. *)
+  (*     rewrite !dret_id_left'. *)
+  (*     simpl. *)
+  (*     rewrite app_nil_r. *)
+  (*     rewrite insert_length. *)
+  (*     instantiate (1:= λ x y, exists (a:fin(S (Z.to_nat z))), x =(state_upd_tapes <[α:=(Z.to_nat z; fs ++ [a])]> σ)/\y= ([(cfg_to_cfg' (es, σ'), j); (cfg_to_cfg' (<[j:=fill K #(ff a)]> es, σ'), length es)], *)
+  (*                                                                                                                    (<[j:=fill K #(ff a)]> es, σ'))). *)
+  (*     apply ARcoupl_dret; naive_solver. *)
+  (*   - iPureIntro. intros ????? (a&?&H') [a' ?]. destruct!/=. *)
+  (*     assert (a=a') as ->; last naive_solver. *)
+  (*     eapply f_equal in H'. erewrite !list_lookup_insert in H'; try done. *)
+  (*     by simplify_eq.  *)
+  (*   - simpl. *)
+  (*     iIntros (??? (x&?&?)). *)
+  (*     simplify_eq. *)
+  (*     iApply spec_coupl_ret. *)
+  (*     iMod (ghost_map_update with "Ht [$]") as "(?&?)". *)
+  (*     iMod (spec_update_prog with "[$][$]") as "[??]". *)
+  (*     iModIntro. *)
+  (*     iMod "Hclose". *)
+  (*     iModIntro. *)
+  (*     rewrite Hff. *)
+  (*     iFrame.  *)
+  (*     rewrite fmap_app. simpl. *)
+  (*     iPureIntro; split; first done. *)
+  (*     pose proof fin_to_nat_lt x. lia. *)
+  (* Qed. *)
+
   
   (* (** * rand(unit, N) ~ state_step(α', N) coupling *) *)
   (* Lemma wp_couple_rand_tape N f `{Bij nat nat f} z E α ns : *)
