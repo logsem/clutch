@@ -5,8 +5,9 @@ From iris.base_logic.lib Require Export ghost_map.
 From clutch.base_logic Require Export error_credits.
 From clutch.prelude Require Import tactics.
 From clutch.foxtrot Require Export weakestpre pupd ectx_lifting.
+From clutch.foxtrot Require Import oscheduler full_info.
 From clutch.con_prob_lang Require Export class_instances.
-From clutch.con_prob_lang Require Import tactics lang notation metatheory.
+From clutch.con_prob_lang Require Import tactics lang notation metatheory erasure.
 From clutch.con_prob_lang.spec Require Export spec_ra.
 From iris.prelude Require Import options.
 
@@ -186,6 +187,78 @@ Section lifting.
     simpl.
     lra.
   Qed.
+
+  Lemma pupd_presample (N : nat) E ns α:
+    α ↪N (N;ns) ⊢
+    pupd E E (∃ (n:nat), α↪N (N; ns ++ [n]) ∗ ⌜(n<=N)%nat⌝).
+  Proof. 
+    rewrite pupd_unseal/pupd_def.
+    iIntros "Hα" (σ ρ1 ε1) "([? Ht]&?&?)".
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    iDestruct "Hα" as "(%&%&?)".
+    iDestruct (ghost_map_lookup with "Ht [$]") as %?.
+    iApply spec_coupl_rec.
+    iExists _, (state_step σ α), (full_info_cons_osch (λ ρ, dmap (λ n, length (ρ.1) + fin_to_nat n)%nat (dunifP N)) (λ _, full_info_inhabitant)), 0%NNR, (λ _, ε1), ε1.
+    repeat iSplit.
+    - iPureIntro. by eapply state_step_sch_erasable.
+    - done.
+    - iPureIntro. rewrite Rplus_0_l.
+      rewrite Expval_const; last done.
+      trans (ε1 * 1)%R; last (simpl; lra).
+      by apply Rmult_le_compat.
+    - rewrite full_info_cons_osch_lim_exec/state_step.
+      rewrite bool_decide_eq_true_2; last first.
+      { rewrite elem_of_dom. naive_solver. }
+      setoid_rewrite lookup_total_correct; last done.
+      Local Opaque full_info_lift_osch.
+      simpl.
+      replace 0%R with (0+0)%R by lra.
+      rewrite /dmap.
+      iPureIntro.
+      eapply ARcoupl_dbind; [lra|lra| |]; last first.
+      { rewrite -{1}(dret_id_right (dunifP _)).
+        replace 0%R with (0+0)%R by lra.
+        eapply ARcoupl_dbind; [lra|lra|..]; last first.
+        - apply ARcoupl_eq.
+        - instantiate(1:=(λ x y, y=length ρ1.1 + x)). intros. subst.
+          by apply ARcoupl_dret.
+      }
+      simpl. intros; subst.
+      rewrite -{1}(dret_id_right (dret _)).
+      replace 0%R with (0+0)%R by lra.
+      eapply ARcoupl_dbind; [lra|lra|..]; last first.
+      + rewrite /step'.
+        instantiate (1:= λ x y, x=(state_upd_tapes <[α:=(N; fs ++ [a])]> σ)/\y=ρ1).
+        destruct ρ1.
+        simpl.
+        rewrite lookup_ge_None_2; last lia.
+        by apply ARcoupl_dret.
+      + simpl.
+        intros. destruct!/=.
+        rewrite full_info_lift_osch_lim_exec full_info_inhabitant_lim_exec.
+        rewrite dmap_dret. rewrite app_nil_r.
+        instantiate (1 := λ x y, exists (a:fin (S N)), x = (state_upd_tapes <[α:=(N; fs ++ [a])]> σ)
+                                                  /\ y = ([(cfg_to_cfg' ρ1, length ρ1.1 + a)], ρ1)).
+        apply ARcoupl_dret; naive_solver.
+    - iPureIntro. intros ?????[a?] [a' ?]. destruct!/=.
+      assert (a=a') as ->.
+      { apply fin_to_nat_inj. lia. }
+      naive_solver.
+    - simpl.
+      iIntros (??? (x&?&?)).
+      simplify_eq.
+      iApply spec_coupl_ret.
+      iMod (ghost_map_update with "Ht [$]") as "(?&?)".
+      iModIntro.
+      iMod "Hclose".
+      iModIntro.
+      iFrame. iPureIntro.
+      simpl.
+      eexists _.
+      rewrite fmap_app. split; first f_equal.
+      pose proof fin_to_nat_lt x. lia.
+  Qed. 
 
   (** Recursive functions: we do not use this lemma as it is easier to use Löb
     induction directly, but this demonstrates that we can state the expected

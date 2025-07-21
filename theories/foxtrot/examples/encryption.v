@@ -1,3 +1,4 @@
+From iris.base_logic.lib Require Import ghost_var.
 From clutch.foxtrot Require Import foxtrot par spawn.
 
 Section encr.
@@ -31,7 +32,7 @@ Section encr.
   
   Definition coupling_f (n:nat) (_:n<=N) := (λ (x:nat), if bool_decide (x<=N)%nat then (x+n) `mod` (N+1) else x).
 
-  Instance coupling_f_Bij n Hn: Bij (coupling_f n Hn).
+  Lemma coupling_f_Bij n Hn: Bij (coupling_f n Hn).
   Proof.
     split.
     - intros x y. rewrite /coupling_f.
@@ -79,21 +80,143 @@ Section encr.
   (* Definition coupling_f' n Hn := f_inv (coupling_f n Hn). *)
 
   Section proof.
-    Context `{!foxtrotRGS Σ, !spawnG Σ}.
+    Context `{!foxtrotRGS Σ, Hspawn: !spawnG Σ, Hghost : !ghost_varG Σ bool}.
     
     Lemma wp_encr_prog_encr_prog' K j:
     {{{ j ⤇ fill K encr_prog' }}}
       encr_prog
       {{{ v, RET v; ∃ v' : val, j ⤇ fill K v' ∗ lrel_nat v v' }}}.
-    Proof.
-    Admitted.
+    Proof using Hspawn.
+      iIntros (Φ) "Hspec HΦ".
+      rewrite /encr_prog/encr_prog'.
+      tp_alloc j as l' "Hl'".
+      wp_alloc l as "Hl".
+      tp_pures j.
+      wp_pures.
+      tp_allocnattape j α as "Hα".
+      tp_pures j.
+      tp_allocnattape j α' as "Hα'".
+      do 2 tp_pure j.
+      tp_bind j (_|||_)%E.
+      iMod (tp_par with "[$]") as "(%j1&%j2&%K1&%K2&Hspec1&Hspec2&Hcont)".
+      iMod (inv_alloc nroot _ (∃ (n:nat), l↦ #n ∗ l'↦ₛ#n)%I with "[Hl Hl']") as "#Hinv".
+      { replace 0%Z with (Z.of_nat 0) by lia. iFrame. }
+      wp_apply (wp_par (λ _, ∃ (v1:val), j1 ⤇ fill K1 v1)%I (λ _, ∃ (v2:val), j2 ⤇ fill K2 v2)%I%I with "[Hα Hspec1][Hα' Hspec2]").
+      - tp_bind j1 (rand(#lbl:α) _)%E.
+        wp_apply (wp_couple_rand_rand_lbl with "[$]"); first naive_solver.
+        iIntros (?) "(_&Hspec1&%)".
+        simpl.
+        tp_pures j1. wp_pures.
+        iInv "Hinv" as "(%&>H&>H')" "Hclose".
+        tp_faa j1.
+        wp_faa.
+        rewrite -Nat2Z.inj_add.
+        iMod ("Hclose" with "[$]"). by iFrame. 
+      - tp_bind j2 (rand(#lbl:α') _)%E.
+        wp_apply (wp_couple_rand_rand_lbl with "[$]"); first naive_solver.
+        iIntros (?) "(_&Hspec2&%)".
+        simpl.
+        tp_pures j2. wp_pures.
+        iInv "Hinv" as "(%&>H&>H')" "Hclose".
+        tp_faa j2.
+        wp_faa.
+        rewrite -Nat2Z.inj_add.
+        iMod ("Hclose" with "[$]"). by iFrame. 
+      - iIntros (??) " [(%&Hspec1) (%&Hspec2)]".
+        iNext.
+        wp_pures.
+        iMod ("Hcont" with "[$]") as "Hspec".
+        simpl. tp_pures j.
+        wp_bind (! _)%E.
+        tp_bind j (! _)%E.
+        iInv "Hinv" as ">(%&?&?)" "Hclose".
+        tp_load j.
+        wp_load.
+        iMod ("Hclose" with "[$]") as "_".
+        iModIntro.
+        tp_pures j.
+        wp_pures.
+        iModIntro.
+        iApply "HΦ".
+        iFrame.
+        iExists _. iPureIntro.
+        rewrite Z.rem_mod_nonneg; try lia.
+        replace (Z.of_nat N + 1)%Z with (Z.of_nat (S N)) by lia.
+        rewrite -Nat2Z.inj_mod; naive_solver.
+    Qed. 
 
     Lemma wp_encr_prog'_rand_prog K j:
     {{{ j ⤇ fill K rand_prog }}}
       encr_prog'
       {{{ v, RET v; ∃ v' : val, j ⤇ fill K v' ∗ lrel_nat v v' }}}.
-    Proof.
-    Admitted. 
+    Proof using Hspawn Hghost.
+      iIntros (Φ) "Hspec HΦ".
+      rewrite /encr_prog'/rand_prog.
+      wp_alloc l as "Hl".
+      wp_pures.
+      wp_alloctape α as "Hα".
+      wp_pures.
+      wp_alloctape α' as "Hα'".
+      wp_pures.
+      iMod (pupd_presample with "[$Hα]") as "(%n&Hα & %Hineq)". simpl.
+      iMod (pupd_couple_tape_rand _ (coupling_f n Hineq) with "[$Hα'][$]") as "(%n'&Hα'&Hspec&%)".
+      { intros n' Hn'. rewrite /coupling_f.
+        rewrite bool_decide_eq_true_2; last lia.
+        epose proof Nat.mod_upper_bound (n'+n) (N+1) _; lia. }
+      simpl.
+      rewrite /coupling_f. rewrite bool_decide_eq_true_2; last done.
+      iMod (ghost_var_alloc false) as "(%γ1 & [Hγ1 Hγ1'])".
+      iMod (ghost_var_alloc false) as "(%γ2 & [Hγ2 Hγ2'])".
+      iMod (inv_alloc nroot _ (∃ (b1 b2:bool), ghost_var γ1 (1/2) b1 ∗ ghost_var γ2 (1/2) b2 ∗ l ↦ # ((if b1 then n else 0)+(if b2 then n' else 0)))%I with "[$]") as "#Hinv".
+      wp_apply (wp_par (λ _, ghost_var γ1 (1/2) true)(λ _, ghost_var γ2 (1/2) true) with "[Hα Hγ1][Hα' Hγ2]").
+      - wp_apply (wp_rand_tape with "[$]").
+        iIntros "(_&%)".
+        wp_pures.
+        iInv "Hinv" as ">(%&%&?&?&Hl)" "Hclose".
+        iDestruct (ghost_var_agree with "[$Hγ1][$]") as "<-".
+        wp_faa.
+        iMod (ghost_var_update_halves true with "[$Hγ1][$]") as "[??]".
+        iFrame.
+        iMod ("Hclose" with "[-]"); last done.
+        iFrame.
+        iNext.
+        replace (Z.of_nat n + (if b2 then Z.of_nat n' else 0))%Z with (0 + (if b2 then Z.of_nat n' else 0) + Z.of_nat n)%Z by lia. iFrame.
+      - wp_apply (wp_rand_tape with "[$]").
+        iIntros "(_&%)".
+        wp_pures.
+        iInv "Hinv" as ">(%&%&?&?&Hl)" "Hclose".
+        iDestruct (ghost_var_agree with "[$Hγ2][$]") as "<-".
+        wp_faa.
+        iMod (ghost_var_update_halves true with "[$Hγ2][$]") as "[??]".
+        iFrame.
+        iMod ("Hclose" with "[-]"); last done.
+        iFrame.
+        iNext.
+        replace ((if b1 then Z.of_nat n else 0) + Z.of_nat n')%Z with ((if b1 then Z.of_nat n else 0) + 0 + Z.of_nat n')%Z by lia. iFrame.
+      - iIntros (??) "[Hγ1 Hγ2]". iNext.
+        wp_pures.
+        wp_bind (! _)%E.
+        iInv "Hinv" as ">(%&%&?&?&Hl)" "Hclose".
+        iDestruct (ghost_var_agree with "[$Hγ1][$]") as "<-".
+        iDestruct (ghost_var_agree with "[$Hγ2][$]") as "<-".
+        wp_load.
+        iMod ("Hclose" with "[$Hγ1 $Hγ2 $Hl]").
+        iModIntro.
+        wp_pures.
+        rewrite Z.add_comm.
+        iApply "HΦ".
+        iFrame.
+        iModIntro. iPureIntro. simpl.
+        rewrite Z.rem_mod_nonneg; try lia.
+        eexists _.
+        split; last done.
+        rewrite !Nat2Z.inj_mod.
+        repeat f_equal; lia.
+        Unshelve.
+        + apply coupling_f_Bij.
+        + lia.
+    Qed.
+    
   End proof.
   
   Section proof'.
@@ -119,6 +242,7 @@ Section encr.
       replace (0+Z.of_nat n)%Z with (Z.of_nat n) by lia.
       tp_bind j2 (rand _)%E.
       unshelve wp_apply (wp_couple_rand_rand' _ (coupling_f n Hn) with "[$]").
+      - apply coupling_f_Bij.
       - intros n' Hn'. rewrite /coupling_f.
         rewrite bool_decide_eq_true_2; last lia.
         epose proof Nat.mod_upper_bound (n'+n) (N+1) _; lia.
@@ -151,7 +275,7 @@ Section encr.
     ∅ ⊨ encr_prog ≤ctx≤ rand_prog : TNat.
   Proof.
     eapply ctx_refines_transitive with encr_prog';
-      apply (refines_sound (#[spawnΣ; foxtrotRΣ])); rewrite /interp/=.
+      apply (refines_sound (#[spawnΣ; foxtrotRΣ; ghost_varΣ bool])); rewrite /interp/=.
     - iIntros. unfold_rel.
       iIntros (K j) "Hspec".
       wp_apply (wp_encr_prog_encr_prog' with "[$]").

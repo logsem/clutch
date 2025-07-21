@@ -1377,51 +1377,84 @@ Section rules.
   (*   iFrame. *)
   (* Qed. *)
 
-  (* (** * Exact couplings  *) *)
-  (* Lemma wp_couple_tape_rand N f `{Bij nat nat f} K E α z ns Φ e : *)
-  (*   TCEq N (Z.to_nat z) → *)
-  (*   (∀ n, n < S N -> f n < S N)%nat → *)
-  (*   ▷ α ↪N (N; ns) ∗ ⤇ fill K (rand #z) ∗ *)
-  (*   (∀ n : nat, α ↪N (N; ns ++ [n]) ∗ ⤇ fill K #(f n) ∗ ⌜ n ≤ N ⌝ -∗ WP e @ E {{ Φ }}) *)
-  (*   ⊢ WP e @ E {{ Φ }}. *)
-  (* Proof. *)
-  (*   iIntros (H0 Hdom) "(>Hα & Hj & Hwp)". *)
-  (*   iDestruct "Hα" as (fs) "(<-&Hα)". *)
-  (*   destruct (restr_bij_fin (S N) f Hdom) as [ff [Hbij Hff]]. *)
-  (*   iApply wp_lift_step_spec_couple. *)
-  (*   iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]". *)
-  (*   iDestruct (ghost_map_lookup with "Ht1 Hα") as %?. *)
-  (*   iDestruct (spec_auth_prog_agree with "Hauth2 Hj") as %-> . *)
-  (*   iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'". *)
-  (*   replace (ε) with (0 + ε)%NNR by (apply nnreal_ext; simpl; lra). *)
-  (*   iApply (spec_coupl_erasable_steps 1 _ (state_step σ1 α)); [done|..]. *)
-  (*   { rewrite pexec_1 step_or_final_no_final; last first. *)
-  (*     { apply reducible_not_final. solve_red. } *)
-  (*     apply ARcoupl_steps_ctx_bind_r => /=; [done|]. *)
-  (*     apply ARcoupl_exact, Rcoupl_pos_R, (Rcoupl_state_rand N ff); eauto. *)
-  (*     rewrite -H0 //. *)
-  (*   } *)
-  (*   { by eapply state_step_erasable. } *)
-  (*   iIntros(σ2 e2' σ2' (? & [= ->] & (? & -> & [= -> ->]) & ? & ?)). *)
-  (*   iApply spec_coupl_ret. *)
-  (*   iMod (spec_update_prog (fill K #(ff _)) with "Hauth2 Hj") as "[$ Hspec0]". *)
-  (*   iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct. *)
-  (*   iMod (ghost_map_update ((_; fs ++ [_]) : tape) with "Ht1 Hα") as "[$ Hα]". *)
-  (*   iModIntro. iMod "Hclose'" as "_". *)
-  (*   iSpecialize ("Hwp" with "[Hα Hspec0]"). *)
-  (*   { *)
-  (*     iFrame. *)
-  (*     iSplitR. *)
-  (*     - iPureIntro. *)
-  (*       rewrite fmap_app //. *)
-  (*     - rewrite Hff. iFrame. *)
-  (*       iPureIntro. apply fin_to_nat_le. *)
-  (*   } *)
-  (*   iFrame. *)
-  (*   replace (_+_)%NNR with (ε) by (apply nnreal_ext; simpl; lra). *)
-  (*   done. *)
-  (* Qed. *)
-
+  (** * Exact couplings  *)
+  Lemma pupd_couple_tape_rand N f `{Bij nat nat f} K E α z ns j:
+    TCEq N (Z.to_nat z) →
+    (∀ n, n < S N -> f n < S N)%nat →
+    ▷ α ↪N (N; ns) -∗ j ⤇ fill K (rand #z) -∗
+    pupd E E (∃ (n:nat), α ↪N (N; ns ++ [n]) ∗ j ⤇ fill K #(f n) ∗ ⌜ n ≤ N ⌝).
+  Proof.
+    iIntros (-> Hdom) ">Hα Hj".
+    iDestruct "Hα" as (fs) "(<-&Hα)".
+    destruct (restr_bij_fin (_) f Hdom) as [ff [Hbij Hff]].
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ ρ1 ε1) "([? Ht]&Hs&?)".
+    iDestruct (ghost_map_lookup with "Ht [$]") as %?.
+    iDestruct (spec_auth_prog_agree with "Hs Hj") as "%Hsome".
+    iApply spec_coupl_rec.
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    destruct ρ1 as [es σ'].
+    assert (j < length es)%nat.
+    { by eapply lookup_lt_Some. }
+    iExists _, (state_step σ α), (full_info_one_step_stutter_osch j), 0%NNR, (λ _, ε1), ε1.
+    repeat iSplit.
+    - iPureIntro. by eapply state_step_sch_erasable.
+    - done.
+    - iPureIntro. rewrite Rplus_0_l.
+      rewrite Expval_const; last done.
+      trans (ε1 * 1)%R; last (simpl; lra).
+      by apply Rmult_le_compat.
+    - rewrite full_info_one_step_stutter_osch_lim_exec/state_step.
+      rewrite bool_decide_eq_true_2; last first.
+      { rewrite elem_of_dom. naive_solver. }
+      setoid_rewrite lookup_total_correct; last done.
+      simpl.
+      replace 0%R with (0+0)%R by lra.
+      rewrite /dmap.
+      iPureIntro.
+      rewrite /step'.
+      rewrite Hsome//.
+      rewrite fill_not_val; last done.
+      rewrite fill_dmap//=.
+      rewrite head_prim_step_eq///=.
+      rewrite -dbind_assoc'.
+      rewrite dmap_comp.
+      rewrite /dmap.
+      rewrite -!dbind_assoc'.
+      eapply ARcoupl_dbind; [lra|lra| |]; last first.
+      { apply ARcoupl_exact. 
+        apply (Rcoupl_dunif); apply Hbij.
+      }
+      intros ??->.
+      rewrite !dbind_assoc'.
+      rewrite !dret_id_left'.
+      simpl.
+      rewrite app_nil_r.
+      rewrite insert_length.
+      instantiate (1:= λ x y, exists (a:fin(S (Z.to_nat z))), x =(state_upd_tapes <[α:=(Z.to_nat z; fs ++ [a])]> σ)/\y= ([(cfg_to_cfg' (es, σ'), j); (cfg_to_cfg' (<[j:=fill K #(ff a)]> es, σ'), length es)],
+                                                                                                                     (<[j:=fill K #(ff a)]> es, σ'))).
+      apply ARcoupl_dret; naive_solver.
+    - iPureIntro. intros ????? (a&?&H') [a' ?]. destruct!/=.
+      assert (a=a') as ->; last naive_solver.
+      eapply f_equal in H'. erewrite !list_lookup_insert in H'; try done.
+      by simplify_eq. 
+    - simpl.
+      iIntros (??? (x&?&?)).
+      simplify_eq.
+      iApply spec_coupl_ret.
+      iMod (ghost_map_update with "Ht [$]") as "(?&?)".
+      iMod (spec_update_prog with "[$][$]") as "[??]".
+      iModIntro.
+      iMod "Hclose".
+      iModIntro.
+      rewrite Hff.
+      iFrame. 
+      rewrite fmap_app. simpl.
+      iPureIntro; split; first done.
+      pose proof fin_to_nat_lt x. lia.
+  Qed.
+  
   (* (** * rand(unit, N) ~ state_step(α', N) coupling *) *)
   (* Lemma wp_couple_rand_tape N f `{Bij nat nat f} z E α ns : *)
   (*   TCEq N (Z.to_nat z) → *)
@@ -1456,26 +1489,84 @@ Section rules.
   (*   apply fin_to_nat_le. *)
   (* Qed. *)
 
-  (* Lemma wp_couple_rand_rand_lbl N f `{Bij nat nat f} z K E α : *)
-  (*   TCEq N (Z.to_nat z) → *)
-  (*   (∀ n, n < S N -> f n < S N)%nat → *)
-  (*   {{{ α ↪ₛN (N; []) ∗ ⤇ fill K (rand(#lbl:α) #z) }}} *)
-  (*     rand #z @ E *)
-  (*     {{{ (n : nat), RET #n; α ↪ₛN (N; []) ∗ ⤇ fill K #(f n) ∗ ⌜ n ≤ N ⌝ }}}. *)
-  (* Proof. *)
-  (*   iIntros (-> Hdom ?) "(Hα & Hspec) Hwp". *)
-  (*   iApply wp_spec_update. *)
-  (*   iApply (wp_couple_rand_tape with "[$Hα]"); auto. *)
-  (*   iIntros "!>" (n) "[Hα %Hn]". *)
-  (*   simpl. *)
-  (*   iDestruct (read_spec_tape_head with "Hα") as (x xs) "[Hα [%Hrw Hret]]" . *)
-  (*   iMod (step_rand with "[$]") as "[? ?]". *)
-  (*   iModIntro. *)
-  (*   iApply ("Hwp" with "[-]"). *)
-  (*   iSpecialize ("Hret" with "[$]"). *)
-  (*   rewrite Hrw. *)
-  (*   by iFrame. *)
-  (* Qed. *)
+  Lemma wp_couple_rand_rand_lbl N f `{Bij nat nat f} z K E α j :
+    TCEq N (Z.to_nat z) →
+    (∀ n, n < S N -> f n < S N)%nat →
+    {{{ α ↪ₛN (N; []) ∗ j ⤇ fill K (rand(#lbl:α) #z) }}}
+      rand #z @ E
+      {{{ (n : nat), RET #n; α ↪ₛN (N; []) ∗ j ⤇ fill K #(f n) ∗ ⌜ n ≤ N ⌝ }}}.
+  Proof.
+    iIntros (-> Hdom Ψ) "[Hα Hr] HΨ".
+    destruct (restr_bij_fin (S _) f Hdom) as [ff [Hbij Hff]].
+    iApply wp_lift_step_prog_couple; [done|].
+    iIntros (σ1 [l s] ε) "[Hσ [Hs Hε]]".
+    iDestruct (spec_auth_prog_agree with "Hs Hr") as "%Hsome".
+    iDestruct (spec_tapeN_to_empty with "[$]") as "Hα".
+    iDestruct (spec_auth_lookup_tape with "Hs Hα") as "%Hlookup".
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+    (* replace ε with (0 + ε)%NNR; last first. *)
+    (* { apply nnreal_ext; simpl; lra. } *)
+    rewrite /prog_coupl.
+    assert (j < length l)%nat.
+    { by eapply lookup_lt_Some. }
+    iExists _, (full_info_one_step_stutter_osch j), 0%NNR, (λ _, ε), ε.
+    solve_red.
+    repeat iSplit.
+    - done.
+    - rewrite Expval_const; last done.
+      iPureIntro.
+      rewrite Rplus_0_l.
+      trans (ε*1); last (simpl; lra).
+      by apply Rmult_le_compat.
+    - iPureIntro. rewrite full_info_one_step_stutter_osch_lim_exec/=.
+      rewrite head_prim_step_eq/=.
+      (* apply ARcoupl_map; first done. *)
+      rewrite /step'.
+      rewrite Hsome.
+      case_match eqn:Heqn.
+      { apply mk_is_Some in Heqn. apply fill_val in Heqn. simpl in *. by destruct Heqn. }
+      rewrite fill_dmap //=.
+      rewrite head_prim_step_eq///=.
+      rewrite Hlookup bool_decide_eq_true_2; last done.
+      rewrite !dmap_comp.
+      apply ARcoupl_map; first done.
+      simpl.
+      apply ARcoupl_exact.
+      eapply Rcoupl_mono.
+      + apply (Rcoupl_dunif); apply Hbij.
+      + simpl.
+        intros ? ? ->.
+        instantiate (1 := (λ x y, ∃ (a:fin(S (Z.to_nat z))),
+                              x= (Val (#a), σ1, []) /\
+                              y=([(cfg_to_cfg' (l, s), j);
+                                  (cfg_to_cfg' (<[j:=fill K #(ff a)]> l ++ [], s), length (<[j:=fill K #(ff a)]> l ++ []))],
+                                   (<[j:=fill K #(ff a)]> l ++ [], s))
+                    )).
+        naive_solver.
+    - simpl.
+      iPureIntro.
+      intros?????(?&?&H')(?&?&?).
+      destruct!/=.
+      rewrite !app_nil_r in H'.
+      eapply f_equal in H'.
+      erewrite !list_lookup_insert in H'; try done.
+      by simplify_eq.
+    - simpl.
+      iIntros (?????[a ?]).
+      destruct!/=.
+      iMod (spec_update_prog with "[$][$]") as "[HK Hs]".
+      iModIntro. iNext.
+      iMod "Hclose".
+      rewrite app_nil_r.
+      iFrame.
+      iModIntro.
+      wp_pures.
+      iApply "HΨ".
+      rewrite Hff. iFrame.
+      iModIntro. iPureIntro.
+      pose proof fin_to_nat_lt a.
+      rewrite fmap_nil; split; [done|lia]. 
+  Qed.
 
   Lemma wp_couple_rand_lbl_rand_lbl N f `{Bij nat nat f} z K E α α' j :
     TCEq N (Z.to_nat z) →
