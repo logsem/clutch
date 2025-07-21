@@ -660,6 +660,31 @@ Section logrel.
       rel_apply "H".
   Qed.
 
+  Definition sdec_not_vg : list loc → val := λ _, otp_dec.
+
+  Lemma refines_couple_otp_sdec : ∀ K K' E (A : lrel Σ) k k' c c' lls rls,
+       Plr lls rls
+    -∗ (lrel_int_bounded 0 SymOutput) k k'
+    -∗ lrel_output c c'
+    -∗
+    ((∀ decr decr', lrel_input decr decr' -∗ Plr lls rls -∗
+      (REL fill K (Val decr) << fill K' (Val decr') @ E : A))
+    -∗ REL fill K (sdec_not_vg lls k c) << fill K' (sdec_not_vg rls k' c') @ E : A).
+  Proof with rel_pures_l; rel_pures_r.
+    iIntros (K K' E A kv kv' cv cv' lls rls) "HP
+      [%k [%eqk1 [%eqk2 %Hkbound]]] [%c [%eqc1 [%eqc2 %Hcbound]]] Hrel"; subst.
+    rewrite /sdec_not_vg/otp_dec/one_time_pad.otp_dec...
+    rewrite -(Z2Nat.id k); last lia.
+    rel_apply xor_correct_l; try lia.
+    rel_apply xor_correct_r; try lia.
+    rel_apply "Hrel"; last iAssumption.
+    iExists (xor_sem (Z.to_nat c) (Z.to_nat k)). 
+    iPureIntro; repeat split; try lia.
+    apply inj_le. rewrite /Input.
+    apply PeanoNat.lt_n_Sm_le.
+    apply xor_dom; lia.
+  Qed.
+
   (* ASSUMPTIONS ON THE ASYMMETRIC SCHEME *)
 
   (* Fetched from random function-based instance *)
