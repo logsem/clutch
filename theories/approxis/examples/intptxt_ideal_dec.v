@@ -52,6 +52,18 @@ Section logrel.
   Hypothesis refines_is_plaintext_r : refines_is_plaintext_r_prop. 
   Hypothesis refines_is_plaintext_l : refines_is_plaintext_l_prop. 
 
+  Definition refines_is_key_l_prop (is_key : val) :=
+    ∀ (k : val) K e E A,
+        left_lrel lrel_key k
+      -∗ refines E (fill K (Val #true)) e A
+      -∗ REL (fill K (is_key k)) << e @ E : A.
+
+  Definition refines_is_key_r_prop (is_key : val) :=
+    ∀ (k : val) K e E A,
+        right_lrel lrel_key k
+      -∗ refines E e (fill K (Val #true)) A
+      -∗ REL e << (fill K (is_key k)) @ E : A.
+      
   Variable elem_eq : val.
 
   Lemma half_lrel_pers : ∀ (A : lrel Σ) x, Persistent (half_lrel A x).
