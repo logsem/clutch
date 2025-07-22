@@ -2297,6 +2297,39 @@ Section uniform.
     lra.
   Qed.
 
+  Lemma dunifP_decompose N M x (f:(_*_) -> _)`{HBij: !Bij f}:
+    (x=(S N)*(S M)-1)%nat->
+    dunifP x = dbind (λ n, dmap (λ m, f (n, m)) (dunifP M)) (dunifP N).
+  Proof.
+    intros ->.
+    apply distr_ext => x.
+    rewrite /dunifP.
+    rewrite dunif_pmf.
+    rewrite /dmap/dbind/dbind_pmf{1 3}/pmf.
+    setoid_rewrite dunif_pmf.
+    destruct HBij as [H1 H2].
+    pose proof H2 x as [[n m] <-].
+    setoid_rewrite SeriesC_scal_l.
+    erewrite SeriesC_ext; last (intros; by setoid_rewrite SeriesC_scal_l).
+    rewrite SeriesC_scal_l.
+    rewrite (SeriesC_ext _ (λ n', if bool_decide (n=n') then SeriesC (λ m', if bool_decide (m=m') then 1 else 0) else 0)); last first.
+    { intros. case_bool_decide; last first.
+      - apply SeriesC_0.
+        intros m'.
+        apply dret_0.
+        intro Heq.
+        apply H1 in Heq. simplify_eq.
+      - apply SeriesC_ext.
+        intros m'. subst.
+        case_bool_decide; subst.
+        + by apply dret_1_1.
+        + rewrite dret_0; first done.
+          intro Heq. apply H1 in Heq. naive_solver.
+    }
+    do 2 rewrite SeriesC_singleton'.
+    rewrite Rmult_1_r -Rinv_mult -mult_INR.
+    do 2 f_equal. lia.
+  Qed. 
 End uniform.
 
 (** Uniform fin lists *)

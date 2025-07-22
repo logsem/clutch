@@ -521,7 +521,7 @@ Section rules.
     (forall x, x<(S N)*(S M) -> exists n m, n< S N /\ m < S M /\ f n m = x)%nat ->
     {{{ j ⤇ fill K (rand #N) ∗ j'⤇ fill K' (rand #M) }}}
       rand #x @ E
-      {{{ (x:nat), RET #x; ∃ (n m:nat), ⌜n<=N⌝ ∗ ⌜m<=M⌝ ∗ ⌜x=f n m⌝ ∗ j ⤇ fill K #n ∗ j'⤇ fill K' #m }}}.
+      {{{ (x:nat), RET #x; ∃ (n m:nat), ⌜(n<=N)%nat⌝ ∗ ⌜(m<=M)%nat⌝ ∗ ⌜x=f n m⌝ ∗ j ⤇ fill K #n ∗ j'⤇ fill K' #m }}}.
   Proof.
     iIntros (->->-> Hcond1 Hcond2 Hcond3 Φ) "[Hj Hj'] HΦ".
     iApply wp_lift_step_prog_couple; first done.
@@ -553,6 +553,7 @@ Section rules.
       rewrite fill_not_val; last done.
       rewrite fill_dmap //=.
       rewrite !head_prim_step_eq /= !dmap_comp.
+      rewrite !Nat2Z.id.
       erewrite dbind_ext_right_strong; last first.
       { instantiate (1:= (λ '(_,_), _)).
         intros [l0 ] Hpos.
@@ -568,7 +569,8 @@ Section rules.
         rewrite fill_not_val; last done.
         rewrite fill_dmap//=.
         rewrite head_prim_step_eq/=.
-        rewrite !dmap_comp. repeat f_equal.
+        rewrite !dmap_comp. 
+        rewrite !Nat2Z.id. repeat f_equal.
         - instantiate (1:=( λ '(e,s0,l''), (<[j':=e]>l0++l'', _))).
           extensionality x.
           destruct x as [[]]. f_equal. 
@@ -577,8 +579,72 @@ Section rules.
       rewrite {4}/dmap.
       rewrite -dbind_assoc'.
       erewrite dbind_ext_right; last first.
-      { intros. by rewrite dret_id_left/= dmap_comp/=. }
-  Admitted.
+      { intros. by rewrite dret_id_left/= dmap_comp/=app_nil_r. }
+
+      (** Here we define the f' function that is specialized to fin *)
+      rewrite Nat.sub_0_r.
+      assert (∀ n m : nat,
+             (n < S (Z.to_nat z))%nat
+             → (m < S (Z.to_nat z'))%nat → (f n m < S(Z.to_nat z' + Z.to_nat z * S (Z.to_nat z')))%nat) as Hcond1'.
+      { intros. naive_solver. }
+      set (f' := λ '((n,m): (fin (S (Z.to_nat z)) * fin (S (Z.to_nat z')))),
+             nat_to_fin (Hcond1' _ _ (fin_to_nat_lt n) (fin_to_nat_lt m))
+          ).
+      assert (Bij f') as Hbij.
+      { split.
+        - intros [x y][x' y'].
+          rewrite /f'.
+          intros Heq.
+          apply (f_equal fin_to_nat) in Heq.
+          rewrite !fin_to_nat_to_fin in Heq.
+          apply Hcond2 in Heq; destruct!/=; first naive_solver.
+          all: apply fin_to_nat_lt.
+        - intros x.
+          pose proof fin_to_nat_lt x.
+          apply Hcond3 in H2 as (n'&m'&Hn'&Hm'&Hrewrite).
+          exists (nat_to_fin Hn',nat_to_fin Hm').
+          rewrite /f'.
+          apply fin_to_nat_inj.
+          by rewrite !fin_to_nat_to_fin -Hrewrite.
+      }
+      rewrite (dunifP_decompose _ _ _ f' ); last lia.
+      rewrite /dmap -dbind_assoc'.
+      replace 0%R with (0+0) by lra.
+      eapply ARcoupl_dbind; [done|done| |apply ARcoupl_eq].
+      intros ? n ->.
+      rewrite -dbind_assoc'.
+      replace 0%R with (0+0) by lra.
+      eapply ARcoupl_dbind; [done|done| |apply ARcoupl_eq].
+      intros ? m ->.
+      simpl. rewrite app_nil_r dret_id_left' fin_to_nat_to_fin.
+      rewrite !insert_length.
+      instantiate (1:= λ x y, ∃ (n:fin(S (Z.to_nat z))) (m:fin(S (Z.to_nat z'))), x = (Val #(f n m),σ1,[])/\ y=([(cfg_to_cfg' (l, s), j); (cfg_to_cfg' (<[j:=fill K #n]> l, s), j');
+         (cfg_to_cfg' (<[j':=fill K' #m]> (<[j:=fill K #n]> l), s), length l)],
+        (<[j':=fill K' #m]> (<[j:=fill K #n]> l), s))).
+      apply ARcoupl_dret; naive_solver.
+    - iPureIntro. simpl. intros ????? (n&m&K1&K2) (n'&m'&K3&K4). destruct!/=.
+      assert (n=n'). 
+      { apply (f_equal (λ x, x!!j)) in K2.
+        rewrite !list_lookup_insert in K2; naive_solver.
+      }
+      subst.
+      replace m with m'; first done.
+      cut ((<[j':=fill K' #m']> (<[j:=fill K #n']> l))!!j' = (<[j':=fill K' #m]> (<[j:=fill K #n']> l)!!j')).
+      + rewrite !list_lookup_insert; try rewrite insert_length; naive_solver.
+      + by f_equal.
+    - simpl.
+      iIntros (?????) "(%n&%m&%)". destruct!/=.
+      iMod (spec_update_prog with "Hs Hj") as "[Hs ?]".
+      iMod (spec_update_prog with "Hs Hj'") as "[??]".
+      iFrame.
+      iModIntro. iNext. iMod "Hclose".
+      iModIntro. iFrame.
+      wp_pures.
+      iApply "HΦ".
+      iFrame. iPureIntro.
+      pose proof fin_to_nat_lt n.
+      pose proof fin_to_nat_lt m; lia.
+  Qed. 
   
   (* (** coupling rand and rand but avoid certain values*) *)
   (* Lemma wp_couple_rand_rand_avoid N (l:list _) z K E : *)
@@ -1534,79 +1600,122 @@ Section rules.
     (∀ n n' m m', n < S N -> n' < S N -> m < S M -> m' < S M -> f n m = f n' m' -> n=n' /\ m=m')%nat ->
     (forall x, x<(S N)*(S M) -> exists n m, n< S N /\ m < S M /\ f n m = x)%nat ->
     ▷ α ↪N (N; ns) -∗ ▷α'↪N (M;ms)-∗ j ⤇ fill K (rand #x) -∗
-    pupd E E (∃ (n m:nat), α ↪N (N; ns ++ [n]) ∗ α' ↪N (M; ms ++ [m]) ∗ j ⤇ fill K #(f n m) ∗ ⌜ n ≤ N ⌝ ∗ ⌜m<=M⌝).
+    pupd E E (∃ (n m:nat), α ↪N (N; ns ++ [n]) ∗ α' ↪N (M; ms ++ [m]) ∗ j ⤇ fill K #(f n m) ∗ ⌜ (n ≤ N)%nat ⌝ ∗ ⌜(m<=M)%nat⌝).
   Proof.
-  Admitted. 
-  (*   iIntros (-> Hdom) ">Hα Hj". *)
-  (*   iDestruct "Hα" as (fs) "(<-&Hα)". *)
-  (*   destruct (restr_bij_fin (_) f Hdom) as [ff [Hbij Hff]]. *)
-  (*   rewrite pupd_unseal/pupd_def. *)
-  (*   iIntros (σ ρ1 ε1) "([? Ht]&Hs&?)". *)
-  (*   iDestruct (ghost_map_lookup with "Ht [$]") as %?. *)
-  (*   iDestruct (spec_auth_prog_agree with "Hs Hj") as "%Hsome". *)
-  (*   iApply spec_coupl_rec. *)
-  (*   iApply fupd_mask_intro; first set_solver. *)
-  (*   iIntros "Hclose". *)
-  (*   destruct ρ1 as [es σ']. *)
-  (*   assert (j < length es)%nat. *)
-  (*   { by eapply lookup_lt_Some. } *)
-  (*   iExists _, (state_step σ α), (full_info_one_step_stutter_osch j), 0%NNR, (λ _, ε1), ε1. *)
-  (*   repeat iSplit. *)
-  (*   - iPureIntro. by eapply state_step_sch_erasable. *)
-  (*   - done. *)
-  (*   - iPureIntro. rewrite Rplus_0_l. *)
-  (*     rewrite Expval_const; last done. *)
-  (*     trans (ε1 * 1)%R; last (simpl; lra). *)
-  (*     by apply Rmult_le_compat. *)
-  (*   - rewrite full_info_one_step_stutter_osch_lim_exec/state_step. *)
-  (*     rewrite bool_decide_eq_true_2; last first. *)
-  (*     { rewrite elem_of_dom. naive_solver. } *)
-  (*     setoid_rewrite lookup_total_correct; last done. *)
-  (*     simpl. *)
-  (*     replace 0%R with (0+0)%R by lra. *)
-  (*     rewrite /dmap. *)
-  (*     iPureIntro. *)
-  (*     rewrite /step'. *)
-  (*     rewrite Hsome//. *)
-  (*     rewrite fill_not_val; last done. *)
-  (*     rewrite fill_dmap//=. *)
-  (*     rewrite head_prim_step_eq///=. *)
-  (*     rewrite -dbind_assoc'. *)
-  (*     rewrite dmap_comp. *)
-  (*     rewrite /dmap. *)
-  (*     rewrite -!dbind_assoc'. *)
-  (*     eapply ARcoupl_dbind; [lra|lra| |]; last first. *)
-  (*     { apply ARcoupl_exact.  *)
-  (*       apply (Rcoupl_dunif); apply Hbij. *)
-  (*     } *)
-  (*     intros ??->. *)
-  (*     rewrite !dbind_assoc'. *)
-  (*     rewrite !dret_id_left'. *)
-  (*     simpl. *)
-  (*     rewrite app_nil_r. *)
-  (*     rewrite insert_length. *)
-  (*     instantiate (1:= λ x y, exists (a:fin(S (Z.to_nat z))), x =(state_upd_tapes <[α:=(Z.to_nat z; fs ++ [a])]> σ)/\y= ([(cfg_to_cfg' (es, σ'), j); (cfg_to_cfg' (<[j:=fill K #(ff a)]> es, σ'), length es)], *)
-  (*                                                                                                                    (<[j:=fill K #(ff a)]> es, σ'))). *)
-  (*     apply ARcoupl_dret; naive_solver. *)
-  (*   - iPureIntro. intros ????? (a&?&H') [a' ?]. destruct!/=. *)
-  (*     assert (a=a') as ->; last naive_solver. *)
-  (*     eapply f_equal in H'. erewrite !list_lookup_insert in H'; try done. *)
-  (*     by simplify_eq.  *)
-  (*   - simpl. *)
-  (*     iIntros (??? (x&?&?)). *)
-  (*     simplify_eq. *)
-  (*     iApply spec_coupl_ret. *)
-  (*     iMod (ghost_map_update with "Ht [$]") as "(?&?)". *)
-  (*     iMod (spec_update_prog with "[$][$]") as "[??]". *)
-  (*     iModIntro. *)
-  (*     iMod "Hclose". *)
-  (*     iModIntro. *)
-  (*     rewrite Hff. *)
-  (*     iFrame.  *)
-  (*     rewrite fmap_app. simpl. *)
-  (*     iPureIntro; split; first done. *)
-  (*     pose proof fin_to_nat_lt x. lia. *)
-  (* Qed. *)
+    iIntros (->->-> Hcond1 Hcond2 Hcond3) ">(%fs&%&Hα) >(%fs'&%&Hα') Hj".
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ1 ρ1 ε) "[[Hh Ht] [Hs Hε]]".
+    iDestruct (spec_auth_prog_agree with "Hs Hj") as "%Hsome".
+    iDestruct (ghost_map_lookup with "Ht [$Hα]") as "%Hlookup".
+    iDestruct (ghost_map_lookup with "Ht [$Hα']") as "%Hlookup'".
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+    destruct ρ1 as [l s].
+    assert (j < length l)%nat.
+    { by eapply lookup_lt_Some. }
+    simpl.
+    rewrite Nat.sub_0_r.
+    iApply spec_coupl_rec.
+    iDestruct (ghost_map_elem_ne with "Hα Hα'") as "%".
+    iExists _, (dbind (λ σ1', state_step σ1' α') (state_step σ1 α)), (full_info_one_step_stutter_osch j), 0%NNR, (λ _, ε), ε.
+    repeat iSplit.
+    - iPureIntro. apply sch_erasable_dbind; first eapply state_step_sch_erasable; first done.
+      intros σ'. rewrite {1}/state_step. rewrite bool_decide_eq_true_2; last by rewrite elem_of_dom.
+      setoid_rewrite lookup_total_correct at 1; last done.
+      simpl.
+      intros Hpos.
+      apply dmap_pos in Hpos. destruct Hpos as (?&->&Hpos).
+      eapply state_step_sch_erasable.
+      simpl. by rewrite lookup_insert_ne.
+    - done. 
+    - rewrite Expval_const; last done.
+      iPureIntro.
+      rewrite Rplus_0_l.
+      trans (ε*1); last (simpl; lra).
+      by apply Rmult_le_compat.
+    - iPureIntro.
+      rewrite full_info_one_step_stutter_osch_lim_exec.
+      rewrite /state_step.
+      rewrite bool_decide_eq_true_2; last by rewrite elem_of_dom.
+      setoid_rewrite lookup_total_correct at 2; last done.
+      simpl.
+      rewrite Hsome.
+      rewrite fill_not_val; last done.
+      rewrite fill_dmap//=.
+      rewrite head_prim_step_eq//= !dmap_comp.
+      rewrite !Nat2Z.id.
+
+      (** Here we define the f' function that is specialized to fin *)
+      rewrite Nat.sub_0_r.
+      assert (∀ n m : nat,
+             (n < S (Z.to_nat z))%nat
+             → (m < S (Z.to_nat z'))%nat → (f n m < S(Z.to_nat z' + Z.to_nat z * S (Z.to_nat z')))%nat) as Hcond1'.
+      { intros. naive_solver. }
+      set (f' := λ '((n,m): (fin (S (Z.to_nat z)) * fin (S (Z.to_nat z')))),
+             nat_to_fin (Hcond1' _ _ (fin_to_nat_lt n) (fin_to_nat_lt m))
+          ).
+      assert (Bij f') as Hbij.
+      { split.
+        - intros [x y][x' y'].
+          rewrite /f'.
+          intros Heq.
+          apply (f_equal fin_to_nat) in Heq.
+          rewrite !fin_to_nat_to_fin in Heq.
+          apply Hcond2 in Heq; destruct!/=; first naive_solver.
+          all: apply fin_to_nat_lt.
+        - intros x.
+          pose proof fin_to_nat_lt x as H3.
+          apply Hcond3 in H3 as (n'&m'&Hn'&Hm'&Hrewrite).
+          exists (nat_to_fin Hn',nat_to_fin Hm').
+          rewrite /f'.
+          apply fin_to_nat_inj.
+          by rewrite !fin_to_nat_to_fin -Hrewrite.
+      }
+      rewrite (dunifP_decompose _ _ _ f' ); last lia.
+      rewrite /dmap -!dbind_assoc'.
+      replace 0%R with (0+0) by lra.
+      eapply ARcoupl_dbind; [done|done| |apply ARcoupl_eq].
+      intros ? n ->.
+      rewrite dret_id_left.
+      rewrite bool_decide_eq_true_2; last first.
+      { rewrite elem_of_dom. simpl. rewrite lookup_insert_ne; naive_solver. }
+      setoid_rewrite lookup_total_correct; last first.
+      { simpl. by rewrite lookup_insert_ne. }
+      simpl.
+      rewrite -dbind_assoc'.
+      replace 0%R with (0+0) by lra.
+      eapply ARcoupl_dbind; [done|done| |apply ARcoupl_eq].
+      intros ? m ->.
+      rewrite dret_id_left.
+      rewrite app_nil_r fin_to_nat_to_fin.
+      rewrite insert_length.
+      instantiate (1:= λ x y, ∃ (n:fin(S (Z.to_nat z))) (m:fin(S (Z.to_nat z'))), x = {|
+         heap := heap σ1;
+         tapes := <[α':=(Z.to_nat z'; fs' ++ [m])]> (<[α:=(Z.to_nat z; fs ++ [n])]> (tapes σ1))
+       |}/\ y=([(cfg_to_cfg' (l, s), j); (cfg_to_cfg' (<[j:=fill K #(f n m)]> l, s), length l)],
+        (<[j:=fill K #(f n m)]> l, s))).
+      apply ARcoupl_dret; naive_solver.
+    - iPureIntro. simpl. intros ????? (n&m&K1&K2) (n'&m'&K3&K4). destruct!/=.
+      assert (n=n'/\m=m'). 
+      { apply (f_equal (λ x, x!!j)) in K2.
+        rewrite !list_lookup_insert in K2; try done.
+        simplify_eq.
+        apply Hcond2 in K2; first naive_solver.
+        all: apply fin_to_nat_lt.
+      }
+      by destruct!/=.
+    - simpl.
+      iIntros (???) "(%n&%m&%)". destruct!/=.
+      iMod (spec_update_prog with "Hs Hj") as "[Hs ?]".
+      iMod (ghost_map_update with "Ht Hα") as "[Ht ?]".
+      iMod (ghost_map_update with "Ht Hα'") as "[Ht ?]".
+      iModIntro. iApply spec_coupl_ret.
+      iMod "Hclose".
+      iModIntro. iFrame.
+      rewrite !fmap_app.
+      pose proof fin_to_nat_lt n.
+      pose proof fin_to_nat_lt m.
+      iPureIntro; repeat split; lia.
+  Qed.
 
   
   (* (** * rand(unit, N) ~ state_step(α', N) coupling *) *)
