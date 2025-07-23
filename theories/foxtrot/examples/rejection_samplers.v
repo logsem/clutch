@@ -45,36 +45,26 @@ Section rejection_sampler.
       rejection_sampler_prog #()
       {{{ v, RET v; ∃ v' : val, j ⤇ fill K v' ∗ lrel_nat v v' }}}.
     Proof.
-    Admitted. 
-    (*   iIntros (Φ) "Hspec HΦ". *)
-    (*   rewrite /rejection_sampler_prog'/rejection_sampler_prog. *)
-    (*   wp_pures. *)
-    (*   tp_allocnattape j α as "Hα". *)
-    (*   tp_pures j. *)
-    (*   tp_allocnattape j α' as "Hα'". *)
-    (*   do 2 tp_pure j. *)
-    (*   tp_bind j (_|||_)%E. *)
-    (*   iMod (tp_par with "[$]") as "(%j1 & %j2 & %K1 & %K2 & Hspec1 & Hspec2 & Hcont)". *)
-    (*   wp_apply (wp_par (λ x, ∃ (n:nat), ⌜x = # n⌝ ∗ j1 ⤇ fill K1 (#n))%I (λ x, ∃ (m:nat), ⌜x = # m⌝ ∗ j2 ⤇ fill K2 (#m))%I with "[Hα Hspec1][Hα' Hspec2]"). *)
-    (*   - wp_apply (wp_couple_rand_rand_lbl with "[$]"); first done. *)
-    (*     iIntros (?) "(?&?&%)". *)
-    (*     by iFrame. *)
-    (*   - wp_apply (wp_couple_rand_rand_lbl with "[$]"); first done. *)
-    (*     iIntros (?) "(?&?&%)". *)
-    (*     by iFrame. *)
-    (*   - iIntros (??) "[(%n&%&?)(%m&%&?)]". *)
-    (*     subst. *)
-    (*     iNext. *)
-    (*     iMod ("Hcont" with "[$]") as "Hspec". *)
-    (*     simpl. *)
-    (*     tp_pures j. *)
-    (*     wp_pures. *)
-    (*     iApply "HΦ". *)
-    (*     iFrame. *)
-    (*     iPureIntro. *)
-    (*     simpl. *)
-    (*     eexists (n*(M+1)+m); split; repeat f_equal; lia. *)
-    (* Qed.  *)
+      iIntros (Φ) "Hspec HΦ".
+      rewrite /rejection_sampler_prog'/rejection_sampler_prog.
+      iLöb as "IH" forall "Hspec HΦ".
+      wp_pures.
+      tp_pures j.
+      tp_allocnattape j α as "Hα".
+      tp_pures j.
+      tp_bind j (rand(_) _)%E.
+      wp_apply (wp_couple_rand_rand_lbl with "[$]"); first done.
+      iIntros (?) "(?&?&%)".
+      simpl.
+      tp_pures j.
+      wp_pures.
+      case_bool_decide.
+      - tp_pures j. wp_pures.
+        iApply "HΦ".
+        iFrame. by iExists _.
+      - wp_pure. tp_pure j.
+        by iApply ("IH" with "[$]").
+    Qed.
     
     Lemma wp_rejection_sampler_prog'_rand_prog K j:
     {{{ j ⤇ fill K (rand_prog #()) }}}
