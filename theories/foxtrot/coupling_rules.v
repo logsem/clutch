@@ -724,26 +724,20 @@ Section rules.
   (* Qed. *)
   
 
-  (* (** fragmented state rand N ~ state rand M, N>=M, under injective function from M to N*) *)
-  (* Lemma wp_couple_fragmented_rand_rand_inj {M N} (f: nat → nat) {_ : Inj (=) (=) f} *)
-  (*   ns nsₛ α αₛ e E Φ: *)
-  (*   (M <= N)%nat → *)
-  (*   (forall n : nat, (n < S M)%nat -> (f n < S N)%nat) -> *)
-  (*   ▷ α ↪N (N; ns) ∗ ▷ αₛ ↪ₛN (M; nsₛ) ∗ *)
-  (*   (∀ (n : nat), *)
-  (*      ⌜ n ≤ N ⌝ -∗ *)
-  (*      if bool_decide (∃ m:nat, m ≤ M /\ f m = n) then *)
-  (*        ∀ m : nat, α ↪N (N; ns ++ [f m]) ∗ αₛ ↪ₛN (M; nsₛ ++ [m]) ∗ ⌜ f m ≤ N ⌝ ∗ ⌜ m ≤ M ⌝ -∗ *)
-  (*             WP e @ E {{ Φ }} *)
-  (*      else *)
-  (*        α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ) ∗ ⌜ n ≤ N ⌝ -∗ *)
-  (*        WP e @ E {{ Φ }}) *)
-  (*   ⊢ WP e @ E {{ Φ }}. *)
-  (* Proof. *)
-  (*   iIntros (Hineq Hdom) "(>Hα & >Hαₛ & Hwp)". *)
-  (*   edestruct (restr_inj_fin (S M) (S N) f (le_n_S M N Hineq) Hdom) as [g [HgInj HgEq]]. *)
-  (*   iDestruct "Hα" as (fs) "(<-&Hα)". *)
-  (*   iDestruct "Hαₛ" as (fsₛ) "(<-&Hαₛ)". *)
+  (** fragmented state rand N ~ state rand M, N>=M, under injective function from M to N*)
+  Lemma pupd_couple_fragmented_tape_rand_inj {M N} (f: nat → nat) {_ : Inj (=) (=) f}
+    ns α j K E:
+    (M <= N)%nat →
+    (forall n : nat, (n < S M)%nat -> (f n < S N)%nat) ->
+    ▷ α ↪N (N; ns) -∗ j ⤇ fill K (rand #M) -∗
+    pupd E E ((∃ (m:nat), ⌜(m<=M)%nat⌝ ∗ ⌜(f m <= N)%nat⌝ ∗ α ↪N (N; ns ++ [f m]) ∗ j⤇ fill K #m)
+              ∨
+                (∃ (n:nat), ⌜(n<=N)⌝ ∗ ⌜¬ ∃ (m:nat), (m<=M)%nat ∧ f m = n⌝ ∗ α ↪N (N; ns ++ [n]) ∗ j⤇ fill K (rand #M))).
+  Proof.
+    iIntros (Hineq Hdom) ">Hα  Hspec".
+    edestruct (restr_inj_fin (S M) (S N) f (le_n_S M N Hineq) Hdom) as [g [HgInj HgEq]].
+    iDestruct "Hα" as (fs) "(<-&Hα)".
+  Admitted. 
   (*   iApply wp_lift_step_spec_couple. *)
   (*   iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)". *)
   (*   iDestruct "Hauth2" as "(HK&Hh2&Ht2)/=". *)

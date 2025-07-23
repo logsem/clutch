@@ -71,34 +71,35 @@ Section rejection_sampler.
       (rejection_sampler_prog' #())
       {{{ v, RET v; ∃ v' : val, j ⤇ fill K v' ∗ lrel_nat v v' }}}.
     Proof.
-    Admitted. 
-  (*     iIntros (Φ) "Hspec HΦ". *)
-  (*     rewrite /rejection_sampler_prog'/rand_prog. *)
-  (*     wp_pures. *)
-  (*     wp_alloctape α as "Hα". *)
-  (*     wp_pures. *)
-  (*     wp_alloctape α' as "Hα'". *)
-  (*     wp_pures. *)
-  (*     iMod (pupd_couple_two_tapes_rand _ _ coupling_f with "[$Hα][$][$]") as "(%n&%m&Hα&Hα'&Hspec &%&%)". *)
-  (*     - rewrite TCEq_eq. by erewrite Nat2Z.id. *)
-  (*     - rewrite TCEq_eq. by erewrite Nat2Z.id. *)
-  (*     - lia. *)
-  (*     - apply coupling_f_cond1. *)
-  (*     - apply coupling_f_cond2. *)
-  (*     - apply coupling_f_cond3. *)
-  (*     - simpl. rewrite /coupling_f. *)
-  (*       wp_apply (wp_par (λ x, ⌜x=#n⌝)%I(λ x, ⌜x=#m⌝)%I with "[Hα][Hα']"). *)
-  (*       + by wp_randtape as "%". *)
-  (*       + by wp_randtape as "%". *)
-  (*       + iIntros (??) "[-> ->]". *)
-  (*         iNext. wp_pures. *)
-  (*         iApply "HΦ". *)
-  (*         iFrame. *)
-  (*         iPureIntro. *)
-  (*         simpl. eexists _. *)
-  (*         split; last done. *)
-  (*         repeat f_equal; lia. *)
-  (*   Qed.  *)
+      iIntros (Φ) "Hspec HΦ".
+      rewrite /rand_prog.
+      tp_pures j.
+      iLöb as "IH" forall "Hspec HΦ".
+      rewrite /rejection_sampler_prog'/rand_prog.
+      wp_pures.
+      wp_alloctape α as "Hα".
+      wp_pures.
+      tp_pures j.
+      iMod (pupd_couple_fragmented_tape_rand_inj id with "[$][$]") as "[H|H]".
+      - lia.
+      - intros. simpl. lia.
+      - iDestruct ("H") as "(%&%&%&Hα&Hspec)".
+        simpl in *.
+        wp_randtape.
+        wp_pures.
+        rewrite bool_decide_eq_true_2; last lia.
+        wp_pures.
+        iApply "HΦ". iFrame. by iExists _.
+      - simpl.
+        iDestruct "H" as "(%&%&%Hfalse&Hα&Hspec)".
+        wp_randtape.
+        wp_pures.
+        rewrite bool_decide_eq_false_2; last first. 
+        { intro H'. apply Hfalse. eexists _; split; last done. lia. }
+        wp_pure.
+        iApply ("IH" with "[$]").
+        iApply "HΦ".
+    Qed. 
   End proof.
   
   Section proof'.
