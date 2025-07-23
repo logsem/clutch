@@ -2329,7 +2329,95 @@ Section uniform.
     do 2 rewrite SeriesC_singleton'.
     rewrite Rmult_1_r -Rinv_mult -mult_INR.
     do 2 f_equal. lia.
-  Qed. 
+  Qed.
+
+  Lemma dunif_fragmented N M f {Hinj : Inj (=) (=) f} (Hbound:(forall n : nat, (n < S M)%nat -> (f n < S N)%nat)):
+    (M<=N)%nat -> 
+    dunifP N = dbind (λ n, if bool_decide (∃ (m:fin (S M)), f (fin_to_nat m) = fin_to_nat n)%nat
+                           then dmap (λ m', nat_to_fin (Hbound _ (fin_to_nat_lt m'))) (dunifP M)
+                                     else dret n
+                 ) (dunifP N).
+  Proof.
+    intros Hineq.
+    apply distr_ext => n.
+    rewrite dunif_pmf.
+    rewrite /dbind/dbind_pmf{1}/pmf.
+    setoid_rewrite dunif_pmf.
+    rewrite SeriesC_scal_l.
+    etrans; last apply Rmult_eq_compat_l; first by erewrite Rmult_1_r.
+    symmetry.
+    destruct (decide (∃ m: fin (S M), f m = n)) as [H|H].
+    - destruct H as [m ?].
+      erewrite (SeriesC_ext _ (λ n', /(S M) * if bool_decide (fin_to_nat n' ∈ (list_to_set ((f∘fin_to_nat) <$> fin_enum (S M)):gset _))
+                                     then 1
+                                     else 0
+               )).
+      + rewrite SeriesC_scal_l.
+        rewrite SeriesC_fin_in_set.
+        * rewrite size_list_to_set.
+          -- rewrite fmap_length.
+             rewrite fin.length_enum_fin. rewrite Rinv_l; first lra.
+             replace 0 with (INR 0) by done.
+             move => /INR_eq. lia.
+          -- apply NoDup_fmap_2.
+             ++ eapply compose_inj; last done. apply fin_to_nat_inj.
+             ++ replace (fin_enum _) with (enum (fin (S M))); last done.
+                apply NoDup_enum.
+        * intros ?. rewrite elem_of_list_to_set elem_of_list_fmap.
+          intros [?[]]. subst.
+          simpl. apply Hbound. apply fin_to_nat_lt.
+      + intros n'.
+        case_bool_decide as H'.
+        * destruct H' as [m' H'].
+          rewrite bool_decide_eq_true_2; last first.
+          { rewrite elem_of_list_to_set elem_of_list_fmap.
+            eexists m'. split; first naive_solver.
+            replace (fin_enum _) with (enum (fin (S M))); last done.
+            apply elem_of_enum.
+          }
+          rewrite Rmult_1_r.
+          rewrite /dmap/dbind/dbind_pmf{1}/pmf.
+          setoid_rewrite dunif_pmf.
+          rewrite SeriesC_scal_l.
+          replace (SeriesC _) with 1; first lra.
+          symmetry.
+          erewrite (SeriesC_ext _ (dret m)); first apply dret_mass.
+          intros m''.
+          rewrite /dret/dret_pmf/pmf.
+          destruct (decide (m=m'')) as [|H''].
+          -- subst.
+             repeat rewrite bool_decide_eq_true_2; try done.
+             apply fin_to_nat_inj.
+             by rewrite fin_to_nat_to_fin.
+          -- repeat rewrite bool_decide_eq_false_2; try done.
+             intros Heq. apply (f_equal fin_to_nat) in Heq.
+             rewrite fin_to_nat_to_fin in Heq.
+             apply H''. rewrite Heq in H.
+             apply Hinj in H. by apply fin_to_nat_inj. 
+        * rewrite dret_0; last first.
+          { intro H''. apply H'. subst. naive_solver. }
+          rewrite bool_decide_eq_false_2; first lra.
+          rewrite elem_of_list_to_set elem_of_list_fmap.
+          intros [?[]].
+          apply H'. naive_solver.
+    - erewrite (SeriesC_ext _ (dret n)); first apply dret_mass.
+      intros n'.
+      destruct (decide(n=n')) as [->|H'].
+      + rewrite dret_1_1; last done.
+        rewrite bool_decide_eq_false_2; first apply dret_1_1; naive_solver.
+      + rewrite dret_0; last done.
+        case_bool_decide as H''; last by apply dret_0.
+        rewrite /dmap/dbind/dbind_pmf{1}/pmf.
+        apply SeriesC_0.
+        destruct H''.
+        intros m.
+        apply Rmult_eq_0_compat_l.
+        apply dret_0.
+        intro Heq.
+        apply (f_equal fin_to_nat) in Heq.
+        rewrite fin_to_nat_to_fin in Heq. naive_solver.
+  Qed.
+  
 End uniform.
 
 (** Uniform fin lists *)

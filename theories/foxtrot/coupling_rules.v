@@ -732,8 +732,81 @@ Section rules.
       rand #N @ E
       {{{ (n:nat), RET #n; ⌜(n<=N)%nat⌝ ∗ (((∃ (m:nat), ⌜(m<=M)%nat⌝ ∗ ⌜(f m = n)%nat⌝ ∗ j⤇ fill K #m))∨(⌜¬ ∃ (m:nat), (m<=M)%nat ∧ f m = n⌝ ∗ j ⤇ fill K (rand #M))) }}}. 
   Proof.
-    iIntros (Hineq Hdom Φ) "Hspec HΦ".
+    iIntros (Hineq Hdom Φ) "Hr HΦ".
     edestruct (restr_inj_fin (S M) (S N) f (le_n_S M N Hineq) Hdom) as [g [HgInj HgEq]].
+    iApply wp_lift_step_prog_couple; [done|].
+    iIntros (σ1 ρ1 ε) "[Hσ [Hs Hε]]".
+    iDestruct (spec_auth_prog_agree with "Hs Hr") as "%Hsome".
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+    (* replace ε with (0 + ε)%NNR; last first. *)
+    (* { apply nnreal_ext; simpl; lra. } *)
+    rewrite /prog_coupl.
+    destruct ρ1 as [l s].
+    assert (j < length l)%nat.
+    { by eapply lookup_lt_Some. }
+    iExists _, (full_info_cons_osch (λ _, dmap (λ n, if bool_decide (∃ (m:nat), (m<=M)%nat /\ f m = fin_to_nat n) then j else (length l + n)%nat) (dunifP N)) (λ x, if bool_decide (x=j) then full_info_stutter_osch full_info_inhabitant else full_info_inhabitant)), 0%NNR, (λ _, ε), ε.
+    solve_red.
+    repeat iSplit.
+    - done.
+    - rewrite Expval_const; last done.
+      iPureIntro.
+      rewrite Rplus_0_l.
+      trans (ε*1); last (simpl; lra).
+      by apply Rmult_le_compat.
+    - iPureIntro.
+      simpl.
+      rewrite head_prim_step_eq///=.
+      rewrite full_info_cons_osch_lim_exec.
+      rewrite /dmap.
+      rewrite -dbind_assoc'.
+      (* iPureIntro. rewrite full_info_one_step_stutter_osch_lim_exec/=. *)
+      (* rewrite head_prim_step_eq/=. *)
+      (* (* apply ARcoupl_map; first done. *) *)
+      (* rewrite /step'. *)
+      (* rewrite Hsome. *)
+      (* case_match eqn:Heqn. *)
+      (* { apply mk_is_Some in Heqn. apply fill_val in Heqn. simpl in *. by destruct Heqn. } *)
+      (* rewrite fill_dmap //=. *)
+      (* rewrite head_prim_step_eq///=. *)
+      (* rewrite !dmap_comp. *)
+      (* apply ARcoupl_map; first done. *)
+      (* simpl. *)
+      (* apply ARcoupl_exact. *)
+      (* eapply Rcoupl_mono. *)
+      (* + apply (Rcoupl_dunif); apply Hbij. *)
+      (* + simpl. *)
+      (*   intros ? ? ->. *)
+      (*   instantiate (1 := (λ x y, ∃ (a:fin(S (Z.to_nat z))), *)
+      (*                         x= (Val (#a), σ1, []) /\ *)
+      (*                         y=([(cfg_to_cfg' (l, s), j); *)
+      (*                             (cfg_to_cfg' (<[j:=fill K #(ff a)]> l ++ [], s), length (<[j:=fill K #(ff a)]> l ++ []))], *)
+      (*                              (<[j:=fill K #(ff a)]> l ++ [], s)) *)
+      (*               )). *)
+      (*   naive_solver. *)
+    - admit.
+      (* simpl. *)
+      (* iPureIntro. *)
+      (* intros?????(?&?&H')(?&?&?). *)
+      (* destruct!/=. *)
+      (* rewrite !app_nil_r in H'. *)
+      (* eapply f_equal in H'. *)
+      (* erewrite !list_lookup_insert in H'; try done. *)
+      (* by simplify_eq. *)
+    - admit.
+      (* simpl. *)
+      (* iIntros (?????[a ?]). *)
+      (* destruct!/=. *)
+      (* iMod (spec_update_prog with "[$][$]") as "[HK Hs]". *)
+      (* iModIntro. iNext. *)
+      (* iMod "Hclose". *)
+      (* rewrite app_nil_r. *)
+      (* iFrame. *)
+      (* iModIntro. *)
+      (* wp_pures. *)
+      (* iApply "HΨ". *)
+      (* rewrite Hff. iFrame. *)
+      (* iModIntro. iPureIntro. *)
+      (* pose proof fin_to_nat_lt a. lia. *)
   Admitted. 
   (*   iApply wp_lift_step_spec_couple. *)
   (*   iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)". *)
