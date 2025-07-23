@@ -1010,29 +1010,78 @@ Section rules.
                        ((∃ (n:nat), ⌜(n<=N)%nat⌝ ∗ ⌜f n = m⌝ ∗ α ↪N (N; ns++[n]))∨
                           (⌜¬ (∃ (n:nat), (n<=N)%nat /\ f n = m)⌝ ∗ α ↪N (N; ns) ∗ ↯ (S M / (S M - S N) * ε)%R))).
   Proof.
+    iIntros (Hε Hineq Hdom) ">Hα Herr Hr".
+    edestruct (restr_inj_fin (S N) (S M) f (le_n_S N M (Nat.lt_le_incl _ _ Hineq)) Hdom) as [g [HgInj HgEq]].
+    iDestruct "Hα" as (fs) "(<-&Hα)".
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ ρ1 ε_now) "([? Ht]&Hs&Hε2)".
+    iDestruct (ghost_map_lookup with "Ht Hα") as %?.
+    iDestruct (spec_auth_prog_agree with "[$][$]") as "%Hlookup".
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iDestruct (ec_supply_bound with "[$][$]") as %Hle.
+    
+    set ε' := mknonnegreal _ Hε.
+    set ε_now1 := nnreal_minus ε_now ε' Hle.
+    set ε_now2 := (ε_now + ε' * nnreal_nat (S N) / nnreal_nat (S M - S N))%NNR.
+    set (E2 (ρ:cfg) := if bool_decide (∃ (n:fin(S N)), (ρ.1)!!j = Some (fill K #(f n)))
+                       then ε_now1 else ε_now2).
+    assert (∀ ρ, E2 ρ <= Rmax ε_now1 ε_now2)%R as Hbound.
+    { intros ?. rewrite /E2. apply Rmax_Rle. case_bool_decide; by [left| right]. }
+    set (E2' (m:fin(S M)) := if bool_decide (∃ (n:fin(S N)), f n = m)
+                       then ε_now1 else ε_now2).
+    destruct ρ1 as [l s].
+    assert (j < length l)%nat.
+    { by eapply lookup_lt_Some. }
+    iApply spec_coupl_rec.
+    iExists _, (dbind (λ m, if bool_decide (∃ (n:fin (S N)), (f (fin_to_nat n)) = fin_to_nat m) then state_step σ α else dret σ) (dunifP M)), (full_info_one_step_stutter_osch j), 0%NNR, (λ p, E2 (p.2)), (Rmax ε_now1 ε_now2).
+    repeat iSplit.
+    - iPureIntro. apply sch_erasable_dbind_predicate.
+      + apply dunif_mass. lia.
+      + by eapply state_step_sch_erasable.
+      + apply dret_sch_erasable.
+    - iPureIntro. naive_solver.
+    - iPureIntro.
+      simpl.
+      rewrite Rplus_0_l.
+      rewrite full_info_one_step_stutter_osch_lim_exec/step' Hlookup.
+      rewrite fill_not_val//=.
+      rewrite fill_dmap//=.
+      rewrite head_prim_step_eq/=.
+      rewrite Nat2Z.id.
+      rewrite !dmap_comp.
+      rewrite Expval_dmap/=; [|done|]; last first.
+      { eapply ex_expval_bounded. intros; split; [apply cond_nonneg|apply Hbound]. }
+      rewrite /Expval.
+      setoid_rewrite dunif_pmf.
+      rewrite SeriesC_scal_l.
+      erewrite (SeriesC_ext _ E2'); last first.
+      { intros . simpl.
+        rewrite /E2/E2'.
+        rewrite app_nil_r.
+        case_bool_decide as H'.
+        - destruct H' as [n' H'].
+          rewrite list_lookup_insert in H'; last done.
+          simplify_eq.
+          rewrite bool_decide_eq_true_2; naive_solver.
+        - rewrite bool_decide_eq_false_2; first naive_solver.
+          intros [? ?].
+          apply H'.
+          eexists _. rewrite list_lookup_insert; last done.
+          by repeat f_equal. 
+      }
+      rewrite /E2'.
+      admit.
+    - iPureIntro. rewrite full_info_one_step_stutter_osch_lim_exec/step' Hlookup.
+      rewrite fill_not_val//=.
+      rewrite fill_dmap//=.
+      rewrite head_prim_step_eq/=.
+      rewrite Nat2Z.id.
+      rewrite !dmap_comp.
+      admit.
+    - iPureIntro.
+      admit.
+    - admit.
   Admitted. 
-    
-  (*   iIntros (Hε Hineq Hdom) "(>Hα & >Hαₛ & Hε & Hwp)". *)
-  (*   edestruct (restr_inj_fin (S N) (S M) f (le_n_S N M (Nat.lt_le_incl _ _ Hineq)) Hdom) as [g [HgInj HgEq]]. *)
-  (*   iDestruct "Hα" as (fs) "(<-&Hα)". *)
-  (*   iDestruct "Hαₛ" as (fsₛ) "(<-&Hαₛ)". *)
-  (*   iApply wp_lift_step_spec_couple. *)
-  (*   iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)". *)
-  (*   iDestruct "Hauth2" as "(HK&Hh2&Ht2)". *)
-  (*   iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?. *)
-  (*   iDestruct (ghost_map_lookup with "Ht1 Hα") as %?. *)
-  (*   iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'". *)
-  (*   iDestruct (ec_supply_bound with "[$][$]") as %Hle. *)
-    
-  (*   set ε' := mknonnegreal _ Hε. *)
-    
-  (*   set ε_now1 := nnreal_minus ε_now ε' Hle. *)
-  (*   set ε_now2 := (ε_now + ε' * nnreal_nat (S N) / nnreal_nat (S M - S N))%NNR. *)
-  (*   set (E2 σ := if bool_decide (∃ x, σ = state_upd_tapes <[αₛ:=(M; fsₛ ++ [g x])]> σ1') *)
-  (*                then ε_now1 else ε_now2). *)
-  (*   assert (∀ σ, E2 σ <= Rmax ε_now1 ε_now2)%R. *)
-  (*   { intros ?. rewrite /E2. apply Rmax_Rle. case_bool_decide; by [left| right]. } *)
-
   (*   iApply (spec_coupl_erasables_exp E2 (Rmax ε_now1 ε_now2) 0%NNR). *)
   (*   { eapply ARcoupl_exact, Rcoupl_swap, Rcoupl_fragmented_rand_rand_inj; done || lia. } *)
   (*   { apply erasable_dbind_predicate. *)
