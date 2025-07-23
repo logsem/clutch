@@ -724,19 +724,16 @@ Section rules.
   (* Qed. *)
   
 
-  (** fragmented state rand N ~ state rand M, N>=M, under injective function from M to N*)
-  Lemma pupd_couple_fragmented_tape_rand_inj {M N} (f: nat → nat) {_ : Inj (=) (=) f}
-    ns α j K E:
+  (** fragmented rand N ~ rand M, N>=M, under injective function from M to N*)
+  Lemma wp_couple_fragmented_rand_rand_inj {M N} (f: nat → nat) {_ : Inj (=) (=) f} j K E:
     (M <= N)%nat →
     (forall n : nat, (n < S M)%nat -> (f n < S N)%nat) ->
-    ▷ α ↪N (N; ns) -∗ j ⤇ fill K (rand #M) -∗
-    pupd E E ((∃ (m:nat), ⌜(m<=M)%nat⌝ ∗ ⌜(f m <= N)%nat⌝ ∗ α ↪N (N; ns ++ [f m]) ∗ j⤇ fill K #m)
-              ∨
-                (∃ (n:nat), ⌜(n<=N)⌝ ∗ ⌜¬ ∃ (m:nat), (m<=M)%nat ∧ f m = n⌝ ∗ α ↪N (N; ns ++ [n]) ∗ j⤇ fill K (rand #M))).
+    {{{ j ⤇ fill K (rand #M) }}}  
+      rand #N @ E
+      {{{ (n:nat), RET #n; ⌜(n<=N)%nat⌝ ∗ (((∃ (m:nat), ⌜(m<=M)%nat⌝ ∗ ⌜(f m = n)%nat⌝ ∗ j⤇ fill K #m))∨(⌜¬ ∃ (m:nat), (m<=M)%nat ∧ f m = n⌝ ∗ j ⤇ fill K (rand #M))) }}}. 
   Proof.
-    iIntros (Hineq Hdom) ">Hα  Hspec".
+    iIntros (Hineq Hdom Φ) "Hspec HΦ".
     edestruct (restr_inj_fin (S M) (S N) f (le_n_S M N Hineq) Hdom) as [g [HgInj HgEq]].
-    iDestruct "Hα" as (fs) "(<-&Hα)".
   Admitted. 
   (*   iApply wp_lift_step_spec_couple. *)
   (*   iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)". *)
@@ -945,26 +942,20 @@ Section rules.
   (*     apply Nat.lt_succ_r, Hdom, fin_to_nat_lt. *)
   (* Qed. *)
 
-  (* (** fragmented state rand N ~ state rand M, M>=N, under injective function from N to M, *)
-  (*     but with errors for rejection sampling! *) *)
-  (* Lemma wp_couple_fragmented_rand_rand_inj_rev' {M N} (f : nat -> nat) {_: Inj (=) (=) f} *)
-  (*   ns nsₛ α αₛ e E Φ (ε : R) : *)
-  (*   0 <= ε → *)
-  (*   (N < M)%nat → *)
-  (*   (forall n, n < S N -> f n < S M)%nat -> *)
-  (*   ▷ α ↪N (N; ns) ∗ ▷ αₛ ↪ₛN (M; nsₛ) ∗ ↯ ε ∗ *)
-  (*   (∀ (m : nat), *)
-  (*      ⌜ m ≤ M ⌝ -∗ *)
-  (*      if bool_decide (∃ n:nat, n ≤ N /\ f n = m) then *)
-  (*        ∀ n, α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ ++ [f n]) ∗ ⌜ n ≤ N ⌝ ∗ ⌜ f n ≤ M ⌝ -∗ *)
-  (*             WP e @ E {{ Φ }} *)
-  (*    else *)
-  (*      ∀ (ε' : R), *)
-  (*        ⌜ε' = (S M / (S M - S N) * ε)%R⌝ ∗ *)
-  (*        α ↪N (N; ns) ∗ αₛ ↪ₛN (M; nsₛ++[m]) ∗ ↯ ε' ∗ ⌜ m ≤ M ⌝ -∗ *)
-  (*        WP e @ E {{ Φ }}) *)
-  (*   ⊢ WP e @ E {{ Φ }}. *)
-  (* Proof. *)
+  (** fragmented state rand N ~ rand M, M>=N, under injective function from N to M, *)
+  (**     but with errors for rejection sampling! *)
+  Lemma pupd_couple_fragmented_tape_rand_inj_rev' {M N} (f : nat -> nat) {_: Inj (=) (=) f}
+    ns α j K E (ε : R) :
+    0 <= ε →
+    (N < M)%nat →
+    (forall n, n < S N -> f n < S M)%nat ->
+    ▷ α ↪N (N; ns) -∗ ↯ ε -∗ j ⤇ fill K (rand #M) -∗
+    pupd E E (∃ (m:nat), ⌜(m<=M)%nat⌝ ∗ j ⤇ fill K #m ∗
+                       ((∃ (n:nat), ⌜(n<=N)%nat⌝ ∗ ⌜f n = m⌝ ∗ α ↪N (N; ns++[n]))∨
+                          (⌜¬ (∃ (n:nat), (n<=N)%nat /\ f n = m)⌝ ∗ α ↪N (N; ns) ∗ ↯ (S M / (S M - S N) * ε)%R))).
+  Proof.
+  Admitted. 
+    
   (*   iIntros (Hε Hineq Hdom) "(>Hα & >Hαₛ & Hε & Hwp)". *)
   (*   edestruct (restr_inj_fin (S N) (S M) f (le_n_S N M (Nat.lt_le_incl _ _ Hineq)) Hdom) as [g [HgInj HgEq]]. *)
   (*   iDestruct "Hα" as (fs) "(<-&Hα)". *)
@@ -1145,7 +1136,7 @@ Section rules.
   (*     iFrame. *)
   (*     rewrite /E2 bool_decide_eq_true_2; [|eauto]. *)
   (*     iApply ec_supply_eq; [|done]. *)
-  (*     simplify_eq /=. lra.  *)
+  (*     simplify_eq /=. lra. *)
 
   (*   - destruct H' as [??]. simplify_eq. *)
   (*     replace (E2 _) with (ε_now2); last first. *)
@@ -1183,7 +1174,7 @@ Section rules.
   (*       rewrite Rmult_assoc (Rmult_comm ε). *)
   (*       rewrite -Rmult_plus_distr_r. apply Rmult_eq_compat_r. *)
   (*       rewrite Rdiv_def. *)
-  (*       replace (1)%R with ((INR M - INR N)*/(INR M - INR N))%R at 1; last first.       *)
+  (*       replace (1)%R with ((INR M - INR N)*/(INR M - INR N))%R at 1; last first. *)
   (*       { apply Rinv_r. apply lt_INR in Hineq. lra. } *)
   (*       rewrite minus_INR; [|real_solver]. *)
   (*       rewrite -Rmult_plus_distr_r. lra. } *)
