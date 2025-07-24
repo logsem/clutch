@@ -1011,7 +1011,7 @@ Section rules.
                           (⌜¬ (∃ (n:nat), (n<=N)%nat /\ f n = m)⌝ ∗ α ↪N (N; ns) ∗ ↯ (S M / (S M - S N) * ε)%R))).
   Proof.
     iIntros (Hε Hineq Hdom) ">Hα Herr Hr".
-    edestruct (restr_inj_fin (S N) (S M) f (le_n_S N M (Nat.lt_le_incl _ _ Hineq)) Hdom) as [g [HgInj HgEq]].
+    (* edestruct (restr_inj_fin (S N) (S M) f (le_n_S N M (Nat.lt_le_incl _ _ Hineq)) Hdom) as [g [HgInj HgEq]]. *)
     iDestruct "Hα" as (fs) "(<-&Hα)".
     rewrite pupd_unseal/pupd_def.
     iIntros (σ ρ1 ε_now) "([? Ht]&Hs&Hε2)".
@@ -1070,13 +1070,111 @@ Section rules.
           by repeat f_equal. 
       }
       rewrite /E2'.
-      admit.
+      (* hardcore calculation *)
+      eset (diff:=elements (((list_to_set (fin_to_nat <$> (enum (fin(S M))))):gset _ )∖ ((list_to_set((f∘fin_to_nat)<$>enum (fin(S N)))):gset _))).
+      erewrite (SeriesC_ext _
+                  (λ x : fin (S M), (if bool_decide (fin_to_nat x ∈ (f∘fin_to_nat )<$> enum (fin(S N))) then ε_now1 else 0%R) +
+                                      if bool_decide (fin_to_nat x ∈ diff ) then ε_now2 else 0%R
+               ))%R; last first.
+      { intros n. rewrite /diff.
+        case_bool_decide as H1'.
+        - destruct H1' as [? H1']. rewrite bool_decide_eq_true_2; last first.
+          + rewrite -H1'. apply elem_of_list_fmap. eexists _; split; first done. apply elem_of_enum.
+          + subst. rewrite bool_decide_eq_false_2; first lra.
+            rewrite elem_of_elements.
+            rewrite not_elem_of_difference; right.
+            rewrite elem_of_list_to_set. rewrite elem_of_list_fmap.
+            rewrite -H1'. eexists _; split; first done.
+            apply elem_of_enum.
+        - rewrite bool_decide_eq_false_2; last first.
+          { rewrite elem_of_list_fmap. intros [?[??]].
+            subst. apply H1'. naive_solver. }
+          rewrite bool_decide_eq_true_2; first lra.
+          rewrite elem_of_elements. rewrite elem_of_difference.
+          split; rewrite elem_of_list_to_set.
+          + apply elem_of_list_fmap_1; apply elem_of_enum.
+          + rewrite elem_of_list_fmap. intros [?[??]].
+            subst. apply H1'. naive_solver.
+      }
+      rewrite SeriesC_plus; try apply ex_seriesC_finite.
+      erewrite (SeriesC_ext _ (λ x : fin (S M), ε_now1 * if bool_decide (fin_to_nat x ∈ (list_to_set $ f ∘ fin_to_nat <$> enum (fin (S N)):gset _)) then 1 else 0)); last first.
+      { intros. case_bool_decide.
+        - rewrite bool_decide_eq_true_2; first lra.
+          by rewrite elem_of_list_to_set.
+        - rewrite bool_decide_eq_false_2; first lra.
+          by rewrite elem_of_list_to_set. }
+      erewrite (SeriesC_ext (λ _, if bool_decide _ then _ else _ ) (λ x : fin (S M), ε_now2 * if bool_decide (fin_to_nat x ∈ ((list_to_set diff):gset _)) then 1 else 0)); last first.
+      { intros. case_bool_decide.
+        - rewrite bool_decide_eq_true_2; first lra.
+          by rewrite elem_of_list_to_set.
+        - rewrite bool_decide_eq_false_2; first lra.
+          by rewrite elem_of_list_to_set. }
+      rewrite !SeriesC_scal_l.
+      rewrite !SeriesC_fin_in_set; last first.
+      { intros ?. rewrite elem_of_list_to_set.
+        rewrite elem_of_list_fmap.
+        intros. destruct!/=.
+        apply Hdom.
+        apply fin_to_nat_lt.
+      }
+      { rewrite /diff.
+        intros ?. rewrite elem_of_list_to_set.
+        rewrite elem_of_elements.
+        rewrite elem_of_difference.
+        rewrite elem_of_list_to_set elem_of_list_fmap.
+        intros. destruct!/=.
+        apply fin_to_nat_lt.
+      }
+      rewrite !size_list_to_set; last first.
+      { apply NoDup_fmap_2; last apply NoDup_enum.
+        eapply compose_inj; last done.
+        apply fin_to_nat_inj.
+      }
+      { rewrite /diff.
+        apply NoDup_elements.
+      }
+      rewrite /diff.
+      rewrite fmap_length.
+      replace (enum _) with (fin_enum (S N)) by done.
+      rewrite length_enum_fin.
+      rewrite -length_elements_size_gset.
+      Local Opaque fin_enum.
+      rewrite size_difference; last first.
+      { intros ?. rewrite !elem_of_list_to_set.
+        rewrite !elem_of_list_fmap.
+        intros [y]. destruct!/=.
+        exists (nat_to_fin (Hdom _ (fin_to_nat_lt y))).
+        rewrite !fin_to_nat_to_fin; split; first done.
+        replace (fin_enum _) with (enum (fin (S M)))by done.
+        apply elem_of_enum.
+      }
+      rewrite !size_list_to_set; last first.
+      { apply NoDup_fmap; first apply fin_to_nat_inj. apply NoDup_enum. }
+      { apply NoDup_fmap; last replace (fin_enum _) with (enum(fin(S N))) by done.
+        - eapply compose_inj; last done. apply fin_to_nat_inj.
+        - apply NoDup_enum. }
+      rewrite !fmap_length.
+      rewrite !length_enum_fin.
+      rewrite /ε_now1/ε_now2.
+      Local Opaque INR.
+      simpl.
+      trans (/ S M * ((ε_now * (S N + (M-N)%nat)- ε* (S N- (S N)*/(M-N)%nat*(M-N)%nat )))); first (simpl; lra).
+      rewrite Rmult_assoc.
+      rewrite Rinv_l; last first.
+      { apply not_0_INR. lia. }
+      trans (/ S M * (ε_now * (S N + (M - N)%nat))); first lra.
+      rewrite -plus_INR.
+      replace (_+_)%nat with (S M) by lia.
+      trans (/ S M * S M *ε_now); first lra.
+      rewrite Rinv_l; first (simpl; lra).
+      apply not_0_INR. lia.
     - iPureIntro. rewrite full_info_one_step_stutter_osch_lim_exec/step' Hlookup.
       rewrite fill_not_val//=.
       rewrite fill_dmap//=.
       rewrite head_prim_step_eq/=.
       rewrite Nat2Z.id.
       rewrite !dmap_comp.
+      
       admit.
     - iPureIntro.
       admit.
