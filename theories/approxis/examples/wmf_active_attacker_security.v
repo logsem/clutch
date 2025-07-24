@@ -384,6 +384,37 @@ Section logrel.
     - intros x y H; done.
   Defined.
 
+  (* We prove the security of the Wide Mouthed Frog protocol
+    against an active attacker: the attacker has access to all
+    messages and can manipulate what each agent receives.
+
+    For all invariants, we have to record what actions were
+    already run.
+
+    We have three actions:
+    - (1) A sends a message to S;
+    - (2) S sends a message to B;
+    - (3) B receives the message.
+
+    We have 2^3 cases, which we destruct in this order:
+                          (1) already run ?                                    
+                         /                 \                                   
+                        /                   \                                  
+                  yes  /                     \  no                             
+                      /                       \                                
+                     /                         \                               
+                    /                           \                              
+                   /                             \                             
+      (2) already run ?                          (2) already run ?             
+          /          \                               /          \              
+    yes  /            \ no                     yes  /            \  no         
+        /              \                           /              \            
+(3) already run ?  (3) already run ?      (3) already run ?  (3) already run ? 
+    /      \            /      \               /      \            /      \    
+   /        \          /        \             /        \          /        \   
+ yes        no       yes        no          yes        no       yes        no  
+  *)
+
   Lemma wmf_once_true__wmf_adv_ptxt_false (adv : val) :
       (lrel_protocol → lrel_bool)%lrel adv adv
     ⊢ REL (adv (init_scheme (wmf_once #true))) <<
@@ -1714,11 +1745,14 @@ Section logrel.
          "s_to_b",
          "b_recv").
 
+    (* TODO when this definition is stable, copy paste in symmetric_init
+      and recompile *)
     Definition CCA : val :=
-      λ:"b" "adv" "scheme" "Qenckey" "Qencgen" "Qdec",
+      λ:"b" "adv" "scheme" "Qenckey" "Qencgen" "Qdec" "Qdecgen",
         let: "enc_scheme" := get_enc_scheme "scheme" #() in
         let: "key" := get_keygen "scheme" #() in
         let: "enc_gen" := get_enc "enc_scheme" in
+        let: "dec_gen" := get_dec "enc_scheme" in
         let: "enc_key" := λ: "msg", (get_enc "enc_scheme") "key" "msg" in
         let: "dec_key" := λ: "msg", (get_dec "enc_scheme") "key" "msg" in
         let: "enc_lr" := λ: "msgs",
@@ -1734,9 +1768,15 @@ Section logrel.
           "Qencgen"
           (λ: "p", "enc_gen" (Fst "p") (Snd "p")) in
       let: "oracle_enc_gen" := λ: "k" "msg", "oracle_enc_gen" ("k", "msg") in
+      let: "oracle_dec_gen" :=
+        q_calls_general_test
+          (λ: "p", is_key (Fst "p") `and` is_ciphertext (Snd "p"))
+          "Qdecgen"
+          (λ: "p", "dec_gen" (Fst "p") (Snd "p")) in
+      let: "oracle_dec_gen" := λ: "k" "msg", "oracle_dec_gen" ("k", "msg") in
         let: "oracle_dec" :=
           q_calls_general_test is_ciphertext "Qdec" "dec_key" in
-        let: "b'" := "adv" "oracle_enc_gen" "oracle_lr" "oracle_dec" in
+        let: "b'" := "adv" "oracle_enc_gen" "oracle_lr" "oracle_dec" "oracle_dec_gen" in
         "b'".
 
   Definition sym_is_couple_cipher_lr
@@ -1772,10 +1812,10 @@ Section logrel.
       (lrel_protocol → lrel_bool)%lrel adv adv
     ⊢ REL adv (init_scheme (wmf_once_plain_cipher_channel #true)) <<
       (CCA #true
-        (λ: "enc_gen" "enc_lr" "dec", adv
+        (λ: "enc_gen" "enc_lr" "dec" "dec_gen", adv
           (wmf_once_channel_adv #true "enc_gen" "enc_lr" "dec"))
         sym_scheme
-        #1 #1 #1) : lrel_bool.
+        #1 #1 #1 #0) : lrel_bool.
   Proof with rel_pures_l; rel_pures_r. iIntros "#Hadv"...
     rewrite /init_scheme/wmf_protocol.init_scheme...
     rel_apply refines_init_scheme_l.
@@ -1788,10 +1828,11 @@ Section logrel.
     rel_alloc_l cipher_chan as "Hcchan"...
     rel_apply refines_sym_keygen_couple.
     iIntros (ka ka') "#Hrelka"...
-    rewrite /get_enc...
+    rewrite /get_enc/get_dec...
     rewrite /q_calls_general_test...
     rel_alloc_r cnt_lr as "Hcntlr"...
     rel_alloc_r cnt_gen as "Hcntgen"...
+    rel_alloc_r cnt_dummy as "Hcntdummy"...
     rel_alloc_r cnt_dec as "Hcntdec"...
     rel_bind_l (adv _).
     rel_bind_r (adv _).
@@ -2180,7 +2221,651 @@ Section logrel.
             try (by (iRight; iFrame)).
   Qed.
         
+  Definition a_to_s_channel_adv_kb : val :=
+    λ:  "A" "B" "b" "plain_channel" "cipher_channel" "senc_gen" "ka",
+      let: "run" := ref #true in
+      λ: "r_adv",
+        if: ! "run" then
+          "run" <- #false;;
+          SOME
+            (if: "b" then
+              let: "nonce" := rand #N in
+              "plain_channel" <- SOME ("B", "nonce");;
+              let:m "c" := "senc_gen" "ka" ("B", "r_adv") in
+              "cipher_channel" <- SOME "c";;
+              ("A", "c")
+            else
+              "plain_channel" <- SOME ("B", "r_adv");;
+              let:m "c" := "senc_gen" "ka" ("B", "r_adv") in
+              "cipher_channel" <- SOME "c";;
+              ("A", "c"))
+        else NONE.
 
+  Definition s_to_b_channel_adv_kb : val :=
+    λ: "A" "B" "b" "plain_channel" "cipher_channel" "senc_lr" "sdec_gen" "ka",
+      let: "run" := ref #true in
+      λ: "r_adv" "input",
+        if: ! "run" then
+          "run" <- #false;;
+          let: "cipher" := Snd "input" in
+          let:m "cipher_rec" := ! "cipher_channel" in
+          let:m "plain_rec" := ! "plain_channel" in
+          let:m "decr" := if: "cipher" = "cipher_rec" then
+              SOME "plain_rec"
+            else
+              "sdec_gen" "ka" (Snd "input")
+            in
+          if: elem_eq "decr" "plain_rec" then
+            let: "sender" := Fst "input" in
+            let: "dest" := Fst "plain_rec" in
+            let: "nonce" := Snd "plain_rec" in
+            if: "sender" = "A" `and` "dest" = "B" then
+              ("senc_lr" ("sender", "nonce") ("A", "r_adv"))
+            else NONE
+          else NONE
+        else NONE.
+
+  Definition wmf_once_channel_adv_kb : expr :=
+    let: "B" := init_id #() in  
+    let: "A" := Fst "B" in
+    let: "B" := Snd "B" in
+    let: "a_s__channel_plain" := ref NONE in 
+    let: "a_s__channel_cipher" := ref NONE in 
+    λ: "b" "enc_gen" "enc_oracle" "dec_oracle" "dec_gen" "ka",
+        let: "a_to_s" := a_to_s_channel_adv_kb "A" "B" "b"
+          "a_s__channel_plain" "a_s__channel_cipher"
+          "enc_gen" "ka" in
+        let: "s_to_b" := s_to_b_channel_adv_kb "A" "B" "b"
+          "a_s__channel_plain" "a_s__channel_cipher"
+          "enc_oracle" "dec_gen" "ka" in
+        let: "b_recv" := b_recv_once "A" "B" "b" #() in
+      λ: "r_adv",
+        ("a_to_s" "r_adv",
+         "s_to_b" "r_adv",
+         "b_recv").
+
+    Definition CCA_additional_key : val :=
+      λ:"b" "adv" "scheme" "Qenckey" "Qencgen" "Qdec" "Qdecgen",
+        let: "enc_scheme" := get_enc_scheme "scheme" #() in
+        let: "key_supp" := get_keygen "scheme" #() in
+        let: "key" := get_keygen "scheme" #() in
+        let: "enc_gen" := get_enc "enc_scheme" in
+        let: "dec_gen" := get_dec "enc_scheme" in
+        let: "enc_key" := λ: "msg", (get_enc "enc_scheme") "key" "msg" in
+        let: "dec_key" := λ: "msg", (get_dec "enc_scheme") "key" "msg" in
+        let: "enc_lr" := λ: "msgs",
+          "enc_key" (if: "b" then (Fst "msgs") else (Snd "msgs")) in
+        let: "oracle_lr" :=
+          q_calls_general_test
+          (λ: "p", is_plaintext (Fst "p") `and` is_plaintext (Snd "p"))
+          "Qenckey" "enc_lr" in
+      let: "oracle_lr" := λ: "msg1" "msg2", "oracle_lr" ("msg1", "msg2") in
+      let: "oracle_enc_gen" :=
+        q_calls_general_test
+          (λ: "p", is_key (Fst "p") `and` is_plaintext (Snd "p"))
+          "Qencgen"
+          (λ: "p", "enc_gen" (Fst "p") (Snd "p")) in
+      let: "oracle_enc_gen" := λ: "k" "msg", "oracle_enc_gen" ("k", "msg") in
+      let: "oracle_dec_gen" :=
+        q_calls_general_test
+          (λ: "p", is_key (Fst "p") `and` is_ciphertext (Snd "p"))
+          "Qdecgen"
+          (λ: "p", "dec_gen" (Fst "p") (Snd "p")) in
+      let: "oracle_dec_gen" := λ: "k" "msg", "oracle_dec_gen" ("k", "msg") in
+        let: "oracle_dec" :=
+          q_calls_general_test is_ciphertext "Qdec" "dec_key" in
+        let: "b'" := "adv" "oracle_enc_gen" "oracle_lr" "oracle_dec" "oracle_dec_gen" "key_supp" in
+        "b'".
+
+  Lemma wmf_channel_adv_a__wmf_channel_adv_b (adv : val) :
+      (lrel_protocol → lrel_bool)%lrel adv adv
+    ⊢ REL
+      (CCA #false
+        (λ: "enc_gen" "enc_lr" "dec" "dec_gen", adv
+          (wmf_once_channel_adv #true "enc_gen" "enc_lr" "dec"))
+        sym_scheme
+        #1 #1 #1 #0) <<
+      (CCA_additional_key #true
+        (λ: "enc_gen" "enc_lr" "dec" "dec_gen" "ka", adv
+          (wmf_once_channel_adv_kb #true "enc_gen" "enc_lr" "dec" "dec_gen" "ka"))
+        sym_scheme
+        #1 #1 #0 #1) : lrel_bool.
+  Proof with rel_pures_l; rel_pures_r. iIntros "#Hadv"...
+    rewrite /init_scheme/wmf_protocol.init_scheme...
+    rewrite /CCA/CCA_additional_key/symmetric_init.CCA...
+    rel_apply refines_init_scheme_l.
+    iIntros (lls) "HP".
+    rel_apply refines_init_scheme_r.
+    iIntros (rls) "HP'"...
+    rewrite /get_keygen...
+    rel_apply refines_sym_keygen_couple.
+    iIntros (ka ka') "#Hrelka"...
+    rewrite /get_enc/get_dec/q_calls_general_test...
+    rel_alloc_l cnt_lr as "Hcntlr"...
+    rel_alloc_l cnt_encgen as "Hcntencgen"...
+    rel_alloc_l cnt_dummy as "Hcntdummy"...
+    iClear "Hcntdummy".
+    rel_alloc_l cnt_dec as "Hcntdec"...
+    rewrite /init_id...
+    rel_alloc_l pchan as "Hpchan"...
+    rel_alloc_l cchan as "Hcchan"...
+    rel_apply refines_keygen_l.
+    iIntros (kadummy) "#Hrelkadummy"...
+    rel_apply refines_sym_keygen_couple.
+    iIntros (kb kb') "#Hrelkb"...
+    rel_alloc_r cnt_lr' as "Hcntlr'"...
+    rel_alloc_r cnt_encgen' as "Hcntencgen'"...
+    rel_alloc_r cnt_decgen' as "Hcntdecgen'"...
+    rel_alloc_r cnt_dummy' as "Hcntdummy'"...
+    iClear "Hcntdummy'".
+    rewrite /init_id...
+    rel_alloc_r pchan' as "Hpchan'"...
+    rel_alloc_r cchan' as "Hcchan'"...
+    rel_bind_l (adv _).
+    rel_bind_r (adv _).
+    rel_apply (refines_bind with "[-]").
+    2: {
+      iIntros (v v') "#Hrel"...
+      rel_vals.
+    }
+    rel_apply refines_app; first rel_vals.
+    iClear "Hadv".
+    rewrite /a_to_s_channel_adv/a_to_s_channel_adv_kb...
+    rel_alloc_l run1 as "Hrun1";
+    rel_alloc_r run1' as "Hrun1'"...
+    rewrite /s_to_b_channel_adv/s_to_b_channel_adv_kb...
+    rel_alloc_l run2 as "Hrun2";
+    rel_alloc_r run2' as "Hrun2'"...
+    rewrite /b_recv_once...
+    rel_alloc_l run3 as "Hrun3";
+    rel_alloc_r run3' as "Hrun3'"...
+    set (P := (
+          (
+           (run1  ↦  #false
+          ∗ run1' ↦ₛ #false
+          ∗ cnt_lr ↦ #1
+          ∗ cnt_encgen' ↦ₛ #1
+          ∗ ∃ (radv nonce : nat) (c c' : val),
+              ( pchan ↦ SOMEV (#1, #nonce)
+              ∗ pchan' ↦ₛ SOMEV (#1, #nonce)
+              ∗ (lrel_cipher c c'
+                ∗ cchan ↦ SOMEV c
+                ∗ cchan' ↦ₛ SOMEV c')
+              ∗ ⌜nonce ≤ N⌝
+              ∗ ( run2  ↦  #false
+                ∗ run2' ↦ₛ #false
+                ∗ (cnt_dec ↦ #0 ∨ cnt_dec ↦ #1)
+                ∗ (cnt_decgen' ↦ₛ #0 ∨ cnt_decgen' ↦ₛ #1)
+                ∗ (cnt_encgen ↦ #0 ∨ cnt_encgen ↦ #1)
+                ∗ (cnt_lr' ↦ₛ #0 ∨ cnt_lr' ↦ₛ #1)
+                ∗ Plr lls rls
+                ∗ ( run3  ↦  #false
+                  ∗ run3' ↦ₛ #false ∨
+                    run3  ↦  #true
+                  ∗ run3' ↦ₛ #true)
+                ∨ run2  ↦  #true
+                ∗ run2' ↦ₛ #true
+                ∗ cnt_dec ↦ #0
+                ∗ cnt_decgen' ↦ₛ #0
+                ∗ cnt_encgen ↦ #0
+                ∗ cnt_lr' ↦ₛ #0
+                ∗ (sym_is_couple_cipher_lr lls rls
+                    (#1, #radv)%V (#1, #radv)%V c c' ka ka' ∧ Plr lls rls)
+                ∗ ( run3  ↦  #false
+                  ∗ run3' ↦ₛ #false ∨
+                    run3  ↦  #true
+                  ∗ run3' ↦ₛ #true))))
+          ∨ (run1  ↦  #true
+          ∗ run1' ↦ₛ #true
+          ∗ cnt_lr ↦ #0
+          ∗ cnt_encgen' ↦ₛ #0
+          ∗ Plr lls rls
+          ∗ pchan ↦ NONEV
+          ∗ pchan' ↦ₛ NONEV
+          ∗ cchan ↦ NONEV
+          ∗ cchan' ↦ₛ NONEV
+          ∗ ( run2  ↦  #false
+            ∗ run2' ↦ₛ #false
+            ∗ (cnt_dec ↦ #0 ∨ cnt_dec ↦ #1)
+            ∗ (cnt_decgen' ↦ₛ #0 ∨ cnt_decgen' ↦ₛ #1)
+            ∗ (cnt_encgen ↦ #0 ∨ cnt_encgen ↦ #1)
+            ∗ (cnt_lr' ↦ₛ #0 ∨ cnt_lr' ↦ₛ #1)
+            ∗ ( run3  ↦  #false
+              ∗ run3' ↦ₛ #false ∨
+                run3  ↦  #true
+              ∗ run3' ↦ₛ #true)
+            ∨ run2  ↦  #true
+            ∗ run2' ↦ₛ #true
+            ∗ cnt_dec ↦ #0
+            ∗ cnt_decgen' ↦ₛ #0
+            ∗ cnt_encgen ↦ #0
+            ∗ cnt_lr' ↦ₛ #0
+            ∗ ( run3  ↦  #false
+              ∗ run3' ↦ₛ #false ∨
+                run3  ↦  #true
+              ∗ run3' ↦ₛ #true)))
+        ))%I).
+    rel_apply (refines_na_alloc P (nroot.@"wmf_channel__both_channel_true")).
+    iPoseProof (P0lr_Plr with "HP HP'") as "HP".
+    iSplitL.
+    { iFrame. try_close_inv. }
+    iIntros "#Inv".
+    rel_arrow_val.
+    iIntros (radv1 radv2) "[%radv [%eq1 [%eq2 %Hradvbound]]]"; subst...
+    repeat rel_apply refines_pair.
+    - rel_apply refines_na_inv; iSplit; first iAssumption.
+      iIntros "[H Hclose]".
+      iDestruct "H" as "[
+          [Hrun1 [Hrun1' [Hcntlr [Hcntlr' [%radv' [%nonce [%c [%c'
+            [Hpchan [Hpchan' [Hcipher [#Hnoncebound H]]]]
+          ]]]]]]]] |
+          [Hrun1 [Hrun1' [Hcntlr [Hcntlr' [HP [Hpchan [Hpchan' [Hcchan [Hcchan' H]]]]]
+          ]]]]
+        ]".
+      + rel_load_l; rel_load_r...
+        rel_apply refines_na_close.
+        iFrame. iSplitL; last rel_vals.
+        iModIntro.
+        { iLeft. iFrame. iAssumption. }
+      + rel_load_l; rel_load_r...
+        rel_store_l; rel_store_r...
+        rel_apply refines_couple_UU; first done.
+        iModIntro; iIntros (nonce Hnoncebound)...
+        rel_store_l; rel_store_r...
+        rel_apply refines_is_plaintext_l...
+        { iExists (#1, #radv)%V, _, _, _, _.
+          repeat iSplit.
+          1, 2: done.
+          { iExists 1; done. }
+          iExists radv. iPureIntro; repeat split; lia. }
+        rel_apply refines_is_plaintext_l...
+        { iExists (#1, #nonce)%V, _, _, _, _.
+          repeat iSplit.
+          1, 2: done.
+          { iExists 1; done. }
+          iExists nonce. iPureIntro; repeat split; lia. }
+        rel_load_l...
+        rel_load_l; rel_store_l...
+        rel_apply refines_is_plaintext_r...
+        { iExists (#1, #radv)%V, _, _, _, _.
+          repeat iSplit.
+          1, 2: done.
+          { iExists 1; done. }
+          iExists radv. iPureIntro; repeat split; lia. }
+        rel_apply refines_is_key_r...
+        { iExists ka. iAssumption. }
+        rel_load_r...
+        rel_load_r; rel_store_r...
+        rel_apply (refines_couple_senc_lr_lr with "[HP]").
+        { iFrame. iSplit; first iAssumption.
+          iExists _, _, _, _. repeat iSplit.
+          1, 2: done.
+          { iExists 1; done. }
+          iExists radv; done. }
+        iIntros (c c') "#Hrelcipher Hcipher"...
+        rel_store_l; rel_store_r...
+        rel_apply refines_na_close. iFrame.
+        iSplitL; last rel_vals; last iAssumption.
+        2: { iExists 0; done. }
+        iLeft. iFrame. iExists (Z.to_nat radv).
+        iSplitR; first iAssumption.
+        iSplitR; first (iPureIntro; lia).
+        iFrame. iDestruct "H" as "[H | H]".
+        * iLeft. iPoseProof (bi.and_elim_r with "Hcipher") as "HP". iFrame.
+        * iRight.
+          rewrite Z2Nat.id; last lia.
+          iDestruct "H" as "[H1 [H2 [H3 [H4 [H5 [H6 [H | H]]]]]]]";
+          iFrame; rewrite -(Nat2Z.id radv); try lia.
+      - rel_arrow_val.
+        iIntros (input1 input2) "[%id_ [%id_' [%c [%c'
+          [%Hinputeq1 [%Hinputeq2 [[%id [%eqid1 %eqid2]] #Hrelcipher]]]]]]]"; subst.
+        rel_apply refines_na_inv; iSplit; first iAssumption.
+        iIntros "[H Hclose]"...
+        iDestruct "H" as "[
+            [Hrun1 [Hrun1' [Hcntlr [Hcntencgen' [%radv' [%nonce [%c_input [%c_input'
+              [Hpchan [Hpchan' [Hcipher [#Hnoncebound [H | H]]]]]
+            ]]]]]]]] |
+            [Hrun1 [Hrun1' [Hcntlr [Hcntencgen' [HP [Hpchan [Hpchan' [Hcchan [Hcchan' [H | H]]]]]]
+            ]]]]
+          ]".
+        + iDestruct "H" as "[Hrun2 [Hrun2' H]]".
+          rel_load_l; rel_load_r...
+          rel_apply refines_na_close; iFrame.
+          iSplitL; last rel_vals.
+          iLeft. iFrame. iExists radv'.
+          iSplitR; first iAssumption.
+          iFrame.
+          iLeft. iFrame.
+        + iDestruct "H" as "[Hrun2 [Hrun2' H]]".
+          rel_load_l; rel_load_r...
+          rel_store_l; rel_store_r...
+          iDestruct "Hcipher" as "[#Hrelcinput [Hcchan Hcchan']]".
+          rel_load_l; rel_load_r...
+          rel_load_l; rel_load_r...
+          iPoseProof (lrel_cipher_eq with "Hrelcipher") as "%eqc".
+          iPoseProof (lrel_cipher_eq with "Hrelcinput") as "%eqcinput"; subst.
+          iPoseProof (cipher_comparable with "[]") as "%Hcomparable".
+          {
+            iSplit.
+            - iLeft. iExists c'; iAssumption.
+            - iLeft. iExists c_input'; iAssumption.
+          }
+          rel_pure_l; rel_pure_r.
+          destruct (bool_decide (c' = c_input')) eqn:eqcipher...
+          * rel_apply refines_elem_eq_l.
+            iPure "Hnoncebound" as Hnoncebound.
+            iSplitR; last iSplitR.
+            { iLeft. iExists (#1, #nonce)%V, _, _, _, _.
+              repeat iSplit.
+              1, 2: done.
+              { iExists 1; done. }
+              iExists nonce; iPureIntro; repeat split; lia. }
+            { iLeft. iExists (#1, #nonce)%V, _, _, _, _.
+              repeat iSplit.
+              1, 2: done.
+              { iExists 1; done. }
+              iExists nonce; iPureIntro; repeat split; lia. }
+            rel_apply refines_elem_eq_r.
+            iSplitR; last iSplitR.
+            { iLeft. iExists (#1, #nonce)%V, _, _, _, _.
+              repeat iSplit.
+              1, 2: done.
+              { iExists 1; done. }
+              iExists nonce; iPureIntro; repeat split; lia. }
+            { iLeft. iExists (#1, #nonce)%V, _, _, _, _.
+              repeat iSplit.
+              1, 2: done.
+              { iExists 1; done. }
+              iExists nonce; iPureIntro; repeat split; lia. }
+            destruct (bool_decide (#nonce = #nonce)) eqn:contra...
+            2: { exfalso.
+              apply bool_decide_eq_false in contra.
+              apply contra. done. }
+            clear contra.
+            iDestruct "H" as "[Hcntdec [Hcntdecgen [Hcntencgen [Hcntlr' [Hcipher H]]]]]".
+            destruct (bool_decide (#id = #0)) eqn:eqid...
+            2: {
+              rel_apply refines_na_close. iFrame.
+              iSplitL; last rel_vals.
+              iFrame. iLeft. iFrame.
+              iExists _. iSplitR; first iAssumption.
+              iSplitR; first (iPureIntro; lia).
+              iLeft. iFrame.
+              iFrame.
+              iModIntro.
+              iApply bi.and_elim_r.
+              iAssumption.
+            }
+            apply bool_decide_eq_true in eqid; rewrite eqid...
+            rel_apply refines_is_plaintext_l...
+            { iExists (#0, #nonce)%V, _, _, _, _.
+              repeat iSplit.
+              1, 2: done.
+              { iExists 0. done. }
+              iExists nonce; iPureIntro; repeat split; lia. }
+            rel_apply refines_is_key_l.
+            { iExists kb'. iAssumption. }
+            rel_load_l...
+            rel_load_l; rel_store_l...
+            rel_apply refines_is_plaintext_r...
+            { iExists (#0, #radv)%V, _, _, _, _.
+              repeat iSplit.
+              1, 2: done.
+              { iExists 0. done. }
+              iExists radv; iPureIntro; repeat split; lia. }
+            rel_apply refines_is_plaintext_r...
+            { iExists (#0, #nonce)%V, _, _, _, _.
+              repeat iSplit.
+              1, 2: done.
+              { iExists 0. done. }
+              iExists nonce; iPureIntro; repeat split; lia. }
+            rel_load_r...
+            rel_load_r; rel_store_r...
+            rel_apply (refines_couple_senc_lr_lr with "[Hcipher]").
+            {
+              iSplitR; first iAssumption.
+              iSplitR.
+              { iExists _, _, _, _.
+                repeat iSplit.
+                1, 2: done.
+                { iExists 0. done. }
+                iExists nonce; iPureIntro; repeat split; lia. }
+              iApply bi.and_elim_r. iAssumption.
+            }
+            iIntros (c2 c2') "#Hrelc2 Hcipher"...
+            rel_apply refines_na_close. iFrame.
+            iSplitL; last rel_vals.
+            iModIntro. iLeft. iFrame.
+            iExists _.
+            iSplitR; first iAssumption.
+            iSplitR; first (iPureIntro; lia).
+            iLeft. iFrame.
+            iApply bi.and_elim_r. iAssumption.
+          * rel_apply refines_is_ciphertext_l.
+            { iExists c'; iAssumption. }
+            iDestruct "H" as "[Hcntdec [Hcntdecgen [Hcntencgen [Hcntlr' [Hcipher H]]]]]".
+            rel_load_l; rel_load_l; rel_store_l...
+            rel_apply refines_is_ciphertext_r...
+            { iExists c'; iAssumption. }
+            rel_apply refines_is_key_r...
+            { iExists ka; iAssumption. }
+            rel_load_r... rel_load_r; rel_store_r...
+            rel_apply (refines_couple_sdec with "[Hcipher]").
+            { iApply bi.and_elim_r. iAssumption. }
+            { iAssumption. }
+            { iAssumption. }
+            iIntros (input1 input2) "[%id_ [%id_' [%r_decrinput [%r_decrinput'
+              [%Hinputeq1 [%Hinputeq2 [[%id_decrinput [%eqid1 %eqid2]] #Hrelrinput]]]]]]]"; subst...
+            iIntros "HP".
+            iDestruct "Hrelrinput" as "[%rinput [%eq1 [%eq2 %Hrinputbound]]]"; subst...
+            rel_apply refines_elem_eq_l.
+            iPure "Hnoncebound" as Hnoncebound.
+            iSplitR; last iSplitR.
+            { iLeft. iExists (#id_decrinput, #rinput)%V, _, _, _, _.
+              repeat iSplit.
+              1, 2: done.
+              { iExists id_decrinput; done. }
+              iExists _; iPureIntro; repeat split; lia. }
+            { iLeft. iExists (#1, #nonce)%V, _, _, _, _.
+              repeat iSplit.
+              1, 2: done.
+              { iExists 1; done. }
+              iExists nonce; iPureIntro; repeat split; lia. }
+            rel_apply refines_elem_eq_r.
+            iSplitR; last iSplitR.
+            { iLeft. iExists (_, _)%V, _, _, _, _.
+              repeat iSplit.
+              1, 2: done.
+              { iExists _; done. }
+              iExists _; iPureIntro; repeat split; lia. }
+            { iLeft. iExists (#1, #nonce)%V, _, _, _, _.
+              repeat iSplit.
+              1, 2: done.
+              { iExists 1; done. }
+              iExists nonce; iPureIntro; repeat split; lia. }
+            destruct (bool_decide (#id_decrinput = #1)) eqn:eqidinput...
+            all: destruct (bool_decide (#rinput = #nonce)) eqn:eqinputnonce...
+            all: destruct (bool_decide (#id = #0)) eqn:eqid...
+            2, 3, 4, 5, 6, 7, 8: 
+              rel_apply refines_na_close; iFrame;
+              iSplitL; last rel_vals;
+              iModIntro; iLeft; iFrame;
+              iExists _;
+              iSplitR; first iAssumption;
+              iSplitR; first (iPureIntro; lia);
+              iLeft; iFrame.
+            apply bool_decide_eq_true in eqid; rewrite eqid...
+            rel_apply refines_is_plaintext_l...
+            { iExists (#0, #nonce)%V, _, _, _, _.
+              repeat iSplit.
+              1, 2: done.
+              { iExists 0. done. }
+              iExists nonce; iPureIntro; repeat split; lia. }
+            rel_apply refines_is_key_l.
+            { iExists kb'. iAssumption. }
+            rel_load_l...
+            rel_load_l; rel_store_l...
+            rel_apply refines_is_plaintext_r...
+            { iExists (#0, #radv)%V, _, _, _, _.
+              repeat iSplit.
+              1, 2: done.
+              { iExists 0. done. }
+              iExists radv; iPureIntro; repeat split; lia. }
+            rel_apply refines_is_plaintext_r...
+            { iExists (#0, #nonce)%V, _, _, _, _.
+              repeat iSplit.
+              1, 2: done.
+              { iExists 0. done. }
+              iExists nonce; iPureIntro; repeat split; lia. }
+            rel_load_r...
+            rel_load_r; rel_store_r...
+            rel_apply (refines_couple_senc_lr_lr with "[HP]").
+            {
+              iSplitR; first iAssumption.
+              iSplitR.
+              { iExists _, _, _, _.
+                repeat iSplit.
+                1, 2: done.
+                { iExists 0. done. }
+                iExists nonce; iPureIntro; repeat split; lia. }
+              iAssumption.
+            }
+            iIntros (c2 c2') "#Hrelc2 Hcipher"...
+            rel_apply refines_na_close. iFrame.
+            iSplitL; last rel_vals.
+            iModIntro. iLeft. iFrame.
+            iExists _.
+            iSplitR; first iAssumption.
+            iSplitR; first (iPureIntro; lia).
+            iLeft. iFrame.
+            iApply bi.and_elim_r. iAssumption.
+        + iDestruct "H" as "[Hrun2 [Hrun2' H]]".
+          rel_load_l; rel_load_r...
+          rel_apply refines_na_close; iFrame.
+          iSplitL; last rel_vals.
+          iRight. iFrame.
+          iLeft. iFrame.
+        + iDestruct "H" as "[Hrun2 [Hrun2' H]]".
+          rel_load_l; rel_load_r...
+          rel_store_l; rel_store_r...
+          iDestruct "H" as "[Hcntdec [Hcntdecgen [Hcntencgen [Hcntlr' H]]]]".
+          rel_load_l; rel_load_r...
+          rel_apply refines_na_close.
+          iFrame. iSplitL; last rel_vals.
+          iRight. iFrame.
+          iLeft. iFrame.
+      - rel_arrow_val.
+        iIntros (v1 v2) "#Hrelinput"...
+        rel_apply refines_na_inv; iSplit; first iAssumption.
+        iIntros "[H Hclose]"...
+        iDestruct "H" as "[
+            [Hrun1 [Hrun1' [Hcntlr [Hcntencgen' [%radv' [%nonce [%c_input [%c_input'
+              [Hpchan [Hpchan' [Hcipher [#Hnoncebound [H | H]]]]]
+            ]]]]]]]] |
+            [Hrun1 [Hrun1' [Hcntlr [Hcntencgen' [HP [Hpchan [Hpchan' [Hcchan [Hcchan' [H | H]]]]]]
+            ]]]]
+          ]".
+        + iDestruct "H" as "[Hrun2 [Hrun2' [Hcntdec [Hcntdecgen [Hcntencgen [Hcntlr' [HP
+            [[Hrun3 Hrun3'] | [Hrun3 Hrun3']]
+          ]]]]]]]";
+          rel_load_l; rel_load_r; last (rel_store_l; rel_store_r)...
+          all: rel_apply refines_na_close; iFrame; iSplitL; last rel_vals.
+          all: iLeft; iFrame; iExists _.
+          all: iPure "Hnoncebound" as Hnoncebound; iSplitR; first (iPureIntro; lia).
+          all: iLeft; iFrame.
+          all: iLeft; iFrame.
+        + iDestruct "H" as "[Hrun2 [Hrun2' [Hcntdec [Hcntdecgen [Hcntencgen [Hcntlr' [HP
+            [[Hrun3 Hrun3'] | [Hrun3 Hrun3']]
+          ]]]]]]]";
+          rel_load_l; rel_load_r; last (rel_store_l; rel_store_r)...
+          all: rel_apply refines_na_close; iFrame; iSplitL; last rel_vals.
+          all: iLeft; iFrame; iExists _.
+          all: iPure "Hnoncebound" as Hnoncebound; iSplitR; first (iPureIntro; lia).
+          all: iRight; iFrame.
+          all: iLeft; iFrame.
+        + iDestruct "H" as "[Hrun2 [Hrun2' [Hcntdec [Hcntdecgen' [Hcntencgen [Hcntlr' 
+            [[Hrun3 Hrun3'] | [Hrun3 Hrun3']]
+          ]]]]]]";
+          rel_load_l; rel_load_r; last (rel_store_l; rel_store_r)...
+          all: rel_apply refines_na_close; iFrame; iSplitL; last rel_vals.
+          all: iRight; iFrame.
+          all: iLeft; iFrame.
+          all: iLeft; iFrame.
+        + iDestruct "H" as "[Hrun2 [Hrun2' [Hcntdec [Hcntdecgen' [Hcntencgen [Hcntlr' 
+            [[Hrun3 Hrun3'] | [Hrun3 Hrun3']]
+          ]]]]]]";
+          rel_load_l; rel_load_r; last (rel_store_l; rel_store_r)...
+          all: rel_apply refines_na_close; iFrame; iSplitL; last rel_vals.
+          all: iRight; iFrame.
+          all: iRight; iFrame.
+          all: iLeft; iFrame.
+    Unshelve. all: exact 0. (* FIXME where does that come from ? *)
+  Qed.
+
+  Definition a_to_s_plain_and_cipher_channel : val :=
+    λ:  "A" "B" "b" "plain_channel" "cipher_channel" "senc" "ka",
+      let: "run" := ref #true in
+      λ: "r_adv",
+        if: ! "run" then
+          "run" <- #false;;
+          SOME
+            (if: "b" then
+              let: "nonce" := rand #N in
+              "plain_channel" <- SOME ("B", "nonce");;
+              let: "c" := "senc" "ka" ("B", "nonce") in
+              "cipher_channel" <- SOME "c";;
+              ("A", "c")
+            else
+              "plain_channel" <- SOME ("B", "r_adv");;
+              let:m "c" := "senc" "ka" ("B", "r_adv") in
+              "cipher_channel" <- SOME "c";;
+              ("A", "c"))
+        else NONE.
+
+  Definition s_to_b_plain_and_cipher_channel : val :=
+    λ: "A" "B" "b" "plain_channel" "cipher_channel" "senc" "sdec" "ka" "kb",
+      let: "run" := ref #true in
+      λ: "input",
+        if: ! "run" then
+          "run" <- #false;;
+          let: "cipher" := Snd "input" in
+          let:m "cipher_rec" := ! "cipher_channel" in
+          let:m "plain_rec" := ! "plain_channel" in
+          let: "decr" := if: "cipher" = "cipher_rec" then
+              "plain_rec"
+            else
+              "sdec" "ka" (Snd "input")
+            in
+          if: elem_eq "decr" "plain_rec" then
+            let: "sender" := Fst "input" in
+            let: "dest" := Fst "plain_rec" in
+            let: "nonce" := Snd "plain_rec" in
+            if: "sender" = "A" `and` "dest" = "B" then
+              SOME ("senc" "kb" ("sender", "nonce"))
+            else NONE
+          else NONE
+        else NONE.
+
+  Definition wmf_once_plain_cipher_channel : expr :=
+    let: "B" := init_id #() in  
+    let: "A" := Fst "B" in
+    let: "B" := Snd "B" in
+    let: "a_s__channel_plain" := ref NONE in 
+    let: "a_s__channel_cipher" := ref NONE in 
+    λ: "b" "enc_scheme",
+      let: "ka" := keygen #() in
+      let: "kb" := keygen #() in
+        let: "a_to_s" := a_to_s_plain_and_cipher_channel "A" "B" "b"
+          "a_s__channel_plain" "a_s__channel_cipher"
+          (get_enc "enc_scheme") "ka" in
+        let: "s_to_b" := s_to_b_plain_and_cipher_channel "A" "B" "b"
+          "a_s__channel_plain" "a_s__channel_cipher"
+          (get_enc "enc_scheme") (get_dec "enc_scheme") "ka" "kb" in
+        let: "b_recv" := b_recv_once "A" "B" "b" "kb" in
+      λ: "r_adv",
+        ("a_to_s" "r_adv",
+         "s_to_b",
+         "b_recv").
 
 
 End logrel.
