@@ -593,6 +593,131 @@ Definition sym_is_cipher_lr_l {lls rls : list loc} (msg : val) (c k : val) : iPr
       (fill K (sdec lls k c))
       e A.
 
+Lemma rf_refines_sdec_lr_prop :
+  ∀ (lls rls : list loc) (c c' : val) (k k' : val) K K' E A,
+  lrel_key k k' ∗ lrel_output c c' ∗ Plr lls rls ⊢
+    ((∀ (m m' : val),
+       lrel_input m m'
+    -∗ @sym_is_cipher_lr_l lls rls m c k
+    -∗ refines E
+        (fill K (Val m))
+        (fill K' (Val m'))
+        A)
+  -∗ refines E
+      (fill K  (sdec lls k  c ))
+      (fill K' (sdec rls k' c'))
+      A).
+Proof with rel_pures_l; rel_pures_r.
+  iIntros (lls rls c c' k k' K K' E A)
+    "[[%kg [%eqk1 %eqk2]] [#Hrelmsg HP]] H"; subst...
+  destruct lls as [|mapref  [|tmp lls]]; try (iExFalso; done).
+  destruct rls as [|mapref' [|tmp rls]]; try (iExFalso; done).
+  rewrite /sdec/prf_dec_vg/prf_dec...
+  rel_apply_l int_of_vg_correct.
+  {
+    rewrite /to_val_type_rel. iSplit; iIntros (x).
+    - iExists _. iPureIntro; split; done.
+    - iExists x. iPureIntro; split; done.
+  }
+  rel_apply_r int_of_vg_correct...
+  {
+    rewrite /to_val_type_rel. iSplit; iIntros (x).
+    - iExists _. iPureIntro; split; done.
+    - iExists x. iPureIntro; split; done.
+  }
+  rewrite /random_function...
+  rewrite /lrel_car. simpl.
+  iDestruct "Hrelmsg" as
+    "[%v1 [%v2 [%v1' [%v2'
+      [%eq1 [%eq2 [Hrelv Hrelv']]]
+     ]]]]".
+  iDestruct "Hrelv" as "[%r [%eqr1 [%eqr2 %Hrbound]]]".
+  iDestruct "Hrelv'" as "[%z [%eqz1 [%eqz2 %Hzbound]]]"; subst...
+  rewrite /card_input in Hzbound;
+    simpl in Hzbound.
+  rewrite /card_input in Hrbound;
+    simpl in Hrbound.
+  iDestruct "HP" as (M) "[Hmap [Hmap' [%Himg %Hdom]]]".
+  rewrite -(Z2Nat.id r); last lia.
+  rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
+  iIntros (res) "Hmap %eqres".
+  rel_apply (refines_get_r with "[-Hmap']"); last iAssumption.
+  iIntros (res') "Hmap' %eqres'".
+  destruct (M !! Z.to_nat r) eqn:eqlookup;
+    simpl in eqres; simpl in eqres'; subst...
+  - eapply elem_of_map_img_2 in eqlookup as Himgres.
+    apply Himg in Himgres.
+    destruct Himgres as [nres [eqnres Hnresbound]]; subst...
+    rel_apply xor_correct_l; try lia.
+    rel_apply xor_correct_r; try lia.
+    rel_apply "H".
+    { iExists _. iPureIntro; repeat split; try lia.
+      apply inj_le.
+      apply PeanoNat.lt_n_Sm_le.
+      apply xor_dom; lia. }
+    rewrite /sym_is_cipher_lr_l.
+    clear K E A.
+    iIntros (K e E A) "H".
+    rewrite /sdec/prf_dec_vg/prf_dec...
+    rel_apply_l int_of_vg_correct.
+    {
+      rewrite /to_val_type_rel. iSplit; iIntros (x).
+      - iExists _. iPureIntro; split; done.
+      - iExists x. iPureIntro; split; done.
+    }
+    rewrite /random_function...
+    rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
+    iIntros (res) "Hmap %eqres".
+    rewrite eqlookup in eqres. simpl in eqres; subst...
+    rel_apply xor_correct_l; try lia.
+    rel_apply "H".
+    iExists M. iFrame.
+    iPureIntro; split; assumption.
+  - rel_apply refines_couple_UU; first done.
+    iModIntro; iIntros (y Hybound)...
+    rel_apply (refines_set_l with "[-Hmap]"); last iAssumption.
+    iIntros "Hmap".
+    rel_apply (refines_set_r with "[-Hmap']"); last iAssumption.
+    iIntros "Hmap'"...
+    rel_apply xor_correct_l; try lia.
+    rel_apply xor_correct_r; try lia.
+    rel_apply "H".
+    { iExists _. iPureIntro; repeat split; try lia.
+      apply inj_le.
+      apply PeanoNat.lt_n_Sm_le.
+      apply xor_dom; lia. }
+    rewrite /sym_is_cipher_lr_l.
+    clear K E A.
+    iIntros (K e E A) "H".
+    rewrite /sdec/prf_dec_vg/prf_dec...
+    rel_apply_l int_of_vg_correct.
+    {
+      rewrite /to_val_type_rel. iSplit; iIntros (x).
+      - iExists _. iPureIntro; split; done.
+      - iExists x. iPureIntro; split; done.
+    }
+    rewrite /random_function...
+    rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
+    iIntros (res) "Hmap %eqres".
+    rewrite lookup_insert in eqres. simpl in eqres; subst...
+    rel_apply xor_correct_l; try lia.
+    rel_apply "H".
+    iExists _. iFrame.
+    iPureIntro; split.
+    + intros y' H. apply map_img_insert in H.
+      apply elem_of_union in H. destruct H as [H|H].
+      * exists y. apply elem_of_singleton in H; subst.
+        done.
+      * apply Himg. eapply map_img_delete_subseteq. apply H.
+    + intros x H. rewrite dom_insert in H.
+      rewrite elements_union_singleton in H.
+      * rewrite elem_of_cons in H. destruct H as [H | H].
+        -- rewrite H. lia.
+        -- apply Hdom. assumption.
+      * apply not_elem_of_dom_2. assumption.
+  Unshelve. apply gset_fin_set.
+Qed.
+
 Lemma rf_refines_senc_lr_prop :
   ∀ (lls rls : list loc) (msg msg' : val) (k k' : val) K K' E A,
   lrel_key k k' ∗ lrel_input msg msg' ∗ Plr lls rls ⊢
@@ -731,6 +856,171 @@ Proof with (rel_pures_l; rel_pures_r).
     Unshelve. apply gset_fin_set.
   Qed.
   
+Definition sym_is_cipher_lr_l' {lls rls : list loc} (msg : val) (c k : val) : iProp Σ :=
+  ∀ K e E A,
+    (
+      refines E
+      (fill K (Val msg))
+      e A)
+  -∗ refines E
+      (fill K (sdec lls k c))
+      e A.
+
+Lemma rf_refines_senc_lr_prop2 :
+  ∀ (lls rls : list loc) (msg msg' : val) (k k' : val) K K' E A,
+  lrel_key k k' ∗ lrel_input msg msg' ∗ Plr lls rls ⊢
+    ((∀ (c c' : val),
+       lrel_output c c'
+    -∗ (@sym_is_cipher_lr_l lls rls msg c k ∧ Plr lls rls)
+    -∗ refines E
+        (fill K (Val c))
+        (fill K' (Val c'))
+        A)
+  -∗ refines E
+      (fill K  (senc lls k  msg ))
+      (fill K' (senc rls k' msg'))
+      A).
+Proof with (rel_pures_l; rel_pures_r).
+  iIntros (lls rls msg msg' k k' K K' E A) "[%Hrelk [%Hrelmsg HP]] H".
+  destruct lls as [|mapref  [|tmp lls]]; try (iExFalso; done).
+  destruct rls as [|mapref' [|tmp rls]]; try (iExFalso; done).
+  rewrite /Plr.
+  iDestruct "HP" as "[%M [Hmap [Hmap' [%Himg %Hdom]]]]".
+  rewrite /senc; simpl...
+  rewrite /prf_enc_vg/prf_enc...
+  destruct Hrelk as [kg [eqkg eqkg']]; subst.
+  rel_apply_l int_of_vg_correct.
+  {
+    rewrite /to_val_type_rel. iSplit.
+    - iIntros (x). iExists _. iPureIntro. split; done.
+    - iIntros (x). iExists _. iPureIntro; split; done.
+  }
+  rel_apply_r int_of_vg_correct.
+  {
+    rewrite /to_val_type_rel. iSplit.
+    - iIntros (x). iExists _. iPureIntro. split; done.
+    - iIntros (x). iExists _. iPureIntro; split; done.
+  }
+  rewrite /random_function...
+  rel_apply refines_couple_UU; first done.
+  iIntros (r Hrbound); iModIntro...
+  rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
+  iIntros (res) "Hmap %eqres".
+  rel_apply (refines_get_r with "[-Hmap']"); last by iAssumption.
+  iIntros (res') "Hmap' %eqres'".
+  destruct (M !! r) as [vres|] eqn:eqlookup; simpl in eqres; subst...
+  + eapply elem_of_map_img_2 in eqlookup as Himgres.
+    apply Himg in Himgres.
+    destruct Himgres as [nres [eqnres Hnresbound]]; subst...
+    destruct Hrelmsg as [nmsg [eq1 [eq2 Hmsgbound]]]; subst.
+    rewrite /card_input in Hmsgbound. simpl in Hmsgbound.
+    rewrite /card_output in Hnresbound. simpl in Hnresbound.
+    rel_apply xor_correct_l; try lia...
+    rel_apply xor_correct_r; try lia...
+    rel_apply ("H").
+    { rewrite /lrel_output/lrel_input.
+      iExists _, _, _, _.
+      repeat iSplit; try iPureIntro; try done; rewrite /card_input; simpl.
+      - eexists. repeat split; lia.
+      - eexists. repeat split; try lia.
+        apply inj_le.
+        apply PeanoNat.lt_n_Sm_le.
+        apply xor_dom; lia. }
+    rewrite /sym_is_cipher_lr_l'.
+    clear K E A. iSplit.
+    2: { iExists M; iFrame. iPureIntro; split; assumption. }
+    iIntros (K e' E A) "H".
+    rewrite /sdec...
+    rewrite /prf_dec_vg/prf_dec...
+    rel_apply_l int_of_vg_correct...
+    {
+      rewrite /to_val_type_rel. iSplit.
+      - iIntros (x). iExists _. iPureIntro. split; done.
+      - iIntros (x). iExists _. iPureIntro; split; done.
+    }
+    rel_bind_l (random_function _ _).
+    rewrite /random_function...
+    rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
+    iIntros (res) "Hmap %eqres"...
+    rewrite eqlookup in eqres. simpl in eqres.
+    rewrite eqres...
+    rel_apply xor_correct_l; try lia.
+    { rewrite Nat2Z.id.
+      apply xor_dom; lia. }
+    rewrite Nat2Z.id.
+    rewrite xor_sem_inverse_r; try lia.
+    rewrite Z2Nat.id; last lia.
+    rel_apply "H". iExists M; iFrame. iPureIntro; split; assumption.
+  + rel_apply refines_couple_UU; first done. iIntros (y Hybound);
+    iModIntro...
+    rel_apply (refines_set_l with "[-Hmap]"); last by iAssumption.
+    iIntros "Hmap"...
+    rel_apply (refines_set_r with "[-Hmap']"); last by iAssumption.
+    iIntros "Hmap'"...
+    destruct Hrelmsg as [nmsg [eq1 [eq2 Hmsgbound]]]; subst.
+    rewrite /card_input in Hmsgbound. simpl in Hmsgbound.
+    rel_apply xor_correct_l; try lia...
+    rel_apply xor_correct_r; try lia...
+    rel_apply "H".
+    { rewrite /lrel_output/lrel_input.
+      iExists _, _, _, _.
+      repeat iSplit; try iPureIntro; try done; rewrite /card_input; simpl.
+      - eexists. repeat split; lia.
+      - eexists. repeat split; try lia.
+        apply inj_le.
+        apply PeanoNat.lt_n_Sm_le.
+        apply xor_dom; lia. }
+    rewrite /sym_is_cipher_lr_l.
+    clear K E A. iSplit.
+    2: { iExists _; iFrame. iPureIntro; split.
+    * intros x Hx. rewrite map_img_insert in Hx.
+      rewrite elem_of_union in Hx.
+      destruct Hx as [Hx | Hx].
+      ** rewrite elem_of_singleton in Hx; subst.
+        exists y; split; done.
+      ** apply Himg. eapply map_img_delete_subseteq. apply Hx.
+    * intros x Hx. rewrite dom_insert in Hx.
+      rewrite elements_union_singleton in Hx.
+      2: { apply not_elem_of_dom_2. assumption. }
+      apply elem_of_cons in Hx.
+      destruct Hx as [Hx | Hx]; first subst.
+      ** rewrite /card_input; simpl; lia.
+      ** apply Hdom. apply Hx. }
+    iIntros (K e E A) "H".
+    rewrite /sdec/kemdem_hybrid_cpa_generic.dec_hyb
+      /kemdem_hybrid_cpa_generic.decaps/dec/prf_dec_vg/prf_dec/random_function...
+    rel_apply_l int_of_vg_correct...
+    {
+      rewrite /to_val_type_rel. iSplit.
+      - iIntros (x). iExists _. iPureIntro. split; done.
+      - iIntros (x). iExists _. iPureIntro; split; done.
+    }
+    rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
+    iIntros (res') "Hmap %eqres'"; subst.
+    rewrite lookup_insert; simpl...
+    rel_apply xor_correct_l; try lia.
+    { rewrite Nat2Z.id. apply xor_dom; lia. }
+    rewrite Nat2Z.id.
+    rewrite xor_sem_inverse_r; try lia.
+    rewrite Z2Nat.id; last lia.
+    rel_apply "H".
+    iExists _; iFrame. iPureIntro; split.
+    * intros x Hx. rewrite map_img_insert in Hx.
+      rewrite elem_of_union in Hx.
+      destruct Hx as [Hx | Hx].
+      ** rewrite elem_of_singleton in Hx; subst.
+        exists y; split; done.
+      ** apply Himg. eapply map_img_delete_subseteq. apply Hx.
+    * intros x Hx. rewrite dom_insert in Hx.
+      rewrite elements_union_singleton in Hx.
+      2: { apply not_elem_of_dom_2. assumption. }
+      apply elem_of_cons in Hx.
+      destruct Hx as [Hx | Hx]; first subst.
+      ** rewrite /card_input; simpl; lia.
+      ** apply Hdom. apply Hx.
+    Unshelve. apply gset_fin_set.
+  Qed.
+
   (* ASSUMPTION ABOUT THE ASYMMETRIC SCHEME *)
 
   Definition lrel_sk {Σ} := @lrel_int_bounded Σ 0 n''.
