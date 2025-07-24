@@ -17,11 +17,10 @@ Section defs.
     A → S : (A,{B, n}_ka)
     S → B : {A, n}_kb
   *)
-
   (* security parameter *)
   Variable η : nat.
 
-  Let N := 2^η.
+  Let N := 2^η - 1.
 
   Variable Key : nat.
   Variable Output : nat.
@@ -122,26 +121,39 @@ Section defs.
 
     Definition a_to_s_once : val :=
       λ: "A" "B" "b" "senc" "ka", (* parameters of the protocol *)
+        let: "run" := ref #true in
         λ: "r_adv", (* attacker provided random *)
-          if: "b" then
-            ("A", "senc" "ka" ("B", rand #N))
+          if: ! "run" then
+          "run" <- #false;;
+            SOME
+              (if: "b" then
+                ("A", "senc" "ka" ("B", rand #N))
+              else
+                ("A", "senc" "ka" ("B", "r_adv")))
           else
-            ("A", "senc" "ka" ("B", "r_adv")).
+            NONE.
 
     Definition s_to_b_once : val :=
       λ: "A" "B" "b" "senc" "sdec" "ka" "kb", (* parameters of the protocol *)
+        let: "run" := ref #true in
         λ: "input",
-          let: "nonce" := "sdec" "ka" (Snd "input") in
-          let: "sender" := Fst "input" in
-          let: "dest" := Fst "nonce" in
-          let: "nonce" := Snd "nonce" in
-          if: "sender" = "A" `and` "dest" = "B" then
-            "senc" "kb" ("sender", "nonce")
-          else #().
+          if: ! "run" then
+            "run" <- #false;;
+            let: "nonce" := "sdec" "ka" (Snd "input") in
+            let: "sender" := Fst "input" in
+            let: "dest" := Fst "nonce" in
+            let: "nonce" := Snd "nonce" in
+            if: "sender" = "A" `and` "dest" = "B" then
+              SOME ("senc" "kb" ("sender", "nonce"))
+            else NONE
+          else
+            NONE.
 
     Definition b_recv_once : val :=
       λ: "A" "B" "b" "kb", (* parameters of the protocol *)
-        λ: "input", #().
+        let: "run" := ref #true in
+        λ: "input",
+          if: ! "run" then "run" <- #false;; SOME #() else NONE.
           (* let: "nonce" := "sdec" "kb" "input" in
           let: "sender" := Fst "nonce" in
           let: "nonce" := Snd "nonce" in
@@ -150,6 +162,28 @@ Section defs.
           else #(). *)
   
   End Once.
+
+  Section Dishonest.
+
+    Definition s_to_b_maybe_d_once : val :=
+      λ: "A" "B" "Bd" "b" "senc" "sdec" "ka" "kb" "kbd", (* parameters of the protocol *)
+        let: "run" := ref #true in
+        λ: "input",
+          if: ! "run" then
+            "run" <- #false;;
+            let: "nonce" := "sdec" "ka" (Snd "input") in
+            let: "sender" := Fst "input" in
+            let: "dest" := Fst "nonce" in
+            let: "nonce" := Snd "nonce" in
+            if: "sender" = "A" `and` "dest" = "B" then
+              SOME ("senc" "kb" ("sender", "nonce"))
+            else if: "sender" = "A" `and` "dest" = "Bd" then
+              SOME ("senc" "kbd" ("sender", "nonce"))
+            else NONE
+          else
+            NONE.
+  
+  End Dishonest.
 
   Section Once_eav.
 
@@ -188,21 +222,28 @@ Section defs.
 
     Definition init_id : val :=
       λ: <>,
-        let: "A" := ref #() in
-        let: "B" := ref #() in
+        let: "A" := #0 in
+        let: "B" := #1 in
         ("A", "B").
 
     Definition wmf_once : expr :=
       let: "B" := init_id #() in
       let: "A" := Fst "B" in
       let: "B" := Snd "B" in
-      λ: "b" "enc_scheme" "ka" "kb",
-        (a_to_s_once "A" "B" "b" (symmetric_init.get_enc "enc_scheme") "ka",
-         s_to_b_once "A" "B" "b"
-          (symmetric_init.get_enc "enc_scheme")
-          (symmetric_init.get_dec "enc_scheme")
-          "ka" "kb",
-         b_recv_once "A" "B" "b" "kb").
+      λ: "b" "enc_scheme",
+        let: "ka" := keygen #() in
+        let: "kb" := keygen #() in
+        let: "a_to_s" := a_to_s_once "A" "B" "b"
+            (symmetric_init.get_enc "enc_scheme") "ka" in
+        let: "s_to_b" := s_to_b_once "A" "B" "b"
+            (symmetric_init.get_enc "enc_scheme")
+            (symmetric_init.get_dec "enc_scheme")
+            "ka" "kb" in
+        let: "b_recv" := b_recv_once "A" "B" "b" "kb" in
+        λ: "r_adv",
+          ("a_to_s" "r_adv",
+           "s_to_b",
+           "b_recv").
 
     Definition wmf_eav : expr :=
       λ: "b" "enc_scheme",
