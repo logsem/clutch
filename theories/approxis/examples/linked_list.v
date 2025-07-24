@@ -151,7 +151,7 @@ Section defs.
         | [] => l ↦ NONEV
         | h :: t => ∃ (lt : loc), l ↦ SOMEV (inject h, #lt)%V ∗ const_linked_list lt t
       end.
-    
+
     Fixpoint const_linked_slist (l : loc) (ls : list X) : iProp Σ :=
       match ls with
         | [] => l ↦ₛ NONEV
@@ -396,7 +396,7 @@ Section defs.
           -∗ (⌜b = true ↔ v ∈ l⌝ -∗ refines E e (fill K (Val #b)) A))
       -∗ linked_slist l_list l
       -∗ ForallSep (λ x, carrier (inject x)) l ∗ carrier (inject v)
-      -∗ refines E e (fill K (elem_of_linked_list #l_list (inject v))) A.
+      -∗ refines E (e) (fill K (elem_of_linked_list #l_list (Val (inject v)))) A.
     Proof with rel_pures_r using X approxisRGS0 carrier carrier_comparable
       carrier_pers elem_eq refines_elem_eq_r to_val Σ.
       iIntros (K e E A l_list l v);
@@ -419,8 +419,44 @@ Section defs.
                   * iAssumption.  } 
       }
       rewrite /elem_of_linked_list...
-    Admitted.
+      iDestruct "Hlist" as "[%ll [Hll Hconst_lst]]".
+      rel_load_r.
+      rel_apply (refines_elem_of_const_list_r with "[H Hll] [Hconst_lst] []").
+      - iIntros (b) "H1 Hin". iApply ("H" with "[-Hin]"); last iAssumption.
+        iExists ll. iFrame.
+      - iAssumption.
+      - iSplitL "Hcarl"; iAssumption.
+    Qed.
 
+    Section assoc_list.
+
+      Definition init_map : val := init_linked_list.
+
+      Definition get_const_list : val :=
+        rec: "get" "h" "k" :=
+              match: ! (rec_unfold "h") with
+                NONE => #false
+              | SOME "p" =>
+                let: "kv" := Fst "p" in
+                let: "next" := Snd "p" in
+                if: elem_eq (Fst "kv") "k" then (Snd "kv")
+                else "get" "next" "k"
+              end.
+
+      Definition get_list : val :=
+        λ: "l" "x",
+          get_const_list !"l" "x".
+
+      Definition set_list : val :=
+        λ: "l" "k" "v", "l" <- cons_list !"l" ("k", "v").
+(*       
+      Print list_to_map.
+
+      Lemma refines_get_gen_l : ∀ ,
+          REL fill K 
+        ⊢ REL fill K (get_list l k) << e @ E : A *)
+      (* TODO GENERAL MAP *)
+    End assoc_list.
   End logrel.
 
 End defs. 
