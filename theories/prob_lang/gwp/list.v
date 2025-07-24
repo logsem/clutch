@@ -147,6 +147,16 @@ Definition list_remove_nth_total : val :=
     | NONE => list_nil
     end.
 
+Definition list_find : val :=
+  rec: "list_find" "f" "xs" :=
+    match: "xs" with
+      SOME "a" =>
+        let, ("x", "xs") := "a" in
+        if: "f" "x" then SOME "x"
+        else "list_find" "f" "xs"
+    | NONE => NONE
+    end.
+
 Definition list_find_remove : val :=
   rec: "list_find_remove" "f" "l" :=
   match: "l" with
@@ -322,18 +332,18 @@ Section list_specs.
     {{{ v, RET v; ⌜is_list [] v⌝}}}.
   Proof. iIntros (Φ) "_ HΦ". gwp_pures. by iApply "HΦ". Qed.
 
-  Lemma gwp_list_cons a l lv E s :
+  Lemma gwp_list_cons a l lv E :
     G{{{ ⌜is_list l lv⌝ }}}
-      inject a :: lv @ s; E
+      inject a :: lv @ g; E
     {{{ v, RET v; ⌜is_list (a::l) v⌝ }}}.
   Proof.
     iIntros (Φ) "% HΦ". gwp_lam. gwp_pures.
     iApply "HΦ". iPureIntro; by eexists.
   Qed.
 
-  Lemma gwp_list_singleton E a s :
+  Lemma gwp_list_singleton E a :
     G{{{ True }}}
-      [inject a] @ s; E
+      [inject a] @ g; E
     {{{ v, RET v; ⌜is_list [a] v⌝ }}}.
   Proof.
     iIntros (Φ) "_ HΦ". gwp_pures.
@@ -342,9 +352,9 @@ Section list_specs.
     by iApply "HΦ".
   Qed.
 
-  Lemma gwp_list_head E lv l s :
+  Lemma gwp_list_head E lv l :
     G{{{ ⌜is_list l lv⌝ }}}
-      list_head lv @ s; E
+      list_head lv @ g; E
     {{{ v, RET v;
         ⌜(l = [] ∧ v = NONEV) ∨ (∃ a l', l = a :: l' ∧ v = SOMEV (inject a))⌝ }}}.
   Proof.
@@ -355,9 +365,9 @@ Section list_specs.
       gwp_pures. iApply "HΦ". iPureIntro. right. eauto.
   Qed.
 
-  Lemma gwp_list_head_nil E lv s :
+  Lemma gwp_list_head_nil E lv :
     G{{{ ⌜is_list [] lv⌝ }}}
-      list_head lv @ s; E
+      list_head lv @ g; E
     {{{ RET NONEV; True }}}.
   Proof.
     iIntros (Φ a) "HΦ".
@@ -366,9 +376,9 @@ Section list_specs.
     by iApply "HΦ".
   Qed.
 
-  Lemma gwp_list_head_cons E lv a l s :
+  Lemma gwp_list_head_cons E lv a l :
     G{{{ ⌜is_list (a :: l) lv⌝ }}}
-      list_head lv @ s; E
+      list_head lv @ g; E
     {{{ RET (SOMEV (inject a)); True }}}.
   Proof.
     iIntros (Φ Hl) "HΦ".
@@ -377,9 +387,9 @@ Section list_specs.
     by iApply "HΦ".
   Qed.
 
-  Lemma gwp_list_head_opt E lv l s :
+  Lemma gwp_list_head_opt E lv l :
     G{{{ ⌜is_list l lv⌝ }}}
-      list_head lv @ s; E
+      list_head lv @ g; E
     {{{ w, RET w; ⌜w = inject (hd_error l)⌝ }}}.
   Proof.
     iIntros (Φ a) "HΦ".
@@ -389,9 +399,9 @@ Section list_specs.
       gwp_pures. by iApply "HΦ".
   Qed.
 
-  Lemma gwp_list_tail E lv l s :
+  Lemma gwp_list_tail E lv l :
     G{{{ ⌜is_list l lv⌝ }}}
-      list_tail lv @ s; E
+      list_tail lv @ g; E
     {{{ v, RET v; ⌜is_list (tail l) v⌝}}}.
   Proof.
     iIntros (Φ a) "HΦ".
@@ -401,9 +411,9 @@ Section list_specs.
       gwp_match. gwp_proj. by iApply "HΦ".
   Qed.
 
-  Lemma gwp_list_length E l lv s :
+  Lemma gwp_list_length E l lv :
     G{{{ ⌜is_list l lv⌝ }}}
-      list_length lv @ s; E
+      list_length lv @ g; E
     {{{ v, RET #v; ⌜v = length l⌝ }}}.
   Proof.
     iIntros (Φ) "Ha HΦ".
@@ -417,13 +427,13 @@ Section list_specs.
       rewrite Nat2Z.inj_add. iApply "HΦ"; by auto.
   Qed.
 
-  Lemma gwp_list_iter_invariant' Φ1 Φ2 (Ψ: list A → iProp _) P E l lv handler lrest s:
+  Lemma gwp_list_iter_invariant' Φ1 Φ2 (Ψ: list A → iProp _) P E l lv handler lrest :
     (∀ (a : A) l',
         G{{{ ⌜∃ b, lrest ++ l = l' ++ a :: b⌝ ∗ P ∗ Ψ l' ∗ Φ1 (length l') a }}}
-          (Val handler) (inject a) @ s; E
+          (Val handler) (inject a) @ g; E
         {{{v, RET v; P ∗ Ψ (l' ++ [a]) ∗ Φ2 (length l') a }}}) -∗
     G{{{ ⌜is_list l lv⌝ ∗ P ∗ Ψ lrest ∗ [∗ list] i ↦ a ∈ l, Φ1 (length lrest + i) a}}}
-      list_iter (Val handler) lv @ s; E
+      list_iter (Val handler) lv @ g; E
     {{{ RET #(); P ∗ Ψ (lrest++l) ∗ [∗ list] i ↦ a ∈ l, Φ2 (length lrest + i) a }}}.
   Proof.
     rewrite /list_iter.
@@ -459,27 +469,27 @@ Section list_specs.
       done.
   Qed.
 
-  Lemma gwp_list_iter_invariant Φ1 Φ2 (Ψ: list A -> iProp _) P E l lv handler s :
+  Lemma gwp_list_iter_invariant Φ1 Φ2 (Ψ: list A -> iProp _) P E l lv handler :
     (∀ (a : A) l',
         G{{{ ⌜∃ b, l = l' ++ a :: b⌝ ∗ P ∗ Ψ l' ∗ Φ1 (length l') a }}}
-          (Val handler) (Val (inject a)) @ s; E
+          (Val handler) (Val (inject a)) @ g; E
         {{{v, RET v; P ∗ Ψ (l' ++ [a]) ∗ Φ2 (length l') a }}}) -∗
     G{{{ ⌜is_list l lv⌝ ∗ P ∗ Ψ [] ∗ [∗ list] i ↦ a ∈l, Φ1 i a}}}
-      list_iter (Val handler) lv @ s; E
+      list_iter (Val handler) lv @ g; E
     {{{ RET #(); P ∗ Ψ l ∗ [∗ list] i ↦ a ∈ l, Φ2 i a}}}.
   Proof.
     replace l with ([]++l); last by apply app_nil_l.
     iApply gwp_list_iter_invariant'.
   Qed.
 
-  (** TODO: can this be done without loeb induction so gwp_laters g are not necessary? *)
+  (** TODO: do this without loeb induction *)
   (* Lemma gwp_list_iter_idx_aux n Φ Ψ P E l lv handler s : *)
   (*   (∀ i (a : A), *)
   (*       G{{{ P ∗ Φ i a }}} *)
-  (*         (Val handler) (Val (inject a)) @ s; E *)
+  (*         (Val handler) (Val (inject a)) @ g; E *)
   (*       {{{v, RET v; P ∗ Ψ i a }}}) -∗ *)
   (*   G{{{ ⌜is_list l lv⌝ ∗ P ∗ [∗ list] i↦a ∈ l, Φ (n + i)%nat a }}} *)
-  (*     list_iter (Val handler) lv @ s; E *)
+  (*     list_iter (Val handler) lv @ g; E *)
   (*   {{{ RET #(); P ∗ [∗ list] i↦a ∈ l, Ψ (n + i)%nat a }}}. *)
   (* Proof. *)
   (*   rewrite /list_iter. *)
@@ -510,10 +520,10 @@ Section list_specs.
   (* Lemma gwp_list_iter_idx Φ Ψ P E l lv handler s : *)
   (*   (∀ i (a : A), *)
   (*       G{{{ P ∗ Φ i a }}} *)
-  (*         (Val handler) (Val (inject a)) @ s; E *)
+  (*         (Val handler) (Val (inject a)) @ g; E *)
   (*       {{{v, RET v; P ∗ Ψ i a }}}) -∗ *)
   (*   G{{{ ⌜is_list l lv⌝ ∗ P ∗ [∗ list] i↦a ∈ l, Φ i a }}} *)
-  (*     list_iter (Val handler) lv @ s; E *)
+  (*     list_iter (Val handler) lv @ g; E *)
   (*   {{{ RET #(); P ∗ [∗ list] i↦a ∈ l, Ψ i a }}}. *)
   (* Proof. *)
   (*   iIntros "#H" (Φ') "!# (%Ha & HP & Hl) HΦ". *)
@@ -525,10 +535,10 @@ Section list_specs.
   (* Lemma gwp_list_iter Φ Ψ P E l lv handler s: *)
   (*   (∀ (a : A), *)
   (*       G{{{ P ∗ Φ a }}} *)
-  (*         (Val handler) (Val (inject a)) @ s; E *)
+  (*         (Val handler) (Val (inject a)) @ g; E *)
   (*       {{{v, RET v; P ∗ Ψ a }}}) -∗ *)
   (*   G{{{ ⌜is_list l lv⌝ ∗ P ∗ [∗ list] a ∈ l, Φ a }}} *)
-  (*     list_iter (Val handler) lv @ s; E *)
+  (*     list_iter (Val handler) lv @ g; E *)
   (*   {{{ RET #(); P ∗ [∗ list] a ∈ l, Ψ a }}}. *)
   (* Proof. *)
   (*   rewrite /list_iter. *)
@@ -540,12 +550,12 @@ Section list_specs.
 
   Lemma gwp_list_iteri_loop
         (k : nat) (l : list A) (fv lv : val)
-        (P : iProp _) (Φ Ψ : nat -> A -> iProp _) E s :
+        (P : iProp _) (Φ Ψ : nat -> A -> iProp _) E :
     is_list l lv →
     (∀ (i : nat) (x : A),
-      G{{{ P ∗ Φ i x }}} fv #i (inject x) @ s; E {{{ v, RET v; P ∗ Ψ i x }}}) -∗
+      G{{{ P ∗ Φ i x }}} fv #i (inject x) @ g; E {{{ v, RET v; P ∗ Ψ i x }}}) -∗
     G{{{ P ∗ ([∗ list] i ↦ a ∈ l, Φ (k+i)%nat a) }}}
-      list_iteri_loop fv #k lv @ s; E
+      list_iteri_loop fv #k lv @ g; E
     {{{ RET #(); P ∗ [∗ list] i ↦ a ∈ l, Ψ (k+i)%nat a }}}.
   Proof.
     iIntros (Hl) "#Hf".
@@ -570,12 +580,12 @@ Section list_specs.
 
   Lemma gwp_list_iteri
         (l : list A) (fv lv : val)
-        (P : iProp _) (Φ Ψ : nat -> A -> iProp _) E s :
+        (P : iProp _) (Φ Ψ : nat -> A -> iProp _) E :
     is_list l lv →
     (∀ (i : nat) (x : A),
-      G{{{ P ∗ Φ i x }}} fv #i (inject x) @ s; E {{{ v, RET v; P ∗ Ψ i x }}}) -∗
+      G{{{ P ∗ Φ i x }}} fv #i (inject x) @ g; E {{{ v, RET v; P ∗ Ψ i x }}}) -∗
     G{{{ P ∗ ([∗ list] i ↦ a ∈ l, Φ i a) }}}
-      list_iteri fv lv @ s; E
+      list_iteri fv lv @ g; E
     {{{ RET #(); P ∗ [∗ list] i ↦ a ∈ l, Ψ i a }}}.
   Proof.
     iIntros (Hl) "#Hf". iIntros (Φ') "!>[HP Hown] HΦ".
@@ -585,13 +595,13 @@ Section list_specs.
     by iFrame.
   Qed.
 
-  Lemma gwp_list_fold P Φ Ψ E handler (l : list A) acc lv s :
+  Lemma gwp_list_fold P Φ Ψ E handler (l : list A) acc lv :
     (∀ (a : A) acc lacc lrem,
         G{{{ ⌜l = lacc ++ a :: lrem⌝ ∗ P lacc acc ∗ Φ a }}}
-          (Val handler) (Val acc) (inject a) @ s; E
+          (Val handler) (Val acc) (inject a) @ g; E
         {{{v, RET v; P (lacc ++ [a]) v ∗ Ψ a }}}) -∗
     G{{{ ⌜is_list l lv⌝ ∗ P [] acc ∗ [∗ list] a∈l, Φ a }}}
-      list_fold handler acc lv @ s; E
+      list_fold handler acc lv @ g; E
     {{{v, RET v; P l v ∗ [∗ list] a∈l, Ψ a }}}.
   Proof.
     iIntros "#Hcl". iIntros (Ξ) "!# (Hl & Hacc & HΦ) HΞ".
@@ -613,14 +623,14 @@ Section list_specs.
       iApply "HΞ"; iFrame.
   Qed.
 
-  Lemma gwp_list_fold_generalized' E handler (l lp : list A) acc lv P Φ Ψ s :
+  Lemma gwp_list_fold_generalized' E handler (l lp : list A) acc lv P Φ Ψ :
     □ (∀ (a : A) acc lacc lrem, (P lacc acc None (a::lrem) -∗ P lacc acc (Some a) lrem))%I -∗
       (∀ (a : A) acc lacc lrem,
           G{{{ ⌜lp ++ l = lacc ++ a :: lrem⌝ ∗ P lacc acc (Some a) lrem ∗ Φ a }}}
-            (Val handler) (Val acc) (inject a) @ s; E
+            (Val handler) (Val acc) (inject a) @ g; E
           {{{v, RET v; P (lacc ++ [a]) v None lrem ∗ Ψ a }}}) -∗
     G{{{ ⌜is_list l lv⌝ ∗ P lp acc None l ∗ [∗ list] a∈l, Φ a }}}
-      list_fold (Val handler) (Val acc) (Val lv) @ s; E
+      list_fold (Val handler) (Val acc) (Val lv) @ g; E
     {{{v, RET v; P (lp ++ l) v None [] ∗ [∗ list] a∈l, Ψ a }}}.
   Proof.
     iIntros "#Hvs #Hcl". iIntros (Ξ) "!# (Hl & Hacc & HΦ) HΞ".
@@ -641,23 +651,23 @@ Section list_specs.
       iApply "HΞ"; iFrame.
   Qed.
 
-  Lemma gwp_list_fold' E handler (l : list A) acc lv P Φ Ψ s :
+  Lemma gwp_list_fold' E handler (l : list A) acc lv P Φ Ψ :
     □ (∀ (a : A) acc lacc lrem, (P lacc acc None (a::lrem) -∗ P lacc acc (Some a) lrem))%I -∗
       (∀ (a : A) acc lacc lrem,
           G{{{ ⌜l = lacc ++ a :: lrem⌝ ∗ P lacc acc (Some a) lrem ∗ Φ a }}}
-            (Val handler) (Val acc) (inject a) @ s; E
+            (Val handler) (Val acc) (inject a) @ g; E
           {{{v, RET v; P (lacc ++ [a]) v None lrem ∗ Ψ a }}}) -∗
     G{{{ ⌜is_list l lv⌝ ∗ P [] acc None l ∗ [∗ list] a∈l, Φ a }}}
-      list_fold (Val handler) (Val acc) lv @ s; E
+      list_fold (Val handler) (Val acc) lv @ g; E
     {{{v, RET v; P l v None [] ∗ [∗ list] a∈l, Ψ a }}}.
   Proof.
     iIntros "#Hvs #Hcl".
     iApply (gwp_list_fold_generalized' _ handler l [] with "[-]"); eauto.
   Qed.
 
-  Lemma gwp_list_sub E k l lv  s :
+  Lemma gwp_list_sub E k l lv :
     G{{{ ⌜is_list l lv⌝ }}}
-      list_sub #k lv @ s; E
+      list_sub #k lv @ g; E
     {{{ v, RET v; ⌜is_list (take k l) v ⌝}}}.
   Proof.
    iIntros (Φ) "Hcoh HΦ".
@@ -675,9 +685,9 @@ Section list_specs.
      iNext. gwp_pures. rewrite firstn_cons. by gwp_apply (gwp_list_cons).
   Qed.
 
-  Lemma gwp_list_nth E (i: nat) l lv s :
+  Lemma gwp_list_nth E (i: nat) l lv :
     G{{{ ⌜is_list l lv⌝ }}}
-      list_nth (Val lv) #i @ s; E
+      list_nth (Val lv) #i @ g; E
     {{{ v, RET v; (⌜v = NONEV⌝ ∧ ⌜length l <= i⌝) ∨
               ⌜∃ r, v = SOMEV (inject r) ∧ nth_error l i = Some r⌝ }}}.
   Proof.
@@ -697,9 +707,9 @@ Section list_specs.
         * iApply "HΦ"; try eauto with lia.
   Qed.
 
-  Lemma gwp_list_nth_some E (i: nat) l lv  s :
+  Lemma gwp_list_nth_some E (i: nat) l lv  :
     G{{{ ⌜is_list l lv ∧ i < length l⌝ }}}
-      list_nth (Val lv) #i @ s; E
+      list_nth (Val lv) #i @ g; E
     {{{ v, RET v; ⌜∃ r, v = SOMEV (inject r) ∧ nth_error l i = Some r⌝ }}}.
   Proof.
     iIntros (Φ (Hcoh & Hi)) "HΦ".
@@ -708,10 +718,10 @@ Section list_specs.
     by iApply "HΦ".
   Qed.
 
-  Lemma gwp_list_mem (l : list A) lv a s E :
+  Lemma gwp_list_mem (l : list A) lv a E :
     val_is_unboxed (inject a) →
     G{{{ ⌜is_list l lv⌝ }}}
-      list_mem (inject a) lv @ s; E
+      list_mem (inject a) lv @ g; E
     {{{ (b : bool), RET #b; if b then ⌜a ∈ l⌝ else ⌜a ∉ l ∨ l = nil⌝ }}}.
   Proof.
     iIntros (? Φ).
@@ -730,9 +740,9 @@ Section list_specs.
       destruct Ha; set_solver.
   Qed.
 
-  Lemma gwp_remove_nth E (l : list A) lv (i : nat) s :
+  Lemma gwp_remove_nth E (l : list A) lv (i : nat) :
     G{{{ ⌜is_list l lv /\ i < length l⌝ }}}
-      list_remove_nth lv #i @ s; E
+      list_remove_nth lv #i @ g; E
     {{{ v, RET v; ∃ e lv' l1 l2,
                 ⌜l = l1 ++ e :: l2 ∧
                  length l1 = i /\
@@ -776,9 +786,9 @@ Section list_specs.
         * by apply is_list_inject.
   Qed.
 
-  Lemma gwp_remove_nth_total E (l : list A) lv (i : nat) s :
+  Lemma gwp_remove_nth_total E (l : list A) lv (i : nat) :
     G{{{ ⌜is_list l lv /\ i < length l⌝ }}}
-      list_remove_nth_total lv #i @ s; E
+      list_remove_nth_total lv #i @ g; E
     {{{ v, RET v; ∃ e lv' l1 l2,
                 ⌜l = l1 ++ e :: l2 ∧
                  length l1 = i /\
@@ -821,13 +831,43 @@ Section list_specs.
         * by apply is_list_inject.
   Qed.
 
-  Lemma gwp_find_remove E (l : list A) lv (Ψ : A → iProp _) (fv : val) s :
+  Lemma gwp_list_find P Ψ Φ E (l : list A) (fv lv : val) :
+    (∀ (a : A),
+        G{{{ Φ a ∗ P }}}
+          fv (inject a) @ g; E
+         {{{ (b : bool), RET #b; P ∗ if b then Ψ a else True }}}) -∗
+      G{{{ ⌜is_list l lv⌝ ∗ P ∗ [∗ list] a ∈ l, Φ a}}}
+        list_find fv lv @ g; E
+       {{{ v, RET v; P ∗ (⌜v = NONEV⌝ ∨ ∃ a, ⌜v = SOMEV (inject a)⌝ ∗ ⌜a ∈ l⌝ ∗ Ψ a) }}}.
+  Proof.
+    iIntros "#Hf".
+    iInduction l as [|a l'] "IH" forall (lv);
+      iIntros (Ξ) "!> (%Hl & HP & HΦ) Hcnt"; gwp_rec; gwp_pures. 
+    { rewrite Hl. gwp_pures. iApply "Hcnt". iFrame "HP". by iLeft. }
+    destruct Hl as [lv' [-> Hl']]. gwp_pures.
+    gwp_bind (fv _).
+    iDestruct "HΦ" as "[Ha HΦ]".
+    iApply ("Hf" with "[$Ha $HP //]").
+    iIntros "!>" (b) "[HP Hb] /=".
+    destruct b.
+    { gwp_pures. iApply "Hcnt". iFrame "HP".
+      iModIntro. iRight. iFrame "Hb".
+      iSplit; [done|]. iPureIntro. constructor. }
+    gwp_pures.
+    gwp_apply ("IH" with "[$HΦ $HP //]").
+    iIntros (v) "Hv".
+    iApply "Hcnt".
+    iDestruct "Hv" as "[$ [-> | (% & -> & % & HΨ)]]"; [by iLeft|].
+    iRight. iFrame. iSplit; [done|]. iPureIntro. by constructor.
+  Qed.
+
+  Lemma gwp_find_remove E (l : list A) lv (Ψ : A → iProp _) (fv : val) :
     (∀ (a : A),
         G{{{ True }}}
-          fv (inject a) @ s; E
+          fv (inject a) @ g; E
         {{{ (b : bool), RET #b; if b then Ψ a else True }}}) -∗
     G{{{ ⌜is_list l lv⌝ }}}
-      list_find_remove fv lv @ s; E
+      list_find_remove fv lv @ g; E
     {{{ v, RET v; ⌜v = NONEV⌝ ∨
                        ∃ e lv' l1 l2,
                          ⌜l = l1 ++ e :: l2 ∧
@@ -862,9 +902,9 @@ Section list_specs.
     iExists _, _, (_ :: _), _; eauto.
   Qed.
 
-  Local Lemma gwp_list_rev_aux E l lM r rM s :
+  Local Lemma gwp_list_rev_aux E l lM r rM :
    G{{{ ⌜is_list lM l ∧ is_list rM r⌝ }}}
-     list_rev_aux (Val l) (Val r) @ s; E
+     list_rev_aux (Val l) (Val r) @ g; E
    {{{ v, RET v; ⌜is_list (rev_append lM rM) v⌝ }}}.
   Proof.
     iIntros (? [Hl Hr]) "H".
@@ -877,18 +917,18 @@ Section list_specs.
       gwp_pures. by iApply "IH".
  Qed.
 
-  Lemma gwp_list_rev E l lM s :
+  Lemma gwp_list_rev E l lM :
     G{{{ ⌜is_list lM l⌝ }}}
-      list_rev (Val l) @ s; E
+      list_rev (Val l) @ g; E
     {{{ v, RET v; ⌜is_list (reverse lM) v⌝ }}}.
   Proof.
     iIntros (??) "H". rewrite /list_rev. gwp_pures.
     by iApply (gwp_list_rev_aux _ _ _ NONEV []).
   Qed.
 
-  Lemma gwp_list_append E l lM r rM s :
+  Lemma gwp_list_append E l lM r rM :
     G{{{ ⌜is_list lM l⌝ ∗ ⌜is_list rM r⌝}}}
-      list_append (Val l) (Val r) @ s; E
+      list_append (Val l) (Val r) @ g; E
     {{{ v, RET v; ⌜is_list (lM ++ rM) v⌝ }}}.
   Proof.
     iIntros (Φ) "[%Hl %Hr] HΦ". rewrite /list_append.
@@ -902,13 +942,13 @@ Section list_specs.
       by gwp_apply gwp_list_cons.
   Qed.
 
-  Lemma gwp_list_forall Φ Ψ E (l : list A) lv (fv : val) s :
+  Lemma gwp_list_forall Φ Ψ E (l : list A) lv (fv : val) :
     (∀ (a : A),
         G{{{ True }}}
-          fv (inject a) @ s; E
+          fv (inject a) @ g; E
         {{{ (b : bool), RET #b; if b then Φ a else Ψ a }}}) -∗
     G{{{ ⌜is_list l lv⌝ }}}
-      list_forall fv lv @ s; E
+      list_forall fv lv @ g; E
     {{{ (b : bool), RET #b; if b then [∗ list] a ∈ l, Φ a else ∃ a, ⌜a ∈ l⌝ ∗ Ψ a }}}.
   Proof.
     rewrite /list_forall.
@@ -930,9 +970,9 @@ Section list_specs.
         iPureIntro. apply elem_of_cons. by left.
   Qed.
 
-  Lemma gwp_list_is_empty l v E s :
+  Lemma gwp_list_is_empty l v E :
     G{{{ ⌜is_list l v⌝ }}}
-      list_is_empty v @ s; E
+      list_is_empty v @ g; E
     {{{ RET #(match l with [] => true | _ => false end); True }}}.
   Proof.
     iIntros (Φ Hl) "HΦ". gwp_rec. destruct l.
@@ -951,13 +991,13 @@ Section list_specs.
   Lemma is_list_snoc lM x : ∃ lv, is_list (lM ++ [x]) lv.
   Proof. induction lM; naive_solver eauto. Qed.
 
-  Lemma gwp_list_filter (l : list A) (P : A -> bool) (f lv : val) E s :
+  Lemma gwp_list_filter (l : list A) (P : A -> bool) (f lv : val) E :
     G{{{ (∀ (x : A),
             G{{{ True }}}
-              f (inject x) @ s; E
+              f (inject x) @ g; E
             {{{ w, RET w; ⌜w = inject (P x)⌝ }}}) ∗
         ⌜is_list l lv⌝ }}}
-       list_filter f lv @ s; E
+       list_filter f lv @ g; E
      {{{ rv, RET rv; ⌜is_list (List.filter P l) rv⌝ }}}.
   Proof.
     iIntros (Φ) "[#Hf %Hil] HΦ".
@@ -994,13 +1034,13 @@ Section list_specs_extra.
   Context `{invGS_gen hlc Σ} `{g : !GenWp Σ}.
   Context `[!Inject A val].
 
-  Lemma gwp_list_map `{!Inject B val} (l : list A) (f : A -> B) (fv lv : val) E s :
+  Lemma gwp_list_map `{!Inject B val} (l : list A) (f : A -> B) (fv lv : val) E :
     G{{{ (∀ (x : A),
           G{{{ True }}}
-            fv (inject x) @ s; E
+            fv (inject x) @ g; E
           {{{ fr, RET fr; ⌜fr = inject (f x)⌝ }}}) ∗
           ⌜is_list l lv⌝ }}}
-      list_map fv lv @ s; E
+      list_map fv lv @ g; E
     {{{ rv, RET rv; ⌜is_list (List.map f l) rv⌝ }}}.
   Proof.
     iIntros (Φ) "[#Hf %Hil] HΦ".
@@ -1064,17 +1104,17 @@ Section list_specs_extra.
   (* TODO: clean up *)
   Lemma gwp_list_mapi_loop `{!Inject B val}
         (f : nat -> A -> B) (k : nat) (l : list A) (fv lv : val)
-        (γ : nat -> A -> iProp _) (ψ : nat -> B -> iProp _) E s :
+        (γ : nat -> A -> iProp _) (ψ : nat -> B -> iProp _) E :
     G{{{ □ (∀ (i : nat) (x : A),
               G{{{ γ (k + i)%nat x }}}
-                fv (inject (k + i)%nat) (inject x) @ s; E
+                fv (inject (k + i)%nat) (inject x) @ g; E
                 {{{ fr, RET fr;
                     let r := f (k + i)%nat x in
                     ⌜fr = (inject r)⌝ ∗ ψ (k + i)%nat r }}}) ∗
         ⌜is_list l lv⌝ ∗
         ([∗ list] i ↦ a ∈ l, γ (k + i)%nat a)
     }}}
-      list_mapi_loop fv #k lv @ s; E
+      list_mapi_loop fv #k lv @ g; E
     {{{ rv, RET rv;
         let l' := mapi_loop f k l in
         ⌜is_list l' rv⌝ ∗
@@ -1150,17 +1190,17 @@ Section list_specs_extra.
 
   Lemma gwp_list_mapi `{!Inject B val}
         (f : nat -> A -> B) (l : list A) (fv lv : val)
-        (γ : nat -> A -> iProp _) (ψ : nat -> B -> iProp _) E s :
+        (γ : nat -> A -> iProp _) (ψ : nat -> B -> iProp _) E :
     G{{{ □ (∀ (i : nat) (x : A),
               G{{{ γ i x }}}
-                fv #i (inject x) @ s; E
+                fv #i (inject x) @ g; E
                 {{{ fr, RET fr;
                     let r := f i x in
                     ⌜fr = (inject r)⌝ ∗ ψ i r }}}) ∗
         ⌜is_list l lv⌝ ∗
         ([∗ list] i ↦ a ∈ l, γ i a)
     }}}
-      list_mapi fv lv @ s; E
+      list_mapi fv lv @ g; E
     {{{ rv, RET rv;
         let l' := mapi f l in
         ⌜is_list l' rv⌝ ∗
@@ -1187,9 +1227,9 @@ Section list_specs_extra.
     (h :: l) !! (S i) = l !! i.
   Proof. auto. Qed.
 
-  Lemma gwp_list_seq E n m s :
+  Lemma gwp_list_seq E n m :
     G{{{ True }}}
-      list_seq #n #m @ s; E
+      list_seq #n #m @ g; E
     {{{ v, RET v; ⌜is_list (seq n m) v⌝ }}}.
   Proof.
     iIntros (Φ) "_ Hφ".
@@ -1218,9 +1258,9 @@ Section list_specs_extra.
       by apply is_list_inject.
   Qed.
 
-  Lemma gwp_list_suf E (n:nat) l lv s :
+  Lemma gwp_list_suf E (n:nat) l lv :
     G{{{ ⌜is_list l lv⌝ }}}
-      list_suf #n lv @ s; E
+      list_suf #n lv @ g; E
     {{{ v, RET v; ⌜is_list (drop n l) v⌝ }}}.
   Proof.
    iIntros (Φ) "%Hl HΦ".
@@ -1248,9 +1288,9 @@ Section list_specs_extra.
        assert (n≠0); [naive_solver|lia].
   Qed.
 
-  Lemma gwp_list_inf_ofs E (n ofs:nat) l lv s :
+  Lemma gwp_list_inf_ofs E (n ofs:nat) l lv :
     G{{{ ⌜is_list l lv⌝ }}}
-      list_inf_ofs #n #ofs lv @ s; E
+      list_inf_ofs #n #ofs lv @ g; E
     {{{ v, RET v; ⌜is_list (take ofs (drop n l)) v⌝ }}}.
   Proof.
     iIntros (Φ) "%Hl HΦ".
@@ -1263,10 +1303,10 @@ Section list_specs_extra.
       done.
   Qed.
 
-  Lemma gwp_list_inf E (i j:nat) l lv s :
+  Lemma gwp_list_inf E (i j:nat) l lv :
     i<=j->
     G{{{ ⌜is_list l lv⌝ }}}
-      list_inf #i #j lv @ s; E
+      list_inf #i #j lv @ g; E
     {{{ v, RET v; ⌜is_list (take (j-i+1) (drop i l)) v⌝ }}}.
   Proof.
     iIntros (Hineq Φ) "%Hl HΦ".
