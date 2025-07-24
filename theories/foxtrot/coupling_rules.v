@@ -1174,221 +1174,136 @@ Section rules.
       rewrite head_prim_step_eq/=.
       rewrite Nat2Z.id.
       rewrite !dmap_comp.
-      
-      admit.
+      rewrite /dmap.
+      replace (INR _) with (0+0)%R; last by rewrite Rplus_0_l.
+      unshelve erewrite (dunif_fragmented _ N f) at 2; last lia.
+      { intros. by apply Hdom. }
+      rewrite -dbind_assoc'.
+      eapply ARcoupl_dbind; [done|done| |apply ARcoupl_eq].
+      intros ? m ->.
+      simpl.
+      case_bool_decide as H2.
+      + (* accepted value *)
+        destruct H2 as [n H2].
+        erewrite state_step_unfold; last done.
+        rewrite /dmap -dbind_assoc'.
+        replace 0 with (0+0)%R by lra.
+        eapply ARcoupl_dbind; [done|done| |apply ARcoupl_eq].
+        intros ? n' ->.
+        rewrite dret_id_left.
+        rewrite app_nil_r insert_length fin_to_nat_to_fin.
+        instantiate (1:= (λ x y, ∃ (m:fin(S M)),
+                             if bool_decide (∃ n : fin (S N), f n = m)
+                             then
+                               ∃ (n':fin (S N)), x= (state_upd_tapes <[α:=(N; fs ++ [n'])]> σ) /\ y=([(cfg_to_cfg' (l, s), j); (cfg_to_cfg' (<[j:=fill K #(f n')]> l, s), length l)],
+        (<[j:=fill K #(f n')]> l, s))
+                             else x=σ /\ y= ([(cfg_to_cfg' (l, s), j); (cfg_to_cfg' (<[j:=fill K #m]> l, s), length l)],
+        (<[j:=fill K #m]> l, s))
+                    )).
+        apply ARcoupl_dret; first done.
+        exists m.
+        rewrite bool_decide_eq_true_2; naive_solver.
+      + (* rejected value *)
+        rewrite dret_id_left.
+        rewrite app_nil_r insert_length.
+        apply ARcoupl_dret; first done.
+        exists m.
+        rewrite bool_decide_eq_false_2; last done.
+        naive_solver.
     - iPureIntro.
-      admit.
-    - admit.
-  Admitted. 
-  (*   iApply (spec_coupl_erasables_exp E2 (Rmax ε_now1 ε_now2) 0%NNR). *)
-  (*   { eapply ARcoupl_exact, Rcoupl_swap, Rcoupl_fragmented_rand_rand_inj; done || lia. } *)
-  (*   { apply erasable_dbind_predicate. *)
-  (*     - solve_distr_mass. *)
-  (*     - by eapply state_step_erasable. *)
-  (*     - apply dret_erasable. } *)
-  (*   { by eapply state_step_erasable. } *)
-  (*   { done. } *)
-  (*   { simpl. erewrite state_step_unfold; [|done]. *)
-  (*     (* TODO: cleanup *) *)
-  (*     rewrite /Expval. *)
-  (*     erewrite (SeriesC_ext _ *)
-  (*                 (λ b : state, *)
-  (*                     if bool_decide (b ∈ (λ x, state_upd_tapes <[αₛ:=(M; fsₛ ++ [x])]> σ1') *)
-  (*                                       <$> (fin_enum (S M))) *)
-  (*                    then /(S M) * E2 b else 0)%R); last first. *)
-  (*     { intros n. *)
-  (*       case_bool_decide as Hin; last first. *)
-  (*       { apply Rmult_eq_0_compat_r. rewrite /dmap/dbind/dbind_pmf/pmf/=. *)
-  (*         apply SeriesC_0. intros. apply Rmult_eq_0_compat_l. *)
-  (*         rewrite /dret_pmf. case_bool_decide; last lra. *)
-  (*         subst. exfalso. apply Hin. erewrite elem_of_list_fmap. *)
-  (*         exists x; split; first done. replace (fin_enum (S M)) with (enum (fin (S M))) by done. *)
-  (*         apply elem_of_enum. } *)
-  (*       rewrite elem_of_list_fmap in Hin. destruct Hin as [y [-> ?]]. *)
-  (*       apply Rmult_eq_compat_r. rewrite /dmap/dbind/dbind_pmf/pmf/=. *)
-  (*       rewrite SeriesC_scal_l. *)
-  (*       replace (SeriesC _) with 1%R; first lra. *)
-  (*       symmetry. *)
-  (*       rewrite /dret_pmf. *)
-  (*       erewrite (SeriesC_ext _ (λ x, if bool_decide (x = y) then 1 else 0))%R; *)
-  (*         first apply SeriesC_singleton. *)
-  (*       intros. *)
-  (*       case_bool_decide as H2i. *)
-  (*       - apply state_upd_tapes_same in H2i. simplify_eq. *)
-  (*         case_bool_decide; done. *)
-  (*       - case_bool_decide; last done. *)
-  (*         subst. done. } *)
-  (*     { trans (SeriesC (λ x, if bool_decide (∃ y, g y = x) then / S M * ε_now1 else / S M * ε_now2))%R. *)
-  (*       - rewrite Rplus_0_l. *)
-  (*         set (h σ := match decide (∃ x, σ = state_upd_tapes <[αₛ:=(M; fsₛ ++ [x])]> σ1') with *)
-  (*                   | left Hproof => Some (epsilon Hproof) *)
-  (*                   | _ => None *)
-  (*                   end). *)
-  (*         etrans; last eapply (SeriesC_le_inj _ h). *)
-  (*         + apply Req_le_sym. apply SeriesC_ext. (** should be ok *) *)
-  (*           intros s. rewrite /h. case_match eqn:Heqn; last first. *)
-  (*           { rewrite bool_decide_eq_false_2; first (simpl;lra). *)
-  (*             erewrite elem_of_list_fmap. *)
-  (*             intros [? [->?]]. apply n. *)
-  (*             naive_solver. } *)
-  (*           pose proof epsilon_correct _ e0 as H'. *)
-  (*           rewrite bool_decide_eq_true_2; last first. *)
-  (*           { destruct e0 as [x ?]. subst. rewrite elem_of_list_fmap. *)
-  (*             eexists _. split; first done. *)
-  (*             replace (fin_enum _) with (enum (fin (S M))) by done. *)
-  (*             apply elem_of_enum. } *)
-  (*           rewrite !S_INR. *)
-  (*           rewrite /E2. *)
-  (*           simpl in *. subst. *)
-  (*           case_bool_decide as H1'. *)
-  (*           * rewrite bool_decide_eq_true_2. *)
-  (*             { rewrite /ε_now1. simpl; lra. } *)
-  (*             destruct H1' as [y ?]. exists y. rewrite H3. done. *)
-  (*           * rewrite bool_decide_eq_false_2. *)
-  (*             { rewrite /ε_now2; simpl; lra. } *)
-  (*             intros [x H2']. *)
-  (*             apply H1'. rewrite H' in H2'. apply state_upd_tapes_same in H2'. simplify_eq. *)
-  (*             naive_solver. *)
-  (*         + intros. case_bool_decide; apply Rmult_le_pos; try done. *)
-  (*           all: rewrite <-Rdiv_1_l; apply Rcomplements.Rdiv_le_0_compat; try lra. *)
-  (*           all: apply pos_INR_S. *)
-  (*         + intros n1 n2 m. rewrite /h. do 2 case_match; try done. *)
-  (*           intros. *)
-  (*           pose proof epsilon_correct _ e0. *)
-  (*           pose proof epsilon_correct _ e1. simpl in *. simplify_eq. *)
-  (*           rewrite H7 H8. by repeat f_equal. *)
-  (*         + apply ex_seriesC_finite. *)
-  (*       - eset (diff:=elements (((list_to_set (enum (fin(S M)))):gset _ )∖ ((list_to_set(g<$>enum (fin(S N)))):gset _))). *)
-  (*         erewrite (SeriesC_ext _ *)
-  (*                     (λ x : fin (S M), (if bool_decide (x ∈ g<$> enum (fin(S N))) then / S M * ε_now1 else 0%R) + *)
-  (*                                        if bool_decide (x ∈ diff ) then / S M * ε_now2 else 0%R *)
-  (*                  ))%R; last first. *)
-  (*         { (** annoying lemma again *) *)
-  (*           intros n. rewrite /diff. *)
-  (*           case_bool_decide as H1'. *)
-  (*           - destruct H1' as [? H1']. rewrite bool_decide_eq_true_2; last first. *)
-  (*             + subst. apply elem_of_list_fmap_1. apply elem_of_enum. *)
-  (*             + subst. rewrite bool_decide_eq_false_2; first lra. *)
-  (*               rewrite elem_of_elements. *)
-  (*               rewrite not_elem_of_difference; right. *)
-  (*               rewrite elem_of_list_to_set. apply elem_of_list_fmap_1; apply elem_of_enum. *)
-  (*           - rewrite bool_decide_eq_false_2; last first. *)
-  (*             { rewrite elem_of_list_fmap. intros [?[??]]. *)
-  (*               subst. apply H1'. naive_solver. } *)
-  (*             rewrite bool_decide_eq_true_2; first lra. *)
-  (*             rewrite elem_of_elements. rewrite elem_of_difference. *)
-  (*             split; rewrite elem_of_list_to_set; first apply elem_of_enum. *)
-  (*             rewrite elem_of_list_fmap. intros [?[??]]. *)
-  (*             subst. apply H1'. naive_solver. *)
-  (*         } *)
-  (*       rewrite SeriesC_plus; try apply ex_seriesC_finite. *)
-  (*       rewrite !SeriesC_list_2; last first. *)
-  (*       { apply NoDup_fmap_2; [done|apply NoDup_enum]. } *)
-  (*       { rewrite /diff. eapply NoDup_elements. } *)
-  (*       rewrite fmap_length. rewrite fin.length_enum_fin. *)
-  (*       rewrite /diff. *)
-  (*       replace (length _) with (S M - S N)%nat; last first. *)
-  (*       { erewrite <-size_list_to_set; last apply NoDup_elements. *)
-  (*         erewrite list_to_set_elements. *)
-  (*         rewrite size_difference. *)
-  (*         - rewrite !size_list_to_set; [|apply NoDup_fmap; [auto|apply NoDup_enum]|apply NoDup_enum]; auto. *)
-  (*           rewrite fmap_length. *)
-  (*           rewrite !fin.length_enum_fin. done. *)
-  (*         - intros ??. apply elem_of_list_to_set. apply elem_of_enum. *)
-  (*       } *)
-  (*       rewrite /ε_now1 /ε_now2. simpl. rewrite -/(INR (S N)) -/(INR (S M)). rewrite !S_INR. *)
-  (*       rewrite !Rmult_assoc. *)
-  (*       rewrite minus_INR; last lia. *)
-  (*       cut ((N+1)/ (M + 1) * ε_now - (N+1)/(M+1) *ε+ *)
-  (*              (M-N)/ (M + 1) * ε_now + ((N + 1)/(M+1) * ((M-N)/ (M - N))) * ε <= ε_now)%R; first lra. *)
-  (*       rewrite Rdiv_diag; last first. *)
-  (*       { assert (N < M)%R; real_solver. } *)
-  (*       cut ((N + 1) / (M + 1) * ε_now+ (M - N) / (M + 1) * ε_now <= ε_now)%R; first lra. *)
-  (*       cut ((M + 1) / (M + 1) * ε_now <= ε_now)%R; first lra. *)
-  (*       rewrite Rdiv_diag; first lra. *)
-  (*       pose proof pos_INR M. lra. } *)
-  (*     Unshelve. all : eapply gset_fin_set. } *)
-
-  (*   iIntros (?? [m H']). *)
-  (*   case_bool_decide in H' as H1'. *)
-  (*   - destruct H' as (n&?&?&?). *)
-  (*     destruct H1' as [n' <-]. *)
-  (*     assert (n' = n) as -> by (by apply (inj _)). *)
-  (*     simplify_eq. *)
-  (*     iApply spec_coupl_ret. *)
-  (*     iMod (ghost_map_update ((N; fs ++ [n]) : tape) with "Ht1 Hα") as "[$ Hα]". *)
-  (*     iMod (ghost_map_update ((M; fsₛ ++ [g n]) : tape) with "Ht2 Hαₛ") as "[$ Hαₛ]". *)
-  (*     iModIntro. iMod "Hclose'" as "_". *)
-  (*     iSpecialize ("Hwp" $! (f n)). *)
-  (*     rewrite bool_decide_eq_true_2. *)
-  (*     2: { exists n. *)
-  (*          split; auto. *)
-  (*          apply fin_to_nat_le. } *)
-
-  (*     iSpecialize ("Hwp" $! _ (n)). iFrame. *)
-  (*     iDestruct ("Hwp" with "[$Hα $Hαₛ]") as "Hwp". *)
-  (*     { iPureIntro. *)
-  (*       split; [rewrite fmap_app /=  // |]. *)
-  (*       split; [rewrite fmap_app /= HgEq // |]. *)
-  (*       split; [apply fin_to_nat_le | ]. *)
-  (*       apply Nat.lt_succ_r, Hdom, fin_to_nat_lt. *)
-  (*     } *)
-  (*     replace (ε_now) with (ε' + ε_now1)%NNR; last first. *)
-  (*     { apply nnreal_ext. simpl. lra. } *)
-  (*     iMod (ec_supply_decrease with "[$] [$]") as (????) "H". *)
-  (*     iFrame. *)
-  (*     rewrite /E2 bool_decide_eq_true_2; [|eauto]. *)
-  (*     iApply ec_supply_eq; [|done]. *)
-  (*     simplify_eq /=. lra. *)
-
-  (*   - destruct H' as [??]. simplify_eq. *)
-  (*     replace (E2 _) with (ε_now2); last first. *)
-  (*     { rewrite /E2. rewrite bool_decide_eq_false_2 //. *)
-  (*       intros [? H2']. apply state_upd_tapes_same in H2'. simplify_eq. naive_solver. } *)
-  (*     destruct (Rle_or_lt 1 ε_now2). *)
-  (*     { iModIntro. by iApply spec_coupl_ret_err_ge_1. } *)
-  (*     iModIntro. *)
-  (*     iApply spec_coupl_ret. *)
-  (*     iMod (ghost_map_update ((M; fsₛ ++ [m]) : tape) with "Ht2 Hαₛ") as "[? Hαₛ]". *)
-  (*     iMod "Hclose'" as "_". *)
-  (*     iSpecialize ("Hwp" $! m). *)
-  (*     rewrite bool_decide_eq_false_2 //. *)
-  (*     2: { *)
-  (*       intros [n [Hn1 Hn2]]. *)
-  (*       apply H1'. *)
-  (*       assert (n < S N)%nat as Hn3 by lia. *)
-  (*       exists (nat_to_fin Hn3). *)
-  (*       apply fin_to_nat_inj. *)
-  (*       rewrite HgEq -Hn2. *)
-  (*       rewrite fin_to_nat_to_fin //. *)
-  (*     } *)
-  (*     rewrite !S_INR /=. *)
-  (*     iFrame. *)
-  (*     iMod (ec_supply_increase with "[$Hε2]") as "[$ Hε']". *)
-  (*     { by eapply Rle_lt_trans. } *)
-  (*     iCombine "Hε Hε'" as "Hε". *)
-  (*     iApply ("Hwp" $! _ with "[$Hα $Hαₛ $Hε]"). *)
-  (*     iPureIntro. *)
-  (*     split. *)
-  (*     1:{ *)
-  (*       simpl. rewrite -/(INR (S N)). rewrite S_INR. *)
-  (*       replace (INR M + 1 - (INR N + 1))%R with (INR M - INR N)%R by lra. *)
-  (*       rewrite -{1}(Rmult_1_l ε). *)
-  (*       rewrite Rmult_assoc (Rmult_comm ε). *)
-  (*       rewrite -Rmult_plus_distr_r. apply Rmult_eq_compat_r. *)
-  (*       rewrite Rdiv_def. *)
-  (*       replace (1)%R with ((INR M - INR N)*/(INR M - INR N))%R at 1; last first. *)
-  (*       { apply Rinv_r. apply lt_INR in Hineq. lra. } *)
-  (*       rewrite minus_INR; [|real_solver]. *)
-  (*       rewrite -Rmult_plus_distr_r. lra. } *)
-  (*     split; auto. *)
-  (*     split; [ | apply fin_to_nat_le ]. *)
-  (*     rewrite fmap_app //. *)
-  (*     Unshelve. *)
-  (*     + apply Nat.lt_succ_r, Hdom, fin_to_nat_lt. *)
-  (*     + apply fin_to_nat_le. *)
-  (* Qed. *)
-
+      intros ?????[m1 K1][m2 K2]. case_bool_decide as C1; case_bool_decide as C2.
+      + destruct K1 as [n1]. destruct K2 as [n2]. destruct!/=.
+        replace n1 with n2; first done.
+        assert (<[j:=fill K #(f n2)]> l!!j = <[j:=fill K #(f n1)]> l!!j) as Heq; first by f_equal.
+        rewrite !list_lookup_insert in Heq; try lia. by destruct!/=. 
+      + destruct!/=.
+        exfalso.
+        apply C2.
+        assert (<[j:=fill K #(f n')]> l !!j= <[j:=fill K #m1]> l!!j)as Heq; first by f_equal.
+        rewrite !list_lookup_insert in Heq; try lia. destruct!/=.
+        naive_solver.
+      + destruct!/=. exfalso. apply C1.
+        assert (<[j:=fill K #(m2)]> l !!j= <[j:=fill K #(f n')]> l!!j)as Heq; first by f_equal.
+        rewrite !list_lookup_insert in Heq; try lia. destruct!/=.
+        naive_solver.
+      + destruct!/=. split; first done.
+        congruence.
+    - simpl. iIntros (????).
+      destruct!/=.
+      case_bool_decide as H3.
+      + (* accepted *)
+        destruct!/=.
+        iMod (spec_update_prog with "[$][$]") as "[HK Hs]".
+        iMod (ghost_map_update with "Ht [$]") as "(?&?)".
+        replace (ε_now) with (ε' + ε_now1)%NNR; last first.
+        { apply nnreal_ext. simpl. lra. }
+        iMod (ec_supply_decrease with "[$] [$]") as (?? H2 ?) "H".
+        replace (E2 _) with (ε_now1); last first.
+        { rewrite /E2. subst.
+          rewrite bool_decide_eq_true_2; first done.
+          eexists _. by rewrite list_lookup_insert. 
+        }
+        iModIntro. 
+        iApply spec_coupl_ret.
+        iFrame.
+        iMod "Hclose'".
+        iModIntro.
+        iSplitL "H".
+        * iApply ec_supply_eq; [|done].
+          simplify_eq/=. lra.
+        * iSplit; last (iLeft; iPureIntro; eexists (fin_to_nat _)).
+          -- iPureIntro.
+             apply Nat.lt_succ_r.
+             apply Hdom.
+             apply fin_to_nat_lt.
+          -- repeat split; [apply Nat.lt_succ_r|by rewrite fmap_app].
+             apply fin_to_nat_lt.
+      + (* rejected *)
+        destruct!/=.
+        iMod (spec_update_prog with "[$][$]") as "[HK Hs]".
+        replace (E2 _) with (ε_now2); last first.
+        { rewrite /E2. subst.
+          rewrite bool_decide_eq_false_2; first done.
+          intros [? Heq]. rewrite list_lookup_insert in Heq; last done.
+          simplify_eq. apply H3. naive_solver.
+        }
+        destruct (Rle_or_lt 1 ε_now2).
+        { iModIntro. by iApply spec_coupl_ret_err_ge_1. }
+        iModIntro.
+        iApply spec_coupl_ret.
+        iFrame.
+        iMod (ec_supply_increase with "[$]") as "[$ Herr']".
+        { by eapply Rle_lt_trans. }
+        iCombine "Herr Herr'" as "Herr".
+        iMod "Hclose'".
+        iModIntro.
+        iSplit.
+        { iPureIntro. apply Nat.lt_succ_r. apply fin_to_nat_lt. }
+        iRight.
+        iSplitR.
+        * iPureIntro.
+          intros [].
+          apply H3. destruct!/=.
+          unshelve eexists (nat_to_fin _); last by rewrite fin_to_nat_to_fin.
+          lia.
+        * iSplitR; first done.
+          iApply (ec_eq with "[$]").
+          simpl.
+          assert (ε * (1+S N * /(M-N)%nat - S M/(S M -S N))=0); simpl; last lra.
+          rewrite -minus_INR; last lia.
+          simpl.
+          erewrite <-(Rinv_r (M-N)%nat); last (apply not_0_INR; lia).
+          apply Rmult_eq_0_compat_l.
+          assert ((M - N)%nat * / (M - N)%nat + (S N -S M)/ (M - N)%nat = 0); last lra.
+          rewrite Rinv_r; last (apply not_0_INR; lia).
+          rewrite -Ropp_minus_distr.
+          rewrite -minus_INR; last lia.
+          rewrite Rdiv_opp_l.
+          simpl.
+          rewrite Rdiv_diag; last (apply not_0_INR; lia).
+          lra.
+  Qed.
+  
   (* Lemma wp_couple_fragmented_rand_rand_leq_rev' {M N : nat} ns nsₛ α αₛ e E Φ (ε : R) : *)
   (*   0 <= ε → *)
   (*   (N < M)%nat → *)
