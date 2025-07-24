@@ -86,7 +86,7 @@ Section dataset_operators.
 End dataset_operators.
 
 
-(** See [https://programming-dp.com/ch10.html#applying-the-sparse-vector-technique] *)
+(** See [https://programming-dp.com/chapter10.html#applying-the-sparse-vector-technique] *)
 Definition age_sum_query : val :=
   λ: "b" "df", list_sum (list_clip #0 "b" "df").
 
