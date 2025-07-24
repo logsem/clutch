@@ -16,9 +16,10 @@ Section logrel.
   Context `{!approxisRGS Σ}.
 
   (* security parameter *)
-  Variable η : nat.
+  Variable η' : nat.
+  Let η := η' + 1.
 
-  Let N := 2^η.
+  Let N := 2^η - 1.
 
   Variable Key Output : nat.
 
@@ -253,8 +254,10 @@ Section logrel.
         repeat iSplit; try (iPureIntro; done).
         - iExists 1. repeat iSplit; iPureIntro; try done.
           apply Z2Nat.inj_le; try lia. rewrite /N.
-          rewrite Nat2Z.id. rewrite Nat2Z.id.
-          apply fin.pow_ge_1. lia.
+          rewrite Nat2Z.id. rewrite Nat2Z.id. rewrite /η.
+          apply Nat.le_add_le_sub_l. simpl.
+          replace 2 with (2 ^ 1) by done.
+          apply Nat.pow_le_mono_r; simpl; lia.
         - iExists nonce; repeat iSplit; iPureIntro; try done; try lia.
       }
       iIntros (c c') "#Hrelcipher Hcipher"...
@@ -315,8 +318,10 @@ Section logrel.
         repeat iSplit; try (iPureIntro; done).
         - iExists 1. repeat iSplit; iPureIntro; try done.
           apply Z2Nat.inj_le; try lia. rewrite /N.
-          rewrite Nat2Z.id. rewrite Nat2Z.id.
-          apply fin.pow_ge_1. lia.
+          rewrite Nat2Z.id. rewrite Nat2Z.id. rewrite /η.
+          apply Nat.le_add_le_sub_l. simpl.
+          replace 2 with (2 ^ 1) by done.
+          apply Nat.pow_le_mono_r; simpl; lia.
         - iExists nonce; repeat iSplit; iPureIntro; try done; try lia.
       }
       iIntros (c c') "#Hrelcipher Hcipher"...
@@ -442,7 +447,10 @@ Section logrel.
         + rel_vals.
           apply Z2Nat.inj_le; try lia. rewrite /N.
           rewrite Nat2Z.id. replace (Z.to_nat 1) with 1 by lia.
-          apply fin.pow_ge_1. lia.
+          rewrite /η.
+          apply Nat.le_add_le_sub_l. simpl.
+          replace 2 with (2 ^ 1) by done.
+          apply Nat.pow_le_mono_r; simpl; lia.
       - iIntros (c1 c1') "Hrelcipher"...
         rel_bind_l (senc _ _ _).
         rel_bind_r (senc _ _ _).
@@ -526,7 +534,10 @@ Section logrel.
         + rel_vals.
           apply Z2Nat.inj_le; try lia. rewrite /N.
           rewrite Nat2Z.id. replace (Z.to_nat 1) with 1 by lia.
-          apply fin.pow_ge_1. lia.
+          rewrite /η.
+          apply Nat.le_add_le_sub_l. simpl.
+          replace 2 with (2 ^ 1) by done.
+          apply Nat.pow_le_mono_r; simpl; lia.
       - iIntros (c1 c1') "Hrelcipher"...
         rel_bind_l (senc _ _ _).
         rel_bind_r (senc _ _ _).
@@ -1298,7 +1309,10 @@ Section logrel.
         - rel_vals.
         - rel_vals. apply Z2Nat.inj_le; try lia. rewrite /N.
           rewrite Nat2Z.id. replace (Z.to_nat 1) with 1 by lia.
-          apply fin.pow_ge_1. lia.
+          rewrite /η.
+          apply Nat.le_add_le_sub_l. simpl.
+          replace 2 with (2 ^ 1) by done.
+          apply Nat.pow_le_mono_r; simpl; lia.
       }
       iIntros (c1 c1') "#Hrelc1"...
       rel_bind_l (senc _ _ _).
@@ -1385,7 +1399,10 @@ Section logrel.
         - rel_vals.
         - rel_vals. apply Z2Nat.inj_le; try lia. rewrite /N.
           rewrite Nat2Z.id. replace (Z.to_nat 1) with 1 by lia.
-          apply fin.pow_ge_1. lia.
+          rewrite /η.
+          apply Nat.le_add_le_sub_l. simpl.
+          replace 2 with (2 ^ 1) by done.
+          apply Nat.pow_le_mono_r; simpl; lia.
       }
       iIntros (c1 c1') "#Hrelc1"...
       rel_bind_l (senc _ _ _).
@@ -1437,7 +1454,10 @@ Section logrel.
           repeat split; eexists; repeat split; try lia.
           apply Z2Nat.inj_le; try lia. rewrite /N.
           rewrite Nat2Z.id. replace (Z.to_nat 1) with 1 by lia.
-          apply fin.pow_ge_1. lia.
+          rewrite /η.
+          apply Nat.le_add_le_sub_l. simpl.
+          replace 2 with (2 ^ 1) by done.
+          apply Nat.pow_le_mono_r; simpl; lia.
         - iApply (P0lr_Plr with "HP HP'").
       }
       iIntros (c1 c1') "#Hrelc1 Hcipher1"...
@@ -1490,7 +1510,10 @@ Section logrel.
           repeat split; eexists; repeat split; try lia.
           apply Z2Nat.inj_le; try lia. rewrite /N.
           rewrite Nat2Z.id. replace (Z.to_nat 1) with 1 by lia.
-          apply fin.pow_ge_1. lia.
+          rewrite /η.
+          apply Nat.le_add_le_sub_l. simpl.
+          replace 2 with (2 ^ 1) by done.
+          apply Nat.pow_le_mono_r; simpl; lia.
         - iApply (P0lr_Plr with "HP HP'").
       }
       iIntros (c1 c1') "#Hrelc1 Hcipher1"...
