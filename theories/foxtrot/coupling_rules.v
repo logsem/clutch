@@ -1303,7 +1303,8 @@ Section rules.
           rewrite Rdiv_diag; last (apply not_0_INR; lia).
           lra.
   Qed.
-  
+
+  Local Transparent INR.
   (* Lemma wp_couple_fragmented_rand_rand_leq_rev' {M N : nat} ns nsₛ α αₛ e E Φ (ε : R) : *)
   (*   0 <= ε → *)
   (*   (N < M)%nat → *)
