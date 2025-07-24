@@ -255,6 +255,10 @@ Section defs.
 
   Section logrel.
 
+    (*
+      A → S : (A, B, {n}_ka)
+      S → B : {A, n}_kb
+    *)
     Definition init_id_dis : val :=
       λ: <>,
         let: "A" := #0 in
