@@ -1761,40 +1761,6 @@ Section logrel.
          "s_to_b",
          "b_recv").
 
-    (* TODO when this definition is stable, copy paste in symmetric_init
-      and recompile *)
-    Definition CCA : val :=
-      λ:"b" "adv" "scheme" "Qenckey" "Qencgen" "Qdec" "Qdecgen",
-        let: "enc_scheme" := get_enc_scheme "scheme" #() in
-        let: "key" := get_keygen "scheme" #() in
-        let: "enc_gen" := get_enc "enc_scheme" in
-        let: "dec_gen" := get_dec "enc_scheme" in
-        let: "enc_key" := λ: "msg", (get_enc "enc_scheme") "key" "msg" in
-        let: "dec_key" := λ: "msg", (get_dec "enc_scheme") "key" "msg" in
-        let: "enc_lr" := λ: "msgs",
-          "enc_key" (if: "b" then (Fst "msgs") else (Snd "msgs")) in
-        let: "oracle_lr" :=
-          q_calls_general_test
-          (λ: "p", is_plaintext (Fst "p") `and` is_plaintext (Snd "p"))
-          "Qenckey" "enc_lr" in
-      let: "oracle_lr" := λ: "msg1" "msg2", "oracle_lr" ("msg1", "msg2") in
-      let: "oracle_enc_gen" :=
-        q_calls_general_test
-          (λ: "p", is_key (Fst "p") `and` is_plaintext (Snd "p"))
-          "Qencgen"
-          (λ: "p", "enc_gen" (Fst "p") (Snd "p")) in
-      let: "oracle_enc_gen" := λ: "k" "msg", "oracle_enc_gen" ("k", "msg") in
-      let: "oracle_dec_gen" :=
-        q_calls_general_test
-          (λ: "p", is_key (Fst "p") `and` is_ciphertext (Snd "p"))
-          "Qdecgen"
-          (λ: "p", "dec_gen" (Fst "p") (Snd "p")) in
-      let: "oracle_dec_gen" := λ: "k" "msg", "oracle_dec_gen" ("k", "msg") in
-        let: "oracle_dec" :=
-          q_calls_general_test is_ciphertext "Qdec" "dec_key" in
-        let: "b'" := "adv" "oracle_enc_gen" "oracle_lr" "oracle_dec" "oracle_dec_gen" in
-        "b'".
-
   Definition sym_is_couple_cipher_lr
     (lls rls : list loc) (msg msg' c c' k k' : val) : iProp Σ :=
   ∀ K K' E A,
@@ -1823,6 +1789,8 @@ Section logrel.
         (fill K' (senc rls k' msg'))
         A).
   Admitted.
+
+  Let CCA := CCA is_plaintext is_ciphertext is_key.
 
   Lemma wmf_once_plain_cipher_channel_true__wmf_once_channel_adv (adv : val) :
       (lrel_protocol → lrel_bool)%lrel adv adv
@@ -3279,6 +3247,29 @@ Section logrel.
         + 
         rel_load_l; rel_load_r... *)
 
+  Lemma wmf_adv_ptxt_false__wmf_private_channel_false (adv : val) :
+      (lrel_protocol → lrel_bool)%lrel adv adv
+    ⊢ REL
+        (PTXT'' #true
+          (λ: "senc_oracle" "senc_oracle_gen" "sdec_oracle",
+            adv (wmf_once_adv_ptxt #false
+              "senc_oracle" "senc_oracle_gen" "sdec_oracle"))
+          sym_scheme
+          #1 #1 #1) <<
+        (adv (init_scheme (wmf_once_private_channel #false)))
+      : lrel_bool.
+  Admitted.
     
+  Lemma wmf_once_false__wmf_adv_ptxt_false (adv : val) :
+      (lrel_protocol → lrel_bool)%lrel adv adv
+    ⊢ REL (adv (init_scheme (wmf_once #false))) <<
+        (PTXT'' #false
+          (λ: "senc_oracle" "senc_oracle_gen" "sdec_oracle",
+            adv (wmf_once_adv_ptxt #false
+              "senc_oracle" "senc_oracle_gen" "sdec_oracle"))
+          sym_scheme
+          #1 #1 #1)
+      : lrel_bool.
+  Admitted.
 
 End logrel.

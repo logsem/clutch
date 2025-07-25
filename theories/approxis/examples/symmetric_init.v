@@ -136,25 +136,35 @@ End CPA_sem.
     Variable is_key : val.
     
     Definition CCA : val :=
-      λ:"b" "adv" "scheme" "Qenckey" "Qencgen" "Qdec",
+      λ:"b" "adv" "scheme" "Qenckey" "Qencgen" "Qdec" "Qdecgen",
         let: "enc_scheme" := get_enc_scheme "scheme" #() in
         let: "key" := get_keygen "scheme" #() in
         let: "enc_gen" := get_enc "enc_scheme" in
+        let: "dec_gen" := get_dec "enc_scheme" in
         let: "enc_key" := λ: "msg", (get_enc "enc_scheme") "key" "msg" in
-        let: "dec_key" := λ: "msg", (get_enc "enc_scheme") "key" "msg" in
+        let: "dec_key" := λ: "msg", (get_dec "enc_scheme") "key" "msg" in
         let: "enc_lr" := λ: "msgs",
           "enc_key" (if: "b" then (Fst "msgs") else (Snd "msgs")) in
         let: "oracle_lr" :=
-          q_calls_general_test is_plaintext "Qenckey" "enc_lr" in
+          q_calls_general_test
+          (λ: "p", is_plaintext (Fst "p") `and` is_plaintext (Snd "p"))
+          "Qenckey" "enc_lr" in
+      let: "oracle_lr" := λ: "msg1" "msg2", "oracle_lr" ("msg1", "msg2") in
       let: "oracle_enc_gen" :=
         q_calls_general_test
           (λ: "p", is_key (Fst "p") `and` is_plaintext (Snd "p"))
           "Qencgen"
           (λ: "p", "enc_gen" (Fst "p") (Snd "p")) in
-      let: "oracle_enc_gen" := λ: "k" "msg", "oracle_enc" ("k", "msg") in
+      let: "oracle_enc_gen" := λ: "k" "msg", "oracle_enc_gen" ("k", "msg") in
+      let: "oracle_dec_gen" :=
+        q_calls_general_test
+          (λ: "p", is_key (Fst "p") `and` is_ciphertext (Snd "p"))
+          "Qdecgen"
+          (λ: "p", "dec_gen" (Fst "p") (Snd "p")) in
+      let: "oracle_dec_gen" := λ: "k" "msg", "oracle_dec_gen" ("k", "msg") in
         let: "oracle_dec" :=
           q_calls_general_test is_ciphertext "Qdec" "dec_key" in
-        let: "b'" := "adv" "oracle_enc_gen" "oracle_lr" "oracle_dec" in
+        let: "b'" := "adv" "oracle_enc_gen" "oracle_lr" "oracle_dec" "oracle_dec_gen" in
         "b'".
 
   End CCA.
