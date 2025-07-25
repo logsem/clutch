@@ -8,6 +8,13 @@ From mathcomp Require Import ssrbool.
 Set Default Proof Using "All".
 Import map.
 
+(*
+  We show that for a nysymmetric scheme satisfying INT-PTXT,
+  we can replace decryption by an idealized encryption, testing
+  if the plaintext was a encrypted by the encryption oracle
+  beforehand.
+*)
+
 Section logrel.
   
   Context `{!approxisRGS Σ}.
