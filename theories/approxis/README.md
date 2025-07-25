@@ -76,9 +76,13 @@ We instantiate
 `vg_of_symkey`: rejection sampler
 Some assumptions about `vg_of_int` are missing. The `vg_of_symkey` function spec is admitted.
 
+Admitted because of problems with group operations.
+
 ### ElGamal + OTP instance
 
 Assumption as hypothesis over `vg_of_int` to have a proper map from OTP keys to ElGamal messages.
+
+Admitted because of problems with group operations.
 
 ## Integrity assumptions
 Files: `symmetric_init.v`, `intptxt_ideal_dec.v` and `intctxt_ideal_dec.v`
