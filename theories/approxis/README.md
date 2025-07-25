@@ -43,7 +43,7 @@ All these properties were proved for the two instances available, so `valgroupZp
 Files: `prg_extension.v` and `prg_prf.v`
 
 We prove two important properties of the PRGs:
-- In `prg_extension.v`, we prove the extension property, namely that from a PRG adding d random bits to a random generator, we can construct another PRG adding 2*d random bits.
+- In `prg_extension.v`, we prove the extension property, namely that from a PRG adding d random bits to a random generator, we can construct another PRG adding 2*d random bits. This proof was one of the first one I wrote, so it is actually not valid: it does not reduce to the PRG game, but assume an erroneous lemma allowing to permute the left/right side of the game in-proof, greatly simplifying the reasoning. It should be redone properly.
 - In `prg_prf.v`, we prove we can construct a PRF if we have a PRG. This proof is not complete, however, we need some assumptions on the PRG, namely that it is iterable, to carry out the proof.
 
 The extension proof comes from section 5.4 of The Joy of Cryptography, Mike Rosulek, 2020.
@@ -68,6 +68,8 @@ We prove CPA security of a KEMDEM scheme, based on:
 The hypotheses needed to instantiate this security property take the form of several typeclass.
 
 The adequacy theorem is not applied at the end.
+
+Reference: [https://garbledcircus.com/kemdem/left-right](https://garbledcircus.com/kemdem/left-right)
 
 ### ElGamal + RF-based encryption instance
 
@@ -101,7 +103,7 @@ where:
 - A and B are agent, exchanging a secret nonce `N`;
 - S is a server trusted by both parties, having access to symmetric keys to communicate with both agents.
 
-References: https://lsv.ens-paris-saclay.fr/Software/spore/wideMouthedFrog.html
+References: [https://lsv.ens-paris-saclay.fr/Software/spore/wideMouthedFrog.html](https://lsv.ens-paris-saclay.fr/Software/spore/wideMouthedFrog.html)
 
 ## Eeavesdropping attacker
 
