@@ -14,6 +14,10 @@ Import map.
 Section defs.
 
   (*
+    Definition of several variants of the
+    Wide-Mouthed Frog (WMF) protocol.
+    References: https://lsv.ens-paris-saclay.fr/Software/spore/wideMouthedFrog.html
+
     A → S : (A,{B, n}_ka)
     S → B : {A, n}_kb
   *)
