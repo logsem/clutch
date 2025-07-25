@@ -3270,14 +3270,14 @@ Section logrel.
             2, 3, 4, 5: rel_apply refines_na_close; iFrame; iSplitL; last rel_vals.
             2, 3, 4, 5: iLeft; iFrame.
             2, 3, 4, 5: iSplitR; first iAssumption; iSplitR; first (iPureIntro; lia).
-            2, 3, 4, 5: iLeft; iFrame.
+2, 3, 4, 5: iLeft; iFrame. Abort.
 
             
-        + rel_load_l; rel_load_r...
+        (* + rel_load_l; rel_load_r...
           rel_apply refines_na_close; iFrame; iSplitL; last rel_vals.
           iRight. iFrame. iLeft. iFrame.
         + 
-        rel_load_l; rel_load_r...
+        rel_load_l; rel_load_r... *)
 
     
 
