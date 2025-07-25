@@ -717,8 +717,6 @@ Section logrel.
     apply xor_dom; lia.
   Qed.
 
-  About kemdem_hybrid_cpa_instance_rf.elgamal_lrel.
-
   #[local] Instance otp_enc_lrel : @kemdem_hybrid_cpa_generic.lrel_sym_scheme Σ.
   Proof. unshelve econstructor.
     - exact lrel_input.
@@ -1022,8 +1020,6 @@ Section logrel.
     End Correctness.
 
     Let lrel_kemdem_output : lrel Σ := lrel_output * lrel_asym_output.
-
-    About kemdem_hybrid_cpa_generic.pk_real.
 
     Let pk_real := @kemdem_hybrid_cpa_generic.pk_real _ _ _ _ _ elgamal_scheme.
 
