@@ -117,6 +117,48 @@ Module CPA_sem.
 
 End CPA_sem.
 
+  Section CCA.
+
+    (** Indistinguishability of Chosen Ciphertext Attacks security
+      for symmetric/private key encryption.
+
+      Left vs Right (sometimes called "CCA").
+
+      References:
+      - Definition 9.1, Mike Rosulek, 2020, The Joy of Cryptography.
+      - Mihir Bellare, Chanathip Namprempre, 2007,
+        Authenticated Encryption: Relations among notions
+        and analysis of the generic composition paradigm
+     *)
+
+    Variable is_plaintext : val.
+    Variable is_ciphertext : val.
+    Variable is_key : val.
+    
+    Definition CCA : val :=
+      λ:"b" "adv" "scheme" "Qenckey" "Qencgen" "Qdec",
+        let: "enc_scheme" := get_enc_scheme "scheme" #() in
+        let: "key" := get_keygen "scheme" #() in
+        let: "enc_gen" := get_enc "enc_scheme" in
+        let: "enc_key" := λ: "msg", (get_enc "enc_scheme") "key" "msg" in
+        let: "dec_key" := λ: "msg", (get_enc "enc_scheme") "key" "msg" in
+        let: "enc_lr" := λ: "msgs",
+          "enc_key" (if: "b" then (Fst "msgs") else (Snd "msgs")) in
+        let: "oracle_lr" :=
+          q_calls_general_test is_plaintext "Qenckey" "enc_lr" in
+      let: "oracle_enc_gen" :=
+        q_calls_general_test
+          (λ: "p", is_key (Fst "p") `and` is_plaintext (Snd "p"))
+          "Qencgen"
+          (λ: "p", "enc_gen" (Fst "p") (Snd "p")) in
+      let: "oracle_enc_gen" := λ: "k" "msg", "oracle_enc" ("k", "msg") in
+        let: "oracle_dec" :=
+          q_calls_general_test is_ciphertext "Qdec" "dec_key" in
+        let: "b'" := "adv" "oracle_enc_gen" "oracle_lr" "oracle_dec" in
+        "b'".
+
+  End CCA.
+
 Section INT_PTXT.
 
   (** Integrity of plaintexts game for symmetric encryption
