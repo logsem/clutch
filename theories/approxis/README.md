@@ -89,6 +89,10 @@ Admitted because of problems with group operations.
 ## Integrity assumptions
 Files: `symmetric_init.v`, `intptxt_ideal_dec.v` and `intctxt_ideal_dec.v`
 
+We add integrity of plaintexts (INT-PTXT) definition in `symmetric_init.v` and showed that it's equivalent to replacing decryption by an ideal one in `intptxt_ideal_dec.v`, that can be more useful in proofs.
+
+The goal would be to do the same proof for integrity of ciphertexts (INT-CTXT), the idealized decryption is already defined in `intctxt_ideal_dec.v`. This proof would require to have more general map lemmas (`refines_get_l`, etc).
+
 ## Wide-Mouthed Frog (WMF) protocol
 Files: `wmf_protocol.v`, `wmf_attack.v`, `wmf_active_attacker_security.v` and `wmf_eav_security`.
 
