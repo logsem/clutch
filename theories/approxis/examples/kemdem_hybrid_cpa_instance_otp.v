@@ -325,13 +325,23 @@ Section logrel.
   Definition otp_scheme_vg : expr :=
     (Val (senc []), Val (sdec [])).
 
-  Local Instance otp_SYM_param : symmetric_init.SYM_init_params :=
+  #[local] Instance otp_SYM_param : symmetric_init.SYM_init_params :=
     one_time_pad.SYM_otp_param N.
 
-  Local Instance sym_otp_scheme_inst : symmetric_init.SYM_init := {|
+  #[local] Instance sym_otp_scheme_inst : symmetric_init.SYM_init := {|
       symmetric_init.keygen := λ: <>, vg_of_symkey (one_time_pad.otp_keygen SymKey #())
     ; symmetric_init.enc_scheme := otp_scheme_vg
     ; symmetric_init.rand_cipher := one_time_pad.otp_rand_cipher n''
+  |}.
+
+  #[local] Instance elgamal_params : pubkey_class.ASYM_params :=
+    kemdem_hybrid_cpa_generic.asym_params N N N.
+
+  #[local] Instance elgamal_scheme : pubkey_class.ASYM := {|
+      pubkey_class.keygen := keygen
+    ; pubkey_class.enc := enc
+    ; pubkey_class.dec := dec
+    ; pubkey_class.rand_cipher := (λ: <>, let: "a" := rand #N in let: "b" := rand #N in (g^"a", g^"b"))
   |}.
 
   Ltac simpl_exp := try (rel_apply refines_exp_l; rel_pures_l);
@@ -373,6 +383,18 @@ Section logrel.
     | [], [] => True%I
     | _, _ => False%I
   end.
+
+  #[local] Instance initializable_sym_scheme_defs_otp :
+    (@kemdem_hybrid_cpa_generic.initializable_sym_scheme_defs Σ).
+  Proof. unshelve econstructor.
+    - exact senc.
+    - exact sdec.
+    - exact P0l.
+    - exact P0r.
+    - exact Pl.
+    - exact Pr.
+    - exact Plr.
+  Defined.
 
   Lemma otp_enc_sem_typed :
     ∀ lls rls (𝒩 : namespace) (P : iProp Σ),
@@ -607,9 +629,18 @@ Section logrel.
   Qed.
 
   Lemma refines_otp_senc_l :
-    (kemdem_hybrid_cpa_generic.refines_senc_l_prop lrel_input lrel_key senc sdec Pl).
+    ∀ (lls : list loc) (msg : val) (k : val) K e E A,
+      kemdem_hybrid_cpa_generic.left_lrel lrel_key k ∗
+      kemdem_hybrid_cpa_generic.left_lrel lrel_input msg ∗ Pl lls ⊢
+        ((∀ (c : val),
+          @kemdem_hybrid_cpa_generic.sym_is_cipher_l _ _ _ lls msg c k
+        -∗ refines E
+            (fill K (Val c))
+            e A)
+      -∗ refines E
+          (fill K (senc lls k msg))
+          e A).
   Proof with rel_pures_l.
-    rewrite /kemdem_hybrid_cpa_generic.refines_senc_l_prop.
     iIntros (lls vmsg k K e E A) "[[%vk' %Hrelk] [[%msg' [%msg [%eq [%eq2 %Hmsgbound]]]] HP]] H".
     rewrite /senc/otp_enc_vg/otp_enc/one_time_pad.otp_enc.
     destruct lls as [|mapref [|tmp lls]]; try (iExFalso; done)...
@@ -632,6 +663,7 @@ Section logrel.
     clear K e E A.
     iIntros (K e E A) "H".
     iPoseProof ("H" with "HP") as "H".
+    rewrite /kemdem_hybrid_cpa_generic.sdec... simpl.
     rewrite /sdec/otp_dec_vg/otp_dec/one_time_pad.otp_dec...
     rewrite /symkey_of_vg...
     rel_apply int_of_vg_correct.
@@ -685,450 +717,434 @@ Section logrel.
     apply xor_dom; lia.
   Qed.
 
+  About kemdem_hybrid_cpa_instance_rf.elgamal_lrel.
+
+  #[local] Instance otp_enc_lrel : @kemdem_hybrid_cpa_generic.lrel_sym_scheme Σ.
+  Proof. unshelve econstructor.
+    - exact lrel_input.
+    - exact lrel_output.
+    - exact lrel_key.
+  Defined.
+
+  #[local] Instance elgamal_lrel : @kemdem_hybrid_cpa_generic.lrel_asym_scheme Σ.
+  Proof. unshelve econstructor.
+    - exact lrel_G.
+    - exact (lrel_G * lrel_G)%lrel.
+    - exact kemdem_hybrid_cpa_instance_rf.lrel_sk.
+    - exact kemdem_hybrid_cpa_instance_rf.lrel_pk.
+  Defined.
+
+  #[local] Instance elgamal_is_key : @kemdem_hybrid_cpa_generic.is_asym_key Σ.
+  Proof. unshelve econstructor.
+    - exact kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_l.
+    - exact kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_r.
+    - exact kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_lr.
+  Defined.
+
+  #[local] Instance otp_enc_props :
+    kemdem_hybrid_cpa_generic.initializable_sym_scheme_props.
+  Proof with rel_pures_l; rel_pures_r. unshelve econstructor.
+    - rewrite /kemdem_hybrid_cpa_generic.lrel_key. simpl.
+      iIntros (v v') "H". rewrite /lrel_key. iAssumption.
+    - simpl. apply P0_P_l.
+    - simpl. apply P0_P_r.
+    - simpl. apply P0lr_Plr.
+    - simpl. iIntros (K e E A) "H".
+      rewrite /symmetric_init.get_enc_scheme/symmetric_init.sym_scheme.
+      rel_pure_l. rel_pure_l. rel_pure_l. rel_pure_l.
+      rel_pure_l. rewrite /otp_scheme_vg. rel_apply "H".
+      done.
+    - simpl. iIntros (K e E A) "H".
+      rewrite /symmetric_init.get_enc_scheme/symmetric_init.sym_scheme.
+      rel_pure_r. rel_pure_r. rel_pure_r. rel_pure_r.
+      rel_pure_r. rewrite /otp_scheme_vg. rel_apply "H".
+      done.
+    - simpl. apply refines_otp_keygen_l.
+    - simpl. apply refines_otp_keygen_r.
+    - simpl. apply refines_otp_keygen_couple.
+    - simpl. apply refines_otp_senc_l.
+    - simpl. apply otp_enc_sem_typed.
+  Defined.
+  
+    Lemma is_asym_key_lrel `{!approxisRGS Σ} :
+      ∀ sk pk, kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_lr sk pk ⊢
+        ((lrel_car kemdem_hybrid_cpa_instance_rf.lrel_pk) pk pk).
+    Proof.
+      iIntros (sk pk) "[%k [[%eq1 %Hkbound] %eq2]]".
+      rewrite /kemdem_hybrid_cpa_instance_rf.lrel_pk.
+      iExists _. iPureIntro; split; done.
+    Qed.
+
   (* ASSUMPTIONS ON THE ASYMMETRIC SCHEME *)
 
-  (* Fetched from random function-based instance *)
-(*
-Section Correctness.
+    Lemma elgamal_refines_akeygen_l : forall K e E A,
+      (∀ sk pk,
+        kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_l sk pk -∗
+        refines E
+          (fill K (Val (sk, pk)))
+          e A)
+      ⊢ refines E
+          (fill K (keygen #()))
+          e A.
+    Proof with rel_pures_l. iIntros (K e E A) "H".
+      rewrite /keygen...
+      rel_apply refines_randU_l.
+      iIntros (sk Hskbound)...
+      rel_apply refines_exp_l...
+      rel_apply "H".
+      rewrite /kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_l.
+      iExists _, _, _. iPureIntro. repeat split; try lia.
+      rewrite Nat2Z.id. reflexivity.
+    Qed.
 
-  Import mathcomp.fingroup.fingroup.
+    Lemma elgamal_refines_akeygen_r : forall K e E A,
+      (∀ sk pk,
+        kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_r sk pk -∗
+        refines E
+          e
+          (fill K (Val (sk, pk)))
+          A)
+      ⊢ refines E
+          e
+          (fill K (keygen #()))
+          A.
+    Proof with rel_pures_r. iIntros (K e E A) "H".
+      rewrite /keygen...
+      rel_apply refines_randU_r.
+      iIntros (sk Hskbound)...
+      rel_apply refines_exp_r...
+      rel_apply "H".
+      rewrite /kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_r.
+      iExists _, _, _. iPureIntro. repeat split; try lia.
+      rewrite Nat2Z.id. reflexivity.
+    Qed.
 
-  Lemma hybrid_scheme_correct :
-      ⊢ refines top
-          (init_scheme (λ: "scheme", (let, ("sk", "pk") := keygen #() in
-          λ:"msg", kemdem_hybrid_cpa_generic.dec_hyb "scheme" "sk"
-            (kemdem_hybrid_cpa_generic.enc_hyb "scheme" "pk" "msg"))))
-          (λ: "msg", "msg")%V
-          (lrel_input → lrel_input).
-  Proof.
-    rel_apply kemdem_hybrid_cpa_generic.hybrid_scheme_correct.
-    - exact one_time_pad.TMessage.
-    - exact one_time_pad.TKey.
-    - exact one_time_pad.TInput.
-    - exact one_time_pad.TOutput.
-    - exact one_time_pad.TCipher.
-    - exact Δ.
-    - { Unshelve. 1: shelve.
-    - exact lrel_key.
-    - exact senc.
-    - exact sdec.
-    - exact P0l.
-    - exact P0r.
-    - exact Pl.
-    - exact Pr.
-    - exact Plr. } Unshelve.
-      unfold lrel_key. iIntros (v v') "H"; iAssumption.
-    - iIntros (x); iApply P0_P_l.
-    - iIntros (x); iApply P0_P_r.
-    - iIntros (x y); iApply P0lr_Plr.
-    - iIntros (x y z t). iApply refines_init_otp_scheme_l.
-    - iIntros (x y z t). iApply refines_init_otp_scheme_r.
-    - iIntros (x y z t). iApply refines_otp_keygen_couple.
-    - iIntros (x y z t). iApply refines_otp_keygen_l.
-    - iIntros (x y z t). iApply refines_otp_keygen_r.
-    - iIntros (x y z t x' y' z'). iApply refines_otp_senc_l.
+    Lemma elgamal_refines_akeygen_couple : forall K K' E A,
+      (∀ sk pk,
+        kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_lr sk pk -∗
+        refines E
+          (fill K  (Val (sk, pk)))
+          (fill K' (Val (sk, pk)))
+          A)
+      ⊢ refines E
+          (fill K  (keygen #()))
+          (fill K' (keygen #()))
+          A.
+    Proof with (rel_pures_l; rel_pures_r). iIntros (K e E A) "H".
+      rewrite /keygen...
+      rel_apply refines_couple_UU; first done.
+      iIntros (sk Hskbound); iModIntro...
+      rel_apply refines_exp_l.
+      rel_apply refines_exp_r...
+      rel_apply "H".
+      rewrite /kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_lr.
+      iExists _. iPureIntro. repeat split; try lia.
+      rewrite Nat2Z.id. reflexivity.
+    Qed.
+    
+    Definition elgamal_asym_is_cipher_l (msg c pk : val) : iProp Σ :=
+      ∀ K e E A sk,
+        kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_l sk pk
+      -∗ refines E
+        (fill K (Val msg))
+        e A
+      -∗ refines E
+          (fill K (dec sk c))
+          e A.
+    
+    Lemma elgamal_refines_aenc_l :
+      ∀ (msg pk sk : val) K e E A,
+      kemdem_hybrid_cpa_generic.left_lrel lrel_G msg ∗ kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_l sk pk ⊢
+        ((∀ (c : val),
+          @elgamal_asym_is_cipher_l msg c pk
+        -∗ refines E
+            (fill K (Val c))
+            e A)
+      -∗ refines E
+          (fill K (enc pk msg))
+          e A).
+    Proof with (rel_pures_l; rel_pures_r).
+      iIntros (msg pk sk K e E A)
+        "[[%v [%msg_g [%eqmsg1 %eqmsg2]]]
+          [%sk' [%pk' [%n_sk [[%eqsk [%eqsk' %Hskbound]] [%eqpk %eqpk']]]]]] H"; subst.
+      rewrite /enc...
+      rel_apply refines_randU_l.
+      iIntros (b Hbbound)...
+      rel_apply refines_exp_l...
+      rewrite /kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_l.
+      rel_apply refines_exp_l...
+      rel_apply refines_mult_l...
+      rel_apply "H".
+      rewrite /elgamal_asym_is_cipher_l.
+      clear K e E A.
+      iIntros (K e E A sk) "[%sk' [%pk' [%n_sk' [[%eqsk [%eqsk' %Hskbound']] [%eqpk %eqpk']]]]]"; subst.
+      iIntros "H".
+      rewrite /dec...
+      rewrite -(Z2Nat.id n_sk'); last lia.
+      rel_apply refines_exp_l.
+      rel_apply refines_inv_l.
+      rel_apply refines_mult_l.
+      rewrite -?expgM.
+    Admitted.
+
+    Let lrel_asym_output := (lrel_G * lrel_G)%lrel.
+
+    Lemma aenc_sem_typed :
+      ⊢ refines top enc enc (kemdem_hybrid_cpa_instance_rf.lrel_pk → lrel_G → lrel_asym_output).
+    Proof with (rel_pures_l; rel_pures_r).
+      rewrite /pubkey_class.enc...
+      rewrite /elgamal_scheme...
+      rewrite /enc...
+      rel_arrow_val.
+      iIntros (v1 v2 [pk [eq1 eq2]]); subst...
+      rel_arrow_val.
+      iIntros (msg1 msg2 [msg [eq1 eq2]]); subst...
+      rel_apply refines_couple_UU; first done.
+      iModIntro; iIntros (n Hnbound)...
+      rel_apply refines_exp_l.
+      rel_apply refines_exp_r...
+      rel_apply refines_exp_l.
+      rel_apply refines_exp_r...
+      rel_apply refines_mult_l.
+      rel_apply refines_mult_r...
+      rel_vals; iExists _; done.
+    Qed.
+
+    Lemma asym_rand_cipher_couple :
+      ∀ (v v' : val) K K' E A,
+        (∀ r r', lrel_asym_output r r' -∗
+        refines E (fill K (Val r)) (fill K' (Val r')) A)
+      ⊢ refines E (fill K (pubkey_class.rand_cipher v))
+        (fill K' (pubkey_class.rand_cipher v')) A.
+    Proof with (rel_pures_l; rel_pures_r).
+      iIntros (v v' K K' E A) "H".
+      rewrite /pubkey_class.rand_cipher...
+      rewrite /elgamal_scheme...
+      rel_apply refines_couple_UU; first done.
+      iModIntro; iIntros (n Hnbound)...
+      rel_apply refines_couple_UU; first done.
+      iModIntro; iIntros (b Hbbound)...
+      rel_apply refines_exp_l;
+      rel_apply refines_exp_r;
+      rel_apply refines_exp_l;
+      rel_apply refines_exp_r...
+      rel_apply "H".
+      iExists _, _, _, _.
+      iSplit; last iSplit; [done|done|].
+      iSplit; iExists _; done.
+    Qed.
+
+    Lemma rand_cipher_sem_typed : 
+      ⊢ refines top symmetric_init.rand_cipher
+        symmetric_init.rand_cipher (kemdem_hybrid_cpa_generic.lrel_trivial → lrel_output).
+    Proof with (rel_pures_l; rel_pures_r).
+      rewrite /symmetric_init.rand_cipher... simpl.
+      rewrite /one_time_pad.otp_rand_cipher...
+      rel_arrow_val.
+      iIntros (v1 v2) "_"...
+      rel_apply refines_couple_UU; first done.
+      iIntros (i Hibound); iModIntro... rel_vals.
+      iExists i; iPureIntro; repeat split; lia.
+    Qed.
+
+    Import fingroup.
+
+    Lemma asym_key_lr_l_r :
+      ∀ sk pk, (@kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_lr _ _ Σ) sk pk
+        -∗ kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_l sk pk ∗ kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_r sk pk.
+    Proof. rewrite /Persistent.
+      iIntros (sk pk) "#H". iSplit;
+      last rewrite /kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_r; rewrite /kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_l/kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_lr;
+      iDestruct "H" as "[%k [[%eqsk %Hkbound] %eqpk]]"; subst.
+      - iExists #k, (vgval (g ^+ (Z.to_nat k))), k. iPureIntro; repeat split; lia.
+      - iExists #k, (vgval (g ^+ (Z.to_nat k))), k. iPureIntro; repeat split; lia.
+    Qed.
+    
+  #[local] Instance elgamal_props :
+    @kemdem_hybrid_cpa_generic.asym_scheme_props _ _ _ _ _ _ _ _ _ _ _.
+  Proof. unshelve econstructor.
+    - eapply is_asym_key_lrel.
+    - eapply asym_key_lr_l_r.
+    - eapply elgamal_refines_akeygen_l.
+    - eapply elgamal_refines_akeygen_r.
+    - eapply elgamal_refines_akeygen_couple.
+    - eapply elgamal_refines_aenc_l.
+    - eapply aenc_sem_typed.
+    - eapply asym_rand_cipher_couple.
+    - eapply rand_cipher_sem_typed.
+  Defined.
+
+  Lemma is_asym_key_l_persistent : ∀ sk pk, Persistent ((@kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_l _ _ Σ) sk pk).
+  Proof. rewrite /Persistent.
+    iIntros (sk pk) "#H". iAssumption.
+  Qed.
+  Lemma is_asym_key_r_persistent : ∀ sk pk, Persistent ((@kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_r _ _ Σ) sk pk).
+  Proof. rewrite /Persistent.
+    iIntros (sk pk) "#H". iAssumption.
+  Qed.
+  Lemma is_asym_key_lr_persistent : ∀ sk pk, Persistent ((@kemdem_hybrid_cpa_instance_rf.elgamal_is_asym_key_lr _ _ Σ) sk pk).
+  Proof. rewrite /Persistent.
+    iIntros (sk pk) "#H". iAssumption.
   Qed.
 
-End Correctness.
+    Section Correctness.
 
-Lemma otp_pk_real_real_tape :
-  ⊢ refines top
-      (init_scheme kemdem_hybrid_cpa_generic.pk_real)
-      (init_scheme kemdem_hybrid_cpa_generic.pk_real_tape)
-      (lrel_G * (lrel_input → () + lrel_output * (lrel_G * lrel_G))).
-Proof with (rel_pures_l; rel_pures_r).
-  rel_apply kemdem_hybrid_cpa_generic.pk_real_real_tape.
-  - exact one_time_pad.TMessage.
-  - exact one_time_pad.TKey.
-  - exact one_time_pad.TInput.
-  - exact one_time_pad.TOutput.
-  - exact one_time_pad.TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_l.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_r.
-  - iIntros (x y z t). iApply refines_otp_keygen_couple.
-  - iIntros (x y z t). iApply refines_otp_keygen_l.
-  - iIntros (x y z t). iApply refines_otp_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_otp_senc_l.
-  - iIntros (x y z x' y'). iApply otp_enc_sem_typed. assumption.
-Qed.
+      Import mathcomp.fingroup.fingroup.
 
-Lemma otp_pk_real_tape_DDH_real :
-  ⊢ refines top
-      (init_scheme kemdem_hybrid_cpa_generic.pk_real_tape)
-      (init_scheme kemdem_hybrid_cpa_generic.Csenc_DDH_real) 
-    (lrel_G * (lrel_input → () + lrel_output * (lrel_G * lrel_G))).
-Proof with rel_pures_l; rel_pures_r.
-  rel_apply kemdem_hybrid_cpa_generic.pk_real_tape_DDH_real.
-  - exact one_time_pad.TMessage.
-  - exact one_time_pad.TKey.
-  - exact one_time_pad.TInput.
-  - exact one_time_pad.TOutput.
-  - exact one_time_pad.TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_l.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_r.
-  - iIntros (x y z t). iApply refines_otp_keygen_couple.
-  - iIntros (x y z t). iApply refines_otp_keygen_l.
-  - iIntros (x y z t). iApply refines_otp_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_otp_senc_l.
-  - iIntros (x y z x' y'). iApply otp_enc_sem_typed. assumption.
-Qed.
+      Let dec_hyb := @kemdem_hybrid_cpa_generic.dec_hyb _ _ _ elgamal_scheme.
+      Let enc_hyb := @kemdem_hybrid_cpa_generic.enc_hyb otp_SYM_param sym_otp_scheme_inst _ _ _ elgamal_scheme.
+ 
+      Lemma hybrid_scheme_correct :
+          ⊢ refines top
+              (kemdem_hybrid_cpa_generic.init_scheme (λ: "scheme", (let, ("sk", "pk") := pubkey_class.keygen #() in
+              λ:"msg", dec_hyb "scheme" "sk"
+                (enc_hyb "scheme" "pk" "msg"))))
+              (λ: "msg", "msg")%V
+              (lrel_input → lrel_input).
+      Proof.
+        rewrite /dec_hyb/enc_hyb.
+        iStartProof.
+        iPoseProof kemdem_hybrid_cpa_generic.hybrid_scheme_correct as "H".
+        - exact SymKey.
+        - exact SymKey.
+        - exact SymOutput.
+        - exact Δ.
+        - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+          exact is_asym_key_l_persistent.
+        - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+          exact is_asym_key_r_persistent.
+        - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+          exact is_asym_key_lr_persistent.
+        - rewrite /SymKey/SymOutput. simpl.
+          rel_apply "H".
+      Qed.
 
-(* here we use the DDH assumption: we replace C[DDHreal] by C[DDHrand] *)
+    End Correctness.
 
-Lemma otp_Csenc_DDH_rand_pk_rand_senc_delay :
-  ⊢ refines top
-      (init_scheme kemdem_hybrid_cpa_generic.Csenc_DDH_rand)
-      (init_scheme kemdem_hybrid_cpa_generic.pk_rand_senc_delay)
-      (lrel_G *
-      (lrel_input → () + lrel_output * (lrel_G * lrel_G))).
-Proof with rel_pures_l; rel_pures_r.
-  rel_apply kemdem_hybrid_cpa_generic.Csenc_DDH_rand_pk_rand_senc_delay.
-  - exact one_time_pad.TMessage.
-  - exact one_time_pad.TKey.
-  - exact one_time_pad.TInput.
-  - exact one_time_pad.TOutput.
-  - exact one_time_pad.TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_l.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_r.
-  - iIntros (x y z t). iApply refines_otp_keygen_couple.
-  - iIntros (x y z t). iApply refines_otp_keygen_l.
-  - iIntros (x y z t). iApply refines_otp_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_otp_senc_l.
-  - iIntros (x y z x' y'). iApply otp_enc_sem_typed. assumption.
-Qed.
+    Let lrel_kemdem_output : lrel Σ := lrel_output * lrel_asym_output.
 
-Lemma otp_pk_rand_senc_delay_pk_rand_senc_mult_free :
-  ⊢ refines top 
-      (init_scheme kemdem_hybrid_cpa_generic.pk_rand_senc_delay)
-      (init_scheme kemdem_hybrid_cpa_generic.pk_rand_senc_mult_free)
-      (lrel_G *
-      (lrel_input → () + lrel_output * (lrel_G * lrel_G))).
-Proof with rel_pures_l; rel_pures_r.
-  rel_apply kemdem_hybrid_cpa_generic.pk_rand_senc_delay_pk_rand_senc_mult_free.
-  - exact one_time_pad.TMessage.
-  - exact one_time_pad.TKey.
-  - exact one_time_pad.TInput.
-  - exact one_time_pad.TOutput.
-  - exact one_time_pad.TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_l.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_r.
-  - iIntros (x y z t). iApply refines_otp_keygen_couple.
-  - iIntros (x y z t). iApply refines_otp_keygen_l.
-  - iIntros (x y z t). iApply refines_otp_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_otp_senc_l.
-  - iIntros (x y z x' y'). iApply otp_enc_sem_typed. assumption.
-Qed.
+    About kemdem_hybrid_cpa_generic.pk_real.
 
-Lemma adv_rand_syn_typed : ⊢ᵥ kemdem_hybrid_cpa_generic.adv_rand :
-  ((one_time_pad.TMessage → TOption one_time_pad.TCipher) → τG *
-    (kemdem_hybrid_cpa_generic.TOracle TInput one_time_pad.TCipher)).
-Proof.
-  rewrite /kemdem_hybrid_cpa_generic.adv_rand.
-  apply Rec_val_typed.
-  type_expr 1. 2 : { apply Subsume_int_nat. tychk. }
-  type_expr 1.
-  type_expr 1. 2 : { apply Subsume_int_nat. tychk. }
-  type_expr 1.
-  type_expr 1; last try tychk; first last.
-  { apply g_typed. }
-  { apply vexp_typed. }
-  type_expr 1.
-  type_expr 1; last try tychk; first last.
-  { apply g_typed. }
-  { apply vexp_typed. }
-  type_expr 1.
-  type_expr 1; last try tychk.
-  type_expr 1.
-  type_expr 1; first tychk.
-  type_expr 1. Admitted.
-  (* type_expr 1. 2 : { apply Subsume_int_nat. tychk. }
-  type_expr 1.
-  type_expr 1.
-  { tychk. apply vg_of_int_typed. }
-  { tychk. }
-  type_expr 1.
-  type_expr 1; first tychk.
-  2 : { apply InjL_typed. tychk. }
-  apply InjR_typed.
-  type_expr 1; last tychk.
-  type_expr 1.
-  type_expr 1. 2 : {
-    type_expr 1. 2 : { apply Subsume_int_nat. tychk. }
-    tychk.
-    { apply vexp_typed. }
-    { apply g_typed. }
-  }
-  type_expr 1.
-  type_expr 1; try tychk.
-Qed. *)
+    Let pk_real := @kemdem_hybrid_cpa_generic.pk_real _ _ _ _ _ elgamal_scheme.
 
-Lemma otp_pk_rand_senc_mult_free_mult_free_delay :
-  ⊢ refines top 
-      (init_scheme kemdem_hybrid_cpa_generic.pk_rand_senc_mult_free)
-      (init_scheme kemdem_hybrid_cpa_generic.pk_rand_senc_mult_free_delay)
-      (lrel_G *
-      (lrel_input → () + lrel_output * (lrel_G * lrel_G))).
-Proof. rel_apply kemdem_hybrid_cpa_generic.pk_rand_senc_mult_free_mult_free_delay.
-  - exact one_time_pad.TMessage.
-  - exact one_time_pad.TKey.
-  - exact one_time_pad.TInput.
-  - exact one_time_pad.TOutput.
-  - exact one_time_pad.TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_l.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_r.
-  - iIntros (x y z t). iApply refines_otp_keygen_couple.
-  - iIntros (x y z t). iApply refines_otp_keygen_l.
-  - iIntros (x y z t). iApply refines_otp_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_otp_senc_l.
-  - iIntros (x y z x' y'). iApply otp_enc_sem_typed. assumption.
-Qed.
+    Lemma rf_pk_real_adv :
+      ⊢ refines top (kemdem_hybrid_cpa_generic.init_scheme
+    (kemdem_hybrid_cpa_generic.pk_real N N
+    N))
+    (kemdem_hybrid_cpa_generic.init_scheme
+    kemdem_hybrid_cpa_generic.adv_pk_real
+    pubkey_class.CPA_OTS_real) (kemdem_hybrid_cpa_generic.lrel_pk *
+    (kemdem_hybrid_cpa_generic.lrel_input
+    → () +
+    kemdem_hybrid_cpa_generic.lrel_output *
+    kemdem_hybrid_cpa_generic.lrel_asym_output))%lrel.
+    Proof. 
+      eapply (kemdem_hybrid_cpa_generic.pk_real_adv SymKey SymKey SymOutput).
+      - exact Δ.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_l_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_r_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_lr_persistent.
+      - exact _.
+      - exact _.
+    Qed.
 
-(* TODO fetch OTS security equivalence and match it
-  with CPA _ _ #1 *)
+    (* here we use the DDH assumption: we replace C[DDHreal] by C[DDHrand] *)
 
-Lemma otp_pk_rand_senc_mult_free_adv_sym_OTS (adv : val) :
-  refines top
-    adv
-    adv
-    ((lrel_G * (lrel_input → () + lrel_output * (lrel_G * lrel_G))) → lrel_bool)
-  ⊢ refines top
-      (adv (kemdem_hybrid_cpa_generic.init_scheme kemdem_hybrid_cpa_generic.pk_rand_senc_mult_free_delay))
-      (kemdem_hybrid_cpa_generic.OTS #true (λ: "oracle", adv (kemdem_hybrid_cpa_generic.adv_rand "oracle"))%V
+    Lemma rf_adv__pk_real_arand :
+    ⊢ refines top
+        (kemdem_hybrid_cpa_generic.init_scheme
+        kemdem_hybrid_cpa_generic.adv_pk_real pubkey_class.CPA_OTS_rand)
+      (kemdem_hybrid_cpa_generic.init_scheme
+      (@kemdem_hybrid_cpa_generic.pk_real_arand _ _ _ _ _ elgamal_scheme))
+      (kemdem_hybrid_cpa_generic.lrel_pk *
+      (kemdem_hybrid_cpa_generic.lrel_input →
+        () + kemdem_hybrid_cpa_generic.lrel_output * kemdem_hybrid_cpa_generic.lrel_asym_output))%lrel.
+    Proof. eapply kemdem_hybrid_cpa_generic.adv__pk_real_arand.
+      - exact SymKey.
+      - exact SymKey.
+      - exact SymOutput.
+      - exact Δ.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_l_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_r_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_lr_persistent.
+      - exact _.
+      - exact _.
+    Qed.
+
+    Lemma rf_pk_real_arand_perm__adv :
+      ⊢ refines top (kemdem_hybrid_cpa_generic.init_scheme
+      (@kemdem_hybrid_cpa_generic.pk_real_arand_permute _ _ _ _ _ elgamal_scheme))
+      (kemdem_hybrid_cpa_generic.OTS #true
+        (@kemdem_hybrid_cpa_generic.adv_pk_real_arand_permute _ _ _ elgamal_scheme) symmetric_init.sym_scheme)
+      (kemdem_hybrid_cpa_generic.lrel_pk *
+      (kemdem_hybrid_cpa_generic.lrel_input → () +
+      kemdem_hybrid_cpa_generic.lrel_output * kemdem_hybrid_cpa_generic.lrel_asym_output))%lrel.
+    Proof. eapply kemdem_hybrid_cpa_generic.pk_real_arand_perm__adv.
+      - exact SymKey.
+      - exact SymKey.
+      - exact SymOutput.
+      - exact Δ.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_l_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_r_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_lr_persistent.
+      - exact _.
+      - exact _.
+    Qed.
+
+    Lemma rf_adv__pk_rand_srand :
+    ⊢ refines top
+      (kemdem_hybrid_cpa_generic.OTS #false
+        (@kemdem_hybrid_cpa_generic.adv_pk_real_arand_permute _ _ _ elgamal_scheme)
         symmetric_init.sym_scheme)
-      lrel_bool.
-Proof. iApply kemdem_hybrid_cpa_generic.pk_rand_senc_mult_free_adv_sym_OTS.
-  - exact one_time_pad.TMessage.
-  - exact one_time_pad.TKey.
-  - exact one_time_pad.TInput.
-  - exact one_time_pad.TOutput.
-  - exact one_time_pad.TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_l.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_r.
-  - iIntros (x y z t). iApply refines_otp_keygen_couple.
-  - iIntros (x y z t). iApply refines_otp_keygen_l.
-  - iIntros (x y z t). iApply refines_otp_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_otp_senc_l.
-  - iIntros (x y z x' y'). iApply otp_enc_sem_typed. assumption.
-Qed.
+      (@kemdem_hybrid_cpa_generic.pk_rand_srand _ _ _ _ _ elgamal_scheme)
+        (kemdem_hybrid_cpa_generic.lrel_pk *
+      (kemdem_hybrid_cpa_generic.lrel_input → () +
+      kemdem_hybrid_cpa_generic.lrel_output * kemdem_hybrid_cpa_generic.lrel_asym_output))%lrel.
+    Proof. eapply kemdem_hybrid_cpa_generic.adv__pk_rand_srand.
+      - exact SymKey.
+      - exact SymKey.
+      - exact SymOutput.
+      - exact Δ.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_l_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_r_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_lr_persistent.
+      - exact _.
+      - exact _.
+    Qed.
 
-Lemma otp_rand_cipher_sem_typed : 
-  ⊢ refines top symmetric_init.rand_cipher
-    symmetric_init.rand_cipher (lrel_input → lrel_output).
-Proof with rel_pures_l; rel_pures_r.
-  rewrite /symmetric_init.rand_cipher... simpl.
-  rewrite /one_time_pad.otp_rand_cipher.
-  rel_arrow_val.
-  iIntros (msg1 msg2) "_"...
-  rel_apply refines_couple_UU; first done.
-  iModIntro; iIntros (ri Hribound)...
-  rel_vals. iExists ri. iPureIntro; repeat split; try lia.
-Qed.
+    Lemma rf_pk_rand_srand__rand :
+      ⊢ refines top (@kemdem_hybrid_cpa_generic.pk_rand_srand _ _ _ _ _ elgamal_scheme)
+      (@kemdem_hybrid_cpa_generic.pk_rand _ _ _ _ _ elgamal_scheme)
+      (kemdem_hybrid_cpa_generic.lrel_pk *
+      (kemdem_hybrid_cpa_generic.lrel_input → () +
+      kemdem_hybrid_cpa_generic.lrel_output * kemdem_hybrid_cpa_generic.lrel_asym_output)).
+    Proof. eapply kemdem_hybrid_cpa_generic.pk_rand_srand__rand.
+      - exact SymKey.
+      - exact SymKey.
+      - exact SymOutput.
+      - exact Δ.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_l_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_r_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_lr_persistent.
+      - exact _.
+      - exact _.
+    Qed.
 
-Lemma otp_OTS_pk_rand_srand (adv : val) : 
-  refines top
-    adv
-    adv
-    ((lrel_G * (lrel_input → () + lrel_output * (lrel_G * lrel_G))) → lrel_bool)
-  ⊢ refines top
-      (kemdem_hybrid_cpa_generic.OTS #false (λ: "oracle", adv (kemdem_hybrid_cpa_generic.adv_rand "oracle"))%V
-        symmetric_init.sym_scheme)
-      (adv kemdem_hybrid_cpa_generic.pk_rand_srand)
-      lrel_bool.
-Proof. iApply kemdem_hybrid_cpa_generic.OTS_pk_rand_srand.
-  - exact one_time_pad.TMessage.
-  - exact one_time_pad.TKey.
-  - exact one_time_pad.TInput.
-  - exact one_time_pad.TOutput.
-  - exact one_time_pad.TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_l.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_r.
-  - iIntros (x y z t). iApply refines_otp_keygen_couple.
-  - iIntros (x y z t). iApply refines_otp_keygen_l.
-  - iIntros (x y z t). iApply refines_otp_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_otp_senc_l.
-  - iIntros (x y z x' y'). iApply otp_enc_sem_typed. assumption.
-  - iApply otp_rand_cipher_sem_typed.
-Qed.
-
-
-Lemma otp_pk_rand_srand_rand_tape (adv : val) :
-  refines top
-    adv
-    adv
-    ((lrel_G * (lrel_input → () + lrel_output * (lrel_G * lrel_G))) → lrel_bool)
-  ⊢ refines top
-      (adv kemdem_hybrid_cpa_generic.pk_rand_srand)
-      (adv kemdem_hybrid_cpa_generic.pk_rand_tape)
-      lrel_bool.
-Proof with rel_pures_l; rel_pures_r.
-  iApply kemdem_hybrid_cpa_generic.pk_rand_srand_rand_tape.
-  - exact one_time_pad.TMessage.
-  - exact one_time_pad.TKey.
-  - exact one_time_pad.TInput.
-  - exact one_time_pad.TOutput.
-  - exact one_time_pad.TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_l.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_r.
-  - iIntros (x y z t). iApply refines_otp_keygen_couple.
-  - iIntros (x y z t). iApply refines_otp_keygen_l.
-  - iIntros (x y z t). iApply refines_otp_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_otp_senc_l.
-  - iIntros (x y z x' y'). iApply otp_enc_sem_typed. assumption.
-  - iApply otp_rand_cipher_sem_typed.
-Qed.
-
-Lemma otp_pk_rand_tape_pk_rand (adv : val) :
-  refines top
-    adv
-    adv
-    ((lrel_G * (lrel_input → () + lrel_output * (lrel_G * lrel_G))) → lrel_bool)
-  ⊢ refines top
-      (adv kemdem_hybrid_cpa_generic.pk_rand_tape)
-      (adv kemdem_hybrid_cpa_generic.pk_rand)
-      lrel_bool.
-Proof with rel_pures_l; rel_pures_r.
-  iApply kemdem_hybrid_cpa_generic.pk_rand_tape_pk_rand.
-  - exact one_time_pad.TMessage.
-  - exact one_time_pad.TKey.
-  - exact one_time_pad.TInput.
-  - exact one_time_pad.TOutput.
-  - exact one_time_pad.TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_l.
-  - iIntros (x y z t). iApply refines_init_otp_scheme_r.
-  - iIntros (x y z t). iApply refines_otp_keygen_couple.
-  - iIntros (x y z t). iApply refines_otp_keygen_l.
-  - iIntros (x y z t). iApply refines_otp_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_otp_senc_l.
-  - iIntros (x y z x' y'). iApply otp_enc_sem_typed. assumption.
-  - iApply otp_rand_cipher_sem_typed.
-Qed.
-*)
 End logrel.
 
 End Hybrid_scheme.

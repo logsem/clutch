@@ -95,117 +95,50 @@ Section logrel.
   
   (* Semantic types *)
   (* Symmetric *)
-  Variable lrel_input : lrel Σ.
-  Variable lrel_output : lrel Σ.
-  Variable lrel_key : lrel Σ.
+  Class lrel_sym_scheme := {
+    lrel_input : lrel Σ
+  ; lrel_output : lrel Σ
+  ; lrel_key : lrel Σ }.
+
+  Context `{lrel_sym_scheme}.
 
   (* Asymmetric *)
-  Variable lrel_kem_msg : lrel Σ.
-  Variable lrel_asym_output : lrel Σ.
-  Variable lrel_sk : lrel Σ.
-  Variable lrel_pk : lrel Σ.
+  Class lrel_asym_scheme := {
+    lrel_kem_msg : lrel Σ
+  ; lrel_asym_output : lrel Σ
+  ; lrel_sk : lrel Σ
+  ; lrel_pk : lrel Σ }.
 
-  (* Encryption functions *)
-  Variable senc : list loc → val.
-  Variable sdec : list loc → val.
+  Context `{lrel_asym_scheme}.
+
 
   (* Properties *)
-  Variable is_asym_key_l : val → val → iProp Σ.
-  Variable is_asym_key_r : val → val → iProp Σ.
-  Variable is_asym_key_lr : val → val → iProp Σ.
+  Class is_asym_key := {
+    is_asym_key_l : val → val → iProp Σ
+  ; is_asym_key_r : val → val → iProp Σ
+  ; is_asym_key_lr : val → val → iProp Σ }.
 
-  Variable P0l : list loc → iProp Σ.
-  Variable P0r : list loc → iProp Σ.
+  Context `{is_asym_key}.
 
-  Variable Pl : list loc → iProp Σ.
-  Variable Pr : list loc → iProp Σ.
-  Variable Plr : list loc → list loc → iProp Σ.
-
-  (* ASSUMPTIONS *)
-  (* About semantic types *)
-  Hypothesis is_asym_key_lrel : ∀ sk pk, is_asym_key_lr sk pk
-    ⊢ (lrel_car lrel_pk pk pk).
   Hypothesis is_asym_key_l_persistent :
-    ∀ sk pk, Persistent (is_asym_key_l sk pk).
+      ∀ sk pk, Persistent (is_asym_key_l sk pk).
   Hypothesis is_asym_key_r_persistent :
-    ∀ sk pk, Persistent (is_asym_key_r sk pk).
+      ∀ sk pk, Persistent (is_asym_key_r sk pk).
   Hypothesis is_asym_key_lr_persistent :
-    ∀ sk pk, Persistent (is_asym_key_lr sk pk).
-  Hypothesis asym_key_lr_l_r :
-    ∀ sk pk, is_asym_key_lr sk pk -∗ is_asym_key_l sk pk ∗ is_asym_key_r sk pk. 
-  Hypothesis lrel_skey_amsg : forall v v', lrel_key v v' -∗ lrel_kem_msg v v'.
+      ∀ sk pk, Persistent (is_asym_key_lr sk pk).
 
-  (* About hypothesis for the symmetric scheme *)
-  Definition P0_P_l_prop := ∀ lls, P0l lls -∗ Pl lls.
-  Definition P0_P_r_prop := ∀ rls, P0r rls -∗ Pr rls.
-  Definition P0lr_Plr_prop := ∀ lls rls, P0l lls -∗ P0r rls -∗ Plr lls rls.
-  Hypothesis P0_P_l : P0_P_l_prop.
-  Hypothesis P0_P_r : P0_P_r_prop.
-  Hypothesis P0lr_Plr : P0lr_Plr_prop.
+  (* Encryption functions *)
+  Class initializable_sym_scheme_defs := {
+      senc : list loc → val
+    ; sdec : list loc → val
+    ; P0l : list loc → iProp Σ
+    ; P0r : list loc → iProp Σ
+    ; Pl : list loc → iProp Σ
+    ; Pr : list loc → iProp Σ
+    ; Plr : list loc → list loc → iProp Σ }.
 
-  (* Refinements *)
-  (* Symmetric *)
-  (* initialization *)
-  Definition refines_init_scheme_l_prop := forall K e E A,
-    (∀ lls,
-      P0l lls -∗
-      refines E
-        (fill K (senc lls, sdec lls))
-        e A)
-    ⊢ refines E
-        (fill K (symmetric_init.get_enc_scheme symmetric_init.sym_scheme #()))
-        e A.
-  Definition refines_init_scheme_r_prop := forall K e E A,
-    (∀ rls,
-      P0r rls -∗
-      refines E
-        e
-        (fill K (senc rls, sdec rls))
-        A)
-    ⊢ refines E
-        e
-        (fill K (symmetric_init.get_enc_scheme symmetric_init.sym_scheme #()))
-        A.
-  Hypothesis refines_init_scheme_l : refines_init_scheme_l_prop.
-  Hypothesis refines_init_scheme_r : refines_init_scheme_r_prop.
+  Context `{initializable_sym_scheme_defs}.
 
-  (* key generation *)
-  Definition refines_keygen_l_prop := forall K e E A,
-    (∀ key,
-      left_lrel lrel_key key -∗
-      refines E
-        (fill K (Val key))
-        e A)
-    ⊢ refines E
-        (fill K (symmetric_init.keygen #()))
-        e A.
-  Definition refines_keygen_r_prop := forall K e E A,
-    (∀ key,
-      right_lrel lrel_key key -∗
-      refines E
-        e
-        (fill K (Val key))
-        A)
-    ⊢ refines E
-        e
-        (fill K (symmetric_init.keygen #()))
-        A.
-  Hypothesis refines_keygen_l : refines_keygen_l_prop.
-  Hypothesis refines_keygen_r : refines_keygen_r_prop.
-  Definition refines_sym_keygen_couple_prop := forall K K' E A,
-    (∀ key,
-      (lrel_car lrel_key) key key -∗
-        refines E
-          (fill K  (Val key))
-          (fill K' (Val key))
-          A)
-    ⊢ refines E
-        (fill K  (symmetric_init.keygen #()))
-        (fill K' (symmetric_init.keygen #()))
-        A.
-  Hypothesis refines_sym_keygen_couple : refines_sym_keygen_couple_prop.
-
-  (* encryption *)
   Definition sym_is_cipher_l {lls : list loc} (msg : val) (c k : val) : iProp Σ :=
     ∀ K e E A,
       (Pl lls -∗
@@ -216,55 +149,90 @@ Section logrel.
         (fill K (sdec lls k c))
         e A.
 
-  Definition refines_senc_l_prop :=
-    ∀ (lls : list loc) (msg : val) (k : val) K e E A,
-    left_lrel lrel_key k ∗ left_lrel lrel_input msg ∗ Pl lls ⊢
-      ((∀ (c : val),
-         @sym_is_cipher_l lls msg c k
-      -∗ refines E
-          (fill K (Val c))
-          e A)
-    -∗ refines E
-        (fill K (senc lls k msg))
-        e A).
-  Hypothesis refines_senc_l : refines_senc_l_prop.
-
-  (* asymmetric scheme *)
-
-  Definition refines_akeygen_l_prop := forall K e E A,
-    (∀ sk pk,
-      is_asym_key_l sk pk -∗
+  Class initializable_sym_scheme_props := {
+  (* About semantic types *)
+      lrel_skey_amsg : forall v v', lrel_key v v' -∗
+      lrel_kem_msg v v'
+  (* Initialization for the symmetric scheme *)
+    ; P0_P_l : ∀ lls, P0l lls -∗ Pl lls
+    ; P0_P_r : ∀ rls, P0r rls -∗ Pr rls
+    ; P0lr_Plr : ∀ lls rls, P0l lls -∗ P0r rls -∗ Plr lls rls
+    ; refines_init_scheme_l : forall K e E A, (∀ lls,
+      P0l lls -∗
       refines E
-        (fill K (Val (sk, pk)))
+        (fill K (senc lls, sdec lls))
         e A)
     ⊢ refines E
-        (fill K (keygen #()))
-        e A.
-  Definition refines_akeygen_r_prop := forall K e E A,
-    (∀ sk pk,
-      is_asym_key_r sk pk -∗
-      refines E
-        e
-        (fill K (Val (sk, pk)))
-        A)
-    ⊢ refines E
-        e
-        (fill K (keygen #()))
-        A.
-  Definition refines_akeygen_couple_prop := forall K K' E A,
-    (∀ sk pk,
-      is_asym_key_lr sk pk -∗
-      refines E
-        (fill K  (Val (sk, pk)))
-        (fill K' (Val (sk, pk)))
-        A)
-    ⊢ refines E
-        (fill K  (keygen #()))
-        (fill K' (keygen #()))
-        A.
-  Hypothesis refines_akeygen_l : refines_akeygen_l_prop.
-  Hypothesis refines_akeygen_r : refines_akeygen_r_prop.
-  Hypothesis refines_akeygen_couple : refines_akeygen_couple_prop.
+        (fill K (symmetric_init.get_enc_scheme symmetric_init.sym_scheme #()))
+        e A
+    ; refines_init_scheme_r : forall K e E A,
+      (∀ rls,
+        P0r rls -∗
+        refines E
+          e
+          (fill K (senc rls, sdec rls))
+          A)
+      ⊢ refines E
+          e
+          (fill K (symmetric_init.get_enc_scheme symmetric_init.sym_scheme #()))
+          A
+    ; refines_keygen_l : forall K e E A,
+      (∀ key,
+        left_lrel lrel_key key -∗
+        refines E
+          (fill K (Val key))
+          e A)
+      ⊢ refines E
+          (fill K (symmetric_init.keygen #()))
+          e A
+    ; refines_keygen_r : forall K e E A,
+      (∀ key,
+        right_lrel lrel_key key -∗
+        refines E
+          e
+          (fill K (Val key))
+          A)
+      ⊢ refines E
+          e
+          (fill K (symmetric_init.keygen #()))
+          A
+    ; refines_sym_keygen_couple : forall K K' E A,
+      (∀ key,
+        (lrel_car lrel_key) key key -∗
+          refines E
+            (fill K  (Val key))
+            (fill K' (Val key))
+            A)
+      ⊢ refines E
+          (fill K  (symmetric_init.keygen #()))
+          (fill K' (symmetric_init.keygen #()))
+          A
+    ; refines_senc_l :
+      ∀ (lls : list loc) (msg : val) (k : val) K e E A,
+      left_lrel lrel_key k ∗ left_lrel lrel_input msg ∗ Pl lls ⊢
+        ((∀ (c : val),
+          @sym_is_cipher_l lls msg c k
+        -∗ refines E
+            (fill K (Val c))
+            e A)
+      -∗ refines E
+          (fill K (senc lls k msg))
+          e A)
+    ; senc_sem_typed :
+      ∀ lls rls (𝒩 : namespace) (P : iProp Σ),
+      (∃ (Q : iProp Σ),
+        P ⊣⊢
+          (Q
+        ∗ Plr lls rls)
+      ) →
+      na_invP 𝒩 P
+      ⊢ refines top (senc lls)
+        (senc rls) (lrel_key → lrel_input → lrel_output)
+  }.
+
+  Context `{initializable_sym_scheme_props}.
+
+  (* asymmetric scheme *)
 
   Definition asym_is_cipher_l (msg c pk : val) : iProp Σ :=
     ∀ K e E A sk,
@@ -275,21 +243,69 @@ Section logrel.
     -∗ refines E
         (fill K (dec sk c))
         e A.
-  
-  Definition refines_aenc_l_prop :=
-    ∀ (msg pk sk : val) K e E A,
-    left_lrel lrel_kem_msg msg ∗ is_asym_key_l sk pk ⊢
-      ((∀ (c : val),
-         @asym_is_cipher_l msg c pk
-      -∗ refines E
-          (fill K (Val c))
+
+  Class asym_scheme_props := {
+      is_asym_key_lrel : ∀ sk pk, is_asym_key_lr sk pk
+      ⊢ (lrel_car lrel_pk pk pk)
+    ; asym_key_lr_l_r :
+      ∀ sk pk, is_asym_key_lr sk pk -∗
+        is_asym_key_l sk pk ∗ is_asym_key_r sk pk
+
+    ; refines_akeygen_l : forall K e E A,
+      (∀ sk pk,
+        is_asym_key_l sk pk -∗
+        refines E
+          (fill K (Val (sk, pk)))
           e A)
-    -∗ refines E
-        (fill K (enc pk msg))
-        e A).
+      ⊢ refines E
+          (fill K (keygen #()))
+          e A
+    ; refines_akeygen_r : forall K e E A,
+      (∀ sk pk,
+        is_asym_key_r sk pk -∗
+        refines E
+          e
+          (fill K (Val (sk, pk)))
+          A)
+      ⊢ refines E
+          e
+          (fill K (keygen #()))
+          A
+    ; refines_akeygen_couple : forall K K' E A,
+      (∀ sk pk,
+        is_asym_key_lr sk pk -∗
+        refines E
+          (fill K  (Val (sk, pk)))
+          (fill K' (Val (sk, pk)))
+          A)
+      ⊢ refines E
+          (fill K  (keygen #()))
+          (fill K' (keygen #()))
+          A
+    ; refines_aenc_l :
+      ∀ (msg pk sk : val) K e E A,
+      left_lrel lrel_kem_msg msg ∗ is_asym_key_l sk pk ⊢
+        ((∀ (c : val),
+          @asym_is_cipher_l msg c pk
+        -∗ refines E
+            (fill K (Val c))
+            e A)
+      -∗ refines E
+          (fill K (enc pk msg))
+          e A)
+    ; aenc_sem_typed :
+     ⊢ refines top enc enc (lrel_pk → lrel_kem_msg → lrel_asym_output)
+    ; asym_rand_cipher_couple :
+      ∀ (v v' : val) K K' E A,
+        (∀ r r', lrel_asym_output r r' -∗
+        refines E (fill K (Val r)) (fill K' (Val r')) A)
+    ⊢ refines E (fill K (rand_cipher v)) (fill K' (rand_cipher v')) A
+    ; rand_cipher_sem_typed : 
+      ⊢ refines top symmetric_init.rand_cipher
+        symmetric_init.rand_cipher (lrel_trivial → lrel_output)
+  }.
 
-  Hypothesis refines_aenc_l : refines_aenc_l_prop.
-
+  Context `{asym_scheme_props}.
   (* Tactics *)
 
   Ltac simpl_exp := try (rel_apply refines_exp_l; rel_pures_l);
@@ -359,32 +375,6 @@ Section logrel.
 
   End Correctness.
 
-  Definition senc_sem_typed_prop :=
-    ∀ lls rls (𝒩 : namespace) (P : iProp Σ),
-    (∃ (Q : iProp Σ),
-      P ⊣⊢
-        (Q
-      ∗ Plr lls rls)
-    ) →
-    na_invP 𝒩 P
-     ⊢ refines top (senc lls)
-      (senc rls) (lrel_key → lrel_input → lrel_output).
-
-  Hypothesis senc_sem_typed : senc_sem_typed_prop.
-
-  Definition aenc_sem_typed_prop :=
-     ⊢ refines top enc enc (lrel_pk → lrel_kem_msg → lrel_asym_output).
-  Hypothesis aenc_sem_typed : aenc_sem_typed_prop.
-
-  Hypothesis asym_rand_cipher_couple :
-    ∀ (v v' : val) K K' E A,
-      (∀ r r', lrel_asym_output r r' -∗
-      refines E (fill K (Val r)) (fill K' (Val r')) A)
-    ⊢ refines E (fill K (rand_cipher v)) (fill K' (rand_cipher v')) A.
-    
-  Hypothesis rand_cipher_sem_typed : 
-    ⊢ refines top symmetric_init.rand_cipher
-      symmetric_init.rand_cipher (lrel_trivial → lrel_output).
       
   (* One Time Secrecy assumption on symmetric encryption scheme
     tweaked version of `CPA _ _ _ #1`, the only difference is

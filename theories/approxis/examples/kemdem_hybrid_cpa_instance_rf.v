@@ -6,7 +6,8 @@ From clutch.clutch.examples.crypto Require ElGamal_bijection.
 From clutch.approxis.examples Require Import
   valgroup diffie_hellman prf_local_state prf_cpa_with_dec security_aux option xor
   ElGamal_defs bounded_oracle advantage_laws iterable_expression.
-From clutch.approxis.examples Require pubkey_class symmetric_init kemdem_hybrid_cpa_generic.
+From clutch.approxis.examples Require pubkey_class symmetric_init
+  kemdem_hybrid_cpa_generic.
 From mathcomp Require Import ssrbool.
 From mathcomp Require fingroup.fingroup.
 Set Default Proof Using "All".
@@ -34,479 +35,746 @@ Variable xor_struct : XOR (Key := SymOutput) (Support := SymOutput).
     card_output := SymOutput;
   }.
 
-Section logrel.
+  Section logrel.
 
-  Context `{!approxisRGS Σ}.
-  Context {G : clutch_group (vg:=vg) (cg:=cg)}.
-  Context {Δ : listO (lrelC Σ)}.
+    Context `{!approxisRGS Σ}.
+    Context {G : clutch_group (vg:=vg) (cg:=cg)}.
+    Context {Δ : listO (lrelC Σ)}.
 
-  Definition lrel_key : lrel Σ := lrel_G.
-  Definition lrel_output : lrel Σ := lrel_input * lrel_input.
+    Definition lrel_key : lrel Σ := lrel_G.
+    Definition lrel_output : lrel Σ := lrel_input * lrel_input.
 
-  Variable xor_spec : XOR_spec.
-  
-  Local Tactic Notation "rel_bind" open_constr(pat) :=
-    rel_bind_l pat; rel_bind_r pat.
+    Variable xor_spec : XOR_spec.
+    
+    Local Tactic Notation "rel_bind" open_constr(pat) :=
+      rel_bind_l pat; rel_bind_r pat.
 
-  Local Ltac refines_until tac :=
-    repeat (rel_pure_l; rel_pure_r; try (rel_apply tac)).
+    Local Ltac refines_until tac :=
+      repeat (rel_pure_l; rel_pure_r; try (rel_apply tac)).
 
-  Definition vg_of_symkey : val :=
-    rec: "rejection" "key" :=
-      match: vg_of_int "key" with
-        | SOME "kg" => "kg"
-        | NONE => "rejection" "key"
-      end.
+    Definition vg_of_symkey : val :=
+      rec: "rejection" "key" :=
+        match: vg_of_int "key" with
+          | SOME "kg" => "kg"
+          | NONE => "rejection" "key"
+        end.
 
-  Lemma vg_of_symkey_sem_typed :
-    ⊢ REL vg_of_symkey << vg_of_symkey : prf_local_state.lrel_key → lrel_G.
-  Proof with rel_pures_l; rel_pures_r. rewrite /vg_of_symkey.
-    iLöb as "IH".
-    rel_arrow_val.
-    iIntros (v1 v2 [k [eq1 [eq2 Hkbound]]]); subst...
-    rel_bind (vg_of_int _). rel_apply refines_bind.
-    {
-      rel_apply refines_app.
-      - rel_vals; iApply vg_of_int_lrel_G.
-      - rel_vals.
-    }
-    iIntros (kg1 kg2 [tmp [tmp' [[eq1 [eq2 [eq3 eq4]]]|
-      [eq1 [eq2 [kg [eq3 eq4]]]]]]]); subst.
-    - rel_pure_l; rel_pure_l; rel_pure_l;
-      rel_pure_r; rel_pure_r; rel_pure_r.
-      rel_apply refines_app; first rel_apply "IH".
-      rel_vals.
-    - rel_pures_l; rel_pures_r; rel_vals.
-  Qed.
+    Lemma vg_of_symkey_sem_typed :
+      ⊢ REL vg_of_symkey << vg_of_symkey : prf_local_state.lrel_key → lrel_G.
+    Proof with rel_pures_l; rel_pures_r. rewrite /vg_of_symkey.
+      iLöb as "IH".
+      rel_arrow_val.
+      iIntros (v1 v2 [k [eq1 [eq2 Hkbound]]]); subst...
+      rel_bind (vg_of_int _). rel_apply refines_bind.
+      {
+        rel_apply refines_app.
+        - rel_vals; iApply vg_of_int_lrel_G.
+        - rel_vals.
+      }
+      iIntros (kg1 kg2 [tmp [tmp' [[eq1 [eq2 [eq3 eq4]]]|
+        [eq1 [eq2 [kg [eq3 eq4]]]]]]]); subst.
+      - rel_pure_l; rel_pure_l; rel_pure_l;
+        rel_pure_r; rel_pure_r; rel_pure_r.
+        rel_apply refines_app; first rel_apply "IH".
+        rel_vals.
+      - rel_pures_l; rel_pures_r; rel_vals.
+    Qed.
 
-  Definition prf_enc_vg : val := 
-    λ: "mapref" "keyg",
-      prf_enc Input SymOutput xor_struct (λ: <>, random_function "mapref" #SymOutput)
-      (int_of_vg "keyg").
-
-  Definition prf_dec_vg : val :=
-    λ: "mapref" "keyg",
-      prf_dec SymOutput xor_struct (λ: <>, random_function "mapref" #SymOutput)
+    Definition prf_enc_vg : val := 
+      λ: "mapref" "keyg",
+        prf_enc Input SymOutput xor_struct (λ: <>, random_function "mapref" #SymOutput)
         (int_of_vg "keyg").
 
-  (* The four following definition are very similar.
-    The only difference is that rf_... takes a value as input within
-    the language, whereas senc and sdec take a list of locations
-    at the meta-level (as a crocq function )*)
-  Definition rf_enc_vg : val := 
-    (λ: "mapref" "key",
-      prf_enc_vg "mapref" "key")%V.
+    Definition prf_dec_vg : val :=
+      λ: "mapref" "keyg",
+        prf_dec SymOutput xor_struct (λ: <>, random_function "mapref" #SymOutput)
+          (int_of_vg "keyg").
 
-  Definition rf_dec_vg : val := 
-    (λ: "mapref" "key",
-      prf_dec_vg "mapref" "key")%V.
+    (* The four following definition are very similar.
+      The only difference is that rf_... takes a value as input within
+      the language, whereas senc and sdec take a list of locations
+      at the meta-level (as a crocq function )*)
+    Definition rf_enc_vg : val := 
+      (λ: "mapref" "key",
+        prf_enc_vg "mapref" "key")%V.
 
-  Definition senc (ls : list loc) : val := 
-    (λ: "key",
-      prf_enc_vg #(List.hd (Loc 0) ls) "key")%V.
+    Definition rf_dec_vg : val := 
+      (λ: "mapref" "key",
+        prf_dec_vg "mapref" "key")%V.
 
-  Definition sdec (ls : list loc) : val := 
-    (λ: "key",
-      prf_dec_vg #(List.hd (Loc 0) ls) "key")%V.
+    Definition senc (ls : list loc) : val := 
+      (λ: "key",
+        prf_enc_vg #(List.hd (Loc 0) ls) "key")%V.
 
-  Definition rf_scheme_vg : expr :=
-    let: "mapref" := init_map #() in
-    (rf_enc_vg "mapref", rf_dec_vg "mapref").
+    Definition sdec (ls : list loc) : val := 
+      (λ: "key",
+        prf_dec_vg #(List.hd (Loc 0) ls) "key")%V.
 
-  #[local] Instance rf_SYM_param : symmetric_init.SYM_init_params :=
-    SYM_param SymKey Input SymOutput.
+    Definition rf_scheme_vg : expr :=
+      let: "mapref" := init_map #() in
+      (rf_enc_vg "mapref", rf_dec_vg "mapref").
 
-  #[local] Instance sym_rf_scheme_inst : symmetric_init.SYM_init := {|
-      symmetric_init.keygen := λ: <>, vg_of_symkey (rf_keygen SymKey #())
-    ; symmetric_init.enc_scheme := rf_scheme_vg
-    ; symmetric_init.rand_cipher := rf_rand_cipher Input SymOutput
-  |}.
+    #[local] Instance rf_SYM_param : symmetric_init.SYM_init_params :=
+      SYM_param SymKey Input SymOutput.
 
-  #[local] Instance elgamal_params : pubkey_class.ASYM_params :=
-    kemdem_hybrid_cpa_generic.asym_params N N N.
+    #[local] Instance sym_rf_scheme_inst : symmetric_init.SYM_init := {|
+        symmetric_init.keygen := λ: <>, vg_of_symkey (rf_keygen SymKey #())
+      ; symmetric_init.enc_scheme := rf_scheme_vg
+      ; symmetric_init.rand_cipher := rf_rand_cipher Input SymOutput
+    |}.
 
-  #[local] Instance elgamal_scheme : pubkey_class.ASYM := {|
-      pubkey_class.keygen := keygen
-    ; pubkey_class.enc := enc
-    ; pubkey_class.dec := dec
-    ; pubkey_class.rand_cipher := (λ: <>, let: "a" := rand #N in let: "b" := rand #N in (g^"a", g^"b"))
-  |}.
+    #[local] Instance elgamal_params : pubkey_class.ASYM_params :=
+      kemdem_hybrid_cpa_generic.asym_params N N N.
 
-  Ltac simpl_exp := try (rel_apply refines_exp_l; rel_pures_l);
-    try (rel_apply refines_exp_r; rel_pures_r).
-  Ltac simpl_mult := try (rel_apply refines_mult_l; rel_pures_l);
-    try (rel_apply refines_mult_r; rel_pures_r).
+    #[local] Instance elgamal_scheme : pubkey_class.ASYM := {|
+        pubkey_class.keygen := keygen
+      ; pubkey_class.enc := enc
+      ; pubkey_class.dec := dec
+      ; pubkey_class.rand_cipher := (λ: <>, let: "a" := rand #N in let: "b" := rand #N in (g^"a", g^"b"))
+    |}.
 
-  Definition init_scheme (e : expr) : expr :=
-    let: "scheme" := symmetric_init.get_enc_scheme symmetric_init.sym_scheme
-      #() in
-    e "scheme".
+    Ltac simpl_exp := try (rel_apply refines_exp_l; rel_pures_l);
+      try (rel_apply refines_exp_r; rel_pures_r).
+    Ltac simpl_mult := try (rel_apply refines_mult_l; rel_pures_l);
+      try (rel_apply refines_mult_r; rel_pures_r).
 
-  Ltac rel_init_scheme l1 s1 l2 s2 := 
-    rewrite /init_scheme/symmetric_init.sym_scheme/symmetric_init.get_enc_scheme;
-    rel_pures_l; rel_pures_r;
-    rel_apply refines_rf_scheme_l;
-    iIntros (l1) s1;
-    rel_apply refines_rf_scheme_r;
-    iIntros (l2) s2;
-    rewrite /rf_enc;
-    rewrite /rf_dec.
+    Let init_scheme : expr → expr := kemdem_hybrid_cpa_generic.init_scheme.
 
-  Ltac rel_init_scheme_l l1 s1 := 
-    rewrite /init_scheme/symmetric_init.sym_scheme/symmetric_init.get_enc_scheme;
-    rel_pures_l;
-    rel_apply refines_rf_scheme_l;
-    iIntros (l1) s1;
-    rewrite /rf_enc;
-    rewrite /rf_dec.
+    Ltac rel_init_scheme l1 s1 l2 s2 := 
+      rewrite /init_scheme/symmetric_init.sym_scheme/symmetric_init.get_enc_scheme;
+      rel_pures_l; rel_pures_r;
+      rel_apply refines_rf_scheme_l;
+      iIntros (l1) s1;
+      rel_apply refines_rf_scheme_r;
+      iIntros (l2) s2;
+      rewrite /rf_enc;
+      rewrite /rf_dec.
 
-  Ltac rel_init_scheme_r l2 s2 := 
-    rewrite /init_scheme/symmetric_init.sym_scheme/symmetric_init.get_enc_scheme;
-    rel_pures_r;
-    rel_apply refines_rf_scheme_r;
-    iIntros (l2) s2;
-    rewrite /rf_enc;
-    rewrite /rf_dec.
+    Ltac rel_init_scheme_l l1 s1 := 
+      rewrite /init_scheme/symmetric_init.sym_scheme/symmetric_init.get_enc_scheme;
+      rel_pures_l;
+      rel_apply refines_rf_scheme_l;
+      iIntros (l1) s1;
+      rewrite /rf_enc;
+      rewrite /rf_dec.
 
-  (* ASSUMPTIONS ON THE SYMMETRIC SCHEME FOR CORRECTNESS *)
+    Ltac rel_init_scheme_r l2 s2 := 
+      rewrite /init_scheme/symmetric_init.sym_scheme/symmetric_init.get_enc_scheme;
+      rel_pures_r;
+      rel_apply refines_rf_scheme_r;
+      iIntros (l2) s2;
+      rewrite /rf_enc;
+      rewrite /rf_dec.
 
-  Definition P0l (lls : list loc) : iProp Σ := match lls with
-    | [ll] => map_list ll ∅
-    | _ => False%I
-  end.
-  Definition P0r (rls : list loc) : iProp Σ := match rls with
-    | [rl] => map_slist rl ∅
-    | _ => False%I
-  end.
+    (* ASSUMPTIONS ON THE SYMMETRIC SCHEME FOR CORRECTNESS *)
 
-  Definition Pl (lls : list loc) : iProp Σ := match lls with
-    | [ll] => ∃ (M : gmap nat val),
-        map_list ll  M
-      ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
-        → ∃ k : nat, y = #k ∧ k <= card_output ⌝
-      ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝
-    | _ => False%I
-  end.
-  
-  Definition Pr (rls : list loc) : iProp Σ := match rls with
-    | [rl] => ∃ (M : gmap nat val),
-        map_slist rl  M
-      ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
-        → ∃ k : nat, y = #k ∧ k <= card_output ⌝
-      ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝
-    | _ => False%I
-  end.
-  Definition Plr (lls rls : list loc) : iProp Σ := match lls, rls with
-    | [ll], [rl] => ∃ (M : gmap nat val),
-        map_list ll  M ∗ map_slist rl M
-      ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
-        → ∃ k : nat, y = #k ∧ k <= card_output ⌝
-      ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝
-    | _, _ => False%I
-  end.
+    Definition P0l (lls : list loc) : iProp Σ := match lls with
+      | [ll] => map_list ll ∅
+      | _ => False%I
+    end.
+    Definition P0r (rls : list loc) : iProp Σ := match rls with
+      | [rl] => map_slist rl ∅
+      | _ => False%I
+    end.
 
-  Lemma rf_enc_sem_typed :
-    ∀ lls rls (𝒩 : namespace) (P : iProp Σ),
-    (∃ (Q : iProp Σ),
-      P ⊣⊢
-        (Q
-      ∗ Plr lls rls)
-    ) →
-    na_invP 𝒩 P
-     ⊢ refines top (senc lls)
-      (senc rls) (lrel_key → lrel_input → lrel_output).
-  Proof with (rel_pures_l; rel_pures_r).
-    intros lls rls 𝒩 P [Q H].
-    apply bi.equiv_entails in H.
-    destruct H as [H1 H2].
-    iIntros "#Inv".
-    rewrite /senc.
-    rel_arrow_val.
-    iIntros (v1 v2 [kg [eq1 eq2]]); subst.
-    rewrite /prf_enc_vg/prf_enc.
-    destruct lls as [|mapref [|tmp lls]];
-    destruct rls as [|mapref' [|tmp' rls]];
-    try (simpl in H1;
-      rel_apply refines_na_inv; iSplitL; first iAssumption;
-      iIntros "[HP _]"; rel_pures_l; rel_pures_r;
-      iExFalso;
-      iPoseProof (H1 with "HP") as "[_ contra]";
-      iAssumption)...
-    rel_bind (int_of_vg _); rel_apply refines_bind...
-    { rel_apply refines_app; rel_vals;
-      first iApply int_of_vg_lrel_G; iExists _; done. }
-    iIntros (v1 v2 [k [eq1 eq2]]); subst...
-    rel_bind_l (random_function _ _).
-    rel_bind_r (random_function _ _).
-    rel_apply refines_bind.
-    { rel_apply random_function_sem_typed_inv; last iAssumption.
-      eexists. apply bi.equiv_entails. split; iIntros "H";
-      first iPoseProof (H1 with "H") as "H";
-      last iPoseProof (H2 with "H") as "H"; iFrame.
-    }
-    iIntros (rf1 rf2) "#Hrfrel"...
-    rel_arrow_val.
-    iIntros (v1 v2 [msg [eq1 [eq2 Hmsgbounds]]]); subst...
-    rel_apply refines_couple_UU; first done. iModIntro.
-    iIntros (n Hnbound)...
-    rel_bind_l (rf1 _); rel_bind_r (rf2 _).
-    rel_apply refines_bind.
-    { rel_apply "Hrfrel". iExists n.
-      rewrite /card_input; simpl.
-      iPureIntro; repeat split; lia. }
-    iIntros (v v' [z [eq1 [eq2 Hzbounds]]]); subst...
-    rewrite -(Z2Nat.id z); last lia.
-    rewrite /card_input in Hmsgbounds; simpl in Hmsgbounds.
-    rewrite /card_output in Hzbounds; simpl in Hzbounds.
-    rel_apply xor_correct_l; try lia.
-    rel_apply xor_correct_r; try lia...
-    rewrite /lrel_output.
-    rel_vals; iExists _; rewrite /card_input; simpl; iPureIntro; repeat split; try lia.
-    apply Nat2Z.inj_le. apply le_S_n. apply xor_dom; lia.
-  Qed.
+    Definition Pl (lls : list loc) : iProp Σ := match lls with
+      | [ll] => ∃ (M : gmap nat val),
+          map_list ll  M
+        ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+          → ∃ k : nat, y = #k ∧ k <= card_output ⌝
+        ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝
+      | _ => False%I
+    end.
+    
+    Definition Pr (rls : list loc) : iProp Σ := match rls with
+      | [rl] => ∃ (M : gmap nat val),
+          map_slist rl  M
+        ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+          → ∃ k : nat, y = #k ∧ k <= card_output ⌝
+        ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝
+      | _ => False%I
+    end.
+    Definition Plr (lls rls : list loc) : iProp Σ := match lls, rls with
+      | [ll], [rl] => ∃ (M : gmap nat val),
+          map_list ll  M ∗ map_slist rl M
+        ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+          → ∃ k : nat, y = #k ∧ k <= card_output ⌝
+        ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S card_input)%nat ⌝
+      | _, _ => False%I
+    end.
 
-  Lemma P0_P_l : ∀ lls, P0l lls -∗ Pl lls.
-  Proof. rewrite /P0l/Pl. intros [|ll [|tmp lls]]; iIntros "H"; try iAssumption.
-    iExists ∅. iFrame.
-    iPureIntro. split.
-    - intros y Hy. rewrite map_img_empty in Hy.
-      rewrite elem_of_empty in Hy. exfalso; apply Hy.
-    - intros y Hy. rewrite elements_empty in Hy.
-      rewrite elem_of_nil in Hy. exfalso; apply Hy.
-  Qed.
-  Lemma P0_P_r : ∀ rls, P0r rls -∗ Pr rls.
-  Proof. rewrite /P0r/Pr. intros [|rl [|tmp rls]]; iIntros "H"; try iAssumption.
-    iExists ∅. iFrame.
-    iPureIntro. split.
-    - intros y Hy. rewrite map_img_empty in Hy.
-      rewrite elem_of_empty in Hy. exfalso; apply Hy.
-    - intros y Hy. rewrite elements_empty in Hy.
-      rewrite elem_of_nil in Hy. exfalso; apply Hy.
-  Qed.
+    Lemma rf_enc_sem_typed :
+      ∀ lls rls (𝒩 : namespace) (P : iProp Σ),
+      (∃ (Q : iProp Σ),
+        P ⊣⊢
+          (Q
+        ∗ Plr lls rls)
+      ) →
+      na_invP 𝒩 P
+      ⊢ refines top (senc lls)
+        (senc rls) (lrel_key → lrel_input → lrel_output).
+    Proof with (rel_pures_l; rel_pures_r).
+      intros lls rls 𝒩 P [Q H].
+      apply bi.equiv_entails in H.
+      destruct H as [H1 H2].
+      iIntros "#Inv".
+      rewrite /senc.
+      rel_arrow_val.
+      iIntros (v1 v2 [kg [eq1 eq2]]); subst.
+      rewrite /prf_enc_vg/prf_enc.
+      destruct lls as [|mapref [|tmp lls]];
+      destruct rls as [|mapref' [|tmp' rls]];
+      try (simpl in H1;
+        rel_apply refines_na_inv; iSplitL; first iAssumption;
+        iIntros "[HP _]"; rel_pures_l; rel_pures_r;
+        iExFalso;
+        iPoseProof (H1 with "HP") as "[_ contra]";
+        iAssumption)...
+      rel_bind (int_of_vg _); rel_apply refines_bind...
+      { rel_apply refines_app; rel_vals;
+        first iApply int_of_vg_lrel_G; iExists _; done. }
+      iIntros (v1 v2 [k [eq1 eq2]]); subst...
+      rel_bind_l (random_function _ _).
+      rel_bind_r (random_function _ _).
+      rel_apply refines_bind.
+      { rel_apply random_function_sem_typed_inv; last iAssumption.
+        eexists. apply bi.equiv_entails. split; iIntros "H";
+        first iPoseProof (H1 with "H") as "H";
+        last iPoseProof (H2 with "H") as "H"; iFrame.
+      }
+      iIntros (rf1 rf2) "#Hrfrel"...
+      rel_arrow_val.
+      iIntros (v1 v2 [msg [eq1 [eq2 Hmsgbounds]]]); subst...
+      rel_apply refines_couple_UU; first done. iModIntro.
+      iIntros (n Hnbound)...
+      rel_bind_l (rf1 _); rel_bind_r (rf2 _).
+      rel_apply refines_bind.
+      { rel_apply "Hrfrel". iExists n.
+        rewrite /card_input; simpl.
+        iPureIntro; repeat split; lia. }
+      iIntros (v v' [z [eq1 [eq2 Hzbounds]]]); subst...
+      rewrite -(Z2Nat.id z); last lia.
+      rewrite /card_input in Hmsgbounds; simpl in Hmsgbounds.
+      rewrite /card_output in Hzbounds; simpl in Hzbounds.
+      rel_apply xor_correct_l; try lia.
+      rel_apply xor_correct_r; try lia...
+      rewrite /lrel_output.
+      rel_vals; iExists _; rewrite /card_input; simpl; iPureIntro; repeat split; try lia.
+      apply Nat2Z.inj_le. apply le_S_n. apply xor_dom; lia.
+    Qed.
 
-  Lemma P0lr_Plr : ∀ lls rls, P0l lls -∗ P0r rls -∗ Plr lls rls.
-  Proof. rewrite /P0l/P0r/Plr. intros [|ll [|tmp lls]] [|rl [|tmp' rls]];
-    iIntros "Hl Hr"; try iAssumption.
-    iExists ∅. iFrame.
-    iPureIntro. split.
-    - intros y Hy. rewrite map_img_empty in Hy.
-      rewrite elem_of_empty in Hy. exfalso; apply Hy.
-    - intros y Hy. rewrite elements_empty in Hy.
-      rewrite elem_of_nil in Hy. exfalso; apply Hy.
-  Qed.
+    Lemma P0_P_l : ∀ lls, P0l lls -∗ Pl lls.
+    Proof. rewrite /P0l/Pl. intros [|ll [|tmp lls]]; iIntros "H"; try iAssumption.
+      iExists ∅. iFrame.
+      iPureIntro. split.
+      - intros y Hy. rewrite map_img_empty in Hy.
+        rewrite elem_of_empty in Hy. exfalso; apply Hy.
+      - intros y Hy. rewrite elements_empty in Hy.
+        rewrite elem_of_nil in Hy. exfalso; apply Hy.
+    Qed.
+    Lemma P0_P_r : ∀ rls, P0r rls -∗ Pr rls.
+    Proof. rewrite /P0r/Pr. intros [|rl [|tmp rls]]; iIntros "H"; try iAssumption.
+      iExists ∅. iFrame.
+      iPureIntro. split.
+      - intros y Hy. rewrite map_img_empty in Hy.
+        rewrite elem_of_empty in Hy. exfalso; apply Hy.
+      - intros y Hy. rewrite elements_empty in Hy.
+        rewrite elem_of_nil in Hy. exfalso; apply Hy.
+    Qed.
 
-  Lemma refines_init_rf_scheme_l : forall K e E A,
-    (∀ lls,
-      P0l lls -∗
-      refines E
-        (fill K (senc lls, sdec lls))
-        e A)
-    ⊢ refines E
-        (fill K (symmetric_init.get_enc_scheme symmetric_init.sym_scheme #()))
-        e A.
-  Proof with rel_pures_l. intros *. iIntros "H".
-    rewrite /symmetric_init.get_enc_scheme.
-    rewrite /symmetric_init.sym_scheme...
-    rewrite /rf_scheme_vg...
-    rel_apply refines_init_map_l.
-    iIntros (mapref) "Hmap"...
-    rewrite /senc/sdec.
-    rewrite /rf_enc_vg/rf_dec_vg.
-    rel_pure_l.
-    rel_pure_l.
-    rel_pure_l.
-    rel_pure_l.
-    iAssert (P0l [mapref] -∗
-      REL fill K
-      ((λ: "key", prf_enc_vg #(hd (Loc 0) [mapref]) "key")%V,
-      (λ: "key", prf_dec_vg #(hd (Loc 0) [mapref]) "key")%V)
-      <<
-      e @ E : A)%I with "[H]" as "G".
-    {
-      iApply "H".
-    }
-    simpl.
-    iPoseProof ("G" with "Hmap") as "H".
-    iApply "H".
-  Qed.
+    Lemma P0lr_Plr : ∀ lls rls, P0l lls -∗ P0r rls -∗ Plr lls rls.
+    Proof. rewrite /P0l/P0r/Plr. intros [|ll [|tmp lls]] [|rl [|tmp' rls]];
+      iIntros "Hl Hr"; try iAssumption.
+      iExists ∅. iFrame.
+      iPureIntro. split.
+      - intros y Hy. rewrite map_img_empty in Hy.
+        rewrite elem_of_empty in Hy. exfalso; apply Hy.
+      - intros y Hy. rewrite elements_empty in Hy.
+        rewrite elem_of_nil in Hy. exfalso; apply Hy.
+    Qed.
 
-  Lemma refines_init_rf_scheme_r : forall K e E A,
-    (∀ lls,
-      P0r lls -∗
-      refines E
-        e
-        (fill K (senc lls, sdec lls))
-        A)
-    ⊢ refines E
-        e
-        (fill K (symmetric_init.get_enc_scheme symmetric_init.sym_scheme #()))
-        A.
-  Proof with rel_pures_r. intros *. iIntros "H".
-    rewrite /symmetric_init.get_enc_scheme.
-    rewrite /symmetric_init.sym_scheme...
-    rewrite /rf_scheme_vg...
-    rel_apply refines_init_map_r.
-    iIntros (mapref) "Hmap"...
-    rewrite /senc/sdec.
-    rewrite /rf_enc_vg/rf_dec_vg.
-    rel_pure_r.
-    rel_pure_r.
-    rel_pure_r.
-    rel_pure_r.
-    iAssert (P0r [mapref] -∗
-      REL e <<
-      fill K ((λ: "key", prf_enc_vg #(hd (Loc 0) [mapref]) "key")%V,
-      (λ: "key", prf_dec_vg #(hd (Loc 0) [mapref]) "key")%V)
-      @ E : A)%I with "[H]" as "G".
-    {
-      iApply "H".
-    }
-    simpl.
-    iPoseProof ("G" with "Hmap") as "H".
-    iApply "H".
-  Qed.
-
-  Lemma refines_rf_keygen_couple :forall K K' E A,
-    (∀ key,
-      (lrel_car lrel_key) key key -∗
+    Lemma refines_init_rf_scheme_l : forall K e E A,
+      (∀ lls,
+        P0l lls -∗
         refines E
-          (fill K  (Val key))
-          (fill K' (Val key))
+          (fill K (senc lls, sdec lls))
+          e A)
+      ⊢ refines E
+          (fill K (symmetric_init.get_enc_scheme symmetric_init.sym_scheme #()))
+          e A.
+    Proof with rel_pures_l. intros *. iIntros "H".
+      rewrite /symmetric_init.get_enc_scheme.
+      rewrite /symmetric_init.sym_scheme...
+      rewrite /rf_scheme_vg...
+      rel_apply refines_init_map_l.
+      iIntros (mapref) "Hmap"...
+      rewrite /senc/sdec.
+      rewrite /rf_enc_vg/rf_dec_vg.
+      rel_pure_l.
+      rel_pure_l.
+      rel_pure_l.
+      rel_pure_l.
+      iAssert (P0l [mapref] -∗
+        REL fill K
+        ((λ: "key", prf_enc_vg #(hd (Loc 0) [mapref]) "key")%V,
+        (λ: "key", prf_dec_vg #(hd (Loc 0) [mapref]) "key")%V)
+        <<
+        e @ E : A)%I with "[H]" as "G".
+      {
+        iApply "H".
+      }
+      simpl.
+      iPoseProof ("G" with "Hmap") as "H".
+      iApply "H".
+    Qed.
+
+    Lemma refines_init_rf_scheme_r : forall K e E A,
+      (∀ lls,
+        P0r lls -∗
+        refines E
+          e
+          (fill K (senc lls, sdec lls))
           A)
-    ⊢ refines E
-        (fill K  (symmetric_init.keygen #()))
-        (fill K' (symmetric_init.keygen #()))
-        A.
-  Proof with (rel_pures_l; rel_pures_r).
-    intros *. iIntros "Hrelkey".
-    rewrite /symmetric_init.keygen/sym_rf_scheme_inst/prf_cpa_with_dec.sym_rf_scheme...
-    rewrite /rf_keygen...
-    rel_apply refines_couple_UU; first done.
-    iModIntro; iIntros (k Hkbound).
-    rewrite /vg_of_symkey. iLöb as "IH"...
-    rel_apply_l vg_of_int_correct; last
-    rel_apply_r vg_of_int_correct; last first.
-    - destruct (vg_of_int_sem k) as [kg|].
-      + rel_pures_l; rel_pures_r.
-        rel_apply "Hrelkey".
-        iApply vgval_sem_typed.
-      + rel_pure_l; rel_pure_l; rel_pure_l.
-        rel_pure_r; rel_pure_r; rel_pure_r.
-        rel_apply "IH". iApply "Hrelkey".
-    - rewrite /to_val_type_rel. iSplit.
-      + iIntros (x). iExists x. done.
-      + iIntros (ox). destruct ox as [x|]; iPureIntro.
-        * eexists. eexists. right. repeat split.
-          eexists. done.
-        * eexists. eexists. left. repeat split.
-    - rewrite /to_val_type_rel. iSplit.
-      + iIntros (x). iExists x. done.
-      + iIntros (ox). destruct ox as [x|]; iPureIntro.
-        * eexists. eexists. right. repeat split.
-          eexists. done.
-        * eexists. eexists. left. repeat split.
-  Qed.
+      ⊢ refines E
+          e
+          (fill K (symmetric_init.get_enc_scheme symmetric_init.sym_scheme #()))
+          A.
+    Proof with rel_pures_r. intros *. iIntros "H".
+      rewrite /symmetric_init.get_enc_scheme.
+      rewrite /symmetric_init.sym_scheme...
+      rewrite /rf_scheme_vg...
+      rel_apply refines_init_map_r.
+      iIntros (mapref) "Hmap"...
+      rewrite /senc/sdec.
+      rewrite /rf_enc_vg/rf_dec_vg.
+      rel_pure_r.
+      rel_pure_r.
+      rel_pure_r.
+      rel_pure_r.
+      iAssert (P0r [mapref] -∗
+        REL e <<
+        fill K ((λ: "key", prf_enc_vg #(hd (Loc 0) [mapref]) "key")%V,
+        (λ: "key", prf_dec_vg #(hd (Loc 0) [mapref]) "key")%V)
+        @ E : A)%I with "[H]" as "G".
+      {
+        iApply "H".
+      }
+      simpl.
+      iPoseProof ("G" with "Hmap") as "H".
+      iApply "H".
+    Qed.
 
-  Lemma refines_rf_keygen_l : forall K e E A,
-    (∀ key,
-      kemdem_hybrid_cpa_generic.left_lrel lrel_key key -∗
-      refines E
-        (fill K (Val key))
+    Lemma refines_rf_keygen_couple :forall K K' E A,
+      (∀ key,
+        (lrel_car lrel_key) key key -∗
+          refines E
+            (fill K  (Val key))
+            (fill K' (Val key))
+            A)
+      ⊢ refines E
+          (fill K  (symmetric_init.keygen #()))
+          (fill K' (symmetric_init.keygen #()))
+          A.
+    Proof with (rel_pures_l; rel_pures_r).
+      intros *. iIntros "Hrelkey".
+      rewrite /symmetric_init.keygen/sym_rf_scheme_inst/prf_cpa_with_dec.sym_rf_scheme...
+      rewrite /rf_keygen...
+      rel_apply refines_couple_UU; first done.
+      iModIntro; iIntros (k Hkbound).
+      rewrite /vg_of_symkey. iLöb as "IH"...
+      rel_apply_l vg_of_int_correct; last
+      rel_apply_r vg_of_int_correct; last first.
+      - destruct (vg_of_int_sem k) as [kg|].
+        + rel_pures_l; rel_pures_r.
+          rel_apply "Hrelkey".
+          iApply vgval_sem_typed.
+        + rel_pure_l; rel_pure_l; rel_pure_l.
+          rel_pure_r; rel_pure_r; rel_pure_r.
+          rel_apply "IH". iApply "Hrelkey".
+      - rewrite /to_val_type_rel. iSplit.
+        + iIntros (x). iExists x. done.
+        + iIntros (ox). destruct ox as [x|]; iPureIntro.
+          * eexists. eexists. right. repeat split.
+            eexists. done.
+          * eexists. eexists. left. repeat split.
+      - rewrite /to_val_type_rel. iSplit.
+        + iIntros (x). iExists x. done.
+        + iIntros (ox). destruct ox as [x|]; iPureIntro.
+          * eexists. eexists. right. repeat split.
+            eexists. done.
+          * eexists. eexists. left. repeat split.
+    Qed.
+
+    Lemma refines_rf_keygen_l : forall K e E A,
+      (∀ key,
+        kemdem_hybrid_cpa_generic.left_lrel lrel_key key -∗
+        refines E
+          (fill K (Val key))
+          e A)
+      ⊢ refines E
+          (fill K (symmetric_init.keygen #()))
+          e A.
+    Proof with rel_pures_l. intros *. iIntros "Hrelkey".
+      rewrite /symmetric_init.keygen... simpl.
+      rewrite /rf_keygen...
+      rel_apply refines_randU_l.
+      iIntros (k Hkbound).
+      rewrite /vg_of_symkey. iLöb as "IH"...
+      rel_apply_l vg_of_int_correct; last first.
+      - destruct (vg_of_int_sem k) as [kg|].
+        + rel_pures_l; rel_pures_r.
+          rel_apply "Hrelkey".
+          iExists _.
+          iApply vgval_sem_typed.
+        + rel_pure_l; rel_pure_l; rel_pure_l.
+          rel_apply "IH". iApply "Hrelkey".
+      - rewrite /to_val_type_rel. iSplit.
+        + iIntros (x). iExists x. done.
+        + iIntros (ox). destruct ox as [x|]; iPureIntro.
+          * eexists. eexists. right. repeat split.
+            eexists. done.
+          * eexists. eexists. left. repeat split.
+    Qed.
+
+    Lemma refines_rf_keygen_r : forall K e E A,
+      (∀ key,
+        kemdem_hybrid_cpa_generic.right_lrel lrel_key key -∗
+        refines E
+          e
+          (fill K (Val key))
+          A)
+      ⊢ refines E
+          e
+          (fill K (symmetric_init.keygen #()))
+          A.
+    Proof with rel_pures_r. intros *. iIntros "Hrelkey".
+      rewrite /symmetric_init.keygen... simpl.
+      rewrite /rf_keygen...
+      rel_apply refines_randU_r.
+      iIntros (k Hkbound).
+      rewrite /vg_of_symkey. iLöb as "IH"...
+      rel_apply_r vg_of_int_correct; last first.
+      - destruct (vg_of_int_sem k) as [kg|].
+        + rel_pures_l; rel_pures_r.
+          rel_apply "Hrelkey".
+          iExists _.
+          iApply vgval_sem_typed.
+        + rel_pure_r; rel_pure_r; rel_pure_r.
+          Fail rel_pure_l. (* is there a way to say "e still has some computing left" ?
+          I think there as a mention of sth like that in the paper... *)
+          Fail rel_apply "IH"; iApply "Hrelkey".
+          admit.
+      - rewrite /to_val_type_rel. iSplit.
+        + iIntros (x). iExists x. done.
+        + iIntros (ox). destruct ox as [x|]; iPureIntro.
+          * eexists. eexists. right. repeat split.
+            eexists. done.
+          * eexists. eexists. left. repeat split.
+    Admitted.
+
+    #[local] Instance initializable_sym_scheme_defs_rf :
+      (@kemdem_hybrid_cpa_generic.initializable_sym_scheme_defs Σ).
+    Proof. unshelve econstructor.
+      - exact senc.
+      - exact sdec.
+      - exact P0l.
+      - exact P0r.
+      - exact Pl.
+      - exact Pr.
+      - exact Plr.
+    Defined.
+
+    Let sym_is_cipher_l :=
+      @kemdem_hybrid_cpa_generic.sym_is_cipher_l _ _
+        initializable_sym_scheme_defs_rf.
+
+    Lemma refines_rf_senc_l : ∀ (lls : list loc) (msg : val) (k : val) K e E A,
+        kemdem_hybrid_cpa_generic.left_lrel lrel_key k
+      ∗ kemdem_hybrid_cpa_generic.left_lrel lrel_input msg
+      ∗ Pl lls ⊢
+        ((∀ (c : val),
+          sym_is_cipher_l lls msg c k
+        -∗ refines E
+            (fill K (Val c))
+            e A)
+      -∗ refines E
+          (fill K (senc lls k msg))
+          e A).
+    Proof with rel_pures_l. intros *. iIntros "[[%vk' %Hrelk] [%Hrelmsg HP]]".
+      rewrite /Pl.
+      destruct lls as [|mapref [|tmp lls]]; try (iExFalso; done).
+      iDestruct "HP" as "[%M [Hmap [%Himg %Hdom]]]".
+      iIntros "H".
+      rewrite /senc; simpl...
+      rewrite /prf_enc_vg/prf_enc...
+      destruct Hrelk as [kg [eqkg _]]; subst.
+      rel_apply_l int_of_vg_correct.
+      {
+        rewrite /to_val_type_rel. iSplit.
+        - iIntros (x). iExists _. iPureIntro. split; done.
+        - iIntros (x). iExists _. iPureIntro; split; done.
+      }
+      rewrite /random_function...
+      rel_apply refines_randU_l.
+      iIntros (r Hrbound)...
+      rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
+      iIntros (res) "Hmap %eqres".
+      destruct (M !! r) as [vres|] eqn:eqlookup; simpl in eqres; subst...
+      + eapply elem_of_map_img_2 in eqlookup as Himgres.
+        apply Himg in Himgres.
+        destruct Himgres as [nres [eqnres Hnresbound]]; subst...
+        destruct Hrelmsg as [nmsg [eq1 [eq2 Hmsgbound]]]; subst.
+        rewrite /card_input in Hmsgbound. simpl in Hmsgbound.
+        rewrite /card_output in Hnresbound. simpl in Hnresbound.
+        rel_apply xor_correct_l; try lia...
+        rel_apply ("H" with "[Hmap]").
+        rewrite /sym_is_cipher_l/kemdem_hybrid_cpa_generic.sym_is_cipher_l.
+        clear K e E A.
+        iIntros (K e E A) "H".
+        rewrite /kemdem_hybrid_cpa_generic.sdec.
+        simpl. rewrite /sdec...
+        rewrite /prf_dec_vg/prf_dec...
+        rel_apply_l int_of_vg_correct...
+        {
+          rewrite /to_val_type_rel. iSplit.
+          - iIntros (x). iExists _. iPureIntro. split; done.
+          - iIntros (x). iExists _. iPureIntro; split; done.
+        }
+        rel_bind_l (random_function _ _).
+        rewrite /random_function...
+        rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
+        iIntros (res) "Hmap %eqres"...
+        rewrite eqlookup in eqres. simpl in eqres.
+        rewrite eqres...
+        rel_apply xor_correct_l; try lia.
+        { rewrite Nat2Z.id.
+          apply xor_dom; lia. }
+        rewrite Nat2Z.id.
+        rewrite xor_sem_inverse_r; try lia.
+        rewrite Z2Nat.id; last lia.
+        rel_apply "H". iExists M; iFrame. iPureIntro; split; assumption.
+      + rel_apply refines_randU_l. iIntros (y Hybound)...
+        rel_apply (refines_set_l with "[-Hmap]"); last by iAssumption.
+        iIntros "Hmap"...
+        destruct Hrelmsg as [nmsg [eq1 [eq2 Hmsgbound]]]; subst.
+        rewrite /card_input in Hmsgbound. simpl in Hmsgbound.
+        rel_apply xor_correct_l; try lia...
+        rel_apply "H".
+        rewrite /sym_is_cipher_l/kemdem_hybrid_cpa_generic.sym_is_cipher_l.
+        clear K e E A. iIntros (K e E A) "H".
+        rewrite /kemdem_hybrid_cpa_generic.sdec.
+        simpl. rewrite /sdec...
+        rewrite /prf_dec_vg/prf_dec/random_function...
+        rel_apply_l int_of_vg_correct...
+        {
+          rewrite /to_val_type_rel. iSplit.
+          - iIntros (x). iExists _. iPureIntro. split; done.
+          - iIntros (x). iExists _. iPureIntro; split; done.
+        }
+        rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
+        iIntros (res') "Hmap %eqres'"; subst.
+        rewrite lookup_insert; simpl...
+        rel_apply xor_correct_l; try lia.
+        { rewrite Nat2Z.id. apply xor_dom; lia. }
+        rewrite Nat2Z.id.
+        rewrite xor_sem_inverse_r; try lia.
+        rewrite Z2Nat.id; last lia.
+        rel_apply "H". iExists _; iFrame. iPureIntro; split.
+        * intros x Hx. rewrite map_img_insert in Hx.
+          rewrite elem_of_union in Hx.
+          destruct Hx as [Hx | Hx].
+          ** rewrite elem_of_singleton in Hx; subst.
+            exists y; split; done.
+          ** apply Himg. eapply map_img_delete_subseteq. apply Hx.
+        * intros x Hx. rewrite dom_insert in Hx.
+          rewrite elements_union_singleton in Hx.
+          2: { apply not_elem_of_dom_2. assumption. }
+          apply elem_of_cons in Hx.
+          destruct Hx as [Hx | Hx]; first subst.
+          ** rewrite /card_input; simpl; lia.
+          ** apply Hdom. apply Hx.
+      Unshelve. apply gset_fin_set.
+    Qed.
+
+  (* THIS IS NOT USEFUL FOR KEMDEM BUT FOR WMF, CF `wmg_protocol.v`*)
+
+  Definition sym_is_cipher_lr_l {lls rls : list loc} (msg : val) (c k : val) : iProp Σ :=
+    ∀ K e E A,
+      (Plr lls rls -∗
+        refines E
+        (fill K (Val msg))
         e A)
-    ⊢ refines E
-        (fill K (symmetric_init.keygen #()))
+    -∗ refines E
+        (fill K (sdec lls k c))
         e A.
-  Proof with rel_pures_l. intros *. iIntros "Hrelkey".
-    rewrite /symmetric_init.keygen... simpl.
-    rewrite /rf_keygen...
-    rel_apply refines_randU_l.
-    iIntros (k Hkbound).
-    rewrite /vg_of_symkey. iLöb as "IH"...
-    rel_apply_l vg_of_int_correct; last first.
-    - destruct (vg_of_int_sem k) as [kg|].
-      + rel_pures_l; rel_pures_r.
-        rel_apply "Hrelkey".
-        iExists _.
-        iApply vgval_sem_typed.
-      + rel_pure_l; rel_pure_l; rel_pure_l.
-        rel_apply "IH". iApply "Hrelkey".
-    - rewrite /to_val_type_rel. iSplit.
-      + iIntros (x). iExists x. done.
-      + iIntros (ox). destruct ox as [x|]; iPureIntro.
-        * eexists. eexists. right. repeat split.
-          eexists. done.
-        * eexists. eexists. left. repeat split.
+
+  Lemma rf_refines_sdec_lr_prop :
+    ∀ (lls rls : list loc) (c c' : val) (k k' : val) K K' E A,
+    lrel_key k k' ∗ lrel_output c c' ∗ Plr lls rls ⊢
+      ((∀ (m m' : val),
+        lrel_input m m'
+      -∗ @sym_is_cipher_lr_l lls rls m c k
+      -∗ refines E
+          (fill K (Val m))
+          (fill K' (Val m'))
+          A)
+    -∗ refines E
+        (fill K  (sdec lls k  c ))
+        (fill K' (sdec rls k' c'))
+        A).
+  Proof with rel_pures_l; rel_pures_r.
+    iIntros (lls rls c c' k k' K K' E A)
+      "[[%kg [%eqk1 %eqk2]] [#Hrelmsg HP]] H"; subst...
+    destruct lls as [|mapref  [|tmp lls]]; try (iExFalso; done).
+    destruct rls as [|mapref' [|tmp rls]]; try (iExFalso; done).
+    rewrite /sdec/prf_dec_vg/prf_dec...
+    rel_apply_l int_of_vg_correct.
+    {
+      rewrite /to_val_type_rel. iSplit; iIntros (x).
+      - iExists _. iPureIntro; split; done.
+      - iExists x. iPureIntro; split; done.
+    }
+    rel_apply_r int_of_vg_correct...
+    {
+      rewrite /to_val_type_rel. iSplit; iIntros (x).
+      - iExists _. iPureIntro; split; done.
+      - iExists x. iPureIntro; split; done.
+    }
+    rewrite /random_function...
+    rewrite /lrel_car. simpl.
+    iDestruct "Hrelmsg" as
+      "[%v1 [%v2 [%v1' [%v2'
+        [%eq1 [%eq2 [Hrelv Hrelv']]]
+      ]]]]".
+    iDestruct "Hrelv" as "[%r [%eqr1 [%eqr2 %Hrbound]]]".
+    iDestruct "Hrelv'" as "[%z [%eqz1 [%eqz2 %Hzbound]]]"; subst...
+    rewrite /card_input in Hzbound;
+      simpl in Hzbound.
+    rewrite /card_input in Hrbound;
+      simpl in Hrbound.
+    iDestruct "HP" as (M) "[Hmap [Hmap' [%Himg %Hdom]]]".
+    rewrite -(Z2Nat.id r); last lia.
+    rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
+    iIntros (res) "Hmap %eqres".
+    rel_apply (refines_get_r with "[-Hmap']"); last iAssumption.
+    iIntros (res') "Hmap' %eqres'".
+    destruct (M !! Z.to_nat r) eqn:eqlookup;
+      simpl in eqres; simpl in eqres'; subst...
+    - eapply elem_of_map_img_2 in eqlookup as Himgres.
+      apply Himg in Himgres.
+      destruct Himgres as [nres [eqnres Hnresbound]]; subst...
+      rel_apply xor_correct_l; try lia.
+      rel_apply xor_correct_r; try lia.
+      rel_apply "H".
+      { iExists _. iPureIntro; repeat split; try lia.
+        apply inj_le.
+        apply PeanoNat.lt_n_Sm_le.
+        apply xor_dom; lia. }
+      rewrite /sym_is_cipher_lr_l.
+      clear K E A.
+      iIntros (K e E A) "H".
+      rewrite /sdec/prf_dec_vg/prf_dec...
+      rel_apply_l int_of_vg_correct.
+      {
+        rewrite /to_val_type_rel. iSplit; iIntros (x).
+        - iExists _. iPureIntro; split; done.
+        - iExists x. iPureIntro; split; done.
+      }
+      rewrite /random_function...
+      rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
+      iIntros (res) "Hmap %eqres".
+      rewrite eqlookup in eqres. simpl in eqres; subst...
+      rel_apply xor_correct_l; try lia.
+      rel_apply "H".
+      iExists M. iFrame.
+      iPureIntro; split; assumption.
+    - rel_apply refines_couple_UU; first done.
+      iModIntro; iIntros (y Hybound)...
+      rel_apply (refines_set_l with "[-Hmap]"); last iAssumption.
+      iIntros "Hmap".
+      rel_apply (refines_set_r with "[-Hmap']"); last iAssumption.
+      iIntros "Hmap'"...
+      rel_apply xor_correct_l; try lia.
+      rel_apply xor_correct_r; try lia.
+      rel_apply "H".
+      { iExists _. iPureIntro; repeat split; try lia.
+        apply inj_le.
+        apply PeanoNat.lt_n_Sm_le.
+        apply xor_dom; lia. }
+      rewrite /sym_is_cipher_lr_l.
+      clear K E A.
+      iIntros (K e E A) "H".
+      rewrite /sdec/prf_dec_vg/prf_dec...
+      rel_apply_l int_of_vg_correct.
+      {
+        rewrite /to_val_type_rel. iSplit; iIntros (x).
+        - iExists _. iPureIntro; split; done.
+        - iExists x. iPureIntro; split; done.
+      }
+      rewrite /random_function...
+      rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
+      iIntros (res) "Hmap %eqres".
+      rewrite lookup_insert in eqres. simpl in eqres; subst...
+      rel_apply xor_correct_l; try lia.
+      rel_apply "H".
+      iExists _. iFrame.
+      iPureIntro; split.
+      + intros y' H. apply map_img_insert in H.
+        apply elem_of_union in H. destruct H as [H|H].
+        * exists y. apply elem_of_singleton in H; subst.
+          done.
+        * apply Himg. eapply map_img_delete_subseteq. apply H.
+      + intros x H. rewrite dom_insert in H.
+        rewrite elements_union_singleton in H.
+        * rewrite elem_of_cons in H. destruct H as [H | H].
+          -- rewrite H. lia.
+          -- apply Hdom. assumption.
+        * apply not_elem_of_dom_2. assumption.
+    Unshelve. apply gset_fin_set.
   Qed.
 
-  Lemma refines_rf_keygen_r : forall K e E A,
-    (∀ key,
-      kemdem_hybrid_cpa_generic.right_lrel lrel_key key -∗
-      refines E
-        e
-        (fill K (Val key))
-        A)
-    ⊢ refines E
-        e
-        (fill K (symmetric_init.keygen #()))
-        A.
-  Proof with rel_pures_r. intros *. iIntros "Hrelkey".
-    rewrite /symmetric_init.keygen... simpl.
-    rewrite /rf_keygen...
-    rel_apply refines_randU_r.
-    iIntros (k Hkbound).
-    rewrite /vg_of_symkey. iLöb as "IH"...
-    rel_apply_r vg_of_int_correct; last first.
-    - destruct (vg_of_int_sem k) as [kg|].
-      + rel_pures_l; rel_pures_r.
-        rel_apply "Hrelkey".
-        iExists _.
-        iApply vgval_sem_typed.
-      + rel_pure_r; rel_pure_r; rel_pure_r.
-        Fail rel_pure_l. (* is there a way to say "e still has some computing left" ?
-        I think there as a mention of sth like that in the paper... *)
-        Fail rel_apply "IH"; iApply "Hrelkey".
-        admit.
-    - rewrite /to_val_type_rel. iSplit.
-      + iIntros (x). iExists x. done.
-      + iIntros (ox). destruct ox as [x|]; iPureIntro.
-        * eexists. eexists. right. repeat split.
-          eexists. done.
-        * eexists. eexists. left. repeat split.
-  Admitted.
-
-  Lemma refines_rf_senc_l : ∀ (lls : list loc) (msg : val) (k : val) K e E A,
-      kemdem_hybrid_cpa_generic.left_lrel lrel_key k
-    ∗ kemdem_hybrid_cpa_generic.left_lrel lrel_input msg
-    ∗ Pl lls ⊢
-      ((∀ (c : val),
-         @kemdem_hybrid_cpa_generic.sym_is_cipher_l Σ _
-          sdec Pl
-          lls msg c k
+  Lemma rf_refines_senc_lr_prop :
+    ∀ (lls rls : list loc) (msg msg' : val) (k k' : val) K K' E A,
+    lrel_key k k' ∗ lrel_input msg msg' ∗ Plr lls rls ⊢
+      ((∀ (c c' : val),
+        lrel_output c c'
+      -∗ @sym_is_cipher_lr_l lls rls msg c k
       -∗ refines E
           (fill K (Val c))
-          e A)
+          (fill K' (Val c'))
+          A)
     -∗ refines E
-        (fill K (senc lls k msg))
-        e A).
-  Proof with rel_pures_l. intros *. iIntros "[[%vk' %Hrelk] [%Hrelmsg HP]]".
-    rewrite /Pl.
-    destruct lls as [|mapref [|tmp lls]]; try (iExFalso; done).
-    iDestruct "HP" as "[%M [Hmap [%Himg %Hdom]]]".
-    iIntros "H".
+        (fill K  (senc lls k  msg ))
+        (fill K' (senc rls k' msg'))
+        A).
+  Proof with (rel_pures_l; rel_pures_r).
+    iIntros (lls rls msg msg' k k' K K' E A) "[%Hrelk [%Hrelmsg HP]] H".
+    destruct lls as [|mapref  [|tmp lls]]; try (iExFalso; done).
+    destruct rls as [|mapref' [|tmp rls]]; try (iExFalso; done).
+    rewrite /Plr.
+    iDestruct "HP" as "[%M [Hmap [Hmap' [%Himg %Hdom]]]]".
     rewrite /senc; simpl...
     rewrite /prf_enc_vg/prf_enc...
-    destruct Hrelk as [kg [eqkg _]]; subst.
+    destruct Hrelk as [kg [eqkg eqkg']]; subst.
     rel_apply_l int_of_vg_correct.
     {
       rewrite /to_val_type_rel. iSplit.
       - iIntros (x). iExists _. iPureIntro. split; done.
       - iIntros (x). iExists _. iPureIntro; split; done.
     }
+    rel_apply_r int_of_vg_correct.
+    {
+      rewrite /to_val_type_rel. iSplit.
+      - iIntros (x). iExists _. iPureIntro. split; done.
+      - iIntros (x). iExists _. iPureIntro; split; done.
+    }
     rewrite /random_function...
-    rel_apply refines_randU_l.
-    iIntros (r Hrbound)...
+    rel_apply refines_couple_UU; first done.
+    iIntros (r Hrbound); iModIntro...
     rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
     iIntros (res) "Hmap %eqres".
+    rel_apply (refines_get_r with "[-Hmap']"); last by iAssumption.
+    iIntros (res') "Hmap' %eqres'".
     destruct (M !! r) as [vres|] eqn:eqlookup; simpl in eqres; subst...
     + eapply elem_of_map_img_2 in eqlookup as Himgres.
       apply Himg in Himgres.
@@ -515,10 +783,19 @@ Section logrel.
       rewrite /card_input in Hmsgbound. simpl in Hmsgbound.
       rewrite /card_output in Hnresbound. simpl in Hnresbound.
       rel_apply xor_correct_l; try lia...
-      rel_apply ("H" with "[Hmap]").
-      rewrite /kemdem_hybrid_cpa_generic.sym_is_cipher_l.
-      clear K e E A.
-      iIntros (K e E A) "H".
+      rel_apply xor_correct_r; try lia...
+      rel_apply ("H").
+      { rewrite /lrel_output/lrel_input.
+        iExists _, _, _, _.
+        repeat iSplit; try iPureIntro; try done; rewrite /card_input; simpl.
+        - eexists. repeat split; lia.
+        - eexists. repeat split; try lia.
+          apply inj_le.
+          apply PeanoNat.lt_n_Sm_le.
+          apply xor_dom; lia. }
+      rewrite /sym_is_cipher_lr_l.
+      clear K E A.
+      iIntros (K e' E A) "H".
       rewrite /sdec...
       rewrite /prf_dec_vg/prf_dec...
       rel_apply_l int_of_vg_correct...
@@ -540,14 +817,27 @@ Section logrel.
       rewrite xor_sem_inverse_r; try lia.
       rewrite Z2Nat.id; last lia.
       rel_apply "H". iExists M; iFrame. iPureIntro; split; assumption.
-    + rel_apply refines_randU_l. iIntros (y Hybound)...
+    + rel_apply refines_couple_UU; first done. iIntros (y Hybound);
+      iModIntro...
       rel_apply (refines_set_l with "[-Hmap]"); last by iAssumption.
       iIntros "Hmap"...
+      rel_apply (refines_set_r with "[-Hmap']"); last by iAssumption.
+      iIntros "Hmap'"...
       destruct Hrelmsg as [nmsg [eq1 [eq2 Hmsgbound]]]; subst.
       rewrite /card_input in Hmsgbound. simpl in Hmsgbound.
       rel_apply xor_correct_l; try lia...
-      rel_apply "H". rewrite /kemdem_hybrid_cpa_generic.sym_is_cipher_l.
-      clear K e E A. iIntros (K e E A) "H".
+      rel_apply xor_correct_r; try lia...
+      rel_apply "H".
+      { rewrite /lrel_output/lrel_input.
+        iExists _, _, _, _.
+        repeat iSplit; try iPureIntro; try done; rewrite /card_input; simpl.
+        - eexists. repeat split; lia.
+        - eexists. repeat split; try lia.
+          apply inj_le.
+          apply PeanoNat.lt_n_Sm_le.
+          apply xor_dom; lia. }
+      rewrite /sym_is_cipher_lr_l.
+      clear K E A. iIntros (K e E A) "H".
       rewrite /sdec/kemdem_hybrid_cpa_generic.dec_hyb
         /kemdem_hybrid_cpa_generic.decaps/dec/prf_dec_vg/prf_dec/random_function...
       rel_apply_l int_of_vg_correct...
@@ -578,1144 +868,632 @@ Section logrel.
         destruct Hx as [Hx | Hx]; first subst.
         ** rewrite /card_input; simpl; lia.
         ** apply Hdom. apply Hx.
-    Unshelve. apply gset_fin_set.
-  Qed.
-
-(* THIS IS NOT USEFUL FOR KEMDEM BUT FOR WMF, CF `wmg_protocol.v`*)
-
-Definition sym_is_cipher_lr_l {lls rls : list loc} (msg : val) (c k : val) : iProp Σ :=
-  ∀ K e E A,
-    (Plr lls rls -∗
-      refines E
-      (fill K (Val msg))
-      e A)
-  -∗ refines E
-      (fill K (sdec lls k c))
-      e A.
-
-Lemma rf_refines_sdec_lr_prop :
-  ∀ (lls rls : list loc) (c c' : val) (k k' : val) K K' E A,
-  lrel_key k k' ∗ lrel_output c c' ∗ Plr lls rls ⊢
-    ((∀ (m m' : val),
-       lrel_input m m'
-    -∗ @sym_is_cipher_lr_l lls rls m c k
-    -∗ refines E
-        (fill K (Val m))
-        (fill K' (Val m'))
-        A)
-  -∗ refines E
-      (fill K  (sdec lls k  c ))
-      (fill K' (sdec rls k' c'))
-      A).
-Proof with rel_pures_l; rel_pures_r.
-  iIntros (lls rls c c' k k' K K' E A)
-    "[[%kg [%eqk1 %eqk2]] [#Hrelmsg HP]] H"; subst...
-  destruct lls as [|mapref  [|tmp lls]]; try (iExFalso; done).
-  destruct rls as [|mapref' [|tmp rls]]; try (iExFalso; done).
-  rewrite /sdec/prf_dec_vg/prf_dec...
-  rel_apply_l int_of_vg_correct.
-  {
-    rewrite /to_val_type_rel. iSplit; iIntros (x).
-    - iExists _. iPureIntro; split; done.
-    - iExists x. iPureIntro; split; done.
-  }
-  rel_apply_r int_of_vg_correct...
-  {
-    rewrite /to_val_type_rel. iSplit; iIntros (x).
-    - iExists _. iPureIntro; split; done.
-    - iExists x. iPureIntro; split; done.
-  }
-  rewrite /random_function...
-  rewrite /lrel_car. simpl.
-  iDestruct "Hrelmsg" as
-    "[%v1 [%v2 [%v1' [%v2'
-      [%eq1 [%eq2 [Hrelv Hrelv']]]
-     ]]]]".
-  iDestruct "Hrelv" as "[%r [%eqr1 [%eqr2 %Hrbound]]]".
-  iDestruct "Hrelv'" as "[%z [%eqz1 [%eqz2 %Hzbound]]]"; subst...
-  rewrite /card_input in Hzbound;
-    simpl in Hzbound.
-  rewrite /card_input in Hrbound;
-    simpl in Hrbound.
-  iDestruct "HP" as (M) "[Hmap [Hmap' [%Himg %Hdom]]]".
-  rewrite -(Z2Nat.id r); last lia.
-  rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
-  iIntros (res) "Hmap %eqres".
-  rel_apply (refines_get_r with "[-Hmap']"); last iAssumption.
-  iIntros (res') "Hmap' %eqres'".
-  destruct (M !! Z.to_nat r) eqn:eqlookup;
-    simpl in eqres; simpl in eqres'; subst...
-  - eapply elem_of_map_img_2 in eqlookup as Himgres.
-    apply Himg in Himgres.
-    destruct Himgres as [nres [eqnres Hnresbound]]; subst...
-    rel_apply xor_correct_l; try lia.
-    rel_apply xor_correct_r; try lia.
-    rel_apply "H".
-    { iExists _. iPureIntro; repeat split; try lia.
-      apply inj_le.
-      apply PeanoNat.lt_n_Sm_le.
-      apply xor_dom; lia. }
-    rewrite /sym_is_cipher_lr_l.
-    clear K E A.
-    iIntros (K e E A) "H".
-    rewrite /sdec/prf_dec_vg/prf_dec...
-    rel_apply_l int_of_vg_correct.
-    {
-      rewrite /to_val_type_rel. iSplit; iIntros (x).
-      - iExists _. iPureIntro; split; done.
-      - iExists x. iPureIntro; split; done.
-    }
-    rewrite /random_function...
-    rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
-    iIntros (res) "Hmap %eqres".
-    rewrite eqlookup in eqres. simpl in eqres; subst...
-    rel_apply xor_correct_l; try lia.
-    rel_apply "H".
-    iExists M. iFrame.
-    iPureIntro; split; assumption.
-  - rel_apply refines_couple_UU; first done.
-    iModIntro; iIntros (y Hybound)...
-    rel_apply (refines_set_l with "[-Hmap]"); last iAssumption.
-    iIntros "Hmap".
-    rel_apply (refines_set_r with "[-Hmap']"); last iAssumption.
-    iIntros "Hmap'"...
-    rel_apply xor_correct_l; try lia.
-    rel_apply xor_correct_r; try lia.
-    rel_apply "H".
-    { iExists _. iPureIntro; repeat split; try lia.
-      apply inj_le.
-      apply PeanoNat.lt_n_Sm_le.
-      apply xor_dom; lia. }
-    rewrite /sym_is_cipher_lr_l.
-    clear K E A.
-    iIntros (K e E A) "H".
-    rewrite /sdec/prf_dec_vg/prf_dec...
-    rel_apply_l int_of_vg_correct.
-    {
-      rewrite /to_val_type_rel. iSplit; iIntros (x).
-      - iExists _. iPureIntro; split; done.
-      - iExists x. iPureIntro; split; done.
-    }
-    rewrite /random_function...
-    rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
-    iIntros (res) "Hmap %eqres".
-    rewrite lookup_insert in eqres. simpl in eqres; subst...
-    rel_apply xor_correct_l; try lia.
-    rel_apply "H".
-    iExists _. iFrame.
-    iPureIntro; split.
-    + intros y' H. apply map_img_insert in H.
-      apply elem_of_union in H. destruct H as [H|H].
-      * exists y. apply elem_of_singleton in H; subst.
-        done.
-      * apply Himg. eapply map_img_delete_subseteq. apply H.
-    + intros x H. rewrite dom_insert in H.
-      rewrite elements_union_singleton in H.
-      * rewrite elem_of_cons in H. destruct H as [H | H].
-        -- rewrite H. lia.
-        -- apply Hdom. assumption.
-      * apply not_elem_of_dom_2. assumption.
-  Unshelve. apply gset_fin_set.
-Qed.
-
-Lemma rf_refines_senc_lr_prop :
-  ∀ (lls rls : list loc) (msg msg' : val) (k k' : val) K K' E A,
-  lrel_key k k' ∗ lrel_input msg msg' ∗ Plr lls rls ⊢
-    ((∀ (c c' : val),
-       lrel_output c c'
-    -∗ @sym_is_cipher_lr_l lls rls msg c k
-    -∗ refines E
-        (fill K (Val c))
-        (fill K' (Val c'))
-        A)
-  -∗ refines E
-      (fill K  (senc lls k  msg ))
-      (fill K' (senc rls k' msg'))
-      A).
-Proof with (rel_pures_l; rel_pures_r).
-  iIntros (lls rls msg msg' k k' K K' E A) "[%Hrelk [%Hrelmsg HP]] H".
-  destruct lls as [|mapref  [|tmp lls]]; try (iExFalso; done).
-  destruct rls as [|mapref' [|tmp rls]]; try (iExFalso; done).
-  rewrite /Plr.
-  iDestruct "HP" as "[%M [Hmap [Hmap' [%Himg %Hdom]]]]".
-  rewrite /senc; simpl...
-  rewrite /prf_enc_vg/prf_enc...
-  destruct Hrelk as [kg [eqkg eqkg']]; subst.
-  rel_apply_l int_of_vg_correct.
-  {
-    rewrite /to_val_type_rel. iSplit.
-    - iIntros (x). iExists _. iPureIntro. split; done.
-    - iIntros (x). iExists _. iPureIntro; split; done.
-  }
-  rel_apply_r int_of_vg_correct.
-  {
-    rewrite /to_val_type_rel. iSplit.
-    - iIntros (x). iExists _. iPureIntro. split; done.
-    - iIntros (x). iExists _. iPureIntro; split; done.
-  }
-  rewrite /random_function...
-  rel_apply refines_couple_UU; first done.
-  iIntros (r Hrbound); iModIntro...
-  rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
-  iIntros (res) "Hmap %eqres".
-  rel_apply (refines_get_r with "[-Hmap']"); last by iAssumption.
-  iIntros (res') "Hmap' %eqres'".
-  destruct (M !! r) as [vres|] eqn:eqlookup; simpl in eqres; subst...
-  + eapply elem_of_map_img_2 in eqlookup as Himgres.
-    apply Himg in Himgres.
-    destruct Himgres as [nres [eqnres Hnresbound]]; subst...
-    destruct Hrelmsg as [nmsg [eq1 [eq2 Hmsgbound]]]; subst.
-    rewrite /card_input in Hmsgbound. simpl in Hmsgbound.
-    rewrite /card_output in Hnresbound. simpl in Hnresbound.
-    rel_apply xor_correct_l; try lia...
-    rel_apply xor_correct_r; try lia...
-    rel_apply ("H").
-    { rewrite /lrel_output/lrel_input.
-      iExists _, _, _, _.
-      repeat iSplit; try iPureIntro; try done; rewrite /card_input; simpl.
-      - eexists. repeat split; lia.
-      - eexists. repeat split; try lia.
-        apply inj_le.
-        apply PeanoNat.lt_n_Sm_le.
-        apply xor_dom; lia. }
-    rewrite /sym_is_cipher_lr_l.
-    clear K E A.
-    iIntros (K e' E A) "H".
-    rewrite /sdec...
-    rewrite /prf_dec_vg/prf_dec...
-    rel_apply_l int_of_vg_correct...
-    {
-      rewrite /to_val_type_rel. iSplit.
-      - iIntros (x). iExists _. iPureIntro. split; done.
-      - iIntros (x). iExists _. iPureIntro; split; done.
-    }
-    rel_bind_l (random_function _ _).
-    rewrite /random_function...
-    rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
-    iIntros (res) "Hmap %eqres"...
-    rewrite eqlookup in eqres. simpl in eqres.
-    rewrite eqres...
-    rel_apply xor_correct_l; try lia.
-    { rewrite Nat2Z.id.
-      apply xor_dom; lia. }
-    rewrite Nat2Z.id.
-    rewrite xor_sem_inverse_r; try lia.
-    rewrite Z2Nat.id; last lia.
-    rel_apply "H". iExists M; iFrame. iPureIntro; split; assumption.
-  + rel_apply refines_couple_UU; first done. iIntros (y Hybound);
-    iModIntro...
-    rel_apply (refines_set_l with "[-Hmap]"); last by iAssumption.
-    iIntros "Hmap"...
-    rel_apply (refines_set_r with "[-Hmap']"); last by iAssumption.
-    iIntros "Hmap'"...
-    destruct Hrelmsg as [nmsg [eq1 [eq2 Hmsgbound]]]; subst.
-    rewrite /card_input in Hmsgbound. simpl in Hmsgbound.
-    rel_apply xor_correct_l; try lia...
-    rel_apply xor_correct_r; try lia...
-    rel_apply "H".
-    { rewrite /lrel_output/lrel_input.
-      iExists _, _, _, _.
-      repeat iSplit; try iPureIntro; try done; rewrite /card_input; simpl.
-      - eexists. repeat split; lia.
-      - eexists. repeat split; try lia.
-        apply inj_le.
-        apply PeanoNat.lt_n_Sm_le.
-        apply xor_dom; lia. }
-    rewrite /sym_is_cipher_lr_l.
-    clear K E A. iIntros (K e E A) "H".
-    rewrite /sdec/kemdem_hybrid_cpa_generic.dec_hyb
-      /kemdem_hybrid_cpa_generic.decaps/dec/prf_dec_vg/prf_dec/random_function...
-    rel_apply_l int_of_vg_correct...
-    {
-      rewrite /to_val_type_rel. iSplit.
-      - iIntros (x). iExists _. iPureIntro. split; done.
-      - iIntros (x). iExists _. iPureIntro; split; done.
-    }
-    rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
-    iIntros (res') "Hmap %eqres'"; subst.
-    rewrite lookup_insert; simpl...
-    rel_apply xor_correct_l; try lia.
-    { rewrite Nat2Z.id. apply xor_dom; lia. }
-    rewrite Nat2Z.id.
-    rewrite xor_sem_inverse_r; try lia.
-    rewrite Z2Nat.id; last lia.
-    rel_apply "H". iExists _; iFrame. iPureIntro; split.
-    * intros x Hx. rewrite map_img_insert in Hx.
-      rewrite elem_of_union in Hx.
-      destruct Hx as [Hx | Hx].
-      ** rewrite elem_of_singleton in Hx; subst.
-        exists y; split; done.
-      ** apply Himg. eapply map_img_delete_subseteq. apply Hx.
-    * intros x Hx. rewrite dom_insert in Hx.
-      rewrite elements_union_singleton in Hx.
-      2: { apply not_elem_of_dom_2. assumption. }
-      apply elem_of_cons in Hx.
-      destruct Hx as [Hx | Hx]; first subst.
-      ** rewrite /card_input; simpl; lia.
-      ** apply Hdom. apply Hx.
-    Unshelve. apply gset_fin_set.
-  Qed.
-  
-Definition sym_is_cipher_lr_l' {lls rls : list loc} (msg : val) (c k : val) : iProp Σ :=
-  ∀ K e E A,
-    (
-      refines E
-      (fill K (Val msg))
-      e A)
-  -∗ refines E
-      (fill K (sdec lls k c))
-      e A.
-
-Lemma rf_refines_senc_lr_prop2 :
-  ∀ (lls rls : list loc) (msg msg' : val) (k k' : val) K K' E A,
-  lrel_key k k' ∗ lrel_input msg msg' ∗ Plr lls rls ⊢
-    ((∀ (c c' : val),
-       lrel_output c c'
-    -∗ (@sym_is_cipher_lr_l lls rls msg c k ∧ Plr lls rls)
-    -∗ refines E
-        (fill K (Val c))
-        (fill K' (Val c'))
-        A)
-  -∗ refines E
-      (fill K  (senc lls k  msg ))
-      (fill K' (senc rls k' msg'))
-      A).
-Proof with (rel_pures_l; rel_pures_r).
-  iIntros (lls rls msg msg' k k' K K' E A) "[%Hrelk [%Hrelmsg HP]] H".
-  destruct lls as [|mapref  [|tmp lls]]; try (iExFalso; done).
-  destruct rls as [|mapref' [|tmp rls]]; try (iExFalso; done).
-  rewrite /Plr.
-  iDestruct "HP" as "[%M [Hmap [Hmap' [%Himg %Hdom]]]]".
-  rewrite /senc; simpl...
-  rewrite /prf_enc_vg/prf_enc...
-  destruct Hrelk as [kg [eqkg eqkg']]; subst.
-  rel_apply_l int_of_vg_correct.
-  {
-    rewrite /to_val_type_rel. iSplit.
-    - iIntros (x). iExists _. iPureIntro. split; done.
-    - iIntros (x). iExists _. iPureIntro; split; done.
-  }
-  rel_apply_r int_of_vg_correct.
-  {
-    rewrite /to_val_type_rel. iSplit.
-    - iIntros (x). iExists _. iPureIntro. split; done.
-    - iIntros (x). iExists _. iPureIntro; split; done.
-  }
-  rewrite /random_function...
-  rel_apply refines_couple_UU; first done.
-  iIntros (r Hrbound); iModIntro...
-  rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
-  iIntros (res) "Hmap %eqres".
-  rel_apply (refines_get_r with "[-Hmap']"); last by iAssumption.
-  iIntros (res') "Hmap' %eqres'".
-  destruct (M !! r) as [vres|] eqn:eqlookup; simpl in eqres; subst...
-  + eapply elem_of_map_img_2 in eqlookup as Himgres.
-    apply Himg in Himgres.
-    destruct Himgres as [nres [eqnres Hnresbound]]; subst...
-    destruct Hrelmsg as [nmsg [eq1 [eq2 Hmsgbound]]]; subst.
-    rewrite /card_input in Hmsgbound. simpl in Hmsgbound.
-    rewrite /card_output in Hnresbound. simpl in Hnresbound.
-    rel_apply xor_correct_l; try lia...
-    rel_apply xor_correct_r; try lia...
-    rel_apply ("H").
-    { rewrite /lrel_output/lrel_input.
-      iExists _, _, _, _.
-      repeat iSplit; try iPureIntro; try done; rewrite /card_input; simpl.
-      - eexists. repeat split; lia.
-      - eexists. repeat split; try lia.
-        apply inj_le.
-        apply PeanoNat.lt_n_Sm_le.
-        apply xor_dom; lia. }
-    rewrite /sym_is_cipher_lr_l'.
-    clear K E A. iSplit.
-    2: { iExists M; iFrame. iPureIntro; split; assumption. }
-    iIntros (K e' E A) "H".
-    rewrite /sdec...
-    rewrite /prf_dec_vg/prf_dec...
-    rel_apply_l int_of_vg_correct...
-    {
-      rewrite /to_val_type_rel. iSplit.
-      - iIntros (x). iExists _. iPureIntro. split; done.
-      - iIntros (x). iExists _. iPureIntro; split; done.
-    }
-    rel_bind_l (random_function _ _).
-    rewrite /random_function...
-    rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
-    iIntros (res) "Hmap %eqres"...
-    rewrite eqlookup in eqres. simpl in eqres.
-    rewrite eqres...
-    rel_apply xor_correct_l; try lia.
-    { rewrite Nat2Z.id.
-      apply xor_dom; lia. }
-    rewrite Nat2Z.id.
-    rewrite xor_sem_inverse_r; try lia.
-    rewrite Z2Nat.id; last lia.
-    rel_apply "H". iExists M; iFrame. iPureIntro; split; assumption.
-  + rel_apply refines_couple_UU; first done. iIntros (y Hybound);
-    iModIntro...
-    rel_apply (refines_set_l with "[-Hmap]"); last by iAssumption.
-    iIntros "Hmap"...
-    rel_apply (refines_set_r with "[-Hmap']"); last by iAssumption.
-    iIntros "Hmap'"...
-    destruct Hrelmsg as [nmsg [eq1 [eq2 Hmsgbound]]]; subst.
-    rewrite /card_input in Hmsgbound. simpl in Hmsgbound.
-    rel_apply xor_correct_l; try lia...
-    rel_apply xor_correct_r; try lia...
-    rel_apply "H".
-    { rewrite /lrel_output/lrel_input.
-      iExists _, _, _, _.
-      repeat iSplit; try iPureIntro; try done; rewrite /card_input; simpl.
-      - eexists. repeat split; lia.
-      - eexists. repeat split; try lia.
-        apply inj_le.
-        apply PeanoNat.lt_n_Sm_le.
-        apply xor_dom; lia. }
-    rewrite /sym_is_cipher_lr_l.
-    clear K E A. iSplit.
-    2: { iExists _; iFrame. iPureIntro; split.
-    * intros x Hx. rewrite map_img_insert in Hx.
-      rewrite elem_of_union in Hx.
-      destruct Hx as [Hx | Hx].
-      ** rewrite elem_of_singleton in Hx; subst.
-        exists y; split; done.
-      ** apply Himg. eapply map_img_delete_subseteq. apply Hx.
-    * intros x Hx. rewrite dom_insert in Hx.
-      rewrite elements_union_singleton in Hx.
-      2: { apply not_elem_of_dom_2. assumption. }
-      apply elem_of_cons in Hx.
-      destruct Hx as [Hx | Hx]; first subst.
-      ** rewrite /card_input; simpl; lia.
-      ** apply Hdom. apply Hx. }
-    iIntros (K e E A) "H".
-    rewrite /sdec/kemdem_hybrid_cpa_generic.dec_hyb
-      /kemdem_hybrid_cpa_generic.decaps/dec/prf_dec_vg/prf_dec/random_function...
-    rel_apply_l int_of_vg_correct...
-    {
-      rewrite /to_val_type_rel. iSplit.
-      - iIntros (x). iExists _. iPureIntro. split; done.
-      - iIntros (x). iExists _. iPureIntro; split; done.
-    }
-    rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
-    iIntros (res') "Hmap %eqres'"; subst.
-    rewrite lookup_insert; simpl...
-    rel_apply xor_correct_l; try lia.
-    { rewrite Nat2Z.id. apply xor_dom; lia. }
-    rewrite Nat2Z.id.
-    rewrite xor_sem_inverse_r; try lia.
-    rewrite Z2Nat.id; last lia.
-    rel_apply "H".
-    iExists _; iFrame. iPureIntro; split.
-    * intros x Hx. rewrite map_img_insert in Hx.
-      rewrite elem_of_union in Hx.
-      destruct Hx as [Hx | Hx].
-      ** rewrite elem_of_singleton in Hx; subst.
-        exists y; split; done.
-      ** apply Himg. eapply map_img_delete_subseteq. apply Hx.
-    * intros x Hx. rewrite dom_insert in Hx.
-      rewrite elements_union_singleton in Hx.
-      2: { apply not_elem_of_dom_2. assumption. }
-      apply elem_of_cons in Hx.
-      destruct Hx as [Hx | Hx]; first subst.
-      ** rewrite /card_input; simpl; lia.
-      ** apply Hdom. apply Hx.
-    Unshelve. apply gset_fin_set.
-  Qed.
-
-  (* ASSUMPTION ABOUT THE ASYMMETRIC SCHEME *)
-
-  Definition lrel_sk {Σ} := @lrel_int_bounded Σ 0 n''.
-  Definition lrel_pk `{!approxisRGS Σ} : lrel Σ := lrel_G.
-
-  Import fingroup.
-
-  Definition elgamal_is_asym_key_l  (sk pk : val) : iProp Σ :=
-    (∃ sk' pk',
-      ∃ k : Z,
-          ⌜sk = #k ∧ sk' = #k ∧ (0 ≤ k ≤ S n'')%Z⌝
-        ∗ ⌜pk = (vgval (g ^+ (Z.to_nat k))%g) ∧ pk' = (vgval (g ^+ (Z.to_nat k)))⌝)%I.
-
-  Definition elgamal_is_asym_key_r  (sk pk : val) := elgamal_is_asym_key_l sk pk.
-  Definition elgamal_is_asym_key_lr (sk pk : val) : iProp Σ :=
-    ∃ k : Z,
-        ⌜sk = #k ∧ (0 ≤ k ≤ S n'')%Z⌝
-      ∗ ⌜pk = (vgval (g ^+ (Z.to_nat k))%g)⌝.
-
-  Lemma is_asym_key_l_persistent : ∀ sk pk, Persistent (elgamal_is_asym_key_l sk pk).
-  Proof. rewrite /Persistent.
-    iIntros (sk pk) "#H". iAssumption.
-  Qed.
-  Lemma is_asym_key_r_persistent : ∀ sk pk, Persistent (elgamal_is_asym_key_r sk pk).
-  Proof. rewrite /Persistent.
-    iIntros (sk pk) "#H". iAssumption.
-  Qed.
-  Lemma is_asym_key_lr_persistent : ∀ sk pk, Persistent (elgamal_is_asym_key_lr sk pk).
-  Proof. rewrite /Persistent.
-    iIntros (sk pk) "#H". iAssumption.
-  Qed.
-  Lemma asym_key_lr_l_r :
-    ∀ sk pk, elgamal_is_asym_key_lr sk pk
-      -∗ elgamal_is_asym_key_l sk pk ∗ elgamal_is_asym_key_r sk pk.
-  Proof. rewrite /Persistent.
-    iIntros (sk pk) "#H". iSplit;
-    last rewrite /elgamal_is_asym_key_r; rewrite /elgamal_is_asym_key_l/elgamal_is_asym_key_lr;
-    iDestruct "H" as "[%k [[%eqsk %Hkbound] %eqpk]]"; subst.
-    - iExists #k, (vgval (g ^+ (Z.to_nat k))), k. iPureIntro; repeat split; lia.
-    - iExists #k, (vgval (g ^+ (Z.to_nat k))), k. iPureIntro; repeat split; lia.
-  Qed.
-
-  Lemma is_asym_key_lrel `{!approxisRGS Σ} :
-    ∀ sk pk, elgamal_is_asym_key_lr sk pk ⊢ ((lrel_car lrel_pk) pk pk).
-  Proof.
-    iIntros (sk pk) "[%k [[%eq1 %Hkbound] %eq2]]".
-    rewrite /lrel_pk.
-    iExists _. iPureIntro; split; done.
-  Qed.
-
-  Lemma elgamal_refines_akeygen_l : forall K e E A,
-    (∀ sk pk,
-      elgamal_is_asym_key_l sk pk -∗
-      refines E
-        (fill K (Val (sk, pk)))
+      Unshelve. apply gset_fin_set.
+    Qed.
+    
+  Definition sym_is_cipher_lr_l' {lls rls : list loc} (msg : val) (c k : val) : iProp Σ :=
+    ∀ K e E A,
+      (
+        refines E
+        (fill K (Val msg))
         e A)
-    ⊢ refines E
-        (fill K (keygen #()))
-        e A.
-  Proof with rel_pures_l. iIntros (K e E A) "H".
-    rewrite /keygen...
-    rel_apply refines_randU_l.
-    iIntros (sk Hskbound)...
-    rel_apply refines_exp_l...
-    rel_apply "H".
-    rewrite /elgamal_is_asym_key_l.
-    iExists _, _, _. iPureIntro. repeat split; try lia.
-    rewrite Nat2Z.id. reflexivity.
-  Qed.
-
-  Lemma elgamal_refines_akeygen_r : forall K e E A,
-    (∀ sk pk,
-      elgamal_is_asym_key_r sk pk -∗
-      refines E
-        e
-        (fill K (Val (sk, pk)))
-        A)
-    ⊢ refines E
-        e
-        (fill K (keygen #()))
-        A.
-  Proof with rel_pures_r. iIntros (K e E A) "H".
-    rewrite /keygen...
-    rel_apply refines_randU_r.
-    iIntros (sk Hskbound)...
-    rel_apply refines_exp_r...
-    rel_apply "H".
-    rewrite /elgamal_is_asym_key_r.
-    iExists _, _, _. iPureIntro. repeat split; try lia.
-    rewrite Nat2Z.id. reflexivity.
-  Qed.
-
-  Lemma elgamal_refines_akeygen_couple : forall K K' E A,
-    (∀ sk pk,
-      elgamal_is_asym_key_lr sk pk -∗
-      refines E
-        (fill K  (Val (sk, pk)))
-        (fill K' (Val (sk, pk)))
-        A)
-    ⊢ refines E
-        (fill K  (keygen #()))
-        (fill K' (keygen #()))
-        A.
-  Proof with (rel_pures_l; rel_pures_r). iIntros (K e E A) "H".
-    rewrite /keygen...
-    rel_apply refines_couple_UU; first done.
-    iIntros (sk Hskbound); iModIntro...
-    rel_apply refines_exp_l.
-    rel_apply refines_exp_r...
-    rel_apply "H".
-    rewrite /elgamal_is_asym_key_lr.
-    iExists _. iPureIntro. repeat split; try lia.
-    rewrite Nat2Z.id. reflexivity.
-  Qed.
-  
-  Definition elgamal_asym_is_cipher_l (msg c pk : val) : iProp Σ :=
-    ∀ K e E A sk,
-      elgamal_is_asym_key_l sk pk
     -∗ refines E
-       (fill K (Val msg))
-       e A
-    -∗ refines E
-        (fill K (dec sk c))
+        (fill K (sdec lls k c))
         e A.
-  
-  Lemma elgamal_refines_aenc_l :
-    ∀ (msg pk sk : val) K e E A,
-    kemdem_hybrid_cpa_generic.left_lrel lrel_G msg ∗ elgamal_is_asym_key_l sk pk ⊢
-      ((∀ (c : val),
-         @elgamal_asym_is_cipher_l msg c pk
+
+  Lemma rf_refines_senc_lr_prop2 :
+    ∀ (lls rls : list loc) (msg msg' : val) (k k' : val) K K' E A,
+    lrel_key k k' ∗ lrel_input msg msg' ∗ Plr lls rls ⊢
+      ((∀ (c c' : val),
+        lrel_output c c'
+      -∗ (@sym_is_cipher_lr_l lls rls msg c k ∧ Plr lls rls)
       -∗ refines E
           (fill K (Val c))
-          e A)
+          (fill K' (Val c'))
+          A)
     -∗ refines E
-        (fill K (enc pk msg))
-        e A).
+        (fill K  (senc lls k  msg ))
+        (fill K' (senc rls k' msg'))
+        A).
   Proof with (rel_pures_l; rel_pures_r).
-    iIntros (msg pk sk K e E A)
-      "[[%v [%msg_g [%eqmsg1 %eqmsg2]]]
-        [%sk' [%pk' [%n_sk [[%eqsk [%eqsk' %Hskbound]] [%eqpk %eqpk']]]]]] H"; subst.
-    rewrite /enc...
-    rel_apply refines_randU_l.
-    iIntros (b Hbbound)...
-    rel_apply refines_exp_l...
-    rewrite /elgamal_is_asym_key_l.
-    rel_apply refines_exp_l...
-    rel_apply refines_mult_l...
-    rel_apply "H".
-    rewrite /elgamal_asym_is_cipher_l.
-    clear K e E A.
-    iIntros (K e E A sk) "[%sk' [%pk' [%n_sk' [[%eqsk [%eqsk' %Hskbound']] [%eqpk %eqpk']]]]]"; subst.
-    iIntros "H".
-    rewrite /dec...
-    rewrite -(Z2Nat.id n_sk'); last lia.
-    rel_apply refines_exp_l.
-    rel_apply refines_inv_l.
-    rel_apply refines_mult_l.
-    rewrite -?expgM.
-    rewrite -ssrnat.multE.
-    rewrite -mulgA.
-    rewrite Nat.mul_comm.
-    Fail rewrite -(expgD g (b * Z.to_nat n_sk) (b * Z.to_nat n_sk')).
-    Fail rewrite mulgV. Fail rewrite mulg1.
-  Abort.
-
-  Let lrel_asym_output := (lrel_G * lrel_G)%lrel.
-
-  Lemma aenc_sem_typed :
-    (kemdem_hybrid_cpa_generic.aenc_sem_typed_prop SymKey SymKey SymOutput
-      lrel_G lrel_asym_output lrel_pk).
-  Proof with (rel_pures_l; rel_pures_r).
-    rewrite /kemdem_hybrid_cpa_generic.aenc_sem_typed_prop.
-    rewrite /pubkey_class.enc...
-    rewrite /elgamal_scheme...
-    rewrite /enc...
-    rel_arrow_val.
-    iIntros (v1 v2 [pk [eq1 eq2]]); subst...
-    rel_arrow_val.
-    iIntros (msg1 msg2 [msg [eq1 eq2]]); subst...
+    iIntros (lls rls msg msg' k k' K K' E A) "[%Hrelk [%Hrelmsg HP]] H".
+    destruct lls as [|mapref  [|tmp lls]]; try (iExFalso; done).
+    destruct rls as [|mapref' [|tmp rls]]; try (iExFalso; done).
+    rewrite /Plr.
+    iDestruct "HP" as "[%M [Hmap [Hmap' [%Himg %Hdom]]]]".
+    rewrite /senc; simpl...
+    rewrite /prf_enc_vg/prf_enc...
+    destruct Hrelk as [kg [eqkg eqkg']]; subst.
+    rel_apply_l int_of_vg_correct.
+    {
+      rewrite /to_val_type_rel. iSplit.
+      - iIntros (x). iExists _. iPureIntro. split; done.
+      - iIntros (x). iExists _. iPureIntro; split; done.
+    }
+    rel_apply_r int_of_vg_correct.
+    {
+      rewrite /to_val_type_rel. iSplit.
+      - iIntros (x). iExists _. iPureIntro. split; done.
+      - iIntros (x). iExists _. iPureIntro; split; done.
+    }
+    rewrite /random_function...
     rel_apply refines_couple_UU; first done.
-    iModIntro; iIntros (n Hnbound)...
-    rel_apply refines_exp_l.
-    rel_apply refines_exp_r...
-    rel_apply refines_exp_l.
-    rel_apply refines_exp_r...
-    rel_apply refines_mult_l.
-    rel_apply refines_mult_r...
-    rel_vals; iExists _; done.
-  Qed.
+    iIntros (r Hrbound); iModIntro...
+    rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
+    iIntros (res) "Hmap %eqres".
+    rel_apply (refines_get_r with "[-Hmap']"); last by iAssumption.
+    iIntros (res') "Hmap' %eqres'".
+    destruct (M !! r) as [vres|] eqn:eqlookup; simpl in eqres; subst...
+    + eapply elem_of_map_img_2 in eqlookup as Himgres.
+      apply Himg in Himgres.
+      destruct Himgres as [nres [eqnres Hnresbound]]; subst...
+      destruct Hrelmsg as [nmsg [eq1 [eq2 Hmsgbound]]]; subst.
+      rewrite /card_input in Hmsgbound. simpl in Hmsgbound.
+      rewrite /card_output in Hnresbound. simpl in Hnresbound.
+      rel_apply xor_correct_l; try lia...
+      rel_apply xor_correct_r; try lia...
+      rel_apply ("H").
+      { rewrite /lrel_output/lrel_input.
+        iExists _, _, _, _.
+        repeat iSplit; try iPureIntro; try done; rewrite /card_input; simpl.
+        - eexists. repeat split; lia.
+        - eexists. repeat split; try lia.
+          apply inj_le.
+          apply PeanoNat.lt_n_Sm_le.
+          apply xor_dom; lia. }
+      rewrite /sym_is_cipher_lr_l'.
+      clear K E A. iSplit.
+      2: { iExists M; iFrame. iPureIntro; split; assumption. }
+      iIntros (K e' E A) "H".
+      rewrite /sdec...
+      rewrite /prf_dec_vg/prf_dec...
+      rel_apply_l int_of_vg_correct...
+      {
+        rewrite /to_val_type_rel. iSplit.
+        - iIntros (x). iExists _. iPureIntro. split; done.
+        - iIntros (x). iExists _. iPureIntro; split; done.
+      }
+      rel_bind_l (random_function _ _).
+      rewrite /random_function...
+      rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
+      iIntros (res) "Hmap %eqres"...
+      rewrite eqlookup in eqres. simpl in eqres.
+      rewrite eqres...
+      rel_apply xor_correct_l; try lia.
+      { rewrite Nat2Z.id.
+        apply xor_dom; lia. }
+      rewrite Nat2Z.id.
+      rewrite xor_sem_inverse_r; try lia.
+      rewrite Z2Nat.id; last lia.
+      rel_apply "H". iExists M; iFrame. iPureIntro; split; assumption.
+    + rel_apply refines_couple_UU; first done. iIntros (y Hybound);
+      iModIntro...
+      rel_apply (refines_set_l with "[-Hmap]"); last by iAssumption.
+      iIntros "Hmap"...
+      rel_apply (refines_set_r with "[-Hmap']"); last by iAssumption.
+      iIntros "Hmap'"...
+      destruct Hrelmsg as [nmsg [eq1 [eq2 Hmsgbound]]]; subst.
+      rewrite /card_input in Hmsgbound. simpl in Hmsgbound.
+      rel_apply xor_correct_l; try lia...
+      rel_apply xor_correct_r; try lia...
+      rel_apply "H".
+      { rewrite /lrel_output/lrel_input.
+        iExists _, _, _, _.
+        repeat iSplit; try iPureIntro; try done; rewrite /card_input; simpl.
+        - eexists. repeat split; lia.
+        - eexists. repeat split; try lia.
+          apply inj_le.
+          apply PeanoNat.lt_n_Sm_le.
+          apply xor_dom; lia. }
+      rewrite /sym_is_cipher_lr_l.
+      clear K E A. iSplit.
+      2: { iExists _; iFrame. iPureIntro; split.
+      * intros x Hx. rewrite map_img_insert in Hx.
+        rewrite elem_of_union in Hx.
+        destruct Hx as [Hx | Hx].
+        ** rewrite elem_of_singleton in Hx; subst.
+          exists y; split; done.
+        ** apply Himg. eapply map_img_delete_subseteq. apply Hx.
+      * intros x Hx. rewrite dom_insert in Hx.
+        rewrite elements_union_singleton in Hx.
+        2: { apply not_elem_of_dom_2. assumption. }
+        apply elem_of_cons in Hx.
+        destruct Hx as [Hx | Hx]; first subst.
+        ** rewrite /card_input; simpl; lia.
+        ** apply Hdom. apply Hx. }
+      iIntros (K e E A) "H".
+      rewrite /sdec/kemdem_hybrid_cpa_generic.dec_hyb
+        /kemdem_hybrid_cpa_generic.decaps/dec/prf_dec_vg/prf_dec/random_function...
+      rel_apply_l int_of_vg_correct...
+      {
+        rewrite /to_val_type_rel. iSplit.
+        - iIntros (x). iExists _. iPureIntro. split; done.
+        - iIntros (x). iExists _. iPureIntro; split; done.
+      }
+      rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
+      iIntros (res') "Hmap %eqres'"; subst.
+      rewrite lookup_insert; simpl...
+      rel_apply xor_correct_l; try lia.
+      { rewrite Nat2Z.id. apply xor_dom; lia. }
+      rewrite Nat2Z.id.
+      rewrite xor_sem_inverse_r; try lia.
+      rewrite Z2Nat.id; last lia.
+      rel_apply "H".
+      iExists _; iFrame. iPureIntro; split.
+      * intros x Hx. rewrite map_img_insert in Hx.
+        rewrite elem_of_union in Hx.
+        destruct Hx as [Hx | Hx].
+        ** rewrite elem_of_singleton in Hx; subst.
+          exists y; split; done.
+        ** apply Himg. eapply map_img_delete_subseteq. apply Hx.
+      * intros x Hx. rewrite dom_insert in Hx.
+        rewrite elements_union_singleton in Hx.
+        2: { apply not_elem_of_dom_2. assumption. }
+        apply elem_of_cons in Hx.
+        destruct Hx as [Hx | Hx]; first subst.
+        ** rewrite /card_input; simpl; lia.
+        ** apply Hdom. apply Hx.
+      Unshelve. apply gset_fin_set.
+    Qed.
 
-  Lemma asym_rand_cipher_couple :
-    ∀ (v v' : val) K K' E A,
-      (∀ r r', lrel_asym_output r r' -∗
-      refines E (fill K (Val r)) (fill K' (Val r')) A)
-    ⊢ refines E (fill K (pubkey_class.rand_cipher v))
-      (fill K' (pubkey_class.rand_cipher v')) A.
-  Proof with (rel_pures_l; rel_pures_r).
-    iIntros (v v' K K' E A) "H".
-    rewrite /pubkey_class.rand_cipher...
-    rewrite /elgamal_scheme...
-    rel_apply refines_couple_UU; first done.
-    iModIntro; iIntros (n Hnbound)...
-    rel_apply refines_couple_UU; first done.
-    iModIntro; iIntros (b Hbbound)...
-    rel_apply refines_exp_l;
-    rel_apply refines_exp_r;
-    rel_apply refines_exp_l;
-    rel_apply refines_exp_r...
-    rel_apply "H".
-    iExists _, _, _, _.
-    iSplit; last iSplit; [done|done|].
-    iSplit; iExists _; done.
-  Qed.
+    (* ASSUMPTION ABOUT THE ASYMMETRIC SCHEME *)
 
-  Lemma rand_cipher_sem_typed : 
-    ⊢ refines top symmetric_init.rand_cipher
-      symmetric_init.rand_cipher (kemdem_hybrid_cpa_generic.lrel_trivial → lrel_output).
-  Proof with (rel_pures_l; rel_pures_r).
-    rewrite /symmetric_init.rand_cipher...
-    rewrite /sym_rf_scheme_inst...
-    rewrite /rf_rand_cipher...
-    rel_arrow_val.
-    iIntros (v1 v2) "_"...
-    rel_apply refines_couple_UU; first done.
-    iIntros (i Hibound); iModIntro...
-    rel_apply refines_couple_UU; first done.
-    iIntros (o Hobound); iModIntro... rewrite /Input in Hibound.
-    rel_vals; iExists _; iPureIntro; repeat split;
-    rewrite /card_input; simpl; lia.
-  Qed.
-(*
-Section Correctness.
+    Definition lrel_sk {Σ} := @lrel_int_bounded Σ 0 n''.
+    Definition lrel_pk `{!approxisRGS Σ} : lrel Σ := lrel_G.
 
-  Import mathcomp.fingroup.fingroup.
+    Import fingroup.
 
-  Let dec_hyb := kemdem_hybrid_cpa_generic.dec_hyb SymKey SymKey SymOutput.
-  Let enc_hyb := kemdem_hybrid_cpa_generic.dec_hyb SymKey SymKey SymOutput.
+    Definition elgamal_is_asym_key_l  (sk pk : val) : iProp Σ :=
+      (∃ sk' pk',
+        ∃ k : Z,
+            ⌜sk = #k ∧ sk' = #k ∧ (0 ≤ k ≤ S n'')%Z⌝
+          ∗ ⌜pk = (vgval (g ^+ (Z.to_nat k))%g) ∧ pk' = (vgval (g ^+ (Z.to_nat k)))⌝)%I.
 
-  Lemma hybrid_scheme_correct :
-      ⊢ refines top
-          (kemdem_hybrid_cpa_generic.init_scheme (λ: "scheme", (let, ("sk", "pk") := pubkey_class.keygen #() in
-          λ:"msg", dec_hyb "scheme" "sk"
-            (enc_hyb "scheme" "pk" "msg"))))
-          (λ: "msg", "msg")%V
-          (lrel_input → lrel_input).
-  Proof.
-    rewrite /dec_hyb/enc_hyb.
-    iStartProof.
-    iPoseProof kemdem_hybrid_cpa_generic.hybrid_scheme_correct as "H".
-    - exact SymKey.
-    - exact SymKey.
-    - exact SymOutput.
-    - exact TMessage.
-    - exact TKey.
-    - exact TInput.
-    - exact TOutput.
-    - exact TCipher.
-    - exact TKey.
-    - exact Δ.
-    - exact lrel_key.
-    - exact (lrel_G * lrel_G)%lrel.
-    - exact lrel_G.
-    - { Unshelve. 1: shelve.
-    - exact SymKey.
-    - exact SymKey.
-    - exact SymOutput.
-    - exact rf_SYM_param.
-    - exact sym_rf_scheme_inst.
-    - exact elgamal_scheme.
-    - exact approxisRGS0.
-    - exact (lrel_int_bounded 0 n'').
-    - exact lrel_G.
-    - exact lrel_input.
-    - exact senc.
-    - exact sdec.
-    - exact P0l.
-    - exact P0r.
-    - exact Pl.
-    - exact Pr.
-    - exact Plr. } Unshelve.
-      unfold lrel_key. iIntros (v v') "H"; iAssumption.
-    - iIntros (x); iApply P0_P_l.
-    - iIntros (x); iApply P0_P_r.
-    - iIntros (x y); iApply P0lr_Plr.
-    - iIntros (x y z t). iApply refines_init_rf_scheme_l.
-    - iIntros (x y z t). iApply refines_init_rf_scheme_r.
-    - iIntros (x y z t). iApply refines_rf_keygen_couple.
-    - iIntros (x y z t). iApply refines_rf_keygen_l.
-    - iIntros (x y z t). iApply refines_rf_keygen_r.
-    - iIntros (x y z t x' y' z'). iApply refines_rf_senc_l.
-  Qed.
+    Definition elgamal_is_asym_key_r  (sk pk : val) := elgamal_is_asym_key_l sk pk.
+    Definition elgamal_is_asym_key_lr (sk pk : val) : iProp Σ :=
+      ∃ k : Z,
+          ⌜sk = #k ∧ (0 ≤ k ≤ S n'')%Z⌝
+        ∗ ⌜pk = (vgval (g ^+ (Z.to_nat k))%g)⌝.
 
-End Correctness.
+    Lemma is_asym_key_l_persistent : ∀ sk pk, Persistent (elgamal_is_asym_key_l sk pk).
+    Proof. rewrite /Persistent.
+      iIntros (sk pk) "#H". iAssumption.
+    Qed.
+    Lemma is_asym_key_r_persistent : ∀ sk pk, Persistent (elgamal_is_asym_key_r sk pk).
+    Proof. rewrite /Persistent.
+      iIntros (sk pk) "#H". iAssumption.
+    Qed.
+    Lemma is_asym_key_lr_persistent : ∀ sk pk, Persistent (elgamal_is_asym_key_lr sk pk).
+    Proof. rewrite /Persistent.
+      iIntros (sk pk) "#H". iAssumption.
+    Qed.
 
-Lemma rf_pk_real_real_tape :
-  ⊢ refines top
-      (init_scheme kemdem_hybrid_cpa_generic.pk_real)
-      (init_scheme kemdem_hybrid_cpa_generic.pk_real_tape)
-      (lrel_G * (lrel_input → () + lrel_output * (lrel_G * lrel_G))).
-Proof with (rel_pures_l; rel_pures_r).
-  rel_apply kemdem_hybrid_cpa_generic.pk_real_real_tape.
-  - exact TMessage.
-  - exact TKey.
-  - exact TInput.
-  - exact TOutput.
-  - exact TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_l.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_r.
-  - iIntros (x y z t). iApply refines_rf_keygen_couple.
-  - iIntros (x y z t). iApply refines_rf_keygen_l.
-  - iIntros (x y z t). iApply refines_rf_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_rf_senc_l.
-  - iIntros (x y z x' y'). iApply rf_enc_sem_typed. assumption.
-Qed.
+    Lemma asym_key_lr_l_r :
+      ∀ sk pk, elgamal_is_asym_key_lr sk pk
+        -∗ elgamal_is_asym_key_l sk pk ∗ elgamal_is_asym_key_r sk pk.
+    Proof. rewrite /Persistent.
+      iIntros (sk pk) "#H". iSplit;
+      last rewrite /elgamal_is_asym_key_r; rewrite /elgamal_is_asym_key_l/elgamal_is_asym_key_lr;
+      iDestruct "H" as "[%k [[%eqsk %Hkbound] %eqpk]]"; subst.
+      - iExists #k, (vgval (g ^+ (Z.to_nat k))), k. iPureIntro; repeat split; lia.
+      - iExists #k, (vgval (g ^+ (Z.to_nat k))), k. iPureIntro; repeat split; lia.
+    Qed.
 
-Lemma rf_pk_real_tape_DDH_real :
-  ⊢ refines top
-      (init_scheme kemdem_hybrid_cpa_generic.pk_real_tape)
-      (init_scheme kemdem_hybrid_cpa_generic.Csenc_DDH_real) 
-    (lrel_G * (lrel_input → () + lrel_output * (lrel_G * lrel_G))).
-Proof with rel_pures_l; rel_pures_r.
-  rel_apply kemdem_hybrid_cpa_generic.pk_real_tape_DDH_real.
-  - exact TMessage.
-  - exact TKey.
-  - exact TInput.
-  - exact TOutput.
-  - exact TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_l.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_r.
-  - iIntros (x y z t). iApply refines_rf_keygen_couple.
-  - iIntros (x y z t). iApply refines_rf_keygen_l.
-  - iIntros (x y z t). iApply refines_rf_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_rf_senc_l.
-  - iIntros (x y z x' y'). iApply rf_enc_sem_typed. assumption.
-Qed.
+    Lemma is_asym_key_lrel `{!approxisRGS Σ} :
+      ∀ sk pk, elgamal_is_asym_key_lr sk pk ⊢ ((lrel_car lrel_pk) pk pk).
+    Proof.
+      iIntros (sk pk) "[%k [[%eq1 %Hkbound] %eq2]]".
+      rewrite /lrel_pk.
+      iExists _. iPureIntro; split; done.
+    Qed.
 
-(* here we use the DDH assumption: we replace C[DDHreal] by C[DDHrand] *)
+    Lemma elgamal_refines_akeygen_l : forall K e E A,
+      (∀ sk pk,
+        elgamal_is_asym_key_l sk pk -∗
+        refines E
+          (fill K (Val (sk, pk)))
+          e A)
+      ⊢ refines E
+          (fill K (keygen #()))
+          e A.
+    Proof with rel_pures_l. iIntros (K e E A) "H".
+      rewrite /keygen...
+      rel_apply refines_randU_l.
+      iIntros (sk Hskbound)...
+      rel_apply refines_exp_l...
+      rel_apply "H".
+      rewrite /elgamal_is_asym_key_l.
+      iExists _, _, _. iPureIntro. repeat split; try lia.
+      rewrite Nat2Z.id. reflexivity.
+    Qed.
 
-Lemma rf_Csenc_DDH_rand_pk_rand_senc_delay :
-  ⊢ refines top
-      (init_scheme kemdem_hybrid_cpa_generic.Csenc_DDH_rand)
-      (init_scheme kemdem_hybrid_cpa_generic.pk_rand_senc_delay)
-      (lrel_G *
-      (lrel_input → () + lrel_output * (lrel_G * lrel_G))).
-Proof with rel_pures_l; rel_pures_r.
-  rel_apply kemdem_hybrid_cpa_generic.Csenc_DDH_rand_pk_rand_senc_delay.
-  - exact TMessage.
-  - exact TKey.
-  - exact TInput.
-  - exact TOutput.
-  - exact TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_l.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_r.
-  - iIntros (x y z t). iApply refines_rf_keygen_couple.
-  - iIntros (x y z t). iApply refines_rf_keygen_l.
-  - iIntros (x y z t). iApply refines_rf_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_rf_senc_l.
-  - iIntros (x y z x' y'). iApply rf_enc_sem_typed. assumption.
-Qed.
+    Lemma elgamal_refines_akeygen_r : forall K e E A,
+      (∀ sk pk,
+        elgamal_is_asym_key_r sk pk -∗
+        refines E
+          e
+          (fill K (Val (sk, pk)))
+          A)
+      ⊢ refines E
+          e
+          (fill K (keygen #()))
+          A.
+    Proof with rel_pures_r. iIntros (K e E A) "H".
+      rewrite /keygen...
+      rel_apply refines_randU_r.
+      iIntros (sk Hskbound)...
+      rel_apply refines_exp_r...
+      rel_apply "H".
+      rewrite /elgamal_is_asym_key_r.
+      iExists _, _, _. iPureIntro. repeat split; try lia.
+      rewrite Nat2Z.id. reflexivity.
+    Qed.
 
-Lemma rf_pk_rand_senc_delay_pk_rand_senc_mult_free :
-  ⊢ refines top 
-      (init_scheme kemdem_hybrid_cpa_generic.pk_rand_senc_delay)
-      (init_scheme kemdem_hybrid_cpa_generic.pk_rand_senc_mult_free)
-      (lrel_G *
-      (lrel_input → () + lrel_output * (lrel_G * lrel_G))).
-Proof with rel_pures_l; rel_pures_r.
-  rel_apply kemdem_hybrid_cpa_generic.pk_rand_senc_delay_pk_rand_senc_mult_free.
-  - exact TMessage.
-  - exact TKey.
-  - exact TInput.
-  - exact TOutput.
-  - exact TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_l.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_r.
-  - iIntros (x y z t). iApply refines_rf_keygen_couple.
-  - iIntros (x y z t). iApply refines_rf_keygen_l.
-  - iIntros (x y z t). iApply refines_rf_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_rf_senc_l.
-  - iIntros (x y z x' y'). iApply rf_enc_sem_typed. assumption.
-Qed.
+    Lemma elgamal_refines_akeygen_couple : forall K K' E A,
+      (∀ sk pk,
+        elgamal_is_asym_key_lr sk pk -∗
+        refines E
+          (fill K  (Val (sk, pk)))
+          (fill K' (Val (sk, pk)))
+          A)
+      ⊢ refines E
+          (fill K  (keygen #()))
+          (fill K' (keygen #()))
+          A.
+    Proof with (rel_pures_l; rel_pures_r). iIntros (K e E A) "H".
+      rewrite /keygen...
+      rel_apply refines_couple_UU; first done.
+      iIntros (sk Hskbound); iModIntro...
+      rel_apply refines_exp_l.
+      rel_apply refines_exp_r...
+      rel_apply "H".
+      rewrite /elgamal_is_asym_key_lr.
+      iExists _. iPureIntro. repeat split; try lia.
+      rewrite Nat2Z.id. reflexivity.
+    Qed.
+    
+    Definition elgamal_asym_is_cipher_l (msg c pk : val) : iProp Σ :=
+      ∀ K e E A sk,
+        elgamal_is_asym_key_l sk pk
+      -∗ refines E
+        (fill K (Val msg))
+        e A
+      -∗ refines E
+          (fill K (dec sk c))
+          e A.
+    
+    Lemma elgamal_refines_aenc_l :
+      ∀ (msg pk sk : val) K e E A,
+      kemdem_hybrid_cpa_generic.left_lrel lrel_G msg ∗ elgamal_is_asym_key_l sk pk ⊢
+        ((∀ (c : val),
+          @elgamal_asym_is_cipher_l msg c pk
+        -∗ refines E
+            (fill K (Val c))
+            e A)
+      -∗ refines E
+          (fill K (enc pk msg))
+          e A).
+    Proof with (rel_pures_l; rel_pures_r).
+      iIntros (msg pk sk K e E A)
+        "[[%v [%msg_g [%eqmsg1 %eqmsg2]]]
+          [%sk' [%pk' [%n_sk [[%eqsk [%eqsk' %Hskbound]] [%eqpk %eqpk']]]]]] H"; subst.
+      rewrite /enc...
+      rel_apply refines_randU_l.
+      iIntros (b Hbbound)...
+      rel_apply refines_exp_l...
+      rewrite /elgamal_is_asym_key_l.
+      rel_apply refines_exp_l...
+      rel_apply refines_mult_l...
+      rel_apply "H".
+      rewrite /elgamal_asym_is_cipher_l.
+      clear K e E A.
+      iIntros (K e E A sk) "[%sk' [%pk' [%n_sk' [[%eqsk [%eqsk' %Hskbound']] [%eqpk %eqpk']]]]]"; subst.
+      iIntros "H".
+      rewrite /dec...
+      rewrite -(Z2Nat.id n_sk'); last lia.
+      rel_apply refines_exp_l.
+      rel_apply refines_inv_l.
+      rel_apply refines_mult_l.
+      rewrite -?expgM.
+      rewrite -ssrnat.multE.
+      rewrite -mulgA.
+      rewrite Nat.mul_comm.
+      Fail rewrite -(expgD g (b * Z.to_nat n_sk) (b * Z.to_nat n_sk')).
+      Fail rewrite mulgV. Fail rewrite mulg1.
+    Admitted.
 
-Lemma adv_rand_syn_typed : ⊢ᵥ kemdem_hybrid_cpa_generic.adv_rand :
-  ((TMessage → TOption prf_cpa_with_dec.TCipher) → τG *
-    (kemdem_hybrid_cpa_generic.TOracle TInput TCipher)).
-Proof.
-  rewrite /kemdem_hybrid_cpa_generic.adv_rand.
-  apply Rec_val_typed.
-  type_expr 1. 2 : { apply Subsume_int_nat. tychk. }
-  type_expr 1.
-  type_expr 1. 2 : { apply Subsume_int_nat. tychk. }
-  type_expr 1.
-  type_expr 1; last try tychk; first last.
-  { apply g_typed. }
-  { apply vexp_typed. }
-  type_expr 1.
-  type_expr 1; last try tychk; first last.
-  { apply g_typed. }
-  { apply vexp_typed. }
-  type_expr 1.
-  type_expr 1; last try tychk.
-  type_expr 1.
-  type_expr 1; first tychk.
-  type_expr 1. Admitted.
-  (* type_expr 1. 2 : { apply Subsume_int_nat. tychk. }
-  type_expr 1.
-  type_expr 1.
-  { tychk. apply vg_of_int_typed. }
-  { tychk. }
-  type_expr 1.
-  type_expr 1; first tychk.
-  2 : { apply InjL_typed. tychk. }
-  apply InjR_typed.
-  type_expr 1; last tychk.
-  type_expr 1.
-  type_expr 1. 2 : {
-    type_expr 1. 2 : { apply Subsume_int_nat. tychk. }
-    tychk.
-    { apply vexp_typed. }
-    { apply g_typed. }
-  }
-  type_expr 1.
-  type_expr 1; try tychk.
-Qed. *)
+    Let lrel_asym_output := (lrel_G * lrel_G)%lrel.
 
-Lemma rf_pk_rand_senc_mult_free_mult_free_delay :
-  ⊢ refines top 
-      (init_scheme kemdem_hybrid_cpa_generic.pk_rand_senc_mult_free)
-      (init_scheme kemdem_hybrid_cpa_generic.pk_rand_senc_mult_free_delay)
-      (lrel_G *
-      (lrel_input → () + lrel_output * (lrel_G * lrel_G))).
-Proof. rel_apply kemdem_hybrid_cpa_generic.pk_rand_senc_mult_free_mult_free_delay.
-  - exact TMessage.
-  - exact TKey.
-  - exact TInput.
-  - exact TOutput.
-  - exact TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_l.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_r.
-  - iIntros (x y z t). iApply refines_rf_keygen_couple.
-  - iIntros (x y z t). iApply refines_rf_keygen_l.
-  - iIntros (x y z t). iApply refines_rf_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_rf_senc_l.
-  - iIntros (x y z x' y'). iApply rf_enc_sem_typed. assumption.
-Qed.
+    Lemma aenc_sem_typed :
+      ⊢ refines top enc enc (lrel_pk → lrel_G → lrel_asym_output).
+    Proof with (rel_pures_l; rel_pures_r).
+      rewrite /pubkey_class.enc...
+      rewrite /elgamal_scheme...
+      rewrite /enc...
+      rel_arrow_val.
+      iIntros (v1 v2 [pk [eq1 eq2]]); subst...
+      rel_arrow_val.
+      iIntros (msg1 msg2 [msg [eq1 eq2]]); subst...
+      rel_apply refines_couple_UU; first done.
+      iModIntro; iIntros (n Hnbound)...
+      rel_apply refines_exp_l.
+      rel_apply refines_exp_r...
+      rel_apply refines_exp_l.
+      rel_apply refines_exp_r...
+      rel_apply refines_mult_l.
+      rel_apply refines_mult_r...
+      rel_vals; iExists _; done.
+    Qed.
 
-(* TODO fetch OTS security equivalence and match it
-  with CPA _ _ #1 *)
+    Lemma asym_rand_cipher_couple :
+      ∀ (v v' : val) K K' E A,
+        (∀ r r', lrel_asym_output r r' -∗
+        refines E (fill K (Val r)) (fill K' (Val r')) A)
+      ⊢ refines E (fill K (pubkey_class.rand_cipher v))
+        (fill K' (pubkey_class.rand_cipher v')) A.
+    Proof with (rel_pures_l; rel_pures_r).
+      iIntros (v v' K K' E A) "H".
+      rewrite /pubkey_class.rand_cipher...
+      rewrite /elgamal_scheme...
+      rel_apply refines_couple_UU; first done.
+      iModIntro; iIntros (n Hnbound)...
+      rel_apply refines_couple_UU; first done.
+      iModIntro; iIntros (b Hbbound)...
+      rel_apply refines_exp_l;
+      rel_apply refines_exp_r;
+      rel_apply refines_exp_l;
+      rel_apply refines_exp_r...
+      rel_apply "H".
+      iExists _, _, _, _.
+      iSplit; last iSplit; [done|done|].
+      iSplit; iExists _; done.
+    Qed.
 
-Lemma rf_pk_rand_senc_mult_free_adv_sym_OTS (adv : val) :
-  refines top
-    adv
-    adv
-    ((lrel_G * (lrel_input → () + lrel_output * (lrel_G * lrel_G))) → lrel_bool)
-  ⊢ refines top
-      (adv (kemdem_hybrid_cpa_generic.init_scheme kemdem_hybrid_cpa_generic.pk_rand_senc_mult_free_delay))
-      (kemdem_hybrid_cpa_generic.OTS #true (λ: "oracle", adv (kemdem_hybrid_cpa_generic.adv_rand "oracle"))%V
+    Lemma rand_cipher_sem_typed : 
+      ⊢ refines top symmetric_init.rand_cipher
+        symmetric_init.rand_cipher (kemdem_hybrid_cpa_generic.lrel_trivial → lrel_output).
+    Proof with (rel_pures_l; rel_pures_r).
+      rewrite /symmetric_init.rand_cipher...
+      rewrite /sym_rf_scheme_inst...
+      rewrite /rf_rand_cipher...
+      rel_arrow_val.
+      iIntros (v1 v2) "_"...
+      rel_apply refines_couple_UU; first done.
+      iIntros (i Hibound); iModIntro...
+      rel_apply refines_couple_UU; first done.
+      iIntros (o Hobound); iModIntro... rewrite /Input in Hibound.
+      rel_vals; iExists _; iPureIntro; repeat split;
+      rewrite /card_input; simpl; lia.
+    Qed.
+
+    #[local] Instance rf_enc_lrel : @kemdem_hybrid_cpa_generic.lrel_sym_scheme Σ.
+    Proof. unshelve econstructor.
+      - exact lrel_input.
+      - exact lrel_output.
+      - exact lrel_key.
+    Defined.
+
+    #[local] Instance elgamal_lrel : @kemdem_hybrid_cpa_generic.lrel_asym_scheme Σ.
+    Proof. unshelve econstructor.
+      - exact lrel_G.
+      - exact (lrel_G * lrel_G)%lrel.
+      - exact lrel_sk.
+      - exact lrel_pk.
+    Defined.
+
+    #[local] Instance elgamal_is_key : @kemdem_hybrid_cpa_generic.is_asym_key Σ.
+    Proof. unshelve econstructor.
+      - exact elgamal_is_asym_key_l.
+      - exact elgamal_is_asym_key_r.
+      - exact elgamal_is_asym_key_lr.
+    Defined.
+
+    #[local] Instance rf_enc_props :
+      kemdem_hybrid_cpa_generic.initializable_sym_scheme_props.
+    Proof with rel_pures_l; rel_pures_r. unshelve econstructor.
+      - rewrite /kemdem_hybrid_cpa_generic.lrel_key. simpl.
+        iIntros (v v') "H". rewrite /lrel_key. iAssumption.
+      - simpl. apply P0_P_l.
+      - simpl. apply P0_P_r.
+      - simpl. apply P0lr_Plr.
+      - simpl. iIntros (K e E A) "H".
+        rewrite /symmetric_init.get_enc_scheme/symmetric_init.sym_scheme...
+        rewrite /rf_scheme_vg... rel_apply refines_init_map_l.
+        iIntros (l) "Hmap"...
+        rewrite /senc/sdec/rf_enc_vg/rf_dec_vg.
+        rel_pure_l. rel_pure_l. rel_pure_l. rel_pure_l.
+        replace l with (hd (Loc 0) [l]).
+        2: { reflexivity. }
+        rel_apply "H".
+        iAssumption.
+      - simpl. iIntros (K e E A) "H".
+        rewrite /symmetric_init.get_enc_scheme/symmetric_init.sym_scheme...
+        rewrite /rf_scheme_vg... rel_apply refines_init_map_r.
+        iIntros (l) "Hmap"...
+        rewrite /senc/sdec/rf_enc_vg/rf_dec_vg.
+        rel_pure_r. rel_pure_r. rel_pure_r. rel_pure_r.
+        replace l with (hd (Loc 0) [l]).
+        2: { reflexivity. }
+        rel_apply "H".
+        iAssumption.
+      - simpl. apply refines_rf_keygen_l.
+      - simpl. apply refines_rf_keygen_r.
+      - simpl. apply refines_rf_keygen_couple.
+      - simpl. apply refines_rf_senc_l.
+      - simpl. apply rf_enc_sem_typed.
+    Defined.
+
+    #[local] Instance elgamal_props :
+      @kemdem_hybrid_cpa_generic.asym_scheme_props _ _ _ _ _ _ _ _ _ _ _.
+    Proof. unshelve econstructor.
+      - exact is_asym_key_lrel.
+      - exact asym_key_lr_l_r.
+      - exact elgamal_refines_akeygen_l.
+      - exact elgamal_refines_akeygen_r.
+      - exact elgamal_refines_akeygen_couple.
+      - exact elgamal_refines_aenc_l.
+      - exact aenc_sem_typed.
+      - exact asym_rand_cipher_couple.
+      - exact rand_cipher_sem_typed.
+    Defined.
+
+    Section Correctness.
+
+      Import mathcomp.fingroup.fingroup.
+
+      Let dec_hyb := kemdem_hybrid_cpa_generic.dec_hyb SymKey SymKey SymOutput.
+      Let enc_hyb := kemdem_hybrid_cpa_generic.enc_hyb SymKey SymKey SymOutput.
+
+      Lemma hybrid_scheme_correct :
+          ⊢ refines top
+              (kemdem_hybrid_cpa_generic.init_scheme (λ: "scheme", (let, ("sk", "pk") := pubkey_class.keygen #() in
+              λ:"msg", dec_hyb "scheme" "sk"
+                (enc_hyb "scheme" "pk" "msg"))))
+              (λ: "msg", "msg")%V
+              (lrel_input → lrel_input).
+      Proof.
+        rewrite /dec_hyb/enc_hyb.
+        iStartProof.
+        iPoseProof kemdem_hybrid_cpa_generic.hybrid_scheme_correct as "H".
+        - exact SymKey.
+        - exact SymKey.
+        - exact SymOutput.
+        - exact Δ.
+        - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+          exact is_asym_key_l_persistent.
+        - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+          exact is_asym_key_r_persistent.
+        - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+          exact is_asym_key_lr_persistent.
+        - rewrite /SymKey/SymOutput. simpl.
+          rel_apply "H".
+      Qed.
+
+    End Correctness.
+
+    Let lrel_kemdem_output : lrel Σ := lrel_output * lrel_asym_output.
+
+    Let pk_real := kemdem_hybrid_cpa_generic.pk_real SymKey SymKey SymOutput.
+
+    Lemma rf_pk_real_adv :
+      ⊢ refines top (kemdem_hybrid_cpa_generic.init_scheme
+    (kemdem_hybrid_cpa_generic.pk_real N N
+    N))
+    (kemdem_hybrid_cpa_generic.init_scheme
+    kemdem_hybrid_cpa_generic.adv_pk_real
+    pubkey_class.CPA_OTS_real) (kemdem_hybrid_cpa_generic.lrel_pk *
+    (kemdem_hybrid_cpa_generic.lrel_input
+    → () +
+    kemdem_hybrid_cpa_generic.lrel_output *
+    kemdem_hybrid_cpa_generic.lrel_asym_output))%lrel.
+    Proof. 
+      eapply (kemdem_hybrid_cpa_generic.pk_real_adv SymKey SymKey SymOutput).
+      - exact Δ.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_l_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_r_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_lr_persistent.
+      - exact _.
+      - exact _.
+    Qed.
+
+    (* here we use the DDH assumption: we replace C[DDHreal] by C[DDHrand] *)
+
+    Lemma rf_adv__pk_real_arand :
+    ⊢ refines top
+        (kemdem_hybrid_cpa_generic.init_scheme
+        kemdem_hybrid_cpa_generic.adv_pk_real pubkey_class.CPA_OTS_rand)
+      (kemdem_hybrid_cpa_generic.init_scheme
+      (kemdem_hybrid_cpa_generic.pk_real_arand SymKey
+      SymKey SymOutput))
+      (kemdem_hybrid_cpa_generic.lrel_pk *
+      (kemdem_hybrid_cpa_generic.lrel_input →
+        () + kemdem_hybrid_cpa_generic.lrel_output * kemdem_hybrid_cpa_generic.lrel_asym_output))%lrel.
+    Proof. eapply kemdem_hybrid_cpa_generic.adv__pk_real_arand.
+      - exact SymKey.
+      - exact SymKey.
+      - exact SymOutput.
+      - exact Δ.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_l_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_r_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_lr_persistent.
+      - exact _.
+      - exact _.
+    Qed.
+
+    Lemma rf_pk_real_arand_perm__adv :
+      ⊢ refines top (kemdem_hybrid_cpa_generic.init_scheme
+      (kemdem_hybrid_cpa_generic.pk_real_arand_permute SymKey SymKey SymOutput))
+      (kemdem_hybrid_cpa_generic.OTS #true
+        (kemdem_hybrid_cpa_generic.adv_pk_real_arand_permute SymKey SymKey SymOutput) symmetric_init.sym_scheme)
+      (kemdem_hybrid_cpa_generic.lrel_pk *
+      (kemdem_hybrid_cpa_generic.lrel_input → () +
+      kemdem_hybrid_cpa_generic.lrel_output * kemdem_hybrid_cpa_generic.lrel_asym_output))%lrel.
+    Proof. eapply kemdem_hybrid_cpa_generic.pk_real_arand_perm__adv.
+      - exact SymKey.
+      - exact SymKey.
+      - exact SymOutput.
+      - exact Δ.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_l_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_r_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_lr_persistent.
+      - exact _.
+      - exact _.
+    Qed.
+
+    Lemma rf_adv__pk_rand_srand :
+    ⊢ refines top
+      (kemdem_hybrid_cpa_generic.OTS #false
+        (kemdem_hybrid_cpa_generic.adv_pk_real_arand_permute SymKey SymKey SymOutput)
         symmetric_init.sym_scheme)
-      lrel_bool.
-Proof. iApply kemdem_hybrid_cpa_generic.pk_rand_senc_mult_free_adv_sym_OTS.
-  - exact TMessage.
-  - exact TKey.
-  - exact TInput.
-  - exact TOutput.
-  - exact TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_l.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_r.
-  - iIntros (x y z t). iApply refines_rf_keygen_couple.
-  - iIntros (x y z t). iApply refines_rf_keygen_l.
-  - iIntros (x y z t). iApply refines_rf_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_rf_senc_l.
-  - iIntros (x y z x' y'). iApply rf_enc_sem_typed. assumption.
-Qed.
+      (kemdem_hybrid_cpa_generic.pk_rand_srand SymKey SymKey SymOutput)
+        (kemdem_hybrid_cpa_generic.lrel_pk *
+      (kemdem_hybrid_cpa_generic.lrel_input → () +
+      kemdem_hybrid_cpa_generic.lrel_output * kemdem_hybrid_cpa_generic.lrel_asym_output))%lrel.
+    Proof. eapply kemdem_hybrid_cpa_generic.adv__pk_rand_srand.
+      - exact SymKey.
+      - exact SymKey.
+      - exact SymOutput.
+      - exact Δ.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_l_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_r_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_lr_persistent.
+      - exact _.
+      - exact _.
+    Qed.
 
-Lemma rf_rand_cipher_sem_typed : 
-  ⊢ refines top symmetric_init.rand_cipher
-    symmetric_init.rand_cipher (lrel_input → lrel_output).
-Proof with rel_pures_l; rel_pures_r.
-  rewrite /symmetric_init.rand_cipher... simpl.
-  rewrite /rf_rand_cipher.
-  rel_arrow_val.
-  iIntros (msg1 msg2) "_"...
-  rel_apply refines_couple_UU; first done.
-  iModIntro; iIntros (ri Hribound)...
-  rel_apply refines_couple_UU; first done.
-  iModIntro; iIntros (ro Hrobound)...
-  rewrite /lrel_output/lrel_input.
-  rel_vals.
-Qed.
+    Lemma rf_pk_rand_srand__rand :
+      ⊢ refines top (kemdem_hybrid_cpa_generic.pk_rand_srand SymKey SymKey SymOutput)
+      (kemdem_hybrid_cpa_generic.pk_rand SymKey SymKey SymOutput)
+      (kemdem_hybrid_cpa_generic.lrel_pk *
+      (kemdem_hybrid_cpa_generic.lrel_input → () +
+      kemdem_hybrid_cpa_generic.lrel_output * kemdem_hybrid_cpa_generic.lrel_asym_output)).
+    Proof. eapply kemdem_hybrid_cpa_generic.pk_rand_srand__rand.
+      - exact SymKey.
+      - exact SymKey.
+      - exact SymOutput.
+      - exact Δ.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_l_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_r_persistent.
+      - rewrite /kemdem_hybrid_cpa_generic.is_asym_key_l. simpl.
+        exact is_asym_key_lr_persistent.
+      - exact _.
+      - exact _.
+    Qed.
 
-Lemma rf_OTS_pk_rand_srand (adv : val) : 
-  refines top
-    adv
-    adv
-    ((lrel_G * (lrel_input → () + lrel_output * (lrel_G * lrel_G))) → lrel_bool)
-  ⊢ refines top
-      (kemdem_hybrid_cpa_generic.OTS #false (λ: "oracle", adv (kemdem_hybrid_cpa_generic.adv_rand "oracle"))%V
-        symmetric_init.sym_scheme)
-      (adv kemdem_hybrid_cpa_generic.pk_rand_srand)
-      lrel_bool.
-Proof. iApply kemdem_hybrid_cpa_generic.OTS_pk_rand_srand.
-  - exact TMessage.
-  - exact TKey.
-  - exact TInput.
-  - exact TOutput.
-  - exact TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_l.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_r.
-  - iIntros (x y z t). iApply refines_rf_keygen_couple.
-  - iIntros (x y z t). iApply refines_rf_keygen_l.
-  - iIntros (x y z t). iApply refines_rf_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_rf_senc_l.
-  - iIntros (x y z x' y'). iApply rf_enc_sem_typed. assumption.
-  - iApply rf_rand_cipher_sem_typed.
-Qed.
-
-
-Lemma rf_pk_rand_srand_rand_tape (adv : val) :
-  refines top
-    adv
-    adv
-    ((lrel_G * (lrel_input → () + lrel_output * (lrel_G * lrel_G))) → lrel_bool)
-  ⊢ refines top
-      (adv kemdem_hybrid_cpa_generic.pk_rand_srand)
-      (adv kemdem_hybrid_cpa_generic.pk_rand_tape)
-      lrel_bool.
-Proof with rel_pures_l; rel_pures_r.
-  iApply kemdem_hybrid_cpa_generic.pk_rand_srand_rand_tape.
-  - exact TMessage.
-  - exact TKey.
-  - exact TInput.
-  - exact TOutput.
-  - exact TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_l.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_r.
-  - iIntros (x y z t). iApply refines_rf_keygen_couple.
-  - iIntros (x y z t). iApply refines_rf_keygen_l.
-  - iIntros (x y z t). iApply refines_rf_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_rf_senc_l.
-  - iIntros (x y z x' y'). iApply rf_enc_sem_typed. assumption.
-  - iApply rf_rand_cipher_sem_typed.
-Qed.
-
-Lemma rf_pk_rand_tape_pk_rand (adv : val) :
-  refines top
-    adv
-    adv
-    ((lrel_G * (lrel_input → () + lrel_output * (lrel_G * lrel_G))) → lrel_bool)
-  ⊢ refines top
-      (adv kemdem_hybrid_cpa_generic.pk_rand_tape)
-      (adv kemdem_hybrid_cpa_generic.pk_rand)
-      lrel_bool.
-Proof with rel_pures_l; rel_pures_r.
-  iApply kemdem_hybrid_cpa_generic.pk_rand_tape_pk_rand.
-  - exact TMessage.
-  - exact TKey.
-  - exact TInput.
-  - exact TOutput.
-  - exact TCipher.
-  - exact Δ.
-  - { Unshelve. 1: shelve.
-  - exact lrel_key.
-  - exact senc.
-  - exact sdec.
-  - exact P0l.
-  - exact P0r.
-  - exact Pl.
-  - exact Pr.
-  - exact Plr. } Unshelve.
-    unfold lrel_key. iIntros (v v') "H"; iAssumption.
-  - iIntros (x); iApply P0_P_l.
-  - iIntros (x); iApply P0_P_r.
-  - iIntros (x y); iApply P0lr_Plr.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_l.
-  - iIntros (x y z t). iApply refines_init_rf_scheme_r.
-  - iIntros (x y z t). iApply refines_rf_keygen_couple.
-  - iIntros (x y z t). iApply refines_rf_keygen_l.
-  - iIntros (x y z t). iApply refines_rf_keygen_r.
-  - iIntros (x y z t x' y' z'). iApply refines_rf_senc_l.
-  - iIntros (x y z x' y'). iApply rf_enc_sem_typed. assumption.
-  - iApply rf_rand_cipher_sem_typed.
-Qed.
-*)
-End logrel.
+  End logrel.
 
 End Hybrid_scheme.
