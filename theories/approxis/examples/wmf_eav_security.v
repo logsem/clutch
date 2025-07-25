@@ -589,6 +589,22 @@ Section logrel.
       ⊢ REL rand_cipher << rand_cipher :
         kemdem_hybrid_cpa_generic.lrel_trivial → lrel_output.
 
+    Corollary refines_couple_TT :
+      ∀ 
+        (N : nat) (E : coPset) (e1 e2 : expr) (A : lrel Σ)
+        (α αₛ : loc) (ns nsₛ : list nat),
+          ▷ α ↪N (N; ns) ∗ ▷ αₛ↪ₛN(N;nsₛ) ∗
+      (∀ n : nat, α ↪N (N; ns ++ [n]) ∗ αₛ↪ₛN(N;nsₛ ++ [n]) ∗ ⌜n ≤ N⌝ -∗
+      REL e1 << e2 @ E : A) ⊢ REL e1 << e2 @ E : A.
+    Proof.
+      intros *.
+      iPoseProof ec_zero as ">Herr".
+      iIntros "[Hα [Hα' H]]".
+      iApply (refines_couple_TT_err N0 N0); first lia.
+      { rewrite Rminus_diag. rewrite Rdiv_0_l. done. }
+      iFrame.
+    Qed.
+
     Lemma wmf_eav_adv__adv_kb_false (adv : val) :
       (lrel_rand * ((lrel_id * lrel_output) * (lrel_output * ())) → lrel_bool)%lrel
         adv adv
