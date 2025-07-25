@@ -419,6 +419,17 @@ Lemma dbind_ext_right' `{Countable A, Countable B} (μ1 μ2 : distr A) (f g : A 
 Proof.
   intros Heq ->.
   by apply dbind_ext_right.
+Qed.
+
+Lemma dbind_const `{Countable A, Countable B} (μ1:distr A) (μ2:distr B) :
+  SeriesC μ1 = 1 ->
+  dbind (λ _, μ2) μ1 = μ2.
+Proof.
+  intros Hmass. 
+  apply distr_ext => b.
+  rewrite /dbind/dbind_pmf{1}/pmf.
+  rewrite SeriesC_scal_r Hmass.
+  lra.
 Qed. 
 
 #[global] Instance Proper_dbind `{Countable A, Countable B} :
