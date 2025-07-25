@@ -81,7 +81,7 @@ Section Zpx.
     - intro H; clear H.
       replace 1%Z with (Z.of_nat 1) by lia.
       apply inj_le. assumption.
-  Qed.
+  Defined.
   Lemma unit_to_Zp_nonzero (g : Zpx) : (1 ≤ unit_to_Zp g)%Z.
   Proof.
     rewrite /unit_to_Zp.
@@ -124,7 +124,7 @@ Section Zpx.
       apply (reflect_iff _ _ (@ltP _ _)) in Hnlep.
       rewrite /Zp_trunc in Hnlep. simpl in Hnlep.
       apply Hnlep.
-  Qed.
+  Defined.
 
   Definition Zp_nonzero_to_unit (n : 'Z_p) (Hnnonzero : (1 ≤ n)%Z) : Zpx :=
     FinRing.Unit (bound_is_a_unit_Zp n Hnnonzero).
@@ -166,28 +166,30 @@ Section Zpx.
     everything else *)
   Lemma Unituval : forall (g : Zpx)
     (H : is_true ((FinRing.uval g) \is a (@ssralg.GRing.unit ('Z_p : finUnitRingType)))),
-    FinRing.Unit H = g.
+    FinRing.Unit H == g.
   Proof. intros g.
     rewrite /FinRing.uval. intro H.
     rewrite /Zp_trunc. simpl.
     rewrite /reverse_coercion.
+    destruct g.
+    (* Locate "==". *)
   Abort.
 
   Lemma test0 (g : Zpx) : is_true (FinRing.uval g  \is a ssralg.GRing.unit).
-  Proof. rewrite /FinRing.uval. simpl. Abort.
+  Proof. rewrite /FinRing.uval. destruct g. apply i. Qed.
 
   Lemma test : forall (g : Zpx),
     let '@FinRing.Unit _ x H := g in
     FinRing.Unit H = g.
-  Proof. intros *. simpl. Abort.
+  Proof. intros *. destruct g. reflexivity. Qed.
   (* Print uval_nonzero.
   Print bound_is_a_unit. *)
   Lemma Unituval_bound : forall (g : Zpx),
     FinRing.Unit (bound_is_a_unit_Zp (FinRing.uval g) (uval_nonzero g)) = g.
   Proof. intro g.
     rewrite /FinRing.uval.
-    rewrite /Zp_trunc. simpl.
-    rewrite /fintype_ordinal__canonical__FinRing_UnitRing.
+    rewrite /Zp_trunc. simpl. destruct g. simpl. f_equal.
+    rewrite /bound_is_a_unit_Zp.
   Abort.
 
   Lemma Zp_to_unit_to_Zp (n : 'Z_p) (g : Zpx) :
