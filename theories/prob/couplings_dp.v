@@ -858,6 +858,598 @@ Section couplings_theory.
   Qed.
 
 
+  (*
+
+   Failed attempt at subsampling composition
+
+
+  Lemma DPcoupl_dbind_choice_adv (f : A → distr A') (g : B → distr B')
+    (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (S : A → B → Prop) (S' : A' → B' → Prop)
+    ε1 ε2 δ1 δ2 ε2' δ2' ε δ:
+    let ρ := probp μ1 P in
+    (0 <= δ1) → (0 <= δ2) → (0 <= δ2') ->
+    (ε1 + ln (ρ * exp(ε2) + (1-ρ) * exp(ε2')) <= ε) ->
+    (δ1 + ρ * δ2 + (1-ρ)* δ2' <= δ) ->
+    (* Stronger version: (δ1 + δ1' + Rmax δ2 δ2' <= δ) -> *)
+    (forall a a' b, P a -> ¬ P a' -> ¬(S a b /\ S a' b)) ->
+    (∀ a b, (P a /\ S a b) → DPcoupl (f a) (g b) S' ε2 δ2) →
+    (∀ a b, (¬P a /\ S a b) → DPcoupl (f a) (g b) S' ε2' δ2') →
+    DPcoupl μ1 μ2 S ε1 δ1 →
+    DPcoupl (dbind f μ1) (dbind g μ2) S' ε δ.
+  Proof.
+    intros Hρ.
+    rewrite /Hρ.
+    intros Hδ1 Hδ2 Hδ2' Hεleq Hδleq
+      Hindep
+      Hcoup_fg1  Hcoup_fg2 Hcoup_S h1 h2 Hh1pos Hh2pos Hh1h2S'.
+
+    rewrite /pmf/=/dbind_pmf.
+    (* To use the hypothesis that we have an R-ACoupling up to ε1 for μ1, μ2,
+       we have to rewrite the sums in such a way as to isolate (the expectation
+       of) a random variable X on the LHS and Y on the RHS, and ε1 on the
+       RHS. *)
+    (* First step: rewrite the LHS into a RV X on μ1. *)
+    setoid_rewrite <- SeriesC_scal_r.
+    rewrite <-(fubini_pos_seriesC (λ '(a,x), μ1 x * f x a * h1 a)).
+
+    (* Boring Fubini sideconditions. *)
+    2: { real_solver. }
+    2: { intro a'.
+         (* specialize (Hh1pos a'). *)
+         apply (ex_seriesC_le _ μ1); auto.
+         intro a; split.
+         + apply Rmult_le_pos.
+           * real_solver.
+           * real_solver.
+         + rewrite <- Rmult_1_r.
+           rewrite Rmult_assoc.
+           apply Rmult_le_compat_l; auto.
+           rewrite <- Rmult_1_r.
+           apply Rmult_le_compat; real_solver. }
+    2: { setoid_rewrite SeriesC_scal_r.
+         apply (ex_seriesC_le _ (λ a : A', SeriesC (λ x : A, μ1 x * f x a))); auto.
+         + series.
+         + apply (pmf_ex_seriesC (dbind f μ1)). }
+
+    (* LHS: Pull the (μ1 b) factor out of the inner sum. *)
+    assert (SeriesC (λ b : A, SeriesC (λ a : A', μ1 b * f b a * h1 a)) =
+              SeriesC (λ b : A, μ1 b * SeriesC (λ a : A', f b a * h1 a))) as ->.
+    { setoid_rewrite <- SeriesC_scal_l. series. }
+
+    (* Second step: rewrite the RHS into a RV Y on μ2. *)
+    (* RHS: Fubini. *)
+    rewrite <-(fubini_pos_seriesC (λ '(b,x), μ2 x * g x b * h2 b)).
+    2: by series.
+    2:{ intro b'.
+        specialize (Hh2pos b').
+        apply (ex_seriesC_le _ μ2) ; auto.
+        intro b; split.
+        - series.
+        - do 2 rewrite <- Rmult_1_r. series. }
+    2:{ setoid_rewrite SeriesC_scal_r.
+        apply (ex_seriesC_le _ (λ a : B', SeriesC (λ b : B, μ2 b * g b a))); auto.
+        - intros b'; specialize (Hh2pos b'); split.
+          + apply Rmult_le_pos; [ | lra].
+            apply (pmf_pos ((dbind g μ2)) b').
+          + rewrite <- Rmult_1_r.
+            apply Rmult_le_compat_l; auto.
+            * apply SeriesC_ge_0'. real_solver.
+            * real_solver.
+        - apply (pmf_ex_seriesC (dbind g μ2)). }
+
+    (* RHS: Factor out (μ2 b) *)
+    assert (SeriesC (λ b : B, SeriesC (λ a : B', μ2 b * g b a * h2 a))
+            = SeriesC (λ b : B, μ2 b * SeriesC (λ a : B', g b a * h2 a))) as ->.
+    { apply SeriesC_ext; intro.
+      rewrite <- SeriesC_scal_l.
+      apply SeriesC_ext; real_solver. }
+
+    (* Now let's split the sum depending on whether P holds *)
+
+    assert (SeriesC (λ b : A, μ1 b * SeriesC (λ a : A', f b a * h1 a)) =
+              SeriesC (λ b : A, μ1 b * (if (bool_decide (P b)) then  SeriesC (λ a : A', f b a * h1 a) else 0)) +
+              SeriesC (λ b : A, μ1 b * (if (bool_decide (¬ P b)) then SeriesC (λ a : A', f b a * h1 a) else 0))) as ->.
+    {
+      rewrite -SeriesC_plus.
+      - apply SeriesC_ext.
+        intro a.
+        case_bool_decide; case_bool_decide; real_solver.
+      - apply (ex_seriesC_le _ μ1); auto.
+        intros a; split.
+        + apply Rmult_le_pos; auto.
+          case_bool_decide; [|lra].
+          apply SeriesC_ge_0'; real_solver.
+        + rewrite -{2}(Rmult_1_r (μ1 _)).
+          apply Rmult_le_compat_l; auto.
+          case_bool_decide; [|lra].
+          transitivity (SeriesC (f a)); auto.
+          apply SeriesC_le; auto.
+          real_solver.
+      - apply (ex_seriesC_le _ μ1); auto.
+        intros a; split.
+        + apply Rmult_le_pos; auto.
+          case_bool_decide; [|lra].
+          apply SeriesC_ge_0'; real_solver.
+        + rewrite -{2}(Rmult_1_r (μ1 _)).
+          apply Rmult_le_compat_l; auto.
+          case_bool_decide; [|lra].
+          transitivity (SeriesC (f a)); auto.
+          apply SeriesC_le; auto.
+          real_solver.
+    }
+
+
+    (*  Stronger version: assert (
+        SeriesC (λ b : A, μ1 b * (if (bool_decide (P b)) then  SeriesC (λ a : A', f b a * h1 a) else 0))
+        <= SeriesC (λ b : A, μ1 b * if (bool_decide (P b)) then  (Rmax 0 (SeriesC (λ a : A', f b a * h1 a) - δ2)) else 0) + SeriesC (λ b : A, μ1 b * if (bool_decide (P b)) then δ2 else 0)
+      ) as Htrans1.
+    {
+      rewrite -SeriesC_plus.
+      - apply SeriesC_le.
+        + intros a. split.
+          * case_bool_decide; [|real_solver].
+            apply Rmult_le_pos; auto.
+            apply SeriesC_ge_0'.
+            real_solver.
+          * case_bool_decide; [|lra].
+            rewrite -Rmult_plus_distr_l.
+            apply Rmult_le_compat_l; auto.
+            rewrite Rplus_max_distr_r.
+            eapply Rle_trans; [|apply Rmax_r].
+            lra.
+        + admit.
+      - admit.
+      - admit.
+*)
+
+    assert (
+        SeriesC (λ b : A, μ1 b * (if (bool_decide (P b)) then  SeriesC (λ a : A', f b a * h1 a) else 0))
+        <= SeriesC (λ b : A, μ1 b * if (bool_decide (P b)) then  (Rmax 0 (SeriesC (λ a : A', f b a * h1 a) - δ2)) else 0) +
+          SeriesC (λ a, μ1 a * (if (bool_decide (P a)) then δ2 else 0))
+      ) as Htrans1.
+    {
+      rewrite -SeriesC_plus.
+      - apply SeriesC_le'.
+        + intros a.
+          rewrite -Rmult_plus_distr_l.
+          apply Rmult_le_compat_l; auto.
+          case_bool_decide; last by lra.
+          rewrite Rplus_max_distr_r.
+          etrans; [|apply Rmax_r].
+          lra.
+        + apply (ex_seriesC_le _ μ1); auto.
+          intros a; split.
+          * apply Rmult_le_pos; auto.
+            case_bool_decide; last by lra.
+            apply SeriesC_ge_0'; real_solver.
+          * case_bool_decide.
+            ** rewrite -{2}(Rmult_1_r (μ1 a)).
+               apply Rmult_le_compat_l; auto.
+               apply (Rle_trans _ (SeriesC (f a))); auto.
+               apply SeriesC_le; auto.
+               real_solver.
+            ** rewrite Rmult_0_r; auto.
+        + apply ex_seriesC_plus.
+          * apply (ex_seriesC_le _ μ1); auto.
+            intro a; split.
+            ** apply Rmult_le_pos; auto.
+               case_bool_decide; last by lra.
+               apply Rmax_l.
+            ** rewrite <- Rmult_1_r.
+               apply Rmult_le_compat_l; auto.
+               case_bool_decide; last by lra.
+               apply (Rle_trans _ (SeriesC (f a))); auto.
+               apply Rmax_lub; auto.
+               apply Rle_minus_l.
+               apply (Rle_trans _ (SeriesC (f a))); last by lra.
+               apply SeriesC_le; auto.
+               real_solver.
+          * apply (ex_seriesC_le _ (λ x, μ1 x * δ2)); [|apply ex_seriesC_scal_r; auto].
+            intro a; split.
+            ** case_bool_decide; real_solver.
+            ** case_bool_decide; real_solver.
+      - apply (ex_seriesC_le _ μ1); auto.
+        intros a; split.
+        * case_bool_decide; last by lra.
+          apply Rmult_le_pos; auto.
+          apply Rmax_l.
+        * rewrite -{2}(Rmult_1_r (μ1 a)).
+          apply Rmult_le_compat_l; auto.
+          apply (Rle_trans _ (SeriesC (f a))); auto.
+          case_bool_decide; auto.
+          apply Rmax_lub; auto.
+          apply Rle_minus_l.
+          apply (Rle_trans _ (SeriesC (f a))); last by lra.
+          apply SeriesC_le; auto.
+          real_solver.
+     - apply (ex_seriesC_le _ (λ x, μ1 x * δ2)); [|apply ex_seriesC_scal_r; auto].
+       intro a; split; case_bool_decide; real_solver.
+    }
+
+    assert (
+        SeriesC (λ b : A, μ1 b * (if (bool_decide (¬ P b)) then  SeriesC (λ a : A', f b a * h1 a) else 0))
+        <= SeriesC (λ b : A, μ1 b * if (bool_decide (¬ P b)) then  (Rmax 0 (SeriesC (λ a : A', f b a * h1 a) - δ2')) else 0) +
+            SeriesC (λ a, μ1 a * (if (bool_decide (¬ P a)) then δ2' else 0))
+      ) as Htrans2.
+    {
+      rewrite -SeriesC_plus.
+      - apply SeriesC_le'.
+        + intros a.
+          rewrite -Rmult_plus_distr_l.
+          apply Rmult_le_compat_l; auto.
+          case_bool_decide; last by lra.
+          rewrite Rplus_max_distr_r.
+          etrans; [|apply Rmax_r].
+          lra.
+        + apply (ex_seriesC_le _ μ1); auto.
+          intros a; split.
+          * apply Rmult_le_pos; auto.
+            case_bool_decide; last by lra.
+            apply SeriesC_ge_0'; real_solver.
+          * case_bool_decide.
+            ** rewrite -{2}(Rmult_1_r (μ1 a)).
+               apply Rmult_le_compat_l; auto.
+               apply (Rle_trans _ (SeriesC (f a))); auto.
+               apply SeriesC_le; auto.
+               real_solver.
+            ** rewrite Rmult_0_r; auto.
+        + apply ex_seriesC_plus.
+          * apply (ex_seriesC_le _ μ1); auto.
+            intro a; split.
+            ** apply Rmult_le_pos; auto.
+               case_bool_decide; last by lra.
+               apply Rmax_l.
+            ** rewrite <- Rmult_1_r.
+               apply Rmult_le_compat_l; auto.
+               case_bool_decide; last by lra.
+               apply (Rle_trans _ (SeriesC (f a))); auto.
+               apply Rmax_lub; auto.
+               apply Rle_minus_l.
+               apply (Rle_trans _ (SeriesC (f a))); last by lra.
+               apply SeriesC_le; auto.
+               real_solver.
+          * apply (ex_seriesC_le _ (λ x, μ1 x * δ2')); [|apply ex_seriesC_scal_r; auto].
+            intro a; split.
+            ** case_bool_decide; real_solver.
+            ** case_bool_decide; real_solver.
+      - apply (ex_seriesC_le _ μ1); auto.
+        intros a; split.
+        * case_bool_decide; last by lra.
+          apply Rmult_le_pos; auto.
+          apply Rmax_l.
+        * rewrite -{2}(Rmult_1_r (μ1 a)).
+          apply Rmult_le_compat_l; auto.
+          apply (Rle_trans _ (SeriesC (f a))); auto.
+          case_bool_decide; auto.
+          apply Rmax_lub; auto.
+          apply Rle_minus_l.
+          apply (Rle_trans _ (SeriesC (f a))); last by lra.
+          apply SeriesC_le; auto.
+          real_solver.
+     - apply (ex_seriesC_le _ (λ x, μ1 x * δ2')); [|apply ex_seriesC_scal_r; auto].
+       intro a; split; case_bool_decide; real_solver.
+    }
+
+    erewrite (Rplus_le_compat); eauto.
+    rewrite /DPcoupl in Hcoup_fg1.
+    rewrite /DPcoupl in Hcoup_fg2.
+    rewrite /DPcoupl in Hcoup_S.
+
+
+    assert (forall a b, S a b -> (if bool_decide (P a) then Rmax 0 (SeriesC (λ a' : A', f a a' * h1 a') - δ2) else 0) <=
+                 (if bool_decide (exists a', P a' /\ S a' b ) then Rmin 1 (exp (ε2) * SeriesC (λ b' : B', g b b' * h2 b')) else 0 ) ) as Htrans3.
+    {
+      intros a b HS1.
+      case_bool_decide as HdecL; case_bool_decide as HdecR.
+      - apply Rmin_glb; apply Rmax_lub; first by lra.
+        + apply Rle_minus_l.
+          apply (Rle_trans _ 1); last by real_solver.
+          apply (Rle_trans _ (SeriesC (f a))); auto.
+          apply SeriesC_le; auto; real_solver.
+        + series.
+          left.
+          by apply exp_pos.
+        + apply Rle_minus_l.
+          by apply Hcoup_fg1.
+      - exfalso.
+        apply HdecR.
+        by exists a.
+      - apply Rmin_glb; first lra.
+        apply Rmult_le_pos.
+        + left. by apply exp_pos.
+        + apply SeriesC_ge_0'.
+          intros; real_solver.
+      - lra.
+    }
+
+
+    assert (forall a b, S a b -> (if bool_decide (¬ P a) then Rmax 0 (SeriesC (λ a' : A', f a a' * h1 a') - δ2') else 0) <=
+                 (if bool_decide (exists a', ¬ P a' /\ S a' b) then Rmin 1 (exp (ε2') * SeriesC (λ b' : B', g b b' * h2 b')) else 0) ) as Htrans4.
+    {
+      intros a b HS4.
+      case_bool_decide as HdecL; case_bool_decide as HdecR.
+      - apply Rmin_glb; apply Rmax_lub; first by lra.
+        + apply Rle_minus_l.
+          apply (Rle_trans _ 1); last by real_solver.
+          apply (Rle_trans _ (SeriesC (f a))); auto.
+          apply SeriesC_le; auto; real_solver.
+        + series.
+          left.
+          by apply exp_pos.
+        + apply Rle_minus_l.
+          by apply Hcoup_fg2.
+      - exfalso.
+        apply HdecR.
+        by exists a.
+      - apply Rmin_glb; first lra.
+        apply Rmult_le_pos.
+        + left. by apply exp_pos.
+        + apply SeriesC_ge_0'.
+          intros; real_solver.
+      - lra.
+    }
+
+    assert (forall a b, S a b -> (if bool_decide (P a) then Rmax 0 (SeriesC (λ a' : A', f a a' * h1 a') - δ2)
+                                                 else Rmax 0 (SeriesC (λ a' : A', f a a' * h1 a') - δ2'))
+                           <=
+                           (if bool_decide (exists a', P a' /\ S a' b ) then Rmin 1 (exp (ε2) * SeriesC (λ b' : B', g b b' * h2 b'))
+                                                                   else Rmin 1 (exp (ε2') * SeriesC (λ b' : B', g b b' * h2 b'))))
+      as Htrans5.
+    { admit. }
+
+    epose proof (Hcoup_S _ _ _ _ Htrans5) as HauxS.
+
+    assert (forall a b c d : R, a + b + (c + d) = (a + c) + (b + d)) as ->.
+    { intros. lra. }
+    rewrite -SeriesC_plus; [|admit|admit].
+    rewrite (SeriesC_ext _ (λ a, μ1 a * (if bool_decide (P a) then Rmax 0 (SeriesC (λ a' : A', f a a' * h1 a') - δ2)
+                                 else Rmax 0 (SeriesC (λ a' : A', f a a' * h1 a') - δ2')) )); last first.
+    {
+      intros a.
+      case_bool_decide; case_bool_decide.
+      - done.
+      - lra.
+      - lra.
+      - done.
+    }
+
+    erewrite Rplus_le_compat; eauto.
+    2:{ apply Rle_refl. }
+
+    assert (forall a b c d : R, a + b + (c + d) = a + (b + (c + d))) as ->.
+    { intros; lra. }
+    apply Rplus_le_compat; last first.
+    {
+      rewrite <- Hδleq.
+      admit.
+    }
+    etrans; last first.
+    {
+      eapply Rmult_le_compat_r; [admit|].
+      apply exp_mono.
+      apply Hεleq.
+    }
+    rewrite exp_plus.
+    rewrite Rmult_assoc.
+    apply Rmult_le_compat_l; [admit|].
+    rewrite exp_ln; [|admit].
+
+    transitivity (SeriesC
+              (λ b : B,
+                  μ2 b *
+                    (if bool_decide (∃ a' : A, P a' ∧ S a' b)
+                     then exp ε2 * SeriesC (λ b' : B', g b b' * h2 b')
+                     else exp ε2' * SeriesC (λ b' : B', g b b' * h2 b')))).
+    {
+      apply SeriesC_le; [|admit].
+      intro b; split.
+      - case_bool_decide; admit.
+      - case_bool_decide; admit.
+    }
+
+
+
+    { intros. lra. }
+    rewrite -SeriesC_plus.
+    2:{
+      apply (ex_seriesC_le _ (λ b, exp ε1 * μ2 b * exp ε2)).
+      - intros b.
+        split.
+        + apply Rmult_le_pos; [left; apply exp_pos |].
+          apply Rmult_le_pos; auto.
+          case_bool_decide; [|lra].
+          apply Rmin_glb; [lra|].
+          apply Rmult_le_pos; [left; apply exp_pos |].
+          apply SeriesC_ge_0; [real_solver|].
+          apply (ex_seriesC_le _ (g b)); auto.
+          real_solver.
+        + rewrite Rmult_assoc.
+          apply Rmult_le_compat_l; [left; apply exp_pos |].
+          apply Rmult_le_compat_l; auto.
+          case_bool_decide; [|left; apply exp_pos].
+          etrans; [apply Rmin_r |].
+          rewrite -{2}(Rmult_1_r (exp ε2)).
+          apply Rmult_le_compat_l; [left; apply exp_pos|].
+          transitivity (SeriesC (g b)); auto.
+          apply SeriesC_le; auto.
+          real_solver.
+      - apply ex_seriesC_scal_r.
+        by apply ex_seriesC_scal_l.
+    }
+    2:{
+      apply (ex_seriesC_le _ (λ b, exp ε1' * μ2 b * exp ε2')).
+      - intros b.
+        split.
+        + apply Rmult_le_pos; [left; apply exp_pos |].
+          apply Rmult_le_pos; auto.
+          case_bool_decide; [|lra].
+          apply Rmin_glb; [lra|].
+          apply Rmult_le_pos; [left; apply exp_pos |].
+          apply SeriesC_ge_0; [real_solver|].
+          apply (ex_seriesC_le _ (g b)); auto.
+          real_solver.
+        + rewrite Rmult_assoc.
+          apply Rmult_le_compat_l; [left; apply exp_pos |].
+          apply Rmult_le_compat_l; auto.
+          case_bool_decide; [|left; apply exp_pos].
+          etrans; [apply Rmin_r |].
+          rewrite -{2}(Rmult_1_r (exp ε2')).
+          apply Rmult_le_compat_l; [left; apply exp_pos|].
+          transitivity (SeriesC (g b)); auto.
+          apply SeriesC_le; auto.
+          real_solver.
+      - apply ex_seriesC_scal_r.
+        by apply ex_seriesC_scal_l.
+    }
+    apply Rplus_le_compat; last first.
+    {
+      rewrite -SeriesC_plus; admit.
+        (*
+      - etrans; [|apply Hδleq].
+        apply Rplus_le_compat. [lra|].
+        transitivity (SeriesC (λ x, μ1 x * δ2)).
+        + apply SeriesC_le; [|apply ex_seriesC_scal_r; auto].
+          intros; case_bool_decide; case_bool_decide; try done.
+          * rewrite Rmult_0_r Rplus_0_r.
+            real_solver.
+          * rewrite Rmult_0_r Rplus_0_l.
+            real_solver.
+        + rewrite SeriesC_scal_r.
+          rewrite -{2}(Rmult_1_l δ2).
+          apply Rmult_le_compat_r; auto.
+      - apply (ex_seriesC_le _ (λ x, μ1 x * δ2)); [|apply ex_seriesC_scal_r; auto].
+        intro a; split; case_bool_decide; real_solver.
+      - apply (ex_seriesC_le _ (λ x, μ1 x * δ2)); [|apply ex_seriesC_scal_r; auto].
+        intro a; split; case_bool_decide; real_solver.
+        *)
+        
+    }
+
+
+    apply SeriesC_le.
+    2:{
+      apply ex_seriesC_scal_l.
+      apply (ex_seriesC_le _ μ2); auto.
+      intros b; split.
+      - apply Rmult_le_pos; auto.
+        apply SeriesC_ge_0'; real_solver.
+      - rewrite -{2}(Rmult_1_r (μ2 b)).
+        apply Rmult_le_compat_l; auto.
+        transitivity (SeriesC (g b)); auto.
+        apply SeriesC_le; auto.
+        real_solver.
+    }
+
+    intros b.
+    split.
+    - case_bool_decide as HdecL; case_bool_decide as HdecR.
+      + apply Rplus_le_le_0_compat.
+        * apply Rmult_le_pos; [left; apply exp_pos|].
+          apply Rmult_le_pos; auto.
+          apply Rmin_glb; [lra|].
+          apply Rmult_le_pos; [left; apply exp_pos|].
+          apply SeriesC_ge_0'; real_solver.
+        * apply Rmult_le_pos; [left; apply exp_pos|].
+          apply Rmult_le_pos; auto.
+          apply Rmin_glb; [lra|].
+          apply Rmult_le_pos; [left; apply exp_pos|].
+          apply SeriesC_ge_0'; real_solver.
+     + rewrite !Rmult_0_r Rplus_0_r.
+       apply Rmult_le_pos; [left; apply exp_pos|].
+       apply Rmult_le_pos; auto.
+       apply Rmin_glb; [lra|].
+       apply Rmult_le_pos; [left; apply exp_pos|].
+       apply SeriesC_ge_0'; real_solver.
+     + rewrite !Rmult_0_r Rplus_0_l.
+       apply Rmult_le_pos; [left; apply exp_pos|].
+       apply Rmult_le_pos; auto.
+       apply Rmin_glb; [lra|].
+       apply Rmult_le_pos; [left; apply exp_pos|].
+       apply SeriesC_ge_0'; real_solver.
+     + lra.
+
+    - do 2 rewrite -Rmult_assoc.
+      assert (forall x y z r, x * y * (z * r) = (x * z) * (y * r)) as Haux_rw by real_solver.
+      case_bool_decide as HdecL; case_bool_decide as HdecR.
+      + destruct HdecL as [a [? ?]].
+        destruct HdecR as [a' [? ?]].
+        exfalso.
+        eapply Hindep; eauto.
+      + rewrite Rmult_0_r Rplus_0_r.
+        rewrite Rmult_min_distr_l.
+        * eapply Rle_trans ; [apply Rmin_r|].
+          rewrite Haux_rw.
+          rewrite -exp_plus.
+          apply Rmult_le_compat.
+          ** left; apply exp_pos.
+          ** apply Rmult_le_pos; auto.
+             apply SeriesC_ge_0'; real_solver.
+          ** apply exp_mono; auto.
+          ** lra.
+       * apply Rmult_le_pos; auto.
+         left; apply exp_pos.
+      + rewrite Rmult_0_r Rplus_0_l.
+        rewrite Rmult_min_distr_l.
+        * eapply Rle_trans ; [apply Rmin_r|].
+          rewrite Haux_rw.
+          rewrite -exp_plus.
+          apply Rmult_le_compat.
+          ** left; apply exp_pos.
+          ** apply Rmult_le_pos; auto.
+             apply SeriesC_ge_0'; real_solver.
+          ** apply exp_mono; auto.
+          ** lra.
+       * apply Rmult_le_pos; auto.
+         left; apply exp_pos.
+      + rewrite !Rmult_0_r Rplus_0_l.
+        apply Rmult_le_pos; [left; apply exp_pos|].
+        apply Rmult_le_pos; auto.
+        apply SeriesC_ge_0'; real_solver.
+   Unshelve.
+   1:{
+     intros a. split.
+     - case_bool_decide; [apply Rmax_l|lra].
+     - case_bool_decide; [|lra].
+       apply Rmax_lub; [lra|].
+       apply Rle_minus_r.
+       transitivity 1; [|lra].
+       transitivity (SeriesC (f a)); auto.
+       apply SeriesC_le; auto.
+       real_solver.
+   }
+   1:{
+     intros b. split.
+     - case_bool_decide; [|lra].
+       apply Rmin_glb; [lra|].
+       apply Rmult_le_pos; [left; apply exp_pos|].
+       apply SeriesC_ge_0'; real_solver.
+     - case_bool_decide; [apply Rmin_l|lra].
+   }
+
+   1:{
+     intros a. split.
+     - case_bool_decide; [apply Rmax_l|lra].
+     - case_bool_decide; [|lra].
+       apply Rmax_lub; [lra|].
+       apply Rle_minus_r.
+       transitivity 1; [|lra].
+       transitivity (SeriesC (f a)); auto.
+       apply SeriesC_le; auto.
+       real_solver.
+   }
+   1:{
+     intros b. split.
+     - case_bool_decide; [|lra].
+       apply Rmin_glb; [lra|].
+       apply Rmult_le_pos; [left; apply exp_pos|].
+       apply SeriesC_ge_0'; real_solver.
+     - case_bool_decide; [apply Rmin_l|lra].
+   }
+
+  Qed.
+
+  *)
+
 
   (*
   Lemma DPcoupl_dbind_adv_rhs (f : A → distr A') (g : B → distr B')
