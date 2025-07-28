@@ -776,6 +776,27 @@ Proof.
   eapply DPcoupl_dbind ; try done.
 Qed.
 
+
+Lemma DPcoupl_erasure_rewritable_rhs (e1 e1': expr) ε ε1 ε2 δ δ1 δ2 σ1 σ1' μ1 μ1' R φ m
+  (Hεsum : ε1 + ε2 <= ε)
+  (Hδ1 : 0 <= δ1)
+  (Hδ2 : 0 <= δ2)
+  (Hδsum : δ1 + δ2 <= δ)
+  (H : DPcoupl μ1 μ1' R ε1 δ1)
+  (Hμ1 : erasable μ1 σ1)
+  (Hμ1' : rewritable (e1', σ1') μ1')
+  (Hcpl : (∀ (σ2 : state) ρ2',
+              R σ2 ρ2'
+              → DPcoupl (exec m (e1, σ2)) (lim_exec ρ2') φ ε2 δ2))
+  : DPcoupl (exec m (e1, σ1)) (lim_exec (e1', σ1')) φ ε δ.
+Proof.
+  rewrite -Hμ1.
+  rewrite Hμ1'.
+  eapply DPcoupl_mon_grading; [apply Hεsum | apply Hδsum |].
+  eapply DPcoupl_dbind ; try done.
+Qed.
+
+
 Lemma DPcoupl_erasure_erasable_lhs' (e1 e1' : expr) ε ε1 ε2 δ δ1 δ2 σ1 σ1' μ1' R φ k m
   (Hred : reducible (e1, σ1))
   (Hεsum : ε1 + ε2 <= ε)
