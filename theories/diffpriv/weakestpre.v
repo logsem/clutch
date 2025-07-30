@@ -716,8 +716,8 @@ Proof.
   intros ? [? ?]. rewrite /spec_coupl_pre.
   do 4 f_equiv.
   rewrite /prog_coupl.
-  do 44 f_equiv;
-  f_contractive.
+  do 44 f_equiv.
+  all: f_contractive.
   - apply least_fixpoint_ne_outer; [|done].
     intros ? [? ?]. rewrite /spec_coupl_pre.
     do 8 f_equiv.
@@ -788,8 +788,7 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? ?]. rewrite /spec_coupl_pre.
   rewrite /prog_coupl.
-  do 47 f_equiv;
-  f_contractive.
+  do 47 f_equiv. 1,2: f_contractive.
   - apply least_fixpoint_ne_outer; [|done].
     intros ? [? ?]. rewrite /spec_coupl_pre.
     do 21 f_equiv.
