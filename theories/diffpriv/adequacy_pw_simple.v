@@ -16,85 +16,6 @@ Import uPred.
 Section adequacy.
   Context `{!diffprivGS Σ}.
 
-  (* Lemma wp_adequacy_spec_coupl n m e1 σ1 e1' σ1' Z φ ε δ :
-       spec_coupl ∅ σ1 e1' σ1' ε δ Z -∗
-       (∀ σ2 e2' σ2' ε' δ', Z σ2 e2' σ2' ε' δ' ={∅}=∗ |={∅}▷=>^n ⌜DPcoupl (exec m (e1, σ2)) (lim_exec (e2', σ2')) φ ε' δ'⌝) -∗
-       |={∅}=> |={∅}▷=>^n ⌜DPcoupl (exec m (e1, σ1)) (lim_exec (e1', σ1')) φ ε δ⌝.
-     Proof.
-       iRevert (σ1 e1' σ1' ε δ).
-       iApply spec_coupl_ind.
-       iIntros "!>" (σ1 e1' σ1' ε δ)
-         "[boo|(%T & %k & %μ1 & %μ1' & %ε1 & %δ1 & %ε2 & %δ2 & % & % & % & %Hμ1 & %Hμ1' & H)] HZ";
-         [by iMod ("HZ" with "[$]") |].
-       iApply (step_fupdN_mono _ _ _ ⌜_⌝).
-       { iPureIntro. intros h. eapply DPcoupl_erasure_erasable_rhs. 8: apply h. all: eauto. }
-       iIntros (σ2 (e2', σ2') HT).
-       iMod ("H" with "[//]") as "[H _]".
-       by iApply "H".
-     Qed.
-
-     Lemma wp_adequacy_prog_coupl n m e1 σ1 e1' σ1' Z φ ε δ :
-       to_val e1 = None ->
-       prog_coupl e1 σ1 e1' σ1' ε δ Z -∗
-       (∀ e2 σ2 e2' σ2' ε' δ', Z e2 σ2 e2' σ2' ε' δ' ={∅}=∗ |={∅}▷=>^n ⌜DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε' δ'⌝) -∗
-       |={∅}=> |={∅}▷=>^n ⌜DPcoupl (exec (S m) (e1, σ1)) (lim_exec (e1', σ1')) φ ε δ⌝.
-     Proof.
-       iIntros (Hnone).
-       rewrite exec_Sn.
-       rewrite /step_or_final /= Hnone.
-       iIntros "(%P & %R & %R' & %k & %μ1' & %ε1 & % & % & % & % & % & % & % & % & % & % & % & % & % & % & Hcnt) Hcoupl /=".
-
-
-       (*
-       set (Q := ∀ (e2 : expr) (σ2 : state) (e2' : expr) (σ2' : state),
-               ⌜((P (e2, σ2) /\ R (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2 δ2)⌝ ∗
-               ⌜((¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2' δ2') ⌝
-           )%I.
-       *)
-       iApply (step_fupdN_mono _ _ _
-                 (∀ (e2 : expr) (σ2 : state) (e2' : expr) (σ2' : state),
-                     ⌜((P (e2, σ2) /\ R (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2 δ2)⌝ ∗
-                       ⌜((¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2' δ2) ⌝)
-              ).
-       { iPureIntro. simpl. intros.
-         eapply (DPcoupl_erasure_erasable_lhs_choice _ _ _ _ _ _ _ _ _ _ _ _ _ _ P).
-         9: apply H1.
-         9: apply H2.
-         all: eauto.
-         - intros.
-           destruct (H7 e2 σ2 e2' σ2').
-           by apply H9.
-         - intros.
-           destruct (H7 e2 σ2 e2' σ2').
-           by apply H10.
-       }
-       iIntros (e2 σ2 e2' σ2').
-       iDestruct ("Hcnt" $! e2 σ2 e2' σ2') as "[Hcnt1  Hcnt2]".
-       destruct (decide (P (e2, σ2))).
-       - iApply (step_fupdN_mono _ _ _
-                     ⌜((P (e2, σ2) /\ R (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2 δ2)⌝).
-         {
-           iIntros (?).
-           iSplit; auto.
-           iIntros ((?&?)).
-           done.
-         }
-         iIntros ((?&?)).
-         iMod ("Hcnt1" with "[//]") as "Hcnt1".
-         by iApply "Hcoupl".
-       - iApply (step_fupdN_mono _ _ _
-                     ⌜((¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2' δ2)⌝).
-         {
-           iIntros (?).
-           iSplit; auto.
-           iIntros ((?&?)).
-           done.
-         }
-         iIntros ((?&?)).
-         iMod ("Hcnt2" with "[//]") as "Hcnt2".
-         by iApply "Hcoupl".
-     Qed. *)
-
   Lemma wp_adequacy_val_fupd (e e' : expr) (σ σ' : state) n φ v ε δ:
     to_val e = Some v →
     state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε δ ∗
@@ -102,13 +23,9 @@ Section adequacy.
     |={⊤, ∅}=> ⌜DPcoupl (exec n (e, σ)) (lim_exec (e', σ')) φ ε δ⌝.
   Proof.
     iIntros (He) "(Hσ & Hs & Hε & Hwp)".
-    rewrite wppw_unfold /wppw_pre /= He.
+    rewrite wp_unfold /wp_pre /= He.
     iMod ("Hwp") as "(% & Hv & %)".
-    (* iApply fupd_mask_intro; [set_solver|]; iIntros "_". *)
     iDestruct (spec_auth_prog_agree with "Hs Hv") as %->.
-    (* iApply (wp_adequacy_spec_coupl 0 with "Hwp").
-       iIntros (σ1 e1' σ1' ε' δ') "> (? & Hs & (Hε & Hδ) & (% & Hv & %)) /=".
-       iDestruct (spec_auth_prog_agree with "Hs Hv") as %->. *)
     erewrite exec_is_final; [|done].
     erewrite lim_exec_final; [|done].
     iApply fupd_mask_intro; [set_solver|]; iIntros "_".
@@ -121,7 +38,7 @@ Section adequacy.
     |={⊤,∅}=> |={∅}▷=>^n ⌜DPcoupl (exec n (e, σ)) (lim_exec (e', σ')) φ ε δ⌝.
   Proof.
     iIntros "(Hσ & HspecI_auth & Hε & Hwp)".
-    iInduction n as [|n] "IH" forall (e σ e' σ' ε δ).
+    iInduction n as [|n] "IH" forall (e σ e' σ' ε δ φ).
     { destruct (to_val e) eqn:He.
       - iMod (wp_adequacy_val_fupd with "[$]") as %?; [done|].
         by iApply step_fupdN_intro.
@@ -133,17 +50,65 @@ Section adequacy.
     { iMod (wp_adequacy_val_fupd with "[$]") as %?; [done|].
       iApply step_fupdN_intro; [done|].
       do 3 iModIntro. done. }
-    iEval (rewrite wppw_unfold /wppw_pre /= He) in "Hwp".
-    iMod ("Hwp" with "[$]") as "(%red & [ (%R & % & % & % & % & %HCR & %hε & %hδ & Hrec) | h ])".
-    -
-    (* iApply (wp_adequacy_spec_coupl with "Hwp").
-       iIntros (σ2 e2' σ2' ε' δ') "Hprog". simpl in φ. *)
-    iApply (wp_adequacy_prog_coupl with "Hprog"); [done|].
-    iIntros (e3 σ3 e3' σ3' ε3 δ3) "Hspec".
-    iIntros "!> !> !>".
-    iApply (wp_adequacy_spec_coupl with "Hspec").
-    iIntros (σ4 e4' σ4' ε4 δ4) ">(Hσ & Hs & Hε & Hcnt)".
-    iApply ("IH" with "Hσ Hs Hε Hcnt").
+    iEval (rewrite wp_unfold /wp_pre) in "Hwp". replace language.to_val with to_val by auto. rewrite He.
+    iMod ("Hwp" with "[$]") as "(%red & [ (%R & % & % & % & % & %k & %HCR & %hε & %hδ & Hrec) | h ])".
+    - rewrite exec_Sn /step_or_final ; iSimpl ; rewrite He.
+      rewrite (lim_exec_pexec k).
+      (* Hrec will give us the premise to IH but we have to get the assumptions for Hrec *)
+
+      (* change the goal: under the premise of Hrec, remove (prim_step e σ) & (pexec k ρ') *)
+      iApply (step_fupdN_mono _ _ _ ⌜∀ ρ ρ', R ρ ρ' → DPcoupl (exec n ρ) (lim_exec ρ') φ ε2 δ2⌝).
+      { iPureIntro. intros. eapply DPcoupl_dbind'' ; eauto. }
+
+      (* intros and instantiate the premise of Hrec  *)
+      rewrite -step_fupdN_Sn. iIntros ([] [] HR).
+      iSpecialize ("Hrec" $! _ _ _ _ HR).
+      iMod "Hrec".
+      (* strip the later *)
+      iSimpl ; iIntros "!> !> !>".
+      iMod "Hrec" as "(HT & S & E & Hwp)".
+
+      iApply ("IH" with "HT S E Hwp").
+    - rewrite exec_Sn /step_or_final ; iSimpl ; rewrite He.
+
+      assert (∀ x y, x = y → φ x y) as φpw by admit.
+      (* iDestruct ("eq") as "[x y]". *)
+
+      iApply (step_fupdN_mono _ _ _ ⌜∀ RES, DPcoupl (prim_step e σ ≫= exec n) (lim_exec (e', σ')) (λ v v', v = RES → v' = RES) ε δ⌝).
+      { iPureIntro. intros.
+        eapply DPcoupl_mono ; last first. 4: apply φpw. 1: eapply DPcoupl_pweq ; last first. 1: eapply H.
+        all: eauto.  5: real_solver. 3: apply cond_nonneg. all: admit.
+      }
+
+      iSimpl ; iIntros "!> !> !>".
+      iMod "h" as "(#eq & h)".
+
+      iApply fupd_mask_intro. 1: auto. iIntros "Hclose".
+
+      iIntros (RES).
+
+      iSpecialize ("h" $! RES).
+      assert ((prim_step e σ ≫= exec n) = (exec n (e, σ))) as h by admit.
+      iApply (step_fupdN_mono _ _ _ ⌜DPcoupl (exec n (e, σ)) (lim_exec (e', σ')) (λ v v' : val, v = RES → v' = RES) ε δ⌝).
+      1: rewrite h ; done.
+      iAssert (
+          emp
+          ={⊤,∅}=∗
+          (* ={∅}=∗ *)
+          |={∅}▷=>^n
+                              ⌜DPcoupl (exec n (e, σ)) (lim_exec (e', σ'))
+                                 (λ v v' : val, v = RES → v' = RES) ε δ⌝)%I with "[-]" as "altgoal".
+      { iIntros.
+        iApply "IH".
+        1: admit. 1: admit. 1: admit. simpl.
+        iApply (wp_mono with "h").
+        iIntros (v) "(%v' & %σv' & SP & %pweq)".
+        iExists _. iSplit. 2: iPureIntro ; exact pweq.
+        admit.
+      }
+      iSpecialize ("altgoal" with "[]") => //.
+      Fail iApply "altgoal".
+      admit.
   Qed.
 
 End adequacy.
