@@ -92,7 +92,7 @@ Section adequacy.
     iIntros (σ2 e2' σ2' ε') "Hprog".
     iApply (wp_adequacy_prog_coupl with "Hprog"); [done|].
     iIntros (e3 σ3 e3' σ3' ε3) "Hspec".
-    iIntros "!> !> !>".
+    iSimpl. iIntros "!> !> !>".
     iApply (wp_adequacy_spec_coupl with "Hspec").
     iIntros (σ4 e4' σ4' ε4) ">(Hσ & Hs & Hε & Hcnt)".
     iApply ("IH" with "Hσ Hs Hε Hcnt").

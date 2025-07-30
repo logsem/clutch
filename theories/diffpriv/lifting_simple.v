@@ -22,97 +22,15 @@ Lemma wp_lift_step_couple E Φ e1 s :
        ∀ σ1 e1' σ1' ε δ,
          state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε δ ={E,∅}=∗
          ⌜reducible (e1, σ1)⌝ ∗
-         ∃ (R : cfg Λ → cfg Λ → Prop) (ε1 ε2 δ1 δ2 : nonnegreal),
-           ⌜DPcoupl (prim_step e1 σ1) (prim_step e1' σ1') R ε1 δ1⌝ ∗
+         ∃ (R : cfg Λ → cfg Λ → Prop) (ε1 ε2 δ1 δ2 : nonnegreal) (n : nat),
+           ⌜DPcoupl (prim_step e1 σ1) (pexec n (e1', σ1')) R ε1 δ1⌝ ∗
             ⌜ε1 + ε2 <= ε⌝ ∗ ⌜δ1 + δ2 <= δ⌝ ∗
             (∀ e2 σ2 e2' σ2',
-                (⌜R (e2, σ2) (e2', σ2')⌝ -∗
+                (⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗
                  ▷ |={∅,E}=>  (state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 δ2 ∗ WP e2 @ s; E {{ Φ }} )))
       end)
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof. rewrite wp_unfold /wp_pre //. Qed.
-
-Lemma wp_lift_step_fupd_couple E Φ e1 :
-  to_val e1 = None →
-  (∀ σ1 e1' σ1' ε δ,
-         state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε δ ={E,∅}=∗
-         ⌜reducible (e1, σ1)⌝ ∗
-         ∃ (R : cfg Λ → cfg Λ → Prop) (ε1 ε2 δ1 δ2 : nonnegreal),
-           ⌜DPcoupl (prim_step e1 σ1) (prim_step e1' σ1') R ε1 δ1⌝ ∗
-            ⌜ε1 + ε2 <= ε⌝ ∗ ⌜δ1 + δ2 <= δ⌝ ∗
-            (∀ e2 σ2 e2' σ2',
-                (⌜R (e2, σ2) (e2', σ2')⌝ -∗
-                 ▷ |={∅,E}=>  (state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 δ2 ∗ WP e2 @ E {{ Φ }} ))))
-  ⊢ WP e1 @ E {{ Φ }}.
-Proof. by rewrite wp_unfold /wp_pre=>->. Qed.
-
-Lemma wp_lift_step_fupd E Φ e1 :
-  to_val e1 = None →
-  (∀ σ1, state_interp σ1 ={E,∅}=∗
-     ⌜reducible (e1, σ1)⌝ ∗
-     ∀ e2 σ2,
-      ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ ▷ |={∅,E}=>
-      state_interp σ2 ∗ WP e2 @ E {{ Φ }})
-  ⊢ WP e1 @ E {{ Φ }}.
-Proof.
-  iIntros (?) "H".
-  iApply wp_lift_step_fupd_couple; [done|].
-  iIntros (σ1 e1' σ1') "[Hσ Hρ]".
-  iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
-  iApply exec_coupl_prim_step_l.
-  iExists _.
-  iSplit; [done|].
-  iSplit.
-  { iPureIntro. eapply Rcoupl_pos_R, Rcoupl_trivial.
-    - apply prim_step_mass. eauto.
-    - apply dret_mass. }
-  iIntros ([e2 σ2] (_ & Hstep & _)).
-  iMod ("H" with "[//]")as "H".
-  iIntros "!> !>".
-  by iMod "H" as "[$ $]".
-Qed.
-
-
-(* Lemma wp_lift_step_spec_couple E Φ e1 s :
-     (∀ σ1 e1' σ1' ε1 δ1,
-         state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 δ1 ={E, ∅}=∗
-         spec_coupl ∅ σ1 e1' σ1' ε1 δ1 (λ σ2 e2' σ2' ε2 δ2,
-           |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗
-                      err_interp ε2 δ2 ∗ WP e1 @ s; E {{ Φ }}))
-     ⊢ WP e1 @ s; E {{ Φ }}.
-   Proof.
-     iIntros "H".
-     iApply wp_lift_step_couple.
-     iIntros (?????) "Hs".
-     iMod ("H" with "[$]") as "H".
-     iModIntro.
-     iApply (spec_coupl_bind with "[] H"); [done|].
-     iIntros (?????) "H".
-     iApply fupd_spec_coupl.
-     iMod "H" as "(?&?&?&H)".
-     rewrite wp_unfold /wp_pre.
-     iApply ("H" with "[$]").
-   Qed. *)
-
-Lemma wp_lift_step_prog_couple E Φ e1 s :
-  to_val e1 = None →
-  (∀ σ1 e1' σ1' ε1 δ1,
-      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 δ1 ={E, ∅}=∗
-      prog_coupl e1 σ1 e1' σ1' ε1 δ1 (λ e2 σ2 e2' σ2' ε2 δ2,
-        ▷ |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗
-                     err_interp ε2 δ2 ∗ WP e2 @ s; E {{ Φ }}))
-  ⊢ WP e1 @ s; E {{ Φ }}.
-Proof.
-  iIntros (Hv) "H".
-  iApply wp_lift_step_couple.
-  iIntros (?????) "Hs".
-  iMod ("H" with "[$]") as "H".
-  iApply spec_coupl_ret.
-  iModIntro. rewrite Hv.
-  iApply (prog_coupl_mono with "[] H").
-  iIntros (??????) "H !>".
-  by iApply spec_coupl_ret.
-Qed.
 
 Lemma wp_lift_step_later E Φ e1 s :
   to_val e1 = None →
@@ -123,16 +41,22 @@ Lemma wp_lift_step_later E Φ e1 s :
       state_interp σ2 ∗ WP e2 @ s; E {{ Φ }})
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  iIntros (?) "H".
-  iApply wp_lift_step_prog_couple; [done|].
+  iIntros (h) "H".
+  iApply wp_lift_step_couple. rewrite h.
   iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hρ & Hε)".
   iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
-  iApply prog_coupl_step_l; [done|].
-  iIntros (???).
+  iSplit => //.
+  iExists _,0%NNR,ε1,0%NNR,δ1,0%nat.
+  iSplit; [iPureIntro|].
+  { setoid_rewrite pexec_O.
+    eapply DPcoupl_pos_R, DPcoupl_trivial.
+    - apply prim_step_mass. eauto.
+    - apply dret_mass. }
+  repeat (iSplit; [iPureIntro|]) ; [real_solver|real_solver|].
+  iIntros (e2 σ2 e2' σ2' (_ & ? & [= -> ->]%dret_pos)). iFrame.
   iMod ("H" with "[//]") as "H".
   iIntros "!> !>".
-  iMod "H" as "($ & $)".
-  by iFrame.
+  by iMod "H" as "[$ $]".
 Qed.
 
 (** Derived lifting lemmas. *)
@@ -146,7 +70,7 @@ Lemma wp_lift_step E Φ e1 s :
       WP e2 @ s; E {{ Φ }})
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  iIntros (?) "H". iApply wp_lift_step_later; [done|]. iIntros (?) "Hσ".
+  iIntros (?) "H". iApply wp_lift_step_later. iIntros (?) "Hσ".
   iMod ("H" with "Hσ") as "[$ H]". iIntros "!>" (???) "!>" . by iApply "H".
 Qed.
 
@@ -199,7 +123,7 @@ Lemma wp_lift_atomic_step {E Φ} e1 s :
       from_option Φ False (to_val e2))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  iIntros (?) "H". iApply wp_lift_atomic_step_fupd; [done|].
+  iIntros (?) "H". iApply wp_lift_atomic_step_fupd.
   iIntros (?) "?". iMod ("H" with "[$]") as "[$ H]".
   iIntros "!> *". iIntros (Hstep) "!> !>".
   by iApply "H".
@@ -238,4 +162,5 @@ Proof.
   intros Hexec ?. rewrite -wp_pure_step_fupd //. clear Hexec.
   induction n as [|n IH]; by rewrite //= -step_fupd_intro // IH.
 Qed.
+
 End lifting.

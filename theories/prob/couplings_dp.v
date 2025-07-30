@@ -1303,6 +1303,21 @@ Section couplings_theory.
     DPcoupl (dbind f μ1) (dbind g μ2) S ε δ.
   Proof. intros -> ? ? ->. by eapply DPcoupl_dbind. Qed.
 
+  Lemma DPcoupl_dbind'' `{Countable A, Countable B, Countable A', Countable B'} (ε1 ε2 ε : R) (δ1 δ2 δ : R)
+    (f : A → distr A') (g : B → distr B')
+    (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop) :
+    ε1 + ε2 <= ε →
+    0 <= δ1 ->
+    0 <= δ2 ->
+    δ1 + δ2 <= δ →
+    (∀ a b, R a b → DPcoupl (f a) (g b) S ε2 δ2) →
+    DPcoupl μ1 μ2 R ε1 δ1 →
+    DPcoupl (dbind f μ1) (dbind g μ2) S ε δ.
+  Proof.
+    intros ???? cont cpl.
+    eapply DPcoupl_mono ; last eapply DPcoupl_dbind' ; last first ; [apply cpl| apply cont | eauto..].
+  Qed.
+
   Lemma DPcoupl_map `{Countable A, Countable B, Countable A', Countable B'}
     (f : A → A') (g : B → B') (μ1 : distr A) (μ2 : distr B) (R : A' → B' → Prop) ε δ:
     (0 <= ε) -> (0 <= δ) ->
