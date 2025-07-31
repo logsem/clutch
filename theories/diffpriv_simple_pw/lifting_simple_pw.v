@@ -29,7 +29,7 @@ Lemma wp_lift_step_couple_full E Φ e1 s :
                 (⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗
                  ▷ |={∅,E}=>  (state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 δ2 ∗ WP e2 @ s; E {{ Φ }}))))
            ∨
-             ▷ |={∅,E}=> ((□ (∀ v, Φ v ∗-∗ ∃ (v' : val Λ) (σ' : state Λ), spec_interp ((of_val v'), σ') ∗ ⌜v = v'⌝))
+             ▷ |={∅,E}=> ((□ (∀ v, (∃ (v' : val Λ) (σ' : state Λ), spec_interp ((of_val v'), σ') ∗ ⌜v = v'⌝) ={E}=∗ Φ v))
               ∗
                 ∀ RES : val Λ,
                   WP e1 @ s; E {{ (λ v1, ∃ (v1' : val Λ) (σv' : state Λ),

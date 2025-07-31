@@ -44,7 +44,7 @@ Definition wp_pre `{!spec_updateGS (lang_markov Λ) Σ, !diffprivWpGS Λ Σ}
                 (⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗
                  ▷ |={∅,E}=>  (state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 δ2 ∗ wp E e2 Φ))))
            ∨
-             ▷ |={∅,E}=> ((□ (∀ v, Φ v ∗-∗ ∃ (v' : val Λ) (σ' : state Λ), spec_interp ((of_val v'), σ') ∗ ⌜v = v'⌝))
+             ▷ |={∅,E}=> ((□ (∀ v, (∃ (v' : val Λ) (σ' : state Λ), spec_interp ((of_val v'), σ') ∗ ⌜v = v'⌝) ={E}=∗ Φ v))
               ∗
                 ∀ RES : val Λ,
                   wp E e1 (λ v1, ∃ (v1' : val Λ) (σv' : state Λ),
@@ -144,7 +144,7 @@ Proof.
     iMod "Hclose" as "_". iModIntro.
     (* By IH, we can rewrite Ψ to Φ for WP e2. *)
     iApply ("IH" with "Hrec HΦ").
-  - iNext. iMod "H" as "(Φeq & H)". iMod "Hclose" as "_". iModIntro. iSplitL "HΦ Φeq".
+  - iNext. iMod "H" as "(#Φeq & H)". iMod "Hclose" as "_". iModIntro. iSplitL "HΦ Φeq".
     {
       (* iModIntro.
          iAssert (∀ v, Φ v -∗ Ψ v)%I as "HΦ" ; [by admit|].
@@ -155,7 +155,18 @@ Proof.
            iSpecialize "HΦ" in "Ψv1".
            iExists v1.  iRewrite "HΦ".
          iFrame "Φeq". *)
-      admit. }
+      iIntros (?). iSpecialize ("Φeq" $! v). iSpecialize ("HΦ" $! v).
+      iPoseProof "Φeq" as "-#h".
+      admit.
+
+      (* iIntros "!> % h".
+         iSpecialize ("Φeq" $! v with "h").
+         iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
+
+         iMod "Φeq". iMod "Hclose".
+         iSpecialize ("HΦ" with "Φeq").
+         done.  *)
+    }
     iIntros (RES). iSpecialize ("H" $! RES).
     iApply ("IH" with "H").
     iIntros "%v1 (%v1' & % & S & %pweq)".
@@ -204,17 +215,18 @@ Proof.
 
     iNext.
     iMod "h" as "(#Φeq & H)". iModIntro. iSplitL "Φeq".
-    + admit.
+    + iIntros "!> % (% & % & SI & ->)".
+      iSpecialize ("Φeq" $! v' with "[SI]"). 1: iExists _,_ ; by iFrame.
+      iMod "Φeq". iModIntro.
+      admit.
     + iIntros (RES). iSpecialize ("H" $! RES).
 
       iApply "IH".
       iApply (wp_strong_mono with "H") => //.
       iIntros (v1).
       iIntros "H".
-      iModIntro.
-
-      iDestruct ("Φeq" $! v1) as "[x y]".
-      iPoseProof ("y" with "[H]") as "z".
+      iSpecialize ("Φeq" $! v1).
+      iPoseProof ("Φeq" with "[H]") as "z".
       { iDestruct "H" as "(%v1' & % & S & %pweq)".
         iExists _,_. iFrame. rewrite pweq.
         1,2: admit. }

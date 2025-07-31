@@ -144,11 +144,44 @@ Section rules.
     }
     iRight.
     iNext.
-    iMod "Hclose'".
+    iMod "Hclose'" as "_".
     iModIntro. iSplit.
-    - iModIntro. iIntros. iSplit.
-      + iIntros "(%v' & rhs & %eq)". iExists v', σ1'. iSplit. 2: by rewrite eq. admit.
-      + iIntros "(%v' & %σ' & rhs & %eq)". iExists v'. iSplit. 2: by rewrite eq. admit.
+    -
+      (* what if we consume the auth fragment? *)
+      iAssert (∀ v, (∀ e' σ', spec_auth (e', σ') -∗ (∃ (v' : val) (σ' : state), spec_auth (@pair expr state (Val v') σ') ∗ ⌜v = v'⌝)) ={E}=∗ ∃ v', ⤇ v' ∗ ⌜v = v'⌝)%I with "[-]" as "alt_goal_no_pers".
+      2: admit.
+      iIntros "% h".
+      iDestruct ("h" with "S") as "(%v' & %σ' & S' & %eq)".
+      iModIntro.
+      iExists v'. iSplit. 2: by rewrite eq.
+      iDestruct (spec_auth_prog_agree with "S' rhs") as %->.
+      done.
+
+
+      (* (* Weird: this should be trivial. The current postcondition should be weak enough to be implied by whatever the
+         pweq clause of the WP assumed here. Should the WP mention (⤇ v') instead of (spec_auth (v', σ')) ? *)
+         (* If the implication wasn't persistent, we could use "rhs". Let's pretend that's the case... *)
+         iAssert (∀ v, (∃ (v' : val) (σ' : state), spec_auth (@pair expr state (Val v') σ') ∗ ⌜v = v'⌝) ={E}=∗ ∃ v', ⤇ v' ∗ ⌜v = v'⌝)%I with "[-]" as "alt_goal_no_pers".
+         2: admit.
+         (* iModIntro. *)
+         iIntros "% (%v' & %σ' & S' & %eq)".
+         iModIntro.
+         iExists v'. iSplit. 2: by rewrite eq.
+         iDestruct (spec_auth_prog_agree with "S' rhs") as %->.
+         (* now we can conclude with by framing "rhs". *)
+
+         (* But this doesn't make much sense: the context is actually inconsistent because we have two authoritative views
+         of the spec resource. So we could have derived anything. *)
+         rewrite /spec_auth. simpl.
+         iDestruct "S" as "[S _]".
+         iDestruct "S'" as "[S' _]".
+         iCombine "S" "S'" as "H".
+         iDestruct (own_valid with "H") as "%Hvalid".
+         exfalso. destruct Hvalid as [Hvalid _]. clear -Hvalid.
+         apply (λ x, proj1 (dfrac_valid_own x)) in Hvalid.
+         (* we have our contradiction :/ *)
+
+         done. *)
     - iIntros (RES).
       iApply (wp_strong_mono with "[pw rhs]") => //.
       + iApply ("pw" $! RES). done.
@@ -195,9 +228,8 @@ Section rules.
     iNext.
     iMod "Hclose'".
     iModIntro. iSplit.
-    - iModIntro. iIntros. iSplit.
-      + iIntros "(%v' & rhs & %eq)". iExists v', σ1'. iSplit. 2: by rewrite eq. admit.
-      + iIntros "(%v' & %σ' & rhs & %eq)". iExists v'. iSplit. 2: by rewrite eq. admit.
+    - iModIntro.
+      + iIntros "%v (%v' & %σ' & rhs & %eq) !>". iExists v'. iSplit. 2: by rewrite eq. admit.
     - iIntros (RES).
       iApply (wp_strong_mono with "[pw rhs]") => //.
       + iApply ("pw" $! RES). done.
