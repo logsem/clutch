@@ -262,6 +262,11 @@ Proof. by intros Φ Φ' ?; apply wp_mono. Qed.
 Global Instance wp_flip_mono' E e s :
   Proper (pointwise_relation _ (flip (⊢)) ==> (flip (⊢))) (wp (PROP:=iProp Σ) s E e).
 Proof. by intros Φ Φ' ?; apply wp_mono. Qed.
+Lemma wp_strong_mono'' e Φ Ψ :
+  WP e {{ Φ }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ WP e {{ Ψ }}.
+Proof.
+  iIntros "Hwp Hw". iApply (wp_strong_mono with "Hwp"); [done|]. iIntros. iApply "Hw". done.
+Qed.
 
 Lemma wp_value_fupd E Φ e v s : IntoVal e v → (|={E}=> Φ v) ⊢ WP e @ s; E {{ Φ }}.
 Proof. intros <-. by apply wp_value_fupd'. Qed.
@@ -321,8 +326,8 @@ Qed.
 
 End wp.
 
-#[export] Hint Extern 0 (to_val _ = None) => assumption : typeclass_instances.
-#[export] Hint Extern 0 (to_val _ = None) => reflexivity : typeclass_instances.
+#[global] Hint Extern 0 (to_val _ = None) => assumption : typeclass_instances.
+#[global] Hint Extern 0 (to_val _ = None) => reflexivity : typeclass_instances.
 
 (** * Proofmode class instances *)
 Section proofmode_classes.

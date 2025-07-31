@@ -260,6 +260,7 @@ Qed.
 End wp.
 
 #[global] Hint Extern 0 (to_val _ = None) => assumption : typeclass_instances.
+#[global] Hint Extern 0 (to_val _ = None) => reflexivity : typeclass_instances.
 
 (** * Proofmode class instances *)
 Section proofmode_classes.

@@ -95,47 +95,6 @@ Section diffpriv.
     etrans. 1: eassumption. real_solver.
   Qed.
 
-Ltac reshape_expr e tac :=
-  let rec go K e :=
-    idtac "reshape at " K e ;
-  match e with
-  | _ => tac K e
-  | App ?e (Val ?v) => go (AppLCtx v :: K) e
-  | App ?e1 ?e2 => go (AppRCtx e1 :: K) e2
-  | UnOp ?op ?e => go (UnOpCtx op :: K) e
-  | BinOp ?op ?e (Val ?v) => go (BinOpLCtx op v :: K) e
-  | BinOp ?op ?e1 ?e2 => go (BinOpRCtx op e1 :: K) e2
-  | If ?e0 ?e1 ?e2 => go (IfCtx e1 e2 :: K) e0
-  | Pair ?e (Val ?v) => go (PairLCtx v :: K) e
-  | Pair ?e1 ?e2 => go (PairRCtx e1 :: K) e2
-  | Fst ?e => go (FstCtx :: K) e
-  | Snd ?e => go (SndCtx :: K) e
-  | InjL ?e => go (InjLCtx :: K) e
-  | InjR ?e => go (InjRCtx :: K) e
-  | Case ?e0 ?e1 ?e2 => go (CaseCtx e1 e2 :: K) e0
-  | AllocN ?e (Val ?v) => go (AllocNLCtx v :: K) e
-  | AllocN ?e1 ?e2 => go (AllocNRCtx e1 :: K) e2
-  | Load ?e => go (LoadCtx :: K) e
-  | Store ?e (Val ?v) => go (StoreLCtx v :: K) e
-  | Store ?e1 ?e2 => go (StoreRCtx e1 :: K) e2
-  | AllocTape ?e => go (AllocTapeCtx :: K) e
-  | Rand ?e (Val ?v) => go (RandLCtx v :: K) e
-  | Rand ?e1 ?e2 => go (RandRCtx e1 :: K) e2
-  (* | Laplace (Val _) (Val _) (Val _) => fail *)
-  | Laplace ?e1 (Val ?v2) (Val ?v3) => go (LaplaceNumCtx v2 v3 :: K) e1
-  | Laplace ?e1 ?e2 (Val ?v3) => go (LaplaceDenCtx e1 v3 :: K) e2
-  | Laplace ?e1 ?e2 ?e3 => go (LaplaceLocCtx e1 e2 :: K) e3
-  | Tick ?e => go (TickCtx :: K) e
-  end in go (@nil ectx_item) e.
-
-Lemma wp_strong_mono'' e Φ Ψ :
-  WP e {{ Φ }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ WP e {{ Ψ }}.
-Proof.
-  iIntros "Hwp Hw".
-  iApply (wp_strong_mono with "Hwp"); [done|].
-  iIntros. iApply "Hw". done.
-Qed.
-
   Fact hoare_laplace_diffpriv (num den : Z) :
     ⌜0 < IZR num / IZR den⌝ -∗
     hoare_diffpriv (λ: "loc", Laplace #num #den "loc") ((IZR num / IZR den)) 0 dZ (=@{Z}).

@@ -338,34 +338,6 @@ Proof.
   pose proof (fin_to_nat_lt x); lia.
 Qed.
 
-(** spec [rand] *)
-Lemma wp_rand_r N z E e K Φ (He : to_val e = None) :
-  TCEq N (Z.to_nat z) →
-  ⤇ fill K (rand #z) ∗
-  (∀ n : nat, ⤇ fill K #n -∗ ⌜ n <= N ⌝ -∗ WP e @ E {{ Φ }})
-  ⊢ WP e @ E {{ Φ }}.
-Proof.
-  iIntros (->) "(Hj & Hwp)".
-  iApply wp_lift_step_couple => /=. rewrite He.
-  iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hs & Hε)".
-  iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
-  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
-(*   iApply spec_coupl_step; [solve_red|].
-     rewrite fill_dmap //=.
-     iIntros (e2' σ2' ([? ? ]&?&Hs)%dmap_pos).
-     simplify_eq/=.
-     rewrite head_prim_step_eq // in Hs.
-     inv_head_step.
-     iApply spec_coupl_ret.
-     iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
-     iFrame. iModIntro.
-     iMod "Hclose" as "_"; iModIntro.
-     iApply ("Hwp" with "Hj").
-     iPureIntro.
-     pose proof (fin_to_nat_lt x); lia.
-   Qed. *)
-Admitted.
-
 (** This is just a wrapper for tp_alloctape that works with nats
     TODO : Make into tactic *)
 Lemma wp_alloc_tape_r N z E e K Φ (_ : to_val e = None) :
@@ -381,37 +353,6 @@ Proof.
   iPureIntro.
   auto.
 Qed.
-
-(** spec [rand(α)] with empty tape  *)
-Lemma wp_rand_empty_r N z E e K α Φ :
-  TCEq N (Z.to_nat z) →
-  ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛN (N; []) ∗
-  (∀ n : nat, (α ↪ₛN (N; []) ∗ ⤇ fill K #n) -∗ ⌜ n <= N ⌝ -∗ WP e @ E {{ Φ }})
-  ⊢ WP e @ E {{ Φ }}.
-Proof.
-  iIntros (->) "(Hj & Hα & Hwp)".
-(*   iApply wp_lift_step_spec_couple.
-     iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hs & Hε)".
-     iPoseProof (spec_tapeN_to_empty with "Hα") as "Hα".
-     iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
-     iDestruct (spec_auth_lookup_tape with "Hs Hα") as %?.
-     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
-     iApply spec_coupl_step; [solve_red|].
-     rewrite fill_dmap //=.
-     iIntros (e2' σ2' ([? ? ]&?&Hs)%dmap_pos).
-     simplify_eq/=.
-     rewrite head_prim_step_eq // in Hs.
-     inv_head_step.
-     iApply spec_coupl_ret.
-     iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
-     iFrame. iModIntro.
-     iMod "Hclose" as "_"; iModIntro.
-     iApply ("Hwp" with "[Hα Hj]");
-      first by iFrame; auto.
-     iPureIntro.
-     pose proof (fin_to_nat_lt x); lia.
-   Qed. *)
-Admitted.
 
 (** This is just a wrapper for tp_rand that works with nats
     TODO: Make into tactic *)
@@ -430,37 +371,6 @@ Proof.
   pose proof (fin_to_nat_lt x); lia.
 Qed.
 
-
-  (** spec [rand(α)] with wrong tape  *)
-  Lemma wp_rand_wrong_tape_r N M z E e K α Φ ns :
-    TCEq N (Z.to_nat z) →
-    N ≠ M →
-    ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛN (M; ns) ∗
-      (∀ (n : nat), (α ↪ₛN (M; ns) ∗ ⤇ fill K #n) -∗ ⌜ n <= N ⌝ -∗ WP e @ E {{ Φ }})
-      ⊢ WP e @ E {{ Φ }}.
-Proof.
-  iIntros (-> ?) "(Hj & Hα & Hwp)".
-(*   iApply wp_lift_step_spec_couple.
-     iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hs & Hε)".
-     iDestruct "Hα" as (?) "(%&Hα)".
-     iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
-     iDestruct (spec_auth_lookup_tape with "Hs Hα") as %?.
-     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
-     iApply spec_coupl_step; [solve_red|].
-     rewrite fill_dmap //=.
-     iIntros (e2' σ2' ([? ? ]&?&Hs)%dmap_pos).
-     simplify_eq/=.
-     rewrite head_prim_step_eq // in Hs.
-     inv_head_step.
-     iApply spec_coupl_ret.
-     iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
-     iFrame. iModIntro.
-     iMod "Hclose" as "_"; iModIntro.
-     iApply ("Hwp" with "[-]"); first by iFrame.
-     iPureIntro.
-     pose proof (fin_to_nat_lt x); lia.
-   Qed. *)
-Admitted.
 
 End lifting.
 
