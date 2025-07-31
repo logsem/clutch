@@ -3,10 +3,10 @@ From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext fin.
 From clutch.prob Require Import differential_privacy.
-From clutch.diffpriv Require Import lifting_pw_simple ectx_lifting_pw_simple.
+From clutch.diffpriv_simple Require Import lifting_simple ectx_lifting_simple.
 From clutch.prob_lang Require Import lang notation tactics metatheory erasure.
 From clutch.prob_lang.spec Require Import spec_rules.
-From clutch.diffpriv Require Export primitive_laws_pw_simple.
+From clutch.diffpriv_simple Require Export primitive_laws_simple.
 
 Section rules.
   Context `{!diffprivGS Σ}.
@@ -104,109 +104,6 @@ Section rules.
     apply nnreal_ext in Herr. subst. done.
     Unshelve. all: exact 0%Z.
   Qed.
-
-
-  Definition WP_PWEQ_no_K := ∀ e e' E,
-    (
-      ∀ (RES : val),
-      ⤇ e' -∗
-          WP e @ E
-            {{ v, ∃ v' : val, ⤇ (Val v') ∗ ⌜v = RES → v' = RES⌝ }} )
--∗
-    (⤇ e'
-    -∗
-     WP e @ E
-      {{ v, ∃ v' : val, ⤇ (Val v') ∗ ⌜v = v'⌝ }}).
-
-  Lemma wp_pweq_no_K : (* ∀ (e e' : expr) (* ε δ *),
-       (* state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε δ ∗ *)
-       (∀ (RES : val), WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜v = RES → v' = RES⌝ }}) -∗
-       (* state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε δ ∗ *)
-       ⤇ e' -∗
-       WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜v = v'⌝ }} *)
-  WP_PWEQ_no_K.
-  Proof.
-    iIntros (???) "pw rhs".
-    rewrite wp_unfold /wp_pre //=.
-    destruct (to_val e) eqn:He.
-    { iSpecialize ("pw" $! v).
-      rewrite wp_unfold /wp_pre //= He. iMod ("pw" with "rhs") as "pw". iModIntro. iDestruct "pw" as "(%v' & v' & %pweq)".
-      iExists v'. iFrame. rewrite pweq => //.
-    }
-    (* iIntros (e1 e1' σ1 σ1' ε δ) "(HT & S & E & pw)". *)
-    iIntros (?????) "(HT & S & ε & δ)".
-    iDestruct (spec_auth_prog_agree with "S rhs") as %->.
-    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplit.
-    { iSpecialize ("pw" $! #42 with "rhs").
-      rewrite wp_unfold /wp_pre //= He. iSpecialize ("pw" with "[$]").
-      admit.
-    }
-    iRight.
-    iNext.
-    iMod "Hclose'".
-    iModIntro. iSplit.
-    - iModIntro. iIntros. iSplit.
-      + iIntros "(%v' & rhs & %eq)". iExists v', σ1'. iSplit. 2: by rewrite eq. admit.
-      + iIntros "(%v' & %σ' & rhs & %eq)". iExists v'. iSplit. 2: by rewrite eq. admit.
-    - iIntros (RES).
-      iApply (wp_strong_mono with "[pw rhs]") => //.
-      + iApply ("pw" $! RES). done.
-      + simpl. iIntros "%v (%v' & rhs & %pweq) !>".
-        iExists v',σ1'.
-        iDestruct (spec_auth_prog_agree with "S rhs") as %->.
-        iSplit. 2: iPureIntro ; exact pweq.
-        iFrame.
-  Admitted.
-
-  Definition WP_PWEQ := ∀ e e' K E,
-    (
-      ∀ (RES : val),
-      ⤇ fill K e' -∗
-          WP e @ E
-            {{ v, ∃ v' : val, ⤇ fill K (Val v') ∗ ⌜v = RES → v' = RES⌝ }} )
--∗
-    (⤇ fill K e'
-    -∗
-     WP e @ E
-      {{ v, ∃ v' : val, ⤇ fill K (Val v') ∗ ⌜v = v'⌝ }}).
-
-  Lemma wp_pweq : (* ∀ (e e' : expr) (* ε δ *),
-       (* state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε δ ∗ *)
-       (∀ (RES : val), WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜v = RES → v' = RES⌝ }}) -∗
-       (* state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε δ ∗ *)
-       ⤇ e' -∗
-       WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜v = v'⌝ }} *)
-  WP_PWEQ.
-  Proof.
-    iIntros (????) "pw rhs".
-    rewrite wp_unfold /wp_pre //=.
-    destruct (to_val e) eqn:He.
-    { iSpecialize ("pw" $! v).
-      rewrite wp_unfold /wp_pre //= He. iMod ("pw" with "rhs") as "pw". iModIntro. iDestruct "pw" as "(%v' & v' & %pweq)".
-      iExists v'. iFrame. rewrite pweq => //.
-    }
-    (* iIntros (e1 e1' σ1 σ1' ε δ) "(HT & S & E & pw)". *)
-    iIntros (?????) "(HT & S & ε & δ)".
-    iDestruct (spec_auth_prog_agree with "S rhs") as %->.
-    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplit. 1: admit.
-    iRight.
-    iNext.
-    iMod "Hclose'".
-    iModIntro. iSplit.
-    - iModIntro. iIntros. iSplit.
-      + iIntros "(%v' & rhs & %eq)". iExists v', σ1'. iSplit. 2: by rewrite eq. admit.
-      + iIntros "(%v' & %σ' & rhs & %eq)". iExists v'. iSplit. 2: by rewrite eq. admit.
-    - iIntros (RES).
-      iApply (wp_strong_mono with "[pw rhs]") => //.
-      + iApply ("pw" $! RES). done.
-      + simpl. iIntros "%v (%v' & rhs & %pweq) !>".
-        iExists v',σ1'.
-        iDestruct (spec_auth_prog_agree with "S rhs") as %->.
-        iSplit. 2: iPureIntro ; exact pweq.
-        iFrame.
-  Admitted.
 
   (* Lemma wp_couple_laplace (loc loc' k k' : Z)
        (Hdist : (Z.abs (k + loc - loc') <= k')%Z)

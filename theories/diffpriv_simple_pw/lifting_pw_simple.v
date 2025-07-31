@@ -3,7 +3,7 @@
 From iris.proofmode Require Import tactics.
 From iris.prelude Require Import options.
 From clutch.prelude Require Import NNRbar.
-From clutch.diffpriv Require Import wp_pw_simple.
+From clutch.diffpriv_simple_pw Require Import wp_pw_simple.
 
 Section lifting.
 Context `{!spec_updateGS (lang_markov Λ) Σ, !diffprivWpGS Λ Σ}.

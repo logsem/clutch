@@ -8,7 +8,7 @@ From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.prob_lang Require Import erasure notation.
 From clutch.common Require Import language.
 From clutch.base_logic Require Import error_credits.
-From clutch.diffpriv Require Import wp_simple wp_simple_prob_lang_resources.
+From clutch.diffpriv_simple_pw Require Import wp_pw_simple wp_pw_simple_prob_lang_resources.
 From clutch.prob Require Import differential_privacy distribution couplings_dp.
 Import uPred.
 
@@ -38,7 +38,7 @@ Section adequacy.
     |={⊤,∅}=> |={∅}▷=>^n ⌜DPcoupl (exec n (e, σ)) (lim_exec (e', σ')) φ ε δ⌝.
   Proof.
     iIntros "(Hσ & HspecI_auth & Hε & Hwp)".
-    iInduction n as [|n] "IH" forall (e σ e' σ' ε δ).
+    iInduction n as [|n] "IH" forall (e σ e' σ' ε δ φ).
     { destruct (to_val e) eqn:He.
       - iMod (wp_adequacy_val_fupd with "[$]") as %?; [done|].
         by iApply step_fupdN_intro.
@@ -51,17 +51,64 @@ Section adequacy.
       iApply step_fupdN_intro; [done|].
       do 3 iModIntro. done. }
     iEval (rewrite wp_unfold /wp_pre) in "Hwp". replace language.to_val with to_val by auto. rewrite He.
-    iMod ("Hwp" with "[$]") as "(%red & %R & % & % & % & % & %k & %HCR & %hε & %hδ & Hrec)".
-    rewrite exec_Sn /step_or_final ; iSimpl ; rewrite He.
-    rewrite (lim_exec_pexec k).
-    iApply (step_fupdN_mono _ _ _ ⌜∀ ρ ρ', R ρ ρ' → DPcoupl (exec n ρ) (lim_exec ρ') φ ε2 δ2⌝).
-    { iPureIntro. intros. eapply DPcoupl_dbind'' ; eauto. }
-    rewrite -step_fupdN_Sn. iIntros ([] [] HR).
-    iSpecialize ("Hrec" $! _ _ _ _ HR).
-    iMod "Hrec".
-    iSimpl ; iIntros "!> !> !>".
-    iMod "Hrec" as "(HT & S & E & Hwp)". iApply ("IH" with "HT S E").
-    done.
+    iMod ("Hwp" with "[$]") as "(%red & [ (%R & % & % & % & % & %k & %HCR & %hε & %hδ & Hrec) | h ])".
+    - rewrite exec_Sn /step_or_final ; iSimpl ; rewrite He.
+      rewrite (lim_exec_pexec k).
+      (* Hrec will give us the premise to IH but we have to get the assumptions for Hrec *)
+
+      (* change the goal: under the premise of Hrec, remove (prim_step e σ) & (pexec k ρ') *)
+      iApply (step_fupdN_mono _ _ _ ⌜∀ ρ ρ', R ρ ρ' → DPcoupl (exec n ρ) (lim_exec ρ') φ ε2 δ2⌝).
+      { iPureIntro. intros. eapply DPcoupl_dbind'' ; eauto. }
+
+      (* intros and instantiate the premise of Hrec  *)
+      rewrite -step_fupdN_Sn. iIntros ([] [] HR).
+      iSpecialize ("Hrec" $! _ _ _ _ HR).
+      iMod "Hrec".
+      (* strip the later *)
+      iSimpl ; iIntros "!> !> !>".
+      iMod "Hrec" as "(HT & S & E & Hwp)".
+
+      iApply ("IH" with "HT S E Hwp").
+    - rewrite exec_Sn /step_or_final ; iSimpl ; rewrite He.
+
+      assert (∀ x y, x = y → φ x y) as φpw by admit.
+      (* iDestruct ("eq") as "[x y]". *)
+
+      iApply (step_fupdN_mono _ _ _ ⌜∀ RES, DPcoupl (prim_step e σ ≫= exec n) (lim_exec (e', σ')) (λ v v', v = RES → v' = RES) ε δ⌝).
+      { iPureIntro. intros.
+        eapply DPcoupl_mono ; last first. 4: apply φpw. 1: eapply DPcoupl_pweq ; last first. 1: eapply H.
+        all: eauto.  5: real_solver. 3: apply cond_nonneg. all: admit.
+      }
+
+      iSimpl ; iIntros "!> !> !>".
+      iMod "h" as "(#eq & h)".
+
+      iApply fupd_mask_intro. 1: auto. iIntros "Hclose".
+
+      iIntros (RES).
+
+      iSpecialize ("h" $! RES).
+      assert ((prim_step e σ ≫= exec n) = (exec n (e, σ))) as h by admit.
+      iApply (step_fupdN_mono _ _ _ ⌜DPcoupl (exec n (e, σ)) (lim_exec (e', σ')) (λ v v' : val, v = RES → v' = RES) ε δ⌝).
+      1: rewrite h ; done.
+      iAssert (
+          emp
+          ={⊤,∅}=∗
+          (* ={∅}=∗ *)
+          |={∅}▷=>^n
+                              ⌜DPcoupl (exec n (e, σ)) (lim_exec (e', σ'))
+                                 (λ v v' : val, v = RES → v' = RES) ε δ⌝)%I with "[-]" as "altgoal".
+      { iIntros.
+        iApply "IH".
+        1: admit. 1: admit. 1: admit. simpl.
+        iApply (wp_mono with "h").
+        iIntros (v) "(%v' & %σv' & SP & %pweq)".
+        iExists _. iSplit. 2: iPureIntro ; exact pweq.
+        admit.
+      }
+      iSpecialize ("altgoal" with "[]") => //.
+      Fail iApply "altgoal".
+      admit.
   Qed.
 
 End adequacy.
