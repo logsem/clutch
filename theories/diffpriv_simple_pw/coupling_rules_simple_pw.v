@@ -3,10 +3,10 @@ From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext fin.
 From clutch.prob Require Import differential_privacy.
-From clutch.diffpriv_simple_pw Require Import lifting_pw_simple ectx_lifting_pw_simple.
+From clutch.diffpriv_simple_pw Require Import lifting_simple_pw ectx_lifting_simple_pw.
 From clutch.prob_lang Require Import lang notation tactics metatheory erasure.
 From clutch.prob_lang.spec Require Import spec_rules.
-From clutch.diffpriv_simple_pw Require Export primitive_laws_pw_simple.
+From clutch.diffpriv_simple_pw Require Export primitive_laws_simple_pw.
 
 Section rules.
   Context `{!diffprivGS Σ}.

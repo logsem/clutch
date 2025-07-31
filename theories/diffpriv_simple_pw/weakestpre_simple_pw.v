@@ -57,7 +57,7 @@ Definition wp_pre `{!spec_updateGS (lang_markov Λ) Σ, !diffprivWpGS Λ Σ}
 (* Definition pwwp :=
      λ E e1 Φ,
        wp e1 Φ
-       ∨ ( (eq → Φ) → ∀ RES, wp e1 { v, v = RES → v' = RES } ) *)
+       ∨ ( (eq → Φ) → ∀ RES, pwwp e1 { v, v = RES → v' = RES } ) *)
 
 (* Local Instance wp_pre_contractive `{!spec_updateGS (lang_markov Λ) Σ, !diffprivWpGS Λ Σ} :
      Contractive wp_pre.
@@ -321,7 +321,8 @@ Qed.
 
 End wp.
 
-#[global] Hint Extern 0 (to_val _ = None) => assumption : typeclass_instances.
+#[export] Hint Extern 0 (to_val _ = None) => assumption : typeclass_instances.
+#[export] Hint Extern 0 (to_val _ = None) => reflexivity : typeclass_instances.
 
 (** * Proofmode class instances *)
 Section proofmode_classes.

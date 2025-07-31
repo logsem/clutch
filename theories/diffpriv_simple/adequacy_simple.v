@@ -8,7 +8,7 @@ From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.prob_lang Require Import erasure notation.
 From clutch.common Require Import language.
 From clutch.base_logic Require Import error_credits.
-From clutch.diffpriv_simple Require Import wp_simple wp_simple_prob_lang_resources.
+From clutch.diffpriv_simple Require Import weakestpre_simple weakestpre_simple_prob_lang_resources.
 From clutch.prob Require Import differential_privacy distribution couplings_dp.
 Import uPred.
 

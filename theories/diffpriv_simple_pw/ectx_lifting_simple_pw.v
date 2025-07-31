@@ -1,7 +1,7 @@
 (** Some derived lemmas for ectx-based languages *)
 From iris.proofmode Require Import proofmode.
 From clutch.common Require Import ectx_language.
-From clutch.diffpriv_simple_pw Require Export wp_pw_simple lifting_pw_simple.
+From clutch.diffpriv_simple_pw Require Export weakestpre_simple_pw lifting_simple_pw.
 From iris.prelude Require Import options.
 
 Local Open Scope R.

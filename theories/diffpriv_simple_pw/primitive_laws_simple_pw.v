@@ -3,7 +3,7 @@
 From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Export ghost_map.
 From clutch.base_logic Require Export error_credits_mult error_credits.
-From clutch.diffpriv_simple_pw Require Export wp_pw_simple ectx_lifting_pw_simple wp_pw_simple_prob_lang_resources.
+From clutch.diffpriv_simple_pw Require Export weakestpre_simple_pw ectx_lifting_simple_pw weakestpre_simple_pw_prob_lang_resources.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation metatheory.
 From clutch.prob_lang.spec Require Export spec_ra spec_rules spec_tactics.
@@ -135,7 +135,7 @@ Lemma wp_rec_löb E f x e Φ Ψ :
   ∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ E {{ Φ }}.
 Proof.
   iIntros "#Hrec". iLöb as "IH". iIntros (v) "HΨ".
-  iApply lifting_pw_simple.wp_pure_step_later; first done.
+  iApply lifting_simple_pw.wp_pure_step_later; first done.
   iNext. iApply ("Hrec" with "[] HΨ"). iIntros "!>" (w) "HΨ".
   iApply ("IH" with "HΨ").
 Qed.
@@ -145,7 +145,7 @@ Lemma wp_alloc E v s :
   {{{ True }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
 Proof.
   iIntros (Φ) "_ HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
+  iApply wp_lift_atomic_head_step.
   iIntros (σ1) "[Hh Ht] !#".
   solve_red.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
@@ -165,7 +165,7 @@ Lemma wp_allocN_seq (N : nat) (z : Z) E v s :
   {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
 Proof.
   iIntros (-> Hn Φ) "_ HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
+  iApply wp_lift_atomic_head_step.
   iIntros (σ1) "[Hh Ht] !#".
   iSplit.
   { iPureIntro.
@@ -217,7 +217,7 @@ Lemma wp_load E l dq v s :
   {{{ ▷ l ↦{dq} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET v; l ↦{dq} v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
+  iApply wp_lift_atomic_head_step.
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   solve_red.
@@ -230,7 +230,7 @@ Lemma wp_store E l v' v s :
   {{{ RET LitV LitUnit; l ↦ v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
+  iApply wp_lift_atomic_head_step.
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   solve_red.
@@ -244,7 +244,7 @@ Lemma wp_rand (N : nat) (z : Z) E s :
   {{{ True }}} rand #z @ s; E {{{ (n : nat), RET #n; ⌜n <= N⌝ }}}.
 Proof.
   iIntros (-> Φ) "_ HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
+  iApply wp_lift_atomic_head_step.
   iIntros (σ1) "Hσ !#".
   solve_red.
   iIntros "!>" (e2 σ2 Hs).
@@ -261,7 +261,7 @@ Lemma wp_alloc_tape N z E s :
   {{{ True }}} alloc #z @ s; E {{{ α, RET #lbl:α; α ↪N (N; []) }}}.
 Proof.
   iIntros (-> Φ) "_ HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
+  iApply wp_lift_atomic_head_step.
   iIntros (σ1) "(Hh & Ht) !# /=".
   solve_red.
   iIntros "!>" (e2 σ2 Hs); inv_head_step.
@@ -279,7 +279,7 @@ Lemma wp_rand_tape N α n ns z E s :
   {{{ RET #(LitInt n); α ↪N (N; ns) ∗ ⌜n <= N⌝ }}}.
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
+  iApply wp_lift_atomic_head_step.
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (read_tape_head with "Hl") as (x xs) "(Hl&<-&Hret)".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
@@ -302,7 +302,7 @@ Lemma wp_rand_tape_empty N z α E s :
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
   iPoseProof (tapeN_to_empty with "Hl") as "Hl".
-  iApply wp_lift_atomic_head_step; [done|].
+  iApply wp_lift_atomic_head_step.
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
@@ -323,7 +323,7 @@ Lemma wp_rand_tape_wrong_bound N M z α E ns s :
   {{{ (n : nat), RET #(LitInt n); α ↪N (M; ns) ∗ ⌜n <= N⌝ }}}.
 Proof.
   iIntros (-> ? Φ) ">Hl HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
+  iApply wp_lift_atomic_head_step.
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct "Hl" as (?) "(?&Hl)".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.

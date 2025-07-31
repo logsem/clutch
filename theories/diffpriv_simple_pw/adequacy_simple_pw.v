@@ -8,7 +8,7 @@ From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.prob_lang Require Import erasure notation.
 From clutch.common Require Import language.
 From clutch.base_logic Require Import error_credits.
-From clutch.diffpriv_simple_pw Require Import wp_pw_simple wp_pw_simple_prob_lang_resources.
+From clutch.diffpriv_simple_pw Require Import weakestpre_simple_pw weakestpre_simple_pw_prob_lang_resources.
 From clutch.prob Require Import differential_privacy distribution couplings_dp.
 Import uPred.
 
@@ -109,7 +109,7 @@ Section adequacy.
       iSpecialize ("altgoal" with "[]") => //.
       Fail iApply "altgoal".
       admit.
-  Qed.
+  Admitted.
 
 End adequacy.
 

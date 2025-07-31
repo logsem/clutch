@@ -3,7 +3,7 @@
 From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Export ghost_map.
 From clutch.base_logic Require Export error_credits_mult error_credits.
-From clutch.diffpriv_simple Require Export wp_simple ectx_lifting_simple wp_simple_prob_lang_resources.
+From clutch.diffpriv_simple Require Export weakestpre_simple ectx_lifting_simple weakestpre_simple_prob_lang_resources.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation metatheory.
 From clutch.prob_lang.spec Require Export spec_ra spec_rules spec_tactics.
