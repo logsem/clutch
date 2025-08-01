@@ -3,7 +3,8 @@ From Coq Require Export Reals.
 From iris.proofmode Require Import proofmode.
 From Coquelicot Require Import Rbar Lub.
 From clutch.con_prob_lang Require Import notation metatheory lang lub_termination.
-From clutch.foxtrot Require Export primitive_laws model adequacy_rel interp fundamental.
+From clutch.foxtrot Require Export primitive_laws.
+From clutch.foxtrot.binary_rel Require Import binary_model binary_adequacy_rel binary_interp binary_fundamental.
 From clutch.con_prob_lang.typing Require Export contextual_refinement.
 
 Lemma refines_sound_open Σ `{!foxtrotRGpreS Σ} Γ e e' τ :

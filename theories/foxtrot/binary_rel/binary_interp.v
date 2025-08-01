@@ -2,7 +2,8 @@ From iris.algebra Require Export list.
 From iris.proofmode Require Import proofmode.
 From clutch.con_prob_lang Require Import metatheory lang.
 From clutch.prelude Require Import asubst properness.
-From clutch.foxtrot Require Import primitive_laws model.
+From clutch.foxtrot Require Import primitive_laws.
+From clutch.foxtrot.binary_rel Require Import binary_model.
 From clutch.con_prob_lang.typing Require Export types contextual_refinement.
 
 (** * Interpretation of types *)

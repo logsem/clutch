@@ -1,7 +1,8 @@
 (** Compataibility rules *)
 From stdpp Require Import namespaces.
 From clutch.con_prob_lang Require Import lang notation.
-From clutch.foxtrot Require Import primitive_laws proofmode model coupling_rules rel_tactics app_rel_rules.
+From clutch.foxtrot Require Import primitive_laws proofmode coupling_rules.
+From clutch.foxtrot.binary_rel Require Import binary_model binary_rel_tactics binary_app_rel_rules.
 
 Section compatibility.
   Context `{!foxtrotRGS Σ}.

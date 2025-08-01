@@ -6,7 +6,8 @@ From clutch.prelude Require Import stdpp_ext.
 From clutch.common Require Import con_language con_ectxi_language locations.
 From clutch.con_prob_lang Require Import class_instances notation tactics lang.
 From clutch.con_prob_lang.spec Require Export spec_tactics.
-From clutch.foxtrot Require Import primitive_laws model proofmode app_rel_rules.
+From clutch.foxtrot Require Import primitive_laws proofmode.
+From clutch.foxtrot.binary_rel Require Import binary_model binary_app_rel_rules.
 
 (** * General-purpose tactics *)
 Lemma tac_rel_bind_l `{!foxtrotRGS Σ} e' K ℶ E e t A :

@@ -2,7 +2,8 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Import na_invariants.
 From Coquelicot Require Import Rbar Lub.
 From clutch.foxtrot Require Import primitive_laws.
-From clutch.foxtrot Require Import weakestpre model adequacy.
+From clutch.foxtrot Require Import weakestpre adequacy.
+From clutch.foxtrot.binary_rel Require Import binary_model.
 From clutch.con_prob_lang Require Import lang lub_termination.
 
 Class foxtrotRGpreS Σ := FoxtrotRGPreS {

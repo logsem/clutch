@@ -3,9 +3,9 @@ From iris.base_logic Require Export invariants.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext. 
 From clutch.con_prob_lang Require Import metatheory notation lang.
-From clutch.foxtrot Require Import primitive_laws model compatibility rel_tactics app_rel_rules proofmode.
+From clutch.foxtrot Require Import primitive_laws proofmode.
 From clutch.con_prob_lang.typing Require Import types.
-From clutch.foxtrot Require Import interp.
+From clutch.foxtrot Require Import binary_model binary_compatibility binary_rel_tactics binary_app_rel_rules binary_interp.
 
 Section fundamental.
   Context `{!foxtrotRGS Σ}.
