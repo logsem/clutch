@@ -69,19 +69,31 @@ Section adequacy.
       iMod "Hrec" as "(HT & S & E & Hwp)".
 
       iApply ("IH" with "HT S E Hwp").
-    - rewrite exec_Sn /step_or_final ; iSimpl ; rewrite He.
+    - rewrite exec_Sn /step_or_final ; iSimpl ; rewrite He. iSimpl in "h".
 
+      (* Step 1: change the goal into a pointwise equality. *)
+
+      (* TODO This is where we need the assumption about the postcondition being a consequence of equality.
+      Is there any way to get this from the first component of "h"? *)
       assert (∀ x y, x = y → φ x y) as φpw by admit.
-      (* iDestruct ("eq") as "[x y]". *)
-
       iApply (step_fupdN_mono _ _ _ ⌜∀ RES, DPcoupl (prim_step e σ ≫= exec n) (lim_exec (e', σ')) (λ v v', v = RES → v' = RES) ε δ⌝).
       { iPureIntro. intros.
-        eapply DPcoupl_mono ; last first. 4: apply φpw. 1: eapply DPcoupl_pweq ; last first. 1: eapply H.
-        all: eauto.  5: real_solver. 3: apply cond_nonneg. all: admit.
+        eapply DPcoupl_mono ; last first.
+        4: apply φpw. 1: eapply DPcoupl_pweq ; last first. 1: eapply H.
+        all: eauto. 5: real_solver. 2,3: intros ; apply cond_nonneg. all: simpl. all: admit.
       }
-
       iSimpl ; iIntros "!> !> !>".
+
       iMod "h" as "(#eq & h)".
+
+      (* TODO the eq → φ condition in the WP isn't quite right, see the comment after Step 1. *)
+      iAssert (|={⊤}=> ⌜∀ x y, x = y → φ x y⌝)%I with "[eq]" as "φpw".
+      {
+        iIntros (v v' <-). iSpecialize ("eq" $! v with "[]").
+        - iExists v. iExists σ. iSplit => //. give_up.
+        - iMod "eq". iModIntro. iDestruct "eq" as "(%v' & rhs & %hφ)".
+          assert (∀ x y, φ x y → φ x x) as hφ_eq_alt by admit. iPureIntro. eapply hφ_eq_alt. apply hφ.
+      }
 
       iApply fupd_mask_intro. 1: auto. iIntros "Hclose".
 
@@ -100,13 +112,16 @@ Section adequacy.
                                  (λ v v' : val, v = RES → v' = RES) ε δ⌝)%I with "[-]" as "altgoal".
       { iIntros.
         iApply "IH".
+        (* these 3 are fixable by requiring the resources back in the pweq clause *)
         1: admit. 1: admit. 1: admit. simpl.
         iApply (wp_mono with "h").
         iIntros (v) "(%v' & %σv' & SP & %pweq)".
         iExists _. iSplit. 2: iPureIntro ; exact pweq.
+        (* we have the spec auth but need the frag... *)
         admit.
       }
       iSpecialize ("altgoal" with "[]") => //.
+      (* modalities are messed up *)
       Fail iApply "altgoal".
       admit.
   Admitted.

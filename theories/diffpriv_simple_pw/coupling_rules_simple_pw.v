@@ -140,6 +140,7 @@ Section rules.
     iSplit.
     { iSpecialize ("pw" $! #42 with "rhs").
       rewrite wp_unfold /wp_pre //= He. iSpecialize ("pw" with "[$]").
+      (* TODO reducibility requirement; can probably be fixed *)
       admit.
     }
     iRight.
@@ -147,14 +148,17 @@ Section rules.
     iMod "Hclose'" as "_".
     iModIntro. iSplit.
     -
-      (* what if we consume the auth fragment? *)
-      iAssert (∀ v, (∀ e' σ', spec_auth (e', σ') -∗ (∃ (v' : val) (σ' : state), spec_auth (@pair expr state (Val v') σ') ∗ ⌜v = v'⌝)) ={E}=∗ ∃ v', ⤇ v' ∗ ⌜v = v'⌝)%I with "[-]" as "alt_goal_no_pers".
+      (* The current goal is weird, see comments below. *)
+      (* What if we drop persistence and consume the auth fragment instead? *)
+      iAssert (∀ v, ∃ K, (∀ e' σ', spec_auth (fill K e', σ') -∗ (∃ (v' : val) (σ' : state), spec_auth (@pair expr state (fill K (Val v')) σ') ∗ ⌜v = v'⌝)) ={E}=∗ ∃ v', ⤇ fill K v' ∗ ⌜v = v'⌝)%I with "[-]" as "alt_goal_no_pers".
+      (* iAssert (∀ v, (∀ e' σ', spec_auth (e', σ') -∗ (∃ (v' : val) (σ' : state), spec_auth (@pair expr state (Val v') σ') ∗ ⌜v = v'⌝)) ={E}=∗ ∃ v', ⤇ v' ∗ ⌜v = v'⌝)%I with "[-]" as "alt_goal_no_pers". *)
       2: admit.
-      iIntros "% h".
+      iIntros "%". iExists []. iIntros "h".
+      assert (e' = fill [] e') as -> by auto.
       iDestruct ("h" with "S") as "(%v' & %σ' & S' & %eq)".
       iModIntro.
       iExists v'. iSplit. 2: by rewrite eq.
-      iDestruct (spec_auth_prog_agree with "S' rhs") as %->.
+      iDestruct (spec_auth_prog_agree with "S' rhs") as %<-.
       done.
 
 
@@ -228,180 +232,32 @@ Section rules.
     iNext.
     iMod "Hclose'".
     iModIntro. iSplit.
-    - iModIntro.
-      + iIntros "%v (%v' & %σ' & rhs & %eq) !>". iExists v'. iSplit. 2: by rewrite eq. admit.
+    -
+      iAssert (∀ v, ∃ K, (∀ e' σ', spec_auth (fill K e', σ') -∗ (∃ (v' : val) (σ' : state), spec_auth (@pair expr state (fill K (Val v')) σ') ∗ ⌜v = v'⌝)) ={E}=∗ ∃ v', ⤇ fill K v' ∗ ⌜v = v'⌝)%I with "[-]" as "alt_goal_no_pers".
+      2: admit.
+      iIntros "%". iExists []. iIntros "h".
+      assert (e' = fill [] e') as -> by auto.
+      iDestruct ("h" with "S") as "(%v' & %σ' & S' & %eq)".
+      iModIntro.
+      iExists v'. iSplit. 2: by rewrite eq.
+      iDestruct (spec_auth_prog_agree with "S' rhs") as %<-.
+      done.
+
+    (* - iModIntro.
+         + iIntros "%v (%v' & %σ' & rhs & %eq) !>". iExists v'. iSplit. 2: by rewrite eq. admit. *)
     - iIntros (RES).
       iApply (wp_strong_mono with "[pw rhs]") => //.
       + iApply ("pw" $! RES). done.
       + simpl. iIntros "%v (%v' & rhs & %pweq) !>".
-        iExists v',σ1'.
+        iAssert (∃ v1' (σv' : state) K (_ : LanguageCtx K), spec_auth
+                                        (@pair expr state (K (Val v1')) σv')
+                                         ∗ ⌜v = RES → v1' = RES⌝)%I with "[-]" as "_".
+        2: admit.
+        iExists v',σ1',(fill K),_.
         iDestruct (spec_auth_prog_agree with "S rhs") as %->.
         iSplit. 2: iPureIntro ; exact pweq.
         iFrame.
   Admitted.
 
-  (* Lemma wp_couple_laplace (loc loc' k k' : Z)
-       (Hdist : (Z.abs (k + loc - loc') <= k')%Z)
-       (num den : Z) (ε ε' : R) K E :
-       IZR num / IZR den = ε →
-       0 < IZR num / IZR den →
-       ε' = (IZR k' * ε) →
-       ⤇ fill K (Laplace #num #den #loc') -∗ ↯m ε' -∗
-       WP (Laplace #num #den #loc) @ E
-         {{ v, ∃ z : Z, ⌜v = #z⌝ ∗ ⤇ fill K #(z+k) }}.
-     Proof.
-       iIntros (Hε εpos Hε').
-       iIntros "Hr Hε".
-       iApply wp_lift_step_prog_couple; [done|].
-       iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1) & Hauth2 & Hε2 & Hδ2)".
-       iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
-       iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-       iDestruct (ecm_supply_ecm_inv with "Hε2 Hε") as %(? &?& -> & Hε'').
-       iApply (prog_coupl_steps_simple _ _ _ δ_now 0%NNR) ;
-         [done| apply nnreal_ext; simpl; lra |solve_red|solve_red|..].
-       { apply DPcoupl_steps_ctx_bind_r => //. rewrite Hε''.
-         eapply DPcoupl_laplace_step => //. }
-       iIntros (???? (?& [=->] & (z & [=-> ->] & [=-> ->]))).
-       iMod (spec_update_prog (fill K #(_)) with "Hauth2 Hr") as "[$ Hspec0]".
-       iMod (ecm_supply_decrease with "Hε2 Hε") as (???Herr Hε''') "H".
-       do 2 iModIntro.
-       iMod "Hclose'" as "_".
-       iModIntro. iFrame.
-       rewrite -wp_value.
-       simplify_eq. rewrite Hε'' Hε''' in Herr.
-       rewrite Rplus_comm in Herr. apply Rplus_eq_reg_r in Herr. clear -Herr.
-       apply nnreal_ext in Herr. subst. iSplitL. 2: done. done.
-       Unshelve. all: exact 0%Z.
-     Qed.
-
-     Lemma hoare_couple_laplace_choice (loc loc' T : Z)
-       (dist_loc : (Z.abs (loc - loc') <= 1)%Z)
-       (num den : Z) (ε ε' : R) K E :
-       IZR num / IZR den = ε →
-       0 < IZR num / IZR den →
-       ε' = (2*ε) →
-       {{{ ⤇ fill K (Laplace #num #den #loc') ∗ ↯m ε' }}}
-         Laplace #num #den #loc @ E
-         {{{ (z : Z), RET #z;
-             ∃ z' : Z, ⤇ fill K #z'
-                    ∗
-                      ( ⌜(T <= z ∧ T + 1 <= z')⌝
-                        ∨
-                          (⌜z < T ∧ z' < T + 1⌝ ∗ ↯m ε'))%Z
-              }}}.
-     Proof.
-       iIntros (Hε εpos Hε').
-       iIntros (?) "(Hr & Hε) Hcnt".
-       iApply wp_lift_step_prog_couple; [done|]. simpl.
-       iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1) & Hauth2 & (Hε2 & Hδ))".
-       iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
-       iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-       iDestruct (ecm_supply_ecm_inv with "Hε2 Hε") as %(? & ε_now_minus_ε' & H_ε_now & Hε'').
-       set (P := (λ '(ez, _) , ∃ z : Z, ez = Val (LitV (LitInt z)) ∧ T <= z)%Z : cfg → Prop).
-       set (R := (λ ρ ρ' : expr * state ,
-                     ρ.2 = σ1 ∧ ρ'.2 = σ1' ∧
-                     (P ρ →
-                     let (ez, ez') := (ρ.1, ρ'.1) in
-                     ∃ z z' : Z, ez = Val (LitV (LitInt z)) ∧
-                                   ez' = Val (LitV (LitInt z')) ∧
-                                   T <= z ∧ T + 1 <= z')%Z)).
-       set (RR := (λ a '(e2', σ2'), ∃ e2'', (e2', σ2') = (fill K e2'', σ2') ∧ R a (e2'', σ2'))).
-       set (R' := (λ ρ ρ' : expr * state ,
-                      ρ.2 = σ1 ∧ ρ'.2 = σ1' ∧
-                      (¬ P ρ →
-                      let (ez, ez') := (ρ.1, ρ'.1) in
-                      ∃ z z' : Z, ez = Val (LitV (LitInt z)) ∧
-                                    ez' = Val (LitV (LitInt z')) ∧
-                                    z < T ∧ z' < T + 1)%Z)).
-       set (RR' := (λ a '(e2', σ2'), ∃ e2'', (e2', σ2') = (fill K e2'', σ2') ∧ R' a (e2'', σ2'))).
-       opose proof (prog_coupl_steps ε_now_minus_ε' x ε_now 0 ε_now
-                      δ_now 0 0 δ_now
-                      P RR RR')%NNR as pcs ; simpl in pcs.
-       iApply pcs => // ; clear pcs.
-       1,2: apply nnreal_ext ; simpl ; lra.
-       1,2: solve_red.
-
-       (* Disjointness of R and R' under P is fine *)
-       - intros [] [] []. intros P_ρ nP_ρ'. subst R R' P ; simpl in *. intros [h h'].
-         destruct h as (e1'' & eq'' & R_ρρ').
-         destruct h' as (? & eq''' & R'_ρρ').
-         apply R_ρρ' in P_ρ. apply R'_ρρ' in nP_ρ'.
-         destruct P_ρ as [?[?[?[?[]]]]]. destruct nP_ρ' as [?[?[?[?[]]]]].
-         subst. simplify_eq. lia.
-
-       (* If we're above (P holds) the coupling should be the shift Laplace translation. *)
-       (* Shouldn't we get to know that P holds here? *)
-       - intros. replace 0%R with (nonneg 0%NNR) => //.
-         apply DPcoupl_steps_ctx_bind_r => //.
-         subst. simpl in *.
-         eapply DPcoupl_mono ; last first.
-         1: eapply DPcoupl_laplace_step.
-         all: try by intuition eauto.
-         { instantiate (1 := 1%Z).
-           rewrite Hε''. real_solver_partial. 1: lra.
-           replace 2 with (IZR 2) => //. apply IZR_le.
-           revert dist_loc. repeat apply Zabs_ind ; lia. }
-         + simpl. intros [e σ] [e' σ'] (z & eq_ez & eq_ez'). repeat split. 1,2: simpl ; by simplify_eq.
-           intros Pe. destruct Pe as (ey & eq_ey & above). simpl.
-           exists z, (z + 1)%Z.
-           repeat split ; simplify_eq => //.
-           lia.
-
-       (* if P is false we use the trivial coupling *)
-       - intros. replace 0%R with (nonneg 0%NNR) => //. apply DPcoupl_steps_ctx_bind_r => //.
-         subst. simpl in *.
-         eapply DPcoupl_mono ; last first.
-         1: eapply DPcoupl_laplace_step.
-         all: try by intuition eauto.
-         { instantiate (1 := (loc' - loc)%Z).
-           replace (loc' - loc + loc - loc')%Z with 0%Z by lia.
-           assert (Z.abs 0 = 0)%Z as ->. 2: lra. apply Zabs_ind ; lia. }
-         + simpl. intros [e σ] [e' σ'] (z & eq_ez & eq_ez').
-           repeat split. 1,2: simpl ; by simplify_eq.
-           intros nPe. exists z, (z + (loc' - loc))%Z.
-           repeat split ; simplify_eq => //.
-           * subst P R R' ; simpl in *.
-             destruct (decide (z < T)%Z) => //.
-             exfalso. apply nPe. exists z. split => //. lia.
-           * subst P R R' ; simpl in *.
-             destruct (decide (z < T)%Z). 1: lia. exfalso ; apply nPe ; exists z ; split => // ; lia.
-
-       - iIntros (e2 σ2 e2' σ2').
-         destruct (decide (P (e2, σ2))) as [p | n].
-         + iSplitL ; last first.
-           { iIntros ([nP_ρ2 R'_ρ2]). exfalso. done. }
-           iIntros (((ze2 & eqe2 & Pe2) & (e2'' & [eq_e2'' R_ρ2ρ2']))).
-           unfold R in R_ρ2ρ2'.
-           simpl in R_ρ2ρ2'. destruct R_ρ2ρ2' as (<- & <- & R_ρ2ρ2'). specialize (R_ρ2ρ2' p).
-           destruct R_ρ2ρ2' as (z & z' & eq_e2_z & eq_e2''_z' & z_above & z'_above).
-           inversion eq_e2''. simplify_eq.
-           iMod (spec_update_prog (fill K #(_)) with "Hauth2 Hr") as "[$ Hspec0]".
-           iMod (ecm_supply_decrease with "Hε2 Hε") as (???Herr Hε''') "H".
-           do 2 iModIntro.
-           iMod "Hclose'" as "_".
-           iModIntro. iFrame.
-           rewrite -wp_value.
-           iDestruct ("Hcnt" with "[$Hspec0]") as "$".
-           { iLeft. done. }
-           simplify_eq. rewrite Hε'' Hε''' in Herr.
-           rewrite Rplus_comm in Herr. apply Rplus_eq_reg_r in Herr. clear -Herr.
-           apply nnreal_ext in Herr. subst. iFrame.
-
-         + iSplitR.
-           { iIntros ([P_ρ2 R_ρ2]). exfalso. done. }
-           iIntros ((nP_ρ2 & (e2'' & [eq_e2'' R'_ρ2ρ2']))).
-           unfold R' in R'_ρ2ρ2'.
-           simpl in R'_ρ2ρ2'. destruct R'_ρ2ρ2' as (<- & <- & R'_ρ2ρ2'). specialize (R'_ρ2ρ2' nP_ρ2).
-           destruct R'_ρ2ρ2' as (z & z' & eq_e2_z & eq_e2''_z' & z_below & z'_below).
-           inversion eq_e2''. simplify_eq.
-           iMod (spec_update_prog (fill K #(_)) with "Hauth2 Hr") as "[$ Hspec0]".
-           do 2 iModIntro.
-           iMod "Hclose'" as "_".
-           iModIntro. iFrame.
-           rewrite -wp_value.
-           iDestruct ("Hcnt" with "[$Hspec0 Hε]") as "$".
-           { iRight. iFrame. done. }
-           Unshelve. all: exact 0%Z.
-     Qed. *)
 
 End rules.
