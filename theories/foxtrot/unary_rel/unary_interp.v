@@ -138,7 +138,7 @@ Section interp_ren.
     - intros v1 ; unfold lrel_car; simpl;
         simpl; properness; auto.
       rewrite /lrel_car /=. properness; auto.
-      apply wp_proper => //. apply (IHτ (_ :: _)).
+      apply refines_proper => //. apply (IHτ (_ :: _)).
     - intros ?; unfold lrel_car; simpl; properness; auto. apply (IHτ (_ :: _)).
     - intros v1; simpl.
       rewrite iter_up. case_decide; simpl; properness.
@@ -172,7 +172,7 @@ Section interp_ren.
     - intros ?; simpl; unfold lrel_car; simpl;
       properness; auto.
       rewrite /lrel_car /=. properness; auto.
-      apply wp_proper=> //. apply (IHτ (_ :: _)).
+      apply refines_proper=> //. apply (IHτ (_ :: _)).
     - intros ?; unfold lrel_car; simpl; properness; auto.
         by apply (IHτ (_ :: _)).
     - intros ?; simpl; properness; auto.
@@ -194,7 +194,7 @@ Section interp_ren.
     - intros ?. unfold lrel_car; simpl;
       properness; auto.
       rewrite /lrel_car /=. properness; auto.
-      apply wp_proper=>//. apply (IHτ (_ :: _)).
+      apply refines_proper=>//. apply (IHτ (_ :: _)).
     - intros ?; unfold lrel_car; simpl; properness; auto. apply (IHτ (_ :: _)).
     - intros w1; simpl.
       rewrite iter_up; case_decide; simpl; properness.

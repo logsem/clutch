@@ -85,7 +85,8 @@ Section compatibility.
     wp_apply (wp_wand with "[$]").
     iIntros (?) "H".
     simpl in *.
-    by iDestruct ("H" with "[$]") as "Hiff".
+    iDestruct ("H" with "[$]") as "Hiff".
+    by unfold_rel.
   Qed.
   
   Lemma refines_seq A e1 e2 B :
@@ -129,6 +130,7 @@ Section compatibility.
     iIntros (??).
     iIntros "!>" (?).
     subst.
+    unfold_rel.
     wp_pures.
     iApply "H".
   Qed.
@@ -141,7 +143,7 @@ Section compatibility.
     REL e1 <- e2 : ().
   Proof.
     unfold_rel.
-    iIntros "IH1 IH2".(*  (K j) "Hspec". *)
+    iIntros "IH1 IH2". (*  (K j) "Hspec". *)
     (* tp_bind j (e2')%E. *)
     (* iSpecialize ("IH2" $! _ j with "[$]"). *)
     wp_bind e2.

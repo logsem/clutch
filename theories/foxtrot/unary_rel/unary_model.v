@@ -101,7 +101,7 @@ Section semtypes.
   Definition lrel_int : lrel Σ := LRel (λ w1, ∃ n : Z, ⌜ w1 = #n ⌝)%I.
 
   Definition lrel_arr (A1 A2 : lrel Σ) : lrel Σ := LRel (λ w1,
-    □ ∀ v1, A1 v1 -∗ WP (App w1 v1) {{ A2 }})%I.
+    □ ∀ v1, A1 v1 -∗ refines (App w1 v1) A2 )%I.
 
   Definition lrel_ref (A : lrel Σ) : lrel Σ := LRel (λ w1,
     ∃ l1: loc, ⌜w1 = #l1⌝ ∧

@@ -64,10 +64,10 @@ Tactic Notation "tac_bind_helper" open_constr(efoc) :=
 (** Reshape the expression on the LHS/RHS untill you can apply `tac` to it *)
 Ltac rel_reshape_cont_l tac :=
   lazymatch goal with
-  | |- envs_entails _ (refines (fill ?K ?e) _ _) =>
+  | |- envs_entails _ (refines (fill ?K ?e) _) =>
     reshape_expr e ltac:(fun K' e' =>
       tac (K' ++ K) e')
-  | |- envs_entails _ (refines ?e _ _) =>
+  | |- envs_entails _ (refines ?e _) =>
     reshape_expr e ltac:(fun K' e' => tac K' e')
   end.
 
@@ -172,8 +172,8 @@ Tactic Notation "rel_pure_l" open_constr(ef) "in" open_constr(Kf) :=
       |tc_solve                     (** PureExec ϕ n e1 e2 *)
       | .. ]);
       [try solve_vals_compare_safe                (** φ *)
-      |first [left; split; reflexivity
-             | right; reflexivity]                  (** (m = n /\ E=top) ∨ (m = 0) *)
+      |first [left; reflexivity
+             | right; reflexivity]                  (** (m = n ) ∨ (m = 0) *)
       |tc_solve                                     (** IntoLaters *)
       |simpl; reflexivity           (** eres = fill K e2 *)
       |rel_finish                   (** new goal *)]

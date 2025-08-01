@@ -214,21 +214,19 @@ Section rules.
   (*   iFrame; auto. *)
   (* Qed. *)
 
-  (* Lemma refines_fork e e' : *)
-  (*   (REL e << e' : ()%lrel) -∗ *)
-  (*   REL Fork e << Fork e' : (). *)
-  (* Proof. *)
-  (*   rewrite refines_eq /refines_def. *)
-  (*   iIntros "H". *)
-  (*   iIntros (K j) "Hs /=". *)
-  (*   tp_fork j as k' "Hk'". *)
-  (*   rewrite -(fill_empty e'). *)
-  (*   iSpecialize ("H" with "Hk'"). *)
-  (*   iApply (wp_fork with "[H]"). *)
-  (*   - iNext. iApply (wp_wand with "H"). eauto. *)
-  (*   - iModIntro. iExists _. iFrame.  *)
-  (*     eauto with iFrame. *)
-  (* Qed. *)
+  Lemma refines_fork e :
+    (REL e : ()%lrel) -∗
+    REL Fork e : ().
+  Proof.
+    rewrite refines_eq /refines_def.
+    iIntros "H".
+    (* iIntros (K j) "Hs /=". *)
+    (* tp_fork j as k' "Hk'". *)
+    (* rewrite -(fill_empty e'). *)
+    wp_apply (wp_fork with "[-]"); last done.
+    iNext.
+    by iApply (wp_wand with "[$]").
+  Qed.
 
   Lemma refines_xchg_l K l e v' A :
     IntoVal e v' →
