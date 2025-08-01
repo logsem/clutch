@@ -73,7 +73,7 @@ Section semtypes.
 
   Set Primitive Projections.
 
-  Definition refines_def (E : coPset) (e : expr) (e' : expr) (A : lrel Σ)
+  Definition refines_def (e : expr) (e' : expr) (A : lrel Σ)
     : iProp Σ :=
     (∀ K j, j ⤇ fill K e' -∗
           (* pupd E ⊤ *) (WP e {{ v, ∃ v', j ⤇ fill K (of_val v')
@@ -83,12 +83,12 @@ Section semtypes.
   Definition refines := unseal refines_aux.
   Definition refines_eq : refines = refines_def := seal_eq refines_aux.
 
-  Global Instance refines_ne E n :
-    Proper ((=) ==> (=) ==> (dist n) ==> (dist n)) (refines E).
+  Global Instance refines_ne n :
+    Proper ((=) ==> (=) ==> (dist n) ==> (dist n)) (refines).
   Proof. rewrite refines_eq /refines_def. solve_proper. Qed.
 
-  Global Instance refines_proper E :
-    Proper ((=) ==> (=) ==> (≡) ==> (≡)) (refines E).
+  Global Instance refines_proper :
+    Proper ((=) ==> (=) ==> (≡) ==> (≡)) (refines).
   Proof. solve_proper_from_ne. Qed.
 
   Definition lrel_unit : lrel Σ := LRel (λ w1 w2, ⌜ w1 = #() ∧ w2 = #() ⌝%I).
@@ -97,7 +97,7 @@ Section semtypes.
   Definition lrel_int : lrel Σ := LRel (λ w1 w2, ∃ n : Z, ⌜ w1 = #n ∧ w2 = #n ⌝)%I.
 
   Definition lrel_arr (A1 A2 : lrel Σ) : lrel Σ := LRel (λ w1 w2,
-    □ ∀ v1 v2, A1 v1 v2 -∗ refines ⊤ (App w1 v1) (App w2 v2) A2)%I.
+    □ ∀ v1 v2, A1 v1 v2 -∗ refines (App w1 v1) (App w2 v2) A2)%I.
 
   Definition lrel_ref (A : lrel Σ) : lrel Σ := LRel (λ w1 w2,
     ∃ l1 l2: loc, ⌜w1 = #l1⌝ ∧ ⌜w2 = #l2⌝ ∧
@@ -244,13 +244,13 @@ Section semtypes_properties.
 
 End semtypes_properties.
 
-Notation "'REL' e1 '<<' e2 '@' E ':' A" :=
-  (refines E e1%E e2%E (A)%lrel)
-  (at level 100, E at next level, e1, e2 at next level,
-   A at level 200,
-   format "'[hv' 'REL'  e1  '/' '<<'  '/  ' e2  '@'  E  :  A ']'").
+(* Notation "'REL' e1 '<<' e2 '@' E ':' A" := *)
+(*   (refines E e1%E e2%E (A)%lrel) *)
+(*   (at level 100, E at next level, e1, e2 at next level, *)
+(*    A at level 200, *)
+(*    format "'[hv' 'REL'  e1  '/' '<<'  '/  ' e2  '@'  E  :  A ']'"). *)
 Notation "'REL' e1 '<<' t ':' A" :=
-  (refines ⊤ e1%E t%E (A)%lrel)
+  (refines e1%E t%E (A)%lrel)
   (at level 100, e1, t at next level,
    A at level 200,
    format "'[hv' 'REL'  e1  '/' '<<'  '/  ' t  :  A ']'").
@@ -261,17 +261,17 @@ Section related_facts.
   Implicit Types e : expr.
 
 
-    Lemma fupd_refines E e t A :
-    (|={⊤}=> refines E e t A) -∗ refines E e t A.
+    Lemma fupd_refines e t A :
+    (|={⊤}=> refines e t A) -∗ refines e t A.
   Proof.
     rewrite refines_eq /refines_def.
     iIntros "H". iIntros (j ε) "Hr  /=".
     iMod "H" as "H". iApply ("H" with "Hr ").
   Qed.
 
-  Global Instance elim_fupd_refines p E e t P A :
+  Global Instance elim_fupd_refines p e t P A :
    ElimModal True p false (|={⊤}=> P) P
-     (refines E e t A) (refines E e t A).
+     (refines e t A) (refines e t A).
   Proof.
     rewrite /ElimModal. intros _.
     iIntros "[HP HI]". iApply fupd_refines.
@@ -297,9 +297,9 @@ Section related_facts.
   (*   iMod "HP"; iModIntro; by iApply "HI". *)
   (* Qed. *)
 
-  Global Instance elim_bupd_logrel p E e t P A :
+  Global Instance elim_bupd_logrel p e t P A :
    ElimModal True p false (|==> P) P
-     (refines E e t A) (refines E e t A).
+     (refines e t A) (refines e t A).
   Proof.
     rewrite /ElimModal (bupd_fupd ⊤).
     apply: elim_fupd_refines.
@@ -319,11 +319,11 @@ Section monadic.
   Context `{!foxtrotRGS Σ}.
   Implicit Types e : expr.
 
-  Lemma refines_bind K K' E A A' e e' :
-    (REL e << e' @ E : A) -∗
+  Lemma refines_bind K K' A A' e e' :
+    (REL e << e' : A) -∗
     (∀ v v', A v v' -∗
       REL fill K (of_val v) << (fill K' (of_val v')) : A') -∗
-    REL fill K e << fill K' e' @ E : A'.
+    REL fill K e << fill K' e' : A'.
   Proof.
     iIntros "Hm Hf".
     rewrite refines_eq /refines_def.

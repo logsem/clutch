@@ -38,12 +38,12 @@ Section rules.
     by iApply ("IH" with "Hs").
   Qed.
 
-  Lemma refines_masked_l E n
+  Lemma refines_masked_l n
     (K' : list ectx_item) e e' t A ϕ :
     PureExec ϕ n e e' →
     ϕ →
-    (REL fill K' e' << t @ E : A)
-    ⊢ REL fill K' e << t @ E : A.
+    (REL fill K' e' << t : A)
+    ⊢ REL fill K' e << t : A.
   Proof.
     intros Hpure Hϕ.
     rewrite refines_eq /refines_def.
@@ -52,10 +52,10 @@ Section rules.
     iApply ("IH" with "Hs").
   Qed.
   
-  Lemma refines_wp_l E K e1 t A :
+  Lemma refines_wp_l K e1 t A :
     (WP e1 {{ v,
-        REL fill K (of_val v) << t @ E: A }})%I
-    ⊢ REL fill K e1 << t @ E: A.
+        REL fill K (of_val v) << t : A }})%I
+    ⊢ REL fill K e1 << t : A.
   Proof.
     rewrite refines_eq /refines_def.
     iIntros "He" (K' j) "Hs".
@@ -65,11 +65,11 @@ Section rules.
     by iApply ("Hv" with "Hs").
   Qed.
 
-  Lemma refines_pure_r E K' e e' t A n ϕ :
+  Lemma refines_pure_r K' e e' t A n ϕ :
     PureExec ϕ n e e' →
     ϕ →
-    (REL t << fill K' e' @ E : A)
-      ⊢ REL t << fill K' e @ E : A.
+    (REL t << fill K' e' : A)
+      ⊢ REL t << fill K' e : A.
   Proof.
     rewrite refines_eq /refines_def => Hpure Hϕ.
     iIntros "Hlog" (? j) "Hj /=".
@@ -77,13 +77,13 @@ Section rules.
     by iApply ("Hlog" with "[$]").
   Qed.
 
-  Lemma refines_atomic_l (E E' : coPset) K e1 t A  
+  Lemma refines_atomic_l (E : coPset) K e1 t A  
     (Hatomic : Atomic StronglyAtomic e1) :
-    (∀ K' j , j ⤇ fill K' t ={⊤, E'}=∗
-             WP e1 @ E' {{ v,
-              |={E', ⊤}=> ∃ t', j ⤇ fill K' t' ∗
-              REL fill K (of_val v) << t' @ E : A }})%I
-   ⊢ REL fill K e1 << t @ E : A.
+    (∀ K' j , j ⤇ fill K' t ={⊤, E}=∗
+             WP e1 @ E {{ v,
+              |={E, ⊤}=> ∃ t', j ⤇ fill K' t' ∗
+              REL fill K (of_val v) << t' : A }})%I
+   ⊢ REL fill K e1 << t : A.
   Proof.
     rewrite refines_eq /refines_def.
     iIntros "Hlog" (K' j) "Hs /=".
@@ -113,11 +113,11 @@ Section rules.
   Qed.
 
   
-  Lemma refines_step_r E K' e1 e2 A :
+  Lemma refines_step_r K' e1 e2 A :
     (∀ k j, j ⤇ fill k e2 -∗
-         pupd E E (∃ v, j ⤇ fill k (of_val v) ∗
-                             REL e1 << fill K' (of_val v) @ E : A))
-    ⊢ REL e1 << fill K' e2 @ E : A.
+         pupd ⊤ ⊤ (∃ v, j ⤇ fill k (of_val v) ∗
+                             REL e1 << fill K' (of_val v) : A))
+    ⊢ REL e1 << fill K' e2 : A.
   Proof.
     rewrite refines_eq /refines_def /=.
     iIntros "He" (? j) "Hs /=".
@@ -153,10 +153,10 @@ Section rules.
     by iApply refines_ret.
   Qed.
 
-  Lemma refines_wand E e1 e2 A A' :
-    (REL e1 << e2 @ E : A) ⊢
+  Lemma refines_wand e1 e2 A A' :
+    (REL e1 << e2 : A) ⊢
     (∀ v1 v2, A v1 v2 ={⊤}=∗ A' v1 v2) -∗
-    REL e1 << e2 @ E : A'.
+    REL e1 << e2 : A'.
   Proof.
     iIntros "He HAA".
     iApply (refines_bind [] [] with "He").
@@ -166,11 +166,11 @@ Section rules.
 
   
 
-  Lemma refines_alloc_l K E e v t A :
+  Lemma refines_alloc_l K e v t A :
     IntoVal e v →
     (▷ (∀ l : loc, l ↦ v -∗
-           REL fill K (of_val #l) << t @ E : A))%I
-    ⊢ REL fill K (ref e) << t @ E: A.
+           REL fill K (of_val #l) << t : A))%I
+    ⊢ REL fill K (ref e) << t : A.
 
   Proof.
     iIntros (<-) "Hlog".
@@ -183,10 +183,10 @@ Section rules.
   (*   wp_alloc l as "Hl". by iApply "Hlog". *)
   (* Qed. *)
 
-  Lemma refines_alloctape_l K E N z t A :
+  Lemma refines_alloctape_l K N z t A :
     TCEq N (Z.to_nat z) →
-    (▷ (∀ α : loc, α ↪N (N; []) -∗ REL fill K (of_val #lbl:α) << t @ E : A))%I
-    ⊢ REL fill K (alloc #z) << t @ E: A.
+    (▷ (∀ α : loc, α ↪N (N; []) -∗ REL fill K (of_val #lbl:α) << t : A))%I
+    ⊢ REL fill K (alloc #z) << t : A.
   Proof.
     iIntros (->) "Hlog".
     iApply refines_wp_l.
@@ -198,10 +198,10 @@ Section rules.
   (*   by wp_apply (wp_alloc_tape with "[//]"). *)
   (* Qed. *)
   
-  Lemma refines_alloc_r E K e v t A :
+  Lemma refines_alloc_r K e v t A :
     IntoVal e v →
-    (∀ l : loc, l ↦ₛ v -∗ REL t << fill K (of_val #l) @ E : A)%I
-      ⊢ REL t << fill K (ref e) @ E : A.
+    (∀ l : loc, l ↦ₛ v -∗ REL t << fill K (of_val #l) : A)%I
+      ⊢ REL t << fill K (ref e) : A.
   Proof.
     intros <-.
     iIntros "Hlog". simpl.
@@ -211,10 +211,10 @@ Section rules.
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 
-  Lemma refines_alloctape_r E K N z t A :
+  Lemma refines_alloctape_r K N z t A :
     TCEq N (Z.to_nat z) →
-    (∀ α : loc, α ↪ₛN (N; []) -∗ REL t << fill K (of_val #lbl:α) @ E : A)%I
-    ⊢ REL t << fill K (alloc #z) @ E : A.
+    (∀ α : loc, α ↪ₛN (N; []) -∗ REL t << fill K (of_val #lbl:α) : A)%I
+    ⊢ REL t << fill K (alloc #z) : A.
   Proof.
     iIntros (->) "Hlog".
     iApply refines_step_r.
@@ -241,11 +241,11 @@ Section rules.
       eauto with iFrame.
   Qed.
 
-  Lemma refines_xchg_l K E l e v' t A :
+  Lemma refines_xchg_l K l e v' t A :
     IntoVal e v' →
     (∃ v, ▷ l ↦ v ∗
-      ▷(l ↦ v' -∗ REL fill K (of_val v) << t @ E : A))
-    ⊢ REL fill K (Xchg #l e) << t @ E: A.
+      ▷(l ↦ v' -∗ REL fill K (of_val v) << t : A))
+    ⊢ REL fill K (Xchg #l e) << t: A.
   Proof.
     iIntros (<-) "Hlog".
     iApply refines_wp_l.
@@ -258,14 +258,14 @@ Section rules.
   (*   iApply (wp_xchg _ _ _ v' with "Hl"); auto. *)
   (* Qed. *)
 
-  Lemma refines_cmpxchg_l K E l e1 e2 v1 v2 t A :
+  Lemma refines_cmpxchg_l K l e1 e2 v1 v2 t A :
     IntoVal e1 v1 →
     IntoVal e2 v2 →
     val_is_unboxed v1 →
     (∃ v', ▷ l ↦ v' ∗
-     (⌜v' ≠ v1⌝ -∗ ▷ (l ↦ v' -∗ REL fill K (of_val (v', #false)) << t @ E : A)) ∧
-     (⌜v' = v1⌝ -∗ ▷ (l ↦ v2 -∗ REL fill K (of_val (v', #true)) << t @ E : A)))
-    ⊢ REL fill K (CmpXchg #l e1 e2) << t @ E: A.
+     (⌜v' ≠ v1⌝ -∗ ▷ (l ↦ v' -∗ REL fill K (of_val (v', #false)) << t : A)) ∧
+     (⌜v' = v1⌝ -∗ ▷ (l ↦ v2 -∗ REL fill K (of_val (v', #true)) << t : A)))
+    ⊢ REL fill K (CmpXchg #l e1 e2) << t : A.
   Proof.
     iIntros (<- <-?) "Hlog".
     iApply refines_wp_l.
@@ -298,11 +298,11 @@ Section rules.
   (*     iSpecialize ("Hlog" with "[]"); eauto. *)
   (* Qed. *)
 
-  Lemma refines_faa_l K E l e2 (i2 : Z) t A :
+  Lemma refines_faa_l K l e2 (i2 : Z) t A :
     IntoVal e2 #i2 →
     (∃ (i1 : Z), ▷ l ↦ #i1 ∗
-     ▷ (l ↦ #(i1 + i2) -∗ REL fill K (of_val #i1) << t @ E : A))
-    ⊢ REL fill K (FAA #l e2) << t @ E: A.
+     ▷ (l ↦ #(i1 + i2) -∗ REL fill K (of_val #i1) << t : A))
+    ⊢ REL fill K (FAA #l e2) << t : A.
   Proof.
     iIntros (<-) "Hlog".
     iApply refines_wp_l; auto.
@@ -311,11 +311,11 @@ Section rules.
     by iApply "Hlog".
   Qed.
 
-  Lemma refines_xchg_r E K l e1 v1 v t A :
+  Lemma refines_xchg_r K l e1 v1 v t A :
     IntoVal e1 v1 →
     l ↦ₛ v ⊢
-    (l ↦ₛ v1 -∗ REL t << fill K (of_val v) @ E : A)
-    -∗ REL t << fill K (Xchg #l e1) @ E : A.
+    (l ↦ₛ v1 -∗ REL t << fill K (of_val v) : A)
+    -∗ REL t << fill K (Xchg #l e1) : A.
   Proof.
     rewrite /IntoVal. iIntros (<-) "Hl Hlog".
     iApply refines_step_r.
@@ -324,14 +324,14 @@ Section rules.
     by iApply "Hlog".
   Qed.
 
-  Lemma refines_cmpxchg_fail_r E K l e1 e2 v1 v2 v t A :
+  Lemma refines_cmpxchg_fail_r K l e1 e2 v1 v2 v t A :
     IntoVal e1 v1 →
     IntoVal e2 v2 →
     vals_compare_safe v v1 →
     v ≠ v1 →
     l ↦ₛ v ⊢
-    (l ↦ₛ v -∗ REL t << fill K (of_val (v, #false)) @ E : A)
-    -∗ REL t << fill K (CmpXchg #l e1 e2) @ E : A.
+    (l ↦ₛ v -∗ REL t << fill K (of_val (v, #false)) : A)
+    -∗ REL t << fill K (CmpXchg #l e1 e2) : A.
   Proof.
     rewrite /IntoVal. iIntros (<-<-??) "Hl Hlog".
     iApply refines_step_r.
@@ -340,14 +340,14 @@ Section rules.
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 
-  Lemma refines_cmpxchg_suc_r E K l e1 e2 v1 v2 v t A :
+  Lemma refines_cmpxchg_suc_r K l e1 e2 v1 v2 v t A :
     IntoVal e1 v1 →
     IntoVal e2 v2 →
     vals_compare_safe v v1 →
     v = v1 →
     l ↦ₛ v ⊢
-    (l ↦ₛ v2 -∗ REL t << fill K (of_val (v, #true)) @ E : A)
-    -∗ REL t << fill K (CmpXchg #l e1 e2) @ E : A.
+    (l ↦ₛ v2 -∗ REL t << fill K (of_val (v, #true)) : A)
+    -∗ REL t << fill K (CmpXchg #l e1 e2) : A.
   Proof.
     rewrite /IntoVal. iIntros (<-<-??) "Hl Hlog".
     iApply refines_step_r.
@@ -356,11 +356,11 @@ Section rules.
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 
-  Lemma refines_faa_r E K l e2 (i1 i2 : Z) t A :
+  Lemma refines_faa_r K l e2 (i1 i2 : Z) t A :
     IntoVal e2 #i2 →
     l ↦ₛ #i1 -∗
-    (l ↦ₛ #(i1+i2) -∗ REL t << fill K (of_val #i1) @ E : A)
-    -∗ REL t << fill K (FAA #l e2) @ E : A.
+    (l ↦ₛ #(i1+i2) -∗ REL t << fill K (of_val #i1) : A)
+    -∗ REL t << fill K (FAA #l e2) : A.
   Proof.
     rewrite /IntoVal. iIntros (<-) "Hl Hlog".
     iApply refines_step_r.

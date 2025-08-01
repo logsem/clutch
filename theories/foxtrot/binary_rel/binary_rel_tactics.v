@@ -10,16 +10,16 @@ From clutch.foxtrot Require Import primitive_laws proofmode.
 From clutch.foxtrot.binary_rel Require Import binary_model binary_app_rel_rules.
 
 (** * General-purpose tactics *)
-Lemma tac_rel_bind_l `{!foxtrotRGS Σ} e' K ℶ E e t A :
+Lemma tac_rel_bind_l `{!foxtrotRGS Σ} e' K ℶ e t A :
   e = fill K e' →
-  envs_entails ℶ (REL fill K e' << t @ E : A) →
-  envs_entails ℶ (REL e << t @ E : A).
+  envs_entails ℶ (REL fill K e' << t : A) →
+  envs_entails ℶ (REL e << t : A).
 Proof. intros. subst. assumption. Qed.
 
-Lemma tac_rel_bind_r `{!foxtrotRGS Σ} (t' : expr) K ℶ E e t A :
+Lemma tac_rel_bind_r `{!foxtrotRGS Σ} (t' : expr) K ℶ e t A :
   t = fill K t' →
-  envs_entails ℶ (REL e << fill K t' @ E : A) →
-  envs_entails ℶ (REL e << t @ E : A).
+  envs_entails ℶ (REL e << fill K t' : A) →
+  envs_entails ℶ (REL e << t : A).
 Proof. intros. subst. assumption. Qed.
 
 Tactic Notation "rel_bind_l" open_constr(efoc) :=
@@ -64,19 +64,19 @@ Tactic Notation "tac_bind_helper" open_constr(efoc) :=
 (** Reshape the expression on the LHS/RHS untill you can apply `tac` to it *)
 Ltac rel_reshape_cont_l tac :=
   lazymatch goal with
-  | |- envs_entails _ (refines _ (fill ?K ?e) _ _) =>
+  | |- envs_entails _ (refines (fill ?K ?e) _ _) =>
     reshape_expr e ltac:(fun K' e' =>
       tac (K' ++ K) e')
-  | |- envs_entails _ (refines _ ?e _ _) =>
+  | |- envs_entails _ (refines ?e _ _) =>
     reshape_expr e ltac:(fun K' e' => tac K' e')
   end.
 
 Ltac rel_reshape_cont_r tac :=
   lazymatch goal with
-  | |- envs_entails _ (refines _ _ (fill ?K ?e) _) =>
+  | |- envs_entails _ (refines _ (fill ?K ?e) _) =>
     reshape_expr e ltac:(fun K' e' =>
       tac (K' ++ K) e')
-  | |- envs_entails _ (refines _ _ ?e _) =>
+  | |- envs_entails _ (refines _ ?e _) =>
     reshape_expr e ltac:(fun K' e' => tac K' e')
   end.
 
@@ -133,30 +133,30 @@ Tactic Notation "rel_apply" open_constr(lem) :=
 
 (** Pure reductions *)
 
-Lemma tac_rel_pure_l `{!foxtrotRGS Σ} K e1 ℶ ℶ' E e e2 eres ϕ n m t A :
+Lemma tac_rel_pure_l `{!foxtrotRGS Σ} K e1 ℶ ℶ' e e2 eres ϕ n m t A :
   e = fill K e1 →
   PureExec ϕ n e1 e2 →
   ϕ →
-  (m = n /\ E=⊤) ∨ m = 0 →
+  (m = n) ∨ m = 0 →
   MaybeIntoLaterNEnvs m ℶ ℶ' →
   eres = fill K e2 →
-  envs_entails ℶ' (REL eres << t @ E : A) →
-  envs_entails ℶ (REL e << t @ E : A).
+  envs_entails ℶ' (REL eres << t : A) →
+  envs_entails ℶ (REL e << t : A).
 Proof.
   rewrite envs_entails_unseal.
   intros Hfill Hpure Hϕ Hm ?? Hp. subst.
-  destruct Hm as [[-> ->] | ->]; rewrite into_laterN_env_sound /= Hp.
+  destruct Hm as [-> | ->]; rewrite into_laterN_env_sound /= Hp.
   - rewrite -refines_pure_l //.
   - rewrite -refines_masked_l //.
 Qed.
 
-Lemma tac_rel_pure_r `{!foxtrotRGS Σ} K e1 ℶ E (e e2 eres : expr) ϕ n t A :
+Lemma tac_rel_pure_r `{!foxtrotRGS Σ} K e1 ℶ (e e2 eres : expr) ϕ n t A :
   e = fill K e1 →
   PureExec ϕ n e1 e2 →
   ϕ →
   eres = fill K e2 →
-  envs_entails ℶ (REL t << eres @ E : A) →
-  envs_entails ℶ (REL t << e @ E : A).
+  envs_entails ℶ (REL t << eres : A) →
+  envs_entails ℶ (REL t << e : A).
 Proof.
   intros Hfill Hpure Hϕ ? Hp. subst.
   rewrite -refines_pure_r //.
@@ -372,8 +372,8 @@ Lemma tac_rel_alloc_l_simpl `{!foxtrotRGS Σ} K ℶ1 ℶ2 e t e' v' A :
   IntoVal e' v' →
   MaybeIntoLaterNEnvs 1 ℶ1 ℶ2 →
   (envs_entails ℶ2 (∀ (l : loc),
-     (l ↦ v' -∗ refines ⊤ (fill K (of_val #l)) t A))) →
-  envs_entails ℶ1 (refines ⊤ e t A).
+     (l ↦ v' -∗ refines (fill K (of_val #l)) t A))) →
+  envs_entails ℶ1 (refines e t A).
 Proof.
   rewrite envs_entails_unseal. intros ???; subst.
   rewrite into_laterN_env_sound /=.
@@ -397,11 +397,11 @@ Tactic Notation "rel_alloc_l" simple_intropattern(l) "as" constr(H) "at" open_co
 Tactic Notation "rel_alloc_l" simple_intropattern(l) "as" constr(H) :=
   rel_pures_l ; rel_alloc_l l as H at _ in _.
 
-Lemma tac_rel_alloc_r `{!foxtrotRGS Σ} K' ℶ E t' v' e t A :
+Lemma tac_rel_alloc_r `{!foxtrotRGS Σ} K' ℶ t' v' e t A :
   t = fill K' (Alloc t') →
   IntoVal t' v' →
-  envs_entails ℶ (∀ l, l ↦ₛ v' -∗ refines E e (fill K' #l) A) →
-  envs_entails ℶ (refines E e t A).
+  envs_entails ℶ (∀ l, l ↦ₛ v' -∗ refines e (fill K' #l) A) →
+  envs_entails ℶ (refines e t A).
 Proof.
   intros ???. subst t.
   rewrite -refines_alloc_r //.
@@ -430,8 +430,8 @@ Lemma tac_rel_alloctape_l_simpl `{!foxtrotRGS Σ} K ℶ1 ℶ2 e N z t A :
   e = fill K (AllocTape #z) →
   MaybeIntoLaterNEnvs 1 ℶ1 ℶ2 →
   (envs_entails ℶ2 (∀ (α : loc),
-     (α ↪N (N; []) -∗ refines ⊤ (fill K (of_val #lbl:α)) t A))) →
-  envs_entails ℶ1 (refines ⊤ e t A).
+     (α ↪N (N; []) -∗ refines (fill K (of_val #lbl:α)) t A))) →
+  envs_entails ℶ1 (refines e t A).
 Proof.
   rewrite envs_entails_unseal. intros -> ???; subst.
   rewrite into_laterN_env_sound /=.
@@ -454,11 +454,11 @@ Tactic Notation "rel_alloctape_l" simple_intropattern(l) "as" constr(H) "at" ope
 Tactic Notation "rel_alloctape_l" simple_intropattern(l) "as" constr(H) :=
   rel_pures_l ; rel_alloctape_l l as H at _ in _.
 
-Lemma tac_rel_alloctape_r `{!foxtrotRGS Σ} K' ℶ E e N z t A :
+Lemma tac_rel_alloctape_r `{!foxtrotRGS Σ} K' ℶ e N z t A :
   TCEq N (Z.to_nat z) →
   t = fill K' (AllocTape #z) →
-  envs_entails ℶ (∀ α, α ↪ₛN (N; []) -∗ refines E e (fill K' #lbl:α) A) →
-  envs_entails ℶ (refines E e t A).
+  envs_entails ℶ (∀ α, α ↪ₛN (N; []) -∗ refines e (fill K' #lbl:α) A) →
+  envs_entails ℶ (refines e t A).
 Proof. intros -> ?. subst t. rewrite -refines_alloctape_r //. Qed.
 
 Tactic Notation "rel_alloctape_r" simple_intropattern(l) "as" constr(H) "at" open_constr(ef) "in" open_constr(Kf) :=

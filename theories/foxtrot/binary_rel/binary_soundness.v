@@ -8,7 +8,7 @@ From clutch.foxtrot.binary_rel Require Import binary_model binary_adequacy_rel b
 From clutch.con_prob_lang.typing Require Export contextual_refinement.
 
 Lemma refines_sound_open Σ `{!foxtrotRGpreS Σ} Γ e e' τ :
-  (∀ `{foxtrotRGS Σ} Δ, ⊢ 〈⊤;Δ;Γ〉 ⊨ e ≤log≤ e' : τ) →
+  (∀ `{foxtrotRGS Σ} Δ, ⊢ 〈Δ;Γ〉 ⊨ e ≤log≤ e' : τ) →
   Γ ⊨ e ≤ctx≤ e' : τ.
 Proof.
   intros Hlog K σ₀ b Htyped.

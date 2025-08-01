@@ -272,22 +272,22 @@ Notation "⟦ Γ ⟧*" := (env_ltyped2 Γ).
 Section bin_log_related.
   Context `{!foxtrotRGS Σ}.
 
-  Definition bin_log_related (E : coPset)
+  Definition bin_log_related 
              (Δ : list (lrel Σ)) (Γ : stringmap type)
              (e e' : expr) (τ : type) : iProp Σ :=
     (∀ vs, ⟦ (λ τ, interp τ Δ) <$> Γ ⟧* vs -∗
            REL (subst_map (fst <$> vs) e)
-            << (subst_map (snd <$> vs) e') @ E : (interp τ Δ))%I.
+            << (subst_map (snd <$> vs) e') : (interp τ Δ))%I.
 
 End bin_log_related.
 
-Notation "〈 E ';' Δ ';' Γ 〉 ⊨ e '≤log≤' e' : τ" :=
-  (bin_log_related E Δ Γ e%E e'%E (τ)%ty)
-  (at level 100, E at next level, Δ at next level, Γ at next level, e, e' at next level,
-   τ at level 200,
-   format "'[hv' 〈 E ';'  Δ ';'  Γ 〉  ⊨  '/  ' e  '/' '≤log≤'  '/  ' e'  :  τ ']'").
+(* Notation "〈 E ';' Δ ';' Γ 〉 ⊨ e '≤log≤' e' : τ" := *)
+(*   (bin_log_related E Δ Γ e%E e'%E (τ)%ty) *)
+(*   (at level 100, E at next level, Δ at next level, Γ at next level, e, e' at next level, *)
+(*    τ at level 200, *)
+(*    format "'[hv' 〈 E ';'  Δ ';'  Γ 〉  ⊨  '/  ' e  '/' '≤log≤'  '/  ' e'  :  τ ']'"). *)
 Notation "〈 Δ ';' Γ 〉 ⊨ e '≤log≤' e' : τ" :=
-  (bin_log_related ⊤ Δ Γ e%E e'%E (τ)%ty)
+  (bin_log_related Δ Γ e%E e'%E (τ)%ty)
   (at level 100, Δ at next level, Γ at next level, e, e' at next level,
    τ at level 200,
    format "'[hv' 〈 Δ ';'  Γ 〉  ⊨  '/  ' e  '/' '≤log≤'  '/  ' e'  :  τ ']'").
