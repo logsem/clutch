@@ -479,7 +479,7 @@ Section von_neumann.
 (*     split; [apply von_neumann_prog_refines_rand_prog|apply rand_prog_refines_von_neumann_prog]. *)
 (*   Qed.  *)
 
-(* End von_neumann.  *)
+End von_neumann.
 
 
  
