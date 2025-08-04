@@ -1,7 +1,7 @@
 (** (Syntactic) Typing for System F_mu_ref_conc with tapes *)
 From Autosubst Require Export Autosubst.
 From stdpp Require Export stringmap fin_map_dom gmap.
-From clutch.con_prob_lang Require Import lang notation.
+From clutch.con_prob_lang Require Import lang notation metatheory.
 
 Canonical Structure varO := leibnizO var.
 
@@ -272,3 +272,72 @@ Proof. destruct op; simpl; eauto.  Qed.
 Lemma unop_bool_typed_safe (op : un_op) (b : bool) τ :
   unop_bool_res_type op = Some τ → is_Some (un_op_eval op (LitV (LitBool b))).
 Proof. destruct op; naive_solver. Qed.
+
+Lemma typed_is_closed_expr Γ τ (x:expr) : Γ ⊢ₜ x : τ -> is_closed_expr (dom Γ) x 
+  with typed_is_closed_val τ v :
+    ⊢ᵥ v : τ → is_closed_val v.
+Proof.
+  - intros Ht. inversion Ht; subst; simpl.
+    + simpl. rewrite bool_decide_eq_true_2; first done; by erewrite elem_of_dom.
+    + simpl. by eapply typed_is_closed_val.
+    + apply andb_prop_intro. naive_solver.
+    + apply andb_prop_intro. naive_solver.
+    + naive_solver.
+    + simpl. naive_solver.
+    + apply andb_prop_intro. naive_solver.
+    + apply andb_prop_intro. naive_solver.
+    + simpl. naive_solver.
+    + naive_solver.
+    + naive_solver.
+    + naive_solver.
+    + apply andb_prop_intro; split; last naive_solver.
+      apply andb_prop_intro; naive_solver.
+    + apply andb_prop_intro; split; last naive_solver.
+      apply andb_prop_intro; naive_solver.
+    + simpl.
+      apply typed_is_closed_expr in H.
+      eapply is_closed_weaken; first done.
+      rewrite /insert/insert_binder/binder_insert/metatheory.set_binder_insert.
+      repeat case_match; repeat rewrite dom_insert; set_solver.
+    + apply andb_prop_intro. naive_solver.
+    + simpl.
+      apply typed_is_closed_expr in H.
+      eapply is_closed_weaken; first done.
+      by rewrite dom_fmap.
+    + apply andb_prop_intro. naive_solver.
+    + naive_solver.
+    + apply andb_prop_intro. naive_solver.
+    + naive_solver.
+    + simpl.
+      rewrite bool_decide_eq_true_2; last set_solver.
+      rewrite !andb_true_l.
+      apply andb_prop_intro; split; first naive_solver.
+      apply typed_is_closed_expr in H0.
+      eapply is_closed_weaken; first done.
+      rewrite /insert/insert_binder/binder_insert/metatheory.set_binder_insert.
+      repeat case_match; repeat rewrite dom_insert; set_solver.
+    + naive_solver.
+    + naive_solver.
+    + naive_solver.
+    + naive_solver.
+    + naive_solver.
+    + naive_solver.
+    + naive_solver.
+    + naive_solver.
+    + naive_solver.
+    + naive_solver.
+    + naive_solver.
+  - intros H. destruct H; simpl.
+    + done.
+    + done.
+    + done.
+    + done.
+    + naive_solver.
+    + naive_solver.
+    + naive_solver.
+    + replace (metatheory.set_binder_insert _ _) with (dom (<[f:=(τ1 → τ2)%ty]> (<[x:=τ1]> (∅:stringmap type)))).
+      * by eapply typed_is_closed_expr. 
+      * rewrite /insert/insert_binder/binder_insert/metatheory.set_binder_insert.
+        repeat case_match; repeat rewrite dom_insert; set_solver.
+    + naive_solver.
+Qed. 
