@@ -184,20 +184,45 @@ Section von_neumann.
      WP (Val rand_prog)
       {{ v, ∃ v' : val, j ⤇ fill K v' ∗ ((ref lrel_nat → ()) → () → lrel_bool)%lrel v v' }}.
     Proof.
-    Admitted. 
-    (*   iIntros (Φ) "Hspec HΦ". *)
-    (*   rewrite /rand_prog/rand_prog'. *)
-    (*   tp_pures j. *)
-    (*   wp_pures. *)
-    (*   tp_allocnattape j α as "Hα". *)
-    (*   tp_pures j. *)
-    (*   wp_apply (wp_couple_rand_rand_lbl with "[$]"); first done. *)
-    (*   iIntros (?) "(?&?&%)". *)
-    (*   iApply "HΦ". *)
-    (*   iFrame. *)
-    (*   iPureIntro. naive_solver. *)
-    (* Qed.  *)
+      iIntros "Hspec".
+      rewrite /rand_prog'.
+      rewrite /rand_prog.
+      wp_pures.
+      iModIntro.
+      iFrame.
+      iModIntro.
+      iIntros (??) "#Hinv".
+      unfold_rel.
+      clear.
+      iIntros (K j) "Hspec".
+      tp_pures j.
+      wp_pures. 
+      iFrame.
+      iModIntro.
+      iModIntro. 
+      iIntros (??) "[-> ->]".
+      unfold_rel.
+      clear.
+      iIntros (K j) "Hspec".
+      wp_pures.
+      tp_pures j.
+      tp_allocnattape j α as "Hα".
+      tp_pures j.
+      rewrite /flipL.
+      tp_pures j.
+      tp_bind j (rand(_) _)%E.
+      wp_pures.
+      wp_apply (wp_couple_rand_rand_lbl with "[$Hα $Hspec]"); first naive_solver.
+      iIntros (?) "(?&Hspec&%)".
+      simpl.
+      iMod (spec_int_to_bool with "[$]").
+      wp_apply (wp_int_to_bool); first done.
+      iIntros. iFrame.
+      by iExists _.
+    Qed.
 
+
+    
     Local Opaque INR.
 
     
