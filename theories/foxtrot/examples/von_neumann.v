@@ -149,31 +149,41 @@ Section von_neumann.
      WP (Val von_neumann_prog')
       {{ v, ∃ v' : val, j ⤇ fill K v' ∗ ((ref lrel_nat → ()) → () → lrel_bool)%lrel v v' }}.
     Proof.
+      iIntros "Hspec".
+      rewrite /von_neumann_prog'.
+      rewrite /rand_prog.
+      wp_pures.
+      iModIntro.
+      iFrame.
+      iModIntro.
+      iIntros (??) "#Hinv".
+      unfold_rel.
+      clear.
+      iIntros (K j) "Hspec".
+      tp_pures j.
+      wp_alloc l as "Hl".
+      wp_pures.
     Admitted. 
-    (*   iIntros (Φ) "Hspec HΦ". *)
-    (*   rewrite /rand_prog. *)
-    (*   tp_pures j. *)
-    (*   iLöb as "IH" forall "Hspec HΦ". *)
-    (*   rewrite /von_neumann_prog/rand_prog. *)
-    (*   wp_pures. *)
-    (*   wp_apply (wp_couple_fragmented_rand_rand_inj id with "[$]") as (?) "[% [H|H]]". *)
-    (*   - lia. *)
-    (*   - intros. simpl. lia. *)
-    (*   - iDestruct ("H") as "(%&%&%&Hspec)". *)
-    (*     simpl in *. *)
-    (*     wp_pures. *)
-    (*     rewrite bool_decide_eq_true_2; last lia. *)
-    (*     wp_pures. *)
-    (*     iApply "HΦ". iFrame. subst. by iExists _. *)
-    (*   - simpl. *)
-    (*     iDestruct "H" as "(%Hfalse&Hspec)". *)
-    (*     wp_pures. *)
-    (*     rewrite bool_decide_eq_false_2; last first.  *)
-    (*     { intro H'. apply Hfalse. eexists _; split; last done. lia. } *)
-    (*     wp_pure. *)
-    (*     iApply ("IH" with "[$]"). *)
-    (*     iApply "HΦ". *)
-    (* Qed.  *)
+      (* tp_alloc j as l "Hl". *)
+      (* tp_pures j. *)
+      (* tp_bind j (Fork _). *)
+      (* iMod (pupd_fork with "[$]") as "[Hspec _]". *)
+      (* iMod (inv_alloc _ _ (l ↦ₛ #0)%I with "[$]") as "#Hinv'". *)
+      (* simpl. *)
+      (* tp_pures j. *)
+      (* wp_pures. *)
+      (* iFrame. *)
+      (* iModIntro. *)
+      (* iModIntro.  *)
+      (* iIntros (??) "[-> ->]". *)
+      (* unfold_rel. *)
+      (* clear K j.  *)
+      (* iIntros (K j) "Hspec". *)
+      (* wp_pures. *)
+      (* wp_alloctape α as "Hα". *)
+      (* wp_pures. *)
+      (* rewrite /flipL. *)
+      (* wp_pures. *)
   End proof.
   
   Section proof'.
@@ -231,6 +241,39 @@ Section von_neumann.
       WP (Val rand_prog')
       {{ v, ∃ v' : val, j ⤇ fill K v' ∗ ((ref lrel_nat → ()) → () → lrel_bool)%lrel v v' }}.
     Proof.
+      iIntros "Hspec".
+      rewrite /von_neumann_con_prog.
+      rewrite /rand_prog'.
+      wp_pures.
+      iModIntro.
+      iFrame.
+      iModIntro.
+      iIntros (??) "#Hinv".
+      unfold_rel.
+      clear -Hspawn.
+      iIntros (K j) "Hspec".
+      tp_pures j. 
+      tp_alloc j as l "Hl".
+      tp_pures j.
+      tp_bind j (Fork _).
+      iMod (pupd_fork with "[$]") as "[Hspec _]".
+      iMod (inv_alloc _ _ (l ↦ₛ #0)%I with "[$]") as "#Hinv'".
+      simpl.
+      tp_pures j.
+      wp_pures.
+      iFrame.
+      iModIntro.
+      iModIntro. 
+      iIntros (??) "[-> ->]".
+      unfold_rel.
+      clear K j. 
+      iIntros (K j) "Hspec".
+      wp_pures.
+      wp_alloctape α as "Hα".
+      wp_pures.
+      rewrite /flipL.
+      wp_pures.
+      (* error amplification *)
     Admitted. 
 
     Lemma wp_von_neumann_con_prog_von_neumann_con_prog' K j:
@@ -416,7 +459,8 @@ Section von_neumann.
     iIntros; unfold_rel;
       iIntros (K j) "Hspec".
     - wp_apply (wp_von_neumann_prog_von_neumann_prog' with "[$]"); by iIntros.
-    - wp_apply (wp_von_neumann_prog'_rand_prog with "[$]"); by iIntros.
+    - (** this one needs stronger logical relations! *)
+      wp_apply (wp_von_neumann_prog'_rand_prog with "[$]"); by iIntros.
   Qed. 
 
   Lemma rand_prog_refines_von_neumann_prog :
