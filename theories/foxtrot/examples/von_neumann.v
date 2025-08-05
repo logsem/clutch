@@ -8,7 +8,7 @@ Definition flip : expr := (flipL #()).
 
 Section von_neumann.
   Variable (N : nat).
-  Variable (ad : expr).
+  Variable (ad : val).
   Definition Htyped:= ∅ ⊢ₜ ad : (TRef TNat → TUnit).
 
   Definition von_neumann_prog: val :=
@@ -61,7 +61,7 @@ Section von_neumann.
     λ:"_" "_", flip.
   
   Definition rand_prog': val :=
-    λ: "_ " "_", let: "x" := alloc #1 in flipL "x" .
+    λ: "_" "_", let: "x" := alloc #1 in flipL "x" .
   
   Section proof.
     Context `{!foxtrotRGS Σ}.
@@ -75,16 +75,9 @@ Section von_neumann.
       iIntros (Ht) "Hspec".
       rewrite /von_neumann_prog'.
       rewrite /von_neumann_prog.
-      tp_bind j ad.
       iPoseProof (binary_fundamental.refines_typed _ [] _ Ht) as "H".
       unfold_rel.
-      wp_bind ad.
-      wp_apply (wp_wand with "[-]"); first by iApply "H".
-      simpl.
-      iIntros (?) "(%&Hspec&#Hrel)".
-      unfold_rel.
       wp_pures. tp_pures j.
-
       wp_alloc l as "Hl".
       wp_pures.
       tp_alloc j as l' "Hl'".
@@ -94,10 +87,17 @@ Section von_neumann.
       iMod (pupd_fork with "[$]") as "[Hspec [%j' Hspec']]".
       wp_apply (wp_fork with "[Hspec']").
       { iNext.
-        rewrite <-(fill_empty (App _ #l'))%E.
+        wp_bind (Val ad).
+        tp_bind j' (Val ad).
         iApply (wp_wand with "[Hspec']").
-        - iApply "Hrel"; last done. iExists _, _; by repeat iSplit.
-        - by iIntros. 
+        - by iApply "H".
+        - simpl.
+          iIntros (?) "(%&Hspec&#Hrel)".
+          unfold_rel.
+          rewrite -(fill_empty (App _ #l'))%E.
+          iApply (wp_wand with "[-]").
+          + iApply "Hrel"; last done. iExists _, _. by repeat iSplit.
+          +  by iIntros.
       }
       simpl.
       tp_pures j.
@@ -156,16 +156,47 @@ Section von_neumann.
       iIntros (Ht) "Hspec".
       rewrite /von_neumann_prog'.
       rewrite /rand_prog.
-      tp_bind j ad.
-      iPoseProof (binary_fundamental.refines_typed _ [] _ Ht) as "H".
-      unfold_rel.
-      wp_bind ad.
-      wp_apply (wp_wand with "[-]"); first by iApply "H".
-      simpl.
-      iIntros (?) "(%&Hspec&#Hrel)".
-      unfold_rel.
       wp_pures. tp_pures j.
       wp_alloc l as "Hl".
+      wp_pures.
+      iMod (inv_alloc _ _ _ with "[Hl]") as "#Hinv"; first shelve.
+      wp_apply (wp_fork).
+      { iPoseProof (typed_safe _ [] _ Ht) as "H'".
+        wp_bind (Val ad).
+        iApply (wp_wand); first done.
+        simpl.
+        iIntros (?) "#H".
+        rewrite unary_model.refines_eq.
+        rewrite /unary_model.refines_def.
+        iApply wp_wand.
+        - iApply "H". iExists _; by repeat iSplit.
+        - by iIntros. }
+      Unshelve.
+      2:{ iFrame. by iExists 0. }
+      wp_pures.
+      iFrame.
+      iModIntro.
+      iModIntro.
+      iIntros (??) "[->->]".
+      unfold_rel.
+      clear.
+      iIntros (K j) "Hspec".
+      tp_pures j.
+      rewrite /flipL.
+      tp_pures j.
+      iLöb as "IH".
+      wp_pures.
+      wp_bind (! _)%E.
+      iInv "Hinv" as ">(%&Hl&[% ->])" "Hclose".
+      wp_load.
+      iMod ("Hclose" with "[$Hl]") as "_"; first by iExists _.
+      iModIntro.
+      wp_apply wp_min_prog; first done.
+      iIntros (?) "->".
+      wp_pures.
+      wp_alloctape α as "Hα".
+      wp_pures.
+      wp_alloctape β as "Hβ".
       wp_pures.
     Admitted. 
       
@@ -183,14 +214,6 @@ Section von_neumann.
       iIntros (Ht) "Hspec".
       rewrite /rand_prog'.
       rewrite /rand_prog.
-      tp_bind j ad.
-      iPoseProof (binary_fundamental.refines_typed _ [] _ Ht) as "H".
-      unfold_rel.
-      wp_bind ad.
-      wp_apply (wp_wand with "[-]"); first by iApply "H".
-      simpl.
-      iIntros (?) "(%&Hspec&#Hrel)".
-      unfold_rel.
       tp_pures j.
       wp_pures.
       iFrame.
@@ -216,8 +239,6 @@ Section von_neumann.
       iIntros. iFrame.
       by iExists _.
     Qed.
-
-
     
     Local Opaque INR.
 
@@ -231,14 +252,6 @@ Section von_neumann.
       iIntros (Ht) "Hspec".
       rewrite /rand_prog'.
       rewrite /von_neumann_con_prog.
-      tp_bind j ad.
-      iPoseProof (binary_fundamental.refines_typed _ [] _ Ht) as "H".
-      unfold_rel.
-      wp_bind ad.
-      wp_apply (wp_wand with "[-]"); first by iApply "H".
-      simpl.
-      iIntros (?) "(%&Hspec&#Hrel)".
-      unfold_rel.
       tp_pures j.
       tp_alloc j as l "Hl".
       tp_pures j.
@@ -246,6 +259,7 @@ Section von_neumann.
       iMod (pupd_fork with "[$]") as "[Hspec _]".
       simpl.
       tp_pures j.
+      iMod (inv_alloc _ _ (l↦ₛ#0)%I with "[$]") as "#Hinv'".
       wp_pures.
       iFrame.
       iModIntro.
@@ -259,6 +273,27 @@ Section von_neumann.
       wp_pures.
       rewrite /flipL.
       wp_pures.
+      iMod (pupd_epsilon_err) as "(%&%&Herr)".
+      iRevert "Hspec Hα".
+      iApply (ec_ind_simpl _ _ with "[][$]"); first done.
+      { admit. }
+      iModIntro.
+      iIntros "[Hind Herr] Hspec Hα".
+      tp_pures j.
+      iApply pupd_wp.
+      iInv "Hinv'" as ">?" "Hclose".
+      tp_load j.
+      iMod ("Hclose" with "[$]") as "_".
+      iModIntro.
+      tp_bind j (min_prog _ _)%E.
+      iMod (spec_min_prog with "[$]") as "Hspec".
+      simpl.
+      rewrite Z.min_l; last lia.
+      do 2 tp_pure j.
+      tp_bind j (_|||_)%E.
+      iMod (tp_par with "[$]") as "(%j1&%j2&%K1&%K2&Hspec1&Hspec2&Hcont)".
+      tp_bind j1 (rand _)%E.
+      tp_bind j2 (rand _)%E.
       (* error amplification *)
     Admitted.
       
@@ -271,13 +306,7 @@ Section von_neumann.
       iIntros (Ht) "Hspec".
       rewrite /von_neumann_con_prog'.
       rewrite /von_neumann_con_prog.
-      tp_bind j ad.
       iPoseProof (binary_fundamental.refines_typed _ [] _ Ht) as "H".
-      unfold_rel.
-      wp_bind ad.
-      wp_apply (wp_wand with "[-]"); first by iApply "H".
-      simpl.
-      iIntros (?) "(%&Hspec&#Hrel)".
       unfold_rel.
       wp_pures.
       tp_pures j.
@@ -290,10 +319,17 @@ Section von_neumann.
       iMod (pupd_fork with "[$]") as "[Hspec [%j' Hspec']]".
       wp_apply (wp_fork with "[Hspec']").
       { iNext.
-        rewrite <-(fill_empty (App _ #l')).
+        wp_bind (Val ad).
+        tp_bind j' (Val ad).
         iApply (wp_wand with "[Hspec']").
-        - wp_apply "Hrel"; last done. iExists _, _. by repeat iSplit.
-        - by iIntros.
+        - by iApply "H".
+        - simpl.
+          iIntros (?) "(%&Hspec&#Hrel)".
+          unfold_rel.
+          rewrite -(fill_empty (App _ #l'))%E.
+          iApply (wp_wand with "[-]").
+          + iApply "Hrel"; last done. iExists _, _. by repeat iSplit.
+          +  by iIntros. 
       }
       simpl.
       tp_pures j.
@@ -366,13 +402,7 @@ Section von_neumann.
       iIntros (Ht) "Hspec".
       rewrite /von_neumann_con_prog'.
       rewrite /von_neumann_prog.
-      tp_bind j ad.
       iPoseProof (binary_fundamental.refines_typed _ [] _ Ht) as "H".
-      unfold_rel.
-      wp_bind ad.
-      wp_apply (wp_wand with "[-]"); first by iApply "H".
-      simpl.
-      iIntros (?) "(%&Hspec&#Hrel)".
       unfold_rel.
       wp_pures.
       tp_pures j.
@@ -385,11 +415,19 @@ Section von_neumann.
       iMod (pupd_fork with "[$]") as "[Hspec [%j' Hspec']]".
       wp_apply (wp_fork with "[Hspec']").
       { iNext.
-        rewrite <-(fill_empty (App _ #l')).
+        wp_bind (Val ad).
+        tp_bind j' (Val ad).
         iApply (wp_wand with "[Hspec']").
-        - wp_apply "Hrel"; last done. iExists _, _. by repeat iSplit.
-        - by iIntros.
+        - by iApply "H".
+        - simpl.
+          iIntros (?) "(%&Hspec&#Hrel)".
+          unfold_rel.
+          rewrite -(fill_empty (App _ #l'))%E.
+          iApply (wp_wand with "[-]").
+          + iApply "Hrel"; last done. iExists _, _. by repeat iSplit.
+          +  by iIntros. 
       }
+      
       simpl.
       tp_pures j.
       wp_pures.
