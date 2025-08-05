@@ -72,79 +72,80 @@ Section von_neumann.
      WP (von_neumann_prog ad)
       {{ v, ∃ v' : val, j ⤇ fill K v' ∗ ( () → lrel_bool)%lrel v v' }}.
     Proof.
-      (* iIntros (Htype) "Hspec". *)
-      (* rewrite /von_neumann_prog'. *)
-      (* rewrite /von_neumann_prog. *)
-      (* wp_pures. *)
-      (* wp_alloc l as "Hl". *)
-      (* tp_alloc j as l' "Hl'". *)
-      (* wp_pures. tp_pures j. *)
-      (* rewrite !subst_is_closed_empty; last first. *)
-      (* { apply typed_is_closed_expr in Htype. *)
-      (*   naive_solver. *)
-      (* } *)
-      (* { apply typed_is_closed_expr in Htype. *)
-      (*   naive_solver. *)
-      (* } *)
-    Admitted.
-    (*   iMod (inv_alloc _ _ ((∃ v0 v3 : val, l ↦ v0 ∗ l' ↦ₛ v3 ∗ lrel_nat v0 v3))%I with "[Hl Hl']") as "#Hinv'". *)
-    (*   { iFrame. iNext. iExists 0; iPureIntro; split; f_equal. } *)
-    (*   tp_bind j (Fork _). *)
-    (*   iMod (pupd_fork with "[$]") as "[Hspec [%j' Hspec']]". *)
-    (*   wp_apply (wp_fork with "[Hspec']"). *)
-    (*   { iNext. *)
-    (*     iApply (wp_wand with "[Hspec']"); first (iApply ("Hinv" with "[][Hspec']")). *)
-    (*     - iExists _, _. by repeat iSplit. *)
-    (*     - by erewrite fill_empty. *)
-    (*     - by iIntros. *)
-    (*   } *)
-    (*   simpl. *)
-    (*   tp_pures j. *)
-    (*   wp_pures. *)
-    (*   iFrame. *)
-    (*   iModIntro. *)
-    (*   iModIntro. *)
-    (*   iIntros (??) "[-> ->]". *)
-    (*   unfold_rel. *)
-    (*   clear. *)
-    (*   iIntros (K j) "Hspec". *)
-    (*   iLöb as "IH". *)
-    (*   wp_pures. *)
-    (*   tp_pures j. *)
-    (*   wp_bind (! _)%E. *)
-    (*   iInv "Hinv'" as ">(%&%&?&?&[%[-> ->]])" "Hclose". *)
-    (*   tp_load j. *)
-    (*   wp_load. *)
-    (*   iMod ("Hclose" with "[-Hspec]"). *)
-    (*   { iFrame. by iExists _. } *)
-    (*   iModIntro. *)
-    (*   wp_apply (wp_min_prog); first done. *)
-    (*   tp_bind j (min_prog _ _)%E. *)
-    (*   iMod (spec_min_prog with "[$]") as "Hspec". *)
-    (*   iIntros (? ->). *)
-    (*   simpl. *)
-    (*   wp_pures. *)
-    (*   tp_pures j. *)
-    (*   tp_allocnattape j α as "Hα". *)
-    (*   tp_pures j. *)
-    (*   tp_allocnattape j β as "Hβ". *)
-    (*   tp_pures j. *)
-    (*   tp_bind j (rand(_) _)%E. *)
-    (*   wp_apply (wp_couple_rand_rand_lbl with "[$Hα $Hspec]"); first naive_solver. *)
-    (*   iIntros (?) "(?&Hspec&%)". *)
-    (*   simpl. *)
-    (*   wp_pures. tp_pures j. *)
-    (*   tp_bind j (rand(_) _)%E. *)
-    (*   wp_apply (wp_couple_rand_rand_lbl with "[$Hβ $Hspec]"); first naive_solver. *)
-    (*   iIntros (?) "(?&Hspec&%)". *)
-    (*   simpl. *)
-    (*   tp_pures j; first solve_vals_compare_safe. *)
-    (*   wp_pures. *)
-    (*   case_bool_decide. *)
-    (*   - tp_pure j. wp_pure. by iApply "IH". *)
-    (*   - tp_pures j. wp_pure. iFrame. *)
-    (*     by iExists _. *)
-    (* Qed. *)
+      iIntros (Ht) "Hspec".
+      rewrite /von_neumann_prog'.
+      rewrite /von_neumann_prog.
+      tp_bind j ad.
+      iPoseProof (binary_fundamental.refines_typed _ [] _ Ht) as "H".
+      unfold_rel.
+      wp_bind ad.
+      wp_apply (wp_wand with "[-]"); first by iApply "H".
+      simpl.
+      iIntros (?) "(%&Hspec&#Hrel)".
+      unfold_rel.
+      wp_pures. tp_pures j.
+
+      wp_alloc l as "Hl".
+      wp_pures.
+      tp_alloc j as l' "Hl'".
+      tp_pures j.
+      iMod (inv_alloc _ _ ((∃ v0 v3 : val, l ↦ v0 ∗ l' ↦ₛ v3 ∗ lrel_nat v0 v3))%I with "[Hl Hl']") as "#Hinv'"; first (iFrame; by iExists 0).
+      tp_bind j (Fork _).
+      iMod (pupd_fork with "[$]") as "[Hspec [%j' Hspec']]".
+      wp_apply (wp_fork with "[Hspec']").
+      { iNext.
+        rewrite <-(fill_empty (App _ #l'))%E.
+        iApply (wp_wand with "[Hspec']").
+        - iApply "Hrel"; last done. iExists _, _; by repeat iSplit.
+        - by iIntros. 
+      }
+      simpl.
+      tp_pures j.
+      wp_pures.
+      iFrame.
+      iModIntro.
+      iModIntro.
+      iIntros (??) "[-> ->]".
+      unfold_rel.
+      clear.
+      iIntros (K j) "Hspec".
+      iLöb as "IH".
+      wp_pures.
+      tp_pures j.
+      wp_bind (! _)%E.
+      iInv "Hinv'" as ">(%&%&?&?&[%[-> ->]])" "Hclose".
+      tp_load j.
+      wp_load.
+      iMod ("Hclose" with "[-Hspec]").
+      { iFrame. by iExists _. }
+      iModIntro.
+      wp_apply (wp_min_prog); first done.
+      tp_bind j (min_prog _ _)%E.
+      iMod (spec_min_prog with "[$]") as "Hspec".
+      iIntros (? ->).
+      simpl.
+      wp_pures.
+      tp_pures j.
+      tp_allocnattape j α as "Hα".
+      tp_pures j.
+      tp_allocnattape j β as "Hβ".
+      tp_pures j.
+      tp_bind j (rand(_) _)%E.
+      wp_apply (wp_couple_rand_rand_lbl with "[$Hα $Hspec]"); first naive_solver.
+      iIntros (?) "(?&Hspec&%)".
+      simpl.
+      wp_pures. tp_pures j.
+      tp_bind j (rand(_) _)%E.
+      wp_apply (wp_couple_rand_rand_lbl with "[$Hβ $Hspec]"); first naive_solver.
+      iIntros (?) "(?&Hspec&%)".
+      simpl.
+      tp_pures j; first solve_vals_compare_safe.
+      wp_pures.
+      case_bool_decide.
+      - tp_pure j. wp_pure. by iApply "IH".
+      - tp_pures j. wp_pure. iFrame.
+        by iExists _.
+    Qed.
     
     Lemma wp_von_neumann_prog'_rand_prog K j:
       Htyped->
