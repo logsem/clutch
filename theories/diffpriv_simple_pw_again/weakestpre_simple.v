@@ -53,12 +53,12 @@ Definition wp_pre `{!specG_prob_lang Σ, !diffprivWpGS Σ}
                        state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 (δ2' RES) ∗
                      wp E e2 (λ v, ∃ v' : val, ⤇ (of_val v') ∗ ⌜v = RES → v' = RES⌝))) *))))
            ∨
-            (∃ e2, ⌜pure_step e1 e2⌝ ∗
+            (∃ e2 e2' σ2' k, ⌜pure_step e1 e2⌝ ∗ ⌜pexec k (e1', σ1') (e2', σ2') = 1⌝ ∗
              ∃ δ2' : val → nonnegreal,
-                (⌜(∀ RES, 0 <= δ2' RES) ∧ ex_seriesC δ2'⌝ ∗
+                (⌜(∀ RES, 0 <= δ2' RES) ∧ ex_seriesC δ2' ∧ SeriesC δ2' <= nonneg δ⌝ ∗
                  ▷ |={∅,E}=>
                    ∀ RES : val,
-                     state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε (δ2' RES) ∗
+                     state_interp σ1 ∗ spec_interp (e2', σ2') ∗ err_interp ε (δ2' RES) ∗
                      wp E e2 (λ v, ∃ v' : val, ⤇ (of_val v') ∗ ⌜v = RES → v' = RES⌝)))
       end)%I.
 
@@ -66,7 +66,7 @@ Local Instance wp_pre_contractive `{!specG_prob_lang Σ, !diffprivWpGS Σ} :
   Contractive wp_pre.
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ.
-  do 20 f_equiv. 1: do 20 f_equiv. all: f_contractive ; repeat f_equiv ; apply Hwp.
+  do 27 f_equiv. 1: do 13 f_equiv. all: f_contractive ; repeat f_equiv ; apply Hwp.
 Qed.
 
 Local Definition wp_def `{!specG_prob_lang Σ, !diffprivWpGS Σ} :
@@ -130,19 +130,19 @@ Proof.
   iIntros (σ1 e1' σ1' ε δ) "[Hσ [Hs He]]".
   iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
   (* feed resources to H *)
-  iMod ("H" with "[$]") as "(red & %R & % & % & % & % & % & % & % & % & H)". iModIntro. iFrame "red".
+  iMod ("H" with "[$]") as "[(red & %R & % & % & % & % & % & % & % & % & H)|H]" ; iModIntro.
   (* keep the same coupling (relation, errors) *)
-  repeat iExists _ ; repeat (iSplit ; [done|]).
-  (* assuming R... *)
-  iIntros (???? HR). iSpecialize ("H" $! _ _ _ _ HR).
-  (* ...we get a proof of the recursive WP from H *)
-  iMod "H". iModIntro.
-  iDestruct "H" as "[H|H]".
-  - iLeft. iNext. iMod "H" as "(?&?&?& Hrec)". iFrame.
+  - iLeft. iFrame "red". repeat iExists _ ; repeat (iSplit ; [done|]).
+    (* assuming R... *)
+    iIntros (???? HR). iSpecialize ("H" $! _ _ _ _ HR).
+    (* ...we get a proof of the recursive WP from H *)
+    iMod "H". iModIntro.
+    iNext. iMod "H" as "(?&?&?& Hrec)". iFrame.
     iMod "Hclose" as "_". iModIntro.
     (* By IH, we can rewrite Ψ to Φ for WP e2. *)
     iApply ("IH" with "Hrec HΦ").
-  - iRight. iDestruct "H" as "(%δ2' & hδ2 & H)". iExists δ2'. iFrame.
+  - iRight. iDestruct "H" as "(%e2 & %e2' & %σ2' & %k & %hstep & %hexec & %δ2' & hδ2 & H)" => //.
+    iExists e2,e2',σ2',k. repeat iSplit => //. iExists δ2'. iFrame.
     iNext.
     iMod "H" as "H".
     iMod "Hclose" as "_". iModIntro.
@@ -158,38 +158,49 @@ Proof.
   iIntros (?????) "(?&?&?)". by iMod ("H" with "[$]").
 Qed.
 
-(* Lemma wp_bind K `{!LanguageCtx K} E e Φ s :
-     WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }} ⊢ WP K e @ s; E {{ Φ }}.
-   Proof.
-     iRevert (e). iLöb as "IH". iIntros (e1) "H".
-     rewrite {1}wp_unfold /wp_pre. destruct (to_val e1) as [v|] eqn:He.
-     { iApply fupd_wp. apply of_to_val in He as <-. iAssumption. }
-     (* Non-value case. We have to show that there exists a coupling for K e1 and e1' and that WP holds for K v. *)
-     rewrite {1}wp_unfold /wp_pre. ; rewrite fill_not_val /= ; [|done] ; iIntros (σ1 e1' σ1' ε δ) "Hs".
-     (* Feed {state,spec,error} interpretation resources into H. *)
-     iMod ("H" with "[$]") as "(%red & %R & % & % & % & % & %n & %HCR & %hε & %hδ & Hrec)".
-     (* (K e1, σ1) is reducible because (e1, σ1) is. *)
-     iModIntro ; iSplit ; [eauto using reducible_fill|].
-     (* R' := the R-coupling from H "post-composed" with `fill K e1` *)
-     iExists (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ').
-     (* Keep the same error split. *)
-     iExists ε1,ε2,δ1,δ2,n.
-     (* Build the R'-coupling for K e1 & e1' from the R-coupling for e1 & e1' we got from H. *)
-     repeat iSplit => //.
-     { iPureIntro. rewrite fill_dmap //=.
-       rewrite -(dret_id_right (pexec _ _)). rewrite /dmap.
-       eapply (DPcoupl_dbind' ε1 0 _ δ1 0) ; [lra | done | lra | lra | | exact HCR ].
-       intros [] ?? => /=. apply DPcoupl_dret; [done|done|]. eauto. }
-     (* Assuming R' for K e2 (& e2'), we now show the recursive call: `▷ WP K e2 Φ` *)
-     iIntros (Ke2 σ2 e2' σ2') "(%e2 & -> & %HR)".
-     (* Get back resources from Hrec and strip later. *)
-     iSpecialize ("Hrec" $! _ _ _ _ HR). iMod "Hrec" ; iModIntro.
-     iNext. iMod "Hrec" as "($&$&$&Hrec)". iModIntro.
-     (* By IH, we can push K into the postcondition... *)
-     iApply "IH".
-     (* and that's exactly what the recursive occurrence of WP in Hrec gives us. *)
-     iApply "Hrec".
-   Qed. *)
+Lemma fill_not_val K `{!LanguageCtx K} e : to_val e = None → to_val (K e) = None.
+Proof. rewrite !eq_None_not_Some. eauto using fill_val.
+       intros he hke. apply he. eapply fill_is_val => //.
+Qed.
+
+Lemma wp_bind K `{!LanguageCtx K} E e Φ s :
+  WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }} ⊢ WP K e @ s; E {{ Φ }}.
+Proof.
+  iRevert (e Φ). iLöb as "IH". iIntros (e1 Φ) "H".
+  rewrite {1}wp_unfold /wp_pre. destruct (to_val e1) as [v|] eqn:He.
+  { iApply fupd_wp. apply of_to_val in He as <-. iAssumption. }
+  (* Non-value case. We have to show that there exists a coupling for K e1 and e1' and that WP holds for K v. *)
+  rewrite {1}wp_unfold /wp_pre fill_not_val /= ; [|done] ; iIntros (σ1 e1' σ1' ε δ) "Hs".
+  (* Feed {state,spec,error} interpretation resources into H. *)
+  iMod ("H" with "[$]") as "[(%red & %R & % & % & % & % & %n & %HCR & %hε & %hδ & Hrec)|H]".
+  - (* (K e1, σ1) is reducible because (e1, σ1) is. *)
+    iModIntro ; iLeft ; iSplit ; [eauto using reducible_fill|].
+    (* R' := the R-coupling from H "post-composed" with `fill K e1` *)
+    iExists (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ').
+    (* Keep the same error split. *)
+    iExists ε1,ε2,δ1,δ2,n.
+    (* Build the R'-coupling for K e1 & e1' from the R-coupling for e1 & e1' we got from H. *)
+    repeat iSplit => //.
+    { iPureIntro. rewrite fill_dmap //=.
+      rewrite -(dret_id_right (pexec _ _)). rewrite /dmap.
+      eapply (DPcoupl_dbind' ε1 0 _ δ1 0) ; [lra | done | lra | lra | | exact HCR ].
+      intros [] ?? => /=. apply DPcoupl_dret; [done|done|]. eauto. }
+    (* Assuming R' for K e2 (& e2'), we now show the recursive call: `▷ WP K e2 Φ` *)
+    iIntros (Ke2 σ2 e2' σ2') "(%e2 & -> & %HR)".
+    (* Get back resources from Hrec and strip later. *)
+    iSpecialize ("Hrec" $! _ _ _ _ HR). iMod "Hrec" ; iModIntro.
+    iNext. iMod "Hrec" as "($&$&$&Hrec)". iModIntro.
+    (* By IH, we can push K into the postcondition... *)
+    iApply "IH".
+    (* and that's exactly what the recursive occurrence of WP in Hrec gives us. *)
+    iApply "Hrec".
+  - iModIntro ; iRight. iDestruct "H" as "(%e2 & %e2' & %σ2' & %k & %hstep & %hexec & %δ2' & hδ2 & H)" => //. iExists (K e2), e2', σ2', k. repeat iSplit => //.
+    { iPureIntro. by apply pure_step_ctx. }
+    iExists δ2'. iFrame.
+    iNext. iMod "H". iModIntro. iIntros (RES). iDestruct ("H" $! RES) as "($&$&$&H)".
+    iApply "IH".
+    admit.
+Admitted.
 
 Lemma wp_value_fupd' E Φ v s : (|={E}=> Φ v) ⊢ WP of_val v @ s; E {{ Φ }}.
 Proof. rewrite wp_unfold /wp_pre to_of_val. done. Qed.
@@ -350,8 +361,8 @@ Proof.
   iMod ("Hspec" with "Hs")
     as ([e2' σ2'] n Hstep%stepN_pexec_det) "(Hs & Hwp)".
   iEval (rewrite !wp_unfold /wp_pre /= He) in "Hwp".
-  iMod ("Hwp" with "[$]") as "(% & %&%&%&%&%&%n'&%&%&%&h)".
-  iModIntro. iSplit ; [done|]. iExists _,ε1,ε2,δ1,δ2,(n+n')%nat.
+  iMod ("Hwp" with "[$]") as "[(% & %&%&%&%&%&%n'&%&%&%&h)|H]".
+  - iModIntro. iLeft. iSplit => //. iExists _,ε1,ε2,δ1,δ2,(n+n')%nat.
   iSplit.
   { iPureIntro. rewrite pexec_plus.
     apply pmf_1_eq_dret in Hstep.
@@ -359,6 +370,19 @@ Proof.
     rewrite dret_id_left. done.
   }
   iFrame. done.
+  - iModIntro. iRight.
+    iDestruct "H" as "(%e2 & %e3' & %σ3' & %k & %hstep & %hexec & %δ2' & hδ2 & H)" => //.
+    iExists e2,e3',σ3',(n+k)%nat.
+    repeat iSplit => //.
+    {
+      iPureIntro.
+      revert hexec Hstep. rewrite /pexec.
+      rewrite iterM_plus.
+      intros h1%pmf_1_eq_dret.
+      intros ->%pmf_1_eq_dret.
+      rewrite dret_id_left /= -/iterM. rewrite h1. by apply dret_1_1.
+    }
+    iExists δ2'. iFrame.
 Qed.
 
 

@@ -106,172 +106,89 @@ Section rules.
   Qed.
 
 
-  Definition WP_PWEQ_no_K := ∀ e e' E,
+  Definition WP_PWEQ_no_K := ∀ e1 e2 e' δ1 (δ2 : val → nonnegreal) (hex : ex_seriesC δ2) (hδ2 : nonneg δ1 = SeriesC (λ x : val, δ2 x)) E (he2 : (∃ v, e1 = e2 ∧ e1 = of_val v ∧ δ2 v = δ1) ∨ (pure_step e1 e2 ∧ to_val e1 = None)),
     (
       ∀ (RES : val),
-      ⤇ e' -∗
-          WP e @ E
+      ⤇ e' -∗ ↯ (δ2 RES) -∗
+          WP e2 @ E
             {{ v, ∃ v' : val, ⤇ (Val v') ∗ ⌜v = RES → v' = RES⌝ }} )
 -∗
-    (⤇ e'
+    (⤇ e' -∗ ↯ δ1
     -∗
-     WP e @ E
+     WP e1 @ E
       {{ v, ∃ v' : val, ⤇ (Val v') ∗ ⌜v = v'⌝ }}).
 
-  Lemma wp_pweq_no_K : (* ∀ (e e' : expr) (* ε δ *),
-       (* state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε δ ∗ *)
-       (∀ (RES : val), WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜v = RES → v' = RES⌝ }}) -∗
-       (* state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε δ ∗ *)
-       ⤇ e' -∗
-       WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜v = v'⌝ }} *)
-  WP_PWEQ_no_K.
+  Lemma wp_pweq_no_K : WP_PWEQ_no_K.
   Proof.
-    iIntros (???) "pw rhs".
+    iIntros (?????????) "pw rhs δ1".
     rewrite wp_unfold /wp_pre //=.
-    destruct (to_val e) eqn:He.
-    { iSpecialize ("pw" $! v).
-      rewrite wp_unfold /wp_pre //= He. iMod ("pw" with "rhs") as "pw". iModIntro. iDestruct "pw" as "(%v' & v' & %pweq)".
+    (* destruct (to_val e1) eqn:He. *)
+    destruct he2 as [(v&->&->&<-)|[hstep He]].
+    {
+      iSpecialize ("pw" $! v).
+      rewrite wp_unfold /wp_pre /=. iMod ("pw" with "rhs δ1") as "pw". iModIntro. iDestruct "pw" as "(%v' & v' & %pweq)".
       iExists v'. iFrame. rewrite pweq => //.
     }
-    (* iIntros (e1 e1' σ1 σ1' ε δ) "(HT & S & E & pw)". *)
-    iIntros (?????) "(HT & S & ε & δ)".
+    rewrite He.
+    iIntros (???? δsupply) "(HT & S & ε & δsupply)".
     iDestruct (spec_auth_prog_agree with "S rhs") as %->.
+    iDestruct (ec_supply_ec_inv with "δsupply δ1") as %(δ1' & δrest & hδ' & hδ1). rewrite -hδ1 in hδ2. rewrite -hδ1. clear hδ1 δ1. rename δ1' into δ1.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplit.
-    { iSpecialize ("pw" $! #42 with "rhs").
-      rewrite wp_unfold /wp_pre //= He. iSpecialize ("pw" with "[$]").
-      (* TODO reducibility requirement; can probably be fixed *)
-      admit.
-    }
-    iExists (λ _ _, True), 0%NNR, ε, 0%NNR, δ, 0%nat. iSplit. 1: admit.
-    repeat iSplit ; try (iPureIntro ; real_solver).
-    iIntros. iModIntro.
-    iRight. iExists (λ _, 0%NNR). repeat iSplit. 1,2,3: admit.
-    iNext.
-    iMod "Hclose'" as "_".
-    iModIntro. (* iSplit. *)
-    (* -
-         (* The current goal is weird, see comments below. *)
-         (* What if we drop persistence and consume the auth fragment instead? *)
-         iAssert (∀ v, ∃ K,
-                     (∀ e' σ', spec_auth (fill K e', σ') -∗
-                               (∃ (v' : val) (σ' : state), spec_auth (@pair expr state (fill K (Val v')) σ') ∗ ⌜v = v'⌝))
-                     ={E}=∗
-                     ∃ v', ⤇ fill K v' ∗ ⌜v = v'⌝)%I
-           with "[-]" as "alt_goal_no_pers".
-
-         (* iAssert (∀ v, (∀ e' σ', spec_auth (e', σ') -∗ (∃ (v' : val) (σ' : state), spec_auth (@pair expr state (Val v') σ') ∗ ⌜v = v'⌝)) ={E}=∗ ∃ v', ⤇ v' ∗ ⌜v = v'⌝)%I with "[-]" as "alt_goal_no_pers". *)
-         2: admit.
-         iIntros "%". iExists []. iIntros "h".
-         assert (e' = fill [] e') as -> by auto.
-         iDestruct ("h" with "S") as "(%v' & %σ' & S' & %eq)".
-         iModIntro.
-         iExists v'. iSplit. 2: by rewrite eq.
-         iDestruct (spec_auth_prog_agree with "S' rhs") as %<-.
-         done.
-
-
-         (* (* Weird: this should be trivial. The current postcondition should be weak enough to be implied by whatever the
-            pweq clause of the WP assumed here. Should the WP mention (⤇ v') instead of (spec_auth (v', σ')) ? *)
-            (* If the implication wasn't persistent, we could use "rhs". Let's pretend that's the case... *)
-            iAssert (∀ v, (∃ (v' : val) (σ' : state), spec_auth (@pair expr state (Val v') σ') ∗ ⌜v = v'⌝) ={E}=∗ ∃ v', ⤇ v' ∗ ⌜v = v'⌝)%I with "[-]" as "alt_goal_no_pers".
-            2: admit.
-            (* iModIntro. *)
-            iIntros "% (%v' & %σ' & S' & %eq)".
-            iModIntro.
-            iExists v'. iSplit. 2: by rewrite eq.
-            iDestruct (spec_auth_prog_agree with "S' rhs") as %->.
-            (* now we can conclude with by framing "rhs". *)
-
-            (* But this doesn't make much sense: the context is actually inconsistent because we have two authoritative views
-            of the spec resource. So we could have derived anything. *)
-            rewrite /spec_auth. simpl.
-            iDestruct "S" as "[S _]".
-            iDestruct "S'" as "[S' _]".
-            iCombine "S" "S'" as "H".
-            iDestruct (own_valid with "H") as "%Hvalid".
-            exfalso. destruct Hvalid as [Hvalid _]. clear -Hvalid.
-            apply (λ x, proj1 (dfrac_valid_own x)) in Hvalid.
-            (* we have our contradiction :/ *)
-
-            done. *) *)
-    - iIntros (RES).
-      iFrame.
-      iSplitL "HT". 1: admit.
-      iSplitL "S". 1: admit.
-      iSplitL "δ". 1: admit.
-      iApply (wp_strong_mono with "[pw rhs]") => //.
-      +
-        assert (e = e2) as -> by admit.
-        iApply ("pw" $! RES). done.
-      + simpl. iIntros "%v (%v' & rhs & %pweq) !>".
-        iExists v'.
-        (* iDestruct (spec_auth_prog_agree with "S rhs") as %->. *)
-        iSplit. 2: iPureIntro ; exact pweq.
-        iFrame.
+    iRight.
+    iExists e2,e',σ1',0%nat. repeat iSplit => //. { iPureIntro. rewrite pexec_O. by apply dret_1_1. }
+    iExists δ2. repeat iSplit => //.
+    { iPureIntro.
+      assert (SeriesC (λ x : val, δ2 x) <= δsupply). 2: admit.
+      subst. simpl. rewrite hδ2. real_solver. }
+    iNext. iMod "Hclose'" as "_". iModIntro.
+    iIntros (RES). iFrame.
+    iSplitL "δsupply".
+    { subst. admit. }
+    iApply ("pw" with "rhs"). iFrame. subst. rewrite hδ2.
+    admit.
   Admitted.
 
-  Definition WP_PWEQ := ∀ e e' K E,
+  Definition WP_PWEQ := ∀ e1 e2 e' δ1 (δ2 : val → nonnegreal) (hex : ex_seriesC δ2) (hδ2 : nonneg δ1 = SeriesC (λ x : val, δ2 x)) K E (he2 : (∃ v, e1 = e2 ∧ e1 = of_val v ∧ δ2 v = δ1) ∨ (pure_step e1 e2 ∧ to_val e1 = None)),
     (
       ∀ (RES : val),
-      ⤇ fill K e' -∗
-          WP e @ E
+      ⤇ fill K e' -∗ ↯ (δ2 RES) -∗
+          WP e2 @ E
             {{ v, ∃ v' : val, ⤇ fill K (Val v') ∗ ⌜v = RES → v' = RES⌝ }} )
 -∗
-    (⤇ fill K e'
+    (⤇ fill K e' -∗ ↯ δ1
     -∗
-     WP e @ E
+     WP e1 @ E
       {{ v, ∃ v' : val, ⤇ fill K (Val v') ∗ ⌜v = v'⌝ }}).
 
   Lemma wp_pweq : WP_PWEQ.
   Proof.
-    iIntros (????) "pw rhs".
+    iIntros (??????????) "pw rhs δ1".
     rewrite wp_unfold /wp_pre //=.
-    destruct (to_val e) eqn:He.
-    { iSpecialize ("pw" $! v).
-      rewrite wp_unfold /wp_pre //= He. iMod ("pw" with "rhs") as "pw". iModIntro. iDestruct "pw" as "(%v' & v' & %pweq)".
+    (* destruct (to_val e1) eqn:He. *)
+    destruct he2 as [(v&->&->&<-)|[hstep He]].
+    {
+      iSpecialize ("pw" $! v).
+      rewrite wp_unfold /wp_pre /=. iMod ("pw" with "rhs δ1") as "pw". iModIntro. iDestruct "pw" as "(%v' & v' & %pweq)".
       iExists v'. iFrame. rewrite pweq => //.
     }
-    (* iIntros (e1 e1' σ1 σ1' ε δ) "(HT & S & E & pw)". *)
-    iIntros (?????) "(HT & S & ε & δ)".
+    rewrite He.
+    iIntros (???? δsupply) "(HT & S & ε & δsupply)".
     iDestruct (spec_auth_prog_agree with "S rhs") as %->.
+    iDestruct (ec_supply_ec_inv with "δsupply δ1") as %(δ1' & δrest & hδ' & hδ1). rewrite -hδ1 in hδ2. rewrite -hδ1. clear hδ1 δ1. rename δ1' into δ1.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplit. 1: admit.
     iRight.
-    iNext.
-    iMod "Hclose'".
-    iModIntro. iSplit.
-    -
-      iAssert (∀ v,
-                ∃ K,
-                  (∀ e' σ', spec_auth (fill K e', σ') -∗
-                            (∃ (v' : val) (σ' : state),
-                                spec_auth (@pair expr state (fill K (Val v')) σ') ∗ ⌜v = v'⌝))
-                  ={E}=∗
-                  ∃ v', ⤇ fill K v' ∗ ⌜v = v'⌝)%I with "[-]" as "alt_goal_no_pers".
-      2: admit.
-      iIntros "%". iExists K. iIntros "h".
-      (* assert (e' = fill [] e') as -> by auto. *)
-      iDestruct ("h" with "S") as "(%v' & %σ' & S' & %eq)".
-      iModIntro.
-      iExists v'. iSplit. 2: by rewrite eq.
-      iDestruct (spec_auth_prog_agree with "S' rhs") as %<-.
-      done.
-
-    (* - iModIntro.
-         + iIntros "%v (%v' & %σ' & rhs & %eq) !>". iExists v'. iSplit. 2: by rewrite eq. admit. *)
-    - iIntros (RES).
-      iApply (wp_strong_mono with "[pw rhs]") => //.
-      + iApply ("pw" $! RES). done.
-      + simpl. iIntros "%v (%v' & rhs & %pweq) !>".
-        iAssert (∃ v1' (σv' : state) K (_ : LanguageCtx K), spec_auth
-                                        (@pair expr state (K (Val v1')) σv')
-                                         ∗ ⌜v = RES → v1' = RES⌝)%I with "[-]" as "_".
-        2: admit.
-        iExists v',σ1',(fill K),_.
-        iDestruct (spec_auth_prog_agree with "S rhs") as %->.
-        iSplit. 2: iPureIntro ; exact pweq.
-        iFrame.
+    iExists e2,(fill K e'),σ1',0%nat. repeat iSplit => //. { iPureIntro. rewrite pexec_O. by apply dret_1_1. }
+    iExists δ2. repeat iSplit => //.
+    { iPureIntro.
+      assert (SeriesC (λ x : val, δ2 x) <= δsupply). 2: admit.
+      subst. simpl. rewrite hδ2. real_solver. }
+    iNext. iMod "Hclose'" as "_". iModIntro.
+    iIntros (RES). iFrame.
+    iSplitL "δsupply".
+    { subst. admit. }
+    (* this is nonsense, need some kind of support in the WP for binding the RHS. *)
+    assert (K = []) as -> => /= ; [admit|].
+    iApply ("pw" with "rhs"). iFrame. subst. admit.
   Admitted.
 
   (* Lemma wp_couple_laplace (loc loc' k k' : Z)

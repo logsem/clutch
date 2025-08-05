@@ -31,10 +31,10 @@ Lemma wp_lift_step_couple E Φ e1 s :
       end)
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof. rewrite wp_unfold /wp_pre. iIntros "H". destruct (to_val e1). 1: done.
-       iIntros "* R". iSpecialize ("H" with "R"). iMod "H" as "(% & H)". iModIntro. iSplit => //.
-       iDestruct "H" as "(%&%&%&%&%&%&%&%&%&H)".
-       iExists _,_,_,_,_,_. repeat iSplit => //.
-       iIntros. iMod ("H" with "[]") => //. iModIntro. iLeft.  done.
+       iIntros "* R". iSpecialize ("H" with "R"). iMod "H" as "(% & H)". iModIntro. iLeft. iSplit => //.
+       (* iDestruct "H" as "(%&%&%&%&%&%&%&%&%&H)".
+          iExists _,_,_,_,_,_. repeat iSplit => //.
+          iIntros. iMod ("H" with "[]") => //. iModIntro. iLeft.  done. *)
 Qed.
 
 Lemma wp_lift_step_later E Φ e1 s :
