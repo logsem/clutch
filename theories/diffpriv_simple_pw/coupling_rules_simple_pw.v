@@ -150,7 +150,13 @@ Section rules.
     -
       (* The current goal is weird, see comments below. *)
       (* What if we drop persistence and consume the auth fragment instead? *)
-      iAssert (∀ v, ∃ K, (∀ e' σ', spec_auth (fill K e', σ') -∗ (∃ (v' : val) (σ' : state), spec_auth (@pair expr state (fill K (Val v')) σ') ∗ ⌜v = v'⌝)) ={E}=∗ ∃ v', ⤇ fill K v' ∗ ⌜v = v'⌝)%I with "[-]" as "alt_goal_no_pers".
+      iAssert (∀ v, ∃ K,
+                  (∀ e' σ', spec_auth (fill K e', σ') -∗
+                            (∃ (v' : val) (σ' : state), spec_auth (@pair expr state (fill K (Val v')) σ') ∗ ⌜v = v'⌝))
+                  ={E}=∗
+                  ∃ v', ⤇ fill K v' ∗ ⌜v = v'⌝)%I
+        with "[-]" as "alt_goal_no_pers".
+
       (* iAssert (∀ v, (∀ e' σ', spec_auth (e', σ') -∗ (∃ (v' : val) (σ' : state), spec_auth (@pair expr state (Val v') σ') ∗ ⌜v = v'⌝)) ={E}=∗ ∃ v', ⤇ v' ∗ ⌜v = v'⌝)%I with "[-]" as "alt_goal_no_pers". *)
       2: admit.
       iIntros "%". iExists []. iIntros "h".
@@ -208,13 +214,7 @@ Section rules.
      WP e @ E
       {{ v, ∃ v' : val, ⤇ fill K (Val v') ∗ ⌜v = v'⌝ }}).
 
-  Lemma wp_pweq : (* ∀ (e e' : expr) (* ε δ *),
-       (* state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε δ ∗ *)
-       (∀ (RES : val), WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜v = RES → v' = RES⌝ }}) -∗
-       (* state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε δ ∗ *)
-       ⤇ e' -∗
-       WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜v = v'⌝ }} *)
-  WP_PWEQ.
+  Lemma wp_pweq : WP_PWEQ.
   Proof.
     iIntros (????) "pw rhs".
     rewrite wp_unfold /wp_pre //=.
@@ -233,10 +233,16 @@ Section rules.
     iMod "Hclose'".
     iModIntro. iSplit.
     -
-      iAssert (∀ v, ∃ K, (∀ e' σ', spec_auth (fill K e', σ') -∗ (∃ (v' : val) (σ' : state), spec_auth (@pair expr state (fill K (Val v')) σ') ∗ ⌜v = v'⌝)) ={E}=∗ ∃ v', ⤇ fill K v' ∗ ⌜v = v'⌝)%I with "[-]" as "alt_goal_no_pers".
+      iAssert (∀ v,
+                ∃ K,
+                  (∀ e' σ', spec_auth (fill K e', σ') -∗
+                            (∃ (v' : val) (σ' : state),
+                                spec_auth (@pair expr state (fill K (Val v')) σ') ∗ ⌜v = v'⌝))
+                  ={E}=∗
+                  ∃ v', ⤇ fill K v' ∗ ⌜v = v'⌝)%I with "[-]" as "alt_goal_no_pers".
       2: admit.
-      iIntros "%". iExists []. iIntros "h".
-      assert (e' = fill [] e') as -> by auto.
+      iIntros "%". iExists K. iIntros "h".
+      (* assert (e' = fill [] e') as -> by auto. *)
       iDestruct ("h" with "S") as "(%v' & %σ' & S' & %eq)".
       iModIntro.
       iExists v'. iSplit. 2: by rewrite eq.

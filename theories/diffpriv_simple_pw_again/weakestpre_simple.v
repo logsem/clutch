@@ -6,99 +6,88 @@ From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.common Require Export language erasable.
-(* From clutch.prob_lang.spec Require Import spec_ra. *)
 From clutch.base_logic Require Export spec_update.
 From clutch.prob Require Export couplings_dp distribution.
+
+From clutch.prob_lang.spec Require Export spec_ra.
+From clutch.prob_lang Require Export class_instances.
+From clutch.prob_lang Require Import tactics lang notation metatheory.
 
 Import uPred.
 
 Local Open Scope R.
 
-Class diffprivWpGS (Λ : language) (Σ : gFunctors) `{!spec_updateGS (lang_markov Λ) Σ} := DiffprivWpGS {
+Class diffprivWpGS (Σ : gFunctors) `{(* !spec_updateGS (lang_markov prob_lang) Σ,  *)!specG_prob_lang Σ} := DiffprivWpGS {
   #[global] diffprivWpGS_invGS :: invGS_gen HasNoLc Σ;
 
-  state_interp : state Λ → iProp Σ;
-  spec_frag : expr Λ → iProp Σ;
+  state_interp : state → iProp Σ;
   err_interp : nonnegreal → nonnegreal -> iProp Σ;
 }.
 Global Opaque diffprivWpGS_invGS.
-Global Arguments DiffprivWpGS {Λ Σ _}.
+Global Arguments DiffprivWpGS {Σ _}.
 
 Canonical Structure NNRO := leibnizO nonnegreal.
 #[global] Hint Resolve cond_nonneg : core.
 
-(*
-   ∀ v . ∃ v' . ⤇ v'  *  v = v' -* φ v
-   ∀ Res . ⤇ e'   -*  wp e { v . ∃ v' . ⤇ v'  *  v = Res → v' = Res }
-   --------------------------------------------------------------------
-             ⤇ e'  -*  wp e φ
- *)
 
 (** * The weakest precondition  *)
-Definition wp_pre `{!spec_updateGS (lang_markov Λ) Σ, !diffprivWpGS Λ Σ}
-    (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
-     coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
+Definition wp_pre `{!specG_prob_lang Σ, !diffprivWpGS Σ}
+    (wp : coPset -d> expr -d> (val -d> iPropO Σ) -d> iPropO Σ) :
+     coPset -d> expr -d> (val -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
   (match to_val e1 with
    | Some v => |={E}=> Φ v
    | None =>
        ∀ σ1 e1' σ1' ε δ,
          state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε δ ={E,∅}=∗
          ⌜reducible (e1, σ1)⌝ ∗
-
-         ((∃ (R : cfg Λ → cfg Λ → Prop) (ε1 ε2 δ1 δ2 : nonnegreal) (n : nat),
-           ⌜DPcoupl (prim_step e1 σ1) (pexec n (e1', σ1')) R ε1 δ1⌝ ∗
+         (* do good things happen if we require S to be reflexive? *)
+         (∃ (S : cfg → cfg → Prop) (ε1 ε2 δ1 δ2 : nonnegreal) (k : nat),
+           ⌜DPcoupl (prim_step e1 σ1) (pexec k (e1', σ1')) S ε1 δ1⌝ ∗
             ⌜ε1 + ε2 <= ε⌝ ∗ ⌜δ1 + δ2 <= δ⌝ ∗
             (∀ e2 σ2 e2' σ2',
-                (⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗
-                 ▷ |={∅,E}=>  (state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 δ2 ∗ wp E e2 Φ))))
+                (⌜S (e2, σ2) (e2', σ2')⌝ ={∅}=∗
+                 (▷ (|={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 δ2 ∗ wp E e2 Φ))
+                (*  ∨
+                   (∃ δ2' : val → nonnegreal, (⌜(∀ RES, 0 <= δ2' RES) ∧ ex_seriesC δ2' ∧ nonneg δ2 = SeriesC δ2'⌝ ∗ ▷ |={∅,E}=>
+                     ∀ RES : val,
+                       state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 (δ2' RES) ∗
+                     wp E e2 (λ v, ∃ v' : val, ⤇ (of_val v') ∗ ⌜v = RES → v' = RES⌝))) *))))
            ∨
-             (* TODO: only works if (δconv : ex_seriesC δ) holds (could be δ=0 for RNM) *)
-             (* TODO: whatever we put here has to be strong enough to allow switching to pweq in adequacy *)
-             ▷ |={∅,E}=> ((∀ v, ∃ K, (∀ e', spec_frag (K e') -∗
-                                            (∃ (v' : val Λ), spec_frag (K (of_val v')) ∗ ⌜v = v'⌝))
-                                     ={E}=∗ ∃ v', spec_frag (K (of_val v')) ∗ ⌜v = v'⌝)
-              ∗
-                ∀ RES : val Λ,
-                  (* TODO should probably require getting back the resources: *)
-                  state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε δ ∗
-                  wp E e1 (λ v1, ∃ (v1' : val Λ) (σv' : state Λ) K (_ : LanguageCtx K),
-                        spec_frag (K (of_val v1')) ∗ ⌜v1 = RES → v1' = RES⌝)
-             )
-         )
-
+            (∃ e2, ⌜pure_step e1 e2⌝ ∗
+             ∃ δ2' : val → nonnegreal,
+                (⌜(∀ RES, 0 <= δ2' RES) ∧ ex_seriesC δ2'⌝ ∗
+                 ▷ |={∅,E}=>
+                   ∀ RES : val,
+                     state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε (δ2' RES) ∗
+                     wp E e2 (λ v, ∃ v' : val, ⤇ (of_val v') ∗ ⌜v = RES → v' = RES⌝)))
       end)%I.
 
-(* Definition pwwp :=
-     λ E e1 Φ,
-       wp e1 Φ
-       ∨ ( (eq → Φ) → ∀ RES, pwwp e1 { v, v = RES → v' = RES } ) *)
-
-Local Instance wp_pre_contractive `{!spec_updateGS (lang_markov Λ) Σ, !diffprivWpGS Λ Σ} :
+Local Instance wp_pre_contractive `{!specG_prob_lang Σ, !diffprivWpGS Σ} :
   Contractive wp_pre.
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ.
-  do 15 f_equiv. 1: do 25 f_equiv. all: f_contractive. all: repeat f_equiv ; apply Hwp.
+  do 20 f_equiv. 1: do 20 f_equiv. all: f_contractive ; repeat f_equiv ; apply Hwp.
 Qed.
 
-Local Definition wp_def `{!spec_updateGS (lang_markov Λ) Σ, !diffprivWpGS Λ Σ} :
-  Wp (iProp Σ) (expr Λ) (val Λ) () :=
+Local Definition wp_def `{!specG_prob_lang Σ, !diffprivWpGS Σ} :
+  Wp (iProp Σ) (expr) (val) () :=
   {| wp := λ _ : (), fixpoint (wp_pre); wp_default := () |}.
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
-Global Arguments wp' {Λ Σ _}.
+Global Arguments wp' {Σ _}.
 Global Existing Instance wp'.
-Local Lemma wp_unseal `{!spec_updateGS (lang_markov Λ) Σ, !diffprivWpGS Λ Σ} : wp =
-  (@wp_def Λ Σ _ _).(wp).
+Local Lemma wp_unseal `{!specG_prob_lang Σ, !diffprivWpGS Σ} : wp =
+  (@wp_def Σ _ _).(wp).
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
 Section wp.
-Context `{!spec_updateGS (lang_markov Λ) Σ, !diffprivWpGS Λ Σ}.
+Context `{!specG_prob_lang Σ, !diffprivWpGS Σ}.
 Implicit Types P : iProp Σ.
-Implicit Types Φ : val Λ → iProp Σ.
-Implicit Types v : val Λ.
-Implicit Types e : expr Λ.
-Implicit Types σ : state Λ.
-Implicit Types ρ : cfg Λ.
+Implicit Types Φ : val → iProp Σ.
+Implicit Types v : val.
+Implicit Types e : expr.
+Implicit Types σ : state.
+Implicit Types ρ : cfg.
 
 (* Weakest pre *)
 Lemma wp_unfold E e Φ s :
@@ -125,7 +114,9 @@ Global Instance wp_contractive E e n s :
   Proper (pointwise_relation _ (dist_later n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
 Proof.
   intros He Φ Ψ HΦ. rewrite !wp_unfold /wp_pre He /=.
-  do 14 f_equiv. 1: do 25 f_equiv. all: f_contractive ; repeat f_equiv.
+  do 39 f_equiv.
+  f_contractive.
+  repeat f_equiv.
 Qed.
 
 Lemma wp_strong_mono E1 E2 e Φ Ψ s :
@@ -139,48 +130,26 @@ Proof.
   iIntros (σ1 e1' σ1' ε δ) "[Hσ [Hs He]]".
   iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
   (* feed resources to H *)
-  iMod ("H" with "[$]") as "(red & H)". iModIntro. iFrame "red".
-  iDestruct "H" as "[(%R & % & % & % & % & % & % & % & % & H) | H]" ; [iLeft | iRight].
-  -
-    (* keep the same coupling (relation, errors) *)
-    repeat iExists _ ; repeat (iSplit ; [done|]).
-    (* assuming R... *)
-    iIntros (???? HR). iMod ("H" $! _ _ _ _ HR) as "H". iModIntro.
-    (* ...we get a proof of the recursive WP from H *)
-    iNext. iMod "H" as "(?&?&?& Hrec)". iFrame.
+  iMod ("H" with "[$]") as "(red & %R & % & % & % & % & % & % & % & % & H)". iModIntro. iFrame "red".
+  (* keep the same coupling (relation, errors) *)
+  repeat iExists _ ; repeat (iSplit ; [done|]).
+  (* assuming R... *)
+  iIntros (???? HR). iSpecialize ("H" $! _ _ _ _ HR).
+  (* ...we get a proof of the recursive WP from H *)
+  iMod "H". iModIntro.
+  iDestruct "H" as "[H|H]".
+  - iLeft. iNext. iMod "H" as "(?&?&?& Hrec)". iFrame.
     iMod "Hclose" as "_". iModIntro.
     (* By IH, we can rewrite Ψ to Φ for WP e2. *)
     iApply ("IH" with "Hrec HΦ").
-  - iNext. iMod "H" as "(Φeq & H)". iMod "Hclose" as "_". iModIntro. iSplitL "HΦ Φeq".
-    {
-      (* iModIntro.
-         iAssert (∀ v, Φ v -∗ Ψ v)%I as "HΦ" ; [by admit|].
-         iIntros.
-         iSplit.
-         + iIntros "Ψv1".
-           iDestruct ("Φeq" $! v1) as "[x y]".
-           iSpecialize "HΦ" in "Ψv1".
-           iExists v1.  iRewrite "HΦ".
-         iFrame "Φeq". *)
-      iIntros (?). iSpecialize ("Φeq" $! v). iSpecialize ("HΦ" $! v).
-      iPoseProof "Φeq" as "-#h".
-      iDestruct "h" as "(%K & h)".
-      iExists K. iIntros "h'".
-      admit.
-
-      (* iIntros "!> % h".
-         iSpecialize ("Φeq" $! v with "h").
-         iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
-
-         iMod "Φeq". iMod "Hclose".
-         iSpecialize ("HΦ" with "Φeq").
-         done.  *)
-    }
-    iIntros (RES). iDestruct ("H" $! RES) as "($ & $ & $ & H)".
-    iApply ("IH" with "H").
-    iIntros "%v1 (%v1' & % & % & % & S & %pweq)".
-    iModIntro. iExists v1', σv', K, _. iFrame "S". iPureIntro. exact pweq.
-Admitted.
+  - iRight. iDestruct "H" as "(%δ2' & hδ2 & H)". iExists δ2'. iFrame.
+    iNext.
+    iMod "H" as "H".
+    iMod "Hclose" as "_". iModIntro.
+    iIntros (RES). iDestruct ("H" $! RES) as "($&$&$&H)".
+    iApply ("IH" with "H [HΦ]").
+    iIntros "%v (%v' & rhs & %pw)". iFrame. done.
+Qed.
 
 Lemma fupd_wp E e Φ s: (|={E}=> WP e @ s; E {{ Φ }}) ⊢ WP e @ s; E {{ Φ }}.
 Proof.
@@ -189,62 +158,38 @@ Proof.
   iIntros (?????) "(?&?&?)". by iMod ("H" with "[$]").
 Qed.
 
-Lemma wp_bind K `{!LanguageCtx K} E e Φ s :
-  WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }} ⊢ WP K e @ s; E {{ Φ }}.
-Proof.
-  iRevert (e Φ). iLöb as "IH". iIntros (e1 Φ) "H".
-  rewrite {1}wp_unfold /wp_pre. destruct (to_val e1) as [v|] eqn:He.
-  { iApply fupd_wp. apply of_to_val in He as <-. iAssumption. }
-  (* Non-value case. We have to show that there exists a coupling for K e1 and e1' and that WP holds for K v. *)
-  rewrite {1}wp_unfold /wp_pre ; rewrite fill_not_val /= ; [|done] ; iIntros (σ1 e1' σ1' ε δ) "Hs".
-  (* Feed {state,spec,error} interpretation resources into H. *)
-  iMod ("H" with "[$]") as "(%red & [ (%R & % & % & % & % & %n & %HCR & %hε & %hδ & Hrec) | h ])".
-  (* (K e1, σ1) is reducible because (e1, σ1) is. *)
-  all: iModIntro ; iSplit ; [eauto using reducible_fill|].
-  1: iLeft. 2: iRight.
-  - (* R' := the R-coupling from H "post-composed" with `fill K e1` *)
-    iExists (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ').
-    (* Keep the same error split. *)
-    iExists ε1,ε2,δ1,δ2,n.
-    (* Build the R'-coupling for K e1 & e1' from the R-coupling for e1 & e1' we got from H. *)
-    repeat iSplit => //.
-    { iPureIntro. rewrite fill_dmap //=. rewrite -(dret_id_right (pexec _ _)). rewrite /dmap.
-      eapply (DPcoupl_dbind' ε1 0 _ δ1 0) ; [lra | done | lra | lra | | exact HCR ].
-      intros [] ?? => /=. apply DPcoupl_dret; [done|done|]. eauto. }
-    (* Assuming R' for K e2 (& e2'), we now show the recursive call: `▷ WP K e2 Φ` *)
-    iIntros (Ke2 σ2 e2' σ2') "(%e2 & -> & %HR)".
-    (* Get back resources from Hrec and strip later. *)
-    iSpecialize ("Hrec" $! _ _ _ _ HR). iMod "Hrec" ; iModIntro.
-    iNext. iMod "Hrec" as "($&$&$&Hrec)". iModIntro.
-    (* By IH, we can push K into the postcondition... *)
-    iApply "IH".
-    (* and that's exactly what the recursive occurrence of WP in Hrec gives us. *)
-    iApply "Hrec".
-  -
-
-    iNext.
-    iMod "h" as "(Φeq & H)". iModIntro. iSplitL "Φeq".
-    + iIntros (v). iDestruct ("Φeq" $! v) as "[%K' Φeq]". iExists K'. iIntros "h".
-      iSpecialize ("Φeq" with "h"). done.
-    + iIntros (RES).
-      iDestruct ("H" $! RES) as "($ & $ & $ & H)".
-
-      iApply "IH".
-      iApply (wp_strong_mono with "H") => //.
-      iIntros (v1).
-      iIntros "(%v1' & % & % & % & rhs & H)".
-      iSpecialize ("Φeq" $! v1).
-      iPoseProof ("Φeq" with "[H]") as "z".
-      { iDestruct "H" as "(%v1' & % & S & %pweq)".
-        iExists _,_. iFrame. rewrite pweq.
-        1,2: admit. }
-      iApply (wp_strong_mono with "z") => //.
-      iIntros. iModIntro.
-
-      (* iApply "H".
-         iIntros "%v1 (%v1' & % & S & %pweq)".
-         iModIntro. iExists v1', σv'. iFrame "S". iPureIntro. exact pweq. *)
-Admitted.
+(* Lemma wp_bind K `{!LanguageCtx K} E e Φ s :
+     WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }} ⊢ WP K e @ s; E {{ Φ }}.
+   Proof.
+     iRevert (e). iLöb as "IH". iIntros (e1) "H".
+     rewrite {1}wp_unfold /wp_pre. destruct (to_val e1) as [v|] eqn:He.
+     { iApply fupd_wp. apply of_to_val in He as <-. iAssumption. }
+     (* Non-value case. We have to show that there exists a coupling for K e1 and e1' and that WP holds for K v. *)
+     rewrite {1}wp_unfold /wp_pre. ; rewrite fill_not_val /= ; [|done] ; iIntros (σ1 e1' σ1' ε δ) "Hs".
+     (* Feed {state,spec,error} interpretation resources into H. *)
+     iMod ("H" with "[$]") as "(%red & %R & % & % & % & % & %n & %HCR & %hε & %hδ & Hrec)".
+     (* (K e1, σ1) is reducible because (e1, σ1) is. *)
+     iModIntro ; iSplit ; [eauto using reducible_fill|].
+     (* R' := the R-coupling from H "post-composed" with `fill K e1` *)
+     iExists (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ').
+     (* Keep the same error split. *)
+     iExists ε1,ε2,δ1,δ2,n.
+     (* Build the R'-coupling for K e1 & e1' from the R-coupling for e1 & e1' we got from H. *)
+     repeat iSplit => //.
+     { iPureIntro. rewrite fill_dmap //=.
+       rewrite -(dret_id_right (pexec _ _)). rewrite /dmap.
+       eapply (DPcoupl_dbind' ε1 0 _ δ1 0) ; [lra | done | lra | lra | | exact HCR ].
+       intros [] ?? => /=. apply DPcoupl_dret; [done|done|]. eauto. }
+     (* Assuming R' for K e2 (& e2'), we now show the recursive call: `▷ WP K e2 Φ` *)
+     iIntros (Ke2 σ2 e2' σ2') "(%e2 & -> & %HR)".
+     (* Get back resources from Hrec and strip later. *)
+     iSpecialize ("Hrec" $! _ _ _ _ HR). iMod "Hrec" ; iModIntro.
+     iNext. iMod "Hrec" as "($&$&$&Hrec)". iModIntro.
+     (* By IH, we can push K into the postcondition... *)
+     iApply "IH".
+     (* and that's exactly what the recursive occurrence of WP in Hrec gives us. *)
+     iApply "Hrec".
+   Qed. *)
 
 Lemma wp_value_fupd' E Φ v s : (|={E}=> Φ v) ⊢ WP of_val v @ s; E {{ Φ }}.
 Proof. rewrite wp_unfold /wp_pre to_of_val. done. Qed.
@@ -258,7 +203,7 @@ Proof. iIntros "H". iApply (wp_strong_mono E with "H"); auto. Qed.
    Proof.
      rewrite !wp_unfold /wp_pre. iIntros (-> ?) "HR H".
      iIntros (σ1 e1' σ1' ??) "[Hσ [Hs He]]". iMod "HR".
-     iMod ("H" with "[$]") as "(red & %R & % & % & % & % & % & % & % & H)".
+     iMod ("H" with "[$]") as "(red & %R & % & % & % & % & % & % & % & % & H)".
      iModIntro. iFrame "red".
      iExists _,_,_,_,_,_. repeat iSplit => //.
      iIntros (???? HR).
@@ -302,6 +247,7 @@ Proof.
 Qed.
 Lemma wp_frame_r E e Φ R s : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
 Proof. iIntros "[H ?]". iApply (wp_strong_mono with "H"); auto with iFrame. Qed.
+
 
 (* Lemma wp_frame_step_l E1 E2 e Φ R s :
      TCEq (to_val e) None → E2 ⊆ E1 →
@@ -351,11 +297,11 @@ End wp.
 
 (** * Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!spec_updateGS (lang_markov Λ) Σ, !diffprivWpGS Λ Σ}.
+  Context `{!specG_prob_lang Σ, !diffprivWpGS Σ}.
   Implicit Types P Q : iProp Σ.
-  Implicit Types Φ : val Λ → iProp Σ.
-  Implicit Types v : val Λ.
-  Implicit Types e : expr Λ.
+  Implicit Types Φ : val → iProp Σ.
+  Implicit Types v : val.
+  Implicit Types e : expr.
 
   Global Instance frame_wp p E e R Φ Ψ s :
     (∀ v, Frame p R (Φ v) (Ψ v)) →
@@ -404,17 +350,15 @@ Proof.
   iMod ("Hspec" with "Hs")
     as ([e2' σ2'] n Hstep%stepN_pexec_det) "(Hs & Hwp)".
   iEval (rewrite !wp_unfold /wp_pre /= He) in "Hwp".
-  iMod ("Hwp" with "[$]") as "(%red & [ (%R & % & % & % & % & %n' & %HCR & %hε & %hδ & h) | h ])".
-  all: iModIntro ; iSplit ; [done|].
-  - iLeft. iExists _,ε1,ε2,δ1,δ2,(n+n')%nat.
-    iSplit.
-    { iPureIntro. rewrite pexec_plus.
-      apply pmf_1_eq_dret in Hstep.
-      rewrite Hstep.
-      rewrite dret_id_left. done.
-    }
-    iFrame. done.
-  - iRight. done.
+  iMod ("Hwp" with "[$]") as "(% & %&%&%&%&%&%n'&%&%&%&h)".
+  iModIntro. iSplit ; [done|]. iExists _,ε1,ε2,δ1,δ2,(n+n')%nat.
+  iSplit.
+  { iPureIntro. rewrite pexec_plus.
+    apply pmf_1_eq_dret in Hstep.
+    rewrite Hstep.
+    rewrite dret_id_left. done.
+  }
+  iFrame. done.
 Qed.
 
 

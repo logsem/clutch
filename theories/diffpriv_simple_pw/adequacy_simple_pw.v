@@ -75,6 +75,7 @@ Section adequacy.
 
       (* TODO This is where we need the assumption about the postcondition being a consequence of equality.
       Is there any way to get this from the first component of "h"? *)
+      (* (∀ x, φ x x) *)
       assert (∀ x y, x = y → φ x y) as φpw by admit.
       iApply (step_fupdN_mono _ _ _ ⌜∀ RES, DPcoupl (prim_step e σ ≫= exec n) (lim_exec (e', σ')) (λ v v', v = RES → v' = RES) ε δ⌝).
       { iPureIntro. intros.
