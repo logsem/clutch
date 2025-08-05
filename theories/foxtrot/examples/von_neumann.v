@@ -1,4 +1,5 @@
 (** von Neumann Trick *)
+From clutch.prelude Require Import tactics.
 From clutch.foxtrot Require Import foxtrot lib.conversion lib.min lib.par lib.spawn.
 
 Set Default Proof Using "Type*".
@@ -6,6 +7,17 @@ Set Default Proof Using "Type*".
 Definition flipL : val := λ: "e", int_to_bool (rand("e") #1%nat).
 Definition flip : expr := (flipL #()).
 
+Lemma length_bind {A:Type} (l1 l2: list A): length (l1 ≫= (λ x, (λ y, (x, y)) <$> l2)) = length l1 * length l2.
+Proof.
+  revert l2.
+  induction l1; first done. 
+  simpl.
+  intros.
+  rewrite app_length.
+  rewrite fmap_length.
+  by f_equal.
+Qed. 
+  
 Section von_neumann.
   Variable (N : nat).
   Variable (ad : val).
@@ -198,9 +210,137 @@ Section von_neumann.
       wp_pures.
       wp_alloctape β as "Hβ".
       wp_pures.
-    Admitted. 
-      
+      remember (n`min` N)%Z as x eqn:Heqx.
+      assert (0<=x /\ x <= n /\ x <=N)%Z by lia.
+      pose (small:= seq 0 (Z.to_nat x+1)%nat).
+      pose (large:= seq (Z.to_nat x+1)%nat (S N-Z.to_nat x)).
+      pose (l1 := small ≫= (λ x, (λ y, (x, y)) <$> large) ).
+      pose (l2 := large ≫= (λ x, (λ y, (x, y)) <$> small) ). 
+      tp_bind j (rand _)%E.
+      iMod (pupd_couple_von_neumann_1 l1 l2 with "[$Hα][$Hβ][$]") as"H".
+      { rewrite /l1. rewrite Forall_forall.
+        intros [].
+        rewrite elem_of_list_bind.
+        rewrite /small/large.
+        setoid_rewrite elem_of_list_fmap.
+        setoid_rewrite elem_of_seq.
+        intros. destruct!/=. lia.
+      }
+      { rewrite /l2. rewrite Forall_forall.
+        intros [].
+        rewrite elem_of_list_bind.
+        rewrite /small/large.
+        setoid_rewrite elem_of_list_fmap.
+        setoid_rewrite elem_of_seq.
+        intros. destruct!/=. lia.
+      }
+      { rewrite NoDup_app.
+        split!.
+        - rewrite /l1.
+          rewrite /small/large.
+          apply NoDup_bind.
+          + setoid_rewrite elem_of_list_fmap.
+            setoid_rewrite elem_of_seq.
+            intros. destruct!/=. lia.
+          + intros.
+            apply NoDup_fmap.
+            * intros ???. by simplify_eq.
+            * apply NoDup_seq.
+          + apply NoDup_seq.
+        - rewrite /l1 /l2.
+          intros [].
+          rewrite /small/large.
+          rewrite !elem_of_list_bind.
+          setoid_rewrite elem_of_list_fmap.
+          setoid_rewrite elem_of_seq.
+          intros. intros ?. destruct!/=. lia.
+        - rewrite /l2.
+          rewrite /small/large.
+          apply NoDup_bind.
+          + setoid_rewrite elem_of_list_fmap.
+            setoid_rewrite elem_of_seq.
+            intros. destruct!/=. lia.
+          + intros.
+            apply NoDup_fmap.
+            * intros ???. by simplify_eq.
+            * apply NoDup_seq.
+          + apply NoDup_seq.
+      }
+      { rewrite /l1/l2.
+        rewrite !length_bind. lia. }
+      iDestruct ("H") as "(%&%&%&%&Hα&Hβ&Hspec)".
+      simpl.
+      case_bool_decide as K1.
+      { (* return true *)
+        iMod (spec_int_to_bool with "[$]").
+        rewrite Z_to_bool_neq_0; last done.
+        rewrite /l1 elem_of_list_bind in K1.
+        setoid_rewrite elem_of_list_fmap in K1.
+        rewrite /large/small in K1.
+        setoid_rewrite elem_of_seq in K1.
+        destruct!/=.
+        wp_randtape.
+        wp_pures.
+        rewrite bool_decide_eq_true_2; last lia.
+        wp_randtape.
+        wp_pure.
+        rewrite bool_decide_eq_false_2; last lia.
+        wp_pures.
+        iFrame. by iExists _.
+      }
+      case_bool_decide as K2.
+      { (* return false *)
+        iMod (spec_int_to_bool with "[$]").
+        rewrite Z_to_bool_eq_0. 
+        rewrite /l2 elem_of_list_bind in K2.
+        setoid_rewrite elem_of_list_fmap in K2.
+        rewrite /large/small in K2.
+        setoid_rewrite elem_of_seq in K2.
+        destruct!/=.
+        wp_randtape.
+        wp_pures.
+        rewrite bool_decide_eq_false_2; last lia.
+        wp_randtape.
+        wp_pure.
+        rewrite bool_decide_eq_true_2; last lia.
+        wp_pures.
+        iFrame. by iExists _.
+      }
+      rewrite /l1 in K1.
+      rewrite /l2 in K2.
+      rewrite !elem_of_list_bind/small/large in K1 K2.
+      setoid_rewrite elem_of_list_fmap in K1.
+      setoid_rewrite elem_of_list_fmap in K2.
+      setoid_rewrite elem_of_seq in K1.
+      setoid_rewrite elem_of_seq in K2.
+      wp_randtape.
+      wp_pures.
+      wp_randtape.
+      case_bool_decide as K3.
+      - wp_pure.
+        rewrite bool_decide_eq_true_2; last first.
+        { apply Znot_gt_le.
+          intros ?. apply K1. eexists _.
+          split; first eexists _.
+          - split; first done. lia.
+          - simpl. lia. 
+        }
+        do 4 wp_pure.
+        by iApply "IH".
+      - wp_pure.
+        rewrite bool_decide_eq_false_2; last first.
+        { intros ?. apply K2. eexists _.
+          split; first eexists _.
+          - split; first done. lia.
+          - simpl. lia. 
+        }
+        do 4 wp_pure.
+        by iApply "IH".
+    Qed. 
+  
   End proof.
+  
+  
   
   Section proof'.
     Context `{!foxtrotRGS Σ, Hspawn: !spawnG Σ}.

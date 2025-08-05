@@ -1617,6 +1617,24 @@ Section rules.
   (*   iFrame. *)
   (* Qed. *)
 
+
+  (** * Lemmas for von neumann coin example *)
+  Lemma pupd_couple_von_neumann_1 {N:nat} (l1 l2: list (nat*nat)) α β ns ns' j K E:
+    Forall (λ x, x.1<=N/\x.2<=N)%nat l1 ->
+    Forall (λ x, x.1<=N/\x.2<=N)%nat l2 ->
+    NoDup (l1++l2) ->
+    length l1 = length l2 ->
+    ▷ α ↪N (N; ns) -∗
+    ▷ β ↪N (N; ns') -∗
+    j ⤇ fill K (rand #1) -∗
+    pupd E E (∃ x y, ⌜(x<=N)%nat⌝ ∗ ⌜(y<=N)%nat⌝ ∗ α ↪N (N; ns++[x]) ∗ β ↪N (N; ns'++[y]) ∗
+                     if bool_decide ((x,y)∈l1) then j ⤇ fill K #1
+                     else if bool_decide ((x,y)∈l2) then j⤇ fill K #0
+                          else j⤇ fill K (rand #1)
+      ).
+  Proof.
+  Admitted. 
+
   (** * Exact couplings  *)
   Lemma pupd_couple_tape_rand N f `{Bij nat nat f} K E α z ns j:
     TCEq N (Z.to_nat z) →
