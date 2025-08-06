@@ -399,7 +399,7 @@ Section von_neumann.
       iMod (pupd_fork with "[$]") as "[Hspec _]".
       simpl.
       tp_pures j.
-      iMod (inv_alloc _ _ (l↦ₛ#0)%I with "[$]") as "#Hinv'".
+      iMod (inv_alloc nroot _ (l↦ₛ#0)%I with "[$]") as "#Hinv'".
       wp_pures.
       iFrame.
       iModIntro.
@@ -415,8 +415,15 @@ Section von_neumann.
       wp_pures.
       iMod (pupd_epsilon_err) as "(%&%&Herr)".
       iRevert "Hspec Hα".
-      iApply (ec_ind_simpl _ _ with "[][$]"); first done.
-      { admit. }
+      set (k:=(((N+2)* (N+2))%nat / ((N+2)*(N+2) - 2 * (N+1))%nat)%R).
+      iApply (ec_ind_simpl _ k with "[][$]"); first done.
+      { rewrite /k.
+        apply Rcomplements.Rlt_div_r.
+        - apply Rlt_gt.
+          apply lt_0_INR.
+          lia.
+        - rewrite Rmult_1_l. apply lt_INR. lia.
+      }
       iModIntro.
       iIntros "[Hind Herr] Hspec Hα".
       tp_pures j.
@@ -434,8 +441,54 @@ Section von_neumann.
       iMod (tp_par with "[$]") as "(%j1&%j2&%K1&%K2&Hspec1&Hspec2&Hcont)".
       tp_bind j1 (rand _)%E.
       tp_bind j2 (rand _)%E.
-      (* error amplification *)
-    Admitted.
+      iMod (pupd_couple_von_neumann_2 with "[$][$Hspec1][$][$]") as "H"; first done.
+      iDestruct "H" as "(%&%&%&%&Hspec1&Hspec2&Hα)".
+      simpl.
+      case_bool_decide as C1.
+      { (* return true *)
+        destruct!/=.
+        tp_pures j1.
+        tp_pures j2.
+        rewrite bool_decide_eq_false_2; last lia.
+        iMod ("Hcont" with "[$]") as "Hspec".
+        tp_pures j; first solve_vals_compare_safe.
+        wp_randtape.
+        wp_apply (wp_int_to_bool); first done.
+        iIntros.
+        iFrame.
+        rewrite Z_to_bool_neq_0; last done.
+        by iExists _. }
+      case_bool_decide as C2.
+      { (* return false *)
+        destruct!/=.
+        tp_pures j1.
+        rewrite bool_decide_eq_false_2; last lia.
+        tp_pures j2.
+        iMod ("Hcont" with "[$]") as "Hspec".
+        tp_pures j; first solve_vals_compare_safe.
+        wp_randtape.
+        wp_apply (wp_int_to_bool); first done.
+        iIntros.
+        iFrame.
+        rewrite Z_to_bool_eq_0.
+        by iExists _. }
+      tp_pures j1.
+      case_bool_decide as C3.
+      - tp_pures j2.
+        rewrite bool_decide_eq_true_2; last lia.
+        iDestruct "Hα" as "[Hα Herr]".
+        iMod ("Hcont" with "[$]") as "Hspec".
+        do 9 (tp_pure j); first solve_vals_compare_safe.
+        tp_pure j.
+        iApply ("Hind" with "[$][$][$]").
+      - tp_pures j2.
+        rewrite bool_decide_eq_false_2; last lia.
+        iDestruct "Hα" as "[Hα Herr]".
+        iMod ("Hcont" with "[$]") as "Hspec".
+        do 9 (tp_pure j); first solve_vals_compare_safe.
+        tp_pure j.
+        iApply ("Hind" with "[$][$][$]").
+    Qed. 
       
     Lemma wp_von_neumann_con_prog_von_neumann_con_prog' K j:
       Htyped ->

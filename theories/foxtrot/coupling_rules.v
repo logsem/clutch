@@ -1635,6 +1635,20 @@ Section rules.
   Proof.
   Admitted. 
 
+
+  Lemma pupd_couple_von_neumann_2 {N:nat} α ns j K j' K' E ε:
+    (ε>0)%R -> 
+    ▷ α ↪N (1; ns) -∗
+    j ⤇ fill K (rand #(S N)) -∗
+    j' ⤇ fill K' (rand #(S N)) -∗
+    ↯ ε -∗
+    pupd E E (∃ x y, ⌜(x<=S N)%nat⌝ ∗ ⌜(y<=S N)%nat⌝ ∗ j⤇ fill K #x ∗ j' ⤇ fill K' #y ∗
+                     if bool_decide (x=0/\1<=y<=S N)%nat then α ↪N (1; ns ++ [1%nat])
+                     else if bool_decide (y=0/\1<=x<=S N)%nat then α ↪N (1; ns ++ [0%nat])
+                          else (α ↪N (1; ns) ∗ ↯ ((((N+2)* (N+2))%nat / ((N+2)*(N+2) - 2 * (N+1))%nat)%R * ε))).
+  Proof.
+  Admitted. 
+  
   (** * Exact couplings  *)
   Lemma pupd_couple_tape_rand N f `{Bij nat nat f} K E α z ns j:
     TCEq N (Z.to_nat z) →
