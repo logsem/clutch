@@ -1695,6 +1695,35 @@ Section rules.
         done. 
       }
       set (f_inv f) as f'.
+      set ((λ x, state_upd_tapes <[β:=(N; fs' ++ [x.2])]> x.1)) as fn.
+      assert ((dbind (λ σ', dmap (λ n : fin (S N), state_upd_tapes <[β:=(N; fs' ++ [n])]> σ') (dunifP N))
+       (dmap (λ n : fin (S N), state_upd_tapes <[α:=(N; fs ++ [n])]> σ) (dunifP N))) = (dbind (λ σ', dmap (λ n : fin (S N), fn (σ', n)) (dunifP N))
+                                                                                          (dmap (λ n : fin (S N), state_upd_tapes <[α:=(N; fs ++ [n])]> σ) (dunifP N)))) as -> by done.
+      erewrite (dbind_dmap_inj_rearrange); last first. 
+      { rewrite /fn. intros [][].
+        intros H'.
+        apply state_upd_tapes_same' in H' as H''.
+        rewrite !(upd_diff_tape_comm _ _ β) in H'; try done.
+        apply state_upd_tapes_same' in H' as H'''.
+        simpl in *. by simplify_eq. }
+      { intros ??. apply state_upd_tapes_same'. }
+      replace (dbind _ _) with (dbind
+                                  (λ ac,
+                                     let '(a, c) := f_inv f ac in
+                                     dret (fn (state_upd_tapes <[α:=(N; fs ++ [a])]> σ, c))) 
+                                  (dunifP (S N * S N -1))); last first.
+      { rewrite dunifP_decompose; last done.
+        rewrite -dbind_assoc'.
+        apply dbind_ext_right.
+        intros ?.
+        rewrite /dmap.
+        rewrite -dbind_assoc'.
+        apply dbind_ext_right.
+        intros ?.
+        rewrite dret_id_left.
+        by rewrite f_inv_cancel_l.
+      }
+      
       admit. 
       (* rewrite dunifP_decompose; last done. *)
       (* rewrite /dmap. *)

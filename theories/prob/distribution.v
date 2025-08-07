@@ -1509,12 +1509,16 @@ Section dmap.
     
 End dmap.
 
-Lemma dbind_dmap_inj_rearrange `{Countable A}`{Countable B} {C:Type} `{Countable C} `{Countable D} (μ : distr A) (μ' : distr C) (f : A -> B) (g: (B*C) -> D) {Hinj1:Inj (=) (=) f} {Hinj2:Inj (=) (=) g} :
+Lemma dbind_dmap_inj_rearrange `{Countable A}`{Countable B} {C:Type} `{Countable C} `{Countable D} (μ : distr A) (μ' : distr C) (f : A -> B) (g: (B*C) -> D) :
+  Inj (=) (=) f-> Inj (=) (=) (λ '(a,c), g(f a, c)) ->
   (dmap f μ)≫= (λ b, dmap (λ c, g (b, c)) μ')=
-  μ ≫= (λ a, dmap (λ c, g ((f a), c)) μ')
-.
+  μ ≫= (λ a, dmap (λ c, g ((f a), c)) μ').
 Proof.
+  intros Hinj1 Hinj2.
   apply distr_ext => d.
+  set (λ '(a,c), g (f a, c)) as j.
+  assert (∀ x y, g (f x,y) = j (x, y)) as Hrewrite by done.
+  rewrite -/j in Hinj2.
   destruct (@decide (∃ a c, d = g(f a, c)) (make_decision _)) as [H'|H'].
   - destruct H' as (a & c & ->).
     rewrite {1}/dbind{1}/dbind_pmf{1}/pmf.
@@ -1526,6 +1530,7 @@ Proof.
       erewrite dmap_elem_eq; [|done..].
       erewrite dmap_elem_eq; last done; last first.
       { intros ??.
+        rewrite !Hrewrite.
         move => /Hinj2. intros; by simplify_eq.
       }
       rewrite /dmap.
@@ -1537,33 +1542,42 @@ Proof.
       * subst.
         rewrite -/(dmap (λ c, g(f a, c)) μ').
         erewrite dmap_elem_eq; try done.
-        intros ??. move =>/Hinj2. intros. by simplify_eq.
+        intros ??.
+        rewrite !Hrewrite. move =>/Hinj2. intros. by simplify_eq.
       * rewrite -/(dmap (λ c, g(f a', c)) μ').
-        rewrite dmap_elem_ne; first lra.
-        intros [? [? Hcontra]].
-        simplify_eq.
-    + rewrite (dmap_elem_ne μ'); first lra.
-      intros [?[??]]. simplify_eq.
-  - trans 0.
+        rewrite Hrewrite.
+        erewrite dmap_elem_ne; first lra.
+        -- intros ??. rewrite !Hrewrite. intros. by simplify_eq.
+        -- setoid_rewrite Hrewrite.
+           intros (?&?&?). simplify_eq.
+    + apply pmf_mult_eq_0.
+      move => /dmap_pos.
+      intros (?&?&?). subst.
+      rewrite Rmult_eq_0_compat_l; first done.
+      erewrite dmap_elem_ne; first done.
+      * intros ??. rewrite !Hrewrite. intros. by simplify_eq.
+      * setoid_rewrite Hrewrite. intros (?&?&?). simplify_eq.
+   - trans 0.
     + rewrite /dbind/dbind_pmf{1}/pmf.
       apply SeriesC_0.
       intros.
       apply pmf_mult_eq_0.
-      intros Hpos.
-      apply dmap_pos in Hpos.
-      destruct Hpos as [?[??]].
-      rewrite (dmap_elem_ne μ'); first lra.
-      intros [?[??]]. simplify_eq.
-      apply H'. naive_solver.
+      move => /dmap_pos.
+      intros (?&?&?). subst.
+      rewrite Rmult_eq_0_compat_l; first done.
+      erewrite dmap_elem_ne; first done.
+      * intros ??. rewrite !Hrewrite. intros. by simplify_eq.
+      * setoid_rewrite Hrewrite. intros (?&?&?). simplify_eq.
+        apply H'. setoid_rewrite Hrewrite. naive_solver.
     + symmetry.
       rewrite /dbind/dbind_pmf{1}/pmf.
       apply SeriesC_0.
       intros.
       apply pmf_mult_eq_0.
       intros Hpos.
-      rewrite (dmap_elem_ne μ'); first lra.
-      intros [?[??]]. simplify_eq.
-      apply H'. naive_solver.
+      erewrite (dmap_elem_ne μ'); first lra.
+      * intros ??. rewrite !Hrewrite. intros. by simplify_eq.
+      * intros (?&?&?). simplify_eq. apply H'. naive_solver.
 Qed. 
 
 
