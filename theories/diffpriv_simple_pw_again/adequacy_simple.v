@@ -84,12 +84,18 @@ Section adequacy.
         - simpl. intros ρ ρ' (_ & lhs & rhs).
           assert (ρ = (e2, σ)) as ->.
           2: assert (ρ' = (e2', σ2')) as -> => //.
-          + admit.
-          + admit.
-        - destruct hstep as [? hstep]. simpl in *.
-          rewrite /prim_step /=.
-          opose proof head_step_mass.
-          admit.
+          + clear -lhs hstep.
+            destruct hstep. simpl in *.
+            specialize (pure_step_det σ).
+            apply pmf_1_eq_dret in pure_step_det.
+            rewrite pure_step_det in lhs. eapply dret_pos. done.
+          + clear -rhs hexec. simpl in *.
+            apply pmf_1_eq_dret in hexec.
+            rewrite hexec in rhs. eapply dret_pos. done.
+        - destruct hstep as [? hstep] ; simpl in *.
+          eapply pmf_1_eq_dret in hstep.
+          rewrite hstep.
+          apply dret_mass.
         - opose proof (dret_mass ((e2', σ2'))) as h. rewrite -h.
           f_equal. apply pmf_1_eq_dret in hexec. rewrite hexec. done.
       }
@@ -106,10 +112,8 @@ Section adequacy.
       iApply ("IH" $! ε (δ2' RES) e2 e2' σ σ2' (pweq_res RES) with "[%] [-]").
       1: intros v hv. 1: exact hv.
       iFrame.
-
-  Admitted.
-
-
+      Unshelve. exact σ.
+  Qed.
 
 End adequacy.
 
