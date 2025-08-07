@@ -268,6 +268,10 @@ Section von_neumann.
       }
       { rewrite /l1/l2.
         rewrite !length_bind. lia. }
+      { rewrite !length_bind. rewrite /small/large.
+        rewrite !seq_length. destruct!/=.
+        apply Nat.mul_pos_pos; lia.
+      }
       iDestruct ("H") as "(%&%&%&%&Hα&Hβ&Hspec)".
       simpl.
       case_bool_decide as K1.

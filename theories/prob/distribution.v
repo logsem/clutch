@@ -1506,9 +1506,65 @@ Section dmap.
     - rewrite prob_dret_false; auto.
       real_solver.
   Qed.
-  
+    
 End dmap.
 
+Lemma dbind_dmap_inj_rearrange `{Countable A}`{Countable B} {C:Type} `{Countable C} `{Countable D} (μ : distr A) (μ' : distr C) (f : A -> B) (g: (B*C) -> D) {Hinj1:Inj (=) (=) f} {Hinj2:Inj (=) (=) g} :
+  (dmap f μ)≫= (λ b, dmap (λ c, g (b, c)) μ')=
+  μ ≫= (λ a, dmap (λ c, g ((f a), c)) μ')
+.
+Proof.
+  apply distr_ext => d.
+  destruct (@decide (∃ a c, d = g(f a, c)) (make_decision _)) as [H'|H'].
+  - destruct H' as (a & c & ->).
+    rewrite {1}/dbind{1}/dbind_pmf{1}/pmf.
+    erewrite SeriesC_ext; first by erewrite (SeriesC_singleton (f a)).
+    simpl.
+    intros b.
+    case_bool_decide as H'.
+    + subst.
+      erewrite dmap_elem_eq; [|done..].
+      erewrite dmap_elem_eq; last done; last first.
+      { intros ??.
+        move => /Hinj2. intros; by simplify_eq.
+      }
+      rewrite /dmap.
+      rewrite {1}/dbind{1}/dbind_pmf{3}/pmf.
+      erewrite SeriesC_ext; first by erewrite (SeriesC_singleton (a)).
+      simpl.
+      intros a'.
+      case_bool_decide as H''.
+      * subst.
+        rewrite -/(dmap (λ c, g(f a, c)) μ').
+        erewrite dmap_elem_eq; try done.
+        intros ??. move =>/Hinj2. intros. by simplify_eq.
+      * rewrite -/(dmap (λ c, g(f a', c)) μ').
+        rewrite dmap_elem_ne; first lra.
+        intros [? [? Hcontra]].
+        simplify_eq.
+    + rewrite (dmap_elem_ne μ'); first lra.
+      intros [?[??]]. simplify_eq.
+  - trans 0.
+    + rewrite /dbind/dbind_pmf{1}/pmf.
+      apply SeriesC_0.
+      intros.
+      apply pmf_mult_eq_0.
+      intros Hpos.
+      apply dmap_pos in Hpos.
+      destruct Hpos as [?[??]].
+      rewrite (dmap_elem_ne μ'); first lra.
+      intros [?[??]]. simplify_eq.
+      apply H'. naive_solver.
+    + symmetry.
+      rewrite /dbind/dbind_pmf{1}/pmf.
+      apply SeriesC_0.
+      intros.
+      apply pmf_mult_eq_0.
+      intros Hpos.
+      rewrite (dmap_elem_ne μ'); first lra.
+      intros [?[??]]. simplify_eq.
+      apply H'. naive_solver.
+Qed. 
 
 
 (** * Monadic strength  *)
