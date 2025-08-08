@@ -2128,7 +2128,7 @@ Section rules.
 
 
   Lemma pupd_couple_von_neumann_2 {N:nat} α ns j K j' K' E ε:
-    (ε>0)%R -> 
+    (ε>0)%R ->
     ▷ α ↪N (1; ns) -∗
     j ⤇ fill K (rand #(S N)) -∗
     j' ⤇ fill K' (rand #(S N)) -∗
@@ -2138,6 +2138,183 @@ Section rules.
                      else if bool_decide (y=0/\1<=x<=S N)%nat then α ↪N (1; ns ++ [0%nat])
                           else (α ↪N (1; ns) ∗ ↯ ((((N+2)* (N+2))%nat / ((N+2)*(N+2) - 2 * (N+1))%nat)%R * ε))).
   Proof.
+    iIntros (Hpos) ">Hα Hspec Hspec' Herr".
+    iDestruct "Hα" as (fs) "(<-&Hα)".
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ ρ1 ε_now) "([? Ht]&Hs&Hε2)".
+    iDestruct (ghost_map_lookup with "Ht Hα") as %?.
+    iDestruct (spec_auth_prog_agree with "[$]Hspec") as "%Hlookup".
+    iDestruct (spec_auth_prog_agree with "[$]Hspec'") as "%Hlookup'".
+    iDestruct (ghost_map_elem_ne with "Hspec Hspec'") as "%".
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+
+    destruct ρ1 as [l s].
+    assert (j < length l)%nat.
+    { by eapply lookup_lt_Some. }
+
+    assert (∃ f: fin (S $ S N) * fin (S $ S  N) -> fin (S (((S $ S N) * (S $ S N) - 1))), Bij f) as [f Hbij].
+    { cut (card (fin (S $ S N) * fin (S $ S N)) = card (fin (S (((S $ S N) * (S $ S N) - 1))))).
+      - rewrite finite_bijective.
+        intros [f []].
+        exists f. done. 
+      - rewrite prod_card !fin_card. lia.
+    }
+    set (f_inv f) as f'.
+    
+    pose (l1 := ((λ x, (0, x))<$>seq 1 (S N))%nat).
+    pose (l2 := ((λ x, (x, 0))<$>seq 1 (S N))%nat).
+    assert (length l1 = length l2).
+    { rewrite /l1 /l2. by rewrite !fmap_length !seq_length. }
+    assert (0<length l1)%nat.
+    { rewrite /l1 fmap_length seq_length. lia. }
+    assert (NoDup (l1++l2)) as Hnodup.
+    { apply NoDup_app. repeat split; rewrite /l1/l2.
+      - apply NoDup_fmap; first (intros ???; by simplify_eq).
+        apply NoDup_seq.
+      - intros []. rewrite !elem_of_list_fmap. setoid_rewrite elem_of_seq.
+        intros ??. destruct!/=. lia.
+      - apply NoDup_fmap; first (intros ???; by simplify_eq).
+        apply NoDup_seq.
+    }
+
+    (* create fragmented_f*)
+
+    
+    (* fragmented f maps 2*length l1 *)
+    set (λ (n:nat), match l1!!n with
+                  | Some x => x
+                  | None =>
+                      match l2!!(n-length l1)%nat with
+                      | Some x => x
+                      | None => (0,0)%nat
+                      end
+                  end
+        ) as fragmented_f'.
+    set (λ (n:nat), match (l1++l2)!!n with
+                  | Some x => x
+                  | None =>(0,0)
+                  end
+        )%nat as fragmented_f_alt.
+    assert (∀ x, fragmented_f' x = fragmented_f_alt x) as Hfrag_eq.
+    { intros. rewrite /fragmented_f' /fragmented_f_alt.
+      case_match eqn :Heqn.
+      - rewrite lookup_app_l; first by rewrite Heqn.
+        eapply lookup_lt_is_Some; by rewrite Heqn.
+      - case_match eqn:Heqn'.
+        + rewrite lookup_app_r; first by rewrite Heqn'.
+          by apply lookup_ge_None_1.
+        + rewrite lookup_ge_None_2; first done.
+          rewrite app_length.
+          apply lookup_ge_None_1 in Heqn'. apply lookup_ge_None_1 in Heqn. lia.
+    }
+    assert (∀ n, (fragmented_f' n).1 < S (S N) /\ (fragmented_f' n).2 < S (S N))%nat as Hfragmented_f'.
+    {
+      intros. rewrite /fragmented_f'.
+      case_match eqn :Heqn1.
+      - apply elem_of_list_lookup_2 in Heqn1.
+        rewrite /l1 elem_of_list_fmap in Heqn1.
+        setoid_rewrite elem_of_seq in Heqn1.
+        destruct!/=. lia. 
+      - case_match eqn:Heqn2; last (simpl; lia).
+        apply elem_of_list_lookup_2 in Heqn2.
+        rewrite /l2 elem_of_list_fmap in Heqn2.
+        setoid_rewrite elem_of_seq in Heqn2.
+        destruct!/=. lia. 
+    }
+    set (λ n,
+           if bool_decide (n<2*length l1)%nat then 
+             fin_to_nat $ f (nat_to_fin $ proj1 (Hfragmented_f' n), nat_to_fin $ proj2 (Hfragmented_f' n))
+           else n+(S $ S N) * (S $ S N)
+        )%nat as fragmented_f.
+    assert (Inj (=) (=) fragmented_f).
+    { rewrite /fragmented_f.
+      intros ??.
+      case_bool_decide as Heqn1; case_bool_decide as Heqn2.
+      - intros Hinj.
+        apply fin_to_nat_inj in Hinj.
+        apply Hbij in Hinj.
+        inversion Hinj as [[K1 K2]].
+        apply (f_equal fin_to_nat) in K1, K2.
+        rewrite !fin_to_nat_to_fin in K1 K2.
+        assert (fragmented_f' x = fragmented_f' y) as Heq.
+        { by apply injective_projections. }
+        rewrite !Hfrag_eq in Heq.
+        rewrite /fragmented_f_alt in Heq.
+        rewrite NoDup_alt in Hnodup.
+        pose proof Hnodup x y.
+        case_match eqn :K3; last first.
+        { apply lookup_ge_None_1 in K3. rewrite app_length in K3. lia. }
+        case_match eqn:K4; last first. 
+        { apply lookup_ge_None_1 in K4. rewrite app_length in K4. lia. }
+        subst. naive_solver.
+      - pose proof fin_to_nat_lt (f (nat_to_fin (proj1 (Hfragmented_f' x)), nat_to_fin (proj2 (Hfragmented_f' x)))). intros. lia.
+      - pose proof fin_to_nat_lt (f (nat_to_fin (proj1 (Hfragmented_f' y)), nat_to_fin (proj2 (Hfragmented_f' y)))). intros. lia.
+      - lia. 
+    }
+    
+    (* f_decompose *)
+    set ((λ (n:fin (S (2*length l1 -1))),
+            match decide (fin_to_nat n < (S (length l1-1)))%nat with
+                  | left p => (1%fin, nat_to_fin p)
+                  | _ =>
+                      match decide (fin_to_nat n - length l1 < (S (length l1-1)))%nat with
+                      | left p => (0%fin, nat_to_fin p)
+                      | _ => (0,0)%fin
+                      end
+                  end
+         ): _ -> fin (S 1) * fin (S (length l1 -1))) as f_decompose'.
+    assert (Bij f_decompose').
+    { split.
+      - intros x y. rewrite /f_decompose'.
+        repeat case_match; intros Heq; try simplify_eq;
+          try apply (f_equal fin_to_nat) in Heq; try rewrite !fin_to_nat_to_fin in Heq; apply fin_to_nat_inj; try done; pose proof fin_to_nat_lt x; pose proof fin_to_nat_lt y; lia.
+      - rewrite /f_decompose'.
+        intros [x y].
+        assert ((1- fin_to_nat x)%nat * length l1 + fin_to_nat y < S (2*length l1 -1))%nat as Hineq.
+        { pose proof fin_to_nat_lt x. pose proof fin_to_nat_lt y. simpl in *. destruct (fin_to_nat x) as [|[|]]; simpl; lia. }
+        exists (nat_to_fin Hineq).
+        rewrite !fin_to_nat_to_fin.
+        pose proof fin_to_nat_lt x.
+        pose proof fin_to_nat_lt y.
+        destruct (fin_to_nat x) as [|[|]] eqn:Heqn.
+        + case_match; first lia.
+          case_match; last lia.
+          f_equal; apply fin_to_nat_inj; try rewrite fin_to_nat_to_fin; last lia. by simpl.
+        + case_match; last lia.
+          f_equal; apply fin_to_nat_inj; try rewrite fin_to_nat_to_fin; last lia. by simpl.
+        + lia.
+    }
+    set (f_inv f_decompose') as f_decompose.
+    assert (Bij f_decompose) by apply f_inv_bij.
+    
+    
+    iDestruct (ec_supply_bound with "[$][$]") as %Hle.
+    assert (0<=ε)%R as Hε by lra.
+    set ε' := mknonnegreal _ Hε.
+    set ε_now1 := nnreal_minus ε_now ε' Hle.
+    set ε_now2 := (ε_now + ε' * nnreal_nat (2*S N) / nnreal_nat ((S $ S N) * (S $ S N) - 2*S N))%NNR.
+
+    set (E2 (ρ:cfg) := if bool_decide (∃ (n m:fin(S N)), (ρ.1)!!j = Some (fill K #(n)) /\
+                                                         (ρ.1)!!j'= Some (fill K' #m) /\
+                                                         (fin_to_nat n, fin_to_nat m)∈(l1++l2)%nat
+                            )
+                       then ε_now1 else ε_now2).
+    assert (∀ ρ, E2 ρ <= Rmax ε_now1 ε_now2)%R as Hbound.
+    { intros ?. rewrite /E2. apply Rmax_Rle. case_bool_decide; by [left| right]. }
+    iApply spec_coupl_rec.
+    iExists _, (dbind (λ m, if bool_decide (fin_to_nat m < 2* S N) then state_step σ α else dret σ) (dunifP ((S $ S N) * (S $ S N)-1))), (full_info_cons_osch (λ _, dret j) (λ _, full_info_one_step_stutter_osch j')), 0%NNR, (λ p, E2 (p.2)), (Rmax ε_now1 ε_now2).
+    repeat iSplit.
+    - iPureIntro. apply sch_erasable_dbind_predicate.
+      + apply dunif_mass. lia.
+      + by eapply state_step_sch_erasable.
+      + apply dret_sch_erasable.
+    - iPureIntro. naive_solver.
+    - iPureIntro. rewrite Rplus_0_l.
+      (* A lot of maths *)
+      admit.
+    - iPureIntro. admit. 
+    - admit.
+    - admit. 
   Admitted. 
   
   (** * Exact couplings  *)
