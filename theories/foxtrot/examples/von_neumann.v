@@ -272,6 +272,19 @@ Section von_neumann.
         rewrite !seq_length. destruct!/=.
         apply Nat.mul_pos_pos; lia.
       }
+      { rewrite !length_bind/small/large !seq_length. subst.
+        assert (∀ x N', x<= N' -> 2* ((x+1) * (S N' - x)) <= (S (S N'))* (S (S N')))%nat as H'.
+        - clear.
+          intros x N.
+          revert x.
+          induction N; first lia.
+          intros x.
+          destruct (decide (x = S n)); first (subst; lia).
+          intros. 
+          assert (x <=n) as K by lia.
+          apply IHn in K. lia.
+        - apply H'. lia.
+      }
       iDestruct ("H") as "(%&%&%&%&Hα&Hβ&Hspec)".
       simpl.
       case_bool_decide as K1.
