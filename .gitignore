@@ -34,3 +34,4 @@ nra.cache
 *.pdf
 _opam
 .DS_Store
+html/

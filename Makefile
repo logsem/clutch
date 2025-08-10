@@ -7,6 +7,8 @@ Q:=@
 # extract global arguments for Coq from _CoqProject
 COQPROJECT_ARGS := $(shell sed -E -e '/^\#/d' -e 's/-arg ([^ ]*)/\1/g' _CoqProject)
 
+-include coqdocjs/Makefile.doc
+
 all: $(VFILES:.v=.vo)
 
 .coqdeps.d: $(VFILES) _CoqProject
@@ -32,7 +34,7 @@ endif
 
 clean:
 	@echo "CLEAN vo glob aux"
-	$(Q)find $(SRC_DIRS) \( -name "*.vo" -o -name "*.vo[sk]" \
+	$(Q)find $(EXT_DIRS) $(SRC_DIRS) \( -name "*.vo" -o -name "*.vo[sk]" \
 		-o -name ".*.aux" -o -name ".*.cache" -o -name "*.glob" \) -delete
 	$(Q)rm -f .lia.cache
 	rm -f .coqdeps.d
