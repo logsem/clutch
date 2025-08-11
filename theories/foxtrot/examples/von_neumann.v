@@ -458,11 +458,39 @@ Section von_neumann.
       iMod (tp_par with "[$]") as "(%j1&%j2&%K1&%K2&Hspec1&Hspec2&Hcont)".
       tp_bind j1 (rand _)%E.
       tp_bind j2 (rand _)%E.
-      iMod (pupd_couple_von_neumann_2 with "[$][$Hspec1][$][$]") as "H"; first done.
+      set (seq 1%nat (S N)) as lis.
+      iMod (pupd_couple_von_neumann_2 ((λ x, (0, x)%nat) <$> lis) ((λ x, (x, 0)%nat) <$> lis)with "[$Hspec1][$][$][$]") as "H".
+      { rewrite Forall_fmap. rewrite Forall_forall.
+        intros ?. rewrite /lis. rewrite elem_of_seq.
+        intros. destruct!/=. lia.
+      }
+      { rewrite Forall_fmap. rewrite Forall_forall.
+        intros ?. rewrite /lis. rewrite elem_of_seq.
+        intros. destruct!/=. lia.
+      }
+      { rewrite NoDup_app.
+        rewrite /lis.
+        repeat split.
+        - apply NoDup_fmap.
+          + intros ???. by simplify_eq.
+          + apply NoDup_seq.
+        - intros []. rewrite !elem_of_list_fmap.
+          setoid_rewrite elem_of_seq.
+          intros. intros ?. destruct!/=. lia.
+        - apply NoDup_fmap.
+          + intros ???. by simplify_eq.
+          + apply NoDup_seq.
+      }
+      { by rewrite !fmap_length seq_length. }
+      { rewrite fmap_length seq_length. lia. }
+      { rewrite fmap_length seq_length. lia. }
+      { done. }
+      rewrite fmap_length seq_length.
       iDestruct "H" as "(%&%&%&%&Hspec1&Hspec2&Hα)".
-      simpl.
       case_bool_decide as C1.
       { (* return true *)
+        rewrite elem_of_list_fmap/lis in C1.
+        setoid_rewrite elem_of_seq in C1.
         destruct!/=.
         tp_pures j1.
         tp_pures j2.
@@ -477,6 +505,8 @@ Section von_neumann.
         by iExists _. }
       case_bool_decide as C2.
       { (* return false *)
+        rewrite elem_of_list_fmap/lis in C2.
+        setoid_rewrite elem_of_seq in C2.
         destruct!/=.
         tp_pures j1.
         rewrite bool_decide_eq_false_2; last lia.
@@ -489,22 +519,44 @@ Section von_neumann.
         iFrame.
         rewrite Z_to_bool_eq_0.
         by iExists _. }
+      simpl.
       tp_pures j1.
       case_bool_decide as C3.
       - tp_pures j2.
-        rewrite bool_decide_eq_true_2; last lia.
+        rewrite !elem_of_list_fmap/lis in C1, C2.
+        setoid_rewrite elem_of_seq in C1.
+        setoid_rewrite elem_of_seq in C2.
+        rewrite bool_decide_eq_true_2; last first.
+        { apply Z.nlt_ge.
+          intros ?. apply C1.
+          eexists _; split; first f_equal.
+          - simpl in *. lia.
+          - lia. }
         iDestruct "Hα" as "[Hα Herr]".
         iMod ("Hcont" with "[$]") as "Hspec".
         do 9 (tp_pure j); first solve_vals_compare_safe.
         tp_pure j.
-        iApply ("Hind" with "[$][$][$]").
+        iApply ("Hind" with "[Herr][$][$]").
+        iApply ec_eq; last done.
+        rewrite /k.
+        do 3 f_equal; lia.
       - tp_pures j2.
-        rewrite bool_decide_eq_false_2; last lia.
+        rewrite !elem_of_list_fmap/lis in C1, C2.
+        setoid_rewrite elem_of_seq in C1.
+        setoid_rewrite elem_of_seq in C2.
+        rewrite bool_decide_eq_false_2; last first.
+        { intros ?. apply C2.
+          eexists _; split; first (f_equal; lia).
+          lia.
+        }
         iDestruct "Hα" as "[Hα Herr]".
         iMod ("Hcont" with "[$]") as "Hspec".
         do 9 (tp_pure j); first solve_vals_compare_safe.
         tp_pure j.
-        iApply ("Hind" with "[$][$][$]").
+        iApply ("Hind" with "[Herr][$][$]").
+        iApply ec_eq; last done.
+        rewrite /k.
+        do 3 f_equal; lia.
     Qed. 
       
     Lemma wp_von_neumann_con_prog_von_neumann_con_prog' K j:
