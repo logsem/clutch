@@ -5,6 +5,10 @@ All of the logics are built using the [Iris](https://iris-project.org) program l
 
 ## Publications
 
+[**Modular Reasoning about Error Bounds for Concurrent Probabilistic Programs**](https://dl.acm.org/doi/10.1145/3747514)<br>
+*Kwing Hei Li, Alejandro Aguirre, Simon Oddershede Gregersen, Philipp G. Haselwarter, Joseph Tassarotti, Lars Birkedal*<br>
+In ICFP 2025: ACM SIGPLAN International Conference on Functional Programming
+
 [**Approximate Relational Reasoning for Higher-Order Probabilistic Programs**](https://dl.acm.org/doi/10.1145/3704877)<br>
 *Philipp G. Haselwarter, Kwing Hei Li, Alejandro Aguirre, Simon Oddershede Gregersen, Joseph Tassarotti, Lars Birkedal*<br>
 In POPL 2025: ACM SIGPLAN Symposium on Principles of Programming Languages
