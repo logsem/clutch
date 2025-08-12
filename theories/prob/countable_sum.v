@@ -2192,6 +2192,16 @@ Section Inj_finite.
        Unshelve. solve_decision.
   Qed.
 
+  Lemma SeriesC_fin_in_set' (N : nat) (ns : gset nat) v:
+    (forall x, x ∈ ns -> (x < S N)%nat ) ->
+    (SeriesC (λ x : fin (S N), if bool_decide (fin_to_nat x ∈ ns) then v else 0) = v* size ns).
+  Proof.
+    erewrite (SeriesC_ext _ (λ x : fin (S N), v* if bool_decide (fin_to_nat x ∈ ns) then 1 else 0)).
+    - intros. rewrite SeriesC_scal_l.
+      by rewrite SeriesC_fin_in_set.
+    - intros.
+      case_bool_decide; lra.
+  Qed. 
 
   Lemma SeriesC_fin_not_in_set (N : nat) (ns : gset nat) :
     (forall x, x ∈ ns -> (x < S N)%nat ) ->
@@ -2214,6 +2224,16 @@ Section Inj_finite.
     lra.
   Qed.
 
+  Lemma SeriesC_fin_not_in_set' (N : nat) (ns : gset nat) v:
+    (forall x, x ∈ ns -> (x < S N)%nat ) ->
+    (SeriesC (λ x : fin (S N), if bool_decide (fin_to_nat x ∉ ns) then v else 0) = v*(N + 1 - size ns))%R.
+  Proof.
+    erewrite (SeriesC_ext _ (λ x : fin (S N), v* if bool_decide (fin_to_nat x ∉ ns) then 1 else 0)).
+    - intros. rewrite SeriesC_scal_l.
+      by rewrite SeriesC_fin_not_in_set.
+    - intros.
+      case_bool_decide; lra.
+  Qed. 
 
 End Inj_finite.
 
