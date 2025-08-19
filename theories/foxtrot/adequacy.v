@@ -568,7 +568,6 @@ Section adequacy.
     ∀ ε', ε'>0 -> 
     ((e::es)!!num = Some e') ->
     to_val e = None ->
-    to_val e' = None ->
     prog_coupl e' σ ρ ε Z -∗
     (∀ e2 σ2 efs ρ2 ε2, Z e2 σ2 efs ρ2 ε2 ={∅}=∗  |={∅}▷=>^(S n)∀ ε'', ⌜ε''>0⌝-∗
                                                  ⌜∃ (osch:full_info_oscheduler),
@@ -580,7 +579,7 @@ Section adequacy.
        ARcoupl (prim_step e' σ ≫= λ '(e3, σ3, efs), sch_exec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))) (osch_lim_exec osch ([], ρ))
          (λ v '(l, ρ), ∃ v', ρ.1!!0%nat = Some (Val v') /\ ϕ v v') (ε + ε')⌝.
   Proof.
-    iIntros (ε' Hε' Hlookup Hval1 Hval2) "H".
+    iIntros (ε' Hε' Hlookup Hval1) "H".
     iDestruct "H" as "(%S&%osch&%ε1 & %X2 & %r &%&%&%Hineq&%Hcoupl&%Hinj&H)".
     iIntros "H'".
     set (S' := (λ '(e2, σ2, efs, l, ρ2), S (e2, σ2, efs) (l, ρ2))).
