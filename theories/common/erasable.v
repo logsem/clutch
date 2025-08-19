@@ -143,3 +143,75 @@ Section erasable_functions.
   Qed.
   
 End erasable_functions.
+
+Section rewritable.
+  Context {Λ : language}.
+
+  Definition rewritable (ρ : cfg Λ) (μ : distr (cfg Λ)) :=
+    lim_exec ρ = (μ ≫= (λ ρ', lim_exec ρ')).
+
+  Lemma rewritable_pexec (ρ : cfg Λ) :
+    forall m, rewritable ρ (pexec m ρ).
+  Proof.
+    rewrite /rewritable.
+    induction m.
+    - rewrite pexec_O.
+      rewrite dret_id_left //.
+    - rewrite pexec_Sn_r IHm.
+      rewrite -dbind_assoc.
+      apply dbind_ext_right.
+      intros ?.
+      rewrite {1}lim_exec_step //.
+  Qed.
+
+  Lemma rewritable_erasable (ρ : cfg Λ) (μ : distr (state Λ)) :
+    erasable μ ρ.2 ->
+    rewritable ρ (μ ≫= (λ σ, dret (ρ.1, σ) )).
+  Proof.
+    destruct ρ as [e σ].
+    rewrite /rewritable /=.
+    intros Hera.
+    apply (erasable_lim_exec _ _ e) in Hera.
+    rewrite -dbind_assoc.
+    rewrite -Hera.
+    apply dbind_ext_right.
+    intros σ'.
+    rewrite dret_id_left //.
+  Qed.
+
+  Lemma rewritable_erasable_pexec_m (ρ : cfg Λ) (μ : distr (state Λ)) (m : nat) :
+    erasable μ ρ.2 ->
+    rewritable ρ (μ ≫= (λ σ, pexec m (ρ.1, σ) )).
+  Proof.
+    induction m.
+    - apply rewritable_erasable.
+    - destruct ρ as [e σ]; simpl in *.
+      intro Hera.
+      specialize (IHm Hera).
+      rewrite /rewritable.
+      rewrite /rewritable in IHm.
+      rewrite IHm.
+      do 2 rewrite -dbind_assoc.
+      apply dbind_ext_right.
+      intros σ'.
+      rewrite pexec_Sn_r.
+      rewrite -dbind_assoc.
+      apply dbind_ext_right.
+      intros σ''.
+      rewrite {1}lim_exec_step //.
+  Qed.
+
+End rewritable.
+
+
+Section rewritable_functions.
+
+  Lemma dret_rewritable {Λ} (ρ: cfg Λ) :
+    rewritable ρ (dret ρ) .
+  Proof.
+    intros.
+    rewrite /rewritable.
+    intros. rewrite dret_id_left'. done.
+  Qed.
+
+End rewritable_functions.

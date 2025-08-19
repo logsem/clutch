@@ -24,10 +24,10 @@ Section adequacy.
     iRevert (σ1 e1' σ1' ε δ).
     iApply spec_coupl_ind.
     iIntros "!>" (σ1 e1' σ1' ε δ)
-      "[boo|(%T & %k & %μ1 & %μ1' & %ε1 & %δ1 & %ε2 & %δ2 & % & % & % & %Hμ1 & %Hμ1' & H)] HZ";
+      "[boo|(%T & %μ1 & %μ1' & %ε1 & %δ1 & %ε2 & %δ2 & % & % & % & %Hμ1 & %Hμ1' & H)] HZ";
       [by iMod ("HZ" with "[$]") |].
     iApply (step_fupdN_mono _ _ _ ⌜_⌝).
-    { iPureIntro. intros h. eapply DPcoupl_erasure_erasable_rhs. 8: apply h. all: eauto. }
+    { iPureIntro. intros h. eapply DPcoupl_erasure_rewritable_rhs. 8: apply h. all: eauto. }
     iIntros (σ2 (e2', σ2') HT).
     iMod ("H" with "[//]") as "[H _]".
     by iApply "H".

@@ -20,6 +20,18 @@ Section diffpriv.
                       ∧ ⌜d_out b b' <= c * d_in x x'⌝
       }}.
 
+  Definition wp_sensitive_cond (f : expr) (c : R) `(d_in : Distance A) (cond : relation A) `(d_out : Distance B) : iProp Σ
+    :=
+    ∀ (c_pos : 0 <= c) K (x x' : A),
+    ⌜cond x x'⌝ -∗
+    ⤇ fill K (f $ Val $ inject x') -∗
+    WP
+      f $ Val $ inject x
+      {{ v,
+           ∃ b b' : B, ⌜v = inject b⌝ ∧ ⤇ fill K (inject b')
+                      ∧ ⌜d_out b b' <= c * d_in x x'⌝
+      }}.  
+
   Definition hoare_sensitive (f : expr) (c : R) `(d_in : Distance A) `(d_out : Distance B) : iProp Σ
     :=
     ∀ (c_pos : 0 <= c) K (x x' : A),
