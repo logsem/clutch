@@ -2688,6 +2688,50 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
   Qed.
 
 
+
+  (*
+     Below we prove a version of the almost sure termination rule from
+     Majumdar and Sathiyanarayana, POPL 25. The idea is to have two functions
+     U : list -> nat (called the variant) and V : list -> [0,∞) such that:
+     (1) For every list l, there exists a c such that U(l++[c]) < U(l), i.e. U
+     decreases with strictly positive probability
+     (2) V is a supermartingale, i.e. E[U(l++[c])] <= U(l)
+     (3) For a given fixed maximum value r of V(l), there exists a maximum value L of V.
+
+     If these conditions are satisfied, one can prove that eventually one will presample
+     a tape lf such that U(lf) = 0. The way we realize this in our setting is the
+     following. Suppose we start with a positive amount of error credits ↯ε and an initial
+     tape li. We can then split the credits into two positive halves ↯ε/2 and ↯ε/2. Since
+     V is a supermartingale, we can use the expectation-preserving presampling rules to ensure
+     that at all times we have a list lc and ↯(ε/2)*V(lc)/V(li). This allows us to set a maximum
+     value for V, since once it grows enough this amount of error credits will amount to 1.
+     By condition (3) above, this also sets a maximum value L of U. Now it becomes an easier
+     problem. By condition (1), there always is at least one value that makes U decrease,
+     and we are done whenever we succeed to sample it L times in a row. This can be proven
+     using very similar techniques as the planner rule, i.e. by building an amplification
+     sequence and using error induction.
+
+   *)
+
+
+   (*
+
+     The lemma below describes what happens after a single presampling step. Instead
+     of V, we have a function Vε assigning to every list its appropriate amount of
+     error credits. The supermartingale condition ensures that presampling preserves
+     the expected value of this function.
+
+     Suppose we have an initial list li, and ↯ε ∗ ↯(Vε li). After presampling, one
+     of two outcomes can happen:
+     - We sample an element that decreases U, in which case we have a new list lf1,
+     our first credit component will decrease and our second credit component will
+     be ↯(Vε lf1)
+     - We fail, in which case we have a new list lf2, our first credit component is
+     amplified, and the second component is ↯(Vε lf2)
+
+   *)
+
+
   Lemma twp_presample_amplify_rsm_aux N z e E α Φ Ψ (ε : posreal) li (Vε : list (fin (S N)) -> R) (U : list (fin (S N)) -> nat) (L : nat) kwf :
     TCEq N (Z.to_nat z) →
     to_val e = None →
@@ -2861,7 +2905,12 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
   Qed.
 
 
-  (* do one step in the amplification sequence *)
+   (*
+      The lemma below describes one round of presampling i.e., keep presampling elements until we
+      reach a tape l for which U(l)=0, or we fail to sample the decreasing element, and get an
+      amplified amount of credits
+   *)
+
   Lemma twp_presample_amplify_rsm N z e E α Φ Ψ (ε : posreal) li (Vε : list (fin (S N)) -> R) (U : list (fin (S N)) -> nat) L (kwf: kwf N L) :
     TCEq N (Z.to_nat z) →
     to_val e = None →
@@ -2961,6 +3010,9 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
         lia.
   Qed.
 
+   (*
+      Main lemma below implementing the variant+supermartingale rule
+   *)
 
   Lemma twp_presample_rsm N z e E α Φ Ψ (ε : nonnegreal) li (V : list (fin (S N)) -> R) (U : list (fin (S N)) -> nat) :
     TCEq N (Z.to_nat z) →
@@ -2982,6 +3034,9 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
       ⊢ WP e @ E [{ Φ }].
   Proof.
     iIntros (? ? HVpos HΨV HΨU HUbd HUdec HVsm Hε) "(Hcr & Hα & Hcont)".
+    (*
+        We treat the corner case where V li = 0 separately
+    *)
     destruct (decide (V li = 0)) as [HVli0 | HVlin0].
     {
       iApply "Hcont".
@@ -3043,6 +3098,9 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
           * iIntros (lf) "(%Hlf & Hα)".
             iApply "Hcont"; iFrame; done.
     }
+    (*
+       Main case below. We begin by splitting our credits in half
+    *)
     set (εhalf := (ε/2)%NNR).
     replace ε with (εhalf + εhalf)%NNR; last first.
     {
@@ -3060,10 +3118,19 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     { apply cond_nonneg. }
     { apply cond_nonneg. }
 
+    (*
+        Since we will always own ↯(ε/2)*(V l)/(V li), we
+        only need to consider V when it is below (2/ε * V li).
+        We use this to set a max value for U
+    *)
     specialize (HUbd (2/ε * V li)%R) as [L HL].
     assert (0 < S L) as HSL by lia.
     pose kwf := mk_kwf _ _ HN HSL.
 
+    (*
+        We define the Vε function mapping to every value of V is
+        right amount of credits
+    *)
     set (Vε := λ (l : list (fin (S N))), ((ε / 2) * (V l / V li))%R).
     iDestruct (ec_eq _ (Vε li) with "HcrV") as "HcrV".
     {
@@ -3075,6 +3142,11 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     pose εhalf' := mkposreal εhalf.(nonneg) Hεhalf.
     replace εhalf with (pos_to_nn εhalf'); last first.
     { rewrite /εhalf' /pos_to_nn. by apply nnreal_ext. }
+
+    (*
+       In order to use error induction on HcrU, we need to create an "invariant"
+       containing the rest of the hypotheses, and revert it
+    *)
     set (Hinv_pre :=
            (∃ (Wε : list (fin (S N)) -> R) (lc : list (fin (S N))),
                ⌜ forall l : list (fin (S N)), (0 <= Wε l)%R ⌝ ∗
@@ -3126,6 +3198,10 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     }
     clear Vε.
     iRevert "Hcont Hinv".
+
+    (*
+         We now use error induction
+    *)
     iApply (ec_ind_incr _ (εAmp N (S L) εhalf' _) with "[] HcrU").
     - apply cond_pos.
     - rewrite /εAmp /=.
