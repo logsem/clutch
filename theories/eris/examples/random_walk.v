@@ -118,7 +118,7 @@ Section uniform_random_walk.
             - intros i ? ?.
               inv_fin i.
               + intros ??. done.
-              + done.}
+              + done. }
           rewrite term_cond_1 //.
   Qed.
 
