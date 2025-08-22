@@ -49,7 +49,7 @@ Proof.
     f_equiv.
     intros Φ e. unfold glm_pre.
     do 19 f_equiv.
-    rewrite /exec_stutter. do 13 f_equiv. by apply pair_ne.
+    rewrite /exec_stutter. do 14 f_equiv. by apply pair_ne.
 Qed.
 
 Local Definition tgl_wp_def `{!erisWpGS Λ Σ} : Twp (iProp Σ) (expr Λ) (val Λ) () :=

@@ -5,6 +5,7 @@ From Coquelicot Require Import Series.
 Set Default Proof Using "Type*".
 
 
+
 Section uniform_random_walk.
 
   (** * 1D Random walk with equal probability of stepping left or right *)
@@ -230,18 +231,19 @@ Section uniform_random_walk.
         iApply "IH"; auto.
   Qed.
 
-  Theorem unif_rw_1d_AST (ε : nonnegreal) E :
-    (0 < ε)%R ->
-    ↯ ε -∗
-           WP unif_rw_1d @ E [{ v, ⌜ True ⌝ }].
+  Theorem unif_rw_1d_AST  E :
+     ⊢ WP unif_rw_1d @ E [{ v, ⌜ True ⌝ }].
   Proof.
-    iIntros (Hpos) "Herr".
+    iMod (ec_zero) as "Herr".
+    iApply (twp_rand_err_incr with "[$Herr]"); auto.
+    iIntros (ε Hpos) "Herr".
+    assert (0 <= ε) as Hge0 by lra.
     rewrite /unif_rw_1d.
     (* TODO: fix wp_alloctape tactic *)
     wp_apply (twp_alloc_tape); auto.
     iIntros (α) "Hα".
     do 2 wp_pure.
-    wp_apply (twp_presample_rsm 1 1 _ _ _ _ (term_cond 1) _ _ (final_pos_rsm 1) (final_pos 1)); eauto.
+    wp_apply (twp_presample_rsm 1 1 _ _ _ _ (term_cond 1) (mknonnegreal ε Hge0) _ (final_pos_rsm 1) (final_pos 1)); eauto.
     - apply final_pos_rsm_pos.
     - intros l.
       rewrite /term_cond /final_pos_rsm /final_pos //.
@@ -267,13 +269,9 @@ Proof.
     rewrite Rminus_0_r in Haux.
     apply Rle_antisym; auto.
   }
-  eapply (twp_mass_lim_exec_limit _ _ _ _ (fun _ => True)); [lra|].
-  intros ? ε Hε.
+  eapply (twp_mass_lim_exec _ _ _ _ (fun _ => True)); [lra|].
   iStartProof.
-  iIntros "Herr".
-  iPoseProof (ec_eq _ (nonneg (mknonnegreal _ (Rlt_le _ _ Hε))) with "Herr") as "Herr";
-    [simpl;done|].
-  iApply (unif_rw_1d_AST with "Herr").
-  simpl; lra.
+  iIntros (?) "_".
+  iApply unif_rw_1d_AST.
 Qed.
 

@@ -262,6 +262,90 @@ Proof.
   lra.
 Qed.
 
+
+Lemma twp_rand_err_incr e ε s E Φ :
+  to_val e = None ->
+  ↯ ε ∗
+  (∀ ε', ⌜ (ε < ε')%R ⌝ -∗ ↯ (ε') -∗ WP e @ s; E [{ Φ }] )
+  ⊢ WP e @ s; E [{ Φ }].
+  Proof.
+    iIntros (?) "[Herr Hwp]".
+    iApply twp_lift_step_fupd_glm; [done|].
+    iIntros (σ1 ε2) "[Hσ1 Hε2]".
+    iApply fupd_mask_intro; [set_solver|].
+    iIntros "Hclose'".
+    iApply glm_err_incr_step.
+    iIntros (ε') "%Hε'".
+    apply Rlt_le in Hε' as Hε''.
+    pose (diff :=((ε' - ε2) Hε'')%NNR).
+    destruct (decide (ε' < 1)%R); last first.
+    {
+      iApply exec_stutter_spend.
+      iPureIntro.
+      simpl in *.
+      simpl.
+      lra.
+    }
+    replace (ε') with (ε2 + diff)%NNR; last (apply nnreal_ext; rewrite /diff; simpl; lra).
+    iMod (ec_supply_increase _ diff with "[$]") as "[??]".
+    { rewrite /diff. simpl. simpl in *.
+      lra. }
+    iPoseProof (ec_combine with "[$]") as "Herr".
+    iSpecialize ("Hwp" with "[] Herr").
+    {
+      iPureIntro.
+      simpl in *. simpl.
+      lra.
+    }
+    rewrite !tgl_wp_unfold /tgl_wp_pre /=.
+    rewrite H.
+    iMod ("Hclose'").
+    iMod ("Hwp" with "[$]").
+    by iApply exec_stutter_free.
+  Qed.
+
+
+  Lemma wp_rand_err_incr e ε E Φ :
+    to_val e = None ->
+    ↯ ε ∗
+      (∀ ε', ⌜ (ε < ε')%R ⌝ -∗ ↯ (ε') -∗ WP e @ E {{ Φ }} )
+      ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (?) "[Herr Hwp]".
+    iApply wp_lift_step_fupd_glm; [done|].
+    iIntros (σ1 ε2) "[Hσ1 Hε2]".
+    iApply fupd_mask_intro; [set_solver|].
+    iIntros "Hclose'".
+    iApply glm_err_incr_step.
+    iIntros (ε') "%Hε'".
+    apply Rlt_le in Hε' as Hε''.
+    pose (diff :=((ε' - ε2) Hε'')%NNR).
+    destruct (decide (ε' < 1)%R); last first.
+    {
+      iApply exec_stutter_spend.
+      iPureIntro.
+      simpl in *.
+      simpl.
+      lra.
+    }
+    replace (ε') with (ε2 + diff)%NNR; last (apply nnreal_ext; rewrite /diff; simpl; lra).
+    iMod (ec_supply_increase _ diff with "[$]") as "[??]".
+    { rewrite /diff. simpl. simpl in *.
+      lra. }
+    iPoseProof (ec_combine with "[$]") as "Herr".
+    iSpecialize ("Hwp" with "[] Herr").
+    {
+      iPureIntro.
+      simpl in *. simpl.
+      lra.
+    }
+    rewrite !pgl_wp_unfold /pgl_wp_pre /=.
+    rewrite H.
+    iMod ("Hclose'").
+    iMod ("Hwp" with "[$]").
+    by iApply exec_stutter_free.
+Qed.
+
 Lemma wp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ :
   TCEq N (Z.to_nat z) →
   ↯ (/ (N+1)) ∗
