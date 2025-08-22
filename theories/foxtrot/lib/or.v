@@ -30,7 +30,7 @@ End proof.
 
 Section proof'.
   Context `{!foxtrotGS Σ}.
-  Lemma tp_nodet j K E (b:bool) e1 e2:
+  Lemma tp_or j K E (b:bool) e1 e2:
     j ⤇ fill K (or e1 e2) -∗
     pupd E E
       (if b then j ⤇ fill K e1 else j ⤇ fill K e2
