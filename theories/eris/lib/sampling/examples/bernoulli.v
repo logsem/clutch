@@ -141,14 +141,12 @@ Section Roulette.
 
   *)
   Lemma roulette_martingale_aux_spec_aux (k : nat) (c g : Z) :
-    (0 < g)%Z →
-    (c < g)%Z →
-    [[{↯ ((S M - N) / (S M + k))}]]
-      roulette_martingale_aux #c #g
-    [[{RET #(c + g); True}]].
+      [[{↯ ((S M - N) / (S M + k))}]]
+        roulette_martingale_aux #c #g
+      [[{RET #(c + g); True}]].
   Proof.
     iInduction k as [|k] "IHk" forall (c g).
-    - iIntros "%H_g_pos %H_c_lt_g %Φ Herr HΦ".
+    - iIntros "%Φ Herr HΦ".
       rewrite /roulette_martingale /roulette_martingale_aux.
       wp_pures.
       wp_apply (bernoulli_success_spec_simple with "[Herr]") as "_".
@@ -158,7 +156,7 @@ Section Roulette.
         simpl_expr. }
       wp_pures.
       by iApply "HΦ".
-    - iIntros "%H_g_pos %H_c_lt_g %Φ Herr HΦ".
+    - iIntros "%Φ Herr HΦ".
       rewrite /roulette_martingale /roulette_martingale_aux.
       wp_pures.
       set p := (N / S M).
@@ -169,7 +167,7 @@ Section Roulette.
       { assert (S M + k > 0) by (rewrite -plus_INR; real_solver).
         iApply (ec_weaken with "Herr").
         split.
-        - subst ε1. apply Rmult_le_pos; simpl_expr.
+        - subst ε1. apply Rmult_le_pos; real_solver.
         - subst ε1. rewrite -minus_INR // -plus_INR. simpl_expr.
           rewrite -!Rmult_assoc (Rmult_comm (S M + S k)%nat) !Rmult_assoc. 
           rewrite -{2}(Rmult_1_r (S M - N)%nat).
@@ -192,7 +190,7 @@ Section Roulette.
       + fold roulette_martingale_aux.
         wp_pures.
         rewrite plus_INR minus_INR //.
-        wp_apply ("IHk" with "[] [] Herr"); try (iPureIntro; done).
+        wp_apply ("IHk" with "Herr"); try (iPureIntro; done).
         rewrite -Z.add_diag Z.add_assoc Z.sub_add.
         by iApply "HΦ".
       + wp_pures.
@@ -202,13 +200,11 @@ Section Roulette.
   (** This lemma proves almost sure termination, as in the spline examples *)
   Lemma roulette_martingale_aux_spec (ε : R) (c g : Z) :
     (0 < ε) →
-    (0 < g)%Z →
-    (c < g)%Z →
     [[{↯ ε}]]
       roulette_martingale_aux #c #g
     [[{RET #(c + g); True}]].
   Proof.
-    iIntros "%H_ε_pos %H_g_pos %H_c_lt_g %Φ Herr HΦ".
+    iIntros "%H_ε_pos %Φ Herr HΦ".
     assert (exists k : nat, (S M - N) / (S M + k) <= ε ) as [k Hk].
     { assert (0 < S M - N) by (rewrite -minus_INR; real_solver).
       destruct (Rle_exists_nat (S M - N) ε) as [t Ht]; first rewrite -minus_INR; simpl_expr.
@@ -227,7 +223,7 @@ Section Roulette.
   Qed.
 
   Example roulette_martingale_spec (ε : R) :
-    ε > 0 →
+    0 < ε →
     [[{↯ ε}]]
       roulette_martingale
     [[{RET #1; True}]].
