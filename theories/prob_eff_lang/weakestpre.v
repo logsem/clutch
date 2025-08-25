@@ -934,7 +934,7 @@ Qed.
     iApply fupd_mono; [ | done].
     iIntros "(($&$&$&Hwp)&IH)". by iApply "IH". 
   Qed.
-
+(*
 Lemma spec_update_wp E e Φ a :
   spec_update E (WP e @ a; E {{ Φ }}) ⊢ WP e @ a; E {{ Φ }}.
 Proof.
@@ -1136,3 +1136,4 @@ Section proofmode_classes.
   Qed.
 
 End proofmode_classes.
+*)

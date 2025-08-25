@@ -82,4 +82,6 @@ Proof.
     by apply ofe_morO_equivI.
 Qed.
 
+(* iEff_bottom. *)
+Instance iEff_bottom {Σ} : Bottom (iEff Σ) := IEff (λ _, λne _, False%I).
 

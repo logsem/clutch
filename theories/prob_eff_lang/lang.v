@@ -1743,15 +1743,6 @@ Proof.
 Qed.
 
 (** Reducible *)
-
-Lemma decomp_eff K e :
-  decomp(fill K e) = (K, e) → to_eff e = None ∨ K = [].
-Proof.
-  generalize dependent e.
-  destruct K as [| Ki K]; intros e Hdc; 
-    destruct e; eauto.
-Admitted.
-
   
 Lemma fill_step  e1 σ1 e2 σ2 K :
   (prim_step e1 σ1 (e2, σ2) > 0)%R → (prim_step (fill K e1) σ1 (fill K e2, σ2) > 0)%R.
@@ -1776,13 +1767,16 @@ Proof.
   edestruct (decomp_fill _ _ _ Heq).
   destruct Hred as [ρ' Hs].
   apply eff_head_stuck in Hs as Heff.
-  inversion Heq.
-  apply decomp_eff in Heq as [Heq| ->].
-  - destruct (head_ctx_step_val _ _ _ _ Heq Hs) as [| ->].
+  destruct (to_eff e1') as [(v, k)|] eqn:Heff'.
+  - destruct K as [| Ki K]. { simpl. by rewrite fill_lift_empty dmap_id. }
+    apply of_to_eff in Heff' as <-.
+    assert (decomp (fill [Ki] (Eff v k)) = ([], fill [Ki] (Eff v k))) as H. { destruct Ki; eauto. }
+    apply (decomp_fill_comp K) in H; try (destruct Ki; done). simpl in H.
+    rewrite Heq in H; destruct Ki; inversion H.
+  - destruct (head_ctx_step_val _ _ _ _ Heff' Hs) as [| ->].
     + assert (K = []) as -> by eauto using decomp_val_empty. 
     rewrite fill_lift_empty fill_empty dmap_id //=.
     + rewrite fill_lift_empty fill_empty dmap_id //=.
-  - rewrite fill_lift_empty fill_empty dmap_id //=.
 Qed.
 
 Lemma head_prim_step_eq e1 σ1 :
