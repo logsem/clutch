@@ -346,6 +346,28 @@ Lemma twp_rand_err_incr e ε s E Φ :
     by iApply exec_stutter_free.
 Qed.
 
+
+Lemma twp_rand_err_pos e s E Φ :
+  to_val e = None ->
+  (∀ ε, ⌜ (0 < ε)%R ⌝ -∗ ↯ (ε) -∗ WP e @ s; E [{ Φ }] )
+    ⊢ WP e @ s; E [{ Φ }].
+  Proof.
+    iIntros (?) "?".
+    iMod (ec_zero) as "Herr".
+    iApply (twp_rand_err_incr with "[$]"); auto.
+  Qed.
+
+
+Lemma wp_rand_err_pos e E Φ :
+  to_val e = None ->
+  (∀ ε, ⌜ (0 < ε)%R ⌝ -∗ ↯ (ε) -∗ WP e @ E {{ Φ }} )
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (?) "?".
+    iMod (ec_zero) as "Herr".
+    iApply (wp_rand_err_incr with "[$]"); auto.
+  Qed.
+
 Lemma wp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ :
   TCEq N (Z.to_nat z) →
   ↯ (/ (N+1)) ∗
