@@ -2965,6 +2965,35 @@ Section rules.
              eapply Forall_lookup_1 in Hl2; last done.
              lia.
   Qed.
+
+  
+  (** * Lemmas for associativity of probabilitic choice *)
+  Lemma pupd_couple_associativity {p q r s x y:nat} α β ns ns' j K j' K' E:
+    (x=(q+1)*(s+1)-1)%nat ->
+    (y=(q+1)*(s+1)-p*r-1)%nat ->
+    ▷ α ↪N (s; ns) -∗
+    ▷ β ↪N (q; ns') -∗
+    j ⤇ fill K (rand #x) -∗
+    j' ⤇ fill K' (rand #y) -∗
+    pupd E E (∃ resl resl' resr resr',
+          ⌜(resl <= s)%nat⌝ ∗ ⌜(resl'<=q)%nat⌝ ∗ ⌜(resr <= (q+1)*(s+1)-1)%nat⌝ ∗ ⌜(resr'<=(q+1)*(s+1)-p*r-1)%nat⌝ ∗
+          α ↪N (s;ns++[resl])∗ β↪N (q;ns'++[resl']) ∗ j⤇fill K (#resr) ∗ j' ⤇ fill K' (#resr') ∗
+          ⌜if bool_decide(resr<p*r)%nat then (resl' <p /\ resl<r)%nat
+            else if bool_decide(resr'<r*(q+1-p))%nat then (resl' >=p /\ resl<r)%nat
+                 else (resl>=r)%nat⌝
+      ).
+  Proof.
+  Admitted.
+
+  
+  Lemma wp_couple_toss {x y k:nat} j K E:
+    (k>0)%nat -> 
+    (x=(y+1)*k-1)%nat ->
+    {{{ j ⤇ fill K (rand #y) }}}
+      rand #x@E
+      {{{ (n:nat), RET #n; j⤇fill K (#(n/k)%nat) }}}.
+  Proof. 
+  Admitted.
   
   (** * Exact couplings  *)
   Lemma pupd_couple_tape_rand N f `{Bij nat nat f} K E α z ns j:
