@@ -450,8 +450,8 @@ End coupl_modalities.
 
 
 (** * The weakest precondition  *)
-Definition wp_pre `{!spec_updateGS (lang_markov eff_prob_lang) Σ, !approxisWpGS Σ}
-    (wp : coPset -d> expr -d> iEff Σ -d> (val -d> iPropO Σ) -d> iPropO Σ) :
+Definition ewp_pre `{!spec_updateGS (lang_markov eff_prob_lang) Σ, !approxisWpGS Σ}
+    (ewp : coPset -d> expr -d> iEff Σ -d> (val -d> iPropO Σ) -d> iPropO Σ) :
   coPset -d> expr -d> iEff Σ -d> (val -d> iPropO Σ) -d> iPropO Σ := λ E e1 Ψ Φ,
   (∀ σ1 e1' σ1' ε1,
       state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 ={E, ∅}=∗
@@ -462,48 +462,48 @@ Definition wp_pre `{!spec_updateGS (lang_markov eff_prob_lang) Σ, !approxisWpGS
             match to_eff e1 with
             | Some (v, K) =>
                 |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2
-                           ∗ protocol_agreement v Ψ (λ w, ▷ wp E (fill K (Val w)) Ψ Φ)
+                           ∗ protocol_agreement v Ψ (λ w, ▷ ewp E (fill K (Val w)) Ψ Φ)
             | None => 
                 prog_coupl e1 σ2 e2' σ2' ε2 (λ e3 σ3 e3' σ3' ε3,
                                                ▷ spec_coupl ∅ σ3 e3' σ3' ε3 (λ σ4 e4' σ4' ε4,
-                                                                               |={∅, E}=> state_interp σ4 ∗ spec_interp (e4', σ4') ∗ err_interp ε4 ∗ wp E e3 Ψ Φ))
+                                                                               |={∅, E}=> state_interp σ4 ∗ spec_interp (e4', σ4') ∗ err_interp ε4 ∗ ewp E e3 Ψ Φ))
             end
       end))%I.
 
-Local Instance wp_pre_contractive `{!spec_updateGS (lang_markov eff_prob_lang) Σ, !approxisWpGS Σ} :
-  Contractive wp_pre.
+Local Instance ewp_pre_contractive `{!spec_updateGS (lang_markov eff_prob_lang) Σ, !approxisWpGS Σ} :
+  Contractive ewp_pre.
 Proof.
-  rewrite /wp_pre /= /protocol_agreement => n wp wp' Hwp E e1 Ψ Φ.
+  rewrite /ewp_pre /= /protocol_agreement => n ewp ewp' Hewp E e1 Ψ Φ.
   do 10 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? [? ?]]. rewrite /spec_coupl_pre.
   do 6 f_equiv.
-  { do 12 f_equiv. f_contractive. apply Hwp. }
+  { do 12 f_equiv. f_contractive. apply Hewp. }
   rewrite /prog_coupl.
   do 27 f_equiv.
   f_contractive.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? [? ?]]. rewrite /spec_coupl_pre.
   do 8 f_equiv.
-  apply Hwp.
+  apply Hewp.
 Qed.
 
 (* Local Definition wp_def `{!spec_updateGS (lang_markov eff_prob_lang) Σ, !approxisWpGS Σ} :
      Wp (iProp Σ) (expr) (val) () :=
      {| wp := λ _ : (), fixpoint (wp_pre); wp_default := () |}. *)
-Definition wp_def `{!spec_updateGS (lang_markov eff_prob_lang) Σ, !approxisWpGS Σ} :
+Definition ewp_def `{!spec_updateGS (lang_markov eff_prob_lang) Σ, !approxisWpGS Σ} :
   coPset -d> expr -d> iEff Σ -d> (val -d> iPropO Σ) -d> iPropO Σ :=
-  fixpoint wp_pre.
+  fixpoint ewp_pre.
 
-Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
-Definition wp' := wp_aux.(unseal).
-Global Arguments wp' {Σ _}.
+Local Definition ewp_aux : seal (@ewp_def). Proof. by eexists. Qed.
+Definition ewp' := ewp_aux.(unseal).
+Global Arguments ewp' {Σ _}.
 (* Global Existing Instance wp'.     I don't know what this is for  *)
 (* Local Lemma wp_unseal `{!spec_updateGS (lang_markov eff_prob_lang) Σ, !approxisWpGS Σ} : wp =
      (@wp_def Σ _ _).(wp).
    Proof. rewrite -wp_aux.(seal_eq) //. Qed. *)
 
-Section wp.
+Section ewp.
 Context `{!spec_updateGS (lang_markov eff_prob_lang) Σ, !approxisWpGS Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
@@ -512,28 +512,28 @@ Implicit Types e : expr.
 Implicit Types σ : state.
 Implicit Types ρ : cfg.
 
-Notation "'WP' e @ E  <| Ψ '|' '>' {{ v , Φ } }" :=
-  (wp_def E e%E Ψ%ieff (λ v, Φ)%I)
+Notation "'EWP' e @ E  <| Ψ '|' '>' {{ v , Φ } }" :=
+  (ewp_def E e%E Ψ%ieff (λ v, Φ)%I)
   (at level 20, e, E, Ψ, Φ at level 200,
-     format "'[' 'WP'  e  '/' '[' @ E <|  Ψ  '|' '>'  {{  v ,  Φ  } } ']' ']'") : bi_scope.
+     format "'[' 'EWP'  e  '/' '[' @ E <|  Ψ  '|' '>'  {{  v ,  Φ  } } ']' ']'") : bi_scope.
 
-Notation "'WP' e @ E  <| Ψ '|' '>' {{ Φ } }" :=
-  (wp_def E e%E Ψ%ieff Φ)
+Notation "'EWP' e @ E  <| Ψ '|' '>' {{ Φ } }" :=
+  (ewp_def E e%E Ψ%ieff Φ)
   (at level 20, e, E, Ψ, Φ at level 200,
-   format "'[' 'WP'  e  '/' '[' @ E <|  Ψ  '|' '>'  {{ Φ } } ']' ']'") : bi_scope.
+   format "'[' 'EWP'  e  '/' '[' @ E <|  Ψ  '|' '>'  {{ Φ } } ']' ']'") : bi_scope.
 
 
 
 (* Weakest pre *)
-Lemma wp_unfold E e Ψ Φ :
-  WP e @ E <| Ψ |> {{ Φ }} ⊣⊢ wp_pre wp_def E e Ψ Φ.
-Proof. apply (fixpoint_unfold wp_pre). Qed.
+Lemma ewp_unfold E e Ψ Φ :
+  EWP e @ E <| Ψ |> {{ Φ }} ⊣⊢ ewp_pre ewp_def E e Ψ Φ.
+Proof. apply (fixpoint_unfold ewp_pre). Qed.
 
-Global Instance wp_ne E e n :
-  Proper ((dist n) ==> (pointwise_relation _ (dist n)) ==> dist n) (wp_def E e).
+Global Instance ewp_ne E e n :
+  Proper ((dist n) ==> (pointwise_relation _ (dist n)) ==> dist n) (ewp_def E e).
 Proof.
   revert e. induction (lt_wf n) as [n _ IH]=> e Ψ Ψ' HΨ Φ Φ' HΦ.
-  rewrite !wp_unfold /wp_pre /= /protocol_agreement.
+  rewrite !ewp_unfold /ewp_pre /= /protocol_agreement.
   do 10 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? [? ?]]. rewrite /spec_coupl_pre /prog_coupl.
@@ -549,10 +549,10 @@ Proof.
   rewrite IH; [done|lia| |]; intros ?; apply dist_S;
     [apply HΨ | apply HΦ].
 Qed.
-Global Instance wp_proper E e :
-  Proper ((≡) ==> pointwise_relation _ (≡) ==> (≡)) (wp_def E e).
+Global Instance ewp_proper E e :
+  Proper ((≡) ==> pointwise_relation _ (≡) ==> (≡)) (ewp_def E e).
 Proof.
-  intros Ψ Ψ' ? Φ Φ' ?; apply equiv_dist=>n; apply wp_ne=>v; apply equiv_dist; eauto.
+  intros Ψ Ψ' ? Φ Φ' ?; apply equiv_dist=>n; apply ewp_ne=>v; apply equiv_dist; eauto.
 Qed.
 (* Global Instance wp_contractive E e n :
      TCEq (to_val e) None →
@@ -574,18 +574,18 @@ Qed.
      do 22 f_equiv.
    Qed. *)
 
-Lemma wp_eff E Ψ Φ v k :
-  protocol_agreement v Ψ (λ w, ▷ WP fill k (Val w) @ E <| Ψ |> {{ Φ }}) ⊢
-  WP Eff v k @ E <| Ψ |> {{ Φ }}.
+Lemma ewp_eff E Ψ Φ v k :
+  protocol_agreement v Ψ (λ w, ▷ EWP fill k (Val w) @ E <| Ψ |> {{ Φ }}) ⊢
+  EWP Eff v k @ E <| Ψ |> {{ Φ }}.
 Proof.
-  rewrite wp_unfold /wp_pre /=. iIntros "HP" (σ1 e1' σ1' ε1) "(Hstate & Hspec & Herr)".
+  rewrite ewp_unfold /ewp_pre /=. iIntros "HP" (σ1 e1' σ1' ε1) "(Hstate & Hspec & Herr)".
   iApply spec_coupl_ret. iFrame. iApply fupd_mask_subseteq. set_solver.
 Qed.
 
 
-Lemma wp_value_fupd' E Ψ Φ v : (|={E}=> Φ v) ⊢ WP of_val v @ E <| Ψ |> {{ Φ }}.
+Lemma ewp_value_fupd' E Ψ Φ v : (|={E}=> Φ v) ⊢ EWP of_val v @ E <| Ψ |> {{ Φ }}.
 Proof.
-  rewrite wp_unfold /wp_pre to_of_val.
+  rewrite ewp_unfold /ewp_pre to_of_val.
   iIntros "H" (????) "(?&?&?)".
   iApply spec_coupl_ret.
   iMod "H". iFrame.
@@ -593,18 +593,18 @@ Proof.
   set_solver.
 Qed.
 
-Lemma wp_strong_mono E1 E2 e Φ1 Φ2 Ψ1 Ψ2 :
+Lemma ewp_strong_mono E1 E2 e Φ1 Φ2 Ψ1 Ψ2 :
   E1 ⊆ E2 →
-  WP e @ E1 <| Ψ1 |> {{ Φ1 }} -∗
+  EWP e @ E1 <| Ψ1 |> {{ Φ1 }} -∗
   □(∀ (u : val) Φ, protocol_agreement u Ψ1 Φ -∗ protocol_agreement u Ψ2 Φ) -∗ (* Is this the right notion for Ψ1 ⊑ Ψ2? *)
   □(∀ σ1 e1' σ1' ε1 v,        (* Can I add a box here? *)
         state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 ∗ Φ1 v -∗
         spec_coupl ∅ σ1 e1' σ1' ε1 (λ σ2 e2' σ2' ε2,
                                       |={E2}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 ∗ Φ2 v)) -∗
-  WP e @ E2 <| Ψ2 |> {{ Φ2 }}.
+  EWP e @ E2 <| Ψ2 |> {{ Φ2 }}.
 Proof.
   iIntros (HE) "H HΨ HΦ". iLöb as "IH" forall (e E1 E2 HE Φ1 Φ2 Ψ1 Ψ2).
-  rewrite !wp_unfold /wp_pre /=.
+  rewrite !ewp_unfold /ewp_pre /=.
   iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
   iSpecialize ("H" with "[$]").
   iMod (fupd_mask_subseteq E1) as "Hclose"; [done|].
@@ -648,11 +648,11 @@ Proof.
   by iApply ("IH" with "[] H").
 Qed.
 
-Lemma wp_mono E Ψ Φ Φ' e :
+Lemma ewp_mono E Ψ Φ Φ' e :
   (∀ v, Φ v ⊢ |={E}=> Φ' v) →
-    WP e @ E <| Ψ |> {{ Φ }} ⊢ WP e @ E <| Ψ |> {{ Φ' }}.
+    EWP e @ E <| Ψ |> {{ Φ }} ⊢ EWP e @ E <| Ψ |> {{ Φ' }}.
 Proof.
-  iIntros (HΦ) "H"; iApply (wp_strong_mono with "H"); first done.
+  iIntros (HΦ) "H"; iApply (ewp_strong_mono with "H"); first done.
   { iModIntro. iIntros (??) "$". }
   iModIntro.
   iIntros (?????) "(?&?&?&?)".
@@ -678,19 +678,19 @@ Qed.
      by iMod ("Hw" with "[$]").
    Qed. *)
 
-Lemma fupd_wp E e Φ Ψ : (|={E}=> WP e @ E <| Ψ |> {{ Φ }}) ⊢ WP e @ E <| Ψ |> {{ Φ }}.
+Lemma fupd_ewp E e Φ Ψ : (|={E}=> EWP e @ E <| Ψ |> {{ Φ }}) ⊢ EWP e @ E <| Ψ |> {{ Φ }}.
 Proof.
-  rewrite wp_unfold /wp_pre.
+  rewrite ewp_unfold /ewp_pre.
   iIntros "H" (????) "(?&?&?)".
   destruct (to_val e) as [v|] eqn:?.
   { by iMod ("H" with "[$]"). }
   by iMod ("H" with "[$]").
 Qed.
 
-Lemma wp_fupd E e Φ Ψ : WP e @ E <| Ψ |> {{ v, |={E}=> Φ v }} ⊢ WP e @ E <| Ψ |> {{ Φ }}.
+Lemma ewp_fupd E e Φ Ψ : EWP e @ E <| Ψ |> {{ v, |={E}=> Φ v }} ⊢ EWP e @ E <| Ψ |> {{ Φ }}.
 Proof.
   iIntros "H". 
-  iApply (wp_strong_mono E with "H"); [done| |].
+  iApply (ewp_strong_mono E with "H"); [done| |].
   { iModIntro. iIntros (??) "$".}
   iModIntro.
   iIntros (?????) "(? & ? & ? & ?)".
@@ -698,14 +698,14 @@ Proof.
   by iFrame. 
 Qed.
 
-Lemma wp_atomic E1 E2 e Φ Ψ `{!Atomic StronglyAtomic e} :
+Lemma ewp_atomic E1 E2 e Φ Ψ `{!Atomic StronglyAtomic e} :
   TCEq (to_eff e) None →
   (|={E1,E2}=>
-     WP e @ E2 <| Ψ |> {{ v, |={E2,E1}=> Φ v }}) ⊢
-     WP e @ E1 <| Ψ |> {{ Φ }}.
+     EWP e @ E2 <| Ψ |> {{ v, |={E2,E1}=> Φ v }}) ⊢
+     EWP e @ E1 <| Ψ |> {{ Φ }}.
 Proof.
   intro Heff.
-  iIntros "H". rewrite !wp_unfold /wp_pre.
+  iIntros "H". rewrite !ewp_unfold /ewp_pre.
   iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
   iDestruct ("H" with "[$]") as ">> H".
   iModIntro.
@@ -721,13 +721,13 @@ Proof.
   iIntros (????) "H".
   iApply fupd_spec_coupl.
   iMod "H" as "(Hσ & Hρ & Hε & H)".
-  rewrite !wp_unfold /wp_pre.
+  rewrite !ewp_unfold /ewp_pre.
   destruct (to_val e2) as [v2|] eqn:He2.
   + iMod ("H" with "[$]") as "H". iModIntro.
     iApply (spec_coupl_mono with "[] H"); [done|].
     iIntros (????) "> ($ & $ & $ & >H)".
     rewrite -(of_to_val e2 v2) //.
-    iApply wp_value_fupd'.
+    iApply ewp_value_fupd'.
     iApply fupd_mask_intro_subseteq; [|done].
     set_solver.
   + destruct (to_eff e2) as [(v2, k2)|] eqn:He2'.
@@ -775,10 +775,10 @@ Qed.
   (* ------------------------------------------------------------------------ *)
   (** Reasoning about Pure Steps. *)
 
-  Lemma wp_pure_step' E e e' Ψ Φ :
+  Lemma ewp_pure_step' E e e' Ψ Φ :
     pure_prim_step e e' → 
-      ▷ WP e' @ E <| Ψ |> {{ Φ }} -∗
-      WP e @ E <| Ψ |> {{ Φ }}.
+      ▷ EWP e' @ E <| Ψ |> {{ Φ }} -∗
+      EWP e @ E <| Ψ |> {{ Φ }}.
   Proof.
     intros Hstep.
       destruct (to_val e) as [ v         |] eqn:He;
@@ -789,7 +789,7 @@ Qed.
     - rewrite <- (of_to_eff _ _ _ He') in Hstep. destruct Hstep. pose proof (eff_irreducible v k inhabitant). rewrite -not_reducible in H.
       assert (reducible (Eff v k, inhabitant)) as Hcontra. { unfold reducible. simpl. exists (e', inhabitant). eauto. }
       by apply H in Hcontra.
-    - rewrite !(wp_unfold E e) /wp_pre He He'.
+    - rewrite !(ewp_unfold E e) /ewp_pre He He'.
       iIntros "Hwp" (σ1 e1' σ1' ϵ') "(Hs & Hspec & Herr)".
       iMod (fupd_mask_subseteq ∅) as "Hclose"; [by apply empty_subseteq|].
       iModIntro.
@@ -804,40 +804,40 @@ Qed.
       apply H in Hprim as (-> & ->). iFrame.
   Qed.
 
-  Lemma wp_pure_step E e e' Ψ Φ :
+  Lemma ewp_pure_step E e e' Ψ Φ :
     pure_prim_step e e' → 
-      WP e' @ E <| Ψ |> {{ Φ }} -∗
-        WP e @ E <| Ψ |> {{ Φ }}.
-  Proof. iIntros "% Hwp". by iApply (wp_pure_step' with "Hwp"). Qed.
+      EWP e' @ E <| Ψ |> {{ Φ }} -∗
+        EWP e @ E <| Ψ |> {{ Φ }}.
+  Proof. iIntros "% Hwp". by iApply (ewp_pure_step' with "Hwp"). Qed.
 
-  Lemma wp_pure_steps' E e e' Ψ Φ :
+  Lemma ewp_pure_steps' E e e' Ψ Φ :
     tc pure_prim_step e e' → 
-      ▷ WP e' @ E <| Ψ |>  {{ Φ }} -∗
-          WP e @ E <| Ψ |> {{ Φ }}.
+      ▷ EWP e' @ E <| Ψ |>  {{ Φ }} -∗
+          EWP e @ E <| Ψ |> {{ Φ }}.
   Proof.
     intros Hstep; iInduction Hstep as [|] "IH".
-    - by iApply wp_pure_step'.
-    - iIntros "Hwp". iApply wp_pure_step'. { apply H. } iNext. by iApply "IH".
+    - by iApply ewp_pure_step'.
+    - iIntros "Hewp". iApply ewp_pure_step'. { apply H. } iNext. by iApply "IH".
   Qed.
 
-  Lemma wp_pure_steps E e e' Ψ Φ :
+  Lemma ewp_pure_steps E e e' Ψ Φ :
     rtc pure_prim_step e e' → 
-      WP e' @ E <| Ψ |> {{ Φ }} -∗
-        WP e @ E <| Ψ |> {{ Φ }}.
+      EWP e' @ E <| Ψ |> {{ Φ }} -∗
+        EWP e @ E <| Ψ |> {{ Φ }}.
   Proof.
     intros Hstep; iInduction Hstep as [|] "IH".
     - by iIntros "?".  
-    - iIntros "Hwp". iApply wp_pure_step. {apply H.} by iApply "IH".
+    - iIntros "Hewp". iApply ewp_pure_step. {apply H.} by iApply "IH".
   Qed.
 
 
   (* ------------------------------------------------------------------------ *)
   (** Bind Rule. *)
   
-  Lemma wp_eff_steps k `{NeutralEctx k} E Ψ Φ v k' :
-    WP Eff v (k' ++ k) @ E <| Ψ |> {{ Φ }} -∗
-     WP fill k (Eff v k') @ E <| Ψ |> {{ Φ }}.
-  Proof. apply wp_pure_steps, rtc_pure_prim_step_eff. Qed.
+  Lemma ewp_eff_steps k `{NeutralEctx k} E Ψ Φ v k' :
+    EWP Eff v (k' ++ k) @ E <| Ψ |> {{ Φ }} -∗
+     EWP fill k (Eff v k') @ E <| Ψ |> {{ Φ }}.
+  Proof. apply ewp_pure_steps, rtc_pure_prim_step_eff. Qed.
 
   Lemma fill_app_ctx K K' e : fill K (fill K' e) = fill (K' ++ K) e.
   Proof. unfold fill. by rewrite foldl_app. Qed.
@@ -882,13 +882,13 @@ Qed.
     by iApply "Hcnt".
   Qed.
 
-  Lemma wp_bind K `{NeutralEctx K} E e Φ Ψ :
-    WP e @ E <| Ψ |> {{ v, WP fill K (of_val v) @ E <| Ψ |> {{ Φ }} }} ⊢ WP fill K e @ E <| Ψ |> {{ Φ }}.
+  Lemma ewp_bind K `{NeutralEctx K} E e Φ Ψ :
+    EWP e @ E <| Ψ |> {{ v, EWP fill K (of_val v) @ E <| Ψ |> {{ Φ }} }} ⊢ EWP fill K e @ E <| Ψ |> {{ Φ }}.
   Proof.
     iIntros "H". iLöb as "IH" forall (E e Φ Ψ).
     destruct (to_val e) as [v|] eqn:He.
     { 
-      rewrite !wp_unfold /wp_pre.
+      rewrite !ewp_unfold /ewp_pre.
       iIntros (σ1 e1' σ1' ε1) "Hs".
       iMod ("H" with "[$]") as "H".
       iApply (spec_coupl_bind with "[] H"); [done|].
@@ -896,12 +896,12 @@ Qed.
       iApply fupd_spec_coupl.
       apply of_to_val in He as <-.
       iMod "H" as "(Hσ & Hs & Hε & H)".
-      rewrite wp_unfold /wp_pre.
+      rewrite ewp_unfold /ewp_pre.
       iApply ("H" with "[$]"). } 
     destruct (to_eff e) as [(v, k) |] eqn:Heff.
     { destruct e=>//=.
-      iApply wp_eff_steps.
-      rewrite !wp_unfold /wp_pre; simpl.
+      iApply ewp_eff_steps.
+      rewrite !ewp_unfold /ewp_pre; simpl.
       iIntros (????) "(Hstate & Hspec & Herr)".
       iMod ("H" with "[$]") as "H". iModIntro.
       iApply spec_coupl_mono; [done| |done].
@@ -916,7 +916,7 @@ Qed.
       iDestruct ("IH" with "Hwp") as "Hwp".
       rewrite fill_app_ctx.
       done. }
-    rewrite !wp_unfold /wp_pre.
+    rewrite !ewp_unfold /ewp_pre.
     iIntros (σ1 e1' σ1' ε1) "(Hstate & Hspec & Herr)".
     iSpecialize ("H" with "[$]").
     iApply (spec_coupl_bind with "[] H"); [done|].
