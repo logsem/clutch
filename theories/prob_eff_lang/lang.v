@@ -1884,6 +1884,14 @@ Lemma pure_prim_step_imp_reducible e1 e2 :
   pure_prim_step e1 e2 → (∀ σ, reducible (e1, σ)).
 Proof. intros [Hstep ?] ?. eauto. Qed.
 
+Lemma pure_prim_step_imp_det e1 e2 :
+  pure_prim_step e1 e2 → ∀ σ1 e2' σ2', (prim_step e1 σ1 (e2', σ2') > 0)%R → e2 = e2' ∧ σ1 = σ2'.
+Proof.
+  intros [? Hdet] σ1 e2' σ2' Hstep. specialize Hdet with (σ := σ1).
+  apply pmf_1_eq_dret in Hdet. rewrite Hdet in Hstep.
+  apply dret_pos in Hstep; by simplify_eq.
+Qed.
+  
 (* Lemma pure_prim_stepI e1 e2 :
      (∀ σ, (head_step e1 σ (e2, σ) > 0)%R) →
      (∀ σ1 e2' σ2, (prim_step e1 σ1 (e2', σ2) > 0)%R → σ2 = σ1 ∧ e2' = e2) →

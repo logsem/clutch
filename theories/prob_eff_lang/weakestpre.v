@@ -691,7 +691,7 @@ Lemma ewp_fupd E e Φ Ψ : EWP e @ E <| Ψ |> {{ v, |={E}=> Φ v }} ⊢ EWP e @ 
 Proof.
   iIntros "H". 
   iApply (ewp_strong_mono E with "H"); [done| |].
-  { iModIntro. iIntros (??) "$".}
+  { iModIntro. iIntros (??) "$". }
   iModIntro.
   iIntros (?????) "(? & ? & ? & ?)".
   iApply spec_coupl_ret.
@@ -784,24 +784,23 @@ Qed.
       destruct (to_val e) as [ v         |] eqn:He;
     [|destruct (to_eff e) as [(v, k)|] eqn:He'].
     - rewrite <- (of_to_val _ _ He) in Hstep. destruct Hstep. pose proof (val_irreducible v inhabitant). rewrite -not_reducible in H.
-      assert (reducible (Val v, inhabitant)) as Hcontra. { unfold reducible. simpl. exists (e', inhabitant). eauto. }
-      by apply H in Hcontra.
+      by apply H in pure_prim_step_safe.
     - rewrite <- (of_to_eff _ _ _ He') in Hstep. destruct Hstep. pose proof (eff_irreducible v k inhabitant). rewrite -not_reducible in H.
-      assert (reducible (Eff v k, inhabitant)) as Hcontra. { unfold reducible. simpl. exists (e', inhabitant). eauto. }
-      by apply H in Hcontra.
+      by apply H in pure_prim_step_safe.
     - rewrite !(ewp_unfold E e) /ewp_pre He He'.
       iIntros "Hwp" (σ1 e1' σ1' ϵ') "(Hs & Hspec & Herr)".
       iMod (fupd_mask_subseteq ∅) as "Hclose"; [by apply empty_subseteq|].
       iModIntro.
       iApply spec_coupl_ret.
-      iApply prog_coupl_step_l.  { eexists. by eapply pure_prim_step_safe. }
+      iApply prog_coupl_step_l.  { exists (e', σ1). simpl. pose proof (pure_prim_step_det _ _ Hstep σ1) as H. rewrite H. real_solver. }
       iIntros (e2 σ2 Hprim).
       iModIntro. iNext.
       iApply spec_coupl_ret.
       iMod ("Hclose") as "_". iModIntro.
       iFrame.
       pose proof (pure_prim_step_det _ _  Hstep σ1).
-      apply H in Hprim as (-> & ->). iFrame.
+      apply (pure_prim_step_imp_det e e') in Hprim as (-> & ->); eauto.
+      iFrame.
   Qed.
 
   Lemma ewp_pure_step E e e' Ψ Φ :
@@ -827,7 +826,7 @@ Qed.
   Proof.
     intros Hstep; iInduction Hstep as [|] "IH".
     - by iIntros "?".  
-    - iIntros "Hewp". iApply ewp_pure_step. {apply H.} by iApply "IH".
+    - iIntros "Hewp". iApply ewp_pure_step. {apply H. } by iApply "IH".
   Qed.
 
 
@@ -1051,10 +1050,11 @@ Lemma wp_frame_wand E e Φ R s :
 Proof.
   iIntros "HR HWP". iApply (wp_wand with "HWP").
   iIntros (v) "HΦ". by iApply "HΦ".
-Qed.
+Qed. *)
 
-End wp.
+End ewp.
 
+(*
 (** * Proofmode class instances *)
 Section proofmode_classes.
   Context `{!spec_updateGS (lang_markov Λ) Σ, !approxisWpGS Λ Σ}.
