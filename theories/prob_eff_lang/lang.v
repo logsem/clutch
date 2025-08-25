@@ -1753,9 +1753,17 @@ Proof.
   rewrite dret_1_1 //. lra.
 Qed.
 
+Lemma fill_step_prob e1 σ1 e2 σ2 K :
+  to_val e1 = None →
+  to_eff e1 = None → 
+  prim_step e1 σ1 (e2, σ2) = prim_step (fill K e1) σ1 (fill K e2, σ2).
+Proof.
+  intros Heff Hv. rewrite fill_dmap //.
+  by erewrite (dmap_elem_eq _ (e2, σ2) _ (λ '(e0, σ0), (fill K e0, σ0))).
+Qed.
   
 Class head_reducible (e : expr) (σ : state) :=
-    head_reducible_step : ∃ ρ, (head_step e σ ρ > 0)%R.
+  head_reducible_step : ∃ ρ, (head_step e σ ρ > 0)%R.
 
 Lemma head_prim_step_pmf_eq e1 σ1 ρ :
     head_reducible e1 σ1 →
@@ -1858,11 +1866,15 @@ Proof.
 Qed.  
 (** Pure steps. *)
 
+(* Record pure_prim_step (e1 e2 : expr) := {
+     pure_prim_step_safe σ : (prim_step e1 σ (e2, σ) > 0)%R;
+     pure_prim_step_det σ1 e2' σ2 :
+       (prim_step e1 σ1 (e2', σ2) > 0)%R → σ2 = σ1 ∧ e2' = e2
+   }. *)
 Record pure_prim_step (e1 e2 : expr) := {
-  pure_prim_step_safe σ : (prim_step e1 σ (e2, σ) > 0)%R;
-  pure_prim_step_det σ1 e2' σ2 :
-    (prim_step e1 σ1 (e2', σ2) > 0)%R → σ2 = σ1 ∧ e2' = e2
-}.
+    pure_prim_step_safe σ1 : reducible (e1, σ1);
+    pure_prim_step_det σ : prim_step e1 σ (e2, σ) = 1;
+  }.
 
 (* Lemma prim_step_inv' e1 σ1 κs e2 σ2 efs :
      prim_step' e1 σ1 κs e2 σ2 efs → κs = [] ∧ efs = [].
@@ -1870,16 +1882,22 @@ Record pure_prim_step (e1 e2 : expr) := {
 
 Lemma pure_prim_step_imp_reducible e1 e2 :
   pure_prim_step e1 e2 → (∀ σ, reducible (e1, σ)).
-Proof. intros Hstep ?. exists (e2, σ). by apply Hstep. Qed.
+Proof. intros [Hstep ?] ?. eauto. Qed.
 
-Lemma pure_prim_stepI e1 e2 :
-  (∀ σ, (head_step e1 σ (e2, σ) > 0)%R) →
-  (∀ σ1 e2' σ2, (prim_step e1 σ1 (e2', σ2) > 0)%R → σ2 = σ1 ∧ e2' = e2) →
-  pure_prim_step e1 e2.
-Proof.
-  intros Hhead_step Hstep_det. constructor; auto.
-  intros ?. by apply head_step_prim_step.
-Qed.
+(* Lemma pure_prim_stepI e1 e2 :
+     (∀ σ, (head_step e1 σ (e2, σ) > 0)%R) →
+     (∀ σ1 e2' σ2, (prim_step e1 σ1 (e2', σ2) > 0)%R → σ2 = σ1 ∧ e2' = e2) →
+     pure_prim_step e1 e2.
+   Proof.
+     intros Hhead_step Hstep_det. split.
+     - intros σ. eexists _. by apply head_step_prim_step.
+     - intros σ.
+       assert (head_reducible e1 σ) as Hred. { eexists. apply Hhead_step. }
+       apply head_prim_step_eq in Hred as ->.
+   Admitted. *)
+(*   intros Hhead_step Hstep_det. constructor; auto.
+     intros ?. by apply head_step_prim_step.
+   Qed. *)
 
 (* Lemma pure_prim_stepI' e1 e2 :
      (∀ σ, head_step e1 σ e2 σ) →
@@ -2054,70 +2072,78 @@ Qed.
 Lemma pure_prim_step_eff Ki `{NeutralEctxi Ki} v k :
   pure_prim_step (fill_item Ki (Eff v k)) (Eff v (k ++ [Ki])).
 Proof.
-  apply pure_prim_stepI.
-  { intros ?; rewrite head_step_support_equiv_rel. destruct Ki; try constructor.
-    by apply TryWithCtx_non_neutral in H. }
-  intros ??? Hstep. unfold prim_step in Hstep. destruct Ki;
-  try (simpl in Hstep;  repeat destruct_match; rewrite fill_lift_empty in Hstep; rewrite dmap_dret in Hstep;
-       apply dret_pos in Hstep; by simplify_eq).
+  split.
+  { intros ?. exists (Eff v (k ++ [Ki]), σ1). simpl. apply head_step_prim_step. rewrite head_step_support_equiv_rel.
+    destruct Ki; try constructor.
+       by apply TryWithCtx_non_neutral in H. }
+  intros ?. destruct Ki; try (simpl; unfold prim_step; simpl; rewrite fill_lift_empty; repeat destruct_match; rewrite dmap_dret; by apply dret_1_1).
   by apply TryWithCtx_non_neutral in H.
 Qed.
 
-Lemma test K e1 σ1 e2 σ2:
-  to_val e1 = None →
-  to_eff e1 = None → 
-  (prim_step (fill K e1) σ1 (e2, σ2) > 0)%R →
-    ∃ e2', e2 = fill K e2' ∧ (head_step e1 σ1 (e2', σ2) > 0)%R.
-Proof.
-  intros Hval Heff Hstep.
-  apply prim_step_iff in Hstep as (K' & e1' & e2' & HKe1 & HKe2 & Hs).
-  symmetry in HKe1.
-  edestruct (step_by_val_eff K) as [K'' HK]; eauto using val_head_stuck; simplify_eq/=.
-  rewrite fill_app in HKe1; simplify_eq.
-  exists (fill K'' e2'). rewrite fill_app. split; [done|].
-Admitted.
-(*   destruct (head_ctx_step_val _ _ _ _ _ _) as [[]%not_eq_None_Some|HK''].
+(* Lemma test K e1 σ1 e2 σ2:
+     to_val e1 = None →
+     to_eff e1 = None →
+     head_reducible e1 σ1 →
+     (prim_step (fill K e1) σ1 (e2, σ2) > 0)%R →
+       ∃ e2', e2 = fill K e2' ∧ (head_step e1 σ1 (e2', σ2) > 0)%R.
+   Proof.
+     intros Hval Heff [[e2'' σ2''] HhstepK] Hstep.
+     apply prim_step_iff in Hstep as (K' & e1' & e2' & HKe1 & HKe2 & Hs).
+     symmetry in HKe1.
+     edestruct (step_by_val_eff K) as [K'' HK]; eauto using val_head_stuck; simplify_eq/=.
+     rewrite fill_app in HKe1; simplify_eq.
+     exists (fill K'' e2'). rewrite fill_app. split; [done|].
+     apply eff_head_stuck in Hs as Heff'; eauto.
+     destruct (head_ctx_step_val _ _ _ _ Heff' HhstepK) as [[]%not_eq_None_Some|HK'].
      { by eapply val_head_stuck. }
-     subst. rewrite !fill_empty //.
+     subst. rewrite !fill_empty //. 
+   Qed.
+   
+   Lemma Ectxi_prim_step_inv Ki e e2 σ1 σ2 :
+     to_val e = None →
+     to_eff e = None →
+     head_reducible e σ1 →
+     (prim_step (fill_item Ki e) σ1 (e2, σ2) > 0)%R →
+     ∃ e', (prim_step e σ1 (e', σ2) > 0)%R ∧ e2 = fill_item Ki e'.
+   Proof.
+     intros ??? Hstep.
+     pose proof (test [Ki] e σ1 e2 σ2 H H0) as (e' & HKe' & Hs); eauto.
+     exists e'. split; eauto. by apply head_step_prim_step.
+   Qed.
+   
+   Lemma Ectx_prim_step_inv K e e2 σ1 σ2 :
+     to_val e = None →
+     to_eff e = None →
+     head_reducible e σ1 → 
+     (prim_step (fill K e) σ1 (e2, σ2) > 0)%R →
+     ∃ e', (prim_step e σ1 (e', σ2) > 0)%R ∧ e2 = fill K e'.
+   Proof.
+     intros ????. pose proof (test K _ _ _ _ H H0 H1 H2) as (e' & HKe' & Hs).
+     exists e'. split; [ by apply head_step_prim_step |done]. 
    Qed. *)
-
-
-Lemma Ectxi_prim_step_inv Ki e e2 σ1 σ2 :
-  to_val e = None →
-  to_eff e = None →
-  (prim_step (fill_item Ki e) σ1 (e2, σ2) > 0)%R →
-  ∃ e', (prim_step e σ1 (e', σ2) > 0)%R ∧ e2 = fill_item Ki e'.
-Proof.
-  intros ?? Hstep.
-  pose proof (test [Ki] e σ1 e2 σ2 H H0 Hstep) as (e' & HKe' & Hs).
-  exists e'. split; eauto. by apply head_step_prim_step.
-Qed.
-
-Lemma Ectx_prim_step_inv K e e2 σ1 σ2 :
-  to_val e = None →
-  to_eff e = None →
-  (prim_step (fill K e) σ1 (e2, σ2) > 0)%R →
-  ∃ e', (prim_step e σ1 (e', σ2) > 0)%R ∧ e2 = fill K e'.
-Proof.
-  intros ???. pose proof (test K _ _ _ _ H H0 H1) as (e' & HKe' & Hs).
-  exists e'. split; [ by apply head_step_prim_step |done]. 
-Qed.
 
 Lemma pure_prim_step_fill_item Ki e e' :
   pure_prim_step e e' → pure_prim_step (fill_item Ki e) (fill_item Ki e').
 Proof.
-  constructor. 
-  - intros ?. apply (fill_step _ _ _ _ [Ki] (pure_prim_step_safe _ _ H _)). 
-  - intros ??? Hstep. 
-    have not_val : to_val e = None.
-    { by apply (reducible_not_val _ σ1),
-               (pure_prim_step_imp_reducible _ e'). }
-    have not_eff : to_eff e = None.
-    { by apply (reducible_not_eff _ σ1),
-               (pure_prim_step_imp_reducible _ e'). }
-    destruct (Ectxi_prim_step_inv Ki e _ _ _ not_val not_eff Hstep) as [e'' [He'' ->]].
-    by destruct (pure_prim_step_det _ _ H _ _ _ He'') as [-> ->].
-Qed.
+  intros [Hsafe Hdet]. split.
+  - intros σ. by apply (reducible_fill [Ki]).
+  - intros σ.
+    rewrite -(fill_step_prob _ _ _ _ [Ki]) //; eauto using reducible_not_eff, reducible_not_val.
+    Unshelve. { exact σ. } { exact σ. }
+Qed.  
+(*   constructor. 
+     - intros ?. apply (fill_step _ _ _ _ [Ki] (pure_prim_step_safe _ _ H _)). 
+     - intros ??? Hstep. 
+       have not_val : to_val e = None.
+       { by apply (reducible_not_val _ σ1),
+                  (pure_prim_step_imp_reducible _ e'). }
+       have not_eff : to_eff e = None.
+       { by apply (reducible_not_eff _ σ1),
+           (pure_prim_step_imp_reducible _ e'). }
+       eapply pure_prim_step_imp_reducible in H.
+       destruct (Ectxi_prim_step_inv Ki e _ _ _ not_val not_eff H Hstep) as [e'' [He'' ->]].
+       by destruct (pure_prim_step_det _ _ H _ _ _ He'') as [-> ->].
+   Qed. *)
 
 Lemma pure_prim_step_fill K e e' :
   pure_prim_step e e' → pure_prim_step (fill K e) (fill K e').
