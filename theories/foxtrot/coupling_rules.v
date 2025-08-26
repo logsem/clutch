@@ -3143,14 +3143,154 @@ Section rules.
                      then
                        if bool_decide (n<r*(q+1-p))%nat
                        then (p+n/r)*(s+1)+(n `mod` r)
-                       else let n':=n-r*(q+1-p) in (n'/(q+1))*(s+1)+(n'`mod`(s+1-r))
+                       else let n':=n-r*(q+1-p) in (n'/(s+1-r))*(s+1)+(r+(n'`mod`(s+1-r)))
                      else n+(q+1)*(s+1))%nat as f_frag.
       assert (Inj (=) (=) f_frag).
       {
         intros x y.
         rewrite /f_frag.
         replace (S _) with ((q+1)*(s+1)-p*r)%nat; last lia.
-        admit. 
+        repeat case_bool_decide.
+        - intros H'. apply Nat.mul_split_l in H'.
+          + rewrite (Nat.div_mod_eq x r) (Nat.div_mod_eq y r). lia.
+          + unshelve epose proof Nat.mod_upper_bound x r _; lia.
+          + unshelve epose proof Nat.mod_upper_bound y r _; lia.
+        - intros Hcontra; exfalso.
+          apply (f_equal (λ x, x `mod` (s+1))%nat) in Hcontra.
+          rewrite (Nat.add_comm (_*_) _)%nat in Hcontra.
+          rewrite Nat.Div0.mod_add in Hcontra.
+          rewrite (Nat.add_comm (_*_))%nat in Hcontra.
+          rewrite Nat.Div0.mod_add in Hcontra.
+          unshelve epose proof Nat.mod_upper_bound x r _; first lia.
+          rewrite Nat.mod_small in Hcontra; last lia.
+          destruct (decide (r=(s+1))%nat).
+          + subst. lia.
+          + rewrite (Nat.mod_small _ (s+1))%nat in Hcontra; first lia.
+            apply Nat.lt_le_trans with (r+(s+1-r))%nat; last lia.
+            apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. lia.
+        - intros Hcontra.
+          exfalso.
+          assert ((p + x `div` r) * (s + 1) + x `mod` r <(q+1)*(s+1))%nat; last lia.
+          rewrite (Nat.mul_add_distr_r q).
+          apply Nat.lt_le_trans with ((p + x `div` r) * (s + 1) + (s+1))%nat.
+          + apply Nat.add_lt_mono_l.
+            apply Nat.lt_le_trans with r.
+            * apply Nat.mod_upper_bound. lia.
+            * lia.
+          + rewrite Nat.mul_1_l.
+            apply Nat.add_le_mono_r.
+            apply Nat.mul_le_mono; last lia.
+            trans (p+(q-p))%nat; last lia.
+            apply Nat.add_le_mono; first done.
+            apply Nat.lt_succ_r.
+            apply Nat.Div0.div_lt_upper_bound.
+            eapply Nat.lt_le_trans; first exact.
+            apply Nat.mul_le_mono; lia.
+        - intros Hcontra; exfalso.
+          apply (f_equal (λ x, x `mod` (s+1))%nat) in Hcontra.
+          rewrite (Nat.add_comm (_*_) _)%nat in Hcontra.
+          rewrite Nat.Div0.mod_add in Hcontra.
+          rewrite (Nat.add_comm (_*_))%nat in Hcontra.
+          rewrite Nat.Div0.mod_add in Hcontra.
+          unshelve epose proof Nat.mod_upper_bound y r _; first lia.
+          rewrite (Nat.mod_small (y`mod`_)%nat (s+1)%nat) in Hcontra; last lia.
+          destruct (decide (r=(s+1))%nat).
+          + subst. lia.
+          + rewrite (Nat.mod_small _ (s+1))%nat in Hcontra; first lia.
+            apply Nat.lt_le_trans with (r+(s+1-r))%nat; last lia.
+            apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. lia.
+        - (* the same *)
+          intros H'.
+          destruct (decide (r=s+1)%nat); first lia.
+          apply Nat.mul_split_l in H' as [K1 K2]; last first.
+          { eapply Nat.lt_le_trans with (r+(s+1-r))%nat.
+            - apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound.
+              lia.
+            - lia. 
+          }
+          { eapply Nat.lt_le_trans with (r+(s+1-r))%nat.
+            - apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound.
+              lia.
+            - lia. 
+          }
+          assert (x-r*(q+1-p)=y-r*(q+1-p))%nat; try lia.
+          remember (x-r*(q+1-p))%nat as x'.
+          remember (y-r*(q+1-p))%nat as y'.
+          rewrite (Nat.div_mod_eq x' (s+1-r)%nat) (Nat.div_mod_eq y' (s+1-r)%nat). lia.
+        - (* one is too large *)
+          destruct (decide (r=s+1)%nat); first lia.
+          intros Hcontra.
+          exfalso.
+          assert (((x - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) +
+             (r + (x - r * (q + 1 - p)) `mod` (s + 1 - r))) <(q+1)*(s+1))%nat; last lia.
+          rewrite (Nat.mul_add_distr_r q).
+          apply Nat.lt_le_trans with (((x - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) +
+             (s+1)))%nat.
+          + apply Nat.add_lt_mono_l.
+            apply Nat.lt_le_trans with (r+(s+1-r))%nat.
+            * apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. lia.
+            * lia.
+          + rewrite Nat.mul_1_l.
+            apply Nat.add_le_mono_r.
+            apply Nat.mul_le_mono; last lia.
+            apply Nat.lt_succ_r.
+            apply Nat.div_lt_upper_bound; first lia.
+            replace (S q) with (q+1)%nat by lia.
+            eapply Nat.le_lt_add_lt with (r*(q+1-p))%nat (r*(q+1-p))%nat; first lia.
+            rewrite Nat.sub_add.
+            * rewrite Nat.mul_sub_distr_r Nat.mul_sub_distr_l.
+              rewrite Nat.add_sub_assoc; last first.
+              { apply Nat.mul_le_mono; lia. }
+              rewrite Nat.sub_add; first lia.
+              apply Nat.mul_le_mono; lia.
+            * lia.
+        - (* one is too large *)
+          intros Hcontra.
+          exfalso.
+          assert ((p + y `div` r) * (s + 1) + y `mod` r <(q+1)*(s+1))%nat; last lia.
+          rewrite (Nat.mul_add_distr_r q).
+          apply Nat.lt_le_trans with ((p + y `div` r) * (s + 1) + (s+1))%nat.
+          + apply Nat.add_lt_mono_l.
+            apply Nat.lt_le_trans with r.
+            * apply Nat.mod_upper_bound. lia.
+            * lia.
+          + rewrite Nat.mul_1_l.
+            apply Nat.add_le_mono_r.
+            apply Nat.mul_le_mono; last lia.
+            trans (p+(q-p))%nat; last lia.
+            apply Nat.add_le_mono; first done.
+            apply Nat.lt_succ_r.
+            apply Nat.Div0.div_lt_upper_bound.
+            eapply Nat.lt_le_trans; first exact.
+            apply Nat.mul_le_mono; lia.
+        - (* one is too large *)
+          destruct (decide (r=s+1)%nat); first lia.
+          intros Hcontra.
+          exfalso.
+          assert (((y - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) +
+             (r + (y - r * (q + 1 - p)) `mod` (s + 1 - r))) <(q+1)*(s+1))%nat; last lia.
+          rewrite (Nat.mul_add_distr_r q).
+          apply Nat.lt_le_trans with (((y - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) +
+             (s+1)))%nat.
+          + apply Nat.add_lt_mono_l.
+            apply Nat.lt_le_trans with (r+(s+1-r))%nat.
+            * apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. lia.
+            * lia.
+          + rewrite Nat.mul_1_l.
+            apply Nat.add_le_mono_r.
+            apply Nat.mul_le_mono; last lia.
+            apply Nat.lt_succ_r.
+            apply Nat.div_lt_upper_bound; first lia.
+            replace (S q) with (q+1)%nat by lia.
+            eapply Nat.le_lt_add_lt with (r*(q+1-p))%nat (r*(q+1-p))%nat; first lia.
+            rewrite Nat.sub_add.
+            * rewrite Nat.mul_sub_distr_r Nat.mul_sub_distr_l.
+              rewrite Nat.add_sub_assoc; last first.
+              { apply Nat.mul_le_mono; lia. }
+              rewrite Nat.sub_add; first lia.
+              apply Nat.mul_le_mono; lia.
+            * lia.
+        - lia. 
       }
   Admitted.
 
