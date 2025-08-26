@@ -27,5 +27,13 @@ Proof.
   apply protocol_agreement_ne; by apply equiv_dist.
 Qed.
 
+Lemma protocol_agreement_bottom v Φ :
+  protocol_agreement v ⊥ Φ ≡ False%I.
+Proof.
+  rewrite /protocol_agreement.
+  iSplit; iIntros "H"; [|done]. by iDestruct "H" as (Q) "[H _]".
+Qed.
+
+
 
 End protocol_agreement.
