@@ -311,7 +311,7 @@ Section graph_code.
             | H : ?a > ?b |- context[bool_decide (Z.of_nat ?a < Z.of_nat ?b)%Z] => rewrite bool_decide_eq_false_2 //
             end;
             try wp_pures
-          ); 
+          );
           iApply "HΦ'";
           rewrite /= /convert_rocq ?Heq_tricho_src_to_replace ?Heq_tricho_dst_to_replace;
           by repeat match goal with 

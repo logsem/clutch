@@ -122,7 +122,7 @@ Lemma nat_of_ord_transport_map
   (i : C) :
   nat_of_ord (Heq1 ▸ i) = nat_of_ord (Heq2 ▸ i).
 Proof.
-  destruct (map_length f l), (eq_sym Heq2).
+  destruct (eq_sym (map_length f l)), (eq_sym Heq2).
   rewrite !transport_refl //.
 Qed.
 

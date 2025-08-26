@@ -228,7 +228,7 @@ Class binomial_spec `{!erisGS Σ} (binomial_prog : val) (binomial_alloc : val) :
     (p ≤ (q + 1))%nat →
     (∀ (k : fin (S n)), 0 <= D k)%R → 
     SeriesC (λ k : fin (S n), (binom_prob p q n k * D k)%R) = ε →
-    [[{ ↯ ε }]] 
+    [[{ ↯ ε }]]
       binomial_prog #() #p #q #n 
     [[{ (k : fin (S n)), RET #k ; ↯ (D k) }]];
    
