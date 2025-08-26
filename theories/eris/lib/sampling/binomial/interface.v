@@ -1,5 +1,5 @@
 From clutch.eris Require Export eris.
-From clutch.eris.lib.sampling Require Import abstract_planner utils.
+From clutch.eris.lib.sampling Require Import abstract_planner distr_impl utils.
 From clutch.eris.lib.sampling.bernoulli Require Import interface.
 
 Section BinomialProbability.
@@ -193,7 +193,32 @@ Section BinomialProbability.
     }
   Qed.
 
+  Program Definition binom_distr (p q n : nat) (p_le_Sq : p ≤ q + 1) : distr nat :=
+    MkDistr (binom_prob p q n) (λ k, binom_prob_pos p q n k p_le_Sq) _ _. 
+  Next Obligation.
+  Proof.
+    move=>p q n p_le_Sq.
+    apply (ex_seriesC_ext (λ k, if bool_decide (k ≤ n) then binom_prob p q n k else 0%R)).
+    { unfold binom_prob, choose.
+      move=>k.
+      case_bool_decide; lra.
+    }
+    apply ex_seriesC_nat_bounded.
+  Qed.
   
+  Next Obligation.
+    move=>p q n p_le_Sq.
+    pose proof (sum_binom_prob p q n) as sum_b.
+    rewrite -SeriesC_nat_bounded_fin in sum_b.
+    rewrite (SeriesC_ext _
+               (λ k, if bool_decide (k ≤ n)
+                     then binom_prob p q n k
+                     else 0%R)); first rewrite sum_b //.
+    unfold binom_prob, choose.
+    move=>k.
+    case_bool_decide; lra.
+  Qed.
+
 End BinomialProbability.
 
 Class binomial_spec `{!erisGS Σ} (binomial_prog : val) (binomial_alloc : val) :=
@@ -243,10 +268,69 @@ Section BinomialLemmas.
 
   Context `{!erisGS Σ}.
   Context `{!binomial_spec binom binalloc}.
-  
+
   Set Default Proof Using "Type*".
 
-   Lemma twp_binomial_presample_planner 
+  Print base_lit.
+
+  Instance binomial_impl {p q n : nat} {p_le_Sq : p ≤ q + 1} :
+    distr_impl (dmap (LitV ∘ LitInt ∘ Z.of_nat) (binom_distr p q n p_le_Sq)).
+  Proof.
+    refine (MkDistrImpl _
+              (λ: "α", binom "α" #p #q #n) (binalloc #p #q #n)
+              loc
+              (λ Δ l, ∃ l', own_binomial_tape Δ p q n l' ∗
+                            ⌜l = fmap (λ (k : fin (S n)), #k) l'⌝)%I
+              (λ Δ α, ⌜α = #lbl:Δ⌝)%I #() _ _ _ _).
+    - iIntros (D ε εf L ε_ge_0 εf_pos D_bounds D_sum Φ) "Herr HΦ".
+      iPoseProof (ec_split with "Herr") as "[_ Herr]"; try lra.
+      set (D' (k : nat) := D #k).
+      wp_pures.
+      wp_apply (twp_binom_adv_comp _ _ _ D' _ p_le_Sq with "Herr [HΦ]").
+      { move=>k. apply D_bounds. }
+      { rewrite (dmap_expected_value _ _ _ L) in D_sum;
+          last (move=>a; apply D_bounds).
+        rewrite -(SeriesC_nat_bounded_fin (λ k, (binom_prob p q n k * D' k)%R)) D_sum.
+        apply SeriesC_ext.
+        move=>k.
+        case_bool_decide; first done.
+        rewrite /pmf /= binom_prob_gt; [lra | lia].
+      }
+      iIntros (k) "Herr".
+      by iApply "HΦ".
+    - iIntros (Φ) "_ HΦ".
+      wp_apply (twp_binomial_alloc with "[$]") as (α) "Hα".
+      iApply "HΦ".
+      by iFrame.
+    - iIntros (e ε εf Δ l D L Φ e_not_val ε_ge_0 εf_pos D_bounds D_sum) "(Herr & (%l' & Htape & ->) & Hnext)".
+      iPoseProof (ec_split with "Herr") as "[_ Herr]"; try lra.
+      set (D' (k : fin (S n)) := D #k).
+      unshelve wp_apply (twp_binomial_presample_adv_comp _ _ _ _ _ _ _ _ D' _ _ p_le_Sq e_not_val  with "[$Herr $Htape Hnext]").
+      { move=>k. apply D_bounds. }
+      { rewrite (dmap_expected_value _ _ _ L) in D_sum;
+          last (move=>a; apply D_bounds).
+        rewrite -(SeriesC_nat_bounded_fin (λ k, (binom_prob p q n k * D #k)%R)) -D_sum.
+        apply SeriesC_ext.
+        move=>k.
+        case_bool_decide; first done.
+        rewrite /pmf /= binom_prob_gt; [lra | lia].
+      }
+      iIntros (k) "[Herr Htape]".
+      wp_apply "Hnext".
+      iExists (l' ++ [k]).
+      iFrame.
+      rewrite fmap_app //.
+    - iIntros (α Δ l v Φ) "[(%l' & Htape & %Heq) ->] HΦ".
+      destruct l' as [|v' l']; first discriminate.
+      injection Heq as -> ->.
+      wp_pures.
+      wp_apply (twp_binomial_tape with "Htape") as "Htape".
+      iApply "HΦ".
+      iExists l'.
+      by iFrame.
+  Qed.
+
+  Lemma twp_binomial_presample_planner 
       (N M k : nat) (e : expr) (ε : nonnegreal)
       (L : nat) (α : loc) (Φ : val → iProp Σ)
       (prefix : list (fin (S k))) (suffix : list (fin (S k)) → list (fin (S k))) :

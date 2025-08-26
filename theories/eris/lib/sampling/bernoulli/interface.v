@@ -318,7 +318,7 @@ Section BernoulliSpecLemmas.
         lia.
   Qed.
 
-  Lemma twp_presample_bernoulli_planner
+ (*  Lemma twp_presample_bernoulli_planner
       (N M : nat) (e : expr) (ε : nonnegreal) (L : nat) 
       (α : loc) (Φ : val → iProp Σ) (prefix : list (fin 2)) 
       (suffix : list (fin 2) → list (fin 2)) :
@@ -375,5 +375,5 @@ Section BernoulliSpecLemmas.
       iFrame.
     }
   Qed.
-  
+  *)
 End BernoulliSpecLemmas.

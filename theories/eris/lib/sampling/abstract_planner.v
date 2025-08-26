@@ -358,11 +358,9 @@ Section Planner.
   Context {A : Type}.
   Context `{Countable A}.
   Context (μ : A → R).
-  Context (μ_pos : ∀ (a : A), 0 < μ a).
-
-  (* Note : this excludes dirac distributions but they are a very trivial case *)
-  (* These could be restricted to only the letters appearing in suffixes *)
+  Context (μ_pos : ∀ (a : A), 0 <= μ a).
   Context (μ_lt_1 : ∀ (a : A), μ a < 1).
+
   Context (is_seriesC_μ : is_seriesC μ 1).
   Context (ψ : list A → iProp Σ).
   Context (Φ : iProp Σ).
@@ -379,6 +377,7 @@ Section Planner.
   Section FixedSuffix.
 
     Context (l suf : list A).
+    Context (μ_gt_0 : ∀ (a : A), a ∈ suf → 0 < μ a).
     Context (ε : R).
     Context (ε_pos : 0 < ε).
 
@@ -391,12 +390,13 @@ Section Planner.
       end.
 
     Lemma Δ_bounds : ∀ (n : nat), 0 < Δ n < 1.
-    Proof using μ_pos μ_lt_1.
+    Proof using μ_gt_0 μ_lt_1.
       move=>n.
       unfold Δ, Δ'.
       destruct (decide (n < length suf)%nat) as [n_lt_len | n_ge_len].
-      - apply lookup_lt_is_Some_2 in n_lt_len as [p ->].
-        simpl.
+      - apply lookup_lt_is_Some_2 in n_lt_len as [p eq_p].
+        rewrite eq_p /=.
+        apply elem_of_list_lookup_2 in eq_p.
         auto.
       - rewrite lookup_ge_None_2 /=; last lia.
         lra.
@@ -405,7 +405,7 @@ Section Planner.
     Definition r (n : nat) := / (1 - Δ n).
     
     Lemma r_gt_1 : ∀ (n : nat), 1 < r n.
-    Proof using μ_pos μ_lt_1.
+    Proof using μ_gt_0 μ_lt_1.
       move=>n.
       unfold r.
       rewrite -{1}Rinv_1.
@@ -417,7 +417,7 @@ Section Planner.
 
     Lemma θ_bounds :
       ∀ (i : nat), (i < length suf)%nat → 0 <= (L i θ - 1) / (r i - 1) < θ i ∧ θ i < 1.
-    Proof using μ_pos μ_lt_1.
+    Proof using μ_gt_0 μ_lt_1.
       move=>i i_lt_len.
       apply β_bounds; last lia.
       move=>j _. apply r_gt_1.
@@ -430,7 +430,7 @@ Section Planner.
     Definition ε' (n : nat) := χ n * ε.
 
     Lemma k_pos : ∀ (i : nat), (i < length suf)%nat → 0 < k i.
-    Proof using μ_pos μ_lt_1.
+    Proof using μ_gt_0 μ_lt_1.
       move=>i i_lt_len.
       unfold k.
       pose proof (θ_bounds i i_lt_len).
@@ -453,7 +453,7 @@ Section Planner.
     Qed.
 
     Lemma ε'_pos : ∀ (i : nat), i ≤ length suf → 0 < ε' i.
-    Proof using ε_pos μ_pos μ_lt_1.
+    Proof using ε_pos μ_gt_0 μ_lt_1.
       move=>i i_le_len.
       unfold ε'.
       apply Rmult_lt_0_compat; last done.
@@ -464,7 +464,7 @@ Section Planner.
     Qed.
     
     Lemma kχ : ∀ (i : nat), (i < length suf)%nat → 1 < k i * χ i.
-    Proof using μ_pos μ_lt_1.
+    Proof using μ_gt_0 μ_lt_1.
       move=>i i_lt_len.
       unfold k, χ.
       pose proof (θ_bounds i i_lt_len) as [[_ almost_goal] _].
@@ -487,7 +487,7 @@ Section Planner.
     Qed.
 
     Lemma kε' : ∀ (i : nat), (i < length suf)%nat → ε < k i * ε' i.
-    Proof using μ_pos μ_lt_1 ε_pos.
+    Proof using μ_gt_0 μ_lt_1 ε_pos.
       move=>i i_lt_len.
       pose proof (kχ i i_lt_len).
       unfold ε'.
@@ -502,7 +502,7 @@ Section Planner.
       ↯ (ε' i) ∗ 
       ((ψ (l ++ take (S i) suf) ∗ ↯ (ε' (S i)) ∨ ∃ (j : list A), ψ (l ++ j) ∗ ↯ (k i * ε' i)) -∗ Φ)
       ⊢ Φ.
-    Proof using ε_pos μ_pos μ_lt_1 is_seriesC_μ presample_adv_comp.
+    Proof using ε_pos μ_pos μ_gt_0 μ_lt_1 is_seriesC_μ presample_adv_comp.
       iIntros (i i_lt_len) "(Hψ & Herr & Hnext)".
       pose proof (lookup_lt_is_Some_2 _ _ i_lt_len) as [c lookup_suf_i].
       rewrite (take_S_r _ _ c) //.
@@ -533,9 +533,9 @@ Section Planner.
           { move=>a.
             split; last first.
             - apply Rmult_le_compat_l; last apply D_bounds.
-              apply Rlt_le, μ_pos.
+              apply μ_pos.
             - apply Rmult_le_pos; last apply D_bounds.
-              apply Rlt_le, μ_pos.
+              apply μ_pos.
           }
           apply ex_seriesC_scal_r.
           by eexists.
@@ -543,7 +543,7 @@ Section Planner.
         {
           move=>a.
           apply Rmult_le_pos; last apply D_bounds.
-          apply Rlt_le, μ_pos.
+          apply μ_pos.
         }
         rewrite SeriesC_singleton_dependent.
         unfold D.
@@ -559,7 +559,7 @@ Section Planner.
           rewrite -(is_seriesC_unique _ _ is_seriesC_μ).
           rewrite (SeriesC_split_elem _ c); last first.
           { by eexists. }
-          { move=>a. apply Rlt_le. apply μ_pos. }
+          { exact μ_pos. }
           rewrite SeriesC_singleton_dependent.
           lra.
         }
@@ -572,7 +572,8 @@ Section Planner.
           -{2}(Rmult_1_l (ε' i)) 
         .
         f_equal.
-        pose proof (μ_lt_1 c).
+        apply elem_of_list_lookup_2 in lookup_suf_i as c_elem_suf.
+        pose proof (μ_lt_1 c) as μ_c.
         rewrite Rmult_plus_distr_r Rdiv_def Rmult_assoc
           (Rmult_assoc _ _ (1 - μ c)) Rinv_l; lra.
       }
@@ -593,7 +594,7 @@ Section Planner.
     Qed.
 
     Lemma κ_gt_1 : ∀ n, (n < length suf)%nat → 1 < κ n.
-    Proof using μ_pos μ_lt_1.
+    Proof using μ_gt_0 μ_lt_1.
       move=>n n_lt_len.
       by apply kχ.
     Qed.
@@ -605,7 +606,7 @@ Section Planner.
       ↯ (ε' i) ∗ 
       ((ψ (l ++ take (S i) suf) ∗ ↯ (ε' (S i)) ∨ ∃ (j : list A), ψ (l ++ j) ∗ ↯ (κ i * ε)) -∗ Φ)
       ⊢ Φ.
-    Proof using ε_pos μ_pos μ_lt_1 is_seriesC_μ presample_adv_comp.
+    Proof using ε_pos μ_pos μ_gt_0 μ_lt_1 is_seriesC_μ presample_adv_comp.
       move=>i.
       rewrite κ_def Rmult_assoc Rinv_l; last lra.
       rewrite Rmult_1_r.
@@ -623,7 +624,7 @@ Section Planner.
     Definition κ_min : R := κ_min_aux (length suf).
 
     Lemma κ_min_aux_gt_1 : ∀ (i : nat), i ≤ length suf → 1 < κ_min_aux i.
-    Proof using μ_pos μ_lt_1.
+    Proof using μ_pos μ_gt_0 μ_lt_1.
       unfold κ_min_aux.
       elim=>[|i IH] i_le_suf /=; first lra.
       apply Rmin_glb_lt; first by apply κ_gt_1.
@@ -661,7 +662,7 @@ Section Planner.
        ) -∗ Φ
       )
       ⊢ Φ.
-    Proof using ε_pos μ_pos μ_lt_1 is_seriesC_μ presample_adv_comp.
+    Proof using ε_pos μ_pos μ_gt_0 μ_lt_1 is_seriesC_μ presample_adv_comp.
       iIntros (i).
       iInduction (i) as [|i] "IH";
         iIntros (Si_lt_len) "(Hψ & Herr & Hnext)".
@@ -705,7 +706,7 @@ Section Planner.
        ) -∗ Φ
       )
       ⊢ Φ.
-    Proof using ε_pos μ_pos μ_lt_1 is_seriesC_μ presample_adv_comp.
+    Proof using ε_pos μ_pos μ_gt_0 μ_lt_1 is_seriesC_μ presample_adv_comp.
       iIntros "(Hψ & Herr & Hnext)".
       destruct (decide (suf = [])) as [-> | suf_not_nil].
       {
@@ -740,6 +741,7 @@ Section Planner.
               ∀ (j : list A), (length (suf (l ++ j)) <= L)%nat).
     Context (range : list A).
     Context (finite_range : ∀ (a : A) (j : list A), a ∈ suf (l ++ j) → a ∈ range).
+    Context (μ_gt_0 : ∀ (a : A), a ∈ range → 0 < μ a).
     
     Fixpoint suffixes_of_length (k : nat) : list (list A) :=
       match k with
@@ -840,6 +842,22 @@ Section Planner.
           by constructor.
     Qed.
 
+    Lemma suffixes_of_length_from_range :
+      ∀ (len : nat) (s : list A),
+      s ∈ suffixes_of_length len → (∀ (a : A), a ∈ s → a ∈ range).
+    Proof.
+      elim=>[|len IH] /= s s_elem a a_in_s.
+      { apply elem_of_list_singleton in s_elem as ->.
+        contradict a_in_s.
+        apply not_elem_of_nil. }
+      destruct s as [| h t].
+      { contradict a_in_s.
+        apply not_elem_of_nil. }
+      apply elem_of_cons_bind in s_elem as [h_in_range t_of_len].
+      inversion a_in_s as [|??? a_in_t]; subst; first done.
+      apply (IH t t_of_len _ a_in_t).
+    Qed.
+    
     Fixpoint suffixes_up_to_length (k : nat) : list (list A) :=
       match k with
       | 0 => []
@@ -859,7 +877,7 @@ Section Planner.
       - right. by apply IH.
       - left. by apply suffixes_of_length_range.
     Qed.
-
+   
     Definition possible_suffixes : list (list A) := suffixes_up_to_length (S L).
     
     Lemma suf_in_possible_suffixes :
@@ -872,6 +890,18 @@ Section Planner.
       apply finite_range.
     Qed.
 
+    Lemma possible_suffixes_from_range :
+      ∀ (s : list A), s ∈ possible_suffixes → (∀ (a : A), a ∈ s → a ∈ range).
+    Proof.
+      unfold possible_suffixes.
+      generalize (S L) as len.
+      elim=>[|len IH] /= s s_possible a a_in_s.
+      { contradict s_possible. apply not_elem_of_nil. }
+      apply elem_of_app in s_possible as [s_of_len | s_possible].
+      { exact (suffixes_of_length_from_range _ _ s_of_len _ a_in_s). }
+      { exact (IH s s_possible a a_in_s). }
+    Qed.
+    
     #[local]
     Definition ξ := foldr (λ s m, Rmin (κ_min s) m) 2 possible_suffixes.
 
@@ -879,22 +909,34 @@ Section Planner.
       ∀ (s : list A), s ∈ possible_suffixes → ξ <= κ_min s.
     Proof.
       unfold ξ.
+      move:possible_suffixes_from_range.
       generalize possible_suffixes.
-      elim=>[|h t IH] s elem; first inversion elem.
+      elim=>[|h t IH] from_range s elem; first inversion elem.
       apply elem_of_cons in elem as [-> | elem].
       - simpl.
         apply Rmin_l.
       - simpl.
-        etransitivity; last by apply IH.
-        apply Rmin_r.
+        etransitivity; last apply IH.
+        + apply Rmin_r.
+        + move=>x x_in_t.
+          apply from_range, elem_of_list_further, x_in_t.
+        + assumption.
     Qed.
 
     Lemma ξ_gt_1 : 1 < ξ.
-    Proof using μ_lt_1 μ_pos.
+    Proof using μ_lt_1 μ_pos μ_gt_0.
       unfold ξ.
+      move:possible_suffixes_from_range.
       generalize possible_suffixes.
-      elim=>[|h t IH] /=; first lra.
-      by apply Rmin_glb_lt; first apply κ_min_gt_1.
+      elim=>[|h t IH] from_range /=; first lra.
+      apply Rmin_glb_lt; first apply κ_min_gt_1.
+      - move=>a a_in_h.
+        apply μ_gt_0, (from_range h); last done.
+        constructor.
+      - apply IH.
+        move=>s s_in_t.
+        apply from_range.
+        by constructor.
     Qed.
       
     Lemma presample_function_increase :
@@ -914,10 +956,13 @@ Section Planner.
       is_seriesC_μ
       presample_adv_comp
       suf_bounds
-      μ_lt_1 μ_pos.
+      μ_lt_1 μ_pos μ_gt_0.
       
       iIntros (ε j1 ε_pos) "(Hψ & Herr & Hnext)".
       iApply (presample_suffix_total _ (suf (l ++ j1)) with "[$Herr $Hψ Hnext]"); try done.
+      { move=>a a_in_suf.
+        apply μ_gt_0, (finite_range _ j1), a_in_suf.
+      }
       rewrite -app_assoc.
       iIntros "[HΦ | (%j & Hψ & Herr)]";
         iApply "Hnext"; first iFrame.
@@ -941,7 +986,7 @@ Section Planner.
       is_seriesC_μ
       presample_adv_comp
       suf_bounds
-      μ_lt_1 μ_pos.
+      μ_lt_1 μ_pos μ_gt_0.
       
       rewrite -{1}(app_nil_r l).
       generalize (@nil A).
@@ -954,10 +999,123 @@ Section Planner.
       iApply (presample_function_increase _ _ ε_pos with "[$Hψ $Herr Hnext]");
         iIntros "[Hψ | (%j2 & Hψ & Herr)]"; first by iApply "Hnext".
       iApply ("IH" with "Herr Hψ Hnext").
+    Qed.  
+
+    Lemma dirac_A_singleton (a : A) :
+      μ a = 1 → ∀ b, b = a ∨ μ b = 0.
+    Proof using
+      is_seriesC_μ
+      μ_pos.
+      move=> μ_a_1 b.
+      apply is_seriesC_unique in is_seriesC_μ as SeriesC_μ.
+      rewrite (SeriesC_ext _ (λ x, (if bool_decide (x = a) then μ a else 0%R) + (if bool_decide (x = a) then 0%R else μ x))) in SeriesC_μ; last first.
+      {
+        move=>x.
+        case_bool_decide; subst; lra.
+      }
+      move=>[:ex_remainder].
+      rewrite SeriesC_plus in SeriesC_μ; last first.
+      { abstract: ex_remainder.
+        apply (ex_seriesC_le _ μ); last by eexists.
+        move=>x.
+        specialize (μ_pos x).
+        case_bool_decide; lra.
+      }
+      { apply ex_seriesC_singleton. }
+      rewrite SeriesC_singleton in SeriesC_μ.
+      rewrite μ_a_1 in SeriesC_μ.
+      assert (SeriesC
+                (λ x : A,
+                   if bool_decide (x = a) then 0 else μ x) =
+              0) as remainder_is_0 by lra.
+      unshelve epose proof (SeriesC_ge_elem  (λ x : A,
+                        if bool_decide (x = a)
+                        then 0
+                        else μ x) b _ _) as μ_b_le.
+      { move=>x /=.
+        case_bool_decide; first reflexivity.
+        specialize (μ_pos x). lra.
+      }
+      { assumption. }
+      simpl in μ_b_le.
+      case_bool_decide; first auto.
+      rewrite remainder_is_0 in μ_b_le.
+      specialize (μ_pos b).
+      lra.
     Qed.
     
-  End SuffixFunction.
+    Lemma support_singleton_presample_repeat (a : A) :
+      μ a = 1 →
+      ∀ (k : nat) (ε : R),
+      (0 < ε)%R → 
+      ψ l ∗ ↯ ε ∗
+      (ψ (l ++ repeat a k) -∗ Φ)
+      ⊢ Φ.
+    Proof using
+      is_seriesC_μ
+      presample_adv_comp
+      μ_pos.
 
+      iIntros (μ_a_1 k ε ε_pos) "(Hψ & Herr & Hnext)".
+      iInduction k as [|k] "IH" forall (ε ε_pos).
+      - rewrite app_nil_r.
+        by iApply "Hnext".
+      - iPoseProof (ec_split_le (ε / 2) with "Herr") as "[Herr1 Herr2]"; first lra.
+        unshelve iApply ("IH" $! _ _ with "Hψ Herr1 [Hnext Herr2]").
+        { lra. }
+        iIntros "Hψ".
+        iApply (presample_adv_comp _ (λ b, if bool_decide (b = a) then (ε / 2) else 1) (Rmax (ε / 2) 1) with "[$Herr2 $Hψ Hnext]").
+        { lra. }
+        { move=>x/=. case_bool_decide; split; first [lra | apply Rmax_l | apply Rmax_r]. }
+        { rewrite (SeriesC_ext _
+                     (λ b, (if bool_decide (b = a)
+                            then ε / 2
+                            else 0%R))); last first.
+          { move=>b.
+            case_bool_decide; subst.
+            - rewrite μ_a_1. lra.
+            - assert (μ b = 0) as ->.
+              { destruct (dirac_A_singleton a μ_a_1 b); [contradiction | done]. }
+              lra.
+          } 
+          rewrite SeriesC_singleton.
+          lra.
+        }
+        iIntros (x) "Herr Htape".
+        iApply "Hnext".
+        case_bool_decide; subst.
+        + rewrite -app_assoc -repeat_cons //.
+        + iDestruct (ec_contradict with "Herr") as "[]".
+          lra.
+    Qed.
+
+    Lemma support_singleton_presample (a : A) :
+      μ a = 1 →
+      ∀ (ε : R),
+      (0 < ε)%R → 
+      ψ l ∗ ↯ ε ∗
+      (∀ j, ψ (l ++ j ++ suf (l ++ j)) -∗ Φ)
+      ⊢ Φ.
+    Proof using
+      is_seriesC_μ
+      presample_adv_comp
+      finite_range
+      μ_pos μ_gt_0.
+
+      iIntros (μ_a_1 ε ε_pos) "(Hψ & Herr & Hnext)".
+      iApply (support_singleton_presample_repeat _ μ_a_1 (length (suf l)) _ ε_pos with "[$Hψ $Herr Hnext]").
+      iIntros "Hψ".
+      iApply ("Hnext" $! []).
+      simpl.
+      rewrite -{2}(app_nil_r l) -(@Forall_eq_repeat _ a (suf (l ++ []))) // Forall_forall.
+      move=>b b_in_suf.
+      apply finite_range in b_in_suf as b_in_range.
+      apply μ_gt_0 in b_in_range.
+      by destruct (dirac_A_singleton _ μ_a_1 b); last lra.
+    Qed.
+  
+  End SuffixFunction.
+  
 End Planner.
 
 Lemma abstract_planner
@@ -966,7 +1124,9 @@ Lemma abstract_planner
   (l : list A) (suf : list A → list A)
   (L : nat) (range : list A) (ε : R):
 
-  (∀ a : A, (0 < μ a < 1)%R) →
+  (∀ a : A, (0 <= μ a)%R) →
+  (∀ a : A, a ∈ range → (0 < μ a)%R) →
+  
   is_seriesC μ 1%R →
   
   (∀ (ε : R) (D : A → R) 
@@ -990,10 +1150,22 @@ Lemma abstract_planner
   (∀ j : list A, ψ (l ++ j ++ suf (l ++ j)) -∗  Φ)
   ⊢ Φ.
 Proof.
-  move=>μ_bounds *.
+  move=>μ_pos μ_gt_0 is_seriesC_μ *.
+  assert (∀ a, μ a <= 1)%R as μ_le_1.
+  {
+    move=>a.
+    pose proof (SeriesC_ge_elem μ a μ_pos (ex_intro _ _ is_seriesC_μ)).
+    rewrite -(is_seriesC_unique _ _ is_seriesC_μ) //.
+  }
+  destruct (decide (∃ a, μ a = 1)) as [[a μ_a_1] | μ_strict].
+  { iIntros "(Hψ & Herr & Hnext)".
+    unshelve iApply (support_singleton_presample μ _ _ ψ _ _ l suf range _ _ a _ ε); try assumption.
+    iFrame.
+  }
   eapply presample_planner;
-    try done;
-     move=>a;
-     specialize (μ_bounds a);
-      lra.
-  Qed.
+    try done.
+  move=>a.
+  destruct (μ_le_1 a); first done.
+  contradict μ_strict.
+  by exists a.
+Qed.
