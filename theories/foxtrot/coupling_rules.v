@@ -2969,6 +2969,8 @@ Section rules.
   
   (** * Lemmas for associativity of probabilitic choice *)
   Lemma pupd_couple_associativity {p q r s x y:nat} α β ns ns' j K j' K' E:
+    (p<=(q+1))%nat ->
+    (r<=(s+1))%nat->
     (x=(q+1)*(s+1)-1)%nat ->
     (y=(q+1)*(s+1)-p*r-1)%nat ->
     ▷ α ↪N (s; ns) -∗
@@ -2983,6 +2985,173 @@ Section rules.
                  else (resl>=r)%nat⌝
       ).
   Proof.
+    iIntros (Hpq Hrs -> -> ) ">Hα >Hβ Hspec1 Hspec2".
+    destruct (decide (p=q+1/\r=s+1))%nat as [[->->]|Hneq].
+    { iMod (pupd_rand with "[$]") as "(%&?&%)".
+      iMod (pupd_rand with "[$]") as "(%&?&%)".
+      iMod (pupd_presample with "[$Hα]") as "(%&?&%)".
+      iMod (pupd_presample with "[$Hβ]") as "(%&?&%)".
+      iFrame.
+      iModIntro.
+      repeat iSplit; try done.
+      iPureIntro. 
+      rewrite bool_decide_eq_true_2; last lia.
+      lia.
+    }
+    assert (0<(q+1)*(s+1)-p*r)%nat.
+    { apply lt_minus_O_lt.
+      apply not_and_or_not in Hneq as [|].
+      - apply Nat.le_lt_trans with (p*(s+1))%nat.
+        + apply Nat.mul_le_mono; lia.
+        + apply Nat.mul_lt_mono_pos_r; lia.
+      - apply Nat.le_lt_trans with ((q+1)*r)%nat.
+        + apply Nat.mul_le_mono; lia.
+        + apply Nat.mul_lt_mono_pos_l; lia.
+    }
+    iDestruct "Hα" as (fs) "(<-&Hα)".
+    iDestruct "Hβ" as (fs') "(<-&Hβ)".
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ ρ1 ε_now) "([? Ht]&Hs&Hε2)".
+    iDestruct (ghost_map_lookup with "Ht Hα") as %?.
+    iDestruct (ghost_map_lookup with "Ht Hβ") as %?.
+    iDestruct (spec_auth_prog_agree with "[$][$Hspec1]") as "%Hlookup1".
+    iDestruct (spec_auth_prog_agree with "[$][$Hspec2]") as "%Hlookup2".
+    iDestruct (ghost_map_elem_ne with "Hα Hβ") as "%".
+    iDestruct (ghost_map_elem_ne with "Hspec1 Hspec2") as "%".
+    destruct ρ1 as [l σ_spec].
+    assert (j < length l)%nat.
+    { by eapply lookup_lt_Some. }
+    assert (j' < length l)%nat.
+    { by eapply lookup_lt_Some. }
+    iApply spec_coupl_rec.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+    iExists _.
+    iExists (dbind (λ σ', state_step σ' β) (state_step σ α)).
+    iExists (full_info_cons_osch (λ _, dret j) (λ _, full_info_one_step_stutter_osch j')).
+    iExists 0%NNR, (λ _, ε_now), ε_now.
+
+    pose (λ (n:fin (S s)) (m:fin (S q)), m*(S s)+n)%nat as f'.
+    assert (∀ n m, f' n m < S ((q+1)*(s+1)-1))%nat as Hf'.
+    { rewrite /f'. intros n m.
+      pose proof fin_to_nat_lt n.
+      pose proof fin_to_nat_lt m.
+      replace (S (_-_)) with ((q+1)*(s+1))%nat by lia.
+      rewrite Nat.mul_add_distr_r.
+      apply Nat.lt_le_trans with (m*S s + (s+1))%nat; try lia.
+      rewrite Nat.mul_1_l. apply Nat.add_le_mono_r.
+      apply Nat.mul_le_mono; lia.
+    }
+    pose (λ '(n,m), nat_to_fin (Hf' n m)) as f.
+    assert (Bij f).
+    { rewrite /f. split.
+      - intros [a b ] [c d] H'.
+        apply (f_equal fin_to_nat) in H'.
+        rewrite !fin_to_nat_to_fin !/f' in H'.
+        pose proof fin_to_nat_lt a.
+        pose proof fin_to_nat_lt b.
+        pose proof fin_to_nat_lt c.
+        pose proof fin_to_nat_lt d.
+        apply Nat.mul_split_l in H'; try lia.
+        by destruct!/=.
+      - intros n.
+        pose proof fin_to_nat_lt n.
+        assert (fin_to_nat n/(S s) < S q)%nat as x'.
+        { apply Nat.div_lt_upper_bound; first lia.
+          eapply Nat.lt_le_trans; first done. lia.
+        }
+        assert (fin_to_nat n `mod` (S s) < S (s))%nat as k'.
+        { apply Nat.mod_upper_bound. lia. }
+        exists (nat_to_fin k', nat_to_fin x').
+        apply fin_to_nat_inj.
+        rewrite !fin_to_nat_to_fin.
+        rewrite /f'.
+        rewrite !fin_to_nat_to_fin.
+        rewrite Nat.mul_comm.
+        by rewrite -Nat.div_mod_eq.
+    }
+    
+    repeat iSplit.
+    - iPureIntro. apply sch_erasable_dbind; first eapply state_step_sch_erasable; first done.
+      intros ?. rewrite {1}/state_step. rewrite bool_decide_eq_true_2; last by rewrite elem_of_dom.
+      setoid_rewrite lookup_total_correct at 1; last done.
+      simpl.
+      intros Hpos'.
+      apply dmap_pos in Hpos'. destruct Hpos' as (?&->&Hpos').
+      eapply state_step_sch_erasable.
+      simpl. by rewrite lookup_insert_ne.
+    - done.
+    - rewrite Expval_const; last done.
+      iPureIntro.
+      rewrite Rplus_0_l.
+      trans (ε_now*1); last (simpl; lra).
+      by apply Rmult_le_compat.
+    - iPureIntro.
+      rewrite /state_step.
+      rewrite bool_decide_eq_true_2; last by rewrite elem_of_dom.
+      setoid_rewrite lookup_total_correct at 2; last done.
+      erewrite (dbind_ext_right_strong _ _ (λ σ', dmap (λ n : fin (S q), state_upd_tapes <[β := (q; fs' ++[n])]> σ') (dunifP q))); last first.
+      { intros σ' Hσ'.
+        apply dmap_pos in Hσ'.
+        destruct Hσ' as (?&->&Hσ').
+        rewrite bool_decide_eq_true_2; last first.
+        { rewrite elem_of_dom. 
+          simpl.
+          rewrite lookup_insert_ne; naive_solver.
+        }
+        setoid_rewrite lookup_total_correct; last by rewrite lookup_insert_ne.
+        done. 
+      }
+      set ((λ x, state_upd_tapes <[β:=(q; fs' ++ [x.2])]> x.1)) as fn.
+      assert ((dbind (λ σ', dmap (λ n : fin (S q), state_upd_tapes <[β:=(q; fs' ++ [n])]> σ') (dunifP q))
+       (dmap (λ n : fin (S s), state_upd_tapes <[α:=(s; fs ++ [n])]> σ) (dunifP s))) = (dbind (λ σ', dmap (λ n : fin (S q), fn (σ', n)) (dunifP q))
+                                                                                          (dmap (λ n : fin (S s), state_upd_tapes <[α:=(s; fs ++ [n])]> σ) (dunifP s)))) as -> by done.
+      erewrite (dbind_dmap_inj_rearrange); last first. 
+      { rewrite /fn. intros [][].
+        intros H'.
+        apply state_upd_tapes_same' in H' as H''.
+        rewrite !(upd_diff_tape_comm _ _ β) in H'; try done.
+        apply state_upd_tapes_same' in H' as H'''.
+        simpl in *. by simplify_eq. }
+      { intros ??. apply state_upd_tapes_same'. }
+      rewrite /dmap.
+      assert ((dbind
+       (λ a : fin (S s),
+          dbind (λ a0 : fin (S q), dret (fn (state_upd_tapes <[α:=(s; fs ++ [a])]> σ, a0)))
+            (dunifP q)) (dunifP s)) =
+              (dbind  (λ ac,
+                         let '(a, c) := f_inv f ac in
+                         dret (fn (state_upd_tapes <[α:=(s; fs ++ [a])]> σ, c))) 
+                 (dunifP ((q+1)*(s+1)-1)))
+             ) as ->.
+      { rewrite dunifP_decompose; last lia.
+        rewrite -dbind_assoc'.
+        apply dbind_ext_right.
+        intros ?.
+        rewrite /dmap.
+        rewrite -dbind_assoc'.
+        apply dbind_ext_right. intros ?.
+        rewrite dret_id_left.
+        by rewrite f_inv_cancel_l.
+      }
+      rewrite full_info_cons_osch_lim_exec dret_id_left /step'.
+      rewrite Hlookup1.
+      rewrite fill_not_val; last done.
+      rewrite fill_dmap//=.
+      rewrite head_prim_step_eq//= !dmap_comp.
+      rewrite !Nat2Z.id.
+      pose (λ (n:nat), if (bool_decide (n<S((q+1)*(s+1)-p*r-1))%nat)
+                     then
+                       if bool_decide (n<r*(q+1-p))%nat
+                       then (p+n/r)*(s+1)+(n `mod` r)
+                       else let n':=n-r*(q+1-p) in (n'/(q+1))*(s+1)+(n'`mod`(s+1-r))
+                     else n+(q+1)*(s+1))%nat as f_frag.
+      assert (Inj (=) (=) f_frag).
+      {
+        intros x y.
+        rewrite /f_frag.
+        replace (S _) with ((q+1)*(s+1)-p*r)%nat; last lia.
+        admit. 
+      }
   Admitted.
 
   

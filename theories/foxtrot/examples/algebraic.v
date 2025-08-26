@@ -153,7 +153,11 @@ Section eq3.
       wp_pures.
       tp_bind j (_|||_)%E.
       iMod (tp_par with "[$]") as "(%j1&%j2&%K1&%K2&Hspec1&Hspec2&Hcont)".
-      iMod (pupd_couple_associativity with "Hα Hβ Hspec1 Hspec2") as "(%resl&%resl'&%resr&%resr'&%&%&%&%&Hα&Hβ&Hspec1&Hspec2&%Hcond)"; [lia|done|].
+      iMod (pupd_couple_associativity with "Hα Hβ Hspec1 Hspec2") as "(%resl&%resl'&%resr&%resr'&%&%&%&%&Hα&Hβ&Hspec1&Hspec2&%Hcond)".
+      { exact. }
+      { exact. }
+      { lia. }
+      { lia. }
       simpl.
       iMod ("Hcont" with "[$]") as "Hspec".
       tp_pures j.
@@ -365,7 +369,7 @@ Section eq3.
       wp_pures.
       tp_bind j (_|||_)%E.
       iMod (tp_par with "[$]") as "(%j1&%j2&%K1&%K2&Hspec1&Hspec2&Hcont)".
-      iMod (pupd_couple_associativity (p:=r'') (r:=p'') with "Hα Hβ Hspec1 Hspec2") as "(%resl&%resl'&%resr&%resr'&%&%&%&%&Hα&Hβ&Hspec1&Hspec2&%Hcond)"; [lia|lia|].
+      iMod (pupd_couple_associativity (p:=r'') (r:=p'') with "Hα Hβ Hspec1 Hspec2") as "(%resl&%resl'&%resr&%resr'&%&%&%&%&Hα&Hβ&Hspec1&Hspec2&%Hcond)"; [lia..|].
       simpl.
       iMod ("Hcont" with "[$]") as "Hspec".
       tp_pures j.
