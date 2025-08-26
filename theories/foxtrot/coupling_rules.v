@@ -3292,6 +3292,74 @@ Section rules.
             * lia.
         - lia. 
       }
+      erewrite (dunif_fragmented _ ((q + 1) * (s + 1) - p * r - 1))%nat at 1; [..|done|lia].
+      rewrite -!dbind_assoc'.
+      replace 0 with (0+0) by lra.
+      eapply ARcoupl_dbind; [lra|lra| |apply ARcoupl_eq].
+      intros ? qs ->.
+      rewrite dret_id_left. simpl. rewrite app_nil_r.
+      rewrite full_info_lift_osch_lim_exec full_info_one_step_stutter_osch_lim_exec.
+      rewrite /step'.
+      rewrite list_lookup_insert_ne; last done.
+      rewrite Hlookup2.
+      rewrite fill_not_val//=.
+      rewrite fill_dmap//=.
+      rewrite head_prim_step_eq//= !dmap_comp.
+      rewrite !Nat2Z.id.
+      case_bool_decide as Hd.
+      + rewrite -!dbind_assoc'.
+        replace 0 with (0+0) by lra.
+        eapply ARcoupl_dbind; [lra|lra| |apply ARcoupl_eq].
+        intros ? y ->.
+        rewrite !dret_id_left.
+        admit.
+      + erewrite <-(dbind_const (dunifP _) (dbind _ _)); last first.
+        { apply dunif_mass. lia. }
+        rewrite /dmap.
+        replace 0 with (0+0) by lra.
+        eapply ARcoupl_dbind; [lra|lra| |apply ARcoupl_eq].
+        intros ? y ->.
+        rewrite dret_id_left. simpl. rewrite app_nil_r !insert_length.
+        admit.
+
+        
+        Unshelve.
+        
+      2:{ intros.
+        rewrite /f_frag.
+        rewrite bool_decide_eq_true_2; last done.
+        replace (S (_-_))%nat with (((q+1)*(s+1)))%nat by lia.
+        case_bool_decide as K1.
+        - rewrite (Nat.mul_add_distr_r q).
+          apply Nat.lt_le_trans with (((p + n `div` r) * (s + 1) + (s+1)))%nat.
+          + apply Nat.add_lt_mono_l.
+            apply Nat.lt_le_trans with r; last lia.
+            apply Nat.mod_upper_bound; lia.
+          + rewrite Nat.mul_1_l.
+            apply Nat.add_le_mono; last lia.
+            apply Nat.mul_le_mono; last lia.
+            apply Nat.Div0.div_lt_upper_bound in K1.
+            lia.
+        - rewrite (Nat.mul_add_distr_r q).
+          apply Nat.lt_le_trans with ((n - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) + (s+1))%nat.
+          + apply Nat.add_lt_mono_l.
+            apply Nat.lt_le_trans with (r+(s+1-r))%nat; last lia.
+            apply Nat.add_lt_mono_l.
+            destruct (decide (r=(s+1))%nat); first lia.
+            apply Nat.mod_upper_bound. lia.
+          + rewrite Nat.mul_1_l.
+            apply Nat.add_le_mono; last lia.
+            apply Nat.mul_le_mono; last lia.
+            apply Nat.lt_succ_r.
+            destruct (decide (r=(s+1))%nat); first lia.
+            apply Nat.div_lt_upper_bound; first lia.
+            rewrite Nat.mul_sub_distr_l Nat.mul_sub_distr_r.
+            rewrite -(Nat.add_1_r q).
+            apply Nat.lt_add_lt_sub_r.
+            rewrite -Nat.add_sub_swap; first lia.
+            rewrite -Nat.mul_sub_distr_l.
+            lia.
+      }
   Admitted.
 
   
