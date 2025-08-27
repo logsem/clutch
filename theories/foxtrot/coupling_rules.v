@@ -3025,22 +3025,6 @@ Section rules.
     { by eapply lookup_lt_Some. }
     iApply spec_coupl_rec.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
-    (* pose (λ (n:fin (S ((q+1)*(s+1)-1))), *)
-    (*         let a:=((fin_to_nat n)/(q+1))%nat in *)
-    (*         let b:= ((fin_to_nat n) `mod` (q+1))%nat in *)
-    (*         if bool_decide (a<p/\b<r)%nat then *)
-    (*           (a*r+b)%nat *)
-    (*         else if *)
-    (*           bool_decide (a>=p /\ b<r)%nat *)
-    (*       then *)
-    (*         (p*r+(a-p)*r+b)%nat *)
-    (*         else ((q+1)*r+ (b-r)*(q+1) +a)%nat *)
-    (*      ) as frearrange'. *)
-    (* assert (∀ n, frearrange' n < S ((q+1)*(s+1)-1))%nat as Hrearrange'. *)
-    (* { admit. } *)
-    (* pose (λ n, nat_to_fin (Hrearrange' n)) as frearrange. *)
-    (* assert (Bij frearrange) as Hbij'. *)
-    (* { admit. } *)
     pose (λ (n:nat), if (bool_decide (n<S((q+1)*(s+1)-p*r-1))%nat)
                    then
                      p*r+n
@@ -3054,150 +3038,6 @@ Section rules.
       rewrite /f_frag.
       intros x y.
       repeat case_bool_decide; lia.
-      (* intros x y. *)
-      (* rewrite /f_frag. *)
-      (* replace (S _) with ((q+1)*(s+1)-p*r)%nat; last lia. *)
-      (* repeat case_bool_decide. *)
-      (* - intros H'. apply Nat.mul_split_l in H'. *)
-      (*   + rewrite (Nat.div_mod_eq x r) (Nat.div_mod_eq y r). lia. *)
-      (*   + unshelve epose proof Nat.mod_upper_bound x r _; lia. *)
-      (*   + unshelve epose proof Nat.mod_upper_bound y r _; lia. *)
-      (* - intros Hcontra; exfalso. *)
-      (*   apply (f_equal (λ x, x `mod` (s+1))%nat) in Hcontra. *)
-      (*   rewrite (Nat.add_comm (_*_) _)%nat in Hcontra. *)
-      (*   rewrite Nat.Div0.mod_add in Hcontra. *)
-      (*   rewrite (Nat.add_comm (_*_))%nat in Hcontra. *)
-      (*   rewrite Nat.Div0.mod_add in Hcontra. *)
-      (*   unshelve epose proof Nat.mod_upper_bound x r _; first lia. *)
-      (*   rewrite Nat.mod_small in Hcontra; last lia. *)
-      (*   destruct (decide (r=(s+1))%nat). *)
-      (*   + subst. lia. *)
-      (*   + rewrite (Nat.mod_small _ (s+1))%nat in Hcontra; first lia. *)
-      (*     apply Nat.lt_le_trans with (r+(s+1-r))%nat; last lia. *)
-      (*     apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. lia. *)
-      (* - intros Hcontra. *)
-      (*   exfalso. *)
-      (*   assert ((p + x `div` r) * (s + 1) + x `mod` r <(q+1)*(s+1))%nat; last lia. *)
-      (*   rewrite (Nat.mul_add_distr_r q). *)
-      (*   apply Nat.lt_le_trans with ((p + x `div` r) * (s + 1) + (s+1))%nat. *)
-      (*   + apply Nat.add_lt_mono_l. *)
-      (*     apply Nat.lt_le_trans with r. *)
-      (*     * apply Nat.mod_upper_bound. lia. *)
-      (*     * lia. *)
-      (*   + rewrite Nat.mul_1_l. *)
-      (*     apply Nat.add_le_mono_r. *)
-      (*     apply Nat.mul_le_mono; last lia. *)
-      (*     trans (p+(q-p))%nat; last lia. *)
-      (*     apply Nat.add_le_mono; first done. *)
-      (*     apply Nat.lt_succ_r. *)
-      (*     apply Nat.Div0.div_lt_upper_bound. *)
-      (*     eapply Nat.lt_le_trans; first exact. *)
-      (*     apply Nat.mul_le_mono; lia. *)
-      (* - intros Hcontra; exfalso. *)
-      (*   apply (f_equal (λ x, x `mod` (s+1))%nat) in Hcontra. *)
-      (*   rewrite (Nat.add_comm (_*_) _)%nat in Hcontra. *)
-      (*   rewrite Nat.Div0.mod_add in Hcontra. *)
-      (*   rewrite (Nat.add_comm (_*_))%nat in Hcontra. *)
-      (*   rewrite Nat.Div0.mod_add in Hcontra. *)
-      (*   unshelve epose proof Nat.mod_upper_bound y r _; first lia. *)
-      (*   rewrite (Nat.mod_small (y`mod`_)%nat (s+1)%nat) in Hcontra; last lia. *)
-      (*   destruct (decide (r=(s+1))%nat). *)
-      (*   + subst. lia. *)
-      (*   + rewrite (Nat.mod_small _ (s+1))%nat in Hcontra; first lia. *)
-      (*     apply Nat.lt_le_trans with (r+(s+1-r))%nat; last lia. *)
-      (*     apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. lia. *)
-      (* - (* the same *) *)
-      (*   intros H'. *)
-      (*   destruct (decide (r=s+1)%nat); first lia. *)
-      (*   apply Nat.mul_split_l in H' as [K1 K2]; last first. *)
-      (*   { eapply Nat.lt_le_trans with (r+(s+1-r))%nat. *)
-      (*     - apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. *)
-      (*       lia. *)
-      (*     - lia.  *)
-      (*   } *)
-      (*   { eapply Nat.lt_le_trans with (r+(s+1-r))%nat. *)
-      (*     - apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. *)
-      (*       lia. *)
-      (*     - lia.  *)
-      (*   } *)
-      (*   assert (x-r*(q+1-p)=y-r*(q+1-p))%nat; try lia. *)
-      (*   remember (x-r*(q+1-p))%nat as x'. *)
-      (*   remember (y-r*(q+1-p))%nat as y'. *)
-      (*   rewrite (Nat.div_mod_eq x' (s+1-r)%nat) (Nat.div_mod_eq y' (s+1-r)%nat). lia. *)
-      (* - (* one is too large *) *)
-      (*   destruct (decide (r=s+1)%nat); first lia. *)
-      (*   intros Hcontra. *)
-      (*   exfalso. *)
-      (*   assert (((x - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) + *)
-      (*              (r + (x - r * (q + 1 - p)) `mod` (s + 1 - r))) <(q+1)*(s+1))%nat; last lia. *)
-      (*   rewrite (Nat.mul_add_distr_r q). *)
-      (*   apply Nat.lt_le_trans with (((x - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) + *)
-      (*                                  (s+1)))%nat. *)
-      (*   + apply Nat.add_lt_mono_l. *)
-      (*     apply Nat.lt_le_trans with (r+(s+1-r))%nat. *)
-      (*     * apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. lia. *)
-      (*     * lia. *)
-      (*   + rewrite Nat.mul_1_l. *)
-      (*     apply Nat.add_le_mono_r. *)
-      (*     apply Nat.mul_le_mono; last lia. *)
-      (*     apply Nat.lt_succ_r. *)
-      (*     apply Nat.div_lt_upper_bound; first lia. *)
-      (*     replace (S q) with (q+1)%nat by lia. *)
-      (*     eapply Nat.le_lt_add_lt with (r*(q+1-p))%nat (r*(q+1-p))%nat; first lia. *)
-      (*     rewrite Nat.sub_add. *)
-      (*     * rewrite Nat.mul_sub_distr_r Nat.mul_sub_distr_l. *)
-      (*       rewrite Nat.add_sub_assoc; last first. *)
-      (*       { apply Nat.mul_le_mono; lia. } *)
-      (*       rewrite Nat.sub_add; first lia. *)
-      (*       apply Nat.mul_le_mono; lia. *)
-      (*     * lia. *)
-      (* - (* one is too large *) *)
-      (*   intros Hcontra. *)
-      (*   exfalso. *)
-      (*   assert ((p + y `div` r) * (s + 1) + y `mod` r <(q+1)*(s+1))%nat; last lia. *)
-      (*   rewrite (Nat.mul_add_distr_r q). *)
-      (*   apply Nat.lt_le_trans with ((p + y `div` r) * (s + 1) + (s+1))%nat. *)
-      (*   + apply Nat.add_lt_mono_l. *)
-      (*     apply Nat.lt_le_trans with r. *)
-      (*     * apply Nat.mod_upper_bound. lia. *)
-      (*     * lia. *)
-      (*   + rewrite Nat.mul_1_l. *)
-      (*     apply Nat.add_le_mono_r. *)
-      (*     apply Nat.mul_le_mono; last lia. *)
-      (*     trans (p+(q-p))%nat; last lia. *)
-      (*     apply Nat.add_le_mono; first done. *)
-      (*     apply Nat.lt_succ_r. *)
-      (*     apply Nat.Div0.div_lt_upper_bound. *)
-      (*     eapply Nat.lt_le_trans; first exact. *)
-      (*     apply Nat.mul_le_mono; lia. *)
-      (* - (* one is too large *) *)
-      (*   destruct (decide (r=s+1)%nat); first lia. *)
-      (*   intros Hcontra. *)
-      (*   exfalso. *)
-      (*   assert (((y - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) + *)
-      (*              (r + (y - r * (q + 1 - p)) `mod` (s + 1 - r))) <(q+1)*(s+1))%nat; last lia. *)
-      (*   rewrite (Nat.mul_add_distr_r q). *)
-      (*   apply Nat.lt_le_trans with (((y - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) + *)
-      (*                                  (s+1)))%nat. *)
-      (*   + apply Nat.add_lt_mono_l. *)
-      (*     apply Nat.lt_le_trans with (r+(s+1-r))%nat. *)
-      (*     * apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. lia. *)
-      (*     * lia. *)
-      (*   + rewrite Nat.mul_1_l. *)
-      (*     apply Nat.add_le_mono_r. *)
-      (*     apply Nat.mul_le_mono; last lia. *)
-      (*     apply Nat.lt_succ_r. *)
-      (*     apply Nat.div_lt_upper_bound; first lia. *)
-      (*     replace (S q) with (q+1)%nat by lia. *)
-      (*     eapply Nat.le_lt_add_lt with (r*(q+1-p))%nat (r*(q+1-p))%nat; first lia. *)
-      (*     rewrite Nat.sub_add. *)
-      (*     * rewrite Nat.mul_sub_distr_r Nat.mul_sub_distr_l. *)
-      (*       rewrite Nat.add_sub_assoc; last first. *)
-      (*       { apply Nat.mul_le_mono; lia. } *)
-      (*       rewrite Nat.sub_add; first lia. *)
-      (*       apply Nat.mul_le_mono; lia. *)
-      (*     * lia. *)
-      (* - lia.  *)
     }
     set ((λ x, state_upd_tapes <[β:=(q; fs' ++ [x.2])]> x.1)) as fn.
     pose (λ (n:fin (S s)) (m:fin (S q)),
@@ -3208,87 +3048,150 @@ Section rules.
                      p*r+ m'*r +n
                  else
                    let n':=n-r in
-                   let m' := m-  p in
-                  r*(q+1)+ n'*(q+1-p) + m'
+                  r*(q+1)+ n'*(q+1) + m
          )%nat as f'.
     assert (∀ n m, f' n m < S ((q+1)*(s+1)-1))%nat as Hf'.
-    { admit. (* rewrite /f'. intros n m. *)
-      (* pose proof fin_to_nat_lt n. *)
-      (* pose proof fin_to_nat_lt m. *)
-      (* replace (S (_-_)) with ((q+1)*(s+1))%nat by lia. *)
-      (* rewrite Nat.mul_add_distr_r. *)
-      (* apply Nat.lt_le_trans with (m*S s + (s+1))%nat; try lia. *)
-      (* rewrite Nat.mul_1_l. apply Nat.add_le_mono_r. *)
-      (* apply Nat.mul_le_mono; lia. *)
+    { intros n m.
+      rewrite /f'. replace (S _) with ((q+1)*(s+1))%nat by lia.
+      case_bool_decide.
+      - apply Nat.lt_le_trans with (n*p+p)%nat; first lia.
+        trans (p*(n+1))%nat; first lia.
+        apply Nat.mul_le_mono; lia.
+      - case_bool_decide.
+        + apply Nat.lt_le_trans with ((p*r)+(m-p)*r+r)%nat; first lia.
+          trans (p*r+(m-p+1)*r)%nat; first lia.
+          rewrite -Nat.mul_add_distr_r.
+          replace (_+(_-_+_))%nat with (m+1)%nat by lia.
+          pose proof fin_to_nat_lt m. 
+          apply Nat.mul_le_mono; lia.
+        + pose proof fin_to_nat_lt n.
+          pose proof fin_to_nat_lt m.
+          (* rewrite Nat.mul_sub_distr_l. *)
+          (* rewrite (Nat.add_sub_assoc (r*_)%nat) ; last first. *)
+          (* { apply Nat.mul_le_mono; lia. } *)
+          rewrite -Nat.mul_add_distr_r.
+          replace (_+(n-_))%nat with (fin_to_nat n) by lia.
+          apply Nat.le_lt_trans with (n*(q+1)+m)%nat; first lia.
+          apply Nat.lt_le_trans with ((n+1)*(q+1))%nat; first lia.
+          rewrite Nat.mul_comm.
+          apply Nat.mul_le_mono; lia.
     }
     pose (λ '(n,m), nat_to_fin (Hf' n m)) as f.
     assert (Bij f) as Hbij.
-    { admit. (* rewrite /f. split. *)
-      (* - intros [a b ] [c d] H'. *)
-      (*   apply (f_equal fin_to_nat) in H'. *)
-      (*   rewrite !fin_to_nat_to_fin !/f' in H'. *)
-      (*   pose proof fin_to_nat_lt a. *)
-      (*   pose proof fin_to_nat_lt b. *)
-      (*   pose proof fin_to_nat_lt c. *)
-      (*   pose proof fin_to_nat_lt d. *)
-      (*   apply Nat.mul_split_l in H'; try lia. *)
-      (*   by destruct!/=. *)
-      (* - intros n. *)
-      (*   pose proof fin_to_nat_lt n. *)
-      (*   assert (fin_to_nat n/(S s) < S q)%nat as x'. *)
-      (*   { apply Nat.div_lt_upper_bound; first lia. *)
-      (*     eapply Nat.lt_le_trans; first done. lia. *)
-      (*   } *)
-      (*   assert (fin_to_nat n `mod` (S s) < S (s))%nat as k'. *)
-      (*   { apply Nat.mod_upper_bound. lia. } *)
-      (*   exists (nat_to_fin k', nat_to_fin x'). *)
-      (*   apply fin_to_nat_inj. *)
-      (*   rewrite !fin_to_nat_to_fin. *)
-      (*   rewrite /f'. *)
-      (*   rewrite !fin_to_nat_to_fin. *)
-      (*   rewrite Nat.mul_comm. *)
-      (*   by rewrite -Nat.div_mod_eq. *)
+    { rewrite /f. split.
+      - intros [x1 y1][x2 y2].
+        intros H'.
+        apply (f_equal fin_to_nat) in H'.
+        rewrite !fin_to_nat_to_fin in H'.
+        rewrite /f' in H'.
+        repeat case_bool_decide.
+        + apply Nat.mul_split_l in H'; try lia. by destruct!/=.
+        + assert (x1*p+y1<p*r)%nat; last lia.
+          apply Nat.lt_le_trans with (x1*p+p)%nat; first lia.
+          trans (p*(x1+1))%nat; first lia.
+          apply Nat.mul_le_mono; lia.
+        + assert (x1*p+y1<r*(q+1))%nat; last lia.
+          apply Nat.lt_le_trans with (x1*p+p)%nat; first lia.
+          trans ((x1+1)*p)%nat; first lia.
+          apply Nat.mul_le_mono; lia.
+        + assert (x2*p+y2<p*r)%nat; last lia.
+          apply Nat.lt_le_trans with (x2*p+p)%nat; first lia.
+          trans (p*(x2+1))%nat; first lia.
+          apply Nat.mul_le_mono; lia.
+        + assert (((y1 - p) * r + x1)%nat = ((y2 - p) * r + x2)%nat) as H'' by lia.
+          apply Nat.mul_split_l in H''; try lia.
+          destruct!/=.
+          f_equal; try lia.
+          pose proof fin_to_nat_lt y1.
+          pose proof fin_to_nat_lt y2.
+          apply fin_to_nat_inj. lia.
+        + assert ((p * r + (y1 - p) * r + x1 < r*(q+1))%nat); last lia.
+          rewrite -Nat.mul_add_distr_r.
+          pose proof fin_to_nat_lt y1.
+          rewrite -Nat.le_add_sub; last lia.
+          apply Nat.lt_le_trans with (r*y1+r)%nat; first lia.
+          trans (r*(y1+1))%nat; first lia.
+          apply Nat.mul_le_mono; lia.
+        + assert (x2*p+y2<r*(q+1))%nat; last lia.
+          apply Nat.lt_le_trans with (x2*p+p)%nat; first lia.
+          trans ((x2+1)*p)%nat; first lia.
+          apply Nat.mul_le_mono; lia.
+        + assert ((p * r + (y2 - p) * r + x2<r*(q+1))%nat); last lia.
+          rewrite -Nat.mul_add_distr_r.
+          pose proof fin_to_nat_lt y2.
+          rewrite -Nat.le_add_sub; last lia.
+          apply Nat.lt_le_trans with (r*y2+r)%nat; first lia.
+          trans (r*(y2+1))%nat; first lia.
+          apply Nat.mul_le_mono; lia.
+        + assert (((x1 - r) * (q + 1 ) + (y1))%nat =
+                  ((x2 - r) * (q + 1 ) + (y2))%nat) as L; first lia.
+          pose proof fin_to_nat_lt x1.
+          pose proof fin_to_nat_lt y1.
+          pose proof fin_to_nat_lt x2.
+          pose proof fin_to_nat_lt y2.
+          apply Nat.mul_split_l in L; try lia.
+          destruct!/=. f_equal; apply fin_to_nat_inj; lia.
+      - intros x.
+        pose proof fin_to_nat_lt x.
+        destruct (decide (x<p*r)%nat).
+        + assert (fin_to_nat x/p<S s)%nat as K1.
+          { apply Nat.Div0.div_lt_upper_bound.
+            eapply Nat.lt_le_trans; first exact.
+            apply Nat.mul_le_mono; lia.
+          }
+          assert (fin_to_nat x`mod` p<S q)%nat as K2.
+          { eapply Nat.lt_le_trans; first apply Nat.mod_upper_bound; lia. }
+          exists (nat_to_fin K1, nat_to_fin K2).
+          apply fin_to_nat_inj.
+          rewrite !fin_to_nat_to_fin.
+          rewrite /f'.
+          rewrite !fin_to_nat_to_fin.
+          rewrite bool_decide_eq_true_2.
+          * rewrite {3}(Nat.div_mod_eq x p). lia.
+          * split; last (apply Nat.mod_upper_bound; lia).
+            apply Nat.Div0.div_lt_upper_bound. lia.
+        + destruct (decide (x<r*(q+1)))%nat.
+          * assert ((fin_to_nat x-p*r)`mod`r<S s)%nat as K1.
+            { eapply Nat.lt_le_trans; first apply Nat.mod_upper_bound; lia. }
+            assert ((fin_to_nat x-p*r)/r+p<S q)%nat as K2.
+            { assert (((x - p * r) `div` r < (q+1-p))%nat); last lia.
+              apply Nat.Div0.div_lt_upper_bound.
+              assert (x - p * r +p*r< r * (q + 1 - p)+p*r)%nat; last lia.
+              rewrite Nat.sub_add; last lia.
+              assert (x<r*(q+1-p+p))%nat; last lia.
+              rewrite Nat.sub_add; lia.
+            }
+            eexists (nat_to_fin K1, nat_to_fin K2).
+            apply fin_to_nat_inj.
+            rewrite fin_to_nat_to_fin /f' !fin_to_nat_to_fin.
+            rewrite bool_decide_eq_false_2; last lia.
+            rewrite bool_decide_eq_true_2; last (apply Nat.mod_upper_bound; lia).
+            rewrite (Nat.mul_comm (_-_)%nat).
+            rewrite Nat.add_sub.
+            rewrite -Nat.add_assoc.
+            rewrite -Nat.div_mod_eq.
+            lia.
+          * assert ((fin_to_nat x-r*(q+1))/(q+1)+r<S s)%nat as K1.
+            { assert ((x - r * (q + 1)) `div` (q + 1)  < (s+1-r))%nat; last lia.
+              apply Nat.Div0.div_lt_upper_bound.
+              assert (x - r * (q + 1) +r*(q+1)< (q + 1) * (s + 1 - r) +(q+1)*r)%nat; last lia.
+              rewrite Nat.sub_add; last lia.
+              assert (x<(q+1)*(s+1-r+r))%nat; last lia.
+              rewrite Nat.sub_add; lia. }
+            assert ((fin_to_nat x-r*(q+1))`mod`(q+1)<S q)%nat as K2.
+            { assert ((x - r * (q + 1)) `mod` (q + 1)  < q+1)%nat; last lia.
+              apply Nat.mod_upper_bound; lia.
+            }
+            eexists (nat_to_fin K1, nat_to_fin K2).
+            apply fin_to_nat_inj.
+            rewrite fin_to_nat_to_fin /f' !fin_to_nat_to_fin.
+            rewrite bool_decide_eq_false_2; last lia.
+            rewrite bool_decide_eq_false_2; last lia.
+            rewrite Nat.add_sub.
+            rewrite (Nat.mul_comm (_/_)%nat).
+            rewrite -Nat.add_assoc.
+            rewrite -Nat.div_mod_eq. lia.
     }
-    
-    (* pose (λ (n:fin (S s)) (m:fin (S q)), m*(S s)+n)%nat as f'. *)
-    (* assert (∀ n m, f' n m < S ((q+1)*(s+1)-1))%nat as Hf'. *)
-    (* { rewrite /f'. intros n m. *)
-    (*   pose proof fin_to_nat_lt n. *)
-    (*   pose proof fin_to_nat_lt m. *)
-    (*   replace (S (_-_)) with ((q+1)*(s+1))%nat by lia. *)
-    (*   rewrite Nat.mul_add_distr_r. *)
-    (*   apply Nat.lt_le_trans with (m*S s + (s+1))%nat; try lia. *)
-    (*   rewrite Nat.mul_1_l. apply Nat.add_le_mono_r. *)
-    (*   apply Nat.mul_le_mono; lia. *)
-    (* } *)
-    (* pose (λ '(n,m), nat_to_fin (Hf' n m)) as f. *)
-    (* assert (Bij f) as Hbij. *)
-    (* { rewrite /f. split. *)
-    (*   - intros [a b ] [c d] H'. *)
-    (*     apply (f_equal fin_to_nat) in H'. *)
-    (*     rewrite !fin_to_nat_to_fin !/f' in H'. *)
-    (*     pose proof fin_to_nat_lt a. *)
-    (*     pose proof fin_to_nat_lt b. *)
-    (*     pose proof fin_to_nat_lt c. *)
-    (*     pose proof fin_to_nat_lt d. *)
-    (*     apply Nat.mul_split_l in H'; try lia. *)
-    (*     by destruct!/=. *)
-    (*   - intros n. *)
-    (*     pose proof fin_to_nat_lt n. *)
-    (*     assert (fin_to_nat n/(S s) < S q)%nat as x'. *)
-    (*     { apply Nat.div_lt_upper_bound; first lia. *)
-    (*       eapply Nat.lt_le_trans; first done. lia. *)
-    (*     } *)
-    (*     assert (fin_to_nat n `mod` (S s) < S (s))%nat as k'. *)
-    (*     { apply Nat.mod_upper_bound. lia. } *)
-    (*     exists (nat_to_fin k', nat_to_fin x'). *)
-    (*     apply fin_to_nat_inj. *)
-    (*     rewrite !fin_to_nat_to_fin. *)
-    (*     rewrite /f'. *)
-    (*     rewrite !fin_to_nat_to_fin. *)
-    (*     rewrite Nat.mul_comm. *)
-    (*     by rewrite -Nat.div_mod_eq. *)
-    (* } *)
     iExists (λ x x', ∃ (qs : fin _), if bool_decide (∃ (m:fin (_)), f_frag m = qs)
                        then ∃ (a:fin (S s)) c, x= (fn (state_upd_tapes (<[α:=(s; fs++[a]):tape]> ) σ, c)) /\ ∃ y, f_frag y= (fin_to_nat (f (a, c))) /\
                                    x' = ([(cfg_to_cfg' (l, σ_spec), j); (cfg_to_cfg' (<[j:=fill K #(fin_to_nat (qs))]> l, σ_spec), j');
@@ -3572,42 +3475,26 @@ Section rules.
                  apply Nat.lt_le_trans with (c*r+r)%nat; first lia.
                  trans ((c+1)*r)%nat; first lia.
                  apply Nat.mul_le_mono; lia.
-               + assert (a*(q+1-p)+(c-p) < S ((q+1)*(s+1)-p*r-1))%nat as Hineq.
-                 { replace (S _) with ((q+1)*(s+1)-p*r)%nat by lia.
-                   apply Nat.lt_le_trans with (a*(q+1-p)+(q+1))%nat; first lia.
-                   apply Nat.le_add_le_sub_l.
-                   rewrite Nat.mul_sub_distr_l.
-                   rewrite -Nat.add_sub_swap; last first.
-                   { apply Nat.mul_le_mono; lia. }
-                   trans (p * r + ((a+1) * (q + 1) - a * p))%nat; first lia.
-                   rewrite Nat.add_sub_assoc; last first.
-                   { apply Nat.mul_le_mono; lia. }
-                   rewrite Nat.le_sub_le_add_l.
-                   apply Nat.add_le_mono.
-                   * rewrite Nat.mul_comm.
-                     apply Nat.mul_le_mono; lia.
-                   * rewrite Nat.mul_comm.
-                     apply Nat.mul_le_mono; lia. }
-                 eexists (nat_to_fin Hineq).
-                 rewrite /f_frag. 
+               + rewrite /f!fin_to_nat_to_fin/f'.
+                 rewrite bool_decide_eq_false_2; last done.
+                 rewrite bool_decide_eq_false_2; last done.
                  rewrite /f_frag.
-                 rewrite bool_decide_eq_true_2; last apply fin_to_nat_lt.
-                 rewrite /f !fin_to_nat_to_fin/f'.
-                 rewrite bool_decide_eq_false_2; last done.
-                 rewrite bool_decide_eq_false_2; last done.
-                 assert ((p * r + (a * (q + 1 - p)))%nat = (r * (q + 1) + (a - r) * (q + 1 - p))%nat); last lia.
                  
-                 rewrite (Nat.mul_sub_distr_r ).
-                 rewrite Nat.add_sub_assoc; last first.
-                 { apply Nat.mul_le_mono; lia. }
-                 rewrite (Nat.add_comm (p*r)).
-                 rewrite (Nat.add_comm (r*(q+1))).
-                 rewrite -(Nat.add_sub_assoc (a*_)); last first. 
-                 { apply Nat.mul_le_mono; lia. }
-                 f_equal.
-                 rewrite -Nat.mul_sub_distr_l.
-                 rewrite Nat.mul_comm.
-                 f_equal. lia.
+                 assert ((r * (q + 1) + (a - r) * (q + 1) + c)%nat - p*r < S ((q+1)*(s+1)-p*r-1))%nat as Hineq.
+                 { replace (S (_-1)) with ((q+1)*(s+1)-p*r)%nat by lia.
+                   assert (r * (q + 1) + (a - r) * (q + 1) + c  < (q + 1) * (s + 1) )%nat; last lia.
+                   rewrite -Nat.mul_add_distr_r.
+                   rewrite -Nat.le_add_sub; last lia.
+                   apply Nat.lt_le_trans with (a*(q+1)+(q+1))%nat; first lia.
+                   trans ((a+1)*(q+1))%nat; first lia.
+                   rewrite Nat.mul_comm.
+                   apply Nat.mul_le_mono; lia. }
+                 eexists (nat_to_fin Hineq).
+                 rewrite fin_to_nat_to_fin.
+                 rewrite bool_decide_eq_true_2; last lia.
+                 rewrite -Nat.le_add_sub; first lia.
+                 trans ((q+1)*r)%nat; last lia.
+                 apply Nat.mul_le_mono; lia.
            }
            rewrite bool_decide_eq_true_2; last done.
            rewrite /f' in Hineq.
@@ -3615,7 +3502,7 @@ Section rules.
            case_bool_decide; first lia.
            assert (p*r<=(q+1)*r)%nat; last lia.
            apply Nat.mul_le_mono; lia.
-  Admitted.
+  Qed.
 
   
   Lemma wp_couple_toss {x y k:nat} j K E:
