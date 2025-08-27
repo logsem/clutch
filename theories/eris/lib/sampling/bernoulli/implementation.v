@@ -18,7 +18,6 @@ From clutch.eris.lib.sampling Require Import utils.
   ].
 
 Section BernoulliImpl.
-  Context `{!erisGS Σ}.
 
   (**
     The bernoulli distribution is a distribution on {0, 1} that succeeds with probability p (here `N / (M + 1)`) and fails with probability `1 - p`
@@ -31,6 +30,9 @@ Section BernoulliImpl.
   Definition balloc : val :=
     λ: "N" "M", alloc "M".
   
+
+  
+  Context `{!erisGS Σ}.
   (**
     The base specification for tapeless usage, every other one can be derived from it
   *)
@@ -186,13 +188,15 @@ Section BernoulliImpl.
       by iFrame.
   Qed.
   
-  #[global] Instance bernoulli_impl : bernoulli_spec bernoulli balloc :=
-    BernoulliSpec _ _ bernoulli balloc
-      twp_bernoulli_scale
-      own_bernoulli_tape
-      twp_bernoulli_alloc
-      twp_presample_bernoulli
-      twp_presample_bernoulli_adv_comp
-      twp_bernoulli_tape.
-  
 End BernoulliImpl.
+
+#[global] Instance bernoulli_impl : bernoulli_spec bernoulli balloc :=
+  BernoulliSpec bernoulli balloc
+    (@twp_bernoulli_scale)
+    (@own_bernoulli_tape) 
+    (@twp_bernoulli_alloc)
+    (@twp_presample_bernoulli)
+    (@twp_presample_bernoulli_adv_comp)
+    (@twp_bernoulli_tape).
+  
+#[global] Opaque bernoulli balloc.

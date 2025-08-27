@@ -221,10 +221,10 @@ Section BinomialProbability.
 
 End BinomialProbability.
 
-Class binomial_spec `{!erisGS Σ} (binomial_prog : val) (binomial_alloc : val) :=
+Class binomial_spec (binomial_prog : val) (binomial_alloc : val) :=
   BinomialSpec {
  
-  twp_binom_adv_comp (p q : nat) (n : nat) (D : fin (S n) → R) (ε : R) :
+  twp_binom_adv_comp `{!erisGS Σ} (p q : nat) (n : nat) (D : fin (S n) → R) (ε : R) :
     (p ≤ (q + 1))%nat →
     (∀ (k : fin (S n)), 0 <= D k)%R → 
     SeriesC (λ k : fin (S n), (binom_prob p q n k * D k)%R) = ε →
@@ -232,18 +232,18 @@ Class binomial_spec `{!erisGS Σ} (binomial_prog : val) (binomial_alloc : val) :
       binomial_prog #() #p #q #n 
     [[{ (k : fin (S n)), RET #k ; ↯ (D k) }]];
    
-  own_binomial_tape (α : loc) (m n k : nat) (v : list (fin (S k))) : iProp Σ;
+  own_binomial_tape `{!erisGS Σ} (α : loc) (m n k : nat) (v : list (fin (S k))) : iProp Σ;
 
-  twp_binomial_alloc (p q k : nat) :
+  twp_binomial_alloc `{!erisGS Σ} (p q k : nat) :
       [[{ True }]]
         binomial_alloc #p #q #k
       [[{ (α : loc), RET #lbl:α; own_binomial_tape α p q k [] }]];
 
-  twp_binomial_tape (N M k : nat) (α : loc) (ns : list (fin (S k))) (n : fin (S k)) :   [[{ own_binomial_tape α N M k (n::ns) }]]
+  twp_binomial_tape `{!erisGS Σ} (N M k : nat) (α : loc) (ns : list (fin (S k))) (n : fin (S k)) :   [[{ own_binomial_tape α N M k (n::ns) }]]
       binomial_prog (#lbl:α) #N #M #k
     [[{ RET #n ; own_binomial_tape α N M k ns }]];
 
-  twp_binomial_presample  (e : expr) (α : loc) (Φ : val → iProp Σ)
+  twp_binomial_presample `{!erisGS Σ} (e : expr) (α : loc) (Φ : val → iProp Σ)
       (N M k : nat) (ns : list (fin (S k))) :
     to_val e = None
     → (0 < k)%nat
@@ -251,7 +251,7 @@ Class binomial_spec `{!erisGS Σ} (binomial_prog : val) (binomial_alloc : val) :
     (∀ (i : fin (S k)), own_binomial_tape α N M k (ns ++ [i%fin]) -∗ WP e [{ Φ }])
     ⊢  WP e [{ Φ }];
       
-   twp_binomial_presample_adv_comp 
+   twp_binomial_presample_adv_comp `{!erisGS Σ}
       (e : expr) (α : loc) (Φ : val → iProp Σ)
       (p q n : nat) (ns : list (fin (S n))) (ε : R)
       (D : fin (S n) → R) :
@@ -266,23 +266,19 @@ Class binomial_spec `{!erisGS Σ} (binomial_prog : val) (binomial_alloc : val) :
 
 Section BinomialLemmas.
 
-  Context `{!erisGS Σ}.
-  Context `{!binomial_spec binom binalloc}.
-
-  Set Default Proof Using "Type*".
-
-  Print base_lit.
+  Context `{binspec: binomial_spec binom binalloc}.
 
   Instance binomial_impl {p q n : nat} {p_le_Sq : p ≤ q + 1} :
     distr_impl (dmap (LitV ∘ LitInt ∘ Z.of_nat) (binom_distr p q n p_le_Sq)).
-  Proof.
+  Proof using binspec.
+     
     refine (MkDistrImpl _
               (λ: "α", binom "α" #p #q #n) (binalloc #p #q #n)
               loc
-              (λ Δ l, ∃ l', own_binomial_tape Δ p q n l' ∗
+              (λ _ _ Δ l, ∃ l', own_binomial_tape Δ p q n l' ∗
                             ⌜l = fmap (λ (k : fin (S n)), #k) l'⌝)%I
-              (λ Δ α, ⌜α = #lbl:Δ⌝)%I #() _ _ _ _).
-    - iIntros (D ε εf L ε_ge_0 εf_pos D_bounds D_sum Φ) "Herr HΦ".
+              (λ _ _ Δ α, ⌜α = #lbl:Δ⌝)%I #() _ _ _ _).
+    - iIntros (Σ erisGS0 D ε εf L ε_ge_0 εf_pos D_bounds D_sum Φ) "Herr HΦ".
       iPoseProof (ec_split with "Herr") as "[_ Herr]"; try lra.
       set (D' (k : nat) := D #k).
       wp_pures.
@@ -298,11 +294,11 @@ Section BinomialLemmas.
       }
       iIntros (k) "Herr".
       by iApply "HΦ".
-    - iIntros (Φ) "_ HΦ".
+    - iIntros (Σ erisGS0 Φ) "_ HΦ".
       wp_apply (twp_binomial_alloc with "[$]") as (α) "Hα".
       iApply "HΦ".
       by iFrame.
-    - iIntros (e ε εf Δ l D L Φ e_not_val ε_ge_0 εf_pos D_bounds D_sum) "(Herr & (%l' & Htape & ->) & Hnext)".
+    - iIntros (Σ erisGS0 e ε εf Δ l D L Φ e_not_val ε_ge_0 εf_pos D_bounds D_sum) "(Herr & (%l' & Htape & ->) & Hnext)".
       iPoseProof (ec_split with "Herr") as "[_ Herr]"; try lra.
       set (D' (k : fin (S n)) := D #k).
       unshelve wp_apply (twp_binomial_presample_adv_comp _ _ _ _ _ _ _ _ D' _ _ p_le_Sq e_not_val  with "[$Herr $Htape Hnext]").
@@ -317,10 +313,9 @@ Section BinomialLemmas.
       }
       iIntros (k) "[Herr Htape]".
       wp_apply "Hnext".
-      iExists (l' ++ [k]).
       iFrame.
       rewrite fmap_app //.
-    - iIntros (α Δ l v Φ) "[(%l' & Htape & %Heq) ->] HΦ".
+    - iIntros (Σ erisGS0 α Δ l v Φ) "[(%l' & Htape & %Heq) ->] HΦ".
       destruct l' as [|v' l']; first discriminate.
       injection Heq as -> ->.
       wp_pures.
@@ -328,9 +323,9 @@ Section BinomialLemmas.
       iApply "HΦ".
       iExists l'.
       by iFrame.
-  Qed.
+  Defined.
 
-  Lemma twp_binomial_presample_planner 
+  Lemma twp_binomial_presample_planner `{!erisGS Σ}
       (N M k : nat) (e : expr) (ε : nonnegreal)
       (L : nat) (α : loc) (Φ : val → iProp Σ)
       (prefix : list (fin (S k))) (suffix : list (fin (S k)) → list (fin (S k))) :
@@ -349,7 +344,12 @@ Section BinomialLemmas.
      { move=>i.
        simpl.
        destruct k; first lia.
-       split; last (apply binom_prob_lt_1; last lia).
+       pose proof (fin_to_nat_lt i).
+       apply binom_prob_pos.
+       lia.
+     }
+     {
+       move=>i _.
        pose proof (fin_to_nat_lt i).
        apply binom_prob_gt_0; lia.
      }
@@ -379,13 +379,13 @@ Section BinomialLemmas.
   
   Definition binom_cred (p q n k : nat) := (1 - binom_prob p q n k)%R.
   
-  Lemma twp_binom_k (p q n k : nat) :
+  Lemma twp_binom_k `{erisGS Σ} (p q n k : nat) :
     (p ≤ (q + 1))%nat →
     k ≤ n →
     [[{ ↯ (binom_cred p q n k) }]] 
       binom #() #p #q #n
     [[{ RET #k ; True }]].
-  Proof.
+  Proof using binspec.
     intros Hpq Hkn.
     set (fk := nat_to_fin (le_n_S _ _ Hkn)).
     set (D1 (m : fin (S n)) := binom_prob p q n m).
@@ -405,8 +405,8 @@ Section BinomialLemmas.
     assert (SeriesC D3 = SeriesC (λ k, D1 k - D2 k)%R) as HD3.
     { apply SeriesC_ext => m.
       unfold D1, D2, D3.
-      case_bool_decide as H; last lra.
-      rewrite H fin_to_nat_to_fin.
+      case_bool_decide as H1; last lra.
+      rewrite H1 fin_to_nat_to_fin.
       lra.
     }
     assert (SeriesC D3 = SeriesC D5) as HD5.

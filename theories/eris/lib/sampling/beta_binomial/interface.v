@@ -1,5 +1,5 @@
 From clutch.eris Require Export eris.
-From clutch.eris.lib.sampling Require Import abstract_planner utils. 
+From clutch.eris.lib.sampling Require Import abstract_planner distr_impl utils. 
 From clutch.eris.lib.sampling.binomial Require Import interface.
 
 Section BetaProbability.
@@ -232,26 +232,65 @@ Section BetaProbability.
       simpl_expr.
       rewrite -!Nat.add_sub_assoc //= Nat.sub_0_r -INR_1 -!plus_INR -!mult_INR Nat.add_1_r Nat.add_succ_r Nat.mul_comm //=.
   Qed.
-  
+
+  Lemma Beta_sum_1 :
+    ∀ (r b n : nat),
+    (0 < r)%nat → 
+    (0 < b)%nat →
+    SeriesC (λ k : fin (S n), Beta_prob r b n k)%R = 1.
+  Proof.
+    move=> r b n.
+    elim:n r b=>[|n IH] r b r_gt_0 b_gt_0.
+    - rewrite SeriesC_finite_foldr /=.
+      rewrite Beta_prob_0_0 /=.
+      lra.
+    - rewrite (SeriesC_ext _ (λ (k : fin (S (S n))), Beta_prob r b (S n) k * const 1 k)); last (move=>t /=; lra).
+      rewrite (Beta_sum_split _ _ _ (const 1) r_gt_0 b_gt_0)
+        (SeriesC_ext _ (λ (k : fin (S n)), Beta_prob (S r) b n k)); last (move=>t /=; lra).
+      rewrite IH; [|lia..].
+      rewrite (SeriesC_ext _ (λ (k : fin (S n)), Beta_prob r (S b) n k)); last (move=>t /=; lra).
+      rewrite IH; [|lia..].
+      rewrite !Rmult_1_r.
+      apply lt_INR in r_gt_0.
+      apply lt_INR in b_gt_0.
+      simpl in r_gt_0.
+      simpl in b_gt_0.
+      rewrite -Rmult_plus_distr_r -Rdiv_def Rdiv_diag; lra.
+  Qed.
+
+  Program Definition Beta_distr
+    (r b n : nat)
+    (r_gt_0 : (0 < r)%nat)
+    (b_gt_0 : (0 < b)%nat) : distr (fin (S n))
+    := MkDistr
+         (Beta_prob r b n)
+         (Beta_prob_pos r b n)
+         (@ex_seriesC_finite (fin (S n)) _ _ (Beta_prob r b n))
+         _.
+  Next Obligation.
+    move=> r b n r_gt_0 b_gt_0.
+    rewrite Beta_sum_1 //.
+  Qed.
+
   #[local] Close Scope R.
 End BetaProbability.
 
-Class beta_binomial_spec `{!erisGS Σ} (beta_prog beta_alloc : val) :=
+Class beta_binomial_spec (beta_prog beta_alloc : val) :=
   BetaSpec
     {
 
       AbsLoc : nat → Type;
 
-      own_beta_tape
+      own_beta_tape `{!erisGS Σ} 
         (red black n : nat)
         (Δ : AbsLoc n)
         (l : list (fin (S n))) : iProp Σ;
 
-      is_abs_loc : ∀ (n : nat), AbsLoc n →  val → iProp Σ;
+      is_abs_loc `{!erisGS Σ} : ∀ (n : nat), AbsLoc n →  val → iProp Σ;
       
       loc_unit : nat → val; 
       
-      twp_beta_binomial_adv_comp :
+      twp_beta_binomial_adv_comp `{!erisGS Σ} :
       ∀ (red black n : nat) (D : fin (S n) → R) (ε : R),
         (red + black > 0)%nat →
         (∀ k, 0 <= D k)%R →
@@ -265,13 +304,13 @@ Class beta_binomial_spec `{!erisGS Σ} (beta_prog beta_alloc : val) :=
               ↯ (D v)
         }]];
 
-      twp_beta_alloc (red black n : nat) :
+      twp_beta_alloc `{!erisGS Σ} (red black n : nat) :
       (0 < red + black)%nat →
         [[{ True }]]
           beta_alloc #red #black #n
         [[{ (Δ : AbsLoc n) (α : val), RET α; is_abs_loc n Δ α ∗ own_beta_tape red black n Δ [] }]];
 
-      twp_beta_presample_adv_comp : 
+      twp_beta_presample_adv_comp `{!erisGS Σ} : 
          ∀ (e : expr) (red black n : nat) (ε : R)
            (D : fin (S n) → R)
            (Δ : AbsLoc n)
@@ -285,11 +324,11 @@ Class beta_binomial_spec `{!erisGS Σ} (beta_prog beta_alloc : val) :=
            ↯ ε ∗
            own_beta_tape red black n Δ l ∗
            (∀ (i : fin (S n)),
-              own_beta_tape red black n Δ (l ++ [i]) -∗
+              ↯ (D i) ∗ own_beta_tape red black n Δ (l ++ [i]) -∗
               WP e [{ v, Φ v }]
            ) ⊢ WP e [{ v, Φ v }];
 
-      twp_beta_tape :
+      twp_beta_tape `{!erisGS Σ} :
         ∀ (red black n : nat)
           (α : val)
           (Δ : AbsLoc n)
@@ -301,3 +340,53 @@ Class beta_binomial_spec `{!erisGS Σ} (beta_prog beta_alloc : val) :=
           [[{ RET #i; own_beta_tape red black n Δ l }]]
 
     }.
+
+Section BetaBinomialLemmas.
+
+  Context `{betaspec: beta_binomial_spec beta_prog betalloc}.
+
+  Instance beta_binomial_impl {r b n : nat}
+    {r_gt_0 : (0 < r)%nat} {b_gt_0 : (0 < b)%nat}:
+    distr_impl (dmap (LitV ∘ LitInt ∘ Z.of_nat ∘ fin_to_nat) (Beta_distr r b n r_gt_0 b_gt_0)).
+  Proof using betaspec.
+     
+    refine (MkDistrImpl _
+              (λ: "α", beta_prog "α" #r #b #n) (betalloc #r #b #n)
+              (AbsLoc n)
+              (λ _ _ Δ l, ∃ l', own_beta_tape r b n Δ l' ∗
+                            ⌜l = fmap (λ (k : fin (S n)), #k) l'⌝)%I
+              (λ _ _, is_abs_loc n)%I (loc_unit n) _ _ _ _).
+    - iIntros (Σ erisGS0 D ε εf L ε_ge_0 εf_pos D_bounds D_sum Φ) "Herr HΦ".
+      iPoseProof (ec_split with "Herr") as "[_ Herr]"; try lra.
+      set (D' (k : nat) := D #k).
+      wp_pures.
+      wp_apply (twp_beta_binomial_adv_comp r b n D' _ ltac:(lia) with "Herr [HΦ]").
+      { move=>k. apply D_bounds. }
+      { rewrite (dmap_expected_value _ _ _ L) // in D_sum. }
+      iIntros (k) "Herr".
+      by iApply "HΦ".
+    - iIntros (Σ erisGS0 Φ) "_ HΦ".
+      wp_apply (twp_beta_alloc r b n ltac:(lia) with "[$]") as (Δ α) "[Hα HΔ]".
+      iApply "HΦ".
+      by iFrame.
+    - iIntros (Σ erisGS0 e ε εf Δ l D L Φ e_not_val ε_ge_0 εf_pos D_bounds D_sum) "(Herr & (%l' & Htape & ->) & Hnext)".
+      iPoseProof (ec_split with "Herr") as "[_ Herr]"; try lra.
+      set (D' (k : fin (S n)) := D #k).
+      unshelve wp_apply (twp_beta_presample_adv_comp _ r b n _ D' _ _ _ ltac:(lia) e_not_val  with "[$Herr $Htape Hnext]").
+      { move=>k. apply D_bounds. }
+      { rewrite (dmap_expected_value _ _ _ L) // in D_sum. }
+      iIntros (k) "[Herr Htape]".
+      wp_apply "Hnext".
+      iFrame.
+      rewrite fmap_app //.
+    - iIntros (Σ erisGS0 α Δ l v Φ) "[(%l' & HΔ & %Heq) Hα] HΦ".
+      destruct l' as [|v' l']; first discriminate.
+      injection Heq as -> ->.
+      wp_pures.
+      wp_apply (twp_beta_tape r b n _ _ _ _ ltac:(lia) with "[$HΔ $Hα]") as "HΔ".
+      iApply "HΦ".
+      iExists l'.
+      by iFrame.
+  Defined.
+
+End BetaBinomialLemmas.

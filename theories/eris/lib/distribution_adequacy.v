@@ -125,10 +125,10 @@ Section DistributionAdequacy.
   Qed.
 
   Lemma pmf_sum_1 :
-    ∀ `{erisGpreS Σ} (σ : state) (v : val),
+    ∀ `{erisGpreS Σ} (σ : state),
     pmf_sum = 1%R.
   Proof.
-    move=>Σ erisGpreS0 σ v.
+    move=>Σ erisGpreS0 σ.
     symmetry.
     apply Rcomplements.Req_le_aux => ε.
     apply Rabs_le.
@@ -146,14 +146,14 @@ Section DistributionAdequacy.
       unfold ε0.
       lra.
     }
-    specialize (μ_tgl σ v ε0 ε0_pos) as μ_tgl0.
-    specialize (μ_pgl σ v ε0 ε0_pos) as μ_pgl0.
+    specialize (μ_tgl σ (LitV LitUnit) ε0 ε0_pos) as μ_tgl0.
+    specialize (μ_pgl σ (LitV LitUnit) ε0 ε0_pos) as μ_pgl0.
     unfold tgl in μ_tgl0.
     unfold pgl in μ_pgl0.
-    rewrite !Rminus_plus_distr (Rminus_def _ (- μ v)) Ropp_involutive -Rplus_minus_assoc Rplus_comm in μ_tgl0.
-    rewrite (prob_ext _ _ (λ w, bool_decide (v = w))) in μ_pgl0; last first.
+    rewrite !Rminus_plus_distr (Rminus_def _ (- μ (LitV LitUnit))) Ropp_involutive -Rplus_minus_assoc Rplus_comm in μ_tgl0.
+    rewrite (prob_ext _ _ (λ w, bool_decide ((LitV LitUnit) = w))) in μ_pgl0; last first.
     { move=>w _. by do 2 case_bool_decide. }
-    assert (μ v - ε0 + (1 - pmf_sum) <= μ v + ε0)%R as bounds.
+    assert (μ (LitV LitUnit) - ε0 + (1 - pmf_sum) <= μ (LitV LitUnit) + ε0)%R as bounds.
     {
       etrans; first apply μ_tgl0.
       erewrite prob_ext; first done.

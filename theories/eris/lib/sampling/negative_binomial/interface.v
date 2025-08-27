@@ -1,5 +1,5 @@
 From clutch.eris Require Export eris.
-From clutch.eris.lib.sampling Require Import abstract_planner utils. 
+From clutch.eris.lib.sampling Require Import abstract_planner distr_impl utils. 
 From clutch.eris.lib.sampling.binomial Require Import interface.
 
 Section NegativeBinomialProbability.
@@ -210,12 +210,25 @@ Section NegativeBinomialProbability.
     apply Rabs_def1; lra.
   Qed.
 
+  Program Definition negative_binomial_distr (p q r : nat) (p_bounds : 0 < p ≤ q + 1) : distr nat
+ := MkDistr
+      (negative_binom_prob p q r)
+      (λ k, negative_binom_pos p q r k (proj2 p_bounds))
+      (ex_intro _ _ (is_seriesC_negative_binomial p q r p_bounds))
+      _
+  .
+  Next Obligation.
+  Proof. 
+    move=>p q r p_bounds.
+    rewrite (is_seriesC_unique _ _ (is_seriesC_negative_binomial p q r p_bounds)) //.
+  Qed.
+
 End NegativeBinomialProbability.
 
-Class negative_binomial_spec `{!erisGS Σ} (negative_prog negative_alloc : val) :=
+Class negative_binomial_spec (negative_prog negative_alloc : val) :=
   NegativeSpec
   {
-    twp_negative_binomial_adv_comp :
+    twp_negative_binomial_adv_comp `{!erisGS Σ} :
     ∀ (p q : nat),
       (0 < p)%nat →
       (p ≤ q + 1)%nat →
@@ -225,20 +238,20 @@ Class negative_binomial_spec `{!erisGS Σ} (negative_prog negative_alloc : val) 
       SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε → ↯ ε_term -∗
       ↯ ε -∗ WP negative_prog #() #p #q #r [{ v, ∃ (k : nat), ⌜v = #k⌝ ∗ ↯ (D k) }];
 
-    own_negative_tape (α : loc) (N M r : nat) (v : list nat) : iProp Σ;
+    own_negative_tape `{!erisGS Σ} (α : loc) (N M r : nat) (v : list nat) : iProp Σ;
 
-    twp_negative_alloc (p q r : nat) :
+    twp_negative_alloc `{!erisGS Σ} (p q r : nat) :
       [[{ True }]]
         negative_alloc #p #q #r
       [[{ (α : loc), RET #lbl:α; own_negative_tape α p q r [] }]];
 
-    twp_negative_tape :
+    twp_negative_tape `{!erisGS Σ} :
     ∀ (p q r : nat) (α : loc) (n : nat) (ns : list nat) (Φ : val → iProp Σ),
     own_negative_tape α p q r (n::ns) -∗
     (own_negative_tape α p q r ns -∗ Φ #n) -∗
     WP negative_prog #lbl:α #p #q #r [{ Φ }];
  
-    twp_negative_binomial_presample_adv_comp :
+    twp_negative_binomial_presample_adv_comp `{!erisGS Σ} :
       ∀ (p q r : nat) (α : loc) (l : list nat) (e : expr)
         (D : nat → R) (L : R) (ε : R) (ε_term : R) (Φ : val → iProp Σ),
         0 < p →
@@ -257,8 +270,8 @@ Class negative_binomial_spec `{!erisGS Σ} (negative_prog negative_alloc : val) 
     }.
 
 Section NegativeLemmas.
-  Context `{!erisGS Σ}.
-  Context `{!negative_binomial_spec negative_prog negative_alloc}.
+ 
+ Context `{negative_spec : !negative_binomial_spec negative_prog negative_alloc}.
 
   Lemma list_sum_le : ∀ (l : list nat) (n : nat), n ∈ l → n ≤ list_sum l.
   Proof.
@@ -268,6 +281,53 @@ Section NegativeLemmas.
     lia.
   Qed.
   
+  Instance negative_binomial_impl {p q r : nat} {p_bounds : 0 < p ≤ q + 1} :
+    distr_impl (dmap (LitV ∘ LitInt ∘ Z.of_nat) (negative_binomial_distr p q r p_bounds)).
+  Proof using negative_spec.
+
+    refine (MkDistrImpl _
+              (λ: "α", negative_prog "α" #p #q #r) (negative_alloc #p #q #r)
+              loc
+              (λ _ _ Δ l, ∃ l', own_negative_tape Δ p q r l' ∗
+                            ⌜l = fmap (λ (k : nat), #k) l'⌝)%I
+              (λ _ _ Δ α, ⌜α = #lbl:Δ⌝)%I #() _ _ _ _).
+    - iIntros (Σ erisGS0 D ε εf L ε_ge_0 εf_pos D_bounds D_sum Φ) "Herr HΦ".
+      iPoseProof (ec_split with "Herr") as "[Hfuel Herr]"; try lra.
+      set (D' (k : nat) := D #k).
+      wp_pures.
+      iPoseProof (twp_negative_binomial_adv_comp _ _ (proj1 p_bounds) (proj2 p_bounds) r D' L _ _ εf_pos with "Hfuel Herr") as "HH".
+
+      { move=>k. apply D_bounds. }
+      { rewrite (dmap_expected_value _ _ _ L) // in D_sum. }
+      wp_apply tgl_wp_wand_r.
+      iFrame.
+      iIntros (?) "(%k & -> & Herr)".
+      by iApply "HΦ".
+    - iIntros (Σ erisGS0 Φ) "_ HΦ".
+      wp_apply (twp_negative_alloc with "[$]") as (α) "Hα".
+      iApply "HΦ".
+      by iFrame.
+    - iIntros (Σ erisGS0 e ε εf Δ l D L Φ e_not_val ε_ge_0 εf_pos D_bounds D_sum) "(Herr & (%l' & Htape & ->) & Hnext)".
+      iPoseProof (ec_split with "Herr") as "[Hfuel Herr]"; try lra.
+      set (D' (k : nat) := D #k).
+      wp_apply (twp_negative_binomial_presample_adv_comp _ _ _ _ _ _ D' _ _ _ _ (proj1 p_bounds) (proj2 p_bounds) e_not_val εf_pos with "[$Hfuel $Herr $Htape Hnext]").
+      { move=>k. apply D_bounds. }
+      { rewrite (dmap_expected_value _ _ _ L) // in D_sum. }
+      iIntros (k) "Herr Htape".
+      wp_apply "Hnext".
+      iFrame.
+      rewrite fmap_app //.
+    - iIntros (Σ erisGS0 α Δ l v Φ) "[(%l' & Htape & %Heq) ->] HΦ".
+      destruct l' as [|v' l']; first discriminate.
+      injection Heq as -> ->.
+      wp_pures.
+      wp_apply (twp_negative_tape with "Htape") as "Htape".
+      iApply "HΦ".
+      iExists l'.
+      by iFrame.
+  Defined.
+
+  (*
   Lemma twp_negative_binomial_planner :
     ∀ (p q r : nat) (α : loc) (e : expr) (ε : R)
       (L_size L_sum : nat) (Φ : val → iProp Σ)
@@ -350,5 +410,5 @@ Section NegativeLemmas.
     iIntros (i) "_".
     iApply "Hnext".
   Qed.
-  
+  *)
 End NegativeLemmas.

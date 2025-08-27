@@ -1,11 +1,41 @@
 From clutch.eris Require Import eris.
-From clutch.eris.lib.sampling Require Import abstract_planner utils.
+From clutch.eris.lib.sampling Require Import abstract_planner distr_impl utils.
 
 #[local] Open Scope R.
 
-Class bernoulli_spec `{!erisGS Σ} (bernoulli_prog : val) (bernoulli_alloc : val) :=
+Definition bernoulli_distr_pmf (N M : nat) (k : fin 2) : R :=
+  fin_S_inv _ (1 - N / (M + 1))%R (const (N / (M + 1))%R) k.
+
+Program Definition bernoulli_distr (N M : nat) : N ≤ S M → distr (fin 2) :=
+  λ N_le_SM, MkDistr (bernoulli_distr_pmf N M) _ _ _.
+Next Obligation.
+  move=>N M N_le_SM k.
+  apply le_INR in N_le_SM.
+  pose proof (pos_INR N).
+  pose proof (pos_INR M).
+  rewrite S_INR in N_le_SM.
+  inv_fin k => [|k] /=.
+  - apply Rle_0_le_minus.
+    rewrite Rcomplements.Rle_div_l; lra.
+  - apply Rcomplements.Rdiv_le_0_compat; lra.
+Qed.
+
+Next Obligation.
+Proof.
+  move=>N M N_le_SM.
+  apply ex_seriesC_finite.
+Qed.
+
+Next Obligation.
+Proof.
+  move=>N M N_le_SM.
+  rewrite SeriesC_finite_foldr /=.
+  lra.
+Qed.
+
+Class bernoulli_spec (bernoulli_prog : val) (bernoulli_alloc : val) :=
   BernoulliSpec {
-    twp_bernoulli_scale (N M : nat) (ε ε1 ε2 : R) (p := N / S M) :
+    twp_bernoulli_scale `{!erisGS Σ} (N M : nat) (ε ε1 ε2 : R) (p := N / S M) :
       N ≤ S M →
       0 <= ε1 →
       0 <= ε2 →
@@ -18,15 +48,15 @@ Class bernoulli_spec `{!erisGS Σ} (bernoulli_prog : val) (bernoulli_alloc : val
         (⌜k = 1%nat⌝ ∗ ↯ ε2)
       }]];
 
-    own_bernoulli_tape :
+    own_bernoulli_tape `{!erisGS Σ} :
       loc → nat → nat → list (fin 2) → iPropI Σ;
 
-    twp_bernoulli_alloc (N M : nat) :
+    twp_bernoulli_alloc `{!erisGS Σ} (N M : nat) :
       [[{ True }]]
         bernoulli_alloc #N #M
       [[{ (α : loc), RET #lbl:α; own_bernoulli_tape α N M [] }]];
 
-    twp_presample_bernoulli 
+    twp_presample_bernoulli `{!erisGS Σ}
       (e : expr) (α : loc) (Φ : val → iProp Σ) 
       (N M : nat) (ns : list (fin 2)) : 
       to_val e = None →
@@ -34,7 +64,7 @@ Class bernoulli_spec `{!erisGS Σ} (bernoulli_prog : val) (bernoulli_alloc : val
       (∀ i : fin 2, own_bernoulli_tape α N M (ns ++ [i]) -∗ WP e [{ v, Φ v }]) 
       ⊢ WP e [{ v, Φ v }];
 
-  twp_presample_bernoulli_adv_comp 
+  twp_presample_bernoulli_adv_comp `{!erisGS Σ}
       (e : expr) (α : loc) (Φ : val → iProp Σ) 
       (N M : nat) (ns : list (fin 2)) (ε : R) (D : fin 2 → R): 
       N ≤ M + 1 →
@@ -49,19 +79,74 @@ Class bernoulli_spec `{!erisGS Σ} (bernoulli_prog : val) (bernoulli_alloc : val
       ⊢ WP e [{ v, Φ v }];
 
 
-    twp_bernoulli_tape (N M : nat) (α : loc) (ns : list (fin 2)) (n : fin 2) :
+    twp_bernoulli_tape `{!erisGS Σ} (N M : nat) (α : loc) (ns : list (fin 2)) (n : fin 2) :
       [[{ own_bernoulli_tape α N M (n::ns) }]]
         bernoulli_prog (#lbl:α) #N #M
       [[{ RET #n ; own_bernoulli_tape α N M ns }]];
 
     }.
 
-Set Default Proof Using "Type*".
 
 Section BernoulliSpecLemmas.
 
+  Context `{bernspec: bernoulli_spec bernoulli balloc}.
+  
+  Instance bernoulli_impl {p q n : nat} {p_le_Sq : p ≤ S q} :
+    distr_impl (dmap (LitV ∘ LitInt ∘ Z.of_nat ∘ fin_to_nat) (bernoulli_distr p q p_le_Sq)).
+  Proof using bernspec.
+     
+    refine (MkDistrImpl _
+              (λ: "α", bernoulli "α" #p #q) (balloc #p #q)
+              loc
+              (λ _ _ Δ l, ∃ l', own_bernoulli_tape Δ p q l' ∗
+                            ⌜l = fmap (λ (k : fin 2), #k) l'⌝)%I
+              (λ _ _ Δ α, ⌜α = #lbl:Δ⌝)%I #() _ _ _ _).
+    - iIntros (Σ erisGS0 D ε εf L ε_ge_0 εf_pos D_bounds D_sum Φ) "Herr HΦ".
+      iPoseProof (ec_split with "Herr") as "[_ Herr]"; try lra.
+      wp_pures.
+      wp_apply (twp_bernoulli_scale _ _ _ (D #0%nat) (D #1%nat) p_le_Sq with "Herr [HΦ]").
+      { apply D_bounds. }
+      { apply D_bounds. }
+      { rewrite (dmap_expected_value _ _ _ L) in D_sum;
+          last (move=>a; apply D_bounds).
+        rewrite SeriesC_finite_foldr /= in D_sum.
+        rewrite D_sum /pmf /bernoulli_distr /bernoulli_distr_pmf.
+        cbv [fin_S_inv].
+        rewrite !S_INR /=.
+        lra.
+      }
+      iIntros (k) "[[-> Herr] | [-> Herr]]";
+      by iApply "HΦ".
+    - iIntros (Σ erisGS0 Φ) "_ HΦ".
+      wp_apply (twp_bernoulli_alloc with "[$]") as (α) "Hα".
+      iApply "HΦ".
+      by iFrame.
+    - iIntros (Σ erisGS0 e ε εf Δ l D L Φ e_not_val ε_ge_0 εf_pos D_bounds D_sum) "(Herr & (%l' & Htape & ->) & Hnext)".
+      iPoseProof (ec_split with "Herr") as "[_ Herr]"; try lra.
+      set (D' (k : fin 2) := D #k).
+      unshelve wp_apply (twp_presample_bernoulli_adv_comp _ _ _ p q _ _ D' ltac:(lia) _ _ e_not_val  with "[$Herr $Htape Hnext]").
+      { move=>k. apply D_bounds. }
+       { rewrite (dmap_expected_value _ _ _ L) in D_sum;
+          last (move=>a; apply D_bounds).
+        rewrite SeriesC_finite_foldr /= in D_sum.
+        rewrite -D_sum /pmf /bernoulli_distr /bernoulli_distr_pmf /D' /=.
+        lra.
+      }
+      iIntros (k) "[Herr Htape]".
+      wp_apply "Hnext".
+      iFrame.
+      rewrite fmap_app //.
+    - iIntros (Σ erisGS0 α Δ l v Φ) "[(%l' & Htape & %Heq) ->] HΦ".
+      destruct l' as [|v' l']; first discriminate.
+      injection Heq as -> ->.
+      wp_pures.
+      wp_apply (twp_bernoulli_tape with "Htape") as "Htape".
+      iApply "HΦ".
+      iExists l'.
+      by iFrame.
+  Defined.
+
   Context `{!erisGS Σ}.
-  Context `{!bernoulli_spec bernoulli balloc}.
  
   #[local] Ltac done ::= 
     solve[
@@ -77,7 +162,7 @@ Section BernoulliSpecLemmas.
     [[{True}]]
       bernoulli #() #N #M
     [[{v, RET v; ⌜v = #0⌝ ∨ ⌜v = #1⌝}]].
-  Proof.
+  Proof using bernspec.
     iIntros "% %Φ _ HΦ".
     iMod ec_zero as "Herr".
     wp_apply (twp_bernoulli_scale N M _ 0 0 with "Herr")%R as "% [[-> _] | [-> _]]" => //;
@@ -90,7 +175,7 @@ Section BernoulliSpecLemmas.
     [[{↯ ε ∗ ↯ (1 - p)}]]
       bernoulli #() #N #M 
     [[{ RET #1; ↯ ε'}]].
-  Proof.
+  Proof using bernspec.
     iIntros (Hε' ->) "%Φ [Herr Hcost] HΦ".
     iAssert (⌜N ≤ S M⌝)%I with "[Hcost]" as "%H_N_le_SM".
     { destruct (decide (S M < N)%nat); last by iPureIntro; done.
@@ -106,7 +191,7 @@ Section BernoulliSpecLemmas.
     [[{↯ (1 - (N / S M))}]]
       bernoulli #() #N #M
     [[{ RET #1; True }]].
-  Proof.
+  Proof using bernspec.
     iIntros (Φ) "Herr HΦ".
     iMod ec_zero as "Hzero".
     wp_apply (bernoulli_success_spec _ _ 0 0 with "[$Herr $Hzero]") as "_" => //.
@@ -119,7 +204,7 @@ Section BernoulliSpecLemmas.
     [[{↯ ε ∗ ↯ (N / S M)}]] 
       bernoulli #() #N #M 
     [[{ RET #0; ↯ ε'}]].
-  Proof.
+  Proof using bernspec.
     iIntros (Hε ->) "%Φ [Herr Hcost] HΦ".
     iAssert (⌜N ≤ S M⌝)%I with "[Hcost]" as "%H_N_le_SM".
     { destruct (decide (S M < N)%nat) as [Hlt |Hge%not_lt];
@@ -134,7 +219,7 @@ Section BernoulliSpecLemmas.
     [[{↯ (N / S M)}]] 
       bernoulli #() #N #M 
     [[{ RET #0; True }]].
-  Proof.
+  Proof using bernspec.
     iIntros (Φ) "Herr HΦ".
     iMod ec_zero as "Hzero".
     wp_apply (bernoulli_failure_spec _ _ 0%R 0%R with "[$Herr $Hzero]") as "_" => //.
@@ -146,7 +231,7 @@ Section BernoulliSpecLemmas.
     [[{True}]] 
       bernoulli #() #0 #M 
     [[{ RET #0; True }]].
-  Proof.
+  Proof using bernspec.
     iIntros.
     iMod ec_zero as "Herr".
     rewrite -Nat2Z.inj_0.
@@ -159,7 +244,7 @@ Section BernoulliSpecLemmas.
     [[{True}]] 
       bernoulli #() #(S M) #M 
     [[{ RET #1; True }]].
-  Proof.
+  Proof using bernspec.
     iIntros.
     iMod ec_zero as "Herr".
     rewrite -Nat2Z.inj_0.
