@@ -3025,11 +3025,161 @@ Section rules.
     { by eapply lookup_lt_Some. }
     iApply spec_coupl_rec.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
-    iExists _.
-    iExists (dbind (λ σ', state_step σ' β) (state_step σ α)).
-    iExists (full_info_cons_osch (λ _, dret j) (λ _, full_info_one_step_stutter_osch j')).
-    iExists 0%NNR, (λ _, ε_now), ε_now.
-
+    
+    pose (λ (n:nat), if (bool_decide (n<S((q+1)*(s+1)-p*r-1))%nat)
+                   then
+                     if bool_decide (n<r*(q+1-p))%nat
+                     then (p+n/r)*(s+1)+(n `mod` r)   (* (n/)*(q+1) + (p+n/r) *)
+                     else let n':=n-r*(q+1-p) in (n'/(s+1-r))*(s+1)+(r+(n'`mod`(s+1-r)))
+                   else n+(q+1)*(s+1))%nat as f_frag.
+    assert (Inj (=) (=) f_frag) as Hinj.
+    {
+      intros x y.
+      rewrite /f_frag.
+      replace (S _) with ((q+1)*(s+1)-p*r)%nat; last lia.
+      repeat case_bool_decide.
+      - intros H'. apply Nat.mul_split_l in H'.
+        + rewrite (Nat.div_mod_eq x r) (Nat.div_mod_eq y r). lia.
+        + unshelve epose proof Nat.mod_upper_bound x r _; lia.
+        + unshelve epose proof Nat.mod_upper_bound y r _; lia.
+      - intros Hcontra; exfalso.
+        apply (f_equal (λ x, x `mod` (s+1))%nat) in Hcontra.
+        rewrite (Nat.add_comm (_*_) _)%nat in Hcontra.
+        rewrite Nat.Div0.mod_add in Hcontra.
+        rewrite (Nat.add_comm (_*_))%nat in Hcontra.
+        rewrite Nat.Div0.mod_add in Hcontra.
+        unshelve epose proof Nat.mod_upper_bound x r _; first lia.
+        rewrite Nat.mod_small in Hcontra; last lia.
+        destruct (decide (r=(s+1))%nat).
+        + subst. lia.
+        + rewrite (Nat.mod_small _ (s+1))%nat in Hcontra; first lia.
+          apply Nat.lt_le_trans with (r+(s+1-r))%nat; last lia.
+          apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. lia.
+      - intros Hcontra.
+        exfalso.
+        assert ((p + x `div` r) * (s + 1) + x `mod` r <(q+1)*(s+1))%nat; last lia.
+        rewrite (Nat.mul_add_distr_r q).
+        apply Nat.lt_le_trans with ((p + x `div` r) * (s + 1) + (s+1))%nat.
+        + apply Nat.add_lt_mono_l.
+          apply Nat.lt_le_trans with r.
+          * apply Nat.mod_upper_bound. lia.
+          * lia.
+        + rewrite Nat.mul_1_l.
+          apply Nat.add_le_mono_r.
+          apply Nat.mul_le_mono; last lia.
+          trans (p+(q-p))%nat; last lia.
+          apply Nat.add_le_mono; first done.
+          apply Nat.lt_succ_r.
+          apply Nat.Div0.div_lt_upper_bound.
+          eapply Nat.lt_le_trans; first exact.
+          apply Nat.mul_le_mono; lia.
+      - intros Hcontra; exfalso.
+        apply (f_equal (λ x, x `mod` (s+1))%nat) in Hcontra.
+        rewrite (Nat.add_comm (_*_) _)%nat in Hcontra.
+        rewrite Nat.Div0.mod_add in Hcontra.
+        rewrite (Nat.add_comm (_*_))%nat in Hcontra.
+        rewrite Nat.Div0.mod_add in Hcontra.
+        unshelve epose proof Nat.mod_upper_bound y r _; first lia.
+        rewrite (Nat.mod_small (y`mod`_)%nat (s+1)%nat) in Hcontra; last lia.
+        destruct (decide (r=(s+1))%nat).
+        + subst. lia.
+        + rewrite (Nat.mod_small _ (s+1))%nat in Hcontra; first lia.
+          apply Nat.lt_le_trans with (r+(s+1-r))%nat; last lia.
+          apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. lia.
+      - (* the same *)
+        intros H'.
+        destruct (decide (r=s+1)%nat); first lia.
+        apply Nat.mul_split_l in H' as [K1 K2]; last first.
+        { eapply Nat.lt_le_trans with (r+(s+1-r))%nat.
+          - apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound.
+            lia.
+          - lia. 
+        }
+        { eapply Nat.lt_le_trans with (r+(s+1-r))%nat.
+          - apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound.
+            lia.
+          - lia. 
+        }
+        assert (x-r*(q+1-p)=y-r*(q+1-p))%nat; try lia.
+        remember (x-r*(q+1-p))%nat as x'.
+        remember (y-r*(q+1-p))%nat as y'.
+        rewrite (Nat.div_mod_eq x' (s+1-r)%nat) (Nat.div_mod_eq y' (s+1-r)%nat). lia.
+      - (* one is too large *)
+        destruct (decide (r=s+1)%nat); first lia.
+        intros Hcontra.
+        exfalso.
+        assert (((x - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) +
+                   (r + (x - r * (q + 1 - p)) `mod` (s + 1 - r))) <(q+1)*(s+1))%nat; last lia.
+        rewrite (Nat.mul_add_distr_r q).
+        apply Nat.lt_le_trans with (((x - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) +
+                                       (s+1)))%nat.
+        + apply Nat.add_lt_mono_l.
+          apply Nat.lt_le_trans with (r+(s+1-r))%nat.
+          * apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. lia.
+          * lia.
+        + rewrite Nat.mul_1_l.
+          apply Nat.add_le_mono_r.
+          apply Nat.mul_le_mono; last lia.
+          apply Nat.lt_succ_r.
+          apply Nat.div_lt_upper_bound; first lia.
+          replace (S q) with (q+1)%nat by lia.
+          eapply Nat.le_lt_add_lt with (r*(q+1-p))%nat (r*(q+1-p))%nat; first lia.
+          rewrite Nat.sub_add.
+          * rewrite Nat.mul_sub_distr_r Nat.mul_sub_distr_l.
+            rewrite Nat.add_sub_assoc; last first.
+            { apply Nat.mul_le_mono; lia. }
+            rewrite Nat.sub_add; first lia.
+            apply Nat.mul_le_mono; lia.
+          * lia.
+      - (* one is too large *)
+        intros Hcontra.
+        exfalso.
+        assert ((p + y `div` r) * (s + 1) + y `mod` r <(q+1)*(s+1))%nat; last lia.
+        rewrite (Nat.mul_add_distr_r q).
+        apply Nat.lt_le_trans with ((p + y `div` r) * (s + 1) + (s+1))%nat.
+        + apply Nat.add_lt_mono_l.
+          apply Nat.lt_le_trans with r.
+          * apply Nat.mod_upper_bound. lia.
+          * lia.
+        + rewrite Nat.mul_1_l.
+          apply Nat.add_le_mono_r.
+          apply Nat.mul_le_mono; last lia.
+          trans (p+(q-p))%nat; last lia.
+          apply Nat.add_le_mono; first done.
+          apply Nat.lt_succ_r.
+          apply Nat.Div0.div_lt_upper_bound.
+          eapply Nat.lt_le_trans; first exact.
+          apply Nat.mul_le_mono; lia.
+      - (* one is too large *)
+        destruct (decide (r=s+1)%nat); first lia.
+        intros Hcontra.
+        exfalso.
+        assert (((y - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) +
+                   (r + (y - r * (q + 1 - p)) `mod` (s + 1 - r))) <(q+1)*(s+1))%nat; last lia.
+        rewrite (Nat.mul_add_distr_r q).
+        apply Nat.lt_le_trans with (((y - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) +
+                                       (s+1)))%nat.
+        + apply Nat.add_lt_mono_l.
+          apply Nat.lt_le_trans with (r+(s+1-r))%nat.
+          * apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. lia.
+          * lia.
+        + rewrite Nat.mul_1_l.
+          apply Nat.add_le_mono_r.
+          apply Nat.mul_le_mono; last lia.
+          apply Nat.lt_succ_r.
+          apply Nat.div_lt_upper_bound; first lia.
+          replace (S q) with (q+1)%nat by lia.
+          eapply Nat.le_lt_add_lt with (r*(q+1-p))%nat (r*(q+1-p))%nat; first lia.
+          rewrite Nat.sub_add.
+          * rewrite Nat.mul_sub_distr_r Nat.mul_sub_distr_l.
+            rewrite Nat.add_sub_assoc; last first.
+            { apply Nat.mul_le_mono; lia. }
+            rewrite Nat.sub_add; first lia.
+            apply Nat.mul_le_mono; lia.
+          * lia.
+      - lia. 
+    }
+    set ((λ x, state_upd_tapes <[β:=(q; fs' ++ [x.2])]> x.1)) as fn.
     pose (λ (n:fin (S s)) (m:fin (S q)), m*(S s)+n)%nat as f'.
     assert (∀ n m, f' n m < S ((q+1)*(s+1)-1))%nat as Hf'.
     { rewrite /f'. intros n m.
@@ -3042,7 +3192,7 @@ Section rules.
       apply Nat.mul_le_mono; lia.
     }
     pose (λ '(n,m), nat_to_fin (Hf' n m)) as f.
-    assert (Bij f).
+    assert (Bij f) as Hbij.
     { rewrite /f. split.
       - intros [a b ] [c d] H'.
         apply (f_equal fin_to_nat) in H'.
@@ -3069,6 +3219,23 @@ Section rules.
         rewrite Nat.mul_comm.
         by rewrite -Nat.div_mod_eq.
     }
+    iExists (λ x x', ∃ (qs : fin _), if bool_decide (∃ (m:fin (_)), f_frag m = qs)
+                       then ∃ (a:fin (S s)) c, x= (fn (state_upd_tapes (<[α:=(s; fs++[a]):tape]> ) σ, c)) /\ ∃ y, f_frag y= (fin_to_nat (f (a, c))) /\
+                                   x' = ([(cfg_to_cfg' (l, σ_spec), j); (cfg_to_cfg' (<[j:=fill K #(fin_to_nat qs)]> l, σ_spec), j');
+                                         (cfg_to_cfg' (<[j':=fill K' #(y)]> (<[j:=fill K #(fin_to_nat qs)]> l), σ_spec),
+                                            length l)],
+                                          (<[j':=fill K' #(y)]> (<[j:=fill K #(fin_to_nat qs)]> l), σ_spec)) 
+                       else 
+        (∃ a c (y:nat), qs = f (a,c) /\ x=(fn (state_upd_tapes <[α:=(s; fs ++ [a]):tape]> σ, c)) /\
+        x' = ([(cfg_to_cfg' (l, σ_spec), j); (cfg_to_cfg' (<[j:=fill K #qs]> l, σ_spec), j');
+         (cfg_to_cfg' (<[j':=fill K' #y]> (<[j:=fill K #qs]> l), σ_spec), length l)],
+        (<[j':=fill K' #y]> (<[j:=fill K #qs]> l), σ_spec))) 
+        ).
+    iExists (dbind (λ σ', state_step σ' β) (state_step σ α)).
+    iExists (full_info_cons_osch (λ _, dret j) (λ _, full_info_one_step_stutter_osch j')).
+    iExists 0%NNR, (λ _, ε_now), ε_now.
+
+    
     
     repeat iSplit.
     - iPureIntro. apply sch_erasable_dbind; first eapply state_step_sch_erasable; first done.
@@ -3101,7 +3268,6 @@ Section rules.
         setoid_rewrite lookup_total_correct; last by rewrite lookup_insert_ne.
         done. 
       }
-      set ((λ x, state_upd_tapes <[β:=(q; fs' ++ [x.2])]> x.1)) as fn.
       assert ((dbind (λ σ', dmap (λ n : fin (S q), state_upd_tapes <[β:=(q; fs' ++ [n])]> σ') (dunifP q))
        (dmap (λ n : fin (S s), state_upd_tapes <[α:=(s; fs ++ [n])]> σ) (dunifP s))) = (dbind (λ σ', dmap (λ n : fin (S q), fn (σ', n)) (dunifP q))
                                                                                           (dmap (λ n : fin (S s), state_upd_tapes <[α:=(s; fs ++ [n])]> σ) (dunifP s)))) as -> by done.
@@ -3139,159 +3305,6 @@ Section rules.
       rewrite fill_dmap//=.
       rewrite head_prim_step_eq//= !dmap_comp.
       rewrite !Nat2Z.id.
-      pose (λ (n:nat), if (bool_decide (n<S((q+1)*(s+1)-p*r-1))%nat)
-                     then
-                       if bool_decide (n<r*(q+1-p))%nat
-                       then (p+n/r)*(s+1)+(n `mod` r)
-                       else let n':=n-r*(q+1-p) in (n'/(s+1-r))*(s+1)+(r+(n'`mod`(s+1-r)))
-                     else n+(q+1)*(s+1))%nat as f_frag.
-      assert (Inj (=) (=) f_frag).
-      {
-        intros x y.
-        rewrite /f_frag.
-        replace (S _) with ((q+1)*(s+1)-p*r)%nat; last lia.
-        repeat case_bool_decide.
-        - intros H'. apply Nat.mul_split_l in H'.
-          + rewrite (Nat.div_mod_eq x r) (Nat.div_mod_eq y r). lia.
-          + unshelve epose proof Nat.mod_upper_bound x r _; lia.
-          + unshelve epose proof Nat.mod_upper_bound y r _; lia.
-        - intros Hcontra; exfalso.
-          apply (f_equal (λ x, x `mod` (s+1))%nat) in Hcontra.
-          rewrite (Nat.add_comm (_*_) _)%nat in Hcontra.
-          rewrite Nat.Div0.mod_add in Hcontra.
-          rewrite (Nat.add_comm (_*_))%nat in Hcontra.
-          rewrite Nat.Div0.mod_add in Hcontra.
-          unshelve epose proof Nat.mod_upper_bound x r _; first lia.
-          rewrite Nat.mod_small in Hcontra; last lia.
-          destruct (decide (r=(s+1))%nat).
-          + subst. lia.
-          + rewrite (Nat.mod_small _ (s+1))%nat in Hcontra; first lia.
-            apply Nat.lt_le_trans with (r+(s+1-r))%nat; last lia.
-            apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. lia.
-        - intros Hcontra.
-          exfalso.
-          assert ((p + x `div` r) * (s + 1) + x `mod` r <(q+1)*(s+1))%nat; last lia.
-          rewrite (Nat.mul_add_distr_r q).
-          apply Nat.lt_le_trans with ((p + x `div` r) * (s + 1) + (s+1))%nat.
-          + apply Nat.add_lt_mono_l.
-            apply Nat.lt_le_trans with r.
-            * apply Nat.mod_upper_bound. lia.
-            * lia.
-          + rewrite Nat.mul_1_l.
-            apply Nat.add_le_mono_r.
-            apply Nat.mul_le_mono; last lia.
-            trans (p+(q-p))%nat; last lia.
-            apply Nat.add_le_mono; first done.
-            apply Nat.lt_succ_r.
-            apply Nat.Div0.div_lt_upper_bound.
-            eapply Nat.lt_le_trans; first exact.
-            apply Nat.mul_le_mono; lia.
-        - intros Hcontra; exfalso.
-          apply (f_equal (λ x, x `mod` (s+1))%nat) in Hcontra.
-          rewrite (Nat.add_comm (_*_) _)%nat in Hcontra.
-          rewrite Nat.Div0.mod_add in Hcontra.
-          rewrite (Nat.add_comm (_*_))%nat in Hcontra.
-          rewrite Nat.Div0.mod_add in Hcontra.
-          unshelve epose proof Nat.mod_upper_bound y r _; first lia.
-          rewrite (Nat.mod_small (y`mod`_)%nat (s+1)%nat) in Hcontra; last lia.
-          destruct (decide (r=(s+1))%nat).
-          + subst. lia.
-          + rewrite (Nat.mod_small _ (s+1))%nat in Hcontra; first lia.
-            apply Nat.lt_le_trans with (r+(s+1-r))%nat; last lia.
-            apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. lia.
-        - (* the same *)
-          intros H'.
-          destruct (decide (r=s+1)%nat); first lia.
-          apply Nat.mul_split_l in H' as [K1 K2]; last first.
-          { eapply Nat.lt_le_trans with (r+(s+1-r))%nat.
-            - apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound.
-              lia.
-            - lia. 
-          }
-          { eapply Nat.lt_le_trans with (r+(s+1-r))%nat.
-            - apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound.
-              lia.
-            - lia. 
-          }
-          assert (x-r*(q+1-p)=y-r*(q+1-p))%nat; try lia.
-          remember (x-r*(q+1-p))%nat as x'.
-          remember (y-r*(q+1-p))%nat as y'.
-          rewrite (Nat.div_mod_eq x' (s+1-r)%nat) (Nat.div_mod_eq y' (s+1-r)%nat). lia.
-        - (* one is too large *)
-          destruct (decide (r=s+1)%nat); first lia.
-          intros Hcontra.
-          exfalso.
-          assert (((x - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) +
-             (r + (x - r * (q + 1 - p)) `mod` (s + 1 - r))) <(q+1)*(s+1))%nat; last lia.
-          rewrite (Nat.mul_add_distr_r q).
-          apply Nat.lt_le_trans with (((x - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) +
-             (s+1)))%nat.
-          + apply Nat.add_lt_mono_l.
-            apply Nat.lt_le_trans with (r+(s+1-r))%nat.
-            * apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. lia.
-            * lia.
-          + rewrite Nat.mul_1_l.
-            apply Nat.add_le_mono_r.
-            apply Nat.mul_le_mono; last lia.
-            apply Nat.lt_succ_r.
-            apply Nat.div_lt_upper_bound; first lia.
-            replace (S q) with (q+1)%nat by lia.
-            eapply Nat.le_lt_add_lt with (r*(q+1-p))%nat (r*(q+1-p))%nat; first lia.
-            rewrite Nat.sub_add.
-            * rewrite Nat.mul_sub_distr_r Nat.mul_sub_distr_l.
-              rewrite Nat.add_sub_assoc; last first.
-              { apply Nat.mul_le_mono; lia. }
-              rewrite Nat.sub_add; first lia.
-              apply Nat.mul_le_mono; lia.
-            * lia.
-        - (* one is too large *)
-          intros Hcontra.
-          exfalso.
-          assert ((p + y `div` r) * (s + 1) + y `mod` r <(q+1)*(s+1))%nat; last lia.
-          rewrite (Nat.mul_add_distr_r q).
-          apply Nat.lt_le_trans with ((p + y `div` r) * (s + 1) + (s+1))%nat.
-          + apply Nat.add_lt_mono_l.
-            apply Nat.lt_le_trans with r.
-            * apply Nat.mod_upper_bound. lia.
-            * lia.
-          + rewrite Nat.mul_1_l.
-            apply Nat.add_le_mono_r.
-            apply Nat.mul_le_mono; last lia.
-            trans (p+(q-p))%nat; last lia.
-            apply Nat.add_le_mono; first done.
-            apply Nat.lt_succ_r.
-            apply Nat.Div0.div_lt_upper_bound.
-            eapply Nat.lt_le_trans; first exact.
-            apply Nat.mul_le_mono; lia.
-        - (* one is too large *)
-          destruct (decide (r=s+1)%nat); first lia.
-          intros Hcontra.
-          exfalso.
-          assert (((y - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) +
-             (r + (y - r * (q + 1 - p)) `mod` (s + 1 - r))) <(q+1)*(s+1))%nat; last lia.
-          rewrite (Nat.mul_add_distr_r q).
-          apply Nat.lt_le_trans with (((y - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) +
-             (s+1)))%nat.
-          + apply Nat.add_lt_mono_l.
-            apply Nat.lt_le_trans with (r+(s+1-r))%nat.
-            * apply Nat.add_lt_mono_l. apply Nat.mod_upper_bound. lia.
-            * lia.
-          + rewrite Nat.mul_1_l.
-            apply Nat.add_le_mono_r.
-            apply Nat.mul_le_mono; last lia.
-            apply Nat.lt_succ_r.
-            apply Nat.div_lt_upper_bound; first lia.
-            replace (S q) with (q+1)%nat by lia.
-            eapply Nat.le_lt_add_lt with (r*(q+1-p))%nat (r*(q+1-p))%nat; first lia.
-            rewrite Nat.sub_add.
-            * rewrite Nat.mul_sub_distr_r Nat.mul_sub_distr_l.
-              rewrite Nat.add_sub_assoc; last first.
-              { apply Nat.mul_le_mono; lia. }
-              rewrite Nat.sub_add; first lia.
-              apply Nat.mul_le_mono; lia.
-            * lia.
-        - lia. 
-      }
       erewrite (dunif_fragmented _ ((q + 1) * (s + 1) - p * r - 1))%nat at 1; [..|done|lia].
       rewrite -!dbind_assoc'.
       replace 0 with (0+0) by lra.
@@ -3311,8 +3324,21 @@ Section rules.
         replace 0 with (0+0) by lra.
         eapply ARcoupl_dbind; [lra|lra| |apply ARcoupl_eq].
         intros ? y ->.
-        rewrite !dret_id_left.
-        admit.
+        rewrite !dret_id_left/=.
+        rewrite app_nil_r.
+        rewrite !insert_length.
+        case_match eqn:Heqn.
+        apply (f_equal f) in Heqn.
+        rewrite f_inv_cancel_r/f in Heqn.
+        apply (f_equal fin_to_nat) in Heqn.
+        rewrite !fin_to_nat_to_fin in Heqn.
+        apply ARcoupl_dret; first done.
+        exists qs.
+        rewrite bool_decide_eq_true_2; last done.
+        eexists _, _.
+        split; first done.
+        rewrite fin_to_nat_to_fin.
+        naive_solver.
       + erewrite <-(dbind_const (dunifP _) (dbind _ _)); last first.
         { apply dunif_mass. lia. }
         rewrite /dmap.
@@ -3320,12 +3346,119 @@ Section rules.
         eapply ARcoupl_dbind; [lra|lra| |apply ARcoupl_eq].
         intros ? y ->.
         rewrite dret_id_left. simpl. rewrite app_nil_r !insert_length.
-        admit.
-
-        
-        Unshelve.
-        
-      2:{ intros.
+        case_match eqn :Heqn.
+        apply ARcoupl_dret; first done.
+        eexists _.
+        rewrite bool_decide_eq_false_2; last done.
+        eexists _, _, _.
+        repeat split; try done.
+        apply fin_to_nat_inj.
+        rewrite !fin_to_nat_to_fin.
+        apply (f_equal f) in Heqn.
+        rewrite f_inv_cancel_r in Heqn.
+        subst.
+        rewrite /f.
+        by rewrite fin_to_nat_to_fin.
+    - iPureIntro.
+      intros ????? (qs&A1) (qs'&A2).
+      case_bool_decide as K1;
+        case_bool_decide as K2.
+      + destruct A1 as (a&c&->&(y&?&?)).
+        destruct A2 as (a'&c'&->&(y'&?&?)).
+        destruct K1 as [m K1].
+        destruct K2 as [m' K2].
+        simplify_eq.
+        assert (<[j:=fill K #qs']> l !!j= <[j:=fill K #qs]> l!!j) as A1 by (by f_equal) .
+        rewrite !list_lookup_insert in A1; try lia. simplify_eq.
+        assert (<[j':=fill K' #y']> (<[j:=fill K #qs]> l)!!j' = <[j':=fill K' #y]> (<[j:=fill K #qs]> l)!!j') as A1 by (by f_equal) .
+        rewrite !list_lookup_insert in A1; try (by rewrite insert_length||lia). simplify_eq.
+        split; last done.
+        rewrite -K1 in K2.
+        apply Hinj in K2.
+        apply fin_to_nat_inj in K2. subst.
+        assert (f(a,c)=f(a',c')) as H'.
+        { apply fin_to_nat_inj.
+          etrans; last exact. done.
+        }
+        apply Hbij in H'. by simplify_eq.
+      + destruct A2 as (a'&c'&->&(y'&?&?)).
+        destruct A1 as (a&c&y&->&->&?).
+        simplify_eq.
+        exfalso.
+        assert (<[j:=fill K #qs']> l !!j= <[j:=fill K #(nat_to_fin (Hf' a c))]> l!!j) as A1 by (by f_equal) .
+        rewrite !list_lookup_insert in A1; try lia. simplify_eq.
+      + destruct A1 as (a'&c'&->&(y'&?&?)).
+        destruct A2 as (a&c&y&->&->&?).
+        simplify_eq.
+        exfalso.
+        assert (<[j:=fill K #(nat_to_fin (Hf' a c))]> l!!j = <[j:=fill K #qs]> l!!j) as A1 by (by f_equal) .
+        rewrite !list_lookup_insert in A1; try lia. simplify_eq.
+      + destruct A1 as (a&c&y&->&->&?).
+        destruct A2 as (a'&c'&y'&->&->&?).
+        simplify_eq.
+        assert (<[j:=fill K #(nat_to_fin (Hf' a' c'))]> l!!j = <[j:=fill K #(nat_to_fin (Hf' a c))]> l!!j) as A1 by (by f_equal) .
+        rewrite !list_lookup_insert in A1; try lia. simplify_eq.
+        rewrite -/(f (a, c)) in A1.
+        rewrite -/(f (a', c')) in A1.
+        simplify_eq.
+        assert (<[j':=fill K' #y']> (<[j:=fill K #(nat_to_fin (Hf' a c))]> l)!!j' =
+       <[j':=fill K' #y]> (<[j:=fill K #(nat_to_fin (Hf' a c))]> l)!!j') as A1 by (by f_equal) .
+        rewrite !list_lookup_insert in A1; try (by rewrite insert_length||lia). by simplify_eq.
+    - iIntros (??? (qs & Hcond)).
+      case_bool_decide as K1.
+      + destruct Hcond as (a&c&->&(y&Heq&?)).
+        destruct K1 as [m K1].
+        simplify_eq.
+        iMod (spec_update_prog with "[$][$Hspec1]") as "[HK Hs]".
+        iMod (spec_update_prog with "[$][$Hspec2]") as "[HK ?]".
+        iMod (ghost_map_update with "[$]Hα") as "(?&?)".
+        iMod (ghost_map_update with "[$]Hβ") as "(?&?)".
+        iApply spec_coupl_ret.
+        iFrame.
+        iModIntro.
+        iMod "Hclose".
+        iModIntro.
+        iPureIntro. simpl.
+        eexists a, c.
+        pose proof fin_to_nat_lt a.
+        pose proof fin_to_nat_lt c.
+        pose proof fin_to_nat_lt qs.
+        pose proof fin_to_nat_lt (f(a,c)).
+        rewrite !fmap_app/=.
+        repeat split; try (lia||done).
+        * rewrite /f_frag in Heq.
+          case_bool_decide; lia.
+        * case_bool_decide as Heq'.
+          -- (* f_frag m cannot by qs *)
+            rewrite /f_frag in K1.
+             case_bool_decide; last lia.
+             rewrite -K1 in Heq'.
+             case_bool_decide.
+             ++ assert (p*(s+1)>=p*r)%nat ;try lia.
+                rewrite /ge.
+                apply Nat.mul_le_mono; lia.
+             ++ assert ((p*r<=(m - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) ))%nat; last lia.
+                apply Nat.mul_le_mono; last lia.
+                
+                trans ((m - r * (q + 1 - p)) `div` (s + 1 - r) * (s + 1) + (s+1-r))%nat; last first.
+                { apply Nat.add_le_mono; first done. }
+                
+                apply Nat.mul_le_mono; last lia.
+                destruct (decide (r=(s+1)%nat)); first lia.
+                apply Nat.div_le_lower_bound; first lia.
+                apply Nat.le_add_le_sub_l.
+                rewrite Nat.mul_sub_distr_l Nat.mul_sub_distr_r.
+                rewrite Nat.add_sub_assoc; last first.
+                { apply Nat.mul_le_mono; lia. }
+                
+                lia.
+                assert (m-r*(q+1-p))
+                
+          -- 
+      + admit.
+      
+      Unshelve. 
+      { intros.
         rewrite /f_frag.
         rewrite bool_decide_eq_true_2; last done.
         replace (S (_-_))%nat with (((q+1)*(s+1)))%nat by lia.
