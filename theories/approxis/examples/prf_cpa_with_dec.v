@@ -1,11 +1,12 @@
 (* CPA security of a PRF based symmetric encryption scheme. *)
 From clutch.approxis Require Import approxis map list.
-From clutch.approxis.examples Require Import prf symmetric security_aux option xor.
+From clutch.approxis.examples Require Import symmetric_init security_aux option xor.
+From clutch.approxis.examples Require prf_local_state.
 Set Default Proof Using "Type*".
 
 Section defs.
 
-  (** We will prove CPA security of a symmetric encryption scheme based on an
+  (** We will prove CPA security xof a symmetric encryption scheme based on an
   (idealised) PRF.
 
 References for the encryption scheme:
@@ -24,6 +25,12 @@ We prove the portions of the above theorems that are concerned with the reductio
   Variable Input : nat.
   Variable Output : nat.
 
+  Local Instance prf_params : prf_local_state.PRF_localstate_params := {|
+      prf_local_state.card_key := Key
+    ; prf_local_state.card_input := Input
+    ; prf_local_state.card_output := Output
+  |}.
+
   Let Message := Output.
   Let Cipher := Input * Output.
 
@@ -41,19 +48,34 @@ We prove the portions of the above theorems that are concerned with the reductio
         let: "z" := "prf_key" "r" in
         ("r", xor "msg" "z").
 
+  Definition prf_dec : val :=
+    λ:"prf" "key",
+      let: "prf_key" := "prf" "key" in
+      λ: "cipher",
+        let: "r" := Fst "cipher" in
+        let: "c" := Snd "cipher" in
+        let: "z" := "prf_key" "r" in
+        xor "c" "z".
+
   (** We specialize the construction to an idealized random function family. *)
   Definition rf_keygen : val := λ:<>, rand #Key.
   Definition rf_enc : val :=
-    λ:"key", prf_enc (λ:<>, random_function #Output) "key".
+    λ: "mapref" "key", prf_enc (λ:<>, prf_local_state.random_function "mapref" #Output) "key".
   Definition rf_rand_cipher : val :=
     λ:<>, let:"i" := rand #Input in let:"o" := rand #Output in ("i", "o").
-  Definition rf_dec : val := #().
-  Local Instance SYM_param : SYM_params :=
+  Definition rf_dec : val :=
+    λ: "mapref" "key", prf_dec (λ:<>, prf_local_state.random_function "mapref" #Output) "key".
+  
+  Definition rf_scheme : expr :=
+    let: "mapref" := init_map #() in
+    (rf_enc "mapref", rf_dec "mapref").
+  #[local] Instance SYM_param : SYM_init_params :=
     {| card_key := Key ; card_message := Message ; card_cipher := Cipher |}.
-  Local Instance sym_rf_scheme : SYM :=
-    {| keygen := rf_keygen ;
-      enc := rf_enc ; rand_cipher := rf_rand_cipher ; dec := rf_dec |}.
-  Definition rf_scheme : val := sym_scheme.
+
+  #[local] Instance sym_rf_scheme : SYM_init :=
+    {|  keygen := rf_keygen
+      ; enc_scheme := rf_scheme
+      ; rand_cipher := rf_rand_cipher |}.
 
   (** RandML types of the scheme. *)
   Definition TMessage := TInt.
@@ -62,23 +84,264 @@ We prove the portions of the above theorems that are concerned with the reductio
   Definition TOutput := TInt.
   Definition TCipher := (TInput * TMessage)%ty.
 
+  Section Correctness.
+    Context `{!approxisRGS Σ}.
+    Variable xor_spec : XOR_spec.
+
+    Lemma prf_enc_sem_typed (HleInOut : Input ≤ Output) : ⊢
+      REL prf_enc <<
+        prf_enc :
+          (lrel_int → prf_local_state.lrel_input → prf_local_state.lrel_output) →
+          lrel_int → prf_local_state.lrel_input →
+            lrel_int * lrel_int.
+    Proof with rel_pures_l; rel_pures_r.
+      rewrite /prf_enc... rel_arrow_val.
+      iIntros (prf1 prf2) "#H"...
+      rel_arrow_val.
+      iIntros (v1 v2 [x [eq1 eq2]]); subst...
+      rel_bind_l (prf1 _); rel_bind_r (prf2 _).
+      rel_apply (refines_bind _ _ _ (prf_local_state.lrel_input → prf_local_state.lrel_output)).
+      { rel_apply "H". rewrite /lrel_car. simpl. iExists _. done. }
+      clear x; iIntros (prfkeyed1 prfkeyed2) "#H'"...
+      rel_arrow_val.
+      iIntros (v1 v2 [msg [eq1 [eq2 ineqmsg]]]); subst...
+      rel_apply refines_couple_UU; first done.
+      iIntros (n Hbound). iModIntro...
+      rel_bind_l (prfkeyed1 _); rel_bind_r (prfkeyed2 _).
+      rel_apply refines_bind.
+      - rel_apply "H'". iPureIntro.
+        exists n. repeat split; try done; try (rewrite /card_input; rewrite /dummy_prf_params); try lia.
+        rewrite /prf_local_state.card_input. simpl. lia.
+      - iIntros (v v' [x [eq1 [eq2 ineq]]]); subst...
+        rel_apply refines_pair; first rel_values.
+        rewrite /prf_local_state.card_input in ineqmsg. simpl in ineqmsg.
+        rewrite /prf_local_state.card_output in ineq. simpl in ineq.
+        replace x with (Z.of_nat (Z.to_nat x)) by lia.
+        rel_apply_l (xor_correct_l ⊤ []); try lia.
+        rel_apply_r (xor_correct_r ⊤ []); try lia.
+        rel_values.
+    Qed.
+
+    Lemma rf_enc_sem_typed_applied (HleInOut : Input ≤ Output) lm lm' M :
+        map_list lm M ∗ map_slist lm' M
+      ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+          → ∃ k : nat, y = #k ∧ k <= prf_local_state.card_output ⌝
+      ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S prf_local_state.card_input)%nat ⌝ ⊢
+      REL prf_enc (λ: <>, prf_local_state.random_function #lm #prf_local_state.card_output)%V <<
+      prf_enc (λ: <>, prf_local_state.random_function #lm' #prf_local_state.card_output)%V :
+          lrel_int → prf_local_state.lrel_input → lrel_int * lrel_int.
+    Proof with rel_pures_l; rel_pures_r.
+      iIntros "[Hmap [Hmap' [%Himg %Hdom]]]".
+      rewrite /rf_enc...
+      set (P := ( ∃ (M : gmap nat val),
+                      map_list  lm  M
+                    ∗ map_slist lm' M
+                    ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+                            → ∃ k : nat, y = #k ∧ k <= prf_local_state.card_output ⌝
+                    ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S prf_local_state.card_input)%nat ⌝
+                )%I).
+      rel_apply (refines_na_alloc P
+        (nroot.@"RED") with "[Hmap Hmap']") ; iFrame.
+      iSplitL. { iPureIntro. split; assumption. }
+      iIntros "#Hinv".
+      repeat rel_apply refines_app.
+      - rel_apply prf_enc_sem_typed. assumption. 
+      - rel_arrow_val. lrintro "tmp"...
+        rel_apply prf_local_state.random_function_sem_typed_inv; last iAssumption.
+        exists True%I. rewrite /P.
+        apply bi.equiv_entails; split;
+        [iIntros "HP"; iSplitR; first done | iIntros "[_ HP]"];
+        iAssumption.
+    Qed.
+    
+
+    Lemma rf_enc_sem_typed (HleInOut : Input ≤ Output) lm lm' M :
+        map_list lm M ∗ map_slist lm' M
+      ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+          → ∃ k : nat, y = #k ∧ k <= prf_local_state.card_output ⌝
+      ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S prf_local_state.card_input)%nat ⌝ ⊢
+      REL rf_enc #lm <<
+        rf_enc #lm' :
+          lrel_int → prf_local_state.lrel_input → lrel_int * lrel_int.
+    Proof with rel_pures_l; rel_pures_r.
+      iIntros "[Hmap [Hmap' [%Himg %Hdom]]]".
+      rewrite /rf_enc...
+      set (P := ( ∃ (M : gmap nat val),
+                      map_list  lm  M
+                    ∗ map_slist lm' M
+                    ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+                            → ∃ k : nat, y = #k ∧ k <= prf_local_state.card_output ⌝
+                    ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S prf_local_state.card_input)%nat ⌝
+                )%I).
+      rel_apply (refines_na_alloc P
+        (nroot.@"RED") with "[Hmap Hmap']") ; iFrame.
+      iSplitL. { iPureIntro. split; assumption. }
+      iIntros "#Hinv".
+      rel_arrow_val.
+      iIntros (v1 v2 [x [eq1 eq2]]); subst...
+      repeat rel_apply refines_app.
+      - rel_apply prf_enc_sem_typed. assumption. 
+      - rel_arrow_val. clear x. lrintro "tmp"...
+        rel_apply prf_local_state.random_function_sem_typed_inv; last iAssumption.
+        exists True%I. rewrite /P.
+        apply bi.equiv_entails; split;
+        [iIntros "HP"; iSplitR; first done | iIntros "[_ HP]"];
+        iAssumption.
+      - rel_vals.
+    Qed.
+
+    Theorem rf_scheme_correct lm M :
+        map_list lm M
+      ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+          → ∃ k : nat, y = #k ∧ k <= prf_local_state.card_output ⌝
+      ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S prf_local_state.card_input)%nat ⌝
+      ⊢ refines top
+        (let: "rf_dec" := (rf_enc #lm, rf_dec #lm) in
+        let: "rf_enc" := Fst "rf_dec" in
+        let: "rf_dec" := Snd "rf_dec" in
+        let: "k" := rf_keygen #() in
+        λ: "msg",
+          "rf_dec" "k" ("rf_enc" "k" "msg"))
+        (λ: "msg", "msg") (prf_local_state.lrel_output → prf_local_state.lrel_output).
+    Proof with rel_pures_l; rel_pures_r.
+      iIntros "[Hmap [%Himg %Hdom]]".
+      rewrite /rf_enc/rf_dec...
+      set (P :=
+        (∃ M, map_list lm M
+        ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+            → ∃ k : nat, y = #k ∧ k <= Output ⌝
+        ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S Input)%nat ⌝
+      )%I).
+      rel_apply (refines_na_alloc P (nroot.@"rf_scheme_correc"));
+      iFrame. iSplitR; first (iPureIntro; split; assumption).
+      iIntros "#Inv".
+      rewrite /rf_keygen...
+      rel_apply refines_randU_l.
+      iIntros (k Hkbound)...
+      rel_arrow_val.
+      iIntros (v1 v2 [msg [eq1 [eq2 Hmsgbound]]]); subst...
+      rewrite /prf_local_state.card_input in Hmsgbound. simpl in Hmsgbound.
+      rewrite /prf_enc...
+      rewrite /prf_local_state.random_function...
+      rewrite -/prf_local_state.random_function. clear Himg Hdom M.
+      rel_apply refines_na_inv; iSplitL; first iAssumption.
+      iIntros "[[%M >[Hmap [%Himg %Hdom]]] Hclose]".
+      rel_apply refines_randU_l.
+      iIntros (r Hrbound)...
+      rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
+      iIntros (z) "Hmap %Hz"; subst.
+      destruct (M !! r) as [y |] eqn:eq; simpl...
+      - eapply elem_of_map_img_2 in eq as Hy.
+        apply Himg in Hy as [z [eqyz Hzbound]]; subst...
+        rewrite /prf_local_state.card_output in Hzbound. simpl in Hzbound.
+        rel_bind_l (xor _ _).
+        replace msg with (Z.of_nat (Z.to_nat msg)) by lia.
+        rel_apply xor_correct_l; try lia.
+        rewrite /prf_dec...
+        rewrite /prf_local_state.random_function...
+        rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
+        iIntros (tmpres) "Hmap %eq'".
+        rewrite eq in eq'. simpl in eq'. subst...
+        assert (xor_ineq : Z.to_nat (xor_sem (Z.to_nat msg) z) < S Message)
+          by (rewrite Nat2Z.id; apply xor_dom; lia).
+        rel_apply xor_correct_l; try lia.
+        { rewrite Z2Nat.id; lia. }
+        rel_apply refines_na_close; iFrame; iFrame; iSplitR;
+        first (iPureIntro; split; assumption).
+        rel_vals. iExists _.
+        iPureIntro. repeat split.
+        * rewrite Nat2Z.id. rewrite xor_sem_inverse_r; try lia; symmetry.
+          rewrite Z2Nat.id; try lia. reflexivity.
+        * apply Nat2Z.is_nonneg.
+        * rewrite /prf_local_state.card_input; simpl.
+          apply inj_le.
+          apply PeanoNat.lt_n_Sm_le.
+          apply xor_dom; last lia.
+          rewrite Nat2Z.id. apply xor_dom; lia.
+      - rel_apply refines_randU_l.
+        iIntros (z Hzbound)...
+        rel_apply (refines_set_l with "[-Hmap]"); last iAssumption.
+        iIntros "Hmap"...
+        replace msg with (Z.of_nat (Z.to_nat msg)) by lia.
+        rel_apply xor_correct_l; try lia...
+        rewrite /prf_dec...
+        rewrite /prf_local_state.random_function...
+        rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
+        iIntros (tmpres) "Hmap %Hreseq".
+        rewrite lookup_insert in Hreseq.
+        simpl in Hreseq. subst...
+        assert (xor_ineq : Z.to_nat (xor_sem (Z.to_nat msg) z) < S Message)
+          by (rewrite Nat2Z.id; apply xor_dom; lia).
+        rel_apply xor_correct_l; try (rewrite Nat2Z.id; apply xor_dom); try lia.
+        rel_apply refines_na_close; iFrame; iFrame; iSplitR.
+        {
+          iPureIntro. split.
+          - intros y Hy. apply map_img_insert in Hy.
+            rewrite elem_of_union in Hy. destruct Hy as [Heq | Hy].
+            + rewrite elem_of_singleton in Heq; subst.
+              exists z; split; done.
+            + apply Himg. 
+              eapply map_img_delete_subseteq. apply Hy.
+          - intros x Hx. rewrite dom_insert in Hx. rewrite elem_of_elements in Hx.
+            rewrite elem_of_union in Hx. destruct Hx as [Hxeq | Hx].
+            + rewrite elem_of_singleton in Hxeq; subst.
+              rewrite /prf_local_state.card_input. simpl. rewrite /Message.
+              eapply Nat.le_lt_trans; first apply Hrbound. lia.
+            + apply Hdom. apply elem_of_elements. apply Hx.
+        }
+        rel_vals. iExists _.
+        iPureIntro. repeat split.
+        * rewrite Nat2Z.id. rewrite xor_sem_inverse_r; try lia. symmetry.
+          rewrite Nat2Z.id. reflexivity.
+        * apply Nat2Z.is_nonneg.
+        * rewrite /prf_local_state.card_input; simpl.
+          apply inj_le.
+          apply PeanoNat.lt_n_Sm_le.
+          apply xor_dom; try (rewrite Nat2Z.id; apply xor_dom); try lia.
+      Unshelve. apply gset_fin_set.
+    Qed.
+
+  End Correctness.
+
   (** We will prove CPA security of the scheme using the idealised random
       function. We assume that the adversaries are well-typed. *)
   Variable adv : val.
   Definition TAdv := ((TMessage → (TOption TCipher)) → TBool)%ty.
   Variable adv_typed : (∅ ⊢ₜ adv : TAdv).
 
-
   Section proofs.
     Context `{!approxisRGS Σ}.
     Variable xor_spec : XOR_spec.
 
+    Lemma refines_rf_scheme_l K E e A :
+      (∀ lm, map_list lm ∅ -∗
+        refines E (fill K (rf_enc #lm, rf_dec #lm)) e A)
+      ⊢ refines E (fill K rf_scheme) e A.
+    Proof. iIntros "H".
+      rewrite /rf_scheme.
+      rel_apply refines_init_map_l.
+      iIntros (lm0) "Hmap".
+      rel_pures_l.
+      rel_apply "H". iAssumption.
+    Qed.
+
+    Lemma refines_rf_scheme_r K E e A :
+      (∀ lm, map_slist lm ∅ -∗
+        refines E e (fill K (rf_enc #lm, rf_dec #lm)) A)
+      ⊢ refines E e (fill K rf_scheme) A.
+    Proof. iIntros "H".
+      rewrite /rf_scheme.
+      rel_apply refines_init_map_r.
+      iIntros (lm0) "Hmap".
+      rel_pures_r.
+      rel_apply "H". iAssumption.
+    Qed.
 
 (* Proof Sketch
 
 We track the previously sampled PRF elements in the map M. To ensure that we
 query a fresh element and PRF behaves randomly, we pay |dom(M)| error credits.
-The counter q tracks this size, i.e., q = |dom(M)|.
+The counter q tracks this size, i.e., q = |dom(M)|.PRF
 
 In total, we have an error budget of ε₀ = (Q-1)Q/2N. This is enough to sum over
 Q calls, each of which consumes error q/N, where q is the number of previously
@@ -148,25 +411,28 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
       intros ->. simpl. iIntros "[??]". iFrame.
     Defined.
 
-
     Theorem rf_is_CPA (Q : nat) :
       ↯ ((Q-1) * Q / (2 * S Input))
       ⊢
-      (REL (CPA #true adv rf_scheme #Q)
+      (REL (CPA #true adv sym_scheme #Q)
            <<
-           (CPA #false adv rf_scheme #Q) : lrel_bool).
+           (CPA #false adv sym_scheme #Q) : lrel_bool).
     Proof with (rel_pures_l ; rel_pures_r).
       iIntros "ε".
-      rewrite /CPA/symmetric.CPA...
-      rewrite /rf_scheme/rf_enc/prf_enc.
-      rewrite /get_keygen... rewrite /rf_keygen...
+      rewrite /CPA...
+      rewrite /get_enc_scheme/get_keygen...
+      rewrite /rf_scheme...
+      rel_apply refines_init_map_l;
+      iIntros (mapref) "Hmap".
+      rel_apply refines_init_map_r;
+      iIntros (mapref') "Hmap'"...
+      rewrite /rf_enc/rf_dec...
+      rewrite /rf_keygen...
       rel_apply (refines_couple_UU Key id) => //.
       iIntros (key) "!> %"...
-      rewrite /get_enc/get_rand_cipher...
-      rewrite /rf_enc /prf_enc /random_function...
-      rel_apply_l refines_init_map_l.
-      iIntros (mapref) "mapref". idtac...
-      rewrite /prf_enc/get_card_message...
+      rewrite /get_enc...
+      rewrite /prf_enc /prf_local_state.random_function...
+      rewrite /get_rand_cipher...
       rel_bind_l (q_calls _ _ _)%E ; rel_bind_r (q_calls _ _ _)%E.
       unshelve iApply (refines_bind with "[-] []").
       1: exact (interp (TMessage → (TOption TCipher)) []).
@@ -182,6 +448,7 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
         replace (_ → _)%lrel with (interp TAdv []) by easy.
         iApply refines_typed. assumption.
       }
+      rewrite /get_card_message...
       rewrite /q_calls...
       rel_alloc_l counter as "counter" ; rel_alloc_r counter' as "counter'"...
 
@@ -244,7 +511,8 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
           rel_apply_l (refines_set_l with "[-mapref] [$mapref]").
           iIntros "mapref"...
           rel_bind_l (xor _ _).
-          rel_apply_l xor_correct_l; [done | done | lia |].
+          replace msg with (Z.of_nat (Z.to_nat msg)) by lia.
+          rel_apply_l xor_correct_l; [ lia | lia | lia |].
           iApply (refines_na_close with "[-]").
           iFrame. iSplitL... 2: rel_vals.
           iExists (q+1).
@@ -263,21 +531,25 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
         Unshelve. apply xor_bij.
     Qed.
 
-
     Theorem rf_is_CPA' (Q : nat) :
-      ↯ ((Q-1) * Q / (2 * S Input)) ⊢ (REL (CPA #false adv rf_scheme #Q) << (CPA #true adv rf_scheme #Q) : lrel_bool).
+      ↯ ((Q-1) * Q / (2 * S Input)) ⊢
+        (REL (CPA #false adv sym_scheme #Q) << (CPA #true adv sym_scheme #Q) : lrel_bool).
     Proof with (rel_pures_l ; rel_pures_r).
       iIntros "ε".
-      rewrite /CPA/symmetric.CPA...
-      rewrite /rf_scheme/rf_enc/prf_enc.
-      rewrite /get_keygen... rewrite /rf_keygen...
+      rewrite /CPA...
+      rewrite /get_enc_scheme/get_keygen...
+      rewrite /rf_scheme...
+      rel_apply refines_init_map_l;
+      iIntros (mapref') "Hmap'".
+      rel_apply refines_init_map_r;
+      iIntros (mapref) "Hmap"...
+      rewrite /rf_enc/rf_dec...
+      rewrite /rf_keygen...
       rel_apply (refines_couple_UU Key id) => //.
       iIntros (key) "!> %"...
-      rewrite /get_enc/get_rand_cipher...
-      rewrite /rf_enc /prf_enc /random_function...
-      rel_apply_r refines_init_map_r.
-      iIntros (mapref) "mapref". idtac...
-      rewrite /prf_enc/get_card_message...
+      rewrite /get_enc...
+      rewrite /prf_enc /prf_local_state.random_function...
+      rewrite /get_rand_cipher...
       rel_bind_l (q_calls _ _ _)%E ; rel_bind_r (q_calls _ _ _)%E.
       unshelve iApply (refines_bind with "[-] []").
       1: exact (interp (TMessage → (TOption TCipher)) []).
@@ -293,6 +565,7 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
         replace (_ → _)%lrel with (interp TAdv []) by easy.
         iApply refines_typed. assumption.
       }
+      rewrite /get_card_message...
       rewrite /q_calls...
       rel_alloc_l counter as "counter" ; rel_alloc_r counter' as "counter'"...
 
@@ -383,8 +656,8 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
 
   Lemma rf_CPA_ARC `{approxisRGpreS Σ} `{forall foo, @XOR_spec Σ foo _ _ xor_struct} σ σ' (Q : nat) :
     ARcoupl
-      (lim_exec ((CPA #true adv rf_scheme #Q), σ))
-      (lim_exec ((CPA #false adv rf_scheme #Q), σ'))
+      (lim_exec ((CPA #true adv sym_scheme #Q), σ))
+      (lim_exec ((CPA #false adv sym_scheme #Q), σ'))
       (=)
       ((Q-1) * Q / (2 * S Input)).
   Proof.
@@ -397,8 +670,8 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
 
   Lemma rf_CPA_ARC' Σ `{approxisRGpreS Σ} `{forall foo, @XOR_spec Σ foo _ _ xor_struct} σ σ' (Q : nat) :
     ARcoupl
-      (lim_exec ((CPA #false adv rf_scheme #Q), σ))
-      (lim_exec ((CPA #true adv rf_scheme #Q), σ'))
+      (lim_exec ((CPA #false adv sym_scheme #Q), σ))
+      (lim_exec ((CPA #true adv sym_scheme #Q), σ'))
       (=)
       ((Q-1) * Q / (2 * S Input)).
   Proof.
@@ -410,26 +683,26 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
   Qed.
 
   Corollary CPA_bound_1 Σ `{approxisRGpreS Σ} `{forall foo, @XOR_spec Σ foo _ _ xor_struct} σ σ' (Q : nat) :
-    (((lim_exec ((CPA #true adv rf_scheme #Q), σ)) #true)
+    (((lim_exec ((CPA #true adv sym_scheme #Q), σ)) #true)
      <=
-       ((lim_exec ((CPA #false adv rf_scheme #Q), σ')) #true) + ((Q-1) * Q / (2 * S Input)))%R.
+       ((lim_exec ((CPA #false adv sym_scheme #Q), σ')) #true) + ((Q-1) * Q / (2 * S Input)))%R.
   Proof.
     apply ARcoupl_eq_elim.
     by eapply rf_CPA_ARC.
   Qed.
 
   Corollary CPA_bound_2 Σ `{approxisRGpreS Σ} `{forall foo, @XOR_spec Σ foo _ _ xor_struct} σ σ' (Q : nat) :
-    (((lim_exec ((CPA #false adv rf_scheme #Q), σ)) #true)
+    (((lim_exec ((CPA #false adv sym_scheme #Q), σ)) #true)
      <=
-       ((lim_exec ((CPA #true adv rf_scheme #Q), σ')) #true) + ((Q-1) * Q / (2 * S Input)))%R.
+       ((lim_exec ((CPA #true adv sym_scheme #Q), σ')) #true) + ((Q-1) * Q / (2 * S Input)))%R.
   Proof.
     apply ARcoupl_eq_elim.
     by eapply rf_CPA_ARC'.
   Qed.
 
   Lemma CPA_bound Σ `{approxisRGpreS Σ} `{forall foo, @XOR_spec Σ foo _ _ xor_struct} σ σ' (Q : nat) :
-    (Rabs (((lim_exec ((CPA #true adv rf_scheme #Q), σ)) #true) -
-           ((lim_exec ((CPA #false adv rf_scheme #Q), σ')) #true)) <= ((Q-1) * Q / (2 * S Input)))%R.
+    (Rabs (((lim_exec ((CPA #true adv sym_scheme #Q), σ)) #true) -
+           ((lim_exec ((CPA #false adv sym_scheme #Q), σ')) #true)) <= ((Q-1) * Q / (2 * S Input)))%R.
   Proof.
     apply Rabs_le.
     pose proof CPA_bound_1 Σ σ σ' Q.
@@ -440,31 +713,36 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
 End defs.
 
 Section implementation.
+
   (* Definition bit:=64. *)
   Variable bit : nat.
   Variable Q : nat.
   Variable adv : val.
   Variable adv_typed : (∅ ⊢ₜ adv : TAdv).
-  
+
   Definition Output' := xor.Output' bit.
   Definition Input' := xor.Output' bit.
   Definition Key' := xor.Output' bit.
 
   #[local] Instance XOR_minus_mod : @xor.XOR Output' Output' := xor.XOR_minus_mod bit.
-  #[local] Instance XOR_spec_mod `{!approxisRGS Σ} : @xor.XOR_spec _ _ _ _ XOR_minus_mod := xor.XOR_spec_minus_mod bit.
-
+  #[local] Instance XOR_spec_mod `{!approxisRGS Σ} : @xor.XOR_spec _ _ _ _ XOR_minus_mod :=
+    xor.XOR_spec_minus_mod bit.
 
   Lemma CPA_bound_realistic σ σ' :
-    (Rabs (((lim_exec ((CPA #true adv (rf_scheme Key' Input' Output' _) #Q), σ)) #true) -
-             ((lim_exec ((CPA #false adv (rf_scheme Key' Input' Output' _) #Q), σ')) #true)) <= ((Q-1) * Q / (2 * S Input')))%R.
+    (Rabs (((lim_exec ((CPA #true adv
+      (@sym_scheme (SYM_param Key' Input' Output') (sym_rf_scheme Key' Input' Output' XOR_minus_mod))
+      #Q), σ)) #true) -
+             ((lim_exec ((CPA #false adv
+      (@sym_scheme (SYM_param Key' Input' Output') (sym_rf_scheme Key' Input' Output' XOR_minus_mod))
+      #Q), σ')) #true)) <= ((Q-1) * Q / (2 * S Input')))%R.
   Proof.
-    unshelve epose proof CPA_bound Key' Input' Output' _ adv _ _ σ σ' Q as H.
-    - apply _.
-    - assumption.
+    unshelve epose proof CPA_bound Key' Input' Output' XOR_minus_mod adv _ _ σ σ' Q as H.
+    - apply adv_typed.
     - apply approxisRΣ.
     - apply subG_approxisRGPreS. apply subG_refl.
     - intros. apply _.
     - done.
   Qed.
+
 
 End implementation.

@@ -3,6 +3,7 @@ From clutch.prob_lang Require Import notation lang.
 From clutch.approxis Require Import app_weakestpre model.
 From clutch.prob_lang.typing Require Import types tychk.
 From clutch.approxis Require Import reltac2 approxis.
+From clutch.approxis.examples Require Import iterable_expression.
 
 From mathcomp Require Import solvable.cyclic choice eqtype finset fintype seq
   ssrbool ssreflect zmodp.
@@ -64,6 +65,17 @@ Class clutch_group `{approxisRGS Σ} {vg : val_group} {cg : clutch_group_struct}
     ; is_mult (x y : vgG) : ⊢ WP vmult x y {{ λ (v : cval), ⌜v = (x * y)%g⌝ }}
     ; is_spec_mult (x y : vgG) K :
       ⤇ fill K (vmult x y) -∗ spec_update ⊤ (⤇ fill K (x * y)%g)
+    ; int_of_vg_sem : vgG → Z
+    ; vg_of_int_sem : Z → option vgG
+    ; vg_of_int_of_vg_sem : ∀ (n : Z) (xg : vgG),
+        vg_of_int_sem n = Some xg → int_of_vg_sem xg = n
+    ; vg_of_int_correct : @det_val_fun1 _ _ Z (option vgG) lrel_int (() + lrel_G)%lrel (λ x, #x)
+      (λ x, match x with
+        | None => NONEV
+        | Some x => SOMEV (vgval x) end) vg_of_int vg_of_int_sem
+    ; int_of_vg_correct : @det_val_fun1 _ _ vgG Z lrel_G lrel_int vgval (λ x, #x)
+        int_of_vg int_of_vg_sem
+    ; vgval_sem_typed : ⊢ to_val_type_rel lrel_G vgval
     }.
 
 Definition vexp_typed `{!clutch_group_struct} :
