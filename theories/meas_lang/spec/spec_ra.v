@@ -108,9 +108,6 @@ Notation "l ↪ℝₛ v" := (l ↪ℝₛ{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪ℝₛ  v") : bi_scope.
 
 
-Local Lemma idk {d} {T : measurableType d} {σ : hp T} : state.fresh σ ∉ dom σ.
-Proof. Admitted.
-
 Section theory.
   Context `{!specG_meas_lang Σ}.
 
@@ -160,7 +157,7 @@ Section theory.
     iIntros "(H1 & Hheap & H2 & H3) /=".
     iMod (ghost_map_insert (state.fresh (heap σ)) with "Hheap") as "[Hheap Hl]".
     { apply not_elem_of_dom.
-      apply idk.  }
+      apply fresh_loc_is_fresh. }
     iModIntro.
     iSplitR "Hl".
     { rewrite /spec_auth//=.
@@ -218,7 +215,7 @@ Section theory.
     iIntros "(H1 & H2 & Htapes & H3) /=".
     iMod (ghost_map_insert (state.fresh (tapes σ)) with "Htapes") as "[H Hl]".
     { apply not_elem_of_dom.
-      apply (@idk _ _ (tapes σ)).}
+      apply fresh_loc_is_fresh. }
     iModIntro.
     iSplitR "Hl"; last by iApply "Hl".
     iSplitL "H1"; first by iApply "H1".
@@ -259,7 +256,7 @@ Section theory.
     iIntros "(H1 & H2 & H3 & Htapes) /=".
     iMod (ghost_map_insert (state.fresh (utapes σ)) with "Htapes") as "[H Hl]".
     { apply not_elem_of_dom.
-      apply (@idk _ _ (utapes σ)). }
+      apply fresh_loc_is_fresh. }
     iModIntro.
     iSplitR "Hl"; last by iApply "Hl".
     iSplitL "H1"; first by iApply "H1".

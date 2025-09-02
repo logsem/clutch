@@ -80,21 +80,6 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
 Definition substU (b : string) (x : (val * expr)%type) : expr :=
   subst b x.1 x.2.
 
-(*
-Lemma subst_preimage_full (x : string) (s1 : val_shape) (s2 : expr_shape) (s : expr_shape) :
-    (s = shape_subst x s1 s2) ->
-      ((val_ST (gen_val s1)) `*` (expr_ST (gen_expr s2))) `<=`
-      (substU x @^-1` (expr_ST (gen_expr s))).
-Proof. Admitted.
-
-
-Lemma subst_preimage_emp (x : string) (s1 : val_shape) (s2 : expr_shape) (s : expr_shape) :
-    (s ≠ shape_subst x s1 s2) ->
-      (substU x @^-1` (expr_ST (gen_expr s)) = set0).
-Proof. Admitted.
-*)
-
-
 Lemma shape_subst_respect s b v e: expr_ST s (substU b (v, e))-> shape_subst b (shape_val v) (shape_expr e) = shape_expr s.
 Proof.
   revert s e b v.
@@ -951,38 +936,6 @@ Proof.
   rewrite Hrewrite.
   ms_solve; apply: sub_sigma_algebra; by eexists _.
 Qed. 
-  (* (** Attempt *) *)
-  (* generalize dependent s. *)
-  (* fix FIX 1. *)
-  (* destruct s; simpl. *)
-  (* - intros H. *)
-  (* (** End of attempt*) *)
-  
-  (*
-  rewrite -(expr_shape_decomp (expr_ST s)).
-  rewrite preimage_bigcup.
-  rewrite setI_bigcupr.
-  apply (@bigcup_measurable _ (val * expr)%type).
-  move=>k _.
-   *)
-  (* So now, we know all terms in (expr_ST s) have a single shape (the shape of s)
-     However, it's not all terms of that shape, it's only a susbet.
-     How do we describe the preimage in terms of s?
-
-     If the shapes don't match up, the preimage intersect the set is surely empty.
-     Otherwise, I need a lemma that uses the fact that the shapes match up
-     to get a _generator_ for the preimages in expr_cyl and val_cyl out of s.
-     The way to define that generator is probably by strucutral recursion.
-   *)
-
-  (*
-  case (ExcludedMiddle ((expr_shape_enum k) = shape_subst b (val_shape_enum i) (expr_shape_enum j))).
-  - intro H.
-    admit.
-  - intro H.
-    admit.
-    *)
-
 
 (** Uncurried substitution 2: can prove that this is a measurable function, by a covering argument *)
 Definition substU' (x : (<<discr binder>> * (val * expr))%type) : expr :=

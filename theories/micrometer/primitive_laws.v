@@ -211,11 +211,19 @@ Lemma wp_rec_löb E f (x : <<discr binders.binder>>) e Φ Ψ :
 Proof.
   iIntros "#Hrec". iLöb as "IH". iIntros (v) "HΨ".
   iApply (@lifting.wp_pure_step_later _ _ _ _ _ _ _ _ _ 1).
+  3: {
+    iNext. iApply ("Hrec" with "[] HΨ"). iIntros "!>" (w) "HΨ".
+    iApply ("IH" with "HΨ").
+  }
   { unfold PureExec.
-    admit. (* rec ctor? *) }
+    intro H.
+    apply nsteps_once.
+    simpl.
+    (* apply Build_pure_step.
+      Build the pure step, perhaps just port the PureSteps machinery *)
+    admit.
+  }
   { admit. (* Should reduce under no hypotheses *) }
-  iNext. iApply ("Hrec" with "[] HΨ"). iIntros "!>" (w) "HΨ".
-  iApply ("IH" with "HΨ").
 Admitted.
 
 Local Open Scope classical_set_scope.
@@ -227,30 +235,25 @@ Lemma wp_alloc E v s :
   {{{ l, RET (LitVC (LitLocC l) : meas_lang.language.val meas_lang); l ↦ v }}}.
 Proof.
   iIntros (Φ) "_ HΦ".
-  iApply wp_lift_atomic_head_step; [done|];  simpl.
-  iIntros (σ1) "[Hh [Ht Hu]] !#".
+  iApply wp_lift_atomic_head_step; [done|]; simpl.
+  iIntros (σ1) "[Hh Ht] !#".
   iSplitR.
   { iPureIntro. (* solve_red *) admit. }
   iApply EXSM_ret.
-  { rewrite prod1.
-    apply measurableX; [ by apply expr_meas_singleton | by apply state_meas_singleton ]. }
-  iIntros "!> //=".
-
-  iMod (ghost_map_insert (γ:=micrometerGS_heap_name) (heap (state_upd_heap <[state.fresh (heap σ1):=v]> σ1)) with "[Hh]") as "[Hl ?]".
-  2: {
-    unfold heap_auth.
-    admit. (* iApply "Hh". *) }
-  1: admit.
-  (* { apply not_elem_of_dom, fresh_loc_is_fresh. } *)
-  (* ?? *)
+  { rewrite prod1. apply measurableX; [ by apply expr_meas_singleton | by apply state_meas_singleton ]. }
+  iNext.
+  iMod ((ghost_map_insert (fresh_loc (heap σ1)) v) with "Hh") as "[H Hl]".
+  { have X := fresh_loc_is_fresh (heap σ1).
+    admit. }
+  iIntros "_ !> //=".
+  iSplitR "HΦ Hl".
+  { iSplitL "H".
+    { iApply "H". }
+    { iApply "Ht". }
+  }
+  iApply "HΦ".
+  iApply "Hl".
 Admitted.
-(*
-
-  iFrame.
-  rewrite map_union_empty -insert_union_singleton_l.
-  iFrame.
-  iIntros "!>". by iApply "HΦ".
-Qed. *)
 
 (*
 Lemma wp_allocN_seq (N : nat) (z : Z) E v s :
