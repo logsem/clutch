@@ -310,22 +310,21 @@ Section Geometric.
   
 
   Lemma twp_presample_several_geometric
-      (e : expr) (α : loc) (N M : nat) (ε : nonnegreal) (Φ : val → iProp Σ)
+      (e : expr) (α : loc) (N M : nat) (Φ : val → iProp Σ)
       (ns : list nat) :
     to_val e = None → 
     (0 < N < S M)%nat →
-    0 < ε → 
-    ↯ ε ∗
     own_geometric_tape α N M ns ∗
     (∀ (n : nat) (suf : list nat), own_geometric_tape α N M (ns ++ n::suf) -∗ WP e [{ Φ }])
     ⊢  WP e [{ Φ }]
   .
   Proof.
-    iIntros (e_not_val O_lt_N_lt_SM ε_pos) "(
-      Herr & 
+    iIntros (e_not_val O_lt_N_lt_SM) "(
       (%b_tape & Hown_ber & %Hgeo_trans) &
       HΦ
     )".
+    iApply twp_rand_err_pos; auto.
+    iIntros (ε ε_pos) "Herr".
     wp_apply (twp_presample_bernoulli_planner N M _ _ 1%nat _ Φ _ (λ _, [1%fin])); [done.. | iFrame].
     iIntros "(%junk & Hown_ber)".
     case: (list_decomposition junk) => [[[|first_junk junk_repeat] junk_zeros] ->] /=.

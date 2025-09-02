@@ -8,10 +8,9 @@ Class geometric_spec `{!erisGS Σ} (geometric_prog geometric_alloc : val) :=
     ∀ (p q : nat),
       (0 < p)%nat →
       (p ≤ q + 1)%nat →
-      ∀ (D : nat → R) (L : R) (ε : R) (ε_term : R),
-      (0 < ε_term)%R →
+      ∀ (D : nat → R) (L : R) (ε : R),
       (∀ (n : nat), 0 <= D n <= L)%R →
-      SeriesC (λ k, ((p / (q + 1)) * (1 - p / (q + 1))^k * D k)%R) = ε → ↯ ε_term -∗
+      SeriesC (λ k, ((p / (q + 1)) * (1 - p / (q + 1))^k * D k)%R) = ε →
       ↯ ε -∗ WP geometric_prog #() #p #q [{ v, ∃ (k : nat), ⌜v = #k⌝ ∗ ↯ (D k) }];
 
     own_geometric_tape (α : loc) (N M : nat) (v : list nat) : iProp Σ;
@@ -39,7 +38,7 @@ Class geometric_spec `{!erisGS Σ} (geometric_prog geometric_alloc : val) :=
       ⊢  WP e [{ Φ }];
   
     twp_geometric_planner :
-    ∀ (p q r : nat) (α : loc) (e : expr) (ε : nonnegreal)
+    ∀ (p q r : nat) (α : loc) (e : expr)
       (L_size L_sum : nat) (Φ : val → iProp Σ)
       (prefix : list nat) (suffix : list nat → list nat) ,
       (0 < p < q + 1)%nat →
@@ -47,8 +46,6 @@ Class geometric_spec `{!erisGS Σ} (geometric_prog geometric_alloc : val) :=
       to_val e = None →
       (∀ (junk : list nat),
          0 < length (suffix (prefix ++ junk)) <= L_size ∧ list_sum (suffix (prefix ++ junk)) ≤ L_sum) →
-      (0 < ε)%R →
-      ↯ ε ∗
       own_geometric_tape α p q prefix ∗
       ((∃ (junk : list nat),
            own_geometric_tape α p q (prefix ++ junk ++ suffix (prefix ++ junk)))
@@ -60,11 +57,9 @@ Class geometric_spec `{!erisGS Σ} (geometric_prog geometric_alloc : val) :=
       0 < p →
       p ≤ (q + 1) →
       to_val e = None →
-      ∀ (r : nat) (D : nat → R) (L : R) (ε : R) (ε_term : R),
-      (0 < ε_term)%R →
+      ∀ (r : nat) (D : nat → R) (L : R) (ε : R),
       (∀ (n : nat), 0 <= D n <= L)%R →
       SeriesC (λ k, ((p / (q + 1)) * (1 - p / (q + 1))^k * D k)%R) = ε →
-      ↯ ε_term ∗
       ↯ ε ∗
       own_geometric_tape α p q l ∗
       (∀ (n : nat),

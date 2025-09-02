@@ -19,13 +19,12 @@ Section DistributionImplem.
         loc_unit : val;
         
         twp_distr_adv_comp :
-        ∀ `{!erisGS Σ} (D : val → R) (ε εf : R) (L : R),
+        ∀ `{!erisGS Σ} (D : val → R) (ε : R) (L : R),
           (0 <= ε)%R →
-          (0 < εf)%R →
           (∀ (v : val), 0 <= D v <= L)%R →
           ε = SeriesC (λ (v : val) , μ v * D v)%R →
           [[{
-                ↯ (εf + ε)
+                ↯ (ε)
           }]]
             sample loc_unit
           [[{
@@ -41,7 +40,7 @@ Section DistributionImplem.
 
         twp_distr_presample_adv_comp : 
         ∀ `{!erisGS Σ}
-          (e : expr) (ε εf: R)
+          (e : expr) (ε : R)
           (Δ : AbsLoc)
           (l : list val)
           (D : val → R)
@@ -49,10 +48,9 @@ Section DistributionImplem.
           (Φ : val → iProp Σ),
           to_val e = None →
           (0 <= ε)%R →
-          (0 < εf)%R →
           (∀ (v : val), 0 <= D v <= L)%R →
           SeriesC (λ (v : val), μ v * D v)%R = ε →
-          ↯ (εf + ε) ∗
+          ↯ (ε) ∗
           own_tape Δ l ∗
           (∀ (v : val),
              own_tape Δ (l ++ [v]) ∗ ↯ (D v) -∗
@@ -71,7 +69,7 @@ Section DistributionImplem.
       }.
   
   Lemma distr_presample_planner `{!erisGS Σ} `{!distr_impl μ} :
-    ∀ (e : expr) (ε : R)
+    ∀ (e : expr)
       (Δ : AbsLoc)
       (l : list val)
       (suf : list val → list val)
@@ -82,26 +80,25 @@ Section DistributionImplem.
     (∀ (v : val), v ∈ range → 0 < μ v)%R →
     (∀ j : list val, length (suf (l ++ j)) <= L) →
     (∀ (v : val) (j : list val), v ∈ suf (l ++ j) → v ∈ range) →
-    (0 < ε)%R →
-    ↯ ε ∗
     own_tape Δ l ∗
     (∀ (j : list val),
        own_tape Δ (l ++ j ++ suf (l ++ j)) -∗
        WP e [{ v, Φ v }]
     ) ⊢ WP e [{ v, Φ v }].
   Proof.
-    iIntros (e ε Δ l suf L range Φ
+    iIntros (e Δ l suf L range Φ
                e_not_val range_possible suf_bounds
-               suf_fin ε_pos)
-      "(Herr & Htape & Hnext)".
+               suf_fin)
+      "(Htape & Hnext)".
+    iApply twp_rand_err_pos; auto.
+    iIntros (ε ε_pos) "Herr".
     set (ψ (l : list val) := (own_tape Δ l ∗ ∃ εf, (⌜0 < εf⌝%R ∗ ↯ εf))%I).
 
     wp_apply (abstract_planner μ ψ _ l suf L range (ε / 2)%R (pmf_pos μ) range_possible).
     { pose proof (SeriesC_correct μ (pmf_ex_seriesC μ)) as is_seriesC_SeriesC.
       unshelve epose proof (@pmf_sum_1 μ (sample loc_unit) _ Σ _ inhabitant) as sum_μ.
       { clear.
-        iIntros (Σ erisGS0 ε εf D L ε_pos εf_gt_0 D_bounds D_sum Φ) "[Herr Hfuel] Hnext".
-        iPoseProof (ec_combine with "[$Hfuel $Herr]") as "Herr".
+        iIntros (Σ erisGS0 ε D L ε_pos D_bounds D_sum Φ) "Herr Hnext".
         wp_apply (twp_distr_adv_comp with "Herr Hnext"); try done.
         rewrite -D_sum.
         apply SeriesC_ext=>v.
@@ -127,9 +124,8 @@ Section DistributionImplem.
       iIntros (ε D L l ε_pos D_bounds D_sum) "([Htape (%εf & %εf_gt_0 & Hfuel)] & Herr & Hnext)".
       iPoseProof (ec_split_le (εf / 2) with "Hfuel") as "[Hfuel1 Hfuel2]".
       { lra. }
-      iPoseProof (ec_combine with "[$Hfuel1 $Herr]") as "Herr".
-      wp_apply (twp_distr_presample_adv_comp _ ε (εf / 2) _ _ D _ _ e_not_val
-                  ltac:(lra) ltac:(lra) D_bounds D_sum
+      wp_apply (twp_distr_presample_adv_comp _ ε  _ _ D _ _ e_not_val
+                  ltac:(lra) D_bounds D_sum
                  with "[$Herr $Htape Hfuel2 Hnext]") as (v) "[Htape Herr]".
       wp_apply ("Hnext" with "Herr").
       iFrame.
@@ -147,5 +143,5 @@ Section DistributionImplem.
     wp_apply "Hnext".
     iFrame.
   Qed.
-  
+
 End DistributionImplem.

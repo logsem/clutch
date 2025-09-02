@@ -101,8 +101,8 @@ Section BernoulliSpecLemmas.
               (λ _ _ Δ l, ∃ l', own_bernoulli_tape Δ p q l' ∗
                             ⌜l = fmap (λ (k : fin 2), #k) l'⌝)%I
               (λ _ _ Δ α, ⌜α = #lbl:Δ⌝)%I #() _ _ _ _).
-    - iIntros (Σ erisGS0 D ε εf L ε_ge_0 εf_pos D_bounds D_sum Φ) "Herr HΦ".
-      iPoseProof (ec_split with "Herr") as "[_ Herr]"; try lra.
+    - iIntros (Σ erisGS0 D ε L ε_ge_0 D_bounds D_sum Φ) "Herr HΦ".
+      (*iPoseProof (ec_split with "Herr") as "[_ Herr]"; try lra.*)
       wp_pures.
       wp_apply (twp_bernoulli_scale _ _ _ (D #0%nat) (D #1%nat) p_le_Sq with "Herr [HΦ]").
       { apply D_bounds. }
@@ -121,8 +121,8 @@ Section BernoulliSpecLemmas.
       wp_apply (twp_bernoulli_alloc with "[$]") as (α) "Hα".
       iApply "HΦ".
       by iFrame.
-    - iIntros (Σ erisGS0 e ε εf Δ l D L Φ e_not_val ε_ge_0 εf_pos D_bounds D_sum) "(Herr & (%l' & Htape & ->) & Hnext)".
-      iPoseProof (ec_split with "Herr") as "[_ Herr]"; try lra.
+    - iIntros (Σ erisGS0 e ε Δ l D L Φ e_not_val ε_ge_0 D_bounds D_sum) "(Herr & (%l' & Htape & ->) & Hnext)".
+      (*)iPoseProof (ec_split with "Herr") as "[_ Herr]"; try lra.*)
       set (D' (k : fin 2) := D #k).
       unshelve wp_apply (twp_presample_bernoulli_adv_comp _ _ _ p q _ _ D' ltac:(lia) _ _ e_not_val  with "[$Herr $Htape Hnext]").
       { move=>k. apply D_bounds. }
