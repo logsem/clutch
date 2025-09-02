@@ -107,6 +107,10 @@ Notation "l ↪ℝₛ{# q } v" := (l ↪ℝₛ{ DfracOwn q } v)%I
 Notation "l ↪ℝₛ v" := (l ↪ℝₛ{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪ℝₛ  v") : bi_scope.
 
+
+Local Lemma idk {d} {T : measurableType d} {σ : hp T} : state.fresh σ ∉ dom σ.
+Proof. Admitted.
+
 Section theory.
   Context `{!specG_meas_lang Σ}.
 
@@ -126,14 +130,8 @@ Section theory.
     iIntros "Ha Hf".
     iDestruct (spec_auth_prog_agree with "Ha Hf") as %->.
     iDestruct "Ha" as "[Ha Hb]".
-    iMod (own_update_2 with "Ha Hf") as "[Ha Hf]".
-    { eapply auth_update, @option_local_update.
-      eapply (exclusive_local_update).
-      admit. }
-    (*
-      eapply (exclusive_local_update _ (Excl e3)).
-      done. } *)
-    rewrite /spec_auth//=.
+    iMod (own_update_2 with "Ha Hf") as "[Ha Hf]"; last first.
+    { rewrite /spec_auth//=.
     (* iFrame is super slow for some reason *)
     iSplitR "Hf".
     { iModIntro.
@@ -142,8 +140,12 @@ Section theory.
       iSplitL "Hb1"; first by iApply "Hb1".
       iSplitL "Hb2"; first by iApply "Hb2".
       by iApply "Hb3". }
-    by iApply "Hf".
-  Admitted.
+    by iApply "Hf". }
+
+    { eapply auth_update, @option_local_update.
+      eapply (exclusive_local_update).
+      done. }
+  Qed.
 
   (** Heap *)
 
@@ -158,7 +160,7 @@ Section theory.
     iIntros "(H1 & Hheap & H2 & H3) /=".
     iMod (ghost_map_insert (state.fresh (heap σ)) with "Hheap") as "[Hheap Hl]".
     { apply not_elem_of_dom.
-      admit. (* fresh_loc_is_fresh. *) }
+      apply idk.  }
     iModIntro.
     iSplitR "Hl".
     { rewrite /spec_auth//=.
@@ -167,7 +169,7 @@ Section theory.
       iSplitL "H2"; first by iApply "H2".
       by iApply "H3". }
     by iApply "Hl".
-  Admitted.
+  Qed.
 
   Lemma spec_auth_update_heap w e1 σ1 l v :
     spec_auth (e1, σ1) -∗ l ↦ₛ{#1} v ==∗
@@ -215,14 +217,15 @@ Section theory.
   Proof.
     iIntros "(H1 & H2 & Htapes & H3) /=".
     iMod (ghost_map_insert (state.fresh (tapes σ)) with "Htapes") as "[H Hl]".
-    { apply not_elem_of_dom. admit. }
+    { apply not_elem_of_dom.
+      apply (@idk _ _ (tapes σ)).}
     iModIntro.
     iSplitR "Hl"; last by iApply "Hl".
     iSplitL "H1"; first by iApply "H1".
     iSplitL "H2"; first by iApply "H2".
     iSplitL "H"; first by iApply "H".
     by iApply "H3".
-  Admitted.
+  Qed.
 
 
   (** UTapes *)
@@ -255,23 +258,22 @@ Section theory.
   Proof.
     iIntros "(H1 & H2 & H3 & Htapes) /=".
     iMod (ghost_map_insert (state.fresh (utapes σ)) with "Htapes") as "[H Hl]".
-    { apply not_elem_of_dom. admit. }
+    { apply not_elem_of_dom.
+      apply (@idk _ _ (utapes σ)). }
     iModIntro.
     iSplitR "Hl"; last by iApply "Hl".
     iSplitL "H1"; first by iApply "H1".
     iSplitL "H2"; first by iApply "H2".
     iSplitL "H3"; first by iApply "H3".
     by iApply "H".
-  Admitted.
+  Qed.
 
 End theory.
-
 
 Lemma spec_ra_init e σ `{specGpreS Σ} :
   ⊢ |==> ∃ _ : specG_meas_lang Σ,
       spec_auth (e, σ) ∗ ⤇ e ∗ ([∗ map] l ↦ v ∈ (heap σ), l ↦ₛ v) ∗ ([∗ map] α ↦ t ∈ (tapes σ), α ↪ₛ t) ∗ ([∗ map] α ↦ t ∈ (utapes σ), α ↪ℝₛ t).
-Proof. Admitted.
-(*
+Proof.
   iMod (own_alloc ((● (Excl' e)) ⋅ (◯ (Excl' e)))) as "(%γp & Hprog_auth & Hprog_frag)".
   { by apply auth_both_valid_discrete. }
   iMod (ghost_map_alloc (heap σ)) as "[%γH [Hh Hls]]".
@@ -289,8 +291,7 @@ Proof. Admitted.
   iSplitL "Hls"; first by iApply "Hls".
   iSplitL "Hαs"; first by iApply "Hαs".
   by iApply "HαUs".
-Qed. *)
-
+Qed.
 
 (** No nat spec tapes *)
 
