@@ -119,7 +119,7 @@ Section semtypes.
 
 End semtypes.
 
-(** ** Properties of the type inrpretation w.r.t. the substitutions *)
+(** ** Properties of the type interpretation w.r.t. the substitutions *)
 Section interp_ren.
   Context `{!clutchRGS Σ}.
   Implicit Types Δ : list (lrel Σ).

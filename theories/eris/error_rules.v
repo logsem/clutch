@@ -262,6 +262,112 @@ Proof.
   lra.
 Qed.
 
+
+Lemma twp_rand_err_incr e ε s E Φ :
+  to_val e = None ->
+  ↯ ε ∗
+  (∀ ε', ⌜ (ε < ε')%R ⌝ -∗ ↯ (ε') -∗ WP e @ s; E [{ Φ }] )
+  ⊢ WP e @ s; E [{ Φ }].
+  Proof.
+    iIntros (?) "[Herr Hwp]".
+    iApply twp_lift_step_fupd_glm; [done|].
+    iIntros (σ1 ε2) "[Hσ1 Hε2]".
+    iApply fupd_mask_intro; [set_solver|].
+    iIntros "Hclose'".
+    iApply glm_err_incr_step.
+    iIntros (ε') "%Hε'".
+    apply Rlt_le in Hε' as Hε''.
+    pose (diff :=((ε' - ε2) Hε'')%NNR).
+    destruct (decide (ε' < 1)%R); last first.
+    {
+      iApply exec_stutter_spend.
+      iPureIntro.
+      simpl in *.
+      simpl.
+      lra.
+    }
+    replace (ε') with (ε2 + diff)%NNR; last (apply nnreal_ext; rewrite /diff; simpl; lra).
+    iMod (ec_supply_increase _ diff with "[$]") as "[??]".
+    { rewrite /diff. simpl. simpl in *.
+      lra. }
+    iPoseProof (ec_combine with "[$]") as "Herr".
+    iSpecialize ("Hwp" with "[] Herr").
+    {
+      iPureIntro.
+      simpl in *. simpl.
+      lra.
+    }
+    rewrite !tgl_wp_unfold /tgl_wp_pre /=.
+    rewrite H.
+    iMod ("Hclose'").
+    iMod ("Hwp" with "[$]").
+    by iApply exec_stutter_free.
+  Qed.
+
+
+  Lemma wp_rand_err_incr e ε E Φ :
+    to_val e = None ->
+    ↯ ε ∗
+      (∀ ε', ⌜ (ε < ε')%R ⌝ -∗ ↯ (ε') -∗ WP e @ E {{ Φ }} )
+      ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (?) "[Herr Hwp]".
+    iApply wp_lift_step_fupd_glm; [done|].
+    iIntros (σ1 ε2) "[Hσ1 Hε2]".
+    iApply fupd_mask_intro; [set_solver|].
+    iIntros "Hclose'".
+    iApply glm_err_incr_step.
+    iIntros (ε') "%Hε'".
+    apply Rlt_le in Hε' as Hε''.
+    pose (diff :=((ε' - ε2) Hε'')%NNR).
+    destruct (decide (ε' < 1)%R); last first.
+    {
+      iApply exec_stutter_spend.
+      iPureIntro.
+      simpl in *.
+      simpl.
+      lra.
+    }
+    replace (ε') with (ε2 + diff)%NNR; last (apply nnreal_ext; rewrite /diff; simpl; lra).
+    iMod (ec_supply_increase _ diff with "[$]") as "[??]".
+    { rewrite /diff. simpl. simpl in *.
+      lra. }
+    iPoseProof (ec_combine with "[$]") as "Herr".
+    iSpecialize ("Hwp" with "[] Herr").
+    {
+      iPureIntro.
+      simpl in *. simpl.
+      lra.
+    }
+    rewrite !pgl_wp_unfold /pgl_wp_pre /=.
+    rewrite H.
+    iMod ("Hclose'").
+    iMod ("Hwp" with "[$]").
+    by iApply exec_stutter_free.
+Qed.
+
+
+Lemma twp_rand_err_pos e s E Φ :
+  to_val e = None ->
+  (∀ ε, ⌜ (0 < ε)%R ⌝ -∗ ↯ (ε) -∗ WP e @ s; E [{ Φ }] )
+    ⊢ WP e @ s; E [{ Φ }].
+  Proof.
+    iIntros (?) "?".
+    iMod (ec_zero) as "Herr".
+    iApply (twp_rand_err_incr with "[$]"); auto.
+  Qed.
+
+
+Lemma wp_rand_err_pos e E Φ :
+  to_val e = None ->
+  (∀ ε, ⌜ (0 < ε)%R ⌝ -∗ ↯ (ε) -∗ WP e @ E {{ Φ }} )
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (?) "?".
+    iMod (ec_zero) as "Herr".
+    iApply (wp_rand_err_incr with "[$]"); auto.
+  Qed.
+
 Lemma wp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ :
   TCEq N (Z.to_nat z) →
   ↯ (/ (N+1)) ∗
@@ -1580,6 +1686,111 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
   Qed.
 
 
+  Lemma twp_presample_adv_comp_leq (N : nat) z E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> R) :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    (forall n, (0 <= ε2 n)%R) ->
+    (SeriesC (λ n, (1 / (S N)) * ε2 n) <= ε1)%R →
+    α ↪ (N; ns) ∗
+      ↯ ε1 ∗
+      (∀ (n : fin (S N)), ↯ (ε2 n) ∗ α ↪ (N; ns ++ [n]) -∗ WP e @ E [{ Φ }])
+      ⊢ WP e @ E [{ Φ }].
+  Proof.
+    set (ε3 := SeriesC (λ n, (1 / (S N)) * ε2 n)%R).
+    iIntros (-> Hσ_red Hε2pos Hsum) "(Hα & Hε & Hwp)".
+    iPoseProof (ec_weaken with "Hε") as "Hε".
+    { split; last apply Hsum.
+      apply SeriesC_ge_0'.
+      intros x.
+      real_solver.
+    }
+    iApply twp_presample_adv_comp; eauto; iFrame.
+  Qed.
+
+  Lemma wp_presample_adv_comp_leq (N : nat) z E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> R) :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    (forall n, (0 <= ε2 n)%R) ->
+    (SeriesC (λ n, (1 / (S N)) * ε2 n) <= ε1)%R →
+    α ↪ (N; ns) ∗
+      ↯ ε1 ∗
+      (∀ (n : fin (S N)), ↯ (ε2 n) ∗ α ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
+      ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    set (ε3 := SeriesC (λ n, (1 / (S N)) * ε2 n)%R).
+    iIntros (-> Hσ_red Hε2pos Hsum) "(Hα & Hε & Hwp)".
+    iPoseProof (ec_weaken with "Hε") as "Hε".
+    { split; last apply Hsum.
+      apply SeriesC_ge_0'.
+      intros x.
+      real_solver.
+    }
+    iApply wp_presample_adv_comp; eauto; iFrame.
+  Qed.
+
+  Lemma twp_presample_adv_comp_leq_double (N : nat) z E e α Φ ns (ε11 ε12 : R) (ε21 ε22 : fin (S N) -> R) :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    (forall n, (0 <= ε21 n)%R) ->
+    (forall n, (0 <= ε22 n)%R) ->
+    (SeriesC (λ n, (1 / (S N)) * ε21 n) <= ε11)%R →
+    (SeriesC (λ n, (1 / (S N)) * ε22 n)%R <= ε12)%R →
+    α ↪ (N; ns) ∗
+      ↯ ε11 ∗ ↯ ε12 ∗
+      (∀ (n : fin (S N)), ↯ (ε21 n) ∗ ↯ (ε22 n) ∗ α ↪ (N; ns ++ [n]) -∗ WP e @ E [{ Φ }])
+      ⊢ WP e @ E [{ Φ }].
+  Proof.
+    iIntros (-> Hσ_red Hε21pos Hε22pos Hsum1 Hsum2) "(Hα & Hε11 & Hε12 & Hwp)".
+    set (bigε := λ j, (ε21 j + ε22 j)%R ).
+    iPoseProof (ec_combine with "[$]") as "Hε".
+    iApply (twp_presample_adv_comp_leq _ _ _ _ _ _ _ _ bigε with "[$Hα $Hε Hwp]"); eauto.
+    { intros n.
+      rewrite /bigε.
+      apply Rplus_le_le_0_compat; auto.
+    }
+    - rewrite /bigε.
+      setoid_rewrite Rmult_plus_distr_l.
+      rewrite SeriesC_plus; [ |apply ex_seriesC_finite| apply ex_seriesC_finite].
+      rewrite Rplus_comm.
+      apply Rplus_le_compat; auto.
+    - iIntros (n) "(Hε & Hα)".
+      rewrite /bigε.
+      iPoseProof (ec_split with "Hε") as "(?&?)"; auto.
+      iApply ("Hwp" with "[$]").
+  Qed.
+
+  Lemma wp_presample_adv_comp_leq_double (N : nat) z E e α Φ ns (ε11 ε12 : R) (ε21 ε22 : fin (S N) -> R) :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    (forall n, (0 <= ε21 n)%R) ->
+    (forall n, (0 <= ε22 n)%R) ->
+    (SeriesC (λ n, (1 / (S N)) * ε21 n) <= ε11)%R →
+    (SeriesC (λ n, (1 / (S N)) * ε22 n)%R <= ε12)%R →
+    α ↪ (N; ns) ∗
+      ↯ ε11 ∗ ↯ ε12 ∗
+      (∀ (n : fin (S N)), ↯ (ε21 n) ∗ ↯ (ε22 n) ∗ α ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
+      ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (-> Hσ_red Hε21pos Hε22pos Hsum1 Hsum2) "(Hα & Hε11 & Hε12 & Hwp)".
+    set (bigε := λ j, (ε21 j + ε22 j)%R ).
+    iPoseProof (ec_combine with "[$]") as "Hε".
+    iApply (wp_presample_adv_comp_leq _ _ _ _ _ _ _ _ bigε with "[$Hα $Hε Hwp]"); eauto.
+    { intros n.
+      rewrite /bigε.
+      apply Rplus_le_le_0_compat; auto.
+    }
+    - rewrite /bigε.
+      setoid_rewrite Rmult_plus_distr_l.
+      rewrite SeriesC_plus; [ |apply ex_seriesC_finite| apply ex_seriesC_finite].
+      rewrite Rplus_comm.
+      apply Rplus_le_compat; auto.
+    - iIntros (n) "(Hε & Hα)".
+      rewrite /bigε.
+      iPoseProof (ec_split with "Hε") as "(?&?)"; auto.
+      iApply ("Hwp" with "[$]").
+  Qed.
+
+
   Lemma wp_1_err e E Φ :
     to_val e = None -> (forall σ, reducible (e, σ)) -> ↯ nnreal_one ⊢ WP e @ E {{Φ}}.
   Proof.
@@ -2143,6 +2354,1182 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
       + rewrite HS.
         iFrame.
   Qed.
+
+
+  Lemma twp_presample_amplify_variant_aux N z e E α Φ Ψ (ε : posreal) li (U : list (fin (S N)) -> nat) (L : nat) kwf :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    (forall l : list (fin (S N)), U(l) <= L)%R ->
+    (forall l : list (fin (S N)), Ψ l <-> U(l) = 0) ->
+    (forall l : list (fin (S N)), ¬ Ψ l ->
+      exists c : (fin (S N)), (U(l++[c]) < U(l))%R)  ->
+    (0 < U li) ->
+    (α ↪ (N; li) ∗
+       (↯ (pos_to_nn ε))
+       ⊢ (∀ (i : nat) (HL : (i <= L)%nat),
+           (((∃ lf1, α ↪ (N; lf1) ∗ ↯(εAmp N L ε kwf)) ∨
+               (∃ lf2, α ↪ (N; lf2) ∗  ⌜ U(lf2) + i <= L ⌝ ∗ ↯ (εR N L i ε (mk_fRwf N L i kwf HL))))
+            -∗ WP e @ E [{ Φ }])
+           -∗ WP e @ E [{ Φ }]))%I.
+  Proof.
+    iIntros (? ? HUL HU0 HUdec HUli) "(Htape & Hcr_initial)".
+    iIntros (i HL).
+    iInduction i as [|i'] "IH".
+        - iIntros "Hwp".
+          iApply "Hwp".
+          iRight.
+          iExists li.
+          iFrame.
+          iSplit.
+          { iPureIntro.
+            rewrite Nat.add_0_r.
+            by apply INR_le.
+          }
+          iFrame.
+          rewrite /εR /fR /pos_to_nn /=.
+          rewrite Rmult_1_r //.
+        - iIntros "Hwand".
+          assert (HL' : (i' <= L)%nat) by lia.
+          iSpecialize ("IH" $! HL' with "Htape Hcr_initial").
+          iApply "IH".
+          iIntros  "[[%lf1 [Htape Hcr]]|[%lf2 [Htape (%HUi' & Hcr)]]]".
+          + iApply "Hwand".
+            iLeft; iExists lf1; iFrame.
+          + assert (Hi' : (i' < L)%nat) by lia.
+            assert (0 = U lf2 \/ 0 < U lf2)%nat as [HUlf2 | HUlf2 ]by lia.
+            * iApply "Hwand".
+              iRight.
+              iExists lf2.
+              iFrame.
+              iSplit.
+              {
+                iPureIntro.
+                lia.
+              }
+              iApply ec_weaken; last by iFrame.
+              split; [apply cond_nonneg |].
+              rewrite /εR.
+              apply Rmult_le_compat_l; [left; apply cond_pos |].
+              apply fR_mon_dec.
+
+           * assert (¬ Ψ lf2) as HnΨlf2.
+             {
+               intros HΨlf2.
+               specialize (HU0 lf2) as [HU0 ?].
+               specialize (HU0 HΨlf2).
+               lia.
+             }
+             destruct (HUdec lf2 HnΨlf2) as [target Htarget].
+             pose HMean := (εDistr_mean N L i' ε target (mk_fRwf N L (S i') kwf HL)).
+             wp_apply twp_presample_adv_comp; [done | | apply HMean | ].
+             {
+               intros; apply cond_nonneg.
+             }
+             replace {| k_wf := kwf; i_ub := HL' |} with
+               (fRwf_dec_i N L i' {| k_wf := kwf; i_ub := HL |}); [|apply fRwf_ext].
+             iFrame.
+             iIntros (s) "(Hcr&Htape)".
+             iApply "Hwand".
+             rewrite /εDistr.
+             case_bool_decide.
+             ** iRight. iFrame. simplify_eq.
+                iPureIntro.
+                apply INR_lt in Htarget.
+                lia.
+             ** iLeft. iFrame.
+  Qed.
+
+  Lemma presample_amplify_variant_aux N z e E α Φ Ψ (ε : posreal) li (U : list (fin (S N)) -> nat) (L : nat) kwf :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    (forall l : list (fin (S N)), U(l) <= L)%R ->
+    (forall l : list (fin (S N)), Ψ l <-> U(l) = 0) ->
+    (forall l : list (fin (S N)), ¬ Ψ l ->
+      exists c : (fin (S N)), (U(l++[c]) < U(l))%R)  ->
+    (0 < U li) ->
+    (α ↪ (N; li) ∗
+       (↯ (pos_to_nn ε))
+       ⊢ (∀ (i : nat) (HL : (i <= L)%nat),
+           (((∃ lf1, α ↪ (N; lf1) ∗ ↯(εAmp N L ε kwf)) ∨
+               (∃ lf2, α ↪ (N; lf2) ∗  ⌜ U(lf2) + i <= L ⌝ ∗ ↯ (εR N L i ε (mk_fRwf N L i kwf HL))))
+            -∗ WP e @ E {{ Φ }})
+           -∗ WP e @ E {{ Φ }}))%I.
+  Proof.
+    iIntros (? ? HUL HU0 HUdec HUli) "(Htape & Hcr_initial)".
+    iIntros (i HL).
+    iInduction i as [|i'] "IH".
+        - iIntros "Hwp".
+          iApply "Hwp".
+          iRight.
+          iExists li.
+          iFrame.
+          iSplit.
+          { iPureIntro.
+            rewrite Nat.add_0_r.
+            by apply INR_le.
+          }
+          iFrame.
+          rewrite /εR /fR /pos_to_nn /=.
+          rewrite Rmult_1_r //.
+        - iIntros "Hwand".
+          assert (HL' : (i' <= L)%nat) by lia.
+          iSpecialize ("IH" $! HL' with "Htape Hcr_initial").
+          iApply "IH".
+          iIntros  "[[%lf1 [Htape Hcr]]|[%lf2 [Htape (%HUi' & Hcr)]]]".
+          + iApply "Hwand".
+            iLeft; iExists lf1; iFrame.
+          + assert (Hi' : (i' < L)%nat) by lia.
+            assert (0 = U lf2 \/ 0 < U lf2)%nat as [HUlf2 | HUlf2 ]by lia.
+            * iApply "Hwand".
+              iRight.
+              iExists lf2.
+              iFrame.
+              iSplit.
+              {
+                iPureIntro.
+                lia.
+              }
+              iApply ec_weaken; last by iFrame.
+              split; [apply cond_nonneg |].
+              rewrite /εR.
+              apply Rmult_le_compat_l; [left; apply cond_pos |].
+              apply fR_mon_dec.
+
+           * assert (¬ Ψ lf2) as HnΨlf2.
+             {
+               intros HΨlf2.
+               specialize (HU0 lf2) as [HU0 ?].
+               specialize (HU0 HΨlf2).
+               lia.
+             }
+             destruct (HUdec lf2 HnΨlf2) as [target Htarget].
+             pose HMean := (εDistr_mean N L i' ε target (mk_fRwf N L (S i') kwf HL)).
+             wp_apply wp_presample_adv_comp; [done | | apply HMean | ].
+             {
+               intros; apply cond_nonneg.
+             }
+             replace {| k_wf := kwf; i_ub := HL' |} with
+               (fRwf_dec_i N L i' {| k_wf := kwf; i_ub := HL |}); [|apply fRwf_ext].
+             iFrame.
+             iIntros (s) "(Hcr&Htape)".
+             iApply "Hwand".
+             rewrite /εDistr.
+             case_bool_decide.
+             ** iRight. iFrame. simplify_eq.
+                iPureIntro.
+                apply INR_lt in Htarget.
+                lia.
+             ** iLeft. iFrame.
+  Qed.
+
+
+  (* do one step in the amplification sequence *)
+  Lemma twp_presample_amplify_variant N z e E α Φ Ψ (ε : posreal) li (U : list (fin (S N)) -> nat) L (kwf: kwf N L) :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    (forall l : list (fin (S N)), U(l) <= L)%R ->
+    (forall l : list (fin (S N)), Ψ l <-> U(l) = 0) ->
+    (forall l : list (fin (S N)), ¬ Ψ l ->
+      exists c : (fin (S N)), (U(l++[c]) < U(l))%R)  ->
+    ↯ (pos_to_nn ε) ∗
+      (α ↪ (N; li)) ∗
+      (((∃ lf, ⌜ Ψ lf ⌝ ∗ α ↪ (N; lf)) ∨ (∃ junk, α ↪ (N; junk) ∗ ↯(εAmp N L ε kwf))) -∗ WP e @ E [{ Φ }])
+      ⊢ WP e @ E [{ Φ }].
+  Proof.
+    iIntros (? ? HUL HU0 HUdec) "(Hcr & Htape & Hwp)".
+    destruct (U li) as [|u] eqn:Hu.
+    - iApply "Hwp".
+      iLeft.
+      iExists li.
+      iFrame.
+      iPureIntro.
+      destruct (decide (Ψ li)) as [?|HnΨli]; auto.
+      specialize (HUdec li HnΨli) as [c Hc].
+      apply INR_lt in Hc.
+      lia.
+    - assert (0 < U li) by lia.
+      iApply (twp_presample_amplify_variant_aux with "[Htape Hcr]"); eauto; [iFrame|].
+      iIntros  "[[%lf1 [Htape Hcr]]|[%lf2 [Htape (%HUlf2 & Hcr)]]]"; iApply "Hwp".
+      + iRight. by iFrame.
+      + iLeft. iFrame.
+        Unshelve.
+        2: exact L.
+        2: lia.
+        iPureIntro.
+        apply HU0.
+        lia.
+  Qed.
+
+
+  (* do one step in the amplification sequence *)
+  Lemma wp_presample_amplify_variant N z e E α Φ Ψ (ε : posreal) li (U : list (fin (S N)) -> nat) L (kwf: kwf N L) :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    (forall l : list (fin (S N)), U(l) <= L)%R ->
+    (forall l : list (fin (S N)), Ψ l <-> U(l) = 0) ->
+    (forall l : list (fin (S N)), ¬ Ψ l ->
+      exists c : (fin (S N)), (U(l++[c]) < U(l))%R)  ->
+    ↯ (pos_to_nn ε) ∗
+      (α ↪ (N; li)) ∗
+      (((∃ lf, ⌜ Ψ lf ⌝ ∗ α ↪ (N; lf)) ∨ (∃ junk, α ↪ (N; junk) ∗ ↯(εAmp N L ε kwf))) -∗ WP e @ E {{ Φ }})
+      ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (? ? HUL HU0 HUdec) "(Hcr & Htape & Hwp)".
+    destruct (U li) as [|u] eqn:Hu.
+    - iApply "Hwp".
+      iLeft.
+      iExists li.
+      iFrame.
+      iPureIntro.
+      destruct (decide (Ψ li)) as [?|HnΨli]; auto.
+      specialize (HUdec li HnΨli) as [c Hc].
+      apply INR_lt in Hc.
+      lia.
+    - assert (0 < U li) by lia.
+      iApply (presample_amplify_variant_aux with "[Htape Hcr]"); eauto; [iFrame|].
+      iIntros  "[[%lf1 [Htape Hcr]]|[%lf2 [Htape (%HUlf2 & Hcr)]]]"; iApply "Hwp".
+      + iRight. by iFrame.
+      + iLeft. iFrame.
+        Unshelve.
+        2: exact L.
+        2: lia.
+        iPureIntro.
+        apply HU0.
+        lia.
+  Qed.
+
+
+  Lemma twp_presample_variant N z e E α Φ Ψ (ε : nonnegreal) li (U : list (fin (S N)) -> nat) (M : nat) :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    (0 < ε)%R ->
+    (forall l : list (fin (S N)), U(l) <= M)%R ->
+    (forall l : list (fin (S N)), Ψ l <-> U(l) = 0) ->
+    (forall l : list (fin (S N)), ¬ Ψ l ->
+                             exists c : (fin (S N)), (U(l++[c]) < U(l))%R)  ->
+    ↯ (ε) ∗
+      (α ↪ (N; li)) ∗
+      (∀ lf, ⌜ Ψ lf ⌝ ∗ α ↪ (N; lf) -∗ WP e @ E [{ Φ }])
+      ⊢ WP e @ E [{ Φ }].
+  Proof.
+    iIntros (? ? Hε HUL HU0 HUdec) "(Hcr & Htape & Hwp)".
+    assert (N = 0 \/ 0 < N) as [-> | HN] by lia.
+    (* Corner case: N = 0 *)
+    {
+      assert (exists n, U li <= n) as [n Hn].
+      {
+        exists M.
+        by apply INR_le.
+      }
+      iInduction (n) as [|?] "IH" forall (li Hn).
+      - iApply "Hwp".
+        iFrame.
+        iPureIntro.
+        apply HU0.
+        lia.
+      - destruct (decide (U li = 0)) as [HUli0 | HUlin0].
+        + iApply "Hwp".
+          iFrame.
+          iPureIntro.
+          by apply HU0.
+        + assert (¬ Ψ li) as HnΨ.
+          {
+            intros HΨ.
+            apply HUlin0.
+            by apply HU0.
+          }
+          iApply twp_presample; auto; iFrame.
+          iIntros (n0) "Hα".
+          destruct (HUdec _ HnΨ) as [c Hc].
+          assert (n0 = 0%fin) as ->.
+          {
+            inv_fin n0; auto.
+            intros i.
+            inv_fin i.
+          }
+          assert (c = 0%fin) as ->.
+          {
+            inv_fin c; auto.
+            intros i ?.
+            inv_fin i.
+          }
+          iApply ("IH" with "[][$][$]").
+          * iPureIntro.
+            apply INR_lt in Hc.
+            lia.
+          * iIntros (lf) "(%Hlf & Hα)".
+            iApply "Hwp"; iFrame; done.
+    }
+    assert (M = 0 \/ 0 < M) as [-> | HL] by lia.
+    (* Corner case: M = 0 *)
+    {
+      iApply "Hwp"; iFrame.
+      iPureIntro.
+      apply HU0.
+      specialize (HUL li).
+      apply INR_le in HUL.
+      lia.
+    }
+    pose kwf := mk_kwf _ _ HN HL.
+    pose ε' := mkposreal ε.(nonneg) Hε.
+    replace ε with (pos_to_nn ε'); last first.
+    { rewrite /ε' /pos_to_nn. by apply nnreal_ext. }
+    iRevert (li) "Htape Hwp".
+    iApply (ec_ind_incr _ ((εAmp N M ε' _)) with "[] Hcr").
+    - apply cond_pos.
+    - rewrite /εAmp /=.
+      rewrite -{1}(Rmult_1_r (nonneg ε)).
+      apply Rmult_lt_compat_l; [real_solver|].
+      apply lt_1_k.
+    - iModIntro.
+      iIntros "[Hind Herr]".
+      iIntros (li) "Hα Hcont".
+      iApply twp_presample_amplify_variant; eauto.
+      iFrame.
+      iIntros  "[[%lf1 [HΨ Htape]]|[%lf2 [Htape Hcr]]]".
+      + iApply "Hcont".
+        iFrame.
+      + iApply ("Hind" with "[Hcr] [$Htape]").
+        * iFrame.
+        * iIntros (?) "(?&?)".
+          iApply ("Hcont" with "[$]").
+     Unshelve. auto.
+  Qed.
+
+  Lemma presample_variant N z e E α Φ Ψ (ε : nonnegreal) li (U : list (fin (S N)) -> nat) (M : nat) :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    (0 < ε)%R ->
+    (forall l : list (fin (S N)), U(l) <= M)%R ->
+    (forall l : list (fin (S N)), Ψ l <-> U(l) = 0) ->
+    (forall l : list (fin (S N)), ¬ Ψ l ->
+                             exists c : (fin (S N)), (U(l++[c]) < U(l))%R)  ->
+    ↯ (ε) ∗
+      (α ↪ (N; li)) ∗
+      (∀ lf, ⌜ Ψ lf ⌝ ∗ α ↪ (N; lf) -∗ WP e @ E {{ Φ }})
+      ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (? ? Hε HUL HU0 HUdec) "(Hcr & Htape & Hwp)".
+    assert (N = 0 \/ 0 < N) as [-> | HN] by lia.
+    (* Corner case: N = 0 *)
+    {
+      assert (exists n, U li <= n) as [n Hn].
+      {
+        exists M.
+        by apply INR_le.
+      }
+      iInduction (n) as [|?] "IH" forall (li Hn).
+      - iApply "Hwp".
+        iFrame.
+        iPureIntro.
+        apply HU0.
+        lia.
+      - destruct (decide (U li = 0)) as [HUli0 | HUlin0].
+        + iApply "Hwp".
+          iFrame.
+          iPureIntro.
+          by apply HU0.
+        + assert (¬ Ψ li) as HnΨ.
+          {
+            intros HΨ.
+            apply HUlin0.
+            by apply HU0.
+          }
+          iApply wp_presample; auto; iFrame.
+          iIntros (n0) "Hα".
+          destruct (HUdec _ HnΨ) as [c Hc].
+          assert (n0 = 0%fin) as ->.
+          {
+            inv_fin n0; auto.
+            intros i.
+            inv_fin i.
+          }
+          assert (c = 0%fin) as ->.
+          {
+            inv_fin c; auto.
+            intros i ?.
+            inv_fin i.
+          }
+          iApply ("IH" with "[][$][$]").
+          * iPureIntro.
+            apply INR_lt in Hc.
+            lia.
+          * iIntros (lf) "(%Hlf & Hα)".
+            iApply "Hwp"; iFrame; done.
+    }
+    assert (M = 0 \/ 0 < M) as [-> | HL] by lia.
+    (* Corner case: M = 0 *)
+    {
+      iApply "Hwp"; iFrame.
+      iPureIntro.
+      apply HU0.
+      specialize (HUL li).
+      apply INR_le in HUL.
+      lia.
+    }
+    pose kwf := mk_kwf _ _ HN HL.
+    pose ε' := mkposreal ε.(nonneg) Hε.
+    replace ε with (pos_to_nn ε'); last first.
+    { rewrite /ε' /pos_to_nn. by apply nnreal_ext. }
+    iRevert (li) "Htape Hwp".
+    iApply (ec_ind_incr _ ((εAmp N M ε' _)) with "[] Hcr").
+    - apply cond_pos.
+    - rewrite /εAmp /=.
+      rewrite -{1}(Rmult_1_r (nonneg ε)).
+      apply Rmult_lt_compat_l; [real_solver|].
+      apply lt_1_k.
+    - iModIntro.
+      iIntros "[Hind Herr]".
+      iIntros (li) "Hα Hcont".
+      iApply wp_presample_amplify_variant; eauto.
+      iFrame.
+      iIntros  "[[%lf1 [HΨ Htape]]|[%lf2 [Htape Hcr]]]".
+      + iApply "Hcont".
+        iFrame.
+      + iApply ("Hind" with "[Hcr] [$Htape]").
+        * iFrame.
+        * iIntros (?) "(?&?)".
+          iApply ("Hcont" with "[$]").
+     Unshelve. auto.
+  Qed.
+
+
+
+  (*
+     Below we prove a version of the almost sure termination rule from
+     Majumdar and Sathiyanarayana, POPL 25. The idea is to have two functions
+     U : list -> nat (called the variant) and V : list -> [0,∞) such that:
+     (1) For every list l, there exists a c such that U(l++[c]) < U(l), i.e. U
+     decreases with strictly positive probability
+     (2) V is a supermartingale, i.e. E[U(l++[c])] <= U(l)
+     (3) For a given fixed maximum value r of V(l), there exists a maximum value L of V.
+
+     If these conditions are satisfied, one can prove that eventually one will presample
+     a tape lf such that U(lf) = 0. The way we realize this in our setting is the
+     following. Suppose we start with a positive amount of error credits ↯ε and an initial
+     tape li. We can then split the credits into two positive halves ↯ε/2 and ↯ε/2. Since
+     V is a supermartingale, we can use the expectation-preserving presampling rules to ensure
+     that at all times we have a list lc and ↯(ε/2)*V(lc)/V(li). This allows us to set a maximum
+     value for V, since once it grows enough this amount of error credits will amount to 1.
+     By condition (3) above, this also sets a maximum value L of U. Now it becomes an easier
+     problem. By condition (1), there always is at least one value that makes U decrease,
+     and we are done whenever we succeed to sample it L times in a row. This can be proven
+     using very similar techniques as the planner rule, i.e. by building an amplification
+     sequence and using error induction.
+
+   *)
+
+
+   (*
+
+     The lemma below describes what happens after a single presampling step. Instead
+     of V, we have a function Vε assigning to every list its appropriate amount of
+     error credits. The supermartingale condition ensures that presampling preserves
+     the expected value of this function.
+
+     Suppose we have an initial list li, and ↯ε ∗ ↯(Vε li). After presampling, one
+     of two outcomes can happen:
+     - We sample an element that decreases U, in which case we have a new list lf1,
+     our first credit component will decrease and our second credit component will
+     be ↯(Vε lf1)
+     - We fail, in which case we have a new list lf2, our first credit component is
+     amplified, and the second component is ↯(Vε lf2)
+
+   *)
+
+
+  Lemma twp_presample_amplify_rsm_aux N z e E α Φ Ψ (ε : posreal) li (Vε : list (fin (S N)) -> R) (U : list (fin (S N)) -> nat) (L : nat) kwf :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    (forall l : list (fin (S N)), Ψ l <-> U(l) = 0) ->
+    (forall l : list (fin (S N)), 0 <= Vε l)%R ->
+    (forall l : list (fin (S N)), (SeriesC (λ (i : fin (S N)), 1/(S N) * Vε(l ++ [i]) ) <= Vε(l))%R ) ->
+    (forall l : list (fin (S N)), ¬ Ψ l ->
+      exists c : (fin (S N)), (U(l++[c]) < U(l))%R)  ->
+    (0 < U li) ->
+    (U li <= L) ->
+    (α ↪ (N; li) ∗
+       (↯ (pos_to_nn ε) ∗ ↯ (Vε li) )
+       ⊢ (∀ (i : nat) (HL : (i <= L)%nat),
+           (((∃ lf1, α ↪ (N; lf1) ∗ ↯(εAmp N L ε kwf) ∗ ↯ (Vε lf1)) ∨
+               (∃ lf2, α ↪ (N; lf2) ∗  ⌜ U(lf2) + i <= L ⌝ ∗ ↯ (εR N L i ε (mk_fRwf N L i kwf HL)) ∗ ↯ (Vε lf2)  ))
+            -∗ WP e @ E [{ Φ }])
+           -∗ WP e @ E [{ Φ }]))%I.
+  Proof.
+    iIntros (? ? HU0 HVεpos Hrsm HUdec H0Uli HUliL) "(Htape & Hcr_initial)".
+    iIntros (i HL).
+    iInduction i as [|i'] "IH".
+        - iIntros "Hwp".
+          iApply "Hwp".
+          iRight.
+          iExists li.
+          iFrame.
+          iSplit.
+          { iPureIntro.
+            rewrite Nat.add_0_r //.
+          }
+          rewrite /εR /fR /pos_to_nn /=.
+          rewrite Rmult_1_r //.
+        - iIntros "Hwand".
+          assert (HL' : (i' <= L)%nat) by lia.
+          iSpecialize ("IH" $! HL' with "Htape Hcr_initial").
+          iApply "IH".
+          iIntros  "[[%lf1 [Htape Hcr]]|[%lf2 [Htape (%HUi' & Hcr1 & Hcr2)]]]".
+          + iApply "Hwand".
+            iLeft; iExists lf1; iFrame.
+          + assert (Hi' : (i' < L)%nat) by lia.
+            assert (0 = U lf2 \/ 0 < U lf2)%nat as [HUlf2 | HUlf2 ]by lia.
+            * iApply "Hwand".
+              iRight.
+              iExists lf2.
+              iFrame.
+              iSplit.
+              {
+                iPureIntro.
+                lia.
+              }
+              iApply ec_weaken; last by iFrame.
+              split; [apply cond_nonneg |].
+              rewrite /εR.
+              apply Rmult_le_compat_l; [left; apply cond_pos |].
+              apply fR_mon_dec.
+
+            * assert (¬ Ψ lf2) as HnΨlf2.
+              {
+                intros HΨlf2.
+                specialize (HU0 lf2) as [HU0 ?].
+                specialize (HU0 HΨlf2).
+                lia.
+              }
+             destruct (HUdec lf2 HnΨlf2) as [target Htarget].
+             pose HMean := (εDistr_mean N L i' ε target (mk_fRwf N L (S i') kwf HL)).
+             wp_apply twp_presample_adv_comp_leq_double ; [done | | | right; apply HMean | apply Hrsm | ].
+             {
+               intros; apply cond_nonneg.
+             }
+             {
+               intros; apply HVεpos.
+             }
+             replace {| k_wf := kwf; i_ub := HL' |} with
+               (fRwf_dec_i N L i' {| k_wf := kwf; i_ub := HL |}); [|apply fRwf_ext].
+             iFrame.
+             iIntros (s) "(Hcr1 & Hcr2 & Htape)".
+             iApply "Hwand".
+             rewrite /εDistr.
+             case_bool_decide.
+             ** iRight. iFrame. simplify_eq.
+                iPureIntro.
+                apply INR_lt in Htarget.
+                lia.
+             ** iLeft. iFrame.
+  Qed.
+
+  Lemma presample_amplify_rsm_aux N z e E α Φ Ψ (ε : posreal) li (Vε : list (fin (S N)) -> R) (U : list (fin (S N)) -> nat) (L : nat) kwf :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    (forall l : list (fin (S N)), Ψ l <-> U(l) = 0) ->
+    (forall l : list (fin (S N)), 0 <= Vε l)%R ->
+    (forall l : list (fin (S N)), (SeriesC (λ (i : fin (S N)), 1/(S N) * Vε(l ++ [i]) ) <= Vε(l))%R ) ->
+    (forall l : list (fin (S N)), ¬ Ψ l ->
+      exists c : (fin (S N)), (U(l++[c]) < U(l))%R)  ->
+    (0 < U li) ->
+    (U li <= L) ->
+    (α ↪ (N; li) ∗
+       (↯ (pos_to_nn ε) ∗ ↯ (Vε li) )
+       ⊢ (∀ (i : nat) (HL : (i <= L)%nat),
+           (((∃ lf1, α ↪ (N; lf1) ∗ ↯(εAmp N L ε kwf) ∗ ↯ (Vε lf1)) ∨
+               (∃ lf2, α ↪ (N; lf2) ∗  ⌜ U(lf2) + i <= L ⌝ ∗ ↯ (εR N L i ε (mk_fRwf N L i kwf HL)) ∗ ↯ (Vε lf2)  ))
+            -∗ WP e @ E {{ Φ }})
+           -∗ WP e @ E {{ Φ }}))%I.
+  Proof.
+    iIntros (? ? HU0 HVεpos Hrsm HUdec H0Uli HUliL) "(Htape & Hcr_initial)".
+    iIntros (i HL).
+    iInduction i as [|i'] "IH".
+        - iIntros "Hwp".
+          iApply "Hwp".
+          iRight.
+          iExists li.
+          iFrame.
+          iSplit.
+          { iPureIntro.
+            rewrite Nat.add_0_r //.
+          }
+          rewrite /εR /fR /pos_to_nn /=.
+          rewrite Rmult_1_r //.
+        - iIntros "Hwand".
+          assert (HL' : (i' <= L)%nat) by lia.
+          iSpecialize ("IH" $! HL' with "Htape Hcr_initial").
+          iApply "IH".
+          iIntros  "[[%lf1 [Htape Hcr]]|[%lf2 [Htape (%HUi' & Hcr1 & Hcr2)]]]".
+          + iApply "Hwand".
+            iLeft; iExists lf1; iFrame.
+          + assert (Hi' : (i' < L)%nat) by lia.
+            assert (0 = U lf2 \/ 0 < U lf2)%nat as [HUlf2 | HUlf2 ]by lia.
+            * iApply "Hwand".
+              iRight.
+              iExists lf2.
+              iFrame.
+              iSplit.
+              {
+                iPureIntro.
+                lia.
+              }
+              iApply ec_weaken; last by iFrame.
+              split; [apply cond_nonneg |].
+              rewrite /εR.
+              apply Rmult_le_compat_l; [left; apply cond_pos |].
+              apply fR_mon_dec.
+
+            * assert (¬ Ψ lf2) as HnΨlf2.
+              {
+                intros HΨlf2.
+                specialize (HU0 lf2) as [HU0 ?].
+                specialize (HU0 HΨlf2).
+                lia.
+              }
+             destruct (HUdec lf2 HnΨlf2) as [target Htarget].
+             pose HMean := (εDistr_mean N L i' ε target (mk_fRwf N L (S i') kwf HL)).
+             wp_apply wp_presample_adv_comp_leq_double ; [done | | | right; apply HMean | apply Hrsm | ].
+             {
+               intros; apply cond_nonneg.
+             }
+             {
+               intros; apply HVεpos.
+             }
+             replace {| k_wf := kwf; i_ub := HL' |} with
+               (fRwf_dec_i N L i' {| k_wf := kwf; i_ub := HL |}); [|apply fRwf_ext].
+             iFrame.
+             iIntros (s) "(Hcr1 & Hcr2 & Htape)".
+             iApply "Hwand".
+             rewrite /εDistr.
+             case_bool_decide.
+             ** iRight. iFrame. simplify_eq.
+                iPureIntro.
+                apply INR_lt in Htarget.
+                lia.
+             ** iLeft. iFrame.
+  Qed.
+
+
+   (*
+      The lemma below describes one round of presampling i.e., keep presampling elements until we
+      reach a tape l for which U(l)=0, or we fail to sample the decreasing element, and get an
+      amplified amount of credits
+   *)
+
+  Lemma twp_presample_amplify_rsm N z e E α Φ Ψ (ε : posreal) li (Vε : list (fin (S N)) -> R) (U : list (fin (S N)) -> nat) L (kwf: kwf N L) :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    (forall l : list (fin (S N)), Ψ l <-> U(l) = 0) ->
+    (forall l : list (fin (S N)), 0 <= Vε l)%R ->
+    (forall l : list (fin (S N)), (SeriesC (λ (i : fin (S N)), 1/(S N) * Vε(l ++ [i]) ) <= Vε(l))%R ) ->
+    (forall l : list (fin (S N)), ¬ Ψ l ->
+      exists c : (fin (S N)), (U(l++[c]) < U(l))%R)  ->
+    (forall l : list (fin (S N)), (L < U l)%nat -> (1 <= Vε l)%R) ->
+      ↯ (pos_to_nn ε) ∗
+      ↯ (Vε li) ∗
+      (α ↪ (N; li)) ∗
+      (((∃ lf, ⌜ Ψ lf ⌝ ∗ α ↪ (N; lf)) ∨
+          (∃ junk, α ↪ (N; junk) ∗ ↯(εAmp N L ε kwf) ∗ ↯(Vε junk))) -∗ WP e @ E [{ Φ }])
+      ⊢ WP e @ E [{ Φ }].
+  Proof.
+    iIntros (? ? HU0 HVεpos Hrsm HUdec HVbd) "(Hcr1 & Hcr2 & Htape & Hwp)".
+    destruct (U li) as [|u] eqn:Hu.
+    - iApply "Hwp".
+      iLeft.
+      iExists li.
+      iFrame.
+      iPureIntro.
+      destruct (decide (Ψ li)) as [?|HnΨli]; auto.
+      specialize (HUdec li HnΨli) as [c Hc].
+      apply INR_lt in Hc.
+      lia.
+    - assert (0 < U li) by lia.
+      assert (U li <= L \/ L < U li) as [HUliL | HLUli ] by lia; last first.
+      {
+        iPoseProof (ec_contradict with "Hcr2") as "?"; auto.
+      }
+      iApply (twp_presample_amplify_rsm_aux with "[Htape Hcr1 Hcr2]"); eauto; [iFrame|].
+      iIntros  "[[%lf1 (Htape & Hcr1 & Hcr2) ]|[%lf2 [Htape (%HUlf2 & Hcr)]]]"; iApply "Hwp".
+      + iRight.
+        iExists lf1.
+        iFrame.
+      + iLeft. iFrame.
+        Unshelve.
+        2: exact L.
+        2: lia.
+        iPureIntro.
+        assert (U lf2 = 0) by lia.
+        destruct (decide (Ψ lf2)) as [? | HnΨlf2]; auto.
+        specialize (HUdec lf2 HnΨlf2) as [c Hc].
+        apply INR_lt in Hc.
+        lia.
+  Qed.
+
+  (* do one step in the amplification sequence *)
+  Lemma wp_presample_amplify_rsm N z e E α Φ Ψ (ε : posreal) li (Vε : list (fin (S N)) -> R) (U : list (fin (S N)) -> nat) L (kwf: kwf N L) :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    (forall l : list (fin (S N)), Ψ l <-> U(l) = 0) ->
+    (forall l : list (fin (S N)), 0 <= Vε l)%R ->
+    (forall l : list (fin (S N)), (SeriesC (λ (i : fin (S N)), 1/(S N) * Vε(l ++ [i]) ) <= Vε(l))%R ) ->
+    (forall l : list (fin (S N)), ¬ Ψ l ->
+      exists c : (fin (S N)), (U(l++[c]) < U(l))%R)  ->
+    (forall l : list (fin (S N)), (L < U l)%nat -> (1 <= Vε l)%R) ->
+      ↯ (pos_to_nn ε) ∗
+      ↯ (Vε li) ∗
+      (α ↪ (N; li)) ∗
+      (((∃ lf, ⌜ Ψ lf ⌝ ∗ α ↪ (N; lf)) ∨
+          (∃ junk, α ↪ (N; junk) ∗ ↯(εAmp N L ε kwf) ∗ ↯(Vε junk))) -∗ WP e @ E {{ Φ }})
+      ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (? ? HU0 HVεpos Hrsm HUdec HVbd) "(Hcr1 & Hcr2 & Htape & Hwp)".
+    destruct (U li) as [|u] eqn:Hu.
+    - iApply "Hwp".
+      iLeft.
+      iExists li.
+      iFrame.
+      iPureIntro.
+      destruct (decide (Ψ li)) as [?|HnΨli]; auto.
+      specialize (HUdec li HnΨli) as [c Hc].
+      apply INR_lt in Hc.
+      lia.
+    - assert (0 < U li) by lia.
+      assert (U li <= L \/ L < U li) as [HUliL | HLUli ] by lia; last first.
+      {
+        iPoseProof (ec_contradict with "Hcr2") as "?"; auto.
+      }
+      iApply (presample_amplify_rsm_aux with "[Htape Hcr1 Hcr2]"); eauto; [iFrame|].
+      iIntros  "[[%lf1 (Htape & Hcr1 & Hcr2) ]|[%lf2 [Htape (%HUlf2 & Hcr)]]]"; iApply "Hwp".
+      + iRight.
+        iExists lf1.
+        iFrame.
+      + iLeft. iFrame.
+        Unshelve.
+        2: exact L.
+        2: lia.
+        iPureIntro.
+        assert (U lf2 = 0) by lia.
+        destruct (decide (Ψ lf2)) as [? | HnΨlf2]; auto.
+        specialize (HUdec lf2 HnΨlf2) as [c Hc].
+        apply INR_lt in Hc.
+        lia.
+  Qed.
+
+   (*
+      Main lemma below implementing the variant+supermartingale rule
+   *)
+
+  Lemma twp_presample_rsm N z e E α Φ Ψ (ε : nonnegreal) li (V : list (fin (S N)) -> R) (U : list (fin (S N)) -> nat) :
+    TCEq N (Z.to_nat z) →
+    to_val e = None ->
+    (forall l : list (fin (S N)), 0 <= V(l))%R ->
+    (forall l : list (fin (S N)), Ψ l <-> V(l) = 0) ->
+    (forall l : list (fin (S N)), Ψ l <-> U(l) = 0) ->
+    (* U is bounded in downsets of V *)
+    (forall r : R, exists n : nat, forall l : list (fin (S N)), V(l) <= r -> U(l) ≤ n)%R ->
+    (* U decreases with non-zero probability *)
+    (forall l : list (fin (S N)), ¬ Ψ l ->
+           exists c : (fin (S N)), (U(l++[c]) < U(l))%R)  ->
+    (* V is a supermartingale *)
+    (forall l : list (fin (S N)), (SeriesC (λ (i : fin (S N)), 1/(S N) * V(l ++ [i]) ) <= V(l))%R ) ->
+    (0 < ε)%R ->
+    ↯ (ε) ∗
+      (α ↪ (N; li)) ∗
+    (∀ lf, ⌜ Ψ lf ⌝ ∗ α ↪ (N; lf) -∗ WP e @ E [{ Φ }])
+      ⊢ WP e @ E [{ Φ }].
+  Proof.
+    iIntros (? ? HVpos HΨV HΨU HUbd HUdec HVsm Hε) "(Hcr & Hα & Hcont)".
+    (*
+        We treat the corner case where V li = 0 separately
+    *)
+    destruct (decide (V li = 0)) as [HVli0 | HVlin0].
+    {
+      iApply "Hcont".
+      iFrame.
+      iPureIntro.
+      by apply HΨV.
+    }
+    assert (0 < V li)%R as HVlipos.
+    {
+      specialize (HVpos li).
+      destruct (Rle_lt_or_eq_dec _ _ HVpos); done.
+    }
+    assert (N = 0 \/ 0 < N) as [-> | HN] by lia.
+    (* Corner case: N = 0 *)
+    {
+      assert (exists n, U li <= n) as [n Hn].
+      {
+        exists (U li).
+        by lia.
+      }
+      clear HVlipos.
+      clear HVlin0.
+      iInduction (n) as [|?] "IH" forall (li Hn).
+      - iApply "Hcont".
+        iFrame.
+        iPureIntro.
+        apply HΨU.
+        lia.
+      - destruct (decide (U li = 0)) as [HUli0 | HUlin0].
+        + iApply "Hcont".
+          iFrame.
+          iPureIntro.
+          by apply HΨU.
+        + assert (¬ Ψ li) as HnΨ.
+          {
+            intros HΨ.
+            apply HUlin0.
+            by apply HΨU.
+          }
+          iApply twp_presample; auto; iFrame.
+          iIntros (n0) "Hα".
+          destruct (HUdec _ HnΨ) as [c Hc].
+          assert (n0 = 0%fin) as ->.
+          {
+            inv_fin n0; auto.
+            intros i.
+            inv_fin i.
+          }
+          assert (c = 0%fin) as ->.
+          {
+            inv_fin c; auto.
+            intros i ?.
+            inv_fin i.
+          }
+          iApply ("IH" with "[][$][$]").
+          * iPureIntro.
+            apply INR_lt in Hc.
+            lia.
+          * iIntros (lf) "(%Hlf & Hα)".
+            iApply "Hcont"; iFrame; done.
+    }
+    (*
+       Main case below. We begin by splitting our credits in half
+    *)
+    set (εhalf := (ε/2)%NNR).
+    replace ε with (εhalf + εhalf)%NNR; last first.
+    {
+      apply nnreal_ext.
+      rewrite /εhalf /=.
+      lra.
+    }
+    assert (0 < εhalf)%R as Hεhalf.
+    {
+      simpl.
+      apply Rcomplements.Rdiv_lt_0_compat; auto.
+      lra.
+    }
+    iPoseProof (ec_split with "Hcr") as "[HcrU HcrV]".
+    { apply cond_nonneg. }
+    { apply cond_nonneg. }
+
+    (*
+        Since we will always own ↯(ε/2)*(V l)/(V li), we
+        only need to consider V when it is below (2/ε * V li).
+        We use this to set a max value for U
+    *)
+    specialize (HUbd (2/ε * V li)%R) as [L HL].
+    assert (0 < S L) as HSL by lia.
+    pose kwf := mk_kwf _ _ HN HSL.
+
+    (*
+        We define the Vε function mapping to every value of V is
+        right amount of credits
+    *)
+    set (Vε := λ (l : list (fin (S N))), ((ε / 2) * (V l / V li))%R).
+    iDestruct (ec_eq _ (Vε li) with "HcrV") as "HcrV".
+    {
+      rewrite /εhalf /Vε /=.
+      rewrite /Rdiv Rmult_inv_r //.
+      lra.
+    }
+
+    pose εhalf' := mkposreal εhalf.(nonneg) Hεhalf.
+    replace εhalf with (pos_to_nn εhalf'); last first.
+    { rewrite /εhalf' /pos_to_nn. by apply nnreal_ext. }
+
+    (*
+       In order to use error induction on HcrU, we need to create an "invariant"
+       containing the rest of the hypotheses, and revert it
+    *)
+    set (Hinv_pre :=
+           (∃ (Wε : list (fin (S N)) -> R) (lc : list (fin (S N))),
+               ⌜ forall l : list (fin (S N)), (0 <= Wε l)%R ⌝ ∗
+             ⌜ forall l : list (fin (S N)), (SeriesC (λ (i : fin (S N)), 1/(S N) * Wε(l ++ [i]) ) <= Wε(l))%R ⌝ ∗
+            ⌜ forall l : list (fin (S N)), (S L < U l)%nat -> (1 <= Wε l)%R ⌝ ∗
+            α ↪ (N; lc) ∗ ↯ (Wε lc)
+           )%I : iProp Σ
+        ).
+    iAssert Hinv_pre with "[Hα HcrV]" as "Hinv".
+    {
+      rewrite /Hinv_pre.
+      iExists Vε, li.
+      rewrite /Vε.
+      iSplit.
+      {
+        iPureIntro.
+        intros Hlc.
+        apply Rmult_le_pos; [real_solver |].
+        apply Rcomplements.Rdiv_le_0_compat; eauto.
+      }
+      iSplit.
+      {
+        iPureIntro.
+        intros Hlc.
+        setoid_rewrite <- (Rmult_assoc _ (ε/2)).
+        setoid_rewrite (Rmult_comm _ (ε/2)).
+        setoid_rewrite (Rmult_assoc (ε/2)).
+        rewrite SeriesC_scal_l.
+        apply Rmult_le_compat_l; [real_solver |].
+        setoid_rewrite <- (Rmult_assoc (1 / (S N))).
+        rewrite SeriesC_scal_r.
+        apply Rmult_le_compat_r; auto.
+        left.
+        by apply Rinv_0_lt_compat.
+      }
+      iSplit.
+      {
+        iPureIntro.
+        intros lc Hlc.
+        destruct (Rle_lt_dec 1 (ε / 2 * (V lc / V li))%R) as [Hle | Hnle]; auto.
+        assert (U lc <= L); last by lia.
+        apply HL.
+        apply Rlt_le in Hnle.
+        apply Rcomplements.Rle_div_l; [lra|].
+        apply (Rcomplements.Rle_div_r _ _ ε); auto.
+        lra.
+      }
+      iFrame.
+    }
+    clear Vε.
+    iRevert "Hcont Hinv".
+
+    (*
+         We now use error induction
+    *)
+    iApply (ec_ind_incr _ (εAmp N (S L) εhalf' _) with "[] HcrU").
+    - apply cond_pos.
+    - rewrite /εAmp /=.
+      rewrite -{1}(Rmult_1_r (ε * / (1 + 1))).
+      apply Rmult_lt_compat_l; [real_solver|].
+      apply lt_1_k.
+
+    - iModIntro.
+      iIntros "[Hind Herr] Hcont".
+      iIntros "(%W & %lc & %HWpos & %HWsm & %HWbd & Hβ & HεW)".
+      iApply (twp_presample_amplify_rsm); eauto.
+      iSplitL "Herr"; [iFrame|].
+      iFrame.
+      iIntros  "[[%lf1 [HΨ Htape]]|[%lf2 [Htape [HcrU HcrW]]]]".
+      + iApply "Hcont".
+        iFrame.
+      + iApply ("Hind" with "[HcrU] [Hcont] [Htape HcrW]").
+        * iFrame.
+        * iIntros (?) "(?&?)".
+          iApply ("Hcont" with "[$]").
+        * iExists _,_.
+          iSplit; auto.
+          iSplit; auto.
+          iSplit; auto.
+           iFrame.
+     Unshelve. auto.
+  Qed.
+
+
+  Lemma presample_rsm N z e E α Φ Ψ (ε : nonnegreal) li (V : list (fin (S N)) -> R) (U : list (fin (S N)) -> nat) :
+    TCEq N (Z.to_nat z) →
+    to_val e = None ->
+    (forall l : list (fin (S N)), 0 <= V(l))%R ->
+    (forall l : list (fin (S N)), Ψ l <-> V(l) = 0) ->
+    (forall l : list (fin (S N)), Ψ l <-> U(l) = 0) ->
+    (* U is bounded in downsets of V *)
+    (forall r : R, exists n : nat, forall l : list (fin (S N)), V(l) <= r -> U(l) ≤ n)%R ->
+    (* U decreases with non-zero probability *)
+    (forall l : list (fin (S N)), ¬ Ψ l ->
+           exists c : (fin (S N)), (U(l++[c]) < U(l))%R)  ->
+    (* V is a supermartingale *)
+    (forall l : list (fin (S N)), (SeriesC (λ (i : fin (S N)), 1/(S N) * V(l ++ [i]) ) <= V(l))%R ) ->
+    (0 < ε)%R ->
+    ↯ (ε) ∗
+      (α ↪ (N; li)) ∗
+    (∀ lf, ⌜ Ψ lf ⌝ ∗ α ↪ (N; lf) -∗ WP e @ E {{ Φ }})
+      ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (? ? HVpos HΨV HΨU HUbd HUdec HVsm Hε) "(Hcr & Hα & Hcont)".
+    destruct (decide (V li = 0)) as [HVli0 | HVlin0].
+    {
+      iApply "Hcont".
+      iFrame.
+      iPureIntro.
+      by apply HΨV.
+    }
+    assert (0 < V li)%R as HVlipos.
+    {
+      specialize (HVpos li).
+      destruct (Rle_lt_or_eq_dec _ _ HVpos); done.
+    }
+    assert (N = 0 \/ 0 < N) as [-> | HN] by lia.
+    (* Corner case: N = 0 *)
+    {
+      assert (exists n, U li <= n) as [n Hn].
+      {
+        exists (U li).
+        by lia.
+      }
+      clear HVlipos.
+      clear HVlin0.
+      iInduction (n) as [|?] "IH" forall (li Hn).
+      - iApply "Hcont".
+        iFrame.
+        iPureIntro.
+        apply HΨU.
+        lia.
+      - destruct (decide (U li = 0)) as [HUli0 | HUlin0].
+        + iApply "Hcont".
+          iFrame.
+          iPureIntro.
+          by apply HΨU.
+        + assert (¬ Ψ li) as HnΨ.
+          {
+            intros HΨ.
+            apply HUlin0.
+            by apply HΨU.
+          }
+          iApply wp_presample; auto; iFrame.
+          iIntros (n0) "Hα".
+          destruct (HUdec _ HnΨ) as [c Hc].
+          assert (n0 = 0%fin) as ->.
+          {
+            inv_fin n0; auto.
+            intros i.
+            inv_fin i.
+          }
+          assert (c = 0%fin) as ->.
+          {
+            inv_fin c; auto.
+            intros i ?.
+            inv_fin i.
+          }
+          iApply ("IH" with "[][$][$]").
+          * iPureIntro.
+            apply INR_lt in Hc.
+            lia.
+          * iIntros (lf) "(%Hlf & Hα)".
+            iApply "Hcont"; iFrame; done.
+    }
+    set (εhalf := (ε/2)%NNR).
+    replace ε with (εhalf + εhalf)%NNR; last first.
+    {
+      apply nnreal_ext.
+      rewrite /εhalf /=.
+      lra.
+    }
+    assert (0 < εhalf)%R as Hεhalf.
+    {
+      simpl.
+      apply Rcomplements.Rdiv_lt_0_compat; auto.
+      lra.
+    }
+    iPoseProof (ec_split with "Hcr") as "[HcrU HcrV]".
+    { apply cond_nonneg. }
+    { apply cond_nonneg. }
+
+    specialize (HUbd (2/ε * V li)%R) as [L HL].
+    assert (0 < S L) as HSL by lia.
+    pose kwf := mk_kwf _ _ HN HSL.
+
+    set (Vε := λ (l : list (fin (S N))), ((ε / 2) * (V l / V li))%R).
+    iDestruct (ec_eq _ (Vε li) with "HcrV") as "HcrV".
+    {
+      rewrite /εhalf /Vε /=.
+      rewrite /Rdiv Rmult_inv_r //.
+      lra.
+    }
+
+    pose εhalf' := mkposreal εhalf.(nonneg) Hεhalf.
+    replace εhalf with (pos_to_nn εhalf'); last first.
+    { rewrite /εhalf' /pos_to_nn. by apply nnreal_ext. }
+    set (Hinv_pre :=
+           (∃ (Wε : list (fin (S N)) -> R) (lc : list (fin (S N))),
+               ⌜ forall l : list (fin (S N)), (0 <= Wε l)%R ⌝ ∗
+             ⌜ forall l : list (fin (S N)), (SeriesC (λ (i : fin (S N)), 1/(S N) * Wε(l ++ [i]) ) <= Wε(l))%R ⌝ ∗
+            ⌜ forall l : list (fin (S N)), (S L < U l)%nat -> (1 <= Wε l)%R ⌝ ∗
+            α ↪ (N; lc) ∗ ↯ (Wε lc)
+           )%I : iProp Σ
+        ).
+    iAssert Hinv_pre with "[Hα HcrV]" as "Hinv".
+    {
+      rewrite /Hinv_pre.
+      iExists Vε, li.
+      rewrite /Vε.
+      iSplit.
+      {
+        iPureIntro.
+        intros Hlc.
+        apply Rmult_le_pos; [real_solver |].
+        apply Rcomplements.Rdiv_le_0_compat; eauto.
+      }
+      iSplit.
+      {
+        iPureIntro.
+        intros Hlc.
+        setoid_rewrite <- (Rmult_assoc _ (ε/2)).
+        setoid_rewrite (Rmult_comm _ (ε/2)).
+        setoid_rewrite (Rmult_assoc (ε/2)).
+        rewrite SeriesC_scal_l.
+        apply Rmult_le_compat_l; [real_solver |].
+        setoid_rewrite <- (Rmult_assoc (1 / (S N))).
+        rewrite SeriesC_scal_r.
+        apply Rmult_le_compat_r; auto.
+        left.
+        by apply Rinv_0_lt_compat.
+      }
+      iSplit.
+      {
+        iPureIntro.
+        intros lc Hlc.
+        destruct (Rle_lt_dec 1 (ε / 2 * (V lc / V li))%R) as [Hle | Hnle]; auto.
+        assert (U lc <= L); last by lia.
+        apply HL.
+        apply Rlt_le in Hnle.
+        apply Rcomplements.Rle_div_l; [lra|].
+        apply (Rcomplements.Rle_div_r _ _ ε); auto.
+        lra.
+      }
+      iFrame.
+    }
+    clear Vε.
+    iRevert "Hcont Hinv".
+    iApply (ec_ind_incr _ (εAmp N (S L) εhalf' _) with "[] HcrU").
+    - apply cond_pos.
+    - rewrite /εAmp /=.
+      rewrite -{1}(Rmult_1_r (ε * / (1 + 1))).
+      apply Rmult_lt_compat_l; [real_solver|].
+      apply lt_1_k.
+
+    - iModIntro.
+      iIntros "[Hind Herr] Hcont".
+      iIntros "(%W & %lc & %HWpos & %HWsm & %HWbd & Hβ & HεW)".
+      iApply (wp_presample_amplify_rsm); eauto.
+      iSplitL "Herr"; [iFrame|].
+      iFrame.
+      iIntros  "[[%lf1 [HΨ Htape]]|[%lf2 [Htape [HcrU HcrW]]]]".
+      + iApply "Hcont".
+        iFrame.
+      + iApply ("Hind" with "[HcrU] [Hcont] [Htape HcrW]").
+        * iFrame.
+        * iIntros (?) "(?&?)".
+          iApply ("Hcont" with "[$]").
+        * iExists _,_.
+          iSplit; auto.
+          iSplit; auto.
+          iSplit; auto.
+           iFrame.
+     Unshelve. auto.
+  Qed.
+
+
 
   Lemma twp_rec_total E (ε k : R) e Φ Ψ :
     to_val e = None →

@@ -53,14 +53,14 @@ Section adequacy.
     to_val e = None →
     glm e σ ε (λ '(e2, σ2) ε',
         |={∅}▷=>^(S n) ⌜pgl (exec n (e2, σ2)) φ ε'⌝)
-    ⊢ |={∅}▷=>^(S n) ⌜pgl (exec (S n) (e, σ)) φ ε⌝.
+      ⊢ |={∅}▷=>^(S n) ⌜pgl (exec (S n) (e, σ)) φ ε⌝.
   Proof.
     iIntros (Hv) "Hexec".
     iAssert (⌜to_val e = None⌝)%I as "-#H"; [done|]. iRevert "Hexec H".
     rewrite /glm /glm'.
     set (Φ := (λ '((e1, σ1), ε''),
                 (⌜to_val e1 = None⌝ ={∅}▷=∗^(S n)
-                 ⌜pgl (exec (S n) (e1, σ1)) φ ε''⌝)%I) :
+                                              ⌜pgl (exec (S n) (e1, σ1)) φ ε''⌝)%I) :
            prodO cfgO NNRO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros m ((?&?)&?) ((?&?)&?) [[[=] [=]] [=]]. by simplify_eq. }
@@ -72,7 +72,54 @@ Section adequacy.
     }
     clear.
     iIntros "!#" ([[e1 σ1] ε'']). rewrite /Φ/F/glm_pre.
-    iIntros " [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)|H] %Hv".
+    iIntros " [H | [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)|H]] %Hv".
+
+    - iApply step_fupdN_mono.
+      {
+        apply pure_mono.
+        eapply pgl_epsilon_limit; auto.
+        apply Rle_ge.
+        apply cond_nonneg.
+      }
+      iIntros (ε' Hε').
+      destruct (decide (ε' < 1)); last first.
+      {
+        iApply step_fupdN_mono.
+        - apply pure_mono.
+          intros ?.
+          apply pgl_1.
+          lra.
+        - iApply step_fupdN_intro; auto.
+      }
+      iApply step_fupd_fupdN_S.
+      iMod ("H" $! (mknonnegreal ε' _) with "[]") as "H".
+      {
+        iPureIntro.
+        simpl in *. simpl.
+        lra.
+      }
+      iDestruct "H" as "[%R' [%ε1' [%ε2' (%Hsum' & %Hlift' & Hwand')]]]".
+      iModIntro.
+      rewrite -(dret_id_left' (fun _ : () => (exec (S n) _)) tt).
+      iApply (step_fupdN_mono _ _ _ ⌜(pgl _ _ (ε1' + ε2')) ⌝).
+      { iIntros "%H'"; iPureIntro. eapply pgl_mon_grading; eauto. }
+      iApply (pgl_dbind').
+      * iPureIntro; apply cond_nonneg.
+      * iPureIntro; apply cond_nonneg.
+      * iPureIntro.
+        apply tgl_implies_pgl in Hlift'.
+        eapply Hlift'.
+      * iIntros (? Hcont).
+        replace tt with a; [| by destruct a].
+        iSpecialize ("Hwand'" with "[]"); [iPureIntro; eauto|].
+        rewrite (dret_id_left').
+        iApply step_fupd_fupdN_S.
+        iMod ("Hwand'" with "[//]"); iModIntro; iFrame.
+        iModIntro; eauto.
+      Unshelve.
+      pose proof (cond_nonneg ε'').
+      simpl in *.
+      lra.
     - iApply step_fupdN_mono.
       { apply pure_mono.
         eapply pgl_mon_grading; eauto. }
@@ -220,7 +267,43 @@ Section adequacy.
     }
     clear.
     iIntros "!#" ([[e1 σ1] ε'']). rewrite /Φ/F/glm_pre.
-    iIntros " [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)|H] %Hv".
+    iIntros " [ H | [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)|H]] %Hv".
+    - iApply (step_fupdN_mono _ _ _ (⌜∀ ε', ε'' < ε'  -> SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) >= 1 - ε'⌝ )).
+      {
+        apply pure_mono.
+        intros ?.
+        apply Rle_ge.
+        apply real_le_limit.
+        intros ε Hε.
+        apply Rge_le.
+        replace (1 - ε'' - ε) with (1 - (ε'' + ε)) by lra.
+        apply H.
+        lra.
+      }
+      iIntros (ε' Hε').
+      iMod ("H" $! (mknonnegreal ε' _) with "[]") as "H".
+      {
+        iPureIntro.
+        simpl in *. simpl.
+        lra.
+      }
+      iApply step_fupd_fupdN_S.
+      iDestruct (exec_stutter_compat_1 with "[][$]") as "[%H'|H2]".
+      { iIntros (???) "H %".
+        iDestruct ("H" with "[//]") as "H".
+        iApply step_fupdN_mono; last done.
+        iPureIntro. intros. trans (1-ε); try lra.
+        simpl. lra. }
+        + iApply step_fupdN_intro; first done.
+          iPureIntro.
+          trans 0; last first.
+          * simpl. apply Rle_ge. apply Rle_minus. done.
+          * apply Rle_ge; auto.
+        + iDestruct ("H2" with "[//]") as "H2". done.
+    Unshelve.
+    pose proof (cond_nonneg ε'').
+    simpl in *.
+    lra.
     - iApply (step_fupdN_mono _ _ _ (⌜∀ ρ, R ρ -> SeriesC (iterM n prim_step_or_val ρ) >= 1 - (ε2 ρ)⌝)).
       { apply pure_mono.
         intros H1.

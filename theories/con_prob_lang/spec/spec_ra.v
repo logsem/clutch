@@ -49,6 +49,20 @@ Proof.
     by rewrite tpool_lookup.
 Qed.
 
+Lemma to_tpool_app tp e :
+  <[length tp:=e]> (to_tpool (tp)) = (to_tpool (tp++[e])).
+Proof.
+  intros. apply: map_eq=> i. destruct (decide (i = length tp)) as [->|].
+  - rewrite lookup_insert tpool_lookup lookup_app_r; last done.
+    by rewrite Nat.sub_diag.
+  - rewrite tpool_lookup lookup_insert_ne //.
+    destruct (decide (i < length tp)).
+    + by rewrite tpool_lookup lookup_app_l.
+    + rewrite tpool_lookup !lookup_ge_None_2; first done.
+      * rewrite app_length; simpl; lia.
+      * lia.
+Qed.
+
 Section resources.
   Context `{!specG_con_prob_lang Σ}.
   Definition spec_prog_auth :=
@@ -129,6 +143,16 @@ Section theory.
     by rewrite to_tpool_insert.
   Qed.
 
+  Lemma spec_fork_prog es σ e :
+    spec_auth (es, σ) ==∗ spec_auth (es++[e], σ) ∗ ∃ j, j ⤇ e.
+  Proof.
+    iIntros "[Ha ?]".
+    iMod (ghost_map_insert with "Ha") as "[??]".
+    { rewrite tpool_lookup. by apply lookup_ge_None_2. }
+    rewrite to_tpool_app. by iFrame.
+  Qed.
+
+  
   (** Heap *)
 
   Lemma spec_auth_lookup_heap e1 σ1 l v dq:

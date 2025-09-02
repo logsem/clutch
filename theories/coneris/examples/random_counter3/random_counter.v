@@ -48,11 +48,11 @@ Class random_counter `{!conerisGS Σ} := RandCounter
   incr_counter_spec {L: counterG Σ} N E c γ1 (Q:_->_->nat->nat->iProp Σ)  :
     ↑N⊆E ->
     {{{ is_counter (L:=L) N c γ1 ∗
-        |={E,∅}=>
+        |={E∖↑N,∅}=>
           (∃ ε (ε2 : fin 4%nat -> R),
               ↯ ε ∗ ⌜(∀ x, 0<=ε2 x)%R⌝∗
               ⌜(SeriesC (λ n, 1 / 4 * ε2 n)%R <= ε)%R ⌝ ∗
-              (∀ n, ↯ (ε2 n) ={∅, E}=∗
+              (∀ n, ↯ (ε2 n) ={∅, E∖↑N}=∗
           (∀ (z:nat), counter_content_auth (L:=L) γ1 z ={E∖↑N}=∗
                       counter_content_auth (L:=L) γ1 (z+n) ∗ Q ε ε2 z n)))
            
