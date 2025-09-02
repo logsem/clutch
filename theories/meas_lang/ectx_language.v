@@ -466,8 +466,8 @@ Section ectx_language.
     - rewrite /prim_step. intros Hs.
       destruct (decomp e1) as [K e1'] eqn:Heq.
       apply decomp_fill in Heq.
-    (** Derive lemmas for gMap' pos *)
-      admit. 
+      (** Derive lemmas for gMap' pos *)
+      admit.
       (* eapply dmap_pos in Hs as [[] [[=] ?]]. *)
       (* simplify_eq. do 3 eexists; eauto. *)
     - intros (K & e1' & e2' & Hfill1 & Hfill2 & Hs). simplify_eq.

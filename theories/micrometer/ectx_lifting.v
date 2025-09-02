@@ -21,6 +21,13 @@ Local Hint Resolve head_prim_reducible head_reducible_prim_step : core.
 Local Hint Resolve head_stuck_stuck : core.
 *)
 
+(* This might need some extra hypotheses.
+It is only used in this file. *)
+Local Lemma idk {e1 σ1} (Hred : head_reducible e1 σ1) (S : classical_sets.set (Datatypes_prod__canonical__measure_Measurable (ectx_language.expr Λ) (state Λ))) :
+  head_step (e1, σ1) S = prim_step (e1, σ1) S.
+Admitted.
+
+
 Lemma wp_lift_head_step_meas_prog_couple {E Φ} e1 s :
   to_val e1 = None →
   (∀ σ1 e1' σ1' ε1,
@@ -42,21 +49,38 @@ Lemma wp_lift_head_step {E Φ} e1 s :
     ⌜head_reducible e1 σ1⌝ ∗
     EXSM (fun ρ => ▷ (True ={∅,E}=∗ state_interp ρ.2 ∗ WP ρ.1 @ s; E {{ Φ }})) (head_step (e1, σ1)))
   ⊢ WP e1 @ s; E {{ Φ }}.
-Proof.
+Proof using Hinh.
   iIntros (?) "H". iApply wp_lift_step_later; [done|]. iIntros (?) "Hσ".
-  iMod ("H" with "Hσ") as "[% [%S [%[% H]]]]"; iModIntro.
+  iMod ("H" with "Hσ") as "[% [%S [%Hm [%Hstep H]]]]"; iModIntro.
   iSplit.
-  { iPureIntro. admit. (* by apply head_prim_reducible. *) }
+  { iPureIntro.
+    apply head_prim_reducible.
+    unfold toPacked, head_reducible, is_zero, measure_eq.
+    intro Hcontra.
+    specialize (Hcontra S Hm).
+    rewrite Hstep in Hcontra.
+    simpl in Hcontra.
+    unfold mzero in Hcontra.
+    unfold ssralg.GRing.zero in Hcontra.
+    simpl in Hcontra.
+    unfold ssralg.GRing.zero in Hcontra.
+    simpl in Hcontra.
+    inversion Hcontra.
+    apply R1_neq_R0.
+    apply H2.
+  }
   iExists S.
   iSplitR; [done|].
   iSplitR.
-  { (* head step and prim step *) admit. }
+  { iPureIntro.
+    rewrite -idk.
+    apply Hstep. }
   iIntros (ρ Hρ _).
   iSpecialize ("H" $! ρ Hρ).
   iIntros "!>".
   iNext.
   by iApply "H".
-Admitted.
+Qed.
 
 Lemma wp_lift_atomic_head_step_fupd {E1 E2 Φ} e1 s :
   to_val e1 = None →
@@ -64,17 +88,36 @@ Lemma wp_lift_atomic_head_step_fupd {E1 E2 Φ} e1 s :
     ⌜head_reducible e1 σ1⌝ ∗
     EXSM (fun ρ => True ={E1}[E2]▷=∗ state_interp ρ.2 ∗ from_option Φ False (to_val ρ.1)) (head_step (e1, σ1)))
   ⊢ WP e1 @ s; E1 {{ Φ }}.
-Proof.
+Proof using Hinh.
   iIntros (?) "H". iApply wp_lift_atomic_step_fupd; [done|].
-  iIntros (σ1) "Hσ1". iMod ("H" with "Hσ1") as "[% [%S[%[% H]]]]"; iModIntro.
+  iIntros (σ1) "Hσ1". iMod ("H" with "Hσ1") as "[% [%S[%Hm[%Hstep H]]]]"; iModIntro.
   iSplit.
-  { iPureIntro. (* by apply head_prim_reducible. *) admit. }
+  { iPureIntro.
+    apply head_prim_reducible.
+    unfold toPacked, head_reducible, is_zero, measure_eq.
+    intro Hcontra.
+    specialize (Hcontra S Hm).
+    rewrite Hstep in Hcontra.
+    simpl in Hcontra.
+    unfold mzero in Hcontra.
+    unfold ssralg.GRing.zero in Hcontra.
+    simpl in Hcontra.
+    unfold ssralg.GRing.zero in Hcontra.
+    simpl in Hcontra.
+    inversion Hcontra.
+    apply R1_neq_R0.
+    apply H2.
+  }
   iExists S.
   iSplitR; [done|].
-  iSplitR. { (* head step and prim ste *) admit. }
-  iIntros (e2 σ2 Hstep).
+  iSplitR. {
+    iPureIntro.
+    rewrite -idk.
+    apply Hstep.
+  }
+  iIntros (e2 σ2 Hstep').
   iApply "H"; eauto.
-Admitted.
+Qed.
 
 Lemma wp_lift_atomic_head_step {E Φ} e1 s :
   to_val e1 = None →
@@ -83,18 +126,24 @@ Lemma wp_lift_atomic_head_step {E Φ} e1 s :
     EXSM (fun ρ => ▷ (True  ={E}=∗ state_interp ρ.2 ∗ from_option Φ False (to_val ρ.1)))
             (head_step (e1, σ1)))
   ⊢ WP e1 @ s; E {{ Φ }}.
-Proof.
+Proof using Hinh.
   iIntros (?) "H". iApply wp_lift_atomic_step; eauto.
   iIntros (σ1) "Hσ1". iMod ("H" with "Hσ1") as "[% H]"; iModIntro.
   iSplitR.
-  { iPureIntro. (* Head reducible reducible *) admit. }
+  { iPureIntro.
+    unfold toPacked.
+    apply head_prim_reducible.
+    apply H0.
+  }
   iDestruct "H" as "[%S [%H1 [%H2 H4]]]".
   iExists S.
   iSplitR; [done|].
   iSplitR.
-  { (* head step prim step *) admit. }
+  { iPureIntro.
+    rewrite -idk.
+    apply H2. }
   done.
-Admitted.
+Qed.
 
 Lemma wp_lift_pure_det_head_step {E E' Φ} e1 e2 s :
   to_val e1 = None →
@@ -103,9 +152,20 @@ Lemma wp_lift_pure_det_head_step {E E' Φ} e1 e2 s :
   (|={E}[E']▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
 Proof using Hinh.
   intros. erewrite !(wp_lift_pure_det_step e1 e2); first done.
-  { (* head reducuble reducible *) admit. }
-  { (* prim step head step *) admit. }
-Admitted.
+  { intro σ.
+    apply head_prim_reducible.
+    apply H0.
+  }
+  { intro σ.
+    unfold is_det.
+    intros S HS.
+    rewrite -idk.
+    specialize (H1 σ).
+    unfold is_det in H1.
+    apply H1.
+    apply HS.
+  }
+Qed.
 
 Lemma wp_lift_pure_det_head_step' {E Φ} e1 e2 s :
   to_val e1 = None →
