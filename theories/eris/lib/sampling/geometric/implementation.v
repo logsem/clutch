@@ -3,8 +3,6 @@ From clutch.eris.lib.sampling Require Import utils.
 From clutch.eris.lib.sampling.bernoulli Require Import interface.
 
 Section Tape.
-  Context `{!erisGS Σ}.
-  Context `{!bernoulli_spec bernoulli balloc}.
   
   #[local] Open Scope fin.
 
@@ -180,10 +178,9 @@ Section Geometric.
 
   Set Default Proof Using "Type*".
   
-  Context `{!erisGS Σ}.
   Context `{!bernoulli_spec bernoulli balloc}.
 
-  Definition own_geometric_tape (α : loc) (N M : nat) (t : list nat) : iProp Σ :=
+  Definition own_geometric_tape `{!erisGS Σ} (α : loc) (N M : nat) (t : list nat) : iProp Σ :=
     ∃ l, 
     own_bernoulli_tape α N M l ∗ 
     ⌜is_geometric_translation l t⌝.
@@ -203,7 +200,7 @@ Section Geometric.
   .
   Definition geometric : expr := geometric_tape #().
 
-  Lemma geometric_spec 
+  Lemma geometric_spec `{!erisGS Σ} 
     (N M k : nat) (Hlt : (N <= M)%nat) (p := N / (S M)) :
   [[{↯ (1 - (((1 - p)^k) * p))%R }]]
     geometric #N #M
@@ -236,7 +233,7 @@ Section Geometric.
       by iApply "HΦ".
   Qed.
 
-  Lemma twp_presample_geometric
+  Lemma twp_presample_geometric `{!erisGS Σ}
       (e : expr) (α : loc) (N M : nat) (Φ : val → iProp Σ)
       (ns : list nat) :
     to_val e = None → 
@@ -307,69 +304,4 @@ Section Geometric.
         *)
   Abort.
 
-  
-(*
-  Lemma twp_presample_several_geometric
-      (e : expr) (α : loc) (N M : nat) (Φ : val → iProp Σ)
-      (ns : list nat) :
-    to_val e = None → 
-    (0 < N < S M)%nat →
-    own_geometric_tape α N M ns ∗
-    (∀ (n : nat) (suf : list nat), own_geometric_tape α N M (ns ++ n::suf) -∗ WP e [{ Φ }])
-    ⊢  WP e [{ Φ }]
-  .
-  Proof.
-    iIntros (e_not_val O_lt_N_lt_SM) "(
-      (%b_tape & Hown_ber & %Hgeo_trans) &
-      HΦ
-    )".
-    iApply twp_rand_err_pos; auto.
-    iIntros (ε ε_pos) "Herr".
-    wp_apply (twp_presample_bernoulli_planner N M _ _ 1%nat _ Φ _ (λ _, [1%fin])); [done.. | iFrame].
-    iIntros "(%junk & Hown_ber)".
-    case: (list_decomposition junk) => [[[|first_junk junk_repeat] junk_zeros] ->] /=.
-    - iApply ("HΦ" $! junk_zeros []).
-      iFrame.
-      iPureIntro.
-      apply bernoulli_to_geometric_translation; split; last first.
-      { move=>?? Heq.
-        rewrite app_assoc in Heq.
-        by apply list_snoc_singleton_inv in Heq as [_ ->]. }
-      apply 
-        bernoulli_to_geometric_translation 
-        in Hgeo_trans 
-        as [-> btape_ends_1].
-      destruct b_tape as [| btape_end b_tape ] using rev_ind.
-      { rewrite bernoulli_to_geometric_repeat //. }
-      assert (btape_end = 1%fin) as -> by apply (btape_ends_1 b_tape), eq_refl.
-      rewrite -!app_assoc bernoulli_to_geometric_app bernoulli_to_geometric_repeat //.
-    - rewrite -!app_assoc.
-      set tail : list (fin 2) :=  
-        (flat_map 
-          (λ v : nat, repeat 0%fin v ++ [1%fin]) 
-          (junk_repeat))
-        ++ 
-        repeat 0%fin junk_zeros
-        ++ [1%fin]
-      .
-      iApply ("HΦ" $! first_junk (bernoulli_to_geometric tail)); iFrame.
-      iPureIntro.
-      apply bernoulli_to_geometric_translation; split; last first.
-      { move =>?? Heq.
-        unfold tail in *.
-        rewrite !app_assoc in Heq.
-        by apply list_snoc_singleton_inv in Heq as [_ ->]. }
-      apply 
-        bernoulli_to_geometric_translation 
-        in Hgeo_trans 
-        as [-> btape_ends_1].
-      destruct b_tape as [| btape_end b_tape ] using rev_ind; first by rewrite bernoulli_to_geometric_app bernoulli_to_geometric_repeat.
-      assert (btape_end = 1%fin) as -> by eapply btape_ends_1, eq_refl.
-      rewrite 
-        -!app_assoc bernoulli_to_geometric_app
-        bernoulli_to_geometric_app 
-        bernoulli_to_geometric_repeat //.
-  Qed.
-  Search (?f (_ ++ _) = ?f _ +  ?f _).
-*)
- End Geometric.
+End Geometric.

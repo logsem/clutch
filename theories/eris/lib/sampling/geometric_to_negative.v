@@ -1,4 +1,4 @@
-From clutch.eris.lib.sampling.negative_binomial Require Import interface.
+(*From clutch.eris.lib.sampling.negative_binomial Require Import interface.
 From clutch.eris.lib.sampling.geometric Require Import interface.
 From clutch.eris.lib.sampling Require Import utils.
 From Coquelicot Require Import PSeries ElemFct RInt RInt_analysis Continuity.
@@ -382,4 +382,4 @@ Section GeometricToNegative.
          rewrite Nat.add_comm //.
     }
         Abort.
-End GeometricToNegative.
+End GeometricToNegative.*)

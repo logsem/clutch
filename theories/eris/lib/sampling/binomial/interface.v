@@ -322,7 +322,7 @@ Section BinomialLemmas.
       iExists l'.
       by iFrame.
   Defined.
-
+(*
   Lemma twp_binomial_presample_planner `{!erisGS Σ}
       (N M k : nat) (e : expr) (ε : nonnegreal)
       (L : nat) (α : loc) (Φ : val → iProp Σ)
@@ -433,5 +433,6 @@ Section BinomialLemmas.
     - iIntros "Herr".
       cred_contra.
   Qed.
-
+ *)
+  
 End BinomialLemmas.

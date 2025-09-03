@@ -361,7 +361,10 @@ Section Planner.
   Context (μ_pos : ∀ (a : A), 0 <= μ a).
   Context (μ_lt_1 : ∀ (a : A), μ a < 1).
 
-  Context (is_seriesC_μ : is_seriesC μ 1).
+  Context (μ_m : R).
+  Context (mass_μ_le_1 : μ_m <= 1).
+  Context (is_seriesC_μ : is_seriesC μ μ_m).
+  
   Context (ψ : list A → iProp Σ).
   Context (Φ : iProp Σ).
   Context (presample_adv_comp :
@@ -502,7 +505,7 @@ Section Planner.
       ↯ (ε' i) ∗ 
       ((ψ (l ++ take (S i) suf) ∗ ↯ (ε' (S i)) ∨ ∃ (j : list A), ψ (l ++ j) ∗ ↯ (k i * ε' i)) -∗ Φ)
       ⊢ Φ.
-    Proof using ε_pos μ_pos μ_gt_0 μ_lt_1 is_seriesC_μ presample_adv_comp.
+    Proof using ε_pos μ_pos μ_gt_0 μ_lt_1 mass_μ_le_1 is_seriesC_μ presample_adv_comp.
       iIntros (i i_lt_len) "(Hψ & Herr & Hnext)".
       pose proof (lookup_lt_is_Some_2 _ _ i_lt_len) as [c lookup_suf_i].
       rewrite (take_S_r _ _ c) //.
@@ -523,9 +526,55 @@ Section Planner.
         pose proof (Rmax_r (ε' (S i)) (k i * ε' i)).
         case_bool_decide; nra.
       }
+      set (ε_wk := (ε' i * (μ c * (1 - θ i) + (μ_m - μ c) +
+                              θ i * (μ c * ((μ_m - μ c) / (1 - μ c)))))%R).
       
+      specialize (μ_lt_1 c) as μ_c_lt_1.
+      apply elem_of_list_lookup_2 in lookup_suf_i as c_elem_suf.
+      specialize (μ_gt_0 c c_elem_suf) as μ_c_gt_0.
+      pose proof (θ_bounds i i_lt_len) as [??].
+      
+      assert (0 < ε_wk) as ε_wk_gt_0.
+      { move=> [:μ_m_μ_c_diff].
+        apply Rmult_lt_0_compat; first (apply ε'_pos; lia).
+        apply Rplus_lt_le_0_compat.
+        + apply Rplus_lt_le_0_compat.
+          * apply Rmult_lt_0_compat; first done.
+            lra.
+          * abstract: μ_m_μ_c_diff.
+            rewrite -(is_seriesC_unique _ _ is_seriesC_μ).
+            apply Rle_0_le_minus, SeriesC_ge_elem; first done.
+            by eexists.
+        + apply Rmult_le_pos; first lra.
+          apply Rmult_le_pos; first apply μ_pos.
+          apply Rdiv_le_0_compat; first done.
+          lra.
+      } 
+
+      iPoseProof (ec_weaken _ ε_wk with "Herr") as "Herr".
+      { split; first lra.
+        unfold ε_wk.
+        rewrite -{2}(Rmult_1_r (ε' i)).
+        apply Rmult_le_compat_l; first (apply Rlt_le, ε'_pos; lia).
+        rewrite -Rmult_assoc (Rmult_comm (θ i))
+                   Rplus_comm Rmult_assoc -Rplus_assoc
+                -Rmult_plus_distr_l.
+        transitivity (μ c + (μ_m - μ c)); last lra.
+        apply Rplus_le_compat_r.
+        rewrite -{4}(Rmult_1_r (μ c)).
+        apply Rmult_le_compat_l; first apply μ_pos.
+        rewrite Rplus_minus_assoc Rplus_minus_swap -{2}(Rmult_1_r (θ i))
+                -Rmult_minus_distr_l.
+        apply Rminus_le.
+        rewrite -Rplus_minus_assoc Rminus_diag Rplus_0_r.
+        apply Rmult_le_0_l; first lra.
+        apply Rle_minus.
+        rewrite -Rdiv_le_1; last lra.
+        apply Rplus_le_compat_r.
+        lra.
+      } 
+       
       iApply (presample_adv_comp _ D (Rmax (ε' (S i)) (k i * ε' i)) with "[$Herr $Hψ Hnext]"); try assumption.
-      { apply ε'_pos. lia. }
       {
         rewrite (SeriesC_split_elem _ c); last first.
         {
@@ -554,8 +603,8 @@ Section Planner.
           repeat case_bool_decide; try contradiction; lra.
         }
         rewrite SeriesC_scal_l.
-        replace (SeriesC _) with (1 - μ c); last first.
-        {
+        replace (SeriesC _) with (μ_m - μ c); last first.
+        { 
           rewrite -(is_seriesC_unique _ _ is_seriesC_μ).
           rewrite (SeriesC_split_elem _ c); last first.
           { by eexists. }
@@ -566,16 +615,10 @@ Section Planner.
         unfold k.
         rewrite Δμ.
         rewrite
-          Rmult_assoc (Rmult_comm (ε' i) (1 - μ c))
+          Rmult_assoc (Rmult_comm (ε' i) (μ_m - μ c))
           (Rmult_comm (ε' i)) -(Rmult_assoc (μ c))
-          -(Rmult_assoc _ (1 - μ c)) -Rmult_plus_distr_r
-          -{2}(Rmult_1_l (ε' i)) 
-        .
-        f_equal.
-        apply elem_of_list_lookup_2 in lookup_suf_i as c_elem_suf.
-        pose proof (μ_lt_1 c) as μ_c.
-        rewrite Rmult_plus_distr_r Rdiv_def Rmult_assoc
-          (Rmult_assoc _ _ (1 - μ c)) Rinv_l; lra.
+          -(Rmult_assoc _ (μ_m - μ c)) -Rmult_plus_distr_r /ε_wk.
+        lra.
       }
       iIntros (a) "Herr Hψ".
       rewrite /D -!app_assoc.
@@ -606,7 +649,7 @@ Section Planner.
       ↯ (ε' i) ∗ 
       ((ψ (l ++ take (S i) suf) ∗ ↯ (ε' (S i)) ∨ ∃ (j : list A), ψ (l ++ j) ∗ ↯ (κ i * ε)) -∗ Φ)
       ⊢ Φ.
-    Proof using ε_pos μ_pos μ_gt_0 μ_lt_1 is_seriesC_μ presample_adv_comp.
+    Proof using ε_pos μ_pos μ_gt_0 μ_lt_1 mass_μ_le_1 is_seriesC_μ presample_adv_comp.
       move=>i.
       rewrite κ_def Rmult_assoc Rinv_l; last lra.
       rewrite Rmult_1_r.
@@ -662,7 +705,7 @@ Section Planner.
        ) -∗ Φ
       )
       ⊢ Φ.
-    Proof using ε_pos μ_pos μ_gt_0 μ_lt_1 is_seriesC_μ presample_adv_comp.
+    Proof using ε_pos μ_pos μ_gt_0 μ_lt_1 mass_μ_le_1 is_seriesC_μ presample_adv_comp.
       iIntros (i).
       iInduction (i) as [|i] "IH";
         iIntros (Si_lt_len) "(Hψ & Herr & Hnext)".
@@ -706,7 +749,7 @@ Section Planner.
        ) -∗ Φ
       )
       ⊢ Φ.
-    Proof using ε_pos μ_pos μ_gt_0 μ_lt_1 is_seriesC_μ presample_adv_comp.
+    Proof using ε_pos μ_pos μ_gt_0 μ_lt_1 mass_μ_le_1 is_seriesC_μ presample_adv_comp.
       iIntros "(Hψ & Herr & Hnext)".
       destruct (decide (suf = [])) as [-> | suf_not_nil].
       {
@@ -956,7 +999,7 @@ Section Planner.
       is_seriesC_μ
       presample_adv_comp
       suf_bounds
-      μ_lt_1 μ_pos μ_gt_0.
+      μ_lt_1 μ_pos μ_gt_0 mass_μ_le_1.
       
       iIntros (ε j1 ε_pos) "(Hψ & Herr & Hnext)".
       iApply (presample_suffix_total _ (suf (l ++ j1)) with "[$Herr $Hψ Hnext]"); try done.
@@ -986,7 +1029,7 @@ Section Planner.
       is_seriesC_μ
       presample_adv_comp
       suf_bounds
-      μ_lt_1 μ_pos μ_gt_0.
+      μ_lt_1 μ_pos μ_gt_0 mass_μ_le_1.
       
       rewrite -{1}(app_nil_r l).
       generalize (@nil A).
@@ -1005,9 +1048,14 @@ Section Planner.
       μ a = 1 → ∀ b, b = a ∨ μ b = 0.
     Proof using
       is_seriesC_μ
-      μ_pos.
+      μ_pos
+      mass_μ_le_1
+    .
       move=> μ_a_1 b.
       apply is_seriesC_unique in is_seriesC_μ as SeriesC_μ.
+      pose proof (SeriesC_ge_elem μ a μ_pos (ex_intro _ _ is_seriesC_μ)) as μ_m_ge_μ_a.
+      rewrite SeriesC_μ in μ_m_ge_μ_a.
+      assert (μ_m = 1) as μ_m_1 by lra.
       rewrite (SeriesC_ext _ (λ x, (if bool_decide (x = a) then μ a else 0%R) + (if bool_decide (x = a) then 0%R else μ x))) in SeriesC_μ; last first.
       {
         move=>x.
@@ -1054,7 +1102,9 @@ Section Planner.
     Proof using
       is_seriesC_μ
       presample_adv_comp
-      μ_pos.
+      μ_pos
+      mass_μ_le_1
+    .
 
       iIntros (μ_a_1 k ε ε_pos) "(Hψ & Herr & Hnext)".
       iInduction k as [|k] "IH" forall (ε ε_pos).
@@ -1100,7 +1150,7 @@ Section Planner.
       is_seriesC_μ
       presample_adv_comp
       finite_range
-      μ_pos μ_gt_0.
+      μ_pos μ_gt_0 mass_μ_le_1.
 
       iIntros (μ_a_1 ε ε_pos) "(Hψ & Herr & Hnext)".
       iApply (support_singleton_presample_repeat _ μ_a_1 (length (suf l)) _ ε_pos with "[$Hψ $Herr Hnext]").
@@ -1120,14 +1170,15 @@ End Planner.
 
 Lemma abstract_planner
   `{!erisGS Σ} {A : Type} `{Countable A}
-  (μ : A → R) (ψ : list A → iProp Σ) (Φ : iProp Σ)
+  (μ : A → R) (μ_m : R) (ψ : list A → iProp Σ) (Φ : iProp Σ)
   (l : list A) (suf : list A → list A)
   (L : nat) (range : list A) (ε : R):
 
   (∀ a : A, (0 <= μ a)%R) →
   (∀ a : A, a ∈ range → (0 < μ a)%R) →
-  
-  is_seriesC μ 1%R →
+
+  (μ_m <= 1)%R →
+  is_seriesC μ μ_m%R →
   
   (∀ (ε : R) (D : A → R) 
      (L0 : R) (l : list A),
@@ -1150,16 +1201,17 @@ Lemma abstract_planner
   (∀ j : list A, ψ (l ++ j ++ suf (l ++ j)) -∗  Φ)
   ⊢ Φ.
 Proof.
-  move=>μ_pos μ_gt_0 is_seriesC_μ *.
+  move=>μ_pos μ_gt_0 mass_μ_le_1 is_seriesC_μ *.
   assert (∀ a, μ a <= 1)%R as μ_le_1.
   {
     move=>a.
     pose proof (SeriesC_ge_elem μ a μ_pos (ex_intro _ _ is_seriesC_μ)).
+    transitivity μ_m; last done.
     rewrite -(is_seriesC_unique _ _ is_seriesC_μ) //.
   }
   destruct (decide (∃ a, μ a = 1)) as [[a μ_a_1] | μ_strict].
   { iIntros "(Hψ & Herr & Hnext)".
-    unshelve iApply (support_singleton_presample μ _ _ ψ _ _ l suf range _ _ a _ ε); try assumption.
+    unshelve iApply (support_singleton_presample μ _ μ_m _ _ ψ _ _ l suf range _ _ a _ ε); try assumption.
     iFrame.
   }
   eapply presample_planner;

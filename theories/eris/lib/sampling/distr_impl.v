@@ -1,4 +1,4 @@
-From clutch.eris Require Import eris distribution_adequacy.
+From clutch.eris Require Import eris.
 From clutch.eris.lib.sampling Require Import abstract_planner utils.
 
 Section DistributionImplem.
@@ -93,32 +93,12 @@ Section DistributionImplem.
     iApply twp_rand_err_pos; auto.
     iIntros (ε ε_pos) "Herr".
     set (ψ (l : list val) := (own_tape Δ l ∗ ∃ εf, (⌜0 < εf⌝%R ∗ ↯ εf))%I).
+    destruct (pmf_ex_seriesC μ) as [μ_m is_seriesC_μ].
 
-    wp_apply (abstract_planner μ ψ _ l suf L range (ε / 2)%R (pmf_pos μ) range_possible).
-    { pose proof (SeriesC_correct μ (pmf_ex_seriesC μ)) as is_seriesC_SeriesC.
-      unshelve epose proof (@pmf_sum_1 μ (sample loc_unit) _ Σ _ inhabitant) as sum_μ.
-      { clear.
-        iIntros (Σ erisGS0 ε D L ε_pos D_bounds D_sum Φ) "Herr Hnext".
-        wp_apply (twp_distr_adv_comp with "Herr Hnext"); try done.
-        rewrite -D_sum.
-        apply SeriesC_ext=>v.
-        lra.
-      }
-      { apply adequacy.ErisGpreS.
-        { constructor.
-          - apply invGS_wsat.
-          - constructor.
-            exact lcGS_inG.
-        }
-        { exact erisGS_heap. }
-        { exact erisGS_tapes. }
-        { constructor.
-          exact ecGS_inG.
-        }
-      }
-      unfold pmf_sum in sum_μ.
-      rewrite sum_μ // in is_seriesC_SeriesC.
-    }
+    unshelve wp_apply (abstract_planner μ μ_m ψ _ l suf L range (ε / 2)%R (pmf_pos μ) range_possible _ is_seriesC_μ).
+    { rewrite -(is_seriesC_unique _ _ is_seriesC_μ).
+      apply pmf_SeriesC.
+    } 
 
     { clear -e_not_val.
       iIntros (ε D L l ε_pos D_bounds D_sum) "([Htape (%εf & %εf_gt_0 & Hfuel)] & Herr & Hnext)".
@@ -143,5 +123,5 @@ Section DistributionImplem.
     wp_apply "Hnext".
     iFrame.
   Qed.
-
+  
 End DistributionImplem.
