@@ -87,9 +87,10 @@ Global Hint Mode AsRecV ! - - - : typeclass_instances.
 Definition AsRecV_recv f x e : AsRecV (RecV f x e) f x e := eq_refl.
 Global Hint Extern 0 (AsRecV (RecV _ _ _) _ _ _) =>
   apply AsRecV_recv : typeclass_instances.
+*)
 
 Section pure_exec.
-  Local Ltac solve_exec_safe := intros; subst; eexists; eapply head_step_support_equiv_rel; eauto with head_step.
+  (* Local Ltac solve_exec_safe := intros; subst; eexists; eapply head_step_support_equiv_rel; eauto with head_step.
   Local Ltac solve_exec_puredet :=
     intros; simpl;
     (repeat case_match); simplify_eq;
@@ -97,7 +98,10 @@ Section pure_exec.
   Local Ltac solve_pure_exec :=
     subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
     constructor; [solve_exec_safe | solve_exec_puredet].
+*)
+  Local Open Scope classical_set_scope.
 
+  (*
   Global Instance pure_recc f x (erec : expr) :
     PureExec True 1 (Rec f x erec) (Val $ RecV f x erec).
   Proof.
@@ -162,5 +166,5 @@ Section pure_exec.
   Global Instance pure_tick (z : Z) :
     PureExec True 1 (Tick #z) #().
   Proof. solve_pure_exec. Qed.
-End pure_exec.
 *)
+End pure_exec.

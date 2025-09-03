@@ -2,16 +2,44 @@
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.meas_lang Require Import lang notation tactics exec_lang.
+From clutch.meas_lang Require Import language.
+From clutch.meas_lang.lang Require Import types.
 From clutch.meas_lang.spec Require Export spec_ra.
-(*
+
+
 Section rules.
-  Context `{!specG_prob_lang Σ, invGS_gen hasLc Σ}.
+  Context `{!measG_prob_lang Σ, invGS_gen hasLc Σ}.
   Implicit Types P Q : iProp Σ.
-  Implicit Types Φ : val → iProp Σ.
-  Implicit Types σ : state.
+
+  Local Open Scope classical_set_scope.
+
+  (* Check measure.Measurable.type. *)
+  (* Implicit Types Φ : (val meas_lang : Type) → iProp Σ. *)
+  (* Implicit Types σ : state.
   Implicit Types e : expr.
   Implicit Types v : val.
-  Implicit Types l : loc.
+  Implicit Types l : loc. *)
+
+  (* How to state these stupid lemmas.
+
+    - Need `From clutch.meas_lang Require Import language.` for `PureExec`
+    - Need `From clutch.meas_lang Require Import ectxi_langauge.` for definition of `fill`, I think
+    - If I import `language` before the other meas_lang imports it complains that my types aren't
+      types because it defaults to the projections out of the canonical structures.
+    - If I import it afterwards I get can change it to `val meas_lang` etc.
+
+    Either way it doesn't know that (val meas_lang) is a type.
+    Not sure if my trick of importing the bare types will work because PureExec wants the canonical structure types.
+    Do I move PureExec?
+  *)
+
+  (*
+  Check PureExec. :
+    (* Prop → nat → measure.Measurable.sort (language.expr ?Λ) → measure.Measurable.sort (language.expr ?Λ) → Prop *)
+  *)
+
+
+  (*
 
   (** Pure reductions *)
   Lemma step_pure E K e e' (P : Prop) n:
@@ -158,6 +186,5 @@ Section rules.
     by apply dret_1.
   Qed.
 
-
-End rules.
 *)
+End rules.
