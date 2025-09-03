@@ -94,12 +94,15 @@ From clutch.meas_lang.spec Require Export spec_ra.
     iModIntro. iExists _, n.
     iSplitR; last (iSplitL "HK"); [|iExact "HK"| iExact "Hs"].
     iPureIntro.
+    (* Check stepN_PureExec_ctx. *)
+
   Admitted.
   (*
     eapply (stepN_PureExec_ctx (fill K) P 0); [done|done|].
     rewrite dret_1_1 //.
   Qed. *)
 
+  (* For the rest: The notation is just not found *)
   (*
   (** Alloc, load, and store *)
   Lemma step_alloc E K e v :
@@ -230,6 +233,6 @@ From clutch.meas_lang.spec Require Export spec_ra.
     rewrite stepN_O //.
     by apply dret_1.
   Qed.
+End rules.
 
 *)
-End rules.

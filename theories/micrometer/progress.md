@@ -42,11 +42,11 @@ Status:
     
 ## `meas_lang/spec`
 
-| Name                | Status                   | Notes                                                                         |
-|---------------------|--------------------------|-------------------------------------------------------------------------------|
-| ``spec_ra.v ``      | `Ok`                     |                                                                               |
-| ``spec_rules.v ``   | `Unported`, `Punishment` | Not even sure how to state the theorems due to canonical structures problems. |
-| ``spec_tactics.v `` | `Unported`               | Ask Simon about `gwp` eventually                                              |
+| Name                | Status      | Notes                                                                                 |
+|---------------------|-------------|---------------------------------------------------------------------------------------|
+| ``spec_ra.v ``      | `Ok`        |                                                                                       |
+| ``spec_rules.v ``   | `Unported`, | Blocked on notation, not convinced my solution to canonical structures issue is right |
+| ``spec_tactics.v `` | `Unported`  | Ask Simon about `gwp` eventually                                                      |
 
 ## `meas_lang/typing`
 

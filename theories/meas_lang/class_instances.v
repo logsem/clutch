@@ -1,5 +1,7 @@
 From Coq Require Import Reals Psatz.
 From clutch.meas_lang Require Export lang tactics notation language lang.types.
+From clutch.meas_lang Require Import ectx_language. (* This import must come after the prior ones *)
+
 From iris.prelude Require Import options.
 
 Global Instance into_val_val v : @IntoVal meas_lang (Val v) v.
@@ -7,12 +9,13 @@ Proof. done. Qed.
 Global Instance as_val_val v : @AsVal meas_lang (Val v).
 Proof. by eexists. Qed.
 
+(*
 (** * Instances of the [Atomic] class *)
 Section atomic.
   Local Open Scope classical_set_scope.
 
   Local Ltac solve_atomic :=
-    admit.
+    apply strongly_atomic_atomic, ectx_language_atomic.
   (*
     apply strongly_atomic_atomic, ectx_language_atomic;
     [intros ????; simpl; by inv_head_step
@@ -64,6 +67,7 @@ Section atomic.
   Proof. solve_atomic. Qed.
  *)
 End atomic.
+*)
 
 (** * Instances of the [PureExec] class *)
 (** The behavior of the various [wp_] tactics with regard to lambda differs in
@@ -80,17 +84,24 @@ not if [v] contains a lambda/rec that is hidden behind a definition.
 
 To make sure that [wp_rec] and [wp_lam] do reduce lambdas/recs that are hidden
 behind a definition, we activate [AsRecV_recv] by hand in these tactics. *)
-(*
-Class AsRecV (v : val) (f x : binder) (erec : expr) :=
+
+
+
+Class AsRecV (v : val_T) f x (erec : expr_T) :=
   as_recv : v = RecV f x erec.
 Global Hint Mode AsRecV ! - - - : typeclass_instances.
 Definition AsRecV_recv f x e : AsRecV (RecV f x e) f x e := eq_refl.
 Global Hint Extern 0 (AsRecV (RecV _ _ _) _ _ _) =>
   apply AsRecV_recv : typeclass_instances.
-*)
 
 Section pure_exec.
-  (* Local Ltac solve_exec_safe := intros; subst; eexists; eapply head_step_support_equiv_rel; eauto with head_step.
+
+(*
+ Do a proof by hand first, because I'm not sure what
+   head_step_support_equiv_rel
+ should be.
+
+Local Ltac solve_exec_safe := intros; subst; eexists; eapply head_step_support_equiv_rel; eauto with head_step.
   Local Ltac solve_exec_puredet :=
     intros; simpl;
     (repeat case_match); simplify_eq;
@@ -101,38 +112,45 @@ Section pure_exec.
 *)
   Local Open Scope classical_set_scope.
 
+  Local Ltac solve_exec_safe := intros; apply gRet_not_zero.
+  Local Ltac solve_exec_puredet := intros; simpl; (repeat case_match); simplify_eq; apply is_det_dret.
+  Local Ltac solve_pure_exec :=
+    subst; intros ?;  apply nsteps_once, pure_head_step_pure_step;
+    constructor; [solve_exec_safe | solve_exec_puredet].
+
+
+  Global Instance pure_recc f x (erec : expr_T) :
+    PureExec (Λ:=meas_lang) True 1 (Rec f x erec) (Val $ RecV f x erec).
+  Proof. solve_pure_exec. Qed.
+
+  Global Instance pure_pairc (v1 v2 : val_T) :
+    PureExec (Λ:=meas_lang) True 1 (Pair (Val v1) (Val v2)) (Val $ PairV v1 v2).
+  Proof. solve_pure_exec. Qed.
+  Global Instance pure_injlc (v : val_T) :
+    PureExec (Λ:=meas_lang) True 1 (InjL $ Val v) (Val $ InjLV v).
+  Proof. solve_pure_exec. Qed.
+  Global Instance pure_injrc (v : val_T) :
+    PureExec (Λ:=meas_lang) True 1 (InjR $ Val v) (Val $ InjRV v).
+  Proof. solve_pure_exec. Qed.
+
   (*
-  Global Instance pure_recc f x (erec : expr) :
-    PureExec True 1 (Rec f x erec) (Val $ RecV f x erec).
-  Proof.
-    solve_pure_exec.
-  Qed.
-
-  Global Instance pure_pairc (v1 v2 : val) :
-    PureExec True 1 (Pair (Val v1) (Val v2)) (Val $ PairV v1 v2).
-  Proof. solve_pure_exec. Qed.
-  Global Instance pure_injlc (v : val) :
-    PureExec True 1 (InjL $ Val v) (Val $ InjLV v).
-  Proof. solve_pure_exec. Qed.
-  Global Instance pure_injrc (v : val) :
-    PureExec True 1 (InjR $ Val v) (Val $ InjRV v).
-  Proof. solve_pure_exec. Qed.
-
-  Global Instance pure_beta f x (erec : expr) (v1 v2 : val) `{!AsRecV v1 f x erec} :
-    PureExec True 1 (App (Val v1) (Val v2)) (subst' x v2 (subst' f v1 erec)).
+  Global Instance pure_beta f x (erec : expr_T) (v1 v2 : val_T) `{!AsRecV v1 f x erec} :
+    PureExec (Λ:=meas_lang) True 1 (App (Val v1) (Val v2)) (subst' x v2 (subst' f v1 erec)).
   Proof. unfold AsRecV in *. subst. solve_pure_exec. Qed.
+  *)
 
   Global Instance pure_unop op v v' :
-    PureExec (un_op_eval op v = Some v') 1 (UnOp op (Val v)) (Val v').
-  Proof. solve_pure_exec. Qed.
+    PureExec (Λ:=meas_lang) (un_op_eval op v = Some v') 1 (UnOp op (Val v)) (Val v').
+  Proof. Admitted. (* solve_pure_exec. Qed.  *)
 
   Global Instance pure_binop op v1 v2 v' :
-    PureExec (bin_op_eval op v1 v2 = Some v') 1 (BinOp op (Val v1) (Val v2)) (Val v') | 10.
-  Proof. solve_pure_exec. Qed.
+    PureExec (Λ:=meas_lang) (bin_op_eval op v1 v2 = Some v') 1 (BinOp op (Val v1) (Val v2)) (Val v') | 10.
+  Proof. Admitted. (* solve_pure_exec. Qed.  *)
 
+  (*
   (* Lower-cost instance for [EqOp]. *)
   Global Instance pure_eqop v1 v2 :
-    PureExec (vals_compare_safe v1 v2) 1
+    PureExec  (vals_compare_safe v1 v2) 1
       (BinOp EqOp (Val v1) (Val v2))
       (Val $ LitV $ LitBool $ bool_decide (v1 = v2)) | 1.
   Proof.
@@ -140,31 +158,32 @@ Section pure_exec.
     cut (bin_op_eval EqOp v1 v2 = Some $ LitV $ LitBool $ bool_decide (v1 = v2)).
     { intros. revert Hcompare. solve_pure_exec. }
     rewrite /bin_op_eval /= decide_True //.
-  Qed.
+  Qed. *)
 
   Global Instance pure_if_true e1 e2 :
-    PureExec True 1 (If (Val $ LitV $ LitBool true) e1 e2) e1.
+    PureExec (Λ:=meas_lang) True 1 (If (Val $ LitV $ LitBool true) e1 e2) e1.
   Proof. solve_pure_exec. Qed.
   Global Instance pure_if_false e1 e2 :
-    PureExec True 1 (If (Val $ LitV  $ LitBool false) e1 e2) e2.
+    PureExec (Λ:=meas_lang) True 1 (If (Val $ LitV  $ LitBool false) e1 e2) e2.
   Proof. solve_pure_exec. Qed.
 
   Global Instance pure_fst v1 v2 :
-    PureExec True 1 (Fst (Val $ PairV v1 v2)) (Val v1).
+    PureExec (Λ:=meas_lang) True 1 (Fst (Val $ PairV v1 v2)) (Val v1).
   Proof. solve_pure_exec. Qed.
   Global Instance pure_snd v1 v2 :
-    PureExec True 1 (Snd (Val $ PairV v1 v2)) (Val v2).
+    PureExec (Λ:=meas_lang) True 1 (Snd (Val $ PairV v1 v2)) (Val v2).
   Proof. solve_pure_exec. Qed.
 
   Global Instance pure_case_inl v e1 e2 :
-    PureExec True 1 (Case (Val $ InjLV v) e1 e2) (App e1 (Val v)).
+    PureExec (Λ:=meas_lang) True 1 (Case (Val $ InjLV v) e1 e2) (App e1 (Val v)).
   Proof. solve_pure_exec. Qed.
   Global Instance pure_case_inr v e1 e2 :
-    PureExec True 1 (Case (Val $ InjRV v) e1 e2) (App e2 (Val v)).
+    PureExec (Λ:=meas_lang) True 1 (Case (Val $ InjRV v) e1 e2) (App e2 (Val v)).
   Proof. solve_pure_exec. Qed.
 
+  (*
   Global Instance pure_tick (z : Z) :
-    PureExec True 1 (Tick #z) #().
+    PureExec (Λ:=meas_lang) True 1 (Tick #z) #().
   Proof. solve_pure_exec. Qed.
 *)
 End pure_exec.
