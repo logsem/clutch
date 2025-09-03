@@ -7,6 +7,8 @@ From clutch.meas_lang.lang Require Import types.
 From clutch.meas_lang.spec Require Export spec_ra.
 
   Context `{!measG_prob_lang Σ, invGS_gen hasLc Σ}.
+  Context `{!specG_meas_lang Σ}. (* NOTE: I added this *)
+
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val_T → iProp Σ.
   (* Implicit Types σ : state_T. *)
@@ -52,24 +54,51 @@ From clutch.meas_lang.spec Require Export spec_ra.
       while it is expected to have type
       "measure.Measurable.sort (language.expr ?Λ)".
 
-    I can try specializing Λ to be be meas_lang perhaps?
+    I can specialize PureExec with the language
+        PureExec (Λ:=meas_lang) P n e e'
+    and that checks, but then I need to specialize the Λ term of fill
+        fill  (Λ:=lang.meas_ectxi_lang)
+
+    But then I get this error
+      Error:
+      Unable to satisfy the following constraints:
+      In environment:
+      E : coPset
+      K : list (measure.Measurable.sort (ectx_item lang.meas_ectxi_lang))
+      e, e' : expr_T
+      P : Prop
+      n : nat
+
+      ?specG_meas_lang0 : "specG_meas_lang ?Σ"
+
+      ?H : "meas_spec_updateGS ?δ ?Σ"
+
+      ?H0 : "invGS_gen ?hl ?Σ"
+
+      ?specG_meas_lang00 : "specG_meas_lang ?Σ"
+
+    So I will specialize with Σ explicitly too
 
    *)
 
   (** Pure reductions *)
   Lemma step_pure E K e e' (P : Prop) n:
     P →
-    PureExec P n e e' →
-    ⤇ fill K e ⊢ spec_update E (⤇ fill K e').
+    PureExec (Λ:=meas_lang) P n e e' →
+    ⤇ (fill (Λ:=lang.meas_ectxi_lang) (K, e)) ⊢ spec_update (Σ:=Σ) E (⤇ fill (K, e')).
   Proof.
     iIntros (HP Hex) "HK". rewrite spec_update_unseal.
     iIntros ([??]) "Hs".
-    iDestruct (spec_auth_prog_agree with "[$] [$]") as "->".
-    iMod (spec_update_prog (fill K e') with "[$][$]") as "[HK Hs]".
-    iModIntro. iExists _, n. iFrame. iPureIntro.
-    eapply (stepN_PureExec_ctx  (fill K) P 0); [done|done|].
+    iDestruct (spec_auth_prog_agree e0 s (fill (K, e)) with "[Hs] [HK]") as "->"; [iExact "Hs"|iExact "HK"|].
+    iMod (spec_update_prog (fill (K, e')) with "[Hs][HK]") as "[HK Hs]"; [iExact "Hs"|iExact "HK"|].
+    iModIntro. iExists _, n.
+    iSplitR; last (iSplitL "HK"); [|iExact "HK"| iExact "Hs"].
+    iPureIntro.
+  Admitted.
+  (*
+    eapply (stepN_PureExec_ctx (fill K) P 0); [done|done|].
     rewrite dret_1_1 //.
-  Qed.
+  Qed. *)
 
   (*
   (** Alloc, load, and store *)
