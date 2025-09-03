@@ -296,8 +296,8 @@ Section full_info.
   (** TODO: lemmas about full_info_lift_osch *)
     
   
-  Definition full_info_cons_distr (μ : distr nat) (l:full_info_state) (ρ:cfg) : distr (full_info_state * nat) :=
-    dmap (λ n, (l++[(cfg_to_cfg' ρ, n)], n))%nat μ.
+  Definition full_info_cons_distr (μ : _ -> distr nat) (l:full_info_state) (ρ:cfg) : distr (full_info_state * nat) :=
+    dmap (λ n, (l++[(cfg_to_cfg' ρ, n)], n))%nat (μ (cfg_to_cfg' ρ)).
 
   Lemma full_info_cons_distr_tape_oblivious μ l ρ1 ρ2:
     cfg_to_cfg' ρ1 = cfg_to_cfg' ρ2 ->
@@ -319,7 +319,7 @@ Section full_info.
   (** This is a way of building a scheduler that conss one step into many different states 
      each of which is a different kind of scheduler
    *)
-  Program Definition full_info_cons_osch (μ : distr nat) (f: nat -> full_info_oscheduler) :=
+  Program Definition full_info_cons_osch (μ : _ -> distr nat) (f: nat -> full_info_oscheduler) :=
     {|
       fi_osch := {| oscheduler_f := λ '(l, ρ),
                                       match decide (∃ hd, ∃ tl, l=hd::tl) with
@@ -445,7 +445,7 @@ Section full_info.
     
   Lemma full_info_cons_osch_exec_Sn μ f n ρ:
     osch_exec (full_info_cons_osch μ f) (S n) ([], ρ) =
-    μ ≫= (λ x, step' x ρ ≫= (λ ρ', osch_exec (full_info_lift_osch [(cfg_to_cfg' ρ, x)] (f x)) n ([(cfg_to_cfg' ρ, x)], ρ'))) .
+    μ (cfg_to_cfg' ρ) ≫= (λ x, step' x ρ ≫= (λ ρ', osch_exec (full_info_lift_osch [(cfg_to_cfg' ρ, x)] (f x)) n ([(cfg_to_cfg' ρ, x)], ρ'))) .
   Proof.
     rewrite osch_exec_Sn.
     rewrite /osch_step_or_none.
@@ -473,7 +473,7 @@ Section full_info.
 
   Lemma full_info_cons_osch_lim_exec μ f ρ:
     osch_lim_exec (full_info_cons_osch μ f) ([], ρ) =
-    μ ≫= (λ x, step' x ρ ≫= (λ ρ', osch_lim_exec (full_info_lift_osch [(cfg_to_cfg' ρ, x)] (f x)) ([(cfg_to_cfg' ρ, x)], ρ'))) .
+    μ (cfg_to_cfg' ρ) ≫= (λ x, step' x ρ ≫= (λ ρ', osch_lim_exec (full_info_lift_osch [(cfg_to_cfg' ρ, x)] (f x)) ([(cfg_to_cfg' ρ, x)], ρ'))) .
   Proof.
     apply distr_ext.
     intros.
@@ -497,7 +497,7 @@ Section full_info.
     - rewrite {1 2}/dbind{1 2}/dbind_pmf{1 3}/pmf.
       setoid_rewrite <- SeriesC_scal_l.
       setoid_rewrite osch_lim_exec_unfold.
-      assert (SeriesC(λ a0 : nat, SeriesC  (λ x , μ a0 *
+      assert (SeriesC(λ a0 : nat, SeriesC  (λ x , μ (cfg_to_cfg' ρ )a0 *
                                                   (step' a0 ρ x *
                                                      Sup_seq
                                                        (λ n : nat,
@@ -507,7 +507,7 @@ Section full_info.
                                   (λ a0 : nat,
                                      SeriesC
                                        (λ x : mdpstate (con_lang_mdp con_prob_lang),
-                                          μ a0 *
+                                          μ (cfg_to_cfg' ρ) a0 *
                                             (step' a0 ρ x *
                                                osch_exec (full_info_lift_osch [(cfg_to_cfg' ρ, a0)] (f a0)) n
                                                  ([(cfg_to_cfg' ρ, a0)], x) a))))
@@ -532,7 +532,7 @@ Section full_info.
         intros.
         erewrite <-SeriesC_Sup_seq_swap.
         * apply SeriesC_ext. intros.
-          destruct (pmf_pos μ n) as [|<-]; last first.
+          destruct (pmf_pos (μ (cfg_to_cfg' ρ)) n) as [|<-]; last first.
           { trans 0; first lra.
             erewrite Sup_seq_ext; first by erewrite sup_seq_const.
             simpl. intros. rewrite Rmult_0_l. done. 
@@ -555,7 +555,7 @@ Section full_info.
         * intros. apply SeriesC_correct.
           apply ex_seriesC_scal_l.
           apply pmf_ex_seriesC_mult_fn. naive_solver.
-        * simpl. instantiate (1:=μ n*1).
+        * simpl. instantiate (1:=μ (cfg_to_cfg' ρ) n*1).
           intros.
           rewrite SeriesC_scal_l.
           apply Rmult_le_compat; try done.
@@ -573,7 +573,7 @@ Section full_info.
         apply Rmult_le_compat; try done; first real_solver.
         apply Rmult_le_compat; try done.
         apply osch_exec_mono.
-      + intros. exists (μ a0 * 1).
+      + intros. exists (μ (cfg_to_cfg' ρ) a0 * 1).
         intros. rewrite SeriesC_scal_l.
         apply Rmult_le_compat; try done.
         * apply SeriesC_ge_0'; intros; real_solver.
@@ -597,7 +597,7 @@ Section full_info.
       + simpl. instantiate (1:=1).
         intros.
         setoid_rewrite SeriesC_scal_l.
-        trans (SeriesC μ); last done. 
+        trans (SeriesC (μ (cfg_to_cfg' ρ))); last done. 
         apply SeriesC_le; last done.
         intros.
         split; first apply Rmult_le_pos; try done.
@@ -613,11 +613,11 @@ Section full_info.
 
 
   (** This oscheduler performs a stutter step *)
-  Definition full_info_stutter_osch (ρ:cfg) (osch:full_info_oscheduler) :=
-    full_info_cons_osch (dret (length ρ.1)) (λ _, osch).
+  Definition full_info_stutter_osch (osch:full_info_oscheduler) :=
+    full_info_cons_osch (λ ρ, dret (length ρ.1)) (λ _, osch).
 
   Lemma full_info_stutter_osch_lim_exec ρ osch :
-    osch_lim_exec (full_info_stutter_osch ρ osch) ([], ρ) =
+    osch_lim_exec (full_info_stutter_osch osch) ([], ρ) =
     dmap (λ '(l, ρ'), (([(cfg_to_cfg' ρ, (length ρ.1))]++l), ρ')) (osch_lim_exec osch ([], ρ)).
   Proof.
     rewrite /full_info_stutter_osch.
@@ -632,6 +632,21 @@ Section full_info.
     rewrite dret_id_left.
     by rewrite full_info_lift_osch_lim_exec.
   Qed.
+
+  Definition full_info_one_step_stutter_osch j :=
+    full_info_cons_osch (λ _, dret j) (λ _, full_info_stutter_osch full_info_inhabitant).
+
+  Lemma full_info_one_step_stutter_osch_lim_exec j ρ:
+    osch_lim_exec (full_info_one_step_stutter_osch j) ([], ρ) =
+    dmap (λ ρ', ([(cfg_to_cfg' ρ, j); (cfg_to_cfg' ρ', length ρ'.1)], ρ')) (step' j ρ).
+  Proof.
+    rewrite /full_info_one_step_stutter_osch.
+    rewrite full_info_cons_osch_lim_exec.
+    rewrite dret_id_left.
+    apply dbind_ext_right.
+    intros ρ'.
+    by rewrite full_info_lift_osch_lim_exec full_info_stutter_osch_lim_exec full_info_inhabitant_lim_exec !dmap_dret /=.
+  Qed. 
 
   (** This is a way of building a scheduler by appending schedulers at the frontier of another
    *)

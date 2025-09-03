@@ -139,13 +139,14 @@ Section NegativeBinomial.
       ∀ (p q : nat),
       (0 < p)%nat →
       (p ≤ q + 1)%nat →
-      ∀ (r : nat) (D : nat → R) (L : R) (ε : R) (ε_term : R),
-      (0 < ε_term)%R →
+      ∀ (r : nat) (D : nat → R) (L : R) (ε : R),
       (∀ (n : nat), 0 <= D n <= L)%R →
-      SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε → ↯ ε_term -∗
+      SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
       ↯ ε -∗ WP negative_binomial #() #p #q #r [{ v, ∃ (k : nat), ⌜v = #k⌝ ∗ ↯ (D k) }].
     Proof.
-      iIntros (p q Hp Hpq r D L ε ε_term Hε_term HD HSum) "Hterm Herr".
+      iIntros (p q Hp Hpq r D L ε HD HSum) "Herr".
+      iApply twp_rand_err_pos; auto.
+      iIntros (ε_term Hε_term) "Hterm".
       destruct (Nat.eq_dec p (q + 1)) as [-> | p_ne_q_add_1].
       { rewrite (SeriesC_ext _ (λ k, if bool_decide (k = 0) then D 0 else 0%R)) in HSum; last first.
         { move=>n.
@@ -587,14 +588,12 @@ Section NegativeBinomial.
     
     Lemma twp_bernoulli_presample_adv_comp_n_success :
       ∀ (p q r : nat) (α : loc) (l : list (fin 2)) (e : expr)
-        (D : nat → R) (L : R) (ε : R) (ε_term : R) (Φ : val → iProp Σ),
+        (D : nat → R) (L : R) (ε : R) (Φ : val → iProp Σ),
       0 < p →
       p ≤ (q + 1) →
       to_val e = None →
-      (0 < ε_term)%R →
       (∀ (n : nat), 0 <= D n <= L)%R →
       SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
-      ↯ ε_term ∗
       ↯ ε ∗
       own_bernoulli_tape α p q l ∗
       (∀ (perm : list nat),
@@ -603,7 +602,9 @@ Section NegativeBinomial.
          own_bernoulli_tape α p q (l ++ expand_perm perm) -∗ WP e [{ Φ }]) ⊢
       WP e [{ Φ }].
     Proof.
-      iIntros (p q r α l e D L ε ε_term Φ Hp Hpq e_not_val Hε_term HD HSum) "(Hterm & Herr & Hα & Hnext)".
+      iIntros (p q r α l e D L ε Φ Hp Hpq e_not_val HD HSum) "(Herr & Hα & Hnext)".
+      iApply twp_rand_err_pos; auto.
+      iIntros (ε_term Hε_term) "Hterm".
       destruct (decide (p = q + 1)) as [-> | p_ne_Sq].
       {
         rewrite (SeriesC_ext _ (λ k, if bool_decide (k = 0)%nat then D 0 else 0%R)) in HSum; last first.
@@ -784,14 +785,12 @@ Section NegativeBinomial.
     
     Lemma twp_negative_presample_adv_comp :
       ∀ (p q r : nat) (α : loc) (l : list nat) (e : expr)
-        (D : nat → R) (L : R) (ε : R) (ε_term : R) (Φ : val → iProp Σ),
+        (D : nat → R) (L : R) (ε : R) (Φ : val → iProp Σ),
       0 < p →
       p ≤ (q + 1) →
       to_val e = None →
-      (0 < ε_term)%R →
       (∀ (n : nat), 0 <= D n <= L)%R →
       SeriesC (λ k, (negative_binom_prob p q r k * D k)%R) = ε →
-      ↯ ε_term ∗
       ↯ ε ∗
       own_negative_tape α p q r l ∗
       (∀ (n : nat),
@@ -799,8 +798,8 @@ Section NegativeBinomial.
          own_negative_tape α p q r (l ++ [n]) -∗ WP e [{ Φ }]) ⊢
       WP e [{ Φ }].
     Proof.
-      iIntros (p q r α l e D L ε ε_term Φ p_pos p_lt_Sq e_not_val ε_term_pos D_pos D_sum) "(Hterm & Herr & (%v & Hα & %is_tl) & Hnext)".
-      unshelve wp_apply (twp_bernoulli_presample_adv_comp_n_success p q r _ _ _ D L ε ε_term); last iFrame; try done.
+      iIntros (p q r α l e D L ε Φ p_pos p_lt_Sq e_not_val D_pos D_sum) "(Herr & (%v & Hα & %is_tl) & Hnext)".
+      unshelve wp_apply (twp_bernoulli_presample_adv_comp_n_success p q r _ _ _ D L ε); last iFrame; try done.
       iIntros (perm len_perm) "Herr Hα".
       wp_apply ("Hnext" with "Herr").
       iFrame.

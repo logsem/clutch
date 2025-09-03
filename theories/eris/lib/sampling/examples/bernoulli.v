@@ -198,13 +198,14 @@ Section Roulette.
   Qed.
 
   (** This lemma proves almost sure termination, as in the spline examples *)
-  Lemma roulette_martingale_aux_spec (ε : R) (c g : Z) :
-    (0 < ε) →
-    [[{↯ ε}]]
+  Lemma roulette_martingale_aux_spec (c g : Z) :
+    [[{ True }]]
       roulette_martingale_aux #c #g
     [[{RET #(c + g); True}]].
   Proof.
-    iIntros "%H_ε_pos %Φ Herr HΦ".
+    iIntros "%Φ _ HΦ".
+    iApply twp_rand_err_pos; auto.
+    iIntros (ε Hε_pos) "Herr".
     assert (exists k : nat, (S M - N) / (S M + k) <= ε ) as [k Hk].
     { assert (0 < S M - N) by (rewrite -minus_INR; real_solver).
       destruct (Rle_exists_nat (S M - N) ε) as [t Ht]; first rewrite -minus_INR; simpl_expr.
@@ -222,14 +223,13 @@ Section Roulette.
     rewrite -!plus_INR -!minus_INR; real_solver.
   Qed.
 
-  Example roulette_martingale_spec (ε : R) :
-    0 < ε →
-    [[{↯ ε}]]
+  Example roulette_martingale_spec :
+    [[{ True }]]
       roulette_martingale
     [[{RET #1; True}]].
   Proof.
-    iIntros "%H_ε_pos %Φ Herr HΦ".
-    by iApply (roulette_martingale_aux_spec with "Herr").
-  Qed.  
+    iIntros "%Φ _ HΦ".
+    by iApply roulette_martingale_aux_spec.
+  Qed.
 
 End Roulette.

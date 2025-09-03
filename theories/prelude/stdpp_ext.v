@@ -42,6 +42,17 @@ Section base.
 
   Global Instance bij_negb : Bij negb | 1.
   Proof. constructor; apply _. Qed.
+  
+  Lemma f_inv_bij `(f:A->B)`{HBij: !Bij f} : Bij (f_inv f).
+  Proof.
+    split.
+    - intros ?? H.
+      apply (f_equal f) in H.
+      by rewrite !f_inv_cancel_r in H.
+    - intros x.
+      exists (f x).
+      rewrite f_inv_cancel_l; [done|apply HBij].
+  Qed.
 
 End base.
 

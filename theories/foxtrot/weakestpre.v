@@ -5,7 +5,7 @@ From iris.bi Require Export fixpoint big_op.
 From iris.prelude Require Import options.
 
 From clutch.bi Require Export weakestpre.
-From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
+From clutch.prelude Require Import stdpp_ext iris_ext NNRbar tactics.
 From clutch.con_prob_lang Require Import lang erasure.
 From clutch.common Require Export sch_erasable con_language.
 From clutch.prob Require Export couplings_app distribution.
@@ -227,6 +227,270 @@ Section modalities.
       by iApply "H".
   Qed.
 
+  Lemma spec_coupl_step_l_dret_adv R μ (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal) ρ1 σ1 Z ε :
+    sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1  ->
+    (exists r, forall ρ, (ε2 ρ <= r)%R) ->
+    (ε1 + Expval μ ε2 <= ε)%R ->
+    pgl μ R ε1->
+    (∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ spec_coupl σ2 ρ1 (ε2 σ2) Z)%I
+    ⊢ spec_coupl σ1 ρ1 ε Z.
+  Proof.
+    iIntros (Herasable [r Hound] Hineq Hpgl) "H".
+    iApply spec_coupl_rec.
+    pose (n:=length ρ1.1).
+    iExists (λ σ' '(l, ρ'),
+               R σ' /\ ρ' = ρ1 /\ l=[(cfg_to_cfg' ρ1, n+ encode_nat σ')%nat; (cfg_to_cfg' ρ1, n)]
+            ).
+    iExists μ.
+    iExists (full_info_cons_osch (λ _, dmap (λ x, n+encode_nat x)%nat μ)
+                                 (λ _, full_info_stutter_osch full_info_inhabitant)
+            ).
+    iExists ε1, (λ '(l, ρ'),
+                   match l!!0%nat with
+                   | Some p =>
+                       match decode_nat (p.2-n)%nat with
+                       | Some x => ε2 x
+                       | None => nnreal_zero
+                       end
+                   | None => nnreal_zero
+                   end
+                ).
+    iExists r.
+    assert (0<=r).
+    { trans (ε2 inhabitant); naive_solver. }
+    repeat iSplit.
+    - done.
+    - iPureIntro. intros [??]. by repeat case_match.
+    - iPureIntro.
+      etrans; last exact.
+      apply Rplus_le_compat_l.
+      rewrite full_info_cons_osch_lim_exec.
+      rewrite Expval_dbind; last first.
+      { eapply ex_expval_bounded with r.
+        intros [??]. by repeat case_match.
+      }
+      { intros [??]. by repeat case_match. }
+      rewrite Expval_dmap; last first.
+      { apply ex_expval_bounded with r.
+        intros ?. split.
+        - apply Expval_ge_0'.
+          intros [??]. by repeat case_match.
+        - Local Opaque full_info_lift_osch.
+          simpl.
+          rewrite out_of_bounds_step'; last first.
+          { rewrite /n. lia. }
+          rewrite dret_id_left.
+          rewrite full_info_lift_osch_lim_exec full_info_stutter_osch_lim_exec full_info_inhabitant_lim_exec.
+          rewrite Expval_dmap; last first.
+          + simpl. 
+            apply ex_expval_bounded with r.
+            intros [??]. simpl; by repeat case_match.
+          + intros [??]. by repeat case_match.
+          + rewrite dmap_dret. rewrite Expval_dret. simpl.
+            by case_match.
+      }
+      { intros. apply Expval_ge_0'. intros [??]. by case_match.
+      }
+      apply Expval_le; last first.
+      { apply ex_expval_bounded with r. naive_solver. }
+      intros σ.
+      simpl.
+      rewrite out_of_bounds_step'; last (rewrite /n; lia).
+      rewrite dret_id_left.
+      rewrite full_info_lift_osch_lim_exec full_info_stutter_osch_lim_exec full_info_inhabitant_lim_exec.
+      rewrite !dmap_dret Expval_dret.
+      simpl. replace (_+_-_)%nat with (encode_nat (σ)); last first.
+      { simpl. lia. }
+      rewrite decode_encode_nat. done.
+    - rewrite full_info_cons_osch_lim_exec.
+      rewrite /dmap -!dbind_assoc.
+      rewrite -{1}(dret_id_right (μ)).
+      iPureIntro.
+      replace (ε1) with (ε1+0)%NNR; last (apply nnreal_ext; simpl; lra).
+      eapply (ARcoupl_dbind _ _ _ _ (λ x y, x=y /\ R x)); [try done..|]; last first.
+      { replace (ε1) with (0+ε1)%NNR; last (apply nnreal_ext; simpl; lra).
+        eapply up_to_bad_lhs; last done.
+        eapply ARcoupl_mono; [done|done| |done|apply ARcoupl_eq].
+        intros. naive_solver.
+      }
+      intros σ ?[??].
+      simplify_eq.
+      rewrite dret_id_left out_of_bounds_step'; last (rewrite /n; lia).
+      rewrite dret_id_left full_info_lift_osch_lim_exec full_info_stutter_osch_lim_exec full_info_inhabitant_lim_exec.
+      rewrite !dmap_dret.
+      by apply ARcoupl_dret.
+    - iPureIntro. intros x1 x2 ???(?&?&?)(?&?&?).
+      subst. simplify_eq.
+      assert (encode_nat x1 = encode_nat x2) as H' by lia.
+      apply encode_nat_inj in H'. subst. naive_solver.
+    - iIntros (σ l ?(?&->&->)).
+      simpl.
+      replace (_+_-_)%nat with (encode_nat σ); last first.
+      { simpl. lia. }
+      rewrite decode_encode_nat. by iApply "H".
+      Local Transparent full_info_lift_osch.
+  Qed.
+
+  Lemma spec_coupl_step_r_adv R (ε1 : nonnegreal) m (ε2 : _ -> nonnegreal) ρ1 σ1 Z ε j e:
+    reducible e ρ1.2 ->
+    ρ1.1 !! j = Some e ->
+    (exists r, forall ρ, (ε2 ρ <= r)%R) ->
+    (ε1 + Expval (prim_step e ρ1.2) ε2 <= ε)%R ->
+    pgl (prim_step e ρ1.2) (λ '(e', σ', efs), R(e', σ', efs)/\ tapes σ' = m) ε1->
+    (∀ e' σ' efs, ⌜ R (e', σ', efs) /\ tapes σ' = m⌝ ={∅}=∗ spec_coupl σ1 (<[j:=e']>ρ1.1++efs, σ') (ε2 (e', σ', efs)) Z)%I
+    ⊢ spec_coupl σ1 ρ1 ε Z.
+  Proof.
+    iIntros (Hreducible Hsome [r Hound] Hineq Hpgl) "H".
+    assert (to_val e = None) as Hval.
+    { destruct Hreducible. by eapply val_stuck. }
+    iApply spec_coupl_rec.
+    iExists (λ σ' '(l, ρ'),
+               σ' = σ1 /\
+               ∃ e' σ' efs,
+                 R (e', σ', efs) /\
+                 tapes σ' = m /\
+                 ρ' = (<[j:=e']>ρ1.1++efs, σ') /\
+                 l = [(cfg_to_cfg' ρ1, j)%nat; (cfg_to_cfg' (<[j:=e']>ρ1.1++efs, σ'), length (<[j:=e']>ρ1.1++efs))] 
+            ).
+    iExists (dret _).
+    iExists (full_info_cons_osch (λ _, dret j)
+                                 (λ _, full_info_stutter_osch full_info_inhabitant)
+            ).
+    iExists ε1, (λ '(l, ρ'),
+                   match (decide (∃ '(e', σ', efs), ρ'=(<[j:=e']>ρ1.1++efs, σ'))) with
+                   | left pro => ε2 (epsilon pro)
+                   | _ => 0%NNR
+                   end     
+                ).
+    iExists r.
+    assert (0<=r).
+    { trans (ε2 inhabitant); naive_solver. }
+    repeat iSplit.
+    - iPureIntro. apply dret_sch_erasable.
+    - iPureIntro. intros [??]. by repeat case_match.
+    - iPureIntro.
+      etrans; last exact.
+      apply Rplus_le_compat_l.
+      rewrite full_info_cons_osch_lim_exec.
+      rewrite Expval_dbind; last first.
+      { eapply ex_expval_bounded with r.
+        intros [??]. by repeat case_match.
+      }
+      { intros [??]. by repeat case_match. }
+      rewrite Expval_dret.
+      rewrite /step'.
+      destruct ρ1.
+      rewrite Hsome Hval.
+      rewrite /dmap. rewrite -dbind_assoc'.
+      rewrite Expval_dbind; last first.
+      { apply ex_expval_bounded with r.
+        intros [].
+        case_match; simpl; try lra.
+        naive_solver.
+      }
+      { intros []. by case_match. }
+      apply Expval_le; last first.
+      { apply ex_expval_bounded with r. naive_solver. }
+      intros [[]].
+      split; first apply SeriesC_ge_0'.
+      { intros []. apply Rmult_le_pos; real_solver. }
+      rewrite dret_id_left'.
+      rewrite full_info_lift_osch_lim_exec.
+      rewrite Expval_dmap; last first.
+      { apply ex_expval_bounded with r.
+        intros []. simpl. case_match; naive_solver. }
+      { intros []. by case_match. }
+      rewrite full_info_stutter_osch_lim_exec.
+      rewrite Expval_dmap; last first.
+      { apply ex_expval_bounded with r. intros []. simpl. case_match; naive_solver. }
+      { intros []. simpl. by case_match. }
+      rewrite full_info_inhabitant_lim_exec.
+      rewrite Expval_dret.
+      simpl.
+      case_match eqn:H'; last done.
+      pose proof epsilon_correct _ e1. simpl in *.
+      destruct (epsilon e1) as [[]].
+      simplify_eq.
+      apply app_inj_1 in H1 as [K ->]; last by rewrite !insert_length.
+      right.
+      repeat f_equal.
+      assert (<[j:=e0]> l !!j = <[j:=e2]> l!!j) as K'.
+      { by f_equal. }
+      rewrite !list_lookup_insert in K'; first by simplify_eq.
+      all: by eapply lookup_lt_Some.
+    - iPureIntro.
+      replace (ε1) with (ε1+0 )%NNR; last first.
+      { apply nnreal_ext. simpl; lra. }
+      rewrite full_info_cons_osch_lim_exec.
+      rewrite dret_id_left.
+      rewrite /step'.
+      destruct ρ1. rewrite Hsome Hval.
+      rewrite /dmap. rewrite -dbind_assoc.
+      assert (dret σ1 = dret ()≫= λ _, dret σ1) as Hrewrite; last rewrite Hrewrite.
+      { by rewrite dret_id_left. }
+      eapply ARcoupl_dbind; [done|done| |]; last first.
+      + replace (ε1) with (0+ε1 )%NNR; last first.
+        { apply nnreal_ext. simpl; lra. }
+        eapply up_to_bad_rhs; last done.
+        instantiate (1:= λ a b, (λ '(e', σ', efs), R (e', σ', efs) ∧ tapes σ' = m) b ). simpl.
+        eapply ARcoupl_mono;[done|done| |done|apply ARcoupl_trivial]; first done.
+        * apply dret_mass.
+        * by apply: prim_step_mass.
+      + intros ?[[]]?.
+        rewrite dret_id_left.
+        rewrite full_info_lift_osch_lim_exec.
+        setoid_rewrite full_info_stutter_osch_lim_exec.
+        rewrite dmap_comp.
+        setoid_rewrite full_info_inhabitant_lim_exec.
+        rewrite dmap_dret.
+        apply ARcoupl_dret; try done.
+        simpl; split; first done.
+        naive_solver.
+    - iPureIntro.
+      intros.
+      destruct!/=.
+      split; first done.
+      rewrite pair_eq.
+      split.
+      + apply app_inj_1 in H2 as [K ->]; last by rewrite !insert_length.
+        rewrite app_inv_tail_iff.
+        assert (<[j:=e'0]> ρ1.1 !!j = <[j:=e']> ρ1.1!!j) as K'.
+        { by f_equal. }
+        rewrite !list_lookup_insert in K'; first by simplify_eq.
+        all: by eapply lookup_lt_Some.
+      + destruct σ'0, σ'. simpl in *; naive_solver.
+    - iIntros (????).
+      destruct!/=.
+      case_match eqn :Heqn; last first.
+      { exfalso. apply n. eexists (_,_,_). naive_solver. }
+      pose proof epsilon_correct _ e0 as H2.
+      destruct (epsilon e0) as [[]].
+      simpl in *.
+      iMod ("H" with "[]") as "H"; first (iPureIntro; naive_solver).
+      iModIntro.
+      simplify_eq.
+      apply app_inj_1 in H2 as [K ->]; last by rewrite !insert_length.
+      assert (<[j:=e']> ρ1.1 !!j = <[j:=e1]> ρ1.1!!j) as K'.
+      { by f_equal. }
+      rewrite !list_lookup_insert in K'; first by simplify_eq.
+      all: by eapply lookup_lt_Some.
+  Qed.
+
+  Lemma spec_coupl_step_r R (ε1 : nonnegreal) m (ε2 : nonnegreal) ρ1 σ1 Z ε j e:
+    reducible e ρ1.2 ->
+    ρ1.1 !! j = Some e ->
+    (ε1 + ε2 <= ε)%R ->
+    pgl (prim_step e ρ1.2) (λ '(e', σ', efs), R(e', σ', efs)/\ tapes σ' = m) ε1->
+    (∀ e' σ' efs, ⌜ R (e', σ', efs) /\ tapes σ' = m⌝ ={∅}=∗ spec_coupl σ1 (<[j:=e']>ρ1.1++efs, σ') ε2 Z)%I
+    ⊢ spec_coupl σ1 ρ1 ε Z.
+  Proof.
+    intros.
+    iApply spec_coupl_step_r_adv; try done; first naive_solver.
+    rewrite Expval_const; last done.
+    rewrite prim_step_mass; first lra.
+    naive_solver.
+  Qed.
+  
   (** TODO: state step for LHS *)
 (*   Lemma spec_coupl_state_step α σ1 Z (ε ε' : nonnegreal) : *)
 (*     α ∈ get_active σ1 → *)
@@ -410,8 +674,8 @@ Section modalities.
     iExists (λ ρ '(l, ρ'),
                R ρ /\ ρ' = ρ1 /\ l=[(cfg_to_cfg' ρ1, n+ encode_nat ρ)%nat; (cfg_to_cfg' ρ1, n)]
             ).
-    iExists (full_info_cons_osch (dmap (λ x, n+encode_nat x)%nat (prim_step e1 σ1))
-                                 (λ _, full_info_stutter_osch ρ1 full_info_inhabitant)
+    iExists (full_info_cons_osch (λ _, dmap (λ x, n+encode_nat x)%nat (prim_step e1 σ1))
+                                 (λ _, full_info_stutter_osch full_info_inhabitant)
             ).
     iExists ε1, (λ '(l, ρ'),
                    match l!!0%nat with
@@ -526,8 +790,6 @@ Section modalities.
     iIntros (??? (_ & ?)).
     by iApply "H".
   Qed.
-  
-(** TODO: add nice lemmas for using prog_coupl, e.g. prim_step only on the left*)
 
 End modalities.
 
@@ -644,9 +906,9 @@ Lemma wp_strong_mono E1 E2 e Φ Ψ s :
   E1 ⊆ E2 →
   WP e @ s; E1 {{ Φ }} -∗
  (∀ σ1 ρ1 ε1 v,
-     state_interp σ1 ∗ spec_interp ρ1 ∗ err_interp ε1 ∗ Φ v -∗
+     state_interp σ1 ∗ spec_interp ρ1 ∗ err_interp ε1 ∗ Φ v ={E2, ∅}=∗
      spec_coupl σ1 ρ1 ε1 (λ σ2 ρ2 ε2,
-          |={E2}=> state_interp σ2 ∗ spec_interp ρ2 ∗ err_interp ε2 ∗ Ψ v)) -∗
+          |={∅, E2}=> state_interp σ2 ∗ spec_interp ρ2 ∗ err_interp ε2 ∗ Ψ v)) -∗
   WP e @ s; E2 {{ Ψ }}.
 Proof.
   iIntros (HE) "H HΦ". iLöb as "IH" forall (e E1 E2 HE Φ Ψ s).
@@ -660,13 +922,12 @@ Proof.
   case_match eqn:Hv.
   { iApply fupd_spec_coupl.
     iMod "H" as "(?&?&?)".
-    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSpecialize ("HΦ" with "[$]").
-    iApply (spec_coupl_bind with "[-HΦ] HΦ").
+    iMod "Hclose" as "_".
+    iMod ("HΦ" with "[$]").
+    iModIntro.
+    iApply (spec_coupl_bind with "[][$]").
     iIntros (???) "Hσ".
-    iApply spec_coupl_ret.
-    iMod "Hclose'". iMod "Hclose".
-    by iMod "Hσ". }
+    by iApply spec_coupl_ret. }
   iApply spec_coupl_ret.
   iApply (prog_coupl_mono with "[HΦ Hclose] H").
   iIntros (e2 σ3 efs ρ3 ε3) "H !>".
@@ -689,8 +950,29 @@ Proof.
   iApply (wp_strong_mono with "Hwp"); [done|].
   iIntros (????) "(?&?&?&?)".
   iApply spec_coupl_ret.
-  by iMod ("Hw" with "[$]").
+  iApply fupd_mask_intro; first set_solver.
+  iIntros ">?".
+  iApply "Hw". iFrame.
 Qed.
+
+Lemma spec_coupl_wp E e Φ s :
+  (∀ σ1 ρ1 ε1, state_interp σ1 ∗ spec_interp ρ1 ∗ err_interp ε1 ={E, ∅}=∗
+            spec_coupl σ1 ρ1 ε1
+              (λ σ2 ρ2 ε2, |={∅, E}=> state_interp σ2 ∗ spec_interp ρ2 ∗ err_interp ε2 ∗ WP e @ s ; E {{Φ}})) -∗
+  WP e @ s ; E {{ Φ }}.
+Proof.
+  iIntros "H".
+  erewrite wp_unfold. rewrite /wp_pre.
+  iIntros (???) "(?&?&?)". 
+  iSpecialize ("H" with "[$]").
+  iMod "H". iModIntro.
+  iApply (spec_coupl_bind with "[][$]").
+  iIntros (???) "H".
+  iApply fupd_spec_coupl.
+  iMod "H" as "(?&?&?&H)".
+  rewrite wp_unfold/wp_pre.
+  iApply "H". iFrame.
+Qed. 
 
 Lemma fupd_wp E e Φ s: (|={E}=> WP e @ s; E {{ Φ }}) ⊢ WP e @ s; E {{ Φ }}.
 Proof.
@@ -705,9 +987,9 @@ Lemma wp_fupd E e Φ s : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {{ Φ
 Proof.
   iIntros "H".
   iApply (wp_strong_mono E with "H"); [done|].
-  iIntros (????) "(? & ? & ? & ?)".
-  iApply spec_coupl_ret.
-  by iFrame.
+  iIntros (????) "(? & ? & ? & >?)".
+  iApply spec_coupl_ret. iFrame.
+  iApply fupd_mask_intro_subseteq; set_solver.
 Qed.
 
 Lemma wp_atomic E1 E2 e Φ `{!Atomic StronglyAtomic e} s :
@@ -765,7 +1047,8 @@ Proof.
   iIntros "!>" (????) "(? & ? & ? & H)".
   iApply spec_coupl_ret.
   iMod ("H" with "[$]").
-  by iFrame.
+  iFrame.
+  iApply fupd_mask_intro_subseteq; set_solver.
 Qed.
 
 Lemma wp_bind K `{!ConLanguageCtx K} E e Φ s :
@@ -821,7 +1104,9 @@ Proof.
   iIntros "[? H]".
   iApply (wp_strong_mono with "H"); [done|].
   iIntros (????) "(? & ? & ? & ?)".
-  iApply spec_coupl_ret. by iFrame.
+  iApply spec_coupl_ret.
+  iFrame.
+  iApply fupd_mask_intro_subseteq; set_solver.
 Qed.
 Lemma wp_frame_r E e Φ R s : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
 Proof. iIntros "[H ?]". iApply (wp_strong_mono' with "H"); auto with iFrame. Qed.
