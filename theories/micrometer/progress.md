@@ -60,7 +60,7 @@ Status:
 
 | Name                   | Status       | Notes                                                                     |
 |------------------------|--------------|---------------------------------------------------------------------------|
-| ``class_instances.v `` | `Punishment` | Canonical structures problem, similar to `spec_rules`                     |
+| ``class_instances.v `` | A few `Adm`  | Some lemmas need to be stated                                             |
 | ``ctx_subst.v``        | `Unported`   | Why does this exist?                                                      |
 | ``ectxi_language.v``   | `Ok`         |                                                                           |
 | ``ectx_language.v``    | 3 `Adm`      |                                                                           |

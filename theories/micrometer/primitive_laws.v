@@ -6,6 +6,7 @@ From clutch.base_logic Require Export error_credits.
 From clutch.micrometer Require Export app_weakestpre ectx_lifting.
 From clutch.meas_lang Require Export class_instances meas_spec_update.
 From clutch.meas_lang Require Import tactics lang notation metatheory tapes.
+From clutch.meas_lang Require Import ectx_language.
 From clutch.meas_lang.spec Require Export spec_ra spec_rules spec_tactics.
 From mathcomp.analysis Require Import measure.
 From mathcomp Require Import classical_sets.
@@ -17,7 +18,7 @@ Local Open Scope classical_set_scope.
 Class micrometerGS Σ := HeapG {
   micrometerGS_invG : invGS_gen HasNoLc Σ;
   (* CMRA for the state *)
-  micrometerGS_heap : ghost_mapG Σ <<discr loc>> val;
+  micrometerGS_heap : ghost_mapG Σ <<discr loc>> val_T;
   micrometerGS_tapes : ghost_mapG Σ <<discr loc>> btape;
   micrometerGS_utapes : ghost_mapG Σ <<discr loc>> utape;
   (* ghost names for the state *)
@@ -33,7 +34,7 @@ Class micrometerGS Σ := HeapG {
 
 Class micrometerGpreS Σ := MicrometerGpreS {
   micrometerGpreS_iris   :: invGpreS Σ;
-  micrometerGpreS_heap   :: ghost_mapG Σ <<discr loc>> val;
+  micrometerGpreS_heap   :: ghost_mapG Σ <<discr loc>> val_T;
   micrometerGpreS_tapes  :: ghost_mapG Σ <<discr loc>> btape;
   micrometerGpreS_utapes :: ghost_mapG Σ <<discr loc>> utape;
   micrometerGpreS_spcec  :: specGpreS Σ;
@@ -42,7 +43,7 @@ Class micrometerGpreS Σ := MicrometerGpreS {
 
 Definition micrometerΣ : gFunctors :=
   #[invΣ;
-    ghost_mapΣ <<discr loc>> val;
+    ghost_mapΣ <<discr loc>> val_T;
     ghost_mapΣ <<discr loc>> btape;
     ghost_mapΣ <<discr loc>> utape;
     specΣ;
@@ -190,9 +191,9 @@ End tape_interface.
 Section lifting.
 Context `{!micrometerGS Σ}.
 Implicit Types P Q : iProp Σ.
-Implicit Types Φ Ψ : val → iProp Σ.
-Implicit Types σ : state.
-Implicit Types v : val.
+Implicit Types Φ Ψ : val_T → iProp Σ.
+(* Implicit Types σ : state. *)
+Implicit Types v : val_T.
 Implicit Types l : loc.
 
 (** Recursive functions: we do not use this lemma as it is easier to use Löb
@@ -210,21 +211,17 @@ Lemma wp_rec_löb E f (x : <<discr binders.binder>>) e Φ Ψ :
        WP e' @ E {{ Φ }}.
 Proof.
   iIntros "#Hrec". iLöb as "IH". iIntros (v) "HΨ".
-  iApply (@lifting.wp_pure_step_later _ _ _ _ _ _ _ _ _ 1).
-  3: {
+  iApply (@lifting.wp_pure_step_later _ _ _ _ _ _ _ _ True 1).
+  { subst; intros ?;  apply nsteps_once, pure_head_step_pure_step; constructor.
+    { intros; apply gRet_not_zero. }
+    { intros; simpl; (repeat case_match); simplify_eq; apply is_det_dret. }
+  }
+  { done. }
+  {
     iNext. iApply ("Hrec" with "[] HΨ"). iIntros "!>" (w) "HΨ".
     iApply ("IH" with "HΨ").
   }
-  { unfold PureExec.
-    intro H.
-    apply nsteps_once.
-    simpl.
-    (* apply Build_pure_step.
-      Build the pure step, perhaps just port the PureSteps machinery *)
-    admit.
-  }
-  { admit. (* Should reduce under no hypotheses *) }
-Admitted.
+Qed.
 
 Local Open Scope classical_set_scope.
 
@@ -314,7 +311,7 @@ Qed.
 *)
 
 Lemma wp_load E l dq v s :
-  {{{ ▷ l ↦{dq} v }}} (Load (Val $ LitV $ LitLoc l) : meas_lang.language.expr meas_lang) @ s; E {{{ RET (v : val); l ↦{dq} v }}}.
+  {{{ ▷ l ↦{dq} v }}} (Load (Val $ LitV $ LitLoc l) : meas_lang.language.expr meas_lang) @ s; E {{{ RET (v : val_T); l ↦{dq} v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -347,7 +344,7 @@ Admitted.
 
 Lemma wp_store E l v' v s :
   {{{ ▷ l ↦ v' }}} (Store (Val $ LitV (LitLoc l)) (Val v) : meas_lang.language.expr meas_lang) @ s; E
-  {{{ RET (LitV LitUnit : val) ; l ↦ v }}}.
+  {{{ RET (LitV LitUnit : val_T) ; l ↦ v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -359,10 +356,10 @@ Proof.
   iSplitR. {
     iPureIntro.
     rewrite prod1.
-    by apply (measurableX (T1:=expr)); [apply expr_meas_singleton | apply state_meas_singleton]. }
+    by apply (measurableX (T1:=expr_T)); [apply expr_meas_singleton | apply state_meas_singleton]. }
   iSplitR. { rewrite H; iPureIntro; apply gRetMass1Inv.
     { rewrite prod1.
-      by apply (measurableX (T1:=expr)); [apply expr_meas_singleton | apply state_meas_singleton]. }
+      by apply (measurableX (T1:=expr_T)); [apply expr_meas_singleton | apply state_meas_singleton]. }
     { by rewrite //=. }
   }
   iIntros (? ->) "!> /= _".
@@ -375,7 +372,7 @@ Admitted.
 
 Lemma wp_rand (N : nat) (z : Z) E s :
   TCEq N (Z.to_nat z) →
-  {{{ True }}} (rand (Val (LitV (LitInt z))) : meas_lang.language.expr meas_lang) @ s; E {{{ (n : nat), RET (#(LitInt $ Z.of_nat n) : val); ⌜n <= N⌝ }}}.
+  {{{ True }}} (rand (Val (LitV (LitInt z))) : meas_lang.language.expr meas_lang) @ s; E {{{ (n : nat), RET (#(LitInt $ Z.of_nat n) : val_T); ⌜n <= N⌝ }}}.
 Proof.
   iIntros (-> Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
