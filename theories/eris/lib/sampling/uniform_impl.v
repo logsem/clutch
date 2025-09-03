@@ -11,8 +11,7 @@ Proof.
             (λ _ _ Δ l, ∃ l', Δ ↪ (N; l') ∗
                               ⌜l = fmap (λ (k : fin (S N)), #k) l'⌝)%I
             (λ _ _ Δ α, ⌜α = #lbl:Δ⌝)%I #() _ _ _ _).
-  - iIntros (Σ erisGS0 D ε εf L ε_ge_0 εf_pos D_bounds D_sum Φ) "Herr HΦ".
-    iPoseProof (ec_split with "Herr") as "[_ Herr]"; try lra.
+  - iIntros (Σ erisGS0 D ε L ε_ge_0 D_bounds D_sum Φ) "Herr HΦ".
     wp_pures.
     set (D' (k : fin (S N)) := D #k).
     wp_apply (twp_couple_rand_adv_comp _ _ _ _ D' with "Herr [HΦ]").
@@ -30,8 +29,7 @@ Proof.
     wp_apply (twp_alloc_tape _ N _ _ _ Φ with "[$] [HΦ]") as (α) "Htape".
     iApply "HΦ".
     by iFrame.
-  - iIntros (Σ erisGS0 e ε εf Δ l D L Φ e_not_val ε_ge_0 εf_pos D_bounds D_sum) "(Herr & (%l' & Htape & ->) & Hnext)".
-    iPoseProof (ec_split with "Herr") as "[_ Herr]"; try lra.
+  - iIntros (Σ erisGS0 e ε Δ l D L Φ e_not_val ε_ge_0 D_bounds D_sum) "(Herr & (%l' & Htape & ->) & Hnext)".
     set (D' (k : fin (S N)) := D #k).
     unshelve wp_apply (twp_presample_adv_comp _ N _ _ _ _ _ _ D' _ e_not_val with "[$Herr $Htape Hnext]").
     { move=>k. apply D_bounds. }

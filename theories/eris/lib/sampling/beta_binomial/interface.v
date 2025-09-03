@@ -356,8 +356,7 @@ Section BetaBinomialLemmas.
               (λ _ _ Δ l, ∃ l', own_beta_tape r b n Δ l' ∗
                             ⌜l = fmap (λ (k : fin (S n)), #k) l'⌝)%I
               (λ _ _, is_abs_loc n)%I (loc_unit n) _ _ _ _).
-    - iIntros (Σ erisGS0 D ε εf L ε_ge_0 εf_pos D_bounds D_sum Φ) "Herr HΦ".
-      iPoseProof (ec_split with "Herr") as "[_ Herr]"; try lra.
+    - iIntros (Σ erisGS0 D ε L ε_ge_0 D_bounds D_sum Φ) "Herr HΦ".
       set (D' (k : nat) := D #k).
       wp_pures.
       wp_apply (twp_beta_binomial_adv_comp r b n D' _ ltac:(lia) with "Herr [HΦ]").
@@ -369,8 +368,7 @@ Section BetaBinomialLemmas.
       wp_apply (twp_beta_alloc r b n ltac:(lia) with "[$]") as (Δ α) "[Hα HΔ]".
       iApply "HΦ".
       by iFrame.
-    - iIntros (Σ erisGS0 e ε εf Δ l D L Φ e_not_val ε_ge_0 εf_pos D_bounds D_sum) "(Herr & (%l' & Htape & ->) & Hnext)".
-      iPoseProof (ec_split with "Herr") as "[_ Herr]"; try lra.
+    - iIntros (Σ erisGS0 e ε Δ l D L Φ e_not_val ε_ge_0 D_bounds D_sum) "(Herr & (%l' & Htape & ->) & Hnext)".
       set (D' (k : fin (S n)) := D #k).
       unshelve wp_apply (twp_beta_presample_adv_comp _ r b n _ D' _ _ _ ltac:(lia) e_not_val  with "[$Herr $Htape Hnext]").
       { move=>k. apply D_bounds. }

@@ -4,7 +4,7 @@ From clutch.eris.lib.sampling Require Import utils.
 From Coquelicot Require Import PSeries ElemFct RInt RInt_analysis Continuity.
 
 Section GeometricToNegative.
-  Context `{!erisGS Σ}.
+  
   Context `{!geometric_spec geometric galloc}.
   
   Definition negative_of_geometric : val :=
@@ -325,14 +325,14 @@ Section GeometricToNegative.
   
   Instance NegativeOfGeometric : negative_binomial_spec negative_of_geometric nalloc.
   Proof.
-    refine (NegativeSpec _ _ _ _ _ _ _ _ _).
+    refine (NegativeSpec _ _ _ _ _ _ _).
     {
-      iIntros (p q p_pos p_lt_Sq r D L ε ε_term term_pos D_bounds D_sum) "Hterm Herr".
+      iIntros (Σ erisGS0 p q p_pos p_lt_Sq r D L ε D_bounds D_sum) "Herr".
       unfold negative_of_geometric.
       do 8 wp_pure.
-      iRevert (D L ε ε_term term_pos D_bounds D_sum) "Hterm Herr".
+      iRevert (D L ε D_bounds D_sum) "Herr".
       iInduction (r) as [|r] "IH";
-        iIntros (D L ε ε_term term_pos D_bounds D_sum) "Hterm Herr".
+        iIntros (D L ε D_bounds D_sum) "Herr".
       - wp_pures.
         iModIntro.
         iExists 0.
@@ -353,23 +353,23 @@ Section GeometricToNegative.
         }
         rewrite (negative_sum_geometric_split _ _ _ _ L) // in D_sum.
         wp_pures.
+        (*wp_apply twp_rand_err_pos; first done.
+        iIntros (εf) "%εf_pos Hfuel".
         wp_bind (geometric _ _ _).
         iApply tgl_wp_wand_r.
         rewrite -(Rplus_half_diag ε_term).
         iPoseProof (ec_split with "Hterm") as "[Hterm_now Hterm_next]"; try lra.
-        iSplitL "Hterm_now Herr";
-          first wp_apply (twp_geometric_adv_comp _ _ _ _ _ _ _ _ _ _ D_sum with "Hterm_now Herr").
-        iIntros (v) "(%k & -> & H)".
+        iSplitL "Hterm_now Herr"; *)
+        wp_bind (geometric _ _ _).
+        iApply tgl_wp_wand_r.
+        iSplitL;
+        first wp_apply (twp_geometric_adv_comp _ _ _ _ _ _ _ _ D_sum with "Herr").
+        iIntros (v) "(%k & -> & Herr)".
          wp_pure.
          replace (S r - 1 : Z) with (r : Z) by lia.
          wp_bind ((rec: _ _ := _)%V _)%E.
          iApply tgl_wp_wand_r.
-         iSplitL.
-         { wp_apply ("IH" $! (λ i, (D (k + i))) with "[] [] [] Hterm_next");
-             try done.
-           iPureIntro.
-           lra.
-         } 
+         iSplitL; first by wp_apply ("IH" $! (λ i, (D (k + i))) with "[] [] Herr").
          iIntros (v) "(%k' & -> & H)".
          wp_pures.
          iModIntro.
