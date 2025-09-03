@@ -2,44 +2,59 @@
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.meas_lang Require Import lang notation tactics exec_lang.
-From clutch.meas_lang Require Import language.
+From clutch.meas_lang Require Import language ectxi_language.
 From clutch.meas_lang.lang Require Import types.
 From clutch.meas_lang.spec Require Export spec_ra.
 
-
-Section rules.
   Context `{!measG_prob_lang Σ, invGS_gen hasLc Σ}.
   Implicit Types P Q : iProp Σ.
-
-  Local Open Scope classical_set_scope.
-
-  (* Check measure.Measurable.type. *)
-  (* Implicit Types Φ : (val meas_lang : Type) → iProp Σ. *)
-  (* Implicit Types σ : state.
-  Implicit Types e : expr.
-  Implicit Types v : val.
-  Implicit Types l : loc. *)
-
-  (* How to state these stupid lemmas.
-
-    - Need `From clutch.meas_lang Require Import language.` for `PureExec`
-    - Need `From clutch.meas_lang Require Import ectxi_langauge.` for definition of `fill`, I think
-    - If I import `language` before the other meas_lang imports it complains that my types aren't
-      types because it defaults to the projections out of the canonical structures.
-    - If I import it afterwards I get can change it to `val meas_lang` etc.
-
-    Either way it doesn't know that (val meas_lang) is a type.
-    Not sure if my trick of importing the bare types will work because PureExec wants the canonical structure types.
-    Do I move PureExec?
-  *)
-
-  (*
-  Check PureExec. :
-    (* Prop → nat → measure.Measurable.sort (language.expr ?Λ) → measure.Measurable.sort (language.expr ?Λ) → Prop *)
-  *)
+  Implicit Types Φ : val_T → iProp Σ.
+  (* Implicit Types σ : state_T. *)
+  Implicit Types e : expr_T.
+  Implicit Types v : val_T.
+  Implicit Types l : loc.
 
 
-  (*
+  (* If I make the terms be of type
+      ectxi_language.exprT lang.meas_ectxi_lang
+    then I can state fill but not PureExec.
+
+    If I make the terms be of type
+      lang.exprT meas_lang
+    I can state PureExec but not fill.
+
+    The same situation arises in Approxis, but there, Rocq is able to realize that the types are the same.
+    Why not here?
+
+    I can try making them be of type
+      types.expr,
+    the unerlying type, just like how it's done in Approxis, but then I get
+
+      > Error: The term "expr" has type "measure.Measurable.type (measure.sigma_display expr_cyl)"
+      > which should be Set, Prop or Type.
+
+    This is despite the fact that
+      Check measure.Measurable.type
+      > measure.Measurable.type : measure.measure_display → Type
+    Rocq is not convinced that this Type is a Type.
+
+
+    I can try using the types used for the cylinder constuction
+      expr_T.
+    Rocq understand that this type is a type, but PureExec expects it to
+    have type
+      measure.Measurable.sort (language.expr ?Λ)
+
+    I can try changing PureExec to not use e, but use toPacked of e,
+      but I get the error
+
+      The term "toPacked e" has type "measure.Measurable.sort (toPackedType ?d expr_T)"
+      while it is expected to have type
+      "measure.Measurable.sort (language.expr ?Λ)".
+
+    I can try specializing Λ to be be meas_lang perhaps?
+
+   *)
 
   (** Pure reductions *)
   Lemma step_pure E K e e' (P : Prop) n:
@@ -56,6 +71,7 @@ Section rules.
     rewrite dret_1_1 //.
   Qed.
 
+  (*
   (** Alloc, load, and store *)
   Lemma step_alloc E K e v :
     IntoVal e v →
