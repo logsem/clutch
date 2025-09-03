@@ -31,9 +31,8 @@ Class geometric_spec `{!erisGS Σ} (geometric_prog geometric_alloc : val) :=
       (p q r : nat) (ns : list nat) (ε : R),
       (0 < p)%nat →
       (p ≤ q + 1)%nat →
-      (0 < ε)%R → 
       to_val e = None →
-      ↯ ε ∗ own_geometric_tape α p q ns ∗
+      own_geometric_tape α p q ns ∗
       (∀ (i : nat), own_geometric_tape α p q (ns ++ [i]) -∗ WP e [{ Φ }])
       ⊢  WP e [{ Φ }];
   
