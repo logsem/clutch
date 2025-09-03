@@ -167,36 +167,8 @@ Section ectxi_language.
   Lemma fill_item_not_val K e : to_val e = None → to_val (fill_item (K, e)) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_item_val. Qed.
 
-
-  (*
-  (* Shoule be easier to show this is measurable *)
-  (* Still can't makke is measurable by construction due to the nonstructural recursion, but I can do that
-   in the next step. *)
-  Program Fixpoint fill_pre (x : (ectx * expr Λ)%type) {measure (length x.1)} : expr Λ :=
-    match x.1 with
-    | [] => snd x
-    | (_ :: _) => fill_item (𝜋_cons_v (fst x), fill_pre (𝜋_cons_vs (fst x), (snd x)))
-    end.
-  Next Obligation.
-    intros.
-    unfold filtered_var in Heq_anonymous.
-    rewrite <- Heq_anonymous.
-    rewrite /𝜋_cons_vs//=.
-    by apply Nat.lt_succ_diag_r.
-  Qed.
-  Next Obligation.
-    unfold well_founded.
-    intro l.
-    destruct l as (ll, lv).
-    induction ll as [|l' IH].
-    { admit. }
-    { admit. }
-  Admitted.
-   *)
-
   Definition fill (K : (ectx * expr Λ)%type) : expr Λ := foldl (fun e' k => fill_item (k, e')) (snd K) (fst K).
 
-  
   Local Open Scope classical_set_scope.
   Lemma fill_measurable : measurable_fun setT fill.
   Proof with ms_solve; apply list_length_cov_meas_set.

@@ -734,7 +734,7 @@ Section markov.
         * eapply pmf_ex_seriesC_mult_fn.
           exists 1. by intros ρ. *)
       }
-  Admitted.
+  A dmitted.
  *)
 
   (*

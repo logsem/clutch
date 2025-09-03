@@ -1275,7 +1275,7 @@ Local Open Scope ereal_scope.
 Lemma subprobability_setC {d} {T : measurableType d} (S : set T) (μ : @subprobability d T R) :
   measurable S -> (μ (~` S) <= (1 : \bar R) - μ S).
 Proof.
-move=> mA.
+  move=> mA.
 Admitted.
 
 (* TODO: Move *)

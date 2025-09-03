@@ -2717,9 +2717,12 @@ Proof. red; intro; eapply expr_ord_wf'; eauto. Defined.
 (* uncomment the slow proof *)
 Lemma decomp_expr_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e.
 Proof. Admitted.
-(*   rewrite /expr_ord /decomp_item. *)
-(*   destruct Ki; repeat case_match; intros [=]; simplify_eq; simpl; lia.  *)
-(* Qed. *)
+
+(*
+  rewrite /expr_ord /decomp_item.
+  destruct Ki; repeat case_match; intros [=]; simplify_eq; simpl; lia.
+Qed.
+*)
 
 Lemma decomp_fill_item Ki e :
   to_val e = None → decomp_item (fill_item (Ki, e)) = Some (Ki, e).
@@ -2730,10 +2733,12 @@ Proof. destruct Ki ; simpl ; by repeat destruct_match. Qed.
 Lemma decomp_fill_item_2 e e' Ki :
   decomp_item e = Some (Ki, e') → fill_item (Ki, e') = e ∧ to_val e' = None.
 Proof. Admitted.
-(*   rewrite /decomp_item ; *)
-(*     destruct e ; try done ; *)
-(*     destruct Ki ; cbn ; repeat destruct_match ; intros [=] ; subst ; auto. *)
-(* Qed. *)
+(*
+  rewrite /decomp_item ;
+    destruct e ; try done ;
+    destruct Ki ; cbn ; repeat destruct_match ; intros [=] ; subst ; auto.
+Qed.
+ *)
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
   to_val e1 = None → to_val e2 = None →

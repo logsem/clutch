@@ -339,11 +339,5 @@ End spec_tape_interface.
 
 *)
 
-
 #[global] Instance spec_rules_spec_updateGS `{!specG_meas_lang Σ} :
   meas_spec_updateGS (meas_lang_markov meas_lang) Σ := MeasSpec_updateGS spec_auth.
-
-(*
-#[global] Instance spec_rules_spec_updateGS `{!specG_prob_lang Σ} :
-  spec_updateGS (lang_markov prob_lang) Σ := Spec_updateGS spec_auth.
-*)

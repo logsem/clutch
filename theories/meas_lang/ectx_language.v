@@ -289,28 +289,6 @@ Section ectx_language.
         apply decomp_meas.
   Qed.
     
-  (*
-    ssrfun.comp
-      ( giryM_map (ssrfun.comp fill_liftU $ mProd (ssrfun.comp fst $ ssrfun.comp decomp fst) (fun x => x)) _ )
-      .
-  Next Obligation.
-    eapply @measurable_compT; first by eauto with measlang.
-    { by apply fill_liftU_meas. }
-    eapply @measurable_compT; first by eauto with measlang.
-    { eapply @measurable_compT; first by eauto with measlang.
-      { mcrunch_prod.
-        { mcrunch_comp.
-          eapply @measurable_compT; first by eauto with measlang.
-          { by apply decomp_meas. }
-          { by eauto with measlang. }
-        }
-        { by eapply measurable_id. }
-      }
-      { by eapply measurable_id. }
-    }
-    { by eapply measurable_id. }
-  Qed.
-*)
   Lemma fill_not_val K e : to_val e = None → to_val (fill (K, e)) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.
 

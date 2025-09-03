@@ -1223,19 +1223,20 @@ Definition head_stepM' : cfg -> giryM cfg :=
   if_in cover_tick       head_stepM_tick       $
   cst gZero.
 
-
 (** Slow proof, but can just uncomment *)
 Lemma head_stepM'_meas_fun : measurable_fun setT head_stepM'.
-  (* rewrite /head_stepM'. *)
-(*   (eapply @if_in_meas_fun; [ms_done|ms_solve|rewrite setIidl; [eauto with mf_fun|subset_solver]| *)
-(*                              rewrite setIidl; last subset_solver *)
-(*   ]). *)
-(*   repeat( eapply @if_in_meas_fun; [ms_done|ms_solve|apply @measurable_fun_setI1; [ms_solve|ms_solve|eauto with mf_fun]|]). *)
-(*   (* computer goes brrr... *) *)
-(*   ms_solve. *)
-  (* Qed. *)
-Admitted.
-
+Proof. Admitted.
+(*
+Proof. 
+  rewrite /head_stepM'. 
+  (eapply @if_in_meas_fun; [ms_done|ms_solve|rewrite setIidl; [eauto with mf_fun|subset_solver]| 
+                             rewrite setIidl; last subset_solver 
+  ]). 
+  repeat( eapply @if_in_meas_fun; [ms_done|ms_solve|apply @measurable_fun_setI1; [ms_solve|ms_solve|eauto with mf_fun]|]). 
+  (* computer goes brrr... *) 
+  ms_solve. 
+Qed.
+*)
 
 
 Local Ltac unfold_if_in := match goal with | |- context [(if_in ?X _)] => unfold X end.
