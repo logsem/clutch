@@ -1,3 +1,6 @@
+# run coqdoc by default (our CI entrypoint)
+.DEFAULT_GOAL := ci
+
 SRC_DIRS := 'theories'
 EXT_DIRS := 'external'
 ALL_VFILES := $(shell find $(EXT_DIRS) $(SRC_DIRS) -name '*.v' -a '!' -name '*'.\#'*')
@@ -11,7 +14,20 @@ Q:=@
 # extract global arguments for Coq from _CoqProject
 COQPROJECT_ARGS := $(shell sed -E -e '/^\#/d' -e 's/-arg ([^ ]*)/\1/g' _CoqProject)
 
-all: $(VFILES:.v=.vo)
+Makefile.coq: _CoqProject $(ALL_VFILES)
+	$(Q)coq_makefile -f _CoqProject $(ALL_VFILES) -o Makefile.coq -docroot .
+
+include coqdocjs/Makefile.doc
+
+# ensure coqdoc won't run before Makefile.coq is generated
+coqdoc: Makefile.coq
+
+.PHONY: all ci
+
+all:
+	$(MAKE) -f Makefile.coq
+
+ci: Makefile.coq coqdoc
 
 .coqdeps.d: $(ALL_VFILES) _CoqProject
 	@echo "COQDEP $@"
@@ -39,11 +55,8 @@ clean:
 	$(Q)find $(EXT_DIRS) $(SRC_DIRS) \( -name "*.vo" -o -name "*.vo[sk]" \
 		-o -name ".*.aux" -o -name ".*.cache" -o -name "*.glob" \) -delete
 	$(Q)rm -f .lia.cache
+	rm -f Makefile.coq Makefile.coq.conf
 	rm -f .coqdeps.d
-	rm -f Makefile.coq
-	rm -f Makefile.coq.conf
 
 tar:
 	git archive --format=tar.gz -o coq-clutch.tar.gz HEAD
-
-.PHONY: clean zip
