@@ -39,8 +39,14 @@ jobs:
           before_script: |
             sudo chown -R coq:coq . # workaround a permission issue
           script: |
+            startGroup Clone coqdocjs
+              git clone https://github.com/ahuoguo/coqdocjs.git
+            endGroup
             startGroup Build
               make -j2
+            endGroup
+            startGroup HTML Build
+              make -f Makefile.ci -j2
             endGroup
           uninstall: |
             make clean
@@ -48,3 +54,19 @@ jobs:
         # to avoid a warning at cleanup time
         if: ${{ always() }}
         run: sudo chown -R 1001:116 .
+      - name: Upload html as artifact
+        if: always()
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: html
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v2
