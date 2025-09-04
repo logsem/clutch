@@ -55,18 +55,20 @@ jobs:
         if: ${{ always() }}
         run: sudo chown -R 1001:116 .
       - name: Upload html as artifact
-        if: always()
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v3
         with:
           path: html
 
   deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     permissions:
       pages: write
       id-token: write
+    runs-on: ubuntu-latest
     steps:
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v2
+      - name: deploy to github pages
+        id: deployment
+        uses: actions/deploy-pages@v4
