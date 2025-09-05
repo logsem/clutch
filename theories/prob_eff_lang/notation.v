@@ -242,3 +242,7 @@ Notation "'letrec:' f x y .. z := e1 'in' e2" :=
   (at level 200, f at level 1, x,y,z at level 1, e1, e2 at level 200,
    format "'[' 'letrec:'  f  x y .. z :=  '/  ' '[' e1 ']'  'in'  '/' e2 ']'")
   : expr_scope.
+
+Notation "'do:' e" := (Do e%E)
+  (at level 200, e at level 200, format "'[' 'do:' e ']'") : expr_scope.
+

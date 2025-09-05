@@ -1964,29 +1964,31 @@ Qed.
      intros ??. destruct K as [|Ki K]; try destruct Ki; try naive_solver.
      intros [=]. destruct (fill_val' _ _ _ (eq_sym H1)) as [-> ->]; by eauto.
      intros [=]. destruct (fill_val' _ _ _ (eq_sym H2)) as [-> ->]; by eauto.
-   Qed.
+   Qed. *)
    
-   Lemma pure_prim_step_beta s f x e v :
-     pure_prim_step ((App (Val $ RecV s f x e) (Val v)))
-                    (subst' s x v (subst' s f (RecV s f x e) e)).
+   Lemma pure_prim_step_beta f x e v :
+     pure_prim_step ((App (Val $ RecV f x e) (Val v)))
+                    (subst' x v (subst' f (RecV f x e) e)).
    Proof.
-     apply pure_prim_stepI'; [intros ?; by apply BetaS|].
-     intros ??. destruct K as [|Ki K]; [intros _; by left|].
-     intros Hfill; right.
-     destruct Ki; try naive_solver. simpl in Hfill.
-     - exists (RecV s f x e). inversion Hfill.
-       by destruct (fill_val' _ _ _ (eq_sym H0)) as [-> ->].
-     - exists v. inversion Hfill.
-       by destruct (fill_val' _ _ _ (eq_sym H1)) as [-> ->].
-   Qed.
+     apply Build_pure_prim_step.
+     - intros ?. eexists. apply head_step_prim_step.
+       apply head_step_support_equiv_rel. apply BetaS. done.
+     - intros ?. unfold prim_step. simpl.
+       rewrite fill_lift_empty. rewrite dmap_dret.
+       by apply dret_1_1.
+   Qed. 
    
-   Lemma pure_prim_step_rec s f x e :
-     pure_prim_step (Rec s f x e) (Val $ RecV s f x e).
+   Lemma pure_prim_step_rec f x e :
+     pure_prim_step (Rec f x e) (Val $ RecV f x e).
    Proof.
-     apply pure_prim_stepI'; [intros ?; by apply RecS|].
-     intros ??. destruct K as [|Ki K]; try destruct Ki; by naive_solver.
+     apply Build_pure_prim_step.
+     - intros ?. eexists. apply head_step_prim_step.
+       apply head_step_support_equiv_rel. apply RecS.
+     - intros ?. unfold prim_step. simpl.
+       rewrite fill_lift_empty. rewrite dmap_dret.
+       by apply dret_1_1.
    Qed.
-   
+(*   
    Lemma pure_prim_step_InjL v :
      pure_prim_step (InjL $ Val v) (Val $ InjLV v).
    Proof.
