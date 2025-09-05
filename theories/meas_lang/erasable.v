@@ -35,8 +35,8 @@ Section erasable.
 *)
 
 
-(*
-  Definition erasable_dbind (μ1 : distr(state Λ)) (μ2 : state Λ → distr (state Λ)) σ:
+  (*
+  Definition erasable_dbind (μ1 : giryM (state Λ)) (μ2 : state Λ → giryM (state Λ)) σ :
     erasable μ1 σ → (∀ σ', μ1 σ' > 0 → erasable (μ2 σ') σ') → erasable (μ1 ≫= μ2) σ.
   Proof.
     intros H1 H2.
@@ -108,17 +108,22 @@ Section erasable.
     rewrite -{1}Her //.
     by setoid_rewrite exec_is_final.
   Qed.
+*)
 
-  Lemma erasable_pexec_lim_exec (μ : distr (state Λ)) n σ e :
+  Lemma erasable_pexec_lim_exec (μ : giryM (state Λ)) n σ e :
     erasable μ σ →
-    (σ' ← μ; pexec n (e, σ')) ≫= lim_exec = lim_exec (e, σ).
-  Proof.     
+    gBind' lim_exec (gBind' (pexec n \o pair e : state Λ → _) μ) ≡μ lim_exec (e, σ).
+  Proof.
     intros Hμ.
+  Admitted.
+  (*
     rewrite -(erasable_lim_exec μ) //.
     setoid_rewrite (lim_exec_pexec n).
     rewrite -dbind_assoc //.
-  Qed.   
+  Qed.
+  *)
 
+  (*
   Lemma erasable_dbind_predicate `{Countable A} (μ : distr _) μ1 μ2 (σ : state Λ) (f: A → bool):
     SeriesC μ = 1 →
     erasable μ1 σ →
