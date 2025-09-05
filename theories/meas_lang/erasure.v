@@ -709,9 +709,10 @@ Lemma ARcoupl_erasure_erasable_exp_rhs
   ARcoupl_meas (exec n (e1, σ1)) (lim_exec (e1', σ1')) Φ (0)%R (EFin (nonneg ε)).
 Proof.
   intros H1 Hcoupl Hineq Hbound Hμ1 Hμ2 Hcont.
+  destruct ε as [ε Hnonneg].
+  erewrite (ARcoupl_meas_proper Φ 0 (EFin ε) (Equivalence_Symmetric _ _ (Hμ1 e1 n)) (Equivalence_Reflexive _)).
 Admitted.
 (*
-  rewrite -Hμ1.
   rewrite -(erasable_pexec_lim_exec μ1' m) //.
   eapply ARcoupl_mon_grading; [done|].
   eapply (ARcoupl_dbind_adv_rhs' E2); [done|eauto|done| |done].

@@ -78,22 +78,22 @@ Status:
 
 ## `micrometer`
 
-| Name                 | Status     | Notes                            |
-|----------------------|------------|----------------------------------|
-| ``adequacy.v ``      | 2 `Adm`    |                                  |
-| ``adequacy_rel.v ``  | `Unported` |                                  |
-| ``app_rel_rules.v `` | `Unported` |                                  |
-| ``app_weakestpre.v`` | `Unported` |                                  |
-| ``compatibility.v``  | `Unported` |                                  |
-| ``coupling_rules.v`` | `Unported` |                                  |
-| ``derived_laws.v``   | `Unported` |                                  |
-| ``ectx_lifting.v``   | 1 `Adm`    |                                  |
-| ``fundamental.v``    | `Unported` |                                  |
-| ``interp.v``         | `Unported` |                                  |
-| ``lifting.v``        | `Ok`       |                                  |
-| ``micrometer.v``     | `Ok`       |                                  |
-| ``model.v``          | `Unported` |                                  |
-| ``primitive_laws.v`` | Many `Idk` |                                  |
-| ``proofmode.v``      | `Unported` | Ask Simon about `gwp` eventually |
-| ``rel_tactics.v``    | `Unported` |                                  |
-| ``soundness.v``      | `Unported` |                                  |
+| Name                 | Status               | Notes                            |
+|----------------------|----------------------|----------------------------------|
+| ``adequacy.v ``      | 2 `Adm`              |                                  |
+| ``adequacy_rel.v ``  | `Unported`           |                                  |
+| ``app_rel_rules.v `` | `Unported`           |                                  |
+| ``app_weakestpre.v`` | Several `Adm`, `Idk` |                                  |
+| ``compatibility.v``  | `Unported`           |                                  |
+| ``coupling_rules.v`` | `Unported`           |                                  |
+| ``derived_laws.v``   | `Unported`           |                                  |
+| ``ectx_lifting.v``   | 1 `Adm`              |                                  |
+| ``fundamental.v``    | `Unported`           |                                  |
+| ``interp.v``         | `Unported`           |                                  |
+| ``lifting.v``        | `Ok`                 |                                  |
+| ``micrometer.v``     | `Ok`                 |                                  |
+| ``model.v``          | `Unported`           |                                  |
+| ``primitive_laws.v`` | Many `Idk`           |                                  |
+| ``proofmode.v``      | `Unported`           | Ask Simon about `gwp` eventually |
+| ``rel_tactics.v``    | `Unported`           |                                  |
+| ``soundness.v``      | `Unported`           |                                  |
