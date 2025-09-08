@@ -16,6 +16,18 @@ Section Tape.
         is_geometric_translation suf g
     end.
 
+  Lemma is_geometric_translation_snoc (b : list (fin 2)) (g : list nat) (n : nat) :
+    is_geometric_translation b g → is_geometric_translation (b ++ repeat 0%fin n ++ [1%fin]) (g ++ [n]).
+  Proof.
+    elim:g b n =>[|hg tg IH] b n /= is_tl.
+    - subst. eexists. split; last reflexivity. rewrite app_nil_r //.
+    - destruct is_tl as (suf & -> & is_tl).
+      eexists.
+      rewrite -!app_assoc.
+      split; first reflexivity.
+      by apply IH.
+  Qed.
+  
   Fixpoint bernoulli_to_geometric_aux (l : list (fin 2)) (acc : nat) : list nat := 
     match l with 
     | 0::l => bernoulli_to_geometric_aux l (S acc)
@@ -421,75 +433,172 @@ Section Geometric.
       } 
     Qed.
 
-  Lemma twp_presample_geometric `{!erisGS Σ}
-      (e : expr) (α : loc) (N M : nat) (Φ : val → iProp Σ)
-      (ns : list nat) :
+    Lemma twp_geometric_presample `{!erisGS Σ} :
+      ∀ (e : expr) (α : loc) (p q : nat)
+        (D : nat → R) (L : R) (ε : R)
+        (ns : list nat)
+        (Φ : val → iProp Σ),
+    (0 < p)%nat →
+    (p ≤ q + 1)%nat →
     to_val e = None → 
-    own_geometric_tape α N M ns ∗
-    (∀ (i : nat), own_geometric_tape α N M (ns ++ [i]) -∗ WP e [{ Φ }])
-    ⊢  WP e [{ Φ }]
-  .
-  Proof.
-    iIntros (e_not_val) "[
-      (%b_tape & Hown_ber & %Hgeo_trans) 
-      HΦ
-    ]".
-    wp_apply (twp_presample_bernoulli e α Φ); first done.
-    iFrame.
-    iIntros (i) "Hown_ber".
-    full_inv_fin; last first.
-    - iApply ("HΦ" $! 0%nat).
-      iFrame.
-      iPureIntro.
-      rewrite ->bernoulli_to_geometric_translation in *.
-      destruct Hgeo_trans as [-> Hb_end_1].
-      destruct b_tape as [| b_end b_tape _] using rev_ind.
-      + simpl; split; first done.
-        move=> ?? Heq.
-        rewrite -(app_nil_l [1%fin]) in Heq.
-        by apply list_snoc_singleton_inv in Heq as [_ ->].
-      + split; last first. 
-        { move=> ?? Heq.
-        rewrite -(app_nil_l [1%fin]) in Heq.
-        by apply list_snoc_singleton_inv in Heq as [_ ->]. }
-        full_inv_fin.
-        { move=> Hb_end_1.
-          specialize Hb_end_1 with b_tape 0%fin.
-          exfalso.
-          assert ((0%fin : fin 2) ≠ 1%fin) as contra by by intro.
-          by apply contra, Hb_end_1. }
-        move=> Hb_end_1.
-        rewrite -app_assoc bernoulli_to_geometric_app //.
-    - wp_apply twp_presample_bernoulli; first done.
-      iFrame.
-      iIntros (i) "Hown_ber".
-      full_inv_fin; last first.
-      + iApply ("HΦ" $! 1%nat).
+    (∀ (n : nat), 0 <= D n <= L)%R →
+    SeriesC (λ k, (geometric_prob p q k * D k)%R) = ε →
+    own_geometric_tape α p q ns ∗
+    ↯ ε ∗ 
+    (∀ (i : nat), ↯ (D i) ∗ own_geometric_tape α p q (ns ++ [i]) -∗ WP e [{ Φ }])
+    ⊢  WP e [{ Φ }].
+       Proof.
+         iIntros (e α p q D L ε ns Φ Hp Hpq He HD HSum)
+           "((%l & Htape & %is_tl) & Herr & Hnext)".
+      iApply twp_rand_err_pos; auto.
+      iIntros (ε_term Hε_term) "Hterm".
+      destruct (Nat.eq_dec p (q + 1)%nat) as [-> | p_ne_q_add_1].
+      { rewrite (ec_geometric_split _ _ _ _ _ HD) in HSum; last done.
+        pose proof (pos_INR q).
+        rewrite plus_INR Rdiv_diag in HSum; last (simpl; lra).
+        rewrite Rminus_diag Rmult_1_l Rmult_0_l Rplus_0_r in HSum.
+        subst.
+        unfold geometric, geometric_tape.
+        wp_pures.
+        set (D' (k : fin 2) := match k with
+                               | Fin.F1 _ => 1%R
+                               | FS _ _ => D 0%nat
+                               end).
+        wp_apply (twp_presample_bernoulli_adv_comp _ _ _ (q + 1)%nat q _ _ D' with "[$Herr $Htape Hnext]") as (k) "[Herr Htape]"; try done.
+        { move=>k.
+          inv_fin k=>[|?] /=; first lra.
+          apply HD.
+        }
+        { rewrite plus_INR /= Rdiv_diag; lra. }
+        inv_fin k=>[|k]/=.
+        { iDestruct (ec_contradict with "Herr") as "[]". reflexivity. }
+        inv_fin k=>[|k]/=; last inv_fin k.
+        wp_apply "Hnext".
         iFrame.
         iPureIntro.
-        rewrite ->bernoulli_to_geometric_translation in *.
-        destruct Hgeo_trans as [-> Hb_end_1].
-        destruct b_tape as [| b_end b_tape _] using rev_ind.
-        * simpl; split; first done.
-          move=> ?? Heq.
-          by apply (list_snoc_singleton_inv [0%fin]) in Heq as [_ ->].
-        * split; last first. 
-          { move=> ?? Heq.
-            rewrite -(app_nil_l [1%fin]) in Heq.
-            by apply list_snoc_singleton_inv in Heq as [_ ->]. }
-          full_inv_fin.
-          { move=> Hb_end_1.
-            specialize Hb_end_1 with b_tape 0%fin.
-            exfalso.
-            assert ((0%fin : fin 2) ≠ 1%fin) as contra by by intro.
-            by apply contra, Hb_end_1. }
-          move=> Hb_end_1.
-          rewrite -!app_assoc bernoulli_to_geometric_app //.
-      + (* and so on *)
-        (* We have to repeat presampling until we have a 1
-          Induction with error credit amplification ?
-        twp_presample_adv_comp
-        *)
-  Abort.
+        by apply (is_geometric_translation_snoc _ _ 0).
+      } 
+      assert (p < q + 1)%nat as p_lt_Sq by lia.
+      apply lt_INR in p_lt_Sq as p_lt_Sq'.
+      apply lt_INR in Hp as Hp'.
+      rewrite plus_INR /= in p_lt_Sq'.
+      simpl in Hp'.
+      rewrite /geometric /geometric_tape -(app_nil_r l).
+      
+      replace [] with (repeat (0%fin : fin 2) 0) by reflexivity.
+      iAssert (∀ i : nat,
+              ↯ (D i) ∗
+              own_geometric_tape α p q (ns ++ [0 + i]%nat) -∗
+              WP e [{ v, Φ v }])%I with "Hnext" as "Hnext".
 
+      
+      generalize 0%nat at 4 5 as n.
+      
+      iIntros (n).
+      iRevert (n D ε HD HSum) "Htape Herr Hnext".
+      set (s := (p / (q + 1))%R).
+      set (t := ((1 - s)%R)).
+
+      assert (0 < s).
+      { apply Rdiv_lt_0_compat; lra. }
+      
+      assert (0 < t).
+      { rewrite Rlt_0_minus -Rcomplements.Rdiv_lt_1; lra. }
+      
+      assert (1 < / t).
+      { unfold t, s.
+        rewrite -{1}Rinv_1.
+        apply Rinv_0_lt_contravar; first done.
+        rewrite Rcomplements.Rlt_minus_l -{1}(Rplus_0_r 1).
+        apply Rplus_le_lt_compat; first reflexivity.
+        apply Rdiv_lt_0_compat; lra.
+      }
+
+      assert (1 < / s).
+      { unfold s.
+        rewrite -{1}Rinv_1.
+        apply Rinv_0_lt_contravar.
+        { apply Rdiv_lt_0_compat; lra. }
+        { rewrite -Rcomplements.Rdiv_lt_1; lra. }
+      }
+
+      iApply (ec_ind_amp _ (/ t) with "[] Hterm"); try done.
+      iModIntro.
+      iIntros (ε' Hε') "IH Hterm".
+      iIntros (n D ε HD HDε) "Htape Herr Hnext".
+
+      set (ε0 := SeriesC (λ k : nat, geometric_prob p q k * D (S k))).
+      
+      assert (0 <= ε0).
+      { unfold ε0.
+        apply SeriesC_ge_0'.
+        move=>k.
+        apply Rmult_le_pos; last apply HD.
+        apply geometric_prob_pos.
+        lia.
+      }
+      
+      wp_pures.
+      iPoseProof (ec_combine with "[$Hterm $Herr]") as "Hec".
+
+      set (D' (k : fin 2) := match k with
+                               | Fin.F1 _ => (ε0 + ε' / t)%R
+                               | FS _ _ => D 0%nat
+                               end).
+      
+      wp_apply (twp_presample_bernoulli_adv_comp _ _ _ _ _ _ _ D' with "[$Hec $Htape Hnext IH]") as (k) "[Herr Htape]"; try done.
+      { move=>k.
+        inv_fin k=>[|?] /=; last apply HD.
+        by apply Rplus_le_le_0_compat; last nra.
+      } 
+      { rewrite -HDε SeriesC_first_nat; last first.
+        { apply (ex_seriesC_le _ (λ k, geometric_prob p q k * L)).
+          { move=>k.
+            split.
+            { apply Rmult_le_pos; last apply HD.
+              apply geometric_prob_pos.
+              lia.
+            }
+            { apply Rmult_le_compat_l; last apply HD.
+              apply geometric_prob_pos.
+              lia.
+            }
+          }
+          apply ex_seriesC_scal_r.
+          eexists.
+          apply is_seriesC_geometric_prob.
+          lia.
+        }
+        unfold geometric_prob at 1.
+        rewrite pow_O.
+        erewrite SeriesC_ext; last first.
+        { move=>k /=.
+          rewrite geometric_prob_S Rmult_assoc.
+          fold s t.
+          reflexivity.
+        }
+        rewrite SeriesC_scal_l /=.
+        fold ε0 s t.
+        rewrite (Rmult_plus_distr_r _ _ t) Rdiv_def Rmult_assoc Rinv_l; lra.
+      }
+      inv_fin k=>[|k] /=; last (inv_fin k=>[|k]; last inv_fin k).
+      {
+        iPoseProof (ec_split with "Herr") as "[Herr Hterm]"; first assumption.
+        { apply Rmult_le_pos; lra. }
+        rewrite (Rdiv_def ε' t) (Rmult_comm ε' (/ t)) -app_assoc -repeat_cons.
+        iSpecialize ("IH" with "Hterm").
+        wp_apply ("IH" $! (S n) (D ∘ S) with "[] [] Htape Herr") as (k) "[Herr Htape]"; try done.
+        { iPureIntro. move=>k. apply HD. }
+        wp_apply "Hnext".
+        iFrame.
+        rewrite Nat.add_succ_r //.
+      } 
+      { wp_apply "Hnext".
+        iFrame.
+        iPureIntro.
+        rewrite Nat.add_0_r -app_assoc.
+        by apply is_geometric_translation_snoc.
+      } 
+       Qed.
+       
 End Geometric.
