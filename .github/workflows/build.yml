@@ -39,9 +39,6 @@ jobs:
           before_script: |
             sudo chown -R coq:coq . # workaround a permission issue
           script: |
-            startGroup Clone coqdocjs
-              git clone https://github.com/ahuoguo/coqdocjs.git
-            endGroup
             startGroup Build
               make -j2
             endGroup
