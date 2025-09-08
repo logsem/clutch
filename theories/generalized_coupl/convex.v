@@ -23,6 +23,8 @@ Section conv_comb.
 
 End conv_comb.
 
+#[global] Hint Resolve ccr_cdret : core.
+
 Section real_cc.
   
   Program Definition real_cc : conv_comb R := MkConvComb _ (λ x d, ex_seriesCS (λ a, d a * a) ∧ SeriesCS (λ a, d a * a) = x) _ _.
@@ -96,3 +98,25 @@ Section prog_cc.
   Qed.
 
 End prog_cc.
+
+Section prod_cc.
+  Context {A B : Type}.
+
+  Variables (ca : conv_comb A) (cb : conv_comb B).
+
+  Definition prod_cc_rel (a : A) (b : B) μ η := ca a μ ∧ cb b η.
+
+  Program Definition prod_cc : conv_comb (A * B) := MkConvComb _ (λ p d, ∃ μ η, d = cdprod μ η ∧ prod_cc_rel p.1 p.2 μ η) _ _.
+  Next Obligation.
+    move => [a b] //=.
+    exists (cdret a), (cdret b).
+    split; last by econstructor; eauto.
+    apply cdistr_ext => [[a' b']].  
+    rewrite cdprod_pmf !cdret_pmf_unfold. 
+    real_solver.
+  Qed.
+  Next Obligation.
+    move => ? f [a b] //= [μ [η [-> H2]]] Hf.
+  Admitted.
+
+End prod_cc.

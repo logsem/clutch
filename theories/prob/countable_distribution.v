@@ -1241,6 +1241,41 @@ Section probability_lemmas.
 
 End probability_lemmas. *)
 
+Definition cdprod {A B} (μ1 : cdistr A) (μ2 : cdistr B) : cdistr (A * B) :=
+  cdbind (λ a, cdbind (λ b, cdret (a, b)) μ2) μ1.
+
+Lemma cdprod_pmf {A B} (μ1 : cdistr A) (μ2 : cdistr B) a b :
+  cdprod μ1 μ2 (a, b) = μ1 a * μ2 b.
+Proof.
+Admitted.
+
+Section dprod.
+  Context {A B : Type}.
+  Variable (μ1 : cdistr A) (μ2 : cdistr B).
+
+  Lemma cdprod_pos (a : A) (b : B) :
+    cdprod μ1 μ2 (a, b) > 0 ↔ μ1 a > 0 ∧ μ2 b > 0.
+  Proof.
+    rewrite cdprod_pmf /=.
+    split; [|real_solver].
+    destruct (decide (μ1 a > 0)) as [| ->%cpmf_eq_0_not_gt_0]; [|lra].
+    destruct (decide (μ2 b > 0)) as [| ->%cpmf_eq_0_not_gt_0]; [|lra].
+    done.
+  Qed.
+
+  Lemma dprod_mass :
+    SeriesCS (cdprod μ1 μ2) = SeriesCS μ1 * SeriesCS μ2.
+  Proof.
+  Admitted.
+  (*   rewrite {1}(SeriesC_ext _ (λ '(a, b), μ1 a * μ2 b)); last first.
+    { intros [a' b']. rewrite dprod_pmf //. }
+    rewrite distr_double_lr.
+    erewrite SeriesC_ext; [|intro; rewrite SeriesC_scal_l //].
+    rewrite SeriesC_scal_r //.
+  Qed. *)
+
+End dprod.
+
 Section exp_val.
 
   Context {A : Type}.
