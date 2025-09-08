@@ -48,6 +48,7 @@ Inductive ty :=
   | TUnit : ty
   | TBool : ty
   | TInt : ty
+  | TNat : ty
   | TBot  : ty
   (* Arrow type. *)
   | TArr : ty → eff_ty → ty
@@ -74,7 +75,8 @@ Section induction_principle.
     (TUnit_case : P TUnit)
     (TBool_case : P TBool)
     (TInt_case  : P TInt)
-    (TBot_case : P TBot)
+    (TNat_case  : P TNat)
+    (TBot_case  : P TBot)
     (TTape_case : P TTape)
 
 
@@ -95,6 +97,7 @@ Section induction_principle.
       | TUnit => TUnit_case
       | TBool => TBool_case
       | TInt => TInt_case
+      | TNat => TNat_case
       | TBot => TBot_case
       | TTape => TTape_case
       | TArr α (TEff (TSig β₁ β₂) β) =>
@@ -116,6 +119,7 @@ Fixpoint ty_lift (n : nat) (α : ty) : ty :=
   | TUnit => TUnit
   | TBool => TBool
   | TInt => TInt
+  | TNat => TNat
   | TBot => TBot
   | TTape => TTape
   | TArr α (TEff (TSig β₁ β₂) β) =>
@@ -134,6 +138,7 @@ Fixpoint ty_subst (n : nat) (α α₁ α₂ : ty) : ty :=
   | TUnit => TUnit
   | TBool => TBool
   | TInt => TInt
+  | TNat => TNat
   | TBot => TBot
   | TTape => TTape
   | TArr α (TEff (TSig β₁ β₂) β) =>
@@ -176,16 +181,19 @@ Inductive ty_unboxed : ty → Prop :=
   | TUnit_unboxed : ty_unboxed TUnit
   | TBool_unboxed : ty_unboxed TBool
   | TInt_unboxed : ty_unboxed TInt
+  | TNat_unboxed : ty_unboxed TNat
   (*| TRef_unboxed α : ty_unboxed (TRef α)*).
 Existing Class ty_unboxed.
-Existing Instances TUnit_unboxed TBool_unboxed TInt_unboxed (*TRef_unboxed*).
+Existing Instances TUnit_unboxed TBool_unboxed TInt_unboxed TNat_unboxed (*TRef_unboxed*).
 
 Inductive ty_un_op : un_op → ty → ty → Prop :=
   | Ty_un_op_int op : ty_un_op op TInt TInt
+  | Ty_un_op_nat op : ty_un_op op TNat TNat
   | Ty_un_op_bool : ty_un_op NegOp TBool TBool.
 Existing Class ty_un_op.
-Existing Instances Ty_un_op_int Ty_un_op_bool.
+Existing Instances Ty_un_op_int Ty_un_op_nat Ty_un_op_bool.
 
+(* Should this be changed according to TNat? *)
 Inductive ty_bin_op : bin_op → ty → ty → ty → Prop :=
   | Ty_bin_op_eq α :
      ty_unboxed α → ty_bin_op EqOp α α TBool
@@ -265,8 +273,8 @@ with typed : gmap string ty → expr → ty → Prop :=
      Γ ⊢ₜ e₂ : α →
                Γ ⊢ₜ Store e₁ e₂ : ()
   | TAllocTape e Γ : Γ ⊢ₜ e : TInt →  Γ ⊢ₜ AllocTape e : TTape
-  | TRand  Γ e1 e2 : Γ ⊢ₜ e1 : TInt → Γ ⊢ₜ e2 : TTape → Γ ⊢ₜ Rand e1 e2 : TInt (* Changed from Nat to Int. TODO: Add Nat type *)
-  | TRandU Γ e1 e2 : Γ ⊢ₜ e1 : TInt → Γ ⊢ₜ e2 : TUnit → Γ ⊢ₜ Rand e1 e2 : TInt
+  | TRand  Γ e1 e2 : Γ ⊢ₜ e1 : TNat → Γ ⊢ₜ e2 : TTape → Γ ⊢ₜ Rand e1 e2 : TNat 
+  | TRandU Γ e1 e2 : Γ ⊢ₜ e1 : TNat → Γ ⊢ₜ e2 : TUnit → Γ ⊢ₜ Rand e1 e2 : TNat
 with val_typed : val → ty → Prop :=
   (* Base types. *)
   | Unit_val_typed :
@@ -274,7 +282,9 @@ with val_typed : val → ty → Prop :=
   | Bool_val_typed (b : bool) :
      ⊢ᵥ #b : TBool
   | Int_val_typed (i : Z) :
-     ⊢ᵥ #i : TInt
+    ⊢ᵥ #i : TInt
+  | Nat_val_typed (n : nat) :
+    ⊢ᵥ #n : TNat
   (* Functions. *)
   | Rec_val_typed f x e α τ :
      binder_insert f (α → τ)%ty (binder_insert x α ∅) ⊢ₑ e : τ →
