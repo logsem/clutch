@@ -111,11 +111,10 @@ Section NegativeBinomial.
 
     Lemma twp_negative_binomial_split_p_eq_q_plus_1 :
       ∀ (p q r : nat),
-      (0 < p)%nat →
       (p = q + 1)%nat →
       ⊢ WP negative_binomial #() #p #q #r [{ v, ⌜v = #0⌝ }].
     Proof.
-      move=>p q r p_pos ->.
+      move=>p q r ->.
       rewrite /negative_binomial.
       do 6 wp_pure.
       iInduction (r) as [|r] "IH"; first by wp_pures.

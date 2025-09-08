@@ -33,6 +33,15 @@ Proof.
   elim: k => [|n IH] /=; real_solver.
 Qed. 
 
+Lemma SeriesC_first_nat :
+  ∀ (D : nat → R),
+  ex_seriesC D → SeriesC D = (D 0%nat + SeriesC (D ∘ S))%R.
+Proof.
+  move=>D ex_D.
+  rewrite !SeriesC_nat Series.Series_incr_1 //.
+  by apply ex_seriesC_nat.
+Qed.
+    
 Lemma foldr_last {A : Type} (l : list A) (x y : A) (f : A → A → A) :
   Assoc eq f ->
   Comm eq f ->

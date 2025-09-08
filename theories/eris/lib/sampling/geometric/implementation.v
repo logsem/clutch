@@ -1,6 +1,7 @@
 From clutch.eris Require Import eris.
 From clutch.eris.lib.sampling Require Import utils.
 From clutch.eris.lib.sampling.bernoulli Require Import interface.
+From clutch.eris.lib.sampling.geometric Require Import interface.
 
 Section Tape.
   
@@ -223,7 +224,7 @@ Section Geometric.
       replace (1 - (1 - p)^(S k) * p) with ((1 - p) * (1 - (1 - p)^k * p) + p) by rewrite //=.
       wp_apply (twp_bernoulli_scale _ _ _ (1 - (1 - p) ^ k * p) 1 with "Herr") as "%n [[-> Herr] | [-> Herr]]";
       fold p; try done; last solve[cred_contra].
-      { apply error_credits.Rle_0_le_minus.
+      { apply Rle_0_le_minus.
         assert (0 <= ((1 - p) ^ k) <= 1)%R by (apply Rpow_le_1; lra).
         by apply Rmult_le_1. }
       wp_pures.
@@ -232,6 +233,193 @@ Section Geometric.
       rewrite Z.add_1_l -Nat2Z.inj_succ.
       by iApply "HΦ".
   Qed.
+
+ Lemma ec_geometric_split :
+   ∀ (p q : nat) (D : nat → R) (L : R),
+    (0 < p ≤ q + 1)%nat →
+    (∀ k, 0 <= D k <= L)%R →
+    let ε := SeriesC (λ k, geometric_prob p q k * D k)%R in
+    let ε' := SeriesC (λ k, geometric_prob p q k * D (S k))%R in
+    (ε = (p / (q + 1) * D 0%nat + (1 - (p / (q + 1))) * ε'))%R.
+  Proof.
+    move=>p q D L p_bounds D_bounds ε ε'.
+    unfold ε, ε'.
+    set (s := (p / (q + 1))%R).
+    set (t := (1 - s)%R).
+    move=>[:ex_series_geom_D].
+    rewrite SeriesC_first_nat; last first.
+    { abstract: ex_series_geom_D.
+      apply (ex_seriesC_le _ (λ k, geometric_prob p q k * L)).
+      { move=>k.
+        split.
+        { apply Rmult_le_pos; last apply D_bounds.
+          apply geometric_prob_pos.
+          lia.
+        }
+        { apply Rmult_le_compat_l; last apply D_bounds.
+          apply geometric_prob_pos.
+          lia.
+        }
+      }
+      apply ex_seriesC_scal_r.
+      eexists.
+      apply is_seriesC_geometric_prob.
+      lia.
+    }
+    unfold geometric_prob at 1.
+    rewrite pow_O Rmult_1_r.
+    fold s.
+    f_equal.
+    rewrite -SeriesC_scal_l.
+    apply SeriesC_ext.
+    move=>k /=.
+    rewrite geometric_prob_S.
+    fold s t.
+    lra.
+  Qed.
+
+  Lemma twp_geometric_split `{!erisGS Σ} :
+      ∀ (p q : nat),
+      (0 < p)%nat →
+      (p ≤ q + 1)%nat →
+      ∀ (D : nat → R) (L : R) (ε : R),
+      (∀ (n : nat), 0 <= D n <= L)%R →
+      SeriesC (λ k, (geometric_prob p q k * D k)%R) = ε →
+      ↯ ε -∗ WP geometric #p #q [{ v, ∃ (k : nat), ⌜v = #k⌝ ∗ ↯ (D k) }].
+    Proof.
+      iIntros (p q Hp Hpq D L ε HD HSum) "Herr".
+      iApply twp_rand_err_pos; auto.
+      iIntros (ε_term Hε_term) "Hterm".
+      destruct (Nat.eq_dec p (q + 1)%nat) as [-> | p_ne_q_add_1].
+      { rewrite (ec_geometric_split _ _ _ _ _ HD) in HSum; last done.
+        pose proof (pos_INR q).
+        rewrite plus_INR Rdiv_diag in HSum; last (simpl; lra).
+        rewrite Rminus_diag Rmult_1_l Rmult_0_l Rplus_0_r in HSum.
+        subst.
+        unfold geometric, geometric_tape.
+        wp_pures.
+        iMod ec_zero as "Herr0".
+        wp_apply (bernoulli_success_spec_simple with "[Herr0]") as "_".
+        { iApply (ec_eq with "Herr0").
+          rewrite S_INR plus_INR Rdiv_diag; last simpl; lra.
+        }
+        wp_pures.
+        iModIntro.
+        by iFrame.
+      } 
+      assert (p < q + 1)%nat as p_lt_Sq by lia.
+      apply lt_INR in p_lt_Sq as p_lt_Sq'.
+      apply lt_INR in Hp as Hp'.
+      rewrite plus_INR /= in p_lt_Sq'.
+      simpl in Hp'.
+      rewrite /geometric /geometric_tape.
+      
+      iRevert (D ε HD HSum) "Herr".
+      set (s := (p / (q + 1))%R).
+      set (t := ((1 - s)%R)).
+
+      assert (0 < s).
+      { apply Rdiv_lt_0_compat; lra. }
+      
+      assert (0 < t).
+      { rewrite Rlt_0_minus -Rcomplements.Rdiv_lt_1; lra. }
+      
+      assert (1 < / t).
+      { unfold t, s.
+        rewrite -{1}Rinv_1.
+        apply Rinv_0_lt_contravar; first done.
+        rewrite Rcomplements.Rlt_minus_l -{1}(Rplus_0_r 1).
+        apply Rplus_le_lt_compat; first reflexivity.
+        apply Rdiv_lt_0_compat; lra.
+      }
+
+      assert (1 < / s).
+      { unfold s.
+        rewrite -{1}Rinv_1.
+        apply Rinv_0_lt_contravar.
+        { apply Rdiv_lt_0_compat; lra. }
+        { rewrite -Rcomplements.Rdiv_lt_1; lra. }
+      }
+
+      iApply (ec_ind_amp _ (/ t) with "[] Hterm"); try done.
+      iModIntro.
+      iIntros (ε' Hε') "IH Hterm".
+      iIntros (D ε HD HDε) "Herr".
+
+      set (ε0 := SeriesC (λ k : nat, geometric_prob p q k * D (S k))).
+      
+      assert (0 <= ε0).
+      { unfold ε0.
+        apply SeriesC_ge_0'.
+        move=>k.
+        apply Rmult_le_pos; last apply HD.
+        apply geometric_prob_pos.
+        lia.
+      }
+      
+      wp_pures.
+      iPoseProof (ec_combine with "[Hterm Herr]") as "Hec"; first iFrame.
+
+      
+      wp_apply (twp_bernoulli_scale _ _ _ (ε0 + ε' / t) (D 0%nat) with "Hec")
+                 as (?) "[[-> Herr] | [-> Herr]]"; first lia.
+      { by apply Rplus_le_le_0_compat; last nra. }
+      { apply HD. }
+      { rewrite -HDε SeriesC_first_nat; last first.
+        { apply (ex_seriesC_le _ (λ k, geometric_prob p q k * L)).
+          { move=>k.
+            split.
+            { apply Rmult_le_pos; last apply HD.
+              apply geometric_prob_pos.
+              lia.
+            }
+            { apply Rmult_le_compat_l; last apply HD.
+              apply geometric_prob_pos.
+              lia.
+            }
+          }
+          apply ex_seriesC_scal_r.
+          eexists.
+          apply is_seriesC_geometric_prob.
+          lia.
+        }
+        unfold geometric_prob at 1.
+        rewrite pow_O.
+        erewrite SeriesC_ext; last first.
+        { move=>k /=.
+          rewrite geometric_prob_S Rmult_assoc.
+          fold s t.
+          reflexivity.
+        }
+        rewrite SeriesC_scal_l S_INR /=.
+        fold ε0 s t.
+        rewrite (Rmult_plus_distr_r _ _ t) Rdiv_def Rmult_assoc Rinv_l; lra.
+      }
+      {
+        do 2 wp_pure.
+        iPoseProof (ec_split with "Herr") as "[Herr Hterm]"; first assumption.
+        { apply Rmult_le_pos; lra. }
+        rewrite (Rdiv_def ε' t) (Rmult_comm ε' (/ t)).
+        iSpecialize ("IH" with "Hterm").
+        iPoseProof ("IH" $! (D ∘ S) with "[] [] Herr") as "IHH"; try done.
+        { iPureIntro. move=>k. apply HD. }
+        wp_bind (((rec: _ _ := _) _ _)%V _)%E.
+        iApply tgl_wp_wand_r.
+        iSplitL "IHH"; first done.
+        iIntros (v) "(%k & -> & Herr)".
+        wp_pures.
+        iModIntro.
+        iExists (S k).
+        iFrame.
+        iPureIntro.
+        f_equal.
+        rewrite (Nat2Z.inj_add 1 k) //.
+      } 
+      { wp_pures.
+        iModIntro.
+        by iFrame.
+      } 
+    Qed.
 
   Lemma twp_presample_geometric `{!erisGS Σ}
       (e : expr) (α : loc) (N M : nat) (Φ : val → iProp Σ)
