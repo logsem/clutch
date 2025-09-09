@@ -6,7 +6,7 @@ COQDOCFLAGS ?= \
   --with-header $(EXTRA_DIR)/header.html --with-footer $(EXTRA_DIR)/footer.html \
   --external https://plv.mpi-sws.org/coqdoc/iris/ iris \
   --external https://plv.mpi-sws.org/coqdoc/stdpp/ stdpp \
-  --external http://coquelicot.saclay.inria.fr/html/ Coquelicot 
+  --external http://coquelicot.saclay.inria.fr/html/ Coquelicot \
   --external https://math-comp.github.io/htmldoc_2_2_0/ mathcomp
 export COQDOCFLAGS
 COQMAKEFILE ?= Makefile.coq
