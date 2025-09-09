@@ -16,6 +16,9 @@ Section Tape.
         is_geometric_translation suf g
     end.
 
+  Lemma is_geometric_translation_nil : is_geometric_translation [] [].
+  Proof. reflexivity. Qed.
+    
   Lemma is_geometric_translation_snoc (b : list (fin 2)) (g : list nat) (n : nat) :
     is_geometric_translation b g → is_geometric_translation (b ++ repeat 0%fin n ++ [1%fin]) (g ++ [n]).
   Proof.
@@ -28,164 +31,8 @@ Section Tape.
       by apply IH.
   Qed.
   
-  Fixpoint bernoulli_to_geometric_aux (l : list (fin 2)) (acc : nat) : list nat := 
-    match l with 
-    | 0::l => bernoulli_to_geometric_aux l (S acc)
-    | 1::l => acc :: bernoulli_to_geometric_aux l 0
-    | _ => []
-    end.
-
-  Definition bernoulli_to_geometric v := bernoulli_to_geometric_aux v 0.
-
-  Definition geometric_to_bernoulli : list nat -> list (fin 2) :=
-    List.flat_map (fun h => repeat 0 h ++ [1]).
-
-  Lemma bernoulli_to_geometric_aux_repeat_0 (n acc : nat) :
-    bernoulli_to_geometric_aux (repeat 0 n) acc = [].
-  Proof.
-    elim: n acc => /= [|n IH] acc //.
-  Qed. 
-  Lemma bernoulli_to_geometric_repeat_0 (n : nat) :
-    bernoulli_to_geometric (repeat 0 n) = [].
-  Proof.
-    apply bernoulli_to_geometric_aux_repeat_0.
-  Qed.
-  
-  Lemma bernoulli_to_geometric_aux_repeat (n acc : nat) :
-    bernoulli_to_geometric_aux (repeat 0 n ++ [1]) acc = [n + acc].
-  Proof.
-    elim: n acc => /= [|n IH] acc //.
-    rewrite /bernoulli_to_geometric /= IH.
-    f_equal; lia.
-  Qed. 
-  Lemma bernoulli_to_geometric_repeat (n : nat) :
-    bernoulli_to_geometric (repeat 0 n ++ [1]) = [n].
-  Proof.
-    rewrite /bernoulli_to_geometric bernoulli_to_geometric_aux_repeat.
-    f_equal; lia.
-  Qed.
-
-  Lemma bernoulli_to_geometric_aux_app (l1 l2 : list (fin 2)) (acc : nat) :
-    bernoulli_to_geometric_aux (l1 ++ [1] ++ l2) acc 
-      = 
-    bernoulli_to_geometric_aux (l1 ++ [1]) acc ++ bernoulli_to_geometric l2.
-  Proof.
-    elim: l1 acc => /= [|h1 t1 IH] acc //.
-    rewrite !IH //.
-    by full_inv_fin.
-  Qed.
-
-  Lemma bernoulli_to_geometric_app (l1 l2 : list (fin 2)) :
-    bernoulli_to_geometric (l1 ++ [1] ++ l2) 
-      = 
-    bernoulli_to_geometric (l1 ++ [1]) ++ bernoulli_to_geometric l2.
-  Proof.
-    apply bernoulli_to_geometric_aux_app.
-  Qed.
-
-  Lemma geometric_to_bernoulli_to_geometric (g : list nat) :
-    bernoulli_to_geometric (geometric_to_bernoulli g) = g.
-  Proof.
-    elim: g => /= [|h g IH] //.
-    rewrite -app_assoc bernoulli_to_geometric_app IH bernoulli_to_geometric_repeat.
-    reflexivity.
-  Qed.
-
-  Lemma list_decomposition (l : list (fin 2)) :
-    { 
-      '(ns, n) 
-    | l = (flat_map (fun v => repeat 0 v ++ [1]) ns) ++ repeat 0 n 
-    }.
-  Proof.
-    elim: l => [|h t [[ns n] ->]]; first (by exists ([], 0%nat));
-    full_inv_fin; first case ns => [|hns tns];
-    by 
-      [ exists ([], (S n))
-      | exists ((S hns :: tns), n)
-      | exists ((0%nat :: ns), n) ].
-  Qed.
-
-  Lemma bernoulli_to_geometric_to_bernoulli (b : list (fin 2)) :
-    (geometric_to_bernoulli ∘ bernoulli_to_geometric) (b ++ [1])
-      = 
-    b ++ [1].
-  Proof.
-
-    case: (list_decomposition b) => [[ns n] ->].
-    elim: ns => [|hns tns IHns] /=; first rewrite bernoulli_to_geometric_repeat //; first rewrite /= app_nil_r //.
-    rewrite -!app_assoc bernoulli_to_geometric_app bernoulli_to_geometric_repeat /=.
-    simpl in IHns.
-    rewrite !app_assoc IHns -!app_assoc //.
-  Qed.
-  
-  Lemma bernoulli_to_geometric_translation
-    (v : list (fin 2)) (l : list nat) :
-    is_geometric_translation v l 
-      ↔ 
-    (l = bernoulli_to_geometric v ∧ ∀ l' k, v = l' ++ [k] -> k = 1).
-  Proof.
-    elim: l v => [|h l IH] v //=; split.
-    - move=> ->. split=>[|[|??] ? ?] //.
-    - destruct v as [| e v ] using rev_ind.
-      + split=>[|[|??] ? ?] //.
-      + move=>[H1 H2].
-        rewrite (H2 v e eq_refl) in H1.
-        case: (list_decomposition v) => [[ns n] Heq].
-        rewrite Heq in H1.
-        destruct ns; simpl in H1.
-        * rewrite bernoulli_to_geometric_repeat // in H1.
-        * rewrite -!app_assoc bernoulli_to_geometric_app bernoulli_to_geometric_repeat // in H1.
-    - intros (suf & Hv_eq & Htranslation_suf).
-      subst v.
-      split.
-      + rewrite -app_assoc bernoulli_to_geometric_app bernoulli_to_geometric_repeat.
-        f_equal.
-        by apply IH.
-      + move=> l' k Heq.
-        destruct suf as [| e suf _] using rev_ind.
-        * rewrite app_nil_r in Heq.
-          by apply list_snoc_singleton_inv in Heq as [_ ->].
-        * apply IH in Htranslation_suf as [_ Heqsuf].
-          apply (Heqsuf suf). 
-          rewrite app_assoc in Heq.
-          by apply list_snoc_singleton_inv in Heq as [_ ->].
-  - move => [Heq Hend1].
-    case: (list_decomposition v) => [[ns n] Heqv]. subst v.
-    assert (n = 0%nat) as ->.
-    { destruct n as [|n]; first done.
-      specialize Hend1 with (flat_map (λ v : nat, repeat 0 v ++ [1]) ns ++ repeat 0 (n)) 0.
-      exfalso.
-      assert ((0 : fin 2) ≠ 1) as contra by by intro.
-      apply contra, Hend1.
-      replace (S n) with (n + 1)%nat by lia.
-      rewrite repeat_app app_assoc //. }
-    simpl in *.
-    rewrite ->app_nil_r in *.
-    destruct ns as [|n ns]; first done.
-    simpl.
-    rewrite /= -app_assoc bernoulli_to_geometric_app bernoulli_to_geometric_repeat in Heq.
-    injection Heq as -> ->.
-    eexists.
-    split; first done.
-    apply IH. split; first done.
-    intros l' k Heq.
-    apply Hend1 with (l' := (repeat 0 n ++ [1]) ++ l').
-    rewrite /= Heq app_assoc //.
-  Qed.
-
-  Lemma geometric_to_bernoulli_ends_with_1 (g_tape : list nat) :
-    g_tape = [] ∨ ∃ b_tape, b_tape ++ [1%fin] = geometric_to_bernoulli g_tape.
-  Proof.
-    destruct g_tape as [|g_end g_tape _] using rev_ind; first by left.
-    right.
-    rewrite /geometric_to_bernoulli flat_map_app /= app_nil_r app_assoc.
-    eauto.
-  Qed.
-
-
 End Tape.
 #[local] Open Scope R.
-
 
 Section Geometric.
 
@@ -213,40 +60,9 @@ Section Geometric.
   .
   Definition geometric : expr := geometric_tape #().
 
-  Lemma geometric_spec `{!erisGS Σ} 
-    (N M k : nat) (Hlt : (N <= M)%nat) (p := N / (S M)) :
-  [[{↯ (1 - (((1 - p)^k) * p))%R }]]
-    geometric #N #M
-  [[{RET #k; True}]].
-  Proof.
-    assert (0 <= p <= 1)%R as Hp. {
-      split; subst p; simpl_expr.
-    }
-    induction k.
-    - iIntros "%Φ Herr HΦ".
-      rewrite /geometric /geometric_tape Rmult_1_l.
-      wp_pures.
-      wp_apply (bernoulli_success_spec_simple with "Herr") as "_".
-      wp_pures.
-      by iApply "HΦ".
-    - iIntros "%Φ Herr HΦ".
-      rewrite /geometric /geometric_tape.
-      wp_pures.
-      fold geometric_tape geometric.
-      replace (1 - (1 - p)^(S k) * p) with ((1 - p) * (1 - (1 - p)^k * p) + p) by rewrite //=.
-      wp_apply (twp_bernoulli_scale _ _ _ (1 - (1 - p) ^ k * p) 1 with "Herr") as "%n [[-> Herr] | [-> Herr]]";
-      fold p; try done; last solve[cred_contra].
-      { apply Rle_0_le_minus.
-        assert (0 <= ((1 - p) ^ k) <= 1)%R by (apply Rpow_le_1; lra).
-        by apply Rmult_le_1. }
-      wp_pures.
-      wp_apply (IHk with "Herr") as "_".
-      wp_pures.
-      rewrite Z.add_1_l -Nat2Z.inj_succ.
-      by iApply "HΦ".
-  Qed.
-
- Lemma ec_geometric_split :
+  Definition geometric_alloc : val := balloc.
+  
+  Lemma ec_geometric_split :
    ∀ (p q : nat) (D : nat → R) (L : R),
     (0 < p ≤ q + 1)%nat →
     (∀ k, 0 <= D k <= L)%R →
@@ -371,7 +187,6 @@ Section Geometric.
       
       wp_pures.
       iPoseProof (ec_combine with "[Hterm Herr]") as "Hec"; first iFrame.
-
       
       wp_apply (twp_bernoulli_scale _ _ _ (ε0 + ε' / t) (D 0%nat) with "Hec")
                  as (?) "[[-> Herr] | [-> Herr]]"; first lia.
@@ -433,23 +248,35 @@ Section Geometric.
       } 
     Qed.
 
-    Lemma twp_geometric_presample `{!erisGS Σ} :
-      ∀ (e : expr) (α : loc) (p q : nat)
+    Lemma twp_geometric_alloc `{!erisGS Σ} (p q : nat) :
+      [[{ True }]]
+        geometric_alloc #p #q
+      [[{ (α : loc), RET #lbl:α; own_geometric_tape α p q [] }]].
+    Proof.
+      iIntros (Φ) "_ HΦ".
+      unfold geometric_alloc.
+      wp_apply (twp_bernoulli_alloc with "[$]") as (α) "Hα".
+      iApply ("HΦ" with "[$Hα]").
+      by iPureIntro.
+    Qed.
+    
+    Lemma twp_geometric_presample_adv_comp `{!erisGS Σ} :
+      ∀ (p q : nat) (α : loc) (ns : list nat)
+        (e : expr) 
         (D : nat → R) (L : R) (ε : R)
-        (ns : list nat)
         (Φ : val → iProp Σ),
-    (0 < p)%nat →
-    (p ≤ q + 1)%nat →
-    to_val e = None → 
-    (∀ (n : nat), 0 <= D n <= L)%R →
-    SeriesC (λ k, (geometric_prob p q k * D k)%R) = ε →
-    own_geometric_tape α p q ns ∗
-    ↯ ε ∗ 
-    (∀ (i : nat), ↯ (D i) ∗ own_geometric_tape α p q (ns ++ [i]) -∗ WP e [{ Φ }])
-    ⊢  WP e [{ Φ }].
-       Proof.
-         iIntros (e α p q D L ε ns Φ Hp Hpq He HD HSum)
-           "((%l & Htape & %is_tl) & Herr & Hnext)".
+        (0 < p)%nat →
+      (p ≤ q + 1)%nat →
+      to_val e = None → 
+      (∀ (n : nat), 0 <= D n <= L)%R →
+      SeriesC (λ k, (geometric_prob p q k * D k)%R) = ε →
+      own_geometric_tape α p q ns ∗
+      ↯ ε ∗ 
+      (∀ (i : nat), ↯ (D i) ∗ own_geometric_tape α p q (ns ++ [i]) -∗ WP e [{ Φ }])
+      ⊢  WP e [{ Φ }].
+    Proof.
+      iIntros (p q α ns e D L ε Φ Hp Hpq He HD HSum)
+        "((%l & Htape & %is_tl) & Herr & Hnext)".
       iApply twp_rand_err_pos; auto.
       iIntros (ε_term Hε_term) "Hterm".
       destruct (Nat.eq_dec p (q + 1)%nat) as [-> | p_ne_q_add_1].
@@ -599,6 +426,51 @@ Section Geometric.
         rewrite Nat.add_0_r -app_assoc.
         by apply is_geometric_translation_snoc.
       } 
-       Qed.
-       
+    Qed.
+
+    Lemma twp_geometric_tape `{!erisGS Σ} :
+      ∀ (p q : nat) (α : loc) (n : nat)
+        (ns : list nat) (Φ : val → iProp Σ),
+        own_geometric_tape α p q (n::ns) -∗
+        (own_geometric_tape α p q ns -∗ Φ #n) -∗
+        WP geometric_tape #lbl:α #p #q [{ Φ }].
+  Proof.
+    iIntros (p q α n).
+    iInduction (n) as [|n] "IH".
+    - iIntros (ns Φ) "(%l & Htape & %is_tl) HΦ".
+      destruct is_tl as (suf & -> & is_tl).
+      simpl.
+      unfold geometric_tape.
+      wp_pures.
+      wp_apply (twp_bernoulli_tape with "Htape") as "Htape".
+      wp_pures.
+      iModIntro.
+      by iApply ("HΦ" with "[$Htape]").
+    - iIntros (ns Φ) "(%l & Htape & %is_tl) HΦ".
+      destruct is_tl as (suf & -> & is_tl).
+      simpl.
+      unfold geometric_tape.
+      wp_pures.
+      wp_apply (twp_bernoulli_tape with "Htape") as "Htape".
+      do 2 wp_pure.
+      fold geometric_tape.
+      wp_apply ("IH" with "[$Htape]") as "Htape".
+      { iPureIntro.
+        by eexists.
+      }
+      wp_pures.
+      rewrite -(Nat2Z.inj_add 1 n) /=.
+      iModIntro.
+      iApply ("HΦ" with "Htape").
+  Qed.
+
+  #[global] Instance geometric_of_bernoulli : geometric_spec geometric_tape geometric_alloc :=
+    GeometricSpec _ _
+      (@twp_geometric_split)
+      (@own_geometric_tape)
+      (@twp_geometric_alloc)
+      (@twp_geometric_tape)
+      (@twp_geometric_presample_adv_comp)
+  .
+  
 End Geometric.
