@@ -3,7 +3,7 @@
 *)
 
 From clutch.eris Require Import eris.
-From clutch.eris.lib.sampling Require Import utils.
+From clutch.eris.lib.sampling Require Import utils distr_impl.
 From clutch.eris.lib.sampling.bernoulli Require Import interface.
 
 #[local] Open Scope R.
@@ -232,4 +232,86 @@ Section Roulette.
     by iApply roulette_martingale_aux_spec.
   Qed.
 
+
 End Roulette.
+
+Section Roulette_tapes.
+
+  (**  Below we have an alternative proof using tapes and the planner rule *)
+
+
+  Context `{!erisGS Σ}.
+  Context `{!bernoulli_spec bernoulli balloc}.
+
+  #[local] Opaque INR.
+
+  Variables N M : nat.
+  Variables α : loc.
+  Hypothesis H0_lt_N_lt_SM : (0 < N < S M)%nat.
+
+  Definition roulette_martingale_tape : val :=
+    rec: "loop" "win" "bet" :=
+      if: bernoulli #lbl:α #N #M = #0 
+      then "loop" ("win" - "bet") (#2 * "bet")
+      else "win" + "bet".
+
+  Lemma roulette_martingale_tape_spec (c g : Z) :
+    [[{ own_bernoulli_tape α N M [] }]]
+      roulette_martingale_tape #c #g
+    [[{RET #(c + g); True}]].
+  Proof.
+    iIntros "%Ψ Htape HΨ".
+    iApply (@distr_presample_planner _ _ _ (bernoulli_impl) _ _ nil (λ _, (#1 :: nil) ) 1 (#1 :: nil)
+             with "[$Htape HΨ]"); auto.
+    - simpl.
+      intros v Hv.
+      rewrite elem_of_list_singleton in Hv.
+      rewrite Hv.
+      rewrite /dmap/dbind/pmf/dbind_pmf/=.
+      rewrite SeriesC_fin2.
+      rewrite (dret_0 #0%fin); auto.
+      rewrite (dret_1_1 #1%fin); auto.
+      rewrite Rmult_0_r Rmult_1_r Rplus_0_l.
+      rewrite /bernoulli_distr/pmf/bernoulli_distr_pmf/=.
+      apply Rdiv_lt_0_compat.
+      + apply lt_INR_0.
+        lia.
+      + rewrite -S_INR.
+        apply lt_INR_0.
+        lia.
+    - iSplit; first done.
+      iIntros (ns) "Htape".
+      rewrite app_nil_l.
+      iDestruct "Htape" as "(%fs & Htape & %Hfs)".
+      iInduction (fs) as [|i fs] "IH" forall (ns Hfs c g).
+      + destruct ns; simpl in Hfs; inversion Hfs.
+      + rewrite /roulette_martingale_tape.
+        wp_pures.
+        wp_bind (bernoulli _ _ _)%I.
+        iApply (twp_bernoulli_tape N M α _ _ _ with "[$Htape]").
+        iIntros "Htape".
+        wp_pures.
+        case_bool_decide.
+        * do 3 wp_pure.
+          simpl in Hfs.
+          destruct ns as [|n nss].
+          ** simpl in Hfs.
+             inversion Hfs.
+             simplify_eq.
+             lia.
+          ** iApply ("IH" $! nss with "[][HΨ]"); auto.
+             *** iPureIntro.
+                 rewrite -app_comm_cons in Hfs.
+                 inversion Hfs.
+                 done.
+             *** iIntros "_".
+                 replace (c - g + 2*g)%Z with (c + g)%Z by lia.
+                 by iApply "HΨ".
+       * wp_pures.
+         iModIntro.
+         by iApply "HΨ".
+      Unshelve.
+      lia.
+  Qed.
+
+End Roulette_tapes.
