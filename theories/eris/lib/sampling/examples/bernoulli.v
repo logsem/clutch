@@ -239,29 +239,33 @@ Section Roulette_tapes.
 
   (**  Below we have an alternative proof using tapes and the planner rule *)
 
+  Variables N M : nat.
+  Hypothesis H0_lt_N_lt_SM : (0 < N < S M)%nat.
 
+  Context `{!distr_impl (dmap (LitV ∘ LitInt ∘ Z.of_nat ∘ fin_to_nat) (bernoulli_distr N M (Nat.lt_le_incl _ _ $ proj2 H0_lt_N_lt_SM)))}.
   Context `{!erisGS Σ}.
-  Context `{!bernoulli_spec bernoulli balloc}.
+
+  Variables Δ : AbsLoc.
+  Variables α : val.
+
+  Context (is_loc_α_Δ : ⊢ is_abs_loc Δ α).
+ (* Context `{!bernoulli_spec bernoulli balloc}.*)
 
   #[local] Opaque INR.
 
-  Variables N M : nat.
-  Variables α : loc.
-  Hypothesis H0_lt_N_lt_SM : (0 < N < S M)%nat.
-
-  Definition roulette_martingale_tape : val :=
+    Definition roulette_martingale_tape : val :=
     rec: "loop" "win" "bet" :=
-      if: bernoulli #lbl:α #N #M = #0 
+      if: sample α = #0 
       then "loop" ("win" - "bet") (#2 * "bet")
       else "win" + "bet".
 
   Lemma roulette_martingale_tape_spec (c g : Z) :
-    [[{ own_bernoulli_tape α N M [] }]]
+    [[{ own_tape Δ [] }]]
       roulette_martingale_tape #c #g
     [[{RET #(c + g); True}]].
   Proof.
     iIntros "%Ψ Htape HΨ".
-    iApply (@distr_presample_planner _ _ _ (bernoulli_impl) _ _ nil (λ _, (#1 :: nil) ) 1 (#1 :: nil)
+    iApply (distr_presample_planner _ _ nil (λ _, (#1 :: nil) ) 1 (#1 :: nil)
              with "[$Htape HΨ]"); auto.
     - simpl.
       intros v Hv.
@@ -279,39 +283,29 @@ Section Roulette_tapes.
       + rewrite -S_INR.
         apply lt_INR_0.
         lia.
-    - iSplit; first done.
-      iIntros (ns) "Htape".
+    - iIntros (ns) "Htape".
       rewrite app_nil_l.
-      iDestruct "Htape" as "(%fs & Htape & %Hfs)".
-      iInduction (fs) as [|i fs] "IH" forall (ns Hfs c g).
-      + destruct ns; simpl in Hfs; inversion Hfs.
+      iInduction (ns) as [|i ns] "IH" forall (c g).
       + rewrite /roulette_martingale_tape.
         wp_pures.
-        wp_bind (bernoulli _ _ _)%I.
-        iApply (twp_bernoulli_tape N M α _ _ _ with "[$Htape]").
+        wp_apply (@twp_distr_load with "[$Htape]"); first iApply is_loc_α_Δ.
+        iIntros "Htape".
+        wp_pures.
+        by iApply "HΨ".
+      + rewrite /roulette_martingale_tape /=.
+        wp_pures.
+        wp_apply (@twp_distr_load with "[$Htape]"); first iApply is_loc_α_Δ.
         iIntros "Htape".
         wp_pures.
         case_bool_decide.
-        * do 3 wp_pure.
-          simpl in Hfs.
-          destruct ns as [|n nss].
-          ** simpl in Hfs.
-             inversion Hfs.
-             simplify_eq.
-             lia.
-          ** iApply ("IH" $! nss with "[][HΨ]"); auto.
-             *** iPureIntro.
-                 rewrite -app_comm_cons in Hfs.
-                 inversion Hfs.
-                 done.
-             *** iIntros "_".
-                 replace (c - g + 2*g)%Z with (c + g)%Z by lia.
-                 by iApply "HΨ".
-       * wp_pures.
-         iModIntro.
-         by iApply "HΨ".
-      Unshelve.
-      lia.
+        * fold roulette_martingale_tape.
+          wp_pures.
+          wp_apply ("IH" with "[HΨ] Htape") as "_".
+          replace (c - g + 2*g)%Z with (c + g)%Z by lia.
+          by iApply "HΨ".
+        * wp_pures.
+          iModIntro.
+          by iApply "HΨ".
   Qed.
 
 End Roulette_tapes.

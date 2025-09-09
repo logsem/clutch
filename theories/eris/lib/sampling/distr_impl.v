@@ -6,7 +6,7 @@ Section DistributionImplem.
   Class distr_impl (μ : distr val) :=
     MkDistrImpl
       {
-        sample : expr;
+        sample : val;
         
         alloc_tape : expr;
         
