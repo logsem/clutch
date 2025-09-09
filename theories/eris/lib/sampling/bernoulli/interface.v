@@ -91,7 +91,7 @@ Section BernoulliSpecLemmas.
 
   Context `{bernspec: bernoulli_spec bernoulli balloc}.
   
-  Instance bernoulli_impl {p q n : nat} {p_le_Sq : p ≤ S q} :
+  Instance bernoulli_impl {p q : nat} {p_le_Sq : p ≤ S q} :
     distr_impl (dmap (LitV ∘ LitInt ∘ Z.of_nat ∘ fin_to_nat) (bernoulli_distr p q p_le_Sq)).
   Proof using bernspec.
      
