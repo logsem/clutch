@@ -7,7 +7,7 @@ COQDOCFLAGS ?= \
   --external https://plv.mpi-sws.org/coqdoc/iris/ iris \
   --external https://plv.mpi-sws.org/coqdoc/stdpp/ stdpp \
   --external http://coquelicot.saclay.inria.fr/html/ Coquelicot \
-  --external https://math-comp.github.io/htmldoc_2_2_0/ mathcomp
+  --external https://math-comp.github.io/htmldoc_1_4_0/ mathcomp.analysis
 export COQDOCFLAGS
 COQMAKEFILE ?= Makefile.coq
 COQDOCJS_LN ?= false
