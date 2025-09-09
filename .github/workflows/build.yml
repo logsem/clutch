@@ -45,6 +45,11 @@ jobs:
             startGroup HTML Build
               make -f Makefile.ci -j2
             endGroup
+            startGroup Also deploy clutch POPL24
+              cd html/
+              git clone https://github.com/ahuoguo/clutch.git -b gh-pages
+              cd ..
+            endGroup
           uninstall: |
             make clean
       - name: Revert permissions
