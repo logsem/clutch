@@ -42,9 +42,30 @@ jobs:
             startGroup Build
               make -j2
             endGroup
+            startGroup HTML Build
+              make -f Makefile.ci -j2
+            endGroup
           uninstall: |
             make clean
       - name: Revert permissions
         # to avoid a warning at cleanup time
         if: ${{ always() }}
         run: sudo chown -R 1001:116 .
+      - name: Upload html as artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: html
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: deploy to github pages
+        id: deployment
+        uses: actions/deploy-pages@v4
