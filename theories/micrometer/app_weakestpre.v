@@ -692,7 +692,7 @@ Section coupl_modalities.
     iApply (meas_prog_coupl_step_l_erasable _ _ (gRet (σ1')) _ _); [done|done| |..].
     { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ _ _ setT [set σ1']).
       { by eapply @measurableT. }
-      { (* measurable singleton *) admit. }
+      { apply language_mixin. }
       { (* prim step PMF *) admit. }
       { (* return PMF *) admit. }
       by apply H0.
@@ -713,7 +713,7 @@ Section coupl_modalities.
     iApply (meas_prog_coupl_step_l_dret ε 0%NNR); [|done|..].
     { apply nnreal_ext => /=. lra. }
     { eapply (@ARcoupl_meas_pos_R _ _ _ _ _ _ _ _ _ _ _ S [set σ1']); try done.
-      { (* measurable singletons *) admit. }
+      {  apply language_mixin. (* measurable singletons *) }
       { (* gRet property *) admit. }
       apply ARcoupl_meas_trivial; try done.
       { (* Follows from H2 + prim_step is subdistribution *) admit. }
