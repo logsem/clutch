@@ -32,26 +32,15 @@ Require Import mathcomp.reals.reals.
 Set Warnings "hiding-delimiting-key".
 Set Warnings "+spurious-ssr-injection".
 
-Module meas_lang.
-
 Local Open Scope classical_set_scope.
-Section meas_semantics.
 
-(*
-Definition test (l : loc) (v : val) (h : hp (option val)) : hp (option val) :=
-  <[ l := v ]> h.
-*)
-(*
-Instance : Insert <<discr loc>> btape (hp (option btape)).
-intros a b c.
-apply (hp_evalC ).
-  *)
+Section meas_semantics.
 
 Notation cfg := (toPackedType expr_cyl.-sigma expr * toPackedType state_display state)%type.
 
 (* TODO: Make this as close to the old definition in Clutch as possible.
     - What stdpp isntances do we need for the new tapes?*)
-Definition head_stepM (c : cfg) : giryM cfg :=
+Definition head_step (c : cfg) : giryM cfg :=
   let (e1, σ1) := c in
   match e1 with
   | Rec f x e =>
@@ -144,7 +133,7 @@ Definition head_stepM (c : cfg) : giryM cfg :=
                   sequence_update (of_option hp_evalC (x0.2.1.2, tapes x0.2.2)).2.1
                     (Some x0.1, (of_option hp_evalC (x0.2.1.2, tapes x0.2.2)).2.2))), 
               tapes x0.2.2), utapes x0.2.2))) (gProd (unifN_base N, gRet (N, l, σ1)))
-                  (** Rewritten to match that in head_stepM' *)
+                  (** Rewritten to match that in head_step' *)
                   (* gMap' *)
                   (*   (fun (s : <<discr Z>>) => *)
                   (*      let σ' := state_upd_tapes (fun h => hp_update l (Some (M, (i + 1, sequence_update i (Some s, τ))), h)) σ1 in *)
@@ -202,7 +191,7 @@ Definition head_stepM (c : cfg) : giryM cfg :=
                  sequence_update (of_option hp_evalC (x0.2.1, utapes x0.2.2)).1
                    (Some x0.1, (of_option hp_evalC (x0.2.1, utapes x0.2.2)).2)), 
               utapes x0.2.2)))) (gProd (unif_base, gRet (l, σ1)))
-              (** Rewritten to match head_stepM' more *)
+              (** Rewritten to match head_step' more *)
               (* gMap' *)
               (*   (fun s => *)
               (*      let σ' := state_upd_utapes (fun h => hp_update l (Some (i + 1, sequence_update i (Some s, τ)), h)) σ1 in *)
@@ -420,19 +409,19 @@ Hint Resolve cover_randT_meas_set      : mf_set.
 Hint Resolve cover_urandT_meas_set     : mf_set.
 Hint Resolve cover_tick_meas_set       : mf_set.
 
-Definition head_stepM_rec : cfg -> giryM cfg :=
+Definition head_step_rec : cfg -> giryM cfg :=
   gRet \o (ValU \o RecVU \o 𝜋_RecU \o fst △ snd).
 
-Definition head_stepM_pair : cfg -> giryM cfg :=
+Definition head_step_pair : cfg -> giryM cfg :=
   gRet \o (ValU \o PairVU \o (𝜋_ValU \o 𝜋_Pair_l \o fst △ 𝜋_ValU \o 𝜋_Pair_r \o fst) △ snd).
 
-Definition head_stepM_injL : cfg -> giryM cfg :=
+Definition head_step_injL : cfg -> giryM cfg :=
   gRet \o (ValU \o InjLVU \o 𝜋_ValU \o 𝜋_InjLU \o fst △ snd).
 
-Definition head_stepM_injR : cfg -> giryM cfg :=
+Definition head_step_injR : cfg -> giryM cfg :=
   gRet \o (ValU \o InjRVU \o 𝜋_ValU \o 𝜋_InjRU \o fst △ snd).
 
-Definition head_stepM_app : cfg -> giryM cfg :=
+Definition head_step_app : cfg -> giryM cfg :=
   let 𝜋_f  := 𝜋_RecV_f \o 𝜋_ValU \o 𝜋_App_l \o fst in
   let 𝜋_x  := 𝜋_RecV_x \o 𝜋_ValU \o 𝜋_App_l \o fst in
   let 𝜋_e1 := 𝜋_RecV_e \o 𝜋_ValU \o 𝜋_App_l \o fst in
@@ -440,7 +429,7 @@ Definition head_stepM_app : cfg -> giryM cfg :=
   gRet \o (substU' \o (𝜋_x △ (𝜋_v2 △ substU' \o (𝜋_f △ (RecVU \o (𝜋_f △ 𝜋_x △ 𝜋_e1) △ 𝜋_e1)))) △ snd).
 
 (*
-Definition head_stepM_app' : cfg -> giryM cfg :=
+Definition head_step_app' : cfg -> giryM cfg :=
   gRet \o (substU' \o (   𝜋_RecV_f \o 𝜋_ValU \o 𝜋_App_l \o fst
                       △ (𝜋_ValU \o 𝜋_App_r \o fst
                       △ substU' \o (  𝜋_RecV_f \o 𝜋_ValU \o 𝜋_App_l \o fst
@@ -452,62 +441,62 @@ Definition head_stepM_app' : cfg -> giryM cfg :=
 *)
 
 
-Definition head_stepM_unop : cfg -> giryM cfg :=
+Definition head_step_unop : cfg -> giryM cfg :=
   un_op_eval'' \o (𝜋_UnOp_op \o fst △ 𝜋_Val_v \o 𝜋_UnOp_e \o fst △ snd).
 
-Definition head_stepM_binop : cfg -> giryM cfg :=
+Definition head_step_binop : cfg -> giryM cfg :=
   bin_op_eval''' \o (𝜋_BinOp_op \o fst △ 𝜋_Val_v \o 𝜋_BinOp_l \o fst △ 𝜋_Val_v \o 𝜋_BinOp_r \o fst △ snd).
 
-Definition head_stepM_alloc : cfg -> giryM cfg :=
+Definition head_step_alloc : cfg -> giryM cfg :=
   alloc_eval \o (𝜋_ValU \o 𝜋_AllocU \o fst △ snd).
 
-Definition head_stepM_load : cfg -> giryM cfg :=
+Definition head_step_load : cfg -> giryM cfg :=
   load_eval \o (𝜋_LitLoc_l \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_Load_e \o fst △ snd).
 
-Program Definition head_stepM_store : cfg -> giryM cfg :=
+Program Definition head_step_store : cfg -> giryM cfg :=
   let 𝜋_l := 𝜋_LitLoc_l \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_Store_l \o fst in
   let 𝜋_v := 𝜋_ValU \o 𝜋_Store_e \o fst in
   store_eval \o (𝜋_l △ 𝜋_v △ snd).
 
-Definition head_stepM_ifT : cfg -> giryM cfg :=
+Definition head_step_ifT : cfg -> giryM cfg :=
   gRet \o (𝜋_If_l \o fst △ snd).
 
-Program Definition head_stepM_ifF : cfg -> giryM cfg :=
+Program Definition head_step_ifF : cfg -> giryM cfg :=
   gRet \o (𝜋_If_r \o fst △ snd).
 
-Definition head_stepM_fst : cfg -> giryM cfg :=
+Definition head_step_fst : cfg -> giryM cfg :=
   gRet \o (ValU \o 𝜋_PairV_l \o 𝜋_ValU \o 𝜋_FstU \o fst △ snd).
 
-Definition head_stepM_snd : cfg -> giryM cfg :=
+Definition head_step_snd : cfg -> giryM cfg :=
   gRet \o (ValU \o 𝜋_PairV_r \o 𝜋_ValU \o 𝜋_SndU \o fst △ snd).
 
-Definition head_stepM_caseL : cfg -> giryM cfg :=
+Definition head_step_caseL : cfg -> giryM cfg :=
   gRet \o (AppU \o (𝜋_Case_l \o fst △ ValU \o 𝜋_InjLVU \o 𝜋_ValU \o 𝜋_Case_c \o fst) △ snd).
 
-Definition head_stepM_caseR : cfg -> giryM cfg :=
+Definition head_step_caseR : cfg -> giryM cfg :=
   gRet \o (AppU \o (𝜋_Case_r \o fst △ ValU \o 𝜋_InjRVU \o 𝜋_ValU \o 𝜋_Case_c \o fst) △ snd).
 
-Definition head_stepM_allocTape : cfg -> giryM cfg :=
+Definition head_step_allocTape : cfg -> giryM cfg :=
   AllocTape_eval \o (𝜋_LitIntU \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_AllocTapeU \o fst △ snd).
 
-Definition head_stepM_allocUTape : cfg -> giryM cfg :=
+Definition head_step_allocUTape : cfg -> giryM cfg :=
   AllocUTape_eval \o snd.
 
-Definition head_stepM_rand : cfg -> giryM cfg :=
+Definition head_step_rand : cfg -> giryM cfg :=
   Rand_eval \o (𝜋_LitIntU \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_Rand_N \o fst △ snd).
 
-Definition head_stepM_urand : cfg -> giryM cfg :=
+Definition head_step_urand : cfg -> giryM cfg :=
   (URand_eval \o snd).
 
-Definition head_stepM_randT : cfg -> giryM cfg :=
+Definition head_step_randT : cfg -> giryM cfg :=
   let 𝜋_N := 𝜋_LitIntU \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_Rand_N \o fst in
   let 𝜋_l := 𝜋_LitLblU \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_Rand_t \o fst in
   RandT_eval \o ((𝜋_N △ 𝜋_l) △ snd).
 
-Definition head_stepM_urandT : cfg -> giryM cfg :=
+Definition head_step_urandT : cfg -> giryM cfg :=
   URandT_eval \o (𝜋_LitLblU \o 𝜋_LitVU \o 𝜋_ValU \o 𝜋_URand_e \o fst  △ snd).
 
-Definition head_stepM_tick : cfg -> giryM cfg :=
+Definition head_step_tick : cfg -> giryM cfg :=
   gRet \o (cst (ValU $ LitVU $ LitUnitU) △ snd).
 
 Ltac mf_restrictT :=
@@ -546,7 +535,7 @@ Proof.
   rewrite eqEsubset; split; subset_solver.
 Qed.
 
-Lemma head_stepM_rec_meas_fun : measurable_fun cover_rec head_stepM_rec.
+Lemma head_step_rec_meas_fun : measurable_fun cover_rec head_step_rec.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -563,7 +552,7 @@ Proof.
   }
 Qed.
 
-Lemma head_stepM_pair_meas_fun : measurable_fun cover_pair head_stepM_pair.
+Lemma head_step_pair_meas_fun : measurable_fun cover_pair head_step_pair.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -608,7 +597,7 @@ Proof.
    mf_restrictT. by ms_solve. 
 Qed.
 
-Lemma head_stepM_injL_meas_fun       : measurable_fun cover_injL       head_stepM_injL.
+Lemma head_step_injL_meas_fun       : measurable_fun cover_injL       head_step_injL.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -625,7 +614,7 @@ Proof.
   { mf_restrictT. by ms_solve. }
 Qed. 
 
-Lemma head_stepM_injR_meas_fun       : measurable_fun cover_injR       head_stepM_injR.
+Lemma head_step_injR_meas_fun       : measurable_fun cover_injR       head_step_injR.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -642,7 +631,7 @@ Proof.
   { mf_restrictT. by ms_solve. }
 Qed.
 
-Lemma head_stepM_app_meas_fun        : measurable_fun cover_app        head_stepM_app.
+Lemma head_step_app_meas_fun        : measurable_fun cover_app        head_step_app.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -749,7 +738,7 @@ Proof.
   apply 𝜋_Val_v_meas; ms_done.
 Qed.
 
-Lemma head_stepM_unop_meas_fun       : measurable_fun cover_unop       head_stepM_unop.
+Lemma head_step_unop_meas_fun       : measurable_fun cover_unop       head_step_unop.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   (* Fix eta expansion! *)
@@ -772,7 +761,7 @@ Proof.
     ms_done.
 Qed.
 
-Lemma head_stepM_binop_meas_fun      : measurable_fun cover_binop      head_stepM_binop.
+Lemma head_step_binop_meas_fun      : measurable_fun cover_binop      head_step_binop.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by apply bin_op_eval'''_meas_fun.
@@ -797,7 +786,7 @@ Proof.
     apply measurable_fun_setI1; [by ms_done| by ms_solve |by mf_done].
 Qed.
 
-Lemma head_stepM_alloc_meas_fun      : measurable_fun cover_alloc      head_stepM_alloc.
+Lemma head_step_alloc_meas_fun      : measurable_fun cover_alloc      head_step_alloc.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first apply alloc_eval_meas_fun.
@@ -815,7 +804,7 @@ Proof.
     ms_done.
 Qed.
 
-Lemma head_stepM_load_meas_fun       : measurable_fun cover_load       head_stepM_load.
+Lemma head_step_load_meas_fun       : measurable_fun cover_load       head_step_load.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -854,7 +843,7 @@ Proof.
     { mf_restrictT. by ms_solve. }
 Qed.
 
-Lemma head_stepM_store_meas_fun      : measurable_fun cover_store      head_stepM_store.
+Lemma head_step_store_meas_fun      : measurable_fun cover_store      head_step_store.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -906,7 +895,7 @@ Proof.
     ms_solve.
 Qed.
 
-Lemma head_stepM_ifT_meas_fun        : measurable_fun cover_ifT        head_stepM_ifT.
+Lemma head_step_ifT_meas_fun        : measurable_fun cover_ifT        head_step_ifT.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -918,7 +907,7 @@ Proof.
   { mf_restrictT. by ms_solve. }
 Qed.
 
-Lemma head_stepM_ifF_meas_fun        : measurable_fun cover_ifF        head_stepM_ifF.
+Lemma head_step_ifF_meas_fun        : measurable_fun cover_ifF        head_step_ifF.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -930,7 +919,7 @@ Proof.
   { mf_restrictT. by ms_solve. }
 Qed.
 
-Lemma head_stepM_fst_meas_fun        : measurable_fun cover_fst        head_stepM_fst.
+Lemma head_step_fst_meas_fun        : measurable_fun cover_fst        head_step_fst.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -947,7 +936,7 @@ Proof.
   { mf_restrictT. by ms_solve. }
 Qed.
 
-Lemma head_stepM_snd_meas_fun        : measurable_fun cover_snd        head_stepM_snd.
+Lemma head_step_snd_meas_fun        : measurable_fun cover_snd        head_step_snd.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -963,7 +952,7 @@ Proof.
   { mf_restrictT. by ms_solve. }
 Qed.
 
-Lemma head_stepM_caseL_meas_fun      : measurable_fun cover_caseL      head_stepM_caseL.
+Lemma head_step_caseL_meas_fun      : measurable_fun cover_caseL      head_step_caseL.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -982,7 +971,7 @@ Proof.
   { mf_restrictT. by ms_solve. }
 Qed.
 
-Lemma head_stepM_caseR_meas_fun      : measurable_fun cover_caseR      head_stepM_caseR.
+Lemma head_step_caseR_meas_fun      : measurable_fun cover_caseR      head_step_caseR.
 Proof.
   mf_unfold_dom; mf_unfold_fun. 
   mf_cmp_tree; first by mf_done.
@@ -1000,7 +989,7 @@ Proof.
   { mf_restrictT. by ms_solve. }
 Qed.
 
-Lemma head_stepM_allocTape_meas_fun  : measurable_fun cover_allocTape  head_stepM_allocTape.
+Lemma head_step_allocTape_meas_fun  : measurable_fun cover_allocTape  head_step_allocTape.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -1031,7 +1020,7 @@ Proof.
   { mf_restrictT. by ms_solve. }
 Qed.
 
-Lemma head_stepM_allocUTape_meas_fun : measurable_fun cover_allocUTape head_stepM_allocUTape.
+Lemma head_step_allocUTape_meas_fun : measurable_fun cover_allocUTape head_step_allocUTape.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -1041,7 +1030,7 @@ Proof.
   eapply @measurable_snd_restriction; ms_solve.
 Qed.
 
-Lemma head_stepM_rand_meas_fun       : measurable_fun cover_rand       head_stepM_rand.
+Lemma head_step_rand_meas_fun       : measurable_fun cover_rand       head_step_rand.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -1079,7 +1068,7 @@ Proof.
   { mf_restrictT. by ms_solve. }
 Qed.
 
-Lemma head_stepM_urand_meas_fun      : measurable_fun cover_urand      head_stepM_urand.
+Lemma head_step_urand_meas_fun      : measurable_fun cover_urand      head_step_urand.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -1095,7 +1084,7 @@ Proof.
   eapply @measurable_snd_restriction; ms_solve.
 Qed.
 
-Lemma head_stepM_randT_meas_fun      : measurable_fun cover_randT      head_stepM_randT.
+Lemma head_step_randT_meas_fun      : measurable_fun cover_randT      head_step_randT.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -1141,7 +1130,7 @@ Proof.
      + apply: measurable_fst_restriction; last ms_solve.
 Qed.
 
-Lemma head_stepM_urandT_meas_fun     : measurable_fun cover_urandT     head_stepM_urandT.
+Lemma head_step_urandT_meas_fun     : measurable_fun cover_urandT     head_step_urandT.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -1163,7 +1152,7 @@ Proof.
   { mf_restrictT. by ms_solve. }
 Qed. 
 
-Lemma head_stepM_tick_meas_fun       : measurable_fun cover_tick       head_stepM_tick.
+Lemma head_step_tick_meas_fun       : measurable_fun cover_tick       head_step_tick.
 Proof.
   mf_unfold_dom; mf_unfold_fun.
   mf_cmp_tree; first by mf_done.
@@ -1171,63 +1160,63 @@ Proof.
   mf_restrictT. by ms_solve.
 Qed.
 
-Hint Resolve head_stepM_rec_meas_fun        : mf_fun.
-Hint Resolve head_stepM_pair_meas_fun       : mf_fun.
-Hint Resolve head_stepM_injL_meas_fun       : mf_fun.
-Hint Resolve head_stepM_injR_meas_fun       : mf_fun.
-Hint Resolve head_stepM_app_meas_fun        : mf_fun.
-Hint Resolve head_stepM_unop_meas_fun       : mf_fun.
-Hint Resolve head_stepM_binop_meas_fun      : mf_fun.
-Hint Resolve head_stepM_alloc_meas_fun      : mf_fun.
-Hint Resolve head_stepM_load_meas_fun       : mf_fun.
-Hint Resolve head_stepM_store_meas_fun      : mf_fun.
-Hint Resolve head_stepM_ifT_meas_fun        : mf_fun.
-Hint Resolve head_stepM_ifF_meas_fun        : mf_fun.
-Hint Resolve head_stepM_fst_meas_fun        : mf_fun.
-Hint Resolve head_stepM_snd_meas_fun        : mf_fun.
-Hint Resolve head_stepM_caseL_meas_fun      : mf_fun.
-Hint Resolve head_stepM_caseR_meas_fun      : mf_fun.
-Hint Resolve head_stepM_allocTape_meas_fun  : mf_fun.
-Hint Resolve head_stepM_allocUTape_meas_fun : mf_fun.
-Hint Resolve head_stepM_rand_meas_fun       : mf_fun.
-Hint Resolve head_stepM_urand_meas_fun      : mf_fun.
-Hint Resolve head_stepM_randT_meas_fun      : mf_fun.
-Hint Resolve head_stepM_urandT_meas_fun     : mf_fun.
-Hint Resolve head_stepM_tick_meas_fun       : mf_fun.
+Hint Resolve head_step_rec_meas_fun        : mf_fun.
+Hint Resolve head_step_pair_meas_fun       : mf_fun.
+Hint Resolve head_step_injL_meas_fun       : mf_fun.
+Hint Resolve head_step_injR_meas_fun       : mf_fun.
+Hint Resolve head_step_app_meas_fun        : mf_fun.
+Hint Resolve head_step_unop_meas_fun       : mf_fun.
+Hint Resolve head_step_binop_meas_fun      : mf_fun.
+Hint Resolve head_step_alloc_meas_fun      : mf_fun.
+Hint Resolve head_step_load_meas_fun       : mf_fun.
+Hint Resolve head_step_store_meas_fun      : mf_fun.
+Hint Resolve head_step_ifT_meas_fun        : mf_fun.
+Hint Resolve head_step_ifF_meas_fun        : mf_fun.
+Hint Resolve head_step_fst_meas_fun        : mf_fun.
+Hint Resolve head_step_snd_meas_fun        : mf_fun.
+Hint Resolve head_step_caseL_meas_fun      : mf_fun.
+Hint Resolve head_step_caseR_meas_fun      : mf_fun.
+Hint Resolve head_step_allocTape_meas_fun  : mf_fun.
+Hint Resolve head_step_allocUTape_meas_fun : mf_fun.
+Hint Resolve head_step_rand_meas_fun       : mf_fun.
+Hint Resolve head_step_urand_meas_fun      : mf_fun.
+Hint Resolve head_step_randT_meas_fun      : mf_fun.
+Hint Resolve head_step_urandT_meas_fun     : mf_fun.
+Hint Resolve head_step_tick_meas_fun       : mf_fun.
 
 
-Definition head_stepM' : cfg -> giryM cfg :=
-  if_in cover_rec        head_stepM_rec        $
-  if_in cover_pair       head_stepM_pair       $
-  if_in cover_injL       head_stepM_injL       $
-  if_in cover_injR       head_stepM_injR       $
-  if_in cover_app        head_stepM_app        $
-  if_in cover_unop       head_stepM_unop       $
-  if_in cover_binop      head_stepM_binop      $
-  if_in cover_alloc      head_stepM_alloc      $
-  if_in cover_load       head_stepM_load       $
-  if_in cover_store      head_stepM_store      $
-  if_in cover_ifT        head_stepM_ifT        $
-  if_in cover_ifF        head_stepM_ifF        $
-  if_in cover_fst        head_stepM_fst        $
-  if_in cover_snd        head_stepM_snd        $
-  if_in cover_caseL      head_stepM_caseL      $
-  if_in cover_caseR      head_stepM_caseR      $
-  if_in cover_allocTape  head_stepM_allocTape  $
-  if_in cover_allocUTape head_stepM_allocUTape $
-  if_in cover_rand       head_stepM_rand       $
-  if_in cover_urand      head_stepM_urand      $
-  if_in cover_randT      head_stepM_randT      $
-  if_in cover_urandT     head_stepM_urandT     $
-  if_in cover_tick       head_stepM_tick       $
+Definition head_step' : cfg -> giryM cfg :=
+  if_in cover_rec        head_step_rec        $
+  if_in cover_pair       head_step_pair       $
+  if_in cover_injL       head_step_injL       $
+  if_in cover_injR       head_step_injR       $
+  if_in cover_app        head_step_app        $
+  if_in cover_unop       head_step_unop       $
+  if_in cover_binop      head_step_binop      $
+  if_in cover_alloc      head_step_alloc      $
+  if_in cover_load       head_step_load       $
+  if_in cover_store      head_step_store      $
+  if_in cover_ifT        head_step_ifT        $
+  if_in cover_ifF        head_step_ifF        $
+  if_in cover_fst        head_step_fst        $
+  if_in cover_snd        head_step_snd        $
+  if_in cover_caseL      head_step_caseL      $
+  if_in cover_caseR      head_step_caseR      $
+  if_in cover_allocTape  head_step_allocTape  $
+  if_in cover_allocUTape head_step_allocUTape $
+  if_in cover_rand       head_step_rand       $
+  if_in cover_urand      head_step_urand      $
+  if_in cover_randT      head_step_randT      $
+  if_in cover_urandT     head_step_urandT     $
+  if_in cover_tick       head_step_tick       $
   cst gZero.
 
 (** Slow proof, but can just uncomment *)
-Lemma head_stepM'_meas_fun : measurable_fun setT head_stepM'.
+Lemma head_step'_meas_fun : measurable_fun setT head_step'.
 Proof. Admitted.
 (*
 Proof. 
-  rewrite /head_stepM'. 
+  rewrite /head_step'. 
   (eapply @if_in_meas_fun; [ms_done|ms_solve|rewrite setIidl; [eauto with mf_fun|subset_solver]| 
                              rewrite setIidl; last subset_solver 
   ]). 
@@ -1263,12 +1252,12 @@ Proof.
   - by rewrite asboolF.
 Qed.
 
-Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
+Lemma head_step_head_step'_eq : head_step = head_step'.
 Proof. Admitted.
 (*
   apply functional_extensionality_dep.
   intros [e σ].
-  rewrite /head_stepM/head_stepM'.
+  rewrite /head_step/head_step'.
   repeat unfold_if_in.
   destruct!/=.
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H1].
@@ -1277,7 +1266,7 @@ Proof. Admitted.
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H4].
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H5].
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H6].
-  { rewrite /head_stepM_unop/=/un_op_eval''. clear.
+  { rewrite /head_step_unop/=/un_op_eval''. clear.
     apply if_in_split.
     - (* un_op ok*)
       intros [[[[H|H]|H]|H] _]; simpl in *; rewrite /un_op_eval'/of_option/𝜋_Some_v/=.
@@ -1296,7 +1285,7 @@ Proof. Admitted.
       + right; repeat split; naive_solver.
   }
   apply (if_in_split (f2 := if_in _ _ _)); [intros; destruct!/=; try by unfold_RHS|intros H7].
-  { rewrite /head_stepM_binop/=/bin_op_eval'''. clear.
+  { rewrite /head_step_binop/=/bin_op_eval'''. clear.
     apply if_in_split.
     - (* bin_op ok*)
       rewrite /bin_op_eval''_ok/bin_op_eval''/of_option/𝜋_Some_v/=/bin_op_eval'.
@@ -1525,7 +1514,7 @@ Proof. Admitted.
     - simpl. lia. 
   }
   destruct!/=.
-  apply (if_in_split (f1 := (head_stepM_tick))); [intros; destruct!/=; try by unfold_RHS|intros H23].
+  apply (if_in_split (f1 := (head_step_tick))); [intros; destruct!/=; try by unfold_RHS|intros H23].
   simpl in *.
   repeat case_match; try done.
   all: subst; exfalso.
@@ -1557,10 +1546,10 @@ Proof. Admitted.
   - apply H23; head_step_solver.
 Qed.  *)
 
-Lemma head_stepM_meas_fun : measurable_fun setT head_stepM.
+Lemma head_step_meas_fun : measurable_fun setT head_step.
 Proof.
-  rewrite head_stepM_head_stepM'_eq.
-  apply head_stepM'_meas_fun.
+  rewrite head_step_head_step'_eq.
+  apply head_step'_meas_fun.
 Qed.
 
 
@@ -1572,13 +1561,13 @@ Lemma fill_item_val Ki e :
   is_Some (to_val (fill_item (Ki, e))) → is_Some (to_val e).
 Proof. intros [v ?]. induction Ki; simplify_option_eq; eauto. Qed.
 
-Lemma val_head_stuck e1 σ1 : ¬ is_zero (head_stepM (e1, σ1)) → to_val e1 = None.
+Lemma val_head_stuck e1 σ1 : ¬ is_zero (head_step (e1, σ1)) → to_val e1 = None.
 Proof. destruct e1; try done.
        intros H. exfalso. apply H.
        done.
 Qed. 
 
-Lemma head_step_ctx_val Ki e σ1 : ¬ is_zero (head_stepM (fill_item (Ki, e), σ1)) → is_Some (to_val e).
+Lemma head_step_ctx_val Ki e σ1 : ¬ is_zero (head_step (fill_item (Ki, e), σ1)) → is_Some (to_val e).
 Proof.
   destruct e, Ki; try done; simpl; repeat case_match; intros H'; exfalso; by apply H'.
 Qed.
@@ -1778,10 +1767,10 @@ Qed.
 
 *)
 
-Lemma head_step_mass e σ : ¬ is_zero (head_stepM (e, σ)) → is_prob (head_stepM (e, σ)).
+Lemma head_step_mass e σ : ¬ is_zero (head_step (e, σ)) → is_prob (head_step (e, σ)).
 Proof.
-  assert (is_zero (T:=cfg) gZero) by done.
-  rewrite /head_stepM; repeat case_match; try done.
+(*   assert (is_zero (T:=cfg) gZero) by done.
+  rewrite /head_step; repeat case_match; try done. *)
 Admitted.
 
 (*
@@ -1794,169 +1783,11 @@ Proof.
 Qed.
 *)
 
-(*
-Definition meas_lang_mixin :
-  @MeasEctxiLanguageMixin _ _ _ _ expr val state ectx_item _ _ _ _
-    of_val to_val fill_item decomp_item expr_ord head_stepM.
-Proof.
-  split.
-  - by apply ValU_meas_fun.
-  - by apply to_val_meas.
-  - by apply fill_item_meas_fun.
-  - by apply decomp_item_meas_fun.
-  - by apply head_stepM_meas_fun.
-  - by apply expr_meas_singleton.
-  - by apply val_meas_singleton.
-  - by apply state_meas_singleton.
-  - by apply to_of_val.
-  - by apply of_to_val.
-  - by apply val_head_stuck.
-  - by apply head_step_mass.
-  - by apply fill_item_some.
-  - by apply fill_item_inj.
-  - by apply fill_item_no_val_inj.
-  - by apply expr_ord_wf.
-  - by apply decomp_expr_ord.
-  - by apply decomp_fill_item.
-  - by apply decomp_fill_item_2.
-  - by apply head_step_ctx_val.
-Qed.
-*)
-
-End meas_lang.
-
-(*
-Canonical Structure meas_ectxi_lang := MeasEctxiLanguage _ _ _ _ meas_lang.head_stepM meas_lang.meas_lang_mixin.
-Canonical Structure meas_ectx_lang := MeasEctxLanguageOfEctxi meas_ectxi_lang.
-Canonical Structure meas_lang := MeasLanguageOfEctx meas_ectx_lang.
-
-Section ectxi_language_mixin.
-  Local Open Scope classical_set_scope.
-  Context {d_expr d_val d_state d_ectx_item: measure_display}.
-  Context {exprT valT stateT ectx_itemT: Type}.
-  Context `{SigmaAlgebra d_expr exprT}.
-  Context `{SigmaAlgebra d_val valT}.
-  Context `{SigmaAlgebra d_state stateT}.
-  Context `{SigmaAlgebra d_ectx_item ectx_itemT}.
-  Notation val := (toPackedType d_val valT).
-  Notation expr := (toPackedType d_expr exprT).
-  Notation state := (toPackedType d_state stateT).
-  Notation ectx_item := (toPackedType d_ectx_item ectx_itemT).
-  Context (of_val : val → expr).
-  Context (to_val : expr → option val).
-  Context (fill_item : (ectx_item * expr)%type -> expr).
-  Context (decomp_item : expr → option (ectx_item * expr)%type).
-  Context (expr_ord : expr → expr → Prop).
-  Context (head_step : (expr * state)%type -> (giryM (expr * state)%type)).
-
-  Record MeasEctxiLanguageMixin := {
-    mixin_of_val_meas : measurable_fun setT of_val;
-    mixin_to_val_meas : measurable_fun setT to_val;
-    mixin_fill_item_meas : measurable_fun setT fill_item;
-    mixin_decomp_item_meas : measurable_fun setT decomp_item;
-    mixin_head_step_meas : measurable_fun setT head_step;
-
-    mixin_expr_meas_points : forall (e : expr), measurable [set e];
-    mixin_val_meas_points : forall (v : val), measurable [set v];
-    mixin_state_meas_points : forall (v : state), measurable [set v];
-
-    mixin_to_of_val v : to_val (of_val v) = Some v;
-    mixin_of_to_val e v : to_val e = Some v → of_val v = e;
-    mixin_val_stuck e1 σ1 : (¬ (is_zero (head_step (e1, σ1)))) → to_val e1 = None;
-    mixin_prim_step_mass e σ : (¬ is_zero (head_step (e, σ))) -> is_prob (head_step (e, σ))  ;
-
-    mixin_fill_item_val Ki e : is_Some (to_val (fill_item (Ki, e))) → is_Some (to_val e);
-    (** [fill_item] is always injective on the expression for a fixed
-        context. *)
-    mixin_fill_item_inj Ki : Inj (=) (=) ((curry fill_item) Ki);
-    (** [fill_item] with (potentially different) non-value expressions is
-        injective on the context. *)
-    mixin_fill_item_no_val_inj Ki1 Ki2 e1 e2 :
-      to_val e1 = None → to_val e2 = None →
-      fill_item (Ki1, e1) = fill_item (Ki2, e2) → Ki1 = Ki2;
-
-    (** a well-founded order on expressions *)
-    mixin_expr_ord_wf : well_founded expr_ord;
-    (** [decomp_item] produces "smaller" expressions (typically it will be
-        structurally decreasing) *)
-    mixin_decomp_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e;
-    mixin_decomp_fill_item Ki e :
-      to_val e = None → decomp_item (fill_item (Ki, e)) = Some (Ki, e);
-    mixin_decomp_fill_item_2 e e' Ki :
-      decomp_item e = Some (Ki, e') → fill_item (Ki, e') = e ∧ to_val e' = None;
-
-    (** If [fill_item Ki e] takes a head step, then [e] is a value (unlike for
-        [ectx_language], an empty context is impossible here).  In other words,
-        if [e] is not a value then wrapping it in a context does not add new
-        head redex positions. *)
-    mixin_head_ctx_step_val Ki e σ1 :
-      (¬ is_zero (head_step ((fill_item (Ki, e)), σ1))) → is_Some (to_val e);
-  }.
-End ectxi_language_mixin.
-
-
-Structure meas_ectxiLanguage := MeasEctxiLanguage {
-  d_expr : measure_display;
-  d_val: measure_display;
-  d_state: measure_display;
-  d_ectx_item: measure_display;
-  exprT : Type;
-  valT : Type;
-  stateT : Type;
-  ectx_itemT : Type;
-  expr_SigmaAlgebra : SigmaAlgebra d_expr exprT;
-  val_SigmaAlgebra : SigmaAlgebra d_val valT;
-  state_SigmaAlgebra : SigmaAlgebra d_state stateT;
-  ectx_item_SigmaAlgebra : SigmaAlgebra d_ectx_item ectx_itemT;
-
-  of_val : (toPackedType d_val valT) → (toPackedType d_expr exprT);
-  to_val : (toPackedType d_expr exprT) → option (toPackedType d_val valT);
-
-  fill_item : ((toPackedType d_ectx_item ectx_itemT) * (toPackedType d_expr exprT))%type -> (toPackedType d_expr exprT);
-  decomp_item : (toPackedType d_expr exprT) → option ((toPackedType d_ectx_item ectx_itemT) * (toPackedType d_expr exprT))%type;
-  expr_ord : (toPackedType d_expr exprT) → (toPackedType d_expr exprT) → Prop;
-
-  head_step : ((toPackedType d_expr exprT) * (toPackedType d_state stateT))%type -> (giryM ((toPackedType d_expr exprT) * (toPackedType d_state stateT))%type);
-  ectxi_language_mixin :
-    MeasEctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step
-}.
-
-Bind Scope expr_scope with exprT.
-Bind Scope val_scope with valT.
-
-#[global] Existing Instance expr_SigmaAlgebra.
-#[global] Existing Instance val_SigmaAlgebra.
-#[global] Existing Instance state_SigmaAlgebra.
-#[global] Existing Instance ectx_item_SigmaAlgebra.
-
-Notation val Λ := (toPackedType (d_val Λ) (valT Λ)).
-Notation expr Λ := (toPackedType (d_expr Λ) (exprT Λ)).
-Notation state Λ := (toPackedType (d_state Λ) (stateT Λ)).
-Notation ectx_item Λ := (toPackedType (d_ectx_item Λ) (ectx_itemT Λ)).
-
-Global Arguments MeasEctxiLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _} _.
-Global Arguments of_val {_} _.
-Global Arguments to_val {_} _.
-Global Arguments fill_item {_} _.
-Global Arguments decomp_item {_} _.
-Global Arguments expr_ord {_} _ _.
-Global Arguments head_step {_}.
-
-*)
-
-
-(*
-Canonical Structure meas_ectxi_lang := MeasEctxiLanguage _ _ _ _ meas_lang.head_stepM meas_lang.meas_lang_mixin.
-Canonical Structure meas_ectx_lang := MeasEctxLanguageOfEctxi meas_ectxi_lang.
-Canonical Structure meas_lang := MeasLanguageOfEctx meas_ectx_lang.
-*)
-
 Notation ectx := (list (ectx_item)).
 
+Definition fill (K : (ectx * expr)%type) : expr :=
+  foldl (fun e' k => fill_item (k, e')) (snd K) (fst K).
 
-Definition fill (K : (ectx * expr)%type) : expr := foldl (fun e' k => fill_item (k, e')) (snd K) (fst K).
-
-Local Open Scope classical_set_scope.
 Lemma fill_measurable : measurable_fun setT fill.
 Proof with ms_solve; apply list_length_cov_meas_set.
   rewrite /fill.
@@ -2380,14 +2211,12 @@ Proof. intros K e. rewrite !eq_None_not_Some. eauto. Admitted.
   Proof. change (MeasLanguageCtx (Λ := meas_ectxi_lang) (curry fill [Ki])). apply _. Qed.
 *)
 
-  (*
   Class head_reducible (e : expr) (σ : state ) :=
     head_reducible_step : ¬ is_zero (head_step (e, σ)).
-  Definition head_irreducible (e : expr Λ) (σ : state Λ) :=
+  Definition head_irreducible (e : expr) (σ : state) :=
     is_zero (head_step (e, σ)).
-  Definition head_stuck (e : expr Λ) (σ : state Λ) :=
+  Definition head_stuck (e : expr) (σ : state) :=
     to_val e = None ∧ head_irreducible e σ.
-*)
 
   (* All non-value redexes are at the root. In other words, all sub-redexes are
      values. *)
@@ -2404,13 +2233,13 @@ Proof. intros K e. rewrite !eq_None_not_Some. eauto. Admitted.
   Proof.
     mcrunch_prod.
     { eapply @measurable_compT; first by eauto with measlang.
-      { (* by apply fill_meas. *) admit. }
+      { apply fill_measurable. }
       mcrunch_prod.
       { by eauto with measlang. }
       by mcrunch_comp.
     }
     { by mcrunch_comp. }
-  Admitted.
+  Qed.
 
   Definition fill_lift (K : ectx) : (expr * state) → (expr * state) :=
     fun x => fill_liftU (K, x).
@@ -2454,8 +2283,6 @@ Proof. intros K e. rewrite !eq_None_not_Some. eauto. Admitted.
 *) Admitted .
 
 
-Definition head_step := meas_lang.head_stepM.
-
   (** FIXME: What a strange little measurability proof. *)
   Definition prim_step : (toPackedType _ (expr * state)%type) -> giryM (toPackedType _ (expr * state)%type) :=
     λ '(e, σ),
@@ -2487,12 +2314,12 @@ Definition head_step := meas_lang.head_stepM.
       + eapply @gProd_meas_fun.
       + mf_prod; mf_cmp_tree; try done.
         * apply gRet_meas_fun.
-        * (* apply head_step_meas. *) admit.
+        * apply head_step_meas_fun.
     - mf_prod; repeat mf_cmp_tree; try done.
-      + (* apply decomp_meas. *) admit.
+      + apply decomp_measurable.
       + mf_prod. repeat mf_cmp_tree; try done.
-        admit. (* apply decomp_meas. *)
-  Admitted.
+        apply decomp_measurable.
+  Qed.
 
   Lemma fill_not_val_idk2 K e : to_val e = None → to_val (fill (K, e)) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.
@@ -2541,7 +2368,6 @@ Definition head_step := meas_lang.head_stepM.
 
   (** * Some lemmas about this language *)
 
-  (*
   Lemma not_head_reducible e σ : ¬head_reducible e σ ↔ head_irreducible e σ.
   Proof.
     unfold head_reducible, head_irreducible. split.
@@ -2557,9 +2383,11 @@ Definition head_step := meas_lang.head_stepM.
     fill (K, e) = fill (K', e') →
     head_reducible e σ →
     head_reducible e' σ →
-    K = comp_ectx K' empty_ectx ∧ e = e'.
+    K = comp_ectx K' [] ∧ e = e'.
   Proof.
     intros Heq H1 H2.
+  Admitted.
+  (*
     edestruct (step_by_val K' K e' e) as [K'' HK].
     { by symmetry; apply Heq. }
     { by eapply head_not_stuck, H2. }
@@ -2595,7 +2423,6 @@ Definition head_step := meas_lang.head_stepM.
 
   (*  head_prim_step_pmf_eq e1 σ1: Same thing but pointwise *)
 
-  (*
   Lemma head_prim_step_eq e1 σ1:
     head_reducible e1 σ1 →
     prim_step (e1, σ1) ≡μ head_step (e1, σ1).
@@ -2604,6 +2431,8 @@ Definition head_step := meas_lang.head_stepM.
     rewrite /= /prim_step.
     destruct (decomp e1) as [K e1'] eqn:Heq.
     edestruct (decomp_fill _ _ _ Heq).
+    Admitted.
+  (*
     destruct (head_ctx_step_val _ _ _ Hred) as [| ->].
     - assert (K = empty_ectx) as -> by eauto using decomp_val_empty.
       rewrite fill_lift_empty fill_empty.
@@ -2615,34 +2444,9 @@ Definition head_step := meas_lang.head_stepM.
   Qed.
 *)
 
-  (*
-  (* MARKUS: Renamed becuase it was breaking the build *)
-  (* MARKUS: Commented out because it's not used, and I think the pointwise evaluations shouldn't be used anyways.
-     The "right" version of this lemma should say that measure_eq (head_step (e1, σ1) ρ) gZero iff
-     measure_eq (prim_step (e1, σ1) ρ) gZero. But I'm not sure we even need that yet.
-   *)
-  Lemma head_prim_step' e1 σ1 ρ :
-    (lt_ereal 0 (head_step (e1, σ1) ρ)) → lt_ereal 0 (prim_step (e1, σ1) ρ).
-  Proof. intros H. erewrite head_prim_step_eq; first done.
-         - rewrite /head_reducible.
-           intro H'. assert (head_step (e1, σ1) ρ = 0)%E as Hrewrite.
-           { rewrite H'; first done.
-             (** hmmmm... ask markus *)
-             admit. }
-           rewrite Hrewrite in H.
-           rewrite lt_def_ereal in H.
-           apply andb_prop_elim in H as [H _].
-           cbv in H. by repeat case_match.
-         - (** same problem as above *)
-  Admitted.
-*)
-
   (* Proof breaks when no @ for some reason *)
   Lemma head_prim_step e1 σ1 : ¬ (is_zero (head_step (e1, σ1))) -> ¬ (is_zero (prim_step (e1, σ1))).
-  Proof. intros ?. Admitted. (* by rewrite (@head_prim_step_eq _ _ _). Qed. *)
-
-
-  Local Open Scope classical_set_scope.
+  Proof. intros ?. by rewrite (@head_prim_step_eq _ _ _). Qed.
 
   (*
   Lemma prim_step_iff e1 e2 σ1 σ2 :
@@ -2679,7 +2483,9 @@ Definition head_step := meas_lang.head_stepM.
   Admitted.
   *)
 
-  (*  Markov lemmas
+  (* Canonical structures pain because of the bundled measurability in head_step. Inline Markov?
+
+  (*  Markov lemmas *)
 
   Lemma head_step_not_stuck e σ : (¬ is_zero (head_step (e, σ))) → not_stuck (e, σ).
   Proof.
