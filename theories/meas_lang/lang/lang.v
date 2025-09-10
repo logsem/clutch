@@ -9,9 +9,8 @@ From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
 From iris.algebra Require Export ofe.
 From clutch.prelude Require Export base stdpp_ext.
 From clutch.common Require Export locations.
-From clutch.meas_lang Require Import ectxi_language ectx_language.
 From Coq Require Export Reals.
-From clutch.prob.monad Require Export giry.
+From clutch.prob.monad Require Export giry meas_markov.
 From mathcomp Require Import classical_sets.
 Import Coq.Logic.FunctionalExtensionality.
 From clutch.prelude Require Import classical.
@@ -1265,6 +1264,8 @@ Proof.
 Qed.
 
 Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
+Proof. Admitted.
+(*
   apply functional_extensionality_dep.
   intros [e σ].
   rewrite /head_stepM/head_stepM'.
@@ -1554,7 +1555,7 @@ Lemma head_stepM_head_stepM'_eq : head_stepM = head_stepM'.
   - apply H22; head_step_solver.
   - apply H22; head_step_solver.
   - apply H23; head_step_solver.
-Qed. 
+Qed.  *)
 
 Lemma head_stepM_meas_fun : measurable_fun setT head_stepM.
 Proof.
@@ -1793,7 +1794,7 @@ Proof.
 Qed.
 *)
 
-
+(*
 Definition meas_lang_mixin :
   @MeasEctxiLanguageMixin _ _ _ _ expr val state ectx_item _ _ _ _
     of_val to_val fill_item decomp_item expr_ord head_stepM.
@@ -1820,14 +1821,1371 @@ Proof.
   - by apply decomp_fill_item_2.
   - by apply head_step_ctx_val.
 Qed.
+*)
 
 End meas_lang.
 
-(** Language *)
-
+(*
 Canonical Structure meas_ectxi_lang := MeasEctxiLanguage _ _ _ _ meas_lang.head_stepM meas_lang.meas_lang_mixin.
 Canonical Structure meas_ectx_lang := MeasEctxLanguageOfEctxi meas_ectxi_lang.
 Canonical Structure meas_lang := MeasLanguageOfEctx meas_ectx_lang.
 
-(* Prefer meas_lang names over ectx_language names. *)
-Export meas_lang.
+Section ectxi_language_mixin.
+  Local Open Scope classical_set_scope.
+  Context {d_expr d_val d_state d_ectx_item: measure_display}.
+  Context {exprT valT stateT ectx_itemT: Type}.
+  Context `{SigmaAlgebra d_expr exprT}.
+  Context `{SigmaAlgebra d_val valT}.
+  Context `{SigmaAlgebra d_state stateT}.
+  Context `{SigmaAlgebra d_ectx_item ectx_itemT}.
+  Notation val := (toPackedType d_val valT).
+  Notation expr := (toPackedType d_expr exprT).
+  Notation state := (toPackedType d_state stateT).
+  Notation ectx_item := (toPackedType d_ectx_item ectx_itemT).
+  Context (of_val : val → expr).
+  Context (to_val : expr → option val).
+  Context (fill_item : (ectx_item * expr)%type -> expr).
+  Context (decomp_item : expr → option (ectx_item * expr)%type).
+  Context (expr_ord : expr → expr → Prop).
+  Context (head_step : (expr * state)%type -> (giryM (expr * state)%type)).
+
+  Record MeasEctxiLanguageMixin := {
+    mixin_of_val_meas : measurable_fun setT of_val;
+    mixin_to_val_meas : measurable_fun setT to_val;
+    mixin_fill_item_meas : measurable_fun setT fill_item;
+    mixin_decomp_item_meas : measurable_fun setT decomp_item;
+    mixin_head_step_meas : measurable_fun setT head_step;
+
+    mixin_expr_meas_points : forall (e : expr), measurable [set e];
+    mixin_val_meas_points : forall (v : val), measurable [set v];
+    mixin_state_meas_points : forall (v : state), measurable [set v];
+
+    mixin_to_of_val v : to_val (of_val v) = Some v;
+    mixin_of_to_val e v : to_val e = Some v → of_val v = e;
+    mixin_val_stuck e1 σ1 : (¬ (is_zero (head_step (e1, σ1)))) → to_val e1 = None;
+    mixin_prim_step_mass e σ : (¬ is_zero (head_step (e, σ))) -> is_prob (head_step (e, σ))  ;
+
+    mixin_fill_item_val Ki e : is_Some (to_val (fill_item (Ki, e))) → is_Some (to_val e);
+    (** [fill_item] is always injective on the expression for a fixed
+        context. *)
+    mixin_fill_item_inj Ki : Inj (=) (=) ((curry fill_item) Ki);
+    (** [fill_item] with (potentially different) non-value expressions is
+        injective on the context. *)
+    mixin_fill_item_no_val_inj Ki1 Ki2 e1 e2 :
+      to_val e1 = None → to_val e2 = None →
+      fill_item (Ki1, e1) = fill_item (Ki2, e2) → Ki1 = Ki2;
+
+    (** a well-founded order on expressions *)
+    mixin_expr_ord_wf : well_founded expr_ord;
+    (** [decomp_item] produces "smaller" expressions (typically it will be
+        structurally decreasing) *)
+    mixin_decomp_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e;
+    mixin_decomp_fill_item Ki e :
+      to_val e = None → decomp_item (fill_item (Ki, e)) = Some (Ki, e);
+    mixin_decomp_fill_item_2 e e' Ki :
+      decomp_item e = Some (Ki, e') → fill_item (Ki, e') = e ∧ to_val e' = None;
+
+    (** If [fill_item Ki e] takes a head step, then [e] is a value (unlike for
+        [ectx_language], an empty context is impossible here).  In other words,
+        if [e] is not a value then wrapping it in a context does not add new
+        head redex positions. *)
+    mixin_head_ctx_step_val Ki e σ1 :
+      (¬ is_zero (head_step ((fill_item (Ki, e)), σ1))) → is_Some (to_val e);
+  }.
+End ectxi_language_mixin.
+
+
+Structure meas_ectxiLanguage := MeasEctxiLanguage {
+  d_expr : measure_display;
+  d_val: measure_display;
+  d_state: measure_display;
+  d_ectx_item: measure_display;
+  exprT : Type;
+  valT : Type;
+  stateT : Type;
+  ectx_itemT : Type;
+  expr_SigmaAlgebra : SigmaAlgebra d_expr exprT;
+  val_SigmaAlgebra : SigmaAlgebra d_val valT;
+  state_SigmaAlgebra : SigmaAlgebra d_state stateT;
+  ectx_item_SigmaAlgebra : SigmaAlgebra d_ectx_item ectx_itemT;
+
+  of_val : (toPackedType d_val valT) → (toPackedType d_expr exprT);
+  to_val : (toPackedType d_expr exprT) → option (toPackedType d_val valT);
+
+  fill_item : ((toPackedType d_ectx_item ectx_itemT) * (toPackedType d_expr exprT))%type -> (toPackedType d_expr exprT);
+  decomp_item : (toPackedType d_expr exprT) → option ((toPackedType d_ectx_item ectx_itemT) * (toPackedType d_expr exprT))%type;
+  expr_ord : (toPackedType d_expr exprT) → (toPackedType d_expr exprT) → Prop;
+
+  head_step : ((toPackedType d_expr exprT) * (toPackedType d_state stateT))%type -> (giryM ((toPackedType d_expr exprT) * (toPackedType d_state stateT))%type);
+  ectxi_language_mixin :
+    MeasEctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step
+}.
+
+Bind Scope expr_scope with exprT.
+Bind Scope val_scope with valT.
+
+#[global] Existing Instance expr_SigmaAlgebra.
+#[global] Existing Instance val_SigmaAlgebra.
+#[global] Existing Instance state_SigmaAlgebra.
+#[global] Existing Instance ectx_item_SigmaAlgebra.
+
+Notation val Λ := (toPackedType (d_val Λ) (valT Λ)).
+Notation expr Λ := (toPackedType (d_expr Λ) (exprT Λ)).
+Notation state Λ := (toPackedType (d_state Λ) (stateT Λ)).
+Notation ectx_item Λ := (toPackedType (d_ectx_item Λ) (ectx_itemT Λ)).
+
+Global Arguments MeasEctxiLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _} _.
+Global Arguments of_val {_} _.
+Global Arguments to_val {_} _.
+Global Arguments fill_item {_} _.
+Global Arguments decomp_item {_} _.
+Global Arguments expr_ord {_} _ _.
+Global Arguments head_step {_}.
+
+*)
+
+
+(*
+Canonical Structure meas_ectxi_lang := MeasEctxiLanguage _ _ _ _ meas_lang.head_stepM meas_lang.meas_lang_mixin.
+Canonical Structure meas_ectx_lang := MeasEctxLanguageOfEctxi meas_ectxi_lang.
+Canonical Structure meas_lang := MeasLanguageOfEctx meas_ectx_lang.
+*)
+
+Notation ectx := (list (ectx_item)).
+
+
+Definition fill (K : (ectx * expr)%type) : expr := foldl (fun e' k => fill_item (k, e')) (snd K) (fst K).
+
+Local Open Scope classical_set_scope.
+Lemma fill_measurable : measurable_fun setT fill.
+Proof with ms_solve; apply list_length_cov_meas_set.
+  rewrite /fill.
+  assert (setT (T:=ectx* _) = \bigcup_n  (list_length_cov n `*` setT)) as ->.
+  { rewrite eqEsubset; split; intros [l s]; simpl; last done.
+    intros _.
+    exists (length l); first done.
+    simpl. split; last done. apply: list_length_cov_length'.
+  }
+  apply measurable_fun_bigcup.
+  { intros. ms_solve. apply list_length_cov_meas_set. }
+  intros n; induction n as [|n IHn].
+  { simpl. apply: (mathcomp_measurable_fun_ext _ _ (snd)).
+    - ms_solve. apply list_length_cov_meas_set.
+    - apply: measurable_snd_restriction.
+      ms_solve. apply list_length_cov_meas_set.
+    - rewrite list_length_cov_0/list_cov_empty. intros []. simpl. by intros [->].
+  }
+  apply: (mathcomp_measurable_fun_ext _ _ ((λ K : list (ectx_item) * expr,
+                                              foldl (λ e' (k : ectx_item), fill_item (k, e')) K.2 K.1) \o (𝜋_cons_vs \o fst △ (fill_item \o (𝜋_cons_v \o fst △ snd))))).
+  - ms_solve. apply list_length_cov_meas_set.
+  - apply: measurable_comp; [| |apply:IHn |].
+    + ms_solve. apply list_length_cov_meas_set.
+    + rewrite list_length_cov_Sn. intros [l s]. rewrite /list_cov_cons.
+      simpl.
+      intros [[][[[?[]]]]]; simpl in *; subst; simpl in *; simplify_eq. naive_solver.
+    + mf_prod.
+      * ms_solve. apply list_length_cov_meas_set.
+      * apply: measurable_comp; [| |apply:𝜋_cons_vs_meas_fun|].
+        -- apply list_cov_cons_meas_set.
+        -- rewrite list_length_cov_Sn. intros ?. simpl. intros [?[[]]]; by subst.
+        -- apply: measurable_fst_restriction. idtac...
+      * apply: measurable_compT.
+        -- ms_solve. apply list_length_cov_meas_set.
+        -- admit. (* apply fill_item_meas. *)
+        -- mf_prod; last apply: measurable_snd_restriction.
+           ++ idtac...
+           ++ apply:  measurable_comp; last apply: measurable_fst_restriction; last first.
+              ** idtac...
+              ** apply 𝜋_cons_v_meas_fun.
+              ** rewrite list_length_cov_Sn. intros ?. simpl.
+                 intros [[][[]]]; by subst.
+              ** apply list_cov_cons_meas_set.
+           ++ idtac...
+  - rewrite list_length_cov_Sn. intros []. simpl. rewrite /list_cov_cons/=.
+    intros [[[?[]]]]; by subst.
+Admitted.
+Hint Resolve fill_measurable : measlang.
+
+Lemma fill_app (K1 K2 : ectx) e : fill ((K1 ++ K2), e) = fill (K2, (fill (K1, e))).
+Proof. apply foldl_app. Qed.
+
+Lemma fill_cons (k : ectx_item) (K2 : ectx) e : fill ((k :: K2), e) = fill (K2, (fill ([k], e))).
+Proof. apply (fill_app [k] K2). Qed.
+
+Lemma fill_not_val K e : to_val e = None → to_val (fill (K, e)) = None.
+Proof.
+  revert e.
+  induction K as [|Ki K] using rev_ind; simpl; first naive_solver.
+  intros e Hval; rewrite fill_app/=.
+  admit.
+  (* apply fill_item_not_val. naive_solver. *)
+Admitted.
+
+Program Fixpoint decomp (e : expr) {wf expr_ord e} : ectx * expr :=
+  match decomp_item e with
+  | Some (Ki, e') => let '(K, e'') := decomp e' in (K ++ [Ki], e'')
+  | None => ([], e)
+  end.
+Solve Obligations with eauto using decomp_ord, expr_ord_wf.
+Next Obligation. Admitted.
+Next Obligation. Admitted.
+
+Lemma decomp_unfold e :
+  decomp e =
+    match decomp_item e with
+    | Some (Ki, e') => let '(K, e'') := decomp e' in (K ++ [Ki], e'')
+    | None => ([], e)
+    end.
+Proof. Admitted.
+(*
+  rewrite /decomp WfExtensionality.fix_sub_eq_ext /= -/decomp.
+  repeat case_match; try done.
+Qed. *)
+
+Lemma decomp_inv_nil e e' :
+  decomp e = ([], e') → decomp_item e = None ∧ e = e'.
+Proof.
+  rewrite decomp_unfold.
+  destruct (decomp_item e) as [[Ki e'']|] eqn:Heq; [|by intros [=]].
+  destruct (decomp e''). intros [= Hl He].
+  assert (l = []) as ->.
+  { destruct l; inversion Hl. }
+  inversion Hl.
+Qed.
+
+(* TODO: move *)
+Lemma list_snoc_singleton_inv {A} (l1 l2 : list A) (a1 a2 : A) :
+  l1 ++ [a1] = l2 ++ [a2] → l1 = l2 ∧ a1 = a2.
+Proof.
+  revert l2. induction l1 as [|a l1].
+  { intros [| ? []] [=]=>//. }
+  intros [].
+  { intros [=]; destruct l1; simplify_eq. }
+  { intros [= -> []%IHl1]. simplify_eq=>//. }
+Qed.
+
+Lemma decomp_inv_cons Ki K e e'' :
+  decomp e = (K ++ [Ki], e'') → ∃ e', decomp_item e = Some (Ki, e') ∧ decomp e' = (K, e'').
+Proof.
+  rewrite decomp_unfold.
+  destruct (decomp_item e) as [[Ki' e']|] eqn:Heq'.
+  2 : { intros [=]. by destruct K. }
+  destruct (decomp e') as [K' e'''] eqn:Heq.
+  intros [= [<- <-]%list_snoc_singleton_inv ->].
+  eauto.
+Qed.
+
+Lemma decomp_fill K e e' : decomp e = (K, e') → fill (K, e') = e.
+Proof.
+  remember (length K) as n eqn:Heqn.
+  revert K e e' Heqn.
+  induction n as [|n IHn]; intros K e e' Hn.
+  - assert (K= []) as ->.
+    { destruct K; simpl in *; first done. lia. }
+    intros H. apply decomp_inv_nil in H as [? ->].
+    by rewrite /fill.
+  - rewrite decomp_unfold.
+    case_match; last first.
+    { intros; simplify_eq. }
+    repeat case_match. simplify_eq.
+    intros; simplify_eq.
+    rewrite fill_app. apply decomp_fill_item_2.
+    etrans; first exact.
+    f_equal. f_equal.
+    simpl. symmetry. apply IHn; last done.
+    rewrite app_length in Hn. simpl in *. lia.
+Qed.
+
+Lemma decomp_to_val_emp K e e' : decomp e = (K, e') → is_Some (to_val e') → K = [].
+Proof.
+  revert e e'. induction K as [|Ki K] using rev_ind; [done|].
+  intros ?? (e'' & Hrei & Hre)%decomp_inv_cons Hv.
+  specialize (IHK _ _ Hre Hv). simplify_eq.
+  apply decomp_inv_nil in Hre as [? ?]; simplify_eq.
+  by apply decomp_fill_item_2 in Hrei as [_ ?%eq_None_not_Some].
+Qed.
+
+Lemma decomp_fill_comp e e' K K' :  to_val e = None → decomp e = (K', e') → decomp (fill (K, e)) = (flip app K K', e').
+Proof.
+  revert K' e e'.
+  induction K as [|Ki K] using rev_ind.
+  { intros ??? =>/=. rewrite app_nil_r //. }
+  intros K' e e' Hval Hre. rewrite fill_app /=.
+  rewrite decomp_unfold.
+  rewrite decomp_fill_item.
+  - rewrite (IHK K' _ e') //=.
+    rewrite !app_assoc //.
+  - simpl. by apply fill_not_val.
+Qed.
+
+
+(*
+Lemma decomp_step_by_val K' K_redex e1' e1_redex σ1  :
+  fill (K', e1') = fill (K_redex, e1_redex)
+  → to_val e1' = None
+    → ¬ is_zero (head_step (e1_redex, σ1))
+      → ∃ K'' , K_redex = flip app K' K''.
+Proof.
+  revert K_redex  e1' e1_redex σ1.
+  induction K' as [|Ki K IH] using rev_ind => /= K' e1' e1_redex σ1 Hfill; eauto using app_nil_r.
+  destruct K' as [|Ki' K' _] using @rev_ind; first rewrite {2}/fill/= in Hfill; simplify_eq/=.
+  { intros Hval Hstep. rewrite fill_app in Hstep. apply head_ctx_step_val in Hstep.
+    simpl in Hstep.
+    eapply fill_not_val in Hval.
+    by apply not_eq_None_Some in Hstep. }
+  rewrite !fill_app /= in Hfill.
+  intros Hval Hstep.
+  assert (Ki = Ki') as ->.
+  { eapply fill_item_no_val_inj, Hfill; simpl; first by apply fill_not_val.
+    apply fill_not_val. by eapply ectxi_language_mixin. }
+  simplify_eq. apply fill_item_inj in Hfill. simpl in *.
+  eapply IH in Hfill as [K'' ->]; [|done..].
+  exists K''. by rewrite assoc.
+Qed.
+*)
+
+Fixpoint decomp' n (e : expr) :=
+  match n with
+  | 0 => match decomp_item e with
+        | Some _ => None
+        | None => Some ([], e)
+        end
+  | S n' => match decomp_item e with
+          | None => None
+          | Some (Ki, e') =>
+              match decomp' n' e' with
+              | Some (K, e'') => Some (K++[Ki], e'')
+              | None => None
+              end
+           end
+  end.
+
+Lemma decomp_decomp' n e K e': decomp' n e = Some (K, e') -> decomp e = (K, e').
+Proof.
+  revert e K e'.
+  induction n; simpl.
+  - intros. case_match; first done.
+    simplify_eq. rewrite decomp_unfold. by case_match.
+  - intros. case_match eqn:Hx; last done.
+    case_match. subst. case_match eqn:Hy; last done.
+    case_match. subst. apply IHn in Hy.
+    simplify_eq. rewrite decomp_unfold. by rewrite Hx Hy.
+Qed.
+
+Lemma decomp_decomp2' e : decomp' (length (decomp e).1) e = Some (decomp e).
+Proof.
+  remember (length (decomp e).1) as n eqn:Heqn.
+  revert e Heqn.
+  induction n; simpl.
+  - intros ? Hlength.
+    destruct (decomp e) as [l ?] eqn:Heqn.
+    assert (l=[]) as ->.
+    { by apply nil_length_inv. }
+    apply decomp_inv_nil in Heqn as [H ?]. subst. by rewrite H.
+  - intros e Hlength.
+    case_match eqn:H; last first.
+    { rewrite decomp_unfold in Hlength. rewrite H in Hlength.
+      simplify_eq.
+    }
+    case_match.
+    subst.
+    rewrite decomp_unfold in Hlength. rewrite H in Hlength.
+    case_match eqn:H'.
+    simpl in *.
+    rewrite app_length in Hlength. simpl in *.
+    assert (length l = n) by lia.
+    subst. erewrite IHn; last by rewrite H'.
+    rewrite H'. by rewrite decomp_unfold H H'.
+Qed.
+
+  Definition decomp'_meas_set n: measurable (decomp' n @^-1` option_cov_Some).
+  Proof.
+    induction n.
+    - assert (preimage (decomp' 0) option_cov_Some = preimage decomp_item option_cov_None) as ->.
+        * rewrite eqEsubset; split; intros ?; simpl; rewrite /option_cov_Some/option_cov_None/=.
+          -- intros []. by case_match.
+          -- intros ->. naive_solver.
+        * rewrite <-setTI.
+          admit.
+          (*
+          apply: decomp_item_meas; ms_solve.
+          apply: option_cov_None_meas_set. *)
+    - assert (preimage (decomp' (S n)) option_cov_Some =
+                (preimage decomp_item (option_cov_Some`&`
+                  (preimage (snd \o 𝜋_Some_v) (preimage (decomp' n) option_cov_Some))))
+               ) as ->.
+        { rewrite eqEsubset; split; intros ?; simpl; rewrite /option_cov_Some/=.
+          - intros []. case_match eqn:H1; last done.
+            case_match. case_match eqn:H2; last done. case_match.
+            subst. simplify_eq. naive_solver.
+          - intros [[[] H][[]H']]. rewrite H in H'. simpl in *.
+            rewrite H H'. naive_solver.
+        }
+        rewrite <-setTI.
+
+        (* apply decomp_item_meas; ms_solve; try apply option_cov_Some_meas_set.
+        apply: measurable_comp; last first.
+        * apply: 𝜋_Some_v_meas_fun.
+        * apply measurable_snd_restriction.
+          apply: measurableT.
+        * done.
+        * done.
+  Qed. *) Admitted.
+  Hint Resolve decomp'_meas_set : measlang.
+
+  (* How to prove this? *)
+  Lemma decomp_measurable : measurable_fun setT decomp.
+  Proof.
+    assert (setT = \bigcup_i (preimage (decomp' i) option_cov_Some)) as Hrewrite; last rewrite Hrewrite.
+    { rewrite eqEsubset; split; intros t; simpl; last done.
+      intros _.
+      exists (length (decomp t).1); first done.
+      simpl. rewrite decomp_decomp2'. by eexists _.
+    }
+    rewrite measurable_fun_bigcup; last first.
+    - intros n. apply decomp'_meas_set.
+    - intros n.
+      induction n as [|n' IHn].
+      + assert ((decomp' 0 @^-1` option_cov_Some) =
+                setT `&` (decomp_item  @^-1` (option_cov_None))) as ->.
+        { rewrite eqEsubset; split; intros ?; rewrite /option_cov_Some/option_cov_None/=.
+          - intros [[]]. case_match; by simplify_eq.
+          - intros [_ ->]. naive_solver.
+        }
+        apply: (mathcomp_measurable_fun_ext _ _ (cst []△(λ x,x))).
+        * admit. (* apply decomp_item_meas; first done. apply option_cov_None_meas_set. *)
+        * mf_prod. ms_solve; last apply option_cov_None_meas_set.
+          admit.
+          (* apply decomp_item_meas. *)
+        * rewrite /option_cov_None/=. intros ?[? H]. by rewrite decomp_unfold H.
+      + assert ((decomp' (S n') @^-1` option_cov_Some) =
+                preimage decomp_item (option_cov_Some `&` preimage 𝜋_Some_v (setT `*` (decomp' (n') @^-1` option_cov_Some)))) as ->.
+        { rewrite eqEsubset; split; intros ?; rewrite /option_cov_Some/=.
+          - intros [[]].
+            repeat case_match; simplify_eq.
+            repeat split; [naive_solver..|].
+            simpl. naive_solver.
+          - intros [[[]H][?[[]H']]].
+            rewrite H in H'. simpl in *. rewrite H H'. naive_solver.
+        }
+        apply: (mathcomp_measurable_fun_ext _ _
+                  ((appU\o fst △ snd)
+                    \o ((fst \o snd △ consU \o fst)△snd \o snd)
+                     \o ((fst△ cst []) △decomp \o snd)
+                     \o (𝜋_Some_v \o decomp_item))).
+        { rewrite <-setTI.
+          admit.
+          (*
+          apply: decomp_item_meas; first done.
+          apply 𝜋_Some_v_meas_fun; first apply option_cov_Some_meas_set.
+          apply measurableX; first done.
+          apply decomp'_meas_set. *)
+        }
+        { apply: (measurable_comp (F:=setT `*` (decomp' n' @^-1` option_cov_Some))).
+          - ms_solve. apply decomp'_meas_set.
+          - intros []. rewrite /option_cov_Some/=.
+            intros [?[[[] H][_ [[] H' ]  ]] H''].
+            rewrite H in H' H''.  simpl in *. simplify_eq. rewrite H'.
+            naive_solver.
+          - mf_cmp_tree.
+            + mf_cmp_tree; repeat mf_prod; repeat mf_cmp_tree.
+              * apply app_meas_fun.
+              * apply: measurable_fst.
+              * apply cons_meas_fun.
+              * apply: measurable_snd.
+            + mf_prod; first (ms_solve; apply decomp'_meas_set).
+              * mf_prod; first (ms_solve; apply decomp'_meas_set).
+                apply: measurable_fst_restriction. ms_solve. apply decomp'_meas_set.
+              * apply snd_setX_meas_fun; first done; first apply decomp'_meas_set.
+                done.
+          - rewrite <-(setTI (preimage _ _)).
+            mf_cmp_tree.
+            + ms_solve; [apply 𝜋_Some_v_meas_fun|apply option_cov_Some_meas_set|apply decomp'_meas_set].
+            + intros ?. rewrite /option_cov_Some/=.
+              intros [?[?[[[]H][?[[]H']]]]H''].
+              rewrite H in H' H''. subst. simpl in *.
+              naive_solver.
+            + apply: measurable_funS; last apply: 𝜋_Some_v_meas_fun.
+              * apply option_cov_Some_meas_set.
+              * apply subIsetl.
+            + ms_solve.
+              * admit. (* apply: decomp_item_meas. *)
+              * apply 𝜋_Some_v_meas_fun.
+              * apply option_cov_Some_meas_set.
+              * apply decomp'_meas_set.
+            + admit. (* apply decomp_item_meas. *) }
+        rewrite /option_cov_Some/=.
+        intros ? [[[]H][?[[]H']]].
+        rewrite H in H'. simpl in *.
+        rewrite H/=. rewrite (decomp_unfold x). rewrite H.
+        by erewrite decomp_decomp'.
+  Admitted.
+  Hint Resolve decomp_measurable : measlang.
+
+  (*
+  Lemma head_ctx_step_fill_val K e σ1 : ¬ is_zero (head_step (fill (K, e), σ1)) → is_Some (to_val e) ∨ K = [].
+  Proof.
+    destruct K as [|Ki K _] using rev_ind; simpl; first by auto.
+    rewrite fill_app /=.
+    intros H%head_ctx_step_val; eauto using fill_val. simpl in *.
+    left.
+    destruct (to_val e) eqn:Heqn; first done.
+    eapply fill_not_val in Heqn. by erewrite Heqn in H.
+  Qed.
+  *)
+
+  Lemma fill_val : ∀ K e, is_Some (to_val (curry fill K e)) → is_Some (to_val e).
+  Proof. intros K. induction K as [|Ki K IH]=> e //=. Admitted. (* by intros ?%IH%fill_item_val. Qed. *)
+
+  Lemma fill_not_val_idk : ∀ K e, to_val e = None → to_val (curry fill K e) = None.
+Proof. intros K e. rewrite !eq_None_not_Some. eauto. Admitted.
+
+(* These are more ectxi_langauge lemmas
+
+    { intros K1 K2 e. by rewrite /fill /= foldl_app. }
+    { intros K.
+      induction K as [|Ki K IH]; rewrite /Inj.
+      { done. }
+      { move=> x y.
+        unfold curry.
+        rewrite fill_cons.
+        unfold curry in IH.
+        move=> H.
+        apply IH in H.
+        rewrite /fill//= in H.
+        have H' := fill_item_inj Ki x y.
+        apply H'.
+        by rewrite /curry. }
+    }
+
+ *)
+
+(*
+  Lemma ectxi_language_sub_redexes_are_values e :
+    (∀ Ki e', e = fill_item (Ki, e') → is_Some (to_val e')) →
+    sub_redexes_are_values e.
+  Proof.
+    intros Hsub K e' ->. destruct K as [|Ki K _] using @rev_ind=> //=.
+    intros []%eq_None_not_Some.
+    simpl in *.
+    eapply (fill_val (Λ := meas_ectxi_lang_ectx)), Hsub.
+    by rewrite /= fill_app.
+  Qed.
+*)
+
+  Definition curry_fill_item := curry (fill_item).
+
+  (*
+  Global Instance ectxi_lang_ctx_item Ki : MeasLanguageCtx (Λ := meas_ectxi_lang)(curry_fill_item Ki).
+  Proof. change (MeasLanguageCtx (Λ := meas_ectxi_lang) (curry fill [Ki])). apply _. Qed.
+*)
+
+  (*
+  Class head_reducible (e : expr) (σ : state ) :=
+    head_reducible_step : ¬ is_zero (head_step (e, σ)).
+  Definition head_irreducible (e : expr Λ) (σ : state Λ) :=
+    is_zero (head_step (e, σ)).
+  Definition head_stuck (e : expr Λ) (σ : state Λ) :=
+    to_val e = None ∧ head_irreducible e σ.
+*)
+
+  (* All non-value redexes are at the root. In other words, all sub-redexes are
+     values. *)
+  Definition sub_redexes_are_values (e : expr) :=
+    ∀ K e', e = fill (K, e') → to_val e' = None → K = (* empty_ectx. *) [].
+
+  Definition fill_liftU : (ectx * (expr * state)) → (expr * state) :=
+    mProd
+      ( ssrfun.comp fill $
+        mProd fst (ssrfun.comp fst snd) )
+      ( ssrfun.comp snd snd ).
+
+  Lemma fill_liftU_meas : measurable_fun setT fill_liftU.
+  Proof.
+    mcrunch_prod.
+    { eapply @measurable_compT; first by eauto with measlang.
+      { (* by apply fill_meas. *) admit. }
+      mcrunch_prod.
+      { by eauto with measlang. }
+      by mcrunch_comp.
+    }
+    { by mcrunch_comp. }
+  Admitted.
+
+  Definition fill_lift (K : ectx) : (expr * state) → (expr * state) :=
+    fun x => fill_liftU (K, x).
+
+  Lemma fill_lift_meas K: measurable_fun setT (fill_lift K).
+  Proof.
+    rewrite /fill_lift.
+    assert ((λ x, fill_liftU (K, x)) = fill_liftU \o (λ x, (K, x))) as Hrewrite.
+    { apply functional_extensionality_dep.
+      by intros [??]. }
+    rewrite Hrewrite.
+    eapply @measurable_comp; [| |apply fill_liftU_meas|]; try done.
+    apply pair1_measurable.
+  Qed.
+
+  Definition comp_ectx (K1 K2 : ectx) := K1 ++ K2.
+
+  Lemma fill_lift_comp (K1 K2 : ectx) :
+    fill_lift (comp_ectx K1 K2) = fill_lift K1 ∘ fill_lift K2.
+  Proof.
+    extensionality ρ. destruct ρ.
+    rewrite /fill_lift/fill_liftU //=.
+  Admitted.
+  (*
+    rewrite -fill_comp //=.
+  Qed. *)
+
+  Lemma fill_lift_empty :
+    fill_lift [] = (λ ρ, ρ).
+  Proof.
+    extensionality ρ. destruct ρ.
+    rewrite /fill_lift/fill_liftU //= fill_empty //.
+  Qed.
+  Instance inj_fill (K : ectx) : Inj eq eq (fill_lift K).
+  Proof.
+    intros [] [].
+    move=> [H1 ->].
+    have HF : ((curry fill) K) s = ((curry fill) K) s1 by rewrite //=.
+    (* by rewrite (fill_inj K _ _ HF).
+  Qed.
+*) Admitted .
+
+
+Definition head_step := meas_lang.head_stepM.
+
+  (** FIXME: What a strange little measurability proof. *)
+  Definition prim_step : (toPackedType _ (expr * state)%type) -> giryM (toPackedType _ (expr * state)%type) :=
+    λ '(e, σ),
+      let '(K, e') := decomp e in
+      gMap' (fill_lift K) (head_step (e', σ)).
+
+  Definition prim_step' : (toPackedType _ (expr * state)%type) -> giryM (toPackedType _ (expr  * state)%type) :=
+    gMap' fill_liftU \o
+    (gProd \o (gRet \o fst △ (head_step \o snd)) \o (fst \o decomp \o fst △ (snd \o decomp \o fst △ snd))).
+
+  Lemma prim_step_prim_step' : prim_step = prim_step'.
+    extensionality ρ. destruct ρ as [e s].
+    rewrite /prim_step/prim_step'.
+    destruct (decomp e) eqn:Hdecomp.
+    simpl. rewrite /fill_lift. rewrite Hdecomp/=.
+    (* need lemmas about gRet and gMap *)
+  Admitted.
+
+  Lemma prim_step_meas: measurable_fun setT prim_step.
+  Proof.
+    rewrite prim_step_prim_step'.
+    rewrite /prim_step'.
+    eapply measurable_comp; [| |apply gMap'_meas_fun|].
+    { done. }
+    { done. }
+    { apply fill_liftU_meas. }
+    mf_cmp_tree; try done.
+    - mf_cmp_tree; try done.
+      + eapply @gProd_meas_fun.
+      + mf_prod; mf_cmp_tree; try done.
+        * apply gRet_meas_fun.
+        * (* apply head_step_meas. *) admit.
+    - mf_prod; repeat mf_cmp_tree; try done.
+      + (* apply decomp_meas. *) admit.
+      + mf_prod. repeat mf_cmp_tree; try done.
+        admit. (* apply decomp_meas. *)
+  Admitted.
+
+  Lemma fill_not_val_idk2 K e : to_val e = None → to_val (fill (K, e)) = None.
+  Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.
+
+  (* Extra MeasLanguageMixin proofs :
+  Definition ectx_lang_mixin : MeasLanguageMixin (@of_val Λ) to_val prim_step.
+  Proof. split.
+         - by apply ectx_language_mixin.
+         - by apply ectx_language_mixin.
+         - apply prim_step_meas.
+         - by apply ectx_language_mixin.
+         - by apply ectx_language_mixin.
+         - by apply ectx_language_mixin.
+         - by apply ectx_language_mixin.
+         - by apply ectx_language_mixin.
+         - intros e σ.
+           rewrite /prim_step.
+           case_match.
+           apply decomp_fill in H. subst.
+           intros Hneg.
+           apply fill_not_val.
+           eapply head_not_stuck.
+           intros Hzero; apply Hneg.
+           apply is_zero_gMap'; [apply fill_lift_meas|done].
+         - intros e σ.
+           rewrite /prim_step.
+           destruct (decomp e) as [K e'] eqn:Heqn.
+           apply decomp_fill in Heqn. subst.
+           intros Hneg.
+           assert (¬ is_zero (head_step (e', σ))).
+           { intros Hzero; apply Hneg. apply is_zero_gMap'; last done.
+             apply fill_lift_meas.
+           }
+           unshelve rewrite gMap'_gMap; first apply fill_lift_meas.
+           rewrite -is_prob_gMap; last done.
+           by apply head_step_mass.
+  Qed.
+*)
+
+  (*
+  Definition head_atomic (a : atomicity) (e : expr Λ) : Prop :=
+    ∀ σ e' σ',
+      head_step e σ (e', σ') > 0 →
+      if a is WeaklyAtomic then irreducible (e', σ') else is_Some (to_val e').
+  *)
+
+  (** * Some lemmas about this language *)
+
+  (*
+  Lemma not_head_reducible e σ : ¬head_reducible e σ ↔ head_irreducible e σ.
+  Proof.
+    unfold head_reducible, head_irreducible. split.
+    { by apply classical.NNP_P. }
+    { by apply classical.P_NNP. }
+  Qed.
+
+  (** The decomposition into head redex and context is unique.
+      In all sensible instances, [comp_ectx K' empty_ectx] will be the same as
+      [K'], so the conclusion is [K = K' ∧ e = e'], but we do not require a law
+      to actually prove that so we cannot use that fact here. *)
+  Lemma head_redex_unique K K' e e' σ :
+    fill (K, e) = fill (K', e') →
+    head_reducible e σ →
+    head_reducible e' σ →
+    K = comp_ectx K' empty_ectx ∧ e = e'.
+  Proof.
+    intros Heq H1 H2.
+    edestruct (step_by_val K' K e' e) as [K'' HK].
+    { by symmetry; apply Heq. }
+    { by eapply head_not_stuck, H2. }
+    { by eapply H1. }
+    subst K. move: Heq. rewrite -fill_comp.
+    intro HI.
+    have HI' := (fill_inj _ _ _ HI).
+    rewrite <- HI' in H2.
+    destruct (head_ctx_step_val _ _ σ H2) as [HA | HA].
+    { exfalso.
+      erewrite head_not_stuck in HA; [by destruct HA |].
+      by eapply H1. }
+    { subst K''.
+      split; [done|].
+      rewrite <-HI'.
+      by rewrite fill_empty. }
+  Qed.
+*)
+
+  Lemma fill_prim_step_dbind K e1 σ1 :
+    to_val e1 = None →
+    prim_step ((fill (K, e1)), σ1) = gMap' (fill_lift K) (prim_step (e1, σ1)).
+  Proof.
+    intros Hval. rewrite /prim_step.
+    destruct (decomp e1) as [K1 e1'] eqn:Heq.
+    destruct (decomp (fill (K, e1))) as [K1' e1''] eqn:Heq'.
+    Admitted.
+  (*
+    apply (decomp_fill_comp K) in Heq; [|done].
+    rewrite Heq in Heq'; simplify_eq.
+    (* Need lemmas for gMap', in particular composition of gMaps *)
+  Admitted. *)
+
+  (*  head_prim_step_pmf_eq e1 σ1: Same thing but pointwise *)
+
+  (*
+  Lemma head_prim_step_eq e1 σ1:
+    head_reducible e1 σ1 →
+    prim_step (e1, σ1) ≡μ head_step (e1, σ1).
+  Proof.
+    intros Hred.
+    rewrite /= /prim_step.
+    destruct (decomp e1) as [K e1'] eqn:Heq.
+    edestruct (decomp_fill _ _ _ Heq).
+    destruct (head_ctx_step_val _ _ _ Hred) as [| ->].
+    - assert (K = empty_ectx) as -> by eauto using decomp_val_empty.
+      rewrite fill_lift_empty fill_empty.
+      rewrite gMap'_id.
+      reflexivity.
+    - rewrite fill_lift_empty fill_empty.
+      rewrite gMap'_id.
+      reflexivity.
+  Qed.
+*)
+
+  (*
+  (* MARKUS: Renamed becuase it was breaking the build *)
+  (* MARKUS: Commented out because it's not used, and I think the pointwise evaluations shouldn't be used anyways.
+     The "right" version of this lemma should say that measure_eq (head_step (e1, σ1) ρ) gZero iff
+     measure_eq (prim_step (e1, σ1) ρ) gZero. But I'm not sure we even need that yet.
+   *)
+  Lemma head_prim_step' e1 σ1 ρ :
+    (lt_ereal 0 (head_step (e1, σ1) ρ)) → lt_ereal 0 (prim_step (e1, σ1) ρ).
+  Proof. intros H. erewrite head_prim_step_eq; first done.
+         - rewrite /head_reducible.
+           intro H'. assert (head_step (e1, σ1) ρ = 0)%E as Hrewrite.
+           { rewrite H'; first done.
+             (** hmmmm... ask markus *)
+             admit. }
+           rewrite Hrewrite in H.
+           rewrite lt_def_ereal in H.
+           apply andb_prop_elim in H as [H _].
+           cbv in H. by repeat case_match.
+         - (** same problem as above *)
+  Admitted.
+*)
+
+  (* Proof breaks when no @ for some reason *)
+  Lemma head_prim_step e1 σ1 : ¬ (is_zero (head_step (e1, σ1))) -> ¬ (is_zero (prim_step (e1, σ1))).
+  Proof. intros ?. Admitted. (* by rewrite (@head_prim_step_eq _ _ _). Qed. *)
+
+
+  Local Open Scope classical_set_scope.
+
+  (*
+  Lemma prim_step_iff e1 e2 σ1 σ2 :
+    lt_ereal 0 (prim_step (e1, σ1) [set (e2, σ2)]) ↔
+    ∃ K e1' e2',
+      fill (K, e1') = e1 ∧
+      fill (K, e2') = e2 ∧
+      lt_ereal 0 (head_step (e1', σ1) [set (e2', σ2)]).
+  Proof.
+    split.
+    - rewrite /prim_step. intros Hs.
+      destruct (decomp e1) as [K e1'] eqn:Heq.
+      apply decomp_fill in Heq.
+      (** Derive lemmas for gMap' pos *)
+      admit.
+      (* eapply dmap_pos in Hs as [[] [[=] ?]]. *)
+      (* simplify_eq. do 3 eexists; eauto. *)
+    - intros (K & e1' & e2' & Hfill1 & Hfill2 & Hs). simplify_eq.
+      rewrite fill_prim_step_dbind.
+      + (** Lemmas for gMap' pos *)
+        admit.
+      + eapply head_not_stuck with σ1.
+        intros Hzero; rewrite Hzero in Hs.
+        * simpl in Hs.
+          destroy_mathcomp; simpl in *.
+          epose proof elimT (RltbP 0 0) _; first lra.
+          Unshelve.
+          rewrite /is_true/Is_true in Hs *.
+          by case_match.
+        * rewrite prod1.
+          eapply @measurableX.
+          { eapply @expr_meas_points. }
+          { eapply @state_meas_points. }
+  Admitted.
+  *)
+
+  (*  Markov lemmas
+
+  Lemma head_step_not_stuck e σ : (¬ is_zero (head_step (e, σ))) → not_stuck (e, σ).
+  Proof.
+    rewrite /not_stuck /reducible /=. intros Hs.
+    erewrite <-head_prim_step_eq in Hs; last done.
+    by right.
+  Qed.
+
+
+  Lemma head_val_stuck e σ : is_Some (to_val e) -> (is_zero (head_step (e, σ))).
+  Proof.
+    pose proof head_not_stuck e σ.
+    apply contraPP.
+    by intros ->%H.
+  Qed.
+
+  Lemma fill_reducible K e σ : reducible (e, σ) → reducible (fill (K, e), σ).
+  Proof.
+    rewrite /reducible/step/=.
+    destruct (decomp e) as [K1 e1] eqn:Heqn1.
+    destruct (decomp (fill (K, e))) as [K2 e2] eqn:Heqn2.
+    intros H. intros H'. apply H.
+    apply is_zero_gMap'; first apply fill_lift_meas.
+    erewrite decomp_fill_comp in Heqn2; last done.
+    - simplify_eq. (* apply decomp_fill in Heqn1 as Heqn2. subst. *)
+      (* rewrite fill_comp in H'. *)
+      destruct (to_val e2) eqn:Hval.
+      + by apply head_val_stuck.
+      + erewrite decomp_fill_comp in H'; last done.
+        * eapply gMap'_is_zero; last done. apply fill_lift_meas.
+        * apply decomp_fill in Heqn1. subst. by apply fill_not_val.
+    - assert (to_val e1 = None).
+      { eapply head_not_stuck.
+        intros ?.
+        apply H.
+        eapply is_zero_gMap'; last done.
+        apply fill_lift_meas.
+      }
+      apply decomp_fill in Heqn1. subst.
+      by apply fill_not_val.
+  Qed.
+  Lemma head_prim_reducible e σ : head_reducible e σ → reducible (e, σ).
+  Proof. intros.
+         by apply head_prim_step.
+  Qed.
+  Lemma head_prim_fill_reducible e K σ :
+    head_reducible e σ → reducible (fill (K, e), σ).
+  Proof. intro. by apply fill_reducible, head_prim_reducible. Qed.
+  (* Lemma state_step_head_reducible e σ σ' α : *)
+  (*   state_step σ α σ' > 0 → head_reducible e σ ↔ head_reducible e σ'. *)
+  (* Proof. eapply state_step_head_not_stuck. Qed. *)
+  Lemma head_prim_irreducible e σ : irreducible (e, σ) → head_irreducible e σ.
+  Proof.
+    rewrite -not_reducible -not_head_reducible. eauto using head_prim_reducible.
+  Qed.
+
+
+
+  Lemma prim_head_reducible e σ :
+    reducible (e, σ) → sub_redexes_are_values e → head_reducible e σ.
+  Proof.
+    rewrite /reducible/head_reducible/sub_redexes_are_values/=.
+    destruct (decomp e) as [K e'] eqn:Heqn1.
+    intros Hzero H Hzero'.
+    apply Hzero. clear Hzero.
+    apply decomp_fill in Heqn1; subst.
+    destruct (to_val e') eqn:Heqn2.
+    - apply is_zero_gMap'; first apply fill_lift_meas.
+      destruct (classical.ExcludedMiddle (is_zero (head_step (e', σ)))) as [|H']; first done.
+      apply head_not_stuck in H'. rewrite H' in Heqn2. done.
+    - assert (K=empty_ectx) as ->.
+      { eapply H; done. }
+      rewrite fill_lift_empty in Hzero' *.
+      rewrite fill_empty in Hzero'.
+      by rewrite gMap'_id.
+  Qed.
+  Lemma prim_head_irreducible e σ :
+    head_irreducible e σ → sub_redexes_are_values e → irreducible (e, σ).
+  Proof.
+    rewrite -not_reducible -not_head_reducible. eauto using prim_head_reducible.
+  Qed.
+
+  Lemma head_stuck_stuck e σ :
+    head_stuck e σ → sub_redexes_are_values e → stuck (e, σ).
+  Proof.
+    intros [] ?. split; [by eapply to_final_None_2|].
+    by apply prim_head_irreducible.
+  Qed.
+
+  (** We dont have anything about atomic i think?*)
+  (* Lemma ectx_language_atomic a e : *)
+  (*   head_atomic a e → sub_redexes_are_values e → Atomic a e. *)
+  (* Proof. *)
+  (*   intros Hatomic Hsub σ e' σ' (K & e1' & e2' & <- & <- & Hs)%prim_step_iff. *)
+  (*   assert (K = empty_ectx) as -> by eauto 10 using val_head_stuck. *)
+  (*   rewrite fill_empty in Hatomic. *)
+  (*   eapply Hatomic. rewrite fill_empty. eauto. *)
+  (* Qed. *)
+
+
+
+  (** Not sure how to express this in measure theortic terms *)
+  (*
+  Lemma head_reducible_prim_step_ctx K e1 σ1 e2 σ2:
+    head_reducible e1 σ1 →
+    prim_step (fill K e1) σ1 (e2, σ2) > 0 →
+    ∃ e2', e2 = fill K e2' ∧ head_step e1 σ1 (e2', σ2) > 0.
+  Proof.
+    intros [[e2'' σ2''] HhstepK] (K' & e1' & e2' & HKe1 & HKe2 & Hs)%prim_step_iff.
+    symmetry in HKe1.
+    edestruct (step_by_val K) as [K'' HK]; eauto using val_head_stuck; simplify_eq/=.
+    rewrite -fill_comp in HKe1; simplify_eq.
+    exists (fill K'' e2'). rewrite fill_comp. split; [done|].
+    destruct (head_ctx_step_val _ _ _ _ HhstepK) as [[]%not_eq_None_Some|HK''].
+    { by eapply val_head_stuck. }
+    subst. rewrite !fill_empty //.
+  Qed.
+*)
+
+  (** Following lemma easily derived from head_prim_step_eq*)
+  (** propose that we remove this *)
+  (* Lemma head_reducible_prim_step e1 σ1 ρ : *)
+  (*   head_reducible e1 σ1 → *)
+  (*   prim_step e1 σ1 ρ > 0 → head_step e1 σ1 ρ > 0. *)
+  (* Proof. *)
+  (*   intros. destruct ρ. *)
+  (*   edestruct (head_reducible_prim_step_ctx empty_ectx) as (?&?&?); *)
+  (*     rewrite ?fill_empty; eauto. *)
+  (*   by simplify_eq; rewrite fill_empty. *)
+  (* Qed. *)
+
+
+  (** Following lemma is true by definition *)
+  (** propose that we remove this *)
+  (* Lemma not_head_reducible_dzero e σ : *)
+  (*   head_irreducible e σ → head_step e σ = dzero. *)
+  (* Proof. *)
+  (*   rewrite /reducible. *)
+  (*   intros Hred%not_head_reducible. apply dzero_ext=> ρ. *)
+  (*   destruct (Req_dec (head_step e σ ρ) 0); [done|]. *)
+  (*   exfalso. apply Hred. *)
+  (*   exists ρ. *)
+  (*   pose proof (pmf_le_1 (head_step e σ) ρ). *)
+  (*   pose proof (pmf_pos (head_step e σ) ρ). *)
+  (*   lra. *)
+  (* Qed. *)
+*)
+
+  (*
+  (* Every evaluation context is a context. *)
+  Global Program Instance ectx_lang_ctx K : MeasLanguageCtx (curry fill K) := {
+      K_measurable := _;
+      fill_not_val e := _;
+      fill_inj  := _;
+      fill_dmap e1 σ1 := _
+  }.
+  Next Obligation. move=>Ki; apply curry_meas_fun. apply fill_meas. Qed.
+  Next Obligation. simpl. apply fill_not_val. Qed.
+  Next Obligation. intros K e σ Hval.
+                   eapply (fill_prim_step_dbind K e σ) in Hval.
+                   erewrite <-gMap'_gMap.
+                   simpl in *. by rewrite Hval.
+  Qed.
+
+
+  Record pure_head_step (e1 e2 : expr Λ) := {
+    pure_head_step_safe σ1 : head_reducible e1 σ1;
+    pure_head_step_det σ1 : is_det (e2, σ1) (head_step (e1, σ1))
+  }.
+
+  Lemma pure_head_step_pure_step e1 e2 : pure_head_step e1 e2 → pure_step e1 e2.
+  Proof.
+    intros [Hp1 Hp2]. split.
+    - intros. apply head_prim_step. naive_solver.
+    - intros σ. simpl. rewrite -/(prim_step (e1, σ)). erewrite head_prim_step_eq; naive_solver.
+  Qed.
+
+  (** This is not an instance because HeapLang's [wp_pure] tactic already takes
+      care of handling the evaluation context.  So the instance is redundant.
+      If you are defining your own language and your [wp_pure] works
+      differently, you might want to specialize this lemma to your language and
+      register that as an instance. *)
+  Lemma pure_exec_fill K φ n e1 e2 :
+    PureExec φ n e1 e2 →
+    PureExec φ n (fill (K, e1)) (fill (K, e2)).
+  Proof. apply: pure_exec_ctx. Qed.
+
+End ectx_language.
+*)
+
+
+
+Canonical Structure stateO  := leibnizO (state).
+Canonical Structure valO  := leibnizO (val).
+Canonical Structure exprO := leibnizO (expr).
+
+Definition cfg  := (expr * state )%type.
+
+Definition fill_lift_idk (K : expr -> expr) : (expr * state ) → (expr * state ) :=
+  mProd (ssrfun.comp K fst) snd.
+
+Lemma fill_lift_measurable (K : (expr) -> (expr)) (HK : measurable_fun setT K) :
+  @measurable_fun _ _ (expr  * state )%type (expr * state )%type setT (fill_lift_idk K).
+Proof.
+  mcrunch_prod.
+  { mcrunch_comp. }
+  { eauto with measlang. }
+Qed.
+
+Global Instance inj_fill_lift_idk (K : (expr -> expr )) :
+  Inj (=) (=) K →
+  Inj (=) (=) (fill_lift_idk K).
+Proof. by intros ? [] [] [=->%(inj _) ->]. Qed.
+
+Class MeasLanguageCtx  (K : (expr ) -> (expr ))  := {
+  K_measurable : measurable_fun setT K;
+  fill_not_val_idk3 e :
+    to_val e = None → to_val (K e) = None;
+  fill_inj : Inj (=) (=) K;
+  fill_dmap e1 σ1 :
+    to_val e1 = None →
+    prim_step ((K e1), σ1) ≡μ gMap (fill_lift_measurable K K_measurable) (prim_step (e1, σ1))
+}.
+
+#[global] Existing Instance fill_inj.
+
+Inductive atomicity := StronglyAtomic | WeaklyAtomic.
+
+
+
+Definition meas_lang_markov_mixin : MeasMarkovMixin (prim_step) (ssrfun.comp to_val fst).
+Proof.
+  constructor.
+  { admit. (* by apply language_mixin. } *) }
+  { eapply measurable_comp.
+    { by eapply @measurableT. }
+    { done. }
+    { admit. (* by apply language_mixin. } *) }
+    { simpl. by eapply @measurable_fst. }
+  }
+  intros [e σ]; simpl.
+  pose proof (lem (is_zero (prim_step (e, σ)))) as [|H]; first done.
+Admitted. (*
+  pose proof (mixin_val_stuck _ _ _ (language_mixin Λ) _ _ H) as ->.
+  rewrite /is_Some.
+  naive_solver.
+Qed. *)
+
+Canonical Structure meas_lang_markov := MeasMarkov _ _ _ _ (meas_lang_markov_mixin).
+
+Lemma irreducible_meas_set : measurable (irreducible : set (expr * state)%type).
+Proof.
+  unfold irreducible.
+  have H1 : giry_display.-measurable is_zero.
+  { intros m T.
+    unfold is_zero.
+    by eapply eq_gZero_measurable. }
+  have X := (@step_meas (meas_lang_markov) _ is_zero).
+  have X1 := X _ (H1 _ _).
+  rewrite setTI in X1.
+  by apply X1.
+Qed.
+
+Definition to_val_is_val : set (expr * state) := (preimage to_val option_cov_Some) `*` setT.
+
+Lemma to_val_is_val_meas_set : measurable to_val_is_val.
+Proof.
+  unfold to_val_is_val.
+  apply measurableX; last by eapply @measurableT.
+  rewrite <- (setTI (preimage _ _)).
+  apply to_val_meas.
+  { by eapply @measurableT. }
+  { by apply option_cov_Some_meas_set. }
+Qed.
+
+(* NOTE: This is fairly different to the Clutch version *)
+Class Atomic (a : atomicity) (e : expr) : Prop :=
+  atomic σ :
+    if a is WeaklyAtomic
+      then has_support_in (prim_step (e, σ)) irreducible
+      else has_support_in (prim_step (e, σ)) to_val_is_val.
+
+Lemma of_to_val_flip v e : of_val v = e → to_val e = Some v.
+Proof. intros <-. by rewrite to_of_val. Qed.
+Global Instance of_val_inj : Inj (=) (=) (@of_val).
+Proof. by intros v v' Hv; apply (inj Some); rewrite -!to_of_val Hv. Qed.
+
+
+Lemma strongly_atomic_atomic e a :
+  Atomic StronglyAtomic e → Atomic a e.
+Proof.
+  unfold Atomic. destruct a; eauto.
+  intros H ?.
+  eapply has_support_in_subset; last apply H.
+  - apply to_val_is_val_meas_set.
+  - apply irreducible_meas_set.
+  - rewrite /subset/to_val_is_val/irreducible.
+    intros [e' σ']. simpl.
+    intros [H1 _].
+    destruct (lem (is_zero (prim_step (e', σ')))) as [|H']; first done.
+Admitted.
+ (*
+    apply val_stuck in H'.
+    rewrite H' in H1.
+    rewrite /option_cov_Some in H1. simpl in H1.
+    naive_solver.
+Qed. *)
+
+Lemma fill_step e σ `{!MeasLanguageCtx K} :
+  (¬ is_zero (prim_step (e, σ))) ->
+  (¬ is_zero (prim_step (K e, σ))).
+Proof.
+  intros Hs.
+Admitted.
+(*
+  rewrite fill_dmap; [| by eapply val_stuck].
+  intro Hs'. apply Hs.
+  rewrite /is_zero in Hs'.
+  rewrite -gMap'_gMap in Hs'.
+  eapply gMap'_is_zero; last done. apply fill_lift_measurable.
+  apply K_measurable.
+Qed. *)
+
+(*
+Lemma fill_step_inv e1' σ1 e2 σ2 `{!LanguageCtx K} :
+  to_val e1' = None → prim_step (K e1') σ1 (e2, σ2) > 0 →
+  ∃ e2', e2 = K e2' ∧ prim_step e1' σ1 (e2', σ2) > 0.
+Proof.
+  intros Hv. rewrite fill_dmap //.
+  intros ([e1 σ1'] & [=]%dret_pos & Hstep)%dbind_pos.
+  subst. eauto.
+Qed.
+
+(** The following lemma is redundant, see fill_dmap *)
+Lemma fill_step_prob e1 σ1 e2 σ2 `{!LanguageCtx K} :
+  to_val e1 = None →
+  prim_step e1 σ1 (e2, σ2) = prim_step (K e1) σ1 (K e2, σ2).
+Proof.
+  intros Hv. rewrite fill_dmap //.
+  by erewrite (dmap_elem_eq _ (e2, σ2) _ (λ '(e0, σ0), (K e0, σ0))).
+Qed.
+ *)
+
+(*
+Lemma reducible_fill `{!@MeasLanguageCtx Λ K} e σ :
+  reducible (e, σ) → reducible (K e, σ).
+Proof.
+  unfold reducible in *. intros H1 H2. apply H1. simpl in *.
+  erewrite fill_dmap in H2; last first.
+  { by eapply val_stuck. }
+  rewrite -gMap'_gMap in H2.
+  eapply gMap'_is_zero; last done.
+  apply fill_lift_measurable; apply K_measurable.
+Qed.
+
+Lemma reducible_fill_inv `{!@MeasLanguageCtx Λ K} e σ :
+  to_val e = None → reducible (K e, σ) → reducible (e, σ).
+Proof.
+  rewrite /reducible. simpl.
+  intros H'.
+  erewrite fill_dmap; last done.
+  intros H1 H2. apply H1.
+  rewrite /is_zero in H2.
+  rewrite H2.
+  by rewrite gZero_map.
+  (* TODO: make measure_eq work with rewrite *)
+Qed.
+*)
+
+(*
+Lemma state_step_reducible e σ σ' α :
+  state_step σ α σ' > 0 → reducible (e, σ) ↔ reducible (e, σ').
+Proof. apply state_step_not_stuck. Qed.
+Lemma state_step_iterM_reducible e σ σ' α n:
+  iterM n (λ σ, state_step σ α) σ σ'> 0 → reducible (e, σ) ↔ reducible (e, σ').
+Proof.
+  revert σ σ'.
+  induction n.
+  - intros σ σ'. rewrite iterM_O. by intros ->%dret_pos.
+  - intros σ σ'. rewrite iterM_Sn. rewrite dbind_pos. elim.
+    intros x [??]. pose proof state_step_reducible. naive_solver.
+Qed.
+
+
+Lemma irreducible_fill `{!@MeasLanguageCtx Λ K} e σ :
+  to_val e = None → irreducible (e, σ) → irreducible (K e, σ).
+Proof. rewrite -!not_reducible. naive_solver eauto using reducible_fill_inv. Qed.
+Lemma irreducible_fill_inv `{!@MeasLanguageCtx Λ K} e σ :
+  irreducible (K e, σ) → irreducible (e, σ).
+Proof. rewrite -!not_reducible. naive_solver eauto using reducible_fill. Qed.
+
+Lemma not_stuck_fill_inv K `{!@MeasLanguageCtx Λ K} e σ :
+  not_stuck (K e, σ) → not_stuck (e, σ).
+Proof.
+  rewrite /not_stuck /is_final /to_final /= -!not_eq_None_Some.
+  intros [?|?].
+  - auto using fill_not_val.
+  - destruct (decide (to_val e = None)); eauto using reducible_fill_inv.
+Qed.
+
+Lemma stuck_fill `{!@MeasLanguageCtx Λ K} e σ :
+  stuck (e, σ) → stuck (K e, σ).
+Proof. rewrite -!not_not_stuck. eauto using not_stuck_fill_inv. Qed.
+
+
+Record pure_step (e1 e2 : expr Λ)  := {
+  pure_step_safe σ1 : ¬ (is_zero (prim_step (e1, σ1)));
+  pure_step_det σ : is_det (e2, σ) (prim_step (e1, σ));
+}.
+
+Class PureExec (φ : Prop) (n : nat) (e1 e2 : expr Λ) :=
+  pure_exec : φ → relations.nsteps pure_step n e1 e2.
+
+Lemma pure_step_ctx K `{!@MeasLanguageCtx Λ K} e1 e2 :
+  pure_step e1 e2 → pure_step (K e1) (K e2).
+Proof.
+  intros [Hred Hstep]. split.
+  { intros σ1.
+    eapply (fill_step _); first by apply H.
+    by apply Hred. }
+  { intros σ.
+    rewrite fill_dmap; last by eapply (val_stuck _ σ).
+    pose proof Hstep σ as Hdet.
+    eapply (is_det_gMap (f:=fill_lift K)) in Hdet.
+    - by rewrite gMap'_gMap{1}/fill_lift/= in Hdet.
+    - apply fill_lift_measurable. apply K_measurable.
+  }
+Qed.
+
+Lemma pure_step_nsteps_ctx K `{!@MeasLanguageCtx Λ K} n e1 e2 :
+  relations.nsteps pure_step n e1 e2 →
+  relations.nsteps pure_step n (K e1) (K e2).
+Proof.
+  intro H'.
+  eapply (nsteps_congruence _ _ _ _ _ _ H' ).
+  Unshelve.
+  intros x y.
+  by apply (pure_step_ctx _).
+Qed.
+
+Lemma rtc_pure_step_ctx K `{!@MeasLanguageCtx Λ K} e1 e2 :
+  rtc pure_step e1 e2 → rtc pure_step (K e1) (K e2).
+Proof.
+  intro H'.
+  eapply (rtc_congruence _ _ _ _ _ H').
+  Unshelve.
+  intros x y.
+  by apply (pure_step_ctx _).
+Qed.
+
+(* We do not make this an instance because it is awfully general. *)
+Lemma pure_exec_ctx K `{!@MeasLanguageCtx Λ K} φ n e1 e2 :
+  PureExec φ n e1 e2 →
+  PureExec φ n (K e1) (K e2).
+Proof.
+  rewrite /PureExec.
+  intros H' p.
+  apply (pure_step_nsteps_ctx _).
+  by apply (H' p).
+Qed.
+
+Lemma PureExec_reducible σ1 φ n e1 e2 :
+  φ → PureExec φ (S n) e1 e2 → reducible (e1, σ1).
+Proof. move => Hφ /(_ Hφ). inversion_clear 1. apply H. Qed.
+
+Lemma PureExec_not_val `{Inhabited (language.state Λ)} φ n e1 e2 :
+  φ → PureExec φ (S n) e1 e2 → to_val e1 = None.
+Proof.
+  intros Hφ Hex.
+  pose proof (PureExec_reducible inhabitant _ _ _ _ Hφ Hex) as K.
+  by eapply val_stuck.
+Qed.
+
+*)
+
+(* This is a family of frequent assumptions for PureExec *)
+Class IntoVal (e : expr) (v : val) :=
+  into_val : of_val v = e.
+
+Class AsVal (e : expr) := as_val : ∃ v, of_val v = e.
+(* There is no instance [IntoVal → AsVal] as often one can solve [AsVal] more *)
+(* efficiently since no witness has to be computed. *)
+Global Instance as_vals_of_val vs : TCForall AsVal (of_val <$> vs).
+Proof.
+  apply TCForall_Forall, Forall_fmap, Forall_true=> v.
+  rewrite /AsVal /=; eauto.
+Qed.
+
+Lemma as_val_is_Some e :
+  (∃ v, of_val v = e) → is_Some (to_val e).
+Proof. intros [v <-]. rewrite to_of_val. eauto. Qed.
+
+(*
+Lemma fill_is_val e K `{@MeasLanguageCtx Λ K} :
+  is_Some (to_val (K e)) → is_Some (to_val e).
+Proof. rewrite -!not_eq_None_Some. eauto using fill_not_val. Qed.
+
+Lemma rtc_pure_step_val `{!Inhabited (state)} v e :
+  rtc pure_step (of_val v) e → to_val e = Some v.
+Proof.
+  intros ?; rewrite <- to_of_val.
+  f_equal; symmetry; eapply rtc_nf; first done.
+  intros [e' [ Hstep ? ]].
+  have K := to_of_val v.
+  rewrite (val_stuck _ _ (Hstep inhabitant)) in K.
+  by inversion K.
+Qed.
+
+*)
