@@ -6,7 +6,7 @@ Instance uniform_impl {N : nat} :
 Proof.
   
   refine (MkDistrImpl _
-            (λ: "α", rand("α") #N) (alloc #N)
+            (λ: "α", rand("α") #N) (λ: <>, alloc #N)
             loc
             (λ _ _ Δ l, ∃ l', Δ ↪ (N; l') ∗
                               ⌜l = fmap (λ (k : fin (S N)), #k) l'⌝)%I
@@ -26,6 +26,7 @@ Proof.
     iIntros (k) "Herr".
     by iApply "HΦ".
   - iIntros (Σ erisGS0 Φ) "_ HΦ".
+    wp_pures.
     wp_apply (twp_alloc_tape _ N _ _ _ Φ with "[$] [HΦ]") as (α) "Htape".
     iApply "HΦ".
     by iFrame.

@@ -273,7 +273,7 @@ Section BinomialLemmas.
   Proof using binspec.
      
     refine (MkDistrImpl _
-              (λ: "α", binom "α" #p #q #n) (binalloc #p #q #n)
+              (λ: "α", binom "α" #p #q #n) (λ: <>, binalloc #p #q #n)
               loc
               (λ _ _ Δ l, ∃ l', own_binomial_tape Δ p q n l' ∗
                             ⌜l = fmap (λ (k : fin (S n)), #k) l'⌝)%I
@@ -294,6 +294,7 @@ Section BinomialLemmas.
       iIntros (k) "Herr".
       by iApply "HΦ".
     - iIntros (Σ erisGS0 Φ) "_ HΦ".
+      wp_pures.
       wp_apply (twp_binomial_alloc with "[$]") as (α) "Hα".
       iApply "HΦ".
       by iFrame.

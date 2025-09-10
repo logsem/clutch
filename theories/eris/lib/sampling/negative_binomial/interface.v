@@ -283,7 +283,7 @@ Section NegativeLemmas.
   Proof using negative_spec.
 
     refine (MkDistrImpl _
-              (λ: "α", negative_prog "α" #p #q #r) (negative_alloc #p #q #r)
+              (λ: "α", negative_prog "α" #p #q #r) (λ: <>, negative_alloc #p #q #r)
               loc
               (λ _ _ Δ l, ∃ l', own_negative_tape Δ p q r l' ∗
                             ⌜l = fmap (λ (k : nat), #k) l'⌝)%I
@@ -300,6 +300,7 @@ Section NegativeLemmas.
       iIntros (?) "(%k & -> & Herr)".
       by iApply "HΦ".
     - iIntros (Σ erisGS0 Φ) "_ HΦ".
+      wp_pures.
       wp_apply (twp_negative_alloc with "[$]") as (α) "Hα".
       iApply "HΦ".
       by iFrame.

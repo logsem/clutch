@@ -8,7 +8,7 @@ Section DistributionImplem.
       {
         sample : val;
         
-        alloc_tape : expr;
+        alloc_tape : val;
         
         AbsLoc : Type;
         
@@ -35,7 +35,7 @@ Section DistributionImplem.
         twp_distr_alloc :
         ∀ `{!erisGS Σ},
          [[{ True }]]
-          alloc_tape
+          alloc_tape #()
          [[{ (Δ : AbsLoc) (α : val), RET α; is_abs_loc Δ α ∗ own_tape Δ [] }]];
 
         twp_distr_presample_adv_comp : 

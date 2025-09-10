@@ -96,7 +96,7 @@ Section BernoulliSpecLemmas.
   Proof using bernspec.
      
     refine (MkDistrImpl _
-              (λ: "α", bernoulli "α" #p #q) (balloc #p #q)
+              (λ: "α", bernoulli "α" #p #q) (λ: <>, balloc #p #q)
               loc
               (λ _ _ Δ l, ∃ l', own_bernoulli_tape Δ p q l' ∗
                             ⌜l = fmap (λ (k : fin 2), #k) l'⌝)%I
@@ -118,6 +118,7 @@ Section BernoulliSpecLemmas.
       iIntros (k) "[[-> Herr] | [-> Herr]]";
       by iApply "HΦ".
     - iIntros (Σ erisGS0 Φ) "_ HΦ".
+      wp_pures.
       wp_apply (twp_bernoulli_alloc with "[$]") as (α) "Hα".
       iApply "HΦ".
       by iFrame.

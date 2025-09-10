@@ -351,7 +351,7 @@ Section BetaBinomialLemmas.
   Proof using betaspec.
      
     refine (MkDistrImpl _
-              (λ: "α", beta_prog "α" #r #b #n) (betalloc #r #b #n)
+              (λ: "α", beta_prog "α" #r #b #n) (λ: <>, betalloc #r #b #n)
               (AbsLoc n)
               (λ _ _ Δ l, ∃ l', own_beta_tape r b n Δ l' ∗
                             ⌜l = fmap (λ (k : fin (S n)), #k) l'⌝)%I
@@ -365,6 +365,7 @@ Section BetaBinomialLemmas.
       iIntros (k) "Herr".
       by iApply "HΦ".
     - iIntros (Σ erisGS0 Φ) "_ HΦ".
+      wp_pures.
       wp_apply (twp_beta_alloc r b n ltac:(lia) with "[$]") as (Δ α) "[Hα HΔ]".
       iApply "HΦ".
       by iFrame.
