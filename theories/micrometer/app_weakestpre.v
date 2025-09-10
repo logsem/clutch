@@ -242,9 +242,9 @@ Section coupl_modalities.
     { rewrite integral_cst.
       { rewrite //=/numfun.indic//=.
         repeat destroy_mathcomp.
-        (* 0 + x = x
-           total subdistribution mass is le 1 *)
-        admit.
+        apply (le_trans_ereal (y:=adde 0%:E (nonneg ε)%:E)).
+        - admit.
+        - admit.
       }
       { by eapply @measurableT. }
     }
@@ -576,7 +576,7 @@ Section coupl_modalities.
     iApply meas_prog_coupl_strong_mono. iIntros (?????) "[$ $]".
   Qed. *)
 
-  Lemma meas_prog_coupl_ctx_bind K `{!LanguageCtx K} e1 σ1 e1' σ1' Z ε:
+  Lemma meas_prog_coupl_ctx_bind K `{!MeasLanguageCtx K} e1 σ1 e1' σ1' Z ε:
     to_val e1 = None →
     meas_prog_coupl e1 σ1 e1' σ1' ε (λ e2, Z (K e2)) -∗ meas_prog_coupl (K e1) σ1 e1' σ1' ε Z.
   Proof.
@@ -587,27 +587,37 @@ Section coupl_modalities.
     assert (∀ e, Kinv (K e) = Some e) as HKinv3.
     { intro e.
       destruct (Kinv (K e)) eqn:Heq;
-        eapply HKinv in Heq; try by simplify_eq. admit.  (* Needs LanguageCtx to be injective *) }
+        eapply HKinv in Heq; by simplify_eq. }
     set (X2' := (λ '(e, σ), from_option (λ e', X2 (e', σ)) 0%NNR (Kinv e))).
     assert (∀ e2 σ2, X2' (K e2, σ2) = X2 (e2, σ2)) as HX2'.
     { intros. rewrite /X2' HKinv3 //. }
 
     iExists (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ'), n, μ1', ε1, X2', r.
     iSplit; [eauto using reducible_fill|].
-    1: { admit. }
     iSplit.
     { iPureIntro.
-      admit.
-      (*
-      rewrite fill_dmap //.
-      rewrite -(dret_id_right (μ1' ≫= _ )) //.
-      rewrite /dmap.
-      eapply (ARcoupl_dbind' _ nnreal_zero); [..|done]; [done|done|simpl; lra|..].
-      intros [] ?? => /=. apply ARcoupl_dret; [done|]. eauto. *) }
+      erewrite ARcoupl_meas_proper; [|by rewrite fill_dmap|by erewrite <-gBind_id_right].
+      admit. 
+      (* change gMap to gBind *)
+      (* rewrite -(dret_id_right (μ1' ≫= _ )) //. *)
+      (* rewrite /dmap. *)
+      (* eapply (ARcoupl_dbind' _ nnreal_zero); [..|done]; [done|done|simpl; lra|..]. *)
+      (* intros [] ?? => /=. apply ARcoupl_dret; [done|]. eauto. *) }
     iSplit; [iPureIntro|].
-    { intros [e σ]. simpl. destruct (Kinv e) => //=. admit. }
+    { intros [e σ]. simpl. destruct (Kinv e) => //=.
+      apply cond_nonneg. }
     iSplit; [iPureIntro|].
-    { admit.
+    { destroy_mathcomp.
+      apply: (le_trans_ereal); last first.
+      - apply Is_true_true_1; last exact.
+      - destroy_mathcomp.
+        erewrite integral_proper; last by apply fill_dmap.
+        rewrite /gMap/gMap_ev.
+        rewrite integral_pushforward; last done.
+        + destroy_mathcomp.
+          admit.
+        + apply: measurable_int. admit. 
+        + admit.
       (*
       rewrite fill_dmap // Expval_dmap //=; last first.
       - eapply ex_expval_bounded. intros [] => /=. rewrite HKinv3 //=.
