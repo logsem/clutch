@@ -132,7 +132,7 @@ Tactic Notation "tp_if" := tp_pure_at (If _ _ _).
 Tactic Notation "tp_pair" := tp_pure_at (Pair _ _).
 Tactic Notation "tp_closure" := tp_pure_at (Rec _ _ _).
 
-Lemma tac_tp_store `{specG_prob_eff_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 (K : ectx) e (l : loc) e' e2 v' v Q :
+Lemma tac_tp_store `{specG_prob_eff_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e (l : loc) e' e2 v' v Q :
   (* TODO: here instead of True we can consider another Coq premise, like in tp_pure.
      Same goes for the rest of those tactics *)
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
@@ -155,14 +155,14 @@ Proof.
   destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done.
   rewrite envs_simple_replace_sound //; simpl.
   rewrite right_id.
-  rewrite !assoc. simpl in *.
-  (* rewrite step_store //=.
-     rewrite -[Q]elim_modal //.
-     apply bi.sep_mono_r.
-     apply bi.wand_intro_l.
-     rewrite (comm _ _ (l ↦ₛ v)%I). simpl.
-     by rewrite bi.wand_elim_r. *)
-Admitted.
+  rewrite !assoc.
+  rewrite step_store //=.
+  rewrite -[Q]elim_modal //.
+  apply bi.sep_mono_r.
+  apply bi.wand_intro_l.
+  rewrite (comm _ _ (l ↦ₛ v)%I). simpl.
+  by rewrite bi.wand_elim_r.
+Qed.
 
 Tactic Notation "tp_store" :=
   iStartProof;
@@ -226,18 +226,17 @@ Proof.
   rewrite envs_entails_unseal. intros ?? Hfill <- HQ.
   rewrite (envs_lookup_sound' Δ1 false i1); last by eassumption.
   rewrite Hfill /=.
-(*   rewrite step_alloc //.
-     rewrite -[Q]elim_modal //.
-     apply bi.sep_mono_r, bi.wand_intro_l.
-     rewrite bi.sep_exist_r.
-     apply bi.exist_elim=> l.
-     destruct (HQ l) as (Δ2 & HΔ2 & HQ').
-     rewrite (envs_simple_replace_sound' _ _ i1 _ _ HΔ2) /=.
-     rewrite HQ' right_id.
-     iIntros "[[H Hl] Hcnt]".
-     iApply ("Hcnt" with "H Hl").
-   Qed. *)
-Admitted.
+  rewrite step_alloc //.
+  rewrite -[Q]elim_modal //.
+  apply bi.sep_mono_r, bi.wand_intro_l.
+  rewrite bi.sep_exist_r.
+  apply bi.exist_elim=> l.
+  destruct (HQ l) as (Δ2 & HΔ2 & HQ').
+  rewrite (envs_simple_replace_sound' _ _ i1 _ _ HΔ2) /=.
+  rewrite HQ' right_id.
+  iIntros "[[H Hl] Hcnt]".
+  iApply ("Hcnt" with "H Hl").
+Qed.
 
 Tactic Notation "tp_alloc" "as" ident(l) constr(H) :=
   let finish _ :=
@@ -439,3 +438,43 @@ Tactic Notation "tp_randnat" "as" constr(H) :=
 
 Tactic Notation "tp_randnat" :=
   tp_randnat as "%".
+
+
+(** Some simple tests *)
+Section tests.
+  Context `{specG_prob_eff_lang Σ, invGS_gen hasLc Σ}.
+
+  Local Lemma test_tp_pures E :
+    ⤇ (#2 + #2 + #2) ⊢ spec_update E (⤇ #6).
+  Proof.
+    iIntros "Hs".
+    tp_pures.
+    iModIntro.
+    done.
+  Qed.
+
+  Local Lemma test_heap E :
+    ⤇ (let: "x" := ref #41 in "x" <- !"x" + #1;; !"x") ⊢ spec_update E (⤇ #42).
+  Proof.
+    iIntros "Hs".
+    tp_alloc as l "Hl".
+    tp_pures.
+    tp_load.
+    tp_pures.
+    tp_store.
+    tp_pures.
+    tp_load.
+    iModIntro.
+    done.
+  Qed.
+
+  Local Lemma test_rand E α :
+    α ↪ₛ ((1; [0%fin]) : tape) ∗ ⤇ (rand(#lbl:α) #1) ⊢ spec_update E (⤇ #0).
+  Proof.
+    iIntros "[Hα Hs]".
+    tp_rand.
+    iModIntro.
+    done.
+  Qed.
+
+End tests.
