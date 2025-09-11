@@ -1,5 +1,5 @@
 From clutch.eris Require Import eris.
-From clutch.eris.lib.sampling Require Import abstract_planner utils.
+From clutch.eris.lib.sampling Require Import abstract_planner distribution_adequacy utils.
 
 Section DistributionImplem.
 
@@ -16,7 +16,7 @@ Section DistributionImplem.
         
         is_abs_loc : ∀ `{!erisGS Σ}, AbsLoc →  val → iProp Σ;
         
-        loc_unit : val;
+        unit_loc : val;
         
         twp_distr_adv_comp :
         ∀ `{!erisGS Σ} (D : val → R) (ε : R) (L : R),
@@ -26,7 +26,7 @@ Section DistributionImplem.
           [[{
                 ↯ (ε)
           }]]
-            sample loc_unit
+            sample unit_loc
           [[{
                 (v : val), RET v; 
                 ↯ (D v)
@@ -122,6 +122,32 @@ Section DistributionImplem.
     iIntros (j) "[Htape _]".
     wp_apply "Hnext".
     iFrame.
+  Qed.
+
+  Lemma distr_impl_adequacy `{!erisGS Σ} `{!distr_impl μ} :
+    ∀ (σ : state) (v : val),
+    prob
+      (lim_exec (sample unit_loc, σ))
+      (λ w,  bool_decide (v = w))
+    = μ v.
+  Proof.
+    unshelve eapply (@μ_impl_is_μ μ (sample unit_loc) _ Σ).
+    { iIntros (?????????) "Herr HΦ".
+      wp_apply (twp_distr_adv_comp with "Herr HΦ"); try done.
+      subst.
+      apply SeriesC_ext.
+      move=>v.
+      apply Rmult_comm.
+    }
+    constructor.
+    - constructor.
+      + apply invGS_wsat.
+      + constructor.
+        * apply lcGS_inG.
+    - apply erisGS_heap.
+    - apply erisGS_tapes.
+    - constructor.
+      apply ecGS_inG.
   Qed.
   
 End DistributionImplem.
