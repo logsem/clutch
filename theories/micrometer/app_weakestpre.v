@@ -1033,7 +1033,7 @@ Proof.
     by iMod ("H" with "[$]"). }
   rewrite fill_not_val /=; [|done].
   iApply meas_spec_coupl_ret.
-  iApply meas_prog_coupl_ctx_bind; [done|done|].
+  iApply meas_prog_coupl_ctx_bind; first done.
   iApply (meas_prog_coupl_mono with "[] H").
   iIntros (e3 σ3 e3' σ3' ε3) "H !>".
   iApply (meas_spec_coupl_mono with "[] H"); [done|].
