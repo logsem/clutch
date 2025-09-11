@@ -1,6 +1,5 @@
 From clutch.eris Require Export eris.
 From clutch.eris.lib.sampling Require Import abstract_planner distr_impl utils. 
-From clutch.eris.lib.sampling.binomial Require Import interface.
 
 Section BetaProbability.
 
@@ -39,11 +38,11 @@ Section BetaProbability.
     simpl_expr.
   Qed.
 
-  Definition Beta_prob (r b n k : nat) := (choose n k * Beta (k + r) (n - k + b) / Beta r b)%R.
+  Definition Beta_prob (r b n k : nat) := (Choose n k * Beta (k + r) (n - k + b) / Beta r b)%R.
 
   Lemma Beta_prob_0_0 (r b : nat) : Beta_prob r b 0 0 = 1.
   Proof.
-    rewrite /Beta_prob choose_n_0 /= Rmult_1_l Rdiv_diag //.
+    rewrite /Beta_prob Choose_n_0 /= Rmult_1_l Rdiv_diag //.
     pose proof (Beta_pos r b).
     lra.
   Qed.
@@ -51,7 +50,7 @@ Section BetaProbability.
   Lemma Beta_prob_pos (r b n k : nat) : (0 <= Beta_prob r b n k)%R.
   Proof.
     add_hint Beta_pos.
-    add_hint choose_pos.
+    add_hint Choose_pos.
     unfold Beta_prob.
     real_solver.
   Qed.
@@ -89,7 +88,7 @@ Section BetaProbability.
       rewrite -(Rmult_assoc p1).
       simpl_expr.
       unfold Beta_prob.
-      rewrite !choose_n_n !Rmult_1_l.
+      rewrite !Choose_n_n !Rmult_1_l.
       subst p1.
       assert (0 < (r + b) * Beta (S r) b) by real_solver.
       trans (r * Beta (n + S r) (n - n + b) / ((r + b) * Beta (S r) b)); last first.
@@ -140,7 +139,7 @@ Section BetaProbability.
       rewrite /= -!(Rmult_assoc _ _ (E 0%fin)).
       simpl_expr.
       unfold Beta_prob.
-      rewrite /Beta_prob /= Nat.sub_0_r !choose_n_0 !Rmult_1_l.
+      rewrite /Beta_prob /= Nat.sub_0_r !Choose_n_0 !Rmult_1_l.
       rewrite Rmult_comm Nat.add_succ_r !Rdiv_def Rmult_assoc.
       simpl_expr.
       unfold Beta.
@@ -179,7 +178,7 @@ Section BetaProbability.
     f_equal.
     - rewrite !Rdiv_def Rmult_assoc.
       rewrite (Rmult_comm (r * / (r + b))).
-      rewrite !(Rmult_assoc (choose n k)).
+      rewrite !(Rmult_assoc (Choose n k)).
       simpl_expr.
       rewrite Nat.add_succ_r (Rmult_comm (Beta r b)) Rmult_assoc Rmult_assoc -{1}(Rmult_1_r (Beta _ _)).
       simpl.
@@ -200,7 +199,7 @@ Section BetaProbability.
       rewrite -!Rmult_assoc.
       simpl_expr.
       rewrite (Rmult_comm _ (S r + b)) -plus_INR -!mult_INR Nat.add_succ_l -!fact_simpl //.
-    - rewrite (Rmult_comm (b / (r + b))) !Rdiv_def !(Rmult_assoc (choose n (S k))).
+    - rewrite (Rmult_comm (b / (r + b))) !Rdiv_def !(Rmult_assoc (Choose n (S k))).
       simpl_expr.
       simpl.
       replace (n - S k + S b)%nat with (n - k + b)%nat; last first.

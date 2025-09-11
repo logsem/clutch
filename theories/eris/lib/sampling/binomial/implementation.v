@@ -189,48 +189,6 @@ Section Binomial.
       by iFrame.
     Qed.
     
-    Lemma twp_bernoulli_multiple_presample  (e : expr) (α : loc) (Φ : val → iProp Σ)
-      (N M k : nat) (ns : list (fin 2)) : 
-      to_val e = None → 
-      own_bernoulli_tape α N M ns ∗
-      (∀ (l : list (fin 2)), ⌜length l = k⌝ -∗ own_bernoulli_tape α N M (ns ++ l) -∗ WP e [{ Φ }])
-      ⊢  WP e [{ Φ }]
-    .
-    Proof.
-      iRevert (Φ ns).
-      iInduction (k) as [|k] "IH";
-        iIntros (Φ ns e_not_val) "[Htape Hlists]".
-      - wp_apply ("Hlists" $! []); first done.
-        rewrite app_nil_r //.
-      - wp_apply (twp_presample_bernoulli with "[$Htape Hlists IH]") as (i) "Htape"; first done.
-        wp_apply "IH"; first done.
-        iFrame.
-        iIntros (l length_l_k) "Htape".
-        wp_apply ("Hlists" $! i::l with "[] [Htape]"); first rewrite /= length_l_k //.
-        rewrite -app_assoc //. 
-    Qed.
-
-    Lemma binomial_tape_presample  (e : expr) (α : loc) (Φ : val → iProp Σ)
-      (N M k : nat) (ns : list (fin (S k))) :
-      to_val e = None
-      → (0 < k)%nat
-      → own_binomial_tape α N M k ns ∗
-      (∀ (i : fin (S k)), own_binomial_tape α N M k (ns ++ [i%fin]) -∗ WP e [{ Φ }])
-      ⊢  WP e [{ Φ }]
-    .
-    Proof.
-      iIntros (e_not_val k_pos) "[(%l & Hα & %Hl) Hwp]".
-      wp_apply (twp_bernoulli_multiple_presample _ α _ N M k); first done.
-      iFrame.
-      iIntros (l' length_l'_k) "Hα".
-      set (i := fin_sum_list 2 k l').
-      wp_apply ("Hwp" $! i).
-      iExists (l ++ l').
-      iFrame.
-      iPureIntro.
-      by apply is_binomial_translation_snoc.
-    Qed.
-
     Lemma twp_binomial_tape  (N M k : nat) (α : loc) (ns : list (fin (S k))) (n : fin (S k)) :
       [[{ own_binomial_tape α N M k (n::ns) }]]
         binom_tape (#lbl:α) #N #M #k
@@ -348,7 +306,7 @@ Section Binomial.
                   [|apply D_pos|..|apply D_pos];
                   rewrite /binom_prob;
                   repeat apply Rmult_le_pos;
-                  try apply choose_pos; by apply pow_le.
+                  try apply Choose_pos; by apply pow_le.
         }
         { rewrite -D_sum.
           fold s0 s1 (D' 0%fin) (D' 1%fin).
@@ -421,7 +379,6 @@ Section Binomial.
       (@own_binomial_tape)
       (@twp_binom_alloc)
       (@twp_binomial_tape)
-      (@binomial_tape_presample)
       (@twp_binomial_tape_adv_comp).
   
 End Binomial.

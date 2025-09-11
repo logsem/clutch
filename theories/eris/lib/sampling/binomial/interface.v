@@ -1,61 +1,16 @@
 From clutch.eris Require Export eris.
 From clutch.eris.lib.sampling Require Import abstract_planner distr_impl utils.
-From clutch.eris.lib.sampling.bernoulli Require Import interface.
 
 Section BinomialProbability.
-   
-  Definition choose (n k : nat) : R :=
-    if bool_decide (k ≤ n)%nat then
-      C n k
-    else 0%R.
-
-  Lemma pascal' (n i : nat) : (choose n i + choose n (S i))%R = choose (S n) (S i).
-  Proof.
-    rewrite /choose.
-    repeat case_bool_decide; try lia; [by rewrite pascal | | lra].
-    assert (i = n) as -> by lia.
-    rewrite !Rcomplements.C_n_n.
-    lra.
-  Qed.
-
-  Lemma choose_pos (n i : nat) : (0 <= choose n i)%R.
-  Proof.
-    rewrite /choose /C.
-    case_bool_decide; last done.
-    apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR.
-    apply Rmult_lt_0_compat;
-      rewrite -INR_0;
-      apply lt_INR, lt_O_fact.
-  Qed.
-
-  Lemma choose_n_0 (n : nat) : choose n 0 = 1.
-  Proof.
-    unfold choose.
-    bool_decide.
-    rewrite Rcomplements.C_n_0 //.
-  Qed.
-
-  Lemma choose_n_n (n : nat) : choose n n = 1.
-  Proof.
-    unfold choose.
-    bool_decide.
-    rewrite Rcomplements.C_n_n //.
-  Qed.
-
-  Lemma choose_n_1 : ∀ (n : nat), choose n 1 = n.
-  Proof.
-    elim=>[|n IH]; first done.
-    rewrite -pascal' IH choose_n_0 -plus_INR //.
-  Qed.
-  
-  Definition binom_prob (p q n k : nat) : R := (choose n k * (p / (q + 1))^k * (1 - p / (q + 1))^(n - k))%R.
+ 
+  Definition binom_prob (p q n k : nat) : R := (Choose n k * (p / (q + 1))^k * (1 - p / (q + 1))^(n - k))%R.
 
   Lemma binom_prob_pos (p q n k : nat) : (p ≤ q + 1)%nat → (0 <= binom_prob p q n k)%R.
   Proof.
     move=>is_prob.
     unfold binom_prob.
     repeat apply Rmult_le_pos;
-      first apply choose_pos;
+      first apply Choose_pos;
       apply pow_le.
     { apply Rcomplements.Rdiv_le_0_compat; real_solver. }
     { rewrite -INR_1 -plus_INR -Rcomplements.Rminus_le_0 -Rcomplements.Rdiv_le_1; real_solver. }
@@ -72,8 +27,8 @@ Section BinomialProbability.
     destruct (Nat.lt_ge_cases k n).
     - replace (n + 1 - (k + 1))%nat with (n - k)%nat by lia.
       rewrite !Nat.add_1_r -pascal'.
-      set (A := choose n k).
-      set (B := choose n (S k)).
+      set (A := Choose n k).
+      set (B := Choose n (S k)).
       rewrite -(Rmult_assoc s) (Rmult_comm s) (Rmult_assoc _ s).
       replace (s * s ^ (n - S k))%R with (s ^ (n - k))%R; last first.
       {
@@ -83,7 +38,7 @@ Section BinomialProbability.
       }
       rewrite (Rmult_comm A) -!(Rmult_assoc r) !tech_pow_Rmult.
       lra.
-    - rewrite /choose.
+    - rewrite /Choose.
       replace (n - (k + 1))%nat with 0%nat by lia.
       replace (n - k)%nat with 0%nat by lia.
       replace (n + 1 - (k + 1))%nat with 0%nat by lia.
@@ -95,7 +50,7 @@ Section BinomialProbability.
 
   Lemma binom_prob_eq (p q n : nat) : (binom_prob p q n n = (p / (q + 1))^n)%R.
   Proof.
-    rewrite /binom_prob /choose.
+    rewrite /binom_prob /Choose.
     bool_decide.
     rewrite !Nat.sub_diag Rcomplements.C_n_n.
     lra.
@@ -103,7 +58,7 @@ Section BinomialProbability.
 
   Lemma binom_prob_0 (p q n : nat) : (binom_prob p q n 0 = (1 - p / (q + 1))^n)%R.
   Proof.
-    rewrite /binom_prob /choose.
+    rewrite /binom_prob /Choose.
     bool_decide.
     rewrite Nat.sub_0_r Rcomplements.C_n_0.
     lra.
@@ -117,7 +72,7 @@ Section BinomialProbability.
     apply lt_INR in p_lt_Sq.
     rewrite plus_INR in p_lt_Sq.
     simpl in p_pos, p_lt_Sq.
-    rewrite /binom_prob /choose.
+    rewrite /binom_prob /Choose.
     bool_decide.
     apply Rmult_lt_0_compat.
     - apply Rmult_lt_0_compat.
@@ -135,7 +90,7 @@ Section BinomialProbability.
   Lemma binom_prob_gt (p q n k : nat) : n < k → binom_prob p q n k = 0%R.
   Proof.
     intros Hnk.
-    rewrite /binom_prob /choose.
+    rewrite /binom_prob /Choose.
     case_bool_decide;
     [lia | simpl_expr].
   Qed.
@@ -199,7 +154,7 @@ Section BinomialProbability.
   Proof.
     move=>p q n p_le_Sq.
     apply (ex_seriesC_ext (λ k, if bool_decide (k ≤ n) then binom_prob p q n k else 0%R)).
-    { unfold binom_prob, choose.
+    { unfold binom_prob, Choose.
       move=>k.
       case_bool_decide; lra.
     }
@@ -214,7 +169,7 @@ Section BinomialProbability.
                (λ k, if bool_decide (k ≤ n)
                      then binom_prob p q n k
                      else 0%R)); first rewrite sum_b //.
-    unfold binom_prob, choose.
+    unfold binom_prob, Choose.
     move=>k.
     case_bool_decide; lra.
   Qed.
@@ -242,15 +197,7 @@ Class binomial_spec (binomial_prog : val) (binomial_alloc : val) :=
   twp_binomial_tape `{!erisGS Σ} (N M k : nat) (α : loc) (ns : list (fin (S k))) (n : fin (S k)) :   [[{ own_binomial_tape α N M k (n::ns) }]]
       binomial_prog (#lbl:α) #N #M #k
     [[{ RET #n ; own_binomial_tape α N M k ns }]];
-
-  twp_binomial_presample `{!erisGS Σ} (e : expr) (α : loc) (Φ : val → iProp Σ)
-      (N M k : nat) (ns : list (fin (S k))) :
-    to_val e = None
-    → (0 < k)%nat
-    → own_binomial_tape α N M k ns ∗
-    (∀ (i : fin (S k)), own_binomial_tape α N M k (ns ++ [i%fin]) -∗ WP e [{ Φ }])
-    ⊢  WP e [{ Φ }];
-      
+     
    twp_binomial_presample_adv_comp `{!erisGS Σ}
       (e : expr) (α : loc) (Φ : val → iProp Σ)
       (p q n : nat) (ns : list (fin (S n))) (ε : R)

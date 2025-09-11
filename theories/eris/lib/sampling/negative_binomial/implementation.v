@@ -1,7 +1,6 @@
 From clutch.eris Require Export eris.
 From clutch.eris.lib.sampling Require Import utils. 
 From clutch.eris.lib.sampling.bernoulli Require Import interface.
-From clutch.eris.lib.sampling.binomial Require Import interface.
 From clutch.eris.lib.sampling.negative_binomial Require Import interface.
 
 Section NegativeBinomial.
@@ -82,7 +81,7 @@ Section NegativeBinomial.
       unfold negative_binom_prob at 1.
       rewrite Nat.add_0_l Nat.add_sub.
       fold s t.
-      rewrite interface.choose_n_0 -(interface.choose_n_0 (r - 1)) pow_add -Rmult_assoc (Rmult_assoc _ (s^1)) (Rmult_comm (s^1)) -Rmult_assoc -{1}(Nat.add_0_l r).
+      rewrite Choose_n_0 -(Choose_n_0 (r - 1)) pow_add -Rmult_assoc (Rmult_assoc _ (s^1)) (Rmult_comm (s^1)) -Rmult_assoc -{1}(Nat.add_0_l r).
       unfold t ,s.
       fold (negative_binom_prob p q r 0).
       fold s t.
@@ -157,7 +156,7 @@ Section NegativeBinomial.
           rewrite pow1 Rminus_diag.
           case_bool_decide.
           { subst.
-            rewrite interface.choose_n_0 pow_O /=.
+            rewrite Choose_n_0 pow_O /=.
             lra.
           }
           {
@@ -180,10 +179,10 @@ Section NegativeBinomial.
       iRevert (D L ε ε_term Hε_term HD HSum) "Herr Hterm".
       iInduction (r) as [|r] "IHr".
       - iIntros (D L ε ε_term Hε_term HD HDε) "Herr Hterm".
-        rewrite /negative_binom_prob /choose in HDε.
+        rewrite /negative_binom_prob /Choose in HDε.
         erewrite (SeriesC_ext _ (λ k, if bool_decide (k = 0) then D 0 else 0)) in HDε; last first.
         { intros k.
-          unfold interface.choose.
+          unfold Choose.
           do 2 case_bool_decide; try lia; subst; simpl; last lra.
           rewrite Rcomplements.C_n_n.
           lra.
@@ -360,10 +359,10 @@ Section NegativeBinomial.
       wp_pures.
       case_bool_decide.
       - assert (r = 0) as -> by lia.
-        rewrite /negative_binom_prob /choose in HSum.
+        rewrite /negative_binom_prob /Choose in HSum.
         erewrite (SeriesC_ext _ (λ k, if bool_decide (k = 0) then D 0 else 0)) in HSum; last first.
         { intros k.
-          unfold interface.choose.
+          unfold Choose.
           do 2 case_bool_decide; try lia; subst; simpl; last lra.
           rewrite Rcomplements.C_n_n.
           lra.
@@ -611,7 +610,7 @@ Section NegativeBinomial.
           move=>k.
           rewrite /negative_binom_prob plus_INR INR_1 Rdiv_diag; last (pose proof (pos_INR q); lra).
           case_bool_decide as is_k_0.
-          - rewrite is_k_0 choose_n_0 pow1 pow_O /=.
+          - rewrite is_k_0 Choose_n_0 pow1 pow_O /=.
             lra.
           - rewrite Rminus_diag pow_i; [lra | lia].
         }
@@ -626,10 +625,10 @@ Section NegativeBinomial.
       iRevert (D L ε ε_term Hε_term HD HSum l Φ) "Herr Hterm Hα Hnext".
       iInduction (r) as [|r] "IHr".
       - iIntros (D L ε ε_term Hε_term HD HSum l Φ) "Herr Hterm Hα Hnext".
-        rewrite /negative_binom_prob /choose in HSum.
+        rewrite /negative_binom_prob /Choose in HSum.
         erewrite (SeriesC_ext _ (λ k, if bool_decide (k = 0) then D 0 else 0)) in HSum; last first.
         { intros k.
-          unfold interface.choose. 
+          unfold Choose. 
           do 2 case_bool_decide; try lia; subst; simpl; last lra.
           rewrite Rcomplements.C_n_n.
           lra.

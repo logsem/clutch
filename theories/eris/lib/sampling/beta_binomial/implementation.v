@@ -1,6 +1,5 @@
 From clutch.eris Require Import eris.
 From clutch.eris.lib.sampling.bernoulli Require Import interface.
-From clutch.eris.lib.sampling.binomial Require Import interface.
 From clutch.eris.lib.sampling.beta_binomial Require Import interface.
 From clutch.eris.lib.sampling Require Import utils.
 
@@ -192,14 +191,14 @@ Section Polya.
         { add_hint Beta_prob_pos. real_solver. }
         { add_hint Beta_prob_pos.
           apply SeriesC_ge_0' => k. real_solver. }
-        rewrite /Beta_prob choose_n_0 !Beta_0_l.
+        rewrite /Beta_prob Choose_n_0 !Beta_0_l.
         wp_apply polya_0_b as "_" => //.
         iApply ("HΦ" $! 0%fin with "[Herr]").
         iApply (ec_eq with "Herr") => //=.
       }
       destruct (decide (black = 0)%nat) as [-> | Hb_not_0].
       {
-         (* !fin_to_nat_to_fin choose_n_n Nat.sub_diag !Beta_0_r Rmult_1_l Rdiv_diag // Rmult_1_l *)
+         (* !fin_to_nat_to_fin Choose_n_n Nat.sub_diag !Beta_0_r Rmult_1_l Rdiv_diag // Rmult_1_l *)
         rewrite Series_fin_last in Heq.
         subst.
         iPoseProof (ec_split with "Herr") as "[_ Herr]".
@@ -210,7 +209,7 @@ Section Polya.
         assert (n = (fin_to_nat (nat_to_fin (Nat.lt_succ_diag_r n)))) as Heqn by rewrite fin_to_nat_to_fin //.
         rewrite ->Heqn at 3.
         iApply ("HΦ" with "[Herr]").
-        rewrite /Beta_prob !fin_to_nat_to_fin choose_n_n Nat.sub_diag !Beta_0_r.
+        rewrite /Beta_prob !fin_to_nat_to_fin Choose_n_n Nat.sub_diag !Beta_0_r.
         iApply (ec_eq with "Herr") => //=.
       }
       (* It is easier to prove with E : nat → R, as induction on R can mess with the types, but still requiring E : fin (S n) → R can be interesting, to discuss *)
@@ -226,7 +225,7 @@ Section Polya.
         iApply "HΦ".
         destruct (Nat.lt_dec v (S n)); last cred_contra.
         rewrite nat_to_fin_to_nat //. }
-      assert (ε = SeriesC (λ x : fin (S n), interface.choose n x * Beta (x + red) (n - x + black) / Beta red black * E x)) as Heq. {
+      assert (ε = SeriesC (λ x : fin (S n), Choose n x * Beta (x + red) (n - x + black) / Beta red black * E x)) as Heq. {
         rewrite Heq'.
         apply SeriesC_ext => k.
         simpl_expr.
@@ -241,7 +240,7 @@ Section Polya.
       iInduction n as [|n] "IH" forall (E HE_nonneg red α Hr_not_0 black Hb_not_0 ε H_red_black_gt_0 Heq Φ).
       - unfold polya. wp_pures.
         rewrite SeriesC_finite_foldr /= in Heq.
-        rewrite choose_n_0 Rmult_1_l in Heq.
+        rewrite Choose_n_0 Rmult_1_l in Heq.
         add_hint Beta_pos.
         rewrite Rdiv_diag in Heq; last real_solver.
         rewrite Rplus_0_r Rmult_1_l in Heq.
@@ -1924,7 +1923,7 @@ Section Polya.
         replace p with 0%nat by lia.
         clear.
         iIntros (ε D Δ τ Φ p_le_Sq e_not_val D_pos D_sum) "(Herr & HΔ & Hnext)".
-        rewrite -D_sum Series_fin_first {1}/Beta_prob choose_n_0 !Beta_0_l Rdiv_1_r !Rmult_1_l.
+        rewrite -D_sum Series_fin_first {1}/Beta_prob Choose_n_0 !Beta_0_l Rdiv_1_r !Rmult_1_l.
         iPoseProof (ec_split with "Herr") as "[Herr _]"; first apply D_pos.
         { apply SeriesC_ge_0'=>i.
           apply Rmult_le_pos; last apply D_pos.
@@ -1940,7 +1939,7 @@ Section Polya.
       destruct (decide (p < q + 1)%nat); last first.
       {
         iIntros (ε D Δ τ Φ p_le_Sq e_not_val D_pos D_sum) "(Herr & HΔ & Hnext)".
-        rewrite -D_sum Series_fin_last {2}/Beta_prob fin_to_nat_to_fin Nat.sub_diag choose_n_n.
+        rewrite -D_sum Series_fin_last {2}/Beta_prob fin_to_nat_to_fin Nat.sub_diag Choose_n_n.
         replace p with (q + 1)%nat by lia.
         rewrite Nat.sub_diag !Beta_0_r Rdiv_1_r !Rmult_1_l.
         iPoseProof (ec_split with "Herr") as "[_ Herr]"; try apply D_pos.
