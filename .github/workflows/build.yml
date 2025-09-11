@@ -48,6 +48,8 @@ jobs:
             startGroup Also deploy clutch POPL24
               cd html/
               git clone https://github.com/ahuoguo/clutch.git -b gh-pages
+              mv clutch/popl24/ ./popl24/
+              mv clutch/eris/ ./eris/
               cd ..
             endGroup
           uninstall: |
