@@ -9,7 +9,7 @@ From iris.base_logic.lib Require Import iprop.
 (* From lib   Require Import base. *)
 From clutch.approxis Require Import app_weakestpre.
 From clutch.prob_eff_lang Require Import notation weakestpre protocol_agreement
-                                         iEff adequacy lang spec_ra. (* probeffGS is imported from adequacy *)
+                                         iEff primitive_laws lang spec_ra. (* probeffGS is imported from adequacy *)
 (* From logic Require Export heap. *)
 
 Section shallow_handler.

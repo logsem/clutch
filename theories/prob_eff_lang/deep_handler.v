@@ -12,7 +12,7 @@
 From stdpp                 Require Import list.
 From iris.proofmode        Require Import base tactics classes.
 (* From iris.program_logic    Require Import weakestpre. *)
-From clutch.prob_eff_lang  Require Import notation weakestpre lang adequacy iEff shallow_handler protocol_agreement lang.
+From clutch.prob_eff_lang  Require Import notation weakestpre lang primitive_laws iEff shallow_handler protocol_agreement lang.
 
 
 (** * Deep Handler. *)

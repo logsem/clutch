@@ -1945,26 +1945,33 @@ Qed.
    Qed.
    
    Lemma eff_not_pure' v k e e' : to_eff e = Some (v, k) → ¬ pure_prim_step e e'.
-   Proof. intro H1; rewrite <- (of_to_eff _ _ _ H1). by apply eff_not_pure. Qed.
+   Proof. intro H1; rewrite <- (of_to_eff _ _ _ H1). by apply eff_not_pure. Qed. *)
    
    Lemma pure_prim_step_unop op v v' :
      un_op_eval op v = Some v' →
        pure_prim_step (UnOp op (Val v)) (Val v').
    Proof.
-     intro Heval. apply pure_prim_stepI'; [intros ?; by apply UnOpS|].
-     intros ??. destruct K as [|Ki K]; try destruct Ki; try naive_solver.
-     intros [=]. destruct (fill_val' _ _ _ (eq_sym H1)) as [-> ->]; by eauto.
+     intros.
+     apply Build_pure_prim_step.
+     - intros ?. eexists. apply head_step_prim_step.
+       apply head_step_support_equiv_rel. constructor. done.
+     - intros ?. unfold prim_step. simpl.
+       rewrite fill_lift_empty H. rewrite dmap_dret.
+       by apply dret_1_1.
    Qed.
    
    Lemma pure_prim_step_binop op v1 v2 v' :
      bin_op_eval op v1 v2 = Some v' →
        pure_prim_step (BinOp op (Val v1) (Val v2)) (Val v').
    Proof.
-     intro Heval. apply pure_prim_stepI'; [intros ?; by apply BinOpS|].
-     intros ??. destruct K as [|Ki K]; try destruct Ki; try naive_solver.
-     intros [=]. destruct (fill_val' _ _ _ (eq_sym H1)) as [-> ->]; by eauto.
-     intros [=]. destruct (fill_val' _ _ _ (eq_sym H2)) as [-> ->]; by eauto.
-   Qed. *)
+     intros.
+     apply Build_pure_prim_step.
+     - intros ?. eexists. apply head_step_prim_step.
+       apply head_step_support_equiv_rel. constructor. done.
+     - intros ?. unfold prim_step. simpl.
+       rewrite fill_lift_empty H. rewrite dmap_dret.
+       by apply dret_1_1.
+   Qed. 
    
    Lemma pure_prim_step_beta f x e v :
      pure_prim_step ((App (Val $ RecV f x e) (Val v)))
@@ -1988,47 +1995,68 @@ Qed.
        rewrite fill_lift_empty. rewrite dmap_dret.
        by apply dret_1_1.
    Qed.
-(*   
+   
    Lemma pure_prim_step_InjL v :
      pure_prim_step (InjL $ Val v) (Val $ InjLV v).
    Proof.
-     apply pure_prim_stepI'; [intros ?; by apply InjLS|].
-     intros ??. destruct K as [|Ki K]; try destruct Ki; try naive_solver.
-     intros [=]. destruct (fill_val' _ _ _ (eq_sym H0)) as [-> ->]; by eauto.
+     apply Build_pure_prim_step.
+     - intros ?. eexists. apply head_step_prim_step.
+       apply head_step_support_equiv_rel. constructor; done.
+     - intros ?. unfold prim_step. simpl.
+       rewrite fill_lift_empty. rewrite dmap_dret.
+       by apply dret_1_1.
    Qed.
    
    Lemma pure_prim_step_InjR v :
      pure_prim_step (InjR $ Val v) (Val $ InjRV v).
    Proof.
-     apply pure_prim_stepI'; [intros ?; by apply InjRS|].
-     intros ??. destruct K as [|Ki K]; try destruct Ki; try naive_solver.
-     intros [=]. destruct (fill_val' _ _ _ (eq_sym H0)) as [-> ->]; by eauto.
+     apply Build_pure_prim_step.
+     - intros ?. eexists. apply head_step_prim_step.
+       apply head_step_support_equiv_rel. constructor; done.
+     - intros ?. unfold prim_step. simpl.
+       rewrite fill_lift_empty. rewrite dmap_dret.
+       by apply dret_1_1.
    Qed.
    
    Lemma pure_prim_step_case_InjL v e1 e2 :
      pure_prim_step (Case (Val $ InjLV v) e1 e2) (App e1 (Val v)).
    Proof.
-     apply pure_prim_stepI'; [intros ?; by apply CaseLS|].
-     intros ??. destruct K as [|Ki K]; try destruct Ki; try naive_solver.
-     intros [=]. destruct (fill_val' _ _ _ (eq_sym H0)) as [-> ->]; by eauto.
+    apply Build_pure_prim_step.
+     - intros ?. eexists. apply head_step_prim_step.
+       apply head_step_support_equiv_rel. constructor; done.
+     - intros ?. unfold prim_step. simpl.
+       rewrite fill_lift_empty. rewrite dmap_dret.
+       by apply dret_1_1.
    Qed.
    
    Lemma pure_prim_step_case_InjR v e1 e2 :
      pure_prim_step (Case (Val $ InjRV v) e1 e2) (App e2 (Val v)).
    Proof.
-     apply pure_prim_stepI'; [intros ?; by apply CaseRS|].
-     intros ??. destruct K as [|Ki K]; try destruct Ki; try naive_solver.
-     intros [=]. destruct (fill_val' _ _ _ (eq_sym H0)) as [-> ->]; by eauto.
+     apply Build_pure_prim_step.
+     - intros ?. eexists. apply head_step_prim_step.
+       apply head_step_support_equiv_rel. constructor; done.
+     - intros ?. unfold prim_step. simpl.
+       rewrite fill_lift_empty. rewrite dmap_dret.
+       by apply dret_1_1.
    Qed.
    
    Lemma pure_prim_step_if e1 e2 b :
      pure_prim_step (If (Val $ LitV $ LitBool b) e1 e2) (if b then e1 else e2).
    Proof.
-     apply pure_prim_stepI'; [
-     intros ?; case b; [by apply IfTrueS|by apply IfFalseS]|].
-     intros ??. destruct K as [|Ki K]; try destruct Ki; try naive_solver.
-     intros [=]. destruct (fill_val' _ _ _ (eq_sym H0)) as [-> ->]; by eauto.
-   Qed.
+     destruct b.
+     { apply Build_pure_prim_step. 
+     - intros ?. eexists. apply head_step_prim_step.
+       apply head_step_support_equiv_rel. simpl.  constructor; done.
+     - intros ?. unfold prim_step. simpl.
+       rewrite fill_lift_empty. rewrite dmap_dret.
+       by apply dret_1_1. }
+     { apply Build_pure_prim_step. 
+       - intros ?. eexists. apply head_step_prim_step.
+         apply head_step_support_equiv_rel. simpl.  constructor; done.
+       - intros ?. unfold prim_step. simpl.
+         rewrite fill_lift_empty. rewrite dmap_dret.
+         by apply dret_1_1. }
+    Qed.
    
    Lemma pure_prim_step_if_true e1 e2 :
      pure_prim_step (If (Val $ LitV $ LitBool true) e1 e2) e1.
@@ -2041,43 +2069,57 @@ Qed.
    Lemma pure_prim_step_pair v1 v2 :
      pure_prim_step (Pair (Val v1) (Val v2)) (Val $ PairV v1 v2).
    Proof.
-     apply pure_prim_stepI'; [intros ?; by apply PairS|].
-     intros ??. destruct K as [|Ki K]; try destruct Ki; try naive_solver.
-     - intros [=]; destruct (fill_val' _ _ _ (eq_sym H0)) as [-> ->]; by eauto.
-     - intros [=]; destruct (fill_val' _ _ _ (eq_sym H1)) as [-> ->]; by eauto.
+     apply Build_pure_prim_step. 
+     - intros ?. eexists. apply head_step_prim_step.
+       apply head_step_support_equiv_rel. simpl.  constructor; done.
+     - intros ?. unfold prim_step. simpl.
+       rewrite fill_lift_empty. rewrite dmap_dret.
+       by apply dret_1_1.
    Qed.
    
    Lemma pure_prim_step_Fst v1 v2 :
      pure_prim_step (Fst (Val $ PairV v1 v2)) (Val v1).
    Proof.
-     apply pure_prim_stepI'; [intros ?; by apply FstS|].
-     intros ??. destruct K as [|Ki K]; try destruct Ki; try naive_solver.
-     intros [=]; destruct (fill_val' _ _ _ (eq_sym H0)) as [-> ->]; by eauto.
+     apply Build_pure_prim_step. 
+     - intros ?. eexists. apply head_step_prim_step.
+       apply head_step_support_equiv_rel. simpl.  constructor; done.
+     - intros ?. unfold prim_step. simpl.
+       rewrite fill_lift_empty. rewrite dmap_dret.
+       by apply dret_1_1.
    Qed.
    
    Lemma pure_prim_step_Snd v1 v2 :
      pure_prim_step (Snd (Val $ PairV v1 v2)) (Val v2).
    Proof.
-     apply pure_prim_stepI'; [intros ?; by apply SndS|].
-     intros ??. destruct K as [|Ki K]; try destruct Ki; try naive_solver.
-     intros [=]; destruct (fill_val' _ _ _ (eq_sym H0)) as [-> ->]; by eauto.
+    apply Build_pure_prim_step. 
+     - intros ?. eexists. apply head_step_prim_step.
+       apply head_step_support_equiv_rel. simpl.  constructor; done.
+     - intros ?. unfold prim_step. simpl.
+       rewrite fill_lift_empty. rewrite dmap_dret.
+       by apply dret_1_1.
    Qed.
    
    Lemma pure_prim_step_try_with_val v e₂ e₃ :
      pure_prim_step (TryWith (Val v) e₂ e₃) (App e₃ (Val v)).
    Proof.
-     apply pure_prim_stepI'; [intros ?; by apply TryWithRetS|].
-     intros ??. destruct K as [|Ki K]; try destruct Ki; try naive_solver.
-     intros [=]. destruct (fill_val' _ _ _ (eq_sym H0)) as [-> ->]; by eauto.
+    apply Build_pure_prim_step. 
+     - intros ?. eexists. apply head_step_prim_step.
+       apply head_step_support_equiv_rel. simpl.  constructor; done.
+     - intros ?. unfold prim_step. simpl.
+       rewrite fill_lift_empty. rewrite dmap_dret.
+       by apply dret_1_1.
    Qed.
    
    Lemma pure_prim_step_do v :
-     pure_prim_step (Do (Val v)) (Eff v EmptyCtx).
+     pure_prim_step (Do (Val v)) (Eff v []).
    Proof.
-     apply pure_prim_stepI'; [intros ?; by apply DoS|].
-     intros ??. destruct K as [|Ki K]; try destruct Ki; try naive_solver.
-     intros [=]. destruct (fill_val' _ _ _ (eq_sym H0)) as [-> ->]; by eauto.
-   Qed. *)
+     apply Build_pure_prim_step. 
+     - intros ?. eexists. apply head_step_prim_step.
+       apply head_step_support_equiv_rel. simpl.  constructor; done.
+     - intros ?. unfold prim_step. simpl.
+       rewrite fill_lift_empty. rewrite dmap_dret.
+       by apply dret_1_1.
+   Qed. 
 
 Lemma pure_prim_step_eff Ki `{NeutralEctxi Ki} v k :
   pure_prim_step (fill_item Ki (Eff v k)) (Eff v (k ++ [Ki])).

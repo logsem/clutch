@@ -1,21 +1,8 @@
 From iris.proofmode       Require Import base tactics classes proofmode.
 From iris.base_logic.lib  Require Import ghost_map.
 From clutch.approxis      Require Import app_weakestpre adequacy primitive_laws.
-From clutch.prob_eff_lang Require Import weakestpre protocol_agreement iEff lang spec_ra erasure.
+From clutch.prob_eff_lang Require Import weakestpre protocol_agreement iEff lang spec_ra erasure primitive_laws.
 Import uPred.
-
-
-
-Notation "'EWP' e @ E  <| Ψ '|' '>' {{ v , Φ } }" :=
-  (ewp_def E e%E Ψ%ieff (λ v, Φ)%I)
-  (at level 20, e, E, Ψ, Φ at level 200,
-     format "'[' 'EWP'  e  '/' '[' @ E <|  Ψ  '|' '>'  {{  v ,  Φ  } } ']' ']'") : bi_scope.
-
-Notation "'EWP' e @ E  <| Ψ '|' '>' {{ Φ } }" :=
-  (ewp_def E e%E Ψ%ieff Φ)
-  (at level 20, e, E, Ψ, Φ at level 200,
-   format "'[' 'EWP'  e  '/' '[' @ E <|  Ψ  '|' '>'  {{ Φ } } ']' ']'") : bi_scope.
-
 
 Lemma ewp_imp_wp `{!spec_updateGS (lang_markov eff_prob_lang) Σ,
                      !app_weakestpre.approxisWpGS eff_prob_lang Σ}
@@ -51,40 +38,6 @@ Proof.
     iMod "H" as "(?&?&?&?)". iModIntro. iFrame.
     by iApply "IH".
 Qed.
-
-(* Move to a separate file *)
-Class probeffGS Σ := HeapG {
-  probeffGS_invG : invGS_gen HasNoLc Σ;
-  (* CMRA for the state *)
-  probeffGS_heap : ghost_mapG Σ loc val;
-  probeffGS_tapes : ghost_mapG Σ loc tape;
-  (* ghost names for the state *)
-  probeffGS_heap_name : gname;
-  probeffGS_tapes_name : gname;
-  (* CMRA and ghost name for the spec *)
-  probeffGS_spec :: specG_prob_eff_lang Σ;
-  (* CMRA and ghost name for the error *)
-  probeffGS_error :: ecGS Σ;
-}.
-
-Class probeffGpreS Σ := ProbeffGpreS {
-  probeffGpreS_iris  :: invGpreS Σ;
-  probeffGpreS_heap  :: ghost_mapG Σ loc val;
-  probeffGpreS_tapes :: ghost_mapG Σ loc tape;
-  probeffGpreS_spec :: specGpreS Σ;
-  probeffGpreS_err   :: ecGpreS Σ;
-                          }.
-
-Definition heap_auth `{probeffGS Σ} :=
-  @ghost_map_auth _ _ _ _ _ probeffGS_heap probeffGS_heap_name.
-Definition tapes_auth `{probeffGS Σ} :=
-  @ghost_map_auth _ _ _ _ _ probeffGS_tapes probeffGS_tapes_name.
-
-Global Instance probeffGS_irisGS `{!probeffGS Σ} : approxisWpGS eff_prob_lang Σ := {
-  approxisWpGS_invGS := probeffGS_invG;
-  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
-  err_interp := ec_supply;
-}.
 
 Section adequacy.
   Context `{probeffGS Σ}.

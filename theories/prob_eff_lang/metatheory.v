@@ -2,6 +2,114 @@ From Coq Require Import Reals Psatz.
 From clutch.common Require Import locations.
 From clutch.prob_eff_lang Require Export lang notation.
 
+Section subst_map.
+  (** Parallel substitution *)
+  Fixpoint subst_map (vs : gmap string val) (e : expr)  : expr :=
+    match e with
+    | Val _ => e
+    | Var y => if vs !! y is Some v then Val v else Var y
+    | Rec f y e => Rec f y (subst_map (binder_delete y (binder_delete f vs)) e)
+    | App e1 e2 => App (subst_map vs e1) (subst_map vs e2)
+    | UnOp op e => UnOp op (subst_map vs e)
+    | BinOp op e1 e2 => BinOp op (subst_map vs e1) (subst_map vs e2)
+    | If e0 e1 e2 => If (subst_map vs e0) (subst_map vs e1) (subst_map vs e2)
+    | Pair e1 e2 => Pair (subst_map vs e1) (subst_map vs e2)
+    | Fst e => Fst (subst_map vs e)
+    | Snd e => Snd (subst_map vs e)
+    | InjL e => InjL (subst_map vs e)
+    | InjR e => InjR (subst_map vs e)
+    | Case e0 e1 e2 => Case (subst_map vs e0) (subst_map vs e1) (subst_map vs e2)
+    | AllocN e1 e2 => AllocN (subst_map vs e1) (subst_map vs e2)
+    | Load e => Load (subst_map vs e)
+    | Store e1 e2 => Store (subst_map vs e1) (subst_map vs e2)
+    | AllocTape e => AllocTape (subst_map vs e)
+    | Rand e1 e2 => Rand (subst_map vs e1) (subst_map vs e2)
+    | Tick e => Tick (subst_map vs e)
+    | Do e => Do (subst_map vs e)
+    | Eff _ _ => e
+    | TryWith e1 e2 e3 =>
+        TryWith (subst_map vs e1) (subst_map vs e2) (subst_map vs e3)
+    end.
+
+  Lemma subst_map_empty e : subst_map ∅ e = e.
+  Proof.
+    assert (∀ x, binder_delete x (∅:gmap _ val) = ∅) as Hdel.
+    { intros [|x]; by rewrite /= ?delete_empty. }
+    induction e; simplify_map_eq; rewrite ?Hdel; auto with f_equal.
+  Qed.
+  Lemma subst_map_insert x v vs e :
+    subst_map (<[x:=v]>vs) e = subst x v (subst_map (delete x vs) e).
+  Proof.
+    revert vs. induction e=> vs; simplify_map_eq; auto with f_equal.
+    - match goal with
+      | |- context [ <[?x:=_]> _ !! ?y ] =>
+          destruct (decide (x = y)); simplify_map_eq=> //
+      end. by case (vs !! _); simplify_option_eq.
+    - destruct (decide _) as [[??]|[<-%dec_stable|[<-%dec_stable ?]]%not_and_l_alt].
+      + rewrite !binder_delete_insert // !binder_delete_delete; eauto with f_equal.
+      + by rewrite /= delete_insert_delete delete_idemp.
+      + by rewrite /= binder_delete_insert // delete_insert_delete
+          !binder_delete_delete delete_idemp.
+  Qed.
+  Lemma subst_map_singleton x v e :
+    subst_map {[x:=v]} e = subst x v e.
+  Proof. by rewrite subst_map_insert delete_empty subst_map_empty. Qed.
+
+  Lemma subst_map_binder_insert b v vs e :
+    subst_map (binder_insert b v vs) e =
+    subst' b v (subst_map (binder_delete b vs) e).
+  Proof. destruct b; rewrite ?subst_map_insert //. Qed.
+  Lemma subst_map_binder_insert_empty b v e :
+    subst_map (binder_insert b v ∅) e = subst' b v e.
+  Proof. by rewrite subst_map_binder_insert binder_delete_empty subst_map_empty. Qed.
+
+  Lemma subst_subst s v1 v2 e :
+    subst s v1 (subst s v2 e) = subst s v2 e.
+  Proof.
+    induction e; simpl;
+      repeat match goal with
+        | [ Heq : _ = _ |- _ ] => rewrite Heq
+        end; try done.
+    - case (decide (s = x)); [done|intros ?; simpl]. by rewrite decide_False.
+    - case (decide (_ ≠ f ∧ _ ≠ x)); [|done]. by rewrite IHe.
+  Qed.
+
+  Lemma subst_subst_ne s1 s2 v1 v2 e :
+    s1 ≠ s2 →
+    subst s1 v1 (subst s2 v2 e) = subst s2 v2 (subst s1 v1 e).
+  Proof.
+    intros ?. induction e; simpl;
+      repeat match goal with
+        | [ Heq : _ = _ |- _ ] => rewrite Heq
+        end; try done.
+    - case (decide (s2 = x)) as [->|Hneq].
+      + rewrite decide_False; [|done]. simpl.
+        by rewrite decide_True.
+      + simpl. case (decide (s1 = x)) as [->|Hneq']; [done|].
+        simpl. by rewrite decide_False.
+    - case (decide (_ ≠ f ∧ _ ≠ x)); [|done].
+      case (decide (_ ≠ f ∧ _ ≠ x)); [|done].
+      by rewrite IHe.
+  Qed.
+
+  Lemma subst_map_binder_insert_2 b1 v1 b2 v2 vs e :
+    subst_map (binder_insert b1 v1 (binder_insert b2 v2 vs)) e =
+    subst' b2 v2 (subst' b1 v1 (subst_map (binder_delete b2 (binder_delete b1 vs)) e)).
+  Proof.
+    destruct b1 as [|s1], b2 as [|s2]=> /=; auto using subst_map_insert.
+    rewrite subst_map_insert. destruct (decide (s1 = s2)) as [->|].
+    - by rewrite delete_idemp subst_subst delete_insert_delete.
+    - by rewrite delete_insert_ne // subst_map_insert subst_subst_ne.
+  Qed.
+  Lemma subst_map_binder_insert_2_empty b1 v1 b2 v2 e :
+    subst_map (binder_insert b1 v1 (binder_insert b2 v2 ∅)) e =
+    subst' b2 v2 (subst' b1 v1 e).
+  Proof.
+    by rewrite subst_map_binder_insert_2 !binder_delete_empty subst_map_empty.
+  Qed.
+
+End subst_map.
+
 (** Some useful lemmas to reason about language properties  *)
 
 Inductive det_head_step_rel : expr → state → expr → state → Prop :=
