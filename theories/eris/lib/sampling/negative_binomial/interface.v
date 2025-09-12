@@ -268,15 +268,7 @@ Class negative_binomial_spec (negative_prog negative_alloc : val) :=
 Section NegativeLemmas.
  
  Context `{negative_spec : !negative_binomial_spec negative_prog negative_alloc}.
-
-  Lemma list_sum_le : ∀ (l : list nat) (n : nat), n ∈ l → n ≤ list_sum l.
-  Proof.
-    elim=>[|h t IH] n elem /=; first by apply elem_of_nil in elem.
-    apply elem_of_cons in elem as [-> | elem]; first lia.
-    specialize (IH n elem).
-    lia.
-  Qed.
-  
+ 
   Instance negative_binomial_impl {p q r : nat} {p_bounds : 0 < p ≤ q + 1} :
     distr_impl (dmap (LitV ∘ LitInt ∘ Z.of_nat) (negative_binomial_distr p q r p_bounds)).
   Proof using negative_spec.
