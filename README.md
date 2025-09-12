@@ -1,33 +1,9 @@
-# Clutch Project
+# Modular Specifications and Implementations of Random Samplers in Higher-Order Separation Logic
 
-This repository contains the formal development of multiple higher-order probabilistic separation logics for proving properties of higher-order probabilistic programs.
-All of the logics are built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Coq proof assistant](https://coq.inria.fr/).
+This repository contains the formal development of the CPP26 submission of the
+same title. The logic is built using the [Iris](https://iris-project.org)
+program logic framework and mechanized in the [Rocq prover](https://rocq-prover.org/).
 
-## Publications
-
-[**Modular Reasoning about Error Bounds for Concurrent Probabilistic Programs**](https://dl.acm.org/doi/10.1145/3747514)<br>
-*Kwing Hei Li, Alejandro Aguirre, Simon Oddershede Gregersen, Philipp G. Haselwarter, Joseph Tassarotti, Lars Birkedal*<br>
-In ICFP 2025: ACM SIGPLAN International Conference on Functional Programming
-
-[**Approximate Relational Reasoning for Higher-Order Probabilistic Programs**](https://dl.acm.org/doi/10.1145/3704877)<br>
-*Philipp G. Haselwarter, Kwing Hei Li, Alejandro Aguirre, Simon Oddershede Gregersen, Joseph Tassarotti, Lars Birkedal*<br>
-In POPL 2025: ACM SIGPLAN Symposium on Principles of Programming Languages
-
-[**Tachis: Higher-Order Separation Logic with Credits for Expected Costs**](https://doi.org/10.1145/3689753)<br>
-*Philipp G. Haselwarter, Kwing Hei Li, Markus de Medeiros, Simon Oddershede Gregersen, Alejandro Aguirre, Joseph Tassarotti, Lars Birkedal*<br>
-In OOPSLA 2024: ACM SIGPLAN Conference on Object-Oriented Programming, Systems, Languages, and Applications
-
-[**Error Credits: Resourceful Reasoning about Error Bounds for Higher-Order Probabilistic Programs**](https://doi.org/10.1145/3674635)<br>
-*Alejandro Aguirre, Philipp G. Haselwarter, Markus de Medeiros, Kwing Hei Li, Simon Oddershede Gregersen, Joseph Tassarotti, Lars Birkedal*<br>
-In ICFP 2024: ACM SIGPLAN International Conference on Functional Programming
-
-[**Almost-Sure Termination by Guarded Refinement**](https://doi.org/10.1145/3674632) <br>
-*Simon Oddershede Gregersen, Alejandro Aguirre, Philipp G. Haselwarter, Joseph Tassarotti, Lars Birkedal*<br>
-In ICFP 2024: ACM SIGPLAN International Conference on Functional Programming
-
-[**Asynchronous Probabilistic Couplings in Higher-Order Separation Logic**](https://dl.acm.org/doi/10.1145/3632868)<br>
-*Simon Oddershede Gregersen, Alejandro Aguirre, Philipp G. Haselwarter, Joseph Tassarotti, Lars Birkedal*<br>
-In POPL 2024: ACM SIGPLAN Symposium on Principles of Programming Languages
 
 ## Building the development
 
@@ -60,6 +36,11 @@ opam install . --deps-only
 ```
 
 You should now be able to build the development by using `make -j N` where `N` is the number of cores available on your machine.
+
+## Mechanization of the submission
+
+The main mechanization of the contribution can be found in [`theories/eris/lib/sampling/`](theories/eris/lib/sampling/).
+
 
 ## Axioms
 
