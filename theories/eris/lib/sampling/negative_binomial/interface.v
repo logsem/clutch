@@ -314,9 +314,8 @@ Section NegativeLemmas.
       by iFrame.
   Defined.
 
-  (*
-  Lemma twp_negative_binomial_planner :
-    ∀ (p q r : nat) (α : loc) (e : expr) (ε : R)
+  Lemma twp_negative_binomial_planner `{!erisGS Σ} :
+    ∀ (p q r : nat) (α : loc) (e : expr) 
       (L_size L_sum : nat) (Φ : val → iProp Σ)
       (prefix : list nat) (suffix : list nat → list nat) ,
       (0 < p < q + 1)%nat →
@@ -324,36 +323,30 @@ Section NegativeLemmas.
       to_val e = None →
       (∀ (junk : list nat),
          0 < length (suffix (prefix ++ junk)) <= L_size ∧ list_sum (suffix (prefix ++ junk)) ≤ L_sum) →
-      (0 < ε)%R →
-      ↯ ε ∗
       own_negative_tape α p q r prefix ∗
       ((∃ (junk : list nat),
            own_negative_tape α p q r (prefix ++ junk ++ suffix (prefix ++ junk)))
        -∗ WP e [{ Φ }])
       ⊢ WP e [{ Φ }].
   Proof.
-    iIntros (p q r α e ε L_size L_sum Φ prefix suffix
-               p_bounds r_pos e_not_val suf_bounds
-               ε_pos) "(Herr & Htape & Hnext)".
-    set (ψ l := (own_negative_tape α p q r l ∗ ∃ (ε0 : R), ⌜(0 < ε0)%R⌝ ∗ ↯ ε0)%I).
-    unshelve wp_apply (abstract_planner (negative_binom_prob p q r) ψ _ prefix suffix L_size (seq 0 (S L_sum)) (ε / 2) _ (is_seriesC_negative_binomial p q r ltac:(lia))).
-    {
-      split; first by apply negative_binom_gt_0.
-      unshelve epose proof (SeriesC_nat_elem_lt (negative_binom_prob p q r) _ _ _ (is_seriesC_negative_binomial p q r ltac:(lia))); first lra.
-      { move=>k. apply negative_binom_gt_0; lia. }
-      auto.
+    iIntros (p q r α e L_size L_sum Φ prefix suffix
+               p_bounds r_pos e_not_val suf_bounds) "[Htape Hnext]".
+    wp_apply twp_rand_err_pos as (ε ε_pos) "Herr"; first assumption.
+    unshelve wp_apply (abstract_planner (negative_binom_prob p q r) 1%R (own_negative_tape α p q r) _ prefix suffix L_size (seq 0 (S L_sum)) _ _ with "[$Herr $Htape Hnext]") as (k) "Htape".
+    { move=>k.
+      apply negative_binom_pos.
+      lia.
+    } 
+    { move=>k _.
+      by apply negative_binom_gt_0.
     }
-    { iIntros (ε0 D L0 l ε0_pos D_bounds D_sum) "([Htape (%ε1 & %ε1_pos & Hfuel)] & Herr & Hnext)".
-      replace ε1 with (ε1 / 2 + ε1 / 2)%R by lra.
-      iPoseProof (ec_split with "Hfuel") as "[Hfuel_now Hfuel_later]"; try lra.
-      wp_apply (twp_negative_binomial_presample_adv_comp p q r α with "[$Hfuel_now $Herr $Htape Hnext Hfuel_later]"); try lia; try done.
-      { lra. }
-      iIntros (n) "Herr Htape".
-      wp_apply ("Hnext" with "Herr").
-      iFrame.
-      iPureIntro.
-      lra.
-    }
+    { reflexivity. }
+    { apply is_seriesC_negative_binomial.
+      lia.
+    } 
+    { iIntros (ε0 D L0 l ε0_pos D_bounds D_sum) "(Htape & Herr & Hnext)".
+      wp_apply (twp_negative_binomial_presample_adv_comp p q r α with "[$Herr $Htape Hnext]"); try lia; try done.
+    } 
     { apply suf_bounds. }
     { move=>a j a_elem_suf.
       apply elem_of_seq.
@@ -363,33 +356,23 @@ Section NegativeLemmas.
       lia.
     }
     { lra. }
-    assert (ε = (ε / 2 + ε / 2)%R) as ε_half by lra.
-    rewrite {1}ε_half.
-    iPoseProof (ec_split with "Herr") as "[Hfuel1 Hfuel2]"; try lra.
-    iFrame.
-    iSplitR; first (iPureIntro; lra).
-    iIntros (j) "[Htape _]".
     wp_apply "Hnext".
     iFrame.
   Qed.
 
-  Lemma twp_negative_binomial_presample :
+  Lemma twp_negative_binomial_presample_adv_comp' `{!erisGS Σ} :
     ∀ (e : expr) (α : loc) (Φ : val → iProp Σ)
-      (p q r : nat) (ns : list nat) (ε : R),
+      (p q r : nat) (ns : list nat),
       (0 < p)%nat →
       (p ≤ q + 1)%nat →
-      (0 < ε)%R → 
       to_val e = None →
-      ↯ ε ∗ own_negative_tape α p q r ns ∗
+      own_negative_tape α p q r ns ∗
       (∀ (i : nat), own_negative_tape α p q r (ns ++ [i]) -∗ WP e [{ Φ }])
       ⊢  WP e [{ Φ }].
   Proof.
-    iIntros (e α Φ p q r ns ε p_pos p_le_Sq ε_pos e_not_val) "(Hfuel & Htape & Hnext)".
+    iIntros (e α Φ p q r ns p_pos p_le_Sq e_not_val) "[Htape Hnext]".
     iMod ec_zero as "Herr".
-    unshelve wp_apply (twp_negative_binomial_presample_adv_comp p q r _ _ _ (const 0%R) _ 0%R ε); last iFrame; try done.
-    { move=> /= _.
-      lra.
-    }
+    unshelve wp_apply (twp_negative_binomial_presample_adv_comp p q r _ _ _ (const 0%R) 0%R 0%R ε with "[$Herr $Htape Hnext]"); try done.
     { apply SeriesC_0.
       move=>i /=.
       lra.
@@ -397,5 +380,5 @@ Section NegativeLemmas.
     iIntros (i) "_".
     iApply "Hnext".
   Qed.
-  *)
+  
 End NegativeLemmas.

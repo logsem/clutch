@@ -55,6 +55,22 @@ Section BetaProbability.
     real_solver.
   Qed.
 
+  Lemma Beta_prob_gt_0 (r b n : nat) (k : fin (S n)) : (0 < Beta_prob r b n k)%R.
+  Proof.
+    add_hint Beta_pos.
+    rewrite /Beta_prob /Choose.
+    pose proof (fin_to_nat_lt k).
+    case_bool_decide; last lia.
+    apply Rmult_lt_0_compat.
+    - apply Rmult_lt_0_compat.
+      + unfold C.
+        apply Rdiv_lt_0_compat;
+          last apply Rmult_lt_0_compat;
+          apply INR_fact_lt_0.
+      + apply Beta_pos.
+    - apply Rinv_0_lt_compat, Beta_pos.
+  Qed.
+  
   #[local] Open Scope R.
   Lemma Beta_sum_split (r b n : nat) (E : fin (S (S n)) → R) :
     (0 < r)%nat → 
@@ -387,4 +403,45 @@ Section BetaBinomialLemmas.
       by iFrame.
   Defined.
 
+  Lemma twp_binomial_presample_planner `{!erisGS Σ}
+      (red black n : nat) (e : expr) 
+      (L : nat) (Δ : AbsLoc n) (Φ : val → iProp Σ)
+      (prefix : list (fin (S n))) (suffix : list (fin (S n)) → list (fin (S n))) :
+    (0 < red)%nat →
+    (0 < black)%nat → 
+    to_val e = None →
+    (∀ junk : list (fin (S n)),
+       (length (suffix (prefix ++ junk)) <= L)%nat) →
+    own_beta_tape red black n Δ prefix ∗
+    ( (∃ (junk : list (fin (S n))), own_beta_tape red black n Δ (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e [{ Φ }]
+    ) ⊢ WP e [{ Φ }].
+   Proof.
+     iIntros (red_pos black_pos e_not_val suf_bounds) "[Htape Hnext]".
+     wp_apply twp_rand_err_pos as (ε ε_pos) "Herr"; first assumption.
+     wp_apply (abstract_planner (Beta_distr red black n red_pos black_pos) 1%R (own_beta_tape red black n Δ) _ prefix suffix L (enum (fin (S n))) ε); try done.
+     { move=>i _.
+       simpl.
+       apply Beta_prob_gt_0.
+     }
+     { apply SeriesC_correct'; last apply ex_seriesC_finite.
+       by apply Beta_sum_1.
+     }
+     {
+       clear ε ε_pos L suf_bounds.
+       iIntros (ε D L l ε_pos D_bounds D_sum) "(Htape & Herr & Hnext)".
+       wp_apply (twp_beta_presample_adv_comp _ red black _ _ _ _ _ Φ ltac:(lia) e_not_val ltac:(apply D_bounds) D_sum).
+       iFrame.
+       iIntros (i) "[Herr Htape]".
+       by iApply ("Hnext" with "Herr").
+     }
+     {
+       move=>a j _.
+       apply elem_of_enum.
+     }
+     iFrame.
+     iIntros (j) "Htape".
+     wp_apply "Hnext".
+     iFrame.
+   Qed.
+  
 End BetaBinomialLemmas.

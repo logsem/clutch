@@ -24,6 +24,7 @@ The recommended way to install the dependencies is through [opam](https://opam.o
 opam switch create clutch 4.14.1
 opam switch link clutch .
 ```
+(The switch creation might fail on systems with a gcc version >= 15. If this happens a fix is to run the first command with the option `CC=gcc-14`)
 3. Add the Coq and Iris `opam` repositories.
 ```
 opam repo add rocq-released https://coq.inria.fr/opam/released

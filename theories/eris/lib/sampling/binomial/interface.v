@@ -270,9 +270,9 @@ Section BinomialLemmas.
       iExists l'.
       by iFrame.
   Defined.
-(*
+  
   Lemma twp_binomial_presample_planner `{!erisGS Σ}
-      (N M k : nat) (e : expr) (ε : nonnegreal)
+      (N M k : nat) (e : expr) 
       (L : nat) (α : loc) (Φ : val → iProp Σ)
       (prefix : list (fin (S k))) (suffix : list (fin (S k)) → list (fin (S k))) :
     (0 < N < S M)%nat →
@@ -280,13 +280,13 @@ Section BinomialLemmas.
     to_val e = None →
     (∀ junk : list (fin (S k)),
        (length (suffix (prefix ++ junk)) <= L)%nat) →
-    (0 < ε)%R →
-    ↯ ε ∗ own_binomial_tape α N M k prefix ∗
+    own_binomial_tape α N M k prefix ∗
     ( (∃ (junk : list (fin (S k))), own_binomial_tape α N M k (prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e [{ Φ }]
     ) ⊢ WP e [{ Φ }].
    Proof.
-     iIntros (N_bounds k_pos e_not_val suf_bounds ε_pos) "(Herr & Htape & Hnext)".
-     wp_apply (abstract_planner (binom_prob N M k ∘ fin_to_nat) (own_binomial_tape α N M k) _ prefix suffix L (enum (fin (S k))) ε); try done.
+     iIntros (N_bounds k_pos e_not_val suf_bounds) "[Htape Hnext]".
+    wp_apply twp_rand_err_pos as (ε ε_pos) "Herr"; first assumption.
+     wp_apply (abstract_planner (binom_prob N M k ∘ fin_to_nat) 1%R (own_binomial_tape α N M k) _ prefix suffix L (enum (fin (S k))) ε); try done.
      { move=>i.
        simpl.
        destruct k; first lia.
@@ -381,6 +381,5 @@ Section BinomialLemmas.
     - iIntros "Herr".
       cred_contra.
   Qed.
- *)
   
 End BinomialLemmas.

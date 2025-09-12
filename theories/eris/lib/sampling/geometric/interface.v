@@ -1,5 +1,5 @@
 From clutch.eris Require Export eris.
-From clutch.eris.lib.sampling Require Import distr_impl utils. 
+From clutch.eris.lib.sampling Require Import abstract_planner distr_impl utils. 
 
 Section GeometricMath.
 
@@ -18,6 +18,25 @@ Section GeometricMath.
     { apply pow_le.
       apply Rle_0_le_minus.
       rewrite -Rcomplements.Rdiv_le_1; lra.
+    }
+  Qed.
+
+  Lemma geometric_prob_gt_0 (p q k : nat) : 0 < p < S q → (0 < geometric_prob p q k)%R.
+  Proof.
+    move=>p_bounds.
+    rewrite /geometric_prob.
+    assert (0 <= q)%R by apply pos_INR.
+    assert (0 < p)%R.
+    { apply (lt_INR 0).
+      lia.
+    } 
+    apply Rmult_lt_0_compat.
+    { apply Rdiv_lt_0_compat; lra. }
+    { apply pow_lt.
+      rewrite -Rcomplements.Rminus_lt_0 Rcomplements.Rlt_div_l; last lra.
+      rewrite Rmult_1_l -INR_1 -plus_INR.
+      apply lt_INR.
+      lia.
     }
   Qed.
 
@@ -161,5 +180,52 @@ Section GeometricInst.
       iExists l'.
       by iFrame.
   Defined.
-
+  
+  Lemma twp_negative_binomial_planner `{!erisGS Σ} :
+    ∀ (p q : nat) (α : loc) (e : expr) 
+      (L_size L_sum : nat) (Φ : val → iProp Σ)
+      (prefix : list nat) (suffix : list nat → list nat) ,
+      (0 < p < q + 1)%nat →
+      to_val e = None →
+      (∀ (junk : list nat),
+         length (suffix (prefix ++ junk)) <= L_size ∧ list_sum (suffix (prefix ++ junk)) ≤ L_sum) →
+      own_geometric_tape α p q prefix ∗
+      ((∃ (junk : list nat),
+           own_geometric_tape α p q (prefix ++ junk ++ suffix (prefix ++ junk)))
+       -∗ WP e [{ Φ }])
+      ⊢ WP e [{ Φ }].
+  Proof.
+    iIntros (p q α e L_size L_sum Φ prefix suffix
+               p_bounds e_not_val suf_bounds) "[Htape Hnext]".
+    wp_apply twp_rand_err_pos as (ε ε_pos) "Herr"; first assumption.
+    unshelve wp_apply (abstract_planner (geometric_prob p q) 1%R (own_geometric_tape α p q) _ prefix suffix L_size (seq 0 (S L_sum)) _ _ with "[$Herr $Htape Hnext]") as (k) "Htape".
+    { move=>k.
+      apply geometric_prob_pos.
+      lia.
+    } 
+    { move=>k _.
+      apply geometric_prob_gt_0.
+      lia.
+    }
+    { reflexivity. }
+    { apply is_seriesC_geometric_prob.
+      lia.
+    } 
+    { iIntros (ε0 D L0 l ε0_pos D_bounds D_sum) "(Htape & Herr & Hnext)".
+      wp_apply (twp_geometric_presample_adv_comp p q α with "[$Herr $Htape Hnext]") as (k) "[Herr Htape]" ; try lia; try done.
+      wp_apply ("Hnext" with "Herr Htape").
+    }
+    { apply suf_bounds. }
+     { move=>a j a_elem_suf.
+      apply elem_of_seq.
+      split; first lia.
+      pose proof (list_sum_le _ _ a_elem_suf).
+      pose proof (suf_bounds j) as [_ sum_bound].
+      lia.
+    }
+    { lra. }
+    wp_apply "Hnext".
+    iFrame.
+  Qed.
+  
 End GeometricInst.
