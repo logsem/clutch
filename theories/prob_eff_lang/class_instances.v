@@ -190,4 +190,14 @@ Section pure_exec.
   Global Instance pure_tick (z : Z) :
     PureExec True 1 (Tick #z) #().
   Proof. solve_pure_exec. Qed.
+
+  Global Instance pure_do v :
+    PureExec True 1 (Do (Val v)) (Eff v []).
+  Proof. solve_pure_exec. Qed.
+  Global Instance pure_trywith v K h r :
+    PureExec True 1 (TryWith (Eff v K) h r) (h v (Cont K)).
+  Proof. solve_pure_exec. Qed.
+  Global Instance pure_eff `{NeutralEctxi Ni} v N  :
+    PureExec True 1 (fill_item Ni (Eff v N)) (Eff v (N ++ [Ni])).
+  Proof. destruct Ni; solve_pure_exec. by apply TryWithCtx_non_neutral in H. Qed.
 End pure_exec.

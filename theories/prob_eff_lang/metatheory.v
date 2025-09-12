@@ -1,5 +1,6 @@
 From Coq Require Import Reals Psatz.
 From clutch.common Require Import locations.
+From clutch.prob Require Import distribution couplings couplings_app.
 From clutch.prob_eff_lang Require Export lang notation.
 
 Section subst_map.
@@ -109,6 +110,26 @@ Section subst_map.
   Qed.
 
 End subst_map.
+
+(** * rand(N) ~ rand(N) coupling *)
+Lemma Rcoupl_rand_rand N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' :
+  N = Z.to_nat z →
+  Rcoupl
+    (prim_step (rand #z) σ1)
+    (prim_step (rand #z) σ1')
+    (λ ρ2 ρ2', ∃ (n : fin (S N)),
+        ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ1')).
+Proof.
+  intros Hz.
+  (* rewrite head_prim_step_eq /=.
+     rewrite head_prim_step_eq /=.
+     rewrite /dmap -Hz.
+     eapply Rcoupl_dbind; [|by eapply Rcoupl_dunif].
+     intros n ? ->.
+     apply Rcoupl_dret.
+     eauto. *)
+Admitted.
+
 
 (** Some useful lemmas to reason about language properties  *)
 
