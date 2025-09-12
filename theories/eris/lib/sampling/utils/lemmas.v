@@ -209,3 +209,12 @@ Proof.
   move=>a.
   apply SeriesC_singleton.
 Qed.
+
+Lemma list_sum_le : ∀ (l : list nat) (n : nat), n ∈ l → n ≤ list_sum l.
+Proof.
+  elim=>[|h t IH] n elem /=; first by apply elem_of_nil in elem.
+  apply elem_of_cons in elem as [-> | elem]; first lia.
+  specialize (IH n elem).
+  lia.
+Qed.
+ 
