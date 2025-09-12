@@ -1,4 +1,4 @@
--Q theories eris-samplers
+-Q theories clutch
 -Q external/proba discprob
 
 -arg -w -arg -notation-overridden
