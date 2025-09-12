@@ -114,7 +114,7 @@ Lemma wp_allocN_seq (N : nat) (z : Z) E v s:
   (0 < N)%Z →
   {{{ True }}}
     AllocN (Val $ LitV $ LitInt $ z) (Val v) @ s; E
-                                                    {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
+  {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
 Proof.
   iIntros (-> Hn Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step'; [done|].
