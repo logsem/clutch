@@ -426,7 +426,8 @@ Proof.
     lra. }
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (?) "[? ?]"; [by simpl|].
-  set (HclutchGS := HeapG Σ _ _ _ γH γT _ O).
+  iMod (mono_nat_own_alloc O) as (γS) "[? ?]".
+  set (HclutchGS := HeapG Σ _ _ _ _ γH γT γS _ O).
   epose proof (twp_step_fupd_tgl O e σ ε' φ).
   iApply fupd_wand_r. iSplitL.
   - iApply H1. iFrame. by iApply Hwp.

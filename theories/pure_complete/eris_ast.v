@@ -112,10 +112,12 @@ Section Complete.
       apply (pure_state_step) in H0 as H'0; auto.
       subst σ2.
       iFrame.
+      iMod (state_interp_mono with "Hs").
       iMod "hclose".
       iApply fupd_mask_intro.
       { set_solver. }
       iIntros.
+      iFrame.
       iApply "IH"; iFrame.
       { 
         iPureIntro. eapply pure_step_inv. 

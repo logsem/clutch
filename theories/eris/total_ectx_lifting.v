@@ -43,6 +43,25 @@ Proof.
   iIntros (???) "!>". iApply "H"; auto.
 Qed.
 
+Lemma twp_lift_head_step' {E Φ} e1 s :
+  to_val e1 = None →
+  (∀ n σ1, state_interp (S n) σ1 ={E,∅}=∗
+    ⌜head_reducible e1 σ1⌝ ∗
+     ∀ e2 σ2, ⌜head_step e1 σ1 (e2, σ2) > 0⌝ ={∅,E}=∗
+      state_interp (S n) σ2 ∗ WP e2 @ s; E [{ Φ }])
+  ⊢ WP e1 @ s; E [{ Φ }].
+Proof.
+  iIntros (?) "H". iApply twp_lift_step_fupd; [done|]. iIntros (??) "Hσ".
+  iMod (fupd_mask_subseteq ∅) as "Hclose".
+  { set_solver+. }
+  iMod (state_interp_mono with "Hσ") as "Hσ".
+  iMod "Hclose".
+  iMod ("H" with "Hσ") as "[% H]"; iModIntro.
+  iSplit.
+  { iPureIntro. by apply head_prim_reducible. }
+  iIntros (???) "!>". iApply "H"; auto.
+Qed.
+
 Lemma twp_lift_atomic_head_step_fupd {E1 Φ} e1 s :
   to_val e1 = None →
   (∀ n σ1, state_interp n σ1 ={E1}=∗
@@ -71,6 +90,28 @@ Lemma twp_lift_atomic_head_step {E Φ} e1 s :
 Proof.
   iIntros (?) "H". iApply twp_lift_atomic_step; eauto.
   iIntros (? σ1) "Hσ1". iMod ("H" with "Hσ1") as "[% H]"; iModIntro.
+  iSplit.
+  { iPureIntro. by apply head_prim_reducible. }
+  iIntros (e2 σ2 Hstep).
+  iApply "H"; eauto.
+Qed.
+
+Lemma twp_lift_atomic_head_step' {E Φ} e1 s :
+  to_val e1 = None →
+  (∀ n σ1, state_interp (S n) σ1 ={E}=∗
+    ⌜head_reducible e1 σ1⌝ ∗
+     ∀ e2 σ2, ⌜head_step e1 σ1 (e2, σ2) > 0⌝ ={E}=∗
+      state_interp (S n) σ2 ∗
+      from_option Φ False (to_val e2))
+  ⊢ WP e1 @ s; E [{ Φ }].
+Proof.
+  iIntros (?) "H". iApply twp_lift_atomic_step; eauto.
+  iIntros (? σ1) "Hσ1". 
+  iMod (fupd_mask_subseteq ∅) as "Hclose".
+  { set_solver+. }
+  iMod (state_interp_mono with "Hσ1") as "Hσ1".
+  iMod "Hclose".
+  iMod ("H" with "Hσ1") as "[% H]"; iModIntro.
   iSplit.
   { iPureIntro. by apply head_prim_reducible. }
   iIntros (e2 σ2 Hstep).

@@ -198,8 +198,13 @@ Proof.
   iModIntro.
   iMod "Hclose'".
   iFrame.
+  iMod (fupd_mask_subseteq ∅) as "Hclose".
+  { set_solver+. }
+  iMod (state_interp_mono with "Hσ") as "Hσ".
+  iMod "Hclose".
   iModIntro.
   rewrite -tgl_wp_value.
+  iFrame "Hσ".
   iDestruct ("Hwp" with "[//]") as "$".
   iApply ec_supply_eq; [|done].
   simplify_eq.
@@ -254,6 +259,10 @@ Proof.
   iModIntro.
   iMod "Hclose'".
   iFrame.
+  iMod (fupd_mask_subseteq ∅) as "Hclose".
+  { set_solver+. }
+  iMod (state_interp_mono with "Hσ") as "$".
+  iMod "Hclose".
   iModIntro.
   rewrite -tgl_wp_value.
   iDestruct ("Hwp" with "[//]") as "$".
@@ -417,6 +426,10 @@ Proof.
   iModIntro.
   iMod "Hclose'".
   iFrame.
+  iMod (fupd_mask_subseteq ∅) as "Hclose".
+  { set_solver+. }
+  iMod (state_interp_mono with "Hσ") as "$".
+  iMod "Hclose".
   iModIntro.
   rewrite -tgl_wp_value.
   iDestruct ("Hwp" with "[//]") as "$".
@@ -468,6 +481,10 @@ Proof.
   iModIntro.
   iMod "Hclose'".
   iFrame.
+  iMod (fupd_mask_subseteq ∅) as "Hclose".
+  { set_solver+. }
+  iMod (state_interp_mono with "Hσ") as "$".
+  iMod "Hclose".
   iModIntro.
   rewrite -tgl_wp_value.
   iDestruct ("Hwp" with "[//]") as "$".
@@ -595,6 +612,10 @@ Proof.
   destruct (fin_function_bounded _ ε2) as [r Hε2].
   iApply twp_lift_step_fupd_glm; [done|].
   iIntros (k σ1 ε_now) "[Hσ Hε]".
+  iMod (fupd_mask_subseteq ∅) as "Hclose".
+  { set_solver+. }
+  iMod (state_interp_mono with "Hσ") as "Hσ".
+  iMod "Hclose".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iApply glm_adv_comp; simpl.
@@ -1267,7 +1288,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
   Proof.
     iIntros (He) "(H𝛼&Hwp)".
     iApply twp_lift_step_fupd_glm; [done|].
-    iIntros (k 𝜎 ε) "((Hheap&Htapes)&Hε)".
+    iIntros (k 𝜎 ε) "((Hheap&(Htapes&Hs))&Hε)".
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
@@ -1284,7 +1305,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     iSpecialize ("Hwp" $! n with "H𝛼").
     rewrite !tgl_wp_unfold /tgl_wp_pre /= He.
     iSpecialize ("Hwp" $! k 𝜎' ε).
-    iMod ("Hwp" with "[Hheap Htapes Hε]") as "Hwp".
+    iMod ("Hwp" with "[Hheap Htapes Hs Hε]") as "Hwp".
     { replace (nnreal_zero + ε)%NNR with ε by (apply nnreal_ext; simpl; lra).
       rewrite H𝜎'.
       iFrame.
@@ -1300,7 +1321,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
   Proof.
     iIntros (He) "(>H𝛼&Hwp)".
     iApply wp_lift_step_fupd_glm_max_step; [done|].
-    iIntros (k 𝜎 ε) "((Hheap&Htapes)&Hε)".
+    iIntros (k 𝜎 ε) "((Hheap&(Htapes&Hs))&Hε)".
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     destruct (decide (max_step < S k)) as [Hlt|Hnlt]; first auto.
@@ -1319,7 +1340,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     iSpecialize ("Hwp" $! n with "H𝛼").
     rewrite !pgl_wp_unfold /pgl_wp_pre /= He.
     iSpecialize ("Hwp" $! k 𝜎' ε).
-    iMod ("Hwp" with "[Hheap Htapes Hε]") as "[%Hcontr|Hwp]".
+    iMod ("Hwp" with "[Hheap Htapes Hs Hε]") as "[%Hcontr|Hwp]".
     { replace (nnreal_zero + ε)%NNR with ε by (apply nnreal_ext; simpl; lra).
       rewrite H𝜎'.
       iFrame.
@@ -1345,7 +1366,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
       transitivity (ε2 0%fin); auto.
     }
     iApply twp_lift_step_fupd_glm; [done|].
-    iIntros (k σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
+    iIntros (k σ1 ε_now) "[(Hheap&(Htapes&Hs)) Hε_supply]".
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
     iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
 
@@ -1503,8 +1524,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     rewrite Hσ_red.
     iSpecialize ("Hwp" with "[Hε Hα]"); first iFrame.
     iSpecialize ("Hwp" $! k σ2 _).
-    iSpecialize ("Hwp" with "[Hheap Htapes Hε_supply]").
-    { iSplitL "Hheap Htapes".
+    iSpecialize ("Hwp" with "[Hheap Htapes Hs Hε_supply]").
+    { iSplitL "Hheap Htapes Hs".
       - rewrite /tapes_auth.
         rewrite Heqσ2 in Hsample. inversion Hsample.
         simplify_eq. simpl. iFrame.
@@ -1532,7 +1553,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
       transitivity (ε2 0%fin); auto.
     }
     iApply wp_lift_step_fupd_glm_max_step; [done|].
-    iIntros (k σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
+    iIntros (k σ1 ε_now) "[(Hheap&(Htapes&Hs)) Hε_supply]".
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
     iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
     iMod (ec_supply_decrease with "Hε_supply Hε") as (ε1' ε_rem -> Hε1') "Hε_supply".
@@ -1680,8 +1701,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     rewrite /= Hσ_red /=.
     iSpecialize ("Hwp" with "[Hε Hα]"); first iFrame.
     iSpecialize ("Hwp" $! k σ2 _).
-    iSpecialize ("Hwp" with "[Hheap Htapes Hε_supply]").
-    { iSplitL "Hheap Htapes".
+    iSpecialize ("Hwp" with "[Hheap Htapes Hs Hε_supply]").
+    { iSplitL "Hheap Htapes Hs".
       - rewrite /tapes_auth.
         rewrite Heqσ2 in Hsample. inversion Hsample.
         simplify_eq. simpl. iFrame.

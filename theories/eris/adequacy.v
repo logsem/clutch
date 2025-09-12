@@ -227,7 +227,7 @@ Section adequacy.
         apply (pgl_mon_grading _ _ 0); [apply cond_nonneg | ].
         apply pgl_dret; auto.
       + rewrite pgl_wp_unfold /pgl_wp_pre /= Heq.
-        iMod ("Hwp" $! (S k) with "[$]") as "Hlift".
+        iMod ("Hwp" $! k with "[$]") as "Hlift".
         iDestruct "Hlift" as "[%|Hlift]".
         { exfalso. simpl in Hlt. lia. }
         iModIntro.
@@ -539,12 +539,14 @@ Class erisGpreS Σ := ErisGpreS {
   erisGpreS_iris  :: invGpreS Σ;
   erisGpreS_heap  :: ghost_mapG Σ loc val;
   erisGpreS_tapes :: ghost_mapG Σ loc tape;
+  erisGpreS_steps :: mono_natG Σ;
   erisGpreS_err   :: ecGpreS Σ;
 }.
 
 Definition erisΣ : gFunctors :=
   #[invΣ; ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
+    mono_natΣ;
     GFunctor (authR nonnegrealUR)].
 Global Instance subG_erisGPreS {Σ} : subG erisΣ Σ → erisGpreS Σ.
 Proof. solve_inG. Qed.
@@ -571,7 +573,8 @@ Proof.
     eapply Rle_trans; [eapply prob_le_1|done]. }
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (?) "[? ?]"; [done|].
-  set (HclutchGS := HeapG Σ _ _ _ γH γT _ (S n)).
+  iMod (mono_nat_own_alloc O) as (γS) "[? ?]".
+  set (HclutchGS := HeapG Σ _ _ _ _ γH γT γS _ (S n)).
   iApply (wp_refRcoupl_step_fupdN 0 ε' _ _ n).
   { simpl. lia. }
   iFrame.
@@ -637,7 +640,8 @@ Proof.
     - simpl. lra. }
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (?) "[? ?]"; [done|].
-  set (HclutchGS := HeapG Σ _ _ _ γH γT _ (S n)).
+  iMod (mono_nat_own_alloc O) as (γS) "[? ?]".
+  set (HclutchGS := HeapG Σ _ _ _ _ γH γT γS _ (S n)).
   iApply (wp_safety_fupdN 0 ε').
   { simpl. lia. }
   iFrame.

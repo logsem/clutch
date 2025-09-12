@@ -2,7 +2,7 @@
     applying the lifting lemmas. *)
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import auth excl.
-From iris.base_logic.lib Require Export ghost_map.
+From iris.base_logic.lib Require Export ghost_map mono_nat.
 From clutch.base_logic Require Export error_credits.
 From clutch.eris Require Export weakestpre ectx_lifting.
 From clutch.prob_lang Require Export class_instances.
@@ -14,9 +14,11 @@ Class erisGS Σ := HeapG {
   (* CMRA for the state *)
   erisGS_heap : ghost_mapG Σ loc val;
   erisGS_tapes : ghost_mapG Σ loc tape;
+  erisGS_steps : mono_natG Σ;
   (* ghost names for the state *)
   erisGS_heap_name : gname;
   erisGS_tapes_name : gname;
+  erisGS_steps_name : gname;
   (* CMRA and ghost name for the error *)
   erisGS_error :: ecGS Σ;
   erisGS_max_step : nat;
@@ -31,15 +33,19 @@ Definition heap_auth `{erisGS Σ} :=
   @ghost_map_auth _ _ _ _ _ erisGS_heap erisGS_heap_name.
 Definition tapes_auth `{erisGS Σ} :=
   @ghost_map_auth _ _ _ _ _ erisGS_tapes erisGS_tapes_name.
-
+Definition steps_auth `{erisGS Σ} n :=
+  @mono_nat_auth_own _ erisGS_steps erisGS_steps_name 1 n.
 
 Program Global Instance erisGS_erisWpGS `{!erisGS Σ} : erisWpGS prob_lang Σ := {
   erisWpGS_invGS := erisGS_invG;
-  state_interp n σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
+  state_interp n σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes) ∗ steps_auth n)%I;
   err_interp ε := (ec_supply ε);
   max_step := erisGS_max_step;
 }.
-Next Obligation. auto. Qed.
+Next Obligation.
+  iIntros (Σ ? σ ns) "($&$&Hsteps)".
+  iMod (mono_nat_own_update (S ns) with "[$]") as "($&?)"; auto.
+Qed.
 
 (** Heap *)
 Notation "l ↦{ dq } v" := (@ghost_map_elem _ _ _ _ _ erisGS_heap erisGS_heap_name l dq v)
@@ -91,8 +97,8 @@ Lemma wp_alloc E v s :
   {{{ True }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
 Proof.
   iIntros (Φ) "_ HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
-  iIntros (n σ1) "[Hh Ht] !#".
+  iApply wp_lift_atomic_head_step'; [done|].
+  iIntros (n σ1) "[Hh [Ht ?]] !#".
   solve_red.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
   iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[? Hl]".
@@ -111,7 +117,7 @@ Lemma wp_allocN_seq (N : nat) (z : Z) E v s:
                                                     {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
 Proof.
   iIntros (-> Hn Φ) "_ HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
+  iApply wp_lift_atomic_head_step'; [done|].
   iIntros (n σ1) "[Hh Ht] !#".
   iSplit.
   { iPureIntro.
@@ -163,7 +169,7 @@ Lemma wp_load E l dq v s :
   {{{ ▷ l ↦{dq} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET v; l ↦{dq} v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
+  iApply wp_lift_atomic_head_step'; [done|].
   iIntros (n σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   solve_red.
@@ -176,7 +182,7 @@ Lemma wp_store E l v' v s :
   {{{ RET LitV LitUnit; l ↦ v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
+  iApply wp_lift_atomic_head_step'; [done|].
   iIntros (n σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   solve_red.
@@ -190,7 +196,7 @@ Lemma wp_rand (N : nat) (z : Z) E s :
   {{{ True }}} rand #z @ s; E {{{ (n : fin (S N)), RET #n; True }}}.
 Proof.
   iIntros (-> Φ) "_ HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
+  iApply wp_lift_atomic_head_step'; [done|].
   iIntros (n σ1) "Hσ !#".
   solve_red.
   iIntros "!>" (e2 σ2 Hs).
@@ -206,8 +212,8 @@ Lemma wp_alloc_tape N z E s :
   {{{ True }}} alloc #z @ s; E {{{ α, RET #lbl:α; α ↪ (N; []) }}}.
 Proof.
   iIntros (-> Φ) "_ HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
-  iIntros (n σ1) "(Hh & Ht) !# /=".
+  iApply wp_lift_atomic_head_step'; [done|].
+  iIntros (n σ1) "(Hh & (Ht & Hs)) !# /=".
   solve_red.
   iIntros "!>" (e2 σ2 Hs); inv_head_step.
   iMod (ghost_map_insert (fresh_loc σ1.(tapes)) with "Ht") as "[$ Hl]".
@@ -221,8 +227,8 @@ Lemma wp_rand_tape N α n ns z E s :
   {{{ ▷ α ↪ (N; n :: ns) }}} rand(#lbl:α) #z @ s; E {{{ RET #(LitInt n); α ↪ (N; ns) }}}.
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
-  iIntros (n' σ1) "(Hh & Ht) !#".
+  iApply wp_lift_atomic_head_step'; [done|].
+  iIntros (n' σ1) "(Hh & (Ht & Hs)) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros "!>" (e2 σ2 Hs).
@@ -237,8 +243,8 @@ Lemma wp_rand_tape_empty N z α E s :
   {{{ ▷ α ↪ (N; []) }}} rand(#lbl:α) #z @ s; E {{{ (n : fin (S N)), RET #(LitInt n); α ↪ (N; []) }}}.
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
-  iIntros (k σ1) "(Hh & Ht) !#".
+  iApply wp_lift_atomic_head_step'; [done|].
+  iIntros (k σ1) "(Hh & (Ht & Hs)) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros "!>" (e2 σ2 Hs).
@@ -253,8 +259,8 @@ Lemma wp_rand_tape_wrong_bound N M z α E ns s :
   {{{ ▷ α ↪ (M; ns) }}} rand(#lbl:α) #z @ s; E {{{ (n : fin (S N)), RET #(LitInt n); α ↪ (M; ns) }}}.
 Proof.
   iIntros (-> ? Φ) ">Hl HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
-  iIntros (k σ1) "(Hh & Ht) !#".
+  iApply wp_lift_atomic_head_step'; [done|].
+  iIntros (k σ1) "(Hh & (Ht & Hs)) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros "!>" (e2 σ2 Hs).
