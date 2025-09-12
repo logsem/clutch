@@ -26,7 +26,7 @@ Section Complete.
       { iIntros. apply of_to_val in He as <-. by wp_pures. }
       iIntros "Herr".
       iApply twp_lift_step_fupd_glm; auto.
-      iIntros "%% [Hs Herra]". 
+      iIntros "%%% [Hs Herra]". 
       iDestruct (ec_supply_ec_inv with "Herra Herr") as %(ε1' & ε3 & Hε_now & Hε1').
       iApply fupd_mask_intro.
       { set_solver. }

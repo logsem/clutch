@@ -265,19 +265,19 @@ Section adequacy.
   Qed.
 
 
-  Theorem twp_step_fupd_tgl (e : expr) (σ : state) (ε : nonnegreal) φ  :
-    state_interp σ ∗ err_interp (ε) ∗ WP e [{ v, ⌜φ v⌝ }] ⊢
+  Theorem twp_step_fupd_tgl k (e : expr) (σ : state) (ε : nonnegreal) φ  :
+    state_interp k σ ∗ err_interp (ε) ∗ WP e [{ v, ⌜φ v⌝ }] ⊢
     |={⊤,∅}=> ⌜tgl (lim_exec (e, σ)) φ ε⌝.
   Proof.
     iIntros "(Hstate & Herr & Htwp)".
-    iRevert (σ ε) "Hstate Herr".
-    pose proof (tgl_wp_ind_simple ⊤ () (λ e, ∀ (a : state) (a0 : nonnegreal),
-                                  state_interp a -∗ err_interp a0 ={⊤,∅}=∗ ⌜tgl (lim_exec (e, a)) φ a0⌝)%I) as H. iApply H.
+    iRevert (k σ ε) "Hstate Herr".
+    pose proof (tgl_wp_ind_simple ⊤ () (λ e, ∀ (k: nat) (a : state) (a0 : nonnegreal),
+                                  state_interp k a -∗ err_interp a0 ={⊤,∅}=∗ ⌜tgl (lim_exec (e, a)) φ a0⌝)%I) as H. iApply H.
     2: { destruct twp_default. done. }
     clear H e.
     iModIntro.
     iIntros (e) "H".
-    iIntros (σ ε) "Hs Hec".
+    iIntros (k σ ε) "Hs Hec".
     rewrite /tgl_wp_pre.
     case_match.
     - iMod "H" as "%".
@@ -291,7 +291,7 @@ Section adequacy.
       { simpl. rewrite H. rewrite dret_1_1; last done. destruct ε. simpl.
         case_bool_decide; try lra. done. }
       simpl. rewrite H. by rewrite dret_mass.
-    - iSpecialize ("H" $! σ ε with "[$]").
+    - iSpecialize ("H" $! k σ ε with "[$]").
       iMod "H".
       iRevert (H).
       iApply (glm_strong_ind (λ e σ ε, ⌜language.to_val e = None⌝ ={∅}=∗  ⌜tgl (lim_exec (e, σ)) φ ε⌝)%I with "[][$H]").
@@ -426,8 +426,8 @@ Proof.
     lra. }
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (?) "[? ?]"; [by simpl|].
-  set (HclutchGS := HeapG Σ _ _ _ γH γT _).
-  epose proof (twp_step_fupd_tgl e σ ε' φ).
+  set (HclutchGS := HeapG Σ _ _ _ γH γT _ O).
+  epose proof (twp_step_fupd_tgl O e σ ε' φ).
   iApply fupd_wand_r. iSplitL.
   - iApply H1. iFrame. by iApply Hwp.
   - iIntros "%". done.

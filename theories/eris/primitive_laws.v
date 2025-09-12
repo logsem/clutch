@@ -19,6 +19,7 @@ Class erisGS Σ := HeapG {
   erisGS_tapes_name : gname;
   (* CMRA and ghost name for the error *)
   erisGS_error :: ecGS Σ;
+  erisGS_max_step : nat;
 }.
 
 
@@ -32,11 +33,13 @@ Definition tapes_auth `{erisGS Σ} :=
   @ghost_map_auth _ _ _ _ _ erisGS_tapes erisGS_tapes_name.
 
 
-Global Instance erisGS_erisWpGS `{!erisGS Σ} : erisWpGS prob_lang Σ := {
+Program Global Instance erisGS_erisWpGS `{!erisGS Σ} : erisWpGS prob_lang Σ := {
   erisWpGS_invGS := erisGS_invG;
-  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
+  state_interp n σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
   err_interp ε := (ec_supply ε);
+  max_step := erisGS_max_step;
 }.
+Next Obligation. auto. Qed.
 
 (** Heap *)
 Notation "l ↦{ dq } v" := (@ghost_map_elem _ _ _ _ _ erisGS_heap erisGS_heap_name l dq v)
@@ -89,7 +92,7 @@ Lemma wp_alloc E v s :
 Proof.
   iIntros (Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "[Hh Ht] !#".
+  iIntros (n σ1) "[Hh Ht] !#".
   solve_red.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
   iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[? Hl]".
@@ -109,7 +112,7 @@ Lemma wp_allocN_seq (N : nat) (z : Z) E v s:
 Proof.
   iIntros (-> Hn Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "[Hh Ht] !#".
+  iIntros (n σ1) "[Hh Ht] !#".
   iSplit.
   { iPureIntro.
     rewrite /head_reducible.
@@ -161,7 +164,7 @@ Lemma wp_load E l dq v s :
 Proof.
   iIntros (Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "[Hh Ht] !#".
+  iIntros (n σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   solve_red.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
@@ -174,7 +177,7 @@ Lemma wp_store E l v' v s :
 Proof.
   iIntros (Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "[Hh Ht] !#".
+  iIntros (n σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   solve_red.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
@@ -188,7 +191,7 @@ Lemma wp_rand (N : nat) (z : Z) E s :
 Proof.
   iIntros (-> Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "Hσ !#".
+  iIntros (n σ1) "Hσ !#".
   solve_red.
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
@@ -204,7 +207,7 @@ Lemma wp_alloc_tape N z E s :
 Proof.
   iIntros (-> Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "(Hh & Ht) !# /=".
+  iIntros (n σ1) "(Hh & Ht) !# /=".
   solve_red.
   iIntros "!>" (e2 σ2 Hs); inv_head_step.
   iMod (ghost_map_insert (fresh_loc σ1.(tapes)) with "Ht") as "[$ Hl]".
@@ -219,7 +222,7 @@ Lemma wp_rand_tape N α n ns z E s :
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "(Hh & Ht) !#".
+  iIntros (n' σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros "!>" (e2 σ2 Hs).
@@ -235,7 +238,7 @@ Lemma wp_rand_tape_empty N z α E s :
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "(Hh & Ht) !#".
+  iIntros (k σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros "!>" (e2 σ2 Hs).
@@ -251,7 +254,7 @@ Lemma wp_rand_tape_wrong_bound N M z α E ns s :
 Proof.
   iIntros (-> ? Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "(Hh & Ht) !#".
+  iIntros (k σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros "!>" (e2 σ2 Hs).

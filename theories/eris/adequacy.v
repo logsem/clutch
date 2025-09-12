@@ -195,11 +195,12 @@ Section adequacy.
       by iApply "IH".
   Qed.
 
-  Theorem wp_refRcoupl_step_fupdN (ε : nonnegreal) (e : expr) (σ : state) n φ :
-    state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
+  Theorem wp_refRcoupl_step_fupdN k (ε : nonnegreal) (e : expr) (σ : state) n φ :
+    (k + n < max_step)%nat →
+    state_interp k σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜pgl (exec n (e, σ)) φ ε⌝.
   Proof.
-    iInduction n as [|n] "IH" forall (e σ ε); iIntros "((Hσh & Hσt) & Hε & Hwp)".
+    iInduction n as [|n] "IH" forall (k e σ ε); iIntros (Hlt) "(Hσ & Hε & Hwp)".
     - rewrite /exec /=.
       destruct (to_val e) eqn:Heq.
       + apply of_to_val in Heq as <-.
@@ -226,7 +227,9 @@ Section adequacy.
         apply (pgl_mon_grading _ _ 0); [apply cond_nonneg | ].
         apply pgl_dret; auto.
       + rewrite pgl_wp_unfold /pgl_wp_pre /= Heq.
-        iMod ("Hwp" with "[$]") as "Hlift".
+        iMod ("Hwp" $! (S k) with "[$]") as "Hlift".
+        iDestruct "Hlift" as "[%|Hlift]".
+        { exfalso. simpl in Hlt. lia. }
         iModIntro.
         iPoseProof
           (glm_mono _ (λ '(e2, σ2) ε', |={∅}▷=>^(S n)
@@ -235,7 +238,8 @@ Section adequacy.
         { apply Rle_refl. }
         { iIntros ([] ?) "H !> !>".
           iMod "H" as "(Hstate & Herr_auth & Hwp)".
-          iMod ("IH" with "[$]") as "H".
+          iMod ("IH" $! (S k) with "[] [$]") as "H".
+          { iPureIntro. simpl in Hlt. lia.  }
           iModIntro. done. }
         assert ((prim_step e σ) = (step (e, σ))) as h => //.
         rewrite h. clear h.
@@ -448,11 +452,12 @@ Section adequacy.
       by iApply "IH".
   Qed.
 
-  Theorem wp_safety_fupdN (ε : nonnegreal) (e : expr) (σ : state) n φ  :
-    state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
+  Theorem wp_safety_fupdN k (ε : nonnegreal) (e : expr) (σ : state) n φ  :
+    (k + n < max_step)%nat →
+    state_interp k σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜SeriesC (pexec n (e, σ)) >= 1 - ε⌝.
   Proof.
-    iInduction n as [|n] "IH" forall (e σ ε); iIntros "((Hσh & Hσt) & Hε & Hwp)".
+    iInduction n as [|n] "IH" forall (k e σ ε); iIntros (Hlt) "(Hσ & Hε & Hwp)".
     - rewrite /=.
       iApply fupd_mask_intro; [set_solver|]; iIntros.
       iPureIntro.
@@ -487,7 +492,8 @@ Section adequacy.
                    etrans; last eapply (SeriesC_singleton' (of_val v, σ)).
                    apply SeriesC_ext.
                    intros. case_bool_decide; subst; simpl.
-                   --- rewrite IHn. rewrite step_or_final_is_final; first rewrite dret_1_1; [lra|done|].
+                   --- rewrite IHn; last by lia.
+                       rewrite step_or_final_is_final; first rewrite dret_1_1; [lra|done|].
                        rewrite /is_final. simpl. done.
                    --- simpl. rewrite step_or_final_is_final; last by rewrite /is_final.
                        rewrite dret_0; last done. lra.
@@ -503,13 +509,15 @@ Section adequacy.
              ++ intros. simpl. rewrite /dbind/dbind_pmf{1}/pmf/=.
                 apply SeriesC_0.
                 intros. destruct (decide (x = (of_val v, σ))).
-                ** subst. rewrite IHn; try done. lra.
+                ** subst. rewrite IHn; try done; try lia. lra.
                 ** rewrite step_or_final_is_final; last by rewrite /is_final.
                    rewrite dret_0; last done.
                    lra.
         * rewrite SeriesC_singleton. lra.
       + rewrite pgl_wp_unfold /pgl_wp_pre /= Heq.
-        iMod ("Hwp" with "[$]") as "Hlift".
+        iMod ("Hwp" $! k with "[$]") as "Hlift".
+        iDestruct "Hlift" as "[%Hlt'|Hlift]".
+        { exfalso. simpl in Hlt. lia. }
         iModIntro.
         iPoseProof
           (glm_mono _ (λ '(e2, σ2) ε', |={∅}▷=>^(S n)
@@ -518,7 +526,8 @@ Section adequacy.
         { apply Rle_refl. }
         { iIntros ([] ?) "H !> !>".
           iMod "H" as "(Hstate & Herr_auth & Hwp)".
-          iMod ("IH" with "[$]") as "H".
+          iMod ("IH" $! (S k)%nat with "[] [$]") as "H".
+          { iPureIntro. simpl in Hlt; lia. }
           iModIntro. done. }
         by iApply (glm_erasure_safety with "H").
   Qed.
@@ -562,8 +571,9 @@ Proof.
     eapply Rle_trans; [eapply prob_le_1|done]. }
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (?) "[? ?]"; [done|].
-  set (HclutchGS := HeapG Σ _ _ _ γH γT _).
-  iApply (wp_refRcoupl_step_fupdN ε').
+  set (HclutchGS := HeapG Σ _ _ _ γH γT _ (S n)).
+  iApply (wp_refRcoupl_step_fupdN 0 ε' _ _ n).
+  { simpl. lia. }
   iFrame.
   iApply Hwp.
   done.
@@ -627,8 +637,10 @@ Proof.
     - simpl. lra. }
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (?) "[? ?]"; [done|].
-  set (HclutchGS := HeapG Σ _ _ _ γH γT _).
-  iApply (wp_safety_fupdN ε'). iFrame.
+  set (HclutchGS := HeapG Σ _ _ _ γH γT _ (S n)).
+  iApply (wp_safety_fupdN 0 ε').
+  { simpl. lia. }
+  iFrame.
   iApply Hwp. done.
 Qed.
 
