@@ -60,8 +60,16 @@ Section R_approx.
     specialize (His _ (locally_ball v {| pos := ε; cond_pos := Hpos |})).
     destruct His as (δ&His).
     assert (∃ N, ∀ k, N ≤ k → 1 / 2 ^ k < δ) as (N&HN).
-    { (* There are already lemmas about geom sequence, I think this follows from those. Search "geom". *)
-      admit. }
+    { specialize (cv_pow_half 1). rewrite /Un_cv => Hin.
+      edestruct (Hin δ) as (N&Hk).
+      { destruct δ; auto. }
+      exists N. intros k Hle.
+      assert (Hge: k ≥ N) by lia.
+      specialize (Hk _ Hge).
+      rewrite /Rdist in Hk.
+      rewrite Rminus_0_r in Hk.
+      apply Rabs_def2; auto.
+    }
     exists N. intros k Hle.
     specialize (HN k Hle).
     set (y := (SF_seq.SF_seq_f2 (λ x y, x) (SF_seq.unif_part 0 1 (2 ^ k - 1)))).
@@ -88,6 +96,6 @@ Section R_approx.
       right. f_equal.
       rewrite discrete_approx_equiv.
       rewrite /y.  rewrite Rmult_1_l //.
-  Admitted.
+  Qed.
 
 End R_approx.
