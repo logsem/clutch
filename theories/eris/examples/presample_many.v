@@ -53,7 +53,7 @@ Section presample_many.
       apply ex_seriesC_finite.
   Qed.
 
-  Lemma twp_presample_many_adv_comp (N : nat) z E e α Φ ns (k : nat) (ε1 : R) (ε2 : { ls : list (fin (S N)) | length ls = k} -> R) :
+  Lemma wp_presample_many_adv_comp (N : nat) z E e α Φ ns (k : nat) (ε1 : R) (ε2 : { ls : list (fin (S N)) | length ls = k} -> R) :
     TCEq N (Z.to_nat z) →
     to_val e = None →
     (forall n, (0 <= ε2 n)%R) ->
@@ -61,8 +61,8 @@ Section presample_many.
     α ↪ (N; ns) ∗
       ↯ ε1 ∗
       (∀ (ns' : {ls : list (fin (S N)) | length ls = k }),
-             ↯ (ε2 ns') ∗ α ↪ (N; ns ++ `ns') -∗ WP e @ E [{ Φ }])
-      ⊢ WP e @ E [{ Φ }].
+             ↯ (ε2 ns') ∗ α ↪ (N; ns ++ `ns') -∗ WP e @ E {{ Φ }})
+      ⊢ WP e @ E {{ Φ }}.
   Proof.
     revert ns ε1 ε2.
     induction k.
@@ -108,7 +108,7 @@ Section presample_many.
              apply lt_0_INR. lia.
       }
       rewrite -Hexp_pres Hexp_pres'.
-      wp_apply (twp_presample_adv_comp _ _ _ _ _ _ _ _ ε2' with "[$Hα $Hε1 Hwp]"); auto.
+      wp_apply (wp_presample_adv_comp _ _ _ _ _ _ _ _ ε2' with "[$Hα $Hε1 Hwp]"); auto.
       {
         intros ?. rewrite /ε2'.
         apply SeriesC_ge_0'.
