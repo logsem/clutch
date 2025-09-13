@@ -45,7 +45,15 @@ Section presample_many.
       assert (Hexp_pres':
                SeriesC (λ ns' : list_fixed_len (fin (S N)) (S k), (1 / S N ^ S k * ε2 ns')%R) =
                SeriesC (λ n : fin (S N), 1 / S N * ε2' n)).
-      { admit. }
+      {
+        rewrite /ε2'.
+        setoid_rewrite <-SeriesC_scal_l.
+        set (h := λ '(n, ns'), 1 / S N * (1 / S N ^ k * ε2 (cons_length n ns'))).
+        rewrite -(fubini_pos_seriesC_prod_lr h).
+        * (* TODO: need lemma about rearranging along a bijection *) admit.
+        * admit.
+        * admit. (* TODO: generalize ex_seriesC_finite so that it applies even when we have a different countable instance *)
+      }
       rewrite -Hexp_pres Hexp_pres'.
       wp_apply (twp_presample_adv_comp _ _ _ _ _ _ _ _ ε2' with "[$Hα $Hε1 Hwp]"); auto.
       {
