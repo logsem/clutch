@@ -2012,12 +2012,21 @@ Section bij.
       * eapply ex_seriesC_bij; eauto.
   Qed.
 
-  Lemma ex_SeriesC_Countable_instance_irrel `{HC1: Countable A, HC2: Countable A} (f : A -> R) :
+  Lemma ex_seriesC_Countable_instance_irrel `{HC1: Countable A, HC2: Countable A} (f : A -> R) :
     (∀ a : A, 0 <= f a) →
     @ex_seriesC _ _ HC1 f →
     @ex_seriesC _ _ HC2 f.
   Proof.
     intros ? Hex. eapply (@ex_seriesC_bij _ _ HC1 _ _ HC2 (λ a, a) f) in Hex; auto.
+    apply bij_id.
+  Qed.
+
+  Lemma SeriesC_Countable_instance_irrel `{HC1: Countable A, HC2: Countable A} (f : A -> R) :
+    (∀ a : A, 0 <= f a) →
+    @ex_seriesC _ _ HC1 f →
+    @SeriesC _ _ HC1 f = @SeriesC _ _ HC2 f.
+  Proof.
+    intros ? Hex; eapply (@SeriesC_eq_bij _ _ HC1 _ _ HC2 (λ a, a) f) in Hex; auto.
     apply bij_id.
   Qed.
 
