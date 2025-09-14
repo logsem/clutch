@@ -14,6 +14,39 @@ Section infinite_tape.
   Definition infinite_tape α (f: nat → (fin 2)) : iProp Σ :=
     ∃ k ns, α ↪ (1; ns) ∗ steps_left k ∗ ⌜ k < length ns ⌝ ∗ ⌜ ∀ i b, ns !! i = Some b → f i = b ⌝.
 
+  Lemma wp_rand_infinite_tape α f E s :
+    {{{ infinite_tape α f }}}
+      rand(#lbl:α) #1 @ s; E
+    {{{ RET #(LitInt (fin_to_nat (f O))); infinite_tape α (λ n, f (S n)) }}}.
+  Proof.
+    iIntros (Φ) "Htape HΦ".
+    iDestruct "Htape" as (k ns) "(Hα&Hsteps&%Hlt&%Hlookup)".
+    destruct ns as [| n ns].
+    {
+      (* This is the case that we would not be able to handle without
+         receipts, i.e. the case when the tape is empty. In that case
+         the illusion that we are working with an infinite tape would
+         be over. But that cannot happen, because the receipts
+         ensure that we stop having to execute steps before the tape
+         runs out *)
+      simpl in Hlt. lia.
+    }
+    destruct k as [| k].
+    { iApply steps_left_0; auto. }
+
+    iApply (steps_left_decr with "[$] [-]"); first auto.
+    wp_apply (wp_rand_tape with "[$]").
+    rewrite (Hlookup 0 n) //=.
+    iIntros "Htape Hsteps".
+    iApply "HΦ".
+    iExists k, ns.
+    iFrame.
+    iPureIntro; split_and!.
+    * simpl in Hlt. lia.
+    * intros i b Hlookup'.
+      apply Hlookup. rewrite lookup_cons //.
+  Qed.
+
 End infinite_tape.
 
 
@@ -47,7 +80,7 @@ Section R_approx.
     0 <= discrete_approx k f.
   Proof.
     rewrite /discrete_approx.
-    intros Hle. 
+    intros Hle.
     apply SeriesC_ge_0' => ?.
     apply Rmult_le_pos; auto.
     apply Rcomplements.Rdiv_le_0_compat; first by lra.
@@ -139,7 +172,7 @@ Section unif_tape.
     wp_apply (wp_rand_err_incr); auto.
     iFrame "Hε".
     iIntros (ε1' Hmore) "Hε".
-    set (εdiff := ε1' - ε1). 
+    set (εdiff := ε1' - ε1).
     edestruct (RInt_discrete_approx ε2 εdiff) as (N1&HN1).
     { rewrite /εdiff; nra. }
     { eexists; eauto. }
@@ -154,7 +187,7 @@ Section unif_tape.
     {
       iApply (ec_weaken with "Hε").
       split.
-      - apply Rle_0_discrete_approx; auto. 
+      - apply Rle_0_discrete_approx; auto.
       - destruct (decide (discrete_approx N ε2 <= ε1)) as [Hle'|Hnle'].
         * nra.
         * rewrite Rabs_left in HN1; last by nra.
@@ -163,7 +196,7 @@ Section unif_tape.
     wp_apply (wp_presample_many_adv_comp 1 1 _ _ _ _ [] N _
              (λ ls, ε2 (list_bin_to_R (proj1_sig ls)))); eauto.
     iFrame.
-    iIntros (ns') "(Hε2&Hα)". 
+    iIntros (ns') "(Hε2&Hα)".
     iApply "Hwp".
     iFrame.
     iExists (list_bin_to_seq_bin (proj1_sig ns')).
