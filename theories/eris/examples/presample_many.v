@@ -53,6 +53,7 @@ Section presample_many.
       apply ex_seriesC_finite.
   Qed.
 
+
   Lemma wp_presample_many_adv_comp (N : nat) z E e α Φ ns (k : nat) (ε1 : R) (ε2 : { ls : list (fin (S N)) | length ls = k} -> R) :
     TCEq N (Z.to_nat z) →
     to_val e = None →
