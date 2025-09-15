@@ -14,6 +14,41 @@ Section infinite_tape.
   Definition infinite_tape α (f: nat → (fin 2)) : iProp Σ :=
     ∃ k ns, α ↪ (1; ns) ∗ steps_left k ∗ ⌜ k < length ns ⌝ ∗ ⌜ ∀ i b, ns !! i = Some b → f i = b ⌝.
 
+  Definition cons_bin_seq (z : fin 2) (f : nat → (fin 2)) : nat → (fin 2) :=
+    λ n,
+      match n with
+      | O => z
+      | S n' => f n'
+      end.
+
+  Fixpoint append_bin_seq (zs : list (fin 2)) (f : nat → (fin 2)) : nat → (fin 2) :=
+    λ n, match zs with
+         | nil => f n
+         | z :: zs' =>
+             match n with
+             | O => z
+             | S n' => append_bin_seq zs' f n'
+             end
+         end.
+
+
+  Lemma cons_bin_seq_inv z1 f1 z2 f2 :
+    cons_bin_seq z1 f1 = cons_bin_seq z2 f2 →
+    z1 = z2 ∧ f1 = f2.
+  Proof.
+    intros Heq.
+    split.
+    - cut (cons_bin_seq z1 f1 O = cons_bin_seq z2 f2 O); first by done.
+      rewrite Heq //=.
+    - apply functional_extensionality => x.
+      cut (cons_bin_seq z1 f1 (S x) = cons_bin_seq z2 f2 (S x)); first by done.
+      rewrite Heq //=.
+  Qed.
+
+  Lemma append_bin_seq_cons z1 zs f :
+    append_bin_seq (z1 :: zs) f = cons_bin_seq z1 (append_bin_seq zs f).
+  Proof. rewrite //=. Qed.
+
   Lemma wp_rand_infinite_tape α f E s :
     {{{ infinite_tape α f }}}
       rand(#lbl:α) #1 @ s; E
@@ -45,6 +80,17 @@ Section infinite_tape.
     * simpl in Hlt. lia.
     * intros i b Hlookup'.
       apply Hlookup. rewrite lookup_cons //.
+  Qed.
+
+  Lemma wp_rand_infinite_tape_cons α z f E s :
+    {{{ infinite_tape α (cons_bin_seq z f) }}}
+      rand(#lbl:α) #1 @ s; E
+    {{{ RET #(LitInt z); infinite_tape α f }}}.
+  Proof.
+    iIntros (Φ) "Htape HΦ".
+    wp_apply (wp_rand_infinite_tape with "[$]").
+    iIntros "Htape".
+    iApply "HΦ". iApply "Htape".
   Qed.
 
 End infinite_tape.
