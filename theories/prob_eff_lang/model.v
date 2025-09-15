@@ -803,15 +803,15 @@ Module tactics.
       | InjL ?e               => add_item InjLCtx K e
       | InjR ?e               => add_item InjRCtx K e
       | Case ?e0 ?e1 ?e2      => add_item (CaseCtx e1 e2) K e0
-      | AllocN ?e (Val ?v)    => add_item (AllocNLCtx v :: K) e
-      | AllocN ?e1 ?e2        => add_item (AllocNRCtx e1 :: K) e2
+      | AllocN ?e (Val ?v)    => add_item (AllocNLCtx v) K e
+      | AllocN ?e1 ?e2        => add_item (AllocNRCtx e1) K e2
       | Load ?e               => add_item LoadCtx K e
       | Store ?e (Val ?v)     => add_item (StoreLCtx v) K e
       | Store ?e1 ?e2         => add_item (StoreRCtx e1) K e2
-      | AllocTape ?e          => add_item (AllocTapeCtx :: K) e
-      | Rand ?e (Val ?v)      => add_item (RandLCtx v :: K) e
-      | Rand ?e1 ?e2          => add_item (RandRCtx e1 :: K) e2
-      | Tick ?e               => add_item (TickCtx :: K) e
+      | AllocTape ?e          => add_item (AllocTapeCtx) K e
+      | Rand ?e (Val ?v)      => add_item (RandLCtx v) K e
+      | Rand ?e1 ?e2          => add_item (RandRCtx e1) K e2
+      | Tick ?e               => add_item (TickCtx) K e
 
       | Val _                 => tac K e
       | Eff _ _               => tac K e
@@ -819,8 +819,8 @@ Module tactics.
       | Rec _ _ _             => tac K e
       | _                     => tac K e
     end
-    with add_item Ki K e := go (K ++ [Ki]) e
-    in go [] e.
+    with add_item Ki K e := go (Ki :: K) e
+    in go ([] : ectx) e.
 
   (* Apply a [pure_prim_step] lemma according to the current goal. *)
   Ltac apply_pure_prim_step e :=
@@ -843,74 +843,66 @@ Module tactics.
     | Case (Val (InjRV _)) _ _        => apply pure_prim_step_case_InjR
     end.
 
-  (* (* It tries either to solve a goal of the form [tc pure_prim_step e e'] by
-        finding an one-step reduction from [e] to [e'] or to simplify it by
-        finding an one-step reduction from [e] to some expression.
-      *)
-     Ltac apply_tc_pure_prim_step e :=
-       let reverse_ctx K :=
-         let rec go acc K :=
-           match K with
-           | []       => acc
-           | ?Ki ++ ?K => go (Ki ++ acc) K
-           end
-         in
-         go [] K
-       in
-     
-       let tac K e :=
-         match e with
-         | Eff _ _ =>
-            match K with
-            | ?Ki ++ ?K =>
-               let K := reverse_ctx K in
-               apply (pure_prim_step_fill K);
-               apply (pure_prim_step_eff Ki)
-            | [] => idtac
-            end
-         | _ =>
-            let K := reverse_ctx K in
-            apply (pure_prim_step_fill K);
-            apply_pure_prim_step e
+  (* It tries either to solve a goal of the form [tc pure_prim_step e e'] by
+     finding an one-step reduction from [e] to [e'] or to simplify it by
+     finding an one-step reduction from [e] to some expression.
+   *)
+  Ltac apply_tc_pure_prim_step e :=
+    let tac K e :=
+      match e with
+      | Eff _ _ =>
+         match K with
+         | ?Ki :: ?K =>
+             match Ki with
+             | TryWithCtx _ _ =>  apply pure_prim_step_try_with_eff
+             | _ =>
+                 apply (pure_prim_step_fill K);
+                 apply (pure_prim_step_eff Ki)
+             end
+         | _ => idtac
          end
-       in
-     
-       let try_tc_once :=
-         apply tc_once; reshape_expr e tac
-       in
-     
-       let try_tc_l := (
-         let x := fresh "x" in
-         evar (x : expr);
-         let e' := eval unfold x in x in
-         clear x;
-         apply (tc_l _ _ e'); [reshape_expr e tac|];
-         simpl
-       )
-       in
-     
-       try_tc_once || try_tc_l.
-     
-     Ltac solve_pure_steps :=
-       repeat (
-         match goal with
-         | [ |- tc pure_prim_step ?e _ ] => apply_tc_pure_prim_step e
-         end
-       ).
-     
-     Goal ∀ y N (h r : val),
-       tc pure_prim_step
-         (TryWith (Eff y N) (λ: "v" "k", h "v" (λ: "w", deep_try_with (λ: <>, "k" "w") h r)) r)
-         (h y (λ: "w", DeepTryWith ((Cont N ) "w") h  r )%V).
-     Proof. intros y N h r. solve_pure_steps. Qed.
-     
-     Goal ∀ e (h r : val),
-       tc pure_prim_step
-         (deep_try_with (λ: <>, e)%E h r)
-         (TryWith ((λ: <>, e)%V #())
-                  (λ: "v" "k", h  "v" (λ: "w", DeepTryWith ("k" "w")%E h  r)) r).
-     Proof. intros e h r. unfold deep_try_with. by solve_pure_steps. Qed. 
-       *)
+      | _ => 
+         apply (pure_prim_step_fill K);
+         apply_pure_prim_step e
+      end
+    in
+  
+    let try_tc_once :=
+      apply tc_once; reshape_expr e tac; fail
+    in
+  
+    let try_tc_l := (
+      let x := fresh "x" in
+      evar (x : expr);
+      let e' := eval unfold x in x in
+      clear x;
+      apply (tc_l _ _ e');  [reshape_expr e tac|];
+      simpl
+    )
+    in
+  
+    try_tc_once || try_tc_l.
+  
+  Ltac solve_pure_steps :=
+    repeat (
+      match goal with
+      | [ |- tc pure_prim_step ?e _ ] => apply_tc_pure_prim_step e
+      end
+      ).
+
+
+  Goal ∀ y N (h r : val),
+    tc pure_prim_step
+      (TryWith (Eff y N) (λ: "v" "k", h "v" (λ: "w", deep_try_with (λ: <>, "k" "w") h r)) r)
+      (h y (λ: "w", DeepTryWith ((Cont N ) "w") h  r )%V).
+  Proof. intros y N h r. solve_pure_steps. Qed.
+  
+  Goal ∀ e (h r : val),
+    tc pure_prim_step
+      (deep_try_with (λ: <>, e)%E h r)
+      (TryWith ((λ: <>, e)%V #())
+               (λ: "v" "k", h  "v" (λ: "w", DeepTryWith ("k" "w")%E h  r)) r).
+  Proof. intros e h r. unfold deep_try_with. by solve_pure_steps. Qed. 
  End tactics.
 
 (** * Compatibility Lemmas. *)
@@ -1055,11 +1047,11 @@ Section compatibility.
     iDestruct "HA" as (l l') "(->&->&#Hinv)".
     set E := logN.@"ref".@(l,l').
     iApply (ewp_atomic _ (⊤ ∖ ↑E)).
-    iInv E as (w w') "[>Hl [>Hl' #Hw]]" "Hclose"; simpl.
+    iInv E as (w w') "[>Hl [>Hl' #Hw]]" "_"; simpl.
     iApply (ewp_load with "Hl"). iModIntro. iNext.
-    (* iIntros "Hl".
-       iApply spec_update_ewp. 
-       iMod (step_load _ K' with "[$]") as "H".
+    iIntros "Hl".
+    iApply spec_update_ewp.
+    (* iMod (step_load _ K' with "[$]") as "H".
        
        iMod ("Hclose" with "[Hl Hl']").
        { by iExists v, v'; iFrame. }
@@ -1107,18 +1099,18 @@ Section compatibility.
     set K' := ([AppRCtx bind'; AppLCtx w']).
     iApply (refines_bind K K' with "He1").
     iSplit.
-  (*   { iIntros (v v') "#HA //=".
-         iApply (refines_pure_r' _ _ (w' v')%E);[
-         unfold bind'; by tactics.solve_pure_steps|].
-         iApply (refines_pure_l' _ (w v)%E);[
-         unfold bind'; by tactics.solve_pure_steps|].
-         iNext. simpl. by iApply "HB".
-       }
-       { iIntros (s s') "HE //=".
-         by iApply (compatible with "[] [HE]"); [|iApply "HE"].
-       }
-     Qed. *)
-  Admitted.
+    { iIntros (v v') "#HA //=".
+      iApply (refines_pure_r' _ _ (w' v')%E);[
+      unfold bind'; by tactics.solve_pure_steps|].
+      iApply (refines_pure_l' _ (w v)%E);[
+      unfold bind'; by tactics.solve_pure_steps|].
+      iNext. simpl. by iApply "HB".
+    }
+    { iIntros (s s') "HE //=".
+      by iApply (compatible with "[] [HE]"); [|iApply "HE"].
+    }
+  Qed.
+
     
   (* Return -- corresponding to the rule [Return_typed]. *)
   Lemma refines_return' e₁ e₁' E A :
@@ -1260,21 +1252,21 @@ Section compatibility.
     iIntros (hv hv') "#Hhv". simpl.
     iLöb as "IH" forall (e e').
     iApply (refines_pure_l' _ (TryWith e _ _)).
-  (*   { unfold deep_try_with. by tactics.solve_pure_steps. }
-       iApply (refines_pure_r' _ _ (TryWith e' _ _ )).
-       { unfold deep_try_with. by tactics.solve_pure_steps. }
-       iNext.
-       iApply (refines_try_with with "He"); iSplit; [|by iApply refines_ret].
-       iApply refines_rec.
-       iIntros "!#" (v v' y y') "_ #Hy". simpl. clear v v'.
-       iApply refines_rec.
-       iIntros "!#" (v v' k k') "_ #Hk". simpl. clear v v'.
-       iApply refines_app; [by iApply "Hhv"|].
-       iApply refines_rec.
-       iIntros "!#" (v v' w w') "_ #Hw". simpl. clear v v'.
-       iApply "IH". by iApply "Hk".
-     Qed. *)
-  Admitted.
+    { unfold deep_try_with. by tactics.solve_pure_steps. }
+    iApply (refines_pure_r' _ _ (TryWith e' _ _ )).
+    { unfold deep_try_with. by tactics.solve_pure_steps. }
+    iNext.
+    iApply (refines_try_with with "He"); iSplit; [|by iApply refines_ret].
+    iApply refines_rec.
+    iIntros "!#" (v v' y y') "_ #Hy". simpl. clear v v'.
+    iApply refines_rec.
+    iIntros "!#" (v v' k k') "_ #Hk". simpl. clear v v'.
+    iApply refines_app; [by iApply "Hhv"|].
+    iApply refines_rec.
+    iIntros "!#" (v v' w w') "_ #Hw". simpl. clear v v'.
+    iApply "IH". by iApply "Hk".
+  Qed.
+
     
 End compatibility.
 
@@ -1290,34 +1282,36 @@ Section eff_refines.
     iLöb as "IH" forall (s s').
     iDestruct "Hee'" as (y y' N N') "(% & % & -> & -> & #HA1 & #HN)".
     iApply (refines_pure_r' _ _ (Eff y' _)).
-  (*   { unfold bind'. by tactics.solve_pure_steps. }
-       iApply (refines_pure_l' _ (Eff y _)).
-       { unfold bind'. by tactics.solve_pure_steps. }
-       iNext.
-       iApply refines_eff.
-       set K  := (ConsCtx (AppLCtx v ) (ConsCtx (AppRCtx bind') N )).
-       set K' := (ConsCtx (AppLCtx v') (ConsCtx (AppRCtx bind') N')).
-       iApply (eff_refines_intro _ _ _ _ _ K K' with "HA1");[done|done|].
-       iModIntro. iIntros (w w') "HA2".
-       unfold K, K'. iSpecialize ("HN" with "HA2"). iNext.
-       clear K K'.
-       set K  := (ConsCtx (AppLCtx v ) (ConsCtx (AppRCtx bind') EmptyCtx)).
-       set K' := (ConsCtx (AppLCtx v') (ConsCtx (AppRCtx bind') EmptyCtx)).
-       iApply (refines_bind K K' with "HN"); iSplit.
-       { clear w w'.
-         iIntros (w w') "#HA //=".
-         iApply (refines_pure_r' _ _ (v' w')%E);[
-         unfold bind'; by tactics.solve_pure_steps|].
-         iApply (refines_pure_l' _ (v w)%E);[
-         unfold bind'; by tactics.solve_pure_steps|].
-         iNext. simpl. by iApply "Hvv'".
-       }
-       { iIntros (s s') "Hs".
-         rewrite (eff_refines_unfold _ _ A).
-         by iApply "IH".
-       }
-     Qed. *)
-  Admitted.
+    { unfold bind'. by tactics.solve_pure_steps. }
+    iApply (refines_pure_l' _ (Eff y _)).
+    { unfold bind'. by tactics.solve_pure_steps. }
+    iNext.
+    iApply refines_eff.
+    set K  := ((N ++ [AppRCtx bind']) ++ [AppLCtx v]).
+    set K' := ((N' ++ [AppRCtx bind'])++ [AppLCtx v']).
+    iApply (eff_refines_intro _ _ _ _ _ K K' with "HA1"); [done|done| | |].
+    { repeat (apply ectx_app_neutral); eauto; apply ConsCtx_neutral; try apply EmptyCtx_neutral; eauto using AppRCtx_neutral, AppLCtx_neutral. }
+    { repeat (apply ectx_app_neutral); eauto; apply ConsCtx_neutral; try apply EmptyCtx_neutral; eauto using AppRCtx_neutral, AppLCtx_neutral. }
+    iModIntro. iIntros (w w') "HA2".
+    unfold K, K'. iSpecialize ("HN" with "HA2"). iNext. simpl.
+    clear K K'.
+    set K  := ([AppRCtx bind'; AppLCtx v]).
+    set K' := ([AppRCtx bind'; AppLCtx v']).
+    do 2rewrite -app_assoc. rewrite -fill_app_ctx. rewrite -(fill_app_ctx _ N').
+    iApply (refines_bind K K' with "HN"); iSplit.
+    { clear w w'.
+      iIntros (w w') "#HA //=".
+      iApply (refines_pure_r' _ _ (v' w')%E);[
+      unfold bind'; by tactics.solve_pure_steps|].
+      iApply (refines_pure_l' _ (v w)%E);[
+      unfold bind'; by tactics.solve_pure_steps|].
+      iNext. simpl. by iApply "Hvv'".
+    }
+    { iIntros (s s') "Hs".
+      rewrite (eff_refines_unfold _ _ A).
+      by iApply "IH".
+    }
+  Qed.
 
   Definition eff_refines' (A1 A2 : valRel Σ) : semEffSig Σ :=
     SemEffSig (eff_refines A1 A2).
