@@ -59,6 +59,105 @@ Section R_approx.
   Definition seq_bin_to_R (f : nat → (fin 2)) : R :=
     SeriesC (λ n : nat, f n * (1 / 2 ^ (S n))).
 
+  Lemma bin_fin_to_nat_cases (n : fin 2) :
+    (fin_to_nat n = 0 ∨ fin_to_nat n = 1)%nat.
+  Proof. specialize (fin_to_nat_lt n). lia. Qed.
+
+  Lemma ex_seriesC_seq_bin_to_R_ub :
+    ex_seriesC (λ n : nat, 1 / 2 ^ S n).
+  Proof.
+    eapply (ex_seriesC_ext (λ n, / 2 * (/ 2) ^ n)).
+    { intros n. rewrite //=. rewrite /Rdiv Rmult_1_l. rewrite pow_inv. rewrite Rinv_mult. f_equal. }
+    eapply (ex_seriesC_scal_l).
+    rewrite -ex_seriesC_nat.
+    eapply (Series.ex_series_geom (/ 2)).
+    rewrite Rabs_right; try nra.
+  Qed.
+
+  Lemma ex_seriesC_seq_bin_to_R_ub_shift :
+    ex_seriesC (λ n : nat, 1 / 2 ^ (S (S n))).
+  Proof.
+    rewrite -ex_seriesC_nat -(Series.ex_series_incr_1 (λ n, 1 / 2 ^ S n)) ex_seriesC_nat.
+    apply ex_seriesC_seq_bin_to_R_ub.
+  Qed.
+
+  Lemma seq_bin_to_R_elem_range (f : nat → fin 2) :
+    ∀ n : nat, 0 <= f n * (1 / 2 ^ S n) <= 1 / 2 ^ S n.
+  Proof.
+    intros n.
+      destruct (bin_fin_to_nat_cases (f n)) as [Hzero|Hone].
+      * rewrite ?Hzero.
+        rewrite Rmult_0_l. split; first nra.
+        apply Rcomplements.Rdiv_le_0_compat; first by lra.
+        apply pow_lt. nra.
+      * rewrite Hone.
+        rewrite Rmult_1_l. split; last nra.
+        apply Rcomplements.Rdiv_le_0_compat; first by lra.
+        apply pow_lt. nra.
+  Qed.
+
+  Lemma seq_bin_to_R_elem_nonneg (f : nat → (fin 2)) :
+    ∀ n k : nat, 0 <= f n * (1 / 2 ^ k).
+  Proof.
+    intros n k.
+    destruct (bin_fin_to_nat_cases (f n)) as [Hzero|Hone].
+    * rewrite ?Hzero Rmult_0_l. nra.
+    * rewrite Hone Rmult_1_l.
+      apply Rcomplements.Rdiv_le_0_compat; first by lra.
+      apply pow_lt. nra.
+  Qed.
+
+  Lemma ex_seriesC_seq_bin_to_R (f : nat → (fin 2)) :
+    ex_seriesC (λ n : nat, f n * (1 / 2 ^ (S n))).
+  Proof.
+    eapply (ex_seriesC_le _ (λ n : nat, (1 / 2 ^ (S n)))).
+    { apply seq_bin_to_R_elem_range. }
+    eapply ex_seriesC_seq_bin_to_R_ub.
+  Qed.
+
+  Lemma seq_bin_to_R_generic_nonneg (f : nat → (fin 2)) g h :
+    0 <= Series.Series (λ k : nat, f (g k) * (1 / 2 ^ h k)).
+  Proof. eapply series_ge_0 => ?. eapply seq_bin_to_R_elem_nonneg. Qed.
+
+  Lemma seq_bin_to_R_leading0 (f : nat → (fin 2)) :
+    fin_to_nat (f O) = O%nat →
+    seq_bin_to_R f <= 0.5.
+  Proof.
+    intros Hleading.
+    rewrite /seq_bin_to_R.
+    rewrite ?SeriesC_nat Series.Series_incr_1; last first.
+    { rewrite ex_seriesC_nat. apply ex_seriesC_seq_bin_to_R. }
+    rewrite Hleading ?Rmult_0_l Rplus_0_l.
+    transitivity (Series.Series (λ k, (1 / 2 ^ (S (S k))))).
+    { eapply Series.Series_le.
+      * intros n. eapply (seq_bin_to_R_elem_range).
+      * rewrite ex_seriesC_nat; apply ex_seriesC_seq_bin_to_R_ub_shift.
+    }
+    rewrite  //=.
+    rewrite -(Series.Series_ext (λ n : nat, (1 / 4) * ( / 2) ^ n)); last first.
+    { intros n. rewrite pow_inv. field.
+      apply pow_nonzero; nra. }
+    rewrite Series.Series_scal_l.
+    rewrite Series.Series_geom; last first.
+    { rewrite Rabs_right; try nra. }
+    nra.
+  Qed.
+
+  Lemma seq_bin_to_R_leading1 (f : nat → (fin 2)) :
+    fin_to_nat (f O) = 1%nat →
+    0.5 <= seq_bin_to_R f.
+  Proof.
+    intros Hleading.
+    rewrite /seq_bin_to_R.
+    rewrite ?SeriesC_nat Series.Series_incr_1; last first.
+    { rewrite ex_seriesC_nat. apply ex_seriesC_seq_bin_to_R. }
+    rewrite Hleading.
+    rewrite -(Rplus_0_r 0.5).
+    apply Rplus_le_compat.
+    { rewrite Rmult_1_l //= Rmult_1_r. nra. }
+    eapply seq_bin_to_R_generic_nonneg.
+  Qed.
+
   Definition list_bin_to_seq_bin (l : list (fin 2)) : nat → (fin 2) :=
     λ n, match l !! n with
          | None => Fin.F1
@@ -150,6 +249,9 @@ Section unif_tape.
 
   Context `{!erisGS Σ}.
 
+  (* Probably one would not want to use this predicate, but rather
+     work with a predicate for a version that memoizes the bits that
+     have been sampled so far *)
   Definition unif_tape α (mr : option R) : iProp Σ :=
     match mr with
     | None => α ↪ (1; [])
@@ -207,6 +309,127 @@ Section unif_tape.
     - intros i b Hlook.
       rewrite /list_bin_to_seq_bin Hlook //=.
     - rewrite /list_bin_to_R //=.
+  Qed.
+
+  Lemma wp_rand_unif_tape_lt_half α r E s :
+    r < 0.5 →
+    {{{ unif_tape α (Some r) }}}
+      rand(#lbl:α) #1 @ s; E
+    {{{ RET #(LitInt 0); unif_tape α (Some (2 * r)) }}}.
+  Proof.
+    iIntros (Hr Φ) "Htape HΦ".
+    rewrite /unif_tape.
+    iDestruct "Htape" as (f) "(Htape&%Hf)".
+    wp_apply (wp_rand_infinite_tape with "[$]").
+    iIntros "Htape".
+    rewrite /seq_bin_to_R in Hf.
+    destruct (bin_fin_to_nat_cases (f O)) as [Hzero|Hone].
+    - rewrite Hzero. iApply "HΦ".
+      iExists _. iFrame "Htape".
+      iPureIntro.
+      rewrite /seq_bin_to_R -Hf.
+      rewrite ?SeriesC_nat.
+      symmetry. rewrite Series.Series_incr_1_aux; last first.
+      { rewrite Hzero. rewrite Rmult_0_l //. }
+      rewrite -Series.Series_scal_l.
+      eapply Series.Series_ext.
+      intros n.
+      rewrite //=. field.
+      apply pow_nonzero; nra.
+    - exfalso.
+      specialize (seq_bin_to_R_leading1 f Hone).
+      rewrite /seq_bin_to_R.
+      intros. nra.
+  Qed.
+
+  Lemma wp_rand_unif_tape_gt_half α r E s :
+    0.5 < r →
+    {{{ unif_tape α (Some r) }}}
+      rand(#lbl:α) #1 @ s; E
+    {{{ RET #(LitInt 1); unif_tape α (Some (2 * r - 1)) }}}.
+  Proof.
+    iIntros (Hr Φ) "Htape HΦ".
+    rewrite /unif_tape.
+    iDestruct "Htape" as (f) "(Htape&%Hf)".
+    wp_apply (wp_rand_infinite_tape with "[$]").
+    iIntros "Htape".
+    rewrite /seq_bin_to_R in Hf.
+    destruct (bin_fin_to_nat_cases (f O)) as [Hzero|Hone].
+    - exfalso.
+      specialize (seq_bin_to_R_leading0 f Hzero).
+      rewrite /seq_bin_to_R.
+      intros. nra.
+    - rewrite Hone. iApply "HΦ".
+      iExists _. iFrame "Htape".
+      iPureIntro.
+      rewrite /seq_bin_to_R -Hf.
+      rewrite ?SeriesC_nat.
+      symmetry. rewrite Series.Series_incr_1; last first.
+      { rewrite ex_seriesC_nat. apply ex_seriesC_seq_bin_to_R. }
+      rewrite Hone.
+      ring_simplify.
+      replace (2 * 1%nat * (1 / 2 ^ 1)) with 1; last first.
+      { rewrite //=. nra.  }
+      ring_simplify.
+      rewrite -Series.Series_scal_l.
+      eapply Series.Series_ext.
+      intros n.
+      rewrite //=. field.
+      apply pow_nonzero; nra.
+  Qed.
+
+  (* This is probably not so useful?, also tremendous redundancy
+     between two previous proofs. probably better to do things in
+     terms of 1 lemma that says if returned was 0, then r was <= .5
+     and now you have 2 r, otherwise >= .5 and now you have 2 r - 1.
+     *)
+  Lemma wp_rand_unif_tape_eq_half α r E s :
+    r = 0.5 →
+    {{{ unif_tape α (Some r) }}}
+      rand(#lbl:α) #1 @ s; E
+    {{{ z, RET #(LitInt z); (⌜ z = O ⌝ ∗ unif_tape α (Some 1)) ∨ (⌜ z = 1 ⌝%nat ∗ unif_tape α (Some 0)) }}}.
+  Proof.
+    iIntros (Hr Φ) "Htape HΦ".
+    rewrite /unif_tape.
+    iDestruct "Htape" as (f) "(Htape&%Hf)".
+    wp_apply (wp_rand_infinite_tape with "[$]").
+    iIntros "Htape".
+    rewrite /seq_bin_to_R in Hf.
+    destruct (bin_fin_to_nat_cases (f O)) as [Hzero|Hone].
+    - rewrite Hzero. iApply "HΦ".
+      iLeft. iSplit; first done. iExists _. iFrame "Htape".
+      iPureIntro.
+      replace 1 with (2 * r); last first.
+      { nra. }
+      rewrite /seq_bin_to_R -Hf.
+      rewrite ?SeriesC_nat.
+      symmetry. rewrite Series.Series_incr_1_aux; last first.
+      { rewrite Hzero. rewrite Rmult_0_l //. }
+      rewrite -Series.Series_scal_l.
+      eapply Series.Series_ext.
+      intros n.
+      rewrite //=. field.
+      apply pow_nonzero; nra.
+    - rewrite Hone. iApply "HΦ".
+      iRight. iSplit; first by auto.
+      iExists _. iFrame "Htape".
+      iPureIntro.
+      replace 0 with (2 * r - 1); last first.
+      { nra. }
+      rewrite /seq_bin_to_R -Hf.
+      rewrite ?SeriesC_nat.
+      symmetry. rewrite Series.Series_incr_1; last first.
+      { rewrite ex_seriesC_nat. apply ex_seriesC_seq_bin_to_R. }
+      rewrite Hone.
+      ring_simplify.
+      replace (2 * 1%nat * (1 / 2 ^ 1)) with 1; last first.
+      { rewrite //=. nra.  }
+      rewrite -Series.Series_scal_l.
+      ring_simplify.
+      eapply Series.Series_ext.
+      intros n.
+      rewrite //=. field.
+      apply pow_nonzero; nra.
   Qed.
 
 End unif_tape.
