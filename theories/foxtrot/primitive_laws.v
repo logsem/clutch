@@ -759,7 +759,66 @@ Section lifting.
       iMod "Hclose".
       rewrite app_nil_r.
       by iFrame.
+  Qed.
+
+  (* technically not used since presampling on the right is not allowed*)
+  Lemma pupd_rand_tape j K N z E n ns α:
+    TCEq N (Z.to_nat z) →
+    j⤇ fill K (rand(#lbl:α) #z) -∗
+    α ↪ₛN (N; n::ns) -∗
+    pupd E E (j⤇ fill K #n ∗ α ↪ₛN (N; ns)).
+  Proof.
+    iIntros (->) "HK Htape".
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ1 [?[]] ε1) "(H1 & H2 & H3)".
+    iDestruct (spec_auth_prog_agree with "[$][$]") as "%".
+    iDestruct "H2" as "[Hb [Ha H2]]".
+    simpl.
+    iDestruct "Htape" as "(%&%&Htape)".
+    iDestruct (ghost_map_lookup with "H2 Htape") as %H1.
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    destruct fs; first simplify_eq.
+    iApply spec_coupl_step_r; [|done|..].
+    - apply reducible_fill. simpl. apply head_prim_reducible.
+      rewrite /head_reducible.
+      simpl.
+      rewrite H1. case_bool_decide; last done.
+      eexists _.
+      rewrite dret_1_1; [lra|done].
+    - instantiate (2:=0%NNR). instantiate (1:= ε1). simpl.
+      lra.
+    - simpl in *.
+      instantiate (2 := (λ '(e', σ', efs), e' = fill K _ /\ σ' = {| heap := _ ; tapes := <[α:=(Z.to_nat z; _)]> _ |} /\ efs = [])).
+      instantiate (1:= <[α:=(Z.to_nat z; _)]> _).
+      rewrite fill_dmap //=.
+      erewrite head_prim_step_eq; last first.
+      { rewrite /head_reducible.
+      simpl.
+      rewrite H1. case_bool_decide; last done.
+      eexists _.
+      rewrite dret_1_1; [lra|done]. }
+      simpl.
+      rewrite H1. case_bool_decide; last done.
+      rewrite dmap_dret.
+      apply pgl_dret.
+      repeat case_match. simpl in *. by simplify_eq. 
+    - simpl. iIntros (???) "%".
+      destruct!/=.
+      iMod (ghost_map_update with "[$H2][$Htape]") as "[H2 Htape]".
+      iMod (spec_update_prog with "[H2 Ha Hb][$HK]") as "[HK Hs]".
+      { iSplitL "Hb"; first done.
+        instantiate (1:= {| heap := _; tapes := _ |}).
+        simpl.
+        iFrame. }
+      iApply spec_coupl_ret.
+      iModIntro.
+      iMod "Hclose".
+      iFrame. 
+      rewrite app_nil_r.
+      by iFrame.
   Qed. 
+
 
   Lemma pupd_fork E K e j:
     j ⤇ fill K (Fork e)
