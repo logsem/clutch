@@ -45,6 +45,14 @@ Section infinite_tape.
       rewrite Heq //=.
   Qed.
 
+  Lemma bin_seq_hd f :
+    ∃ hd f', f = cons_bin_seq hd f'.
+  Proof.
+    exists (f O), (λ n, f (S n)).
+    apply functional_extensionality => x.
+    destruct x => //=.
+  Qed.
+
   Lemma append_bin_seq_cons z1 zs f :
     append_bin_seq (z1 :: zs) f = cons_bin_seq z1 (append_bin_seq zs f).
   Proof. rewrite //=. Qed.
@@ -161,6 +169,37 @@ Section R_approx.
     eapply ex_seriesC_seq_bin_to_R_ub.
   Qed.
 
+  Lemma seq_bin_to_R_range f :
+    0 <= seq_bin_to_R f <= 1.
+  Proof.
+    split.
+    - apply SeriesC_ge_0; last eapply ex_seriesC_seq_bin_to_R.
+      intros; apply seq_bin_to_R_elem_nonneg.
+    - transitivity (SeriesC (λ n : nat, (1 / 2 ^ (S n)))).
+      { apply SeriesC_le; first apply seq_bin_to_R_elem_range.
+        apply ex_seriesC_seq_bin_to_R_ub. }
+      rewrite SeriesC_nat.
+      rewrite -(Series.Series_ext (λ n: nat, (1 / 2) * (/ 2) ^ n)); last first.
+      { intros n => //=. rewrite pow_inv. field. apply pow_nonzero. nra. }
+      rewrite Series.Series_scal_l Series.Series_geom; first nra.
+      rewrite Rabs_right; nra.
+  Qed.
+
+  Lemma seq_bin_to_R_cons z f :
+    seq_bin_to_R (cons_bin_seq z f) = z / 2 + seq_bin_to_R f / 2.
+  Proof.
+    rewrite /seq_bin_to_R.
+    rewrite SeriesC_nat Series.Series_incr_1; last first.
+    { rewrite ex_seriesC_nat. apply ex_seriesC_seq_bin_to_R. }
+    rewrite /=. f_equal.
+    { nra. }
+    rewrite /Rdiv.
+    rewrite SeriesC_nat.
+    rewrite -Series.Series_scal_r.
+    eapply Series.Series_ext.
+    intros n. field. apply pow_nonzero; nra.
+  Qed.
+
   Lemma seq_bin_to_R_generic_nonneg (f : nat → (fin 2)) g h :
     0 <= Series.Series (λ k : nat, f (g k) * (1 / 2 ^ h k)).
   Proof. eapply series_ge_0 => ?. eapply seq_bin_to_R_elem_nonneg. Qed.
@@ -179,7 +218,7 @@ Section R_approx.
       * intros n. eapply (seq_bin_to_R_elem_range).
       * rewrite ex_seriesC_nat; apply ex_seriesC_seq_bin_to_R_ub_shift.
     }
-    rewrite  //=.
+    rewrite //=.
     rewrite -(Series.Series_ext (λ n : nat, (1 / 4) * ( / 2) ^ n)); last first.
     { intros n. rewrite pow_inv. field.
       apply pow_nonzero; nra. }
