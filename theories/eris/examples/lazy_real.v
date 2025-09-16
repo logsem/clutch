@@ -406,6 +406,52 @@ Section lazy_real.
     let: "r2" := init #() in
     cmp "r1" "r2".
 
+  Lemma is_RInt_lt_thresh1 x :
+    0 <= x <= 1 →
+    is_RInt (λ r : R, if decide (x < r) then 0 else 1) 0 x x.
+  Proof.
+    intros.
+    eapply (is_RInt_ext (λ _, 1)).
+    {  intros r2. rewrite Rmin_left ?Rmax_right; try nra. intros.
+       destruct (decide _); auto.
+       nra.
+    }
+    assert (x = (scal (x - 0) 1)) as Heq.
+    { rewrite /scal/=/mult/=. nra. }
+    rewrite {2}Heq.
+    apply: is_RInt_const.
+  Qed.
+
+  Lemma is_RInt_lt_thresh2 x :
+    0 <= x <= 1 →
+    is_RInt (λ r : R, if decide (x < r) then 0 else 1) x 1 0.
+  Proof.
+     intros.
+     eapply (is_RInt_ext (λ _, 0)).
+     {  intros r2. rewrite Rmin_left ?Rmax_right; try nra. intros.
+        destruct (decide _); auto.
+        nra.
+     }
+     assert (0 = (scal (1 - x) 0)) as Heq.
+     { rewrite /scal/=/mult/=. nra. }
+     rewrite {2}Heq.
+     apply: is_RInt_const.
+  Qed.
+
+  Lemma RInt_lt_thresh x :
+    0 <= x <= 1 →
+    RInt (λ r : R, if decide (x < r) then 0 else 1) 0 1 = x.
+  Proof.
+     intros Hrange.
+     rewrite -(RInt_Chasles _ 0 x 1).
+     3:{ eexists. eapply is_RInt_lt_thresh2. nra. }
+     2:{ eexists. eapply is_RInt_lt_thresh1. nra. }
+     erewrite (is_RInt_unique); last eapply is_RInt_lt_thresh1; try nra.
+     erewrite (is_RInt_unique); last eapply is_RInt_lt_thresh2; try nra.
+     rewrite /plus/=; nra.
+  Qed.
+
+
   Lemma wp_cmp_two_numbers :
     ⟨⟨⟨ ↯ (1/2)  ⟩⟩⟩
       cmp_two_numbers
@@ -419,51 +465,17 @@ Section lazy_real.
     wp_apply wp_init; first done.
     iIntros (v2) "Hv2".
     wp_pures.
-    assert (His1: ∀ r1, 0 <= r1 <= 1 → is_RInt (λ r2 : R, if decide (r1 < r2) then 0 else 1) 0 r1 r1).
-    {
-      intros.
-      eapply (is_RInt_ext (λ _, 1)).
-      {  intros r2. rewrite Rmin_left ?Rmax_right; try nra. intros.
-         destruct (decide _); auto.
-         nra.
-      }
-      assert (r1 = (scal (r1 - 0) 1)) as Heq.
-      { rewrite /scal/=/mult/=. nra. }
-      rewrite {2}Heq.
-      apply: is_RInt_const.
-    }
-    assert (His2: ∀ r1, 0 <= r1 <= 1 → is_RInt (λ r2 : R, if decide (r1 < r2) then 0 else 1) r1 1 0).
-    {
-      intros.
-      eapply (is_RInt_ext (λ _, 0)).
-      {  intros r2. rewrite Rmin_left ?Rmax_right; try nra. intros.
-         destruct (decide _); auto.
-         nra.
-      }
-      assert (0 = (scal (1 - r1) 0)) as Heq.
-      { rewrite /scal/=/mult/=. nra. }
-      rewrite {2}Heq.
-      apply: is_RInt_const.
-    }
     assert (Hex1: ∀ r1, 0 <= r1 <= 1 → ex_RInt (λ r2 : R, if decide (r1 < r2) then 0 else 1) 0 r1).
-    { intros; eexists; eapply His1; eauto. }
+    { intros; eexists; eapply is_RInt_lt_thresh1; eauto. }
     assert (Hex2: ∀ r1, 0 <= r1 <= 1 → ex_RInt (λ r2 : R, if decide (r1 < r2) then 0 else 1) r1 1).
-    { intros; eexists; eapply His2; eauto. }
+    { intros; eexists; eapply is_RInt_lt_thresh2; eauto. }
     iApply (wp_lazy_real_presample2_adv_comp _ _ v1 v2 _ (1/2)
               (λ r1 r2, if (decide (r1 < r2)) then 0 else 1)); auto.
     { intros; destruct (decide _); nra. }
-    { intros r1 Hrange.
-      eapply (ex_RInt_Chasles _ 0 r1 1); auto. }
-    {
-      eapply (is_RInt_ext (λ r1, r1)).
-      { intros r1. rewrite ?Rmin_left ?Rmax_right; try nra. intros Hrange. symmetry.
-        rewrite -(RInt_Chasles _ 0 r1 1).
-        3:{ eapply Hex2. nra. }
-        2:{ eapply Hex1. nra. }
-        erewrite (is_RInt_unique); last eapply His1; try nra.
-        erewrite (is_RInt_unique); last eapply His2; try nra.
-        rewrite /plus/=; nra.
-      }
+    { intros r1 Hrange. eapply (ex_RInt_Chasles _ 0 r1 1); auto. }
+    { eapply (is_RInt_ext (λ r1, r1)).
+      {  intros r1. rewrite ?Rmin_left ?Rmax_right; try nra. intros Hrange. symmetry.
+         apply RInt_lt_thresh. nra. }
       set (f := λ x, (x * x) / 2).
       assert (1 / 2 = minus (f 1) (f 0)) as ->.
       { rewrite /minus/f/plus/=/opp/=. nra. }
