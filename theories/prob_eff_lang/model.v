@@ -7,7 +7,9 @@ From clutch.common Require Import language ectxi_language locations.
 From clutch.base_logic Require Export spec_update.
 From clutch.prob Require Export couplings_app distribution.
 From iris.base_logic Require Export na_invariants ghost_map.
-From clutch.prob_eff_lang          Require Import weakestpre shallow_handler typed_lang spec_ra iEff spec_rules primitive_laws lang class_instances.
+From clutch.prob_eff_lang          Require Import weakestpre shallow_handler typed_lang spec_ra
+                                                  iEff spec_rules primitive_laws lang class_instances
+                                                  spec_tactics.
 Import uPred.
 
 Set Default Proof Using "Type".
@@ -1047,17 +1049,19 @@ Section compatibility.
     iDestruct "HA" as (l l') "(->&->&#Hinv)".
     set E := logN.@"ref".@(l,l').
     iApply (ewp_atomic _ (⊤ ∖ ↑E)).
-    iInv E as (w w') "[>Hl [>Hl' #Hw]]" "_"; simpl.
-    iApply (ewp_load with "Hl"). iModIntro. iNext.
-    iIntros "Hl".
+    iInv E as (w w') "[>Hl [>Hl' #Hw]]" "Hclose"; simpl.
+    iModIntro.
     iApply spec_update_ewp.
-    (* iMod (step_load _ K' with "[$]") as "H".
-       
-       iMod ("Hclose" with "[Hl Hl']").
-       { by iExists v, v'; iFrame. }
-       iDestruct "HKK'" as "[Hval _]". rewrite obs_refines_eq.
-       by iApply ("Hval" with "Hv Hspec Hj"). *)
-  Admitted.
+    tp_load. iModIntro.
+    iApply (ewp_load with "Hl").
+    iModIntro. 
+    iIntros "Hl".
+    iMod ("Hclose" with "[Hl Hl']") as "_".
+    { iNext. iExists _, _. by iFrame. }
+    iModIntro.    
+    iDestruct "HKK'" as "[Hval _]". rewrite obs_refines_eq.
+    by iApply ("Hval" with "Hw Hj Herr").
+  Qed.
 
   (* Write instruction -- corresponding to the rule [Store_typed]. *)
   Lemma refines_store e₁ e₂ e₁' e₂' A :
@@ -1075,16 +1079,16 @@ Section compatibility.
     iApply (ewp_pure_bind K); [done|].
     set E := logN.@"ref".@(l,l').
     iApply (ewp_atomic _ (⊤ ∖ ↑E)).
-    iInv E as (v v') "[>Hl [>Hl' #Hw]]" "Hclose"; simpl.
+    iInv E as (v v') "[>Hl [>Hl' #Hw]]" "Hclose"; iModIntro; simpl.
+    iApply spec_update_ewp.
+    tp_store.
     iApply (ewp_store with "Hl"). iModIntro. iNext.
     iIntros "Hl".
-    (* iMod (step_store _ K' with "[$]") as "(Hj&Hl')".
-       iMod ("Hclose" with "[Hl Hl']").
-       { by iExists w, w'; iFrame. }
-       iDestruct "HKK'" as "[Hval _]". rewrite obs_refines_eq.
-       by iApply ("Hval" with "[] Hspec Hj").
-     Qed. *)
-  Admitted.
+    iMod ("Hclose" with "[Hl Hl']") as "_".
+    { by iExists w, w'; iFrame. }
+    iDestruct "HKK'" as "[Hval _]". rewrite obs_refines_eq.
+    by iApply ("Hval" with "[] Hj Herr").
+  Qed. 
 
   (* Bind -- corresponding to the rule [Bind_typed]. *)
   Lemma refines_bind' e₁ e₂ e₁' e₂' A E `{Compatible Σ E} B :
