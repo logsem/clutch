@@ -1,7 +1,7 @@
 From clutch.eris Require Export eris error_rules receipt_rules.
 From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
-From Coquelicot Require Import RInt.
+From Coquelicot Require Import RInt RInt_analysis AutoDerive.
 From clutch.eris Require Import infinite_tape.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
@@ -363,6 +363,119 @@ Section lazy_real.
     iSplitL "Hr2".
     { iExists _, _, _. iFrame. eauto. }
     auto.
+  Qed.
+
+  (* TODO should make this more concise, also use notation for it? *)
+  Lemma wp_lazy_real_presample2_adv_comp E e v1 v2 Φ (ε1 : R) (ε2 : R → R -> R) :
+    to_val e = None →
+    (forall r1 r2, (0 <= ε2 r1 r2)%R) ->
+    (∀ r1, ex_RInt (ε2 r1) 0 1) →
+    is_RInt (λ x, RInt (ε2 x) 0 1) 0 1 ε1 →
+    lazy_real_uninit v1 ∗
+    lazy_real_uninit v2 ∗
+      ↯ ε1 ∗
+      (∀ r1 r2 : R, ↯ (ε2 r1 r2) ∗ lazy_real v1 r1 ∗ lazy_real v2 r2 -∗ WP e @ E {{ Φ }})
+      ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (Hnonval Hle Hex HRint) "(Hv1&Hv2&Hε&Hwp)".
+    iApply (wp_lazy_real_presample_adv_comp E e v1 _ ε1 (λ x, RInt (ε2 x) 0 1)); auto.
+    { intros r1. apply RInt_ge_0; auto. nra. }
+    iFrame.
+    iIntros (r1) "(Hε&Hr1)".
+    iApply (wp_lazy_real_presample_adv_comp E e v2 _ _ (ε2 r1)); auto; try iFrame.
+    { eapply @RInt_correct; eauto. }
+    iIntros (r2) "(Hε&Hr2)".
+    iApply "Hwp". iFrame.
+  Qed.
+
+  (* Now we can kill a fly with a bazooka *)
+
+  Definition cmp_two_numbers : expr :=
+    let: "r1" := init #() in
+    let: "r2" := init #() in
+    cmp "r1" "r2".
+
+  Lemma wp_cmp_two_numbers :
+    ⟨⟨⟨ ↯ (1/2)  ⟩⟩⟩
+      cmp_two_numbers 
+    ⟨⟨⟨ RET #(-1)%Z; True ⟩⟩⟩.
+  Proof.
+    iIntros (?) "Herr HΦ".
+    rewrite /cmp_two_numbers.
+    wp_apply wp_init; first done.
+    iIntros (v1) "Hv1".
+    wp_pures.
+    wp_apply wp_init; first done.
+    iIntros (v2) "Hv2".
+    wp_pures.
+    assert (His1: ∀ r1, 0 <= r1 <= 1 → is_RInt (λ r2 : R, if decide (r1 < r2) then 0 else 1) 0 r1 r1).
+    {
+      intros.
+      eapply (is_RInt_ext (λ _, 1)).
+      {  intros r2. rewrite Rmin_left ?Rmax_right; try nra. intros.
+         destruct (decide _); auto.
+         nra.
+      }
+      assert (r1 = (scal (r1 - 0) 1)) as Heq.
+      { rewrite /scal/=/mult/=. nra. }
+      rewrite {2}Heq.
+      apply: is_RInt_const.
+    }
+    assert (His2: ∀ r1, 0 <= r1 <= 1 → is_RInt (λ r2 : R, if decide (r1 < r2) then 0 else 1) r1 1 0).
+    {
+      intros.
+      eapply (is_RInt_ext (λ _, 0)).
+      {  intros r2. rewrite Rmin_left ?Rmax_right; try nra. intros.
+         destruct (decide _); auto.
+         nra.
+      }
+      assert (0 = (scal (1 - r1) 0)) as Heq.
+      { rewrite /scal/=/mult/=. nra. }
+      rewrite {2}Heq.
+      apply: is_RInt_const.
+    }
+    assert (Hex1: ∀ r1, 0 <= r1 <= 1 → ex_RInt (λ r2 : R, if decide (r1 < r2) then 0 else 1) 0 r1).
+    { intros; eexists; eapply His1; eauto. }
+    assert (Hex2: ∀ r1, 0 <= r1 <= 1 → ex_RInt (λ r2 : R, if decide (r1 < r2) then 0 else 1) r1 1).
+    { intros; eexists; eapply His2; eauto. }
+    iApply (wp_lazy_real_presample2_adv_comp _ _ v1 v2 _ (1/2)
+              (λ r1 r2, if (decide (r1 < r2)) then 0 else 1)); auto.
+    { intros; destruct (decide _); nra. }
+    { intros r1.
+      destruct (decide (0 <= r1 <= 1)).
+      { eapply (ex_RInt_Chasles _ 0 r1 1); auto. }
+      (* could omit this case by knowing that unif reals have to be in range *)
+      admit. 
+    }
+    {
+      eapply (is_RInt_ext (λ r1, r1)).
+      { intros r1. rewrite ?Rmin_left ?Rmax_right; try nra. intros Hrange. symmetry.
+        rewrite -(RInt_Chasles _ 0 r1 1).
+        3:{ eapply Hex2. nra. }.
+        2:{ eapply Hex1. nra. }.
+        erewrite (is_RInt_unique); last eapply His1; try nra.
+        erewrite (is_RInt_unique); last eapply His2; try nra.
+        rewrite /plus/=; nra.
+      }
+      set (f := λ x, (x * x) / 2).
+      assert (1 / 2 = minus (f 1) (f 0)) as ->.
+      { rewrite /minus/f/plus/=/opp/=. nra. }
+      apply: is_RInt_derive.
+      { rewrite /f. intros.
+        auto_derive; auto; nra.
+      }
+      { intros. apply Continuity.continuous_id. }
+    }
+    iFrame.
+    iIntros (r1 r2) "(Heps&Hr1&Hr2)".
+    destruct (decide _); last first.
+    { iDestruct (ec_contradict with "[$]") as "[]". nra. }
+    wp_apply (wp_cmp with "[Hr1 Hr2]").
+    { iFrame. }
+    iIntros (z) "(Hr1&Hr2&%Hcases)".
+    destruct Hcases as [(Heq&Hle)|(?&Hfalse)].
+    { subst. by iApply "HΦ". }
+    nra.
   Qed.
 
 End lazy_real.
