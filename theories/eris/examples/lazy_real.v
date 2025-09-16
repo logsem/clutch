@@ -320,7 +320,7 @@ Section lazy_real.
 
   Lemma wp_lazy_real_presample_adv_comp E e v Φ (ε1 : R) (ε2 : R -> R) :
     to_val e = None →
-    (forall r, (0 <= ε2 r)%R) ->
+    (forall r, 0 <= r <= 1 → (0 <= ε2 r)%R) ->
     is_RInt ε2 0 1 ε1 →
     lazy_real_uninit v ∗
       ↯ ε1 ∗
@@ -365,11 +365,21 @@ Section lazy_real.
     auto.
   Qed.
 
+  Lemma lazy_real_range v r :
+    lazy_real v r -∗
+    ⌜ 0 <= r <= 1 ⌝.
+  Proof.
+    iIntros "H".
+    iDestruct "H" as (??? -> ->) "H".
+    iPureIntro.
+    apply seq_bin_to_R_range.
+  Qed.
+
   (* TODO should make this more concise, also use notation for it? *)
   Lemma wp_lazy_real_presample2_adv_comp E e v1 v2 Φ (ε1 : R) (ε2 : R → R -> R) :
     to_val e = None →
     (forall r1 r2, (0 <= ε2 r1 r2)%R) ->
-    (∀ r1, ex_RInt (ε2 r1) 0 1) →
+    (∀ r1, 0 <= r1 <= 1 → ex_RInt (ε2 r1) 0 1) →
     is_RInt (λ x, RInt (ε2 x) 0 1) 0 1 ε1 →
     lazy_real_uninit v1 ∗
     lazy_real_uninit v2 ∗
@@ -379,9 +389,10 @@ Section lazy_real.
   Proof.
     iIntros (Hnonval Hle Hex HRint) "(Hv1&Hv2&Hε&Hwp)".
     iApply (wp_lazy_real_presample_adv_comp E e v1 _ ε1 (λ x, RInt (ε2 x) 0 1)); auto.
-    { intros r1. apply RInt_ge_0; auto. nra. }
+    { intros r1 ?. apply RInt_ge_0; auto. nra. }
     iFrame.
     iIntros (r1) "(Hε&Hr1)".
+    iDestruct (lazy_real_range with "[$]") as %Hrange.
     iApply (wp_lazy_real_presample_adv_comp E e v2 _ _ (ε2 r1)); auto; try iFrame.
     { eapply @RInt_correct; eauto. }
     iIntros (r2) "(Hε&Hr2)".
@@ -397,7 +408,7 @@ Section lazy_real.
 
   Lemma wp_cmp_two_numbers :
     ⟨⟨⟨ ↯ (1/2)  ⟩⟩⟩
-      cmp_two_numbers 
+      cmp_two_numbers
     ⟨⟨⟨ RET #(-1)%Z; True ⟩⟩⟩.
   Proof.
     iIntros (?) "Herr HΦ".
@@ -441,12 +452,8 @@ Section lazy_real.
     iApply (wp_lazy_real_presample2_adv_comp _ _ v1 v2 _ (1/2)
               (λ r1 r2, if (decide (r1 < r2)) then 0 else 1)); auto.
     { intros; destruct (decide _); nra. }
-    { intros r1.
-      destruct (decide (0 <= r1 <= 1)).
-      { eapply (ex_RInt_Chasles _ 0 r1 1); auto. }
-      (* could omit this case by knowing that unif reals have to be in range *)
-      admit. 
-    }
+    { intros r1 Hrange.
+      eapply (ex_RInt_Chasles _ 0 r1 1); auto. }
     {
       eapply (is_RInt_ext (λ r1, r1)).
       { intros r1. rewrite ?Rmin_left ?Rmax_right; try nra. intros Hrange. symmetry.

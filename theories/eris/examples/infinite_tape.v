@@ -260,13 +260,14 @@ Section R_approx.
           (1 / 2 ^ k) * f (list_bin_to_R (proj1_sig ns))).
 
   Lemma Rle_0_discrete_approx k f :
-    (∀ r, 0 <= f r) →
+    (∀ r, 0 <= r <= 1 → 0 <= f r) →
     0 <= discrete_approx k f.
   Proof.
     rewrite /discrete_approx.
     intros Hle.
     apply SeriesC_ge_0' => ?.
-    apply Rmult_le_pos; auto.
+    apply Rmult_le_pos; auto; last first.
+    { apply Hle. apply seq_bin_to_R_range. }
     apply Rcomplements.Rdiv_le_0_compat; first by lra.
     apply pow_lt. nra.
   Qed.
@@ -348,7 +349,7 @@ Section unif_tape.
 
   Lemma wp_presample_unif_adv_comp E e α Φ (ε1 : R) (ε2 : R -> R) :
     to_val e = None →
-    (forall r, (0 <= ε2 r)%R) ->
+    (forall r, 0 <= r <= 1 → (0 <= ε2 r)%R) ->
     is_RInt ε2 0 1 ε1 →
     unif_tape α None ∗
       ↯ ε1 ∗
@@ -382,6 +383,7 @@ Section unif_tape.
     }
     wp_apply (wp_presample_many_adv_comp 1 1 _ _ _ _ [] N _
              (λ ls, ε2 (list_bin_to_R (proj1_sig ls)))); eauto.
+    { intros. apply Hle. apply seq_bin_to_R_range. }
     iFrame.
     iIntros (ns') "(Hε2&Hα)".
     iApply "Hwp".
