@@ -378,7 +378,7 @@ Section lazy_real.
   (* TODO should make this more concise, also use notation for it? *)
   Lemma wp_lazy_real_presample2_adv_comp E e v1 v2 Φ (ε1 : R) (ε2 : R → R -> R) :
     to_val e = None →
-    (forall r1 r2, (0 <= ε2 r1 r2)%R) ->
+    (forall r1 r2, 0 <= r1 <= 1 → 0 <= r2 <= 1 → (0 <= ε2 r1 r2)%R) ->
     (∀ r1, 0 <= r1 <= 1 → ex_RInt (ε2 r1) 0 1) →
     is_RInt (λ x, RInt (ε2 x) 0 1) 0 1 ε1 →
     lazy_real_uninit v1 ∗
@@ -389,7 +389,7 @@ Section lazy_real.
   Proof.
     iIntros (Hnonval Hle Hex HRint) "(Hv1&Hv2&Hε&Hwp)".
     iApply (wp_lazy_real_presample_adv_comp E e v1 _ ε1 (λ x, RInt (ε2 x) 0 1)); auto.
-    { intros r1 ?. apply RInt_ge_0; auto. nra. }
+    { intros r1 ?. apply RInt_ge_0; auto; try nra. intros. apply Hle; nra. }
     iFrame.
     iIntros (r1) "(Hε&Hr1)".
     iDestruct (lazy_real_range with "[$]") as %Hrange.
@@ -458,8 +458,8 @@ Section lazy_real.
       eapply (is_RInt_ext (λ r1, r1)).
       { intros r1. rewrite ?Rmin_left ?Rmax_right; try nra. intros Hrange. symmetry.
         rewrite -(RInt_Chasles _ 0 r1 1).
-        3:{ eapply Hex2. nra. }.
-        2:{ eapply Hex1. nra. }.
+        3:{ eapply Hex2. nra. }
+        2:{ eapply Hex1. nra. }
         erewrite (is_RInt_unique); last eapply His1; try nra.
         erewrite (is_RInt_unique); last eapply His2; try nra.
         rewrite /plus/=; nra.
@@ -484,5 +484,60 @@ Section lazy_real.
     { subst. by iApply "HΦ". }
     nra.
   Qed.
+
+  Definition cmp_three_numbers : expr :=
+    let: "r1" := init #() in
+    let: "r2" := init #() in
+    let: "r3" := init #() in
+    if: (cmp "r3" "r2" = #(-1)) then
+      #(-1)
+    else
+      cmp "r3" "r1".
+
+  Lemma wp_cmp_three_numbers :
+    ⟨⟨⟨ ↯ (1/3)  ⟩⟩⟩
+      cmp_three_numbers
+    ⟨⟨⟨ RET #(-1)%Z; True ⟩⟩⟩.
+  Proof.
+    iIntros (?) "Herr HΦ".
+    rewrite /cmp_three_numbers.
+    wp_apply wp_init; first done.
+    iIntros (v1) "Hv1".
+    wp_pures.
+    wp_apply wp_init; first done.
+    iIntros (v2) "Hv2".
+    wp_pures.
+    iApply (wp_lazy_real_presample2_adv_comp _ _ v1 v2 _ (1/3)
+              (λ r1 r2, 1 - Rmax r1 r2)); auto.
+    { intros. cut (Rmax r1 r2 <= 1); first by nra. apply Rmax_lub; nra. }
+    {  admit. }
+    {  admit. }
+    iFrame.
+    iIntros (r1 r2) "(Heps&Hr1&Hr2)".
+    wp_apply wp_init; first done.
+    iIntros (v3) "Hv3".
+    iApply (wp_lazy_real_presample_adv_comp _ _ v3 _ (1 - Rmax r1 r2)
+              (λ r3, if decide (r3 < Rmax r1 r2) then 0 else 1)); auto.
+    { intros; destruct (decide _); last first; nra. }
+    { admit. }
+    iFrame.
+    iIntros (r3) "(Heps&Hr3)".
+    wp_pures.
+    destruct (decide (r3 < Rmax r1 r2)) as [Hlt|Hnlt]; last first.
+    { iDestruct (ec_contradict with "[$]") as "[]". nra. }
+    wp_apply (wp_cmp with "[$Hr3 $Hr2]").
+    iIntros (z) "(Hr3&Hr2&%Hcases)".
+    destruct Hcases as [(Heq&Hle)|(?&Hbad1)].
+    { subst. wp_pures. iApply "HΦ". auto. }
+    subst. wp_pures.
+    wp_apply (wp_cmp with "[$Hr3 $Hr1]").
+    iIntros (z) "(Hr3&Hr1&%Hcases)".
+    destruct Hcases as [(Heq&Hle)|(?&Hbad2)].
+    { subst. iApply "HΦ". auto. }
+    assert (Rmax r1 r2 <= r3).
+    { apply Rmax_lub; auto. }
+    nra.
+  Admitted.
+
 
 End lazy_real.
