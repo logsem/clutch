@@ -47,6 +47,14 @@ Lemma head_step_support_eq_1 e1 e2 σ1 σ2 :
   head_step e1 σ1 (e2, σ2) = 1 → head_step_rel e1 σ1 e2 σ2.
 Proof. eapply head_step_support_eq; lra. Qed.
 
+Lemma head_prim_reducible e1 σ1:
+  head_reducible e1 σ1 → reducible (e1, σ1).
+Proof.
+  intros. inversion H as (ρ & Hstep). exists ρ.
+  simpl. by rewrite head_prim_step_eq.
+Qed.
+  
+
 (** The tactic [inv_head_step] performs inversion on hypotheses of the shape
     [head_step]. The tactic will discharge head-reductions starting from values,
     and simplifies hypothesis related to conversions from and to values, and
@@ -71,16 +79,16 @@ Ltac solve_step :=
   | |- (head_step _ _).(pmf) _ > 0%R  => eauto with head_step
   end.
 
-(* Ltac solve_red :=
-     match goal with
-     | |- (environments.envs_entails _ ( ⌜ _ ⌝ ∗ _)) =>
-         iSplitR ; [ by (iPureIntro ; solve_red) | ]
-     | |- (environments.envs_entails _ ( _ ∗ ⌜ _ ⌝)) =>
-         iSplitL ; [ by (iPureIntro ; solve_red) | ]
-     | |- reducible ((fill _ _), _) =>
-         apply reducible_fill ; solve_red
-     | |- reducible _ =>
-         apply head_prim_reducible ; solve_red
-     | |- (head_reducible _ _) =>
-         by eauto with head_step
-     end. *)
+Ltac solve_red :=
+  match goal with
+  | |- (environments.envs_entails _ ( ⌜ _ ⌝ ∗ _)) =>
+      iSplitR ; [ by (iPureIntro ; solve_red) | ]
+  | |- (environments.envs_entails _ ( _ ∗ ⌜ _ ⌝)) =>
+      iSplitL ; [ by (iPureIntro ; solve_red) | ]
+  | |- reducible ((fill _ _), _) =>
+      apply reducible_fill ; solve_red
+  | |- reducible _ =>
+      apply head_prim_reducible ; solve_red
+  | |- (head_reducible _ _) =>
+      by eauto with head_step
+  end.
