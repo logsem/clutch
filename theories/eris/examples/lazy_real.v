@@ -438,6 +438,50 @@ Section lazy_real.
      apply: is_RInt_const.
   Qed.
 
+  Lemma is_RInt_lt_thresh_rev1 x :
+    0 <= x <= 1 →
+    is_RInt (λ r : R, if decide (r < x) then 0 else 1) 0 x 0.
+  Proof.
+    intros.
+    eapply (is_RInt_ext (λ _, 0)).
+    {  intros r2. rewrite Rmin_left ?Rmax_right; try nra. intros.
+       destruct (decide _); auto.
+       nra.
+    }
+    assert (0 = (scal (x - 0) 0)) as Heq.
+    { rewrite /scal/=/mult/=. nra. }
+    rewrite {3}Heq.
+    apply: is_RInt_const.
+  Qed.
+
+  Lemma is_RInt_lt_thresh_rev2 x :
+    0 <= x <= 1 →
+    is_RInt (λ r : R, if decide (r < x) then 0 else 1) x 1 (1 - x).
+  Proof.
+     intros.
+     eapply (is_RInt_ext (λ _, 1)).
+     {  intros r2. rewrite Rmin_left ?Rmax_right; try nra. intros.
+        destruct (decide _); auto.
+        nra.
+     }
+    assert (1 - x = (scal (1 - x) 1)) as Heq.
+    { rewrite /scal/=/mult/=. nra. }
+    rewrite Heq.
+    apply: is_RInt_const.
+  Qed.
+
+  Lemma is_RInt_lt_thresh_rev x :
+    0 <= x <= 1 →
+    is_RInt (λ r : R, if decide (r < x) then 0 else 1) 0 1 (1 - x).
+  Proof.
+    assert (1 - x = (plus 0 (1 - x))) as Heq.
+    { rewrite /plus/=. nra. }
+    rewrite Heq.
+    intros. apply: (is_RInt_Chasles _ 0 x 1).
+    - apply is_RInt_lt_thresh_rev1; auto.
+    - apply is_RInt_lt_thresh_rev2; auto.
+  Qed.
+
   Lemma RInt_lt_thresh x :
     0 <= x <= 1 →
     RInt (λ r : R, if decide (x < r) then 0 else 1) 0 1 = x.
@@ -526,12 +570,14 @@ Section lazy_real.
     {  admit. }
     iFrame.
     iIntros (r1 r2) "(Heps&Hr1&Hr2)".
+    iDestruct (lazy_real_range with "Hr1") as %Hrange1.
+    iDestruct (lazy_real_range with "Hr2") as %Hrange2.
     wp_apply wp_init; first done.
     iIntros (v3) "Hv3".
     iApply (wp_lazy_real_presample_adv_comp _ _ v3 _ (1 - Rmax r1 r2)
               (λ r3, if decide (r3 < Rmax r1 r2) then 0 else 1)); auto.
     { intros; destruct (decide _); last first; nra. }
-    { admit. }
+    { apply is_RInt_lt_thresh_rev. apply Rmax_case; nra. }
     iFrame.
     iIntros (r3) "(Heps&Hr3)".
     wp_pures.
@@ -549,7 +595,7 @@ Section lazy_real.
     assert (Rmax r1 r2 <= r3).
     { apply Rmax_lub; auto. }
     nra.
-  Admitted.
+  Abort.
 
 
 End lazy_real.
