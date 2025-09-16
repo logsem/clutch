@@ -550,6 +550,78 @@ Section lazy_real.
     else
       cmp "r3" "r1".
 
+  Lemma ex_RInt_id a b :
+    ex_RInt (λ x, x) a b.
+  Proof.
+    apply: ex_RInt_continuous.
+    intros. apply Continuity.continuous_id.
+  Qed.
+
+  Lemma ex_RInt_cmp_three_numbers_inner :
+    ∀ r1 : R, 0 <= r1 <= 1 → ex_RInt (λ r2 : R, 1 - Rmax r1 r2) 0 1.
+  Proof.
+    intros r1 Hrange.
+    eapply (ex_RInt_Chasles _ 0 r1 1).
+    - eapply (ex_RInt_ext (λ x, 1 - r1)).
+      { intros x.
+        rewrite Rmin_left //; try nra.
+        rewrite Rmax_right; try nra.
+        intros Hrange'.
+        rewrite Rmax_left; try nra.
+      }
+      apply: ex_RInt_minus.
+      * apply: ex_RInt_const.
+      * apply: ex_RInt_const.
+    - eapply (ex_RInt_ext (λ x, 1 - x)).
+      { intros x.
+        rewrite Rmin_left //; try nra.
+        rewrite Rmax_right; try nra.
+        intros Hrange'.
+        rewrite Rmax_right; try nra.
+      }
+      apply: ex_RInt_minus.
+      * apply: ex_RInt_const.
+      * apply: ex_RInt_id.
+  Qed.
+
+  Lemma RInt_cmp_three_numbers_inner :
+    ∀ r1 : R, 0 <= r1 <= 1 →
+    RInt (λ r2 : R, 1 - Rmax r1 r2) 0 1 = (1 - r1) * r1 + (1 / 2) - (r1 - (r1 ^ 2) / 2).
+  Proof.
+    intros r1 Hrange.
+    specialize (ex_RInt_cmp_three_numbers_inner r1 Hrange) => Hex.
+    rewrite -(RInt_Chasles _ 0 r1 1); try (eauto using ex_RInt_Chasles_1, ex_RInt_Chasles_2).
+    rewrite /plus/=.
+    rewrite (RInt_ext _ (λ _, 1 - r1)); last first.
+    { intros x.
+      rewrite Rmin_left //; try nra.
+      rewrite Rmax_right; try nra.
+      intros Hrange'.
+      rewrite Rmax_left; try nra.
+    }
+    rewrite (RInt_ext _ (λ x, 1 - x) r1 1); last first.
+    { intros x.
+      rewrite Rmin_left //; try nra.
+      rewrite Rmax_right; try nra.
+      intros Hrange'.
+      rewrite Rmax_right; try nra.
+    }
+    rewrite RInt_const.
+    assert (Hderiv: ∀ x : R, 1 - x = Derive.Derive (λ x0 : R, x0 - x0 ^ 2 / 2) x).
+    { intros x.
+      symmetry; apply Derive.is_derive_unique.
+      auto_derive; try nra.
+    }
+    rewrite (RInt_ext _ (λ x, Derive.Derive (λ x, x - x^2 /2) x)) //.
+    rewrite /scal/=/mult/=.
+    rewrite RInt_Derive.
+    { nra. }
+    { intros. auto_derive; auto. }
+    { intros. eapply Continuity.continuous_ext; first eapply Hderiv.
+      apply: Continuity.continuous_minus; auto using Continuity.continuous_const, Continuity.continuous_id.
+    }
+  Qed.
+
   Lemma wp_cmp_three_numbers :
     ⟨⟨⟨ ↯ (1/3)  ⟩⟩⟩
       cmp_three_numbers
@@ -566,8 +638,46 @@ Section lazy_real.
     iApply (wp_lazy_real_presample2_adv_comp _ _ v1 v2 _ (1/3)
               (λ r1 r2, 1 - Rmax r1 r2)); auto.
     { intros. cut (Rmax r1 r2 <= 1); first by nra. apply Rmax_lub; nra. }
-    {  admit. }
-    {  admit. }
+    {  apply ex_RInt_cmp_three_numbers_inner. }
+    {  eapply is_RInt_ext.
+       { intros x; rewrite ?Rmin_left ?Rmax_right; try nra.
+         symmetry; apply RInt_cmp_three_numbers_inner; nra.  }
+       (* TODO : state a version of is_RInt_derive that introduces such an evar automatically *)
+       evar (r: R).
+       replace (1 /3) with r.
+       { rewrite {1}/r.
+         apply: (is_RInt_derive (λ x, - x^3 / 6 + x / 2)).
+         { intros. auto_derive; auto. nra. }
+         intros x Hrange.
+         (* TODO: tactic for continuity ! *)
+         apply: Continuity.continuous_minus.
+         { apply: Continuity.continuous_plus.
+           { apply: Continuity.continuous_mult.
+             { apply: Continuity.continuous_minus.
+               { apply: Continuity.continuous_const. }
+               { apply: Continuity.continuous_id. }
+             }
+             { apply: Continuity.continuous_id. }
+           }
+           { apply: Continuity.continuous_const. }
+         }
+         {
+           apply: Continuity.continuous_minus.
+           { apply: Continuity.continuous_id. }
+           { rewrite /Rdiv. apply: Continuity.continuous_mult.
+             { apply: Continuity.continuous_mult.
+               { apply: Continuity.continuous_id. }
+               { apply: Continuity.continuous_mult.
+                 { apply: Continuity.continuous_id. }
+                 { apply: Continuity.continuous_const. }
+               }
+             }
+             { apply: Continuity.continuous_const. }
+           }
+         }
+       }
+       rewrite /r. rewrite /minus/plus/opp/=. nra.
+    }
     iFrame.
     iIntros (r1 r2) "(Heps&Hr1&Hr2)".
     iDestruct (lazy_real_range with "Hr1") as %Hrange1.
@@ -595,7 +705,7 @@ Section lazy_real.
     assert (Rmax r1 r2 <= r3).
     { apply Rmax_lub; auto. }
     nra.
-  Abort.
+  Qed.
 
 
 End lazy_real.
