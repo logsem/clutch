@@ -137,7 +137,7 @@ Section lazy_real.
       iIntros "H". iExists _. iFrame.
   Qed.
 
-  Lemma chunk_and_tape_list_ne (l1 l2 α1 α2 : loc) f1 f2 :
+  Lemma chunk_and_tape_seq_ne (l1 l2 α1 α2 : loc) f1 f2 :
     chunk_and_tape_seq α1 l1 f1 -∗ chunk_and_tape_seq α2 l2 f2 -∗ ⌜l1 ≠ l2⌝.
   Proof.
     iIntros "(% & % & _ & Hl1 & _) (% & % & _ & Hl2 & _)".
@@ -316,31 +316,53 @@ Section lazy_real.
     iFrame.
   Qed.
 
-  (*
+  Import Hierarchy.
+
+  Lemma wp_lazy_real_presample_adv_comp E e v Φ (ε1 : R) (ε2 : R -> R) :
+    to_val e = None →
+    (forall r, (0 <= ε2 r)%R) ->
+    is_RInt ε2 0 1 ε1 →
+    lazy_real_uninit v ∗
+      ↯ ε1 ∗
+      (∀ r : R, ↯ (ε2 r) ∗ lazy_real v r -∗ WP e @ E {{ Φ }})
+      ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (Hnonval Hle HRint) "(Hv&Hε&Hwp)".
+    iDestruct "Hv" as (l α) "(->&Hchunk&Htape)".
+    wp_apply (wp_presample_unif_adv_comp _ _ _ _ ε1 ε2 with "[-]"); try auto.
+    iFrame "∗".
+    iIntros (r) "(Herr&Htape)".
+    iDestruct "Htape" as (f) "(Htape&%Hr)".
+    iApply "Hwp".
+    iFrame.
+    iExists _.
+    iPureIntro. split_and!; eauto.
+  Qed.
+
   Lemma wp_cmp E v1 v2 r1 r2 :
     ⟨⟨⟨ lazy_real v1 r1 ∗ lazy_real v2 r2 ⟩⟩⟩
       cmp v1 v2 @ E
-    ⟨⟨⟨ (z : Z) zs1' zs2', RET #z;
+    ⟨⟨⟨ (z : Z) , RET #z;
         lazy_real v1 r1 ∗ lazy_real v2 r2 ∗
-        (⌜ z = -1 ∧ r1 <= r2 ⌝ ∨
-         ⌜ z = 0 ∧ r1 = r2 ⌝ ∨
-         ⌜ z = 1 ∧ r2 <= r1 ⌝) ⟩⟩⟩.
+        (⌜ z = (-1)%Z ∧ r1 <= r2 ⌝ ∨
+         ⌜ z = 1%Z ∧ r2 <= r1 ⌝) ⟩⟩⟩.
   Proof.
-    iIntros (? Ψ) "((%l1 & %α1 & -> & Hl1) & (%l2 & %α2 & -> & Hl2) & (% & % & Hcmps & %)) HΨ".
+    iIntros (Φ) "(Hr1&Hr2) HΦ".
     wp_rec. wp_pures.
-    iDestruct (chunk_and_tape_list_ne with "Hl1 Hl2") as %?.
+    iDestruct "Hr1" as (l1 α1 f1 -> ->) "Hr1".
+    iDestruct "Hr2" as (l2 α2 f2 -> ->) "Hr2".
+    wp_pures.
+    iDestruct (chunk_and_tape_seq_ne with "Hr1 Hr2") as %?.
     rewrite bool_decide_eq_false_2; [|by intros [=]].
     wp_pures.
-    destruct M; [lia|].
-    wp_apply (rwp_cmp_list with "[$Hcmps $Hl1 $Hl2]"); [lia|].
-    iIntros (???????) "(Hl1 & Hl2 & [%zs1'' ->] & [%zs2'' ->] & % & Hs & %)".
-    iApply "HΨ".
-    iSplitL "Hl1".
-    { iExists _, _. by iFrame. }
-    iSplitL "Hl2".
-    { iExists _, _. by iFrame. }
-    iFrame. eauto with lia.
+    wp_apply (wp_cmp_list with "[$Hr1 $Hr2]").
+    iIntros (z)  "(Hcases&Hr1&Hr2)".
+    iApply "HΦ".
+    iSplitL "Hr1".
+    { iExists _, _, _. iFrame. eauto. }
+    iSplitL "Hr2".
+    { iExists _, _, _. iFrame. eauto. }
+    auto.
   Qed.
-   *)
 
 End lazy_real.
