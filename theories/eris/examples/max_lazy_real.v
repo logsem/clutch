@@ -73,3 +73,5 @@ Proof.
   iApply ("Hwp" $! r1 r2); iSplitL "Hε"; first iFrame.
   iSplitL "Hchunk1 Hα1"; iFrame; iExists _; iPureIntro; split_and!; eauto.
 Qed.
+
+End max_lazy_real.
