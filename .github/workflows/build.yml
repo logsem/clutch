@@ -50,6 +50,7 @@ jobs:
               git clone https://github.com/ahuoguo/clutch.git -b gh-pages
               mv clutch/popl24/ ./popl24/
               mv clutch/eris/ ./eris/
+              mv clutch/tachis/ ./tachis/
               cd ..
             endGroup
           uninstall: |
