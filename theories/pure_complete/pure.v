@@ -430,6 +430,49 @@ Proof.
   apply Hs.
 Qed.
 
+Lemma pure_exec_state n e σ σ':
+  is_pure e = true -> 
+  exec n (e, σ) = exec n (e, σ').
+Proof.
+  revert e.
+  induction n; auto.
+  intros. simpl.
+  destruct (to_val e); auto.
+  apply distr_ext => v //=.
+  rewrite !dbind_unfold_pmf.
+  rewrite fubini_pos_seriesC_prod_lr; try real_solver.
+  2 : { apply pmf_ex_seriesC_mult_fn. by exists 1. }
+  rewrite fubini_pos_seriesC_prod_lr. 
+  2 : real_solver.
+  2 : { apply pmf_ex_seriesC_mult_fn. by exists 1. }
+  apply SeriesC_ext => e' //=.
+  erewrite <- (SeriesC_ext (λ b, if bool_decide (b = σ) then (if bool_decide (0 < step (e, σ) (e', σ)) then step (e, σ) (e', σ) * exec n (e', σ) v else 0) else 0)). 2 : {
+    intros. case_bool_decide; subst.
+    - case_bool_decide; try real_solver. 
+      symmetry. apply Rmult_eq_0_compat_r. simpl in *.
+      apply Rle_antisym; real_solver.
+    - symmetry. apply Rmult_eq_0_compat_r.
+      apply Rle_antisym; try real_solver.
+      destruct (decide (0 < step (e, σ) (e', n0))); try by simpl in *; real_solver.
+      by apply pure_state_step in r. 
+  }
+  rewrite SeriesC_singleton. 
+  erewrite <- (SeriesC_ext (λ b, if bool_decide (b = σ') then (if bool_decide (0 < step (e, σ') (e', σ')) then step (e, σ') (e', σ') * exec n (e', σ') v else 0) else 0)). 2 : {
+    intros. case_bool_decide; subst.
+    - case_bool_decide; try real_solver. 
+      symmetry. apply Rmult_eq_0_compat_r. simpl in *.
+      apply Rle_antisym; real_solver.
+    - symmetry. apply Rmult_eq_0_compat_r.
+      apply Rle_antisym; try real_solver.
+      destruct (decide (0 < step (e, σ') (e', n0))); try by simpl in *; real_solver.
+      by apply pure_state_step in r. 
+  } 
+  rewrite !SeriesC_singleton (pure_step_state e e' σ σ'); auto.
+  do 2 case_bool_decide; try real_solver.
+  rewrite IHn; auto.
+  by eapply pure_step_inv.
+Qed.
+
 Lemma pure_pterm n (e : expr) (σ σ' : state) :
   is_pure e = true -> pterm n (e, σ) = pterm n (e, σ').
 Proof.
