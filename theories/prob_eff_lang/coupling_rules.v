@@ -72,4 +72,44 @@ Section rules.
     { rewrite -H0; apply Fin.F1. } 
   Qed.
 
+  (** * rand(unit, N) ~ state_step(α', N) coupling *)
+  Lemma ewp_couple_rand_tape N f `{Bij nat nat f} z E α ns Φ Ψ :
+    TCEq N (Z.to_nat z) →
+    (∀ n, n < S N -> f n < S N)%nat →
+    α ↪ₛN (N; ns) -∗
+    ▷ (∀ n, α ↪ₛN (N; ns ++ [f n]) ∗ ⌜ n ≤ N ⌝ -∗ Φ #n) -∗
+    EWP
+      rand #z @ E <| Ψ |>
+    {{ v, Φ v }}.
+  Proof.
+    iIntros (H0 Hdom) "Hαs HΦ". 
+    iDestruct "Hαs" as (fs) "(<-&Hαs)".
+    destruct (restr_bij_fin (S N) f Hdom) as [ff [Hbij Hff]].
+    iApply ewp_lift_step_prog_couple; [done|done|].
+    iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
+    iDestruct (spec_auth_lookup_tape with "Hauth2 Hαs") as %?.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    replace (ε) with (0+ε)%NNR at 2 by (apply nnreal_ext; simpl; lra).
+    iApply prog_coupl_step_l_erasable; [done| |..].
+    { eexists. simpl. apply head_step_prim_step.
+      apply head_step_support_equiv_rel. constructor; done. }
+    { apply ARcoupl_exact.
+      eapply (Rcoupl_rand_state _ ff); eauto.
+      rewrite -H0//. }
+    { by eapply state_step_erasable. }
+    iIntros (??? (n & [= -> ->] & ->)).
+    iMod (spec_auth_update_tape (_; fs ++ [ff _]) with "Hauth2 Hαs") as "[Htapes Hαs]".
+    do 2 iModIntro.
+    iMod "Hclose'" as "_".
+    iFrame.
+    iApply ewp_value.
+    iApply ("HΦ" $! _ with "[$Hαs]").
+    iPureIntro.
+    rewrite fmap_app -Hff.
+    split; auto.
+    apply fin_to_nat_le.
+    Unshelve.
+    rewrite -H0; apply Fin.F1.
+  Qed.
+
 End rules.

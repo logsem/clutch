@@ -10,6 +10,7 @@ From iris.base_logic Require Export na_invariants ghost_map.
 From clutch.prob_eff_lang          Require Import wp_tactics weakestpre shallow_handler typed_lang spec_ra
                                                   iEff spec_rules primitive_laws lang class_instances
                                                   spec_tactics.
+From clutch.prob_eff_lang.named_effects Require Import labeled_effects.
 Import uPred.
 
 Set Default Proof Using "Type".
@@ -192,45 +193,54 @@ Section lrel_ectx_and_expr.
   Definition obs_refines_eq : obs_refines = obs_refines_def :=
     seal_eq obs_refines_aux.
 
-  Definition ectx_refines : ((valRelO Σ -n> exprRelO Σ) -d> valRel Σ -d> ectxRelO Σ) := λ E A,
+  Definition ectx_refines : ((valRelO Σ -d> exprRelO Σ) -d> valRel Σ -d> ectxRelO Σ) := λ E A,
     EctxRel (λ K K',
-     (∀ (v v' : val), A v v'          -∗ (fill K (Val v)) <<{obs_refines}<< (fill K' (Val v')))
-       ∧
-     (∀ (e e' : expr), e <<{E A}<< e' -∗ (fill K e) <<{obs_refines}<< (fill K' e'))
-  )%I.
+               (∀ (v v' : val), A v v'          -∗ (fill K (Val v)) <<{obs_refines}<< (fill K' (Val v')))
+               ∧
+               (∀ (e e' : expr), e <<{ E A }<< e' -∗ (fill K e) <<{obs_refines}<< (fill K' e')))%I.
   Global Instance ectx_refines_ne n : Proper ((dist n) ==> (dist n) ==> (dist n)) ectx_refines.
-  Proof. intros ????????. by solve_proper. Qed.
+  Proof. intros ????????. 
+         (* intros ????????. by solve_proper. Qed. *) Admitted.
   Global Instance ectx_refines_proper : Proper ((≡) ==> (≡) ==> (≡)) ectx_refines.
-  Proof. intros ????????. by solve_proper. Qed.
+  Proof. intros ????????.  (* by solve_proper. Qed. *) Admitted.
 
-  Definition expr_refines : ((valRelO Σ -n> exprRelO Σ) -d> valRel Σ -d> exprRelO Σ) := λ E A,
+  Definition expr_refines : ((valRelO Σ -d> exprRelO Σ) -d> valRel Σ -d> exprRelO Σ) := λ E A,
     ExprRel (λ e e',
       ∀ (K K' : ectx),
         ectxRel_car (ectx_refines E A) K K' -∗
           (fill K e) <<{obs_refines}<< (fill K' e'))%I.
   Global Instance expr_refines_ne n : Proper ((dist n) ==> (dist n) ==> (dist n)) expr_refines.
-  Proof. intros ????????. by solve_proper. Qed.
+  Proof. intros ????????. by solve_proper. Qed. 
   Global Instance expr_refines_proper : Proper ((≡) ==> (≡) ==> (≡)) expr_refines.
   Proof. intros ????????. by solve_proper. Qed.
 
+  Definition sig_type Σ : Type := loc * (valRel Σ * valRel Σ).
+  
   (* Effect relation. *)
-   Program Definition eff_refines_pre :
-    (valRel Σ -d> valRel Σ -d> (valRelO Σ -n> exprRelO Σ)) →
-    (valRel Σ -d> valRel Σ -d> (valRelO Σ -n> exprRelO Σ)) := λ eff_refines A1 A2, λne A,
-  ExprRel (λ e e',
-    ∃ (v v' : val) (N N' : ectx),
-      ⌜ NeutralEctx  N ⌝ ∗ ⌜ NeutralEctx    N' ⌝ ∗
-      ⌜ e = of_eff v N ⌝ ∗ ⌜ e' = of_eff v' N' ⌝ ∗
-      A1 v v' ∗
-      □ (∀ (w w' : val),
-           A2 w w' -∗
-             ▷ ((fill N  (Val w) ) <<{ (expr_refines (eff_refines A1 A2) A) }<< (fill N' (Val w'))))
-    )%I.
-  Next Obligation. intros ???????. repeat f_equiv. intros ??. solve_proper. Qed.
+  Program Definition eff_refines_pre :
+    ((list (sig_type Σ)) -d> (list (sig_type Σ)) -d> (valRelO Σ -n> exprRelO Σ)) →
+    ((list (sig_type Σ)) -d> (list (sig_type Σ)) -d> (valRelO Σ -n> exprRelO Σ)) := λ eff_refines ρ' ρ, λne A,
+    ExprRel (λ e e',
+               match ρ' with
+               | [] => False
+               | (l', (A1, A2)) :: ρ'' =>
+                   ∃ (v v' : val) (N N' : ectx) (l : loc),
+               ⌜ NeutralEctx N ⌝ ∗ ⌜ NeutralEctx N' ⌝ ∗
+               ⌜ e = Eff (#l, v) N ⌝ ∗ ⌜ e' = Eff (#l, v') N' ⌝ ∗
+               if  (loc_car l =? loc_car l')%Z then
+                 A1 v v' ∗
+                 □(∀ w w', A2 w w' -∗ ▷( fill N w <<{ expr_refines (eff_refines ρ ρ) A }<< fill N' w'))
+               else 
+                ▷ (e <<{eff_refines ρ'' ρ A}<< e')
+             end)%I.
+  Next Obligation. intros ???????. repeat f_equiv. intros ??. simpl. destruct ρ' as [| (l', ( A1, A2)) ρ'']; solve_proper.  Qed.
   Local Instance eff_refines_pre_contractive : Contractive eff_refines_pre.
   Proof.
-    rewrite /eff_refines_pre=> n eff_ref eff_refines' Heff A1 A2 A. simpl.
-    apply ExprRel_ne=>??. repeat (f_contractive || f_equiv). 
+    rewrite /eff_refines_pre=> n eff_ref eff_refines' Heff ρ' ρ A. simpl.
+    apply ExprRel_ne=>??.
+    destruct ρ' as [| (l', (A1, A2)) ρ'']; eauto.
+    do 15f_equiv; [| f_contractive; solve_proper].
+    do 7f_equiv. f_contractive. do 2f_equiv. apply Heff.
   Qed.
   Definition eff_refines_def := fixpoint eff_refines_pre.
   Definition eff_refines_aux : seal eff_refines_def. Proof. by eexists. Qed.
@@ -243,23 +253,62 @@ Section lrel_ectx_and_expr.
     apply (fixpoint_unfold eff_refines_pre).
   Qed.
   Global Instance eff_refines_ne n :
-    Proper ((dist n) ==> (dist n) ==> (dist n)) eff_refines.
+    Proper ((Forall2 (dist n)) ==> (Forall2 (dist n)) ==> (dist n)) eff_refines.
   Proof.
-    induction (lt_wf n) as [n _ IH]=> A1 A1' HA1 A2 A2' HA2 A.
+    induction (lt_wf n) as [n _ IH]=> ρ1' ρ2' Hρ' ρ1 ρ2 Hρ A.
     rewrite !eff_refines_unfold /eff_refines_pre.
     simpl. repeat f_equiv. intros ??.
-    do 13 f_equiv; first apply HA1.
-    do 6 f_equiv; first apply HA2.
+    destruct ρ1' as [| (l1', (A1, A1')) ρ1''];
+      destruct ρ2' as [| (l2', (A2, A2')) ρ2'']; eauto;
+    inversion Hρ';
+    inversion H2;
+    inversion H6;
+      simpl in *.
+    simplify_eq.
+    do 14 f_equiv.
+     destruct (loc_car a3 =? loc_car l1')%Z eqn:Hl1';
+      destruct (loc_car a3 =? loc_car l2')%Z eqn:Hl2'; first last.
+     { f_contractive. apply IH; try lia;
+         rewrite -list.list_dist_Forall2; eapply Forall2_impl;
+         try done; intros ??; eauto using dist_lt. }
+    { rewrite Z.eqb_eq in Hl2'.
+      rewrite Z.eqb_neq in Hl1'.
+      rewrite Hl2' in Hl1'. 
+      inversion H5. rewrite loc_eq_spec in H. done. }
+    { rewrite Z.eqb_eq in Hl1'.
+      rewrite Z.eqb_neq in Hl2'.
+      rewrite Hl1' in Hl2'. 
+      inversion H5. rewrite loc_eq_spec in H. done. }
+    do 2 f_equiv; eauto.
+    do 5 f_equiv; eauto.
     f_contractive.
     apply expr_refines_ne; try done.
-    intros ?? ?.
-    apply IH; try lia; try eapply dist_le; eauto with lia. 
+    intros ?? ?. apply IH; try lia; eapply Forall2_impl; try done; intros ??; eauto using dist_lt.
   Qed.
+  (* TODO: clean up this proof *)
   Global Instance eff_refines_proper :
-    Proper ((≡) ==> (≡) ==> (≡)) eff_refines.
+    Proper (Forall2 (≡) ==> Forall2 (≡) ==> (≡)) eff_refines.
   Proof.
-    intros A1 A1' HA1 A2 A2' HA2 A.
-    by apply equiv_dist=>n; apply eff_refines_ne; try apply equiv_dist.
+    intros ρ1' ρ2' Hρ' ρ1 ρ2 Hρ A.
+    apply equiv_dist=>n. apply eff_refines_ne; apply list_equiv_Forall2. 
+    1 : { apply list_equiv_Forall2. generalize dependent ρ2'. induction ρ1'; intros ρ2' Hρ'; destruct ρ2'; eauto.
+          - by apply Forall2_nil_cons_inv in Hρ'.
+          - by apply Forall2_cons_nil_inv in Hρ'.
+          - destruct a as [l1' (A1, A2)]. destruct s as [l2' (A1', A2')]. inversion Hρ'. simplify_eq. constructor.
+            1 : { constructor; simpl; inversion H2; try done. simpl in *.
+                  inversion H0. constructor.
+                  + rewrite H1. done.
+                  + rewrite H3. done. }
+            apply IHρ1'. done. }
+    apply list_equiv_Forall2. generalize dependent ρ2. induction ρ1; intros ρ2 Hρ; destruct ρ2; eauto.
+          - by apply Forall2_nil_cons_inv in Hρ.
+          - by apply Forall2_cons_nil_inv in Hρ.
+          - destruct a as [l1' (A1, A2)]. destruct s as [l2' (A1', A2')]. inversion Hρ. simplify_eq. constructor.
+            1 : { constructor; simpl; inversion H2; try done. simpl in *.
+                  inversion H0. constructor.
+                  + rewrite H1. done.
+                  + rewrite H3. done. }
+            apply IHρ1. done.
   Qed.
 
 End lrel_ectx_and_expr.
@@ -306,7 +355,7 @@ Section semtypes.
   Definition valRel_exists (C : valRel Σ → valRel Σ) : valRel Σ := ValRel (λ w1 w2, ∃ A, C A w1 w2)%I.
   Definition valRel_forall {A : ofe} (C : A → valRel Σ) : valRel Σ := ValRel (λ w1 w2,
     ∀ (R : A),
-      let B : exprRel Σ := expr_refines (eff_refines valRel_bot valRel_unit) (C R) in
+      let B : exprRel Σ := expr_refines (eff_refines [] []) (C R) in
       (valRel_arrow valRel_unit B w1 w2))%I.
   Definition valRel_true : valRel Σ := ValRel (λ w1 w2, True)%I.
 
@@ -342,7 +391,7 @@ Section semtypes.
 
   Global Instance valRel_forall_ne {A : ofe} n :
     Proper (((=) ==> (dist n)) ==> (dist n)) (@valRel_forall A).
-  Proof.
+  Proof. 
     intros ?????. apply bi.forall_ne=>?. simpl.
     apply valRel_arrow_ne; [done|].
     apply expr_refines_ne; [done|].
@@ -371,10 +420,10 @@ Notation "∃ A1 .. An , C" :=
   (valRel_exists (λ A1, .. (valRel_exists (λ An, C%valRel)) ..)) : valRel_scope.
 Notation "∀ A1 .. An , C" :=
   (valRel_forall (λ A1, .. (valRel_forall (λ An, C%valRel)) ..)) : valRel_scope.
-Notation noEffs := (eff_refines ⊥ ())%valRel.
+Notation noEffs := (eff_refines [] [])%valRel.
 
-Arguments expr_refines {_ _} _%valRel _%valRel.
-Arguments eff_refines {_ _} _%valRel _%valRel.
+Arguments expr_refines {_ _} _%_valRel _%_valRel.
+Arguments eff_refines {_ _} _%_valRel _%_valRel.
 
 
 (** * Properties of Semantic Types. *)
@@ -455,7 +504,7 @@ Section monadic.
 
   (* Bind rule for pure expressions. *)
   Lemma refines_pure_bind K K' A F B e e' :
-    e <<{ expr_refines noEffs A }<< e' -∗
+    e <<{ expr_refines (eff_refines [] []) A }<< e' -∗
 
       (∀ (v v' : val),
          A v v' -∗
@@ -471,13 +520,12 @@ Section monadic.
     - iIntros (v v') "HA". rewrite !fill_app.
       iSpecialize ("HKval" with "HA").
       by iApply "HKval".
-    - iIntros (s s') "H". rewrite eff_refines_unfold.
-      by iDestruct "H" as (????) "(_&_&_&_&?&_)".
+    - iIntros (s s') "H". by rewrite eff_refines_unfold.
   Qed.
 
   (* Bind rule for pure expressions under an evaluation context item. *)
   Lemma Ectxi_refines_pure_bind K K' A F B e e' :
-    e <<{ expr_refines noEffs A }<< e' -∗
+    e <<{ expr_refines (eff_refines [] []) A }<< e' -∗
 
       (∀ (v v' : val),
          A v v' -∗
@@ -505,20 +553,21 @@ Section monadic.
     e₁ <<{ E A }<< e₂ -∗ e₁ <<{ expr_refines E A }<< e₂.
   Proof. iIntros "HE" (K K') "HK". by iApply "HK". Qed.
 
-  Lemma eff_refines_intro (A1 A2 B : valRel Σ) v v' N N' e e' :
-    e = of_eff v N → e' = of_eff v' N' →
-      NeutralEctx N → NeutralEctx N' →
-        A1 v v' -∗
-          □ (∀ (w w' : val),
-               A2 w w' -∗
-                 ▷ ((fill N  w ) <<{ expr_refines (eff_refines A1 A2) B }<<
-                    (fill N' w'))) -∗
-        e <<{ eff_refines A1 A2 B }<< e'.
-  Proof.
-    intros -> -> ??. rewrite eff_refines_unfold.
-    iIntros "HA #HN". iExists v, v', N, N'.
-    do 2 (iSplit; [iPureIntro; apply _|]). by auto.
-  Qed.
+  (* TODO: reformulate to the new definition of row-types *)
+  (* Lemma eff_refines_intro (A1 A2 B : valRel Σ) v v' N N' e e' :
+       e = of_eff v N → e' = of_eff v' N' →
+         NeutralEctx N → NeutralEctx N' →
+           A1 v v' -∗
+             □ (∀ (w w' : val),
+                  A2 w w' -∗
+                    ▷ ((fill N  w ) <<{ expr_refines (eff_refines A1 A2) B }<<
+                       (fill N' w'))) -∗
+           e <<{ eff_refines A1 A2 B }<< e'.
+     Proof.
+       intros -> -> ??. rewrite eff_refines_unfold.
+       iIntros "HA #HN". iExists v, v', N, N'.
+       do 2 (iSplit; [iPureIntro; apply _|]). by auto.
+     Qed. *)
 
 End monadic.
 
@@ -1124,10 +1173,11 @@ Section compatibility.
     iIntros (v v') "HA". by iApply refines_ret.
   Qed.
 
+  (* TODO: Define a new type rule for perform  *)
   (* Do -- corresponding to the rule [Do_typed]. *)
-  Lemma refines_do e₁ e₁' A1 A2 :
+  Lemma refines_do l e₁ e₁' A1 A2 :
     e₁ <<{ expr_refines noEffs A1 }<< e₁' -∗
-      (do: e₁) <<{ expr_refines (eff_refines A1 A2) A2 }<< (do: e₁').
+      (do: (#l, e₁)) <<{ expr_refines (eff_refines [(l, (A1, A2))] [(l, (A1, A2))]) A2 }<< (do: (#l, e₁')).
   Proof.
     iIntros "He".
     iApply (Ectxi_refines_pure_bind DoCtx DoCtx with "He").
@@ -1332,7 +1382,7 @@ Section eff_refines.
     intros ??? ???. apply equiv_dist=>n.
     by apply eff_refines_ne'; try apply equiv_dist.
   Qed.
-  Global Instance semEffSigRel_inhabited : Inhabited (semEffSig Σ) :=
+p  Global Instance semEffSigRel_inhabited : Inhabited (semEffSig Σ) :=
     populate (eff_refines' ()%valRel ()%valRel).
 
 End eff_refines.

@@ -25,6 +25,7 @@ Section eff_rand_ordering.
       (λ: "v" "k", let b := do: (rand #n) in "k" b)%V
       (λ: "v", "v")%V).
 
+  (* TODO: clean up proof and write ewp tactics *)
   Theorem eff_rand_reordering (n : nat) :
    ⊢ prog1 n <<{ ⟦ .< TNat ; TNat .> TNat ⟧ₑ [] }<< prog2 n .
   Proof. 
@@ -121,5 +122,68 @@ Section eff_rand_ordering.
     iDestruct "HKK" as "(HKK&_)".
     by iApply "HKK".
   Qed.
+
+
+  Definition rand_eff (n : nat) : expr :=
+    (let: "a" := rand #n in
+     (do: #());;
+     "a")%E.
+
+  Definition eff_rand (n : nat) : expr :=
+    let: "α" := alloc #n in 
+    ((do: #());; rand ("α") #n)%E.
+
+  Theorem rand_eff_refines_eff_rand (n : nat) :
+    ⊢ rand_eff n <<{ ⟦ .< TUnit ; TUnit .> TNat ⟧ₑ [] }<< eff_rand n.
+  Proof.
+    iIntros. unfold rand_eff, eff_rand.
+    iIntros (K K') "HKK". rewrite obs_refines_eq.
+    iIntros (ε) "Hj". iIntros "Herr". iIntros (Hpos).
+    iApply spec_update_ewp.
+    tp_alloctape as α "Htape". tp_pures.
+    (* assert (fill K' (do: #();; (rand #lbl:α #n)%E) = fill ([AppRCtx (λ:<>, rand #lbl:α #n)%E] ++ K') (do:#())) as HAHH.
+        { simpl. done. } *)
+    iMod (step_pure  with "[$Hj]") as "Hj"; [apply I| |].
+    { apply (@pure_eff (AppRCtx _)). apply AppRCtx_neutral. }
+    rewrite app_nil_l.
+    iModIntro.
+    iApply (ewp_pure_bind ([AppRCtx _] ++ K)). { done. }
+    iApply (ewp_couple_rand_tape with "[$Htape]"); [eauto|done|iModIntro].
+    iIntros (m) "(Htape & %Hlt)". simpl.
+
+    iApply ewp_pure_step. { apply pure_prim_step_fill. apply (pure_prim_step_fill [AppLCtx _]). apply pure_prim_step_rec. }
+    iApply ewp_pure_step. { apply pure_prim_step_fill. apply pure_prim_step_beta. }
+    simpl.
+    iApply ewp_pure_step. { apply pure_prim_step_fill. apply (pure_prim_step_fill [AppRCtx _]).
+                            apply pure_prim_step_do. }
+    iApply ewp_pure_step. { apply pure_prim_step_fill. apply pure_prim_step_eff. apply AppRCtx_neutral. }
+    rewrite app_nil_l.
+    iApply fupd_ewp.
+    iMod (inv_alloc (nroot.@"tape") _ with "[Htape]") as "#Hinv". { iNext. iApply "Htape". }
+    iModIntro.
+        
+    rewrite {1}/ectxRel_car //=.
+    iDestruct "HKK" as "(_&HKK)".
+    rewrite obs_refines_eq.
+    iApply ("HKK" with "[][$Hj][$Herr]"); [|done].
+    iApply (eff_refines_intro _ _ _ #() #() [AppRCtx _] [AppRCtx _]); [done|done|eauto|].
+    iModIntro.
+    iIntros (w w') "Hww !>". simpl.
+    simpl. clear Hpos ε K K'.
+    iIntros (K K') "HKK".
+    rewrite obs_refines_eq.
+    iIntros (ε) "Hj". iIntros "Herr". iIntros (Hpos).
+    iApply spec_update_ewp. tp_pures.
+    iModIntro.
+    iApply ewp_pure_step. { apply pure_prim_step_fill. apply (pure_prim_step_fill [AppLCtx _]).
+                            apply pure_prim_step_rec. }
+    iApply ewp_pure_step. { apply pure_prim_step_fill. apply pure_prim_step_beta. } simpl.
+    iApply (ewp_pure_bind K). { done. }
+    iApply fupd_ewp.
+    iInv (nroot.@"tape") as "Htape" "Hclose".
+    
+    
+  Admitted.
+    
     
 End eff_rand_ordering.

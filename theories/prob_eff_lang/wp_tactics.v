@@ -11,7 +11,7 @@ From clutch.prob_eff_lang Require Import  tactics notation spec_ra spec_rules pr
 Set Default Proof Using "Type*".
 
 Section ewp_tactics.
-  Context `{!spec_updateGS (lang_markov eff_prob_lang) Σ, !approxisWpGS eff_prob_lang Σ}.
+  Context `{probeffGS Σ}.
 
   Lemma pure_step_ctx K e1 e2 :
     pure_step e1 e2 → pure_step (fill K e1) (fill K e2).
@@ -70,7 +70,7 @@ Section ewp_tactics.
 End ewp_tactics.
 
 Section ewp_bind_tactics.
-  Context `{!spec_updateGS (lang_markov eff_prob_lang) Σ, !approxisWpGS eff_prob_lang Σ}.
+  Context `{probeffGS Σ}.
   
   Lemma tac_ewp_bind K Δ E Φ Ψ e f :
     NeutralEctx K → 
@@ -85,9 +85,9 @@ Tactic Notation "ewp_expr_eval" tactic3(t) :=
   iStartProof;
   lazymatch goal with
   | |- envs_entails _ (ewp_def ?E ?e ?P ?Q) =>
-      notypeclasses refine (tac_ewp_expr_eval _ _ _ _ e _ _ _ );
+      notypeclasses refine (tac_ewp_expr_eval _ _ _ _ e _ _ _);
       [apply _|let x := fresh in intros x; simpl; unfold x; notypeclasses refine eq_refl|]
-  | _ => fail "ewp_expr_eval: not a 'wp'"
+  | _ => fail "ewp_expr_eval: not a 'ewp'"
   end.
 Ltac ewp_expr_simpl := ewp_expr_eval simpl.
 
@@ -99,17 +99,17 @@ Ltac ewp_value_head :=
   lazymatch goal with
   | |- envs_entails _ (ewp_def ?E (of_val _) _ (λ _, fupd ?E _ _)) =>
       eapply tac_ewp_value_nofupd
-  | |- envs_entails _ (ewp_def ?E (of_val _) _ (λ _, wp _ ?E _ _)) =>
+  | |- envs_entails _ (ewp_def ?E (of_val _) _ (λ _, ewp_def ?E _ _ _)) =>
       eapply tac_ewp_value_nofupd
   | |- envs_entails _ (ewp_def ?E (of_val _) _ _) =>
       eapply tac_ewp_value'
   end.
-Context `{probeffGS Σ}.
+
 Ltac ewp_finish :=
   (* simplify occurences of [wptac_mapsto] projections  *)
   rewrite ?[(λ l q v, (l ↦{q} v)%I) _ _ _]/=;
   (* simplify occurences of subst/fill *)
-  ewp_expr_simpl;
+  try ewp_expr_simpl;
   (* in case we have reached a value, get rid of the wp *)
   try ewp_value_head;
   (* prettify ▷s caused by [MaybeIntoLaterNEnvs] and λs caused by wp_value *)
@@ -135,14 +135,14 @@ Tactic Notation "ewp_pure" open_constr(efoc) :=
       let e := eval simpl in e in
       reshape_expr e ltac:(fun K e' =>
         unify e' efoc;
-        eapply (tac_ewp_pure_later _ _ _ _ K e');
+        try (eapply (tac_ewp_pure_later _ _ _ _ K e');
         [tc_solve                       (* PureExec *)
         |try solve_vals_compare_safe    (* The pure condition for PureExec -- handles trivial goals, including [vals_compare_safe] *)
         |tc_solve                       (* IntoLaters *)
         |ewp_finish                      (* new goal *)
-        ])
+        ]))
     || fail "ewp_pure: cannot find" efoc "in" e "or" efoc "is not a redex"
-  | _ => fail "wp_pure: not a 'wp'"
+  | _ => fail "ewp_pure: not a 'ewp'"
   end.
 
 Tactic Notation "ewp_pure" :=
@@ -151,7 +151,7 @@ Tactic Notation "ewp_pure" :=
 Ltac ewp_pures :=
   iStartProof;
   first [ (* The `;[]` makes sure that no side-condition magically spawns. *)
-          progress repeat (ewp_pure _; [])
+          (* progress *) repeat (ewp_pure _; [])
         | ewp_finish (* In case wp_pure never ran, make sure we do the usual cleanup. *)
     ].
 
@@ -421,7 +421,7 @@ Tactic Notation "ewp_alloc" ident(l) "as" constr(H) :=
     first [intros l | fail 1 "wp_alloc:" l "not fresh"];
     pm_reduce;
     lazymatch goal with
-    | |- False => fail 1 "wp_alloc:" H "not fresh"
+    | |- False => fail 1 "ewp_alloc:" H "not fresh"
     | _ => iDestructHyp Htmp as H; ewp_finish
     end in
   ewp_pures;
@@ -434,7 +434,7 @@ Tactic Notation "ewp_alloc" ident(l) "as" constr(H) :=
      l ↦ v for single references. These are logically equivalent assertions
      but are not equal. *)
 lazymatch goal with
-  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+  | |- envs_entails _ (ewp_def ?E ?e ?P ?Q) =>
     let process_single _ :=
         first
           [reshape_expr e ltac:(fun K e' => eapply (tac_ewp_alloc _ _ _ Htmp K))
@@ -476,7 +476,7 @@ Tactic Notation "ewp_load" :=
        [tc_solve
        |solve_wptac_mapsto ()
        |wp_finish] *)
-  | _ => fail "wp_load: not a 'wp'"
+  | _ => fail "ewp_load: not a 'ewp'"
   end.
 
 Tactic Notation "ewp_store" :=
@@ -537,7 +537,7 @@ Section tape_tactics.
     envs_lookup i Δ2 = Some (false, (l ↪N (N; (n::ns)))%I) ->
     (match envs_simple_replace i false (Esnoc Enil i (l ↪N (N; ns))) Δ2 with
     | Some Δ3 =>
-        (match envs_app false (Esnoc Enil j (⌜n <= N⌝%I)) Δ3 with
+        (match envs_app false (Esnoc Enil j (⌜n ≤ N⌝%I)) Δ3 with
         | Some Δ4 => envs_entails Δ4 (EWP fill K (Val $ LitV $ LitInt n) @ E <| Ψ |> {{ Φ }})
         | None    => False
         end)

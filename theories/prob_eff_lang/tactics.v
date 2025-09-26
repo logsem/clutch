@@ -12,7 +12,7 @@ for each possible decomposition until [tac] succeeds. *)
 Ltac reshape_expr e tac :=
   let rec go K e :=
   match e with
-  | _ => tac K e
+  | _ => tac K e ; try rewrite app_nil_l (* clean up in case [] ++ K (fill case) *)
   | App ?e (Val ?v) => go (AppLCtx v :: K) e
   | App ?e1 ?e2 => go (AppRCtx e1 :: K) e2
   | UnOp ?op ?e => go (UnOpCtx op :: K) e
@@ -35,6 +35,7 @@ Ltac reshape_expr e tac :=
   | Rand ?e (Val ?v) => go (RandLCtx v :: K) e
   | Rand ?e1 ?e2 => go (RandRCtx e1 :: K) e2
   | Tick ?e => go (TickCtx :: K) e
+  | fill ?K' ?e => go (K ++ K') e
   end in go (@nil ectx_item) e.
 
 Local Open Scope R.

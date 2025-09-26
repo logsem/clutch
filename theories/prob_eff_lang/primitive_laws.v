@@ -105,7 +105,7 @@ Section tape_interface.
     iExists xs; auto.
   Qed.
 
-  (*
+ 
   Lemma spec_tapeN_to_empty l M :
     (l ↪ₛN ( M ; [] ) -∗ l ↪ₛ ( M ; [] )).
   Proof.
@@ -113,7 +113,6 @@ Section tape_interface.
     iDestruct "Hl" as (?) "(%Hmap & Hl')".
     by destruct (fmap_nil_inv _ _ Hmap).
   Qed.
-
 
   Lemma empty_to_spec_tapeN l M :
     (l ↪ₛ ( M ; [] ) -∗ l ↪ₛN ( M ; [] )).
@@ -136,7 +135,7 @@ Section tape_interface.
     iIntros.
     iExists xs; auto.
   Qed.
-*)
+
 
 End tape_interface.
 
@@ -244,35 +243,35 @@ Lemma ewp_load E l dq v Φ Ψ :
   ▷ (l ↦{dq} v -∗ Φ v) -∗
   EWP Load (Val $ LitV $ LitLoc l) @ E <| Ψ |> {{ v, Φ v }}.
 Proof.
-(*   iIntros ">Hl HΦ". 
-     iApply ewp_lift_atomic_head_step; [done|done|].
-     iIntros (σ1) "[Hh Ht] !#". 
-     iDestruct (ghost_map_lookup with "Hh Hl") as %?.
-     iSplit. { iPureIntro. eexists. apply head_step_support_equiv_rel. constructor; eauto. }
-     iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
-     iFrame. iModIntro. by iApply "HΦ".
-   Qed. *)
-Admitted.
+  iIntros ">Hl HΦ". 
+  iApply ewp_lift_atomic_head_step; [done|done|].
+  iIntros (σ1) "[Hh Ht] !#". 
+  iDestruct (ghost_map_lookup with "Hh Hl") as %?.
+  iSplit. { iPureIntro. eexists. apply head_step_support_equiv_rel. constructor; eauto. }
+  iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
+  iFrame. iModIntro. by iApply "HΦ".
+Qed.
+
   
 Lemma ewp_store E l v' v Φ Ψ :
   ▷ l ↦ v' -∗                     
   ▷ (l ↦ v -∗ Φ #()) -∗
   EWP #l <- v @ E <| Ψ |> {{ v, Φ v }}.
 Proof.
- (*  iIntros ">Hl HΦ".
-     iApply ewp_lift_atomic_head_step; [done|done|].
-     iIntros (σ1) "[Hh Ht] !#".
-     iDestruct (ghost_map_lookup with "Hh Hl") as %?.
-     iSplit. { iPureIntro. eexists. apply head_step_support_equiv_rel. econstructor; eauto. }
-     iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
-     iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
-     iFrame. iModIntro. by iApply "HΦ".
-   Qed. *)
-Admitted.
+  iIntros ">Hl HΦ".
+  iApply ewp_lift_atomic_head_step; [done|done|].
+  iIntros (σ1) "[Hh Ht] !#".
+  iDestruct (ghost_map_lookup with "Hh Hl") as %?.
+  iSplit. { iPureIntro. eexists. apply head_step_support_equiv_rel. econstructor; eauto. }
+  iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
+  iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
+  iFrame. iModIntro. by iApply "HΦ".
+Qed.
+
   
 Lemma ewp_rand (N : nat) (z : Z) E Φ Ψ :
   TCEq N (Z.to_nat z) →
-  ▷ (∀ n : nat, ⌜n <= N⌝ -∗ Φ #n) -∗
+  ▷ (∀ n : nat, ⌜n ≤ N⌝ -∗ Φ #n) -∗
                EWP rand #z @ E <| Ψ |> {{ v, Φ v }}.
 Proof.
   iIntros (->) "HΦ".
@@ -284,8 +283,9 @@ Proof.
   iFrame.
   iApply ("HΦ" $! x).
   iPureIntro.
-  pose proof (fin_to_nat_lt x). (* only lia needed *)
-Admitted.
+  pose proof (fin_to_nat_lt x); lia.
+  Unshelve. apply Fin.F1. 
+Qed.
 
 (** Tapes  *)
 Lemma ewp_alloc_tape N z E Φ Ψ :
@@ -308,74 +308,75 @@ Qed.
 Lemma ewp_rand_tape N α n ns z E Φ Ψ :
   TCEq N (Z.to_nat z) →
   ▷ α ↪N (N; n :: ns) -∗          
-  ▷ (α ↪N (N; ns) ∗ ⌜n <= N⌝ -∗ Φ #n) -∗
+  ▷ (α ↪N (N; ns) ∗ ⌜n ≤ N⌝ -∗ Φ #n) -∗
   EWP rand(#lbl:α) #z @ E <| Ψ |> {{ v, Φ v }}.
 Proof.
-  (* iIntros (->) "Hl HΦ". 
-     iApply ewp_lift_atomic_head_step; [done|done|].
-     iIntros (σ1) "(Hh & Ht) !#".
-     iDestruct (read_tape_head with "Hl") as (x xs) "(Hl&<-&Hret)".
-     iDestruct (ghost_map_lookup with "Ht Hl") as %?.
-     iSplit. { iPureIntro. eexists. apply head_step_support_equiv_rel. econstructor; eauto. }
-     iIntros "!>" (e2 σ2 Hs).
-     inv_head_step.
-     iMod (ghost_map_update with "Ht Hl") as "[$ Hl]".
-     iFrame. iModIntro.
-     iApply "HΦ".
-     iSplit; first by iApply "Hret".
-     iPureIntro.
-     pose proof (fin_to_nat_lt x). (* only lia needed *) *)
-Admitted.
+  iIntros (->) ">Hl HΦ". 
+  iApply ewp_lift_atomic_head_step; [done|done|].
+  iIntros (σ1) "(Hh & Ht) !#".
+  iDestruct (read_tape_head with "Hl") as (x xs) "(Hl&<-&Hret)".
+  iDestruct (ghost_map_lookup with "Ht Hl") as %?.
+  iSplit. { iPureIntro. eexists. apply head_step_support_equiv_rel. econstructor; eauto. }
+  iIntros "!>" (e2 σ2 Hs).
+  inv_head_step.
+  iMod (ghost_map_update with "Ht Hl") as "[$ Hl]".
+  iFrame. iModIntro.
+  iApply "HΦ".  iSplit; first by iApply "Hret".
+  iPureIntro.
+  pose proof (fin_to_nat_lt x); lia.
+Qed.
 
 Lemma ewp_rand_tape_empty N z α E Φ Ψ:
   TCEq N (Z.to_nat z) →
   ▷ α ↪N (N; []) -∗              
-  ▷ (∀ n : nat, α ↪N (N; []) ∗ ⌜n <= N⌝ -∗ Φ #n) -∗
+  ▷ (∀ n : nat, α ↪N (N; []) ∗ ⌜n ≤ N⌝ -∗ Φ #n) -∗
   EWP rand(#lbl:α) #z @ E <| Ψ |> {{ v, Φ v }}.
 Proof.
-  (* iIntros (->) "Hl HΦ".
-     iPoseProof (tapeN_to_empty with "Hl") as "Hl".
-     iApply ewp_lift_atomic_head_step; [done|done|].
-     iIntros (σ1) "(Hh & Ht) !#".
-     iDestruct (ghost_map_lookup with "Ht Hl") as %?.
-     iSplit. { iPureIntro. eexists. apply head_step_support_equiv_rel. apply RandTapeEmptyS; eauto. }
-     iIntros "!>" (e2 σ2 Hs).
-     inv_head_step.
-     iFrame.
-     iModIntro. iApply ("HΦ" with "[$Hl]").
-     iSplit; auto.
-     iPureIntro.
-     pose proof (fin_to_nat_lt x). (* only lia needed *) *)
-Admitted.
+  iIntros (->) ">Hl HΦ".
+  iPoseProof (tapeN_to_empty with "Hl") as "Hl".
+  iApply ewp_lift_atomic_head_step; [done|done|].
+  iIntros (σ1) "(Hh & Ht) !#".
+  iDestruct (ghost_map_lookup with "Ht Hl") as %?.
+  iSplit. { iPureIntro. eexists. apply head_step_support_equiv_rel. apply RandTapeEmptyS; eauto. }
+  iIntros "!>" (e2 σ2 Hs).
+  inv_head_step.
+  iFrame.
+  iModIntro. iApply ("HΦ" with "[$Hl]").
+  iSplit; auto.
+  iPureIntro.
+  pose proof (fin_to_nat_lt x); lia.
+  Unshelve. apply Fin.F1.
+Qed.
 
 Lemma ewp_rand_tape_wrong_bound N M z α E ns Φ Ψ :
   TCEq N (Z.to_nat z) →
   N ≠ M →
   ▷ α ↪N (M; ns) -∗              
-  ▷ (∀ n : nat, α ↪N (M; ns) ∗ ⌜n <= N⌝ -∗ Φ #n) -∗
+  ▷ (∀ n : nat, α ↪N (M; ns) ∗ ⌜n ≤ N⌝ -∗ Φ #n) -∗
   EWP rand(#lbl:α) #z @ E <| Ψ |> {{ v, Φ v }}.
 Proof.
-  (* iIntros (-> ?) "Hl HΦ".
-     iApply ewp_lift_atomic_head_step; [done|done|].
-     iIntros (σ1) "(Hh & Ht) !#".
-     iDestruct "Hl" as (?) "(?&Hl)".
-     iDestruct (ghost_map_lookup with "Ht Hl") as %?.
-     iSplit. { iPureIntro. eexists. apply head_step_support_equiv_rel. eapply RandTapeOtherS; eauto. }
-     iIntros "!>" (e2 σ2 Hs).
-     inv_head_step.
-     iFrame.
-     iModIntro.
-     iApply ("HΦ").
-     iFrame.
-     iPureIntro.
-     pose proof (fin_to_nat_lt x). (* only lia needed *) *)
-Admitted.
+  iIntros (-> ?) ">Hl HΦ".
+  iApply ewp_lift_atomic_head_step; [done|done|].
+  iIntros (σ1) "(Hh & Ht) !#".
+  iDestruct "Hl" as (?) "(?&Hl)".
+  iDestruct (ghost_map_lookup with "Ht Hl") as %?.
+  iSplit. { iPureIntro. eexists. apply head_step_support_equiv_rel. eapply RandTapeOtherS; eauto. }
+  iIntros "!>" (e2 σ2 Hs).
+  inv_head_step.
+  iFrame.
+  iModIntro.
+  iApply ("HΦ").
+  iFrame.
+  iPureIntro.
+  pose proof (fin_to_nat_lt x); lia.
+  Unshelve. apply Fin.F1.
+Qed.
 
 (** spec [rand] *)
 Lemma ewp_rand_r N z E e K Φ Ψ :
   TCEq N (Z.to_nat z) →
   ⤇ fill K (rand #z) ∗
-  (∀ n : nat, ⤇ fill K #n -∗ ⌜ n <= N ⌝ -∗ EWP e @ E <| Ψ |> {{v, Φ v }})
+  (∀ n : nat, ⤇ fill K #n -∗ ⌜ n ≤ N ⌝ -∗ EWP e @ E <| Ψ |> {{v, Φ v }})
   ⊢ EWP e @ E <| Ψ |> {{v, Φ v }}.
 Proof.
   iIntros (->) "(Hj & Hwp)".
@@ -406,24 +407,23 @@ Admitted.                       (* type classes fail *)
 Lemma ewp_alloc_tape_r N z E e K Φ Ψ :
   TCEq N (Z.to_nat z) →
   ⤇ fill K (alloc #z) ∗
-    (∀ α, ⤇ fill K #lbl:α -∗ α ↪ₛN (N; []) -∗ WP e @ E {{ Φ }})
+    (∀ α, ⤇ fill K #lbl:α -∗ α ↪ₛN (N; []) -∗ EWP e @ E <| Ψ |> {{ Φ }})
     ⊢ EWP e @ E <| Ψ |> {{v, Φ v }}.
 Proof.
   iIntros (->) "(Hj & Hwp)".
-(*   tp_alloctape as α "Hα".
-     iApply ("Hwp" with "Hj").
-     iFrame.
-     iPureIntro.
-     auto.
-   Qed. *)
-Admitted.
+  tp_alloctape as α "Hα".
+  iApply ("Hwp" with "[$Hj] [$Hα]").
+  iPureIntro.
+  auto.
+Qed.
+
 
   
 (** spec [rand(α)] with empty tape  *)
 Lemma ewp_rand_empty_r N z E e K α Φ Ψ :
   TCEq N (Z.to_nat z) →
   ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛN (N; []) ∗
-  (∀ n : nat, (α ↪ₛN (N; []) ∗ ⤇ fill K #n) -∗ ⌜ n <= N ⌝ -∗ EWP e @ E <| Ψ |> {{ Φ }})
+  (∀ n : nat, (α ↪ₛN (N; []) ∗ ⤇ fill K #n) -∗ ⌜ n ≤ N ⌝ -∗ EWP e @ E <| Ψ |> {{ Φ }})
   ⊢ EWP e @ E <| Ψ |> {{ Φ }}.
 Proof.
   iIntros (->) "(Hj & Hα & Hwp)".
@@ -457,25 +457,24 @@ Admitted.                       (* type classes fail *)
 Lemma ewp_rand_tape_r N z E e K α Φ Ψ n ns :
   TCEq N (Z.to_nat z) →
   ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛN (N; n::ns) ∗
-    ((α ↪ₛN (N; ns) ∗ ⤇ fill K #n) -∗ ⌜ n <= N ⌝ -∗ EWP e @ E <| Ψ |> {{ Φ }})
+    ((α ↪ₛN (N; ns) ∗ ⤇ fill K #n) -∗ ⌜ n ≤ N ⌝ -∗ EWP e @ E <| Ψ |> {{ Φ }})
     ⊢ EWP e @ E <| Ψ |> {{ Φ }}.
 Proof.
   iIntros (Heq) "(Hj & Hα & Hwp)".
   iDestruct (read_spec_tape_head with "Hα") as (x xs) "(Hl&<-&Hret)".
- (*  tp_rand.
-     iDestruct ("Hret" with "Hl") as "Hret".
-     iApply ("Hwp" with "[$]").
-     iPureIntro.
-     pose proof (fin_to_nat_lt x); lia.
-   Qed. *)
-Admitted.                       (* spec_tactics does not work *)
+  tp_rand.
+  iDestruct ("Hret" with "Hl") as "Hret".
+  iApply ("Hwp" with "[$]").
+  iPureIntro.
+  pose proof (fin_to_nat_lt x);lia.
+Qed.
 
 (** spec [rand(α)] with wrong tape  *)
 Lemma ewp_rand_wrong_tape_r N M z E e K α Φ Ψ ns :
   TCEq N (Z.to_nat z) →
   N ≠ M →
   ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛN (M; ns) ∗
-  (∀ (n : nat), (α ↪ₛN (M; ns) ∗ ⤇ fill K #n) -∗ ⌜ n <= N ⌝ -∗ EWP e @ E <| Ψ |> {{ Φ }})
+  (∀ (n : nat), (α ↪ₛN (M; ns) ∗ ⤇ fill K #n) -∗ ⌜ n ≤ N ⌝ -∗ EWP e @ E <| Ψ |> {{ Φ }})
   ⊢ EWP e @ E <| Ψ |> {{ Φ }}.
 Proof.
   iIntros (-> ?) "(Hj & Hα & Hwp)".

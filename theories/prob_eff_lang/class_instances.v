@@ -90,6 +90,9 @@ Section atomic.
 
   Global Instance tick_atomic s z : Atomic s (Tick (Val (LitV (LitInt z)))).
   Proof. solve_atomic. Qed.
+
+  Global Instance eff_atomic s v K : Atomic s (Eff v K).
+  Proof. solve_atomic. Qed.
 End atomic.
 
 

@@ -1004,19 +1004,20 @@ Qed.
     iModIntro.
     by iApply spec_coupl_steps_det.
   Qed.
-(*
-Lemma wp_spec_update E e Φ s :
-  WP e @ s; E {{ v, spec_update E (Φ v) }} ⊢ WP e @ s; E {{ Φ }}.
-Proof.
+
+  Lemma ewp_spec_update E e Φ Ψ :
+    EWP e @ E <| Ψ |>{{ v, spec_update E (Φ v) }} ⊢ EWP e @ E <| Ψ |> {{ Φ }}.
+  Proof.
   iIntros "Hwp".
-  iLöb as "IH" forall (e E Φ s).
-  rewrite !wp_unfold /wp_pre.
+  iLöb as "IH" forall (e E Φ Ψ).
+  rewrite !ewp_unfold /ewp_pre.
   iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
   iMod ("Hwp" with "[$]") as "Hwp".
   iModIntro.
   iApply (spec_coupl_bind with "[] Hwp"); [done|].
   iIntros (????) "H".
-  destruct (to_val e).
+  destruct (to_val e) as [ v    |] eqn:He;
+  [|destruct (to_eff e) as [(v, k)|] eqn:He'].
   { iApply fupd_spec_coupl.
     iMod "H" as "(?&?&?& Hupd)".
     rewrite spec_update_unseal.
@@ -1027,13 +1028,23 @@ Proof.
     iApply spec_coupl_ret.
     iMod "Hclose".
     by iFrame. }
+  { iApply fupd_spec_coupl.
+    iMod "H" as "(?&?&?& Hupd)".
+    rewrite spec_update_unseal.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+    iApply spec_coupl_ret.
+    iFrame.
+    iMod "Hclose" as "_". iModIntro.
+    iApply (protocol_agreement_mono with "[$]").
+    iModIntro. iIntros (w) "Hewp !>". by iApply "IH". }
   iApply spec_coupl_ret.
   iApply (prog_coupl_mono with "[] H").
   iIntros (e2 σ3 e3' σ3' ε3) "H !>".
   iApply (spec_coupl_mono with "[] H"); [done|].
   iIntros (σ4 e4' σ4' ε4) "> ($ & $ & $ & H)".
   iApply ("IH" with "H").
-Qed.
+  Qed.
+ (*
 
 (** * Derived rules *)
 Lemma wp_mono E e Φ Ψ s : (∀ v, Φ v ⊢ Ψ v) → WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ Ψ }}.
@@ -1057,16 +1068,16 @@ Proof. iIntros. by iApply ewp_value_fupd. Qed.
 Lemma ewp_value E Φ Ψ e v : IntoVal e v → Φ v ⊢ EWP e @ E <| Ψ |> {{ Φ }}.
 Proof. intros <-. apply ewp_value'. Qed.
 
-(*
-Lemma wp_frame_l E e Φ R s : R ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, R ∗ Φ v }}.
-Proof.
-  iIntros "[? H]".
-  iApply (wp_strong_mono with "H"); [done|].
-  iIntros (?????) "(? & ? & ? & ?)".
-  iApply spec_coupl_ret. by iFrame.
-Qed.
-Lemma wp_frame_r E e Φ R s : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
-Proof. iIntros "[H ?]". iApply (wp_strong_mono' with "H"); auto with iFrame. Qed.
+
+(* Lemma wp_frame_l E e Φ R s : R ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, R ∗ Φ v }}.
+   Proof.
+     iIntros "[? H]".
+     iApply (wp_strong_mono with "H"); [done|].
+     iIntros (?????) "(? & ? & ? & ?)".
+     iApply spec_coupl_ret. by iFrame.
+   Qed.
+   Lemma wp_frame_r E e Φ R s : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
+   Proof. iIntros "[H ?]". iApply (wp_strong_mono' with "H"); auto with iFrame. Qed. 
 
 Lemma wp_frame_step_l E1 E2 e Φ R s :
   TCEq (to_val e) None → E2 ⊆ E1 →
@@ -1111,81 +1122,81 @@ Qed. *)
 
 End ewp.
 
-(*
+
 (** * Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!spec_updateGS (lang_markov Λ) Σ, !approxisWpGS Λ Σ}.
+  Context `{!spec_updateGS (lang_markov eff_prob_lang) Σ, !approxisWpGS eff_prob_lang Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val → iProp Σ.
   Implicit Types v : val.
   Implicit Types e : expr.
 
-  Global Instance frame_wp p E e R Φ Ψ s :
-    (∀ v, Frame p R (Φ v) (Ψ v)) →
-    Frame p R (WP e @ s; E {{ Φ }}) (WP e @ s; E {{ Ψ }}) | 2.
-  Proof. rewrite /Frame=> HR. rewrite wp_frame_l. apply wp_mono, HR. Qed.
+  (* Global Instance frame_wp p E e R Φ Φ' Ψ :
+       (∀ v, Frame p R (Φ v) (Φ' v)) →
+       Frame p R (EWP e @ E <| Ψ |> {{ Φ }}) (EWP e @ E <| Ψ |> {{ Φ' }}) | 2.
+     Proof. rewrite /Frame=> HR. rewrite ewp_frame_l. apply wp_mono, HR. Qed. *)
 
-  Global Instance is_except_0_wp E e Φ s : IsExcept0 (WP e @ s; E {{ Φ }}).
-  Proof. by rewrite /IsExcept0 -{2}fupd_wp -except_0_fupd -fupd_intro. Qed.
+  Global Instance is_except_0_ewp E e Φ Ψ : IsExcept0 (EWP e @ E <| Ψ |> {{ Φ }}).
+  Proof. by rewrite /IsExcept0 -{2}fupd_ewp -except_0_fupd -fupd_intro. Qed.
 
-  Global Instance elim_modal_bupd_wp p E e P Φ s :
-    ElimModal True p false (|==> P) P (WP e @ s; E {{ Φ }}) (WP e @ s; E {{ Φ }}).
+  Global Instance elim_modal_bupd_ewp p E e P Φ Ψ :
+    ElimModal True p false (|==> P) P (EWP e @ E <| Ψ |> {{ Φ }}) (EWP e @ E <| Ψ |> {{ Φ }}).
   Proof.
     by rewrite /ElimModal intuitionistically_if_elim
-      (bupd_fupd E) fupd_frame_r wand_elim_r fupd_wp.
+      (bupd_fupd E) fupd_frame_r wand_elim_r fupd_ewp.
   Qed.
 
-  Global Instance elim_modal_fupd_wp p E e P Φ s :
-    ElimModal True p false (|={E}=> P) P (WP e @ s; E {{ Φ }}) (WP e @ s; E {{ Φ }}).
+  Global Instance elim_modal_fupd_ewp p E e P Φ Ψ :
+    ElimModal True p false (|={E}=> P) P (EWP e @ E <| Ψ |> {{ Φ }}) (EWP e @ E <| Ψ |> {{ Φ }}).
   Proof.
     by rewrite /ElimModal intuitionistically_if_elim
-      fupd_frame_r wand_elim_r fupd_wp.
+      fupd_frame_r wand_elim_r fupd_ewp.
   Qed.
 
-  Global Instance elim_modal_fupd_wp_atomic p E1 E2 e P Φ s :
-    ElimModal (Atomic StronglyAtomic e) p false
-            (|={E1,E2}=> P) P
-            (WP e @ s; E1 {{ Φ }}) (WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }})%I | 100.
-  Proof.
-    intros ?. rewrite intuitionistically_if_elim fupd_frame_r wand_elim_r wp_atomic //.
-  Qed.
+  (* Global Instance elim_modal_fupd_wp_atomic p E1 E2 e P Φ Ψ :
+       ElimModal (Atomic StronglyAtomic e) p false
+               (|={E1,E2}=> P) P
+               (EWP e @ E1 <| Ψ |> {{ Φ }}) (EWP e @ E2 <| Ψ |> {{ v, |={E2,E1}=> Φ v }})%I | 100.
+     Proof.
+       intros ??. rewrite intuitionistically_if_elim fupd_frame_r wand_elim_r ewp_atomic //. 
+     Qed.
+     
+     Global Instance add_modal_fupd_wp E e P Φ Ψ :
+       AddModal (|={E}=> P) P (EWP e @ E <| Ψ |> {{ Φ }}).
+     Proof. by rewrite /AddModal fupd_frame_r wand_elim_r fupd_ewp. Qed.
+     
+     Global Instance elim_acc_wp_atomic {X} E1 E2 α β γ e Φ Ψ :
+       ElimAcc (X:=X) (Atomic StronglyAtomic e)
+               (fupd E1 E2) (fupd E2 E1)
+               α β γ (EWP e @ E1 <| Ψ |> {{ Φ }})
+               (λ x, EWP e @ E2 <| Ψ |> {{ v, |={E2}=> β x ∗ (γ x -∗? Φ v) }})%I | 100.
+     Proof.
+       iIntros (?) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
+       iApply (wp_wand with "(Hinner Hα)").
+       iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
+     Qed.
+     
+     Global Instance elim_acc_wp_nonatomic {X} E α β γ e Φ s :
+       ElimAcc (X:=X) True (fupd E E) (fupd E E)
+               α β γ (WP e @ s; E {{ Φ }})
+               (λ x, WP e @ s; E {{ v, |={E}=> β x ∗ (γ x -∗? Φ v) }})%I.
+     Proof.
+       iIntros (_) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
+       iApply wp_fupd.
+       iApply (wp_wand with "(Hinner Hα)").
+       iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
+     Qed. *)
 
-  Global Instance add_modal_fupd_wp E e P Φ s :
-    AddModal (|={E}=> P) P (WP e @ s; E {{ Φ }}).
-  Proof. by rewrite /AddModal fupd_frame_r wand_elim_r fupd_wp. Qed.
-
-  Global Instance elim_acc_wp_atomic {X} E1 E2 α β γ e Φ s :
-    ElimAcc (X:=X) (Atomic StronglyAtomic e)
-            (fupd E1 E2) (fupd E2 E1)
-            α β γ (WP e @ s; E1 {{ Φ }})
-            (λ x, WP e @ s; E2 {{ v, |={E2}=> β x ∗ (γ x -∗? Φ v) }})%I | 100.
-  Proof.
-    iIntros (?) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
-    iApply (wp_wand with "(Hinner Hα)").
-    iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
-  Qed.
-
-  Global Instance elim_acc_wp_nonatomic {X} E α β γ e Φ s :
-    ElimAcc (X:=X) True (fupd E E) (fupd E E)
-            α β γ (WP e @ s; E {{ Φ }})
-            (λ x, WP e @ s; E {{ v, |={E}=> β x ∗ (γ x -∗? Φ v) }})%I.
-  Proof.
-    iIntros (_) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
-    iApply wp_fupd.
-    iApply (wp_wand with "(Hinner Hα)").
-    iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
-  Qed.
-
-  #[global] Instance elim_modal_spec_update_wp P E e Ψ :
-    ElimModal True false false (spec_update E P) P (WP e @ E {{ Ψ }}) (WP e @ E {{ Ψ }}).
+  #[global] Instance elim_modal_spec_update_wp P E e Φ Ψ :
+    ElimModal True false false (spec_update E P) P (EWP e @ E <| Ψ |> {{ Φ }}) (EWP e @ E <| Ψ |> {{ Φ }}).
   Proof.
     iIntros (?) "[HP Hcnt]".
-    iApply spec_update_wp.
+    iApply spec_update_ewp.
     iMod "HP". iModIntro. by iApply "Hcnt".
   Qed.
 
-  #[global] Instance elim_modal_spec_updateN_wp P E n e Ψ :
-    ElimModal True false false (spec_updateN n E P) P (WP e @ E {{ Ψ }}) (WP e @ E {{ Ψ }}).
+  #[global] Instance elim_modal_spec_updateN_wp P E n e Φ Ψ :
+    ElimModal True false false (spec_updateN n E P) P (EWP e @ E <| Ψ |>{{ Φ }}) (EWP e @ E <| Ψ |> {{ Φ }}).
   Proof.
     iIntros (?) "[HP Hcnt]".
     iDestruct (spec_updateN_implies_spec_update with "HP") as "> HP".
@@ -1193,4 +1204,4 @@ Section proofmode_classes.
   Qed.
 
 End proofmode_classes.
-*)
+

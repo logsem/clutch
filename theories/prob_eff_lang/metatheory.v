@@ -130,6 +130,28 @@ Proof.
      eauto. *)
 Admitted.
 
+(** * rand(unit, N) ~ state_step(α', N) coupling *)
+Lemma Rcoupl_rand_state N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' α' xs:
+  N = Z.to_nat z →
+  σ1'.(tapes) !! α' = Some (N; xs) →
+  Rcoupl
+    (prim_step (rand #z) σ1)
+    (state_step σ1' α')
+    (λ ρ2 σ2', ∃ (n : fin (S N)),
+        ρ2 = (Val #n, σ1) ∧ σ2' = state_upd_tapes <[α' := (N; xs ++ [f n])]> σ1').
+Proof.
+  intros Hz Hα'.
+(*   rewrite head_prim_step_eq /=.
+     rewrite /state_step.
+     rewrite bool_decide_eq_true_2; [|by eapply elem_of_dom_2] .
+     rewrite -Hz.
+     rewrite (lookup_total_correct _ _ _ Hα').
+     eapply Rcoupl_dbind; [|by eapply Rcoupl_dunif].
+     intros n ? ->.
+     apply Rcoupl_dret. eauto.
+   Qed. *)
+Admitted. 
+
 
 (** Some useful lemmas to reason about language properties  *)
 
