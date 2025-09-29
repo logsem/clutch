@@ -10,6 +10,18 @@ From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
 From iris.prelude Require Import options.
 
+Class tapeG Σ (K V : Type) `{Countable K} := GhostMapG {
+  #[local] tape_inG :: inG Σ (gmap_viewR K (agreeR (leibnizO V)));
+}.
+
+Definition tapeΣ (K V : Type) `{Countable K} : gFunctors :=
+  #[ GFunctor (gmap_viewR K (agreeR (leibnizO V))) ].
+
+Global Instance subG_tapeΣ Σ (K V : Type) `{Countable K} :
+  subG (tapeΣ K V) Σ → tapeG Σ K V.
+Proof. solve_inG. Qed.
+
+
 Class erisGS Σ := HeapG {
   erisGS_invG : invGS_gen HasNoLc Σ;
   (* CMRA for the state *)
@@ -23,7 +35,7 @@ Class erisGS Σ := HeapG {
 
   (* MARKUSDE: First I will update the Eris ghost state with this unfolding,
        then I will change the leibnizO tape to the discrete function loc → tape. *)
-  erisGS_tapes : inG Σ (gmap_viewR loc (agreeR (leibnizO tape)));
+  erisGS_tapes : tapeG Σ loc tape;
   (* ghost names for the state *)
   erisGS_heap_name : gname;
   erisGS_tapes_name : gname;
@@ -38,13 +50,16 @@ Definition cfgUR : ucmra := optionUR (exclR cfgO).
 Definition heap_auth `{erisGS Σ} :=
   @ghost_map_auth _ _ _ _ _ erisGS_heap erisGS_heap_name.
 
-Definition tapes_auth `{erisGS Σ} (q : Qp) m :=
-  @own Σ _ erisGS_tapes erisGS_tapes_name
-    (gmap_view_auth (V:=agreeR $ leibnizO tape) (DfracOwn q) (to_agree <$> m)).
+Definition tapes_auth `{erisGS Σ} (q : dfrac) m :=
+  @own Σ _ (erisGS_tapes.(tape_inG)) erisGS_tapes_name
+    (gmap_view_auth (V:=agreeR $ leibnizO tape) q m).
+
+Definition tapes_frag `{erisGS Σ} (q : dfrac) (k : loc) (v : agreeR $ leibnizO tape) :=
+  @own Σ _ (erisGS_tapes.(tape_inG)) erisGS_tapes_name (gmap_view_frag k q v).
 
 Global Instance erisGS_erisWpGS `{!erisGS Σ} : erisWpGS prob_lang Σ := {
   erisWpGS_invGS := erisGS_invG;
-  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
+  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth (DfracOwn 1) (to_agree <$> σ.(tapes)))%I;
   err_interp ε := (ec_supply ε);
 }.
 
@@ -59,8 +74,7 @@ Notation "l ↦ v" := (l ↦{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↦  v") : bi_scope.
 
 (** Tapes *)
-Notation "l ↪{ dq } v" := (@own _ _ erisGS_tapes erisGS_tapes_name
-                             (gmap_view_frag (V:=agreeR $ leibnizO tape) l dq (to_agree v)))
+Notation "l ↪{ dq } v" := (tapes_frag dq l (to_agree v))
   (at level 20, format "l  ↪{ dq }  v") : bi_scope.
 Notation "l ↪□ v" := (l ↪{ DfracDiscarded } v)%I
   (at level 20, format "l  ↪□  v") : bi_scope.
@@ -69,6 +83,46 @@ Notation "l ↪{# q } v" := (l ↪{ DfracOwn q } v)%I
 Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
+
+Section namespace_lemmas.
+  Context `{erisGS Σ}.
+  Implicit Types (k : loc) (v : tape) (dq : dfrac).
+  Implicit Types (m : gmap loc tape).
+
+  Lemma tapes_insert {m} k v:
+     m !! k = None →
+     ⊢ tapes_auth (DfracOwn 1) (to_agree <$> m) ==∗
+     tapes_auth (DfracOwn 1) (to_agree <$> <[k := v]> m) ∗ k ↪{DfracOwn 1} v.
+  Proof.
+    intros Hm.
+    rewrite -own_op.
+    iApply own_update.
+    rewrite fmap_insert.
+    apply: gmap_view_alloc; [ |done|done].
+    rewrite lookup_fmap Hm //.
+  Qed.
+
+  Lemma tapes_lookup {m k v} :
+    tapes_auth (DfracOwn 1) (to_agree <$> m) -∗ (k ↪{DfracOwn 1} v) -∗ ⌜m !! k = Some v⌝.
+  Proof.
+    iIntros "Hauth Hel".
+    iCombine "Hauth Hel" gives
+      %(av' & _ & _ & Hav' & _ & Hincl)%gmap_view_both_dfrac_valid_discrete_total.
+    iPureIntro.
+    apply lookup_fmap_Some in Hav' as [v' [<- Hv']].
+    apply to_agree_included_L in Hincl.
+    by rewrite Hincl.
+  Qed.
+
+  Lemma tapes_update {m k v} w :
+    tapes_auth (DfracOwn 1) (to_agree <$> m) -∗ k ↪{DfracOwn 1} v ==∗
+    tapes_auth (DfracOwn 1) (to_agree <$> <[k := w]> m) ∗ k ↪{DfracOwn 1} w.
+  Proof.
+    iApply bi.wand_intro_r. rewrite -!own_op.
+    iApply own_update. rewrite fmap_insert. apply: gmap_view_replace; done.
+  Qed.
+
+End namespace_lemmas.
 
 
 Section lifting.
@@ -218,14 +272,11 @@ Proof.
   iIntros (σ1) "(Hh & Ht) !# /=".
   solve_red.
   iIntros "!>" (e2 σ2 Hs); inv_head_step.
-Admitted.
-(*
-  iMod (ghost_map_insert (fresh_loc σ1.(tapes)) with "Ht") as "[$ Hl]".
+  iMod (tapes_insert (fresh_loc (σ1.(tapes))) with "Ht") as "[$ Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
   iFrame. iModIntro.
   by iApply "HΦ".
 Qed.
-*)
 
 Lemma wp_rand_tape N α n ns z E s :
   TCEq N (Z.to_nat z) →
@@ -234,17 +285,14 @@ Proof.
   iIntros (-> Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
-Admitted.
-(*
-  iDestruct (ghost_map_lookup with "Ht Hl") as %?.
+  iDestruct (tapes_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
-  iMod (ghost_map_update with "Ht Hl") as "[$ Hl]".
+  iMod (tapes_update with "Ht Hl") as "[$ Hl]".
   iFrame. iModIntro.
   by iApply "HΦ".
 Qed.
-*)
 
 Lemma wp_rand_tape_empty N z α E s :
   TCEq N (Z.to_nat z) →
@@ -253,16 +301,13 @@ Proof.
   iIntros (-> Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
-Admitted.
-(*
-  iDestruct (ghost_map_lookup with "Ht Hl") as %?.
+  iDestruct (tapes_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iFrame.
   iModIntro. iApply ("HΦ" with "[$Hl //]").
 Qed.
-*)
 
 Lemma wp_rand_tape_wrong_bound N M z α E ns s :
   TCEq N (Z.to_nat z) →
@@ -272,9 +317,7 @@ Proof.
   iIntros (-> ? Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
-Admitted.
-(*
-  iDestruct (ghost_map_lookup with "Ht Hl") as %?.
+  iDestruct (tapes_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
@@ -282,7 +325,6 @@ Admitted.
   iModIntro.
   iApply ("HΦ" with "[$Hl //]").
 Qed.
-*)
 
 End lifting.
 
