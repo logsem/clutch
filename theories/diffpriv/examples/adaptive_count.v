@@ -94,7 +94,8 @@ Definition iter_adaptive : val :=
     )
     "data".
 
-(* Instead of just tracking the budget spent, we instead provide a function that takes a thunk and runs it if there's enough budget left. *)
+(* Instead of just tracking the budget spent, we instead provide a function
+   that takes a thunk and runs it if there's enough budget left. *)
 Definition create_filter : val :=
   λ:"budget",
   let: "budget_remaining" := ref "budget" in
@@ -106,24 +107,9 @@ Definition create_filter : val :=
               SOME ("f" #())) in
   "try_run".
 
-
-Definition list_clip : val :=
-  λ: "lower" "upper",
-    list_map (λ: "z", Arith.min (Arith.max "lower" "z") "upper").
-
-Definition list_sum : val :=
-  rec: "list_sum" "zs" :=
-    match: "zs" with
-      NONE => #0
-    | SOME "x" =>
-        let, ("z", "zs") := "x" in
-        "z" + "list_sum" "zs"
-    end.
-
-
 Definition iter_adaptive_acc : val :=
   λ:"ε_coarse" "ε_precise" "den"
-    "threshold" "budget" "data",
+    "threshold" "budget" "predicates" "data",
     let: "counts" := ref [] in
     let: "try_run" := create_filter "budget" in
     list_iter
@@ -142,10 +128,10 @@ Definition iter_adaptive_acc : val :=
                     "counts" <- "count_precise" :: !"counts")
              else #())
       )
-      "data" ;;
+      "predicates" ;;
     ! "counts".
 
-
+(* We could factor out the common code between the two successive calls to try_run; not sure that simplifies anything though. *)
 (* let: "f" := λ:"count" "ε" "_",
                 let: "count_noisy" := Laplace "ε" "den" "count" in
                 "counts" <- "count_noisy" :: !"counts" ;;
@@ -155,9 +141,6 @@ Definition iter_adaptive_acc : val :=
      (λ:<>, let: "count_noisy" = "f" "ε_coarse" #() in
         if: "threshold" < "count_noisy" then
           "try_run" ("f" "ε_precise")) *)
-
-
-
 
 
 #[local] Open Scope Z.
@@ -178,10 +161,23 @@ Section adaptive.
              (∀ (ε : Z) K (f f' : val) (budget_remaining : Z) I_f,
                  ⌜ 0 <= ε ⌝ →
                  {{{
-                       (* f has to be "ε-private", although we don't even have adjacent data here *)
-                       (∀ K,
-                           {{{ ↯m (IZR ε / IZR den) ∗ ⤇ fill K ((of_val f') #()) ∗ I_f }}}
-                             (of_val f) #() {{{ v, RET v; ⤇ fill K (of_val v) ∗ I_f }}})
+                       (* f has to be "ε-private" (although we don't even have adjacent data here) and preserve some invariant.
+                          f itself may also rely on having access to the resources required for running try_run. *)
+                       (∀ K (budget_remaining' : Z),
+                           {{{ ↯m (IZR ε / IZR den) ∗
+                               ⤇ fill K ((of_val f') #()) ∗
+                               I_f ∗
+                               ↯m (IZR budget_remaining' / IZR den) ∗
+                               l ↦ #budget_remaining' ∗
+                               l' ↦ₛ #budget_remaining'
+                           }}}
+                             (of_val f) #()
+                             {{{ v, RET v; ⤇ fill K (of_val v) ∗ I_f
+                                           ∗ ∃ (budget_remaining'' : Z),
+                                               ↯m (IZR budget_remaining'' / IZR den) ∗
+                                               l ↦ #budget_remaining'' ∗
+                                               l' ↦ₛ #budget_remaining''
+                       }}})
                        ∗
                          (* and we need the resources that try_run depends on *)
                          ↯m (IZR budget_remaining / IZR den) ∗
@@ -217,10 +213,61 @@ Section adaptive.
 
     tp_load ; wp_load... tp_store ; wp_store...
     tp_bind (f' _) ; wp_bind (f _).
-    iApply ("f_dp" with "[$rhs $ε $I_f]").
+    iApply ("f_dp" with "[$rhs $ε $I_f $budget_l $budget_r $εrem]").
     simpl. iNext. iIntros "* [??]"... iApply "Hpost".
     iFrame. done.
   Qed.
+
+  (* We can make the resources that try_run depends on abstract. *)
+  Lemma create_filter_private' K budget den (_ : 0 <= budget) (_ : 0 < den) :
+    {{{ ↯m (IZR budget / IZR den) ∗ ⤇ fill K ((of_val create_filter) #budget) }}}
+      create_filter #budget
+      {{{ try_run, RET try_run;
+           ∃ (try_run' : val) (TRY_RUN : iProp Σ),
+             ⤇ fill K try_run' ∗
+             TRY_RUN ∗
+             (∀ (ε : Z) K (f f' : val) I_f,
+                 ⌜ 0 <= ε ⌝ →
+                 {{{
+                       (* f has to be "ε-private" (although we don't even have adjacent data here) and preserve some invariant.
+                          f itself may also rely on having access to the resources required for running try_run. *)
+                       (∀ K,
+                           {{{ ↯m (IZR ε / IZR den) ∗ ⤇ fill K ((of_val f') #()) ∗ I_f ∗ TRY_RUN }}}
+                             (of_val f) #()
+                             {{{ v, RET v; ⤇ fill K (of_val v) ∗ I_f ∗ TRY_RUN
+                       }}})
+                       ∗
+                         ⤇ fill K (try_run' #ε f') ∗
+                       I_f ∗
+                       (* and we need the resources that try_run depends on *)
+                       TRY_RUN
+                 }}}
+                   ((of_val try_run) #ε f : expr)
+                   {{{ v, RET v;
+                       (* we get equal results *)
+                       ⤇ fill K (of_val v) ∗
+                       I_f ∗
+                       (* and we get back the resources required for try_run *)
+                       TRY_RUN
+             }}})
+      }}}.
+  Proof with (tp_pures ; wp_pures).
+    iIntros "% (ε & rhs) Hpost".
+    iApply (create_filter_private with "[$]") => //.
+    iNext. iIntros "% (% & % & % & % & % & ε & l & l' & rhs & #h)".
+    iApply "Hpost".
+    set (inv := (∃ budget_remaining,
+                  ↯m (IZR budget_remaining / IZR den) ∗
+                  l ↦ #budget_remaining ∗
+                  l' ↦ₛ #budget_remaining)%I).
+    iExists _,inv. iFrame.
+    iIntros "* % !> * (#f_dp & rhs & I_f & TRY_RUN) Hpost"...
+    iDestruct "TRY_RUN" as "(% & ε & l & l')".
+    iApply ("h" $! ε _ f f' budget_remaining0 I_f with "[] [-Hpost] [Hpost]") => // ; iFrame.
+    iIntros "* % !> (ε & rhs & if & εrem & l & l') Hpost".
+    iApply ("f_dp" with "[-Hpost]") ; iFrame.
+  Qed.
+
 
   Lemma filter_sens {A} [Inject0 : Inject A val] (P : A → bool) (f : val) :
     (∀ (x : A),
@@ -278,12 +325,12 @@ Section adaptive.
     { by iApply (length_sens $! _ _ _ _ with "rhs"). }
     simpl.
     iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
-
+  
     tp_bind (Laplace _ _ _).
     wp_bind (Laplace _ _ _).
     iDestruct (ecm_split (IZR 2 / IZR 10)%R (IZR 18 / IZR 10)%R with "[ε]") as "[εₛ ε]".
     1,2: real_solver. 1: iApply ecm_eq ; [|iFrame] ; real_solver.
-
+  
     assert (Z.abs (len_f_l - len_f_r) <= 1).
     {
       assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
@@ -300,7 +347,7 @@ Section adaptive.
     rewrite /list_cons.
     tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
     case_bool_decide as cc1...
-
+  
     - tp_bind (Laplace _ _ _).
       wp_bind (Laplace _ _ _).
       iDestruct (ecm_split (IZR 10 / IZR 10)%R (IZR 8 / IZR 10)%R with "[ε]") as "[εₗ ε]".
@@ -310,7 +357,7 @@ Section adaptive.
       iNext. iIntros (count_precise_1) "rhs" ; simpl... rewrite Z.add_0_r.
       tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
       tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
-
+  
       tp_bind (list_filter _ _).
       wp_bind (list_filter _ _).
       replace dsv1 with (inject ds1).
@@ -327,7 +374,7 @@ Section adaptive.
       { by iApply (length_sens $! _ _ _ _ with "rhs"). }
       simpl.
       iIntros "% (%len_f2_l&%len_f2_r&->&rhs&%d_out2')"...
-
+  
       assert (Z.abs (len_f2_l - len_f2_r) <= 1).
       {
         assert (Rabs (IZR (len_f2_l - len_f2_r)) <= 1)%R as h.
@@ -337,7 +384,7 @@ Section adaptive.
         etrans. 1: eassumption. rewrite Rmult_1_l.
         rewrite INR_IZR_INZ. done.
       }
-
+  
       tp_bind (Laplace _ _ _).
       wp_bind (Laplace _ _ _).
       iDestruct (ecm_split (IZR 2 / IZR 10)%R (IZR 6 / IZR 10)%R with "[ε]") as "[εₛ ε]".
@@ -348,9 +395,9 @@ Section adaptive.
       tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
       tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
       case_bool_decide as cc2... 2: tp_load ; wp_load ; done.
-
+  
       tp_load ; wp_load... tp_load ; wp_load ; done.
-
+  
     - tp_bind (list_filter _ _).
       wp_bind (list_filter _ _).
       replace dsv1 with (inject ds1).
@@ -367,7 +414,7 @@ Section adaptive.
       { by iApply (length_sens $! _ _ _ _ with "rhs"). }
       simpl.
       iIntros "% (%len_f2_l&%len_f2_r&->&rhs&%d_out2')"...
-
+  
       assert (Z.abs (len_f2_l - len_f2_r) <= 1).
       {
         assert (Rabs (IZR (len_f2_l - len_f2_r)) <= 1)%R as h.
@@ -377,7 +424,7 @@ Section adaptive.
         etrans. 1: eassumption. rewrite Rmult_1_l.
         rewrite INR_IZR_INZ. done.
       }
-
+  
       tp_bind (Laplace _ _ _).
       wp_bind (Laplace _ _ _).
       iDestruct (ecm_split (IZR 2 / IZR 10)%R (IZR 16 / IZR 10)%R with "[ε]") as "[εₛ ε]".
@@ -388,9 +435,9 @@ Section adaptive.
       tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
       tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
       case_bool_decide as cc2... 2: tp_load ; wp_load ; done.
-
+  
       tp_load ; wp_load...
-
+  
       tp_bind (Laplace _ _ _).
       wp_bind (Laplace _ _ _).
       iDestruct (ecm_split (IZR 10 / IZR 10)%R (IZR 6 / IZR 10)%R with "[ε]") as "[εₗ ε]".
@@ -400,9 +447,9 @@ Section adaptive.
       iNext. iIntros (count_precise_2) "rhs" ; simpl... rewrite Z.add_0_r.
       tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
       tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
-
+  
       tp_load ; wp_load ; done.
-
+  
       Unshelve. all: try lra.
       3,7,11: exact (λ x : Z, Z.ltb x 30).
       1,3,5: apply _.
@@ -510,55 +557,51 @@ Definition iter_adaptive_acc_simple : val :=
     iApply (create_filter_private _ _ den with "[$ε $rhs]") => //.
     iIntros "!> * (%&%&%&%&%&budget&l&l'&rhs&run_dp)"...
 
-    rewrite /adaptive/list_count /=...
-    tp_bind (list_filter _ _).
-    wp_bind (list_filter _ _).
-    replace dsv1 with (inject ds1).
-    2: symmetry ; by apply is_list_inject.
-    replace dsv2 with (inject ds2).
-    2: symmetry ; by apply is_list_inject.
-    wp_apply (wp_wand with "[rhs]").
-    { iApply (filter_sens with "[] [] rhs"). 2: iPureIntro ; lra. 2: iIntros "!> % h" ; iExact "h".
-      iApply "is_pred". }
-    simpl.
-    iIntros "% (%ds_f1_l&%ds_f1_r&->&rhs&%d_out)".
-    tp_bind (list_length _).
-    wp_bind (list_length _).
-    wp_apply (wp_wand with "[rhs]").
-    { by iApply (length_sens $! _ _ _ _ with "rhs"). }
-    simpl.
-    iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
-    tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
-    set (I := (∃ counts, counts_r ↦ₛ counts ∗ counts_l ↦ counts)%I).
-    iApply ("run_dp" $! _ _ _ _ _ I with "[] [-]") => // ; iFrame. 1: iPureIntro ; lia.
-    - iIntros "* % !> [eps [rhs I]] Hpost"...
-      tp_bind (Laplace _ _ _).
-      wp_bind (Laplace _ _ _).
-      assert (Z.abs (len_f_l - len_f_r) <= 1).
-      {
-        assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
-        2:{ rewrite -abs_IZR in h. apply le_IZR. done. }
-        etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
-        etrans. 1: eassumption. rewrite Rmult_1_l.
-        etrans. 1: eassumption. rewrite Rmult_1_l.
-        rewrite INR_IZR_INZ. done.
-      }
+       rewrite /adaptive/list_count /=...
+       tp_bind (list_filter _ _).
+       wp_bind (list_filter _ _).
+       replace dsv1 with (inject ds1).
+       2: symmetry ; by apply is_list_inject.
+       replace dsv2 with (inject ds2).
+       2: symmetry ; by apply is_list_inject.
+       wp_apply (wp_wand with "[rhs]").
+       { iApply (filter_sens with "[] [] rhs"). 2: iPureIntro ; lra. 2: iIntros "!> % h" ; iExact "h".
+         iApply "is_pred". }
+       simpl.
+       iIntros "% (%ds_f1_l&%ds_f1_r&->&rhs&%d_out)".
+       tp_bind (list_length _).
+       wp_bind (list_length _).
+       wp_apply (wp_wand with "[rhs]").
+       { by iApply (length_sens $! _ _ _ _ with "rhs"). }
+       simpl.
+       iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
+       tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
+       set (I := (∃ counts, counts_r ↦ₛ counts ∗ counts_l ↦ counts)%I).
+       iApply ("run_dp" $! _ _ _ _ _ I with "[] [-]") => // ; iFrame. 1: iPureIntro ; lia.
+       - iIntros "* % !> (eps & rhs & I & l & l') Hpost"...
+         tp_bind (Laplace _ _ _).
+         wp_bind (Laplace _ _ _).
+         assert (Z.abs (len_f_l - len_f_r) <= 1).
+         {
+           assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
+           2:{ rewrite -abs_IZR in h. apply le_IZR. done. }
+           etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
+           etrans. 1: eassumption. rewrite Rmult_1_l.
+           etrans. 1: eassumption. rewrite Rmult_1_l.
+           rewrite INR_IZR_INZ. done.
+         }
+         iApply (hoare_couple_laplace _ _ 0 with "[$rhs $eps]") => //.
+         2: lra.
+         { epose proof (IZR_lt 0 ε_coarse _) => //.
+           epose proof (IZR_lt 0 den _) => //.
+           apply Rcomplements.Rdiv_lt_0_compat => //. }
+         iNext. iIntros (count_precise_2) "rhs" ; simpl... rewrite Z.add_0_r.
+         iDestruct "I" as "(% & ? & ?)". rewrite /list_cons.
+         tp_load ; wp_load ; tp_pures ; tp_store ; wp_store. iApply "Hpost". iFrame. done.
 
-      (* iDestruct (ecm_split (IZR 10 / IZR 10)%R (IZR 6 / IZR 10)%R with "[ε]") as "[εₗ ε]".
-         1,2: real_solver. 1: iApply ecm_eq ; [|iFrame] ; real_solver. *)
-      iApply (hoare_couple_laplace _ _ 0 with "[$rhs $eps]") => //.
-      1,2: repeat real_solver_partial.
-      {
-        epose proof (IZR_lt 0 ε_coarse _) => //.
-        epose proof (IZR_lt 0 den _) => //.
-        apply Rcomplements.Rdiv_lt_0_compat => //. }
-      iNext. iIntros (count_precise_2) "rhs" ; simpl... rewrite Z.add_0_r.
-      iDestruct "I" as "(% & ? & ?)". rewrite /list_cons.
-      tp_load ; wp_load ; tp_pures ; tp_store ; wp_store. iApply "Hpost". iFrame. done.
-
-    - iNext. iIntros "* (?&(%&?&?)&(%&?&?&?))" => /=... tp_load ; wp_load. done.
-      Unshelve. all: auto ; lra.
-  Qed.
+       - iNext. iIntros "* (?&(%&?&?)&(%&?&?&?))" => /=... tp_load ; wp_load. done.
+         Unshelve. all: auto ; lra.
+     Qed.
 
   Fixpoint is_list_HO (l : list val) (v : val) :=
     match l with
@@ -673,7 +716,7 @@ Definition iter_adaptive_acc_simple : val :=
       set (I := (∃ counts, counts_r ↦ₛ counts ∗ counts_l ↦ counts)%I).
       iDestruct "hh" as "(%&%&?&?&?&?&?)".
       iApply ("run_dp" $! _ _ _ _ _ I with "[] [-]") => // ; iFrame. 1: iPureIntro ; lia.
-      + iIntros "* % !> [eps [rhs I]] Hpost"...
+      + iIntros "* % !> (eps & rhs & I & l & l') Hpost"...
         tp_bind (Laplace _ _ _).
         wp_bind (Laplace _ _ _).
         assert (Z.abs (len_f_l - len_f_r) <= 1).
@@ -695,12 +738,12 @@ Definition iter_adaptive_acc_simple : val :=
         iDestruct "I" as "(% & ? & ?)". rewrite /list_cons.
         tp_load ; wp_load ; tp_pures ; tp_store ; wp_store. iApply "Hpost". iFrame. done.
 
-      + iNext. iIntros "* (rhs&(%&counts_r&counts_l)&(%&budget&l&l'))" => /=...
-        iApply ("IH" with "[$l $l' $counts_r $counts_l $budget] [] [] [] [$rhs]") => //.
-        1: iPureIntro ; eauto.
-        iModIntro. iDestruct "is_pred" as "[? ?]". done.
-        Unshelve. all: auto ; lra.
-  Qed.
+         + iNext. iIntros "* (rhs&(%&counts_r&counts_l)&(%&budget&l&l'))" => /=...
+           iApply ("IH" with "[$l $l' $counts_r $counts_l $budget] [] [] [] [$rhs]") => //.
+           1: iPureIntro ; eauto.
+           iModIntro. iDestruct "is_pred" as "[? ?]". done.
+           Unshelve. all: auto ; lra.
+     Qed.
 
 Definition lvpredicates : list val :=
   [(λ:"x", "x" < #30) ; (λ:"x", #30 <= "x") ; (λ:"x", "x" `rem` #2 = #0)]%V.
@@ -745,54 +788,278 @@ repeat iSplit. 4: done.
     1: iApply bar. 1: iPureIntro ; apply foo. all: eauto.
   Qed.
 
-
-
+  (* This is the spec one would want for iter_adaptive_acc, proven from the not-abstracted spec for the privacy filter. *)
   Lemma wp_iter_adaptive_acc (ε_coarse ε_precise den threshold budget : Z)
-    (ds1 ds2 : list Z) dsv1 dsv2 K :
+    (ds1 ds2 : list Z) dsv1 dsv2 K
+    (predicates : list (Z -> bool))
+    (lvpredicates : list val)
+    (vpredicates : val)
+    (_ : 0 < ε_coarse) (_ : 0 < ε_precise) (_ : 0 < den) (_ : 0 <= budget)
+    :
+    length predicates = length lvpredicates →
     is_list ds1 dsv1 →
     is_list ds2 dsv2 →
-    (* neighbour ds1 ds2 → *)
     list_dist ds1 ds2 <= 1 →
-    ↯m (IZR 20 / IZR 10) -∗
-    ⤇ fill K (iter_adaptive_acc #ε_coarse #ε_precise #den #threshold #budget dsv2) -∗
-    WP iter_adaptive_acc #ε_coarse #ε_precise #den #threshold #budget dsv1
+    ⌜is_list_HO lvpredicates vpredicates⌝ -∗
+    ([∗ list] pred;vpred ∈ predicates;lvpredicates, is_predicate pred vpred) -∗
+    ↯m (IZR budget / IZR den) -∗
+    ⤇ fill K (iter_adaptive_acc #ε_coarse #ε_precise #den #threshold #budget vpredicates dsv2) -∗
+    WP iter_adaptive_acc #ε_coarse #ε_precise #den #threshold #budget vpredicates dsv1
       {{ v, ⤇ fill K (of_val v) }}.
   Proof with (tp_pures ; wp_pures).
-    iIntros "* % %". iIntros "%adj". iIntros "ε rhs". rewrite /iter_adaptive_acc...
+    iIntros "%hlen * % %". iIntros "%adj".
+    iIntros "%ho_pred #is_pred ε rhs".
+    rewrite /iter_adaptive_acc...
     tp_alloc as counts_r "counts_r" ; wp_alloc counts_l as "counts_l"...
     tp_bind (create_filter _). wp_bind (create_filter _).
-    (* add noise/consume budget as an effect operation? *)
+    iApply (create_filter_private _ _ den with "[$ε $rhs]") => //.
+    iIntros "!> * (%&%&%&%&%&budget&l&l'&rhs&#run_dp)"... simpl...
+    tp_bind (list_iter _ _). wp_bind (list_iter _ _).
+    set (Inv := (∃ counts (budget_remaining : Z),
+                counts_l ↦ counts ∗ counts_r ↦ₛ counts ∗
+                ↯m (IZR budget_remaining / IZR den) ∗
+                    l ↦ #budget_remaining ∗ l' ↦ₛ #budget_remaining
+            )%I).
+    iAssert Inv with "[counts_l counts_r budget l l']" as "hh". 1: iFrame.
+    iRevert (predicates vpredicates ho_pred hlen) "is_pred rhs".
+    iInduction lvpredicates as [|vpred lvpredicates'] "IH" ;
+      iIntros (predicates vpredicates ho_pred hlen) "#is_pred rhs".
+    - rewrite ho_pred.
+      rewrite /list_iter...
+      iDestruct "hh" as "(%&%&?&?&?&?&?)".
+      tp_load... wp_load. done.
+    - simpl in ho_pred. destruct ho_pred as (vpredicates' & hpred & ho_pred). rewrite hpred.
+      rewrite /list_iter...
+      rewrite /adaptive/list_count /=...
+      tp_bind (list_filter _ _).
+      wp_bind (list_filter _ _).
+      replace dsv1 with (inject ds1).
+      2: symmetry ; by apply is_list_inject.
+      replace dsv2 with (inject ds2).
+      2: symmetry ; by apply is_list_inject.
+      destruct predicates as [|pred predicates'] => //.
+      wp_apply (wp_wand with "[rhs is_pred]").
+      { iApply (filter_sens with "[] [] rhs"). 2: iPureIntro ; lra. 2: iIntros "!> % h" ; iExact "h".
+        iDestruct (big_sepL2_cons_inv_l with "is_pred") as "(%&%&%&?&?)". simplify_eq. done.
+      }
+      simpl. fold list_iter.
+      iIntros "% (%ds_f1_l&%ds_f1_r&->&rhs&%d_out)".
+      tp_bind (list_length _).
+      wp_bind (list_length _).
+      wp_apply (wp_wand with "[rhs]").
+      { by iApply (length_sens $! _ _ _ _ with "rhs"). }
+      simpl.
+      iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
+      tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
+      set (I := (∃ counts,
+                    counts_r ↦ₛ counts ∗ counts_l ↦ counts
+                )%I).
+      (* set (I := (∃ counts budget_remaining,
+                       counts_l ↦ counts ∗ counts_r ↦ₛ counts ∗
+                       ↯m (IZR budget_remaining / IZR den) ∗
+                       l ↦ #budget_remaining ∗ l' ↦ₛ #budget_remaining
+                   )%I). *)
+      (* set (I := Inv). *)
+      iDestruct "hh" as "(%&%&counts_l&counts_r&?&?&?)".
+      iApply ("run_dp" $! _ _ _ _ _ I with "[] [-]"). 1: iPureIntro ; lia.
+      + iFrame. iIntros "* % !> (eps & rhs & I & εrem & l & l') Hpost"...
+        tp_bind (Laplace _ _ _).
+        wp_bind (Laplace _ _ _).
+        assert (Z.abs (len_f_l - len_f_r) <= 1).
+        {
+          assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
+          2:{ rewrite -abs_IZR in h. apply le_IZR. done. }
+          etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
+          etrans. 1: eassumption. rewrite Rmult_1_l.
+          etrans. 1: eassumption. rewrite Rmult_1_l.
+          rewrite INR_IZR_INZ. done.
+        }
+        iApply (hoare_couple_laplace _ _ 0 with "[$rhs $eps]") => //.
+        1,2: repeat real_solver_partial.
+        {
+          epose proof (IZR_lt 0 ε_coarse _) => //.
+          epose proof (IZR_lt 0 den _) => //.
+          apply Rcomplements.Rdiv_lt_0_compat => //. }
+        iNext. iIntros (count_precise_1) "rhs" ; simpl... rewrite Z.add_0_r.
+        iDestruct "I" as "(% & counts_r & counts_l)". rewrite /list_cons.
+        tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
+        case_bool_decide as hthresh...
+        2: iApply "Hpost" ; by iFrame.
 
-    (* Given any ε-private function, try-run ε f is
+        tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
 
-     *)
-    assert
-      (∀ budget den,
-          ↯m (IZR budget / IZR den) -∗
-          WP create_filter #budget
-            {{ try_run , ∃ l b,
-                  l ↦ b ∗
-                  ∀ ε f f', (↯m ε -∗ WP f #() ~ f' #() {eq})
-                            -∗
-)
+        (* set (I := (∃ counts, counts_r ↦ₛ counts ∗ counts_l ↦ counts)%I). *)
+        (* iDestruct "hh" as "(%&%&?&?&?&?&?)". *)
+        iApply ("run_dp" $! _ _ _ _ _ I with "[] [-Hpost]"). 1: iPureIntro ; lia.
 
-∀ budget den
-↯m (budget / den) -∗
-WP create_filter #budget
-  {{ try_run , ∃ l b,
-        l ↦ b ∗
-        ∀ ε f f', (↯ε -∗ WP f #() ~ f' #() {eq})
-                  -∗
-                  WP try_run ε f ~ try_run ε f'
-                    { vf vf', vf = vf' ∗
-                              (ε < b/den -∗
-                               vf = Some (f #()) ∗ vf' = Some (f' #())
-                              )
-                    }
-  }}
+        * iFrame.
+          iIntros "* % !> (eps & rhs & I & εrem & l & l') Hpost"...
+          tp_bind (Laplace _ _ _).
+          wp_bind (Laplace _ _ _).
+          assert (Z.abs (len_f_l - len_f_r) <= 1).
+          {
+            assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
+            2:{ rewrite -abs_IZR in h. apply le_IZR. done. }
+            etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
+            etrans. 1: eassumption. rewrite Rmult_1_l.
+            etrans. 1: eassumption. rewrite Rmult_1_l.
+            rewrite INR_IZR_INZ. done.
+          }
+          iApply (hoare_couple_laplace _ _ 0 with "[$rhs $eps]") => //.
+          1,2: repeat real_solver_partial.
+          {
+            epose proof (IZR_lt 0 ε_coarse _) => //.
+            epose proof (IZR_lt 0 den _) => //.
+            apply Rcomplements.Rdiv_lt_0_compat => //. apply IZR_lt. done. }
+          iNext. iIntros (count_precise_2) "rhs" ; simpl... rewrite Z.add_0_r.
+          iDestruct "I" as "(% & ? & ?)". rewrite /list_cons...
+          tp_load ; wp_load ; tp_pures ; tp_store ; wp_store.
+          iApply "Hpost" ; by iFrame.
 
-nat -> (nat -> (unit -> A) -> option A)
+        * iIntros "!> **". iApply "Hpost". iFrame.
 
+      + iNext. iIntros "* (rhs&(%&counts_r&counts_l)&(%&budget&l&l'))" => /=...
+        iApply ("IH" with "[$l $l' $counts_r $counts_l $budget] [] [] [] [$rhs]") => //.
+        1: iPureIntro ; eauto.
+        iModIntro. iDestruct "is_pred" as "[? ?]". done.
+        Unshelve. all: auto ; lra.
+  Qed.
 
+  (* This is the spec one would want for iter_adaptive_acc, proven from the abstracted spec for the privacy filter. *)
+  Lemma wp_iter_adaptive_acc' (ε_coarse ε_precise den threshold budget : Z)
+    (ds1 ds2 : list Z) dsv1 dsv2 K
+    (predicates : list (Z -> bool))
+    (lvpredicates : list val)
+    (vpredicates : val)
+    (_ : 0 < ε_coarse) (_ : 0 < ε_precise) (_ : 0 < den) (_ : 0 <= budget)
+    :
+    length predicates = length lvpredicates →
+    is_list ds1 dsv1 →
+    is_list ds2 dsv2 →
+    list_dist ds1 ds2 <= 1 →
+    ⌜is_list_HO lvpredicates vpredicates⌝ -∗
+    ([∗ list] pred;vpred ∈ predicates;lvpredicates, is_predicate pred vpred) -∗
+    ↯m (IZR budget / IZR den) -∗
+    ⤇ fill K (iter_adaptive_acc #ε_coarse #ε_precise #den #threshold #budget vpredicates dsv2) -∗
+    WP iter_adaptive_acc #ε_coarse #ε_precise #den #threshold #budget vpredicates dsv1
+      {{ v, ⤇ fill K (of_val v) }}.
+  Proof with (tp_pures ; wp_pures).
+    iIntros "%hlen * % %". iIntros "%adj".
+    iIntros "%ho_pred #is_pred ε rhs".
+    rewrite /iter_adaptive_acc...
+    tp_alloc as counts_r "counts_r" ; wp_alloc counts_l as "counts_l"...
+    tp_bind (create_filter _). wp_bind (create_filter _).
+    iApply (create_filter_private' _ _ den with "[$ε $rhs]") => //.
+    iIntros "!> * (%&%&rhs&TRY_RUN&#run_dp)"... simpl...
+    tp_bind (list_iter _ _). wp_bind (list_iter _ _).
+    set (Inv := (∃ counts, counts_l ↦ counts ∗ counts_r ↦ₛ counts)%I).
+    iAssert Inv with "[counts_l counts_r]" as "hh". 1: iFrame.
+    iRevert (predicates vpredicates ho_pred hlen) "is_pred rhs".
+    iInduction lvpredicates as [|vpred lvpredicates'] "IH" ;
+      iIntros (predicates vpredicates ho_pred hlen) "#is_pred rhs".
+    - rewrite ho_pred.
+      rewrite /list_iter...
+      iDestruct "hh" as "(%&?&?)".
+      tp_load... wp_load. done.
+    - simpl in ho_pred. destruct ho_pred as (vpredicates' & hpred & ho_pred). rewrite hpred.
+      rewrite /list_iter...
+      rewrite /adaptive/list_count /=...
+      tp_bind (list_filter _ _).
+      wp_bind (list_filter _ _).
+      replace dsv1 with (inject ds1).
+      2: symmetry ; by apply is_list_inject.
+      replace dsv2 with (inject ds2).
+      2: symmetry ; by apply is_list_inject.
+      destruct predicates as [|pred predicates'] => //.
+      wp_apply (wp_wand with "[rhs is_pred]").
+      { iApply (filter_sens with "[] [] rhs"). 2: iPureIntro ; lra. 2: iIntros "!> % h" ; iExact "h".
+        iDestruct (big_sepL2_cons_inv_l with "is_pred") as "(%&%&%&?&?)". simplify_eq. done. }
+      simpl. fold list_iter.
+      iIntros "% (%ds_f1_l&%ds_f1_r&->&rhs&%d_out)".
+      tp_bind (list_length _).
+      wp_bind (list_length _).
+      wp_apply (wp_wand with "[rhs]").
+      { by iApply (length_sens $! _ _ _ _ with "rhs"). }
+      simpl.
+      iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
+      tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
+      set (I := (∃ counts, counts_r ↦ₛ counts ∗ counts_l ↦ counts)%I).
+      iDestruct "hh" as "(%&counts_l&counts_r)".
+      iApply ("run_dp" $! _ _ _ _ I with "[] [-]"). 1: iPureIntro ; lia.
+      + iFrame. iIntros "* % !> (eps & rhs & I & TRY_RUN) Hpost"...
+        tp_bind (Laplace _ _ _).
+        wp_bind (Laplace _ _ _).
+        assert (Z.abs (len_f_l - len_f_r) <= 1).
+        {
+          assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
+          2:{ rewrite -abs_IZR in h. apply le_IZR. done. }
+          etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
+          etrans. 1: eassumption. rewrite Rmult_1_l.
+          etrans. 1: eassumption. rewrite Rmult_1_l.
+          rewrite INR_IZR_INZ. done.
+        }
+        iApply (hoare_couple_laplace _ _ 0 with "[$rhs $eps]") => //.
+        1,2: repeat real_solver_partial.
+        {
+          epose proof (IZR_lt 0 ε_coarse _) => //.
+          epose proof (IZR_lt 0 den _) => //.
+          apply Rcomplements.Rdiv_lt_0_compat => //. }
+        iNext. iIntros (count_precise_1) "rhs" ; simpl... rewrite Z.add_0_r.
+        iDestruct "I" as "(% & counts_r & counts_l)". rewrite /list_cons.
+        tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
+        case_bool_decide as hthresh...
+        2: iApply "Hpost" ; by iFrame.
+        tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
+        iApply ("run_dp" $! _ _ _ _ I with "[] [-Hpost]"). 1: iPureIntro ; lia.
+        * iFrame.
+          iIntros "* % !> (eps & rhs & I & TRY_RUN) Hpost"...
+          tp_bind (Laplace _ _ _).
+          wp_bind (Laplace _ _ _).
+          assert (Z.abs (len_f_l - len_f_r) <= 1).
+          {
+            assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
+            2:{ rewrite -abs_IZR in h. apply le_IZR. done. }
+            etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
+            etrans. 1: eassumption. rewrite Rmult_1_l.
+            etrans. 1: eassumption. rewrite Rmult_1_l.
+            rewrite INR_IZR_INZ. done.
+          }
+          iApply (hoare_couple_laplace _ _ 0 with "[$rhs $eps]") => //.
+          1,2: repeat real_solver_partial.
+          {
+            epose proof (IZR_lt 0 ε_coarse _) => //.
+            epose proof (IZR_lt 0 den _) => //.
+            apply Rcomplements.Rdiv_lt_0_compat => //. apply IZR_lt. done. }
+          iNext. iIntros (count_precise_2) "rhs" ; simpl... rewrite Z.add_0_r.
+          iDestruct "I" as "(% & ? & ?)". rewrite /list_cons...
+          tp_load ; wp_load ; tp_pures ; tp_store ; wp_store.
+          iApply "Hpost" ; by iFrame.
+
+        * iIntros "!> **". iApply "Hpost". iFrame.
+
+      + iNext. iIntros "* (rhs&(%&counts_r&counts_l)&TRY_RUN)" => /=...
+        iApply ("IH" with "TRY_RUN [counts_r counts_l] [] [] [] [rhs]") => // ; iFrame.
+        1: iPureIntro ; eauto.
+        iModIntro. iDestruct "is_pred" as "[? ?]". done.
+        Unshelve. all: auto ; lra.
+  Qed.
+
+  (* apply the general iter spec for some concrete predicates *)
+  Lemma wp_iter_adaptive_acc_app (ε_coarse ε_precise den threshold budget : Z)
+    (ds1 ds2 : list Z) dsv1 dsv2 K
+    (_ : 0 < ε_coarse) (_ : 0 < ε_precise) (_ : 0 < den) (_ : 0 <= budget)
+    :
+    is_list ds1 dsv1 →
+    is_list ds2 dsv2 →
+    list_dist ds1 ds2 <= 1 →
+    ↯m (IZR budget / IZR den) -∗
+    ⤇ fill K (iter_adaptive_acc #ε_coarse #ε_precise #den #threshold #budget vpredicates dsv2) -∗
+    WP iter_adaptive_acc #ε_coarse #ε_precise #den #threshold #budget vpredicates dsv1
+      {{ v, ⤇ fill K (of_val v) }}.
+  Proof with (tp_pures ; wp_pures).
+    iIntros "%hlen * % % ε rhs".
+    iApply (wp_iter_adaptive_acc' with "[] [] ε rhs") ; last first.
+    1: iApply bar. 1: iPureIntro ; apply foo. all: eauto.
+  Qed.
 
 End adaptive.
