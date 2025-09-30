@@ -529,13 +529,13 @@ End adequacy.
 Class erisGpreS Σ := ErisGpreS {
   erisGpreS_iris  :: invGpreS Σ;
   erisGpreS_heap  :: ghost_mapG Σ loc val;
-  erisGpreS_tapes :: ghost_mapG Σ loc tape;
+  erisGpreS_tapes :: tapeG Σ;
   erisGpreS_err   :: ecGpreS Σ;
 }.
 
 Definition erisΣ : gFunctors :=
   #[invΣ; ghost_mapΣ loc val;
-    ghost_mapΣ loc tape;
+    tapeΣ;
     GFunctor (authR nonnegrealUR)].
 Global Instance subG_erisGPreS {Σ} : subG erisΣ Σ → erisGpreS Σ.
 Proof. solve_inG. Qed.
@@ -549,7 +549,7 @@ Proof.
   eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
-  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
+  iMod (tapes_alloc σ.(tapes)) as "[%γT [Ht _]]".
   (* Handle the trivial 1 <= ε case *)
   destruct (decide (ε < 1)) as [Hcr|Hcr]; last first.
   { iClear "Hh Ht".
@@ -562,14 +562,14 @@ Proof.
     eapply Rle_trans; [eapply prob_le_1|done]. }
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (?) "[? ?]"; [done|].
-Admitted.
-(*
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
   iApply (wp_refRcoupl_step_fupdN ε').
   iFrame.
+  rewrite /tapes_auth//=.
+  iSplitL "Ht"; first iExact "Ht".
   iApply Hwp.
   done.
-Qed. *)
+Qed.
 
 Lemma pgl_closed_lim (e : expr) (σ : state) (ε : R) φ :
   (∀ n, pgl (exec n (e, σ)) φ ε) →
@@ -615,7 +615,7 @@ Proof.
   eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
-  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
+  iMod (tapes_alloc σ.(tapes)) as "[%γT [Ht _]]".
   (* Handle the trivial 1 <= ε case *)
   destruct (decide (ε < 1)) as [Hcr|Hcr]; last first.
   { iClear "Hh Ht".
@@ -629,13 +629,12 @@ Proof.
     - simpl. lra. }
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (?) "[? ?]"; [done|].
-Admitted.
-(*
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
   iApply (wp_safety_fupdN ε'). iFrame.
+  rewrite /tapes_auth//=.
+  iFrame.
   iApply Hwp. done.
 Qed.
-*)
 
 Lemma pexec_safety_relate (e:expr) σ n:
   probp (pexec n (e, σ)) (λ ρ, (is_final ρ ∨ reducible ρ)) =

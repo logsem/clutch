@@ -10,15 +10,28 @@ From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
 From iris.prelude Require Import options.
 
-Class tapeG Σ (K V : Type) `{Countable K} := GhostMapG {
-  #[local] tape_inG :: inG Σ (gmap_viewR K (agreeR (leibnizO V)));
+(*
+Class tapeG Σ (N K V : Type) `{Countable N} := GhostMapG {
+  #[local] tape_inG :: inG Σ (gmap_viewR N (agreeR (K -d> leibnizO V)));
 }.
 
-Definition tapeΣ (K V : Type) `{Countable K} : gFunctors :=
-  #[ GFunctor (gmap_viewR K (agreeR (leibnizO V))) ].
+Definition tapeΣ (N K V : Type) `{Countable N} : gFunctors :=
+  #[ GFunctor (gmap_viewR N (agreeR (K -d> leibnizO V))) ].
 
-Global Instance subG_tapeΣ Σ (K V : Type) `{Countable K} :
-  subG (tapeΣ K V) Σ → tapeG Σ K V.
+Global Instance subG_tapeΣ Σ (N K V : Type) `{Countable N} :
+  subG (tapeΣ N K V) Σ → tapeG Σ N K V.
+Proof. solve_inG. Qed.
+*)
+
+Class tapeG Σ := GhostMapG {
+  #[local] tape_inG :: inG Σ (gmap_viewR loc (agreeR (leibnizO tape)));
+}.
+
+Definition tapeΣ : gFunctors :=
+  #[ GFunctor (gmap_viewR loc (agreeR (leibnizO tape))) ].
+
+Global Instance subG_tapeΣ Σ :
+  subG tapeΣ Σ → tapeG Σ.
 Proof. solve_inG. Qed.
 
 
@@ -26,16 +39,8 @@ Class erisGS Σ := HeapG {
   erisGS_invG : invGS_gen HasNoLc Σ;
   (* CMRA for the state *)
   erisGS_heap : ghost_mapG Σ loc val;
-  (* CMRA for the tapes.
-     NB. the outermost layer (namespace map) is a gmap, so there is always a finite number
-     of allocated namespaces and you can allocate more at will.
-     The innermost layer is a discrete function from
-     Because the values of this map are not just Leibniz, we must use
-     a plain gmap_viewR instead of ghost_mapG. *)
-
-  (* MARKUSDE: First I will update the Eris ghost state with this unfolding,
-       then I will change the leibnizO tape to the discrete function loc → tape. *)
-  erisGS_tapes : tapeG Σ loc tape;
+  (* CMRA for the tapes. *)
+  erisGS_tapes : tapeG Σ;
   (* ghost names for the state *)
   erisGS_heap_name : gname;
   erisGS_tapes_name : gname;
@@ -123,6 +128,36 @@ Section namespace_lemmas.
   Qed.
 
 End namespace_lemmas.
+
+Section pre_namespace_lemmas.
+  Context `{inG Σ (gmap_viewR loc (agreeR (leibnizO tape)))}.
+  Implicit Types (k : loc) (v : tape) (dq : dfrac).
+  Implicit Types (m : gmap loc tape).
+
+  Lemma tapes_alloc m :
+    ⊢ |==> ∃ γ, own γ (gmap_view_auth (V:=agreeR $ leibnizO tape) (DfracOwn 1) (to_agree <$> m)) ∗
+           [∗ map] k ↦ v ∈ m,
+              (@own Σ _ _ γ (gmap_view_frag (V:=agreeR $ leibnizO tape) k (DfracOwn 1) (to_agree v))).
+  Proof.
+    iMod (own_alloc_strong (gmap_view_auth (V:=agreeR $ leibnizO tape) (DfracOwn 1) ∅) (fun _ => True))
+      as (γ) "[% Hauth]".
+    { exact pred_infinite_True. }
+    { by apply gmap_view_auth_valid. }
+    iExists γ.
+    iMod (own_update with "[Hauth]") as "Hauth'".
+    2: iApply "Hauth".
+    { eapply (gmap_view_alloc_big _ (to_agree <$> m) (DfracOwn 1)).
+      { apply map_disjoint_empty_r. }
+      { done. }
+      { by apply map_Forall_fmap. }
+    }
+    iModIntro.
+    rewrite own_op; iDestruct "Hauth'" as "[Ha1 Ha2]".
+    rewrite right_id -big_opM_own_1 big_opM_fmap.
+    iFrame.
+  Qed.
+
+End pre_namespace_lemmas.
 
 
 Section lifting.

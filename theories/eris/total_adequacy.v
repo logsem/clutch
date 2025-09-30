@@ -413,7 +413,7 @@ Proof.
   eapply pure_soundness, (step_fupdN_soundness_no_lc _ 0 0) => Hinv.
   iIntros "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
-  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
+  iMod (tapes_alloc σ.(tapes)) as "[%γT [Ht _]]".
   destruct (decide (ε < 1)) as [Hcr|Hcr]; last first.
   { iClear "Hh Ht".
     iApply (fupd_mask_intro); [eauto|].
@@ -426,15 +426,14 @@ Proof.
     lra. }
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (?) "[? ?]"; [by simpl|].
-Admitted.
-(*
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
   epose proof (twp_step_fupd_tgl e σ ε' φ).
   iApply fupd_wand_r. iSplitL.
-  - iApply H1. iFrame. by iApply Hwp.
+  - iApply H1. iFrame.
+    rewrite /tapes_auth//=. iFrame.
+    by iApply Hwp.
   - iIntros "%". done.
 Qed.
-*)
 
 Theorem twp_mass_lim_exec Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ :
   0 <= ε →

@@ -1265,9 +1265,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     iIntros (He) "(H𝛼&Hwp)".
     iApply twp_lift_step_fupd_glm; [done|].
     iIntros (𝜎 ε) "((Hheap&Htapes)&Hε)".
-  Admitted.
-  (*
-    iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
+    iDestruct (tapes_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
     iApply glm_state_step.
@@ -1277,8 +1275,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     iSplitR.
     { iPureIntro. apply pgl_state, Hlookup. }
     iIntros (𝜎') "[%n %H𝜎']".
-    iDestruct (ghost_map_lookup with "Htapes H𝛼") as %?%lookup_total_correct.
-    iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Htapes H𝛼") as "[Htapes H𝛼]".
+    iDestruct (tapes_lookup with "Htapes H𝛼") as %?%lookup_total_correct.
+    iMod (tapes_update ((N; ns ++ [n]) : tape) with "Htapes H𝛼") as "[Htapes H𝛼]".
     iMod "Hclose'" as "_".
     iSpecialize ("Hwp" $! n with "H𝛼").
     rewrite !tgl_wp_unfold /tgl_wp_pre /= He.
@@ -1290,7 +1288,6 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     }
     iModIntro. iApply "Hwp".
   Qed.
-*)
 
   Lemma wp_presample (N : nat) E e 𝛼 Φ ns :
     to_val e = None →
@@ -1301,9 +1298,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     iIntros (He) "(>H𝛼&Hwp)".
     iApply wp_lift_step_fupd_glm; [done|].
     iIntros (𝜎 ε) "((Hheap&Htapes)&Hε)".
-  Admitted.
-  (*
-    iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
+    iDestruct (tapes_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
     iApply glm_state_step.
@@ -1313,8 +1308,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     iSplitR.
     { iPureIntro. apply pgl_state, Hlookup. }
     iIntros (𝜎') "[%n %H𝜎']".
-    iDestruct (ghost_map_lookup with "Htapes H𝛼") as %?%lookup_total_correct.
-    iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Htapes H𝛼") as "[Htapes H𝛼]".
+    iDestruct (tapes_lookup with "Htapes H𝛼") as %?%lookup_total_correct.
+    iMod (tapes_update ((N; ns ++ [n]) : tape) with "Htapes H𝛼") as "[Htapes H𝛼]".
     iMod "Hclose'" as "_".
     iSpecialize ("Hwp" $! n with "H𝛼").
     rewrite !pgl_wp_unfold /pgl_wp_pre /= He.
@@ -1326,7 +1321,6 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     }
     iModIntro. iApply "Hwp".
   Qed.
-*)
 
   Lemma twp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> R) :
     TCEq N (Z.to_nat z) →
@@ -1346,9 +1340,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     }
     iApply twp_lift_step_fupd_glm; [done|].
     iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
-  Admitted.
-  (*
-    iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
+    iDestruct (tapes_lookup with "Htapes Hα") as %Hlookup.
     iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
 
     iMod (ec_supply_decrease with "Hε_supply Hε") as (ε1' ε_rem -> Hε1') "Hε_supply".
@@ -1497,7 +1489,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     { simplify_eq. simpl. lra. }
 
 
-    iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
+    iMod (tapes_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
     iSpecialize ("Hwp" $! sample).
     rewrite tgl_wp_unfold /tgl_wp_pre.
     simpl.
@@ -1516,7 +1508,6 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     simplify_eq.
     done.
   Qed.
-*)
 
   Lemma wp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> R) :
     TCEq N (Z.to_nat z) →
@@ -1536,9 +1527,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     }
     iApply wp_lift_step_fupd_glm; [done|].
     iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
-  Admitted.
-(*
-    iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
+    iDestruct (tapes_lookup with "Htapes Hα") as %Hlookup.
     iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
     iMod (ec_supply_decrease with "Hε_supply Hε") as (ε1' ε_rem -> Hε1') "Hε_supply".
     iApply fupd_mask_intro; [set_solver|].
@@ -1676,7 +1665,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     }
     iMod (ec_supply_increase _ (mknonnegreal _ (Hε2pos sample)) with "Hε_supply") as "[Hε_supply Hε]".
     { simplify_eq. simpl. lra. }
-    iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
+    iMod (tapes_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
     iSpecialize ("Hwp" $! sample).
     rewrite pgl_wp_unfold /pgl_wp_pre.
     remember {| heap := heap2; tapes := tapes2 |} as σ2.
@@ -1695,7 +1684,6 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     iApply exec_stutter_free.
     iFrame.
   Qed.
-*)
 
   Lemma twp_presample_adv_comp_leq (N : nat) z E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> R) :
     TCEq N (Z.to_nat z) →
