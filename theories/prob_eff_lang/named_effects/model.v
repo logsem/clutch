@@ -214,33 +214,34 @@ Section lrel_ectx_and_expr.
   Global Instance expr_refines_proper : Proper ((≡) ==> (≡) ==> (≡)) expr_refines.
   Proof. intros ????????. by solve_proper. Qed.
 
-  Definition sig_type Σ : Type := loc * (valRel Σ * valRel Σ).
-  
+  Definition sig_type Σ : Type := (loc * loc) * (valRel Σ * valRel Σ).
+
+                                          (* TODO: Consider changing list to map *)
   (* Effect relation. *)
   Program Definition eff_refines_pre :
     ((list (sig_type Σ)) -d> (list (sig_type Σ)) -d> (valRelO Σ -n> exprRelO Σ)) →
     ((list (sig_type Σ)) -d> (list (sig_type Σ)) -d> (valRelO Σ -n> exprRelO Σ)) := λ eff_refines ρ' ρ, λne A,
-    ExprRel (λ e e',
-               match ρ' with
-               | [] => False
-               | (l', (A1, A2)) :: ρ'' =>
-                   ∃ (v v' : val) (N N' : ectx) (l : loc),
-               ⌜ NeutralEctx N ⌝ ∗ ⌜ NeutralEctx N' ⌝ ∗
-               ⌜ e = Eff (#l, v) N ⌝ ∗ ⌜ e' = Eff (#l, v') N' ⌝ ∗
-               if  (loc_car l =? loc_car l')%Z then
-                 A1 v v' ∗
-                 □(∀ w w', A2 w w' -∗ ▷( fill N w <<{ expr_refines (eff_refines ρ ρ) A }<< fill N' w'))
-               else 
-                ▷ (e <<{eff_refines ρ'' ρ A}<< e')
-             end)%I.
-  Next Obligation. intros ???????. repeat f_equiv. intros ??. simpl. destruct ρ' as [| (l', ( A1, A2)) ρ'']; solve_proper.  Qed.
+     ExprRel (λ e e',
+                ∃ (l1' l2' : loc) v v' N N',
+                  ⌜ e = Eff (#l1', v) N ⌝ ∗ ⌜ e' = Eff (#l2', v') N' ⌝ ∗
+                  ⌜ NeutralEctx N ⌝ ∗ ⌜ NeutralEctx N' ⌝ ∗
+                  match ρ' with
+                  | [] => False
+                  | ((l1, l2), (A1, A2)) :: ρ'' =>
+                ⌜ l1 = l1' ⌝ ∗ ⌜ l2 = l2' ⌝ ∗
+                A1 v v' ∗
+                □(∀ w w', A2 w w' -∗ ▷( fill N w <<{ expr_refines (eff_refines ρ ρ) A }<< fill N' w'))
+                ∨
+                  ▷(e <<{eff_refines ρ'' ρ A}<< e')
+              end)%I.
+  Next Obligation. intros ???????. repeat f_equiv. intros ??. simpl. destruct ρ' as [| ((l1, l2), ( A1, A2)) ρ'']; solve_proper.  Qed.
   Local Instance eff_refines_pre_contractive : Contractive eff_refines_pre.
   Proof.
     rewrite /eff_refines_pre=> n eff_ref eff_refines' Heff ρ' ρ A. simpl.
     apply ExprRel_ne=>??.
-    destruct ρ' as [| (l', (A1, A2)) ρ'']; eauto.
-    do 15f_equiv; [| f_contractive; solve_proper].
-    do 7f_equiv. f_contractive. do 2f_equiv. apply Heff.
+    induction ρ' as [| ((l1,l2), (A1, A2)) ρ'']; eauto.
+    do 17f_equiv; [| f_contractive; solve_proper].
+    do 9f_equiv. f_contractive. do 2f_equiv. apply Heff.
   Qed.
   Definition eff_refines_def := fixpoint eff_refines_pre.
   Definition eff_refines_aux : seal eff_refines_def. Proof. by eexists. Qed.
@@ -258,32 +259,23 @@ Section lrel_ectx_and_expr.
     induction (lt_wf n) as [n _ IH]=> ρ1' ρ2' Hρ' ρ1 ρ2 Hρ A.
     rewrite !eff_refines_unfold /eff_refines_pre.
     simpl. repeat f_equiv. intros ??.
-    destruct ρ1' as [| (l1', (A1, A1')) ρ1''];
-      destruct ρ2' as [| (l2', (A2, A2')) ρ2'']; eauto;
+    destruct ρ1' as [| ((l1, l2), (A1, A1')) ρ1''];
+      destruct ρ2' as [| ((l1', l2'), (A2, A2')) ρ2'']; eauto;
     inversion Hρ';
     inversion H2;
     inversion H6;
       simpl in *.
     simplify_eq.
-    do 14 f_equiv.
-     destruct (loc_car a3 =? loc_car l1')%Z eqn:Hl1';
-      destruct (loc_car a3 =? loc_car l2')%Z eqn:Hl2'; first last.
-     { f_contractive. apply IH; try lia;
-         rewrite -list.list_dist_Forall2; eapply Forall2_impl;
-         try done; intros ??; eauto using dist_lt. }
-    { rewrite Z.eqb_eq in Hl2'.
-      rewrite Z.eqb_neq in Hl1'.
-      rewrite Hl2' in Hl1'. 
-      inversion H5. rewrite loc_eq_spec in H. done. }
-    { rewrite Z.eqb_eq in Hl1'.
-      rewrite Z.eqb_neq in Hl2'.
-      rewrite Hl1' in Hl2'. 
-      inversion H5. rewrite loc_eq_spec in H. done. }
-    do 2 f_equiv; eauto.
-    do 5 f_equiv; eauto.
-    f_contractive.
-    apply expr_refines_ne; try done.
-    intros ?? ?. apply IH; try lia; eapply Forall2_impl; try done; intros ??; eauto using dist_lt.
+    inversion H5.
+    simpl in *.
+    do 17 f_equiv.
+    2 : { f_contractive. apply IH; eauto; eapply Forall2_impl; try done; intros ??; eauto using dist_lt. }
+    f_equiv; [by rewrite H|].
+    f_equiv; [by rewrite H0|].
+    do 2 f_equiv; [done|].
+    do 5 f_equiv; [done|].
+    f_contractive. do 2 f_equiv.
+    apply IH; try lia;  eapply Forall2_impl; try done; intros ??; eauto using dist_lt.
   Qed.
   (* TODO: clean up this proof *)
   Global Instance eff_refines_proper :
@@ -332,7 +324,7 @@ Section semtypes.
     ValRel (λ w1 w2, □ ∀ v1 v2, A v1 v2 -∗ (App w1 v1) <<{B}<< (App w2 v2))%I.
   Definition valRel_ref (A : valRel Σ) : valRel Σ := ValRel (λ w1 w2,
     ∃ l1 l2: loc, ⌜w1 = #l1⌝ ∧ ⌜w2 = #l2⌝ ∧
-                  inv (logN .@ "ref" .@ (l1,l2)) (∃ v1 v2, l1 ↦ v1 ∗l2 ↦ₛ v2 ∗ A v1 v2))%I.
+                  inv (logN .@ "ref" .@ (l1,l2)) (∃ v1 v2, l1 ↦ v1 ∗ l2 ↦ₛ v2 ∗ A v1 v2))%I.
   Definition valRel_tape : valRel Σ := ValRel (λ w1 w2,
     ∃ (α1 α2 : loc) (N: nat), ⌜w1 = #lbl:α1⌝ ∧ ⌜w2 = #lbl:α2⌝ ∧
       inv (logN .@ (α1, α2)) (α1 ↪ (N; []) ∗ α2 ↪ₛ (N; [])))%I.
@@ -520,7 +512,7 @@ Section monadic.
     - iIntros (v v') "HA". rewrite !fill_app.
       iSpecialize ("HKval" with "HA").
       by iApply "HKval".
-    - iIntros (s s') "H". by rewrite eff_refines_unfold.
+    - iIntros (s s') "H". rewrite eff_refines_unfold. iDestruct "H" as (??????????) "contra". done.
   Qed.
 
   (* Bind rule for pure expressions under an evaluation context item. *)
@@ -956,6 +948,8 @@ Module tactics.
   Proof. intros e h r. unfold deep_try_with. by solve_pure_steps. Qed. 
  End tactics.
 
+
+
 (** * Compatibility Lemmas. *)
 
 Class Compatible `{probeffRGS Σ} (E : valRelO Σ -n> exprRelO Σ) :=
@@ -1173,27 +1167,89 @@ Section compatibility.
     iIntros (v v') "HA". by iApply refines_ret.
   Qed.
 
-  (* TODO: Define a new type rule for perform  *)
-  (* Do -- corresponding to the rule [Do_typed]. *)
-  Lemma refines_do l e₁ e₁' A1 A2 :
-    e₁ <<{ expr_refines noEffs A1 }<< e₁' -∗
-      (do: (#l, e₁)) <<{ expr_refines (eff_refines [(l, (A1, A2))] [(l, (A1, A2))]) A2 }<< (do: (#l, e₁')).
+  (* TODO: Generalize arbitrary rows  *)
+  Lemma refines_perform l1 l2 e1 e2 A1 A2 :
+    e1 <<{ expr_refines (eff_refines [((l1,l2), (A1, A2))] [((l1, l2), (A1, A2))]) A1 }<< e2 -∗
+      (perform #l1 e1) <<{ expr_refines (eff_refines [((l1,l2), (A1, A2))] [((l1, l2), (A1, A2))]) A2 }<< (perform #l2 e2).
   Proof.
     iIntros "He".
-    iApply (Ectxi_refines_pure_bind DoCtx DoCtx with "He").
-    iIntros (v v') "Hv". simpl.
-    iApply refines_pure_r; [by apply pure_prim_step_do|].
-    iApply refines_pure_l; [by apply pure_prim_step_do|].
-    iNext.
-    iIntros (K K') "HK".
-    iApply "HK". rewrite eff_refines_unfold.
-    iExists v, v', [], [].
-    repeat (try (iSplit; [iPureIntro; (apply _ || done)|])).
-    iFrame. iIntros "!#" (w w') "Hw". iNext. clear K K'.
-    iIntros (K K') "HK". simpl.
-    iDestruct "HK" as "[HK _]".
-    by iApply ("HK" with "Hw").
+    unfold perform.
+    iApply (refines_bind [AppRCtx _] [AppRCtx _] with "[$He]").
+    iLöb as "IH".
+    iSplit.
+    - iClear "IH".
+      iIntros (v1 v2) "#Hvv". simpl.
+      iApply (refines_pure_r' _ _ (Eff (#l2, v2) [])%E); [by tactics.solve_pure_steps|].
+      iApply (refines_pure_l' _ (Eff (#l1, v1) [])%E); [by tactics.solve_pure_steps|].
+      iModIntro.
+      iApply refines_eff.
+      rewrite eff_refines_unfold.
+      iExists l1, l2, v1, v2, [], [].
+      repeat (try (iSplit; [iPureIntro; (apply _ || done)|])).
+      iLeft.
+      repeat (try (iSplit; [iPureIntro; (apply _ || done)|])).
+      iFrame "Hvv". iIntros "!#" (w w') "#Hw". iNext. simpl.
+      iIntros (K K') "HK". 
+      iDestruct "HK" as "[HK _]".
+      by iApply ("HK" with "Hw").
+    - iIntros (s s') "Heff". simpl.
+      rewrite {2} eff_refines_unfold.
+      iDestruct "Heff" as (l1' l2' v1 v2 N1 N2)  "(-> & -> & %HN1 & %HN2 & [(<- & <- & #Hvv & #Hcont) | H])". 
+      + iApply (refines_pure_r' _ _ (Eff (#l2, v2) _)); [by tactics.solve_pure_steps|].
+        iApply (refines_pure_l' _ (Eff (#l1, v1) _)); [by tactics.solve_pure_steps|].
+        iModIntro.
+        iApply refines_eff. 
+        rewrite (eff_refines_unfold _ _ A2).
+        iExists l1, l2, v1, v2, (N1 ++ [AppRCtx ((λ: "l" "v", do:("l", "v"))%V #l1)]), (N2 ++ [AppRCtx ((λ: "l" "v", do:("l", "v"))%V #l2)]).
+        repeat (try (iSplit; [iPureIntro; (apply _ || done)|])).
+        iSplit. { iPureIntro. apply ectx_app_neutral; [done|]. apply ConsCtx_neutral; [apply AppRCtx_neutral|apply EmptyCtx_neutral].}
+        iSplit. { iPureIntro. apply ectx_app_neutral; [done|]. apply ConsCtx_neutral; [apply AppRCtx_neutral|apply EmptyCtx_neutral].}
+        iLeft.
+        repeat (try (iSplit; [iPureIntro; (apply _ || done)|])).
+        iFrame "Hvv".
+        iModIntro.
+        iIntros (w1 w2) "Hww".
+        iDestruct ("Hcont" with "Hww") as "Hfill". iNext.
+        do 2rewrite fill_app.
+        iApply (refines_bind with "[$Hfill]"). simpl.
+        iApply "IH".
+      + iClear "IH".
+        iApply refines_pure_l'; [ by tactics.solve_pure_steps|]. iModIntro. iExFalso.
+        rewrite eff_refines_unfold. 
+        iDestruct "H" as (??????????) "$".
   Qed.
+
+  Lemma refines_perform_general l1 l2 e1 e2 A1 A2 (ρ ρ' : list (sig_type Σ)) :
+    (((l1,l2), (A1, A2)) : sig_type Σ) ∈ ρ →
+    e1 <<{ expr_refines (eff_refines ρ' ρ') A1 }<< e2 -∗
+    (perform #l1 e1) <<{ expr_refines (eff_refines ρ ρ') A2}<< (perform #l2 e2).
+  Proof.
+    iIntros (Hin) "He".
+    unfold perform.
+    iApply (refines_bind [AppRCtx _] [AppRCtx _] with "[$He]").
+    iLöb as "IH".
+    iSplit.
+    - iClear "IH".
+      iIntros (v1 v2) "#Hvv". simpl.
+      iApply (refines_pure_r' _ _ (Eff (#l2, v2) [])%E); [by tactics.solve_pure_steps|].
+      iApply (refines_pure_l' _ (Eff (#l1, v1) [])%E); [by tactics.solve_pure_steps|].
+      iModIntro.
+      iApply refines_eff.
+      rewrite eff_refines_unfold.
+      iExists l1, l2, v1, v2, [], [].
+      repeat (try (iSplit; [iPureIntro; (apply _ || done)|])).
+      induction Hin as [((l1',l2'), (A1', A2')) ρ'' Hin' | IH ].
+      { iLeft. admit. }
+      
+
+
+      iInduction ρ as (IH).
+      iLeft.
+      repeat (try (iSplit; [iPureIntro; (apply _ || done)|])).
+      iFrame "Hvv". iIntros "!#" (w w') "#Hw". iNext. simpl.
+      iIntros (K K') "HK". 
+      iDestruct "HK" as "[HK _]".
+      by iApply ("HK" with "Hw").
 
   (* Effect abstraction -- corresponding to the rule [TLam_typed]. *)
   Lemma refines_tlam e e' (C : semEffSig Σ → valRel Σ) :
