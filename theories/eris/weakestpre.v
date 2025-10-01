@@ -388,7 +388,7 @@ Section glm.
                  with "[]") as "H"; last first.
     { iIntros (?). iApply ("H" $! ((_, _), _) with "Hub [//]"). }
     iIntros "!#" ([[? σ'] ε']). rewrite /glm_pre.
-    iIntros " [ H | [(% & % & % & % & (%r & %Hr) & % & % & H) | H ]] %Hv'".
+    iIntros " [ H | [(% & % & % & % & % & (%r & %Hr) & % & % & H) | H ]] %Hv'".
     - rewrite least_fixpoint_unfold.
       iLeft.
       iIntros (ε2) "%Hε2".
@@ -418,20 +418,18 @@ Section glm.
       }
       iExists (λ '(e2, σ2), ∃ e2', e2 = K e2' ∧ R2 (e2', σ2)),μ,_,ε3.
       iSplit.
-      { iPureIntro.
-        apply reducible_fill. (* Use Hr [iPureIntro by apply reducible_fill|] *)
-        admit. }
-      Admitted.
-  (*
+      { iPureIntro; by apply reducible_fill. }
       iSplit.
       {
         iPureIntro. exists r. intros (e&σ). rewrite /ε3.
         destruct (Kinv e); simpl; try real_solver.
         etrans; [ | eapply (Hr (e, σ)); eauto]. apply cond_nonneg.
       }
-      iSplit; [ | iSplit].
+      iSplit; [ done | iSplit; [ | iSplit]].
       2:{ iPureIntro.
         rewrite <- Rplus_0_r.
+        admit.
+        (*
         rewrite fill_dmap //=.
         eapply (pgl_dbind _ _ R2).
         - eapply pgl_nonneg_grad; eauto.
@@ -439,13 +437,13 @@ Section glm.
         - intros [] ? =>/=.
           apply pgl_dret.
           eauto.
-        - auto.
+        - auto. *)
        }
       + iPureIntro.
-        etrans; [ | apply H1].
+        etrans; [ | apply H2].
         apply Rplus_le_compat_l.
         transitivity (SeriesC (λ '(e,σ), (prim_step (K o) σ' (K e, σ) * ε3 (K e, σ))%R)).
-        * etrans; [ | eapply (SeriesC_le_inj _ (λ '(e,σ), (Kinv e ≫= (λ e', Some (e',σ)))))].
+        * etrans; [ | eapply (SeriesC_le_inj _ (λ '(e,σ), (option_bind _ _  (λ e', Some (e',σ)) (Kinv e))))].
           ** apply SeriesC_le.
              *** intros (e & σ); simpl; split.
                  **** apply Rmult_le_pos; auto.
@@ -453,6 +451,7 @@ Section glm.
                  **** destruct (Kinv e) eqn:He; simpl.
                       ***** rewrite (HKinv1 _ _ He).
                             rewrite He /from_option //.
+                            admit.
                       ***** destruct (decide (prim_step (K o) σ' (e, σ) > 0)%R) as [Hgt | Hngt].
                             -- epose proof (fill_step_inv _ _ _ _ _ Hgt) as (e2' & (H3&?)).
                                by destruct (HKinv2 e e2' He).
@@ -494,8 +493,11 @@ Section glm.
           intros (e&σ).
           rewrite Haux.
           f_equal; auto.
-          symmetry; by apply fill_step_prob.
+          symmetry.
+          admit.
+          (* by apply fill_step_prob. *)
       + iIntros (? ? (? & -> & ?)).
+        iDestruct "H" as "[? H]".
         iMod ("H" with "[//]").
         by rewrite Haux.
        Unshelve. auto.
@@ -557,9 +559,7 @@ Section glm.
           iApply "H".
           by simpl in Hv'.
       + iRight. by iApply ("IH" with "Ht").
-  Qed.
-  *)
-
+  Admitted.
 
   Lemma glm_prim_step e1 σ1 Z ε :
     (∃ R ε1 ε2, ⌜reducible (e1, σ1)⌝ ∗ ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗

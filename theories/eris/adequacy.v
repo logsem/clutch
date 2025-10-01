@@ -72,7 +72,7 @@ Section adequacy.
     }
     clear.
     iIntros "!#" ([[e1 σ1] ε'']). rewrite /Φ/F/glm_pre.
-    iIntros " [H | [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)|H]] %Hv".
+    iIntros " [H | [ (%R & %ε1 & %ε2 & % & %Hred & (%r & %Hr) & % & %Hlift & % & H)|H]] %Hv".
 
     - iApply step_fupdN_mono.
       {
@@ -120,12 +120,13 @@ Section adequacy.
       pose proof (cond_nonneg ε'').
       simpl in *.
       lra.
-    - admit.
-      (*
-      iApply step_fupdN_mono.
+    - iApply step_fupdN_mono.
       { apply pure_mono.
         eapply pgl_mon_grading; eauto. }
       rewrite exec_Sn_not_final; [|eauto].
+      admit.
+
+      (*
       iApply pgl_dbind_adv'.
       + iPureIntro; apply cond_nonneg.
       + iPureIntro. exists r. split; auto. 
@@ -270,7 +271,7 @@ Section adequacy.
     }
     clear.
     iIntros "!#" ([[e1 σ1] ε'']). rewrite /Φ/F/glm_pre.
-    iIntros " [ H | [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)|H]] %Hv".
+    iIntros " [ H | [ (%R & % & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & % & H)|H]] %Hv".
     - iApply (step_fupdN_mono _ _ _ (⌜∀ ε', ε'' < ε'  -> SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) >= 1 - ε'⌝ )).
       {
         apply pure_mono.
@@ -307,9 +308,7 @@ Section adequacy.
     pose proof (cond_nonneg ε'').
     simpl in *.
     lra.
-    - admit.
-      (*
-      iApply (step_fupdN_mono _ _ _ (⌜∀ ρ, R ρ -> SeriesC (iterM n prim_step_or_val ρ) >= 1 - (ε2 ρ)⌝)).
+    - iApply (step_fupdN_mono _ _ _ (⌜∀ ρ, R ρ -> SeriesC (iterM n prim_step_or_val ρ) >= 1 - (ε2 ρ)⌝)).
       { apply pure_mono.
         intros H1.
         apply Rle_ge.
@@ -322,7 +321,7 @@ Section adequacy.
             (λ a : language.expr prob_lang * language.state prob_lang,
                if Datatypes.negb (bool_decide (R a)) then language.prim_step e1 σ1 a else 0) - SeriesC
                             (λ ρ : language.expr prob_lang * language.state prob_lang, language.prim_step e1 σ1 ρ * ε2 ρ)).
-          { simpl. simpl in *. lra. }
+          { simpl. simpl in *. admit. (* lra. *) }
           simpl. simpl in *.
           rewrite !Rcomplements.Rle_minus_l.
           replace 1 with (SeriesC (prim_step e1 σ1)); last first.
@@ -364,7 +363,6 @@ Section adequacy.
         apply Rle_ge.
         auto.
       + done.
-      *)
     - iDestruct (big_orL_mono _ (λ _ _,
                      |={∅}▷=>^(S n)
                        ⌜SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) >= 1 - ε''⌝)%I

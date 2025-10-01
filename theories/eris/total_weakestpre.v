@@ -41,7 +41,7 @@ Local Instance tgl_wp_pre_mono' `{!erisWpGS Λ Σ} :
 Proof.
   constructor.
   - iIntros (wp1 wp2 ??) "#H"; iIntros ([[E e1] Φ]); iRevert (E e1 Φ).
-    iApply tgl_wp_pre_mono. iIntros "!>" (E e Φ). iApply ("H" $! (E,e,Φ)).
+    iApply (@tgl_wp_pre_mono). iIntros "!>" (E e Φ). iApply ("H" $! (E,e,Φ)).
   - intros wp Hwp n [[E1 e1] Φ1] [[E2 e2] Φ2]
       [[?%leibniz_equiv ?%leibniz_equiv] ?]; simplify_eq/=.
     rewrite /curry3 /tgl_wp_pre. do 7 (f_equiv).
@@ -49,8 +49,9 @@ Proof.
     f_equiv.
     intros Φ e. unfold glm_pre.
     do 19 f_equiv.
-    rewrite /exec_stutter. do 14 f_equiv. Admitted. (* by apply pair_ne.
-Qed. *)
+    rewrite /exec_stutter. do 17 f_equiv.
+    apply pair_ne; done.
+Qed.
 
 Local Definition tgl_wp_def `{!erisWpGS Λ Σ} : Twp (iProp Σ) (expr Λ) (val Λ) () :=
   {| twp := λ (_ : ()) E e Φ, (bi_least_fixpoint tgl_wp_pre') (E, e, Φ); twp_default := () |}.

@@ -846,7 +846,6 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   σ.(heap) !! l = Some v →
   head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
     (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
-(*
 | RandNoTapeS z N (n : fin (S N)) σ:
   N = Z.to_nat z →
   head_step_rel (Rand (Val $ LitV $ LitInt z) (Val $ LitV LitUnit)) σ (Val $ LitV $ LitInt n) σ
@@ -854,28 +853,29 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   l = fresh_loc σ.(tapes) →
   N = Z.to_nat z →
   head_step_rel (AllocTape (Val (LitV (LitInt z)))) σ
-    (Val $ LitV $ LitLbl l) (state_upd_tapes <[l := (N; []) : tape]> σ)
-| RandTapeS l z N n ns σ :
+    (Val $ LitV $ LitLbl l) (state_upd_tapes <[l := (N, ∅)]> σ)
+| RandTapeS l z N M T n ns σ :
   N = Z.to_nat z →
-  σ.(tapes) !! l = Some ((N; n :: ns) : tape)  →
+  σ.(tapes) !! l = Some ((M, T) : nat * gmap Z tape)  →
+  T !! (0 : Z) = Some ((N; n :: ns) : tape) →
   head_step_rel (Rand (Val (LitV (LitInt z))) (Val (LitV (LitLbl l)))) σ
-    (Val $ LitV $ LitInt $ n) (state_upd_tapes <[l := (N; ns) : tape]> σ)
-| RandTapeEmptyS l z N (n : fin (S N)) σ :
+    (Val $ LitV $ LitInt $ n) (state_upd_tapes <[l:=(M, <[(0 : Z) := ((N; ns) : tape)]> T)]>  σ)
+| RandTapeEmptyS l z N M T (n : fin (S N)) σ :
   N = Z.to_nat z →
-  σ.(tapes) !! l = Some ((N; []) : tape) →
+  σ.(tapes) !! l = Some ((M, T) : nat * gmap Z tape)  →
+  T !! (0 : Z) = Some ((N; []) : tape) →
   head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
-| RandTapeOtherS l z M N ms (n : fin (S N)) σ :
+| RandTapeOtherS l z M N M' T ms (n : fin (S N)) σ :
   N = Z.to_nat z →
-  σ.(tapes) !! l = Some ((M; ms) : tape) →
-  N ≠ M →
+  σ.(tapes) !! l = Some ((M, T) : nat * gmap Z tape)  →
+  T !! (0 : Z) = Some ((M'; ms) : tape) →
+  N ≠ M' →
   head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
-*)
 | TickS σ z :
   head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ.
 
 Create HintDb head_step.
 Global Hint Constructors head_step_rel : head_step.
-(*
 (* 0%fin always has non-zero mass, so propose this choice if the reduct is
    unconstrained. *)
 Global Hint Extern 1
@@ -888,12 +888,14 @@ Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
          eapply (RandTapeOtherS _ _ _ _ _ 0%fin) : head_step.
 
+(*
 Inductive state_step_rel : state → loc → state → Prop :=
 | AddTapeS α N (n : fin (S N)) ns σ :
   α ∈ dom σ.(tapes) →
   σ.(tapes) !!! α = ((N; ns) : tape) →
   state_step_rel σ α (state_upd_tapes <[α := (N; ns ++ [n]) : tape]> σ).
 *)
+
 Ltac inv_head_step :=
   repeat
     match goal with
@@ -908,13 +910,23 @@ Ltac inv_head_step :=
 
 Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
   head_step e1 σ1 (e2, σ2) > 0 ↔ head_step_rel e1 σ1 e2 σ2.
-Proof. Admitted.
-(*
+Proof.
   split.
   - intros ?. destruct e1; inv_head_step; eauto with head_step.
-  - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr; done.
-Qed.
-*)
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+  - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+Admitted.
 
 (*
 Lemma state_step_support_equiv_rel σ1 α σ2 :
@@ -931,7 +943,7 @@ Qed.
 
 Lemma state_step_head_step_not_stuck e σ σ' α :
   state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0).
-Proof. Admitted.
+Proof.
 (*
   rewrite state_step_support_equiv_rel.
   inversion_clear 1.
@@ -961,6 +973,7 @@ Proof. Admitted.
       * rewrite lookup_insert_ne // in H7. rewrite H10 in H7. done.
 Qed.
 *)
+  Admitted.
 
 Lemma state_step_mass σ α :
   α ∈ dom σ.(tapes) → SeriesC (state_step σ α) = 1.
@@ -980,7 +993,10 @@ Proof.
   intros [[] Hs%head_step_support_equiv_rel].
   inversion Hs;
     repeat (simplify_map_eq/=; solve_distr_mass || case_match; try (case_bool_decide; done)).
-Qed.
+  - admit.
+  - admit.
+  - admit.
+Admitted.
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
   to_val e1 = None → to_val e2 = None →

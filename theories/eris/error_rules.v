@@ -23,11 +23,10 @@ Lemma pgl_rand_trivial N z σ1 :
     (λ ρ2, ∃ (n : fin (S N)),
         ρ2 = (Val #n, σ1)) 0.
 Proof.
-  simpl in *.
-  intros Hz.
-Admitted.
-(*
-  rewrite head_prim_step_eq /=.
+  intro Hz.
+  rewrite (head_prim_step_eq _ _ _); last first.
+  { admit. }
+  rewrite //=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r 0).
   eapply (pgl_dbind _ _ _ _ _ 0);
@@ -35,7 +34,7 @@ Admitted.
   intros n ?.
   apply pgl_dret.
   by exists n.
-Qed. *)
+Admitted.
 
 (** * rand(N) error *)
 Lemma pgl_rand_err N z σ1 (m : fin (S N)):
@@ -47,8 +46,8 @@ Lemma pgl_rand_err N z σ1 (m : fin (S N)):
 Proof.
   simpl in *.
   intros Hz.
-Admitted. (*
-  rewrite head_prim_step_eq /=.
+  rewrite (head_prim_step_eq _ _ _) /=; last first.
+  { admit. }
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r (1 / (N + 1))).
   eapply (pgl_dbind _ _ _ _ _ 0); last first.
@@ -64,7 +63,7 @@ Admitted. (*
     + rewrite <- (Rplus_0_r) at 1.
       apply Rplus_lt_compat_l.
       lra.
-Qed. *)
+Admitted.
 
 (* Same lemma holds for m an arbitrary natural *)
 Lemma pgl_rand_err_nat N z σ1 (m : nat):
@@ -76,8 +75,8 @@ Lemma pgl_rand_err_nat N z σ1 (m : nat):
 Proof.
   simpl in *.
   intros Hz.
-Admitted. (*
-  rewrite head_prim_step_eq /=.
+  rewrite (head_prim_step_eq _ _ _) /=; last first.
+  { admit. }
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r (1 / (N + 1))).
   eapply (pgl_dbind _ _ _ _ _ 0); last first.
@@ -93,7 +92,7 @@ Admitted. (*
     + rewrite <- (Rplus_0_r) at 1.
       apply Rplus_lt_compat_l.
       lra.
-Qed. *)
+Admitted.
 
 (* Generalization to lists *)
 Lemma pgl_rand_err_list_nat N z σ1 (ms : list nat):
@@ -105,9 +104,8 @@ Lemma pgl_rand_err_list_nat N z σ1 (ms : list nat):
 Proof.
   simpl in *.
   intros Hz.
-Admitted.
-(*
-  rewrite head_prim_step_eq /=.
+  rewrite (head_prim_step_eq _ _ _) /=; last first.
+  { admit. }
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r ((length ms) / (N + 1))).
   eapply (pgl_dbind _ _ _ _ _ 0); last first.
@@ -123,7 +121,7 @@ Admitted.
     + rewrite <- (Rplus_0_r) at 1.
       apply Rplus_lt_compat_l.
       lra.
-Qed. *)
+Admitted.
 
 Lemma pgl_rand_err_list_int N z σ1 (ms : list Z):
   N = Z.to_nat z →
@@ -134,9 +132,8 @@ Lemma pgl_rand_err_list_int N z σ1 (ms : list Z):
 Proof.
   simpl in *.
   intros Hz.
-Admitted.
-(*
-  rewrite head_prim_step_eq /=.
+  rewrite (head_prim_step_eq _ _ _) /=; last first.
+  { admit. }
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r ((length ms) / (N + 1))).
   eapply (pgl_dbind _ _ _ _ _ 0); last first.
@@ -152,7 +149,7 @@ Admitted.
     + rewrite <- (Rplus_0_r) at 1.
       apply Rplus_lt_compat_l.
       lra.
-Qed. *)
+Admitted.
 
 End metatheory.
 
@@ -619,11 +616,9 @@ Proof.
                       else nnreal_zero
                   | _ => nnreal_zero
                   end)%NNR).
-Admitted.
-(*
   iExists
     (λ (ρ : expr * state),
-      ∃ (n : fin (S (Z.to_nat z))), ρ = (Val #n, σ1)), nnreal_zero, foo.
+      ∃ (n : fin (S (Z.to_nat z))), ρ = (Val #n, σ1)), (dret σ1), nnreal_zero, foo.
   iSplit.
   { iPureIntro. eapply head_prim_reducible; eauto with head_step. admit. }
   iSplit.
@@ -632,11 +627,11 @@ Admitted.
     intros (e & σ); simpl.
     apply Rplus_le_compat; [lra |].
     assert (0 <= r)%R.
-    { transitivity (ε2 0%fin); auto.
-    }
+    { transitivity (ε2 0%fin); auto. }
     do 6 (case_match; auto).
     apply Hε2.
   }
+  iSplitR. { iPureIntro. apply dret_erasable.  }
   iSplit.
   {
     iPureIntro.
@@ -683,9 +678,9 @@ Admitted.
              *** case_bool_decide; simplify_eq.
                  **** do 5 (case_match; simpl; (try (rewrite Rmult_0_r; lra))).
                       apply Rmult_le_compat_r; [ auto |].
-Admitted.
-(*
-                      rewrite head_prim_step_eq /=.
+                      rewrite dret_id_left.
+                      rewrite (head_prim_step_eq _ _ _) /=; last first.
+                      { admit. }
                       rewrite /dmap /pmf/=/dbind_pmf/dunifP.
                       setoid_rewrite dunif_pmf.
                       rewrite SeriesC_scal_l /= /Rdiv Rmult_1_l.
@@ -707,7 +702,9 @@ Admitted.
                  **** simpl. etrans; [ | right; eapply Rmult_0_l ].
                       apply Rmult_le_compat_r; [ auto | ].
                       right.
-                      rewrite head_prim_step_eq /=.
+                      rewrite dret_id_left.
+                      rewrite (head_prim_step_eq _ _ _) /=; last first.
+                      { admit. }
                       rewrite /dmap /pmf/=/dbind_pmf/dunifP.
                       setoid_rewrite dunif_pmf.
                       rewrite SeriesC_scal_l /= /Rdiv.
@@ -771,13 +768,15 @@ Admitted.
                                       | _ => nnreal_zero
                                       end)%R)).
         simpl. repeat f_equal.
+        { by rewrite dret_id_left. }
         repeat (case_match; try (simpl; lra)).
   }
   iSplit.
   {
     iPureIntro.
     eapply pgl_mon_pred; last first.
-    - apply (pgl_rand_trivial (Z.to_nat z) z σ1); auto.
+    - rewrite dret_id_left.
+      apply (pgl_rand_trivial (Z.to_nat z) z σ1); auto.
     - done.
   }
   iIntros (e2 σ2) "%H".
@@ -786,8 +785,6 @@ Admitted.
   rewrite bool_decide_eq_true_2; last done.
   rewrite bool_decide_eq_true_2; last first.
   { by zify. }
-
-
   case_match.
   2:{
     destruct n0.
@@ -818,9 +815,7 @@ Admitted.
   rewrite fin_to_nat_to_fin.
   rewrite Nat2Z.id.
   reflexivity.
-Qed.
-*)
-*)
+Admitted.
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> R) :
   TCEq N (Z.to_nat z) →

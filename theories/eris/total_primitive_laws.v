@@ -21,9 +21,8 @@ Proof.
   iIntros (Φ) "_ HΦ".
   iApply twp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
-Admitted.
-(*
-  solve_red.
+  iSplitR; [iPureIntro |].
+  { admit. }
   iIntros "/=" (e2 σ2 Hs); inv_head_step.
   iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[? Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
@@ -31,7 +30,7 @@ Admitted.
   rewrite map_union_empty -insert_union_singleton_l.
   iFrame.
   iIntros "!>". by iApply "HΦ".
-Qed.*)
+Admitted.
 
 Lemma twp_allocN_seq (N : nat) (z : Z) E v s:
   TCEq N (Z.to_nat z) →
@@ -43,16 +42,8 @@ Proof.
   iIntros (-> Hn Φ) "_ HΦ".
   iApply twp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
-  iSplit.
-  { iPureIntro.
-    rewrite /head_reducible.
-    eexists.
-Admitted.
-(*
-    apply head_steGp_support_equiv_rel.
-    econstructor; eauto.
-    lia.
-  }
+  iSplitR; [iPureIntro |].
+  { admit. }
   iIntros "/=" (e2 σ2 Hs); inv_head_step.
   iMod ((ghost_map_insert_big _ _ with "Hh")) as "[$ Hl]".
   iIntros "!>". iFrame.
@@ -89,7 +80,7 @@ Admitted.
       apply loc_add_inj in H2.
       rewrite replicate_length in H1.
       lia.
-Qed. *)
+Admitted.
 
 Lemma twp_load E l dq v s :
   [[{ l ↦{dq} v }]] Load (Val $ LitV $ LitLoc l) @ s; E [[{ RET v; l ↦{dq} v }]].
@@ -98,12 +89,11 @@ Proof.
   iApply twp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
-Admitted.
-(*
-  solve_red.
+  iSplitR; [iPureIntro |].
+  { admit. }
   iIntros "/=" (e2 σ2 Hs); inv_head_step.
   iFrame. iModIntro. by iApply "HΦ".
-Qed. *)
+Admitted.
 
 Lemma twp_store E l v' v s :
   [[{ l ↦ v' }]] Store (Val $ LitV (LitLoc l)) (Val v) @ s; E
@@ -113,13 +103,12 @@ Proof.
   iApply twp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
-Admitted.
-(*
-  solve_red.
+  iSplitR; [iPureIntro |].
+  { admit. }
   iIntros "/=" (e2 σ2 Hs); inv_head_step.
   iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
   iFrame. iModIntro. by iApply "HΦ".
-Qed. *)
+Admitted.
 
 Lemma twp_rand (N : nat) (z : Z) E s :
   TCEq N (Z.to_nat z) →
@@ -128,14 +117,13 @@ Proof.
   iIntros (-> Φ) "_ HΦ".
   iApply twp_lift_atomic_head_step; [done|].
   iIntros (σ1) "Hσ !#".
-Admitted.
-(*
-  solve_red.
+  iSplitR; [iPureIntro |].
+  { admit. }
   iIntros (e2 σ2 Hs).
   inv_head_step.
   iFrame.
   by iApply ("HΦ" $! x) .
-Qed. *)
+Admitted.
 
 
 (** Tapes  *)
@@ -146,15 +134,14 @@ Proof.
   iIntros (-> Φ) "_ HΦ".
   iApply twp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !# /=".
-Admitted.
-(*
-  solve_red.
+  iSplitR; [iPureIntro |].
+  { admit. }
   iIntros (e2 σ2 Hs); inv_head_step.
   iMod (primitive_laws.tapes_insert (fresh_loc σ1.(tapes)) with "Ht") as "[$ Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
   iFrame. iModIntro.
   by iApply "HΦ".
-Qed. *)
+Admitted.
 
 Lemma twp_rand_tape N α n ns z E s :
   TCEq N (Z.to_nat z) →
@@ -164,15 +151,14 @@ Proof.
   iApply twp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (tapes_lookup with "Ht Hl") as %?.
-Admitted.
-(*
-  solve_red.
+  iSplitR; [iPureIntro |].
+  { admit. }
   iIntros (e2 σ2 Hs).
   inv_head_step.
   iMod (tapes_update with "Ht Hl") as "[$ Hl]".
   iFrame. iModIntro.
   by iApply "HΦ".
-Qed. *)
+Admitted.
 
 Lemma twp_rand_tape_empty N z α E s :
   TCEq N (Z.to_nat z) →
@@ -182,14 +168,13 @@ Proof.
   iApply twp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (tapes_lookup with "Ht Hl") as %?.
-Admitted.
-(*
-  solve_red.
+  iSplitR; [iPureIntro |].
+  { admit. }
   iIntros (e2 σ2 Hs).
   inv_head_step.
   iFrame.
   iModIntro. iApply ("HΦ" with "[$Hl //]").
-Qed. *)
+Admitted.
 
 Lemma twp_rand_tape_wrong_bound N M z α E ns s :
   TCEq N (Z.to_nat z) →
@@ -200,15 +185,14 @@ Proof.
   iApply twp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (tapes_lookup with "Ht Hl") as %?.
-Admitted.
-(*
-  solve_red.
+  iSplitR; [iPureIntro |].
+  { admit. }
   iIntros (e2 σ2 Hs).
   inv_head_step.
   iFrame.
   iModIntro.
   iApply ("HΦ" with "[$Hl //]").
-Qed. *)
+Admitted.
 
 
 (** A rule for error amplification for recursive functions *)
