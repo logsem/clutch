@@ -281,11 +281,11 @@ Proof.
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   iSplitR; [iPureIntro |].
-  { eexists _; eapply head_step_support_equiv_rel. admit. }
+  { eexists _; eapply head_step_support_equiv_rel. eapply StoreS; exact H. }
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
   iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
   iFrame. iModIntro. by iApply "HΦ".
-Admitted.
+Qed.
 
 Lemma wp_rand (N : nat) (z : Z) E s :
   TCEq N (Z.to_nat z) →
@@ -364,13 +364,19 @@ Proof.
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (tapes_lookup with "Ht Hl") as %?.
   iSplitR; [iPureIntro |].
-  { eexists _; eapply head_step_support_equiv_rel; constructor; admit. }
+  { eexists _; eapply head_step_support_equiv_rel.
+    eapply RandTapeOtherS.
+    - reflexivity.
+    - exact H0.
+    - exact H.
+  }
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iFrame.
   iModIntro.
   iApply ("HΦ" with "[$Hl //]").
-Admitted.
+  Unshelve. exact Fin.F1.
+Qed.
 
 End lifting.
 
