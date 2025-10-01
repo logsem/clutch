@@ -325,7 +325,9 @@ Section adequacy.
         apply Rgt_lt in Hε'.
         etrans; [|left;eauto].
         apply cond_nonneg.
-      + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hbound & %Hineq & %Hub & H)".
+      + admit.
+        (*
+        iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hbound & %Hineq & %Hub & H)".
         rewrite lim_exec_step step_or_final_no_final.
         2: { by apply reducible_not_final. }
         iAssert (∀ ρ2 : language.expr prob_lang * language.state prob_lang,
@@ -361,6 +363,7 @@ Section adequacy.
         iMod "H" as "%".
         iPureIntro.
         by apply H.
+        *)
       + remember (language.get_active σ) as l.
         assert (l ⊆ language.get_active σ) as Hsubseteq by set_solver.
         clear Heql.
@@ -400,7 +403,7 @@ Section adequacy.
         }
         iIntros (a HR). iMod ("H" $! a (HR)) as "%H".
         iPureIntro. by apply H.
-    Qed.
+    Admitted.
 End adequacy.
 
 

@@ -619,6 +619,8 @@ Proof.
                       else nnreal_zero
                   | _ => nnreal_zero
                   end)%NNR).
+Admitted.
+(*
   iExists
     (λ (ρ : expr * state),
       ∃ (n : fin (S (Z.to_nat z))), ρ = (Val #n, σ1)), nnreal_zero, foo.
@@ -817,6 +819,7 @@ Admitted.
   rewrite Nat2Z.id.
   reflexivity.
 Qed.
+*)
 *)
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> R) :

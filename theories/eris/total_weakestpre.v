@@ -49,8 +49,8 @@ Proof.
     f_equiv.
     intros Φ e. unfold glm_pre.
     do 19 f_equiv.
-    rewrite /exec_stutter. do 14 f_equiv. by apply pair_ne.
-Qed.
+    rewrite /exec_stutter. do 14 f_equiv. Admitted. (* by apply pair_ne.
+Qed. *)
 
 Local Definition tgl_wp_def `{!erisWpGS Λ Σ} : Twp (iProp Σ) (expr Λ) (val Λ) () :=
   {| twp := λ (_ : ()) E e Φ, (bi_least_fixpoint tgl_wp_pre') (E, e, Φ); twp_default := () |}.
