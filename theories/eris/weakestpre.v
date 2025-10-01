@@ -321,7 +321,10 @@ Section glm.
       iIntros (?) "?".
       iApply "HZ". eauto.
       iSplitR; [|done].
-      admit.
+      iPureIntro.
+      apply dbind_pos in H6.
+      destruct H6 as [s [Hs _]].
+      exists s. exact Hs.
     - rewrite least_fixpoint_unfold.
       iRight. iRight.
       iInduction (get_active σ') as [| l] "IH".
@@ -341,7 +344,7 @@ Section glm.
         iApply "H".
         iFrame.
       + iRight. by iApply ("IH" with "Ht").
-  Admitted.
+  Qed.
 
   Lemma glm_mono Z1 Z2 e1 σ1 ε1 ε2 :
     ⌜(ε1 <= ε2)%R⌝ -∗ (∀ ρ ε, Z1 ρ ε -∗ Z2 ρ ε) -∗ glm e1 σ1 ε1 Z1 -∗ glm e1 σ1 ε2 Z2.
@@ -418,9 +421,8 @@ Section glm.
       { iPureIntro.
         apply reducible_fill. (* Use Hr [iPureIntro by apply reducible_fill|] *)
         admit. }
-Admitted.
- (*
-
+      Admitted.
+  (*
       iSplit.
       {
         iPureIntro. exists r. intros (e&σ). rewrite /ε3.
@@ -572,13 +574,10 @@ Admitted.
     - iExists ε2. done.
     - iPureIntro; apply dret_erasable.
     - iPureIntro. rewrite SeriesC_scal_r.
-      (* Lift erasable through H1 *)
-      (* rewrite prim_step_mass; last done. lra. *)
-      admit.
-    - iPureIntro. (* pgl & dret *) admit.
+      rewrite dret_id_left' prim_step_mass; last done. lra.
+    - by rewrite dret_id_left'.
     - iIntros. iApply exec_stutter_free. iApply "H". done.
-  Admitted.
-
+  Qed.
 
   Lemma glm_adv_comp e1 σ1 Z (ε : nonnegreal) :
       (∃ R (μ : distr (state Λ)) (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
@@ -692,11 +691,13 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros Ψ [[e' σ'] ε']. rewrite /glm_pre.
   do 17 f_equiv.
-Admitted.
-(*
-  { rewrite /exec_stutter. do 10 f_equiv. f_contractive. do 3 f_equiv. apply Hwp. }
-Qed.*)
-
+  do 4 f_equiv.
+  rewrite /exec_stutter.
+  do 9 f_equiv.
+  f_contractive.
+  do 3 f_equiv.
+  apply Hwp.
+Qed.
 
 (* TODO: get rid of stuckness in notation [iris/bi/weakestpre.v] so that we don't have to do this *)
 Local Definition pgl_wp_def `{!erisWpGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
@@ -733,13 +734,11 @@ Proof.
   intros ? [[]?]. rewrite /glm_pre.
   do 16 f_equiv.
   rewrite /exec_stutter.
-  do 11 f_equiv.
-Admitted.
-(*
-f_contractive_fin.
+  do 14 f_equiv.
+  f_contractive_fin.
   rewrite IH; [done|lia|].
   intros ?. eapply dist_S, HΦ. 
-Qed. *)
+Qed.
 
 Global Instance pgl_wp_proper s E e :
   Proper (pointwise_relation _ (≡) ==> (≡)) (wp (PROP:=iProp Σ) s E e).
@@ -755,10 +754,9 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /glm_pre.
   do 16 f_equiv.
-  rewrite /exec_stutter. do 11 f_equiv.
-Admitted.
-(*f_contractive. do 6 f_equiv.
-Qed. *)
+  rewrite /exec_stutter. do 14 f_equiv.
+  f_contractive. do 6 f_equiv.
+Qed.
 
 Lemma pgl_wp_value_fupd' s E Φ v : WP of_val v @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
 Proof. rewrite pgl_wp_unfold /pgl_wp_pre to_of_val. auto. Qed.
