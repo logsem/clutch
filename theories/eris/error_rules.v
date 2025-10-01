@@ -1308,6 +1308,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     iDestruct (tapes_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
+  Admitted.
+  (*
     iApply glm_state_step.
     { rewrite /= /get_active.
       by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
@@ -1327,7 +1329,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
       iFrame.
     }
     iModIntro. iApply "Hwp".
-  Qed.
+  Qed. *)
 
   Lemma wp_presample (N : nat) E e 𝛼 Φ ns :
     to_val e = None →
@@ -1341,6 +1343,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     iDestruct (tapes_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
+  Admitted.
+  (*
     iApply glm_state_step.
     { rewrite /= /get_active.
       by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
@@ -1361,6 +1365,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     }
     iModIntro. iApply "Hwp".
   Qed.
+  *)
 
   Lemma twp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> R) :
     TCEq N (Z.to_nat z) →
@@ -1386,6 +1391,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     iMod (ec_supply_decrease with "Hε_supply Hε") as (ε1' ε_rem -> Hε1') "Hε_supply".
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose".
+    Admitted.
+    (*
     iApply (glm_state_adv_comp' α); simpl.
     { rewrite /get_active.
       apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom.
@@ -1548,6 +1555,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     simplify_eq.
     done.
   Qed.
+  *)
 
   Lemma wp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> R) :
     TCEq N (Z.to_nat z) →
@@ -1572,6 +1580,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     iMod (ec_supply_decrease with "Hε_supply Hε") as (ε1' ε_rem -> Hε1') "Hε_supply".
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose".
+    Admitted.
+  (*
     iApply (glm_state_adv_comp' α); simpl.
     { rewrite /get_active.
       apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom.
@@ -1724,6 +1734,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     iApply exec_stutter_free.
     iFrame.
   Qed.
+  *)
 
   Lemma twp_presample_adv_comp_leq (N : nat) z E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> R) :
     TCEq N (Z.to_nat z) →

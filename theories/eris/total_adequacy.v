@@ -296,7 +296,7 @@ Section adequacy.
       iRevert (H).
       iApply (glm_strong_ind (λ e σ ε, ⌜language.to_val e = None⌝ ={∅}=∗  ⌜tgl (lim_exec (e, σ)) φ ε⌝)%I with "[][$H]").
       iModIntro. clear e σ ε. iIntros (e σ ε) "H %Hval".
-      iDestruct "H" as "[H|[H | H]]".
+      iDestruct "H" as "[H|H]".
       + iAssert (|={∅}=>  ⌜∀ ε' : nonnegreal,
                              (ε < ε') -> tgl (lim_exec (e, σ)) φ ε'⌝)%I with "[H]" as "H".
         {
@@ -367,45 +367,6 @@ Section adequacy.
         iMod "H" as "%".
         iPureIntro.
         by apply H.
-      + remember (language.get_active σ) as l.
-        assert (l ⊆ language.get_active σ) as Hsubseteq by set_solver.
-        clear Heql.
-        iInduction l as [| l] "IH".
-        { rewrite big_orL_nil //. }
-        rewrite !big_orL_cons.
-        iDestruct "H" as "[H|H]".
-        2:{ iApply "IH"; try done. iPureIntro. set_solver. }
-        iDestruct "H" as "(%R & %ε1 & %ε2 & %Hbound & %Hineq & %Hub & H)".
-        iAssert (∀ σ2 : language.state prob_lang,
-                   ⌜R σ2⌝ ={∅}=∗ ⌜tgl (lim_exec (e, σ2)) φ (ε2 (e, σ2))⌝)%I with "[H]" as "H".
-        { iClear "IH".
-          iIntros. iMod ("H" $! σ2 (H)) as "H".
-          iDestruct "H" as "(%R' & %ε1' & %ε2' & %Hineq' & %Hub' & H)".
-          iApply fupd_mono.
-          { iApply pure_mono. intros. eapply tgl_mon_grading; [eapply Hineq'|eauto]. }
-          rewrite -{2}(dret_id_left' (fun _ : () => (lim_exec (e, σ2))) tt).
-          iApply tgl_dbind'.
-          - iPureIntro; apply cond_nonneg.
-          - iPureIntro; apply cond_nonneg.
-          - iPureIntro; eapply Hub'.
-          - iIntros. destruct a.
-            iSpecialize ("H" with "[//]").
-            iDestruct "H" as "[H _]".
-            iApply ("H" with "[//]").
-        }
-        rewrite {2}/tgl.
-        iApply (fupd_mono _ _ (⌜∀ s, R s -> 1 - ε2 (e, s) <= prob (lim_exec (e, s)) (λ x, bool_decide (φ x))⌝)%I).
-        {
-          iIntros. iPureIntro.
-          rewrite (erasure.lim_exec_eq_erasure [l]); last set_solver.
-          simpl.
-          rewrite /tgl prob_dbind.
-          erewrite SeriesC_ext; last by rewrite dret_id_right.
-          eapply twp_step_fupd_tgl_state_step; try done.
-          set_solver.
-        }
-        iIntros (a HR). iMod ("H" $! a (HR)) as "%H".
-        iPureIntro. by apply H.
     Admitted.
 End adequacy.
 

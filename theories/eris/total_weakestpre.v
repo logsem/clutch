@@ -48,8 +48,9 @@ Proof.
     rewrite /glm /glm'.
     f_equiv.
     intros Φ e. unfold glm_pre.
-    do 19 f_equiv.
-    rewrite /exec_stutter. do 17 f_equiv.
+    do 22 f_equiv.
+    rewrite /exec_stutter.
+    do 13 f_equiv.
     apply pair_ne; done.
 Qed.
 

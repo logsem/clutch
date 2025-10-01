@@ -760,28 +760,6 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
   | _ => dzero
   end.
 
-Definition state_step (σ1 : state) (α : loc) : distr state :=
-  dzero.
-(*
-  if bool_decide (α ∈ dom σ1.(tapes)) then
-    let: (N; ns) := (σ1.(tapes) !!! α) in
-    dmap (λ n, state_upd_tapes (<[α := (N; ns ++ [n])]>) σ1) (dunifP N)
-  else dzero.
-*)
-
-(*
-Lemma state_step_unfold σ α N ns:
-  tapes σ !! α = Some (N; ns) ->
-  state_step σ α = dmap (λ n, state_upd_tapes (<[α := (N; ns ++ [n])]>) σ) (dunifP N).
-Proof.
-  intros H.
-  rewrite /state_step.
-  rewrite bool_decide_eq_true_2; last first.
-  { by apply elem_of_dom. }
-  by rewrite (lookup_total_correct (tapes σ) α (N; ns)); last done.
-Qed.
-*)
-
 (** Basic properties about the language *)
 Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
 Proof. induction Ki; intros ???; simplify_eq/=; auto with f_equal. Qed.
@@ -874,6 +852,9 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
 | TickS σ z :
   head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ.
 
+(* TODO: I think there are some more cases I will want here *)
+(* TODO: Fix solve_red *)
+
 Create HintDb head_step.
 Global Hint Constructors head_step_rel : head_step.
 (* 0%fin always has non-zero mass, so propose this choice if the reduct is
@@ -887,14 +868,6 @@ Global Hint Extern 1
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
          eapply (RandTapeOtherS _ _ _ _ _ 0%fin) : head_step.
-
-(*
-Inductive state_step_rel : state → loc → state → Prop :=
-| AddTapeS α N (n : fin (S N)) ns σ :
-  α ∈ dom σ.(tapes) →
-  σ.(tapes) !!! α = ((N; ns) : tape) →
-  state_step_rel σ α (state_upd_tapes <[α := (N; ns ++ [n]) : tape]> σ).
-*)
 
 Ltac inv_head_step :=
   repeat
@@ -927,65 +900,6 @@ Proof.
     + admit.
     + admit.
 Admitted.
-
-(*
-Lemma state_step_support_equiv_rel σ1 α σ2 :
-  state_step σ1 α σ2 > 0 ↔ state_step_rel σ1 α σ2.
-Proof.
-  rewrite /state_step. split.
-  - case_bool_decide; [|intros; inv_distr].
-    case_match. intros ?. inv_distr.
-    econstructor; eauto with lia.
-  - inversion_clear 1.
-    rewrite bool_decide_eq_true_2 // H1. solve_distr.
-Qed.
-*)
-
-Lemma state_step_head_step_not_stuck e σ σ' α :
-  state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0).
-Proof.
-(*
-  rewrite state_step_support_equiv_rel.
-  inversion_clear 1.
-  split; intros [[e2 σ2] Hs].
-  (* TODO: the sub goals used to be solved by [simplify_map_eq]  *)
-  - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
-    + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert in H11. done.
-      * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
-    + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert in H11. done.
-      * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
-    + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert in H10. done.
-      * rewrite lookup_insert_ne // in H10. rewrite H10 in H7. done.
-  - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
-    + destruct (decide (α = l1)); simplify_eq.
-      * apply not_elem_of_dom_2 in H11. done.
-      * rewrite lookup_insert_ne // in H7. rewrite H11 in H7.  done.
-    + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert // in H7.
-        apply not_elem_of_dom_2 in H11. done.
-      * rewrite lookup_insert_ne // in H7. rewrite H11 in H7. done.
-    + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert // in H7.
-        apply not_elem_of_dom_2 in H10. done.
-      * rewrite lookup_insert_ne // in H7. rewrite H10 in H7. done.
-Qed.
-*)
-  Admitted.
-
-Lemma state_step_mass σ α :
-  α ∈ dom σ.(tapes) → SeriesC (state_step σ α) = 1.
-Proof.
-  intros Hdom.
-Admitted.
-(*
-  rewrite /state_step bool_decide_eq_true_2 //=.
-  case_match.
-  rewrite dmap_mass dunif_mass //.
-Qed.
-*)
 
 Lemma head_step_mass e σ :
   (∃ ρ, head_step e σ ρ > 0) → SeriesC (head_step e σ) = 1.
@@ -1061,40 +975,15 @@ Qed.
 
 Definition get_active (σ : state) : list loc := elements (dom σ.(tapes)).
 
-Lemma state_step_get_active_mass σ α :
-  α ∈ get_active σ → SeriesC (state_step σ α) = 1.
-Proof. rewrite elem_of_elements. apply state_step_mass. Qed.
-
-Lemma state_steps_mass σ αs :
-  αs ⊆ get_active σ →
-  SeriesC (foldlM state_step σ αs) = 1.
-Proof.
-  induction αs as [|α αs IH] in σ |-* ; intros Hact.
-  { rewrite /= dret_mass //. }
-  rewrite foldlM_cons.
-  rewrite dbind_det //.
-  - apply state_step_get_active_mass. set_solver.
-  - intros σ' Hσ'. apply IH.
-Admitted.
-(*
-    apply state_step_support_equiv_rel in Hσ'.
-    inversion Hσ'; simplify_eq.
-    intros α' ?. rewrite /get_active /=.
-    apply elem_of_elements, elem_of_dom.
-    destruct (decide (α = α')); subst.
-    + eexists. rewrite lookup_insert //.
-    + rewrite lookup_insert_ne //.
-      apply elem_of_dom. eapply elem_of_elements, Hact. by right.
-Qed.
-*)
-
 Lemma prob_lang_mixin :
-  EctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step state_step get_active.
+  EctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step (fun s _ => dret s) get_active.
 Proof.
   split; apply _ || eauto using to_of_val, of_to_val, val_head_stuck,
-    state_step_head_step_not_stuck, state_step_get_active_mass, head_step_mass,
+    head_step_mass,
     fill_item_val, fill_item_no_val_inj, head_ctx_step_val,
     decomp_fill_item, decomp_fill_item_2, expr_ord_wf, decomp_expr_ord.
+  { intros e σ σ' l H. apply dret_pos in H; rewrite H. reflexivity. }
+  { intros σ _ _. apply dret_mass. }
 Qed.
 
 End prob_lang.

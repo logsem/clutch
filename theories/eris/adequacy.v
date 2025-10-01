@@ -72,8 +72,7 @@ Section adequacy.
     }
     clear.
     iIntros "!#" ([[e1 σ1] ε'']). rewrite /Φ/F/glm_pre.
-    iIntros " [H | [ (%R & %ε1 & %ε2 & % & %Hred & (%r & %Hr) & % & %Hlift & % & H)|H]] %Hv".
-
+    iIntros " [H | (%R & %ε1 & %ε2 & % & %Hred & (%r & %Hr) & % & %Hlift & % & H)] %Hv".
     - iApply step_fupdN_mono.
       {
         apply pure_mono.
@@ -153,50 +152,6 @@ Section adequacy.
           iModIntro.
           eauto.
         *)
-    - rewrite exec_Sn_not_final; [|eauto].
-      iDestruct (big_orL_mono _ (λ _ _,
-                     |={∅}▷=>^(S n)
-                       ⌜pgl (prim_step e1 σ1 ≫= exec n) φ ε''⌝)%I
-                  with "H") as "H".
-      { iIntros (i α Hα%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & %Hε'' & %Hleq & %Hlift & H)".
-        replace (prim_step e1 σ1) with (step (e1, σ1)) => //.
-        rewrite -exec_Sn_not_final; [|eauto].
-        iApply (step_fupdN_mono _ _ _
-                  (⌜∀ σ2 , R2 σ2 → pgl (exec (S n) (e1, σ2)) φ (ε2 (e1, σ2))⌝)%I).
-        - iIntros (?). iPureIntro.
-          rewrite /= /get_active in Hα.
-          apply elem_of_elements, elem_of_dom in Hα as [bs Hα].
-          erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim _ _ _ _ _ Hα)); eauto.
-          apply (pgl_mon_grading _ _
-                   (ε1 + (SeriesC (λ ρ : language.state prob_lang, language.state_step σ1 α ρ * ε2 (e1, ρ))))) => //.
-          eapply pgl_dbind_adv; eauto; [by destruct ε1|].
-          destruct Hε'' as [r Hr]; exists r.
-          intros a.
-          split; [by destruct (ε2 _) | by apply Hr].
-        - iIntros (e s).
-          iApply step_fupd_fupdN_S.
-          iMod ("H" with "[//]") as "H"; iModIntro.
-          iDestruct "H" as "[%R' [%ε1' [%ε2' (%Hsum' & %Hlift' & Hwand')]]]".
-          rewrite -(dret_id_left' (fun _ : () => (exec (S n) _)) tt).
-          iApply (step_fupdN_mono _ _ _ ⌜(pgl _ _ (ε1' + ε2')) ⌝).
-          { iIntros "%H'"; iPureIntro. eapply pgl_mon_grading; eauto. }
-          iApply (pgl_dbind').
-          * iPureIntro; apply cond_nonneg.
-          * iPureIntro; apply cond_nonneg.
-          * iPureIntro.
-            apply tgl_implies_pgl in Hlift'.
-            eapply Hlift'.
-          * iIntros (? Hcont).
-            replace tt with a; [| by destruct a].
-            iSpecialize ("Hwand'" with "[]"); [iPureIntro; eauto|].
-            rewrite (dret_id_left').
-            iApply step_fupd_fupdN_S.
-            iMod ("Hwand'" with "[//]"); iModIntro; iFrame.
-            iModIntro; eauto. }
-      iInduction (language.get_active σ1) as [| α] "IH"; [done|].
-      rewrite big_orL_cons.
-      iDestruct "H" as "[H | Ht]"; [done|].
-      by iApply "IH".
   Admitted.
 
   Theorem wp_refRcoupl_step_fupdN (ε : nonnegreal) (e : expr) (σ : state) n φ :
@@ -271,7 +226,7 @@ Section adequacy.
     }
     clear.
     iIntros "!#" ([[e1 σ1] ε'']). rewrite /Φ/F/glm_pre.
-    iIntros " [ H | [ (%R & % & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & % & H)|H]] %Hv".
+    iIntros " [ H | (%R & % & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & % & H) ] %Hv".
     - iApply (step_fupdN_mono _ _ _ (⌜∀ ε', ε'' < ε'  -> SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) >= 1 - ε'⌝ )).
       {
         apply pure_mono.
@@ -363,93 +318,6 @@ Section adequacy.
         apply Rle_ge.
         auto.
       + done.
-    - iDestruct (big_orL_mono _ (λ _ _,
-                     |={∅}▷=>^(S n)
-                       ⌜SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) >= 1 - ε''⌝)%I
-                  with "H") as "H".
-      { iIntros (i α Hα%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & %Hε'' & %Hleq & %Hlift & H)".
-        iApply (step_fupdN_mono _ _ _
-                  (⌜∀ σ2 , R2 σ2 → SeriesC (iterM (S n) prim_step_or_val (e1, σ2)) >= 1 - (ε2 (e1, σ2))⌝)%I).
-        {
-          iPureIntro.
-          intros H.
-          assert (SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) =
-                  SeriesC (state_step σ1 α ≫= λ σ1', iterM (S n) prim_step_or_val (e1, σ1'))) as ->.
-          { erewrite (SeriesC_ext _ (pexec (S n) (e1, σ1))); last first.
-            { rewrite /pexec. done. }
-            erewrite (SeriesC_ext (_≫=_) (_≫=λ σ1', pexec (S n) (e1, σ1'))); last first.
-            { rewrite /pexec. done. }
-            rewrite -!(dmap_mass _ (λ x, x.1)).
-            eapply Rcoupl_mass_eq.
-            rewrite /=/get_active elem_of_elements elem_of_dom in Hα.
-            destruct Hα as [??].
-            by eapply pexec_coupl_step_pexec.
-          }
-          simpl. apply Rle_ge.
-          setoid_rewrite prim_step_or_val_no_val; last done.
-          simpl. simpl in *.
-          rewrite {1}/dbind/dbind_pmf{1}/pmf.
-          rewrite /pgl in Hlift. rewrite /prob in Hlift.
-          rewrite distr_double_swap. setoid_rewrite SeriesC_scal_l.
-          trans (1 - SeriesC
-                       (λ a ,
-                          if Datatypes.negb (bool_decide (R2 a)) then language.state_step σ1 α a else 0) - SeriesC
-                                                                                                                               (λ σ2 , language.state_step σ1 α σ2 * ε2 (e1, σ2))).
-          { simpl. simpl in *. rewrite -Rminus_plus_distr.
-            rewrite !Rminus_def. apply Rplus_le_compat_l.
-            apply Ropp_le_contravar. etrans; last exact.
-            apply Rplus_le_compat_r. auto. }
-          simpl. simpl in *.
-          rewrite !Rcomplements.Rle_minus_l.
-          replace 1 with (SeriesC (state_step σ1 α)); last first.
-          { apply state_step_mass. rewrite /get_active in Hα.
-            rewrite elem_of_elements in Hα. done.
-          }
-          assert (ex_seriesC (λ a : state, state_step σ1 α a * SeriesC (prim_step e1 a ≫= iterM n prim_step_or_val)) ).
-          { apply pmf_ex_seriesC_mult_fn. exists 1. intros; auto. }
-          eassert (ex_seriesC (λ σ2 : state, state_step σ1 α σ2 * ε2 (e1, σ2))).
-          { apply pmf_ex_seriesC_mult_fn. destruct Hε''. epose proof cond_nonneg. naive_solver. }
-          eassert (ex_seriesC (λ a : state, if Datatypes.negb (bool_decide (R2 a)) then state_step σ1 α a else 0)).
-          { apply ex_seriesC_filter_bool_pos; auto. }
-          rewrite -!SeriesC_plus; auto; last first.
-          { apply ex_seriesC_plus; auto. }
-          apply SeriesC_le; last first.
-          { repeat apply ex_seriesC_plus; auto. }
-          intros x; split; first auto.
-          case_bool_decide; simpl.
-          - rewrite -Rmult_plus_distr_l.
-            cut (state_step σ1 α x *1 <=
-  state_step σ1 α x * (SeriesC (prim_step e1 x ≫= iterM n prim_step_or_val) + ε2 (e1, x))).
-            { rewrite Rmult_1_r. rewrite Rplus_0_r. intros; done. }
-            apply Rmult_le_compat_l; auto.
-            rewrite -Rcomplements.Rle_minus_l.
-            apply Rge_le. simpl.
-            setoid_rewrite prim_step_or_val_no_val in H; last auto.
-            apply H. naive_solver.
-          - apply Rle_plus_r; first done.
-            apply Rplus_le_le_0_compat; first real_solver.
-            apply Rmult_le_pos; auto.
-        }
-        iIntros (e s).
-        iApply step_fupd_fupdN_S.
-        iMod ("H" with "[//]") as "H"; iModIntro.
-        iDestruct (exec_stutter_compat_1 with "[][$]") as "[%H'|H]".
-        { iIntros (???) "H %".
-          iDestruct ("H" with "[//]") as "H".
-          iApply step_fupdN_mono; last done.
-          iPureIntro. intros. trans (1-ε); try lra.
-          simpl. lra. }
-        + iApply step_fupdN_intro; first done.
-          iPureIntro.
-          trans 0; last first.
-          * simpl. apply Rle_ge. apply Rle_minus. done.
-          * apply Rle_ge; auto.
-        + iDestruct ("H" with "[//]") as "H". done.
-      }
-      iInduction (language.get_active σ1) as [| α] "IH"; [done|].
-      rewrite big_orL_cons.
-      iDestruct "H" as "[H | Ht]"; [done|].
-      by iApply "IH".
   Admitted.
 
   Theorem wp_safety_fupdN (ε : nonnegreal) (e : expr) (σ : state) n φ  :

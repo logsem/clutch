@@ -155,14 +155,7 @@ Section glm.
           ⌜erasable μ σ1 ⌝ ∗
           ⌜(ε1 + SeriesC (λ ρ, ((σ2 ← μ; prim_step e1 σ2) ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
           ⌜pgl (σ2 ← μ; prim_step e1 σ2) R ε1⌝ ∗
-            ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2))) ∨
-      (* [state_step] with adv composition*)
-      ([∨ list] α ∈ get_active σ1,
-        (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
-          ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-          ⌜ (ε1 + SeriesC (λ σ2, (state_step σ1 α σ2) * ε2 (e1, σ2)) <= ε)%R ⌝ ∗
-          ⌜pgl (state_step σ1 α) R ε1⌝ ∗
-              ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_stutter (fun ε' => Φ ((e1, σ2), ε')) (ε2 (e1, σ2)))))%I.
+            ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2))))%I.
 
 
   (* TODO: Define this globally, it appears in error credits too *)
@@ -182,28 +175,13 @@ Section glm.
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
     rewrite /glm_pre.
     iIntros (((e1 & σ1) & ε)) "Hexec".
-    iDestruct "Hexec" as "[H | [H | H]]".
+    iDestruct "Hexec" as "[H | H]".
     - iLeft.
       iIntros (?) "?".
       iApply (exec_stutter_mono_pred with "[]").
       { iIntros (?) "H". iApply "Hwand". iApply "H". }
       by iApply "H".
-    - by (iRight; iLeft).
-    - iRight; iRight.
-      iInduction (get_active σ1) as [| l] "IH" forall "H".
-      { rewrite big_orL_nil //. }
-      rewrite !big_orL_cons.
-      iDestruct "H" as "[(% & % & % & % & %Hsum & Hlift & HΦ) | H]".
-      + iLeft. iExists R2.
-        iExists ε1. iExists _.
-        iSplit; [try done|].
-        iSplit; [try done|].
-        iSplit; [try done|].
-        iIntros.
-        iApply (exec_stutter_mono_pred with "[]").
-        { iIntros (?) "H".  iApply "Hwand". iApply "H". }
-        by iApply "HΦ".
-      + iRight. by iApply "IH".
+    - by iRight.
     Qed.
 
   Definition glm' Z := bi_least_fixpoint (glm_pre Z).
@@ -218,13 +196,7 @@ Section glm.
           ⌜erasable μ σ1 ⌝ ∗
           ⌜(ε1 + SeriesC (λ ρ, ((σ2 ← μ; prim_step e1 σ2) ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
           ⌜pgl (σ2 ← μ; prim_step e1 σ2) R ε1⌝ ∗
-            ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2))) ∨
-      ([∨ list] α ∈ get_active σ1,
-        (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
-          ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-          ⌜ (ε1 + SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 (e1, ρ)) <= ε)%R ⌝ ∗
-          ⌜pgl (state_step σ1 α) R ε1⌝ ∗
-              ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_stutter (fun ε' => glm e1 σ2 ε' Z) (ε2 (e1, σ2)))))%I.
+            ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2))))%I.
   Proof. rewrite /glm/glm' least_fixpoint_unfold //. Qed.
 
   Local Definition cfgO := (prodO (exprO Λ) (stateO Λ)).
@@ -241,7 +213,7 @@ Section glm.
     iPoseProof (least_fixpoint_ind (glm_pre Z) Φ with "[]") as "H"; last first.
     { iApply ("H" with "H_ub"). }
     iIntros "!#" ([[? σ'] ε'']). rewrite /glm_pre.
-    iIntros "[H | [ (% & % & % & % & % & % & % & % & % & H) | H]] %ε3 %Hleq' /="; simpl in Hleq'.
+    iIntros "[H | (% & % & % & % & % & % & % & % & % & H)] %ε3 %Hleq' /="; simpl in Hleq'.
     - rewrite least_fixpoint_unfold.
       iLeft.
       iIntros (ε4) "%Hε4".
@@ -253,29 +225,9 @@ Section glm.
       iIntros (?) "[_ ?]".
       done.
     - rewrite least_fixpoint_unfold.
-      iRight. iLeft. iExists _, μ, _, _.
+      iRight. iExists _, μ, _, _.
       iSplit; [|iSplit; [| iSplit; [| iSplit; [| iSplit]]]]; try done.
       iPureIntro; etrans; done.
-    - rewrite least_fixpoint_unfold.
-      iRight. iRight.
-      iInduction (get_active σ') as [| l] "IH".
-      { rewrite big_orL_nil //. }
-      rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hleq2 & %Hub & %Hlift & H )) | Ht]".
-      + iLeft.
-        iExists R2. iExists ε1. iExists ε2.
-        iSplit; [auto|].
-        iSplit; [ iPureIntro; lra | ].
-        iSplit; [ done | ].
-        iIntros.
-        rewrite /glm_pre.
-        iClear "IH".
-        iMod ("H" with "[//]").
-        iModIntro.
-        iApply (exec_stutter_mono_pred); [|eauto].
-        iIntros (?) "[_ ?]".
-        iFrame.
-      + iRight. by iApply ("IH" with "Ht").
   Qed.
 
   Lemma glm_strong_mono e1 σ1 Z1 Z2 ε ε' :
@@ -294,7 +246,7 @@ Section glm.
     iPoseProof (least_fixpoint_iter (glm_pre Z1) Φ with "[]") as "H"; last first.
     { by iApply ("H" with "H_ub"). }
     iIntros "!#" ([[? σ'] ε'']). rewrite /glm_pre.
-    iIntros "[H | [(% & % & % & % & % & % & % & % & % & H) | H]] HZ /=".
+    iIntros "[H | (% & % & % & % & % & % & % & % & % & H)] HZ /=".
     - rewrite least_fixpoint_unfold.
       iLeft.
       iIntros (ε4) "%Hε4".
@@ -306,7 +258,7 @@ Section glm.
       iIntros (?) "H".
       by iApply "H".
     - rewrite least_fixpoint_unfold.
-      iRight. iLeft.
+      iRight.
       iExists _,μ,_,_.
       iSplit; [done|].
       iSplit; [done|].
@@ -325,25 +277,6 @@ Section glm.
       apply dbind_pos in H6.
       destruct H6 as [s [Hs _]].
       exists s. exact Hs.
-    - rewrite least_fixpoint_unfold.
-      iRight. iRight.
-      iInduction (get_active σ') as [| l] "IH".
-      { rewrite big_orL_nil //. }
-      rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (% & % & % & H)) | Ht]".
-      + iLeft. iExists R2. iExists ε1. iExists ε2.
-        iSplit; [auto | ].
-        iSplit; [iPureIntro; lra | ].
-        iSplit; [done | ].
-        iIntros.
-        iMod ("H" with "[//]") as "H".
-        iModIntro.
-        iApply (exec_stutter_mono_pred with "[HZ]"); [|eauto].
-        iIntros (?) "H".
-        rewrite /Φ.
-        iApply "H".
-        iFrame.
-      + iRight. by iApply ("IH" with "Ht").
   Qed.
 
   Lemma glm_mono Z1 Z2 e1 σ1 ε1 ε2 :
@@ -368,8 +301,6 @@ Section glm.
     iIntros (???) "[[% ?] ?]". iSplit; [|done]. by iExists _.
   Qed.
 
-
-
   Lemma glm_bind K `{!LanguageCtx K} e1 σ1 Z ε :
     to_val e1 = None →
     glm e1 σ1 ε (λ '(e2, σ2) ε', Z (K e2, σ2) ε') -∗ glm (K e1) σ1 ε Z.
@@ -388,7 +319,7 @@ Section glm.
                  with "[]") as "H"; last first.
     { iIntros (?). iApply ("H" $! ((_, _), _) with "Hub [//]"). }
     iIntros "!#" ([[? σ'] ε']). rewrite /glm_pre.
-    iIntros " [ H | [(% & % & % & % & % & (%r & %Hr) & % & % & H) | H ]] %Hv'".
+    iIntros " [ H | (% & % & % & % & % & (%r & %Hr) & % & % & H)] %Hv'".
     - rewrite least_fixpoint_unfold.
       iLeft.
       iIntros (ε2) "%Hε2".
@@ -401,7 +332,7 @@ Section glm.
       iIntros (?) "H".
       by iApply "H".
     - rewrite least_fixpoint_unfold.
-      iRight. iLeft. simpl.
+      iRight. simpl.
       destruct (partial_inv_fun K) as (Kinv & HKinv).
       assert (forall e e', Kinv e' = Some e -> K e = e') as HKinv1; [intros; by apply HKinv |].
       assert (forall e e', Kinv e = None -> K e' ≠ e) as HKinv2; [intros; by apply HKinv |].
@@ -501,64 +432,6 @@ Section glm.
         iMod ("H" with "[//]").
         by rewrite Haux.
        Unshelve. auto.
-    - rewrite least_fixpoint_unfold; simpl.
-      iRight. iRight.
-      (* from above (combine?)*)
-      destruct (partial_inv_fun K) as (Kinv & HKinv).
-      assert (forall e e', Kinv e' = Some e -> K e = e') as HKinv1; [intros; by apply HKinv |].
-      assert (forall e e', Kinv e = None -> K e' ≠ e) as HKinv2; [intros; by apply HKinv |].
-      assert (forall e, Kinv (K e) = Some e) as HKinv3.
-      { intro e.
-        destruct (Kinv (K e)) eqn:H3.
-        - apply HKinv1 in H3. f_equal. by apply fill_inj.
-        - eapply (HKinv2 _ e) in H3. done. }
-      iInduction (get_active σ') as [| l ls] "IH".
-      { rewrite big_orL_nil //. }
-      rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hub & %Hleq & %Hlift & H)) | Ht]".
-      + set (ε3 := (λ '(e,σ), from_option (λ e', ε2 (e',σ)) nnreal_zero (Kinv e))).
-        assert (forall e2 σ2, ε3 (K e2, σ2) = ε2 (e2, σ2)) as Haux.
-        { intros e2 σ2. rewrite /ε3 HKinv3 //. }
-        iLeft.
-        iExists R2,_,ε3.
-        iSplit.
-        { iPureIntro.
-          destruct Hub as [r Hr]; exists r.
-          intros (e&σ). rewrite /ε3.
-          destruct (Kinv e); simpl; try real_solver.
-          etrans; [ | eapply (Hr (e, σ)); eauto]. apply cond_nonneg.
-        }
-        iSplit; [| iSplit].
-        2: { iPureIntro; done. }
-        * iPureIntro.
-          etrans; [ | apply Hleq].
-          apply Rplus_le_compat_l.
-          apply SeriesC_le; last first.
-          { destruct Hub as [r Hr].
-            apply (ex_seriesC_le _ (λ ρ, (state_step σ' l ρ * r)%R)).
-            - intros; split.
-              + apply Rmult_le_pos; [apply pmf_pos | by destruct (ε2 _ )].
-              + apply Rmult_le_compat_l; auto; apply pmf_pos.
-            - apply ex_seriesC_scal_r.
-              apply pmf_ex_seriesC.
-          }
-          intros 𝜎; simpl.
-          split.
-          ** apply Rmult_le_pos; auto; apply cond_nonneg.
-          ** rewrite HKinv3 /=. lra.
-        * rewrite /Φ.
-          iIntros (σ).
-          iSpecialize ("H" $! σ).
-          iIntros "Hr"; iSpecialize ("H" with "Hr").
-          iMod "H"; iModIntro.
-          rewrite /ε3 HKinv3 /=.
-          simpl.
-          iClear "IH".
-          iApply (exec_stutter_mono_pred with "[]"); [|eauto].
-          iIntros (?) "H".
-          iApply "H".
-          by simpl in Hv'.
-      + iRight. by iApply ("IH" with "Ht").
   Admitted.
 
   Lemma glm_prim_step e1 σ1 Z ε :
@@ -568,7 +441,7 @@ Section glm.
   Proof.
     iIntros "(%R&%ε1&%ε2&%&%&%&H)".
     rewrite glm_unfold.
-    iRight. iLeft.
+    iRight.
     iExists R, (dret σ1), ε1, (λ _, ε2).
     repeat iSplit; try done.
     - iExists ε2. done.
@@ -591,32 +464,13 @@ Section glm.
   Proof.
     iIntros "(% & % & % & % & % & % & % & % & % & H)".
     rewrite {1}glm_unfold.
-    iRight. iLeft.
+    iRight.
     iExists _,_,_,_.
     iSplit; [done|].
     iSplit; [done|].
     iSplit; [done|].
     iSplit; [done|].
     iSplit; done.
-  Qed.
-
-
-  (* TODO: Maybe allow weakening of the grading *)
-  Lemma glm_state_step α e1 σ1 Z (ε ε' : nonnegreal) :
-    α ∈ get_active σ1 →
-    (∃ R, ⌜pgl (state_step σ1 α) R ε⌝ ∗
-          ∀ σ2 , ⌜R σ2 ⌝ ={∅}=∗ glm e1 σ2 ε' Z)
-    ⊢ glm e1 σ1 (ε + ε') Z.
-  Proof.
-    iIntros (?) "(%&%&H)".
-    rewrite glm_unfold.
-    iRight. iRight.
-    iApply big_orL_elem_of; first done.
-    iExists R2, ε, (λ _, ε').
-    repeat iSplit; try done.
-    - iPureIntro; eexists _; done.
-    - iPureIntro. rewrite SeriesC_scal_r. rewrite state_step_mass; [simpl;lra|done]. 
-    - iIntros. iApply exec_stutter_free. by iApply "H".
   Qed.
 
 
@@ -629,28 +483,6 @@ Section glm.
     iLeft.
     iIntros (ε') "Hε'".
     by iApply "H".
-  Qed.
-
-
-  (* for state steps that consume zero error *)
-  Lemma glm_state_adv_comp' α e1 σ1 Z (ε : nonnegreal) :
-    (α ∈ get_active σ1 ->
-     (∃ R (ε2 : cfg Λ -> nonnegreal),
-        ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-        ⌜ (SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 (e1, ρ)) <= ε)%R ⌝ ∗
-        ⌜pgl (state_step σ1 α) R nnreal_zero⌝ ∗
-        ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_stutter (fun ε' => glm e1 σ2 ε' Z) (ε2 (e1, σ2)))
-      ⊢ glm e1 σ1 ε Z)%I.
-  Proof.
-    iIntros (?) "(% & % & % & %Hε & % & H)".
-    rewrite {1}glm_unfold.
-    iRight. iRight.
-    iApply big_orL_elem_of; eauto.
-    iExists _,nnreal_zero,_.
-    iSplit; [auto|].
-    iSplit.
-    { iPureIntro. by rewrite /= Rplus_0_l. }
-    iSplit; [done|done].
   Qed.
 
   Lemma glm_strong_ind (Ψ : expr Λ → state Λ → nonnegreal → iProp Σ) Z :
@@ -690,8 +522,7 @@ Proof.
   do 7 (f_equiv).
   apply least_fixpoint_ne_outer; [|done].
   intros Ψ [[e' σ'] ε']. rewrite /glm_pre.
-  do 17 f_equiv.
-  do 4 f_equiv.
+  do 20 f_equiv.
   rewrite /exec_stutter.
   do 9 f_equiv.
   f_contractive.
@@ -732,9 +563,9 @@ Proof.
   do 7 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /glm_pre.
-  do 16 f_equiv.
+  do 20 f_equiv.
   rewrite /exec_stutter.
-  do 14 f_equiv.
+  do 9 f_equiv.
   f_contractive_fin.
   rewrite IH; [done|lia|].
   intros ?. eapply dist_S, HΦ. 
@@ -753,9 +584,11 @@ Proof.
   do 6 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /glm_pre.
-  do 16 f_equiv.
-  rewrite /exec_stutter. do 14 f_equiv.
-  f_contractive. do 6 f_equiv.
+  do 20 f_equiv.
+  rewrite /exec_stutter.
+  do 9 f_equiv.
+  f_contractive.
+  do 6 f_equiv.
 Qed.
 
 Lemma pgl_wp_value_fupd' s E Φ v : WP of_val v @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
