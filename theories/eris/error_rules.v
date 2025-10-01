@@ -25,7 +25,9 @@ Lemma pgl_rand_trivial N z σ1 :
 Proof.
   intro Hz.
   rewrite (head_prim_step_eq _ _ _); last first.
-  { admit. }
+  { (* TODO: Fix solve_red *)
+    eexists _; eapply head_step_support_equiv_rel; constructor; eauto.
+    Unshelve. exact Fin.F1. (* TODO: Where do you come from? *) }
   rewrite //=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r 0).
@@ -34,7 +36,7 @@ Proof.
   intros n ?.
   apply pgl_dret.
   by exists n.
-Admitted.
+Qed.
 
 (** * rand(N) error *)
 Lemma pgl_rand_err N z σ1 (m : fin (S N)):
@@ -47,7 +49,9 @@ Proof.
   simpl in *.
   intros Hz.
   rewrite (head_prim_step_eq _ _ _) /=; last first.
-  { admit. }
+  { (* TODO: Fix solve_red *)
+    eexists _; eapply head_step_support_equiv_rel; constructor; eauto.
+    Unshelve. exact Fin.F1. (* TODO: Where do you come from? *) }
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r (1 / (N + 1))).
   eapply (pgl_dbind _ _ _ _ _ 0); last first.
@@ -63,7 +67,7 @@ Proof.
     + rewrite <- (Rplus_0_r) at 1.
       apply Rplus_lt_compat_l.
       lra.
-Admitted.
+Qed.
 
 (* Same lemma holds for m an arbitrary natural *)
 Lemma pgl_rand_err_nat N z σ1 (m : nat):
@@ -76,7 +80,9 @@ Proof.
   simpl in *.
   intros Hz.
   rewrite (head_prim_step_eq _ _ _) /=; last first.
-  { admit. }
+  { (* TODO: Fix solve_red *)
+    eexists _; eapply head_step_support_equiv_rel; constructor; eauto.
+    Unshelve. exact Fin.F1. (* TODO: Where do you come from? *) }
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r (1 / (N + 1))).
   eapply (pgl_dbind _ _ _ _ _ 0); last first.
@@ -92,7 +98,7 @@ Proof.
     + rewrite <- (Rplus_0_r) at 1.
       apply Rplus_lt_compat_l.
       lra.
-Admitted.
+Qed.
 
 (* Generalization to lists *)
 Lemma pgl_rand_err_list_nat N z σ1 (ms : list nat):
@@ -105,7 +111,9 @@ Proof.
   simpl in *.
   intros Hz.
   rewrite (head_prim_step_eq _ _ _) /=; last first.
-  { admit. }
+  { (* TODO: Fix solve_red *)
+    eexists _; eapply head_step_support_equiv_rel; constructor; eauto.
+    Unshelve. exact Fin.F1. (* TODO: Where do you come from? *) }
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r ((length ms) / (N + 1))).
   eapply (pgl_dbind _ _ _ _ _ 0); last first.
@@ -121,7 +129,7 @@ Proof.
     + rewrite <- (Rplus_0_r) at 1.
       apply Rplus_lt_compat_l.
       lra.
-Admitted.
+Qed.
 
 Lemma pgl_rand_err_list_int N z σ1 (ms : list Z):
   N = Z.to_nat z →
@@ -133,7 +141,9 @@ Proof.
   simpl in *.
   intros Hz.
   rewrite (head_prim_step_eq _ _ _) /=; last first.
-  { admit. }
+  { (* TODO: Fix solve_red *)
+    eexists _; eapply head_step_support_equiv_rel; constructor; eauto.
+    Unshelve. exact Fin.F1. (* TODO: Where do you come from? *) }
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r ((length ms) / (N + 1))).
   eapply (pgl_dbind _ _ _ _ _ 0); last first.
@@ -149,7 +159,7 @@ Proof.
     + rewrite <- (Rplus_0_r) at 1.
       apply Rplus_lt_compat_l.
       lra.
-Admitted.
+Qed.
 
 End metatheory.
 
@@ -178,7 +188,10 @@ Proof.
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), n ≠ m /\ ρ = (Val #n, σ1)), _, _.
   iSplit.
-  { iPureIntro. eapply head_prim_reducible; eauto with head_step. admit. }
+  { iPureIntro. eapply head_prim_reducible; eauto with head_step.
+    (* TODO: Fix solve_red *)
+    eexists _; eapply head_step_support_equiv_rel; constructor; eauto.
+  }
   iSplit.
   {
     iPureIntro.
@@ -209,7 +222,8 @@ Proof.
   iApply ec_supply_eq; [|done].
   simplify_eq.
   lra.
-Admitted.
+  Unshelve. auto. (* TODO: Where do you come from? *)
+Qed.
 
 Lemma wp_rand_err (N : nat) (z : Z) (m : fin (S N)) E Φ :
   TCEq N (Z.to_nat z) →
@@ -238,7 +252,11 @@ Proof.
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), fin_to_nat n ≠ m /\ ρ = (Val #n, σ1)),_,_.
   iSplit.
-  { iPureIntro. eapply head_prim_reducible; eauto with head_step. admit. }
+  { iPureIntro. eapply head_prim_reducible; eauto with head_step.
+    (* TODO: Fix solve_red *)
+    eexists _; eapply head_step_support_equiv_rel; constructor; eauto.
+  }
+
   iSplit.
   { iPureIntro; apply Rle_refl. }
   iSplit.
@@ -265,7 +283,8 @@ Proof.
   iApply ec_supply_eq; [|done].
   simplify_eq.
   lra.
-Admitted.
+  Unshelve. exact Fin.F1. (* TODO: Where do you come from? *)
+Qed.
 
 
 Lemma twp_rand_err_incr e ε s E Φ :
@@ -401,7 +420,10 @@ Proof.
     (λ (ρ : expr * state),
       ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, fin_to_nat n ≠ m) ns /\ ρ = (Val #n, σ1)),_,_.
   iSplit.
-  { iPureIntro. eapply head_prim_reducible; eauto with head_step. admit. }
+  { iPureIntro. eapply head_prim_reducible; eauto with head_step.
+    (* TODO: Fix solve_red *)
+    eexists _; eapply head_step_support_equiv_rel; constructor; eauto.
+  }
   iSplit.
   { iPureIntro; apply Rle_refl. }
   iSplit.
@@ -425,7 +447,8 @@ Proof.
   iApply ec_supply_eq; [|done].
   simplify_eq.
   lra.
-Admitted.
+  Unshelve. exact Fin.F1. (* TODO: Where do you come from? *)
+Qed.
 
 Lemma wp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
   TCEq N (Z.to_nat z) →
@@ -454,7 +477,10 @@ Proof.
     (λ (ρ : expr * state),
       ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, Z.of_nat (fin_to_nat n) ≠ m) zs /\ ρ = (Val #n, σ1)),_,_.
   iSplit.
-  { iPureIntro. eapply head_prim_reducible; eauto with head_step. admit. }
+  { iPureIntro. eapply head_prim_reducible; eauto with head_step.
+    (* TODO: Fix solve_red *)
+    eexists _; eapply head_step_support_equiv_rel; constructor; eauto.
+  }
   iSplit.
   { iPureIntro; apply Rle_refl. }
   iSplit.
@@ -476,7 +502,8 @@ Proof.
   iApply ec_supply_eq; [|done].
   simplify_eq.
   lra.
-Admitted.
+  Unshelve. exact Fin.F1. (* TODO: Where do you come from? *)
+Qed.
 
 Lemma wp_rand_err_list_int (N : nat) (z : Z) (zs : list Z) E Φ :
   TCEq N (Z.to_nat z) →
@@ -620,7 +647,10 @@ Proof.
     (λ (ρ : expr * state),
       ∃ (n : fin (S (Z.to_nat z))), ρ = (Val #n, σ1)), (dret σ1), nnreal_zero, foo.
   iSplit.
-  { iPureIntro. eapply head_prim_reducible; eauto with head_step. admit. }
+  { iPureIntro. eapply head_prim_reducible; eauto with head_step.
+    (* TODO: Fix solve_red *)
+    eexists _; eapply head_step_support_equiv_rel; constructor; eauto.
+  }
   iSplit.
   {
     iPureIntro. exists (ε3 + r)%R.
@@ -680,7 +710,7 @@ Proof.
                       apply Rmult_le_compat_r; [ auto |].
                       rewrite dret_id_left.
                       rewrite (head_prim_step_eq _ _ _) /=; last first.
-                      { admit. }
+                      { eexists _; eapply head_step_support_equiv_rel; constructor; eauto. }
                       rewrite /dmap /pmf/=/dbind_pmf/dunifP.
                       setoid_rewrite dunif_pmf.
                       rewrite SeriesC_scal_l /= /Rdiv Rmult_1_l.
@@ -704,7 +734,7 @@ Proof.
                       right.
                       rewrite dret_id_left.
                       rewrite (head_prim_step_eq _ _ _) /=; last first.
-                      { admit. }
+                      { eexists _; eapply head_step_support_equiv_rel; constructor; eauto. }
                       rewrite /dmap /pmf/=/dbind_pmf/dunifP.
                       setoid_rewrite dunif_pmf.
                       rewrite SeriesC_scal_l /= /Rdiv.
@@ -815,7 +845,8 @@ Proof.
   rewrite fin_to_nat_to_fin.
   rewrite Nat2Z.id.
   reflexivity.
-Admitted.
+  Unshelve. all: exact Fin.F1. (* TODO: Where do you come from? *)
+Qed.
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> R) :
   TCEq N (Z.to_nat z) →

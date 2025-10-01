@@ -191,7 +191,7 @@ Proof.
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   iSplitR; [iPureIntro |].
-  { admit. }
+  { eexists _; eapply head_step_support_equiv_rel; constructor; eauto. }
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
   iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[? Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
@@ -199,7 +199,7 @@ Proof.
   rewrite map_union_empty -insert_union_singleton_l.
   iFrame.
   iIntros "!>". by iApply "HΦ".
-Admitted.
+Qed.
 
 Lemma wp_allocN_seq (N : nat) (z : Z) E v s:
   TCEq N (Z.to_nat z) →
@@ -267,10 +267,10 @@ Proof.
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   iSplitR; [iPureIntro |].
-  { admit. }
+  { eexists _; eapply head_step_support_equiv_rel; constructor; eauto. }
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
   iFrame. iModIntro. by iApply "HΦ".
-Admitted.
+Qed.
 
 Lemma wp_store E l v' v s :
   {{{ ▷ l ↦ v' }}} Store (Val $ LitV (LitLoc l)) (Val v) @ s; E
@@ -281,7 +281,7 @@ Proof.
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   iSplitR; [iPureIntro |].
-  { admit. }
+  { eexists _; eapply head_step_support_equiv_rel. admit. }
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
   iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
   iFrame. iModIntro. by iApply "HΦ".
@@ -295,12 +295,13 @@ Proof.
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "Hσ !#".
   iSplitR; [iPureIntro |].
-  { admit. }
+  { eexists _; eapply head_step_support_equiv_rel; constructor; eauto. }
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iFrame.
-  by iApply ("HΦ" $! x) .
-Admitted.
+  by iApply ("HΦ" $! x).
+  Unshelve. exact Fin.F1.
+Qed.
 
 (** Tapes  *)
 Lemma wp_alloc_tape N z E s :
@@ -311,13 +312,13 @@ Proof.
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !# /=".
   iSplitR; [iPureIntro |].
-  { admit. }
+  { eexists _; eapply head_step_support_equiv_rel; constructor; eauto. }
   iIntros "!>" (e2 σ2 Hs); inv_head_step.
   iMod (tapes_insert (fresh_loc (σ1.(tapes))) with "Ht") as "[$ Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
   iFrame. iModIntro.
   by iApply "HΦ".
-Admitted.
+Qed.
 
 Lemma wp_rand_tape N α n ns z E s :
   TCEq N (Z.to_nat z) →
@@ -328,13 +329,13 @@ Proof.
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (tapes_lookup with "Ht Hl") as %?.
   iSplitR; [iPureIntro |].
-  { admit. }
+  { eexists _; eapply head_step_support_equiv_rel; constructor; eauto. }
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iMod (tapes_update with "Ht Hl") as "[$ Hl]".
   iFrame. iModIntro.
   by iApply "HΦ".
-Admitted.
+Qed.
 
 Lemma wp_rand_tape_empty N z α E s :
   TCEq N (Z.to_nat z) →
@@ -345,12 +346,13 @@ Proof.
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (tapes_lookup with "Ht Hl") as %?.
   iSplitR; [iPureIntro |].
-  { admit. }
+  { eexists _; eapply head_step_support_equiv_rel; constructor; last exact H. done. }
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iFrame.
   iModIntro. iApply ("HΦ" with "[$Hl //]").
-Admitted.
+  Unshelve. exact Fin.F1.
+Qed.
 
 Lemma wp_rand_tape_wrong_bound N M z α E ns s :
   TCEq N (Z.to_nat z) →
@@ -362,7 +364,7 @@ Proof.
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (tapes_lookup with "Ht Hl") as %?.
   iSplitR; [iPureIntro |].
-  { admit. }
+  { eexists _; eapply head_step_support_equiv_rel; constructor; admit. }
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iFrame.
