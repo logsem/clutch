@@ -1,5 +1,5 @@
-From clutch.prob_lang Require Import lang notation class_instances tactics.
-From clutch.prob_lang Require Export wp_tactics.
+From clutch.prob_lang2 Require Import lang notation class_instances tactics.
+From clutch.prob_lang2 Require Export wp_tactics.
 From clutch.eris Require Import weakestpre primitive_laws derived_laws.
 From clutch.eris Require Import total_weakestpre total_primitive_laws total_derived_laws.
 From iris.prelude Require Import options.

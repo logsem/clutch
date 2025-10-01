@@ -7,7 +7,7 @@ For utility functions on arrays (e.g., freeing/copying an array), see
 From stdpp Require Import fin_maps.
 From iris.bi Require Import lib.fractional.
 From iris.proofmode Require Import proofmode.
-From clutch.prob_lang Require Import tactics lang notation.
+From clutch.prob_lang2 Require Import tactics lang notation.
 From clutch.eris Require Export primitive_laws.
 From iris.prelude Require Import options.
 

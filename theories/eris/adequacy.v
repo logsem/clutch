@@ -5,7 +5,7 @@ From iris.algebra Require Import excl.
 From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
-From clutch.prob_lang Require Import erasure notation.
+From clutch.prob_lang2 Require Import erasure notation.
 From clutch.common Require Export language erasable exec.
 From clutch.base_logic Require Import error_credits.
 From clutch.eris Require Import weakestpre primitive_laws.
