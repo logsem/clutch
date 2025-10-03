@@ -830,8 +830,7 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
 | AllocTapeS z N σ l :
   l = fresh_loc σ.(tapes) →
   N = Z.to_nat z →
-  head_step_rel (AllocTape (Val (LitV (LitInt z)))) σ
-    (Val $ LitV $ LitLbl l) (state_upd_tapes <[l := (N, ∅)]> σ)
+  head_step_rel (AllocTape (Val (LitV (LitInt z)))) σ (Val $ LitV $ LitLbl l) (state_upd_tapes <[l := (N, ∅)]> σ)
 | RandTapeS l z N M T n ns σ :
   N = Z.to_nat z →
   σ.(tapes) !! l = Some ((M, T) : nat * gmap Z tape)  →
@@ -843,12 +842,42 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   σ.(tapes) !! l = Some ((M, T) : nat * gmap Z tape)  →
   T !! (0 : Z) = Some ((N; []) : tape) →
   head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
+| RandTapeUninitS l z N M T (n : fin (S N)) σ :
+  N = Z.to_nat z →
+  σ.(tapes) !! l = Some ((M, T) : nat * gmap Z tape)  →
+  T !! (0 : Z) = None →
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
 | RandTapeOtherS l z M N M' T ms (n : fin (S N)) σ :
   N = Z.to_nat z →
   σ.(tapes) !! l = Some ((M, T) : nat * gmap Z tape)  →
   T !! (0 : Z) = Some ((M'; ms) : tape) →
   N ≠ M' →
   head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
+| RandTapeNS l z N M T n ns σ tx :
+  N = Z.to_nat z →
+  σ.(tapes) !! l = Some ((M, T) : nat * gmap Z tape)  →
+  T !! tx = Some ((N; n :: ns) : tape) →
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val (PairV (LitV (LitLbl l)) (LitV (LitInt tx))))) σ
+    (Val $ (LitV $ LitInt $ n)) (state_upd_tapes <[l:=(M, <[tx := ((N; ns) : tape)]> T)]>  σ)
+| RandTapeEmptyNS l z N M T (n : fin (S N)) σ tx :
+  N = Z.to_nat z →
+  σ.(tapes) !! l = Some ((M, T) : nat * gmap Z tape)  →
+  T !! tx = Some ((N; []) : tape) →
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val (PairV (LitV (LitLbl l)) (LitV (LitInt tx))))) σ
+  (Val $ LitV $ LitInt n) σ
+| RandTapeUninitNS l z N M T (n : fin (S N)) σ tx :
+  N = Z.to_nat z →
+  σ.(tapes) !! l = Some ((M, T) : nat * gmap Z tape)  →
+  T !! tx = None →
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val (PairV (LitV (LitLbl l)) (LitV (LitInt tx))))) σ
+  (Val $ LitV $ LitInt n) σ
+| RandTapeOtherNS l z M N M' T ms (n : fin (S N)) σ tx :
+  N = Z.to_nat z →
+  σ.(tapes) !! l = Some ((M, T) : nat * gmap Z tape)  →
+  T !! tx = Some ((M'; ms) : tape) →
+  N ≠ M' →
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val (PairV (LitV (LitLbl l)) (LitV (LitInt tx))))) σ
+  (Val $ LitV $ LitInt n) σ
 | TickS σ z :
   head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ.
 
@@ -885,21 +914,19 @@ Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
   head_step e1 σ1 (e2, σ2) > 0 ↔ head_step_rel e1 σ1 e2 σ2.
 Proof.
   split.
-  - intros ?. destruct e1; inv_head_step; eauto with head_step.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
+  - intros ?.
+    destruct e1; inv_head_step; eauto with head_step.
+    all: destruct e2; unfold unif_expr in H; inv_distr; eauto with head_step.
   - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-Admitted.
+    + exfalso; eauto.
+    + unfold unif_expr in *; solve_distr.
+    + unfold unif_expr in *; solve_distr.
+    + unfold unif_expr in *; solve_distr.
+    + unfold unif_expr in *; solve_distr.
+    + unfold unif_expr in *; solve_distr.
+    + unfold unif_expr in *; solve_distr.
+    + unfold unif_expr in *; solve_distr.
+Qed.
 
 Lemma head_step_mass e σ :
   (∃ ρ, head_step e σ ρ > 0) → SeriesC (head_step e σ) = 1.
@@ -907,10 +934,14 @@ Proof.
   intros [[] Hs%head_step_support_equiv_rel].
   inversion Hs;
     repeat (simplify_map_eq/=; solve_distr_mass || case_match; try (case_bool_decide; done)).
-  - admit.
-  - admit.
-  - admit.
-Admitted.
+  - rewrite //= /unif_expr //=; solve_distr_mass; apply dunifP_mass.
+  - rewrite //= /unif_expr //=; solve_distr_mass; apply dunifP_mass.
+  - rewrite //= H0 H1 /unif_expr //=; solve_distr_mass; apply dunifP_mass.
+  - rewrite //= /unif_expr //=; solve_distr_mass; apply dunifP_mass.
+  - rewrite //= /unif_expr //=; solve_distr_mass; apply dunifP_mass.
+  - rewrite //= H0 H1 /unif_expr //=; solve_distr_mass; apply dunifP_mass.
+  - rewrite //= /unif_expr //=; solve_distr_mass; apply dunifP_mass.
+Qed.
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
   to_val e1 = None → to_val e2 = None →

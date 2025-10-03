@@ -708,7 +708,6 @@ Proof.
              *** case_bool_decide; simplify_eq.
                  **** do 5 (case_match; simpl; (try (rewrite Rmult_0_r; lra))).
                       apply Rmult_le_compat_r; [ auto |].
-                      rewrite dret_id_left.
                       rewrite (head_prim_step_eq _ _ _) /=; last first.
                       { eexists _; eapply head_step_support_equiv_rel; constructor; eauto. }
                       rewrite /dmap /pmf/=/dbind_pmf/dunifP.
@@ -732,7 +731,6 @@ Proof.
                  **** simpl. etrans; [ | right; eapply Rmult_0_l ].
                       apply Rmult_le_compat_r; [ auto | ].
                       right.
-                      rewrite dret_id_left.
                       rewrite (head_prim_step_eq _ _ _) /=; last first.
                       { eexists _; eapply head_step_support_equiv_rel; constructor; eauto. }
                       rewrite /dmap /pmf/=/dbind_pmf/dunifP.
@@ -797,8 +795,8 @@ Proof.
                                           else nnreal_zero
                                       | _ => nnreal_zero
                                       end)%R)).
-        simpl. repeat f_equal.
-        { by rewrite dret_id_left. }
+        simpl.
+        repeat f_equal.
         repeat (case_match; try (simpl; lra)).
   }
   iSplit.
@@ -1308,6 +1306,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     iDestruct (tapes_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
+    iApply glm_adv_comp.
   Admitted.
   (*
     iApply glm_state_step.

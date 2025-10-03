@@ -153,7 +153,8 @@ Section glm.
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜erasable μ σ1 ⌝ ∗
-          ⌜(ε1 + SeriesC (λ ρ, ((σ2 ← μ; prim_step e1 σ2) ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
+          (* pexec n instead of prim_step? *)
+          ⌜(ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
           ⌜pgl (σ2 ← μ; prim_step e1 σ2) R ε1⌝ ∗
             ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2))))%I.
 
@@ -194,7 +195,7 @@ Section glm.
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜erasable μ σ1 ⌝ ∗
-          ⌜(ε1 + SeriesC (λ ρ, ((σ2 ← μ; prim_step e1 σ2) ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
+          ⌜(ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
           ⌜pgl (σ2 ← μ; prim_step e1 σ2) R ε1⌝ ∗
             ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2))))%I.
   Proof. rewrite /glm/glm' least_fixpoint_unfold //. Qed.
@@ -361,7 +362,6 @@ Section glm.
         rewrite <- Rplus_0_r.
         admit.
         (*
-        rewrite fill_dmap //=.
         eapply (pgl_dbind _ _ R2).
         - eapply pgl_nonneg_grad; eauto.
         - lra.
@@ -382,7 +382,6 @@ Section glm.
                  **** destruct (Kinv e) eqn:He; simpl.
                       ***** rewrite (HKinv1 _ _ He).
                             rewrite He /from_option //.
-                            admit.
                       ***** destruct (decide (prim_step (K o) σ' (e, σ) > 0)%R) as [Hgt | Hngt].
                             -- epose proof (fill_step_inv _ _ _ _ _ Hgt) as (e2' & (H3&?)).
                                by destruct (HKinv2 e e2' He).
@@ -425,8 +424,9 @@ Section glm.
           rewrite Haux.
           f_equal; auto.
           symmetry.
-          admit.
-          (* by apply fill_step_prob. *)
+          unfold erasable in H1.
+          rewrite -fill_step_prob; last auto.
+          reflexivity.
       + iIntros (? ? (? & -> & ?)).
         iDestruct "H" as "[? H]".
         iMod ("H" with "[//]").
@@ -447,7 +447,12 @@ Section glm.
     - iExists ε2. done.
     - iPureIntro; apply dret_erasable.
     - iPureIntro. rewrite SeriesC_scal_r.
-      rewrite dret_id_left' prim_step_mass; last done. lra.
+      etrans; last exact H0.
+      right.
+      rewrite -{2}(Rmult_1_l ε2).
+      f_equal; f_equal.
+      apply prim_step_mass.
+      exact H.
     - by rewrite dret_id_left'.
     - iIntros. iApply exec_stutter_free. iApply "H". done.
   Qed.
@@ -457,7 +462,7 @@ Section glm.
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜erasable μ σ1 ⌝ ∗
-          ⌜(ε1 + SeriesC (λ ρ, ((σ2 ← μ; prim_step e1 σ2) ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
+          ⌜(ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
           ⌜pgl (σ2 ← μ; prim_step e1 σ2) R ε1⌝ ∗
             ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2)))
     ⊢ glm e1 σ1 ε Z.

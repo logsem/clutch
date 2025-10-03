@@ -120,16 +120,12 @@ Section adequacy.
       simpl in *.
       lra.
     - iApply step_fupdN_mono.
-      { apply pure_mono.
-        eapply pgl_mon_grading; eauto. }
+      { apply pure_mono. eapply pgl_mon_grading. eauto. }
       rewrite exec_Sn_not_final; [|eauto].
-      admit.
-
-      (*
       iApply pgl_dbind_adv'.
       + iPureIntro; apply cond_nonneg.
-      + iPureIntro. exists r. split; auto. 
-      + done.
+      + iPureIntro. exists r. split; auto.
+      + admit.
       + iIntros ([] ?).
         iApply step_fupd_fupdN_S.
         iMod ("H" $! e s with "[]") as "H";  [iPureIntro; eauto| iModIntro ].
@@ -151,7 +147,6 @@ Section adequacy.
           iFrame.
           iModIntro.
           eauto.
-        *)
   Admitted.
 
   Theorem wp_refRcoupl_step_fupdN (ε : nonnegreal) (e : expr) (σ : state) n φ :
