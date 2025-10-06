@@ -153,8 +153,7 @@ Section glm.
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜erasable μ σ1 ⌝ ∗
-          (* pexec n instead of prim_step? *)
-          ⌜(ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
+          ⌜(ε1 + SeriesC (λ ρ, ((σ2 ← μ; prim_step e1 σ2) ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
           ⌜pgl (σ2 ← μ; prim_step e1 σ2) R ε1⌝ ∗
             ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2))))%I.
 
@@ -195,7 +194,7 @@ Section glm.
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜erasable μ σ1 ⌝ ∗
-          ⌜(ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
+          ⌜(ε1 + SeriesC (λ ρ, ((σ2 ← μ; prim_step e1 σ2) ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
           ⌜pgl (σ2 ← μ; prim_step e1 σ2) R ε1⌝ ∗
             ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2))))%I.
   Proof. rewrite /glm/glm' least_fixpoint_unfold //. Qed.
@@ -348,7 +347,7 @@ Section glm.
         intros e2 σ2.
         rewrite /ε3 HKinv3 //.
       }
-      iExists (λ '(e2, σ2), ∃ e2', e2 = K e2' ∧ R2 (e2', σ2)),μ,_,ε3.
+      iExists (λ '(e2, σ2), ∃ e2', e2 = K e2' ∧ R2 (e2', σ2)),μ,ε1,ε3.
       iSplit.
       { iPureIntro; by apply reducible_fill. }
       iSplit.
@@ -358,14 +357,23 @@ Section glm.
         etrans; [ | eapply (Hr (e, σ)); eauto]. apply cond_nonneg.
       }
       iSplit; [ done | iSplit; [ | iSplit]].
-      2:{ iPureIntro.
-        rewrite <- Rplus_0_r.
+      2:{
+        iDestruct "H" as "[%Hpgl ?]".
+        iPureIntro.
+        revert Hpgl.
+        rewrite /pgl/prob/dbind/pmf/dbind_pmf//=.
+        intro Hseries; etrans; last eapply Hseries.
+        (* I believe these two series are actually equal, under the bijection
+           (K e', σ) ↔ (e', σ) *)
+        (* Could prove this by a coupling? That would be kind of weird
+            Search (SeriesC _ = SeriesC _). *)
         admit.
         (*
-        eapply (pgl_dbind _ _ R2).
+        rewrite <- Rplus_0_r.
+        eapply (pgl_dbind _ μ _).
         - eapply pgl_nonneg_grad; eauto.
         - lra.
-        - intros [] ? =>/=.
+        - admit. (* intros [] ? =>/=. *)
           apply pgl_dret.
           eauto.
         - auto. *)
@@ -373,7 +381,8 @@ Section glm.
       + iPureIntro.
         etrans; [ | apply H2].
         apply Rplus_le_compat_l.
-        transitivity (SeriesC (λ '(e,σ), (prim_step (K o) σ' (K e, σ) * ε3 (K e, σ))%R)).
+        (* ((σ2 ← μ; prim_step e1 σ2) ρ)*)
+        transitivity (SeriesC (λ '(e,σ), ((σ2 ← μ; prim_step (K o) σ2) (K e, σ) * ε3 (K e, σ))%R)).
         * etrans; [ | eapply (SeriesC_le_inj _ (λ '(e,σ), (option_bind _ _  (λ e', Some (e',σ)) (Kinv e))))].
           ** apply SeriesC_le.
              *** intros (e & σ); simpl; split.
@@ -388,7 +397,7 @@ Section glm.
                             --  apply Rnot_gt_le in Hngt.
                                 assert (prim_step (K o) σ' (e, σ) = 0%R); [by apply Rle_antisym | ].
                                 lra.
-            *** apply (ex_seriesC_le _ (λ '(e, σ), (prim_step (K o) σ' (e, σ) * ε3 (e, σ))%R)).
+            *** apply (ex_seriesC_le _ (λ '(e, σ), ((σ2 ← μ; prim_step (K o) σ2) (e, σ) * ε3 (e, σ))%R)).
                 **** intros (e & σ); simpl; split.
                      ***** destruct (Kinv e); simpl; try lra.
                            apply Rmult_le_pos; auto.
@@ -396,7 +405,7 @@ Section glm.
                            apply cond_nonneg.
                      ***** destruct (Kinv e) eqn:He; simpl; try real_solver.
                            rewrite HKinv3 /= (HKinv1 _ _ He) //.
-                **** apply (ex_seriesC_le _ (λ ρ, ((prim_step (K o) σ' ρ ) * r)%R)); [ | apply ex_seriesC_scal_r; auto].
+                **** apply (ex_seriesC_le _ (λ ρ, (((σ2 ← μ; prim_step (K o) σ2) ρ ) * r)%R)); [ | apply ex_seriesC_scal_r; auto].
                      intros (e&σ); split.
                      ***** apply Rmult_le_pos; auto.
                            apply cond_nonneg.
@@ -411,22 +420,27 @@ Section glm.
             f_equal; auto.
             rewrite -(HKinv1 _ _ He3).
             by rewrite -(HKinv1 _ _ He4).
-         ** apply (ex_seriesC_le _ (λ '(e, σ), ((prim_step (K o) σ' (K e, σ)) * r)%R)).
+         ** apply (ex_seriesC_le _ (λ '(e, σ), (((σ2 ← μ; prim_step (K o) σ2) (K e, σ)) * r)%R)).
             *** intros (e&σ); split.
                 **** apply Rmult_le_pos; auto.
                      apply cond_nonneg.
                 **** rewrite /ε3 HKinv3 /=. real_solver.
-            *** apply (ex_seriesC_ext (λ ρ, ((prim_step o σ' ρ) * r)%R)); auto.
-                **** intros []. apply Rmult_eq_compat_r. by apply fill_step_prob.
+            *** apply (ex_seriesC_ext (λ ρ, (((σ2 ← μ; prim_step o σ2) ρ) * r)%R)); auto.
+                **** intros []. apply Rmult_eq_compat_r.
+                     rewrite /dbind/pmf/dbind_pmf//=.
+                     f_equal; apply functional_extensionality; intro s'.
+                     f_equal.
+                     by apply fill_step_prob.
                 **** by apply ex_seriesC_scal_r.
         * right. apply SeriesC_ext.
           intros (e&σ).
           rewrite Haux.
           f_equal; auto.
           symmetry.
-          unfold erasable in H1.
-          rewrite -fill_step_prob; last auto.
-          reflexivity.
+          rewrite /dbind/pmf/dbind_pmf//=.
+          f_equal; apply functional_extensionality; intro s'.
+          f_equal.
+          by apply fill_step_prob.
       + iIntros (? ? (? & -> & ?)).
         iDestruct "H" as "[? H]".
         iMod ("H" with "[//]").
@@ -451,6 +465,7 @@ Section glm.
       right.
       rewrite -{2}(Rmult_1_l ε2).
       f_equal; f_equal.
+      rewrite dret_id_left'.
       apply prim_step_mass.
       exact H.
     - by rewrite dret_id_left'.
@@ -462,7 +477,7 @@ Section glm.
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜erasable μ σ1 ⌝ ∗
-          ⌜(ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
+          ⌜(ε1 + SeriesC (λ ρ, ((σ2 ← μ; prim_step e1 σ2) ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
           ⌜pgl (σ2 ← μ; prim_step e1 σ2) R ε1⌝ ∗
             ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2)))
     ⊢ glm e1 σ1 ε Z.
@@ -470,7 +485,7 @@ Section glm.
     iIntros "(% & % & % & % & % & % & % & % & % & H)".
     rewrite {1}glm_unfold.
     iRight.
-    iExists _,_,_,_.
+    iExists _,_,ε1,_.
     iSplit; [done|].
     iSplit; [done|].
     iSplit; [done|].

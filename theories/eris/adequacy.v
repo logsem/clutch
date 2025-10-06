@@ -72,7 +72,7 @@ Section adequacy.
     }
     clear.
     iIntros "!#" ([[e1 σ1] ε'']). rewrite /Φ/F/glm_pre.
-    iIntros " [H | (%R & %ε1 & %ε2 & % & %Hred & (%r & %Hr) & % & %Hlift & % & H)] %Hv".
+    iIntros " [H | (%R & %μ & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & % & H)] %Hv".
     - iApply step_fupdN_mono.
       {
         apply pure_mono.
@@ -122,6 +122,7 @@ Section adequacy.
     - iApply step_fupdN_mono.
       { apply pure_mono. eapply pgl_mon_grading. eauto. }
       rewrite exec_Sn_not_final; [|eauto].
+      (*
       iApply pgl_dbind_adv'.
       + iPureIntro; apply cond_nonneg.
       + iPureIntro. exists r. split; auto.
@@ -147,6 +148,7 @@ Section adequacy.
           iFrame.
           iModIntro.
           eauto.
+        *)
   Admitted.
 
   Theorem wp_refRcoupl_step_fupdN (ε : nonnegreal) (e : expr) (σ : state) n φ :

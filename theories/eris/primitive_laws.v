@@ -10,6 +10,7 @@ From clutch.prob_lang2 Require Export class_instances.
 From clutch.prob_lang2 Require Import tactics lang notation.
 From iris.prelude Require Import options.
 
+
 (*
 Class tapeG Σ (N K V : Type) `{Countable N} := GhostMapG {
   #[local] tape_inG :: inG Σ (gmap_viewR N (agreeR (K -d> leibnizO V)));

@@ -359,8 +359,9 @@ Section adequacy.
           1: done.
           1: done.
           3: done.
-          { apply Hineq. }
-          { admit. }
+          all: admit.
+          (* { apply Hineq. }
+          { admit. } *)
         }
         iIntros (a HR). iMod ("H" $! a (HR)) as "H".
         destruct a.

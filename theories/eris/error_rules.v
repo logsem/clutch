@@ -708,6 +708,7 @@ Proof.
              *** case_bool_decide; simplify_eq.
                  **** do 5 (case_match; simpl; (try (rewrite Rmult_0_r; lra))).
                       apply Rmult_le_compat_r; [ auto |].
+                      (*
                       rewrite (head_prim_step_eq _ _ _) /=; last first.
                       { eexists _; eapply head_step_support_equiv_rel; constructor; eauto. }
                       rewrite /dmap /pmf/=/dbind_pmf/dunifP.
@@ -728,8 +729,12 @@ Proof.
                       apply fin_to_nat_inj.
                       rewrite fin_to_nat_to_fin.
                       rewrite Nat2Z.id //.
+                      *)
+                      admit.
                  **** simpl. etrans; [ | right; eapply Rmult_0_l ].
                       apply Rmult_le_compat_r; [ auto | ].
+                      admit.
+                      (*
                       right.
                       rewrite (head_prim_step_eq _ _ _) /=; last first.
                       { eexists _; eapply head_step_support_equiv_rel; constructor; eauto. }
@@ -740,6 +745,7 @@ Proof.
                         [rewrite SeriesC_0; auto; by rewrite Rmult_0_r|].
                       intro; rewrite dret_0; auto.
                       intro; simplify_eq.
+                      *)
           ** eapply ex_seriesC_finite_from_option.
              instantiate (1 := (λ n:nat, ( Val #(LitInt n), σ1)) <$> (seq 0%nat (S (Z.to_nat z)))).
              intros [e s].
@@ -797,7 +803,8 @@ Proof.
                                       end)%R)).
         simpl.
         repeat f_equal.
-        repeat (case_match; try (simpl; lra)).
+        all: admit.
+        (* repeat (case_match; try (simpl; lra)).*)
   }
   iSplit.
   {
@@ -844,7 +851,7 @@ Proof.
   rewrite Nat2Z.id.
   reflexivity.
   Unshelve. all: exact Fin.F1. (* TODO: Where do you come from? *)
-Qed.
+Admitted.
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> R) :
   TCEq N (Z.to_nat z) →
@@ -1342,6 +1349,19 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     iDestruct (tapes_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
+    iApply glm_adv_comp.
+    (* For one, we're using the wrong prob_lang here *)
+
+    (*
+    Check dmap (λ n : fin _, state_upd_tapes _ 𝜎) (dunifP N).
+    pose μ : distr (language.state prob_lang) := dzero.
+    iExists _, _, _, _.
+    iSplitR; [iPureIntro|].
+    { admit. }
+    iSplitR; [iPureIntro|].
+    {
+     *)
+
   Admitted.
   (*
     iApply glm_state_step.
