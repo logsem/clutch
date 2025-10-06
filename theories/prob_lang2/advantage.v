@@ -1,7 +1,8 @@
+(*
 Require Import Reals Psatz.
 From clutch.prelude Require Import NNRbar.
 From clutch.prob Require Import distribution markov.
-From clutch.prob_lang Require Import notation typing.tychk typing.contextual_refinement.
+From clutch.prob_lang2 Require Import notation typing.tychk typing.contextual_refinement.
 Set Default Proof Using "Type*".
 #[local] Open Scope R_scope.
 
@@ -186,3 +187,4 @@ Proof.
   - rewrite Rabs_right ; lra.
   - rewrite Rabs_left ; lra.
 Qed.
+*)

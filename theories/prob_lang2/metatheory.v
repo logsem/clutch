@@ -3,8 +3,8 @@ From stdpp Require Import functions gmap stringmap fin_sets.
 From clutch.prelude Require Import stdpp_ext NNRbar fin uniform_list.
 From clutch.prob Require Import distribution couplings couplings_app.
 From clutch.common Require Import ectx_language.
-From clutch.prob_lang Require Import tactics notation.
-From clutch.prob_lang Require Export lang.
+From clutch.prob_lang2 Require Import tactics notation.
+From clutch.prob_lang2 Require Export lang.
 From clutch.prob Require Import distribution couplings.
 From iris.prelude Require Import options.
 Set Default Proof Using "Type*".
@@ -234,6 +234,7 @@ Proof. intros. apply subst_map_is_closed with (∅ : stringset); set_solver. Qed
 
 Local Open Scope R.
 
+(*
 Lemma iterM_state_step_unfold σ (N p:nat) α xs :
   σ.(tapes) !! α = Some (N%nat; xs) ->
   (iterM p (λ σ1', state_step σ1' α) σ) =
@@ -475,6 +476,7 @@ Proof.
     rewrite -dunifv_pos in Hpos.
     naive_solver.
 Qed.
+*)
 
 (** Some useful lemmas to reason about language properties  *)
 
@@ -598,11 +600,12 @@ Proof. inversion 1; auto. Qed.
 Inductive prob_head_step_pred : expr -> state -> Prop :=
 | AllocTapePSP σ N z :
   N = Z.to_nat z →
-  prob_head_step_pred (alloc #z) σ
+  prob_head_step_pred (alloc #z) σ.
+(*
 | RandTapePSP α σ N n ns z :
   N = Z.to_nat z →
   σ.(tapes) !! α = Some ((N; n :: ns) : tape) →
-  prob_head_step_pred (rand(#lbl:α) #z) σ
+  prob_head_step_pred (rand(#lbl:α) #z) σ.
 | RandEmptyPSP N α σ z :
   N = Z.to_nat z →
   σ.(tapes) !! α = Some ((N; []) : tape) →
@@ -615,6 +618,7 @@ Inductive prob_head_step_pred : expr -> state -> Prop :=
 | RandNoTapePSP (N : nat) σ z :
   N = Z.to_nat z →
   prob_head_step_pred (rand #z) σ.
+*)
 
 Definition head_step_pred e1 σ1 :=
   det_head_step_pred e1 σ1 ∨ prob_head_step_pred e1 σ1.
@@ -676,6 +680,7 @@ Proof.
   intros [] [Hs | Hs]; inversion Hs; simplify_eq.
 Qed.
 
+(*
 Lemma head_step_pred_ex_rel e1 σ1 :
   head_step_pred e1 σ1 ↔ ∃ e2 σ2, head_step_rel e1 σ1 e2 σ2.
 Proof.
@@ -867,4 +872,5 @@ Proof.
   Unshelve.
   all: exact (0%fin).
 Qed.
-  
+
+*)

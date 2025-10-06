@@ -1,4 +1,4 @@
-From clutch.prob_lang Require Import lang notation.
+From clutch.prob_lang2 Require Import lang notation.
 From clutch.prob_lang.typing Require Import types contextual_refinement.
 
 (* Simple-minded syntax-directed type checker. The econstructor tactic can go

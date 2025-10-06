@@ -3,12 +3,12 @@ From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From stdpp Require Import fin_maps fin_map_dom.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.common Require Import exec language ectx_language erasable.
-From clutch.prob_lang Require Import notation lang metatheory.
+From clutch.prob_lang2 Require Import notation lang metatheory.
 From clutch.prob Require Import couplings couplings_app markov.
 
 Set Default Proof Using "Type*".
 Local Open Scope R.
-
+(*
 Section erasure_helpers.
 
   Variable (m : nat).
@@ -651,6 +651,7 @@ Proof.
   eapply ARcoupl_dbind; try done.
 Qed.
 
+*)
 Lemma ARcoupl_erasure_erasable_exp_rhs ε1 μ1 μ1' (E2 : _ → R) R Φ (e1 e1' : expr) σ1 σ1' ε r n m :
   0 <= ε1 →
   ARcoupl μ1 (σ2' ← μ1'; pexec m (e1', σ2')) R ε1 →

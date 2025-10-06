@@ -1,5 +1,5 @@
 From clutch.common Require Import locations.
-From clutch.prob_lang Require Export lang.
+From clutch.prob_lang2 Require Export lang.
 From iris.prelude Require Import options.
 
 (** Coercions to make programs easier to type. *)
