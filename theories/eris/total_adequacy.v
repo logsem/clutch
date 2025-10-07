@@ -351,19 +351,17 @@ Section adequacy.
         }
         rewrite {2}/tgl.
         setoid_rewrite prob_dbind.
-        (*
         iApply (fupd_mono _ _ (⌜∀ e, R e -> 1 - (ε2 e) <= prob (lim_exec e) (λ x, bool_decide(φ x))⌝)%I).
         {
           iIntros (HR). iPureIntro.
-          by eapply twp_step_fupd_tgl_prim_step. <- this needs to be updated
+          (* by eapply twp_step_fupd_tgl_prim_step. <- this needs to be updated, not sure how? *)
+          admit.
         }
         iIntros (a HR). iMod ("H" $! a (HR)) as "H".
         destruct a.
         iMod "H" as "%".
         iPureIntro.
         by apply H.
-        *)
-        admit.
       + remember (language.get_active σ) as l.
         assert (l ⊆ language.get_active σ) as Hsubseteq by set_solver.
         clear Heql.
