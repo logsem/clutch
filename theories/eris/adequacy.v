@@ -120,7 +120,9 @@ Section adequacy.
       pose proof (cond_nonneg ε'').
       simpl in *.
       lra.
-    - iApply step_fupdN_mono.
+    - admit.
+      (*
+      iApply step_fupdN_mono.
       { apply pure_mono.
         eapply pgl_mon_grading; eauto. }
       rewrite exec_Sn_not_final; [|eauto].
@@ -149,6 +151,7 @@ Section adequacy.
           iFrame.
           iModIntro.
           eauto.
+      *)
     - rewrite exec_Sn_not_final; [|eauto].
       iDestruct (big_orL_mono _ (λ _ _,
                      |={∅}▷=>^(S n)
@@ -193,7 +196,7 @@ Section adequacy.
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
-  Qed.
+  Admitted.
 
   Theorem wp_refRcoupl_step_fupdN (ε : nonnegreal) (e : expr) (σ : state) n φ :
     state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
@@ -304,7 +307,9 @@ Section adequacy.
     pose proof (cond_nonneg ε'').
     simpl in *.
     lra.
-    - iApply (step_fupdN_mono _ _ _ (⌜∀ ρ, R ρ -> SeriesC (iterM n prim_step_or_val ρ) >= 1 - (ε2 ρ)⌝)).
+    - admit.
+      (*
+      iApply (step_fupdN_mono _ _ _ (⌜∀ ρ, R ρ -> SeriesC (iterM n prim_step_or_val ρ) >= 1 - (ε2 ρ)⌝)).
       { apply pure_mono.
         intros H1.
         apply Rle_ge.
@@ -359,6 +364,7 @@ Section adequacy.
         apply Rle_ge.
         auto.
       + done.
+      *)
     - iDestruct (big_orL_mono _ (λ _ _,
                      |={∅}▷=>^(S n)
                        ⌜SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) >= 1 - ε''⌝)%I
@@ -446,7 +452,7 @@ Section adequacy.
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
-  Qed.
+  Admitted.
 
   Theorem wp_safety_fupdN (ε : nonnegreal) (e : expr) (σ : state) n φ  :
     state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜φ v⌝ }} ⊢

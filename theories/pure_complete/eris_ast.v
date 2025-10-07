@@ -77,8 +77,8 @@ Section Complete.
       iApply fupd_mask_intro.
       { set_solver. }
       iIntros "hclose".
-      iApply glm_adv_comp. 
-      iExists (fun s => step (e, σ1) s > 0), 0%NNR, (fun x => (ε3 + (pterm_comp n x))%NNR).
+      iApply glm_adv_comp.
+      iExists (fun s => step (e, σ1) s > 0), (dret σ1), 0%NNR, (fun x => (ε3 + (pterm_comp n x))%NNR).
       destruct (Rlt_dec 0 (pterm (S n) (e, σ))).
       2 : {
         iExFalso.
@@ -93,10 +93,13 @@ Section Complete.
         intros. simpl.
         apply Rplus_le_compat_l, Rminus_le_0_compat, pmf_SeriesC_ge_0.
       }
+      iSplitR. { iPureIntro. apply dret_erasable. }
       iSplitR.
       { 
         iPureIntro.
-        simpl. rewrite Rplus_0_l. 
+        simpl.
+        rewrite dret_id_left'.
+        rewrite Rplus_0_l.
         rewrite (SeriesC_ext _ (λ r, (λ a, (prim_step e σ1 a) * (ε3 + 1)) r + (-1) * (λ a,  (prim_step e σ1 a) * (pterm n a)) r)).
         2: {
           intros.
@@ -137,7 +140,7 @@ Section Complete.
         simpl.
         apply (pgl_mon_pred _ (fun x => (fun _ => True) x ∧ (prim_step e σ1) x > 0)).
         - by intros a [_ Hp]. 
-        - apply pgl_pos_R, pgl_trivial. lra.
+        - rewrite dret_id_left'. apply pgl_pos_R, pgl_trivial. lra.
       }
       iIntros. 
       iMod (ec_supply_decrease with "Herra Herr") as (????) "Herra".
@@ -211,7 +214,7 @@ Section Complete.
       { set_solver. }
       iIntros "hclose".
       iApply glm_adv_comp. 
-      iExists (fun s => step (e, σ1) s > 0), 0%NNR, (fun x => (ε3 + prob_comp_nnr (exec n x) (λ a, bool_decide (φ a)))%NNR).
+      iExists (fun s => step (e, σ1) s > 0), (dret σ1), 0%NNR, (fun x => (ε3 + prob_comp_nnr (exec n x) (λ a, bool_decide (φ a)))%NNR).
       destruct (Rlt_dec 0 (prob (exec (S n) (e, σ)) (λ x, bool_decide (φ x)))).
       2 : {
         iExFalso.
@@ -239,9 +242,10 @@ Section Complete.
         intros. simpl.
         apply Rplus_le_compat_l, Rminus_le_0_compat, prob_ge_0.
       }
+      iSplitR. { iPureIntro. apply dret_erasable. }
       iSplitR. {
         iPureIntro.
-        simpl. rewrite Rplus_0_l. 
+        simpl. rewrite dret_id_left'. rewrite Rplus_0_l.
         rewrite (SeriesC_ext _ (λ r, (λ a, (prim_step e σ1 a) * (ε3 + 1)) r + (-1) * (λ a,  (prim_step e σ1 a) * prob (exec n a) (λ a : val, bool_decide (φ a))) r)).
         2: {
           intros.
@@ -279,6 +283,7 @@ Section Complete.
       iSplitR.
       { 
         iPureIntro.
+        rewrite dret_id_left'.
         simpl.
         apply (pgl_mon_pred _ (fun x => (fun _ => True) x ∧ (prim_step e σ1) x > 0)).
         - by intros a [_ Hp]. 
