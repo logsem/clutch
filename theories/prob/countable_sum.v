@@ -1978,6 +1978,51 @@ Section inj.
 
 End inj.
 
+Section bij.
+
+  Lemma ex_seriesC_bij `{Countable A, Countable B} (g : B->A) (f:A -> R) (Hinj:Bij g):
+    (∀ a, 0<=f a)->
+    ex_seriesC f -> ex_seriesC (λ b, f (g b)).
+  Proof. intros. apply ex_seriesC_inj; auto. apply bij_inj. Qed.
+
+  Lemma SeriesC_le_bij `{Countable A, Countable B} (g : B -> A) (f : A -> R) (Hbij: Bij g) :
+    (∀ a, 0 <= f a) →
+    ex_seriesC f →
+    SeriesC (λ b, f (g b)) <= SeriesC f.
+  Proof.
+    intros.
+    etransitivity; last eapply (SeriesC_le_inj _ (λ x, Some (g x))); auto.
+    - right. apply SeriesC_ext => ? //=.
+    - intros n1 n2 m Heq1 Heq2. rewrite -Heq1 in Heq2.
+      inversion Heq2. apply (inj g). congruence.
+  Qed.
+
+  Lemma SeriesC_eq_bij `{Countable A, Countable B} (g : B -> A) (f : A -> R) (Hbij: Bij g) :
+    (∀ a, 0 <= f a) →
+    ex_seriesC f →
+    SeriesC (λ b, f (g b)) = SeriesC f.
+  Proof.
+    intros.
+    apply Rle_antisym.
+    - apply SeriesC_le_bij; auto.
+    - etransitivity; last eapply (SeriesC_le_bij (f_inv g) (λ b, f (g b))).
+      * right. eapply SeriesC_ext => n. rewrite f_inv_cancel_r //.
+      * apply f_inv_bij.
+      * intros; eauto.
+      * eapply ex_seriesC_bij; eauto.
+  Qed.
+
+  Lemma ex_SeriesC_Countable_instance_irrel `{HC1: Countable A, HC2: Countable A} (f : A -> R) :
+    (∀ a : A, 0 <= f a) →
+    @ex_seriesC _ _ HC1 f →
+    @ex_seriesC _ _ HC2 f.
+  Proof.
+    intros ? Hex. eapply (@ex_seriesC_bij _ _ HC1 _ _ HC2 (λ a, a) f) in Hex; auto.
+    apply bij_id.
+  Qed.
+
+End bij.
+
 
 Section Inj_finite.
 
