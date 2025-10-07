@@ -425,12 +425,21 @@ Section glm.
       iSplit; [ done | iSplit; [| iSplit]].
       2:{
         iPureIntro.
-        revert H2.
-        rewrite /pgl/prob/dbind/pmf/dbind_pmf//=.
-        intro Hseries; etrans; last eapply Hseries.
-        right.
-        (* Equal because: fill by K is a bijection. *)
-        admit.
+        replace
+          (μ ≫= λ σ2 : state Λ, prim_step (K o) σ2) with
+          (dmap (fill_lift K) (μ ≫= λ σ2 : state Λ, prim_step o σ2)); last first.
+        { rewrite dmap_dbind.
+          f_equal. apply functional_extensionality. intro s'.
+          by rewrite fill_dmap.
+        }
+        rewrite <- Rplus_0_r.
+        eapply (pgl_dbind _ _ R2).
+        - eapply pgl_nonneg_grad; eauto.
+        - lra.
+        - intros [] ? =>/=.
+          apply pgl_dret.
+          eauto.
+        - auto.
        }
      + iPureIntro.
         etrans; [ | apply H1].
@@ -556,7 +565,7 @@ Section glm.
           iApply "H".
           by simpl in Hv'.
       + iRight. by iApply ("IH" with "Ht").
-  Admitted.
+  Qed.
 
 
   Lemma glm_prim_step e1 σ1 Z ε :
