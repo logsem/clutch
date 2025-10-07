@@ -671,8 +671,7 @@ Proof.
              *** case_bool_decide; simplify_eq.
                  **** do 5 (case_match; simpl; (try (rewrite Rmult_0_r; lra))).
                       apply Rmult_le_compat_r; [ auto |].
-                      admit.
-                      (*
+                      rewrite dret_id_left'.
                       rewrite head_prim_step_eq /=.
                       rewrite /dmap /pmf/=/dbind_pmf/dunifP.
                       setoid_rewrite dunif_pmf.
@@ -692,12 +691,10 @@ Proof.
                       apply fin_to_nat_inj.
                       rewrite fin_to_nat_to_fin.
                       rewrite Nat2Z.id //.
-                      *)
                  **** simpl. etrans; [ | right; eapply Rmult_0_l ].
                       apply Rmult_le_compat_r; [ auto | ].
                       right.
-                      admit.
-                      (*
+                      rewrite dret_id_left'.
                       rewrite head_prim_step_eq /=.
                       rewrite /dmap /pmf/=/dbind_pmf/dunifP.
                       setoid_rewrite dunif_pmf.
@@ -706,7 +703,6 @@ Proof.
                         [rewrite SeriesC_0; auto; by rewrite Rmult_0_r|].
                       intro; rewrite dret_0; auto.
                       intro; simplify_eq.
-                       *)
           ** eapply ex_seriesC_finite_from_option.
              instantiate (1 := (λ n:nat, ( Val #(LitInt n), σ1)) <$> (seq 0%nat (S (Z.to_nat z)))).
              intros [e s].
@@ -762,18 +758,16 @@ Proof.
                                           else nnreal_zero
                                       | _ => nnreal_zero
                                       end)%R)).
-        simpl. repeat f_equal.
-        all: admit.
-        (* repeat (case_match; try (simpl; lra)). *)
+        simpl. rewrite dret_id_left'. repeat f_equal.
+        repeat (case_match; try (simpl; lra)).
   }
   iSplit.
   {
     iPureIntro.
-    admit.
-    (*
+    rewrite dret_id_left'.
     eapply pgl_mon_pred; last first.
     - apply (pgl_rand_trivial (Z.to_nat z) z σ1); auto.
-    - done.*)
+    - done.
   }
   iIntros (e2 σ2) "%H".
   destruct H as (n & Hn1); simplify_eq.
@@ -813,7 +807,7 @@ Proof.
   rewrite fin_to_nat_to_fin.
   rewrite Nat2Z.id.
   reflexivity.
-Admitted.
+Qed.
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> R) :
   TCEq N (Z.to_nat z) →

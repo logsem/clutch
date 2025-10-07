@@ -325,8 +325,7 @@ Section adequacy.
         apply Rgt_lt in Hε'.
         etrans; [|left;eauto].
         apply cond_nonneg.
-      + (*
-        iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hbound & %Hineq & %Hub & H)".
+      + iDestruct "H" as "(%R & %μ & %ε1 & %ε2 & %Hred & %Hbound & %Herase & %Hineq & %Hub & H)".
         rewrite lim_exec_step step_or_final_no_final.
         2: { by apply reducible_not_final. }
         iAssert (∀ ρ2 : language.expr prob_lang * language.state prob_lang,
@@ -352,10 +351,11 @@ Section adequacy.
         }
         rewrite {2}/tgl.
         setoid_rewrite prob_dbind.
+        (*
         iApply (fupd_mono _ _ (⌜∀ e, R e -> 1 - (ε2 e) <= prob (lim_exec e) (λ x, bool_decide(φ x))⌝)%I).
         {
           iIntros (HR). iPureIntro.
-          by eapply twp_step_fupd_tgl_prim_step.
+          by eapply twp_step_fupd_tgl_prim_step. <- this needs to be updated
         }
         iIntros (a HR). iMod ("H" $! a (HR)) as "H".
         destruct a.

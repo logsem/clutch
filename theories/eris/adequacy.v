@@ -72,8 +72,7 @@ Section adequacy.
     }
     clear.
     iIntros "!#" ([[e1 σ1] ε'']). rewrite /Φ/F/glm_pre.
-    iIntros " [H | [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)|H]] %Hv".
-
+    iIntros " [H | [ (%R & %μ & %ε1 & %ε2 & %Hred & (%r & %Hr) & %Herase & % & %Hlift & H)|H]] %Hv".
     - iApply step_fupdN_mono.
       {
         apply pure_mono.
@@ -120,12 +119,12 @@ Section adequacy.
       pose proof (cond_nonneg ε'').
       simpl in *.
       lra.
-    - admit.
-      (*
+    -
       iApply step_fupdN_mono.
-      { apply pure_mono.
-        eapply pgl_mon_grading; eauto. }
+      { apply pure_mono. eapply pgl_mon_grading; eauto. }
       rewrite exec_Sn_not_final; [|eauto].
+      admit.
+      (*
       iApply pgl_dbind_adv'.
       + iPureIntro; apply cond_nonneg.
       + iPureIntro. exists r. split; auto. 
@@ -151,7 +150,7 @@ Section adequacy.
           iFrame.
           iModIntro.
           eauto.
-      *)
+       *)
     - rewrite exec_Sn_not_final; [|eauto].
       iDestruct (big_orL_mono _ (λ _ _,
                      |={∅}▷=>^(S n)

@@ -386,7 +386,7 @@ Section glm.
                  with "[]") as "H"; last first.
     { iIntros (?). iApply ("H" $! ((_, _), _) with "Hub [//]"). }
     iIntros "!#" ([[? σ'] ε']). rewrite /glm_pre.
-    iIntros " [ H | [(% & % & % & % & (%r & %Hr) & % & % & H) | H ]] %Hv'".
+    iIntros " [ H | [(% & % & % & % & % & (%r & %Hr) & %He & % & % & H) | H ]] %Hv'".
     - rewrite least_fixpoint_unfold.
       iLeft.
       iIntros (ε2) "%Hε2".
@@ -414,9 +414,7 @@ Section glm.
         intros e2 σ2.
         rewrite /ε3 HKinv3 //.
       }
-      admit.
-      (*
-      iExists (λ '(e2, σ2), ∃ e2', e2 = K e2' ∧ R2 (e2', σ2)),_,ε3.
+      iExists (λ '(e2, σ2), ∃ e2', e2 = K e2' ∧ R2 (e2', σ2)),μ,ε1,ε3.
       iSplit; [iPureIntro; by apply reducible_fill|].
       iSplit.
       {
@@ -424,45 +422,43 @@ Section glm.
         destruct (Kinv e); simpl; try real_solver.
         etrans; [ | eapply (Hr (e, σ)); eauto]. apply cond_nonneg.
       }
-      iSplit; [ | iSplit].
-      2:{ iPureIntro.
-        rewrite <- Rplus_0_r.
-        rewrite fill_dmap //=.
-        eapply (pgl_dbind _ _ R2).
-        - eapply pgl_nonneg_grad; eauto.
-        - lra.
-        - intros [] ? =>/=.
-          apply pgl_dret.
-          eauto.
-        - auto.
+      iSplit; [ done | iSplit; [| iSplit]].
+      2:{
+        iPureIntro.
+        revert H2.
+        rewrite /pgl/prob/dbind/pmf/dbind_pmf//=.
+        intro Hseries; etrans; last eapply Hseries.
+        right.
+        (* Equal because: fill by K is a bijection. *)
+        admit.
        }
-      + iPureIntro.
+     + iPureIntro.
         etrans; [ | apply H1].
         apply Rplus_le_compat_l.
-        transitivity (SeriesC (λ '(e,σ), (prim_step (K o) σ' (K e, σ) * ε3 (K e, σ))%R)).
-        * etrans; [ | eapply (SeriesC_le_inj _ (λ '(e,σ), (Kinv e ≫= (λ e', Some (e',σ)))))].
+        transitivity (SeriesC (λ '(e,σ), ((σ2 ← μ; prim_step (K o) σ2) (K e, σ) * ε3 (K e, σ))%R)).
+        * etrans; [ | eapply (SeriesC_le_inj _ (λ '(e,σ), (option_bind _ _  (λ e', Some (e',σ)) (Kinv e))))].
           ** apply SeriesC_le.
              *** intros (e & σ); simpl; split.
                  **** apply Rmult_le_pos; auto.
                       apply cond_nonneg.
-                 **** destruct (Kinv e) eqn:He; simpl.
-                      ***** rewrite (HKinv1 _ _ He).
-                            rewrite He /from_option //.
+                 **** destruct (Kinv e) eqn:He'; simpl.
+                      ***** rewrite (HKinv1 _ _ He').
+                            rewrite He' /from_option //.
                       ***** destruct (decide (prim_step (K o) σ' (e, σ) > 0)%R) as [Hgt | Hngt].
                             -- epose proof (fill_step_inv _ _ _ _ _ Hgt) as (e2' & (H3&?)).
-                               by destruct (HKinv2 e e2' He).
+                               by destruct (HKinv2 e e2' He').
                             --  apply Rnot_gt_le in Hngt.
                                 assert (prim_step (K o) σ' (e, σ) = 0%R); [by apply Rle_antisym | ].
                                 lra.
-            *** apply (ex_seriesC_le _ (λ '(e, σ), (prim_step (K o) σ' (e, σ) * ε3 (e, σ))%R)).
+            *** apply (ex_seriesC_le _ (λ '(e, σ), ((σ2 ← μ; prim_step (K o) σ2) (e, σ) * ε3 (e, σ))%R)).
                 **** intros (e & σ); simpl; split.
                      ***** destruct (Kinv e); simpl; try lra.
                            apply Rmult_le_pos; auto.
                            destruct (Kinv _); simpl; try lra.
                            apply cond_nonneg.
-                     ***** destruct (Kinv e) eqn:He; simpl; try real_solver.
-                           rewrite HKinv3 /= (HKinv1 _ _ He) //.
-                **** apply (ex_seriesC_le _ (λ ρ, ((prim_step (K o) σ' ρ ) * r)%R)); [ | apply ex_seriesC_scal_r; auto].
+                     ***** destruct (Kinv e) eqn:He'; simpl; try real_solver.
+                           rewrite HKinv3 /= (HKinv1 _ _ He') //.
+                **** apply (ex_seriesC_le _ (λ ρ, (((σ2 ← μ; prim_step (K o) σ2) ρ ) * r)%R)); [ | apply ex_seriesC_scal_r; auto].
                      intros (e&σ); split.
                      ***** apply Rmult_le_pos; auto.
                            apply cond_nonneg.
@@ -477,24 +473,31 @@ Section glm.
             f_equal; auto.
             rewrite -(HKinv1 _ _ He3).
             by rewrite -(HKinv1 _ _ He4).
-         ** apply (ex_seriesC_le _ (λ '(e, σ), ((prim_step (K o) σ' (K e, σ)) * r)%R)).
+         ** apply (ex_seriesC_le _ (λ '(e, σ), (((σ2 ← μ; prim_step (K o) σ2) (K e, σ)) * r)%R)).
             *** intros (e&σ); split.
                 **** apply Rmult_le_pos; auto.
                      apply cond_nonneg.
                 **** rewrite /ε3 HKinv3 /=. real_solver.
-            *** apply (ex_seriesC_ext (λ ρ, ((prim_step o σ' ρ) * r)%R)); auto.
-                **** intros []. apply Rmult_eq_compat_r. by apply fill_step_prob.
+            *** apply (ex_seriesC_ext (λ ρ, (((σ2 ← μ; prim_step o σ2) ρ) * r)%R)); auto.
+                **** intros []. apply Rmult_eq_compat_r.
+                     rewrite /dbind/pmf/dbind_pmf//=.
+                     f_equal; apply functional_extensionality; intro s'.
+                     f_equal.
+                     by apply fill_step_prob.
                 **** by apply ex_seriesC_scal_r.
         * right. apply SeriesC_ext.
           intros (e&σ).
           rewrite Haux.
           f_equal; auto.
-          symmetry; by apply fill_step_prob.
+          symmetry.
+          rewrite /dbind/pmf/dbind_pmf//=.
+          f_equal; apply functional_extensionality; intro s'.
+          f_equal.
+          by apply fill_step_prob.
       + iIntros (? ? (? & -> & ?)).
         iMod ("H" with "[//]").
         by rewrite Haux.
        Unshelve. auto.
-       *)
     - rewrite least_fixpoint_unfold; simpl.
       iRight. iRight.
       (* from above (combine?)*)
