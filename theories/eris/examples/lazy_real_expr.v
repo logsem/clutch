@@ -120,18 +120,30 @@ Definition R_ofRand : val :=
    Then, specify that it behaves like a real number similarly to lazy_real
       R as Z -> Z functions *)
 
+Context `{!erisGS Σ}.
+
+Definition BehavesAsSequence (v : val) (f : nat → Z) E (I : iProp Σ) : iProp Σ :=
+  (∀ (prec : nat), I -∗ WP (v #prec) @ E {{ fun zv => ⌜zv = #(f prec)⌝ ∗ I }})%I.
+
+(* Can I prove this using chunk_and_tape_seq for lazy_real? *)
+(* It is the case for I = True and the constatnt real... *)
+
+(* Convert between bitstreams and partial power streams
+
+   Partial power streams are how I implemented the above, because they are way easier
+   for aruthmetic operations. The way to convert them is to get the n'th digit of the binary
+   expansion.
+
+    PPS to BS doesn't really make sense outside of the interval [0, 1].
 
 
+    This might be easier to specify using the CReal-like interval spec (which works
+    on PPS on any range natively) and then prove that the BitStream representation plus a
+    lazy_real predicate satisfies that.  *)
+Definition BS_to_PPS (bs : nat → (fin 2)) : nat → Z. Admitted.
+Definition PPS_to_BS (ps : nat → Z) : nat → (fin 2). Admitted.
 
-
-
-(* Check seq_bin_to_R. *)
-
-
-(*
-  Definition lazy_real (v : val) (r : R) : iProp Σ :=
-    ∃ (l : loc) (α : loc) (f : nat → (fin 2)),
-      ⌜v = (#lbl:α, #l)%V⌝ ∗
-      ⌜ r = seq_bin_to_R f ⌝ ∗
-      chunk_and_tape_seq α l f.
-*)
+(* TODO: the seq_to_bin_R thing only works *)
+Definition BehavesAsLazyReal (v : val) (r : R) E (I : iProp Σ) : iProp Σ :=
+  ∃ (z : R) (f : nat → (fin 2)),
+    ⌜ r = seq_bin_to_R f ⌝ ∗ □ (BehavesAsSequence v (BS_to_PPS f) E I).
