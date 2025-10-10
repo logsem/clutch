@@ -1,12 +1,13 @@
+From clutch.common Require Export language.
 From clutch.prob_eff_lang.probblaze Require Import syntax.
 From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
-From clutch.prelude Require Export stdpp_ext.
 From clutch.prob Require Export distribution.
-From clutch.common Require Export locations.
 From iris.prelude Require Import options.
+From clutch.prelude Require Export stdpp_ext.
+From clutch.common Require Import locations.
 
 Set Default Proof Using "Type".
 
@@ -486,7 +487,7 @@ Qed.
 (* -------------------------------------------------------------------------- *)
 (* [to_val]. *)
 
-Lemma of_to_val e v : to_val e = Some v → e = of_val v.
+Lemma of_to_val e v : to_val e = Some v → of_val v = e.
 Proof. destruct e=>//=. by intros [= <-]. Qed.
 
 Instance of_val_inj : Inj (=) (=) of_val.
@@ -515,10 +516,10 @@ Proof. induction k; intros ???; simplify_eq/=; auto with f_equal. Qed.
 Lemma fill_app k k' e : fill (k ++ k') e = fill k (fill k' e).
 Proof. by induction k as [|f k]; simpl; [|rewrite IHk]. Qed.
 
-Lemma fill_val k e v : to_val (fill k e) = Some v → k = [] ∧ e = Val v.
+Lemma fill_val k e v : to_val (fill k e) = Some v → k = [] ∧ Val v = e.
 Proof.
   destruct k as [|f k].
-  - by intro H; rewrite -(of_to_val _ _ H).
+  - by intro H; simpl in H; rewrite -(of_to_val _ _ H).
   - by destruct f; naive_solver.
 Qed.
 
@@ -563,7 +564,7 @@ Proof.
       (* Solve the simple cases like [Fst] *)
       by inversion 1 |
       (* Solve the cases where we have a L and R context *)
-      repeat (destruct (to_val _) eqn:H; [apply of_to_val in H as ->|]); by inv 1
+      repeat (destruct (to_val _) eqn:H; [apply of_to_val in H as <-|]); by inv 1
     ].
   - (* Do *) destruct n=>//. by inversion 1.
   - (* Handle *) destruct n=>//. by inversion 1.
@@ -630,7 +631,7 @@ Proof.
   rewrite /to_eff.
   destruct (get_ectx e) as [k' e'] eqn:Hget_ectx.
   destruct (to_val e') as [v'|] eqn:Hval.
-  - rewrite (of_to_val _ _ Hval).
+  - rewrite -(of_to_val _ _ Hval).
     destruct k' as [|f k'' _] eqn:Hk using rev_ind; [done|].
     rewrite reverse_app //= reverse_involutive.
     destruct f=>//=. by injection 1 as -> -> ->.
@@ -1297,3 +1298,376 @@ Proof.
   - intros ?. destruct e1; inv_head_step; eauto with head_step.
   - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr; try real_solver.
 Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* [decomp_item]. *)
+
+Definition decomp_frame (e : expr) : option (frame * expr) :=
+  let noval (e : expr) (ei : frame) :=
+    match e with Val _  => None | _ => Some (ei, e) end in
+  match e with
+  | App e1 e2      =>
+      match e2 with
+      | (Val v)      => noval e1 (AppLCtx v)
+      | _            => Some (AppRCtx e1, e2)
+      end
+  | UnOp op e        => noval e (UnOpCtx op)
+  | BinOp op e1 e2   =>
+      match e2 with
+      | Val v        => noval e1 (BinOpLCtx op v)
+      | _            => Some (BinOpRCtx op e1, e2)
+      end
+  | If e0 e1 e2      => noval e0 (IfCtx e1 e2)
+  | Pair e1 e2       =>
+      match e2 with
+      | Val v        => noval e1 (PairLCtx v)
+      | _            => Some (PairRCtx e1, e2)
+      end
+  | Fst e            => noval e FstCtx
+  | Snd e            => noval e SndCtx
+  | InjL e           => noval e InjLCtx
+  | InjR e           => noval e InjRCtx
+  | Case e0 e1 e2    => noval e0 (CaseCtx e1 e2)
+  | AllocN e1 e2     =>
+      match e2 with
+      | Val v        => noval e1 (AllocNLCtx v)
+      | _            => Some (AllocNRCtx e1, e2)
+      end
+  | Load e           => noval e LoadCtx
+  | Store e1 e2      =>
+      match e2 with
+      | Val v        => noval e1 (StoreLCtx v)
+      | _            => Some (StoreRCtx e1, e2)
+      end
+  | AllocTape e      => noval e AllocTapeCtx
+  | Rand e1 e2       =>
+      match e2 with
+      | Val v        => noval e1 (RandLCtx v)
+      | _            => Some (RandRCtx e1, e2)
+      end
+  | Do (EffLabel l) e             => noval e (DoCtx l)
+  | Handle (EffLabel l) e0 e1 e2 => match to_eff e0 with
+                                    | Some _ => None
+                                    | None => noval e0 (HandleCtx l e1 e2)
+                                    end
+  | _ => None
+  end.
+
+Fixpoint height (e : expr) : nat :=
+  match e with
+  | Val _ => 1
+  | Var _ => 1
+  | Rec _ _ e => 1 + height e
+  | App e1 e2 => 1 + height e1 + height e2
+  | UnOp _ e => 1 + height e
+  | BinOp _ e1 e2 => 1 + height e1 + height e2
+  | If e0 e1 e2 => 1 + height e0 + height e1 + height e2
+  | Pair e1 e2 => 1 + height e1 + height e2
+  | Fst e => 1 + height e
+  | Snd e => 1 + height e
+  | InjL e => 1 + height e
+  | InjR e => 1 + height e
+  | Case e0 e1 e2 => 1 + height e0 + height e1 + height e2
+  | AllocN e1 e2 => 1 + height e1 + height e2
+  | Load e => 1 + height e
+  | Store e1 e2 => 1 + height e1 + height e2
+  | AllocTape e => 1 + height e
+  | Rand e1 e2 => 1 + height e1 + height e2
+  | Do n e => 1 + height e
+  | Effect s e => 1 + height e
+  | Handle n e1 e2 e3 => 1 + height e1 + height e2 + height e3
+  end.
+
+Definition expr_ord (e1 e2 : expr) : Prop := (height e1 < height e2)%nat.
+
+Lemma expr_ord_wf' h e : (height e ≤ h)%nat → Acc expr_ord e.
+Proof.
+  rewrite /expr_ord. revert e; induction h.
+  { destruct e; simpl; lia. }
+  intros []; simpl;
+    constructor; simpl; intros []; eauto with lia.
+Defined.
+
+Lemma expr_ord_wf : well_founded expr_ord.
+Proof. red; intro; eapply expr_ord_wf'; eauto. Defined.
+
+(* TODO: this proof is slow, but I do not see how to make it faster... *)
+Lemma decomp_expr_ord Ki (e e' : expr) : decomp_frame e = Some (Ki, e') → expr_ord e' e.
+Proof.
+  rewrite /expr_ord /decomp_frame.
+  destruct Ki ; repeat destruct_match ; intros [=] ; subst ; cbn ; lia.
+Qed.
+
+Lemma decomp_fill_frame Ki e :
+  to_eff e = None →
+  to_val e = None → decomp_frame (fill_frame Ki e) = Some (Ki, e).
+Proof. destruct Ki ; simpl ; try by repeat destruct_match. Qed.
+
+(* TODO: this proof is slow, but I do not see how to make it faster... *)
+Lemma decomp_fill_frame_2 e e' Ki :
+  decomp_frame e = Some (Ki, e') → fill_frame Ki e' = e ∧ to_val e' = None.
+Proof.
+  rewrite /decomp_frame ;
+    destruct e ; try done ;
+    destruct Ki ; cbn ; repeat destruct_match ; intros [=] ; subst ; auto.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* [prim_step], [fill] & [decomp]. *)
+
+Program Fixpoint decomp (e : expr) {wf expr_ord e} : ectx * expr :=
+    match decomp_frame e with
+    | Some (Ki, e') => let '(K, e'') := decomp e' in (Ki :: K, e'')
+    | None => ([], e)
+    end.
+
+Solve Obligations with eauto using decomp_expr_ord, expr_ord_wf.
+
+Definition fill_lift (K : ectx) : (expr * state) → (expr * state) :=
+    λ '(e, σ), (fill K e, σ).
+
+Definition prim_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
+    let '(K, e1') := decomp e1 in
+    dmap (fill_lift K) (head_step e1' σ1).
+
+
+Lemma decomp_unfold e :
+    decomp e =
+      match decomp_frame e with
+      | Some (Ki, e') => let '(K, e'') := decomp e' in (Ki :: K, e'')
+      | None => ([], e)
+      end.
+Proof.
+  rewrite /decomp Wf.WfExtensionality.fix_sub_eq_ext /= -/decomp.
+  repeat case_match; try done.
+Qed.
+
+Lemma decomp_fill_comp K K' e e' :
+  to_eff e = None → 
+  to_val e = None → decomp e = (K', e') → decomp (fill K e) = (K ++ K', e').
+Proof.
+  revert K' e e'.
+  induction K as [|Ki K].
+  { by intros ??? =>/=.  }
+  intros K' e e' Hval Hre. simpl. 
+  intro.
+  rewrite decomp_unfold.
+  rewrite decomp_fill_frame; [|auto using fill_not_eff |auto using fill_not_val ].
+  rewrite (IHK K' _ e') //=. 
+Qed.
+
+Lemma decomp_inv_nil e e' :
+    decomp e = ([], e') → decomp_frame e = None ∧ e = e'.
+Proof.
+  rewrite decomp_unfold.
+  destruct (decomp_frame e) as [[Ki e'']|] eqn:Heq; [|by intros [=]].
+  destruct (decomp e''). intros [= Hl He].
+Qed.
+
+Lemma list_snoc_singleton_inv {A} (l1 l2 : list A) (a1 a2 : A) :
+  l1 ++ [a1] = l2 ++ [a2] → l1 = l2 ∧ a1 = a2.
+Proof.
+  revert l2. induction l1 as [|a l1].
+  { intros [| ? []] [=]=>//. }
+  intros [].
+  - intros [=]; destruct l1; simplify_eq.
+  - intros [= -> []%IHl1]. simplify_eq=>//.
+Qed.
+
+Lemma decomp_inv_cons Ki K e e'' :
+  decomp e = (Ki :: K, e'') → ∃ e', decomp_frame e = Some (Ki, e') ∧ decomp e' = (K, e'').
+Proof.
+  rewrite decomp_unfold.
+  destruct (decomp_frame e) as [[Ki' e']|] eqn:Heq'.
+  2 : { intros [=]. }
+  destruct (decomp e') as [K' e'''] eqn:Heq.
+  intros [= -> <- <-].
+  eauto.
+Qed.
+
+Lemma decomp_fill K e e' :
+   decomp e = (K, e') → fill K e' = e.
+Proof.
+  generalize dependent e. generalize dependent e'.
+  induction K as [|Ki K]; intros e e'.
+  { intros [? ->]%decomp_inv_nil=>//. }
+  intros (e'' & Hrei & Hre)%decomp_inv_cons.
+      simpl. rewrite (IHK e e''); eauto.
+      by apply decomp_fill_frame_2.
+Qed.
+
+(* Lemma decomp_val_empty K e e':
+     decomp e = (K, e') → is_Some (to_val e) → K = [].
+   Proof.
+     generalize dependent e'. generalize dependent e.
+     induction K as [|Ki K]; [done|].
+     intros ?? (e'' & Hrei & Hre)%decomp_inv_cons Hv.
+     specialize (IHK _ _ Hre Hv). simplify_eq.
+     apply decomp_inv_nil in Hre as [? ?]; simplify_eq.
+     by apply decomp_fill_item_2 in Hrei as [_ ?%eq_None_not_Some].
+   Qed.    *)
+
+Lemma fill_dmap e1 σ1 K :
+  to_eff e1 = None →
+  to_val e1 = None →
+  prim_step (fill K e1) σ1 = dmap (fill_lift K) (prim_step e1 σ1).
+Proof.
+  intros Heff Hval. rewrite /prim_step.
+  destruct (decomp e1) as [K1 e1'] eqn:Heq.
+  destruct (decomp (fill _ e1)) as [K1' e1''] eqn:Heq'.
+  apply (decomp_fill_comp K) in Heq; [|done|done].
+  rewrite Heq in Heq'; simplify_eq.
+  rewrite dmap_comp.
+  apply dmap_eq; [|done].
+  intros [] ? =>/=.
+  f_equal. rewrite -fill_app //.
+Qed.
+
+Lemma fill_empty e :
+  fill [] e = e.
+Proof. done. Qed.
+
+Lemma fill_lift_empty :
+  fill_lift [] = (λ ρ, ρ).
+Proof.
+  extensionality ρ. destruct ρ.
+  rewrite /fill_lift. done.
+Qed.
+
+Definition get_active (σ : state) : list loc := elements (dom σ.(tapes)).
+
+Lemma state_step_mass σ α :
+  α ∈ dom σ.(tapes) → SeriesC (state_step σ α) = 1.
+Proof.
+  intros Hdom.
+  rewrite /state_step bool_decide_eq_true_2 //=.
+  case_match.
+  rewrite dmap_mass dunif_mass //.
+Qed.
+
+Lemma state_step_get_active_mass σ α :
+  α ∈ get_active σ → SeriesC (state_step σ α) = 1.
+Proof. rewrite elem_of_elements. apply state_step_mass. Qed.
+
+Inductive state_step_rel : state → loc → state → Prop :=
+| AddTapeS α N (n : fin (S N)) ns σ :
+  α ∈ dom σ.(tapes) →
+  σ.(tapes) !!! α = ((N; ns) : tape) →
+  state_step_rel σ α (state_upd_tapes <[α := (N; ns ++ [n]) : tape]> σ).
+
+Lemma state_step_support_equiv_rel σ1 α σ2 :
+  state_step σ1 α σ2 > 0 ↔ state_step_rel σ1 α σ2.
+Proof.
+  rewrite /state_step. split.
+  - case_bool_decide; [|intros; inv_distr].
+    case_match. intros ?. inv_distr.
+    econstructor; eauto with lia.
+  - inversion_clear 1.
+    rewrite bool_decide_eq_true_2 // H1. solve_distr.
+Qed.
+
+Lemma state_steps_mass σ αs :
+  αs ⊆ get_active σ →
+  SeriesC (foldlM state_step σ αs) = 1.
+Proof.
+  induction αs as [|α αs IH] in σ |-* ; intros Hact.
+  { rewrite /= dret_mass //. }
+  rewrite foldlM_cons.
+  rewrite dbind_det //.
+  - apply state_step_get_active_mass. set_solver.
+  - intros σ' Hσ'. apply IH.
+    apply state_step_support_equiv_rel in Hσ'.
+    inversion Hσ'; simplify_eq.
+    intros α' ?. rewrite /get_active /=.
+    apply elem_of_elements, elem_of_dom.
+    destruct (decide (α = α')); subst.
+    + eexists. rewrite lookup_insert //.
+    + rewrite lookup_insert_ne //.
+      apply elem_of_dom. eapply elem_of_elements, Hact. by right.
+Qed.
+
+Lemma val_prim_stuck e σ ρ : prim_step e σ ρ > 0 → to_val e = None.
+Proof.
+  intros. destruct e; eauto. unfold prim_step in H; simpl in H.
+  rewrite dmap_dzero in H. rewrite dzero_0 in H. real_solver.
+Qed.
+
+Lemma state_step_head_step_not_stuck e σ σ' α :
+  state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0).
+Proof.
+  rewrite state_step_support_equiv_rel.
+  inversion_clear 1.
+  split; intros [[e2 σ2] Hs].
+  (* (* TODO: the sub goals used to be solved by [simplify_map_eq]  *)
+     - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
+       + destruct (decide (α = l1)); simplify_eq.
+         * rewrite lookup_insert in H11. done.
+         * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
+       + destruct (decide (α = l1)); simplify_eq.
+         * rewrite lookup_insert in H11. done.
+         * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
+       + destruct (decide (α = l1)); simplify_eq.
+         * rewrite lookup_insert in H10. done.
+         * rewrite lookup_insert_ne // in H10. rewrite H10 in H7. done.
+     - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
+       + destruct (decide (α = l1)); simplify_eq.
+         * apply not_elem_of_dom_2 in H11. done.
+         * rewrite lookup_insert_ne // in H7. rewrite H11 in H7.  done.
+       + destruct (decide (α = l1)); simplify_eq.
+         * rewrite lookup_insert // in H7.
+           apply not_elem_of_dom_2 in H11. done.
+         * rewrite lookup_insert_ne // in H7. rewrite H11 in H7. done.
+       + destruct (decide (α = l1)); simplify_eq.
+         * rewrite lookup_insert // in H7.
+           apply not_elem_of_dom_2 in H10. done.
+         * rewrite lookup_insert_ne // in H7. rewrite H10 in H7. done. *)
+Admitted.
+
+Lemma state_step_prim_step_not_stuck e σ σ' α :
+  state_step σ α σ' > 0 → (∃ ρ, prim_step e σ ρ > 0) ↔ (∃ ρ', prim_step e σ' ρ' > 0).
+Proof.
+  rewrite /prim_step.
+  destruct (decomp e) as [K e'] eqn:Heq.
+  intros Hs. split.
+  + intros [[e2 σ2] [[e2' σ2'] [_ Hh]]%dmap_pos].
+    assert (∃ ρ, head_step e' σ' ρ > 0) as [[e2'' σ2''] Hs'].
+    { erewrite <-state_step_head_step_not_stuck; [|done]. eauto. }
+    eexists (fill K e2'', σ2'').
+    eapply dmap_pos.
+    eexists (_, _). eauto.
+  + intros [[e2 σ2] [[e2' σ2'] [_ Hh]]%dmap_pos].
+    assert (∃ ρ, head_step e' σ ρ > 0) as [[e2'' σ2''] Hs'].
+    { erewrite state_step_head_step_not_stuck; [|done]. eauto. }
+    eexists (fill K e2'', σ2'').
+    eapply dmap_pos.
+    eexists (_, _); eauto.
+Qed.
+
+Lemma head_step_mass e σ :
+  (∃ ρ, head_step e σ ρ > 0) → SeriesC (head_step e σ) = 1.
+Proof.
+  intros [[] Hs%head_step_support_equiv_rel].
+  inversion Hs;
+    repeat (simplify_map_eq/=; solve_distr_mass || case_match; try (case_bool_decide; done)).
+Qed.
+
+Lemma prim_step_mass e σ :
+      (∃ ρ, prim_step e σ ρ > 0) → SeriesC (prim_step e σ) = 1.
+Proof.
+  intros [[e' σ'] Hs]. revert Hs. rewrite /prim_step.
+  destruct (decomp e) as [K e1'] eqn:Heq.
+  intros [[e2' σ2'] [? Hs]]%dmap_pos.
+  assert (SeriesC (head_step e1' σ) = 1) as Hsum; [eauto using head_step_mass|].
+  rewrite dmap_mass //.
+Qed.
+
+
+(* ------------------------------------------------------------*)
+(* This is a prob lang *)
+
+  
+Lemma blaze_prob_lang_mixin :
+  LanguageMixin of_val to_val prim_step state_step get_active.
+Proof.
+  split; eauto using to_of_val, of_to_val, val_prim_stuck, state_step_prim_step_not_stuck, state_step_get_active_mass, prim_step_mass.
+Qed.  
