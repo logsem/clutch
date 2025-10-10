@@ -126,7 +126,7 @@ Section eff_lang.
     booleans. *)
   Record state : Type := {
       next_label : label;
-      heap : gmap loc (option val);
+      heap : gmap loc val;
       tapes : gmap loc tape;
   }.
 

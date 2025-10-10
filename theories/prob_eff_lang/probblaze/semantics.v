@@ -934,7 +934,7 @@ Definition state_upd_next_label (f : label → label) (σ : state) : state :=
   {| next_label := f σ.(next_label); heap := σ.(heap); tapes := σ.(tapes) |}.
 Global Arguments state_upd_next_label _ !_ /.
 
-Definition state_upd_heap (f: gmap loc (option val) → gmap loc (option val)) (σ: state) : state :=
+Definition state_upd_heap (f: gmap loc val → gmap loc val) (σ: state) : state :=
   {| heap := f σ.(heap); next_label := σ.(next_label); tapes := σ.(tapes) |}.
 Global Arguments state_upd_heap _ !_ /.
 
@@ -976,42 +976,42 @@ Lemma state_upd_tapes_neq' σ σ' l n xs (x y : fin (S n)) :
 Proof. move => H /state_upd_tapes_same ?. simplify_eq.
 Qed.
 
-Fixpoint heap_array (l : loc) (vs : list val) : gmap loc (option val) :=
+Fixpoint heap_array (l : loc) (vs : list val) : gmap loc val :=
   match vs with
   | [] => ∅
-  | v :: vs' => {[l := Some v]} ∪ heap_array (l +ₗ 1) vs'
+  | v :: vs' => {[l := v]} ∪ heap_array (l +ₗ 1) vs'
   end.
 
-Lemma heap_array_singleton l v : heap_array l [v] = {[l := Some v]}.
+Lemma heap_array_singleton l v : heap_array l [v] = {[l := v]}.
 Proof. by rewrite /heap_array right_id. Qed.
 
-Lemma heap_array_lookup l vs ow k :
-  heap_array l vs !! k = Some ow ↔
-  ∃ j w, (0 ≤ j)%Z ∧ k = l +ₗ j ∧ ow = Some w ∧ vs !! (Z.to_nat j) = Some w.
+Lemma heap_array_lookup l vs w k :
+  heap_array l vs !! k = Some w ↔
+  ∃ j, (0 ≤ j)%Z ∧ k = l +ₗ j ∧ vs !! (Z.to_nat j) = Some w.
 Proof.
   revert k l; induction vs as [|v' vs IH]=> l' l /=.
   { rewrite lookup_empty. naive_solver lia. }
   rewrite -insert_union_singleton_l lookup_insert_Some IH. split.
-  - intros [[-> ?] | (Hl & j & w & ? & -> & -> & ?)].
-    { eexists 0, _. rewrite loc_add_0. naive_solver lia. }
-    eexists (1 + j)%Z, _. rewrite loc_add_assoc !Z.add_1_l Z2Nat.inj_succ; auto with lia.
-  - intros (j & w & ? & -> & -> & Hil). destruct (decide (j = 0)); simplify_eq/=.
+  - intros [[-> ?] | (Hl & j & ? & -> & ?)].
+    { eexists 0. rewrite loc_add_0. naive_solver lia. }
+    eexists (1 + j)%Z. rewrite loc_add_assoc !Z.add_1_l Z2Nat.inj_succ; auto with lia.
+  - intros (j & ? & -> & Hil). destruct (decide (j = 0)); simplify_eq/=.
     { rewrite loc_add_0; eauto. }
     right. split.
     { rewrite -{1}(loc_add_0 l). intros ?%(inj (loc_add _)); lia. }
     assert (Z.to_nat j = S (Z.to_nat (j - 1))) as Hj.
     { rewrite -Z2Nat.inj_succ; last lia. f_equal; lia. }
     rewrite Hj /= in Hil.
-    eexists (j - 1)%Z, _. rewrite loc_add_assoc Z.add_sub_assoc Z.add_simpl_l.
+    eexists (j - 1)%Z. rewrite loc_add_assoc Z.add_sub_assoc Z.add_simpl_l.
     auto with lia.
 Qed.
 
-Lemma heap_array_map_disjoint (h : gmap loc (option val)) (l : loc) (vs : list val) :
+Lemma heap_array_map_disjoint (h : gmap loc val) (l : loc) (vs : list val) :
   (∀ i, (0 ≤ i)%Z → (i < length vs)%Z → h !! (l +ₗ i) = None) →
   (heap_array l vs) ##ₘ h.
 Proof.
   intros Hdisj. apply map_disjoint_spec=> l' v1 v2.
-  intros (j&w&?&->&?&Hj%lookup_lt_Some%inj_lt)%heap_array_lookup.
+  intros (j&?&->&Hj%lookup_lt_Some%inj_lt)%heap_array_lookup.
   move: Hj. rewrite Z2Nat.id // => ?. by rewrite Hdisj.
 Qed.
 
@@ -1020,7 +1020,7 @@ Definition state_init_heap (l : loc) (n : Z) (v : val) (σ : state) : state :=
   state_upd_heap (λ h, heap_array l (replicate (Z.to_nat n) v) ∪ h) σ.
 
 Lemma state_init_heap_singleton l v σ :
-  state_init_heap l 1 v σ = state_upd_heap <[l:=Some v]> σ.
+  state_init_heap l 1 v σ = state_upd_heap <[l:= v]> σ.
 Proof.
   destruct σ as [h p]. rewrite /state_init_heap /=. f_equiv.
   rewrite right_id insert_union_singleton_l. done.
@@ -1107,12 +1107,12 @@ Inductive base_step : expr → state → expr → state → Prop :=
     (Val $ LitV $ LitLoc l) (state_init_heap l N v σ)
 
 | LoadS l v σ :
-  σ.(heap) !! l = Some $ Some v →
+  σ.(heap) !! l = Some v →
   base_step (Load (Val $ LitV $ LitLoc l)) σ (of_val v) σ
 | StoreS o l w σ :
   σ.(heap) !! l = Some $ o →
   base_step (Store (Val $ LitV $ LitLoc l) (Val w)) σ
-    (Val $ LitV LitUnit) (state_upd_heap <[l:=Some w]> σ)
+    (Val $ LitV LitUnit) (state_upd_heap <[l:= w]> σ)
 (* Probabilistic choice *)
 | RandNoTapeS z N (n : fin (S N)) σ:
   N = Z.to_nat z →
@@ -1209,12 +1209,12 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
         else dzero
   | Load (Val (LitV (LitLoc l))) =>
       match σ1.(heap) !! l with
-      | Some (Some v) => dret (Val v, σ1)
-      | _ => dzero
+      | Some  v => dret (Val v, σ1)
+      | None => dzero
       end
   | Store (Val (LitV (LitLoc l))) (Val w) =>
       match σ1.(heap) !! l with
-      | Some v => dret (Val $ LitV LitUnit, state_upd_heap <[l:= (Some w)]> σ1)
+      | Some v => dret (Val $ LitV LitUnit, state_upd_heap <[l:= w]> σ1)
       | None => dzero
       end
   (* Since our language only has integers, we use Z.to_nat, which maps positive
@@ -1346,7 +1346,7 @@ Definition decomp_frame (e : expr) : option (frame * expr) :=
       | _            => Some (RandRCtx e1, e2)
       end
   | Do (EffLabel l) e             => noval e (DoCtx l)
-  | Handle (EffLabel l) e0 e1 e2 => match to_eff e0 with
+  | Handle (EffLabel l) e0 e1 e2 => match to_eff e0 with (* Consider this construction - only decomp if l' from to_eff is not equal to l from the handler *)
                                     | Some _ => None
                                     | None => noval e0 (HandleCtx l e1 e2)
                                     end
@@ -1603,7 +1603,7 @@ Proof.
        + destruct (decide (α = l1)); simplify_eq.
          * rewrite lookup_insert in H11. done.
          * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
-       + destruct (decide (α = l1)); simplify_eq.
+       + destruct (decide (α = l1nn)); simplify_eq.
          * rewrite lookup_insert in H11. done.
          * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
        + destruct (decide (α = l1)); simplify_eq.
@@ -1663,7 +1663,7 @@ Qed.
 
 
 (* ------------------------------------------------------------*)
-(* This is a prob lang *)
+(* blazeprob is a prob lang *)
 
   
 Lemma blaze_prob_lang_mixin :
@@ -1671,3 +1671,7 @@ Lemma blaze_prob_lang_mixin :
 Proof.
   split; eauto using to_of_val, of_to_val, val_prim_stuck, state_step_prim_step_not_stuck, state_step_get_active_mass, prim_step_mass.
 Qed.  
+
+Canonical Structure blaze_prob_lang := Language blaze_prob_lang_mixin.  
+
+
