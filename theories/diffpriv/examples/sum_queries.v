@@ -98,11 +98,50 @@ Definition above_threshold_list : val :=
     let: "AT" := above_threshold "num" "den" "T" in
     list_find (λ: "q", "AT" "ds" "q") "queries".
 
+(* bs could be a stream of integers instead of a pre-computed list. *)
 Definition compute_summation_clip_bound : val :=
   λ: "bs" "num" "den" "ds",
     let: "queries" := list_map (λ: "b", create_query "b") "bs" in
     let: "res" := above_threshold_list "num" "den" #0%Z "ds" "queries" in
     "res".
+
+(* bs as a stream of integers instead of a pre-computed list. *)
+Definition compute_summation_clip_bound_stream : val :=
+  λ: "bs" "num" "den" "ds",
+    let: "f" := rec: "g" "x" :=
+        match: "bs" #() with
+        | NONE => #0
+        | SOME "b" =>
+            let: "q" := create_query "b" in
+            if: above_threshold "num" "den" #0%Z "ds" "q"
+        then "b"
+        else "g" #() in
+    "f" #().
+
+(* a candidate stream *)
+Definition range : val :=
+  λ: "start" "stop" "step",
+    let: "current" := ref "start" in
+    λ:"_",
+      let: "x" := !"current" in
+      if: "stop" < "x" then NONE
+      else ("current" <- "x" + "step" ;; SOME "x").
+
+(* 3num/den dipr *)
+Definition auto_avg : val :=
+  λ: "bs" "num" "den" "ds",
+    (* costs num/den *)
+    let: "final_b" := compute_summation_clip_bound "bs" "num" "den" "ds" in
+    (* is final_b-sensitive, hence exact_sum and exact_sum' are at most final_b apart *)
+    let: "exact_sum" := age_sum_query "final_b" "ds" in
+    (* by hoare_couple_laplace, this is num/den private for
+       final_b * (num / (final_b * final_b)) = num/den credits. *)
+    let: "noisy_sum" := Laplace "num" ("final_b" * "den") "exact_sum" in
+    (* again num/den-private because list_length is 1-sensitive *)
+    let: "noisy_count" := Laplace "num" "den" (list_length "ds") in
+    (* post-processing *)
+    "noisy_sum" `quot` "noisy_count".
+
 
 Section gwp_queries.
   Context `{invGS_gen hlc Σ} (g : GenWp Σ).
