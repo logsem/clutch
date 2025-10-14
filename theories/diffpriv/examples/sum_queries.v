@@ -352,19 +352,26 @@ Section queries.
   Proof.
     iIntros (Hε Hbs Hneigh Hds1 Hds2) "ε1 ε2 ε3 Hs".
     rewrite /auto_avg. tp_pures ; wp_pures.
+
+    (* private clip bound for ε *)
     tp_bind (compute_summation_clip_bound _ _ _ _) ; wp_bind (compute_summation_clip_bound _ _ _ _).
     iPoseProof (wp_compute_summation_clip_bound with "ε1 Hs") as "H" => //.
     iApply (wp_wand with "H"). iIntros "* (%bound&->&rhs)" => //=. tp_pures. wp_pures.
+
+    (* the sum is bound-sensitive *)
     tp_bind (age_sum_query _ _) ; wp_bind (age_sum_query _ _).
     apply is_list_inject in Hds1 as ->, Hds2 as ->.
-    iPoseProof (age_sum_query_sensitivity bound with "[] [rhs]") as "H" => //.
+    iApply (age_sum_query_sensitivity bound with "[] [rhs]") => //.
     1: iPureIntro ; real_solver.
     1: by iFrame.
-    iApply "H".
-    iNext. iIntros "* (%&%&->&rhs&%res_close)".
+    iIntros "!> * (%sum&%sum'&->&rhs&%res_close)".
     simpl. tp_pures. wp_pures.
-    destruct bound.
-    - assert (b = b') as ->.
+
+    (* first deal with the somewhat pathological case where both sums are exactly the same *)
+    (* this is done simply because it allows us to avoid reasoning about a division by 0 in the interesting case. *)
+    destruct bound as [|bound'] eqn:case_bound.
+    -
+      assert (sum = sum') as ->.
       {
         revert res_close. simpl. rewrite Rmult_0_l. rewrite -abs_IZR. apply Zabs_ind.
         - intros. apply le_IZR in res_close. lia.
@@ -401,6 +408,7 @@ Section queries.
       done.
 
     -
+      (* Laplace num (bound*den) sum ~ Laplace num (bound*den) sum'   for  ↯ num/den   because   |sum-sum'| ≤ bound   *)
       tp_bind (Laplace _ _ _). wp_apply (hoare_couple_laplace _ _ 0 with "[$rhs ε2] [-]") ; try done.
       { rewrite mult_IZR. eapply Rdiv_pos_pos ; auto. real_solver. }
       {
@@ -421,32 +429,32 @@ Section queries.
           field. split ; real_solver.
       }
       iIntros "!> * rhs" => /=. tp_pures. wp_pures.
+
+      (* length is 1-sensitive *)
       tp_bind (list_length _). wp_bind (list_length _).
       wp_apply gwp_list_length ; [iPureIntro ; by rewrite is_list_inject|]. iIntros.
       iMod (gwp_list_length (g:=gwp_spec) (A:=Z) _ _ _ (λ v : val, ⌜v = #(length ds2)⌝)%I with "[] [] rhs") as "(%&rhs&%)".
       1: iPureIntro ; by rewrite is_list_inject.
       1: simpl ; iIntros ; simplify_eq ; done.
       rewrite Z.add_0_r /=. simplify_eq.
+      assert ((Z.abs (length ds1 - length ds2)) <= 1).
+      {
+        destruct Hneigh; simplify_eq.
+        - apply Z.eq_le_incl.
+          rewrite !app_length. simpl. apply Zabs_ind ; intros ; lia.
+        - apply Z.eq_le_incl.
+          rewrite !app_length. simpl. apply Zabs_ind ; intros ; lia.
+      }
+
+      (* private length for ε *)
       tp_bind (Laplace _ _ _).
       wp_pures.
       wp_apply (hoare_couple_laplace _ _ 0 with "[$rhs ε3] [-]") ; try done.
-      {
-        rewrite Z.add_0_l.
-        assert ((Z.abs (length ds1 - length ds2)) <= 1).
-        {
-          destruct Hneigh; simplify_eq.
-          - apply Z.eq_le_incl.
-            rewrite !app_length. simpl. apply Zabs_ind ; intros ; lia.
-          - apply Z.eq_le_incl.
-            rewrite !app_length. simpl. apply Zabs_ind ; intros ; lia.
-        }
-        iApply ecm_weaken. 2: iFrame. split.
-        - apply Rmult_le_pos. 2: lra. apply IZR_le. lia.
-        - etrans. 2: right ; apply Rmult_1_l.
-          eapply Rmult_le_compat_r. 1: lra. by apply IZR_le.
-      }
-      iIntros "!> * rhs". simpl ; tp_pures ; wp_pures. rewrite Z.add_0_r /=.
-      done.
+      1: by rewrite Rmult_1_l.
+      iIntros "!> * rhs". simpl ; do 2 tp_pure ; do 2 wp_pure.
+      rewrite Z.add_0_r.
+      (* postprocessing *)
+      tp_pures. wp_pures. done.
   Qed.
 
 End queries.
