@@ -1472,6 +1472,9 @@ Inductive prob_head_step_pred : expr -> state -> Prop :=
   prob_head_step_pred (rand #z) σ
 | LaplacePSP (num den loc : Z) σ :
   (0 < IZR num / IZR den) →
+  prob_head_step_pred (Laplace #num #den #loc) σ
+| LaplacePSP' (num den loc : Z) σ :
+  (not (0 < IZR num / IZR den)) →
   prob_head_step_pred (Laplace #num #den #loc) σ.
 
 Definition head_step_pred e1 σ1 :=
@@ -1606,7 +1609,6 @@ Proof.
     + rewrite lookup_insert_ne // in H6.
       rewrite H5 in H6. done.
   - rewrite Hz. apply dmap_dzero.
-  - apply dmap_dzero.
 Qed.
 
 Lemma det_head_step_upd_tapes N e1 σ1 e2 σ2 α z zs :

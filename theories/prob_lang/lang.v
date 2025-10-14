@@ -751,7 +751,7 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
       dmap (λ z : Z, (Val $ LitV $ LitInt z, σ1))
         (match decide (0 < IZR num / IZR den) with
          | left εpos => laplace_rat num den loc εpos
-         | right _ => dzero
+         | right _ => dret loc
          end)
   | Tick (Val (LitV (LitInt n))) => dret (Val $ LitV $ LitUnit, σ1)
   | _ => dzero
@@ -864,6 +864,10 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
 | LaplaceS num den loc (z : Z) σ :
   (0 < IZR num / IZR den) →
   head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt loc)) σ (Val $ LitV $ LitInt z) σ
+
+| LaplaceS0 num den loc (z : Z) σ :
+  (not (0 < IZR num / IZR den)) →
+  head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt loc)) σ (Val $ LitV $ LitInt loc) σ
 
 | TickS σ z :
   head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ.

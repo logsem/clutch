@@ -362,6 +362,7 @@ Proof.
         -- by eapply ind_case_rand_some_neq.
         -- by eapply ind_case_rand.
         -- by eapply ind_case_laplace. Unshelve. exact 0%Z.
+        -- by eapply ind_case_laplace. Unshelve. exact 0%Z.
       * by eapply ind_case_dzero.
 Qed.
 
