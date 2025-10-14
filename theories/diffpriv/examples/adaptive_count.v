@@ -107,26 +107,35 @@ Definition create_filter : val :=
               SOME ("f" #())) in
   "try_run".
 
+(* TODO add counts to the tail of the list. doesn't matter for privacy but more intuitive. *)
+(* TODO can't tell which count came from which predicate. uncomment the bit with the index reference *)
 Definition iter_adaptive_acc : val :=
   λ:"ε_coarse" "ε_precise" "den"
     "threshold" "budget" "predicates" "data",
     let: "counts" := ref [] in
+    (* let: "index" := ref #0 in *)
     let: "try_run" := create_filter "budget" in
     list_iter
       (λ:"pred",
         let: "count" := list_count "pred" "data" in
         "try_run" "ε_coarse"
-
           (λ:<>,
              let: "count_coarse" := Laplace "ε_coarse" "den" "count" in
-             "counts" <- "count_coarse" :: !"counts" ;;
+             "counts" <- (
+                          (* !"index", *)
+                            "count_coarse") :: !"counts" ;;
 
              if: "threshold" < "count_coarse" then
                "try_run" "ε_precise"
                  (λ:<>,
                     let: "count_precise" := Laplace "ε_precise" "den" "count" in
-                    "counts" <- "count_precise" :: !"counts")
+                    "counts" <- (
+                                 (* !"index", *)
+                                   "count_precise") :: !"counts")
              else #())
+        (*
+ ;;
+"index" <- !"index" + #1 *)
       )
       "predicates" ;;
     ! "counts".
@@ -268,32 +277,158 @@ Section adaptive.
     iApply ("f_dp" with "[-Hpost]") ; iFrame.
   Qed.
 
+  Definition is_predicate {A} `[Inject A val] (pred : A -> bool) (vpred : val) : iProp Σ :=
+    ∀ x, {{{ True }}} vpred (inject x) {{{ w, RET w; ⌜w = (inject (pred x))⌝ }}}.
 
-  Lemma filter_sens {A} [Inject0 : Inject A val] (P : A → bool) (f : val) :
-    (∀ (x : A),
+  Definition is_spec_predicate {A} `[Inject A val] (pred : A -> bool) (vpred : val) : iProp Σ :=
+    ∀ x, G{{{ True }}} vpred (inject x) @ gwp_spec ; ⊤ {{{ w, RET w; ⌜w = (inject (pred x))⌝ }}}.
+
+  Fixpoint is_predicate_list {A} `[Inject A val] (l : list (A -> bool)) (v : val) : iProp Σ :=
+    match l with
+    | [] => ⌜v = NONEV⌝
+    | pred::l' => ∃ vpred vl',
+    ⌜v = SOMEV (vpred, vl')⌝
+     ∗ is_predicate pred vpred ∗ is_spec_predicate pred vpred ∗ is_predicate_list l' vl' end.
+
+
+  Lemma filter_sens [Inject0 : Inject Z val] (P : Z → bool) (f : val) :
+    (∀ (x : Z),
         {{{ True }}}
           f (inject x)
           {{{ w, RET w; ⌜w = inject (P x)⌝ }}})
-    -∗ hoare_sensitive (list_filter f) 1 (dlist Z) (dlist Z).
+    -∗
+    (∀ (x : Z),
+        G{{{ True }}}
+          f (inject x) @ gwp_spec ; ⊤
+          {{{ w, RET w; ⌜w = inject (P x)⌝ }}})
+    -∗
+    hoare_sensitive (list_filter f) 1 (dlist Z) (dlist Z).
   Proof.
-    iIntros "* #Hf". iIntros (?) "* !> * rhs HΦ".
-    iPoseProof (gwp_list_filter x' with "[Hf] [rhs]") as "hh".
-    1: iSplit. 1: iIntros (??) "!> * ??".
+    iIntros "* #Hf #Hf'".
+    iIntros (?) "* !> * rhs HΦ".
+    simpl.
+    iPoseProof (gwp_list_filter (g:=gwp_spec) x' P f (inject x') _
+                  (λ v, ⌜is_list (List.filter P x') v⌝)%I with "[] []") as "hh'" => // ; [iSplit|..].
+    1: { iIntros (??) "!> * _ h". by iApply "Hf'". }
+    1: iPureIntro ; apply is_list_inject.
+    1: done.
+    { simpl. iIntros. done. }
+    simpl. iMod ("hh'" with "rhs") as "(% & rhs & %)".
+    iApply (gwp_list_filter (g:=gwp_wpre) x P f (inject x) _ _ %I with "[Hf] [HΦ rhs]") => //.
+    1: iSplit.
+    1: { iIntros (??) "!> * _ h". by iApply "Hf". }
+    1: iPureIntro ; apply is_list_inject.
+    1: done.
+    simpl. iNext. iIntros. iApply "HΦ".
+    iExists (List.filter P x), (List.filter P x').
+    repeat iSplit ; iFrame ; try iPureIntro.
+    - apply is_list_inject => //.
+    - assert (v = (examples.list.inject_list (List.filter P x'))) as -> => //.
+      apply is_list_inject => //.
+    -
+      (* need an actual lemma about the sensitivity of the Gallina List.filter here. *)
+      rewrite Rmult_1_l. apply le_INR.
+      rewrite /list_dist.
+      set (fX := list_to_set_disj (List.filter P x)).
+      set (fX' := list_to_set_disj (List.filter P x')).
+      set (X := list_to_set_disj x).
+      set (X' := list_to_set_disj x').
+      opose proof filter_In.
+      (* rewrite !gmultiset_size_disj_union. *)
+      apply gmultiset_subseteq_size.
+      (* TODO wip *)
+(*       clear.
+         Set Printing All.
 
-    (* 1: iApply "Hf".
 
-       iMod (gwp_list_filter (g := gwp_spec) _ _ _ _ _ (λ v, ⌜v = #(inject (List.filter  []))⌝%I)) as "rhs'".
+         Set Printing Coercions. Unset Printing Notations.
+         epose proof (proj2 (@elem_of_subseteq Z (gmultiset Z) _ (fX ∖ fX' ⊎ fX' ∖ fX)  (X ∖ X' ⊎ X' ∖ X))).
+         Set Printing All.
+         apply H2.
 
-              with "[rhs]") as (?) "rhs".
+         (* list_filter_subseteq *)
+         (* eassert (X = fX ⊎ _) ; [shelve|]. *)
+         set (nfX := list_to_set_disj (List.filter (∽ P)%P x) : gmultiset Z).
+         eassert (X = fX ⊎ nfX) as -> ; [shelve|].
+         set (nfX' := list_to_set_disj (List.filter (∽ P)%P x') : gmultiset Z).
+         eassert (X' = fX' ⊎ nfX') as -> ; [shelve|].
+         difference_union_distr_r_L
+         rewrite difference_union_distr_r_L.
+         rewrite !size_difference_alt.
+   (A ∪ B) \ (C ∪ D) =
 
-       wp_rec; wp_pures.
-       tp_rec; tp_pures. *)
+
+         rewrite !gmultiset_size_difference => //.
+         1: rewrite !gmultiset_size_disj_union.
+         { set (a := size fX). set (a' := size fX').
+           set (b := size nfX). set (b' := size nfX').
+
+         1: lia.
+
+   filter P A ∖ filter P B = filter P (A ∖ B)
+
+         set_solver.
+
+   disjoint_filter
+         X = fX ⊎ nfX
+         X' = fX' ⊎ nfX'
+         rewrite !filter_union_L.
+         Set Printing Coercions.
+
+ *)
+
+      admit.
+
   Admitted.
 
 
-  Lemma length_sens :
-    ⊢ wp_sensitive list_length 1 (dlist Z) dZ.
+(* Lemma size_difference X Y : Y ⊆ X → size (X ∖ Y) = size X - size Y.
+   Proof.
+     intros. rewrite (union_difference Y X) at 2 by done.
+     rewrite size_union by set_solver. lia.
+   Qed. *)
+
+
+  Lemma gmultiset_size_difference {A : Type} {EqDecision0 : EqDecision A} {H : Countable A}
+  (X Y : gmultiset A)
+    : Y ⊆ X → size (X ∖ Y) = (size X - size Y)%nat.
   Proof.
+    intros HX%gmultiset_disj_union_difference.
+    rewrite {2}HX. rewrite gmultiset_size_disj_union. lia.
+  Qed.
+
+
+  Lemma length_sens :
+    ⊢ hoare_sensitive list_length 1 (dlist Z) dZ.
+  Proof.
+    iIntros (?) "* !> * rhs HΦ".
+    simpl.
+
+    iMod (gwp_list_length (g:=gwp_spec) _ x' (inject x')
+                  (λ v, ⌜v = #(List.length x')⌝)%I with "[] [] [rhs]") as "(% & rhs & %)" => //.
+    1: iPureIntro ; by apply is_list_inject.
+    { simpl. iIntros. subst. done. }
+    iApply (gwp_list_length (g:=gwp_wpre) _ x (inject x) with "[] [HΦ rhs]") => //.
+    1: iPureIntro ; by apply is_list_inject.
+    simpl. iNext. iIntros. iApply "HΦ". iExists (length x),(length x'). simplify_eq.
+    repeat iSplit ; iFrame ; iPureIntro => //. rewrite Rmult_1_l.
+    rewrite Rabs_Zabs.
+    (* Set Printing Coercions. *)
+    qify_r ; zify_q. ring_simplify.
+    apply Zabs_ind ; intros h.
+    - rewrite /list_dist.
+      rewrite -Nat2Z.inj_sub => //.
+      2: lia.
+      apply inj_le.
+      rewrite -!size_list_to_set_disj.
+      rewrite gmultiset_size_disj_union.
+      Fail rewrite !size_difference.
+
+      rewrite /size /gmultiset_size
+
+      .
+      (* Import clutch.diffpriv.distance. *)
+
   Admitted.
 
 
@@ -322,7 +457,7 @@ Section adaptive.
     tp_bind (list_length _).
     wp_bind (list_length _).
     wp_apply (wp_wand with "[rhs]").
-    { by iApply (length_sens $! _ _ _ _ with "rhs"). }
+    { iApply (length_sens $! _ _ _ _ with "rhs"). iNext. iIntros. done. }
     simpl.
     iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
   
@@ -371,7 +506,7 @@ Section adaptive.
       tp_bind (list_length _).
       wp_bind (list_length _).
       wp_apply (wp_wand with "[rhs]").
-      { by iApply (length_sens $! _ _ _ _ with "rhs"). }
+      { iApply (length_sens $! _ _ _ _ with "rhs"). iNext. iIntros. done. }
       simpl.
       iIntros "% (%len_f2_l&%len_f2_r&->&rhs&%d_out2')"...
   
@@ -411,7 +546,7 @@ Section adaptive.
       tp_bind (list_length _).
       wp_bind (list_length _).
       wp_apply (wp_wand with "[rhs]").
-      { by iApply (length_sens $! _ _ _ _ with "rhs"). }
+      { iApply (length_sens $! _ _ _ _ with "rhs"). iNext. iIntros. done. }
       simpl.
       iIntros "% (%len_f2_l&%len_f2_r&->&rhs&%d_out2')"...
   
@@ -451,9 +586,17 @@ Section adaptive.
       tp_load ; wp_load ; done.
   
       Unshelve. all: try lra.
-      3,7,11: exact (λ x : Z, Z.ltb x 30).
-      1,3,5: apply _.
+      1,4,7: exact (λ x : Z, Z.ltb x 30).
       { iIntros "* !> * _ HΦ"... case_bool_decide as h ; iApply "HΦ".
+        all: iPureIntro.
+        - simpl. do 2 f_equal. symmetry.
+          by eapply Z.ltb_lt.
+        - simpl. do 2 f_equal. symmetry.
+          by eapply Z.ltb_nlt.
+      }
+      {
+        iIntros "* !> * ? HΦ". gwp_pures.
+        case_bool_decide as h ; iApply "HΦ".
         all: iPureIntro.
         - simpl. do 2 f_equal. symmetry.
           by eapply Z.ltb_lt.
@@ -467,7 +610,25 @@ Section adaptive.
         - simpl. do 2 f_equal. symmetry.
           by eapply Z.ltb_nlt.
       }
+      {
+        iIntros "* !> * ? HΦ". gwp_pures.
+        case_bool_decide as h ; iApply "HΦ".
+        all: iPureIntro.
+        - simpl. do 2 f_equal. symmetry.
+          by eapply Z.ltb_lt.
+        - simpl. do 2 f_equal. symmetry.
+          by eapply Z.ltb_nlt.
+      }
       { iIntros "* !> * _ HΦ"... case_bool_decide as h ; iApply "HΦ".
+        all: iPureIntro.
+        - simpl. do 2 f_equal. symmetry.
+          by eapply Z.ltb_lt.
+        - simpl. do 2 f_equal. symmetry.
+          by eapply Z.ltb_nlt.
+      }
+      {
+        iIntros "* !> * ? HΦ". gwp_pures.
+        case_bool_decide as h ; iApply "HΦ".
         all: iPureIntro.
         - simpl. do 2 f_equal. symmetry.
           by eapply Z.ltb_lt.
@@ -511,14 +672,6 @@ Definition iter_adaptive_acc_simple : val :=
       "predicates" ;;
     ! "counts".
 
-  Definition is_predicate {A} `[Inject A val] (pred : A -> bool) (vpred : val) : iProp Σ :=
-    ∀ x, {{{ True }}} vpred (inject x) {{{ w, RET w; ⌜w = (inject (pred x))⌝ }}}.
-
-  Fixpoint is_predicate_list {A} `[Inject A val] (l : list (A -> bool)) (v : val) : iProp Σ :=
-    match l with
-    | [] => ⌜v = NONEV⌝
-    | pred::l' => ∃ vpred vl', ⌜v = SOMEV (vpred, vl')⌝ ∗ is_predicate pred vpred ∗ is_predicate_list l' vl' end.
-
   Lemma vpreds_is_predicate_list : ⊢ is_predicate_list predicates vpredicates.
   Proof.
     simpl. repeat (iExists _,_ ; repeat iSplitR => //).
@@ -526,11 +679,24 @@ Definition iter_adaptive_acc_simple : val :=
       iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide.
       + by apply Z.ltb_lt.
       + by apply Z.ltb_nlt.
+    - iIntros (??) "!> _ HΦ". gwp_pures.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide.
+      + by apply Z.ltb_lt.
+      + by apply Z.ltb_nlt.
     - iIntros (??) "!> _ HΦ". wp_pures.
       iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide.
       + by apply Z.leb_le.
       + by apply Z.leb_nle.
+    - iIntros (??) "!> _ HΦ". gwp_pures.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide.
+      + by apply Z.leb_le.
+      + by apply Z.leb_nle.
     - iIntros (??) "!> _ HΦ". wp_pures.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide as h.
+      + inversion h. by rewrite Z.eqb_refl.
+      + eapply Z.eqb_neq. intro. apply h.
+        eapply inj. 1: apply of_val_inj. repeat f_equal. done.
+    - iIntros (??) "!> _ HΦ". gwp_pures.
       iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide as h.
       + inversion h. by rewrite Z.eqb_refl.
       + eapply Z.eqb_neq. intro. apply h.
@@ -546,12 +712,13 @@ Definition iter_adaptive_acc_simple : val :=
     (* neighbour ds1 ds2 → *)
     list_dist ds1 ds2 <= 1 →
     is_predicate pred vpred -∗
+    is_spec_predicate pred vpred -∗
     ↯m (IZR budget / IZR den) -∗
     ⤇ fill K (iter_adaptive_acc_simple_unrolled #ε_coarse #den #budget vpred dsv2) -∗
     WP iter_adaptive_acc_simple_unrolled #ε_coarse #den #budget vpred dsv1
       {{ v, ⤇ fill K (of_val v) }}.
   Proof with (tp_pures ; wp_pures).
-    iIntros "* % %". iIntros "%adj". iIntros "#is_pred ε rhs". rewrite /iter_adaptive_acc_simple_unrolled...
+    iIntros "* % %". iIntros "%adj". iIntros "#is_pred #is_spec_pred ε rhs". rewrite /iter_adaptive_acc_simple_unrolled...
     tp_alloc as counts_r "counts_r" ; wp_alloc counts_l as "counts_l"...
     tp_bind (create_filter _). wp_bind (create_filter _).
     iApply (create_filter_private _ _ den with "[$ε $rhs]") => //.
@@ -565,14 +732,15 @@ Definition iter_adaptive_acc_simple : val :=
        replace dsv2 with (inject ds2).
        2: symmetry ; by apply is_list_inject.
        wp_apply (wp_wand with "[rhs]").
-       { iApply (filter_sens with "[] [] rhs"). 2: iPureIntro ; lra. 2: iIntros "!> % h" ; iExact "h".
-         iApply "is_pred". }
+       { iApply (filter_sens with "[] [] [] rhs"). 3: iPureIntro ; lra. 3: iIntros "!> % h" ; iExact "h".
+         1,2: done.
+       }
        simpl.
        iIntros "% (%ds_f1_l&%ds_f1_r&->&rhs&%d_out)".
        tp_bind (list_length _).
        wp_bind (list_length _).
        wp_apply (wp_wand with "[rhs]").
-       { by iApply (length_sens $! _ _ _ _ with "rhs"). }
+       { iApply (length_sens $! _ _ _ _ with "rhs"). iNext. iIntros. iClear "is_pred is_spec_pred". done. }
        simpl.
        iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
        tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
@@ -664,7 +832,7 @@ Definition iter_adaptive_acc_simple : val :=
     is_list ds2 dsv2 →
     list_dist ds1 ds2 <= 1 →
     ⌜is_list_HO lvpredicates vpredicates⌝ -∗
-    ([∗ list] pred;vpred ∈ predicates;lvpredicates, is_predicate pred vpred) -∗
+    ([∗ list] pred;vpred ∈ predicates;lvpredicates, is_predicate pred vpred ∗ is_spec_predicate pred vpred) -∗
     ↯m (IZR budget / IZR den) -∗
     ⤇ fill K (iter_adaptive_acc_simple #ε_coarse #den #budget vpredicates dsv2) -∗
     WP iter_adaptive_acc_simple #ε_coarse #den #budget vpredicates dsv1
@@ -701,15 +869,15 @@ Definition iter_adaptive_acc_simple : val :=
       2: symmetry ; by apply is_list_inject.
       destruct predicates as [|pred predicates'] => //.
       wp_apply (wp_wand with "[rhs is_pred]").
-      { iApply (filter_sens with "[] [] rhs"). 2: iPureIntro ; lra. 2: iIntros "!> % h" ; iExact "h".
-        iDestruct (big_sepL2_cons_inv_l with "is_pred") as "(%&%&%&?&?)". simplify_eq. done.
+      { iApply (filter_sens with "[] [] [] rhs"). 3: iPureIntro ; lra. 3: iIntros "!> % h" ; iExact "h".
+        1,2: iDestruct (big_sepL2_cons_inv_l with "is_pred") as "(%&%&%&[? ?]&?)" ; simplify_eq ; done.
       }
       simpl. fold list_iter.
       iIntros "% (%ds_f1_l&%ds_f1_r&->&rhs&%d_out)".
       tp_bind (list_length _).
       wp_bind (list_length _).
       wp_apply (wp_wand with "[rhs]").
-      { by iApply (length_sens $! _ _ _ _ with "rhs"). }
+      { iApply (length_sens $! _ _ _ _ with "rhs"). iNext. iIntros "* H". iExact "H". }
       simpl.
       iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
       tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
@@ -753,9 +921,13 @@ Lemma foo : is_list_HO lvpredicates vpredicates.
 Qed.
 
 Lemma bar :
-    ⊢ ([∗ list] pred;vpred ∈ predicates;lvpredicates, is_predicate pred vpred).
-repeat iSplit. 4: done.
+    ⊢ ([∗ list] pred;vpred ∈ predicates;lvpredicates, is_predicate pred vpred ∗ is_spec_predicate pred vpred).
+repeat iSplit. 7: done.
     - iIntros (??) "!> _ HΦ". wp_pures.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide.
+      + by apply Z.ltb_lt.
+      + by apply Z.ltb_nlt.
+    - iIntros (??) "!> _ HΦ". gwp_pures.
       iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide.
       + by apply Z.ltb_lt.
       + by apply Z.ltb_nlt.
@@ -763,7 +935,16 @@ repeat iSplit. 4: done.
       iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide.
       + by apply Z.leb_le.
       + by apply Z.leb_nle.
+    - iIntros (??) "!> _ HΦ". gwp_pures.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide.
+      + by apply Z.leb_le.
+      + by apply Z.leb_nle.
     - iIntros (??) "!> _ HΦ". wp_pures.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide as h.
+      + inversion h. by rewrite Z.eqb_refl.
+      + eapply Z.eqb_neq. intro. apply h.
+        eapply inj. 1: apply of_val_inj. repeat f_equal. done.
+    - iIntros (??) "!> _ HΦ". gwp_pures.
       iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide as h.
       + inversion h. by rewrite Z.eqb_refl.
       + eapply Z.eqb_neq. intro. apply h.
@@ -801,7 +982,7 @@ repeat iSplit. 4: done.
     is_list ds2 dsv2 →
     list_dist ds1 ds2 <= 1 →
     ⌜is_list_HO lvpredicates vpredicates⌝ -∗
-    ([∗ list] pred;vpred ∈ predicates;lvpredicates, is_predicate pred vpred) -∗
+    ([∗ list] pred;vpred ∈ predicates;lvpredicates, is_predicate pred vpred ∗ is_spec_predicate pred vpred) -∗
     ↯m (IZR budget / IZR den) -∗
     ⤇ fill K (iter_adaptive_acc #ε_coarse #ε_precise #den #threshold #budget vpredicates dsv2) -∗
     WP iter_adaptive_acc #ε_coarse #ε_precise #den #threshold #budget vpredicates dsv1
@@ -839,15 +1020,15 @@ repeat iSplit. 4: done.
       2: symmetry ; by apply is_list_inject.
       destruct predicates as [|pred predicates'] => //.
       wp_apply (wp_wand with "[rhs is_pred]").
-      { iApply (filter_sens with "[] [] rhs"). 2: iPureIntro ; lra. 2: iIntros "!> % h" ; iExact "h".
-        iDestruct (big_sepL2_cons_inv_l with "is_pred") as "(%&%&%&?&?)". simplify_eq. done.
+      { iApply (filter_sens with "[] [] [] rhs"). 3: iPureIntro ; lra. 3: iIntros "!> % h" ; iExact "h".
+        1,2: iDestruct (big_sepL2_cons_inv_l with "is_pred") as "(%&%&%&[? ?]&?)" ; simplify_eq ; done.
       }
       simpl. fold list_iter.
       iIntros "% (%ds_f1_l&%ds_f1_r&->&rhs&%d_out)".
       tp_bind (list_length _).
       wp_bind (list_length _).
       wp_apply (wp_wand with "[rhs]").
-      { by iApply (length_sens $! _ _ _ _ with "rhs"). }
+      { iApply (length_sens $! _ _ _ _ with "rhs"). iNext. iIntros "* H". iApply "H". }
       simpl.
       iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
       tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
@@ -938,7 +1119,7 @@ repeat iSplit. 4: done.
     is_list ds2 dsv2 →
     list_dist ds1 ds2 <= 1 →
     ⌜is_list_HO lvpredicates vpredicates⌝ -∗
-    ([∗ list] pred;vpred ∈ predicates;lvpredicates, is_predicate pred vpred) -∗
+    ([∗ list] pred;vpred ∈ predicates;lvpredicates, is_predicate pred vpred ∗ is_spec_predicate pred vpred) -∗
     ↯m (IZR budget / IZR den) -∗
     ⤇ fill K (iter_adaptive_acc #ε_coarse #ε_precise #den #threshold #budget vpredicates dsv2) -∗
     WP iter_adaptive_acc #ε_coarse #ε_precise #den #threshold #budget vpredicates dsv1
@@ -972,14 +1153,14 @@ repeat iSplit. 4: done.
       2: symmetry ; by apply is_list_inject.
       destruct predicates as [|pred predicates'] => //.
       wp_apply (wp_wand with "[rhs is_pred]").
-      { iApply (filter_sens with "[] [] rhs"). 2: iPureIntro ; lra. 2: iIntros "!> % h" ; iExact "h".
-        iDestruct (big_sepL2_cons_inv_l with "is_pred") as "(%&%&%&?&?)". simplify_eq. done. }
+      { iApply (filter_sens with "[] [] [] rhs"). 3: iPureIntro ; lra. 3: iIntros "!> % h" ; iExact "h".
+        all: iDestruct (big_sepL2_cons_inv_l with "is_pred") as "(%&%&%&[? ?]&?)" ; simplify_eq ; done. }
       simpl. fold list_iter.
       iIntros "% (%ds_f1_l&%ds_f1_r&->&rhs&%d_out)".
       tp_bind (list_length _).
       wp_bind (list_length _).
       wp_apply (wp_wand with "[rhs]").
-      { by iApply (length_sens $! _ _ _ _ with "rhs"). }
+      { iApply (length_sens $! _ _ _ _ with "rhs"). iNext. iIntros "* H". iApply "H". }
       simpl.
       iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
       tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
