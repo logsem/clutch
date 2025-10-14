@@ -93,17 +93,22 @@ Definition age_sum_query : val :=
 Definition create_query : val :=
   λ: "b" "df", (age_sum_query "b" "df") - (age_sum_query ("b" + #1) "df").
 
+Definition list_find_default : val :=
+  λ: "p" "xs" "default", match: list_find "p" "xs" with
+                         | NONE => "default"
+                         | SOME "res" => "res" end.
+
 Definition above_threshold_list : val :=
-  λ: "num" "den" "T" "ds" "queries",
+  λ: "num" "den" "T" "ds" "queries" "default",
     let: "AT" := above_threshold "num" "den" "T" in
-    list_find (λ: "q", "AT" "ds" "q") "queries".
+    list_find_default (λ: "b_q", let, ("b", "q") := "b_q" in "AT" "ds" "q") "queries" ("default", "default").
 
 (* bs could be a stream of integers instead of a pre-computed list. *)
 Definition compute_summation_clip_bound : val :=
   λ: "bs" "num" "den" "ds",
-    let: "queries" := list_map (λ: "b", create_query "b") "bs" in
-    let: "res" := above_threshold_list "num" "den" #0%Z "ds" "queries" in
-    "res".
+    let: "queries" := list_map (λ: "b", ("b", create_query "b")) "bs" in
+    let, ("b_res", "q_res") := above_threshold_list "num" "den" #0%Z "ds" "queries" #0%Z in
+    "b_res".
 
 (* bs as a stream of integers instead of a pre-computed list. *)
 Definition compute_summation_clip_bound_stream : val :=
@@ -114,8 +119,9 @@ Definition compute_summation_clip_bound_stream : val :=
         | SOME "b" =>
             let: "q" := create_query "b" in
             if: above_threshold "num" "den" #0%Z "ds" "q"
-        then "b"
-        else "g" #() in
+            then "b"
+            else "g" #()
+        end in
     "f" #().
 
 (* a candidate stream *)
@@ -233,15 +239,15 @@ Section queries.
     iApply create_query_sensitivity_partial.
   Qed.
 
-  Lemma wp_above_threshold_list (num den T : Z) `{dA : Distance A} a a' qv qs K cond :
+  Lemma wp_above_threshold_list (num den T : Z) (default : nat) `{dA : Distance A} a a' qv qs K cond :
     (0 < IZR num / IZR den)%R →
     is_list qs qv →
     (dA a a' <= 1)%R →
     cond a a' →
-    ([∗ list] q ∈ qs, wp_sensitive_cond (of_val q) 1 dA cond dZ) -∗
+    ([∗ list] b_q ∈ qs, ∃ (b : nat) (q : val), ⌜b_q = (#b, q)%V⌝ ∗ wp_sensitive_cond (of_val q) 1 dA cond dZ) -∗
     ↯m (IZR num / IZR den) -∗
-    ⤇ fill K (above_threshold_list #num #den #T (inject a' : val) qv) -∗
-    WP above_threshold_list #num #den #T (inject a : val) qv {{ v, ⤇ fill K (of_val v) }}.
+    ⤇ fill K (above_threshold_list #num #den #T (inject a' : val) qv #default) -∗
+    WP above_threshold_list #num #den #T (inject a : val) qv #default {{ v, ∃ (bound : nat) (q : val), ⌜v = (#bound, q)%V⌝ ∗ ⤇ fill K (of_val v) }}.
   Proof.
     iIntros (Hε Hqs Hdist Hcond) "Hqs Hε Hs".
     wp_rec; wp_pures. tp_rec. tp_pures.
@@ -251,35 +257,37 @@ Section queries.
     { wp_apply (above_threshold_online_AT_spec with "[Hε] Hs"); [done|].
       rewrite Rmult_1_l //. }
     iIntros (q) "(%f' & %AUTH & Hs & HAUTH & #AT_spec) /=".
+    rewrite /list_find_default.
     tp_pures. wp_pures.
     iInduction qs as [|qi qs] "IH" forall (qv Hqs).
     - rewrite Hqs.
       tp_rec. tp_pures.
-      wp_rec. wp_pures. by iFrame.
+      wp_rec. wp_pures. iFrame. by iExists _,_.
     - destruct Hqs as [qv' [-> Hqs']].
+      iDestruct "Hqs" as "[Hqi Hqs']".
+      iDestruct "Hqi" as "(% & % & -> & Hqi)".
       tp_rec. tp_pures. tp_bind (f' _ _).
       wp_rec. wp_pures. wp_bind (q _ _).
-      iDestruct "Hqs" as "[Hqi Hqs']".
       wp_apply (wp_wand with "[Hqi Hs HAUTH] [Hqs']").
       { iApply ("AT_spec" with "[//] [//] Hqi HAUTH Hs") . }
-      iIntros (v) "(%b & -> & Hs & Hcnt) /=".
-      destruct b; tp_pures; wp_pures; [done|].
+      iIntros (v) "(%bb & -> & Hs & Hcnt) /=".
+      destruct bb; tp_pures; wp_pures; [iExists _,_ ; iFrame ; try done|].
       iApply ("IH" with "[//] Hqs' Hs").
       by iApply "Hcnt".
   Qed.
 
   Lemma list_iter_create_query K (bs : list nat) bsv :
     is_list bs bsv →
-    ⤇ fill K (list_map (λ: "b", create_query "b")%V bsv) -∗
-    WP list_map (λ: "b", create_query "b")%V bsv {{ qv,
+    ⤇ fill K (list_map (λ: "b", ("b", create_query "b"))%V bsv) -∗
+    WP list_map (λ: "b", ("b", create_query "b"))%V bsv {{ qv,
         ∃ qs, ⌜is_list qs qv⌝ ∗
-              ([∗ list] q ∈ qs, wp_sensitive_cond (of_val q) 1 (dlist Z) neighbour dZ) ∗
+              ([∗ list] b_q ∈ qs, ∃ (bound : nat) (q : val), ⌜b_q = (#bound, q)%V⌝ ∗ wp_sensitive_cond (of_val q) 1 (dlist Z) neighbour dZ) ∗
               ⤇ fill K (of_val qv) }}.
   Proof.
     iInduction bs as [|b bs] "IH" forall (bsv K).
     - iIntros (->) "Hs".
       tp_rec; tp_pures. wp_rec; wp_pures.
-      iFrame. iExists []. iModIntro. iSplit; done.
+      iFrame. iExists []. iModIntro. iSplit ; done.
     - iIntros ((bs' & -> & Hbs)) "Hs".
       tp_rec; tp_pures. wp_rec; wp_pures.
       tp_bind (list_map _ _). wp_bind (list_map _ _).
@@ -290,11 +298,11 @@ Section queries.
       tp_bind (create_query _). wp_bind (create_query _).
       wp_apply (wp_wand with "[Hs]").
       { wp_apply (create_query_sensitivity with "Hs"). }
-      iIntros (q) "[Hs Hq] /=".
-      tp_rec; tp_pures.
-      wp_rec; wp_pures.
-      iModIntro. iExists (q :: qs').
-      iFrame. iSplit; [iExists _; eauto|].
+      iIntros (q) "[Hs Hq] /=". rewrite /list_cons.
+      tp_pures.
+      wp_pures.
+      iModIntro. iExists ((#b, q)%V :: qs').
+      iFrame. iSplit; [iExists _; eauto|]. iExists _,_; iSplit ; eauto.
       iIntros (?????) "Hs".
       iApply ("Hq" with "[%] [$Hs //]"); [lra|].
       auto.
@@ -308,7 +316,7 @@ Section queries.
     is_list ds2 dsv2 →
     ↯m (IZR num / IZR den) -∗
     ⤇ fill K (compute_summation_clip_bound bsv #num #den dsv2) -∗
-    WP compute_summation_clip_bound bsv #num #den dsv1 {{ v, ⤇ fill K (of_val v) }}.
+    WP compute_summation_clip_bound bsv #num #den dsv1 {{ v, ∃ bound : nat, ⌜v = #bound⌝ ∗ ⤇ fill K (of_val v) }}.
   Proof.
     iIntros (Hε Hbs Hneigh Hds1 Hds2) "Hε Hs".
     tp_rec; tp_pures. wp_rec; wp_pures.
@@ -318,15 +326,127 @@ Section queries.
     { by wp_apply (list_iter_create_query with "Hs"). }
     iIntros (qs) "(%qv & %Hqs & Hqs & Hs) /=".
     tp_pures. wp_pures.
-    tp_bind (above_threshold_list _ _ _ _ _).
-    wp_bind (above_threshold_list _ _ _ _ _).
+    tp_bind (above_threshold_list _ _ _ _ _ _).
+    wp_bind (above_threshold_list _ _ _ _ _ _).
     wp_apply (wp_wand with "[-]").
-    { apply is_list_inject in Hds1 as ->, Hds2 as ->.
-      wp_apply (wp_above_threshold_list num den 0  with "Hqs Hε Hs"); auto.
+    { apply is_list_inject in Hds1 as ->, Hds2 as ->. replace 0%Z with (Z.of_nat 0%nat) by lia.
+      wp_apply (wp_above_threshold_list num den 0 with "Hqs Hε Hs"); auto.
       rewrite /= neighbour_dist //. }
-    iIntros (?) "Hs /=".
+    iIntros (?) "(%&%&->&Hs) /=".
     tp_pures; wp_pures.
-    done.
+    iFrame. 
+    iExists _; done.
+  Qed.
+
+  Lemma wp_auto_avg (ds1 ds2 : list Z) (bs : list nat) dsv1 dsv2 bsv (num den : Z) K :
+    (0 < IZR num / IZR den)%R →
+    is_list bs bsv →
+    neighbour ds1 ds2 →
+    is_list ds1 dsv1 →
+    is_list ds2 dsv2 →
+    ↯m (IZR num / IZR den) -∗
+    ↯m (IZR num / IZR den) -∗
+    ↯m (IZR num / IZR den) -∗
+    ⤇ fill K (auto_avg bsv #num #den dsv2) -∗
+    WP auto_avg bsv #num #den dsv1 {{ v, ⤇ fill K (of_val v) }}.
+  Proof.
+    iIntros (Hε Hbs Hneigh Hds1 Hds2) "ε1 ε2 ε3 Hs".
+    rewrite /auto_avg. tp_pures ; wp_pures.
+    tp_bind (compute_summation_clip_bound _ _ _ _) ; wp_bind (compute_summation_clip_bound _ _ _ _).
+    iPoseProof (wp_compute_summation_clip_bound with "ε1 Hs") as "H" => //.
+    iApply (wp_wand with "H"). iIntros "* (%bound&->&rhs)" => //=. tp_pures. wp_pures.
+    tp_bind (age_sum_query _ _) ; wp_bind (age_sum_query _ _).
+    apply is_list_inject in Hds1 as ->, Hds2 as ->.
+    iPoseProof (age_sum_query_sensitivity bound with "[] [rhs]") as "H" => //.
+    1: iPureIntro ; real_solver.
+    1: by iFrame.
+    iApply "H".
+    iNext. iIntros "* (%&%&->&rhs&%res_close)".
+    simpl. tp_pures. wp_pures.
+    destruct bound.
+    - assert (b = b') as ->.
+      {
+        revert res_close. simpl. rewrite Rmult_0_l. rewrite -abs_IZR. apply Zabs_ind.
+        - intros. apply le_IZR in res_close. lia.
+        - intros. apply le_IZR in res_close. lia.
+      }
+      tp_bind (Laplace _ _ _). wp_apply (hoare_couple_laplace_exact _ _ 0 with "[$rhs $ε2] [-]") ; try done.
+      iIntros "!> * rhs" => /=. tp_pures ; wp_pures.
+
+      tp_bind (list_length _). wp_bind (list_length _).
+      wp_apply gwp_list_length ; [iPureIntro ; by rewrite is_list_inject|]. iIntros.
+      iMod (gwp_list_length (g:=gwp_spec) (A:=Z) _ _ _ (λ v : val, ⌜v = #(length ds2)⌝)%I with "[] [] rhs") as "(%&rhs&%)".
+      1: iPureIntro ; by rewrite is_list_inject.
+      1: simpl ; iIntros ; simplify_eq ; done.
+      simplify_eq.
+      tp_bind (Laplace _ _ _).
+      wp_pures.
+      wp_apply (hoare_couple_laplace _ _ 0 with "[$rhs ε3] [-]") ; try done.
+      {
+        rewrite Z.add_0_l.
+        assert ((Z.abs (length ds1 - length ds2)) <= 1).
+        {
+          destruct Hneigh; simplify_eq.
+          - apply Z.eq_le_incl.
+            rewrite !app_length. simpl. apply Zabs_ind ; intros ; lia.
+          - apply Z.eq_le_incl.
+            rewrite !app_length. simpl. apply Zabs_ind ; intros ; lia.
+        }
+        iApply ecm_weaken. 2: iFrame. split.
+        - apply Rmult_le_pos. 2: lra. apply IZR_le. lia.
+        - etrans. 2: right ; apply Rmult_1_l.
+          eapply Rmult_le_compat_r. 1: lra. by apply IZR_le.
+      }
+      iIntros "!> * rhs". simpl ; tp_pures ; wp_pures. rewrite Z.add_0_r /=.
+      done.
+
+    -
+      tp_bind (Laplace _ _ _). wp_apply (hoare_couple_laplace _ _ 0 with "[$rhs ε2] [-]") ; try done.
+      { rewrite mult_IZR. eapply Rdiv_pos_pos ; auto. real_solver. }
+      {
+        rewrite Z.add_0_l.
+        rewrite /dZ/dlist/distance in res_close.
+        rewrite neighbour_dist in res_close ; auto.
+        rewrite Rmult_1_r in res_close.
+        rewrite -abs_IZR in res_close.
+        iApply ecm_weaken. 2: iFrame. split.
+        - apply Rmult_le_pos. 2: rewrite mult_IZR ; eapply Rdiv_nneg_nneg ; try left ; try real_solver.
+          apply IZR_le. lia.
+        -
+          etrans.
+          1: eapply Rmult_le_compat_r. 2: apply res_close.
+          1: rewrite mult_IZR ; eapply Rdiv_nneg_nneg ; try left ; try real_solver.
+          right. rewrite mult_IZR. rewrite INR_IZR_INZ.
+          pose proof (Rdiv_pos_cases _ _ Hε).
+          field. split ; real_solver.
+      }
+      iIntros "!> * rhs" => /=. tp_pures. wp_pures.
+      tp_bind (list_length _). wp_bind (list_length _).
+      wp_apply gwp_list_length ; [iPureIntro ; by rewrite is_list_inject|]. iIntros.
+      iMod (gwp_list_length (g:=gwp_spec) (A:=Z) _ _ _ (λ v : val, ⌜v = #(length ds2)⌝)%I with "[] [] rhs") as "(%&rhs&%)".
+      1: iPureIntro ; by rewrite is_list_inject.
+      1: simpl ; iIntros ; simplify_eq ; done.
+      rewrite Z.add_0_r /=. simplify_eq.
+      tp_bind (Laplace _ _ _).
+      wp_pures.
+      wp_apply (hoare_couple_laplace _ _ 0 with "[$rhs ε3] [-]") ; try done.
+      {
+        rewrite Z.add_0_l.
+        assert ((Z.abs (length ds1 - length ds2)) <= 1).
+        {
+          destruct Hneigh; simplify_eq.
+          - apply Z.eq_le_incl.
+            rewrite !app_length. simpl. apply Zabs_ind ; intros ; lia.
+          - apply Z.eq_le_incl.
+            rewrite !app_length. simpl. apply Zabs_ind ; intros ; lia.
+        }
+        iApply ecm_weaken. 2: iFrame. split.
+        - apply Rmult_le_pos. 2: lra. apply IZR_le. lia.
+        - etrans. 2: right ; apply Rmult_1_l.
+          eapply Rmult_le_compat_r. 1: lra. by apply IZR_le.
+      }
+      iIntros "!> * rhs". simpl ; tp_pures ; wp_pures. rewrite Z.add_0_r /=.
+      done.
   Qed.
 
 End queries.
