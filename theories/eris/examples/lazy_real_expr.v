@@ -122,8 +122,12 @@ Definition R_ofRand : val :=
 
 Context `{!erisGS Σ}.
 
+(* TODO: How to specify that a value behaves like a given pure function in Eris?  *)
 Definition BehavesAsSequence (v : val) (f : nat → Z) E (I : iProp Σ) : iProp Σ :=
-  (∀ (prec : nat), I -∗ WP (v #prec) @ E {{ fun zv => ⌜zv = #(f prec)⌝ ∗ I }})%I.
+  □ (∀ (prec : nat), I -∗ WP (v #prec) @ E {{ fun zv => ⌜zv = #(f prec)⌝ ∗ I }})%I.
+
+
+
 
 (* Can I prove this using chunk_and_tape_seq for lazy_real? *)
 (* It is the case for I = True and the constatnt real... *)
@@ -136,14 +140,12 @@ Definition BehavesAsSequence (v : val) (f : nat → Z) E (I : iProp Σ) : iProp 
 
     PPS to BS doesn't really make sense outside of the interval [0, 1].
 
-
     This might be easier to specify using the CReal-like interval spec (which works
     on PPS on any range natively) and then prove that the BitStream representation plus a
     lazy_real predicate satisfies that.  *)
 Definition BS_to_PPS (bs : nat → (fin 2)) : nat → Z. Admitted.
 Definition PPS_to_BS (ps : nat → Z) : nat → (fin 2). Admitted.
 
-(* TODO: the seq_to_bin_R thing only works *)
 Definition BehavesAsLazyReal (v : val) (r : R) E (I : iProp Σ) : iProp Σ :=
   ∃ (z : R) (f : nat → (fin 2)),
-    ⌜ r = seq_bin_to_R f ⌝ ∗ □ (BehavesAsSequence v (BS_to_PPS f) E I).
+    ⌜ r = seq_bin_to_R f ⌝ ∗ (BehavesAsSequence v (BS_to_PPS f) E I).
