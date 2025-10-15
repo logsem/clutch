@@ -1347,7 +1347,7 @@ Definition decomp_frame (e : expr) : option (frame * expr) :=
       end
   | Do (EffLabel l) e             => noval e (DoCtx l)
   | Handle (EffLabel l) e0 e1 e2 => match to_eff e0 with (* Consider this construction - only decomp if l' from to_eff is not equal to l from the handler *)
-                                    | Some _ => None
+                                    | Some (l', v, k) => if decide (l' = l ∧ l' ∉ ectx_labels k) then None else noval e0 (HandleCtx l e1 e2)
                                     | None => noval e0 (HandleCtx l e1 e2)
                                     end
   | _ => None
@@ -1424,7 +1424,12 @@ Program Fixpoint decomp (e : expr) {wf expr_ord e} : ectx * expr :=
 Solve Obligations with eauto using decomp_expr_ord, expr_ord_wf.
 
 Definition fill_lift (K : ectx) : (expr * state) → (expr * state) :=
-    λ '(e, σ), (fill K e, σ).
+  λ '(e, σ), (fill K e, σ).
+
+Lemma fill_lift_inj K : Inj eq eq (fill_lift K).
+Proof.
+  intros (e1, σ) (e2, σ') Heq. inversion Heq.  simplify_eq. done.
+Qed.  
 
 Definition prim_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
     let '(K, e1') := decomp e1 in
@@ -1443,7 +1448,7 @@ Proof.
 Qed.
 
 Lemma decomp_fill_comp K K' e e' :
-  to_eff e = None → 
+  to_eff e = None →
   to_val e = None → decomp e = (K', e') → decomp (fill K e) = (K ++ K', e').
 Proof.
   revert K' e e'.
@@ -1453,7 +1458,7 @@ Proof.
   intro.
   rewrite decomp_unfold.
   rewrite decomp_fill_frame; [|auto using fill_not_eff |auto using fill_not_val ].
-  rewrite (IHK K' _ e') //=. 
+  rewrite (IHK K' _  e') //=. 
 Qed.
 
 Lemma decomp_inv_nil e e' :
@@ -1534,6 +1539,8 @@ Proof.
   rewrite /fill_lift. done.
 Qed.
 
+
+
 Definition get_active (σ : state) : list loc := elements (dom σ.(tapes)).
 
 Lemma state_step_mass σ α :
@@ -1586,10 +1593,33 @@ Proof.
       apply elem_of_dom. eapply elem_of_elements, Hact. by right.
 Qed.
 
+Lemma val_head_stuck e σ ρ : head_step e σ ρ > 0 → to_val e = None.
+Proof.
+  intros. destruct e; eauto. destruct ρ. apply head_step_support_equiv_rel in H. inversion H.
+Qed.
+  
 Lemma val_prim_stuck e σ ρ : prim_step e σ ρ > 0 → to_val e = None.
 Proof.
   intros. destruct e; eauto. unfold prim_step in H; simpl in H.
   rewrite dmap_dzero in H. rewrite dzero_0 in H. real_solver.
+Qed.
+
+Lemma prim_step_iff e1 e2 σ1 σ2 :
+  (prim_step e1 σ1 (e2, σ2) > 0)%R ↔
+  ∃ K e1' e2',
+    decomp e1 = (K, e1') ∧
+    fill K e2' = e2 ∧
+    (head_step e1' σ1 (e2', σ2) > 0)%R.
+Proof.
+  split.
+  - rewrite /= /prim_step. intros Hs.
+    destruct (decomp e1) as [K e1'] eqn:Heq.
+    edestruct (decomp_fill _ _ _ Heq).
+    eapply dmap_pos in Hs as [[] [[=] ?]].
+    simplify_eq. do 3 eexists; eauto.
+  - intros (K & e1' & e2' & Hdecomp1 & Hfill2 & Hs). 
+    rewrite /= /prim_step. rewrite Hdecomp1.
+    apply dmap_pos. exists (e2', σ2). simpl. rewrite Hfill2. eauto.
 Qed.
 
 Lemma state_step_head_step_not_stuck e σ σ' α :
@@ -1643,6 +1673,171 @@ Proof.
     eexists (_, _); eauto.
 Qed.
 
+
+(* Head step prim step relation *)
+
+Class head_reducible (e : expr) (σ : state) :=
+  head_reducible_step : ∃ ρ, (head_step e σ ρ > 0)%R.
+
+(* Uncaught effects *)
+Definition uncaught_eff (e : expr) : option (label * val * ectx) :=
+  match to_eff e with
+  | Some (l, v, k) => if decide (l ∉ ectx_labels k) then Some (l,v,k) else None
+  | None => None
+  end.
+
+Lemma head_reducible_uncaught_eff e σ :
+  head_reducible e σ → uncaught_eff e = None.
+Proof.
+  destruct e; eauto; intros ((e', σ') & Hstep);
+    apply head_step_support_equiv_rel in Hstep; inversion Hstep; eauto.
+  simplify_eq. unfold uncaught_eff. unfold to_eff. simpl. rewrite (to_eff_get_ectx e1 l v k H7).
+  rewrite reverse_cons. rewrite reverse_snoc. simpl.
+  rewrite -reverse_cons. rewrite reverse_involutive. simpl.
+  destruct (decide (l ∉ l :: ectx_labels k)); eauto. exfalso. apply n.
+  apply elem_of_list_here.
+Qed.
+
+Lemma head_step_uncaught_eff e σ ρ :
+  head_step e σ ρ > 0 → uncaught_eff e = None.
+Proof.
+  intros. eapply head_reducible_uncaught_eff.
+  exists ρ. done.
+Qed.
+  
+Lemma prim_step_uncaught_eff e σ e' σ':
+  prim_step e σ (e', σ') > 0 → uncaught_eff e = None.
+Proof.
+  intro. unfold uncaught_eff.
+  destruct (to_eff e) as [ ((l, v) & k) |] eqn:Heq; eauto.
+  destruct (decide (l ∉ ectx_labels k)); eauto.
+  apply prim_step_iff in H as (K & e1' & e2' & Hdecomp & Hfill & Hstep).
+  apply head_step_support_equiv_rel in Hstep. inversion Hstep; eauto; simplify_eq;
+    try (assert (to_eff e = None) as <-; first (apply decomp_fill in Hdecomp as <-; apply fill_not_eff; eauto); done).
+   apply decomp_fill in Hdecomp as <-.
+   assert (fill K (Handle (EffLabel l0) e1 e2 e3) = fill (K ++ [HandleCtx l0 e2 e3]) e1) as Hfill.
+   { rewrite fill_app. simpl. done. }
+   rewrite Hfill in Heq.
+   erewrite (to_eff_fill l0 _ _ _ _ H0) in Heq.
+   inversion Heq. rewrite -H4 in n. do 2rewrite ectx_labels_app in n.
+   apply not_elem_of_app in n as [n _]. apply not_elem_of_app in n as [_ n].
+   simpl in n. apply not_elem_of_cons in n as [n _]. done.
+Qed.    
+  
+Lemma head_reducible_decomp e σ :
+  head_reducible e σ → decomp e = ([], e).
+Proof.
+  intros ((e', σ') & Hstep). apply head_step_support_equiv_rel in Hstep.
+  inversion Hstep; simplify_eq; try done.
+  rewrite decomp_unfold. simpl. rewrite H0.
+  rewrite decide_True; try done.
+Qed.
+
+Lemma head_ctxi_step_val Ki e σ ρ :
+  to_eff e = None -> 
+     head_step (fill_frame Ki e) σ ρ > 0 → is_Some (to_val e).
+Proof.
+  intros Heff Hstep. destruct Ki, ρ; apply head_step_support_equiv_rel in Hstep;
+                                  inversion Hstep; simplify_eq; done.
+Qed.
+
+Lemma head_reducible_decomp_ctx K e σ :
+  to_eff e = None →
+  head_reducible e σ → decomp (fill K e) = (K, e).
+Proof.
+  intros Heff Hred.
+  induction K as [| Ki K IHK]; [simpl; by eapply head_reducible_decomp|].
+  inversion Hred. apply val_head_stuck in H. apply (fill_not_val K) in H.
+  rewrite decomp_unfold. simpl. destruct Ki; try (simpl; inversion Hred; destruct (fill K e); first done; rewrite IHK; done).
+  simpl. rewrite fill_not_eff; [| inversion Hred; by eapply val_head_stuck | done].
+  destruct (fill K e); first done; rewrite IHK; done.
+Qed.
+
+Lemma decomp_fill_frame_uncaught Ki e l v k:
+  to_val e = None →
+  to_eff e = Some (l, v, k) →
+  l ∈ ectx_labels k →
+  decomp_frame (fill_frame Ki e) = Some (Ki, e).
+Proof.
+  destruct Ki ; simpl ; try by repeat destruct_match.
+  intros.
+  rewrite H0. rewrite decide_False; try (destruct_match; done).
+  apply Classical_Prop.or_not_and. right.
+  intro. done.
+Qed.
+
+Lemma decomp_fill_comp_uncaught K K' e e' l v k :
+  to_val e = None →
+  to_eff e = Some (l, v, k) →
+  l ∈ ectx_labels k →
+  decomp e = (K', e') →
+  decomp (fill K e) = (K ++ K', e').
+Proof.
+  revert K' e e'.
+  induction K as [|Ki K].
+  { by intros ??? =>/=.  }
+  intros K' e e' Hval Heff Hlabels. simpl. 
+  intro.
+  rewrite decomp_unfold. 
+  erewrite decomp_fill_frame_uncaught; [|auto using fill_not_val |eauto using to_eff_fill | rewrite ectx_labels_app; apply elem_of_app; eauto].
+  rewrite (IHK K' _  e') //=.
+Qed.
+  
+Lemma fill_dmap_uncaught e1 σ1 K l v k:
+  to_val e1 = None →
+  to_eff e1 = Some (l, v, k) →
+  l ∈ ectx_labels k →
+  prim_step (fill K e1) σ1 = dmap (fill_lift K) (prim_step e1 σ1). 
+Proof.
+  intros Hval Heff Hlabels. rewrite /prim_step.
+  destruct (decomp e1) as [K1 e1'] eqn:Heq.
+  destruct (decomp (fill _ e1)) as [K1' e1''] eqn:Heq'.
+  eapply (decomp_fill_comp_uncaught K) in Heq; [|done|done|done].
+  rewrite Heq in Heq'; simplify_eq.
+  rewrite dmap_comp.
+  apply dmap_eq; [|done].
+  intros [] ? =>/=.
+  f_equal. rewrite -fill_app //.
+Qed.  
+
+Lemma fill_step_prob K e1 σ1 e2 σ2 :
+  to_val e1 = None →
+  uncaught_eff e1 = None →
+  prim_step e1 σ1 (e2, σ2) = prim_step (fill K e1) σ1 (fill K e2, σ2).
+Proof.
+  intros Hv Heff.
+  unfold uncaught_eff in Heff. destruct (to_eff e1) as [ ((l,v), k)|] eqn:Heqq.
+  - destruct (decide (l ∉ ectx_labels k)); try done. erewrite fill_dmap_uncaught; eauto; try set_solver.
+    unshelve by erewrite (dmap_elem_eq _ (e2, σ2) _ (λ '(e0, σ0), (fill K e0, σ0))).
+    apply fill_lift_inj.
+  - rewrite fill_dmap //.
+    unshelve by erewrite (dmap_elem_eq _ (e2, σ2) _ (λ '(e0, σ0), (fill K e0, σ0))).
+    apply fill_lift_inj.
+Qed.
+
+Lemma head_prim_step_pmf_eq e1 σ1 ρ :
+    head_reducible e1 σ1 →
+    prim_step e1 σ1 ρ = head_step e1 σ1 ρ.
+Proof.
+  intros Hred.
+  apply head_reducible_decomp in Hred.
+  rewrite /= /prim_step. rewrite Hred.
+  rewrite fill_lift_empty. rewrite dmap_id.
+  done.
+Qed.
+
+Lemma head_prim_step_eq e1 σ1 :
+  head_reducible e1 σ1 →
+  prim_step e1 σ1 = head_step e1 σ1.
+Proof. intros ?. apply distr_ext=>?. by eapply head_prim_step_pmf_eq. Qed.
+
+Lemma head_step_prim_step e1 σ1 e2 σ2 :
+  (head_step e1 σ1 (e2, σ2) > 0)%R → (prim_step e1 σ1 (e2, σ2) > 0)%R.
+Proof.
+  intros ?. erewrite head_prim_step_eq; [done|]. eexists; eauto.
+Qed.
+
+
 Lemma head_step_mass e σ :
   (∃ ρ, head_step e σ ρ > 0) → SeriesC (head_step e σ) = 1.
 Proof.
@@ -1672,6 +1867,5 @@ Proof.
   split; eauto using to_of_val, of_to_val, val_prim_stuck, state_step_prim_step_not_stuck, state_step_get_active_mass, prim_step_mass.
 Qed.  
 
-Canonical Structure blaze_prob_lang := Language blaze_prob_lang_mixin.  
-
+Canonical Structure blaze_prob_lang := Language blaze_prob_lang_mixin.
 
