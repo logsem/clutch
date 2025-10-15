@@ -9,23 +9,23 @@ Set Default Proof Using "Type*".
 
 Section pmf.
 
-  Local Definition ρ0 (x : R) : R :=
+  Local Definition NegExp_ρ0 (x : R) : R :=
     Iverson (Rle 0%R) x * exp (-x)%R.
 
-  Theorem ρ0_not_supp {x} (H : Rlt x 0%R) : ρ0 x = 0.
-  Proof. rewrite /ρ0 Iverson_False //=; [lra|lra]. Qed.
+  Theorem NegExp_ρ0_not_supp {x} (H : Rlt x 0%R) : NegExp_ρ0 x = 0.
+  Proof. rewrite /NegExp_ρ0 Iverson_False //=; [lra|lra]. Qed.
 
-  Theorem ρ0_supp {x} (H : Rlt 0%R x) : ρ0 x = exp (-x)%R.
-  Proof. rewrite /ρ0 Iverson_True //=; [lra|lra]. Qed.
+  Theorem NegExp_ρ0_supp {x} (H : Rlt 0%R x) : NegExp_ρ0 x = exp (-x)%R.
+  Proof. rewrite /NegExp_ρ0 Iverson_True //=; [lra|lra]. Qed.
 
-  Local Definition ρ (L : nat) (x : R) : R :=
-    Iverson (le 0) L * ρ0 (x - INR L).
+  Local Definition NegExp_ρ (L : nat) (x : R) : R :=
+    Iverson (le 0) L * NegExp_ρ0 (x - INR L).
 
-  Theorem ρ_not_supp {x L} (H : lt L 0) : ρ L x = 0.
-  Proof. rewrite /ρ Iverson_False //=; [lra|lia]. Qed.
+  Theorem NegExp_ρ_not_supp {x L} (H : lt L 0) : NegExp_ρ L x = 0.
+  Proof. rewrite /NegExp_ρ Iverson_False //=; [lra|lia]. Qed.
 
-  Theorem ρ_supp {x L} (H : le 0 L) : ρ L x = ρ0 (x - INR L).
-  Proof. rewrite /ρ Iverson_True //=; lra. Qed.
+  Theorem NegExp_ρ_supp {x L} (H : le 0 L) : NegExp_ρ L x = NegExp_ρ0 (x - INR L).
+  Proof. rewrite /NegExp_ρ Iverson_True //=; lra. Qed.
 
 End pmf.
 
@@ -33,7 +33,7 @@ Section credits.
   Import Hierarchy.
 
   Definition NegExp_CreditV (F : R → R) (L : nat) : R :=
-    RInt_gen (fun x : R => F x * ρ L x) (at_point 0%R) (Rbar_locally Rbar.p_infty).
+    RInt_gen (fun x : R => F x * NegExp_ρ L x) (at_point 0%R) (Rbar_locally Rbar.p_infty).
 
   Lemma NegExp_CreditV_nn {F : R -> R} (Hnn : ∀ r, 0 <= F r) (L : nat) : 0 <= NegExp_CreditV F (L + 1).
   Proof. Admitted.
@@ -137,6 +137,6 @@ Section program.
       rewrite Nat2Z.inj_add.
       iApply "IH".
     }
-  Admitted.
+  Qed.
 
 End program.

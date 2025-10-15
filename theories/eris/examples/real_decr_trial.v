@@ -10,31 +10,31 @@ Set Default Proof Using "Type*".
 Section pmf.
 
   (* The PMF for lazyDecrR starting with N=0 *)
-  Local Definition μ0 (x : R) (n : nat) : R :=
+  Definition RealDecrTrial_μ0 (x : R) (n : nat) : R :=
     ((x ^ n) / fact n) - ((x ^ (n + 1)) / fact (n + 1)).
 
   (* The PMF for the trial starting at 0, over the integers *)
-  Local Definition μZ (x : R) (z : Z) : R :=
-    Iverson (Z.le 0%Z) z * μ0 x (Z.to_nat z).
+  Definition RealDecrTrial_μZ (x : R) (z : Z) : R :=
+    Iverson (Z.le 0%Z) z * RealDecrTrial_μ0 x (Z.to_nat z).
 
   (* The PMF for lazyDecrR starting with N=i *)
-  Local Definition μ (x : R) (i n : nat) : R :=
-    Iverson (uncurry le) (i, n) * μ0 x (n - i).
+  Definition RealDecrTrial_μ (x : R) (i n : nat) : R :=
+    Iverson (uncurry le) (i, n) * RealDecrTrial_μ0 x (n - i).
 
-  Theorem μ_not_supp {x i n} (H : lt n i) : μ x i n = 0.
-  Proof. rewrite /μ Iverson_False //=; [lra|lia]. Qed.
+  Theorem RealDecrTrial_μ_not_supp {x i n} (H : lt n i) : RealDecrTrial_μ x i n = 0.
+  Proof. rewrite /RealDecrTrial_μ Iverson_False //=; [lra|lia]. Qed.
 
-  Theorem μ_supp {x i n} (H : ¬ lt n i) : μ x i n = μ0 x (n - i).
-  Proof. rewrite /μ Iverson_True //=; [lra|lia]. Qed.
+  Theorem RealDecrTrial_μ_supp {x i n} (H : ¬ lt n i) : RealDecrTrial_μ x i n = RealDecrTrial_μ0 x (n - i).
+  Proof. rewrite /RealDecrTrial_μ Iverson_True //=; [lra|lia]. Qed.
 
-  Theorem μ_base {x n} : μ x 0 n = μ0 x n.
-  Proof. rewrite μ_supp; [f_equal; lia| lia]. Qed.
+  Theorem RealDecrTrial_μ_base {x n} : RealDecrTrial_μ x 0 n = RealDecrTrial_μ0 x n.
+  Proof. rewrite RealDecrTrial_μ_supp; [f_equal; lia| lia]. Qed.
 
-  Lemma μ0nn {x n} : 0 <= μ0 x n.
-  Proof. rewrite /μ0. Admitted.
+  Lemma RealDecrTrial_μ0nn {x n} : 0 <= RealDecrTrial_μ0 x n.
+  Proof. rewrite /RealDecrTrial_μ0. Admitted.
 
-  Lemma μnn {x i n} : 0 <= μ x i n.
-  Proof. rewrite /μ. apply Rmult_le_pos; [apply Iverson_nonneg|apply μ0nn]. Qed.
+  Lemma RealDecrTrial_μnn {x i n} : 0 <= RealDecrTrial_μ x i n.
+  Proof. rewrite /RealDecrTrial_μ. apply Rmult_le_pos; [apply Iverson_nonneg|apply RealDecrTrial_μ0nn]. Qed.
 
 End pmf.
 
@@ -43,10 +43,10 @@ Section credits.
 
   (* Expected number of credits to execute lazyDecrR i x *)
   Definition RealDecrTrial_CreditV (F : nat → R) (i : nat) (x : R) : R :=
-    SeriesC (fun n : nat => μ x i n * F n).
+    SeriesC (fun n : nat => RealDecrTrial_μ x i n * F n).
 
   Definition RealDecrTrial_CreditV0 (F : Z → R) (x : R) : R :=
-    SeriesC (fun z : Z => μZ x z * F z).
+    SeriesC (fun z : Z => RealDecrTrial_μZ x z * F z).
 
   (* Credit distribution function *)
   Definition g (F : nat → R) (i : nat) (x : R) : R → R := fun y =>
@@ -54,7 +54,7 @@ Section credits.
     Iverson (uncurry Rge) (y, x) * F i.
 
   Lemma CreditV_nonneg {F i x} (Hnn : ∀ n, 0 <= F n) : 0 <= RealDecrTrial_CreditV F i x.
-  Proof. rewrite /RealDecrTrial_CreditV. apply SeriesC_ge_0'. intro n. apply Rmult_le_pos; [apply μnn |apply Hnn]. Qed.
+  Proof. rewrite /RealDecrTrial_CreditV. apply SeriesC_ge_0'. intro n. apply Rmult_le_pos; [apply RealDecrTrial_μnn |apply Hnn]. Qed.
 
   Lemma g_nonneg {F N rx r} (Hnn : ∀ n, 0 <= F n) : 0 <= g F N rx r.
   Proof.
@@ -126,7 +126,7 @@ Section trial.
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg, Hnn ]. }
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
       rewrite Iverson_True; [by rewrite Rmult_1_l | rewrite /uncurry//=; lra].
-  Admitted.
+  Qed.
 
   (* TODO: Delete all Z-versions
 
