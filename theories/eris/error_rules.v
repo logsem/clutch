@@ -3579,5 +3579,4 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     iIntros "HΨ Herr".
     iApply ("HWP" with "Herr HΨ").
   Qed.
-
 End rules.

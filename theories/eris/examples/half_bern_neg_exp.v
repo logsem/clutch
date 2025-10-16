@@ -20,6 +20,26 @@ End pmf.
 Section credits.
   Import Hierarchy.
 
+
+  Definition BNEHalf_CreditV (F : bool → R) : R :=
+    (F true) * BNEHalf_μ true + (F false) * BNEHalf_μ false.
+
+  Lemma BNEHalf_CreditV_nn {F} (Hnn : ∀ r, 0 <= F r) : 0 <= BNEHalf_CreditV F.
+  Proof. Admitted.
+
+  Local Definition LiftF (F : bool -> R) : nat -> R :=
+    fun n => F (Z.eqb (n `rem` 2)%Z 1%Z).
+
+  Local Definition g (F : bool → R) : R → R := fun r =>
+    Iverson (fun x => Rle x 0.5) r * RealDecrTrial_CreditV (LiftF F) 0 r +
+    Iverson (fun x  => not (Rle x 0.5)) r * F (true).
+
+  Local Lemma g_nn {F r} (Hnn : ∀ r, 0 <= F r) : 0 <= g F r.
+  Proof. Admitted.
+
+  Local Lemma g_expectation {F} : is_RInt (g F) 0 1 (BNEHalf_CreditV F).
+  Proof. Admitted.
+
 End credits.
 
 
@@ -102,8 +122,71 @@ Section program.
     }
   Admitted.
 
+  Definition BNEHalf : expr :=
+    let: "x" := init #() in
+    if: LeHalf "x" then
+      let: "y" := lazyDecrR #Nat.zero "x" in
+      ("y" `rem` #2%Z = #1%Z)
+    else
+      #true.
 
-
-
+  Theorem wp_BNEHalf E {F} (Hnn : ∀ r, 0 <= F r) :
+    ↯(BNEHalf_CreditV F) -∗ WP BNEHalf @ E {{ vb , ∃ b : bool, ⌜vb = #b ⌝ ∗ ↯(F b) }}.
+  Proof.
+    iIntros "Hε".
+    unfold BNEHalf.
+    wp_apply wp_init; first done.
+    iIntros (x) "Hx".
+    iApply (wp_lazy_real_presample_adv_comp _ _ x _ (BNEHalf_CreditV F) (g F)); auto.
+    { by intros ??; apply g_nn, Hnn. }
+    { by apply g_expectation. }
+    iFrame.
+    iIntros (r) "(Hε & Hx)".
+    wp_pures.
+    wp_bind (LeHalf _).
+    iApply (pgl_wp_mono_frame with "[Hx] Hε"); last iApply (wp_LeHalf with "Hx").
+    rewrite /LeHalf_spec//=.
+    iIntros (v) "(Hε & -> & Hr)".
+    case_bool_decide.
+    { wp_pures.
+      rewrite /g//=.
+      iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg]. intro n. apply Hnn. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
+      wp_bind (lazyDecrR _ _).
+      iApply (pgl_wp_mono with "[Hr Hε]"); last first.
+      { iApply (wp_lazyDecrR_gen (LiftF F)); [rewrite /LiftF//=|].
+        iFrame.
+        rewrite Iverson_True; auto.
+        rewrite Rmult_1_l.
+        iFrame.
+      }
+      rewrite /LiftF//=.
+      iIntros (vb) "(%n & -> & Hε & Hx)".
+      wp_pures.
+      iModIntro.
+      iExists _; iFrame.
+      iPureIntro.
+      f_equal.
+      destruct (n `rem` 2 =? 1)%Z as [|] eqn:Hb.
+      { by rewrite (ssrbool.elimT (Z.eqb_spec _ _) Hb) //=. }
+      { have Hb' := (ssrbool.elimF (Z.eqb_spec _ _) Hb).
+        case_bool_decide; auto.
+        inversion H0; intuition.
+      }
+    }
+    { wp_pures.
+      iModIntro.
+      iExists true.
+      iSplitR; first done.
+      rewrite /g.
+      iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg]. intro n. apply Hnn. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
+      rewrite Iverson_True; auto.
+      rewrite Rmult_1_l.
+      iFrame.
+    }
+  Qed.
 
 End program.

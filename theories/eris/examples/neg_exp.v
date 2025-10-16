@@ -70,16 +70,6 @@ Section program.
       else
         "trial" ("L" + #1%Z).
 
-  Lemma pgl_wp_mono_frame I s E e Φ Ψ : (∀ v, I ∗ Φ v ⊢ Ψ v) → (WP e @ s; E {{ Φ }}) ⊢ I -∗ WP e @ s; E {{ Ψ }}.
-  Proof.
-    iIntros (HΦ) "H HI".
-    iApply (pgl_wp_strong_mono with "H"); auto.
-    iIntros (v) "?". iApply HΦ. by iFrame.
-  Qed.
-
-  Lemma ec_ext {r1 r2} (H : r1 = r2) : ↯ r1 ⊢ ↯ r2.
-  Proof. rewrite H //. Qed.
-
   Lemma wp_NegExp_gen (F : R → R) (Hnn : ∀ n, 0 <= F n) E :
     ⊢ ∀ L, ↯ (NegExp_CreditV F L) -∗
            WP NegExp #L @ E

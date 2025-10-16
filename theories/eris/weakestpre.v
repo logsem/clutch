@@ -864,6 +864,12 @@ Proof.
   iIntros (HΦ) "H"; iApply (pgl_wp_strong_mono with "H"); auto.
   iIntros (v) "?". by iApply HΦ.
 Qed.
+Lemma pgl_wp_mono_frame I s E e Φ Ψ : (∀ v, I ∗ Φ v ⊢ Ψ v) → (WP e @ s; E {{ Φ }}) ⊢ I -∗ WP e @ s; E {{ Ψ }}.
+Proof.
+  iIntros (HΦ) "H HI".
+  iApply (pgl_wp_strong_mono with "H"); auto.
+  iIntros (v) "?". iApply HΦ. by iFrame.
+Qed.
 Lemma pgl_wp_mask_mono s E1 E2 e Φ : E1 ⊆ E2 → WP e @ s; E1 {{ Φ }} ⊢ WP e @ s; E2 {{ Φ }}.
 Proof. iIntros (?) "H"; iApply (pgl_wp_strong_mono with "H"); auto. Qed.
 Global Instance pgl_wp_mono' s E e :
