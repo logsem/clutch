@@ -194,7 +194,7 @@ Global Instance probblazeGS_irisGS `{!probblazeGS Σ} : approxisWpGS blaze_prob_
   }.
 
 (** Labels *)
-Local Definition is_label `{probblazeGS Σ} (l : label) (dq : dfrac) : iProp Σ :=
+Definition is_label `{probblazeGS Σ} (l : label) (dq : dfrac) : iProp Σ :=
   @ghost_map_elem _ _ _ _ _ probblazeGS_labels probblazeGS_labels_name l dq ().
 
 (** Heap *)
@@ -722,21 +722,29 @@ Global Instance frame_is_label p ℓ q1 q2 q :
     (is_label ℓ (DfracOwn q)) | 5.
 Proof. apply: frame_fractional. Qed.
 
-Lemma wp_effect E Φ s e :
-  ▷ (∀ ℓ, is_label ℓ (DfracOwn 1) ={E}=∗ WP lbl_subst s ℓ e @ E {{ Φ }}) -∗
-  WP Effect s e @ E {{ Φ }}.
+Lemma wp_effect E Φ k s e :
+  ▷ (∀ ℓ, is_label ℓ (DfracOwn 1) ={E}=∗ WP fill k (lbl_subst s ℓ e) @ E {{ Φ }}) -∗
+  WP fill k (Effect s e) @ E {{ Φ }}.
 Proof.
-  iIntros "HΦ". iApply wp_lift_head_step; first done.
+  iIntros "HΦ". iApply wp_lift_step; eauto using semantics.fill_not_val.
   iIntros (σ1) "[Hh [Ht Hlabs]]". iApply fupd_mask_intro; first set_solver. iIntros "Hclose".
-  iSplit. { iPureIntro. exists ((lbl_subst s (next_label σ1) e), state_upd_next_label label_succ σ1 ). apply head_step_support_equiv_rel. by apply EffectS. }
+  iSplit. { iPureIntro. exists (fill k ((lbl_subst s (next_label σ1) e)), state_upd_next_label label_succ σ1 ). simpl. apply semantics.fill_step.
+            apply head_step_prim_step.
+            apply head_step_support_equiv_rel. by apply EffectS. }
   iIntros "!>" (e2 σ2 Hs).
-  inv_head_step.
+  simplify_map_eq.
   iFrame.
   iMod (ghost_map_insert (next_label σ1) () with "Hlabs") as "[Hlabs Hl]".
   { by apply lookup_to_labels_None. }
   iMod "Hclose".
   iMod ("HΦ" with "[$Hl]") as "HΦ".
-  iModIntro. rewrite to_labels_succ. iFrame.
+  iModIntro. rewrite -to_labels_succ.
+  assert ((e2, σ2) = (fill k ((lbl_subst s (next_label σ1) e)), state_upd_next_label label_succ σ1)) as Heq.
+  { unfold semantics.prim_step in Hs. unshelve setoid_rewrite head_reducible_decomp_ctx in Hs; eauto; last first.
+    - eexists. apply head_step_support_equiv_rel. constructor; eauto.
+    - simpl in Hs. rewrite dmap_dret in Hs. apply dret_pos in Hs. inversion Hs. done. }
+  simplify_eq.
+  iFrame.
 Qed.
 
 (* wp_bind adapted to the context of blaze_prob_lang *)

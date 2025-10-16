@@ -1,5 +1,5 @@
-From clutch.common Require Export language.
-From clutch.prob_eff_lang.probblaze Require Import syntax.
+From clutch.common Require Import language.
+From clutch.prob_eff_lang.probblaze Require Export syntax.
 From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.
@@ -1823,6 +1823,13 @@ Proof.
   - rewrite fill_dmap //.
     unshelve by erewrite (dmap_elem_eq _ (e2, σ2) _ (λ '(e0, σ0), (fill K e0, σ0))).
     apply fill_lift_inj.
+Qed.
+
+Lemma fill_step K e1 σ1 e2 σ2 :
+  prim_step e1 σ1 (e2, σ2) > 0 → prim_step (fill K e1) σ1 (fill K e2, σ2) > 0.
+Proof.
+  intros ?.
+  rewrite -fill_step_prob; eauto using val_prim_stuck, prim_step_uncaught_eff.
 Qed.
 
 Lemma head_prim_step_pmf_eq e1 σ1 ρ :

@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 From iris.proofmode Require Import proofmode.
 From clutch.base_logic Require Export spec_update.
 
-From clutch.common Require Import locations.
+From clutch.common Require Import locations language.
 From clutch.prob_eff_lang.probblaze Require Import syntax semantics.
 
 Definition progUR : ucmra := optionUR (exclR syntax.exprO). (* TODO: fix imports to find exprO from syntax *)
