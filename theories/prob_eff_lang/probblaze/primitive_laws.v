@@ -739,6 +739,83 @@ Proof.
   iModIntro. rewrite to_labels_succ. iFrame.
 Qed.
 
+(* wp_bind adapted to the context of blaze_prob_lang *)
+
+Lemma reducible_fill K e σ :
+  reducible (e, σ) → reducible (fill K e, σ).
+Proof.
+  unfold reducible in *. intros [[] ?]. exists (fill K e0, s). simpl in *. rewrite -(semantics.fill_step_prob K); [done | |].
+  - by eapply val_prim_stuck.
+  - by eapply prim_step_uncaught_eff.
+Qed.
+
+Lemma prog_coupl_ctx_bind K e1 σ1 e1' σ1' Z ε:
+  to_val e1 = None →
+  prog_coupl e1 σ1 e1' σ1' ε (λ e2, Z (fill K e2)) -∗ prog_coupl (fill K e1) σ1 e1' σ1' ε Z.
+Proof.
+  iIntros (Hv) "(%R & %n & %μ1' & %ε1 & %X2 & %r & % & % & % & % & % & Hcnt) /=".
+
+  (** (classical) inverse of context [K] *)
+  destruct (partial_inv_fun (fill K)) as (Kinv & HKinv).
+  assert (∀ e, Kinv (fill K e) = Some e) as HKinv3.
+  { intro e.
+    destruct (Kinv (fill K e)) eqn:Heq;
+      eapply HKinv in Heq; by simplify_eq. }
+  set (X2' := (λ '(e, σ), from_option (λ e', X2 (e', σ)) 0%NNR (Kinv e))).
+  assert (∀ e2 σ2, X2' (fill K e2, σ2) = X2 (e2, σ2)) as HX2'.
+  { intros. rewrite /X2' HKinv3 //. }
+
+  iExists (λ '(e2, σ2) ρ', ∃ e2', e2 = fill K e2' ∧ R (e2', σ2) ρ'), n, μ1', ε1, X2', r.
+  iSplit; [eauto using reducible_fill|].
+  iSplit.
+  { iPureIntro. simpl.
+    erewrite semantics.fill_dmap_uncaught'; [|done|]. 2 : { destruct H as ((?,?) & Hstep). simpl in Hstep. by eapply prim_step_uncaught_eff. }
+                                                    rewrite -(dret_id_right (μ1' ≫= _ )) //.
+    rewrite /dmap.
+    eapply (ARcoupl_dbind' _ nnreal_zero); [..|done]; [done|done|simpl; lra|..].
+    intros [] ?? => /=. apply ARcoupl_dret; [done|]. eauto. }
+  iSplit; [iPureIntro|].
+  { intros [e σ]. simpl. destruct (Kinv e) => //=. }
+  iSplit; [iPureIntro; simpl|].
+  { rewrite fill_dmap_uncaught'; [|done|]. 2 : { destruct H as ((?,?) & Hstep). simpl in Hstep. by eapply prim_step_uncaught_eff. }
+                                         rewrite Expval_dmap //=; last first.
+    - eapply ex_expval_bounded. intros [] => /=. rewrite HKinv3 //=.
+    - etrans; [|done].
+      apply Rle_plus_plus; [done|].
+      right; apply SeriesC_ext.
+      intros [e σ]. rewrite -HX2' //. }
+  iSplit; [done|].
+  iIntros (e2 σ2 e2' σ2' (e3 & -> & HR)).
+  rewrite HX2'.
+  by iApply "Hcnt".
+Qed.
+
+Lemma wp_bind K E e Φ s :
+  WP e @ s; E {{ v, WP fill K (of_val v) @ s ; E {{ v, Φ v }} }} ⊢ WP fill K e @ s ; E {{ v, Φ v }}.
+Proof.
+  iIntros "H". iLöb as "IH" forall (E e Φ s). rewrite !wp_unfold /wp_pre.
+                                   iIntros (σ1 e1' σ1' ε1) "Hs".
+                                   iMod ("H" with "[$]") as "H".
+                                   iApply (spec_coupl_bind with "[] H"); [done|].
+                                   iIntros (σ2 e2' σ2' ε2) "H".
+                                   destruct (to_val e) as [v|] eqn:He.
+                                   { iApply fupd_spec_coupl.
+                                     iMod "H" as "(Hσ & Hs & Hε & H)".
+                                     apply of_to_val in He as <-.
+                                     rewrite wp_unfold /wp_pre.
+                                     by iMod ("H" with "[$]"). } simpl.
+                                   rewrite (semantics.fill_not_val K e) /=; [|done].
+                                   iApply spec_coupl_ret.
+                                   iApply prog_coupl_ctx_bind; [done|].
+                                   iApply (prog_coupl_mono with "[] H").
+                                   iIntros (e3 σ3 e3' σ3' ε3) "H !>".
+                                   iApply (spec_coupl_mono with "[] H"); [done|].
+                                   iIntros (σ4 e4' σ4' ε4) "H".
+                                   iMod "H" as "($ & $ & $ & H)".
+                                   iModIntro.
+                                   by iApply "IH".
+Qed.   
+
 End lifting.
 
 Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.

@@ -1798,8 +1798,18 @@ Proof.
   apply dmap_eq; [|done].
   intros [] ? =>/=.
   f_equal. rewrite -fill_app //.
-Qed.  
+Qed.
 
+Lemma fill_dmap_uncaught' e1 σ1 K :
+  to_val e1 = None →
+  uncaught_eff e1 = None →
+  prim_step (fill K e1) σ1 = dmap (fill_lift K) (prim_step e1 σ1).
+Proof.
+  intros Hval Huc.
+  unfold uncaught_eff in Huc. destruct (to_eff e1) as [ ((l,v), k) |] eqn:Heq; [ destruct (decide (l ∉ ectx_labels k)); try done |by apply fill_dmap].
+  eapply fill_dmap_uncaught; eauto. by apply NNP_P in n.
+Qed.
+  
 Lemma fill_step_prob K e1 σ1 e2 σ2 :
   to_val e1 = None →
   uncaught_eff e1 = None →
