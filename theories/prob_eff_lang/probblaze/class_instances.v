@@ -205,7 +205,8 @@ Section pure_exec.
     - intros. simpl. 
       rewrite /prim_step.
       assert (decomp (Handle l (fill k (do: l v)) h r) = ([], Handle l (fill k (do: l v)) h r)) as ->.
-      { rewrite decomp_unfold. unfold decomp_frame. erewrite to_eff_fill; [done|apply to_eff_eff]. }
+      { rewrite decomp_unfold. unfold decomp_frame. erewrite to_eff_fill; [|apply to_eff_eff]. rewrite app_nil_r.
+        rewrite decide_True; eauto. }
       rewrite fill_lift_empty. rewrite dmap_id. simpl. erewrite to_eff_fill; [|apply to_eff_eff].
       rewrite app_nil_r. rewrite decide_True; [|done]. rewrite decide_True; [|done].
       by apply dret_1_1.

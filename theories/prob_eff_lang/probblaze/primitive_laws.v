@@ -537,7 +537,7 @@ Proof.
       [|done| eexists; apply head_step_support_equiv_rel; unshelve econstructor; eauto using Fin.F1].
     apply dmap_pos. eexists. split; last first.
     - apply head_step_support_equiv_rel. unshelve econstructor; eauto using Fin.F1.
-    - done. Unshelve. done.}
+    - done. Unshelve. done. }
   iIntros (e2' σ2' Hstep). simpl in Hstep.
   rewrite semantics.fill_dmap in Hstep; eauto.
   apply dmap_pos in Hstep as ([? ?]&?&Hs).
@@ -733,7 +733,7 @@ Proof.
   inv_head_step.
   iFrame.
   iMod (ghost_map_insert (next_label σ1) () with "Hlabs") as "[Hlabs Hl]".
-  { by apply lookup_to_labels_None.}
+  { by apply lookup_to_labels_None. }
   iMod "Hclose".
   iMod ("HΦ" with "[$Hl]") as "HΦ".
   iModIntro. rewrite to_labels_succ. iFrame.
