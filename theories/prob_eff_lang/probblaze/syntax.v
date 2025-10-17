@@ -10,9 +10,13 @@ From iris.prelude Require Import options.
 
 (* ========================================================================== *)
 (** * Syntax. *)
+Delimit Scope expr_scope with E.
+Delimit Scope val_scope with V.
+  
 
 Section eff_lang.
 
+  
   Record label := Label { label_car : nat }.
 
   Inductive eff_val : Set :=
@@ -128,9 +132,16 @@ Section eff_lang.
       next_label : label;
       heap : gmap loc val;
       tapes : gmap loc tape;
-  }.
+    }.
+
+  
+
 
 End eff_lang.
+
+Bind Scope expr_scope with expr.
+Bind Scope val_scope with val.
+
 
 (* ========================================================================== *)
 (** * Induction Principle. *)
