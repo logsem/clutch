@@ -5,7 +5,7 @@ From iris.proofmode  Require Export base tactics classes proofmode.
 From iris.base_logic Require Import na_invariants.
 
 From clutch.common Require Import locations.
-From clutch.approxis Require Export app_weakestpre.
+From clutch.approxis Require Export app_weakestpre coupling_rules.
 
 From clutch.prelude Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Export spec_rules class_instances primitive_laws.
@@ -531,7 +531,7 @@ Section baze_rules.
        by iSpecialize ("Hrel" with "Hkwp Hj").
      Qed. *)
 
-  Lemma fupd_rel e1 e2 X R : (|={⊤}=> REL e1 ≤ e2 <|X|> {{R}}) ⊢ REL e1 ≤ e2 <|X|> {{R}}.
+  Lemma fupd_rel e1 e2 E X R : (|={⊤}=> REL e1 ≤ e2 @ E <|X|> {{R}}) ⊢ REL e1 ≤ e2 @ E <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre.
     iIntros "Hrel" (k1 k2 S) "Hkwp".
@@ -1200,6 +1200,143 @@ Lemma rel_inv_restore N P e1 e2 X R :
     by iApply ("Hrel" with "Hkwp Hj").
   Qed.
 
+  (* TODO : move the two lemmas to separate files. They are specialized to ectx_language and prob_lang *)
+  (* ---------------------------------------------------------------------------- *)
+  From clutch.prelude Require Import stdpp_ext fin.
+  From clutch.prob Require Import distribution couplings couplings_app.
+
+
+  (** * rand(N) ~ rand(N) coupling *)
+  Lemma Rcoupl_rand_rand N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' :
+    N = Z.to_nat z →
+    Rcoupl
+      (prim_step (rand #z) σ1)
+      (prim_step (rand #z) σ1')
+      (λ ρ2 ρ2', ∃ (n : fin (S N)),
+          ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ1')).
+  Proof.
+    intros ->.
+    setoid_rewrite head_prim_step_eq;
+      try (eexists; apply head_step_support_equiv_rel; unshelve constructor; eauto using Fin.F1).
+    rewrite /dmap.
+    eapply Rcoupl_dbind; [|by eapply Rcoupl_dunif].
+    intros n ? ->.
+    apply Rcoupl_dret.
+    eauto.
+  Qed. 
+    
+  Lemma wp_couple_rand_rand N f `{Bij nat nat f} z K E :
+    TCEq N (Z.to_nat z) →
+    (forall n:nat, (n < S N)%nat -> (f n < S N)%nat) ->
+    {{{ ⤇ semantics.fill K (rand #z) }}}
+      rand #z @ E
+    {{{ (n : nat), RET #n; ⌜ n ≤ N ⌝ ∗ ⤇ semantics.fill K #(f n) }}}.
+  Proof.
+    iIntros (H0 Hdom Ψ) "Hr HΨ".
+    destruct (restr_bij_fin (S N) f Hdom) as [ff [Hbij Hff]].
+    iApply wp_lift_step_prog_couple; [done|].
+    iIntros (σ1 e1' σ1' ε) "[Hσ [Hs Hε]]".
+    iDestruct (spec_auth_prog_agree with "Hs Hr") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+
+    replace ε with (0 + ε)%NNR; last first.
+    { apply nnreal_ext; simpl; lra. }
+    iApply (prog_coupl_steps _ _ _
+              (λ ρ2 ρ2',
+                ∃ (n : fin _), ρ2 = (syntax.Val #n, σ1) ∧ ρ2' = (semantics.fill K #(f n), σ1')))
+    ; [done| | |..].
+    { admit. }
+    { admit. }
+    { rewrite /= semantics.fill_dmap //.
+      rewrite /= -(dret_id_right (semantics.prim_step _ _)) /=.
+      apply ARcoupl_exact.
+      eapply Rcoupl_dmap.
+      eapply Rcoupl_mono.
+      - apply (Rcoupl_rand_rand _ ff).
+        by rewrite H0.
+      - intros [] [] (b & [=] & [=])=>/=.
+        simplify_eq.
+        rewrite Hff. eauto. }
+    iIntros (e2 σ2 e2' σ2' (b & [= -> ->] & [= -> ->])) "!> !>".
+    iMod (spec_update_prog with "Hs Hr") as "[$ Hr]".
+    iMod "Hclose" as "_".
+    replace (0 + ε)%NNR with ε; last first.
+    { apply nnreal_ext; simpl; lra. }
+    iFrame.
+    iApply wp_value.
+    iApply "HΨ".
+    iFrame.
+    iPureIntro.
+    apply fin_to_nat_le.
+  Admitted.
+  (* ---------------------------------------------------------------------------- *)
+  
+  Lemma rel_couple_rand_rand N f `{Bij nat nat f} z K K' X R :
+    TCEq N (Z.to_nat z) →
+    (forall n:nat, (n < S N)%nat -> (f n < S N)%nat) →
+    (∀ n : nat, REL fill K #(n) ≤ fill K' #(f n) <|X|> {{R}})
+        ⊢ REL fill K (rand #z) ≤ fill K' (rand #z) <|X|> {{R}}.
+  Proof.
+    iIntros (??) "Hrel".
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros "%k1 %k2 %S Hkwp %k2' Hj Hnais".
+    do 3rewrite -fill_app.
+    iApply wp_bind.
+    iApply (wp_couple_rand_rand with "Hj"); [done|].
+    iIntros "!> %n (%Hlt & Hj)".
+    iSpecialize ("Hrel" $! n).
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    do 3rewrite fill_app.
+    by iApply ("Hrel" with "Hkwp Hj Hnais") .
+  Qed.
+
+  Lemma rel_randT_r K E α N z n ns t X R :
+    TCEq N (Z.to_nat z) →
+    α ↪ₛN (N; n :: ns)
+   ⊢ (α ↪ₛN (N; ns)-∗ ⌜ n ≤ N ⌝ -∗ REL t ≤ fill K (of_val #n) @ E <|X|> {{R}})
+    -∗ REL t ≤ (fill K (rand(#lbl:α) #z)) @ E <|X|> {{R}}.
+  Proof.
+    iIntros (HE) "Hα /=".
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros "Hrel %k1' %k2' %S Hkwp %k2'' Hj Hnais".
+    rewrite -!fill_app.
+    iMod (step_randnat with "[Hj Hα]") as "[Hj [%Hlt Hα]]"; first iFrame.
+    iSpecialize ("Hrel" with "Hα").
+    iSpecialize ("Hrel" $! Hlt).
+    rewrite !fill_app.
+    by iApply ("Hrel" with "Hkwp Hj").
+  Qed.     
+  Definition rel_rand_r := rel_randT_r.
+
+  (* TODO : move this earlier in this file *)
+  Global Instance is_except_0_logrel E e t X R :
+    IsExcept0 (rel E e t X R).
+  Proof.
+    rewrite /IsExcept0. iIntros "HL".
+    iApply fupd_rel. by iMod "HL".
+  Qed.
+
+  Lemma refines_randT_empty_r K E α N z e X R :
+    TCEq N (Z.to_nat z) →
+    ▷ α ↪ₛN (N; []) ∗
+      (∀ n : nat, α ↪ₛN (N; []) -∗ ⌜ n ≤ N ⌝ -∗ REL e ≤ fill K (Val #n) @ E <|X|> {{R}})
+    ⊢ REL e ≤ fill K (rand(#lbl:α) #z) @ E <|X|> {{R}}.
+  Proof.
+    iIntros (->) "[>Hα H]".
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros "%k1' %k2' %S Hkwp %k2'' Hj Hnais".
+    rewrite -!fill_app.
+    iApply wp_rand_empty_r.
+    iFrame "Hα Hj".
+    iIntros (N) "(Hα & Hj) %Hlt".
+    rewrite /= fill_app.
+    iSpecialize ("H" with "Hα").
+    iSpecialize ("H" $! (INR_le _ _ Hlt)).
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    rewrite !fill_app.
+    by iApply ("H" with "Hkwp Hj").
+  Qed.    
+  Definition refines_rand_empty_r := refines_randT_empty_r.
   
 End baze_rules.
 
