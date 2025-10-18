@@ -255,9 +255,23 @@ Section R_approx.
   Definition list_bin_to_R (l : list (fin 2)) : R :=
     seq_bin_to_R (list_bin_to_seq_bin l).
 
+  Lemma list_bin_to_R_emp : list_bin_to_R [] = 0.
+  Proof.
+    rewrite /list_bin_to_R /list_bin_to_seq_bin //= /seq_bin_to_R.
+    rewrite SeriesC_scal_l //=. real_solver.
+  Qed.
+
   Definition discrete_approx k f :=
     SeriesC (λ ns : list_fixed_len (fin 2) k,
           (1 / 2 ^ k) * f (list_bin_to_R (proj1_sig ns))).
+
+  Fixpoint list_bin_to_nat' (l : list (fin 2)) : nat :=
+    match l with
+    | [] => 0
+    | a :: l' => a + 2%nat * list_bin_to_nat' l'
+    end.
+  
+  Definition list_bin_to_nat (l : list (fin 2)) : nat := list_bin_to_nat' $ rev l.
 
   Lemma Rle_0_discrete_approx k f :
     (∀ r, 0 <= r <= 1 → 0 <= f r) →
@@ -272,11 +286,109 @@ Section R_approx.
     apply pow_lt. nra.
   Qed.
 
-  (* I would not be shocked if this has an off by one error. *)
+  Import SF_seq.
+
+  Lemma foldr_rplus r l : 
+    seq.foldr Rplus r l = r + seq.foldr Rplus 0 l.
+  Proof.
+    induction l => //=; real_solver.
+  Qed.
+
+  Lemma discrete_approx_fold k (f : R -> R) : 
+    discrete_approx k f = seq.foldr Rplus 0 ((seq.map (λ i : nat, f (i / (2 ^ k)) / 2 ^ k) $ seq.iota 0 (2 ^ k))).
+  Proof.
+    rewrite /discrete_approx SeriesC_finite_foldr -seq.foldl_foldr.
+    2: by move => ???; rewrite Rplus_assoc. 
+    2: by move => ??; rewrite Rplus_comm.
+    rewrite -(rev_rev (seq.map (λ i : nat, f (i / 2 ^ k) / 2 ^ k) (seq.iota 0 (2 ^ k)))).
+    rewrite seq.foldl_rev.
+    replace (λ x z : R, z + x) with (λ x, Rplus x); last by apply functional_extensionality => ?; apply functional_extensionality => ?; real_solver.
+    rewrite /compose -seq.map_rev.
+    rewrite -(foldr_fmap (λ a, Rplus (1 / 2 ^ k * f(a))) 0 (enum (list_fixed_len (fin 2) k)) (λ v, list_bin_to_R (`v))).
+    rewrite seq.foldr_map -(seq.foldr_map (λ x : nat, x / 2 ^ k) (λ a : R, Rplus (f a / 2 ^ k)) 0 _).
+    f_equal; first by apply functional_extensionality => a; f_equal; real_solver. 
+    replace (λ v : list_fixed_len (fin 2) k, list_bin_to_R (`v)) with ((λ x : nat, x / 2^k) ∘ (λ v : list_fixed_len (fin 2) k, list_bin_to_nat (`v))).
+    2 : {
+      apply functional_extensionality => a //=.
+      rewrite /list_bin_to_nat.
+      revert a. induction k; intros.
+      { destruct a; destruct x => //=; try real_solver.
+        rewrite list_bin_to_R_emp. real_solver. }
+      rewrite /list_bin_to_R /seq_bin_to_R /list_bin_to_seq_bin //=.
+      destruct a as [l H] => //=.
+      destruct (rev l) eqn : Hrl; first by rewrite -rev_length Hrl in H; real_solver.
+      simpl. admit.
+      
+    }
+    rewrite list_fmap_compose. f_equal.
+    induction k => //=.
+    (* f_equal; first by apply functional_extensionality => a; f_equal; real_solver. 
+    clear.
+    replace (λ v : list_fixed_len (fin 2) k, list_bin_to_R (`v)) with ((λ x : nat, x / 2^k) ∘ (λ v : list_fixed_len (fin 2) k, list_bin_to_nat (`v))).
+    2 : {
+      apply functional_extensionality => a //=.
+      admit.
+    }
+    rewrite list_fmap_compose. f_equal.
+    induction k => //=.
+    rewrite fmap_app.
+    rewrite seq.iotaD. rewrite -IHk //=.
+    f_equal. *)
+  Admitted.
+
+  Lemma pairmap_intv_pairs (f : nat -> R) n a:
+    seq.pairmap (λ x y : nat, (f y, f x)) a%nat (seq.iota (S a) n) = seq.map (λ x, (f x, f (Nat.pred x)))(seq.iota (S a) n).
+  Proof.
+    revert a.
+    induction n; intros; auto. 
+    simpl. by rewrite IHn.
+  Qed.
+
+  Lemma pairmap_intv_dist_map (f : R -> nat -> R) n a: seq.pairmap (λ x y : nat, f (y - x) (Nat.pred y)) a%nat (seq.iota (S a) n) = seq.map (λ x, f 1 x) (seq.iota a n).
+  Proof.
+    revert a. induction n; intros; auto.
+    simpl. rewrite IHn. do 2 f_equal. 
+    destruct a; real_solver.
+  Qed.
+  
   Lemma discrete_approx_equiv k (f : R → R) :
     discrete_approx k f =
     SF_seq.Riemann_sum f (SF_seq.SF_seq_f2 (λ x y, x) (SF_seq.unif_part 0 1 (2 ^ k - 1))).
-  Admitted.
+  Proof.
+    rewrite discrete_approx_fold.
+    rewrite /unif_part /Riemann_sum.  
+    f_equal. 
+    Locate pow_ge_1.
+    assert ((seq.mkseq (λ i : nat, 0 + i * (1 - 0) / ((2 ^ k - 1)%nat + 1)) (S (S (2 ^ k - 1)))) = seq.map (λ i : nat, i / 2 ^ k) (seq.iota 0 (S (2 ^ k)))). {
+      assert (1 ≤ 2 ^ k); first by apply fin.pow_ge_1; real_solver.
+      rewrite /seq.mkseq.
+      f_equal; last rewrite Nat.sub_1_r (Nat.lt_succ_pred 0) //=. 
+      apply functional_extensionality => x //=. 
+      field_simplify; try real_solver.
+      f_equal. 
+      rewrite minus_INR; auto.
+      rewrite pow_INR //=. by field_simplify.
+    } 
+    rewrite !H.
+    rewrite /SF_seq_f2 //=.
+    specialize (Rcomplements.pairmap_map (λ x y : R, (y, x)) (λ i : nat, i / 2 ^ k) (seq.iota 1 (2 ^ k)) 0%nat) as Hr.
+    simpl in Hr. rewrite Hr.
+    clear H Hr.
+    rewrite (pairmap_intv_pairs (λ x : nat, x / 2 ^ k) (2 ^ k)). 
+    assert (0 = zero) as <-; auto.
+    specialize (Rcomplements.pairmap_map (λ x y : R * R, scal (y.1 - x.1) (f y.2)) (λ x : nat, (x / 2 ^ k, Nat.pred x / 2 ^ k)) (seq.iota 1 (2 ^ k)) 0%nat) as Hr.
+    simpl in Hr.
+    assert (0 / 2 ^ k = 0); try real_solver.
+    rewrite H in Hr. rewrite H.
+    rewrite Hr /scal //= /mult //=.
+    specialize (pairmap_intv_dist_map (λ a b, a * f (b / 2 ^ k) / 2 ^ k) (2 ^ k) 0) as Hl.
+    simpl in Hl. 
+    replace (λ i : nat, f (i / 2 ^ k) / 2 ^ k) with (λ i : nat, 1 * f (i / 2 ^ k) / 2 ^ k); last by apply functional_extensionality; real_solver.
+    rewrite -Hl.
+    f_equal.
+    apply functional_extensionality => x. apply functional_extensionality => y.
+    field_simplify; real_solver.
+  Qed.
 
   Lemma RInt_discrete_approx (f : R → R) ε :
     0 < ε →
