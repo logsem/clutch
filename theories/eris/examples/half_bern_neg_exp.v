@@ -122,7 +122,8 @@ Section program.
     }
   Admitted.
 
-  Definition BNEHalf : expr :=
+  Definition BNEHalf : val :=
+    λ: "_",
     let: "x" := init #() in
     if: LeHalf "x" then
       let: "y" := lazyDecrR #Nat.zero "x" in
@@ -131,10 +132,11 @@ Section program.
       #true.
 
   Theorem wp_BNEHalf E {F} (Hnn : ∀ r, 0 <= F r) :
-    ↯(BNEHalf_CreditV F) -∗ WP BNEHalf @ E {{ vb , ∃ b : bool, ⌜vb = #b ⌝ ∗ ↯(F b) }}.
+    ↯(BNEHalf_CreditV F) -∗ WP BNEHalf #() @ E {{ vb , ∃ b : bool, ⌜vb = #b ⌝ ∗ ↯(F b) }}.
   Proof.
     iIntros "Hε".
     unfold BNEHalf.
+    wp_pure.
     wp_apply wp_init; first done.
     iIntros (x) "Hx".
     iApply (wp_lazy_real_presample_adv_comp _ _ x _ (BNEHalf_CreditV F) (g F)); auto.
