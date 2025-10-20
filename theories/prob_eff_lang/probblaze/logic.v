@@ -8,7 +8,7 @@ From clutch.common Require Import locations.
 From clutch.approxis Require Export app_weakestpre coupling_rules.
 
 From clutch.prelude Require Import stdpp_ext.
-From clutch.prob_eff_lang.probblaze Require Export spec_rules class_instances primitive_laws.
+From clutch.prob_eff_lang.probblaze Require Export spec_rules class_instances primitive_laws metatheory erasure. (* TODO: remove erasure, only used for aux lemmas *)
 From clutch.prob_eff_lang.probblaze Require Import  notation syntax notation semantics.
 
 Import uPred.
@@ -317,11 +317,17 @@ Section rel.
  
 
   Definition obs_refines_def :
-    coPset -d> expr -d> expr -d> (val -d> val -d> iProp Σ) -d> iProp Σ := (λ E e1 e2 R, ∀ k,
-                                                                              ⤇ fill k e2 -∗
-                                                                              na_ownP E -∗
-                                                                              (* |={E, ⊤}=>  *)
-                                                   WP e1 {{ v1, ∃ (v2 : val), ⤇ fill k (of_val v2) ∗ R v1 v2 ∗ na_ownP ⊤ }})%I.
+    coPset -d> expr -d> expr -d> (val -d> val -d> iProp Σ) -d> iProp Σ := 
+    (λ E e1 e2 R, ∀ k ε,
+        ⤇ fill k e2 -∗
+        na_ownP E -∗
+        ↯ ε -∗
+        ⌜ (0 < ε)%R ⌝ -∗
+        WP e1 {{ v1, ∃ (v2 : val) ε, ⤇ fill k (of_val v2) ∗ 
+                                   R v1 v2 ∗ 
+                                   na_ownP ⊤ ∗ 
+                                   ↯ ε ∗ 
+                                   ⌜ (0 < ε)%R ⌝ }})%I.
   Definition obs_refines_aux : seal obs_refines_def. Proof. by eexists. Qed.
   Definition obs_refines := unseal obs_refines_aux.
   Definition obs_refines_eq : obs_refines = obs_refines_def :=
@@ -466,7 +472,7 @@ Section baze_rules.
   Lemma obs_refines_value (v1 v2 : val) R : R v1 v2 -∗ obs_refines ⊤ v1 v2 R.
   Proof.
     rewrite obs_refines_eq /obs_refines_def.
-    iIntros "HR" (k) "Hj Hna".
+    iIntros "HR" (k ε) "Hj Hna Herr %Hpos".
     iApply wp_value.
     iExists v2. by iFrame.
   Qed.
@@ -498,7 +504,7 @@ Section baze_rules.
     (|={⊤}=> obs_refines E e1 e2 R) ⊢ obs_refines E e1 e2 R.
   Proof.
     rewrite obs_refines_eq /obs_refines_def.
-    iIntros "H". iIntros (K) "HK /=".
+    iIntros "H". iIntros (K ε) "HK /=".
     iMod "H" as "H". iApply ("H" with "HK").
   Qed.
 
@@ -540,6 +546,14 @@ Section baze_rules.
     by iApply "Hrel".
   Qed.
     
+  (* This is useful for stripping off laters of timeless propositions. *)
+  Global Instance is_except_0_logrel E e t X R :
+    IsExcept0 (rel E e t X R).
+  Proof.
+    rewrite /IsExcept0. iIntros "HL".
+    iApply fupd_rel. by iMod "HL".
+  Qed.
+
   Lemma rel_introduction e1 e2 Q X R :
     X e1 e2 Q -∗
     □ ▷ (∀ s1 s2, Q s1 s2 -∗ REL s1 ≤ s2 <|X|> {{R}}) -∗
@@ -584,7 +598,7 @@ Section baze_rules.
     rewrite obs_refines_eq /obs_refines_def.
     iIntros "Hlog".
     iIntros (k1 k2 S) "Hkwp".
-    iIntros (k) "Hj Hnais /=".
+    iIntros (k ε) "Hj Hnais Herr %Hpos /=".
     rewrite -!fill_app.
     iApply wp_bind. iApply wp_atomic; auto.
     iMod ("Hlog" with "Hj") as "He". iModIntro.
@@ -594,7 +608,8 @@ Section baze_rules.
     rewrite !rel_unfold /rel_pre.
     rewrite obs_refines_eq /obs_refines_def.
     rewrite !fill_app. 
-    by iSpecialize ("Hlog" with "Hkwp Hr Hnais").
+    iSpecialize ("Hlog" with "Hkwp Hr Hnais Herr").
+    by iApply "Hlog".
   Qed.
 
   (* Lemma rel_atomic_l (E : coPset) K e1 e2 X R
@@ -631,10 +646,10 @@ Section baze_rules.
     rewrite !rel_unfold /rel_pre.
     rewrite obs_refines_eq /obs_refines_def.
     iIntros (k1 k2 S) "Hkwp".
-    iIntros (k) "Hj Hnais /=".
+    iIntros (k ε) "Hj Hnais Herr %Hpos /=".
     iDestruct ("Hclose" with "[$HP $Hnais]") as "own_F".
     iMod "own_F".
-    iApply ("Hrel" with "Hkwp Hj own_F").  
+    by iApply ("Hrel" with "Hkwp Hj own_F Herr").  
   Qed.
     
   (*
@@ -881,10 +896,10 @@ Lemma rel_inv_restore N P e1 e2 X R :
     ▷^n (obs_refines ⊤ e1' e2 S) -∗ obs_refines ⊤ e1 e2 S.
   Proof.
     rewrite obs_refines_eq /obs_refines_def.
-    iIntros (Hφ Hexec) "He1' %k2 Hj Hna".
+    iIntros (Hφ Hexec) "He1' %k2 %ε Hj Hna Herr %Hpos".
     iApply wp_pure_step_later; [done|].
     iIntros "!>".
-    by iApply ("He1'" with "Hj Hna").
+    by iApply ("He1'" with "Hj Hna Herr").
   Qed.
  
   Lemma obs_refines_pure_step_r_with_mask E e1 e2 e2' φ n S :
@@ -893,9 +908,9 @@ Lemma rel_inv_restore N P e1 e2 X R :
     obs_refines E e1 e2' S -∗ obs_refines E e1 e2 S.
   Proof.
     rewrite obs_refines_eq /obs_refines_def.
-    iIntros (Hφ Hexec) "He1' %k2 Hj". 
+    iIntros (Hφ Hexec) "He1' %k2 %ε Hj Hnais Herr %Hpos". 
     iMod (step_pure with "Hj") as "Hj"; first done.
-    by iApply "He1'". 
+    by iApply ("He1'" with "Hj Hnais Herr"). 
   Qed.
 
   Lemma obs_refines_pure_step_r e1 e2 e2' φ n S :
@@ -983,14 +998,14 @@ Lemma rel_inv_restore N P e1 e2 X R :
     REL fill k1 (Effect s1 e1) ≤ e2 <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-    iIntros "Hrel" (k1' k2' S) "Hkwp %k2 Hj Hnais".
+    iIntros "Hrel" (k1' k2' S) "Hkwp %k2 %ε Hj Hnais Herr %Hpos".
     rewrite -(fill_app k1'). 
     iApply wp_effect. 
     iIntros "!> %l1 Hl1".
     iMod ("Hrel" with "Hl1") as "Hrel".
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
     rewrite fill_app.
-    by iApply ("Hrel" with "Hkwp Hj").
+    by iApply ("Hrel" with "Hkwp Hj Hnais Herr").
   Qed.
 
   Lemma rel_effect_r X R e1 k2 s2 e2 :
@@ -998,13 +1013,13 @@ Lemma rel_inv_restore N P e1 e2 X R :
     REL e1 ≤ fill k2 (Effect s2 e2) <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-    iIntros "Hrel %k1' %k2' %S Hkwp %k2'' Hj Hnais".
+    iIntros "Hrel %k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
     rewrite -!fill_app. 
     iMod (step_alloc_label with "Hj") as (l) "[Hj Hl]".
     rewrite !fill_app.
     iMod ("Hrel" with "Hl") as "Hrel".
     rewrite rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-    by iApply ("Hrel" with "Hkwp Hj").
+    by iApply ("Hrel" with "Hkwp Hj Hnais Herr").
   Qed.
 
   (* Lemma rel_allocN_l X R k1 (n1 : Z) v1 e2 :
@@ -1032,7 +1047,7 @@ Lemma rel_inv_restore N P e1 e2 X R :
     REL fill k1 (ref v1) ≤ e2 <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-    iIntros "Hrel %k1' %k2' %S Hkwp %k2'' Hj Hnais".
+    iIntros "Hrel %k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
     iEval (rewrite -fill_app).
     iApply wp_bind.
     iApply wp_alloc; first done.
@@ -1040,7 +1055,7 @@ Lemma rel_inv_restore N P e1 e2 X R :
     iSpecialize ("Hrel" with "Hpoints_to").
     rewrite rel_unfold /rel_pre obs_refines_eq /obs_refines_eq fill_app.
     iApply fupd_wp.
-    by iApply ("Hrel" with "Hkwp Hj").
+    by iApply ("Hrel" with "Hkwp Hj Hnais Herr").
   Qed.
 
   Lemma rel_alloc_r X R e1 k2 v2 :
@@ -1048,12 +1063,12 @@ Lemma rel_inv_restore N P e1 e2 X R :
     REL e1 ≤ fill k2 (ref v2) <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-    iIntros "Hrel %k1' %k2' %S Hkwp %k2'' Hj Hnais".
+    iIntros "Hrel %k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
     rewrite -!fill_app.
     iMod (step_alloc with "Hj") as (l2) "[Hj Hl2]".
     iSpecialize ("Hrel" with "Hl2").
     rewrite rel_unfold /rel_pre obs_refines_eq /obs_refines_eq !fill_app.
-    by iApply ("Hrel" with "Hkwp Hj").
+    by iApply ("Hrel" with "Hkwp Hj Hnais Herr").
   Qed.
 
   Lemma rel_load_l X R k1 l1 dq1 v1 e2 :
@@ -1062,12 +1077,12 @@ Lemma rel_inv_restore N P e1 e2 X R :
     REL fill k1 (! #l1) ≤ e2 <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-    iIntros "Hl1 Hrel %k1' %k2' %S Hkwp %k2'' Hj Hnais".
+    iIntros "Hl1 Hrel %k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
     iEval (rewrite -fill_app).
     iApply wp_bind.
     iApply (wp_load with "Hl1").
     iIntros "!> Hl1". rewrite fill_app.
-    by iApply ("Hrel" with "Hl1 Hkwp Hj").
+    by iApply ("Hrel" with "Hl1 Hkwp Hj Hnais Herr").
   Qed.
 
   Lemma rel_load_l_mask K E l q e2 X R :
@@ -1105,11 +1120,11 @@ Lemma rel_inv_restore N P e1 e2 X R :
     REL e1 ≤ fill k2 (! #l2) @ E <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-    iIntros "Hl2 Hrel %k1' %k2' %S Hkwp %k2'' Hj Hnais".
+    iIntros "Hl2 Hrel %k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
     rewrite -!fill_app. 
     iMod (step_load with "[Hj Hl2]") as "[Hj Hl2]"; first iFrame.
     rewrite !fill_app.
-    iApply ("Hrel" with "Hl2 Hkwp Hj Hnais").
+    by iApply ("Hrel" with "Hl2 Hkwp Hj Hnais Herr").
   Qed.
 
   Lemma rel_load_r X R e1 k2 l2 dq2 v2 :
@@ -1118,12 +1133,12 @@ Lemma rel_inv_restore N P e1 e2 X R :
     REL e1 ≤ fill k2 (! #l2) <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-    iIntros "Hl2 Hrel %k1' %k2' %S Hkwp %k2'' Hj Hnais".
+    iIntros "Hl2 Hrel %k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
     rewrite -!fill_app.
     iMod (step_load with "[Hj Hl2]") as "[Hj Hl2]"; first iFrame.
     rewrite !fill_app.
     iApply fupd_wp.
-    iApply ("Hrel" with "Hl2 Hkwp Hj Hnais").
+    by iApply ("Hrel" with "Hl2 Hkwp Hj Hnais Herr").
   Qed.
 
   Lemma rel_store_l X R k1 l1 v1 w1 e2 :
@@ -1132,12 +1147,12 @@ Lemma rel_inv_restore N P e1 e2 X R :
     REL fill k1 (#l1 <- w1) ≤ e2 <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-    iIntros "Hl1 Hrel %k1' %k2' %S Hkwp %k2'' Hj Hnais".
+    iIntros "Hl1 Hrel %k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
     iEval (rewrite -fill_app).
     iApply wp_bind.
     iApply (wp_store with "Hl1").
     iIntros "!> Hl1". rewrite fill_app.
-    iApply ("Hrel" with "Hl1 Hkwp Hj Hnais").
+    by iApply ("Hrel" with "Hl1 Hkwp Hj Hnais Herr").
   Qed.
 
   (* Lemma rel_store_r_with_mask E X R e1 k2 l2 v2 w2 :
@@ -1160,11 +1175,11 @@ Lemma rel_inv_restore N P e1 e2 X R :
     REL e1 ≤ fill k2 (#l2 <- w2) <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-    iIntros "Hl2 Hrel %k1' %k2' %S Hkwp %k2'' Hj Hnais".
+    iIntros "Hl2 Hrel %k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
     rewrite -!fill_app. 
     iMod (step_store with "[$Hj $Hl2]") as "[Hj Hl2]".
     rewrite !fill_app.
-    iApply ("Hrel" with "Hl2 Hkwp Hj Hnais").
+    by iApply ("Hrel" with "Hl2 Hkwp Hj Hnais Herr").
   Qed.
 
   (* Rel rules probabilistic fragment *)
@@ -1176,12 +1191,12 @@ Lemma rel_inv_restore N P e1 e2 X R :
   Proof.
     iIntros (HE) "/=".
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-    iIntros "Hrel %k1' %k2' %S Hkwp %k2'' Hj Hnais".
+    iIntros "Hrel %k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
     rewrite -!fill_app.
     iMod (step_alloctape with "Hj") as (α) "[Hj Hα]".
     iSpecialize ("Hrel" $! α with "Hα").
     rewrite rel_unfold /rel_pre obs_refines_eq /obs_refines_eq !fill_app.
-    by iApply ("Hrel" with "Hkwp Hj").
+    by iApply ("Hrel" with "Hkwp Hj Hnais Herr").
   Qed.    
 
   Lemma rel_alloctape_l K E N z t X R :
@@ -1190,14 +1205,14 @@ Lemma rel_inv_restore N P e1 e2 X R :
     ⊢ REL fill K (alloc #z) ≤ t @ E <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-    iIntros (HE) "Hrel %k1' %k2' %S Hkwp %k2'' Hj Hnais".
+    iIntros (HE) "Hrel %k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
     iEval (rewrite -fill_app).
     iApply wp_bind.
     iApply wp_alloc_tape; [done|].
     iIntros "!> %α Hα". rewrite fill_app.
     iSpecialize ("Hrel" with "Hα").
     rewrite rel_unfold /rel_pre obs_refines_eq /obs_refines_eq.
-    by iApply ("Hrel" with "Hkwp Hj").
+    by iApply ("Hrel" with "Hkwp Hj Hnais Herr").
   Qed.
 
   (* TODO : move the two lemmas to separate files. They are specialized to ectx_language and prob_lang *)
@@ -1224,7 +1239,242 @@ Lemma rel_inv_restore N P e1 e2 X R :
     apply Rcoupl_dret.
     eauto.
   Qed. 
+
+  (** helper lemma  *)
+  Lemma ARcoupl_steps_ctx_bind_r `{Countable A} (μ : distr A)
+    e1' σ1' R (ε : nonnegreal) K :
+    uncaught_eff e1' = None →
+    to_val e1' = None →
+    ARcoupl μ (prim_step e1' σ1') R ε →
+    ARcoupl μ (prim_step (fill K e1') σ1')
+      (λ a '(e2', σ2'), ∃ e2'', (e2', σ2') = (fill K e2'', σ2') ∧ R a (e2'', σ2')) ε.
+  Proof.
+    intros Hcpl Hv.
+    rewrite fill_dmap_uncaught' //= -{2}(dret_id_right μ ) /=.
+    eapply (ARcoupl_dbind' ε 0%NNR); [done|done|simpl; lra| ].
+    intros ? [] ?.
+    apply ARcoupl_dret=>/=; [done|]. eauto.
+  Qed.
     
+  (** * a coupling between rand n and rand n avoiding results from a list *)
+  Lemma ARcoupl_rand_rand_avoid_list (N : nat) z σ1 σ1' (ε : nonnegreal) l:
+    NoDup l ->
+    (length l / S N = ε)%R →
+    N = Z.to_nat z →
+    ARcoupl
+      (prim_step (rand #z) σ1)
+      (prim_step (rand #z) σ1')
+      (λ ρ2 ρ2', ∃ (n : fin (S N)),
+          (n∉l)/\
+          ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #n, σ1'))
+      ε.
+  Proof.
+    intros Hl Hε Hz. 
+    setoid_rewrite head_prim_step_eq.
+    2,3: eexists; apply head_step_support_equiv_rel;unshelve constructor; eauto using Fin.F1.
+    simplify_eq.
+    replace ε with (nnreal_plus ε nnreal_zero); last first.
+    { apply nnreal_ext; simpl; lra. }
+    eapply ARcoupl_dbind.
+    1,2: apply cond_nonneg.
+    2 : {
+      rewrite -Hε.
+      by apply ARcoupl_dunif_avoid.
+    }
+    intros n m [Hnm ->].
+    apply ARcoupl_dret; [done|].
+    naive_solver.
+  Qed.
+
+  (** * Approximate rand(N) ~ rand(M) coupling, N <= M, along an injection *)
+  Lemma ARcoupl_rand_rand_inj (N M : nat) f `{Inj (fin (S N)) (fin (S M)) (=) (=) f} z w σ1 σ1' (ε : nonnegreal) :
+    (N <= M)%nat →
+    ((S M - S N) / S M = ε)%R →
+    N = Z.to_nat z →
+    M = Z.to_nat w →
+    ARcoupl
+      (prim_step (rand #z) σ1)
+      (prim_step (rand #w) σ1')
+      (λ ρ2 ρ2', ∃ (n : fin (S N)),
+          ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ1'))
+      ε.
+  Proof.
+    intros NMpos NMε Hz Hw. simpl.
+    setoid_rewrite head_prim_step_eq;
+      try (eexists; apply head_step_support_equiv_rel; unshelve constructor; try apply Hz; try apply Hw; eauto using Fin.F1). 
+    simpl.
+    rewrite /dmap -Hz -Hw.
+    replace ε with (nnreal_plus ε nnreal_zero); last first.
+    { apply nnreal_ext; simpl; lra. }
+    eapply ARcoupl_dbind.
+    1,2: apply cond_nonneg.
+    2 : {
+      rewrite -NMε.
+      eapply ARcoupl_dunif_leq_inj; eauto.
+      apply metatheory.S_INR_le_compat. real_solver.
+    }
+    intros n m Hnm.
+    apply ARcoupl_dret; [done|]. 
+    exists n .
+    by rewrite Hnm //.
+  Qed.
+
+  Lemma Rcoupl_fragmented_rand_rand_inj (N M: nat) (f: fin (S M) -> fin (S N)) (Hinj: Inj (=) (=) f) σ σₛ ms ns α αₛ:
+    (M<=N)%nat →
+    σ.(tapes) !! α = Some (N%nat; ns) →
+    σₛ.(tapes) !! αₛ = Some (M%nat; ms) →
+    Rcoupl
+      (state_step σ α)
+      (dunifP N≫= λ x, if bool_decide (∃ m, f m = x) then state_step σₛ αₛ else dret σₛ)
+      (λ σ1' σ2', ∃ (n : fin (S N)),
+          if bool_decide (∃ m, f m = n)
+          then ∃ (m : fin (S M)),
+              σ1' = state_upd_tapes <[α := (N; ns ++ [n])]> σ ∧
+              σ2' = state_upd_tapes <[αₛ := (M; ms ++ [m])]> σₛ /\
+              f m = n
+          else
+            σ1' = state_upd_tapes <[α := (N; ns ++ [n])]> σ ∧
+            σ2' =  σₛ
+      ).
+  Proof.
+    intros Hineq Hσ Hσₛ. (* rewrite <-(dret_id_right (state_step _ _)). *)
+    replace (0)%NNR with (0+0)%NNR; last first.
+    { apply nnreal_ext. simpl. lra. }
+    erewrite (distr_ext (dunifP _ ≫= _)
+                (MkDistr (dunifP N ≫= (λ x : fin (S N),
+                                         match ClassicalEpsilon.excluded_middle_informative
+                                                 (∃ m, f m = x)
+                                         with
+                                         | left Hproof =>
+                                             dret (state_upd_tapes <[αₛ:=(M; ms ++ [epsilon Hproof])]> σₛ)
+                                         | _ =>
+                                             dret σₛ
+                                         end)) _ _ _) ); last first.
+    { intros σ'. simpl. rewrite /pmf/=.
+      rewrite /dbind_pmf. rewrite /dunifP. setoid_rewrite dunif_pmf.
+      rewrite !SeriesC_scal_l. apply Rmult_eq_compat_l.
+      erewrite (SeriesC_ext _
+                  (λ x : fin (S N), (if bool_decide (∃ m : fin (S M), f m = x) then state_step σₛ αₛ σ' else 0) +
+                                      (if bool_decide (∃ m : fin (S M), f m = x) then 0 else dret σₛ σ')
+               )); last first.
+      { intros. case_bool_decide; lra. }
+      trans (SeriesC
+               (λ x : fin (S N),
+                  match ClassicalEpsilon.excluded_middle_informative
+                          (∃ m, f m = x) with
+                  | left Hproof => dret (state_upd_tapes <[αₛ:=(M; ms ++ [epsilon Hproof])]> σₛ) σ'
+                  | right _ => 0
+                  end +
+                    match ClassicalEpsilon.excluded_middle_informative
+                            (∃ m, f m = x) with
+                    | left Hproof => 0
+                    | right _ => dret σₛ σ'
+                    end
+               )
+            ); last first.
+      { apply SeriesC_ext. intros. case_match; lra. }
+      rewrite !SeriesC_plus; last first.
+      all: try apply ex_seriesC_finite.
+      etrans; first eapply Rplus_eq_compat_l; last apply Rplus_eq_compat_r.
+      { apply SeriesC_ext. intros. case_bool_decide as H; case_match; done. }
+      destruct (ExcludedMiddle (∃ x, σ' = (state_upd_tapes <[αₛ:=(M; ms ++ [x])]> σₛ))) as [H|H].
+      + destruct H as [n ->].
+        trans 1.
+        * rewrite /state_step.
+          rewrite bool_decide_eq_true_2; last first.
+          { rewrite elem_of_dom. rewrite Hσₛ. done. }
+          setoid_rewrite (lookup_total_correct (tapes σₛ) αₛ (M; ms)); last done.
+          rewrite /dmap/dbind/dbind_pmf{1}/pmf/=.
+          rewrite /dunifP. setoid_rewrite dunif_pmf.
+          setoid_rewrite SeriesC_scal_l.
+          rewrite (SeriesC_ext _ (λ x : fin (S N),
+                                    if bool_decide (∃ m : fin (S M), f m = x)
+                                    then
+                                      / S M
+                                    else 0)).
+          -- erewrite (SeriesC_ext _ (λ x : fin (S N), / S M * if bool_decide (x∈f<$> enum (fin (S M))) then 1 else 0)).
+             { rewrite SeriesC_scal_l. rewrite SeriesC_list_1.
+               - rewrite fmap_length. rewrite length_enum_fin. rewrite Rinv_l; first lra.
+                 replace 0 with (INR 0) by done.
+                 move => /INR_eq. lia.
+               - apply NoDup_fmap_2; try done.
+                 apply NoDup_enum.
+             }
+             intros n'.
+             case_bool_decide as H.
+             ++ rewrite bool_decide_eq_true_2; first lra.
+                destruct H as [?<-].
+                apply elem_of_list_fmap_1.
+                apply elem_of_enum.
+             ++ rewrite bool_decide_eq_false_2; first lra.
+                intros H0. apply H.
+                apply elem_of_list_fmap_2 in H0 as [?[->?]].
+                naive_solver.
+          -- intros.
+             erewrite (SeriesC_ext _ (λ x, if (bool_decide (x=n)) then 1 else 0)).
+             ++ rewrite SeriesC_singleton. case_bool_decide as H1; lra.
+             ++ intros m. case_bool_decide; subst.
+                ** by apply dret_1.
+                ** apply dret_0. intro H1. apply H. apply state_upd_tapes_same in H1.
+                   simplify_eq.
+        * symmetry.
+          rewrite (SeriesC_ext _ (λ x, if bool_decide (x = f n) then 1 else 0)).
+          { apply SeriesC_singleton. }
+          intros n'.
+          case_match eqn:Heqn.
+          { destruct e as [m <-] eqn:He.
+            case_bool_decide as Heqn'.
+            - apply Hinj in Heqn' as ->.
+              apply dret_1.
+              repeat f_equal.
+              pose proof epsilon_correct (λ m : fin (S M), f m = f n) as H. simpl in H.
+              apply Hinj. rewrite H. done.
+            - apply dret_0.
+              move => /state_upd_tapes_same. intros eq. simplify_eq.
+              apply Heqn'. pose proof epsilon_correct (λ m0 : fin (S M), f m0 = f m) as H.
+              by rewrite H.
+          }
+          rewrite bool_decide_eq_false_2; first done.
+          intros ->.  naive_solver.
+      + trans 0.
+        * apply SeriesC_0.
+          intros. case_bool_decide; last done.
+          rewrite /state_step.
+          rewrite bool_decide_eq_true_2; last first.
+          { rewrite elem_of_dom. rewrite Hσₛ. done. }
+          setoid_rewrite (lookup_total_correct (tapes σₛ) αₛ (M; ms)); last done.
+          rewrite /dmap/dbind/dbind_pmf{1}/pmf/=.
+          rewrite /dunifP. setoid_rewrite dunif_pmf.
+          apply SeriesC_0.
+          intros m. apply Rmult_eq_0_compat_l.
+          apply dret_0.
+          intros ->. apply H.
+          exists m. done.
+        * symmetry.
+          apply SeriesC_0.
+          intros. case_match; last done.
+          apply dret_0.
+          intros ->. apply H.
+          naive_solver.
+    }
+    erewrite state_step_unfold; last done.
+    rewrite /dmap. 
+    eapply Rcoupl_dbind; last apply Rcoupl_eq.
+    intros ??->.
+    case_match eqn:Heqn.
+    - destruct e as [m He].
+      replace (epsilon _) with m; last first.
+      { pose proof epsilon_correct (λ m0 : fin (S M), f m0 = b) as H.
+        simpl in H. apply Hinj. rewrite H. done.
+      }
+      apply Rcoupl_dret.
+      exists b.
+      rewrite bool_decide_eq_true_2; last naive_solver.
+      naive_solver.
+    - apply Rcoupl_dret.
+      exists b. rewrite bool_decide_eq_false_2; naive_solver.
+  Qed.
+
   Lemma wp_couple_rand_rand N f `{Bij nat nat f} z K E :
     TCEq N (Z.to_nat z) →
     (forall n:nat, (n < S N)%nat -> (f n < S N)%nat) ->
@@ -1245,8 +1495,8 @@ Lemma rel_inv_restore N P e1 e2 X R :
               (λ ρ2 ρ2',
                 ∃ (n : fin _), ρ2 = (syntax.Val #n, σ1) ∧ ρ2' = (semantics.fill K #(f n), σ1')))
     ; [done| | |..].
-    { admit. }
-    { admit. }
+    { eexists. simpl. apply head_step_prim_step. apply head_step_support_equiv_rel. unshelve constructor; eauto using Fin.F1. by apply TCEq_eq. }
+    { eexists. simpl. apply fill_step. apply head_step_prim_step. apply head_step_support_equiv_rel. unshelve constructor; eauto using Fin.F1. by apply TCEq_eq. }
     { rewrite /= semantics.fill_dmap //.
       rewrite /= -(dret_id_right (semantics.prim_step _ _)) /=.
       apply ARcoupl_exact.
@@ -1268,7 +1518,447 @@ Lemma rel_inv_restore N P e1 e2 X R :
     iFrame.
     iPureIntro.
     apply fin_to_nat_le.
-  Admitted.
+  Qed.
+
+  (** coupling rand and rand but avoid certain values*)
+  Lemma wp_couple_rand_rand_avoid N (l:list _) z K E :
+    TCEq N (Z.to_nat z) →
+    NoDup l -> 
+    {{{ ↯ (length l/(N+1)) ∗
+        ⤇ fill K (rand #z) }}}
+      rand #z @ E
+      {{{ (n : fin (S N)), RET #n; ⌜n∉l⌝ ∗ ⤇ fill K #n }}}.
+  Proof.
+    iIntros (H0 Hl Ψ) "[Hε Hr] HΨ".
+    iApply wp_lift_step_prog_couple; [done|].
+    iIntros (σ1 e1' σ1' ε) "[Hσ [Hs Hε2]]".
+    iDestruct (spec_auth_prog_agree with "Hs Hr") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+    iDestruct (ec_supply_ec_inv with "Hε2 Hε") as %(x & x1 & -> & H).
+    iApply (prog_coupl_steps _ _ _
+           (* (λ ρ2 ρ2', *)
+           (*   ∃ (n : fin _), n∉l /\ρ2 = (Val #n, σ1) ∧ ρ2' = (fill K #(n), σ1')) *))
+    ; [done| | |..].
+    1,2: eexists; simpl; try apply fill_step; apply head_step_prim_step; apply head_step_support_equiv_rel; unshelve constructor; eauto using Fin.F1; by apply TCEq_eq. 
+    { simpl. eapply ARcoupl_steps_ctx_bind_r; [done|done|].
+      apply ARcoupl_rand_rand_avoid_list; first done.
+      - by rewrite S_INR. 
+      - by apply TCEq_eq.
+    }
+    iIntros (e2 σ2 e2' σ2' (b & [= ->] & (?&?&[= -> ->] & [= -> ->]))) "!> !>".
+    iMod (spec_update_prog with "Hs Hr") as "[$ Hr]".
+    iMod (ec_supply_decrease with "Hε2 Hε") as (x2 x3 H1 ?) "H".
+    replace (x3) with (x1); last first.
+    { apply nnreal_ext. inversion H1.
+      lra.
+    }
+    iMod "Hclose" as "_".
+    (* replace (0 + ε)%NNR with ε; last first. *)
+    (* { apply nnreal_ext; simpl; lra. } *)
+    iFrame.
+    iApply wp_value.
+    iApply "HΨ".
+    iFrame.
+    by iPureIntro.
+  Qed.
+
+  (** rand(unit, N) ~ rand(unit, M) coupling, N <= M, under inj *)
+  Lemma wp_couple_rand_rand_inj (N M : nat) (f: nat → nat) z w K E (ε : R) :
+    (∀ n, n < S N → f n < S M)%nat →
+    (∀ n1 n2, n1 < S N → n2 < S N → f n1 = f n2 → n1 = n2)%nat →
+    TCEq N (Z.to_nat z) →
+    TCEq M (Z.to_nat w) →
+    (N <= M)%nat →
+    (S M - S N) / S M = ε →
+    {{{ ⤇ fill K (rand #w) ∗ ↯ ε }}}
+      rand #z @ E
+    {{{ (n : nat), RET #n; ⤇ fill K #(f n) ∗ ⌜ n ≤ N ⌝ }}}.
+  Proof.
+    iIntros (Hdom Hinj).
+
+    set g := (λ m : fin (S N), Fin.of_nat_lt (Hdom m (fin_to_nat_lt m))).
+    assert (Inj eq eq g).
+    { intros m1 m2 Heq.
+      assert (fin_to_nat (g m1) = f (fin_to_nat m1)) as H1.
+      { rewrite /g fin_to_nat_to_fin //. }
+      assert (fin_to_nat (g m2) = f (fin_to_nat m2)) as H2.
+      { rewrite /g fin_to_nat_to_fin //. }
+      apply fin_to_nat_inj.
+      apply Hinj; [apply fin_to_nat_lt..|].
+      rewrite -H1 -H2 //. by f_equal. }
+
+    iIntros (-> -> HNM Hε ?) "(Hr & Hε) Hcnt".
+    iApply wp_lift_step_prog_couple; [done|].
+    iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
+    iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iDestruct (ec_supply_ec_inv with "Hε2 Hε") as %(? &?& -> & ?).
+    iApply prog_coupl_steps; [done| | |..].
+    1,2: eexists; simpl; try apply fill_step; apply head_step_prim_step; apply head_step_support_equiv_rel; unshelve constructor; eauto using Fin.F1; by apply TCEq_eq. 
+    { apply ARcoupl_steps_ctx_bind_r, (ARcoupl_rand_rand_inj _ _ g); done || lra. }
+    iIntros (???? (?& [=->] & (n & [=-> ->] & [=-> ->]))).
+    iMod (spec_update_prog (fill K #(g _)) with "Hauth2 Hr") as "[$ Hspec0]".
+    iMod (ec_supply_decrease with "Hε2 Hε") as (????) "H".
+    do 2 iModIntro.
+    iMod "Hclose'" as "_".
+    iModIntro. iFrame.
+    rewrite -wp_value.
+    rewrite /g fin_to_nat_to_fin.
+    iDestruct ("Hcnt" with "[$Hspec0]") as "$".
+    {
+      iPureIntro.
+      apply fin_to_nat_le.
+    }
+    iApply ec_supply_eq; [|done].
+    simplify_eq. lra.
+  Qed.
+
+  (** fragmented state rand N ~ state rand M, N>=M, under injective function from M to N*)
+  Lemma wp_couple_fragmented_rand_rand_inj {M N} (f: nat → nat) {_ : Inj (=) (=) f}
+    ns nsₛ α αₛ e E Φ:
+    (M <= N)%nat →
+    (forall n : nat, (n < S M)%nat -> (f n < S N)%nat) ->
+    ▷ α ↪N (N; ns) ∗ ▷ αₛ ↪ₛN (M; nsₛ) ∗
+    (∀ (n : nat),
+       ⌜ n ≤ N ⌝ -∗
+       if bool_decide (∃ m:nat, m ≤ M /\ f m = n) then
+         ∀ m : nat, α ↪N (N; ns ++ [f m]) ∗ αₛ ↪ₛN (M; nsₛ ++ [m]) ∗ ⌜ f m ≤ N ⌝ ∗ ⌜ m ≤ M ⌝ -∗
+              WP e @ E {{ Φ }}
+       else
+         α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ) ∗ ⌜ n ≤ N ⌝ -∗
+         WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (Hineq Hdom) "(>Hα & >Hαₛ & Hwp)".
+    edestruct (restr_inj_fin (S M) (S N) f (le_n_S M N Hineq) Hdom) as [g [HgInj HgEq]].
+    iDestruct "Hα" as (fs) "(<-&Hα)".
+    iDestruct "Hαₛ" as (fsₛ) "(<-&Hαₛ)".
+    iApply wp_lift_step_spec_couple.
+    iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1 & Hl1) & Hauth2 & Hε2)".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2&Hl2)/=".
+    iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
+    simplify_map_eq.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    replace (ε_now) with (0 + ε_now)%NNR; last (apply nnreal_ext; simpl; lra).
+    iApply spec_coupl_erasables; [done|..].
+    { by apply ARcoupl_exact, Rcoupl_fragmented_rand_rand_inj. }
+    { by eapply state_step_erasable. }
+    { eapply erasable_dbind_predicate.
+      - solve_distr_mass.
+      - by eapply state_step_erasable.
+      - apply dret_erasable. }
+    iIntros (?? [n H']).
+    case_bool_decide in H'.
+    - destruct Hf as [m' <-].
+      destruct H' as (m & ? & ? & Hfm).
+      simplify_eq.
+      iMod (ghost_map_update ((N; fs ++ [g _]) : tape) with "Ht1 Hα") as "[Ht1 Hα]".
+      iMod (ghost_map_update ((M; fsₛ ++ [_]) : tape) with "Ht2 Hαₛ") as "[Ht2 Hαₛ]".
+      iModIntro.
+      iApply spec_coupl_ret.
+      iMod "Hclose'" as "_".
+      iSpecialize ("Hwp" $! (f m')).
+      rewrite bool_decide_eq_true_2.
+      2: { exists m'.
+           split; auto.
+           apply fin_to_nat_le. }
+      iSpecialize ("Hwp" $! _ m').
+      iDestruct ("Hwp" with "[$Hα $Hαₛ]") as "Hwp".
+      { iPureIntro.
+        split; [rewrite fmap_app /= HgEq // |].
+        split; [rewrite fmap_app /=  // |].
+        split; auto.
+        - apply Nat.lt_succ_r, Hdom, fin_to_nat_lt.
+        - apply fin_to_nat_le.
+      }
+      assert (0 + ε_now = ε_now)%NNR as ->.
+      { apply nnreal_ext; simpl; lra. }
+      by iFrame.
+    - destruct H' as [??]. simplify_eq.
+      iMod (ghost_map_update ((N; fs ++ [n]) : tape) with "Ht1 Hα") as "[Ht1 Hα]".
+      iModIntro.
+      iApply spec_coupl_ret.
+      iMod "Hclose'" as "_".
+      iSpecialize ("Hwp" $! (fin_to_nat n)).
+      rewrite bool_decide_eq_false_2 //.
+      2: {
+        intros [m [Hm1 Hm2]].
+        apply Hf.
+        assert (m < S M)%nat as Hm3.
+        { lia. }
+        exists (nat_to_fin Hm3).
+        apply fin_to_nat_inj.
+        rewrite HgEq -Hm2.
+        rewrite fin_to_nat_to_fin //.
+      }
+      iDestruct ("Hwp" with "[]") as "Hwp".
+      { iPureIntro. apply fin_to_nat_le. }
+      assert (0 + ε_now = ε_now)%NNR as ->.
+      { apply nnreal_ext; simpl; lra. }
+      iFrame.
+      iApply "Hwp".
+      iModIntro.
+      iSplitL "Hα".
+      { iFrame. rewrite fmap_app //. }
+      iSplitL "Hαₛ".
+      { iFrame. auto. }
+      iPureIntro. apply fin_to_nat_le.
+      Unshelve.
+      apply Nat.lt_succ_r, Hdom, fin_to_nat_lt.
+  Qed.
+
+(** fragmented state rand N ~ state rand M, M>=N, under injective function from N to M,
+      but with errors for rejection sampling! *)
+  Lemma wp_couple_fragmented_rand_rand_inj_rev' {M N} (f : nat -> nat) {_: Inj (=) (=) f}
+    ns nsₛ α αₛ e E Φ (ε : R) :
+    0 <= ε →
+    (N < M)%nat →
+    (forall n, n < S N -> f n < S M)%nat ->
+    ▷ α ↪N (N; ns) ∗ ▷ αₛ ↪ₛN (M; nsₛ) ∗ ↯ ε ∗
+    (∀ (m : nat),
+       ⌜ m ≤ M ⌝ -∗
+       if bool_decide (∃ n:nat, n ≤ N /\ f n = m) then
+         ∀ n, α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ ++ [f n]) ∗ ⌜ n ≤ N ⌝ ∗ ⌜ f n ≤ M ⌝ -∗
+              WP e @ E {{ Φ }}
+     else
+       ∀ (ε' : R),
+         ⌜ε' = (S M / (S M - S N) * ε)%R⌝ ∗
+         α ↪N (N; ns) ∗ αₛ ↪ₛN (M; nsₛ++[m]) ∗ ↯ ε' ∗ ⌜ m ≤ M ⌝ -∗
+         WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (Hε Hineq Hdom) "(>Hα & >Hαₛ & Hε & Hwp)".
+    edestruct (restr_inj_fin (S N) (S M) f (le_n_S N M (Nat.lt_le_incl _ _ Hineq)) Hdom) as [g [HgInj HgEq]].
+    iDestruct "Hα" as (fs) "(<-&Hα)".
+    iDestruct "Hαₛ" as (fsₛ) "(<-&Hαₛ)".
+    iApply wp_lift_step_spec_couple.
+    iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1 & Hl1) & Hauth2 & Hε2)".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2&Hl2)".
+    iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iDestruct (ec_supply_bound with "[$][$]") as %Hle.
+    
+    set ε' := mknonnegreal _ Hε.
+    
+    set ε_now1 := nnreal_minus ε_now ε' Hle.
+    set ε_now2 := (ε_now + ε' * nnreal_nat (S N) / nnreal_nat (S M - S N))%NNR.
+    set (E2 σ := if bool_decide (∃ x, σ = state_upd_tapes <[αₛ:=(M; fsₛ ++ [g x])]> σ1')
+                 then ε_now1 else ε_now2).
+    assert (∀ σ, E2 σ <= Rmax ε_now1 ε_now2)%R.
+    { intros ?. rewrite /E2. apply Rmax_Rle. case_bool_decide; by [left| right]. }
+
+    iApply (spec_coupl_erasables_exp E2 (Rmax ε_now1 ε_now2) 0%NNR).
+    { eapply ARcoupl_exact, Rcoupl_swap, Rcoupl_fragmented_rand_rand_inj; done || lia. }
+    { apply erasable_dbind_predicate.
+      - solve_distr_mass.
+      - by eapply state_step_erasable.
+      - apply dret_erasable. }
+    { by eapply state_step_erasable. }
+    { done. }
+    { simpl. erewrite state_step_unfold; [|done].
+      (* TODO: cleanup *)
+      rewrite /Expval.
+      erewrite (SeriesC_ext _
+                  (λ b : state,
+                      if bool_decide (b ∈ (λ x, state_upd_tapes <[αₛ:=(M; fsₛ ++ [x])]> σ1')
+                                        <$> (fin_enum (S M)))
+                     then /(S M) * E2 b else 0)%R); last first.
+      { intros n.
+        case_bool_decide as Hin; last first.
+        { apply Rmult_eq_0_compat_r. rewrite /dmap/dbind/dbind_pmf/pmf/=.
+          apply SeriesC_0. intros. apply Rmult_eq_0_compat_l.
+          rewrite /dret_pmf. case_bool_decide; last lra.
+          subst. exfalso. apply Hin. erewrite elem_of_list_fmap.
+          exists x; split; first done. replace (fin_enum (S M)) with (enum (fin (S M))) by done.
+          apply elem_of_enum. }
+        rewrite elem_of_list_fmap in Hin. destruct Hin as [y [-> ?]].
+        apply Rmult_eq_compat_r. rewrite /dmap/dbind/dbind_pmf/pmf/=.
+        rewrite SeriesC_scal_l.
+        replace (SeriesC _) with 1%R; first lra.
+        symmetry.
+        rewrite /dret_pmf.
+        erewrite (SeriesC_ext _ (λ x, if bool_decide (x = y) then 1 else 0))%R;
+          first apply SeriesC_singleton.
+        intros.
+        case_bool_decide as H2i.
+        - apply state_upd_tapes_same in H2i. simplify_eq.
+          case_bool_decide; done.
+        - case_bool_decide; last done.
+          subst. done. }
+      { trans (SeriesC (λ x, if bool_decide (∃ y, g y = x) then / S M * ε_now1 else / S M * ε_now2))%R.
+        - rewrite Rplus_0_l.
+          set (h σ := match decide (∃ x, σ = state_upd_tapes <[αₛ:=(M; fsₛ ++ [x])]> σ1') with
+                    | left Hproof => Some (epsilon Hproof)
+                    | _ => None
+                    end).
+          etrans; last eapply (SeriesC_le_inj _ h).
+          + apply Req_le_sym. apply SeriesC_ext. (** should be ok *)
+            intros s. rewrite /h. case_match eqn:Heqn; last first.
+            { rewrite bool_decide_eq_false_2; first (simpl;lra).
+              erewrite elem_of_list_fmap.
+              intros [? [->?]]. apply n.
+              naive_solver. }
+            pose proof epsilon_correct _ e0 as H'.
+            rewrite bool_decide_eq_true_2; last first.
+            { destruct e0 as [x ?]. subst. rewrite elem_of_list_fmap.
+              eexists _. split; first done.
+              replace (fin_enum _) with (enum (fin (S M))) by done.
+              apply elem_of_enum. }
+            rewrite !S_INR.
+            rewrite /E2.
+            simpl in *. subst.
+            case_bool_decide as H1'.
+            * rewrite bool_decide_eq_true_2.
+              { rewrite /ε_now1. simpl; lra. }
+              destruct H1' as [y ?]. exists y. rewrite H3. done.
+            * rewrite bool_decide_eq_false_2.
+              { rewrite /ε_now2; simpl; lra. }
+              intros [x H2'].
+              apply H1'. rewrite H' in H2'. apply state_upd_tapes_same in H2'. simplify_eq.
+              naive_solver.
+          + intros. case_bool_decide; apply Rmult_le_pos; try done.
+            all: rewrite <-Rdiv_1_l; apply Rcomplements.Rdiv_le_0_compat; try lra.
+            all: apply pos_INR_S.
+          + intros n1 n2 m. rewrite /h. do 2 case_match; try done.
+            intros.
+            pose proof epsilon_correct _ e0.
+            pose proof epsilon_correct _ e1. simpl in *. simplify_eq.
+            rewrite H7 H8. by repeat f_equal.
+          + apply ex_seriesC_finite.
+        - eset (diff:=elements (((list_to_set (enum (fin(S M)))):gset _ )∖ ((list_to_set(g<$>enum (fin(S N)))):gset _))).
+          erewrite (SeriesC_ext _
+                      (λ x : fin (S M), (if bool_decide (x ∈ g<$> enum (fin(S N))) then / S M * ε_now1 else 0%R) +
+                                         if bool_decide (x ∈ diff ) then / S M * ε_now2 else 0%R
+                   ))%R; last first.
+          { (** annoying lemma again *)
+            intros n. rewrite /diff.
+            case_bool_decide as H1'.
+            - destruct H1' as [? H1']. rewrite bool_decide_eq_true_2; last first.
+              + subst. apply elem_of_list_fmap_1. apply elem_of_enum.
+              + subst. rewrite bool_decide_eq_false_2; first lra.
+                rewrite elem_of_elements.
+                rewrite not_elem_of_difference; right.
+                rewrite elem_of_list_to_set. apply elem_of_list_fmap_1; apply elem_of_enum.
+            - rewrite bool_decide_eq_false_2; last first.
+              { rewrite elem_of_list_fmap. intros [?[??]].
+                subst. apply H1'. naive_solver. }
+              rewrite bool_decide_eq_true_2; first lra.
+              rewrite elem_of_elements. rewrite elem_of_difference.
+              split; rewrite elem_of_list_to_set; first apply elem_of_enum.
+              rewrite elem_of_list_fmap. intros [?[??]].
+              subst. apply H1'. naive_solver.
+          }
+        rewrite SeriesC_plus; try apply ex_seriesC_finite.
+        rewrite !SeriesC_list_2; last first.
+        { apply NoDup_fmap_2; [done|apply NoDup_enum]. }
+        { rewrite /diff. eapply NoDup_elements. }
+        rewrite fmap_length. rewrite fin.length_enum_fin.
+        rewrite /diff.
+        replace (length _) with (S M - S N)%nat; last first.
+        { erewrite <-size_list_to_set; last apply NoDup_elements.
+          erewrite list_to_set_elements.
+          rewrite size_difference.
+          - rewrite !size_list_to_set; [|apply NoDup_fmap; [auto|apply NoDup_enum]|apply NoDup_enum]; auto.
+            rewrite fmap_length.
+            rewrite !fin.length_enum_fin. done.
+          - intros ??. apply elem_of_list_to_set. apply elem_of_enum.
+        }
+        rewrite /ε_now1 /ε_now2. simpl. rewrite -/(INR (S N)) -/(INR (S M)). rewrite !S_INR.
+        rewrite !Rmult_assoc.
+        rewrite minus_INR; last lia.
+        cut ((N+1)/ (M + 1) * ε_now - (N+1)/(M+1) *ε+
+               (M-N)/ (M + 1) * ε_now + ((N + 1)/(M+1) * ((M-N)/ (M - N))) * ε <= ε_now)%R; first lra.
+        rewrite Rdiv_diag; last first.
+        { assert (N < M)%R; real_solver. }
+        cut ((N + 1) / (M + 1) * ε_now+ (M - N) / (M + 1) * ε_now <= ε_now)%R; first lra.
+        cut ((M + 1) / (M + 1) * ε_now <= ε_now)%R; first lra.
+        rewrite Rdiv_diag; first lra.
+        pose proof pos_INR M. lra. }
+      Unshelve. all : eapply gset_fin_set. }
+
+    iIntros (?? [m H']).
+    case_bool_decide in H' as H1'.
+    - destruct H' as (n&?&?&?).
+      destruct H1' as [n' <-].
+      assert (n' = n) as -> by (by apply (inj _)).
+      simplify_eq.
+      iApply spec_coupl_ret.
+      iMod (ghost_map_update ((N; fs ++ [n]) : tape) with "Ht1 Hα") as "[$ Hα]".
+      iMod (ghost_map_update ((M; fsₛ ++ [g n]) : tape) with "Ht2 Hαₛ") as "[$ Hαₛ]".
+      iModIntro. iMod "Hclose'" as "_".
+      iSpecialize ("Hwp" $! (f n)).
+      rewrite bool_decide_eq_true_2.
+      2: { exists n.
+           split; auto.
+           apply fin_to_nat_le. }
+
+      iSpecialize ("Hwp" $! _ (n)). iFrame.
+      iDestruct ("Hwp" with "[$Hα $Hαₛ]") as "Hwp".
+      { iPureIntro.
+        split; [rewrite fmap_app /=  // |].
+        split; [rewrite fmap_app /= HgEq // |].
+        split; [apply fin_to_nat_le | ].
+        apply Nat.lt_succ_r, Hdom, fin_to_nat_lt.
+      }
+      replace (ε_now) with (ε' + ε_now1)%NNR; last first.
+      { apply nnreal_ext. simpl. lra. }
+      iMod (ec_supply_decrease with "[$] [$]") as (????) "H".
+      iFrame.
+      rewrite /E2 bool_decide_eq_true_2; [|eauto].
+      iApply ec_supply_eq; [|done].
+      simplify_eq /=. lra. 
+
+    - destruct H' as [??]. simplify_eq.
+      replace (E2 _) with (ε_now2); last first.
+      { rewrite /E2. rewrite bool_decide_eq_false_2 //.
+        intros [? H2']. apply state_upd_tapes_same in H2'. simplify_eq. naive_solver. }
+      destruct (Rle_or_lt 1 ε_now2).
+      { iModIntro. by iApply spec_coupl_ret_err_ge_1. }
+      iModIntro.
+      iApply spec_coupl_ret.
+      iMod (ghost_map_update ((M; fsₛ ++ [m]) : tape) with "Ht2 Hαₛ") as "[? Hαₛ]".
+      iMod "Hclose'" as "_".
+      iSpecialize ("Hwp" $! m).
+      rewrite bool_decide_eq_false_2 //.
+      2: {
+        intros [n [Hn1 Hn2]].
+        apply H1'.
+        assert (n < S N)%nat as Hn3 by lia.
+        exists (nat_to_fin Hn3).
+        apply fin_to_nat_inj.
+        rewrite HgEq -Hn2.
+        rewrite fin_to_nat_to_fin //.
+      }
+      rewrite !S_INR /=.
+      iFrame.
+      iMod (ec_supply_increase with "[$Hε2]") as "[$ Hε']".
+      { by eapply Rle_lt_trans. }
+      iCombine "Hε Hε'" as "Hε".
+      iApply ("Hwp" $! _ with "[$Hα $Hαₛ $Hε]").
+      iPureIntro.
+      split.
+      1:{
+        simpl. rewrite -/(INR (S N)). rewrite S_INR.
+        replace (INR M + 1 - (INR N + 1))%R with (INR M - INR N)%R by lra.
+        rewrite -{1}(Rmult_1_l ε).
+        rewrite Rmult_assoc (Rmult_comm ε).
+        rewrite -Rmult_plus_distr_r. apply Rmult_eq_compat_r.
+        rewrite Rdiv_def.
+        replace (1)%R with ((INR M - INR N)*/(INR M - INR N))%R at 1; last first.      
+        { apply Rinv_r. apply lt_INR in Hineq. lra. }
+        rewrite minus_INR; [|real_solver].
+        rewrite -Rmult_plus_distr_r. lra. }
+      split; auto.
+      split; [ | apply fin_to_nat_le ].
+      rewrite fmap_app //.
+      Unshelve.
+      + apply Nat.lt_succ_r, Hdom, fin_to_nat_lt.
+      + apply fin_to_nat_le.
+  Qed.
+
+
   (* ---------------------------------------------------------------------------- *)
   
   Lemma rel_couple_rand_rand N f `{Bij nat nat f} z K K' X R :
@@ -1279,7 +1969,7 @@ Lemma rel_inv_restore N P e1 e2 X R :
   Proof.
     iIntros (??) "Hrel".
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-    iIntros "%k1 %k2 %S Hkwp %k2' Hj Hnais".
+    iIntros "%k1 %k2 %S Hkwp %k2' %ε Hj Hnais Herr %Hpos".
     do 3rewrite -fill_app.
     iApply wp_bind.
     iApply (wp_couple_rand_rand with "Hj"); [done|].
@@ -1287,7 +1977,7 @@ Lemma rel_inv_restore N P e1 e2 X R :
     iSpecialize ("Hrel" $! n).
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
     do 3rewrite fill_app.
-    by iApply ("Hrel" with "Hkwp Hj Hnais") .
+    by iApply ("Hrel" with "Hkwp Hj Hnais Herr").
   Qed.
 
   Lemma rel_randT_r K E α N z n ns t X R :
@@ -1298,25 +1988,17 @@ Lemma rel_inv_restore N P e1 e2 X R :
   Proof.
     iIntros (HE) "Hα /=".
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-    iIntros "Hrel %k1' %k2' %S Hkwp %k2'' Hj Hnais".
+    iIntros "Hrel %k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
     rewrite -!fill_app.
     iMod (step_randnat with "[Hj Hα]") as "[Hj [%Hlt Hα]]"; first iFrame.
     iSpecialize ("Hrel" with "Hα").
     iSpecialize ("Hrel" $! Hlt).
     rewrite !fill_app.
-    by iApply ("Hrel" with "Hkwp Hj").
+    by iApply ("Hrel" with "Hkwp Hj Hnais Herr").
   Qed.     
   Definition rel_rand_r := rel_randT_r.
 
-  (* TODO : move this earlier in this file *)
-  Global Instance is_except_0_logrel E e t X R :
-    IsExcept0 (rel E e t X R).
-  Proof.
-    rewrite /IsExcept0. iIntros "HL".
-    iApply fupd_rel. by iMod "HL".
-  Qed.
-
-  Lemma refines_randT_empty_r K E α N z e X R :
+  Lemma rel_randT_empty_r K E α N z e X R :
     TCEq N (Z.to_nat z) →
     ▷ α ↪ₛN (N; []) ∗
       (∀ n : nat, α ↪ₛN (N; []) -∗ ⌜ n ≤ N ⌝ -∗ REL e ≤ fill K (Val #n) @ E <|X|> {{R}})
@@ -1324,7 +2006,7 @@ Lemma rel_inv_restore N P e1 e2 X R :
   Proof.
     iIntros (->) "[>Hα H]".
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-    iIntros "%k1' %k2' %S Hkwp %k2'' Hj Hnais".
+    iIntros "%k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
     rewrite -!fill_app.
     iApply wp_rand_empty_r.
     iFrame "Hα Hj".
@@ -1334,9 +2016,170 @@ Lemma rel_inv_restore N P e1 e2 X R :
     iSpecialize ("H" $! (INR_le _ _ Hlt)).
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
     rewrite !fill_app.
-    by iApply ("H" with "Hkwp Hj").
+    by iApply ("H" with "Hkwp Hj Hnais Herr").
   Qed.    
-  Definition refines_rand_empty_r := refines_randT_empty_r.
+  Definition rel_rand_empty_r := rel_randT_empty_r.
+
+  Lemma rel_randT_l E K α N z n ns t X R :
+    TCEq N (Z.to_nat z) →
+    (▷ α ↪N (N; n :: ns) ∗
+     ▷ (α ↪N (N; ns) -∗ ⌜ n ≤ N ⌝ -∗ REL fill K (of_val #n) ≤ t @ E <|X|> {{R}}))
+    ⊢ REL fill K (rand(#lbl:α) #z) ≤ t @ E <|X|> {{R}}.
+  Proof.
+    iIntros (->) "[>Hα Hlog]".
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros "%k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
+    rewrite -!fill_app.
+    iApply wp_bind.
+    iApply (wp_rand_tape with "Hα").
+    iIntros "!> (Hα & %Hlt)".
+    rewrite !fill_app.
+    iApply ("Hlog" with "[$][][$][$][$][$]"); eauto using INR_le.
+  Qed.
+  Definition rel_rand_l := rel_randT_l.
+
+  Lemma rel_randT_empty_l K E α N z e X R :
+    TCEq N (Z.to_nat z) →
+    ▷ α ↪N (N; []) ∗
+    ▷ (∀ (n : nat), α ↪N (N; []) -∗ ⌜ n ≤ N ⌝ -∗ REL fill K (Val #n) ≤ e @ E <|X|> {{R}})
+    ⊢ REL fill K (rand(#lbl:α) #z) ≤ e @ E <|X|> {{R}}.
+  Proof.
+    iIntros (->) "[>Hα H]".
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros "%k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
+    rewrite -!fill_app.
+    iApply wp_bind.
+    iApply (wp_rand_tape_empty with "Hα").
+    iIntros (n) "!> (Hα & %Hlt)". 
+    rewrite !fill_app.
+    iSpecialize ("H" $! n with "Hα").
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iApply ("H" with "[][$][$][$][$]"); eauto using INR_le.
+  Qed.
+  Definition rel_rand_empty_l := rel_randT_empty_l.
+
+  Lemma rel_couple_couple_avoid (N:nat) l z E K K' X R:
+    NoDup l ->
+    TCEq N (Z.to_nat z) →
+    ↯ (length l / (S N)) ∗
+    ▷ (∀ (n : fin (S N)), ⌜n ∉ l⌝ -∗ REL fill K (Val #n) ≤ fill K' (Val #n) @ E <|X|> {{R}})
+    ⊢ REL fill K (rand #z) ≤ fill K' (rand #z) @ E <|X|> {{R}}.
+  Proof.
+    iIntros (Hl ->) "[Hε HΦ]".
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros (k1 k2 S) "Hkwp %k %ε Hfill Hown Herr %Hpos".
+    rewrite -!fill_app.
+    iApply wp_bind.
+    (* rewrite -fill_app. *)
+    rewrite S_INR.
+    iApply (wp_couple_rand_rand_avoid with "[$]"); first done.
+    iIntros "!>" (n) "[% Hspec]".
+    rewrite !fill_app.
+    iSpecialize ("HΦ" $! n H).
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    by iApply ("HΦ" with "[$][$][$][$]").
+  Qed.
+    
+  Lemma rel_couple_TT_frag (N M : nat) (f : nat -> nat) {_ : Inj (=) (=) f} E e1 e2 X R α αₛ ns nsₛ :
+    (M <= N)%nat →
+    (∀ n : nat, n < S M → f n < S N)%nat ->
+    ▷ α ↪N (N; ns) ∗ ▷ αₛ ↪ₛN (M; nsₛ) ∗
+    (∀ (n : nat),
+        ⌜ n ≤ N ⌝ -∗
+        if bool_decide (∃ m, m ≤ M /\ f m = n) then
+          ∀ m, α ↪N (N; ns ++ [f m]) ∗ αₛ ↪ₛN (M; nsₛ ++ [m]) ∗ ⌜f m ≤ N⌝ ∗ ⌜m ≤ M⌝ -∗
+               REL e1 ≤ e2 @ E <|X|> {{R}}
+        else
+          α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ) ∗ ⌜ n ≤ N ⌝ -∗ REL e1 ≤ e2 @ E <|X|> {{R}}
+    )
+    ⊢ REL e1 ≤ e2 @ E <|X|> {{R}}.
+  Proof.
+    iIntros (Hleq Hdom) "(Hα & Hαs & Hlog)". 
+    rewrite {3}(rel_unfold E e1 e2 X R) /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros (k1 k2 S) "Hkwp %K2 %ε' He2 Hnais Herr' Hpos/=".
+    iApply wp_couple_fragmented_rand_rand_inj; [done|done|].
+    iFrame.
+    iIntros (n) "%".
+    iSpecialize ("Hlog" $! n).
+    case_bool_decide.
+    - iIntros (m) "(Hα & Hαs & Hnm)".
+      iSpecialize ("Hlog" $! H0 m with "[$]").
+      rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+      iApply ("Hlog" with "Hkwp He2 Hnais Herr' Hpos").
+    - iIntros "(Hα & Hαs)".
+      iSpecialize ("Hlog" $! H0  with "[$]").
+      rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+      iApply ("Hlog" with "Hkwp He2 Hnais Herr' Hpos").
+  Qed.
+
+  Lemma rel_couple_TT_adv (N M : nat) (f : nat → nat) {_ : Inj (=) (=) f} E e1 e2 X A α αₛ ns nsₛ (ε : R) :
+    (0 <= ε)%R →
+    (N < M)%nat →
+    (∀ n : nat, n < S N → f n < S M)%nat ->
+    ▷ α ↪N (N; ns) ∗ ▷ αₛ ↪ₛN (M; nsₛ) ∗ ↯ ε ∗
+    (∀ (m : nat),
+        ⌜ m ≤ M ⌝ -∗
+        if bool_decide (∃ n, n ≤ N /\ f n = m) then
+          ∀ n, α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ ++ [f n]) ∗ ⌜n ≤ N⌝ ∗ ⌜f n ≤ M⌝ -∗
+               REL e1 ≤ e2 @ E <|X|> {{A}}
+        else
+          ∀ (ε' : R),
+            ⌜ε' = ((S M) / (S M - S N) * ε)%R⌝ ∗
+            α ↪N (N; ns) ∗ αₛ ↪ₛN (M; nsₛ ++ [m]) ∗ ↯ ε' ∗ ⌜ m ≤ M ⌝ -∗
+            REL e1 ≤ e2 @ E <|X|> {{A}})
+    ⊢ REL e1 ≤ e2 @ E <|X|> {{A}}.
+  Proof.
+    iIntros (Hε Hleq Hdom) "(Hα & Hαs & Herr & Hlog)".
+    rewrite {3}(rel_unfold E e1 e2 X A) /rel_pre obs_refines_eq /obs_refines_def.
+    set ε' := mknonnegreal _ Hε.
+    replace ε with ε'.(nonneg); [|done]. 
+    iIntros (k1 k2 S) "Hkwp %K2 %ε2 He2 Hnais Herr' %Hε'".
+    iApply (wp_couple_fragmented_rand_rand_inj_rev' _ _ _ _ _ _ _ _ ε') ; [done|done|done| ].
+    iFrame "Hα Hαs Herr".
+    iIntros (m) "%".
+    iSpecialize ("Hlog" $! m).
+    case_bool_decide.
+    - iIntros (n) "(Hα & Hαs & Hnm & Hfnm)".
+      iSpecialize ("Hlog" $! H0 n with "[$]").
+      rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+      by iApply ("Hlog" with "Hkwp He2 Hnais Herr'").
+    - iIntros (ε'0) "(%Herr2 & Hα & Hαs & Herr'0 & %Hnm)".
+      iSpecialize ("Hlog" $! H0 ε'0).
+      rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+      iApply ("Hlog" with "[$Hα $Hαs $Herr'0 //][$][$][$][$][//]").
+  Qed.
+
+  (* Error credit amplification *)
+  Lemma rel_get_ec E e e' X A :
+    (∀ ε : R, (↯ ε) -∗ ⌜(0 < ε)%R⌝ -∗ REL e ≤ e' @ E <|X|> {{A}}) ⊢
+    (REL e ≤ e' @ E <|X|> {{A}}).
+  Proof.
+    iIntros "H".
+    rewrite {2} (rel_unfold E e e' X A).
+    rewrite /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros (k1 k2 S) "Hkwp".
+    iIntros (K ε) "Hfill Hown Herr %Hpos".
+    replace (ε) with (ε / 2 + ε / 2)%R by lra. 
+    iDestruct (ec_split with "Herr") as "[Herr1 Herr2]";
+      [lra|lra|].
+    iSpecialize ("H" $! (ε / 2) with "Herr1").
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iApply ("H" with "[][$][$][$][$][]"); iPureIntro; lra.
+  Qed.
+
+  Lemma refines_ind_amp E e e' X A (k : R) :
+    (1 < k)%R ->
+    □ (∀ (ε : R),
+          ⌜(0 < ε)%R⌝ -∗ □(↯ (k * ε) -∗ (REL e ≤ e' @ E <|X|> {{A}}))
+                         -∗ ↯ ε -∗ (REL e ≤ e' @ E <|X|> {{A}}))%I
+    ⊢ REL e ≤ e' @ E <|X|> {{A}}.
+  Proof.
+    intros Hk.
+    iIntros "#IH".
+    iApply rel_get_ec.
+    iIntros (ε) "Herr %Hpos".
+    iApply (ec_ind_amp _ k with "[IH] Herr"); auto.
+  Qed.
   
 End baze_rules.
 
@@ -2479,4 +3322,4 @@ Section brel_effect_rules.
 End brel_effect_rules.
 
 
-Sectiuon brel 
+Section brel.
