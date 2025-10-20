@@ -46,7 +46,7 @@ Section program.
 
   Definition GeoTrial : val := rec: "trial" "N" := if: e #() then "trial" ("N" + #1) else "N".
 
-  Theorem wp_Geo E {F N} (Hnn : ∀ r, 0 <= F r) :
+  Theorem wp_Geo {E} F {N} (Hnn : ∀ r, 0 <= F r) :
     ↯(Geo_CreditV F 𝛾 N) -∗ WP GeoTrial #N @ E {{ vn, ∃ n : nat, ⌜vn = #n ⌝ ∗ ↯(F n) }}.
   Proof.
     revert N.
