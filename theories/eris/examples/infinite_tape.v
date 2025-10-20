@@ -294,46 +294,90 @@ Section R_approx.
     induction l => //=; real_solver.
   Qed.
 
+  Definition axxx := enum (list_fixed_len (fin 2) 3%nat).
+
+  Lemma aaxxx : axxx = [].
+  Proof.
+    rewrite /axxx //=.
+  Admitted.
+
   Lemma discrete_approx_fold k (f : R -> R) : 
     discrete_approx k f = seq.foldr Rplus 0 ((seq.map (λ i : nat, f (i / (2 ^ k)) / 2 ^ k) $ seq.iota 0 (2 ^ k))).
   Proof.
-    rewrite /discrete_approx SeriesC_finite_foldr -seq.foldl_foldr.
-    2: by move => ???; rewrite Rplus_assoc. 
-    2: by move => ??; rewrite Rplus_comm.
-    rewrite -(rev_rev (seq.map (λ i : nat, f (i / 2 ^ k) / 2 ^ k) (seq.iota 0 (2 ^ k)))).
-    rewrite seq.foldl_rev.
-    replace (λ x z : R, z + x) with (λ x, Rplus x); last by apply functional_extensionality => ?; apply functional_extensionality => ?; real_solver.
-    rewrite /compose -seq.map_rev.
-    rewrite -(foldr_fmap (λ a, Rplus (1 / 2 ^ k * f(a))) 0 (enum (list_fixed_len (fin 2) k)) (λ v, list_bin_to_R (`v))).
+    rewrite /discrete_approx SeriesC_finite_foldr.
+    rewrite -(foldr_fmap (λ a, Rplus (1 / 2 ^ k * f(a))) 0 (enum (list_fixed_len (fin 2) k)) (λ v, list_bin_to_R (`v))). 
     rewrite seq.foldr_map -(seq.foldr_map (λ x : nat, x / 2 ^ k) (λ a : R, Rplus (f a / 2 ^ k)) 0 _).
-    f_equal; first by apply functional_extensionality => a; f_equal; real_solver. 
-    replace (λ v : list_fixed_len (fin 2) k, list_bin_to_R (`v)) with ((λ x : nat, x / 2^k) ∘ (λ v : list_fixed_len (fin 2) k, list_bin_to_nat (`v))).
-    2 : {
-      apply functional_extensionality => a //=.
-      rewrite /list_bin_to_nat.
-      revert a. induction k; intros.
-      { destruct a; destruct x => //=; try real_solver.
-        rewrite list_bin_to_R_emp. real_solver. }
-      rewrite /list_bin_to_R /seq_bin_to_R /list_bin_to_seq_bin //=.
-      destruct a as [l H] => //=.
-      destruct (rev l) eqn : Hrl; first by rewrite -rev_length Hrl in H; real_solver.
-      simpl. admit.
-      
-    }
-    rewrite list_fmap_compose. f_equal.
-    induction k => //=.
-    (* f_equal; first by apply functional_extensionality => a; f_equal; real_solver. 
-    clear.
-    replace (λ v : list_fixed_len (fin 2) k, list_bin_to_R (`v)) with ((λ x : nat, x / 2^k) ∘ (λ v : list_fixed_len (fin 2) k, list_bin_to_nat (`v))).
-    2 : {
-      apply functional_extensionality => a //=.
+    f_equal; first by apply functional_extensionality => a; f_equal; real_solver.
+    replace (λ v : list_fixed_len (fin 2) k, list_bin_to_R (`v)) with ((λ x : nat, x / 2^k) ∘ (λ v : list_fixed_len (fin 2) k, list_bin_to_nat (`v))). 2 : {
+      (* rewrite  *)
+      apply functional_extensionality => x //=.
+      clear. rewrite /list_bin_to_nat /list_bin_to_R /seq_bin_to_R /list_bin_to_seq_bin. 
+      destruct k.
+      {
+        destruct x. destruct x; try inversion e. simpl.
+        rewrite SeriesC_0; real_solver.
+      }
+      destruct x; simpl.
+
+      erewrite (SeriesC_ext _ (λ n, if bool_decide (n ≤ k) then (Rmult (INR (@fin_to_nat (S (S O)) match @lookup nat (Fin.t (S (S O))) (list (Fin.t (S (S O)))) (@list_lookup (Fin.t (S (S O)))) n x return (Fin.t (S (S O))) with | @Some _ x0 => x0 | @None _ => @Fin.F1 (S O) end)) (Rdiv (IZR (Zpos xH)) (Rmult (IZR (Zpos (xO xH))) (pow (IZR (Zpos (xO xH))) n)))) else 0)). 2 : {
+        intros. case_bool_decide; auto.
+        rewrite lookup_ge_None_2; real_solver.
+      }
+      rewrite SeriesC_nat_bounded'.
+      rewrite -foldr_fmap.
+      replace ((2 * 2 ^ k)) with (2 ^ (S k)); try real_solver.
+      revert e.
+      set k' := S k.
+      generalize dependent k'. clear k. revert x.
+      induction k'; intros.
+      { destruct x; simpl; real_solver. }
+      intros. simpl.
+
       admit.
     }
     rewrite list_fmap_compose. f_equal.
-    induction k => //=.
-    rewrite fmap_app.
-    rewrite seq.iotaD. rewrite -IHk //=.
-    f_equal. *)
+    clear. induction k; auto.
+    simpl.
+    rewrite seq.iotaD app_nil_r Nat.add_0_r ssrnat.add0n -list_fmap_compose fmap_app -!list_fmap_compose.
+    eassert ((λ v : vec (fin 2) (k), _) = list_bin_to_nat) as ->. {
+      apply functional_extensionality => x //=.
+      rewrite /list_bin_to_nat.
+      set l : list (fin 2) := x.
+      assert (length l = k). 
+      { by rewrite /l vec_to_list_length. }
+      generalize dependent l.
+      clear. induction k => //=; first by intros; destruct l; auto.
+      intros.
+      destruct (rev l) eqn : Hrx; auto.
+      simpl. f_equal.
+      replace (l ++ (cons 0%fin nil)) with (rev (0%fin :: (rev l))). 
+      2 : { simpl. by rewrite rev_involutive. }
+      rewrite -(rev_involutive l0) IHk; auto.
+      rewrite -(rev_involutive l) Hrx //= app_length //= in H.
+      lia. 
+    }
+    eassert ((_ ∘ _ ∘ vcons 1%fin) = (λ x, (2 ^ k) + x)%nat ∘ list_bin_to_nat) as ->. {
+      apply functional_extensionality => x //=.
+      rewrite /list_bin_to_nat. simpl.
+      set l : list (fin 2) := x.
+      assert (length l = k). 
+      { by rewrite /l vec_to_list_length. }
+      generalize dependent l.
+      clear. induction k; intros; auto; first by destruct l; auto.
+      destruct (rev l) eqn : Hrx; first by rewrite -(rev_involutive l) rev_length Hrx in H. 
+      simpl.
+      rewrite -(rev_involutive l0) IHk; try lia.
+      rewrite -(rev_involutive l) Hrx //= app_length //= in H.
+      lia. 
+    }
+    simpl in IHk. 
+    rewrite -IHk. f_equal.
+    - rewrite -list_fmap_compose. f_equal. 
+    - rewrite list_fmap_compose list_fmap_compose.
+      assert (2 ^ k = ssrnat.addn (2^k) 0)%nat; first by rewrite -ssrnat.plusE; lia.  
+      rewrite {2}H seq.iotaDl.
+      f_equal. rewrite -IHk -!list_fmap_compose. 
+      f_equal.
   Admitted.
 
   Lemma pairmap_intv_pairs (f : nat -> R) n a:
