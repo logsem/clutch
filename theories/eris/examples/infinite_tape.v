@@ -273,6 +273,11 @@ Section R_approx.
   
   Definition list_bin_to_nat (l : list (fin 2)) : nat := list_bin_to_nat' $ rev l.
 
+  Lemma list_bin_to_nat'_rcons l f : list_bin_to_nat' (l ++ (cons f nil)) = (list_bin_to_nat' l + f * (2 ^ (length l)))%nat.
+  Proof.
+    induction l => //=; lia.
+  Qed.
+
   Lemma Rle_0_discrete_approx k f :
     (∀ r, 0 <= r <= 1 → 0 <= f r) →
     0 <= discrete_approx k f.
@@ -294,12 +299,12 @@ Section R_approx.
     induction l => //=; real_solver.
   Qed.
 
-  Definition axxx := enum (list_fixed_len (fin 2) 3%nat).
-
-  Lemma aaxxx : axxx = [].
+  Lemma foldr_plus_div l :
+    foldr (λ b a : R, b / 2 + a) 0 l = foldr Rplus 0 l / 2.
   Proof.
-    rewrite /axxx //=.
-  Admitted.
+    induction l => //=; real_solver.
+  Qed.
+
 
   Lemma discrete_approx_fold k (f : R -> R) : 
     discrete_approx k f = seq.foldr Rplus 0 ((seq.map (λ i : nat, f (i / (2 ^ k)) / 2 ^ k) $ seq.iota 0 (2 ^ k))).
@@ -309,7 +314,6 @@ Section R_approx.
     rewrite seq.foldr_map -(seq.foldr_map (λ x : nat, x / 2 ^ k) (λ a : R, Rplus (f a / 2 ^ k)) 0 _).
     f_equal; first by apply functional_extensionality => a; f_equal; real_solver.
     replace (λ v : list_fixed_len (fin 2) k, list_bin_to_R (`v)) with ((λ x : nat, x / 2^k) ∘ (λ v : list_fixed_len (fin 2) k, list_bin_to_nat (`v))). 2 : {
-      (* rewrite  *)
       apply functional_extensionality => x //=.
       clear. rewrite /list_bin_to_nat /list_bin_to_R /seq_bin_to_R /list_bin_to_seq_bin. 
       destruct k.
@@ -328,12 +332,22 @@ Section R_approx.
       replace ((2 * 2 ^ k)) with (2 ^ (S k)); try real_solver.
       revert e.
       set k' := S k.
-      generalize dependent k'. clear k. revert x.
+      revert x.
+      generalize dependent k'. 
       induction k'; intros.
       { destruct x; simpl; real_solver. }
       intros. simpl.
-
-      admit.
+      eassert (list_fmap (fin (S k')) R = fmap) as ->; auto.
+      rewrite -list_fmap_compose. 
+      destruct x; try real_solver.
+      eassert (_ ∘ _ = (λ x, x / 2) ∘ ((λ b : fin k', match @lookup nat (Fin.t (S (S O))) (list (Fin.t (S (S O)))) (@list_lookup (Fin.t (S (S O)))) (@fin_to_nat k' b) x return (Fin.t (S (S O))) with | Some x1 => x1 | None => 0%fin end * (1 / (2 * 2 ^ b))))) as ->. {
+        apply functional_extensionality => a //=. field_simplify; real_solver.
+      }
+      rewrite list_fmap_compose foldr_fmap foldr_plus_div -IHk'; try real_solver.
+      simpl. 
+      rewrite list_bin_to_nat'_rcons. field_simplify; try real_solver.
+      replace (length (rev x)) with k'; last by rewrite rev_length; inversion e.
+      rewrite plus_INR mult_INR pow_INR //=. field_simplify; real_solver.
     }
     rewrite list_fmap_compose. f_equal.
     clear. induction k; auto.
@@ -378,7 +392,7 @@ Section R_approx.
       rewrite {2}H seq.iotaDl.
       f_equal. rewrite -IHk -!list_fmap_compose. 
       f_equal.
-  Admitted.
+  Qed.
 
   Lemma pairmap_intv_pairs (f : nat -> R) n a:
     seq.pairmap (λ x y : nat, (f y, f x)) a%nat (seq.iota (S a) n) = seq.map (λ x, (f x, f (Nat.pred x)))(seq.iota (S a) n).
