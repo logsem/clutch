@@ -2,11 +2,251 @@ From Coq Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap fin_sets.
 From clutch.prelude Require Import stdpp_ext NNRbar fin uniform_list.
 From clutch.prob Require Import distribution couplings couplings_app.
+From clutch.prob_lang Require Import metatheory.
 From clutch.prob_eff_lang.probblaze Require Import notation.
 From clutch.prob_eff_lang.probblaze Require Export syntax semantics.
-From clutch.prob Require Import distribution couplings.
 From iris.prelude Require Import options.
 Set Default Proof Using "Type*".
+
+(** * rand(N) ~ rand(N) coupling *)
+  Lemma Rcoupl_rand_rand N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' :
+    N = Z.to_nat z →
+    Rcoupl
+      (prim_step (rand #z) σ1)
+      (prim_step (rand #z) σ1')
+      (λ ρ2 ρ2', ∃ (n : fin (S N)),
+          ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ1')).
+  Proof.
+    intros ->.
+    setoid_rewrite head_prim_step_eq;
+      try (eexists; apply head_step_support_equiv_rel; unshelve constructor; eauto using Fin.F1).
+    rewrite /dmap.
+    eapply Rcoupl_dbind; [|by eapply Rcoupl_dunif].
+    intros n ? ->.
+    apply Rcoupl_dret.
+    eauto.
+  Qed. 
+
+ 
+    
+  (** * a coupling between rand n and rand n avoiding results from a list *)
+  Lemma ARcoupl_rand_rand_avoid_list (N : nat) z σ1 σ1' (ε : nonnegreal) l:
+    NoDup l ->
+    (length l / S N = ε)%R →
+    N = Z.to_nat z →
+    ARcoupl
+      (prim_step (rand #z) σ1)
+      (prim_step (rand #z) σ1')
+      (λ ρ2 ρ2', ∃ (n : fin (S N)),
+          (n∉l)/\
+          ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #n, σ1'))
+      ε.
+  Proof.
+    intros Hl Hε Hz. 
+    setoid_rewrite head_prim_step_eq.
+    2,3: eexists; apply head_step_support_equiv_rel;unshelve constructor; eauto using Fin.F1.
+    simplify_eq.
+    replace ε with (nnreal_plus ε nnreal_zero); last first.
+    { apply nnreal_ext; simpl; lra. }
+    eapply ARcoupl_dbind.
+    1,2: apply cond_nonneg.
+    2 : {
+      rewrite -Hε.
+      by apply ARcoupl_dunif_avoid.
+    }
+    intros n m [Hnm ->].
+    apply ARcoupl_dret; [done|].
+    naive_solver.
+  Qed.
+
+  (** * Approximate rand(N) ~ rand(M) coupling, N <= M, along an injection *)
+  Lemma ARcoupl_rand_rand_inj (N M : nat) f `{Inj (fin (S N)) (fin (S M)) (=) (=) f} z w σ1 σ1' (ε : nonnegreal) :
+    (N <= M)%nat →
+    ((S M - S N) / S M = ε)%R →
+    N = Z.to_nat z →
+    M = Z.to_nat w →
+    ARcoupl
+      (prim_step (rand #z) σ1)
+      (prim_step (rand #w) σ1')
+      (λ ρ2 ρ2', ∃ (n : fin (S N)),
+          ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ1'))
+      ε.
+  Proof.
+    intros NMpos NMε Hz Hw. simpl.
+    setoid_rewrite head_prim_step_eq;
+      try (eexists; apply head_step_support_equiv_rel; unshelve constructor; try apply Hz; try apply Hw; eauto using Fin.F1). 
+    simpl.
+    rewrite /dmap -Hz -Hw.
+    replace ε with (nnreal_plus ε nnreal_zero); last first.
+    { apply nnreal_ext; simpl; lra. }
+    eapply ARcoupl_dbind.
+    1,2: apply cond_nonneg.
+    2 : {
+      rewrite -NMε.
+      eapply ARcoupl_dunif_leq_inj; eauto.
+      apply S_INR_le_compat. real_solver.
+    }
+    intros n m Hnm.
+    apply ARcoupl_dret; [done|]. 
+    exists n .
+    by rewrite Hnm //.
+  Qed.
+
+  Lemma Rcoupl_fragmented_rand_rand_inj (N M: nat) (f: fin (S M) -> fin (S N)) (Hinj: Inj (=) (=) f) σ σₛ ms ns α αₛ:
+    (M<=N)%nat →
+    σ.(tapes) !! α = Some (N%nat; ns) →
+    σₛ.(tapes) !! αₛ = Some (M%nat; ms) →
+    Rcoupl
+      (state_step σ α)
+      (dunifP N≫= λ x, if bool_decide (∃ m, f m = x) then state_step σₛ αₛ else dret σₛ)
+      (λ σ1' σ2', ∃ (n : fin (S N)),
+          if bool_decide (∃ m, f m = n)
+          then ∃ (m : fin (S M)),
+              σ1' = state_upd_tapes <[α := (N; ns ++ [n])]> σ ∧
+              σ2' = state_upd_tapes <[αₛ := (M; ms ++ [m])]> σₛ /\
+              f m = n
+          else
+            σ1' = state_upd_tapes <[α := (N; ns ++ [n])]> σ ∧
+            σ2' =  σₛ
+      ).
+  Proof.
+    intros Hineq Hσ Hσₛ. (* rewrite <-(dret_id_right (state_step _ _)). *)
+    replace (0)%NNR with (0+0)%NNR; last first.
+    { apply nnreal_ext. simpl. lra. }
+    erewrite (distr_ext (dunifP _ ≫= _)
+                (MkDistr (dunifP N ≫= (λ x : fin (S N),
+                                         match ClassicalEpsilon.excluded_middle_informative
+                                                 (∃ m, f m = x)
+                                         with
+                                         | left Hproof =>
+                                             dret (state_upd_tapes <[αₛ:=(M; ms ++ [epsilon Hproof])]> σₛ)
+                                         | _ =>
+                                             dret σₛ
+                                         end)) _ _ _) ); last first.
+    { intros σ'. simpl. rewrite /pmf/=.
+      rewrite /dbind_pmf. rewrite /dunifP. setoid_rewrite dunif_pmf.
+      rewrite !SeriesC_scal_l. apply Rmult_eq_compat_l.
+      erewrite (SeriesC_ext _
+                  (λ x : fin (S N), (if bool_decide (∃ m : fin (S M), f m = x) then state_step σₛ αₛ σ' else 0) +
+                                      (if bool_decide (∃ m : fin (S M), f m = x) then 0 else dret σₛ σ')
+               )); last first.
+      { intros. case_bool_decide; lra. }
+      trans (SeriesC
+               (λ x : fin (S N),
+                  match ClassicalEpsilon.excluded_middle_informative
+                          (∃ m, f m = x) with
+                  | left Hproof => dret (state_upd_tapes <[αₛ:=(M; ms ++ [epsilon Hproof])]> σₛ) σ'
+                  | right _ => 0
+                  end +
+                    match ClassicalEpsilon.excluded_middle_informative
+                            (∃ m, f m = x) with
+                    | left Hproof => 0
+                    | right _ => dret σₛ σ'
+                    end
+               )
+            ); last first.
+      { apply SeriesC_ext. intros. case_match; lra. }
+      rewrite !SeriesC_plus; last first.
+      all: try apply ex_seriesC_finite.
+      etrans; first eapply Rplus_eq_compat_l; last apply Rplus_eq_compat_r.
+      { apply SeriesC_ext. intros. case_bool_decide as H; case_match; done. }
+      destruct (ExcludedMiddle (∃ x, σ' = (state_upd_tapes <[αₛ:=(M; ms ++ [x])]> σₛ))) as [H|H].
+      + destruct H as [n ->].
+        trans 1.
+        * rewrite /state_step.
+          rewrite bool_decide_eq_true_2; last first.
+          { rewrite elem_of_dom. rewrite Hσₛ. done. }
+          setoid_rewrite (lookup_total_correct (tapes σₛ) αₛ (M; ms)); last done.
+          rewrite /dmap/dbind/dbind_pmf{1}/pmf/=.
+          rewrite /dunifP. setoid_rewrite dunif_pmf.
+          setoid_rewrite SeriesC_scal_l.
+          rewrite (SeriesC_ext _ (λ x : fin (S N),
+                                    if bool_decide (∃ m : fin (S M), f m = x)
+                                    then
+                                      / S M
+                                    else 0)).
+          -- erewrite (SeriesC_ext _ (λ x : fin (S N), / S M * if bool_decide (x∈f<$> enum (fin (S M))) then 1 else 0)).
+             { rewrite SeriesC_scal_l. rewrite SeriesC_list_1.
+               - rewrite fmap_length. rewrite length_enum_fin. rewrite Rinv_l; first lra.
+                 replace 0 with (INR 0) by done.
+                 move => /INR_eq. lia.
+               - apply NoDup_fmap_2; try done.
+                 apply NoDup_enum.
+             }
+             intros n'.
+             case_bool_decide as H.
+             ++ rewrite bool_decide_eq_true_2; first lra.
+                destruct H as [?<-].
+                apply elem_of_list_fmap_1.
+                apply elem_of_enum.
+             ++ rewrite bool_decide_eq_false_2; first lra.
+                intros H0. apply H.
+                apply elem_of_list_fmap_2 in H0 as [?[->?]].
+                naive_solver.
+          -- intros.
+             erewrite (SeriesC_ext _ (λ x, if (bool_decide (x=n)) then 1 else 0)).
+             ++ rewrite SeriesC_singleton. case_bool_decide as H1; lra.
+             ++ intros m. case_bool_decide; subst.
+                ** by apply dret_1.
+                ** apply dret_0. intro H1. apply H. apply state_upd_tapes_same in H1.
+                   simplify_eq.
+        * symmetry.
+          rewrite (SeriesC_ext _ (λ x, if bool_decide (x = f n) then 1 else 0)).
+          { apply SeriesC_singleton. }
+          intros n'.
+          case_match eqn:Heqn.
+          { destruct e as [m <-] eqn:He.
+            case_bool_decide as Heqn'.
+            - apply Hinj in Heqn' as ->.
+              apply dret_1.
+              repeat f_equal.
+              pose proof epsilon_correct (λ m : fin (S M), f m = f n) as H. simpl in H.
+              apply Hinj. rewrite H. done.
+            - apply dret_0.
+              move => /state_upd_tapes_same. intros eq. simplify_eq.
+              apply Heqn'. pose proof epsilon_correct (λ m0 : fin (S M), f m0 = f m) as H.
+              by rewrite H.
+          }
+          rewrite bool_decide_eq_false_2; first done.
+          intros ->.  naive_solver.
+      + trans 0.
+        * apply SeriesC_0.
+          intros. case_bool_decide; last done.
+          rewrite /state_step.
+          rewrite bool_decide_eq_true_2; last first.
+          { rewrite elem_of_dom. rewrite Hσₛ. done. }
+          setoid_rewrite (lookup_total_correct (tapes σₛ) αₛ (M; ms)); last done.
+          rewrite /dmap/dbind/dbind_pmf{1}/pmf/=.
+          rewrite /dunifP. setoid_rewrite dunif_pmf.
+          apply SeriesC_0.
+          intros m. apply Rmult_eq_0_compat_l.
+          apply dret_0.
+          intros ->. apply H.
+          exists m. done.
+        * symmetry.
+          apply SeriesC_0.
+          intros. case_match; last done.
+          apply dret_0.
+          intros ->. apply H.
+          naive_solver.
+    }
+    erewrite state_step_unfold; last done.
+    rewrite /dmap. 
+    eapply Rcoupl_dbind; last apply Rcoupl_eq.
+    intros ??->.
+    case_match eqn:Heqn.
+    - destruct e as [m He].
+      replace (epsilon _) with m; last first.
+      { pose proof epsilon_correct (λ m0 : fin (S M), f m0 = b) as H.
+        simpl in H. apply Hinj. rewrite H. done.
+      }
+      apply Rcoupl_dret.
+      exists b.
+      rewrite bool_decide_eq_true_2; last naive_solver.
+      naive_solver.
+    - apply Rcoupl_dret.
+      exists b. rewrite bool_decide_eq_false_2; naive_solver.
+  Qed.
 
 (** Some useful lemmas to reason about language properties  *)
 
