@@ -25,7 +25,7 @@ Section credits.
     fun b => Iverson is_true b * F k + Iverson (not ∘ is_true) b * G1_CreditV F.
 
   Definition G1_f (F : nat → R) : nat -> R := fun k =>
-    (exp (-k*(k-1)/2)) * G1_h F k true + (1 - (exp (-k*(k-1)/2))) * G1_h F k false.
+    (exp (-(k*(k-1))%nat/2)) * G1_h F k true + (1 - (exp (-(k*(k-1))%nat/2))) * G1_h F k false.
 
   Lemma G1_CreditV_nn {F} (Hnn : ∀ r, 0 <= F r) : 0 <= G1_CreditV F.
   Proof. Admitted.
@@ -35,17 +35,13 @@ Section credits.
 
   Lemma G1_f_nn {F k} (Hnn : ∀ r, 0 <= F r) : 0 <= G1_f F k.
   Proof. Admitted.
-  (*
-  Lemma G1_expectation_1 {F} : G1_CreditV F = Geo_CreditV F (BNEHalf_μ true) 0.
-  Proof. Admitted.
-  *)
 
-(*
-  Local Lemma G1_h_expectation {F 𝛾 N'} :
-    (Iter_CreditV F 𝛾 (S N')) =  (𝛾 * g F 𝛾 N' true + (1 - 𝛾) * g F 𝛾 N' false).
-  Proof.
-  Qed.
-*)
+  Lemma G1_f_expectation {F} : G1_CreditV F = Geo_CreditV (G1_f F) (exp (-1 / 2)) 0.
+  Proof. Admitted.
+
+  (* TODO: Solve and move me *)
+  Lemma Rexp_half_bound : 0 <= exp (-1 / 2) <= 1.
+  Proof. Admitted.
 
 End credits.
 
@@ -69,18 +65,42 @@ Section program.
     iApply (pgl_wp_mono_frame (□ _) with "[Hε] IH"); last first.
     { rewrite -Nat2Z.inj_0.
       wp_apply (wp_Geo _ (exp (-1 / 2)) _  _ (G1_f F)).
-      { admit. }
-      { admit. }
+      { by intros ?; apply G1_f_nn, Hnn. }
+      { by rewrite G1_f_expectation. }
+      Unshelve.
+      { exact Rexp_half_bound. }
+      { iIntros (E' F' HF') "Hε".
+        iApply wp_BNEHalf; [done|].
+        iApply (ec_eq with "Hε").
+        rewrite /BNEHalf_CreditV/BNEHalf_μ.
+        lra.
+      }
     }
     iIntros (v) "(#IH & [%n [-> Hε]])".
     wp_pures.
     wp_bind (IterTrial BNEHalf _).
     iApply (pgl_wp_mono_frame (□ _) with "[Hε] IH"); last first.
     { wp_pures.
-      replace (Z.mul n (Z.sub n 1)) with (Z.of_nat (Nat.mul n (Nat.sub n 1))) by admit.
+      replace (Z.mul n (Z.sub n 1)) with (Z.of_nat (Nat.mul n (Nat.sub n 1))); last first.
+      { destruct n; [lia|].
+        rewrite Nat2Z.inj_mul; f_equal.
+        apply Nat2Z.inj_sub.
+        lia.
+      }
       iApply (wp_Iter BNEHalf (exp (-1 / 2)) _ _ _ (F := G1_h F n)).
-      { admit. }
-      { admit. }
+      { by intros ?; apply G1_h_nn, Hnn. }
+      { iApply (ec_eq with "Hε").
+        rewrite /G1_f/Iter_CreditV.
+        f_equal; f_equal; rewrite exp_pow; repeat f_equal; lra.
+      }
+      Unshelve.
+      { exact Rexp_half_bound. }
+      { iIntros (E' F' HF') "Hε".
+        iApply wp_BNEHalf; [done|].
+        iApply (ec_eq with "Hε").
+        rewrite /BNEHalf_CreditV/BNEHalf_μ.
+        lra.
+      }
     }
     iIntros (v) "(#IH & [%b [-> Hε]])".
     destruct b.
@@ -88,11 +108,18 @@ Section program.
       iModIntro.
       iExists n.
       iSplitR; first done.
-      admit. }
+      iApply (ec_eq with "Hε").
+      rewrite /G1_h.
+      rewrite Iverson_True; [|intuition]; rewrite Iverson_False; [|intuition].
+      by rewrite Rmult_1_l Rmult_0_l Rplus_0_r.
+    }
     { wp_pure.
       iApply "IH".
-      admit.
+      iApply (ec_eq with "Hε").
+      rewrite /G1_h.
+      rewrite Iverson_False; [|intuition]; rewrite Iverson_True; [|intuition].
+      by rewrite Rmult_0_l Rmult_1_l Rplus_0_l.
     }
-  Admitted.
+  Qed.
 
 End program.
