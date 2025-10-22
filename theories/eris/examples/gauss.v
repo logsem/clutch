@@ -46,29 +46,137 @@ Section credits.
   Definition G2_f (F : nat → R → R) : nat → R := fun k =>
      RInt (G2_g F k) 0 1.
 
+  Lemma Norm1_ex :  ex_seriesC (λ k : nat, exp (- k ^ 2 / 2)).
+  Proof. Admitted.
+
+  Lemma Norm1_nn : 0 < Norm1.
+  Proof.
+    rewrite /Norm1.
+    apply (Rlt_le_trans _ (SeriesC (λ k : nat, if bool_decide (1%nat = k) then exp (- 1 ^ 2 / 2) else 0))).
+    { rewrite SeriesC_singleton'.
+      rewrite pow1.
+      admit.
+    }
+    { (* SeriesC_lt. *) (* why not?  *)
+      admit.
+    }
+    (* eapply (SeriesC_filter_leq). _ (fun n => n = 0%nat)).
+      { intros n. apply Rexp_range. admit. }
+      { apply Norm1_ex. } *)
+  Admitted.
+
+  Lemma G1_μ_nn {x}  : 0 <= G1_μ x.
+  Proof.
+    rewrite /G1_μ.
+    apply Rle_mult_inv_pos; [|apply Norm1_nn].
+    apply Rexp_range.
+    apply Rcomplements.Rmult_le_0_r; last lra.
+    have ? : 0 <= x^2.  { apply pow_le. apply pos_INR. }
+    lra.
+  Qed.
+
+  Lemma Norm2_nn : 0 < Norm2.
+  Proof.
+    rewrite /Norm2.
+  Admitted.
+
+  Lemma G2_μ_nn {x k} (Hx : 0 <= x <= 1) : 0 <= G2_μ k x.
+  Proof.
+    rewrite /G2_μ.
+    apply Rle_mult_inv_pos; [|apply Norm2_nn].
+    apply Rexp_range.
+    apply Rcomplements.Rmult_le_0_r; last lra.
+    have ? : 0 <= (k + x)^2.  { apply pow_le. apply Rplus_le_le_0_compat; try lra. apply pos_INR. }
+    lra.
+  Qed.
+
   Lemma G1_CreditV_nn {F} (Hnn : ∀ r, 0 <= F r) : 0 <= G1_CreditV F.
+  Proof.
+    rewrite /G1_CreditV.
+    apply SeriesC_ge_0'; intros x'.
+    apply Rmult_le_pos; [|auto].
+    apply G1_μ_nn.
+  Qed.
+
+  Lemma G2_exRInt {F} (Hnn : ∀ k r, 0 <= F k r) {x'} : ex_RInt (λ x : R, G2_μ x' x * F x' x) 0 1.
   Proof. Admitted.
 
   Lemma G2_CreditV_nn {F} (Hnn : ∀ k r, 0 <= F k r) : 0 <= G2_CreditV F.
-  Proof. Admitted.
+  Proof.
+    rewrite /G2_CreditV.
+    apply SeriesC_ge_0'; intros x'.
+    apply RInt_ge_0; try lra.
+    { apply G2_exRInt; auto. }
+    intros x Hx.
+    apply Rmult_le_pos; [|auto].
+    apply G2_μ_nn; auto.
+    lra.
+  Qed.
 
   Lemma G1_h_nn {F k b} (Hnn : ∀ r, 0 <= F r) : 0 <= G1_h F k b.
-  Proof. Admitted.
+  Proof.
+    rewrite /G1_h.
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg| auto ]).
+    apply G1_CreditV_nn; auto.
+  Qed.
 
   Lemma G1_f_nn {F k} (Hnn : ∀ r, 0 <= F r) : 0 <= G1_f F k.
-  Proof. Admitted.
+  Proof.
+    rewrite /G1_f.
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [| apply G1_h_nn; auto ]).
+    { apply Rexp_range.
+      apply Rcomplements.Rmult_le_0_r; last lra.
+      have ? : 0 <= (k * (k-1))%nat by apply pos_INR.
+      lra.
+    }
+    { apply error_credits.Rle_0_le_minus.
+      apply Rexp_range.
+      have ? : 0 <= (k * (k-1))%nat by apply pos_INR.
+      lra.
+    }
+  Qed.
 
   Lemma G1_f_expectation {F} : G1_CreditV F = Geo_CreditV (G1_f F) (exp (-1 / 2)) 0.
   Proof. Admitted.
 
-  Lemma G2_s_nn {F k x b} : 0 <= G2_s F k x b.
+  Lemma G2_s_nn {F k x b} (Hnn : ∀ a b , 0 <= F a b) : 0 <= G2_s F k x b.
+  Proof.
+    rewrite /G2_s.
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg| auto ]).
+    apply G2_CreditV_nn; auto.
+  Qed.
+
+  Lemma G2_g_nn {F k x} (Hnn : ∀ a b , 0 <= F a b) (Hx : 0 <= x <= 1) : 0 <= G2_g F k x.
+  Proof.
+    rewrite /G2_g.
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [|apply G2_s_nn; auto]).
+    { apply Rexp_range.
+      apply Rcomplements.Rmult_le_0_r; last lra.
+      have ? : 0 <= x * (2 * k + x); last lra.
+      apply Rmult_le_pos; [lra|].
+      apply Rplus_le_le_0_compat; [|lra].
+      apply Rmult_le_pos; [lra|apply pos_INR].
+    }
+    { apply error_credits.Rle_0_le_minus.
+      apply Rexp_range.
+      have ? : 0 <= x * (2 * k + x); last lra.
+      apply Rmult_le_pos; [lra|].
+      apply Rplus_le_le_0_compat; [|lra].
+      apply Rmult_le_pos; [lra|apply pos_INR].
+    }
+  Qed.
+
+  Lemma G2_g_exRInt {F k} : ex_RInt (G2_g F k) 0 1.
   Proof. Admitted.
 
-  Lemma G2_g_nn {F k x} : 0 <= G2_g F k x.
-  Proof. Admitted.
-
-  Lemma G2_f_nn {F k} : 0 <= G2_f F k.
-  Proof. Admitted.
+  Lemma G2_f_nn {F k} (Hnn : ∀ a b , 0 <= F a b) : 0 <= G2_f F k.
+  Proof.
+    rewrite /G2_f.
+    apply RInt_ge_0; try lra.
+    { apply G2_g_exRInt; auto. }
+    intros x Hx.
+    apply G2_g_nn; auto. lra.
+  Qed.
 
   Lemma G2_f_expectation {F} : G2_CreditV F = G1_CreditV (G2_f F).
   Proof. Admitted.
@@ -86,7 +194,19 @@ Section credits.
    *)
 
   Local Lemma Rexp_eq {z : R} {k : nat} : exp (- z * (2 * k + z) / 2) = exp (- z * (2 * k + z) / (2 * k + 2)) ^ (k + 1).
-  Proof. Admitted.
+  Proof.
+    rewrite exp_pow; f_equal.
+    rewrite -Rmult_div_assoc Rmult_assoc Rmult_assoc; f_equal.
+    rewrite Rdiv_def; f_equal.
+    replace (2 * k + 2) with (2 * (k + 1)%nat).
+    { rewrite Rinv_mult.
+      rewrite Rmult_assoc.
+      rewrite Rinv_l; [lra|].
+      apply not_0_INR; lia.
+    }
+    rewrite plus_INR.
+    rewrite Rmult_plus_distr_l INR_1; lra.
+  Qed.
 
 End credits.
 
@@ -213,7 +333,7 @@ Section program.
     { rewrite /G2_g.
       replace (Z.add (Z.of_nat k) 1) with (Z.of_nat (k + 1)%nat) by lia.
       iApply (@wp_Iter _ _ _ (exp (- z * (2 * k + z) / (2*k+2))) _ (lazy_real x z) _ _ (G2_s F k z)).
-      { intros ?. apply G2_s_nn. }
+      { intros ?. apply G2_s_nn. auto. }
       { iFrame.
         iApply (ec_eq with "Hε").
         rewrite /Iter_CreditV.
@@ -245,8 +365,7 @@ Section program.
     }
     iIntros (v) "(#IH & [%b [-> [Hε Hx]]])".
     destruct b.
-    { (* TODO: Keep access to the lazy real *)
-      wp_pures.
+    { wp_pures.
       iModIntro; iExists k, z, x.
       iFrame.
       iSplitR; first done.
