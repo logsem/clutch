@@ -21,14 +21,29 @@ Section credits.
     SeriesC (fun n => (F n) * Geo_μ 𝛾 N n).
 
   Lemma Geo_CreditV_nn {F 𝛾 N} (Hnn : ∀ r, 0 <= F r) (H𝛾 : 0 <= 𝛾 <= 1) : 0 <= Geo_CreditV F 𝛾 N.
-  Proof. Admitted.
+  Proof.
+    rewrite /Geo_CreditV.
+    apply SeriesC_ge_0'.
+    intro n.
+    apply Rmult_le_pos; [auto|].
+    rewrite /Geo_μ.
+    apply Rmult_le_pos; [|lra].
+    apply Rmult_le_pos; [apply Iverson_nonneg|].
+    apply pow_le.
+    lra.
+  Qed.
 
   Local Definition g (F : nat → R) (𝛾 : R) (N : nat) : bool → R := fun b =>
     Iverson is_true b * Geo_CreditV F 𝛾 (N + 1) +
     Iverson (not ∘ is_true) b * F N.
 
   Local Lemma g_nn {F 𝛾 N b} (Hnn : ∀ r, 0 <= F r) (H𝛾 : 0 <= 𝛾 <= 1) : 0 <= g F 𝛾 N b.
-  Proof. Admitted.
+  Proof.
+    rewrite /g.
+    apply Rplus_le_le_0_compat.
+    { apply Rmult_le_pos; [apply Iverson_nonneg| apply Geo_CreditV_nn; auto]. }
+    { apply Rmult_le_pos; [apply Iverson_nonneg| auto ]. }
+  Qed.
 
   Local Lemma g_expectation {F 𝛾 N} :
     Geo_CreditV F 𝛾 N = 𝛾 * Geo_CreditV F 𝛾 (N + 1) + (1 - 𝛾) * F N.
