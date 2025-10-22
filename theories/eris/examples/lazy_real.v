@@ -324,7 +324,7 @@ Section lazy_real.
     is_RInt ε2 0 1 ε1 →
     lazy_real_uninit v ∗
       ↯ ε1 ∗
-      (∀ r : R, ↯ (ε2 r) ∗ lazy_real v r -∗ WP e @ E {{ Φ }})
+      (∀ r : R, ⌜ 0 <= r <= 1⌝ ∗ ↯ (ε2 r) ∗ lazy_real v r -∗ WP e @ E {{ Φ }})
       ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (Hnonval Hle HRint) "(Hv&Hε&Hwp)".
@@ -335,6 +335,8 @@ Section lazy_real.
     iDestruct "Htape" as (f) "(Htape&%Hr)".
     iApply "Hwp".
     iFrame.
+    iSplitR.
+    { iPureIntro. rewrite -Hr. apply seq_bin_to_R_range. }
     iExists _.
     iPureIntro. split_and!; eauto.
   Qed.
@@ -391,11 +393,11 @@ Section lazy_real.
     iApply (wp_lazy_real_presample_adv_comp E e v1 _ ε1 (λ x, RInt (ε2 x) 0 1)); auto.
     { intros r1 ?. apply RInt_ge_0; auto; try nra. intros. apply Hle; nra. }
     iFrame.
-    iIntros (r1) "(Hε&Hr1)".
+    iIntros (r1) "(% & Hε & Hr1)".
     iDestruct (lazy_real_range with "[$]") as %Hrange.
     iApply (wp_lazy_real_presample_adv_comp E e v2 _ _ (ε2 r1)); auto; try iFrame.
     { eapply @RInt_correct; eauto. }
-    iIntros (r2) "(Hε&Hr2)".
+    iIntros (r2) "(% & Hε&Hr2)".
     iApply "Hwp". iFrame.
   Qed.
 
@@ -689,7 +691,7 @@ Section lazy_real.
     { intros; destruct (decide _); last first; nra. }
     { apply is_RInt_lt_thresh_rev. apply Rmax_case; nra. }
     iFrame.
-    iIntros (r3) "(Heps&Hr3)".
+    iIntros (r3) "(% & Heps&Hr3)".
     wp_pures.
     destruct (decide (r3 < Rmax r1 r2)) as [Hlt|Hnlt]; last first.
     { iDestruct (ec_contradict with "[$]") as "[]". nra. }

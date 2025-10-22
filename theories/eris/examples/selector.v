@@ -224,7 +224,7 @@ Section program.
       }
       iSplitL "Hr"; [done|].
       iSplitL "Hε"; [done|].
-      iIntros (rv) "(Hε & Hr)".
+      iIntros (rv) "(% & Hε & Hr)".
       wp_pures.
       wp_apply (wp_cmp with "[Hr Hx]"); first iFrame.
       iIntros (cv) "(Hx & Hr & %Hc)".
@@ -280,7 +280,7 @@ Section program.
     { apply S_g_expectation. }
     iSplitL "Hz"; [done|].
     iSplitL "Hε"; [done|].
-    iIntros (z) "(Hε & Hz)".
+    iIntros (z) "(% & Hε & Hz)".
     wp_pures.
     wp_apply (wp_cmp with "[Hy Hz]"); first iFrame.
     iIntros (c) "(Hy & Hz & %Hcmp)".
@@ -344,7 +344,7 @@ Section program.
     { apply S_g_expectation. }
     iSplitL "Hz"; [done|].
     iSplitL "Hε"; [done|].
-    iIntros (z) "(Hε & Hz)".
+    iIntros (z) "(% & Hε & Hz)".
     wp_pures.
     wp_apply (wp_cmp with "[Hx Hz]"); first iFrame.
     iIntros (c) "(Hx & Hz & %Hcmp)".

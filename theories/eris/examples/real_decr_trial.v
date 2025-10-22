@@ -52,8 +52,8 @@ Section pmf.
     }
   Qed.
 
-  Lemma RealDecrTrial_μnn {x i n} : 0 <= RealDecrTrial_μ x i n.
-  Proof. rewrite /RealDecrTrial_μ. apply Rmult_le_pos; [apply Iverson_nonneg|apply RealDecrTrial_μ0nn]. Qed.
+  Lemma RealDecrTrial_μnn {x i n} (H : 0 <= x <= 1) : 0 <= RealDecrTrial_μ x i n.
+  Proof. rewrite /RealDecrTrial_μ. apply Rmult_le_pos; [apply Iverson_nonneg|apply RealDecrTrial_μ0nn; auto]. Qed.
 
 End pmf.
 
@@ -72,13 +72,13 @@ Section credits.
     Iverson (uncurry Rle) (y, x) * RealDecrTrial_CreditV F (i + 1) y +
     Iverson (uncurry Rge) (y, x) * F i.
 
-  Lemma CreditV_nonneg {F i x} (Hnn : ∀ n, 0 <= F n) : 0 <= RealDecrTrial_CreditV F i x.
-  Proof. rewrite /RealDecrTrial_CreditV. apply SeriesC_ge_0'. intro n. apply Rmult_le_pos; [apply RealDecrTrial_μnn |apply Hnn]. Qed.
+  Lemma CreditV_nonneg {F i x} (Hnn : ∀ n, 0 <= F n) (H : 0 <= x <= 1) : 0 <= RealDecrTrial_CreditV F i x.
+  Proof. rewrite /RealDecrTrial_CreditV. apply SeriesC_ge_0'. intro n. apply Rmult_le_pos; [apply RealDecrTrial_μnn; auto |apply Hnn]. Qed.
 
-  Lemma g_nonneg {F N rx r} (Hnn : ∀ n, 0 <= F n) : 0 <= g F N rx r.
+  Lemma g_nonneg {F N rx r} (Hnn : ∀ n, 0 <= F n) (H : 0 <= r <= 1) : 0 <= g F N rx r.
   Proof.
     rewrite /g. apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg|]).
-    { apply CreditV_nonneg, Hnn. }
+    { apply CreditV_nonneg; auto. }
     { apply Hnn. }
   Qed.
 
@@ -102,21 +102,21 @@ Section trial.
         "N".
 
   Lemma wp_lazyDecrR_gen (F : nat → R) (Hnn : ∀ n, 0 <= F n) E :
-    ⊢ ∀ N x rx, lazy_real x rx ∗ ↯ (RealDecrTrial_CreditV F N rx) -∗
+    ⊢ ∀ N x rx, lazy_real x rx ∗ ⌜0 <= rx <= 1 ⌝ ∗ ↯ (RealDecrTrial_CreditV F N rx) -∗
                 WP lazyDecrR #N x @ E {{ z, ∃ n : nat, ⌜z = #n⌝ ∗ ↯ (F n) ∗ lazy_real x rx }}.
   Proof.
     iLöb as "IH".
     rewrite {2}/lazyDecrR.
-    iIntros (N x rx) "(Hx & Hε)".
+    iIntros (N x rx) "(Hx & % & Hε)".
     do 3 wp_pure.
     wp_apply wp_init; first done.
     iIntros (y) "Hv".
     iApply (wp_lazy_real_presample_adv_comp _ _ y _ (RealDecrTrial_CreditV F N rx) (g F N rx)); auto.
-    { intros ??. by apply g_nonneg, Hnn. }
+    { intros ??. apply g_nonneg; auto. }
     { exact g_expectation. }
     iSplitL "Hv"; first done.
     iSplitL "Hε"; first done.
-    iIntros (ry) "(Hε & Hy)".
+    iIntros (ry) "(% & Hε & Hy)".
     wp_pures.
     wp_apply (wp_cmp with "[Hx Hy]"); first iFrame.
     iIntros (vcmp) "(Hy & Hx & [[%Hcmp %Hie]|[%Hcmp %Hie]])".
@@ -126,9 +126,10 @@ Section trial.
       replace ((Z.add (Z.of_nat N) 1)) with (Z.of_nat (Nat.add N 1)) by lia.
       iSpecialize ("IH" $! (N+1)%nat y ry with "[Hy Hε]").
       { iFrame.
+        iSplitR; first done.
         rewrite /g.
         iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg, Hnn ]. }
+        { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg; auto]. }
         { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
         rewrite Iverson_True; [by rewrite Rmult_1_l | rewrite /uncurry//=].
       }
@@ -142,9 +143,10 @@ Section trial.
       iSplitR "Hx"; last done.
       rewrite /g.
       iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg, Hnn ]. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg; auto ]. }
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
       rewrite Iverson_True; [by rewrite Rmult_1_l | rewrite /uncurry//=; lra].
   Qed.
+
 
 End trial.

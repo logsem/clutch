@@ -143,7 +143,7 @@ Section program.
     { by intros ??; apply g_nn, Hnn. }
     { by apply g_expectation. }
     iFrame.
-    iIntros (r) "(Hε & Hx)".
+    iIntros (r) "(%Hrange & Hε & Hx)".
     wp_pures.
     wp_bind (LeHalf _).
     iApply (pgl_wp_mono_frame with "[Hx] Hε"); last iApply (wp_LeHalf with "Hx").
@@ -153,12 +153,13 @@ Section program.
     { wp_pures.
       rewrite /g//=.
       iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg]. intro n. apply Hnn. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg; auto]. intro n. apply Hnn. }
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
       wp_bind (lazyDecrR _ _).
       iApply (pgl_wp_mono with "[Hr Hε]"); last first.
       { iApply (wp_lazyDecrR_gen (LiftF F)); [rewrite /LiftF//=|].
         iFrame.
+        iSplitR; first auto.
         rewrite Iverson_True; auto.
         rewrite Rmult_1_l.
         iFrame.
@@ -183,7 +184,7 @@ Section program.
       iSplitR; first done.
       rewrite /g.
       iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg]. intro n. apply Hnn. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg; auto ]. intro n. apply Hnn. }
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
       rewrite Iverson_True; auto.
       rewrite Rmult_1_l.

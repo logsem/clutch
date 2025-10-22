@@ -85,7 +85,7 @@ Section program.
     { by intros ??; apply g_nonneg, Hnn. }
     { by apply g_expectation. }
     iFrame.
-    iIntros (xr) "(Hε & Hx)".
+    iIntros (xr) "(%Hrange & Hε & Hx)".
     do 2 wp_pure.
     wp_bind (lazyDecrR _ _).
     iApply (pgl_wp_mono_frame (□ _) with "[Hx Hε] IH"); last first.

@@ -196,7 +196,7 @@ Section program.
     { intros ??. apply G2_g_nn; auto. }
     { apply G2_g_RInt. }
     iFrame.
-    iIntros (z) "(Hε & Hx)".
+    iIntros (z) "(% & Hε & Hx)".
     wp_pures.
     wp_bind (IterTrial _ _).
     iApply (pgl_wp_mono_frame (□ _) with "[Hε Hx] IH"); last first.
