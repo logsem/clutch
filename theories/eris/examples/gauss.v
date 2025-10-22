@@ -240,6 +240,7 @@ Section program.
         iApply wp_B; first done.
         rewrite /B_CreditV.
         iFrame.
+        auto.
       }
     }
     iIntros (v) "(#IH & [%b [-> [Hε Hx]]])".

@@ -3,7 +3,7 @@ From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
 From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
-From clutch.eris.examples Require Import lazy_real indicators.
+From clutch.eris.examples Require Import lazy_real indicators half_bern_neg_exp.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -72,23 +72,162 @@ Section credits.
     Iverson Zeven z * F (true) +
     Iverson (not ∘ Zeven) z * F (false).
 
-  Lemma C_CreditV_nn {F m} (Hnn : ∀ r, 0 <= F r) : 0 <= C_CreditV F m.
-  Proof. Admitted.
+  Lemma C_CreditV_nn {F m} (Hnn : ∀ r, 0 <= F r) (Hm : 0 <= m) : 0 <= C_CreditV F m.
+  Proof.
+    rewrite /C_CreditV.
+    apply Rplus_le_le_0_compat; [apply Rplus_le_le_0_compat |].
+    { apply Rmult_le_pos; auto. apply Rle_mult_inv_pos; try lra. }
+    { apply Rmult_le_pos; auto. apply Rle_mult_inv_pos; try lra. }
+    { apply Rmult_le_pos; auto. apply Rle_mult_inv_pos; try lra. }
+  Qed.
 
-  Lemma Bii_CreditV_nn {F k x} (Hnn : ∀ r, 0 <= F r) : 0 <= Bii_CreditV F k x.
-  Proof. Admitted.
+  Lemma Bii_μ_nn {k x b} (Hx : 0 <= x <= 1) : 0 <= Bii_μ k x b.
+  Proof.
+    rewrite /Bii_μ.
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg| auto ]).
+    { apply error_credits.Rle_0_le_minus.
+      rewrite -Rcomplements.Rdiv_le_1.
+      { apply Rplus_le_compat; [lra|lra]. }
+      { apply Rplus_le_lt_0_compat; try lra.
+        apply Rmult_le_pos; try lra.
+        apply pos_INR. }
+    }
+    { apply error_credits.Rle_0_le_minus.
+      rewrite -Rcomplements.Rdiv_le_1.
+      { apply Rplus_le_compat; [lra|lra]. }
+      { apply Rplus_le_lt_0_compat; try lra.
+        apply Rmult_le_pos; try lra.
+        apply pos_INR. }
+    }
+  Qed.
 
-  Lemma S_CreditV_nn {F k x y N} (Hnn : ∀ r, 0 <= F r) : 0 <= S_CreditV F k x y N.
-  Proof. Admitted.
 
-  Lemma B_CreditV_nn {F k x} (Hnn : ∀ r, 0 <= F r) : 0 <= B_CreditV F k x.
-  Proof. Admitted.
+  Lemma S_μ0_nn {x k y x'} (Hx : 0 <= x <= 1) (Hy : 0 <= y <= 1) : 0 <= S_μ0 k x y x'.
+  Proof.
+    rewrite /S_μ0.
+    apply error_credits.Rle_0_le_minus.
+    apply Rmult_le_compat.
+    { apply Rcomplements.Rdiv_le_0_compat.
+      { apply pow_le; lra. }
+      { apply INR_fact_lt_0. }
+    }
+    { apply pow_le.
+      apply Rcomplements.Rdiv_le_0_compat.
+      { apply Rplus_le_le_0_compat; [|lra]. apply Rmult_le_pos; [lra|apply pos_INR]. }
+      { apply Rplus_le_lt_0_compat; [|lra]. apply Rmult_le_pos; [lra|apply pos_INR]. }
+    }
+    { apply Rmult_le_compat.
+      { apply pow_le; lra. }
+      { rewrite -(Rmult_1_l (/ _)).
+        apply Rcomplements.Rdiv_le_0_compat; [lra|].
+        apply INR_fact_lt_0.
+      }
+      { rewrite -(Rmult_1_r (y ^ x')).
+        rewrite pow_add pow_1.
+        apply Rmult_le_compat; try lra.
+        apply pow_le; lra.
+      }
+      { apply Rcomplements.Rinv_le_contravar.
+        { apply INR_fact_lt_0. }
+        apply le_INR.
+        apply fact_le.
+        lia.
+      }
+    }
+    {
+      rewrite -(Rmult_1_r (_ ^ x')).
+      rewrite pow_add pow_1.
+      apply Rmult_le_compat; try lra.
+      { apply pow_le.
+        apply Rcomplements.Rdiv_le_0_compat.
+        { apply Rplus_le_le_0_compat; [|lra]. apply Rmult_le_pos; [lra|apply pos_INR]. }
+        { apply Rplus_le_lt_0_compat; [|lra]. apply Rmult_le_pos; [lra|apply pos_INR]. }
+      }
+      { apply Rcomplements.Rdiv_le_0_compat.
+        { apply Rplus_le_le_0_compat; [|lra]. apply Rmult_le_pos; [lra|apply pos_INR]. }
+        { apply Rplus_le_lt_0_compat; [|lra]. apply Rmult_le_pos; [lra|apply pos_INR]. }
+      }
+      { rewrite -Rcomplements.Rdiv_le_1.
+        { apply Rplus_le_compat; [lra|lra]. }
+        { apply Rplus_le_lt_0_compat; try lra.
+          apply Rmult_le_pos; try lra.
+          apply pos_INR. }
+        }
+      }
+  Qed.
 
-  Lemma Bii_h_nn {F k x} (Hnn : ∀ r, 0 <= F r) : 0 <= Bii_h F k x.
+  Lemma S_μ_nn {x k y N x'} (Hx : 0 <= x <= 1) (Hy : 0 <= y <= 1) : 0 <= S_μ k x y N x'.
+  Proof.
+    rewrite /S_μ.
+    apply Rmult_le_pos; first apply Iverson_nonneg.
+    apply S_μ0_nn; auto.
+  Qed.
+
+  Lemma Bii_CreditV_nn {F k x} (Hnn : ∀ r, 0 <= F r) (Hx : 0 <= x <= 1) : 0 <= Bii_CreditV F k x.
+  Proof.
+    rewrite /Bii_CreditV.
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Bii_μ_nn; auto | auto ]).
+  Qed.
+
+  Lemma S_CreditV_nn {F k x y N} (Hnn : ∀ r, 0 <= F r) (Hx : 0 <= x <= 1) (Hy : 0 <= y <= 1) : 0 <= S_CreditV F k x y N.
+  Proof.
+    rewrite /S_CreditV.
+    apply SeriesC_ge_0'.
+    intros x'.
+    apply Rmult_le_pos; last auto.
+    apply S_μ_nn; auto.
+  Qed.
+
+  Lemma B_CreditV_nn {F k x} (Hnn : ∀ r, 0 <= F r) (Hx : 0 <= x <= 1) : 0 <= B_CreditV F k x.
+  Proof.
+    rewrite /B_CreditV.
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [| auto ]).
+    { apply Rexp_range.
+      apply Rcomplements.Rmult_le_0_r; first apply Rcomplements.Rmult_le_0_r.
+      { lra. }
+      { apply Rplus_le_le_0_compat; [|lra]. apply Rmult_le_pos; [lra|apply pos_INR]. }
+      rewrite -(Rmult_1_l (/ _)).
+      apply Rle_mult_inv_pos; [lra|].
+      apply Rplus_le_lt_0_compat; [|lra].
+      apply Rmult_le_pos; [lra|apply pos_INR].
+    }
+    { apply error_credits.Rle_0_le_minus.
+      apply Rexp_range.
+      apply Rcomplements.Rmult_le_0_r; first apply Rcomplements.Rmult_le_0_r.
+      { lra. }
+      { apply Rplus_le_le_0_compat; [|lra]. apply Rmult_le_pos; [lra|apply pos_INR]. }
+      rewrite -(Rmult_1_l (/ _)).
+      apply Rle_mult_inv_pos; [lra|].
+      apply Rplus_le_lt_0_compat; [|lra].
+      apply Rmult_le_pos; [lra|apply pos_INR].
+    }
+  Qed.
+
+  Lemma Bii_g_ex_RInt {F k} (Hnn : ∀ r, 0 <= F r) : ex_RInt (Bii_g F k) 0 1.
   Proof. Admitted.
 
   Lemma Bii_g_nn {F k x} (Hnn : ∀ r, 0 <= F r) : 0 <= x <= 1 → 0 <= Bii_g F k x.
+  Proof.
+    intro H.
+    rewrite /Bii_g.
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg | auto ]).
+  Qed.
+
+  Lemma Bii_h_nn {F k x} (Hnn : ∀ r, 0 <= F r) : 0 <= Bii_h F k x.
+  Proof.
+    rewrite /Bii_h.
+    apply Rplus_le_le_0_compat; first apply (Rplus_le_le_0_compat); apply Rmult_le_pos;
+      try auto; try (apply Iverson_nonneg; auto).
+    apply RInt_ge_0; try lra.
+    { apply Bii_g_ex_RInt; auto. }
+    intros ??.
+    apply Bii_g_nn; auto.
+    lra.
+  Qed.
+
+  Lemma Bii_g_correct {F x} : is_RInt (Bii_g F x) 0 1 (RInt (Bii_g F x) 0 1).
   Proof. Admitted.
+
 
   Lemma Bii_f_expectation {F k x} : Bii_CreditV F k x = C_CreditV (Bii_h F x) (2 * k)%nat.
   Proof.
@@ -98,24 +237,39 @@ Section credits.
     rewrite /Bii_h.
   Admitted.
 
-  Lemma Bii_g_correct {F x} : is_RInt (Bii_g F x) 0 1 (RInt (Bii_g F x) 0 1).
-  Proof. Admitted.
 
-  Lemma S_hz_nn {F k x N z w} (Hnn : ∀ r, 0 <= F r) : 0 <= S_hz F k x N z w.
-  Proof. Admitted.
+  Lemma S_hz_nn {F k x N z w} (Hnn : ∀ r, 0 <= F r) (H : 0 <= x <= 1) (Hy : 0 <= z <= 1) : 0 <= S_hz F k x N z w.
+  Proof.
+    rewrite /S_hz.
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg | auto ]).
+    apply S_CreditV_nn; auto.
+  Qed.
 
-  Lemma S_g_nn {F k x z N r} (Hnn : ∀ r, 0 <= F r) : 0 <= S_g F k x z N r.
-  Proof. Admitted.
+  Lemma S_g_nn {F k x z N r} (Hnn : ∀ r, 0 <= F r) (H : 0 <= x <= 1) (Hy : 0 <= r <= 1) : 0 <= S_g F k x z N r.
+  Proof.
+    rewrite /S_g.
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg | auto ]).
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Bii_μ_nn; auto | auto ]).
+    { apply S_hz_nn; auto. }
+    { apply S_hz_nn; auto. }
+  Qed.
 
-  Lemma S_nn_1 {F k x z N} (Hnn : ∀ r, 0 <= F r) :
+  Lemma S_nn_1 {F k x z N} (Hnn : ∀ r, 0 <= F r) (H : 0 <= x <= 1) (Hz : 0 <= z <= 1) :
     0 <= Bii_μ k x false * S_hz F k x N z false + Bii_μ k x true * S_hz F k x N z true.
-  Proof. Admitted.
+  Proof.
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Bii_μ_nn; auto | auto ]).
+    { apply S_hz_nn; auto. }
+    { apply S_hz_nn; auto. }
+  Qed.
 
   Lemma S_g_expectation {F k x y N} : is_RInt (S_g F k x y N) 0 1 (S_CreditV F k x y N).
   Proof. Admitted.
 
   Lemma B_g_nn {F b} (Hnn : ∀ r, 0 <= F r) :  0 <= B_g F b.
-  Proof. Admitted.
+  Proof.
+    rewrite /B_g.
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg | auto ]).
+  Qed.
 
   Lemma B_g_expectation {F k x} : B_CreditV F k x = S_CreditV (B_g F) k x x 0.
   Proof.
@@ -174,7 +328,15 @@ Section program.
       Iverson (eq F1) n * (1 / (m + 2) * F 1%nat) +
       Iverson (fun n' => ¬ n' = F0 ∧ ¬ n' = F1) n * (m / (m + 2) * F 2%nat).
     wp_apply (wp_couple_rand_adv_comp _ _ _ _ C_F with "Hε").
-    { admit. }
+    { intro n. rewrite /C_F.
+      apply Rplus_le_le_0_compat; first apply (Rplus_le_le_0_compat); apply Rmult_le_pos;
+        try auto; try (apply Iverson_nonneg; auto).
+      all: apply Rmult_le_pos; auto; apply Rle_mult_inv_pos; try lra.
+      { apply Rplus_le_lt_0_compat; [|lra]. apply pos_INR. }
+      { apply Rplus_le_lt_0_compat; [|lra]. apply pos_INR. }
+      { apply pos_INR. }
+      { apply Rplus_le_lt_0_compat; [|lra]. apply pos_INR. }
+    }
     { rewrite /C_CreditV.
       unfold C_F.
       admit. }
@@ -266,11 +428,11 @@ Section program.
   Qed.
 
   Theorem wp_S {E F} (k : nat) xα x (Hnn : ∀ r, 0 <= F r) :
-    ∀ yα y N , ↯(S_CreditV F k x y N) ∗ lazy_real xα x ∗ lazy_real yα y -∗
+    ∀ yα y N , ↯(S_CreditV F k x y N) ∗ lazy_real xα x ∗ lazy_real yα y ∗ ⌜0 <= x <= 1 ⌝ ∗ ⌜0 <= y <= 1⌝ -∗
     WP S #k xα yα #N @ E {{ vn, ∃ n : nat, ⌜vn = #n ⌝ ∗ ↯(F n) ∗ lazy_real xα x }}.
   Proof.
     iLöb as "IH".
-    iIntros (yα y N) "(Hε & Hx & Hy)".
+    iIntros (yα y N) "(Hε & Hx & Hy & % & %)".
     rewrite {2}/S.
     wp_pures.
     wp_apply wp_init; first done.
@@ -325,16 +487,17 @@ Section program.
         { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
         { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_CreditV_nn; auto ]. }
         rewrite Iverson_True; [rewrite Rmult_1_l|intuition].
-        done.
+        iFrame.
+        iPureIntro; auto.
       }
     }
   Qed.
 
   Theorem wp_S0 {E F} (k : nat) xα x (Hnn : ∀ r, 0 <= F r) :
-    ↯(S_CreditV F k x x 0) ∗ lazy_real xα x -∗
+    ↯(S_CreditV F k x x 0) ∗ lazy_real xα x ∗ ⌜ 0 <= x <= 1 ⌝ -∗
     WP S0 #k xα @ E {{ vn, ∃ n : nat, ⌜vn = #n ⌝ ∗ ↯(F n) ∗ lazy_real xα x }}.
   Proof.
-    iIntros "(Hε & Hx)".
+    iIntros "(Hε & Hx & %)".
     rewrite /S0.
     wp_pures.
     wp_apply wp_init; first done.
@@ -387,13 +550,13 @@ Section program.
         { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
         { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_CreditV_nn; auto ]. }
         rewrite Iverson_True; [rewrite Rmult_1_l|intuition].
-        done.
+        iFrame. by iPureIntro.
       }
     }
   Qed.
 
   Theorem wp_B {E F} (k : nat) xα x (Hnn : ∀ r, 0 <= F r) :
-    ↯(B_CreditV F k x) ∗ lazy_real xα x  -∗
+    ↯(B_CreditV F k x) ∗ lazy_real xα x ∗ ⌜0 <= x <= 1 ⌝ -∗
     WP B #k xα @ E {{ vb, ∃ b : bool, ⌜vb = #b ⌝ ∗ ↯(F b) ∗ lazy_real xα x }}.
   Proof.
     iIntros "(Hε & Hx)".
