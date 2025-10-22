@@ -30,8 +30,27 @@ Section pmf.
   Theorem RealDecrTrial_μ_base {x n} : RealDecrTrial_μ x 0 n = RealDecrTrial_μ0 x n.
   Proof. rewrite RealDecrTrial_μ_supp; [f_equal; lia| lia]. Qed.
 
-  Lemma RealDecrTrial_μ0nn {x n} : 0 <= RealDecrTrial_μ0 x n.
-  Proof. rewrite /RealDecrTrial_μ0. Admitted.
+  Lemma RealDecrTrial_μ0nn {x n} (Hx : 0 <= x <= 1) : 0 <= RealDecrTrial_μ0 x n.
+  Proof.
+    rewrite /RealDecrTrial_μ0.
+    apply error_credits.Rle_0_le_minus.
+    replace (x ^ (n + 1) / fact (n + 1)) with ((x ^ (n + 1)) * (1 / fact (n + 1))) by lra.
+    replace (x ^ n / fact n) with ((x ^ n) * (1 / fact n)) by lra.
+    apply Rmult_le_compat.
+    { apply pow_le; lra. }
+    { apply Rcomplements.Rdiv_le_0_compat; [lra|]. apply INR_fact_lt_0. }
+    { rewrite pow_add pow_1.
+      rewrite -{2}(Rmult_1_l (x^n)) Rmult_comm.
+      apply Rmult_le_compat; try lra.
+      apply pow_le; lra. }
+    rewrite Rdiv_1_l Rdiv_1_l.
+    apply Rcomplements.Rinv_le_contravar.
+    { apply INR_fact_lt_0. }
+    { apply le_INR.
+      apply fact_le.
+      lia.
+    }
+  Qed.
 
   Lemma RealDecrTrial_μnn {x i n} : 0 <= RealDecrTrial_μ x i n.
   Proof. rewrite /RealDecrTrial_μ. apply Rmult_le_pos; [apply Iverson_nonneg|apply RealDecrTrial_μ0nn]. Qed.
@@ -127,31 +146,5 @@ Section trial.
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
       rewrite Iverson_True; [by rewrite Rmult_1_l | rewrite /uncurry//=; lra].
   Qed.
-
-  (* TODO: Delete all Z-versions
-
-  Definition lazyDecrR0 : expr := (lazyDecrR #0)%E.
-
-  Lemma wp_lazyDecrR0 (F : Z → R) (Hnn : ∀ z, 0 <= F z) E :
-    ⊢ ∀ x rx, lazy_real x rx ∗ ↯ (RealDecrTrial_CreditV0 F rx) -∗ WP lazyDecrR0 x @ E {{ z, ∃ z' : Z, ⌜z = #z'⌝ ∗ ↯ (F z') }}.
-  Proof.
-    iIntros (x rx) "(Hr & Hε)".
-    unfold lazyDecrR0.
-    pose F' : nat → R := fun n => F n.
-    iPoseProof (wp_lazyDecrR_gen F' $! 0%nat x rx with "[Hr Hε]") as "Hspec".
-    { intro n. apply Hnn. }
-    { replace (RealDecrTrial_CreditV0 F rx) with (RealDecrTrial_CreditV F' 0 rx); first iFrame.
-      rewrite /RealDecrTrial_CreditV0/RealDecrTrial_CreditV.
-      (* Split the series over the integers in half *)
-      admit.
-    }
-    iApply pgl_wp_mono; [|iFrame].
-    intro v.
-    iStartProof.
-    iIntros "[%n [% Hε]]".
-    iExists n.
-    iFrame. done.
-  Admitted.
-*)
 
 End trial.
