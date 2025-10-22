@@ -21,13 +21,26 @@ Section credits.
     ((𝛾 ^ N) * F true + (1 - (𝛾 ^ N)) * F false).
 
   Lemma Iter_CreditV_nn {F 𝛾 N} (Hnn : ∀ r, 0 <= F r) (H𝛾 : 0 <= 𝛾 <= 1) : 0 <= Iter_CreditV F 𝛾 N.
-  Proof. Admitted.
+  Proof.
+    apply Rplus_le_le_0_compat.
+    { apply Rmult_le_pos; [apply pow_le; lra | auto]. }
+    { apply Rmult_le_pos; [| auto ].
+      apply error_credits.Rle_0_le_minus.
+      rewrite -(pow1 N).
+      apply pow_incr; done.
+    }
+  Qed.
 
   Definition g (F : bool → R) (𝛾 : R) (N : nat) : bool → R :=
     fun b => Iverson is_true b * Iter_CreditV F 𝛾 N + Iverson (not ∘ is_true) b * F false.
 
   Local Lemma g_nn {F 𝛾 N b} (Hnn : ∀ r, 0 <= F r) (H𝛾 : 0 <= 𝛾 <= 1) : 0 <= g F 𝛾 N b.
-  Proof. Admitted.
+  Proof.
+    rewrite /g.
+    apply Rplus_le_le_0_compat.
+    { apply Rmult_le_pos; [apply Iverson_nonneg | apply Iter_CreditV_nn; auto ]. }
+    { apply Rmult_le_pos; [apply Iverson_nonneg | auto ]. }
+  Qed.
 
   Local Lemma g_expectation {F 𝛾 N'} :
     (Iter_CreditV F 𝛾 (S N')) =  (𝛾 * g F 𝛾 N' true + (1 - 𝛾) * g F 𝛾 N' false).
