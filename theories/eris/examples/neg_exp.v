@@ -36,7 +36,9 @@ Section credits.
     RInt_gen (fun x : R => F x * NegExp_ρ L x) (at_point 0%R) (Rbar_locally Rbar.p_infty).
 
   Lemma NegExp_CreditV_nn {F : R -> R} (Hnn : ∀ r, 0 <= F r) (L : nat) : 0 <= NegExp_CreditV F (L + 1).
-  Proof. Admitted.
+  Proof.
+    rewrite /NegExp_CreditV.
+  Admitted.
 
   Local Definition hx (F : R → R) (x : R) (L : nat) : nat → R := fun z =>
     Iverson Zeven z * F (x + INR L) +
@@ -45,11 +47,22 @@ Section credits.
   Local Definition g (F : R -> R) (L : nat) : R -> R := fun x =>
     RealDecrTrial_CreditV (hx F x L) 0 x.
 
-  Lemma g_nonneg {F L r} (Hnn : ∀ r, 0 <= F r) : 0 <= g F L r.
-  Proof. Admitted.
-
   Lemma hx_nonneg {F xr L} (Hnn : ∀ r, 0 <= F r) : ∀ n : nat, 0 <= hx F xr L n.
-  Proof. Admitted.
+  Proof.
+    rewrite /hx.
+    intros ?.
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg|]).
+    { auto. }
+    { apply NegExp_CreditV_nn; auto. }
+  Qed.
+
+  Lemma g_nonneg {F L r} (Hnn : ∀ r, 0 <= F r) (Hr : 0 <= r <= 1) : 0 <= g F L r.
+  Proof.
+    rewrite /g.
+    apply CreditV_nonneg; auto.
+    intros ?.
+    apply hx_nonneg; auto.
+  Qed.
 
   Theorem g_expectation {F L} : is_RInt (g F L) 0 1 (NegExp_CreditV F L).
   Proof. Admitted.
@@ -82,7 +95,7 @@ Section program.
     wp_apply wp_init; first done.
     iIntros (x) "Hx".
     iApply (wp_lazy_real_presample_adv_comp _ _ x _ (NegExp_CreditV F L) (g F L)); auto.
-    { by intros ??; apply g_nonneg, Hnn. }
+    { by intros ??; apply g_nonneg; auto. }
     { by apply g_expectation. }
     iFrame.
     iIntros (xr) "(%Hrange & Hε & Hx)".
