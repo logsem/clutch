@@ -47,7 +47,7 @@ Section credits.
   Definition S_CreditV (F : nat → R) k x y N : R :=
     SeriesC (fun n => S_μ k x y N n * F n).
 
-  Definition B_CreditV (F : bool → R) k x : R :=
+  Definition B_CreditV (F : bool → R) (k : nat) (x : R) : R :=
     (exp (-(2*k+x)/(2*k+2))) * F true +
     (exp (-(2*k+x)/(2*k+2))) * F false.
 
@@ -67,6 +67,10 @@ Section credits.
   Definition S_g F k x y N : R → R := fun z =>
     Iverson (Rle y) z * F N +
     Iverson (Rge y) z * (Bii_μ k x false * S_hz F k x N z false + Bii_μ k x true * S_hz F k x N z true).
+
+  Definition B_g (F : bool → R) : nat → R := fun z =>
+    Iverson Zeven z * F (true) +
+    Iverson (not ∘ Zeven) z * F (false).
 
   Lemma C_CreditV_nn {F m} (Hnn : ∀ r, 0 <= F r) : 0 <= C_CreditV F m.
   Proof. Admitted.
@@ -110,6 +114,20 @@ Section credits.
   Lemma S_g_expectation {F k x y N} : is_RInt (S_g F k x y N) 0 1 (S_CreditV F k x y N).
   Proof. Admitted.
 
+  Lemma B_g_nn {F b} (Hnn : ∀ r, 0 <= F r) :  0 <= B_g F b.
+  Proof. Admitted.
+
+  Lemma B_g_expectation {F k x} : B_CreditV F k x = S_CreditV (B_g F) k x x 0.
+  Proof.
+    rewrite /B_CreditV.
+    rewrite /S_CreditV.
+    rewrite /B_g.
+    (* Split the series *)
+    rewrite /S_μ.
+    rewrite /S_μ0.
+    (* Apply exp t.s. to both *)
+  Admitted.
+
 End credits.
 
 Section program.
@@ -131,8 +149,14 @@ Section program.
       let: "z" := init #() in
       if: (cmp "y" "z" = #(-1)) || (Bii "k" "x") then "N" else "trial" "k" "x" "z" ("N" + #1%nat).
 
+  (* The first iterate of S so that we do not need to duplicate x. All other iterates are fine. *)
+  Definition S0 : val :=
+    λ: "k" "x",
+      let: "z" := init #() in
+      if: (cmp "x" "z" = #(-1)) || (Bii "k" "x") then #0 else S "k" "x" "z" #1%nat.
+
   Definition B : val :=
-    λ: "k" "x", (S "k" "x" "x" #0%nat) `rem` #2 = #0.
+    λ: "k" "x", (S0 "k" "x") `rem` #2 = #0.
 
   Theorem wp_C {E F} (m : nat) (Hnn : ∀ r, 0 <= F r) :
     ↯(C_CreditV F m) -∗ WP C #m @ E {{ vn, ∃ n : nat, ⌜vn = #n ⌝ ∗ ⌜n = 0%nat \/ n = 1%nat \/ n = 2%nat⌝∗ ↯(F n) }}.
@@ -306,6 +330,68 @@ Section program.
     }
   Qed.
 
+  Theorem wp_S0 {E F} (k : nat) xα x (Hnn : ∀ r, 0 <= F r) :
+    ↯(S_CreditV F k x x 0) ∗ lazy_real xα x -∗
+    WP S0 #k xα @ E {{ vn, ∃ n : nat, ⌜vn = #n ⌝ ∗ ↯(F n) ∗ lazy_real xα x }}.
+  Proof.
+    iIntros "(Hε & Hx)".
+    rewrite /S0.
+    wp_pures.
+    wp_apply wp_init; first done.
+    iIntros (zα) "Hz".
+    iApply (wp_lazy_real_presample_adv_comp _ _ zα _ (S_CreditV F k x x 0) (S_g F k x x 0)); auto.
+    { intros ??. apply S_g_nn; auto. }
+    { apply S_g_expectation. }
+    iSplitL "Hz"; [done|].
+    iSplitL "Hε"; [done|].
+    iIntros (z) "(Hε & Hz)".
+    wp_pures.
+    wp_apply (wp_cmp with "[Hx Hz]"); first iFrame.
+    iIntros (c) "(Hx & Hz & %Hcmp)".
+    destruct Hcmp as [[-> Hc'] | [-> Hc']].
+    { wp_pures.
+      iModIntro; iExists 0%nat; iFrame; iSplitR; first done.
+      rewrite /S_g.
+      iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_nn_1; auto ]. }
+      rewrite Iverson_True; [rewrite Rmult_1_l|done].
+      done.
+    }
+    { wp_pures.
+      rewrite /S_g.
+      iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_nn_1; auto ]. }
+      rewrite Iverson_True; [rewrite Rmult_1_l|lra].
+      wp_bind (Bii _ _).
+      iApply (pgl_wp_mono_frame (_ )%I with "[Hx Hε ] Hz"); last first.
+      { iApply (@wp_Bii _ (S_hz F k x _ _)); last iFrame.
+        iIntros (?). apply S_hz_nn; auto. }
+      iIntros (bv) "(Hz & [%b [-> [Hε Hx]]])".
+      destruct b.
+      { wp_pures.
+        iModIntro; iExists 0%nat; iFrame; iSplitR; first done.
+        rewrite /S_hz.
+        iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
+        { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
+        { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_CreditV_nn; auto ]. }
+        rewrite Iverson_True; [rewrite Rmult_1_l|intuition].
+        done.
+      }
+      { wp_pure.
+        iApply wp_S; auto.
+        iFrame.
+        rewrite /S_hz.
+        iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
+        { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
+        { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_CreditV_nn; auto ]. }
+        rewrite Iverson_True; [rewrite Rmult_1_l|intuition].
+        done.
+      }
+    }
+  Qed.
+
   Theorem wp_B {E F} (k : nat) xα x (Hnn : ∀ r, 0 <= F r) :
     ↯(B_CreditV F k x) ∗ lazy_real xα x  -∗
     WP B #k xα @ E {{ vb, ∃ b : bool, ⌜vb = #b ⌝ ∗ ↯(F b) ∗ lazy_real xα x }}.
@@ -313,19 +399,43 @@ Section program.
     iIntros "(Hε & Hx)".
     rewrite /B.
     wp_pures.
-    wp_bind (S _ _ _ _).
+    wp_bind (S0 _ _).
     iApply (pgl_wp_mono with "[Hx Hε] "); last first.
-    { iApply wp_S.
-      (* TODO: Credit distribution for B *)
-      Unshelve.
-
-      (* TODO: FIXME: lazy_real being duplicated is a problem!
-         We could add a wrapper function that does the 0th iterate, and only calls S
-         once a fresh y is allocated.
-
-         Note that x must be in the precondition and postcondition of this lemma, but
-         y can be thrown away. *)
-    (* iIntros (v) "[%n [-> [Hε Hx]]]". *)
-  Admitted.
+    { iApply (wp_S0 (F:=B_g F)).
+      { intros ?; apply B_g_nn; auto. }
+      iFrame.
+      iApply (ec_eq with "Hε").
+      apply B_g_expectation.
+    }
+    iIntros (v) "[%n [-> [Hec Hx]]]".
+    iFrame.
+    wp_pures.
+    iModIntro.
+    case_bool_decide.
+    { iExists true; iSplitR; first done.
+      rewrite /B_g.
+      iPoseProof (ec_split _ _ with "Hec") as "(Hε & _)".
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | auto ]. }
+      iApply (ec_eq with "Hε").
+      rewrite Iverson_True; [by rewrite Rmult_1_l|].
+      inversion H as [H'].
+      apply Z.rem_mod_eq_0 in H'; [|lia].
+      by apply Zeven_bool_iff; rewrite Zeven_mod H' //.
+    }
+    { iExists false; iSplitR; first done.
+      iPoseProof (ec_split _ _ with "Hec") as "(_ & Hε)".
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | auto ]. }
+      iApply (ec_eq with "Hε").
+      rewrite Iverson_True; [by rewrite Rmult_1_l|].
+      rewrite //=.
+      intro Hk; apply H. f_equal.
+      apply Zeven_bool_iff in Hk.
+      rewrite Zeven_mod in Hk.
+      apply Zeq_bool_eq in Hk.
+      apply (Z.rem_mod_eq_0 n 2 ) in Hk; [by f_equal|lia].
+    }
+  Qed.
 
 End program.
