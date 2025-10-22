@@ -7,25 +7,45 @@ From clutch.eris.examples Require Import lazy_real max_lazy_real indicators real
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
-Section pmf.
+Lemma Rexp_nn {z} : 0 <= exp z.
+Proof. Admitted.
 
+(* TODO: Solve and move me *)
+Lemma Rexp_range {z : R} : z <= 0 -> 0 <= exp z <= 1.
+Proof. Admitted.
+
+Section pmf.
    Definition BNEHalf_μ (b : bool) : R :=
-     match b with
-     | true => exp (-1/2)%R
-     | false => 1 - exp (-1/2)%R
-     end.
+     Iverson is_true b * exp (-1/2)%R +
+     Iverson (not ∘ is_true) b * (1 - exp (-1/2)%R).
 
 End pmf.
 
 Section credits.
   Import Hierarchy.
 
-
   Definition BNEHalf_CreditV (F : bool → R) : R :=
     (F true) * BNEHalf_μ true + (F false) * BNEHalf_μ false.
 
+  Lemma BNEHalf_μ_nn {b} : 0 <= BNEHalf_μ b.
+  Proof.
+    rewrite /BNEHalf_μ.
+    apply Rplus_le_le_0_compat.
+    { apply Rmult_le_pos; [apply Iverson_nonneg| auto ]. apply Rexp_nn. }
+    { apply Rmult_le_pos; [apply Iverson_nonneg| auto ].
+      apply error_credits.Rle_0_le_minus.
+      have ? := @Rexp_range (Rdiv (-1) 2).
+      lra.
+    }
+  Qed.
+
   Lemma BNEHalf_CreditV_nn {F} (Hnn : ∀ r, 0 <= F r) : 0 <= BNEHalf_CreditV F.
-  Proof. Admitted.
+  Proof.
+    rewrite /BNEHalf_CreditV.
+    apply Rplus_le_le_0_compat.
+    { apply Rmult_le_pos; auto. apply BNEHalf_μ_nn. }
+    { apply Rmult_le_pos; auto. apply BNEHalf_μ_nn. }
+  Qed.
 
   Local Definition LiftF (F : bool -> R) : nat -> R :=
     fun n => F (Z.eqb (n `rem` 2)%Z 1%Z).
@@ -34,8 +54,16 @@ Section credits.
     Iverson (fun x => Rle x 0.5) r * RealDecrTrial_CreditV (LiftF F) 0 r +
     Iverson (fun x  => not (Rle x 0.5)) r * F (true).
 
-  Local Lemma g_nn {F r} (Hnn : ∀ r, 0 <= F r) : 0 <= g F r.
-  Proof. Admitted.
+  Local Lemma g_nn {F r} (Hnn : ∀ r, 0 <= F r) (Hr : 0 <= r <= 1) : 0 <= g F r.
+  Proof.
+    rewrite /g.
+    apply Rplus_le_le_0_compat.
+    { apply Rmult_le_pos; [apply Iverson_nonneg| auto ].
+      apply CreditV_nonneg; auto.
+      intros ?; rewrite /LiftF//=.
+    }
+    { apply Rmult_le_pos; [apply Iverson_nonneg| auto ]. }
+  Qed.
 
   Local Lemma g_expectation {F} : is_RInt (g F) 0 1 (BNEHalf_CreditV F).
   Proof. Admitted.
@@ -140,7 +168,7 @@ Section program.
     wp_apply wp_init; first done.
     iIntros (x) "Hx".
     iApply (wp_lazy_real_presample_adv_comp _ _ x _ (BNEHalf_CreditV F) (g F)); auto.
-    { by intros ??; apply g_nn, Hnn. }
+    { intros ??; apply g_nn; auto. }
     { by apply g_expectation. }
     iFrame.
     iIntros (r) "(%Hrange & Hε & Hx)".

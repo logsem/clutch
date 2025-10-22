@@ -76,12 +76,14 @@ Section credits.
   Lemma G2_g_RInt {F k} : is_RInt (G2_g F k) 0 1 (G2_f F k).
   Proof. Admitted.
 
+  (*
   (* TODO: Solve and move me *)
   Lemma Rexp_half_bound : 0 <= exp (-1 / 2) <= 1.
   Proof. Admitted.
 
   Local Lemma Rexp_ineq {z : R} {k : nat} : 0 <= exp (- z * (2 * k + z) / (2 * k + 2)) <= 1.
   Proof. Admitted.
+   *)
 
   Local Lemma Rexp_eq {z : R} {k : nat} : exp (- z * (2 * k + z) / 2) = exp (- z * (2 * k + z) / (2 * k + 2)) ^ (k + 1).
   Proof. Admitted.
@@ -117,11 +119,15 @@ Section program.
       { by intros ?; apply G1_f_nn, Hnn. }
       { by rewrite G1_f_expectation. }
       Unshelve.
-      { exact Rexp_half_bound. }
+      { apply Rexp_range; lra. }
       { iIntros (E' F' HF') "Hε".
         iApply wp_BNEHalf; [done|].
         iApply (ec_eq with "Hε").
         rewrite /BNEHalf_CreditV/BNEHalf_μ.
+        rewrite Iverson_True; [|intuition].
+        rewrite Iverson_False; [|intuition].
+        rewrite Iverson_False; [|intuition].
+        rewrite Iverson_True; [|intuition].
         lra.
       }
     }
@@ -144,12 +150,16 @@ Section program.
         f_equal; f_equal; rewrite exp_pow; repeat f_equal; lra.
       }
       Unshelve.
-      { exact Rexp_half_bound. }
+      { apply Rexp_range; lra. }
       { iIntros (E' F' HF') "(Hε & HI)".
         iFrame.
         iApply wp_BNEHalf; [done|].
         iApply (ec_eq with "Hε").
         rewrite /BNEHalf_CreditV/BNEHalf_μ.
+        rewrite Iverson_True; [|intuition].
+        rewrite Iverson_False; [|intuition].
+        rewrite Iverson_False; [|intuition].
+        rewrite Iverson_True; [|intuition].
         lra.
       }
     }
@@ -211,7 +221,20 @@ Section program.
         f_equal; f_equal.
       }
       Unshelve.
-      { apply Rexp_ineq. }
+      { apply Rexp_range.
+        apply Rcomplements.Rmult_le_0_r.
+        { apply Rcomplements.Rmult_le_0_r; [lra|].
+          apply Rplus_le_le_0_compat.
+          { apply Rmult_le_pos; [lra|]. apply pos_INR. }
+          { lra. }
+        }
+        rewrite -(Rmult_1_l (/ _)).
+        apply Rle_mult_inv_pos; [lra|].
+        rewrite -(Rplus_0_l 0).
+        apply Rplus_le_lt_compat; [|lra].
+        apply Rmult_le_pos; [lra|].
+        apply pos_INR.
+      }
       { iIntros (E' F' Hf') "(Hε & HI)".
         wp_pure.
         iApply wp_B; first done.
