@@ -28,7 +28,7 @@ Section pmf.
     Iverson (le N) n * S_μ0 k x y (n - N).
 
   Definition B_μ (k : nat) (x : R) : bool → R := fun b =>
-    Iverson is_true b * (exp (-(2*k+x)/(2*k+2))) + Iverson (not ∘ is_true) b * (exp (-(2*k+x)/(2*k+2))).
+    Iverson is_true b * (exp (-x*(2*k+x)/(2*k+2))) + Iverson (not ∘ is_true) b * (1 - exp (-x*(2*k+x)/(2*k+2))).
 
 
 End pmf.
@@ -48,8 +48,8 @@ Section credits.
     SeriesC (fun n => S_μ k x y N n * F n).
 
   Definition B_CreditV (F : bool → R) (k : nat) (x : R) : R :=
-    (exp (-(2*k+x)/(2*k+2))) * F true +
-    (exp (-(2*k+x)/(2*k+2))) * F false.
+    (exp (-x*(2*k+x)/(2*k+2))) * F true +
+    (1 - exp (-x*(2*k+x)/(2*k+2))) * F false.
 
   Definition Bii_g F x : R → R := fun r =>
     Iverson (Rle x) r * F true +

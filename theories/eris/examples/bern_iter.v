@@ -57,45 +57,49 @@ Section program.
   Context `{!erisGS Σ}.
   Context (e : val).
   Context (𝛾 : R) (H𝛾 : 0 <= 𝛾 <= 1).
+  Context (I : iProp Σ).
   Context (wp_e : forall E (F : bool → R), (∀ b, 0 <= F b) →
-            (⊢ ((↯(𝛾 * F true + (1 - 𝛾) * F false) -∗
-                 WP e #() @ E {{ vb, ∃ b : bool, ⌜vb = #b ⌝ ∗ ↯(F b) }}) : iProp Σ))).
+            (⊢ ((↯(𝛾 * F true + (1 - 𝛾) * F false) ∗ I -∗
+                 WP e #() @ E {{ vb, ∃ b : bool, ⌜vb = #b ⌝ ∗ ↯(F b) ∗ I }}) : iProp Σ))).
 
   Definition IterTrial : val :=
-    rec: "trial" "k" := if: "k" = #0 then #true else if: e #() then "trial" ("k" - #1) else #false.
+    rec: "trial" "e" "k" := if: "k" = #0 then #true else if: "e" #() then "trial" "e" ("k" - #1) else #false.
 
   Theorem wp_Iter E {F N} (Hnn : ∀ r, 0 <= F r) :
-    ↯(Iter_CreditV F 𝛾 N) -∗ WP IterTrial #N @ E {{ vb, ∃ b : bool, ⌜vb = #b ⌝ ∗ ↯(F b) }}.
+    ↯(Iter_CreditV F 𝛾 N) ∗ I -∗ WP IterTrial e #N @ E {{ vb, ∃ b : bool, ⌜vb = #b ⌝ ∗ ↯(F b) ∗ I }}.
   Proof.
     iStartProof.
     iInduction N as [|N'] "IH".
-    { iIntros "Hε".
+    { iIntros "(Hε & HI)".
       rewrite /IterTrial.
       wp_pures.
       iModIntro; iExists true; iSplitR; try done.
       rewrite /Iter_CreditV.
+      iFrame.
       by rewrite pow_O Rminus_diag Rmult_0_l Rmult_1_l Rplus_0_r.
     }
-    { iIntros "Hε".
+    { iIntros "(Hε & HI)".
       rewrite /IterTrial.
       wp_pures.
       wp_bind (e _).
-      iApply (pgl_wp_mono_frame (□ _) with "[Hε] IH"); last first.
+      iApply (pgl_wp_mono_frame (□ _) with "[Hε HI] IH"); last first.
       { iApply (wp_e E (g F 𝛾 N')); [intro b; apply g_nn; done | ].
+        iFrame.
         by rewrite g_expectation.
       }
-      iIntros (v) "(#IH & [%b [-> Hε]])".
+      iIntros (v) "(#IH & [%b [-> [Hε I]]])".
       destruct b.
-      { wp_pure.
-        wp_pure.
+      { do 2 wp_pure.
         replace (Z.sub (Z.of_nat (S N')) 1) with (Z.of_nat N') by lia.
         iApply "IH".
+        iFrame.
         rewrite /g.
         rewrite Iverson_True; [|intuition]; rewrite Iverson_False; [|intuition].
         by rewrite Rmult_0_l Rmult_1_l Rplus_0_r.
       }
       { wp_pures.
         iModIntro; iExists false.
+        iFrame.
         iSplitR; first done.
         rewrite /g.
         rewrite Iverson_False; [|intuition]; rewrite Iverson_True; [|intuition].
