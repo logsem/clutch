@@ -32,4 +32,15 @@ Qed.
 Lemma Iverson_nonneg {T : Type} {P : T → Prop} {t : T} : (0 <= ⟦ P ⟧ t)%R.
 Proof. rewrite /Iverson; case_decide; lra. Qed.
 
+Lemma SeriesC_Iverson_singleton {T} `{Countable T} {F : T → R} {P : T → Prop} (N0 : T)
+    (HN0 : ∀ N, P N <-> N = N0) :
+    SeriesC (fun n : T => Iverson P n * F n) = F N0.
+Proof.
+  rewrite -(SeriesC_singleton' N0 (F N0)).
+  f_equal; apply functional_extensionality; intros n.
+  case_bool_decide.
+  { rewrite Iverson_True; [|rewrite HN0; done]. rewrite H0; lra. }
+  { rewrite Iverson_False; [|rewrite HN0; done]. lra. }
+Qed.
+
 End Indicators.

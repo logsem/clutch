@@ -47,7 +47,43 @@ Section credits.
 
   Local Lemma g_expectation {F 𝛾 N} :
     Geo_CreditV F 𝛾 N = 𝛾 * Geo_CreditV F 𝛾 (N + 1) + (1 - 𝛾) * F N.
-  Proof. Admitted.
+  Proof.
+    rewrite/Geo_CreditV.
+    rewrite -SeriesC_scal_l.
+    replace (λ x : nat, 𝛾 * (F x * Geo_μ 𝛾 (N + 1) x)) with (λ x : nat, F x * (𝛾 * Geo_μ 𝛾 (N + 1) x)); last first.
+    { apply functional_extensionality; intros ?. lra. }
+    replace (1 - 𝛾) with (Geo_μ 𝛾 N N); last first.
+    { rewrite /Geo_μ.
+      rewrite Nat.sub_diag pow_O.
+      rewrite Iverson_True; last (simpl; lia).
+      lra.
+    }
+    replace (Geo_μ 𝛾 N N * F N) with
+            (SeriesC (fun n : nat => Iverson (fun x => x = N) n * (F n * Geo_μ 𝛾 N n))); last first.
+    { rewrite (SeriesC_Iverson_singleton N); [lra|intuition]. }
+    rewrite -SeriesC_plus.
+    3: admit.
+    2: admit.
+    f_equal; apply functional_extensionality; intros n.
+    rewrite /Iverson.
+    case_decide.
+    { rewrite /Geo_μ.
+      rewrite Iverson_True; [|simpl; lia].
+      rewrite Iverson_False; [|simpl; lia].
+      lra.
+    }
+    { rewrite Rmult_0_l Rplus_0_r.
+      rewrite /Geo_μ.
+      rewrite {1}/Iverson//=.
+      case_decide.
+      { rewrite Iverson_True; [|simpl; lia].
+        f_equal.
+        rewrite Rmult_1_l Rmult_1_l.
+        rewrite -Rmult_assoc; f_equal.
+        rewrite tech_pow_Rmult.
+        f_equal. lia.
+    }
+  Admitted.
 
 End credits.
 
