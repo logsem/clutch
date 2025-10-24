@@ -51,4 +51,29 @@ Proof.
   all: intuition.
 Qed.
 
+
+Lemma RInt_Iverson_ge {rx F} (Hrx : 0 <= rx <= 1) :
+  RInt (λ x : R, Iverson (uncurry Rge) (x, rx) * F x) 0 1 =  RInt (λ x : R, F x) rx 1.
+Proof. Admitted.
+
+Lemma RInt_Iverson_le {rx F} (Hrx : 0 <= rx <= 1) :
+  RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * F x) 0 1 =  RInt (λ x : R, F x) 0 rx.
+Proof. Admitted.
+
 End Indicators.
+
+Section Lib.
+Import Hierarchy.
+(* General analysis facts *)
+  
+Lemma RInt_add {F1 F2 : R → R} {a b : R} (H1 : ex_RInt F1 a b) (H2 : ex_RInt F2 a b) :
+  RInt F1 a b  + RInt F2 a b = RInt (fun x => F1 x + F2 x) a b.
+Proof. Admitted.
+
+Lemma RInt_Rmult {F : R → R} {a b r : R} : r * RInt F a b = RInt (fun x => r * F x) a b.
+Proof. Admitted.
+
+Lemma RInt_Rmult' {F : R → R} {a b r : R} : (RInt F a b) * r = RInt (fun x => F x * r) a b.
+Proof. Admitted.
+
+End Lib.
