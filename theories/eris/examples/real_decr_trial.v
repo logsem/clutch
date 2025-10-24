@@ -82,8 +82,102 @@ Section credits.
     { apply Hnn. }
   Qed.
 
-  Theorem g_expectation {F N rx} : is_RInt (g F N rx) 0 1 (RealDecrTrial_CreditV F N rx).
+  Lemma g_ex_RInt {F N rx} : ex_RInt (g F N rx) 0 1.
+  Proof. Admitted.
+
+  Lemma RInt_add {F1 F2 : R → R} {a b : R} (H1 : ex_RInt F1 a b) (H2 : ex_RInt F2 a b) :
+    RInt F1 a b  + RInt F2 a b = RInt (fun x => F1 x + F2 x) a b.
+  Proof. Admitted.
+
+  Lemma RInt_Rmult {F : R → R} {a b r : R} : r * RInt F a b = RInt (fun x => r * F x) a b.
+  Proof. Admitted.
+
+  Lemma RInt_Iverson_ge {rx F} (Hrx : 0 <= rx <= 1) :
+    RInt (λ x : R, Iverson (uncurry Rge) (x, rx) * F x) 0 1 =  RInt (λ x : R, F x) rx 1.
+  Proof. Admitted.
+
+  Lemma RInt_Iverson_le {rx F} (Hrx : 0 <= rx <= 1) :
+    RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * F x) 0 1 =  RInt (λ x : R, F x) 0 rx.
+  Proof. Admitted.
+
+  Lemma RInt_RealDecrTrial_μ {rx N n} :
+    RInt (λ x : R, RealDecrTrial_μ x N n) 0 rx =
+    Iverson (uncurry eq) (N, n) * (rx - rx ^ 2 / 2) +
+    Iverson (uncurry lt) (N, n) * RealDecrTrial_μ rx N (n + 1).
   Proof.
+    rewrite {1}/RealDecrTrial_μ.
+    rewrite -RInt_Rmult.
+    rewrite {1}/RealDecrTrial_μ0.
+    rewrite {1}/Iverson//=.
+    case_decide; last first.
+    { rewrite Iverson_False; [|simpl; lia].
+      rewrite Iverson_False; [|simpl; lia].
+      lra. }
+    { destruct (le_lt_eq_dec _ _ H).
+      { rewrite Iverson_False; [|simpl; lia].
+        rewrite Iverson_True; [|simpl; lia].
+        rewrite Rmult_1_l Rmult_0_l Rmult_1_l.
+        rewrite Rplus_0_l.
+        rewrite /RealDecrTrial_μ.
+        rewrite Iverson_True; [|simpl; lia].
+        rewrite Rmult_1_l.
+        rewrite /RealDecrTrial_μ0.
+        (* Compute *)
+        admit. }
+      { rewrite Iverson_True; [|simpl; lia].
+        rewrite Iverson_False; [|simpl; lia].
+        rewrite Rmult_1_l Rmult_0_l Rmult_1_l.
+        rewrite Rplus_0_r.
+        rewrite e.
+        (* Compute *)
+        admit. }
+    }
+  Admitted.
+
+
+  Theorem g_expectation {F N rx} (Hrx : 0 <= rx <= 1) : is_RInt (g F N rx) 0 1 (RealDecrTrial_CreditV F N rx).
+  Proof.
+    suffices H : RInt (g F N rx) 0 1 = RealDecrTrial_CreditV F N rx.
+    { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)), g_ex_RInt. }
+    rewrite /g.
+    rewrite -RInt_add.
+    3: admit.
+    2: admit.
+    rewrite {1}/RealDecrTrial_CreditV.
+    replace
+      (λ x : R, Iverson (uncurry Rle) (x, rx) * SeriesC (λ n : nat, RealDecrTrial_μ x (N + 1) n * F n)) with
+      (λ x : R, SeriesC (λ n : nat, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n)); last first.
+    { apply functional_extensionality; intros ?.
+      rewrite -SeriesC_scal_l.
+      f_equal; apply functional_extensionality; intros ?.
+      lra.
+    }
+    replace
+      (RInt (λ x : R, SeriesC (λ n : nat, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n)) 0 1) with
+      (SeriesC (λ n : nat, RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n) 0 1)); last first.
+    { (* Deploy the Foob *) admit. }
+    rewrite (@RInt_Iverson_ge rx (fun x => F N) Hrx).
+    rewrite RInt_const/scal//=/mult//=.
+    replace
+      (λ n : nat, RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n) 0 1) with
+      (λ n : nat, RInt (λ x : R, RealDecrTrial_μ x (N + 1) n * F n) 0 rx); last first.
+    { apply functional_extensionality; intros n.
+      rewrite -(@RInt_Iverson_le rx (fun x => RealDecrTrial_μ x (N + 1) n * F n) Hrx).
+      f_equal. apply functional_extensionality; intros ?; lra. }
+    replace
+      (λ n : nat, RInt (λ x : R, RealDecrTrial_μ x (N + 1) n * F n) 0 rx) with
+      (λ n : nat, F n * RInt (λ x : R, RealDecrTrial_μ x (N + 1) n) 0 rx); last first.
+    { apply functional_extensionality; intros ?.
+      admit.
+    }
+    replace
+      (λ n : nat, F n * RInt (λ x : R, RealDecrTrial_μ x (N + 1) n) 0 rx) with
+      (λ n : nat, F n * (Iverson (uncurry eq) ((N+1)%nat, n) * (rx - rx ^ 2 / 2) + Iverson (uncurry lt) ((N+1)%nat, n) * RealDecrTrial_μ rx (N+1)%nat (n + 1))); last first.
+    { apply functional_extensionality; intros ?. by rewrite RInt_RealDecrTrial_μ. }
+    rewrite /RealDecrTrial_CreditV.
+    rewrite /RealDecrTrial_μ.
+    rewrite /RealDecrTrial_μ0.
+    (* ?? *)
   Admitted.
 
 End credits.

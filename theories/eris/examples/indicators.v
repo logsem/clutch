@@ -43,4 +43,12 @@ Proof.
   { rewrite Iverson_False; [|rewrite HN0; done]. lra. }
 Qed.
 
+Lemma Iverson_mul_and {T : Type} {P Q : T → Prop} {t : T} :
+  ⟦ P ⟧ t * ⟦ Q ⟧ t = ⟦ fun t => P t ∧ Q t ⟧ t.
+Proof.
+  rewrite /Iverson; case_decide; case_decide; case_decide.
+  all: try lra.
+  all: intuition.
+Qed.
+
 End Indicators.
