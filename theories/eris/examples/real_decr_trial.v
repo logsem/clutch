@@ -207,7 +207,7 @@ Section trial.
     iIntros (y) "Hv".
     iApply (wp_lazy_real_presample_adv_comp _ _ y _ (RealDecrTrial_CreditV F N rx) (g F N rx)); auto.
     { intros ??. apply g_nonneg; auto. }
-    { exact g_expectation. }
+    { apply g_expectation; auto. }
     iSplitL "Hv"; first done.
     iSplitL "Hε"; first done.
     iIntros (ry) "(% & Hε & Hy)".
