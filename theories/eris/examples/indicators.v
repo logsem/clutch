@@ -56,6 +56,10 @@ Lemma RInt_Iverson_ge {rx F} (Hrx : 0 <= rx <= 1) :
   RInt (λ x : R, Iverson (uncurry Rge) (x, rx) * F x) 0 1 =  RInt (λ x : R, F x) rx 1.
 Proof. Admitted.
 
+Lemma RInt_Iverson_ge' {rx F} (Hrx : 0 <= rx <= 1) :
+  RInt (λ x : R, Iverson (fun x  => not (Rle x rx)) x * F x) 0 1 =  RInt (λ x : R, F x) rx 1.
+Proof. Admitted.
+
 Lemma RInt_Iverson_le {rx F} (Hrx : 0 <= rx <= 1) :
   RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * F x) 0 1 =  RInt (λ x : R, F x) 0 rx.
 Proof. Admitted.
@@ -74,6 +78,12 @@ Lemma RInt_Rmult {F : R → R} {a b r : R} : r * RInt F a b = RInt (fun x => r *
 Proof. Admitted.
 
 Lemma RInt_Rmult' {F : R → R} {a b r : R} : (RInt F a b) * r = RInt (fun x => F x * r) a b.
+Proof. Admitted.
+
+Lemma Rexp_nn {z} : 0 <= exp z.
+Proof. Admitted.
+
+Lemma Rexp_range {z : R} : z <= 0 -> 0 <= exp z <= 1.
 Proof. Admitted.
 
 End Lib.

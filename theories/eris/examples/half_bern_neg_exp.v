@@ -7,13 +7,6 @@ From clutch.eris.examples Require Import lazy_real max_lazy_real indicators real
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
-Lemma Rexp_nn {z} : 0 <= exp z.
-Proof. Admitted.
-
-(* TODO: Solve and move me *)
-Lemma Rexp_range {z : R} : z <= 0 -> 0 <= exp z <= 1.
-Proof. Admitted.
-
 Section pmf.
    Definition BNEHalf_μ (b : bool) : R :=
      Iverson is_true b * exp (-1/2)%R +
@@ -65,8 +58,96 @@ Section credits.
     { apply Rmult_le_pos; [apply Iverson_nonneg| auto ]. }
   Qed.
 
-  Local Lemma g_expectation {F} : is_RInt (g F) 0 1 (BNEHalf_CreditV F).
+  Local Lemma g_ex_RInt {F} : ex_RInt (g F) 0 1.
   Proof. Admitted.
+
+  Local Lemma g_expectation {F} : is_RInt (g F) 0 1 (BNEHalf_CreditV F).
+  Proof.
+    suffices H : RInt (g F) 0 1 = BNEHalf_CreditV F.
+    { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)), g_ex_RInt. }
+    rewrite /g.
+    rewrite -RInt_add.
+    3: admit.
+    2: admit.
+    rewrite RInt_Iverson_le; [|lra].
+    rewrite RInt_Iverson_ge'; [|lra].
+    rewrite RInt_const/scal//=/mult//=.
+    rewrite /RealDecrTrial_CreditV.
+    replace (RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * LiftF F n)) 0 0.5)
+       with (SeriesC (λ n : nat, RInt (λ x : R, RealDecrTrial_μ x 0 n * LiftF F n) 0 0.5)); last first.
+    { (* Deploy the Foob *) admit. }
+    replace (λ n : nat, RInt (λ x : R, RealDecrTrial_μ x 0 n * LiftF F n) 0 0.5)
+       with (λ n : nat, LiftF F n * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5); last first.
+    { apply functional_extensionality; intros n. by rewrite -RInt_Rmult' Rmult_comm /LiftF. }
+    rewrite /LiftF.
+    replace (SeriesC (λ n : nat, F (n `rem` 2 =? 1)%Z * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5))
+       with ((SeriesC (λ n : nat, Iverson Zeven  n * F (n `rem` 2 =? 1)%Z * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5)) +
+             (SeriesC (λ n : nat, Iverson (not ∘ Zeven) n * F (n `rem` 2 =? 1)%Z * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5)));
+        last first.
+    { rewrite -SeriesC_plus.
+      3: admit.
+      2: admit.
+      f_equal; apply functional_extensionality; intro n.
+      rewrite Rmult_assoc Rmult_assoc.
+      rewrite -Rmult_plus_distr_r.
+      rewrite -{2}(Rmult_1_l (_* RInt _ _ _)).
+      f_equal.
+      apply Iverson_add_neg.
+    }
+    replace (SeriesC (λ n : nat, Iverson Zeven n * F (n `rem` 2 =? 1)%Z * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5))
+       with (SeriesC (λ n : nat, (Iverson Zeven n * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5)) * F false );
+       last first.
+    { rewrite -SeriesC_scal_r.
+      f_equal; apply functional_extensionality; intro n.
+      rewrite /Iverson//=.
+      case_decide; [|lra].
+      rewrite Rmult_1_l Rmult_1_l Rmult_comm.
+      f_equal; f_equal; symmetry.
+      apply Zeven_bool_iff in H.
+      eapply (ssrbool.introF (Z.eqb_spec _ _)).
+      rewrite Zeven_mod in H.
+      apply Zeq_bool_eq in H.
+      apply (Z.rem_mod_eq_0 n 2 ) in H; [rewrite H; lia|lia].
+    }
+    replace (SeriesC (λ n : nat, Iverson (not ∘ Zeven) n * F (n `rem` 2 =? 1)%Z * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5))
+       with (SeriesC (λ n : nat, Iverson (not ∘ Zeven) n * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5) * F true);
+      last first.
+    { rewrite -SeriesC_scal_r.
+      f_equal; apply functional_extensionality; intro n.
+      rewrite /Iverson//=.
+      case_decide; [|lra].
+      rewrite Rmult_1_l Rmult_1_l Rmult_comm.
+      f_equal; f_equal; symmetry.
+      eapply (ssrbool.introT (Z.eqb_spec _ _)).
+      destruct (Zeven_odd_dec n); [intuition|].
+      destruct (Zodd_ex _ z) as [m Hm].
+      rewrite Hm.
+      rewrite Z.add_rem; try lia.
+      rewrite Z.mul_comm.
+      rewrite Z.rem_mul; try lia.
+      rewrite Zplus_0_l //=.
+    }
+    have HIntegral (n : nat) : RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5 = RealDecrTrial_μ0 (0.5) (n+1)%nat.
+    { rewrite /RealDecrTrial_μ//=.
+      rewrite Iverson_True; [|simpl; lia].
+      rewrite /RealDecrTrial_μ0.
+      (* Compute *)
+      admit.
+    }
+    replace (λ n : nat, Iverson Zeven n * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5)
+       with (λ n : nat, Iverson Zeven n * RealDecrTrial_μ0 0.5 (n+1)%nat); last first.
+    { f_equal; apply functional_extensionality; intro n; by rewrite HIntegral. }
+    replace (λ n : nat, Iverson (not ∘ Zeven) n * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5)
+       with (λ n : nat, Iverson (not ∘ Zeven) n * RealDecrTrial_μ0 0.5 (n+1)%nat); last first.
+    { f_equal; apply functional_extensionality; intro n; by rewrite HIntegral. }
+    rewrite Rplus_assoc.
+    rewrite -Rmult_plus_distr_r.
+    rewrite Rplus_comm (Rmult_comm _ (F false)) (Rmult_comm _ (F true)).
+    rewrite /BNEHalf_CreditV.
+    f_equal; f_equal.
+    { (* Gaussian Taylor series *) admit. }
+    { (* Gaussian Taylor series *) admit. }
+  Admitted.
 
 End credits.
 
