@@ -313,8 +313,102 @@ Section credits.
     { apply S_hz_nn; auto. }
   Qed.
 
-  Lemma S_g_expectation {F k x y N} : is_RInt (S_g F k x y N) 0 1 (S_CreditV F k x y N).
+  Lemma S_g_ex_RInt {F k x y N} : ex_RInt (S_g F k x y N) 0 1.
   Proof. Admitted.
+
+  (* TODO: Maybe I could get rid of some of the splitting if the existence side conditions are hard to prove. *)
+  Lemma S_g_expectation {F k x y N} (Hx : 0 <= x <= 1) (Hy : 0 <= y <= 1) : is_RInt (S_g F k x y N) 0 1 (S_CreditV F k x y N).
+  Proof.
+    suffices H : S_CreditV F k x y N = RInt (S_g F k x y N) 0 1.
+    { rewrite H. apply (RInt_correct (V := R_CompleteNormedModule)), S_g_ex_RInt. }
+    rewrite /S_g.
+    (* Split the series; compute the first term *)
+    rewrite -RInt_add.
+    2, 3: admit.
+    rewrite -RInt_Rmult'.
+    rewrite RInt_Iverson_le'''; [|done].
+    replace (RInt (λ x0 : R, Iverson (Rge y) x0 * (Bii_μ k x false * S_hz F k x N x0 false + Bii_μ k x true * S_hz F k x N x0 true)) 0 1)
+       with (RInt (λ x0 : R, (Bii_μ k x false * S_hz F k x N x0 false + Bii_μ k x true * S_hz F k x N x0 true)) y 1);
+      last first.
+    { admit. }
+    rewrite /Bii_μ.
+    rewrite Iverson_False; [|intuition].
+    rewrite Iverson_True;  [|intuition].
+    rewrite Iverson_True;  [|intuition].
+    rewrite Iverson_False; [|intuition].
+    rewrite Rmult_0_l Rmult_0_l Rmult_1_l Rmult_1_l Rplus_0_l Rplus_0_r.
+    rewrite /S_hz.
+    rewrite Iverson_False; [|intuition].
+    rewrite Iverson_True;  [|intuition].
+    rewrite Iverson_True;  [|intuition].
+    rewrite Iverson_False; [|intuition].
+    rewrite Rmult_0_l Rmult_1_l.
+    (* Rewrite is confused by the other terms for some reason  *)
+    replace (λ x0 : R, (2 * k + x) / (2 * k + 2) * (0 + 1 * S_CreditV F k x x0 (N + 1)) +
+               (1 - (2 * k + x) / (2 * k + 2)) * (F N + 0 * S_CreditV F k x x0 (N + 1))) with
+            (λ x0 : R, (2 * k + x) / (2 * k + 2) * (S_CreditV F k x x0 (N + 1)) +
+               (1 - (2 * k + x) / (2 * k + 2)) * F N); last first.
+    { apply functional_extensionality; intros ?.
+      rewrite Rmult_0_l Rmult_1_l Rplus_0_l Rplus_0_r. done. }
+    rewrite -RInt_add.
+    2, 3: admit.
+    rewrite RInt_const.
+    rewrite /scal//=/mult//=.
+    rewrite -Rmult_assoc. rewrite -Rplus_assoc Rplus_comm -Rplus_assoc.
+    replace ((1 - y) * (1 - (2 * k + x) / (2 * k + 2)) * F N + (1 - y) * F N)
+       with ((1 - y) * (1 - (2 * k + x) / (2 * k + 2) + 1) * F N); last lra.
+    rewrite -RInt_Rmult.
+    rewrite {2}/S_CreditV.
+    replace (RInt (λ x0 : R, SeriesC (λ n : nat, S_μ k x x0 (N + 1) n * F n)) y 1)
+      with  (SeriesC (λ n : nat, RInt (λ x0 : R, S_μ k x x0 (N + 1) n * F n) y 1)); last first.
+    {  (* Foob *) admit. }
+    rewrite -SeriesC_scal_l.
+    (* Turn the constant term into a singleton series so I can do funext and rewrite terms directly *)
+    replace ((1 - y) * (1 - (2 * k + x) / (2 * k + 2) + 1) * F N) with
+            (SeriesC (fun n : nat => Iverson (eq N) n * ((1 - y) * (1 - (2 * k + x) / (2 * k + 2) + 1) * F n))); last first.
+    { rewrite (SeriesC_Iverson_singleton N); first lra. intuition. }
+    rewrite -SeriesC_plus.
+    2, 3: admit.
+    rewrite /S_CreditV.
+    f_equal. apply functional_extensionality; intro n.
+    (* Cancel F *)
+    rewrite -RInt_Rmult'.
+    rewrite -Rmult_assoc.
+    rewrite -Rmult_assoc.
+    rewrite -Rmult_assoc.
+    rewrite -Rmult_plus_distr_r.
+    f_equal.
+    (* Do cases before unfolding S_μ0 *)
+    rewrite /S_μ.
+    rewrite -RInt_Rmult.
+    rewrite {1}/Iverson.
+    case_decide; last first.
+    { rewrite Iverson_False; [|lia]. rewrite Iverson_False; [|lia]. lra. }
+    rewrite Rmult_1_l.
+    rewrite {1}/Iverson.
+    case_decide.
+    { rewrite Rmult_1_l.
+      rewrite Iverson_False; [|lia].
+      rewrite Rmult_0_l Rmult_0_r Rplus_0_r.
+      rewrite H0.
+      rewrite Nat.sub_diag.
+      rewrite /S_μ0.
+      rewrite pow_O.
+      rewrite /fact//=.
+      rewrite Rdiv_diag; [|lra].
+      rewrite Rmult_1_l.
+      Set Printing Parentheses.
+      rewrite Rmult_1_r.
+      rewrite Rdiv_1_r.
+      rewrite Rmult_1_r.
+      (* TODO Is this right? *) admit.
+    }
+    rewrite Rmult_0_l Rmult_0_l Rplus_0_l.
+    rewrite Iverson_True; [|lia].
+    rewrite Rmult_1_l.
+    rewrite /S_μ0.
+    (* Should just be computation if correct *)
+  Admitted.
 
   Lemma B_g_nn {F b} (Hnn : ∀ r, 0 <= F r) :  0 <= B_g F b.
   Proof.
