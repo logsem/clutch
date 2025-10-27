@@ -64,8 +64,145 @@ Section credits.
     apply hx_nonneg; auto.
   Qed.
 
-  Theorem g_expectation {F L} : is_RInt (g F L) 0 1 (NegExp_CreditV F L).
+  Local Lemma g_ex_RInt {F L} : ex_RInt (g F L) 0 1.
   Proof. Admitted.
+
+  Local Theorem g_expectation {F L} : is_RInt (g F L) 0 1 (NegExp_CreditV F L).
+  Proof.
+    suffices H : RInt (g F L) 0 1 = NegExp_CreditV F L.
+    { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)), g_ex_RInt. }
+    rewrite /g.
+    rewrite /RealDecrTrial_CreditV.
+    rewrite /hx.
+    (* Separate the sum *)
+    replace  (RInt (λ x, SeriesC (λ n, RealDecrTrial_μ x 0 n * (Iverson Zeven n * F (x + L) + Iverson (not ∘ Zeven) n * NegExp_CreditV F (L + 1)))) 0 1)
+      with  ((RInt (λ x, SeriesC (λ n, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n * NegExp_CreditV F (L + 1))) 0 1 +
+             (RInt (λ x, SeriesC (λ n, RealDecrTrial_μ x 0 n * Iverson Zeven n * F (x + L))) 0 1)));
+      last first.
+    { rewrite RInt_add.
+      3: admit.
+      2: admit.
+      f_equal; apply functional_extensionality; intro x.
+      rewrite -SeriesC_plus.
+      3: admit.
+      2: admit.
+      f_equal; apply functional_extensionality; intro n.
+      lra.
+    }
+    (* Apply Fubini to the odd term *)
+    rewrite {1}/NegExp_CreditV.
+    replace (RInt (λ x : R, SeriesC (λ n : nat,
+            RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n *
+            RInt_gen (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0) (at_point 0) (Rbar_locally Rbar.p_infty))) 0 1)
+      with  (RInt_gen (λ x0 : R, (F x0 * NegExp_ρ (L + 1) x0) * (RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n)) 0 1)) (at_point 0) (Rbar_locally Rbar.p_infty));
+      last first.
+    { (* Deploy the foob *) admit. }
+    replace (RInt_gen (λ x0 : R, (F x0 * NegExp_ρ (L + 1) x0) * (RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n)) 0 1)) (at_point 0) (Rbar_locally Rbar.p_infty))
+       with (RInt_gen (λ x0 : R, (F x0 * NegExp_ρ (L + 1) x0) * (RInt (λ x : R, 1 - exp (-x)) 0 1)) (at_point 0) (Rbar_locally Rbar.p_infty));
+      last first.
+    { f_equal; apply functional_extensionality; intro x0.
+      f_equal.
+      f_equal; apply functional_extensionality; intro x.
+      (* Compute the exponential series *) admit. }
+    (* Compute the integral *)
+    replace (RInt_gen (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * RInt (λ x : R, 1 - exp (- x)) 0 1) (at_point 0) (Rbar_locally Rbar.p_infty))
+       with (RInt_gen (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * exp (-1)) (at_point 0) (Rbar_locally Rbar.p_infty));
+      last first.
+    { f_equal; apply functional_extensionality; intro x0.
+      f_equal.
+      admit.
+    }
+    (* Separate out the gen integrals.
+       Use RInt_gen_Chasles, though it's timing out my proof process right now *)
+    replace (RInt_gen (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * exp (-1)) (at_point 0) (Rbar_locally Rbar.p_infty))
+      with ((RInt_gen (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * exp (-1)) (at_point 0) (at_point (L + 1))) +
+             (RInt_gen (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * exp (-1)) (at_point (L + 1)) (Rbar_locally Rbar.p_infty)));
+      last first.
+    { admit. }
+    rewrite RInt_gen_at_point.
+    2: admit.
+    replace (RInt (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * exp (-1)) 0 (L + 1))
+       with (RInt (λ x0 : R, 0) 0 (L + 1)); last first.
+    { apply RInt_ext; intros x [Hx1 Hx2].
+      rewrite /NegExp_ρ/NegExp_ρ0.
+      rewrite (@Iverson_False _ (Rle 0)); [lra|].
+      intro Hk.
+      rewrite -Rcomplements.Rminus_le_0 in Hk.
+      have ? : (L + 1 <= x).
+      { etransitivity; last apply Hk. by rewrite plus_INR. }
+      rewrite Rmax_right in Hx2; last first.
+      { apply Rplus_le_le_0_compat; [apply pos_INR |lra]. }
+      lra.
+    }
+    rewrite RInt_const /scal//=/mult//= Rmult_0_r Rplus_0_l.
+    rewrite /NegExp_CreditV.
+    replace (RInt_gen (λ x : R, F x * NegExp_ρ L x) (at_point 0) (Rbar_locally Rbar.p_infty))
+      with (RInt_gen (λ x : R, F x * NegExp_ρ L x) (at_point 0) (at_point (INR L)) +
+            RInt_gen (λ x : R, F x * NegExp_ρ L x) (at_point (INR L)) (at_point (L + 1)) +
+            RInt_gen (λ x : R, F x * NegExp_ρ L x) (at_point (L + 1)) (Rbar_locally Rbar.p_infty));
+      last first.
+    { admit. }
+    rewrite RInt_gen_at_point.
+    2: admit.
+    rewrite RInt_gen_at_point.
+    2: admit.
+    replace (RInt (λ x : R, F x * NegExp_ρ L x) 0 L) with (RInt (λ x : R, 0) 0 L); last first.
+    { apply RInt_ext; intros x [Hx1 Hx2].
+      rewrite /NegExp_ρ/NegExp_ρ0.
+      rewrite (@Iverson_False _ (Rle 0)); [lra|].
+      intro Hk.
+      rewrite -Rcomplements.Rminus_le_0 in Hk.
+      have ? : (L <= x).
+      { etransitivity; last apply Hk. done. }
+      rewrite Rmax_right in Hx2; last apply pos_INR.
+      lra.
+    }
+    rewrite RInt_const /scal//=/mult//= Rmult_0_r Rplus_0_l.
+    rewrite Rplus_comm.
+    f_equal.
+    { (* Change of variables *)
+      replace (RInt (λ x : R, F x * NegExp_ρ L x) L (L + 1)) with (RInt (λ x : R, F (x + L) * NegExp_ρ L (x + L)) 0 1); last first.
+      { admit. }
+      apply RInt_ext; intros x [Hx1 Hx2].
+      (* Factor out F *)
+      rewrite SeriesC_scal_r Rmult_comm; f_equal.
+      (* Simplify *)
+      rewrite /NegExp_ρ.
+      rewrite Iverson_True; last lia.
+      rewrite Rmult_1_l.
+      rewrite /NegExp_ρ0.
+      rewrite Rplus_minus_r.
+      rewrite Iverson_True; last (rewrite Rmin_left in Hx1; lra).
+      rewrite Rmult_1_l.
+      (* Exponential series *)
+      admit. }
+    {
+      apply RInt_gen_ext_eq. (* TODO: Need a version of this which includes the
+                                      bounds--both integrals are on [L+1, ∞) *)
+      2: admit.
+      intro x.
+      rewrite Rmult_assoc. f_equal.
+      rewrite /NegExp_ρ.
+      rewrite Iverson_True; last lia.
+      rewrite Rmult_1_l.
+      rewrite Iverson_True; last lia.
+      rewrite Rmult_1_l.
+      rewrite /NegExp_ρ0.
+      (* Can't simply get the inequalities for the bounds by cases
+         on the iverson function here; the terms are not equal on the [L, L+1] interval. *)
+      rewrite Iverson_True; last first.
+      { (* Need the bounds here *)
+        admit. }
+      rewrite Rmult_1_l.
+      rewrite Iverson_True; last first.
+      { (* Need the bounds here *)
+        admit. }
+      rewrite Rmult_1_l.
+      rewrite -exp_plus; f_equal.
+      rewrite plus_INR INR_1.
+      lra.
+    }
+  Admitted.
 
 End credits.
 
