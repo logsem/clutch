@@ -18,7 +18,7 @@ Section pmf.
     Iverson (eq 2) n * (m / (2 * m + 2)).
 
   Definition Bii_μ (k : nat) (x : R) : bool → R := fun b =>
-    Iverson is_true b * (1 - (2*k+x)/(2*k+2)) + Iverson (not ∘ is_true) b * (1 - (2*k+x)/(2*k+2)).
+    Iverson is_true b * (1 - (2*k+x)/(2*k+2)) + Iverson (not ∘ is_true) b * ((2*k+x)/(2*k+2)).
 
   Definition S_μ0 (k : nat) (x y : R) : nat → R := fun n =>
     (y^n / fact n) * ((2*k+x)/(2*k+2))^n -
@@ -92,15 +92,16 @@ Section credits.
         apply Rmult_le_pos; try lra.
         apply pos_INR. }
     }
-    { apply error_credits.Rle_0_le_minus.
-      rewrite -Rcomplements.Rdiv_le_1.
-      { apply Rplus_le_compat; [lra|lra]. }
-      { apply Rplus_le_lt_0_compat; try lra.
+    { apply Rle_mult_inv_pos; try lra.
+      { apply Rplus_le_le_0_compat; [|lra].
+        apply Rmult_le_pos; try lra.
+        apply pos_INR. }
+      { rewrite -(Rplus_0_l 0).
+        apply Rplus_le_lt_compat; [|lra].
         apply Rmult_le_pos; try lra.
         apply pos_INR. }
     }
   Qed.
-
 
   Lemma S_μ0_nn {x k y x'} (Hx : 0 <= x <= 1) (Hy : 0 <= y <= 1) : 0 <= S_μ0 k x y x'.
   Proof.
@@ -229,12 +230,62 @@ Section credits.
   Proof. Admitted.
 
 
-  Lemma Bii_f_expectation {F k x} : Bii_CreditV F k x = C_CreditV (Bii_h F x) (2 * k)%nat.
+  Lemma Bii_f_expectation {F k x} (Hx : 0 <= x <= 1) : Bii_CreditV F k x = C_CreditV (Bii_h F x) (2 * k)%nat.
   Proof.
     rewrite /Bii_CreditV.
     rewrite /C_CreditV.
-    rewrite /Bii_μ.
     rewrite /Bii_h.
+    rewrite Iverson_True;  [rewrite Rmult_1_l|done].
+    rewrite Iverson_False; [rewrite Rmult_0_l Rplus_0_r|done].
+    rewrite Iverson_False; [rewrite Rmult_0_l Rplus_0_r|done].
+    rewrite Iverson_False; [rewrite Rmult_0_l Rplus_0_l|simpl;lra].
+    rewrite Iverson_True;  [rewrite Rmult_1_l|done].
+    rewrite Iverson_False; [rewrite Rmult_0_l Rplus_0_r|simpl;lra].
+    rewrite Iverson_False; [rewrite Rmult_0_l Rplus_0_l|simpl;lra].
+    rewrite Iverson_False; [rewrite Rmult_0_l Rplus_0_l|simpl;lra].
+    rewrite Iverson_True;  [rewrite Rmult_1_l|done].
+    rewrite /Bii_g.
+    (* Evaluate the inner integral *)
+    rewrite -RInt_add.
+    2, 3: admit.
+    rewrite -RInt_Rmult' -RInt_Rmult'.
+    rewrite RInt_Iverson_le'''; [|done].
+    rewrite RInt_Iverson_ge'''; [|done].
+
+
+    (* Factor out true and false terms separately *)
+    rewrite Rmult_plus_distr_l.
+    rewrite -(Rmult_assoc _ (1 - x) _).
+    rewrite -(Rmult_assoc _ x _).
+    rewrite -Rplus_assoc.
+    rewrite -(Rmult_plus_distr_r _ _ (F true)).
+    rewrite Rplus_assoc.
+    rewrite -(Rmult_plus_distr_r _ _ (F false)).
+    rewrite Rplus_comm; f_equal.
+    { f_equal.
+      rewrite /Bii_μ.
+      rewrite Iverson_True;  [|intuition].
+      rewrite Iverson_False; [|intuition].
+      rewrite Rmult_0_l Rmult_1_l Rplus_0_r.
+      rewrite (Rmult_comm _ (1 - x)) -Rmult_assoc Rmult_1_r.
+      rewrite -Rdiv_plus_distr.
+      rewrite -{1}(Rdiv_diag (2 * k + 2)); last first.
+      { intro Hk. admit. }
+      rewrite -(Rdiv_minus_distr).
+      f_equal; [lra|].
+      f_equal.
+      rewrite mult_INR; f_equal.
+    }
+    { f_equal.
+      rewrite /Bii_μ.
+      rewrite Iverson_False; [|intuition].
+      rewrite Iverson_True;  [|intuition].
+      rewrite Rmult_0_l Rmult_1_l Rplus_0_l.
+      rewrite (Rmult_comm _ x) -Rmult_assoc Rmult_1_r.
+      rewrite -Rdiv_plus_distr.
+      rewrite mult_INR.
+      f_equal. rewrite Rplus_comm; f_equal.
+    }
   Admitted.
 
 
@@ -344,7 +395,7 @@ Section program.
     (* Probably true, stupid fin *)
   Admitted.
 
-  Theorem wp_Bii {E F} (k : nat) xα x (Hnn : ∀ r, 0 <= F r) :
+  Theorem wp_Bii {E F} (k : nat) xα x (Hnn : ∀ r, 0 <= F r) (Hx : 0 <= x <= 1) :
     ↯(Bii_CreditV F k x) ∗ lazy_real xα x -∗
     WP Bii #k xα @ E {{ vb, ∃ b : bool, ⌜vb = #b ⌝ ∗ ↯(F b) ∗ lazy_real xα x }}.
   Proof.
@@ -356,7 +407,7 @@ Section program.
     { replace (Z.mul 2 (Z.of_nat k)) with (Z.of_nat (2 * k)%nat) by lia.
       wp_apply (wp_C (F:=Bii_h F x)).
       { by intros ?; apply Bii_h_nn, Hnn. }
-      { iApply (ec_eq with "Hε"); by rewrite Bii_f_expectation. }
+      { iApply (ec_eq with "Hε");  by rewrite Bii_f_expectation. }
     }
     iIntros (v) "(Hx & [%vn [-> [%Hc Hε]]])".
     destruct Hc as [->|[-> | ->]].
@@ -427,7 +478,7 @@ Section program.
     }
   Qed.
 
-  Theorem wp_S {E F} (k : nat) xα x (Hnn : ∀ r, 0 <= F r) :
+  Theorem wp_S {E F} (k : nat) xα x (Hnn : ∀ r, 0 <= F r) (Hx : 0 <= x <= 1) :
     ∀ yα y N , ↯(S_CreditV F k x y N) ∗ lazy_real xα x ∗ lazy_real yα y ∗ ⌜0 <= x <= 1 ⌝ ∗ ⌜0 <= y <= 1⌝ -∗
     WP S #k xα yα #N @ E {{ vn, ∃ n : nat, ⌜vn = #n ⌝ ∗ ↯(F n) ∗ lazy_real xα x }}.
   Proof.
@@ -465,7 +516,7 @@ Section program.
       wp_bind (Bii _ _).
       iApply (pgl_wp_mono_frame (□ _ ∗ _  ∗ _)%I with "[Hx Hε ] [IH Hy Hz]"); last first.
       { iSplitR; first iExact "IH". iSplitL "Hy"; first iExact "Hy". iExact "Hz". }
-      { iApply (@wp_Bii _ (S_hz F k x N z)); last iFrame.
+      { iApply (@wp_Bii _ (S_hz F k x N z)); last iFrame; last done.
         iIntros (?). apply S_hz_nn; auto. }
       iIntros (bv) "((#IH & Hy & Hz) & [%b [-> [Hε Hx]]])".
       destruct b.
@@ -529,7 +580,7 @@ Section program.
       rewrite Iverson_True; [rewrite Rmult_1_l|lra].
       wp_bind (Bii _ _).
       iApply (pgl_wp_mono_frame (_ )%I with "[Hx Hε ] Hz"); last first.
-      { iApply (@wp_Bii _ (S_hz F k x _ _)); last iFrame.
+      { iApply (@wp_Bii _ (S_hz F k x _ _)); last iFrame; last done.
         iIntros (?). apply S_hz_nn; auto. }
       iIntros (bv) "(Hz & [%b [-> [Hε Hx]]])".
       destruct b.

@@ -64,6 +64,21 @@ Lemma RInt_Iverson_le {rx F} (Hrx : 0 <= rx <= 1) :
   RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * F x) 0 1 =  RInt (λ x : R, F x) 0 rx.
 Proof. Admitted.
 
+Lemma RInt_Iverson_le'' {rx F} (Hrx : 0 <= rx <= 1) :
+  RInt (λ x : R, Iverson (Rle x) rx * F x) 0 1 =  RInt (λ x : R, F x) 0 rx.
+Proof. Admitted.
+
+Lemma RInt_Iverson_ge'' {rx F} (Hrx : 0 <= rx <= 1) :
+  RInt (λ x : R, Iverson (Rge x) rx * F x) 0 1 =  RInt (λ x : R, F x) rx 1.
+Proof. Admitted.
+
+Lemma RInt_Iverson_le''' {x} (Hx : 0 <= x <= 1) : RInt (Iverson (Rle x)) 0 1 = 1 - x.
+Proof. Admitted.
+
+Lemma RInt_Iverson_ge''' {x} (Hx : 0 <= x <= 1) : RInt (Iverson (Rge x)) 0 1 = x.
+Proof. Admitted.
+
+
 End Indicators.
 
 Section Lib.
