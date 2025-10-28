@@ -137,7 +137,94 @@ Section credits.
   Qed.
 
   Lemma G1_f_expectation {F} : G1_CreditV F = Geo_CreditV (G1_f F) (exp (-1 / 2)) 0.
-  Proof. Admitted.
+  Proof.
+    rewrite /G1_CreditV.
+    (* Simplify the RHS *)
+    rewrite /Geo_CreditV.
+    rewrite /Geo_μ.
+    setoid_rewrite Iverson_True; [|rewrite//=; lia].
+    setoid_rewrite Rmult_1_l.
+    setoid_rewrite Nat.sub_0_r.
+    (* Split and simplify the sum *)
+    rewrite /G1_f.
+    setoid_rewrite Rmult_plus_distr_r.
+    rewrite SeriesC_plus.
+    2, 3: admit.
+    rewrite /G1_h.
+    rewrite Iverson_True; [|intuition].
+    rewrite Iverson_False; [|intuition].
+    rewrite Iverson_False; [|intuition].
+    rewrite Iverson_True; [|intuition].
+    setoid_rewrite Rmult_1_l.
+    setoid_rewrite Rmult_0_l.
+    setoid_rewrite Rplus_0_l.
+    setoid_rewrite Rplus_0_r.
+    (* Rightmost term: Commute out the sum inside G1_CreditV *)
+    rewrite /G1_CreditV.
+    replace (SeriesC (λ x : nat, (1 - exp (- (x * (x - 1))%nat / 2)) * SeriesC (λ k : nat, G1_μ k * F k) * (exp (-1 / 2) ^ x * (1 - exp (-1 / 2)))))
+       with (SeriesC (λ k : nat, G1_μ k * F k * SeriesC (λ x : nat,  (1 - exp (- (x * (x - 1))%nat / 2)) * (exp (-1 / 2) ^ x * (1 - exp (-1 / 2))))));
+      last first.
+    { (* Foob, then funext, then SeriesC_scal_l etc. *) admit. }
+    rewrite -SeriesC_plus.
+    2, 3: admit.
+    f_equal. apply functional_extensionality. intro k.
+    (* Cancel F *)
+    do 2 rewrite (Rmult_assoc _ (F k) _) (Rmult_comm (F k) _) -(Rmult_assoc _ _ (F k)).
+    rewrite -Rmult_plus_distr_r.
+    f_equal.
+    (* Simplify the first term *)
+    rewrite -Rmult_assoc.
+    rewrite exp_pow.
+    rewrite -exp_plus.
+    have Hcong : forall k : nat, ((- (k * (k - 1))%nat / 2 + -1 / 2 * k)) = ((-k^2)/2).
+    { intros k'. destruct k' as [|k''].
+      { rewrite INR_0. lra. }
+      rewrite mult_INR minus_INR; last lia.
+      rewrite INR_1; lra.
+    }
+    rewrite Hcong.
+    (* Cancel the e^{-k^2/2} term*)
+    rewrite /G1_μ.
+    rewrite Rmult_assoc.
+    rewrite -Rmult_plus_distr_l.
+    replace (exp (- k ^ 2 / 2) / Norm1) with (exp (- k ^ 2 / 2) * (/ Norm1)) by lra.
+    f_equal.
+    (* Simplify the sum on the RHS *)
+    rewrite -(Rmult_1_l (1 - exp (-1 / 2))).
+    rewrite -{1}(Rinv_l Norm1); last (have ? := Norm1_nn; lra).
+    rewrite Rmult_assoc.
+    rewrite -Rmult_plus_distr_l.
+    rewrite -{1}(Rmult_1_r (/Norm1)); f_equal.
+    rewrite /Norm1.
+    replace (SeriesC (λ x : nat, (1 - exp (- (x * (x - 1))%nat / 2)) * (exp (-1 / 2) ^ x * (1 * (1 - exp (-1 / 2))))))
+       with (SeriesC (λ x : nat, ((1 - exp (- (x * (x - 1))%nat / 2)) * (exp (-1 / 2) ^ x) * (1 - exp (-1 / 2)))));
+       last first.
+    { f_equal; apply functional_extensionality; intros ?. lra. }
+    rewrite SeriesC_scal_r.
+    rewrite -Rmult_plus_distr_r.
+    rewrite -SeriesC_plus.
+    2, 3: admit.
+    replace (λ x : nat, exp (- x ^ 2 / 2) + (1 - exp (- (x * (x - 1))%nat / 2)) * exp (-1 / 2) ^ x)
+       with (λ x : nat, exp (- x ^ 2 / 2) + ( exp (-1 / 2) ^ x - exp (- x^2 / 2))); last first.
+    { apply functional_extensionality; intros x.
+      f_equal.
+      rewrite Rmult_plus_distr_r.
+      rewrite Rmult_1_l.
+      rewrite Rminus_def.
+      f_equal.
+      rewrite Ropp_mult_distr_l_reverse.
+      f_equal.
+      rewrite exp_pow.
+      rewrite -exp_plus.
+      f_equal.
+      by rewrite Hcong.
+    }
+    replace (λ x : nat, exp (- x ^ 2 / 2) + (exp (-1 / 2) ^ x - exp (- x ^ 2 / 2)))
+       with (λ x : nat, (exp (-1 / 2) ^ x)); last first.
+    { apply functional_extensionality; intros x. lra. }
+
+    (* Conclude by geometric series formula *)
+  Admitted.
 
   Lemma G2_s_nn {F k x b} (Hnn : ∀ a b , 0 <= F a b) : 0 <= G2_s F k x b.
   Proof.
