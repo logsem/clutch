@@ -58,8 +58,26 @@ Section credits.
     { apply Rmult_le_pos; [apply Iverson_nonneg| auto ]. }
   Qed.
 
+  Local Lemma ex_RInt_RealDecrTrial_CreditV {F} : ex_RInt (RealDecrTrial_CreditV (LiftF F) 0) 0 1.
+  Proof.
+    rewrite /RealDecrTrial_CreditV.
+    (* Some kind of limit exchange *)
+
+  Admitted.
+
   Local Lemma g_ex_RInt {F} : ex_RInt (g F) 0 1.
-  Proof. Admitted.
+  Proof.
+    rewrite /g.
+    apply ex_RInt_add.
+    { apply ex_RInt_mult.
+      { apply ex_RInt_Iverson_le'. }
+      { apply ex_RInt_RealDecrTrial_CreditV. }
+    }
+    { apply ex_RInt_mult.
+      { apply ex_RInt_Iverson_nle'. }
+      { apply ex_RInt_const. }
+    }
+  Qed.
 
   Local Lemma g_expectation {F} : is_RInt (g F) 0 1 (BNEHalf_CreditV F).
   Proof.
@@ -67,8 +85,14 @@ Section credits.
     { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)), g_ex_RInt. }
     rewrite /g.
     rewrite -RInt_add.
-    3: admit.
-    2: admit.
+    3: {
+      apply ex_RInt_mult; [apply ex_RInt_Iverson_nle'|].
+      apply ex_RInt_const.
+    }
+    2: {
+      apply ex_RInt_mult; [apply ex_RInt_Iverson_le'|].
+      apply ex_RInt_RealDecrTrial_CreditV.
+    }
     rewrite RInt_Iverson_le; [|lra].
     rewrite RInt_Iverson_ge'; [|lra].
     rewrite RInt_const/scal//=/mult//=.
@@ -85,8 +109,8 @@ Section credits.
              (SeriesC (λ n : nat, Iverson (not ∘ Zeven) n * F (n `rem` 2 =? 1)%Z * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5)));
         last first.
     { rewrite -SeriesC_plus.
-      3: admit.
-      2: admit.
+      3: { admit. }
+      2: { admit. }
       f_equal; apply functional_extensionality; intro n.
       rewrite Rmult_assoc Rmult_assoc.
       rewrite -Rmult_plus_distr_r.

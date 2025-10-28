@@ -101,4 +101,27 @@ Proof. Admitted.
 Lemma Rexp_range {z : R} : z <= 0 -> 0 <= exp z <= 1.
 Proof. Admitted.
 
+Lemma ex_RInt_add' (f g : R → R) {h : R → R} {a b : R} (Ha : ex_RInt f a b) (Hb : ex_RInt g a b)
+   (Hext : ∀ x, a <= x <= b → f x + g x = h x) : ex_RInt h a b.
+Proof. Admitted. (* Check ex_RInt_plus. *)
+
+Lemma ex_RInt_add  {f g : R → R} {a b : R} (Ha : ex_RInt f a b) (Hb : ex_RInt g a b) :
+  ex_RInt (fun x => f x + g x) a b.
+Proof. Admitted.
+
+Lemma ex_RInt_Iverson_le {x a b}  : ex_RInt (Iverson (Rle x)) a b.
+Proof. Admitted.
+
+Lemma ex_RInt_Iverson_ge {x a b}  : ex_RInt (Iverson (Rge x)) a b.
+Proof. Admitted.
+
+Lemma ex_RInt_Iverson_eq {x a b}  : ex_RInt (Iverson (eq x)) a b.
+Proof. Admitted.
+
+Lemma ex_RInt_Iverson_le' {z a b}  : ex_RInt (Iverson (fun x : R => x <= z)) a b.
+Proof. Admitted.
+
+Lemma ex_RInt_Iverson_nle' {z a b}  : ex_RInt (Iverson (fun x : R => ¬ x <= z)) a b.
+Proof. Admitted.
+
 End Lib.
