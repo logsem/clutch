@@ -1274,6 +1274,24 @@ Lemma rel_inv_restore N P e1 e2 X R :
   Qed.    
   Definition rel_rand_empty_r := rel_randT_empty_r.
 
+  Lemma rel_randU_empty_r K E N z e X R :
+    TCEq N (Z.to_nat z) →
+    (∀ n, ⌜ n ≤ N ⌝ -∗ REL e ≤ fill K (Val #n) @ E <|X|> {{R}}) -∗
+    REL e ≤ fill K (rand #z) @ E <|X|> {{R}}.
+  Proof.
+    iIntros (->) "H".
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros (k1 k2 S) "Hkwp %k2' %ε Hj Hnais Herr %Hpos".
+    rewrite -!fill_app.
+    iApply wp_rand_r. iFrame.
+    iIntros (n) "Hj %Hlt".
+    apply INR_le in Hlt.
+    iSpecialize ("H" $! n Hlt).
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    rewrite !fill_app.
+    by iApply ("H" with "[$][$][$][$]").
+  Qed.
+  
   Lemma rel_randT_l E K α N z n ns t X R :
     TCEq N (Z.to_nat z) →
     (▷ α ↪N (N; n :: ns) ∗
@@ -1312,6 +1330,24 @@ Lemma rel_inv_restore N P e1 e2 X R :
   Qed.
   Definition rel_rand_empty_l := rel_randT_empty_l.
 
+  Lemma rel_randU_empty_l K E N z e X R :
+    TCEq N (Z.to_nat z) →
+    (∀ n, ⌜ n ≤ N ⌝ -∗ REL fill K (Val #n) ≤ e@ E <|X|> {{R}}) -∗
+    REL fill K (rand #z) ≤ e @ E <|X|> {{R}}.
+  Proof.
+    iIntros (->) "H".
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros (k1 k2 S) "Hkwp %k' %ε Hj Hnais Herr Hlt".
+    rewrite -!fill_app.
+    iApply wp_bind.
+    iApply wp_rand; first done; simpl.
+    iIntros (n Hlt%INR_le) "!>".
+    iSpecialize ("H" $! n Hlt).
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    rewrite !fill_app.
+    iApply ("H" with "[$][$][$][$][$]").
+  Qed.
+    
   Lemma rel_couple_couple_avoid (N:nat) l z E K K' X R:
     NoDup l ->
     TCEq N (Z.to_nat z) →
