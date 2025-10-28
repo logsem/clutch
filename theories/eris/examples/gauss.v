@@ -14,7 +14,7 @@ Section pmf.
 
   Definition G1_μ : nat → R := fun k => exp ((-k^2)/2) / Norm1.
 
-  Definition Norm2 : R := SeriesC (fun (k : nat) => RInt (fun x => exp ((-(x+k)^2)/2)) 0 1).
+  Definition Norm2 : R := RInt (fun x => SeriesC (fun (k : nat) => exp ((-(x+k)^2)/2))) 0 1.
 
   Definition G2_μ : nat -> R → R := fun k x => exp ((-(x+k)^2)/2) / Norm2.
 
@@ -266,7 +266,156 @@ Section credits.
   Qed.
 
   Lemma G2_f_expectation {F} : G2_CreditV F = G1_CreditV (G2_f F).
-  Proof. Admitted.
+  Proof.
+    rewrite /G1_CreditV /G2_f.
+    (* Split the sum and integral *)
+    rewrite /G2_g.
+    replace (λ k : nat, G1_μ k * RInt (λ x : R, exp (- x * (2 * k + x) / 2) * G2_s F k x true + (1 - exp (- x * (2 * k + x) / 2)) * G2_s F k x false) 0 1)
+       with (λ k : nat, G1_μ k * RInt (λ x : R, exp (- x * (2 * k + x) / 2) * G2_s F k x true) 0 1 +
+                      G1_μ k * RInt (λ x : R, ((1 - exp (- x * (2 * k + x) / 2)) * G2_s F k x false)) 0 1);
+       last first.
+    {  apply functional_extensionality; intros k.
+       rewrite -Rmult_plus_distr_l.
+       f_equal.
+       rewrite RInt_add.
+       2, 3: admit.
+       done.
+    }
+    rewrite SeriesC_plus.
+    2, 3: admit.
+    (* Prepare second term for Foob *)
+    rewrite {2}/G2_s.
+    rewrite Iverson_False; [|intuition].
+    rewrite Iverson_True; [|intuition].
+    (* Setoid_rewrite is confused *)
+    replace (λ x : nat, G1_μ x * RInt (λ x0 : R, (1 - exp (- x0 * (2 * x + x0) / 2)) * (0 * F x x0 + 1 * G2_CreditV F)) 0 1)
+       with (λ x : nat, RInt (λ x0 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_CreditV F) 0 1);
+      last first.
+    { apply functional_extensionality; intros x.
+      rewrite RInt_Rmult.
+      f_equal.
+      f_equal.
+      apply functional_extensionality; intros y.
+      lra.
+    }
+    rewrite {2}/G2_CreditV.
+    replace (SeriesC (λ x : nat, RInt (λ x0 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * SeriesC (λ k : nat, RInt (λ x1 : R, G2_μ k x1 * F k x1) 0 1)) 0 1))
+      with (SeriesC (λ x : nat, RInt (λ x0 : R, SeriesC (λ k : nat, RInt (λ x1 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1) 0 1)) 0 1));
+      last first.
+    { f_equal; apply functional_extensionality; intros ?.
+      f_equal; apply functional_extensionality; intros ?.
+      rewrite -SeriesC_scal_l.
+      f_equal; apply functional_extensionality; intros ?.
+      rewrite RInt_Rmult.
+      f_equal; apply functional_extensionality; intros ?.
+      lra.
+    }
+    (* Go get 'em Guido *)
+    replace (SeriesC (λ x : nat, RInt (λ x0 : R, SeriesC (λ k : nat, RInt (λ x1 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1) 0 1)) 0 1))
+       with (SeriesC (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1));
+      last first.
+    { admit. }
+    (* Recombine series and cancel with LHS *)
+    rewrite -SeriesC_plus.
+    2, 3: admit.
+    rewrite /G2_CreditV.
+    f_equal; apply functional_extensionality; intros k.
+    rewrite RInt_Rmult.
+    rewrite RInt_add.
+    2, 3: admit.
+    apply RInt_ext.
+    rewrite Rmin_left; [|lra].
+    rewrite Rmax_right; [|lra].
+    intros x Hx.
+    (* Pull out the constant terms from the series/intergral *)
+    replace (RInt (λ x0 : R, SeriesC (λ x1 : nat, G1_μ x1 * (1 - exp (- x0 * (2 * x1 + x0) / 2)) * G2_μ k x * F k x)) 0 1)
+       with (G2_μ k x * F k x * RInt (λ x0 : R, SeriesC (λ x1 : nat, G1_μ x1 * (1 - exp (- x0 * (2 * x1 + x0) / 2)))) 0 1);
+      last first.
+    { rewrite RInt_Rmult.
+      f_equal; apply functional_extensionality; intros ?.
+      rewrite -SeriesC_scal_l.
+      f_equal; apply functional_extensionality; intros ?.
+      lra.
+    }
+    (* Cancel F *)
+    rewrite /G2_s.
+    rewrite Iverson_True; [|intuition].
+    rewrite Iverson_False; [|intuition].
+    rewrite Rmult_1_l Rmult_0_l Rplus_0_r.
+    rewrite -Rmult_assoc.
+    rewrite (Rmult_assoc _ (F k x)) (Rmult_comm (F k x)) -(Rmult_assoc _ _ (F k x)).
+    rewrite -Rmult_plus_distr_r.
+    f_equal.
+
+    (* Don't compute the inner integral yet. Dustribute in G1_μ first and simplify. *)
+    rewrite /G1_μ.
+    replace (RInt (λ x0 : R, SeriesC (λ x1 : nat, exp (- x1 ^ 2 / 2) / Norm1 * (1 - exp (- x0 * (2 * x1 + x0) / 2)))) 0 1)
+       with ((/ Norm1) * RInt (λ x0 : R, SeriesC (λ x1 : nat, (exp (- x1 ^ 2 / 2) - exp (- (x0 + x1)^2 / 2)))) 0 1);
+      last first.
+    { rewrite RInt_Rmult.
+      f_equal; apply functional_extensionality; intros y.
+      rewrite -SeriesC_scal_l.
+      f_equal; apply functional_extensionality; intros j.
+      rewrite (Rdiv_def _ Norm1) (Rmult_comm _ (/ Norm1)) Rmult_assoc.
+      f_equal.
+      rewrite Rmult_minus_distr_l Rmult_1_r.
+      f_equal.
+      rewrite -exp_plus.
+      f_equal.
+      lra.
+    }
+
+    (* Split up the series and integral *)
+    replace (λ x0 : R, SeriesC (λ x1 : nat, exp (- x1 ^ 2 / 2) - exp (- (x0 + x1) ^ 2 / 2)))
+      with (λ x0 : R, SeriesC (λ x1 : nat, exp (- x1 ^ 2 / 2)) + -1 * SeriesC (fun x1 : nat => exp (- (x0 + x1) ^ 2 / 2)));
+      last first.
+    { f_equal; apply functional_extensionality; intros y.
+      rewrite SeriesC_minus.
+      2, 3: admit.
+      lra.
+    }
+    rewrite -RInt_add.
+    2, 3: admit.
+    rewrite -RInt_Rmult.
+
+    (* Evaluate the inegrals *)
+    replace (RInt (λ _ : R, SeriesC (λ x1 : nat, exp (- x1 ^ 2 / 2))) 0 1) with Norm1; last first.
+    { rewrite RInt_const /scal//=/mult//= Rminus_0_r Rmult_1_l.
+      rewrite /Norm1.
+      f_equal.
+    }
+    replace (RInt (λ x0 : R, SeriesC (λ x1 : nat, exp (- (x0 + x1) ^ 2 / 2))) 0 1) with Norm2; last first.
+    { by rewrite /Norm2. }
+
+    (* Simplify *)
+    rewrite /G2_μ.
+    rewrite (Rdiv_def _ Norm1) (Rmult_comm _ (/ Norm1)) Rmult_assoc.
+    rewrite -exp_plus.
+    replace ((- k ^ 2 / 2 + - x * (2 * k + x) / 2)) with (- (x + k)^2 / 2) by lra.
+    rewrite (Rmult_comm _ (exp _)).
+    rewrite (Rdiv_def _ Norm2) Rmult_assoc.
+    rewrite -Rmult_plus_distr_l.
+    f_equal.
+    apply (Rmult_eq_reg_l (Norm1 * Norm2)); last first.
+    { have ? := Norm1_nn.
+      have ? := Norm2_nn.
+      apply Rmult_integral_contrapositive_currified; lra.
+    }
+    rewrite Rmult_assoc.
+    rewrite Rmult_inv_r; last (have ? := Norm2_nn; lra).
+    rewrite Rmult_1_r.
+    rewrite Rmult_plus_distr_l.
+    rewrite {1}(Rmult_comm Norm1 Norm2).
+    rewrite Rmult_assoc.
+    rewrite Rmult_inv_r; last (have ? := Norm1_nn; lra).
+    rewrite Rmult_1_r.
+    rewrite -Rmult_assoc (Rmult_assoc Norm1 Norm2).
+    rewrite Rmult_inv_r; last (have ? := Norm2_nn; lra).
+    rewrite Rmult_1_r.
+    rewrite -Rmult_assoc.
+    rewrite Rmult_inv_r; last (have ? := Norm1_nn; lra).
+    lra.
+  Admitted.
 
   Lemma G2_g_RInt {F k} : is_RInt (G2_g F k) 0 1 (G2_f F k).
   Proof. Admitted.
