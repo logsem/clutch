@@ -328,7 +328,7 @@ Section credits.
     rewrite -RInt_Rmult'.
     rewrite RInt_Iverson_le'''; [|done].
     replace (RInt (λ x0 : R, Iverson (Rge y) x0 * (Bii_μ k x false * S_hz F k x N x0 false + Bii_μ k x true * S_hz F k x N x0 true)) 0 1)
-       with (RInt (λ x0 : R, (Bii_μ k x false * S_hz F k x N x0 false + Bii_μ k x true * S_hz F k x N x0 true)) y 1);
+       with (RInt (λ x0 : R, (Bii_μ k x false * S_hz F k x N x0 false + Bii_μ k x true * S_hz F k x N x0 true)) 0 y);
       last first.
     { admit. }
     rewrite /Bii_μ.
@@ -354,26 +354,30 @@ Section credits.
     2, 3: admit.
     rewrite RInt_const.
     rewrite /scal//=/mult//=.
+    rewrite Rminus_0_r.
     rewrite -Rmult_assoc. rewrite -Rplus_assoc Rplus_comm -Rplus_assoc.
+    (*
     replace ((1 - y) * (1 - (2 * k + x) / (2 * k + 2)) * F N + (1 - y) * F N)
        with ((1 - y) * (1 - (2 * k + x) / (2 * k + 2) + 1) * F N); last lra.
+    *)
     rewrite -RInt_Rmult.
     rewrite {2}/S_CreditV.
-    replace (RInt (λ x0 : R, SeriesC (λ n : nat, S_μ k x x0 (N + 1) n * F n)) y 1)
-      with  (SeriesC (λ n : nat, RInt (λ x0 : R, S_μ k x x0 (N + 1) n * F n) y 1)); last first.
+    replace (RInt (λ x0 : R, SeriesC (λ n : nat, S_μ k x x0 (N + 1) n * F n)) 0 y)
+       with (SeriesC (λ n : nat, RInt (λ x0 : R, S_μ k x x0 (N + 1) n * F n) 0 y));
+      last first.
     {  (* Foob *) admit. }
     rewrite -SeriesC_scal_l.
-    (* Turn the constant term into a singleton series so I can do funext and rewrite terms directly *)
-    replace ((1 - y) * (1 - (2 * k + x) / (2 * k + 2) + 1) * F N) with
-            (SeriesC (fun n : nat => Iverson (eq N) n * ((1 - y) * (1 - (2 * k + x) / (2 * k + 2) + 1) * F n))); last first.
-    { rewrite (SeriesC_Iverson_singleton N); first lra. intuition. }
+    rewrite -Rmult_plus_distr_r.
+    replace ((y * (1 - (2 * k + x) / (2 * k + 2)) + (1 - y)) * F N)
+       with (SeriesC (fun n : nat => Iverson (eq N) n * ((y * (1 - (2 * k + x) / (2 * k + 2)) + (1 - y)) * F n)));
+      last first.
+    { rewrite (SeriesC_Iverson_singleton N); last intuition. lra. }
     rewrite -SeriesC_plus.
     2, 3: admit.
     rewrite /S_CreditV.
     f_equal. apply functional_extensionality; intro n.
     (* Cancel F *)
     rewrite -RInt_Rmult'.
-    rewrite -Rmult_assoc.
     rewrite -Rmult_assoc.
     rewrite -Rmult_assoc.
     rewrite -Rmult_plus_distr_r.
@@ -397,13 +401,12 @@ Section credits.
       rewrite /fact//=.
       rewrite Rdiv_diag; [|lra].
       rewrite Rmult_1_l.
-      Set Printing Parentheses.
       rewrite Rmult_1_r.
       rewrite Rdiv_1_r.
       rewrite Rmult_1_r.
-      (* TODO Is this right? *) admit.
+      lra.
     }
-    rewrite Rmult_0_l Rmult_0_l Rplus_0_l.
+    rewrite Rmult_0_l Rplus_0_l.
     rewrite Iverson_True; [|lia].
     rewrite Rmult_1_l.
     rewrite /S_μ0.
@@ -584,7 +587,7 @@ Section program.
     iIntros (zα) "Hz".
     iApply (wp_lazy_real_presample_adv_comp _ _ zα _ (S_CreditV F k x y N) (S_g F k x y N)); auto.
     { intros ??. apply S_g_nn; auto. }
-    { apply S_g_expectation. }
+    { apply S_g_expectation; done. }
     iSplitL "Hz"; [done|].
     iSplitL "Hε"; [done|].
     iIntros (z) "(% & Hε & Hz)".
@@ -649,7 +652,7 @@ Section program.
     iIntros (zα) "Hz".
     iApply (wp_lazy_real_presample_adv_comp _ _ zα _ (S_CreditV F k x x 0) (S_g F k x x 0)); auto.
     { intros ??. apply S_g_nn; auto. }
-    { apply S_g_expectation. }
+    { apply S_g_expectation; done. }
     iSplitL "Hz"; [done|].
     iSplitL "Hε"; [done|].
     iIntros (z) "(% & Hε & Hz)".
