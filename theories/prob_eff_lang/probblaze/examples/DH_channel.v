@@ -134,7 +134,41 @@ Section implementation.
              | SOME "x" => "k" (SOME #0)
              end
         end
-     | return "y" => "y" end.
+    | return "y" => "y" end.
+
+  Definition C (getKey channel : label) (g : nat) (DH : nat → expr) (f : expr) : expr :=
+    let, ("ga", "gb", "gc") := (DH g) in
+
+    handle: f with
+    | effect getKey "p", rec "k" =>
+        match: "p" with
+          InjL <> =>
+            (do: channel (Send ("ga", bob)));;
+            let: "r" := (do: channel (Recv bob)) in
+            match: "r" with
+              NONE => "k" NONE
+            | SOME "w" => "k" (SOME "gc")
+            end
+        | InjR <> =>
+            (do: channel (Send ("gb", alice)));;
+            let: "r" := (do: channel (Recv alice)) in
+            match: "r" with
+              NONE => "k" NONE
+            | SOME "w" => "k" (SOME "gc")
+            end
+        end
+    | return "y" => "y" end.
+
+  Definition DH_real (g: nat) : expr :=
+    let: "a" := sample #()%V in
+    let: "b" := sample #()%V in
+    (modn (pow #g "a"), modn (pow #g "b"), modn (pow #g ("a"*"b"))).
+
+  Definition DH_rand (g : nat): expr :=
+    let: "a" := sample #()%V in
+    let: "b" := sample #()%V in
+    let: "c" := sample #()%V in
+    (modn (pow #g "a"), modn (pow #g "b"), modn (pow #g "c")).
 
 End implementation.
 
@@ -152,8 +186,8 @@ Section handlee_verification.
     
   Program Definition SendBob : iThy Σ :=
     λ e1 e2, (λne Q,
-                ∃ m : nat,(*  ∃ γ : gname,
-                     ghost_var γ (1/2) m ∗ *)
+                ∃ m : nat, (* ∃ γ : gname,
+                     own (◯ γ (1/2) m ∗ *)
                   ⌜ e1 = do: channel1 (SendV (#m, bob)) ⌝%E ∗
                   ⌜ e2 = do: channel2 (SendV (#m, bob)) ⌝%E ∗
                   □ Q (Val #()%V) (Val #()%V)
@@ -164,7 +198,7 @@ Section handlee_verification.
     λ e1 e2, (λne Q,
                 ⌜ e1 = do: channel1 (RecvV bob) ⌝%E ∗
                 ⌜ e2 = do: channel2 (RecvV bob) ⌝%E ∗
-                □ ((∀ gB : nat, (* ∃ a m γ γ', ⌜ (gB ^ a) `mod` DH_channel.n = m ⌝ ∗ ghost_var γ (1/2) a ∗ ghost_var γ' (1/2) m -∗ *)
+                □ ((∀ gB : nat, ∃ a m γ γ', ⌜ (gB ^ a) `mod` DH_channel.n = m ⌝ ∗ ghost_var γ (1/2) a ∗ ghost_var γ' (1/2) m -∗
                                        Q (SOME #gB) (SOME #gB)) ∧ Q NONE NONE)
                   )%I.
   Next Obligation. solve_proper. Qed.
@@ -189,6 +223,17 @@ Section handlee_verification.
   Lemma modn_un (m : nat) :
     ∃ s, PureExec True s (modn #m) (#(m `mod` n)%nat). 
   Admitted.
+
+
+  Lemma DH_KE_C_DH_real (g : nat) f1 f2:
+    (∀ s n, val_subst s n f1 = f1) →
+           (∀ s n, val_subst s n f2 = f2) →
+           REL f1 ≤ f2 <|T|> {{ (λ v1 v2, ⌜v1 = #()%V⌝ ∧ ⌜v2 = #()%V⌝) }} -∗
+           REL DH_KE getKey1 channel1 g f1 ≤ C getKey2 channel2 g DH_real f2 <|X|> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.
+  Proof.
+    iIntros (Hf1closed Hf2closed) "Hff".
+  Admitted. 
+     
     
   Lemma DH_KE_DH_SIM_F_KE (g : nat) f1 f2:
     (∀ s n, val_subst s n f1 = f1) →
