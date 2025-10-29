@@ -335,23 +335,27 @@ Section credits.
         rewrite -RInt_Rmult'; f_equal.
         rewrite /RealDecrTrial_μ0.
         (* Compute *)
+        replace (λ x : R, x ^ (n - (N + 1)) / fact (n - (N + 1)) - x ^ (n - (N + 1) + 1) / fact (n - (N + 1) + 1))
+           with (λ x : R, x ^ (n - (N + 1)) * / fact (n - (N + 1)) - x ^ (n - (N + 1) + 1) * / fact (n - (N + 1) + 1));
+          last first.
+        { apply functional_extensionality. intros x. lra. }
         rewrite RInt_minus.
         2: {
-          replace (λ x : R, x ^ (n - (N + 1)) / fact (n - (N + 1))) with
-                  (λ x : R, x ^ (n - (N + 1)) * (/ fact (n - (N + 1)))); last first.
-          { apply functional_extensionality. intros x. lra. }
           apply ex_RInt_mult; [|apply ex_RInt_const].
-          admit.
+          apply ex_RInt_pow.
         }
         2: {
-          replace (λ x : R, x ^ (n - (N + 1) + 1) / fact (n - (N + 1) + 1)) with
-                  (λ x : R, x ^ (n - (N + 1) + 1) * / fact (n - (N + 1) + 1)); last first.
-          { apply functional_extensionality. intros x. lra. }
           apply ex_RInt_mult; [|apply ex_RInt_const].
-          admit.
+          apply ex_RInt_pow.
         }
         rewrite /minus//=/plus/opp//=.
-        admit. }
+        rewrite -Rminus_def.
+        f_equal.
+        { rewrite -RInt_Rmult'.
+          admit. }
+        { rewrite -RInt_Rmult'.
+          admit. }
+      }
       { rewrite Rmult_0_l Rmult_0_l.
         rewrite Iverson_False; [|simpl; lia].
         lra.

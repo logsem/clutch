@@ -98,6 +98,15 @@ Proof. Admitted.
 Lemma RInt_Rmult' {F : R → R} {a b r : R} : (RInt F a b) * r = RInt (fun x => F x * r) a b.
 Proof. Admitted.
 
+Lemma ex_RInt_Rmult {F : R → R} {a b r : R} : ex_RInt F a b → ex_RInt (fun x => r * F x) a b.
+Proof. Admitted.
+
+Lemma ex_RInt_Rmult' {F : R → R} {a b r : R} : ex_RInt F a b → ex_RInt (fun x => F x * r) a b.
+Proof. Admitted.
+
+Lemma ex_RInt_pow {a b N} : ex_RInt (λ y : R, y ^ N) a b.
+Proof. Admitted.
+
 Lemma Rexp_nn {z} : 0 <= exp z.
 Proof. Admitted.
 
