@@ -263,6 +263,14 @@ Section spec_tape_interface.
     iIntros.
     iExists xs; auto.
   Qed.
+  
+  Lemma spec_tapeN_tapeN_contradict l N M ns ms:
+    l ↪ₛN ( N;ns ) -∗ l↪ₛN (M;ms) -∗ False.
+  Proof.
+    iIntros "(%&<-&H1) (%&<-&H2)".
+    by iDestruct (ghost_map_elem_ne with "[$][$]") as "%".
+  Qed.
+
 
 End spec_tape_interface.
 
