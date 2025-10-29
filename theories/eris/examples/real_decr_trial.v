@@ -91,8 +91,91 @@ Section credits.
     { by apply RealDecrTrial_μ0nn. }
     { apply Iverson_le_1. }
     { rewrite /RealDecrTrial_μ0.
-      admit.
-  Admitted.
+      case (decide (m <= n)%nat).
+      { intro Hnm.
+        replace (t ^ (n - m) / fact (n - m) - t ^ (n - m + 1) / fact (n - m + 1)) with
+                ((t ^ (n - m) * / fact (n - m)) * (1 - t / (n - m + 1))); last first.
+        { rewrite Rmult_minus_distr_l.
+          f_equal.
+          { lra. }
+          { rewrite Rdiv_def Rdiv_def.
+            rewrite (Rmult_comm (t ^ (n - m)) _).
+            rewrite Rmult_assoc.
+            rewrite -(Rmult_assoc _ t).
+            rewrite -{2}(pow_1 t).
+            rewrite -pow_add.
+            rewrite Rmult_comm.
+            rewrite Rmult_assoc.
+            f_equal.
+            rewrite -Rinv_mult.
+            f_equal.
+            rewrite -minus_INR; [|done].
+            rewrite -INR_1.
+            rewrite -plus_INR.
+            rewrite -mult_INR.
+            replace (n - m + 1)%nat with (S (n - m)%nat) by lia.
+            by rewrite -fact_simpl.
+            }
+          }
+        rewrite -{3}(Rmult_1_l 1).
+        apply Rmult_le_compat.
+        { apply Rmult_le_pos; [apply pow_le; lra |].
+          rewrite -(Rmult_1_l (/ _)).
+          apply Rcomplements.Rdiv_le_0_compat; [lra|].
+          apply INR_fact_lt_0.
+        }
+        { apply error_credits.Rle_0_le_minus.
+          apply Rcomplements.Rle_div_l.
+          { apply Rlt_gt.
+            rewrite -INR_0.
+            rewrite -minus_INR; [|done].
+            rewrite -INR_1.
+            rewrite -plus_INR.
+            apply lt_INR.
+            replace (n - m + 1)%nat with (S (n - m)%nat) by lia.
+            lia.
+          }
+          transitivity 1; [lra|].
+          rewrite -minus_INR; [|done].
+          rewrite -INR_1.
+          rewrite -plus_INR.
+          rewrite -mult_INR.
+          apply le_INR.
+          lia.
+        }
+        { rewrite -Rcomplements.Rdiv_le_1; [|apply INR_fact_lt_0].
+          transitivity 1.
+          { rewrite -(pow1 (n - m)). apply pow_incr; lra. }
+          rewrite -INR_1.
+          apply le_INR.
+          rewrite Nat.le_succ_l.
+          apply lt_O_fact.
+        }
+        { apply Rminus_le_0_compat.
+          rewrite Rdiv_def.
+          apply Rle_mult_inv_pos; [lra|].
+          rewrite -INR_0.
+          rewrite -minus_INR; [|done].
+          rewrite -INR_1.
+          rewrite -plus_INR.
+          apply lt_INR.
+          replace (n - m + 1)%nat with (S (n - m)%nat) by lia.
+          lia.
+        }
+      }
+      {
+        intro Hnm.
+        rewrite Rcomplements.MyNat.minus_0_le; [|lia].
+        rewrite pow_O.
+        rewrite {1}/fact.
+        rewrite INR_1.
+        rewrite Rdiv_diag; [|lra].
+        apply Rminus_le_0_compat.
+        rewrite //= Rmult_1_r.
+        lra.
+      }
+    }
+  Qed.
 
   Lemma RealDecrTrial_CreditV_ex_RInt {F N M}
     (Hbound : forall n, 0 <= F n <= M) : ex_RInt (RealDecrTrial_CreditV F (N + 1)) 0 1.
@@ -130,7 +213,9 @@ Section credits.
     rewrite /RealDecrTrial_μ.
     apply ex_RInt_mult; [apply ex_RInt_const|].
     rewrite /RealDecrTrial_μ0.
-    (* Search ex_RInt "minus". *)
+    replace (λ y : R, y ^ (m - n) / fact (m - n) - y ^ (m - n + 1) / fact (m - n + 1))
+       with (λ y : R, minus (y ^ (m - n) * / fact (m - n)) ((y ^ (m - n + 1) * / fact (m - n + 1)))); last first.
+    { apply functional_extensionality; intros ?.  rewrite /minus/plus/opp//=. }
   Admitted.
 
   Theorem g_expectation {F N rx M} (Hrx : 0 <= rx <= 1) (Hex : ex_seriesC F)
@@ -250,6 +335,22 @@ Section credits.
         rewrite -RInt_Rmult'; f_equal.
         rewrite /RealDecrTrial_μ0.
         (* Compute *)
+        rewrite RInt_minus.
+        2: {
+          replace (λ x : R, x ^ (n - (N + 1)) / fact (n - (N + 1))) with
+                  (λ x : R, x ^ (n - (N + 1)) * (/ fact (n - (N + 1)))); last first.
+          { apply functional_extensionality. intros x. lra. }
+          apply ex_RInt_mult; [|apply ex_RInt_const].
+          admit.
+        }
+        2: {
+          replace (λ x : R, x ^ (n - (N + 1) + 1) / fact (n - (N + 1) + 1)) with
+                  (λ x : R, x ^ (n - (N + 1) + 1) * / fact (n - (N + 1) + 1)); last first.
+          { apply functional_extensionality. intros x. lra. }
+          apply ex_RInt_mult; [|apply ex_RInt_const].
+          admit.
+        }
+        rewrite /minus//=/plus/opp//=.
         admit. }
       { rewrite Rmult_0_l Rmult_0_l.
         rewrite Iverson_False; [|simpl; lia].
