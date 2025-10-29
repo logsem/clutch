@@ -20,6 +20,15 @@ Section credits.
   Definition Geo_CreditV (F : nat → R) (𝛾 : R) (N : nat) : R :=
     SeriesC (fun n => (F n) * Geo_μ 𝛾 N n).
 
+  Lemma Geo_μnn {𝛾 N n} (H : 0 <= 𝛾 <= 1) : 0 <= Geo_μ 𝛾 (N + 1) n.
+  Proof.
+    rewrite /Geo_μ.
+    apply Rmult_le_pos; [|lra].
+    apply Rmult_le_pos; [apply Iverson_nonneg|].
+    apply pow_le.
+    lra.
+  Qed.
+
   Lemma Geo_CreditV_nn {F 𝛾 N} (Hnn : ∀ r, 0 <= F r) (H𝛾 : 0 <= 𝛾 <= 1) : 0 <= Geo_CreditV F 𝛾 N.
   Proof.
     rewrite /Geo_CreditV.
@@ -45,7 +54,7 @@ Section credits.
     { apply Rmult_le_pos; [apply Iverson_nonneg| auto ]. }
   Qed.
 
-  Local Lemma g_expectation {F 𝛾 N} :
+  Local Lemma g_expectation {F 𝛾 N} (Hnn : ∀ r, 0 <= F r) (Hex : ex_seriesC F) (H𝛾 : 0 <= 𝛾 <= 1) :
     Geo_CreditV F 𝛾 N = 𝛾 * Geo_CreditV F 𝛾 (N + 1) + (1 - 𝛾) * F N.
   Proof.
     rewrite/Geo_CreditV.
@@ -62,8 +71,37 @@ Section credits.
             (SeriesC (fun n : nat => Iverson (fun x => x = N) n * (F n * Geo_μ 𝛾 N n))); last first.
     { rewrite (SeriesC_Iverson_singleton N); [lra|intuition]. }
     rewrite -SeriesC_plus.
-    3: admit.
-    2: admit.
+    3: {
+      rewrite -ex_seriesC_nat.
+      apply ex_series_eventually0.
+      exists (N + 1)%nat.
+      intros n Hn.
+      rewrite Iverson_False; [lra|lia].
+    }
+    2: {
+      apply (ex_seriesC_le _ F); [|done].
+      intro n; split.
+      { apply Rmult_le_pos; [done|].
+        apply Rmult_le_pos; [lra|].
+        apply Geo_μnn.
+        lra.
+      }
+      rewrite -{2}(Rmult_1_r (F n)).
+      apply Rmult_le_compat_l; [apply Hnn|].
+      rewrite -(Rmult_1_r 1).
+      apply Rmult_le_compat; try lra.
+      { apply Geo_μnn. lra. }
+      rewrite /Geo_μ.
+      rewrite -{2}(Rmult_1_r 1).
+      apply Rmult_le_compat; try lra.
+      { apply Rmult_le_pos; [apply Iverson_nonneg|]. apply pow_le; lra. }
+      rewrite -{1}(Rmult_1_r 1).
+      apply Rmult_le_compat; try lra.
+      { apply Iverson_nonneg. }
+      { apply pow_le; lra. }
+      { apply Iverson_le_1. }
+      { rewrite -(pow1 (n - (N + 1))). apply pow_incr. apply H𝛾. }
+    }
     f_equal; apply functional_extensionality; intros n.
     rewrite /Iverson.
     case_decide.
@@ -83,7 +121,10 @@ Section credits.
         rewrite tech_pow_Rmult.
         f_equal. lia.
     }
-  Admitted.
+    rewrite Iverson_False; [|simpl; lia].
+    lra.
+    }
+  Qed.
 
 End credits.
 
@@ -97,7 +138,7 @@ Section program.
 
   Definition GeoTrial : val := rec: "trial" "N" := if: e #() then "trial" ("N" + #1) else "N".
 
-  Theorem wp_Geo {E} F {N} (Hnn : ∀ r, 0 <= F r) :
+  Theorem wp_Geo {E} F {N} (Hnn : ∀ r, 0 <= F r) (Hex : ex_seriesC F) :
     ↯(Geo_CreditV F 𝛾 N) -∗ WP GeoTrial #N @ E {{ vn, ∃ n : nat, ⌜vn = #n ⌝ ∗ ↯(F n) }}.
   Proof.
     revert N.

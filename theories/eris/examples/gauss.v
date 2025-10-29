@@ -98,6 +98,9 @@ Section credits.
     apply G1_μ_nn.
   Qed.
 
+  Lemma G1_f_ex_seriesC {F : nat → R} (Hex : ex_seriesC F) : ex_seriesC (G1_f F).
+  Proof. Admitted.
+
   Lemma G2_exRInt {F} (Hnn : ∀ k r, 0 <= F k r) {x'} : ex_RInt (λ x : R, G2_μ x' x * F x' x) 0 1.
   Proof. Admitted.
 
@@ -264,6 +267,9 @@ Section credits.
     intros x Hx.
     apply G2_g_nn; auto. lra.
   Qed.
+
+  Lemma G2_f_ex_seriesC {F} : ex_seriesC (G2_f F).
+  Proof. Admitted.
 
   Lemma G2_f_expectation {F} : G2_CreditV F = G1_CreditV (G2_f F).
   Proof.
@@ -460,7 +466,7 @@ Section program.
       let: "x" := init #() in
       if: IterTrial (λ: "_", B "k" "x") ("k" + #1) then ("x", "k") else "trial" #().
 
-  Theorem wp_G1 {E F} (Hnn : ∀ r, 0 <= F r) :
+  Theorem wp_G1 {E F} (Hnn : ∀ r, 0 <= F r) (Hex : ex_seriesC F) :
     ↯(G1_CreditV F) -∗ WP G1 #() @ E {{ vn, ∃ n : nat, ⌜vn = #n ⌝ ∗ ↯(F n) }}.
   Proof.
     iStartProof.
@@ -473,6 +479,7 @@ Section program.
     { rewrite -Nat2Z.inj_0.
       wp_apply (wp_Geo _ (exp (-1 / 2)) _  _ (G1_f F)).
       { by intros ?; apply G1_f_nn, Hnn. }
+      { by apply G1_f_ex_seriesC.  }
       { by rewrite G1_f_expectation. }
       Unshelve.
       { apply Rexp_range; lra. }
@@ -551,6 +558,7 @@ Section program.
     iApply (pgl_wp_mono_frame (□ _) with "[Hε] IH"); last first.
     { iApply (wp_G1 (F := G2_f F)).
       { intros ?; apply G2_f_nn; auto. }
+      { by apply G2_f_ex_seriesC. }
       iApply (ec_eq with "Hε").
       apply G2_f_expectation.
     }
