@@ -220,7 +220,7 @@ Section program.
       else
         "trial" ("L" + #1%Z).
 
-  Lemma wp_NegExp_gen (F : R → R) (Hnn : ∀ n, 0 <= F n) E :
+  Lemma wp_NegExp_gen {M} (F : R → R) (Hnn : ∀ n, 0 <= F n <= M) E :
     ⊢ ∀ L, ↯ (NegExp_CreditV F L) -∗
            WP NegExp #L @ E
       {{ p, ∃ (vz : Z) (vr : R) (ℓ : val), ⌜p = PairV #vz ℓ⌝ ∗ lazy_real ℓ vr ∗ ↯(F (vr + IZR vz))}}.
@@ -232,15 +232,17 @@ Section program.
     wp_apply wp_init; first done.
     iIntros (x) "Hx".
     iApply (wp_lazy_real_presample_adv_comp _ _ x _ (NegExp_CreditV F L) (g F L)); auto.
-    { by intros ??; apply g_nonneg; auto. }
+    { intros ??; apply g_nonneg; auto. apply Hnn. }
     { by apply g_expectation. }
     iFrame.
     iIntros (xr) "(%Hrange & Hε & Hx)".
     do 2 wp_pure.
     wp_bind (lazyDecrR _ _).
     iApply (pgl_wp_mono_frame (□ _) with "[Hx Hε] IH"); last first.
-    { iApply (wp_lazyDecrR_gen (hx F xr L) _ E $! _ x xr). by rewrite /g; iFrame.
-      Unshelve. intros ?. by apply hx_nonneg, Hnn. }
+    { iApply (wp_lazyDecrR_gen (hx F xr L) _ E $! _ x xr).
+      { admit. }
+      by rewrite /g; iFrame.
+      Unshelve. 1, 2: admit. (* intros ?. by apply hx_nonneg, Hnn. *) }
     iIntros (v) "(#IH & [%l (%Hv & Hε & Hx)])"; rewrite Hv.
     wp_pures.
     case_bool_decide.
@@ -277,6 +279,6 @@ Section program.
       rewrite Nat2Z.inj_add.
       iApply "IH".
     }
-  Qed.
+  Admitted.
 
 End program.

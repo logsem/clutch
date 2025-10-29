@@ -264,7 +264,7 @@ Section program.
     else
       #true.
 
-  Theorem wp_BNEHalf E {F} (Hnn : ∀ r, 0 <= F r) :
+  Theorem wp_BNEHalf E {F M} (Hnn : ∀ r, 0 <= F r <= M) (Hex : ex_seriesC (LiftF F)) :
     ↯(BNEHalf_CreditV F) -∗ WP BNEHalf #() @ E {{ vb , ∃ b : bool, ⌜vb = #b ⌝ ∗ ↯(F b) }}.
   Proof.
     iIntros "Hε".
@@ -273,7 +273,7 @@ Section program.
     wp_apply wp_init; first done.
     iIntros (x) "Hx".
     iApply (wp_lazy_real_presample_adv_comp _ _ x _ (BNEHalf_CreditV F) (g F)); auto.
-    { intros ??; apply g_nn; auto. }
+    { intros ??; apply g_nn; auto. apply Hnn. }
     { by apply g_expectation. }
     iFrame.
     iIntros (r) "(%Hrange & Hε & Hx)".
@@ -290,7 +290,7 @@ Section program.
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
       wp_bind (lazyDecrR _ _).
       iApply (pgl_wp_mono with "[Hr Hε]"); last first.
-      { iApply (wp_lazyDecrR_gen (LiftF F)); [rewrite /LiftF//=|].
+      { iApply (wp_lazyDecrR_gen (LiftF F)); [rewrite /LiftF//=| done |].
         iFrame.
         iSplitR; first auto.
         rewrite Iverson_True; auto.

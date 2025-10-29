@@ -82,17 +82,70 @@ Section credits.
     { apply Hnn. }
   Qed.
 
-  Lemma g_ex_RInt {F N rx} : ex_RInt (g F N rx) 0 1.
-  Proof. Admitted.
+  Lemma RealDecrTrial_μ_le_1 {t m n} (H : 0 <= t <= 1) : RealDecrTrial_μ t m n <= 1.
+  Proof.
+    rewrite /RealDecrTrial_μ.
+    rewrite -(Rmult_1_l 1).
+    apply Rmult_le_compat.
+    { apply Iverson_nonneg. }
+    { by apply RealDecrTrial_μ0nn. }
+    { apply Iverson_le_1. }
+    { rewrite /RealDecrTrial_μ0.
+      admit.
+  Admitted.
 
-  Theorem g_expectation {F N rx} (Hrx : 0 <= rx <= 1) : is_RInt (g F N rx) 0 1 (RealDecrTrial_CreditV F N rx).
+  Lemma RealDecrTrial_CreditV_ex_RInt {F N M}
+    (Hbound : forall n, 0 <= F n <= M) : ex_RInt (RealDecrTrial_CreditV F (N + 1)) 0 1.
+  Proof.
+    rewrite /RealDecrTrial_CreditV.
+    apply (DominatedCvgTheorem_ex (fun _ => 1 * M)); [|apply ex_RInt_const].
+    rewrite Rmin_left; [|lra].
+    rewrite Rmax_right; [|lra].
+    intros n x H.
+    split.
+    { apply Rmult_le_pos; [|apply Hbound]. apply RealDecrTrial_μnn; lra. }
+    apply Rmult_le_compat.
+    { apply RealDecrTrial_μnn; lra. }
+    { apply Hbound. }
+    { apply RealDecrTrial_μ_le_1; lra. }
+    { apply Hbound. }
+  Qed.
+
+  Lemma g_ex_RInt {F N rx M} (Hbound : forall n, 0 <= F n <= M) : ex_RInt (g F N rx) 0 1.
+  Proof.
+    rewrite /g.
+    apply ex_RInt_add.
+    { apply ex_RInt_mult; [apply ex_RInt_Iverson_le_uncurry|].
+      eapply RealDecrTrial_CreditV_ex_RInt.
+      intro n.
+      apply Hbound.
+    }
+    { apply ex_RInt_mult; [apply ex_RInt_Iverson_ge_uncurry|].
+      apply ex_RInt_const.
+    }
+  Qed.
+
+  Lemma RealDecrTrial_μ_ex_RInt {n m} : ex_RInt (λ y : R, RealDecrTrial_μ y n m) 0 1.
+  Proof.
+    rewrite /RealDecrTrial_μ.
+    apply ex_RInt_mult; [apply ex_RInt_const|].
+    rewrite /RealDecrTrial_μ0.
+    (* Search ex_RInt "minus". *)
+  Admitted.
+
+  Theorem g_expectation {F N rx M} (Hrx : 0 <= rx <= 1) (Hex : ex_seriesC F)
+    (Hbound : forall n, 0 <= F n <= M) : is_RInt (g F N rx) 0 1 (RealDecrTrial_CreditV F N rx).
   Proof.
     suffices H : RInt (g F N rx) 0 1 = RealDecrTrial_CreditV F N rx.
-    { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)), g_ex_RInt. }
+    { rewrite -H. eapply (RInt_correct (V := R_CompleteNormedModule)), g_ex_RInt.
+      { apply Hbound. }
+    }
     rewrite /g.
     rewrite -RInt_add.
-    3: admit.
-    2: admit.
+    3: { apply ex_RInt_mult; [apply ex_RInt_Iverson_ge_uncurry|]. apply ex_RInt_const. }
+    2: { apply ex_RInt_mult; [apply ex_RInt_Iverson_le_uncurry|].
+         eapply RealDecrTrial_CreditV_ex_RInt; done.
+    }
     rewrite {1}/RealDecrTrial_CreditV.
     replace
       (λ x : R, Iverson (uncurry Rle) (x, rx) * SeriesC (λ n : nat, RealDecrTrial_μ x (N + 1) n * F n)) with
@@ -111,8 +164,68 @@ Section credits.
     replace ((1 - rx) * F N) with (SeriesC (fun n => Iverson (fun y => y = N) n * ((1 - rx) * F n))); last first.
     { rewrite (SeriesC_Iverson_singleton (F := fun z => (1 - rx) * F z) N); [lra|intuition]. }
     rewrite -SeriesC_plus.
-    3: admit.
-    2: admit.
+    3: {
+      apply (ex_seriesC_le _ F); [|apply Hex].
+      intro n.
+      split.
+      { apply Rmult_le_pos; [apply Iverson_nonneg|].
+        apply Rmult_le_pos; [lra|].
+        apply Hbound.
+      }
+      { rewrite -Rmult_assoc.
+        rewrite -{2}(Rmult_1_l (F n)).
+        apply Rmult_le_compat_r; [apply Hbound|].
+        rewrite -(Rmult_1_l 1).
+        apply Rmult_le_compat.
+        { apply Iverson_nonneg. }
+        { lra. }
+        { apply Iverson_le_1. }
+        { lra. }
+      }
+    }
+    2: {
+      apply (ex_seriesC_le _ F); [|apply Hex].
+      intro n.
+      split.
+      { apply RInt_ge_0; [lra | |].
+        { apply ex_RInt_mult; [|apply ex_RInt_const].
+          apply ex_RInt_mult; [apply ex_RInt_Iverson_le_uncurry|].
+          apply RealDecrTrial_μ_ex_RInt.
+        }
+        { intros x Hx.
+          apply Rmult_le_pos; [|apply Hbound].
+          apply Rmult_le_pos; [apply Iverson_nonneg|].
+          rewrite /RealDecrTrial_μ.
+          apply Rmult_le_pos; [apply Iverson_nonneg|].
+          apply RealDecrTrial_μ0nn.
+          lra.
+        }
+      }
+      { rewrite -RInt_Rmult'.
+        rewrite -{2}(Rmult_1_l (F n)).
+        apply Rmult_le_compat_r; [apply Hbound|].
+        etransitivity; first eapply Rle_abs.
+        etransitivity; first eapply (abs_RInt_le_const _ _ _ (1 * 1)).
+        { lra. }
+        { apply ex_RInt_mult.
+          { apply ex_RInt_Iverson_le_uncurry. }
+          { apply RealDecrTrial_μ_ex_RInt. }
+        }
+        { intros t Ht.
+          rewrite Rabs_mult.
+          apply Rmult_le_compat.
+          { apply Rabs_pos. }
+          { apply Rabs_pos. }
+          { rewrite Rabs_right; [|apply Rle_ge, Iverson_nonneg].
+            apply Iverson_le_1. }
+          { rewrite Rabs_right; [|apply Rle_ge].
+            { apply RealDecrTrial_μ_le_1; lra. }
+            { apply RealDecrTrial_μnn; lra. }
+          }
+        }
+        { lra. }
+      }
+    }
     rewrite /RealDecrTrial_CreditV.
     f_equal; apply functional_extensionality; intros n.
     replace
@@ -175,7 +288,7 @@ Section trial.
       else
         "N".
 
-  Lemma wp_lazyDecrR_gen (F : nat → R) (Hnn : ∀ n, 0 <= F n) E :
+  Lemma wp_lazyDecrR_gen {M} (F : nat → R) (Hnn : ∀ n, 0 <= F n <= M) E (Hex : ex_seriesC F) :
     ⊢ ∀ N x rx, lazy_real x rx ∗ ⌜0 <= rx <= 1 ⌝ ∗ ↯ (RealDecrTrial_CreditV F N rx) -∗
                 WP lazyDecrR #N x @ E {{ z, ∃ n : nat, ⌜z = #n⌝ ∗ ↯ (F n) ∗ lazy_real x rx }}.
   Proof.
@@ -186,8 +299,8 @@ Section trial.
     wp_apply wp_init; first done.
     iIntros (y) "Hv".
     iApply (wp_lazy_real_presample_adv_comp _ _ y _ (RealDecrTrial_CreditV F N rx) (g F N rx)); auto.
-    { intros ??. apply g_nonneg; auto. }
-    { apply g_expectation; auto. }
+    { intros ??. apply g_nonneg; auto. apply Hnn. }
+    { eapply g_expectation; auto. }
     iSplitL "Hv"; first done.
     iSplitL "Hε"; first done.
     iIntros (ry) "(% & Hε & Hy)".
@@ -203,7 +316,7 @@ Section trial.
         iSplitR; first done.
         rewrite /g.
         iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg; auto]. }
+        { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg; auto]. apply Hnn. }
         { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
         rewrite Iverson_True; [by rewrite Rmult_1_l | rewrite /uncurry//=].
       }
@@ -217,7 +330,7 @@ Section trial.
       iSplitR "Hx"; last done.
       rewrite /g.
       iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg; auto ]. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg; auto ]. apply Hnn. }
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
       rewrite Iverson_True; [by rewrite Rmult_1_l | rewrite /uncurry//=; lra].
   Qed.

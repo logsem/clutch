@@ -466,7 +466,7 @@ Section program.
       let: "x" := init #() in
       if: IterTrial (λ: "_", B "k" "x") ("k" + #1) then ("x", "k") else "trial" #().
 
-  Theorem wp_G1 {E F} (Hnn : ∀ r, 0 <= F r) (Hex : ex_seriesC F) :
+  Theorem wp_G1 {E F M} (Hnn : ∀ r, 0 <= F r <= M) (Hex : ex_seriesC F) :
     ↯(G1_CreditV F) -∗ WP G1 #() @ E {{ vn, ∃ n : nat, ⌜vn = #n ⌝ ∗ ↯(F n) }}.
   Proof.
     iStartProof.
@@ -484,7 +484,9 @@ Section program.
       Unshelve.
       { apply Rexp_range; lra. }
       { iIntros (E' F' HF') "Hε".
-        iApply wp_BNEHalf; [done|].
+        iApply wp_BNEHalf.
+        { admit. }
+        { admit. }
         iApply (ec_eq with "Hε").
         rewrite /BNEHalf_CreditV/BNEHalf_μ.
         rewrite Iverson_True; [|intuition].
@@ -492,6 +494,7 @@ Section program.
         rewrite Iverson_False; [|intuition].
         rewrite Iverson_True; [|intuition].
         lra.
+        Unshelve. admit.
       }
     }
     iIntros (v) "(#IH & [%n [-> Hε]])".
@@ -516,7 +519,9 @@ Section program.
       { apply Rexp_range; lra. }
       { iIntros (E' F' HF') "(Hε & HI)".
         iFrame.
-        iApply wp_BNEHalf; [done|].
+        iApply wp_BNEHalf.
+        { admit. }
+        { admit. }
         iApply (ec_eq with "Hε").
         rewrite /BNEHalf_CreditV/BNEHalf_μ.
         rewrite Iverson_True; [|intuition].
@@ -524,6 +529,7 @@ Section program.
         rewrite Iverson_False; [|intuition].
         rewrite Iverson_True; [|intuition].
         lra.
+        Unshelve. admit.
       }
     }
     iIntros (v) "(#IH & [%b [-> [Hε _]]])".
@@ -544,9 +550,9 @@ Section program.
       rewrite Iverson_False; [|intuition]; rewrite Iverson_True; [|intuition].
       by rewrite Rmult_0_l Rmult_1_l Rplus_0_l.
     }
-  Qed.
+  Admitted.
 
-  Theorem wp_G2 {E F} (Hnn : ∀ x k , 0 <= F x k ) :
+  Theorem wp_G2 {E F M} (Hnn : ∀ x k , 0 <= F x k <= M) :
     ↯(G2_CreditV F) -∗
     WP G2 #() @ E {{ vp, ∃ k : nat, ∃ r : R, ∃ l : val, lazy_real l r  ∗ ⌜vp = PairV l #k ⌝ ∗ ↯(F k r) }}.
   Proof.
@@ -557,7 +563,7 @@ Section program.
     wp_bind (G1 _).
     iApply (pgl_wp_mono_frame (□ _) with "[Hε] IH"); last first.
     { iApply (wp_G1 (F := G2_f F)).
-      { intros ?; apply G2_f_nn; auto. }
+      { intros ?. admit. (* apply G2_f_nn; auto.*)  }
       { by apply G2_f_ex_seriesC. }
       iApply (ec_eq with "Hε").
       apply G2_f_expectation.
@@ -567,7 +573,7 @@ Section program.
     wp_apply wp_init; first done.
     iIntros (x) "Hx".
     iApply (wp_lazy_real_presample_adv_comp _ _ x _ (G2_f F k) (G2_g F k)); auto.
-    { intros ??. apply G2_g_nn; auto. }
+    { intros ??. apply G2_g_nn; auto. apply Hnn. }
     { apply G2_g_RInt. }
     iFrame.
     iIntros (z) "(% & Hε & Hx)".
@@ -577,7 +583,7 @@ Section program.
     { rewrite /G2_g.
       replace (Z.add (Z.of_nat k) 1) with (Z.of_nat (k + 1)%nat) by lia.
       iApply (@wp_Iter _ _ _ (exp (- z * (2 * k + z) / (2*k+2))) _ (lazy_real x z) _ _ (G2_s F k z)).
-      { intros ?. apply G2_s_nn. auto. }
+      { intros ?. apply G2_s_nn. auto. apply Hnn. }
       { iFrame.
         iApply (ec_eq with "Hε").
         rewrite /Iter_CreditV.
@@ -585,6 +591,7 @@ Section program.
         f_equal; f_equal.
       }
       Unshelve.
+      { admit. }
       { apply Rexp_range.
         apply Rcomplements.Rmult_le_0_r.
         { apply Rcomplements.Rmult_le_0_r; [lra|].
@@ -629,6 +636,6 @@ Section program.
       iApply (ec_eq with "Hε").
       rewrite Iverson_True; [lra|done].
     }
-  Qed.
+  Admitted.
 
 End program.

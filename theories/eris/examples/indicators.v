@@ -127,4 +127,24 @@ Proof. Admitted.
 Lemma ex_RInt_Iverson_nle' {z a b}  : ex_RInt (Iverson (fun x : R => ¬ x <= z)) a b.
 Proof. Admitted.
 
+Lemma ex_RInt_Iverson_le_uncurry {rx} : ex_RInt (λ y : R, Iverson (uncurry Rle) (y, rx)) 0 1.
+Proof. Admitted.
+
+Lemma ex_RInt_Iverson_ge_uncurry {rx} : ex_RInt (λ y : R, Iverson (uncurry Rge) (y, rx)) 0 1.
+Proof. Admitted.
+
+Lemma DominatedCvgTheorem {F : nat → R → R} {a b : R} (g : R → R)
+  (Hdom : forall n x, Rmin a b <= x <= Rmax a b → 0 <= F n x <= g x)
+  (Hint : ex_RInt g a b) :
+  is_RInt (fun x => SeriesC (fun n => F n x)) a b (SeriesC (fun n => RInt (fun x => F n x) a b)).
+Proof. Admitted.
+
+Lemma DominatedCvgTheorem_ex {F : nat → R → R} {a b : R} (g : R → R)
+  (Hdom : forall n x, Rmin a b <= x <= Rmax a b → 0 <= F n x <= g x)
+  (Hint : ex_RInt g a b) :
+  ex_RInt (fun x => SeriesC (fun n => F n x)) a b.
+Proof. Admitted.
+
+
+
 End Lib.
