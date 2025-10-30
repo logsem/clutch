@@ -361,7 +361,10 @@ Section credits.
     rewrite Rplus_comm (Rmult_comm _ (F false)) (Rmult_comm _ (F true)).
     rewrite /BNEHalf_CreditV.
     f_equal; f_equal.
-    { (* Gaussian Taylor series *) admit. }
+    { (* TODO: Move me *)
+
+
+      (* Gaussian Taylor series *) admit. }
     { (* Gaussian Taylor series *) admit. }
   Admitted.
 

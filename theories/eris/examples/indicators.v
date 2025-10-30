@@ -235,4 +235,215 @@ Lemma FubiniNatR_ex {F : nat → R → R} {a b : R} (g : R → R)
   ex_RInt (fun x => SeriesC (fun n => F n x)) a b.
 Admitted.
 
+Lemma SeriesC_nat_shift {f : nat → R} : SeriesC f = f 0%nat + SeriesC (f ∘ S).
+Proof. Admitted.
+
+Lemma ex_SeriesC_nat_shift {f : nat → R} : ex_seriesC f → ex_seriesC (f ∘ S).
+Proof. Admitted.
+
+(*
+(* Key lemma ? *)
+Lemma SeriesC_even_contract {f : nat → R} :
+  SeriesC (fun n => Iverson Zeven (Z.of_nat n) * f n) = SeriesC (fun n => f (2 * n)%nat).
+Proof.
+  apply Rle_antisym.
+  { SeriesC_le_inj.
+  Search (?x <= ?y) (?y <= ?x) (?x = ?y).
+Admitted.
+*)
+
+Lemma Zeven_pow {x} {n : nat} (H : Zeven (Z.of_nat n)) : 0 <= x ^ n.
+Proof. Admitted.
+
+Lemma Zodd_neg_pow {n : nat} (H : Zodd (Z.of_nat n)) : (-1) ^ n = (-1).
+Proof. Admitted.
+
+Lemma ExpSeriesEven {x} : SeriesC (λ n : nat, Iverson Zeven n * (x^n/(fact n) + x^(n+1)%nat/(fact (n+1)%nat))) = exp x.
+Proof.
+  (* Every term in the goal needs to associate to two terms of Hpow
+        Goal:     X   = (a1 + a2) + 0 + (a3 + a4) + ...
+        Set       X'  = a1 + a2 + a3 + ... which exists
+                  XO  = a1 + 0  + a3 + 0 + ... exists by UB of X' (does it? x could be negative... tho they are all negative so it exists in absolute value or something.)
+                  XE  = 0  + a2 + 0  + a4 + ... exists by UB of X'
+                  SXE = a2 + 0  + a4 + ... exists by S lemma
+
+                  X' = XO + XE (pointwise eq)
+                  X = XO + SXE (pointwise eq)
+                  SXE = XE (S elmma)
+                  so X' = X
+     *)
+    pose Hpow := @SeriesC _ numbers.Nat.eq_dec nat_countable (λ k : nat, x ^ k / fact k).
+    have Hpow_cf : Hpow = exp x.
+    { by rewrite /Hpow SeriesC_Series_nat -PSeries.PSeries_eq ElemFct.exp_Reals. }
+    have Hpow_ex : forall y, ex_seriesC (λ k : nat, y ^ k / fact k).
+    { intro y.
+      (* How to go from ElemFct.exp_Reals to ex_seriesC?
+         Proabbly from PSeries? *)
+      replace (λ k : nat, y ^ k / fact k) with (λ k : nat, / fact k * y ^ k); last first.
+      { apply functional_extensionality. intros ?. lra. }
+      have Hex : PSeries.ex_pseries (fun k => / fact k) y.
+      { (* I'm shocked this isn't proven somewhere...*)
+        apply PSeries.CV_disk_correct.
+        apply (PSeries.CV_disk_DAlembert _ _ 0); [| | intuition].
+        { intros n.
+          have ? : 0 < / fact n; [|lra].
+          apply Rinv_0_lt_compat.
+          apply INR_fact_lt_0.
+        }
+        { rewrite Lim_seq.is_lim_seq_Reals. apply Alembert_exp. }
+      }
+      rewrite PSeries.ex_pseries_R in Hex.
+      by rewrite ex_seriesC_nat in Hex.
+    }
+    pose HpowE  := @SeriesC _ numbers.Nat.eq_dec nat_countable (λ k : nat, Iverson Zeven k * x ^ k / fact k).
+    pose HpowO  := @SeriesC _ numbers.Nat.eq_dec nat_countable (λ k : nat, Iverson (not ∘ Zeven) k * x ^ k / fact k).
+    pose HpowOS := @SeriesC _ numbers.Nat.eq_dec nat_countable ((λ k : nat, Iverson (not ∘ Zeven) k * x ^ k / fact k) ∘ S).
+    have HpowE_ex : ex_seriesC (λ k : nat, Iverson Zeven k * x ^ k / fact k).
+    { apply (ex_seriesC_le _ (λ k : nat, (Rabs x) ^ k / fact k)); last apply Hpow_ex.
+      intros n.
+      split.
+      { rewrite /Iverson.
+        case_decide; [|lra].
+        rewrite Rmult_1_l.
+        apply Rcomplements.Rdiv_le_0_compat; [|apply INR_fact_lt_0].
+        by apply Zeven_pow.
+      }
+      { rewrite /Iverson.
+        case_decide.
+        { rewrite Rmult_1_l.
+          rewrite Rdiv_def.
+          apply Rmult_le_compat_r.
+          { have HH := INR_fact_lt_0 n. apply Rinv_0_lt_compat in HH. lra. }
+          apply pow_maj_Rabs.
+          lra.
+        }
+        { rewrite Rmult_0_l Rdiv_0_l.
+          apply Rcomplements.Rdiv_le_0_compat; [|apply INR_fact_lt_0].
+          apply pow_le.
+          apply Rabs_pos.
+        }
+      }
+    }
+    have HpowO_ex : ex_seriesC (λ k : nat, Iverson (not ∘ Zeven) k * x ^ k / fact k).
+    { destruct (decide (Rle 0 x)).
+      { apply (ex_seriesC_le _ (λ k : nat, (Rabs x) ^ k / fact k)); last apply Hpow_ex.
+        intro n; split.
+        { rewrite /Iverson.
+          case_decide; [|lra].
+          rewrite Rmult_1_l.
+          apply Rcomplements.Rdiv_le_0_compat; [|apply INR_fact_lt_0].
+          apply pow_le.
+          lra.
+        }
+        { rewrite /Iverson.
+          case_decide.
+          { rewrite Rmult_1_l.
+            rewrite Rdiv_def.
+            apply Rmult_le_compat_r.
+            { have HH := INR_fact_lt_0 n. apply Rinv_0_lt_compat in HH. lra. }
+            apply pow_maj_Rabs.
+            lra.
+          }
+          { rewrite Rmult_0_l Rdiv_0_l.
+            apply Rcomplements.Rdiv_le_0_compat; [|apply INR_fact_lt_0].
+            apply pow_le.
+            apply Rabs_pos.
+          }
+        }
+      }
+      { pose x' := (-1) * x.
+        replace (λ k : nat, Iverson (not ∘ Zeven) k * x ^ k / fact k)
+           with (λ k : nat, (-1) * (Iverson (not ∘ Zeven) k * x' ^ k / fact k)); last first.
+        { apply functional_extensionality. intros k. rewrite /x'.
+          rewrite /Iverson.
+          case_decide.
+          { rewrite Rmult_1_l Rmult_1_l.
+            rewrite Rpow_mult_distr.
+            rewrite Zodd_neg_pow; [lra|].
+            destruct (Zeven_odd_dec k); intuition.
+            exfalso; apply H; intuition.
+          }
+          { by rewrite Rmult_0_l Rmult_0_l Rdiv_0_l Rmult_0_r. }
+        }
+        apply ex_seriesC_scal_l.
+        apply (ex_seriesC_le _ (λ k : nat, (Rabs x') ^ k / fact k)); last apply Hpow_ex.
+        intro n'; split.
+        { rewrite /Iverson.
+          case_decide; [|lra].
+          rewrite Rmult_1_l.
+          apply Rcomplements.Rdiv_le_0_compat; [|apply INR_fact_lt_0].
+          apply pow_le.
+          rewrite /x'.
+          lra.
+        }
+        { rewrite /Iverson.
+          case_decide.
+          { rewrite Rmult_1_l.
+            rewrite Rdiv_def.
+            apply Rmult_le_compat_r.
+            { have HH := INR_fact_lt_0 n'. apply Rinv_0_lt_compat in HH. lra. }
+            apply pow_maj_Rabs.
+            lra.
+          }
+          { rewrite Rmult_0_l Rdiv_0_l.
+            apply Rcomplements.Rdiv_le_0_compat; [|apply INR_fact_lt_0].
+            apply pow_le.
+            apply Rabs_pos.
+          }
+        }
+      }
+    }
+    have HpowOS_ex : ex_seriesC ((λ k : nat, Iverson (not ∘ Zeven) k * x ^ k / fact k) ∘ S).
+    { apply ex_SeriesC_nat_shift.
+      done.
+    }
+    have Hpow_eq : Hpow = HpowE + HpowO.
+    { rewrite /Hpow/HpowE/HpowO.
+      rewrite -SeriesC_plus; [|done|done].
+      apply SeriesC_ext. intros n. rewrite //=.
+      rewrite -Rmult_plus_distr_r.
+      rewrite -Rmult_plus_distr_r.
+      rewrite Rmult_assoc.
+      rewrite -(Rmult_1_l (x ^ n / fact n)).
+      f_equal.
+      by rewrite Iverson_add_neg.
+    }
+    have HpowE_eq : HpowO = HpowOS.
+    { rewrite /HpowO/HpowOS.
+      rewrite SeriesC_nat_shift.
+      rewrite Iverson_False; [|simpl; intuition].
+      by rewrite Rmult_0_l Rdiv_def Rmult_0_l Rplus_0_l.
+    }
+    rewrite -Hpow_cf.
+    rewrite Hpow_eq.
+    rewrite HpowE_eq.
+    rewrite /HpowOS/HpowE.
+    rewrite -SeriesC_plus; [|done|done].
+    apply SeriesC_ext. intros n. rewrite //=.
+    replace (Iverson (not ∘ Zeven) (S n)) with (Iverson Zeven n); last first.
+    { rewrite /Iverson.
+      Opaque Zeven.
+      case_decide.
+      { rewrite decide_True //=.
+        apply Zodd_not_Zeven.
+        replace (Z.of_nat (S n)%nat) with (Z.succ (Z.of_nat n)) by lia.
+        by apply Zodd_Sn.
+      }
+      { rewrite decide_False //=.
+        apply P_NNP.
+        replace (Z.of_nat (S n)%nat) with (Z.succ (Z.of_nat n)) by lia.
+        apply Zeven_Sn.
+        destruct (Zeven_odd_dec n);  intuition. (* lol *)
+      }
+      Transparent Zeven.
+    }
+    repeat rewrite Rdiv_def.
+    rewrite Rmult_assoc.
+    rewrite Rmult_assoc.
+    rewrite -Rmult_plus_distr_l.
+    do 3 f_equal.
+    { by rewrite pow_add Rmult_comm pow_1. }
+    { f_equal. by rewrite -{1}(Nat.mul_1_l (fact n)) -Nat.mul_add_distr_r Nat.add_1_l Nat.add_1_r -fact_simpl. }
+  Qed.
+
 End Lib.
