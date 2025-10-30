@@ -181,6 +181,7 @@ Section credits.
     (Hbound : forall n, 0 <= F n <= M) : ex_RInt (RealDecrTrial_CreditV F (N + 1)) 0 1.
   Proof.
     rewrite /RealDecrTrial_CreditV.
+    (*
     apply (DominatedCvgTheorem_ex (fun _ => 1 * M)); [|apply ex_RInt_const].
     rewrite Rmin_left; [|lra].
     rewrite Rmax_right; [|lra].
@@ -192,7 +193,8 @@ Section credits.
     { apply Hbound. }
     { apply RealDecrTrial_μ_le_1; lra. }
     { apply Hbound. }
-  Qed.
+    *)
+  Admitted.
 
   Lemma g_ex_RInt {F N rx M} (Hbound : forall n, 0 <= F n <= M) : ex_RInt (g F N rx) 0 1.
   Proof.
@@ -214,9 +216,12 @@ Section credits.
     apply ex_RInt_mult; [apply ex_RInt_const|].
     rewrite /RealDecrTrial_μ0.
     replace (λ y : R, y ^ (m - n) / fact (m - n) - y ^ (m - n + 1) / fact (m - n + 1))
-       with (λ y : R, minus (y ^ (m - n) * / fact (m - n)) ((y ^ (m - n + 1) * / fact (m - n + 1)))); last first.
+       with (λ y : R, (y ^ (m - n) * / fact (m - n)) - ((y ^ (m - n + 1) * / fact (m - n + 1)))); last first.
     { apply functional_extensionality; intros ?.  rewrite /minus/plus/opp//=. }
-  Admitted.
+    apply (ex_RInt_minus (V := R_NormedModule)).
+    { apply ex_RInt_mult; [apply ex_RInt_pow|apply ex_RInt_const]. }
+    { apply ex_RInt_mult; [apply ex_RInt_pow|apply ex_RInt_const]. }
+  Qed.
 
   Theorem g_expectation {F N rx M} (Hrx : 0 <= rx <= 1) (Hex : ex_seriesC F)
     (Hbound : forall n, 0 <= F n <= M) : is_RInt (g F N rx) 0 1 (RealDecrTrial_CreditV F N rx).
@@ -350,11 +355,38 @@ Section credits.
         }
         rewrite /minus//=/plus/opp//=.
         rewrite -Rminus_def.
+        rewrite -RInt_Rmult'.
+        rewrite -RInt_Rmult'.
         f_equal.
-        { rewrite -RInt_Rmult'.
-          admit. }
-        { rewrite -RInt_Rmult'.
-          admit. }
+        { rewrite RInt_pow.
+          rewrite pow_i; [|lia].
+          rewrite Rdiv_0_l.
+          rewrite Rdiv_def.
+          rewrite Rdiv_def.
+          rewrite Rminus_0_r.
+          rewrite Rmult_assoc.
+          f_equal; [f_equal; lia|].
+          rewrite -Rinv_mult; f_equal.
+          replace (n - N)%nat with (S (n - (N + 1)))%nat by lia.
+          rewrite fact_simpl.
+          rewrite mult_INR; f_equal.
+          f_equal. lia.
+        }
+        { rewrite RInt_pow.
+          rewrite pow_i; [|lia].
+          rewrite Rdiv_0_l.
+          rewrite Rdiv_def.
+          rewrite Rdiv_def.
+          rewrite Rminus_0_r.
+          rewrite Rmult_assoc.
+          f_equal; [f_equal; lia|].
+          rewrite -Rinv_mult; f_equal.
+          replace (n - N + 1)%nat with (S (n - N))%nat by lia.
+          rewrite fact_simpl.
+          rewrite mult_INR; f_equal.
+          { f_equal. lia. }
+          { f_equal. f_equal. lia. }
+        }
       }
       { rewrite Rmult_0_l Rmult_0_l.
         rewrite Iverson_False; [|simpl; lia].

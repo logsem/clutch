@@ -141,19 +141,98 @@ Proof. Admitted.
 
 Lemma ex_RInt_Iverson_ge_uncurry {rx} : ex_RInt (λ y : R, Iverson (uncurry Rge) (y, rx)) 0 1.
 Proof. Admitted.
-
+(*
 Lemma DominatedCvgTheorem {F : nat → R → R} {a b : R} (g : R → R)
   (Hdom : forall n x, Rmin a b <= x <= Rmax a b → 0 <= F n x <= g x)
   (Hint : ex_RInt g a b) :
   is_RInt (fun x => SeriesC (fun n => F n x)) a b (SeriesC (fun n => RInt (fun x => F n x) a b)).
 Proof. Admitted.
+*)
 
-Lemma DominatedCvgTheorem_ex {F : nat → R → R} {a b : R} (g : R → R)
-  (Hdom : forall n x, Rmin a b <= x <= Rmax a b → 0 <= F n x <= g x)
-  (Hint : ex_RInt g a b) :
-  ex_RInt (fun x => SeriesC (fun n => F n x)) a b.
+
+Lemma RInt_pow {a b N} : RInt (λ x : R, x ^ N) a b = b ^ (N + 1)%nat / (N + 1)%nat - a ^ (N + 1)%nat / (N + 1)%nat.
 Proof. Admitted.
 
 
+(* Arzela's Dominated Convergence theorem
+Self-contained proof that does not use any measure theory: https://arxiv.org/pdf/1408.1439
+Oh, never mind, The theorem presumes that the limit we're trying to prove exists and this cannot
+be easily eliminated from the proof.
+
+The monotone convergence theorem for Riemann integrals also assumes the limit is integrable.
+
+In fact, even the Riemann version of the Dominated Convergence theorem has this problem!
+
+Can I prove this for when F is (piecewise) uniformly continuous? ie. continuous, since [a, b] is compact.
+
+Fubini's theorem gives a stronger condition: The set of discontinuities has measure 0.
+Here the set of discontinuities is equal to at least every horizontal line (n parameter) plus any discontinuities
+associated to the first parameter.
+
+In any case, we are restricting the _continuity_ of the function F, not its integrability, which is stronger.
+
+
+Proof. Admitted.
+
+ *)
+
+
+Definition Continuity2 (f : (R * R) -> R) (x y : R) : Prop :=
+  filterlim f (locally (x, y)) (locally (f (x, y))).
+
+Definition Discontinuities2 (f : R * R -> R) : R * R -> Prop :=
+  fun '(x, y) => ¬ Continuity2 f x y.
+
+(* A set is negligible if it can be covered by countably many balls of arbitrarily small total volume. *)
+Definition Negligible (S : R * R -> Prop) : Prop :=
+  ∀ (ε : posreal), ∃ (c : nat -> R * R) (r : nat -> nonnegreal),
+    (SeriesC (fun n => r n * r n) < ε) /\
+    (∀ x, S x -> ∃ n, ball (c n) (r n) x).
+
+Theorem Negligible_Empty : Negligible (fun _ => False).
+Proof.
+  intro ε.
+  exists (fun _ => (0, 0)), (fun _ => mknonnegreal 0 (Rle_refl 0)); constructor.
+  { simpl. rewrite SeriesC_0; [apply cond_pos | ]. intros ?; lra. }
+  intros ? [].
+Qed.
+
+(* Sets *)
+
+Definition Icc (a b : R) : R -> Prop :=
+  fun t => Rmin a b <= t <= Rmax a b.
+
+Definition Ici (a : R) : R -> Prop :=
+  fun t => a <= t.
+
+Definition Iic (b : R) : R -> Prop :=
+  fun t => t <= b.
+
+Definition Iii : R -> Prop :=
+  fun t => True.
+
+Definition RII (X Y : R -> Prop) : R * R -> Prop :=
+  fun '(tx, ty) => X tx /\ Y ty.
+
+Definition On {T} (S U : T -> Prop) : Prop :=
+  ∀ t, S t -> U t.
+
+Definition Int {T} (S U : T -> Prop) : T -> Prop :=
+  fun t => S t /\ U t.
+
+Definition Bounded (f : R * R -> R) (M : R) : R * R -> Prop :=
+  fun t => Rabs (f t) <= M.
+
+(*
+Definition NRtoRR (F : nat → R → R) : R → R → R :=
+  fun x y => F (Rcomplements.floor1 x) y.
+  (HC : Negligible (Int (RII (Icc xa xb) (Icc ya yb)) (Discontinuities2 f))) :
+*)
+
+(* Not 100% sure yet *)
+Lemma FubiniNatR_ex {F : nat → R → R} {a b : R} (g : R → R)
+  (Hcont : False) :
+  ex_RInt (fun x => SeriesC (fun n => F n x)) a b.
+Admitted.
 
 End Lib.

@@ -1,3 +1,4 @@
+(*
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets ssreflect ssralg ssrnum ssrint ssrfun.
 From mathcomp.analysis Require Import all_analysis.
 Import ereal landau topology function_spaces cantor prodnormedzmodule normedtype realfun sequences exp trigo esum lebesgue_measure derive measure numfun lebesgue_integral ftc hoelder probability lebesgue_stieltjes_measure convex charge kernel pi_irrational gauss_integral reals measurable_realfun order.
@@ -433,3 +434,4 @@ Proof.
 Qed.
 
 End riemann.
+*)
