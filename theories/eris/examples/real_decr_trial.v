@@ -177,7 +177,7 @@ Section credits.
     }
   Qed.
 
-  Lemma RealDecrTrial_CreditV_ex_RInt {F N M}
+  Lemma RealDecrTrial_CreditV_ex_RInt {F N M} 
     (Hbound : forall n, 0 <= F n <= M) : ex_RInt (RealDecrTrial_CreditV F (N + 1)) 0 1.
   Proof.
     rewrite /RealDecrTrial_CreditV.
@@ -196,6 +196,15 @@ Section credits.
     *)
   Admitted.
 
+  (* Telescoping series *)
+  Lemma RealDecrTrial_μ0_ex_seriesC {x} (Hx : 0 <= x <= 1) : ex_seriesC (λ n : nat, RealDecrTrial_μ0 x n).
+  Proof. Admitted.
+
+  Lemma RealDecrTrial_μ0_ex_seriesC' {x} (Hx : 0 <= x <= 1) : ex_seriesC (λ n : nat, RealDecrTrial_μ0 x (n + 1)).
+  Proof. Admitted.
+
+
+
   Lemma g_ex_RInt {F N rx M} (Hbound : forall n, 0 <= F n <= M) : ex_RInt (g F N rx) 0 1.
   Proof.
     rewrite /g.
@@ -210,7 +219,7 @@ Section credits.
     }
   Qed.
 
-  Lemma RealDecrTrial_μ_ex_RInt {n m} : ex_RInt (λ y : R, RealDecrTrial_μ y n m) 0 1.
+  Lemma RealDecrTrial_μ_ex_RInt {n m} {a b} : ex_RInt (λ y : R, RealDecrTrial_μ y n m) a b.
   Proof.
     rewrite /RealDecrTrial_μ.
     apply ex_RInt_mult; [apply ex_RInt_const|].
@@ -221,6 +230,57 @@ Section credits.
     apply (ex_RInt_minus (V := R_NormedModule)).
     { apply ex_RInt_mult; [apply ex_RInt_pow|apply ex_RInt_const]. }
     { apply ex_RInt_mult; [apply ex_RInt_pow|apply ex_RInt_const]. }
+  Qed.
+
+  Lemma RealDecrTrial_μ_RInt {n m} {a b} :
+    RInt (λ y : R, RealDecrTrial_μ y n m) a b =
+    Iverson (uncurry le) (n, m) * (RealDecrTrial_μ0 b (m - n + 1) - RealDecrTrial_μ0 a (m - n + 1)).
+  Proof.
+    rewrite /RealDecrTrial_μ.
+    rewrite /Iverson //=.
+    case_decide.
+    { rewrite Rmult_1_l -RInt_Rmult Rmult_1_l.
+      rewrite /RealDecrTrial_μ0.
+      replace (λ x : R, x ^ (m - n) / fact (m - n) - x ^ (m - n + 1) / fact (m - n + 1))
+         with (λ x : R, x ^ (m - n) * / fact (m - n) - x ^ (m - n + 1) * / fact (m - n + 1)); last first.
+      { apply functional_extensionality; intros ?; lra. }
+      rewrite RInt_minus /minus//=/plus/opp//=; first last.
+      { apply ex_RInt_mult; [|apply ex_RInt_const]. apply ex_RInt_pow. }
+      { apply ex_RInt_mult; [|apply ex_RInt_const]. apply ex_RInt_pow. }
+      rewrite /minus//=/plus/opp//=.
+      have Hswizzle : forall x y z w, (x - y - (z - w)) = (x - z) - (y - w).
+      { intros. repeat rewrite Rminus_def. rewrite Ropp_plus_distr Ropp_plus_distr. lra. }
+      rewrite Hswizzle; clear Hswizzle.
+      rewrite -Rminus_def.
+      f_equal.
+      { rewrite -RInt_Rmult'.
+        rewrite RInt_pow.
+        rewrite -Rdiv_minus_distr.
+        rewrite Rdiv_def Rmult_assoc.
+        rewrite -Rdiv_minus_distr Rdiv_def.
+        f_equal.
+        rewrite -Rinv_mult.
+        f_equal.
+        replace (m - n + 1)%nat with (S (m - n)) by lia.
+        rewrite fact_simpl.
+        rewrite mult_INR.
+        done.
+      }
+      { rewrite -RInt_Rmult'.
+        rewrite RInt_pow.
+        rewrite -Rdiv_minus_distr.
+        rewrite Rdiv_def Rmult_assoc.
+        rewrite -Rdiv_minus_distr Rdiv_def.
+        f_equal.
+        rewrite -Rinv_mult.
+        f_equal.
+        replace (m - n + 1 + 1)%nat with (S (m - n + 1)) by lia.
+        rewrite fact_simpl.
+        rewrite mult_INR.
+        done.
+      }
+    }
+    { by rewrite Rmult_0_l -RInt_Rmult Rmult_0_l. }
   Qed.
 
   Theorem g_expectation {F N rx M} (Hrx : 0 <= rx <= 1) (Hex : ex_seriesC F)

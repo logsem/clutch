@@ -79,7 +79,7 @@ Section credits.
     }
   Qed.
 
-  Local Lemma g_expectation {F} : is_RInt (g F) 0 1 (BNEHalf_CreditV F).
+  Local Lemma g_expectation {F M} (HF : ∀ x, 0 <= F x <= M) : is_RInt (g F) 0 1 (BNEHalf_CreditV F).
   Proof.
     suffices H : RInt (g F) 0 1 = BNEHalf_CreditV F.
     { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)), g_ex_RInt. }
@@ -109,8 +109,193 @@ Section credits.
              (SeriesC (λ n : nat, Iverson (not ∘ Zeven) n * F (n `rem` 2 =? 1)%Z * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5)));
         last first.
     { rewrite -SeriesC_plus.
-      3: { admit. }
-      2: { admit. }
+      (* TODO: Next two cases are redundant and not very expedient *)
+      3: {
+        apply (ex_seriesC_le _ (fun n => M * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5)).
+        { intros n.
+          split.
+          { apply Rmult_le_pos.
+            { apply Rmult_le_pos; [apply Iverson_nonneg|apply HF]. }
+            { apply RInt_ge_0; [lra | apply RealDecrTrial_μ_ex_RInt | ].
+              intros x Hx. apply RealDecrTrial_μnn. lra. }
+          }
+          { apply Rmult_le_compat.
+            { apply Rmult_le_pos; [apply Iverson_nonneg|apply HF]. }
+            { apply RInt_ge_0; [lra | apply RealDecrTrial_μ_ex_RInt | ].
+              intros x Hx. apply RealDecrTrial_μnn. lra. }
+            { rewrite -(Rmult_1_l M).
+              apply Rmult_le_compat.
+              { apply Iverson_nonneg. }
+              { apply HF. }
+              { apply Iverson_le_1. }
+              { apply HF. }
+            }
+            { lra. }
+          }
+        }
+        { apply ex_seriesC_scal_l.
+          eapply ex_seriesC_ext.
+          { intro n; symmetry. eapply RealDecrTrial_μ_RInt. }
+          have L : forall n, 0 <= RealDecrTrial_μ0 0.5 (n - 0 + 1) - RealDecrTrial_μ0 0 (n - 0 + 1).
+          { intro n.
+            rewrite Nat.sub_0_r.
+            rewrite /RealDecrTrial_μ0.
+            rewrite pow_i; [|lia].
+            rewrite pow_i; [|lia].
+            rewrite Rdiv_0_l.
+            rewrite Rdiv_0_l.
+            rewrite Rminus_0_r.
+            rewrite Rminus_0_r.
+            apply Rle_0_le_minus.
+            rewrite Rdiv_def.
+            rewrite Rdiv_def.
+            apply Rmult_le_compat.
+            { apply pow_le. lra. }
+            { rewrite -(Rmult_1_l (/ fact (n + 1 + 1))).
+              apply Rle_mult_inv_pos; try lra.
+              apply INR_fact_lt_0. }
+            { rewrite pow_add.
+              rewrite -{2}(Rmult_1_r (0.5 ^ _)).
+              apply Rmult_le_compat_l.
+              { apply pow_le. lra. }
+              { rewrite pow_1. lra. }
+            }
+            { apply Rcomplements.Rinv_le_contravar.
+              { apply INR_fact_lt_0. }
+              { replace (n + 1 + 1)%nat with (S (n + 1))%nat by lia.
+                rewrite fact_simpl.
+                rewrite -(Rmult_1_l (fact (n + 1))).
+                rewrite -INR_1.
+                rewrite -mult_INR.
+                apply le_INR.
+                lia.
+              }
+            }
+          }
+          apply (ex_seriesC_le _ (fun n => (RealDecrTrial_μ0 0.5 (n - 0 + 1) - RealDecrTrial_μ0 0 (n - 0 + 1)))).
+          { intro n.
+            split.
+            { apply Rmult_le_pos; [apply Iverson_nonneg|apply L]. }
+            { rewrite -{2}(Rmult_1_l (RealDecrTrial_μ0 0.5 (n - 0 + 1) - RealDecrTrial_μ0 0 (n - 0 + 1))).
+              apply Rmult_le_compat.
+              { apply Iverson_nonneg. }
+              { apply L. }
+              { apply Iverson_le_1. }
+              { done. }
+            }
+          }
+          replace (λ n : nat, RealDecrTrial_μ0 0.5 (n - 0 + 1) - RealDecrTrial_μ0 0 (n - 0 + 1))
+            with  (λ n : nat, RealDecrTrial_μ0 0.5 (n + 1)); last first.
+          { apply functional_extensionality; intro n.
+            rewrite -(Rminus_0_r (RealDecrTrial_μ0 0.5 (n + 1))).
+            f_equal.
+            { by rewrite Nat.sub_0_r. }
+            { rewrite Nat.sub_0_r.
+              rewrite /RealDecrTrial_μ0.
+              rewrite pow_i; [|lia].
+              rewrite pow_i; [|lia].
+              rewrite Rdiv_0_l.
+              rewrite Rdiv_0_l.
+              by rewrite Rminus_0_r.
+            }
+          }
+          apply (RealDecrTrial_μ0_ex_seriesC').
+          lra.
+        }
+      }
+      2: {
+        apply (ex_seriesC_le _ (fun n => M * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5)).
+        { intros n.
+          split.
+          { apply Rmult_le_pos.
+            { apply Rmult_le_pos; [apply Iverson_nonneg|apply HF]. }
+            { apply RInt_ge_0; [lra | apply RealDecrTrial_μ_ex_RInt | ].
+              intros x Hx. apply RealDecrTrial_μnn. lra. }
+          }
+          { apply Rmult_le_compat.
+            { apply Rmult_le_pos; [apply Iverson_nonneg|apply HF]. }
+            { apply RInt_ge_0; [lra | apply RealDecrTrial_μ_ex_RInt | ].
+              intros x Hx. apply RealDecrTrial_μnn. lra. }
+            { rewrite -(Rmult_1_l M).
+              apply Rmult_le_compat.
+              { apply Iverson_nonneg. }
+              { apply HF. }
+              { apply Iverson_le_1. }
+              { apply HF. }
+            }
+            { lra. }
+          }
+        }
+        { apply ex_seriesC_scal_l.
+          eapply ex_seriesC_ext.
+          { intro n; symmetry. eapply RealDecrTrial_μ_RInt. }
+          have L : forall n, 0 <= RealDecrTrial_μ0 0.5 (n - 0 + 1) - RealDecrTrial_μ0 0 (n - 0 + 1).
+          { intro n.
+            rewrite Nat.sub_0_r.
+            rewrite /RealDecrTrial_μ0.
+            rewrite pow_i; [|lia].
+            rewrite pow_i; [|lia].
+            rewrite Rdiv_0_l.
+            rewrite Rdiv_0_l.
+            rewrite Rminus_0_r.
+            rewrite Rminus_0_r.
+            apply Rle_0_le_minus.
+            rewrite Rdiv_def.
+            rewrite Rdiv_def.
+            apply Rmult_le_compat.
+            { apply pow_le. lra. }
+            { rewrite -(Rmult_1_l (/ fact (n + 1 + 1))).
+              apply Rle_mult_inv_pos; try lra.
+              apply INR_fact_lt_0. }
+            { rewrite pow_add.
+              rewrite -{2}(Rmult_1_r (0.5 ^ _)).
+              apply Rmult_le_compat_l.
+              { apply pow_le. lra. }
+              { rewrite pow_1. lra. }
+            }
+            { apply Rcomplements.Rinv_le_contravar.
+              { apply INR_fact_lt_0. }
+              { replace (n + 1 + 1)%nat with (S (n + 1))%nat by lia.
+                rewrite fact_simpl.
+                rewrite -(Rmult_1_l (fact (n + 1))).
+                rewrite -INR_1.
+                rewrite -mult_INR.
+                apply le_INR.
+                lia.
+              }
+            }
+          }
+          apply (ex_seriesC_le _ (fun n => (RealDecrTrial_μ0 0.5 (n - 0 + 1) - RealDecrTrial_μ0 0 (n - 0 + 1)))).
+          { intro n.
+            split.
+            { apply Rmult_le_pos; [apply Iverson_nonneg|apply L]. }
+            { rewrite -{2}(Rmult_1_l (RealDecrTrial_μ0 0.5 (n - 0 + 1) - RealDecrTrial_μ0 0 (n - 0 + 1))).
+              apply Rmult_le_compat.
+              { apply Iverson_nonneg. }
+              { apply L. }
+              { apply Iverson_le_1. }
+              { done. }
+            }
+          }
+          replace (λ n : nat, RealDecrTrial_μ0 0.5 (n - 0 + 1) - RealDecrTrial_μ0 0 (n - 0 + 1))
+            with  (λ n : nat, RealDecrTrial_μ0 0.5 (n + 1)); last first.
+          { apply functional_extensionality; intro n.
+            rewrite -(Rminus_0_r (RealDecrTrial_μ0 0.5 (n + 1))).
+            f_equal.
+            { by rewrite Nat.sub_0_r. }
+            { rewrite Nat.sub_0_r.
+              rewrite /RealDecrTrial_μ0.
+              rewrite pow_i; [|lia].
+              rewrite pow_i; [|lia].
+              rewrite Rdiv_0_l.
+              rewrite Rdiv_0_l.
+              by rewrite Rminus_0_r.
+            }
+          }
+          apply (RealDecrTrial_μ0_ex_seriesC').
+          lra.
+        }
+      }
       f_equal; apply functional_extensionality; intro n.
       rewrite Rmult_assoc Rmult_assoc.
       rewrite -Rmult_plus_distr_r.
@@ -152,11 +337,18 @@ Section credits.
       rewrite Zplus_0_l //=.
     }
     have HIntegral (n : nat) : RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5 = RealDecrTrial_μ0 (0.5) (n+1)%nat.
-    { rewrite /RealDecrTrial_μ//=.
+    { rewrite RealDecrTrial_μ_RInt.
       rewrite Iverson_True; [|simpl; lia].
+      rewrite Rmult_1_l.
+      rewrite Nat.sub_0_r.
+      replace (RealDecrTrial_μ0 0 (n + 1)) with 0;  first lra.
       rewrite /RealDecrTrial_μ0.
-      (* Compute *)
-      admit.
+      rewrite /RealDecrTrial_μ0.
+      rewrite pow_i; [|lia].
+      rewrite pow_i; [|lia].
+      rewrite Rdiv_0_l.
+      rewrite Rdiv_0_l.
+      by rewrite Rminus_0_r.
     }
     replace (λ n : nat, Iverson Zeven n * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5)
        with (λ n : nat, Iverson Zeven n * RealDecrTrial_μ0 0.5 (n+1)%nat); last first.
@@ -274,7 +466,7 @@ Section program.
     iIntros (x) "Hx".
     iApply (wp_lazy_real_presample_adv_comp _ _ x _ (BNEHalf_CreditV F) (g F)); auto.
     { intros ??; apply g_nn; auto. apply Hnn. }
-    { by apply g_expectation. }
+    { eapply g_expectation; eapply Hnn. }
     iFrame.
     iIntros (r) "(%Hrange & Hε & Hx)".
     wp_pures.
