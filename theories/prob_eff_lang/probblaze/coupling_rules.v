@@ -509,4 +509,44 @@ Section rules.
       + apply fin_to_nat_le.
   Qed.
 
+   Lemma wp_couple_tape_rand N f `{Bij (fin (S N)) (fin (S N)) f} K E α z ns Φ e :
+    TCEq N (Z.to_nat z) →
+    ▷ α ↪ (N; ns) ∗ ⤇ fill K (rand #z) ∗
+    (∀ n : fin (S N), α ↪ (N; ns ++ [n]) ∗ ⤇ fill K #(f n) ∗ ⌜ n ≤ N ⌝ -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (H0) "(>Hα & Hj & Hwp)".
+    (* iDestruct "Hα" as (fs) "(<-&Hα)". *)
+    (* destruct (restr_bij_fin (S N) f Hdom) as [ff [Hbij Hff]]. *)
+    iApply wp_lift_step_spec_couple.
+    iIntros (σ1 e1' σ1' ε) "[[Hh1 [Ht1 Hl1]] [Hauth2 Herr]]".
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
+    iDestruct (spec_auth_prog_agree with "Hauth2 Hj") as %-> .
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    replace (ε) with (0 + ε)%NNR by (apply nnreal_ext; simpl; lra).
+    iApply (spec_coupl_erasable_steps 1 _ (state_step σ1 α)); [done|..].
+    { rewrite pexec_1 step_or_final_no_final; last first.
+      { apply reducible_not_final. eexists. simpl. apply fill_step. apply head_step_prim_step.
+        apply head_step_support_equiv_rel. unshelve econstructor; eauto using Fin.F1. by rewrite H0. }
+      apply ARcoupl_steps_ctx_bind_r => /=; [done|done |].
+      apply ARcoupl_exact, Rcoupl_pos_R, (Rcoupl_state_rand N); eauto.
+      rewrite -H0 //.
+    }
+    { by eapply state_step_erasable. }
+    iIntros(σ2 e2' σ2' (? & [= ->] & (? & -> & [= -> ->]) & ? & ?)).
+    iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #(f _)) with "Hauth2 Hj") as "[$ Hspec0]".
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
+    iFrame.
+    iMod (ghost_map_update ((_; ns ++ [_]) : tape) with "Ht1 Hα") as "[$ Hα]".
+    iModIntro. iMod "Hclose'" as "_".
+    iSpecialize ("Hwp" with "[Hα Hspec0]").
+    {
+      iFrame. iPureIntro. apply fin_to_nat_le.
+    }
+    iFrame.
+    replace (_+_)%NNR with (ε) by (apply nnreal_ext; simpl; lra).
+    done.
+  Qed.
+  
 End rules.

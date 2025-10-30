@@ -1439,6 +1439,26 @@ Lemma rel_inv_restore N P e1 e2 X R :
       iApply ("Hlog" with "[$Hα $Hαs $Herr'0 //][$][$][$][$][//]").
   Qed.
 
+  Lemma rel_couple_TU N f `{Bij (fin (S N)) (fin (S N)) f} K' E α X R z ns e :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    ▷ α ↪ (N; ns) ∗
+      (∀ (n : fin (S N)), α ↪ (N; ns ++ [n]) -∗ REL e ≤ fill K' (Val #(f n)) @ E <|X|> {{R}})
+    ⊢ REL e ≤ fill K' (rand #z) @ E <|X|> {{R}}.
+  Proof.
+    iIntros (-> Hval) "(Hα & H)".
+    rewrite rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros (k1 k2 S) "Hkwp %K2 %ε2 He2 Hnais Herr' %Hε'".
+    rewrite -!fill_app.
+    iApply wp_couple_tape_rand. 
+    iFrame "Hα He2". 
+    iIntros (n) "(Hα & Hj & %Hlt)".
+    iSpecialize ("H" with "Hα").
+    rewrite rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    rewrite !fill_app. simpl.
+    by iApply ("H" with "[$][$][$][$]").
+  Qed.    
+
   (* Error credit amplification *)
   Lemma rel_get_ec E e e' X A :
     (∀ ε : R, (↯ ε) -∗ ⌜(0 < ε)%R⌝ -∗ REL e ≤ e' @ E <|X|> {{A}}) ⊢

@@ -248,6 +248,30 @@ Set Default Proof Using "Type*".
       exists b. rewrite bool_decide_eq_false_2; naive_solver.
   Qed.
 
+  (** * state_step(α, N) ~ rand(unit, N) coupling *)
+  Lemma Rcoupl_state_rand N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' α xs :
+    N = Z.to_nat z →
+    σ1.(tapes) !! α = Some (N; xs) →
+    Rcoupl
+      (state_step σ1 α)
+      (prim_step (rand #z) σ1')
+      (λ σ2 ρ2' , ∃ (n : fin (S N)),
+          σ2 = state_upd_tapes <[α := (N; xs ++ [n])]> σ1 ∧ ρ2' = (Val #(f n), σ1') ).
+  Proof.
+    intros Hz Hα.
+    setoid_rewrite head_prim_step_eq.
+    2 : { eexists. apply head_step_support_equiv_rel. unshelve constructor; eauto using Fin.F1. }
+    rewrite /state_step.
+    rewrite bool_decide_eq_true_2; [ |by eapply elem_of_dom_2].
+    rewrite (lookup_total_correct _ _ _ Hα).
+    simpl.
+    rewrite -Hz.
+    eapply Rcoupl_dbind; [ |by eapply Rcoupl_dunif].
+    intros n ? ->.
+    apply Rcoupl_dret. eauto.
+  Qed.
+
+
 (** Some useful lemmas to reason about language properties  *)
 
 Inductive det_head_step_rel : expr → state → expr → state → Prop :=
