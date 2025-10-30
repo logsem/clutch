@@ -271,7 +271,7 @@ Section handlee_verification.
     iSplit; [iIntros (v1 v2) "(-> & ->)"; rel_pures_l; by rel_pures_r|].
     iIntros (e1 e2 ?)
       "[%e1' [%e2' [%k1 [%k2 [%S
-        (-> & %Hk1 & -> & %Hk2 & (-> & -> & (Hnone & Hsome)) & #HQ)
+        (-> & %Hk1 & -> & %Hk2 & (-> & -> & (#Hnone & #Hsome)) & #HQ)
        ]]]]] #Hk".
     do 2 rel_pures_l; [apply Hk1; set_solver|].
     do 2rel_pures_r; [apply Hk2; set_solver|].
@@ -381,8 +381,8 @@ Section handlee_verification.
     do 2 (iSplit; try (iPureIntro; done)). iModIntro.
     iSplit.
     2 : { rel_pures_l. rel_pures_r. iModIntro. rel_pures_l. rel_pures_r.
-          iDestruct ("HQ" with "HSNone") as "HQNone".
-          iDestruct ("Hk" with "HQNone") as "HkNone".
+          iDestruct ("HQ" with "Hnone") as "HQnone".
+          iDestruct ("Hk" with "HQnone") as "Hknone".
           iApply ("IH" with "HkNone").
           admit. }
 
