@@ -253,10 +253,28 @@ Admitted.
 *)
 
 Lemma Zeven_pow {x} {n : nat} (H : Zeven (Z.of_nat n)) : 0 <= x ^ n.
-Proof. Admitted.
+Proof.
+  destruct (Zeven_ex _ H) as [m Hm].
+  rewrite -(Nat2Z.id n) Hm.
+  rewrite Z2Nat.inj_mul; try lia.
+  rewrite pow_mult.
+  apply pow_le.
+  apply pow2_ge_0.
+Qed.
 
 Lemma Zodd_neg_pow {n : nat} (H : Zodd (Z.of_nat n)) : (-1) ^ n = (-1).
-Proof. Admitted.
+Proof.
+  destruct (Zodd_ex _ H) as [m Hm].
+  rewrite -(Nat2Z.id n) Hm.
+  rewrite Z2Nat.inj_add; try lia.
+  rewrite Z2Nat.inj_mul; try lia.
+  rewrite pow_add.
+  rewrite pow_1.
+  rewrite pow_mult.
+  replace (((-1) ^ Z.to_nat 2)) with 1.
+  { rewrite pow1. lra. }
+  simpl. lra.
+Qed.
 
 Definition Hpow x : R := @SeriesC _ numbers.Nat.eq_dec nat_countable (λ k : nat, x ^ k / fact k).
 Definition HpowE x : R := @SeriesC _ numbers.Nat.eq_dec nat_countable (λ k : nat, Iverson Zeven k * x ^ k / fact k).
@@ -500,7 +518,5 @@ Proof.
     { by rewrite pow_add Rmult_comm pow_1. }
     { f_equal. by rewrite -{1}(Nat.mul_1_l (fact n)) -Nat.mul_add_distr_r Nat.add_1_l Nat.add_1_r -fact_simpl. }
   Qed.
-
-
 
 End Lib.

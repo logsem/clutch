@@ -361,11 +361,58 @@ Section credits.
     rewrite Rplus_comm (Rmult_comm _ (F false)) (Rmult_comm _ (F true)).
     rewrite /BNEHalf_CreditV.
     f_equal; f_equal.
-    { (* TODO: Move me *)
+
+    (*
+    { rewrite /BNEHalf_μ//=.
+      rewrite Iverson_True; [|intuition].
+      rewrite Iverson_False; [|intuition].
+      rewrite Rmult_1_l.
+      rewrite Rmult_0_l Rplus_0_r.
+      rewrite -(@ExpSeriesEven (-1 / 2)).
+      rewrite (@SeriesC_nat_shift ((λ n : nat, Iverson Zeven n * ((-1 / 2) ^ n / fact n + (-1 / 2) ^ (n + 1) / fact (n + 1))))).
+      rewrite Rplus_comm.
+      f_equal.
+      { rewrite Iverson_True; [|simpl; intuition]. rewrite /fact//=. lra. }
+      { apply SeriesC_ext.
+        intro n.
+        rewrite //=.
+        replace (Iverson Zeven (S n)) with  (Iverson Zodd n) by admit.
+        replace (Iverson (not ∘ Zeven) n) with (Iverson Zodd n) by admit.
+        rewrite /Iverson.
+        case_decide; [|lra].
+        rewrite Rmult_1_l Rmult_1_l.
+        destruct (Zodd_ex _ H).
+        admit.
+      }
+    }
+    { (* Gaussian Taylor series *)
+      rewrite /BNEHalf_μ//=.
+      rewrite Iverson_False; [|intuition].
+      rewrite Iverson_True; [|intuition].
+      rewrite Rmult_1_l.
+      rewrite Rmult_0_l Rplus_0_l.
+      apply Ropp_eq_reg.
+      rewrite Ropp_minus_distr.
+      have H := @ExpSeriesOdd (-1/2).
+      rewrite Rplus_comm -Rminus_def in H.
+      rewrite -H.
+      replace (- SeriesC (λ n : nat, Iverson Zeven n * RealDecrTrial_μ0 0.5 (n + 1)))
+         with (-1 * SeriesC (λ n : nat, Iverson Zeven n * RealDecrTrial_μ0 0.5 (n + 1))) by lra.
+      rewrite -SeriesC_scal_l.
+      apply SeriesC_ext.
+      intro n.
+      rewrite /Iverson.
+      case_decide.
+      { rewrite decide_False; [|simpl; by apply P_NNP].
+        rewrite Rmult_0_l.
+        rewrite /RealDecrTrial_μ0.
 
 
-      (* Gaussian Taylor series *) admit. }
-    { (* Gaussian Taylor series *) admit. }
+
+        admit. }
+      { admit. }
+    }
+    *)
   Admitted.
 
 End credits.
