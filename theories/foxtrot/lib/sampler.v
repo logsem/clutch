@@ -58,11 +58,11 @@ Class sample_spec (tb:nat) (sample_without_tape:val)  := SampleSpec
       sample_with_tape α  @ E
       {{{ RET #n; sample_tape α (ns) }}};
   
-  sample_tape_spec_couple E α ns j K `{!foxtrotGS Σ}:
-  sample_tape α ns -∗
-  j ⤇ fill K (sample_without_tape #()) -∗
-  pupd E E
-    (∃ n, sample_tape α (ns++[n]) ∗ j⤇ fill K (#n));
+  (* sample_tape_spec_couple E α ns j K `{!foxtrotGS Σ}: *)
+  (* sample_tape α ns -∗ *)
+  (* j ⤇ fill K (sample_without_tape #()) -∗ *)
+  (* pupd E E *)
+  (*   (∃ n, sample_tape α (ns++[n]) ∗ j⤇ fill K (#n)); *)
   
   sample_tape_spec_couple' E α  j K `{!foxtrotGS Σ}:
     {{{ sample_tape' α ∗ j ⤇ fill K (sample_with_tape α) }}}
@@ -150,13 +150,13 @@ Section impl.
     iApply "HΦ".
     by iFrame.
   Qed.
-  Next Obligation.
-    simpl.
-    iIntros (??????????) "(%&->&?)Hspec".
-    tp_pures j.
-    iMod (pupd_couple_tape_rand with "[$][$]") as "(%&?&?&%)"; first (simpl; lia).
-    by iFrame.
-  Qed.
+  (* Next Obligation. *)
+  (*   simpl. *)
+  (*   iIntros (??????????) "(%&->&?)Hspec". *)
+  (*   tp_pures j. *)
+  (*   iMod (pupd_couple_tape_rand with "[$][$]") as "(%&?&?&%)"; first (simpl; lia). *)
+  (*   by iFrame. *)
+  (* Qed. *)
   Next Obligation.
     simpl.
     iIntros (??????????) "[(%&->&?)Hspec] HΦ".
@@ -251,16 +251,16 @@ Section impl.
     iApply "HΦ".
     by iFrame.
   Qed.
-  Next Obligation.
-    simpl.
-    iIntros (??????????) "(%&->&?&%)Hspec".
-    tp_pures j.
-    iModIntro.
-    iExists 0. iFrame.
-    iPureIntro; split; first done.
-    apply Forall_app; split; first done.
-    by apply Forall_singleton.
-  Qed.
+  (* Next Obligation. *)
+  (*   simpl. *)
+  (*   iIntros (??????????) "(%&->&?&%)Hspec". *)
+  (*   tp_pures j. *)
+  (*   iModIntro. *)
+  (*   iExists 0. iFrame. *)
+  (*   iPureIntro; split; first done. *)
+  (*   apply Forall_app; split; first done. *)
+  (*   by apply Forall_singleton. *)
+  (* Qed. *)
   Next Obligation.
     simpl.
     iIntros (??????????) "[(%&->&?)Hspec] HΦ".
