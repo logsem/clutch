@@ -533,4 +533,11 @@ Proof.
     { f_equal. by rewrite -{1}(Nat.mul_1_l (fact n)) -Nat.mul_add_distr_r Nat.add_1_l Nat.add_1_r -fact_simpl. }
   Qed.
 
+  (* I think this can be done by the addition formula using subtraction. Otherwise: taylor series. Otherwise: sad. *)
+  Lemma exp_mono {x y : R} : x <= y → exp x <= exp y.
+  Proof. Admitted.
+
+  Lemma exp_mono_strict {x y : R} : x < y → exp x < exp y.
+  Proof. Admitted.
+
 End Lib.

@@ -496,7 +496,7 @@ Section credits.
       replace (n - (N + 1) + 1)%nat with (S (n - (N + 1)))%nat by lia.
       rewrite -mult_INR.
       rewrite -fact_simpl.
-      f_equal. f_equal. lia.
+      f_equal. f_equal. f_equal. lia.
     }
     { rewrite (Rmult_comm X).
       repeat rewrite Rmult_assoc.

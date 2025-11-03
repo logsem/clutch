@@ -47,7 +47,34 @@ Section credits.
      RInt (G2_g F k) 0 1.
 
   Lemma Norm1_ex :  ex_seriesC (λ k : nat, exp (- k ^ 2 / 2)).
-  Proof. Admitted.
+  Proof.
+    eapply (ex_seriesC_le _ (λ k : nat, (exp (-1/2)) ^ k)).
+    { intro n. split.
+      { apply Rexp_nn. }
+      { rewrite exp_pow.
+        apply exp_mono.
+        replace (- n ^ 2 / 2) with (-((1/2)*n^2)) by lra.
+        replace (-1 / 2 * n) with (-(1 / 2 * n)) by lra.
+        apply Ropp_le_contravar.
+        apply Rmult_le_compat_l; [lra|].
+        rewrite -pow_INR.
+        apply le_INR.
+        rewrite Nat.pow_2_r.
+        destruct n; [lia|].
+        lia.
+      }
+    }
+    rewrite -ex_seriesC_nat.
+    apply Series.ex_series_geom.
+    rewrite Rabs_right.
+    { rewrite -exp_0.
+      apply exp_mono_strict.
+      lra.
+    }
+    { apply Rle_ge.
+      apply Rexp_nn.
+    }
+  Qed.
 
   Lemma Norm1_nn : 0 < Norm1.
   Proof.
@@ -55,15 +82,17 @@ Section credits.
     apply (Rlt_le_trans _ (SeriesC (λ k : nat, if bool_decide (1%nat = k) then exp (- 1 ^ 2 / 2) else 0))).
     { rewrite SeriesC_singleton'.
       rewrite pow1.
-      admit.
+      apply exp_pos.
     }
-    { (* SeriesC_lt. *) (* why not?  *)
-      admit.
+    { eapply SeriesC_le'.
+      { intro n. case_bool_decide.
+        { rewrite -H.  apply Req_le_sym. f_equal. }
+        { apply Rexp_nn. }
+      }
+      { apply ex_seriesC_singleton'. }
+      { apply Norm1_ex. }
     }
-    (* eapply (SeriesC_filter_leq). _ (fun n => n = 0%nat)).
-      { intros n. apply Rexp_range. admit. }
-      { apply Norm1_ex. } *)
-  Admitted.
+  Qed.
 
   Lemma G1_μ_nn {x}  : 0 <= G1_μ x.
   Proof.
