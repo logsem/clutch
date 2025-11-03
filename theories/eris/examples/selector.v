@@ -205,7 +205,16 @@ Section credits.
   Qed.
 
   Lemma Bii_g_ex_RInt {F k} (Hnn : ∀ r, 0 <= F r) : ex_RInt (Bii_g F k) 0 1.
-  Proof. Admitted.
+  Proof.
+    rewrite /Bii_g.
+    apply ex_RInt_add.
+    { apply ex_RInt_mult; first apply ex_RInt_Iverson_le.
+      apply ex_RInt_const.
+    }
+    { apply ex_RInt_mult; first apply ex_RInt_Iverson_ge.
+      apply ex_RInt_const.
+    }
+  Qed.
 
   Lemma Bii_g_nn {F k x} (Hnn : ∀ r, 0 <= F r) : 0 <= x <= 1 → 0 <= Bii_g F k x.
   Proof.
@@ -229,7 +238,6 @@ Section credits.
   Lemma Bii_g_correct {F x} : is_RInt (Bii_g F x) 0 1 (RInt (Bii_g F x) 0 1).
   Proof. Admitted.
 
-
   Lemma Bii_f_expectation {F k x} (Hx : 0 <= x <= 1) : Bii_CreditV F k x = C_CreditV (Bii_h F x) (2 * k)%nat.
   Proof.
     rewrite /Bii_CreditV.
@@ -247,11 +255,11 @@ Section credits.
     rewrite /Bii_g.
     (* Evaluate the inner integral *)
     rewrite -RInt_add.
-    2, 3: admit.
+    2: { apply ex_RInt_mult; first apply ex_RInt_Iverson_le. apply ex_RInt_const. }
+    2: { apply ex_RInt_mult; first apply ex_RInt_Iverson_ge. apply ex_RInt_const. }
     rewrite -RInt_Rmult' -RInt_Rmult'.
     rewrite RInt_Iverson_le'''; [|done].
     rewrite RInt_Iverson_ge'''; [|done].
-
 
     (* Factor out true and false terms separately *)
     rewrite Rmult_plus_distr_l.
@@ -270,7 +278,13 @@ Section credits.
       rewrite (Rmult_comm _ (1 - x)) -Rmult_assoc Rmult_1_r.
       rewrite -Rdiv_plus_distr.
       rewrite -{1}(Rdiv_diag (2 * k + 2)); last first.
-      { intro Hk. admit. }
+      { intro Hk.
+        rewrite -{2}(Rmult_1_r 2) in Hk.
+        rewrite -Rmult_plus_distr_l in Hk.
+        destruct (Rmult_integral _ _ Hk); first lra.
+        have ? : 0 <= k by apply pos_INR.
+        lra.
+      }
       rewrite -(Rdiv_minus_distr).
       f_equal; [lra|].
       f_equal.
@@ -286,7 +300,7 @@ Section credits.
       rewrite mult_INR.
       f_equal. rewrite Rplus_comm; f_equal.
     }
-  Admitted.
+  Qed.
 
 
   Lemma S_hz_nn {F k x N z w} (Hnn : ∀ r, 0 <= F r) (H : 0 <= x <= 1) (Hy : 0 <= z <= 1) : 0 <= S_hz F k x N z w.
@@ -313,8 +327,29 @@ Section credits.
     { apply S_hz_nn; auto. }
   Qed.
 
+  Lemma ex_RInt_S_CreditV {F k x N b} (Hb : 0 <= b <= 1) : ex_RInt (λ y : R, S_CreditV F k x y N) 0 b.
+  Proof.
+    rewrite /S_CreditV.
+  Admitted.
+
+  Lemma ex_RInt_S_hz {F k N x  b} : ex_RInt (λ y0 : R, S_hz F k x N y0 b) 0 1.
+  Proof.
+    rewrite /S_hz.
+    apply ex_RInt_add; first apply ex_RInt_const.
+    apply ex_RInt_mult; first apply ex_RInt_const.
+    apply ex_RInt_S_CreditV; lra.
+  Qed.
+
   Lemma S_g_ex_RInt {F k x y N} : ex_RInt (S_g F k x y N) 0 1.
-  Proof. Admitted.
+  Proof.
+    rewrite /S_g.
+    apply ex_RInt_add.
+    { apply ex_RInt_mult; first apply ex_RInt_Iverson_le. apply ex_RInt_const. }
+    apply ex_RInt_mult; first apply ex_RInt_Iverson_ge.
+    apply ex_RInt_add.
+    { apply ex_RInt_mult; first apply ex_RInt_const. apply ex_RInt_S_hz. }
+    { apply ex_RInt_mult; first apply ex_RInt_const. apply ex_RInt_S_hz. }
+  Qed.
 
   (* TODO: Maybe I could get rid of some of the splitting if the existence side conditions are hard to prove. *)
   Lemma S_g_expectation {F k x y N} (Hx : 0 <= x <= 1) (Hy : 0 <= y <= 1) : is_RInt (S_g F k x y N) 0 1 (S_CreditV F k x y N).
@@ -324,13 +359,22 @@ Section credits.
     rewrite /S_g.
     (* Split the series; compute the first term *)
     rewrite -RInt_add.
-    2, 3: admit.
+    3: {
+      apply ex_RInt_mult; first apply ex_RInt_Iverson_ge.
+      apply ex_RInt_add.
+      { apply ex_RInt_mult; first apply ex_RInt_const. apply ex_RInt_S_hz. }
+      { apply ex_RInt_mult; first apply ex_RInt_const. apply ex_RInt_S_hz. }
+    }
+    2: {
+      apply ex_RInt_mult; first apply ex_RInt_Iverson_le.
+      apply ex_RInt_const.
+    }
     rewrite -RInt_Rmult'.
     rewrite RInt_Iverson_le'''; [|done].
     replace (RInt (λ x0 : R, Iverson (Rge y) x0 * (Bii_μ k x false * S_hz F k x N x0 false + Bii_μ k x true * S_hz F k x N x0 true)) 0 1)
        with (RInt (λ x0 : R, (Bii_μ k x false * S_hz F k x N x0 false + Bii_μ k x true * S_hz F k x N x0 true)) 0 y);
       last first.
-    { admit. }
+    { apply RInt_Iverson_ge''''. }
     rewrite /Bii_μ.
     rewrite Iverson_False; [|intuition].
     rewrite Iverson_True;  [|intuition].
@@ -351,7 +395,11 @@ Section credits.
     { apply functional_extensionality; intros ?.
       rewrite Rmult_0_l Rmult_1_l Rplus_0_l Rplus_0_r. done. }
     rewrite -RInt_add.
-    2, 3: admit.
+    3: { apply ex_RInt_mult; apply ex_RInt_const. }
+    2: { apply ex_RInt_mult; first apply ex_RInt_const.
+         apply ex_RInt_S_CreditV.
+         lra.
+    }
     rewrite RInt_const.
     rewrite /scal//=/mult//=.
     rewrite Rminus_0_r.
@@ -373,7 +421,8 @@ Section credits.
       last first.
     { rewrite (SeriesC_Iverson_singleton N); last intuition. lra. }
     rewrite -SeriesC_plus.
-    2, 3: admit.
+    3: { (* Foob-related *) admit. }
+    2: { apply ex_seriesC_single. }
     rewrite /S_CreditV.
     f_equal. apply functional_extensionality; intro n.
     (* Cancel F *)
@@ -410,6 +459,9 @@ Section credits.
     rewrite Iverson_True; [|lia].
     rewrite Rmult_1_l.
     rewrite /S_μ0.
+
+
+
     (* Should just be computation if correct *)
   Admitted.
 

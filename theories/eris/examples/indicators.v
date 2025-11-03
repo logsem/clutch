@@ -3,7 +3,7 @@ From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
 From Coquelicot Require Import RInt RInt_analysis AutoDerive.
 From clutch.eris Require Import infinite_tape.
-From clutch.eris.examples Require Import lazy_real max_lazy_real.
+From clutch.eris.examples Require Import lazy_real.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -81,6 +81,11 @@ Proof. Admitted.
 Lemma RInt_Iverson_ge''' {x} (Hx : 0 <= x <= 1) : RInt (Iverson (Rge x)) 0 1 = x.
 Proof. Admitted.
 
+Lemma RInt_Iverson_ge'''' {F y} : RInt (λ x0 : R, F x0) 0 y = RInt (λ x0 : R, Iverson (Rge y) x0 * F x0) 0 1.
+Proof. Admitted.
+
+Lemma ex_seriesC_single {F N} : ex_seriesC (λ n : nat, Iverson (eq N) n * (F n)).
+Proof. Admitted.
 
 End Indicators.
 
@@ -149,6 +154,12 @@ Lemma DominatedCvgTheorem {F : nat → R → R} {a b : R} (g : R → R)
 Proof. Admitted.
 *)
 
+Lemma ex_RInt_mult (f g : R -> R) (a b : R) :
+  ex_RInt f a b ->  ex_RInt g a b ->
+  ex_RInt (λ y : R, f y * g y) a b.
+Proof.
+(* Product of Riemann integrable is Riemann integrable (is this not in the library?) *)
+Admitted.
 
 Lemma RInt_pow {a b N} : RInt (λ x : R, x ^ N) a b = b ^ (N + 1)%nat / (N + 1)%nat - a ^ (N + 1)%nat / (N + 1)%nat.
 Proof. Admitted.
@@ -235,8 +246,11 @@ Lemma FubiniNatR_ex {F : nat → R → R} {a b : R} (g : R → R)
   ex_RInt (fun x => SeriesC (fun n => F n x)) a b.
 Admitted.
 
+(* I need either ex_SeriesC or maybe nn *)
 Lemma SeriesC_nat_shift {f : nat → R} : SeriesC f = f 0%nat + SeriesC (f ∘ S).
-Proof. Admitted.
+Proof.
+  (* replace (SeriesC f) with (SeriesC (fun n => Iverson (eq 0%nat) n * f 0%nat) + SeriesC (fun n => Iverson (not ∘ eq 0%nat) n * f n)); last first. *)
+Admitted.
 
 Lemma ex_SeriesC_nat_shift {f : nat → R} : ex_seriesC f → ex_seriesC (f ∘ S).
 Proof. Admitted.

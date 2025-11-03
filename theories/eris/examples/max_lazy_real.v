@@ -3,6 +3,7 @@ From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
 From Coquelicot Require Import RInt RInt_analysis AutoDerive.
 From clutch.eris Require Import infinite_tape lazy_real.
+From clutch.eris.examples Require Import lazy_real indicators half_bern_neg_exp.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -54,14 +55,6 @@ Proof.
     }
   }
 Qed.
-
-Lemma ex_RInt_mult (f g : R -> R) (a b : R) :
-  ex_RInt f a b ->  ex_RInt g a b ->
-  ex_RInt (λ y : R, f y * g y) a b.
-Proof.
-(* Product of Riemann integrable is Riemann integrable (is this not in the library?) *)
-Admitted.
-
 
 Lemma is_RInt_of_RInt F a b (ε : R) : ex_RInt F a b → RInt F a b = ε → is_RInt F a b ε.
 Proof. intros Hex H; rewrite -H; apply RInt_correct; done. Qed.
