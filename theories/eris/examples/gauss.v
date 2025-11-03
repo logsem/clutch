@@ -107,6 +107,40 @@ Section credits.
   Lemma Norm2_nn : 0 < Norm2.
   Proof.
     rewrite /Norm2.
+    (* LB the sequence by its first element? *)
+    (* Then LB the integral by some stupid step function or something *)
+    eapply (Rlt_le_trans _ (RInt (λ x : R, SeriesC (λ k : nat, if (bool_decide (k = 0%nat)) then (exp (- x ^ 2 / 2)) else 0)) 0 1)).
+    { replace (λ x : R, SeriesC (λ k : nat, if bool_decide (k = 0%nat) then exp (- x ^ 2 / 2) else 0))
+         with (λ x : R,  exp (- x ^ 2 / 2)); last first.
+      { apply functional_extensionality; intros x. by rewrite SeriesC_singleton. }
+      (* Step function LB *)
+      admit.
+    }
+    { apply RInt_le; [lra | | | ].
+      { replace (λ x : R, SeriesC (λ k : nat, if bool_decide (k = 0%nat) then exp (- x ^ 2 / 2) else 0))
+           with (λ x : R,  exp (- x ^ 2 / 2)); last first.
+        { apply functional_extensionality; intros x. by rewrite SeriesC_singleton. }
+        { apply (@ex_RInt_continuous R_CompleteNormedModule).
+          intros z Hz.
+          apply ElemFct.continuous_exp_comp.
+          replace (λ x : R_UniformSpace, - x ^ 2 / 2) with (λ x : R_UniformSpace, (x * x) * (-1 / 2)); last (apply functional_extensionality; intros ?; lra).
+          apply (@Continuity.continuous_mult R_CompleteNormedModule).
+          { apply (@Continuity.continuous_mult R_CompleteNormedModule); apply Continuity.continuous_id. }
+          { apply Continuity.continuous_const. }
+        }
+      }
+      { (* Fubini, probably *) admit. }
+      { intros x Hx.
+        apply SeriesC_le'.
+        { intro n. case_bool_decide.
+          { by rewrite H INR_0 Rplus_0_r. }
+          { apply Rexp_nn. }
+        }
+        { apply ex_seriesC_singleton. }
+        { (* Upper bound like the other one *)
+          admit. }
+      }
+    }
   Admitted.
 
   Lemma G2_μ_nn {x k} (Hx : 0 <= x <= 1) : 0 <= G2_μ k x.
