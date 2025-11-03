@@ -459,10 +459,58 @@ Section credits.
     rewrite Iverson_True; [|lia].
     rewrite Rmult_1_l.
     rewrite /S_μ0.
-
-
-
-    (* Should just be computation if correct *)
+    rewrite RInt_minus.
+    2: {
+      apply ex_RInt_Rmult'.
+      eapply ex_RInt_ext; first (intros ??; symmetry; erewrite Rdiv_def; done).
+      apply ex_RInt_Rmult'.
+      apply ex_RInt_pow.
+    }
+    2: {
+      apply ex_RInt_Rmult'.
+      eapply ex_RInt_ext; first (intros ??; symmetry; erewrite Rdiv_def; done).
+      apply ex_RInt_Rmult'.
+      apply ex_RInt_pow.
+    }
+    rewrite /minus//=/plus/opp//= -Rminus_def.
+    repeat rewrite -RInt_Rmult'.
+    rewrite Rmult_minus_distr_l.
+    rewrite RInt_pow.
+    rewrite RInt_pow.
+    repeat rewrite Rdiv_def.
+    repeat (rewrite pow_i; [|lia]).
+    repeat rewrite Rmult_0_l.
+    repeat rewrite Rminus_0_r.
+    pose X := ((2 * k + x) * / (2 * k + 2)).
+    have HX : X = ((2 * k + x) * / (2 * k + 2)) by done.
+    repeat rewrite -HX.
+    f_equal.
+    { rewrite (Rmult_comm X).
+      repeat rewrite Rmult_assoc.
+      rewrite -{3}(pow_1 X).
+      rewrite -pow_add.
+      f_equal; [f_equal; lia|].
+      rewrite -Rmult_assoc.
+      f_equal; [|f_equal; lia].
+      rewrite -Rinv_mult.
+      replace (n - (N + 1) + 1)%nat with (S (n - (N + 1)))%nat by lia.
+      rewrite -mult_INR.
+      rewrite -fact_simpl.
+      f_equal. f_equal. lia.
+    }
+    { rewrite (Rmult_comm X).
+      repeat rewrite Rmult_assoc.
+      rewrite -{3}(pow_1 X).
+      rewrite -pow_add.
+      f_equal; [f_equal; lia|].
+      rewrite -Rmult_assoc.
+      f_equal; [|f_equal; lia].
+      rewrite -Rinv_mult.
+      replace (n - (N + 1) + 1 + 1)%nat with (S (n - (N + 1) + 1))%nat by lia.
+      rewrite -mult_INR.
+      rewrite -fact_simpl.
+      f_equal. f_equal. f_equal. lia.
+    }
   Admitted.
 
   Lemma B_g_nn {F b} (Hnn : ∀ r, 0 <= F r) :  0 <= B_g F b.
