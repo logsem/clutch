@@ -113,6 +113,7 @@ Section credits.
     { replace (λ x : R, SeriesC (λ k : nat, if bool_decide (k = 0%nat) then exp (- x ^ 2 / 2) else 0))
          with (λ x : R,  exp (- x ^ 2 / 2)); last first.
       { apply functional_extensionality; intros x. by rewrite SeriesC_singleton. }
+
       (* Step function LB *)
       admit.
     }
@@ -161,8 +162,55 @@ Section credits.
     apply G1_μ_nn.
   Qed.
 
-  Lemma G1_f_ex_seriesC {F : nat → R} (Hex : ex_seriesC F) : ex_seriesC (G1_f F).
-  Proof. Admitted.
+  Lemma G1_h_nn {F k b} (Hnn : ∀ r, 0 <= F r) : 0 <= G1_h F k b.
+  Proof.
+    rewrite /G1_h.
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg| auto ]).
+    apply G1_CreditV_nn; auto.
+  Qed.
+
+  Lemma G1_f_ex_seriesC {F : nat → R} (Hex : ex_seriesC F) (HF : ∀ r : nat, 0 <= F r) : ex_seriesC (G1_f F).
+  Proof.
+    rewrite /G1_f.
+    (* Still could be provable:
+       This thing is bounded above by (1 * max (G1_h k true) (G1_h k false)) *)
+    rewrite /G1_h.
+    rewrite Iverson_True; [|intuition].
+    rewrite Iverson_False; [|intuition].
+    rewrite Iverson_False; [|intuition].
+    rewrite Iverson_True; [|intuition].
+    (* The max is bounded above by the sum, since both are nonnegative, and the sum exists. *)
+
+
+
+
+    (*
+
+    apply ex_seriesC_plus. {
+      apply ex_seriesC_mult.
+      { intro n. apply Rexp_nn. }
+      { intro n. apply G1_h_nn. apply HF. }
+      { admit. }
+      { admit. }
+    }
+    { apply ex_seriesC_mult.
+      { intro n.
+        apply error_credits.Rle_0_le_minus.
+        apply Rexp_range.
+        rewrite Rdiv_def.
+        apply Rcomplements.Rmult_le_0_r.
+        { rewrite -Ropp_0.
+          apply Ropp_le_contravar.
+          apply pos_INR.
+        }
+        { lra. }
+      }
+      { intro n. apply G1_h_nn. apply HF. }
+      { (* Oh no, does this even exist?? *)
+        admit. }
+      { admit. }
+     *)
+  Admitted.
 
   Lemma G2_exRInt {F} (Hnn : ∀ k r, 0 <= F k r) {x'} : ex_RInt (λ x : R, G2_μ x' x * F x' x) 0 1.
   Proof. Admitted.
@@ -179,12 +227,6 @@ Section credits.
     lra.
   Qed.
 
-  Lemma G1_h_nn {F k b} (Hnn : ∀ r, 0 <= F r) : 0 <= G1_h F k b.
-  Proof.
-    rewrite /G1_h.
-    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg| auto ]).
-    apply G1_CreditV_nn; auto.
-  Qed.
 
   Lemma G1_f_nn {F k} (Hnn : ∀ r, 0 <= F r) : 0 <= G1_f F k.
   Proof.
@@ -215,7 +257,8 @@ Section credits.
     rewrite /G1_f.
     setoid_rewrite Rmult_plus_distr_r.
     rewrite SeriesC_plus.
-    2, 3: admit.
+    2: { admit. }
+    2: { admit. }
     rewrite /G1_h.
     rewrite Iverson_True; [|intuition].
     rewrite Iverson_False; [|intuition].
@@ -232,7 +275,8 @@ Section credits.
       last first.
     { (* Foob, then funext, then SeriesC_scal_l etc. *) admit. }
     rewrite -SeriesC_plus.
-    2, 3: admit.
+    2: { admit. }
+    2: { admit. }
     f_equal. apply functional_extensionality. intro k.
     (* Cancel F *)
     do 2 rewrite (Rmult_assoc _ (F k) _) (Rmult_comm (F k) _) -(Rmult_assoc _ _ (F k)).
@@ -269,7 +313,10 @@ Section credits.
     rewrite SeriesC_scal_r.
     rewrite -Rmult_plus_distr_r.
     rewrite -SeriesC_plus.
-    2, 3: admit.
+    2: { admit. }
+    2: { (* Distribute, difference, then it does exist. *)
+
+      admit. }
     replace (λ x : nat, exp (- x ^ 2 / 2) + (1 - exp (- (x * (x - 1))%nat / 2)) * exp (-1 / 2) ^ x)
        with (λ x : nat, exp (- x ^ 2 / 2) + ( exp (-1 / 2) ^ x - exp (- x^2 / 2))); last first.
     { apply functional_extensionality; intros x.
@@ -332,7 +379,10 @@ Section credits.
   Qed.
 
   Lemma G2_f_ex_seriesC {F} : ex_seriesC (G2_f F).
-  Proof. Admitted.
+  Proof.
+    rewrite /G2_f.
+    (* Fubini-related *)
+  Admitted.
 
   Lemma G2_f_expectation {F} : G2_CreditV F = G1_CreditV (G2_f F).
   Proof.
@@ -347,11 +397,25 @@ Section credits.
        rewrite -Rmult_plus_distr_l.
        f_equal.
        rewrite RInt_add.
-       2, 3: admit.
+       2: {
+         rewrite /G2_s.
+         rewrite Iverson_True; [|intuition].
+         rewrite Iverson_False; [|intuition].
+         (* Product *)
+         admit.
+       }
+       2: {
+         rewrite /G2_s.
+         rewrite Iverson_False; [|intuition].
+         rewrite Iverson_True; [|intuition].
+         (* Still OK*)
+         admit.
+        }
        done.
     }
     rewrite SeriesC_plus.
-    2, 3: admit.
+    2: { admit. }
+    2: { admit. }
     (* Prepare second term for Foob *)
     rewrite {2}/G2_s.
     rewrite Iverson_False; [|intuition].
@@ -386,7 +450,8 @@ Section credits.
     { admit. }
     (* Recombine series and cancel with LHS *)
     rewrite -SeriesC_plus.
-    2, 3: admit.
+    2: { admit. }
+    2: { admit. }
     rewrite /G2_CreditV.
     f_equal; apply functional_extensionality; intros k.
     rewrite RInt_Rmult.
@@ -542,22 +607,33 @@ Section program.
     { rewrite -Nat2Z.inj_0.
       wp_apply (wp_Geo _ (exp (-1 / 2)) _  _ (G1_f F)).
       { by intros ?; apply G1_f_nn, Hnn. }
-      { by apply G1_f_ex_seriesC.  }
+      { apply G1_f_ex_seriesC; first done. intros ?. apply Hnn. }
       { by rewrite G1_f_expectation. }
       Unshelve.
       { apply Rexp_range; lra. }
       { iIntros (E' F' HF') "Hε".
         iApply wp_BNEHalf.
-        { admit. }
-        { admit. }
-        iApply (ec_eq with "Hε").
-        rewrite /BNEHalf_CreditV/BNEHalf_μ.
-        rewrite Iverson_True; [|intuition].
-        rewrite Iverson_False; [|intuition].
-        rewrite Iverson_False; [|intuition].
-        rewrite Iverson_True; [|intuition].
-        lra.
-        Unshelve. admit.
+        3: {
+          iApply (ec_eq with "Hε").
+          rewrite /BNEHalf_CreditV/BNEHalf_μ.
+          rewrite Iverson_True; [|intuition].
+          rewrite Iverson_False; [|intuition].
+          rewrite Iverson_False; [|intuition].
+          rewrite Iverson_True; [|intuition].
+          lra.
+        }
+        Unshelve.
+        3: { exact (Rmax (F' true) (F' false)). }
+        { intro b.
+          split; [apply HF'|].
+          destruct b.
+          { apply Rmax_l. }
+          { apply Rmax_r. }
+        }
+        { rewrite /half_bern_neg_exp.LiftF.
+          (* Uh. This series does not exist. *)
+          admit.
+        }
       }
     }
     iIntros (v) "(#IH & [%n [-> Hε]])".
@@ -626,10 +702,10 @@ Section program.
     wp_bind (G1 _).
     iApply (pgl_wp_mono_frame (□ _) with "[Hε] IH"); last first.
     { iApply (wp_G1 (F := G2_f F)).
-      { intros ?. admit. (* apply G2_f_nn; auto.*)  }
-      { by apply G2_f_ex_seriesC. }
-      iApply (ec_eq with "Hε").
-      apply G2_f_expectation.
+      2: { by apply G2_f_ex_seriesC. }
+      2: { iApply (ec_eq with "Hε"). apply G2_f_expectation. }
+      { intros ?. admit. (* apply G2_f_nn; auto. *) }
+      Unshelve. admit.
     }
     iIntros (v) "(#IH & [%k [-> Hε]])".
     wp_pures.
@@ -654,7 +730,16 @@ Section program.
         f_equal; f_equal.
       }
       Unshelve.
-      { admit. }
+      { apply Rexp_range.
+        rewrite Rdiv_def.
+        repeat rewrite Ropp_mult_distr_l_reverse.
+        rewrite -Ropp_0.
+        apply Ropp_le_contravar.
+        have ? : 0 <= INR k by apply pos_INR.
+        apply Rmult_le_pos; first apply Rmult_le_pos; try lra.
+        rewrite -(Rmult_1_l (/ _)).
+        apply Rcomplements.Rdiv_le_0_compat; lra.
+      }
       { apply Rexp_range.
         apply Rcomplements.Rmult_le_0_r.
         { apply Rcomplements.Rmult_le_0_r; [lra|].

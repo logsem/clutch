@@ -540,4 +540,8 @@ Proof.
   Lemma exp_mono_strict {x y : R} : x < y → exp x < exp y.
   Proof. Admitted.
 
+  Lemma ex_seriesC_mult {f g : nat → R} (Hf : ∀ n : nat, 0 <= f n) (Hg : ∀ n : nat, 0 <= g n) :
+    ex_seriesC f → ex_seriesC g → ex_seriesC (fun n => f n * g n).
+  Proof. Admitted.
+
 End Lib.
