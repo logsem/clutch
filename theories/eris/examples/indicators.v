@@ -250,6 +250,7 @@ Admitted.
 Lemma SeriesC_nat_shift {f : nat → R} : SeriesC f = f 0%nat + SeriesC (f ∘ S).
 Proof.
   (* replace (SeriesC f) with (SeriesC (fun n => Iverson (eq 0%nat) n * f 0%nat) + SeriesC (fun n => Iverson (not ∘ eq 0%nat) n * f n)); last first. *)
+      (* Locate Series_incr_1. << This is it *)
 Admitted.
 
 Lemma ex_SeriesC_nat_shift {f : nat → R} : ex_seriesC f → ex_seriesC (f ∘ S).

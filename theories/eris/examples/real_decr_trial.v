@@ -1,6 +1,7 @@
 From clutch.eris Require Export eris error_rules receipt_rules.
 From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
+From Coquelicot Require Import Coquelicot.
 From Coquelicot Require Import RInt RInt_analysis AutoDerive.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real indicators.
@@ -177,10 +178,95 @@ Section credits.
     }
   Qed.
 
+  (*
+  Lemma UniformLimitProd (f g : fct_UniformSpace R R_CompleteNormedModule) {Lf Lg Lfg : R} :
+    Lf * Lg = Lfg →
+    filterlim f eventually (locally Lf) →
+    filterlim g eventually (locally Lg) →
+    filterlim (fun x => f x * g x) eventually (locally (Lfg)).
+  Proof.
+    rewrite /filterlim/filter_le/locally/filtermap/eventually/ball//=/fct_ball//=.
+    intros Heq Hf Hg P Hlfg.
+    specialize Hf with P.
+    specialize Hg with P.
+  Admitted.
+*)
+
   Lemma RealDecrTrial_CreditV_ex_RInt {F N M} 
     (Hbound : forall n, 0 <= F n <= M) : ex_RInt (RealDecrTrial_CreditV F (N + 1)) 0 1.
   Proof.
+    rewrite /ex_RInt.
     rewrite /RealDecrTrial_CreditV.
+
+    replace (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x (N + 1) n * F n))
+       with (λ x : R, Series.Series (λ n : nat, RealDecrTrial_μ x (N + 1) n * F n)); last first.
+    { by apply functional_extensionality; intros ?; rewrite SeriesC_Series_nat. }
+
+    (* Check filterlim (sum_n a) (eventually) (locally l). *)
+    (* Search is_series Series. *)
+
+    have X := filterlim_RInt
+      (λ n : nat, fun x : R => RealDecrTrial_μ x (N + 1) n * F n) 0 1
+      eventually eventually_filter
+      (λ x : R, Series (λ n : nat, RealDecrTrial_μ x (N + 1) n * F n))
+      (fun n : nat => RInt (fun x => RealDecrTrial_μ x (N + 1) n * F n) 0 1)
+      _ _.
+    have HX1 : (∀ x : nat, is_RInt (λ x0 : R, RealDecrTrial_μ x0 (N + 1) x * F x) 0 1 (RInt (λ x0 : R, RealDecrTrial_μ x0 (N + 1) x * F x) 0 1)).
+    { intro x.
+      apply (@RInt_correct R_CompleteNormedModule).
+      apply ex_RInt_Rmult'.
+      (* OK *)
+      admit.
+    }
+    have X' := X HX1; clear X HX1.
+    have HX2 : filterlim (λ (n : nat) (x : R), RealDecrTrial_μ x (N + 1) n * F n) eventually (locally (λ x : R, Series (λ n : nat, RealDecrTrial_μ x (N + 1) n * F n))) .
+    { (* How to take this filterlim *)
+      rewrite /filterlim/filter_le/locally/filtermap/eventually/ball//=/fct_ball//=.
+      intros P [e He].
+      rewrite /ball//=/AbsRing_ball  in He.
+      (* It seems that the only way I can actually close this proof is by He since we know nothing about P *)
+
+
+      (*
+      have NN : nat by admit.
+      have He' := He (λ x : R, RealDecrTrial_μ x (N + 1) NN * F NN).
+
+      Search filterlim (_ * _).
+      Search filterlim.
+      admit.
+       *)
+      admit.
+    }
+    destruct (X' HX2) as [IF [HIf1 HIf2]].
+    exists IF.
+    done.
+Admitted.
+
+
+(*
+      Search "fct_".
+      Check Series_correct (λ n : nat, RealDecrTrial_μ _ (N + 1) n * F n).
+      Search is_series.
+      Search ex_RInt.
+      Search is_RInt RInt.
+
+      Search (ProperFilter eventually).
+      Check filterlim (sum_n (λ n : nat, RealDecrTrial_μ x (N + 1) n * F n)) (eventually) (locally _).
+
+      Search Lim_seq.
+
+
+      Search Series.Series.
+
+
+    }
+
+    Check SeriesC_Series_nat.
+    Search SeriesC.
+
+
+    Search is_RInt.
+
 
     (*
     apply (DominatedCvgTheorem_ex (fun _ => 1 * M)); [|apply ex_RInt_const].
@@ -195,7 +281,7 @@ Section credits.
     { apply RealDecrTrial_μ_le_1; lra. }
     { apply Hbound. }
     *)
-  Admitted.
+  Admitted. *)
 
   (* Telescoping series *)
   Lemma RealDecrTrial_μ0_ex_seriesC {x} (Hx : 0 <= x <= 1) : ex_seriesC (λ n : nat, RealDecrTrial_μ0 x n).
