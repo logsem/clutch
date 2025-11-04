@@ -212,10 +212,26 @@ Section credits.
      *)
   Admitted.
 
-  Lemma G2_exRInt {F} (Hnn : ∀ k r, 0 <= F k r) {x'} : ex_RInt (λ x : R, G2_μ x' x * F x' x) 0 1.
-  Proof. Admitted.
+  Lemma G2_exRInt {F} (Hnn : ∀ k r, 0 <= F k r) {x'} (Hint : ex_RInt (F x') 0 1) : ex_RInt (λ x : R, G2_μ x' x * F x' x) 0 1.
+  Proof.
+    rewrite /G2_μ.
+    apply ex_RInt_mult; [|apply Hint].
+    replace (λ y : R, exp (- (y + x') ^ 2 / 2) / Norm2) with (λ y : R, exp ((-1) * (y + x') * (y + x') * / 2) * / Norm2); last first.
+    { apply functional_extensionality; intros ?; simpl.
+      repeat rewrite Rdiv_def. f_equal. f_equal. f_equal. lra. }
+    apply ex_RInt_Rmult'.
+    apply (@ex_RInt_continuous R_CompleteNormedModule).
+    intros z Hz.
+    apply ElemFct.continuous_exp_comp.
+    apply (@Continuity.continuous_mult R_CompleteNormedModule); [|apply Continuity.continuous_const].
+    apply (@Continuity.continuous_mult R_CompleteNormedModule);
+      last (apply (@Continuity.continuous_plus R_CompleteNormedModule); [apply Continuity.continuous_id|apply Continuity.continuous_const]).
+    apply (@Continuity.continuous_mult R_CompleteNormedModule);
+      last (apply (@Continuity.continuous_plus R_CompleteNormedModule); [apply Continuity.continuous_id|apply Continuity.continuous_const]).
+    apply Continuity.continuous_const.
+  Qed.
 
-  Lemma G2_CreditV_nn {F} (Hnn : ∀ k r, 0 <= F k r) : 0 <= G2_CreditV F.
+  Lemma G2_CreditV_nn {F} (Hnn : ∀ k r, 0 <= F k r) (Hint : forall x', ex_RInt (F x') 0 1) : 0 <= G2_CreditV F.
   Proof.
     rewrite /G2_CreditV.
     apply SeriesC_ge_0'; intros x'.
@@ -339,14 +355,14 @@ Section credits.
     (* Conclude by geometric series formula *)
   Admitted.
 
-  Lemma G2_s_nn {F k x b} (Hnn : ∀ a b , 0 <= F a b) : 0 <= G2_s F k x b.
+  Lemma G2_s_nn {F k x b} (Hnn : ∀ a b , 0 <= F a b) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) : 0 <= G2_s F k x b.
   Proof.
     rewrite /G2_s.
     apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg| auto ]).
     apply G2_CreditV_nn; auto.
   Qed.
 
-  Lemma G2_g_nn {F k x} (Hnn : ∀ a b , 0 <= F a b) (Hx : 0 <= x <= 1) : 0 <= G2_g F k x.
+  Lemma G2_g_nn {F k x} (Hnn : ∀ a b , 0 <= F a b) (Hx : 0 <= x <= 1) (Hint :   ∀ x' : nat, ex_RInt (F x') 0 1) : 0 <= G2_g F k x.
   Proof.
     rewrite /G2_g.
     apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [|apply G2_s_nn; auto]).
@@ -367,9 +383,12 @@ Section credits.
   Qed.
 
   Lemma G2_g_exRInt {F k} : ex_RInt (G2_g F k) 0 1.
-  Proof. Admitted.
+  Proof.
+    rewrite /G2_g.
 
-  Lemma G2_f_nn {F k} (Hnn : ∀ a b , 0 <= F a b) : 0 <= G2_f F k.
+  Admitted.
+
+  Lemma G2_f_nn {F k} (Hnn : ∀ a b , 0 <= F a b) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) : 0 <= G2_f F k.
   Proof.
     rewrite /G2_f.
     apply RInt_ge_0; try lra.
@@ -554,15 +573,6 @@ Section credits.
   Lemma G2_g_RInt {F k} : is_RInt (G2_g F k) 0 1 (G2_f F k).
   Proof. Admitted.
 
-  (*
-  (* TODO: Solve and move me *)
-  Lemma Rexp_half_bound : 0 <= exp (-1 / 2) <= 1.
-  Proof. Admitted.
-
-  Local Lemma Rexp_ineq {z : R} {k : nat} : 0 <= exp (- z * (2 * k + z) / (2 * k + 2)) <= 1.
-  Proof. Admitted.
-   *)
-
   Local Lemma Rexp_eq {z : R} {k : nat} : exp (- z * (2 * k + z) / 2) = exp (- z * (2 * k + z) / (2 * k + 2)) ^ (k + 1).
   Proof.
     rewrite exp_pow; f_equal.
@@ -582,6 +592,7 @@ End credits.
 
 Section program.
   Context `{!erisGS Σ}.
+  Import Hierarchy.
 
   Definition G1 : val :=
     rec: "trial" "_" :=
@@ -612,16 +623,8 @@ Section program.
       Unshelve.
       { apply Rexp_range; lra. }
       { iIntros (E' F' HF') "Hε".
+        (* This is where it goes awry, can I remove the liftF requirement? *)
         iApply wp_BNEHalf.
-        3: {
-          iApply (ec_eq with "Hε").
-          rewrite /BNEHalf_CreditV/BNEHalf_μ.
-          rewrite Iverson_True; [|intuition].
-          rewrite Iverson_False; [|intuition].
-          rewrite Iverson_False; [|intuition].
-          rewrite Iverson_True; [|intuition].
-          lra.
-        }
         Unshelve.
         3: { exact (Rmax (F' true) (F' false)). }
         { intro b.
@@ -660,7 +663,6 @@ Section program.
         iFrame.
         iApply wp_BNEHalf.
         { admit. }
-        { admit. }
         iApply (ec_eq with "Hε").
         rewrite /BNEHalf_CreditV/BNEHalf_μ.
         rewrite Iverson_True; [|intuition].
@@ -691,7 +693,7 @@ Section program.
     }
   Admitted.
 
-  Theorem wp_G2 {E F M} (Hnn : ∀ x k , 0 <= F x k <= M) :
+  Theorem wp_G2 {E F M} (Hnn : ∀ x k , 0 <= F x k <= M) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) :
     ↯(G2_CreditV F) -∗
     WP G2 #() @ E {{ vp, ∃ k : nat, ∃ r : R, ∃ l : val, lazy_real l r  ∗ ⌜vp = PairV l #k ⌝ ∗ ↯(F k r) }}.
   Proof.
@@ -704,7 +706,9 @@ Section program.
     { iApply (wp_G1 (F := G2_f F)).
       2: { by apply G2_f_ex_seriesC. }
       2: { iApply (ec_eq with "Hε"). apply G2_f_expectation. }
-      { intros ?. admit. (* apply G2_f_nn; auto. *) }
+      { intros ?.
+        rewrite /G2_f.
+        admit. (* apply G2_f_nn; auto. *) }
       Unshelve. admit.
     }
     iIntros (v) "(#IH & [%k [-> Hε]])".
@@ -722,7 +726,7 @@ Section program.
     { rewrite /G2_g.
       replace (Z.add (Z.of_nat k) 1) with (Z.of_nat (k + 1)%nat) by lia.
       iApply (@wp_Iter _ _ _ (exp (- z * (2 * k + z) / (2*k+2))) _ (lazy_real x z) _ _ (G2_s F k z)).
-      { intros ?. apply G2_s_nn. auto. apply Hnn. }
+      { intros ?. apply G2_s_nn; auto. apply Hnn. }
       { iFrame.
         iApply (ec_eq with "Hε").
         rewrite /Iter_CreditV.
@@ -740,20 +744,7 @@ Section program.
         rewrite -(Rmult_1_l (/ _)).
         apply Rcomplements.Rdiv_le_0_compat; lra.
       }
-      { apply Rexp_range.
-        apply Rcomplements.Rmult_le_0_r.
-        { apply Rcomplements.Rmult_le_0_r; [lra|].
-          apply Rplus_le_le_0_compat.
-          { apply Rmult_le_pos; [lra|]. apply pos_INR. }
-          { lra. }
-        }
-        rewrite -(Rmult_1_l (/ _)).
-        apply Rle_mult_inv_pos; [lra|].
-        rewrite -(Rplus_0_l 0).
-        apply Rplus_le_lt_compat; [|lra].
-        apply Rmult_le_pos; [lra|].
-        apply pos_INR.
-      }
+
       { iIntros (E' F' Hf') "(Hε & HI)".
         wp_pure.
         iApply wp_B; first done.
@@ -771,7 +762,7 @@ Section program.
       rewrite /G2_s.
       iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply G2_CreditV_nn, Hnn ]. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg |]. apply G2_CreditV_nn; auto. apply Hnn. }
       iApply (ec_eq with "Hε").
       rewrite Iverson_True; [lra|done].
     }
@@ -780,10 +771,27 @@ Section program.
       rewrite /G2_s.
       iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply G2_CreditV_nn, Hnn ]. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg |]. apply G2_CreditV_nn; auto. apply Hnn. }
       iApply (ec_eq with "Hε").
       rewrite Iverson_True; [lra|done].
     }
   Admitted.
 
 End program.
+
+(*
+{ apply Rexp_range.
+        apply Rcomplements.Rmult_le_0_r.
+        { apply Rcomplements.Rmult_le_0_r; [lra|].
+          apply Rplus_le_le_0_compat.
+          { apply Rmult_le_pos; [lra|]. apply pos_INR. }
+          { lra. }
+        }
+        rewrite -(Rmult_1_l (/ _)).
+        apply Rle_mult_inv_pos; [lra|].
+        rewrite -(Rplus_0_l 0).
+        apply Rplus_le_lt_compat; [|lra].
+        apply Rmult_le_pos; [lra|].
+        apply pos_INR.
+      }
+*)

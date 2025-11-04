@@ -67,11 +67,13 @@ Section credits.
   Local Lemma g_ex_RInt {F L} : ex_RInt (g F L) 0 1.
   Proof. Admitted.
 
+  (*
   Lemma hx_ex_seriesC {F xr L} : ex_seriesC (hx F xr L).
   Proof.
     rewrite /hx.
     (* BA by sum, then needs Fubini for RInt_gen *)
   Admitted.
+*)
 
 
   Local Theorem g_expectation {F L} : is_RInt (g F L) 0 1 (NegExp_CreditV F L).
@@ -247,7 +249,6 @@ Section program.
     wp_bind (lazyDecrR _ _).
     iApply (pgl_wp_mono_frame (□ _) with "[Hx Hε] IH"); last first.
     { iApply (wp_lazyDecrR_gen (hx F xr L) _ E $! _ x xr).
-      { apply hx_ex_seriesC. }
       by rewrite /g; iFrame.
       Unshelve.
       1: { exact ((F (xr + L)) + (NegExp_CreditV F (L + 1))). }

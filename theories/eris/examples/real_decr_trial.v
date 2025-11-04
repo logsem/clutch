@@ -181,6 +181,7 @@ Section credits.
     (Hbound : forall n, 0 <= F n <= M) : ex_RInt (RealDecrTrial_CreditV F (N + 1)) 0 1.
   Proof.
     rewrite /RealDecrTrial_CreditV.
+
     (*
     apply (DominatedCvgTheorem_ex (fun _ => 1 * M)); [|apply ex_RInt_const].
     rewrite Rmin_left; [|lra].
@@ -198,10 +199,12 @@ Section credits.
 
   (* Telescoping series *)
   Lemma RealDecrTrial_μ0_ex_seriesC {x} (Hx : 0 <= x <= 1) : ex_seriesC (λ n : nat, RealDecrTrial_μ0 x n).
-  Proof. Admitted.
+  Proof.
+  Admitted.
 
   Lemma RealDecrTrial_μ0_ex_seriesC' {x} (Hx : 0 <= x <= 1) : ex_seriesC (λ n : nat, RealDecrTrial_μ0 x (n + 1)).
-  Proof. Admitted.
+  Proof.
+  Admitted.
 
 
 
@@ -283,9 +286,11 @@ Section credits.
     { by rewrite Rmult_0_l -RInt_Rmult Rmult_0_l. }
   Qed.
 
-  Theorem g_expectation {F N rx M} (Hrx : 0 <= rx <= 1) (Hex : ex_seriesC F)
+  Theorem g_expectation {F N rx M} (Hrx : 0 <= rx <= 1) (* (Hex : ex_seriesC F) *)
     (Hbound : forall n, 0 <= F n <= M) : is_RInt (g F N rx) 0 1 (RealDecrTrial_CreditV F N rx).
   Proof.
+    have Hex' : ∀ n, ex_RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n) 0 1.
+    { admit. }
     suffices H : RInt (g F N rx) 0 1 = RealDecrTrial_CreditV F N rx.
     { rewrite -H. eapply (RInt_correct (V := R_CompleteNormedModule)), g_ex_RInt.
       { apply Hbound. }
@@ -308,74 +313,58 @@ Section credits.
     replace
       (RInt (λ x : R, SeriesC (λ n : nat, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n)) 0 1) with
       (SeriesC (λ n : nat, RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n) 0 1)); last first.
-    { (* Deploy the Foob *) admit. }
+    { (* Deploy the Foob *)
+
+      (* Is it possible that Hex is needed here? *)
+      admit. }
     rewrite (@RInt_Iverson_ge rx (fun x => F N) Hrx).
     rewrite RInt_const/scal//=/mult//=.
     replace ((1 - rx) * F N) with (SeriesC (fun n => Iverson (fun y => y = N) n * ((1 - rx) * F n))); last first.
     { rewrite (SeriesC_Iverson_singleton (F := fun z => (1 - rx) * F z) N); [lra|intuition]. }
     rewrite -SeriesC_plus.
     3: {
-      apply (ex_seriesC_le _ F); [|apply Hex].
+      apply (ex_seriesC_le _ (λ n : nat, if bool_decide (N = n) then ((1 - rx) * M) else 0));
+        last apply ex_seriesC_singleton'.
       intro n.
-      split.
-      { apply Rmult_le_pos; [apply Iverson_nonneg|].
-        apply Rmult_le_pos; [lra|].
-        apply Hbound.
+      case_bool_decide.
+      { rewrite Iverson_True; [|auto].
+        rewrite Rmult_1_l.
+        split.
+        { apply Rmult_le_pos; [lra|]. apply Hbound. }
+        { apply Rmult_le_compat_l; [lra|]. apply Hbound. }
       }
-      { rewrite -Rmult_assoc.
-        rewrite -{2}(Rmult_1_l (F n)).
-        apply Rmult_le_compat_r; [apply Hbound|].
-        rewrite -(Rmult_1_l 1).
-        apply Rmult_le_compat.
-        { apply Iverson_nonneg. }
-        { lra. }
-        { apply Iverson_le_1. }
-        { lra. }
-      }
+      { rewrite Iverson_False; [|auto]. lra. }
     }
     2: {
-      apply (ex_seriesC_le _ F); [|apply Hex].
-      intro n.
-      split.
-      { apply RInt_ge_0; [lra | |].
-        { apply ex_RInt_mult; [|apply ex_RInt_const].
-          apply ex_RInt_mult; [apply ex_RInt_Iverson_le_uncurry|].
-          apply RealDecrTrial_μ_ex_RInt.
-        }
-        { intros x Hx.
-          apply Rmult_le_pos; [|apply Hbound].
-          apply Rmult_le_pos; [apply Iverson_nonneg|].
-          rewrite /RealDecrTrial_μ.
-          apply Rmult_le_pos; [apply Iverson_nonneg|].
-          apply RealDecrTrial_μ0nn.
-          lra.
-        }
-      }
-      { rewrite -RInt_Rmult'.
-        rewrite -{2}(Rmult_1_l (F n)).
-        apply Rmult_le_compat_r; [apply Hbound|].
-        etransitivity; first eapply Rle_abs.
-        etransitivity; first eapply (abs_RInt_le_const _ _ _ (1 * 1)).
-        { lra. }
-        { apply ex_RInt_mult.
-          { apply ex_RInt_Iverson_le_uncurry. }
-          { apply RealDecrTrial_μ_ex_RInt. }
-        }
-        { intros t Ht.
-          rewrite Rabs_mult.
-          apply Rmult_le_compat.
-          { apply Rabs_pos. }
-          { apply Rabs_pos. }
-          { rewrite Rabs_right; [|apply Rle_ge, Iverson_nonneg].
-            apply Iverson_le_1. }
-          { rewrite Rabs_right; [|apply Rle_ge].
-            { apply RealDecrTrial_μ_le_1; lra. }
-            { apply RealDecrTrial_μnn; lra. }
+      apply (ex_seriesC_le _ (λ n : nat, RInt (λ x : R, (Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n) * M) 0 1)).
+      { intro n.
+        split.
+        { apply RInt_ge_0; [lra|  |].
+          { apply ex_RInt_Rmult'. apply Hex'.  }
+          { intros ??.
+            apply Rmult_le_pos; [|apply Hbound].
+            apply Rmult_le_pos; [apply Iverson_nonneg|].
+            apply RealDecrTrial_μnn.
+            lra.
           }
         }
-        { lra. }
+        { apply RInt_le; [lra | | | ].
+          { apply ex_RInt_Rmult'. apply Hex'.  }
+          { apply ex_RInt_Rmult'. apply Hex'.  }
+          { intros x Hx.
+            apply Rmult_le_compat_l; [|apply Hbound].
+            apply Rmult_le_pos; [apply Iverson_nonneg|].
+            apply RealDecrTrial_μnn.
+            lra.
+          }
+        }
       }
-    }
+      eapply ex_seriesC_ext.
+      { intros n. symmetry. rewrite -RInt_Rmult'. done. }
+        apply ex_seriesC_scal_r.
+        (* Simplify, then telescoping *)
+        admit.
+      }
     rewrite /RealDecrTrial_CreditV.
     f_equal; apply functional_extensionality; intros n.
     replace
@@ -485,7 +474,7 @@ Section trial.
       else
         "N".
 
-  Lemma wp_lazyDecrR_gen {M} (F : nat → R) (Hnn : ∀ n, 0 <= F n <= M) E (Hex : ex_seriesC F) :
+  Lemma wp_lazyDecrR_gen {M} (F : nat → R) (Hnn : ∀ n, 0 <= F n <= M) E (* (Hex : ex_seriesC F) *) :
     ⊢ ∀ N x rx, lazy_real x rx ∗ ⌜0 <= rx <= 1 ⌝ ∗ ↯ (RealDecrTrial_CreditV F N rx) -∗
                 WP lazyDecrR #N x @ E {{ z, ∃ n : nat, ⌜z = #n⌝ ∗ ↯ (F n) ∗ lazy_real x rx }}.
   Proof.
