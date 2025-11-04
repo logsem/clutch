@@ -67,6 +67,13 @@ Section credits.
   Local Lemma g_ex_RInt {F L} : ex_RInt (g F L) 0 1.
   Proof. Admitted.
 
+  Lemma hx_ex_seriesC {F xr L} : ex_seriesC (hx F xr L).
+  Proof.
+    rewrite /hx.
+    (* BA by sum, then needs Fubini for RInt_gen *)
+  Admitted.
+
+
   Local Theorem g_expectation {F L} : is_RInt (g F L) 0 1 (NegExp_CreditV F L).
   Proof.
     suffices H : RInt (g F L) 0 1 = NegExp_CreditV F L.
@@ -240,9 +247,30 @@ Section program.
     wp_bind (lazyDecrR _ _).
     iApply (pgl_wp_mono_frame (□ _) with "[Hx Hε] IH"); last first.
     { iApply (wp_lazyDecrR_gen (hx F xr L) _ E $! _ x xr).
-      { admit. }
+      { apply hx_ex_seriesC. }
       by rewrite /g; iFrame.
-      Unshelve. 1, 2: admit. (* intros ?. by apply hx_nonneg, Hnn. *) }
+      Unshelve.
+      1: { exact ((F (xr + L)) + (NegExp_CreditV F (L + 1))). }
+      1: {
+        rewrite /hx.
+        intro n.
+        split.
+        { apply Rplus_le_le_0_compat; apply Rmult_le_pos; try apply Iverson_nonneg.
+          { apply Hnn.  }
+          { apply NegExp_CreditV_nn. intro r. apply Hnn. }
+        }
+        { apply Rplus_le_compat.
+          { rewrite -{2}(Rmult_1_l (F (xr + L))).
+            apply Rmult_le_compat_r; [|apply Iverson_le_1].
+            apply Hnn.
+          }
+          { rewrite -{2}(Rmult_1_l (NegExp_CreditV F (L + 1))).
+            apply Rmult_le_compat_r; [|apply Iverson_le_1].
+            apply NegExp_CreditV_nn. intro r. apply Hnn.
+          }
+        }
+      }
+    }
     iIntros (v) "(#IH & [%l (%Hv & Hε & Hx)])"; rewrite Hv.
     wp_pures.
     case_bool_decide.
@@ -279,6 +307,6 @@ Section program.
       rewrite Nat2Z.inj_add.
       iApply "IH".
     }
-  Admitted.
+  Qed.
 
 End program.
