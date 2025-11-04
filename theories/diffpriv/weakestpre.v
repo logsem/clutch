@@ -614,10 +614,8 @@ Section coupl_modalities.
       - simpl.
         rewrite Rplus_0_r.
         apply DPcoupl_trivial_R.
-        rewrite /erasable in Hcpl.
-        (* TODO: Erasable should imply mass equals 1
-           apply erasable_mass but we need a witness default value *)
-        admit.
+        eapply erasable_mass; eauto.
+        exact def_val.
     }
     iSplit.
     { iPureIntro. simplify_eq; simpl; lra. }
@@ -632,6 +630,7 @@ Section coupl_modalities.
       by iApply ("Hcnt" with "[]").
     - iIntros "[% %]".
       done.
+  Qed.
 
 (*
     iIntros (-> -> ? ? ?) "H".
@@ -651,7 +650,6 @@ Section coupl_modalities.
     iIntros (e2 σ2 e2' σ2' [? ->]).
     by iApply "H".
 *)
-  Admitted.
 
   Lemma prog_coupl_step_l_dret ε2 ε1 ε δ2 δ1 δ R e1 σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →

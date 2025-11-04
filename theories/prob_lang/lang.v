@@ -71,6 +71,8 @@ Definition to_val (e : expr) : option val :=
   | _ => None
   end.
 
+Definition def_val : val := LitV LitUnit.
+
 (** We assume the following encoding of values to 64-bit words: The least 3
 significant bits of every word are a "tag", and we have 61 bits of payload,
 which is enough if all pointers are 8-byte-aligned (common on 64bit
@@ -1072,7 +1074,7 @@ Qed.
 End prob_lang.
 
 (** Language *)
-Canonical Structure prob_ectxi_lang := EctxiLanguage prob_lang.get_active prob_lang.prob_lang_mixin.
+Canonical Structure prob_ectxi_lang := EctxiLanguage prob_lang.get_active prob_lang.prob_lang_mixin (def_val := prob_lang.def_val).
 Canonical Structure prob_ectx_lang := EctxLanguageOfEctxi prob_ectxi_lang.
 Canonical Structure prob_lang := LanguageOfEctx prob_ectx_lang.
 
