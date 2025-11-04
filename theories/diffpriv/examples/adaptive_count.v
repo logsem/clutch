@@ -37,7 +37,7 @@ Definition adaptive : val :=
    else #()) ;;
   (* We have either 18 or 8 credits left. *)
 
-  let: "count_exact_2" := list_count (λ:"x", "x" < #30) "data" in
+  let: "count_exact_2" := list_count (λ:"x", "x" < #32) "data" in
   let: "count_coarse_2" := Laplace "εₛ" #10 "count_exact_2" in
   (* We still have enough credits for the second coarse count. *)
   let: "_" := "b" <- ! "b" -  "εₛ" in
@@ -586,7 +586,8 @@ Section adaptive.
       tp_load ; wp_load ; done.
   
       Unshelve. all: try lra.
-      1,4,7: exact (λ x : Z, Z.ltb x 30).
+      1: exact (λ x : Z, Z.ltb x 30).
+      3,6: exact (λ x : Z, Z.ltb x 32).
       { iIntros "* !> * _ HΦ"... case_bool_decide as h ; iApply "HΦ".
         all: iPureIntro.
         - simpl. do 2 f_equal. symmetry.

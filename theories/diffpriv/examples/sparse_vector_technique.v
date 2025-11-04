@@ -162,7 +162,7 @@ Section svt.
     fold ε in εpos. rewrite Rmult_plus_distr_l.
     iDestruct (ecm_split with "ε") as "[ε ε']". 1,2: real_solver.
     iApply (hoare_couple_laplace _ _ 1%Z 1%Z with "[$rhs ε']") => //.
-    1: apply Zabs_ind ; lia.
+    1: lia.
     1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
     { iApply ecm_eq. 2: iFrame. subst ε. replace (IZR (2 * den)) with (2 * IZR den).
       2: qify_r ; zify_q ; lia.

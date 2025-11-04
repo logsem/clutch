@@ -338,6 +338,7 @@ Section queries.
     iExists _; done.
   Qed.
 
+
   Lemma wp_auto_avg (ds1 ds2 : list Z) (bs : list nat) dsv1 dsv2 bsv (num den : Z) K :
     (0 < IZR num / IZR den)%R →
     is_list bs bsv →
@@ -436,23 +437,17 @@ Section queries.
       iMod (gwp_list_length (g:=gwp_spec) (A:=Z) _ _ _ (λ v : val, ⌜v = #(length ds2)⌝)%I with "[] [] rhs") as "(%&rhs&%)".
       1: iPureIntro ; by rewrite is_list_inject.
       1: simpl ; iIntros ; simplify_eq ; done.
-      rewrite Z.add_0_r /=. simplify_eq.
+      ring_simplify (z + 0).
+      simplify_eq.
       assert ((Z.abs (length ds1 - length ds2)) <= 1).
-      {
-        destruct Hneigh; simplify_eq.
-        - apply Z.eq_le_incl.
-          rewrite !app_length. simpl. apply Zabs_ind ; intros ; lia.
-        - apply Z.eq_le_incl.
-          rewrite !app_length. simpl. apply Zabs_ind ; intros ; lia.
-      }
-
+      1: destruct Hneigh ; simplify_eq ; rewrite !app_length /= ; lia.
       (* private length for ε *)
       tp_bind (Laplace _ _ _).
       wp_pures.
       wp_apply (hoare_couple_laplace _ _ 0 with "[$rhs ε3] [-]") ; try done.
       1: by rewrite Rmult_1_l.
       iIntros "!> * rhs". simpl ; do 2 tp_pure ; do 2 wp_pure.
-      rewrite Z.add_0_r.
+      rewrite Zplus_0_r.
       (* postprocessing *)
       tp_pures. wp_pures. done.
   Qed.
