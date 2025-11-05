@@ -463,7 +463,7 @@ Section program.
         replace (λ n : nat, f' n) with f' by done.
         (* The terms seq_bin_to_R_leading0 seq_bin_to_R_leading1 should do the trick, but there is
            dependent types trouble in destructing f' 0 *)
-        destruct (f' 0%nat) eqn:Heq.
+        (* destruct (f' 0%nat) eqn:Heq. *)
         admit.
       }
       iExists l, α, f.

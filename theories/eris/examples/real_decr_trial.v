@@ -178,136 +178,6 @@ Section credits.
     }
   Qed.
 
-  (*
-  Lemma UniformLimitProd (f g : fct_UniformSpace R R_CompleteNormedModule) {Lf Lg Lfg : R} :
-    Lf * Lg = Lfg →
-    filterlim f eventually (locally Lf) →
-    filterlim g eventually (locally Lg) →
-    filterlim (fun x => f x * g x) eventually (locally (Lfg)).
-  Proof.
-    rewrite /filterlim/filter_le/locally/filtermap/eventually/ball//=/fct_ball//=.
-    intros Heq Hf Hg P Hlfg.
-    specialize Hf with P.
-    specialize Hg with P.
-  Admitted.
-*)
-
-  Lemma RealDecrTrial_CreditV_ex_RInt {F N M} 
-    (Hbound : forall n, 0 <= F n <= M) : ex_RInt (RealDecrTrial_CreditV F (N + 1)) 0 1.
-  Proof.
-    rewrite /ex_RInt.
-    rewrite /RealDecrTrial_CreditV.
-
-    replace (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x (N + 1) n * F n))
-       with (λ x : R, Series.Series (λ n : nat, RealDecrTrial_μ x (N + 1) n * F n)); last first.
-    { by apply functional_extensionality; intros ?; rewrite SeriesC_Series_nat. }
-
-    (* Check filterlim (sum_n a) (eventually) (locally l). *)
-    (* Search is_series Series. *)
-
-    have X := filterlim_RInt
-      (λ n : nat, fun x : R => RealDecrTrial_μ x (N + 1) n * F n) 0 1
-      eventually eventually_filter
-      (λ x : R, Series (λ n : nat, RealDecrTrial_μ x (N + 1) n * F n))
-      (fun n : nat => RInt (fun x => RealDecrTrial_μ x (N + 1) n * F n) 0 1)
-      _ _.
-    have HX1 : (∀ x : nat, is_RInt (λ x0 : R, RealDecrTrial_μ x0 (N + 1) x * F x) 0 1 (RInt (λ x0 : R, RealDecrTrial_μ x0 (N + 1) x * F x) 0 1)).
-    { intro x.
-      apply (@RInt_correct R_CompleteNormedModule).
-      apply ex_RInt_Rmult'.
-      (* OK *)
-      admit.
-    }
-    have X' := X HX1; clear X HX1.
-    have HX2 : filterlim (λ (n : nat) (x : R), RealDecrTrial_μ x (N + 1) n * F n) eventually (locally (λ x : R, Series (λ n : nat, RealDecrTrial_μ x (N + 1) n * F n))) .
-    { (* How to take this filterlim *)
-      rewrite /filterlim/filter_le/locally/filtermap/eventually/ball//=/fct_ball//=.
-      intros P [e He].
-      rewrite /ball//=/AbsRing_ball  in He.
-      (* It seems that the only way I can actually close this proof is by He since we know nothing about P *)
-
-
-      (*
-      have NN : nat by admit.
-      have He' := He (λ x : R, RealDecrTrial_μ x (N + 1) NN * F NN).
-
-      Search filterlim (_ * _).
-      Search filterlim.
-      admit.
-       *)
-      admit.
-    }
-    destruct (X' HX2) as [IF [HIf1 HIf2]].
-    exists IF.
-    done.
-Admitted.
-
-
-(*
-      Search "fct_".
-      Check Series_correct (λ n : nat, RealDecrTrial_μ _ (N + 1) n * F n).
-      Search is_series.
-      Search ex_RInt.
-      Search is_RInt RInt.
-
-      Search (ProperFilter eventually).
-      Check filterlim (sum_n (λ n : nat, RealDecrTrial_μ x (N + 1) n * F n)) (eventually) (locally _).
-
-      Search Lim_seq.
-
-
-      Search Series.Series.
-
-
-    }
-
-    Check SeriesC_Series_nat.
-    Search SeriesC.
-
-
-    Search is_RInt.
-
-
-    (*
-    apply (DominatedCvgTheorem_ex (fun _ => 1 * M)); [|apply ex_RInt_const].
-    rewrite Rmin_left; [|lra].
-    rewrite Rmax_right; [|lra].
-    intros n x H.
-    split.
-    { apply Rmult_le_pos; [|apply Hbound]. apply RealDecrTrial_μnn; lra. }
-    apply Rmult_le_compat.
-    { apply RealDecrTrial_μnn; lra. }
-    { apply Hbound. }
-    { apply RealDecrTrial_μ_le_1; lra. }
-    { apply Hbound. }
-    *)
-  Admitted. *)
-
-  (* Telescoping series *)
-  Lemma RealDecrTrial_μ0_ex_seriesC {x} (Hx : 0 <= x <= 1) : ex_seriesC (λ n : nat, RealDecrTrial_μ0 x n).
-  Proof.
-  Admitted.
-
-  Lemma RealDecrTrial_μ0_ex_seriesC' {x} (Hx : 0 <= x <= 1) : ex_seriesC (λ n : nat, RealDecrTrial_μ0 x (n + 1)).
-  Proof.
-  Admitted.
-
-
-
-  Lemma g_ex_RInt {F N rx M} (Hbound : forall n, 0 <= F n <= M) : ex_RInt (g F N rx) 0 1.
-  Proof.
-    rewrite /g.
-    apply ex_RInt_add.
-    { apply ex_RInt_mult; [apply ex_RInt_Iverson_le_uncurry|].
-      eapply RealDecrTrial_CreditV_ex_RInt.
-      intro n.
-      apply Hbound.
-    }
-    { apply ex_RInt_mult; [apply ex_RInt_Iverson_ge_uncurry|].
-      apply ex_RInt_const.
-    }
-  Qed.
-
   Lemma RealDecrTrial_μ_ex_RInt {n m} {a b} : ex_RInt (λ y : R, RealDecrTrial_μ y n m) a b.
   Proof.
     rewrite /RealDecrTrial_μ.
@@ -320,6 +190,75 @@ Admitted.
     { apply ex_RInt_mult; [apply ex_RInt_pow|apply ex_RInt_const]. }
     { apply ex_RInt_mult; [apply ex_RInt_pow|apply ex_RInt_const]. }
   Qed.
+
+  (* Sadly, the existence here needs to be weakened from (ex_seriesC F) to
+      something which takes into account the fact that it is multiplied by
+      RealDecrTrial_μ. Only their product needs to converge, and for the way
+      we use it in NegExp/HalfNegExp, (ex_seriesC F) is not true!
+
+      This makes the uniform convergence story harder to specify. What I specify
+      here is probably way stronger than necessary, but both usages of this theorem satisfy
+      it, so it stays.
+   *)
+
+  Lemma RealDecrTrial_CreditV_ex_RInt {F N M} (Hbound : forall n, 0 <= F n <= M) :
+    ex_RInt (RealDecrTrial_CreditV F (N + 1)) 0 1.
+  Proof.
+    rewrite -ex_RInt_dom.
+    rewrite /ex_RInt.
+    rewrite /RealDecrTrial_CreditV.
+    replace (λ x : R, Iverson (Ioo 0 1) x * SeriesC (λ n : nat, RealDecrTrial_μ x (N + 1) n * F n))
+       with (λ x : R, Series.Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x (N + 1) n * F n))); last first.
+    { apply functional_extensionality; intros ?.
+      rewrite -SeriesC_scal_l.
+      rewrite SeriesC_Series_nat.
+      done.
+    }
+    pose s : nat → R → R_CompleteNormedModule := fun M x => sum_n (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x (N + 1) n * F n)) M.
+    pose h : nat → R_CompleteNormedModule := fun x => (RInt (λ x0 : R, sum_n (λ n : nat, Iverson (Ioo 0 1) x0 * (RealDecrTrial_μ x0 (N + 1) n * F n)) x) 0 1).
+    have HSLim : filterlim s eventually (locally (λ x : R, Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x (N + 1) n * F n)))).
+    { rewrite /s.
+      rewrite /RealDecrTrial_μ /RealDecrTrial_μ0.
+      (* M test with the upper bound (M (/ (fact (n - (N + 1))) - / (fact (n - (N + 1) + 1))
+        Bounded above by a sum converging to M e^1
+       *)
+      admit. }
+    have HSInt : ∀ x : nat, is_RInt (s x) 0 1 (h x).
+    { rewrite /s/h. intro N'.
+      apply (@RInt_correct R_CompleteNormedModule).
+      apply ex_RInt_sum_n.
+      intros n.
+      rewrite ex_RInt_dom.
+      apply ex_RInt_Rmult'.
+      apply RealDecrTrial_μ_ex_RInt.
+    }
+    destruct (@filterlim_RInt nat R_CompleteNormedModule s 0 1 eventually eventually_filter
+      (λ x : R, Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x (N + 1) n * F n))) h HSInt HSLim) as [IF [HIf1 HIf2]].
+    exists IF. done.
+  Admitted.
+
+  (* Telescoping series *)
+  Lemma RealDecrTrial_μ0_ex_seriesC {x} (Hx : 0 <= x <= 1) : ex_seriesC (λ n : nat, RealDecrTrial_μ0 x n).
+  Proof.
+  Admitted.
+
+  Lemma RealDecrTrial_μ0_ex_seriesC' {x} (Hx : 0 <= x <= 1) : ex_seriesC (λ n : nat, RealDecrTrial_μ0 x (n + 1)).
+  Proof.
+  Admitted.
+
+  Lemma g_ex_RInt {F N M rx} (Hbound : ∀ n : nat, 0 <= F n <= M) : ex_RInt (g F N rx) 0 1.
+  Proof.
+    rewrite /g.
+    apply ex_RInt_add.
+    { apply ex_RInt_mult; [apply ex_RInt_Iverson_le_uncurry|].
+      eapply RealDecrTrial_CreditV_ex_RInt.
+      done.
+    }
+    { apply ex_RInt_mult; [apply ex_RInt_Iverson_ge_uncurry|].
+      apply ex_RInt_const.
+    }
+  Qed.
+
 
   Lemma RealDecrTrial_μ_RInt {n m} {a b} :
     RInt (λ y : R, RealDecrTrial_μ y n m) a b =
@@ -372,15 +311,14 @@ Admitted.
     { by rewrite Rmult_0_l -RInt_Rmult Rmult_0_l. }
   Qed.
 
-  Theorem g_expectation {F N rx M} (Hrx : 0 <= rx <= 1) (* (Hex : ex_seriesC F) *)
+  Theorem g_expectation {F N rx M} (Hrx : 0 <= rx <= 1)
     (Hbound : forall n, 0 <= F n <= M) : is_RInt (g F N rx) 0 1 (RealDecrTrial_CreditV F N rx).
   Proof.
     have Hex' : ∀ n, ex_RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n) 0 1.
     { admit. }
     suffices H : RInt (g F N rx) 0 1 = RealDecrTrial_CreditV F N rx.
     { rewrite -H. eapply (RInt_correct (V := R_CompleteNormedModule)), g_ex_RInt.
-      { apply Hbound. }
-    }
+      eapply Hbound. }
     rewrite /g.
     rewrite -RInt_add.
     3: { apply ex_RInt_mult; [apply ex_RInt_Iverson_ge_uncurry|]. apply ex_RInt_const. }
@@ -560,7 +498,7 @@ Section trial.
       else
         "N".
 
-  Lemma wp_lazyDecrR_gen {M} (F : nat → R) (Hnn : ∀ n, 0 <= F n <= M) E (* (Hex : ex_seriesC F) *) :
+  Lemma wp_lazyDecrR_gen {M} (F : nat → R) (Hnn : ∀ n, 0 <= F n <= M) E :
     ⊢ ∀ N x rx, lazy_real x rx ∗ ⌜0 <= rx <= 1 ⌝ ∗ ↯ (RealDecrTrial_CreditV F N rx) -∗
                 WP lazyDecrR #N x @ E {{ z, ∃ n : nat, ⌜z = #n⌝ ∗ ↯ (F n) ∗ lazy_real x rx }}.
   Proof.

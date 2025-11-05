@@ -545,4 +545,20 @@ Proof.
     ex_seriesC f → ex_seriesC g → ex_seriesC (fun n => f n * g n).
   Proof. Admitted.
 
+  (* Weierstrass M test, Rudin 7.10 *)
+  Lemma UniformConverge_Series {F : R → nat → R} (UB : nat → R) :
+    (Series.ex_series UB) →
+    (forall x n, Rabs (F x n) <= UB n) →
+    filterlim (fun (M : nat) (x : R) => sum_n (F x) M) eventually (locally (λ x : R, Series.Series (F x))).
+  Proof. Admitted.
+
+  Lemma ex_RInt_sum_n {a b M} {F : nat → R → R} :
+    (∀ n, ex_RInt (F n) a b) → ex_RInt (λ x : R, sum_n (λ n : nat, F n x) M) a b .
+  Proof. Admitted.
+
+  Definition Ioo (a b : R) : R → Prop := fun x => Rmin a b < x < Rmax a b.
+
+  Lemma ex_RInt_dom {F : R → R} {a b : R} : ex_RInt (fun x => Iverson (Ioo a b) x * F x) a b ↔ ex_RInt F a b.
+  Proof. Admitted.
+
 End Lib.

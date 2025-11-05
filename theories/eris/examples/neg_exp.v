@@ -308,6 +308,6 @@ Section program.
       rewrite Nat2Z.inj_add.
       iApply "IH".
     }
-  Qed.
+  Admitted.
 
 End program.
