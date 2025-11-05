@@ -7,7 +7,6 @@ From clutch.eris.examples Require Import lazy_real.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
-
 Section Indicators.
 Import Hierarchy.
 
@@ -559,6 +558,12 @@ Proof.
   Definition Ioo (a b : R) : R → Prop := fun x => Rmin a b < x < Rmax a b.
 
   Lemma ex_RInt_dom {F : R → R} {a b : R} : ex_RInt (fun x => Iverson (Ioo a b) x * F x) a b ↔ ex_RInt F a b.
+  Proof. Admitted.
+
+  Lemma ex_exp_series : Series.ex_series (λ n : nat, / fact n).
+  Proof. Admitted.
+
+  Lemma ex_exp_series' {M : nat} : Series.ex_series (λ n : nat, / fact (n - M)).
   Proof. Admitted.
 
 End Lib.

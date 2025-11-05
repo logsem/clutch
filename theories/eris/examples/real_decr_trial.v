@@ -8,22 +8,18 @@ From clutch.eris.examples Require Import lazy_real indicators.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
+Ltac OK := auto; (try by intuition); try lia; try lra.
+
 Section pmf.
 
   (* The PMF for lazyDecrR starting with N=0 *)
-  Definition RealDecrTrial_μ0 (x : R) (n : nat) : R :=
-    ((x ^ n) / fact n) - ((x ^ (n + 1)) / fact (n + 1)).
-
-  (* The PMF for the trial starting at 0, over the integers *)
-  Definition RealDecrTrial_μZ (x : R) (z : Z) : R :=
-    Iverson (Z.le 0%Z) z * RealDecrTrial_μ0 x (Z.to_nat z).
+  Definition RealDecrTrial_μ0 (x : R) (n : nat) : R := x ^ n / fact n - x ^ (n + 1) / fact (n + 1).
 
   (* The PMF for lazyDecrR starting with N=i *)
-  Definition RealDecrTrial_μ (x : R) (i n : nat) : R :=
-    Iverson (uncurry le) (i, n) * RealDecrTrial_μ0 x (n - i).
+  Definition RealDecrTrial_μ (x : R) (i n : nat) : R := Iverson (uncurry le) (i, n) * RealDecrTrial_μ0 x (n - i).
 
   Theorem RealDecrTrial_μ_not_supp {x i n} (H : lt n i) : RealDecrTrial_μ x i n = 0.
-  Proof. rewrite /RealDecrTrial_μ Iverson_False //=; [lra|lia]. Qed.
+  Proof. rewrite /RealDecrTrial_μ Iverson_False //=; OK. Qed.
 
   Theorem RealDecrTrial_μ_supp {x i n} (H : ¬ lt n i) : RealDecrTrial_μ x i n = RealDecrTrial_μ0 x (n - i).
   Proof. rewrite /RealDecrTrial_μ Iverson_True //=; [lra|lia]. Qed.
@@ -64,9 +60,6 @@ Section credits.
   (* Expected number of credits to execute lazyDecrR i x *)
   Definition RealDecrTrial_CreditV (F : nat → R) (i : nat) (x : R) : R :=
     SeriesC (fun n : nat => RealDecrTrial_μ x i n * F n).
-
-  Definition RealDecrTrial_CreditV0 (F : Z → R) (x : R) : R :=
-    SeriesC (fun z : Z => RealDecrTrial_μZ x z * F z).
 
   (* Credit distribution function *)
   Definition g (F : nat → R) (i : nat) (x : R) : R → R := fun y =>
@@ -191,16 +184,6 @@ Section credits.
     { apply ex_RInt_mult; [apply ex_RInt_pow|apply ex_RInt_const]. }
   Qed.
 
-  (* Sadly, the existence here needs to be weakened from (ex_seriesC F) to
-      something which takes into account the fact that it is multiplied by
-      RealDecrTrial_μ. Only their product needs to converge, and for the way
-      we use it in NegExp/HalfNegExp, (ex_seriesC F) is not true!
-
-      This makes the uniform convergence story harder to specify. What I specify
-      here is probably way stronger than necessary, but both usages of this theorem satisfy
-      it, so it stays.
-   *)
-
   Lemma RealDecrTrial_CreditV_ex_RInt {F N M} (Hbound : forall n, 0 <= F n <= M) :
     ex_RInt (RealDecrTrial_CreditV F (N + 1)) 0 1.
   Proof.
@@ -218,11 +201,87 @@ Section credits.
     pose h : nat → R_CompleteNormedModule := fun x => (RInt (λ x0 : R, sum_n (λ n : nat, Iverson (Ioo 0 1) x0 * (RealDecrTrial_μ x0 (N + 1) n * F n)) x) 0 1).
     have HSLim : filterlim s eventually (locally (λ x : R, Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x (N + 1) n * F n)))).
     { rewrite /s.
-      rewrite /RealDecrTrial_μ /RealDecrTrial_μ0.
-      (* M test with the upper bound (M (/ (fact (n - (N + 1))) - / (fact (n - (N + 1) + 1))
-        Bounded above by a sum converging to M e^1
-       *)
-      admit. }
+      apply (UniformConverge_Series (fun n => M * / (fact (n - (N + 1))%nat))).
+      { apply (@ex_series_scal_l _ R_CompleteNormedModule).
+        apply ex_exp_series'. }
+      intros x n.
+      rewrite Rabs_right; last first.
+      { apply Rle_ge.
+        rewrite /Iverson; case_decide.
+        { rewrite Rmult_1_l. apply Rmult_le_pos; [apply RealDecrTrial_μnn|].
+          { rewrite /Ioo in H.
+            rewrite Rmin_left in H; OK.
+            rewrite Rmax_right in H; OK.
+          }
+          { apply Hbound. }
+        }
+        OK.
+      }
+      rewrite /Iverson.
+      case_decide; last first.
+      { rewrite Rmult_0_l.
+        apply Rdiv_le_0_compat. { have ? := Hbound 0%nat. OK. }
+        apply INR_fact_lt_0. }
+      rewrite /Ioo in H.
+      rewrite Rmin_left in H; OK.
+      rewrite Rmax_right in H; OK.
+      rewrite Rmult_1_l.
+      rewrite Rmult_comm.
+      apply Rmult_le_compat.
+      { apply Hbound. }
+      { apply RealDecrTrial_μnn; OK. }
+      { apply Hbound. }
+      rewrite /RealDecrTrial_μ.
+      rewrite /Iverson; case_decide; last first.
+      { rewrite Rmult_0_l.
+        rewrite -(Rmult_1_l (/ fact _)).
+        apply Rdiv_le_0_compat; OK.
+        apply INR_fact_lt_0. }
+      rewrite Rmult_1_l.
+      rewrite /RealDecrTrial_μ0.
+      repeat rewrite Rdiv_def.
+      replace (n - (N + 1) + 1)%nat with (S (n - (N + 1))) by OK.
+      rewrite fact_simpl.
+      rewrite mult_INR.
+      rewrite Rinv_mult.
+      rewrite -Rmult_assoc.
+      rewrite -Rmult_minus_distr_r.
+      rewrite -{2}(Rmult_1_l (/fact (n - (N + 1)))).
+      apply Rmult_le_compat.
+      { apply Rle_0_le_minus.
+        rewrite -(Rmult_1_l (x ^ (n - (N + 1)))).
+        rewrite Rmult_comm.
+        apply Rmult_le_compat.
+        { rewrite -(Rmult_1_l (/ _)).
+          apply Rle_mult_inv_pos; OK.
+          apply pos_INR_S. }
+        { apply pow_le; OK. }
+        { rewrite -Rinv_1.
+          apply Rinv_le_contravar; OK.
+          rewrite -INR_1.
+          apply le_INR.
+          OK.
+        }
+        { rewrite -(Rmult_1_l (x ^ (n - (N + 1)))).
+          rewrite -tech_pow_Rmult.
+          apply Rmult_le_compat_r; OK.
+          apply pow_le; OK.
+        }
+      }
+      { rewrite -(Rmult_1_l (/ _)).
+        apply Rle_mult_inv_pos; OK.
+        apply INR_fact_lt_0. }
+      { have ? : 0 <= x ^ S (n - (N + 1)) * / S (n - (N + 1)).
+        { apply Rle_mult_inv_pos; OK.
+          { apply pow_le; OK. }
+          { apply pos_INR_S. }
+        }
+        suffices ? : x ^ (n - (N + 1)) <= 1 by OK.
+        rewrite -(pow1 (n - (N + 1))).
+        apply pow_incr; OK.
+      }
+      { apply Rinv_le_contravar; OK. apply INR_fact_lt_0. }
+    }
     have HSInt : ∀ x : nat, is_RInt (s x) 0 1 (h x).
     { rewrite /s/h. intro N'.
       apply (@RInt_correct R_CompleteNormedModule).
@@ -235,7 +294,7 @@ Section credits.
     destruct (@filterlim_RInt nat R_CompleteNormedModule s 0 1 eventually eventually_filter
       (λ x : R, Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x (N + 1) n * F n))) h HSInt HSLim) as [IF [HIf1 HIf2]].
     exists IF. done.
-  Admitted.
+  Qed.
 
   (* Telescoping series *)
   Lemma RealDecrTrial_μ0_ex_seriesC {x} (Hx : 0 <= x <= 1) : ex_seriesC (λ n : nat, RealDecrTrial_μ0 x n).
