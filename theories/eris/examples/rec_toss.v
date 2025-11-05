@@ -118,15 +118,16 @@ Section toss_rec.
     (* TODO: Why `Herr` needs to be in square brackets... *)
     - wp_apply (toss_rec_spec_aux (1/4)%R _ with "[Herr]").
       * rewrite /ε2.
-      (* TODO: error credit manipulation *)
-        admit.
+        assert (n <=? 0 = false) as ->.
+        { apply Nat.leb_gt. lia. }
+        iApply ec_split; [lra|lra|]. replace (3/4)%R with (1/2 + 1/4)%R by lra. iFrame.
       * iIntros (v) "Herr".
         wp_pures.
         wp_apply (toss_rec_spec_aux (0)%R _ with "[Herr]").
-        (* TODO: error credit manipulation *)
-        -- admit.
+        -- replace (1/4*2)%R with (1/2)%R by lra. iApply ec_split; [lra|lra|]. replace (1/2)%R with (1/2 + 0)%R by lra. iFrame.
+           replace (1/2+0+0)%R with (1/2+0)%R by lra. iFrame.
         -- iIntros (v') "Herr". done.
-  Admitted.
+  Qed.
 
 
 End toss_rec.
