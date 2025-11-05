@@ -129,8 +129,6 @@ Proof.
   apply bool_irrelevance.
 Qed.
 
-HB.instance Definition foo {A: countType} {B: eqType} (f: A → B) : isCountable _ :=
-  PCanIsCountable (pickle_imgK f).
 
 
 (* Some facts about series over countable types *)
