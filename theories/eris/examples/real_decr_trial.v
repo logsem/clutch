@@ -374,7 +374,10 @@ Section credits.
     (Hbound : forall n, 0 <= F n <= M) : is_RInt (g F N rx) 0 1 (RealDecrTrial_CreditV F N rx).
   Proof.
     have Hex' : ∀ n, ex_RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n) 0 1.
-    { admit. }
+    { intro n.
+      apply ex_RInt_mult; [apply ex_RInt_Iverson_le_uncurry|].
+      apply RealDecrTrial_μ_ex_RInt.
+    }
     suffices H : RInt (g F N rx) 0 1 = RealDecrTrial_CreditV F N rx.
     { rewrite -H. eapply (RInt_correct (V := R_CompleteNormedModule)), g_ex_RInt.
       eapply Hbound. }
@@ -396,9 +399,7 @@ Section credits.
     replace
       (RInt (λ x : R, SeriesC (λ n : nat, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n)) 0 1) with
       (SeriesC (λ n : nat, RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n) 0 1)); last first.
-    { (* Deploy the Foob *)
-
-      (* Is it possible that Hex is needed here? *)
+    { (* Is it possible that Hex is needed here? *)
       admit. }
     rewrite (@RInt_Iverson_ge rx (fun x => F N) Hrx).
     rewrite RInt_const/scal//=/mult//=.

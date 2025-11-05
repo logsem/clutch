@@ -566,4 +566,5 @@ Proof.
   Lemma ex_exp_series' {M : nat} : Series.ex_series (λ n : nat, / fact (n - M)).
   Proof. Admitted.
 
+
 End Lib.
