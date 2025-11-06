@@ -678,6 +678,46 @@ Lemma rel_inv_restore N P e1 e2 X R :
     iModIntro.
     by iApply "Hrel".
   Qed.
+
+  Lemma rel_na_alloc P N E e1 e2 X R :
+    (▷ P ∗ (na_invP N P -∗ REL e1 ≤ e2 @ E <|X|> {{R}}))
+    ⊢ REL e1 ≤ e2 @ E <|X|> {{R}}.
+  Proof.
+    iIntros "[HP Hcont]". iApply fupd_rel.
+    iMod (na_inv_alloc with "HP"). iModIntro.
+    iApply ("Hcont" with "[$]").
+  Qed.
+
+  Lemma rel_na_inv P E N e1 e2 X R :
+    ↑N ⊆ E →
+    na_invP N P ∗
+    (▷ P ∗ na_closeP P N E -∗ REL e1 ≤ e2 @ (E ∖ ↑N) <|X|> {{R}})%I
+    ⊢ REL e1 ≤ e2 @ E <|X|> {{R}}.
+  Proof.
+    iIntros (NE) "[Hinv IH]".
+    rewrite !rel_unfold /rel_pre !obs_refines_eq /obs_refines_def.
+    iIntros (k1 k2 S) "Hkwp".
+    iIntros (K ε) "Hs Hnais Herr Hlt".
+    iMod (na_inv_acc with "Hinv Hnais") as "(HP & Hnais & Hclose)" ; auto.
+    iDestruct ("IH" with "[HP Hclose]") as "IH". 1: iFrame.
+    iDestruct ("IH" with "[$Hkwp]") as "IH".
+    by iApply ("IH" $! K with "Hs Hnais Herr").
+  Qed.
+
+  Lemma rel_na_close P E N e1 e2 X R :
+    (▷ P ∗ na_closeP P N E ∗
+    REL e1 ≤ e2 @ E <|X|> {{R}})
+    ⊢ REL e1 ≤ e2 @ (E ∖ ↑N) <|X|> {{R}}.
+  Proof.
+    iIntros "(HP & Hclose & IH)".
+    rewrite !rel_unfold /rel_pre  !obs_refines_eq /obs_refines_def.
+    iIntros (k1 k2 S) "Hkwp".
+    iIntros (K ε) "Hs own_FN Herr Hlt".
+    iDestruct ("Hclose" with "[$HP $own_FN]") as "own_F".
+    iMod "own_F".
+    iDestruct ("IH" with "Hkwp") as "IH".
+    by iApply ("IH" with "Hs own_F Herr").
+  Qed.
   
   Lemma rel_wand' e1 e2 X Y R S :
     iThy_le X Y -∗
