@@ -9,6 +9,8 @@ Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
 Ltac OK := auto; (try by intuition); try lia; try lra.
+Ltac funext := apply functional_extensionality.
+Ltac funexti := apply functional_extensionality; intros ?.
 
 Section pmf.
 
@@ -297,13 +299,33 @@ Section credits.
   Qed.
 
   (* Telescoping series *)
-  Lemma RealDecrTrial_μ0_ex_seriesC {x} (Hx : 0 <= x <= 1) : ex_seriesC (λ n : nat, RealDecrTrial_μ0 x n).
+  Lemma RealDecrTrial_μ0_ex_seriesC {x M} (Hx : 0 <= x <= 1) : ex_seriesC (λ n : nat, RealDecrTrial_μ0 x (n + M)).
   Proof.
-  Admitted.
-
-  Lemma RealDecrTrial_μ0_ex_seriesC' {x} (Hx : 0 <= x <= 1) : ex_seriesC (λ n : nat, RealDecrTrial_μ0 x (n + 1)).
-  Proof.
-  Admitted.
+    rewrite /RealDecrTrial_μ0.
+    have Hex1 : ex_seriesC (fun n => x ^ (n + M) / fact (n + M)).
+    { induction M.
+      { replace (λ n : nat, x ^ (n + 0) / fact (n + 0)) with (λ n : nat, x ^ n / fact n); last first.
+        { funexti. repeat f_equal; OK. }
+        apply Hpow_ex.
+      }
+      { replace (λ n : nat, x ^ (n + S M) / fact (n + S M)) with ((λ n : nat, x ^ (n + M) / fact (n + M)) ∘ S); last first.
+        { rewrite /compose. funexti. do 2 f_equal.
+          - OK.
+          - f_equal; OK.
+        }
+        apply ex_SeriesC_nat_shift.
+        apply IHM.
+      }
+    }
+    have Hex2 := ex_SeriesC_nat_shift Hex1.
+    eapply ex_seriesC_ext; [|apply (ex_seriesC_plus _ _ Hex1 (ex_seriesC_scal_l _ (- 1) Hex2))].
+    intro n.
+    rewrite Rminus_def.
+    f_equal.
+    rewrite Ropp_mult_distr_l_reverse IPR_xH //= Rmult_1_l; f_equal.
+    replace (n + M + 1)%nat with (S (n + M))%nat by OK.
+    f_equal.
+  Qed.
 
   Lemma g_ex_RInt {F N M rx} (Hbound : ∀ n : nat, 0 <= F n <= M) : ex_RInt (g F N rx) 0 1.
   Proof.
