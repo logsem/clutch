@@ -109,13 +109,28 @@ Section credits.
     rewrite /Norm2.
     (* LB the sequence by its first element? *)
     (* Then LB the integral by some stupid step function or something *)
+
     eapply (Rlt_le_trans _ (RInt (λ x : R, SeriesC (λ k : nat, if (bool_decide (k = 0%nat)) then (exp (- x ^ 2 / 2)) else 0)) 0 1)).
     { replace (λ x : R, SeriesC (λ k : nat, if bool_decide (k = 0%nat) then exp (- x ^ 2 / 2) else 0))
          with (λ x : R,  exp (- x ^ 2 / 2)); last first.
       { apply functional_extensionality; intros x. by rewrite SeriesC_singleton. }
-
-      (* Step function LB *)
-      admit.
+      eapply Rlt_le_trans.
+      2: { eapply (RInt_le (fun _ => exp (- 1 ^ 2 / 2))); OK.
+           { apply ex_RInt_const. }
+           { apply exp_neg_RInt. }
+           { intros ? ?. apply exp_mono; OK.
+             do 2 rewrite Rdiv_def.
+             rewrite -Ropp_mult_distr_l.
+             rewrite -Ropp_mult_distr_l.
+             apply Ropp_le_contravar.
+             apply Rmult_le_compat_r; OK.
+             apply pow_incr; lra.
+            }
+      }
+      { rewrite RInt_const.
+        rewrite /scal///=/mult//= Rmult_1_l Rmult_1_l Rminus_0_r Rmult_1_l.
+        apply exp_pos.
+      }
     }
     { apply RInt_le; [lra | | | ].
       { replace (λ x : R, SeriesC (λ k : nat, if bool_decide (k = 0%nat) then exp (- x ^ 2 / 2) else 0))
@@ -747,7 +762,12 @@ Section program.
 
       { iIntros (E' F' Hf') "(Hε & HI)".
         wp_pure.
-        iApply wp_B; first done.
+        iApply (wp_B (M := F' false + F' true)).
+        { intro r; split; OK.
+          have ? : 0 <= F' false by apply Hf'.
+          have ? : 0 <= F' true by apply Hf'.
+          destruct r; OK.
+        }
         rewrite /B_CreditV.
         iFrame.
         auto.

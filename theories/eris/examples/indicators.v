@@ -621,4 +621,8 @@ Proof.
   Lemma LemDisj : forall (z : fin 2), z = 0%fin ∨ z = 1%fin.
   Proof. Admitted.
 
+  (* Geometric series *)
+  Lemma exp_neg_RInt : ex_RInt (λ x : R, exp (- x ^ 2 / 2)) 0 1.
+  Proof. Admitted.
+
 End Lib.

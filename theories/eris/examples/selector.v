@@ -1,12 +1,16 @@
 From clutch.eris Require Export eris error_rules receipt_rules.
 From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
+From Coquelicot Require Import Coquelicot.
 From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real indicators half_bern_neg_exp.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
+Ltac OK := auto; (try by intuition); try lia; try lra.
+Ltac funext := apply functional_extensionality.
+Ltac funexti := apply functional_extensionality; intros ?.
 
 Section pmf.
 
@@ -164,6 +168,37 @@ Section credits.
     apply S_μ0_nn; auto.
   Qed.
 
+  Lemma ex_RInt_S_μ0 {x n b k} : ex_RInt (λ x0 : R, S_μ0 k x x0 n) 0 b.
+  Proof.
+    rewrite /S_μ0.
+    apply (@ex_RInt_minus R_CompleteNormedModule).
+    { apply ex_RInt_Rmult'.
+      replace (λ x0 : R, x0 ^ n / fact n) with (λ x0 : R, x0 ^ n * / fact n) by (funexti; OK).
+      apply ex_RInt_Rmult'.
+      apply ex_RInt_pow.
+    }
+    { apply ex_RInt_Rmult'.
+      replace (λ x0 : R, x0 ^ (n + 1) / fact (n + 1)) with (λ x0 : R, x0 ^ (n + 1) * / fact (n + 1)) by (funexti; OK).
+      apply ex_RInt_Rmult'.
+      apply ex_RInt_pow.
+    }
+  Qed.
+
+  Lemma ex_RInt_S_μ {x N n b k} : ex_RInt (λ x0 : R, S_μ k x x0 N n) 0 b.
+  Proof.
+    rewrite /S_μ.
+    rewrite /Iverson.
+    case_decide.
+    { eapply ex_RInt_ext; last eapply ex_RInt_S_μ0.
+      intros ??. simpl. rewrite Rmult_1_l. done.
+    }
+    { eapply ex_RInt_ext; last eapply (ex_RInt_const _ _ 0).
+      intros ??.
+      simpl.
+      OK.
+    }
+  Qed.
+
   Lemma Bii_CreditV_nn {F k x} (Hnn : ∀ r, 0 <= F r) (Hx : 0 <= x <= 1) : 0 <= Bii_CreditV F k x.
   Proof.
     rewrite /Bii_CreditV.
@@ -235,8 +270,12 @@ Section credits.
     lra.
   Qed.
 
-  Lemma Bii_g_correct {F x} : is_RInt (Bii_g F x) 0 1 (RInt (Bii_g F x) 0 1).
-  Proof. Admitted.
+  Lemma Bii_g_correct {F x} (Hf : ∀ r : bool, 0 <= F r) : is_RInt (Bii_g F x) 0 1 (RInt (Bii_g F x) 0 1).
+  Proof.
+    apply (RInt_correct (Bii_g F x) 0 1).
+    apply Bii_g_ex_RInt.
+    apply Hf.
+  Qed.
 
   Lemma Bii_f_expectation {F k x} (Hx : 0 <= x <= 1) : Bii_CreditV F k x = C_CreditV (Bii_h F x) (2 * k)%nat.
   Proof.
@@ -327,43 +366,213 @@ Section credits.
     { apply S_hz_nn; auto. }
   Qed.
 
-  Lemma ex_RInt_S_CreditV {F k x N b} (Hb : 0 <= b <= 1) : ex_RInt (λ y : R, S_CreditV F k x y N) 0 b.
+  Lemma ex_RInt_S_CreditV {F k x N b M} (Hb : 0 <= b <= 1) (Hx : 0 <= x <= 1) (Hf : ∀ x, 0 <= F x <= M) : ex_RInt (λ y : R, S_CreditV F k x y N) 0 b.
   Proof.
     rewrite /S_CreditV.
-  Admitted.
+    rewrite -ex_RInt_dom.
+    rewrite /ex_RInt.
+    replace (λ x0 : R, Iverson (Ioo 0 b) x0 * SeriesC (λ n : nat, S_μ k x x0 N n * F n))
+      with  (fun x0 : R => Series.Series (fun n : nat => Iverson (Ioo 0 b) x0 * (S_μ k x x0 N n * F n))); last first.
+    { funexti.
+      rewrite -SeriesC_scal_l.
+      rewrite SeriesC_Series_nat.
+      OK.
+    }
+    pose s : nat → R → R_CompleteNormedModule :=
+      fun M x0 => sum_n (λ n : nat, Iverson (Ioo 0 b) x0 * (S_μ k x x0 N n * F n)) M.
+    pose h : nat → R_CompleteNormedModule :=
+      fun x1 => (RInt (λ x0 : R, sum_n (λ n : nat, Iverson (Ioo 0 b) x0 * (S_μ k x x0 N n * F n)) x1) 0 b).
+    have HSLim : filterlim s eventually
+      (locally (λ x0 : R, Series.Series (λ n : nat, Iverson (Ioo 0 b) x0 * (S_μ k x x0 N n * F n)))).
+    { rewrite /s.
+      apply (UniformConverge_Series (fun n => M * / (fact (n - N)%nat))).
+      { apply (@Series.ex_series_scal_l _ R_CompleteNormedModule), ex_exp_series'. }
+      intros x' n.
+      rewrite Rabs_right; last first.
+      { apply Rle_ge.
+        rewrite /Iverson; case_decide.
+        { rewrite Rmult_1_l. apply Rmult_le_pos.
+          { apply S_μ_nn; OK.
+            rewrite /Ioo//= in H.
+            rewrite /Ioo in H.
+            rewrite Rmin_left in H; OK.
+            rewrite Rmax_right in H; OK.
+          }
+          { apply Hf. }
+        }
+        OK.
+      }
+      rewrite /Iverson.
+      case_decide; last first.
+      { rewrite Rmult_0_l.
+        apply Rdiv_le_0_compat. { have ? := Hf 0%nat. OK. }
+        apply INR_fact_lt_0. }
+      rewrite /Ioo in H.
+      rewrite Rmin_left in H; OK.
+      rewrite Rmax_right in H; OK.
+      rewrite Rmult_1_l.
+      rewrite Rmult_comm.
+      apply Rmult_le_compat.
+      { apply Hf. }
+      { apply S_μ_nn; OK. }
+      { apply Hf. }
+      rewrite /S_μ.
+      rewrite /Iverson; case_decide; last first.
+      { rewrite Rmult_0_l.
+        rewrite -(Rmult_1_l (/ fact _)).
+        apply Rdiv_le_0_compat; OK.
+        apply INR_fact_lt_0. }
+      rewrite Rmult_1_l.
+      rewrite /S_μ0.
+      repeat rewrite Rdiv_def.
+      replace (n - N + 1)%nat with (S (n - N)) by OK.
+      rewrite fact_simpl.
+      rewrite mult_INR.
+      rewrite Rinv_mult.
+      rewrite -Rmult_assoc.
+      rewrite -tech_pow_Rmult.
+      rewrite -tech_pow_Rmult.
+      repeat rewrite -Rmult_assoc.
+      rewrite -Rmult_minus_distr_r.
+      rewrite -{3}(Rmult_1_r (/fact (n - N))).
+      have Lem1 : 0 <= (2 * k + x) * / (2 * k + 2) <= 1.
+      { split.
+        { apply Rle_mult_inv_pos.
+          { apply Rplus_le_le_0_compat; OK.
+            apply Rmult_le_pos; OK.
+            apply pos_INR.
+          }
+          { apply Rplus_le_lt_0_compat; OK.
+            apply Rmult_le_pos; OK.
+            apply pos_INR.
+          }
+        }
+        { have ? : 0 < (2 * k + 2). { apply Rplus_le_lt_0_compat; OK. apply Rmult_le_pos; OK. apply pos_INR. }
+          apply (Rmult_le_reg_r (2 * k + 2)); OK.
+          rewrite Rmult_assoc.
+          rewrite Rinv_l; OK.
+        }
+      }
+      apply Rmult_le_compat.
+      { apply Rle_0_le_minus.
+        rewrite (Rmult_comm x' (x' ^ (n - N))).
+        repeat rewrite Rmult_assoc.
+        apply Rmult_le_compat_l.
+        { apply pow_le; OK. }
+        rewrite -Rmult_assoc.
+        rewrite (Rmult_comm _ ((/ fact (n - N) * ((2 * k + x) * / (2 * k + 2))))).
+        repeat rewrite Rmult_assoc.
+        rewrite -{2}(Rmult_1_r (/ fact (n - N))).
+        apply Rmult_le_compat_l.
+        { rewrite -(Rmult_1_l (/ _)). apply Rdiv_le_0_compat; OK. apply INR_fact_lt_0. }
+        repeat rewrite -Rmult_assoc.
+        rewrite Rmult_assoc.
+        rewrite -(Rmult_1_l 1).
+        have ? : 0 < INR (S (n - N)) by apply pos_INR_S.
+        apply Rmult_le_compat; OK.
+        { apply Rdiv_le_0_compat; OK.  }
+        apply (Rmult_le_reg_r (INR (S (n - N)))); OK.
+        rewrite Rmult_assoc.
+        rewrite Rinv_l; OK.
+        rewrite Rmult_comm.
+        apply Rmult_le_compat; OK.
+        apply (Rle_trans _ b); OK.
+        apply (Rle_trans _ 1); OK.
+        rewrite -INR_1.
+        apply le_INR. OK.
+      }
+      { apply pow_le. apply Lem1. }
+      { replace (x' ^ (n - N) * / fact (n - N) - x' * x' ^ (n - N) * / S (n - N) * / fact (n - N) * (2 * k + x) * / (2 * k + 2))
+          with  (/ fact (n - N)  * (x' ^ (n - N) - x' * x' ^ (n - N) * / S (n - N) * (2 * k + x) * / (2 * k + 2))) by OK.
+        rewrite -{2}(Rmult_1_r (/ fact (n - N))).
+        apply Rmult_le_compat; OK.
+        { rewrite -(Rmult_1_l (/_)). apply Rdiv_le_0_compat; OK. apply INR_fact_lt_0. }
+        { apply error_credits.Rle_0_le_minus.
+          rewrite (Rmult_comm  x' (x' ^ (n - N))).
+          rewrite -{2}(Rmult_1_l (x' ^ (n - N))).
+          repeat rewrite Rmult_assoc.
+          rewrite (Rmult_comm 1 (x' ^ (n - N))).
+          apply Rmult_le_compat; OK.
+          { apply pow_le; OK. }
+          { rewrite -Rmult_assoc.
+            apply Rmult_le_pos; OK.
+            apply Rdiv_le_0_compat; OK.
+            apply pos_INR_S. }
+          rewrite -(Rmult_1_l 1).
+          apply Rmult_le_compat; OK.
+          { rewrite Rmult_comm.
+            apply Rdiv_le_0_compat; OK.
+            apply pos_INR_S. }
+          { rewrite -(Rmult_1_l 1).
+            apply Rmult_le_compat; OK.
+            { rewrite  -(Rmult_1_l (/ _)).
+              apply Rdiv_le_0_compat; OK.
+              apply pos_INR_S. }
+            { rewrite -Rinv_1.
+              apply Rinv_le_contravar; OK.
+              rewrite -INR_1.
+              apply le_INR.
+              OK.
+              }
+            }
+          }
+        { etrans.
+          { eapply Rminus_le_0_compat.
+            repeat rewrite Rmult_assoc.
+            apply Rmult_le_pos; OK.
+            apply Rmult_le_pos.
+            { apply pow_le; OK. }
+            apply Rmult_le_pos; OK.
+        { rewrite -(Rmult_1_l (/_)). apply Rdiv_le_0_compat; OK. apply pos_INR_S. } }
+      { rewrite -(pow1 (n - N)). apply pow_incr; OK. } } }
+    { rewrite -(pow1 (n - N)). apply pow_incr; OK. }
+    }
+    have HSInt : ∀ x : nat, is_RInt (s x) 0 b (h x).
+    { rewrite /s/h. intro N'.
+      apply (@RInt_correct R_CompleteNormedModule).
+      apply ex_RInt_sum_n.
+      intros n''.
+      rewrite ex_RInt_dom.
+      apply ex_RInt_Rmult'.
+      apply ex_RInt_S_μ.
+    }
+    destruct (@filterlim_RInt nat R_CompleteNormedModule s 0 b eventually eventually_filter
+      (λ x0 : R, Series.Series (λ n : nat, Iverson (Ioo 0 b) x0 * (S_μ k x x0 N n * F n))) h HSInt HSLim) as [IF [HIf1 HIf2]].
+    exists IF. done.
+  Qed.
 
-  Lemma ex_RInt_S_hz {F k N x  b} : ex_RInt (λ y0 : R, S_hz F k x N y0 b) 0 1.
+  Lemma ex_RInt_S_hz {F k N x M b} (Hx : 0 <= x <= 1) (Hf : ∀ x, 0 <= F x <= M) : ex_RInt (λ y0 : R, S_hz F k x N y0 b) 0 1.
   Proof.
     rewrite /S_hz.
     apply ex_RInt_add; first apply ex_RInt_const.
     apply ex_RInt_mult; first apply ex_RInt_const.
-    apply ex_RInt_S_CreditV; lra.
+    eapply ex_RInt_S_CreditV; OK.
   Qed.
 
-  Lemma S_g_ex_RInt {F k x y N} : ex_RInt (S_g F k x y N) 0 1.
+  Lemma S_g_ex_RInt {F k x y M N} (Hx : 0 <= x <= 1) (Hf : ∀ x, 0 <= F x <= M) : ex_RInt (S_g F k x y N) 0 1.
   Proof.
     rewrite /S_g.
     apply ex_RInt_add.
     { apply ex_RInt_mult; first apply ex_RInt_Iverson_le. apply ex_RInt_const. }
     apply ex_RInt_mult; first apply ex_RInt_Iverson_ge.
     apply ex_RInt_add.
-    { apply ex_RInt_mult; first apply ex_RInt_const. apply ex_RInt_S_hz. }
-    { apply ex_RInt_mult; first apply ex_RInt_const. apply ex_RInt_S_hz. }
+    { apply ex_RInt_mult; first apply ex_RInt_const. eapply ex_RInt_S_hz; OK. }
+    { apply ex_RInt_mult; first apply ex_RInt_const. eapply ex_RInt_S_hz; OK. }
   Qed.
 
   (* TODO: Maybe I could get rid of some of the splitting if the existence side conditions are hard to prove. *)
-  Lemma S_g_expectation {F k x y N} (Hx : 0 <= x <= 1) (Hy : 0 <= y <= 1) : is_RInt (S_g F k x y N) 0 1 (S_CreditV F k x y N).
+  Lemma S_g_expectation {F k x y M N} (Hx : 0 <= x <= 1) (Hy : 0 <= y <= 1) (Hf : ∀ x, 0 <= F x <= M) : is_RInt (S_g F k x y N) 0 1 (S_CreditV F k x y N).
   Proof.
     suffices H : S_CreditV F k x y N = RInt (S_g F k x y N) 0 1.
-    { rewrite H. apply (RInt_correct (V := R_CompleteNormedModule)), S_g_ex_RInt. }
+    { rewrite H. apply (RInt_correct (V := R_CompleteNormedModule)). eapply S_g_ex_RInt; OK. }
     rewrite /S_g.
     (* Split the series; compute the first term *)
     rewrite -RInt_add.
     3: {
       apply ex_RInt_mult; first apply ex_RInt_Iverson_ge.
       apply ex_RInt_add.
-      { apply ex_RInt_mult; first apply ex_RInt_const. apply ex_RInt_S_hz. }
-      { apply ex_RInt_mult; first apply ex_RInt_const. apply ex_RInt_S_hz. }
+      { apply ex_RInt_mult; first apply ex_RInt_const. eapply ex_RInt_S_hz; OK. }
+      { apply ex_RInt_mult; first apply ex_RInt_const. eapply ex_RInt_S_hz; OK. }
     }
     2: {
       apply ex_RInt_mult; first apply ex_RInt_Iverson_le.
@@ -397,8 +606,7 @@ Section credits.
     rewrite -RInt_add.
     3: { apply ex_RInt_mult; apply ex_RInt_const. }
     2: { apply ex_RInt_mult; first apply ex_RInt_const.
-         apply ex_RInt_S_CreditV.
-         lra.
+         eapply ex_RInt_S_CreditV; last done; OK.
     }
     rewrite RInt_const.
     rewrite /scal//=/mult//=.
@@ -421,7 +629,23 @@ Section credits.
       last first.
     { rewrite (SeriesC_Iverson_singleton N); last intuition. lra. }
     rewrite -SeriesC_plus.
-    3: { (* Foob-related *) admit. }
+    3: {
+      apply ex_seriesC_scal_l.
+      replace (λ x0 : nat, RInt (λ x1 : R, S_μ k x x1 (N + 1) x0 * F x0) 0 y)
+        with  (λ x0 : nat, 999 * F x0); last first.
+      { funexti.
+        symmetry.
+        rewrite -RInt_Rmult'; f_equal.
+        rewrite /S_μ.
+        rewrite /S_μ0.
+        (* Compute it *)
+
+        admit.
+      }
+      (* And then it should be the exp series or somthing? bound the F term above by M...*)
+      admit.
+
+    }
     2: { apply ex_seriesC_single. }
     rewrite /S_CreditV.
     f_equal. apply functional_extensionality; intro n.
@@ -587,6 +811,8 @@ Section program.
     }
     { rewrite /C_CreditV.
       unfold C_F.
+      rewrite SeriesC_fin_sum.
+      rewrite /sum_n.
       admit. }
     iIntros (n) "Hε".
     (* Probably true, stupid fin *)
@@ -630,7 +856,8 @@ Section program.
         rewrite Iverson_False; [rewrite Rmult_0_l Rplus_0_l|simpl; lra].
         rewrite Iverson_True; [rewrite Rmult_1_l|done].
         rewrite Iverson_False; [rewrite Rmult_0_l Rplus_0_r|simpl; lra].
-        exact Bii_g_correct.
+        apply Bii_g_correct.
+        done.
       }
       iSplitL "Hr"; [done|].
       iSplitL "Hε"; [done|].
@@ -675,7 +902,7 @@ Section program.
     }
   Qed.
 
-  Theorem wp_S {E F} (k : nat) xα x (Hnn : ∀ r, 0 <= F r) (Hx : 0 <= x <= 1) :
+  Theorem wp_S {E F M} (k : nat) xα x (Hnn : ∀ r, 0 <= F r <= M) (Hx : 0 <= x <= 1) :
     ∀ yα y N , ↯(S_CreditV F k x y N) ∗ lazy_real xα x ∗ lazy_real yα y ∗ ⌜0 <= x <= 1 ⌝ ∗ ⌜0 <= y <= 1⌝ -∗
     WP S #k xα yα #N @ E {{ vn, ∃ n : nat, ⌜vn = #n ⌝ ∗ ↯(F n) ∗ lazy_real xα x }}.
   Proof.
@@ -686,8 +913,8 @@ Section program.
     wp_apply wp_init; first done.
     iIntros (zα) "Hz".
     iApply (wp_lazy_real_presample_adv_comp _ _ zα _ (S_CreditV F k x y N) (S_g F k x y N)); auto.
-    { intros ??. apply S_g_nn; auto. }
-    { apply S_g_expectation; done. }
+    { intros ??. apply S_g_nn; auto. apply Hnn. }
+    { eapply S_g_expectation; done. }
     iSplitL "Hz"; [done|].
     iSplitL "Hε"; [done|].
     iIntros (z) "(% & Hε & Hz)".
@@ -700,7 +927,7 @@ Section program.
       rewrite /S_g.
       iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_nn_1; auto ]. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_nn_1; auto ]. apply Hnn. }
       rewrite Iverson_True; [rewrite Rmult_1_l|done].
       done.
     }
@@ -708,13 +935,13 @@ Section program.
       rewrite /S_g.
       iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_nn_1; auto ]. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_nn_1; auto ]. apply Hnn. }
       rewrite Iverson_True; [rewrite Rmult_1_l|lra].
       wp_bind (Bii _ _).
       iApply (pgl_wp_mono_frame (□ _ ∗ _  ∗ _)%I with "[Hx Hε ] [IH Hy Hz]"); last first.
       { iSplitR; first iExact "IH". iSplitL "Hy"; first iExact "Hy". iExact "Hz". }
       { iApply (@wp_Bii _ (S_hz F k x N z)); last iFrame; last done.
-        iIntros (?). apply S_hz_nn; auto. }
+        iIntros (?). apply S_hz_nn; auto. apply Hnn. }
       iIntros (bv) "((#IH & Hy & Hz) & [%b [-> [Hε Hx]]])".
       destruct b.
       { wp_pures.
@@ -722,7 +949,7 @@ Section program.
         rewrite /S_hz.
         iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
         { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_CreditV_nn; auto ]. }
+        { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_CreditV_nn; auto ]. apply Hnn. }
         rewrite Iverson_True; [rewrite Rmult_1_l|intuition].
         done.
       }
@@ -733,7 +960,7 @@ Section program.
         rewrite /S_hz.
         iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
         { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_CreditV_nn; auto ]. }
+        { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_CreditV_nn; auto ]. apply Hnn. }
         rewrite Iverson_True; [rewrite Rmult_1_l|intuition].
         iFrame.
         iPureIntro; auto.
@@ -741,7 +968,7 @@ Section program.
     }
   Qed.
 
-  Theorem wp_S0 {E F} (k : nat) xα x (Hnn : ∀ r, 0 <= F r) :
+  Theorem wp_S0 {E F M} (k : nat) xα x (Hnn : ∀ r, 0 <= F r <= M) :
     ↯(S_CreditV F k x x 0) ∗ lazy_real xα x ∗ ⌜ 0 <= x <= 1 ⌝ -∗
     WP S0 #k xα @ E {{ vn, ∃ n : nat, ⌜vn = #n ⌝ ∗ ↯(F n) ∗ lazy_real xα x }}.
   Proof.
@@ -751,8 +978,8 @@ Section program.
     wp_apply wp_init; first done.
     iIntros (zα) "Hz".
     iApply (wp_lazy_real_presample_adv_comp _ _ zα _ (S_CreditV F k x x 0) (S_g F k x x 0)); auto.
-    { intros ??. apply S_g_nn; auto. }
-    { apply S_g_expectation; done. }
+    { intros ??. apply S_g_nn; auto. apply Hnn. }
+    { eapply S_g_expectation; done. }
     iSplitL "Hz"; [done|].
     iSplitL "Hε"; [done|].
     iIntros (z) "(% & Hε & Hz)".
@@ -765,7 +992,7 @@ Section program.
       rewrite /S_g.
       iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_nn_1; auto ]. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_nn_1; auto ]. apply Hnn. }
       rewrite Iverson_True; [rewrite Rmult_1_l|done].
       done.
     }
@@ -773,12 +1000,12 @@ Section program.
       rewrite /S_g.
       iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_nn_1; auto ]. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_nn_1; auto ]. apply Hnn. }
       rewrite Iverson_True; [rewrite Rmult_1_l|lra].
       wp_bind (Bii _ _).
       iApply (pgl_wp_mono_frame (_ )%I with "[Hx Hε ] Hz"); last first.
       { iApply (@wp_Bii _ (S_hz F k x _ _)); last iFrame; last done.
-        iIntros (?). apply S_hz_nn; auto. }
+        iIntros (?). apply S_hz_nn; auto. apply Hnn. }
       iIntros (bv) "(Hz & [%b [-> [Hε Hx]]])".
       destruct b.
       { wp_pures.
@@ -786,7 +1013,7 @@ Section program.
         rewrite /S_hz.
         iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
         { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_CreditV_nn; auto ]. }
+        { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_CreditV_nn; auto ]. apply Hnn. }
         rewrite Iverson_True; [rewrite Rmult_1_l|intuition].
         done.
       }
@@ -796,14 +1023,14 @@ Section program.
         rewrite /S_hz.
         iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
         { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_CreditV_nn; auto ]. }
+        { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_CreditV_nn; auto ]. apply Hnn. }
         rewrite Iverson_True; [rewrite Rmult_1_l|intuition].
         iFrame. by iPureIntro.
       }
     }
   Qed.
 
-  Theorem wp_B {E F} (k : nat) xα x (Hnn : ∀ r, 0 <= F r) :
+  Theorem wp_B {E F M} (k : nat) xα x (Hnn : ∀ r, 0 <= F r <= M) :
     ↯(B_CreditV F k x) ∗ lazy_real xα x ∗ ⌜0 <= x <= 1 ⌝ -∗
     WP B #k xα @ E {{ vb, ∃ b : bool, ⌜vb = #b ⌝ ∗ ↯(F b) ∗ lazy_real xα x }}.
   Proof.
@@ -812,8 +1039,23 @@ Section program.
     wp_pures.
     wp_bind (S0 _ _).
     iApply (pgl_wp_mono with "[Hx Hε] "); last first.
-    { iApply (wp_S0 (F:=B_g F)).
-      { intros ?; apply B_g_nn; auto. }
+    { iApply (wp_S0 (F:=B_g F) (M := F true + F false)).
+      { intros ?. split; first (apply B_g_nn; apply Hnn).
+        rewrite /B_g.
+        apply Rplus_le_compat.
+        { rewrite -{2}(Rmult_1_l (F true)).
+          apply Rmult_le_compat; OK.
+          { apply Iverson_nonneg. }
+          { apply Hnn. }
+          { apply Iverson_le_1. }
+        }
+        { rewrite -{2}(Rmult_1_l (F false)).
+          apply Rmult_le_compat; OK.
+          { apply Iverson_nonneg. }
+          { apply Hnn. }
+          { apply Iverson_le_1. }
+        }
+      }
       iFrame.
       iApply (ec_eq with "Hε").
       apply B_g_expectation.
@@ -827,7 +1069,7 @@ Section program.
       rewrite /B_g.
       iPoseProof (ec_split _ _ with "Hec") as "(Hε & _)".
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | auto ]. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | auto ]. apply Hnn. }
       iApply (ec_eq with "Hε").
       rewrite Iverson_True; [by rewrite Rmult_1_l|].
       inversion H as [H'].
@@ -837,7 +1079,7 @@ Section program.
     { iExists false; iSplitR; first done.
       iPoseProof (ec_split _ _ with "Hec") as "(_ & Hε)".
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | auto ]. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | auto ]. apply Hnn. }
       iApply (ec_eq with "Hε").
       rewrite Iverson_True; [by rewrite Rmult_1_l|].
       rewrite //=.
