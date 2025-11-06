@@ -58,20 +58,26 @@ Section credits.
     { apply Rmult_le_pos; [apply Iverson_nonneg| auto ]. }
   Qed.
 
-  Local Lemma ex_RInt_RealDecrTrial_CreditV {F} : ex_RInt (RealDecrTrial_CreditV (LiftF F) 0) 0 1.
+  Local Lemma ex_RInt_RealDecrTrial_CreditV {F} (Hf : forall n, 0 <= F n) : ex_RInt (RealDecrTrial_CreditV (LiftF F) 0) 0 1.
   Proof.
-    rewrite /RealDecrTrial_CreditV.
-    (* Some kind of limit exchange *)
+    apply (RealDecrTrial_CreditV_ex_RInt (F := (LiftF F)) (M := Rmax (F false) (F true))).
+    intros n.
+    split.
+    { rewrite /LiftF; apply Hf. }
+    { rewrite /LiftF.
+      destruct ((n `rem` 2 =? 1)%Z).
+      { apply Rmax_r. }
+      { apply Rmax_l. }
+    }
+  Qed.
 
-  Admitted.
-
-  Local Lemma g_ex_RInt {F} : ex_RInt (g F) 0 1.
+  Local Lemma g_ex_RInt {F} (Hf : forall b, 0 <= F b) : ex_RInt (g F) 0 1.
   Proof.
     rewrite /g.
     apply ex_RInt_add.
     { apply ex_RInt_mult.
       { apply ex_RInt_Iverson_le'. }
-      { apply ex_RInt_RealDecrTrial_CreditV. }
+      { apply ex_RInt_RealDecrTrial_CreditV. done. }
     }
     { apply ex_RInt_mult.
       { apply ex_RInt_Iverson_nle'. }
@@ -79,10 +85,8 @@ Section credits.
     }
   Qed.
 
-  Local Lemma g_expectation {F M} (HF : ∀ x, 0 <= F x <= M) : is_RInt (g F) 0 1 (BNEHalf_CreditV F).
+  Local Lemma g_expectation {F M} (HF : ∀ x, 0 <= F x <= M) : RInt (g F) 0 1 = BNEHalf_CreditV F.
   Proof.
-    suffices H : RInt (g F) 0 1 = BNEHalf_CreditV F.
-    { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)), g_ex_RInt. }
     rewrite /g.
     rewrite -RInt_add.
     3: {
@@ -92,6 +96,7 @@ Section credits.
     2: {
       apply ex_RInt_mult; [apply ex_RInt_Iverson_le'|].
       apply ex_RInt_RealDecrTrial_CreditV.
+      apply HF.
     }
     rewrite RInt_Iverson_le; [|lra].
     rewrite RInt_Iverson_ge'; [|lra].
@@ -199,8 +204,7 @@ Section credits.
               by rewrite Rminus_0_r.
             }
           }
-          apply (RealDecrTrial_μ0_ex_seriesC').
-          lra.
+          apply RealDecrTrial_μ0_ex_seriesC. OK.
         }
       }
       2: {
@@ -292,8 +296,8 @@ Section credits.
               by rewrite Rminus_0_r.
             }
           }
-          apply (RealDecrTrial_μ0_ex_seriesC').
-          lra.
+          apply (RealDecrTrial_μ0_ex_seriesC).
+          OK.
         }
       }
       f_equal; apply functional_extensionality; intro n.
@@ -421,21 +425,25 @@ End credits.
 Section program.
   Context `{!erisGS Σ}.
 
+
+  Import Hierarchy.
+
   (* A lazy real is less than or equal to one half, ie. the first bit is zero. *)
   Definition LeHalf : val :=
     λ: "x",
       let: "c1n" := get_chunk (Fst "x") (Snd "x") in
-      let: "res" := cmpZ (Fst "c1n") #1 in
+      let: "res" := cmpZ (Fst "c1n") #0 in
       (* First bit is 0: res is -1, number is at most 1/2, return #true
          First bit is 1: res is 0, number is at least 1/2, return #false *)
       "res" = #0.
 
   Definition LeHalf_spec (r : R) : bool := bool_decide (Rle r (0.5)%R).
 
+
   Theorem wp_LeHalf E v r :
-    lazy_real v r -∗ WP LeHalf v @ E {{ vb, ⌜vb = #(LeHalf_spec r) ⌝ ∗ lazy_real v r }}.
+    ⌜ r ≠ 0.5 ⌝ -∗ lazy_real v r -∗ WP LeHalf v @ E {{ vb, ⌜vb = #(LeHalf_spec r) ⌝ ∗ lazy_real v r }}.
   Proof.
-    iIntros "Hr".
+    iIntros "%Hhalf Hr".
     iDestruct "Hr" as (l α f -> ->) "Hr".
     iDestruct "Hr" as (zs f') "(%Hf & Hc & Hα)".
     rewrite /LeHalf /get_chunk; wp_pures.
@@ -461,15 +469,32 @@ Section program.
       { iPureIntro; simpl; f_equal.
         rewrite Hf /append_bin_seq /LeHalf_spec //=.
         replace (λ n : nat, f' n) with f' by done.
-        (* The terms seq_bin_to_R_leading0 seq_bin_to_R_leading1 should do the trick, but there is
-           dependent types trouble in destructing f' 0 *)
-        (* destruct (f' 0%nat) eqn:Heq. *)
-        admit.
+        destruct (LemDisj (f' 0%nat)).
+        { rewrite H.
+          simpl.
+          case_bool_decide; OK.
+          exfalso.
+          apply H0.
+          apply seq_bin_to_R_leading0.
+          rewrite H.
+          done.
+        }
+        { rewrite H.
+          simpl.
+          case_bool_decide; OK.
+          exfalso.
+          rewrite Hf //= in Hhalf.
+          apply Hhalf.
+          apply Rle_antisym; OK.
+          apply seq_bin_to_R_leading1.
+          rewrite H. done.
+        }
       }
       iExists l, α, f.
       iSplitR; first done.
       iSplitR; first done.
-      iExists [f' 0%nat], (λ n : nat, f' (S n)).
+
+      iExists (cons (f' 0%nat) []), (λ n : nat, f' (S n)).
       iFrame.
       iPureIntro.
       rewrite Hf /append_bin_seq//=.
@@ -486,8 +511,26 @@ Section program.
       iModIntro.
       iSplit.
       { iPureIntro; simpl; f_equal.
-        (* Similar to above. *)
-        admit. }
+        destruct (LemDisj z).
+        { rewrite H. simpl.
+          rewrite /LeHalf_spec.
+          case_bool_decide; OK.
+          exfalso; apply H0.
+          apply seq_bin_to_R_leading0.
+          rewrite Hf.
+          simpl.
+          by rewrite H. }
+        { rewrite H; simpl.
+          rewrite /LeHalf_spec.
+          case_bool_decide; OK.
+          exfalso.
+          rewrite Hf in Hhalf.
+          apply Hhalf.
+          apply Rle_antisym.
+          { rewrite -Hf. done. }
+          { apply seq_bin_to_R_leading1. simpl.  rewrite H. done. }
+        }
+      }
       { iExists l, α, f.
         iSplitR; first done.
         iSplitR; first done.
@@ -496,7 +539,8 @@ Section program.
         iFrame.
         done.
     }
-  Admitted.
+  }
+  Qed.
 
   Definition BNEHalf : val :=
     λ: "_",
@@ -515,14 +559,39 @@ Section program.
     wp_pure.
     wp_apply wp_init; first done.
     iIntros (x) "Hx".
-    iApply (wp_lazy_real_presample_adv_comp _ _ x _ (BNEHalf_CreditV F) (g F)); auto.
-    { intros ??; apply g_nn; auto. apply Hnn. }
-    { eapply g_expectation; eapply Hnn. }
+
+
+    iApply (wp_lazy_real_presample_adv_comp _ _ x _ (BNEHalf_CreditV F) (poke (g F) 0.5 1)); auto.
+    { intros ??.
+      rewrite /poke; case_decide; try lra.
+      apply g_nn; auto. apply Hnn. }
+    { suffices H : @RInt R_CompleteNormedModule (poke (g F) 0.5 1) 0 1 = BNEHalf_CreditV F.
+      { rewrite -H.
+        apply (RInt_correct (V := R_CompleteNormedModule)).
+        apply (ex_RInt_poke); OK.
+        apply g_ex_RInt.
+        apply Hnn.
+      }
+      rewrite -RInt_poke; OK.
+      { eapply g_expectation; eapply Hnn. }
+      { apply g_ex_RInt, Hnn. }
+    }
+
     iFrame.
     iIntros (r) "(%Hrange & Hε & Hx)".
+
+    rewrite /poke.
+    case_decide.
+    { iApply (wp_ec_spend _ _ _ (nnreal_one) with "[Hε]"); OK. }
+
     wp_pures.
     wp_bind (LeHalf _).
-    iApply (pgl_wp_mono_frame with "[Hx] Hε"); last iApply (wp_LeHalf with "Hx").
+    iApply (pgl_wp_mono_frame with "[Hx] Hε"); last first.
+    { iApply (wp_LeHalf with "[] [Hx]"); iFrame.
+      iPureIntro.
+      apply H.
+    }
+
     rewrite /LeHalf_spec//=.
     iIntros (v) "(Hε & -> & Hr)".
     case_bool_decide.
@@ -551,7 +620,10 @@ Section program.
       { by rewrite (ssrbool.elimT (Z.eqb_spec _ _) Hb) //=. }
       { have Hb' := (ssrbool.elimF (Z.eqb_spec _ _) Hb).
         case_bool_decide; auto.
-        inversion H0; intuition.
+        exfalso.
+        apply Hb'.
+        inversion H1.
+        done.
       }
     }
     { wp_pures.
@@ -566,6 +638,6 @@ Section program.
       rewrite Rmult_1_l.
       iFrame.
     }
-  Admitted.
+  Qed.
 
 End program.

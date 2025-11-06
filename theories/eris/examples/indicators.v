@@ -572,5 +572,53 @@ Proof.
   Lemma ex_exp_series' {M : nat} : Series.ex_series (λ n : nat, / fact (n - M)).
   Proof. Admitted.
 
+  Definition poke (f : R → R) (a z : R) : R → R := fun x =>
+    if (decide (x = a)) then z else f x.
+
+
+  Lemma ex_RInt_poke {a b c z : R} (f : R → R) (Hf : ex_RInt f a b) (Hi : a < c < b):
+    ex_RInt (poke f c z) a b.
+  Proof.
+    apply (ex_RInt_Chasles  _ _ c).
+    { apply (@ex_RInt_ext _ f).
+      { intro x. rewrite Rmin_left; try lra. rewrite Rmax_right; try lra. intros ?.
+        rewrite /poke. case_decide; try lra. }
+      { eapply (@ex_RInt_Chasles_1 R_CompleteNormedModule); last eapply Hf. lra. }
+    }
+    { apply (@ex_RInt_ext _ f).
+      { intro x. rewrite Rmin_left; try lra. rewrite Rmax_right; try lra. intros ?.
+        rewrite /poke. case_decide; try lra. }
+      { eapply (@ex_RInt_Chasles_2 R_CompleteNormedModule); last eapply Hf. lra. }
+    }
+  Qed.
+
+  Lemma RInt_poke {a b c z : R} (f : R → R) (Hf : ex_RInt f a b) (Hi : a < c < b) :
+    RInt f a b = RInt (poke f c z) a b.
+  Proof.
+    rewrite -(RInt_Chasles _ _ c).
+    3: { eapply (@ex_RInt_Chasles_2 R_CompleteNormedModule); last eapply Hf. lra. }
+    2: { eapply (@ex_RInt_Chasles_1 R_CompleteNormedModule); last eapply Hf. lra. }
+    rewrite -(RInt_Chasles (poke _ _ _) _ c).
+    3: { eapply (@ex_RInt_Chasles_2 R_CompleteNormedModule).
+         2: { eapply ex_RInt_poke; [apply Hf |]. lra. }
+         lra. }
+    2: { eapply (@ex_RInt_Chasles_1 R_CompleteNormedModule).
+         2: { eapply ex_RInt_poke; [apply Hf |]. lra. }
+         lra. }
+    f_equal.
+    { apply RInt_ext.
+      intro x. rewrite Rmin_left; try lra. rewrite Rmax_right; try lra. intros ?.
+      rewrite /poke.
+      case_decide; try lra.
+    }
+    { apply RInt_ext.
+      intro x. rewrite Rmin_left; try lra. rewrite Rmax_right; try lra. intros ?.
+      rewrite /poke.
+      case_decide; try lra.
+    }
+  Qed.
+
+  Lemma LemDisj : forall (z : fin 2), z = 0%fin ∨ z = 1%fin.
+  Proof. Admitted.
 
 End Lib.

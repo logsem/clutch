@@ -187,23 +187,23 @@ Section credits.
   Qed.
 
   Lemma RealDecrTrial_CreditV_ex_RInt {F N M} (Hbound : forall n, 0 <= F n <= M) :
-    ex_RInt (RealDecrTrial_CreditV F (N + 1)) 0 1.
+    ex_RInt (RealDecrTrial_CreditV F N) 0 1.
   Proof.
     rewrite -ex_RInt_dom.
     rewrite /ex_RInt.
     rewrite /RealDecrTrial_CreditV.
-    replace (λ x : R, Iverson (Ioo 0 1) x * SeriesC (λ n : nat, RealDecrTrial_μ x (N + 1) n * F n))
-       with (λ x : R, Series.Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x (N + 1) n * F n))); last first.
+    replace (λ x : R, Iverson (Ioo 0 1) x * SeriesC (λ n : nat, RealDecrTrial_μ x N n * F n))
+       with (λ x : R, Series.Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x N n * F n))); last first.
     { apply functional_extensionality; intros ?.
       rewrite -SeriesC_scal_l.
       rewrite SeriesC_Series_nat.
       done.
     }
-    pose s : nat → R → R_CompleteNormedModule := fun M x => sum_n (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x (N + 1) n * F n)) M.
-    pose h : nat → R_CompleteNormedModule := fun x => (RInt (λ x0 : R, sum_n (λ n : nat, Iverson (Ioo 0 1) x0 * (RealDecrTrial_μ x0 (N + 1) n * F n)) x) 0 1).
-    have HSLim : filterlim s eventually (locally (λ x : R, Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x (N + 1) n * F n)))).
+    pose s : nat → R → R_CompleteNormedModule := fun M x => sum_n (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x N n * F n)) M.
+    pose h : nat → R_CompleteNormedModule := fun x => (RInt (λ x0 : R, sum_n (λ n : nat, Iverson (Ioo 0 1) x0 * (RealDecrTrial_μ x0 N n * F n)) x) 0 1).
+    have HSLim : filterlim s eventually (locally (λ x : R, Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x N n * F n)))).
     { rewrite /s.
-      apply (UniformConverge_Series (fun n => M * / (fact (n - (N + 1))%nat))).
+      apply (UniformConverge_Series (fun n => M * / (fact (n - N)%nat))).
       { apply (@ex_series_scal_l _ R_CompleteNormedModule).
         apply ex_exp_series'. }
       intros x n.
@@ -242,16 +242,16 @@ Section credits.
       rewrite Rmult_1_l.
       rewrite /RealDecrTrial_μ0.
       repeat rewrite Rdiv_def.
-      replace (n - (N + 1) + 1)%nat with (S (n - (N + 1))) by OK.
+      replace (n - N + 1)%nat with (S (n - N)) by OK.
       rewrite fact_simpl.
       rewrite mult_INR.
       rewrite Rinv_mult.
       rewrite -Rmult_assoc.
       rewrite -Rmult_minus_distr_r.
-      rewrite -{2}(Rmult_1_l (/fact (n - (N + 1)))).
+      rewrite -{2}(Rmult_1_l (/fact (n - N))).
       apply Rmult_le_compat.
       { apply Rle_0_le_minus.
-        rewrite -(Rmult_1_l (x ^ (n - (N + 1)))).
+        rewrite -(Rmult_1_l (x ^ (n - (N )))).
         rewrite Rmult_comm.
         apply Rmult_le_compat.
         { rewrite -(Rmult_1_l (/ _)).
@@ -264,7 +264,7 @@ Section credits.
           apply le_INR.
           OK.
         }
-        { rewrite -(Rmult_1_l (x ^ (n - (N + 1)))).
+        { rewrite -(Rmult_1_l (x ^ (n - (N )))).
           rewrite -tech_pow_Rmult.
           apply Rmult_le_compat_r; OK.
           apply pow_le; OK.
@@ -273,13 +273,13 @@ Section credits.
       { rewrite -(Rmult_1_l (/ _)).
         apply Rle_mult_inv_pos; OK.
         apply INR_fact_lt_0. }
-      { have ? : 0 <= x ^ S (n - (N + 1)) * / S (n - (N + 1)).
+      { have ? : 0 <= x ^ S (n - N) * / S (n - N).
         { apply Rle_mult_inv_pos; OK.
           { apply pow_le; OK. }
           { apply pos_INR_S. }
         }
-        suffices ? : x ^ (n - (N + 1)) <= 1 by OK.
-        rewrite -(pow1 (n - (N + 1))).
+        suffices ? : x ^ (n - N) <= 1 by OK.
+        rewrite -(pow1 (n - N)).
         apply pow_incr; OK.
       }
       { apply Rinv_le_contravar; OK. apply INR_fact_lt_0. }
@@ -294,7 +294,7 @@ Section credits.
       apply RealDecrTrial_μ_ex_RInt.
     }
     destruct (@filterlim_RInt nat R_CompleteNormedModule s 0 1 eventually eventually_filter
-      (λ x : R, Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x (N + 1) n * F n))) h HSInt HSLim) as [IF [HIf1 HIf2]].
+      (λ x : R, Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x N n * F n))) h HSInt HSLim) as [IF [HIf1 HIf2]].
     exists IF. done.
   Qed.
 
