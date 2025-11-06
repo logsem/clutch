@@ -468,8 +468,53 @@ Section credits.
       eapply ex_seriesC_ext.
       { intros n. symmetry. rewrite -RInt_Rmult'. done. }
         apply ex_seriesC_scal_r.
-        (* Simplify, then telescoping *)
-        admit.
+        replace (λ x : nat, RInt (λ x0 : R, Iverson (uncurry Rle) (x0, rx) * RealDecrTrial_μ x0 (N + 1) x) 0 1)
+           with (λ x : nat, RInt (λ x0 : R, RealDecrTrial_μ x0 (N + 1) x) 0 rx); last first.
+        { funexti. rewrite RInt_Iverson_le; OK. }
+        eapply ex_seriesC_ext.
+        { intros ?. symmetry. rewrite RealDecrTrial_μ_RInt. done. }
+        replace (λ n : nat, Iverson (uncurry le) ((N + 1)%nat, n) * (RealDecrTrial_μ0 rx (n - (N + 1) + 1) - RealDecrTrial_μ0 0 (n - (N + 1) + 1)))
+           with (fun n => (Iverson (uncurry le) ((N + 1)%nat, n) * RealDecrTrial_μ0 rx (n -N))); last first.
+        { funexti.
+          rewrite {3}/RealDecrTrial_μ0.
+          do 2 (rewrite pow_i; OK).
+          do 2 rewrite Rdiv_0_l.
+          rewrite Rminus_diag.
+          rewrite Rminus_0_r.
+          rewrite /Iverson; case_decide; OK.
+          repeat rewrite Rmult_1_l.
+          f_equal.
+          simpl in H.
+          OK.
+        }
+        have H1 : ex_seriesC (λ n : nat, Iverson (uncurry le) ((N + 1)%nat, (n + N)%nat) * RealDecrTrial_μ0 rx n).
+        { eapply ex_seriesC_le; last eapply (RealDecrTrial_μ0_ex_seriesC (M := 0)).
+          2: eapply Hrx.
+          intros n.
+          split. { apply Rmult_le_pos; first apply Iverson_nonneg. apply RealDecrTrial_μ0nn; OK. }
+          rewrite -(Rmult_1_l (RealDecrTrial_μ0 rx (n + 0))).
+          apply Rmult_le_compat; OK.
+          { apply Iverson_nonneg. }
+          { apply RealDecrTrial_μ0nn. OK. }
+          { apply Iverson_le_1. }
+          { right; f_equal; OK. }
+        }
+        apply (ex_SeriesC_nat_shiftN_r N).
+        rewrite /compose//=.
+        replace (λ x : nat, Iverson (uncurry le) ((N + 1)%nat, (x + N)%nat) * RealDecrTrial_μ0 rx (x + N - N))
+          with (λ x : nat, Iverson (uncurry le) ((N + 1)%nat, (x + N)%nat) * RealDecrTrial_μ0 rx x); last first.
+        { funexti. f_equal. f_equal. OK. }
+        apply (ex_seriesC_le _ (λ x : nat, 1 * RealDecrTrial_μ0 rx x)).
+        { intro n.
+          split. { apply Rmult_le_pos; first apply Iverson_nonneg. apply RealDecrTrial_μ0nn; OK. }
+          apply Rmult_le_compat; OK.
+          { apply Iverson_nonneg. }
+          { apply RealDecrTrial_μ0nn. OK. }
+          { apply Iverson_le_1. }
+        }
+        apply ex_seriesC_scal_l.
+        eapply ex_seriesC_ext; last eapply (RealDecrTrial_μ0_ex_seriesC (x := rx) (M := 0) Hrx).
+        intros ?. simpl. f_equal. OK.
       }
     rewrite /RealDecrTrial_CreditV.
     f_equal; apply functional_extensionality; intros n.

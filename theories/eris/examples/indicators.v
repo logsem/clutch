@@ -255,6 +255,12 @@ Admitted.
 Lemma ex_SeriesC_nat_shift {f : nat → R} : ex_seriesC f → ex_seriesC (f ∘ S).
 Proof. Admitted.
 
+Lemma ex_SeriesC_nat_shiftN_l {f : nat → R} (N : nat) : ex_seriesC (f ∘ (fun n => (n - N))%nat) → ex_seriesC f.
+Proof. Admitted.
+
+Lemma ex_SeriesC_nat_shiftN_r {f : nat → R} (N : nat) : ex_seriesC (f ∘ (fun n => (n + N))%nat) → ex_seriesC f.
+Proof. Admitted.
+
 (*
 (* Key lemma ? *)
 Lemma SeriesC_even_contract {f : nat → R} :
