@@ -629,4 +629,7 @@ Proof.
     RInt (fun x1 : R => x1 ^ M / fact M) a b = b ^ (M + 1) / fact (M + 1) - a ^ (M + 1) / fact (M + 1).
   Proof. Admitted.
 
+  Lemma Le_Nat_sum (N : nat) (v : R) : SeriesC (λ n : nat, if bool_decide (n ≤ N) then v else 0) = (N + 1)* v.
+  Proof. Admitted.
+
 End Lib.

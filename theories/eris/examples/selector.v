@@ -929,33 +929,115 @@ Section program.
     iIntros "Hε".
     rewrite /C.
     wp_pures.
-    (* I hate fin >:( *)
-    have HF0 : (0 < (Coq.Init.Datatypes.S (Z.to_nat (m + 1))))%nat by lia.
-    have HF1 : (1 < (Coq.Init.Datatypes.S (Z.to_nat (m + 1))))%nat by lia.
-    pose F0 : fin (Coq.Init.Datatypes.S  (Z.to_nat (m + 1))) := Fin.of_nat_lt HF0.
-    pose F1 : fin (Coq.Init.Datatypes.S (Z.to_nat (m + 1))) := Fin.of_nat_lt HF1.
-    pose C_F := fun (n : fin (Coq.Init.Datatypes.S  (Z.to_nat (m + 1)))) =>
-      Iverson (eq F0) n * (1 / (m + 2) * F 0%nat) +
-      Iverson (eq F1) n * (1 / (m + 2) * F 1%nat) +
-      Iverson (fun n' => ¬ n' = F0 ∧ ¬ n' = F1) n * (m / (m + 2) * F 2%nat).
-    wp_apply (wp_couple_rand_adv_comp _ _ _ _ C_F with "Hε").
-    { intro n. rewrite /C_F.
-      apply Rplus_le_le_0_compat; first apply (Rplus_le_le_0_compat); apply Rmult_le_pos;
-        try auto; try (apply Iverson_nonneg; auto).
-      all: apply Rmult_le_pos; auto; apply Rle_mult_inv_pos; try lra.
-      { apply Rplus_le_lt_0_compat; [|lra]. apply pos_INR. }
-      { apply Rplus_le_lt_0_compat; [|lra]. apply pos_INR. }
-      { apply pos_INR. }
-      { apply Rplus_le_lt_0_compat; [|lra]. apply pos_INR. }
+    pose C_F_nat : nat → R := fun n => Iverson (eq 0%nat) n * F 0%nat + (Iverson (eq 1%nat) n * F 1%nat + Iverson (fun n' => 2 ≤ n') n * F 2%nat).
+    pose C_F_evil : (fin (Datatypes.S (Z.to_nat (m + 1)))) → R := fun n => C_F_nat (fin_to_nat n).
+    wp_apply (wp_couple_rand_adv_comp _ _ _ _ C_F_evil with "Hε").
+    { intro n. rewrite /C_F_evil/C_F_nat.
+      apply Rplus_le_le_0_compat; last apply (Rplus_le_le_0_compat); apply Rmult_le_pos;
+        auto; (apply Iverson_nonneg; auto).
     }
-    { rewrite /C_CreditV.
-      unfold C_F.
-      rewrite SeriesC_fin_sum.
-      rewrite /sum_n.
-      admit. }
+    { rewrite SeriesC_scal_l -SeriesC_nat_bounded_fin -SeriesC_scal_l.
+      rewrite SeriesC_nat_shift.
+      rewrite SeriesC_nat_shift.
+      rewrite bool_decide_eq_true_2; [|OK].
+      Opaque INR.
+      rewrite //=.
+      rewrite bool_decide_eq_true_2; [|OK].
+      simpl.
+      Transparent INR.
+      rewrite /C_CreditV Rplus_assoc.
+      f_equal; [|f_equal].
+      { f_equal.
+        { f_equal.
+          replace (1)%Z with (Z.of_nat 1) by OK.
+          rewrite -Nat2Z.inj_add.
+          rewrite Nat2Z.id.
+          replace ((Datatypes.S (Init.Nat.add m 1))) with (((Init.Nat.add m 2))) by OK.
+          rewrite plus_INR; OK.
+        }
+        rewrite /C_F_nat.
+        rewrite Iverson_True; OK.
+        rewrite Iverson_False; OK.
+        rewrite Iverson_False; OK.
+      }
+      { f_equal.
+        { f_equal.
+          replace (1)%Z with (Z.of_nat 1) by OK.
+          rewrite -Nat2Z.inj_add.
+          rewrite Nat2Z.id.
+          replace ((Datatypes.S (Init.Nat.add m 1))) with (((Init.Nat.add m 2))) by OK.
+          rewrite plus_INR; OK.
+        }
+        rewrite /C_F_nat.
+        rewrite Iverson_False; OK.
+        rewrite Iverson_True; OK.
+        rewrite Iverson_False; OK.
+      }
+      rewrite SeriesC_scal_l.
+      replace (λ x : nat, if bool_decide (Datatypes.S (Datatypes.S x) ≤ Z.to_nat (m + 1)) then C_F_nat (Datatypes.S (Datatypes.S x)) else 0)
+         with (λ x : nat, if bool_decide (Datatypes.S (Datatypes.S x) ≤ Z.to_nat (m + 1)) then F 2%nat else 0); last first.
+      { funexti. case_bool_decide; OK.
+        rewrite /C_F_nat.
+        rewrite Iverson_False; OK.
+        rewrite Iverson_False; OK.
+        rewrite Iverson_True; OK.
+      }
+      repeat rewrite Rdiv_def.
+      rewrite (Rmult_comm m _) Rmult_1_l Rmult_assoc.
+      f_equal.
+      { replace (1)%Z with (Z.of_nat 1) by OK.
+        rewrite -Nat2Z.inj_add.
+        rewrite Nat2Z.id.
+        replace ((Datatypes.S (Init.Nat.add m 1))) with (((Init.Nat.add m 2))) by OK.
+        rewrite plus_INR; OK.
+      }
+      destruct m.
+      { replace (λ x : nat, if bool_decide (Datatypes.S (Datatypes.S x) ≤ Z.to_nat (0%nat + 1)) then F 2%nat else 0)
+          with (fun _ : nat => 0); last first.
+        { funexti. case_bool_decide; OK. }
+        rewrite SeriesC_0; OK.
+        rewrite INR_0; OK.
+      }
+      { replace (λ x : nat, if bool_decide (Datatypes.S (Datatypes.S x) ≤ Z.to_nat (Datatypes.S m + 1)) then F 2%nat else 0)
+           with (λ x : nat, if bool_decide (x ≤ Z.to_nat m) then F 2%nat else 0); last first.
+        { funexti. case_bool_decide; case_bool_decide; OK.  }
+        rewrite Le_Nat_sum.
+        f_equal.
+        rewrite Nat2Z.id.
+        rewrite -INR_1 -plus_INR; f_equal; OK.
+        }
+      }
     iIntros (n) "Hε".
-    (* Probably true, stupid fin *)
-  Admitted.
+    wp_pures.
+    case_bool_decide; wp_pures.
+    { inversion H. rewrite H1.
+      iModIntro; iExists 0%nat; iSplitR; [|iSplitR]; OK.
+      iApply ec_eq; [|iFrame].
+      have He : (fin_to_nat n) = 0%nat by OK.
+      rewrite /C_F_evil He /C_F_nat //=.
+      rewrite Iverson_True; OK.
+      rewrite Iverson_False; OK.
+      rewrite Iverson_False; OK.
+    }
+    case_bool_decide; wp_pures.
+    { inversion H0. rewrite H2.
+      iModIntro; iExists 1%nat; iSplitR; [|iSplitR]; OK.
+      iApply ec_eq; [|iFrame].
+      have He : (fin_to_nat n) = 1%nat by OK.
+      rewrite /C_F_evil He /C_F_nat //=.
+      rewrite Iverson_False; OK.
+      rewrite Iverson_True; OK.
+      rewrite Iverson_False; OK.
+    }
+    iModIntro; iExists 2%nat; iSplitR; [|iSplitR]; OK.
+    iApply ec_eq; [|iFrame].
+    rewrite /C_F_evil/C_F_nat.
+    destruct n; OK.
+    destruct n0; OK.
+    rewrite Iverson_False; [|simpl; OK].
+    rewrite Iverson_False; [|simpl; OK].
+    rewrite Iverson_True; simpl; OK.
+  Qed.
 
   Theorem wp_Bii {E F} (k : nat) xα x (Hnn : ∀ r, 0 <= F r) (Hx : 0 <= x <= 1) :
     ↯(Bii_CreditV F k x) ∗ lazy_real xα x -∗
