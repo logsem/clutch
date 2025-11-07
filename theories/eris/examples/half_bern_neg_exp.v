@@ -366,58 +366,136 @@ Section credits.
     rewrite Rplus_comm (Rmult_comm _ (F false)) (Rmult_comm _ (F true)).
     rewrite /BNEHalf_CreditV.
     f_equal; f_equal.
-
-    (*
-    { rewrite /BNEHalf_μ//=.
-      rewrite Iverson_True; [|intuition].
-      rewrite Iverson_False; [|intuition].
-      rewrite Rmult_1_l.
-      rewrite Rmult_0_l Rplus_0_r.
-      rewrite -(@ExpSeriesEven (-1 / 2)).
-      rewrite (@SeriesC_nat_shift ((λ n : nat, Iverson Zeven n * ((-1 / 2) ^ n / fact n + (-1 / 2) ^ (n + 1) / fact (n + 1))))).
-      rewrite Rplus_comm.
-      f_equal.
-      { rewrite Iverson_True; [|simpl; intuition]. rewrite /fact//=. lra. }
-      { apply SeriesC_ext.
-        intro n.
-        rewrite //=.
-        replace (Iverson Zeven (S n)) with  (Iverson Zodd n) by admit.
-        replace (Iverson (not ∘ Zeven) n) with (Iverson Zodd n) by admit.
-        rewrite /Iverson.
-        case_decide; [|lra].
-        rewrite Rmult_1_l Rmult_1_l.
-        destruct (Zodd_ex _ H).
-        admit.
+    { rewrite /RealDecrTrial_μ0.
+      replace (λ n : nat, Iverson (not ∘ Zeven) n * (0.5 ^ (n + 1) / fact (n + 1) - 0.5 ^ (n + 1 + 1) / fact (n + 1 + 1)))
+        with ((λ n : nat, Iverson Zeven n * ((- 0.5) ^ (n) / fact (n) + (- 0.5) ^ (n + 1 ) / fact (n + 1))) ∘ S); last first.
+      { funext; intro n. simpl.
+        replace (Iverson Zeven (S n)) with (Iverson (not ∘ Zeven) n ); last first.
+        { rewrite /Iverson; case_decide; case_decide; OK.
+          { exfalso.
+            rewrite /comp//= in H.
+            destruct (Zeven_odd_dec n); OK.
+            apply Zeven_Sn in z.
+            replace (Z.succ n) with (Z.of_nat (S n)) in z by OK.
+            OK.
+          }
+          { exfalso.
+            rewrite /comp//= in H.
+            apply NNP_P in H.
+            apply Zodd_Sn in H.
+            apply (Zeven_not_Zodd _ H0).
+            by replace (Z.of_nat (S n)) with (Z.succ n) by OK.
+          }
+        }
+        rewrite /Iverson; case_decide; [|OK].
+        repeat rewrite Rmult_1_l.
+        rewrite Rminus_def.
+        f_equal.
+        { f_equal; OK.
+          { rewrite tech_pow_Rmult; OK.
+            replace (n + 1)%nat with (S n); OK.
+            rewrite -even_pow_neg; last first.
+            { replace (Z.of_nat (S n)) with (Z.succ n) by OK.
+              apply Zeven_Sn.
+              rewrite /compose//= in H.
+              destruct (Zeven_odd_dec n); OK.
+            }
+            f_equal. OK.
+          }
+          { replace (n + 1)%nat with (S n)%nat by OK. OK. }
+        }
+        repeat rewrite Rdiv_def.
+        rewrite Ropp_mult_distr_l.
+        f_equal.
+        { replace (n + 1 + 1)%nat with (S (S n)) by OK.
+          replace (n + 1)%nat with (S n) by OK.
+          simpl.
+          rewrite Ropp_mult_distr_l.
+          f_equal; OK.
+          replace ((-0.5) ^ n) with (-((0.5) ^ n)); OK.
+          rewrite -(@not_even_pow_neg (0.5)); OK.
+          f_equal; OK.
+        }
+        f_equal.
+        { replace (n + 1 + 1)%nat with (S (n + 1)%nat) by OK. OK. }
       }
-    }
-    { (* Gaussian Taylor series *)
+      rewrite SeriesC_nat_shift_rev.
+      rewrite ExpSeriesEven.
+      rewrite Iverson_True; OK.
+      rewrite Rmult_1_l pow_O /fact //=.
       rewrite /BNEHalf_μ//=.
-      rewrite Iverson_False; [|intuition].
-      rewrite Iverson_True; [|intuition].
-      rewrite Rmult_1_l.
-      rewrite Rmult_0_l Rplus_0_l.
-      apply Ropp_eq_reg.
-      rewrite Ropp_minus_distr.
-      have H := @ExpSeriesOdd (-1/2).
-      rewrite Rplus_comm -Rminus_def in H.
-      rewrite -H.
-      replace (- SeriesC (λ n : nat, Iverson Zeven n * RealDecrTrial_μ0 0.5 (n + 1)))
-         with (-1 * SeriesC (λ n : nat, Iverson Zeven n * RealDecrTrial_μ0 0.5 (n + 1))) by lra.
-      rewrite -SeriesC_scal_l.
-      apply SeriesC_ext.
-      intro n.
-      rewrite /Iverson.
-      case_decide.
-      { rewrite decide_False; [|simpl; by apply P_NNP].
-        rewrite Rmult_0_l.
-        rewrite /RealDecrTrial_μ0.
-
-
-
-        admit. }
-      { admit. }
+      rewrite Iverson_True; OK.
+      rewrite Iverson_False; OK.
+      replace ((-1 / 2)) with (-0.5) by OK.
+      OK.
     }
-    *)
+    { rewrite /RealDecrTrial_μ0.
+      replace (λ n : nat, Iverson Zeven n * (0.5 ^ (n + 1) / fact (n + 1) - 0.5 ^ (n + 1 + 1) / fact (n + 1 + 1)))
+        with ((λ n : nat, (-1) * (Iverson (not ∘ Zeven) n * ((-0.5) ^ (n) / fact (n) + (-0.5) ^ (n + 1) / fact (n + 1)))) ∘ S); last first.
+      { funext; intro n. simpl.
+        replace (Iverson (not ∘ Zeven) (S n)) with (Iverson Zeven n); last first.
+        { rewrite /Iverson; case_decide; case_decide; OK.
+          { exfalso.
+            have X : (not ∘ Zeven) (S n).
+            { intro HK.
+              apply Zodd_Sn in H.
+              apply Zodd_not_Zeven in H.
+              replace (Z.of_nat (S n)) with (Z.succ n) in HK by OK.
+              OK.
+            }
+            OK.
+          }
+          { exfalso.
+            have X : Zeven (S n).
+            { replace (Z.of_nat (S n)) with (Z.succ n) by OK.
+              apply Zeven_Sn.
+              destruct (Zeven_odd_dec n); OK.
+            }
+            OK.
+          }
+        }
+        rewrite /Iverson; case_decide; [|OK].
+        repeat rewrite Rmult_1_l.
+        rewrite Rminus_def.
+        rewrite Rmult_plus_distr_l.
+        f_equal.
+        { do 2 rewrite -Rmult_assoc.
+          rewrite Rdiv_def.
+          f_equal; OK.
+          { replace (n + 1)%nat with (S n) by OK.
+            simpl.
+            rewrite -(@even_pow_neg 0.5); OK.
+            replace (- (0.5)) with (-0.5); OK.
+          }
+          { f_equal. replace (n + 1)%nat with (S n); OK. }
+        }
+        repeat rewrite Rdiv_def.
+        rewrite Ropp_mult_distr_l.
+        rewrite -Rmult_assoc.
+        f_equal.
+        { replace (n + 1 + 1)%nat with (S (S n)) by OK.
+          replace (n + 1)%nat with (S n) by OK.
+          simpl.
+          rewrite Ropp_mult_distr_l.
+          rewrite -(@even_pow_neg 0.5); OK.
+          replace (- (0.5)) with (-0.5); OK.
+        }
+        f_equal.
+        { replace (n + 1 + 1)%nat with (S (n + 1)%nat) by OK. OK. }
+      }
+      rewrite SeriesC_nat_shift_rev.
+      rewrite SeriesC_scal_l.
+      rewrite ExpSeriesOdd.
+      rewrite /BNEHalf_μ//=.
+      rewrite Iverson_False; last first.
+      { rewrite /comp//=. intuition. }
+      rewrite Rmult_0_l Rmult_0_r Ropp_0 Rplus_0_l.
+      rewrite Iverson_False; OK.
+      rewrite Rmult_0_l Rplus_0_l.
+      rewrite Iverson_True; OK.
+      replace ((-1 / 2)) with (-0.5) by OK.
+      OK.
+    }
   Admitted.
 
 End credits.
