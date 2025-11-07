@@ -420,7 +420,6 @@ Proof.
   destruct e0; inv_head_step; 
   try (rewrite dmap_dzero; by rewrite !dzero_0);
   try (rewrite !dmap_dret /fill_lift; apply (dret_cfg_eq _ e' σ1 σ2)). 
-  3: by rewrite !dmap_dzero !dzero_0.
   {  erewrite !dmap_comp.
      rewrite /fill_lift. simpl.
      replace ((λ '(e0, σ), (fill l e0, σ)) ∘ λ n0 : fin (S (Z.to_nat n)), (_, σ1)) with (λ n0 : fin (S (Z.to_nat n)), (fill l #n0, σ1)).
