@@ -632,4 +632,10 @@ Proof.
   Lemma Le_Nat_sum (N : nat) (v : R) : SeriesC (λ n : nat, if bool_decide (n ≤ N) then v else 0) = (N + 1)* v.
   Proof. Admitted.
 
+  Lemma even_pow_neg {x : R} {n : nat} : Zeven n → (- x) ^ n = x ^ n.
+  Proof. Admitted.
+
+  Lemma not_even_pow_neg {x : R} {n : nat} : ¬ Zeven n → (- x) ^ n = - x ^ n.
+  Proof. Admitted.
+
 End Lib.

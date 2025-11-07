@@ -882,7 +882,7 @@ Section credits.
     apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg | auto ]).
   Qed.
 
-  Lemma B_g_expectation {F k x} : B_CreditV F k x = S_CreditV (B_g F) k x x 0.
+  Lemma B_g_expectation {F k x M} (Hf : forall b, 0 <= F b <= M) : B_CreditV F k x = S_CreditV (B_g F) k x x 0.
   Proof.
     rewrite /B_CreditV.
     rewrite /S_CreditV.
@@ -890,7 +890,95 @@ Section credits.
     (* Split the series *)
     rewrite /S_μ.
     rewrite /S_μ0.
-    (* Apply exp t.s. to both *)
+    rewrite -{1}(@ExpSeriesEven (- x * (2 * k + x) / (2 * k + 2))).
+    rewrite -SeriesC_scal_r.
+    replace (1 - exp (- x * (2 * k + x) / (2 * k + 2))) with ((-1) * (-1 + exp (- x * (2 * k + x) / (2 * k + 2)))) by OK.
+    rewrite -{1}(@ExpSeriesOdd (- x * (2 * k + x) / (2 * k + 2))).
+    rewrite -SeriesC_scal_l.
+    rewrite -SeriesC_scal_r.
+    rewrite -SeriesC_plus.
+    2: {
+      admit.
+    }
+    2: {
+      admit.
+    }
+    f_equal; funext; intros n.
+    (* Below proof very redundant *)
+    destruct (ClassicalEpsilon.excluded_middle_informative (Zeven n)) as [Hev|Hev].
+    { rewrite Iverson_True; OK. rewrite Iverson_False; OK.
+      rewrite Rmult_1_l Rmult_0_l Rmult_0_l Rmult_0_r Rmult_0_l Rplus_0_r.
+      rewrite Iverson_True; OK.
+      rewrite Rmult_1_l.
+      repeat rewrite Nat.sub_0_r.
+      rewrite Rmult_1_l Rplus_0_r.
+      f_equal.
+      rewrite Rminus_def; f_equal.
+      { repeat rewrite Rdiv_def.
+        do 2 rewrite Rmult_assoc.
+        rewrite (Rmult_comm (/ fact n)).
+        do 2 rewrite -Rmult_assoc.
+        f_equal.
+        rewrite Rmult_assoc.
+        rewrite Rpow_mult_distr.
+        f_equal.
+        apply even_pow_neg; OK.
+      }
+      { repeat rewrite Rdiv_def.
+        do 2 rewrite Rmult_assoc.
+        rewrite (Rmult_comm (/ fact (n + 1))).
+        do 2 rewrite -Rmult_assoc.
+        rewrite Ropp_mult_distr_l.
+        f_equal.
+        rewrite Ropp_mult_distr_l.
+        rewrite Rmult_assoc.
+        rewrite Rpow_mult_distr.
+        f_equal.
+        apply not_even_pow_neg; OK.
+        replace (Z.of_nat (n + 1)) with (Z.succ (Z.of_nat n)) by OK.
+        intro HK.
+        apply Zodd_Sn in Hev.
+        apply Zodd_not_Zeven in Hev.
+        OK.
+      }
+    }
+    { rewrite Iverson_False; OK. rewrite Iverson_True; OK.
+      rewrite Rmult_1_l Rmult_0_l Rmult_0_l Rplus_0_l.
+      rewrite Iverson_True; OK.
+      rewrite Rmult_1_l.
+      repeat rewrite Nat.sub_0_r.
+      rewrite Rmult_1_l Rplus_0_l.
+      rewrite Rmult_plus_distr_l.
+      f_equal.
+      rewrite Rminus_def; f_equal.
+      { repeat rewrite Rdiv_def.
+        do 2 rewrite Rmult_assoc.
+        rewrite (Rmult_comm (/ fact n)).
+        repeat rewrite -Rmult_assoc.
+        f_equal.
+        rewrite Rmult_assoc.
+        rewrite Rpow_mult_distr.
+        rewrite -Rmult_assoc.
+        f_equal.
+        rewrite not_even_pow_neg; OK.
+      }
+      { repeat rewrite Rdiv_def.
+        do 2 rewrite Rmult_assoc.
+        rewrite (Rmult_comm (/ fact (n + 1))).
+        repeat rewrite -Rmult_assoc.
+        rewrite Ropp_mult_distr_l.
+        f_equal.
+        rewrite Ropp_mult_distr_l.
+        rewrite Rmult_assoc.
+        rewrite Rpow_mult_distr.
+        rewrite -Rmult_assoc.
+        f_equal.
+        rewrite even_pow_neg; OK.
+        replace (Z.of_nat (n + 1)) with (Z.succ (Z.of_nat n)) by OK.
+        apply Zeven_Sn.
+        destruct (Zeven_odd_dec n); OK.
+      }
+    }
   Admitted.
 
 End credits.
@@ -1279,7 +1367,9 @@ Section program.
       }
       iFrame.
       iApply (ec_eq with "Hε").
-      apply B_g_expectation.
+      eapply B_g_expectation.
+      intro b.
+      apply Hnn.
     }
     iIntros (v) "[%n [-> [Hec Hx]]]".
     iFrame.
