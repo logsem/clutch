@@ -625,4 +625,8 @@ Proof.
   Lemma exp_neg_RInt : ex_RInt (λ x : R, exp (- x ^ 2 / 2)) 0 1.
   Proof. Admitted.
 
+  Lemma RInt_pow_fact {a b : R} (M : nat) :
+    RInt (fun x1 : R => x1 ^ M / fact M) a b = b ^ (M + 1) / fact (M + 1) - a ^ (M + 1) / fact (M + 1).
+  Proof. Admitted.
+
 End Lib.

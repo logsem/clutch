@@ -632,19 +632,158 @@ Section credits.
     3: {
       apply ex_seriesC_scal_l.
       replace (λ x0 : nat, RInt (λ x1 : R, S_μ k x x1 (N + 1) x0 * F x0) 0 y)
-        with  (λ x0 : nat, 999 * F x0); last first.
+        with  (λ x0 : nat, Iverson (le (N + 1)) x0 *
+                           ((y ^ (x0 - (N + 1) + 1) / fact (x0 - (N + 1) + 1)) * ((2 * k + x) / (2 * k + 2)) ^ (x0 - (N + 1)) - (y ^ (x0 - (N + 1) + 1 + 1) / fact (x0 - (N + 1) + 1 + 1) ) * ((2 * k + x) / (2 * k + 2)) ^ (x0 - (N + 1) + 1)) * F x0); last first.
       { funexti.
         symmetry.
         rewrite -RInt_Rmult'; f_equal.
         rewrite /S_μ.
         rewrite /S_μ0.
-        (* Compute it *)
-
-        admit.
+        rewrite -RInt_Rmult. f_equal.
+        rewrite RInt_minus.
+        2: { apply ex_RInt_Rmult'. apply ex_RInt_Rmult'. apply ex_RInt_pow. }
+        2: { apply ex_RInt_Rmult'. apply ex_RInt_Rmult'. apply ex_RInt_pow. }
+        rewrite /minus//=/plus/opp//=.
+        rewrite -RInt_Rmult' -RInt_Rmult'.
+        rewrite -Rminus_def.
+        f_equal; f_equal.
+        { rewrite RInt_pow_fact. rewrite pow_i; OK. }
+        { rewrite RInt_pow_fact. rewrite pow_i; OK. }
       }
       (* And then it should be the exp series or somthing? bound the F term above by M...*)
-      admit.
-
+      replace (λ x0 : nat,
+       Iverson (le (N + 1)) x0 *
+       (y ^ (x0 - (N + 1) + 1) / fact (x0 - (N + 1) + 1) * ((2 * k + x) / (2 * k + 2)) ^ (x0 - (N + 1)) -
+        y ^ (x0 - (N + 1) + 1 + 1) / fact (x0 - (N + 1) + 1 + 1) * ((2 * k + x) / (2 * k + 2)) ^ (x0 - (N + 1) + 1)) *
+       F x0) with
+        (λ x0 : nat,
+           ((Iverson (le (N + 1)) x0 * y ^ (x0 - (N + 1) + 1) / fact (x0 - (N + 1) + 1) * F x0 * ((2 * k + x) / (2 * k + 2)) ^ (x0 - (N + 1))) +
+              (-1) * (Iverson (le (N + 1)) x0 * y ^ (x0 - (N + 1) + 1 + 1) / fact (x0 - (N + 1) + 1 + 1) * F x0 * ((2 * k + x) / (2 * k + 2)) ^ (x0 - (N + 1) + 1)) )); last first.
+      { funexti.
+        rewrite Rmult_minus_distr_l. f_equal.
+        rewrite Rmult_minus_distr_r. f_equal.
+        OK.
+      }
+      have Lem1 : 0 <= (2 * k + x) * / (2 * k + 2) <= 1.
+      { split.
+        { apply Rle_mult_inv_pos.
+          { apply Rplus_le_le_0_compat; OK.
+            apply Rmult_le_pos; OK.
+            apply pos_INR.
+          }
+          { apply Rplus_le_lt_0_compat; OK.
+            apply Rmult_le_pos; OK.
+            apply pos_INR.
+          }
+        }
+        { have ? : 0 < (2 * k + 2). { apply Rplus_le_lt_0_compat; OK. apply Rmult_le_pos; OK. apply pos_INR. }
+          apply (Rmult_le_reg_r (2 * k + 2)); OK.
+          rewrite Rmult_assoc.
+          rewrite Rinv_l; OK.
+        }
+      }
+      apply ex_seriesC_plus.
+      { simpl.
+        apply (ex_SeriesC_nat_shiftN_r (N + 1)).
+        rewrite /compose//=.
+        apply (ex_seriesC_le _ (fun x0 => 1 * y ^ (x0 + 1) / fact (x0 + 1) * M * 1)).
+        { intro n.
+          split.
+          { apply Rmult_le_pos; [|apply pow_le; apply Lem1].
+            apply Rmult_le_pos; [|apply Hf].
+            rewrite Rdiv_def Rmult_assoc.
+            apply Rmult_le_pos; [apply Iverson_nonneg|].
+            apply Rle_mult_inv_pos; [apply pow_le; OK|].
+            apply INR_fact_lt_0.
+          }
+          apply Rmult_le_compat.
+          { apply Rmult_le_pos; [|apply Hf].
+            rewrite Rdiv_def Rmult_assoc.
+            apply Rmult_le_pos; [apply Iverson_nonneg|].
+            apply Rle_mult_inv_pos; [apply pow_le; OK|].
+            apply INR_fact_lt_0.
+          }
+          { apply pow_le; apply Lem1. }
+          2: { rewrite -(pow1 (n + (N + 1) - (N + 1))). apply pow_incr; OK. }
+          apply Rmult_le_compat.
+          { rewrite Rdiv_def Rmult_assoc.
+            apply Rmult_le_pos; [apply Iverson_nonneg|].
+            apply Rle_mult_inv_pos; [apply pow_le; OK|].
+            apply INR_fact_lt_0. }
+          { apply Hf. }
+          2: { apply Hf. }
+          apply Rmult_le_compat.
+          { apply Rmult_le_pos; [apply Iverson_nonneg|]. apply pow_le; OK. }
+          { rewrite -(Rmult_1_l (/ _)). apply Rle_mult_inv_pos; OK.   apply INR_fact_lt_0. }
+          2: { right. f_equal. f_equal. f_equal. OK. }
+          apply Rmult_le_compat.
+          { apply Iverson_nonneg. }
+          { apply pow_le; OK. }
+          { apply Iverson_le_1. }
+          { right. f_equal. f_equal. OK. }
+      }
+      eapply ex_seriesC_ext; [intros ?; rewrite Rmult_1_l Rmult_1_r; done|].
+      apply ex_seriesC_scal_r.
+      replace (λ x0 : nat, y ^ (x0 + 1) / fact (x0 + 1)) with ((λ x0 : nat, y ^ x0 / fact x0) ∘ S).
+      { apply ex_SeriesC_nat_shift. apply Hpow_ex. }
+      Opaque pow fact.
+      funexti; rewrite /compose//=.
+      f_equal.
+      { f_equal; OK. }
+      { f_equal; f_equal; OK. }
+      Transparent pow fact.
+    }
+    { simpl.
+      apply ex_seriesC_scal_l.
+      apply (ex_SeriesC_nat_shiftN_r (N + 1)).
+      rewrite /compose//=.
+      apply (ex_seriesC_le _ (fun x0 => 1 * y ^ (x0 + 1 + 1) / fact (x0 + 1 + 1) * M * 1)).
+      { intro n.
+        split.
+        { apply Rmult_le_pos; [|apply pow_le; apply Lem1].
+          apply Rmult_le_pos; [|apply Hf].
+          rewrite Rdiv_def Rmult_assoc.
+          apply Rmult_le_pos; [apply Iverson_nonneg|].
+          apply Rle_mult_inv_pos; [apply pow_le; OK|].
+          apply INR_fact_lt_0.
+        }
+        apply Rmult_le_compat.
+        { apply Rmult_le_pos; [|apply Hf].
+          rewrite Rdiv_def Rmult_assoc.
+          apply Rmult_le_pos; [apply Iverson_nonneg|].
+          apply Rle_mult_inv_pos; [apply pow_le; OK|].
+          apply INR_fact_lt_0.
+        }
+        { apply pow_le; apply Lem1. }
+        2: { rewrite -(pow1 (n + (N + 1 ) - ((N + 1)) + 1)). apply pow_incr; OK. }
+        apply Rmult_le_compat.
+        { rewrite Rdiv_def Rmult_assoc.
+          apply Rmult_le_pos; [apply Iverson_nonneg|].
+          apply Rle_mult_inv_pos; [apply pow_le; OK|].
+          apply INR_fact_lt_0. }
+        { apply Hf. }
+        2: { apply Hf. }
+        apply Rmult_le_compat.
+        { apply Rmult_le_pos; [apply Iverson_nonneg|]. apply pow_le; OK. }
+        { rewrite -(Rmult_1_l (/ _)). apply Rle_mult_inv_pos; OK.   apply INR_fact_lt_0. }
+        2: { right. f_equal. f_equal. f_equal. OK. }
+        apply Rmult_le_compat.
+        { apply Iverson_nonneg. }
+        { apply pow_le; OK. }
+        { apply Iverson_le_1. }
+        { right. f_equal. f_equal. OK. }
+      }
+      eapply ex_seriesC_ext; [intros ?; rewrite Rmult_1_l Rmult_1_r; done|].
+      apply ex_seriesC_scal_r.
+      replace (λ x0 : nat, y ^ (x0 + 1 + 1 ) / fact (x0 + 1 + 1)) with ((λ x0 : nat, y ^ x0 / fact x0) ∘ S ∘ S).
+      { apply ex_SeriesC_nat_shift. apply ex_SeriesC_nat_shift.  apply Hpow_ex. }
+      Opaque pow fact.
+      funexti; rewrite /compose//=.
+      f_equal.
+      { f_equal; OK. }
+      { f_equal; f_equal; OK. }
+      Transparent pow fact.
+    }
     }
     2: { apply ex_seriesC_single. }
     rewrite /S_CreditV.
