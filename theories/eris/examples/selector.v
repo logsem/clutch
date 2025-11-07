@@ -898,10 +898,112 @@ Section credits.
     rewrite -SeriesC_scal_r.
     rewrite -SeriesC_plus.
     2: {
-      admit.
+      apply ex_seriesC_scal_r.
+      replace (λ x0 : nat,
+       Iverson Zeven x0 *
+       ((- x * (2 * k + x) / (2 * k + 2)) ^ x0 / fact x0 + (- x * (2 * k + x) / (2 * k + 2)) ^ (x0 + 1) / fact (x0 + 1)))
+      with (λ x0 : nat, (Iverson Zeven x0 * (- x * (2 * k + x) / (2 * k + 2)) ^ x0 / fact x0 + Iverson Zeven x0 * (- x * (2 * k + x) / (2 * k + 2)) ^ (x0 + 1) / fact (x0 + 1))); last first.
+      { funexti; OK. }
+      apply ex_seriesC_plus.
+      { apply (@HpowE_ex ((- x * (2 * k + x) / (2 * k + 2)))). }
+      { replace (λ x0 : nat, Iverson Zeven x0 * (- x * (2 * k + x) / (2 * k + 2)) ^ (x0 + 1) / fact (x0 + 1))
+           with ((λ x0 : nat, Iverson Zeven (S x0) * (- x * (2 * k + x) / (2 * k + 2)) ^ (x0 ) / fact (x0 )) ∘ S);
+           last first.
+        { funexti.  repeat rewrite Rmult_assoc.
+          rewrite /compose.
+          f_equal; last (f_equal; f_equal; OK).
+          f_equal; last (f_equal; OK).
+          rewrite /Iverson; case_decide; case_decide; OK.
+          { exfalso; apply H0.
+            have HH := Zeven_pred _ (Zodd_pred _ H).
+            by replace (Z.pred (Z.pred (S (S x0)))) with (Z.of_nat x0) in HH by OK. }
+          { exfalso; apply H.
+            have HH := Zeven_Sn _ (Zodd_Sn _ H0).
+            replace (Z.of_nat (S (S x0))) with (Z.succ (Z.succ x0)) by OK.
+            OK.
+          }
+        }
+        apply ex_SeriesC_nat_shift.
+        replace (λ x0 : nat, Iverson Zeven (S x0) * (- x * (2 * k + x) / (2 * k + 2)) ^ x0 / fact x0)
+           with (λ x0 : nat, Iverson (not ∘ Zeven) x0 * (- x * (2 * k + x) / (2 * k + 2)) ^ x0 / fact x0); last first.
+        { funexti. do 2 f_equal.
+          destruct (ClassicalEpsilon.excluded_middle_informative (Zeven x0)) as [Hev|Hev].
+          { rewrite Iverson_False; OK.
+            rewrite Iverson_False; OK.
+            replace (Z.of_nat (S x0)) with (Z.succ (Z.of_nat x0)) by OK.
+            intro HK.
+            apply Zodd_Sn in Hev.
+            apply Zodd_not_Zeven in Hev.
+            OK.
+          }
+          { rewrite Iverson_True; OK.
+            rewrite Iverson_True; OK.
+            replace (Z.of_nat (S x0)) with (Z.succ (Z.of_nat x0)) by OK.
+            apply Zeven_Sn.
+            eapply NNP_P.
+            intro HH.
+            destruct (Zeven_odd_dec x0); OK.
+
+          }
+        }
+        apply (@HpowO_ex ((- x * (2 * k + x) / (2 * k + 2)))).
+      }
     }
     2: {
-      admit.
+      apply ex_seriesC_scal_r.
+      apply ex_seriesC_scal_l.
+      replace  (λ x0 : nat,
+       (Iverson (not ∘ Zeven) x0 *
+        ((- x * (2 * k + x) / (2 * k + 2)) ^ x0 / fact x0 + (- x * (2 * k + x) / (2 * k + 2)) ^ (x0 + 1) / fact (x0 + 1)))) with
+        (λ x0 : nat,
+       ((Iverson (not ∘ Zeven) x0 *(- x * (2 * k + x) / (2 * k + 2)) ^ x0 / fact x0 + Iverson (not ∘ Zeven) x0 * (- x * (2 * k + x) / (2 * k + 2)) ^ (x0 + 1) / fact (x0 + 1)))) by (funexti; OK).
+      apply ex_seriesC_plus.
+      { apply (@HpowO_ex ((- x * (2 * k + x) / (2 * k + 2)))). }
+      { replace (λ x0 : nat, Iverson (not ∘ Zeven) x0 * (- x * (2 * k + x) / (2 * k + 2)) ^ (x0 + 1) / fact (x0 + 1))
+           with ((λ x0 : nat, Iverson (Zeven) x0 * (- x * (2 * k + x) / (2 * k + 2)) ^ (x0 ) / fact (x0)) ∘ S); last first.
+        { funexti.  repeat rewrite Rmult_assoc.
+          rewrite /compose.
+          f_equal; last (f_equal; f_equal; OK).
+          f_equal; last (f_equal; OK).
+          rewrite /Iverson; case_decide; case_decide; OK.
+          { exfalso.
+            apply Zodd_Sn in H0.
+            apply Zodd_not_Zeven in H0.
+            apply H0.
+            by replace (Z.succ x0) with (Z.of_nat (S x0)) by OK.
+          }
+          { exfalso.
+            destruct (Zeven_odd_dec x0); OK.
+            apply Zeven_Sn in z.
+            apply H.
+            by replace (Z.of_nat (S x0)) with (Z.succ x0) by OK.
+          }
+        }
+        apply ex_SeriesC_nat_shift.
+        replace (λ x0 : nat, Iverson Zeven (S x0) * (- x * (2 * k + x) / (2 * k + 2)) ^ x0 / fact x0)
+           with (λ x0 : nat, Iverson (not ∘ Zeven) x0 * (- x * (2 * k + x) / (2 * k + 2)) ^ x0 / fact x0); last first.
+        { funexti. do 2 f_equal.
+          destruct (ClassicalEpsilon.excluded_middle_informative (Zeven x0)) as [Hev|Hev].
+          { rewrite Iverson_False; OK.
+            rewrite Iverson_False; OK.
+            replace (Z.of_nat (S x0)) with (Z.succ (Z.of_nat x0)) by OK.
+            intro HK.
+            apply Zodd_Sn in Hev.
+            apply Zodd_not_Zeven in Hev.
+            OK.
+          }
+          { rewrite Iverson_True; OK.
+            rewrite Iverson_True; OK.
+            replace (Z.of_nat (S x0)) with (Z.succ (Z.of_nat x0)) by OK.
+            apply Zeven_Sn.
+            eapply NNP_P.
+            intro HH.
+            destruct (Zeven_odd_dec x0); OK.
+
+          }
+        }
+        apply (@HpowE_ex ((- x * (2 * k + x) / (2 * k + 2)))).
+      }
     }
     f_equal; funext; intros n.
     (* Below proof very redundant *)
@@ -979,7 +1081,7 @@ Section credits.
         destruct (Zeven_odd_dec n); OK.
       }
     }
-  Admitted.
+  Qed.
 
 End credits.
 
