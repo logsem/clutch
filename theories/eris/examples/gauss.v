@@ -145,7 +145,7 @@ Section credits.
           { apply Continuity.continuous_const. }
         }
       }
-      { (* Fubini, probably *) admit. }
+      { (* Limit exchange *) admit. }
       { intros x Hx.
         apply SeriesC_le'.
         { intro n. case_bool_decide.
@@ -154,7 +154,18 @@ Section credits.
         }
         { apply ex_seriesC_singleton. }
         { (* Upper bound like the other one *)
-          admit. }
+          apply (ex_seriesC_le _ (λ k : nat, exp (- (k) ^ 2 / 2))).
+          { intros n.
+            split; [apply Rexp_nn|].
+            apply exp_mono.
+            do 2 rewrite /Rdiv_def.
+            apply Rmult_le_compat_r; OK.
+            apply Ropp_le_contravar.
+            apply pow_incr.
+            split; [apply pos_INR|].
+            OK.
+        }
+        { apply Norm1_ex. }
       }
     }
   Admitted.
@@ -183,49 +194,6 @@ Section credits.
     apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg| auto ]).
     apply G1_CreditV_nn; auto.
   Qed.
-
-  Lemma G1_f_ex_seriesC {F : nat → R} (Hex : ex_seriesC F) (HF : ∀ r : nat, 0 <= F r) : ex_seriesC (G1_f F).
-  Proof.
-    rewrite /G1_f.
-    (* Still could be provable:
-       This thing is bounded above by (1 * max (G1_h k true) (G1_h k false)) *)
-    rewrite /G1_h.
-    rewrite Iverson_True; [|intuition].
-    rewrite Iverson_False; [|intuition].
-    rewrite Iverson_False; [|intuition].
-    rewrite Iverson_True; [|intuition].
-    (* The max is bounded above by the sum, since both are nonnegative, and the sum exists. *)
-
-
-
-
-    (*
-
-    apply ex_seriesC_plus. {
-      apply ex_seriesC_mult.
-      { intro n. apply Rexp_nn. }
-      { intro n. apply G1_h_nn. apply HF. }
-      { admit. }
-      { admit. }
-    }
-    { apply ex_seriesC_mult.
-      { intro n.
-        apply error_credits.Rle_0_le_minus.
-        apply Rexp_range.
-        rewrite Rdiv_def.
-        apply Rcomplements.Rmult_le_0_r.
-        { rewrite -Ropp_0.
-          apply Ropp_le_contravar.
-          apply pos_INR.
-        }
-        { lra. }
-      }
-      { intro n. apply G1_h_nn. apply HF. }
-      { (* Oh no, does this even exist?? *)
-        admit. }
-      { admit. }
-     *)
-  Admitted.
 
   Lemma G2_exRInt {F} (Hnn : ∀ k r, 0 <= F k r) {x'} (Hint : ex_RInt (F x') 0 1) : ex_RInt (λ x : R, G2_μ x' x * F x' x) 0 1.
   Proof.
@@ -258,6 +226,20 @@ Section credits.
     lra.
   Qed.
 
+  Lemma G2_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) {r} :  G2_f F r <= M.
+  Proof.
+    (*
+        rewrite /G2_f.
+        etrans.
+        { etrans; [apply RRle_abs|].
+          apply abs_RInt_le_const; OK.
+          { apply G2_g_exRInt. }
+          intros ??.
+          rewrite Rabs_pos_eq; [|apply G2_g_nn]; OK.
+          Search Rabs eq.
+        Search RInt "le".
+        *)
+  Admitted.
 
   Lemma G1_f_nn {F k} (Hnn : ∀ r, 0 <= F r) : 0 <= G1_f F k.
   Proof.
@@ -632,8 +614,7 @@ Section program.
     iApply (pgl_wp_mono_frame (□ _) with "[Hε] IH"); last first.
     { rewrite -Nat2Z.inj_0.
       wp_apply (wp_Geo _ (exp (-1 / 2)) _  _ (G1_f F)).
-      { by intros ?; apply G1_f_nn, Hnn. }
-      { apply G1_f_ex_seriesC; first done. intros ?. apply Hnn. }
+      { split; [apply G1_f_nn, Hnn|]. admit. }
       { by rewrite G1_f_expectation. }
       Unshelve.
       { apply Rexp_range; lra. }
@@ -648,11 +629,15 @@ Section program.
           { apply Rmax_l. }
           { apply Rmax_r. }
         }
-        { rewrite /half_bern_neg_exp.LiftF.
-          (* Uh. This series does not exist. *)
-          admit.
+        { iApply (ec_eq with "Hε").
+          rewrite /BNEHalf_CreditV.
+          rewrite (Rmult_comm _ (F' true)) (Rmult_comm _ (F' false)).
+          f_equal; f_equal; rewrite /BNEHalf_μ.
+          { rewrite Iverson_True; OK. rewrite Iverson_False; OK. }
+          { rewrite Iverson_False; OK. rewrite Iverson_True; OK. }
         }
       }
+      Unshelve. admit.
     }
     iIntros (v) "(#IH & [%n [-> Hε]])".
     wp_pures.
@@ -677,7 +662,13 @@ Section program.
       { iIntros (E' F' HF') "(Hε & HI)".
         iFrame.
         iApply wp_BNEHalf.
-        { admit. }
+        { Unshelve.
+          2: { exact (Rmax (F' false) (F' true)). }
+          intro b. split; OK.
+          destruct b.
+          { apply Rmax_r. }
+          { apply Rmax_l. }
+        }
         iApply (ec_eq with "Hε").
         rewrite /BNEHalf_CreditV/BNEHalf_μ.
         rewrite Iverson_True; [|intuition].
@@ -685,7 +676,6 @@ Section program.
         rewrite Iverson_False; [|intuition].
         rewrite Iverson_True; [|intuition].
         lra.
-        Unshelve. admit.
       }
     }
     iIntros (v) "(#IH & [%b [-> [Hε _]]])".
@@ -718,13 +708,10 @@ Section program.
     wp_pures.
     wp_bind (G1 _).
     iApply (pgl_wp_mono_frame (□ _) with "[Hε] IH"); last first.
-    { iApply (wp_G1 (F := G2_f F)).
-      2: { by apply G2_f_ex_seriesC. }
-      2: { iApply (ec_eq with "Hε"). apply G2_f_expectation. }
-      { intros ?.
-        rewrite /G2_f.
-        admit. (* apply G2_f_nn; auto. *) }
-      Unshelve. admit.
+    { iApply (wp_G1 (F := G2_f F) (M := M)).
+      { intros ?; split; [apply G2_f_nn; OK; apply Hnn|]. apply G2_ub; OK. }
+      { by apply G2_f_ex_seriesC. }
+      { iApply (ec_eq with "Hε"). apply G2_f_expectation. }
     }
     iIntros (v) "(#IH & [%k [-> Hε]])".
     wp_pures.
