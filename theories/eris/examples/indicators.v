@@ -648,4 +648,7 @@ Proof.
   Lemma Geo_ex_SeriesC {𝛾 : R} (H𝛾 : 0 <= 𝛾 <= 1) : ex_seriesC (λ x : nat, 𝛾 ^ x * (1 - 𝛾)).
   Proof. Admitted.
 
+  Lemma exp_inj {x y : R} : exp x = exp y → x = y.
+  Proof. Admitted.
+
 End Lib.

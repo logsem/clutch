@@ -24,6 +24,12 @@ End pmf.
 Section credits.
   Import Hierarchy.
 
+  (*
+  Lemma ex_seriesC_lemma1 : ex_seriesC (λ x : nat, exp (- (x * (x - 1))%nat / 2)).
+  Proof. Admitted.
+
+   *)
+
   Definition G1_CreditV (F : nat → R) := SeriesC (fun (k : nat) => G1_μ k * F k).
 
   Definition G2_CreditV (F : nat → R → R) :=
@@ -104,6 +110,9 @@ Section credits.
     lra.
   Qed.
 
+  Lemma ExpAddSeries_RInt : ex_RInt (λ x : R, SeriesC (λ k : nat, exp (- (x + k) ^ 2 / 2))) 0 1.
+  Proof. Admitted. (* Limit exchange *)
+
   Lemma Norm2_nn : 0 < Norm2.
   Proof.
     rewrite /Norm2.
@@ -145,7 +154,7 @@ Section credits.
           { apply Continuity.continuous_const. }
         }
       }
-      { (* Limit exchange *) admit. }
+      { apply ExpAddSeries_RInt. }
       { intros x Hx.
         apply SeriesC_le'.
         { intro n. case_bool_decide.
@@ -168,7 +177,9 @@ Section credits.
         { apply Norm1_ex. }
       }
     }
-  Admitted.
+  }
+  Qed.
+
 
   Lemma G2_μ_nn {x k} (Hx : 0 <= x <= 1) : 0 <= G2_μ k x.
   Proof.
@@ -188,11 +199,35 @@ Section credits.
     apply G1_μ_nn.
   Qed.
 
+  Lemma G1_CreditV_ub {F} {M : R} (Hnn : ∀ r, 0 <= F r <= M) : G1_CreditV F <= M.
+  Proof.
+    have ? : 0 <= M. { specialize Hnn with 0%nat. OK. }
+    rewrite /G1_CreditV.
+  Admitted.
+
   Lemma G1_h_nn {F k b} (Hnn : ∀ r, 0 <= F r) : 0 <= G1_h F k b.
   Proof.
     rewrite /G1_h.
     apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg| auto ]).
     apply G1_CreditV_nn; auto.
+  Qed.
+
+  Lemma G1_h_ub {F k b M} (Hnn : ∀ r, 0 <= F r <= M) : G1_h F k b <= M.
+  Proof.
+    rewrite /G1_h.
+    destruct b.
+    { rewrite Iverson_True; OK.
+      rewrite Iverson_False; OK.
+      rewrite Rmult_1_l Rmult_0_l.
+      rewrite Rplus_0_r.
+      apply Hnn.
+    }
+    { rewrite Iverson_False; OK.
+      rewrite Iverson_True; OK.
+      rewrite Rmult_1_l Rmult_0_l.
+      rewrite Rplus_0_l.
+      apply G1_CreditV_ub; OK.
+    }
   Qed.
 
   Lemma G2_exRInt {F} (Hnn : ∀ k r, 0 <= F k r) {x'} (Hint : ex_RInt (F x') 0 1) : ex_RInt (λ x : R, G2_μ x' x * F x' x) 0 1.
@@ -226,20 +261,132 @@ Section credits.
     lra.
   Qed.
 
-  Lemma G2_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) {r} :  G2_f F r <= M.
+  Lemma G2_s_nn {F k x b} (Hnn : ∀ a b , 0 <= F a b) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) : 0 <= G2_s F k x b.
   Proof.
+    rewrite /G2_s.
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg| auto ]).
+    apply G2_CreditV_nn; auto.
+  Qed.
+
+  Lemma G2_g_nn {F k x} (Hnn : ∀ a b , 0 <= F a b) (Hx : 0 <= x <= 1) (Hint :   ∀ x' : nat, ex_RInt (F x') 0 1) : 0 <= G2_g F k x.
+  Proof.
+    rewrite /G2_g.
+    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [|apply G2_s_nn; auto]).
+    { apply Rexp_range.
+      apply Rcomplements.Rmult_le_0_r; last lra.
+      have ? : 0 <= x * (2 * k + x); last lra.
+      apply Rmult_le_pos; [lra|].
+      apply Rplus_le_le_0_compat; [|lra].
+      apply Rmult_le_pos; [lra|apply pos_INR].
+    }
+    { apply error_credits.Rle_0_le_minus.
+      apply Rexp_range.
+      have ? : 0 <= x * (2 * k + x); last lra.
+      apply Rmult_le_pos; [lra|].
+      apply Rplus_le_le_0_compat; [|lra].
+      apply Rmult_le_pos; [lra|apply pos_INR].
+    }
+  Qed.
+
+  Lemma G2_g_exRInt {F k} (Hex : ex_RInt (λ y : R, F k y) 0 1) : ex_RInt (G2_g F k) 0 1.
+  Proof.
+    rewrite /G2_g.
+    apply (ex_RInt_plus (V := R_CompleteNormedModule)).
+    { apply ex_RInt_mult.
+      { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros z Hz.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      { rewrite /G2_s.
+        rewrite Iverson_True; OK.
+        rewrite Iverson_False; OK.
+        replace (λ y : R, 1 * F k y + 0 * G2_CreditV F) with (λ y : R, F k y) by (funexti; OK).
+        done.
+      }
+    }
+    { apply ex_RInt_mult.
+      { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros z Hz.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      { rewrite /G2_s.
+        rewrite Iverson_False; OK.
+        rewrite Iverson_True; OK.
+        replace (λ y : R, 0 * F k y + 1 * G2_CreditV F) with (λ y : R, G2_CreditV F) by (funexti; OK).
+        apply ex_RInt_const.
+      }
+    }
+  Qed.
+
+  Lemma G2_CreditV_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) : G2_CreditV F <= M.
+  Proof.
+    have ? : 0 <= M. { specialize Hnn with 0%nat 0%R. OK. }
+    rewrite /G2_CreditV.
+    (* Might be easier to exchange the limits... *)
     (*
-        rewrite /G2_f.
-        etrans.
-        { etrans; [apply RRle_abs|].
-          apply abs_RInt_le_const; OK.
-          { apply G2_g_exRInt. }
-          intros ??.
-          rewrite Rabs_pos_eq; [|apply G2_g_nn]; OK.
-          Search Rabs eq.
-        Search RInt "le".
-        *)
+
+    etrans.
+    { eapply (SeriesC_le' _ (λ k : nat, RInt (λ x : R, G2_μ k x * M) 0 1)).
+      { admit. }
+      { admit. }
+      { admit. }
+    }
+    rewrite (SeriesC_ext _ (λ k : nat, (RInt (λ x : R, G2_μ k x) 0 1) * M)); last first.
+    { admit. }
+    rewrite SeriesC_scal_r.
+    rewrite -{2}(Rmult_1_l M).
+    apply Rmult_le_compat_r; OK.
+    rewrite /G2_μ.
+    Check
+    Search SeriesC "le".
+*)
   Admitted.
+
+  Lemma G2_g_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) {r t} (Ht : 0 <= t <= 1) : G2_g F r t <= M.
+  Proof.
+    rewrite /G2_g.
+    rewrite /G2_s.
+    rewrite Iverson_True; OK.
+    rewrite Iverson_False; OK.
+    rewrite Iverson_False; OK.
+    rewrite Iverson_True; OK.
+    repeat rewrite Rmult_1_l.
+    repeat rewrite Rmult_0_l.
+    rewrite Rplus_0_r Rplus_0_l.
+    suffices H : exp (- t * (2 * r + t) / 2) * M + (1 - exp (- t * (2 * r + t) / 2)) * M <= M; last first.
+    { rewrite -Rmult_plus_distr_r. OK. }
+    etrans; last apply H.
+    apply Rplus_le_compat.
+    { apply Rmult_le_compat_l; [apply Rexp_nn|apply Hnn]. }
+    { apply Rmult_le_compat_l; [|apply G2_CreditV_ub; OK].
+      apply Rle_0_le_minus.
+      apply Rexp_range; OK.
+      rewrite Rdiv_def.
+      rewrite Rmult_assoc.
+      apply Rcomplements.Rmult_le_0_r; OK.
+      apply Rle_mult_inv_pos; OK.
+      apply Rplus_le_le_0_compat; OK.
+      apply Rmult_le_pos; OK.
+      apply pos_INR.
+    }
+  Qed.
+
+  Lemma G2_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) {r} (Hex : forall r, ex_RInt (λ y : R, F r y) 0 1) :  G2_f F r <= M.
+  Proof.
+    rewrite /G2_f.
+      etrans.
+      { etrans; [apply RRle_abs|].
+        apply abs_RInt_le_const; OK.
+        { apply G2_g_exRInt; OK. }
+        intros ??.
+        rewrite Rabs_pos_eq; [|apply G2_g_nn]; OK.
+        { eapply G2_g_ub; OK. }
+        { intros ??; apply Hnn. }
+      }
+      OK.
+  Qed.
 
   Lemma G1_f_nn {F k} (Hnn : ∀ r, 0 <= F r) : 0 <= G1_f F k.
   Proof.
@@ -257,8 +404,9 @@ Section credits.
     }
   Qed.
 
-  Lemma G1_f_expectation {F} : G1_CreditV F = Geo_CreditV (G1_f F) (exp (-1 / 2)) 0.
+  Lemma G1_f_expectation {F M} (Hnn : ∀ x, 0 <= F x <= M) : G1_CreditV F = Geo_CreditV (G1_f F) (exp (-1 / 2)) 0.
   Proof.
+    have HM : 0 <= M. { specialize Hnn with 0%nat. OK.  }
     rewrite /G1_CreditV.
     (* Simplify the RHS *)
     rewrite /Geo_CreditV.
@@ -270,8 +418,92 @@ Section credits.
     rewrite /G1_f.
     setoid_rewrite Rmult_plus_distr_r.
     rewrite SeriesC_plus.
-    2: { admit. }
-    2: { admit. }
+    2: {
+      apply (ex_seriesC_le _ (λ x : nat, 1 * M * (exp (-1 / 2) ^ x * 1))).
+      { intros n.
+        split.
+        { apply Rmult_le_pos; OK; apply Rmult_le_pos; OK.
+          { apply Rexp_nn. }
+          { apply G1_h_nn. apply Hnn. }
+          { apply pow_le. apply Rexp_nn. }
+          { apply Rle_0_le_minus.
+            apply Rexp_range.
+            OK.
+          }
+        }
+        apply Rmult_le_compat.
+        { apply Rmult_le_pos; [apply Rexp_nn | apply G1_h_nn; apply Hnn]. }
+        { apply Rmult_le_pos; [apply pow_le, Rexp_nn | apply Rle_0_le_minus, Rexp_range; OK]. }
+        { apply Rmult_le_compat.
+          { apply Rexp_nn; OK. }
+          { apply G1_h_nn; OK. apply Hnn. }
+          { apply Rexp_range.
+            rewrite Rdiv_def.
+            apply Rcomplements.Rmult_le_0_r; OK.
+            rewrite -Ropp_0.
+            apply Ropp_le_contravar.
+            apply pos_INR.
+          }
+          { apply G1_h_ub; OK. }
+        }
+        { apply Rmult_le_compat.
+          { apply pow_le, Rexp_nn. }
+          { apply Rle_0_le_minus, Rexp_range; OK. }
+          { OK. }
+          { have ? : (0 <= exp (-1 / 2)) by apply Rexp_nn. OK. }
+        }
+      }
+      apply ex_seriesC_scal_l.
+      apply ex_seriesC_scal_r.
+      rewrite -ex_seriesC_nat.
+      apply Series.ex_series_geom.
+      rewrite Rabs_right; [|apply Rle_ge, Rexp_nn].
+      rewrite -exp_0.
+      apply exp_mono_strict.
+      OK.
+    }
+    2: {
+      apply (ex_seriesC_le _ (λ x : nat, 1 * M * (exp (-1 / 2) ^ x * 1))).
+      { intros n.
+        split.
+        { apply Rmult_le_pos; OK; apply Rmult_le_pos; OK.
+          { apply Rle_0_le_minus, Rexp_range.
+            apply Rcomplements.Rmult_le_0_r; OK.
+            rewrite -Ropp_0. apply Ropp_le_contravar, pos_INR.  }
+          { apply G1_h_nn. apply Hnn. }
+          { apply pow_le. apply Rexp_nn. }
+          { apply Rle_0_le_minus. apply Rexp_range. OK. }
+        }
+        apply Rmult_le_compat.
+        { apply Rmult_le_pos; [| apply G1_h_nn; apply Hnn].
+          apply Rle_0_le_minus, Rexp_range.
+          apply Rcomplements.Rmult_le_0_r; OK.
+          rewrite -Ropp_0. apply Ropp_le_contravar, pos_INR.
+        }
+        { apply Rmult_le_pos; [apply pow_le, Rexp_nn | apply Rle_0_le_minus, Rexp_range; OK]. }
+        { apply Rmult_le_compat.
+          { apply Rle_0_le_minus, Rexp_range.
+            apply Rcomplements.Rmult_le_0_r; OK.
+            rewrite -Ropp_0. apply Ropp_le_contravar, pos_INR.   }
+          { apply G1_h_nn; OK. apply Hnn. }
+          { have ? : 0 <= exp (- (n * (n - 1))%nat / 2) by apply Rexp_nn. OK. }
+          { apply G1_h_ub; OK. }
+        }
+        { apply Rmult_le_compat; OK.
+          { apply pow_le, Rexp_nn. }
+          { apply Rle_0_le_minus, Rexp_range; OK. }
+          { have ? : (0 <= exp (-1 / 2)) by apply Rexp_nn. OK. }
+        }
+      }
+      apply ex_seriesC_scal_l.
+      apply ex_seriesC_scal_r.
+      rewrite -ex_seriesC_nat.
+      apply Series.ex_series_geom.
+      rewrite Rabs_right; [|apply Rle_ge, Rexp_nn].
+      rewrite -exp_0.
+      apply exp_mono_strict.
+      OK.
+    }
     rewrite /G1_h.
     rewrite Iverson_True; [|intuition].
     rewrite Iverson_False; [|intuition].
@@ -288,8 +520,135 @@ Section credits.
       last first.
     { (* Foob, then funext, then SeriesC_scal_l etc. *) admit. }
     rewrite -SeriesC_plus.
-    2: { admit. }
-    2: { admit. }
+    2: {
+      apply (ex_seriesC_le _ (λ x : nat, 1 * M * (exp (-1 / 2) ^ x * 1))).
+      { intros n.
+        split.
+        { apply Rmult_le_pos; OK; apply Rmult_le_pos; OK.
+          { apply Rexp_nn. }
+          { apply Hnn. }
+          { apply pow_le. apply Rexp_nn. }
+          { apply Rle_0_le_minus.
+            apply Rexp_range.
+            OK.
+          }
+        }
+        apply Rmult_le_compat.
+        { apply Rmult_le_pos; [apply Rexp_nn | apply Hnn; apply Hnn]. }
+        { apply Rmult_le_pos; [apply pow_le, Rexp_nn | apply Rle_0_le_minus, Rexp_range; OK]. }
+        { apply Rmult_le_compat.
+          { apply Rexp_nn; OK. }
+          { apply Hnn; OK. }
+          { apply Rexp_range.
+            rewrite Rdiv_def.
+            apply Rcomplements.Rmult_le_0_r; OK.
+            rewrite -Ropp_0.
+            apply Ropp_le_contravar.
+            apply pos_INR.
+          }
+          { apply Hnn; OK. }
+        }
+        { apply Rmult_le_compat.
+          { apply pow_le, Rexp_nn. }
+          { apply Rle_0_le_minus, Rexp_range; OK. }
+          { OK. }
+          { have ? : (0 <= exp (-1 / 2)) by apply Rexp_nn. OK. }
+        }
+      }
+      apply ex_seriesC_scal_l.
+      apply ex_seriesC_scal_r.
+      rewrite -ex_seriesC_nat.
+      apply Series.ex_series_geom.
+      rewrite Rabs_right; [|apply Rle_ge, Rexp_nn].
+      rewrite -exp_0.
+      apply exp_mono_strict.
+      OK.
+    }
+    2: {
+      have HS : 0 <= SeriesC (λ x : nat, (1 - exp (- (x * (x - 1))%nat / 2)) * (exp (-1 / 2) ^ x * (1 - exp (-1 / 2)))).
+      { apply SeriesC_ge_0'.
+            intros n'.
+            apply Rmult_le_pos; last apply Rmult_le_pos.
+            { apply Rle_0_le_minus, Rexp_range.
+              apply Rcomplements.Rmult_le_0_r; OK.
+              rewrite -Ropp_0. apply Ropp_le_contravar, pos_INR.  }
+            { apply pow_le, Rexp_range; OK. }
+            { apply Rle_0_le_minus, Rexp_range.
+              apply Rcomplements.Rmult_le_0_r; OK. }
+      }
+
+
+      apply (ex_seriesC_le _ (λ k : nat, G1_μ k * M * SeriesC (λ x : nat, 1 * (exp (-1 / 2) ^ x * 1)))).
+      { intros n. split.
+        { apply Rmult_le_pos; OK; first apply Rmult_le_pos; OK.
+          { apply G1_μ_nn. }
+          { apply Hnn. }
+        }
+        apply Rmult_le_compat; OK.
+        { apply Rmult_le_pos; [ apply G1_μ_nn | apply Hnn ]. }
+        { apply Rmult_le_compat; OK.
+          { apply G1_μ_nn. }
+          { apply Hnn. }
+          { apply Hnn. }
+        }
+        apply SeriesC_le.
+        { intros n'; split.
+          { apply Rmult_le_pos.
+            { apply Rle_0_le_minus, Rexp_range. apply Rcomplements.Rmult_le_0_r; OK. rewrite -Ropp_0. apply Ropp_le_contravar, pos_INR.  }
+            apply Rmult_le_pos.
+            { apply pow_le, Rexp_nn. }
+            { apply Rle_0_le_minus, Rexp_range. OK. }
+          }
+          apply Rmult_le_compat; OK.
+          { apply Rle_0_le_minus, Rexp_range. apply Rcomplements.Rmult_le_0_r; OK. rewrite -Ropp_0. apply Ropp_le_contravar, pos_INR.  }
+          { apply Rmult_le_pos.
+            { apply pow_le, Rexp_nn. }
+            { apply Rle_0_le_minus, Rexp_range. OK. }
+          }
+          { have ? : 0 <= exp (- (n' * (n' - 1))%nat / 2) by apply Rexp_nn. OK. }
+          apply Rmult_le_compat; OK.
+          { apply pow_le, Rexp_nn. }
+          { apply Rle_0_le_minus, Rexp_range. OK. }
+          { have ? : 0 <= exp (-1 / 2) by apply Rexp_nn. OK. }
+        }
+        apply ex_seriesC_scal_l.
+        apply ex_seriesC_scal_r.
+        rewrite -ex_seriesC_nat.
+        apply Series.ex_series_geom.
+        rewrite Rabs_right; [|apply Rle_ge, Rexp_nn].
+        rewrite -exp_0.
+        apply exp_mono_strict.
+        OK.
+      }
+
+      apply (ex_seriesC_le _ (λ k : nat, G1_μ k * M * (1 / (1 - exp (-1 / 2))))).
+      { intros n.
+        split.
+        { apply Rmult_le_pos; OK; first apply Rmult_le_pos; OK.
+          { apply G1_μ_nn. }
+          { apply SeriesC_ge_0'. intros ?. apply Rmult_le_pos; OK. apply Rmult_le_pos; OK. apply pow_le, Rexp_nn. }
+        }
+        apply Rmult_le_compat; OK.
+        { apply Rmult_le_pos; [ apply G1_μ_nn | OK  ]. }
+        { apply SeriesC_ge_0'. intros ?. apply Rmult_le_pos; OK. apply Rmult_le_pos; OK. apply pow_le, Rexp_nn. }
+        { rewrite SeriesC_scal_l Rmult_1_l.
+          rewrite SeriesC_scal_r Rmult_1_r.
+          right.
+          rewrite SeriesC_nat.
+          rewrite Series.Series_geom; OK.
+          rewrite Rabs_right.
+          { rewrite -exp_0. apply exp_mono_strict. OK. }
+          { apply Rle_ge, Rexp_nn. }
+        }
+      }
+      apply ex_seriesC_scal_r.
+      apply ex_seriesC_scal_r.
+      rewrite /G1_μ.
+      replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+      apply ex_seriesC_scal_r.
+      apply Norm1_ex.
+    }
+
     f_equal. apply functional_extensionality. intro k.
     (* Cancel F *)
     do 2 rewrite (Rmult_assoc _ (F k) _) (Rmult_comm (F k) _) -(Rmult_assoc _ _ (F k)).
@@ -326,10 +685,28 @@ Section credits.
     rewrite SeriesC_scal_r.
     rewrite -Rmult_plus_distr_r.
     rewrite -SeriesC_plus.
-    2: { admit. }
-    2: { (* Distribute, difference, then it does exist. *)
-
-      admit. }
+    2: { apply Norm1_ex. }
+    2: {
+      apply (ex_seriesC_le _  (λ x : nat, 1 * exp (-1 / 2) ^ x)).
+      { intros n.
+        split.
+        { apply Rmult_le_pos.
+          { apply Rle_0_le_minus, Rexp_range. apply Rcomplements.Rmult_le_0_r; OK. rewrite -Ropp_0. apply Ropp_le_contravar, pos_INR.  }
+          { apply pow_le, Rexp_nn. }
+        }
+        apply Rmult_le_compat; OK.
+        { apply Rle_0_le_minus, Rexp_range. apply Rcomplements.Rmult_le_0_r; OK. rewrite -Ropp_0. apply Ropp_le_contravar, pos_INR.  }
+        { apply pow_le, Rexp_nn. }
+        { have ? : 0 <= exp (- (n * (n - 1))%nat / 2) by apply Rexp_nn. OK. }
+      }
+      apply ex_seriesC_scal_l.
+      rewrite -ex_seriesC_nat.
+      apply Series.ex_series_geom.
+      rewrite Rabs_right; [|apply Rle_ge, Rexp_nn].
+      rewrite -exp_0.
+      apply exp_mono_strict.
+      OK.
+    }
     replace (λ x : nat, exp (- x ^ 2 / 2) + (1 - exp (- (x * (x - 1))%nat / 2)) * exp (-1 / 2) ^ x)
        with (λ x : nat, exp (- x ^ 2 / 2) + ( exp (-1 / 2) ^ x - exp (- x^2 / 2))); last first.
     { apply functional_extensionality; intros x.
@@ -348,42 +725,21 @@ Section credits.
     replace (λ x : nat, exp (- x ^ 2 / 2) + (exp (-1 / 2) ^ x - exp (- x ^ 2 / 2)))
        with (λ x : nat, (exp (-1 / 2) ^ x)); last first.
     { apply functional_extensionality; intros x. lra. }
-
-    (* Conclude by geometric series formula *)
+    rewrite SeriesC_nat.
+    rewrite Series.Series_geom.
+    { rewrite Rinv_l; OK.
+      apply Rminus_eq_contra.
+      rewrite -exp_0.
+      intro HK.
+      apply exp_inj in HK.
+      OK.
+    }
+    rewrite Rabs_right.
+    { rewrite -exp_0. apply exp_mono_strict. OK. }
+    { apply Rle_ge, Rexp_nn. }
   Admitted.
 
-  Lemma G2_s_nn {F k x b} (Hnn : ∀ a b , 0 <= F a b) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) : 0 <= G2_s F k x b.
-  Proof.
-    rewrite /G2_s.
-    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg| auto ]).
-    apply G2_CreditV_nn; auto.
-  Qed.
 
-  Lemma G2_g_nn {F k x} (Hnn : ∀ a b , 0 <= F a b) (Hx : 0 <= x <= 1) (Hint :   ∀ x' : nat, ex_RInt (F x') 0 1) : 0 <= G2_g F k x.
-  Proof.
-    rewrite /G2_g.
-    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [|apply G2_s_nn; auto]).
-    { apply Rexp_range.
-      apply Rcomplements.Rmult_le_0_r; last lra.
-      have ? : 0 <= x * (2 * k + x); last lra.
-      apply Rmult_le_pos; [lra|].
-      apply Rplus_le_le_0_compat; [|lra].
-      apply Rmult_le_pos; [lra|apply pos_INR].
-    }
-    { apply error_credits.Rle_0_le_minus.
-      apply Rexp_range.
-      have ? : 0 <= x * (2 * k + x); last lra.
-      apply Rmult_le_pos; [lra|].
-      apply Rplus_le_le_0_compat; [|lra].
-      apply Rmult_le_pos; [lra|apply pos_INR].
-    }
-  Qed.
-
-  Lemma G2_g_exRInt {F k} : ex_RInt (G2_g F k) 0 1.
-  Proof.
-    rewrite /G2_g.
-
-  Admitted.
 
   Lemma G2_f_nn {F k} (Hnn : ∀ a b , 0 <= F a b) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) : 0 <= G2_f F k.
   Proof.
@@ -615,7 +971,7 @@ Section program.
     { rewrite -Nat2Z.inj_0.
       wp_apply (wp_Geo _ (exp (-1 / 2)) _  _ (G1_f F)).
       { split; [apply G1_f_nn, Hnn|]. admit. }
-      { by rewrite G1_f_expectation. }
+      {  erewrite G1_f_expectation; [|eapply Hnn]. done. }
       Unshelve.
       { apply Rexp_range; lra. }
       { iIntros (E' F' HF') "Hε".
