@@ -358,36 +358,80 @@ Import Hierarchy.
   
 Lemma RInt_add {F1 F2 : R → R} {a b : R} (H1 : ex_RInt F1 a b) (H2 : ex_RInt F2 a b) :
   RInt F1 a b  + RInt F2 a b = RInt (fun x => F1 x + F2 x) a b.
-Proof. Admitted.
+Proof. rewrite RInt_plus; done. Qed.
 
 Lemma RInt_Rmult {F : R → R} {a b r : R} : r * RInt F a b = RInt (fun x => r * F x) a b.
-Proof. Admitted.
+Proof.
+  (* Check RInt_scal. Augh I need another side condition here because non-integrability isn't set to 0 *)
+Admitted.
 
 Lemma RInt_Rmult' {F : R → R} {a b r : R} : (RInt F a b) * r = RInt (fun x => F x * r) a b.
 Proof. Admitted.
 
 Lemma ex_RInt_Rmult {F : R → R} {a b r : R} : ex_RInt F a b → ex_RInt (fun x => r * F x) a b.
-Proof. Admitted.
+Proof.
+  intro H.
+  replace (λ x : R, r * F x) with (λ x : R, scal r (F x)); last (apply functional_extensionality; done).
+  apply (ex_RInt_scal (V := R_CompleteNormedModule)).
+  apply H.
+Qed.
 
 Lemma ex_RInt_Rmult' {F : R → R} {a b r : R} : ex_RInt F a b → ex_RInt (fun x => F x * r) a b.
-Proof. Admitted.
+Proof.
+  intro H.
+  replace (λ x : R, F x * r) with (λ x : R, scal r (F x)); last (apply functional_extensionality; rewrite /scal//=/mult//=; intros ?; lra).
+  apply (ex_RInt_scal (V := R_CompleteNormedModule)).
+  apply H.
+Qed.
 
 Lemma ex_RInt_pow {a b N} : ex_RInt (λ y : R, y ^ N) a b.
-Proof. Admitted.
+Proof.
+  apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+  intros ??.
+  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+  by auto_derive.
+Qed.
 
 Lemma Rexp_nn {z} : 0 <= exp z.
-Proof. Admitted.
+Proof. have ? := exp_pos z. lra. Qed.
 
 Lemma Rexp_range {z : R} : z <= 0 -> 0 <= exp z <= 1.
-Proof. Admitted.
+Proof.
+  split; [apply Rexp_nn|].
+  replace z with ((-1) * (-z)) by lra.
+  replace (exp (-1 * - z)) with (/ exp (- z) ); last first.
+  { apply (Rmult_eq_reg_l (exp (- z))).
+    2: { have ? := exp_pos (- z). lra. }
+    rewrite -Rdiv_def Rdiv_diag.
+    2: { have ? := exp_pos (- z). lra. }
+    rewrite -exp_plus.
+    replace (- z + -1 * - z) with 0 by lra.
+    by rewrite exp_0.
+  }
+  rewrite -Rinv_1.
+  apply Rinv_le_contravar; [lra|].
+  eapply Rle_trans.
+  2: { eapply exp_ineq1_le. }
+  lra.
+Qed.
 
 Lemma ex_RInt_add' (f g : R → R) {h : R → R} {a b : R} (Ha : ex_RInt f a b) (Hb : ex_RInt g a b)
+   (Hab : a <= b)
    (Hext : ∀ x, a <= x <= b → f x + g x = h x) : ex_RInt h a b.
-Proof. Admitted. (* Check ex_RInt_plus. *)
+Proof.
+  eapply ex_RInt_ext.
+  { rewrite Rmin_left; [|lra].
+    rewrite Rmax_right; [|lra].
+    intros ??.
+    apply Hext.
+    lra.
+  }
+  apply (ex_RInt_plus _ _ _ _ Ha Hb).
+Qed.
 
 Lemma ex_RInt_add  {f g : R → R} {a b : R} (Ha : ex_RInt f a b) (Hb : ex_RInt g a b) :
   ex_RInt (fun x => f x + g x) a b.
-Proof. Admitted.
+Proof. apply (ex_RInt_plus _ _ _ _ Ha Hb). Qed.
 
 Lemma ex_RInt_Iverson_le {x a b}  : ex_RInt (Iverson (Rle x)) a b.
 Proof. Admitted.
@@ -409,13 +453,6 @@ Proof. Admitted.
 
 Lemma ex_RInt_Iverson_ge_uncurry {rx} : ex_RInt (λ y : R, Iverson (uncurry Rge) (y, rx)) 0 1.
 Proof. Admitted.
-(*
-Lemma DominatedCvgTheorem {F : nat → R → R} {a b : R} (g : R → R)
-  (Hdom : forall n x, Rmin a b <= x <= Rmax a b → 0 <= F n x <= g x)
-  (Hint : ex_RInt g a b) :
-  is_RInt (fun x => SeriesC (fun n => F n x)) a b (SeriesC (fun n => RInt (fun x => F n x) a b)).
-Proof. Admitted.
-*)
 
 Lemma ex_RInt_mult (f g : R -> R) (a b : R) :
   ex_RInt f a b ->  ex_RInt g a b ->
@@ -426,29 +463,6 @@ Admitted.
 
 Lemma RInt_pow {a b N} : RInt (λ x : R, x ^ N) a b = b ^ (N + 1)%nat / (N + 1)%nat - a ^ (N + 1)%nat / (N + 1)%nat.
 Proof. Admitted.
-
-
-(* Arzela's Dominated Convergence theorem
-Self-contained proof that does not use any measure theory: https://arxiv.org/pdf/1408.1439
-Oh, never mind, The theorem presumes that the limit we're trying to prove exists and this cannot
-be easily eliminated from the proof.
-
-The monotone convergence theorem for Riemann integrals also assumes the limit is integrable.
-
-In fact, even the Riemann version of the Dominated Convergence theorem has this problem!
-
-Can I prove this for when F is (piecewise) uniformly continuous? ie. continuous, since [a, b] is compact.
-
-Fubini's theorem gives a stronger condition: The set of discontinuities has measure 0.
-Here the set of discontinuities is equal to at least every horizontal line (n parameter) plus any discontinuities
-associated to the first parameter.
-
-In any case, we are restricting the _continuity_ of the function F, not its integrability, which is stronger.
-
-
-Proof. Admitted.
-
- *)
 
 
 Definition Continuity2 (f : (R * R) -> R) (x y : R) : Prop :=
@@ -497,18 +511,6 @@ Definition Int {T} (S U : T -> Prop) : T -> Prop :=
 Definition Bounded (f : R * R -> R) (M : R) : R * R -> Prop :=
   fun t => Rabs (f t) <= M.
 
-(*
-Definition NRtoRR (F : nat → R → R) : R → R → R :=
-  fun x y => F (Rcomplements.floor1 x) y.
-  (HC : Negligible (Int (RII (Icc xa xb) (Icc ya yb)) (Discontinuities2 f))) :
-*)
-
-(* Not 100% sure yet *)
-Lemma FubiniNatR_ex {F : nat → R → R} {a b : R} (g : R → R)
-  (Hcont : False) :
-  ex_RInt (fun x => SeriesC (fun n => F n x)) a b.
-Admitted.
-
 (* I need either ex_SeriesC or maybe nn *)
 Lemma SeriesC_nat_shift {f : nat → R} : SeriesC f = f 0%nat + SeriesC (f ∘ S).
 Proof.
@@ -531,17 +533,6 @@ Proof. Admitted.
 
 Lemma ex_SeriesC_nat_shiftN_r {f : nat → R} (N : nat) : ex_seriesC (f ∘ (fun n => (n + N))%nat) → ex_seriesC f.
 Proof. Admitted.
-
-(*
-(* Key lemma ? *)
-Lemma SeriesC_even_contract {f : nat → R} :
-  SeriesC (fun n => Iverson Zeven (Z.of_nat n) * f n) = SeriesC (fun n => f (2 * n)%nat).
-Proof.
-  apply Rle_antisym.
-  { SeriesC_le_inj.
-  Search (?x <= ?y) (?y <= ?x) (?x = ?y).
-Admitted.
-*)
 
 Lemma Zeven_pow {x} {n : nat} (H : Zeven (Z.of_nat n)) : 0 <= x ^ n.
 Proof.
