@@ -5,8 +5,7 @@ Require Import Lra.
 Section toss_rec.
   Context `{!erisGS Σ}.
 
-  (* simpler version of `golden_toss` *)
-  (* TODO: i don't think i need tape? (unless i really need to use the Planner Rule) *)
+  (* Taped version in case we need it *)
   Definition toss_rec_tape : expr :=
     rec: "toss" "a" "α" :=
       let: "x" := rand("α") #2 in
@@ -39,10 +38,20 @@ Section toss_rec.
    * then we have `x = 1/3 + 2/3 x^2, which has 2 roots: 1, 1/2
    *)
 
-  (* TODO: what is the E for again? *)
+  (* To have enough error credits for the second recursive call to toss, we need to amplify
+   * the error credits from the first recursive call. If we can normalize the thin air credit
+   * by the termination probability, then we have enough credits.
+    *)
   (* in general: [{ ↯(y) * ↯(r) }] prog () [{ ↯( r * 1/(1-y) ) }] *)
   (* where `y` is the non-termination probability solution of `prog` *)
+  (* We are not able to prove this... *)
 
+  (* 
+   * In recursive second branch, we have `3/4 + (1/2) * r` credits
+   * (we need to spend `2/3 * r` credit for the first branch)
+   * If we rearrange the error credits to `1/2 + ((1/4 + r/2))`, then
+   * after the first recursive call, we get `1/2 + r` back
+   *)
   Lemma toss_rec_spec_aux r E:
     ⊢ [[{ ↯ (1/2) ∗ ↯(r) }]] prog @ E [[{ (v : val), RET v; ↯(r * 2) }]].
   Proof.
@@ -51,13 +60,12 @@ Section toss_rec.
     iIntros "!>".
     (* merge the error credits together *)
     iIntros (Φ) "[Herr Herr1] Hwp".
-    iApply (twp_rand_err_incr _ 0 _ _ _).
+    iApply (twp_rand_err_pos).
     { done. }
-    iSplitL "".
-    * admit.
-    * iIntros (ε) "He He1".
+    iIntros (ε) "%Hεge0 Hε".
+    (* We want to use the toss_rec_spec_aux for induction *)
     iAssert (
-     (□ 
+     (□
      ∀ r Φ,
      ↯ (1 / 2) -∗
      ↯ r -∗
@@ -67,31 +75,23 @@ Section toss_rec.
         #()
       @ E
       [{ v, Φ v }]) %I
-    ) with "[-]" as "H".
+    ) with "[Herr Herr1 Hε]" as "#Hrec".
     {
-    iApply (ec_ind_amp ε (3/ 2) ).
-     * admit.
+    iApply (ec_ind_amp ε (3/ 2) ) .
+     * done.
      * real_solver.
      * iIntros "!>".
        iIntros (ε') "He #He1 He'".
-       iIntros "!>".
-       clear r. clear Φ. clear ε.
+       iIntros "!>". (* We lost ε' and we can't do induction *)
+       clear r. clear Φ.
        iIntros (r Φ) "He Hr HΦ".
        admit.
-      * admit.
+      * done.
     }
-    admit.
-    (* iAssert (↯ (1/2 + r)) with "[Herr Herr1]" as "Herr2".
-    (* twp_rand_err_incr *)
-    (* TODO: check whether we can prove this using error amplification rule... *)
-    { iApply ec_combine. iFrame. }
-    (* iSpecialize (twp_rand_err_incr) as "A". *)
-    wp_rec. 
-    fold toss_rec. fold prog. *)
+    iApply ("Hrec" with "Herr Herr1 Hwp").
   Admitted.
 
-  (* Caveat, this means prog non-termination is upper bounded by 1/2 *)
-  (* The annoying part is 1 - 1/2 is also 1/2 which makes error credit kinda dubious *)
+  (* Caveat: this means prog non-termination is upper bounded by 1/2 *)
   Lemma toss_rec_spec E :
     ⊢ ↯ (1 / 2) -∗ WP prog @ E [{ _, True%I }].
   Proof.
@@ -104,18 +104,6 @@ Section toss_rec.
     iIntros (n) "Herr".
     wp_pures.
     case_bool_decide; wp_pures; first done.
-    (* Oh, the recursion is not value dependent so I wouldn't need to know n = 1 or n = 2... *)
-    (* pose proof (fin_to_nat_lt n).
-    eassert (n=nat_to_fin (_:1<3) \/ n = nat_to_fin (_ :2<3)) as [-> | ->].
-    { Unshelve.
-      all: try lia.
-      simpl.
-      destruct (fin_to_nat n) as [|[|[|[|]]]] eqn:Hn; [lia|left|right| lia| lia].
-      - by repeat (inv_fin n; [done|intros n ?]).
-      - by repeat (inv_fin n; [done|intros n ?]).
-    } *)
-    (* TODO (above): how to make this readable.... *)
-    (* TODO: Why `Herr` needs to be in square brackets... *)
     - wp_apply (toss_rec_spec_aux (1/4)%R _ with "[Herr]").
       * rewrite /ε2.
         assert (n <=? 0 = false) as ->.
