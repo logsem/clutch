@@ -43,7 +43,7 @@ Section golden_toss.
   Lemma golden_toss_spec E :
     ⊢ ↯ (φ') -∗ WP prog @ E [{ _, True%I }].
   Proof.
-  Admitted.
+  Abort.
 
 
 End golden_toss.

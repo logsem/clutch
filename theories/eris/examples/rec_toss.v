@@ -85,7 +85,7 @@ Section toss_rec.
        iIntros "!>". (* We lost ε' and we can't do induction *)
        clear r. clear Φ.
        iIntros (r Φ) "He Hr HΦ".
-       admit.
+       give_up.
       * done.
     }
     iApply ("Hrec" with "Herr Herr1 Hwp").
