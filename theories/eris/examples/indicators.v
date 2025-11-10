@@ -1,7 +1,7 @@
 From clutch.eris Require Export eris error_rules receipt_rules.
 From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
-From Coquelicot Require Import RInt RInt_analysis AutoDerive.
+From Coquelicot Require Import RInt RInt_analysis RInt_gen AutoDerive.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real.
 Set Default Proof Using "Type*".
@@ -653,6 +653,20 @@ Proof.
 
   Lemma Derive_exp_neg {x : R} : Derive.Derive (λ x1 : R, exp (- x1)) x = - exp (- x).
   Proof. (* UnaryDiff crap *) Admitted.
+
+  Lemma RInt_gen_ext_eq_Ici {f g : R → R} {M : R} :
+    (∀ x : R, M <= x → f x = g x) →
+    ex_RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty) →
+    RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty) = RInt_gen g (at_point M) (Rbar_locally Rbar.p_infty).
+  Proof. Admitted.
+
+  Lemma RInt_gen_ex_Ici {M : R} {F : R → R} (Hex : ∀ b, ex_RInt F M b) :
+    ex_RInt_gen F (at_point M) (Rbar_locally (Rbar.p_infty)).
+  Proof.
+    rewrite /ex_RInt_gen.
+    rewrite /is_RInt_gen.
+    (* Search filter_prod. *)
+  Abort.
 
 
 End Lib.

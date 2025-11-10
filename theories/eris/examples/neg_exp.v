@@ -38,6 +38,8 @@ Section credits.
   Lemma NegExp_CreditV_nn {F : R -> R} (Hnn : ∀ r, 0 <= F r) (L : nat) : 0 <= NegExp_CreditV F (L + 1).
   Proof.
     rewrite /NegExp_CreditV.
+    (* Search is_RInt_gen is_RInt.
+    Search RInt_gen. *)
   Admitted.
 
   Local Definition hx (F : R → R) (x : R) (L : nat) : nat → R := fun z =>
@@ -76,7 +78,7 @@ Section credits.
 *)
 
 
-  Local Theorem g_expectation {F L} : is_RInt (g F L) 0 1 (NegExp_CreditV F L).
+  Local Theorem g_expectation {F L} (Hex : ∀ (a : R), ex_RInt F 0 a) : is_RInt (g F L) 0 1 (NegExp_CreditV F L).
   Proof.
     suffices H : RInt (g F L) 0 1 = NegExp_CreditV F L.
     { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)), g_ex_RInt. }
@@ -182,8 +184,7 @@ Section credits.
       last first.
     { rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (at_point 0) (Rbar_locally Rbar.p_infty) _ _ (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * exp (-1)) (L + 1) _ _).
       { OK. }
-      { apply ex_RInt_gen_at_point.
-        admit. }
+      { apply ex_RInt_gen_at_point. admit. }
       {  admit. }
     }
     rewrite RInt_gen_at_point.
@@ -301,10 +302,9 @@ Section credits.
       OK.
     }
     {
-      apply RInt_gen_ext_eq. (* TODO: Need a version of this which includes the
-                                      bounds--both integrals are on [L+1, ∞) *)
+      apply RInt_gen_ext_eq_Ici.
       2: { admit. }
-      intro x.
+      intros x Hx.
       rewrite Rmult_assoc. f_equal.
       rewrite /NegExp_ρ.
       rewrite Iverson_True; last lia.
@@ -316,11 +316,14 @@ Section credits.
          on the iverson function here; the terms are not equal on the [L, L+1] interval. *)
       rewrite Iverson_True; last first.
       { (* Need the bounds here *)
-        admit. }
+        apply error_credits.Rle_0_le_minus.
+        etrans; last eapply Hx.
+        rewrite plus_INR INR_1. OK. }
       rewrite Rmult_1_l.
       rewrite Iverson_True; last first.
-      { (* Need the bounds here *)
-        admit. }
+      { apply error_credits.Rle_0_le_minus.
+        etrans; last eapply Hx.
+        OK. }
       rewrite Rmult_1_l.
       rewrite -exp_plus; f_equal.
       rewrite plus_INR INR_1.
@@ -333,6 +336,7 @@ End credits.
 
 Section program.
   Context `{!erisGS Σ}.
+  Import Hierarchy.
 
   (* Tail-recursive Negative Exponential sampling*)
   Definition NegExp : val :=
@@ -344,7 +348,7 @@ Section program.
       else
         "trial" ("L" + #1%Z).
 
-  Lemma wp_NegExp_gen {M} (F : R → R) (Hnn : ∀ n, 0 <= F n <= M) E :
+  Lemma wp_NegExp_gen {M} (F : R → R) (Hnn : ∀ n, 0 <= F n <= M) E (Hex : ∀ a : R, ex_RInt F 0 a) :
     ⊢ ∀ L, ↯ (NegExp_CreditV F L) -∗
            WP NegExp #L @ E
       {{ p, ∃ (vz : Z) (vr : R) (ℓ : val), ⌜p = PairV #vz ℓ⌝ ∗ lazy_real ℓ vr ∗ ↯(F (vr + IZR vz))}}.
@@ -357,7 +361,7 @@ Section program.
     iIntros (x) "Hx".
     iApply (wp_lazy_real_presample_adv_comp _ _ x _ (NegExp_CreditV F L) (g F L)); auto.
     { intros ??; apply g_nonneg; auto. apply Hnn. }
-    { by apply g_expectation. }
+    { apply g_expectation. OK. }
     iFrame.
     iIntros (xr) "(%Hrange & Hε & Hx)".
     do 2 wp_pure.
