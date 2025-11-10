@@ -285,10 +285,9 @@ Section credits.
     OK.
   Qed.
 
-  Lemma G2_exRInt {F} (Hnn : ∀ k r, 0 <= F k r) {x'} (Hint : ex_RInt (F x') 0 1) : ex_RInt (λ x : R, G2_μ x' x * F x' x) 0 1.
+  Lemma G2_exRInt {x'} : ex_RInt (λ x : R, G2_μ x' x) 0 1.
   Proof.
     rewrite /G2_μ.
-    apply ex_RInt_mult; [|apply Hint].
     replace (λ y : R, exp (- (y + x') ^ 2 / 2) / Norm2) with (λ y : R, exp ((-1) * (y + x') * (y + x') * / 2) * / Norm2); last first.
     { apply functional_extensionality; intros ?; simpl.
       repeat rewrite Rdiv_def. f_equal. f_equal. f_equal. lra. }
@@ -309,7 +308,8 @@ Section credits.
     rewrite /G2_CreditV.
     apply SeriesC_ge_0'; intros x'.
     apply RInt_ge_0; try lra.
-    { apply G2_exRInt; auto. }
+    { apply ex_RInt_mult; [|apply Hint].
+      apply G2_exRInt; auto. }
     intros x Hx.
     apply Rmult_le_pos; [|auto].
     apply G2_μ_nn; auto.
@@ -375,28 +375,56 @@ Section credits.
     }
   Qed.
 
-  Lemma G2_CreditV_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) : G2_CreditV F <= M.
+  Lemma G2_f_nn {F k} (Hnn : ∀ a b , 0 <= F a b) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) : 0 <= G2_f F k.
   Proof.
+    rewrite /G2_f.
+    apply RInt_ge_0; try lra.
+    { apply G2_g_exRInt; auto. }
+    intros x Hx.
+    apply G2_g_nn; auto. lra.
+  Qed.
+
+  Lemma G2_f_ex_seriesC {F} : ex_seriesC (G2_f F).
+  Proof.
+    rewrite /G2_f.
+    (* Possibly easest to just exchange the limits *)
+    rewrite -ex_seriesC_nat.
+    Search ex_seriesC "nat".
+  Admitted.
+
+  Lemma G2_CreditV_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) (* Hint : ∀ x' : nat, ex_RInt (F x') 0 1 *) :
+    G2_CreditV F <= M.
+  Proof.
+    (*
     have ? : 0 <= M. { specialize Hnn with 0%nat 0%R. OK. }
     rewrite /G2_CreditV.
-    (* Might be easier to exchange the limits... *)
-    (*
-
     etrans.
-    { eapply (SeriesC_le' _ (λ k : nat, RInt (λ x : R, G2_μ k x * M) 0 1)).
-      { admit. }
-      { admit. }
-      { admit. }
-    }
+    { eapply (SeriesC_le _ (λ k : nat, RInt (λ x : R, G2_μ k x * M) 0 1)).
+      { intros n.
+        split.
+        { apply RInt_ge_0; OK.
+          { apply ex_RInt_mult; [apply G2_exRInt; OK | apply Hint]. }
+          { intros ??. apply Rmult_le_pos; [|apply Hnn]. apply G2_μ_nn; OK. }
+        }
+        apply RInt_le; OK.
+        { apply ex_RInt_mult; [apply G2_exRInt; OK | apply Hint]. }
+        { apply ex_RInt_Rmult'. apply G2_exRInt; OK. }
+        { intros ??. apply Rmult_le_compat_l; [|apply Hnn]. apply G2_μ_nn; OK. }
+      }
+      { replace (λ k : nat, RInt (λ x : R, G2_μ k x * M) 0 1) with  (λ k : nat, RInt (λ x : R, G2_μ k x) 0 1 * M); last first.
+        { funexti. rewrite RInt_Rmult'. OK.  }
+        apply ex_seriesC_scal_r.
+        admit.
+      }
     rewrite (SeriesC_ext _ (λ k : nat, (RInt (λ x : R, G2_μ k x) 0 1) * M)); last first.
     { admit. }
     rewrite SeriesC_scal_r.
     rewrite -{2}(Rmult_1_l M).
     apply Rmult_le_compat_r; OK.
     rewrite /G2_μ.
-    Check
-    Search SeriesC "le".
-*)
+    (* If I can exchange the limits here, then the inner series becomes 1, and the outter integral becomes
+       the integral of 1 from 0 to 1. *)
+    *)
   Admitted.
 
   Lemma G2_g_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) {r t} (Ht : 0 <= t <= 1) : G2_g F r t <= M.
@@ -796,20 +824,6 @@ Section credits.
 
 
 
-  Lemma G2_f_nn {F k} (Hnn : ∀ a b , 0 <= F a b) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) : 0 <= G2_f F k.
-  Proof.
-    rewrite /G2_f.
-    apply RInt_ge_0; try lra.
-    { apply G2_g_exRInt; auto. }
-    intros x Hx.
-    apply G2_g_nn; auto. lra.
-  Qed.
-
-  Lemma G2_f_ex_seriesC {F} : ex_seriesC (G2_f F).
-  Proof.
-    rewrite /G2_f.
-    (* Fubini-related *)
-  Admitted.
 
   Lemma G2_f_expectation {F} : G2_CreditV F = G1_CreditV (G2_f F).
   Proof.
@@ -883,7 +897,8 @@ Section credits.
     f_equal; apply functional_extensionality; intros k.
     rewrite RInt_Rmult.
     rewrite RInt_add.
-    2, 3: admit.
+    2: { admit. }
+    2: { admit. }
     apply RInt_ext.
     rewrite Rmin_left; [|lra].
     rewrite Rmax_right; [|lra].
@@ -932,11 +947,13 @@ Section credits.
       last first.
     { f_equal; apply functional_extensionality; intros y.
       rewrite SeriesC_minus.
-      2, 3: admit.
+      2: { admit. }
+      2: { admit. }
       lra.
     }
     rewrite -RInt_add.
-    2, 3: admit.
+    2: { admit. }
+    2: { admit. }
     rewrite -RInt_Rmult.
 
     (* Evaluate the inegrals *)
@@ -979,7 +996,9 @@ Section credits.
   Admitted.
 
   Lemma G2_g_RInt {F k} : is_RInt (G2_g F k) 0 1 (G2_f F k).
-  Proof. Admitted.
+  Proof.
+
+  Admitted.
 
   Local Lemma Rexp_eq {z : R} {k : nat} : exp (- z * (2 * k + z) / 2) = exp (- z * (2 * k + z) / (2 * k + 2)) ^ (k + 1).
   Proof.

@@ -38,6 +38,8 @@ Section credits.
   Lemma NegExp_CreditV_nn {F : R -> R} (Hnn : ∀ r, 0 <= F r) (L : nat) : 0 <= NegExp_CreditV F (L + 1).
   Proof.
     rewrite /NegExp_CreditV.
+
+   
   Admitted.
 
   Local Definition hx (F : R → R) (x : R) (L : nat) : nat → R := fun z =>
@@ -89,12 +91,12 @@ Section credits.
              (RInt (λ x, SeriesC (λ n, RealDecrTrial_μ x 0 n * Iverson Zeven n * F (x + L))) 0 1)));
       last first.
     { rewrite RInt_add.
-      3: admit.
-      2: admit.
+      3: { admit. }
+      2: { admit. }
       f_equal; apply functional_extensionality; intro x.
       rewrite -SeriesC_plus.
-      3: admit.
-      2: admit.
+      3: { admit. }
+      2: { admit. }
       f_equal; apply functional_extensionality; intro n.
       lra.
     }
@@ -112,7 +114,44 @@ Section credits.
     { f_equal; apply functional_extensionality; intro x0.
       f_equal.
       f_equal; apply functional_extensionality; intro x.
-      (* Compute the exponential series *) admit. }
+      rewrite /RealDecrTrial_μ.
+      rewrite /RealDecrTrial_μ0.
+      replace (λ n : nat, Iverson (uncurry le) (0%nat, n) * (x ^ (n - 0) / fact (n - 0) - x ^ (n - 0 + 1) / fact (n - 0 + 1)) * Iverson (not ∘ Zeven) n)
+         with (λ n : nat, Iverson (not ∘ Zeven) n * (x ^ n / fact n - x ^ (n + 1) / fact (n + 1))); last first.
+      { funexti.
+        symmetry. rewrite Iverson_True; [|rewrite //=; OK].
+        rewrite Rmult_comm.
+        f_equal; OK.
+        rewrite Rmult_1_l.
+        f_equal; OK.
+        { f_equal; f_equal; OK. f_equal; OK. }
+        { f_equal; f_equal; OK. f_equal; OK. }
+      }
+      replace (SeriesC (λ n : nat, Iverson (not ∘ Zeven) n * (x ^ n / fact n - x ^ (n + 1) / fact (n + 1))))
+         with ((-1) * SeriesC (λ n : nat, Iverson (not ∘ Zeven) n * ((-x) ^ n / fact n + (-x) ^ (n + 1) / fact (n + 1)))); last first.
+      { rewrite -SeriesC_scal_l.
+        apply SeriesC_ext.
+        intros n.
+        rewrite /Iverson.
+        case_decide; OK.
+        rewrite Rmult_plus_distr_l.
+        repeat rewrite Rmult_1_l.
+        rewrite Rmult_plus_distr_l.
+        rewrite Rminus_def.
+        repeat rewrite Rdiv_def.
+        f_equal.
+        { rewrite -Rmult_assoc; f_equal; OK. rewrite not_even_pow_neg; OK. }
+        { repeat rewrite -Rmult_assoc.
+          rewrite Ropp_mult_distr_l; f_equal.
+          rewrite even_pow_neg; OK.
+          replace (Z.of_nat (n + 1)%nat) with (Z.succ (Z.of_nat n)) by OK.
+          apply Zeven_Sn.
+          destruct (Zeven_odd_dec n); OK.
+        }
+      }
+      rewrite ExpSeriesOdd.
+      OK.
+    }
     (* Compute the integral *)
     replace (RInt_gen (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * RInt (λ x : R, 1 - exp (- x)) 0 1) (at_point 0) (Rbar_locally Rbar.p_infty))
        with (RInt_gen (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * exp (-1)) (at_point 0) (Rbar_locally Rbar.p_infty));
