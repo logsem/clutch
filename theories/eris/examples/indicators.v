@@ -53,38 +53,302 @@ Proof.
   all: intuition.
 Qed.
 
+Lemma RInt_Iverson_ge {rx F} (Hrx : 0 <= rx <= 1) (Hex : ex_RInt (λ x : R, F x) rx 1) :
+  RInt (λ x : R, Iverson (uncurry Rge) (x, rx) * F x) 0 1 = RInt (λ x : R, F x) rx 1.
+Proof.
+  rewrite -(RInt_Chasles (λ x : R, Iverson (uncurry Rge) (x, rx) * F x) 0 rx 1) /plus //=.
+  { replace (RInt (λ x : R, ⟦ uncurry Rge ⟧ (x, rx) * F x) 0 rx) with (RInt (fun x : R => 0) 0 rx); last first.
+    { apply RInt_ext; intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      rewrite //=; lra.
+    }
+    rewrite RInt_const.
+    rewrite /scal//=/mult//= Rmult_0_r Rplus_0_l.
+    apply RInt_ext; intros ??.
+    rewrite Iverson_True; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=. lra.
+  }
+  { apply (ex_RInt_ext (fun _ : R => 0)); last apply ex_RInt_const.
+    intros ??.
+    rewrite Iverson_False; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=; lra.
+  }
+  { apply (ex_RInt_ext (fun x : R => F x)); last apply Hex.
+    intros ??.
+    rewrite Iverson_True; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=; lra.
+  }
+Qed.
 
-Lemma RInt_Iverson_ge {rx F} (Hrx : 0 <= rx <= 1) :
-  RInt (λ x : R, Iverson (uncurry Rge) (x, rx) * F x) 0 1 =  RInt (λ x : R, F x) rx 1.
-Proof. Admitted.
-
-Lemma RInt_Iverson_ge' {rx F} (Hrx : 0 <= rx <= 1) :
+Lemma RInt_Iverson_ge' {rx F} (Hrx : 0 <= rx <= 1) (Hex : ex_RInt (λ x : R, F x) rx 1) :
   RInt (λ x : R, Iverson (fun x  => not (Rle x rx)) x * F x) 0 1 =  RInt (λ x : R, F x) rx 1.
-Proof. Admitted.
+Proof.
+  rewrite -(RInt_Chasles (λ x : R, ⟦ λ x0 : R, ¬ x0 <= rx ⟧ x * F x) 0 rx 1) /plus //=.
+  { replace (RInt (λ x : R, ⟦ λ x0 : R, ¬ x0 <= rx ⟧ x * F x) 0 rx) with (RInt (fun x : R => 0) 0 rx); last first.
+    { apply RInt_ext; intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      rewrite //=; lra.
+    }
+    rewrite RInt_const.
+    rewrite /scal//=/mult//= Rmult_0_r Rplus_0_l.
+    apply RInt_ext; intros ??.
+    rewrite Iverson_True; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=. lra.
+  }
+  { apply (ex_RInt_ext (fun _ : R => 0)); last apply ex_RInt_const.
+    intros ??.
+    rewrite Iverson_False; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=; lra.
+  }
+  { apply (ex_RInt_ext (fun x : R => F x)); last apply Hex.
+    intros ??.
+    rewrite Iverson_True; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=; lra.
+  }
+Qed.
 
-Lemma RInt_Iverson_le {rx F} (Hrx : 0 <= rx <= 1) :
-  RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * F x) 0 1 =  RInt (λ x : R, F x) 0 rx.
-Proof. Admitted.
+Lemma RInt_Iverson_le {rx F} (Hrx : 0 <= rx <= 1) (Hex : ex_RInt (λ x : R, F x) 0 rx):
+  RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * F x) 0 1 = RInt (λ x : R, F x) 0 rx.
+Proof.
+  rewrite -(RInt_Chasles (λ x : R, Iverson (uncurry Rle) (x, rx) * F x) 0 rx 1) /plus //=.
+  { replace (RInt (λ x : R, ⟦ uncurry Rle ⟧ (x, rx) * F x) rx 1) with (RInt (fun x : R => 0) rx 1); last first.
+    { apply RInt_ext; intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      rewrite //=; lra.
+    }
+    rewrite RInt_const.
+    rewrite /scal//=/mult//= Rmult_0_r Rplus_0_r.
+    apply RInt_ext; intros ??.
+    rewrite Iverson_True; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=. lra.
+  }
+  { apply (ex_RInt_ext (fun x : R => F x)); last apply Hex.
+    intros ??.
+    rewrite Iverson_True; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=; lra.
+  }
+  { apply (ex_RInt_ext (fun _ : R => 0)); last apply ex_RInt_const.
+    intros ??.
+    rewrite Iverson_False; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=; lra.
+  }
+Qed.
 
-Lemma RInt_Iverson_le'' {rx F} (Hrx : 0 <= rx <= 1) :
+Lemma RInt_Iverson_le'' {rx F} (Hrx : 0 <= rx <= 1) (Hex : ex_RInt (λ x : R, F x) 0 rx) :
   RInt (λ x : R, Iverson (Rle x) rx * F x) 0 1 =  RInt (λ x : R, F x) 0 rx.
-Proof. Admitted.
+Proof.
+  rewrite -(RInt_Chasles (λ x : R, Iverson (Rle x) rx * F x) 0 rx 1) /plus //=.
+  { replace (RInt  (λ x : R, Iverson (Rle x) rx * F x) rx 1) with (RInt (fun x : R => 0) rx 1); last first.
+    { apply RInt_ext; intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      rewrite //=; lra.
+    }
+    rewrite RInt_const.
+    rewrite /scal//=/mult//= Rmult_0_r Rplus_0_r.
+    apply RInt_ext; intros ??.
+    rewrite Iverson_True; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=. lra.
+  }
+  { apply (ex_RInt_ext (fun x : R => F x)); last apply Hex.
+    intros ??.
+    rewrite Iverson_True; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=; lra.
+  }
+  { apply (ex_RInt_ext (fun _ : R => 0)); last apply ex_RInt_const.
+    intros ??.
+    rewrite Iverson_False; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=; lra.
+  }
+Qed.
 
-Lemma RInt_Iverson_ge'' {rx F} (Hrx : 0 <= rx <= 1) :
+Lemma RInt_Iverson_ge'' {rx F} (Hrx : 0 <= rx <= 1) (Hex : ex_RInt (λ x : R, F x) rx 1) :
   RInt (λ x : R, Iverson (Rge x) rx * F x) 0 1 =  RInt (λ x : R, F x) rx 1.
-Proof. Admitted.
+Proof.
+  rewrite -(RInt_Chasles (λ x : R, Iverson (Rge x) rx * F x) 0 rx 1) /plus //=.
+  { replace (RInt (λ x : R, Iverson (Rge x) rx * F x) 0 rx) with (RInt (fun x : R => 0) 0 rx); last first.
+    { apply RInt_ext; intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      rewrite //=; lra.
+    }
+    rewrite RInt_const.
+    rewrite /scal//=/mult//= Rmult_0_r Rplus_0_l.
+    apply RInt_ext; intros ??.
+    rewrite Iverson_True; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=. lra.
+  }
+  { apply (ex_RInt_ext (fun _ : R => 0)); last apply ex_RInt_const.
+    intros ??.
+    rewrite Iverson_False; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=; lra.
+  }
+  { apply (ex_RInt_ext (fun x : R => F x)); last apply Hex.
+    intros ??.
+    rewrite Iverson_True; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=; lra.
+  }
+Qed.
 
 Lemma RInt_Iverson_le''' {x} (Hx : 0 <= x <= 1) : RInt (Iverson (Rle x)) 0 1 = 1 - x.
-Proof. Admitted.
+Proof.
+  rewrite -(RInt_Chasles (Iverson (Rle x)) 0 x 1).
+  { replace (RInt (Iverson (Rle x)) 0 x) with (RInt (fun x : R => 0) 0 x); last first.
+    { apply RInt_ext; intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      rewrite //=; lra.
+    }
+    rewrite RInt_const.
+    rewrite /scal//=/mult//=/plus//= Rmult_0_r Rplus_0_l.
+    replace (RInt ⟦ Rle x ⟧ x 1) with (RInt (fun _ : R => 1) x 1); last first.
+    { apply RInt_ext; intros ??.
+      rewrite Iverson_True; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      rewrite //=; lra.
+    }
+    rewrite RInt_const.
+    rewrite /scal//=/mult//=. lra.
+  }
+  { apply (ex_RInt_ext (fun x : R => 0)); last apply ex_RInt_const.
+    intros ??.
+    rewrite Iverson_False; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=; lra.
+  }
+  { apply (ex_RInt_ext (fun _ : R => 1)); last apply ex_RInt_const.
+    intros ??.
+    rewrite Iverson_True; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=; lra.
+  }
+Qed.
 
 Lemma RInt_Iverson_ge''' {x} (Hx : 0 <= x <= 1) : RInt (Iverson (Rge x)) 0 1 = x.
-Proof. Admitted.
+Proof.
+  rewrite -(RInt_Chasles (Iverson (Rge x)) 0 x 1).
+  { replace (RInt (Iverson (Rge x)) 0 x) with (RInt (fun x : R => 1) 0 x); last first.
+    { apply RInt_ext; intros ??.
+      rewrite Iverson_True; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      rewrite //=; lra.
+    }
+    rewrite RInt_const.
+    rewrite /scal//=/mult//=/plus//=.
+    replace (RInt ⟦ Rge x ⟧ x 1) with (RInt (fun _ : R => 0) x 1); last first.
+    { apply RInt_ext; intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      rewrite //=; lra.
+    }
+    rewrite RInt_const.
+    rewrite /scal//=/mult//=. lra.
+  }
+  { apply (ex_RInt_ext (fun x : R => 1)); last apply ex_RInt_const.
+    intros ??.
+    rewrite Iverson_True; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=; lra.
+  }
+  { apply (ex_RInt_ext (fun _ : R => 0)); last apply ex_RInt_const.
+    intros ??.
+    rewrite Iverson_False; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=; lra.
+  }
+Qed.
 
-Lemma RInt_Iverson_ge'''' {F y} : RInt (λ x0 : R, F x0) 0 y = RInt (λ x0 : R, Iverson (Rge y) x0 * F x0) 0 1.
-Proof. Admitted.
+Lemma RInt_Iverson_ge'''' {F y} (Hy : 0 <= y <= 1) (Hex : ex_RInt (λ x : R, F x) 0 y) :
+  RInt (λ x0 : R, F x0) 0 y = RInt (λ x0 : R, Iverson (Rge y) x0 * F x0) 0 1.
+Proof.
+  symmetry.
+  rewrite -(RInt_Chasles (λ x0 : R, Iverson (Rge y) x0 * F x0)  0 y 1) /plus //=.
+  { replace (RInt  (λ x0 : R, Iverson (Rge y) x0 * F x0) y 1) with (RInt (fun x : R => 0) y 1); last first.
+    { apply RInt_ext; intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      rewrite //=; lra.
+    }
+    rewrite RInt_const.
+    rewrite /scal//=/mult//= Rmult_0_r Rplus_0_r.
+    apply RInt_ext; intros ??.
+    rewrite Iverson_True; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=. lra.
+  }
+  { apply (ex_RInt_ext (fun x : R => F x)); last apply Hex.
+    intros ??.
+    rewrite Iverson_True; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=; lra.
+  }
+  { apply (ex_RInt_ext (fun _ : R => 0)); last apply ex_RInt_const.
+    intros ??.
+    rewrite Iverson_False; [lra|].
+    rewrite Rmin_left in H; [|lra].
+    rewrite Rmax_right in H; [|lra].
+    rewrite //=; lra.
+  }
+Qed.
 
 Lemma ex_seriesC_single {F N} : ex_seriesC (λ n : nat, Iverson (eq N) n * (F n)).
-Proof. Admitted.
+Proof.
+  replace (λ n : nat, Iverson (eq N) n * (F n)) with (λ n : nat, if bool_decide (n = N) then F N else 0).
+  { apply ex_seriesC_singleton. }
+  apply functional_extensionality; intros ?.
+  case_bool_decide.
+  { rewrite Iverson_True; [|intuition]. rewrite H. lra. }
+  { rewrite Iverson_False; [|intuition]. lra. }
+Qed.
 
 End Indicators.
 

@@ -494,6 +494,7 @@ Section credits.
     { (* Is it possible that Hex is needed here? *)
       admit. }
     rewrite (@RInt_Iverson_ge rx (fun x => F N) Hrx).
+    2: { apply ex_RInt_const. }
     rewrite RInt_const/scal//=/mult//=.
     replace ((1 - rx) * F N) with (SeriesC (fun n => Iverson (fun y => y = N) n * ((1 - rx) * F n))); last first.
     { rewrite (SeriesC_Iverson_singleton (F := fun z => (1 - rx) * F z) N); [lra|intuition]. }
@@ -540,7 +541,8 @@ Section credits.
         apply ex_seriesC_scal_r.
         replace (λ x : nat, RInt (λ x0 : R, Iverson (uncurry Rle) (x0, rx) * RealDecrTrial_μ x0 (N + 1) x) 0 1)
            with (λ x : nat, RInt (λ x0 : R, RealDecrTrial_μ x0 (N + 1) x) 0 rx); last first.
-        { funexti. rewrite RInt_Iverson_le; OK. }
+        { funexti. rewrite RInt_Iverson_le; OK.
+          apply RealDecrTrial_μ_ex_RInt. }
         eapply ex_seriesC_ext.
         { intros ?. symmetry. rewrite RealDecrTrial_μ_RInt. done. }
         replace (λ n : nat, Iverson (uncurry le) ((N + 1)%nat, n) * (RealDecrTrial_μ0 rx (n - (N + 1) + 1) - RealDecrTrial_μ0 0 (n - (N + 1) + 1)))
@@ -592,6 +594,7 @@ Section credits.
       (RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n) 0 1) with
       (RInt (λ x : R, RealDecrTrial_μ x (N + 1) n * F n) 0 rx); last first.
     { rewrite -(@RInt_Iverson_le rx (fun x => RealDecrTrial_μ x (N + 1) n * F n) Hrx).
+      2: { apply ex_RInt_Rmult'. apply RealDecrTrial_μ_ex_RInt. }
       f_equal. apply functional_extensionality; intros ?; lra. }
     rewrite /Iverson//=.
     case_decide; simpl in H; last first.

@@ -99,8 +99,12 @@ Section credits.
       apply ex_RInt_RealDecrTrial_CreditV.
       apply HF.
     }
-    rewrite RInt_Iverson_le; [|lra].
-    rewrite RInt_Iverson_ge'; [|lra].
+    rewrite RInt_Iverson_le; [|lra|].
+    2: { eapply (ex_RInt_Chasles_1 (V := R_CompleteNormedModule)).
+         2: { eapply ex_RInt_RealDecrTrial_CreditV. apply HF. }
+         OK.
+    }
+    rewrite RInt_Iverson_ge'; [|lra| apply ex_RInt_const].
     rewrite RInt_const/scal//=/mult//=.
     rewrite /RealDecrTrial_CreditV.
     replace (RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * LiftF F n)) 0 0.5)

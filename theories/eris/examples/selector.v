@@ -583,7 +583,19 @@ Section credits.
     replace (RInt (λ x0 : R, Iverson (Rge y) x0 * (Bii_μ k x false * S_hz F k x N x0 false + Bii_μ k x true * S_hz F k x N x0 true)) 0 1)
        with (RInt (λ x0 : R, (Bii_μ k x false * S_hz F k x N x0 false + Bii_μ k x true * S_hz F k x N x0 true)) 0 y);
       last first.
-    { apply RInt_Iverson_ge''''. }
+    { apply RInt_Iverson_ge''''; OK.
+      apply (ex_RInt_plus (V := R_CompleteNormedModule)).
+      { apply ex_RInt_Rmult.
+        eapply (ex_RInt_Chasles_1 (V := R_CompleteNormedModule)).
+        2: { eapply ex_RInt_S_hz; [apply Hx |apply Hf]. }
+        OK.
+      }
+      { apply ex_RInt_Rmult.
+        eapply (ex_RInt_Chasles_1 (V := R_CompleteNormedModule)).
+        2: { eapply ex_RInt_S_hz; [apply Hx |apply Hf]. }
+        OK.
+      }
+    }
     rewrite /Bii_μ.
     rewrite Iverson_False; [|intuition].
     rewrite Iverson_True;  [|intuition].
