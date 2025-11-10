@@ -38,8 +38,6 @@ Section credits.
   Lemma NegExp_CreditV_nn {F : R -> R} (Hnn : ∀ r, 0 <= F r) (L : nat) : 0 <= NegExp_CreditV F (L + 1).
   Proof.
     rewrite /NegExp_CreditV.
-
-   
   Admitted.
 
   Local Definition hx (F : R → R) (x : R) (L : nat) : nat → R := fun z =>
@@ -158,7 +156,23 @@ Section credits.
       last first.
     { f_equal; apply functional_extensionality; intro x0.
       f_equal.
-      admit.
+      have H : (Derive.Derive (fun x : R => x + exp (- x))) = (λ x : R, 1 - exp (- x)).
+      { funexti.
+        rewrite Derive.Derive_plus; [|by auto_derive| by auto_derive].
+        rewrite Rminus_def.
+        f_equal.
+        { apply Derive.Derive_id. }
+        { apply Derive_exp_neg. }
+      }
+      rewrite -H.
+      rewrite RInt_Derive.
+      { rewrite Rplus_0_l Ropp_0 exp_0.  replace (Ropp 1) with (-1) by OK. OK. }
+      { intros ??. auto_derive. OK. (* Wait why does this work*) }
+      { intros ??.
+        rewrite H.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
     }
     (* Separate out the gen integrals.
        Use RInt_gen_Chasles, though it's timing out my proof process right now *)
@@ -166,9 +180,14 @@ Section credits.
       with ((RInt_gen (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * exp (-1)) (at_point 0) (at_point (L + 1))) +
              (RInt_gen (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * exp (-1)) (at_point (L + 1)) (Rbar_locally Rbar.p_infty)));
       last first.
-    { admit. }
+    { rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (at_point 0) (Rbar_locally Rbar.p_infty) _ _ (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * exp (-1)) (L + 1) _ _).
+      { OK. }
+      { apply ex_RInt_gen_at_point.
+        admit. }
+      {  admit. }
+    }
     rewrite RInt_gen_at_point.
-    2: admit.
+    2: { admit. }
     replace (RInt (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * exp (-1)) 0 (L + 1))
        with (RInt (λ x0 : R, 0) 0 (L + 1)); last first.
     { apply RInt_ext; intros x [Hx1 Hx2].
@@ -189,11 +208,26 @@ Section credits.
             RInt_gen (λ x : R, F x * NegExp_ρ L x) (at_point (INR L)) (at_point (L + 1)) +
             RInt_gen (λ x : R, F x * NegExp_ρ L x) (at_point (L + 1)) (Rbar_locally Rbar.p_infty));
       last first.
-    { admit. }
+    { rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (at_point 0) (Rbar_locally Rbar.p_infty) _ _  (λ x : R, F x * NegExp_ρ L x) (L + 1) _ _).
+      { rewrite /plus//=.
+        rewrite RInt_gen_at_point.
+        2: { admit. }
+        rewrite RInt_gen_at_point.
+        2: { admit. }
+        rewrite RInt_gen_at_point.
+        2: { admit. }
+        rewrite -(RInt_Chasles (λ x : R, F x * NegExp_ρ L x) 0 L (L + 1)).
+        2: { admit. }
+        2: { admit. }
+        OK.
+      }
+      { admit. }
+      { admit. }
+    }
     rewrite RInt_gen_at_point.
-    2: admit.
+    2: { admit. }
     rewrite RInt_gen_at_point.
-    2: admit.
+    2: { admit. }
     replace (RInt (λ x : R, F x * NegExp_ρ L x) 0 L) with (RInt (λ x : R, 0) 0 L); last first.
     { apply RInt_ext; intros x [Hx1 Hx2].
       rewrite /NegExp_ρ/NegExp_ρ0.
@@ -210,7 +244,13 @@ Section credits.
     f_equal.
     { (* Change of variables *)
       replace (RInt (λ x : R, F x * NegExp_ρ L x) L (L + 1)) with (RInt (λ x : R, F (x + L) * NegExp_ρ L (x + L)) 0 1); last first.
-      { admit. }
+      { replace (RInt (λ x : R, F x * NegExp_ρ L x) L (L + 1)) with (RInt (λ x : R, F x * NegExp_ρ L x) (1 * 0 + L) (1 * 1 + L)); last first.
+        { f_equal; OK. }
+        rewrite -(RInt_comp_lin (λ x : R, F x * NegExp_ρ L x) 1 L 0 1).
+        2: { admit. }
+        f_equal. apply functional_extensionality. intros ?. rewrite /scal//=/mult//= Rmult_1_l.
+        f_equal; f_equal; OK.
+      }
       apply RInt_ext; intros x [Hx1 Hx2].
       (* Factor out F *)
       rewrite SeriesC_scal_r Rmult_comm; f_equal.
@@ -223,11 +263,47 @@ Section credits.
       rewrite Iverson_True; last (rewrite Rmin_left in Hx1; lra).
       rewrite Rmult_1_l.
       (* Exponential series *)
-      admit. }
+      rewrite /RealDecrTrial_μ.
+      rewrite /RealDecrTrial_μ0.
+      replace  (λ x0 : nat, Iverson (uncurry le) (0%nat, x0) * (x ^ (x0 - 0) / fact (x0 - 0) - x ^ (x0 - 0 + 1) / fact (x0 - 0 + 1)) * Iverson Zeven x0) with (λ x0 : nat, (x ^ (x0) / fact (x0) - x ^ (x0 + 1) / fact (x0 + 1)) * Iverson Zeven x0); last first.
+      { funexti.
+        symmetry. rewrite Iverson_True; [|rewrite //=; OK].
+        rewrite Rmult_1_l.
+        f_equal; OK.
+        f_equal; OK.
+        { f_equal; f_equal; OK. f_equal; OK. }
+        { f_equal; f_equal; OK. f_equal; OK. }
+      }
+      replace (SeriesC (λ x0 : nat, (x ^ x0 / fact x0 - x ^ (x0 + 1) / fact (x0 + 1)) * Iverson Zeven x0)) with
+              (SeriesC (λ x0 : nat, Iverson Zeven x0 * ((-x) ^ x0 / fact x0 + (-x) ^ (x0 + 1) / fact (x0 + 1)))); last first.
+      { apply SeriesC_ext.
+        intros n.
+        rewrite /Iverson.
+        case_decide; OK.
+        repeat rewrite Rmult_1_l.
+        repeat rewrite Rmult_1_r.
+        rewrite Rminus_def.
+        repeat rewrite Rdiv_def.
+        f_equal.
+        { f_equal; OK. rewrite even_pow_neg; OK. }
+        { repeat rewrite -Rmult_assoc.
+          rewrite Ropp_mult_distr_l; f_equal.
+          rewrite not_even_pow_neg; OK.
+          replace (Z.of_nat (n + 1)%nat) with (Z.succ (Z.of_nat n)) by OK.
+          intro Hk.
+          apply Zodd_Sn in H.
+          apply Zodd_not_Zeven in H.
+          apply Zeven_not_Zodd in Hk.
+          destruct (Zeven_odd_dec (Z.succ n)); OK.
+        }
+      }
+      rewrite ExpSeriesEven.
+      OK.
+    }
     {
       apply RInt_gen_ext_eq. (* TODO: Need a version of this which includes the
                                       bounds--both integrals are on [L+1, ∞) *)
-      2: admit.
+      2: { admit. }
       intro x.
       rewrite Rmult_assoc. f_equal.
       rewrite /NegExp_ρ.
@@ -347,6 +423,6 @@ Section program.
       rewrite Nat2Z.inj_add.
       iApply "IH".
     }
-  Admitted.
+  Qed.
 
 End program.

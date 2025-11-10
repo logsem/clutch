@@ -651,4 +651,8 @@ Proof.
   Lemma exp_inj {x y : R} : exp x = exp y → x = y.
   Proof. Admitted.
 
+  Lemma Derive_exp_neg {x : R} : Derive.Derive (λ x1 : R, exp (- x1)) x = - exp (- x).
+  Proof. (* UnaryDiff crap *) Admitted.
+
+
 End Lib.
