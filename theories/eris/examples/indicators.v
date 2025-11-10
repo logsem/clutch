@@ -668,5 +668,9 @@ Proof.
     (* Search filter_prod. *)
   Abort.
 
+  Lemma RInt_sum_n {F : nat → R → R} {a b : R} {M} :
+    RInt (fun x : R => sum_n (fun n : nat => F n x) M) a b = sum_n (fun n : nat =>  RInt (fun x : R => F n x) 0 1) M.
+  Proof. Admitted.
+
 
 End Lib.
