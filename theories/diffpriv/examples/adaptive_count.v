@@ -110,6 +110,9 @@ Definition create_filter : val :=
               SOME ("f" #())) in
   "try_run".
 
+Definition laplace : val :=
+  λ:"eps" "mean", Laplace (Fst "eps") (Snd "eps") "mean".
+
 (* TODO add counts to the tail of the list. doesn't matter for privacy but more intuitive. *)
 (* TODO can't tell which count came from which predicate. uncomment the bit with the index reference *)
 Definition iter_adaptive_acc : val :=
@@ -153,6 +156,25 @@ Definition iter_adaptive_acc : val :=
      (λ:<>, let: "count_noisy" = "f" "ε_coarse" #() in
         if: "threshold" < "count_noisy" then
           "try_run" ("f" "ε_precise")) *)
+
+(* Simpler variant of iter_adaptive_acc. Budget/epsilons are pairs of integers (needs variant of privacy filter). *)
+Definition map_adaptive_acc_terse_both : val :=
+  λ: "eps_coarse" "eps_precise" "threshold" "budget" "predicates" "data" ,
+  let: "try_run" := create_filter "budget" in
+  list_map
+    (λ: "pred" ,
+      let: "count_exact" := list_count "pred" "data" in
+      let: "g" := λ:<> , laplace "eps_precise" "count_exact" in
+      let: "f" := λ:<> ,
+        let: "count_coarse" := laplace "eps_coarse" "count_exact" in
+        let: "count_precise" :=
+          if: "threshold" < "count_coarse" then
+            "try_run" "eps_precise" "g"
+          else NONE in
+        ("count_coarse", "count_precise")
+      in
+      "try_run" "eps_coarse" "f")
+      "predicates" .
 
 
 #[local] Open Scope Z.
