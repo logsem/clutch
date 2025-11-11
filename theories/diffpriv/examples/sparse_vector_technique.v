@@ -77,10 +77,8 @@ Section svt.
   (* The spec that AT satisfies after initialising T'. *)
   (* TODO prove triples instead to more closely match the paper. *)
   Definition AT_spec (c : R) (AUTH : iProp Σ) (f f' : val) : iProp Σ :=
-    □ ∀ `(dDB : Distance DB) (db db' : DB) (cond : DB → DB → Prop)
-        (_ : dDB db db' <= c) (q : val) (K0 : list ectx_item),
-      ⌜cond db db'⌝ -∗
-      wp_sensitive_cond q 1 dDB cond dZ -∗
+    □ ∀ `(dDB : Distance DB) (db db' : DB) (_ : dDB db db' <= c) (q : val) (K0 : list ectx_item),
+      wp_sensitive q 1 dDB dZ -∗
       AUTH -∗
       ⤇ fill K0 (f' (inject db') q) -∗
       WP f (inject db) q
@@ -89,9 +87,8 @@ Section svt.
 
   (* TODO prove triples instead to more closely match the paper. *)
   Definition SVT_spec (f f' : val) (iSVT : nat → iProp Σ) : iProp Σ :=
-    (∀ `(dDB : Distance DB) (db db' : DB) (cond : DB → DB → Prop) (adj : dDB db db' <= 1) (q : val) K,
-          ⌜cond db db'⌝ -∗
-          wp_sensitive_cond (Val q) 1 dDB cond dZ -∗
+    (∀ `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) (q : val) K,
+          wp_sensitive (Val q) 1 dDB dZ -∗
           ⤇ fill K (Val f' (inject db') q) -∗
           ∀ n, iSVT (S n) -∗
                WP Val f (inject db) q
@@ -170,9 +167,9 @@ Section svt.
     iIntros (T') "!> rhs" => /=...
     iModIntro. iExists _. iFrame "rhs".
     iExists (↯m (ε / 2))%I. rewrite Rmult_1_l. iFrame "ε". clear K.
-    iModIntro. iIntros (?????? q K Hcond) "q_sens ε rhs"...
-    tp_bind (q _) ; wp_bind (q _). rewrite /wp_sensitive_cond.
-    iSpecialize ("q_sens" $! _ _ db db' with "[//]"). iSpecialize ("q_sens" with "rhs").
+    iModIntro. iIntros (????? q K) "q_sens ε rhs"...
+    tp_bind (q _) ; wp_bind (q _). rewrite /wp_sensitive.
+    iSpecialize ("q_sens" $! _ _ db db' with "rhs").
     Unshelve. 2: lra.
     iApply (wp_strong_mono'' with "q_sens [ε]") => //.
     iIntros (?) "(%vq_l & %vq_r & -> & rhs & %adj')" => /=...
@@ -254,10 +251,10 @@ Section svt.
       replace ((N'+1)%nat-1)%Z with (Z.of_nat N') by lia.
       replace (N'+1-1)%nat with N' by lia. iFrame. }
     clear f f'.
-    iIntros "!>" (?????????) "q_sens rhs %n (count_l & count_r & nε & (%TOKEN & %f & %f' & auth & ref_f & ref_f' & #AT))"...
+    iIntros "!>" (???????) "q_sens rhs %n (count_l & count_r & nε & (%TOKEN & %f & %f' & auth & ref_f & ref_f' & #AT))"...
     tp_load ; wp_load. tp_bind (f' _ _) ; wp_bind (f _ _).
     iCombine "AT" as "AT_cpy".
-    iSpecialize ("AT" $! _ _ _ _ _ adj _ _ H0) as #.
+    iSpecialize ("AT" $! _ _ _ _ adj) as #.
     iSpecialize ("AT" with "q_sens auth rhs").
     iApply (wp_strong_mono'' with "AT").
     iIntros "%vq (%b & -> & rhs & maybe_auth)".
@@ -357,22 +354,21 @@ Section svt.
              end)%V.
 
   (* TODO generalize to c*ε to prove wp_diffpriv *)
-  Lemma SVT_stream_diffpriv (num den T : Z) (N : nat) (Npos : (0 < N)%nat) (stream_qs : val) `(dDB : Distance DB) cond :
+  Lemma SVT_stream_diffpriv (num den T : Z) (N : nat) (Npos : (0 < N)%nat) (stream_qs : val) `(dDB : Distance DB) :
     let ε := IZR num / IZR den in
     ∀ (εpos : 0 < ε),
       □ (∀ K (bs : val),
             ⤇ fill K (stream_qs bs) -∗
             WP stream_qs bs
               {{ qopt, ⤇ fill K (Val qopt) ∗
-                       (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ wp_sensitive_cond q 1 dDB cond dZ) }}) -∗
+                       (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ wp_sensitive q 1 dDB dZ) }}) -∗
       ∀ (db db' : DB) (adj : dDB db db' <= 1) K,
-      ⌜cond db db'⌝ -∗
       ↯m (N * ε) -∗
       ⤇ fill K (SVT_stream #num #den #T #N stream_qs (Val (inject db'))) -∗
       WP SVT_stream #num #den #T #N stream_qs (Val (inject db))
         {{ v, ⤇ fill K (Val v) }}.
   Proof with (tp_pures ; wp_pures).
-    iIntros (ε εpos) "#sens % % % % % Nε rhs". rewrite /SVT_stream...
+    iIntros (ε εpos) "#sens % % % % Nε rhs". rewrite /SVT_stream...
     tp_bind (oSVT _ _ _ _) ; wp_bind (oSVT _ _ _ _).
     iPoseProof (SVT_online_diffpriv with "Nε rhs") as "spec" => //.
     iApply (wp_strong_mono'' with "spec"). iIntros "%f (%f' & % & rhs & iSVT & spec) /=".
@@ -390,26 +386,26 @@ Section svt.
     iCombine "spec" as "spec_i".
     assert (not (i = N)). 1: intros h ; subst ; auto.
     assert (∃ N'', N' = S N'') as [? ->]. { destruct N'. 1: lia. eauto. }
-    iSpecialize ("spec_i" $! _ _ db db' _ _ q _ H with "sens_q rhs iSVT") => //.
+    iEval (rewrite /SVT_spec) in "spec_i".
+    iSpecialize ("spec_i" $! _ _ db db' adj with "sens_q rhs iSVT") => //.
     iApply (wp_strong_mono'' with "spec_i").
     iIntros "% (rhs & %b & -> & iSVT) /="...
     rewrite -!/(SVT_stream_body _ _ _ _).
     destruct b ; rewrite /list_cons...
     - iApply ("IH" with "[] [] rhs iSVT"). 3: done. 1,2: iPureIntro. 2: lia. lia.
     - iApply ("IH" with "[] [] rhs [iSVT]"). 3,4: done. 1,2: iPureIntro. 2: lia. lia.
-      Unshelve. auto.
   Qed.
 
   Fact list_stream_sens
-    (qs : list val) (QS : val) (is_qs : is_list qs QS) `(dDB : Distance DB) cond
-    (sens : Forall (λ q : val, ⊢ wp_sensitive_cond q 1 dDB cond dZ) qs) :
+    (qs : list val) (QS : val) (is_qs : is_list qs QS) `(dDB : Distance DB)
+    (sens : Forall (λ q : val, ⊢ wp_sensitive q 1 dDB dZ) qs) :
     let list_stream_qs := (λ:"_bs", stream_list QS "_bs")%V in
     ⊢
       □ (∀ K (bs : val),
             ⤇ fill K (list_stream_qs bs) -∗
             WP list_stream_qs bs
               {{ qopt, ⤇ fill K (Val qopt) ∗
-                       (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ wp_sensitive_cond q 1 dDB cond dZ) }})
+                       (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ wp_sensitive q 1 dDB dZ) }})
   .
   Proof with (tp_pures ; wp_pures).
     iIntros.
@@ -425,24 +421,23 @@ Section svt.
       iApply sens_q'.
   Qed.
 
-  Corollary SVT_list_diffpriv (num den T : Z) (N : nat) (Npos : (0 < N)%nat) `(dDB : Distance DB) cond
+  Corollary SVT_list_diffpriv (num den T : Z) (N : nat) (Npos : (0 < N)%nat) `(dDB : Distance DB)
     (qs : list val) (QS : val) (is_qs : is_list qs QS)
-    (sens : Forall (λ q : val, ⊢ wp_sensitive_cond q 1 dDB cond dZ) qs)
+    (sens : Forall (λ q : val, ⊢ wp_sensitive q 1 dDB dZ) qs)
     :
     let ε := IZR num / IZR den in
     let list_stream_qs := (λ:"_bs", stream_list QS "_bs")%V in
     ∀ (εpos : 0 < ε),
     ∀ (db db' : DB) (adj : dDB db db' <= 1) K,
-      ⌜cond db db'⌝ -∗
       ↯m (N * ε) -∗
       ⤇ fill K (SVT_stream #num #den #T #N list_stream_qs (Val (inject db'))) -∗
       WP SVT_stream #num #den #T #N list_stream_qs (Val (inject db))
         {{ v, ⤇ fill K (Val v) }}.
   Proof with (tp_pures ; wp_pures).
-    intros. iIntros "% ε rhs".
+    intros. iIntros "ε rhs".
     iPoseProof (list_stream_sens _ _ is_qs) as "qs" => //.
     iPoseProof (SVT_stream_diffpriv num den T N Npos with "qs") as "h" => //.
-    iSpecialize ("h" with "[] [] ε rhs") => //.
+    iSpecialize ("h" with " [] ε rhs") => //.
   Qed.
 
 End svt.

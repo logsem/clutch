@@ -1,21 +1,16 @@
 From Coq Require Export Reals Psatz.
-From stdpp Require Import gmultiset.
-From clutch.prelude Require Import base.
 From clutch.common Require Import inject.
 From clutch.prob_lang Require Export lang.
 From clutch.diffpriv.examples Require Import list.
+From clutch.prelude Require Import base stdpp_ext.
 
 #[local] Open Scope R.
 
 Class Distance (A : Type) : Type := {
     distance_car :: Inject A val
   ; distance : A -> A -> R
-  (* Not using [Equiv A] directly to avoid universe issues when quantifying over
-     [Distance] in the logic, in particular. *)
-  ; distance_equiv : A -> A -> Prop
   ; distance_pos a1 a2 : 0 <= distance a1 a2
-  ; distance_0 a1 a2 : distance_equiv a1 a2 → distance a1 a2 = 0
-  ; distance_sep a1 a2 : distance a1 a2 <= 0 -> distance_equiv a1 a2
+  ; distance_0 a1 a2 : a1 = a2 → distance a1 a2 = 0
   (* leaving out symmetry and triangle inequality until they're needed. *)
   (* ; distance_sym a1 a2 : distance a1 a2 = distance a2 a1 *)
   (* ; distance_triangle a1 a2 a3 : distance a1 a3 <= distance a1 a2 + distance a2 a3 *)
@@ -25,117 +20,197 @@ Coercion distance_car : Distance >-> Inject.
 Arguments distance {_} _ _ _.
 Coercion distance : Distance >-> Funclass.
 
-#[global] Instance Distance_equiv `{Distance A} : Equiv A := distance_equiv.
-
-Program Definition dZ : Distance Z := {| distance z z' := Rabs (IZR (z - z')); distance_equiv := (=) |}.
+Program Definition dZ : Distance Z := {| distance z z' := Rabs (IZR (z - z')) |}.
 Next Obligation. intros => /= ; eauto using Rabs_pos. Qed.
 Next Obligation. intros ?? -> => /=; replace (a2 - a2)%Z with 0%Z by lia. exact Rabs_R0. Qed.
-Next Obligation.
-  intros ?? => /= ; rewrite -abs_IZR. pose proof (IZR_le _ _ $ Zabs_pos (a1-a2)).
-  intros h. assert (IZR (Z.abs (a1 - a2)) = 0) as h' by lra. revert h'.
-  rewrite /equiv. apply Zabs_ind ; intros ? h' ; apply eq_IZR in h' ; lia.
-Qed.
 
-Program Definition dnat : Distance nat := {| distance n n' := Rabs (IZR (n - n')); distance_equiv := (=) |}.
+Program Definition dnat : Distance nat := {| distance n n' := Rabs (IZR (n - n')) |}.
 Next Obligation. intros => /= ; eauto using Rabs_pos. Qed.
 Next Obligation. intros ?? -> => /=; replace (a2 - a2)%Z with 0%Z by lia. exact Rabs_R0. Qed.
-Next Obligation.
-  intros ?? => /= ; rewrite -abs_IZR. pose proof (IZR_le _ _ $ Zabs_pos (a1-a2)).
-  intros h. assert (IZR (Z.abs (a1 - a2)) = 0) as h' by lra. revert h'.
-  rewrite /equiv. apply Zabs_ind ; intros ? h' ; apply eq_IZR in h' ; lia.
-Qed.
 
 Program Definition dtensor `(dA : Distance A) `(dB : Distance B) : Distance (A * B) :=
-  {| distance x y := let (x1, x2) := x in let (y1, y2) := y in dA x1 y1 + dB x2 y2;
-     distance_equiv x y := let (x1, x2) := x in let (y1, y2) := y in x1 ≡ y1 ∧ x2 ≡ y2;
-  |}.
+  {| distance x y := let (x1, x2) := x in let (y1, y2) := y in dA x1 y1 + dB x2 y2 |}.
 Next Obligation. intros ???? [] []. apply Rplus_le_le_0_compat ; apply distance_pos. Qed.
-Next Obligation. intros ???? [] [] []. rewrite !distance_0 //. lra. Qed.
-Next Obligation.
-  intros ???? [a b] [a' b'] ?.
-  pose proof (distance_pos a a'). pose proof (distance_pos b b').
-  assert (dA a a' <= 0) by lra. assert (dB b b' <= 0) by lra.
-  pose proof (distance_sep a a'). pose proof (distance_sep b b').
-  rewrite /equiv. intuition auto.
-Qed.
+Next Obligation. intros ???? [] [] [=]. rewrite !distance_0 //. lra. Qed.
 
-(* TODO: move *)
-Lemma size_list_to_set_disj `{Countable T} (xs : list T) :
-  size (list_to_set_disj xs : gmultiset _) = length xs.
-Proof.
-  induction xs.
-  - rewrite list_to_set_disj_nil //.
-  - rewrite list_to_set_disj_cons.
-    rewrite gmultiset_size_disj_union gmultiset_size_singleton IHxs //.
-Qed.
-
-Definition list_dist `{Countable T} (xs ys : list T) : nat :=
-  let XS := list_to_set_disj xs : gmultiset T in
-  let YS := list_to_set_disj ys : gmultiset T in
-  size (XS ∖ YS ⊎ YS ∖ XS).
+Definition list_dist `{Countable T} (xs ys : list T) : Z :=
+  sum_list_with (λ z, Z.abs (list_count z xs - list_count z ys)) (remove_dups (xs ++ ys)).
 
 Section list_dist.
   Context `{Countable T}.
 
   #[global] Instance list_dist_Comm : Comm (=) (list_dist (T := T)).
-  Proof. intros ??. rewrite /list_dist. f_equal. multiset_solver. Qed.
+  Proof.
+    intros ??. rewrite /list_dist.
+    rewrite Permutation_app_comm.
+    apply sum_list_with_ext => ??.
+    lia.
+  Qed.
 
   #[global] Instance list_dist_proper :
     Proper ((≡ₚ) ==> (≡ₚ) ==> (=)) (list_dist (T := T)).
-  Proof. intros ?? Hxs ?? Hys. rewrite /list_dist Hxs Hys //. Qed.
-
-  Lemma list_dist_remove (xs1 xs2 ys1 ys2 : list T) (n : T) :
-    list_dist (xs1 ++ [n] ++ xs2) (ys1 ++ [n] ++ ys2) = list_dist (xs1 ++ xs2) (ys1 ++ ys2).
-  Proof. rewrite /list_dist !list_to_set_disj_app. f_equal. multiset_solver. Qed.
-
-  Lemma list_dist_update (xs ys : list T) (n m : T) :
-    n ≠ m → list_dist (xs ++ [n] ++ ys) (xs ++ [m] ++ ys) = 2%nat.
   Proof.
-    intros Hneq. rewrite /list_dist.
-    rewrite !list_to_set_disj_app.
-    match goal with
-    | |- size ?X = _ => assert (X = {[+ n; m +]}) as -> by multiset_solver
-    end.
-    rewrite gmultiset_size_disj_union 2!gmultiset_size_singleton //.
+    intros x x' Hxs y y' Hys. rewrite /list_dist.
+    rewrite (sum_list_with_proper _ (remove_dups (x ++ y)) (remove_dups (x' ++ y'))); last first.
+    { by do 2 f_equiv. }
+    apply sum_list_with_ext => ??.
+    rewrite Hxs Hys. done.
+  Qed.
+
+  Lemma list_dist_nonneg (xs ys : list T) :
+    (0 ≤ list_dist xs ys)%Z.
+  Proof.
+    rewrite /list_dist.
+    apply sum_list_with_pos => ??. lia.
   Qed.
 
   Lemma list_dist_same `{Countable T} (xs : list T) :
-    list_dist xs xs = 0%nat.
+    (list_dist xs xs = 0)%Z.
   Proof.
     rewrite /list_dist.
-    by match goal with
-       | |- size ?X = _ => assert (X = ∅) as -> by multiset_solver
-       end.
+    rewrite -(sum_list_with_0 (remove_dups (xs ++ xs))).
+    apply sum_list_with_ext => ??.
+    lia.
   Qed.
 
-  Lemma list_dist_cons_l (x : T) (xs : list T) :
-    list_dist (x :: xs) xs = 1%nat.
+  Lemma list_delete_not_elem_of x (xs : list T) :
+    x ∉ xs → list_delete x xs = xs.
+  Proof.
+    induction xs; [done|].
+    intros [? ?]%not_elem_of_cons => /=.
+    rewrite decide_False // IHxs //.
+  Qed.
+
+  Lemma sum_list_with_nil `{Countable T} (xs : list T) (f : T → Z) :
+    (sum_list_with f [] = 0)%Z.
+  Proof. done. Qed.
+
+  Lemma list_count_hd_neq `{Countable T} (xs : list T) x y :
+    x ≠ y → list_count x (y :: xs) = list_count x xs%nat.
+  Proof. intros => /=. rewrite decide_False //. Qed.
+
+  Lemma list_dist_cons x (xs ys : list T) :
+    list_dist (x :: xs) (x :: ys) = list_dist xs ys.
   Proof.
     rewrite /list_dist.
-    rewrite list_to_set_disj_cons.
-    match goal with
-    | |- size ?X = _ => assert (X = {[+ x +]}) as -> by multiset_solver
-    end.
-    rewrite gmultiset_size_singleton //.
+    assert (remove_dups ((x :: xs) ++ x :: ys) ≡ₚ remove_dups (x :: xs ++ ys)) as ->.
+    { rewrite {1}[remove_dups _]/= decide_True //; [|set_solver].
+      apply remove_dups_Permutation. rewrite -Permutation_middle //. }
+    rewrite (sum_list_with_elem_of x); [|apply elem_of_remove_dups; set_solver].
+    rewrite !list_count_hd.
+    erewrite (sum_list_with_ext _ _ (λ z, Z.abs (list_count z xs - list_count z ys))); last first.
+    { intros ??%elem_of_list_remove => /=. rewrite decide_False //. }
+    assert (Z.abs ((1 + list_count x xs)%nat - (1 + list_count x ys)%nat) =
+            Z.abs ((list_count x xs)%nat - (list_count x ys)%nat)) as -> by lia.
+    destruct (decide (x ∈ xs ++ ys)).
+    - rewrite [list_delete _ _]/= decide_True //.
+      rewrite -(sum_list_with_elem_of x) //.
+      apply elem_of_remove_dups; set_solver.
+    - rewrite list_count_not_elem_of; [|set_solver].
+      rewrite list_count_not_elem_of; [|set_solver].
+      rewrite [list_delete _ _]/= decide_False //= decide_True //.
   Qed.
 
-  Lemma list_dist_cons_r (x : T) (xs : list T) :
-    list_dist xs (x :: xs) = 1%nat.
-  Proof. rewrite (comm list_dist). apply list_dist_cons_l. Qed.
-
-  Lemma list_dist_nil_l (xs : list T) :
-    list_dist [] xs = length xs.
+  Lemma list_dist_fmap_le zs1 zs2 (f : Z → Z) :
+    (list_dist (f <$> zs1) (f <$> zs2) ≤ list_dist zs1 zs2)%Z.
   Proof.
     rewrite /list_dist.
-    match goal with
-    | |- size ?X = _ => assert (X = list_to_set_disj xs) as -> by multiset_solver
-    end.
-    rewrite size_list_to_set_disj //.
+    rewrite -fmap_app. 
+    rewrite (sum_list_map_list_preimage f _ (remove_dups (zs1 ++ zs2))).
+
+    erewrite sum_list_with_ext; last first.
+    { intros ??.
+      erewrite (list_count_sum_list_preimage _ zs2).
+      erewrite (list_count_sum_list_preimage _ zs1).
+      rewrite /list_preimage.
+      erewrite (sum_list_with_Permutation _ (filter _ (remove_dups (zs2 ++ _)))); last first.
+      { erewrite remove_dups_Permutation; [done|]. apply Permutation_app_comm. }
+      rewrite -sum_list_with_sub.
+      reflexivity. }
+
+    etrans.
+    { eapply sum_list_with_le => x Hx. apply Z_abs_sum_le => /=. }
+
+    erewrite (sum_list_with_Permutation _ (remove_dups (_ <$> remove_dups _))); [done|].
+    symmetry.
+    apply remove_dups_fmap_permutation.
   Qed.
 
-  Lemma list_dist_nil_r (xs : list T) :
-    list_dist xs [] = length xs.
-  Proof. rewrite (comm list_dist). apply list_dist_nil_l. Qed.
+  Lemma Z_add_le_mono_nonneg_r (z1 z2 z3 : Z) :
+    (0 ≤ z3 → z1 ≤ z2 → z1 ≤ z2 + z3)%Z.
+  Proof. lia. Qed. 
+
+  Lemma filter_remove_dups `{Countable A} `{!∀ a, Decision (P a)} (zs : list A) :
+    remove_dups (filter P zs) = filter P (remove_dups zs).
+  Proof.
+    induction zs as [|x xs IH]; [done|].
+    destruct (decide (P x)).
+    - rewrite filter_cons_True //.
+      destruct (decide (x ∈ xs)).
+      + rewrite /= decide_True //; [|by apply elem_of_list_filter].
+        rewrite decide_True //.
+      + rewrite /= decide_False //; [|by intros []%elem_of_list_filter].
+        rewrite decide_False //. rewrite filter_cons_True //.
+        rewrite IH //.
+    - rewrite filter_cons_False //.
+      destruct (decide (x ∈ xs)).
+      + rewrite /= decide_True //.
+      + rewrite /= decide_False //.
+        rewrite filter_cons_False //. 
+  Qed.
+  
+  Lemma list_count_filter_split `{Countable A} `{!∀ a, Decision (P a)} (xs : list A) (x : A) :
+    (Z.of_nat (list_count x (filter P xs)) = Z.of_nat (list_count x xs) - Z.of_nat (list_count x (filter (λ a, ¬ P a) xs)))%Z.
+  Proof. rewrite -{2}(filter_app_complement P xs) list_count_app. lia. Qed.
+
+  Lemma list_count_filter_le `{Countable A} `{!∀ a, Decision (P a)} (xs : list A) (x : A) :
+    (Z.of_nat (list_count x (filter P xs)) ≤ Z.of_nat (list_count x xs))%Z.
+  Proof. rewrite -{2}(filter_app_complement P xs) list_count_app. lia. Qed. 
+    
+  Lemma Z_sub_sub_triangle (x p q : Z) :
+    (Z.abs (x - (p - q)) ≤ Z.abs x + Z.abs (p - q))%Z.
+  Proof. lia. Qed.
+
+  (* Lemma Z_abs_add_sub_swap (x y : Z) : *)
+  (*   Z.abs (x + y) = Z.abs (y - x). *)
+  (* Proof.  *)
+
+  Lemma Zabs_le_mono (a b : Z) :
+    (0 <= b <= a -> Z.abs b <= Z.abs a)%Z.
+  Proof. lia. Qed.
+
+  Lemma Z_sub_both (c a b : Z) :
+    (a - c ≤ b - c → a ≤ b)%Z.
+  Proof. lia. Qed. 
+
+  Open Scope Z.
+  
+  Lemma list_filter_bound `{!∀ a, Decision (P a)} (xs ys : list Z):
+    (list_dist (filter P xs) (filter P ys) ≤ list_dist xs ys)%Z.
+  Proof.
+    rewrite /list_dist.
+    rewrite -list.filter_app.
+
+    rewrite /list_dist.
+    rewrite (sum_list_with_split P (remove_dups (xs ++ ys))).
+    apply Z_add_le_mono_nonneg_r.
+    { apply sum_list_with_pos => ??. lia. }
+    rewrite filter_remove_dups.
+    apply sum_list_with_le => z.
+    rewrite elem_of_list_filter => ?.
+
+  Admitted.
+
+  Lemma list_count_le_length `{Countable A} (xs : list A) (x : A) :
+    list_count x xs ≤ length xs.
+  Proof. induction xs => /=; [done|]. case_decide; lia. Qed. 
+
+  Lemma list_length_bound (xs ys : list Z):
+    (Z.abs (length xs - length ys) ≤ list_dist xs ys)%Z.
+  Proof.
+    rewrite /list_dist.
+    Admitted.     
+
 
   Inductive neighbour {T} (xs ys : list T) : Prop :=
   | neighbour_add_l a b n : xs = a ++ [n] ++ b → ys = a ++ b → neighbour xs ys
@@ -145,38 +220,32 @@ Section list_dist.
     neighbour xs ys → list_dist xs ys = 1%nat.
   Proof.
     rewrite /list_dist.
-    inversion_clear 1; subst;
-      rewrite !list_to_set_disj_app;
-      match goal with
-      | |- size ?X = _ => assert (X = {[+ n +]}) as -> by multiset_solver
-      end;
-      rewrite gmultiset_size_singleton //.
+    inversion_clear 1; subst.
+    - rewrite (sum_list_with_elem_of n); last first.
+      { apply elem_of_remove_dups. set_solver. }
+      rewrite !list_count_app list_count_hd /=.
+      erewrite (sum_list_with_ext _ _ (λ _, 0%Z)); last first.
+      { intros z ?. rewrite !list_count_app /=.
+        rewrite decide_False; [lia|].
+        intros ->.
+        eapply (remove_dups_list_remove (T := T)); [|done].
+        apply elem_of_remove_dups. set_solver.  }
+      rewrite sum_list_with_0. lia.
+    - rewrite (sum_list_with_elem_of n); last first.
+      { apply elem_of_remove_dups. set_solver. }
+      rewrite !list_count_app list_count_hd /=.
+      erewrite (sum_list_with_ext _ _ (λ _, 0%Z)); last first.
+      { intros z ?. rewrite !list_count_app /=.
+        rewrite decide_False; [lia|].
+        intros ->.
+        eapply (remove_dups_list_remove (T := T)); [|done].
+        apply elem_of_remove_dups. set_solver.  }
+      rewrite sum_list_with_0. lia.
   Qed.
 
 End list_dist.
 
 Program Definition dlist T `{Countable T, Inject T val} : Distance (list T) :=
-  {| distance xs ys := INR (list_dist xs ys); distance_equiv := (≡ₚ) |}.
-Next Obligation. intros => /=. apply pos_INR. Qed.
+  {| distance xs ys := IZR (list_dist xs ys) |}.
+Next Obligation. intros => /=. apply IZR_le, list_dist_nonneg. Qed.
 Next Obligation. move => ?????? ->. rewrite -INR_0 list_dist_same //. Qed.
-Next Obligation.
-  move => ???? xs ys /=.
-  induction xs as [|x xs] in ys |-* => //=.
-  - rewrite list_dist_nil_l. destruct ys; [done|].
-    rewrite cons_length S_INR. pose proof (pos_INR (length ys)). lra.
-  - destruct (decide (x ∈ ys)) as [Hin|Hnin].
-    + destruct (proj1 (elem_of_Permutation _ _) Hin) as [ys' ->].
-      intros Hdist.
-      f_equiv. apply IHxs. etrans; [|apply Hdist]. right.
-      rewrite /list_dist. do 2 f_equal. rewrite list_to_set_disj_cons.
-      multiset_solver.
-    + rewrite /list_dist list_to_set_disj_cons.
-      set X := (list_to_set_disj xs).
-      set Y := (list_to_set_disj ys).
-      assert (x ∉ Y) by rewrite elem_of_list_to_set_disj //.
-      assert (({[+ x +]} ⊎ X) ∖ Y = {[+ x +]} ⊎ X ∖ Y) as -> by multiset_solver.
-      rewrite 2!gmultiset_size_disj_union gmultiset_size_singleton.
-      rewrite !plus_INR INR_1.
-      assert (0 <= size (X ∖ Y))%R by real_solver.
-      assert (0 <= size (Y ∖ ({[+ x +]} ⊎ X)))%R by real_solver. lra.
-Qed.

@@ -1,10 +1,13 @@
 From iris.base_logic Require Export na_invariants.
-From clutch.common Require Import inject.
 From clutch.prelude Require Import tactics.
+From clutch.common Require Import inject.
 From clutch.prob Require Import differential_privacy.
 From clutch.diffpriv Require Import adequacy diffpriv proofmode derived_laws.
 From clutch.diffpriv.examples Require Import sparse_vector_technique.
 From clutch.prob_lang.gwp Require Import gen_weakestpre arith list.
+
+
+
 
 Definition list_count : val :=
   λ: "p" "l", list_length (list_filter "p" "l").
@@ -56,7 +59,7 @@ Definition adaptive : val :=
 
 
 
-Definition predicates : list (Z -> bool) := [λ x, x <? 30 ; λ x, 30 <=? x ; λ x, x `rem` 2 =? 0]%Z.
+Definition predicates : list (Z → bool) := [λ x, bool_decide (x < 30) ; λ x, bool_decide (30 <= x) ; λ x, bool_decide (x `rem` 2 = 0)]%Z.
 Definition vpredicates : val :=
   SOMEV ((λ:"x", "x" < #30)
          , SOMEV ((λ:"x", #30 <= "x")
@@ -287,11 +290,11 @@ Section adaptive.
     match l with
     | [] => ⌜v = NONEV⌝
     | pred::l' => ∃ vpred vl',
-    ⌜v = SOMEV (vpred, vl')⌝
+    ⌜v = SOMEV (vpred, vl')⌝ 
      ∗ is_predicate pred vpred ∗ is_spec_predicate pred vpred ∗ is_predicate_list l' vl' end.
 
 
-  Lemma filter_sens [Inject0 : Inject Z val] (P : Z → bool) (f : val) :
+  Lemma filter_sens (P : Z → bool) (f : val) :
     (∀ (x : Z),
         {{{ True }}}
           f (inject x)
@@ -307,94 +310,26 @@ Section adaptive.
     iIntros "* #Hf #Hf'".
     iIntros (?) "* !> * rhs HΦ".
     simpl.
-    iPoseProof (gwp_list_filter (g:=gwp_spec) x' P f (inject x') _
-                  (λ v, ⌜is_list (List.filter P x') v⌝)%I with "[] []") as "hh'" => // ; [iSplit|..].
+    iPoseProof (gwp_list_filter (g:=gwp_spec) _ x' f (inject x') _
+                  (λ v, ⌜is_list (filter P x') v⌝)%I with "[] []") as "hh'" => // ; [iSplit|..].
     1: { iIntros (??) "!> * _ h". by iApply "Hf'". }
     1: iPureIntro ; apply is_list_inject.
     1: done.
     { simpl. iIntros. done. }
     simpl. iMod ("hh'" with "rhs") as "(% & rhs & %)".
-    iApply (gwp_list_filter (g:=gwp_wpre) x P f (inject x) _ _ %I with "[Hf] [HΦ rhs]") => //.
+    iApply (gwp_list_filter (g:=gwp_wpre) _ x f (inject x) _ _ %I with "[Hf] [HΦ rhs]") => //.
     1: iSplit.
     1: { iIntros (??) "!> * _ h". by iApply "Hf". }
     1: iPureIntro ; apply is_list_inject.
     1: done.
     simpl. iNext. iIntros. iApply "HΦ".
-    iExists (List.filter P x), (List.filter P x').
+    iExists (filter P x), (filter P x').
     repeat iSplit ; iFrame ; try iPureIntro.
     - apply is_list_inject => //.
-    - assert (v = (examples.list.inject_list (List.filter P x'))) as -> => //.
+    - assert (v = (examples.list.inject_list (filter P x'))) as -> => //.
       apply is_list_inject => //.
-    -
-      (* need an actual lemma about the sensitivity of the Gallina List.filter here. *)
-      rewrite Rmult_1_l. apply le_INR.
-      rewrite /list_dist.
-      set (fX := list_to_set_disj (List.filter P x)).
-      set (fX' := list_to_set_disj (List.filter P x')).
-      set (X := list_to_set_disj x).
-      set (X' := list_to_set_disj x').
-      opose proof filter_In.
-      (* rewrite !gmultiset_size_disj_union. *)
-      apply gmultiset_subseteq_size.
-      (* TODO wip *)
-(*       clear.
-         Set Printing All.
-
-
-         Set Printing Coercions. Unset Printing Notations.
-         epose proof (proj2 (@elem_of_subseteq Z (gmultiset Z) _ (fX ∖ fX' ⊎ fX' ∖ fX)  (X ∖ X' ⊎ X' ∖ X))).
-         Set Printing All.
-         apply H2.
-
-         (* list_filter_subseteq *)
-         (* eassert (X = fX ⊎ _) ; [shelve|]. *)
-         set (nfX := list_to_set_disj (List.filter (∽ P)%P x) : gmultiset Z).
-         eassert (X = fX ⊎ nfX) as -> ; [shelve|].
-         set (nfX' := list_to_set_disj (List.filter (∽ P)%P x') : gmultiset Z).
-         eassert (X' = fX' ⊎ nfX') as -> ; [shelve|].
-         difference_union_distr_r_L
-         rewrite difference_union_distr_r_L.
-         rewrite !size_difference_alt.
-   (A ∪ B) \ (C ∪ D) =
-
-
-         rewrite !gmultiset_size_difference => //.
-         1: rewrite !gmultiset_size_disj_union.
-         { set (a := size fX). set (a' := size fX').
-           set (b := size nfX). set (b' := size nfX').
-
-         1: lia.
-
-   filter P A ∖ filter P B = filter P (A ∖ B)
-
-         set_solver.
-
-   disjoint_filter
-         X = fX ⊎ nfX
-         X' = fX' ⊎ nfX'
-         rewrite !filter_union_L.
-         Set Printing Coercions.
-
- *)
-
-      admit.
-
-  Admitted.
-
-
-(* Lemma size_difference X Y : Y ⊆ X → size (X ∖ Y) = size X - size Y.
-   Proof.
-     intros. rewrite (union_difference Y X) at 2 by done.
-     rewrite size_union by set_solver. lia.
-   Qed. *)
-
-
-  Lemma gmultiset_size_difference {A : Type} {EqDecision0 : EqDecision A} {H : Countable A}
-  (X Y : gmultiset A)
-    : Y ⊆ X → size (X ∖ Y) = (size X - size Y)%nat.
-  Proof.
-    intros HX%gmultiset_disj_union_difference.
-    rewrite {2}HX. rewrite gmultiset_size_disj_union. lia.
+    - rewrite Rmult_1_l. apply IZR_le.
+      apply list_filter_bound.
   Qed.
 
 
@@ -415,27 +350,12 @@ Section adaptive.
     rewrite Rabs_Zabs.
     (* Set Printing Coercions. *)
     qify_r ; zify_q. ring_simplify.
-    apply Zabs_ind ; intros h.
-    - rewrite /list_dist.
-      rewrite -Nat2Z.inj_sub => //.
-      2: lia.
-      apply inj_le.
-      rewrite -!size_list_to_set_disj.
-      rewrite gmultiset_size_disj_union.
-      Fail rewrite !size_difference.
-
-      rewrite /size /gmultiset_size
-
-      .
-      (* Import clutch.diffpriv.distance. *)
-
-  Admitted.
-
+    apply list_length_bound.    
+  Qed. 
 
   Lemma wp_adaptive (ds1 ds2 : list Z) dsv1 dsv2 K :
     is_list ds1 dsv1 →
     is_list ds2 dsv2 →
-    (* neighbour ds1 ds2 → *)
     list_dist ds1 ds2 <= 1 →
     ↯m (IZR 20 / IZR 10) -∗
     ⤇ fill K (adaptive dsv2) -∗
@@ -460,12 +380,12 @@ Section adaptive.
     { iApply (length_sens $! _ _ _ _ with "rhs"). iNext. iIntros. done. }
     simpl.
     iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
-  
+
     tp_bind (Laplace _ _ _).
     wp_bind (Laplace _ _ _).
     iDestruct (ecm_split (IZR 2 / IZR 10)%R (IZR 18 / IZR 10)%R with "[ε]") as "[εₛ ε]".
     1,2: real_solver. 1: iApply ecm_eq ; [|iFrame] ; real_solver.
-  
+
     assert (Z.abs (len_f_l - len_f_r) <= 1).
     {
       assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
@@ -473,7 +393,7 @@ Section adaptive.
       etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
       etrans. 1: eassumption. rewrite Rmult_1_l.
       etrans. 1: eassumption. rewrite Rmult_1_l.
-      rewrite INR_IZR_INZ. done.
+      done. 
     }
     iApply (hoare_couple_laplace _ _ 0 with "[$rhs εₛ]") => //.
     1: lra. { rewrite Rmult_1_l. done. }
@@ -482,7 +402,7 @@ Section adaptive.
     rewrite /list_cons.
     tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
     case_bool_decide as cc1...
-  
+
     - tp_bind (Laplace _ _ _).
       wp_bind (Laplace _ _ _).
       iDestruct (ecm_split (IZR 10 / IZR 10)%R (IZR 8 / IZR 10)%R with "[ε]") as "[εₗ ε]".
@@ -492,7 +412,7 @@ Section adaptive.
       iNext. iIntros (count_precise_1) "rhs" ; simpl... rewrite Z.add_0_r.
       tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
       tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
-  
+
       tp_bind (list_filter _ _).
       wp_bind (list_filter _ _).
       replace dsv1 with (inject ds1).
@@ -509,7 +429,7 @@ Section adaptive.
       { iApply (length_sens $! _ _ _ _ with "rhs"). iNext. iIntros. done. }
       simpl.
       iIntros "% (%len_f2_l&%len_f2_r&->&rhs&%d_out2')"...
-  
+
       assert (Z.abs (len_f2_l - len_f2_r) <= 1).
       {
         assert (Rabs (IZR (len_f2_l - len_f2_r)) <= 1)%R as h.
@@ -517,9 +437,9 @@ Section adaptive.
         etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
         etrans. 1: eassumption. rewrite Rmult_1_l.
         etrans. 1: eassumption. rewrite Rmult_1_l.
-        rewrite INR_IZR_INZ. done.
+        done.
       }
-  
+
       tp_bind (Laplace _ _ _).
       wp_bind (Laplace _ _ _).
       iDestruct (ecm_split (IZR 2 / IZR 10)%R (IZR 6 / IZR 10)%R with "[ε]") as "[εₛ ε]".
@@ -530,9 +450,9 @@ Section adaptive.
       tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
       tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
       case_bool_decide as cc2... 2: tp_load ; wp_load ; done.
-  
+
       tp_load ; wp_load... tp_load ; wp_load ; done.
-  
+
     - tp_bind (list_filter _ _).
       wp_bind (list_filter _ _).
       replace dsv1 with (inject ds1).
@@ -549,7 +469,7 @@ Section adaptive.
       { iApply (length_sens $! _ _ _ _ with "rhs"). iNext. iIntros. done. }
       simpl.
       iIntros "% (%len_f2_l&%len_f2_r&->&rhs&%d_out2')"...
-  
+
       assert (Z.abs (len_f2_l - len_f2_r) <= 1).
       {
         assert (Rabs (IZR (len_f2_l - len_f2_r)) <= 1)%R as h.
@@ -557,9 +477,9 @@ Section adaptive.
         etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
         etrans. 1: eassumption. rewrite Rmult_1_l.
         etrans. 1: eassumption. rewrite Rmult_1_l.
-        rewrite INR_IZR_INZ. done.
+        done.
       }
-  
+
       tp_bind (Laplace _ _ _).
       wp_bind (Laplace _ _ _).
       iDestruct (ecm_split (IZR 2 / IZR 10)%R (IZR 16 / IZR 10)%R with "[ε]") as "[εₛ ε]".
@@ -570,9 +490,9 @@ Section adaptive.
       tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
       tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
       case_bool_decide as cc2... 2: tp_load ; wp_load ; done.
-  
+
       tp_load ; wp_load...
-  
+
       tp_bind (Laplace _ _ _).
       wp_bind (Laplace _ _ _).
       iDestruct (ecm_split (IZR 10 / IZR 10)%R (IZR 6 / IZR 10)%R with "[ε]") as "[εₗ ε]".
@@ -582,60 +502,18 @@ Section adaptive.
       iNext. iIntros (count_precise_2) "rhs" ; simpl... rewrite Z.add_0_r.
       tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
       tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
-  
+
       tp_load ; wp_load ; done.
-  
+
       Unshelve. all: try lra.
-      1: exact (λ x : Z, Z.ltb x 30).
-      3,6: exact (λ x : Z, Z.ltb x 32).
-      { iIntros "* !> * _ HΦ"... case_bool_decide as h ; iApply "HΦ".
-        all: iPureIntro.
-        - simpl. do 2 f_equal. symmetry.
-          by eapply Z.ltb_lt.
-        - simpl. do 2 f_equal. symmetry.
-          by eapply Z.ltb_nlt.
-      }
-      {
-        iIntros "* !> * ? HΦ". gwp_pures.
-        case_bool_decide as h ; iApply "HΦ".
-        all: iPureIntro.
-        - simpl. do 2 f_equal. symmetry.
-          by eapply Z.ltb_lt.
-        - simpl. do 2 f_equal. symmetry.
-          by eapply Z.ltb_nlt.
-      }
-      { iIntros "* !> * _ HΦ"... case_bool_decide as h ; iApply "HΦ".
-        all: iPureIntro.
-        - simpl. do 2 f_equal. symmetry.
-          by eapply Z.ltb_lt.
-        - simpl. do 2 f_equal. symmetry.
-          by eapply Z.ltb_nlt.
-      }
-      {
-        iIntros "* !> * ? HΦ". gwp_pures.
-        case_bool_decide as h ; iApply "HΦ".
-        all: iPureIntro.
-        - simpl. do 2 f_equal. symmetry.
-          by eapply Z.ltb_lt.
-        - simpl. do 2 f_equal. symmetry.
-          by eapply Z.ltb_nlt.
-      }
-      { iIntros "* !> * _ HΦ"... case_bool_decide as h ; iApply "HΦ".
-        all: iPureIntro.
-        - simpl. do 2 f_equal. symmetry.
-          by eapply Z.ltb_lt.
-        - simpl. do 2 f_equal. symmetry.
-          by eapply Z.ltb_nlt.
-      }
-      {
-        iIntros "* !> * ? HΦ". gwp_pures.
-        case_bool_decide as h ; iApply "HΦ".
-        all: iPureIntro.
-        - simpl. do 2 f_equal. symmetry.
-          by eapply Z.ltb_lt.
-        - simpl. do 2 f_equal. symmetry.
-          by eapply Z.ltb_nlt.
-      }
+      1: exact (λ x : Z, bool_decide (x < 30)).
+      3,6: exact (λ x : Z, bool_decide (x < 32)).
+      { iIntros "* !> * _ HΦ"... case_bool_decide as h ; by iApply "HΦ". }
+      { iIntros "* !> * ? HΦ". gwp_pures. case_bool_decide as h ; by iApply "HΦ". }
+      { iIntros "* !> * _ HΦ"... case_bool_decide as h ; by iApply "HΦ". }
+      { iIntros "* !> * ? HΦ". gwp_pures. case_bool_decide as h ; by iApply "HΦ". }
+      { iIntros "* !> * _ HΦ"... case_bool_decide as h ; by iApply "HΦ". }
+      { iIntros "* !> * ? HΦ". gwp_pures. case_bool_decide as h ; by iApply "HΦ". }
   Qed.
 
 Definition iter_adaptive_acc_simple_unrolled : val :=
@@ -673,35 +551,25 @@ Definition iter_adaptive_acc_simple : val :=
       "predicates" ;;
     ! "counts".
 
-  Lemma vpreds_is_predicate_list : ⊢ is_predicate_list predicates vpredicates.
+Lemma vpreds_is_predicate_list : ⊢ is_predicate_list predicates vpredicates.
   Proof.
     simpl. repeat (iExists _,_ ; repeat iSplitR => //).
     - iIntros (??) "!> _ HΦ". wp_pures.
-      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide.
-      + by apply Z.ltb_lt.
-      + by apply Z.ltb_nlt.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal.       
     - iIntros (??) "!> _ HΦ". gwp_pures.
-      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide.
-      + by apply Z.ltb_lt.
-      + by apply Z.ltb_nlt.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal. 
     - iIntros (??) "!> _ HΦ". wp_pures.
-      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide.
-      + by apply Z.leb_le.
-      + by apply Z.leb_nle.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal.
     - iIntros (??) "!> _ HΦ". gwp_pures.
-      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide.
-      + by apply Z.leb_le.
-      + by apply Z.leb_nle.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal. 
     - iIntros (??) "!> _ HΦ". wp_pures.
-      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide as h.
-      + inversion h. by rewrite Z.eqb_refl.
-      + eapply Z.eqb_neq. intro. apply h.
-        eapply inj. 1: apply of_val_inj. repeat f_equal. done.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal.
+      do 2 case_bool_decide; simplify_eq=>//.
+      exfalso; apply H. f_equal. rewrite H0. done. 
     - iIntros (??) "!> _ HΦ". gwp_pures.
-      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide as h.
-      + inversion h. by rewrite Z.eqb_refl.
-      + eapply Z.eqb_neq. intro. apply h.
-        eapply inj. 1: apply of_val_inj. repeat f_equal. done.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal.
+      do 2 case_bool_decide; simplify_eq=>//.
+      exfalso; apply H. f_equal. rewrite H0. done. 
   Qed.
 
   Lemma wp_iter_adaptive_acc_simple_unrolled (ε_coarse den budget : Z)
@@ -733,8 +601,9 @@ Definition iter_adaptive_acc_simple : val :=
        replace dsv2 with (inject ds2).
        2: symmetry ; by apply is_list_inject.
        wp_apply (wp_wand with "[rhs]").
-       { iApply (filter_sens with "[] [] [] rhs"). 3: iPureIntro ; lra. 3: iIntros "!> % h" ; iExact "h".
-         1,2: done.
+       { iApply (filter_sens with "[//] [//] [] rhs").
+         - iPureIntro; lra. 
+         - iIntros "!> % h" ; iExact "h".
        }
        simpl.
        iIntros "% (%ds_f1_l&%ds_f1_r&->&rhs&%d_out)".
@@ -757,7 +626,7 @@ Definition iter_adaptive_acc_simple : val :=
            etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
            etrans. 1: eassumption. rewrite Rmult_1_l.
            etrans. 1: eassumption. rewrite Rmult_1_l.
-           rewrite INR_IZR_INZ. done.
+           done.
          }
          iApply (hoare_couple_laplace _ _ 0 with "[$rhs $eps]") => //.
          2: lra.
@@ -895,7 +764,7 @@ Definition iter_adaptive_acc_simple : val :=
           etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
           etrans. 1: eassumption. rewrite Rmult_1_l.
           etrans. 1: eassumption. rewrite Rmult_1_l.
-          rewrite INR_IZR_INZ. done.
+          done.
         }
         iApply (hoare_couple_laplace _ _ 0 with "[$rhs $eps]") => //.
         1,2: repeat real_solver_partial.
@@ -925,33 +794,25 @@ Lemma bar :
     ⊢ ([∗ list] pred;vpred ∈ predicates;lvpredicates, is_predicate pred vpred ∗ is_spec_predicate pred vpred).
 repeat iSplit. 7: done.
     - iIntros (??) "!> _ HΦ". wp_pures.
-      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide.
-      + by apply Z.ltb_lt.
-      + by apply Z.ltb_nlt.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal. 
     - iIntros (??) "!> _ HΦ". gwp_pures.
-      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide.
-      + by apply Z.ltb_lt.
-      + by apply Z.ltb_nlt.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal. 
     - iIntros (??) "!> _ HΦ". wp_pures.
-      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide.
-      + by apply Z.leb_le.
-      + by apply Z.leb_nle.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal. 
     - iIntros (??) "!> _ HΦ". gwp_pures.
-      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide.
-      + by apply Z.leb_le.
-      + by apply Z.leb_nle.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal.
+      
     - iIntros (??) "!> _ HΦ". wp_pures.
-      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide as h.
-      + inversion h. by rewrite Z.eqb_refl.
-      + eapply Z.eqb_neq. intro. apply h.
-        eapply inj. 1: apply of_val_inj. repeat f_equal. done.
+      case_decide.
+      { rewrite !bool_decide_eq_true_2 //; [|by do 2 f_equal]. by iApply "HΦ". }
+      rewrite !bool_decide_eq_false_2 //; [|by intros [=]]. by iApply "HΦ".
     - iIntros (??) "!> _ HΦ". gwp_pures.
-      iApply "HΦ". iPureIntro. simpl. repeat f_equal. symmetry. simpl. case_bool_decide as h.
-      + inversion h. by rewrite Z.eqb_refl.
-      + eapply Z.eqb_neq. intro. apply h.
-        eapply inj. 1: apply of_val_inj. repeat f_equal. done.
+      iApply "HΦ". iPureIntro. simpl. repeat f_equal.
+      case_decide; simplify_eq /=.      
+      { rewrite !bool_decide_eq_true_2 //. }      
+      rewrite !bool_decide_eq_false_2 //.
+      intros ?. apply H. do 2 f_equal. done.
   Qed.
-
 
   Lemma wp_iter_adaptive_acc_simple_app (ε_coarse den budget : Z)
     (ds1 ds2 : list Z) dsv1 dsv2 K
@@ -1054,7 +915,7 @@ repeat iSplit. 7: done.
           etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
           etrans. 1: eassumption. rewrite Rmult_1_l.
           etrans. 1: eassumption. rewrite Rmult_1_l.
-          rewrite INR_IZR_INZ. done.
+          done.
         }
         iApply (hoare_couple_laplace _ _ 0 with "[$rhs $eps]") => //.
         1,2: repeat real_solver_partial.
@@ -1085,7 +946,7 @@ repeat iSplit. 7: done.
             etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
             etrans. 1: eassumption. rewrite Rmult_1_l.
             etrans. 1: eassumption. rewrite Rmult_1_l.
-            rewrite INR_IZR_INZ. done.
+            done.
           }
           iApply (hoare_couple_laplace _ _ 0 with "[$rhs $eps]") => //.
           1,2: repeat real_solver_partial.
@@ -1178,7 +1039,7 @@ repeat iSplit. 7: done.
           etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
           etrans. 1: eassumption. rewrite Rmult_1_l.
           etrans. 1: eassumption. rewrite Rmult_1_l.
-          rewrite INR_IZR_INZ. done.
+          done.
         }
         iApply (hoare_couple_laplace _ _ 0 with "[$rhs $eps]") => //.
         1,2: repeat real_solver_partial.
@@ -1204,7 +1065,7 @@ repeat iSplit. 7: done.
             etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
             etrans. 1: eassumption. rewrite Rmult_1_l.
             etrans. 1: eassumption. rewrite Rmult_1_l.
-            rewrite INR_IZR_INZ. done.
+            done.
           }
           iApply (hoare_couple_laplace _ _ 0 with "[$rhs $eps]") => //.
           1,2: repeat real_solver_partial.

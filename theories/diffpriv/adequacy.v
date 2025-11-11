@@ -223,7 +223,7 @@ Qed.
 
 (* hoare_diffpriv implies approximate diffpriv *)
 Fact hoare_diffpriv_pure f ε δ (εpos : (0 <= ε)%R) (δpos : (0 <= δ)%R) :
-  (∀ `{diffprivGS Σ}, ⊢ hoare_diffpriv f ε δ dZ (=))
+  (∀ `{diffprivGS Σ}, ⊢ hoare_diffpriv f ε δ dZ Z)
   →
     ∀ σ,
     diffpriv_approx
@@ -238,5 +238,5 @@ Proof.
   iApply (hwp with "[] [$f' ε δ]").
   2: erewrite 2!Rmult_1_l ; iFrame.
   1: rewrite /dZ /= -abs_IZR //.
-  iNext. iIntros (??) "[-> $] //". 
+  iNext. iIntros (?) "$ //". 
 Qed.

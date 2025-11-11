@@ -1,10 +1,10 @@
 From iris.base_logic Require Export na_invariants.
 From clutch.common Require Import inject.
-From clutch.prelude Require Import tactics.
 From clutch.prob Require Import differential_privacy.
 From clutch.diffpriv Require Import adequacy diffpriv proofmode derived_laws.
 From clutch.diffpriv.examples Require Import sparse_vector_technique.
 From clutch.prob_lang.gwp Require Import gen_weakestpre arith list.
+From clutch.prelude Require Import stdpp_ext.
 
 (** Dataset operators *)
 
@@ -55,8 +55,6 @@ Section dataset_operators.
     by iApply "HΨ".
   Qed.
 
-  Definition sum_list (zs : list Z) : Z := foldr Z.add 0 zs.
-
   Lemma sum_list_clip_le b zs :
     sum_list (clip 0 b zs) ≤ b * length zs.
   Proof. induction zs => /=; [lia|]. rewrite /clipZ. lia. Qed.
@@ -65,9 +63,66 @@ Section dataset_operators.
     0 ≤ b → 0 ≤ sum_list (clip 0 b zs).
   Proof. induction zs => /=; [lia|]. rewrite /clipZ. lia. Qed.
 
+  (* TODO: move *)
   Lemma sum_list_app zs1 zs2 :
     sum_list (zs1 ++ zs2) = sum_list zs1 + sum_list zs2.
   Proof. induction zs1; [done|]. rewrite /= IHzs1. lia. Qed.
+
+  Lemma sum_list_clip_Z_le (b : nat) (zs1 : list Z) :
+    Z.abs (sum_list (clip 0 b zs1) - sum_list (clip 0 (b + 1) zs1)) ≤ length zs1.
+  Proof. induction zs1 => /=; [lia|]. rewrite /clipZ. lia. Qed.
+
+  Lemma clipZ_le (b : nat) z :
+    0 ≤ clipZ 0 b z ≤ b.
+  Proof. rewrite /clipZ. lia. Qed.
+
+  Lemma sum_list_upper_bound b zs :
+    (∀ z, z ∈ zs → z ≤ b) → sum_list zs ≤ b * length zs.
+  Proof.
+    induction zs as [|z zs' IH]  => /= Hz ; [lia|].
+    pose proof (Hz z (elem_of_list_here _ _)).
+    assert (∀ z : Z, z ∈ zs' → z ≤ b) as Hin.
+    { intros ??. apply Hz. by right. }
+    specialize (IH Hin). lia.
+  Qed.
+
+  Lemma sum_list_lower_bound b zs :
+    (∀ z, z ∈ zs → b ≤ z) → b * length zs ≤ sum_list zs.
+  Proof.
+    induction zs as [|z zs' IH]  => /= Hz ; [lia|].
+    pose proof (Hz z (elem_of_list_here _ _)).
+    assert (∀ z : Z, z ∈ zs' → b ≤ z) as Hin.
+    { intros ??. apply Hz. by right. }
+    specialize (IH Hin). lia.
+  Qed.
+
+  Lemma clip_length l b zs :
+    length (clip l b zs) = length zs.
+  Proof. induction zs => /=; lia. Qed.
+
+  Lemma elem_of_drop `{Countable A} (x : A) (xs : list A) n :
+    x ∈ drop n xs → x ∈ xs.
+  Proof. apply subseteq_drop. Qed.
+
+  Lemma sum_list_drop_clip (b : nat) zs1 zs2 :
+    sum_list (drop (length (clip 0 b zs2)) (clip 0 b zs1)) ≤ b * (length zs1 - length zs2)%nat.
+  Proof.
+    etrans.
+    { eapply (sum_list_upper_bound b) => z. intros ?%elem_of_drop%elem_of_clip_fun; lia. }
+    rewrite drop_length !clip_length.
+    lia.
+  Qed.
+
+  Lemma sum_list_drop_clip_le (b : nat) zs1 zs2 :
+    length zs2 ≤ length zs1 →
+    sum_list (drop (length (clip 0 b zs1)) (clip 0 b zs2)) = 0.
+  Proof.
+    induction zs2 in zs1 |-* => /=.
+    { rewrite drop_nil //. }
+    destruct zs1 => /=; [done|].
+    intros Hlen.
+    apply IHzs2. lia.
+  Qed.
 
   Lemma gwp_sum (zs : list Z) v E Φ :
     is_list zs v →
@@ -169,10 +224,37 @@ End gwp_queries.
 Section queries.
   Context `{!diffprivGS Σ}.
 
-  Lemma age_sum_query_sensitivity (b : nat) :
-    ⊢ hoare_sensitive_cond (age_sum_query #b) b (dlist Z) neighbour dZ.
+  Lemma list_dist_clipped_le b zs1 zs2 :
+    list_dist (clip 0 b zs1) (clip 0 b zs2) ≤ list_dist zs1 zs2.
+  Proof. apply list_dist_fmap_le. Qed. 
+
+  Lemma age_sum_query_bound (b : nat) zs1 zs2 :
+    sum_list (clip 0 b zs1) - sum_list (clip 0 b zs2) ≤ b * list_dist zs1 zs2.
   Proof.
-    iIntros (?? zs1 zs2 Φ) "!# [Hspec %Hcond] HΦ".
+    etrans; last first.
+    { apply Z.mul_le_mono_nonneg_l; [lia|]. apply (list_dist_clipped_le b). }
+    etrans; [apply (sum_difference_multiplicity' b)|].
+    { intros ? [? | ?]%elem_of_app; eapply elem_of_clip_fun; done || lia. }
+    apply Z.mul_le_mono_nonneg_l; [lia|].
+    eapply sum_list_with_le.
+    lia.
+  Qed.
+
+  Lemma age_sum_query_bound_abs (b : nat) zs1 zs2 :
+    Z.abs (sum_list (clip 0 b zs1) - sum_list (clip 0 b zs2)) ≤ b * list_dist zs1 zs2.
+  Proof.
+    apply Z.abs_le.
+    split; [|apply age_sum_query_bound].
+    rewrite Z.opp_le_mono Z.opp_sub_distr Z.opp_involutive.
+    rewrite (comm (list_dist)).
+    rewrite Z.add_comm Z.add_opp_r.
+    apply age_sum_query_bound.
+  Qed.
+
+  Lemma age_sum_query_sensitivity (b : nat) :
+    ⊢ hoare_sensitive (age_sum_query #b) b (dlist Z) dZ.
+  Proof.
+    iIntros (?? zs1 zs2 Φ) "!# Hspec HΦ".
     iMod (gwp_age_sum_query gwp_spec _ _ _ _ (λ v, ⌜v = #(sum_list (clip 0 b zs2))⌝%I)
            with "[//] Hspec") as (?) "[Hspec ->]".
     { lia. }
@@ -182,19 +264,57 @@ Section queries.
     { rewrite is_list_inject //. }
     iApply "HΦ". iFrame "Hspec". iPureIntro.
     eexists. split; [done|]. simpl.
-    rewrite Rabs_Zabs -mult_INR INR_IZR_INZ. apply IZR_le.
-    rewrite neighbour_dist //.
-    destruct Hcond; simplify_eq.
-    - rewrite !clip_app !sum_list_app.
-      transitivity (clipZ 0 b n); rewrite /= /clipZ; lia.
-    - rewrite !clip_app !sum_list_app.
-      transitivity (clipZ 0 b n); rewrite /= /clipZ; lia.
+    rewrite Rabs_Zabs INR_IZR_INZ -mult_IZR; apply IZR_le.
+    apply age_sum_query_bound_abs.
+  Qed.
+
+  Lemma sum_list_with_clip_diff (b : nat) zs :
+    sum_list (clip 0 b zs) - sum_list (clip 0 (b + 1) zs) =
+    sum_list_with (λ z, clipZ 0 b z - clipZ 0 (b + 1) z) zs.
+  Proof.
+    induction zs => /=; [done|].
+    rewrite sum_list_with_cons. lia.
+  Qed.
+
+  Lemma clips_count zs1 zs2 (b : nat) :
+    sum_list_with (λ z, clipZ 0 b z - clipZ 0 (b + 1) z) zs1 =
+    sum_list_with (λ z, (clipZ 0 b z - clipZ 0 (b + 1) z) * list_count z zs1) (remove_dups (zs1 ++ zs2)).
+  Proof. rewrite (sum_list_with_multiplicity _ zs2) //. Qed.
+
+  Lemma clip_diff_bounds (b : nat) z :
+    (clipZ 0 b z - clipZ 0 (b + 1) z) = -1 ∨
+    (clipZ 0 b z - clipZ 0 (b + 1) z) = 0.
+  Proof. rewrite /clipZ. lia. Qed.
+
+  Lemma create_query_bound (b : nat) zs1 zs2 :
+     (sum_list (clip 0 b zs1) - sum_list (clip 0 (b + 1) zs1) -
+     (sum_list (clip 0 b zs2) - sum_list (clip 0 (b + 1) zs2))) ≤ list_dist zs1 zs2.
+  Proof.
+    rewrite 2!sum_list_with_clip_diff.
+    rewrite (clips_count zs1 zs2) (clips_count zs2 zs1).
+    rewrite (Permutation_app_comm zs2 zs1).
+    rewrite -sum_list_with_sub.
+    rewrite /list_dist.
+    eapply sum_list_with_le => z ?.
+    destruct (clip_diff_bounds b z) as [-> | ->]; lia.
+  Qed.
+
+  Lemma create_query_bound_abs (b : nat) zs1 zs2 :
+     Z.abs (sum_list (clip 0 b zs1) - sum_list (clip 0 (b + 1) zs1) -
+           (sum_list (clip 0 b zs2) - sum_list (clip 0 (b + 1) zs2))) ≤ list_dist zs1 zs2.
+  Proof.
+    apply Z.abs_le.
+    split; [|apply create_query_bound].
+    rewrite Z.opp_le_mono Z.opp_sub_distr Z.opp_involutive.
+    rewrite (comm (list_dist)).
+    rewrite Z.add_comm Z.add_opp_r.
+    apply create_query_bound.
   Qed.
 
   Lemma create_query_sensitivity_partial (b : nat) :
-    ⊢ hoare_sensitive_cond (λ: "df", age_sum_query #b "df" - age_sum_query (#b + #1) "df")%V 1 (dlist Z) neighbour dZ.
+    ⊢ hoare_sensitive (λ: "df", age_sum_query #b "df" - age_sum_query (#b + #1) "df")%V 1 (dlist Z) dZ.
   Proof.
-    iIntros (?? zs1 zs2 Φ) "!# [Hspec %Hcond] HΦ".
+    iIntros (?? zs1 zs2 Φ) "!# Hspec HΦ".
     wp_rec; wp_pures.
     tp_rec; tp_pures.
     assert (#(b + 1) = #(b + 1)%nat) as ->.
@@ -222,16 +342,15 @@ Section queries.
     wp_pures. iModIntro.
     iApply "HΦ". iFrame.
     iExists _. iSplit; [done|]. iPureIntro.
-    rewrite neighbour_dist //=.
-    rewrite Rabs_Zabs Rmult_1_l. apply IZR_le.
-    destruct Hcond; simplify_eq/=;
-      rewrite !clip_app !sum_list_app /= /clipZ; lia.
+    rewrite Rabs_Zabs -mult_IZR; apply IZR_le.
+    rewrite Z.mul_1_l Nat2Z.inj_add.
+    apply create_query_bound_abs.
   Qed.
 
   Lemma create_query_sensitivity (b : nat) K :
     ⤇ fill K (create_query #b) -∗
     WP create_query #b {{ v, ⤇ fill K (of_val v) ∗
-                               hoare_sensitive_cond (of_val v) 1 (dlist Z) neighbour dZ }}.
+                               hoare_sensitive (of_val v) 1 (dlist Z) dZ }}.
   Proof.
     iIntros "Hs".
     tp_rec; tp_pures. wp_rec; wp_pures.
@@ -239,17 +358,16 @@ Section queries.
     iApply create_query_sensitivity_partial.
   Qed.
 
-  Lemma wp_above_threshold_list (num den T : Z) (default : nat) `{dA : Distance A} a a' qv qs K cond :
+  Lemma wp_above_threshold_list (num den T : Z) (default : nat) `{dA : Distance A} a a' qv qs K :
     (0 < IZR num / IZR den)%R →
     is_list qs qv →
     (dA a a' <= 1)%R →
-    cond a a' →
-    ([∗ list] b_q ∈ qs, ∃ (b : nat) (q : val), ⌜b_q = (#b, q)%V⌝ ∗ wp_sensitive_cond (of_val q) 1 dA cond dZ) -∗
+    ([∗ list] b_q ∈ qs, ∃ (b : nat) (q : val), ⌜b_q = (#b, q)%V⌝ ∗ wp_sensitive (of_val q) 1 dA dZ) -∗
     ↯m (IZR num / IZR den) -∗
     ⤇ fill K (above_threshold_list #num #den #T (inject a' : val) qv #default) -∗
     WP above_threshold_list #num #den #T (inject a : val) qv #default {{ v, ∃ (bound : nat) (q : val), ⌜v = (#bound, q)%V⌝ ∗ ⤇ fill K (of_val v) }}.
   Proof.
-    iIntros (Hε Hqs Hdist Hcond) "Hqs Hε Hs".
+    iIntros (Hε Hqs Hdist) "Hqs Hε Hs".
     wp_rec; wp_pures. tp_rec. tp_pures.
     tp_bind (above_threshold _ _ _).
     wp_bind (above_threshold _ _ _).
@@ -269,7 +387,7 @@ Section queries.
       tp_rec. tp_pures. tp_bind (f' _ _).
       wp_rec. wp_pures. wp_bind (q _ _).
       wp_apply (wp_wand with "[Hqi Hs HAUTH] [Hqs']").
-      { iApply ("AT_spec" with "[//] [//] Hqi HAUTH Hs") . }
+      { iApply ("AT_spec" with "[//] Hqi HAUTH Hs") . }
       iIntros (v) "(%bb & -> & Hs & Hcnt) /=".
       destruct bb; tp_pures; wp_pures; [iExists _,_ ; iFrame ; try done|].
       iApply ("IH" with "[//] Hqs' Hs").
@@ -281,7 +399,7 @@ Section queries.
     ⤇ fill K (list_map (λ: "b", ("b", create_query "b"))%V bsv) -∗
     WP list_map (λ: "b", ("b", create_query "b"))%V bsv {{ qv,
         ∃ qs, ⌜is_list qs qv⌝ ∗
-              ([∗ list] b_q ∈ qs, ∃ (bound : nat) (q : val), ⌜b_q = (#bound, q)%V⌝ ∗ wp_sensitive_cond (of_val q) 1 (dlist Z) neighbour dZ) ∗
+              ([∗ list] b_q ∈ qs, ∃ (bound : nat) (q : val), ⌜b_q = (#bound, q)%V⌝ ∗ wp_sensitive (of_val q) 1 (dlist Z) dZ) ∗
               ⤇ fill K (of_val qv) }}.
   Proof.
     iInduction bs as [|b bs] "IH" forall (bsv K).
@@ -303,7 +421,7 @@ Section queries.
       wp_pures.
       iModIntro. iExists ((#b, q)%V :: qs').
       iFrame. iSplit; [iExists _; eauto|]. iExists _,_; iSplit ; eauto.
-      iIntros (?????) "Hs".
+      iIntros (????) "Hs".
       iApply ("Hq" with "[%] [$Hs //]"); [lra|].
       auto.
   Qed.
@@ -334,7 +452,7 @@ Section queries.
       rewrite /= neighbour_dist //. }
     iIntros (?) "(%&%&->&Hs) /=".
     tp_pures; wp_pures.
-    iFrame. 
+    iFrame.
     iExists _; done.
   Qed.
 
@@ -364,7 +482,6 @@ Section queries.
     apply is_list_inject in Hds1 as ->, Hds2 as ->.
     iApply (age_sum_query_sensitivity bound with "[] [rhs]") => //.
     1: iPureIntro ; real_solver.
-    1: by iFrame.
     iIntros "!> * (%sum&%sum'&->&rhs&%res_close)".
     simpl. tp_pures. wp_pures.
 

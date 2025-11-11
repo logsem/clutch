@@ -1,3 +1,4 @@
+From stdpp Require Import list. 
 From iris.base_logic.lib Require Import fancy_updates.
 From clutch.common Require Export inject.
 From clutch.prob_lang Require Export lang notation gwp.gen_weakestpre.
@@ -991,14 +992,14 @@ Section list_specs.
   Lemma is_list_snoc lM x : ∃ lv, is_list (lM ++ [x]) lv.
   Proof. induction lM; naive_solver eauto. Qed.
 
-  Lemma gwp_list_filter (l : list A) (P : A -> bool) (f lv : val) E :
+  Lemma gwp_list_filter (P : A → bool) (l : list A) (f lv : val) E :
     G{{{ (∀ (x : A),
             G{{{ True }}}
               f (inject x) @ g; E
             {{{ w, RET w; ⌜w = inject (P x)⌝ }}}) ∗
         ⌜is_list l lv⌝ }}}
        list_filter f lv @ g; E
-     {{{ rv, RET rv; ⌜is_list (List.filter P l) rv⌝ }}}.
+     {{{ rv, RET rv; ⌜is_list (filter P l) rv⌝ }}}.
   Proof.
     iIntros (Φ) "[#Hf %Hil] HΦ".
     iInduction l as [ | h t] "IH" forall (lv Hil Φ); simpl in Hil.
@@ -1013,14 +1014,15 @@ Section list_specs.
       iIntros (rv) "%Hilp"; gwp_pures.
       gwp_apply "Hf"; [done |].
       iIntros (w) "->".
-      destruct (P h) eqn:HP; gwp_pures.
+      destruct (P h) eqn:Heq ; gwp_pures.
       + gwp_apply gwp_list_cons; [by eauto |].
         iIntros (v) "%Hil'".
         iApply "HΦ"; iPureIntro.
-        simpl; rewrite HP; simpl.
-        simpl in Hil'; done.
+        rewrite filter_cons_True //.
+        rewrite Heq //. 
       + iApply "HΦ"; iPureIntro.
-        simpl. rewrite HP. done.
+        rewrite filter_cons_False //.
+        rewrite Heq //. intros []. 
   Qed.
 End list_specs.
 
