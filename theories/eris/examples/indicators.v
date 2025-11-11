@@ -360,13 +360,21 @@ Lemma RInt_add {F1 F2 : R → R} {a b : R} (H1 : ex_RInt F1 a b) (H2 : ex_RInt F
   RInt F1 a b  + RInt F2 a b = RInt (fun x => F1 x + F2 x) a b.
 Proof. rewrite RInt_plus; done. Qed.
 
-Lemma RInt_Rmult {F : R → R} {a b r : R} : r * RInt F a b = RInt (fun x => r * F x) a b.
+Lemma RInt_Rmult {F : R → R} {a b r : R} (Hex : ex_RInt F a b) : r * RInt F a b = RInt (fun x => r * F x) a b.
 Proof.
-  (* Check RInt_scal. Augh I need another side condition here because non-integrability isn't set to 0 *)
-Admitted.
+  replace (λ x : R, r * F x) with (λ x : R, scal r (F x)) by (rewrite /scal//=/mult//=; lra).
+  rewrite RInt_scal.
+  { rewrite /scal//=/mult//=; lra. }
+  done.
+Qed.
 
-Lemma RInt_Rmult' {F : R → R} {a b r : R} : (RInt F a b) * r = RInt (fun x => F x * r) a b.
-Proof. Admitted.
+Lemma RInt_Rmult' {F : R → R} {a b r : R} (Hex : ex_RInt F a b) : (RInt F a b) * r = RInt (fun x => F x * r) a b.
+Proof.
+  replace (λ x : R, F x * r) with (λ x : R, scal r (F x)); last (rewrite /scal//=/mult//=; apply functional_extensionality; intros ?; lra).
+  rewrite RInt_scal.
+  { rewrite /scal//=/mult//=; lra. }
+  done.
+Qed.
 
 Lemma ex_RInt_Rmult {F : R → R} {a b r : R} : ex_RInt F a b → ex_RInt (fun x => r * F x) a b.
 Proof.
@@ -434,36 +442,329 @@ Lemma ex_RInt_add  {f g : R → R} {a b : R} (Ha : ex_RInt f a b) (Hb : ex_RInt 
 Proof. apply (ex_RInt_plus _ _ _ _ Ha Hb). Qed.
 
 Lemma ex_RInt_Iverson_le {x a b}  : ex_RInt (Iverson (Rle x)) a b.
-Proof. Admitted.
+Proof.
+  apply (ex_RInt_Chasles _ a x b).
+  { case (decide (x < a)).
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_True; [lra|].
+      rewrite Rmin_right in H; [|lra].
+      rewrite Rmax_left in H; [|lra].
+      lra.
+    }
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      lra.
+    }
+  }
+  { case (decide (x < b)).
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_True; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      lra.
+    }
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_right in H; [|lra].
+      rewrite Rmax_left in H; [|lra].
+      lra.
+    }
+  }
+Qed.
 
 Lemma ex_RInt_Iverson_ge {x a b}  : ex_RInt (Iverson (Rge x)) a b.
-Proof. Admitted.
+Proof.
+  apply (ex_RInt_Chasles _ a x b).
+  { case (decide (x < a)).
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_right in H; [|lra].
+      rewrite Rmax_left in H; [|lra].
+      lra.
+    }
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_True; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      lra.
+    }
+  }
+  { case (decide (x < b)).
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      lra.
+    }
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_True; [lra|].
+      rewrite Rmin_right in H; [|lra].
+      rewrite Rmax_left in H; [|lra].
+      lra.
+    }
+  }
+Qed.
 
 Lemma ex_RInt_Iverson_eq {x a b}  : ex_RInt (Iverson (eq x)) a b.
-Proof. Admitted.
+Proof.
+  apply (ex_RInt_Chasles _ a x b).
+  { case (decide (x < a)).
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_right in H; [|lra].
+      rewrite Rmax_left in H; [|lra].
+      lra.
+    }
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      lra.
+    }
+  }
+  { case (decide (x < b)).
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      lra.
+    }
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_right in H; [|lra].
+      rewrite Rmax_left in H; [|lra].
+      lra.
+    }
+  }
+Qed.
 
 Lemma ex_RInt_Iverson_le' {z a b}  : ex_RInt (Iverson (fun x : R => x <= z)) a b.
-Proof. Admitted.
+Proof.
+  apply (ex_RInt_Chasles _ a z b).
+  { case (decide (z < a)).
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_right in H; [|lra].
+      rewrite Rmax_left in H; [|lra].
+      lra.
+    }
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_True; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      lra.
+    }
+  }
+  { case (decide (z < b)).
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      lra.
+    }
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_True; [lra|].
+      rewrite Rmin_right in H; [|lra].
+      rewrite Rmax_left in H; [|lra].
+      lra.
+    }
+  }
+Qed.
 
 Lemma ex_RInt_Iverson_nle' {z a b}  : ex_RInt (Iverson (fun x : R => ¬ x <= z)) a b.
-Proof. Admitted.
+Proof.
+  apply (ex_RInt_Chasles _ a z b).
+  { case (decide (z < a)).
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_True; [lra|].
+      rewrite Rmin_right in H; [|lra].
+      rewrite Rmax_left in H; [|lra].
+      lra.
+    }
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      lra.
+    }
+  }
+  { case (decide (z < b)).
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_True; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      lra.
+    }
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_right in H; [|lra].
+      rewrite Rmax_left in H; [|lra].
+      lra.
+    }
+  }
+Qed.
 
 Lemma ex_RInt_Iverson_le_uncurry {rx} : ex_RInt (λ y : R, Iverson (uncurry Rle) (y, rx)) 0 1.
-Proof. Admitted.
+Proof.
+  apply (ex_RInt_Chasles _ 0 rx 1).
+  { case (decide (rx < 0)).
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_right in H; [|lra].
+      rewrite Rmax_left in H; [|lra].
+      rewrite /uncurry//=.
+      lra.
+    }
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_True; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      rewrite /uncurry//=.
+      lra.
+    }
+  }
+  { case (decide (rx < 1)).
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      rewrite /uncurry//=.
+      lra.
+    }
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_True; [lra|].
+      rewrite Rmin_right in H; [|lra].
+      rewrite Rmax_left in H; [|lra].
+      rewrite /uncurry//=.
+      lra.
+    }
+  }
+Qed.
 
 Lemma ex_RInt_Iverson_ge_uncurry {rx} : ex_RInt (λ y : R, Iverson (uncurry Rge) (y, rx)) 0 1.
-Proof. Admitted.
+Proof.
+  apply (ex_RInt_Chasles _ 0 rx 1).
+  { case (decide (rx < 0)).
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_True; [lra|].
+      rewrite Rmin_right in H; [|lra].
+      rewrite Rmax_left in H; [|lra].
+      rewrite /uncurry//=.
+      lra.
+    }
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      rewrite /uncurry//=.
+      lra.
+    }
+  }
+  { case (decide (rx < 1)).
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_True; [lra|].
+      rewrite Rmin_left in H; [|lra].
+      rewrite Rmax_right in H; [|lra].
+      rewrite /uncurry//=.
+      lra.
+    }
+    { intros ?.
+      apply (ex_RInt_ext (fun _ => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_False; [lra|].
+      rewrite Rmin_right in H; [|lra].
+      rewrite Rmax_left in H; [|lra].
+      rewrite /uncurry//=.
+      lra.
+    }
+  }
+Qed.
 
 Lemma ex_RInt_mult (f g : R -> R) (a b : R) :
   ex_RInt f a b ->  ex_RInt g a b ->
   ex_RInt (λ y : R, f y * g y) a b.
 Proof.
-(* Product of Riemann integrable is Riemann integrable (is this not in the library?) *)
+  (* Product of Riemann integrable is Riemann integrable (is this not in the library?) *)
 Admitted.
 
 Lemma RInt_pow {a b N} : RInt (λ x : R, x ^ N) a b = b ^ (N + 1)%nat / (N + 1)%nat - a ^ (N + 1)%nat / (N + 1)%nat.
-Proof. Admitted.
-
+Proof.
+  have H : (λ x : R, x ^ N) = (Derive.Derive (λ x : R, x ^ (N+1)%nat * / (N +1)%nat)).
+  { apply functional_extensionality.
+    intros x.
+    rewrite Derive.Derive_scal_l.
+    rewrite Derive.Derive_pow; [|by auto_derive].
+    rewrite Derive.Derive_id.
+    replace (Init.Nat.pred (N + 1)) with N; last lia.
+    rewrite Rmult_comm Rmult_1_r -Rmult_assoc.
+    rewrite Rinv_l; [lra|].
+    apply not_0_INR; lia.
+  }
+  rewrite H.
+  rewrite RInt_Derive; [lra| |].
+  { intros ??. by auto_derive. }
+  { intros ??.
+    rewrite -H.
+    apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+    by auto_derive.
+  }
+Qed.
 
 Definition Continuity2 (f : (R * R) -> R) (x y : R) : Prop :=
   filterlim f (locally (x, y)) (locally (f (x, y))).
@@ -512,24 +813,29 @@ Definition Bounded (f : R * R -> R) (M : R) : R * R -> Prop :=
   fun t => Rabs (f t) <= M.
 
 (* I need either ex_SeriesC or maybe nn *)
-Lemma SeriesC_nat_shift {f : nat → R} : SeriesC f = f 0%nat + SeriesC (f ∘ S).
+Lemma SeriesC_nat_shift {f : nat → R} (Hex :  Series.ex_series f) : SeriesC f = f 0%nat + SeriesC (f ∘ S).
 Proof.
-  (* replace (SeriesC f) with (SeriesC (fun n => Iverson (eq 0%nat) n * f 0%nat) + SeriesC (fun n => Iverson (not ∘ eq 0%nat) n * f n)); last first. *)
-      (* Locate Series_incr_1. << This is it *)
-Admitted.
+  rewrite SeriesC_nat.
+  rewrite SeriesC_nat.
+  rewrite Series.Series_incr_1; last done.
+  f_equal.
+Qed.
 
-
-Lemma SeriesC_nat_shift_rev {f : nat → R} : SeriesC (f ∘ S) = - f 0%nat + SeriesC f.
-Proof.
-  (* replace (SeriesC f) with (SeriesC (fun n => Iverson (eq 0%nat) n * f 0%nat) + SeriesC (fun n => Iverson (not ∘ eq 0%nat) n * f n)); last first. *)
-      (* Locate Series_incr_1. << This is it *)
-Admitted.
+Lemma SeriesC_nat_shift_rev {f : nat → R} (Hex :  Series.ex_series f) : SeriesC (f ∘ S) = - f 0%nat + SeriesC f.
+Proof. have ? := SeriesC_nat_shift Hex. lra. Qed.
 
 Lemma ex_SeriesC_nat_shift {f : nat → R} : ex_seriesC f → ex_seriesC (f ∘ S).
-Proof. Admitted.
+Proof.
+  intro H.
+  apply ex_seriesC_nat in H.
+  apply Series.ex_series_incr_1 in H.
+  apply ex_seriesC_nat in H.
+  apply H.
+Qed.
 
 Lemma ex_SeriesC_nat_shiftN_l {f : nat → R} (N : nat) : ex_seriesC (f ∘ (fun n => (n - N))%nat) → ex_seriesC f.
-Proof. Admitted.
+Proof.
+Admitted.
 
 Lemma ex_SeriesC_nat_shiftN_r {f : nat → R} (N : nat) : ex_seriesC (f ∘ (fun n => (n + N))%nat) → ex_seriesC f.
 Proof. Admitted.
@@ -711,6 +1017,7 @@ Lemma HpowO_eq {x} : HpowO x = HpowOS x.
 Proof.
   rewrite /HpowO/HpowOS.
   rewrite SeriesC_nat_shift.
+  2: { apply ex_seriesC_nat. apply HpowO_ex. }
   rewrite Iverson_False; [|simpl; intuition].
   by rewrite Rmult_0_l Rdiv_def Rmult_0_l Rplus_0_l.
 Qed.
@@ -719,6 +1026,7 @@ Lemma HpowE_eq {x} : HpowE x = 1 + HpowES x.
 Proof.
   rewrite /HpowE/HpowES.
   rewrite SeriesC_nat_shift.
+  2: { apply ex_seriesC_nat. apply HpowE_ex. }
   rewrite Iverson_True; [|simpl; intuition].
   f_equal.
   rewrite //=. lra.
@@ -800,6 +1108,12 @@ Proof.
     { by rewrite pow_add Rmult_comm pow_1. }
     { f_equal. by rewrite -{1}(Nat.mul_1_l (fact n)) -Nat.mul_add_distr_r Nat.add_1_l Nat.add_1_r -fact_simpl. }
   Qed.
+
+  Lemma Hexp_ex_even {x} : ex_seriesC (λ n : nat, Iverson Zeven n * (x ^ n / fact n + x ^ (n + 1) / fact (n + 1))).
+  Proof. Admitted.
+
+  Lemma Hexp_ex_odd {x} : ex_seriesC (λ n : nat, Iverson (not ∘ Zeven) n * (x ^ n / fact n + x ^ (n + 1) / fact (n + 1))).
+  Proof. Admitted.
 
   (* I think this can be done by the addition formula using subtraction. Otherwise: taylor series. Otherwise: sad. *)
   Lemma exp_mono {x y : R} : x <= y → exp x <= exp y.
@@ -927,5 +1241,11 @@ Proof.
     RInt (fun x : R => sum_n (fun n : nat => F n x) M) a b = sum_n (fun n : nat =>  RInt (fun x : R => F n x) 0 1) M.
   Proof. Admitted.
 
+  Lemma ex_RInt_div (F : R → R) {a b c} : ex_RInt F a b → ex_RInt (fun x => F x / c) a b.
+  Proof. Admitted.
+
+  Lemma ex_seriesC_finite_dec (M : nat) (F : nat → R) :
+    ex_seriesC (λ x : nat, if bool_decide (x ≤ M) then F x else 0).
+  Proof. Admitted.
 
 End Lib.

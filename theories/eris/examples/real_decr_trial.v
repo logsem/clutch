@@ -8,7 +8,7 @@ From clutch.eris.examples Require Import lazy_real indicators.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
-Ltac OK := auto; (try by intuition); try lia; try lra.
+Ltac OK := auto; try (intuition done); try (intuition lia); try (intuition lra).
 Ltac funext := apply functional_extensionality.
 Ltac funexti := apply functional_extensionality; intros ?.
 
@@ -173,17 +173,21 @@ Section credits.
     }
   Qed.
 
-  Lemma RealDecrTrial_μ_ex_RInt {n m} {a b} : ex_RInt (λ y : R, RealDecrTrial_μ y n m) a b.
-  Proof.
-    rewrite /RealDecrTrial_μ.
-    apply ex_RInt_mult; [apply ex_RInt_const|].
+  Lemma RealDecrTrial_μ0_ex_RInt {m} {a b} : ex_RInt (λ y : R, RealDecrTrial_μ0 y m) a b.
     rewrite /RealDecrTrial_μ0.
-    replace (λ y : R, y ^ (m - n) / fact (m - n) - y ^ (m - n + 1) / fact (m - n + 1))
-       with (λ y : R, (y ^ (m - n) * / fact (m - n)) - ((y ^ (m - n + 1) * / fact (m - n + 1)))); last first.
+    replace (λ y : R, y ^ m / fact m - y ^ (m + 1) / fact (m + 1))
+       with (λ y : R, (y ^ m * / fact m) - ((y ^ (m + 1) * / fact (m + 1)))); last first.
     { apply functional_extensionality; intros ?.  rewrite /minus/plus/opp//=. }
     apply (ex_RInt_minus (V := R_NormedModule)).
     { apply ex_RInt_mult; [apply ex_RInt_pow|apply ex_RInt_const]. }
     { apply ex_RInt_mult; [apply ex_RInt_pow|apply ex_RInt_const]. }
+  Qed.
+
+  Lemma RealDecrTrial_μ_ex_RInt {n m} {a b} : ex_RInt (λ y : R, RealDecrTrial_μ y n m) a b.
+  Proof.
+    rewrite /RealDecrTrial_μ.
+    apply ex_RInt_mult; [apply ex_RInt_const|].
+    apply RealDecrTrial_μ0_ex_RInt.
   Qed.
 
   (*
@@ -418,7 +422,9 @@ Section credits.
     rewrite /RealDecrTrial_μ.
     rewrite /Iverson //=.
     case_decide.
-    { rewrite Rmult_1_l -RInt_Rmult Rmult_1_l.
+    { rewrite Rmult_1_l -RInt_Rmult.
+      2: { apply RealDecrTrial_μ0_ex_RInt. }
+      rewrite Rmult_1_l.
       rewrite /RealDecrTrial_μ0.
       replace (λ x : R, x ^ (m - n) / fact (m - n) - x ^ (m - n + 1) / fact (m - n + 1))
          with (λ x : R, x ^ (m - n) * / fact (m - n) - x ^ (m - n + 1) * / fact (m - n + 1)); last first.
@@ -433,6 +439,7 @@ Section credits.
       rewrite -Rminus_def.
       f_equal.
       { rewrite -RInt_Rmult'.
+        2: { apply ex_RInt_pow. }
         rewrite RInt_pow.
         rewrite -Rdiv_minus_distr.
         rewrite Rdiv_def Rmult_assoc.
@@ -446,6 +453,7 @@ Section credits.
         done.
       }
       { rewrite -RInt_Rmult'.
+        2: { apply ex_RInt_pow. }
         rewrite RInt_pow.
         rewrite -Rdiv_minus_distr.
         rewrite Rdiv_def Rmult_assoc.
@@ -459,7 +467,9 @@ Section credits.
         done.
       }
     }
-    { by rewrite Rmult_0_l -RInt_Rmult Rmult_0_l. }
+    { rewrite Rmult_0_l -RInt_Rmult.
+      2: { apply RealDecrTrial_μ0_ex_RInt. }
+      by rewrite Rmult_0_l. }
   Qed.
 
   Theorem g_expectation {F N rx M} (Hrx : 0 <= rx <= 1)
@@ -537,7 +547,13 @@ Section credits.
         }
       }
       eapply ex_seriesC_ext.
-      { intros n. symmetry. rewrite -RInt_Rmult'. done. }
+      { intros n. symmetry. rewrite -RInt_Rmult'.
+        2: {
+          apply ex_RInt_mult.
+          { apply ex_RInt_Iverson_le_uncurry. }
+          { apply RealDecrTrial_μ_ex_RInt. }
+        }
+        done. }
         apply ex_seriesC_scal_r.
         replace (λ x : nat, RInt (λ x0 : R, Iverson (uncurry Rle) (x0, rx) * RealDecrTrial_μ x0 (N + 1) x) 0 1)
            with (λ x : nat, RInt (λ x0 : R, RealDecrTrial_μ x0 (N + 1) x) 0 rx); last first.
@@ -606,11 +622,16 @@ Section credits.
         last first.
       { f_equal. apply functional_extensionality; intros ?; lra. }
       rewrite -RInt_Rmult.
+      2: {
+        apply ex_RInt_mult; [|apply ex_RInt_const].
+        apply RealDecrTrial_μ0_ex_RInt.
+      }
       case_decide.
       { rewrite Rmult_1_l.
         rewrite Iverson_True; [|simpl; lia].
         rewrite Rmult_1_l.
         rewrite -RInt_Rmult'; f_equal.
+        2: { apply RealDecrTrial_μ0_ex_RInt. }
         rewrite /RealDecrTrial_μ0.
         (* Compute *)
         replace (λ x : R, x ^ (n - (N + 1)) / fact (n - (N + 1)) - x ^ (n - (N + 1) + 1) / fact (n - (N + 1) + 1))
@@ -629,7 +650,9 @@ Section credits.
         rewrite /minus//=/plus/opp//=.
         rewrite -Rminus_def.
         rewrite -RInt_Rmult'.
+        2: { apply ex_RInt_pow. }
         rewrite -RInt_Rmult'.
+        2: { apply ex_RInt_pow. }
         f_equal.
         { rewrite RInt_pow.
           rewrite pow_i; [|lia].
@@ -668,10 +691,12 @@ Section credits.
     }
     { rewrite Rmult_1_l.
       rewrite -RInt_Rmult'.
+      2: { apply RealDecrTrial_μ_ex_RInt. }
       rewrite -Rmult_plus_distr_r; f_equal.
       rewrite H.
       rewrite /RealDecrTrial_μ.
       rewrite -RInt_Rmult.
+      2: { apply RealDecrTrial_μ0_ex_RInt. }
       rewrite Iverson_False; [|simpl; lia].
       rewrite Iverson_True; [|simpl; lia].
       rewrite Rmult_0_l Rplus_0_l.

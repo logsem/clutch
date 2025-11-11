@@ -112,7 +112,9 @@ Section credits.
     { (* Deploy the Foob *) admit. }
     replace (λ n : nat, RInt (λ x : R, RealDecrTrial_μ x 0 n * LiftF F n) 0 0.5)
        with (λ n : nat, LiftF F n * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5); last first.
-    { apply functional_extensionality; intros n. by rewrite -RInt_Rmult' Rmult_comm /LiftF. }
+    { apply functional_extensionality; intros n. rewrite -RInt_Rmult'.
+      2: { apply RealDecrTrial_μ_ex_RInt. }
+      by rewrite Rmult_comm /LiftF. }
     rewrite /LiftF.
     replace (SeriesC (λ n : nat, F (n `rem` 2 =? 1)%Z * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5))
        with ((SeriesC (λ n : nat, Iverson Zeven  n * F (n `rem` 2 =? 1)%Z * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5)) +
@@ -424,6 +426,7 @@ Section credits.
         { replace (n + 1 + 1)%nat with (S (n + 1)%nat) by OK. OK. }
       }
       rewrite SeriesC_nat_shift_rev.
+      2: { apply ex_seriesC_nat, (@Hexp_ex_even (-0.5)). }
       rewrite ExpSeriesEven.
       rewrite Iverson_True; OK.
       rewrite Rmult_1_l pow_O /fact //=.
@@ -488,6 +491,7 @@ Section credits.
         { replace (n + 1 + 1)%nat with (S (n + 1)%nat) by OK. OK. }
       }
       rewrite SeriesC_nat_shift_rev.
+      2: { apply ex_seriesC_nat. apply ex_seriesC_scal_l. apply (@Hexp_ex_odd (-0.5)). }
       rewrite SeriesC_scal_l.
       rewrite ExpSeriesOdd.
       rewrite /BNEHalf_μ//=.

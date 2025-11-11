@@ -8,7 +8,7 @@ From clutch.eris.examples Require Import lazy_real indicators half_bern_neg_exp.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
-Ltac OK := auto; (try by intuition); try lia; try lra.
+Ltac OK := auto; try (intuition done); try (intuition lia); try (intuition lra).
 Ltac funext := apply functional_extensionality.
 Ltac funexti := apply functional_extensionality; intros ?.
 
@@ -296,7 +296,10 @@ Section credits.
     rewrite -RInt_add.
     2: { apply ex_RInt_mult; first apply ex_RInt_Iverson_le. apply ex_RInt_const. }
     2: { apply ex_RInt_mult; first apply ex_RInt_Iverson_ge. apply ex_RInt_const. }
-    rewrite -RInt_Rmult' -RInt_Rmult'.
+    rewrite -RInt_Rmult'.
+    2: { apply ex_RInt_Iverson_le. }
+    rewrite -RInt_Rmult'.
+    2: { apply ex_RInt_Iverson_ge. }
     rewrite RInt_Iverson_le'''; [|done].
     rewrite RInt_Iverson_ge'''; [|done].
 
@@ -579,6 +582,7 @@ Section credits.
       apply ex_RInt_const.
     }
     rewrite -RInt_Rmult'.
+    2: { apply ex_RInt_Iverson_le. }
     rewrite RInt_Iverson_le'''; [|done].
     replace (RInt (λ x0 : R, Iverson (Rge y) x0 * (Bii_μ k x false * S_hz F k x N x0 false + Bii_μ k x true * S_hz F k x N x0 true)) 0 1)
        with (RInt (λ x0 : R, (Bii_μ k x false * S_hz F k x N x0 false + Bii_μ k x true * S_hz F k x N x0 true)) 0 y);
@@ -629,6 +633,7 @@ Section credits.
        with ((1 - y) * (1 - (2 * k + x) / (2 * k + 2) + 1) * F N); last lra.
     *)
     rewrite -RInt_Rmult.
+    2: { eapply ex_RInt_S_CreditV; OK. }
     rewrite {2}/S_CreditV.
     replace (RInt (λ x0 : R, SeriesC (λ n : nat, S_μ k x x0 (N + 1) n * F n)) 0 y)
        with (SeriesC (λ n : nat, RInt (λ x0 : R, S_μ k x x0 (N + 1) n * F n) 0 y));
@@ -649,14 +654,24 @@ Section credits.
       { funexti.
         symmetry.
         rewrite -RInt_Rmult'; f_equal.
+        2: { apply ex_RInt_S_μ. }
         rewrite /S_μ.
         rewrite /S_μ0.
-        rewrite -RInt_Rmult. f_equal.
+        rewrite -RInt_Rmult.
+        2: {
+          apply (ex_RInt_minus (V := R_CompleteNormedModule)).
+          { apply ex_RInt_Rmult', ex_RInt_div, ex_RInt_pow. }
+          { apply ex_RInt_Rmult', ex_RInt_div, ex_RInt_pow. }
+        }
+        f_equal.
         rewrite RInt_minus.
         2: { apply ex_RInt_Rmult'. apply ex_RInt_Rmult'. apply ex_RInt_pow. }
         2: { apply ex_RInt_Rmult'. apply ex_RInt_Rmult'. apply ex_RInt_pow. }
         rewrite /minus//=/plus/opp//=.
-        rewrite -RInt_Rmult' -RInt_Rmult'.
+        rewrite -RInt_Rmult'.
+        2: { apply ex_RInt_div, ex_RInt_pow. }
+        rewrite -RInt_Rmult'.
+        2: { apply ex_RInt_div, ex_RInt_pow. }
         rewrite -Rminus_def.
         f_equal; f_equal.
         { rewrite RInt_pow_fact. rewrite pow_i; OK. }
@@ -802,6 +817,7 @@ Section credits.
     f_equal. apply functional_extensionality; intro n.
     (* Cancel F *)
     rewrite -RInt_Rmult'.
+    2: {  apply ex_RInt_S_μ; OK.  }
     rewrite -Rmult_assoc.
     rewrite -Rmult_assoc.
     rewrite -Rmult_plus_distr_r.
@@ -809,6 +825,7 @@ Section credits.
     (* Do cases before unfolding S_μ0 *)
     rewrite /S_μ.
     rewrite -RInt_Rmult.
+    2: {  apply ex_RInt_S_μ0; OK.  }
     rewrite {1}/Iverson.
     case_decide; last first.
     { rewrite Iverson_False; [|lia]. rewrite Iverson_False; [|lia]. lra. }
@@ -849,6 +866,10 @@ Section credits.
     }
     rewrite /minus//=/plus/opp//= -Rminus_def.
     repeat rewrite -RInt_Rmult'.
+    2: { apply ex_RInt_pow. }
+    2: { apply ex_RInt_pow. }
+    2: { apply ex_RInt_div, ex_RInt_pow. }
+    2: { apply ex_RInt_div, ex_RInt_pow. }
     rewrite Rmult_minus_distr_l.
     rewrite RInt_pow.
     rewrite RInt_pow.
@@ -1140,7 +1161,20 @@ Section program.
     }
     { rewrite SeriesC_scal_l -SeriesC_nat_bounded_fin -SeriesC_scal_l.
       rewrite SeriesC_nat_shift.
+      2: {
+        rewrite ex_seriesC_nat.
+        apply ex_seriesC_scal_l.
+        apply ex_seriesC_finite_dec.
+      }
       rewrite SeriesC_nat_shift.
+      2: {
+        rewrite ex_seriesC_nat.
+        apply ex_seriesC_scal_l.
+        apply (ex_seriesC_ext (λ x : nat, if bool_decide (x ≤ Z.to_nat (m)) then C_F_nat (Datatypes.S x) else 0)).
+        2: { apply ex_seriesC_finite_dec. }
+        intros n.
+        case_bool_decide; case_bool_decide; OK.
+      }
       rewrite bool_decide_eq_true_2; [|OK].
       Opaque INR.
       rewrite //=.
