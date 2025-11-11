@@ -73,22 +73,6 @@ Section list_dist.
     lia.
   Qed.
 
-  Lemma list_delete_not_elem_of x (xs : list T) :
-    x ∉ xs → list_delete x xs = xs.
-  Proof.
-    induction xs; [done|].
-    intros [? ?]%not_elem_of_cons => /=.
-    rewrite decide_False // IHxs //.
-  Qed.
-
-  Lemma sum_list_with_nil `{Countable T} (xs : list T) (f : T → Z) :
-    (sum_list_with f [] = 0)%Z.
-  Proof. done. Qed.
-
-  Lemma list_count_hd_neq `{Countable T} (xs : list T) x y :
-    x ≠ y → list_count x (y :: xs) = list_count x xs%nat.
-  Proof. intros => /=. rewrite decide_False //. Qed.
-
   Lemma list_dist_cons x (xs ys : list T) :
     list_dist (x :: xs) (x :: ys) = list_dist xs ys.
   Proof.
@@ -115,7 +99,7 @@ Section list_dist.
     (list_dist (f <$> zs1) (f <$> zs2) ≤ list_dist zs1 zs2)%Z.
   Proof.
     rewrite /list_dist.
-    rewrite -fmap_app. 
+    rewrite -fmap_app.
     rewrite (sum_list_map_list_preimage f _ (remove_dups (zs1 ++ zs2))).
 
     erewrite sum_list_with_ext; last first.
@@ -138,59 +122,13 @@ Section list_dist.
 
   Lemma Z_add_le_mono_nonneg_r (z1 z2 z3 : Z) :
     (0 ≤ z3 → z1 ≤ z2 → z1 ≤ z2 + z3)%Z.
-  Proof. lia. Qed. 
-
-  Lemma filter_remove_dups `{Countable A} `{!∀ a, Decision (P a)} (zs : list A) :
-    remove_dups (filter P zs) = filter P (remove_dups zs).
-  Proof.
-    induction zs as [|x xs IH]; [done|].
-    destruct (decide (P x)).
-    - rewrite filter_cons_True //.
-      destruct (decide (x ∈ xs)).
-      + rewrite /= decide_True //; [|by apply elem_of_list_filter].
-        rewrite decide_True //.
-      + rewrite /= decide_False //; [|by intros []%elem_of_list_filter].
-        rewrite decide_False //. rewrite filter_cons_True //.
-        rewrite IH //.
-    - rewrite filter_cons_False //.
-      destruct (decide (x ∈ xs)).
-      + rewrite /= decide_True //.
-      + rewrite /= decide_False //.
-        rewrite filter_cons_False //. 
-  Qed.
-  
-  Lemma list_count_filter_split `{Countable A} `{!∀ a, Decision (P a)} (xs : list A) (x : A) :
-    (Z.of_nat (list_count x (filter P xs)) = Z.of_nat (list_count x xs) - Z.of_nat (list_count x (filter (λ a, ¬ P a) xs)))%Z.
-  Proof. rewrite -{2}(filter_app_complement P xs) list_count_app. lia. Qed.
-
-  Lemma list_count_filter_le `{Countable A} `{!∀ a, Decision (P a)} (xs : list A) (x : A) :
-    (Z.of_nat (list_count x (filter P xs)) ≤ Z.of_nat (list_count x xs))%Z.
-  Proof. rewrite -{2}(filter_app_complement P xs) list_count_app. lia. Qed. 
-    
-  Lemma Z_sub_sub_triangle (x p q : Z) :
-    (Z.abs (x - (p - q)) ≤ Z.abs x + Z.abs (p - q))%Z.
   Proof. lia. Qed.
 
-  (* Lemma Z_abs_add_sub_swap (x y : Z) : *)
-  (*   Z.abs (x + y) = Z.abs (y - x). *)
-  (* Proof.  *)
-
-  Lemma Zabs_le_mono (a b : Z) :
-    (0 <= b <= a -> Z.abs b <= Z.abs a)%Z.
-  Proof. lia. Qed.
-
-  Lemma Z_sub_both (c a b : Z) :
-    (a - c ≤ b - c → a ≤ b)%Z.
-  Proof. lia. Qed. 
-
-  Open Scope Z.
-  
-  Lemma list_filter_bound `{!∀ a, Decision (P a)} (xs ys : list Z):
+  Lemma list_filter_bound `{!∀ a, Decision (P a)} (xs ys : list T):
     (list_dist (filter P xs) (filter P ys) ≤ list_dist xs ys)%Z.
   Proof.
     rewrite /list_dist.
     rewrite -list.filter_app.
-
     rewrite /list_dist.
     rewrite (sum_list_with_split P (remove_dups (xs ++ ys))).
     apply Z_add_le_mono_nonneg_r.
@@ -198,19 +136,26 @@ Section list_dist.
     rewrite filter_remove_dups.
     apply sum_list_with_le => z.
     rewrite elem_of_list_filter => ?.
+    rewrite 2!list_count_filter_alt.
+    case_bool_decide; lia.
+  Qed.
 
-  Admitted.
-
-  Lemma list_count_le_length `{Countable A} (xs : list A) (x : A) :
-    list_count x xs ≤ length xs.
-  Proof. induction xs => /=; [done|]. case_decide; lia. Qed. 
+  Lemma length_sum_list_with_1 (xs : list Z) :
+    (sum_list_with (λ _, 1) xs = length xs)%Z.
+  Proof. induction xs; [done|]. rewrite sum_list_with_cons /=. lia. Qed.
 
   Lemma list_length_bound (xs ys : list Z):
     (Z.abs (length xs - length ys) ≤ list_dist xs ys)%Z.
   Proof.
     rewrite /list_dist.
-    Admitted.     
-
+    rewrite -2!length_sum_list_with_1.
+    rewrite (sum_list_with_multiplicity xs ys) (sum_list_with_multiplicity ys xs).
+    rewrite Permutation_app_comm.
+    rewrite -sum_list_with_sub /=.
+    etrans; [apply Z_abs_sum_le|].
+    eapply sum_list_with_le => ??.
+    lia.
+  Qed.
 
   Inductive neighbour {T} (xs ys : list T) : Prop :=
   | neighbour_add_l a b n : xs = a ++ [n] ++ b → ys = a ++ b → neighbour xs ys

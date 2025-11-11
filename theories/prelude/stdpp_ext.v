@@ -519,9 +519,23 @@ Proof.
   by rewrite IHxs.
 Qed.
 
+Lemma list_delete_not_elem_of `{Countable T} x (xs : list T) :
+  x ∉ xs → list_delete x xs = xs.
+Proof.
+  induction xs; [done|].
+  intros [? ?]%not_elem_of_cons => /=.
+  by rewrite decide_False, IHxs.
+Qed.
+
+
+
 Lemma list_count_hd `{Countable T} (xs : list T) x :
   list_count x (x :: xs) = (1 + list_count x xs)%nat.
 Proof. simpl. rewrite decide_True; done. Qed.
+
+Lemma list_count_hd_neq `{Countable T} (xs : list T) x y :
+  x ≠ y → list_count x (y :: xs) = list_count x xs%nat.
+Proof. intros => /=. by rewrite decide_False. Qed.
 
 Lemma list_count_app `{Countable T} (xs ys : list T) x :
   list_count x (xs ++ ys) = (list_count x xs + list_count x ys)%nat.
@@ -540,6 +554,25 @@ Proof.
       right. apply IHxs. lia.
 Qed.
 
+Lemma list_count_filter_alt `{Countable T} `{!∀ a, Decision (P a)} (xs : list T) z :
+  (list_count z (filter P xs) = if bool_decide (P z) then list_count z xs else 0)%nat.
+Proof.
+  induction xs => /=; [by case_bool_decide|].
+  case_decide; case_bool_decide; subst. 
+  - rewrite filter_cons_True, list_count_hd; [|done]. lia.
+  - rewrite filter_cons_False; done.
+  - destruct (decide (P a)).
+    { rewrite filter_cons_True; [|done]. rewrite list_count_hd_neq; done.  }
+    by rewrite filter_cons_False. 
+  - destruct (decide (P a)).
+    { by rewrite filter_cons_True, list_count_hd_neq. }
+    by rewrite filter_cons_False.
+Qed.
+
+Lemma list_count_le_length `{Countable A} (xs : list A) (x : A) :
+  list_count x xs ≤ length xs.
+Proof. induction xs => /=; [done|]. case_decide; lia. Qed. 
+
 #[global] Instance list_count_proper `{Countable T} (x : T) :
   Proper ((≡ₚ) ==> (=)) (list_count x).
 Proof.
@@ -549,6 +582,13 @@ Proof.
   apply Permutation_cons_inv_l in Hxs as (? & ? & -> & Hxs).
   rewrite list_count_app. simpl.
   rewrite (IHxs _ Hxs), list_count_app. lia.
+Qed.
+
+Lemma list_count_filter_split `{Countable A} P `{!∀ a, Decision (P a)} (xs : list A) (x : A) :
+  (list_count x (filter P xs) = list_count x xs - list_count x (filter (λ a, ¬ P a) xs))%nat.
+Proof.  
+  rewrite <-(filter_app_complement P xs) at 2.
+  rewrite list_count_app. lia.
 Qed.
 
 Lemma remove_dups_list_remove `{Countable T} x (xs : list T) :
@@ -562,6 +602,26 @@ Proof.
   - case_decide.
     + subst. rewrite elem_of_remove_dups. done.
     + apply not_elem_of_cons. split; [done|]. by apply IHxs.
+Qed.
+
+Lemma filter_remove_dups `{Countable A} `{!∀ a, Decision (P a)} (zs : list A) :
+  remove_dups (filter P zs) = filter P (remove_dups zs).
+Proof.
+  induction zs as [|x xs IH]; [done|].
+  destruct (decide (P x)).
+  - rewrite filter_cons_True; [|done]. 
+    destruct (decide (x ∈ xs)) as [Hx | Hx].
+    + simpl; case_decide as Hd.
+      * by case_decide.
+      * exfalso; apply Hd. by apply elem_of_list_filter.       
+    + simpl; case_decide.
+      * exfalso; apply Hx. by eapply elem_of_list_filter.
+      * case_decide; [done|].
+        by rewrite filter_cons_True, IH. 
+  - rewrite filter_cons_False; [|done]. 
+    destruct (decide (x ∈ xs)); simpl. 
+    + by case_decide. 
+    + case_decide; [done|]. by rewrite filter_cons_False.
 Qed.
 
 Lemma remove_dups_permute_swap `{Countable T} y x (l : list T) :
@@ -645,6 +705,10 @@ Qed.
 
 Lemma sum_list_with_cons `{Countable T} (xs : list T) x (f : T → Z) :
   sum_list_with f (x :: xs) = f x + sum_list_with f xs.
+Proof. done. Qed.
+
+Lemma sum_list_with_nil `{Countable T} (xs : list T) (f : T → Z) :
+  sum_list_with f [] = 0.
 Proof. done. Qed.
 
 Lemma sum_list_with_app `{Countable T} (xs ys : list T) (f : T → Z) :
