@@ -835,10 +835,50 @@ Qed.
 
 Lemma ex_SeriesC_nat_shiftN_l {f : nat → R} (N : nat) : ex_seriesC (f ∘ (fun n => (n - N))%nat) → ex_seriesC f.
 Proof.
-Admitted.
+  revert f.
+  induction N as [|N IH].
+  { intros f.
+    replace (f ∘ λ n : nat, (n - 0)%nat) with f; [done|].
+    by rewrite /compose//=; apply functional_extensionality; intros ?; rewrite Nat.sub_0_r.
+  }
+  intros f.
+  replace ((f ∘ λ n : nat, (n - S N)%nat)) with (((f ∘ (λ n : nat, (n - 1)%nat)) ∘ λ n : nat, (n - N)%nat)).
+  { intros Hf.
+    specialize IH with (f ∘ (λ n : nat, (n - 1)%nat)).
+    apply IH in Hf.
+    apply ex_SeriesC_nat_shift in Hf.
+    apply ex_SeriesC_nat_shift in Hf.
+    suffices H : Series.ex_series f by apply ex_seriesC_nat in H.
+    apply Series.ex_series_incr_1.
+    apply ex_seriesC_nat.
+    eapply ex_seriesC_ext; [|apply Hf].
+    intros n.
+    rewrite /compose//=.
+  }
+  { rewrite /compose//=; apply functional_extensionality; intros ?.
+    f_equal.
+    lia.
+  }
+Qed.
 
 Lemma ex_SeriesC_nat_shiftN_r {f : nat → R} (N : nat) : ex_seriesC (f ∘ (fun n => (n + N))%nat) → ex_seriesC f.
-Proof. Admitted.
+Proof.
+  induction N as [|N IH].
+  { replace (f ∘ λ n : nat, (n + 0)%nat) with f; [done|].
+    by rewrite /compose//=; apply functional_extensionality; intros ?; rewrite Nat.add_0_r.
+  }
+  { intros Hf.
+    apply IH.
+    suffices H : Series.ex_series (f ∘ λ n : nat, (n + N)%nat) by apply ex_seriesC_nat in H.
+    apply Series.ex_series_incr_1.
+    apply ex_seriesC_nat.
+    eapply ex_seriesC_ext; [|apply Hf].
+    intros n.
+    rewrite /compose//=.
+    f_equal.
+    lia.
+  }
+Qed.
 
 Lemma Zeven_pow {x} {n : nat} (H : Zeven (Z.of_nat n)) : 0 <= x ^ n.
 Proof.
@@ -1110,21 +1150,87 @@ Proof.
   Qed.
 
   Lemma Hexp_ex_even {x} : ex_seriesC (λ n : nat, Iverson Zeven n * (x ^ n / fact n + x ^ (n + 1) / fact (n + 1))).
-  Proof. Admitted.
+  Proof.
+    apply (ex_seriesC_ext (λ n : nat, Iverson Zeven n * x ^ n / fact n + Iverson Zeven n * x ^ (n + 1) / fact (n + 1))).
+    { intro n. lra. }
+    apply ex_seriesC_plus.
+    { apply HpowE_ex. }
+    replace (λ x0 : nat, Iverson Zeven x0 * x ^ (x0 + 1) / fact (x0 + 1)) with ((λ x0 : nat, Iverson (not ∘ Zeven) x0 * x ^ x0 / fact x0 ) ∘ S).
+    { apply HpowOS_ex. }
+    apply functional_extensionality.
+    intros ?.
+    Opaque fact.
+    Opaque pow.
+    simpl; f_equal; last (f_equal; f_equal; lia).
+    f_equal; last (f_equal; lia).
+    Transparent fact.
+    Transparent pow.
+    rewrite /Iverson.
+    case_decide; case_decide; try done; exfalso.
+    Opaque Zeven.
+    { simpl in H.
+      destruct (Zeven_odd_dec x0); try by intuition.
+      apply Zeven_Sn in z.
+      replace (Z.succ (Z.of_nat x0)) with (Z.of_nat (S x0)) in z by lia.
+      done.
+    }
+    { simpl in H.
+      apply Zodd_Sn in H0.
+      replace (Z.succ (Z.of_nat x0)) with (Z.of_nat (S x0)) in H0 by lia.
+      apply Zodd_not_Zeven in H0.
+      done.
+    }
+  Qed.
 
   Lemma Hexp_ex_odd {x} : ex_seriesC (λ n : nat, Iverson (not ∘ Zeven) n * (x ^ n / fact n + x ^ (n + 1) / fact (n + 1))).
-  Proof. Admitted.
-
-  (* I think this can be done by the addition formula using subtraction. Otherwise: taylor series. Otherwise: sad. *)
-  Lemma exp_mono {x y : R} : x <= y → exp x <= exp y.
-  Proof. Admitted.
+  Proof.
+    apply (ex_seriesC_ext (λ n : nat, Iverson (not ∘ Zeven) n * x ^ n / fact n + Iverson (not ∘ Zeven) n * x ^ (n + 1) / fact (n + 1))).
+    { intro n. lra. }
+    apply ex_seriesC_plus.
+    { apply HpowO_ex. }
+    replace (λ x0 : nat, Iverson (not ∘ Zeven) x0 * x ^ (x0 + 1) / fact (x0 + 1)) with ((λ x0 : nat, Iverson (Zeven) x0 * x ^ x0 / fact x0 ) ∘ S).
+    { apply HpowES_ex. }
+    apply functional_extensionality.
+    intros ?.
+    Opaque fact.
+    Opaque pow.
+    simpl; f_equal; last (f_equal; f_equal; lia).
+    f_equal; last (f_equal; lia).
+    Transparent fact.
+    Transparent pow.
+    rewrite /Iverson.
+    case_decide; case_decide; try done; exfalso.
+    Opaque Zeven.
+    { simpl in H0.
+      apply NNP_P in H0.
+      apply Zodd_Sn in H0.
+      replace (Z.succ (Z.of_nat x0)) with (Z.of_nat (S x0)) in H0 by lia.
+      apply Zodd_not_Zeven in H0.
+      done.
+    }
+    { simpl in H0.
+      destruct (Zeven_odd_dec x0); try by intuition.
+      apply Zeven_Sn in z.
+      replace (Z.succ (Z.of_nat x0)) with (Z.of_nat (S x0)) in z by lia.
+      done.
+    }
+  Qed.
 
   Lemma exp_mono_strict {x y : R} : x < y → exp x < exp y.
-  Proof. Admitted.
+  Proof. apply exp_increasing. Qed.
+
+  Lemma exp_mono {x y : R} : x <= y → exp x <= exp y.
+  Proof.
+    intros H.
+    destruct H.
+    { apply exp_increasing in H. lra. }
+    { by rewrite H. }
+  Qed.
 
   Lemma ex_seriesC_mult {f g : nat → R} (Hf : ∀ n : nat, 0 <= f n) (Hg : ∀ n : nat, 0 <= g n) :
     ex_seriesC f → ex_seriesC g → ex_seriesC (fun n => f n * g n).
-  Proof. Admitted.
+  Proof.
+  Admitted.
 
   (* Weierstrass M test, Rudin 7.10 *)
   Lemma UniformConverge_Series {F : R → nat → R} (UB : nat → R) :
@@ -1143,14 +1249,22 @@ Proof.
   Proof. Admitted.
 
   Lemma ex_exp_series : Series.ex_series (λ n : nat, / fact n).
-  Proof. Admitted.
+  Proof.
+    apply ex_seriesC_nat.
+    eapply ex_seriesC_ext; [|apply (@Hpow_ex 1)].
+    intros n. simpl.
+    rewrite pow1.
+    lra.
+  Qed.
 
   Lemma ex_exp_series' {M : nat} : Series.ex_series (λ n : nat, / fact (n - M)).
-  Proof. Admitted.
+  Proof.
+    apply ex_seriesC_nat.
+    replace (λ n : nat, / fact (n - M)) with ((λ n : nat, / fact n) ∘ (fun n : nat => (n - M)%nat)).
+  Admitted.
 
   Definition poke (f : R → R) (a z : R) : R → R := fun x =>
     if (decide (x = a)) then z else f x.
-
 
   Lemma ex_RInt_poke {a b c z : R} (f : R → R) (Hf : ex_RInt f a b) (Hi : a < c < b):
     ex_RInt (poke f c z) a b.
@@ -1195,7 +1309,13 @@ Proof.
   Qed.
 
   Lemma LemDisj : forall (z : fin 2), z = 0%fin ∨ z = 1%fin.
-  Proof. Admitted.
+  Proof.
+    intros z.
+    replace (0%fin) with (bool_to_fin false) by rewrite /bool_to_fin//=.
+    replace (1%fin) with (bool_to_fin true) by rewrite /bool_to_fin//=.
+    destruct (bool_to_fin_surj z).
+    destruct x; auto.
+  Qed.
 
   (* Geometric series *)
   Lemma exp_neg_RInt : ex_RInt (λ x : R, exp (- x ^ 2 / 2)) 0 1.
@@ -1209,16 +1329,68 @@ Proof.
   Proof. Admitted.
 
   Lemma even_pow_neg {x : R} {n : nat} : Zeven n → (- x) ^ n = x ^ n.
-  Proof. Admitted.
+  Proof.
+    intro H.
+    destruct (Zeven_ex _ H).
+    replace n with (Z.to_nat (Z.of_nat n)); last first.
+    { rewrite Nat2Z.id. done. }
+    rewrite H0.
+    rewrite Z2Nat.inj_mul; last first.
+    { have ? := pos_INR n. lia. }
+    { done. }
+    rewrite pow_mult.
+    rewrite pow_mult.
+    replace ((- x) ^ Z.to_nat 2) with ((x) ^ Z.to_nat 2); last first.
+    { simpl. lra. }
+    done.
+  Qed.
 
   Lemma not_even_pow_neg {x : R} {n : nat} : ¬ Zeven n → (- x) ^ n = - x ^ n.
-  Proof. Admitted.
+  Proof.
+    intro H.
+    destruct (Zeven_odd_dec n); first (by exfalso).
+    destruct (Zodd_ex _ z).
+    replace n with (Z.to_nat (Z.of_nat n)); last first.
+    { rewrite Nat2Z.id. done. }
+    rewrite H0.
+    rewrite Z2Nat.inj_add; try done.
+    2: {
+      apply Z.mul_nonneg_nonneg; first lia.
+      destruct n. { by simpl in z. }
+      have ? := pos_INR n. lia.
+    }
+    rewrite pow_add.
+    rewrite pow_add.
+    rewrite Ropp_mult_distr_r.
+    f_equal.
+    2: { simpl. lra. }
+    rewrite Z2Nat.inj_mul; last first.
+    { have ? := pos_INR n. lia. }
+    { done. }
+    rewrite pow_mult.
+    rewrite pow_mult.
+    replace ((- x) ^ Z.to_nat 2) with ((x) ^ Z.to_nat 2); last first.
+    { simpl. lra. }
+    done.
+  Qed.
 
   Lemma Geo_ex_SeriesC {𝛾 : R} (H𝛾 : 0 <= 𝛾 <= 1) : ex_seriesC (λ x : nat, 𝛾 ^ x * (1 - 𝛾)).
-  Proof. Admitted.
+  Proof.
+    destruct H𝛾.
+    destruct H0.
+    { apply ex_seriesC_scal_r.
+      have H𝛾' : Rabs 𝛾 < 1.
+      { rewrite Rabs_pos_eq; lra. }
+      have H' := Series.ex_series_geom 𝛾 H𝛾'.
+      by rewrite ex_seriesC_nat in H'.
+    }
+    apply (ex_seriesC_ext (fun _ : nat => 0%R)).
+    { intros ?; rewrite H0; lra. }
+    { apply ex_seriesC_0. }
+  Qed.
 
   Lemma exp_inj {x y : R} : exp x = exp y → x = y.
-  Proof. Admitted.
+  Proof. apply exp_inv. Qed.
 
   Lemma Derive_exp_neg {x : R} : Derive.Derive (λ x1 : R, exp (- x1)) x = - exp (- x).
   Proof. (* UnaryDiff crap *) Admitted.
