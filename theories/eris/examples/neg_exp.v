@@ -38,6 +38,10 @@ Section credits.
   Lemma NegExp_CreditV_nn {F : R -> R} (Hnn : ∀ r, 0 <= F r) (L : nat) : 0 <= NegExp_CreditV F (L + 1).
   Proof.
     rewrite /NegExp_CreditV.
+    Search RInt_gen.
+    (* Many of my problems in this file can be solved if I can relate RInt_gen to RInt *)
+
+
     (* Search is_RInt_gen is_RInt.
     Search RInt_gen. *)
   Admitted.

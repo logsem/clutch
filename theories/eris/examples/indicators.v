@@ -1408,15 +1408,99 @@ Admitted.
     (∀ x : R, M <= x → f x = g x) →
     ex_RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty) →
     RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty) = RInt_gen g (at_point M) (Rbar_locally Rbar.p_infty).
-  Proof. Admitted.
+  Proof.
+    intros ??.
+    apply RInt_gen_ext; [|done].
+    simpl.
+    eapply (Filter_prod _ _ _ (fun x => x = M) (fun x => M <= x)).
+    { rewrite /at_point//=. }
+    { rewrite //=. exists M. intuition. lra. }
+    intros ??????.
+    apply H.
+    simpl in H3.
+    destruct H3.
+    rewrite H1 in H3.
+    rewrite Rmin_left in H3; lra.
+  Qed.
 
-  Lemma RInt_gen_ex_Ici {M : R} {F : R → R} (Hex : ∀ b, ex_RInt F M b) :
+  Lemma RInt_gen_ex_Ici {M : R} {F : R → R}
+    (Hlimit : exists L : R_NormedModule, (filterlimi (λ b : R, is_RInt F M b) (Rbar_locally Rbar.p_infty)) (locally L))
+    (Hex : ∀ b, ex_RInt F M b) :
     ex_RInt_gen F (at_point M) (Rbar_locally (Rbar.p_infty)).
   Proof.
     rewrite /ex_RInt_gen.
     rewrite /is_RInt_gen.
-    (* Search filter_prod. *)
-  Abort.
+    destruct Hlimit as [L HL].
+    exists L.
+    rewrite /filterlimi//=/filter_le//=/filtermapi//=.
+    rewrite /filterlimi//=/filter_le//=/filtermapi//= in HL.
+    intros P HP.
+    destruct (HL P HP) as [M0 HM0].
+    eapply (Filter_prod _ _ _ (fun x => x = M) (fun x => M0 < x)).
+    { rewrite /at_point//=. }
+    { rewrite /Rbar_locally/=. exists M0; intuition. }
+    intros ?? -> H.
+    simpl.
+    by apply HM0.
+  Qed.
+
+  Lemma RInt_gen_Ici {M : R} {F : R → R} {L}
+    (Hlimit : filterlimi (λ b : R, is_RInt F M b) (Rbar_locally Rbar.p_infty) (locally L))
+    (Hex : ∀ b, ex_RInt F M b) :
+    RInt_gen F (at_point M) (Rbar_locally (Rbar.p_infty)) = L.
+  Proof.
+    have Hcorr : is_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) (RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty)).
+    { eapply (@RInt_gen_correct R_CompleteNormedModule).
+      { apply Proper_StrongProper, at_point_filter. }
+      { apply Proper_StrongProper, Rbar_locally_filter. }
+      apply RInt_gen_ex_Ici.
+      { exists L. done. }
+      { by apply Hex. }
+    }
+    rewrite /RInt_gen//=.
+    have Hsc1 : ProperFilter' (Rbar_locally Rbar.p_infty).
+    { apply Proper_StrongProper, Rbar_locally_filter. }
+    have Hsc2 : Rbar_locally Rbar.p_infty (λ x : R, ∀ y1 y2 : R_CompleteNormedModule, is_RInt F M x y1 → is_RInt F M x y2 → y1 = y2).
+    { rewrite /Rbar_locally.
+      exists 0%R.
+      intros ???? Hint1 Hint2.
+      rewrite -(@is_RInt_unique R_CompleteNormedModule F M x y1 Hint1).
+      rewrite -(@is_RInt_unique R_CompleteNormedModule F M x y2 Hint2).
+      done.
+    }
+    have H := @iota_filterlimi_locally _ R_CompleteNormedModule R (Rbar_locally Rbar.p_infty) _ (λ b : R, is_RInt F M b) _ _ Hlimit.
+    have H' := H Hsc1 Hsc2; clear H.
+    rewrite -H'.
+    f_equal.
+    apply functional_extensionality.
+    intro x.
+    rewrite /is_RInt_gen.
+    apply propositional_extensionality.
+    split.
+    { rewrite /filterlimi//=/filter_le//=/filtermapi//=.
+      intros HP P Hl.
+      have HP' := HP P Hl; clear HP.
+      inversion HP'.
+      simpl in H1.
+      rewrite /at_point//= in H.
+      rewrite /Rbar_locally//= in H0.
+      destruct H0 as [M' HM'].
+      exists M'.
+      intros b Hb.
+      apply H1; [done|].
+      by apply HM'.
+    }
+    { rewrite /filterlimi//=/filter_le//=/filtermapi//=.
+      intros HP P Hl.
+      destruct (HP P Hl) as [M' HM'].
+      eapply (Filter_prod _ _ _ (fun x => x = M) (fun x => M' < x)).
+      { rewrite /at_point//=. }
+      { rewrite /Rbar_locally/=. exists M'; intuition. }
+      intros ?? -> H.
+      simpl.
+      by apply HM'.
+    }
+  Qed.
 
   Lemma RInt_sum_n {F : nat → R → R} {a b : R} {M} :
     RInt (fun x : R => sum_n (fun n : nat => F n x) M) a b = sum_n (fun n : nat =>  RInt (fun x : R => F n x) 0 1) M.
@@ -1428,5 +1512,6 @@ Admitted.
   Lemma ex_seriesC_finite_dec (M : nat) (F : nat → R) :
     ex_seriesC (λ x : nat, if bool_decide (x ≤ M) then F x else 0).
   Proof. Admitted.
+
 
 End Lib.
