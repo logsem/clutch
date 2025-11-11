@@ -1393,7 +1393,16 @@ Proof.
   Proof. apply exp_inv. Qed.
 
   Lemma Derive_exp_neg {x : R} : Derive.Derive (λ x1 : R, exp (- x1)) x = - exp (- x).
-  Proof. (* UnaryDiff crap *) Admitted.
+  Proof.
+    have X := UnaryDiff_exp.
+    rewrite Derive.Derive_comp; try by auto_derive.
+    rewrite Derive.Derive_opp.
+    rewrite Derive.Derive_id.
+    suffices H : (Derive.Derive exp (- x) =  exp (- x)) by lra.
+    (* UnaryDiff crap *)
+    destruct X.
+    specialize (UnaryDiff_H) with (-x).
+Admitted.
 
   Lemma RInt_gen_ext_eq_Ici {f g : R → R} {M : R} :
     (∀ x : R, M <= x → f x = g x) →
