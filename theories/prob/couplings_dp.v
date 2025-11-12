@@ -2081,10 +2081,10 @@ Section DPcoupl.
 
 
   Lemma DPcoupl_trivial_R :
-    SeriesC μ2 = 1 ->
+    SeriesC μ2 = 1 -> A -> B ->
     DPcoupl μ1 μ2 (λ _ _, True) 0 0.
   Proof.
-    intros Hμ2 f g Hf Hg Hfg.
+    intros Hμ2 a0 b0 f g Hf Hg Hfg.
     destruct (LubC_correct f) as [H1 H2].
     destruct (GlbC_correct g) as [H3 H4].
     rewrite Rplus_0_r.
@@ -2120,11 +2120,45 @@ Section DPcoupl.
     rewrite SeriesC_scal_r.
     apply Rmult_le_compat.
     - auto.
-    - admit.
+    -
+      etrans. 1: apply (Hf a0).
+      destruct (LubC f) eqn:lubf.
+      +
+        replace (f a0) with (real (Rbar.Finite (f a0))) ; simpl ; auto.
+        eapply H1.
+      + exfalso.
+        specialize (H2 1).
+        simpl in H2. apply H2. intros. apply Hf.
+      + exfalso. apply H1. done.
     - transitivity 1; auto.
       lra.
-    - admit.
-  Admitted.
+    - assert (forall uf : R, (forall a, Rle (f a) uf) -> Rle (real (LubC f)) uf).
+      {
+        clear -Hf H1 H2 a0.
+        destruct (LubC f) eqn:lubf.
+        + intros. simpl. simpl in H1. specialize (H2 (Rbar.Finite uf)).
+          apply H2. done.
+        + simpl. intros.
+          specialize (H2 (Rbar.Finite uf)).
+          simpl in H2. exfalso. apply H2. done.
+        + intros. simpl. simpl in H1. exfalso. apply H1. done.
+      }
+      apply H5.
+      assert (forall lg : R, (forall b, Rle lg (g b)) -> Rle lg (real (GlbC g))).
+      {
+        clear -Hg H3 H4 b0.
+        destruct (GlbC g) eqn:glbg.
+        + intros. simpl. simpl in H3. specialize (H4 (Rbar.Finite lg)).
+          apply H4. done.
+        + intros. simpl. simpl in H3. exfalso. apply H3. done.
+        + simpl. intros.
+          specialize (H4 (Rbar.Finite lg)).
+          simpl in H4. exfalso. apply H4. done.
+      }
+      intros.
+      apply H6.
+      intros. apply Hfg. done.
+  Qed.
 
   Lemma DPcoupl_pos_R R ε δ :
     DPcoupl μ1 μ2 R ε δ → DPcoupl μ1 μ2 (λ a b, R a b ∧ μ1 a > 0 ∧ μ2 b > 0) ε δ.

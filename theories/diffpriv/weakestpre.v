@@ -553,7 +553,7 @@ Section coupl_modalities.
     iSplit.
     {
       iPureIntro.
-      apply DPcoupl_trivial_R.
+      apply DPcoupl_trivial_R. 2,3: simpl ; auto.
       apply prim_step_mass.
       apply SeriesC_gtz_ex; auto.
       simpl.
@@ -613,7 +613,7 @@ Section coupl_modalities.
       - intros ???. by apply DPcoupl_dret.
       - simpl.
         rewrite Rplus_0_r.
-        apply DPcoupl_trivial_R.
+        apply DPcoupl_trivial_R. 2,3: auto.
         eapply erasable_mass; eauto.
         exact def_val.
     }
