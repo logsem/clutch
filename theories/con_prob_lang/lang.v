@@ -1,4 +1,5 @@
 From Coq Require Import Reals Psatz.
+From Coquelicot Require Import Rbar Lim_seq.
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
@@ -1328,6 +1329,225 @@ Section sch_typeclasses.
   Proof.
     apply sch_tape_oblivious; by simpl.
   Qed.
+
+  (* non-stutter *)
+  Context `{Countable sch_int_σ}.
+  Context (sch: scheduler (con_lang_mdp con_prob_lang) sch_int_σ).
+  Fixpoint non_stutter_step' (n:nat) (p : sch_int_σ * cfg) {struct n} : distr (sch_int_σ * nat) :=
+    let '(sch_σ, ρ) := p in
+    match n with
+    | 0 => dzero
+    | S n' => 
+        dbind (λ '(sch_σ', tid),
+                    if bool_decide (tid< length (ρ.1))%nat
+                    then dret (sch_σ', tid)
+                    else non_stutter_step' n' (sch_σ', ρ)
+          ) (sch p) 
+    end 
+  .
+
+  Lemma non_stutter_step'_mono p n x:
+    (non_stutter_step' n p x <= non_stutter_step' (S n) p x)%R.
+  Proof.
+    revert p.
+    induction n; first (intros []; by rewrite dzero_0).
+    simpl. intros [].
+    rewrite {1 2}/dbind/dbind_pmf{1 4}/pmf.
+    apply SeriesC_le; [real_solver|apply pmf_ex_seriesC_mult_fn; exists 1; real_solver].
+  Qed.
+
+  Lemma non_stutter_step'_property n ζ ρ ζ' tid:
+    (0 < non_stutter_step' n (ζ, ρ) (ζ', tid))%R -> tid < length ρ.1.
+  Proof.
+    revert ζ ρ ζ' tid.
+    induction n; simpl.
+    - intros ????. rewrite dzero_0. lra.
+    - intros ???? H'. apply Rlt_gt in H'.
+      inv_distr.
+      case_match. subst.
+      case_bool_decide; first by inv_distr.
+      eapply IHn. by apply Rgt_lt.
+  Qed. 
+
+  Definition non_stutter_step p :=
+    lim_distr (λ n, non_stutter_step' n p) (non_stutter_step'_mono p).
+
+  Lemma non_stutter_step_unfold a b :
+    non_stutter_step a b = Sup_seq (λ n, (non_stutter_step' n a) b).
+  Proof.
+    apply lim_distr_pmf.
+  Qed.
+
+  Lemma non_stutter_step_prefix ζ ρ:
+    non_stutter_step (ζ, ρ) =
+    dbind (λ '(ζ', tid),
+             if bool_decide (tid < length (ρ.1))
+             then dret (ζ', tid)
+             else non_stutter_step (ζ', ρ)) (sch (ζ, ρ)).
+  Proof.
+    apply distr_ext; intros v.
+    rewrite /dbind/dbind_pmf{2}/pmf.
+    symmetry.
+    erewrite (SeriesC_ext _
+                (λ a, Sup_seq (λ n, sch (ζ, ρ) a * if bool_decide (a.2<length ρ.1)%nat
+                                                   then dret a v else
+                                                     non_stutter_step' n (a.1, ρ) v
+             )))%R; last first. 
+    { intros [].
+      apply eq_rbar_finite.
+      rewrite rmult_finite.
+      erewrite Sup_seq_ext; last first.
+      - intros. by rewrite rmult_finite.
+      - rewrite Sup_seq_scal_l //.
+        f_equal.
+        case_bool_decide.
+        + erewrite Sup_seq_ext; last first.
+          * intros. by rewrite bool_decide_eq_true_2.
+          * apply Rbar_le_antisym.
+            -- etrans; last apply (sup_is_upper_bound _ 0%nat).
+               done.
+            -- by apply upper_bound_ge_sup.
+        + rewrite non_stutter_step_unfold.
+          rewrite rbar_finite_real_eq; last first.
+          * eapply (is_finite_bounded 0 1).
+            -- by apply Sup_seq_minor_le with 0%nat.
+            -- apply upper_bound_ge_sup. intros. by simpl.
+          * apply Sup_seq_ext.
+            intros. by rewrite bool_decide_eq_false_2.
+    }
+    apply (MCT_seriesC _ (λ n, non_stutter_step' (S n) (ζ, ρ) v)).
+    - real_solver.
+    - intros. apply Rmult_le_compat_l; first done.
+      case_bool_decide; first done.
+      apply non_stutter_step'_mono.
+    - intros [].
+      exists 1%R.
+      real_solver.
+    - intros.
+      simpl.
+      rewrite /dbind/dbind_pmf{4}/pmf.
+      erewrite SeriesC_ext; first apply SeriesC_correct.
+      + apply pmf_ex_seriesC_mult_fn.
+        exists 1. real_solver.
+      + intros []. simpl. f_equal.
+        by case_bool_decide.
+    - rewrite non_stutter_step_unfold.
+      rewrite mon_sup_succ.
+      + rewrite (Rbar_le_sandwich 0 1).
+        * apply Sup_seq_correct.
+        * by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+        * by apply upper_bound_ge_sup=>/=.
+      + intro; apply non_stutter_step'_mono.
+  Qed.
+  
+
+  Definition non_stutter_scheduler :=
+  Build_scheduler {|
+      scheduler_f := non_stutter_step : _* mdpstate (con_lang_mdp con_prob_lang) -> _
+    |}.
+
+  Lemma non_stutter_scheduler_tape_oblivious
+    {HTO:TapeOblivious _ sch} : TapeOblivious _ non_stutter_scheduler.
+  Proof.
+    rewrite /TapeOblivious in HTO *.
+    rewrite /non_stutter_scheduler/=.
+    intros ? [?[]][?[]]. simpl. intros -> ->.
+    apply distr_ext => v.
+    rewrite !non_stutter_step_unfold.
+    f_equal. 
+    apply Sup_seq_ext.
+    intros n.
+    revert ζ.
+    induction n; first done.
+    intros ζ.
+    simpl.
+    rewrite {1 2}/dbind/dbind_pmf{1 4}/pmf.
+    f_equal. 
+    apply SeriesC_ext.
+    intros [].
+    f_equal.
+    - f_equal. by apply HTO.
+    - case_bool_decide; first done.
+      naive_solver.
+  Qed.
+
+  Class NonStuttering `{Countable sch_int_σ} (sch : scheduler (con_lang_mdp con_prob_lang) sch_int_σ) : Prop :=
+    non_stuttering :
+     ∀ ζ ρ ζ' tid, (sch (ζ, ρ) (ζ', tid) > 0)%R -> tid < length ρ.1.
+  Global Arguments NonStuttering {_ _} (_).
+
+  Lemma non_stutter_scheduler_non_stuttering : NonStuttering non_stutter_scheduler.
+  Proof.
+    rewrite /NonStuttering /non_stutter_scheduler/=.
+    intros ???? H1.
+    apply Rgt_lt in H1.
+    assert (Rbar_lt 0 (non_stutter_step (ζ, ρ) (ζ', tid))) as H2 by done.
+    rewrite non_stutter_step_unfold in H2.
+    rewrite rbar_finite_real_eq in H2; last first.
+    { eapply (is_finite_bounded 0%R 1%R); first by eapply Sup_seq_minor_le with 0.
+      apply upper_bound_ge_sup. intros.
+      by rewrite rbar_le_rle. 
+    }
+    rewrite Sup_seq_minor_lt in H2.
+    destruct H2 as [n H2].
+    simpl in H2.
+    by eapply non_stutter_step'_property.
+  Qed.
+
+  Lemma non_stutter_scheduler_same_semantics ζ ρ v:
+    (sch_lim_exec sch (ζ, ρ) v<= sch_lim_exec non_stutter_scheduler (ζ, ρ) v)%R.
+  Proof.
+    apply sch_lim_exec_leq.
+    intros n.
+    revert ρ ζ.
+    induction (lt_wf n) as [n _ IH1].
+    intros ρ ζ.
+    destruct (to_final ρ) eqn:Heqn.
+    { erewrite sch_exec_is_final; last done. by erewrite sch_lim_exec_final. }
+    rewrite sch_lim_exec_not_final; last first.
+    { rewrite /is_final. by rewrite Heqn. }
+    rewrite {2}/non_stutter_scheduler/sch_step/=.
+    revert ρ ζ Heqn.
+    induction (lt_wf n) as [n _ IH2].
+    intros ρ ζ Heqn.
+    destruct n.
+    { rewrite sch_exec_O_not_final; last by rewrite /is_final Heqn.
+      by rewrite dzero_0. }
+    rewrite sch_exec_Sn_not_final; last first.
+    { rewrite /is_final. by rewrite Heqn. }
+    rewrite non_stutter_step_prefix.
+    rewrite {1}/sch_step/=.
+    rewrite -!dbind_assoc'.
+    rewrite {1 3}/dbind/dbind_pmf{1 4}/pmf.
+    apply SeriesC_le; last first.
+    { apply pmf_ex_seriesC_mult_fn. exists 1. naive_solver. }
+    intros []; split; first real_solver.
+    apply Rmult_le_compat_l; first done.
+    case_bool_decide as Hineq.
+    - rewrite dret_id_left/=.
+      rewrite -!dbind_assoc'.
+      rewrite {1 3}/dbind/dbind_pmf {1 4}/pmf.
+      apply SeriesC_le; last first.
+      { apply pmf_ex_seriesC_mult_fn. exists 1. naive_solver. }
+      intros. split; first real_solver.
+      apply Rmult_le_compat_l; first done.
+      rewrite !dret_id_left.
+      apply IH1. lia.
+    - replace (con_lang_mdp_step _ _ ρ) with (dret ρ); last first.
+      { rewrite /con_lang_mdp_step.
+        destruct ρ.
+        simpl in *.
+        case_match; simpl.
+        + rewrite Heqn. rewrite lookup_ge_None_2; [done|lia].
+        + rewrite lookup_ge_None_2; [done|lia].
+      }
+      rewrite dmap_dret dret_id_left.
+      etrans; first eapply IH2; first lia.
+      + intros. eapply IH1. lia.
+      + done.
+      + by rewrite -dbind_assoc'.
+  Qed. 
+    
   
 End sch_typeclasses.
 
