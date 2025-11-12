@@ -24,6 +24,12 @@ Program Definition dZ : Distance Z := {| distance z z' := Rabs (IZR (z - z')) |}
 Next Obligation. intros => /= ; eauto using Rabs_pos. Qed.
 Next Obligation. intros ?? -> => /=; replace (a2 - a2)%Z with 0%Z by lia. exact Rabs_R0. Qed.
 
+Lemma dZ_bounded_cases x y k : dZ x y <= (IZR k) -> (- k <= x - y ∧ x - y <= k)%Z.
+Proof.
+  rewrite /dZ/distance Rabs_Zabs. intros h. apply le_IZR in h. revert h.
+  apply Zabs_ind ; intros ; lia.
+Qed.
+
 Program Definition dnat : Distance nat := {| distance n n' := Rabs (IZR (n - n')) |}.
 Next Obligation. intros => /= ; eauto using Rabs_pos. Qed.
 Next Obligation. intros ?? -> => /=; replace (a2 - a2)%Z with 0%Z by lia. exact Rabs_R0. Qed.

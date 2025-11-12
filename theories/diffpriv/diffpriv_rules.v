@@ -459,4 +459,29 @@ Section diffpriv.
     Unshelve. all: lra.
   Qed.
 
+  Definition hoare_sensitive_Z (f : expr) (c : Z) `(d_in : Distance A) : iProp Σ
+    :=
+    ∀ (c_pos : (0 <= IZR c)) K (x x' : A) (C : Z) (h_in : d_in x x' <= IZR C),
+      {{{ ⤇ fill K (f $ Val $ inject x') }}}
+        f $ Val $ inject x
+        {{{ (v : val), RET (v);
+            ∃ b b' : Z, ⌜v = inject b⌝ ∧ ⤇ fill K (inject b')
+                        ∧ ⌜- (c * C) <= b - b'⌝%Z
+                        ∧ ⌜b - b' <= c * C⌝%Z
+
+        }}}.
+
+
+  Lemma hoare_sensitive_Z_bounded f (c : Z) `(d_in : Distance A) :
+    hoare_sensitive f (IZR c) d_in dZ -∗ hoare_sensitive_Z f c d_in.
+  Proof.
+    iIntros "#h % * % !> rhs hk".
+    iApply ("h" with "[] rhs") => //.
+    iNext. iIntros "* h'". iApply "hk".
+    iDestruct "h'" as "(%&%&->&rhs&%adj)".
+    iExists _,_. iFrame. iPureIntro. split ; eauto.
+    apply dZ_bounded_cases. rewrite mult_IZR.
+    etrans ; real_solver.
+  Qed.
+
 End diffpriv.
