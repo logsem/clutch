@@ -65,40 +65,6 @@ Definition vpredicates : val :=
          , SOMEV ((λ:"x", #30 <= "x")
                   , SOMEV ((λ:"x", "x" `rem` #2 = #0), NONEV))).
 
-Definition create_odometer : val :=
-  λ:"budget",
-  let: "budget_spent" := ref #0 in
-  let: "get_spent" := λ:<>, !"budget_spent" in
-  let: "try_spend" :=
-    λ:"ε", if: "budget" < !"budget_spent" + "ε" then
-             #false
-           else
-             ("budget_spent" <- !"budget_spent" + "ε" ;;
-              #true) in
-  ("get_spent", "try_spend").
-
-Definition iter_adaptive : val :=
-  λ:"threshold" "budget" "data",
-    let: "counts" := ref [] in
-    let, ("get_spent", "try_spend") := create_odometer "budget" in
-  list_iter
-    (λ:"pred",
-      let: "count" := list_count "pred" "data" in
-      if: "try_spend" "ε_coarse" then
-        let: "count_coarse" := Laplace "ε_coarse" "den" "count" in
-        "counts" <- "count_coarse" :: !"counts" ;;
-        if: "threshold" < "count_coarse" then
-          if: "try_spend" "ε_precise" then
-            let: "count_precise" := Laplace "ε_precise" "den" "count" in
-            "counts" <- "count_precise" :: !"counts"
-          else #()
-        else #()
-      else #()
-    )
-    "data".
-
-(* Instead of just tracking the budget spent, we instead provide a function
-   that takes a thunk and runs it if there's enough budget left. *)
 Definition create_filter : val :=
   λ:"budget",
   let: "budget_remaining" := ref "budget" in
@@ -144,7 +110,7 @@ Definition iter_adaptive_acc : val :=
 "index" <- !"index" + #1 *)
       )
       "predicates" ;;
-    ! "counts".
+    list_rev ! "counts".
 
 (* We could factor out the common code between the two successive calls to try_run; not sure that simplifies anything though. *)
 (* let: "f" := λ:"count" "ε" "_",
@@ -880,19 +846,26 @@ repeat iSplit. 7: done.
     iApply (create_filter_private _ _ den with "[$ε $rhs]") => //.
     iIntros "!> * (%&%&%&%&%&budget&l&l'&rhs&#run_dp)"... simpl...
     tp_bind (list_iter _ _). wp_bind (list_iter _ _).
-    set (Inv := (∃ counts (budget_remaining : Z),
+    set (Inv := (∃ lcounts counts (budget_remaining : Z),
+                    ⌜is_list lcounts counts⌝ ∗
                 counts_l ↦ counts ∗ counts_r ↦ₛ counts ∗
                 ↯m (IZR budget_remaining / IZR den) ∗
                     l ↦ #budget_remaining ∗ l' ↦ₛ #budget_remaining
             )%I).
-    iAssert Inv with "[counts_l counts_r budget l l']" as "hh". 1: iFrame.
+    iAssert Inv with "[counts_l counts_r budget l l']" as "hh". 1: iFrame ; by iExists [].
     iRevert (predicates vpredicates ho_pred hlen) "is_pred rhs".
     iInduction lvpredicates as [|vpred lvpredicates'] "IH" ;
       iIntros (predicates vpredicates ho_pred hlen) "#is_pred rhs".
     - rewrite ho_pred.
       rewrite /list_iter...
-      iDestruct "hh" as "(%&%&?&?&?&?&?)".
-      tp_load... wp_load. done.
+      iDestruct "hh" as "(%&%&%&%&?&?&?&?&?)".
+      tp_load... wp_load.
+      iMod (gwp_list_rev (g:=gwp_spec) _ counts lcounts
+              (λ v, ⌜is_list (reverse lcounts) v⌝%I)
+             with "[] [] [rhs]") as "(%rev_counts & rhs & %)" => //=.
+      1: by iIntros.
+      iApply (gwp_list_rev (g:=gwp_wpre) _ counts lcounts with "[] [rhs]") => //.
+      iIntros "!> % %". erewrite (is_list_eq _ rev_counts) ; [iFrame "rhs"| eauto..].
     - simpl in ho_pred. destruct ho_pred as (vpredicates' & hpred & ho_pred). rewrite hpred.
       rewrite /list_iter...
       rewrite /adaptive/list_count /=...
@@ -916,7 +889,8 @@ repeat iSplit. 7: done.
       simpl.
       iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
       tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
-      set (I := (∃ counts,
+      set (I := (∃ lcounts counts,
+                    ⌜is_list lcounts counts⌝ ∗
                     counts_r ↦ₛ counts ∗ counts_l ↦ counts
                 )%I).
       (* set (I := (∃ counts budget_remaining,
@@ -925,11 +899,11 @@ repeat iSplit. 7: done.
                        l ↦ #budget_remaining ∗ l' ↦ₛ #budget_remaining
                    )%I). *)
       (* set (I := Inv). *)
-      iDestruct "hh" as "(%&%&counts_l&counts_r&?&?&?)".
+      iDestruct "hh" as "(%&%&%&%&counts_l&counts_r&?&?&?)".
       iApply ("run_dp" $! _ _ _ _ _ I with "[] [-]"). 1: iPureIntro ; lia.
-      + iFrame. iIntros "* % !> (eps & rhs & I & εrem & l & l') Hpost"...
-        tp_bind (Laplace _ _ _).
-        wp_bind (Laplace _ _ _).
+      + iFrame. iSplitL. 2: by iExists _.
+        iIntros "* % !> (eps & rhs & I & εrem & l & l') Hpost"...
+        tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
         assert (Z.abs (len_f_l - len_f_r) <= 1).
         {
           assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
@@ -946,18 +920,17 @@ repeat iSplit. 7: done.
           epose proof (IZR_lt 0 den _) => //.
           apply Rcomplements.Rdiv_lt_0_compat => //. }
         iNext. iIntros (count_precise_1) "rhs" ; simpl... rewrite Z.add_0_r.
-        iDestruct "I" as "(% & counts_r & counts_l)". rewrite /list_cons.
+        iDestruct "I" as "(% & % & % & counts_r & counts_l)". rewrite /list_cons.
         tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
         case_bool_decide as hthresh...
-        2: iApply "Hpost" ; by iFrame.
-
+        2:{ iApply "Hpost" ; iFrame. iExists (_::_), _. iPureIntro ; split ; eauto. }
         tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
 
         (* set (I := (∃ counts, counts_r ↦ₛ counts ∗ counts_l ↦ counts)%I). *)
         (* iDestruct "hh" as "(%&%&?&?&?&?&?)". *)
         iApply ("run_dp" $! _ _ _ _ _ I with "[] [-Hpost]"). 1: iPureIntro ; lia.
 
-        * iFrame.
+        * iFrame. iSplitL. 2: iExists (_::_),_ ; iPureIntro ; eauto.
           iIntros "* % !> (eps & rhs & I & εrem & l & l') Hpost"...
           tp_bind (Laplace _ _ _).
           wp_bind (Laplace _ _ _).
@@ -977,15 +950,17 @@ repeat iSplit. 7: done.
             epose proof (IZR_lt 0 den _) => //.
             apply Rcomplements.Rdiv_lt_0_compat => //. apply IZR_lt. done. }
           iNext. iIntros (count_precise_2) "rhs" ; simpl... rewrite Z.add_0_r.
-          iDestruct "I" as "(% & ? & ?)". rewrite /list_cons...
+          iDestruct "I" as "(%&%&% & ? & ?)". rewrite /list_cons...
           tp_load ; wp_load ; tp_pures ; tp_store ; wp_store.
-          iApply "Hpost" ; by iFrame.
+          iApply "Hpost" ; iFrame.
+          iExists (_::_), _. iPureIntro ; split ; eauto.
 
         * iIntros "!> **". iApply "Hpost". iFrame.
 
-      + iNext. iIntros "* (rhs&(%&counts_r&counts_l)&(%&budget&l&l'))" => /=...
+      + iNext. iIntros "* (rhs&(%&%&%&counts_r&counts_l)&(%&budget&l&l'))" => /=...
         iApply ("IH" with "[$l $l' $counts_r $counts_l $budget] [] [] [] [$rhs]") => //.
-        1: iPureIntro ; eauto.
+        2: iPureIntro ; eauto.
+        { iExists _. eauto. }
         iModIntro. iDestruct "is_pred" as "[? ?]". done.
         Unshelve. all: auto ; lra.
   Qed.
