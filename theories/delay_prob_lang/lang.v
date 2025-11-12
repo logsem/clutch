@@ -77,58 +77,26 @@ Definition to_val (e : expr) : option val :=
   | _ => None
   end.
 
-(** We assume the following encoding of values to 64-bit words: The least 3
-significant bits of every word are a "tag", and we have 61 bits of payload,
-which is enough if all pointers are 8-byte-aligned (common on 64bit
-architectures). The tags have the following meaning:
+(** Removing vals_compare_safe for simplify computation :p *)
+(* Definition val_is_unboxed (v : val) : Prop := *)
+(*   match v with *)
+(*   | LitV l | InjLV (LitV l) | InjRV (LitV l) => True *)
+(*   | _ => False *)
+(*   end. *)
 
-0: Payload is the data for a LitV (LitInt _).
-1: Payload is the data for a InjLV (LitV (LitInt _)).
-2: Payload is the data for a InjRV (LitV (LitInt _)).
-3: Payload is the data for a LitV (LitLoc _).
-4: Payload is the data for a InjLV (LitV (LitLoc _)).
-4: Payload is the data for a InjRV (LitV (LitLoc _)).
-6: Payload is one of the following finitely many values, which 61 bits are more
-   than enough to encode:
-   LitV LitUnit, InjLV (LitV LitUnit), InjRV (LitV LitUnit),
-   LitV LitPoison, InjLV (LitV LitPoison), InjRV (LitV LitPoison),
-   LitV (LitBool _), InjLV (LitV (LitBool _)), InjRV (LitV (LitBool _)).
-7: Value is boxed, i.e., payload is a pointer to some read-only memory area on
-   the heap which stores whether this is a RecV, PairV, InjLV or InjRV and the
-   relevant data for those cases. However, the boxed representation is never
-   used if any of the above representations could be used.
+(* (* Global Instance lit_is_unboxed_dec l : Decision (lit_is_unboxed l). *) *)
+(* (* Proof. destruct l; simpl; exact (decide _). Defined. *) *)
+(* Global Instance val_is_unboxed_dec v : Decision (val_is_unboxed v). *)
+(* Proof. destruct v as [ | | | [] | [] ]; simpl; exact (decide _). Defined. *)
 
-Ignoring (as usual) the fact that we have to fit the infinite Z/loc into 61
-bits, this means every value is machine-word-sized and can hence be atomically
-read and written.  Also notice that the sets of boxed and unboxed values are
-disjoint. *)
-Definition lit_is_unboxed (l: base_lit) : Prop :=
-  match l with
-  (** Disallow comparing (erased) prophecies with (erased) prophecies, by
-  considering them boxed. *)
-  (* | LitProphecy _ | LitPoison => False *)
-  | LitInt _ | LitBool _  | LitLoc _ | LitLbl _ | LitUnit => True
-  end.
-Definition val_is_unboxed (v : val) : Prop :=
-  match v with
-  | LitV l => lit_is_unboxed l
-  | InjLV (LitV l) => lit_is_unboxed l
-  | InjRV (LitV l) => lit_is_unboxed l
-  | _ => False
-  end.
+(* (** We just compare the word-sized representation of two values, without looking *)
+(* into boxed data.  This works out fine if at least one of the to-be-compared *)
+(* values is unboxed (exploiting the fact that an unboxed and a boxed value can *)
+(* never be equal because these are disjoint sets). *) *)
+(* Definition vals_compare_safe (vl v1 : val) : Prop := *)
+(*   val_is_unboxed vl ∨ val_is_unboxed v1. *)
+(* Global Arguments vals_compare_safe !_ !_ /. *)
 
-Global Instance lit_is_unboxed_dec l : Decision (lit_is_unboxed l).
-Proof. destruct l; simpl; exact (decide _). Defined.
-Global Instance val_is_unboxed_dec v : Decision (val_is_unboxed v).
-Proof. destruct v as [ | | | [] | [] ]; simpl; exact (decide _). Defined.
-
-(** We just compare the word-sized representation of two values, without looking
-into boxed data.  This works out fine if at least one of the to-be-compared
-values is unboxed (exploiting the fact that an unboxed and a boxed value can
-never be equal because these are disjoint sets). *)
-Definition vals_compare_safe (vl v1 : val) : Prop :=
-  val_is_unboxed vl ∨ val_is_unboxed v1.
-Global Arguments vals_compare_safe !_ !_ /.
 
 Definition tape := { n : nat & list (fin (S n)) }.
 
