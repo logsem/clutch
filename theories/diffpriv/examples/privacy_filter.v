@@ -476,6 +476,8 @@ Section adaptive.
 
 End adaptive.
 
+(* We can apply adequacy to derive differential privacy at the pure mathematical level. *)
+
 Lemma adaptive_count_diffpriv_cpl
     (ε_coarse_num ε_coarse_den ε_precise_num ε_precise_den threshold num_budget den_budget : Z)
     (ds1 ds2 : list Z) dsv1 dsv2
@@ -495,7 +497,6 @@ Lemma adaptive_count_diffpriv_cpl
         (IZR num_budget / IZR den_budget) 0.
 Proof.
   intros. replace 0%R with (SeriesC (λ _ : val, 0%R)). 2: by by apply SeriesC_0.
-  (* apply DPcoupl_pweq => //=. 1: apply ex_seriesC_0. intros x'. *)
   eapply (adequacy.wp_adequacy diffprivΣ) => //.
   2: by rewrite SeriesC_0.
   { apply Rcomplements.Rdiv_le_0_compat.
@@ -527,3 +528,5 @@ Proof.
   3: done.
   1,2: by apply is_list_inject.
 Qed.
+
+(* Print Assumptions adaptive_count_diffpriv. *)
