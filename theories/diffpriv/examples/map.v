@@ -1,4 +1,3 @@
-From clutch.prob_lang.typing Require Import types.
 From clutch.diffpriv Require Export diffpriv.
 From clutch.common Require Export inject.
 
@@ -8,6 +7,8 @@ Section map.
 
 (* Simple map as an associative linked list, based on the examples
    from the transfinite Iris repo *)
+
+  Definition rec_unfold : val := λ: "x", "x".
 
   Definition find_list : val :=
     (rec: "find" "h" "k" :=
