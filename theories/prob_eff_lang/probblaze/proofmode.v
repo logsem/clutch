@@ -543,18 +543,18 @@ Tactic Notation "brel_rec_r" :=
   | |- _ => fail 1 "brel_rec_r: goal not a `brel`"
   end.
 
-Class FinalizeREL `{!probblazeRGS Σ} (e1 e2 : expr) (X : iThy Σ) (R : val -d> val -d> iProp Σ) (P : iProp Σ) : Prop :=
-  { finalize_rel : P ⊢ REL e1 ≤ e2 <|X|> {{R}} }.
-Global Hint Mode FinalizeREL + + ! + ! ! - : typeclass_instances.
+Class FinalizeREL `{!probblazeRGS Σ} E (e1 e2 : expr) (X : iThy Σ) (R : val -d> val -d> iProp Σ) (P : iProp Σ) : Prop :=
+  { finalize_rel : P ⊢ REL e1 ≤ e2 @ E <|X|> {{R}} }.
+Global Hint Mode FinalizeREL ! + + ! + ! ! - : typeclass_instances.
 
 (** There are three ways to finalize a SIM.
     First of all, if both expressions are a value
     and the postcondition already contains a update,
     we can just prove the postcondition. *)
-Lemma finalize_rel_value `{!probblazeRGS Σ} X R e1 e2 v1 v2 :
+Lemma finalize_rel_value `{!probblazeRGS Σ} E X R e1 e2 v1 v2 :
   IntoVal e1 v1 → IntoVal e2 v2 →
-  FinalizeREL e1 e2 X R (R v1 v2).
-Proof. intros <- <-. constructor. iApply rel_value. Qed.
+  FinalizeREL E e1 e2 X R (na_ownP E ={⊤}=∗ na_ownP ⊤ ∗ R v1 v2).
+Proof. intros <- <-. constructor. iApply rel_value_mask. Qed.
 Global Hint Extern 0 (FinalizeREL _ _ _ (λ _ _, |==> _)%I _) =>
   notypeclasses refine (finalize_rel_value _ _ _ _ _ _ _ _) : typeclass_instances.
 
@@ -563,14 +563,14 @@ Global Hint Extern 0 (FinalizeREL _ _ _ (λ _ _, |==> _)%I _) =>
     we introduce it. *)
 Global Instance finalize_rel_value_upd `{!probblazeRGS Σ} X R e1 e2 v1 v2 :
   IntoVal e1 v1 → IntoVal e2 v2 →
-  FinalizeREL e1 e2 X R (|==> R v1 v2) | 1.
+  FinalizeREL ⊤ e1 e2 X R (|==> R v1 v2)%I | 1.
 Proof. intros <- <-. constructor. rewrite -fupd_rel -rel_value. by iIntros "?". Qed.
 
 (** Finally, if the expressions aren't both a value,
     we simplify them both. *)
-Global Instance finalize_rel_simpl `{!probblazeRGS Σ} X R e1 e2 e1' e2' :
+Global Instance finalize_rel_simpl `{!probblazeRGS Σ} E X R e1 e2 e1' e2' :
   TCSimplExpr e1 e1' → TCSimplExpr e2 e2' →
-  FinalizeREL e1 e2 X R (rel ⊤ e1' e2' X R) | 2.
+  FinalizeREL E e1 e2 X R (rel E e1' e2' X R) | 2.
 Proof. intros ->%TCSimplExpr_eq ->%TCSimplExpr_eq. by constructor. Qed.
 
 (** [NormalizeREL] transforms a goal [P] into another goal of the form [rel (fill K1 e1) (fill K2 e2) X R]
@@ -649,13 +649,13 @@ Qed.
 Section rel_lemmas.
   Context `{!probblazeRGS Σ}.
 
-  Lemma tac_rel_pure_l {Δ Δ' eₜ eₜ' eₛ X R Q φ} n :
+  Lemma tac_rel_pure_l {Δ Δ' eₜ eₜ' eₛ E X R Q φ} n :
     DoPureSteps φ n eₜ eₜ' →
     φ →
     MaybeIntoLaterNEnvs n Δ Δ' →
-    FinalizeREL eₜ' eₛ X R Q →
+    FinalizeREL E eₜ' eₛ X R Q →
     envs_entails Δ' Q →
-    envs_entails Δ (rel ⊤ eₜ eₛ X R).
+    envs_entails Δ (rel E eₜ eₛ X R).
   Proof.
     rewrite envs_entails_unseal=> -[Hsteps] Hφ HΔ [HQ] HΔ'.
     rewrite into_laterN_env_sound HΔ' HQ {HQ HΔ HΔ'}.
@@ -663,25 +663,25 @@ Section rel_lemmas.
     rewrite -rel_pure_step_l' //.
   Qed.
 
-  Lemma tac_rel_pure_r {Δ eₜ eₛ eₛ' X R Q φ} n :
+  Lemma tac_rel_pure_r {Δ eₜ eₛ eₛ' E X R Q φ} n :
     DoPureSteps φ n eₛ eₛ' →
     φ →
-    FinalizeREL eₜ eₛ' X R Q →
+    FinalizeREL E eₜ eₛ' X R Q →
     envs_entails Δ Q →
-    envs_entails Δ (rel ⊤ eₜ eₛ X R).
+    envs_entails Δ (rel E eₜ eₛ X R).
   Proof.
     rewrite envs_entails_unseal=> -[Hsteps] Hφ [HQ] HΔ.
     rewrite HΔ HQ.
     assert (PureExec φ n eₛ eₛ') by by rewrite /PureExec.
-    by apply: rel_pure_step_r'.
+    by apply: rel_pure_step_r_with_mask.
   Qed.
 
-  Lemma tac_rel_rec_l {Δ Δ' eₜ eₜ' v1 v2 f x eₛ K L R Q} :
+  Lemma tac_rel_rec_l {Δ Δ' eₜ eₜ' v1 v2 f x eₛ K L E R Q} :
     IntoCtx eₜ (IsAppRec v1 v2 f x eₜ') K →
     MaybeIntoLaterNEnvs 1 Δ Δ' →
-    FinalizeREL (fill K (val_subst' x v2 (val_subst' f v1 eₜ'))) eₛ L R Q →
+    FinalizeREL E (fill K (val_subst' x v2 (val_subst' f v1 eₜ'))) eₛ L R Q →
     envs_entails Δ' Q →
-    envs_entails Δ (rel ⊤ eₜ eₛ L R).
+    envs_entails Δ (rel E eₜ eₛ L R).
   Proof.
     rewrite envs_entails_unseal=> -[? -> [-> ->]] HΔ [HQ] HΔ'.
     rewrite into_laterN_env_sound HΔ' HQ /=.
@@ -690,17 +690,17 @@ Section rel_lemmas.
     rewrite -rel_pure_step_l' //.
   Qed.
 
-  Lemma tac_rel_rec_r {Δ eₜ v1 v2 f x eₛ eₛ' K L R Q} :
+  Lemma tac_rel_rec_r {Δ eₜ v1 v2 f x eₛ eₛ' E K L R Q} :
     IntoCtx eₛ (IsAppRec v1 v2 f x eₛ') K →
-    FinalizeREL eₜ (fill K (val_subst' x v2 (val_subst' f v1 eₛ'))) L R Q →
+    FinalizeREL E eₜ (fill K (val_subst' x v2 (val_subst' f v1 eₛ'))) L R Q →
     envs_entails Δ Q →
-    envs_entails Δ (rel ⊤ eₜ eₛ L R).
+    envs_entails Δ (rel E eₜ eₛ L R).
   Proof.
     rewrite envs_entails_unseal=> -[? -> [-> ->]] [HQ] HΔ.
     rewrite HΔ HQ /=.
     assert (PureExec True 1 (fill K ((rec: f x := eₛ')%V v2)) (fill K (val_subst' x v2 (val_subst' f (rec: f x := eₛ') eₛ')))).
     { apply pure_exec_ctx. apply _. }
-    by eapply rel_pure_step_r'.
+    by eapply rel_pure_step_r_with_mask.
   Qed.
 End rel_lemmas.
 
@@ -711,8 +711,8 @@ Tactic Notation "rel_pures_l" open_constr(n) :=
     notypeclasses refine (tac_rel_pure_l n _ _ _ _ _);
       [ tc_solve || fail 1 "rel_pures_l: no pure steps can be performed"
       | try done (* side-condition *)
-      | tc_solve (* into later *)
-      | tc_solve (* simpl *)
+      | try tc_solve (* into later *)
+      | try tc_solve (* simpl *)
       | pm_prettify ]
   | |- _ => fail "rel_pures_l: goal not a `rel`"
   end.

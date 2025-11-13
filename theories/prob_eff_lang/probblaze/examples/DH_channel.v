@@ -57,11 +57,11 @@ Section implementation.
              | SOME "x" => match: "from" with
                              InjL <> => match: !"m2" with
                                           NONE => "k" NONEV
-                                        | SOME "m" => "k" "m"
+                                        | SOME "m" => "k" (SOME "m")
                                         end
                            | InjR <> => match: !"m1" with
                                           NONE => "k" NONEV
-                                        | SOME "m" => "k" "m"
+                                        | SOME "m" => "k" (SOME "m")
                                         end
                            end
              end
@@ -94,12 +94,19 @@ Section implementation.
 
 
   Definition DH_KE (getKey channel : label) f : expr :=
-    let: "α" := alloc #n in           
+    let: "α" := alloc #n in
+    let: "β" := alloc #n in
+    let: "l1" := ref NONEV in
+    let: "l2" := ref NONEV in
     handle: f with
     | effect getKey "p", rec "k" =>
         match: "p" with
           InjL <> =>
-            let: "a" := samplelbl "α" #()%V in
+            let: "a" :=
+              (match: !"l1" with
+                NONE => let: "a" := (samplelbl "α" #()%V) in "l1" <- SOME "a";; "a"
+              | SOME "a" => "a"
+              end) in
             let: "gA" := g^"a" in
             (do: channel (Send ("gA", bob)));;
             let: "r" := do: channel (Recv bob) in
@@ -109,8 +116,12 @@ Section implementation.
                 let: "key" := "gB"^"a" in
                 "k" (SOME "key")
             end
-       | InjR <> =>
-           let: "b" := sample #()%V in
+        | InjR <> =>
+           let: "b" :=
+              match: !"l2" with
+                NONE => let: "b" := (samplelbl "β" #()%V) in "l2" <- SOME "b";; "b"
+              | SOME "b" => "b"
+              end in
             let: "gB" := g^"b" in
             (do: channel (Send ("gB", alice)));;
             let: "r" := do: channel (Recv alice) in
@@ -122,8 +133,6 @@ Section implementation.
             end
        end
    | return "y" => "y" end.
-
-
 
   Definition DH_SIM (channel : label) (f : expr) : expr :=
       handle: f with
@@ -200,16 +209,33 @@ Section handlee_verification.
     λ e1 e2, (λne Q,
                 ⌜ e1 = do: getKey1 (InjL #()%V) ⌝%E ∗
                 ⌜ e2 = do: getKey2 (InjL #()%V) ⌝%E ∗
-                □ (Q NONEV NONEV ∗ ∀ key, Q (SOMEV #key) (SOMEV #key) )
+                □ (Q NONEV NONEV ∗ ∀ key : vgG, Q (SOMEV key) (SOMEV key) )
+             )%I.
+  Next Obligation. solve_proper. Qed.
+
+  Program Definition GetKey2 : iThy Σ :=
+     λ e1 e2, (λne Q,
+                ⌜ e1 = do: getKey1 (InjR #()%V) ⌝%E ∗
+                ⌜ e2 = do: getKey2 (InjR #()%V) ⌝%E ∗
+                □ (Q NONEV NONEV ∗ ∀ key : vgG, Q (SOMEV key) (SOMEV key) )
              )%I.
   Next Obligation. solve_proper. Qed.
     
   Program Definition SendBob : iThy Σ :=
     λ e1 e2, (λne Q,
-                ∃ m, 
+                ∃ m : vgG, 
                   ⌜ e1 = do: channel1 (SendV (m, bob)) ⌝%E ∗
                   ⌜ e2 = do: channel2 (SendV (m, bob)) ⌝%E ∗
-                   Q (Val #()%V) (Val #()%V)
+                   □ Q (Val #()%V) (Val #()%V)
+             )%I. 
+  Next Obligation. solve_proper. Qed.
+
+  Program Definition SendAlice : iThy Σ :=
+    λ e1 e2, (λne Q,
+                ∃ m : vgG, 
+                  ⌜ e1 = do: channel1 (SendV (m, alice)) ⌝%E ∗
+                  ⌜ e2 = do: channel2 (SendV (m, alice)) ⌝%E ∗
+                  □ Q (Val #()%V) (Val #()%V)
              )%I. 
   Next Obligation. solve_proper. Qed.
 
@@ -226,66 +252,40 @@ Section handlee_verification.
     λ e1 e2, (λne Q,
                 ⌜ e1 = do: channel1 (RecvV bob) ⌝%E ∗
                 ⌜ e2 = do: channel2 (RecvV bob) ⌝%E ∗
-                ((∀ b1 b2 : nat, Q (SOMEV #b1) (SOMEV #b2)) ∧ Q NONEV NONEV)
+                □ ((∀ b1 b2 : nat, Q (SOMEV #b1) (SOMEV #b2)) ∧ Q NONEV NONEV)
+             )%I.
+  Next Obligation. solve_proper. Qed.
+
+   Program Definition RecvAliceAuth : iThy Σ :=
+    λ e1 e2, (λne Q,
+                ⌜ e1 = do: channel1 (RecvV alice) ⌝%E ∗
+                ⌜ e2 = do: channel2 (RecvV alice) ⌝%E ∗
+                □ ((∀ b1 b2 : nat, Q (SOMEV #b1) (SOMEV #b2)) ∧ Q NONEV NONEV)
              )%I.
   Next Obligation. solve_proper. Qed.
   
-  Definition T : iThy Σ := iThyTraverse [getKey1] [getKey2] GetKey1.
+  Definition T : iThy Σ := iThyTraverse [getKey1] [getKey2] (iThySum GetKey1 GetKey2).
   Definition X : iThy Σ := iThyTraverse [channel1] [channel2] (iThySum (SendBob) (RecvBob)).
-  Definition Y : iThy Σ := iThyTraverse [channel1] [channel2] (iThySum (SendBob) (RecvBobAuth)).
-
-
-  Lemma pow_rel (g n : nat) :
-    ⊢ REL pow #g #n ≤ pow #g #n <|iThyBot|> {{ (λ v1 v2, ⌜ v1 = #(g ^ n)%nat ⌝ ∗ ⌜ v2 = #(g ^ n)%nat ⌝) }}.
-  Admitted.
-
-  (* Show this later with the actual m *)
-  Lemma pow_un (g n : nat ) :
-    ∃ m : nat, PureExec True m (pow #g #n) (#(g ^ n)).
-  Admitted.
-
-  Lemma modn_rel (m : nat) :
-    ⊢ REL modn #m ≤ modn #m <|iThyBot|> {{ (λ v1 v2, ⌜ v1 = #(m `mod` n)%nat ⌝ ∗ ⌜ v2 = #(m `mod` n)%nat ⌝) }}.
-  Admitted.
-
-  Lemma modn_un (m : nat) :
-    ∃ s, PureExec True s (modn #m) (#(m `mod` n)). 
-  Admitted.
-
-  Lemma modn_pow_un (g m : nat) :
-    ∃ s, PureExec True s (modn (pow #g #m)) (#((g ^ m) `mod` n)%nat).
-  Proof.
-    pose proof (pow_un g m) as (s1 & Hpow).
-    pose proof (modn_un (g ^ m)) as (s2 & Hmod).
-    exists (s1 + s2)%nat.
-  Admitted.
+  Definition Y : iThy Σ := iThyTraverse [channel1] [channel2] (iThySum (iThySum SendAlice SendBob) (iThySum RecvAliceAuth RecvBobAuth)).
 
   Definition tapeN : namespace := nroot .@ "tape".
 
-  Definition KontGetKey1 k α :=
+  Definition KontGetKey1 k1 la lb α β :=
     KontV
       (HandleCtx getKey1
          (λ: "p" "k",
             match: "p" with
               InjL <> =>
-                let: "a" := #()%V;; rand(#lbl:α) #n in
+                let: "a" := match: ! #la with InjL <> => let: "a" := #()%V;; rand(#lbl:α) #n in #la <- InjR "a";; "a" | InjR "a" => "a" end in
                 let: "gA" := g ^ "a" in
                 (do: channel1 InjL ("gA", bob));; 
-                let: "r" := do: channel1 InjR bob in
-                              match: "r" with
-                                InjL <> => "k" (InjLV #()%V)
-                              | InjR "gB" => let: "key" := "gB" ^ "a" in "k" (InjR "key")
-                              end
+                let: "r" := do: channel1 InjR bob in match: "r" with InjL <> => "k" (InjLV #()%V) | InjR "gB" => let: "key" := "gB" ^ "a" in "k" (InjR "key") end
                             | InjR <> =>
-                                let: "b" := #()%V;; rand #n in
+                                let: "b" := match: ! #lb with InjL <> => let: "b" := #()%V;; rand(#lbl:β) #n in #lb <- InjR "b";; "b" | InjR "b" => "b" end in
                                 let: "gB" := g ^ "b" in
                                 (do: channel1 InjL ("gB", alice));; 
-                                let: "r" := do: channel1 InjR alice in
-                                              match: "r" with
-                                                InjL <> => "k" (InjL #()%V)
-                                              | InjR "gA" => let: "key" := "gA" ^ "b" in "k" (InjR "key")
-                                              end
-                                              end) (λ: "y", "y") :: k).
+                                let: "r" := do: channel1 InjR alice in match: "r" with InjL <> => "k" (InjL #()%V) | InjR "gA" => let: "key" := "gA" ^ "b" in "k" (InjR "key") end
+                                              end) (λ: "y", "y") :: k1).
    
   Definition KontGetKey2 k a b :=
       KontV
@@ -308,7 +308,7 @@ Section handlee_verification.
                             end
                           end) (λ: "y", "y") :: k).
 
-  Definition KontChannel2 l1' l2' k2 a b :=
+  Definition KontChannel2 dst l1' l2' k2 a b :=
        KontV
         [HandleCtx channel2
            (λ: "message" "k",
@@ -336,15 +336,15 @@ Section handlee_verification.
                 | InjR "x" =>
                   match: "from" with
                     InjL <> =>
-                      match: ! #l2' with InjL <> => "k" (InjLV #()%V) | InjR "m" => "k" "m" end
+                      match: ! #l2' with InjL <> => "k" (InjLV #()%V) | InjR "m" => "k" (SOME "m") end
                   | InjR <> =>
-                    match: ! #l1' with InjL <> => "k" (InjLV #()%V) | InjR "m" => "k" "m" end
+                    match: ! #l1' with InjL <> => "k" (InjLV #()%V) | InjR "m" => "k" (SOME "m") end
                   end
                 end
               end) (λ: "y", #()%V);
          AppRCtx
            (λ: <>,
-              let: "r" := do: channel2 InjR bob in
+              let: "r" := do: channel2 InjR dst in
               match: "r" with
                 InjL <> => KontGetKey2 k2 a b (InjL #()%V)
               | InjR "w" => KontGetKey2 k2 a b (InjR (g ^+ (a * b))%g)
@@ -379,9 +379,9 @@ Section handlee_verification.
                      | InjR "x" =>
                        match: "from" with
                          InjL <> =>
-                           match: ! #l2' with InjL <> => "k" (InjLV #()%V) | InjR "m" => "k" "m" end
+                           match: ! #l2' with InjL <> => "k" (InjLV #()%V) | InjR "m" => "k" (SOME "m") end
                        | InjR <> =>
-                         match: ! #l1' with InjL <> => "k" (InjLV #()%V) | InjR "m" => "k" "m" end
+                         match: ! #l1' with InjL <> => "k" (InjLV #()%V) | InjR "m" => "k" (SOME "m") end
                        end
                      end
                    end) (λ: "y", #()%V);
@@ -392,7 +392,7 @@ Section handlee_verification.
                    | InjR "w" => KontGetKey2 k2 a b (InjR (g ^+ (a * b))%g)
                    end)].
 
-  Definition KontChannel1 l1 l2 k1 a α :=
+  Definition KontChannel1 dst la lb l1 l2 k1 a α β :=
        KontV
         [HandleCtx channel1
            (λ: "message" "k",
@@ -420,21 +420,21 @@ Section handlee_verification.
                 | InjR "x" =>
                   match: "from" with
                     InjL <> =>
-                      match: ! #l2 with InjL <> => "k" (InjLV #()%V) | InjR "m" => "k" "m" end
+                      match: ! #l2 with InjL <> => "k" (InjLV #()%V) | InjR "m" => "k" (SOME "m") end
                   | InjR <> =>
-                    match: ! #l1 with InjL <> => "k" (InjLV #()%V) | InjR "m" => "k" "m" end
+                    match: ! #l1 with InjL <> => "k" (InjLV #()%V) | InjR "m" => "k" (SOME "m") end
                   end
                 end
               end) (λ: "y", #()%V);
          AppRCtx
            (λ: <>,
-              let: "r" := do: channel1 InjR bob in
+              let: "r" := do: channel1 InjR dst in
               match: "r" with
-                InjL <> => KontGetKey1 k1 α (InjLV #()%V)
-              | InjR "gB" => let: "key" := "gB" ^ #a in KontGetKey1 k1 α (InjR "key")
+                InjL <> => KontGetKey1 k1 la lb α β (InjLV #()%V)
+              | InjR "gB" => let: "key" := "gB" ^ #a in KontGetKey1 k1 la lb α β (InjR "key")
               end)].
 
-  Definition KontChannel1' l1 l2 k1 a α :=
+  Definition KontChannel1' la lb l1 l2 k1 a α β :=
     KontV
              [HandleCtx channel1
                 (λ: "message" "k",
@@ -463,17 +463,17 @@ Section handlee_verification.
                      | InjR "x" =>
                        match: "from" with
                          InjL <> =>
-                           match: ! #l2 with InjL <> => "k" (InjLV #()%V) | InjR "m" => "k" "m" end
+                           match: ! #l2 with InjL <> => "k" (InjLV #()%V) | InjR "m" => "k" (SOME "m") end
                        | InjR <> =>
-                         match: ! #l1 with InjL <> => "k" (InjLV #()%V) | InjR "m" => "k" "m" end
+                         match: ! #l1 with InjL <> => "k" (InjLV #()%V) | InjR "m" => "k" (SOME "m") end
                        end
                      end
                    end) (λ: "y", #()%V);
               AppRCtx
                 (λ: "r",
                    match: "r" with
-                     InjL <> => KontGetKey1 k1 α (InjLV #()%V)
-                   | InjR "gB" => let: "key" := "gB" ^ #a in KontGetKey1 k1 α (InjR "key")
+                     InjL <> => KontGetKey1 k1 la lb α β (InjLV #()%V)
+                   | InjR "gB" => let: "key" := "gB" ^ #a in KontGetKey1 k1 la lb α β (InjR "key")
                    end)].
   
 
@@ -486,36 +486,46 @@ Section handlee_verification.
     iIntros (Hf1closed Hf2closed) "Hff".
     iApply rel_alloc_l. iIntros (l1) "!> Hl1".
     iApply rel_alloc_l. iIntros (l2) "!> Hl2".
-    iApply rel_alloctape_l. iIntros (α) "!> Hα". 
-    rel_pures_l.
+    iApply rel_alloctape_l. iIntros (α) "!> Hα". rel_pures_l.
+    iApply rel_alloctape_l. iIntros (β) "!> Hβ". rel_pures_l.
+    iApply rel_alloc_l. iIntros (la) "!> Hla".
+    iApply rel_alloc_l. iIntros (lb) "!> Hlb".
     iApply rel_alloc_r. iIntros (l1') "Hl1s".
     iApply rel_alloc_r. iIntros (l2') "Hl2s".
     rel_pures_r. 
-    do 3 rewrite Hf1closed.
+    do 4 rewrite Hf1closed.
     iDestruct "Hα" as (ns) "(%Hf & Hα)". apply map_eq_nil in Hf. simplify_eq.
     iApply rel_couple_TU; [done|]. iFrame. simpl. iIntros (a) "Hα".
-    iApply rel_randU_empty_r. iIntros (b Hltb). 
+    iDestruct "Hβ" as (ms) "(%Hf' & Hβ)". apply map_eq_nil in Hf'. simplify_eq.
+    iApply rel_couple_TU; [done|]. iFrame "Hβ". simpl. iIntros (b) "Hβ".
     rel_pures_r.
     assert ((a * b)%Z = Z.of_nat (a * b)%nat ) as ->. { admit. }
     do 3 (iApply rel_exp_r). 
     rel_pures_r.
     do 5 rewrite Hf2closed.
+    rel_pures_l. do 2 rewrite Hf1closed.
     iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
     iSplit; [iIntros (v1 v2) "(-> & ->)"; rel_pures_l; by rel_pures_r|].
     iIntros (e1 e2 ?)
       "[%e1' [%e2' [%k1 [%k2 [%S
-        (-> & %Hk1 & -> & %Hk2 & (-> & -> & (#Hnone & #Hsome)) & #HQ)
+        (-> & %Hk1 & -> & %Hk2 & [(-> & -> & (#Hnone & #Hsome)) | (-> & -> & (#Hnone & #Hsome))] & #HQ)
        ]]]]] #Hk".
-    do 2 rel_pures_l; [apply Hk1; set_solver|]. fold (KontGetKey1 k1 α).
+    
+    (* getKey1 first time *)
+    1 : {
+    do 2 rel_pures_l; [apply Hk1; set_solver|]. fold (KontGetKey1 k1 la lb α β).
     do 2rel_pures_r; [split;[apply Hk2; set_solver|set_solver]|].
     fold (KontGetKey2 k2 a b ).
-    fold (KontChannel2 l1' l2' k2 a b).
+    fold (KontChannel2 bob l1' l2' k2 a b).
+    iApply (rel_load_l with "Hla"). iIntros "!> Hla". rel_pures_l.
     iApply rel_rand_l.
     iAssert (α ↪N (n; [fin_to_nat a]))%I with "[Hα]" as "Hα".
     { iExists [a]. simpl. iFrame. done. }
-    iFrame. iIntros "!>Hα %Hlt". 
-    do 2 rel_pure_l. rel_exp_l.
-    rel_pures_l; [set_solver|]. fold (KontChannel1 l1 l2 k1 a α).
+    iFrame. iIntros "!>Hα %Hlt". rel_pures_l.
+    iApply (rel_store_l with "Hla"). iIntros "!> Hla".
+    rel_pures_l.
+    rel_exp_l.
+    rel_pures_l; [set_solver|]. fold (KontChannel1 bob la lb l1 l2 k1 a α β).
     iApply (rel_load_l with "Hl1"). iIntros "!> Hl1".
     iApply (rel_load_r with "Hl1s"). iIntros "Hl1s".
     rel_pures_l. rel_pures_r.
@@ -523,157 +533,278 @@ Section handlee_verification.
     iApply (rel_store_r with "Hl1s"). iIntros "Hl1s".
     rel_pures_l.
     rel_pures_r.
-
+    
+    (* Send gA first time *)
     iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
+    iApply fupd_rel.
+    iMod (ghost_map_elem_persist with "Hl1s") as "#Hl1s".
+    iMod (ghost_map_elem_persist with "Hl1") as "#Hl1".
+    iMod (ghost_map_elem_persist with "Hla") as "#Hla".
+    iModIntro.
+    iApply (rel_na_alloc
+              (α ↪N (n; []) ∗
+               ((β ↪ (n; [b]) ∗ l2 ↦ NONEV ∗ l2' ↦ₛ NONEV ∗ lb ↦ NONEV)
+                ∨ (β ↪ (n; [])
+                   ∗ l2 ↦ SOMEV (g ^+ b)%g
+                   ∗ l2' ↦ₛ SOMEV (g ^+ b)%g
+                   ∗ lb ↦ SOMEV #b)))%I
+              tapeN).
+    iSplitL "Hα Hl2 Hl2s Hβ Hlb"; [iNext; iFrame; iLeft; iFrame|].
+    iIntros "#Hinv".
     iApply rel_introduction'.
     iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
     iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-    iLeft.
-    iExists _. do 2 (iSplit; try (iPureIntro; done)). 
+    iLeft. iRight.
+    iExists _. do 2 (iSplit; try (iPureIntro; done)).
+    iModIntro.
     iApply rel_value.
-    rel_pures_l; [set_solver|]. fold (KontChannel1' l1 l2 k1 a α).
+    rel_pures_l; [set_solver|]. fold (KontChannel1' la lb l1 l2 k1 a α β).
     rel_pures_r; [set_solver|]. fold (KontChannel2' l1' l2' k2 a b).
-
+    
+    (* Recv bob first time (either none or some) *)
     iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
     iApply rel_introduction'.
     iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
     iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-    iRight.
-    do 2 (iSplit; try (iPureIntro; done)).
+    iRight. iRight.
+    do 2 (iSplit; try (iPureIntro; done)). iModIntro.
     iSplit; last first.
+
+    (* Recv bob = None *)
     - iApply rel_value.
       rel_pures_l. rel_pures_r.
       iDestruct ("HQ" with "Hnone") as "HQfill".
       iDestruct ("Hk" with "HQfill") as "Hfillrel".
-      iApply fupd_rel.
-      iMod (ghost_map_elem_persist with "Hl1s") as "#Hl1spers".
-      iMod (ghost_map_elem_persist with "Hl1") as "#Hl1pers".
-      iMod (ghost_map_elem_persist with "Hl2s") as "#Hl2s".
-      iMod (ghost_map_elem_persist with "Hl2") as "#Hl2".
-      iModIntro.
-      iApply (rel_na_alloc _ tapeN). iSplitL "Hα"; [iNext; iApply "Hα"|].
-      iIntros "#Hinv".
-
       iClear (Hk1 Hk2) "Hnone Hsome HQ Hk HQfill".
-      (* iLöb as "IH" forall (k1 k2). *)
+
+      (* First call is done. Can call getKey1 or getKey2 again. *)
       iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
       iClear (k1 k2 S) "Hfillrel".
       iLöb as "IH".
       iSplit; [iIntros (v1 v2) "(-> & ->)"; rel_pures_l; by rel_pures_r|].
       iIntros (e1 e2 ?)
-        "[%e1' [%e2' [%k1 [%k2 [%S
-        (-> & %Hk1 & -> & %Hk2 & (-> & -> & (#Hnone & #Hsome)) & #HQ)
+      "[%e1' [%e2' [%k1 [%k2 [%S
+        (-> & %Hk1 & -> & %Hk2 & [(-> & -> & (#Hnone & #Hsome)) | (-> & -> & (#Hnone & #Hsome))] & #HQ)
        ]]]]] #Hk".
-      do 2 rel_pures_l; [apply Hk1; set_solver|]. fold (KontGetKey1 k1 α).
-      do 2 rel_pures_r; [split; [apply Hk2; set_solver| set_solver]|]. fold (KontGetKey2 k2 a b). fold (KontChannel2 l1' l2' k2 a b).
-      iApply (rel_bind [_;_] [_] _ _ iThyBot); [iApply traversable_bot|iApply iThy_le_bot|].
-      iApply (rel_load_r with "Hl1spers"). iIntros "#Hl1s".
-      iApply fupd_rel.
-      iApply (rel_na_inv _ _ tapeN ); [set_solver|].
-      iFrame "Hinv". iModIntro.
-      iIntros "(>Htape & Hclose)". 
-      iApply (rel_randT_empty_l []). iFrame.
-      iIntros (a') "!> Htape _".
-      iApply rel_na_close. iFrame "Hclose Htape".
-      iApply rel_value.
-      rel_pures_r; [set_solver|]. fold (KontChannel2' l1' l2' k2 a b).
-      do 2 rel_pure_l.
-      rel_exp_l.
-      rel_pures_l; [set_solver|]. fold (KontChannel1 l1 l2 k1 a' α).
-      iApply (rel_load_l with "Hl1pers").
-      iIntros "!> Hl1".
-      rel_pures_l; [set_solver|]. fold (KontChannel1' l1 l2 k1 a' α).
 
-      iApply (rel_bind' [_] [_]); [iApply traversable_iThyTraverse|].
-      iApply rel_introduction'.
-      iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-      iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-      iRight.
-      do 2 (iSplit; try (iPureIntro; done)).
-      iSplit.
-      2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-            iDestruct ("HQ" with "Hnone") as "HQfill".
-            iDestruct ("Hk" with "HQfill") as "Hfillrel".
-            iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-            iApply "IH". }
-      iIntros (b1 b2).
-      iApply rel_value. rel_pures_l. rel_pures_r.
-      iApply (rel_load_l with "Hl2"). iIntros "!> _".
-      iApply (rel_load_r with "Hl2s"). iIntros "_".
-      rel_pures_l. rel_pures_r.
-      iDestruct ("HQ" with "Hnone") as "HQnone".
-      iDestruct ("Hk" with "HQnone") as "Hknone".
-      iApply (rel_exhaustion [_;_] [_;_] with "[$]").
-      iApply "IH".
+      (* getKey1 second time. No a is sampled *)
+      + do 2 rel_pures_l; [apply Hk1; set_solver|]. fold (KontGetKey1 k1 la lb α β).
+        do 2 rel_pures_r; [split; [apply Hk2; set_solver| set_solver]|]. fold (KontGetKey2 k2 a b). fold (KontChannel2 bob l1' l2' k2 a b).
+        iApply (rel_bind [_;_] [_] _ _ iThyBot); [iApply traversable_bot|iApply iThy_le_bot|].
+        iApply (rel_load_r with "Hl1s"). iIntros "_".
+        iApply (rel_load_l with "Hla"). iIntros "!> _". rel_pures_l. iModIntro.
+        rel_pures_l. rel_exp_l. rel_pures_l; [set_solver|]. fold (KontChannel1 bob la lb l1 l2 k1 a α β).
+        rel_pures_r; [set_solver|]. fold (KontChannel2' l1' l2' k2 a b).
+        iApply (rel_load_l with "Hl1"). iIntros "!> _".
+        rel_pures_l; [set_solver|]. fold (KontChannel1' la lb l1 l2 k1 a α β).
+
+        iApply (rel_bind' [_] [_]); [iApply traversable_iThyTraverse|].
+        iApply rel_introduction'.
+        iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+        iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+        iRight. iRight.
+        do 2 (iSplit; try (iPureIntro; done)). iModIntro.
+        iSplit.
+        2 : { iApply rel_value. rel_pures_l. rel_pures_r.
+              iDestruct ("HQ" with "Hnone") as "HQfill".
+              iDestruct ("Hk" with "HQfill") as "Hfillrel".
+              iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
+              iApply "IH". }
+        iIntros (b1 b2).
+        iApply rel_value. rel_pures_l. rel_pures_r.
+        iApply (rel_na_inv _ _ tapeN ); [set_solver|].
+        iFrame "Hinv". 
+        iIntros "(>(Htape & [(Hbeta & Hl2 & Hl2s & Hlb) | (Hbeta & Hl2 & Hl2s &Hlb)]) & Hclose)". 
+        * iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl2".
+          iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2s"). iIntros "Hl2s".
+          iApply rel_na_close. iFrame. iSplitR "Hla"; [iLeft; iFrame| ]. 
+          rel_pures_l. rel_pures_r.
+          iDestruct ("HQ" with "Hnone") as "HQnone".
+          iDestruct ("Hk" with "HQnone") as "Hknone".
+          iApply (rel_exhaustion [_;_] [_;_] with "[$]").
+          iApply "IH".
+        * iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl2".
+          iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2s"). iIntros "Hl2s".
+          iApply rel_na_close. iFrame. iSplitR "Hla"; [iRight; iFrame| ]. simpl.
+          rel_pures_l. rel_pures_r.
+          rel_exp_l. rel_pures_l.
+          rewrite -expgM. rewrite -ssrnat.multE.
+          rewrite -Nat.mul_comm.
+          iDestruct ("HQ" with "Hsome") as "HQsome".
+          iDestruct ("Hk" with "HQsome") as "Hksome".
+          iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
+          iApply "IH".
+
+      (* getKey2 after first getKey1. *)
+      + do 2 rel_pures_l; [apply Hk1; set_solver|]. fold (KontGetKey1 k1 la lb α β). 
+        do 2rel_pures_r; [split; [apply Hk2; set_solver| set_solver]|]. fold (KontGetKey2 k2 a b). fold (KontChannel2 alice l1' l2' k2 a b).
+        iApply (rel_na_inv _ _ tapeN ); [set_solver|].
+        iFrame "Hinv". 
+        iIntros "(>(Htape & [(Hbeta & Hl2 & Hl2s & Hlb) | (Hbeta & Hl2 & Hl2s &Hlb)]) & Hclose)".
+
+        (* getKey2 hasn't been called before *)
+        * iApply (rel_load_l_mask [HandleCtx _ _ _; AppRCtx _; CaseCtx _ _ ]).
+          iFrame. iIntros "!> Hlb". simpl. 
+          rel_pures_l.
+          iApply (rel_rand_l _ [HandleCtx _ _ _; AppRCtx _; AppRCtx _]).
+          iAssert (β ↪N (n; [fin_to_nat b]))%I with "[Hbeta]" as "Hβ".
+          { iExists [b]. simpl. iFrame. done. }
+          iFrame. iIntros "!>Hβ %Hltb". rel_pures_l.
+          iApply (rel_store_l _ _ _ [HandleCtx _ _ _; AppRCtx _; AppRCtx _] with "Hlb"). iIntros "!> Hlb".
+          rel_pures_l. iApply (rel_exp_l _ [HandleCtx _ _ _; AppRCtx _] _ _ _ b).
+          rel_pures_l; [set_solver|].
+          iApply (rel_load_l_mask [CaseCtx _ _] ). iFrame. iIntros "!> Hl2". rel_pures_l.
+          iApply (rel_store_l _ _ _ [AppRCtx _] with "Hl2"). iIntros "!> Hl2". rel_pures_l.
+          iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2s"). iIntros "Hl2s".
+          rel_pures_r.
+          iApply (rel_store_r _ _ _ _  [AppRCtx _] with "Hl2s"). iIntros "Hl2s". rel_pures_r.
+          iApply rel_na_close. iFrame. iSplitL; [iRight; iFrame; iDestruct "Hβ" as (ms) "(%Hf' & Hβ)"; apply map_eq_nil in Hf'; simplify_eq; done|].
+          iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
+          iApply rel_introduction'.
+          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+          iLeft. iLeft.
+          iExists _. do 2 (iSplit; try (iPureIntro; done)).
+          iModIntro.
+          iApply rel_value.
+          rel_pures_l; [set_solver|]. fold (KontChannel1' la lb l1 l2 k1 b α β).
+          rel_pures_r; [set_solver|]. fold (KontChannel2' l1' l2' k2 a b).
+
+          iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
+          iApply rel_introduction'.
+          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+          iRight. iLeft.
+          do 2 (iSplit; try (iPureIntro; done)). iModIntro.
+          iSplit.
+          2 : { iApply rel_value. rel_pures_l. rel_pures_r.
+              iDestruct ("HQ" with "Hnone") as "HQfill".
+              iDestruct ("Hk" with "HQfill") as "Hfillrel".
+              iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
+              iApply "IH". }
+
+          iIntros (b1 b2).
+          iApply rel_value. rel_pures_l. rel_pures_r.
+          iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame "Hl1". iIntros "!> _". 
+          iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl1s"). iIntros "_".
+          rel_pures_l. rel_pures_r.
+          rel_exp_l. rel_pures_l.
+          rewrite -expgM. rewrite -ssrnat.multE.
+          rewrite -Nat.mul_comm.
+          iDestruct ("HQ" with "Hsome") as "HQsome".
+          iDestruct ("Hk" with "HQsome") as "Hksome".
+          iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
+          iApply "IH".
+        (* getKey2 has been called before *)
+        *  admit.
+
+    (* Recv bob = Some b *)
     - iIntros (b1 b2). iApply rel_value.
       rel_pures_l. rel_pures_r.
-      iApply (rel_load_l with "Hl2").
-      iIntros "!> Hl2".
-      rel_pures_l.
-      iApply (rel_load_r with "Hl2s"). iIntros "Hl2s".
-      rel_pures_r.
-      iDestruct ("HQ" with "Hnone") as "HQfill".
-      iDestruct ("Hk" with "HQfill") as "Hfillrel".
-      iApply fupd_rel.
-      iMod (ghost_map_elem_persist with "Hl1s") as "#Hl1s".
-      iMod (ghost_map_elem_persist with "Hl1") as "#Hl1".
-      iMod (ghost_map_elem_persist with "Hl2s") as "#Hl2s".
-      iMod (ghost_map_elem_persist with "Hl2") as "#Hl2".
-      iModIntro.
-      iApply (rel_na_alloc _ tapeN). iSplitL "Hα"; [iNext; iApply "Hα"|].
-      iIntros "#Hinv".
-
-      iClear (Hk1 Hk2) "Hnone Hsome HQ Hk HQfill".
-      iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-      iClear (k1 k2 S) "Hfillrel".
-      iLöb as "IH".
-
-      iSplit; [iIntros (v1 v2) "(-> & ->)"; rel_pures_l; by rel_pures_r|].
-      iIntros (e1 e2 ?)
-        "[%e1' [%e2' [%k1 [%k2 [%S
-        (-> & %Hk1 & -> & %Hk2 & (-> & -> & (#Hnone & #Hsome)) & #HQ)
-       ]]]]] #Hk".
-      do 2 rel_pures_l; [apply Hk1; set_solver|]. fold (KontGetKey1 k1 α).
-      do 2 rel_pures_r; [split; [apply Hk2; set_solver| set_solver]|]. fold (KontGetKey2 k2 a b). fold (KontChannel2 l1' l2' k2 a b).
-      iApply (rel_bind [_;_] [_] _ _ iThyBot); [iApply traversable_bot|iApply iThy_le_bot|].
-      iApply (rel_load_r with "Hl1s"). iIntros "_". 
-      iApply fupd_rel.
       iApply (rel_na_inv _ _ tapeN ); [set_solver|].
-      iFrame "Hinv". iModIntro.
-      iIntros "(>Htape & Hclose)". 
-      iApply (rel_randT_empty_l []). iFrame.
-      iIntros (a') "!> Htape _".
-      iApply rel_na_close. iFrame "Hclose Htape".
-      iApply rel_value.
-      rel_pures_r; [set_solver|]. fold (KontChannel2' l1' l2' k2 a b).
-      do 2 rel_pure_l. rel_exp_l.
-      rel_pures_l; [set_solver|]. fold (KontChannel1 l1 l2 k1 a' α).
-      iApply (rel_load_l with "Hl1").
-      iIntros "!> _".
-      rel_pures_l; [set_solver|]. fold (KontChannel1' l1 l2 k1 a' α).
+      iFrame "Hinv". 
+      iIntros "(>(Htape & [(Hbeta & Hl2 & Hl2s & Hlb) | (Hbeta & Hl2 & Hl2s &Hlb)]) & Hclose)". 
+      + iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl2".
+        iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2s"). iIntros "Hl2s". rel_pures_l.
+        iDestruct ("HQ" with "Hnone") as "HQfill".
+        iDestruct ("Hk" with "HQfill") as "Hfillrel".
+        iClear (Hk1 Hk2) "Hnone Hsome HQ Hk HQfill".
+       
+        (* First call is done. Can call getKey1 or getKey2 again. *)
+        iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
+        iClear (k1 k2 S) "Hfillrel".
+        iLöb as "IH".
+        iSplit; [iIntros (v1 v2) "(-> & ->)"; rel_pures_l; by rel_pures_r|].
+        iIntros (e1 e2 ?)
+          "[%e1' [%e2' [%k1 [%k2 [%S
+        (-> & %Hk1 & -> & %Hk2 & [(-> & -> & (#Hnone & #Hsome)) | (-> & -> & (#Hnone & #Hsome))] & #HQ)
+       ]]]]] #Hk".
 
-      iApply (rel_bind' [_] [_]); [iApply traversable_iThyTraverse|].
-      iApply rel_introduction'.
-      iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-      iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-      iRight.
-      do 2 (iSplit; try (iPureIntro; done)).
-      iSplit.
-      2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-            iDestruct ("HQ" with "Hnone") as "HQfill".
-            iDestruct ("Hk" with "HQfill") as "Hfillrel".
-            iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-            iApply "IH". }
-      clear b1 b2.
-      iIntros (b1 b2).
-      iApply rel_value. rel_pures_l. rel_pures_r.
-      iApply (rel_load_l with "Hl2"). iIntros "!> _".
-      iApply (rel_load_r with "Hl2s"). iIntros "_".
-      rel_pures_l. rel_pures_r.
-      iDestruct ("HQ" with "Hnone") as "HQnone".
-      iDestruct ("Hk" with "HQnone") as "Hknone".
-      iApply (rel_exhaustion [_;_] [_;_] with "[$]").
-      iApply "IH".
+      (* getKey1 second time. No a is sampled *)
+        * do 2 rel_pures_l; [apply Hk1; set_solver|]. fold (KontGetKey1 k1 la lb α β).
+          do 2 rel_pures_r; [split; [apply Hk2; set_solver| set_solver]|]. fold (KontGetKey2 k2 a b). fold (KontChannel2 bob l1' l2' k2 a b).
+          iApply (rel_bind [_;_] [_] _ _ iThyBot); [iApply traversable_bot|iApply iThy_le_bot|].
+          iApply (rel_load_r with "Hl1s"). iIntros "_".
+          iApply (rel_load_l with "Hla"). iIntros "!> _". rel_pures_l. iModIntro.
+          rel_pures_l. rel_exp_l.
+          rel_pures_r; [set_solver|]. fold (KontChannel2' l1' l2' k2 a b).
+          rel_pures_l; [set_solver|]. fold (KontChannel1 bob la lb l1 l2 k1 a α β).
+          iApply (rel_load_l with "Hl1").
+          iIntros "!> _".
+          rel_pures_l; [set_solver|]. fold (KontChannel1' la lb l1 l2 k1 a α β).
+
+          iApply (rel_bind' [_] [_]); [iApply traversable_iThyTraverse|].
+          iApply rel_introduction'.
+          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+          iRight.
+          do 2 (iSplit; try (iPureIntro; done)). iModIntro.
+          iSplit.
+          2 : { iApply rel_value. rel_pures_l. rel_pures_r.
+                iDestruct ("HQ" with "Hnone") as "HQfill".
+                iDestruct ("Hk" with "HQfill") as "Hfillrel".
+                iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
+                iApply "IH". }
+        iIntros (b1' b2').
+        iApply rel_value. rel_pures_l. rel_pures_r.
+        iApply (rel_na_inv _ _ tapeN ); [set_solver|].
+        iFrame "Hinv". 
+        iIntros "(>(Htape & [(Hbeta & Hl2 & Hl2s & Hlb) | (Hbeta & Hl2 & Hl2s &Hlb)]) & Hclose)". 
+          -- iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl2".
+             iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2s"). iIntros "Hl2s".
+             iApply rel_na_close. iFrame. iSplitR "Hla"; [iLeft; iFrame| ]. 
+             rel_pures_l. rel_pures_r.
+             iDestruct ("HQ" with "Hnone") as "HQnone".
+             iDestruct ("Hk" with "HQnone") as "Hknone".
+             iApply (rel_exhaustion [_;_] [_;_] with "[$]").
+             iApply "IH".
+          -- iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl2".
+             iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2s"). iIntros "Hl2s".
+             iApply rel_na_close. iFrame. iSplitR "Hla"; [iRight; iFrame| ]. simpl.
+             rel_pures_l. rel_pures_r.
+             rel_exp_l. rel_pures_l.
+             rewrite -expgM. rewrite -ssrnat.multE.
+             rewrite -Nat.mul_comm.
+             iDestruct ("HQ" with "Hsome") as "HQsome".
+             iDestruct ("Hk" with "HQsome") as "Hksome".
+             iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
+             iApply "IH".
+
+      (* getKey2 after first getKey1. *)
+        * do 2 rel_pures_l; [apply Hk1; set_solver|]. fold (KontGetKey1 k1 la lb α β).
+          do 2rel_pures_r; [split; [apply Hk2; set_solver| set_solver]|]. fold (KontGetKey2 k2 a b). fold (KontChannel2 alice l1' l2' k2 a b).
+          iApply (rel_na_inv _ _ tapeN ); [set_solver|].
+          iFrame "Hinv". 
+          iIntros "(>(Htape & [(Hbeta & Hl2 & Hl2s & Hlb) | (Hbeta & Hl2 & Hl2s &Hlb)]) & Hclose)".
+
+        (* getKey2 hasn't been called before *)
+        * (* iApply (rel_load_r_with_mask _ _ _ _ [_]).
+             iApply (rel_bind_mask _ [_;_] [_] _ _ iThyBot); [iApply traversable_bot|iApply iThy_le_bot|]. *)
+
+          (* simpl. iApply (rel_load_l_mask _ (⊤ ∖ ↑tapeN)). iIntros "!> Hlb". rel_pures_l.
+           (KontGetKey1 k1 β).
+           do 2 rel_pures_r; [split; [apply Hk2; set_solver| set_solver]|].
+           fold (KontGetKey2 k2 a b). fold (KontChannel2 alice l1' l2' k2 a b). *) admit.
+
+        (* getKey2 has been called before *)
+        *  admit.
+
+      (* getKey2 after first getKey1. *)
+      + do 2 rel_pures_l; [apply Hk1; set_solver|].
+        iApply (rel_na_inv _ _ tapeN ); [set_solver|].
+        iFrame "Hinv". 
+        iIntros "(>(Htape & [(Hbeta & Hl2 & Hl2s & Hlb) | (Hbeta & Hl2 & Hl2s &Hlb)]) & Hclose)".
+
+        (* getKey2 hasn't been called before *)
+        * (* simpl. iApply (rel_load_l_mask _ (⊤ ∖ ↑tapeN)). iIntros "!> Hlb". rel_pures_l.
+           (KontGetKey1 k1 β).
+           do 2 rel_pures_r; [split; [apply Hk2; set_solver| set_solver]|].
+           fold (KontGetKey2 k2 a b). fold (KontChannel2 alice l1' l2' k2 a b). *) admit.
+
+        (* getKey2 has been called before *)
+        * admit. }
+
+ 
   Admitted. 
       
   Lemma DH_KE_C_DH_real (g : nat) f1 f2:

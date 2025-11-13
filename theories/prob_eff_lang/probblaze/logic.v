@@ -469,13 +469,17 @@ Section baze_rules.
 
   Implicit Types X Y Z : iThy Σ.
 
-  Lemma obs_refines_value (v1 v2 : val) R : R v1 v2 -∗ obs_refines ⊤ v1 v2 R.
+  Lemma obs_refines_value_mask E (v1 v2 : val) R : (na_ownP E ={⊤}=∗ na_ownP ⊤ ∗ R v1 v2) -∗ obs_refines E v1 v2 R.
   Proof.
     rewrite obs_refines_eq /obs_refines_def.
-    iIntros "HR" (k ε) "Hj Hna Herr %Hpos".
+    iIntros "HR" (k ε) "Hj Hna Herr Hpos".
+    iMod ("HR" with "Hna") as "[HF HR]".
     iApply wp_value.
-    iExists v2. by iFrame.
+    iExists v2. by iFrame. 
   Qed.
+
+  Lemma obs_refines_value (v1 v2 : val) R : R v1 v2 -∗ obs_refines ⊤ v1 v2 R.
+  Proof. iIntros "HR". iApply obs_refines_value_mask. iIntros "HF". iModIntro. iFrame. Qed.
 
   Lemma kwp_empty R : ⊢ kwp R [] [] iThyBot R.
   Proof.
@@ -484,6 +488,16 @@ Section baze_rules.
     - by iIntros (???) "?".
   Qed.
 
+  Lemma rel_value_mask E (v1 v2 : val) X R : (na_ownP E ={⊤}=∗ na_ownP ⊤ ∗ R v1 v2) ⊢ REL v1 ≤ v2 @ E <|X|> {{R}}.
+  Proof.
+    rewrite !rel_unfold /rel_pre.
+    iIntros "HR" (k1 k2 S) "[Hvalue _]".
+    rewrite obs_refines_eq /obs_refines_def.
+    iIntros (k ε) "Hj Hna Herr Hpos".
+    iMod ("HR" with "Hna") as "[HF HR]".
+    iApply ("Hvalue" with "[$][$][$][$][$]").
+  Qed.
+    
   Lemma rel_value (v1 v2 : val) X (R : val -d> val -d> iProp Σ) : R v1 v2 ⊢ REL v1 ≤ v2 <|X|> {{ R }}.
   Proof.
     rewrite !rel_unfold /rel_pre.
@@ -553,6 +567,21 @@ Section baze_rules.
     rewrite /IsExcept0. iIntros "HL".
     iApply fupd_rel. by iMod "HL".
   Qed.
+
+  (* Lemma rel_introduction_mask E e1 e2 Q X R :
+       X e1 e2 Q -∗
+       □ ▷ (∀ s1 s2, Q s1 s2 -∗ REL s1 ≤ s2 <|X|> {{R}}) -∗
+       REL e1 ≤ e2 @ E <|X|> {{R}}.
+     Proof.
+       rewrite !rel_unfold /rel_pre.
+       iIntros "HX #HQ" (k1 k2 S). iIntros "[_ Hprot]".
+       iDestruct ("Hprot" with "HX HQ") as "Hprot".
+       rewrite obs_refines_eq /obs_refines_def.
+       iIntros (k ε) "Hj Hna Herr Hpos".
+       iApply ("Hprot" with "[$][Hna][$][$]").
+       by iDestruct ((na_own_acc E) with "Hna") as "(HE & _)". 
+       by iApply ("Hprot" with "HX"). *)
+
 
   Lemma rel_introduction e1 e2 Q X R :
     X e1 e2 Q -∗
@@ -764,6 +793,45 @@ Lemma rel_inv_restore N P e1 e2 X R :
     iApply (iThy_le_sum_r with "Hle").
   Qed.
 
+  Lemma rel_exhaustion_mask E k1 k2 e1 e2 X Y R S :
+    REL e1 ≤ e2 @ E <|X|> {{R}} -∗
+
+    ((∀ v1 v2, R v1 v2 -∗ REL fill k1 v1 ≤ fill k2 v2 <|Y|> {{S}})
+
+       ∧
+
+     (∀ e1' e2' Q,
+       X e1' e2' Q -∗
+       □ ▷ (∀ s1 s2, Q s1 s2 -∗ REL s1 ≤ s2 <|X|> {{R}}) -∗
+       REL fill k1 e1' ≤ fill k2 e2' <|Y|> {{S}})
+    ) -∗
+
+    REL fill k1 e1 ≤ fill k2 e2 @ E <|Y|> {{S}}.
+  Proof.
+    rewrite !rel_unfold /rel_pre.
+    iIntros "Hrel Hfill".
+    iIntros (k1' k2' T) "HK".
+    rewrite -!fill_app.
+    iApply "Hrel".
+    iSplit.
+    - iIntros (v1 v2) "HR".
+      iSpecialize ("Hfill" with "HR").
+      rewrite !rel_unfold /rel_pre !fill_app.
+      iDestruct ("Hfill" with "HK") as "Hfill".
+      rewrite obs_refines_eq /obs_refines_def.
+      iIntros (k ε) "Hj Hna Herr Hpos".
+      iApply ("Hfill" with "[$][$][$][$]").
+    - iIntros (e1' e2' Q) "HX #HQ".
+      iSpecialize ("Hfill" with "HX HQ").
+      rewrite !rel_unfold /rel_pre.
+      iSpecialize ("Hfill" $! k1' k2').
+      rewrite -!fill_app.
+      iDestruct ("Hfill" with "[$]") as "Hfill".
+      rewrite obs_refines_eq /obs_refines_def.
+      iIntros (k ε) "Hj Hna Herr Hpos".
+      iApply ("Hfill" with "[$][$][$][$]").
+  Qed.
+    
   Lemma rel_exhaustion k1 k2 e1 e2 X Y R S :
     REL e1 ≤ e2 <|X|> {{R}} -∗
 
@@ -867,6 +935,24 @@ Lemma rel_inv_restore N P e1 e2 X R :
     }
   Qed.
 
+  Lemma rel_bind_mask E k1 k2 e1 e2 X Y R :
+    traversable k1 k2 X -∗
+    iThy_le X Y -∗
+    REL e1 ≤ e2 @ E <|X|> {{ (λ v1 v2, REL fill k1 v1 ≤ fill k2 v2 <|Y|> {{R}} )}} -∗
+    REL fill k1 e1 ≤ fill k2 e2 @ E <|Y|> {{R}}.
+  Proof.
+    iIntros "#Htrav #Hle He12".
+    iLöb as "IH" forall (e1 e2 E).
+    iApply (rel_exhaustion_mask with "He12"). iSplit; first auto.
+    iIntros (???) "HX #Hk".
+    iDestruct ("Htrav" with "HX") as "(%Q' & HX & #HQ)".
+    iDestruct ("Hle" with "HX") as "HY".
+    iApply (rel_introduction with "HY").
+    iIntros "!> !> %% HQ'". clear e1 e2.
+    iDestruct ("HQ" with "HQ'") as "[%e1 [%e2 (-> & -> & H)]]".
+    iApply "IH". by iApply "Hk".
+  Qed.
+  
   Lemma rel_bind k1 k2 e1 e2 X Y R :
     traversable k1 k2 X -∗
     iThy_le X Y -∗
@@ -930,10 +1016,10 @@ Lemma rel_inv_restore N P e1 e2 X R :
     REL e1 ≤ e2 <|Y|> {{R}} -∗ REL e1 ≤ e2 <|iThySum X Y|> {{R}}.
   Proof. by iIntros "?"; iApply rel_introduction_sum_swap; iApply rel_introduction_sum_l. Qed.
 
-  Lemma obs_refines_pure_step_l e1 e1' e2 φ n S :
+  Lemma obs_refines_pure_step_l e1 e1' e2 φ n E S :
     φ →
     PureExec φ n e1 e1' →
-    ▷^n (obs_refines ⊤ e1' e2 S) -∗ obs_refines ⊤ e1 e2 S.
+    ▷^n (obs_refines E e1' e2 S) -∗ obs_refines E e1 e2 S.
   Proof.
     rewrite obs_refines_eq /obs_refines_def.
     iIntros (Hφ Hexec) "He1' %k2 %ε Hj Hna Herr %Hpos".
@@ -982,10 +1068,10 @@ Lemma rel_inv_restore N P e1 e2 X R :
     PureExec φ n (fill K e1) (fill K e2).
   Proof. rewrite /PureExec; eauto using pure_step_nsteps_ctx. Qed.
 
-  Lemma rel_pure_step_l e1 e1' e2 X φ n R :
+  Lemma rel_pure_step_l e1 e1' e2 E X φ n R :
     φ →
     PureExec φ n e1 e1' →
-    ▷^n ( REL e1' ≤ e2 <|X|> {{R}}) ⊢ REL e1 ≤ e2 <|X|> {{R}}.
+    ▷^n ( REL e1' ≤ e2 @ E <|X|> {{R}}) ⊢ REL e1 ≤ e2 @ E <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre.
     iIntros (Hφ Hexec) "Hrel"; iIntros (k1 k2 S) "Hkwp".
@@ -995,11 +1081,11 @@ Lemma rel_inv_restore N P e1 e2 X R :
     { iIntros "!>". iApply ("Hrel" with "Hkwp"). }
   Qed.
 
-  Lemma rel_pure_step_l' e1 e1' e2 φ n X R :
+  Lemma rel_pure_step_l' e1 e1' e2 φ n E X R :
     PureExec φ n e1 e1' →
     φ →
-    ▷^n (REL e1' ≤ e2 <|X|> {{R}}) ⊢ REL e1 ≤ e2 <|X|> {{R}}.
-  Proof. by intros ??; apply (rel_pure_step_l _ _ _ _ φ). Qed.
+    ▷^n (REL e1' ≤ e2 @ E <|X|> {{R}}) ⊢ REL e1 ≤ e2 @ E <|X|> {{R}}.
+  Proof. by intros ??; apply (rel_pure_step_l _ _ _ _ _ φ). Qed.
 
   Lemma rel_pure_step_r_with_mask E e1 e2 e2' φ n X R :
     PureExec φ n e2 e2' →
@@ -1181,10 +1267,10 @@ Lemma rel_inv_restore N P e1 e2 X R :
     by iApply ("Hrel" with "Hl2 Hkwp Hj Hnais Herr").
   Qed.
 
-  Lemma rel_store_l X R k1 l1 v1 w1 e2 :
-    ▷ l1 ↦ v1 -∗
-    ▷ (l1 ↦ w1 -∗ REL fill k1 #(()%V) ≤ e2 <|X|> {{R}}) -∗
-    REL fill k1 (#l1 <- w1) ≤ e2 <|X|> {{R}}.
+  Lemma rel_store_l E X R k1 l1 v1 w1 e2 :
+     ▷ l1 ↦ v1 -∗
+    ▷ (l1 ↦ w1 -∗ REL fill k1 #(()%V) ≤ e2 @ E <|X|> {{R}}) -∗
+    REL fill k1 (#l1 <- w1) ≤ e2 @ E <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
     iIntros "Hl1 Hrel %k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
@@ -1195,24 +1281,10 @@ Lemma rel_inv_restore N P e1 e2 X R :
     by iApply ("Hrel" with "Hl1 Hkwp Hj Hnais Herr").
   Qed.
 
-  (* Lemma rel_store_r_with_mask E X R e1 k2 l2 v2 w2 :
-       nclose specN ⊆ E →
-       l2 ↦ₛ v2 -∗
-       (l2 ↦ₛ w2 -∗ REL e1 ≤ fill k2 #() @ E <|X|> {{R}}) -∗
-       REL e1 ≤ fill k2 (#l2 <- w2) @ E <|X|> {{R}}.
-     Proof.
-       rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-       iIntros (HE) "Hl2 Hrel %k1' %k2' %S Hkwp %j %k2'' #Hspec Hj".
-       rewrite -!fill_app.
-       iMod (step_store with "Hspec Hj Hl2") as "[Hj Hl2]"; first done.
-       rewrite !fill_app.
-       iApply ("Hrel" with "Hl2 Hkwp Hspec Hj").
-     Qed. *)
-
-  Lemma rel_store_r X R e1 k2 l2 v2 w2 :
+  Lemma rel_store_r E X R e1 k2 l2 v2 w2 :
     l2 ↦ₛ v2 -∗
-    (l2 ↦ₛ w2 -∗ REL e1 ≤ fill k2 #(()%V) <|X|> {{R}}) -∗
-    REL e1 ≤ fill k2 (#l2 <- w2) <|X|> {{R}}.
+    (l2 ↦ₛ w2 -∗ REL e1 ≤ fill k2 #(()%V) @ E <|X|> {{R}}) -∗
+    REL e1 ≤ fill k2 (#l2 <- w2) @ E <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
     iIntros "Hl2 Hrel %k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
@@ -1221,7 +1293,7 @@ Lemma rel_inv_restore N P e1 e2 X R :
     rewrite !fill_app.
     by iApply ("Hrel" with "Hl2 Hkwp Hj Hnais Herr").
   Qed.
-
+s
   (* Rel rules probabilistic fragment *)
 
   Lemma rel_alloctape_r E K N z t X R :
