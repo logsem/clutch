@@ -44,7 +44,7 @@ Section diffpriv.
   #[global] Arguments wp_diffpriv_pw (_)%_E (_ _)%_R  _ _ _ _ %_stdpp.
 
   (* this is what's called internally (ε,δ)-dp in the paper *)
-  (* no rescaling, classic diffpriv; strict version w/o equivalence *)
+  (* classic (ε,δ)-diffpriv; strict version w/o equivalence *)
   Definition hoare_diffpriv_classic (f : expr) ε δ `(dA : Distance A) B `{Inject B val} : iProp Σ :=
     ∀ K (x x' : A), ⌜dA x x' <= 1⌝ -∗
       {{{ ⤇ fill K (f (Val (inject x'))) ∗ ↯m ε ∗ ↯ δ }}}
