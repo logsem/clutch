@@ -208,7 +208,7 @@ Proof.
   intros ? ? Hwp. eapply DPcoupl_mass_leq. by eapply wp_adequacy.
 Qed.
 
-Corollary wp_diffpriv_Z Σ `{diffprivGpreS Σ} (e : expr) (σ σ' : state) (ε δ : R) :
+Corollary wp_diffpriv_list Σ `{diffprivGpreS Σ} (e : expr) (σ σ' : state) (ε δ : R) :
   0 <= ε → 0 <= δ ->
   (∀ x y, (IZR (list_dist x y) <= 1) →
           ∀ `{diffprivGS Σ}, ⊢ ⤇ e (list.inject_list y) -∗ ↯m ε -∗ ↯ δ -∗ WP e (list.inject_list x) {{ v, ∃ v', ⤇ Val v' ∗ ⌜v = v'⌝ }})
@@ -222,7 +222,7 @@ Proof.
 Qed.
 
 (* internal diffpriv implies external approximate diffpriv *)
-Fact hoare_diffpriv_pure f ε δ (εpos : (0 <= ε)%R) (δpos : (0 <= δ)%R) :
+Fact hoare_diffpriv_pure_list f ε δ (εpos : (0 <= ε)%R) (δpos : (0 <= δ)%R) :
   (∀ `{diffprivGS Σ}, ⊢ hoare_diffpriv_classic f ε δ (dlist _) _)
   →
     ∀ σ,
@@ -232,11 +232,44 @@ Fact hoare_diffpriv_pure f ε δ (εpos : (0 <= ε)%R) (δpos : (0 <= δ)%R) :
       ε δ.
 Proof.
   intros hwp ?.
-  eapply (wp_diffpriv_Z diffprivΣ) ; eauto ; try lra.
+  eapply (wp_diffpriv_list diffprivΣ) ; eauto ; try lra.
   iIntros (????) "f' ε δ".
   tp_bind (f _).
   iApply (hwp with "[] [$f' ε δ]").
   2: iFrame.
   1: rewrite /dlist //= //.
   iNext. iIntros (??) "[% $] //".
+Qed.
+
+Corollary wp_diffpriv_Z Σ `{diffprivGpreS Σ} (e : expr) (σ σ' : state) (ε δ : R) :
+  0 <= ε → 0 <= δ ->
+  (∀ x y, (IZR (Z.abs (x - y)) <= 1) →
+          ∀ `{diffprivGS Σ}, ⊢ ⤇ e #y -∗ ↯m ε -∗ ↯ δ -∗ WP e #x {{ v, ∃ v', ⤇ Val v' ∗ ⌜v = v'⌝ }})
+  →
+    diffpriv_approx (λ x y, IZR (Z.abs (x - y))) (λ x, (lim_exec (e #x, σ))) ε δ.
+Proof.
+  intros Hε Hδ Hwp. apply DPcoupl_diffpriv.
+  intros. eapply wp_adequacy.
+  1: eauto. 1: apply Hε. 1: apply Hδ.
+  intros. apply Hwp. done.
+Qed.
+
+(* hoare_diffpriv implies approximate diffpriv *)
+Fact hoare_diffpriv_pure f ε δ (εpos : (0 <= ε)%R) (δpos : (0 <= δ)%R) :
+  (∀ `{diffprivGS Σ}, ⊢ hoare_diffpriv f ε δ dZ Z)
+  →
+    ∀ σ,
+    diffpriv_approx
+      (λ x y, IZR (Z.abs (x - y)))
+      (λ x, lim_exec (f #x, σ))
+      ε δ.
+Proof.
+  intros hwp ?.
+  eapply (wp_diffpriv_Z diffprivΣ) ; eauto ; try lra.
+  iIntros (????) "f' ε δ".
+  tp_bind (f _).
+  iApply (hwp with "[] [$f' ε δ]").
+  2: erewrite 2!Rmult_1_l ; iFrame.
+  1: rewrite /dZ /= -abs_IZR //.
+  iNext. iIntros (?) "$ //".
 Qed.
