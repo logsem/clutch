@@ -46,6 +46,6 @@ clean:
 # 	git archive --format=tar.gz -o coq-clutch.tar.gz HEAD
 
 zip:
-	git archive --format=zip -o rocq-clutch-dp.zip HEAD
+	git archive --format=zip -o rocq-clutch-dp.zip --prefix=rocq-clutch-dp/ HEAD
 
 .PHONY: clean zip

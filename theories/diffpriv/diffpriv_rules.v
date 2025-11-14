@@ -44,15 +44,13 @@ Section diffpriv.
   #[global] Arguments wp_diffpriv_pw (_)%_E (_ _)%_R  _ _ _ _ %_stdpp.
 
   (* this is what's called internally (ε,δ)-dp in the paper *)
-  (* no rescaling, classic diffpriv; strict version w/o equivalence *)
   Definition hoare_diffpriv_classic (f : expr) ε δ `(dA : Distance A) B `{Inject B val} : iProp Σ :=
     ∀ K (x x' : A), ⌜dA x x' <= 1⌝ -∗
       {{{ ⤇ fill K (f (Val (inject x'))) ∗ ↯m ε ∗ ↯ δ }}}
         f (Val (inject x))
       {{{ (y y' : B), RET (inject y); ⌜y = y'⌝ ∗ ⤇ fill K (inject y') }}}.
-  (* #[global] Arguments hoare_diffpriv_classic _%_E (_ _)%_R  _ _  _ _ %_stdpp. *)
 
-  (* built in rescaling ~ group privacy *)
+  (* variant with built-in rescaling: this corresponds to group privacy *)
   Definition hoare_diffpriv (f : expr) ε δ `(dA : Distance A) B `{Inject B val} : iProp Σ :=
     ∀ K c (x x' : A), ⌜dA x x' <= c⌝ -∗
       {{{ ⤇ fill K (f (Val (inject x'))) ∗ ↯m (c * ε) ∗ ↯ (c * δ) }}}

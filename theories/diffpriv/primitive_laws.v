@@ -130,39 +130,6 @@ Section tape_interface.
     iExists xs; auto.
   Qed.
 
-  (*
-  Lemma spec_tapeN_to_empty l M :
-    (l ↪ₛN ( M ; [] ) -∗ l ↪ₛ ( M ; [] )).
-  Proof.
-    iIntros "Hl".
-    iDestruct "Hl" as (?) "(%Hmap & Hl')".
-    by destruct (fmap_nil_inv _ _ Hmap).
-  Qed.
-
-
-  Lemma empty_to_spec_tapeN l M :
-    (l ↪ₛ ( M ; [] ) -∗ l ↪ₛN ( M ; [] )).
-  Proof.
-    iIntros "Hl".
-    iExists []. auto.
-  Qed.
-
-  Lemma read_spec_tape_head l M n ns :
-    (l ↪ₛN ( M ; n :: ns ) -∗
-      ∃ x xs, l ↪ₛ ( M ; x :: xs ) ∗ ⌜ fin_to_nat x = n ⌝ ∗
-              ( l ↪ₛ ( M ; xs ) -∗l ↪ₛN ( M ; ns ) )).
-  Proof.
-    iIntros "Hl".
-    iDestruct "Hl" as (xss) "(%Hmap & Hl')".
-    destruct (fmap_cons_inv _ _ _ _ Hmap) as (x&xs&->&Hxs&->).
-    iExists x, xs.
-    iFrame.
-    iSplit; auto.
-    iIntros.
-    iExists xs; auto.
-  Qed.
-*)
-
 End tape_interface.
 
 

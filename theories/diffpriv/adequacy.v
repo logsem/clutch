@@ -181,25 +181,6 @@ Proof.
   by eapply wp_adequacy_exec_n.
 Qed.
 
-(* Corollary wp_adequacy_error_lim Σ `{diffprivGpreS Σ} (e e' : expr) (σ σ' : state) (ε : R) φ :
-     0 <= ε →
-     (∀ `{diffprivGS Σ} (ε' : R),
-         ε < ε' → ⊢ ⤇ e' -∗ ↯ ε' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
-     Mcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ ε.
-   Proof.
-     intros ? Hwp.
-     apply Mcoupl_limit.
-     intros ε' Hineq.
-     assert (0 <= ε') as Hε'.
-     { trans ε; [done|lra]. }
-     pose (mknonnegreal ε' Hε') as NNRε'.
-     assert (ε' = (NNRbar_to_real (NNRbar.Finite NNRε'))) as Heq; [done|].
-     rewrite Heq.
-     eapply wp_adequacy; [done|done|].
-     iIntros (?).
-     by iApply Hwp.
-   Qed. *)
-
 Corollary wp_adequacy_mass Σ `{!diffprivGpreS Σ} (e e' : expr) (σ σ' : state) φ (ε δ : R) :
   0 <= ε → 0 <= δ ->
   (∀ `{diffprivGS Σ}, ⊢  ⤇ e' -∗ ↯m ε -∗ ↯ δ -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
