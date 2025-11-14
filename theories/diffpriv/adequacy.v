@@ -238,7 +238,7 @@ Proof.
   iApply (hwp with "[] [$f' ε δ]").
   2: iFrame.
   1: rewrite /dlist //= //.
-  iNext. iIntros (??) "[% $] //".
+  iNext. iIntros (?) "$ //".
 Qed.
 
 Corollary wp_diffpriv_Z Σ `{diffprivGpreS Σ} (e : expr) (σ σ' : state) (ε δ : R) :
