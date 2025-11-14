@@ -145,63 +145,12 @@ Section diffpriv.
     etrans => //. apply Rmult_le_compat_l => //.
   Qed.
 
-  Corollary laplace_sensitive_comp_strict (f : val) (num den : Z) (_ : 0 < IZR num / IZR den) c `(dA : Distance A) (c_pos : 0 <= c) :
-    hoare_sensitive f c dA dZ -∗
-    hoare_diffpriv (λ:"x", (λ:"loc", Laplace #num #den "loc")%V (f "x"))%V
-      (c*(IZR num / IZR den)) 0 dA A.
-  Proof.
-    iIntros "hf".
-    set (ε := (IZR num / IZR den)).
-    replace 0%R with (c * 0) by lra.
-    iPoseProof (diffpriv_sensitive_strict_comp
-                  f (λ: "loc", Laplace #num #den "loc")%V
-                  ε 0 with "hf") as "Hf" => //.
-    iPoseProof (hoare_laplace_diffpriv num den with "[]") as "hg" => //.
-    fold ε.
-    (* iApply "Hf".
-       iIntros (?) "** % !> (rhs&ε&δ) hk".
-       rewrite /hoare_diffpriv. *)
-    (* iApply ("hg" with "[] [-hk]") => // ; iFrame. *)
-
-  Abort. 
-  (*   iIntros "!> * [%h h]". destruct h. *)
-  (*   iApply "hk". *)
-  (*   by iFrame. *)
-  (* Qed. *)
-
-  Corollary laplace_sensitive_comp (f : val) (num den : Z) (_ : 0 < IZR num / IZR den) c `(dA : Distance A) (c_pos : 0 <= c) :
-    hoare_sensitive f c dA dZ -∗
-    hoare_diffpriv_classic (λ:"x", (λ:"loc", Laplace #num #den "loc")%V (f "x"))%V
-      (c*(IZR num / IZR den)) 0 dA A.
-  Proof.
-    iIntros "#hf".
-    set (ε := (IZR num / IZR den)).
-    replace 0%R with (c * 0) by lra.
-    iPoseProof (diffpriv_sensitive_strict_comp
-                  f (λ: "loc", Laplace #num #den "loc")%V
-                  ε 0 with "hf") as "Hf" => // ; iClear "hf".
-    iSpecialize ("Hf" with "[]").
-    { iIntros (?) "** % !> (rhs&ε&δ) hk".
-      iPoseProof (hoare_laplace_diffpriv num den with "[]") as "#hg" => //.
-  Abort.
-  (*     iApply ("hg" with "[] [-hk]") => // ; iFrame. *)
-  (*     iIntros "!> * [%h h]". destruct h. *)
-  (*     iApply "hk". *)
-  (*     by iFrame. } *)
-  (*   rewrite /hoare_diffpriv_classic. *)
-  (*   iIntros "* %adj % !> (rhs&ε&δ) hk". *)
-  (*   rewrite /hoare_diffpriv. *)
-  (*   iApply ("Hf" with "[] [-hk]") => // ; iFrame. *)
-  (*   rewrite !Rmult_1_l. iFrame. *)
-  (* Qed. *)
-
   Lemma Rdiv_pos_den_0 x y (div_pos : 0 < x/y) : ¬ y = 0.
   Proof.
     intro d0. rewrite d0 in div_pos. rewrite Rdiv_0_r in div_pos. lra.
   Qed.
 
-  (* this is called internal metric composition in the paper *)
-  Corollary laplace_sensitive_comp_alt (f : val) (num den : Z) (div_pos : 0 < IZR num / IZR den) (cnum cden : Z) c `(dA : Distance A) (c_pos : 0 < c) (hc : c = (IZR cnum / IZR cden)) :
+  Corollary internal_metric_composition (f : val) (num den : Z) (div_pos : 0 < IZR num / IZR den) (cnum cden : Z) c `(dA : Distance A) (c_pos : 0 < c) (hc : c = (IZR cnum / IZR cden)) :
     hoare_sensitive f c dA dZ -∗
     hoare_diffpriv_classic (λ:"x", (λ:"loc", Laplace #(num * cden) #(den * cnum) "loc")%V (f "x"))
       ((IZR num / IZR den)) 0 dA Z.
@@ -233,7 +182,6 @@ Section diffpriv.
         + apply Rdiv_pos_pos ; real_solver.
         + apply Rdiv_neg_neg ; real_solver.
       }
-  (* Abort.  *)
       iApply ("hg" with "[] [-hk]") => // ; iFrame.
       { rewrite hc /ε.
         iApply ecm_eq ; [|iFrame] ; rewrite hcε.
@@ -285,20 +233,6 @@ Section diffpriv.
     - rewrite 2!Rmult_0_l. iFrame.
   Qed.
 
-  Fact sensitive_functional (f : val) c `(dA : Distance A) `(dB : Distance B) (c_pos : 0 <= c) :
-    hoare_sensitive f c dA dB -∗ hoare_functional_on dA B f.
-  Proof.
-    iIntros "#f_sens" (K z z') "!> f' hΦ".
-    rewrite /hoare_sensitive.
-    iApply ("f_sens" $! c_pos K with "[$f']").
-    iNext. iIntros (v) "(%b & %b' & -> & b' & %sens)".
-    iApply "hΦ". iFrame.
-  Abort.
-  (*   iPureIntro. *)
-  (*   move: sens. *)
-  (*   rewrite (distance_0 z) //. rewrite Rmult_0_r. apply distance_sep. *)
-  (* Qed. *)
-
   Corollary diffpriv_diffpriv_comp (f g : val) εf δf εg δg
     `(dA : Distance A) `(dB : Distance B) {C : Type} `{Inject C val}
     (εg_pos : 0 <= εg) (δg_pos : 0 <= δg) (εf_pos : 0 <= εf) (δf_pos : 0 <= δf) :
@@ -310,16 +244,6 @@ Section diffpriv.
     iApply (well_typed_diffpriv_comp f g εf δf c dA dB _ with "f_dipr f_cod g_fun") => //.
     Unshelve. etrans. 2: apply h. apply distance_pos.
   Qed.
-
-  (* Corollary sensitive_diffpriv_comp (g f : val) ε δ c (c_pos : 0 <= c) *)
-  (*   `(dA : Distance A) `(dB : Distance B) {C : Type} `(dC : Distance C) : *)
-  (*   hoare_diffpriv f ε δ dA B -∗ hoare_has_codomain B f -∗ *)
-  (*   hoare_sensitive g c dB dC -∗ hoare_diffpriv (λ:"x", g (f "x")) ε δ dA C. *)
-  (* Proof.     *)
-  (*   iIntros "#f_dipr f_cod #g_sens". *)
-  (*   iPoseProof (sensitive_functional with "g_sens") as "g_fun" => //. *)
-  (*   by iApply (well_typed_diffpriv_comp with "f_dipr f_cod g_fun"). *)
-  (* Qed. *)
 
   (* variant of diffpriv_diffpriv_seq_comp assuming strict DP for f. no hoare_diffpriv' required. *)
   Theorem diffpriv_strict_diffpriv_seq_comp (f g : val) εf δf εg δg
