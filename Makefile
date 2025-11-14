@@ -41,7 +41,11 @@ clean:
 	$(Q)rm -f .lia.cache
 	rm -f .coqdeps.d
 
-tar:
-	git archive --format=tar.gz -o coq-clutch.tar.gz HEAD
+# tar is bad for reviewing: it includes the username in the archive
+# tar:
+# 	git archive --format=tar.gz -o coq-clutch.tar.gz HEAD
+
+zip:
+	git archive --format=zip -o rocq-clutch-dp.zip HEAD
 
 .PHONY: clean zip
