@@ -75,7 +75,6 @@ Section svt.
         "T'" ≤ "vi".
 
   (* The spec that AT satisfies after initialising T'. *)
-  (* TODO prove triples instead to more closely match the paper. *)
   Definition AT_spec (c : R) (AUTH : iProp Σ) (f f' : val) : iProp Σ :=
     □ ∀ `(dDB : Distance DB) (db db' : DB) (_ : dDB db db' <= c) (q : val) (K0 : list ectx_item),
       wp_sensitive q 1 dDB dZ -∗
@@ -85,7 +84,6 @@ Section svt.
         {{ v, ∃ (b : bool), ⌜v = #b⌝ ∗ ⤇ fill K0 #b ∗
                             (⌜b = false⌝ -∗ AUTH) }}.
 
-  (* TODO prove triples instead to more closely match the paper. *)
   Definition SVT_spec (f f' : val) (iSVT : nat → iProp Σ) : iProp Σ :=
     (∀ `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) (q : val) K,
           wp_sensitive (Val q) 1 dDB dZ -∗
@@ -145,7 +143,6 @@ Section svt.
 
 
   (* We prove the (non-pw) spec for oAT from hoare_couple_laplace_choice. *)
-  (* TODO prove triples instead to more closely match the paper. *)
   Lemma above_threshold_online_AT_spec (num den T : Z) (εpos : 0 < IZR num / IZR den) (* c (cpos : 0 <= c) *) K :
     ↯m (1 * (IZR num / IZR den)) -∗
     ⤇ fill K ((Val above_threshold) #num #den #T)
@@ -305,7 +302,6 @@ Section svt.
            end) #0 list_nil.
 
   (* oSVT interacting with A to get queries until N results above T' have been found in db. *)
-  (* TODO add a list.reverse to the return cases (not interesting, just to match the paper) *)
   Definition SVT_stream : val :=
     λ:"num" "den" "T" "N" "stream_qs" "db",
       let: "f" := oSVT "num" "den" "T" "N" in
@@ -353,7 +349,6 @@ Section svt.
                "SVT" (if: "b" then "i" + #1 else "i") (list_cons "b" "bs")
              end)%V.
 
-  (* TODO generalize to c*ε to prove wp_diffpriv *)
   Lemma SVT_stream_diffpriv (num den T : Z) (N : nat) (Npos : (0 < N)%nat) (stream_qs : val) `(dDB : Distance DB) :
     let ε := IZR num / IZR den in
     ∀ (εpos : 0 < ε),

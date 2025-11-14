@@ -768,7 +768,6 @@ Section iter_markov.
     intros Hsup.
     assert (is_sup_seq (λ n : nat, SeriesC (exec n a)) 1).
     { rewrite -Hsup.
-      (* TODO: find a better solution than this sandwich business... *)
       rewrite (Rbar_le_sandwich 0 1).
       + apply Sup_seq_correct.
       + by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
@@ -822,7 +821,7 @@ Section iter_markov.
 
   Lemma iter_markov_terminates_eps (ϵ : posreal) a m:
     SeriesC (lim_exec a) = 1 →
-    ϵ <= 1 → (* TODO: this assumption should not be necessary *)
+    ϵ <= 1 →
     ∃ n, SeriesC (exec (δ := iter_markov a) n (a, m)) > 1 - ϵ.
   Proof.
     intros Ha.

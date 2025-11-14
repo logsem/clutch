@@ -749,7 +749,6 @@ Section couplings_theory.
   
 End couplings_theory.
 
-(* TODO: cleanup *)
 Section ARcoupl.
   Context `{Countable A, Countable B}.
   Variable (μ1 : distr A) (μ2 : distr B).

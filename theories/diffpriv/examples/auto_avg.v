@@ -63,7 +63,6 @@ Section dataset_operators.
     0 ≤ b → 0 ≤ sum_list (clip 0 b zs).
   Proof. induction zs => /=; [lia|]. rewrite /clipZ. lia. Qed.
 
-  (* TODO: move *)
   Lemma sum_list_app zs1 zs2 :
     sum_list (zs1 ++ zs2) = sum_list zs1 + sum_list zs2.
   Proof. induction zs1; [done|]. rewrite /= IHzs1. lia. Qed.

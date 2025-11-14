@@ -74,7 +74,6 @@ Section erasure_helpers.
     { intros. apply dbind_pmf_ext; [|done..].
       intros. rewrite dret_id_left. done. }
     rewrite -dmap_dbind.
-    (* TODO: fix slightly ugly hack ... *)
     revert IH; intro IHm.
     apply lookup_total_correct in Hα as Hαtot.
     pose proof (elem_fresh_ne _ _ _ Hα) as Hne.

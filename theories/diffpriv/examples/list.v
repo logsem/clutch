@@ -1277,7 +1277,6 @@ Section list_specs_extra.
     eauto.
   Qed.
 
-  (* TODO: clean up *)
   Lemma wp_list_mapi_loop `{!Inject B val}
         (f : nat -> A -> B) (k : nat) (l : list A) (fv lv : val)
         (γ : nat -> A -> iProp Σ) (ψ : nat -> B -> iProp Σ) E :

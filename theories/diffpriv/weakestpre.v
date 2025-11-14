@@ -461,7 +461,6 @@ Section coupl_modalities.
       intros [] ?? => /=. apply DPcoupl_dret; [done|done|]. eauto. }
     do 4 (iSplit; [done|]).
     iIntros (e2 σ2 e2' σ2').
-    (* TODO: Can classical logic be avoided here? *)
     destruct (decide (exists e2', e2 = K e2')) as [Hdecomp | Hdecomp].
     - destruct Hdecomp as [e3 He3].
       iDestruct ("Hcnt" $! e3 σ2 e2' σ2') as "[Hcnt1 Hcnt2]".

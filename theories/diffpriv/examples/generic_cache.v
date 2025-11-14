@@ -20,7 +20,6 @@ Section xcache.
 
   #[local] Open Scope R.
 
-  (* TODO instantiate exact_cache with a mechanism *)
 
   (* SPEC: If M is ε-dp, then exact_cache M qs is kε-dp where k = |unique(qs)|. *)
   Definition exact_cache : val :=

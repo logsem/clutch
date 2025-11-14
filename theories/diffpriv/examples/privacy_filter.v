@@ -13,7 +13,6 @@ Definition list_count : val :=
 
 Definition data : list Z := [25; 30; 31; 22; 40; 35; 29; 29; 31; 30]%Z.
 
-(* TODO move to theories/prob_lang/notation.v *)
 Notation "e1 <= e2" := (BinOp LeOp e1%E e2%E) : expr_scope.
 Notation "e1 ≤ e2" := (BinOp LeOp e1%E e2%E) : expr_scope.
 
@@ -42,7 +41,6 @@ Definition create_filter : val :=
 Definition laplace : val :=
   λ:"eps" "mean", Laplace (Fst "eps") (Snd "eps") "mean".
 
-(* fix evaluation order to be head before tail. makes the induction easier. *)
 Definition list_map : val :=
   rec: "list_map" "f" "l" :=
   match: "l" with

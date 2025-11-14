@@ -5,8 +5,6 @@ From stdpp Require Export countable.
 From clutch.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
 From clutch.prob Require Import couplings_exp couplings_dp.
 
-(* TODO define some of the standard metric spaces used as input for diffpriv *)
-
 Definition diffpriv_pure {A B : Type} `{Countable B}
   (d : A → A → R) (f : A → distr B) (ε : R) :=
   ∀ a1 a2,
