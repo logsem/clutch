@@ -51,8 +51,7 @@ Definition list_map : val :=
   | NONE => NONE
   end.
 
-(* Simpler variant of iter_adaptive_acc. Budget/epsilons are pairs of integers (needs variant of privacy filter). *)
-Definition map_adaptive_acc_terse_both : val :=
+Definition adaptive_count : val :=
   λ: "eps_coarse" "eps_precise" "threshold" "budget" "predicates" "data" ,
   let: "try_run" := create_filter "budget" in
   list_map
@@ -298,7 +297,7 @@ Section adaptive.
   end.
 
 
-  #[local] Definition map_adaptive_acc_terse_both_body
+  #[local] Definition adaptive_count_body
     (eps_coarse_num eps_coarse_den eps_precise_num eps_precise_den threshold : Z) (data try_run : val) : val :=
     (λ: "pred" ,
        let: "count_exact" := list_count "pred" data in
@@ -314,7 +313,7 @@ Section adaptive.
        try_run (#eps_coarse_num, #eps_coarse_den)%V "f").
 
   (* This is the spec one would want for iter_adaptive_acc, proven from the abstracted spec for the privacy filter. *)
-  Lemma wp_map_adaptive_acc_terse_both (ε_coarse_num ε_coarse_den ε_precise_num ε_precise_den threshold num_budget den_budget : Z)
+  Lemma wp_adaptive_count (ε_coarse_num ε_coarse_den ε_precise_num ε_precise_den threshold num_budget den_budget : Z)
     (ds1 ds2 : list Z) dsv1 dsv2 K
     (predicates : list (Z -> bool))
     (lvpredicates : list val)
@@ -329,31 +328,31 @@ Section adaptive.
     ⌜is_list_HO lvpredicates vpredicates⌝ -∗
     ([∗ list] pred;vpred ∈ predicates;lvpredicates, is_predicate pred vpred ∗ is_spec_predicate pred vpred) -∗
     ↯m (IZR num_budget / IZR den_budget) -∗
-    ⤇ fill K (map_adaptive_acc_terse_both (#ε_coarse_num, #ε_coarse_den)%V (#ε_precise_num, #ε_precise_den)%V #threshold (#num_budget, #den_budget)%V vpredicates dsv2) -∗
-    WP map_adaptive_acc_terse_both (#ε_coarse_num, #ε_coarse_den)%V (#ε_precise_num, #ε_precise_den)%V #threshold (#num_budget, #den_budget)%V vpredicates dsv1
+    ⤇ fill K (adaptive_count (#ε_coarse_num, #ε_coarse_den)%V (#ε_precise_num, #ε_precise_den)%V #threshold (#num_budget, #den_budget)%V vpredicates dsv2) -∗
+    WP adaptive_count (#ε_coarse_num, #ε_coarse_den)%V (#ε_precise_num, #ε_precise_den)%V #threshold (#num_budget, #den_budget)%V vpredicates dsv1
       {{ v, ⤇ fill K (of_val v) }}.
   Proof with (tp_pures ; wp_pures).
     iIntros "%hlen * % %". iIntros "%adj".
     iIntros "%ho_pred #is_pred ε rhs".
-    rewrite /map_adaptive_acc_terse_both...
+    rewrite /adaptive_count...
     tp_bind (create_filter _). wp_bind (create_filter _).
     iApply (create_filter_private' _ num_budget den_budget with "[$ε $rhs]") => //.
     iIntros "!> * (%&%&rhs&TRY_RUN&#run_dp)"... simpl...
-    rewrite -!/(map_adaptive_acc_terse_both_body _ _ _ _ _ _ _).
+    rewrite -!/(adaptive_count_body _ _ _ _ _ _ _).
     iRevert (K predicates vpredicates ho_pred hlen) "is_pred rhs TRY_RUN".
     iInduction lvpredicates as [|vpred lvpredicates'] "IH" ;
       iIntros (K predicates vpredicates ho_pred hlen) "#is_pred rhs TRY_RUN".
     - rewrite ho_pred. rewrite /list_map... done.
     - simpl in ho_pred. destruct ho_pred as (vpredicates' & hpred & ho_pred). rewrite hpred.
       rewrite /list_map. tp_pure ; wp_pure. rewrite -!/(list_map)...
-      set (f := map_adaptive_acc_terse_both_body ε_coarse_num ε_coarse_den ε_precise_num
+      set (f := adaptive_count_body ε_coarse_num ε_coarse_den ε_precise_num
        ε_precise_den threshold dsv1 try_run).
-      set (f' := map_adaptive_acc_terse_both_body ε_coarse_num ε_coarse_den ε_precise_num
+      set (f' := adaptive_count_body ε_coarse_num ε_coarse_den ε_precise_num
        ε_precise_den threshold dsv2 try_run').
 
       tp_bind (f' _) ; wp_bind (f _).
-      rewrite /f/f'/map_adaptive_acc_terse_both_body...
-      rewrite -!/(map_adaptive_acc_terse_both_body _ _ _ _ _ _ _).
+      rewrite /f/f'/adaptive_count_body...
+      rewrite -!/(adaptive_count_body _ _ _ _ _ _ _).
       rewrite /list_count /=...
       tp_bind (list_filter _ _) ; wp_bind (list_filter _ _).
       replace dsv1 with (inject ds1). 2: symmetry ; by apply is_list_inject.
@@ -447,7 +446,7 @@ Section adaptive.
   Qed.
 
   (* apply the general iter spec for some concrete predicates *)
-  Lemma wp_map_adaptive_acc_terse_both_app
+  Lemma wp_adaptive_count_app
     (ε_coarse_num ε_coarse_den ε_precise_num ε_precise_den threshold num_budget den_budget : Z)
     (ds1 ds2 : list Z) dsv1 dsv2 K
     (_ : 0 < ε_coarse_num) (_ : 0 < ε_precise_num)
@@ -458,17 +457,17 @@ Section adaptive.
     list_dist ds1 ds2 <= 1 ->
     ↯m (IZR num_budget / IZR den_budget) -∗
     ⤇ fill K
-      (map_adaptive_acc_terse_both (#ε_coarse_num, #ε_coarse_den)%V (#ε_precise_num, #ε_precise_den)%V
+      (adaptive_count (#ε_coarse_num, #ε_coarse_den)%V (#ε_precise_num, #ε_precise_den)%V
          #threshold (#num_budget, #den_budget)%V vpredicates dsv2)
     -∗
     WP
-      map_adaptive_acc_terse_both (#ε_coarse_num, #ε_coarse_den)%V (#ε_precise_num, #ε_precise_den)%V
+      adaptive_count (#ε_coarse_num, #ε_coarse_den)%V (#ε_precise_num, #ε_precise_den)%V
       #threshold (#num_budget, #den_budget)%V vpredicates dsv1
       {{ v, ⤇ fill K (of_val v) }}.
   Proof with (tp_pures ; wp_pures).
     intros.
     iIntros "ε rhs".
-    iApply (wp_map_adaptive_acc_terse_both with "[] [] ε rhs") ; last first.
+    iApply (wp_adaptive_count with "[] [] ε rhs") ; last first.
     1: iApply bar. 1: iPureIntro ; apply foo. all: eauto.
   Qed.
 
@@ -487,9 +486,9 @@ Lemma adaptive_count_diffpriv_cpl
     list_dist ds1 ds2 <= 1 ->
     ∀ σ,
       DPcoupl
-        (lim_exec ((map_adaptive_acc_terse_both (#ε_coarse_num, #ε_coarse_den)%V (#ε_precise_num, #ε_precise_den)%V
+        (lim_exec ((adaptive_count (#ε_coarse_num, #ε_coarse_den)%V (#ε_precise_num, #ε_precise_den)%V
          #threshold (#num_budget, #den_budget)%V vpredicates dsv1), σ))
-        (lim_exec ((map_adaptive_acc_terse_both (#ε_coarse_num, #ε_coarse_den)%V (#ε_precise_num, #ε_precise_den)%V
+        (lim_exec ((adaptive_count (#ε_coarse_num, #ε_coarse_den)%V (#ε_precise_num, #ε_precise_den)%V
          #threshold (#num_budget, #den_budget)%V vpredicates dsv2), σ))
         (λ v v', v = v')
         (IZR num_budget / IZR den_budget) 0.
@@ -502,7 +501,7 @@ Proof.
     apply IZR_lt => //.
   }
   iIntros (?) "rhs ε _".
-  iPoseProof (wp_map_adaptive_acc_terse_both_app ε_coarse_num ε_coarse_den ε_precise_num ε_precise_den threshold num_budget den_budget ds1 ds2 _ _ []) as "h" => //.
+  iPoseProof (wp_adaptive_count_app ε_coarse_num ε_coarse_den ε_precise_num ε_precise_den threshold num_budget den_budget ds1 ds2 _ _ []) as "h" => //.
   iSpecialize ("h" with "ε [rhs]"). 1: simpl ; iFrame.
   simpl.
   iApply (wp_wand with "h").
@@ -517,7 +516,7 @@ Lemma adaptive_count_diffpriv
     ∀ σ,
       diffpriv_pure
         (λ x y : list Z, IZR (list_dist x y))
-        (λ db, lim_exec ((map_adaptive_acc_terse_both (#ε_coarse_num, #ε_coarse_den)%V (#ε_precise_num, #ε_precise_den)%V
+        (λ db, lim_exec ((adaptive_count (#ε_coarse_num, #ε_coarse_den)%V (#ε_precise_num, #ε_precise_den)%V
          #threshold (#num_budget, #den_budget)%V vpredicates (inject db)), σ))
         (IZR num_budget / IZR den_budget).
 Proof.
