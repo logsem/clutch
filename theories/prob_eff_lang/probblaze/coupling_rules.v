@@ -548,5 +548,36 @@ Section rules.
     replace (_+_)%NNR with (ε) by (apply nnreal_ext; simpl; lra).
     done.
   Qed.
+
+  (** * rand(unit, N) ~ state_step(α', N) coupling *)
+  Lemma wp_couple_rand_tape N f `{Bij (fin (S N)) (fin (S N)) f} z E α ns :
+    TCEq N (Z.to_nat z) →
+    {{{ ▷ α ↪ₛ (N; ns) }}}
+      rand #z @ E
+    {{{ (n : fin (S N)), RET #n; α ↪ₛ (N; ns ++ [f n]) ∗ ⌜ n ≤ N ⌝ }}}.
+  Proof.
+    iIntros (H0 ?) ">Hαs Hwp".
+    iApply wp_lift_step_prog_couple; [done|].
+    iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
+    iDestruct (spec_auth_lookup_tape with "Hauth2 Hαs") as %?.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    replace (ε) with (0+ε)%NNR at 2 by (apply nnreal_ext; simpl; lra).
+    iApply prog_coupl_step_l_erasable; [done| |..].
+    { eexists. simpl. apply head_step_prim_step.
+      apply head_step_support_equiv_rel. unshelve econstructor; eauto using Fin.F1. by rewrite H0. }
+    { apply ARcoupl_exact.
+      eapply (Rcoupl_rand_state _ f); eauto.
+      rewrite -H0//. }
+    { by eapply state_step_erasable. }
+    iIntros (??? (n & [= -> ->] & ->)).
+    iMod (spec_auth_update_tape (_; ns ++ [f _]) with "Hauth2 Hαs") as "[Htapes Hαs]".
+    do 2 iModIntro.
+    iMod "Hclose'" as "_".
+    iFrame.
+    iApply wp_value.
+    iApply ("Hwp" $! _ with "[$Hαs]").
+    iPureIntro.
+    apply fin_to_nat_le.
+  Qed.
   
 End rules.

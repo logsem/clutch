@@ -1293,7 +1293,7 @@ Lemma rel_inv_restore N P e1 e2 X R :
     rewrite !fill_app.
     by iApply ("Hrel" with "Hl2 Hkwp Hj Hnais Herr").
   Qed.
-s
+
   (* Rel rules probabilistic fragment *)
 
   Lemma rel_alloctape_r E K N z t X R :
@@ -1571,6 +1571,31 @@ s
     by iApply ("H" with "[$][$][$][$]").
   Qed.    
 
+  Lemma rel_couple_UT N f `{Bij (fin (S N)) (fin (S N)) f} K E α X R z ns e :
+    TCEq N (Z.to_nat z) →
+    ▷ α ↪ₛ (N; ns) ∗
+    ▷ (∀ (n : fin (S N)), ⌜n ≤ N⌝ -∗ α ↪ₛ (N; ns ++ [f n]) -∗ REL fill K (Val #n) ≤ e @ E <|X|> {{R}})
+    ⊢ REL fill K (rand #z) ≤ e @ E <|X|> {{R}}.
+  Proof.
+    iIntros (->) "[>Hα Hcnt]".
+    rewrite rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros (k1 k2 S) "Hkwp %K2 %ε2 He2 Hnais Herr' %Hε'".
+    rewrite -!fill_app.
+    iApply wp_bind.
+    iApply (wp_couple_rand_tape with "Hα").
+    iIntros (n) "!> [Hα %le_n_z]".
+    iAssert ⌜n ≤ Z.to_nat z⌝%I as "h". 1: easy.
+    iSpecialize ("Hcnt" with "h Hα").
+    rewrite rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    rewrite !fill_app.
+    iSpecialize ("Hcnt" with "Hkwp He2 Hnais Herr'").
+    iSpecialize ("Hcnt" $! Hε'). simpl.
+    iApply (wp_mono with "Hcnt").
+    iIntros (v) "[% (%&? &?&?)]".
+    iExists _. iFrame.
+  Qed.
+
+  
   (* Error credit amplification *)
   Lemma rel_get_ec E e e' X A :
     (∀ ε : R, (↯ ε) -∗ ⌜(0 < ε)%R⌝ -∗ REL e ≤ e' @ E <|X|> {{A}}) ⊢
