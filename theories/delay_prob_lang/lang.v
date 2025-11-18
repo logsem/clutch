@@ -463,83 +463,335 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
 Definition subst' (mx : binder) (v : val) : expr → expr :=
   match mx with BNamed x => subst x v | BAnon => λ x, x end.
 
+(** For the stepping relations for unop and binop, we check as follows
+    - is it well typed, and has the right value? If not, dont step
+    - are any of the arguments a delayed value? if yes, just combine them symbolically
+    - otherwise it is normal semantics
+ *)
+
+(** Design choice: to simplify stuff with all these urn labels flying around
+    You can only compare LitVs. So InjLV x = InjLV x will NOT step. 
+    (To be fair in previous languages (InjLV (InjLV x)= InjLV (InjLV x)) will not
+    step as well due to the compare safe constraint, so its not THAT big a deal)
+ *)
+
+(* Note that there is no BLTLbl, because that is the BLTInt type *)
+Inductive base_lit_type :=
+| BLTUnit : base_lit_type
+| BLTInt : base_lit_type
+| BLTBool : base_lit_type
+| BLTLoc : base_lit_type
+.
+
+Fixpoint base_lit_type_check (bl:base_lit) :=
+  match bl with
+  | LitInt n => Some BLTInt
+  | LitBool b => Some BLTBool
+  | LitUnit => Some BLTUnit
+  | LitLoc l => Some BLTLoc
+  | LitLbl l => Some BLTInt
+  | NegOp' x =>
+      match base_lit_type_check x with
+      | Some BLTBool => Some BLTBool
+      | _ => None
+      end
+  | MinusUnOp' x =>
+      match base_lit_type_check x with
+      | Some BLTInt => Some BLTInt
+      | _ => None
+      end
+  | PlusOp' x1 x2 => 
+      match (base_lit_type_check x1, base_lit_type_check x2) with
+      | (Some BLTInt, Some BLTInt) => Some BLTInt
+      | _ => None
+      end
+  | MinusOp' x1 x2 => 
+      match (base_lit_type_check x1, base_lit_type_check x2) with
+      | (Some BLTInt, Some BLTInt) => Some BLTInt
+      | _ => None
+      end
+  | MultOp' x1 x2 => 
+      match (base_lit_type_check x1, base_lit_type_check x2) with
+      | (Some BLTInt, Some BLTInt) => Some BLTInt
+      | _ => None
+      end
+  | QuotOp' x1 x2 => 
+      match (base_lit_type_check x1, base_lit_type_check x2) with
+      | (Some BLTInt, Some BLTInt) => Some BLTInt
+      | _ => None
+      end
+  | RemOp' x1 x2 => 
+      match (base_lit_type_check x1, base_lit_type_check x2) with
+      | (Some BLTInt, Some BLTInt) => Some BLTInt
+      | _ => None
+      end
+  | AndOp' x1 x2 => 
+      match (base_lit_type_check x1, base_lit_type_check x2) with
+      | (Some BLTBool, Some BLTBool) => Some BLTBool
+      | _ => None
+      end
+  | OrOp' x1 x2 => 
+      match (base_lit_type_check x1, base_lit_type_check x2) with
+      | (Some BLTBool, Some BLTBool) => Some BLTBool
+      | _ => None
+      end
+  | XorOp' x1 x2 => 
+      match (base_lit_type_check x1, base_lit_type_check x2) with
+      | (Some BLTBool, Some BLTBool) => Some BLTBool
+      | _ => None
+      end
+  | ShiftLOp' x1 x2 => 
+      match (base_lit_type_check x1, base_lit_type_check x2) with
+      | (Some BLTInt, Some BLTInt) => Some BLTInt
+      | _ => None
+      end
+  | ShiftROp' x1 x2 => 
+      match (base_lit_type_check x1, base_lit_type_check x2) with
+      | (Some BLTInt, Some BLTInt) => Some BLTInt
+      | _ => None
+      end
+  | LeOp' x1 x2 => 
+      match (base_lit_type_check x1, base_lit_type_check x2) with
+      | (Some BLTInt, Some BLTInt) => Some BLTInt
+      | _ => None
+      end
+  | LtOp' x1 x2 => 
+      match (base_lit_type_check x1, base_lit_type_check x2) with
+      | (Some BLTInt, Some BLTInt) => Some BLTInt
+      | _ => None
+      end
+  | EqOp' x1 x2 => 
+      match (base_lit_type_check x1, base_lit_type_check x2) with
+      | (Some t1, Some t2) => Some BLTBool
+      | _ => None
+      end
+  | OffsetOp' x1 x2 => 
+      match (base_lit_type_check x1), (base_lit_type_check x2) with
+      | (Some BLTLoc), (Some BLTInt) => Some BLTLoc
+      | _, _ => None
+      end
+  end
+.
+
+
 (** The stepping relation *)
 Definition un_op_eval (op : un_op) (v : val) : option val :=
-  match op, v with
-  | NegOp, LitV (LitBool b) => Some $ LitV $ LitBool (negb b)
-  | NegOp, LitV (LitInt z) => Some $ LitV $ LitInt (Z.lnot z)
-  | MinusUnOp, LitV (LitInt z) => Some $ LitV $ LitInt (- z)
-  | _, _ => None
-  end.
+  (* check whether v is a base lit  *)
+  match v with
+  | LitV bl =>
+      match op, base_lit_type_check bl with
+        (* neg *)
+      | NegOp, Some BLTBool =>
+          match bl with
+          | LitBool b => Some $ LitV $ LitBool (negb b)
+          | _ => Some $ LitV $ NegOp' bl
+          end
+        (* minus*)
+      | MinusUnOp, Some BLTInt =>
+          match bl with
+          | LitInt n => Some $ LitV $ LitInt (- n)
+          | _ => Some $ LitV $ MinusUnOp' bl
+          end
+      | _, _ => None
+      end
+  | _ => None
+  end. 
 
-Definition bin_op_eval_int (op : bin_op) (n1 n2 : Z) : base_lit :=
+(* Definition bin_op_eval_int (op : bin_op) (n1 n2 : Z) : option base_lit := *)
+(*   match op with *)
+(*   | PlusOp => Some $ LitInt (n1 + n2) *)
+(*   | MinusOp => Some $ LitInt (n1 - n2) *)
+(*   | MultOp => Some $ LitInt (n1 * n2) *)
+(*   | QuotOp => Some $ LitInt (n1 `quot` n2) *)
+(*   | RemOp => Some $ LitInt (n1 `rem` n2) *)
+(*   | AndOp => None(* LitInt (Z.land n1 n2) *) *)
+(*   | OrOp => None (* LitInt (Z.lor n1 n2) *) *)
+(*   | XorOp => None (* LitInt (Z.lxor n1 n2) *) *)
+(*   | ShiftLOp => Some $ LitInt (n1 ≪ n2) *)
+(*   | ShiftROp => Some $ LitInt (n1 ≫ n2) *)
+(*   | LeOp => Some $ LitBool (bool_decide (n1 ≤ n2)) *)
+(*   | LtOp => Some $ LitBool (bool_decide (n1 < n2)) *)
+(*   | EqOp => Some $ LitBool (bool_decide (n1 = n2)) *)
+(*   | OffsetOp => None (* LitInt (n1 + n2) *) (* Treat offsets as ints *) *)
+(*   end%Z. *)
+
+(* Definition bin_op_eval_bool (op : bin_op) (b1 b2 : bool) : option base_lit := *)
+(*   match op with *)
+(*   | PlusOp | MinusOp | MultOp | QuotOp | RemOp => None (* Arithmetic *) *)
+(*   | AndOp => Some (LitBool (b1 && b2)) *)
+(*   | OrOp => Some (LitBool (b1 || b2)) *)
+(*   | XorOp => Some (LitBool (xorb b1 b2)) *)
+(*   | ShiftLOp | ShiftROp => None (* Shifts *) *)
+(*   | LeOp | LtOp => None (* InEquality *) *)
+(*   | EqOp => Some (LitBool (bool_decide (b1 = b2))) *)
+(*   | OffsetOp => None *)
+(*   end. *)
+
+(* Definition bin_op_eval_loc (op : bin_op) (l1 : loc) (v2 : base_lit) : option base_lit := *)
+(*   match op, v2 with *)
+(*   | OffsetOp, LitInt off => Some $ LitLoc (l1 +ₗ off) *)
+(*   | LeOp, LitLoc l2 => None  (* Some $ LitBool (bool_decide (l1 ≤ₗ l2)) *) *)
+(*   | LtOp, LitLoc l2 => None (* Some $ LitBool (bool_decide (l1 <ₗ l2)) *) *)
+(*   | _, _ => None *)
+(*   end. *)
+
+Definition bin_op_eval_bl (op:bin_op) (bl1 bl2: base_lit) :=
   match op with
-  | PlusOp => LitInt (n1 + n2)
-  | MinusOp => LitInt (n1 - n2)
-  | MultOp => LitInt (n1 * n2)
-  | QuotOp => LitInt (n1 `quot` n2)
-  | RemOp => LitInt (n1 `rem` n2)
-  | AndOp => LitInt (Z.land n1 n2)
-  | OrOp => LitInt (Z.lor n1 n2)
-  | XorOp => LitInt (Z.lxor n1 n2)
-  | ShiftLOp => LitInt (n1 ≪ n2)
-  | ShiftROp => LitInt (n1 ≫ n2)
-  | LeOp => LitBool (bool_decide (n1 ≤ n2))
-  | LtOp => LitBool (bool_decide (n1 < n2))
-  | EqOp => LitBool (bool_decide (n1 = n2))
-  | OffsetOp => LitInt (n1 + n2) (* Treat offsets as ints *)
-  end%Z.
-
-Definition bin_op_eval_bool (op : bin_op) (b1 b2 : bool) : option base_lit :=
-  match op with
-  | PlusOp | MinusOp | MultOp | QuotOp | RemOp => None (* Arithmetic *)
-  | AndOp => Some (LitBool (b1 && b2))
-  | OrOp => Some (LitBool (b1 || b2))
-  | XorOp => Some (LitBool (xorb b1 b2))
-  | ShiftLOp | ShiftROp => None (* Shifts *)
-  | LeOp | LtOp => None (* InEquality *)
-  | EqOp => Some (LitBool (bool_decide (b1 = b2)))
-  | OffsetOp => None
-  end.
-
-Definition bin_op_eval_loc (op : bin_op) (l1 : loc) (v2 : base_lit) : option base_lit :=
-  match op, v2 with
-  | OffsetOp, LitInt off => Some $ LitLoc (l1 +ₗ off)
-  | LeOp, LitLoc l2 => Some $ LitBool (bool_decide (l1 ≤ₗ l2))
-  | LtOp, LitLoc l2 => Some $ LitBool (bool_decide (l1 <ₗ l2))
-  | _, _ => None
-  end.
-
+  | PlusOp =>
+      match base_lit_type_check bl1, base_lit_type_check bl2 with
+      | Some BLTInt, Some BLTInt =>
+          match bl1, bl2 with
+          | LitInt n1, LitInt n2 => Some $ LitInt (n1 + n2)
+          | _, _ => Some $ PlusOp' bl1 bl2
+          end                            
+      | _, _ => None
+      end
+  | MinusOp => 
+      match base_lit_type_check bl1, base_lit_type_check bl2 with
+      | Some BLTInt, Some BLTInt =>
+          match bl1, bl2 with
+          | LitInt n1, LitInt n2 => Some $ LitInt (n1 - n2)
+          | _, _ => Some $ MinusOp' bl1 bl2
+          end                            
+      | _, _ => None
+      end
+  | MultOp => 
+      match base_lit_type_check bl1, base_lit_type_check bl2 with
+      | Some BLTInt, Some BLTInt =>
+          match bl1, bl2 with
+          | LitInt n1, LitInt n2 => Some $ LitInt (n1 * n2)
+          | _, _ => Some $ MultOp' bl1 bl2
+          end                            
+      | _, _ => None
+      end
+  | QuotOp => 
+      match base_lit_type_check bl1, base_lit_type_check bl2 with
+      | Some BLTInt, Some BLTInt =>
+          match bl1, bl2 with
+          | LitInt n1, LitInt n2 => Some $ LitInt (n1 `quot` n2)
+          | _, _ => Some $ QuotOp' bl1 bl2
+          end                            
+      | _, _ => None
+      end
+  | RemOp => 
+      match base_lit_type_check bl1, base_lit_type_check bl2 with
+      | Some BLTInt, Some BLTInt =>
+          match bl1, bl2 with
+          | LitInt n1, LitInt n2 => Some $ LitInt (n1 `rem` n2)
+          | _, _ => Some $ RemOp' bl1 bl2
+          end                            
+      | _, _ => None
+      end
+  | AndOp => 
+      match base_lit_type_check bl1, base_lit_type_check bl2 with
+      | Some BLTBool, Some BLTBool =>
+          match bl1, bl2 with
+          | LitBool b1, LitBool b2 => Some $ LitBool (b1 && b2)
+          | _, _ => Some $ AndOp' bl1 bl2
+          end                            
+      | _, _ => None
+      end
+  | OrOp => 
+      match base_lit_type_check bl1, base_lit_type_check bl2 with
+      | Some BLTBool, Some BLTBool =>
+          match bl1, bl2 with
+          | LitBool b1, LitBool b2 => Some $ LitBool (b1 || b2)
+          | _, _ => Some $ OrOp' bl1 bl2
+          end                            
+      | _, _ => None
+      end
+  | XorOp => 
+      match base_lit_type_check bl1, base_lit_type_check bl2 with
+      | Some BLTBool, Some BLTBool =>
+          match bl1, bl2 with
+          | LitBool b1, LitBool b2 => Some $ LitBool (xorb b1 b2)
+          | _, _ => Some $ XorOp' bl1 bl2
+          end                            
+      | _, _ => None
+      end
+  | ShiftLOp => 
+      match base_lit_type_check bl1, base_lit_type_check bl2 with
+      | Some BLTInt, Some BLTInt =>
+          match bl1, bl2 with
+          | LitInt n1, LitInt n2 => Some $ LitInt (n1 ≪ n2)
+          | _, _ => Some $ ShiftLOp' bl1 bl2
+          end                            
+      | _, _ => None
+      end
+  | ShiftROp => 
+      match base_lit_type_check bl1, base_lit_type_check bl2 with
+      | Some BLTInt, Some BLTInt =>
+          match bl1, bl2 with
+          | LitInt n1, LitInt n2 => Some $ LitInt (n1 ≫ n2)
+          | _, _ => Some $ ShiftROp' bl1 bl2
+          end                            
+      | _, _ => None
+      end
+  | LeOp => 
+      match base_lit_type_check bl1, base_lit_type_check bl2 with
+      | Some BLTInt, Some BLTInt =>
+          match bl1, bl2 with
+          | LitInt n1, LitInt n2 => Some $ LitBool (bool_decide (n1 ≤ n2)%Z)
+          | _, _ => Some $ LeOp' bl1 bl2
+          end                            
+      | _, _ => None
+      end
+  | LtOp => 
+      match base_lit_type_check bl1, base_lit_type_check bl2 with
+      | Some BLTInt, Some BLTInt =>
+          match bl1, bl2 with
+          | LitInt n1, LitInt n2 => Some $ LitBool (bool_decide (n1 < n2)%Z)
+          | _, _ => Some $ LtOp' bl1 bl2
+          end                            
+      | _, _ => None
+      end
+  | EqOp => 
+      match base_lit_type_check bl1, base_lit_type_check bl2 with
+      | Some x, Some y =>
+          match bl1 with
+          | LitInt _ | LitBool _ | LitUnit | LitLoc _ =>
+            match bl2 with
+            | LitInt _ | LitBool _ | LitUnit | LitLoc _ => Some $ LitBool (bool_decide (bl1 = bl2))                          
+            | _ => Some $ EqOp' bl1 bl2
+            end
+          | _ => Some $ EqOp' bl1 bl2
+          end                                     
+      | _, _ => None
+      end
+  | OffsetOp => 
+      match base_lit_type_check bl1, base_lit_type_check bl2 with
+      | Some BLTLoc, Some BLTInt =>
+          match bl1, bl2 with
+          | LitLoc l1, LitInt n2 => Some $ LitLoc (l1 +ₗ n2)
+          | _, _ => Some $ OffsetOp' bl1 bl2
+          end                            
+      | _, _ => None
+      end
+  end
+.
 
 Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
-  if decide (op = EqOp) then
-    if decide (vals_compare_safe v1 v2) then
-      Some $ LitV $ LitBool $ bool_decide (v1 = v2)
-    else
-      None
-  else
-    match v1, v2 with
-    | LitV (LitInt n1), LitV (LitInt n2) => Some $ LitV $ bin_op_eval_int op n1 n2
-    | LitV (LitBool b1), LitV (LitBool b2) => LitV <$> bin_op_eval_bool op b1 b2
-    | LitV (LitLoc l1), LitV v2 => LitV <$> bin_op_eval_loc op l1 v2
-    | _, _ => None
-    end.
-
+  match v1, v2 with
+  | LitV bl1, LitV bl2 =>
+       x ← bin_op_eval_bl op bl1 bl2; Some $ LitV x
+  | _, _ => None
+  end.
+  
 Definition state_upd_heap (f : gmap loc val → gmap loc val) (σ : state) : state :=
-  {| heap := f σ.(heap); tapes := σ.(tapes) |}.
+  {| heap := f σ.(heap); urns := σ.(urns) |}.
 Global Arguments state_upd_heap _ !_ /.
 
-Definition state_upd_tapes (f : gmap loc tape → gmap loc tape) (σ : state) : state :=
-  {| heap := σ.(heap); tapes := f σ.(tapes) |}.
-Global Arguments state_upd_tapes _ !_ /.
+Definition state_upd_urns (f : gmap loc urn → gmap loc urn) (σ : state) : state :=
+  {| heap := σ.(heap); urns := f σ.(urns) |}.
+Global Arguments state_upd_urns _ !_ /.
 
-Lemma state_upd_tapes_twice σ l n xs ys :
-  state_upd_tapes <[l:=(n; ys)]> (state_upd_tapes <[l:=(n; xs)]> σ) = state_upd_tapes <[l:=(n; ys)]> σ.
-Proof. rewrite /state_upd_tapes /=. f_equal. apply insert_insert. Qed.
+Lemma state_upd_urns_twice σ l xs ys :
+  state_upd_urns <[l:=(ys)]> (state_upd_urns <[l:=(xs)]> σ) = state_upd_urns <[l:=(ys)]> σ.
+Proof. rewrite /state_upd_urns /=. f_equal. apply insert_insert. Qed.
 
-Lemma state_upd_tapes_same σ σ' l n xs ys :
-  state_upd_tapes <[l:=(n; ys)]> σ = state_upd_tapes <[l:=(n; xs)]> σ' -> xs = ys.
-Proof. rewrite /state_upd_tapes /=. intros K. simplify_eq.
+Lemma state_upd_urns_same σ σ' l xs ys :
+  state_upd_urns <[l:=(ys)]> σ = state_upd_urns <[l:=(xs)]> σ' -> xs = ys.
+Proof. rewrite /state_upd_urns /=. intros K. simplify_eq.
        rewrite map_eq_iff in H.
        specialize (H l).
        rewrite !lookup_insert in H.
@@ -547,25 +799,14 @@ Proof. rewrite /state_upd_tapes /=. intros K. simplify_eq.
 Qed.
 
 
-Lemma state_upd_tapes_no_change σ l n ys :
-  tapes σ !! l = Some (n; ys)-> 
-  state_upd_tapes <[l:=(n; ys)]> σ = σ .
+Lemma state_upd_urns_no_change σ l ys :
+  urns σ !! l = Some (ys)-> 
+  state_upd_urns <[l:=(ys)]> σ = σ .
 Proof.
   destruct σ as [? t]. simpl.
   intros Ht.
   f_equal.
   apply insert_id. done.
-Qed.
-
-Lemma state_upd_tapes_same' σ σ' l n xs (x y : fin (S n)) :
-  state_upd_tapes <[l:=(n; xs++[x])]> σ = state_upd_tapes <[l:=(n; xs++[y])]> σ' -> x = y.
-Proof. intros H. apply state_upd_tapes_same in H.
-       by simplify_eq.
-Qed.
-
-Lemma state_upd_tapes_neq' σ σ' l n xs (x y : fin (S n)) :
-  x≠y -> state_upd_tapes <[l:=(n; xs++[x])]> σ ≠ state_upd_tapes <[l:=(n; xs++[y])]> σ'.
-Proof. move => H /state_upd_tapes_same ?. simplify_eq.
 Qed.
 
 Fixpoint heap_array (l : loc) (vs : list val) : gmap loc val :=
@@ -632,11 +873,11 @@ Proof.
   rewrite right_id insert_union_singleton_l. done.
 Qed.
 
-Lemma state_upd_tapes_heap σ l1 l2 n xs m v :
-  state_upd_tapes <[l2:=(n; xs)]> (state_upd_heap_N l1 m v σ) =
-  state_upd_heap_N l1 m v (state_upd_tapes <[l2:=(n; xs)]> σ).
+Lemma state_upd_urns_heap σ l1 l2 xs m v :
+  state_upd_urns <[l2:=(xs)]> (state_upd_heap_N l1 m v σ) =
+  state_upd_heap_N l1 m v (state_upd_urns <[l2:=(xs)]> σ).
 Proof.
-  by rewrite /state_upd_tapes /state_upd_heap_N /=.
+  by rewrite /state_upd_urns /state_upd_heap_N /=.
 Qed.
 
 Lemma heap_array_replicate_S_end l v n :
