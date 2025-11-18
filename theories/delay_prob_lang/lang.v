@@ -365,10 +365,9 @@ Inductive ectx_item :=
   | LoadCtx
   | StoreLCtx (v2 : val)
   | StoreRCtx (e1 : expr)
-  | AllocTapeCtx
-  | RandLCtx (v2 : val)
-  | RandRCtx (e1 : expr)
-  | TickCtx.
+  | RandCtx
+  | DRandCtx  
+.
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   match Ki with
@@ -390,10 +389,8 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | LoadCtx => Load e
   | StoreLCtx v2 => Store e (Val v2)
   | StoreRCtx e1 => Store e1 e
-  | AllocTapeCtx => AllocTape e
-  | RandLCtx v2 => Rand e (Val v2)
-  | RandRCtx e1 => Rand e1 e
-  | TickCtx => Tick e
+  | RandCtx => Rand e
+  | DRandCtx => DRand e
   end.
 
 Definition decomp_item (e : expr) : option (ectx_item * expr) :=
@@ -434,13 +431,8 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
       | Val v      => noval e1 (StoreLCtx v)
       | _          => Some (StoreRCtx e1, e2)
       end
-  | AllocTape e    => noval e AllocTapeCtx
-  | Rand e1 e2     =>
-      match e2 with
-      | Val v      => noval e1 (RandLCtx v)
-      | _          => Some (RandRCtx e1, e2)
-      end
-  | Tick e         => noval e TickCtx
+  | Rand e => noval e RandCtx
+  | DRand e => noval e DRandCtx
   | _              => None
   end.
 
@@ -464,9 +456,8 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | AllocN e1 e2 => AllocN (subst x v e1) (subst x v e2)
   | Load e => Load (subst x v e)
   | Store e1 e2 => Store (subst x v e1) (subst x v e2)
-  | AllocTape e => AllocTape (subst x v e)
-  | Rand e1 e2 => Rand (subst x v e1) (subst x v e2)
-  | Tick e => Tick (subst x v e)
+  | Rand e => Rand (subst x v e)
+  | DRand e => DRand (subst x v e)
   end.
 
 Definition subst' (mx : binder) (v : val) : expr → expr :=
