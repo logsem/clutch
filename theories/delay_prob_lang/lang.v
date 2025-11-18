@@ -98,22 +98,21 @@ Definition to_val (e : expr) : option val :=
 (* Global Arguments vals_compare_safe !_ !_ /. *)
 
 
-Definition tape := { n : nat & list (fin (S n)) }.
+Definition urn :=  gset nat .
 
-Global Instance tape_inhabited : Inhabited tape := populate (existT 0%nat []).
-Global Instance tape_eq_dec : EqDecision tape. Proof. apply _. Defined.
-Global Instance tape_countable : EqDecision tape. Proof. apply _. Qed.
+Global Instance urn_inhabited : Inhabited urn. Proof. apply _. Qed. 
+Global Instance urn_eq_dec : EqDecision urn. Proof. apply _. Defined.
+Global Instance urn_countable : EqDecision urn. Proof. apply _. Qed.
 
-Global Instance tapes_lookup_total : LookupTotal loc tape (gmap loc tape).
+Global Instance urn_lookup_total : LookupTotal loc urn (gmap loc urn).
 Proof. apply map_lookup_total. Defined.
-Global Instance tapes_insert : Insert loc tape (gmap loc tape).
+Global Instance urn_insert : Insert loc urn (gmap loc urn).
 Proof. apply map_insert. Defined.
 
-(** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes of
-    booleans. *)
+(** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed gmap of urns. *)
 Record state : Type := {
   heap  : gmap loc val;
-  tapes : gmap loc tape
+  urns : gmap loc urn
 }.
 
 (** Equality and other typeclass stuff *)
@@ -158,10 +157,9 @@ Proof.
      | AllocN e1 e2, AllocN e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | Load e, Load e' => cast_if (decide (e = e'))
      | Store e1 e2, Store e1' e2' =>
-        cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
-     | AllocTape e, AllocTape e' => cast_if (decide (e = e'))
-     | Rand e1 e2, Rand e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
-     | Tick e, Tick e' => cast_if (decide (e = e'))
+         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
+     | Rand e, Rand e' => cast_if (decide (e=e'))
+     | DRand e, DRand e' => cast_if (decide (e=e'))
      | _, _ => right _
      end
    with gov (v1 v2 : val) {struct v1} : Decision (v1 = v2) :=
@@ -184,20 +182,62 @@ Proof. solve_decision. Defined.
 
 Global Instance base_lit_countable : Countable base_lit.
 Proof.
- refine (inj_countable' (λ l, match l with
-  | LitInt n => inl (inl n)
-  | LitBool b => inl (inr b)
-  | LitUnit => inr (inl ())
-  | LitLoc l => inr (inr (inr l))
-  | LitLbl l => inr (inr (inl l))
-  end) (λ l, match l with
-  | inl (inl n) => LitInt n
-  | inl (inr b) => LitBool b
-  | inr (inl ()) => LitUnit
-  | inr (inr (inr l)) => LitLoc l
-  | inr (inr (inl l)) => LitLbl l
-  end) _); by intros [].
-Qed.
+  set (enc :=
+         fix go (bl:base_lit) :=
+           match bl with
+           | LitInt z => GenLeaf (inl (inl z))
+           | LitBool b => GenLeaf (inl (inr b))
+           | LitUnit => GenLeaf (inr (inl ()))
+           | LitLoc l => GenLeaf (inr (inr (inl l)))
+           | LitLbl l => GenLeaf (inr (inr (inr l)))
+           | NegOp' x => GenNode 0 [go x]
+           | MinusUnOp' x => GenNode 1 [go x]
+           | PlusOp' x1 x2 => GenNode 2 [go x1; go x2]
+           | MinusOp' x1 x2 => GenNode 3 [go x1; go x2]
+           | MultOp' x1 x2 => GenNode 4 [go x1; go x2]
+           | QuotOp' x1 x2 => GenNode 5 [go x1; go x2]
+           | RemOp' x1 x2 => GenNode 6 [go x1; go x2]
+           | AndOp' x1 x2 => GenNode 7 [go x1; go x2]
+           | OrOp' x1 x2 => GenNode 8 [go x1; go x2]
+           | XorOp' x1 x2 => GenNode 9 [go x1; go x2]
+           | ShiftLOp' x1 x2 => GenNode 10 [go x1; go x2]
+           | ShiftROp' x1 x2 => GenNode 11 [go x1; go x2]
+           | LeOp' x1 x2 => GenNode 12 [go x1; go x2]
+           | LtOp' x1 x2 => GenNode 13 [go x1; go x2]
+           | EqOp' x1 x2 => GenNode 14 [go x1; go x2]
+           | OffsetOp' x1 x2 => GenNode 15 [go x1; go x2]
+           end ).
+  set (dec :=
+         fix go e :=
+           match e with
+           | GenLeaf (inl (inl z)) => LitInt z
+           | GenLeaf (inl (inr b)) => LitBool b
+           | GenLeaf (inr (inl ())) => LitUnit
+           | GenLeaf (inr (inr (inl l))) => LitLoc l
+           | GenLeaf (inr (inr (inr l))) => LitLbl l
+           | GenNode 0 [x] => NegOp' (go x)
+           | GenNode 1 [x] => MinusUnOp' (go x)
+           | GenNode 2 [x1; x2] => PlusOp' (go x1) (go x2)
+           | GenNode 3 [x1; x2] => MinusOp' (go x1) (go x2)
+           | GenNode 4 [x1; x2] => MultOp' (go x1) (go x2)
+           | GenNode 5 [x1; x2] => QuotOp' (go x1) (go x2)
+           | GenNode 6 [x1; x2] => RemOp' (go x1) (go x2)
+           | GenNode 7 [x1; x2] => AndOp' (go x1) (go x2)
+           | GenNode 8 [x1; x2] => OrOp' (go x1) (go x2)
+           | GenNode 9 [x1; x2] => XorOp' (go x1) (go x2)
+           | GenNode 10 [x1; x2] => ShiftLOp' (go x1) (go x2)
+           | GenNode 11 [x1; x2] => ShiftROp' (go x1) (go x2)
+           | GenNode 12 [x1; x2] => LeOp' (go x1) (go x2)
+           | GenNode 13 [x1; x2] => LtOp' (go x1) (go x2)
+           | GenNode 14 [x1; x2] => EqOp' (go x1) (go x2)
+           | GenNode 15 [x1; x2] => OffsetOp' (go x1) (go x2)
+           | _ => LitUnit
+           end
+      ).
+  refine (inj_countable' enc dec _).
+  fix FIX 1.
+  intros []; try reflexivity; simpl; by f_equal.
+Qed. 
 Global Instance un_op_finite : Countable un_op.
 Proof.
  refine (inj_countable' (λ op, match op with NegOp => 0 | MinusUnOp => 1 end)
@@ -236,9 +276,8 @@ Proof.
      | AllocN e1 e2 => GenNode 12 [go e1; go e2]
      | Load e => GenNode 13 [go e]
      | Store e1 e2 => GenNode 14 [go e1; go e2]
-     | AllocTape e => GenNode 15 [go e]
-     | Rand e1 e2 => GenNode 16 [go e1; go e2]
-     | Tick e => GenNode 17 [go e]
+     | Rand e => GenNode 15 [go e]
+     | DRand e => GenNode 16 [go e]
      end
    with gov v :=
      match v with
@@ -269,9 +308,8 @@ Proof.
      | GenNode 12 [e1 ; e2] => AllocN (go e1) (go e2)
      | GenNode 13 [e] => Load (go e)
      | GenNode 14 [e1; e2] => Store (go e1) (go e2)
-     | GenNode 15 [e] => AllocTape (go e)
-     | GenNode 16 [e1; e2] => Rand (go e1) (go e2)
-     | GenNode 17 [e] => Tick (go e)
+     | GenNode 15 [e] => Rand (go e)
+     | GenNode 16 [e] => DRand (go e)
      | _ => Val $ LitV LitUnit (* dummy *)
      end
    with gov v :=
@@ -286,19 +324,19 @@ Proof.
    for go).
  refine (inj_countable' enc dec _).
  refine (fix go (e : expr) {struct e} := _ with gov (v : val) {struct v} := _ for go).
- - destruct e as [v| | | | | | | | | | | | | | | | | | ]; simpl; f_equal;
+ - destruct e as [v| | | | | | | | | | | | | | | | | ]; simpl; f_equal;
      [exact (gov v)|done..].
  - destruct v; by f_equal.
 Qed.
 Global Instance val_countable : Countable val.
 Proof. refine (inj_countable of_val to_val _); auto using to_of_val. Qed.
 Global Program Instance state_countable : Countable state :=
-  {| encode σ := encode (σ.(heap), σ.(tapes));
-     decode p := '(h, t) ← decode p; mret {|heap:=h; tapes:=t|} |}.
+  {| encode σ := encode (σ.(heap), σ.(urns));
+     decode p := '(h, u) ← decode p; mret {|heap:=h; urns:=u|} |}.
 Next Obligation. intros [h t]. rewrite decode_encode //=. Qed.
 
 Global Instance state_inhabited : Inhabited state :=
-  populate {| heap := inhabitant; tapes := inhabitant |}.
+  populate {| heap := inhabitant; urns := inhabitant |}.
 Global Instance val_inhabited : Inhabited val := populate (LitV LitUnit).
 Global Instance expr_inhabited : Inhabited expr := populate (Val inhabitant).
 
