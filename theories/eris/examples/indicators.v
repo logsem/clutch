@@ -740,6 +740,18 @@ Lemma ex_RInt_mult (f g : R -> R) (a b : R) :
   ex_RInt f a b ->  ex_RInt g a b ->
   ex_RInt (λ y : R, f y * g y) a b.
 Proof.
+  intros H1 H2.
+  (*
+  replace (λ y : R, f y * g y) with (fun y => (f y - g y) ^ 2 - (f y + g y) ^ 2); last first.
+  { apply functional_extensionality.
+    intros ?.
+    repeat rewrite Rminus_def.
+    rewrite //=.
+    repeat rewrite Rmult_1_r.
+    repeat rewrite Rmult_plus_distr_l.
+    repeat rewrite Rmult_plus_distr_r.
+    repeat rewrite Ropp_plus_distr.
+    *)
   (* Product of Riemann integrable is Riemann integrable (is this not in the library?) *)
 Admitted.
 
@@ -1237,7 +1249,9 @@ Proof.
     (Series.ex_series UB) →
     (forall x n, Rabs (F x n) <= UB n) →
     filterlim (fun (M : nat) (x : R) => sum_n (F x) M) eventually (locally (λ x : R, Series.Series (F x))).
-  Proof. Admitted.
+  Proof.
+    intros H1 H2.
+  Admitted.
 
 
   Lemma Exchange1 {f : nat → R → R_CompleteNormedModule} {a b : R} {F : R → R}
@@ -1251,38 +1265,74 @@ Proof.
     done.
   Qed.
 
-    (* Closed form for limits:
-
-    Check Series_Ext.ex_series_is_lim_seq.
-    Search Series.Series sum_n.
-    Check Lim_seq.is_lim_seq.
-    Search Lim_seq.is_lim_seq.
-    Check Lim_seq.is_lim_seq_unique.
-    Search Lim_seq.Lim_seq.
-    (* Convert Lim_seq to finite to get clsoed form *)
-    Check Rbar.real.
-    *)
-
-
   Lemma ex_RInt_sum_n {a b M} {F : nat → R → R} :
     (∀ n, ex_RInt (F n) a b) → ex_RInt (λ x : R, sum_n (λ n : nat, F n x) M) a b .
-  Proof. Admitted.
+  Proof.
+   intro H.
+   induction M.
+   { replace (λ x : R, sum_n (λ n : nat, F n x) 0) with (λ x : R, F 0%nat x).
+     { apply H. }
+     apply functional_extensionality; intros ?.
+     by rewrite sum_O.
+   }
+   { replace (λ x : R, sum_n (λ n : nat, F n x) (S M)) with
+       (λ x : R, sum_n (λ n : nat, F n x) M + F (S M) x); last first.
+     { apply functional_extensionality; intros ?.
+       rewrite sum_Sn.
+       rewrite /plus//=/zero//=.
+     }
+     apply (ex_RInt_plus (V := R_CompleteNormedModule));  done.
+   }
+  Qed.
 
   Lemma FubiniFinite {a b M} {f : nat → R → R} (Hex : ∀ n, ex_RInt (f n) a b) :
     RInt (λ x : R, sum_n (λ n : nat, f n x) M) a b = sum_n (λ n : nat, RInt (λ x : R, f n x) a b) M.
-  Proof. Admitted.
+  Proof.
+    induction M.
+     { replace (λ x : R, sum_n (λ n : nat, f n x) 0) with (λ x : R, f 0%nat x); last first.
+       { apply functional_extensionality; intros ?.
+         by rewrite sum_O.
+       }
+       rewrite sum_O.
+       done.
+     }
+     { replace (λ x : R, sum_n (λ n : nat, f n x) (S M)) with
+         (λ x : R, sum_n (λ n : nat, f n x) M + f (S M) x); last first.
+       { apply functional_extensionality; intros ?.
+         rewrite sum_Sn.
+         rewrite /plus//=/zero//=.
+       }
+       rewrite RInt_plus.
+       3: { apply Hex. }
+       2: { by apply ex_RInt_sum_n.  }
+        rewrite sum_Sn.
+       by rewrite IHM.
+     }
+  Qed.
 
   Lemma SequeneceLemma1 {r : R} {rb : Rbar.Rbar} (s : nat → R) :
     filterlim s eventually (locally r) →
     filterlim s eventually (Rbar_locally rb) →
     rb = Rbar.Finite r.
-  Proof. Admitted.
+  Proof.
+    intro Hreal.
+    intro Hrbar.
+    assert (H1 : Lim_seq.is_lim_seq s (Rbar.Finite r)).
+    { unfold Lim_seq.is_lim_seq. assumption. }
+    assert (H2 : Lim_seq.is_lim_seq s rb).
+    { unfold Lim_seq.is_lim_seq. assumption. }
+    apply Lim_seq.is_lim_seq_unique in H1; apply Lim_seq.is_lim_seq_unique in H2.
+    by rewrite H2 in H1.
+  Qed.
 
   Lemma seq_lift {s : nat → R} {L : R} :
     filterlim s eventually (locally L) →
     filterlim s eventually (Rbar_locally (Rbar.Finite L)).
   Proof.
-  Admitted.
+  intros H.
+  unfold filterlim in *.
+  exact H.
+  Qed.
 
   Lemma Filterlim_Series1 {s : nat → R} (Hex : Lim_seq.ex_lim_seq s) :
     filterlim s eventually (Rbar_locally (Lim_seq.Lim_seq s)).
@@ -1353,7 +1403,23 @@ Proof.
   Definition Ioo (a b : R) : R → Prop := fun x => Rmin a b < x < Rmax a b.
 
   Lemma ex_RInt_dom {F : R → R} {a b : R} : ex_RInt (fun x => Iverson (Ioo a b) x * F x) a b ↔ ex_RInt F a b.
-  Proof. Admitted.
+  Proof.
+  intros.
+  unfold Ioo, Iverson.
+  split.
+  { intros H.
+    eapply ex_RInt_ext; [|apply H].
+    intros ??.
+    simpl.
+    rewrite decide_True; lra.
+  }
+  { intros H.
+    eapply ex_RInt_ext; [|apply H].
+    intros ??.
+    simpl.
+    rewrite decide_True; lra.
+  }
+  Qed.
 
   Lemma ex_exp_series : Series.ex_series (λ n : nat, / fact n).
   Proof.
@@ -1368,6 +1434,10 @@ Proof.
   Proof.
     apply ex_seriesC_nat.
     replace (λ n : nat, / fact (n - M)) with ((λ n : nat, / fact n) ∘ (fun n : nat => (n - M)%nat)).
+    2: {
+      apply functional_extensionality; intros ?.
+      rewrite //=.
+    }
   Admitted.
 
   Definition poke (f : R → R) (a z : R) : R → R := fun x =>
@@ -1426,14 +1496,88 @@ Proof.
 
   (* Geometric series *)
   Lemma exp_neg_RInt : ex_RInt (λ x : R, exp (- x ^ 2 / 2)) 0 1.
-  Proof. Admitted.
+  Proof.
+    eapply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+    intros ??.
+    apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+    by auto_derive.
+  Qed.
 
   Lemma RInt_pow_fact {a b : R} (M : nat) :
     RInt (fun x1 : R => x1 ^ M / fact M) a b = b ^ (M + 1) / fact (M + 1) - a ^ (M + 1) / fact (M + 1).
-  Proof. Admitted.
+  Proof.
+    replace (fun x1 : R => x1 ^ M / fact M) with (Derive.Derive (fun x1 : R => x1 ^ (M + 1) / fact (M + 1))); last first.
+    { replace (fun x1 : R => x1 ^ (M + 1) / fact (M + 1)) with (fun x1 : R => x1 ^ (M + 1) * / fact (M + 1)); last first.
+      { apply functional_extensionality; intros ?; lra. }
+      apply functional_extensionality; intros ?.
+      rewrite Derive.Derive_scal_l.
+      rewrite Derive.Derive_pow; [|by auto_derive].
+      rewrite Derive.Derive_id.
+      rewrite Rmult_1_r.
+      rewrite (Rmult_comm _ (x ^ Init.Nat.pred (M + 1))).
+      rewrite Rdiv_def Rmult_assoc.
+      f_equal.
+      { f_equal.
+        rewrite -Nat.add_pred_r; [|lia].
+        lia.
+      }
+      rewrite Nat.add_1_r.
+      rewrite fact_simpl.
+      rewrite mult_INR.
+      rewrite Rinv_mult.
+      rewrite -Rmult_assoc.
+      rewrite (Rinv_r); [lra|].
+      have ? := pos_INR_S M.
+      lra.
+  }
+  rewrite RInt_Derive.
+  { lra. }
+  { intros ??. by auto_derive. }
+  { intros ??.
+    replace (fun x1 : R => x1 ^ (M + 1) / fact (M + 1)) with (fun x1 : R => x1 ^ (M + 1) * / fact (M + 1)); last first.
+    { apply functional_extensionality; intros ?; lra. }
+    replace (Derive.Derive (λ x1 : R, x1 ^ (M + 1) * / fact (M + 1))) with (fun x1 : R => x1 ^ M / fact M).
+    { apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)). by auto_derive. }
+    apply functional_extensionality; intros ?.
+    rewrite Derive.Derive_scal_l.
+    rewrite Derive.Derive_pow; [|by auto_derive].
+    rewrite Derive.Derive_id.
+    rewrite Rmult_1_r.
+    rewrite (Rmult_comm _ (x0 ^ Init.Nat.pred (M + 1))).
+    rewrite Rdiv_def Rmult_assoc.
+    f_equal.
+    { f_equal.
+      rewrite -Nat.add_pred_r; [|lia].
+      lia.
+    }
+    rewrite Nat.add_1_r.
+    rewrite fact_simpl.
+    rewrite mult_INR.
+    rewrite Rinv_mult.
+    rewrite -Rmult_assoc.
+    rewrite (Rinv_r); [lra|].
+    have ? := pos_INR_S M.
+    lra.
+  }
+  Qed.
 
   Lemma Le_Nat_sum (N : nat) (v : R) : SeriesC (λ n : nat, if bool_decide (n ≤ N) then v else 0) = (N + 1)* v.
-  Proof. Admitted.
+  Proof.
+    rewrite SeriesC_nat_bounded'.
+    induction N.
+    { rewrite //=. lra. }
+    { replace ((S N + 1) * v) with ((N + 1) * v + v); last first.
+      { rewrite S_INR. lra. }
+      rewrite -IHN.
+      rewrite //=.
+      rewrite Rplus_assoc.
+      f_equal.
+      rewrite Rplus_comm.
+      repeat f_equal.
+      (* Dumb *)
+      admit.
+    }
+  Admitted.
 
   Lemma even_pow_neg {x : R} {n : nat} : Zeven n → (- x) ^ n = x ^ n.
   Proof.
@@ -1501,6 +1645,7 @@ Proof.
 
   Lemma Derive_exp_neg {x : R} : Derive.Derive (λ x1 : R, exp (- x1)) x = - exp (- x).
   Proof.
+    (*
     have X := UnaryDiff_exp.
     rewrite Derive.Derive_comp; try by auto_derive.
     rewrite Derive.Derive_opp.
@@ -1509,6 +1654,14 @@ Proof.
     (* UnaryDiff crap *)
     destruct X.
     specialize (UnaryDiff_H) with (-x).
+    rewrite (Derive.is_derive_unique _ _ _ UnaryDiff_H).
+
+    Search Derive.is_derive Derive.Derive.
+    Check Derive.Derive_comp exp (fun x : R => -x).
+    Search Derive.Derive "comp".
+*)
+
+
 Admitted.
 
   Lemma RInt_gen_ext_eq_Ici {f g : R → R} {M : R} :
@@ -1623,33 +1776,52 @@ Admitted.
     (Hnn : ∀ b, 0 <= RInt F M b) :
     0 <= RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty).
   Proof.
-    Search RInt_gen.
-
-
-
-
-
     (* Lemma: every sequence in the nonnegative reals diverges or converges to a nonneg *)
     (* What is RInt_gen when F it doesn't convgerge? Please be something normal *)
     rewrite /RInt_gen.
     Check CompleteSpace.lim.
     rewrite /iota//=.
-    Set Printing Implicit.
     rewrite /lim//=.
     rewrite /R_complete_lim.
     rewrite /Lub.Lub_Rbar.
   Admitted.
 
+
+  (*
+  Lemma RInt_ex_sum_n {F : nat → R → R} {a b : R} {M} :
+    ex_RInt (fun x : R => sum_n (fun n : nat => F n x) M) a b.
+  Proof.
+  Admitted.
+
   Lemma RInt_sum_n {F : nat → R → R} {a b : R} {M} :
-    RInt (fun x : R => sum_n (fun n : nat => F n x) M) a b = sum_n (fun n : nat =>  RInt (fun x : R => F n x) 0 1) M.
-  Proof. Admitted.
+    RInt (fun x : R => sum_n (fun n : nat => F n x) M) a b = sum_n (fun n : nat =>  RInt (fun x : R => F n x) a b) M.
+  Proof.
+    induction M.
+    { rewrite sum_O.
+      replace (λ x : R, sum_n (λ n : nat, F n x) 0) with (F 0%nat); last first.
+      { apply functional_extensionality; intros ?.
+        by rewrite sum_O. }
+      f_equal.
+    }
+    {
+      rewrite sum_Sn.
+      rewrite -IHM.
+      rewrite -RInt_plus.
+      admit. }
+  Admitted.
+*)
 
   Lemma ex_RInt_div (F : R → R) {a b c} : ex_RInt F a b → ex_RInt (fun x => F x / c) a b.
-  Proof. Admitted.
+  Proof.
+    intro H.
+    replace (λ x : R, F x / c) with (λ x : R, F x * / c); last first.
+    { apply functional_extensionality; intros ?; rewrite Rdiv_def//=. }
+    by apply ex_RInt_Rmult'.
+  Qed.
 
   Lemma ex_seriesC_finite_dec (M : nat) (F : nat → R) :
     ex_seriesC (λ x : nat, if bool_decide (x ≤ M) then F x else 0).
-  Proof. Admitted.
+  Proof. apply ex_seriesC_nat_bounded. Qed.
 
 
 End Lib.
