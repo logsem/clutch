@@ -1239,9 +1239,116 @@ Proof.
     filterlim (fun (M : nat) (x : R) => sum_n (F x) M) eventually (locally (λ x : R, Series.Series (F x))).
   Proof. Admitted.
 
+
+  Lemma Exchange1 {f : nat → R → R_CompleteNormedModule} {a b : R} {F : R → R}
+    (Hex : ∀ n, ex_RInt (f n) a b) (Hunif : filterlim f eventually (locally F)) :
+    filterlim (λ n : nat, RInt (f n) a b) eventually (locally (RInt F a b)).
+  Proof.
+    have H (n : nat) : is_RInt (f n) a b (RInt (f n) a b).
+    { apply (RInt_correct (V := R_CompleteNormedModule)), Hex. }
+    destruct (filterlim_RInt f a b eventually eventually_filter _ _ H Hunif) as [I [HL HF]].
+    rewrite (is_RInt_unique F a b I HF).
+    done.
+  Qed.
+
+    (* Closed form for limits:
+
+    Check Series_Ext.ex_series_is_lim_seq.
+    Search Series.Series sum_n.
+    Check Lim_seq.is_lim_seq.
+    Search Lim_seq.is_lim_seq.
+    Check Lim_seq.is_lim_seq_unique.
+    Search Lim_seq.Lim_seq.
+    (* Convert Lim_seq to finite to get clsoed form *)
+    Check Rbar.real.
+    *)
+
+
   Lemma ex_RInt_sum_n {a b M} {F : nat → R → R} :
     (∀ n, ex_RInt (F n) a b) → ex_RInt (λ x : R, sum_n (λ n : nat, F n x) M) a b .
   Proof. Admitted.
+
+  Lemma FubiniFinite {a b M} {f : nat → R → R} (Hex : ∀ n, ex_RInt (f n) a b) :
+    RInt (λ x : R, sum_n (λ n : nat, f n x) M) a b = sum_n (λ n : nat, RInt (λ x : R, f n x) a b) M.
+  Proof. Admitted.
+
+  Lemma SequeneceLemma1 {r : R} {rb : Rbar.Rbar} (s : nat → R) :
+    filterlim s eventually (locally r) →
+    filterlim s eventually (Rbar_locally rb) →
+    rb = Rbar.Finite r.
+  Proof. Admitted.
+
+  Lemma seq_lift {s : nat → R} {L : R} :
+    filterlim s eventually (locally L) →
+    filterlim s eventually (Rbar_locally (Rbar.Finite L)).
+  Proof.
+  Admitted.
+
+  Lemma Filterlim_Series1 {s : nat → R} (Hex : Lim_seq.ex_lim_seq s) :
+    filterlim s eventually (Rbar_locally (Lim_seq.Lim_seq s)).
+  Proof. apply (Lim_seq.Lim_seq_correct s Hex). Qed.
+
+  Lemma Filterlim_Series {s : nat → R} {L : R} :
+    Lim_seq.ex_lim_seq (sum_n s) →
+    filterlim (λ M : nat, sum_n (λ n : nat, s n) M) eventually (locally L) →
+    Series.Series s = L.
+  Proof.
+    intros Hex H.
+    unfold Series.Series.
+    have H1 := @Filterlim_Series1 (sum_n s) Hex.
+    rewrite (SequeneceLemma1 _ H H1).
+    done.
+  Qed.
+
+  Lemma FubiniIntegralSeries {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R)
+    (HexU : Series.ex_series UB) (Hub : forall x n, Rabs (f n x) <= UB n) (Hex : ∀ n, ex_RInt (f n) a b) :
+    Series.Series (fun n => RInt (λ x : R, f n x) a b) = RInt (λ x : R, Series.Series (λ n' : nat, f n' x)) a b.
+  Proof.
+    have H : ∀ n : nat, ex_RInt (λ x : R, sum_n (λ n' : nat, f n' x) n) a b.
+    { intros n. apply ex_RInt_sum_n. apply Hex. }
+    have HU : filterlim (λ (M : nat) (x : R), sum_n (λ n' : nat, f n' x) M) eventually
+                (locally (λ x : R, Series.Series (λ n' : nat, f n' x))).
+    { apply (UniformConverge_Series UB); done. }
+    have HLimit := @Exchange1 (fun M x => sum_n (fun n' => f n' x) M) a b (fun x => Series.Series (fun n' => f n' x)) H HU.
+    (* Exchange the RInt and the sum_n *)
+    have H1 : (λ n : nat, RInt (λ x : R, sum_n (λ n' : nat, f n' x) n) a b) =
+              (λ n : nat, sum_n (λ n' : nat, RInt (λ x : R, f n' x) a b) n).
+    { apply functional_extensionality; intros ?. rewrite FubiniFinite; done. }
+    rewrite H1 in HLimit. clear H1.
+    rewrite (Filterlim_Series _ HLimit); [done|].
+    have Hex' : Series.ex_series (λ n' : nat, RInt (λ x : R, f n' x) a b).
+    { apply (Series.ex_series_le _ (fun n => Rabs (b - a) * UB n)).
+      2: { by apply @Series.ex_series_scal_l. }
+      intros n.
+      rewrite /norm//=/abs//=.
+      destruct (ClassicalEpsilon.excluded_middle_informative (a <= b)).
+      { etrans; first eapply (abs_RInt_le_const _ _ _ (UB n)).
+        { done. }
+        { by apply Hex. }
+        { intros ??. apply Hub. }
+        { rewrite Rabs_right; try lra. }
+      }
+      have HP : b <= a by lra.
+      rewrite -opp_RInt_swap.
+      2: { apply ex_RInt_swap, Hex. }
+      rewrite /opp//=.
+      rewrite Rabs_Ropp.
+      { etrans; first eapply (abs_RInt_le_const _ _ _ (UB n)).
+        { done. }
+        { apply ex_RInt_swap, Hex. }
+        { intros ??. apply Hub. }
+        { replace (b - a) with (- (a - b)) by lra.
+          rewrite Rabs_Ropp.
+          rewrite Rabs_right; try lra. }
+      }
+    }
+    destruct Hex' as [L HEL].
+    unfold Series.is_series in HEL.
+    unfold Lim_seq.ex_lim_seq.
+    exists (Rbar.Finite L).
+    unfold Lim_seq.is_lim_seq.
+    by apply seq_lift.
+  Qed.
 
   Definition Ioo (a b : R) : R → Prop := fun x => Rmin a b < x < Rmax a b.
 
