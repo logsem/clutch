@@ -38,13 +38,47 @@ Section credits.
   Lemma NegExp_CreditV_nn {F : R -> R} (Hnn : ∀ r, 0 <= F r) (L : nat) : 0 <= NegExp_CreditV F (L + 1).
   Proof.
     rewrite /NegExp_CreditV.
+    Search filterlimi.
     Search RInt_gen.
     (* Many of my problems in this file can be solved if I can relate RInt_gen to RInt *)
-
-
     (* Search is_RInt_gen is_RInt.
     Search RInt_gen. *)
   Admitted.
+
+  Theorem NegExp_ρ0_ex_RInt {F : R → R} {a b} (Hex : ∀ b : R, ex_RInt F a b) :
+    ex_RInt NegExp_ρ0 a b.
+  Proof.
+    rewrite /NegExp_ρ0.
+    apply ex_RInt_mult.
+    { apply ex_RInt_Iverson_le. }
+    apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+    intros ??.
+    eapply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+    auto_derive. OK.
+  Qed.
+
+  Theorem NegExp_ρ_ex_RInt {L a b} :
+    ex_RInt (NegExp_ρ L) a b.
+  Proof.
+    rewrite /NegExp_ρ0.
+    apply ex_RInt_mult.
+    { apply ex_RInt_const. }
+    rewrite /NegExp_ρ0.
+    apply ex_RInt_mult.
+    { replace (λ y : R, Iverson (Rle 0) (y - L))
+         with (λ y : R, scal 1 (Iverson (Rle 0) (1 * y + - L))); last first.
+      { funexti. rewrite /scal//=/mult//= Rmult_1_l. f_equal; OK. }
+      apply (ex_RInt_comp_lin (Iverson (Rle 0)) 1 (-L) a b).
+      apply ex_RInt_Iverson_le. }
+    apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+    intros ??.
+    eapply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+    auto_derive. OK.
+  Qed.
+
+  Theorem NegExp_CreditV_ub {F L M} (HF : ∀ x, 0 <= F x <= M) : NegExp_CreditV F L <= M.
+  Proof. Admitted.
+
 
   Local Definition hx (F : R → R) (x : R) (L : nat) : nat → R := fun z =>
     Iverson Zeven z * F (x + INR L) +
@@ -82,7 +116,7 @@ Section credits.
 *)
 
 
-  Local Theorem g_expectation {F L} (Hex : ∀ (a : R), ex_RInt F 0 a) : is_RInt (g F L) 0 1 (NegExp_CreditV F L).
+  Local Theorem g_expectation {F L M} (Hf : ∀ x, 0 <= F x <= M) (Hex : ∀ (a b : R), ex_RInt F a b) : is_RInt (g F L) 0 1 (NegExp_CreditV F L).
   Proof.
     suffices H : RInt (g F L) 0 1 = NegExp_CreditV F L.
     { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)), g_ex_RInt. }
@@ -97,10 +131,85 @@ Section credits.
     { rewrite RInt_add.
       3: { admit. }
       2: { admit. }
-      f_equal; apply functional_extensionality; intro x.
+      apply RInt_ext.
+      rewrite Rmin_left; OK.
+      rewrite Rmax_right; OK.
+      intros ??.
       rewrite -SeriesC_plus.
-      3: { admit. }
-      2: { admit. }
+      3: {
+        rewrite /RealDecrTrial_μ.
+        eapply (ex_seriesC_le _ (λ n : nat, RealDecrTrial_μ0 x (n + 0) * M)).
+        2: { apply ex_seriesC_scal_r. apply (RealDecrTrial_μ0_ex_seriesC (x := x) (M := 0)). OK. }
+        intros n.
+        split.
+        { apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
+          { apply Iverson_nonneg. }
+          { apply RealDecrTrial_μ0nn. OK. }
+          { apply Iverson_nonneg. }
+          { apply Hf. }
+        }
+        { apply Rmult_le_compat.
+          2: { apply Hf; OK. }
+          3: { apply Hf; OK. }
+          1: { apply Rmult_le_pos; [apply Rmult_le_pos|].
+               { apply Iverson_nonneg. }
+               { apply RealDecrTrial_μ0nn. OK. }
+               { apply Iverson_nonneg. }
+          }
+          rewrite -(Rmult_1_r (RealDecrTrial_μ0 x (n + 0))).
+          apply Rmult_le_compat.
+          { apply Rmult_le_pos.
+            { apply Iverson_nonneg. }
+            { apply RealDecrTrial_μ0nn. OK. }
+          }
+          { apply Iverson_nonneg. }
+          2: {  apply Iverson_le_1. }
+          rewrite -(Rmult_1_l (RealDecrTrial_μ0 x (n + 0))).
+          apply Rmult_le_compat.
+          { apply Iverson_nonneg. }
+          { apply RealDecrTrial_μ0nn. OK. }
+          {  apply Iverson_le_1. }
+          right.
+          f_equal; OK.
+        }
+      }
+      2: {
+        rewrite /RealDecrTrial_μ.
+        eapply (ex_seriesC_le _ (λ n : nat, RealDecrTrial_μ0 x (n + 0) * M)).
+        2: { apply ex_seriesC_scal_r. apply (RealDecrTrial_μ0_ex_seriesC (x := x) (M := 0)). OK. }
+        intros n.
+        split.
+        { apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
+          { apply Iverson_nonneg. }
+          { apply RealDecrTrial_μ0nn. OK. }
+          { apply Iverson_nonneg. }
+          { apply NegExp_CreditV_nn. intros ?. apply Hf. }
+        }
+        { apply Rmult_le_compat.
+          2: { apply NegExp_CreditV_nn. intros ?. apply Hf. }
+          3: { apply NegExp_CreditV_ub. intros ?. apply Hf. }
+          1: { apply Rmult_le_pos; [apply Rmult_le_pos|].
+               { apply Iverson_nonneg. }
+               { apply RealDecrTrial_μ0nn. OK. }
+               { apply Iverson_nonneg. }
+          }
+          rewrite -(Rmult_1_r (RealDecrTrial_μ0 x (n + 0))).
+          apply Rmult_le_compat.
+          { apply Rmult_le_pos.
+            { apply Iverson_nonneg. }
+            { apply RealDecrTrial_μ0nn. OK. }
+          }
+          { apply Iverson_nonneg. }
+          2: {  apply Iverson_le_1. }
+          rewrite -(Rmult_1_l (RealDecrTrial_μ0 x (n + 0))).
+          apply Rmult_le_compat.
+          { apply Iverson_nonneg. }
+          { apply RealDecrTrial_μ0nn. OK. }
+          {  apply Iverson_le_1. }
+          right.
+          f_equal; OK.
+        }
+      }
       f_equal; apply functional_extensionality; intro n.
       lra.
     }
@@ -188,11 +297,21 @@ Section credits.
       last first.
     { rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (at_point 0) (Rbar_locally Rbar.p_infty) _ _ (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * exp (-1)) (L + 1) _ _).
       { OK. }
-      { apply ex_RInt_gen_at_point. admit. }
-      {  admit. }
+      { apply ex_RInt_gen_at_point.
+        eapply ex_RInt_Rmult'.
+        eapply ex_RInt_mult.
+        { eapply Hex. }
+        apply NegExp_ρ_ex_RInt.
+      }
+      { admit. }
     }
     rewrite RInt_gen_at_point.
-    2: { admit. }
+    2: {
+      eapply ex_RInt_Rmult'.
+      eapply ex_RInt_mult.
+      { eapply Hex. }
+      apply NegExp_ρ_ex_RInt.
+    }
     replace (RInt (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * exp (-1)) 0 (L + 1))
        with (RInt (λ x0 : R, 0) 0 (L + 1)); last first.
     { apply RInt_ext; intros x [Hx1 Hx2].
@@ -216,23 +335,24 @@ Section credits.
     { rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (at_point 0) (Rbar_locally Rbar.p_infty) _ _  (λ x : R, F x * NegExp_ρ L x) (L + 1) _ _).
       { rewrite /plus//=.
         rewrite RInt_gen_at_point.
-        2: { admit. }
+        2: { apply ex_RInt_mult. { apply Hex. } { apply NegExp_ρ_ex_RInt. } }
         rewrite RInt_gen_at_point.
-        2: { admit. }
+        2: { apply ex_RInt_mult. { apply Hex. } { apply NegExp_ρ_ex_RInt. } }
         rewrite RInt_gen_at_point.
-        2: { admit. }
+        2: { apply ex_RInt_mult. { apply Hex. } { apply NegExp_ρ_ex_RInt. } }
         rewrite -(RInt_Chasles (λ x : R, F x * NegExp_ρ L x) 0 L (L + 1)).
-        2: { admit. }
-        2: { admit. }
+        2: { apply ex_RInt_mult. { apply Hex. } { apply NegExp_ρ_ex_RInt. } }
+        2: { apply ex_RInt_mult. { apply Hex. } { apply NegExp_ρ_ex_RInt. } }
         OK.
       }
-      { admit. }
+      { apply ex_RInt_gen_at_point.
+        apply ex_RInt_mult. { apply Hex. } { apply NegExp_ρ_ex_RInt. } }
       { admit. }
     }
     rewrite RInt_gen_at_point.
-    2: { admit. }
+    2: { apply ex_RInt_mult. { apply Hex. } { apply NegExp_ρ_ex_RInt. } }
     rewrite RInt_gen_at_point.
-    2: { admit. }
+    2: { apply ex_RInt_mult. { apply Hex. } { apply NegExp_ρ_ex_RInt. } }
     replace (RInt (λ x : R, F x * NegExp_ρ L x) 0 L) with (RInt (λ x : R, 0) 0 L); last first.
     { apply RInt_ext; intros x [Hx1 Hx2].
       rewrite /NegExp_ρ/NegExp_ρ0.
@@ -252,7 +372,11 @@ Section credits.
       { replace (RInt (λ x : R, F x * NegExp_ρ L x) L (L + 1)) with (RInt (λ x : R, F x * NegExp_ρ L x) (1 * 0 + L) (1 * 1 + L)); last first.
         { f_equal; OK. }
         rewrite -(RInt_comp_lin (λ x : R, F x * NegExp_ρ L x) 1 L 0 1).
-        2: { admit. }
+        2: {
+          rewrite Rmult_0_r Rplus_0_l.
+          rewrite Rmult_1_l Rplus_comm.
+          apply ex_RInt_mult. { apply Hex. } { apply NegExp_ρ_ex_RInt. }
+        }
         f_equal. apply functional_extensionality. intros ?. rewrite /scal//=/mult//= Rmult_1_l.
         f_equal; f_equal; OK.
       }
@@ -352,7 +476,7 @@ Section program.
       else
         "trial" ("L" + #1%Z).
 
-  Lemma wp_NegExp_gen {M} (F : R → R) (Hnn : ∀ n, 0 <= F n <= M) E (Hex : ∀ a : R, ex_RInt F 0 a) :
+  Lemma wp_NegExp_gen {M} (F : R → R) (Hnn : ∀ n, 0 <= F n <= M) E (Hex : ∀ a b : R, ex_RInt F a b) :
     ⊢ ∀ L, ↯ (NegExp_CreditV F L) -∗
            WP NegExp #L @ E
       {{ p, ∃ (vz : Z) (vr : R) (ℓ : val), ⌜p = PairV #vz ℓ⌝ ∗ lazy_real ℓ vr ∗ ↯(F (vr + IZR vz))}}.
@@ -365,7 +489,7 @@ Section program.
     iIntros (x) "Hx".
     iApply (wp_lazy_real_presample_adv_comp _ _ x _ (NegExp_CreditV F L) (g F L)); auto.
     { intros ??; apply g_nonneg; auto. apply Hnn. }
-    { apply g_expectation. OK. }
+    { eapply g_expectation; first apply Hnn.  OK. }
     iFrame.
     iIntros (xr) "(%Hrange & Hε & Hx)".
     do 2 wp_pure.

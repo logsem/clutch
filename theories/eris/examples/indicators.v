@@ -1502,6 +1502,37 @@ Admitted.
     }
   Qed.
 
+  Search Rle RInt 0.
+  Search Series.Series Rle 0.
+  Locate series_ge_0.
+  Search filterlim  0.
+
+
+  (* Can I prove this without explicitly giving the limit? *)
+  Lemma RInt_gen_pos {F} {M}
+    (* (Hlimit : filterlimi (λ b : R, is_RInt F M b) (Rbar_locally Rbar.p_infty) (locally L)) *)
+    (* (HL : 0 <= L) : *)
+    (Hex : ∀ b, ex_RInt F M b)
+    (Hnn : ∀ b, 0 <= RInt F M b) :
+    0 <= RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty).
+  Proof.
+    Search RInt_gen.
+
+
+
+
+
+    (* Lemma: every sequence in the nonnegative reals diverges or converges to a nonneg *)
+    (* What is RInt_gen when F it doesn't convgerge? Please be something normal *)
+    rewrite /RInt_gen.
+    Check CompleteSpace.lim.
+    rewrite /iota//=.
+    Set Printing Implicit.
+    rewrite /lim//=.
+    rewrite /R_complete_lim.
+    rewrite /Lub.Lub_Rbar.
+  Admitted.
+
   Lemma RInt_sum_n {F : nat → R → R} {a b : R} {M} :
     RInt (fun x : R => sum_n (fun n : nat => F n x) M) a b = sum_n (fun n : nat =>  RInt (fun x : R => F n x) 0 1) M.
   Proof. Admitted.
@@ -1515,3 +1546,31 @@ Admitted.
 
 
 End Lib.
+
+Section FubiniAx.
+
+  (* Continuity.continuity_2d_pt_filterlim ???? *)
+  Definition IsFubiniCoreRR (f : R → R → R) : Prop :=
+    ∀ x y, Continuity.continuity_2d_pt f x y.
+
+  Definition IsFubiniCoreSR (f : nat → R → R) : Prop :=
+    ∀ n x, continuity_pt (f n) x.
+
+  Definition fsum {T : Type} (L : list (T → R)) : T → R := fun t => foldr (fun f s => f t + s) 0 L.
+
+  Definition fsum2 {T U : Type} (L : list (T → U → R)) : T → U → R :=
+    fun t u => foldr (fun f s => f t u + s) 0 L.
+
+  (* A function on a rectangle *)
+  Definition RectFun_RR : ((R → R → R) * R * R * R * R) → (R → R → R) :=
+    fun '(f, xa, xb, ya, yb) x y => Iverson (Ioo xa xb) x * Iverson (Ioo ya yb) y * f x y.
+
+  Definition RectFun_continuity : ((R → R → R) * R * R * R * R) → Prop :=
+    fun '(f, xa, xb, ya, yb) => ∀ x y, Ioo xa xb x → Ioo ya yb y → Continuity.continuity_2d_pt f x y.
+
+  (* Generalized: f is a finite sum of rectangle functions *)
+  Definition IsFubiniRR (f : R → R → R) : Prop :=
+    ∃ L, f = fsum2 (RectFun_RR <$> L) ∧ Forall RectFun_continuity L.
+
+
+End FubiniAx.
