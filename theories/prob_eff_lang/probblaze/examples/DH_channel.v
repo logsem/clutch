@@ -846,7 +846,6 @@ Qed.
     rel_pures_l. 
     do 4 rewrite Hf2closed.
     iApply rel_couple_UT. iFrame "Hα". simpl. iIntros (a) "!> %Hlt Hα".
-    (* iDestruct "Hβ" as (ms) "(%Hf' & Hβ)". apply map_eq_nil in Hf'. simplify_eq. *)
     iApply rel_couple_UT. iFrame "Hβ". simpl. iIntros (b) "!> %_ Hβ".
 
     rel_pures_l. rewrite -Nat2Z.inj_mul.
@@ -854,7 +853,30 @@ Qed.
     rel_pures_l.
     do 5 rewrite Hf1closed.
     rel_pures_r. do 2 rewrite Hf2closed.
+
+    iApply (rel_na_alloc
+              ((β ↪ₛ (n; [b]) ∗ l2 ↦ₛ NONEV ∗ l2' ↦ NONEV ∗ lb ↦ₛ NONEV)
+               ∨ (β ↪ₛ□ (n; [])
+                  ∗ l2 ↦ₛ□ SOMEV (g ^+ b)%g
+                  ∗ l2' ↦□ SOMEV (g ^+ b)%g
+                  ∗ lb ↦ₛ□ SOMEV #b))%I
+              betaN).
+    iSplitL "Hl2 Hl2' Hβ Hlb"; [iNext; iFrame; iLeft; iFrame|].
+    iIntros "#Hinvb".
+
+    iApply (rel_na_alloc
+              ((α ↪ₛ (n; [a]) ∗ l1 ↦ₛ NONEV ∗ l1' ↦ NONEV ∗ la ↦ₛ NONEV)
+               ∨ (α ↪ₛ□ (n; [])
+                  ∗ l1 ↦ₛ□ SOMEV (g ^+ a)%g
+                  ∗ l1' ↦□ SOMEV (g ^+ a)%g
+                  ∗ la ↦ₛ□ SOMEV #a))%I
+              alphaN).
+    iSplitL "Hα Hl1 Hl1' Hla"; [iNext; iFrame; iLeft; iFrame|].
+    iIntros "#Hinva".
+    
     iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
+    iLöb as "IH".
+    
     iSplit; [iIntros (v1 v2) "(-> & ->)"; rel_pures_l; by rel_pures_r|].
     iIntros (e1 e2 ?)
       "[%e1' [%e2' [%k1 [%k2 [%S
@@ -863,997 +885,286 @@ Qed.
     
     (* getKey1 first time *)
     1 : {
-    do 2 rel_pures_r; [apply Hk2; set_solver|]. fold (KontGetKey1 k1 la lb α β).
-    do 2rel_pures_l; [split;[apply Hk1; set_solver|set_solver]|].
-    fold (KontGetKey2 k2 a b ).
-    fold (KontChannel2 bob l1' l2' k2 a b).
-    iApply (rel_load_r with "Hla"). iIntros "Hla". rel_pures_r.
-    iAssert (α ↪ₛN (n; [fin_to_nat a]))%I with "[Hα]" as "Hα".
-    { iExists [a]. simpl. iFrame. done. }
-    iApply (rel_rand_r with "Hα").
-    iIntros "Hα ?". rel_pures_r.
-    iApply (rel_store_r with "Hla"). iIntros "Hla".
-    rel_pures_r.
-    rel_exp_r.
-    rel_pures_r; [set_solver|]. fold (KontChannel1 bob la lb l1 l2 k1 a α β).
-    iApply (rel_load_r with "Hl1"). iIntros "Hl1".
-    iApply (rel_load_l with "Hl1'"). iIntros "!> Hl1'".
-    rel_pures_l. rel_pures_r.
-    iApply (rel_store_r with "Hl1"). iIntros "Hl1".
-    iApply (rel_store_l with "Hl1'"). iIntros "!>Hl1'".
-    rel_pures_l.
-    rel_pures_r.
-    
-    (* Send gA first time *)
-    iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-    iApply fupd_rel.
-    iMod (ghost_map_elem_persist with "Hl1'") as "#Hl1'".
-    iMod (ghost_map_elem_persist with "Hl1") as "#Hl1".
-    iMod (ghost_map_elem_persist with "Hla") as "#Hla".
-    iModIntro.
-    iApply (rel_na_alloc
-              (α ↪ₛN (n; []) ∗
-               ((β ↪ₛ (n; [b]) ∗ l2 ↦ₛ NONEV ∗ l2' ↦ NONEV ∗ lb ↦ₛ NONEV)
-                ∨ (β ↪ₛ□ (n; [])
-                   ∗ l2 ↦ₛ□ SOMEV (g ^+ b)%g
-                   ∗ l2' ↦□ SOMEV (g ^+ b)%g
-                   ∗ lb ↦ₛ□ SOMEV #b)))%I
-              tapeN).
-    iSplitL "Hα Hl2 Hl2' Hβ Hlb"; [iNext; iFrame; iLeft; iFrame|].
-    iIntros "#Hinv".
-    iApply rel_introduction'.
-    iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-    iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-    iLeft. iRight.
-    iExists _. do 2 (iSplit; try (iPureIntro; done)).
-    iModIntro.
-    iApply rel_value.
-    rel_pures_l; [set_solver|]. fold (KontChannel1' la lb l1 l2 k1 a α β).
-    rel_pures_r; [set_solver|]. fold (KontChannel2' l1' l2' k2 a b).
-    
-    (* Recv bob first time (either none or some) *)
-    iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-    iApply rel_introduction'.
-    iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-    iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-    iRight. iRight.
-    do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-    iSplit; last first.
-
-    (* Recv bob = None *)
-    - iApply rel_value.
-      rel_pures_l. rel_pures_r.
-      iDestruct ("HQ" with "Hnone") as "HQfill".
-      iDestruct ("Hk" with "HQfill") as "Hfillrel".
-      iClear (Hk1 Hk2) "Hnone Hsome HQ Hk HQfill".
-
-      (* First call is done. Can call getKey1 or getKey2 again. *)
-      iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-      iClear (k1 k2 S) "Hfillrel".
-      iLöb as "IH".
-      iSplit; [iIntros (v1 v2) "(-> & ->)"; rel_pures_l; by rel_pures_r|].
-      iIntros (e1 e2 ?)
-      "[%e1' [%e2' [%k1 [%k2 [%S
-        (-> & %Hk1 & -> & %Hk2 & [(-> & -> & (#Hnone & #Hsome)) | (-> & -> & (#Hnone & #Hsome))] & #HQ)
-       ]]]]] #Hk".
-
-      (* getKey1 second time. No a is sampled *)
-      + do 2 rel_pures_r; [apply Hk2; set_solver|]. fold (KontGetKey1 k1 la lb α β).
-        do 2 rel_pures_l; [split; [apply Hk1; set_solver| set_solver]|]. fold (KontGetKey2 k2 a b). fold (KontChannel2 bob l1' l2' k2 a b).
-        iApply (rel_bind [_] [_;_] _ _ iThyBot); [iApply traversable_bot|iApply iThy_le_bot|].
-        iApply (rel_load_l with "Hl1'"). iIntros "!> _".
-        iApply (rel_load_r with "Hla"). iIntros "_". rel_pures_r. iModIntro.
-        rel_pures_r. rel_exp_r. rel_pures_r; [set_solver|]. fold (KontChannel1 bob la lb l1 l2 k1 a α β).
-        rel_pures_l; [set_solver|]. fold (KontChannel2' l1' l2' k2 a b).
-        iApply (rel_load_r with "Hl1"). iIntros "_".
-        rel_pures_r; [set_solver|]. fold (KontChannel1' la lb l1 l2 k1 a α β).
-
-        iApply (rel_bind' [_] [_]); [iApply traversable_iThyTraverse|].
-        iApply rel_introduction'.
-        iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-        iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-        iRight. iRight.
-        do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-        iSplit.
-        2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-              iDestruct ("HQ" with "Hnone") as "HQfill".
-              iDestruct ("Hk" with "HQfill") as "Hfillrel".
-              iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-              iApply "IH". }
-        iIntros (b1 b2).
-        iApply rel_value. rel_pures_l. rel_pures_r.
-        iApply (rel_na_inv _ _ tapeN ); [set_solver|].
-        iFrame "Hinv". 
-        iIntros "(>(Htape & [(Hbeta & Hl2 & Hl2' & Hlb) | #(Hbeta & Hl2 & Hl2' &Hlb)]) & Hclose)". 
-        * iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl2'".
-          iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "Hl2".
-          iApply rel_na_close. iFrame. iSplitR "Hla"; [iLeft; iFrame| ]. 
-          rel_pures_l. rel_pures_r.
-          iDestruct ("HQ" with "Hnone") as "HQnone".
-          iDestruct ("Hk" with "HQnone") as "Hknone".
-          iApply (rel_exhaustion [_;_] [_;_] with "[$]").
-          iApply "IH".
-        * iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame "Hl2'". iIntros "!> _".
-          iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "_".
-          iApply rel_na_close. iFrame. iSplitR "Hla"; [iRight; iFrame "#"| ]. simpl.
-          rel_pures_l. rel_pures_r.
-          rel_exp_r. rel_pures_r.
-          rewrite -expgM. rewrite -ssrnat.multE.
-          rewrite -Nat.mul_comm.
-          iDestruct ("HQ" with "Hsome") as "HQsome".
-          iDestruct ("Hk" with "HQsome") as "Hksome".
-          iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
-          iApply "IH".
-
-      (* getKey2 after first getKey1. *)
-      + do 2 rel_pures_r; [apply Hk2; set_solver|]. fold (KontGetKey1 k1 la lb α β). 
-        do 2rel_pures_l; [split; [apply Hk1; set_solver| set_solver]|]. fold (KontGetKey2 k2 a b). fold (KontChannel2 alice l1' l2' k2 a b).
-        iApply (rel_na_inv _ _ tapeN ); [set_solver|].
-        iFrame "Hinv". 
-        iIntros "(>(Htape & [(Hbeta & Hl2 & Hl2s & Hlb) | #(Hbeta & Hl2 & Hl2s &Hlb)]) & Hclose)".
-
-        (* getKey2 hasn't been called before *)
-        * iApply (rel_load_r_with_mask _ _ _ _ [HandleCtx _ _ _; AppRCtx _; CaseCtx _ _ ] with "Hlb").
-          iIntros "Hlb". simpl. 
-          rel_pures_r.
-          iAssert (β ↪ₛN (n; [fin_to_nat b]))%I with "[Hbeta]" as "Hβ".
-          { iExists [b]. simpl. iFrame. done. }
-          iApply (rel_rand_r [HandleCtx _ _ _; AppRCtx _; AppRCtx _] with "Hβ").
-          iIntros "Hβ ?". rel_pures_r.
-          iApply (rel_store_r _ _ _ _ [HandleCtx _ _ _; AppRCtx _; AppRCtx _] with "Hlb"). iIntros "Hlb".
-          rel_pures_r. iApply (rel_exp_r _ [HandleCtx _ _ _; AppRCtx _] _ _ _ b).
-          rel_pures_r; [set_solver|].
-          iApply (rel_load_l_mask [CaseCtx _ _] ). iFrame. iIntros "!> Hl2'". rel_pures_l.
-          iApply (rel_store_l _ _ _ [AppRCtx _] with "Hl2'"). iIntros "!> Hl2'". rel_pures_l.
-          iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "Hl2".
-          rel_pures_r.
-          iApply (rel_store_r _ _ _ _  [AppRCtx _] with "Hl2"). iIntros "Hl2". rel_pures_r.
-          
-          iApply fupd_rel.
-          iMod (ghost_map_elem_persist with "Hl2") as "Hl2".
-          iMod (ghost_map_elem_persist with "Hl2'") as "Hl2'".
-          iMod (ghost_map_elem_persist with "Hlb") as "Hlb".
-          iDestruct "Hβ" as (ns) "(%Hf & Hβ)".
-          apply map_eq_nil in Hf. simplify_eq.
-          iMod (ghost_map_elem_persist with "Hβ") as "Hβ".
-          iModIntro.
-          iApply rel_na_close. iFrame.
-          iSplitL; [iRight; iFrame|].
-          
-          iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-          iApply rel_introduction'.
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iLeft. iLeft.
-          iExists _. do 2 (iSplit; try (iPureIntro; done)).
-          iModIntro.
-          iApply rel_value.
-          rel_pures_l; [set_solver|]. fold (KontChannel1' la lb l1 l2 k1 b α β).
-          rel_pures_r; [set_solver|]. fold (KontChannel2' l1' l2' k2 a b).
-
-          iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-          iApply rel_introduction'.
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iRight. iLeft.
-          do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-          iSplit.
-          2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-              iDestruct ("HQ" with "Hnone") as "HQfill".
-              iDestruct ("Hk" with "HQfill") as "Hfillrel".
-              iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-              iApply "IH". }
-
-          iIntros (b1 b2).
-          iApply rel_value. rel_pures_l. rel_pures_r.
-          iApply (rel_load_r with "Hl1"). iIntros "_". 
-          iApply (rel_load_l with "Hl1'"). iIntros "!>_".
-          rel_pures_r. rel_exp_r. rel_pures_r.
-          rel_pures_l.
-          rewrite -expgM. rewrite -ssrnat.multE.
-          rewrite -Nat.mul_comm.
-          iDestruct ("HQ" with "Hsome") as "HQsome".
-          iDestruct ("Hk" with "HQsome") as "Hksome".
-          iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
-          iApply "IH".
-          
-        (* getKey2 has been called before *)
-        * iApply rel_na_close.
-          iFrame. iSplitL; [iRight; iFrame "#"|].
-          iApply (rel_load_r with "Hlb"). iIntros "_". rel_pures_r. rel_exp_r.
-          rel_pures_r; [set_solver|].
-          iApply (rel_load_r with "Hl2"). iIntros "_". rel_pures_r; [set_solver |].
-          iApply (rel_load_l with "Hl2s"). iIntros "!>_". rel_pures_l; [set_solver|].
-          iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-          iApply rel_introduction'.
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iRight. iLeft.
-          do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-          iSplit.
-          2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-              iDestruct ("HQ" with "Hnone") as "HQfill".
-              iDestruct ("Hk" with "HQfill") as "Hfillrel".
-              iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-              iApply "IH". }
-          iIntros (b1 b2).
-          iApply rel_value. rel_pures_l. rel_pures_r.
-          iApply (rel_load_l with "Hl1'"). iIntros "!> _". 
-          iApply (rel_load_r with "Hl1"). iIntros "_".
-          rel_pures_r. rel_exp_r. rel_pures_r.
-          rel_pures_l.
-          rewrite -expgM. rewrite -ssrnat.multE.
-          rewrite -Nat.mul_comm.
-          iDestruct ("HQ" with "Hsome") as "HQsome".
-          iDestruct ("Hk" with "HQsome") as "Hksome".
-          iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
-          iApply "IH".
-    (* TODO: Correct the rest of proof *)
-    (* Recv bob = Some b *)
-    - iIntros (b1 b2). iApply rel_value.
-      rel_pures_l. rel_pures_r.
-      iApply (rel_na_inv _ _ tapeN ); [set_solver|].
-      iFrame "Hinv". 
-      iIntros "(>(Htape & [(Hβ & Hl2 & Hl2' & Hlb) | #(Hβ & Hl2 & Hl2' &Hlb)]) & Hclose)". 
-      + iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl2'".
-        iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "Hl2". rel_pures_l.
-        iApply rel_na_close. iFrame. iSplitL; [iLeft; iFrame; iDestruct "Hβ" as (ms) "(%Hf' & Hβ)"; apply map_eq_nil in Hf'; simplify_eq; done|].
-        iDestruct ("HQ" with "Hnone") as "HQfill".
-        iDestruct ("Hk" with "HQfill") as "Hfillrel".
-        iClear (Hk1 Hk2) "Hnone Hsome HQ Hk HQfill".
-       
-        (* First call is done. Can call getKey1 or getKey2 again. *)
-        iApply (rel_exhaustion_mask _ [_;_] [_;_] _ _ with "[$]").
-        iClear (k1 k2 S) "Hfillrel".
-        iLöb as "IH".
-        iSplit; [iIntros (v1 v2) "(-> & ->)"; rel_pures_l; by rel_pures_r|].
-        iIntros (e1 e2 ?)
-          "[%e1' [%e2' [%k1 [%k2 [%S
-        (-> & %Hk1 & -> & %Hk2 & [(-> & -> & (#Hnone & #Hsome)) | (-> & -> & (#Hnone & #Hsome))] & #HQ)
-       ]]]]] #Hk".
-
-      (* getKey1 second time. No a is sampled *)
-        * do 2 rel_pures_r; [apply Hk2; set_solver|]. fold (KontGetKey1 k1 la lb α β).
-          do 2 rel_pures_l; [split; [apply Hk1; set_solver| set_solver]|]. fold (KontGetKey2 k2 a b). fold (KontChannel2 bob l1' l2' k2 a b).
-          iApply (rel_bind [_] [_;_] _ _ iThyBot); [iApply traversable_bot|iApply iThy_le_bot|].
-          iApply (rel_load_r with "Hla"). iIntros "_".
-          iApply (rel_load_l with "Hl1'"). iIntros "!> _".
-          rel_pures_r. iModIntro. rel_pures_r. rel_exp_r.
-          rel_pures_l; [set_solver|].
-          rel_pures_r; [set_solver|].
-          iApply (rel_load_r with "Hl1"). iIntros "_".
-          rel_pures_r; [set_solver|]. 
-
-          iApply (rel_bind' [_] [_]); [iApply traversable_iThyTraverse|].
-          iApply rel_introduction'.
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iRight. iRight.
-          do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-          iSplit.
-          2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-                iDestruct ("HQ" with "Hnone") as "HQfill".
-                iDestruct ("Hk" with "HQfill") as "Hfillrel".
-                iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-                iApply "IH". }
-        iIntros (b1' b2').
-        iApply rel_value. rel_pures_l. rel_pures_r.
-        iApply (rel_na_inv _ _ tapeN ); [set_solver|].
-        iFrame "Hinv". 
-        iIntros "(>(Htape & [(Hbeta & Hl2 & Hl2s & Hlb) | (Hbeta & Hl2 & Hl2s &Hlb)]) & Hclose)". 
-          -- iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl2s".
-             iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "Hl2".
-             iApply rel_na_close. iFrame. iSplitR "Hla"; [iLeft; iFrame| ]. 
-             rel_pures_l. rel_pures_r.
-             iDestruct ("HQ" with "Hnone") as "HQnone".
-             iDestruct ("Hk" with "HQnone") as "Hknone".
-             iApply (rel_exhaustion [_;_] [_;_] with "[$]").
-             iApply "IH".
-          -- iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl2s".
-             iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "Hl2".
-             iApply rel_na_close. iFrame. iSplitR "Hla"; [iRight; iFrame| ]. simpl.
-             rel_pures_l. rel_pures_r.
-             rel_exp_r. rel_pures_r.
-             rewrite -expgM. rewrite -ssrnat.multE.
-             rewrite -Nat.mul_comm.
-             iDestruct ("HQ" with "Hsome") as "HQsome".
-             iDestruct ("Hk" with "HQsome") as "Hksome".
-             iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
-             iApply "IH".
-
-      (* getKey2 after first getKey1. *)
-        * do 2 rel_pures_r; [apply Hk2; set_solver|]. 
-        do 2rel_pures_l; [split; [apply Hk1; set_solver| set_solver]|]. 
-        iApply (rel_na_inv _ _ tapeN ); [set_solver|].
-        iFrame "Hinv". 
-        iIntros "(>(Htape & [(Hbeta & Hl2 & Hl2s & Hlb) | #(Hbeta & Hl2 & Hl2s &Hlb)]) & Hclose)".
-
-        (* getKey2 hasn't been called before *)
-          -- iApply (rel_load_r_with_mask _ _ _ _ [HandleCtx _ _ _; AppRCtx _; CaseCtx _ _ ] with "Hlb").
-             iIntros "Hlb". simpl. 
-             rel_pures_r.
-             iAssert (β ↪ₛN (n; [fin_to_nat b]))%I with "[Hbeta]" as "Hβ".
-             { iExists [b]. simpl. iFrame. done. }
-             iApply (rel_rand_r [HandleCtx _ _ _; AppRCtx _; AppRCtx _] with "Hβ").
-             iIntros "Hβ %Hltb". rel_pures_r.
-             iApply (rel_store_r _ _ _ _ [HandleCtx _ _ _; AppRCtx _; AppRCtx _] with "Hlb").
-             iIntros "Hlb".
-             rel_pures_r. iApply (rel_exp_r _ [HandleCtx _ _ _; AppRCtx _] _ _ _ b).
-             rel_pures_r; [set_solver|].
-             iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2").
-             iIntros "Hl2". rel_pures_r.
-             iApply (rel_store_r _ _ _ _ [AppRCtx _] with "Hl2"). iIntros "Hl2". rel_pures_r.
-             iApply (rel_load_l_mask [CaseCtx _ _]). iFrame. iIntros "!> Hl2'".
-             rel_pures_l.
-             iApply (rel_store_l _ _ _  [AppRCtx _] with "Hl2'"). iIntros "!> Hl2'". rel_pures_l.
-
-             iApply fupd_rel.
-             iMod (ghost_map_elem_persist with "Hl2") as "Hl2".
-             iMod (ghost_map_elem_persist with "Hl2'") as "Hl2'".
-             iMod (ghost_map_elem_persist with "Hlb") as "Hlb".
-             iDestruct "Hβ" as (ns) "(%Hf & Hβ)".
-             apply map_eq_nil in Hf. simplify_eq.
-             iMod (ghost_map_elem_persist with "Hβ") as "Hβ".
-             iModIntro.
-             iApply rel_na_close. iFrame.
-             iSplitL; [iRight; iFrame|].
-             
-             iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-             iApply rel_introduction'.
-             iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-             iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iLeft. iLeft.
-             iExists _. do 2 (iSplit; try (iPureIntro; done)).
-             iModIntro.
-             iApply rel_value.
-             rel_pures_l; [set_solver|]. 
-             rel_pures_r; [set_solver|]. 
-
-             iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-             iApply rel_introduction'.
-             iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-             iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iRight. iLeft.
-             do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-             iSplit.
-             2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-                   iDestruct ("HQ" with "Hnone") as "HQfill".
-                   iDestruct ("Hk" with "HQfill") as "Hfillrel".
-                   iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-                   iApply "IH". }
-
-             iIntros (b1' b2').
-             iApply rel_value. rel_pures_l. rel_pures_r.
-             iApply (rel_load_r with "Hl1"). iIntros "_". 
-             iApply (rel_load_l with "Hl1'"). iIntros "!> _".
-             rel_pures_l. rel_pures_r.
-             rel_exp_r. rel_pures_r.
-             rewrite -expgM. rewrite -ssrnat.multE.
-             rewrite -Nat.mul_comm.
-             iDestruct ("HQ" with "Hsome") as "HQsome".
-             iDestruct ("Hk" with "HQsome") as "Hksome".
-             iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
-             iApply "IH".
-        (* getKey2 has been called before *)
-          -- iApply rel_na_close.
-             iFrame. iSplitL; [iRight; iFrame "#"|].
-             iApply (rel_load_r with "Hlb"). iIntros "_".
-             rel_pures_r. rel_exp_r.
-             rel_pures_r; [set_solver|].
-             iApply (rel_load_r with "Hl2"). iIntros "_". rel_pures_r; [set_solver |].
-             iApply (rel_load_l with "Hl2s"). iIntros "!>_". rel_pures_l; [set_solver|].
-             iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-             iApply rel_introduction'.
-             iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-             iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iRight. iLeft.
-             do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-             iSplit.
-             2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-                   iDestruct ("HQ" with "Hnone") as "HQfill".
-                   iDestruct ("Hk" with "HQfill") as "Hfillrel".
-                   iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-                   iApply "IH". }
-             iIntros (b1' b2').
-             iApply rel_value. rel_pures_l. rel_pures_r.
-             iApply (rel_load_l with "Hl1'"). iIntros "!> _". 
-             iApply (rel_load_r with "Hl1"). iIntros "_".
-             rel_pures_r. rel_exp_r. rel_pures_r.
-             rel_pures_l.
-             rewrite -expgM. rewrite -ssrnat.multE.
-             rewrite -Nat.mul_comm.
-             iDestruct ("HQ" with "Hsome") as "HQsome".
-             iDestruct ("Hk" with "HQsome") as "Hksome".
-             iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
-             iApply "IH".
-
-      + iApply rel_na_close. iFrame. iSplitL; [iRight; iFrame "#"|].
-        iApply (rel_load_l with "Hl2'"). iIntros "!> _".
-        iApply (rel_load_r with "Hl2"). iIntros "_". rel_pures_l.
-        rel_pures_r. rel_exp_r. rel_pures_r.
-        rewrite -expgM. rewrite -ssrnat.multE.
-        rewrite -Nat.mul_comm.
-        iDestruct ("HQ" with "Hsome") as "HQfill".
-        iDestruct ("Hk" with "HQfill") as "Hfillrel".
-        iClear (Hk1 Hk2) "Hnone Hsome HQ Hk HQfill".
-       
-        (* First call is done. Can call getKey1 or getKey2 again. *)
-        iApply (rel_exhaustion_mask _ [_;_] [_;_] _ _ with "[$]").
-        iClear (k1 k2 S) "Hfillrel".
-        iLöb as "IH".
-        iSplit; [iIntros (v1 v2) "(-> & ->)"; rel_pures_l; by rel_pures_r|].
-        iIntros (e1 e2 ?)
-          "[%e1' [%e2' [%k1 [%k2 [%S
-        (-> & %Hk1 & -> & %Hk2 & [(-> & -> & (#Hnone & #Hsome)) | (-> & -> & (#Hnone & #Hsome))] & #HQ)
-       ]]]]] #Hk".
-
-      (* getKey1 second time. No a is sampled *)
-        * do 2 rel_pures_r; [apply Hk2; set_solver|]. 
-          do 2 rel_pures_l; [split; [apply Hk1; set_solver| set_solver]|].
-          iApply (rel_bind [_] [_;_]); [iApply traversable_bot|iApply iThy_le_bot|].
-          iApply (rel_load_l with "Hl1'"). iIntros "!>_".
-          iApply (rel_load_r with "Hla"). iIntros "_". rel_pures_r. iModIntro.
-          rel_pures_r. rel_exp_r.
-          rel_pures_l; [set_solver|]. 
-          rel_pures_r; [set_solver|]. 
-          iApply (rel_load_r with "Hl1").
-          iIntros "_".
-          rel_pures_r; [set_solver|]. 
-
-          iApply (rel_bind' [_] [_]); [iApply traversable_iThyTraverse|].
-          iApply rel_introduction'.
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iRight. iRight.
-          do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-          iSplit.
-          2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-                iDestruct ("HQ" with "Hnone") as "HQfill".
-                iDestruct ("Hk" with "HQfill") as "Hfillrel".
-                iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-                iApply "IH". }
-          iIntros (b1' b2').
-          iApply rel_value. rel_pures_l. rel_pures_r.
-          iApply (rel_load_l with "Hl2'"). iIntros "!> _".
-          iApply (rel_load_r with "Hl2"). iIntros "_".
-          rel_pures_l. rel_pures_r.
-          rel_exp_r. rel_pures_r.
-          rewrite -expgM. rewrite -ssrnat.multE.
-          rewrite -Nat.mul_comm.
-          iDestruct ("HQ" with "Hsome") as "HQsome".
-          iDestruct ("Hk" with "HQsome") as "Hksome".
-          iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
-          iApply "IH".
-
-        (* getKey2 after first getKey1. getKey2 is called before. *)
-        * do 2 rel_pures_r; [apply Hk2; set_solver|].
-          do 2rel_pures_l; [split; [apply Hk1; set_solver| set_solver]|].
-          iApply (rel_load_r with "Hlb"). iIntros "_".
-          rel_pures_r. rel_exp_r. rel_pures_r; [set_solver|].
-          iApply (rel_load_r with "Hl2"). iIntros "_". rel_pures_r; [set_solver |].
-          iApply (rel_load_l with "Hl2'"). iIntros "!> _". rel_pures_l; [set_solver|].
-          iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-          iApply rel_introduction'.
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iRight. iLeft.
-          do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-          iSplit.
-          2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-                iDestruct ("HQ" with "Hnone") as "HQfill".
-                iDestruct ("Hk" with "HQfill") as "Hfillrel".
-                iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-                iApply "IH". }
-          iIntros (b1' b2').
-          iApply rel_value. rel_pures_l. rel_pures_r.
-          iApply (rel_load_l with "Hl1'"). iIntros "!> _". 
-          iApply (rel_load_r with "Hl1"). iIntros "_".
-          rel_pures_l. rel_pures_r.
-          rel_exp_r. rel_pures_r.
-          rewrite -expgM. rewrite -ssrnat.multE.
-          rewrite -Nat.mul_comm.
-          iDestruct ("HQ" with "Hsome") as "HQsome".
-          iDestruct ("Hk" with "HQsome") as "Hksome".
-          iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
-          iApply "IH". }
-
-
-     1 : {
     do 2 rel_pures_r; [apply Hk2; set_solver|]. 
     do 2rel_pures_l; [split;[apply Hk1; set_solver|set_solver]|].
-    iApply (rel_load_r with "Hlb"). iIntros "Hlb". rel_pures_r.
-    iAssert (β ↪ₛN (n; [fin_to_nat b]))%I with "[Hβ]" as "Hβ".
-    { iExists [b]. simpl. iFrame. done. }
-    iApply (rel_rand_r with "Hβ").
-    iIntros "Hβ %Hltb". rel_pures_r.
-    iApply (rel_store_r with "Hlb"). iIntros "Hlb".
-    rel_pures_r.
-    rel_exp_r.
-    rel_pures_r; [set_solver|]. 
-    iApply (rel_load_l with "Hl2'"). iIntros "!> Hl2'".
-    iApply (rel_load_r with "Hl2"). iIntros "Hl2".
-    rel_pures_l. rel_pures_r.
-    iApply (rel_store_l with "Hl2'"). iIntros "!> Hl2'".
-    iApply (rel_store_r with "Hl2"). iIntros "Hl2".
-    rel_pures_l.
-    rel_pures_r.
-    
-    (* Send gB first time *)
-    iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-    iApply fupd_rel.
-    iMod (ghost_map_elem_persist with "Hl2'") as "#Hl2'".
-    iMod (ghost_map_elem_persist with "Hl2") as "#Hl2".
-    iMod (ghost_map_elem_persist with "Hlb") as "#Hlb".
-    iModIntro.
-    iApply (rel_na_alloc
-              (β ↪ₛN (n; []) ∗
-               ((α ↪ₛ (n; [a]) ∗ l1 ↦ₛ NONEV ∗ l1' ↦ NONEV ∗ la ↦ₛ NONEV)
-                ∨ (α ↪ₛ□ (n; [])
-                   ∗ l1 ↦ₛ□ SOMEV (g ^+ a)%g
-                   ∗ l1' ↦□ SOMEV (g ^+ a)%g
-                   ∗ la ↦ₛ□ SOMEV #a)))%I
-              tapeN).
-    iSplitL "Hα Hl1 Hl1' Hβ Hla"; [iNext; iFrame; iLeft; iFrame|].
-    iIntros "#Hinv".
-    iApply rel_introduction'.
-    iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-    iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-    iLeft. iLeft.
-    iExists _. do 2 (iSplit; try (iPureIntro; done)).
-    iModIntro.
-    iApply rel_value.
-    rel_pures_l; [set_solver|].
-    rel_pures_r; [set_solver|].
-    
-    (* Recv alice first time (either none or some) *)
-    iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-    iApply rel_introduction'.
-    iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-    iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-    iRight. iLeft.
-    do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-    iSplit; last first.
-
-    (* Recv alice = None *)
-    - iApply rel_value.
+    iApply (rel_na_inv _ _ alphaN ); [set_solver|].
+    iFrame "Hinva". 
+    iIntros "(>[(Hα & Hl1 & Hl1' & Hla) | #(Hα & Hl1 & Hl1' &Hla)] & Hclose)".
+    - iApply (rel_load_r_with_mask _ _ _ _ [HandleCtx _ _ _ ; AppRCtx _; CaseCtx _ _] with "Hla").
+      iIntros "Hla". rel_pures_r.
+      iAssert (α ↪ₛN (n; [fin_to_nat a]))%I with "[Hα]" as "Hα".
+      { iExists [a]. simpl. iFrame. done. }
+      iApply (rel_rand_r [HandleCtx _ _ _; AppRCtx _; AppRCtx _] with "Hα").
+      iIntros "Hα ?". rel_pures_r.
+      iApply (rel_store_r _ _ _ _ [HandleCtx _ _ _; AppRCtx _; AppRCtx _] with "Hla"). iIntros "Hla".
+      rel_pures_r.
+      iApply (rel_exp_r _ [HandleCtx _ _ _; AppRCtx _]).
+      rel_pures_r; [set_solver|]. 
+      iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl1"). iIntros "Hl1".
+      iApply (rel_load_l_mask [CaseCtx _ _]). iFrame. iIntros "!> Hl1'".
       rel_pures_l. rel_pures_r.
-      iDestruct ("HQ" with "Hnone") as "HQfill".
-      iDestruct ("Hk" with "HQfill") as "Hfillrel".
-      iClear (Hk1 Hk2) "Hnone Hsome HQ Hk HQfill".
-
-      (* First call is done. Can call getKey1 or getKey2 again. *)
-      iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-      iClear (k1 k2 S) "Hfillrel".
-      iLöb as "IH".
-      iSplit; [iIntros (v1 v2) "(-> & ->)"; rel_pures_l; by rel_pures_r|].
-      iIntros (e1 e2 ?)
-      "[%e1' [%e2' [%k1 [%k2 [%S
-        (-> & %Hk1 & -> & %Hk2 & [(-> & -> & (#Hnone & #Hsome)) | (-> & -> & (#Hnone & #Hsome))] & #HQ)
-       ]]]]] #Hk".
-
-      (* getKey2 after first getKey1. *)
-      + do 2 rel_pures_r; [apply Hk2; set_solver|]. 
-        do 2rel_pures_l; [split; [apply Hk1; set_solver| set_solver]|]. 
-        iApply (rel_na_inv _ _ tapeN ); [set_solver|].
-        iFrame "Hinv". 
-        iIntros "(>(Htape & [(Hα & Hl1 & Hl1' & Hla) | #(Hα & Hl1 & Hl1' &Hla)]) & Hclose)".
-
-        (* getKey2 hasn't been called before *)
-        * iApply (rel_load_r_with_mask _ _ _ _ [HandleCtx _ _ _; AppRCtx _; CaseCtx _ _ ] with "Hla").
-          iIntros "Hla". 
-          rel_pures_r.
-          iAssert (α ↪ₛN (n; [fin_to_nat a]))%I with "[Hα]" as "Hα".
-          { iExists [a]. simpl. iFrame. done. }
-          iApply (rel_rand_r [HandleCtx _ _ _; AppRCtx _; AppRCtx _] with "Hα").          
-          iIntros "Hα %Hlta". rel_pures_r.
-          iApply (rel_store_r _ _ _ _ [HandleCtx _ _ _; AppRCtx _; AppRCtx _] with "Hla").
-          iIntros "Hla".
-          rel_pures_r. iApply (rel_exp_r _ [HandleCtx _ _ _; AppRCtx _] _ _ _ a).
-          rel_pures_r; [set_solver|].
-          iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl1").
-          iIntros "Hl1". rel_pures_r.
-          iApply (rel_store_r _ _ _ _ [AppRCtx _] with "Hl1"). iIntros "Hl1". rel_pures_r.
-          iApply (rel_load_l_mask[CaseCtx _ _]). iFrame. iIntros "!> Hl1'".
-          rel_pures_l.
-          iApply (rel_store_l _ _ _  [AppRCtx _] with "Hl1'"). iIntros "!> Hl1'". rel_pures_l.
-
-          iApply fupd_rel.
-          iMod (ghost_map_elem_persist with "Hl1") as "Hl1".
-          iMod (ghost_map_elem_persist with "Hl1'") as "Hl1'".
-          iMod (ghost_map_elem_persist with "Hla") as "Hla".
-          iDestruct "Hα" as (ns) "(%Hf & Hα)".
-          apply map_eq_nil in Hf. simplify_eq.
-          iMod (ghost_map_elem_persist with "Hα") as "Hα".
-          iModIntro.
-          iApply rel_na_close. iFrame.
-          iSplitL; [iRight; iFrame|].
-          
-          iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-          iApply rel_introduction'.
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iLeft. iRight.
-          iExists _. do 2 (iSplit; try (iPureIntro; done)).
-          iModIntro.
-          iApply rel_value.
-          rel_pures_l; [set_solver|].
-          rel_pures_r; [set_solver|].
-
-          iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-          iApply rel_introduction'.
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iRight. iRight.
-          do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-          iSplit.
-          2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-              iDestruct ("HQ" with "Hnone") as "HQfill".
-              iDestruct ("Hk" with "HQfill") as "Hfillrel".
-              iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-              iApply "IH". }
-
-          iIntros (b1 b2).
-          iApply rel_value. rel_pures_l. rel_pures_r.
-          iApply (rel_load_l with "Hl2'"). iIntros "!> _". 
-          iApply (rel_load_r with "Hl2"). iIntros "_".
-          rel_pures_l. rel_pures_r.
-          rel_exp_r. rel_pures_r.
-          rewrite -expgM. rewrite -ssrnat.multE.
-          rewrite -Nat.mul_comm.
-          iDestruct ("HQ" with "Hsome") as "HQsome".
-          iDestruct ("Hk" with "HQsome") as "Hksome".
-          iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
-          iApply "IH".
-
-          
-        (* getKey2 has been called before *)
-        * iApply rel_na_close.
-          iFrame. iSplitL; [iRight; iFrame "#"|].
-          iApply (rel_load_r with "Hla"). iIntros "_".
-          rel_pures_r. rel_exp_r. rel_pures_r; [set_solver|].
-          iApply (rel_load_l with "Hl1'"). iIntros "!> _". rel_pures_l; [set_solver |].
-          iApply (rel_load_r with "Hl1"). iIntros "_". rel_pures_r; [set_solver|].
-          iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-          iApply rel_introduction'.
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iRight. iRight.
-          do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-          iSplit.
-          2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-              iDestruct ("HQ" with "Hnone") as "HQfill".
-              iDestruct ("Hk" with "HQfill") as "Hfillrel".
-              iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-              iApply "IH". }
-          iIntros (b1 b2).
-          iApply rel_value. rel_pures_l. rel_pures_r.
-          iApply (rel_load_l with "Hl2'"). iIntros "!> _". 
-          iApply (rel_load_r with "Hl2"). iIntros "_".
-          rel_pures_r. rel_exp_r. rel_pures_r.
-          rel_pures_l.
-          rewrite -expgM. rewrite -ssrnat.multE.
-          rewrite -Nat.mul_comm.
-          iDestruct ("HQ" with "Hsome") as "HQsome".
-          iDestruct ("Hk" with "HQsome") as "Hksome".
-          iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
-          iApply "IH".
+      iApply (rel_store_r _ _ _ _ [AppRCtx _] with "Hl1"). iIntros "Hl1".
+      iApply (rel_store_l _ _ _ [AppRCtx _] with "Hl1'"). iIntros "!>Hl1'".
+      rel_pures_l.
+      rel_pures_r.
+    
+      (* Send gA first time *)
+      iApply (rel_bind_mask _ [AppRCtx _] [AppRCtx _]); [by iApply traversable_iThyTraverse|iApply iThy_le_refl| ].
+      iApply fupd_rel.
+      iMod (ghost_map_elem_persist with "Hl1'") as "#Hl1'".
+      iMod (ghost_map_elem_persist with "Hl1") as "#Hl1".
+      iMod (ghost_map_elem_persist with "Hla") as "#Hla".
+      iDestruct "Hα" as (ns) "(%Hf & Hα)". apply map_eq_nil in Hf. simplify_eq.
+      iMod (ghost_map_elem_persist with "Hα") as "#Hα".
+      iModIntro.
+      iApply rel_na_close. iFrame.
+      iSplitL; [iRight; iFrame "#"|].
       
-      (* getKey2 second time. No b is sampled *)
-      + do 2 rel_pures_r; [apply Hk2; set_solver|].
-        do 2 rel_pures_l; [split; [apply Hk1; set_solver| set_solver]|]. 
-        iApply (rel_bind [_] [_;_] _ _ iThyBot); [iApply traversable_bot|iApply iThy_le_bot|].
-        iApply (rel_load_l with "Hl2'"). iIntros "!> _".
-        iApply (rel_load_r with "Hlb"). iIntros "_". rel_pures_r. iModIntro.
-        rel_pures_r. rel_exp_r. rel_pures_r; [set_solver|]. 
-        rel_pures_l; [set_solver|]. 
-        iApply (rel_load_r with "Hl2"). iIntros "_".
-        rel_pures_r; [set_solver|]. 
+      iApply rel_introduction'.
+      iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+      iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+      iLeft. iRight.
+      iExists _. do 2 (iSplit; try (iPureIntro; done)).
+      iModIntro.
+      iApply rel_value.
+      rel_pures_l; [set_solver|]. 
+      rel_pures_r; [set_solver|]. 
+      
+      (* Recv bob first time (either none or some) *)
+      iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
+      iApply rel_introduction'.
+      iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+      iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+      iRight. iRight.
+      do 2 (iSplit; try (iPureIntro; done)). iModIntro.
+      iSplit; last first.
 
-        iApply (rel_bind' [_] [_]); [iApply traversable_iThyTraverse|].
-        iApply rel_introduction'.
-        iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-        iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-        iRight. iLeft.
-        do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-        iSplit.
-        2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-              iDestruct ("HQ" with "Hnone") as "HQfill".
-              iDestruct ("Hk" with "HQfill") as "Hfillrel".
-              iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-              iApply "IH". }
-        iIntros (b1 b2).
-        iApply rel_value. rel_pures_l. rel_pures_r.
-        iApply (rel_na_inv _ _ tapeN ); [set_solver|].
-        iFrame "Hinv". 
-        iIntros "(>(Htape & [(Hα & Hl1 & Hl1s & Hla) | #(Hβ & Hl1 & Hl1s &Hla)]) & Hclose)". 
-        * iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl1'".
-          iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl1"). iIntros "Hl1".
-          iApply rel_na_close. iFrame. iSplitR "Hlb"; [iLeft; iFrame| ]. 
-          rel_pures_l. rel_pures_r.
-          iDestruct ("HQ" with "Hnone") as "HQnone".
-          iDestruct ("Hk" with "HQnone") as "Hknone".
-          iApply (rel_exhaustion [_;_] [_;_] with "[$]").
-          iApply "IH".
-        * iApply rel_na_close. iFrame. iSplitR; [iRight; iFrame "#"|].
-          iApply (rel_load_l with "Hl1s"). iIntros "!> _".
-          iApply (rel_load_r with "Hl1"). iIntros "_".
-          rel_pures_r. rel_exp_r. rel_pures_r.
-          rel_pures_l.
-          rewrite -expgM. rewrite -ssrnat.multE.
-          rewrite -Nat.mul_comm.
-          iDestruct ("HQ" with "Hsome") as "HQsome".
-          iDestruct ("Hk" with "HQsome") as "Hksome".
-          iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
-          iApply "IH".
-
-    (* Recv bob = Some b *)
-    - iIntros (b1 b2). iApply rel_value.
-      rel_pures_l. rel_pures_r.
-      iApply (rel_na_inv _ _ tapeN ); [set_solver|].
-      iFrame "Hinv". 
-      iIntros "(>(Htape & [(Hα & Hl1 & Hl1s & Hla) | #(Hα & Hl1 & Hl1s &Hla)]) & Hclose)". 
-      + iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl1s".
-        iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl1"). iIntros "Hl1". rel_pures_l.
-        iApply rel_na_close. iFrame. iSplitL; [iLeft; iFrame; iDestruct "Hα" as (ms) "(%Hf' & Hα)"; apply map_eq_nil in Hf'; simplify_eq; done|].
+    (* Recv bob = None *)
+      + iApply rel_value.
+        rel_pures_l. rel_pures_r.
         iDestruct ("HQ" with "Hnone") as "HQfill".
         iDestruct ("Hk" with "HQfill") as "Hfillrel".
         iClear (Hk1 Hk2) "Hnone Hsome HQ Hk HQfill".
-       
+
         (* First call is done. Can call getKey1 or getKey2 again. *)
-        iApply (rel_exhaustion_mask _ [_;_] [_;_] _ _ with "[$]").
-        iClear (k1 k2 S) "Hfillrel".
-        iLöb as "IH".
-        iSplit; [iIntros (v1 v2) "(-> & ->)"; rel_pures_l; by rel_pures_r|].
-        iIntros (e1 e2 ?)
-          "[%e1' [%e2' [%k1 [%k2 [%S
-        (-> & %Hk1 & -> & %Hk2 & [(-> & -> & (#Hnone & #Hsome)) | (-> & -> & (#Hnone & #Hsome))] & #HQ)
-       ]]]]] #Hk".
+        iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]"). iApply "IH".
 
-        * do 2 rel_pures_r; [apply Hk2; set_solver|]. 
-          do 2rel_pures_l; [split; [apply Hk1; set_solver| set_solver]|]. 
-          iApply (rel_na_inv _ _ tapeN ); [set_solver|].
-          iFrame "Hinv". 
-          iIntros "(>(Htape & [(Hα & Hl1 & Hl1s & Hla) | #(Hα & Hl1 & Hl1s &Hla)]) & Hclose)".
+      + iIntros (b1 b2). iApply rel_value.
+        rel_pures_l. rel_pures_r.
+        iApply (rel_na_inv _ _ betaN ); [set_solver|].
+        iFrame "Hinvb". 
+        iIntros "(>[(Hβ & Hl2 & Hl2' & Hlb) | #(Hβ & Hl2 & Hl2' &Hlb)] & Hclose)". 
+        * iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl2'".
+          iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "Hl2". rel_pures_l.
+          iApply rel_na_close. iFrame. iSplitL; [iLeft; iFrame; iDestruct "Hβ" as (ms) "(%Hf' & Hβ)"; apply map_eq_nil in Hf'; simplify_eq; done|].
+          iDestruct ("HQ" with "Hnone") as "HQfill".
+          iDestruct ("Hk" with "HQfill") as "Hfillrel".
+          iClear (Hk1 Hk2) "Hnone Hsome HQ Hk HQfill".
+          
+          (* First call is done. Can call getKey1 or getKey2 again. *)
+          iApply (rel_exhaustion_mask _ [_;_] [_;_] _ _ with "[$]"). iApply "IH".
 
-          (* getKey2 hasn't been called before *)
-          -- iApply (rel_load_r_with_mask _ _ _ _ [HandleCtx _ _ _; AppRCtx _; CaseCtx _ _ ] with "Hla").
-             iIntros "Hla". 
-             rel_pures_r.
-             iAssert (α ↪ₛN (n; [fin_to_nat a]))%I with "[Hα]" as "Hα".
-             { iExists [a]. simpl. iFrame. done. }
-             iApply (rel_rand_r [HandleCtx _ _ _; AppRCtx _; AppRCtx _] with "Hα").
-             iIntros "Hα %Hlta". rel_pures_r.
-             iApply (rel_store_r _ _ _ _ [HandleCtx _ _ _; AppRCtx _; AppRCtx _] with "Hla").
-             iIntros "Hla".
-             rel_pures_r. iApply (rel_exp_r _ [HandleCtx _ _ _; AppRCtx _] _ _ _ a).
-             rel_pures_r; [set_solver|].
-             iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl1").
-             iIntros "Hl1". rel_pures_r.
-             iApply (rel_store_r _ _ _ _ [AppRCtx _] with "Hl1"). iIntros "Hl1". rel_pures_r.
-             iApply (rel_load_l_mask [CaseCtx _ _]). iFrame. iIntros "!> Hl1s".
-             rel_pures_l.
-             iApply (rel_store_l _ _ _  [AppRCtx _] with "Hl1s"). iIntros "!> Hl1s". rel_pures_l.
-
-             iApply fupd_rel.
-             iMod (ghost_map_elem_persist with "Hl1") as "Hl1".
-             iMod (ghost_map_elem_persist with "Hl1s") as "Hl1s".
-             iMod (ghost_map_elem_persist with "Hla") as "Hla".
-             iDestruct "Hα" as (ns) "(%Hf & Hα)".
-             apply map_eq_nil in Hf. simplify_eq.
-             iMod (ghost_map_elem_persist with "Hα") as "Hα".
-             iModIntro.
-             iApply rel_na_close. iFrame.
-             iSplitL; [iRight; iFrame|].
-             
-             iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-             iApply rel_introduction'.
-             iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-             iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iLeft. iRight.
-             iExists _. do 2 (iSplit; try (iPureIntro; done)).
-             iModIntro.
-             iApply rel_value.
-             rel_pures_l; [set_solver|].
-             rel_pures_r; [set_solver|].
-
-             iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-             iApply rel_introduction'.
-             iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-             iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iRight. iRight.
-             do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-             iSplit.
-             2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-                   iDestruct ("HQ" with "Hnone") as "HQfill".
-                   iDestruct ("Hk" with "HQfill") as "Hfillrel".
-                   iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-                   iApply "IH". }
-
-             iIntros (b1' b2').
-             iApply rel_value. rel_pures_l. rel_pures_r.
-             iApply (rel_load_l with "Hl2'"). iIntros "!> _". 
-             iApply (rel_load_r with "Hl2"). iIntros "_".
-             rel_pures_r. rel_exp_r. rel_pures_r.
-             rel_pures_l.
-             rewrite -expgM. rewrite -ssrnat.multE.
-             rewrite -Nat.mul_comm.
-             iDestruct ("HQ" with "Hsome") as "HQsome".
-             iDestruct ("Hk" with "HQsome") as "Hksome".
-             iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
-             iApply "IH".
-             
-             (* getKey2 has been called before *)
-          -- iApply rel_na_close. iFrame.
-             iSplitR; [iRight; iFrame "#"|].
-             iApply (rel_load_r with "Hla"). iIntros "_".
-             rel_pures_r. rel_exp_r. rel_pures_r; [set_solver|].
-             iApply (rel_load_l with "Hl1s"). iIntros "!> _". rel_pures_l; [set_solver |].
-             iApply (rel_load_r with "Hl1"). iIntros "_". rel_pures_r; [set_solver|].
-             iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-             iApply rel_introduction'.
-             iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-             iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iRight. iRight.
-             do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-             iSplit.
-             2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-                   iDestruct ("HQ" with "Hnone") as "HQfill".
-                   iDestruct ("Hk" with "HQfill") as "Hfillrel".
-                   iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-                   iApply "IH". }
-             iIntros (b1' b2').
-             iApply rel_value. rel_pures_l. rel_pures_r.
-             iApply (rel_load_l with "Hl2'"). iIntros "!> _". 
-             iApply (rel_load_r with "Hl2"). iIntros "_".
-             rel_pures_r. rel_exp_r. rel_pures_r.
-             rel_pures_l.
-             rewrite -expgM. rewrite -ssrnat.multE.
-             rewrite -Nat.mul_comm.
-             iDestruct ("HQ" with "Hsome") as "HQsome".
-             iDestruct ("Hk" with "HQsome") as "Hksome".
-             iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
-             iApply "IH".
-
-             
-      (* getKey1 second time. No a is sampled *)
-        * do 2 rel_pures_r; [apply Hk2; set_solver|].
-          do 2 rel_pures_l; [split; [apply Hk1; set_solver| set_solver]|].
-          iApply (rel_bind [_] [_;_] _ _ iThyBot); [iApply traversable_bot|iApply iThy_le_bot|].
+        * iApply rel_na_close. iFrame. iSplitL; [iRight; iFrame "#"|].
           iApply (rel_load_l with "Hl2'"). iIntros "!> _".
-          iApply (rel_load_r with "Hlb"). iIntros "_". rel_pures_r. iModIntro.
-          rel_pures_r. rel_exp_r.
-          rel_pures_r; [set_solver|].
-          rel_pures_l; [set_solver|].
-          iApply (rel_load_r with "Hl2"). iIntros "_".
-          rel_pures_r; [set_solver|]. 
-
-          iApply (rel_bind' [_] [_]); [iApply traversable_iThyTraverse|].
-          iApply rel_introduction'.
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iRight. iLeft.
-          do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-          iSplit.
-          2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-                iDestruct ("HQ" with "Hnone") as "HQfill".
-                iDestruct ("Hk" with "HQfill") as "Hfillrel".
-                iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-                iApply "IH". }
-          iIntros (b1' b2').
-          iApply rel_value. rel_pures_l. rel_pures_r.
-          iApply (rel_na_inv _ _ tapeN ); [set_solver|].
-          iFrame "Hinv". 
-          iIntros "(>(Htape & [(Hα & Hl1 & Hl1s & Hla) | #(Hα & Hl1 & Hl1s &Hla)]) & Hclose)". 
-          -- iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl1'".
-             iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl1"). iIntros "Hl1".
-             iApply rel_na_close. iFrame. iSplitR "Hlb"; [iLeft; iFrame| ]. 
-             rel_pures_l. rel_pures_r.
-             iDestruct ("HQ" with "Hnone") as "HQnone".
-             iDestruct ("Hk" with "HQnone") as "Hknone".
-             iApply (rel_exhaustion [_;_] [_;_] with "[$]").
-             iApply "IH".
-          -- iApply rel_na_close. iFrame. iSplitR "Hlb"; [iRight; iFrame "#"|].
-             iApply (rel_load_l with "Hl1s"). iIntros "!> _".
-             iApply (rel_load_r with "Hl1"). iIntros "_".
-             rel_pures_r. rel_exp_r. rel_pures_r.
-             rel_pures_l.
-             rewrite -expgM. rewrite -ssrnat.multE.
-             rewrite -Nat.mul_comm.
-             iDestruct ("HQ" with "Hsome") as "HQsome".
-             iDestruct ("Hk" with "HQsome") as "Hksome".
-             iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
-             iApply "IH".
-
-      + iApply rel_na_close. iFrame. iSplitL; [iRight; iFrame "#"|].
-        iApply (rel_load_l with "Hl1s"). iIntros "!> _".
-        iApply (rel_load_r with "Hl1"). iIntros "_". 
-        rel_pures_l.
-        rel_pures_r. rel_exp_r. rel_pures_r.
-        rewrite -expgM. rewrite -ssrnat.multE.
-        rewrite -Nat.mul_comm.
-        iDestruct ("HQ" with "Hsome") as "HQfill".
-        iDestruct ("Hk" with "HQfill") as "Hfillrel".
-        iClear (Hk1 Hk2) "Hnone Hsome HQ Hk HQfill".
-       
-        (* First call is done. Can call getKey1 or getKey2 again. *)
-        iApply (rel_exhaustion_mask _ [_;_] [_;_] _ _ with "[$]").
-        iClear (k1 k2 S) "Hfillrel".
-        iLöb as "IH".
-        iSplit; [iIntros (v1 v2) "(-> & ->)"; rel_pures_l; by rel_pures_r|].
-        iIntros (e1 e2 ?)
-          "[%e1' [%e2' [%k1 [%k2 [%S
-        (-> & %Hk1 & -> & %Hk2 & [(-> & -> & (#Hnone & #Hsome)) | (-> & -> & (#Hnone & #Hsome))] & #HQ)
-       ]]]]] #Hk".
-
-         (* getKey2 after first getKey1. *)
-        * do 2 rel_pures_r; [apply Hk2; set_solver|].
-        do 2rel_pures_l; [split; [apply Hk1; set_solver| set_solver]|].
-        iApply (rel_load_r with "Hla"). iIntros "_".
-        rel_pures_r. rel_exp_r. rel_pures_r; [set_solver|].
-        iApply (rel_load_l with "Hl1s"). iIntros "!> _". rel_pures_l; [set_solver |].
-        iApply (rel_load_r with "Hl1"). iIntros "_". rel_pures_r; [set_solver|].
-        iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
-        iApply rel_introduction'.
-        iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-        iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-        iRight. iRight.
-        do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-        iSplit.
-        2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-              iDestruct ("HQ" with "Hnone") as "HQfill".
-              iDestruct ("Hk" with "HQfill") as "Hfillrel".
-              iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-              iApply "IH". }
-        iIntros (b1' b2').
-        iApply rel_value. rel_pures_l. rel_pures_r.
-        iApply (rel_load_l with "Hl2'"). iIntros "!> _". 
-        iApply (rel_load_r with "Hl2"). iIntros "_".
-        rel_pures_r. rel_exp_r. rel_pures_r.
-        rel_pures_l.
-        rewrite -expgM. rewrite -ssrnat.multE.
-        rewrite -Nat.mul_comm.
-        iDestruct ("HQ" with "Hsome") as "HQsome".
-        iDestruct ("Hk" with "HQsome") as "Hksome".
-        iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
-        iApply "IH".
-        
-
-      (* getKey1 second time. No a is sampled *)
-        * do 2 rel_pures_r; [apply Hk2; set_solver|].
-          do 2 rel_pures_l; [split; [apply Hk1; set_solver| set_solver]|].
-          iApply (rel_bind [_] [_;_] _ _ iThyBot); [iApply traversable_bot|iApply iThy_le_bot|].
-          iApply (rel_load_l with "Hl2'"). iIntros "!>_".
-          iApply (rel_load_r with "Hlb"). iIntros "_". rel_pures_r. iModIntro.
-          rel_pures_r. rel_exp_r.
-          rel_pures_r; [set_solver|].
-          rel_pures_l; [set_solver|].
-          iApply (rel_load_r with "Hl2"). iIntros "_".
-          rel_pures_r; [set_solver|].
-
-          iApply (rel_bind' [_] [_]); [iApply traversable_iThyTraverse|].
-          iApply rel_introduction'.
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iRight. iLeft.
-          do 2 (iSplit; try (iPureIntro; done)). iModIntro.
-          iSplit.
-          2 : { iApply rel_value. rel_pures_l. rel_pures_r.
-                iDestruct ("HQ" with "Hnone") as "HQfill".
-                iDestruct ("Hk" with "HQfill") as "Hfillrel".
-                iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
-                iApply "IH". }
-          iIntros (b1' b2').
-          iApply rel_value. rel_pures_l. rel_pures_r.
-          iApply (rel_load_l with "Hl1s"). iIntros "!> _".
-          iApply (rel_load_r with "Hl1"). iIntros "_".
+          iApply (rel_load_r with "Hl2"). iIntros "_". rel_pures_l.
           rel_pures_r. rel_exp_r. rel_pures_r.
-          rel_pures_l.
           rewrite -expgM. rewrite -ssrnat.multE.
           rewrite -Nat.mul_comm.
-          iDestruct ("HQ" with "Hsome") as "HQsome".
-          iDestruct ("Hk" with "HQsome") as "Hksome".
-          iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
-          iApply "IH". }
+          iDestruct ("HQ" with "Hsome") as "HQfill".
+          iDestruct ("Hk" with "HQfill") as "Hfillrel".
+          iClear (Hk1 Hk2) "Hnone Hsome HQ Hk HQfill".
+          
+          (* First call is done. Can call getKey1 or getKey2 again. *)
+          iApply (rel_exhaustion_mask _ [_;_] [_;_] _ _ with "[$]"). iApply "IH".
+
+    - iApply rel_na_close. iFrame. iSplitL; [iRight; iFrame "#"|].
+      iApply (rel_bind [_] [_;_] _ _ iThyBot); [iApply traversable_bot|iApply iThy_le_bot|].
+      iApply (rel_load_r with "Hla"). iIntros "_".
+      iApply (rel_load_l with "Hl1'"). iIntros "!> _".
+      rel_pures_r. iModIntro. rel_pures_r. rel_exp_r.
+      rel_pures_l; [set_solver|].
+      rel_pures_r; [set_solver|].
+      iApply (rel_load_r with "Hl1"). iIntros "_".
+      rel_pures_r; [set_solver|]. 
+
+      iApply (rel_bind' [_] [_]); [iApply traversable_iThyTraverse|].
+      iApply rel_introduction'.
+      iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+      iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+      iRight. iRight.
+      do 2 (iSplit; try (iPureIntro; done)). iModIntro.
+      iSplit.
+      2 : { iApply rel_value. rel_pures_l. rel_pures_r.
+            iDestruct ("HQ" with "Hnone") as "HQfill".
+            iDestruct ("Hk" with "HQfill") as "Hfillrel".
+            iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
+            iApply "IH". }
+      iIntros (b1' b2').
+      iApply rel_value. rel_pures_l. rel_pures_r.
+      iApply (rel_na_inv _ _ betaN ); [set_solver|].
+      iFrame "Hinvb". 
+      iIntros "(>[(Hβ & Hl2 & Hl2s & Hlb) | (Hβ & Hl2 & Hl2s &Hlb)] & Hclose)". 
+      -- iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl2s".
+         iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "Hl2".
+         iApply rel_na_close. iFrame. iSplitR "Hla"; [iLeft; iFrame| ]. 
+         rel_pures_l. rel_pures_r.
+         iDestruct ("HQ" with "Hnone") as "HQnone".
+         iDestruct ("Hk" with "HQnone") as "Hknone".
+         iApply (rel_exhaustion [_;_] [_;_] with "[$]").
+         iApply "IH".
+      -- iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl2s".
+         iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "Hl2".
+         iApply rel_na_close. iFrame. iSplitR "Hla"; [iRight; iFrame| ]. simpl.
+         rel_pures_l. rel_pures_r.
+         rel_exp_r. rel_pures_r.
+         rewrite -expgM. rewrite -ssrnat.multE.
+         rewrite -Nat.mul_comm.
+         iDestruct ("HQ" with "Hsome") as "HQsome".
+         iDestruct ("Hk" with "HQsome") as "Hksome".
+         iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
+         iApply "IH". }
+
+     (* getKey2 *)
+    1 : {
+    do 2 rel_pures_r; [apply Hk2; set_solver|]. 
+    do 2rel_pures_l; [split;[apply Hk1; set_solver|set_solver]|].
+    iApply (rel_na_inv _ _ betaN ); [set_solver|].
+    iFrame "Hinvb". 
+    iIntros "(>[(Hβ & Hl1 & Hl1' & Hlb) | #(Hβ & Hl1 & Hl1' &Hlb)] & Hclose)".
+    - iApply (rel_load_r_with_mask _ _ _ _ [HandleCtx _ _ _ ; AppRCtx _; CaseCtx _ _] with "Hlb").
+      iIntros "Hlb". rel_pures_r.
+      iAssert (β ↪ₛN (n; [fin_to_nat b]))%I with "[Hβ]" as "Hβ".
+      { iExists [b]. simpl. iFrame. done. }
+      iApply (rel_rand_r [HandleCtx _ _ _; AppRCtx _; AppRCtx _] with "Hβ").
+      iIntros "Hβ ?". rel_pures_r.
+      iApply (rel_store_r _ _ _ _ [HandleCtx _ _ _; AppRCtx _; AppRCtx _] with "Hlb"). iIntros "Hlb".
+      rel_pures_r.
+      iApply (rel_exp_r _ [HandleCtx _ _ _; AppRCtx _]).
+      rel_pures_r; [set_solver|]. 
+      iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl1"). iIntros "Hl1".
+      iApply (rel_load_l_mask [CaseCtx _ _]). iFrame. iIntros "!> Hl1'".
+      rel_pures_l. rel_pures_r.
+      iApply (rel_store_r _ _ _ _ [AppRCtx _] with "Hl1"). iIntros "Hl1".
+      iApply (rel_store_l _ _ _ [AppRCtx _] with "Hl1'"). iIntros "!>Hl1'".
+      rel_pures_l.
+      rel_pures_r.
+    
+      (* Send gB first time *)
+      iApply (rel_bind_mask _ [AppRCtx _] [AppRCtx _]); [by iApply traversable_iThyTraverse|iApply iThy_le_refl| ].
+      iApply fupd_rel.
+      iMod (ghost_map_elem_persist with "Hl1'") as "#Hl1'".
+      iMod (ghost_map_elem_persist with "Hl1") as "#Hl1".
+      iMod (ghost_map_elem_persist with "Hlb") as "#Hlb".
+      iDestruct "Hβ" as (ns) "(%Hf & Hβ)". apply map_eq_nil in Hf. simplify_eq.
+      iMod (ghost_map_elem_persist with "Hβ") as "#Hβ".
+      iModIntro.
+      iApply rel_na_close. iFrame.
+      iSplitL; [iRight; iFrame "#"|].
+      
+      iApply rel_introduction'.
+      iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+      iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+      iLeft. iLeft.
+      iExists _. do 2 (iSplit; try (iPureIntro; done)).
+      iModIntro.
+      iApply rel_value.
+      rel_pures_l; [set_solver|]. 
+      rel_pures_r; [set_solver|]. 
+      
+      (* Recv alice (either none or some) *)
+      iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
+      iApply rel_introduction'.
+      iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+      iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+      iRight. iLeft.
+      do 2 (iSplit; try (iPureIntro; done)). iModIntro.
+      iSplit; last first.
+
+    (* Recv alice = None *)
+      + iApply rel_value.
+        rel_pures_l. rel_pures_r.
+        iDestruct ("HQ" with "Hnone") as "HQfill".
+        iDestruct ("Hk" with "HQfill") as "Hfillrel".
+        iClear (Hk1 Hk2) "Hnone Hsome HQ Hk HQfill".
+
+        (* First call is done. Can call getKey1 or getKey2 again. *)
+        iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]"). iApply "IH".
+
+      + iIntros (b1 b2). iApply rel_value.
+        rel_pures_l. rel_pures_r.
+        iApply (rel_na_inv _ _ alphaN ); [set_solver|].
+        iFrame "Hinva". 
+        iIntros "(>[(Hα & Hl2 & Hl2' & Hla) | #(Hα & Hl2 & Hl2' &Hla)] & Hclose)". 
+        * iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl2'".
+          iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "Hl2". rel_pures_l.
+          iApply rel_na_close. iFrame. iSplitL; [iLeft; iFrame; iDestruct "Hα" as (ms) "(%Hf' & Hα)"; apply map_eq_nil in Hf'; simplify_eq; done|].
+          iDestruct ("HQ" with "Hnone") as "HQfill".
+          iDestruct ("Hk" with "HQfill") as "Hfillrel".
+          iClear (Hk1 Hk2) "Hnone Hsome HQ Hk HQfill".
+          
+          (* First call is done. Can call getKey1 or getKey2 again. *)
+          iApply (rel_exhaustion_mask _ [_;_] [_;_] _ _ with "[$]"). iApply "IH".
+
+        * iApply rel_na_close. iFrame. iSplitL; [iRight; iFrame "#"|].
+          iApply (rel_load_l with "Hl2'"). iIntros "!> _".
+          iApply (rel_load_r with "Hl2"). iIntros "_". rel_pures_l.
+          rel_pures_r. rel_exp_r. rel_pures_r.
+          rewrite -expgM. rewrite -ssrnat.multE.
+          rewrite -Nat.mul_comm.
+          iDestruct ("HQ" with "Hsome") as "HQfill".
+          iDestruct ("Hk" with "HQfill") as "Hfillrel".
+          iClear (Hk1 Hk2) "Hnone Hsome HQ Hk HQfill".
+          
+          (* First call is done. Can call getKey1 or getKey2 again. *)
+          iApply (rel_exhaustion_mask _ [_;_] [_;_] _ _ with "[$]"). iApply "IH".
+
+    - iApply rel_na_close. iFrame. iSplitL; [iRight; iFrame "#"|].
+      iApply (rel_bind [_] [_;_] _ _ iThyBot); [iApply traversable_bot|iApply iThy_le_bot|].
+      iApply (rel_load_r with "Hlb"). iIntros "_".
+      iApply (rel_load_l with "Hl1'"). iIntros "!> _".
+      rel_pures_r. iModIntro. rel_pures_r. rel_exp_r.
+      rel_pures_l; [set_solver|].
+      rel_pures_r; [set_solver|].
+      iApply (rel_load_r with "Hl1"). iIntros "_".
+      rel_pures_r; [set_solver|]. 
+
+      iApply (rel_bind' [_] [_]); [iApply traversable_iThyTraverse|].
+      iApply rel_introduction'.
+      iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+      iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+      iRight. iLeft.
+      do 2 (iSplit; try (iPureIntro; done)). iModIntro.
+      iSplit.
+      2 : { iApply rel_value. rel_pures_l. rel_pures_r.
+            iDestruct ("HQ" with "Hnone") as "HQfill".
+            iDestruct ("Hk" with "HQfill") as "Hfillrel".
+            iApply (rel_exhaustion [_;_] [_;_] _ _ with "[$]").
+            iApply "IH". }
+      iIntros (b1' b2').
+      iApply rel_value. rel_pures_l. rel_pures_r.
+      iApply (rel_na_inv _ _ alphaN ); [set_solver|].
+      iFrame "Hinva". 
+      iIntros "(>[(Hα & Hl2 & Hl2s & Hla) | (Hα & Hl2 & Hl2s &Hla)] & Hclose)". 
+      -- iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl2s".
+         iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "Hl2".
+         iApply rel_na_close. iFrame. iSplitR "Hlb"; [iLeft; iFrame| ]. 
+         rel_pures_l. rel_pures_r.
+         iDestruct ("HQ" with "Hnone") as "HQnone".
+         iDestruct ("Hk" with "HQnone") as "Hknone".
+         iApply (rel_exhaustion [_;_] [_;_] with "[$]").
+         iApply "IH".
+      -- iApply (rel_load_l_mask [CaseCtx _ _ ]). iFrame. iIntros "!> Hl2s".
+         iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "Hl2".
+         iApply rel_na_close. iFrame. iSplitR "Hlb"; [iRight; iFrame| ]. simpl.
+         rel_pures_l. rel_pures_r.
+         rel_exp_r. rel_pures_r.
+         rewrite -expgM. rewrite -ssrnat.multE.
+         rewrite -Nat.mul_comm.
+         iDestruct ("HQ" with "Hsome") as "HQsome".
+         iDestruct ("Hk" with "HQsome") as "Hksome".
+         iApply (rel_exhaustion [_;_] [_;_] with "[$Hksome]").
+         iApply "IH". }
   Qed.
+       
   
 End handlee_verification.
