@@ -384,6 +384,10 @@ Section credits.
     apply G2_g_nn; auto. lra.
   Qed.
 
+  Theorem Norm2_ex' {y : R} : ex_seriesC (λ x0 : nat, exp (- (y + x0) ^ 2 / 2)).
+  Proof. Admitted.
+
+
   Lemma G2_f_ex_seriesC {F} : ex_seriesC (G2_f F).
   Proof.
     rewrite /G2_f.
@@ -392,10 +396,9 @@ Section credits.
     Search ex_seriesC "nat".
   Admitted.
 
-  Lemma G2_CreditV_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) (* Hint : ∀ x' : nat, ex_RInt (F x') 0 1 *) :
+  Lemma G2_CreditV_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) :
     G2_CreditV F <= M.
   Proof.
-    (*
     have ? : 0 <= M. { specialize Hnn with 0%nat 0%R. OK. }
     rewrite /G2_CreditV.
     etrans.
@@ -412,22 +415,29 @@ Section credits.
         { intros ??. apply Rmult_le_compat_l; [|apply Hnn]. apply G2_μ_nn; OK. }
       }
       { replace (λ k : nat, RInt (λ x : R, G2_μ k x * M) 0 1) with  (λ k : nat, RInt (λ x : R, G2_μ k x) 0 1 * M); last first.
-        { funexti. rewrite RInt_Rmult'. OK.  }
+        { funexti. rewrite RInt_Rmult'; OK. apply G2_exRInt.  }
         apply ex_seriesC_scal_r.
+        rewrite /G2_μ.
+
+        (* Generalize this for continuous arguments *)
+
         admit.
       }
+    }
     rewrite (SeriesC_ext _ (λ k : nat, (RInt (λ x : R, G2_μ k x) 0 1) * M)); last first.
-    { admit. }
+    { intros n.
+      rewrite RInt_Rmult'; OK.
+      apply G2_exRInt.
+    }
     rewrite SeriesC_scal_r.
     rewrite -{2}(Rmult_1_l M).
     apply Rmult_le_compat_r; OK.
     rewrite /G2_μ.
     (* If I can exchange the limits here, then the inner series becomes 1, and the outter integral becomes
        the integral of 1 from 0 to 1. *)
-    *)
   Admitted.
 
-  Lemma G2_g_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) {r t} (Ht : 0 <= t <= 1) : G2_g F r t <= M.
+  Lemma G2_g_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) {r t} (Ht : 0 <= t <= 1) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) : G2_g F r t <= M.
   Proof.
     rewrite /G2_g.
     rewrite /G2_s.
@@ -842,21 +852,45 @@ Section credits.
          rewrite /G2_s.
          rewrite Iverson_True; [|intuition].
          rewrite Iverson_False; [|intuition].
-         (* Product *)
-         admit.
+         replace (λ x : R, exp (- x * (2 * k + x) / 2) * (1 * F k x + 0 * G2_CreditV F))
+           with (λ x : R, exp (- x * (2 * k + x) / 2) * (F k x)); last first.
+         { funexti. OK. }
+         apply ex_RInt_mult.
+         { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+           intros ??.
+           apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+           by auto_derive.
+         }
+         { apply Hex. }
        }
        2: {
          rewrite /G2_s.
          rewrite Iverson_False; [|intuition].
          rewrite Iverson_True; [|intuition].
-         (* Still OK*)
-         admit.
+         replace (λ x : R, (1 - exp (- x * (2 * k + x) / 2)) * (0 * F k x + 1 * G2_CreditV F))
+            with (λ x : R, (1 - exp (- x * (2 * k + x) / 2)) * (G2_CreditV F)); last first.
+         { funexti. OK. }
+         apply ex_RInt_mult.
+         { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+           intros ??.
+           apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+           by auto_derive.
+         }
+         { apply ex_RInt_const. }
         }
        done.
     }
     rewrite SeriesC_plus.
-    2: { admit. }
-    2: { admit. }
+    2: {
+      rewrite /G2_s.
+      rewrite Iverson_True; OK.
+      rewrite Iverson_False; OK.
+      admit. }
+    2: {
+      rewrite /G2_s.
+      rewrite Iverson_False; OK.
+      rewrite Iverson_True; OK.
+      admit. }
     (* Prepare second term for Foob *)
     rewrite {2}/G2_s.
     rewrite Iverson_False; [|intuition].
@@ -909,7 +943,11 @@ Section credits.
     { admit. }
     (* Recombine series and cancel with LHS *)
     rewrite -SeriesC_plus.
-    2: { admit. }
+    2: {
+      rewrite /G2_s.
+      rewrite Iverson_True; OK.
+      rewrite Iverson_False; OK.
+      admit. }
     2: { admit. }
     rewrite /G2_CreditV.
     f_equal; apply functional_extensionality; intros k.
@@ -929,7 +967,13 @@ Section credits.
     }
 
     rewrite RInt_add.
-    2: { admit. }
+    2: {
+      rewrite /G2_s.
+      rewrite Iverson_True; OK.
+      rewrite Iverson_False; OK.
+
+      (* Check ExpAddSeries_RInt. *)
+      admit. }
     2: { admit. }
     apply RInt_ext.
     rewrite Rmin_left; [|lra].
@@ -940,7 +984,12 @@ Section credits.
        with (G2_μ k x * F k x * RInt (λ x0 : R, SeriesC (λ x1 : nat, G1_μ x1 * (1 - exp (- x0 * (2 * x1 + x0) / 2)))) 0 1);
       last first.
     { rewrite RInt_Rmult.
-      2: { (* frick *) admit. }
+      2: {
+
+        Check ExpAddSeries_RInt.
+
+
+        (* frick *) admit. }
       f_equal; apply functional_extensionality; intros ?.
       rewrite -SeriesC_scal_l.
       f_equal; apply functional_extensionality; intros ?.
@@ -981,15 +1030,15 @@ Section credits.
       last first.
     { f_equal; apply functional_extensionality; intros y.
       rewrite SeriesC_minus.
-      2: { admit. }
-      2: { admit. }
+      2: { apply Norm1_ex. }
+      2: { apply Norm2_ex'. }
       lra.
     }
     rewrite -RInt_add.
-    2: { admit. }
-    2: { admit. }
+    2: { apply ex_RInt_const. }
+    2: { apply ex_RInt_Rmult. apply ExpAddSeries_RInt. }
     rewrite -RInt_Rmult.
-    2: { admit. }
+    2: { apply ExpAddSeries_RInt. }
 
     (* Evaluate the inegrals *)
     replace (RInt (λ _ : R, SeriesC (λ x1 : nat, exp (- x1 ^ 2 / 2))) 0 1) with Norm1; last first.
@@ -1030,10 +1079,13 @@ Section credits.
     lra.
   Admitted.
 
-  Lemma G2_g_RInt {F k} : is_RInt (G2_g F k) 0 1 (G2_f F k).
+  Lemma G2_g_RInt {F k} (Hf : ex_RInt (λ y : R, F k y) 0 1) : is_RInt (G2_g F k) 0 1 (G2_f F k).
   Proof.
-
-  Admitted.
+    rewrite /G2_f.
+    apply (RInt_correct (V := R_CompleteNormedModule)).
+    apply G2_g_exRInt.
+    apply Hf.
+  Qed.
 
   Local Lemma Rexp_eq {z : R} {k : nat} : exp (- z * (2 * k + z) / 2) = exp (- z * (2 * k + z) / (2 * k + 2)) ^ (k + 1).
   Proof.
@@ -1185,7 +1237,7 @@ Section program.
     iIntros (x) "Hx".
     iApply (wp_lazy_real_presample_adv_comp _ _ x _ (G2_f F k) (G2_g F k)); auto.
     { intros ??. apply G2_g_nn; auto. apply Hnn. }
-    { apply G2_g_RInt. }
+    { apply G2_g_RInt. apply Hint. }
     iFrame.
     iIntros (z) "(% & Hε & Hx)".
     wp_pures.
