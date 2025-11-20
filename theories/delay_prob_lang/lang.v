@@ -1238,6 +1238,14 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
         | Some v => dret (Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1)
         | None => dzero
       end
+  (* Uniform sampling from [0, 1 , ..., N] *)
+  | Rand (Val (LitV (LitInt N))) =>
+      dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N))
+  | DRand (Val (LitV (LitInt N))) =>
+      let l := fresh_loc σ1.(urns) in
+      let N' := Z.to_nat N in
+      let s := list_to_set (seq 0 (N'+1)) in
+      dret (Val $ LitV $ LitLbl l, state_upd_urns <[l:=s]> σ1)
   (* (* Since our language only has integers, we use Z.to_nat, which maps positive *)
   (*    integers to the corresponding nat, and the rest to 0. We sample from *)
   (*    [dunifP N = dunif (1 + N)] to avoid the case [dunif 0 = dzero]. *) *)
@@ -1269,22 +1277,22 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
   | _ => dzero
   end.
 
-Definition state_step (σ1 : state) (α : loc) : distr state :=
-  if bool_decide (α ∈ dom σ1.(tapes)) then
-    let: (N; ns) := (σ1.(tapes) !!! α) in
-    dmap (λ n, state_upd_tapes (<[α := (N; ns ++ [n])]>) σ1) (dunifP N)
-  else dzero.
+(* Definition state_step (σ1 : state) (α : loc) : distr state := *)
+(*   if bool_decide (α ∈ dom σ1.(tapes)) then *)
+(*     let: (N; ns) := (σ1.(tapes) !!! α) in *)
+(*     dmap (λ n, state_upd_tapes (<[α := (N; ns ++ [n])]>) σ1) (dunifP N) *)
+(*   else dzero. *)
 
-Lemma state_step_unfold σ α N ns:
-  tapes σ !! α = Some (N; ns) ->
-  state_step σ α = dmap (λ n, state_upd_tapes (<[α := (N; ns ++ [n])]>) σ) (dunifP N).
-Proof.
-  intros H.
-  rewrite /state_step.
-  rewrite bool_decide_eq_true_2; last first.
-  { by apply elem_of_dom. }
-  by rewrite (lookup_total_correct (tapes σ) α (N; ns)); last done.
-Qed.
+(* Lemma state_step_unfold σ α N ns: *)
+(*   tapes σ !! α = Some (N; ns) -> *)
+(*   state_step σ α = dmap (λ n, state_upd_tapes (<[α := (N; ns ++ [n])]>) σ) (dunifP N). *)
+(* Proof. *)
+(*   intros H. *)
+(*   rewrite /state_step. *)
+(*   rewrite bool_decide_eq_true_2; last first. *)
+(*   { by apply elem_of_dom. } *)
+(*   by rewrite (lookup_total_correct (tapes σ) α (N; ns)); last done. *)
+(* Qed. *)
 
 (** Basic properties about the language *)
 Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
