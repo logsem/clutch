@@ -72,7 +72,24 @@ Proof.
 Qed.
 
 Lemma Iverson_Zeven_Sn' n : Iverson Zeven (S n) = Iverson (not ∘ Zeven) n.
-Proof. admit. (* symmetry. rewrite -Iverson_Zeven_Sn. *) Admitted.
+Proof.
+  rewrite /Iverson.
+  case_decide; case_decide; try lra.
+  { exfalso.
+    rewrite //= in H0.
+    apply NNP_P in H0.
+    apply Zodd_Sn in H0.
+    apply (Zeven_not_Zodd _ H).
+    by rewrite Nat2Z.inj_succ.
+  }
+  { exfalso.
+    rewrite //= in H0.
+    apply H.
+    rewrite Nat2Z.inj_succ.
+    apply Zeven_Sn.
+    destruct (Zeven_odd_dec n); try done.
+  }
+Qed.
 
 Ltac replace_ext X Y :=
   replace X with Y; [| apply functional_extensionality; intros; auto].
@@ -1452,8 +1469,16 @@ Proof.
   Lemma ex_exp_series' {M : nat} : Series.ex_series (λ n : nat, / fact (n - M)).
   Proof.
     apply ex_seriesC_nat.
-    replace (λ n : nat, / fact (n - M)) with ((λ n : nat, / fact n) ∘ (fun n : nat => (n - M)%nat)) by done.
-  Admitted.
+    apply (ex_SeriesC_nat_shiftN_r M).
+    rewrite /compose//=.
+    eapply ex_seriesC_ext.
+    2: { rewrite -ex_seriesC_nat. apply ex_exp_series. }
+    intros. rewrite //=.
+    f_equal.
+    f_equal.
+    f_equal.
+    lia.
+  Qed.
 
   Definition poke (f : R → R) (a z : R) : R → R := fun x =>
     if (decide (x = a)) then z else f x.
@@ -1773,13 +1798,6 @@ Proof.
     }
   Qed.
 
-  (*
-  Search Rle RInt 0.
-  Search Series.Series Rle 0.
-  Locate series_ge_0.
-  Search filterlim  0.
-  *)
-
   Lemma is_RInt_gen_filterlim {F : R → R_CompleteNormedModule} {M : R} {l : R_CompleteNormedModule} :
     (∀ b, ex_RInt F M b) →
     filterlim (λ b : R, RInt F M b) (Rbar_locally Rbar.p_infty) (locally l) →
@@ -1827,36 +1845,28 @@ Proof.
   Lemma RInt_gen_pos {F} {M}
     (* (Hlimit : filterlimi (λ b : R, is_RInt F M b) (Rbar_locally Rbar.p_infty) (locally L)) *)
     (* (HL : 0 <= L) : *)
+    (Hpos : forall x, 0 <= F x)
     (Hex : ∀ b, ex_RInt F M b)
     (Hnn : ∀ b, 0 <= RInt F M b) :
-    0 <= RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty).
+    0 <= RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty).
   Proof.
-  Admitted.
-
-
-  (*
-  Lemma RInt_ex_sum_n {F : nat → R → R} {a b : R} {M} :
-    ex_RInt (fun x : R => sum_n (fun n : nat => F n x) M) a b.
-  Proof.
-  Admitted.
-
-  Lemma RInt_sum_n {F : nat → R → R} {a b : R} {M} :
-    RInt (fun x : R => sum_n (fun n : nat => F n x) M) a b = sum_n (fun n : nat =>  RInt (fun x : R => F n x) a b) M.
-  Proof.
-    induction M.
-    { rewrite sum_O.
-      replace (λ x : R, sum_n (λ n : nat, F n x) 0) with (F 0%nat); last first.
-      { apply functional_extensionality; intros ?.
-        by rewrite sum_O. }
-      f_equal.
+    destruct (ClassicalEpsilon.excluded_middle_informative (ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty))).
+    { apply (Lim_seq.filterlim_le (F := Rbar_locally Rbar.p_infty)
+             (fun _ => 0)
+             (fun b => RInt F M b)
+             (Rbar.Finite 0)
+             (Rbar.Finite (RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty)))).
+      { apply filter_forall; apply Hnn. }
+      { apply filterlim_const. }
+      { intros P HP.
+        unfold Rbar_locally in HP. simpl in HP.
+        eapply (filterlim_is_RInt_gen Hex ).
+        2: eapply HP.
+        apply RInt_gen_correct.
+        done.
+      }
     }
-    {
-      rewrite sum_Sn.
-      rewrite -IHM.
-      rewrite -RInt_plus.
-      admit. }
   Admitted.
-*)
 
   Lemma ex_RInt_div (F : R → R) {a b c} : ex_RInt F a b → ex_RInt (fun x => F x / c) a b.
   Proof.
