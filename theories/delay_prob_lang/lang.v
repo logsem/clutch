@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
-From clutch.prelude Require Export stdpp_ext.
+From clutch.prelude Require Export stdpp_ext tactics.
 From clutch.prob Require Export distribution.
 From clutch.common Require Export language ectx_language ectxi_language locations.
 From iris.prelude Require Import options.
@@ -896,6 +896,293 @@ Qed.
 
 #[local] Open Scope R.
 
+(** Definitions for relating delayed program with nondelayed one *)
+Fixpoint urn_subst (f: gmap loc nat) (bl : base_lit) : option base_lit :=
+  match bl with
+  | LitInt n => Some $ LitInt n
+  | LitBool b => Some $ LitBool b
+  | LitUnit => Some LitUnit
+  | LitLoc l => Some $ LitLoc l
+  | LitLbl l => (x ← f !! l; Some $ LitInt (Z.of_nat x))
+  | NegOp' x => (i ← urn_subst f x;
+                match i with
+                | LitBool b => Some $ LitBool (negb b)
+                | _ => None end
+               )
+  | MinusUnOp' x => (i ← urn_subst f x;
+                    match i with
+                    | LitInt n => Some $ LitInt (- n)
+                    | _ => None end
+                   )
+  | PlusOp' x1 x2 => (i ← urn_subst f x1;
+                     j ← urn_subst f x2;
+                     match i, j with
+                     | LitInt n1, LitInt n2 =>
+                         Some $ LitInt (n1 + n2)
+                     | _, _ => None
+                     end
+                    )
+  | MinusOp' x1 x2 => (i ← urn_subst f x1;
+                     j ← urn_subst f x2;
+                     match i, j with
+                     | LitInt n1, LitInt n2 =>
+                         Some $ LitInt (n1 - n2)
+                     | _, _ => None
+                     end
+                    )
+  | MultOp' x1 x2 => (i ← urn_subst f x1;
+                     j ← urn_subst f x2;
+                     match i, j with
+                     | LitInt n1, LitInt n2 =>
+                         Some $ LitInt (n1 * n2)
+                     | _, _ => None
+                     end
+                    )
+  | QuotOp' x1 x2 => (i ← urn_subst f x1;
+                     j ← urn_subst f x2;
+                     match i, j with
+                     | LitInt n1, LitInt n2 =>
+                         Some $ LitInt (n1 `quot` n2)
+                     | _, _ => None
+                     end
+                    )
+  | RemOp' x1 x2 => (i ← urn_subst f x1;
+                     j ← urn_subst f x2;
+                     match i, j with
+                     | LitInt n1, LitInt n2 =>
+                         Some $ LitInt (n1 `rem` n2)
+                     | _, _ => None
+                     end
+                    )
+  | AndOp' x1 x2 => (i ← urn_subst f x1;
+                     j ← urn_subst f x2;
+                     match i, j with
+                     | LitBool b1, LitBool b2 =>
+                         Some $ LitBool (b1 && b2)
+                     | _, _ => None
+                     end
+                    )
+  | OrOp' x1 x2 => (i ← urn_subst f x1;
+                     j ← urn_subst f x2;
+                     match i, j with
+                     | LitBool b1, LitBool b2 =>
+                         Some $ LitBool (b1 || b2)
+                     | _, _ => None
+                     end
+                    )
+  | XorOp' x1 x2 => (i ← urn_subst f x1;
+                     j ← urn_subst f x2;
+                     match i, j with
+                     | LitBool b1, LitBool b2 =>
+                         Some $ LitBool (xorb b1 b2)
+                     | _, _ => None
+                     end
+                    )
+  | ShiftLOp' x1 x2 => (i ← urn_subst f x1;
+                     j ← urn_subst f x2;
+                     match i, j with
+                     | LitInt n1, LitInt n2 =>
+                         Some $ LitInt (n1 ≪ n2)
+                     | _, _ => None
+                     end
+                    )
+  | ShiftROp' x1 x2 => (i ← urn_subst f x1;
+                     j ← urn_subst f x2;
+                     match i, j with
+                     | LitInt n1, LitInt n2 =>
+                         Some $ LitInt (n1 ≫ n2)
+                     | _, _ => None
+                     end
+                    )
+  | LeOp' x1 x2 => (i ← urn_subst f x1;
+                     j ← urn_subst f x2;
+                     match i, j with
+                     | LitInt n1, LitInt n2 =>
+                         Some $ LitBool (bool_decide(n1 ≤ n2)%Z)
+                     | _, _ => None
+                     end
+                    )
+  | LtOp' x1 x2 => (i ← urn_subst f x1;
+                     j ← urn_subst f x2;
+                     match i, j with
+                     | LitInt n1, LitInt n2 =>
+                         Some $ LitBool (bool_decide (n1 < n2)%Z)
+                     | _, _ => None
+                     end
+                    )
+  | EqOp' x1 x2 => (i ← urn_subst f x1;
+                     j ← urn_subst f x2;
+                     Some $ LitBool (bool_decide (i=j))
+                    )
+  | OffsetOp' x1 x2 => (i ← urn_subst f x1;
+                     j ← urn_subst f x2;
+                     match i, j with
+                     | LitLoc l1, LitInt n2 =>
+                         Some $ LitLoc (l1 +ₗ n2)
+                     | _, _ => None
+                     end
+                    )
+  end.
+
+Definition urns_f_valid (m : gmap loc urn) (f:gmap loc nat) :=
+  forall l, match f !! l with
+       | Some x => ∃ u, m!!l=Some u /\ x ∈ u
+       | None => m!!l = None
+  end
+.
+
+Fixpoint list_urns_f_valid (m:list (loc * urn)) : list (gmap loc nat):=
+  match m with
+    | [] => [∅]
+    | (k, u)::rest =>
+        let l := elements u in
+        let x := list_urns_f_valid rest in
+        (a ← l; b ← x; [<[k:=a]>b])
+  end.
+
+Lemma list_urns_f_valid_correct m f :
+  urns_f_valid m f <-> 
+  f ∈list_urns_f_valid (map_to_list m).
+Proof.
+  split.
+  - rewrite /urns_f_valid.
+    intros H.
+    remember (map_to_list m) as lis eqn:Heqlis'.
+    assert (lis ≡ₚ map_to_list m) as Heqlis.
+    { subst. apply Permutation_refl. }
+    clear Heqlis'.
+    assert (NoDup lis.*1) as Hnodup.
+    { rewrite Heqlis. apply NoDup_fst_map_to_list. }
+    revert m f H Heqlis Hnodup.
+    induction (lis) as [|x lis' IH]; intros m f H Heqlis Hnodup.
+    + simpl. apply elem_of_list_singleton.
+      apply map_eq.
+      intros i.
+      rewrite lookup_empty.
+      symmetry in Heqlis.
+      rewrite Permutation_nil_r in Heqlis.
+      apply map_to_list_empty_iff in Heqlis.
+      subst.
+      specialize (H i).
+      case_match; last done.
+      destruct!/=.
+    + assert (list_to_map (x::lis') = m) as Heqlis'.
+      { rewrite (list_to_map_proper _ (map_to_list m)); try done.
+        by rewrite list_to_map_to_list.
+      }
+      simpl.
+      destruct x as [l u].
+      rewrite elem_of_list_bind.
+      specialize (H l) as H'.
+      case_match; last first.
+      { rewrite -Heqlis' in H'.
+        exfalso. 
+        eapply (not_elem_of_list_to_map_2 _ l).
+        - rewrite <-H'. f_equal.
+        - set_solver.
+      }
+      destruct!/=.
+      exists n.
+      split; last first.
+      * rewrite lookup_insert in H1. simplify_eq.
+        set_solver.
+      * rewrite elem_of_list_bind.
+        exists (delete l f).
+        split.
+        -- rewrite insert_delete_insert.
+           rewrite insert_id; [set_solver|done].
+        -- assert (l∉lis'.*1) as Hnotin.
+           { intros ?.
+             apply NoDup_cons in Hnodup. naive_solver.
+           } 
+          apply IH with (delete l (list_to_map lis')).
+           ++ intros l'.
+              destruct (decide (l=l')).
+              ** subst. rewrite lookup_delete.
+                 apply lookup_delete.
+              ** rewrite lookup_delete_ne; last done.
+                 specialize (H l').
+                 case_match.
+                 --- destruct H as (u'&K1&K2).
+                     exists u'. rewrite lookup_delete_ne; last done.
+                     split; last done.
+                     rewrite -K1.
+                     by rewrite lookup_insert_ne.
+                 --- rewrite lookup_delete_ne; last done.
+                     rewrite -H.
+                     by rewrite lookup_insert_ne.
+           ++ rewrite delete_notin.
+              ** rewrite map_to_list_to_map; first done.
+                 apply NoDup_cons in Hnodup. naive_solver.
+              ** by apply not_elem_of_list_to_map.
+           ++ apply NoDup_cons in Hnodup. naive_solver.
+  - rewrite /urns_f_valid.
+    intros H.
+    remember (map_to_list m) as lis eqn:Heqlis'.
+    assert (lis ≡ₚ map_to_list m) as Heqlis.
+    { subst. apply Permutation_refl. }
+    clear Heqlis'.
+    assert (NoDup lis.*1) as Hnodup.
+    { rewrite Heqlis. apply NoDup_fst_map_to_list. }
+    revert m f H Heqlis Hnodup.
+    induction (lis) as [|x lis' IH]; intros m f H Heqlis Hnodup.
+    + symmetry in Heqlis.
+      rewrite Permutation_nil_r in Heqlis.
+      apply map_to_list_empty_iff in Heqlis.
+      subst. simpl in *.
+      apply elem_of_list_singleton in H.
+      subst.
+      intros ?.
+      by repeat rewrite lookup_empty.
+    + assert (list_to_map (x::lis') = m) as Heqlis'.
+      { rewrite (list_to_map_proper _ (map_to_list m)); try done.
+        by rewrite list_to_map_to_list.
+      }
+      simpl in H.
+      destruct x as [k u].
+      rewrite elem_of_list_bind in H.
+      destruct H as (y&H1&H2).
+      rewrite elem_of_list_bind in H1.
+      destruct H1 as (f'&H1&H3).
+      apply elem_of_list_singleton in H1. subst.
+      intros.
+      destruct (decide (l=k)).
+      * subst. rewrite lookup_insert.
+        exists u. simpl. rewrite lookup_insert. split; first done.
+        by apply elem_of_elements in H2.
+      * assert (k∉lis'.*1) as Hnotin.
+        { intros ?.
+          apply NoDup_cons in Hnodup. naive_solver.
+        }
+           apply NoDup_cons in Hnodup.
+        rewrite lookup_insert_ne; last done.
+        eapply IH in H3; last first.
+        -- naive_solver.
+        -- simpl in *.
+           rewrite map_to_list_insert in Heqlis.
+           ++ by apply Permutation_cons_inv in Heqlis.
+           ++ by apply not_elem_of_list_to_map.
+        -- simpl. by rewrite lookup_insert_ne.
+Qed. 
+
+Definition urn_subst_equal σ (bl bl':base_lit) :=
+  ∀ f, urns_f_valid (urns σ) f -> urn_subst f bl = Some bl'.
+
+Global Instance urn_subst_equal_dec σ bl bl': Decision (urn_subst_equal σ bl bl').
+Proof.
+  replace (urn_subst_equal _ _ _) with
+    (∀ f, f ∈ list_urns_f_valid (map_to_list (urns σ)) -> urn_subst f bl = Some bl').
+  - apply list_forall_dec. apply _.
+  - apply propositional_extensionality.
+    rewrite /urn_subst_equal.
+    split.
+    + intros H ??. apply H.
+      by apply list_urns_f_valid_correct.
+    + intros H ??.
+      apply H.
+      by apply list_urns_f_valid_correct.
+Qed. 
+
 Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
   match e1 with
   | Rec f x e =>
@@ -918,10 +1205,16 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
         | Some w => dret (Val w, σ1)
         | _ => dzero
       end
-  | If (Val (LitV (LitBool true))) e1 e2  =>
-      dret (e1 , σ1)
-  | If (Val (LitV (LitBool false))) e1 e2 =>
-      dret (e2 , σ1)
+  | If (Val (LitV bl)) e1 e2 =>
+      if bool_decide (urn_subst_equal σ1 bl (LitBool true))
+      then dret (e1, σ1)
+      else if bool_decide (urn_subst_equal σ1 bl (LitBool false))
+           then dret (e2, σ1)
+           else dzero
+  (* | If (Val (LitV (LitBool true))) e1 e2  => *)
+  (*     dret (e1 , σ1) *)
+  (* | If (Val (LitV (LitBool false))) e1 e2 => *)
+  (*     dret (e2 , σ1) *)
   | Fst (Val (PairV v1 v2)) =>
       dret (Val v1, σ1)
   | Snd (Val (PairV v1 v2)) =>
@@ -945,34 +1238,34 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
         | Some v => dret (Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1)
         | None => dzero
       end
-  (* Since our language only has integers, we use Z.to_nat, which maps positive
-     integers to the corresponding nat, and the rest to 0. We sample from
-     [dunifP N = dunif (1 + N)] to avoid the case [dunif 0 = dzero]. *)
-  (* Uniform sampling from [0, 1 , ..., N] *)
-  | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
-      dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N))
-  | AllocTape (Val (LitV (LitInt z))) =>
-      let ι := fresh_loc σ1.(tapes) in
-      dret (Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := (Z.to_nat z; []) ]> σ1)
-  (* Labelled sampling, conditional on tape contents *)
-  | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) =>
-      match σ1.(tapes) !! l with
-      | Some (M; ns) =>
-          if bool_decide (M = Z.to_nat N) then
-            match ns  with
-            | n :: ns =>
-                (* the tape is non-empty so we consume the first number *)
-                dret (Val $ LitV $ LitInt $ fin_to_nat n, state_upd_tapes <[l:=(M; ns)]> σ1)
-            | [] =>
-                (* the tape is allocated but empty, so we sample from [0, 1, ..., M] uniformly *)
-                dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP M)
-            end
-          else
-            (* bound did not match the bound of the tape *)
-            dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N))
-      | None => dzero
-      end
-  | Tick (Val (LitV (LitInt n))) => dret (Val $ LitV $ LitUnit, σ1)
+  (* (* Since our language only has integers, we use Z.to_nat, which maps positive *)
+  (*    integers to the corresponding nat, and the rest to 0. We sample from *)
+  (*    [dunifP N = dunif (1 + N)] to avoid the case [dunif 0 = dzero]. *) *)
+  (* (* Uniform sampling from [0, 1 , ..., N] *) *)
+  (* | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) => *)
+  (*     dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N)) *)
+  (* | AllocTape (Val (LitV (LitInt z))) => *)
+  (*     let ι := fresh_loc σ1.(tapes) in *)
+  (*     dret (Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := (Z.to_nat z; []) ]> σ1) *)
+  (* (* Labelled sampling, conditional on tape contents *) *)
+  (* | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) => *)
+  (*     match σ1.(tapes) !! l with *)
+  (*     | Some (M; ns) => *)
+  (*         if bool_decide (M = Z.to_nat N) then *)
+  (*           match ns  with *)
+  (*           | n :: ns => *)
+  (*               (* the tape is non-empty so we consume the first number *) *)
+  (*               dret (Val $ LitV $ LitInt $ fin_to_nat n, state_upd_tapes <[l:=(M; ns)]> σ1) *)
+  (*           | [] => *)
+  (*               (* the tape is allocated but empty, so we sample from [0, 1, ..., M] uniformly *) *)
+  (*               dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP M) *)
+  (*           end *)
+  (*         else *)
+  (*           (* bound did not match the bound of the tape *) *)
+  (*           dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N)) *)
+  (*     | None => dzero *)
+  (*     end *)
+  (* | Tick (Val (LitV (LitInt n))) => dret (Val $ LitV $ LitUnit, σ1) *)
   | _ => dzero
   end.
 
