@@ -1165,6 +1165,8 @@ Proof.
         -- simpl. by rewrite lookup_insert_ne.
 Qed. 
 
+
+  
 Definition urn_subst_equal σ (bl bl':base_lit) :=
   ∀ f, urns_f_valid (urns σ) f -> urn_subst f bl = Some bl'.
 
@@ -1333,10 +1335,15 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
 | BinOpS op v1 v2 v' σ :
   bin_op_eval op v1 v2 = Some v' →
   head_step_rel (BinOp op (Val v1) (Val v2)) σ (Val v') σ
-| IfTrueS e1 e2 σ :
-  head_step_rel (If (Val $ LitV $ LitBool true) e1 e2) σ e1 σ
-| IfFalseS e1 e2 σ :
-  head_step_rel (If (Val $ LitV $ LitBool false) e1 e2) σ e2 σ
+| IfTrueS bl e1 e2 σ :
+  urn_subst_equal σ bl (LitBool true)->
+  head_step_rel (If (Val $ LitV $ bl) e1 e2) σ e1 σ
+| IfFalseS bl e1 e2 σ :
+  ¬urn_subst_equal σ bl (LitBool true)->
+  urn_subst_equal σ bl (LitBool false)->
+  head_step_rel (If (Val $ LitV $ bl) e1 e2) σ e2 σ
+(* | IfFalseS e1 e2 σ : *)
+(*   head_step_rel (If (Val $ LitV $ LitBool false) e1 e2) σ e2 σ *)
 | FstS v1 v2 σ :
   head_step_rel (Fst (Val $ PairV v1 v2)) σ (Val v1) σ
 | SndS v1 v2 σ :
@@ -1358,50 +1365,55 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   σ.(heap) !! l = Some v →
   head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
     (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
-| RandNoTapeS z N (n : fin (S N)) σ:
+| RandS z N (n : fin (S N)) σ:
   N = Z.to_nat z →
-  head_step_rel (Rand (Val $ LitV $ LitInt z) (Val $ LitV LitUnit)) σ (Val $ LitV $ LitInt n) σ
-| AllocTapeS z N σ l :
-  l = fresh_loc σ.(tapes) →
+  head_step_rel (Rand (Val $ LitV $ LitInt z)) σ (Val $ LitV $ LitInt n) σ
+| DRandS z N σ l s:
+  l = fresh_loc σ.(urns) →
   N = Z.to_nat z →
-  head_step_rel (AllocTape (Val (LitV (LitInt z)))) σ
-    (Val $ LitV $ LitLbl l) (state_upd_tapes <[l := (N; []) : tape]> σ)
-| RandTapeS l z N n ns σ :
-  N = Z.to_nat z →
-  σ.(tapes) !! l = Some ((N; n :: ns) : tape)  →
-  head_step_rel (Rand (Val (LitV (LitInt z))) (Val (LitV (LitLbl l)))) σ
-    (Val $ LitV $ LitInt $ n) (state_upd_tapes <[l := (N; ns) : tape]> σ)
-| RandTapeEmptyS l z N (n : fin (S N)) σ :
-  N = Z.to_nat z →
-  σ.(tapes) !! l = Some ((N; []) : tape) →
-  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
-| RandTapeOtherS l z M N ms (n : fin (S N)) σ :
-  N = Z.to_nat z →
-  σ.(tapes) !! l = Some ((M; ms) : tape) →
-  N ≠ M →
-  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
-| TickS σ z :
-  head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ.
+  s = list_to_set (seq 0 (N+1)) ->
+  head_step_rel (DRand (Val $ LitV $ LitInt z)) σ (Val $ LitV $ LitLbl l) (state_upd_urns <[l:=s]> σ).
+(* | AllocTapeS z N σ l : *)
+(*   l = fresh_loc σ.(tapes) → *)
+(*   N = Z.to_nat z → *)
+(*   head_step_rel (AllocTape (Val (LitV (LitInt z)))) σ *)
+(*     (Val $ LitV $ LitLbl l) (state_upd_tapes <[l := (N; []) : tape]> σ) *)
+(* | RandTapeS l z N n ns σ : *)
+(*   N = Z.to_nat z → *)
+(*   σ.(tapes) !! l = Some ((N; n :: ns) : tape)  → *)
+(*   head_step_rel (Rand (Val (LitV (LitInt z))) (Val (LitV (LitLbl l)))) σ *)
+(*     (Val $ LitV $ LitInt $ n) (state_upd_tapes <[l := (N; ns) : tape]> σ) *)
+(* | RandTapeEmptyS l z N (n : fin (S N)) σ : *)
+(*   N = Z.to_nat z → *)
+(*   σ.(tapes) !! l = Some ((N; []) : tape) → *)
+(*   head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ *)
+(* | RandTapeOtherS l z M N ms (n : fin (S N)) σ : *)
+(*   N = Z.to_nat z → *)
+(*   σ.(tapes) !! l = Some ((M; ms) : tape) → *)
+(*   N ≠ M → *)
+(*   head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ *)
+(* | TickS σ z : *)
+(*   head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ *)
 
 Create HintDb head_step.
 Global Hint Constructors head_step_rel : head_step.
 (* 0%fin always has non-zero mass, so propose this choice if the reduct is
    unconstrained. *)
 Global Hint Extern 1
-  (head_step_rel (Rand (Val (LitV _)) (Val (LitV LitUnit))) _ _ _) =>
-         eapply (RandNoTapeS _ _ 0%fin) : head_step.
-Global Hint Extern 1
-  (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
-         eapply (RandTapeEmptyS _ _ _ 0%fin) : head_step.
-Global Hint Extern 1
-  (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
-         eapply (RandTapeOtherS _ _ _ _ _ 0%fin) : head_step.
+  (head_step_rel (Rand (Val (LitV _)) ) _ _ _) =>
+         eapply (RandS _ _ 0%fin) : head_step.
+(* Global Hint Extern 1 *)
+(*   (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) => *)
+(*          eapply (RandTapeEmptyS _ _ _ 0%fin) : head_step. *)
+(* Global Hint Extern 1 *)
+(*   (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) => *)
+(*          eapply (RandTapeOtherS _ _ _ _ _ 0%fin) : head_step. *)
 
-Inductive state_step_rel : state → loc → state → Prop :=
-| AddTapeS α N (n : fin (S N)) ns σ :
-  α ∈ dom σ.(tapes) →
-  σ.(tapes) !!! α = ((N; ns) : tape) →
-  state_step_rel σ α (state_upd_tapes <[α := (N; ns ++ [n]) : tape]> σ).
+(* Inductive state_step_rel : state → loc → state → Prop := *)
+(* | AddTapeS α N (n : fin (S N)) ns σ : *)
+(*   α ∈ dom σ.(tapes) → *)
+(*   σ.(tapes) !!! α = ((N; ns) : tape) → *)
+(*   state_step_rel σ α (state_upd_tapes <[α := (N; ns ++ [n]) : tape]> σ). *)
 
 Ltac inv_head_step :=
   repeat
@@ -1420,58 +1432,62 @@ Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
 Proof.
   split.
   - intros ?. destruct e1; inv_head_step; eauto with head_step.
-  - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr; done.
+  - inversion 1; simplify_map_eq/=; repeat try case_bool_decide; simplify_eq; by solve_distr. 
 Qed.
 
-Lemma state_step_support_equiv_rel σ1 α σ2 :
-  state_step σ1 α σ2 > 0 ↔ state_step_rel σ1 α σ2.
-Proof.
-  rewrite /state_step. split.
-  - case_bool_decide; [|intros; inv_distr].
-    case_match. intros ?. inv_distr.
-    econstructor; eauto with lia.
-  - inversion_clear 1.
-    rewrite bool_decide_eq_true_2 // H1. solve_distr.
-Qed.
+(* Lemma state_step_support_equiv_rel σ1 α σ2 : *)
+(*   state_step σ1 α σ2 > 0 ↔ state_step_rel σ1 α σ2. *)
+(* Proof. *)
+(*   rewrite /state_step. split. *)
+(*   - case_bool_decide; [|intros; inv_distr]. *)
+(*     case_match. intros ?. inv_distr. *)
+(*     econstructor; eauto with lia. *)
+(*   - inversion_clear 1. *)
+(*     rewrite bool_decide_eq_true_2 // H1. solve_distr. *)
+(* Qed. *)
 
+(* state step technically not used, but needed to define the ectxilanguage *)
+Definition state_step (σ:state) (α:loc) := dret σ.
 Lemma state_step_head_step_not_stuck e σ σ' α :
   state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0).
 Proof.
-  rewrite state_step_support_equiv_rel.
-  inversion_clear 1.
-  split; intros [[e2 σ2] Hs].
-  (* TODO: the sub goals used to be solved by [simplify_map_eq]  *)
-  - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
-    + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert in H11. done.
-      * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
-    + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert in H11. done.
-      * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
-    + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert in H10. done.
-      * rewrite lookup_insert_ne // in H10. rewrite H10 in H7. done.
-  - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
-    + destruct (decide (α = l1)); simplify_eq.
-      * apply not_elem_of_dom_2 in H11. done.
-      * rewrite lookup_insert_ne // in H7. rewrite H11 in H7.  done.
-    + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert // in H7.
-        apply not_elem_of_dom_2 in H11. done.
-      * rewrite lookup_insert_ne // in H7. rewrite H11 in H7. done.
-    + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert // in H7.
-        apply not_elem_of_dom_2 in H10. done.
-      * rewrite lookup_insert_ne // in H7. rewrite H10 in H7. done.
-Qed.
+  rewrite /state_step.
+  intros. by inv_distr.
+Qed. 
+(*   rewrite state_step_support_equiv_rel. *)
+(*   inversion_clear 1. *)
+(*   split; intros [[e2 σ2] Hs]. *)
+(*   (* TODO: the sub goals used to be solved by [simplify_map_eq]  *) *)
+(*   - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)). *)
+(*     + destruct (decide (α = l1)); simplify_eq. *)
+(*       * rewrite lookup_insert in H11. done. *)
+(*       * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done. *)
+(*     + destruct (decide (α = l1)); simplify_eq. *)
+(*       * rewrite lookup_insert in H11. done. *)
+(*       * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done. *)
+(*     + destruct (decide (α = l1)); simplify_eq. *)
+(*       * rewrite lookup_insert in H10. done. *)
+(*       * rewrite lookup_insert_ne // in H10. rewrite H10 in H7. done. *)
+(*   - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)). *)
+(*     + destruct (decide (α = l1)); simplify_eq. *)
+(*       * apply not_elem_of_dom_2 in H11. done. *)
+(*       * rewrite lookup_insert_ne // in H7. rewrite H11 in H7.  done. *)
+(*     + destruct (decide (α = l1)); simplify_eq. *)
+(*       * rewrite lookup_insert // in H7. *)
+(*         apply not_elem_of_dom_2 in H11. done. *)
+(*       * rewrite lookup_insert_ne // in H7. rewrite H11 in H7. done. *)
+(*     + destruct (decide (α = l1)); simplify_eq. *)
+(*       * rewrite lookup_insert // in H7. *)
+(*         apply not_elem_of_dom_2 in H10. done. *)
+(*       * rewrite lookup_insert_ne // in H7. rewrite H10 in H7. done. *)
+(* Qed. *)
 
 Lemma state_step_mass σ α :
-  α ∈ dom σ.(tapes) → SeriesC (state_step σ α) = 1.
+  α ∈ dom σ.(urns) → SeriesC (state_step σ α) = 1.
 Proof.
   intros Hdom.
-  rewrite /state_step bool_decide_eq_true_2 //=.
-  case_match.
-  rewrite dmap_mass dunif_mass //.
+  rewrite /state_step.
+  apply dret_mass. 
 Qed.
 
 Lemma head_step_mass e σ :
@@ -1505,9 +1521,8 @@ Fixpoint height (e : expr) : nat :=
   | AllocN e1 e2 => 1 + height e1 + height e2
   | Load e => 1 + height e
   | Store e1 e2 => 1 + height e1 + height e2
-  | AllocTape e => 1 + height e
-  | Rand e1 e2 => 1 + height e1 + height e2
-  | Tick e => 1 + height e
+  | Rand e => 1 + height e
+  | DRand e => 1 + height e
   end.
 
 Definition expr_ord (e1 e2 : expr) : Prop := (height e1 < height e2)%nat.
@@ -1543,33 +1558,33 @@ Proof.
     destruct Ki ; cbn ; repeat destruct_match ; intros [=] ; subst ; auto.
 Qed.
 
-Definition get_active (σ : state) : list loc := elements (dom σ.(tapes)).
+Definition get_active (σ : state) : list loc := elements (dom σ.(urns)).
 
 Lemma state_step_get_active_mass σ α :
   α ∈ get_active σ → SeriesC (state_step σ α) = 1.
 Proof. rewrite elem_of_elements. apply state_step_mass. Qed.
 
-Lemma state_steps_mass σ αs :
-  αs ⊆ get_active σ →
-  SeriesC (foldlM state_step σ αs) = 1.
-Proof.
-  induction αs as [|α αs IH] in σ |-* ; intros Hact.
-  { rewrite /= dret_mass //. }
-  rewrite foldlM_cons.
-  rewrite dbind_det //.
-  - apply state_step_get_active_mass. set_solver.
-  - intros σ' Hσ'. apply IH.
-    apply state_step_support_equiv_rel in Hσ'.
-    inversion Hσ'; simplify_eq.
-    intros α' ?. rewrite /get_active /=.
-    apply elem_of_elements, elem_of_dom.
-    destruct (decide (α = α')); subst.
-    + eexists. rewrite lookup_insert //.
-    + rewrite lookup_insert_ne //.
-      apply elem_of_dom. eapply elem_of_elements, Hact. by right.
-Qed.
+(* Lemma state_steps_mass σ αs : *)
+(*   αs ⊆ get_active σ → *)
+(*   SeriesC (foldlM state_step σ αs) = 1. *)
+(* Proof. *)
+(*   induction αs as [|α αs IH] in σ |-* ; intros Hact. *)
+(*   { rewrite /= dret_mass //. } *)
+(*   rewrite foldlM_cons. *)
+(*   rewrite dbind_det //. *)
+(*   - apply state_step_get_active_mass. set_solver. *)
+(*   - intros σ' Hσ'. apply IH. *)
+(*     apply state_step_support_equiv_rel in Hσ'. *)
+(*     inversion Hσ'; simplify_eq. *)
+(*     intros α' ?. rewrite /get_active /=. *)
+(*     apply elem_of_elements, elem_of_dom. *)
+(*     destruct (decide (α = α')); subst. *)
+(*     + eexists. rewrite lookup_insert //. *)
+(*     + rewrite lookup_insert_ne //. *)
+(*       apply elem_of_dom. eapply elem_of_elements, Hact. by right. *)
+(* Qed. *)
 
-Lemma prob_lang_mixin :
+Lemma d_prob_lang_mixin :
   EctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step state_step get_active.
 Proof.
   split; apply _ || eauto using to_of_val, of_to_val, val_head_stuck,
@@ -1578,14 +1593,14 @@ Proof.
     decomp_fill_item, decomp_fill_item_2, expr_ord_wf, decomp_expr_ord.
 Qed.
 
-End prob_lang.
+End d_prob_lang.
 
 (** Language *)
-Canonical Structure prob_ectxi_lang := EctxiLanguage prob_lang.get_active prob_lang.prob_lang_mixin.
-Canonical Structure prob_ectx_lang := EctxLanguageOfEctxi prob_ectxi_lang.
-Canonical Structure prob_lang := LanguageOfEctx prob_ectx_lang.
+Canonical Structure d_prob_ectxi_lang := EctxiLanguage d_prob_lang.get_active d_prob_lang.d_prob_lang_mixin.
+Canonical Structure d_prob_ectx_lang := EctxLanguageOfEctxi d_prob_ectxi_lang.
+Canonical Structure d_prob_lang := LanguageOfEctx d_prob_ectx_lang.
 
 (* Prefer prob_lang names over ectx_language names. *)
-Export prob_lang.
+Export d_prob_lang.
 
 Definition cfg : Type := expr * state.
