@@ -1026,8 +1026,9 @@ Fixpoint urn_subst (f: gmap loc nat) (bl : base_lit) : option base_lit :=
 
 Definition urns_f_valid (m : gmap loc urn) (f:gmap loc nat) :=
   forall l, match f !! l with
-       | Some x => ∃ u, m!!l=Some u /\ x ∈ u
-       | None => m!!l = None
+       | Some x =>
+           ∃ u, m!!l=Some u /\ x ∈ u
+       | None => m!!l = None \/ m!!l = Some ∅
   end
 .
 
@@ -1036,9 +1037,22 @@ Fixpoint list_urns_f_valid (m:list (loc * urn)) : list (gmap loc nat):=
     | [] => [∅]
     | (k, u)::rest =>
         let l := elements u in
-        let x := list_urns_f_valid rest in
+        if bool_decide (l=[]) then
+          list_urns_f_valid rest 
+        else let x := list_urns_f_valid rest in
         (a ← l; b ← x; [<[k:=a]>b])
   end.
+
+Lemma list_urns_f_nonempty m:
+  (0<length (list_urns_f_valid m))%nat.
+Proof.
+  induction m; simpl; first lia.
+  destruct a as [x y]. case_bool_decide; first done.
+  destruct (elements y); first done.
+  simpl. rewrite app_length.
+  destruct (list_urns_f_valid m); simpl; first (simpl in *; lia).
+  lia.
+Qed. 
 
 Lemma list_urns_f_valid_correct m f :
   urns_f_valid m f <-> 
@@ -1072,6 +1086,36 @@ Proof.
       }
       simpl.
       destruct x as [l u].
+      assert (l∉lis'.*1) as Hnotin.
+      { intros ?.
+        apply NoDup_cons in Hnodup. naive_solver.
+      } 
+      case_bool_decide as H0.
+      { apply elements_empty_inv in H0. subst.
+        eapply IH; last first.
+        - apply NoDup_cons in Hnodup; naive_solver.
+        - simpl in *.
+          rewrite map_to_list_insert in Heqlis; last by apply not_elem_of_list_to_map.
+          by apply Permutation_cons_inv in Heqlis.
+        - apply leibniz_equiv in H0. subst.
+          intros l'.
+          specialize (H l').
+          case_match.
+          + destruct H as (u&H1&H2).
+            destruct (decide (l=l')).
+            -- exfalso.
+               subst. rewrite lookup_insert in H1. simplify_eq. set_solver.
+            -- eexists _. split; last done.
+               rewrite -H1.
+               by rewrite lookup_insert_ne.
+          + destruct (decide (l=l')).
+            * subst. rewrite lookup_insert in H.
+              left.
+              by apply not_elem_of_list_to_map_1.
+            * by rewrite lookup_insert_ne in H.
+      }
+Admitted. 
+      
       rewrite elem_of_list_bind.
       specialize (H l) as H'.
       case_match; last first.
@@ -1091,11 +1135,7 @@ Proof.
         split.
         -- rewrite insert_delete_insert.
            rewrite insert_id; [set_solver|done].
-        -- assert (l∉lis'.*1) as Hnotin.
-           { intros ?.
-             apply NoDup_cons in Hnodup. naive_solver.
-           } 
-          apply IH with (delete l (list_to_map lis')).
+        -- apply IH with (delete l (list_to_map lis')).
            ++ intros l'.
               destruct (decide (l=l')).
               ** subst. rewrite lookup_delete.
