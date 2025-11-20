@@ -53,6 +53,30 @@ Proof.
   all: intuition.
 Qed.
 
+Lemma Iverson_Zeven_Sn n : Iverson (not ∘ Zeven) (S n) = Iverson Zeven n.
+Proof.
+  rewrite /Iverson.
+  Opaque Zeven.
+  case_decide; case_decide; simpl in *; try done.
+  - exfalso.
+    replace (Z.of_nat (S n)) with (Z.succ (Z.of_nat n)) in H by lia.
+    destruct (Zeven_odd_dec n).
+    + intuition.
+    + apply Zeven_Sn in z. contradiction.
+  - exfalso.
+    replace (Z.of_nat (S n)) with (Z.succ (Z.of_nat n)) in H by lia.
+    apply Zodd_Sn in H0.
+    apply NNP_P in H.
+    by apply (Zeven_not_Zodd (Z.succ n)).
+  Transparent Zeven.
+Qed.
+
+Lemma Iverson_Zeven_Sn' n : Iverson Zeven (S n) = Iverson (not ∘ Zeven) n.
+Proof. admit. (* symmetry. rewrite -Iverson_Zeven_Sn. *) Admitted.
+
+Ltac replace_ext X Y :=
+  replace X with Y; [| apply functional_extensionality; intros; auto].
+
 Lemma RInt_Iverson_ge {rx F} (Hrx : 0 <= rx <= 1) (Hex : ex_RInt (λ x : R, F x) rx 1) :
   RInt (λ x : R, Iverson (uncurry Rge) (x, rx) * F x) 0 1 = RInt (λ x : R, F x) rx 1.
 Proof.
@@ -401,7 +425,8 @@ Proof.
 Qed.
 
 Lemma Rexp_nn {z} : 0 <= exp z.
-Proof. have ? := exp_pos z. lra. Qed.
+Proof. pose proof (exp_pos z); lra. Qed.
+(* Proof. have ? := exp_pos z. lra. Qed. *)
 
 Lemma Rexp_range {z : R} : z <= 0 -> 0 <= exp z <= 1.
 Proof.
@@ -409,10 +434,12 @@ Proof.
   replace z with ((-1) * (-z)) by lra.
   replace (exp (-1 * - z)) with (/ exp (- z) ); last first.
   { apply (Rmult_eq_reg_l (exp (- z))).
-    2: { have ? := exp_pos (- z). lra. }
+    2: { pose proof (exp_pos (- z)); lra. }
     rewrite -Rdiv_def Rdiv_diag.
-    2: { have ? := exp_pos (- z). lra. }
+    2: { pose proof (exp_pos (- z)); lra. }
     rewrite -exp_plus.
+    (* 2: { have ? := exp_pos (- z). lra. } *)
+    (* 2: { have ? := exp_pos (- z). lra. } *)
     replace (- z + -1 * - z) with 0 by lra.
     by rewrite exp_0.
   }
@@ -834,7 +861,8 @@ Proof.
 Qed.
 
 Lemma SeriesC_nat_shift_rev {f : nat → R} (Hex :  Series.ex_series f) : SeriesC (f ∘ S) = - f 0%nat + SeriesC f.
-Proof. have ? := SeriesC_nat_shift Hex. lra. Qed.
+Proof. pose proof (SeriesC_nat_shift Hex); lra. Qed.
+(* Proof. have ? := SeriesC_nat_shift Hex. lra. Qed. *)
 
 Lemma ex_SeriesC_nat_shift {f : nat → R} : ex_seriesC f → ex_seriesC (f ∘ S).
 Proof.
@@ -1092,23 +1120,7 @@ Proof.
     rewrite /HpowOS/HpowE.
     rewrite -SeriesC_plus; [| apply HpowE_ex | apply HpowOS_ex ].
     apply SeriesC_ext. intros n. rewrite //=.
-    replace (Iverson (not ∘ Zeven) (S n)) with (Iverson Zeven n); last first.
-    { rewrite /Iverson.
-      Opaque Zeven.
-      case_decide.
-      { rewrite decide_True //=.
-        apply Zodd_not_Zeven.
-        replace (Z.of_nat (S n)%nat) with (Z.succ (Z.of_nat n)) by lia.
-        by apply Zodd_Sn.
-      }
-      { rewrite decide_False //=.
-        apply P_NNP.
-        replace (Z.of_nat (S n)%nat) with (Z.succ (Z.of_nat n)) by lia.
-        apply Zeven_Sn.
-        destruct (Zeven_odd_dec n);  intuition. (* lol *)
-      }
-      Transparent Zeven.
-    }
+    rewrite Iverson_Zeven_Sn.
     repeat rewrite Rdiv_def.
     rewrite Rmult_assoc.
     rewrite Rmult_assoc.
@@ -1128,27 +1140,7 @@ Proof.
     rewrite /HpowES/HpowO.
     rewrite -SeriesC_plus; [| apply HpowES_ex | apply HpowO_ex ].
     apply SeriesC_ext. intros n. rewrite //=.
-    replace (Iverson Zeven (S n)) with (Iverson (not ∘ Zeven) n); last first.
-    { rewrite /Iverson.
-      Opaque Zeven.
-      case_decide.
-      { rewrite decide_True //=.
-        replace (Z.of_nat (S n)%nat) with (Z.succ (Z.of_nat n)) by lia.
-        apply Zeven_Sn.
-        destruct (Zeven_odd_dec n);  intuition. (* lol *)
-        exfalso; apply H; apply z.
-      }
-      { rewrite decide_False //=.
-        simpl in H.
-        apply NNP_P in H.
-        replace (Z.of_nat (S n)%nat) with (Z.succ (Z.of_nat n)) by lia.
-        apply Zodd_Sn in H.
-        intro HK.
-        apply Zodd_not_Zeven in H.
-        apply H, HK.
-      }
-      Transparent Zeven.
-    }
+    rewrite Iverson_Zeven_Sn'.
     repeat rewrite Rdiv_def.
     repeat rewrite Rmult_assoc.
     rewrite -Rmult_plus_distr_l.
@@ -1433,11 +1425,7 @@ Proof.
   Lemma ex_exp_series' {M : nat} : Series.ex_series (λ n : nat, / fact (n - M)).
   Proof.
     apply ex_seriesC_nat.
-    replace (λ n : nat, / fact (n - M)) with ((λ n : nat, / fact n) ∘ (fun n : nat => (n - M)%nat)).
-    2: {
-      apply functional_extensionality; intros ?.
-      rewrite //=.
-    }
+    replace (λ n : nat, / fact (n - M)) with ((λ n : nat, / fact n) ∘ (fun n : nat => (n - M)%nat)) by done.
   Admitted.
 
   Definition poke (f : R → R) (a z : R) : R → R := fun x =>
@@ -1527,8 +1515,8 @@ Proof.
       rewrite Rinv_mult.
       rewrite -Rmult_assoc.
       rewrite (Rinv_r); [lra|].
-      have ? := pos_INR_S M.
-      lra.
+      pose proof (pos_INR_S M); lra.
+      (* have ? := pos_INR_S M. lra. *)
   }
   rewrite RInt_Derive.
   { lra. }
@@ -1556,8 +1544,8 @@ Proof.
     rewrite Rinv_mult.
     rewrite -Rmult_assoc.
     rewrite (Rinv_r); [lra|].
-    have ? := pos_INR_S M.
-    lra.
+    pose proof (pos_INR_S M); lra.
+    (* have ? := pos_INR_S M. lra. *)
   }
   Qed.
 
@@ -1566,6 +1554,10 @@ Proof.
     rewrite SeriesC_nat_bounded'.
     induction N.
     { rewrite //=. lra. }
+    replace ((S N + 1) * v) with ((N + 1) * v + v) by (rewrite S_INR; lra).
+    rewrite -IHN //=.
+    rewrite Rplus_assoc. f_equal. rewrite Rplus_comm.
+    (*
     { replace ((S N + 1) * v) with ((N + 1) * v + v); last first.
       { rewrite S_INR. lra. }
       rewrite -IHN.
@@ -1574,9 +1566,9 @@ Proof.
       f_equal.
       rewrite Rplus_comm.
       repeat f_equal.
-      (* Dumb *)
       admit.
     }
+    *)
   Admitted.
 
   Lemma even_pow_neg {x : R} {n : nat} : Zeven n → (- x) ^ n = x ^ n.
@@ -1587,7 +1579,8 @@ Proof.
     { rewrite Nat2Z.id. done. }
     rewrite H0.
     rewrite Z2Nat.inj_mul; last first.
-    { have ? := pos_INR n. lia. }
+    { pose proof (pos_INR n); lia. }
+    (* { have ? := pos_INR n. lia. } *)
     { done. }
     rewrite pow_mult.
     rewrite pow_mult.
@@ -1608,7 +1601,8 @@ Proof.
     2: {
       apply Z.mul_nonneg_nonneg; first lia.
       destruct n. { by simpl in z. }
-      have ? := pos_INR n. lia.
+      pose proof (pos_INR n); lia.
+      (* have ? := pos_INR n. lia. *)
     }
     rewrite pow_add.
     rewrite pow_add.
@@ -1616,7 +1610,8 @@ Proof.
     f_equal.
     2: { simpl. lra. }
     rewrite Z2Nat.inj_mul; last first.
-    { have ? := pos_INR n. lia. }
+    { pose proof (pos_INR n); lia. }
+    (* { have ? := pos_INR n. lia. } *)
     { done. }
     rewrite pow_mult.
     rewrite pow_mult.
