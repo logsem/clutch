@@ -1780,6 +1780,48 @@ Proof.
   Search filterlim  0.
   *)
 
+  Lemma is_RInt_gen_filterlim {F : R → R_CompleteNormedModule} {M : R} {l : R_CompleteNormedModule} :
+    (∀ b, ex_RInt F M b) →
+    filterlim (λ b : R, RInt F M b) (Rbar_locally Rbar.p_infty) (locally l) →
+    is_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) l.
+  Proof.
+    intros Hex Hlim.
+    intros P HP.
+    eapply (Filter_prod _ _ _ (fun r => M = r) _); [rewrite /at_point//= | apply (Hlim P HP) |].
+    intros x y HPx HPy.
+    simpl.
+    exists (RInt F x y).
+    rewrite -HPx.
+    split; [|apply HPy].
+    apply RInt_correct.
+    apply Hex.
+  Qed.
+
+  Lemma filterlim_is_RInt_gen {F : R → R_CompleteNormedModule} {M : R} {l : R_CompleteNormedModule} :
+    (∀ b, ex_RInt F M b) →
+    is_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) l →
+    filterlim (λ b : R, RInt F M b) (Rbar_locally Rbar.p_infty) (locally l).
+  Proof.
+    intros Hex Hgen.
+    intros P HP.
+    have Hext : Rbar_locally Rbar.p_infty (fun b => exists y, is_RInt F M b y /\ P y).
+    { rewrite /Rbar_locally//=.
+      unfold filtermapi in Hgen.
+      destruct (Hgen P HP) as [P1 P2 H3 H4 H5].
+      rewrite /at_point//= in H3.
+      destruct H4 as [M' HM'].
+      simpl in H5.
+      exists M'. intros ??.
+      apply H5; [done|].
+      by apply HM'.
+    }
+    unfold filtermap.
+    eapply filter_imp; [|apply Hext].
+    intros x [y [Hy Py]].
+    have Heq : RInt F M x = y by apply is_RInt_unique.
+    rewrite Heq; exact Py.
+  Qed.
+
 
   (* Can I prove this without explicitly giving the limit? *)
   Lemma RInt_gen_pos {F} {M}
@@ -1789,14 +1831,6 @@ Proof.
     (Hnn : ∀ b, 0 <= RInt F M b) :
     0 <= RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty).
   Proof.
-    (* Lemma: every sequence in the nonnegative reals diverges or converges to a nonneg *)
-    (* What is RInt_gen when F it doesn't convgerge? Please be something normal *)
-    rewrite /RInt_gen.
-    Check CompleteSpace.lim.
-    rewrite /iota//=.
-    rewrite /lim//=.
-    rewrite /R_complete_lim.
-    rewrite /Lub.Lub_Rbar.
   Admitted.
 
 
