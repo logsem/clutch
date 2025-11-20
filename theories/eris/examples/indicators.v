@@ -1231,10 +1231,37 @@ Proof.
     { by rewrite H. }
   Qed.
 
+  Lemma SeriesC_term_le {h : nat → R} (Hh : ∀ n, 0 <= h n) (Hex : ex_seriesC h) :
+    ∀ n, h n <= SeriesC h.
+  Proof.
+    intros n.
+    have Heq : SeriesC h = SeriesC (λ m, if bool_decide (m = n) then h m else 0) +
+                           SeriesC (λ m, if bool_decide (m ≠ n) then h m else 0).
+    { rewrite -SeriesC_plus.
+      - apply SeriesC_ext.
+        intros m. case_bool_decide; case_bool_decide; try lra; try (exfalso; auto).
+      - apply ex_seriesC_singleton_dependent.
+      - apply (ex_seriesC_le _ h); auto.
+        intros m. split; case_bool_decide; auto; lra.
+    }
+    rewrite Heq.
+    rewrite SeriesC_singleton_dependent.
+    have Hrest : 0 <= SeriesC (λ m, if bool_decide (m ≠ n) then h m else 0).
+    { apply SeriesC_ge_0' => m. case_bool_decide; auto. lra. }
+    lra.
+  Qed.
+
   Lemma ex_seriesC_mult {f g : nat → R} (Hf : ∀ n : nat, 0 <= f n) (Hg : ∀ n : nat, 0 <= g n) :
     ex_seriesC f → ex_seriesC g → ex_seriesC (fun n => f n * g n).
   Proof.
-  Admitted.
+    intros Hexf Hexg.
+    apply (ex_seriesC_le _ (fun n => (SeriesC g) * f n)).
+    { intros n. split.
+      - apply Rmult_le_pos; auto.
+      - rewrite Rmult_comm. apply Rmult_le_compat_r; auto. apply SeriesC_term_le; done.
+    }
+    by apply ex_seriesC_scal_l.
+  Qed.
 
   (* Weierstrass M test, Rudin 7.10 *)
   Lemma UniformConverge_Series {F : R → nat → R} (UB : nat → R) :
