@@ -198,8 +198,7 @@ Section credits.
 *)
 
   Lemma RealDecrTrial_CreditV_ex_RInt {F N M} (Hbound : forall n, 0 <= F n <= M) :
-    ex_RInt (RealDecrTrial_CreditV F N) 0 1 (* ∧
-    RInt (RealDecrTrial_CreditV F N) 0 1 = SeriesC (fun n => RInt (fun x => RealDecrTrial_μ x N n * F n) 0 1) *).
+    ex_RInt (RealDecrTrial_CreditV F N) 0 1.
   Proof.
     rewrite -ex_RInt_dom.
     rewrite /ex_RInt.
@@ -308,68 +307,6 @@ Section credits.
     destruct (@filterlim_RInt nat R_CompleteNormedModule s 0 1 eventually eventually_filter
       (λ x : R, Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x N n * F n))) h HSInt HSLim) as [IF [HIf1 HIf2]].
     by exists IF.
-
-    (*
-    split; first (exists IF; exact HIf2).
-    replace (RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x N n * F n)) 0 1)
-       with (RInt (λ x : R, Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x N n * F n))) 0 1); last first.
-    { admit. }
-    replace (SeriesC (λ n : nat, RInt (λ x : R, RealDecrTrial_μ x N n * F n) 0 1))
-       with (Series (λ n : nat, RInt (λ x : R, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x N n * F n)) 0 1)); last first.
-    { admit. }
-
-    rewrite (filterlim_locally (F := eventually) h _) in HIf1.
-    rewrite (is_RInt_unique _ _ _ _ HIf2).
-    have ε : posreal by admit.
-    Search filterlim locally.
-    Search R (_ = _) (Rlt).
-    Search filterlim.
-     :w
-     *)
-
-    (*
-    eapply (@filterlim_locally_unique nat).
-    3: {
-      apply @Series_Converge.
-      admit. }
-    { apply Proper_StrongProper, eventually_filter. }
-    rewrite /h in HIf1.
-
-    Search ProperFilter'.
-
-
-    Search filterlim.
-
-
-    Search is_RInt RInt.
-
-    rewrite SeriesC_nat.
-    rewrite /Series.
-
-
-
-    Search Lim_seq filterlim.
-    replace (RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x N n * F n)) 0 1)
-       with (RInt (λ x : R, SeriesC (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x N n * F n))) 0 1); last first.
-    { admit. }
-
-
-
-    Search RInt "correct".
-
-    apply transitivity with 0.
-
-
-
-
-    rewrite /h in HIf1.
-    have HE1 : (λ x : nat, RInt (λ x0 : R, sum_n (λ n : nat, Iverson (Ioo 0 1) x0 * (RealDecrTrial_μ x0 N n * F n)) x) 0 1) =
-               (λ x : nat, sum_n (λ n : nat, RInt (λ x0 : R, Iverson (Ioo 0 1) x0 * (RealDecrTrial_μ x0 N n * F n)) 0 1) x).
-    { by funexti; rewrite RInt_sum_n. }
-    rewrite HE1 in HIf1.
-    Search filterlim sum_n.
-
-    *)
   Qed.
 
   (* Telescoping series *)
@@ -502,7 +439,42 @@ Section credits.
       (RInt (λ x : R, SeriesC (λ n : nat, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n)) 0 1) with
       (SeriesC (λ n : nat, RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n) 0 1)); last first.
     { (* Is it possible that Hex is needed here? *)
-      admit. }
+      rewrite SeriesC_Series_nat.
+      rewrite (FubiniIntegralSeries (fun n => / fact (n - (N + 1)) * M)).
+      { f_equal. funexti. rewrite SeriesC_Series_nat. done. }
+      { apply ex_series_scal_r.
+        (* The exponential series (it exists) *)
+        admit. }
+      { intros ??.
+        rewrite Rabs_mult Rabs_mult.
+        rewrite -(Rmult_1_l (_ * M)).
+        rewrite Rmult_assoc.
+        apply Rmult_le_compat; OK.
+        { apply Rabs_pos. }
+        { apply Rmult_le_pos; apply Rabs_pos. }
+        { rewrite Rabs_right.
+          { apply Iverson_le_1. }
+          { apply Rle_ge, Iverson_nonneg. }
+        }
+        apply Rmult_le_compat; OK.
+        { apply Rabs_pos. }
+        { apply Rabs_pos. }
+        { (* For both of these we need the range of x. Add an indicator to the exchange lemmas. *)
+          rewrite Rabs_right; [|apply Rle_ge, RealDecrTrial_μnn].
+          { rewrite /RealDecrTrial_μ.
+            rewrite /RealDecrTrial_μ0.
+            admit. }
+          { admit. }
+        }
+        { rewrite Rabs_right; [apply Hbound|]. apply Rle_ge, Hbound. }
+      }
+      { intros ?.
+        apply ex_RInt_mult; [|apply ex_RInt_const].
+        apply ex_RInt_mult.
+        { apply (@ex_RInt_Iverson_le_uncurry rx). }
+        apply RealDecrTrial_μ_ex_RInt.
+      }
+    }
     rewrite (@RInt_Iverson_ge rx (fun x => F N) Hrx).
     2: { apply ex_RInt_const. }
     rewrite RInt_const/scal//=/mult//=.
