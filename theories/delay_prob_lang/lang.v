@@ -1236,6 +1236,22 @@ Qed.
 Definition urn_subst_equal σ (bl bl':base_lit) :=
   ∀ f, urns_f_valid (urns σ) f -> urn_subst f bl = Some bl'.
 
+Lemma urn_subst_equal_unique σ bl bl1 bl2:
+  urn_subst_equal σ bl bl1 -> urn_subst_equal σ bl bl2 -> bl1=bl2.
+Proof.
+  rewrite /urn_subst_equal.
+  intros H1 H2.
+  setoid_rewrite list_urns_f_valid_correct in H1.
+  setoid_rewrite list_urns_f_valid_correct in H2.
+  pose proof list_urns_f_nonempty (map_to_list (urns σ)).
+  edestruct (list_urns_f_valid _) as [|x]; first (simpl in *; lia).
+  epose proof H1 x _ as H1.
+  epose proof H2 x _ as H2.
+  rewrite H1 in H2. by simplify_eq.
+  Unshelve.
+  all: apply elem_of_cons; naive_solver.
+Qed.
+
 Global Instance urn_subst_equal_dec σ bl bl': Decision (urn_subst_equal σ bl bl').
 Proof.
   replace (urn_subst_equal _ _ _) with
@@ -1405,7 +1421,6 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   urn_subst_equal σ bl (LitBool true)->
   head_step_rel (If (Val $ LitV $ bl) e1 e2) σ e1 σ
 | IfFalseS bl e1 e2 σ :
-  ¬urn_subst_equal σ bl (LitBool true)->
   urn_subst_equal σ bl (LitBool false)->
   head_step_rel (If (Val $ LitV $ bl) e1 e2) σ e2 σ
 (* | IfFalseS e1 e2 σ : *)
@@ -1498,7 +1513,9 @@ Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
 Proof.
   split.
   - intros ?. destruct e1; inv_head_step; eauto with head_step.
-  - inversion 1; simplify_map_eq/=; repeat try case_bool_decide; simplify_eq; by solve_distr. 
+  - inversion 1; simplify_map_eq/=; repeat try case_bool_decide; simplify_eq; try by solve_distr.
+    exfalso.
+    assert (LitBool true ≠ LitBool false) as H' by done; (apply H'; by eapply urn_subst_equal_unique).
 Qed.
 
 (* Lemma state_step_support_equiv_rel σ1 α σ2 : *)
