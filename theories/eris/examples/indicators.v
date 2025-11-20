@@ -780,24 +780,23 @@ Proof.
   }
 Qed.
 
+Lemma ex_RInt_square (f  : R -> R) (a b : R) :
+  ex_RInt f a b → ex_RInt (fun x => (f x) ^ 2) a b.
+Proof.
+Admitted.
+
 Lemma ex_RInt_mult (f g : R -> R) (a b : R) :
   ex_RInt f a b ->  ex_RInt g a b ->
   ex_RInt (λ y : R, f y * g y) a b.
 Proof.
   intros H1 H2.
-  (*
-  replace (λ y : R, f y * g y) with (fun y => (f y - g y) ^ 2 - (f y + g y) ^ 2); last first.
-  { apply functional_extensionality.
-    intros ?.
-    repeat rewrite Rminus_def.
-    rewrite //=.
-    repeat rewrite Rmult_1_r.
-    repeat rewrite Rmult_plus_distr_l.
-    repeat rewrite Rmult_plus_distr_r.
-    repeat rewrite Ropp_plus_distr.
-    *)
-  (* Product of Riemann integrable is Riemann integrable (is this not in the library?) *)
-Admitted.
+  replace (λ y : R, f y * g y) with (λ y : R, (1/4) * ((f y + g y) ^ 2 - (f y - g y) ^ 2)); last first.
+  { apply functional_extensionality; intros ?. lra. }
+  apply ex_RInt_Rmult.
+  apply (ex_RInt_minus (V := R_CompleteNormedModule)).
+  { apply ex_RInt_square. by apply (ex_RInt_plus (V := R_CompleteNormedModule)). }
+  { apply ex_RInt_square. by apply (ex_RInt_minus (V := R_CompleteNormedModule)). }
+Qed.
 
 Lemma RInt_pow {a b N} : RInt (λ x : R, x ^ N) a b = b ^ (N + 1)%nat / (N + 1)%nat - a ^ (N + 1)%nat / (N + 1)%nat.
 Proof.
@@ -1287,8 +1286,25 @@ Proof.
     filterlim (fun (M : nat) (x : R) => sum_n (F x) M) eventually (locally (λ x : R, Series.Series (F x))).
   Proof.
     intros H1 H2.
-  Admitted.
+    (* It suffices to show the tails converge uniformly to zero. *)
 
+    (*
+    suffices HTail :
+      filterlim (λ (M : nat) (x : R), Series.Series (fun n => F x (n + M)%nat)) eventually (locally (fun _ => 0)).
+    {
+      rewrite /filterlim/filter_le//=/locally//=.
+      intros P.
+      rewrite /filterlim/filter_le//=/locally//= in HTail.
+      specialize (HTail P).
+      intros [eps Heps].
+      rewrite /filtermap/eventually//=.
+      rewrite /filtermap/eventually//= in HTail.
+    admit. }
+    (* This limit is uniformly bounded above by the sequence of upper bounds
+       These converge to 0 using h1 and ex_series_lim_0
+     *)
+     *)
+  Admitted.
 
   Lemma Exchange1 {f : nat → R → R_CompleteNormedModule} {a b : R} {F : R → R}
     (Hex : ∀ n, ex_RInt (f n) a b) (Hunif : filterlim f eventually (locally F)) :
@@ -1841,21 +1857,15 @@ Proof.
   Qed.
 
 
-  (* Can I prove this without explicitly giving the limit? *)
-  Lemma RInt_gen_pos {F} {M}
-    (* (Hlimit : filterlimi (λ b : R, is_RInt F M b) (Rbar_locally Rbar.p_infty) (locally L)) *)
-    (* (HL : 0 <= L) : *)
+  Lemma RInt_gen_pos_ex {F M}
     (Hpos : forall x, 0 <= F x)
     (Hex : ∀ b, ex_RInt F M b)
-    (Hnn : ∀ b, 0 <= RInt F M b) :
+    (Hnn : ∀ b, 0 <= RInt F M b)
+    (Hex_L : ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty)) :
     0 <= RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty).
   Proof.
-    destruct (ClassicalEpsilon.excluded_middle_informative (ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty))).
-    { apply (Lim_seq.filterlim_le (F := Rbar_locally Rbar.p_infty)
-             (fun _ => 0)
-             (fun b => RInt F M b)
-             (Rbar.Finite 0)
-             (Rbar.Finite (RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty)))).
+    apply (Lim_seq.filterlim_le (F := Rbar_locally Rbar.p_infty) (fun _ => 0)
+             (fun b => RInt F M b) (Rbar.Finite 0) (Rbar.Finite (RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty)))).
       { apply filter_forall; apply Hnn. }
       { apply filterlim_const. }
       { intros P HP.
@@ -1865,7 +1875,19 @@ Proof.
         apply RInt_gen_correct.
         done.
       }
-    }
+  Qed.
+
+  
+  (* Can I prove this without explicitly giving the limit? *)
+  Lemma RInt_gen_pos {F} {M}
+    (Hpos : forall x, 0 <= F x)
+    (Hex : ∀ b, ex_RInt F M b)
+    (Hnn : ∀ b, 0 <= RInt F M b) :
+    0 <= RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty).
+  Proof.
+    destruct (ClassicalEpsilon.excluded_middle_informative (ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty))).
+    { apply RInt_gen_pos_ex; done. }
+    { admit. }
   Admitted.
 
   Lemma ex_RInt_div (F : R → R) {a b c} : ex_RInt F a b → ex_RInt (fun x => F x / c) a b.

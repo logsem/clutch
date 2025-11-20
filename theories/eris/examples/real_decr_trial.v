@@ -438,14 +438,60 @@ Section credits.
     replace
       (RInt (λ x : R, SeriesC (λ n : nat, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n)) 0 1) with
       (SeriesC (λ n : nat, RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n) 0 1)); last first.
-    { (* Is it possible that Hex is needed here? *)
-      rewrite SeriesC_Series_nat.
+    { rewrite SeriesC_Series_nat.
+      (* Internalize the domain of the integrals into indicator functions *)
+      replace (Series (λ n : nat, RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n) 0 1))
+        with  (Series (λ n : nat, RInt (λ x : R, Iverson (Ioo 0 1) x * (Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n)) 0 1)); last first.
+      { f_equal; funexti.
+        apply RInt_ext.
+        intros ??.
+        rewrite Iverson_True; OK.
+      }
+      replace (RInt (λ x : R, SeriesC (λ n : nat, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n)) 0 1)
+         with (RInt (λ x : R, Iverson (Ioo 0 1) x * SeriesC (λ n : nat, Iverson (uncurry Rle) (x, rx) * RealDecrTrial_μ x (N + 1) n * F n)) 0 1); last first.
+      { apply RInt_ext.
+        intros ??.
+        rewrite Iverson_True; OK.
+      }
       rewrite (FubiniIntegralSeries (fun n => / fact (n - (N + 1)) * M)).
-      { f_equal. funexti. rewrite SeriesC_Series_nat. done. }
+      { f_equal. funexti. rewrite SeriesC_Series_nat.
+        symmetry.
+        rewrite {1}/Iverson.
+        case_decide.
+        { rewrite Rmult_1_l.
+          apply Series_ext; intros n.
+          symmetry.
+          rewrite Iverson_True; OK.
+        }
+        { rewrite Rmult_0_l.
+          symmetry.
+          apply Series_Ext.Series_0.
+          intros n.
+          rewrite Iverson_False; OK.
+        }
+      }
       { apply ex_series_scal_r.
-        (* The exponential series (it exists) *)
-        admit. }
+        apply ex_seriesC_nat.
+        apply (ex_SeriesC_nat_shiftN_r (N + 1)%nat).
+        rewrite -ex_seriesC_nat.
+        eapply ex_series_ext.
+        2: { eapply ex_exp_series. }
+        simpl. intros n.
+        f_equal. f_equal. f_equal.
+        lia.
+      }
       { intros ??.
+        rewrite Rabs_mult .
+        rewrite {1}/Iverson.
+        case_decide; last first.
+        { rewrite Rabs_R0; rewrite Rmult_0_l.
+          apply Rmult_le_pos.
+          { rewrite -(Rmult_1_l (/ _)).
+            apply Rle_mult_inv_pos; OK.
+            apply INR_fact_lt_0. }
+          { specialize (Hbound 0%nat). OK. }
+        }
+        rewrite Rabs_R1 Rmult_1_l.
         rewrite Rabs_mult Rabs_mult.
         rewrite -(Rmult_1_l (_ * M)).
         rewrite Rmult_assoc.
@@ -463,12 +509,66 @@ Section credits.
           rewrite Rabs_right; [|apply Rle_ge, RealDecrTrial_μnn].
           { rewrite /RealDecrTrial_μ.
             rewrite /RealDecrTrial_μ0.
-            admit. }
-          { admit. }
+            rewrite -(Rmult_1_l (/ fact (n - (N + 1)))).
+            rewrite /Ioo in H.
+            rewrite Rmin_left in H; OK.
+            rewrite Rmax_right in H; OK.
+            apply Rmult_le_compat; OK.
+            { apply Iverson_nonneg. }
+            { apply error_credits.Rle_0_le_minus.
+              rewrite Rdiv_def.
+              apply Rmult_le_compat.
+              { apply pow_le; OK. }
+              { left. apply Rinv_0_lt_compat, INR_fact_lt_0. }
+              { simpl.
+                replace (n - (N + 1) + 1)%nat with (S (n - (N + 1)))%nat by lia.
+                rewrite -(Rmult_1_l (x ^ (n - (N + 1)))).
+                simpl.
+                apply Rmult_le_compat; OK.
+                apply pow_le. OK.
+              }
+              { apply Rinv_le_contravar.
+                { apply INR_fact_lt_0. }
+                rewrite -(Rmult_1_l (fact (n - (N + 1)))).
+                replace (n - (N + 1) + 1)%nat with (S (n - (N + 1)))%nat by lia.
+                rewrite fact_simpl.
+                rewrite mult_INR.
+                apply Rmult_le_compat; OK.
+                { left. apply INR_fact_lt_0. }
+                { rewrite S_INR.
+                  have ? := pos_INR (n - (N + 1)).
+                  lra.
+                }
+              }
+
+            }
+            { apply Iverson_le_1. }
+            have ? : 0 <= x ^ (n - (N + 1) + 1) / fact (n - (N + 1) + 1).
+            { apply Rdiv_le_0_compat.
+              { apply pow_le; OK. }
+              { apply INR_fact_lt_0. }
+            }
+            suffices ? : x ^ (n - (N + 1)) / fact (n - (N + 1))  <= / fact (n - (N + 1)) by lra.
+            rewrite Rdiv_def.
+            rewrite -{2}(Rmult_1_l (/ fact (n - (N + 1)))).
+            apply Rmult_le_compat; OK.
+            { apply pow_le; OK. }
+            { left. apply Rinv_0_lt_compat, INR_fact_lt_0. }
+            { rewrite -(pow1 (n - (N + 1))). apply pow_incr; OK. }
+          }
+          { rewrite /Ioo in H.
+            rewrite Rmin_left in H; OK.
+            rewrite Rmax_right in H; OK.
+          }
         }
         { rewrite Rabs_right; [apply Hbound|]. apply Rle_ge, Hbound. }
       }
       { intros ?.
+        apply ex_RInt_mult.
+        { apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+          intros ??.
+          rewrite Iverson_True /Ioo; OK.
+        }
         apply ex_RInt_mult; [|apply ex_RInt_const].
         apply ex_RInt_mult.
         { apply (@ex_RInt_Iverson_le_uncurry rx). }
@@ -677,8 +777,7 @@ Section credits.
       rewrite Nat.sub_diag pow_O //=.
       lra.
     }
-  Admitted.
-
+  Qed.
 
 End credits.
 
