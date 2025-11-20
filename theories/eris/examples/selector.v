@@ -638,7 +638,90 @@ Section credits.
     replace (RInt (λ x0 : R, SeriesC (λ n : nat, S_μ k x x0 (N + 1) n * F n)) 0 y)
        with (SeriesC (λ n : nat, RInt (λ x0 : R, S_μ k x x0 (N + 1) n * F n) 0 y));
       last first.
-    {  (* Foob *) admit. }
+    { replace (RInt (λ x0 : R, SeriesC (λ n : nat, S_μ k x x0 (N + 1) n * F n)) 0 y)
+         with (RInt (λ x0 : R, Iverson (Ioo 0 y) x0 * SeriesC (λ n : nat, S_μ k x x0 (N + 1) n * F n)) 0 y); last first.
+      { apply RInt_ext. intros ??. rewrite Iverson_True; OK. }
+      replace (SeriesC (λ n : nat, RInt (λ x0 : R, S_μ k x x0 (N + 1) n * F n) 0 y))
+         with (SeriesC (λ n : nat, RInt (λ x0 : R, Iverson (Ioo 0 y) x0 * S_μ k x x0 (N + 1) n * F n) 0 y)); last first.
+      { apply SeriesC_ext; intros ?.
+        apply RInt_ext; intros ??.
+        rewrite Iverson_True; OK. }
+      rewrite SeriesC_Series_nat.
+      rewrite (FubiniIntegralSeries (fun n => / fact (n - (N + 1)) * M)).
+      { apply RInt_ext; intros ??.
+        rewrite Iverson_True; OK.
+        rewrite SeriesC_Series_nat.
+        rewrite Rmult_1_l.
+        apply Series_ext; intros ?; OK.
+      }
+      { apply ex_series_scal_r. apply ex_exp_series'. }
+      { intros ??.
+        rewrite /Iverson; case_decide.
+        2: {
+          repeat rewrite Rmult_0_l.
+          rewrite Rabs_R0.
+          rewrite Rmult_comm.
+          apply Rle_mult_inv_pos.
+          { specialize (Hf 0%nat); OK. }
+          apply INR_fact_lt_0.
+        }
+        rewrite Rmult_1_l.
+        rewrite Rabs_mult.
+        rewrite /Ioo in H.
+        rewrite Rmin_left in H; OK.
+        rewrite Rmax_right in H; OK.
+        rewrite Rabs_right; [|apply Rle_ge, S_μ_nn; OK].
+        rewrite Rabs_right; [|apply Rle_ge, Hf].
+        apply Rmult_le_compat; OK.
+        { apply S_μ_nn; OK. }
+        { apply Hf. }
+        2: { apply Hf. }
+        rewrite /S_μ.
+        rewrite /Iverson; case_decide.
+        2: { rewrite Rmult_0_l. left. apply Rinv_0_lt_compat. apply INR_fact_lt_0. }
+        rewrite Rmult_1_l.
+        have H1 : 0 <= ((2 * k + x) / (2 * k + 2)).
+        { rewrite Rdiv_def.
+          apply Rle_mult_inv_pos.
+          { apply Rplus_le_le_0_compat; OK. have ? := pos_INR k; OK. }
+          { apply Rplus_le_lt_0_compat; OK. have ? := pos_INR k; OK. }
+        }
+        have H2 : ((2 * k + x) / (2 * k + 2)) <= 1.
+        { rewrite -Rdiv_le_1; OK.
+          apply Rplus_le_lt_0_compat; OK.
+          have ? := pos_INR k; OK.
+        }
+        have H3 : forall n, 0 <= ((2 * k + x) / (2 * k + 2)) ^ n.
+        { intros ?. apply pow_le; OK. }
+        have H4 : forall n, ((2 * k + x) / (2 * k + 2)) ^ n <= 1.
+        { intros ?. rewrite -(pow1 n0). apply pow_incr; OK. }
+        rewrite /S_μ0.
+        have ? : 0 <= x0 ^ (n - (N + 1) + 1) / fact (n - (N + 1) + 1) * ((2 * k + x) / (2 * k + 2)) ^ (n - (N + 1) + 1).
+        { apply Rmult_le_pos; OK.
+          apply Rdiv_le_0_compat.
+          { apply pow_le; OK. }
+          apply INR_fact_lt_0. }
+        suffices ? : x0 ^ (n - (N + 1)) / fact (n - (N + 1)) * ((2 * k + x) / (2 * k + 2)) ^ (n - (N + 1)) <= / fact (n - (N + 1)) by lra.
+        rewrite -(Rmult_1_r (/ fact (n - (N + 1)))).
+        apply Rmult_le_compat; OK.
+        { rewrite Rdiv_def. apply Rle_mult_inv_pos; [|apply INR_fact_lt_0]. apply pow_le; OK. }
+        rewrite -(Rmult_1_r (/ fact (n - (N + 1)))).
+        rewrite Rmult_comm Rdiv_def.
+        apply Rmult_le_compat; OK.
+        { apply pow_le; OK. }
+        { left. apply Rinv_0_lt_compat.  apply INR_fact_lt_0. }
+        { rewrite -(pow1 (n - (N + 1))). apply pow_incr; OK. }
+      }
+      { intros ?.
+        apply ex_RInt_mult; [apply ex_RInt_mult|].
+        { apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+          intros ??.
+          rewrite Iverson_True; OK.
+        }
+        { apply ex_RInt_S_μ. }
+        { apply ex_RInt_const. }
+      }
+    }
     rewrite -SeriesC_scal_l.
     rewrite -Rmult_plus_distr_r.
     replace ((y * (1 - (2 * k + x) / (2 * k + 2)) + (1 - y)) * F N)
@@ -907,7 +990,7 @@ Section credits.
       rewrite -fact_simpl.
       f_equal. f_equal. f_equal. lia.
     }
-  Admitted.
+  Qed.
 
   Lemma B_g_nn {F b} (Hnn : ∀ r, 0 <= F r) :  0 <= B_g F b.
   Proof.
