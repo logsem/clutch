@@ -1114,21 +1114,23 @@ Proof.
               by apply not_elem_of_list_to_map_1.
             * by rewrite lookup_insert_ne in H.
       }
-Admitted. 
-      
       rewrite elem_of_list_bind.
       specialize (H l) as H'.
       case_match; last first.
       { rewrite -Heqlis' in H'.
-        exfalso. 
-        eapply (not_elem_of_list_to_map_2 _ l).
-        - rewrite <-H'. f_equal.
-        - set_solver.
+        exfalso.
+        destruct H' as [H'|H'].
+        - eapply (not_elem_of_list_to_map_2 _ l).
+          + rewrite <-H'. f_equal.
+          + set_solver.
+        - rewrite lookup_insert in H'.
+          simpl in *. simplify_eq.
       }
-      destruct!/=.
+      destruct H' as (u'&H2&H3).
+      subst.
       exists n.
       split; last first.
-      * rewrite lookup_insert in H1. simplify_eq.
+      * rewrite lookup_insert in H2. simplify_eq.
         set_solver.
       * rewrite elem_of_list_bind.
         exists (delete l f).
@@ -1139,18 +1141,18 @@ Admitted.
            ++ intros l'.
               destruct (decide (l=l')).
               ** subst. rewrite lookup_delete.
+                 left.
                  apply lookup_delete.
               ** rewrite lookup_delete_ne; last done.
                  specialize (H l').
                  case_match.
-                 --- destruct H as (u'&K1&K2).
-                     exists u'. rewrite lookup_delete_ne; last done.
+                 --- destruct H as (u''&K1&K2).
+                     exists u''. rewrite lookup_delete_ne; last done.
                      split; last done.
                      rewrite -K1.
                      by rewrite lookup_insert_ne.
                  --- rewrite lookup_delete_ne; last done.
-                     rewrite -H.
-                     by rewrite lookup_insert_ne.
+                     by rewrite lookup_insert_ne in H.
            ++ rewrite delete_notin.
               ** rewrite map_to_list_to_map; first done.
                  apply NoDup_cons in Hnodup. naive_solver.
@@ -1173,13 +1175,37 @@ Admitted.
       apply elem_of_list_singleton in H.
       subst.
       intros ?.
-      by repeat rewrite lookup_empty.
+      repeat rewrite lookup_empty. naive_solver.
     + assert (list_to_map (x::lis') = m) as Heqlis'.
       { rewrite (list_to_map_proper _ (map_to_list m)); try done.
         by rewrite list_to_map_to_list.
       }
       simpl in H.
       destruct x as [k u].
+      case_bool_decide as H'.
+      { intros l.
+        specialize (IH (delete k m)).
+        apply elements_empty_inv in H'.
+        apply leibniz_equiv in H'. subst.
+        simpl in *. rewrite delete_insert in IH; last first.
+        - apply not_elem_of_list_to_map. apply NoDup_cons in Hnodup. naive_solver.
+        - unshelve epose proof (IH _ _ _ _) as H'; [|done|rewrite map_to_list_to_map|..].
+          + apply Permutation_refl.
+          + apply NoDup_cons in Hnodup. naive_solver.
+          + apply NoDup_cons in Hnodup. naive_solver.
+          + specialize (H' l).
+            case_match.
+            * destruct (decide (k=l)).
+              -- subst. destruct H' as (?&H'&?).
+                 exfalso. apply NoDup_cons in Hnodup.
+                 apply Hnodup. rewrite elem_of_list_fmap.
+                 eexists (_,_); simpl; split; first done.
+                 rewrite elem_of_list_to_map; naive_solver.
+              -- by rewrite lookup_insert_ne.
+            * destruct (decide (k=l)).
+              -- subst. rewrite lookup_insert. naive_solver.
+              -- by rewrite lookup_insert_ne.
+      } 
       rewrite elem_of_list_bind in H.
       destruct H as (y&H1&H2).
       rewrite elem_of_list_bind in H1.
