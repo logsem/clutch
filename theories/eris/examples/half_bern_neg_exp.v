@@ -109,7 +109,92 @@ Section credits.
     rewrite /RealDecrTrial_CreditV.
     replace (RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * LiftF F n)) 0 0.5)
        with (SeriesC (λ n : nat, RInt (λ x : R, RealDecrTrial_μ x 0 n * LiftF F n) 0 0.5)); last first.
-    { (* Deploy the Foob *) admit. }
+    { replace (RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * LiftF F n)) 0 0.5)
+         with (RInt (λ x : R, Iverson (Ioo 0 0.5) x * SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * LiftF F n)) 0 0.5); last first.
+      { apply RInt_ext. intros ??. rewrite Iverson_True; OK. }
+      replace (SeriesC (λ n : nat, RInt (λ x : R, RealDecrTrial_μ x 0 n * LiftF F n) 0 0.5))
+          with (SeriesC (λ n : nat, RInt (λ x : R, Iverson (Ioo 0 0.5) x * (RealDecrTrial_μ x 0 n * LiftF F n)) 0 0.5)); last first.
+      { apply SeriesC_ext; intros ?.
+        apply RInt_ext. intros ??. rewrite Iverson_True; OK. }
+      rewrite SeriesC_nat.
+      rewrite (FubiniIntegralSeries (fun n => / fact n * M)).
+      { apply RInt_ext; intros ??.
+        rewrite Iverson_True; OK.
+        rewrite Rmult_1_l.
+        rewrite -SeriesC_nat.
+        apply SeriesC_ext.
+        intros ?; OK.
+      }
+      { apply ex_series_scal_r.
+        apply ex_exp_series.
+      }
+      { intros ??.
+        rewrite Rabs_mult.
+        rewrite {1}/Iverson. case_decide.
+        { rewrite Rabs_R1 Rmult_1_l.
+          rewrite Rabs_mult.
+          rewrite Rmult_comm (Rmult_comm _ M).
+          apply Rmult_le_compat.
+          { apply Rabs_pos. }
+          { apply Rabs_pos. }
+          { rewrite /LiftF.
+            rewrite Rabs_right; first apply HF.
+            apply Rle_ge.
+            apply HF.
+          }
+          rewrite Rabs_right; last first.
+          { apply Rle_ge. apply RealDecrTrial_μnn.
+            rewrite /Ioo in H.
+            rewrite Rmin_left in H; OK.
+            rewrite Rmax_right in H; OK.
+          }
+          rewrite /RealDecrTrial_μ.
+          rewrite -(Rmult_1_l (/ fact n)).
+          rewrite /Iverson; case_decide; last first.
+          { rewrite Rmult_0_l. apply Rle_mult_inv_pos; OK. apply INR_fact_lt_0. }
+          apply Rmult_le_compat; OK.
+          { apply RealDecrTrial_μ0nn; OK.
+            rewrite /Ioo in H.
+            rewrite Rmin_left in H; OK.
+            rewrite Rmax_right in H; OK.
+          }
+          rewrite /RealDecrTrial_μ0.
+          have ? : 0 <= x ^ (n - 0 + 1) / fact (n - 0 + 1).
+          { apply Rdiv_le_0_compat; [|apply INR_fact_lt_0].
+            apply pow_le.
+            rewrite /Ioo in H.
+            rewrite Rmin_left in H; OK.
+          }
+          suffices ? : x ^ (n - 0) / fact (n - 0)  <= / fact n by lra.
+          rewrite -(Rmult_1_l (/ fact n)).
+          rewrite Rdiv_def.
+          rewrite /Ioo in H.
+          rewrite Rmin_left in H; OK.
+          rewrite Rmax_right in H; OK.
+          apply Rmult_le_compat; OK.
+          { apply pow_le; OK. }
+          { left. apply Rinv_0_lt_compat. apply INR_fact_lt_0. }
+          { rewrite -(pow1 (n-0)). apply pow_incr; OK. }
+          { right. repeat f_equal. OK.  }
+        }
+        { rewrite Rabs_R0 Rmult_0_l.
+          rewrite Rmult_comm.
+          apply Rle_mult_inv_pos.
+          { specialize HF with true. OK. }
+          { apply INR_fact_lt_0. }
+        }
+      }
+      { intros ?.
+        apply ex_RInt_mult.
+        { apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+          intros ??.
+          rewrite Iverson_True /Ioo; OK.
+        }
+        apply ex_RInt_mult; [|apply ex_RInt_const].
+        apply ex_RInt_mult; [apply ex_RInt_const|].
+        apply RealDecrTrial_μ0_ex_RInt.
+      }
+    }
     replace (λ n : nat, RInt (λ x : R, RealDecrTrial_μ x 0 n * LiftF F n) 0 0.5)
        with (λ n : nat, LiftF F n * RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5); last first.
     { apply functional_extensionality; intros n. rewrite -RInt_Rmult'.
@@ -504,7 +589,7 @@ Section credits.
       replace ((-1 / 2)) with (-0.5) by OK.
       OK.
     }
-  Admitted.
+  Qed.
 
 End credits.
 
