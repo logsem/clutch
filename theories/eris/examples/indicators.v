@@ -1667,24 +1667,13 @@ Proof.
 
   Lemma Derive_exp_neg {x : R} : Derive.Derive (λ x1 : R, exp (- x1)) x = - exp (- x).
   Proof.
-    (*
-    have X := UnaryDiff_exp.
     rewrite Derive.Derive_comp; try by auto_derive.
     rewrite Derive.Derive_opp.
     rewrite Derive.Derive_id.
-    suffices H : (Derive.Derive exp (- x) =  exp (- x)) by lra.
-    (* UnaryDiff crap *)
-    destruct X.
-    specialize (UnaryDiff_H) with (-x).
-    rewrite (Derive.is_derive_unique _ _ _ UnaryDiff_H).
-
-    Search Derive.is_derive Derive.Derive.
-    Check Derive.Derive_comp exp (fun x : R => -x).
-    Search Derive.Derive "comp".
-*)
-
-
-Admitted.
+    suffices H : Derive.Derive exp (- x) = exp (- x) by lra.
+    rewrite (Derive.is_derive_unique exp (- x) (exp (- x))); first done.
+    apply ElemFct.is_derive_exp.
+  Qed.
 
   Lemma RInt_gen_ext_eq_Ici {f g : R → R} {M : R} :
     (∀ x : R, M <= x → f x = g x) →
@@ -1784,10 +1773,12 @@ Admitted.
     }
   Qed.
 
+  (*
   Search Rle RInt 0.
   Search Series.Series Rle 0.
   Locate series_ge_0.
   Search filterlim  0.
+  *)
 
 
   (* Can I prove this without explicitly giving the limit? *)
