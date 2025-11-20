@@ -110,8 +110,27 @@ Section credits.
     lra.
   Qed.
 
+  Theorem Norm2_ex' {y : R} : 0 <= y <= 1 → ex_seriesC (λ x0 : nat, exp (- (y + x0) ^ 2 / 2)).
+  Proof.
+    intros H.
+    apply (ex_seriesC_le _ (λ x0 : nat, exp (- (x0) ^ 2 / 2))).
+    { intros n; split. { apply Rexp_nn. }
+      apply exp_mono.
+      rewrite Rdiv_def.
+      apply Rmult_le_compat_r; OK.
+      apply Ropp_le_contravar.
+      apply pow_incr.
+      split; OK.
+      apply pos_INR.
+    }
+    apply Norm1_ex.
+  Qed.
+
+
   Lemma ExpAddSeries_RInt : ex_RInt (λ x : R, SeriesC (λ k : nat, exp (- (x + k) ^ 2 / 2))) 0 1.
-  Proof. Admitted. (* Limit exchange *)
+  Proof.
+
+  Admitted. (* Limit exchange *)
 
   Lemma Norm2_nn : 0 < Norm2.
   Proof.
@@ -384,8 +403,6 @@ Section credits.
     apply G2_g_nn; auto. lra.
   Qed.
 
-  Theorem Norm2_ex' {y : R} : ex_seriesC (λ x0 : nat, exp (- (y + x0) ^ 2 / 2)).
-  Proof. Admitted.
 
 
   Lemma G2_f_ex_seriesC {F} : ex_seriesC (G2_f F).
@@ -393,7 +410,7 @@ Section credits.
     rewrite /G2_f.
     (* Possibly easest to just exchange the limits *)
     rewrite -ex_seriesC_nat.
-    Search ex_seriesC "nat".
+    (* Search ex_seriesC "nat". *)
   Admitted.
 
   Lemma G2_CreditV_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) :
@@ -940,7 +957,11 @@ Section credits.
     replace (SeriesC (λ x : nat, RInt (λ x0 : R, SeriesC (λ k : nat, RInt (λ x1 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1) 0 1)) 0 1))
        with (SeriesC (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1));
       last first.
-    { admit. }
+    {
+
+
+
+      admit. }
     (* Recombine series and cancel with LHS *)
     rewrite -SeriesC_plus.
     2: {
@@ -986,7 +1007,7 @@ Section credits.
     { rewrite RInt_Rmult.
       2: {
 
-        Check ExpAddSeries_RInt.
+        (* Check ExpAddSeries_RInt. *)
 
 
         (* frick *) admit. }
@@ -1025,13 +1046,16 @@ Section credits.
     }
 
     (* Split up the series and integral *)
-    replace (λ x0 : R, SeriesC (λ x1 : nat, exp (- x1 ^ 2 / 2) - exp (- (x0 + x1) ^ 2 / 2)))
-      with (λ x0 : R, SeriesC (λ x1 : nat, exp (- x1 ^ 2 / 2)) + -1 * SeriesC (fun x1 : nat => exp (- (x0 + x1) ^ 2 / 2)));
+    replace (RInt (λ x0 : R, SeriesC (λ x1 : nat, exp (- x1 ^ 2 / 2) - exp (- (x0 + x1) ^ 2 / 2))) 0 1)
+      with (RInt (λ x0 : R, SeriesC (λ x1 : nat, exp (- x1 ^ 2 / 2)) + -1 * SeriesC (fun x1 : nat => exp (- (x0 + x1) ^ 2 / 2))) 0 1);
       last first.
-    { f_equal; apply functional_extensionality; intros y.
+    { apply RInt_ext.
+      rewrite Rmin_left; OK.
+      rewrite Rmax_right; OK.
+      intros ??.
       rewrite SeriesC_minus.
       2: { apply Norm1_ex. }
-      2: { apply Norm2_ex'. }
+      2: { apply Norm2_ex'. OK. }
       lra.
     }
     rewrite -RInt_add.
