@@ -1860,7 +1860,7 @@ Proof.
   Lemma RInt_gen_pos_ex {F M}
     (Hpos : forall x, 0 <= F x)
     (Hex : ∀ b, ex_RInt F M b)
-    (Hnn : ∀ b, 0 <= RInt F M b)
+    (Hnn : ∀ b, 0 <= RInt F M b) 
     (Hex_L : ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty)) :
     0 <= RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty).
   Proof.
@@ -1876,7 +1876,7 @@ Proof.
         done.
       }
   Qed.
-
+    
   
   (* Can I prove this without explicitly giving the limit? *)
   Lemma RInt_gen_pos {F} {M}

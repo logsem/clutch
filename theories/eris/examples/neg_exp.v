@@ -104,22 +104,91 @@ Section credits.
     apply hx_nonneg; auto.
   Qed.
 
-  Local Lemma g_ex_RInt {F L} : ex_RInt (g F L) 0 1.
-  Proof. Admitted.
-
-  (*
-  Lemma hx_ex_seriesC {F xr L} : ex_seriesC (hx F xr L).
+  Local Lemma g_ex_RInt {F L M} (Hbound : ∀ x, 0 <= F x <= M) : ex_RInt (g F L) 0 1.
   Proof.
-    rewrite /hx.
-    (* BA by sum, then needs Fubini for RInt_gen *)
+    rewrite -ex_RInt_dom /ex_RInt /g /RealDecrTrial_CreditV.
+    replace (λ x : R, Iverson (Ioo 0 1) x * SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * hx F x L n))
+       with (λ x : R, Series.Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x 0 n * hx F x L n))); last first.
+    { apply functional_extensionality; intros ?.
+      rewrite -SeriesC_scal_l SeriesC_Series_nat. done. }
+    pose s : nat → R → R_CompleteNormedModule :=
+      fun M x => sum_n (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x 0 n * hx F x L n)) M.
+    pose h : nat → R_CompleteNormedModule :=
+      fun x => (RInt (λ x0 : R, sum_n (λ n : nat, Iverson (Ioo 0 1) x0 * (RealDecrTrial_μ x0 0 n * hx F x0 L n)) x) 0 1).
+    have HSLim : filterlim s eventually
+      (locally (λ x : R, Series.Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x 0 n * hx F x L n)))).
+    { rewrite /s.
+      apply (UniformConverge_Series (fun n => 2 * M * / (fact (n - 0)%nat))).
+      { replace (λ n : nat, 2 * M * / fact (n - 0)) with (λ n : nat, / fact n * (2 * M)); last first.
+        { funexti. rewrite Rmult_comm. repeat f_equal. OK. }
+        apply Series.ex_series_scal_r.
+        apply ex_exp_series.
+      }
+      intros x n.
+      rewrite Rabs_right; last first.
+      { apply Rle_ge. rewrite /Iverson; case_decide.
+        { rewrite Rmult_1_l. apply Rmult_le_pos; [apply RealDecrTrial_μnn|].
+          { rewrite /Ioo in H. rewrite Rmin_left in H; OK. rewrite Rmax_right in H; OK. }
+          rewrite /hx. apply Rplus_le_le_0_compat; apply Rmult_le_pos;
+            [apply Iverson_nonneg | apply Hbound | apply Iverson_nonneg | ].
+          apply NegExp_CreditV_nn. intro; apply Hbound. }
+        OK. }
+      rewrite /Iverson. case_decide; last first.
+      { rewrite Rmult_0_l.
+        apply Rle_mult_inv_pos; last apply INR_fact_lt_0.
+        have ? := Hbound 0. lra.
+      }
+      rewrite /Ioo in H. rewrite Rmin_left in H; OK. rewrite Rmax_right in H; OK.
+      rewrite Rmult_1_l Rmult_comm.
+      have Hhx : hx F x L n <= 2 * M.
+      { rewrite /hx.
+        apply (Rle_trans _ (M + M)).
+        { admit. }
+        lra. }
+      apply Rmult_le_compat.
+      { apply hx_nonneg. intros ?; apply Hbound. }
+      { apply RealDecrTrial_μnn. OK. }
+      { admit. }
+      rewrite /RealDecrTrial_μ /Iverson. case_decide; last first.
+      { rewrite Rmult_0_l. left. apply Rinv_0_lt_compat. apply INR_fact_lt_0. }
+      rewrite Rmult_1_l /RealDecrTrial_μ0. repeat rewrite Rdiv_def.
+      replace (n - 0 + 1)%nat with (S (n - 0)) by OK.
+      rewrite fact_simpl mult_INR Rinv_mult -Rmult_assoc -Rmult_minus_distr_r.
+      rewrite -{2}(Rmult_1_l (/ fact (n - 0))).
+      apply Rmult_le_compat.
+      { apply Rle_0_le_minus. rewrite -(Rmult_1_l (x ^ (n - 0))) Rmult_comm.
+        apply Rmult_le_compat; [| apply pow_le; OK | | ].
+        { rewrite -(Rmult_1_l (/ _)). apply Rle_mult_inv_pos; OK. apply pos_INR_S. }
+        { rewrite -Rinv_1. apply Rinv_le_contravar; OK. rewrite -INR_1. apply le_INR. OK. }
+        rewrite -(Rmult_1_l (x ^ (n - 0))) -tech_pow_Rmult.
+        apply Rmult_le_compat_r; OK. apply pow_le; OK. }
+      { rewrite -(Rmult_1_l (/ _)). apply Rle_mult_inv_pos; OK. apply INR_fact_lt_0. }
+      { have ? : 0 <= x ^ S (n - 0) * / S (n - 0).
+        { apply Rle_mult_inv_pos; OK. { apply pow_le; OK. } apply pos_INR_S. }
+        suffices ? : x ^ (n - 0) <= 1 by OK.
+        rewrite -(pow1 (n - 0)). apply pow_incr; OK. }
+      apply Rinv_le_contravar; OK. apply INR_fact_lt_0.
+    }
+    have HSInt : ∀ N : nat, is_RInt (s N) 0 1 (h N).
+    { rewrite /s /h. intro N'.
+      apply (@RInt_correct R_CompleteNormedModule).
+      apply ex_RInt_sum_n. intros n.
+      rewrite ex_RInt_dom.
+      apply ex_RInt_mult.
+      { apply RealDecrTrial_μ_ex_RInt. }
+      { rewrite /hx. admit. }
+    }
+    destruct (@filterlim_RInt nat R_CompleteNormedModule s 0 1 eventually eventually_filter
+      (λ x : R, Series.Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x 0 n * hx F x L n)))
+      h HSInt HSLim) as [IF [HIf1 HIf2]].
+    by exists IF.
   Admitted.
-*)
 
 
   Local Theorem g_expectation {F L M} (Hf : ∀ x, 0 <= F x <= M) (Hex : ∀ (a b : R), ex_RInt F a b) : is_RInt (g F L) 0 1 (NegExp_CreditV F L).
   Proof.
     suffices H : RInt (g F L) 0 1 = NegExp_CreditV F L.
-    { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)), g_ex_RInt. }
+    { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)), (g_ex_RInt (M := M)). OK. }
     rewrite /g.
     rewrite /RealDecrTrial_CreditV.
     rewrite /hx.
