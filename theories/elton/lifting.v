@@ -23,7 +23,7 @@ Section lifting.
           match to_val e1 with
           | Some v => |={∅, E}=> state_interp σ2 ∗ err_interp ε2 ∗ Φ v
           | None => prog_coupl e1 σ2 ε2
-                     (λ e3 σ3 efs ε3,
+                     (λ e3 σ3 ε3,
                         ▷ state_step_coupl σ3 ε3
                           (λ σ4 ε4, |={∅, E}=> state_interp σ4 ∗ err_interp ε4 ∗ WP e3 @ s ; E {{Φ}}
                           )
@@ -90,7 +90,7 @@ Section lifting.
     iMod ("H" with "Hσ") as "[$ H]". iIntros "!>" (???) "!>!>" . by iApply "H".
   Qed.
 
-  Lemma wp_lift_pure_step_no_fork `{!Inhabited (state d_prob_lang)} E E' Φ e1 s :
+  Lemma wp_lift_pure_step `{!Inhabited (state d_prob_lang)} E E' Φ e1 s :
     (∀ σ1, reducible (e1, σ1)) →
     (∀ σ1 e2 σ2, prim_step e1 σ1 (e2, σ2) > 0 → σ2 = σ1) →
     (|={E}[E']▷=> ∀ e2 σ, ⌜prim_step e1 σ (e2, σ) > 0⌝ → WP e2 @ s; E {{ Φ }})
@@ -150,12 +150,12 @@ Section lifting.
     by iApply "H".
   Qed.
 
-  Lemma wp_lift_pure_det_step_no_fork `{!Inhabited (state d_prob_lang)} {E E' Φ} e1 e2 s :
+  Lemma wp_lift_pure_det_step `{!Inhabited (state d_prob_lang)} {E E' Φ} e1 e2 s :
     (∀ σ1, reducible (e1, σ1)) →
     (∀ σ1 e2' σ2, prim_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2) →
     (|={E}[E']▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
   Proof.
-    iIntros (? Hpuredet) "H". iApply (wp_lift_pure_step_no_fork E E'); try done.
+    iIntros (? Hpuredet) "H". iApply (wp_lift_pure_step E E'); try done.
     { naive_solver. }
     iApply (step_fupd_wand with "H"); iIntros "H".
     iIntros (e' σ (?&->)%Hpuredet); auto.
@@ -168,7 +168,7 @@ Section lifting.
   Proof.
     iIntros (Hexec Hφ) "Hwp". specialize (Hexec Hφ).
     iInduction Hexec as [e|n e1 e2 e3 [Hsafe ?]] "IH"; simpl; first done.
-    iApply wp_lift_pure_det_step_no_fork.
+    iApply wp_lift_pure_det_step.
     - done. 
     - intros σ1 e2' σ2 Hpstep.
       by injection (pmf_1_supp_eq _ _ _ (pure_step_det σ1) Hpstep).
