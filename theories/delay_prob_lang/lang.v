@@ -1252,6 +1252,20 @@ Proof.
   all: apply elem_of_cons; naive_solver.
 Qed.
 
+Definition is_simple_base_lit bl:=
+  (match bl with
+  | LitInt _ | LitBool _ |LitLoc _ | LitUnit => true
+  | _ => false
+   end).
+
+Lemma urn_subst_equal_obv σ bl:
+  is_simple_base_lit bl = true -> urn_subst_equal σ bl bl.
+Proof.
+  intros.
+  intros ??.
+  by destruct bl.
+Qed. 
+
 Global Instance urn_subst_equal_dec σ bl bl': Decision (urn_subst_equal σ bl bl').
 Proof.
   replace (urn_subst_equal _ _ _) with
