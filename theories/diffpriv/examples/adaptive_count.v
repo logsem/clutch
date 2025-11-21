@@ -7,16 +7,10 @@ From clutch.diffpriv.examples Require Import sparse_vector_technique.
 From clutch.prob_lang.gwp Require Import gen_weakestpre arith list.
 
 
-
-
 Definition list_count : val :=
   λ: "p" "l", list_length (list_filter "p" "l").
 
 Definition data : list Z := [25; 30; 31; 22; 40; 35; 29; 29; 31; 30]%Z.
-
-(* TODO move to theories/prob_lang/notation.v *)
-Notation "e1 <= e2" := (BinOp LeOp e1%E e2%E) : expr_scope.
-Notation "e1 ≤ e2" := (BinOp LeOp e1%E e2%E) : expr_scope.
 
 Definition adaptive : val :=
   λ:"data",

@@ -134,6 +134,7 @@ Notation "e1 ≪ e2" := (BinOp ShiftLOp e1%E e2%E) : expr_scope.
 Notation "e1 ≫ e2" := (BinOp ShiftROp e1%E e2%E) : expr_scope.
 
 Notation "e1 ≤ e2" := (BinOp LeOp e1%E e2%E) : expr_scope.
+Notation "e1 <= e2" := (BinOp LeOp e1%E e2%E) : expr_scope.
 Notation "e1 < e2" := (BinOp LtOp e1%E e2%E) : expr_scope.
 Notation "e1 = e2" := (BinOp EqOp e1%E e2%E) : expr_scope.
 Notation "e1 ≠ e2" := (UnOp NegOp (BinOp EqOp e1%E e2%E)) : expr_scope.

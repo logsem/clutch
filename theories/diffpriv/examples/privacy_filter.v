@@ -13,10 +13,6 @@ Definition list_count : val :=
 
 Definition data : list Z := [25; 30; 31; 22; 40; 35; 29; 29; 31; 30]%Z.
 
-(* TODO move to theories/prob_lang/notation.v *)
-Notation "e1 <= e2" := (BinOp LeOp e1%E e2%E) : expr_scope.
-Notation "e1 ≤ e2" := (BinOp LeOp e1%E e2%E) : expr_scope.
-
 Definition predicates : list (Z → bool) :=
   [λ x, bool_decide (x < 30) ; λ x, bool_decide (30 <= x) ; λ x, bool_decide (x `rem` 2 = 0)]%Z.
 Definition vpredicates : val :=
