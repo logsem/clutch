@@ -73,68 +73,29 @@ Definition create_filter : val :=
 Definition laplace : val :=
   λ:"eps" "mean", Laplace (Fst "eps") (Snd "eps") "mean".
 
-(* TODO add counts to the tail of the list. doesn't matter for privacy but more intuitive. *)
-(* TODO can't tell which count came from which predicate. uncomment the bit with the index reference *)
 Definition iter_adaptive_acc : val :=
   λ:"ε_coarse" "ε_precise" "den"
     "threshold" "budget" "predicates" "data",
     let: "counts" := ref [] in
-    (* let: "index" := ref #0 in *)
+    let: "index" := ref #0 in
     let: "try_run" := create_filter "budget" in
     list_iter
       (λ:"pred",
-        let: "count" := list_count "pred" "data" in
+        let: "count_exact" := list_count "pred" "data" in
         "try_run" "ε_coarse"
           (λ:<>,
-             let: "count_coarse" := Laplace "ε_coarse" "den" "count" in
-             "counts" <- (
-                          (* !"index", *)
-                            "count_coarse") :: !"counts" ;;
+             let: "count_coarse" := Laplace "ε_coarse" "den" "count_exact" in
+             "counts" <- (!"index", "count_coarse") :: !"counts" ;;
 
              if: "threshold" < "count_coarse" then
                "try_run" "ε_precise"
                  (λ:<>,
-                    let: "count_precise" := Laplace "ε_precise" "den" "count" in
-                    "counts" <- (
-                                 (* !"index", *)
-                                   "count_precise") :: !"counts")
-             else #())
-        (*
- ;;
-"index" <- !"index" + #1 *)
-      )
+                    let: "count_precise" := Laplace "ε_precise" "den" "count_exact" in
+                    "counts" <- (!"index", "count_precise") :: !"counts")
+             else #()) ;;
+        "index" <- !"index" + #1)
       "predicates" ;;
     list_rev ! "counts".
-
-(* We could factor out the common code between the two successive calls to try_run; not sure that simplifies anything though. *)
-(* let: "f" := λ:"count" "ε" "_",
-                let: "count_noisy" := Laplace "ε" "den" "count" in
-                "counts" <- "count_noisy" :: !"counts" ;;
-                "count_noisy"
-   in
-   "try_run" "ε_coarse"
-     (λ:<>, let: "count_noisy" = "f" "ε_coarse" #() in
-        if: "threshold" < "count_noisy" then
-          "try_run" ("f" "ε_precise")) *)
-
-(* Simpler variant of iter_adaptive_acc. Budget/epsilons are pairs of integers (needs variant of privacy filter). *)
-Definition map_adaptive_acc_terse_both : val :=
-  λ: "eps_coarse" "eps_precise" "threshold" "budget" "predicates" "data" ,
-  let: "try_run" := create_filter "budget" in
-  list_map
-    (λ: "pred" ,
-      let: "count_exact" := list_count "pred" "data" in
-      let: "g" := λ:<> , laplace "eps_precise" "count_exact" in
-      let: "f" := λ:<> ,
-        let: "count_coarse" := laplace "eps_coarse" "count_exact" in
-        let: "count_precise" :=
-          if: "threshold" < "count_coarse" then
-            "try_run" "eps_precise" "g"
-          else NONE in
-        ("count_coarse", "count_precise")
-      in
-      "try_run" "eps_coarse" "f")
-      "predicates" .
 
 
 #[local] Open Scope Z.
@@ -836,23 +797,25 @@ repeat iSplit. 7: done.
     iIntros "%ho_pred #is_pred ε rhs".
     rewrite /iter_adaptive_acc...
     tp_alloc as counts_r "counts_r" ; wp_alloc counts_l as "counts_l"...
+    tp_alloc as index_r "index_r" ; wp_alloc index_l as "index_l"...
     tp_bind (create_filter _). wp_bind (create_filter _).
     iApply (create_filter_private _ _ den with "[$ε $rhs]") => //.
     iIntros "!> * (%&%&%&%&%&budget&l&l'&rhs&#run_dp)"... simpl...
     tp_bind (list_iter _ _). wp_bind (list_iter _ _).
-    set (Inv := (∃ lcounts counts (budget_remaining : Z),
+    set (Inv := (∃ lcounts counts (index budget_remaining : Z),
                     ⌜is_list lcounts counts⌝ ∗
+                index_l ↦ #index ∗ index_r ↦ₛ #index ∗
                 counts_l ↦ counts ∗ counts_r ↦ₛ counts ∗
                 ↯m (IZR budget_remaining / IZR den) ∗
                     l ↦ #budget_remaining ∗ l' ↦ₛ #budget_remaining
             )%I).
-    iAssert Inv with "[counts_l counts_r budget l l']" as "hh". 1: iFrame ; by iExists [].
+    iAssert Inv with "[index_l index_r counts_l counts_r budget l l']" as "hh". 1: iFrame ; by iExists [].
     iRevert (predicates vpredicates ho_pred hlen) "is_pred rhs".
     iInduction lvpredicates as [|vpred lvpredicates'] "IH" ;
       iIntros (predicates vpredicates ho_pred hlen) "#is_pred rhs".
     - rewrite ho_pred.
       rewrite /list_iter...
-      iDestruct "hh" as "(%&%&%&%&?&?&?&?&?)".
+      iDestruct "hh" as "(%&%&%&%&%&?&?&?&?&?&?&?)".
       tp_load... wp_load.
       iMod (gwp_list_rev (g:=gwp_spec) _ counts lcounts
               (λ v, ⌜is_list (reverse lcounts) v⌝%I)
@@ -883,9 +846,10 @@ repeat iSplit. 7: done.
       simpl.
       iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
       tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
-      set (I := (∃ lcounts counts,
+      set (I := (∃ lcounts counts (index : Z),
                     ⌜is_list lcounts counts⌝ ∗
-                    counts_r ↦ₛ counts ∗ counts_l ↦ counts
+                    counts_r ↦ₛ counts ∗ counts_l ↦ counts ∗
+                    index_r ↦ₛ #index ∗ index_l ↦ #index
                 )%I).
       (* set (I := (∃ counts budget_remaining,
                        counts_l ↦ counts ∗ counts_r ↦ₛ counts ∗
@@ -893,7 +857,7 @@ repeat iSplit. 7: done.
                        l ↦ #budget_remaining ∗ l' ↦ₛ #budget_remaining
                    )%I). *)
       (* set (I := Inv). *)
-      iDestruct "hh" as "(%&%&%&%&counts_l&counts_r&?&?&?)".
+      iDestruct "hh" as "(%&%&%&%&%&?&?&counts_l&counts_r&?&?&?)".
       iApply ("run_dp" $! _ _ _ _ _ I with "[] [-]"). 1: iPureIntro ; lia.
       + iFrame. iSplitL. 2: by iExists _.
         iIntros "* % !> (eps & rhs & I & εrem & l & l') Hpost"...
@@ -914,8 +878,8 @@ repeat iSplit. 7: done.
           epose proof (IZR_lt 0 den _) => //.
           apply Rcomplements.Rdiv_lt_0_compat => //. }
         iNext. iIntros (count_precise_1) "rhs" ; simpl... rewrite Z.add_0_r.
-        iDestruct "I" as "(% & % & % & counts_r & counts_l)". rewrite /list_cons.
-        tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
+        iDestruct "I" as "(% & % & % & % & counts_r & counts_l &?&?)". rewrite /list_cons.
+        tp_load ; wp_load ; tp_pures ; tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
         case_bool_decide as hthresh...
         2:{ iApply "Hpost" ; iFrame. iExists (_::_), _. iPureIntro ; split ; eauto. }
         tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
@@ -944,15 +908,16 @@ repeat iSplit. 7: done.
             epose proof (IZR_lt 0 den _) => //.
             apply Rcomplements.Rdiv_lt_0_compat => //. apply IZR_lt. done. }
           iNext. iIntros (count_precise_2) "rhs" ; simpl... rewrite Z.add_0_r.
-          iDestruct "I" as "(%&%&% & ? & ?)". rewrite /list_cons...
-          tp_load ; wp_load ; tp_pures ; tp_store ; wp_store.
+          iDestruct "I" as "(%&%&%&% & ? & ? & ? & ?)". rewrite /list_cons...
+          tp_load ; wp_load ; tp_pures ; tp_load ; wp_load ; tp_pures ; tp_store ; wp_store.
           iApply "Hpost" ; iFrame.
           iExists (_::_), _. iPureIntro ; split ; eauto.
 
         * iIntros "!> **". iApply "Hpost". iFrame.
 
-      + iNext. iIntros "* (rhs&(%&%&%&counts_r&counts_l)&(%&budget&l&l'))" => /=...
-        iApply ("IH" with "[$l $l' $counts_r $counts_l $budget] [] [] [] [$rhs]") => //.
+      + iNext. iIntros "* (rhs&(%&%&%&%&counts_r&counts_l&ir&il)&(%&budget&l&l'))" => /=...
+        tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
+        iApply ("IH" with "[$l $l' $counts_r $counts_l $budget $il $ir] [] [] [] [$rhs]") => //.
         2: iPureIntro ; eauto.
         { iExists _. eauto. }
         iModIntro. iDestruct "is_pred" as "[? ?]". done.
@@ -982,19 +947,27 @@ repeat iSplit. 7: done.
     iIntros "%ho_pred #is_pred ε rhs".
     rewrite /iter_adaptive_acc...
     tp_alloc as counts_r "counts_r" ; wp_alloc counts_l as "counts_l"...
+    tp_alloc as index_r "index_r" ; wp_alloc index_l as "index_l"...
     tp_bind (create_filter _). wp_bind (create_filter _).
     iApply (create_filter_private' _ _ den with "[$ε $rhs]") => //.
     iIntros "!> * (%&%&rhs&TRY_RUN&#run_dp)"... simpl...
     tp_bind (list_iter _ _). wp_bind (list_iter _ _).
-    set (Inv := (∃ counts, counts_l ↦ counts ∗ counts_r ↦ₛ counts)%I).
-    iAssert Inv with "[counts_l counts_r]" as "hh". 1: iFrame.
+    set (Inv := (∃ lcounts counts (index : Z), ⌜is_list lcounts counts⌝ ∗ counts_l ↦ counts ∗ counts_r ↦ₛ counts
+                                               ∗ index_l ↦ #index ∗ index_r ↦ₛ #index)%I).
+    iAssert Inv with "[counts_l counts_r index_l index_r]" as "hh". 1: iFrame ; iExists [] ; done.
     iRevert (predicates vpredicates ho_pred hlen) "is_pred rhs".
     iInduction lvpredicates as [|vpred lvpredicates'] "IH" ;
       iIntros (predicates vpredicates ho_pred hlen) "#is_pred rhs".
     - rewrite ho_pred.
       rewrite /list_iter...
-      iDestruct "hh" as "(%&?&?)".
-      tp_load... wp_load. done.
+      iDestruct "hh" as "(%&%&%&%&?&?&?&?)".
+      tp_load... wp_load.
+      iMod (gwp_list_rev (g:=gwp_spec) _ counts lcounts
+              (λ v, ⌜is_list (reverse lcounts) v⌝%I)
+             with "[] [] [rhs]") as "(%rev_counts & rhs & %)" => //=.
+      1: by iIntros.
+      iApply (gwp_list_rev (g:=gwp_wpre) _ counts lcounts with "[] [rhs]") => //.
+      iIntros "!> % %". erewrite (is_list_eq _ rev_counts) ; [iFrame "rhs"| eauto..].
     - simpl in ho_pred. destruct ho_pred as (vpredicates' & hpred & ho_pred). rewrite hpred.
       rewrite /list_iter...
       rewrite /adaptive/list_count /=...
@@ -1017,10 +990,11 @@ repeat iSplit. 7: done.
       simpl.
       iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
       tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
-      set (I := (∃ counts, counts_r ↦ₛ counts ∗ counts_l ↦ counts)%I).
-      iDestruct "hh" as "(%&counts_l&counts_r)".
+      set (I := (∃ lcounts counts (index : Z), ⌜is_list lcounts counts⌝ ∗ counts_r ↦ₛ counts ∗ counts_l ↦ counts
+                                               ∗ index_l ↦ #index ∗ index_r ↦ₛ #index)%I).
+      iDestruct "hh" as "(%&%&%&%&counts_l&counts_r&index_l&index_r)".
       iApply ("run_dp" $! _ _ _ _ I with "[] [-]"). 1: iPureIntro ; lia.
-      + iFrame. iIntros "* % !> (eps & rhs & I & TRY_RUN) Hpost"...
+      + iFrame. iSplit. 2: by iExists _. iIntros "* % !> (eps & rhs & I & TRY_RUN) Hpost"...
         tp_bind (Laplace _ _ _).
         wp_bind (Laplace _ _ _).
         assert (Z.abs (len_f_l - len_f_r) <= 1).
@@ -1039,13 +1013,13 @@ repeat iSplit. 7: done.
           epose proof (IZR_lt 0 den _) => //.
           apply Rcomplements.Rdiv_lt_0_compat => //. }
         iNext. iIntros (count_precise_1) "rhs" ; simpl... rewrite Z.add_0_r.
-        iDestruct "I" as "(% & counts_r & counts_l)". rewrite /list_cons.
-        tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
+        iDestruct "I" as "(% & % & % & % & counts_r & counts_l & index_r & index_l)". rewrite /list_cons.
+        do 2 (tp_load ; tp_pures ; wp_load) ; tp_pures ; tp_store ; wp_store...
         case_bool_decide as hthresh...
-        2: iApply "Hpost" ; by iFrame.
+        2: iApply "Hpost" ; iFrame ; iExists (_::_) ; iPureIntro ; simpl ; by eauto.
         tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
         iApply ("run_dp" $! _ _ _ _ I with "[] [-Hpost]"). 1: iPureIntro ; lia.
-        * iFrame.
+        * iFrame. iSplit. 2: iExists (_::_) => //= ; by eauto.
           iIntros "* % !> (eps & rhs & I & TRY_RUN) Hpost"...
           tp_bind (Laplace _ _ _).
           wp_bind (Laplace _ _ _).
@@ -1065,15 +1039,16 @@ repeat iSplit. 7: done.
             epose proof (IZR_lt 0 den _) => //.
             apply Rcomplements.Rdiv_lt_0_compat => //. apply IZR_lt. done. }
           iNext. iIntros (count_precise_2) "rhs" ; simpl... rewrite Z.add_0_r.
-          iDestruct "I" as "(% & ? & ?)". rewrite /list_cons...
-          tp_load ; wp_load ; tp_pures ; tp_store ; wp_store.
-          iApply "Hpost" ; by iFrame.
+          iDestruct "I" as "(% & % & % & % & ? & ? & ? & ?)". rewrite /list_cons...
+          do 2 (tp_load ; wp_load ; tp_pures) ; tp_store ; wp_store.
+          iApply "Hpost" ; iFrame. iExists (_::_) => //= ; by eauto.
 
         * iIntros "!> **". iApply "Hpost". iFrame.
 
-      + iNext. iIntros "* (rhs&(%&counts_r&counts_l)&TRY_RUN)" => /=...
-        iApply ("IH" with "TRY_RUN [counts_r counts_l] [] [] [] [rhs]") => // ; iFrame.
-        1: iPureIntro ; eauto.
+      + iNext. iIntros "* (rhs&(%&%&%&%&counts_r&counts_l&index_r&index_l)&TRY_RUN)" => /=...
+        tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
+        iApply ("IH" with "TRY_RUN [counts_r counts_l index_r index_l] [] [] [] [rhs]") => // ; iFrame.
+        1: iPureIntro ; eexists _ ; by eauto. 1: eauto.
         iModIntro. iDestruct "is_pred" as "[? ?]". done.
         Unshelve. all: auto ; lra.
   Qed.
