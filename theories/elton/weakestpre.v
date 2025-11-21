@@ -389,24 +389,24 @@ Section modalities.
   (** * One step prog coupl *)
 
   Definition prog_coupl e1 σ1 ε Z : iProp Σ :=
-    (∃ (ε2 : (expr con_prob_lang * state con_prob_lang * list (expr con_prob_lang)) -> nonnegreal),
-           ⌜reducible e1 σ1⌝ ∗
+    (∃ (ε2 : (expr d_prob_lang * state d_prob_lang) -> nonnegreal),
+           ⌜reducible (e1, σ1)⌝ ∗
            ⌜∃ r, ∀ ρ, (ε2 ρ <= r)%R ⌝ ∗
            ⌜(Expval (prim_step e1 σ1) ε2 <= ε)%R⌝ ∗
-           (∀ e2 σ2 efs, |={∅}=>
-                         Z e2 σ2 efs (ε2 (e2, σ2, efs)))
+           (∀ e2 σ2, |={∅}=>
+                         Z e2 σ2 (ε2 (e2, σ2)))
        )%I.
   
   Definition prog_coupl_equiv1 e1 σ1 ε Z:
-    (∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗
+    (∀ e2 σ2, Z e2 σ2 1) -∗
     prog_coupl e1 σ1 ε Z -∗
-    (∃ R (ε1 : nonnegreal) (ε2 : (expr con_prob_lang * state con_prob_lang * list (expr con_prob_lang)) -> nonnegreal),
-           ⌜reducible e1 σ1⌝ ∗
+    (∃ R (ε1 : nonnegreal) (ε2 : (expr d_prob_lang * state d_prob_lang) -> nonnegreal),
+           ⌜reducible (e1, σ1)⌝ ∗
            ⌜∃ r, ∀ ρ, (ε2 ρ <= r)%R ⌝ ∗
            ⌜(ε1 + Expval (prim_step e1 σ1) ε2 <= ε)%R⌝ ∗
            ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
-           (∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗
-                         Z e2 σ2 efs (ε2 (e2, σ2, efs)))
+           (∀ e2 σ2, ⌜R (e2, σ2)⌝ ={∅}=∗
+                         Z e2 σ2 (ε2 (e2, σ2)))
     )%I.
   Proof.
     rewrite /prog_coupl.
@@ -430,14 +430,14 @@ Section modalities.
   Qed.
 
   Definition prog_coupl_equiv2 e1 σ1 ε Z:
-    (∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗
-    (∃ R (ε1 : nonnegreal) (ε2 : (expr con_prob_lang * state con_prob_lang * list (expr con_prob_lang)) -> nonnegreal),
-        ⌜reducible e1 σ1⌝ ∗
+    (∀ e2 σ2, Z e2 σ2 1) -∗
+    (∃ R (ε1 : nonnegreal) (ε2 : (expr d_prob_lang * state d_prob_lang) -> nonnegreal),
+        ⌜reducible (e1, σ1)⌝ ∗
         ⌜∃ r, ∀ ρ, (ε2 ρ <= r)%R ⌝ ∗
                    ⌜(ε1 + Expval (prim_step e1 σ1) ε2 <= ε)%R⌝ ∗
                    ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
-                   (∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗
-                                 Z e2 σ2 efs (ε2 (e2, σ2, efs)))
+                   (∀ e2 σ2, ⌜R (e2, σ2)⌝ ={∅}=∗
+                                 Z e2 σ2 (ε2 (e2, σ2)))
     )%I-∗
     prog_coupl e1 σ1 ε Z.
   Proof. 
@@ -480,8 +480,8 @@ Section modalities.
   Qed.
 
   Lemma prog_coupl_strong_mono e1 σ1 Z1 Z2 ε :
-    □(∀ e2 σ2 efs, Z2 e2 σ2 efs 1) -∗
-    (∀ e2 σ2 ε' efs, ⌜∃ σ, (prim_step e1 σ (e2, σ2, efs) > 0)%R⌝ ∗ Z1 e2 σ2 efs ε' -∗ Z2 e2 σ2 efs ε') -∗
+    □(∀ e2 σ2, Z2 e2 σ2 1) -∗
+    (∀ e2 σ2 ε', ⌜∃ σ, (prim_step e1 σ (e2, σ2) > 0)%R⌝ ∗ Z1 e2 σ2 ε' -∗ Z2 e2 σ2 ε') -∗
     prog_coupl e1 σ1 ε Z1 -∗ prog_coupl e1 σ1 ε Z2.
   Proof.
     iIntros "#H1 Hm (%&%&[%r %]&%Hineq & Hcnt) /=".
@@ -500,14 +500,14 @@ Section modalities.
       destruct (pmf_pos (prim_step e1 σ1) n) as [K|K].
       + exfalso. apply Rlt_gt in K. naive_solver.
       + simpl. rewrite -K. lra.
-    - simpl. iIntros (???).
+    - simpl. iIntros (??).
       case_bool_decide; last done.
-      iApply "Hm". iMod ("Hcnt" $! _ _ _).
+      iApply "Hm". iMod ("Hcnt" $! _ _).
       by iFrame.
   Qed.
 
   Lemma prog_coupl_mono e1 σ1 Z1 Z2 ε :
-    (∀ e2 σ2 efs ε', Z1 e2 σ2 efs ε' -∗ Z2 e2 σ2 efs ε') -∗
+    (∀ e2 σ2 ε', Z1 e2 σ2 ε' -∗ Z2 e2 σ2 ε') -∗
     prog_coupl e1 σ1 ε Z1 -∗ prog_coupl e1 σ1 ε Z2.
   Proof.
     iIntros "Hm".
@@ -517,9 +517,9 @@ Section modalities.
     iIntros. by iApply "Hm".
   Qed.
     Lemma prog_coupl_strengthen e1 σ1 Z ε :
-    □(∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗
+    □(∀ e2 σ2, Z e2 σ2 1) -∗
     prog_coupl e1 σ1 ε Z -∗
-    prog_coupl e1 σ1 ε (λ e2 σ2 efs ε', ⌜(∃ σ, (prim_step e1 σ (e2, σ2, efs) > 0)%R)\/ (1<=ε')%R⌝ ∧ Z e2 σ2 efs ε').
+    prog_coupl e1 σ1 ε (λ e2 σ2 ε', ⌜(∃ σ, (prim_step e1 σ (e2, σ2) > 0)%R)\/ (1<=ε')%R⌝ ∧ Z e2 σ2 ε').
   Proof.
     iIntros "#Hmono (%&%&[%r %]&%Hineq & Hcnt) /=".
     rewrite /prog_coupl.
@@ -537,19 +537,19 @@ Section modalities.
       destruct (pmf_pos (prim_step e1 σ1) n) as [K|K].
       + exfalso. apply Rlt_gt in K. naive_solver.
       + simpl. rewrite -K. lra.
-    - simpl. iIntros (???).
+    - simpl. iIntros (??).
       case_bool_decide.
-      + iMod ("Hcnt" $! _ _ _).
+      + iMod ("Hcnt" $! _ _).
         iFrame. iPureIntro. naive_solver.
-      + iMod ("Hcnt" $! e2 σ2 efs ).
+      + iMod ("Hcnt" $! e2 σ2  ).
         iModIntro. iSplit; last iApply "Hmono".
         iPureIntro. naive_solver.
   Qed.
 
-  Lemma prog_coupl_ctx_bind K `{!ConLanguageCtx K} e1 σ1 Z ε:
+  Lemma prog_coupl_ctx_bind K `{!LanguageCtx K} e1 σ1 Z ε:
     to_val e1 = None ->
-    □(∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗
-    prog_coupl e1 σ1 ε (λ e2 σ2 efs ε', Z (K e2) σ2 efs ε') -∗ prog_coupl (K e1) σ1 ε Z.
+    □(∀ e2 σ2, Z e2 σ2 1) -∗
+    prog_coupl e1 σ1 ε (λ e2 σ2 ε', Z (K e2) σ2 ε') -∗ prog_coupl (K e1) σ1 ε Z.
   Proof.
     iIntros (Hv) "#H' H".
     (* iDestruct (prog_coupl_strengthen with "[][$]") as "H". *)
@@ -561,31 +561,31 @@ Section modalities.
     { intro e.
       destruct (Kinv (K e)) eqn:Heq;
         eapply HKinv in Heq; by simplify_eq. }
-    set (ε2' := (λ '(e, σ, efs), from_option (λ e', ε2 (e', σ, efs)) 1%NNR (Kinv e))).
-    assert (∀ e2 σ2 efs, ε2' (K e2, σ2, efs) = ε2 (e2, σ2, efs)) as Hε2'.
+    set (ε2' := (λ '(e, σ), from_option (λ e', ε2 (e', σ)) 1%NNR (Kinv e))).
+    assert (∀ e2 σ2, ε2' (K e2, σ2) = ε2 (e2, σ2)) as Hε2'.
     { intros. rewrite /ε2' HKinv3 //. }
     (* iExists (λ '(e2, σ2, efs), ∃ e2', e2 = K e2' /\ R (e2', σ2, efs)), ε1, ε2'. *)
     iExists ε2'.
     repeat iSplit; try iPureIntro.
     - by apply reducible_fill.
     - rewrite /ε2'. eexists (Rmax 1%R r).
-      intros [[??]?].
+      intros [??].
       destruct (Kinv _); simpl.
       + etrans; last apply Rmax_r. done.
       + apply Rmax_l.
     - rewrite fill_dmap// Expval_dmap//=; last first.
-      + eapply ex_expval_bounded. simpl. intros [[??]?] => /=. by rewrite HKinv3/=.
+      + eapply ex_expval_bounded. simpl. intros [??] => /=. by rewrite HKinv3/=.
       + etrans; last done.
         rewrite /Expval. apply Req_le.
         apply SeriesC_ext.
-        intros [[??]?]. simpl. by rewrite HKinv3/=.
+        intros [??]. simpl. by rewrite HKinv3/=.
     (* - rewrite fill_dmap//. *)
     (*   replace (ε1) with (ε1+0)%NNR; last (apply nnreal_ext; simpl; lra). *)
     (*   eapply pgl_dbind; try done. *)
     (*   intros a ?. apply pgl_dret. *)
     (*   destruct a as [[??]?] => /=. *)
     (*   naive_solver. *)
-    - iIntros (???).
+    - iIntros (??).
       rewrite /ε2'.
       destruct (Kinv e2) eqn:H'; simpl; last done.
       apply HKinv in H'. by subst.
@@ -593,17 +593,17 @@ Section modalities.
 
   
   Lemma prog_coupl_reducible e σ Z ε :
-    prog_coupl e σ ε Z -∗ ⌜reducible e σ⌝.
+    prog_coupl e σ ε Z -∗ ⌜reducible (e, σ)⌝.
   Proof. by iIntros "(%&%&%&%& _)". Qed.
  
 
   Lemma prog_coupl_adv_comp e1 σ1 Z (ε : nonnegreal) :
-    □(∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗
+    □(∀ e2 σ2, Z e2 σ2 1) -∗
       (∃ R (ε1 : nonnegreal) (ε2 : _ -> nonnegreal),
-          ⌜reducible e1 σ1⌝ ∗
+          ⌜reducible (e1, σ1)⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + Expval (prim_step e1 σ1) ε2 <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
-          ∀ e2 σ2 efs, ⌜ R (e2, σ2, efs) ⌝ ={∅}=∗ Z e2 σ2 efs (ε2 (e2, σ2, efs))) -∗
+          ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ Z e2 σ2 (ε2 (e2, σ2))) -∗
         prog_coupl e1 σ1 ε Z.
   Proof.
     iIntros "#H' H".
@@ -611,9 +611,9 @@ Section modalities.
   Qed.
 
   Lemma prog_coupl_prim_step e1 σ1 Z ε :
-    □(∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗
-    (∃ R ε1 ε2, ⌜reducible e1 σ1⌝ ∗ ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
-          ∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗ Z e2 σ2 efs ε2) -∗
+    □(∀ e2 σ2, Z e2 σ2 1) -∗
+    (∃ R ε1 ε2, ⌜reducible (e1, σ1)⌝ ∗ ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
+          ∀ e2 σ2, ⌜R (e2, σ2)⌝ ={∅}=∗ Z e2 σ2 ε2) -∗
      prog_coupl e1 σ1 ε Z.
   Proof.
     iIntros "#H' H".
@@ -630,9 +630,9 @@ End modalities.
 
 (** * The weakest precondition *)
 
-Definition pgl_wp_pre `{!eltonWpGS con_prob_lang Σ}
-    (wp : coPset -d> expr con_prob_lang -d> (val con_prob_lang -d> iPropO Σ) -d> iPropO Σ) :
-  coPset -d> expr con_prob_lang -d> (val con_prob_lang -d> iPropO Σ) -d> iPropO Σ :=
+Definition pgl_wp_pre `{!eltonWpGS d_prob_lang Σ}
+    (wp : coPset -d> expr d_prob_lang -d> (val d_prob_lang -d> iPropO Σ) -d> iPropO Σ) :
+  coPset -d> expr d_prob_lang -d> (val d_prob_lang -d> iPropO Σ) -d> iPropO Σ :=
   (λ E e1 Φ,
      ∀ σ1 ε1,
      state_interp σ1 ∗ err_interp ε1 ={E, ∅}=∗
@@ -641,17 +641,16 @@ Definition pgl_wp_pre `{!eltonWpGS con_prob_lang Σ}
           match to_val e1 with
           | Some v => |={∅, E}=> state_interp σ2 ∗ err_interp ε2 ∗ Φ v
           | None => prog_coupl e1 σ2 ε2
-                     (λ e3 σ3 efs ε3,
+                     (λ e3 σ3 ε3,
                         ▷ state_step_coupl σ3 ε3
-                          (λ σ4 ε4, |={∅, E}=> state_interp σ4 ∗ err_interp ε4 ∗ wp E e3 Φ ∗
-                                              [∗ list] ef ∈efs, wp ⊤ ef fork_post
+                          (λ σ4 ε4, |={∅, E}=> state_interp σ4 ∗ err_interp ε4 ∗ wp E e3 Φ 
                           )
                      )
           end
        )
   )%I.
 
-Local Instance wp_pre_contractive `{!eltonWpGS con_prob_lang Σ} : Contractive (pgl_wp_pre).
+Local Instance wp_pre_contractive `{!eltonWpGS d_prob_lang Σ} : Contractive (pgl_wp_pre).
 Proof.
   rewrite /pgl_wp_pre /= => n wp wp' Hwp E e1 Φ /=.
   do 6 f_equiv.
@@ -660,7 +659,7 @@ Proof.
   rewrite /state_step_coupl_pre.
   do 3 f_equiv.
   rewrite /prog_coupl.
-  do 12 f_equiv.
+  do 10 f_equiv.
   f_contractive.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[??]?].
@@ -669,23 +668,23 @@ Proof.
 Qed.
 
 (* TODO: get rid of stuckness in notation [iris/bi/weakestpre.v] so that we don't have to do this *)
-Local Definition pgl_wp_def `{!eltonWpGS con_prob_lang Σ} : Wp (iProp Σ) (expr con_prob_lang) (val con_prob_lang) () :=
+Local Definition pgl_wp_def `{!eltonWpGS d_prob_lang Σ} : Wp (iProp Σ) (expr d_prob_lang) (val d_prob_lang) () :=
   {| wp := λ _ : (), fixpoint (pgl_wp_pre); wp_default := () |}.
 Local Definition pgl_wp_aux : seal (@pgl_wp_def). Proof. by eexists. Qed.
 Definition pgl_wp' := pgl_wp_aux.(unseal).
 Global Arguments pgl_wp' {Σ _}.
 Global Existing Instance pgl_wp'.
-Local Lemma pgl_wp_unseal `{!eltonWpGS con_prob_lang Σ} : wp = (@pgl_wp_def Σ _).(wp).
+Local Lemma pgl_wp_unseal `{!eltonWpGS d_prob_lang Σ} : wp = (@pgl_wp_def Σ _).(wp).
 Proof. rewrite -pgl_wp_aux.(seal_eq) //. Qed.
 
 Section pgl_wp.
-Context `{!eltonWpGS con_prob_lang Σ}.
+Context `{!eltonWpGS d_prob_lang Σ}.
 Implicit Types P : iProp Σ.
-Implicit Types Φ : val con_prob_lang → iProp Σ.
-Implicit Types v : val con_prob_lang.
-Implicit Types e : expr con_prob_lang.
-Implicit Types σ : state con_prob_lang.
-Implicit Types ρ : partial_cfg con_prob_lang.
+Implicit Types Φ : val d_prob_lang → iProp Σ.
+Implicit Types v : val d_prob_lang.
+Implicit Types e : expr d_prob_lang.
+Implicit Types σ : state d_prob_lang.
+Implicit Types ρ : cfg d_prob_lang.
 Implicit Types ε : nonnegreal.
 
 (* Weakest pre *)
@@ -702,7 +701,7 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /state_step_coupl_pre.
   rewrite /prog_coupl.
-  do 15 f_equiv.
+  do 13 f_equiv.
   f_contractive.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /state_step_coupl_pre.
@@ -725,7 +724,7 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /state_step_coupl_pre.
   rewrite /prog_coupl.
-  do 14 f_equiv.
+  do 12 f_equiv.
   f_contractive. 
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /state_step_coupl_pre.
@@ -757,7 +756,7 @@ Proof.
   iMod "H"; iModIntro.
   iApply (state_step_coupl_bind with "[-H]H").
   iIntros (??) "H".
-  destruct (con_prob_lang.to_val e) as [v|] eqn:?.
+  destruct (d_prob_lang.to_val e) as [v|] eqn:?.
   { iApply fupd_state_step_coupl.
     iMod "H" as "(?&?&?)".
     iMod "Hclose" as "_".
@@ -771,9 +770,9 @@ Proof.
     by iMod "Hclose" as "_". }
   iApply state_step_coupl_ret.
   iApply (prog_coupl_mono with "[-H] H").
-  iIntros (????) "H !>".
+  iIntros (???) "H !>".
   iApply (state_step_coupl_mono with "[-H] H").
-  iIntros (??) ">(?&?&H&?)".
+  iIntros (??) ">(?&?&H)".
   iMod "Hclose" as "_".
   iFrame.
   iModIntro.
@@ -846,12 +845,12 @@ Proof.
     iDestruct (prog_coupl_strengthen with "[]H") as "H".
     { iModIntro. iIntros. by iApply state_step_coupl_ret_err_ge_1. }
     iApply (prog_coupl_mono with "[] [$]").
-    iIntros (????) "[[[%%H]|%]?]!>"; last first.
+    iIntros (???) "[[[%%H]|%]?]!>"; last first.
     { by iApply state_step_coupl_ret_err_ge_1. }
     iApply (state_step_coupl_bind with "[][$]").
     iIntros (??) "H".
     iApply fupd_state_step_coupl.
-    iMod "H" as "(?&?&H&?)".
+    iMod "H" as "(?&?&H)".
     rewrite !pgl_wp_unfold {1}/pgl_wp_pre.
     iSpecialize ("H" with "[$]").
     iMod "H". iModIntro.
@@ -862,7 +861,7 @@ Proof.
       iFrame. iModIntro.
       rewrite -(of_to_val _ _ H').
       by iApply pgl_wp_value_fupd'.
-    + pose proof (atomic _ _ _ _ H) as [??].
+    + pose proof (atomic _ _ _ H) as [??].
       congruence.
 Qed. 
 
@@ -877,9 +876,9 @@ Proof.
   iApply (state_step_coupl_mono with "[-H]H").
   iIntros (??) "H".
   iApply (prog_coupl_mono with "[-H]H").
-  iIntros (????) "H!>".
+  iIntros (???) "H!>".
   iApply (state_step_coupl_mono with "[-H]H").
-  iIntros (??) ">(?&?&?&?)".
+  iIntros (??) ">(?&?&?)".
   iMod "HR".
   iFrame. iModIntro.
   iApply (pgl_wp_strong_mono with "[$]"); first done.
@@ -891,7 +890,7 @@ Proof.
   by iApply "K".
 Qed.
 
-Lemma pgl_wp_bind K `{!ConLanguageCtx K} s E e Φ :
+Lemma pgl_wp_bind K `{!LanguageCtx K} s E e Φ :
   WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }} ⊢ WP K e @ s; E {{ Φ }}.
 Proof.
   iIntros "H". iLöb as "IH" forall (E e Φ). rewrite !pgl_wp_unfold /pgl_wp_pre.
@@ -912,9 +911,9 @@ Proof.
   iApply prog_coupl_ctx_bind; [done|..].
   { iModIntro; iIntros. by iApply state_step_coupl_ret_err_ge_1. }
   iApply (prog_coupl_mono with "[] [$]").
-  iIntros (????) "H!>".
+  iIntros (???) "H!>".
   iApply (state_step_coupl_mono with "[][$]").
-  iIntros (??) ">($&$&?&$)".
+  iIntros (??) ">($&$&?)".
   by iApply "IH".
 Qed.
 
@@ -1006,11 +1005,11 @@ End pgl_wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!eltonWpGS con_prob_lang Σ}.
+  Context `{!eltonWpGS d_prob_lang Σ}.
   Implicit Types P Q : iProp Σ.
-  Implicit Types Φ : val con_prob_lang → iProp Σ.
-  Implicit Types v : val con_prob_lang.
-  Implicit Types e : expr con_prob_lang.
+  Implicit Types Φ : val d_prob_lang → iProp Σ.
+  Implicit Types v : val d_prob_lang.
+  Implicit Types e : expr d_prob_lang.
 
   Global Instance frame_pgl_wp p s E e R Φ Ψ :
     (∀ v, Frame p R (Φ v) (Ψ v)) →
