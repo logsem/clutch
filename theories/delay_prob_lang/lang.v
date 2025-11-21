@@ -1264,7 +1264,25 @@ Proof.
   intros.
   intros ??.
   by destruct bl.
-Qed. 
+Qed.
+
+Lemma urn_subst_equal_obv_neq σ bl bl':
+  (urn_subst_equal σ bl bl') -> bl≠bl' -> is_simple_base_lit bl = true ->False .
+Proof.
+  intros H1 H H'. apply H. eapply urn_subst_equal_unique; last done.
+  by apply urn_subst_equal_obv.
+Qed.
+
+Lemma urn_subst_equal_not_unique σ bl bl1 bl2:
+  (urn_subst_equal σ bl bl1) -> (urn_subst_equal σ bl bl2)-> bl1≠bl2 -> False.
+Proof.
+  intros H1 H2.
+  eapply urn_subst_equal_unique in H1; last done.
+  by subst.
+Qed.
+
+Ltac urn_subst_contradict H:=
+  exfalso; eapply urn_subst_equal_obv_neq; first apply H; try done.
 
 Global Instance urn_subst_equal_dec σ bl bl': Decision (urn_subst_equal σ bl bl').
 Proof.
