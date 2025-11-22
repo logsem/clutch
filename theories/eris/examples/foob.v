@@ -13,6 +13,12 @@ Import SF_seq.
 Import Rbar.
 Import RList.
 
+Lemma Glb_le_Lub {E} : Glb_Rbar E <= Lub_Rbar E.
+Proof.
+(* Idea: Case anaysis on both. In the finite/finite case, reduce to stdlib lub's which are stated
+ in terms of upper and lower bounds. Other 8 cases should be trivial or impossible. *)
+Admitted.
+
 Definition Bounded (f : R → R) (a b : R) : Prop :=
   ∃ M : R, ∀ x, Rmin a b <= x <= Rmax a b → Rabs (f x) <= M.
 
@@ -24,6 +30,15 @@ Definition FunLe (f g : R → R) (a b : R) : Prop :=
 
 Definition FunLe2 (f g : R → R → R) (ax bx ay bye : R) : Prop :=
   ∀ x y, Rmin ax bx <= x <= Rmax ax bx → Rmin ay bye <= y <= Rmax ay bye → f x y <= g x y.
+
+Lemma Inf_fct_mono {a b xa xb} {f g} (Hfg : FunLe f g xa xb) (Hle : a <= b) :
+  Inf_fct f a b <= Inf_fct g a b.
+Proof. Admitted.
+
+Lemma Sup_fct_mono {a b xa xb} {f g} (Hfg : FunLe f g xa xb) (Hle : a <= b) :
+  Sup_fct f a b <= Sup_fct g a b.
+Proof. Admitted.
+
 
 Record Partition : Type := mkPartition { part_head : R; part_parts : list R }.
 
@@ -118,6 +133,7 @@ Qed.
 Lemma CommonPartition_refines_right (P Q : Partition) : PartitionRefinement Q (CommonPartition P Q).
 Proof. rewrite CommonPartition_Symm. apply CommonPartition_refines_left. Qed.
 
+
 (** ** Conversion between Partition and stdlib subdivision lists *)
 
 Definition stepfun_to_partition {a b} (f : StepFun a b) : Partition :=
@@ -168,76 +184,6 @@ Proof.
 Qed.
 
 
-
-
-
-
-
-
-
-
-(*
-
-Search Glb_Rbar.
-Search is_glb_Rbar.
-Search is_lub.
-
-  Predicate-based approach (from Raxioms.v):
-
-  Definition is_upper_bound (E:R -> Prop) (m:R) :=
-    forall x:R, E x -> x <= m.
-
-  Definition bound (E:R -> Prop) :=
-    exists m : R, is_upper_bound E m.
-
-  Definition is_lub (E:R -> Prop) (m:R) :=
-    is_upper_bound E m /\ (forall b:R, is_upper_bound E b -> m <= b).
-
-  Completeness axiom (existence):
-
-  Lemma completeness :
-    forall E:R -> Prop,
-      bound E -> (exists x : R, E x) -> { m:R | is_lub E m }.
-
-
-emmas Relating is_lub to Coquelicot
-
-  From Coquelicot's Lub.v:
-
-  Main Connection Lemmas
-
-  1. Lub_Rbar_correct (line 268-272):
-  Lemma Lub_Rbar_correct (E : R -> Prop) :
-    is_lub_Rbar E (Lub_Rbar E).
-  1. States that Lub_Rbar E satisfies the is_lub_Rbar property.
-  2. is_lub_Rbar_unique (line 251-258):
-  Lemma is_lub_Rbar_unique (E : R -> Prop) (l : Rbar) :
-    is_lub_Rbar E l -> Lub_Rbar E = l.
-  2. If l is a lub, then Lub_Rbar E = l.
-
-  Coquelicot's is_lub_Rbar Definition
-
-  Definition is_lub_Rbar (E : R -> Prop) (l : Rbar) :=
-    is_ub_Rbar E l /\ (forall b, is_ub_Rbar E b -> Rbar_le l b).
-
-  This is analogous to stdlib's is_lub but:
-  - Works with Rbar (extended reals)
-  - Uses is_ub_Rbar instead of is_upper_bound
-  - Uses Rbar_le instead of <=
-
-  Bridging to Stdlib's is_lub
-
-  While there's no direct lemma, you can bridge via:
-  - When Lub_Rbar E = Finite r, you can extract r and relate to stdlib
-  - Use that is_lub_Rbar is the natural extension of is_lub to Rbar
-
-  Bottom line: Coquelicot's Lub_Rbar_correct gives you that Lub_Rbar E is provably the lub in the is_lub_Rbar sense, which extends stdlib's is_lub concept to handle infinities.
-
-*)
-
-Lemma Glb_le_Lub {E} : Glb_Rbar E <= Lub_Rbar E.
-Proof. Admitted.
-
 (* Relevant: Check rbar_finite_real_eq. Check Sup_fct_maj. Search is_finite. *)
 Definition Sup_fct2 (f : R → R → R) (xa xb ya yb : R) : R :=
   match Req_EM_T xa xb with
@@ -261,8 +207,23 @@ Definition Inf_fct2 (f : R → R → R) (xa xb ya yb : R) : R :=
       end
   end.
 
+Lemma Inf_fct2_mono {xa xb ya yb} {f g} (Hfg : FunLe2 f g xa xb ya yb)
+  (Hlex : xa <= xb) (Hley : ya <= yb) :
+  Inf_fct2 f xa xb ya yb <= Inf_fct2 g xa xb ya yb.
+Proof. Admitted.
+
+Lemma Sup_fct2_mono {xa xb ya yb} {f g} (Hfg : FunLe2 f g xa xb ya yb)
+  (Hlex : xa <= xb) (Hley : ya <= yb) :
+  Sup_fct2 f xa xb ya yb<= Sup_fct2 g xa xb ya yb.
+Proof. Admitted.
+
+
 Definition Rects (P : Partition) : list (R * R) :=
   seq.pairmap (fun x y => (x, y)) (part_head P) (part_parts P).
+
+Lemma pairs_sorted {xa xb a b P} (HP : IsPartition P xa xb) :
+ In (a, b) (Rects P) -> (a <= b).
+Proof. Admitted.
 
 Definition DarbouxLowerSum1 (f : R → R) (P : Partition) : R :=
   foldr Rplus 0%R $ List.map (fun '(a, b) => (b - a) * (real $ Inf_fct f a b)) (Rects P).
@@ -278,10 +239,6 @@ Definition DarbouxUpperSum2 (f : R → R → R) (P : Partition2) : R :=
   foldr Rplus 0%R $ List.map
     (fun '(Ix, Iy) => (snd Ix - fst Ix) * (snd Iy - fst Iy) * (real $ Sup_fct2 f (fst Ix) (snd Ix) (fst Iy) (snd Iy))) (list_prod (Rects (part2_x P)) (Rects (part2_y P))).
 
-Lemma pairs_sorted {xa xb a b P} (HP : IsPartition P xa xb) :
- In (a, b) (seq.pairmap (fun x y : R => (x, y)) (part_head P) (part_parts P)) -> (a <= b).
-Proof.
-Admitted.
 
 Theorem DarbouxLowerUpperLe1 {f P xa xb} (Hf : Bounded f xa xb) (HP : IsPartition P xa xb) :
   DarbouxLowerSum1 f P <= DarbouxUpperSum1 f P.
@@ -289,7 +246,7 @@ Proof.
   rewrite /DarbouxLowerSum1 /DarbouxUpperSum1 /Rects.
   remember (seq.pairmap (fun x y : R => (x, y)) (part_head P) (part_parts P)) as pairs eqn:Hpairs.
   assert (Hpairs_sorted : forall a b, In (a, b) pairs -> a <= b).
-  { intros ???. apply (pairs_sorted HP). by rewrite -Hpairs. }
+  { intros ???. apply (pairs_sorted HP). by rewrite /Rects -Hpairs. }
   destruct HP as [Hleft [Hright Hsorted]].
   clear Hpairs.
   induction pairs as [|[a b] rest IH].
@@ -308,24 +265,38 @@ Theorem DarbouxLowerSum1_mono {f g P xa xb} (Hf : Bounded f xa xb) (Hg : Bounded
   (HP : IsPartition P xa xb) (Hfg : FunLe f g xa xb) : DarbouxLowerSum1 f P <= DarbouxLowerSum1 g P.
 Proof.
   rewrite /DarbouxLowerSum1 /Rects.
-  induction (seq.pairmap (fun x y : R => (x, y)) (part_head P) (part_parts P)) as [|[a b] rest IH].
+  remember (seq.pairmap (fun x y : R => (x, y)) (part_head P) (part_parts P)) as pairs eqn:Hpairs.
+  assert (Hpairs_sorted : forall a b, In (a, b) pairs -> a <= b).
+  { intros ???. apply (pairs_sorted HP). by rewrite /Rects -Hpairs. }
+  clear Hpairs.
+  induction pairs as [|[a b] rest IH].
   - simpl. lra.
   - simpl.
-    apply Rplus_le_compat; [|exact IH].
-    admit.
-Admitted.
+    apply Rplus_le_compat; [|apply IH].
+    2: { intros ???. apply Hpairs_sorted. by apply in_cons. }
+    have Hle : a <= b. { apply Hpairs_sorted; by apply in_eq. }
+    apply Rmult_le_compat_l; [lra|].
+    eapply Inf_fct_mono; done.
+Qed.
 
 Theorem DarbouxUpperSum1_mono
   {f g P xa xb} (Hf : Bounded f xa xb) (Hg : Bounded g xa xb)
   (HP : IsPartition P xa xb) (Hfg : FunLe f g xa xb) : DarbouxUpperSum1 f P <= DarbouxUpperSum1 g P.
 Proof.
   rewrite /DarbouxUpperSum1 /Rects.
-  induction (seq.pairmap (fun x y : R => (x, y)) (part_head P) (part_parts P)) as [|[a b] rest IH].
+  remember (seq.pairmap (fun x y : R => (x, y)) (part_head P) (part_parts P)) as pairs eqn:Hpairs.
+  assert (Hpairs_sorted : forall a b, In (a, b) pairs -> a <= b).
+  { intros ???. apply (pairs_sorted HP). by rewrite /Rects -Hpairs. }
+  clear Hpairs.
+  induction pairs as [|[a b] rest IH].
   - simpl. lra.
   - simpl.
-    apply Rplus_le_compat; [|exact IH].
-    admit.
-Admitted.
+    apply Rplus_le_compat; [|apply IH].
+    2: { intros ???. apply Hpairs_sorted. by apply in_cons. }
+    have Hle : a <= b. { apply Hpairs_sorted; by apply in_eq. }
+    apply Rmult_le_compat_l; [lra|].
+    eapply Sup_fct_mono; done.
+Qed.
 
 Theorem DarbouxLowerUpperLe2 {xxa xxb yya yyb : R} {f : R → R → R}
   (P : Partition2) (HP : IsPartition2 P xxa xxb yya yyb) (Hf : Bounded2 f xxa xxb yya yyb) :
@@ -365,13 +336,29 @@ Theorem DarbouxLowerSum2_mono
   (HP : IsPartition2 P xa xb ya yb) (Hfg : FunLe2 f g xa xb ya yb) :
   DarbouxLowerSum2 f P <= DarbouxLowerSum2 g P.
 Proof.
-  rewrite /DarbouxLowerSum2 /Rects.
-  induction (list_prod (seq.pairmap (λ x y : R, (x, y)) (part_head (part2_x P)) (part_parts (part2_x P)))
-          (seq.pairmap (λ x y : R, (x, y)) (part_head (part2_y P)) (part_parts (part2_y P)))).
+  destruct HP as [HPx HPy].
+  assert (Hpairs_sorted : forall xa xb ya yb, In ((xa, xb), (ya, yb)) (list_prod (Rects (part2_x P)) (Rects (part2_y P))) -> xa <= xb /\ ya <= yb).
+  { intros ?????.
+    apply in_prod_iff in H; destruct H.
+    split.
+    { apply (pairs_sorted HPx). apply H. }
+    { apply (pairs_sorted HPy). apply H0. }
+  }
+  destruct HPx as [Hleft_x [Hright_x Hsorted_x]].
+  destruct HPy as [Hleft_y [Hright_y Hsorted_y]].
+  rewrite /DarbouxLowerSum2 /DarbouxUpperSum2.
+  remember (list_prod (Rects (part2_x P)) (Rects (part2_y P))) as pairs eqn:Hpairs.
+  clear Hpairs.
+  induction pairs as [|[[xxa xxb] [yya yyb]] rest IH].
   - by simpl.
   - rewrite //=.
-    apply Rplus_le_compat; [|done].
-    destruct a; simpl.
+    apply Rplus_le_compat.
+    2: { apply IH. intros ?????. apply Hpairs_sorted. by apply in_cons. }
+    have HIn : In (xxa, xxb, (yya, yyb)) ((xxa, xxb, (yya, yyb)) :: rest); [by apply in_eq|].
+    destruct (Hpairs_sorted xxa xxb yya yyb HIn).
+    apply Rmult_le_compat_l. { apply Rmult_le_pos; lra. }
+    apply Inf_fct2_mono; try done.
+    (* Prove that the rectangle is a subrectangle of the whole thing *)
     admit.
 Admitted.
 
@@ -380,15 +367,32 @@ Theorem DarbouxUpperSum2_mono
   (HP : IsPartition2 P xa xb ya yb) (Hfg : FunLe2 f g xa xb ya yb) :
   DarbouxUpperSum2 f P <= DarbouxUpperSum2 g P.
 Proof.
-  rewrite /DarbouxUpperSum2 /Rects.
-  induction (list_prod (seq.pairmap (λ x y : R, (x, y)) (part_head (part2_x P)) (part_parts (part2_x P)))
-          (seq.pairmap (λ x y : R, (x, y)) (part_head (part2_y P)) (part_parts (part2_y P)))).
+  destruct HP as [HPx HPy].
+  assert (Hpairs_sorted : forall xa xb ya yb, In ((xa, xb), (ya, yb)) (list_prod (Rects (part2_x P)) (Rects (part2_y P))) -> xa <= xb /\ ya <= yb).
+  { intros ?????.
+    apply in_prod_iff in H; destruct H.
+    split.
+    { apply (pairs_sorted HPx). apply H. }
+    { apply (pairs_sorted HPy). apply H0. }
+  }
+  destruct HPx as [Hleft_x [Hright_x Hsorted_x]].
+  destruct HPy as [Hleft_y [Hright_y Hsorted_y]].
+  rewrite /DarbouxLowerSum2 /DarbouxUpperSum2.
+  remember (list_prod (Rects (part2_x P)) (Rects (part2_y P))) as pairs eqn:Hpairs.
+  clear Hpairs.
+  induction pairs as [|[[xxa xxb] [yya yyb]] rest IH].
   - by simpl.
   - rewrite //=.
-    apply Rplus_le_compat; [|done].
-    destruct a; simpl.
+    apply Rplus_le_compat.
+    2: { apply IH. intros ?????. apply Hpairs_sorted. by apply in_cons. }
+    have HIn : In (xxa, xxb, (yya, yyb)) ((xxa, xxb, (yya, yyb)) :: rest); [by apply in_eq|].
+    destruct (Hpairs_sorted xxa xxb yya yyb HIn).
+    apply Rmult_le_compat_l. { apply Rmult_le_pos; lra. }
+    apply Sup_fct2_mono; try done.
+    (* Prove that the rectangle is a subrectangle of the whole thing *)
     admit.
 Admitted.
+
 
 Definition DarbouxLowerInt1 (f : R → R) (a b : R) : Rbar :=
   real $ Glb_Rbar (fun IF => ∃ P, IsPartition P a b ∧ IF = DarbouxLowerSum1 f P).
@@ -541,94 +545,18 @@ Lemma darboux_integrable_small_difference {f a b} :
 Proof. Admitted.
 
 (* Main theorem: Darboux → Riemann *)
-Theorem darboux_integrable_to_riemann {f a b} :
+Theorem DarbouxRiemann_integrable_compat {f a b} :
   Bounded f a b →
   DarbouxIntegrable1 f a b →
   Riemann_integrable f a b.
 Proof. Admitted.
 
-(** ** Reverse direction: Riemann integrability → Darboux integrability *)
-
-(* Bounds on Sup_fct and Inf_fct from step function approximation *)
-Lemma sup_fct_bounded_by_stepfun {f phi psi a b c e} :
-  (forall t, a < t < b → Rabs (f t - phi t) <= psi t) →
-  (forall t, a < t < b → phi t = c) →  (* phi constant on (a,b) *)
-  (forall t, a < t < b → psi t <= e) →  (* psi bounded on (a,b) *)
-  real (Sup_fct f a b) <= c + e.
-Proof. Admitted.
-
-Lemma inf_fct_bounded_by_stepfun {f phi psi a b c e} :
-  (forall t, a < t < b → Rabs (f t - phi t) <= psi t) →
-  (forall t, a < t < b → phi t = c) →  (* phi constant on (a,b) *)
-  (forall t, a < t < b → psi t <= e) →  (* psi bounded on (a,b) *)
-  c - e <= real (Inf_fct f a b).
-Proof. Admitted.
-
-(* Common refinement of two step functions *)
-Lemma stepfun_common_partition {a b} (f g : StepFun a b) :
-  { P : Partition |
-    IsPartition P a b ∧
-    incl (subdivision f) (part_list P) ∧
-    incl (subdivision g) (part_list P) }.
-Proof. Admitted.
-
-(* On common refinement, can bound sup - inf by psi *)
-Lemma darboux_diff_interval_bounded {f phi psi a b} :
-  a < b →
-  (forall t, a < t < b → Rabs (f t - phi t) <= psi t) →
-  (forall t, a < t < b → phi t = phi a) →  (* phi constant *)
-  (forall t, a <= t <= b → psi t <= psi a) →  (* psi bounded *)
-  real (Sup_fct f a b) - real (Inf_fct f a b) <= 2 * psi a.
-Proof. Admitted.
-
-(* Summing over partition gives bound on Darboux difference *)
-Lemma darboux_sums_diff_bounded {f phi psi} {a b} (P : Partition) :
-  IsPartition P a b →
-  incl (subdivision phi) (part_list P) →
-  incl (subdivision psi) (part_list P) →
-  (forall t, Rmin a b <= t <= Rmax a b → Rabs (f t - phi t) <= psi t) →
-  DarbouxUpperSum1 f P - DarbouxLowerSum1 f P <= 2 * RiemannInt_SF psi.
-Proof. Admitted.
-
-(* Upper integral bounded above by upper sum on any partition *)
-Lemma darboux_upper_int_le_sum {f a b P} :
-  IsPartition P a b →
-  Bounded f a b →
-  real (DarbouxUpperInt1 f a b) <= DarbouxUpperSum1 f P.
-Proof. Admitted.
-
-(* Lower integral bounded below by lower sum on any partition *)
-Lemma darboux_lower_int_ge_sum {f a b P} :
-  IsPartition P a b →
-  Bounded f a b →
-  DarbouxLowerSum1 f P <= real (DarbouxLowerInt1 f a b).
-Proof. Admitted.
-
-(* Main theorem: Riemann → Darboux *)
-Theorem riemann_integrable_to_darboux {f a b} :
-  a <= b →
-  Bounded f a b →
-  Riemann_integrable f a b →
-  DarbouxIntegrable1 f a b.
-Proof. Admitted.
-
-(** ** Equivalence and value equality *)
-
-(* Bidirectional equivalence *)
-Theorem darboux_iff_riemann {f a b} :
-  a <= b →
-  Bounded f a b →
-  DarbouxIntegrable1 f a b ↔ Riemann_integrable f a b.
-Proof. Admitted.
-
-(* The integral values are equal *)
-Theorem darboux_eq_riemann_value {f a b} (H : Riemann_integrable f a b) :
-  a <= b →
-  Bounded f a b →
-  DarbouxIntegrable1 f a b →
-  real (DarbouxLowerInt1 f a b) = RiemannInt H.
-Proof. Admitted.
-
+Theorem Darboux_Riemann_compat {f a b}
+  (HB : Bounded f a b)
+  (HD : DarbouxIntegrable1 f a b) :
+  RiemannInt (DarbouxRiemann_integrable_compat HB HD) = real $ DarbouxLowerInt1 f a b.
+Proof.
+Admitted.
 
 
 
@@ -725,4 +653,130 @@ Definition pointed_subdiv (ptd : @SF_seq R) :=
   - SF_ly ptd - Gets the list of all y-values (the data at each point)
   - SF_t ptd - Gets the tail (list of pairs (R * T))
 3. SF_size ptd - Returns the number of intervals (length of SF_ly)
+*)
+
+(*
+
+Search Glb_Rbar.
+Search is_glb_Rbar.
+Search is_lub.
+
+  Predicate-based approach (from Raxioms.v):
+
+  Definition is_upper_bound (E:R -> Prop) (m:R) :=
+    forall x:R, E x -> x <= m.
+
+  Definition bound (E:R -> Prop) :=
+    exists m : R, is_upper_bound E m.
+
+  Definition is_lub (E:R -> Prop) (m:R) :=
+    is_upper_bound E m /\ (forall b:R, is_upper_bound E b -> m <= b).
+
+  Completeness axiom (existence):
+
+  Lemma completeness :
+    forall E:R -> Prop,
+      bound E -> (exists x : R, E x) -> { m:R | is_lub E m }.
+
+
+emmas Relating is_lub to Coquelicot
+
+  From Coquelicot's Lub.v:
+
+  Main Connection Lemmas
+
+  1. Lub_Rbar_correct (line 268-272):
+  Lemma Lub_Rbar_correct (E : R -> Prop) :
+    is_lub_Rbar E (Lub_Rbar E).
+  1. States that Lub_Rbar E satisfies the is_lub_Rbar property.
+  2. is_lub_Rbar_unique (line 251-258):
+  Lemma is_lub_Rbar_unique (E : R -> Prop) (l : Rbar) :
+    is_lub_Rbar E l -> Lub_Rbar E = l.
+  2. If l is a lub, then Lub_Rbar E = l.
+
+  Coquelicot's is_lub_Rbar Definition
+
+  Definition is_lub_Rbar (E : R -> Prop) (l : Rbar) :=
+    is_ub_Rbar E l /\ (forall b, is_ub_Rbar E b -> Rbar_le l b).
+
+  This is analogous to stdlib's is_lub but:
+  - Works with Rbar (extended reals)
+  - Uses is_ub_Rbar instead of is_upper_bound
+  - Uses Rbar_le instead of <=
+
+  Bridging to Stdlib's is_lub
+
+  While there's no direct lemma, you can bridge via:
+  - When Lub_Rbar E = Finite r, you can extract r and relate to stdlib
+  - Use that is_lub_Rbar is the natural extension of is_lub to Rbar
+
+  Bottom line: Coquelicot's Lub_Rbar_correct gives you that Lub_Rbar E is provably the lub in the is_lub_Rbar sense, which extends stdlib's is_lub concept to handle infinities.
+
+*)
+
+(*
+(** ** Reverse direction: Riemann integrability → Darboux integrability *)
+
+(* Bounds on Sup_fct and Inf_fct from step function approximation *)
+Lemma sup_fct_bounded_by_stepfun {f phi psi a b c e} :
+  (forall t, a < t < b → Rabs (f t - phi t) <= psi t) →
+  (forall t, a < t < b → phi t = c) →  (* phi constant on (a,b) *)
+  (forall t, a < t < b → psi t <= e) →  (* psi bounded on (a,b) *)
+  real (Sup_fct f a b) <= c + e.
+Proof. Admitted.
+
+Lemma inf_fct_bounded_by_stepfun {f phi psi a b c e} :
+  (forall t, a < t < b → Rabs (f t - phi t) <= psi t) →
+  (forall t, a < t < b → phi t = c) →  (* phi constant on (a,b) *)
+  (forall t, a < t < b → psi t <= e) →  (* psi bounded on (a,b) *)
+  c - e <= real (Inf_fct f a b).
+Proof. Admitted.
+
+(* Common refinement of two step functions *)
+Lemma stepfun_common_partition {a b} (f g : StepFun a b) :
+  { P : Partition |
+    IsPartition P a b ∧
+    incl (subdivision f) (part_list P) ∧
+    incl (subdivision g) (part_list P) }.
+Proof. Admitted.
+
+(* On common refinement, can bound sup - inf by psi *)
+Lemma darboux_diff_interval_bounded {f phi psi a b} :
+  a < b →
+  (forall t, a < t < b → Rabs (f t - phi t) <= psi t) →
+  (forall t, a < t < b → phi t = phi a) →  (* phi constant *)
+  (forall t, a <= t <= b → psi t <= psi a) →  (* psi bounded *)
+  real (Sup_fct f a b) - real (Inf_fct f a b) <= 2 * psi a.
+Proof. Admitted.
+
+(* Summing over partition gives bound on Darboux difference
+Lemma darboux_sums_diff_bounded {f phi psi} {a b} (P : Partition) :
+  IsPartition P a b →
+  incl (subdivision phi) (part_list P) →
+  incl (subdivision psi) (part_list P) →
+  (forall t, Rmin a b <= t <= Rmax a b → Rabs (f t - phi t) <= psi t) →
+  DarbouxUpperSum1 f P - DarbouxLowerSum1 f P <= 2 * RiemannInt_SF psi.
+Proof. Admitted. *)
+
+(* Upper integral bounded above by upper sum on any partition *)
+Lemma darboux_upper_int_le_sum {f a b P} :
+  IsPartition P a b →
+  Bounded f a b →
+  real (DarbouxUpperInt1 f a b) <= DarbouxUpperSum1 f P.
+Proof. Admitted.
+
+(* Lower integral bounded below by lower sum on any partition *)
+Lemma darboux_lower_int_ge_sum {f a b P} :
+  IsPartition P a b →
+  Bounded f a b →
+  DarbouxLowerSum1 f P <= real (DarbouxLowerInt1 f a b).
+Proof. Admitted.
+
+(* Main theorem: Riemann → Darboux *)
+Theorem riemann_integrable_to_darboux {f a b} :
+  a <= b →
+  Bounded f a b →
+  Riemann_integrable f a b →
+  DarbouxIntegrable1 f a b.
+Proof. Admitted.
 *)
