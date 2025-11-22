@@ -44,9 +44,13 @@ Record Partition : Type := mkPartition { part_head : R; part_parts : list R }.
 
 Definition part_list (P : Partition) := part_head P :: part_parts P.
 
+Definition part_first (P : Partition) := part_head P.
+
+Definition part_last (P : Partition) := seq.last (part_head P) (part_parts P).
+
 Definition IsPartition (P : Partition) (a b : R) : Prop :=
-  part_head P = Rmin a b ∧
-  seq.last (part_head P) (part_parts P) = Rmax a b ∧
+  part_first P = Rmin a b ∧
+  part_last P = Rmax a b ∧
   sorted Rle (part_list P).
 
 Lemma part_list_ordered {P a b} :
@@ -62,6 +66,17 @@ Lemma part_list_right {P a b} :
   IsPartition P a b →
   seq.last (part_head P) (part_list P) = Rmax a b.
 Proof. intros [?[??]]. rewrite /part_list //=. Qed.
+
+Theorem IsPartition_bound_left {P : Partition} {a b} (HP : IsPartition P a b) :
+  part_first P = a.
+Proof. (* Because the list is sorted *) Admitted.
+
+Theorem IsPartition_bound_right {P : Partition} {a b} (HP : IsPartition P a b) :
+  part_last P = b.
+Proof. (* Because the list is sorted *) Admitted.
+
+Theorem IsPartition_bounds {P : Partition} {a b} (HP : IsPartition P a b) : a <= b.
+Proof. (* Because the list is sorted *) Admitted.
 
 Record Partition2 : Type := mkPartition2 {part2_x : Partition; part2_y : Partition}.
 
@@ -165,6 +180,7 @@ Proof.
       - reflexivity.
       - rewrite IH. reflexivity.
     }
+    rewrite /part_last.
     rewrite Hconv.
     exact Hright.
   }
@@ -358,7 +374,7 @@ Proof.
     destruct (Hpairs_sorted xxa xxb yya yyb HIn).
     apply Rmult_le_compat_l. { apply Rmult_le_pos; lra. }
     apply Inf_fct2_mono; try done.
-    (* Prove that the rectangle is a subrectangle of the whole thing *)
+    (* Prove that the rectangle is a subrectangle of the whole thing, or maybe specialize earlier on. *)
     admit.
 Admitted.
 
@@ -389,7 +405,7 @@ Proof.
     destruct (Hpairs_sorted xxa xxb yya yyb HIn).
     apply Rmult_le_compat_l. { apply Rmult_le_pos; lra. }
     apply Sup_fct2_mono; try done.
-    (* Prove that the rectangle is a subrectangle of the whole thing *)
+    (* Prove that the rectangle is a subrectangle of the whole thing, or maybe specialize earlier on. *)
     admit.
 Admitted.
 
@@ -414,6 +430,7 @@ Lemma DarbouxLowerInt1_mono {f g} {a b} :
 Proof.
   intros ?.
   rewrite /DarbouxLowerInt1.
+  (* Glb comparison if set comparison *)
 Admitted.
 
 Lemma DarbouxUpperInt1_mono {f g} {a b} :
@@ -422,6 +439,7 @@ Lemma DarbouxUpperInt1_mono {f g} {a b} :
   Bounded g a b →
   DarbouxUpperInt1 f a b <= DarbouxUpperInt1 g a b.
 Proof.
+  (* Lub/Glb comparison if set comparison *)
 Admitted.
 
 Lemma DarbouxLowerInt2_mono {f g} {xa xb ya yb} :
@@ -430,6 +448,7 @@ Lemma DarbouxLowerInt2_mono {f g} {xa xb ya yb} :
   Bounded2 g xa xb ya yb →
   DarbouxLowerInt2 f xa xb ya yb <= DarbouxLowerInt2 g xa xb ya yb.
 Proof.
+  (* Lub/Glb comparison if set comparison *)
 Admitted.
 
 Lemma DarbouxUpperInt2_mono {f g} {xa xb ya yb} :
@@ -438,6 +457,7 @@ Lemma DarbouxUpperInt2_mono {f g} {xa xb ya yb} :
   Bounded2 g xa xb ya yb →
   DarbouxUpperInt2 f xa xb ya yb <= DarbouxUpperInt2 g xa xb ya yb.
 Proof.
+  (* Lub/Glb comparison if set comparison *)
 Admitted.
 
 Definition DarbouxIntegrable1 (f : R → R) (a b : R) : Prop :=
@@ -456,13 +476,17 @@ Theorem FubiniLower12 {f : R → R → R} {P : Partition2} {xa xb ya yb : R}:
   IsPartition2 P xa xb ya yb →
   Bounded2 f xa xb ya yb →
   DarbouxLowerSum2 f P <= DarbouxLowerSum1 (FubiniILower f ya yb) (part2_x P).
-Proof. Admitted.
+Proof.
+  (* From the paper *)
+Admitted.
 
 Theorem FubiniUpper12 {f : R → R → R} {P : Partition2} {xa xb ya yb : R}:
   IsPartition2 P xa xb ya yb →
   Bounded2 f xa xb ya yb →
   DarbouxLowerSum1 (FubiniIUpper f ya yb) (part2_x P) <= DarbouxUpperSum2 f P.
-Proof. Admitted.
+Proof.
+  (* From the paper *)
+Admitted.
 
 Theorem Fubini_LowerIntegrable {f : R → R → R} {xa xb ya yb : R} (Hf : Bounded2 f xa xb ya yb)
   (HInt : DarbouxIntegrable2 f xa xb ya yb) :
@@ -479,64 +503,52 @@ Theorem Fubini_Lower {f : R → R → R} {xa xb ya yb : R} (Hf : Bounded2 f xa x
   DarbouxLowerInt1 (FubiniILower f ya yb) xa xb = DarbouxLowerInt2 f xa xb ya yb.
 Proof. (* Sandwich *) Admitted.
 
+(** Darboux/Riemann compatability, assuming Darboux integrability *)
 
-(** ** Darboux sums as step function integrals *)
 
-(* Construct step function from partition with lower Darboux values *)
-Lemma partition_to_lower_stepfun {f a b} (P : Partition) :
-  IsPartition P a b →
-  Bounded f a b →
-  { phi : StepFun a b |
-    RiemannInt_SF phi = DarbouxLowerSum1 f P ∧
-    subdivision phi = part_list P ∧
-    (forall i, (i < pred (length (part_list P)))%nat →
-      pos_Rl (subdivision_val phi) i =
-        real (Inf_fct f (pos_Rl (part_list P) i)
-                        (pos_Rl (part_list P) (S i)))) }.
-Proof.
+Definition SF_seq_make (Fint : R → R → R) (P : Partition) : @SF_seq R :=
+  SF_seq_f2 (fun a b => Fint a b) (part_list P).
 
+Lemma SF_seq_make_sorted {a b} (Fint : R → R → R) {P : Partition} (HP : IsPartition P a b) :
+  SF_sorted Rle (SF_seq_make Fint P).
+Proof. rewrite -SF_sorted_f2. by destruct HP as [?[??]]. Qed.
+
+Program Definition SF_make {a b} (Fint : R → R → R) {P : Partition} (HP : IsPartition P a b) : StepFun a b :=
+  SF_compat_le (SF_seq_make Fint P) (SF_seq_make_sorted Fint HP) .
+Next Obligation.
+  intros ?????.
+  rewrite /SF_seq_make//=.
+  have ? := IsPartition_bounds HP.
+  destruct HP as [?[??]].
+  rewrite /part_first in H; rewrite H.
+  by apply Rmin_left.
+Qed.
+Next Obligation.
+  intros ?????.
+  rewrite /SF_seq_make//=.
+  have ? := IsPartition_bounds HP.
+  destruct HP as [?[??]].
+  rewrite /part_last in H0.
+  rewrite /seq.unzip1 //=.
+  rewrite Rcomplements.map_pairmap //=.
+  replace (seq.pairmap (λ _ y : R, y) (part_head P) (part_parts P)) with (part_parts P); last first.
+  { admit. }
+  rewrite H0.
+  by apply Rmax_right.
 Admitted.
 
-(* Construct step function from partition with upper Darboux values *)
-Lemma partition_to_upper_stepfun {f a b} (P : Partition) :
-  IsPartition P a b →
-  Bounded f a b →
-  { psi : StepFun a b |
-    RiemannInt_SF psi = DarbouxUpperSum1 f P ∧
-    subdivision psi = part_list P ∧
-    (forall i, (i < pred (length (part_list P)))%nat →
-      pos_Rl (subdivision_val psi) i =
-        real (Sup_fct f (pos_Rl (part_list P) i)
-                        (pos_Rl (part_list P) (S i)))) }.
-Proof. Admitted.
+Definition DarbouxApproxStepFun (f : R → R) (P : Partition) (HP : IsPartition P (part_first P) (part_last P)) :
+    StepFun (part_first P) (part_last P) :=
+  SF_make (fun a b => ((real $ Sup_fct f a b) + (real $ Inf_fct f a b)) / 2) HP.
+
+Definition DarbouxErrorStepFun (f : R → R) (P : Partition) (HP : IsPartition P (part_first P) (part_last P)) :
+    StepFun (part_first P) (part_last P) :=
+  SF_make (fun a b => ((real $ Sup_fct f a b) - (real $ Inf_fct f a b)) / 2) HP.
 
 (** ** Forward direction: Darboux integrability → Riemann integrability *)
 
-(* Error bound step function: psi(x) = upper - lower on each interval *)
-Lemma darboux_error_stepfun {f a b} (P : Partition) :
-  IsPartition P a b →
-  Bounded f a b →
-  { psi : StepFun a b |
-    (forall t, Rmin a b <= t <= Rmax a b →
-      exists (phi_lower phi_upper : StepFun a b),
-        RiemannInt_SF phi_lower = DarbouxLowerSum1 f P ∧
-        RiemannInt_SF phi_upper = DarbouxUpperSum1 f P ∧
-        Rabs (f t - fe phi_lower t) <= fe psi t) ∧
-    RiemannInt_SF psi = DarbouxUpperSum1 f P - DarbouxLowerSum1 f P }.
-Proof. Admitted.
-
-(* Key lemma: small Darboux difference implies Riemann approximability *)
-Lemma darboux_criterion_to_riemann_approx {f a b} (eps : posreal) :
-  Bounded f a b →
-  (exists P, IsPartition P a b ∧
-    DarbouxUpperSum1 f P - DarbouxLowerSum1 f P < eps) →
-  { phi : StepFun a b & { psi : StepFun a b |
-    (forall t, Rmin a b <= t <= Rmax a b → Rabs (f t - phi t) <= psi t) ∧
-    Rabs (RiemannInt_SF psi) < eps } }.
-Proof. Admitted.
-
 (* Darboux integrability means we can make upper - lower arbitrarily small *)
-Lemma darboux_integrable_small_difference {f a b} :
+Lemma DarbouxDifference {f a b} :
   Bounded f a b →
   DarbouxIntegrable1 f a b →
   forall eps : posreal,
@@ -549,7 +561,24 @@ Theorem DarbouxRiemann_integrable_compat {f a b} :
   Bounded f a b →
   DarbouxIntegrable1 f a b →
   Riemann_integrable f a b.
-Proof. Admitted.
+Proof.
+  intros HB HI eps.
+  destruct (ClassicalEpsilon.constructive_indefinite_description _ (DarbouxDifference HB HI eps)) as [P [HP Heps]].
+  have HF : part_first P = a.
+  { admit. }
+  have HL : part_last P = b.
+  { admit. }
+  rewrite -HF in HP.
+  rewrite -HL in HP.
+  have SF_M := DarbouxApproxStepFun f P HP.
+  have SF_E := DarbouxErrorStepFun f P HP.
+  rewrite HF HL in SF_M, SF_E.
+  exists SF_M.
+  exists SF_E.
+  split.
+  { intros ??. admit. }
+  { admit. }
+Admitted.
 
 Theorem Darboux_Riemann_compat {f a b}
   (HB : Bounded f a b)
