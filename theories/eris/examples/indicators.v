@@ -1,7 +1,7 @@
 From clutch.eris Require Export eris error_rules receipt_rules.
 From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
-From Coquelicot Require Import RInt RInt_analysis RInt_gen AutoDerive.
+From Coquelicot Require Import RInt RInt_analysis RInt_gen AutoDerive Lub.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real.
 Set Default Proof Using "Type*".
@@ -1299,7 +1299,7 @@ Proof.
       intros [eps Heps].
       rewrite /filtermap/eventually//=.
       rewrite /filtermap/eventually//= in HTail.
-    admit. }
+    a dmit. }
     (* This limit is uniformly bounded above by the sequence of upper bounds
        These converge to 0 using h1 and ex_series_lim_0
      *)
@@ -1634,7 +1634,7 @@ Proof.
       f_equal.
       rewrite Rplus_comm.
       repeat f_equal.
-      admit.
+      a dmit.
     }
     *)
   Admitted.
@@ -1905,6 +1905,13 @@ Proof.
 
 End Lib.
 
+
+
+
+
+
+
+
 Section FubiniAx.
 
   (* Continuity.continuity_2d_pt_filterlim ???? *)
@@ -1932,3 +1939,5 @@ Section FubiniAx.
 
 
 End FubiniAx.
+
+

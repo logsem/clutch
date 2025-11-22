@@ -26,7 +26,7 @@ Section credits.
 
   (*
   Lemma ex_seriesC_lemma1 : ex_seriesC (λ x : nat, exp (- (x * (x - 1))%nat / 2)).
-  Proof. Admitted.
+  Proof. A dmitted.
 
    *)
 
@@ -402,7 +402,6 @@ Section credits.
     intros x Hx.
     apply G2_g_nn; auto. lra.
   Qed.
-
 
 
   Lemma G2_f_ex_seriesC {F} : ex_seriesC (G2_f F).
