@@ -278,18 +278,31 @@ Definition DarbouxUpperSum2 (f : R → R → R) (P : Partition2) : R :=
   foldr Rplus 0%R $ List.map
     (fun '(Ix, Iy) => (snd Ix - fst Ix) * (snd Iy - fst Iy) * (real $ Sup_fct2 f (fst Ix) (snd Ix) (fst Iy) (snd Iy))) (list_prod (Rects (part2_x P)) (Rects (part2_y P))).
 
+Lemma pairs_sorted {xa xb a b P} (HP : IsPartition P xa xb) :
+ In (a, b) (seq.pairmap (fun x y : R => (x, y)) (part_head P) (part_parts P)) -> (a <= b).
+Proof.
+Admitted.
+
 Theorem DarbouxLowerUpperLe1 {f P xa xb} (Hf : Bounded f xa xb) (HP : IsPartition P xa xb) :
   DarbouxLowerSum1 f P <= DarbouxUpperSum1 f P.
 Proof.
   rewrite /DarbouxLowerSum1 /DarbouxUpperSum1 /Rects.
-  induction (seq.pairmap (fun x y : R => (x, y)) (part_head P) (part_parts P)) as [|[a b] rest IH].
+  remember (seq.pairmap (fun x y : R => (x, y)) (part_head P) (part_parts P)) as pairs eqn:Hpairs.
+  assert (Hpairs_sorted : forall a b, In (a, b) pairs -> a <= b).
+  { intros ???. apply (pairs_sorted HP). by rewrite -Hpairs. }
+  destruct HP as [Hleft [Hright Hsorted]].
+  clear Hpairs.
+  induction pairs as [|[a b] rest IH].
   - by simpl.
-  - apply Rplus_le_compat; [|exact IH].
+  - apply Rplus_le_compat; [|apply IH; intros; apply Hpairs_sorted; right; assumption].
     unfold Inf_fct, Sup_fct.
     destruct (Req_dec_T a b); [lra|].
-    (* apply Glb_le_Lub. *)
-    admit.
-Admitted.
+    assert (Hab : a <= b).
+    { apply Hpairs_sorted. left. reflexivity. }
+    assert (H0 : 0 <= b - a) by lra.
+    apply Rmult_le_compat_l; [exact H0|].
+    apply Glb_le_Lub.
+Qed.
 
 Theorem DarbouxLowerSum1_mono {f g P xa xb} (Hf : Bounded f xa xb) (Hg : Bounded g xa xb)
   (HP : IsPartition P xa xb) (Hfg : FunLe f g xa xb) : DarbouxLowerSum1 f P <= DarbouxLowerSum1 g P.
@@ -318,17 +331,34 @@ Theorem DarbouxLowerUpperLe2 {xxa xxb yya yyb : R} {f : R → R → R}
   (P : Partition2) (HP : IsPartition2 P xxa xxb yya yyb) (Hf : Bounded2 f xxa xxb yya yyb) :
   DarbouxLowerSum2 f P <= DarbouxUpperSum2 f P.
 Proof.
+  destruct HP as [HPx HPy].
+  assert (Hpairs_sorted : forall xa xb ya yb, In ((xa, xb), (ya, yb)) (list_prod (Rects (part2_x P)) (Rects (part2_y P))) -> xa <= xb /\ ya <= yb).
+  { intros ?????.
+    apply in_prod_iff in H; destruct H.
+    split.
+    { apply (pairs_sorted HPx). apply H. }
+    { apply (pairs_sorted HPy). apply H0. }
+  }
+  destruct HPx as [Hleft_x [Hright_x Hsorted_x]].
+  destruct HPy as [Hleft_y [Hright_y Hsorted_y]].
   rewrite /DarbouxLowerSum2 /DarbouxUpperSum2.
-  induction (list_prod (Rects (part2_x P)) (Rects (part2_y P))) as [|[[xa xb] [ya yb]] rest IH].
+  remember (list_prod (Rects (part2_x P)) (Rects (part2_y P))) as pairs eqn:Hpairs.
+  clear Hpairs.
+  induction pairs as [|[[xa xb] [ya yb]] rest IH].
   - by simpl.
   - rewrite //=.
-    apply Rplus_le_compat; [|exact IH].
+    apply Rplus_le_compat; [|apply IH; intros; apply Hpairs_sorted; right; assumption].
     unfold Inf_fct2, Sup_fct2.
     destruct (Req_EM_T xa xb); [lra|].
     destruct (Req_EM_T ya yb); [lra|].
-    admit.
-    (* apply Glb_le_Lub. *)
-Admitted.
+    assert (Hab : xa <= xb /\ ya <= yb).
+    { apply Hpairs_sorted. left. reflexivity. }
+    destruct Hab as [Hxa Hya].
+    assert (H0x : 0 <= xb - xa) by lra.
+    assert (H0y : 0 <= yb - ya) by lra.
+    apply Rmult_le_compat_l; [apply Rmult_le_pos; assumption|].
+    apply Glb_le_Lub.
+Qed.
 
 Theorem DarbouxLowerSum2_mono
   {f g P xa xb ya yb} (Hf : Bounded2 f xa xb ya yb) (Hg : Bounded2 g xa xb ya yb)
