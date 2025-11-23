@@ -537,6 +537,11 @@ Next Obligation.
   by apply Rmax_right.
 Admitted.
 
+(* Hard, eq_rect *)
+Lemma SF_make_eval {a b} (Fint : R → R → R) {P : Partition} (HP : IsPartition P a b) (t : R) :
+  SF_make Fint HP t = SF_fun (SF_seq_make Fint P) 0 t.
+Proof. Admitted.
+
 Definition DarbouxApproxStepFun (f : R → R) (P : Partition) (HP : IsPartition P (part_first P) (part_last P)) :
     StepFun (part_first P) (part_last P) :=
   SF_make (fun a b => ((real $ Sup_fct f a b) + (real $ Inf_fct f a b)) / 2) HP.
@@ -570,15 +575,24 @@ Proof.
   { admit. }
   rewrite -HF in HP.
   rewrite -HL in HP.
-  have SF_M := DarbouxApproxStepFun f P HP.
-  have SF_E := DarbouxErrorStepFun f P HP.
-  rewrite HF HL in SF_M, SF_E.
+  pose SF_M := DarbouxApproxStepFun f P HP.
+  pose SF_E := DarbouxErrorStepFun f P HP.
+  rewrite -HF -HL.
   exists SF_M.
   exists SF_E.
   split.
-  { intros ??. admit. }
-  { admit. }
+  { intros ??.
+    rewrite /SF_M /SF_E.
+    rewrite SF_make_eval SF_make_eval.
+    admit. }
+  { rewrite /SF_E.
+    rewrite /DarbouxErrorStepFun.
+    Search RiemannInt_SF.
+
+    Search RiemannInt_SF.
+    admit. }
 Admitted.
+
 
 Theorem Darboux_Riemann_compat {f a b}
   (HB : Bounded f a b)
