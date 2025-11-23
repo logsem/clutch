@@ -587,12 +587,10 @@ Proof.
     admit. }
   { rewrite /SF_E.
     rewrite /DarbouxErrorStepFun.
-    Search RiemannInt_SF.
+    Locate sf_SF_val_fun .
 
-    Search RiemannInt_SF.
     admit. }
 Admitted.
-
 
 Theorem Darboux_Riemann_compat {f a b}
   (HB : Bounded f a b)
