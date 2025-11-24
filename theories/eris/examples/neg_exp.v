@@ -246,8 +246,8 @@ Section credits.
              (RInt (λ x, SeriesC (λ n, RealDecrTrial_μ x 0 n * Iverson Zeven n * F (x + L))) 0 1)));
       last first.
     { rewrite RInt_add.
-      3: { admit. }
-      2: { admit. }
+      3: { eapply ex_RInt_SeriesC; admit. }
+      2: { eapply ex_RInt_SeriesC; admit. }
       apply RInt_ext.
       rewrite Rmin_left; OK.
       rewrite Rmax_right; OK.
