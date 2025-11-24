@@ -326,9 +326,16 @@ Proof.
   solve_red.
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
-  iFrame. by iApply ("HΦ" $! x) .
+  rename select (fin _) into x.
+  rename select (_>0)%R into Hx.
+  epose proof (urn_subst_equal_epsilon_unique _ _ z _ _) as H'.
+  rewrite H' in x Hx *.
+  iFrame.
+  by iApply ("HΦ" $! x) .
+  Unshelve.
+  4:{ done. }
+  done. 
 Qed.
-
 
 (* (** Tapes  *) *)
 (* Lemma wp_alloc_tape N z E s : *)
