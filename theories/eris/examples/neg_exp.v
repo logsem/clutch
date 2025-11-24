@@ -35,17 +35,20 @@ Section credits.
   Definition NegExp_CreditV (F : R → R) (L : nat) : R :=
     RInt_gen (fun x : R => F x * NegExp_ρ L x) (at_point 0%R) (Rbar_locally Rbar.p_infty).
 
-  Lemma NegExp_CreditV_nn {F : R -> R} (Hnn : ∀ r, 0 <= F r) (L : nat) : 0 <= NegExp_CreditV F (L + 1).
+  Lemma NegExp_ρ0_nn {x} : 0 <= NegExp_ρ0 x.
   Proof.
-    rewrite /NegExp_CreditV.
-    (*
-    Search filterlimi.
-    Search RInt_gen.
-    (* Many of my problems in this file can be solved if I can relate RInt_gen to RInt *)
-    (* Search is_RInt_gen is_RInt.
-    Search RInt_gen. *)
-    *)
-  Admitted.
+    rewrite /NegExp_ρ0.
+    apply Rmult_le_pos; first apply Iverson_nonneg.
+    apply Rexp_nn.
+  Qed.
+
+  Lemma NegExp_ρ_nn {x L} : 0 <= NegExp_ρ x L.
+  Proof.
+    rewrite /NegExp_ρ.
+    apply Rmult_le_pos; first apply Iverson_nonneg.
+    apply NegExp_ρ0_nn.
+  Qed.
+
 
   Theorem NegExp_ρ0_ex_RInt {F : R → R} {a b} (Hex : ∀ b : R, ex_RInt F a b) :
     ex_RInt NegExp_ρ0 a b.
@@ -78,9 +81,25 @@ Section credits.
     auto_derive. OK.
   Qed.
 
+  Lemma NegExp_CreditV_nn {F : R -> R} (Hnn : ∀ r, 0 <= F r) {L : nat} (H : ∀ b, ex_RInt F 0 b) :
+    0 <= NegExp_CreditV F (L + 1).
+  Proof.
+    rewrite /NegExp_CreditV.
+    apply RInt_gen_pos_strong.
+    { intros ?. apply Rmult_le_pos; first apply Hnn. apply NegExp_ρ_nn. }
+    { intros b. apply ex_RInt_mult; [apply H|apply NegExp_ρ_ex_RInt]. }
+    { intros b Hb.
+      apply RInt_ge_0; try done.
+      { apply ex_RInt_mult; [apply H|apply NegExp_ρ_ex_RInt]. }
+      { intros ??.  apply Rmult_le_pos; first apply Hnn. apply NegExp_ρ_nn. }
+    }
+    (* Can we strengthen RInt_gen_pos so that existence is not needed? *)
+  Admitted.
+
   Theorem NegExp_CreditV_ub {F L M} (HF : ∀ x, 0 <= F x <= M) : NegExp_CreditV F L <= M.
   Proof.
     rewrite /NegExp_CreditV.
+    (* The limit is pointwise bounded *)
   Admitted.
 
 
@@ -91,7 +110,7 @@ Section credits.
   Local Definition g (F : R -> R) (L : nat) : R -> R := fun x =>
     RealDecrTrial_CreditV (hx F x L) 0 x.
 
-  Lemma hx_nonneg {F xr L} (Hnn : ∀ r, 0 <= F r) : ∀ n : nat, 0 <= hx F xr L n.
+  Lemma hx_nonneg {F xr L} (Hnn : ∀ r, 0 <= F r) (Hb : ∀ b : R, ex_RInt F 0 b) : ∀ n : nat, 0 <= hx F xr L n.
   Proof.
     rewrite /hx.
     intros ?.
@@ -100,7 +119,7 @@ Section credits.
     { apply NegExp_CreditV_nn; auto. }
   Qed.
 
-  Lemma g_nonneg {F L r} (Hnn : ∀ r, 0 <= F r) (Hr : 0 <= r <= 1) : 0 <= g F L r.
+  Lemma g_nonneg {F L r} (Hnn : ∀ r, 0 <= F r) (Hr : 0 <= r <= 1) (Hb : ∀ b : R, ex_RInt F 0 b) : 0 <= g F L r.
   Proof.
     rewrite /g.
     apply CreditV_nonneg; auto.
@@ -108,7 +127,7 @@ Section credits.
     apply hx_nonneg; auto.
   Qed.
 
-  Local Lemma g_ex_RInt {F L M} (Hbound : ∀ x, 0 <= F x <= M) : ex_RInt (g F L) 0 1.
+  Local Lemma g_ex_RInt {F L M} (Hbound : ∀ x, 0 <= F x <= M) (Hb : ∀ b : R, ex_RInt F 0 b) : ex_RInt (g F L) 0 1.
   Proof.
     rewrite -ex_RInt_dom /ex_RInt /g /RealDecrTrial_CreditV.
     replace (λ x : R, Iverson (Ioo 0 1) x * SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * hx F x L n))
@@ -135,7 +154,7 @@ Section credits.
           { rewrite /Ioo in H. rewrite Rmin_left in H; OK. rewrite Rmax_right in H; OK. }
           rewrite /hx. apply Rplus_le_le_0_compat; apply Rmult_le_pos;
             [apply Iverson_nonneg | apply Hbound | apply Iverson_nonneg | ].
-          apply NegExp_CreditV_nn. intro; apply Hbound. }
+          apply NegExp_CreditV_nn; OK. intro; apply Hbound. }
         OK. }
       rewrite /Iverson. case_decide; last first.
       { rewrite Rmult_0_l.
@@ -150,7 +169,7 @@ Section credits.
         { admit. }
         lra. }
       apply Rmult_le_compat.
-      { apply hx_nonneg. intros ?; apply Hbound. }
+      { apply hx_nonneg; OK. intros ?; apply Hbound. }
       { apply RealDecrTrial_μnn. OK. }
       { admit. }
       rewrite /RealDecrTrial_μ /Iverson. case_decide; last first.
@@ -192,7 +211,7 @@ Section credits.
   Local Theorem g_expectation {F L M} (Hf : ∀ x, 0 <= F x <= M) (Hex : ∀ (a b : R), ex_RInt F a b) : is_RInt (g F L) 0 1 (NegExp_CreditV F L).
   Proof.
     suffices H : RInt (g F L) 0 1 = NegExp_CreditV F L.
-    { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)), (g_ex_RInt (M := M)). OK. }
+    { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)), (g_ex_RInt (M := M)); first OK. apply Hex. }
     rewrite /g.
     rewrite /RealDecrTrial_CreditV.
     rewrite /hx.
@@ -256,10 +275,10 @@ Section credits.
           { apply Iverson_nonneg. }
           { apply RealDecrTrial_μ0nn. OK. }
           { apply Iverson_nonneg. }
-          { apply NegExp_CreditV_nn. intros ?. apply Hf. }
+          { apply NegExp_CreditV_nn; last apply Hex. intros ?. apply Hf. }
         }
         { apply Rmult_le_compat.
-          2: { apply NegExp_CreditV_nn. intros ?. apply Hf. }
+          2: { apply NegExp_CreditV_nn; last apply Hex. intros ?. apply Hf. }
           3: { apply NegExp_CreditV_ub. intros ?. apply Hf. }
           1: { apply Rmult_le_pos; [apply Rmult_le_pos|].
                { apply Iverson_nonneg. }
@@ -578,7 +597,7 @@ Section program.
         split.
         { apply Rplus_le_le_0_compat; apply Rmult_le_pos; try apply Iverson_nonneg.
           { apply Hnn.  }
-          { apply NegExp_CreditV_nn. intro r. apply Hnn. }
+          { apply NegExp_CreditV_nn; last apply Hex. intro r. apply Hnn. }
         }
         { apply Rplus_le_compat.
           { rewrite -{2}(Rmult_1_l (F (xr + L))).
@@ -587,7 +606,7 @@ Section program.
           }
           { rewrite -{2}(Rmult_1_l (NegExp_CreditV F (L + 1))).
             apply Rmult_le_compat_r; [|apply Iverson_le_1].
-            apply NegExp_CreditV_nn. intro r. apply Hnn.
+            apply NegExp_CreditV_nn; last apply Hex. intro r. apply Hnn.
           }
         }
       }
@@ -607,7 +626,7 @@ Section program.
       unfold hx.
       iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply NegExp_CreditV_nn, Hnn ]. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply NegExp_CreditV_nn; OK]. apply Hnn. }
       rewrite Iverson_True; last done.
       by rewrite Rmult_1_l INR_IZR_INZ.
     }
@@ -615,7 +634,7 @@ Section program.
       rewrite {1}/NegExp.
       iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
       { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply NegExp_CreditV_nn, Hnn ]. }
+      { apply Rmult_le_pos; [apply Iverson_nonneg | apply NegExp_CreditV_nn; OK ]. apply Hnn. }
       rewrite Iverson_True; last first.
       { intro Hk; apply H. f_equal.
         apply Zeven_bool_iff in Hk.

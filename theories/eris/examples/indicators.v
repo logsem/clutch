@@ -1465,6 +1465,21 @@ Proof.
     by apply seq_lift.
   Qed.
 
+  Lemma ex_seriesC_RInt {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R)
+    (Hnn : ∀ x n, a < x < b → 0 <= f n x)
+    (HexU : ex_seriesC UB) (Hub : forall x n, Rabs (f n x) <= UB n) (Hex : ∀ n, ex_RInt (f n) a b) :
+    ex_seriesC (fun n => RInt (λ x : R, f n x) a b).
+  Proof.
+    (*  Bound above by the series (b-a) * UB n *)
+  Admitted.
+
+  Lemma ex_RInt_SeriesC {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R)
+    (HexU : Series.ex_series UB) (Hub : forall x n, Rabs (f n x) <= UB n) (Hex : ∀ n, ex_RInt (f n) a b) :
+    ex_RInt (λ x : R, SeriesC (λ n' : nat, f n' x)) a b.
+  Proof.
+    (* I'm sure this is true *)
+  Admitted.
+
   Definition Ioo (a b : R) : R → Prop := fun x => Rmin a b < x < Rmax a b.
 
   Lemma ex_RInt_dom {F : R → R} {a b : R} : ex_RInt (fun x => Iverson (Ioo a b) x * F x) a b ↔ ex_RInt F a b.
@@ -1904,18 +1919,15 @@ Proof.
         done.
       }
   Qed.
-    
-  
-  (* Can I prove this without explicitly giving the limit? *)
-  Lemma RInt_gen_pos {F} {M}
+
+  Lemma RInt_gen_pos_strong {F M}
     (Hpos : forall x, 0 <= F x)
     (Hex : ∀ b, ex_RInt F M b)
-    (Hnn : ∀ b, 0 <= RInt F M b) :
+    (Hnn : ∀ b, M <= b → 0 <= RInt F M b)
+    (Hex_L : ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty)) :
     0 <= RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty).
   Proof.
-    destruct (ClassicalEpsilon.excluded_middle_informative (ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty))).
-    { apply RInt_gen_pos_ex; done. }
-    { admit. }
+    (* Reduces to RInt_gen_pos_ex by setting f to be 0 below M, so that the wrong direction integral is zero. *)
   Admitted.
 
   Lemma ex_RInt_div (F : R → R) {a b c} : ex_RInt F a b → ex_RInt (fun x => F x / c) a b.
