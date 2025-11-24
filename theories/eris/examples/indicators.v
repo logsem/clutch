@@ -1465,16 +1465,27 @@ Proof.
     by apply seq_lift.
   Qed.
 
+
+  Lemma FubiniIntegralSeries_Strong {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R)
+    (HexU : Series.ex_series UB) (Hub : forall x n, a < x < b → Rabs (f n x) <= UB n) (Hex : ∀ n, ex_RInt (f n) a b) :
+    Series.Series (fun n => RInt (λ x : R, f n x) a b) = RInt (λ x : R, Series.Series (λ n' : nat, f n' x)) a b.
+  Proof.
+    (* Reduce this to FubiniIntegralSeries by setting f to 0 outside the domain *)
+
+  Admitted.
+
   Lemma ex_seriesC_RInt {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R)
     (Hnn : ∀ x n, a < x < b → 0 <= f n x)
-    (HexU : ex_seriesC UB) (Hub : forall x n, Rabs (f n x) <= UB n) (Hex : ∀ n, ex_RInt (f n) a b) :
+    (HexU : ex_seriesC UB)
+    (Hub : forall x n, a < x < b → Rabs (f n x) <= UB n)
+    (Hex : ∀ n, ex_RInt (f n) a b) :
     ex_seriesC (fun n => RInt (λ x : R, f n x) a b).
   Proof.
     (*  Bound above by the series (b-a) * UB n *)
   Admitted.
 
   Lemma ex_RInt_SeriesC {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R)
-    (HexU : Series.ex_series UB) (Hub : forall x n, Rabs (f n x) <= UB n) (Hex : ∀ n, ex_RInt (f n) a b) :
+    (HexU : Series.ex_series UB) (Hub : forall x n, a < x < b → Rabs (f n x) <= UB n) (Hex : ∀ n, ex_RInt (f n) a b) :
     ex_RInt (λ x : R, SeriesC (λ n' : nat, f n' x)) a b.
   Proof.
     (* I'm sure this is true *)

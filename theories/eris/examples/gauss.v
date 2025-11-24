@@ -129,8 +129,27 @@ Section credits.
 
   Lemma ExpAddSeries_RInt : ex_RInt (λ x : R, SeriesC (λ k : nat, exp (- (x + k) ^ 2 / 2))) 0 1.
   Proof.
-
-  Admitted. (* Limit exchange *)
+    apply (ex_RInt_SeriesC (fun n => exp (- (0 + n) ^ 2 / 2))).
+    { rewrite ex_seriesC_nat. eapply Norm2_ex'. OK. }
+    { intros ???.
+      rewrite Rabs_right.
+      2: { apply Rle_ge. apply Rexp_nn. }
+      apply exp_mono.
+      do 2 rewrite Rdiv_def.
+      replace (- (x + n) ^ 2 * / 2) with ((-1 / 2) * (x + n) ^ 2) by OK.
+      replace (- (0 + n) ^ 2 * / 2) with ((-1 / 2) * (0 + n) ^ 2) by OK.
+      apply Rmult_le_compat_neg_l; OK.
+      apply pow_incr; OK.
+      split; OK.
+      rewrite Rplus_0_l; apply pos_INR.
+    }
+    { intros n.
+      apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+      intros ??.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    }
+  Qed.
 
   Lemma Norm2_nn : 0 < Norm2.
   Proof.
@@ -404,13 +423,6 @@ Section credits.
   Qed.
 
 
-  Lemma G2_f_ex_seriesC {F} : ex_seriesC (G2_f F).
-  Proof.
-    rewrite /G2_f.
-    (* Possibly easest to just exchange the limits *)
-    rewrite -ex_seriesC_nat.
-    (* Search ex_seriesC "nat". *)
-  Admitted.
 
   Lemma G2_CreditV_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) :
     G2_CreditV F <= M.
@@ -434,24 +446,119 @@ Section credits.
         { funexti. rewrite RInt_Rmult'; OK. apply G2_exRInt.  }
         apply ex_seriesC_scal_r.
         rewrite /G2_μ.
-
-        (* Generalize this for continuous arguments *)
-
-        admit.
+        apply (ex_seriesC_RInt (fun n => exp (- (0 + n) ^ 2 / 2) * / Norm2)); OK.
+        { intros ???.
+          apply Rmult_le_pos; OK.
+          { apply Rexp_nn. }
+          apply Rlt_le.
+          apply Rinv_0_lt_compat.
+          apply Norm2_nn.
+        }
+        { apply ex_seriesC_scal_r. eapply Norm2_ex'. OK. }
+        { intros ???.
+          rewrite Rabs_right.
+          2: { apply Rle_ge.
+               rewrite Rdiv_def.
+               apply Rmult_le_pos; [apply Rexp_nn|].
+               apply Rlt_le.
+               apply Rinv_0_lt_compat.
+               apply Norm2_nn.
+          }
+          rewrite Rdiv_def.
+          apply Rmult_le_compat; OK.
+          { apply Rexp_nn. }
+          { apply Rlt_le.
+            apply Rinv_0_lt_compat.
+            apply Norm2_nn.
+          }
+          apply exp_mono.
+          replace (- (x + n) ^ 2 / 2) with ((-1/2) * (x + n) ^ 2) by OK.
+          replace (- (0 + n) ^ 2 / 2) with ((-1/2) * (0 + n) ^ 2) by OK.
+          apply Rmult_le_compat_neg_l; OK.
+          apply pow_incr; OK.
+          split; OK.
+          rewrite Rplus_0_l.
+          apply pos_INR.
+        }
+        { intros ?.
+          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros z Hz.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
       }
     }
     rewrite (SeriesC_ext _ (λ k : nat, (RInt (λ x : R, G2_μ k x) 0 1) * M)); last first.
-    { intros n.
-      rewrite RInt_Rmult'; OK.
-      apply G2_exRInt.
-    }
+    { intros n. rewrite RInt_Rmult'; OK. apply G2_exRInt. }
     rewrite SeriesC_scal_r.
     rewrite -{2}(Rmult_1_l M).
     apply Rmult_le_compat_r; OK.
     rewrite /G2_μ.
+    rewrite SeriesC_Series_nat.
+
     (* If I can exchange the limits here, then the inner series becomes 1, and the outter integral becomes
        the integral of 1 from 0 to 1. *)
+    rewrite (FubiniIntegralSeries_Strong (fun n => exp (- (0 + n) ^ 2 / 2) / Norm2)).
+    { replace (λ x : R, Series.Series (λ n' : nat, exp (- (x + n') ^ 2 / 2) / Norm2))
+        with (λ x : R, scal (/ Norm2) (SeriesC (λ n' : nat, exp (- (x + n') ^ 2 / 2) ))).
+      2: { funexti. rewrite /scal//=/mult//= Rmult_comm. rewrite SeriesC_Series_nat. by rewrite Series.Series_scal_r. }
+      rewrite RInt_scal.
+      2: { apply  ExpAddSeries_RInt. }
+      right.
+      Opaque pow.
+      rewrite /scal//=/mult//=; OK.
+      rewrite /Norm2.
+      rewrite Rinv_l; OK.
+      have X := Norm2_nn.
+      unfold Norm2  in X.
+      OK.
+      Transparent pow.
+    }
+    { rewrite ex_seriesC_nat.
+      replace (λ n : nat, exp (- (0 + n) ^ 2 / 2) / Norm2) with (λ n : nat, exp (- (0 + n) ^ 2 / 2) * / Norm2).
+      { apply ex_seriesC_scal_r.
+        apply Norm2_ex'.
+        OK.
+      }
+      funexti.
+      by rewrite Rdiv_def.
+    }
+    { intros ???.
+      rewrite Rabs_right.
+      2: {
+        apply Rle_ge.
+        rewrite Rdiv_def.
+        apply Rmult_le_pos; first apply Rexp_nn.
+        apply Rlt_le.
+        apply Rinv_0_lt_compat.
+        apply Norm2_nn.
+      }
+      do 2 rewrite Rdiv_def.
+      apply Rmult_le_compat_r.
+      { apply Rlt_le. apply Rinv_0_lt_compat. apply Norm2_nn. }
+      apply exp_mono.
+      replace (- (x + n) ^ 2 * / 2) with ((-1 / 2) * (x + n) ^ 2) by OK.
+      replace (Rdiv (Ropp (pow (Rplus (IZR Z0) (INR n)) (Datatypes.S (Datatypes.S O)))) (IZR (Zpos (xO xH)))) with ((-1 / 2) * (0 + n) ^ 2) by OK.
+      apply Rmult_le_compat_neg_l; OK.
+      apply pow_incr; OK.
+      split; OK.
+      { rewrite Rplus_0_l; apply pos_INR. }
+    }
+    { intros n.
+      apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+      intros ??.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    }
+  Qed.
+
+  Lemma G2_f_ex_seriesC {F} : ex_seriesC (G2_f F).
+  Proof.
+    rewrite /G2_f.
+    rewrite /G2_g/G2_s.
+    eapply (ex_seriesC_RInt (fun n => exp (- 1 * (2 * n + 1) / 2))). (* idk *)
   Admitted.
+
 
   Lemma G2_g_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) {r t} (Ht : 0 <= t <= 1) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) : G2_g F r t <= M.
   Proof.
