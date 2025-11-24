@@ -136,14 +136,12 @@ Section pure_exec.
   Global Instance pure_if_true e1 e2 :
     PureExec True 1 (If (Val $ LitV $ LitBool true) e1 e2) e1.
   Proof. intros _. apply nsteps_once, pure_head_step_pure_step; constructor; try solve_exec_safe.
-         - apply IfTrueS. by apply urn_subst_equal_obv.
          - simpl. intros. rewrite bool_decide_eq_true_2; first rewrite dret_1_1//.
            by apply urn_subst_equal_obv.
   Qed.
   Global Instance pure_if_false e1 e2 :
     PureExec True 1 (If (Val $ LitV  $ LitBool false) e1 e2) e2.
   Proof. intros _. apply nsteps_once, pure_head_step_pure_step; constructor; try solve_exec_safe.
-         - apply IfFalseS. by apply urn_subst_equal_obv.
          - simpl. intros σ1. rewrite bool_decide_eq_false_2; first rewrite bool_decide_eq_true_2; first rewrite dret_1_1//.
            + by apply urn_subst_equal_obv.
            + intros H. unshelve epose proof urn_subst_equal_obv σ1 false _ as H'; first done.

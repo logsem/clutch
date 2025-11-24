@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Coq Require Import Reals Psatz ClassicalEpsilon.
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
@@ -573,6 +573,28 @@ Fixpoint base_lit_type_check (bl:base_lit) :=
   end
 .
 
+(* Definition well_formed_expr (e:expr) := *)
+(*   match e with *)
+(*   | Val v => _ *)
+(*   | Var x => true *)
+(*   | Rec f x e => well_formed_expr e *)
+(*   | App e1 e2 => well_formed_expr e1 && well_formed_expr e2 *)
+(*   | UnOp op e => _ *)
+(*   | BinOp op e1 e2 => _ *)
+(*   | If e0 e1 e2 => _ *)
+(*   | Pair e1 e2 => _ *)
+(*   | Fst e => _ *)
+(*   | Snd e => _ *)
+(*   | InjL e => _ *)
+(*   | InjR e => _ *)
+(*   | Case e0 e1 e2 => _ *)
+(*   | AllocN e1 e2 => _ *)
+(*   | Load e => _ *)
+(*   | Store e1 e2 => _ *)
+(*   | Rand e => _ *)
+(*   | DRand e => _ *)
+(*   end *)
+
 
 (** The stepping relation *)
 Definition un_op_eval (op : un_op) (v : val) : option val :=
@@ -1024,6 +1046,9 @@ Fixpoint urn_subst (f: gmap loc nat) (bl : base_lit) : option base_lit :=
                     )
   end.
 
+Definition urns_support_set (m:gmap loc urn):=
+  filter (λ l, m!!l≠Some ∅) (dom m).
+
 Definition urns_f_valid (m : gmap loc urn) (f:gmap loc nat) :=
   forall l, match f !! l with
        | Some x =>
@@ -1252,6 +1277,22 @@ Proof.
   all: apply elem_of_cons; naive_solver.
 Qed.
 
+Lemma urn_subst_equal_epsilon_correct σ bl (e:∃ N : Z, urn_subst_equal σ bl (LitInt N)):
+   urn_subst_equal σ bl (LitInt (epsilon e)).
+Proof.
+  by pose proof epsilon_correct _ e as H.
+Qed.
+
+Lemma urn_subst_equal_epsilon_unique σ bl (N:Z) (e:∃ N : Z, urn_subst_equal σ bl (LitInt N)):
+  urn_subst_equal σ bl (LitInt N) -> epsilon e = N.
+Proof.
+  pose proof epsilon_correct _ e as H.
+  intros H'.
+  eapply urn_subst_equal_unique in H; last apply H'.
+  by simplify_eq.
+Qed. 
+
+
 Definition is_simple_base_lit bl:=
   (match bl with
   | LitInt _ | LitBool _ |LitLoc _ | LitUnit => true
@@ -1265,6 +1306,8 @@ Proof.
   intros ??.
   by destruct bl.
 Qed.
+
+Global Hint Resolve urn_subst_equal_obv : core.
 
 Lemma urn_subst_equal_obv_neq σ bl bl':
   (urn_subst_equal σ bl bl') -> bl≠bl' -> is_simple_base_lit bl = true ->False .
@@ -1355,13 +1398,22 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
         | None => dzero
       end
   (* Uniform sampling from [0, 1 , ..., N] *)
-  | Rand (Val (LitV (LitInt N))) =>
-      dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N))
-  | DRand (Val (LitV (LitInt N))) =>
-      let l := fresh_loc σ1.(urns) in
-      let N' := Z.to_nat N in
-      let s := list_to_set (seq 0 (N'+1)) in
-      dret (Val $ LitV $ LitLbl l, state_upd_urns <[l:=s]> σ1)
+  | Rand (Val (LitV bl)) =>
+      match excluded_middle_informative (∃ (N:Z), urn_subst_equal σ1 bl (LitInt N)) with
+      | left P => let N := epsilon P in
+                 dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N))
+      | _ => dzero
+      end 
+  | DRand (Val (LitV bl)) =>
+      match excluded_middle_informative (∃ (N:Z), urn_subst_equal σ1 bl (LitInt N)) with
+      | left P =>
+          let N := epsilon P in
+          let l := fresh_loc σ1.(urns) in
+          let N' := Z.to_nat N in
+          let s := list_to_set (seq 0 (N'+1)) in
+          dret (Val $ LitV $ LitLbl l, state_upd_urns <[l:=s]> σ1)
+      | _ => dzero
+      end 
   (* (* Since our language only has integers, we use Z.to_nat, which maps positive *)
   (*    integers to the corresponding nat, and the rest to 0. We sample from *)
   (*    [dunifP N = dunif (1 + N)] to avoid the case [dunif 0 = dzero]. *) *)
@@ -1478,14 +1530,16 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   σ.(heap) !! l = Some v →
   head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
     (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
-| RandS z N (n : fin (S N)) σ:
+| RandS z N bl (n : fin (S N)) σ:
+  urn_subst_equal σ bl (LitInt z) ->
   N = Z.to_nat z →
-  head_step_rel (Rand (Val $ LitV $ LitInt z)) σ (Val $ LitV $ LitInt n) σ
-| DRandS z N σ l s:
+  head_step_rel (Rand (Val $ LitV bl)) σ (Val $ LitV $ LitInt n) σ
+| DRandS z N bl σ l s:
+  urn_subst_equal σ bl (LitInt z) ->
   l = fresh_loc σ.(urns) →
   N = Z.to_nat z →
   s = list_to_set (seq 0 (N+1)) ->
-  head_step_rel (DRand (Val $ LitV $ LitInt z)) σ (Val $ LitV $ LitLbl l) (state_upd_urns <[l:=s]> σ).
+  head_step_rel (DRand (Val $ LitV bl)) σ (Val $ LitV $ LitLbl l) (state_upd_urns <[l:=s]> σ).
 (* | AllocTapeS z N σ l : *)
 (*   l = fresh_loc σ.(tapes) → *)
 (*   N = Z.to_nat z → *)
@@ -1514,7 +1568,7 @@ Global Hint Constructors head_step_rel : head_step.
    unconstrained. *)
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) ) _ _ _) =>
-         eapply (RandS _ _ 0%fin) : head_step.
+         eapply (RandS _ _ _ 0%fin) : head_step.
 (* Global Hint Extern 1 *)
 (*   (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) => *)
 (*          eapply (RandTapeEmptyS _ _ _ 0%fin) : head_step. *)
@@ -1545,9 +1599,19 @@ Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
 Proof.
   split.
   - intros ?. destruct e1; inv_head_step; eauto with head_step.
+    + eapply RandS; last done.
+      apply urn_subst_equal_epsilon_correct.
+    + eapply DRandS; last done; try done.
+      apply urn_subst_equal_epsilon_correct.
   - inversion 1; simplify_map_eq/=; repeat try case_bool_decide; simplify_eq; try by solve_distr.
-    exfalso.
-    assert (LitBool true ≠ LitBool false) as H' by done; (apply H'; by eapply urn_subst_equal_unique).
+    + exfalso.
+      assert (LitBool true ≠ LitBool false) as H' by done; (apply H'; by eapply urn_subst_equal_unique).
+    + case_match; last (exfalso; naive_solver).
+      erewrite urn_subst_equal_epsilon_unique; last done.
+      solve_distr.
+    + case_match; last (exfalso; naive_solver).
+      erewrite urn_subst_equal_epsilon_unique; last done.
+      solve_distr.
 Qed.
 
 (* Lemma state_step_support_equiv_rel σ1 α σ2 : *)
@@ -1611,6 +1675,7 @@ Proof.
   intros [[] Hs%head_step_support_equiv_rel].
   inversion Hs;
     repeat (simplify_map_eq/=; solve_distr_mass || case_match; try (case_bool_decide; done)).
+  all: exfalso; naive_solver.
 Qed.
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
