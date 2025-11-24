@@ -79,7 +79,9 @@ Section credits.
   Qed.
 
   Theorem NegExp_CreditV_ub {F L M} (HF : ∀ x, 0 <= F x <= M) : NegExp_CreditV F L <= M.
-  Proof. Admitted.
+  Proof.
+    rewrite /NegExp_CreditV.
+  Admitted.
 
 
   Local Definition hx (F : R → R) (x : R) (L : nat) : nat → R := fun z =>

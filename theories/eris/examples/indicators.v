@@ -1856,6 +1856,21 @@ Proof.
     rewrite Heq; exact Py.
   Qed.
 
+  Lemma filterlim_RInt_gen {F : R → R_CompleteNormedModule} {M : R} :
+    (∀ b, ex_RInt F M b) →
+    RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) =
+    iota (fun IF : R => filterlim (λ b : R, RInt F M b) (Rbar_locally Rbar.p_infty) (locally IF)).
+  Proof.
+    intros ?.
+    rewrite /RInt_gen.
+    f_equal.
+    apply functional_extensionality.
+    intros IF.
+    apply propositional_extensionality.
+    split.
+    { by apply filterlim_is_RInt_gen. }
+    { by apply is_RInt_gen_filterlim. }
+  Qed.
 
   Lemma RInt_gen_pos_ex {F M}
     (Hpos : forall x, 0 <= F x)
@@ -1908,12 +1923,44 @@ End Lib.
 
 
 
-
-
-
-
 Section FubiniAx.
 
+  Import Hierarchy.
+
+  (* Current best condition for Fubini's theorem between definite integrals:
+     Continuity on a rectangle.
+     In fact, this implies boundedness, but we will not use this. *)
+  Definition FubiniCondition (f : R → R → R_CompleteNormedModule) (xa xb ya yb : R) : Prop := forall x y,
+    Rmin xa xb <= x <= Rmax xa xb →
+    Rmin ya yb <= y <= Rmax ya yb →
+    Continuity2 (uncurry f) x y.
+
+  (* FubiniCondition implies integrability along any vertical line *)
+  Theorem FubiniCondition_ex_RInt_x {f xa xb ya yb} :
+    FubiniCondition f xa xb ya yb →
+    ∀ y, Rmin ya yb <= y <= Rmax ya yb → ex_RInt (fun x => f x y) xa xb.
+  Proof. Admitted.
+
+  (* FubiniCondition implies integrability along any horizontal line *)
+  Theorem FubiniCondition_ex_RInt_y {f xa xb ya yb} :
+    FubiniCondition f xa xb ya yb →
+    ∀ x, Rmin xa xb <= x <= Rmax xa xb → ex_RInt (fun y => f x y) ya yb.
+  Proof. Admitted.
+
+  Axiom Fubini_ex_x : ∀ {f xa xb ya yb}, FubiniCondition f xa xb ya yb →
+    ex_RInt (fun x => RInt (fun y => f x y) ya yb) xa xb.
+
+  Axiom Fubini_ex_y : ∀ {f xa xb ya yb}, FubiniCondition f xa xb ya yb →
+    ex_RInt (fun y => RInt (fun x => f x y) xa xb) ya yb.
+
+  Axiom Fubini_eq : ∀ {f xa xb ya yb}, FubiniCondition f xa xb ya yb →
+    RInt (fun x => RInt (fun y => f x y) ya yb) xa xb =  RInt (fun y => RInt (fun x => f x y) xa xb) ya yb.
+
+End FubiniAx.
+
+(* Reduction: This implies Fubini's theorem holds for step functions by Chasales theorem *)
+
+(*
   (* Continuity.continuity_2d_pt_filterlim ???? *)
   Definition IsFubiniCoreRR (f : R → R → R) : Prop :=
     ∀ x y, Continuity.continuity_2d_pt f x y.
@@ -1936,8 +1983,77 @@ Section FubiniAx.
   (* Generalized: f is a finite sum of rectangle functions *)
   Definition IsFubiniRR (f : R → R → R) : Prop :=
     ∃ L, f = fsum2 (RectFun_RR <$> L) ∧ Forall RectFun_continuity L.
+    *)
+
+(* Reduction: This implies Fubini's theorem holds for improper integrals? *)
+
+Section FubiniImproper.
+  Import Hierarchy.
+
+  (* FubiniImproper_ex *)
+  Theorem FubiniImproper_ex_x {f xa ya yb} (H : ∀ xb, FubiniCondition f xa xb ya yb) (HInt : True) :
+    ex_RInt_gen (fun x => RInt (fun y => f x y) ya yb) (at_point xa) (Rbar_locally Rbar.p_infty).
+  Proof.
+    unfold ex_RInt_gen.
+    suffices Hlim : ∃ l, filterlim (λ b : R, RInt (λ x : R, RInt (λ y : R, f x y) ya yb) xa b) (Rbar_locally Rbar.p_infty) (locally l).
+    { destruct Hlim as [l Hl]; exists l.
+      apply is_RInt_gen_filterlim; [|exact Hl].
+      intros b.
+      apply Fubini_ex_x.
+      apply H.
+    }
+    (* Side condition, the integrals needs to be finite? Is there a general theorem I can prove here? *)
+    admit.
+  Admitted.
+
+  Theorem FubiniImproper_ex_y {f xa ya yb} (H : ∀ xb, FubiniCondition f xa xb ya yb) (HInt : True) :
+    ex_RInt (fun y => (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty))) ya yb.
+  Proof.
+    unfold ex_RInt.
+    suffices Hlim : ∃ l, is_RInt (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF))) ya yb l.
+    { destruct Hlim as [l Hl]; exists l.
+      eapply is_RInt_ext; [|exact Hl].
+      intros y Hy.
+      symmetry; apply filterlim_RInt_gen.
+      intros xb.
+      apply (@FubiniCondition_ex_RInt_x f xa xb ya yb (H xb) y).
+      lra.
+    }
+    (*
+    Search RInt_gen iota.
+    Check (iota (is_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty))).
+    Search RInt_gen.
+    Check filterlim.
+    *)
+  Admitted.
+
+  Theorem FubiniImproper_eq {f xa ya yb} (H : ∀ xb, FubiniCondition f xa xb ya yb)
+    (HInt : True) :
+    RInt_gen (fun x => RInt (fun y => f x y) ya yb) (at_point xa) (Rbar_locally Rbar.p_infty) =
+    RInt (fun y => (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty))) ya yb.
+  Proof.
+    rewrite filterlim_RInt_gen.
+    2: {
+      intros xb.
+      apply Fubini_ex_x.
+      apply H.
+    }
+    replace (RInt (λ y : R, RInt_gen (λ x : R, f x y) (at_point xa) (Rbar_locally Rbar.p_infty)) ya yb)
+       with (RInt (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF))) ya yb).
+    2: {
+      apply RInt_ext.
+      intros y Hy.
+      symmetry; apply filterlim_RInt_gen.
+      intros xb.
+      apply (@FubiniCondition_ex_RInt_x f xa xb ya yb (H xb) y).
+      lra.
+    }
+    apply @iota_filterlim_locally.
+    { apply Proper_StrongProper. apply Rbar_locally_filter. }
+    (* The exchange argument *)
+    (* Exchange1 : Exchange a filterlim and an RInt, provided the arguments converge uniformly *)
 
 
-End FubiniAx.
+  Admitted.
 
-
+End FubiniImproper.
