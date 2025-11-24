@@ -31,6 +31,7 @@ Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
   | If e0 e1 e2 | Case e0 e1 e2 =>
      is_closed_expr X e0 && is_closed_expr X e1 && is_closed_expr X e2
   | AllocTape e => is_closed_expr X e
+  | Laplace e1 e2 e3 => is_closed_expr X e1 && is_closed_expr X e2 && is_closed_expr X e3
   | Tick e => is_closed_expr X e
   end
 with is_closed_val (v : val) : bool :=
@@ -62,6 +63,7 @@ Fixpoint subst_map (vs : gmap string val) (e : expr)  : expr :=
   | Store e1 e2 => Store (subst_map vs e1) (subst_map vs e2)
   | AllocTape e => AllocTape (subst_map vs e)
   | Rand e1 e2 => Rand (subst_map vs e1) (subst_map vs e2)
+  | Laplace e1 e2 e3 => Laplace (subst_map vs e1) (subst_map vs e2) (subst_map vs e3)
   | Tick e => Tick (subst_map vs e)
   end.
 
@@ -1467,7 +1469,13 @@ Inductive prob_head_step_pred : expr -> state -> Prop :=
   prob_head_step_pred (rand(#lbl:α) #z) σ
 | RandNoTapePSP (N : nat) σ z :
   N = Z.to_nat z →
-  prob_head_step_pred (rand #z) σ.
+  prob_head_step_pred (rand #z) σ
+| LaplacePSP (num den loc : Z) σ :
+  (0 < IZR num / IZR den) →
+  prob_head_step_pred (Laplace #num #den #loc) σ
+| LaplacePSP' (num den loc : Z) σ :
+  (not (0 < IZR num / IZR den)) →
+  prob_head_step_pred (Laplace #num #den #loc) σ.
 
 Definition head_step_pred e1 σ1 :=
   det_head_step_pred e1 σ1 ∨ prob_head_step_pred e1 σ1.
@@ -1535,7 +1543,7 @@ Proof.
   split.
   - intros [Hdet | Hdet];
       inversion Hdet; simplify_eq; do 2 eexists; try (by econstructor).
-    Unshelve. all : apply 0%fin.
+    Unshelve. 4: apply 0%Z. all: apply 0%fin.
   - intros (?&?& H). inversion H; simplify_eq;
       (try by (left; econstructor));
       (try by (right; econstructor)).
@@ -1600,6 +1608,7 @@ Proof.
       by apply not_elem_of_dom_2 in H5.
     + rewrite lookup_insert_ne // in H6.
       rewrite H5 in H6. done.
+  - rewrite Hz. apply dmap_dzero.
 Qed.
 
 Lemma det_head_step_upd_tapes N e1 σ1 e2 σ2 α z zs :

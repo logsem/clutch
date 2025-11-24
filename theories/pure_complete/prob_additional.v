@@ -342,6 +342,3 @@ Proof.
   - intros. simpl. case_bool_decide; real_solver.
   - intros. simpl. case_bool_decide; case_bool_decide; try real_solver. 
 Qed.
-
-
-

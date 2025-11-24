@@ -430,7 +430,6 @@ Section Approxis.
         "(ε & rf & spec & rp & %lres & %vres & %list_vres & res & res') HΦ".
       rewrite /loop/loop'.
       tp_pures.
-      1: by (simpl ; auto).
       wp_pures. iApply "HΦ". iModIntro. iExists _,_. iFrame "rf rp".
       iFrame. by iExists _.
     - iIntros (Hn Hlen HNoDup Hsubseteq Hdom Hdom' Hε Φ)
@@ -438,7 +437,6 @@ Section Approxis.
       rewrite /loop/loop'.
       wp_pures.
       tp_pures.
-      1: by (simpl ; auto).
       rewrite -/(loop rf res) -/(loop' rp res').
       iMod (ec_zero) as "H0".
       rewrite /get_card_input...
@@ -593,14 +591,13 @@ Section Approxis.
         "(ε & rf & spec & rp & %lres & %vres & %list_vres & res & res') HΦ".
       rewrite /loop/loop'.
       tp_pures.
-      1: by (simpl ; auto).
       wp_pures. iApply "HΦ". iModIntro. iExists _,_. iFrame "spec rf rp".
       iFrame. by iExists _.
     - iIntros (Hn Hlen HNoDup Hsubseteq Hdom Hdom' Hε Φ)
         "(ε & rf & spec & rp & %lres & %vres & %list_vres & res & res') HΦ".
       rewrite /loop/loop'.
       wp_pures.
-      tp_pures ; [by (simpl ; auto)|].
+      tp_pures.
       rewrite -/(loop rf res') -/(loop rp res).
       iMod (ec_zero) as "H0".
       rewrite /get_card_input...

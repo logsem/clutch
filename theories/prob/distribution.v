@@ -1506,7 +1506,7 @@ Section dmap.
     - rewrite prob_dret_false; auto.
       real_solver.
   Qed.
-    
+
 End dmap.
 
 Lemma dbind_dmap_inj_rearrange `{Countable A}`{Countable B} {C:Type} `{Countable C} `{Countable D} (μ : distr A) (μ' : distr C) (f : A -> B) (g: (B*C) -> D) :
@@ -2659,7 +2659,7 @@ Section laplace.
   Program Definition laplace' ε : distr (Z) :=
     MkDistr (λ z, laplace_f ε z / SeriesC (λ z, laplace_f ε z)) _ _ _.
   Next Obligation.
-    intros. rewrite /laplace_f.
+    intros.
     apply Rdiv_le_0_compat.
     - left. apply exp_pos.
     - eapply Rlt_le_trans; last eapply (SeriesC_ge_elem _ 0%Z).
@@ -2733,6 +2733,55 @@ Section laplace.
       erewrite (SeriesC_ext _ (λ b, if bool_decide (b=n-m)%Z then laplace' ε b else 0)); first by rewrite SeriesC_singleton_dependent.
       intros. repeat case_bool_decide; try lia; done.
   Qed.
+
+  Lemma laplace_mass ε loc :
+    SeriesC (laplace ε loc) = 1.
+  Proof.
+    rewrite /laplace/pmf/laplace'.
+    rewrite SeriesC_scal_r.
+    cut (SeriesC (λ z0 : Z, laplace_f ε (z0 - loc)) = SeriesC (λ z1 : Z, laplace_f ε z1)).
+    { intros ->. apply Rdiv_diag.
+      cut (0 < SeriesC (λ z0 : Z, laplace_f ε z0)) ; [lra|].
+      opose proof (ex_seriesC_laplace_f ε).
+      rewrite /laplace_f/laplace_f_nat.
+      rewrite -(@dzero_mass Z _ _).
+      apply SeriesC_lt.
+      -- intros. split.
+         ++ rewrite dzero_0. done.
+         ++ rewrite dzero_0. left. apply exp_pos.
+      -- simpl. exists 0%Z. rewrite dzero_0. apply exp_pos.
+      -- done.
+    }
+    apply SeriesC_translate.
+    { intros. rewrite /laplace_f/laplace_f_nat. left. apply exp_pos. }
+    apply ex_seriesC_laplace_f.
+  Qed.
+
+  Definition laplace_rat (num den loc : Z) (εpos : (0 < IZR num / IZR den)%R) : distr Z
+    := laplace (mkposreal (IZR num / IZR den) εpos) loc.
+
+  Lemma laplace_rat_pos (num den loc : Z) (εpos : (0 < IZR num / IZR den)%R) z :
+    laplace_rat num den loc εpos z > 0.
+  Proof.
+    rewrite /laplace_rat. rewrite /laplace. rewrite /pmf. rewrite /laplace'.
+    apply Rdiv_lt_0_compat.
+    - rewrite /laplace_f/laplace_f_nat. apply exp_pos.
+    - pose proof (ex_seriesC_laplace_f {| cond_pos := εpos |}).
+      rewrite /laplace_f/laplace_f_nat.
+      rewrite -(@dzero_mass Z _ _). apply SeriesC_lt.
+      + intros. split.
+        * rewrite dzero_0. done.
+        * rewrite dzero_0. left. apply exp_pos.
+      + simpl. exists 0%Z. rewrite dzero_0. apply exp_pos.
+      + assumption.
+  Qed.
+
+  Corollary laplace_rat_mass num den loc (εpos : (0 < IZR num / IZR den)%R) :
+    SeriesC (laplace_rat num den loc εpos) = 1.
+  Proof.
+    apply laplace_mass.
+  Qed.
+
 End laplace.
 
 Ltac inv_distr :=
@@ -2754,6 +2803,7 @@ Ltac solve_distr :=
         apply dmap_pos; eexists; (split; [done|]); try done
     | |- (dunifP _).(pmf) _ > 0 => apply dunifP_pos
     | |- (dunifv _ _).(pmf) _ > 0 => apply dunifv_pos
+    | |- (laplace_rat _ _ _ _).(pmf) _ > 0 => apply laplace_rat_pos
     end.
 
 Ltac solve_distr_mass :=
@@ -2764,6 +2814,7 @@ Ltac solve_distr_mass :=
   | |- SeriesC (dunif _).(pmf) = 1 => rewrite dunif_mass //
   | |- SeriesC (dunifP _).(pmf) = 1 => rewrite dunifP_mass //
   | |- SeriesC (dunifv _ _).(pmf) = 1 => rewrite dunifv_mass //
+  | |- SeriesC (laplace_rat _ _ _ _).(pmf) = 1 => rewrite laplace_rat_mass //
   end .
 
 Ltac inv_dzero :=

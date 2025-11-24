@@ -33,6 +33,8 @@ Inductive SamplesOneTape : loc -> expr -> Prop :=
     SamplesOneTape t (Case e2 e3 e4)
   | SamplesOneTapeRec f x t e2 (H : SamplesOneTape t e2) :
     SamplesOneTape t (Rec f x e2)
+  (* | SamplesOneTapeLaplace  t e2 e3 e4 (H1 : SamplesOneTape t e2) (H2 : SamplesOneTape t e3) (H3 : SamplesOneTape t e4) :
+       SamplesOneTape t (Laplace e2 e3 e4) *)
   | SamplesOneTapeApp t e2 e3 (H : SamplesOneTape t e2) (H1 : SamplesOneTape t e3) :
     SamplesOneTape t (App e2 e3)
   | SamplesOneTapeTick t e2 (H : SamplesOneTape t e2) :
@@ -70,6 +72,9 @@ Inductive SamplesOneTapeItem (t : loc) : ectx_item -> Prop :=
   | SamplesOneTapeItemInjLCtx : SamplesOneTapeItem t InjLCtx
   | SamplesOneTapeItemInjRCtx : SamplesOneTapeItem t InjRCtx
   | SamplesOneTapeItemCaseCtx e1 e2 : SamplesOneTape t e1 -> SamplesOneTape t e2 -> SamplesOneTapeItem t (CaseCtx e1 e2)
+  (* | SamplesOneTapeLaplaceNumCtx v1 v2 : SamplesOneTapeV t v1 -> SamplesOneTapeV t v2 -> SamplesOneTapeItem t (LaplaceNumCtx v1 v2)
+     | SamplesOneTapeLaplaceDenCtx e1 v3 : SamplesOneTape t e1 -> SamplesOneTapeV t v3 -> SamplesOneTapeItem t (LaplaceDenCtx e1 v3) *)
+  (* | SamplesOneTapeLaplaceLocCtx  *)
   | SamplesOneTapeItemTickCtx : SamplesOneTapeItem t TickCtx.
 
 Lemma SamplesOneTape_fill_item Ki e l :

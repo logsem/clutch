@@ -47,6 +47,14 @@ Fixpoint at_redex {A} (f : expr → A) (e : expr) : option A :=
       | _          => at_redex f e2
       end
   | Tick e         => noval e
+  | Laplace e1 e2 e3 =>
+      match e3 with
+      | Val v3 => match e2 with
+                  | Val v2 => noval e1
+                  | _ => at_redex f e2
+                  end
+      | _ => at_redex f e3
+      end
   | _              => None
   end.
 

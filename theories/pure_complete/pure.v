@@ -31,7 +31,8 @@ Fixpoint is_pure (e : expr) :=
   | InjL e' => is_pure e'
   | InjR e' => is_pure e'
   | Case e1 e2 e3 => is_pure e1 && is_pure e2 && is_pure e3
-  | Rand e' (LitV (LitUnit))=> is_pure e'
+  | Rand e' (LitV (LitUnit)) => is_pure e'
+  | Laplace e1 e2 e3 => is_pure e1 && is_pure e2 && is_pure e3
   | AllocN _ _ | Load _ | Store _ _ | AllocTape _ | Rand _ _ => false
   | Val v => is_pureV v
   | Var _ => true
@@ -89,6 +90,11 @@ Inductive isPure : expr → Prop :=
   | isPure_Rand_Unit : ∀ op,
       isPure op ->
       isPure (Rand op (LitV LitUnit))
+| isPure_Laplace : ∀ e1 e2 e3,
+    isPure e1 →
+    isPure e2 →
+    isPure e3 →
+    isPure (Laplace e1 e2 e3)
   | isPure_Val : ∀ v,
       isPureV v →
       isPure (Val v)
@@ -205,6 +211,9 @@ Definition is_pure_ectx (Ki : ectx_item) : bool :=
   | CaseCtx e1 e2 => is_pure e1 && is_pure e2
   | RandRCtx e => false
   | RandLCtx (LitV (LitUnit)) => true
+  | LaplaceNumCtx v2 v3 => is_pureV v2 && is_pureV v3
+  | LaplaceDenCtx e1 v3 => is_pure e1 && is_pureV v3
+  | LaplaceLocCtx e1 e2 => is_pure e1 && is_pure e2
   | AllocNLCtx _ | AllocNRCtx _ | LoadCtx | StoreLCtx _ | StoreRCtx _ 
   | AllocTapeCtx | RandLCtx _ => false
   | TickCtx => true
@@ -219,6 +228,7 @@ Proof.
   destruct Ki; inversion H0; 
   destruct e; inversion H; simpl; 
   try (rewrite H2); auto; try (rewrite H3); auto.
+  all: rewrite andb_true_r. all: by rewrite H2.
 Qed.
 
 Lemma is_pure_fill e Ki:
@@ -245,6 +255,8 @@ Proof.
   - inversion H2; subst; inversion H0; auto. inversion H1; subst; inversion H0; auto.
   - destruct e0; inversion H0; subst; auto.
     destruct e1; inversion H0; subst; auto.
+  - inversion H3; subst; auto; inversion H2; subst; inversion H1; subst; auto ; inversion H0.
+    all: auto.
 Qed.
 
 
@@ -326,6 +338,11 @@ Proof.
       destruct e4; try by inversion H1. destruct v; try by inversion H1.
       destruct l; try by inversion H1. destruct e3; try by inversion H2.
     }
+    {
+      destruct e5; try inversion H2; subst; simpl in *; auto; bool_solve.
+      destruct e4; try inversion H2; subst; simpl in *; auto; bool_solve.
+      destruct e3; try inversion H2; subst; simpl in *; auto; bool_solve.
+    }
   }
   eapply IHn.
   - apply Hde2.
@@ -403,11 +420,23 @@ Proof.
   destruct e0; inv_head_step; 
   try (rewrite dmap_dzero; by rewrite !dzero_0);
   try (rewrite !dmap_dret /fill_lift; apply (dret_cfg_eq _ e' σ1 σ2)). 
+  {  erewrite !dmap_comp.
+     rewrite /fill_lift. simpl.
+     replace ((λ '(e0, σ), (fill l e0, σ)) ∘ λ n0 : fin (S (Z.to_nat n)), (_, σ1)) with (λ n0 : fin (S (Z.to_nat n)), (fill l #n0, σ1)).
+     2: by apply functional_extensionality.
+     replace ((λ '(e0, σ), (fill l e0, σ)) ∘ λ n0 : fin (S (Z.to_nat n)), (_, σ2)) with (λ n0 : fin (S (Z.to_nat n)), (fill l #n0, σ2)).
+     2: by apply functional_extensionality.
+     rewrite !dmap_unfold_pmf.
+     apply SeriesC_ext.
+     intros. case_bool_decide; case_bool_decide; auto.
+     - inversion H. subst e'. contradiction.
+     - inversion H0. subst e'. contradiction.
+  }
   erewrite !dmap_comp.
   rewrite /fill_lift. simpl.
-  replace ((λ '(e0, σ), (fill l e0, σ)) ∘ λ n0 : fin (S (Z.to_nat n)), (_, σ1)) with (λ n0 : fin (S (Z.to_nat n)), (fill l #n0, σ1)).
+  replace ((λ '(e0, σ), (fill l e0, σ)) ∘ λ n0 : Z, (_, σ1)) with (λ n0 : Z, (fill l #n0, σ1)).
   2: by apply functional_extensionality.
-  replace ((λ '(e0, σ), (fill l e0, σ)) ∘ λ n0 : fin (S (Z.to_nat n)), (_, σ2)) with (λ n0 : fin (S (Z.to_nat n)), (fill l #n0, σ2)).
+  replace ((λ '(e0, σ), (fill l e0, σ)) ∘ λ n0 : Z, (_, σ2)) with (λ n0 : Z, (fill l #n0, σ2)).
   2: by apply functional_extensionality.
   rewrite !dmap_unfold_pmf.
   apply SeriesC_ext.

@@ -1978,6 +1978,20 @@ Section inj.
 
 End inj.
 
+Lemma SeriesC_translate f loc (fpos : ∀ z, 0 <= f z) (fex : ex_seriesC f) :
+  (SeriesC (λ z : Z, f (z + loc)) = SeriesC f)%Z.
+Proof.
+  opose proof (SeriesC_le_inj f (λ z, Some (z + loc))%Z _ _ _) as lb => //.
+  { intros ??? h h'. inversion h ; inversion h'. lia. }
+  simpl in lb.
+  opose proof (SeriesC_le_inj (λ z, f (z + loc))%Z (λ z, Some (z - loc))%Z _ _ _) as ub => //.
+  { intros ??? h h'. inversion h ; inversion h'. lia. }
+  1: apply ex_seriesC_inj => //.
+  { intros ?? h. inversion h. lia. }
+  simpl in ub.
+  setoid_rewrite Z.sub_simpl_r in ub. apply Rle_antisym => //.
+Qed.
+
 
 Section Inj_finite.
 

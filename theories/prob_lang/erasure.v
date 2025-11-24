@@ -4,7 +4,7 @@ From stdpp Require Import fin_maps fin_map_dom.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.common Require Import exec language ectx_language erasable.
 From clutch.prob_lang Require Import notation lang metatheory.
-From clutch.prob Require Import couplings couplings_app markov.
+From clutch.prob Require Import couplings couplings_app couplings_exp couplings_dp markov.
 
 Set Default Proof Using "Type*".
 Local Open Scope R.
@@ -269,6 +269,44 @@ Section erasure_helpers.
     apply IH; auto.
   Qed.
 
+  Local Lemma ind_case_laplace σ α K (M N : nat) z ns (num den loc : Z) :
+
+    N = Z.to_nat z →
+    tapes σ !! α = Some (M; ns) →
+
+  Rcoupl
+    (dmap (fill_lift K) (head_step (Laplace #num #den #loc) σ) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))
+    (dunifP M ≫=
+     λ n : fin (S M),
+       dmap (fill_lift K)
+         (head_step (Laplace #num #den #loc)
+               (state_upd_tapes <[α:=(M; ns ++ [n]) : tape]> σ))
+          ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))
+    eq.
+  Proof using m IH.
+    intros Hz Hα.
+    rewrite /head_step.
+    rewrite {1 2}/dmap.
+    erewrite (dbind_ext_right (dunifP M)); last first.
+    { intro.
+      rewrite {1 2}/dmap.
+      do 2 rewrite -dbind_assoc //. }
+    rewrite -/exec /=.
+    rewrite -!dbind_assoc -/exec.
+    erewrite (dbind_ext_right (dunifP M)); last first.
+    { intros n. rewrite -!dbind_assoc. done. }
+    rewrite dbind_comm.
+    eapply Rcoupl_dbind; [|apply Rcoupl_eq].
+    intros; simplify_eq.
+    do 2 rewrite dret_id_left.
+    erewrite (distr_ext (dunifP M ≫=_ )); last first.
+    { intros. apply dbind_pmf_ext; [|done..].
+      intros. rewrite !dret_id_left; done.
+    }
+    rewrite -dmap_dbind.
+    apply IH; auto.
+  Qed.
+
 End erasure_helpers.
 
 
@@ -323,6 +361,8 @@ Proof.
         -- by eapply ind_case_rand_empty.
         -- by eapply ind_case_rand_some_neq.
         -- by eapply ind_case_rand.
+        -- by eapply ind_case_laplace. Unshelve. exact 0%Z.
+        -- by eapply ind_case_laplace. Unshelve. exact 0%Z.
       * by eapply ind_case_dzero.
 Qed.
 
@@ -686,4 +726,122 @@ Proof.
   eapply ARcoupl_mon_grading; [done|].
   eapply (ARcoupl_dbind_adv_lhs' E2); [done|eauto|done| |done].
   intros [] [] ?. by eapply Hcont.
+Qed.
+
+Lemma Mcoupl_erasure_erasable_rhs e1 e1' ε ε' X2 σ1 σ1' μ1 μ1' R φ k m
+  (H0 : ε' + X2 <= ε)
+  (H : Mcoupl μ1 (μ1' ≫= λ σ2' : language.state prob_lang, pexec k (e1', σ2')) R ε')
+  (Hμ1 : erasable μ1 σ1)
+  (Hμ1' : erasable μ1' σ1')
+  (Hcpl : (∀ (σ2 : state) ρ2',
+              R σ2 ρ2'
+              → Mcoupl (exec m (e1, σ2)) (lim_exec ρ2') φ X2))
+  : Mcoupl (exec m (e1, σ1)) (lim_exec (e1', σ1')) φ ε.
+Proof.
+  rewrite -Hμ1. erewrite <-(erasable_pexec_lim_exec (Λ := prob_lang) _ _ _ _ Hμ1') => /=.
+  eapply Mcoupl_mon_grading. 2: eapply Mcoupl_dbind ; try done.
+  1: eauto.
+Qed.
+
+Lemma Mcoupl_erasure_erasable_lhs' (e1 e1' : expr) ε ε1 X2 σ1 σ1' μ1' R φ k m
+  (Hred : reducible (e1, σ1))
+  (H0 : ε1 + X2 <= ε)
+  (H : Mcoupl (prim_step e1 σ1) (μ1' ≫= λ σ2' : state, pexec k (e1', σ2')) R ε1)
+  (Hμ1' : erasable μ1' σ1')
+  (Hcpl : (∀ (e2 : expr) (σ2 : state) (e2' : expr) (σ2' : state),
+              R (e2, σ2) (e2', σ2')
+              → Mcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ X2))
+  : Mcoupl (prim_step e1 σ1 ≫= exec m) (lim_exec (e1', σ1')) φ ε.
+Proof.
+  erewrite <-(erasable_pexec_lim_exec (Λ := prob_lang) _ _ _ _ Hμ1') => /=.
+  eapply Mcoupl_mon_grading. 2: eapply Mcoupl_dbind ; try done.
+  1: eauto. intros [] []. apply Hcpl.
+Qed.
+
+
+Lemma DPcoupl_erasure_erasable_rhs e1 e1' ε ε1 ε2 δ δ1 δ2 σ1 σ1' μ1 μ1' R φ k m
+  (Hεsum : ε1 + ε2 <= ε)
+  (Hδ1 : 0 <= δ1)
+  (Hδ2 : 0 <= δ2)
+  (Hδsum : δ1 + δ2 <= δ)
+  (H : DPcoupl μ1 (μ1' ≫= λ σ2' : language.state prob_lang, pexec k (e1', σ2')) R ε1 δ1)
+  (Hμ1 : erasable μ1 σ1)
+  (Hμ1' : erasable μ1' σ1')
+  (Hcpl : (∀ (σ2 : state) ρ2',
+              R σ2 ρ2'
+              → DPcoupl (exec m (e1, σ2)) (lim_exec ρ2') φ ε2 δ2))
+  : DPcoupl (exec m (e1, σ1)) (lim_exec (e1', σ1')) φ ε δ.
+Proof.
+  rewrite -Hμ1. erewrite <-(erasable_pexec_lim_exec (Λ := prob_lang) _ _ _ _ Hμ1') => /=.
+  eapply DPcoupl_mon_grading; [apply Hεsum | apply Hδsum |].
+  eapply DPcoupl_dbind ; try done.
+Qed.
+
+
+Lemma DPcoupl_erasure_rewritable_rhs (e1 e1': expr) ε ε1 ε2 δ δ1 δ2 σ1 σ1' μ1 μ1' R φ m
+  (Hεsum : ε1 + ε2 <= ε)
+  (Hδ1 : 0 <= δ1)
+  (Hδ2 : 0 <= δ2)
+  (Hδsum : δ1 + δ2 <= δ)
+  (H : DPcoupl μ1 μ1' R ε1 δ1)
+  (Hμ1 : erasable μ1 σ1)
+  (Hμ1' : rewritable (e1', σ1') μ1')
+  (Hcpl : (∀ (σ2 : state) ρ2',
+              R σ2 ρ2'
+              → DPcoupl (exec m (e1, σ2)) (lim_exec ρ2') φ ε2 δ2))
+  : DPcoupl (exec m (e1, σ1)) (lim_exec (e1', σ1')) φ ε δ.
+Proof.
+  rewrite -Hμ1.
+  rewrite Hμ1'.
+  eapply DPcoupl_mon_grading; [apply Hεsum | apply Hδsum |].
+  eapply DPcoupl_dbind ; try done.
+Qed.
+
+
+Lemma DPcoupl_erasure_erasable_lhs' (e1 e1' : expr) ε ε1 ε2 δ δ1 δ2 σ1 σ1' μ1' R φ k m
+  (Hred : reducible (e1, σ1))
+  (Hεsum : ε1 + ε2 <= ε)
+  (Hδ1 : 0 <= δ1)
+  (Hδ2 : 0 <= δ2)
+  (Hδsum : δ1 + δ2 <= δ)
+  (H : DPcoupl (prim_step e1 σ1) (μ1' ≫= λ σ2' : state, pexec k (e1', σ2')) R ε1 δ1)
+  (Hμ1' : erasable μ1' σ1')
+  (Hcpl : (∀ (e2 : expr) (σ2 : state) (e2' : expr) (σ2' : state),
+              R (e2, σ2) (e2', σ2')
+              → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2 δ2))
+  : DPcoupl (prim_step e1 σ1 ≫= exec m) (lim_exec (e1', σ1')) φ ε δ.
+Proof.
+  erewrite <-(erasable_pexec_lim_exec (Λ := prob_lang) _ _ _ _ Hμ1') => /=.
+  eapply DPcoupl_mon_grading; [apply Hεsum | apply Hδsum |].
+  eapply DPcoupl_dbind ; try done.
+  intros [] []. apply Hcpl.
+Qed.
+
+
+Lemma DPcoupl_erasure_erasable_lhs_choice (e1 e1' : expr) ε ε1 ε2 ε1' ε2' δ δ1 δ2 δ1' σ1 σ1' μ1' P R R' φ k m
+  (Hred : reducible (e1, σ1))
+  (Hεsum : ε1 + ε2 <= ε)
+  (Hε'sum : ε1' + ε2' <= ε)
+  (Hδ1 : 0 <= δ1)
+  (Hδ2 : 0 <= δ2)
+  (Hδ1' : 0 <= δ1')
+  (Hδsum : δ1 + δ1' + δ2 <= δ)
+  (Hindep : (forall a a' b, P a -> ¬ P a' -> ¬(R a b /\ R' a' b)))
+  (H : DPcoupl (prim_step e1 σ1) (μ1' ≫= λ σ2' : state, pexec k (e1', σ2')) R ε1 δ1)
+  (H' : DPcoupl (prim_step e1 σ1) (μ1' ≫= λ σ2' : state, pexec k (e1', σ2')) R' ε1' δ1')
+  (Hμ1' : erasable μ1' σ1')
+  (Hcpl1 : (∀ (e2 : expr) (σ2 : state) (e2' : expr) (σ2' : state),
+              (P (e2, σ2) /\ R (e2, σ2) (e2', σ2'))
+              → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2 δ2))
+  (Hcpl2 : (∀ (e2 : expr) (σ2 : state) (e2' : expr) (σ2' : state),
+              (¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2'))
+              → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2' δ2))
+  : DPcoupl (prim_step e1 σ1 ≫= exec m) (lim_exec (e1', σ1')) φ ε δ.
+Proof.
+  erewrite <-(erasable_pexec_lim_exec (Λ := prob_lang) _ _ _ _ Hμ1') => /=.
+  eapply (DPcoupl_dbind_choice _ _ _ _ P _ _ _  ε1 ε2 δ1 δ2 ε1' ε2' δ1' ε δ); try done.
+  - intros (e, σ) (e', σ') (HP & HR).
+    by apply Hcpl1.
+  - intros (e, σ) (e', σ') (HP & HR).
+    by apply Hcpl2.
 Qed.
