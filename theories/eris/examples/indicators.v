@@ -1306,6 +1306,7 @@ Proof.
      *)
   Admitted.
 
+
   Lemma Exchange1 {f : nat → R → R_CompleteNormedModule} {a b : R} {F : R → R}
     (Hex : ∀ n, ex_RInt (f n) a b) (Hunif : filterlim f eventually (locally F)) :
     filterlim (λ n : nat, RInt (f n) a b) eventually (locally (RInt F a b)).
@@ -1313,6 +1314,18 @@ Proof.
     have H (n : nat) : is_RInt (f n) a b (RInt (f n) a b).
     { apply (RInt_correct (V := R_CompleteNormedModule)), Hex. }
     destruct (filterlim_RInt f a b eventually eventually_filter _ _ H Hunif) as [I [HL HF]].
+    rewrite (is_RInt_unique F a b I HF).
+    done.
+  Qed.
+
+  Lemma Exchange2 {f : R → R → R_CompleteNormedModule} {a b : R} {F : R → R}
+    (Hex : ∀ r, ex_RInt (f r) a b) (Hunif : filterlim f (Rbar_locally Rbar.p_infty) (locally F)) :
+    filterlim (λ r : R, RInt (f r) a b) (Rbar_locally Rbar.p_infty) (locally (RInt F a b)).
+  Proof.
+    have H (r : R) : is_RInt (f r) a b (RInt (f r) a b).
+    { apply (RInt_correct (V := R_CompleteNormedModule)), Hex. }
+    destruct (filterlim_RInt f a b (Rbar_locally Rbar.p_infty) (Rbar_locally_filter Rbar.p_infty) _ _ H Hunif)
+        as [I [HL HF]].
     rewrite (is_RInt_unique F a b I HF).
     done.
   Qed.
@@ -2050,8 +2063,29 @@ Section FubiniImproper.
     }
     apply @iota_filterlim_locally.
     { apply Proper_StrongProper. apply Rbar_locally_filter. }
-    (* The exchange argument *)
-    (* Exchange1 : Exchange a filterlim and an RInt, provided the arguments converge uniformly *)
+    (* Apply Definite/Definite Fubini *)
+    replace (λ xb : R, RInt (λ x : R, RInt (λ y : R, f x y) ya yb) xa xb)
+      with  (λ xb : R, RInt (λ y : R, RInt (λ x : R, f x y) xa xb) ya yb).
+    2: { apply functional_extensionality. intros xb. rewrite -Fubini_eq; done. }
+    apply (@Exchange2 (λ xb y : R, RInt (λ x : R, f x y) xa xb) ya yb
+      (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF)))).
+    { intros xb. apply Fubini_ex_y. apply H.  }
+
+    replace (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF)))
+       with (λ y : R, RInt_gen (λ x : R, f x y) (at_point xa) (Rbar_locally Rbar.p_infty)).
+    2: { apply functional_extensionality. intros y. apply filterlim_RInt_gen.
+         intros xb. apply (@FubiniCondition_ex_RInt_x f xa xb ya yb (H xb) y).
+         (* We can improve FubiniCondition to FubiniConditionU that applies on the entire x/y plane,
+            and requires that the function be zero outside of the rectangle.  *)
+         admit.
+    }
+
+    (* I think we can prove this with something like the Cauchy Critereon
+
+      A family of functions indexed by a real number r converges as the r → ∞
+      if for evey epsilon, there exists R such that the for every R' > R,
+      the sup of f on [R, R'] is bounded above by epsilon *)
+
 
 
   Admitted.
