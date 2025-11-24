@@ -12,6 +12,8 @@ Delimit Scope val_scope with V.
 
 Module d_prob_lang.
 
+  (** * Syntax *)
+  
 Inductive un_op : Set :=
   | NegOp | MinusUnOp.
 Inductive bin_op : Set :=
@@ -463,6 +465,7 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
 Definition subst' (mx : binder) (v : val) : expr → expr :=
   match mx with BNamed x => subst x v | BAnon => λ x, x end.
 
+(** * typing for well formness *)
 (** For the stepping relations for unop and binop, we check as follows
     - is it well typed, and has the right value? If not, dont step
     - are any of the arguments a delayed value? if yes, just combine them symbolically
@@ -573,29 +576,43 @@ Fixpoint base_lit_type_check (bl:base_lit) :=
   end
 .
 
-(* Definition well_formed_expr (e:expr) := *)
-(*   match e with *)
-(*   | Val v => _ *)
-(*   | Var x => true *)
-(*   | Rec f x e => well_formed_expr e *)
-(*   | App e1 e2 => well_formed_expr e1 && well_formed_expr e2 *)
-(*   | UnOp op e => _ *)
-(*   | BinOp op e1 e2 => _ *)
-(*   | If e0 e1 e2 => _ *)
-(*   | Pair e1 e2 => _ *)
-(*   | Fst e => _ *)
-(*   | Snd e => _ *)
-(*   | InjL e => _ *)
-(*   | InjR e => _ *)
-(*   | Case e0 e1 e2 => _ *)
-(*   | AllocN e1 e2 => _ *)
-(*   | Load e => _ *)
-(*   | Store e1 e2 => _ *)
-(*   | Rand e => _ *)
-(*   | DRand e => _ *)
-(*   end *)
+Fixpoint well_formed_expr (e:expr) :=
+  match e with
+  | Val v =>
+      well_formed_val v
+  | Var x => true
+  | Rec f x e => well_formed_expr e
+  | App e1 e2 => well_formed_expr e1 && well_formed_expr e2
+  | UnOp op e => well_formed_expr e
+  | BinOp op e1 e2 => well_formed_expr e1 && well_formed_expr e2
+  | If e0 e1 e2 => well_formed_expr e0 && well_formed_expr e1 && well_formed_expr e2
+  | Pair e1 e2 => well_formed_expr e1 && well_formed_expr e2
+  | Fst e => well_formed_expr e
+  | Snd e => well_formed_expr e
+  | InjL e => well_formed_expr e
+  | InjR e => well_formed_expr e
+  | Case e0 e1 e2 => well_formed_expr e0 && well_formed_expr e1 && well_formed_expr e2
+  | AllocN e1 e2 => well_formed_expr e1 && well_formed_expr e2
+  | Load e => well_formed_expr e
+  | Store e1 e2 => well_formed_expr e1 && well_formed_expr e2
+  | Rand e => well_formed_expr e
+  | DRand e => well_formed_expr e
+  end
+with
+well_formed_val (v:val) :=
+  match v with
+  | LitV l => match base_lit_type_check l with
+             | Some _ => true
+             | _ => false
+             end
+  | RecV f x e => well_formed_expr e
+  | PairV v1 v2 => well_formed_val v1 && well_formed_val v2
+  | InjLV v => well_formed_val v
+  | InjRV v => well_formed_val v
+  end
+.
 
-
+(** * semantics *)
 (** The stepping relation *)
 Definition un_op_eval (op : un_op) (v : val) : option val :=
   (* check whether v is a base lit  *)
@@ -1048,6 +1065,62 @@ Fixpoint urn_subst (f: gmap loc nat) (bl : base_lit) : option base_lit :=
 
 Definition urns_support_set (m:gmap loc urn):=
   filter (λ l, m!!l≠Some ∅) (dom m).
+
+Fixpoint base_lit_support_set bl : gset loc :=
+       match bl with
+       | LitInt n => ∅
+       | LitBool b => ∅
+       | LitUnit => ∅
+       | LitLoc l => ∅
+       | LitLbl l => {[l]}
+       | NegOp' x => base_lit_support_set x
+       | MinusUnOp' x => base_lit_support_set x
+       | PlusOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+       | MinusOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+       | MultOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+       | QuotOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+       | RemOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+       | AndOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+       | OrOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+       | XorOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+       | ShiftLOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+       | ShiftROp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+       | LeOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+       | LtOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+       | EqOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+       | OffsetOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+       end.
+
+Fixpoint expr_support_set e : gset loc :=
+  match e with
+  | Val v => val_support_set v
+  | Var x => ∅
+  | Rec f x e => expr_support_set e
+  | App e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+  | UnOp op e => expr_support_set e
+  | BinOp op e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+  | If e0 e1 e2 => expr_support_set e0 ∪ expr_support_set e1 ∪ expr_support_set e2
+  | Pair e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+  | Fst e => expr_support_set e
+  | Snd e => expr_support_set e
+  | InjL e => expr_support_set e
+  | InjR e => expr_support_set e
+  | Case e0 e1 e2 => expr_support_set e0 ∪ expr_support_set e1 ∪ expr_support_set e2
+  | AllocN e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+  | Load e => expr_support_set e
+  | Store e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+  | Rand e => expr_support_set e
+  | DRand e => expr_support_set e
+  end
+with val_support_set v :=
+       match v with
+       | LitV l =>
+           base_lit_support_set l
+       | RecV f x e => expr_support_set e
+       | PairV v1 v2 => val_support_set v1 ∪ val_support_set v2
+       | InjLV v => val_support_set v
+       | InjRV v => val_support_set v
+       end.
 
 Definition urns_f_valid (m : gmap loc urn) (f:gmap loc nat) :=
   forall l, match f !! l with
