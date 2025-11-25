@@ -937,6 +937,7 @@ Qed.
 
 Section urn.
   (** Definitions for relating delayed program with nondelayed one *)
+  (** Note here after the urn_subst, we completely remove all delayed unop binop operations*)
   Fixpoint urn_subst (f: gmap loc nat) (bl : base_lit) : option base_lit :=
     match bl with
     | LitInt n => Some $ LitInt n
@@ -1063,6 +1064,67 @@ Section urn.
                          end
                         )
     end.
+
+  Fixpoint expr_urn_subst (f: gmap loc nat) e :=
+    match e with
+    | Val v => v' ← val_urn_subst f v; Some $ Val v'
+    | Var x => Some $ Var x
+    | Rec f' x e => e' ← (expr_urn_subst f e);
+                   Some $ Rec f' x e'
+    | App e1 e2 => e1' ← (expr_urn_subst f e1);
+                   e2' ← (expr_urn_subst f e2);
+                   Some $ App e1' e2'
+    | UnOp op e => e' ← (expr_urn_subst f e);
+                   Some $ UnOp op e'
+    | BinOp op e1 e2 => e1' ← (expr_urn_subst f e1);
+                        e2' ← (expr_urn_subst f e2);
+                        Some $ BinOp op e1' e2'
+    | If e0 e1 e2 => e0' ← (expr_urn_subst f e0);
+                     e1' ← (expr_urn_subst f e1);
+                     e2' ← (expr_urn_subst f e2);
+                     Some $ If e0' e1' e2'
+    | Pair e1 e2 => e1' ← (expr_urn_subst f e1);
+                    e2' ← (expr_urn_subst f e2);
+                    Some $ Pair e1' e2'
+    | Fst e => e' ← (expr_urn_subst f e);
+               Some $ Fst e'
+    | Snd e => e' ← (expr_urn_subst f e);
+               Some $ Snd e'
+    | InjL e => e' ← (expr_urn_subst f e);
+               Some $ InjL e'
+    | InjR e => e' ← (expr_urn_subst f e);
+               Some $ InjR e'
+    | Case e0 e1 e2 => e0' ← (expr_urn_subst f e0);
+                       e1' ← (expr_urn_subst f e1);
+                       e2' ← (expr_urn_subst f e2);
+                       Some $ Case e0' e1' e2'
+    | AllocN e1 e2 => e1' ← (expr_urn_subst f e1);
+                        e2' ← (expr_urn_subst f e2);
+                        Some $ AllocN e1' e2'
+    | Load e => e' ← (expr_urn_subst f e);
+               Some $ Load e'
+    | Store e1 e2 => e1' ← (expr_urn_subst f e1);
+                        e2' ← (expr_urn_subst f e2);
+                        Some $ Store e1' e2'
+    | Rand e => e' ← (expr_urn_subst f e);
+               Some $ Rand e'
+    | DRand e => e' ← (expr_urn_subst f e);
+               Some $ DRand e'
+    end
+  with val_urn_subst f v : option val :=
+         match v with
+         | LitV l => l'←urn_subst f l;
+                     Some $ LitV l'
+         | RecV f' x e => e' ← expr_urn_subst f e;
+                          Some $ RecV f' x e'   
+         | PairV v1 v2 => v1' ← (val_urn_subst f v1);
+                          v2' ← (val_urn_subst f v2);
+                          Some $ PairV v1' v2'
+         | InjLV v => v'←val_urn_subst f v;
+                     Some $ InjLV v'
+         | InjRV v => v'←val_urn_subst f v;
+                     Some $ InjRV v'
+         end.
 
   Definition urns_support_set (m:gmap loc urn):=
     filter (λ l, m!!l≠Some ∅) (dom m).
@@ -1244,7 +1306,13 @@ Section urn.
           pose proof H3 l as H5.
           destruct (decide (i=l)); simplify_map_eq; naive_solver.
   Qed. 
-
+  Global Instance urn_subst_equal_dec m f: Decision (urns_f_valid m f).
+  Proof.
+    replace (urns_f_valid _ _) with (f∈set_urns_f_valid m); first apply _.
+    apply propositional_extensionality.
+    by rewrite set_urns_f_valid_correct.
+  Qed.
+  
   Lemma size_set_urns_f m:
     size (set_urns_f_valid m) = urns_subst_f_num m.
   Proof.
@@ -1293,6 +1361,36 @@ Section urn.
         rename select (<[_:=_]> _ = _) into H'.
         apply (f_equal (λ x,x!!i)) in H'.
         simplify_map_eq.
+  Qed.
+
+  (** We define a distribution, where given a urn map, 
+      produces a uniform distribution of urn subst f *)
+
+  Program Definition urns_f_distr m := MkDistr (λ f, if bool_decide (urns_f_valid m f) then 1/size (set_urns_f_valid m) else 0) _ _ _.
+  Next Obligation.
+    intros. simpl. case_bool_decide; last done.
+    apply Rdiv_INR_ge_0.
+  Qed.
+  Next Obligation.
+    intros.
+    setoid_rewrite bool_decide_ext; last apply set_urns_f_valid_correct.
+    eapply ex_seriesC_ext; last apply (ex_seriesC_list (elements (set_urns_f_valid m))).
+    intros. simpl.
+    erewrite bool_decide_ext; last by rewrite elem_of_elements. done.
+    Unshelve.
+    apply _.
+  Qed.
+  Next Obligation.
+    intros.
+    setoid_rewrite bool_decide_ext; last first.
+    { rewrite set_urns_f_valid_correct. by rewrite -elem_of_elements. }
+    erewrite SeriesC_ext; first erewrite SeriesC_list_2; last done.
+    - rewrite -length_elements_size_gset.
+      rewrite Rdiv_1_l.
+      rewrite Rinv_l; first done.
+      apply not_0_INR.
+      pose proof set_urns_f_nonempty m. lia.
+    - apply NoDup_elements.
   Qed. 
   
   Definition urn_subst_equal σ (bl bl':base_lit) :=
