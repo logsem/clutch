@@ -337,7 +337,43 @@ Section credits.
             RInt_gen (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0) (at_point 0) (Rbar_locally Rbar.p_infty))) 0 1)
       with  (RInt_gen (λ x0 : R, (F x0 * NegExp_ρ (L + 1) x0) * (RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n)) 0 1)) (at_point 0) (Rbar_locally Rbar.p_infty));
       last first.
-    { (* Deploy the foob *) admit. }
+    { pose B (x : R) (n : nat) (x0 : R) := ((RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n * F x0 * NegExp_ρ (L + 1) x0)).
+      replace (RInt_gen (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n)) 0 1)  (at_point 0) (Rbar_locally Rbar.p_infty))
+         with (RInt_gen (λ x0 : R, RInt (λ x : R, SeriesC (λ n : nat, B x n x0)) 0 1)  (at_point 0) (Rbar_locally Rbar.p_infty)).
+      2: {
+        f_equal.
+        funexti.
+        rewrite RInt_Rmult.
+        2: { admit. }
+        apply RInt_ext.
+        intros ??.
+        rewrite -SeriesC_scal_l.
+        apply SeriesC_ext.
+        intros ?.
+        rewrite /B.
+        OK.
+      }
+      replace (RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n * RInt_gen (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0) (at_point 0) (Rbar_locally Rbar.p_infty))) 0 1)
+         with (RInt (λ x : R, SeriesC (λ n : nat, RInt_gen (λ x0 : R, B x n x0) (at_point 0) (Rbar_locally Rbar.p_infty))) 0 1).
+      2: {
+        apply RInt_ext.
+        intros ??.
+        apply SeriesC_ext.
+        intros ?.
+        admit.
+      }
+      replace (RInt_gen (λ x0 : R, RInt (λ x : R, SeriesC (λ n : nat, B x n x0)) 0 1) (at_point 0) (Rbar_locally Rbar.p_infty))
+         with (RInt (λ x : R, RInt_gen (λ x0 : R,SeriesC (λ n : nat, B x n x0)) (at_point 0) (Rbar_locally Rbar.p_infty)) 0 1).
+      2: {
+        admit.
+      }
+      apply RInt_ext.
+      rewrite Rmin_left; OK.
+      rewrite Rmax_right; OK.
+      intros ??.
+      (* Punishment *)
+      admit.
+    }
     replace (RInt_gen (λ x0 : R, (F x0 * NegExp_ρ (L + 1) x0) * (RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n)) 0 1)) (at_point 0) (Rbar_locally Rbar.p_infty))
        with (RInt_gen (λ x0 : R, (F x0 * NegExp_ρ (L + 1) x0) * (RInt (λ x : R, 1 - exp (-x)) 0 1)) (at_point 0) (Rbar_locally Rbar.p_infty));
       last first.

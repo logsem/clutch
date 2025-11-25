@@ -1341,10 +1341,66 @@ Section credits.
        with (SeriesC (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1));
       last first.
     {
+      pose B (k x : nat) (x0 x1 : R) := G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1.
+      suffices Hy :
+        Series.Series (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R, Series.Series (λ x : nat, B k x x0 x1)) 0 1) 0 1) =
+        Series.Series (λ x : nat, RInt (λ x0 : R, Series.Series (λ k : nat, RInt (λ x1 : R, B k x x0 x1) 0 1)) 0 1).
+      { replace (SeriesC (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1))
+           with (Series.Series (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R, Series.Series (fun x => B k x x0 x1)) 0 1) 0 1)).
+        2: {
+          rewrite SeriesC_nat.
+          apply Series.Series_ext.
+          intros ?.
+          eapply RInt_ext. intros ??.
+          eapply RInt_ext. intros ??.
+          rewrite SeriesC_nat.
+          reflexivity.
+        }
+        rewrite Hy.
+        rewrite SeriesC_nat.
+        apply Series.Series_ext.
+        intros ?.
+        eapply RInt_ext. intros ??.
+        rewrite -SeriesC_nat.
+        apply SeriesC_ext. intros ?.
+        eapply RInt_ext. intros ??.
+        reflexivity.
+      }
 
+      replace (Series.Series (λ x : nat, RInt (λ x0 : R, Series.Series (λ k : nat, RInt (λ x1 : R, B k x x0 x1) 0 1)) 0 1))
+         with (Series.Series (λ x : nat, Series.Series (λ k : nat, RInt (λ x0 : R, RInt (λ x1 : R, B k x x0 x1) 0 1) 0 1))).
+      2: {
+        apply Series.Series_ext; intros n.
+        admit.
+      }
 
+      replace (Series.Series (λ x : nat, Series.Series (λ k : nat, RInt (λ x0 : R, RInt (λ x1 : R, B k x x0 x1) 0 1) 0 1)))
+         with (Series.Series (λ k : nat, Series.Series (λ x : nat, RInt (λ x0 : R, RInt (λ x1 : R, B k x x0 x1) 0 1) 0 1))).
+      2: {
+        admit.
+      }
 
-      admit. }
+      apply Series.Series_ext; intros n.
+
+      replace (Series.Series (λ x : nat, RInt (λ x0 : R, RInt (λ x1 : R, B n x x0 x1) 0 1) 0 1))
+         with (Series.Series (λ x : nat, RInt (λ x1 : R, RInt (λ x0 : R, B n x x0 x1) 0 1) 0 1)).
+      2: {
+        apply Series.Series_ext; intros x.
+        admit.
+      }
+
+      replace (Series.Series (λ x : nat, RInt (λ x1 : R, RInt (λ x0 : R, B n x x0 x1) 0 1) 0 1))
+         with (RInt (λ x1 : R, (Series.Series (λ x : nat, RInt (λ x0 : R, B n x x0 x1) 0 1))) 0 1).
+      2: {
+        admit.
+      }
+
+      apply RInt_ext.
+      rewrite Rmin_left; OK.
+      rewrite Rmax_right; OK.
+      intros ??.
+      admit.
+    }
 
 
     (* Recombine series and cancel with LHS *)
@@ -1616,7 +1672,7 @@ Section program.
     iApply (pgl_wp_mono_frame (□ _) with "[Hε] IH"); last first.
     { iApply (wp_G1 (F := G2_f F) (M := M)).
       { intros ?; split; [apply G2_f_nn; OK; apply Hnn|]. apply G2_ub; OK. }
-      { by apply G2_f_ex_seriesC. }
+      { by apply (@G2_f_ex_seriesC _ M). }
       { iApply (ec_eq with "Hε"). apply (G2_f_expectation Hint Hnn). }
     }
     iIntros (v) "(#IH & [%k [-> Hε]])".

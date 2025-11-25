@@ -1515,8 +1515,20 @@ Proof.
     Series.Series (fun n => RInt (λ x : R, f n x) a b) = RInt (λ x : R, Series.Series (λ n' : nat, f n' x)) a b.
   Proof.
     (* Reduce this to FubiniIntegralSeries by setting f to 0 outside the domain *)
-
   Admitted.
+
+  Lemma FubiniIntegralSeriesC_Strong {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R)
+    (HexU : ex_seriesC UB) (Hub : forall x n, a < x < b → Rabs (f n x) <= UB n) (Hex : ∀ n, ex_RInt (f n) a b) :
+    SeriesC (fun n => RInt (λ x : R, f n x) a b) = RInt (λ x : R, SeriesC (λ n' : nat, f n' x)) a b.
+  Proof.
+    rewrite SeriesC_nat.
+    rewrite (FubiniIntegralSeries_Strong UB); try done.
+    2: { by apply ex_seriesC_nat. }
+    apply RInt_ext.
+    intros ??.
+    rewrite SeriesC_nat.
+    done.
+  Qed.
 
   Lemma ex_seriesC_RInt {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R)
     (Hnn : ∀ x n, a < x < b → 0 <= f n x)
