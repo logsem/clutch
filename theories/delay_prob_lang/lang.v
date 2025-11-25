@@ -935,73 +935,74 @@ Qed.
 
 #[local] Open Scope R.
 
-(** Definitions for relating delayed program with nondelayed one *)
-Fixpoint urn_subst (f: gmap loc nat) (bl : base_lit) : option base_lit :=
-  match bl with
-  | LitInt n => Some $ LitInt n
-  | LitBool b => Some $ LitBool b
-  | LitUnit => Some LitUnit
-  | LitLoc l => Some $ LitLoc l
-  | LitLbl l => (x ← f !! l; Some $ LitInt (Z.of_nat x))
-  | NegOp' x => (i ← urn_subst f x;
-                match i with
-                | LitBool b => Some $ LitBool (negb b)
-                | _ => None end
-               )
-  | MinusUnOp' x => (i ← urn_subst f x;
-                    match i with
-                    | LitInt n => Some $ LitInt (- n)
-                    | _ => None end
-                   )
-  | PlusOp' x1 x2 => (i ← urn_subst f x1;
-                     j ← urn_subst f x2;
-                     match i, j with
-                     | LitInt n1, LitInt n2 =>
-                         Some $ LitInt (n1 + n2)
-                     | _, _ => None
-                     end
-                    )
-  | MinusOp' x1 x2 => (i ← urn_subst f x1;
-                     j ← urn_subst f x2;
-                     match i, j with
-                     | LitInt n1, LitInt n2 =>
-                         Some $ LitInt (n1 - n2)
-                     | _, _ => None
-                     end
-                    )
-  | MultOp' x1 x2 => (i ← urn_subst f x1;
-                     j ← urn_subst f x2;
-                     match i, j with
-                     | LitInt n1, LitInt n2 =>
-                         Some $ LitInt (n1 * n2)
-                     | _, _ => None
-                     end
-                    )
-  | QuotOp' x1 x2 => (i ← urn_subst f x1;
-                     j ← urn_subst f x2;
-                     match i, j with
-                     | LitInt n1, LitInt n2 =>
-                         Some $ LitInt (n1 `quot` n2)
-                     | _, _ => None
-                     end
-                    )
-  | RemOp' x1 x2 => (i ← urn_subst f x1;
-                     j ← urn_subst f x2;
-                     match i, j with
-                     | LitInt n1, LitInt n2 =>
-                         Some $ LitInt (n1 `rem` n2)
-                     | _, _ => None
-                     end
-                    )
-  | AndOp' x1 x2 => (i ← urn_subst f x1;
-                     j ← urn_subst f x2;
-                     match i, j with
-                     | LitBool b1, LitBool b2 =>
-                         Some $ LitBool (b1 && b2)
-                     | _, _ => None
-                     end
-                    )
-  | OrOp' x1 x2 => (i ← urn_subst f x1;
+Section urn.
+  (** Definitions for relating delayed program with nondelayed one *)
+  Fixpoint urn_subst (f: gmap loc nat) (bl : base_lit) : option base_lit :=
+    match bl with
+    | LitInt n => Some $ LitInt n
+    | LitBool b => Some $ LitBool b
+    | LitUnit => Some LitUnit
+    | LitLoc l => Some $ LitLoc l
+    | LitLbl l => (x ← f !! l; Some $ LitInt (Z.of_nat x))
+    | NegOp' x => (i ← urn_subst f x;
+                  match i with
+                  | LitBool b => Some $ LitBool (negb b)
+                  | _ => None end
+                 )
+    | MinusUnOp' x => (i ← urn_subst f x;
+                      match i with
+                      | LitInt n => Some $ LitInt (- n)
+                      | _ => None end
+                     )
+    | PlusOp' x1 x2 => (i ← urn_subst f x1;
+                       j ← urn_subst f x2;
+                       match i, j with
+                       | LitInt n1, LitInt n2 =>
+                           Some $ LitInt (n1 + n2)
+                       | _, _ => None
+                       end
+                      )
+    | MinusOp' x1 x2 => (i ← urn_subst f x1;
+                        j ← urn_subst f x2;
+                        match i, j with
+                        | LitInt n1, LitInt n2 =>
+                            Some $ LitInt (n1 - n2)
+                        | _, _ => None
+                        end
+                       )
+    | MultOp' x1 x2 => (i ← urn_subst f x1;
+                       j ← urn_subst f x2;
+                       match i, j with
+                       | LitInt n1, LitInt n2 =>
+                           Some $ LitInt (n1 * n2)
+                       | _, _ => None
+                       end
+                      )
+    | QuotOp' x1 x2 => (i ← urn_subst f x1;
+                       j ← urn_subst f x2;
+                       match i, j with
+                       | LitInt n1, LitInt n2 =>
+                           Some $ LitInt (n1 `quot` n2)
+                       | _, _ => None
+                       end
+                      )
+    | RemOp' x1 x2 => (i ← urn_subst f x1;
+                      j ← urn_subst f x2;
+                      match i, j with
+                      | LitInt n1, LitInt n2 =>
+                          Some $ LitInt (n1 `rem` n2)
+                      | _, _ => None
+                      end
+                     )
+    | AndOp' x1 x2 => (i ← urn_subst f x1;
+                      j ← urn_subst f x2;
+                      match i, j with
+                      | LitBool b1, LitBool b2 =>
+                          Some $ LitBool (b1 && b2)
+                      | _, _ => None
+                      end
+                     )
+    | OrOp' x1 x2 => (i ← urn_subst f x1;
                      j ← urn_subst f x2;
                      match i, j with
                      | LitBool b1, LitBool b2 =>
@@ -1009,31 +1010,31 @@ Fixpoint urn_subst (f: gmap loc nat) (bl : base_lit) : option base_lit :=
                      | _, _ => None
                      end
                     )
-  | XorOp' x1 x2 => (i ← urn_subst f x1;
-                     j ← urn_subst f x2;
-                     match i, j with
-                     | LitBool b1, LitBool b2 =>
-                         Some $ LitBool (xorb b1 b2)
-                     | _, _ => None
-                     end
-                    )
-  | ShiftLOp' x1 x2 => (i ← urn_subst f x1;
-                     j ← urn_subst f x2;
-                     match i, j with
-                     | LitInt n1, LitInt n2 =>
-                         Some $ LitInt (n1 ≪ n2)
-                     | _, _ => None
-                     end
-                    )
-  | ShiftROp' x1 x2 => (i ← urn_subst f x1;
-                     j ← urn_subst f x2;
-                     match i, j with
-                     | LitInt n1, LitInt n2 =>
-                         Some $ LitInt (n1 ≫ n2)
-                     | _, _ => None
-                     end
-                    )
-  | LeOp' x1 x2 => (i ← urn_subst f x1;
+    | XorOp' x1 x2 => (i ← urn_subst f x1;
+                      j ← urn_subst f x2;
+                      match i, j with
+                      | LitBool b1, LitBool b2 =>
+                          Some $ LitBool (xorb b1 b2)
+                      | _, _ => None
+                      end
+                     )
+    | ShiftLOp' x1 x2 => (i ← urn_subst f x1;
+                         j ← urn_subst f x2;
+                         match i, j with
+                         | LitInt n1, LitInt n2 =>
+                             Some $ LitInt (n1 ≪ n2)
+                         | _, _ => None
+                         end
+                        )
+    | ShiftROp' x1 x2 => (i ← urn_subst f x1;
+                         j ← urn_subst f x2;
+                         match i, j with
+                         | LitInt n1, LitInt n2 =>
+                             Some $ LitInt (n1 ≫ n2)
+                         | _, _ => None
+                         end
+                        )
+    | LeOp' x1 x2 => (i ← urn_subst f x1;
                      j ← urn_subst f x2;
                      match i, j with
                      | LitInt n1, LitInt n2 =>
@@ -1041,7 +1042,7 @@ Fixpoint urn_subst (f: gmap loc nat) (bl : base_lit) : option base_lit :=
                      | _, _ => None
                      end
                     )
-  | LtOp' x1 x2 => (i ← urn_subst f x1;
+    | LtOp' x1 x2 => (i ← urn_subst f x1;
                      j ← urn_subst f x2;
                      match i, j with
                      | LitInt n1, LitInt n2 =>
@@ -1049,371 +1050,280 @@ Fixpoint urn_subst (f: gmap loc nat) (bl : base_lit) : option base_lit :=
                      | _, _ => None
                      end
                     )
-  | EqOp' x1 x2 => (i ← urn_subst f x1;
+    | EqOp' x1 x2 => (i ← urn_subst f x1;
                      j ← urn_subst f x2;
                      Some $ LitBool (bool_decide (i=j))
                     )
-  | OffsetOp' x1 x2 => (i ← urn_subst f x1;
-                     j ← urn_subst f x2;
-                     match i, j with
-                     | LitLoc l1, LitInt n2 =>
-                         Some $ LitLoc (l1 +ₗ n2)
-                     | _, _ => None
-                     end
-                    )
-  end.
+    | OffsetOp' x1 x2 => (i ← urn_subst f x1;
+                         j ← urn_subst f x2;
+                         match i, j with
+                         | LitLoc l1, LitInt n2 =>
+                             Some $ LitLoc (l1 +ₗ n2)
+                         | _, _ => None
+                         end
+                        )
+    end.
 
-Definition urns_support_set (m:gmap loc urn):=
-  filter (λ l, m!!l≠Some ∅) (dom m).
+  Definition urns_support_set (m:gmap loc urn):=
+    filter (λ l, m!!l≠Some ∅) (dom m).
 
-Fixpoint base_lit_support_set bl : gset loc :=
-       match bl with
-       | LitInt n => ∅
-       | LitBool b => ∅
-       | LitUnit => ∅
-       | LitLoc l => ∅
-       | LitLbl l => {[l]}
-       | NegOp' x => base_lit_support_set x
-       | MinusUnOp' x => base_lit_support_set x
-       | PlusOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
-       | MinusOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
-       | MultOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
-       | QuotOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
-       | RemOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
-       | AndOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
-       | OrOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
-       | XorOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
-       | ShiftLOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
-       | ShiftROp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
-       | LeOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
-       | LtOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
-       | EqOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
-       | OffsetOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
-       end.
+  Definition urns_subst_f_num (m:gmap loc urn):=
+    map_fold (λ _ u n,
+                if bool_decide (u≡∅)
+                then n else size u * n
+      )%nat 1%nat m.
 
-Fixpoint expr_support_set e : gset loc :=
-  match e with
-  | Val v => val_support_set v
-  | Var x => ∅
-  | Rec f x e => expr_support_set e
-  | App e1 e2 => expr_support_set e1 ∪ expr_support_set e2
-  | UnOp op e => expr_support_set e
-  | BinOp op e1 e2 => expr_support_set e1 ∪ expr_support_set e2
-  | If e0 e1 e2 => expr_support_set e0 ∪ expr_support_set e1 ∪ expr_support_set e2
-  | Pair e1 e2 => expr_support_set e1 ∪ expr_support_set e2
-  | Fst e => expr_support_set e
-  | Snd e => expr_support_set e
-  | InjL e => expr_support_set e
-  | InjR e => expr_support_set e
-  | Case e0 e1 e2 => expr_support_set e0 ∪ expr_support_set e1 ∪ expr_support_set e2
-  | AllocN e1 e2 => expr_support_set e1 ∪ expr_support_set e2
-  | Load e => expr_support_set e
-  | Store e1 e2 => expr_support_set e1 ∪ expr_support_set e2
-  | Rand e => expr_support_set e
-  | DRand e => expr_support_set e
+  Fixpoint base_lit_support_set bl : gset loc :=
+    match bl with
+    | LitInt n => ∅
+    | LitBool b => ∅
+    | LitUnit => ∅
+    | LitLoc l => ∅
+    | LitLbl l => {[l]}
+    | NegOp' x => base_lit_support_set x
+    | MinusUnOp' x => base_lit_support_set x
+    | PlusOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+    | MinusOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+    | MultOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+    | QuotOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+    | RemOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+    | AndOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+    | OrOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+    | XorOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+    | ShiftLOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+    | ShiftROp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+    | LeOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+    | LtOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+    | EqOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+    | OffsetOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
+    end.
+
+  Fixpoint expr_support_set e : gset loc :=
+    match e with
+    | Val v => val_support_set v
+    | Var x => ∅
+    | Rec f x e => expr_support_set e
+    | App e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+    | UnOp op e => expr_support_set e
+    | BinOp op e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+    | If e0 e1 e2 => expr_support_set e0 ∪ expr_support_set e1 ∪ expr_support_set e2
+    | Pair e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+    | Fst e => expr_support_set e
+    | Snd e => expr_support_set e
+    | InjL e => expr_support_set e
+    | InjR e => expr_support_set e
+    | Case e0 e1 e2 => expr_support_set e0 ∪ expr_support_set e1 ∪ expr_support_set e2
+    | AllocN e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+    | Load e => expr_support_set e
+    | Store e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+    | Rand e => expr_support_set e
+    | DRand e => expr_support_set e
+    end
+  with val_support_set v :=
+         match v with
+         | LitV l =>
+             base_lit_support_set l
+         | RecV f x e => expr_support_set e
+         | PairV v1 v2 => val_support_set v1 ∪ val_support_set v2
+         | InjLV v => val_support_set v
+         | InjRV v => val_support_set v
+         end.
+
+  Definition urns_f_valid (m : gmap loc urn) (f:gmap loc nat) :=
+    forall l, match f !! l with
+         | Some x =>
+             ∃ u, m!!l=Some u /\ x ∈ u
+| None => m!!l = None \/ m!!l = Some ∅
   end
-with val_support_set v :=
-       match v with
-       | LitV l =>
-           base_lit_support_set l
-       | RecV f x e => expr_support_set e
-       | PairV v1 v2 => val_support_set v1 ∪ val_support_set v2
-       | InjLV v => val_support_set v
-       | InjRV v => val_support_set v
-       end.
+  .
 
-Definition urns_f_valid (m : gmap loc urn) (f:gmap loc nat) :=
-  forall l, match f !! l with
-       | Some x =>
-           ∃ u, m!!l=Some u /\ x ∈ u
-       | None => m!!l = None \/ m!!l = Some ∅
-  end
-.
+  Definition list_urns_f_valid (m:gmap loc urn) : list (gmap loc nat):=
+    map_fold (λ k u l,
+                if bool_decide (u=∅)
+                then l
+                else (a ← elements u; b ← l; [<[k:=a]>b])
+      ) [∅] m.
+             
+  Lemma list_urns_f_nonempty m:
+    (0<length (list_urns_f_valid m))%nat.
+  Proof.
+    rewrite /list_urns_f_valid. apply (map_fold_ind (λ x _, 0<length x)%nat); simpl; first lia.
+    intros ??? r ??.
+    case_bool_decide; first done.
+    destruct (elements _) eqn:Heqn.
+    { apply elements_empty_inv in Heqn. apply leibniz_equiv in Heqn. naive_solver. }
+    simpl. rewrite app_length.
+    destruct r; first (simpl in *; lia). simpl. lia.
+  Qed. 
 
-Fixpoint list_urns_f_valid (m:list (loc * urn)) : list (gmap loc nat):=
-  match m with
-    | [] => [∅]
-    | (k, u)::rest =>
-        let l := elements u in
-        if bool_decide (l=[]) then
-          list_urns_f_valid rest 
-        else let x := list_urns_f_valid rest in
-        (a ← l; b ← x; [<[k:=a]>b])
-  end.
+  Lemma list_urns_f_length m:
+    length (list_urns_f_valid m) = urns_subst_f_num m.
+  Proof.
+  Admitted. 
+    
 
-Lemma list_urns_f_nonempty m:
-  (0<length (list_urns_f_valid m))%nat.
-Proof.
-  induction m; simpl; first lia.
-  destruct a as [x y]. case_bool_decide; first done.
-  destruct (elements y); first done.
-  simpl. rewrite app_length.
-  destruct (list_urns_f_valid m); simpl; first (simpl in *; lia).
-  lia.
-Qed. 
-
-Lemma list_urns_f_valid_correct m f :
-  urns_f_valid m f <-> 
-  f ∈list_urns_f_valid (map_to_list m).
-Proof.
-  split.
-  - rewrite /urns_f_valid.
-    intros H.
-    remember (map_to_list m) as lis eqn:Heqlis'.
-    assert (lis ≡ₚ map_to_list m) as Heqlis.
-    { subst. apply Permutation_refl. }
-    clear Heqlis'.
-    assert (NoDup lis.*1) as Hnodup.
-    { rewrite Heqlis. apply NoDup_fst_map_to_list. }
-    revert m f H Heqlis Hnodup.
-    induction (lis) as [|x lis' IH]; intros m f H Heqlis Hnodup.
-    + simpl. apply elem_of_list_singleton.
-      apply map_eq.
-      intros i.
-      rewrite lookup_empty.
-      symmetry in Heqlis.
-      rewrite Permutation_nil_r in Heqlis.
-      apply map_to_list_empty_iff in Heqlis.
-      subst.
-      specialize (H i).
-      case_match; last done.
-      destruct!/=.
-    + assert (list_to_map (x::lis') = m) as Heqlis'.
-      { rewrite (list_to_map_proper _ (map_to_list m)); try done.
-        by rewrite list_to_map_to_list.
-      }
-      simpl.
-      destruct x as [l u].
-      assert (l∉lis'.*1) as Hnotin.
-      { intros ?.
-        apply NoDup_cons in Hnodup. naive_solver.
-      } 
-      case_bool_decide as H0.
-      { apply elements_empty_inv in H0. subst.
-        eapply IH; last first.
-        - apply NoDup_cons in Hnodup; naive_solver.
-        - simpl in *.
-          rewrite map_to_list_insert in Heqlis; last by apply not_elem_of_list_to_map.
-          by apply Permutation_cons_inv in Heqlis.
-        - apply leibniz_equiv in H0. subst.
-          intros l'.
-          specialize (H l').
+  Lemma list_urns_f_valid_correct m f :
+    urns_f_valid m f <-> 
+      f ∈list_urns_f_valid m.
+  Proof.
+    rewrite /list_urns_f_valid.
+    revert f.
+    apply (map_fold_ind (λ x m, forall f, urns_f_valid m f <-> f ∈ x)).
+    - intros f. rewrite elem_of_list_singleton.
+      split.
+      + rewrite /urns_f_valid.
+        intros.
+        apply map_eq.
+        intros i.
+        simplify_map_eq.
+        pose proof H i as H'.
+        case_match eqn:Heqn; last done.
+        destruct H' as [?[H0 ?]].
+        simplify_map_eq.
+      + intros ->. rewrite /urns_f_valid. intros. rewrite !lookup_empty.
+        naive_solver.
+    - intros i ???? H0 f. split.
+      + intros H'.
+        case_bool_decide as H1.
+        * subst.
+          apply H0.
+          rewrite /urns_f_valid in H' *.
+          intros l.
+          pose proof H' l as H'.
           case_match.
-          + destruct H as (u&H1&H2).
-            destruct (decide (l=l')).
-            -- exfalso.
-               subst. rewrite lookup_insert in H1. simplify_eq. set_solver.
-            -- eexists _. split; last done.
-               rewrite -H1.
-               by rewrite lookup_insert_ne.
-          + destruct (decide (l=l')).
-            * subst. rewrite lookup_insert in H.
-              left.
-              by apply not_elem_of_list_to_map_1.
-            * by rewrite lookup_insert_ne in H.
-      }
-      rewrite elem_of_list_bind.
-      specialize (H l) as H'.
-      case_match; last first.
-      { rewrite -Heqlis' in H'.
-        exfalso.
-        destruct H' as [H'|H'].
-        - eapply (not_elem_of_list_to_map_2 _ l).
-          + rewrite <-H'. f_equal.
-          + set_solver.
-        - rewrite lookup_insert in H'.
-          simpl in *. simplify_eq.
-      }
-      destruct H' as (u'&H2&H3).
-      subst.
-      exists n.
-      split; last first.
-      * rewrite lookup_insert in H2. simplify_eq.
-        set_solver.
-      * rewrite elem_of_list_bind.
-        exists (delete l f).
-        split.
-        -- rewrite insert_delete_insert.
-           rewrite insert_id; [set_solver|done].
-        -- apply IH with (delete l (list_to_map lis')).
-           ++ intros l'.
-              destruct (decide (l=l')).
-              ** subst. rewrite lookup_delete.
-                 left.
-                 apply lookup_delete.
-              ** rewrite lookup_delete_ne; last done.
-                 specialize (H l').
-                 case_match.
-                 --- destruct H as (u''&K1&K2).
-                     exists u''. rewrite lookup_delete_ne; last done.
-                     split; last done.
-                     rewrite -K1.
-                     by rewrite lookup_insert_ne.
-                 --- rewrite lookup_delete_ne; last done.
-                     by rewrite lookup_insert_ne in H.
-           ++ rewrite delete_notin.
-              ** rewrite map_to_list_to_map; first done.
-                 apply NoDup_cons in Hnodup. naive_solver.
-              ** by apply not_elem_of_list_to_map.
-           ++ apply NoDup_cons in Hnodup. naive_solver.
-  - rewrite /urns_f_valid.
-    intros H.
-    remember (map_to_list m) as lis eqn:Heqlis'.
-    assert (lis ≡ₚ map_to_list m) as Heqlis.
-    { subst. apply Permutation_refl. }
-    clear Heqlis'.
-    assert (NoDup lis.*1) as Hnodup.
-    { rewrite Heqlis. apply NoDup_fst_map_to_list. }
-    revert m f H Heqlis Hnodup.
-    induction (lis) as [|x lis' IH]; intros m f H Heqlis Hnodup.
-    + symmetry in Heqlis.
-      rewrite Permutation_nil_r in Heqlis.
-      apply map_to_list_empty_iff in Heqlis.
-      subst. simpl in *.
-      apply elem_of_list_singleton in H.
-      subst.
-      intros ?.
-      repeat rewrite lookup_empty. naive_solver.
-    + assert (list_to_map (x::lis') = m) as Heqlis'.
-      { rewrite (list_to_map_proper _ (map_to_list m)); try done.
-        by rewrite list_to_map_to_list.
-      }
-      simpl in H.
-      destruct x as [k u].
-      case_bool_decide as H'.
-      { intros l.
-        specialize (IH (delete k m)).
-        apply elements_empty_inv in H'.
-        apply leibniz_equiv in H'. subst.
-        simpl in *. rewrite delete_insert in IH; last first.
-        - apply not_elem_of_list_to_map. apply NoDup_cons in Hnodup. naive_solver.
-        - unshelve epose proof (IH _ _ _ _) as H'; [|done|rewrite map_to_list_to_map|..].
-          + apply Permutation_refl.
-          + apply NoDup_cons in Hnodup. naive_solver.
-          + apply NoDup_cons in Hnodup. naive_solver.
-          + specialize (H' l).
-            case_match.
-            * destruct (decide (k=l)).
-              -- subst. destruct H' as (?&H'&?).
-                 exfalso. apply NoDup_cons in Hnodup.
-                 apply Hnodup. rewrite elem_of_list_fmap.
-                 eexists (_,_); simpl; split; first done.
-                 rewrite elem_of_list_to_map; naive_solver.
-              -- by rewrite lookup_insert_ne.
-            * destruct (decide (k=l)).
-              -- subst. rewrite lookup_insert. naive_solver.
-              -- by rewrite lookup_insert_ne.
-      } 
-      rewrite elem_of_list_bind in H.
-      destruct H as (y&H1&H2).
-      rewrite elem_of_list_bind in H1.
-      destruct H1 as (f'&H1&H3).
-      apply elem_of_list_singleton in H1. subst.
-      intros.
-      destruct (decide (l=k)).
-      * subst. rewrite lookup_insert.
-        exists u. simpl. rewrite lookup_insert. split; first done.
-        by apply elem_of_elements in H2.
-      * assert (k∉lis'.*1) as Hnotin.
-        { intros ?.
-          apply NoDup_cons in Hnodup. naive_solver.
-        }
-           apply NoDup_cons in Hnodup.
-        rewrite lookup_insert_ne; last done.
-        eapply IH in H3; last first.
-        -- naive_solver.
-        -- simpl in *.
-           rewrite map_to_list_insert in Heqlis.
-           ++ by apply Permutation_cons_inv in Heqlis.
-           ++ by apply not_elem_of_list_to_map.
-        -- simpl. by rewrite lookup_insert_ne.
-Qed. 
-
+          -- destruct H' as [? [K1 K2]].
+             destruct (decide (i=l)).
+             ++ subst.
+                simplify_map_eq. set_solver.
+             ++ simplify_map_eq.
+                naive_solver.
+          -- destruct (decide (i=l)); simplify_map_eq; naive_solver.
+        * rewrite elem_of_list_bind.
+          destruct (f!!i) as [n'|] eqn :Hf.
+          -- exists n'.
+             rewrite elem_of_list_bind.
+             split.
+             ++ eexists (delete i f).
+                split.
+                ** rewrite insert_delete; [set_solver|done].
+                ** apply H0.
+                   intros i'.
+                   destruct (decide (i=i')); simplify_map_eq; first naive_solver.
+                   pose proof H' i'.
+                   by simplify_map_eq.
+             ++ pose proof H' i as H2.
+                rewrite Hf in H2.
+                destruct!/=. simplify_map_eq.
+                by rewrite elem_of_elements.
+          -- exfalso.
+             pose proof H' i as H2.
+             rewrite Hf in H2.
+             simplify_map_eq. naive_solver.
+      + case_bool_decide.
+        * subst. rewrite -H0.
+          rewrite /urns_f_valid.
+          intros H' l.
+          pose proof H' l as H'.
+          case_match; destruct (decide (i=l)); subst; simplify_map_eq; destruct!/=; naive_solver.
+        * rewrite elem_of_list_bind.
+          setoid_rewrite elem_of_elements.
+          setoid_rewrite elem_of_list_bind.
+          intros [y [[y' [H2 H3]] H4]].
+          rewrite - H0 in H3.
+          apply elem_of_list_singleton in H2.
+          subst. 
+          intros l.
+          pose proof H3 l as H5.
+          destruct (decide (i=l)); simplify_map_eq; naive_solver.
+  Qed. 
 
   
-Definition urn_subst_equal σ (bl bl':base_lit) :=
-  ∀ f, urns_f_valid (urns σ) f -> urn_subst f bl = Some bl'.
+  Definition urn_subst_equal σ (bl bl':base_lit) :=
+    ∀ f, urns_f_valid (urns σ) f -> urn_subst f bl = Some bl'.
 
-Lemma urn_subst_equal_unique σ bl bl1 bl2:
-  urn_subst_equal σ bl bl1 -> urn_subst_equal σ bl bl2 -> bl1=bl2.
-Proof.
-  rewrite /urn_subst_equal.
-  intros H1 H2.
-  setoid_rewrite list_urns_f_valid_correct in H1.
-  setoid_rewrite list_urns_f_valid_correct in H2.
-  pose proof list_urns_f_nonempty (map_to_list (urns σ)).
-  edestruct (list_urns_f_valid _) as [|x]; first (simpl in *; lia).
-  epose proof H1 x _ as H1.
-  epose proof H2 x _ as H2.
-  rewrite H1 in H2. by simplify_eq.
-  Unshelve.
-  all: apply elem_of_cons; naive_solver.
-Qed.
+  Lemma urn_subst_equal_unique σ bl bl1 bl2:
+    urn_subst_equal σ bl bl1 -> urn_subst_equal σ bl bl2 -> bl1=bl2.
+  Proof.
+    rewrite /urn_subst_equal.
+    intros H1 H2.
+    setoid_rewrite list_urns_f_valid_correct in H1.
+    setoid_rewrite list_urns_f_valid_correct in H2.
+    pose proof list_urns_f_nonempty ( (urns σ)).
+    edestruct (list_urns_f_valid _) as [|x]; first (simpl in *; lia).
+    epose proof H1 x _ as H1.
+    epose proof H2 x _ as H2.
+    rewrite H1 in H2. by simplify_eq.
+    Unshelve.
+    all: apply elem_of_cons; naive_solver.
+  Qed.
 
-Lemma urn_subst_equal_epsilon_correct σ bl (e:∃ N : Z, urn_subst_equal σ bl (LitInt N)):
-   urn_subst_equal σ bl (LitInt (epsilon e)).
-Proof.
-  by pose proof epsilon_correct _ e as H.
-Qed.
+  Lemma urn_subst_equal_epsilon_correct σ bl (e:∃ N : Z, urn_subst_equal σ bl (LitInt N)):
+    urn_subst_equal σ bl (LitInt (epsilon e)).
+  Proof.
+    by pose proof epsilon_correct _ e as H.
+  Qed.
 
-Lemma urn_subst_equal_epsilon_unique σ bl (N:Z) (e:∃ N : Z, urn_subst_equal σ bl (LitInt N)):
-  urn_subst_equal σ bl (LitInt N) -> epsilon e = N.
-Proof.
-  pose proof epsilon_correct _ e as H.
-  intros H'.
-  eapply urn_subst_equal_unique in H; last apply H'.
-  by simplify_eq.
-Qed. 
+  Lemma urn_subst_equal_epsilon_unique σ bl (N:Z) (e:∃ N : Z, urn_subst_equal σ bl (LitInt N)):
+    urn_subst_equal σ bl (LitInt N) -> epsilon e = N.
+  Proof.
+    pose proof epsilon_correct _ e as H.
+    intros H'.
+    eapply urn_subst_equal_unique in H; last apply H'.
+    by simplify_eq.
+  Qed. 
 
 
-Definition is_simple_base_lit bl:=
-  (match bl with
-  | LitInt _ | LitBool _ |LitLoc _ | LitUnit => true
-  | _ => false
-   end).
+  Definition is_simple_base_lit bl:=
+    (match bl with
+     | LitInt _ | LitBool _ |LitLoc _ | LitUnit => true
+     | _ => false
+     end).
 
-Lemma urn_subst_equal_obv σ bl:
-  is_simple_base_lit bl = true -> urn_subst_equal σ bl bl.
-Proof.
-  intros.
-  intros ??.
-  by destruct bl.
-Qed.
+  Lemma urn_subst_equal_obv σ bl:
+    is_simple_base_lit bl = true -> urn_subst_equal σ bl bl.
+  Proof.
+    intros.
+    intros ??.
+    by destruct bl.
+  Qed.
+
+  Lemma urn_subst_equal_obv_neq σ bl bl':
+    (urn_subst_equal σ bl bl') -> bl≠bl' -> is_simple_base_lit bl = true ->False .
+  Proof.
+    intros H1 H H'. apply H. eapply urn_subst_equal_unique; last done.
+    by apply urn_subst_equal_obv.
+  Qed.
+
+  Lemma urn_subst_equal_not_unique σ bl bl1 bl2:
+    (urn_subst_equal σ bl bl1) -> (urn_subst_equal σ bl bl2)-> bl1≠bl2 -> False.
+  Proof.
+    intros H1 H2.
+    eapply urn_subst_equal_unique in H1; last done.
+    by subst.
+  Qed.
+
+  Ltac urn_subst_contradict H:=
+    exfalso; eapply urn_subst_equal_obv_neq; first apply H; try done.
+
+  Global Instance urn_subst_equal_dec σ bl bl': Decision (urn_subst_equal σ bl bl').
+  Proof.
+    replace (urn_subst_equal _ _ _) with
+      (∀ f, f ∈ list_urns_f_valid ( (urns σ)) -> urn_subst f bl = Some bl').
+    - apply list_forall_dec. apply _.
+    - apply propositional_extensionality.
+      rewrite /urn_subst_equal.
+      split.
+      + intros H ??. apply H.
+        by apply list_urns_f_valid_correct.
+      + intros H ??.
+        apply H.
+        by apply list_urns_f_valid_correct.
+  Qed.
+End urn.
+
 
 Global Hint Resolve urn_subst_equal_obv : core.
 
-Lemma urn_subst_equal_obv_neq σ bl bl':
-  (urn_subst_equal σ bl bl') -> bl≠bl' -> is_simple_base_lit bl = true ->False .
-Proof.
-  intros H1 H H'. apply H. eapply urn_subst_equal_unique; last done.
-  by apply urn_subst_equal_obv.
-Qed.
-
-Lemma urn_subst_equal_not_unique σ bl bl1 bl2:
-  (urn_subst_equal σ bl bl1) -> (urn_subst_equal σ bl bl2)-> bl1≠bl2 -> False.
-Proof.
-  intros H1 H2.
-  eapply urn_subst_equal_unique in H1; last done.
-  by subst.
-Qed.
-
-Ltac urn_subst_contradict H:=
-  exfalso; eapply urn_subst_equal_obv_neq; first apply H; try done.
-
-Global Instance urn_subst_equal_dec σ bl bl': Decision (urn_subst_equal σ bl bl').
-Proof.
-  replace (urn_subst_equal _ _ _) with
-    (∀ f, f ∈ list_urns_f_valid (map_to_list (urns σ)) -> urn_subst f bl = Some bl').
-  - apply list_forall_dec. apply _.
-  - apply propositional_extensionality.
-    rewrite /urn_subst_equal.
-    split.
-    + intros H ??. apply H.
-      by apply list_urns_f_valid_correct.
-    + intros H ??.
-      apply H.
-      by apply list_urns_f_valid_correct.
-Qed. 
 
 Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
   match e1 with

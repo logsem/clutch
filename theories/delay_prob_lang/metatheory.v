@@ -351,12 +351,14 @@ Lemma det_step_eq_tapes e1 σ1 e2 σ2 :
 Proof. inversion 1; auto. Qed.
 
 Inductive prob_head_step_pred : expr -> state -> Prop :=
-| RandPSP (N : nat) σ z :
+| RandPSP (N : nat) σ (z:Z) bl :
+  urn_subst_equal σ bl z ->
   N = Z.to_nat z →
-  prob_head_step_pred (rand #z) σ
-| DRandPSP (N : nat) σ z :
+  prob_head_step_pred (rand #bl) σ
+| DRandPSP (N : nat) σ (z:Z) bl :
+  urn_subst_equal σ bl z ->
   N = Z.to_nat z →
-  prob_head_step_pred (drand #z) σ.
+  prob_head_step_pred (drand #bl) σ.
 
 Definition head_step_pred e1 σ1 :=
   det_head_step_pred e1 σ1 ∨ prob_head_step_pred e1 σ1.
