@@ -957,8 +957,8 @@ Section credits.
 
 
 
-
-  Lemma G2_f_expectation {F} (Hex : ∀ x1, ex_RInt (F x1) 0 1) : G2_CreditV F = G1_CreditV (G2_f F).
+  Lemma G2_f_expectation {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
+    G2_CreditV F = G1_CreditV (G2_f F).
   Proof.
     rewrite /G1_CreditV /G2_f.
     (* Split the sum and integral *)
@@ -1008,12 +1008,161 @@ Section credits.
       rewrite /G2_s.
       rewrite Iverson_True; OK.
       rewrite Iverson_False; OK.
-      admit. }
+      apply (ex_seriesC_le _ (λ n : nat, G1_μ n * M)).
+      2: {
+        apply ex_seriesC_scal_r.
+        rewrite /G1_μ.
+        replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+        apply ex_seriesC_scal_r.
+        apply Norm1_ex.
+      }
+      intros ?; split.
+      { apply Rmult_le_pos; [apply G1_μ_nn|].
+        apply RInt_ge_0; OK.
+        { apply ex_RInt_mult.
+          { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+            intros ??.
+            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+            by auto_derive.
+          }
+          { replace (λ y : R, 1 * F n y + 0 * G2_CreditV F) with (F n) by (funexti; OK).
+            apply Hex.
+          }
+        }
+        { intros ??. apply Rmult_le_pos; [apply Rexp_nn|]. rewrite Rmult_1_l Rmult_0_l Rplus_0_r. apply Hbound. }
+      }
+      { have Hex' : ex_RInt (λ x : R, exp (- x * (2 * n + x) / 2) * (1 * F n x + 0 * G2_CreditV F)) 0 1.
+        { apply ex_RInt_mult.
+          { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+            intros ??.
+            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+            by auto_derive.
+          }
+          { replace (λ y : R, 1 * F n y + 0 * G2_CreditV F) with (F n) by (funexti; OK).
+            apply Hex.
+          }
+        }
+        apply Rmult_le_compat; OK.
+        { apply G1_μ_nn. }
+        { apply RInt_ge_0; OK. intros ??. apply Rmult_le_pos; [apply Rexp_nn|]. rewrite Rmult_1_l Rmult_0_l Rplus_0_r. apply Hbound. }
+
+        rewrite -(Rabs_right (RInt (λ x : R, exp (- x * (2 * n + x) / 2) * (1 * F n x + 0 * G2_CreditV F)) 0 1)).
+        2: {
+          apply Rle_ge.
+          apply RInt_ge_0; OK. intros ??. apply Rmult_le_pos; [apply Rexp_nn|]. rewrite Rmult_1_l Rmult_0_l Rplus_0_r. apply Hbound. }
+          etrans; first apply (abs_RInt_le_const _ _ _ M); OK.
+          intros ??.
+          rewrite Rmult_1_l Rmult_0_l Rplus_0_r.
+          rewrite Rabs_right.
+          2: { apply Rle_ge. apply Rmult_le_pos; [apply Rexp_nn|]. apply Hbound. }
+          rewrite -(Rmult_1_l M).
+          apply Rmult_le_compat; OK.
+          { apply Rexp_nn. }
+          { apply Hbound. }
+          2: { apply Hbound. }
+          rewrite -exp_0.
+          apply exp_mono.
+          replace (- t * (2 * n + t) / 2) with ((-1 / 2) * (t * (2 * n + t))) by OK.
+          replace 0 with ((-1/2) * 0) by OK.
+          apply Rmult_le_compat_neg_l; OK.
+          apply Rmult_le_pos; OK.
+          apply Rplus_le_le_0_compat; OK.
+          apply Rmult_le_pos; OK.
+          apply pos_INR.
+        }
+      }
+
     2: {
       rewrite /G2_s.
       rewrite Iverson_False; OK.
       rewrite Iverson_True; OK.
-      admit. }
+      apply (ex_seriesC_le _ (λ n : nat, G1_μ n * (G2_CreditV F))).
+      2: {
+        apply ex_seriesC_scal_r.
+        rewrite /G1_μ.
+        replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+        apply ex_seriesC_scal_r.
+        apply Norm1_ex.
+      }
+      intros ?.
+      have Hlem1 : ∀ x, 0 <= x <= 1 → 0 <= (1 - exp (- x * (2 * n + x) / 2)).
+      { intros ??.
+        suffices ? : exp (- x * (2 * n + x) / 2) <= 1 by OK.
+        apply Rexp_range.
+        replace (- x * (2 * n + x) / 2) with ((-1 / 2) * (x * (2 * n + x))) by OK.
+        replace 0 with ((-1/2) * 0) by OK.
+        apply Rmult_le_compat_neg_l; OK.
+        apply Rmult_le_pos; OK.
+        apply Rplus_le_le_0_compat; OK.
+        apply Rmult_le_pos; OK.
+        apply pos_INR.
+      }
+      split.
+      { apply Rmult_le_pos; [apply G1_μ_nn|].
+        apply RInt_ge_0; OK.
+        { apply ex_RInt_mult.
+          { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+            intros ??.
+            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+            by auto_derive.
+          }
+          { replace (λ y : R, 0 * F n y + 1 * G2_CreditV F) with (fun y : R => G2_CreditV F) by (funexti; OK).
+            apply ex_RInt_const.
+          }
+        }
+        { intros ??.
+          rewrite Rmult_1_l Rmult_0_l Rplus_0_l.
+          apply Rmult_le_pos; [|apply G2_CreditV_nn]; OK.
+          2: { apply Hbound. }
+          apply Hlem1; OK.
+        }
+      }
+      { have Hex' : ex_RInt (λ x : R, (1 - exp (- x * (2 * n + x) / 2)) * (0 * F n x + 1 * G2_CreditV F)) 0 1.
+        { apply ex_RInt_mult.
+          { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+            intros ??.
+            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+            by auto_derive.
+          }
+          { replace (λ y : R, 0 * F n y + 1 * G2_CreditV F) with (fun y : R => G2_CreditV F) by (funexti; OK).
+            apply ex_RInt_const.
+          }
+        }
+        apply Rmult_le_compat; OK.
+        { apply G1_μ_nn. }
+        { apply RInt_ge_0; OK. intros ??.
+          rewrite Rmult_1_l Rmult_0_l Rplus_0_l.
+          apply Rmult_le_pos; [|apply G2_CreditV_nn]; OK.
+          2: { apply Hbound. }
+          apply Hlem1; OK.
+        }
+
+        rewrite -(Rabs_right (RInt (λ x : R, (1 - exp (- x * (2 * n + x) / 2)) * (0 * F n x + 1 * G2_CreditV F)) 0 1)).
+        2: {
+          apply Rle_ge.
+          apply RInt_ge_0; OK. intros ??.
+          rewrite Rmult_1_l Rmult_0_l Rplus_0_l.
+          apply Rmult_le_pos; [|apply G2_CreditV_nn]; OK.
+          2: { apply Hbound. }
+          apply Hlem1; OK.
+        }
+        etrans; first apply (abs_RInt_le_const _ _ _ (G2_CreditV F)); OK.
+        intros ??.
+        rewrite Rmult_1_l Rmult_0_l Rplus_0_l.
+        rewrite Rabs_right.
+        2: {
+          apply Rle_ge.
+          apply Rmult_le_pos; [|apply G2_CreditV_nn]; OK.
+          apply Hbound.
+        }
+        rewrite -{2}(Rmult_1_l (G2_CreditV F)).
+        apply Rmult_le_compat; OK.
+        { apply G2_CreditV_nn; OK. apply Hbound. }
+        suffices ? : 0 <= exp (- t * (2 * n + t) / 2) by OK.
+        apply Rexp_nn.
+      }
+    }
+
     (* Prepare second term for Foob *)
     rewrite {2}/G2_s.
     rewrite Iverson_False; [|intuition].
@@ -1359,7 +1508,7 @@ Section program.
     { iApply (wp_G1 (F := G2_f F) (M := M)).
       { intros ?; split; [apply G2_f_nn; OK; apply Hnn|]. apply G2_ub; OK. }
       { by apply G2_f_ex_seriesC. }
-      { iApply (ec_eq with "Hε"). apply G2_f_expectation. apply Hint. }
+      { iApply (ec_eq with "Hε"). apply (G2_f_expectation Hint Hnn). }
     }
     iIntros (v) "(#IH & [%k [-> Hε]])".
     wp_pures.
