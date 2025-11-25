@@ -827,6 +827,50 @@ Definition Continuity2 (f : (R * R) -> R) (x y : R) : Prop :=
 Definition Discontinuities2 (f : R * R -> R) : R * R -> Prop :=
   fun '(x, y) => ¬ Continuity2 f x y.
 
+Lemma Continuity2_continuous_fst
+  {f : R * R → R_CompleteNormedModule} {x y : R} :
+  Continuity2 f x y →
+  Continuity.continuous (λ x', f (x', y)) x.
+Proof.
+  unfold Continuity2, Continuity.continuous.
+  intros H2.
+  apply (filterlim_comp _ _ _ (fun x' => (x', y)) f _ (locally (x, y))).
+  2: apply H2.
+  rewrite /filterlim/filter_le/filter_map//=.
+  rewrite /filtermap//=.
+  rewrite /locally//=.
+  intros P [e He].
+  exists e.
+  intros z HZ.
+  apply He.
+  rewrite /ball//=.
+  rewrite /prod_ball//=.
+  split; try done.
+  apply ball_center.
+Qed.
+
+Lemma Continuity2_continuous_snd
+  {f : R * R → R_CompleteNormedModule} {x y : R} :
+  Continuity2 f x y →
+  Continuity.continuous (λ y', f (x, y')) y.
+Proof.
+  unfold Continuity2, Continuity.continuous.
+  intros H2.
+  apply (filterlim_comp _ _ _ (fun y' => (x, y')) f _ (locally (x, y))).
+  2: apply H2.
+  rewrite /filterlim/filter_le/filter_map//=.
+  rewrite /filtermap//=.
+  rewrite /locally//=.
+  intros P [e He].
+  exists e.
+  intros z HZ.
+  apply He.
+  rewrite /ball//=.
+  rewrite /prod_ball//=.
+  split; try done.
+  apply ball_center.
+Qed.
+
 (* A set is negligible if it can be covered by countably many balls of arbitrarily small total volume. *)
 Definition Negligible (S : R * R -> Prop) : Prop :=
   ∀ (ε : posreal), ∃ (c : nat -> R * R) (r : nat -> nonnegreal),
@@ -1975,13 +2019,29 @@ Section FubiniAx.
   Theorem FubiniCondition_ex_RInt_x {f xa xb ya yb} :
     FubiniCondition f xa xb ya yb →
     ∀ y, Rmin ya yb <= y <= Rmax ya yb → ex_RInt (fun x => f x y) xa xb.
-  Proof. Admitted.
+  Proof.
+    rewrite /FubiniCondition.
+    intros ???.
+    apply ex_RInt_continuous.
+    intros ??.
+    specialize H with z y.
+    have W := (H H1 H0).
+    apply (Continuity2_continuous_fst W).
+  Qed.
 
   (* FubiniCondition implies integrability along any horizontal line *)
   Theorem FubiniCondition_ex_RInt_y {f xa xb ya yb} :
     FubiniCondition f xa xb ya yb →
     ∀ x, Rmin xa xb <= x <= Rmax xa xb → ex_RInt (fun y => f x y) ya yb.
-  Proof. Admitted.
+  Proof.
+    rewrite /FubiniCondition.
+    intros ???.
+    apply ex_RInt_continuous.
+    intros ??.
+    specialize H with x z.
+    have W := (H H0 H1).
+    apply (Continuity2_continuous_snd W).
+  Qed.
 
   Axiom Fubini_ex_x : ∀ {f xa xb ya yb}, FubiniCondition f xa xb ya yb →
     ex_RInt (fun x => RInt (fun y => f x y) ya yb) xa xb.
