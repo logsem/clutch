@@ -778,7 +778,129 @@ Section credits.
     replace (SeriesC (λ x : nat, (1 - exp (- (x * (x - 1))%nat / 2)) * SeriesC (λ k : nat, G1_μ k * F k) * (exp (-1 / 2) ^ x * (1 - exp (-1 / 2)))))
        with (SeriesC (λ k : nat, G1_μ k * F k * SeriesC (λ x : nat,  (1 - exp (- (x * (x - 1))%nat / 2)) * (exp (-1 / 2) ^ x * (1 - exp (-1 / 2))))));
       last first.
-    { (* Foob, then funext, then SeriesC_scal_l etc. *) admit. }
+    {
+      have Hnn1 : ∀ a, 0 <= (1 - exp (- (a * (a - 1))%nat / 2)).
+      { intros a.
+        suffices ? : exp (- (a * (a - 1))%nat / 2) <= 1 by OK.
+        rewrite -exp_0.
+        apply exp_mono.
+        rewrite Rdiv_def.
+        apply Rcomplements.Rmult_le_0_r; OK.
+        rewrite -Ropp_0.
+        apply Ropp_le_contravar.
+        apply pos_INR.
+      }
+      have Hnn2 : ∀ a, 0 <= (exp (-1 / 2) ^ a * (1 - exp (-1 / 2))).
+      { intros a.
+        apply Rmult_le_pos; OK.
+        { apply pow_le. apply Rexp_nn. }
+        suffices ? : exp (-1 / 2) <= 1 by OK.
+        rewrite -exp_0.
+        apply exp_mono.
+        OK.
+      }
+      have Hbound1 : forall a, 1 - exp (- (a * (a - 1))%nat / 2) <= 1.
+      { intros a.
+        suffices ? : (0 <= exp (- (a * (a - 1))%nat / 2)) by OK.
+        apply Rexp_nn.
+      }
+      replace (SeriesC (λ k : nat, G1_μ k * F k * SeriesC (λ x : nat, (1 - exp (- (x * (x - 1))%nat / 2)) * (exp (-1 / 2) ^ x * (1 - exp (-1 / 2))))))
+         with (SeriesC (λ k : nat, SeriesC (λ x : nat, G1_μ k * F k * (1 - exp (- (x * (x - 1))%nat / 2)) * (exp (-1 / 2) ^ x * (1 - exp (-1 / 2)))))).
+      2: {
+        apply SeriesC_ext. intros ?.
+        rewrite -SeriesC_scal_l.
+        apply SeriesC_ext. intros ?.
+        OK.
+      }
+      rewrite fubini_pos_seriesC'.
+      { apply SeriesC_ext. intros ?.
+        rewrite -SeriesC_scal_l.
+        rewrite -SeriesC_scal_r.
+        apply SeriesC_ext. intros ?.
+        OK.
+      }
+      { intros ??.
+        apply Rmult_le_pos; OK.
+        apply Rmult_le_pos; OK.
+        apply Rmult_le_pos; [|apply Hnn].
+        apply G1_μ_nn.
+      }
+      { intros a.
+        apply ex_seriesC_scal_r.
+        apply (ex_seriesC_le _ (λ x : nat, G1_μ x * M * 1)).
+        2 : {
+          apply ex_seriesC_scal_r.
+          apply ex_seriesC_scal_r.
+          rewrite /G1_μ.
+          replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+          apply ex_seriesC_scal_r.
+          apply Norm1_ex.
+        }
+        intros ?.
+        split.
+        { apply Rmult_le_pos; OK.
+          apply Rmult_le_pos; [|apply Hnn].
+          apply G1_μ_nn.
+        }
+        apply Rmult_le_compat; OK.
+        { apply Rmult_le_pos; [|apply Hnn]. apply G1_μ_nn. }
+        { apply Rmult_le_compat; OK; try apply Hnn. apply G1_μ_nn. }
+      }
+      { replace (λ a : nat, SeriesC (λ b : nat, G1_μ b * F b * (1 - exp (- (a * (a - 1))%nat / 2)) * (exp (-1 / 2) ^ a * (1 - exp (-1 / 2)))))
+           with (λ a : nat, SeriesC (λ b : nat, G1_μ b * F b) * (1 - exp (- (a * (a - 1))%nat / 2)) * (exp (-1 / 2) ^ a * (1 - exp (-1 / 2)))).
+        2 : {
+          funexti.
+          repeat rewrite SeriesC_scal_r.
+          OK.
+        }
+        apply (ex_seriesC_le _ (λ a : nat, M * (1 * (exp (-1 / 2) ^ a * (1 - exp (-1 / 2)))))).
+        { intros ?.
+          split.
+          { rewrite Rmult_assoc.
+            apply Rmult_le_pos.
+            { apply SeriesC_ge_0'.
+              intros ?.
+              apply Rmult_le_pos; [|apply Hnn]. apply G1_μ_nn.
+            }
+          { apply Rmult_le_pos; OK. }
+        }
+        rewrite Rmult_assoc.
+        apply Rmult_le_compat; OK.
+        { apply SeriesC_ge_0'.
+          intros ?.
+          apply Rmult_le_pos; [|apply Hnn]. apply G1_μ_nn.
+        }
+        { apply Rmult_le_pos; OK. }
+        { etrans; first eapply (SeriesC_le _ (fun b : nat => G1_μ b * M)).
+          { intros ?.
+            split.
+            { apply Rmult_le_pos; [|apply Hnn]. apply G1_μ_nn. }
+            apply Rmult_le_compat; OK; try apply Hnn.
+            apply G1_μ_nn.
+          }
+          { apply ex_seriesC_scal_r.
+            rewrite /G1_μ.
+            replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+            apply ex_seriesC_scal_r.
+            apply Norm1_ex.
+          }
+          { rewrite SeriesC_scal_r.
+            rewrite G1_μ_pmf.
+            OK.
+          }
+        }
+        { apply Rmult_le_compat; OK. }
+        }
+        apply ex_seriesC_scal_l.
+        apply ex_seriesC_scal_l.
+        apply ex_seriesC_scal_r.
+        rewrite -ex_seriesC_nat.
+        apply Series.ex_series_geom.
+        rewrite Rabs_right.
+        { rewrite -exp_0. apply exp_mono_strict. OK. }
+        { apply Rle_ge. apply Rexp_nn. }
+      }
+    }
     rewrite -SeriesC_plus.
     2: {
       apply (ex_seriesC_le _ (λ x : nat, 1 * M * (exp (-1 / 2) ^ x * 1))).
@@ -997,9 +1119,7 @@ Section credits.
     rewrite Rabs_right.
     { rewrite -exp_0. apply exp_mono_strict. OK. }
     { apply Rle_ge, Rexp_nn. }
-  Admitted.
-
-
+  Qed.
 
   Lemma G2_f_expectation {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     G2_CreditV F = G1_CreditV (G2_f F).
