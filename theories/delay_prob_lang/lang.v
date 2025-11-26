@@ -1396,11 +1396,18 @@ Section urn.
         simplify_map_eq.
   Qed.
 
+  
+  Lemma set_urns_f_valid_singleton m:
+    map_Forall (λ _ v, v= ∅ \/ size v = 1)%nat m->
+    size (set_urns_f_valid m) = 1%nat.
+  Proof.
+    rewrite size_set_urns_f.
+    revert m.
+    apply (map_ind (λ m, _ -> _)); first by rewrite /urns_subst_f_num map_fold_empty.
+  Admitted. 
+
   (** We define a distribution, where given a urn map, 
       produces a uniform distribution of urn subst f *)
-
-  
-
   Lemma urn_subst_equal_exists bl t f:
     base_lit_type_check bl = Some t ->
     base_lit_support_set bl ⊆ dom f ->
@@ -1655,7 +1662,22 @@ Section urn.
   Lemma urns_subst_f_to_urns_unique_valid f f' :
     urns_f_valid (urns_subst_f_to_urns f) f' -> f=f'.
   Proof.
-  Admitted. 
+    pose proof urns_subst_f_to_urns_valid f as Hf.
+    rewrite !set_urns_f_valid_correct in Hf *.
+    assert (size (set_urns_f_valid (urns_subst_f_to_urns f)) = 1)%nat as Hsize.
+    { apply set_urns_f_valid_singleton.
+      rewrite /urns_subst_f_to_urns.
+      rewrite map_Forall_fmap.
+      intros ???. simpl.
+      right. eassert (size ({[x]}:gset _) = 1)%nat; last done.
+      apply size_singleton.
+    }
+    intros.
+    by eapply size_singleton_inv.
+    Unshelve.
+    all: try apply _.
+  Qed. 
+    
 End urn.
 
 
