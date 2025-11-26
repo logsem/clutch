@@ -3,9 +3,9 @@ From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
 From clutch.prelude Require Export stdpp_ext tactics.
+From iris.prelude Require Import options.
 From clutch.prob Require Export distribution.
 From clutch.common Require Export language ectx_language ectxi_language locations.
-From iris.prelude Require Import options.
 
 Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.
@@ -555,12 +555,12 @@ Fixpoint base_lit_type_check (bl:base_lit) :=
       end
   | LeOp' x1 x2 => 
       match (base_lit_type_check x1, base_lit_type_check x2) with
-      | (Some BLTInt, Some BLTInt) => Some BLTInt
+      | (Some BLTInt, Some BLTInt) => Some BLTBool
       | _ => None
       end
   | LtOp' x1 x2 => 
       match (base_lit_type_check x1, base_lit_type_check x2) with
-      | (Some BLTInt, Some BLTInt) => Some BLTInt
+      | (Some BLTInt, Some BLTInt) => Some BLTBool
       | _ => None
       end
   | EqOp' x1 x2 => 
@@ -1129,6 +1129,18 @@ Section urn.
   Definition urns_support_set (m:gmap loc urn):=
     filter (λ l, m!!l≠Some ∅) (dom m).
 
+  Lemma elem_of_urns_support_set x m:
+    x ∈ urns_support_set m <-> (∃ s, m!!x = Some s /\ s≠∅).
+  Proof.
+    rewrite /urns_support_set.
+    rewrite elem_of_filter elem_of_dom.
+    split.
+    - intros [?[]].
+      naive_solver.
+    - intros [?[]].
+      naive_solver.
+  Qed. 
+
   Definition urns_subst_f_num (m:gmap loc urn):=
     map_fold (λ _ u n,
                 if bool_decide (u=∅)
@@ -1198,6 +1210,27 @@ Section urn.
 | None => m!!l = None \/ m!!l = Some ∅
   end
   .
+
+  Lemma urns_f_valid_support m f:
+    urns_f_valid m f -> urns_support_set m = dom f.
+  Proof.
+    rewrite /urns_f_valid.
+    intros H.
+    apply set_eq.
+    intros l.
+    rewrite elem_of_dom.
+    rewrite elem_of_urns_support_set.
+    split.
+    - intros [?[]].
+      pose proof H l.
+      case_match; first done.
+      naive_solver.
+    - intros [? H'].
+      pose proof H l as H.
+      rewrite H' in H.
+      destruct!/=.
+      set_unfold. naive_solver.
+  Qed. 
       
   Definition set_urns_f_valid (m:gmap loc urn) : gset (gmap loc nat):=
     map_fold (λ k u l,
@@ -1306,7 +1339,7 @@ Section urn.
           pose proof H3 l as H5.
           destruct (decide (i=l)); simplify_map_eq; naive_solver.
   Qed. 
-  Global Instance urn_subst_equal_dec m f: Decision (urns_f_valid m f).
+  Global Instance urn_f_valid_dec m f: Decision (urns_f_valid m f).
   Proof.
     replace (urns_f_valid _ _) with (f∈set_urns_f_valid m); first apply _.
     apply propositional_extensionality.
@@ -1366,6 +1399,15 @@ Section urn.
   (** We define a distribution, where given a urn map, 
       produces a uniform distribution of urn subst f *)
 
+  
+
+  Lemma urn_subst_equal_exists bl t f:
+    base_lit_type_check bl = Some t ->
+    base_lit_support_set bl ⊆ dom f ->
+    ∃ bl', urn_subst f bl = Some bl' /\ base_lit_type_check bl' = Some t.
+  Proof.
+  Admitted. 
+
   Program Definition urns_f_distr m := MkDistr (λ f, if bool_decide (urns_f_valid m f) then 1/size (set_urns_f_valid m) else 0) _ _ _.
   Next Obligation.
     intros. simpl. case_bool_decide; last done.
@@ -1391,10 +1433,49 @@ Section urn.
       apply not_0_INR.
       pose proof set_urns_f_nonempty m. lia.
     - apply NoDup_elements.
+  Qed.
+
+  Lemma urns_f_distr_mass m:
+    SeriesC (urns_f_distr m) = 1.
+  Proof.
+    rewrite /urns_f_distr/pmf/=.
+    setoid_rewrite bool_decide_ext; last first.
+    { rewrite set_urns_f_valid_correct. by rewrite -elem_of_elements. }
+    erewrite SeriesC_ext; first erewrite SeriesC_list_2; last done.
+    - rewrite -length_elements_size_gset.
+      rewrite Rdiv_1_l.
+      rewrite Rinv_l; first done.
+      apply not_0_INR.
+      pose proof set_urns_f_nonempty m. lia. 
+    - apply NoDup_elements.
+  Qed.
+  
+  Lemma urns_f_distr_pos m f:
+    urns_f_distr m f > 0 <-> urns_f_valid m f.
+  Proof.
+    rewrite /urns_f_distr/pmf/=.
+    case_bool_decide; split; try done; try lra.
+    intros.
+    pose proof set_urns_f_nonempty m.
+    apply Rdiv_pos_pos; first lra.
+    apply Rlt_gt.
+    apply lt_0_INR. lia. 
   Qed. 
   
   Definition urn_subst_equal σ (bl bl':base_lit) :=
     ∀ f, urns_f_valid (urns σ) f -> urn_subst f bl = Some bl'.
+
+  Lemma urn_subst_equal_witness σ bl bl':
+    urn_subst_equal σ bl bl' -> ∃ f, urns_f_valid (urns σ) f /\ urn_subst f bl = Some bl'.
+  Proof.
+    rewrite /urn_subst_equal.
+    setoid_rewrite set_urns_f_valid_correct.
+    pose proof set_urns_f_nonempty (urns σ).
+    apply size_pos_elem_of in H.
+    destruct H as [f H].
+    intros H'. pose proof H' _ H as H0.
+    naive_solver.
+  Qed. 
 
   Lemma urn_subst_equal_unique σ bl bl1 bl2:
     urn_subst_equal σ bl bl1 -> urn_subst_equal σ bl bl2 -> bl1=bl2.
@@ -1440,6 +1521,72 @@ Section urn.
     by destruct bl.
   Qed.
 
+  Lemma urn_subst_is_simple f bl bl':
+    urn_subst f bl = Some bl' -> is_simple_base_lit bl' = true.
+  Proof.
+    destruct bl; simpl; try (intros; by simplify_eq); repeat setoid_rewrite bind_Some; intros; destruct!/=; repeat case_match; by simplify_eq.
+  Qed. 
+    
+  Lemma urn_subst_equal_is_simple σ bl bl':
+    urn_subst_equal σ bl bl' -> is_simple_base_lit bl' = true.
+  Proof.
+    intros H.
+    apply urn_subst_equal_witness in H.
+    destruct!/=.
+    by eapply urn_subst_is_simple.
+  Qed.
+
+  Lemma urn_subst_well_typed f bl bl':
+    urn_subst f bl = Some bl' -> (∃ t, base_lit_type_check bl = Some t /\ base_lit_type_check bl' = Some t).
+  Proof.
+    revert bl'.
+    induction bl as [| | | | |bl IH|bl IH |bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2]; intros bl'. 
+    1,2,3,4: intros; simplify_eq; naive_solver.
+    1: simpl; rewrite bind_Some; intros; destruct!/=; naive_solver.
+    1, 2: simpl; setoid_rewrite bind_Some;
+      intros [?[H ?]];
+      apply IH in H;
+      destruct!/=; case_match; simpl in *; simplify_eq;
+       naive_solver.
+    all: simpl; repeat setoid_rewrite bind_Some;
+      intros [?[H1 [?[H2]]]];
+      apply IH1 in H1; apply IH2 in H2;
+      destruct!/=; repeat case_match; simpl in *; simplify_eq;
+                               naive_solver.
+  Qed.
+
+  Lemma urn_subst_equal_well_typed σ bl bl':
+    urn_subst_equal σ bl bl' -> (∃ t, base_lit_type_check bl = Some t /\ base_lit_type_check bl' = Some t).
+  Proof.
+    intros H.
+    apply urn_subst_equal_witness in H.
+    destruct!/=.
+    by eapply urn_subst_well_typed.
+  Qed. 
+
+  Lemma urn_subst_f_support f bl bl':
+    urn_subst f bl = Some bl' -> base_lit_support_set bl ⊆ dom f.
+  Proof.
+    revert bl'.
+    induction bl; intros bl'; simpl.
+    1, 2, 3, 4: set_solver.
+    all: repeat setoid_rewrite bind_Some.
+    { intros. destruct!/=. set_unfold; intros; rewrite elem_of_dom; naive_solver. }
+    1, 2: intros; destruct!/=; naive_solver.
+    all: rewrite union_subseteq; naive_solver.
+  Qed.
+
+  Lemma urn_subst_equal_support σ bl bl':
+    urn_subst_equal σ bl bl' -> base_lit_support_set bl ⊆ urns_support_set (σ.(urns)).
+  Proof.
+    intros H.
+    apply urn_subst_equal_witness in H.
+    destruct H as [?[H1 H2]].
+    apply urns_f_valid_support in H1.
+    rewrite H1.
+    by eapply urn_subst_f_support.
+  Qed. 
+    
   Lemma urn_subst_equal_obv_neq σ bl bl':
     (urn_subst_equal σ bl bl') -> bl≠bl' -> is_simple_base_lit bl = true ->False .
   Proof.
@@ -1455,9 +1602,6 @@ Section urn.
     by subst.
   Qed.
 
-  Ltac urn_subst_contradict H:=
-    exfalso; eapply urn_subst_equal_obv_neq; first apply H; try done.
-
   Global Instance urn_subst_equal_dec σ bl bl': Decision (urn_subst_equal σ bl bl').
   Proof.
     replace (urn_subst_equal _ _ _) with
@@ -1472,9 +1616,51 @@ Section urn.
         apply H.
         by apply set_urns_f_valid_correct.
   Qed.
+
+  (** Function to convert an urn subst_f back to a gmap
+      Used in the definition of the If then else head step,
+      in the case that the conditional cannot be directly resolved to either true or false
+      This simplifies the erasure theorem
+   *)
+
+  Definition urns_subst_f_to_urns (f:gmap loc nat): gmap loc urn :=
+    (λ x, {[x]}) <$> f.
+
+  Lemma urns_subst_f_to_urns_support f: urns_support_set (urns_subst_f_to_urns f) = dom f.
+  Proof.
+    rewrite /urns_subst_f_to_urns.
+    rewrite /urns_support_set.
+    rewrite dom_fmap_L.
+    apply set_eq.
+    intros x. rewrite elem_of_filter elem_of_dom.
+    split; intros H; first naive_solver.
+    split; last done.
+    rewrite lookup_fmap.
+    destruct H.
+    by rewrite H.
+  Qed.
+
+  Lemma urns_subst_f_to_urns_valid f:
+    urns_f_valid (urns_subst_f_to_urns f) f.
+  Proof.
+    rewrite /urns_f_valid.
+    rewrite /urns_subst_f_to_urns.
+    intros ?.
+    case_match eqn:H.
+    - eexists _. rewrite lookup_fmap.
+      rewrite H. simpl. split; [done|set_solver].
+    - rewrite lookup_fmap. rewrite H. naive_solver.
+  Qed. 
+
+  Lemma urns_subst_f_to_urns_unique_valid f f' :
+    urns_f_valid (urns_subst_f_to_urns f) f' -> f=f'.
+  Proof.
+  Admitted. 
 End urn.
 
 
+Ltac urn_subst_contradict H:=
+  exfalso; eapply urn_subst_equal_obv_neq; first apply H; try done.
 Global Hint Resolve urn_subst_equal_obv : core.
 
 
@@ -1505,7 +1691,17 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
       then dret (e1, σ1)
       else if bool_decide (urn_subst_equal σ1 bl (LitBool false))
            then dret (e2, σ1)
-           else dzero
+           else
+             (** This is only needed for erasure. 
+                Technically we should not have any rules for this case *)
+             dbind (λ f,
+                      let σ2 := {|heap:=σ1.(heap); urns:=urns_subst_f_to_urns f |} in
+                      if bool_decide (urn_subst_equal σ2 bl (LitBool true))
+                      then dret (e1, σ2)
+                      else if bool_decide (urn_subst_equal σ2 bl (LitBool false))
+                           then dret (e2, σ2)
+                           else dzero 
+               ) (urns_f_distr (σ1.(urns)))
   (* | If (Val (LitV (LitBool true))) e1 e2  => *)
   (*     dret (e1 , σ1) *)
   (* | If (Val (LitV (LitBool false))) e1 e2 => *)
@@ -1550,34 +1746,6 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
           dret (Val $ LitV $ LitLbl l, state_upd_urns <[l:=s]> σ1)
       | _ => dzero
       end 
-  (* (* Since our language only has integers, we use Z.to_nat, which maps positive *)
-  (*    integers to the corresponding nat, and the rest to 0. We sample from *)
-  (*    [dunifP N = dunif (1 + N)] to avoid the case [dunif 0 = dzero]. *) *)
-  (* (* Uniform sampling from [0, 1 , ..., N] *) *)
-  (* | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) => *)
-  (*     dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N)) *)
-  (* | AllocTape (Val (LitV (LitInt z))) => *)
-  (*     let ι := fresh_loc σ1.(tapes) in *)
-  (*     dret (Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := (Z.to_nat z; []) ]> σ1) *)
-  (* (* Labelled sampling, conditional on tape contents *) *)
-  (* | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) => *)
-  (*     match σ1.(tapes) !! l with *)
-  (*     | Some (M; ns) => *)
-  (*         if bool_decide (M = Z.to_nat N) then *)
-  (*           match ns  with *)
-  (*           | n :: ns => *)
-  (*               (* the tape is non-empty so we consume the first number *) *)
-  (*               dret (Val $ LitV $ LitInt $ fin_to_nat n, state_upd_tapes <[l:=(M; ns)]> σ1) *)
-  (*           | [] => *)
-  (*               (* the tape is allocated but empty, so we sample from [0, 1, ..., M] uniformly *) *)
-  (*               dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP M) *)
-  (*           end *)
-  (*         else *)
-  (*           (* bound did not match the bound of the tape *) *)
-  (*           dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N)) *)
-  (*     | None => dzero *)
-  (*     end *)
-  (* | Tick (Val (LitV (LitInt n))) => dret (Val $ LitV $ LitUnit, σ1) *)
   | _ => dzero
   end.
 
@@ -1643,6 +1811,20 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
 | IfFalseS bl e1 e2 σ :
   urn_subst_equal σ bl (LitBool false)->
   head_step_rel (If (Val $ LitV $ bl) e1 e2) σ e2 σ
+| IfTrueS' bl e1 e2 σ f σ':
+  ¬ urn_subst_equal σ bl (LitBool true) ->
+  ¬ urn_subst_equal σ bl (LitBool false) ->
+  urns_f_valid (σ.(urns)) f ->
+  σ' = {|heap:=σ.(heap); urns:=urns_subst_f_to_urns f |} ->
+  urn_subst_equal σ' bl (LitBool true) ->
+  head_step_rel (If (Val $ LitV $ bl) e1 e2) σ e1 σ'
+| IfFalseS' bl e1 e2 σ f σ':
+  ¬ urn_subst_equal σ bl (LitBool true) ->
+  ¬ urn_subst_equal σ bl (LitBool false) ->
+  urns_f_valid (σ.(urns)) f ->
+  σ' = {|heap:=σ.(heap); urns:=urns_subst_f_to_urns f |} ->
+  urn_subst_equal σ' bl (LitBool false) ->
+  head_step_rel (If (Val $ LitV $ bl) e1 e2) σ e2 σ'
 (* | IfFalseS e1 e2 σ : *)
 (*   head_step_rel (If (Val $ LitV $ LitBool false) e1 e2) σ e2 σ *)
 | FstS v1 v2 σ :
@@ -1735,14 +1917,29 @@ Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
 Proof.
   split.
   - intros ?. destruct e1; inv_head_step; eauto with head_step.
+    + inv_distr.
+      eapply IfTrueS'; try done.
+      by apply urns_f_distr_pos.
+    + inv_distr.
+      eapply IfFalseS'; try done.
+      by apply urns_f_distr_pos.
+    + inv_distr.
     + eapply RandS; last done.
       apply urn_subst_equal_epsilon_correct.
     + eapply DRandS; last done; try done.
       apply urn_subst_equal_epsilon_correct.
-  - inversion 1; simplify_map_eq/=; repeat try case_bool_decide; simplify_eq; try by solve_distr.
+  - inversion 1; simplify_map_eq/=; repeat try case_bool_decide; simplify_eq; try done; try by solve_distr.
     + exfalso.
       assert (LitBool true ≠ LitBool false) as H' by done; (apply H'; by eapply urn_subst_equal_unique).
-    + case_match; last (exfalso; naive_solver).
+    + solve_distr; last by apply urns_f_distr_pos.
+      rewrite bool_decide_eq_true_2; last done.
+      solve_distr.
+    + solve_distr; last by apply urns_f_distr_pos.
+      rewrite bool_decide_eq_false_2; last first.
+      { intros H'. by eapply (urn_subst_equal_unique _ _ (LitBool true) (LitBool false)) in H'. }
+      rewrite bool_decide_eq_true_2; last done.
+      solve_distr.
+    + solve_distr. case_match; last (exfalso; naive_solver).
       erewrite urn_subst_equal_epsilon_unique; last done.
       solve_distr.
     + case_match; last (exfalso; naive_solver).
@@ -1810,9 +2007,75 @@ Lemma head_step_mass e σ :
 Proof.
   intros [[] Hs%head_step_support_equiv_rel].
   inversion Hs;
-    repeat (simplify_map_eq/=; solve_distr_mass || case_match; try (case_bool_decide; done)).
-  all: exfalso; naive_solver.
-Qed.
+    repeat (simplify_map_eq/=; solve_distr_mass || case_match; try (case_bool_decide; done) ).
+  - rename select (_=false) into L1. clear L1. 
+    rename select (_=false) into L1. clear L1.
+    rename select (urns_f_valid _ _) into H1.
+    apply dbind_det; first apply urns_f_distr_mass. 
+    intros ? Hf.
+    case_bool_decide as H2; try solve_distr_mass.
+    case_bool_decide as H4; try solve_distr_mass.
+    exfalso.
+    rewrite urns_f_distr_pos in Hf.
+    rename select (urn_subst_equal _ _ _) into H'.
+    apply urn_subst_equal_well_typed in H' as K1.
+    destruct K1 as [?[K1 K1']].
+    apply urn_subst_equal_well_typed in H' as K2.
+    destruct!/=.
+    apply urn_subst_equal_support in H' as K3.
+    simpl in *.
+    apply urns_f_valid_support in Hf as K4.
+    apply urns_f_valid_support in H1 as K5.
+    rewrite urns_subst_f_to_urns_support in K3.
+    rewrite -K5 K4 in K3.
+    eapply urn_subst_equal_exists in K1; last done.
+    destruct K1 as [bl' [K1 ]].
+    apply urn_subst_is_simple in K1 as K1'.
+    destruct bl'; simplify_eq.
+    rename select bool into b.
+    destruct b.
+    + apply H2.
+      rewrite /urn_subst_equal/=.
+      by intros ? ->%urns_subst_f_to_urns_unique_valid.
+    + apply H4.
+      rewrite /urn_subst_equal/=.
+      by intros ? ->%urns_subst_f_to_urns_unique_valid.
+  - rename select (_=false) into L1. clear L1. 
+    rename select (_=false) into L1. clear L1.
+    rename select (urns_f_valid _ _) into H1.
+    apply dbind_det; first apply urns_f_distr_mass. 
+    intros ? Hf.
+    case_bool_decide as H2; try solve_distr_mass.
+    case_bool_decide as H4; try solve_distr_mass.
+    exfalso.
+    rewrite urns_f_distr_pos in Hf.
+    rename select (urn_subst_equal _ _ _) into H'.
+    apply urn_subst_equal_well_typed in H' as K1.
+    destruct K1 as [?[K1 K1']].
+    apply urn_subst_equal_well_typed in H' as K2.
+    destruct!/=.
+    apply urn_subst_equal_support in H' as K3.
+    simpl in *.
+    apply urns_f_valid_support in Hf as K4.
+    apply urns_f_valid_support in H1 as K5.
+    rewrite urns_subst_f_to_urns_support in K3.
+    rewrite -K5 K4 in K3.
+    eapply urn_subst_equal_exists in K1; last done.
+    destruct K1 as [bl' [K1 ]].
+    apply urn_subst_is_simple in K1 as K1'.
+    destruct bl'; simplify_eq.
+    rename select bool into b.
+    destruct b.
+    + apply H2.
+      rewrite /urn_subst_equal/=.
+      by intros ? ->%urns_subst_f_to_urns_unique_valid.
+    + apply H4.
+      rewrite /urn_subst_equal/=.
+      by intros ? ->%urns_subst_f_to_urns_unique_valid.
+  - exfalso; naive_solver.
+  - exfalso; naive_solver.
+Qed. 
+
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
   to_val e1 = None → to_val e2 = None →
