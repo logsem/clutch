@@ -1267,10 +1267,11 @@ Section urn.
         lia.
   Qed.  
 
-  Lemma set_urns_f_valid_correct m f :
-    urns_f_valid m f <-> 
-      f ∈set_urns_f_valid m.
+  Lemma elem_of_set_urns_f_valid m f :
+      f ∈set_urns_f_valid m <->
+        urns_f_valid m f .
   Proof.
+    symmetry.
     rewrite /set_urns_f_valid.
     revert f.
     apply (map_fold_ind (λ x m, forall f, urns_f_valid m f <-> f ∈ x)).
@@ -1343,7 +1344,7 @@ Section urn.
   Proof.
     replace (urns_f_valid _ _) with (f∈set_urns_f_valid m); first apply _.
     apply propositional_extensionality.
-    by rewrite set_urns_f_valid_correct.
+    by rewrite elem_of_set_urns_f_valid.
   Qed.
   
   Lemma size_set_urns_f m:
@@ -1369,7 +1370,7 @@ Section urn.
         erewrite (size_set_bind_const); first by erewrite Nat.mul_1_r.
         * intros. apply size_singleton.
         * intros ??.
-          rewrite -!set_urns_f_valid_correct.
+          rewrite !elem_of_set_urns_f_valid.
           intros H1 H2 H3.
           set_unfold.
           intros ? -> ?.
@@ -1428,7 +1429,7 @@ Section urn.
   Qed.
   Next Obligation.
     intros.
-    setoid_rewrite bool_decide_ext; last apply set_urns_f_valid_correct.
+    setoid_rewrite bool_decide_ext; last by rewrite -elem_of_set_urns_f_valid.
     eapply ex_seriesC_ext; last apply (ex_seriesC_list (elements (set_urns_f_valid m))).
     intros. simpl.
     erewrite bool_decide_ext; last by rewrite elem_of_elements. done.
@@ -1438,7 +1439,7 @@ Section urn.
   Next Obligation.
     intros.
     setoid_rewrite bool_decide_ext; last first.
-    { rewrite set_urns_f_valid_correct. by rewrite -elem_of_elements. }
+    { rewrite -elem_of_set_urns_f_valid. by rewrite -elem_of_elements. }
     erewrite SeriesC_ext; first erewrite SeriesC_list_2; last done.
     - rewrite -length_elements_size_gset.
       rewrite Rdiv_1_l.
@@ -1453,7 +1454,7 @@ Section urn.
   Proof.
     rewrite /urns_f_distr/pmf/=.
     setoid_rewrite bool_decide_ext; last first.
-    { rewrite set_urns_f_valid_correct. by rewrite -elem_of_elements. }
+    { rewrite -elem_of_set_urns_f_valid. by rewrite -elem_of_elements. }
     erewrite SeriesC_ext; first erewrite SeriesC_list_2; last done.
     - rewrite -length_elements_size_gset.
       rewrite Rdiv_1_l.
@@ -1482,7 +1483,7 @@ Section urn.
     urn_subst_equal σ bl bl' -> ∃ f, urns_f_valid (urns σ) f /\ urn_subst f bl = Some bl'.
   Proof.
     rewrite /urn_subst_equal.
-    setoid_rewrite set_urns_f_valid_correct.
+    setoid_rewrite <-elem_of_set_urns_f_valid.
     pose proof set_urns_f_nonempty (urns σ).
     apply size_pos_elem_of in H.
     destruct H as [f H].
@@ -1495,8 +1496,8 @@ Section urn.
   Proof.
     rewrite /urn_subst_equal.
     intros H1 H2.
-    setoid_rewrite set_urns_f_valid_correct in H1.
-    setoid_rewrite set_urns_f_valid_correct in H2.
+    setoid_rewrite <-elem_of_set_urns_f_valid in H1.
+    setoid_rewrite <-elem_of_set_urns_f_valid in H2.
     pose proof set_urns_f_nonempty ( (urns σ)) as H.
     apply size_pos_elem_of in H as [x ?].
     epose proof H1 x H as H1.
@@ -1655,10 +1656,10 @@ Section urn.
       rewrite /urn_subst_equal.
       split.
       + intros H ??. apply H.
-        by apply set_urns_f_valid_correct.
+        by apply elem_of_set_urns_f_valid.
       + intros H ??.
         apply H.
-        by apply set_urns_f_valid_correct.
+        by apply elem_of_set_urns_f_valid.
   Qed.
 
   (** Function to convert an urn subst_f back to a gmap
@@ -1700,7 +1701,7 @@ Section urn.
     urns_f_valid (urns_subst_f_to_urns f) f' -> f=f'.
   Proof.
     pose proof urns_subst_f_to_urns_valid f as Hf.
-    rewrite !set_urns_f_valid_correct in Hf *.
+    rewrite -!elem_of_set_urns_f_valid in Hf *.
     assert (size (set_urns_f_valid (urns_subst_f_to_urns f)) = 1)%nat as Hsize.
     { apply set_urns_f_valid_singleton.
       rewrite /urns_subst_f_to_urns.
