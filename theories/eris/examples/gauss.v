@@ -1361,6 +1361,19 @@ Section credits.
         * apply ex_RInt_const.
   Qed.
 
+  Lemma HR2 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
+  Series.Series
+    (λ k : nat,
+       Series.Series
+         (λ x : nat,
+            RInt (λ x0 : R, RInt (λ x1 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1) 0 1) 0 1)) =
+  Series.Series
+    (λ x : nat,
+       Series.Series
+         (λ k : nat,
+            RInt (λ x0 : R, RInt (λ x1 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1) 0 1) 0 1)).
+  Proof. Admitted.
+
   Lemma HR3 {F M x n} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     RInt (λ x1 : R, RInt (λ x0 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1 =
     RInt (λ x0 : R, RInt (λ x1 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1.
@@ -1376,6 +1389,10 @@ Section credits.
        RInt (λ x1 : R, RInt (λ x0 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1).
   Proof. Admitted.
 
+  Lemma HR5 {F M n x} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) (Hx : 0 < x < 1) :
+    RInt (λ x0 : R, Series.Series (λ x1 : nat, G1_μ x1 * (1 - exp (- x0 * (2 * x1 + x0) / 2)) * G2_μ n x * F n x)) 0 1 =
+    Series.Series (λ x0 : nat, RInt (λ x1 : R, G1_μ x0 * (1 - exp (- x1 * (2 * x0 + x1) / 2)) * G2_μ n x * F n x) 0 1).
+  Proof. Admitted.
 
   Lemma G2_f_expectation {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     G2_CreditV F = G1_CreditV (G2_f F).
@@ -1747,9 +1764,7 @@ Section credits.
 
       replace (Series.Series (λ x : nat, Series.Series (λ k : nat, RInt (λ x0 : R, RInt (λ x1 : R, B k x x0 x1) 0 1) 0 1)))
          with (Series.Series (λ k : nat, Series.Series (λ x : nat, RInt (λ x0 : R, RInt (λ x1 : R, B k x x0 x1) 0 1) 0 1))).
-      2: {
-        admit.
-      }
+      2: { rewrite /B. eapply HR2; done. }
 
       apply Series.Series_ext; intros n.
 
@@ -1772,9 +1787,9 @@ Section credits.
       rewrite Rmin_left; OK.
       rewrite Rmax_right; OK.
       intros ??.
-      admit.
+      rewrite /B.
+      rewrite (@HR5 _ M); OK.
     }
-
 
     (* Recombine series and cancel with LHS *)
 
@@ -1894,7 +1909,7 @@ Section credits.
     rewrite -Rmult_assoc.
     rewrite Rmult_inv_r; last (have ? := Norm1_nn; lra).
     lra.
-  Admitted.
+  Qed.
 
   Lemma G2_g_RInt {F k} (Hf : ex_RInt (λ y : R, F k y) 0 1) : is_RInt (G2_g F k) 0 1 (G2_f F k).
   Proof.
