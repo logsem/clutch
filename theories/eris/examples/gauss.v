@@ -1641,7 +1641,6 @@ Section credits.
          with (Series.Series (λ x : nat, Series.Series (λ k : nat, RInt (λ x0 : R, RInt (λ x1 : R, B k x x0 x1) 0 1) 0 1))).
       2: {
         eapply HR1; done.
-        admit.
       }
 
       replace (Series.Series (λ x : nat, Series.Series (λ k : nat, RInt (λ x0 : R, RInt (λ x1 : R, B k x x0 x1) 0 1) 0 1)))
