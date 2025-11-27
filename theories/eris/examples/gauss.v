@@ -1121,6 +1121,81 @@ Section credits.
     { apply Rle_ge, Rexp_nn. }
   Qed.
 
+  Lemma HL3 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
+    ex_seriesC (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1).
+  Proof. Admitted.
+
+  Lemma HL5 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
+    ∀ k, ex_RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1.
+  Proof.
+    intros k.
+    apply (ex_RInt_ext (λ x1 : R, G2_μ k x1 * F k x1 * RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1)).
+    - rewrite Rmin_left; [|lra]. rewrite Rmax_right; [|lra].
+      intros x [Hx0 Hx1].
+      symmetry.
+      rewrite (RInt_ext _ (λ x0 : R, G2_μ k x * F k x * SeriesC (λ x1 : nat, G1_μ x1 * (1 - exp (- x0 * (2 * x1 + x0) / 2))))).
+      + symmetry.
+        apply RInt_Rmult.
+        have HL : ∀ (n : nat) x0, 0 <= x0 <= 1 → 0 <= (1 - exp (- x0 * (2 * n + x0) / 2)) <= 1.
+        { intros ???.
+          suffices ? : 0 <= exp (- x0 * (2 * n + x0) / 2) <= 1 by OK.
+          split.
+          { apply Rexp_nn. }
+          { apply Rexp_range.
+            replace (- x0 * (2 * n + x0) / 2) with ((-1 / 2) * (x0 * (2 * n + x0))) by OK.
+            replace 0 with ((-1/2) * 0) by OK.
+            apply Rmult_le_compat_neg_l; OK.
+            apply Rmult_le_pos; OK.
+            apply Rplus_le_le_0_compat; OK.
+            apply Rmult_le_pos; OK.
+            apply pos_INR.
+          }
+        }
+        apply (ex_RInt_SeriesC G1_μ).
+        { rewrite /G1_μ.
+          rewrite ex_seriesC_nat.
+          replace (λ k0 : nat, exp (- k0 ^ 2 / 2) / Norm1) with (λ k0 : nat, exp (- k0 ^ 2 / 2) * / Norm1) by (funexti; OK).
+          apply ex_seriesC_scal_r.
+          apply Norm1_ex.
+        }
+        { intros ???.
+          rewrite Rabs_right.
+          2: { apply Rle_ge.
+               apply Rmult_le_pos; OK.
+               { apply G1_μ_nn. }
+               { apply HL. OK. }
+          }
+          rewrite -{2}(Rmult_1_r (G1_μ n)).
+          apply Rmult_le_compat; OK.
+          { apply G1_μ_nn. }
+          { apply HL. OK. }
+          { apply HL. OK. }
+        }
+        { intros ?.
+          apply ex_RInt_mult.
+          { apply ex_RInt_const.  }
+          { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+            intros ??.
+            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+            by auto_derive.
+          }
+        }
+      + intros x0 _.
+        rewrite SeriesC_scal_r.
+        rewrite SeriesC_scal_r.
+        lra.
+    - apply ex_RInt_mult.
+      { apply ex_RInt_mult; [|apply Hex].
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros ??.
+        rewrite /G2_μ.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      { apply ex_RInt_const. }
+  Qed.
+
+
   Lemma G2_f_expectation {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     G2_CreditV F = G1_CreditV (G2_f F).
   Proof.
@@ -1402,13 +1477,9 @@ Section credits.
       }
     }
     have HexLem3 : ex_seriesC (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1).
-    { (* apply (ex_seriesC_le _ (λ k : nat, RInt (λ x1 : R, SeriesC (λ x : nat, G1_μ x * 1 * G2_μ k x1 * F k x1)) 0 1)). *)
-      admit.
-    }
+    { eapply HL3; done. }
     have HexLem5 : ∀ k, ex_RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1.
-    { intros k.
-      admit. }
-
+    { eapply HL5; done. }
     rewrite SeriesC_plus; OK.
 
     (* Prepare second term for Foob *)
