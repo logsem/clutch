@@ -1275,6 +1275,23 @@ Section credits.
         * apply ex_RInt_const.
   Admitted.
 
+  Lemma HR3 {F M x n} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
+    RInt (λ x1 : R, RInt (λ x0 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1 =
+    RInt (λ x0 : R, RInt (λ x1 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1.
+  Proof. Admitted.
+
+
+  Lemma HR4 {F M n} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
+  RInt
+    (λ x1 : R,
+       Series.Series (λ x : nat, RInt (λ x0 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1))
+    0 1 =
+  Series.Series
+    (λ x : nat,
+       RInt (λ x1 : R, RInt (λ x0 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1).
+  Proof. Admitted.
+
+
   Lemma G2_f_expectation {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     G2_CreditV F = G1_CreditV (G2_f F).
   Proof.
@@ -1655,13 +1672,15 @@ Section credits.
          with (Series.Series (λ x : nat, RInt (λ x1 : R, RInt (λ x0 : R, B n x x0 x1) 0 1) 0 1)).
       2: {
         apply Series.Series_ext; intros x.
-        admit.
+        rewrite /B.
+        apply (@HR3 _ M); done.
       }
 
       replace (Series.Series (λ x : nat, RInt (λ x1 : R, RInt (λ x0 : R, B n x x0 x1) 0 1) 0 1))
          with (RInt (λ x1 : R, (Series.Series (λ x : nat, RInt (λ x0 : R, B n x x0 x1) 0 1))) 0 1).
       2: {
-        admit.
+        rewrite /B.
+        apply (@HR4 _ M); done.
       }
 
       apply RInt_ext.
