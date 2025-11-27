@@ -1209,7 +1209,7 @@ Section credits.
     Series.Series (λ x : nat, RInt (λ x0 : R, Series.Series (λ k : nat, RInt (λ x1 : R, (G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1)) 0 1).
   Proof.
     apply Series.Series_ext; intros n.
-    apply (FubiniIntegralSeries (fun k => M * RInt (G2_μ k) 0 1)).
+    apply (FubiniIntegralSeries_Strong (fun k => M * RInt (G2_μ k) 0 1)).
     - (* Goal 1: Series convergence - COMPLETED *)
       rewrite ex_seriesC_nat.
       apply ex_seriesC_scal_l.
@@ -1234,8 +1234,7 @@ Section credits.
         intros z Hz.
         apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
         auto_derive; done.
-    - (* Goal 2: Uniform bound - IN PROGRESS *)
-      intros x n0.
+    - intros x n0 ?.
       rewrite (RInt_ext _ (fun x1 => G1_μ n * (1 - exp (- x * (2 * n + x) / 2)) * (G2_μ n0 x1 * F n0 x1))).
       2: { intros; lra. }
       rewrite RInt_Rmult.
@@ -1246,21 +1245,108 @@ Section credits.
         { apply ex_RInt_Rmult, ex_RInt_mult; [apply G2_exRInt | apply Hex]. }
       + apply RInt_le.
         { lra. }
-        { (* TODO: prove ex_RInt of Rabs - requires continuity of Rabs composition *)
-          admit. }
+        { apply (ex_RInt_ext (λ t : R, G1_μ n * (1 - exp (- x * (2 * n + x) / 2)) * (G2_μ n0 t * F n0 t))).
+          { rewrite Rmin_left; OK.
+            rewrite Rmax_right; OK.
+            intros ??.
+            rewrite Rabs_right; first done.
+            apply Rle_ge.
+            apply Rmult_le_pos; apply Rmult_le_pos.
+            { apply G1_μ_nn. }
+            { suffices ? : exp (- x * (2 * n + x) / 2) <= 1 by lra.
+              rewrite -exp_0.
+              apply exp_mono.
+              apply Rcomplements.Rmult_le_0_r; OK.
+              apply Rcomplements.Rmult_le_0_r; OK.
+              apply Rplus_le_le_0_compat; OK.
+              apply Rmult_le_pos; OK.
+              apply pos_INR.
+            }
+            { apply G2_μ_nn; OK. }
+            { apply Hbound. }
+          }
+          apply ex_RInt_mult; [apply ex_RInt_const|].
+          apply ex_RInt_mult; [|apply Hex].
+          apply G2_exRInt.
+        }
         { apply ex_RInt_Rmult, G2_exRInt. }
         intros x0 Hx0.
         rewrite Rabs_right.
-        2: { (* TODO: prove non-negativity: 0 <= G1_μ n * (1 - exp ...) * (G2_μ n0 x0 * F n0 x0) *)
-          admit. }
-        (* Current goal: G1_μ n * (G2_μ n0 x0 * F n0 x0 * (1 - exp ...)) <= M * G2_μ n0 x0 *)
+        2: {
+          apply Rle_ge.
+          apply Rmult_le_pos; apply Rmult_le_pos.
+          { apply G1_μ_nn. }
+          { suffices ? : exp (- x * (2 * n + x) / 2) <= 1 by lra.
+            rewrite -exp_0.
+            apply exp_mono.
+            apply Rcomplements.Rmult_le_0_r; OK.
+            apply Rcomplements.Rmult_le_0_r; OK.
+            apply Rplus_le_le_0_compat; OK.
+            apply Rmult_le_pos; OK.
+            apply pos_INR.
+          }
+          { apply G2_μ_nn; OK. }
+          { apply Hbound. }
+        }
         rewrite Rmult_assoc.
         rewrite (Rmult_comm (1 - exp (- x * (2 * n + x) / 2))).
-        (* Next steps: factor out G2_μ n0 x0, bound by using 0 <= 1 - exp <= 1,
-           0 <= G1_μ n <= 1, and 0 <= F n0 x0 <= M *)
-        admit.
-    - (* Goal 3: Integral existence - COMPLETED *)
-      intros n0.
+        rewrite -(Rmult_1_l (M * G2_μ n0 x0)).
+        apply Rmult_le_compat; OK.
+        { apply G1_μ_nn. }
+        { apply Rmult_le_pos; first apply Rmult_le_pos.
+          { apply G2_μ_nn; OK. }
+          { apply Hbound. }
+          { suffices ? : exp (- x * (2 * n + x) / 2) <= 1 by lra.
+            rewrite -exp_0.
+            apply exp_mono.
+            apply Rcomplements.Rmult_le_0_r; OK.
+            apply Rcomplements.Rmult_le_0_r; OK.
+            apply Rplus_le_le_0_compat; OK.
+            apply Rmult_le_pos; OK.
+            apply pos_INR.
+          }
+        }
+        { rewrite /G1_μ.
+          apply Rcomplements.Rle_div_l.
+          { apply Rlt_gt. apply Norm1_nn. }
+          rewrite Rmult_1_l.
+          rewrite /Norm1.
+          apply (@SeriesC_term_le (λ k : nat, exp (- k ^ 2 / 2))).
+          { intros ?. apply Rexp_nn. }
+          { apply Norm1_ex. }
+        }
+        rewrite Rmult_assoc.
+        rewrite (Rmult_comm M _).
+        apply Rmult_le_compat; OK.
+        { apply G2_μ_nn; OK. }
+        { apply Rmult_le_pos.
+          { apply Hbound. }
+          { suffices ? : exp (- x * (2 * n + x) / 2) <= 1 by lra.
+            rewrite -exp_0.
+            apply exp_mono.
+            apply Rcomplements.Rmult_le_0_r; OK.
+            apply Rcomplements.Rmult_le_0_r; OK.
+            apply Rplus_le_le_0_compat; OK.
+            apply Rmult_le_pos; OK.
+            apply pos_INR.
+          }
+        }
+        rewrite -(Rmult_1_r (M)).
+        apply Rmult_le_compat; OK.
+        { apply Hbound. }
+        { suffices ? : exp (- x * (2 * n + x) / 2) <= 1 by lra.
+          rewrite -exp_0.
+          apply exp_mono.
+          apply Rcomplements.Rmult_le_0_r; OK.
+          apply Rcomplements.Rmult_le_0_r; OK.
+          apply Rplus_le_le_0_compat; OK.
+          apply Rmult_le_pos; OK.
+          apply pos_INR.
+        }
+        { apply Hbound. }
+        suffices ? : (0 <= exp (- x * (2 * n + x) / 2)) by OK.
+        apply Rexp_nn.
+    - intros n0.
       apply (ex_RInt_ext (λ x : R, G1_μ n * (1 - exp (- x * (2 * n + x) / 2)) * RInt (λ x1 : R, G2_μ n0 x1 * F n0 x1) 0 1)).
       + intros x Hx.
         symmetry.
@@ -1273,13 +1359,12 @@ Section credits.
           apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
           auto_derive; done.
         * apply ex_RInt_const.
-  Admitted.
+  Qed.
 
   Lemma HR3 {F M x n} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     RInt (λ x1 : R, RInt (λ x0 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1 =
     RInt (λ x0 : R, RInt (λ x1 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1.
   Proof. Admitted.
-
 
   Lemma HR4 {F M n} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
   RInt
