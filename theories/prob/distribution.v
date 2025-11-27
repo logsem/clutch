@@ -2784,6 +2784,28 @@ Section laplace.
 
 End laplace.
 
+Section proj_Some.
+  Context `{Countable A}.
+  Definition d_proj_Some (x:option A) :=
+    match x with
+    | Some a => dret a
+    | None => dzero
+    end.
+
+  Lemma d_proj_Some_pos x y:
+    d_proj_Some x y > 0 <-> x = Some y.
+  Proof.
+    rewrite /d_proj_Some.
+    case_match; subst.
+    - split.
+      + intros ?%dret_pos. by subst.
+      + intros. simplify_eq.
+        rewrite dret_1_1; [lra|done].
+    - rewrite dzero_0; split; [lra|done].
+  Qed. 
+  
+  End proj_Some.
+
 Ltac inv_distr :=
   repeat
     match goal with

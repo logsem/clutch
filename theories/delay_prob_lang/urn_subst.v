@@ -8,10 +8,10 @@ Set Default Proof Using "Type*".
 
 (* In lang.v, we defined functions and lemmas for substituing for baselits, 
    now we do it for expressions and values*)
-
-Fixpoint urn_subst_expr (f: gmap loc nat) (e : expr) : option expr :=
-  match e with
-  | Val v => v' ← urn_subst_val f v; Some (Val v') 
+Section urn_subst.
+  Fixpoint urn_subst_expr (f: gmap loc nat) (e : expr) : option expr :=
+    match e with
+    | Val v => v' ← urn_subst_val f v; Some (Val v') 
 | Var x => Some $ Var x
 | Rec f' x e => e' ← urn_subst_expr f e; Some (Rec f' x e')
 | App e1 e2 => e1' ← urn_subst_expr f e1; e2' ← urn_subst_expr f e2; Some (App e1' e2')
@@ -29,13 +29,15 @@ Fixpoint urn_subst_expr (f: gmap loc nat) (e : expr) : option expr :=
 | Store e1 e2 => e1' ← urn_subst_expr f e1; e2' ← urn_subst_expr f e2; Some (Store e1' e2')
 | Rand e => e' ← urn_subst_expr f e; Some (Rand e')
 | DRand e => e' ← urn_subst_expr f e; Some (DRand e')
-end
-with urn_subst_val f v : option val :=
-       match v with
-       | LitV l => l' ← urn_subst f l; Some $ LitV l'
+  end
+  with urn_subst_val f v : option val :=
+         match v with
+         | LitV l => l' ← urn_subst f l; Some $ LitV l'
 | RecV f' x e => e' ← urn_subst_expr f e; Some $ RecV f' x e'
 | PairV v1 v2 => v1' ← urn_subst_val f v1; v2' ← urn_subst_val f v2; Some $ PairV v1' v2'
 | InjLV v =>  v' ← urn_subst_val f v; Some $ InjLV v'
 | InjRV v => v' ← urn_subst_val f v; Some $ InjRV v'
-end
-.
+  end
+  .
+
+End urn_subst.

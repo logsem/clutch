@@ -550,6 +550,7 @@ Qed.
 (*   intros. rewrite state_upd_tapes_heap. econstructor; eauto. *)
 (* Qed. *)
 
+(** * Lemmas about updating urns *)
 Lemma upd_urn_some σ α ns :
   urns (state_upd_urns <[α:= ns]> σ) !! α = Some ns.
 Proof.
@@ -656,3 +657,65 @@ Qed.
 (*   all: exact (0%fin). *)
 (* Qed. *)
   
+(** * Well constructed expressions and values *)
+Fixpoint is_well_constructed_expr e:=
+  match e with
+  | Val v => is_well_constructed_val v
+  | Var x => true 
+  | Rec f x e => is_well_constructed_expr e
+  | App e1 e2 => is_well_constructed_expr e1 && is_well_constructed_expr e2
+  | UnOp op e => is_well_constructed_expr e
+  | BinOp op e1 e2 => is_well_constructed_expr e1 && is_well_constructed_expr e2
+  | If e0 e1 e2 => is_well_constructed_expr e0 && is_well_constructed_expr e1 && is_well_constructed_expr e2
+  | Pair e1 e2 => is_well_constructed_expr e1 && is_well_constructed_expr e2
+  | Fst e => is_well_constructed_expr e
+  | Snd e => is_well_constructed_expr e
+  | InjL e => is_well_constructed_expr e
+  | InjR e => is_well_constructed_expr e
+  | Case e0 e1 e2 => is_well_constructed_expr e0 && is_well_constructed_expr e1 && is_well_constructed_expr e2
+  | AllocN e1 e2 => is_well_constructed_expr e1 && is_well_constructed_expr e2
+  | Load e => is_well_constructed_expr e
+  | Store e1 e2 => is_well_constructed_expr e1 && is_well_constructed_expr e2
+  | Rand e => is_well_constructed_expr e
+  | DRand e => is_well_constructed_expr e
+  end
+with is_well_constructed_val v :=
+  match v with
+  | LitV l => match base_lit_type_check l with | Some _ => true | _ => false end
+  | RecV f x e => is_well_constructed_expr e
+  | PairV v1 v2 => is_well_constructed_val v1 && is_well_constructed_val v2
+  | InjLV v => is_well_constructed_val v
+  | InjRV v => is_well_constructed_val v
+             end
+.
+
+(** * remove drand *)
+Fixpoint remove_drand_expr e:=
+  match e with
+  | Val v => Val $ remove_drand_val v
+  | Var x => Var x
+  | Rec f x e => Rec f x (remove_drand_expr e)
+  | App e1 e2 => App (remove_drand_expr e1) (remove_drand_expr e2)
+  | UnOp op e => UnOp op (remove_drand_expr e)
+  | BinOp op e1 e2 => BinOp op (remove_drand_expr e1) (remove_drand_expr e2)
+  | If e0 e1 e2 => If (remove_drand_expr e0) (remove_drand_expr e1) (remove_drand_expr e2)
+  | Pair e1 e2 => Pair (remove_drand_expr e1) (remove_drand_expr e2)
+  | Fst e => Fst (remove_drand_expr e)
+  | Snd e => Snd (remove_drand_expr e)
+  | InjL e => InjL (remove_drand_expr e)
+  | InjR e => InjR (remove_drand_expr e)
+  | Case e0 e1 e2 => Case (remove_drand_expr e0) (remove_drand_expr e1) (remove_drand_expr e2)
+  | AllocN e1 e2 => AllocN (remove_drand_expr e1) (remove_drand_expr e2)
+  | Load e => Load (remove_drand_expr e)
+  | Store e1 e2 => Store (remove_drand_expr e1) (remove_drand_expr e2)
+  | Rand e => Rand (remove_drand_expr e)
+  | DRand e => DRand (remove_drand_expr e)
+  end
+with remove_drand_val v : val:= 
+  match v with
+  | LitV l => LitV l
+  | RecV f x e => RecV f x (remove_drand_expr e)
+  | PairV v1 v2 => PairV (remove_drand_val v1) (remove_drand_val v2)
+  | InjLV v => InjLV (remove_drand_val v)
+  | InjRV v => InjRV (remove_drand_val v)
+  end.
