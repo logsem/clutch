@@ -351,6 +351,12 @@ Lemma det_step_eq_tapes e1 σ1 e2 σ2 :
 Proof. inversion 1; auto. Qed.
 
 Inductive prob_head_step_pred : expr -> state -> Prop :=
+| IfPSP bl e1 e2 σ:
+  ¬ urn_subst_equal σ bl (LitBool true) -> 
+  ¬ urn_subst_equal σ bl (LitBool false) ->
+  base_lit_type_check bl = Some BLTBool ->
+  base_lit_support_set bl ⊆ urns_support_set (σ.(urns)) ->
+  prob_head_step_pred (If (Val $ LitV $ bl) e1 e2) σ
 | RandPSP (N : nat) σ (z:Z) bl :
   urn_subst_equal σ bl z ->
   N = Z.to_nat z →
@@ -437,11 +443,39 @@ Lemma head_step_pred_ex_rel e1 σ1 :
 Proof.
   split.
   - intros [Hdet | Hdet];
-      inversion Hdet; simplify_eq; do 2 eexists; try (by econstructor).
-    Unshelve. all : apply 0%fin.
+      inversion Hdet; simplify_eq; try by (do 2 eexists; try (by econstructor)).
+    pose proof set_urns_f_nonempty (urns σ1) as Hnonempty.
+    apply size_pos_elem_of in Hnonempty as [f Hnonempty].
+    rewrite elem_of_set_urns_f_valid in Hnonempty.
+    rename select (base_lit_type_check _ = _) into H'.
+    eapply urn_subst_exists in H'; last by erewrite <-urns_f_valid_support.
+    destruct H' as [[][H1 ]]; apply urn_subst_is_simple in H1 as H4; simplify_eq.
+    rename select (bool) into b.
+    destruct b.
+    + eexists _, _.
+      eapply IfTrueS'; try done.
+      by intros ? ->%urns_subst_f_to_urns_unique_valid. 
+    + eexists _, _.
+      eapply IfFalseS'; try done.
+      by intros ? ->%urns_subst_f_to_urns_unique_valid.
+      Unshelve. all : apply 0%fin.
   - intros (?&?& H). inversion H; simplify_eq;
       (try by (left; econstructor));
       (try by (right; econstructor)).
+    + rename select (urn_subst_equal _ _ _) into H'.
+      right; econstructor; try done.
+      * apply urn_subst_equal_well_typed in H'.
+        by destruct!/=.
+      * apply urn_subst_equal_support in H'.
+        rewrite urns_subst_f_to_urns_support in H'.
+        by erewrite urns_f_valid_support.
+    + rename select (urn_subst_equal _ _ _) into H'.
+      right; econstructor; try done.
+      * apply urn_subst_equal_well_typed in H'.
+        by destruct!/=.
+      * apply urn_subst_equal_support in H'.
+        rewrite urns_subst_f_to_urns_support in H'.
+        by erewrite urns_f_valid_support.    
 Qed.
 
 Lemma not_head_step_pred_dzero e1 σ1:
