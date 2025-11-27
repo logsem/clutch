@@ -1121,9 +1121,6 @@ Section credits.
     { apply Rle_ge, Rexp_nn. }
   Qed.
 
-  Lemma HL3 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
-    ex_seriesC (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1).
-  Proof. Admitted.
 
   Lemma HL5 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     ∀ k, ex_RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1.
@@ -1195,6 +1192,88 @@ Section credits.
       { apply ex_RInt_const. }
   Qed.
 
+
+  Lemma HL3 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
+    ex_seriesC (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1).
+  Proof.
+    (*
+    apply (ex_seriesC_le _ (fun k => M * RInt (G2_μ k) 0 1)).
+    + a dmit.
+    + apply ex_seriesC_scal_l.
+      a dmit.
+    *)
+  Admitted.
+
+  Lemma HR1 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
+    Series.Series (λ x : nat, Series.Series (λ k : nat, RInt (λ x0 : R, RInt (λ x1 : R, (G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1)) =
+    Series.Series (λ x : nat, RInt (λ x0 : R, Series.Series (λ k : nat, RInt (λ x1 : R, (G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1)) 0 1).
+  Proof.
+    apply Series.Series_ext; intros n.
+    apply (FubiniIntegralSeries (fun k => M * RInt (G2_μ k) 0 1)).
+    - (* Goal 1: Series convergence - COMPLETED *)
+      rewrite ex_seriesC_nat.
+      apply ex_seriesC_scal_l.
+      rewrite /G2_μ.
+      apply (ex_seriesC_RInt (fun m => exp (- (0 + m) ^ 2 / 2) * / Norm2)).
+      + intros x n0 Hx; apply Rmult_le_pos; [apply Rexp_nn | apply Rlt_le, Rinv_0_lt_compat, Norm2_nn].
+      + apply ex_seriesC_scal_r, Norm2_ex'; lra.
+      + intros x n0 Hx.
+        rewrite Rabs_right.
+        2: { apply Rle_ge, Rmult_le_pos; [apply Rexp_nn | apply Rlt_le, Rinv_0_lt_compat, Norm2_nn]. }
+        rewrite Rdiv_def.
+        apply Rmult_le_compat_r.
+        { apply Rlt_le, Rinv_0_lt_compat, Norm2_nn. }
+        apply exp_mono.
+        replace (- (x + n0) ^ 2 / 2) with ((-1/2) * (x + n0) ^ 2) by lra.
+        replace (- (0 + n0) ^ 2 / 2) with ((-1/2) * (0 + n0) ^ 2) by lra.
+        apply Rmult_le_compat_neg_l; [lra|].
+        apply pow_incr.
+        split; [rewrite Rplus_0_l; apply pos_INR | lra].
+      + intros n0.
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros z Hz.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        auto_derive; done.
+    - (* Goal 2: Uniform bound - IN PROGRESS *)
+      intros x n0.
+      rewrite (RInt_ext _ (fun x1 => G1_μ n * (1 - exp (- x * (2 * n + x) / 2)) * (G2_μ n0 x1 * F n0 x1))).
+      2: { intros; lra. }
+      rewrite RInt_Rmult.
+      2: { apply G2_exRInt. }
+      etrans.
+      + apply abs_RInt_le.
+        { lra. }
+        { apply ex_RInt_Rmult, ex_RInt_mult; [apply G2_exRInt | apply Hex]. }
+      + apply RInt_le.
+        { lra. }
+        { (* TODO: prove ex_RInt of Rabs - requires continuity of Rabs composition *)
+          admit. }
+        { apply ex_RInt_Rmult, G2_exRInt. }
+        intros x0 Hx0.
+        rewrite Rabs_right.
+        2: { (* TODO: prove non-negativity: 0 <= G1_μ n * (1 - exp ...) * (G2_μ n0 x0 * F n0 x0) *)
+          admit. }
+        (* Current goal: G1_μ n * (G2_μ n0 x0 * F n0 x0 * (1 - exp ...)) <= M * G2_μ n0 x0 *)
+        rewrite Rmult_assoc.
+        rewrite (Rmult_comm (1 - exp (- x * (2 * n + x) / 2))).
+        (* Next steps: factor out G2_μ n0 x0, bound by using 0 <= 1 - exp <= 1,
+           0 <= G1_μ n <= 1, and 0 <= F n0 x0 <= M *)
+        admit.
+    - (* Goal 3: Integral existence - COMPLETED *)
+      intros n0.
+      apply (ex_RInt_ext (λ x : R, G1_μ n * (1 - exp (- x * (2 * n + x) / 2)) * RInt (λ x1 : R, G2_μ n0 x1 * F n0 x1) 0 1)).
+      + intros x Hx.
+        symmetry.
+        rewrite (RInt_ext _ (λ x1 : R, G1_μ n * (1 - exp (- x * (2 * n + x) / 2)) * (G2_μ n0 x1 * F n0 x1))).
+        2: { intros; lra. }
+        rewrite RInt_Rmult; [reflexivity | apply ex_RInt_mult; [apply G2_exRInt | apply Hex]].
+      + apply ex_RInt_mult.
+        * apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros z Hz.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          auto_derive; done.
+        * apply ex_RInt_const.
+  Admitted.
 
   Lemma G2_f_expectation {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     G2_CreditV F = G1_CreditV (G2_f F).
@@ -1561,7 +1640,7 @@ Section credits.
       replace (Series.Series (λ x : nat, RInt (λ x0 : R, Series.Series (λ k : nat, RInt (λ x1 : R, B k x x0 x1) 0 1)) 0 1))
          with (Series.Series (λ x : nat, Series.Series (λ k : nat, RInt (λ x0 : R, RInt (λ x1 : R, B k x x0 x1) 0 1) 0 1))).
       2: {
-        apply Series.Series_ext; intros n.
+        eapply HR1; done.
         admit.
       }
 
