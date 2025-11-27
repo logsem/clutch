@@ -1404,16 +1404,22 @@ Section urn.
     rewrite size_set_urns_f.
     revert m.
     apply (map_ind (λ m, _ -> _)); first by rewrite /urns_subst_f_num map_fold_empty.
-  Admitted. 
-
+    intros i x m Hnone IH H.
+    rewrite /urns_subst_f_num.
+    rewrite map_fold_insert_L; last done; last first.
+    { intros.
+      repeat case_bool_decide; lia. 
+    }
+    rewrite map_Forall_insert in H; last done.
+    destruct H as [H1 H2].
+    destruct!/=.
+    - rewrite bool_decide_eq_true_2; naive_solver.
+    - rewrite bool_decide_eq_false_2; last (intros ->; set_solver).
+      rewrite H1. setoid_rewrite IH; [lia|done].
+  Qed.
+  
   (** We define a distribution, where given a urn map, 
       produces a uniform distribution of urn subst f *)
-  Lemma urn_subst_equal_exists bl t f:
-    base_lit_type_check bl = Some t ->
-    base_lit_support_set bl ⊆ dom f ->
-    ∃ bl', urn_subst f bl = Some bl' /\ base_lit_type_check bl' = Some t.
-  Proof.
-  Admitted. 
 
   Program Definition urns_f_distr m := MkDistr (λ f, if bool_decide (urns_f_valid m f) then 1/size (set_urns_f_valid m) else 0) _ _ _.
   Next Obligation.
@@ -1608,6 +1614,37 @@ Section urn.
     eapply urn_subst_equal_unique in H1; last done.
     by subst.
   Qed.
+
+  
+  Lemma urn_subst_exists bl t f:
+    base_lit_type_check bl = Some t ->
+    base_lit_support_set bl ⊆ dom f ->
+    ∃ bl', urn_subst f bl = Some bl' /\ base_lit_type_check bl' = Some t.
+  Proof.
+    revert t.
+    induction bl as [| | | | |bl IH|bl IH |bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2]; intros t. 
+    1, 2, 3, 4: naive_solver.
+    1: { simpl; setoid_rewrite bind_Some.
+         intros ? H. simplify_eq.
+         set_unfold.
+         setoid_rewrite elem_of_dom in H.
+         epose proof H _ eq_refl as [? ->].
+         naive_solver. }
+    1, 2: simpl; case_match eqn:H; try case_match; intros ??; simplify_eq;
+    setoid_rewrite bind_Some;
+    epose proof IH _ eq_refl as [x [K1 K2]]; first done;
+    apply urn_subst_is_simple in K1 as K3;
+    destruct x; simplify_eq;
+       by repeat (eexists _||split).
+    all: simpl; rewrite union_subseteq; case_match eqn:H; try case_match; try done; try case_match eqn:H'; try case_match; intros ? [Hsubset1 Hsubset2]; simplify_eq;
+      repeat setoid_rewrite bind_Some;
+      epose proof IH1 _ eq_refl as [x1 [K1 K2]]; first done;
+      epose proof IH2 _ eq_refl as [x2 [K3 K4]]; first done;
+      apply urn_subst_is_simple in K1 as K5;
+      apply urn_subst_is_simple in K3 as K6;
+      destruct x1, x2; simplify_eq;
+                   by repeat (eexists _||split).
+  Qed. 
 
   Global Instance urn_subst_equal_dec σ bl bl': Decision (urn_subst_equal σ bl bl').
   Proof.
@@ -2050,7 +2087,7 @@ Proof.
     apply urns_f_valid_support in H1 as K5.
     rewrite urns_subst_f_to_urns_support in K3.
     rewrite -K5 K4 in K3.
-    eapply urn_subst_equal_exists in K1; last done.
+    eapply urn_subst_exists in K1; last done.
     destruct K1 as [bl' [K1 ]].
     apply urn_subst_is_simple in K1 as K1'.
     destruct bl'; simplify_eq.
@@ -2082,7 +2119,7 @@ Proof.
     apply urns_f_valid_support in H1 as K5.
     rewrite urns_subst_f_to_urns_support in K3.
     rewrite -K5 K4 in K3.
-    eapply urn_subst_equal_exists in K1; last done.
+    eapply urn_subst_exists in K1; last done.
     destruct K1 as [bl' [K1 ]].
     apply urn_subst_is_simple in K1 as K1'.
     destruct bl'; simplify_eq.
