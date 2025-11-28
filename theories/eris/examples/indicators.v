@@ -1531,34 +1531,39 @@ Proof.
   Qed.
 
   Lemma ex_seriesC_RInt {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R)
+    (Hab  : a <= b)
     (Hnn : ∀ x n, a < x < b → 0 <= f n x)
     (HexU : ex_seriesC UB)
-    (Hub : forall x n, a < x < b → Rabs (f n x) <= UB n)
+    (Hub : forall x n, a <= x <= b → Rabs (f n x) <= UB n)
     (Hex : ∀ n, ex_RInt (f n) a b) :
     ex_seriesC (fun n => RInt (λ x : R, f n x) a b).
   Proof.
-    apply (ex_seriesC_le _ (fun n => Rabs (b - a) * UB n)); first (intros ?; split).
+    apply (ex_seriesC_le _ (fun n => (b - a) * UB n)); first (intros ?; split).
     2: {
       replace (RInt (λ x : R, f n x) a b) with (Rabs (RInt (λ x : R, f n x) a b)).
-      2: { admit. }
-      destruct (Rle_lt_dec a b).
+      2: {
+        rewrite Rabs_right; first done.
+        apply Rle_ge.
+        apply RInt_ge_0.
+        { done. }
+        { apply Hex. }
+        { intros ??. apply Hnn.  done. }
+      }
       { etrans; first eapply (abs_RInt_le_const _ _ _ (UB n)).
         { done.  }
         { apply Hex. }
-(*
-
-        eapply (_ (UB n)).
-        { done. }
-        { apply Hex. }
-        { intros ??.
-
-          admit. }
-
-      Search RInt Rle.
-
-   *)
-    (*  Bound above by the series (b-a) * UB n *)
-  Admitted.
+        { intros ??. apply Hub. lra. }
+        { right. f_equal. }
+      }
+    }
+    { apply RInt_ge_0.
+      { done. }
+      { apply Hex. }
+      { intros ??. apply Hnn.  done. }
+    }
+    apply ex_seriesC_scal_l.
+    apply HexU.
+  Qed.
 
   Lemma ex_RInt_SeriesC {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R)
     (HexU : Series.ex_series UB) (Hub : forall x n, a < x < b → Rabs (f n x) <= UB n) (Hex : ∀ n, ex_RInt (f n) a b) :

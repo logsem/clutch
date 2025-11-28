@@ -555,52 +555,41 @@ Section credits.
   Lemma G2_f_ex_seriesC {F M} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) : ex_seriesC (G2_f F).
   Proof.
     rewrite /G2_f.
-    rewrite /G2_g/G2_s.
-    rewrite Iverson_True; OK.
-    rewrite Iverson_False; OK.
-    rewrite Iverson_False; OK.
-    rewrite Iverson_True; OK.
-    (* Not sure if this is right...
-    replace ((λ k : nat, RInt (λ x : R, exp (- x * (2 * k + x) / 2) * (1 * F k x + 0 * G2_CreditV F) + (1 - exp (- x * (2 * k + x) / 2)) * (0 * F k x + 1 * G2_CreditV F)) 0 1))
-       with ((λ k : nat, RInt (λ x : R, exp (- x * (2 * k + x) / 2) * F k x + (1 - exp (- x * (2 * k + x) / 2)) * (G2_CreditV F)) 0 1)).
-    2: { funexti.
-         apply RInt_ext.
-         intros ??.
-         f_equal; OK.
-    }
-    apply (ex_seriesC_ext (λ k : nat, RInt (λ x : R, exp (- x * (2 * k + x) / 2) * F k x) 0 1 + RInt (fun x : R => (1 - exp (- x * (2 * k + x) / 2)) * G2_CreditV F) 0 1)).
-    { intros n.
-      rewrite RInt_plus.
-      { rewrite /plus//=.  }
-      { apply ex_RInt_mult; [|apply Hint].
-        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
-      }
-      { apply ex_RInt_Rmult'.
-        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
-      }
-    }
-    apply ex_seriesC_plus.
-    {
-
-      a dmit. }
-    { replace (λ x : nat, RInt (λ x0 : R, (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_CreditV F) 0 1)
-        with (λ x : nat, (RInt (λ x0 : R, (1 - exp (- x0 * (2 * x + x0) / 2)) ) 0 1) * G2_CreditV F).
-      2: { funexti. rewrite RInt_Rmult'; [done|].
-           apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-           intros ??.
-           apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-           by auto_derive.
-      }
-      apply ex_seriesC_scal_r.
-
-      a dmit. }
-    *)
+    apply (ex_seriesC_le _ (fun k => M)).
+    - intros n.
+      split.
+      + apply RInt_ge_0; [lra | | ].
+        * apply G2_g_exRInt, Hint.
+        * intros x Hx; apply G2_g_nn; [apply Hnn | lra | apply Hint].
+      + etrans; [apply RInt_le; [lra | | | ] | ].
+        * apply G2_g_exRInt, Hint.
+        * apply ex_RInt_const.
+        * intros x Hx.
+          rewrite /G2_g /G2_s.
+          rewrite Iverson_True; [| intuition].
+          rewrite Iverson_False; [| intuition].
+          rewrite Iverson_False; [| intuition].
+          rewrite Iverson_True; [| intuition].
+          replace (1 * F n x + 0 * G2_CreditV F) with (F n x) by lra.
+          replace (0 * F n x + 1 * G2_CreditV F) with (G2_CreditV F) by lra.
+          have HCreditV : G2_CreditV F <= M by apply G2_CreditV_ub; [apply Hnn | apply Hint].
+          have Hexp : 0 <= exp (- x * (2 * n + x) / 2) <= 1; first split.
+          { apply Rexp_nn. }
+          { apply Rexp_range.
+            rewrite Rdiv_def.
+            apply Rcomplements.Rmult_le_0_r; OK.
+            apply Rcomplements.Rmult_le_0_r; OK.
+            apply Rplus_le_le_0_compat; OK.
+            apply Rmult_le_pos; OK.
+            apply pos_INR.
+          }
+          etrans; [apply Rplus_le_compat | ].
+          { apply Rmult_le_compat_l; [apply Hexp | apply Hnn]. }
+          { apply Rmult_le_compat_l; [lra | apply HCreditV]. }
+          replace (exp (- x * (2 * n + x) / 2) * M + (1 - exp (- x * (2 * n + x) / 2)) * M) with M by lra.
+          reflexivity.
+        * rewrite RInt_const. rewrite /scal//=/mult//=. OK.
+    - admit.
   Admitted.
 
 
@@ -1215,6 +1204,7 @@ Section credits.
       apply ex_seriesC_scal_l.
       rewrite /G2_μ.
       apply (ex_seriesC_RInt (fun m => exp (- (0 + m) ^ 2 / 2) * / Norm2)).
+      + OK.
       + intros x n0 Hx; apply Rmult_le_pos; [apply Rexp_nn | apply Rlt_le, Rinv_0_lt_compat, Norm2_nn].
       + apply ex_seriesC_scal_r, Norm2_ex'; lra.
       + intros x n0 Hx.
