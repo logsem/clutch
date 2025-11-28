@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
-From stdpp Require Import functions gmap stringmap fin_sets.
-From clutch.prelude Require Import stdpp_ext NNRbar fin uniform_list.
+From stdpp Require Import countable gmap stringmap fin_sets.
+From clutch.prelude Require Import stdpp_ext.
 From clutch.delay_prob_lang Require Import tactics notation.
 From clutch.delay_prob_lang Require Export lang.
 From iris.prelude Require Import options.
@@ -8,6 +8,7 @@ Set Default Proof Using "Type*".
 
 (* In lang.v, we defined functions and lemmas for substituing for baselits, 
    now we do it for expressions and values*)
+(* We also replace DRands with Rands *)
 Section urn_subst.
   Fixpoint urn_subst_expr (f: gmap loc nat) (e : expr) : option expr :=
     match e with
@@ -28,7 +29,7 @@ Section urn_subst.
 | Load e => e' ← urn_subst_expr f e; Some (Load e')
 | Store e1 e2 => e1' ← urn_subst_expr f e1; e2' ← urn_subst_expr f e2; Some (Store e1' e2')
 | Rand e => e' ← urn_subst_expr f e; Some (Rand e')
-| DRand e => e' ← urn_subst_expr f e; Some (DRand e')
+| DRand e => e' ← urn_subst_expr f e; Some (Rand e')
   end
   with urn_subst_val f v : option val :=
          match v with
@@ -40,4 +41,17 @@ Section urn_subst.
   end
   .
 
+  Lemma expr_support_set_not_support e f:
+    ¬ (expr_support_set e ⊆ dom f)-> urn_subst_expr f e = None.
+  Proof.
+  Admitted. 
+
+  Definition urn_subst_heap f (h:gmap loc val): option (gmap loc val) :=
+    list_to_map <$> (mapM (λ '(k, v), v' ← urn_subst_val f v; Some (k, v'))
+                       (map_to_list h)).
+
+  Lemma heap_support_set_not_support f h:
+    ¬ (map_Forall (λ _ v, val_support_set v ⊆ dom f) h) -> urn_subst_heap f h = None.
+  Proof.
+  Admitted. 
 End urn_subst.
