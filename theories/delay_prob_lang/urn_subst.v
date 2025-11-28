@@ -41,10 +41,43 @@ Section urn_subst.
   end
   .
 
+  Lemma base_lit_support_set_not_support bl f:
+    base_lit_support_set bl ⊈ dom f → urn_subst f bl = None.
+  Proof.
+    induction bl; simpl; repeat setoid_rewrite bind_None.
+    1, 2, 3, 4: set_solver.
+    1:  intros; left; apply not_elem_of_dom_1; set_solver.
+    1, 2: naive_solver.
+    all: rewrite union_subseteq;
+      intros ?%not_and_or_not;
+      destruct!/=; repeat setoid_rewrite bind_None; first naive_solver;
+      destruct (urn_subst _ _); naive_solver.
+  Qed. 
+  
   Lemma expr_support_set_not_support e f:
     ¬ (expr_support_set e ⊆ dom f)-> urn_subst_expr f e = None.
   Proof.
   Admitted. 
+  
+  Lemma val_support_set_not_support v f:
+    ¬ (val_support_set v ⊆ dom f)-> urn_subst_val f v = None.
+  Proof.
+    revert v.
+    fix FIX 1.
+    intros []; simpl.
+    - rewrite bind_None; left.
+      by apply base_lit_support_set_not_support.
+    - rewrite bind_None; left.
+      by apply expr_support_set_not_support.
+    - rewrite union_subseteq.
+      intros ?%not_and_or_not.
+      destruct!/=; repeat setoid_rewrite bind_None.
+      + naive_solver.
+      + destruct (urn_subst_val _ _); last naive_solver.
+        naive_solver.
+    - rewrite bind_None. naive_solver.
+    - rewrite bind_None. naive_solver.
+  Qed. 
 
   Definition urn_subst_heap f (h:gmap loc val): option (gmap loc val) :=
     list_to_map <$> (mapM (λ '(k, v), v' ← urn_subst_val f v; Some (k, v'))
@@ -53,5 +86,16 @@ Section urn_subst.
   Lemma heap_support_set_not_support f h:
     ¬ (map_Forall (λ _ v, val_support_set v ⊆ dom f) h) -> urn_subst_heap f h = None.
   Proof.
-  Admitted. 
+    intros H%map_not_Forall; last apply _.
+    destruct H as (i&x&Hsome &H).
+    rewrite /urn_subst_heap.
+    rewrite fmap_None.
+    apply mapM_None_2.
+    rewrite Exists_exists.
+    eexists (_,_).
+    split; first by rewrite elem_of_map_to_list.
+    rewrite bind_None.
+    left.
+    by apply val_support_set_not_support.
+  Qed. 
 End urn_subst.
