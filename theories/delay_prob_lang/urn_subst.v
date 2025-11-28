@@ -57,7 +57,63 @@ Section urn_subst.
   Lemma expr_support_set_not_support e f:
     ¬ (expr_support_set e ⊆ dom f)-> urn_subst_expr f e = None.
   Proof.
-  Admitted. 
+    revert e.
+    apply (expr_mut (λ e, ¬ (expr_support_set e ⊆ dom f)-> urn_subst_expr f e = None)
+             (λ v, ¬ (val_support_set v ⊆ dom f)-> urn_subst_val f v = None)).
+    all: simpl; repeat setoid_rewrite bind_None.
+    1: naive_solver.
+    1: set_solver.
+    1, 3, 7, 8, 9, 10, 13, 15, 16: naive_solver.
+    1, 4, 6, 7:  setoid_rewrite union_subseteq;
+         intros ???? ?%not_and_or_not;
+         destruct (urn_subst_expr _ _); last naive_solver;
+         destruct!/=; first naive_solver;
+             right; naive_solver.
+    1: setoid_rewrite union_subseteq;
+         intros ????? ?%not_and_or_not;
+         destruct (urn_subst_expr _ _); last naive_solver;
+         destruct!/=; first naive_solver;
+    right; naive_solver.
+    1:{ repeat setoid_rewrite union_subseteq.
+        intros ?????? H.
+        apply not_and_or_not in H.
+        destruct!/=; last first.
+        - destruct (urn_subst_expr _ _); last naive_solver.
+          right.
+          eexists _; split; first done.
+          destruct (urn_subst_expr _ _); last naive_solver.
+          right.
+          naive_solver.
+        - apply not_and_or_not in H.
+         destruct (urn_subst_expr _ _); last naive_solver;
+           destruct!/=; first naive_solver.
+         right. naive_solver.
+    } 
+    1:{ repeat setoid_rewrite union_subseteq.
+        intros ?????? H.
+        apply not_and_or_not in H.
+        destruct!/=; last first.
+        - destruct (urn_subst_expr _ _); last naive_solver.
+          right.
+          eexists _; split; first done.
+          destruct (urn_subst_expr _ _); last naive_solver.
+          right.
+          naive_solver.
+        - apply not_and_or_not in H.
+         destruct (urn_subst_expr _ _); last naive_solver;
+           destruct!/=; first naive_solver.
+         right. naive_solver.
+    }
+    - intros. left. by apply base_lit_support_set_not_support.
+    - intros. naive_solver.
+    - setoid_rewrite union_subseteq;
+         intros ???? ?%not_and_or_not;
+         destruct (urn_subst_val _ _); last naive_solver;
+         destruct!/=; first naive_solver;
+        right; naive_solver.
+    - naive_solver.
+    - naive_solver.
+  Qed.
   
   Lemma val_support_set_not_support v f:
     ¬ (val_support_set v ⊆ dom f)-> urn_subst_val f v = None.
