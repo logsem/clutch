@@ -1537,6 +1537,26 @@ Proof.
     (Hex : ∀ n, ex_RInt (f n) a b) :
     ex_seriesC (fun n => RInt (λ x : R, f n x) a b).
   Proof.
+    apply (ex_seriesC_le _ (fun n => Rabs (b - a) * UB n)); first (intros ?; split).
+    2: {
+      replace (RInt (λ x : R, f n x) a b) with (Rabs (RInt (λ x : R, f n x) a b)).
+      2: { admit. }
+      destruct (Rle_lt_dec a b).
+      { etrans; first eapply (abs_RInt_le_const _ _ _ (UB n)).
+        { done.  }
+        { apply Hex. }
+(*
+
+        eapply (_ (UB n)).
+        { done. }
+        { apply Hex. }
+        { intros ??.
+
+          admit. }
+
+      Search RInt Rle.
+
+   *)
     (*  Bound above by the series (b-a) * UB n *)
   Admitted.
 

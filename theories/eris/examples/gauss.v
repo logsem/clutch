@@ -1392,7 +1392,56 @@ Section credits.
   Lemma HR5 {F M n x} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) (Hx : 0 < x < 1) :
     RInt (λ x0 : R, Series.Series (λ x1 : nat, G1_μ x1 * (1 - exp (- x0 * (2 * x1 + x0) / 2)) * G2_μ n x * F n x)) 0 1 =
     Series.Series (λ x0 : nat, RInt (λ x1 : R, G1_μ x0 * (1 - exp (- x1 * (2 * x0 + x1) / 2)) * G2_μ n x * F n x) 0 1).
-  Proof. Admitted.
+  Proof.
+    symmetry.
+    have H : ∀ n0 x0, 0 < x0 < 1 → 1 - exp (- x0 * (2 * n0 + x0) / 2) <= 1.
+    { intros ???.
+      suffices ? : 0 <= exp (- x0 * (2 * n0 + x0) / 2) by OK.
+      apply Rexp_nn.
+    }
+    have H' : ∀ {n0 : nat} x0, 0 < x0 < 1 → 0 <= 1 - exp (- x0 * (2 * n0 + x0) / 2).
+    { intros ???.
+      suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
+      apply Rexp_range.
+      rewrite Rdiv_def.
+      apply Rcomplements.Rmult_le_0_r; OK.
+      apply Rcomplements.Rmult_le_0_r; OK.
+      apply Rplus_le_le_0_compat; OK.
+      apply Rmult_le_pos; OK.
+      apply pos_INR.
+    }
+    apply (FubiniIntegralSeries_Strong (fun x0 => G1_μ x0 * G2_μ n x * M)).
+    - rewrite ex_seriesC_nat.
+      apply ex_seriesC_scal_r, ex_seriesC_scal_r.
+      rewrite /G1_μ.
+      replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; lra).
+      apply ex_seriesC_scal_r, Norm1_ex.
+    - intros x0 n0 ?.
+      rewrite Rabs_right.
+      2: {
+        apply Rle_ge.
+        apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|]; OK.
+        { apply G1_μ_nn.  }
+        { apply G2_μ_nn.  OK. }
+        { apply Hbound. }
+      }
+      rewrite !Rmult_assoc.
+      apply Rmult_le_compat_l; [apply Rexp_nn | ].
+      apply Rmult_le_compat_l; [apply Rlt_le, Rinv_0_lt_compat, Norm1_nn | ].
+      rewrite (Rmult_comm (1 - exp (- x0 * (2 * n0 + x0) / 2))).
+      rewrite !Rmult_assoc.
+      apply Rmult_le_compat_l; [apply Rexp_nn | ].
+      apply Rmult_le_compat_l; [apply Rlt_le, Rinv_0_lt_compat, Norm2_nn | ].
+      rewrite -(Rmult_1_r M).
+      apply Rmult_le_compat; OK; apply Hbound.
+    - intros n0.
+      apply (ex_RInt_ext (λ x0 : R, G1_μ n0 * (1 - exp (- x0 * (2 * n0 + x0) / 2)) * (G2_μ n x * F n x))).
+      + intros; lra.
+      + apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros z Hz.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        auto_derive; done.
+  Qed.
 
   Lemma G2_f_expectation {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     G2_CreditV F = G1_CreditV (G2_f F).
