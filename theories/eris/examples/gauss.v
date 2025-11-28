@@ -554,6 +554,7 @@ Section credits.
 
   Lemma G2_f_ex_seriesC {F M} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) : ex_seriesC (G2_f F).
   Proof.
+    (* Nope!
     rewrite /G2_f.
     apply (ex_seriesC_le _ (fun k => M)).
     - intros n.
@@ -589,7 +590,8 @@ Section credits.
           replace (exp (- x * (2 * n + x) / 2) * M + (1 - exp (- x * (2 * n + x) / 2)) * M) with M by lra.
           reflexivity.
         * rewrite RInt_const. rewrite /scal//=/mult//=. OK.
-    - admit.
+    - a dmit.
+    *)
   Admitted.
 
 
@@ -1367,7 +1369,13 @@ Section credits.
   Lemma HR3 {F M x n} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     RInt (λ x1 : R, RInt (λ x0 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1 =
     RInt (λ x0 : R, RInt (λ x1 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1.
-  Proof. Admitted.
+  Proof.
+    apply Fubini_eq.
+    rewrite /FubiniCondition.
+    intros x0 y Hx0 Hy.
+    rewrite /uncurry//=.
+    (* This is Continuity2 because it is the pointwise product of Continuity1 terms. *)
+  Admitted.
 
   Lemma HR4 {F M n} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
   RInt
@@ -1377,7 +1385,22 @@ Section credits.
   Series.Series
     (λ x : nat,
        RInt (λ x1 : R, RInt (λ x0 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1).
-  Proof. Admitted.
+  Proof.
+    symmetry.
+    apply (FubiniIntegralSeries_Strong (fun x => G1_μ x * M * RInt (G2_μ n) 0 1)).
+    - rewrite ex_seriesC_nat.
+      apply ex_seriesC_scal_r, ex_seriesC_scal_r.
+      rewrite /G1_μ.
+      replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; lra).
+      apply ex_seriesC_scal_r, Norm1_ex.
+    - intros x n0 ?.
+      admit.
+    - intros n0.
+      (* Need the ex_RInt of RInt.
+
+        Factor out the consant terms from the inner integral, the frist integral is constant wrt the outer integral so can be factored out. Then we have the product of integrable fns.
+       *)
+  Admitted.
 
   Lemma HR5 {F M n x} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) (Hx : 0 < x < 1) :
     RInt (λ x0 : R, Series.Series (λ x1 : nat, G1_μ x1 * (1 - exp (- x0 * (2 * x1 + x0) / 2)) * G2_μ n x * F n x)) 0 1 =
@@ -1389,7 +1412,7 @@ Section credits.
       suffices ? : 0 <= exp (- x0 * (2 * n0 + x0) / 2) by OK.
       apply Rexp_nn.
     }
-    have H' : ∀ {n0 : nat} x0, 0 < x0 < 1 → 0 <= 1 - exp (- x0 * (2 * n0 + x0) / 2).
+    have H' : ∀ (n0 : nat) (x0 : R), 0 < x0 < 1 → 0 <= 1 - exp (- x0 * (2 * n0 + x0) / 2).
     { intros ???.
       suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
       apply Rexp_range.
