@@ -1374,7 +1374,10 @@ Section credits.
     rewrite /FubiniCondition.
     intros x0 y Hx0 Hy.
     rewrite /uncurry//=.
-    (* This is Continuity2 because it is the pointwise product of Continuity1 terms. *)
+    (* This is Continuity2 because it is the pointwise product of Continuity1 terms.
+
+        Actually, we want this to be the piecewise continuity thing not Continuity1. Finish that reduction first.
+     *)
   Admitted.
 
   Lemma HR4 {F M n} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
