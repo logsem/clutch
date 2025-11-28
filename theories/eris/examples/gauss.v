@@ -1394,6 +1394,7 @@ Section credits.
       replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; lra).
       apply ex_seriesC_scal_r, Norm1_ex.
     - intros x n0 ?.
+      (* The bound of G2_μ is odd. Can I get a sup for it over the interval instead of using the integral...*)
       admit.
     - intros n0.
       (* Need the ex_RInt of RInt.
