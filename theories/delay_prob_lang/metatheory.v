@@ -692,7 +692,19 @@ with is_well_constructed_val v :=
 Lemma is_well_constructed_expr_false e f:
   is_well_constructed_expr e = false -> urn_subst_expr f e = None.
 Proof.
-Admitted. 
+  revert e.
+  apply (expr_mut (λ e, is_well_constructed_expr e = false -> urn_subst_expr f e = None) (λ v, is_well_constructed_val v = false -> urn_subst_val f v = None)); simpl; repeat setoid_rewrite bind_None; repeat setoid_rewrite andb_false_iff.
+  1, 2, 3, 5, 9, 10, 11, 12, 15, 17, 18, 20, 22, 23: naive_solver.
+  1, 2, 4, 6, 7: intros; destruct!/=; first naive_solver;
+      destruct (urn_subst_expr _ _); naive_solver.
+  1, 2: intros; destruct!/=; first naive_solver;
+       first (destruct (urn_subst_expr _ _); naive_solver);
+       destruct (urn_subst_expr _ _); last naive_solver; right; eexists _; split; first done;
+     destruct (urn_subst_expr _ _); naive_solver.
+  1:{ intros. case_match; simplify_eq. left. by apply base_lit_type_check_None. }
+  intros; destruct!/=; first naive_solver.
+  destruct (urn_subst_val _ _); naive_solver.
+Qed. 
 
 (** * remove drand *)
 Fixpoint remove_drand_expr e:=
