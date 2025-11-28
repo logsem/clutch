@@ -1604,6 +1604,34 @@ Section urn.
         by apply elem_of_set_urns_f_valid.
   Qed.
 
+  Lemma base_lit_type_check_None bl f:
+    base_lit_type_check bl = None ->
+    urn_subst f bl = None.
+  Proof.
+    induction bl; simpl.
+    1, 2, 3, 4, 5: naive_solver.
+    1, 2: intros;
+       rewrite bind_None;
+       destruct (urn_subst _ _) eqn:Heqn; last naive_solver;
+       right;
+       eexists _; split; first done;
+       apply urn_subst_is_simple in Heqn as Heqn';
+       apply urn_subst_well_typed in Heqn as Heqn'';
+       destruct!/=;
+         by repeat (case_match||simplify_eq).
+    all: intros; repeat setoid_rewrite bind_None;
+      destruct (urn_subst _ _) eqn:Heqn1; last naive_solver; right;
+      eexists _; split; first done;
+      destruct (urn_subst _ bl2) eqn:Heqn2; last naive_solver;
+        right;
+       eexists _; split; first done;
+       apply urn_subst_is_simple in Heqn1 as Heqn1';
+       apply urn_subst_is_simple in Heqn2 as Heqn2';
+       apply urn_subst_well_typed in Heqn1 as Heqn1'';
+        apply urn_subst_well_typed in Heqn2 as Heqn2''; destruct!/=;
+      by repeat (case_match||simplify_eq).
+  Qed. 
+                                 
   (** Function to convert an urn subst_f back to a gmap
       Used in the definition of the If then else head step,
       in the case that the conditional cannot be directly resolved to either true or false
