@@ -149,6 +149,24 @@ Section pgl_theory.
         apply Rmult_le_compat_r; auto.
   Qed.
 
+  Lemma pgl_dbind' (h : A → distr A')
+    (μ1 : distr A) (g : A' → Prop) ε :
+    0 <= ε →
+    (∀ a, μ1 a > 0 → pgl (h a) g ε) → pgl (dbind h μ1) g (ε).
+  Proof.
+    intros ? H'.
+    replace (ε) with (0+ε) by lra.
+    eapply pgl_dbind; [done|done|apply H'|].
+    rewrite /pgl/prob.
+    right.
+    apply SeriesC_0.
+    intros x.
+    case_bool_decide; first done.
+    simpl.
+    pose proof pmf_pos μ1 x.
+    lra.
+  Qed. 
+    
   Lemma pgl_dbind_adv_aux (h : A → distr A')
     (μ : distr A) (g : A' → Prop) (ε : A → R) :
     (∀ a, 0 <= ε a) →
