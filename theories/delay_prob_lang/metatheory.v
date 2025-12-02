@@ -337,6 +337,23 @@ Proof.
       naive_solver.
 Qed.
 
+(** Preservation lemma *)
+Lemma prim_step_preserve e σ e2 σ2:
+  is_well_constructed_expr e = true ->
+  expr_support_set e ⊆ urns_support_set (urns σ) ->
+  map_Forall (λ (_ : loc) (v : d_prob_lang.val), is_well_constructed_val v = true)
+    (heap σ) ->
+  map_Forall (λ (_ : loc) (v : d_prob_lang.val), val_support_set v ⊆ urns_support_set (urns σ))
+    (heap σ) ->
+  (prim_step e σ (e2, σ2) > 0)%R ->
+  is_well_constructed_expr e2 = true
+  ∧ expr_support_set e2 ⊆ urns_support_set (urns σ2)
+    ∧ map_Forall (λ (_ : loc) (v : d_prob_lang.val), is_well_constructed_val v = true) (heap σ2)
+      ∧ map_Forall
+          (λ (_ : loc) (v : d_prob_lang.val), val_support_set v ⊆ urns_support_set (urns σ2))
+          (heap σ2).
+Proof.
+Admitted. 
 
 Local Open Scope R.
 

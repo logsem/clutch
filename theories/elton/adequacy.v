@@ -251,10 +251,13 @@ Section adequacy.
         iApply (state_step_coupl_erasure _ _ _ _ (S n) with "[-]"); [done..|].
         clear Hsubset Hforall1 Hforall2.
         iIntros (σ2 ε2) "(%Hsubset&%Hforall1&%Hforall2&Hwp)". 
-        iDestruct (prog_coupl_preserve with "[$]") as "Hwp"; [done..|].
+        iDestruct (prog_coupl_preserve with "[][$]") as "Hwp"; [done..| |].
+        { iModIntro. iIntros. iNext. by iApply state_step_coupl_ret_err_ge_1. }
         iApply (prog_coupl_erasure with "[$]"); [done..|].
         clear He Hsubset Hforall1 Hforall2.
-        iIntros (e3 σ3 ε3) "(%He&%Hsubset&%Hforall1&%Hforall2&Hwp)".
+        iIntros (e3 σ3 ε3) "([(%He&%Hsubset&%Hforall1&%Hforall2)|%Hineq]&Hwp)"; last first.
+        { iApply step_fupdN_intro; first done.
+          iPureIntro. by apply pgl_1. }
         iModIntro.
         simpl.
         iModIntro. iNext.

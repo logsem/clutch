@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 From clutch.bi Require Export weakestpre.
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.prob Require Export couplings distribution graded_predicate_lifting.
-From clutch.delay_prob_lang Require Import lang urn_subst.
+From clutch.delay_prob_lang Require Import lang urn_subst metatheory.
 From clutch.common Require Export language.
 
 (** This file contains the definition of the weakest precondition of elton *)
@@ -681,15 +681,42 @@ Section modalities.
     map_Forall (λ (_ : loc) v , is_well_constructed_val v = true) (heap σ) ->
     map_Forall (λ (_ : loc) v , val_support_set v ⊆ urns_support_set (urns σ))
                (heap σ) ->
+    □(∀ e2 σ2, Z e2 σ2 1) -∗
     prog_coupl e σ ε Z -∗
     prog_coupl e σ ε
-      (λ e' σ' ε', ⌜is_well_constructed_expr e' = true ⌝ ∗
+      (λ e' σ' ε', ((⌜is_well_constructed_expr e' = true ⌝ ∗
                      ⌜expr_support_set e' ⊆ urns_support_set (urns σ')⌝ ∗
                    ⌜map_Forall (λ (_ : loc) v, is_well_constructed_val v = true) (heap σ')⌝ ∗
-                   ⌜map_Forall (λ (_ : loc) v, val_support_set v ⊆ urns_support_set (urns σ')) (heap σ')⌝ ∗
+                   ⌜map_Forall (λ (_ : loc) v, val_support_set v ⊆ urns_support_set (urns σ')) (heap σ')⌝) ∨ ⌜(1<=ε')%R⌝) ∗
                 Z e' σ' ε').
   Proof.
-  Admitted. 
+    iIntros (He Hsubset Hforall1 Hforall2) "#H1 H".
+    rewrite /prog_coupl.
+    iDestruct "H" as "(%&%&[%r %]&%&H)".
+    iExists (λ x, if bool_decide (prim_step e σ x>0)%R then ε2 x else 1).
+    repeat iSplit; try done.
+    - iPureIntro.
+      exists (Rmax r 1). intros. case_bool_decide.
+      + etrans; last apply Rmax_l. done.
+      + etrans; last apply Rmax_r. done. 
+    - iPureIntro. etrans; last exact.
+      right.
+      rewrite /Expval.
+      apply SeriesC_ext.
+      intros x.
+      case_bool_decide; first done.
+      pose proof (pmf_pos (prim_step e σ) x).
+      assert (prim_step e σ x=0) as ->; simpl; simpl in *; lra.
+    - iIntros (e2 σ2).
+      iMod ("H" $! e2 σ2). iFrame. 
+      case_bool_decide; last first. 
+      { iModIntro. iSplit; last done.
+        iPureIntro. by right. }
+      iFrame.
+      iPureIntro.
+      left.
+      by eapply prim_step_preserve.
+  Qed. 
 
 End modalities.
 
