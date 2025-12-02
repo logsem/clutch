@@ -6,10 +6,11 @@ From clutch.delay_prob_lang Require Export lang.
 From iris.prelude Require Import options.
 Set Default Proof Using "Type*".
 
+Section urn_subst.
 (* In lang.v, we defined functions and lemmas for substituing for baselits, 
    now we do it for expressions and values*)
 (* We also replace DRands with Rands *)
-Section urn_subst.
+
   Fixpoint urn_subst_expr (f: gmap loc nat) (e : expr) : option expr :=
     match e with
     | Val v => v' ← urn_subst_val f v; Some (Val v') 

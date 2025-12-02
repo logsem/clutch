@@ -228,290 +228,401 @@ Qed.
 Lemma subst_map_is_closed_empty e vs : is_closed_expr ∅ e → subst_map vs e = e.
 Proof. intros. apply subst_map_is_closed with (∅ : stringset); set_solver. Qed.
 
+
+
+(** Lemma for resolving an urn. To be improved to allow partial resolvement *)  
+Lemma urns_f_distr_split (m:gmap loc urn) u s (N:nat):
+  m!!u=Some s ->
+  size s = S N ->
+  urns_f_distr m =
+  dunifP N ≫= (λ n, (match (elements s)!!(fin_to_nat n) with
+                     | Some y => dret (<[u:={[y]}]> m)
+                     | None => dzero
+                     end ) ≫= (λ m', urns_f_distr m')
+    ).
+Proof.
+  intros Hsome Hsize.
+  apply distr_ext.
+  intros f.
+  assert (s ≠ ∅) by (intros ?; set_solver). 
+  destruct (decide (urns_f_valid m f)) as [H'|H'].
+  - rewrite urns_f_distr_eval; last done.
+    replace m with (<[u:=s]> (delete u m)) at 1; last first.
+    { rewrite insert_delete_insert.
+      by rewrite insert_id.
+    }
+    rewrite urns_subst_f_num_insert; [|done|apply lookup_delete].
+    pose proof H' u as H''.
+    rewrite Hsome in H''.
+    case_match; last destruct!/=.
+    destruct H'' as (u'&?&Helem).
+    destruct!/=.
+    rewrite -elem_of_elements in Helem.
+    apply elem_of_list_lookup_1 in Helem.
+    destruct Helem as [i Helem'].
+    apply lookup_lt_Some in Helem' as Hlt.
+    rewrite -length_elements_size_gset Hsize in Hlt.
+    rewrite {1}/dbind{1}/dbind_pmf{1}/pmf.
+    pose (a':= nat_to_fin Hlt).
+    erewrite (SeriesC_ext _ (λ a, if bool_decide (a = a') then dunifP N a * _ else 0)); last first.
+    { intros a.
+      case_bool_decide as H1; first done.
+      case_match eqn:Hsome'; last (rewrite dbind_dzero dzero_0; lra).
+      rewrite dret_id_left'.
+      rewrite urns_f_distr_eval'; first lra.
+      intro Hcontra.
+      pose proof Hcontra u as H2.
+      case_match; simplify_eq.
+      destruct H2 as (?&H2&?).
+      rewrite lookup_insert in H2.
+      simplify_eq.
+      set_unfold; destruct!/=.
+      apply H1.
+      apply fin_to_nat_inj.
+      eapply NoDup_lookup; try done.
+      - apply NoDup_elements.
+      - by rewrite fin_to_nat_to_fin. 
+    }
+    rewrite SeriesC_singleton_dependent.
+    rewrite {1}/pmf{1}/dunifP/dunif.
+    rewrite Hsize.
+    rewrite fin_to_nat_to_fin.
+    rewrite Helem'.
+    rewrite dret_id_left'.
+    rewrite urns_f_distr_eval; last first.
+    + intros j. destruct (decide (u=j)).
+      * subst. case_match; simplify_eq.
+        eexists _.
+        rewrite lookup_insert; split; first done.
+        set_solver.
+      * pose proof H' j.
+        rewrite lookup_insert_ne; last done.
+        case_match; destruct!/=; naive_solver.
+    + rewrite -insert_delete_insert.
+      rewrite urns_subst_f_num_insert.
+      * rewrite size_singleton.
+        rewrite !mult_INR. 
+        rewrite INR_1. 
+        rewrite !Rdiv_1_l.
+        rewrite !Rinv_mult.
+        lra.
+      * set_solver.
+      * apply lookup_delete.
+  - rewrite urns_f_distr_eval'; last done.
+    symmetry.
+    destruct (pmf_pos (dunifP N
+                         ≫= λ n : fin (S N),
+                         match elements s !! (fin_to_nat n) with
+                         | Some y => dret (<[u:={[y]}]> m)
+                         | None => dzero
+                         end ≫= λ m' : gmap loc urn, urns_f_distr m') f) as [Hcontra|]; last lra.
+    apply Rlt_gt in Hcontra.
+    inv_distr.
+    case_match; inv_distr.
+    exfalso.
+    apply H'.
+    intros u'.
+    rename select (_ _ f > 0) into Hpos.
+    rewrite urns_f_distr_pos in Hpos.
+    pose proof Hpos u' as K.
+    destruct (decide (u=u')).
+    + subst.
+      rewrite lookup_insert in K.
+      case_match; destruct!/=.
+      set_unfold; destruct!/=.
+      eexists _; split; first done.
+      rewrite -elem_of_elements.
+      by eapply elem_of_list_lookup_2.
+    + rewrite lookup_insert_ne in K; last done.
+      naive_solver.
+Qed.
+
+
 Local Open Scope R.
 
 (** Removed lemmas on couplings*)
 
-(** Some useful lemmas to reason about language properties  *)
+(* (** Some useful lemmas to reason about language properties  *) *)
 
-Inductive det_head_step_rel : expr → state → expr → state → Prop :=
-| RecDS f x e σ :
-  det_head_step_rel (Rec f x e) σ (Val $ RecV f x e) σ
-| PairDS v1 v2 σ :
-  det_head_step_rel (Pair (Val v1) (Val v2)) σ (Val $ PairV v1 v2) σ
-| InjLDS v σ :
-  det_head_step_rel (InjL $ Val v) σ (Val $ InjLV v) σ
-| InjRDS v σ :
-  det_head_step_rel (InjR $ Val v) σ (Val $ InjRV v) σ
-| BetaDS f x e1 v2 e' σ :
-  e' = subst' x v2 (subst' f (RecV f x e1) e1) →
-  det_head_step_rel (App (Val $ RecV f x e1) (Val v2)) σ e' σ
-| UnOpDS op v v' σ :
-  un_op_eval op v = Some v' →
-  det_head_step_rel (UnOp op (Val v)) σ (Val v') σ
-| BinOpDS op v1 v2 v' σ :
-  bin_op_eval op v1 v2 = Some v' →
-  det_head_step_rel (BinOp op (Val v1) (Val v2)) σ (Val v') σ
-| IfTrueDS bl e1 e2 σ :
-  urn_subst_equal σ bl true ->
-  det_head_step_rel (If (Val $ LitV $ bl) e1 e2) σ e1 σ
-| IfFalseDS bl e1 e2 σ :
-  urn_subst_equal σ bl false ->
-  det_head_step_rel (If (Val $ LitV $ bl) e1 e2) σ e2 σ
-| FstDS v1 v2 σ :
-  det_head_step_rel (Fst (Val $ PairV v1 v2)) σ (Val v1) σ
-| SndDS v1 v2 σ :
-  det_head_step_rel (Snd (Val $ PairV v1 v2)) σ (Val v2) σ
-| CaseLDS v e1 e2 σ :
-  det_head_step_rel (Case (Val $ InjLV v) e1 e2) σ (App e1 (Val v)) σ
-| CaseRDS v e1 e2 σ :
-  det_head_step_rel (Case (Val $ InjRV v) e1 e2) σ (App e2 (Val v)) σ
-| AllocNDS z N v σ l :
-  l = fresh_loc σ.(heap) →
-  N = Z.to_nat z →
-  (0 < N)%nat ->
-  det_head_step_rel (AllocN (Val (LitV (LitInt z))) (Val v)) σ
-    (Val $ LitV $ LitLoc l) (state_upd_heap_N l N v σ)
-| LoadDS l v σ :
-  σ.(heap) !! l = Some v →
-  det_head_step_rel (Load (Val $ LitV $ LitLoc l)) σ (of_val v) σ
-| StoreDS l v w σ :
-  σ.(heap) !! l = Some v →
-  det_head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
-    (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ).
+(* Inductive det_head_step_rel : expr → state → expr → state → Prop := *)
+(* | RecDS f x e σ : *)
+(*   det_head_step_rel (Rec f x e) σ (Val $ RecV f x e) σ *)
+(* | PairDS v1 v2 σ : *)
+(*   det_head_step_rel (Pair (Val v1) (Val v2)) σ (Val $ PairV v1 v2) σ *)
+(* | InjLDS v σ : *)
+(*   det_head_step_rel (InjL $ Val v) σ (Val $ InjLV v) σ *)
+(* | InjRDS v σ : *)
+(*   det_head_step_rel (InjR $ Val v) σ (Val $ InjRV v) σ *)
+(* | BetaDS f x e1 v2 e' σ : *)
+(*   e' = subst' x v2 (subst' f (RecV f x e1) e1) → *)
+(*   det_head_step_rel (App (Val $ RecV f x e1) (Val v2)) σ e' σ *)
+(* | UnOpDS op v v' σ : *)
+(*   un_op_eval op v = Some v' → *)
+(*   det_head_step_rel (UnOp op (Val v)) σ (Val v') σ *)
+(* | BinOpDS op v1 v2 v' σ : *)
+(*   bin_op_eval op v1 v2 = Some v' → *)
+(*   det_head_step_rel (BinOp op (Val v1) (Val v2)) σ (Val v') σ *)
+(* | IfTrueDS bl e1 e2 σ : *)
+(*   urn_subst_equal σ bl true -> *)
+(*   det_head_step_rel (If (Val $ LitV $ bl) e1 e2) σ e1 σ *)
+(* | IfFalseDS bl e1 e2 σ : *)
+(*   urn_subst_equal σ bl false -> *)
+(*   det_head_step_rel (If (Val $ LitV $ bl) e1 e2) σ e2 σ *)
+(* | FstDS v1 v2 σ : *)
+(*   det_head_step_rel (Fst (Val $ PairV v1 v2)) σ (Val v1) σ *)
+(* | SndDS v1 v2 σ : *)
+(*   det_head_step_rel (Snd (Val $ PairV v1 v2)) σ (Val v2) σ *)
+(* | CaseLDS v e1 e2 σ : *)
+(*   det_head_step_rel (Case (Val $ InjLV v) e1 e2) σ (App e1 (Val v)) σ *)
+(* | CaseRDS v e1 e2 σ : *)
+(*   det_head_step_rel (Case (Val $ InjRV v) e1 e2) σ (App e2 (Val v)) σ *)
+(* | AllocNDS z N v σ l : *)
+(*   l = fresh_loc σ.(heap) → *)
+(*   N = Z.to_nat z → *)
+(*   (0 < N)%nat -> *)
+(*   det_head_step_rel (AllocN (Val (LitV (LitInt z))) (Val v)) σ *)
+(*     (Val $ LitV $ LitLoc l) (state_upd_heap_N l N v σ) *)
+(* | LoadDS l v σ : *)
+(*   σ.(heap) !! l = Some v → *)
+(*   det_head_step_rel (Load (Val $ LitV $ LitLoc l)) σ (of_val v) σ *)
+(* | StoreDS l v w σ : *)
+(*   σ.(heap) !! l = Some v → *)
+(*   det_head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ *)
+(*     (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ). *)
 
-Inductive det_head_step_pred : expr → state → Prop :=
-| RecDSP f x e σ :
-  det_head_step_pred (Rec f x e) σ
-| PairDSP v1 v2 σ :
-  det_head_step_pred (Pair (Val v1) (Val v2)) σ
-| InjLDSP v σ :
-  det_head_step_pred (InjL $ Val v) σ
-| InjRDSP v σ :
-  det_head_step_pred (InjR $ Val v) σ
-| BetaDSP f x e1 v2 σ :
-  det_head_step_pred (App (Val $ RecV f x e1) (Val v2)) σ
-| UnOpDSP op v σ v' :
-  un_op_eval op v = Some v' →
-  det_head_step_pred (UnOp op (Val v)) σ
-| BinOpDSP op v1 v2 σ v' :
-  bin_op_eval op v1 v2 = Some v' →
-  det_head_step_pred (BinOp op (Val v1) (Val v2)) σ
-| IfTrueDSP bl e1 e2 σ :
-  urn_subst_equal σ bl true ->
-  det_head_step_pred (If (Val $ LitV $ bl) e1 e2) σ
-| IfFalseDSP bl e1 e2 σ :
-  urn_subst_equal σ bl false ->
-  det_head_step_pred (If (Val $ LitV $ bl) e1 e2) σ
-| FstDSP v1 v2 σ :
-  det_head_step_pred (Fst (Val $ PairV v1 v2)) σ
-| SndDSP v1 v2 σ :
-  det_head_step_pred (Snd (Val $ PairV v1 v2)) σ
-| CaseLDSP v e1 e2 σ :
-  det_head_step_pred (Case (Val $ InjLV v) e1 e2) σ
-| CaseRDSP v e1 e2 σ :
-  det_head_step_pred (Case (Val $ InjRV v) e1 e2) σ
-| AllocNDSP z N v σ l :
-  l = fresh_loc σ.(heap) →
-  N = Z.to_nat z →
-  (0 < N)%nat ->
-  det_head_step_pred (AllocN (Val (LitV (LitInt z))) (Val v)) σ
-| LoadDSP l v σ :
-  σ.(heap) !! l = Some v →
-  det_head_step_pred (Load (Val $ LitV $ LitLoc l)) σ
-| StoreDSP l v w σ :
-  σ.(heap) !! l = Some v →
-  det_head_step_pred (Store (Val $ LitV $ LitLoc l) (Val w)) σ.
+(* Inductive det_head_step_pred : expr → state → Prop := *)
+(* | RecDSP f x e σ : *)
+(*   det_head_step_pred (Rec f x e) σ *)
+(* | PairDSP v1 v2 σ : *)
+(*   det_head_step_pred (Pair (Val v1) (Val v2)) σ *)
+(* | InjLDSP v σ : *)
+(*   det_head_step_pred (InjL $ Val v) σ *)
+(* | InjRDSP v σ : *)
+(*   det_head_step_pred (InjR $ Val v) σ *)
+(* | BetaDSP f x e1 v2 σ : *)
+(*   det_head_step_pred (App (Val $ RecV f x e1) (Val v2)) σ *)
+(* | UnOpDSP op v σ v' : *)
+(*   un_op_eval op v = Some v' → *)
+(*   det_head_step_pred (UnOp op (Val v)) σ *)
+(* | BinOpDSP op v1 v2 σ v' : *)
+(*   bin_op_eval op v1 v2 = Some v' → *)
+(*   det_head_step_pred (BinOp op (Val v1) (Val v2)) σ *)
+(* | IfTrueDSP bl e1 e2 σ : *)
+(*   urn_subst_equal σ bl true -> *)
+(*   det_head_step_pred (If (Val $ LitV $ bl) e1 e2) σ *)
+(* | IfFalseDSP bl e1 e2 σ : *)
+(*   urn_subst_equal σ bl false -> *)
+(*   det_head_step_pred (If (Val $ LitV $ bl) e1 e2) σ *)
+(* | FstDSP v1 v2 σ : *)
+(*   det_head_step_pred (Fst (Val $ PairV v1 v2)) σ *)
+(* | SndDSP v1 v2 σ : *)
+(*   det_head_step_pred (Snd (Val $ PairV v1 v2)) σ *)
+(* | CaseLDSP v e1 e2 σ : *)
+(*   det_head_step_pred (Case (Val $ InjLV v) e1 e2) σ *)
+(* | CaseRDSP v e1 e2 σ : *)
+(*   det_head_step_pred (Case (Val $ InjRV v) e1 e2) σ *)
+(* | AllocNDSP z N v σ l : *)
+(*   l = fresh_loc σ.(heap) → *)
+(*   N = Z.to_nat z → *)
+(*   (0 < N)%nat -> *)
+(*   det_head_step_pred (AllocN (Val (LitV (LitInt z))) (Val v)) σ *)
+(* | LoadDSP l v σ : *)
+(*   σ.(heap) !! l = Some v → *)
+(*   det_head_step_pred (Load (Val $ LitV $ LitLoc l)) σ *)
+(* | StoreDSP l v w σ : *)
+(*   σ.(heap) !! l = Some v → *)
+(*   det_head_step_pred (Store (Val $ LitV $ LitLoc l) (Val w)) σ. *)
 
-Definition is_det_head_step (e1 : expr) (σ1 : state)  : bool :=
-  match e1 with
-  | Rec f x e => true
-  | Pair (Val v1) (Val v2) => true
-  | InjL (Val v) => true
-  | InjR (Val v) => true
-  | App (Val (RecV f x e1)) (Val v2) => true
-  | UnOp op (Val v)  => bool_decide(is_Some(un_op_eval op v))
-  | BinOp op (Val v1) (Val v2) => bool_decide (is_Some(bin_op_eval op v1 v2))
-  | If (Val (LitV bl)) e1 e2 => bool_decide (urn_subst_equal σ1 bl true \/ urn_subst_equal σ1 bl false)
-  | Fst (Val (PairV v1 v2)) => true
-  | Snd (Val (PairV v1 v2)) => true
-  | Case (Val (InjLV v)) e1 e2 => true
-  | Case (Val (InjRV v)) e1 e2 => true
-  | AllocN (Val (LitV (LitInt z))) (Val v) => bool_decide (0 < Z.to_nat z)%nat
-  | Load (Val (LitV (LitLoc l)))  =>
-      bool_decide (is_Some (σ1.(heap) !! l))
-  | Store (Val (LitV (LitLoc l))) (Val w) =>
-      bool_decide (is_Some (σ1.(heap) !! l))
-  (* | Tick (Val (LitV (LitInt z))) => true *)
-  | _ => false
-  end.
+(* Definition is_det_head_step (e1 : expr) (σ1 : state)  : bool := *)
+(*   match e1 with *)
+(*   | Rec f x e => true *)
+(*   | Pair (Val v1) (Val v2) => true *)
+(*   | InjL (Val v) => true *)
+(*   | InjR (Val v) => true *)
+(*   | App (Val (RecV f x e1)) (Val v2) => true *)
+(*   | UnOp op (Val v)  => bool_decide(is_Some(un_op_eval op v)) *)
+(*   | BinOp op (Val v1) (Val v2) => bool_decide (is_Some(bin_op_eval op v1 v2)) *)
+(*   | If (Val (LitV bl)) e1 e2 => bool_decide (urn_subst_equal σ1 bl true \/ urn_subst_equal σ1 bl false) *)
+(*   | Fst (Val (PairV v1 v2)) => true *)
+(*   | Snd (Val (PairV v1 v2)) => true *)
+(*   | Case (Val (InjLV v)) e1 e2 => true *)
+(*   | Case (Val (InjRV v)) e1 e2 => true *)
+(*   | AllocN (Val (LitV (LitInt z))) (Val v) => bool_decide (0 < Z.to_nat z)%nat *)
+(*   | Load (Val (LitV (LitLoc l)))  => *)
+(*       bool_decide (is_Some (σ1.(heap) !! l)) *)
+(*   | Store (Val (LitV (LitLoc l))) (Val w) => *)
+(*       bool_decide (is_Some (σ1.(heap) !! l)) *)
+(*   (* | Tick (Val (LitV (LitInt z))) => true *) *)
+(*   | _ => false *)
+(*   end. *)
 
-Lemma det_step_eq_tapes e1 σ1 e2 σ2 :
-  det_head_step_rel e1 σ1 e2 σ2 → σ1.(urns) = σ2.(urns).
-Proof. inversion 1; auto. Qed.
+(* Lemma det_step_eq_tapes e1 σ1 e2 σ2 : *)
+(*   det_head_step_rel e1 σ1 e2 σ2 → σ1.(urns) = σ2.(urns). *)
+(* Proof. inversion 1; auto. Qed. *)
 
-Inductive prob_head_step_pred : expr -> state -> Prop :=
-| IfPSP bl e1 e2 σ:
-  ¬ urn_subst_equal σ bl (LitBool true) -> 
-  ¬ urn_subst_equal σ bl (LitBool false) ->
-  base_lit_type_check bl = Some BLTBool ->
-  base_lit_support_set bl ⊆ urns_support_set (σ.(urns)) ->
-  prob_head_step_pred (If (Val $ LitV $ bl) e1 e2) σ
-| RandPSP (N : nat) σ (z:Z) bl :
-  urn_subst_equal σ bl z ->
-  N = Z.to_nat z →
-  prob_head_step_pred (rand #bl) σ
-| DRandPSP (N : nat) σ (z:Z) bl :
-  urn_subst_equal σ bl z ->
-  N = Z.to_nat z →
-  prob_head_step_pred (drand #bl) σ.
+(* Inductive prob_head_step_pred : expr -> state -> Prop := *)
+(* | IfPSP bl e1 e2 σ: *)
+(*   ¬ urn_subst_equal σ bl (LitBool true) ->  *)
+(*   ¬ urn_subst_equal σ bl (LitBool false) -> *)
+(*   base_lit_type_check bl = Some BLTBool -> *)
+(*   base_lit_support_set bl ⊆ urns_support_set (σ.(urns)) -> *)
+(*   prob_head_step_pred (If (Val $ LitV $ bl) e1 e2) σ *)
+(* | RandPSP (N : nat) σ (z:Z) bl : *)
+(*   urn_subst_equal σ bl z -> *)
+(*   N = Z.to_nat z → *)
+(*   prob_head_step_pred (rand #bl) σ *)
+(* | DRandPSP (N : nat) σ (z:Z) bl : *)
+(*   urn_subst_equal σ bl z -> *)
+(*   N = Z.to_nat z → *)
+(*   prob_head_step_pred (drand #bl) σ. *)
 
-Definition head_step_pred e1 σ1 :=
-  det_head_step_pred e1 σ1 ∨ prob_head_step_pred e1 σ1.
+(* Definition head_step_pred e1 σ1 := *)
+(*   det_head_step_pred e1 σ1 ∨ prob_head_step_pred e1 σ1. *)
 
-Lemma det_step_is_unique e1 σ1 e2 σ2 e3 σ3 :
-  det_head_step_rel e1 σ1 e2 σ2 →
-  det_head_step_rel e1 σ1 e3 σ3 →
-  e2 = e3 ∧ σ2 = σ3.
-Proof.
-  intros H1 H2.
-  inversion H1; inversion H2; simplify_eq; auto.
-  - exfalso. by eapply (urn_subst_equal_not_unique _ _ true false).
-  - exfalso. by eapply (urn_subst_equal_not_unique _ _ true false).
-Qed. 
+(* Lemma det_step_is_unique e1 σ1 e2 σ2 e3 σ3 : *)
+(*   det_head_step_rel e1 σ1 e2 σ2 → *)
+(*   det_head_step_rel e1 σ1 e3 σ3 → *)
+(*   e2 = e3 ∧ σ2 = σ3. *)
+(* Proof. *)
+(*   intros H1 H2. *)
+(*   inversion H1; inversion H2; simplify_eq; auto. *)
+(*   - exfalso. by eapply (urn_subst_equal_not_unique _ _ true false). *)
+(*   - exfalso. by eapply (urn_subst_equal_not_unique _ _ true false). *)
+(* Qed.  *)
 
-Lemma det_step_pred_ex_rel e1 σ1 :
-  det_head_step_pred e1 σ1 ↔ ∃ e2 σ2, det_head_step_rel e1 σ1 e2 σ2.
-Proof.
-  split.
-  - intro H; inversion H; simplify_eq; eexists; eexists.
-    9:{ by apply IfFalseDS. }
-    all: econstructor; eauto.
-  - intros (e2 & (σ2 & H)); inversion H.
-    9:{ by apply IfFalseDSP. }
-    all: econstructor; eauto.
-Qed.
+(* Lemma det_step_pred_ex_rel e1 σ1 : *)
+(*   det_head_step_pred e1 σ1 ↔ ∃ e2 σ2, det_head_step_rel e1 σ1 e2 σ2. *)
+(* Proof. *)
+(*   split. *)
+(*   - intro H; inversion H; simplify_eq; eexists; eexists. *)
+(*     9:{ by apply IfFalseDS. } *)
+(*     all: econstructor; eauto. *)
+(*   - intros (e2 & (σ2 & H)); inversion H. *)
+(*     9:{ by apply IfFalseDSP. } *)
+(*     all: econstructor; eauto. *)
+(* Qed. *)
 
-Local Ltac solve_step_det :=
-  rewrite /pmf /=;
-    repeat (rewrite bool_decide_eq_true_2 // || case_match);
-  try (lra || lia || done || naive_solver).
+(* Local Ltac solve_step_det := *)
+(*   rewrite /pmf /=; *)
+(*     repeat (rewrite bool_decide_eq_true_2 // || case_match); *)
+(*   try (lra || lia || done || naive_solver). *)
 
-Local Ltac inv_det_head_step :=
-  repeat
-    match goal with
-    | H : to_val _ = Some _ |- _ => apply of_to_val in H
-    | H : is_det_head_step _ _ = true |- _ =>
-        rewrite /is_det_head_step in H;
-        repeat (case_match in H; simplify_eq)
-    | H : is_Some _ |- _ => destruct H
-    | H : bool_decide  _ = true |- _ => rewrite bool_decide_eq_true in H; destruct_and?; destruct_or?
-    | _ => progress simplify_map_eq/=
-    end.
+(* Local Ltac inv_det_head_step := *)
+(*   repeat *)
+(*     match goal with *)
+(*     | H : to_val _ = Some _ |- _ => apply of_to_val in H *)
+(*     | H : is_det_head_step _ _ = true |- _ => *)
+(*         rewrite /is_det_head_step in H; *)
+(*         repeat (case_match in H; simplify_eq) *)
+(*     | H : is_Some _ |- _ => destruct H *)
+(*     | H : bool_decide  _ = true |- _ => rewrite bool_decide_eq_true in H; destruct_and?; destruct_or? *)
+(*     | _ => progress simplify_map_eq/= *)
+(*     end. *)
 
-Lemma is_det_head_step_true e1 σ1 :
-  is_det_head_step e1 σ1 = true ↔ det_head_step_pred e1 σ1.
-Proof.
-  split; intro H.
-  - destruct e1; inv_det_head_step.
-    6:{ by apply IfFalseDSP. }
-    all: by econstructor.
-  - inversion H; solve_step_det.
-Qed.
+(* Lemma is_det_head_step_true e1 σ1 : *)
+(*   is_det_head_step e1 σ1 = true ↔ det_head_step_pred e1 σ1. *)
+(* Proof. *)
+(*   split; intro H. *)
+(*   - destruct e1; inv_det_head_step. *)
+(*     6:{ by apply IfFalseDSP. } *)
+(*     all: by econstructor. *)
+(*   - inversion H; solve_step_det. *)
+(* Qed. *)
 
-Lemma det_head_step_singleton e1 σ1 e2 σ2 :
-  det_head_step_rel e1 σ1 e2 σ2 → head_step e1 σ1 = dret (e2, σ2).
-Proof.
-  intros Hdet.
-  apply pmf_1_eq_dret.
-  inversion Hdet; simplify_eq/=; try case_match;
-    simplify_option_eq; rewrite ?dret_1_1 //.
-  - by case_bool_decide.
-  - case_bool_decide; last done.
-    exfalso. by eapply (urn_subst_equal_not_unique _ _ true false).
-  - rewrite bool_decide_eq_true_2; last done. rewrite dret_1_1//.
-Qed.
+(* Lemma det_head_step_singleton e1 σ1 e2 σ2 : *)
+(*   det_head_step_rel e1 σ1 e2 σ2 → head_step e1 σ1 = dret (e2, σ2). *)
+(* Proof. *)
+(*   intros Hdet. *)
+(*   apply pmf_1_eq_dret. *)
+(*   inversion Hdet; simplify_eq/=; try case_match; *)
+(*     simplify_option_eq; rewrite ?dret_1_1 //. *)
+(*   - by case_bool_decide. *)
+(*   - case_bool_decide; last done. *)
+(*     exfalso. by eapply (urn_subst_equal_not_unique _ _ true false). *)
+(*   - rewrite bool_decide_eq_true_2; last done. rewrite dret_1_1//. *)
+(* Qed. *)
 
-Lemma val_not_head_step e1 σ1 :
-  is_Some (to_val e1) → ¬ head_step_pred e1 σ1.
-Proof.
-  intros [] [Hs | Hs]; inversion Hs; simplify_eq.
-Qed.
+(* Lemma val_not_head_step e1 σ1 : *)
+(*   is_Some (to_val e1) → ¬ head_step_pred e1 σ1. *)
+(* Proof. *)
+(*   intros [] [Hs | Hs]; inversion Hs; simplify_eq. *)
+(* Qed. *)
 
-Lemma head_step_pred_ex_rel e1 σ1 :
-  head_step_pred e1 σ1 ↔ ∃ e2 σ2, head_step_rel e1 σ1 e2 σ2.
-Proof.
-  split.
-  - intros [Hdet | Hdet];
-      inversion Hdet; simplify_eq; try by (do 2 eexists; try (by econstructor)).
-    pose proof set_urns_f_nonempty (urns σ1) as Hnonempty.
-    apply size_pos_elem_of in Hnonempty as [f Hnonempty].
-    rewrite elem_of_set_urns_f_valid in Hnonempty.
-    rename select (base_lit_type_check _ = _) into H'.
-    eapply urn_subst_exists in H'; last by erewrite <-urns_f_valid_support.
-    destruct H' as [[][H1 ]]; apply urn_subst_is_simple in H1 as H4; simplify_eq.
-    rename select (bool) into b.
-    destruct b.
-    + eexists _, _.
-      eapply IfTrueS'; try done.
-      by intros ? ->%urns_subst_f_to_urns_unique_valid. 
-    + eexists _, _.
-      eapply IfFalseS'; try done.
-      by intros ? ->%urns_subst_f_to_urns_unique_valid.
-      Unshelve. all : apply 0%fin.
-  - intros (?&?& H). inversion H; simplify_eq;
-      (try by (left; econstructor));
-      (try by (right; econstructor)).
-    + rename select (urn_subst_equal _ _ _) into H'.
-      right; econstructor; try done.
-      * apply urn_subst_equal_well_typed in H'.
-        by destruct!/=.
-      * apply urn_subst_equal_support in H'.
-        rewrite urns_subst_f_to_urns_support in H'.
-        by erewrite urns_f_valid_support.
-    + rename select (urn_subst_equal _ _ _) into H'.
-      right; econstructor; try done.
-      * apply urn_subst_equal_well_typed in H'.
-        by destruct!/=.
-      * apply urn_subst_equal_support in H'.
-        rewrite urns_subst_f_to_urns_support in H'.
-        by erewrite urns_f_valid_support.    
-Qed.
+(* Lemma head_step_pred_ex_rel e1 σ1 : *)
+(*   head_step_pred e1 σ1 ↔ ∃ e2 σ2, head_step_rel e1 σ1 e2 σ2. *)
+(* Proof. *)
+(*   split. *)
+(*   - intros [Hdet | Hdet]; *)
+(*       inversion Hdet; simplify_eq; try by (do 2 eexists; try (by econstructor)). *)
+(*     pose proof set_urns_f_nonempty (urns σ1) as Hnonempty. *)
+(*     apply size_pos_elem_of in Hnonempty as [f Hnonempty]. *)
+(*     rewrite elem_of_set_urns_f_valid in Hnonempty. *)
+(*     rename select (base_lit_type_check _ = _) into H'. *)
+(*     eapply urn_subst_exists in H'; last by erewrite <-urns_f_valid_support. *)
+(*     destruct H' as [[][H1 ]]; apply urn_subst_is_simple in H1 as H4; simplify_eq. *)
+(*     rename select (bool) into b. *)
+(*     destruct b. *)
+(*     + eexists _, _. *)
+(*       eapply IfTrueS'; try done. *)
+(*       by intros ? ->%urns_subst_f_to_urns_unique_valid.  *)
+(*     + eexists _, _. *)
+(*       eapply IfFalseS'; try done. *)
+(*       by intros ? ->%urns_subst_f_to_urns_unique_valid. *)
+(*       Unshelve. all : apply 0%fin. *)
+(*   - intros (?&?& H). inversion H; simplify_eq; *)
+(*       (try by (left; econstructor)); *)
+(*       (try by (right; econstructor)). *)
+(*     + rename select (urn_subst_equal _ _ _) into H'. *)
+(*       right; econstructor; try done. *)
+(*       * apply urn_subst_equal_well_typed in H'. *)
+(*         by destruct!/=. *)
+(*       * apply urn_subst_equal_support in H'. *)
+(*         rewrite urns_subst_f_to_urns_support in H'. *)
+(*         by erewrite urns_f_valid_support. *)
+(*     + rename select (urn_subst_equal _ _ _) into H'. *)
+(*       right; econstructor; try done. *)
+(*       * apply urn_subst_equal_well_typed in H'. *)
+(*         by destruct!/=. *)
+(*       * apply urn_subst_equal_support in H'. *)
+(*         rewrite urns_subst_f_to_urns_support in H'. *)
+(*         by erewrite urns_f_valid_support.     *)
+(* Qed. *)
 
-Lemma not_head_step_pred_dzero e1 σ1:
-  ¬ head_step_pred e1 σ1 ↔ head_step e1 σ1 = dzero.
-Proof.
-  split.
-  - intro Hnstep.
-    apply dzero_ext.
-    intros (e2 & σ2).
-    destruct (Rlt_le_dec 0 (head_step e1 σ1 (e2, σ2))) as [H1%Rgt_lt | H2]; last first.
-    { pose proof (pmf_pos (head_step e1 σ1) (e2, σ2)). destruct H2; lra. }
-    apply head_step_support_equiv_rel in H1.
-    assert (∃ e2 σ2, head_step_rel e1 σ1 e2 σ2) as Hex; eauto.
-    by apply head_step_pred_ex_rel in Hex.
-  - intros Hhead (e2 & σ2 & Hstep)%head_step_pred_ex_rel.
-    apply head_step_support_equiv_rel in Hstep.
-    assert (head_step e1 σ1 (e2, σ2) = 0); [|lra].
-    rewrite Hhead //.
-Qed.
+(* Lemma not_head_step_pred_dzero e1 σ1: *)
+(*   ¬ head_step_pred e1 σ1 ↔ head_step e1 σ1 = dzero. *)
+(* Proof. *)
+(*   split. *)
+(*   - intro Hnstep. *)
+(*     apply dzero_ext. *)
+(*     intros (e2 & σ2). *)
+(*     destruct (Rlt_le_dec 0 (head_step e1 σ1 (e2, σ2))) as [H1%Rgt_lt | H2]; last first. *)
+(*     { pose proof (pmf_pos (head_step e1 σ1) (e2, σ2)). destruct H2; lra. } *)
+(*     apply head_step_support_equiv_rel in H1. *)
+(*     assert (∃ e2 σ2, head_step_rel e1 σ1 e2 σ2) as Hex; eauto. *)
+(*     by apply head_step_pred_ex_rel in Hex. *)
+(*   - intros Hhead (e2 & σ2 & Hstep)%head_step_pred_ex_rel. *)
+(*     apply head_step_support_equiv_rel in Hstep. *)
+(*     assert (head_step e1 σ1 (e2, σ2) = 0); [|lra]. *)
+(*     rewrite Hhead //. *)
+(* Qed. *)
 
-Lemma det_or_prob_or_dzero e1 σ1 :
-  det_head_step_pred e1 σ1
-  ∨ prob_head_step_pred e1 σ1
-  ∨ head_step e1 σ1 = dzero.
-Proof.
-  destruct (Rlt_le_dec 0 (SeriesC (head_step e1 σ1))) as [H1%Rlt_gt | [HZ | HZ]].
-  - pose proof (SeriesC_gtz_ex (head_step e1 σ1) (pmf_pos (head_step e1 σ1)) H1) as [[e2 σ2] Hρ].
-    pose proof (head_step_support_equiv_rel e1 e2 σ1 σ2) as [H3 H4].
-    specialize (H3 Hρ).
-    assert (head_step_pred e1 σ1) as []; [|auto|auto].
-    apply head_step_pred_ex_rel; eauto.
-  - by pose proof (pmf_SeriesC_ge_0 (head_step e1 σ1))
-      as ?%Rle_not_lt.
-  - apply SeriesC_zero_dzero in HZ. eauto.
-Qed.
+(* Lemma det_or_prob_or_dzero e1 σ1 : *)
+(*   det_head_step_pred e1 σ1 *)
+(*   ∨ prob_head_step_pred e1 σ1 *)
+(*   ∨ head_step e1 σ1 = dzero. *)
+(* Proof. *)
+(*   destruct (Rlt_le_dec 0 (SeriesC (head_step e1 σ1))) as [H1%Rlt_gt | [HZ | HZ]]. *)
+(*   - pose proof (SeriesC_gtz_ex (head_step e1 σ1) (pmf_pos (head_step e1 σ1)) H1) as [[e2 σ2] Hρ]. *)
+(*     pose proof (head_step_support_equiv_rel e1 e2 σ1 σ2) as [H3 H4]. *)
+(*     specialize (H3 Hρ). *)
+(*     assert (head_step_pred e1 σ1) as []; [|auto|auto]. *)
+(*     apply head_step_pred_ex_rel; eauto. *)
+(*   - by pose proof (pmf_SeriesC_ge_0 (head_step e1 σ1)) *)
+(*       as ?%Rle_not_lt. *)
+(*   - apply SeriesC_zero_dzero in HZ. eauto. *)
+(* Qed. *)
 
+(** tapes specific *)
 (* Lemma head_step_dzero_upd_tapes α e σ N zs z  : *)
 (*   α ∈ dom σ.(tapes) → *)
 (*   head_step e σ = dzero → *)

@@ -53,7 +53,7 @@ Section modalities.
         (∀ (ε':nonnegreal), ⌜(ε<ε')%R⌝ -∗ Φ (σ1, ε')) ∨
         (∃ u s N (ε2 :_ -> nonnegreal),
             ⌜σ1.(urns) !! u = Some s ⌝ ∗
-            ⌜size s = N⌝ ∗
+            ⌜size s = S N⌝ ∗
             ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
             ⌜ (Expval (dunifP N) ε2 <= ε)%R ⌝ ∗
             ∀ (x:fin (S N)),
@@ -102,7 +102,7 @@ Section modalities.
          (∀ ε', ⌜(ε<ε')%R⌝ -∗ state_step_coupl σ1 ε' Z) ∨
         (∃ u s N (ε2 :_ -> nonnegreal),
             ⌜σ1.(urns) !! u = Some s ⌝ ∗
-            ⌜size s = N⌝ ∗
+            ⌜size s = S N⌝ ∗
             ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
             ⌜ (Expval (dunifP N) ε2 <= ε)%R ⌝ ∗
             ∀ (x:fin (S N)),
@@ -141,7 +141,7 @@ Section modalities.
   Lemma state_step_coupl_rec σ1 (ε : nonnegreal) Z :
     (∃ u s N (ε2 :_ -> nonnegreal),
             ⌜σ1.(urns) !! u = Some s ⌝ ∗
-            ⌜size s = N⌝ ∗
+            ⌜size s = S N⌝ ∗
             ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
             ⌜ (Expval (dunifP N) ε2 <= ε)%R ⌝ ∗
             ∀ (x:fin (S N)),

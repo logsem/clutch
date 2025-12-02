@@ -1107,6 +1107,21 @@ Section urn.
                 then n else size u * n
       )%nat 1%nat m.
 
+  Lemma urns_subst_f_num_insert m u s:
+    s≠∅->
+    m!!u=None ->
+    urns_subst_f_num (<[u:=s]> m) =
+    (urns_subst_f_num m * size s)%nat.
+  Proof.
+    intros.
+    rewrite /urns_subst_f_num.
+    rewrite map_fold_insert; last done.
+    - rewrite bool_decide_eq_false_2; last done.
+      lia.
+    - intros.
+      repeat case_bool_decide; lia.
+  Qed.  
+
   Fixpoint base_lit_support_set bl : gset loc :=
     match bl with
     | LitInt n => ∅
@@ -1434,6 +1449,23 @@ Section urn.
     apply Rdiv_pos_pos; first lra.
     apply Rlt_gt.
     apply lt_0_INR. lia. 
+  Qed.
+
+  Lemma urns_f_distr_eval m f :
+    urns_f_valid m f -> urns_f_distr m f = 1/(urns_subst_f_num m).
+  Proof.
+    intros.
+    rewrite /urns_f_distr/pmf.
+    rewrite size_set_urns_f.
+    by rewrite bool_decide_eq_true_2.
+  Qed.
+  
+  Lemma urns_f_distr_eval' m f :
+    ¬ urns_f_valid m f -> urns_f_distr m f = 0.
+  Proof.
+    intros.
+    rewrite /urns_f_distr/pmf.
+    by rewrite bool_decide_eq_false_2.
   Qed. 
   
   Definition urn_subst_equal σ (bl bl':base_lit) :=
