@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 From clutch.bi Require Export weakestpre.
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.prob Require Export couplings distribution graded_predicate_lifting.
-From clutch.delay_prob_lang Require Import lang.
+From clutch.delay_prob_lang Require Import lang urn_subst.
 From clutch.common Require Export language.
 
 (** This file contains the definition of the weakest precondition of elton *)
@@ -330,6 +330,54 @@ Section modalities.
       iMod ("H") as "[H _]".
       by iApply "H".
   Qed.
+
+  (** Lemma needed for adequacy *)
+  Lemma state_step_coupl_preserve e σ ε Z:
+    expr_support_set e ⊆ urns_support_set (urns σ) ->
+    map_Forall (λ (_ : loc) v , is_well_constructed_val v = true) (heap σ) ->
+    map_Forall (λ (_ : loc) v , val_support_set v ⊆ urns_support_set (urns σ))
+               (heap σ) ->
+    state_step_coupl σ ε Z -∗
+    state_step_coupl σ ε
+      (λ σ' ε', ⌜expr_support_set e ⊆ urns_support_set (urns σ')⌝ ∗
+                ⌜map_Forall (λ (_ : loc) v, is_well_constructed_val v = true) (heap σ')⌝ ∗
+                ⌜map_Forall (λ (_ : loc) v, val_support_set v ⊆ urns_support_set (urns σ')) (heap σ')⌝ ∗
+                Z σ' ε').
+  Proof.
+    intros H1 H2 H3.
+    iIntros "H".
+    iRevert (H1 H2 H3).
+    iRevert "H".
+    iRevert (σ ε).
+    iApply state_step_coupl_ind.
+    iModIntro.
+    iIntros (σ ε) "H".
+    iIntros (Hsubset Hforall1 Hforall2).
+    iDestruct "H" as "[%|[H|[H|H]]]".
+    - by iApply state_step_coupl_ret_err_ge_1.
+    - iApply state_step_coupl_ret. iFrame. iPureIntro. naive_solver.
+    - iApply state_step_coupl_ampl.
+      iIntros.
+      iDestruct ("H" with "[//]") as "[H _]".
+      by iApply "H".
+    - iDestruct "H" as "(%&%&%&%&%&%&%&%&H)".
+      iApply state_step_coupl_rec.
+      iExists _, _, _, _.
+      repeat iSplit; try done.
+      iIntros (x).
+      iDestruct ("H" $! x) as "H".
+      case_match; last done.
+      iMod "H" as "[H _]". iModIntro.
+      iApply "H"; iPureIntro.
+      + etrans; first exact.
+        by apply urns_support_set_insert_subset.
+      + done.
+      + simpl.
+        eapply map_Forall_impl; first done.
+        simpl.
+        intros. etrans; first exact.
+        by apply urns_support_set_insert_subset.
+  Qed. 
   
   (* Lemma state_step_coupl_state_step α σ1 Z (ε ε' : nonnegreal) : *)
   (*   α ∈ get_active σ1 → *)
