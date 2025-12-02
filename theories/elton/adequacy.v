@@ -14,19 +14,6 @@ From clutch.prob Require Import distribution.
 Import uPred.
 
 Set Default Proof Using "Type".
-
-
-  Lemma urns_f_distr_split (m:gmap loc urn) u s (N:nat):
-    m!!u=Some s ->
-    size s = N ->
-    urns_f_distr m =
-    dunifP N ≫= (λ n, (match (elements s)!!(fin_to_nat n) with
-                      | Some y => dret (<[u:={[y]}]> m)
-                       | None => dzero
-                      end ) ≫= (λ m', urns_f_distr m')
-      ).
-  Proof.
-  Admitted.
   
 Section adequacy.
   Context `{!eltonGS Σ}.
@@ -55,7 +42,7 @@ Section adequacy.
     map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
     map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
     state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ v }} ⊢
-    |={⊤,∅}=> ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
+    |={⊤,∅}=>|={∅}▷=>^n ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
                        d_proj_Some (urn_subst_expr f e) ≫= λ e',
                          d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
                            exec n (e', {|heap:=hm; urns:=m|})) ϕ ε⌝.
@@ -69,10 +56,12 @@ Section adequacy.
     iApply state_step_coupl_ind.
     iModIntro.
     iIntros (??) "[%|[H|[H|H]]] %Hset %Hforall1 %Hforall2".
-    - iPureIntro. by apply pgl_1.
+    - iApply step_fupdN_intro; first done.
+      iPureIntro. by apply pgl_1.
     - iMod "H" as "(?&?&H)".
       rewrite rupd_unseal/rupd_def.
       iMod ("H" with "[$]") as "%Hsubst".
+      iApply step_fupdN_intro; first done.
       iPureIntro.
       apply pgl_dbind'; first done; intros ? H1.
       apply pgl_dbind'; first done; intros ? H2.
@@ -82,7 +71,7 @@ Section adequacy.
       rewrite bind_Some in H2. destruct!/=.
       erewrite exec_is_final; last done.
       eapply pgl_mon_grading; last apply pgl_dret; done.
-    - iApply (fupd_mono _ _ (⌜_⌝)%I).
+    - iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
       { iPureIntro.
         intros H'.
         apply pgl_epsilon_limit; last exact.
@@ -96,13 +85,13 @@ Section adequacy.
     - iDestruct "H" as "(%&%&%&%&%&%&%&%Hineq&H)".
       erewrite urns_f_distr_split; [|done..].
       rewrite -dbind_assoc'.
-      iApply (fupd_mono _ _ (⌜_⌝)%I).
+      iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
       { iPureIntro.
         intros H'.
         eapply pgl_mon_grading; first apply Hineq.
         exact H'.
       }
-      iMod (pgl_dbind_adv' _ _ _ _ 0%nat with "[][-]"); [iPureIntro| |done]; first naive_solver.
+      iMod (pgl_dbind_adv'  with "[][-]"); [iPureIntro| |done]; first naive_solver.
       simpl.
       iIntros (x).
       iDestruct ("H"$! x) as "H".
@@ -362,3 +351,5 @@ Proof.
   - rewrite d_proj_Some_None. by rewrite dbind_dzero.
   - by rewrite -H'.
 Qed. 
+
+
