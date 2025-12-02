@@ -1081,6 +1081,24 @@ Section urn.
       naive_solver.
     - intros [?[]].
       naive_solver.
+  Qed.
+
+  Lemma urns_support_set_insert_subset m u s:
+    s≠∅ ->
+    urns_support_set m ⊆ urns_support_set (<[u:=s]> m).
+  Proof.
+    intros.
+    rewrite /urns_support_set.
+    intros x.
+    repeat rewrite elem_of_filter.
+    rewrite dom_insert_L.
+    intros [H1 H2].
+    destruct!/=.
+    split; last set_solver.
+    destruct (decide (u=x)).
+    - subst. simplify_map_eq.
+      naive_solver.
+    - by rewrite lookup_insert_ne.
   Qed. 
 
   Definition urns_subst_f_num (m:gmap loc urn):=

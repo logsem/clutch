@@ -15,6 +15,19 @@ Import uPred.
 
 Set Default Proof Using "Type".
 
+
+  Lemma urns_f_distr_split (m:gmap loc urn) u s (N:nat):
+    m!!u=Some s ->
+    size s = N ->
+    urns_f_distr m =
+    dunifP N ≫= (λ n, (match (elements s)!!(fin_to_nat n) with
+                      | Some y => dret (<[u:={[y]}]> m)
+                       | None => dzero
+                      end ) ≫= (λ m', urns_f_distr m')
+      ).
+  Proof.
+  Admitted.
+  
 Section adequacy.
   Context `{!eltonGS Σ}.
   Lemma step_fupd_fupdN_S n (P : iProp Σ) :  ((|={∅}▷=>^(S n) P) ⊣⊢ (|={∅}=> |={∅}▷=>^(S n) P))%I.
@@ -41,7 +54,7 @@ Section adequacy.
     expr_support_set e ⊆ urns_support_set (urns σ) ->
     map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
     map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
-    state_interp σ ∗ err_interp (ε) ∗ WP e {{ rupd ⊤ ∅ ϕ }} ⊢
+    state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ v }} ⊢
     |={⊤,∅}=> ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
                        d_proj_Some (urn_subst_expr f e) ≫= λ e',
                          d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
@@ -80,15 +93,42 @@ Section adequacy.
       + by iApply "H".
       + done.
       + pose proof cond_nonneg ε. lra.
-    - admit. 
-  Admitted. 
+    - iDestruct "H" as "(%&%&%&%&%&%&%&%Hineq&H)".
+      erewrite urns_f_distr_split; [|done..].
+      rewrite -dbind_assoc'.
+      iApply (fupd_mono _ _ (⌜_⌝)%I).
+      { iPureIntro.
+        intros H'.
+        eapply pgl_mon_grading; first apply Hineq.
+        exact H'.
+      }
+      iMod (pgl_dbind_adv' _ _ _ _ 0%nat with "[][-]"); [iPureIntro| |done]; first naive_solver.
+      simpl.
+      iIntros (x).
+      iDestruct ("H"$! x) as "H".
+      case_match; last done.
+      rewrite dret_id_left.
+      iMod ("H") as "[H _]".
+      iApply "H".
+      + iPureIntro.
+        simpl in *.
+        etrans; first exact.
+        by apply urns_support_set_insert_subset.
+      + done.
+      + iPureIntro.
+        eapply map_Forall_impl; first done.
+        simpl.
+        intros ?? H'.
+        etrans; first exact.
+        by apply urns_support_set_insert_subset.
+  Qed. 
 
   Theorem wp_elton_adequacy (ε: nonnegreal) e σ ϕ n m :
     is_well_constructed_expr e = true ->
     expr_support_set e ⊆ urns_support_set (urns σ) ->
     map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
     map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
-    state_interp σ ∗ err_interp (ε) ∗ WP e {{ rupd ⊤ ∅ ϕ }} ⊢
+    state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ v }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n
                ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
                        d_proj_Some (urn_subst_expr f e) ≫= λ e',
@@ -140,7 +180,7 @@ Theorem elton_adequacy_stratified Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R)
   map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
   map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
   (0<=ε)%R ->
-  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ rupd ⊤ ∅ ϕ }}) ->
+  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ v }}) ->
   pgl (urns_f_distr (σ.(urns)) ≫= λ f,
          d_proj_Some (urn_subst_expr f e) ≫= λ e',
            d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
@@ -175,7 +215,7 @@ Theorem elton_adequacy_with_conditions Σ `{eltonGpreS Σ} (e:expr) (σ:state) (
   map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
   map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
   (0<=ε)%R ->
-  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ rupd ⊤ ∅ ϕ }}) ->
+  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ v }}) ->
   pgl (urns_f_distr (σ.(urns)) ≫= λ f,
          d_proj_Some (urn_subst_expr f e) ≫= λ e',
            d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
@@ -255,7 +295,7 @@ Qed.
 
 Theorem elton_adequacy_without_conditions Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R) m ϕ:
   (0<=ε)%R ->
-  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ rupd ⊤ ∅ ϕ }}) ->
+  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ v }}) ->
   pgl (urns_f_distr (σ.(urns)) ≫= λ f,
          d_proj_Some (urn_subst_expr f e) ≫= λ e',
            d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
