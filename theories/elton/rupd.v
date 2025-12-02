@@ -7,8 +7,8 @@ From clutch.elton Require Import weakestpre primitive_laws.
 Section rupd.
   Context `{H:!eltonGS Σ}.
   (* Do we need to open invariants? *)
-  Definition rupd_def E1 E2 (P:val -> Prop) v : iProp Σ:=
-    (∀ σ1, state_interp σ1 ={E1, E2}=∗
+  Definition rupd_def (P:val -> Prop) v : iProp Σ:=
+    (∀ σ1, state_interp σ1 -∗ 
            ⌜∀ f, urns_f_valid (urns σ1) f ->
                 ∃ v', urn_subst_val f v = Some v' /\ P v'⌝).
   
@@ -16,6 +16,5 @@ Section rupd.
   Definition rupd := rupd_aux.(unseal).
   Lemma rupd_unseal : rupd = rupd_def.
   Proof. rewrite -rupd_aux.(seal_eq) //. Qed.
-
-  
+    
 End rupd. 
