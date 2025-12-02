@@ -112,6 +112,83 @@ Section adequacy.
         by apply urns_support_set_insert_subset.
   Qed. 
 
+  
+  Lemma state_step_coupl_erasure' (ε:nonnegreal) e σ ϕ n m Z:
+    to_val e = None ->
+    is_well_constructed_expr e = true ->
+    expr_support_set e ⊆ urns_support_set (urns σ) ->
+    map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
+    map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
+    state_step_coupl σ ε Z -∗
+    (∀ σ2 ε2, Z σ2 ε2 ={∅}=∗ |={∅}▷=>^(S n)
+                               ⌜pgl (urns_f_distr (σ2.(urns)) ≫= λ f,
+                                       d_proj_Some (urn_subst_expr f e) ≫= λ e',
+                                         d_proj_Some (urn_subst_heap f (σ2.(heap))) ≫= λ hm, 
+                                           exec (S n) (e', {|heap:=hm; urns:=m|})) ϕ ε2⌝) -∗
+    |={∅}=> |={∅}▷=>^(S n)
+             ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
+                                       d_proj_Some (urn_subst_expr f e) ≫= λ e',
+                                         d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
+                                           exec (S n) (e', {|heap:=hm; urns:=m|})) ϕ ε⌝.
+  Proof.
+    iIntros (Hnone He Hset Hforall1 Hforall2) "H HZ".
+    iRevert (Hset Hforall1 Hforall2).
+    iRevert "H HZ".
+    iRevert (σ ε).
+    iApply state_step_coupl_ind.
+    iModIntro.
+    iIntros (??) "[%|[H|[H|H]]] HZ %Hset %Hforall1 %Hforall2".
+    - iApply step_fupdN_intro; first done.
+      iPureIntro. by apply pgl_1.
+    - by iMod ("HZ" with "[$]").  
+    - iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
+      { iPureIntro.
+        intros H'.
+        apply pgl_epsilon_limit; last exact.
+        apply Rle_ge.
+        apply cond_nonneg.
+      }
+      iIntros (ε' ?).
+      unshelve iDestruct ("H" $! (mknonnegreal ε' _) with "[]") as "[H _]"; last first. 
+      + iApply ("H" with "[-]"); [|done..].
+        iIntros (??) "?".
+        iMod ("HZ" with "[$]").
+        by iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
+      + done.
+      + pose proof cond_nonneg ε.
+        simpl in *. lra. 
+    - iDestruct "H" as "(%&%&%&%&%&%&%&%Hineq&H)".
+      erewrite urns_f_distr_split; [|done..].
+      rewrite -dbind_assoc'.
+      iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
+      { iPureIntro.
+        intros H'.
+        eapply pgl_mon_grading; first apply Hineq.
+        exact H'.
+      }
+      iMod (pgl_dbind_adv'  with "[][-]"); [iPureIntro| |done]; first naive_solver.
+      simpl.
+      iIntros (x).
+      iDestruct ("H"$! x) as "H".
+      case_match; last done.
+      rewrite dret_id_left.
+      iMod ("H") as "[H _]".
+      iApply ("H" with "[-]").
+      + iIntros (??) "?".
+        by iMod ("HZ" with "[$]").
+      + iPureIntro. 
+        etrans; first exact.
+        by apply urns_support_set_insert_subset.
+      + done.
+      + iPureIntro.
+        eapply map_Forall_impl; first done.
+        simpl.
+        intros ?? H'.
+        etrans; first exact.
+        by apply urns_support_set_insert_subset.
+  Qed. 
+  
+  
   Theorem wp_elton_adequacy (ε: nonnegreal) e σ ϕ n m :
     is_well_constructed_expr e = true ->
     expr_support_set e ⊆ urns_support_set (urns σ) ->
@@ -144,7 +221,17 @@ Section adequacy.
         simpl.
         inv_distr.
         by erewrite urn_subst_expr_not_val.
-    - admit. 
+    - destruct (to_val e) eqn:Heqn.
+      + apply of_to_val in Heqn as <-.
+        iApply wp_elton_adequacy_val; [done..|iFrame].
+      + rewrite pgl_wp_unfold/pgl_wp_pre.
+        iMod ("Hwp" with "[$]") as "Hwp".
+        iSimpl in "Hwp".
+        rewrite Heqn.
+        iDestruct (state_step_coupl_preserve with "[$]") as "Hwp"; [done..|].
+        iApply (state_step_coupl_erasure' with "[$]"); [done..|].
+        clear Hsubset Hforall1 Hforall2.
+        iIntros (σ2 ε2) "(%Hsubset&%Hforall1&%Hforall2&Hwp)". 
   Admitted. 
   
 End adequacy.
