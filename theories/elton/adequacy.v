@@ -113,25 +113,24 @@ Section adequacy.
   Qed. 
 
   
-  Lemma state_step_coupl_erasure' (ε:nonnegreal) e σ ϕ n m Z:
-    to_val e = None ->
+  Lemma state_step_coupl_erasure (ε:nonnegreal) e σ ϕ n m Z:
     is_well_constructed_expr e = true ->
     expr_support_set e ⊆ urns_support_set (urns σ) ->
     map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
     map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
     state_step_coupl σ ε Z -∗
-    (∀ σ2 ε2, Z σ2 ε2 ={∅}=∗ |={∅}▷=>^(S n)
+    (∀ σ2 ε2, Z σ2 ε2 ={∅}=∗ |={∅}▷=>^(n)
                                ⌜pgl (urns_f_distr (σ2.(urns)) ≫= λ f,
                                        d_proj_Some (urn_subst_expr f e) ≫= λ e',
                                          d_proj_Some (urn_subst_heap f (σ2.(heap))) ≫= λ hm, 
-                                           exec (S n) (e', {|heap:=hm; urns:=m|})) ϕ ε2⌝) -∗
-    |={∅}=> |={∅}▷=>^(S n)
+                                           exec (n) (e', {|heap:=hm; urns:=m|})) ϕ ε2⌝) -∗
+    |={∅}=> |={∅}▷=>^(n)
              ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
                                        d_proj_Some (urn_subst_expr f e) ≫= λ e',
                                          d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
-                                           exec (S n) (e', {|heap:=hm; urns:=m|})) ϕ ε⌝.
+                                           exec (n) (e', {|heap:=hm; urns:=m|})) ϕ ε⌝.
   Proof.
-    iIntros (Hnone He Hset Hforall1 Hforall2) "H HZ".
+    iIntros (He Hset Hforall1 Hforall2) "H HZ".
     iRevert (Hset Hforall1 Hforall2).
     iRevert "H HZ".
     iRevert (σ ε).
@@ -188,6 +187,26 @@ Section adequacy.
         by apply urns_support_set_insert_subset.
   Qed. 
   
+
+  Lemma prog_coupl_erasure (ε:nonnegreal) e σ ϕ n m Z:
+    is_well_constructed_expr e = true ->
+    expr_support_set e ⊆ urns_support_set (urns σ) ->
+    map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
+    map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
+    prog_coupl e σ ε Z -∗
+    (∀ e2 σ2 ε2, Z e2 σ2 ε2 ={∅}=∗ |={∅}▷=>^(S n)
+                               ⌜pgl (urns_f_distr (σ2.(urns)) ≫= λ f,
+                                       d_proj_Some (urn_subst_expr f e2) ≫= λ e',
+                                         d_proj_Some (urn_subst_heap f (σ2.(heap))) ≫= λ hm, 
+                                           exec (n) (e', {|heap:=hm; urns:=m|})) ϕ ε2⌝) -∗
+    |={∅}=> |={∅}▷=>^(S n)
+             ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
+                                       d_proj_Some (urn_subst_expr f e) ≫= λ e',
+                                         d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
+                                           exec (S n) (e', {|heap:=hm; urns:=m|})) ϕ ε⌝.
+  Proof.
+  Admitted.
+  
   
   Theorem wp_elton_adequacy (ε: nonnegreal) e σ ϕ n m :
     is_well_constructed_expr e = true ->
@@ -229,10 +248,23 @@ Section adequacy.
         iSimpl in "Hwp".
         rewrite Heqn.
         iDestruct (state_step_coupl_preserve with "[$]") as "Hwp"; [done..|].
-        iApply (state_step_coupl_erasure' with "[$]"); [done..|].
+        iApply (state_step_coupl_erasure _ _ _ _ (S n) with "[-]"); [done..|].
         clear Hsubset Hforall1 Hforall2.
         iIntros (σ2 ε2) "(%Hsubset&%Hforall1&%Hforall2&Hwp)". 
-  Admitted. 
+        iDestruct (prog_coupl_preserve with "[$]") as "Hwp"; [done..|].
+        iApply (prog_coupl_erasure with "[$]"); [done..|].
+        clear He Hsubset Hforall1 Hforall2.
+        iIntros (e3 σ3 ε3) "(%He&%Hsubset&%Hforall1&%Hforall2&Hwp)".
+        iModIntro.
+        simpl.
+        iModIntro. iNext.
+        iDestruct (state_step_coupl_preserve with "[$]") as "Hwp"; [done..|].
+        iApply (state_step_coupl_erasure with "[$]"); [done..|].
+        clear Hsubset Hforall1 Hforall2.
+        iIntros (σ4 ε4) "(%Hsubset&%Hforall1&%Hforall2&Hwp)".
+        iMod "Hwp" as "?".
+        by iApply ("IH" with "[][][][]").
+  Qed. 
   
 End adequacy.
 

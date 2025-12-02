@@ -672,7 +672,24 @@ Section modalities.
     - iPureIntro. naive_solver.
     - iPureIntro. rewrite Expval_const; last done.
       rewrite prim_step_mass; [lra|done].
-  Qed. 
+  Qed.
+
+  (** Lemma needed for adequacy *)
+  Lemma prog_coupl_preserve e σ ε Z:
+    is_well_constructed_expr e = true ->
+    expr_support_set e ⊆ urns_support_set (urns σ) ->
+    map_Forall (λ (_ : loc) v , is_well_constructed_val v = true) (heap σ) ->
+    map_Forall (λ (_ : loc) v , val_support_set v ⊆ urns_support_set (urns σ))
+               (heap σ) ->
+    prog_coupl e σ ε Z -∗
+    prog_coupl e σ ε
+      (λ e' σ' ε', ⌜is_well_constructed_expr e' = true ⌝ ∗
+                     ⌜expr_support_set e' ⊆ urns_support_set (urns σ')⌝ ∗
+                   ⌜map_Forall (λ (_ : loc) v, is_well_constructed_val v = true) (heap σ')⌝ ∗
+                   ⌜map_Forall (λ (_ : loc) v, val_support_set v ⊆ urns_support_set (urns σ')) (heap σ')⌝ ∗
+                Z e' σ' ε').
+  Proof.
+  Admitted. 
 
 End modalities.
 
