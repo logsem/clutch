@@ -6,7 +6,7 @@ From iris.prelude Require Import options.
 From Coquelicot Require Import Rbar Lim_seq.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
-From clutch.delay_prob_lang Require Import notation metatheory urn_subst.
+From clutch.delay_prob_lang Require Import notation metatheory urn_subst commute.
 From clutch.common Require Export language.
 From clutch.base_logic Require Import error_credits.
 From clutch.elton Require Import weakestpre primitive_laws rupd.
@@ -205,8 +205,56 @@ Section adequacy.
                                          d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
                                            exec (S n) (e', {|heap:=hm; urns:=m|})) ϕ ε⌝.
   Proof.
-  Admitted.
-  
+    rewrite /prog_coupl.
+    iIntros (He1 He2 Hforall1 Hforall2) "(%ε2&%Hred&%Hbound&%Hineq&H) Hrest".
+    iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
+    { iPureIntro.
+      intros H'.
+      eapply pgl_mon_grading; first apply Hineq.
+      simpl.
+      erewrite dbind_ext_right_strong; first apply H'.
+      intros.
+      apply dbind_ext_right_strong.
+      intros.
+      apply dbind_ext_right_strong.
+      intros.
+      inv_distr.
+      erewrite urn_subst_expr_not_val; first done; last done.
+      apply reducible_not_final in Hred.
+      rewrite /is_final in Hred.
+      simpl in *.
+      destruct (to_val _); naive_solver.
+    }
+    rewrite /reducible in Hred.
+    (* annoying rewrites *)
+    erewrite (dbind_ext_right); last first.
+    { intros. apply dbind_ext_right.
+      intros. by rewrite dbind_assoc-/exec.
+    }
+    erewrite dbind_ext_right'; last done; last first.
+    { intros.
+      by apply dbind_assoc'.
+    }
+    rewrite dbind_assoc'.
+    rewrite (delay_prob_lang_commute e σ m); [|done..].
+    rewrite -!dbind_assoc'.
+    iApply pgl_dbind_adv'; first (iPureIntro; naive_solver).
+    iIntros ([??]).
+    iMod ("H" $! _ _).
+    erewrite (distr_ext (dbind _ _)); first iApply ("Hrest" with "[$]").
+    intros.
+    rewrite -dbind_assoc'.
+    f_equal.
+    apply dbind_ext_right.
+    intros.
+    rewrite -dbind_assoc'.
+    apply dbind_ext_right.
+    intros.
+    rewrite -!dbind_assoc'.
+    apply dbind_ext_right.
+    intros.
+    by rewrite dret_id_left'.
+  Qed. 
   
   Theorem wp_elton_adequacy (ε: nonnegreal) e σ ϕ n m :
     is_well_constructed_expr e = true ->
