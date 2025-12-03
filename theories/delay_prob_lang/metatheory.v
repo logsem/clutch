@@ -338,6 +338,111 @@ Proof.
 Qed.
 
 (** Preservation lemma *)
+Lemma head_step_urns_support_set_subset e σ e2 σ2:
+  head_step_rel e σ e2 σ2 ->
+  urns_support_set (urns σ) ⊆ urns_support_set (urns σ2).
+Proof.
+  intros H.
+  inversion H; simplify_eq; try done; simpl.
+  - rewrite urns_subst_f_to_urns_support.
+    by erewrite <-urns_f_valid_support.
+  - rewrite urns_subst_f_to_urns_support.
+    by erewrite <-urns_f_valid_support.
+  - eapply urns_support_set_insert_subset.
+    intros Hcontra.
+    assert (0∈(list_to_set (seq 0 (Z.to_nat z +1))%nat : gset nat))%nat; last set_solver.
+    rewrite elem_of_list_to_set.
+    rewrite elem_of_seq. lia.
+Qed. 
+    
+Lemma head_step_preserve e σ e2 σ2:
+  is_well_constructed_expr e = true ->
+  expr_support_set e ⊆ urns_support_set (urns σ) ->
+  map_Forall (λ (_ : loc) (v : d_prob_lang.val), is_well_constructed_val v = true)
+    (heap σ) ->
+  map_Forall (λ (_ : loc) (v : d_prob_lang.val), val_support_set v ⊆ urns_support_set (urns σ))
+    (heap σ) ->
+  head_step_rel e σ e2 σ2 ->
+  is_well_constructed_expr e2 = true
+  ∧ expr_support_set e2 ⊆ urns_support_set (urns σ2)
+    ∧ map_Forall (λ (_ : loc) (v : d_prob_lang.val), is_well_constructed_val v = true) (heap σ2)
+      ∧ map_Forall
+          (λ (_ : loc) (v : d_prob_lang.val), val_support_set v ⊆ urns_support_set (urns σ2))
+          (heap σ2)
+.
+Proof.
+  intros He1 He2 Hforall1 Hforall2 Hstep.
+  inversion Hstep; simplify_eq; simpl; simpl in *; andb_solver.
+  - naive_solver.
+  - naive_solver.
+  - naive_solver.
+  - naive_solver.
+  - repeat split; try done.
+    + admit.
+    + admit. 
+  - repeat split; try done.
+    + admit.
+    + admit. 
+  - repeat split; try done.
+    + admit. 
+    + admit. 
+  - repeat split; try done; set_solver.
+  - repeat split; try done; set_solver.
+  - repeat split; try done.
+    + rewrite urns_subst_f_to_urns_support.
+      erewrite <-urns_f_valid_support; last done.
+      set_solver.
+    + rewrite urns_subst_f_to_urns_support.
+      by erewrite <-urns_f_valid_support.
+  - repeat split; try done.
+    + rewrite urns_subst_f_to_urns_support.
+      erewrite <-urns_f_valid_support; last done.
+      set_solver.
+    + rewrite urns_subst_f_to_urns_support.
+      by erewrite <-urns_f_valid_support.
+  - repeat split; try done; set_solver.
+  - repeat split; try done; set_solver.
+  - repeat split; try done; set_solver.
+  - repeat split; try done; set_solver.
+  - repeat split; try done.
+    + apply map_Forall_union_2; last done.
+      intros ??.
+      rewrite heap_array_lookup.
+      intros (?&?&?&H).
+      apply lookup_replicate in H.
+      by destruct!/=. 
+    + apply map_Forall_union_2; last done.
+      intros ??.
+      rewrite heap_array_lookup.
+      intros (?&?&?&H).
+      apply lookup_replicate in H.
+      destruct!/=.
+      set_solver.
+  - repeat split; try done; first set_solver.
+    rewrite map_Forall_lookup in Hforall2.
+    naive_solver.
+  - repeat split; try done.
+    + by apply map_Forall_insert_2.
+    + apply map_Forall_insert_2; last done.
+      set_solver.
+  - split!.
+  - repeat split; try done.
+    + set_unfold.
+      intros. simplify_eq.
+      rewrite lookup_insert.
+      split; last naive_solver.
+      intros Hcontra.
+      simplify_eq.
+      assert (0∈(list_to_set (seq 0 (Z.to_nat z + 1)) : gset _))%nat; last set_solver.
+      rewrite elem_of_list_to_set elem_of_seq; lia.
+    + eapply map_Forall_impl; first apply Hforall2.
+      simpl.
+      intros.
+      etrans; last eapply urns_support_set_insert_subset; first done.
+      assert (0∈(list_to_set (seq 0 (Z.to_nat z + 1)) : gset _))%nat; last set_solver.
+      rewrite elem_of_list_to_set elem_of_seq; lia.
+Admitted. 
+
 Lemma prim_step_preserve e σ e2 σ2:
   is_well_constructed_expr e = true ->
   expr_support_set e ⊆ urns_support_set (urns σ) ->
@@ -353,7 +458,25 @@ Lemma prim_step_preserve e σ e2 σ2:
           (λ (_ : loc) (v : d_prob_lang.val), val_support_set v ⊆ urns_support_set (urns σ2))
           (heap σ2).
 Proof.
-Admitted. 
+  rewrite prim_step_iff.
+  intros He1 He2 Hforall1 Hforall2.
+  intros (K&e1'&e2'&<-&<-&H).
+  simpl in *.
+  rewrite head_step_support_equiv_rel in H.
+  rewrite !is_well_constructed_fill in He1 *.
+  apply andb_prop in He1 as [He1 He1'].
+  rewrite He1'.
+  rewrite !support_set_fill in He2 *.
+  apply head_step_preserve in H as H'; [|(done||set_solver)..].
+  destruct H' as (H1&H2&H3&H4).
+  repeat split.
+  - by rewrite H1. 
+  - rewrite union_subseteq; split; last done.
+    etrans; last by eapply head_step_urns_support_set_subset.
+    set_solver.
+  - done.
+  - done.
+Qed. 
 
 Local Open Scope R.
 

@@ -1,4 +1,5 @@
 From Coq Require Import Reals Psatz.
+Require Import Btauto. 
 From stdpp Require Import countable gmap stringmap fin_sets.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.delay_prob_lang Require Import tactics notation.
@@ -7,9 +8,85 @@ From iris.prelude Require Import options.
 Set Default Proof Using "Type*".
 
 Section urn_subst.
-(* In lang.v, we defined functions and lemmas for substituing for baselits, 
+  (** support set*)
+  
+  Fixpoint expr_support_set e : gset loc :=
+    match e with
+    | Val v => val_support_set v
+    | Var x => ∅
+    | Rec f x e => expr_support_set e
+    | App e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+    | UnOp op e => expr_support_set e
+    | BinOp op e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+    | If e0 e1 e2 => expr_support_set e0 ∪ expr_support_set e1 ∪ expr_support_set e2
+    | Pair e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+    | Fst e => expr_support_set e
+    | Snd e => expr_support_set e
+    | InjL e => expr_support_set e
+    | InjR e => expr_support_set e
+    | Case e0 e1 e2 => expr_support_set e0 ∪ expr_support_set e1 ∪ expr_support_set e2
+    | AllocN e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+    | Load e => expr_support_set e
+    | Store e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+    | Rand e => expr_support_set e
+    | DRand e => expr_support_set e
+    end
+  with val_support_set v :=
+         match v with
+         | LitV l =>
+             base_lit_support_set l
+         | RecV f x e => expr_support_set e
+         | PairV v1 v2 => val_support_set v1 ∪ val_support_set v2
+         | InjLV v => val_support_set v
+         | InjRV v => val_support_set v
+         end.
+
+  Definition ectx_item_support_set K : gset loc :=
+    match K with
+    | AppLCtx v2 => val_support_set v2
+    | AppRCtx e1 => expr_support_set e1
+    | UnOpCtx op => ∅
+    | BinOpLCtx op v2 => val_support_set v2
+    | BinOpRCtx op e1 => expr_support_set e1
+    | IfCtx e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+    | PairLCtx v2 => val_support_set v2
+    | PairRCtx e1 => expr_support_set e1
+    | FstCtx => ∅
+    | SndCtx => ∅
+    | InjLCtx => ∅
+    | InjRCtx => ∅
+    | CaseCtx e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+    | AllocNLCtx v2 => val_support_set v2
+    | AllocNRCtx e1 => expr_support_set e1
+    | LoadCtx => ∅
+    | StoreLCtx v2 => val_support_set v2
+    | StoreRCtx e1 => expr_support_set e1
+    | RandCtx => ∅
+    | DRandCtx => ∅
+    end.
+
+  Lemma support_set_fill_item Ki e:
+    expr_support_set (fill_item Ki e) = ectx_item_support_set Ki ∪ expr_support_set e.
+  Proof.
+    destruct Ki; set_solver.
+  Qed. 
+
+  Lemma support_set_fill K e:
+    expr_support_set (fill K e) =
+    (union_list (ectx_item_support_set <$> K)) ∪ expr_support_set e.
+  Proof.
+    revert e.
+    induction K as [|Ki K' IH]; first set_solver.
+    intros.
+    simpl.
+    rewrite IH.
+    rewrite support_set_fill_item.
+    set_solver.
+  Qed.
+  
+(** In lang.v, we defined functions and lemmas for substituing for baselits, 
    now we do it for expressions and values*)
-(* We also replace DRands with Rands *)
+(** We also replace DRands with Rands *)
 
   Fixpoint urn_subst_expr (f: gmap loc nat) (e : expr) : option expr :=
     match e with
@@ -41,6 +118,30 @@ Section urn_subst.
 | InjRV v => v' ← urn_subst_val f v; Some $ InjRV v'
   end
   .
+
+  Definition urn_subst_ectx_item (f:gmap loc nat) K : option ectx_item :=
+    match K with
+    | AppLCtx v2 => v2' ← urn_subst_val f v2; Some $ AppLCtx v2'
+    | AppRCtx e1 => e1' ← urn_subst_expr f e1; Some $ AppRCtx e1'
+    | UnOpCtx op => Some $ UnOpCtx op
+    | BinOpLCtx op v2 => v2' ← urn_subst_val f v2; Some $ BinOpLCtx op v2'
+    | BinOpRCtx op e1 => e1' ← urn_subst_expr f e1; Some $ BinOpRCtx op e1'
+    | IfCtx e1 e2 => e1' ← urn_subst_expr f e1; e2' ← urn_subst_expr f e2; Some $ IfCtx e1' e2'
+    | PairLCtx v2 => v2' ← urn_subst_val f v2; Some $ PairLCtx v2'
+    | PairRCtx e1 => e1' ← urn_subst_expr f e1; Some $ PairRCtx e1'
+    | FstCtx => Some FstCtx
+    | SndCtx => Some SndCtx
+    | InjLCtx => Some InjLCtx
+    | InjRCtx => Some InjRCtx
+    | CaseCtx e1 e2 => e1' ← urn_subst_expr f e1; e2' ← urn_subst_expr f e2; Some $ CaseCtx e1' e2'
+    | AllocNLCtx v2 => v2' ← urn_subst_val f v2; Some $ AllocNLCtx v2'
+    | AllocNRCtx e1 => e1' ← urn_subst_expr f e1; Some $ AllocNRCtx e1'
+    | LoadCtx => Some LoadCtx
+    | StoreLCtx v2 => v2' ← urn_subst_val f v2; Some $ StoreLCtx v2'
+    | StoreRCtx e1 => e1' ← urn_subst_expr f e1; Some $ StoreRCtx e1'
+    | RandCtx => Some RandCtx
+    | DRandCtx => Some RandCtx
+    end.
 
   Lemma base_lit_support_set_not_support bl f:
     base_lit_support_set bl ⊈ dom f → urn_subst f bl = None.
@@ -195,6 +296,30 @@ with is_well_constructed_val v :=
   end
 .
 
+Definition is_well_constructed_ectx_item K :=
+  match K with
+  | AppLCtx v2 => is_well_constructed_val v2
+  | AppRCtx e1 => is_well_constructed_expr e1
+  | UnOpCtx op => true
+  | BinOpLCtx op v2 => is_well_constructed_val v2
+  | BinOpRCtx op e1 => is_well_constructed_expr e1
+  | IfCtx e1 e2 => is_well_constructed_expr e1 && is_well_constructed_expr e2
+  | PairLCtx v2 => is_well_constructed_val v2
+  | PairRCtx e1 => is_well_constructed_expr e1
+  | FstCtx => true
+  | SndCtx => true
+  | InjLCtx => true
+  | InjRCtx => true
+  | CaseCtx e1 e2 => is_well_constructed_expr e1 && is_well_constructed_expr e2
+  | AllocNLCtx v2 => is_well_constructed_val v2
+  | AllocNRCtx e1 => is_well_constructed_expr e1
+  | LoadCtx => true
+  | StoreLCtx v2 => is_well_constructed_val v2
+  | StoreRCtx e1 => is_well_constructed_expr e1
+  | RandCtx => true
+  | DRandCtx => true
+  end.
+
 Lemma is_well_constructed_expr_false e f:
   is_well_constructed_expr e = false -> urn_subst_expr f e = None.
 Proof.
@@ -245,5 +370,28 @@ Qed.
     rewrite bind_None.
     left.
     by apply is_well_constructed_val_false.
+  Qed.
+
+  Lemma is_well_constructed_fill_item Ki e:
+    is_well_constructed_expr (fill_item Ki e) =
+    is_well_constructed_expr e && is_well_constructed_ectx_item Ki.
+  Proof.
+    destruct Ki; simpl; btauto.
   Qed. 
+  
+  Lemma is_well_constructed_fill K e:
+    is_well_constructed_expr (fill K e) =
+    is_well_constructed_expr e && forallb (λ Ki, is_well_constructed_ectx_item Ki) K.
+  Proof.
+    revert e.
+    induction K as [|Ki K' IH].
+    { intros. by rewrite andb_true_r. }
+    simpl.
+    intros.
+    rewrite IH.
+    rewrite andb_assoc.
+    f_equal.
+    by rewrite is_well_constructed_fill_item.
+  Qed. 
+    
 End urn_subst.
