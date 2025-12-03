@@ -85,6 +85,7 @@ table below provides a mapping between the code and the paper.
 [theories/eris/lib/sampling/utils/triangle.v]: theories/eris/lib/sampling/utils/triangle.v
 [theories/eris/lib/sampling/beta_binomial/implementation.v]: theories/eris/lib/sampling/beta_binomial/implementation.v
 [theories/eris/lib/sampling/beta_binomial/beta_tapes.v]: theories/eris/lib/sampling/beta_binomial/beta_tapes.v
+[theories/eris/lib/sampling/abstract_planner.v]: theories/eris/lib/sampling/abstract_planner.v
 
 
 
