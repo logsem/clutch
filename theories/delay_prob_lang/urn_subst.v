@@ -83,6 +83,31 @@ Section urn_subst.
     rewrite support_set_fill_item.
     set_solver.
   Qed.
+
+  Lemma val_support_set_un_op v v' op:
+    un_op_eval op v = Some v' ->
+    val_support_set v = val_support_set v'.
+  Proof.
+    rewrite /un_op_eval.
+    case_match; try done.
+    repeat case_match; try done;
+      intros; by simplify_eq.
+  Qed.
+  
+  Lemma val_support_set_bin_op v1 v2 v' op:
+    bin_op_eval op v1 v2 = Some v' ->
+    val_support_set v1 ∪ val_support_set v2= val_support_set v'.
+  Proof.
+    rewrite /bin_op_eval.
+    case_match; try done.
+    case_match; try done.
+    subst.
+    rewrite bind_Some.
+    rewrite /bin_op_eval_bl.
+    intros; destruct!/=.
+    repeat case_match; try done;
+      intros; by simplify_eq.
+  Qed. 
   
 (** In lang.v, we defined functions and lemmas for substituing for baselits, 
    now we do it for expressions and values*)
@@ -392,6 +417,31 @@ Qed.
     rewrite andb_assoc.
     f_equal.
     by rewrite is_well_constructed_fill_item.
+  Qed.
+  
+  Lemma is_well_constructed_un_op_eval op v v':
+    un_op_eval op v = Some v' ->
+    is_well_constructed_val v = true ->
+    is_well_constructed_val v' = true.
+  Proof.
+    intros H1 H2.
+    rewrite /un_op_eval in H1.
+    by repeat (case_match; simplify_eq; simpl in *; simpl).
   Qed. 
-    
+
+  Lemma is_well_constructed_bin_op_eval op v1 v2 v':
+    bin_op_eval op v1 v2 = Some v' ->
+    is_well_constructed_val v1 = true ->
+    is_well_constructed_val v2 = true ->
+    is_well_constructed_val v' = true.
+  Proof.
+    intros H1 H2 H3.
+    rewrite /bin_op_eval in H1.
+    repeat (case_match; simplify_eq; simpl in *; simpl).
+    rewrite bind_Some in H1.
+    rewrite /bin_op_eval_bl in H1.
+    destruct!/=.
+    by repeat (case_match; simplify_eq; simpl in *; simpl).
+  Qed.
+  
 End urn_subst.

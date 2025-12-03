@@ -381,11 +381,11 @@ Proof.
     + admit.
     + admit. 
   - repeat split; try done.
-    + admit.
-    + admit. 
+    + by eapply is_well_constructed_un_op_eval.
+    + by erewrite <-val_support_set_un_op.
   - repeat split; try done.
-    + admit. 
-    + admit. 
+    + by eapply is_well_constructed_bin_op_eval.
+    + by erewrite <-val_support_set_bin_op. 
   - repeat split; try done; set_solver.
   - repeat split; try done; set_solver.
   - repeat split; try done.
