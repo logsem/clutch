@@ -378,8 +378,12 @@ Proof.
   - naive_solver.
   - naive_solver.
   - repeat split; try done.
-    + admit.
-    + admit. 
+    + by repeat apply is_well_constructed_subst'.
+    + etrans; first apply expr_support_set_subst'.
+      rewrite union_subseteq.
+      split; last set_solver.
+      etrans; first apply expr_support_set_subst'.
+      set_solver.
   - repeat split; try done.
     + by eapply is_well_constructed_un_op_eval.
     + by erewrite <-val_support_set_un_op.
@@ -441,7 +445,7 @@ Proof.
       etrans; last eapply urns_support_set_insert_subset; first done.
       assert (0∈(list_to_set (seq 0 (Z.to_nat z + 1)) : gset _))%nat; last set_solver.
       rewrite elem_of_list_to_set elem_of_seq; lia.
-Admitted. 
+Qed. 
 
 Lemma prim_step_preserve e σ e2 σ2:
   is_well_constructed_expr e = true ->
