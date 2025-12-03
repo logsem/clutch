@@ -107,6 +107,21 @@ Section urn_subst.
     intros; destruct!/=.
     repeat case_match; try done;
       intros; by simplify_eq.
+  Qed.
+
+  Lemma expr_support_set_subst f v e:
+    expr_support_set (subst f v e) ⊆ expr_support_set e ∪ val_support_set v.
+  Proof.
+    induction e; simpl; try case_match; set_solver.
+  Qed. 
+    
+  Lemma expr_support_set_subst' f v e:
+    expr_support_set (subst' f v e) ⊆ expr_support_set e ∪ val_support_set v.
+  Proof.
+    rewrite /subst'.
+    case_match; first set_solver.
+    subst.
+    apply expr_support_set_subst.
   Qed. 
   
 (** In lang.v, we defined functions and lemmas for substituing for baselits, 
@@ -443,5 +458,25 @@ Qed.
     destruct!/=.
     by repeat (case_match; simplify_eq; simpl in *; simpl).
   Qed.
+
+  Lemma is_well_constructed_subst f e v:
+    is_well_constructed_expr e = true->
+    is_well_constructed_val v = true->
+    is_well_constructed_expr (subst f v e) = true.
+  Proof.
+    intros H1 H2.
+    revert H1.
+    induction e; simpl; andb_solver; intros; destruct!/=; try case_match; naive_solver.
+  Qed. 
+  
+  Lemma is_well_constructed_subst' f e v:
+    is_well_constructed_expr e = true->
+    is_well_constructed_val v = true->
+    is_well_constructed_expr (subst' f v e) = true.
+  Proof.
+    rewrite /subst'.
+    case_match; first done.
+    eapply is_well_constructed_subst.
+  Qed. 
   
 End urn_subst.
