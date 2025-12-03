@@ -1147,37 +1147,6 @@ Section urn.
     | OffsetOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
     end.
 
-  Fixpoint expr_support_set e : gset loc :=
-    match e with
-    | Val v => val_support_set v
-    | Var x => ∅
-    | Rec f x e => expr_support_set e
-    | App e1 e2 => expr_support_set e1 ∪ expr_support_set e2
-    | UnOp op e => expr_support_set e
-    | BinOp op e1 e2 => expr_support_set e1 ∪ expr_support_set e2
-    | If e0 e1 e2 => expr_support_set e0 ∪ expr_support_set e1 ∪ expr_support_set e2
-    | Pair e1 e2 => expr_support_set e1 ∪ expr_support_set e2
-    | Fst e => expr_support_set e
-    | Snd e => expr_support_set e
-    | InjL e => expr_support_set e
-    | InjR e => expr_support_set e
-    | Case e0 e1 e2 => expr_support_set e0 ∪ expr_support_set e1 ∪ expr_support_set e2
-    | AllocN e1 e2 => expr_support_set e1 ∪ expr_support_set e2
-    | Load e => expr_support_set e
-    | Store e1 e2 => expr_support_set e1 ∪ expr_support_set e2
-    | Rand e => expr_support_set e
-    | DRand e => expr_support_set e
-    end
-  with val_support_set v :=
-         match v with
-         | LitV l =>
-             base_lit_support_set l
-         | RecV f x e => expr_support_set e
-         | PairV v1 v2 => val_support_set v1 ∪ val_support_set v2
-         | InjLV v => val_support_set v
-         | InjRV v => val_support_set v
-         end.
-
   Definition urns_f_valid (m : gmap loc urn) (f:gmap loc nat) :=
     forall l, match f !! l with
          | Some x =>
