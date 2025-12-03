@@ -71,6 +71,21 @@ table below provides a mapping between the code and the paper.
 |         | Definition    | `bottom-loc`, `right-loc`                                     | [theories/eris/lib/sampling/beta_binomial/implementation.v] | `sub_loc_fail`, `sub_loc_success`                                |                                                                                                                |
 |         | Definition    | `betabin`                                                     | [theories/eris/lib/sampling/beta_binomial/implementation.v] | `polya`                                                          |                                                                                                                |
   
+[theories/eris/error_rules.v]: theories/eris/error_rules.v
+[theories/eris/lib/sampling/distribution_adequacy.v]: theories/eris/lib/sampling/distribution_adequacy.v
+[theories/prob/distribution.v]: theories/prob/distribution.v
+[theories/common/exec.v]: theories/common/exec.v
+[theories/common/ectx_language.v]: theories/common/ectx_language.v
+[theories/eris/lib/sampling/distr_impl.v]: theories/eris/lib/sampling/distr_impl.v
+[theories/eris/lib/sampling/bernoulli/implementation.v]: theories/eris/lib/sampling/bernoulli/implementation.v
+[theories/eris/lib/sampling/bernoulli/tape.v]: theories/eris/lib/sampling/bernoulli/tape.v
+[theories/eris/lib/sampling/bernoulli/interface.v]: theories/eris/lib/sampling/bernoulli/interface.v
+[theories/eris/lib/sampling/examples/bernoulli.v]: theories/eris/lib/sampling/examples/bernoulli.v
+[theories/eris/lib/sampling/]: theories/eris/lib/sampling/
+[theories/eris/lib/sampling/utils/triangle.v]: theories/eris/lib/sampling/utils/triangle.v
+[theories/eris/lib/sampling/beta_binomial/implementation.v]: theories/eris/lib/sampling/beta_binomial/implementation.v
+[theories/eris/lib/sampling/beta_binomial/beta_tapes.v]: theories/eris/lib/sampling/beta_binomial/beta_tapes.v
+
 
 
 ## Axioms
