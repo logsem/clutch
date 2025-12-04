@@ -72,9 +72,60 @@ Proof.
     repeat smash.
     rewrite bool_decide_eq_true_2; last done.
     repeat smash.
+    rename select (urn_subst_equal _ _ _) into H.
     admit. 
   - (** if false *)
     repeat smash.
-    rewrite bool_decide_eq_false_2.
+    rewrite bool_decide_eq_false_2; last first.
+    { intros H'.
+      eapply urn_subst_equal_unique in H; last done.
+      simplify_eq. 
+    }
+    rewrite bool_decide_eq_true_2; last done.
+    repeat smash.
+    (* same as if true *)
+    admit.
+  - (** fst *)
+    repeat smash.
+    inv_distr.
+    (* urn_subst_val v2 is Some *)
+    admit.
+  - (** snd *)
+    repeat smash.
+    inv_distr.
+    admit. 
+  - (** case inl *)
+    repeat smash.
+    admit. 
+  - (** case inr *)
+    repeat smash.
+    admit.
+  - (** allocN *)
+    repeat smash.
+    case_bool_decide; last lia.
+    repeat smash.
+    admit.
+  - (** load *)
+    repeat smash.
+    case_match; simplify_eq.
+    repeat smash.
+    admit.
+  - (** store *)
+    repeat smash.
+    case_match; simplify_eq.
+    repeat smash.
+    admit.
+  - (** rand *)
+    repeat smash.
+    case_match; last first.
+    { exfalso. naive_solver. }
+    repeat smash.
+    admit. 
+  - (** drand *)
+    repeat smash.
+    case_match; last first.
+    { exfalso. naive_solver. }
+    repeat smash.
+    admit. 
 Admitted. 
 
