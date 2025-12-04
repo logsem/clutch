@@ -344,15 +344,15 @@ Lemma head_step_urns_support_set_subset e σ e2 σ2:
 Proof.
   intros H.
   inversion H; simplify_eq; try done; simpl.
-  - rewrite urns_subst_f_to_urns_support.
-    by erewrite <-urns_f_valid_support.
-  - rewrite urns_subst_f_to_urns_support.
-    by erewrite <-urns_f_valid_support.
-  - eapply urns_support_set_insert_subset.
-    intros Hcontra.
-    assert (0∈(list_to_set (seq 0 (Z.to_nat z +1))%nat : gset nat))%nat; last set_solver.
-    rewrite elem_of_list_to_set.
-    rewrite elem_of_seq. lia.
+  (* - rewrite urns_subst_f_to_urns_support. *)
+  (*   by erewrite <-urns_f_valid_support. *)
+  (* - rewrite urns_subst_f_to_urns_support. *)
+  (*   by erewrite <-urns_f_valid_support. *)
+  eapply urns_support_set_insert_subset.
+  intros Hcontra.
+  assert (0∈(list_to_set (seq 0 (Z.to_nat z +1))%nat : gset nat))%nat; last set_solver.
+  rewrite elem_of_list_to_set.
+  rewrite elem_of_seq. lia.
 Qed. 
     
 Lemma head_step_preserve e σ e2 σ2:
@@ -392,18 +392,18 @@ Proof.
     + by erewrite <-val_support_set_bin_op. 
   - repeat split; try done; set_solver.
   - repeat split; try done; set_solver.
-  - repeat split; try done.
-    + rewrite urns_subst_f_to_urns_support.
-      erewrite <-urns_f_valid_support; last done.
-      set_solver.
-    + rewrite urns_subst_f_to_urns_support.
-      by erewrite <-urns_f_valid_support.
-  - repeat split; try done.
-    + rewrite urns_subst_f_to_urns_support.
-      erewrite <-urns_f_valid_support; last done.
-      set_solver.
-    + rewrite urns_subst_f_to_urns_support.
-      by erewrite <-urns_f_valid_support.
+  (* - repeat split; try done. *)
+  (*   + rewrite urns_subst_f_to_urns_support. *)
+  (*     erewrite <-urns_f_valid_support; last done. *)
+  (*     set_solver. *)
+  (*   + rewrite urns_subst_f_to_urns_support. *)
+  (*     by erewrite <-urns_f_valid_support. *)
+  (* - repeat split; try done. *)
+  (*   + rewrite urns_subst_f_to_urns_support. *)
+  (*     erewrite <-urns_f_valid_support; last done. *)
+  (*     set_solver. *)
+  (*   + rewrite urns_subst_f_to_urns_support. *)
+  (*     by erewrite <-urns_f_valid_support. *)
   - repeat split; try done; set_solver.
   - repeat split; try done; set_solver.
   - repeat split; try done; set_solver.
@@ -534,49 +534,56 @@ Local Open Scope R.
 (*   det_head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ *)
 (*     (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ). *)
 
-(*** TODO *)
-(* Inductive head_step_pred : expr → state → Prop := *)
-(* | RecSP f x e σ : *)
-(*   head_step_pred (Rec f x e) σ *)
-(* | PairSP v1 v2 σ : *)
-(*   head_step_pred (Pair (Val v1) (Val v2)) σ *)
-(* | InjLSP v σ : *)
-(*   head_step_pred (InjL $ Val v) σ *)
-(* | InjRSP v σ : *)
-(*   head_step_pred (InjR $ Val v) σ *)
-(* | BetaSP f x e1 v2 σ : *)
-(*   head_step_pred (App (Val $ RecV f x e1) (Val v2)) σ *)
-(* | UnOpSP op v σ v' : *)
-(*   un_op_eval op v = Some v' → *)
-(*   head_step_pred (UnOp op (Val v)) σ *)
-(* | BinOpSP op v1 v2 σ v' : *)
-(*   bin_op_eval op v1 v2 = Some v' → *)
-(*   head_step_pred (BinOp op (Val v1) (Val v2)) σ *)
-(* | IfTrueSP bl e1 e2 σ : *)
-(*   urn_subst_equal σ bl true -> *)
-(*   head_step_pred (If (Val $ LitV $ bl) e1 e2) σ *)
-(* | IfFalseSP bl e1 e2 σ : *)
-(*   urn_subst_equal σ bl false -> *)
-(*   head_step_pred (If (Val $ LitV $ bl) e1 e2) σ *)
-(* | FstSP v1 v2 σ : *)
-(*   head_step_pred (Fst (Val $ PairV v1 v2)) σ *)
-(* | SndSP v1 v2 σ : *)
-(*   head_step_pred (Snd (Val $ PairV v1 v2)) σ *)
-(* | CaseLSP v e1 e2 σ : *)
-(*   head_step_pred (Case (Val $ InjLV v) e1 e2) σ *)
-(* | CaseRSP v e1 e2 σ : *)
-(*   head_step_pred (Case (Val $ InjRV v) e1 e2) σ *)
-(* | AllocNSP z N v σ l : *)
-(*   l = fresh_loc σ.(heap) → *)
-(*   N = Z.to_nat z → *)
-(*   (0 < N)%nat -> *)
-(*   head_step_pred (AllocN (Val (LitV (LitInt z))) (Val v)) σ *)
-(* | LoadSP l v σ : *)
-(*   σ.(heap) !! l = Some v → *)
-(*   head_step_pred (Load (Val $ LitV $ LitLoc l)) σ *)
-(* | StoreSP l v w σ : *)
-(*   σ.(heap) !! l = Some v → *)
-(*   head_step_pred (Store (Val $ LitV $ LitLoc l) (Val w)) σ. *)
+Inductive head_step_pred : expr → state → Prop :=
+| RecHSP f x e σ :
+  head_step_pred (Rec f x e) σ
+| PairHSP v1 v2 σ :
+  head_step_pred (Pair (Val v1) (Val v2)) σ
+| InjLHSP v σ :
+  head_step_pred (InjL $ Val v) σ
+| InjRHSP v σ :
+  head_step_pred (InjR $ Val v) σ
+| BetaSP f x e1 v2 σ :
+  head_step_pred (App (Val $ RecV f x e1) (Val v2)) σ
+| UnOpHSP op v σ v' :
+  un_op_eval op v = Some v' →
+  head_step_pred (UnOp op (Val v)) σ
+| BinOpHSP op v1 v2 σ v' :
+  bin_op_eval op v1 v2 = Some v' →
+  head_step_pred (BinOp op (Val v1) (Val v2)) σ
+| IfTrueHSP bl e1 e2 σ :
+  urn_subst_equal σ bl true ->
+  head_step_pred (If (Val $ LitV $ bl) e1 e2) σ
+| IfFalseHSP bl e1 e2 σ :
+  urn_subst_equal σ bl false ->
+  head_step_pred (If (Val $ LitV $ bl) e1 e2) σ
+| FstHSP v1 v2 σ :
+  head_step_pred (Fst (Val $ PairV v1 v2)) σ
+| SndHSP v1 v2 σ :
+  head_step_pred (Snd (Val $ PairV v1 v2)) σ
+| CaseLHSP v e1 e2 σ :
+  head_step_pred (Case (Val $ InjLV v) e1 e2) σ
+| CaseRHSP v e1 e2 σ :
+  head_step_pred (Case (Val $ InjRV v) e1 e2) σ
+| AllocNHSP z N v σ l :
+  l = fresh_loc σ.(heap) →
+  N = Z.to_nat z →
+  (0 < N)%nat ->
+  head_step_pred (AllocN (Val (LitV (LitInt z))) (Val v)) σ
+| LoadHSP l v σ :
+  σ.(heap) !! l = Some v →
+  head_step_pred (Load (Val $ LitV $ LitLoc l)) σ
+| StoreHSP l v w σ :
+  σ.(heap) !! l = Some v →
+  head_step_pred (Store (Val $ LitV $ LitLoc l) (Val w)) σ
+| RandHSP (N : nat) σ (z:Z) bl :
+  urn_subst_equal σ bl z ->
+  N = Z.to_nat z →
+  head_step_pred (rand #bl) σ
+| DRandHSP (N : nat) σ (z:Z) bl :
+  urn_subst_equal σ bl z ->
+  N = Z.to_nat z →
+  head_step_pred (drand #bl) σ.
 
 (* Definition is_det_head_step (e1 : expr) (σ1 : state)  : bool := *)
 (*   match e1 with *)
@@ -687,35 +694,38 @@ Local Open Scope R.
 (*   - rewrite bool_decide_eq_true_2; last done. rewrite dret_1_1//. *)
 (* Qed. *)
 
-(* Lemma val_not_head_step e1 σ1 : *)
-(*   is_Some (to_val e1) → ¬ head_step_pred e1 σ1. *)
-(* Proof. *)
-(*   intros [] [Hs | Hs]; inversion Hs; simplify_eq. *)
-(* Qed. *)
+Lemma val_not_head_step e1 σ1 :
+  is_Some (to_val e1) → ¬ head_step_pred e1 σ1.
+Proof.
+  intros [] Hs; inversion Hs; simplify_eq.
+Qed.
 
-(* Lemma head_step_pred_ex_rel e1 σ1 : *)
-(*   head_step_pred e1 σ1 ↔ ∃ e2 σ2, head_step_rel e1 σ1 e2 σ2. *)
-(* Proof. *)
-(*   split. *)
-(*   - intros [Hdet | Hdet]; *)
-(*       inversion Hdet; simplify_eq; try by (do 2 eexists; try (by econstructor)). *)
-(*     pose proof set_urns_f_nonempty (urns σ1) as Hnonempty. *)
-(*     apply size_pos_elem_of in Hnonempty as [f Hnonempty]. *)
-(*     rewrite elem_of_set_urns_f_valid in Hnonempty. *)
-(*     rename select (base_lit_type_check _ = _) into H'. *)
-(*     eapply urn_subst_exists in H'; last by erewrite <-urns_f_valid_support. *)
-(*     destruct H' as [[][H1 ]]; apply urn_subst_is_simple in H1 as H4; simplify_eq. *)
-(*     rename select (bool) into b. *)
-(*     destruct b. *)
-(*     + eexists _, _. *)
-(*       eapply IfTrueS'; try done. *)
-(*       by intros ? ->%urns_subst_f_to_urns_unique_valid.  *)
-(*     + eexists _, _. *)
-(*       eapply IfFalseS'; try done. *)
-(*       by intros ? ->%urns_subst_f_to_urns_unique_valid. *)
-(*       Unshelve. all : apply 0%fin. *)
-(*   - intros (?&?& H). inversion H; simplify_eq; *)
-(*       (try by (left; econstructor)); *)
+Lemma head_step_pred_ex_rel e1 σ1 :
+  head_step_pred e1 σ1 ↔ ∃ e2 σ2, head_step_rel e1 σ1 e2 σ2.
+Proof.
+  split.
+  - intros H; inversion H; simplify_eq; try by (do 2 eexists; (by econstructor)).
+    Unshelve. all : apply 0%fin.
+  (* - pose proof set_urns_f_nonempty (urns σ1) as Hnonempty. *)
+    (* apply size_pos_elem_of in Hnonempty as [f Hnonempty]. *)
+    (* rewrite elem_of_set_urns_f_valid in Hnonempty. *)
+    (* rename select (base_lit_type_check _ = _) into H'. *)
+    (* eapply urn_subst_exists in H'; last by erewrite <-urns_f_valid_support. *)
+    (* destruct H' as [[][H1 ]]; apply urn_subst_is_simple in H1 as H4; simplify_eq. *)
+    (* rename select (bool) into b. *)
+    (* destruct b. *)
+    (* + eexists _, _. *)
+    (*   eapply IfTrueS'; try done. *)
+    (*   by intros ? ->%urns_subst_f_to_urns_unique_valid. *)
+    (* + eexists _, _. *)
+    (*   eapply IfFalseS'; try done. *)
+    (*   by intros ? ->%urns_subst_f_to_urns_unique_valid. *)
+    (*   Unshelve. all : apply 0%fin. *)
+  - intros (?&?& H). inversion H; simplify_eq; by econstructor.
+Qed. 
+(*     Unshelve. *)
+(*     apply 0%fin. *)
+(*     Qed *)
 (*       (try by (right; econstructor)). *)
 (*     + rename select (urn_subst_equal _ _ _) into H'. *)
 (*       right; econstructor; try done. *)
@@ -730,42 +740,58 @@ Local Open Scope R.
 (*         by destruct!/=. *)
 (*       * apply urn_subst_equal_support in H'. *)
 (*         rewrite urns_subst_f_to_urns_support in H'. *)
-(*         by erewrite urns_f_valid_support.     *)
+(*         by erewrite urns_f_valid_support. *)
 (* Qed. *)
 
-(* Lemma not_head_step_pred_dzero e1 σ1: *)
-(*   ¬ head_step_pred e1 σ1 ↔ head_step e1 σ1 = dzero. *)
-(* Proof. *)
-(*   split. *)
-(*   - intro Hnstep. *)
-(*     apply dzero_ext. *)
-(*     intros (e2 & σ2). *)
-(*     destruct (Rlt_le_dec 0 (head_step e1 σ1 (e2, σ2))) as [H1%Rgt_lt | H2]; last first. *)
-(*     { pose proof (pmf_pos (head_step e1 σ1) (e2, σ2)). destruct H2; lra. } *)
-(*     apply head_step_support_equiv_rel in H1. *)
-(*     assert (∃ e2 σ2, head_step_rel e1 σ1 e2 σ2) as Hex; eauto. *)
-(*     by apply head_step_pred_ex_rel in Hex. *)
-(*   - intros Hhead (e2 & σ2 & Hstep)%head_step_pred_ex_rel. *)
-(*     apply head_step_support_equiv_rel in Hstep. *)
-(*     assert (head_step e1 σ1 (e2, σ2) = 0); [|lra]. *)
-(*     rewrite Hhead //. *)
-(* Qed. *)
+Lemma not_head_step_pred_dzero e1 σ1:
+  ¬ head_step_pred e1 σ1 ↔ head_step e1 σ1 = dzero.
+Proof.
+  split.
+  - intro Hnstep.
+    apply dzero_ext.
+    intros (e2 & σ2).
+    destruct (Rlt_le_dec 0 (head_step e1 σ1 (e2, σ2))) as [H1%Rgt_lt | H2]; last first.
+    { pose proof (pmf_pos (head_step e1 σ1) (e2, σ2)). destruct H2; lra. }
+    apply head_step_support_equiv_rel in H1.
+    assert (∃ e2 σ2, head_step_rel e1 σ1 e2 σ2) as Hex; eauto.
+    by apply head_step_pred_ex_rel in Hex.
+  - intros Hhead (e2 & σ2 & Hstep)%head_step_pred_ex_rel.
+    apply head_step_support_equiv_rel in Hstep.
+    assert (head_step e1 σ1 (e2, σ2) = 0); [|lra].
+    rewrite Hhead //.
+Qed.
 
-(* Lemma det_or_prob_or_dzero e1 σ1 : *)
-(*   det_head_step_pred e1 σ1 *)
-(*   ∨ prob_head_step_pred e1 σ1 *)
-(*   ∨ head_step e1 σ1 = dzero. *)
-(* Proof. *)
-(*   destruct (Rlt_le_dec 0 (SeriesC (head_step e1 σ1))) as [H1%Rlt_gt | [HZ | HZ]]. *)
-(*   - pose proof (SeriesC_gtz_ex (head_step e1 σ1) (pmf_pos (head_step e1 σ1)) H1) as [[e2 σ2] Hρ]. *)
-(*     pose proof (head_step_support_equiv_rel e1 e2 σ1 σ2) as [H3 H4]. *)
-(*     specialize (H3 Hρ). *)
-(*     assert (head_step_pred e1 σ1) as []; [|auto|auto]. *)
-(*     apply head_step_pred_ex_rel; eauto. *)
-(*   - by pose proof (pmf_SeriesC_ge_0 (head_step e1 σ1)) *)
-(*       as ?%Rle_not_lt. *)
-(*   - apply SeriesC_zero_dzero in HZ. eauto. *)
-(* Qed. *)
+Lemma head_step_pred_or_dzero e1 σ1 :
+  head_step_pred e1 σ1
+  ∨ head_step e1 σ1 = dzero.
+Proof.
+  destruct (Rlt_le_dec 0 (SeriesC (head_step e1 σ1))) as [H1%Rlt_gt | [HZ | HZ]].
+  - pose proof (SeriesC_gtz_ex (head_step e1 σ1) (pmf_pos (head_step e1 σ1)) H1) as [[e2 σ2] Hρ].
+    pose proof (head_step_support_equiv_rel e1 e2 σ1 σ2) as [H3 H4].
+    specialize (H3 Hρ).
+    assert (head_step_pred e1 σ1); last auto. 
+    apply head_step_pred_ex_rel; eauto.
+  - by pose proof (pmf_SeriesC_ge_0 (head_step e1 σ1))
+      as ?%Rle_not_lt.
+  - apply SeriesC_zero_dzero in HZ. eauto.
+Qed.
+
+Lemma head_step_pred_head_reducible e1 σ1:
+  head_step_pred e1 σ1 <-> head_reducible e1 σ1.
+Proof.
+  split.
+  - intros.
+    rewrite /head_reducible.
+    destruct (decide (head_step e1 σ1 = dzero)) as [H'|H'].
+    + rewrite -not_head_step_pred_dzero in H'. naive_solver.
+    + apply not_dzero_gt_0 in H'.
+      apply SeriesC_gtz_ex in H'; naive_solver.
+  - intros.
+    destruct (head_step_pred_or_dzero e1 σ1) as [H'|H']; first done.
+    rewrite /head_reducible in H.
+    simpl in H.
+    rewrite H' in H. destruct!/=. inv_distr.
+Qed. 
 
 (** tapes specific *)
 (* Lemma head_step_dzero_upd_tapes α e σ N zs z  : *)
@@ -934,7 +960,7 @@ Fixpoint remove_drand_expr e:=
   | Load e => Load (remove_drand_expr e)
   | Store e1 e2 => Store (remove_drand_expr e1) (remove_drand_expr e2)
   | Rand e => Rand (remove_drand_expr e)
-  | DRand e => DRand (remove_drand_expr e)
+  | DRand e => Rand (remove_drand_expr e)
   end
 with remove_drand_val v : val:= 
   match v with

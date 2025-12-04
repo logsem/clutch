@@ -441,6 +441,63 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
   | _              => None
   end.
 
+(** This is needed for the commute lemma *)
+Global Instance ectx_item_eq_dec : EqDecision ectx_item.
+Proof. solve_decision. Defined.
+Global Instance ectx_item_countable : Countable ectx_item.
+Proof.
+  set (enc :=
+         λ Ki,
+           match Ki with
+           | AppLCtx v2 => GenNode 0 [GenLeaf (inl$ inl v2)]
+           | AppRCtx e1 => GenNode 1 [GenLeaf (inl $ inr e1)]
+           | UnOpCtx op => GenNode 2 [GenLeaf (inr $ inl op)]
+           | BinOpLCtx op v2 => GenNode 3 [GenLeaf (inl$ inl v2); GenLeaf (inr $ inr op)]
+           | BinOpRCtx op e1 => GenNode 4 [GenLeaf (inl $ inr e1); GenLeaf (inr $ inr op)]
+           | IfCtx e1 e2 => GenNode 5 [GenLeaf (inl $ inr e1); GenLeaf (inl $ inr e2)]
+           | PairLCtx v2 => GenNode 6 [GenLeaf (inl $ inl v2)]
+           | PairRCtx e1 => GenNode 7 [GenLeaf (inl $ inr e1)]
+           | FstCtx => GenNode 8 []
+           | SndCtx => GenNode 9 []
+           | InjLCtx => GenNode 10 []
+           | InjRCtx => GenNode 11 []
+           | CaseCtx e1 e2 => GenNode 12 [GenLeaf (inl $ inr e1); GenLeaf (inl $ inr e2)]
+           | AllocNLCtx v2 => GenNode 13 [GenLeaf (inl$ inl v2)]
+           | AllocNRCtx e1 => GenNode 14 [GenLeaf (inl $ inr e1)]
+           | LoadCtx => GenNode 15 []
+           | StoreLCtx v2 => GenNode 16 [GenLeaf (inl$ inl v2)]
+           | StoreRCtx e1 => GenNode 17 [GenLeaf (inl $ inr e1)]
+           | RandCtx => GenNode 18 []
+           | DRandCtx => GenNode 19 []
+           end).
+  set (dec :=
+         λ e, 
+           match e with
+           | GenNode 0 [GenLeaf (inl (inl v2))] => AppLCtx v2 
+           | GenNode 1 [GenLeaf (inl (inr e1))] => AppRCtx e1 
+           | GenNode 2 [GenLeaf (inr (inl op))] => UnOpCtx op 
+           | GenNode 3 [GenLeaf (inl (inl v2)); GenLeaf (inr (inr op))] => BinOpLCtx op v2
+           | GenNode 4 [GenLeaf (inl (inr e1)); GenLeaf (inr (inr op))] => BinOpRCtx op e1 
+           | GenNode 5 [GenLeaf (inl (inr e1)); GenLeaf (inl (inr e2))] => IfCtx e1 e2 
+           | GenNode 6 [GenLeaf (inl (inl v2))] => PairLCtx v2 
+           | GenNode 7 [GenLeaf (inl (inr e1))] => PairRCtx e1 
+           | GenNode 8 [] => FstCtx 
+           | GenNode 9 [] => SndCtx 
+           | GenNode 10 [] => InjLCtx 
+           | GenNode 11 [] => InjRCtx 
+           | GenNode 12 [GenLeaf (inl (inr e1)); GenLeaf (inl (inr e2))] => CaseCtx e1 e2 
+           | GenNode 13 [GenLeaf (inl (inl v2))] => AllocNLCtx v2 
+           | GenNode 14 [GenLeaf (inl (inr e1))] => AllocNRCtx e1 
+           | GenNode 15 [] => LoadCtx 
+           | GenNode 16 [GenLeaf (inl (inl v2))] => StoreLCtx v2 
+           | GenNode 17 [GenLeaf (inl (inr e1))] => StoreRCtx e1  
+           | GenNode 18 [] => RandCtx 
+           | GenNode 19 [] => DRandCtx
+           | _ => DRandCtx
+           end).
+  refine (inj_countable' enc dec _).
+  intros []; try reflexivity; simpl; by f_equal. Defined.
+
 (** Substitution *)
 Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   match e with
@@ -1741,16 +1798,15 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
       else if bool_decide (urn_subst_equal σ1 bl (LitBool false))
            then dret (e2, σ1)
            else
-             (** This is only needed for erasure. 
-                Technically we should not have any rules for this case *)
-             dbind (λ f,
-                      let σ2 := {|heap:=σ1.(heap); urns:=urns_subst_f_to_urns f |} in
-                      if bool_decide (urn_subst_equal σ2 bl (LitBool true))
-                      then dret (e1, σ2)
-                      else if bool_decide (urn_subst_equal σ2 bl (LitBool false))
-                           then dret (e2, σ2)
-                           else dzero 
-               ) (urns_f_distr (σ1.(urns)))
+             dzero
+             (* dbind (λ f, *)
+             (*          let σ2 := {|heap:=σ1.(heap); urns:=urns_subst_f_to_urns f |} in *)
+             (*          if bool_decide (urn_subst_equal σ2 bl (LitBool true)) *)
+             (*          then dret (e1, σ2) *)
+             (*          else if bool_decide (urn_subst_equal σ2 bl (LitBool false)) *)
+             (*               then dret (e2, σ2) *)
+             (*               else dzero  *)
+             (*   ) (urns_f_distr (σ1.(urns))) *)
   (* | If (Val (LitV (LitBool true))) e1 e2  => *)
   (*     dret (e1 , σ1) *)
   (* | If (Val (LitV (LitBool false))) e1 e2 => *)
@@ -1860,20 +1916,20 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
 | IfFalseS bl e1 e2 σ :
   urn_subst_equal σ bl (LitBool false)->
   head_step_rel (If (Val $ LitV $ bl) e1 e2) σ e2 σ
-| IfTrueS' bl e1 e2 σ f σ':
-  ¬ urn_subst_equal σ bl (LitBool true) ->
-  ¬ urn_subst_equal σ bl (LitBool false) ->
-  urns_f_valid (σ.(urns)) f ->
-  σ' = {|heap:=σ.(heap); urns:=urns_subst_f_to_urns f |} ->
-  urn_subst_equal σ' bl (LitBool true) ->
-  head_step_rel (If (Val $ LitV $ bl) e1 e2) σ e1 σ'
-| IfFalseS' bl e1 e2 σ f σ':
-  ¬ urn_subst_equal σ bl (LitBool true) ->
-  ¬ urn_subst_equal σ bl (LitBool false) ->
-  urns_f_valid (σ.(urns)) f ->
-  σ' = {|heap:=σ.(heap); urns:=urns_subst_f_to_urns f |} ->
-  urn_subst_equal σ' bl (LitBool false) ->
-  head_step_rel (If (Val $ LitV $ bl) e1 e2) σ e2 σ'
+(* | IfTrueS' bl e1 e2 σ f σ': *)
+(*   ¬ urn_subst_equal σ bl (LitBool true) -> *)
+(*   ¬ urn_subst_equal σ bl (LitBool false) -> *)
+(*   urns_f_valid (σ.(urns)) f -> *)
+(*   σ' = {|heap:=σ.(heap); urns:=urns_subst_f_to_urns f |} -> *)
+(*   urn_subst_equal σ' bl (LitBool true) -> *)
+(*   head_step_rel (If (Val $ LitV $ bl) e1 e2) σ e1 σ' *)
+(* | IfFalseS' bl e1 e2 σ f σ': *)
+(*   ¬ urn_subst_equal σ bl (LitBool true) -> *)
+(*   ¬ urn_subst_equal σ bl (LitBool false) -> *)
+(*   urns_f_valid (σ.(urns)) f -> *)
+(*   σ' = {|heap:=σ.(heap); urns:=urns_subst_f_to_urns f |} -> *)
+(*   urn_subst_equal σ' bl (LitBool false) -> *)
+(*   head_step_rel (If (Val $ LitV $ bl) e1 e2) σ e2 σ' *)
 (* | IfFalseS e1 e2 σ : *)
 (*   head_step_rel (If (Val $ LitV $ LitBool false) e1 e2) σ e2 σ *)
 | FstS v1 v2 σ :
@@ -1966,13 +2022,12 @@ Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
 Proof.
   split.
   - intros ?. destruct e1; inv_head_step; eauto with head_step.
-    + inv_distr.
-      eapply IfTrueS'; try done.
-      by apply urns_f_distr_pos.
-    + inv_distr.
-      eapply IfFalseS'; try done.
-      by apply urns_f_distr_pos.
-    + inv_distr.
+    (* + inv_distr. *)
+    (*   eapply IfTrueS'; try done. *)
+    (*   by apply urns_f_distr_pos. *)
+    (* + inv_distr. *)
+    (*   eapply IfFalseS'; try done. *)
+    (*   by apply urns_f_distr_pos. *)
     + eapply RandS; last done.
       apply urn_subst_equal_epsilon_correct.
     + eapply DRandS; last done; try done.
@@ -1980,14 +2035,14 @@ Proof.
   - inversion 1; simplify_map_eq/=; repeat try case_bool_decide; simplify_eq; try done; try by solve_distr.
     + exfalso.
       assert (LitBool true ≠ LitBool false) as H' by done; (apply H'; by eapply urn_subst_equal_unique).
-    + solve_distr; last by apply urns_f_distr_pos.
-      rewrite bool_decide_eq_true_2; last done.
-      solve_distr.
-    + solve_distr; last by apply urns_f_distr_pos.
-      rewrite bool_decide_eq_false_2; last first.
-      { intros H'. by eapply (urn_subst_equal_unique _ _ (LitBool true) (LitBool false)) in H'. }
-      rewrite bool_decide_eq_true_2; last done.
-      solve_distr.
+    (* + solve_distr; last by apply urns_f_distr_pos. *)
+    (*   rewrite bool_decide_eq_true_2; last done. *)
+    (*   solve_distr. *)
+    (* + solve_distr; last by apply urns_f_distr_pos. *)
+    (*   rewrite bool_decide_eq_false_2; last first. *)
+    (*   { intros H'. by eapply (urn_subst_equal_unique _ _ (LitBool true) (LitBool false)) in H'. } *)
+    (*   rewrite bool_decide_eq_true_2; last done. *)
+    (*   solve_distr. *)
     + solve_distr. case_match; last (exfalso; naive_solver).
       erewrite urn_subst_equal_epsilon_unique; last done.
       solve_distr.
@@ -2057,70 +2112,70 @@ Proof.
   intros [[] Hs%head_step_support_equiv_rel].
   inversion Hs;
     repeat (simplify_map_eq/=; solve_distr_mass || case_match; try (case_bool_decide; done) ).
-  - rename select (_=false) into L1. clear L1. 
-    rename select (_=false) into L1. clear L1.
-    rename select (urns_f_valid _ _) into H1.
-    apply dbind_det; first apply urns_f_distr_mass. 
-    intros ? Hf.
-    case_bool_decide as H2; try solve_distr_mass.
-    case_bool_decide as H4; try solve_distr_mass.
-    exfalso.
-    rewrite urns_f_distr_pos in Hf.
-    rename select (urn_subst_equal _ _ _) into H'.
-    apply urn_subst_equal_well_typed in H' as K1.
-    destruct K1 as [?[K1 K1']].
-    apply urn_subst_equal_well_typed in H' as K2.
-    destruct!/=.
-    apply urn_subst_equal_support in H' as K3.
-    simpl in *.
-    apply urns_f_valid_support in Hf as K4.
-    apply urns_f_valid_support in H1 as K5.
-    rewrite urns_subst_f_to_urns_support in K3.
-    rewrite -K5 K4 in K3.
-    eapply urn_subst_exists in K1; last done.
-    destruct K1 as [bl' [K1 ]].
-    apply urn_subst_is_simple in K1 as K1'.
-    destruct bl'; simplify_eq.
-    rename select bool into b.
-    destruct b.
-    + apply H2.
-      rewrite /urn_subst_equal/=.
-      by intros ? ->%urns_subst_f_to_urns_unique_valid.
-    + apply H4.
-      rewrite /urn_subst_equal/=.
-      by intros ? ->%urns_subst_f_to_urns_unique_valid.
-  - rename select (_=false) into L1. clear L1. 
-    rename select (_=false) into L1. clear L1.
-    rename select (urns_f_valid _ _) into H1.
-    apply dbind_det; first apply urns_f_distr_mass. 
-    intros ? Hf.
-    case_bool_decide as H2; try solve_distr_mass.
-    case_bool_decide as H4; try solve_distr_mass.
-    exfalso.
-    rewrite urns_f_distr_pos in Hf.
-    rename select (urn_subst_equal _ _ _) into H'.
-    apply urn_subst_equal_well_typed in H' as K1.
-    destruct K1 as [?[K1 K1']].
-    apply urn_subst_equal_well_typed in H' as K2.
-    destruct!/=.
-    apply urn_subst_equal_support in H' as K3.
-    simpl in *.
-    apply urns_f_valid_support in Hf as K4.
-    apply urns_f_valid_support in H1 as K5.
-    rewrite urns_subst_f_to_urns_support in K3.
-    rewrite -K5 K4 in K3.
-    eapply urn_subst_exists in K1; last done.
-    destruct K1 as [bl' [K1 ]].
-    apply urn_subst_is_simple in K1 as K1'.
-    destruct bl'; simplify_eq.
-    rename select bool into b.
-    destruct b.
-    + apply H2.
-      rewrite /urn_subst_equal/=.
-      by intros ? ->%urns_subst_f_to_urns_unique_valid.
-    + apply H4.
-      rewrite /urn_subst_equal/=.
-      by intros ? ->%urns_subst_f_to_urns_unique_valid.
+  (* - rename select (_=false) into L1. clear L1.  *)
+  (*   rename select (_=false) into L1. clear L1. *)
+  (*   rename select (urns_f_valid _ _) into H1. *)
+  (*   apply dbind_det; first apply urns_f_distr_mass.  *)
+  (*   intros ? Hf. *)
+  (*   case_bool_decide as H2; try solve_distr_mass. *)
+  (*   case_bool_decide as H4; try solve_distr_mass. *)
+  (*   exfalso. *)
+  (*   rewrite urns_f_distr_pos in Hf. *)
+  (*   rename select (urn_subst_equal _ _ _) into H'. *)
+  (*   apply urn_subst_equal_well_typed in H' as K1. *)
+  (*   destruct K1 as [?[K1 K1']]. *)
+  (*   apply urn_subst_equal_well_typed in H' as K2. *)
+  (*   destruct!/=. *)
+  (*   apply urn_subst_equal_support in H' as K3. *)
+  (*   simpl in *. *)
+  (*   apply urns_f_valid_support in Hf as K4. *)
+  (*   apply urns_f_valid_support in H1 as K5. *)
+  (*   rewrite urns_subst_f_to_urns_support in K3. *)
+  (*   rewrite -K5 K4 in K3. *)
+  (*   eapply urn_subst_exists in K1; last done. *)
+  (*   destruct K1 as [bl' [K1 ]]. *)
+  (*   apply urn_subst_is_simple in K1 as K1'. *)
+  (*   destruct bl'; simplify_eq. *)
+  (*   rename select bool into b. *)
+  (*   destruct b. *)
+  (*   + apply H2. *)
+  (*     rewrite /urn_subst_equal/=. *)
+  (*     by intros ? ->%urns_subst_f_to_urns_unique_valid. *)
+  (*   + apply H4. *)
+  (*     rewrite /urn_subst_equal/=. *)
+  (*     by intros ? ->%urns_subst_f_to_urns_unique_valid. *)
+  (* - rename select (_=false) into L1. clear L1.  *)
+  (*   rename select (_=false) into L1. clear L1. *)
+  (*   rename select (urns_f_valid _ _) into H1. *)
+  (*   apply dbind_det; first apply urns_f_distr_mass.  *)
+  (*   intros ? Hf. *)
+  (*   case_bool_decide as H2; try solve_distr_mass. *)
+  (*   case_bool_decide as H4; try solve_distr_mass. *)
+  (*   exfalso. *)
+  (*   rewrite urns_f_distr_pos in Hf. *)
+  (*   rename select (urn_subst_equal _ _ _) into H'. *)
+  (*   apply urn_subst_equal_well_typed in H' as K1. *)
+  (*   destruct K1 as [?[K1 K1']]. *)
+  (*   apply urn_subst_equal_well_typed in H' as K2. *)
+  (*   destruct!/=. *)
+  (*   apply urn_subst_equal_support in H' as K3. *)
+  (*   simpl in *. *)
+  (*   apply urns_f_valid_support in Hf as K4. *)
+  (*   apply urns_f_valid_support in H1 as K5. *)
+  (*   rewrite urns_subst_f_to_urns_support in K3. *)
+  (*   rewrite -K5 K4 in K3. *)
+  (*   eapply urn_subst_exists in K1; last done. *)
+  (*   destruct K1 as [bl' [K1 ]]. *)
+  (*   apply urn_subst_is_simple in K1 as K1'. *)
+  (*   destruct bl'; simplify_eq. *)
+  (*   rename select bool into b. *)
+  (*   destruct b. *)
+  (*   + apply H2. *)
+  (*     rewrite /urn_subst_equal/=. *)
+  (*     by intros ? ->%urns_subst_f_to_urns_unique_valid. *)
+  (*   + apply H4. *)
+  (*     rewrite /urn_subst_equal/=. *)
+  (*     by intros ? ->%urns_subst_f_to_urns_unique_valid. *)
   - exfalso; naive_solver.
   - exfalso; naive_solver.
 Qed. 
