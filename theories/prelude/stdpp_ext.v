@@ -1,4 +1,4 @@
-From stdpp Require Import countable fin_maps finite gmap.
+From stdpp Require Import countable fin_maps finite gmap option.
 From clutch.prelude Require Import classical.
 
 Section base.
@@ -440,7 +440,15 @@ Section gset.
         rewrite set_bind_singleton.
         rewrite H3; set_solver.
   Qed. 
-End gset. 
+End gset.
+
+Section option_bind.
+  Lemma option_bind_comm {A B C} (e1:option A) (e2:option B) (f: A -> B -> option C):
+    (x ← e1; y ← e2; f x y) = y ← e2; x ← e1; f x y.
+  Proof.
+    by destruct e1, e2.
+  Qed. 
+End option_bind.
 
 Tactic Notation "case_match" "in" ident(H) "eqn" ":" ident(Hd) :=
   match type of H with

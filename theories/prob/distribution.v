@@ -2899,8 +2899,21 @@ Section proj_Some.
     d_proj_Some None = dzero.
   Proof.
     done.
-  Qed. 
-  End proj_Some.
+  Qed.
+
+End proj_Some.
+
+Section proj_Some_lemmas.
+  Lemma d_proj_Some_bind `{Countable A} `{Countable B} (x : option A) (f : A -> option B):
+    d_proj_Some (mbind f x) =
+    dbind (λ x', d_proj_Some (f x')) (d_proj_Some x).
+  Proof.
+    destruct x; simpl.
+    - by rewrite dret_id_left'.
+    - by rewrite dbind_dzero.
+  Qed.
+  
+End proj_Some_lemmas.
 
 Ltac inv_distr :=
   repeat

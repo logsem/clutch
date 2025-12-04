@@ -303,6 +303,42 @@ Section urn_subst.
     by apply val_support_set_not_support.
   Qed.
 
+  Lemma urn_subst_expr_fill_item f Ki e:
+    urn_subst_expr f (fill_item Ki e) =
+    Ki' ← urn_subst_ectx_item f Ki;
+  e' ← urn_subst_expr f e;
+  Some $ fill_item Ki' e'.
+  Proof.
+    destruct Ki; simpl; try done;
+    try (rewrite option_bind_comm !option_bind_assoc;
+         by apply option_bind_ext_fun);
+      try (rewrite option_bind_assoc; by apply option_bind_ext_fun);
+    rewrite option_bind_comm !option_bind_assoc;
+      apply option_bind_ext_fun;
+      intros; simpl; rewrite option_bind_comm option_bind_assoc;
+      by apply option_bind_ext_fun.
+  Qed.
+  
+  Lemma urn_subst_expr_fill f (K : list _) e:
+    urn_subst_expr f (fill K e) =
+    K' ← mapM (urn_subst_ectx_item f) K;
+  e' ← urn_subst_expr f e;
+  Some $ fill K' e'.
+  Proof.
+    revert e.
+    induction K as [|Ki K' IH]; simpl; first (intros; by rewrite bind_with_Some).
+    intros e.
+    rewrite IH.
+    rewrite urn_subst_expr_fill_item.
+    rewrite option_bind_comm.
+    rewrite !option_bind_assoc.
+    apply option_bind_ext_fun.
+    intros.
+    simpl.
+    rewrite option_bind_comm !option_bind_assoc.
+    apply option_bind_ext_fun; intros; simpl.
+    by rewrite option_bind_assoc.
+  Qed. 
 
   (** * Well constructed expressions and values *)
 Fixpoint is_well_constructed_expr e:=
