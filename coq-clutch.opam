@@ -16,7 +16,7 @@ tags: ["awesome" "separation logic" "probabilities"]
 homepage: "https://github.com/logsem/clutch"
 bug-reports: "https://github.com/logsem/clutch/issues"
 depends: [
-  "dune" {>= "3.20"}
+  "dune" {>= "3.17"}
   "ocaml"
   "coq" {>= "8.19" & < "8.20~"}
   "coq-iris" {= "4.2.0"}
@@ -44,4 +44,3 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/logsem/clutch.git"
-x-maintenance-intent: ["(latest)"]
