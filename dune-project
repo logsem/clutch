@@ -33,7 +33,7 @@
   (coq-iris (= "4.2.0"))
   (coq-stdpp (= "1.10.0"))
   (coq-coquelicot (= "3.4.1"))
-  (coq-autosubst (= "1.8"))
+  (coq-autosubst (= "1.9"))
   (coq-hierarchy-builder (= "1.8.1"))
   (coq-mathcomp-ssreflect (= "2.2.0"))
   (coq-mathcomp-solvable (= "2.2.0"))
