@@ -12,6 +12,24 @@ Set Default Proof Using "Type*".
 Local Ltac smash := repeat (rewrite urn_subst_expr_fill|| rewrite dmap_dret||rewrite  dret_id_left' ||rewrite d_proj_Some_bind || rewrite -dbind_assoc' || rewrite dret_id_left' ||simpl);
                     try (apply dbind_ext_right_strong; intros ??; simpl).
 
+Local Ltac unfolder :=
+  repeat 
+  (match goal with
+  | H : context[is_well_constructed_expr (fill _ _)] |- _ => rewrite is_well_constructed_fill in H; simpl in *; andb_solver; simpl in *
+  | H: _ ∪ _ ⊆ _ |- _ => apply union_subseteq in H as [??]; simpl in *
+  | H: context[expr_support_set(fill _ _)] |- _ => rewrite support_set_fill in H; simpl in *
+   end).
+
+Local Ltac expr_exists_solver :=
+  eapply urn_subst_expr_exists; first done;
+      erewrite <-urns_f_valid_support; first done;
+      by apply urns_f_distr_pos.
+      
+Local Ltac val_exists_solver :=
+  eapply urn_subst_val_exists; first done;
+      erewrite <-urns_f_valid_support; first done;
+      by apply urns_f_distr_pos.
+
 Lemma delay_prob_lang_commute e σ m: 
   is_well_constructed_expr e = true ->
   expr_support_set e ⊆ urns_support_set (urns σ) ->
@@ -34,7 +52,7 @@ Proof.
   simpl in *.
   assert (head_step_pred e1' σ) as Hpred.
   { by rewrite head_step_pred_head_reducible. }
-  inversion Hpred; subst.
+  inversion Hpred as [| | | |f x e1 v2|op v ? v'|op v1 v2 ? v'| bl e1 e2 |bl e1 e2|v1 v2 |v1 v2 |v e1 e2 | v e1 e2| z N v ? l|l v|l v w|N ? z bl|N ? z bl]; subst.
   - (** rec *)
     repeat smash.
     rewrite fill_prim_step_dbind; last done.
@@ -88,28 +106,93 @@ Proof.
   - (** fst *)
     repeat smash.
     inv_distr.
-    (* urn_subst_val v2 is Some *)
-    admit.
+    unfolder.
+    assert (∃ v', urn_subst_val a v2 = Some v') as [? Hrewrite] by val_exists_solver.
+    rewrite Hrewrite/=.
+    repeat smash.
+    rewrite fill_prim_step_dbind; last done.
+    rewrite head_prim_step_eq.
+    rewrite dmap_dret//.
   - (** snd *)
     repeat smash.
     inv_distr.
-    admit. 
+    unfolder.
+    assert (∃ v', urn_subst_val a v1 = Some v') as [? Hrewrite] by val_exists_solver.
+    rewrite Hrewrite/=.
+    repeat smash.
+    rewrite fill_prim_step_dbind; last done.
+    rewrite head_prim_step_eq.
+    rewrite dmap_dret//.
   - (** case inl *)
     repeat smash.
-    admit. 
+    inv_distr.
+    unfolder.
+    assert (∃ v', urn_subst_val a v = Some v') as [? Hrewrite] by val_exists_solver.
+    rewrite Hrewrite/=.
+    repeat smash.
+    assert (∃ e2', urn_subst_expr a e2 = Some e2') as [? Hrewrite1] by expr_exists_solver.
+    rewrite Hrewrite1/=.
+    repeat smash.
+    rewrite fill_prim_step_dbind; last done.
+    rewrite head_prim_step_eq.
+    rewrite dmap_dret//.
   - (** case inr *)
     repeat smash.
-    admit.
+    inv_distr.
+    unfolder.
+    assert (∃ v', urn_subst_val a v = Some v') as [? Hrewrite] by val_exists_solver.
+    rewrite Hrewrite/=.
+    repeat smash.
+    assert (∃ e1', urn_subst_expr a e1 = Some e1') as [? Hrewrite1] by expr_exists_solver.
+    rewrite Hrewrite1/=.
+    repeat smash.
+    rewrite fill_prim_step_dbind; last done.
+    rewrite head_prim_step_eq.
+    rewrite dmap_dret//.
   - (** allocN *)
     repeat smash.
     case_bool_decide; last lia.
+    repeat smash.
+    inv_distr.
+    unfolder.
+    assert (∃ v', urn_subst_val a v = Some v') as [? Hrewrite] by val_exists_solver.
+    rewrite Hrewrite/=.
     repeat smash.
     admit.
   - (** load *)
     repeat smash.
     case_match; simplify_eq.
     repeat smash.
-    admit.
+    inv_distr.
+    unfolder.
+    case_match; simplify_eq.
+    destruct Hstep'; inv_distr.
+    assert (∃ v', urn_subst_val a v = Some v') as [? Hrewrite].
+    { eapply urn_subst_val_exists.
+      - rewrite map_Forall_lookup in Hforall1.
+        naive_solver.
+      - rewrite map_Forall_lookup in Hforall2.
+        erewrite <-urns_f_valid_support; last by apply urns_f_distr_pos.
+        naive_solver.
+    }
+    rewrite Hrewrite/=.
+    repeat smash.
+    rewrite fill_prim_step_dbind; last done.
+    inv_distr.
+    rename select (mapM _ _ = Some _) into H'.
+    apply mapM_Some in H'.
+    rename select (list _) into ml.
+    eassert (list_to_map ml !! l = Some _) as Hrewrite'.
+    { admit.
+    }
+    erewrite head_prim_step_eq; last first.
+    { rewrite /head_reducible/=.
+      rewrite Hrewrite'.
+      eexists _; solve_distr. 
+    }
+    simpl.
+    rewrite Hrewrite'.
+    rewrite dmap_dret//.
   - (** store *)
     repeat smash.
     case_match; simplify_eq.
