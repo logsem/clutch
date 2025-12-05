@@ -182,8 +182,28 @@ Proof.
     rename select (mapM _ _ = Some _) into H'.
     apply mapM_Some in H'.
     rename select (list _) into ml.
+    eassert (∃ i, map_to_list (heap σ) !! i = Some (_,_)) as [].
+    { rename select (_!!_=Some _) into K'.
+      rewrite -elem_of_map_to_list in K'.
+      by apply elem_of_list_lookup in K'. }
     eassert (list_to_map ml !! l = Some _) as Hrewrite'.
-    { admit.
+    {
+      eapply elem_of_list_to_map.
+      - replace (ml.*1) with ((map_to_list (heap σ)).*1); first apply NoDup_fst_map_to_list.
+        apply list_eq_Forall2.
+        apply Forall2_fmap_2.
+        eapply Forall2_impl; first done.
+        simpl.
+        intros [] [].
+        rewrite bind_Some.
+        intros.
+        by destruct!/=.
+      - rewrite elem_of_list_lookup.
+        eapply Forall2_lookup_l in H'; last done.
+        destruct H' as [[][? H']].
+        rewrite bind_Some in H'.
+        destruct!/=.
+        naive_solver.
     }
     erewrite head_prim_step_eq; last first.
     { rewrite /head_reducible/=.
