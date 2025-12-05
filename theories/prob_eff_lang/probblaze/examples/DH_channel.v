@@ -1047,10 +1047,8 @@ Section handlee_verification.
     
     (* getKey1 first time *)
     1 : {
-    do 2 rel_pures_l; [apply Hk1; set_solver|]. fold (KontGetKey1 k1 la lb α β).
+    do 2 rel_pures_l; [apply Hk1; set_solver|]. 
     do 2rel_pures_r; [split;[apply Hk2; set_solver|set_solver]|].
-    fold (KontGetKey2 k2 a b ).
-    fold (KontChannel2 bob l1' l2' k2 a b).
     iApply (rel_na_inv _ _ alphaN ); [set_solver|].
     iFrame "Hinva". 
     iIntros "(>[(Hα & Hl1 & Hl1s & Hla) | #(Hα & Hl1 & Hl1s &Hla)] & Hclose)". 
@@ -1065,7 +1063,7 @@ Section handlee_verification.
       iIntros "!> Hla".
       rel_pures_l.
       iApply (rel_exp_l _ [HandleCtx _ _ _ ; AppRCtx _]).
-      rel_pures_l; [set_solver|]. fold (KontChannel1 bob la lb l1 l2 k1 a α β).
+      rel_pures_l; [set_solver|].
       iApply (rel_load_l_mask [CaseCtx _ _]). iFrame. iIntros "!> Hl1".
       iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl1s"). iIntros "Hl1s".
       rel_pures_l. rel_pures_r.
@@ -1095,8 +1093,8 @@ Section handlee_verification.
       iExists _. do 2 (iSplit; try (iPureIntro; done)).
       iModIntro.
       iApply rel_value.
-      rel_pures_l; [set_solver|]. fold (KontChannel1' la lb l1 l2 k1 a α β).
-      rel_pures_r; [set_solver|]. fold (KontChannel2' l1' l2' k2 a b).
+      rel_pures_l; [set_solver|]. 
+      rel_pures_r; [set_solver|].
     
       (* Recv bob first time (either none or some) *)
       iApply (rel_bind' [_] [_]); [by iApply traversable_iThyTraverse|].
@@ -1151,10 +1149,10 @@ Section handlee_verification.
       iApply (rel_bind [_;_] [_] _ _ iThyBot); [iApply traversable_bot|iApply iThy_le_bot|].
       iApply (rel_load_r with "Hl1s"). iIntros "_".
       iApply (rel_load_l with "Hla"). iIntros "!> _". rel_pures_l. iModIntro.
-      rel_pures_l. rel_exp_l. rel_pures_l; [set_solver|]. fold (KontChannel1 bob la lb l1 l2 k1 a α β).
-      rel_pures_r; [set_solver|]. fold (KontChannel2' l1' l2' k2 a b).
+      rel_pures_l. rel_exp_l. rel_pures_l; [set_solver|].
+      rel_pures_r; [set_solver|]. 
       iApply (rel_load_l with "Hl1"). iIntros "!> _".
-      rel_pures_l; [set_solver|]. fold (KontChannel1' la lb l1 l2 k1 a α β).
+      rel_pures_l; [set_solver|].
       iApply (rel_bind' [_] [_]); [iApply traversable_iThyTraverse|].
       iApply rel_introduction'.
       iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
