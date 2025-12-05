@@ -514,5 +514,134 @@ Qed.
     case_match; first done.
     eapply is_well_constructed_subst.
   Qed. 
+
+  Local Ltac smash :=
+  repeat
+    match goal with
+    | H : _ ∪ _ ⊆ _ |- _ => rewrite union_subseteq in H; destruct H
+    end.
+  
+  Lemma urn_subst_base_lit_exists bl f b:
+    base_lit_type_check bl = Some b ->
+    base_lit_support_set bl ⊆ dom f ->
+    (∃ bl', urn_subst f bl = Some bl').
+  Proof.
+    revert b.
+    induction bl as [| | | | |bl IH|bl IH |bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2|bl1 IH1 bl2 IH2]; simpl; repeat setoid_rewrite bind_Some; intros; repeat (destruct!/= || case_match); simplify_eq.
+    1,2,3,4: naive_solver.
+    1:{ rename select (_⊆_) into H. rewrite singleton_subseteq_l elem_of_dom in H.
+      destruct H.
+      naive_solver. }
+    1, 2: eassert (∃ bl' : base_lit, urn_subst f _ = Some bl') as [x H]; first naive_solver;
+      apply urn_subst_well_typed in H as H';
+      apply urn_subst_is_simple in H as H'';
+      destruct!/=;
+      destruct x; simplify_eq;
+      naive_solver.
+    all: smash;
+      eassert (∃ bl' : base_lit, urn_subst f bl1 = Some bl') as [x1 K1]; first naive_solver;
+      eassert (∃ bl' : base_lit, urn_subst f bl2 = Some bl') as [x2 K2]; first naive_solver;
+      apply urn_subst_well_typed in K1 as K1';
+      apply urn_subst_is_simple in K1 as K1'';
+      apply urn_subst_well_typed in K2 as K2';
+      apply urn_subst_is_simple in K2 as K2''; destruct!/=; destruct x1, x2; simplify_eq; naive_solver.
+  Qed. 
+  
+  Lemma urn_subst_expr_exists e f:
+    is_well_constructed_expr e = true ->
+    expr_support_set e ⊆ dom f ->
+    (∃ e', urn_subst_expr f e = Some e').
+  Proof.
+    revert e.
+    apply (expr_mut (λ e, 
+    is_well_constructed_expr e = true ->
+    expr_support_set e ⊆ dom f ->
+    (∃ e', urn_subst_expr f e = Some e')) (λ v, 
+    is_well_constructed_val v = true ->
+    val_support_set v ⊆ dom f ->
+    (∃ v', urn_subst_expr f v = Some v'))); simpl; repeat setoid_rewrite bind_Some; intros; andb_solver; smash.
+    19: { repeat case_match; simplify_eq.
+      rename select (base_lit_type_check _ = _) into H.
+      eapply urn_subst_base_lit_exists in H; last done.
+      destruct!/=. naive_solver. }
+    all: naive_solver.
+  Qed. 
+
+  Local Ltac bind_solver :=
+  repeat
+    match goal with
+    | H : _ ≫= _ = Some _ |- _ => rewrite bind_Some in H; destruct H as [?[]]; simplify_eq
+    end.
+  
+  Lemma urn_subst_val_exists v f:
+    is_well_constructed_val v = true ->
+    val_support_set v ⊆ dom f ->
+    (∃ v', urn_subst_val f v = Some v').
+  Proof.
+    induction v as [| |v1 ? v2 |v|v]; simpl; repeat setoid_rewrite bind_Some; intros; smash; andb_solver.
+    - repeat case_match; simplify_eq.
+      rename select (base_lit_type_check _ = _) into H.
+      eapply urn_subst_base_lit_exists in H; last done.
+      destruct!/=. naive_solver.
+    - unshelve epose proof urn_subst_expr_exists _ _ _ _; [| |done|done|].
+      destruct!/=.
+      naive_solver.
+    - eassert (∃ v' , urn_subst_val f v1 = Some v') as [v1' K1]; first naive_solver.
+      eassert (∃ v' , urn_subst_val f v2 = Some v') as [v2' K2]; first naive_solver.
+      simpl in *.
+      bind_solver. naive_solver.
+    - eassert (∃ v' , urn_subst_val f v = Some v') as [v' K]; first naive_solver.
+      simpl in *.
+      bind_solver. naive_solver.
+    - eassert (∃ v' , urn_subst_val f v = Some v') as [v' K]; first naive_solver.
+      simpl in *.
+      bind_solver. naive_solver.
+  Qed.
+  
+  Lemma urn_subst_ectx_item_exists Ki f:
+    is_well_constructed_ectx_item Ki = true ->
+    ectx_item_support_set Ki ⊆ dom f ->
+    (∃ Ki', urn_subst_ectx_item f Ki = Some Ki').
+  Proof.
+    destruct Ki; simpl; repeat setoid_rewrite bind_Some.
+    all: try (intros H1 H2;
+      eapply urn_subst_val_exists in H1; last done; destruct!/=;
+                                                      bind_solver; naive_solver).
+    all: try (intros H1 H2;
+      eapply urn_subst_expr_exists in H1; last done; destruct!/=;
+                                                       bind_solver; naive_solver).
+    all: try (intros H1 H2;
+        smash;
+        rewrite andb_true_iff in H1; destruct H1 as [K1 K2];
+        eapply urn_subst_expr_exists in K1, K2; last done; destruct!/=;
+                                                             bind_solver; naive_solver).
+    all: naive_solver.
+  Qed.
+  
+  Lemma urn_subst_heap_exists m f:
+  map_Forall (λ _ v, is_well_constructed_val v = true) m ->
+  map_Forall (λ _ v, val_support_set v ⊆ dom f) m ->
+  (∃ m', urn_subst_heap f m = Some m').
+  Proof.
+    intros H1 H2.
+    destruct (urn_subst_heap f m) eqn :H; first naive_solver.
+    exfalso.
+    rewrite /urn_subst_heap in H.
+    setoid_rewrite fmap_None in H.
+    setoid_rewrite mapM_None in H.
+    revert H.
+    apply Forall_Exists_neg.
+    rewrite Forall_forall.
+    intros [??].
+    rewrite elem_of_map_to_list.
+    intros ?.
+    destruct (mbind _ _) eqn:H'; first done.
+    rewrite bind_None in H'.
+    destruct!/=.
+    eapply map_Forall_lookup_1 in H1; last done.
+    eapply (map_Forall_lookup_1 (λ (_ : loc) (v : val), val_support_set v ⊆ dom f)) in H2; last done.
+    eapply urn_subst_val_exists in H1; last done.
+    destruct!/=.
+  Qed. 
   
 End urn_subst.
