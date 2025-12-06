@@ -16,7 +16,7 @@ tags: ["awesome" "separation logic" "probabilities"]
 homepage: "https://github.com/logsem/clutch"
 bug-reports: "https://github.com/logsem/clutch/issues"
 depends: [
-  "dune" {>= "3.17"}
+  "dune" {>= "3.20"}
   "ocaml"
   "coq" {>= "8.19" & < "8.20~"}
   "coq-iris" {= "4.2.0"}
@@ -27,6 +27,8 @@ depends: [
   "coq-mathcomp-ssreflect" {= "2.2.0"}
   "coq-mathcomp-solvable" {= "2.2.0"}
   "coq-mathcomp-analysis" {= "1.4.0"}
+  "coq-elpi" {= "2.1.1"}
+  "elpi" {= "1.3.4"}
   "odoc" {with-doc}
 ]
 build: [
@@ -44,3 +46,4 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/logsem/clutch.git"
+x-maintenance-intent: ["(latest)"]
