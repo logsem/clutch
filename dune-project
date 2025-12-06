@@ -37,9 +37,7 @@
   (coq-hierarchy-builder (= "1.8.1"))
   (coq-mathcomp-ssreflect (= "2.2.0"))
   (coq-mathcomp-solvable (= "2.2.0"))
-  (coq-mathcomp-analysis (= "1.4.0"))
-  (coq-elpi (= 2.1.1))
-  (elpi (= 1.18.2)))
+  (coq-mathcomp-analysis (= "1.4.0")))
  (tags
   ("awesome" "separation logic" probabilities)))
 
