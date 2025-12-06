@@ -39,7 +39,7 @@
   (coq-mathcomp-solvable (= "2.2.0"))
   (coq-mathcomp-analysis (= "1.4.0"))
   (coq-elpi (= 2.1.1))
-  (elpi (= 1.3.4)))
+  (elpi (= 1.18.2)))
  (tags
   ("awesome" "separation logic" probabilities)))
 
