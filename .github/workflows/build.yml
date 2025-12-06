@@ -31,6 +31,7 @@ jobs:
               opam repo remove coq-released
               opam repo add rocq-released https://rocq-prover.org/opam/released
               opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
+              opam unpin -n dune
               opam pin add -n -y -k path $PACKAGE $WORKDIR
               opam update -y
               opam reinstall --forget-pending --yes
