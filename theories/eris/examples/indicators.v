@@ -896,6 +896,12 @@ Definition Ici (a : R) : R -> Prop :=
 Definition Iic (b : R) : R -> Prop :=
   fun t => t <= b.
 
+Definition Ioi (a : R) : R -> Prop :=
+  fun t => a < t.
+
+Definition Iio (b : R) : R -> Prop :=
+  fun t => t < b.
+
 Definition Iii : R -> Prop :=
   fun t => True.
 
@@ -2034,6 +2040,247 @@ Proof.
     ex_seriesC (λ x : nat, if bool_decide (x ≤ M) then F x else 0).
   Proof. apply ex_seriesC_nat_bounded. Qed.
 
+  (* Probably false.
+  Lemma ex_RInt_gen_Ici_mult {L : R} {F G : R → R} :
+    (∀ x, 0 <= F x) →
+    (∀ x, 0 <= G x) →
+    ex_RInt_gen F (at_point L) (Rbar_locally Rbar.p_infty) →
+    ex_RInt_gen G (at_point L) (Rbar_locally Rbar.p_infty) →
+    ex_RInt_gen (fun x => F x * G x) (at_point L) (Rbar_locally Rbar.p_infty).
+  Proof.
+  Admitted.
+  *)
+
+  Lemma is_RInt_gen_bound_partial {F : R → R} {L : R} {lF : R} :
+    (∀ x, 0 <= F x) →
+    (∀ bl bu, ex_RInt F bl bu) →
+    is_RInt_gen F (at_point L) (Rbar_locally Rbar.p_infty) lF →
+    ∀ bu, L <= bu → RInt F L bu <= lF.
+  Proof.
+    intros Hnn Hex HisRInt bu Hb.
+
+    (* Convert is_RInt_gen to filterlim *)
+    have Hlim : filterlim (λ bu : R, RInt F L bu) (Rbar_locally Rbar.p_infty) (locally lF).
+    { apply (filterlim_is_RInt_gen).
+      { intros ?. apply Hex. }
+      { apply HisRInt. }
+    }
+
+    (* Show that RInt F L b is monotone increasing *)
+    have Hmono : ∀ b1 b2, L <= b1 <= b2 → RInt F L b1 <= RInt F L b2.
+    { intros b1 b2 [Hb1 Hb2].
+      (* Use Chasles: RInt F L b2 = RInt F L b1 + RInt F b1 b2 *)
+      have Hex_b1b2 : ex_RInt F b1 b2.
+      { apply (ex_RInt_Chasles_2 (V := R_CompleteNormedModule)) with (a := L); try lra.
+        apply Hex.
+      }
+      rewrite -(RInt_Chasles F L b1 b2); [|apply Hex|exact Hex_b1b2].
+      (* Show 0 <= RInt F b1 b2 using non-negativity of F *)
+      assert (0 <= RInt F b1 b2) as H0.
+      { apply RInt_ge_0; try lra.
+        { exact Hex_b1b2. }
+        { intros x Hx. apply Hnn. }
+      }
+      rewrite /plus//=.
+      apply Rplus_le_0_compat.
+      apply RInt_ge_0; done.
+    }
+
+    (* Proof by contradiction: suppose RInt F L b > lF *)
+    apply Rnot_lt_le. intro Hcontra.
+    pose (ε := RInt F L bu - lF).
+    have Hε_pos : 0 < ε by (unfold ε; lra).
+
+    (* By filterlim, eventually RInt F L x is within ε/2 of lF *)
+    have Hlim_ball : Rbar_locally Rbar.p_infty (λ b', ball lF (ε / 2) (RInt F L b')).
+    { have Hε2_pos : 0 < ε/2 by lra.
+      apply Hlim. exists (mkposreal (ε/2) Hε2_pos). simpl. intros y Hy. exact Hy. }
+
+    (* Extract witness M such that for all b' > M, the distance is < ε/2 *)
+    unfold Rbar_locally in Hlim_ball. destruct Hlim_ball as [M Hlim_ball].
+
+    (* Choose b' >= max(b, M+1), so b' > M and b' >= b *)
+    pose (b' := Rmax bu (M + 1)).
+    have Hb'_M : M < b' by (unfold b'; generalize (Rmax_r bu (M + 1)); lra).
+    have Hball : ball lF (ε / 2) (RInt F L b') by apply Hlim_ball, Hb'_M.
+    have Hb'_ge_b : bu <= b' by (unfold b'; apply Rmax_l).
+
+    (* By monotonicity, RInt F L b <= RInt F L b' *)
+    have Hmono_bb' : RInt F L bu <= RInt F L b' by (apply Hmono; split; [exact Hb | exact Hb'_ge_b]).
+
+    (* But Hball says |RInt F L b' - lF| < ε/2, contradicting RInt F L b - lF = ε *)
+    unfold ball in Hball. simpl in Hball. unfold AbsRing_ball in Hball. simpl in Hball.
+    have : Rabs (RInt F L b' - lF) < ε / 2 by exact Hball.
+    intro Habs. generalize (Rabs_def2 _ _ Habs). unfold ε. lra.
+  Qed.
+
+  Lemma ex_RInt_gen_Ici_compare {L : R} {F G : R → R} :
+    (∀ x, Continuity.continuous F x) →
+    (∀ x, Continuity.continuous G x) →
+    (∀ x, 0 <= G x <= F x) →
+    ex_RInt_gen F (at_point L) (Rbar_locally Rbar.p_infty) →
+    ex_RInt_gen G (at_point L) (Rbar_locally Rbar.p_infty).
+  Proof.
+    intros HFcont HGcont Hcomp HFex.
+    unfold ex_RInt_gen in *.
+    destruct HFex as [lF HFex].
+
+    (* Step 1: G is integrable on [L,b] for all b ≥ L *)
+    assert (HGint : ∀ b, L <= b → ex_RInt G L b).
+    { intros b Hb.
+      apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+      intros z Hz.
+      apply HGcont.
+    }
+
+    (* Step 2: RInt G L b is monotone in b *)
+    assert (Hmono : ∀ b1 b2, L <= b1 <= b2 → RInt G L b1 <= RInt G L b2).
+    { intros b1 b2 [Hb1 Hb2].
+      (* Need: ex_RInt G b1 b2 *)
+      have Hexb1b2 : ex_RInt G b1 b2.
+      { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros z Hz.
+        apply HGcont.
+      }
+      (* Use Chasles: RInt G L b2 = RInt G L b1 + RInt G b1 b2 *)
+      rewrite -(RInt_Chasles G L b1 b2); [|apply HGint; lra|exact Hexb1b2].
+      (* Now show 0 <= RInt G b1 b2 *)
+      assert (0 <= RInt G b1 b2) as H0.
+      { apply RInt_ge_0; try lra.
+        - exact Hexb1b2.
+        - intros x Hx. apply Hcomp. }
+      rewrite /plus//=.
+      apply Rplus_le_0_compat.
+      apply RInt_ge_0; try done.
+      intros x Hx.
+      apply Hcomp.
+    }
+
+    (* Step 3: RInt G L b is bounded above by lF *)
+    assert (Hbound : ∀ b, L <= b → RInt G L b <= lF).
+    { intros b Hb.
+       apply Rle_trans with (r2 := RInt F L b).
+       - apply RInt_le; try lra.
+         { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+           intros ??.
+           apply HGcont.
+         }
+         { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+           intros ??.
+           apply HFcont.
+         }
+         intros ??; apply Hcomp.
+       - apply is_RInt_gen_bound_partial; try done.
+         { intros x; specialize Hcomp with x; lra. }
+         { intros ??.
+           apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+           intros ??.
+           apply HFcont.
+         }
+    }
+
+    (* Step 4: Construct the limit as supremum *)
+    pose (lG := Lub_Rbar (fun r => ∃ b, L <= b ∧ r = RInt G L b)).
+    assert (HlG_finite : Rbar.is_finite lG).
+    { (* Use boundedness + monotonicity → finite supremum *)
+      apply is_finite_bounded with (p := 0) (q := lF).
+      - (* Show 0 <= lG *)
+        rewrite /lG.
+        apply Lub_Rbar_correct.
+        exists L.
+        split; [lra|].
+        have -> : RInt G L L = zero by apply RInt_point.
+        rewrite /zero/=.
+        done.
+      - (* Show lG <= lF *)
+        rewrite /lG.
+        apply Lub_Rbar_correct.
+        intros r [b [Hb ->]].
+        apply Hbound.
+        done.
+    }
+
+    (* Step 5: Show lG is the limit *)
+    exists (Rbar.real lG).
+    apply is_RInt_gen_filterlim.
+    { intros ?.
+      apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+      intros ??.
+      apply HGcont.
+    }
+    intros P HP.
+    rewrite /Rbar_locally/filtermap//=.
+    rewrite /locally //= in HP.
+    destruct HP as [eps HP].
+    have HlG_lub : is_lub_Rbar (fun r => ∃ b, L <= b ∧ r = RInt G L b) lG.
+    { rewrite /lG. apply Lub_Rbar_correct. }
+    destruct HlG_lub as [HlG_ub HlG_least].
+    have HlG_val : lG = Rbar.Finite (Rbar.real lG).
+    { apply Rbar.is_finite_correct in HlG_finite as [y Heq].
+      rewrite Heq. simpl. done.
+    }
+    have Hnot_ub : ¬ is_ub_Rbar (fun r => ∃ b, L <= b ∧ r = RInt G L b) (Rbar.Finite (Rbar.real lG - eps / 2)).
+    { intros Hub.
+      have Hle : Rbar.Rbar_le lG (Rbar.Finite (Rbar.real lG - eps / 2)) by apply HlG_least; apply Hub.
+      rewrite HlG_val in Hle. simpl in Hle.
+      have Heps_pos : 0 < eps by apply cond_pos.
+      lra.
+    }
+    rewrite /is_ub_Rbar in Hnot_ub.
+    apply Classical_Pred_Type.not_all_ex_not in Hnot_ub as [r Hr].
+    apply Classical_Prop.imply_to_and in Hr as [Hexists Hnot_le].
+    destruct Hexists as [M [HM Hr_eq]].
+    have Hgt : Rbar.real lG - eps / 2 < r.
+    { apply Rnot_le_lt. intros Hle. apply Hnot_le.
+      subst r. simpl. apply Hle.
+    }
+    exists M.
+    intros x Hx.
+    apply HP.
+    rewrite /ball/=/AbsRing_ball/=.
+    have HRInt_x_le_lG : RInt G L x <= Rbar.real lG.
+    { have : Rbar.Rbar_le (Rbar.Finite (RInt G L x)) lG.
+      { apply HlG_ub. exists x. split; [lra|done]. }
+      rewrite HlG_val. simpl. done.
+    }
+    have HRInt_M_le_x : RInt G L M <= RInt G L x.
+    { apply Hmono. split; [done|lra]. }
+    subst r.
+    have Hlower : Rbar.real lG - eps / 2 < RInt G L x.
+    { apply Rlt_le_trans with (r2 := RInt G L M); [apply Hgt | apply HRInt_M_le_x]. }
+    have Heps_pos : 0 < eps by apply cond_pos.
+    have : - eps < RInt G L x - Rbar.real lG < eps by lra.
+    intros [H1 H2].
+    by apply Rabs_def1.
+  Qed.
+
+  (* Extend the function f to the left at point L *)
+  Definition LeftExtend (f : R → R) (L : R) : R → R :=
+    fun x => Iverson (Iio L) x * f L + Iverson (Ici L) x * f x.
+
+  Lemma LeftExtend_continuous {f : R → R} {L : R}  :
+    (∀ x, L <= x → Continuity.continuous f x) →
+    (∀ x, Continuity.continuous (LeftExtend f L) x).
+  Proof. Admitted.
+
+  Lemma LeftExtend_eq_r {f : R → R} {L z : R} :
+    L <= z → LeftExtend f L z = f z.
+  Proof. Admitted.
+
+  Lemma LeftExtend_eq_l {f : R → R} {L z : R} :
+    L <= z → LeftExtend f L z = f L.
+  Proof. Admitted.
+
+  Lemma ex_RInt_gen_Ici_compare_strong {L : R} {F G : R → R} :
+    (∀ x, L <= x → Continuity.continuous F x) →
+    (∀ x, L <= x → Continuity.continuous G x) →
+    (∀ x, L <= x → 0 <= G x <= F x) →
+    ex_RInt_gen F (at_point L) (Rbar_locally Rbar.p_infty) →
+    ex_RInt_gen G (at_point L) (Rbar_locally Rbar.p_infty).
+  Proof.
+    intros Hf H.
+  Admitted.
+
 
 End Lib.
 
@@ -2093,13 +2340,16 @@ End FubiniAx.
 
 (* Reduction: This implies Fubini's theorem holds for step functions by Chasales theorem *)
 
-(*
+Section FubiniStep.
+  Import Hierarchy.
+
+
   (* Continuity.continuity_2d_pt_filterlim ???? *)
   Definition IsFubiniCoreRR (f : R → R → R) : Prop :=
-    ∀ x y, Continuity.continuity_2d_pt f x y.
+    ∀ x y, Continuity2 (uncurry f) x y.
 
   Definition IsFubiniCoreSR (f : nat → R → R) : Prop :=
-    ∀ n x, continuity_pt (f n) x.
+    forall n x, Continuity.continuous (f n) x.
 
   Definition fsum {T : Type} (L : list (T → R)) : T → R := fun t => foldr (fun f s => f t + s) 0 L.
 
@@ -2111,14 +2361,63 @@ End FubiniAx.
     fun '(f, xa, xb, ya, yb) x y => Iverson (Ioo xa xb) x * Iverson (Ioo ya yb) y * f x y.
 
   Definition RectFun_continuity : ((R → R → R) * R * R * R * R) → Prop :=
-    fun '(f, xa, xb, ya, yb) => ∀ x y, Ioo xa xb x → Ioo ya yb y → Continuity.continuity_2d_pt f x y.
+    fun '(f, xa, xb, ya, yb) => ∀ x y, Ioo xa xb x → Ioo ya yb y → Continuity2 (uncurry f) x y.
 
   (* Generalized: f is a finite sum of rectangle functions *)
   Definition IsFubiniRR (f : R → R → R) : Prop :=
     ∃ L, f = fsum2 (RectFun_RR <$> L) ∧ Forall RectFun_continuity L.
-    *)
+
+  Lemma Fubini_Step_ex_x {f xa xb ya yb} : IsFubiniRR f →
+    ex_RInt (fun x => RInt (fun y => f x y) ya yb) xa xb.
+  Proof.
+    intros [L [-> HL]].
+    induction L.
+    { simpl. apply ex_RInt_const. }
+    simpl.
+    replace (λ x : R, RInt (λ y : R, RectFun_RR a x y + fsum2 (list_fmap ((R → R → R) * R * R * R * R)%type (R → R → R) RectFun_RR L) x y) ya yb)
+       with (λ x : R, RInt (fun y : R => RectFun_RR a x y) ya yb + RInt (λ y : R, fsum2 (list_fmap ((R → R → R) * R * R * R * R)%type (R → R → R) RectFun_RR L) x y) ya yb).
+    2: {
+      apply functional_extensionality. intros x.
+      rewrite RInt_plus.
+      { done. }
+      { rewrite /RectFun_RR//=.
+        apply Forall_inv in HL.
+        destruct a as [[[[f xa'] xb'] ya'] yb'].
+        rewrite /RectFun_continuity//= in HL.
+        apply (@ex_RInt_ext _ (λ y',  (uncurry f) (x, y'))).
+        2: {
+          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply Continuity2_continuous_snd.
+          apply HL.
+          { admit. }
+          { admit. }
+        }
+        { admit. }
+      }
+      admit.
+    }
+  apply (ex_RInt_plus (V := R_CompleteNormedModule)).
+    2: { apply IHL. exact (Forall_inv_tail HL). }
+    admit.
+  Admitted.
+
+  Lemma Fubini_Step_ex_y {f xa xb ya yb} : IsFubiniRR f →
+    ex_RInt (fun y => RInt (fun x => f x y) xa xb) ya yb.
+  Proof.
+  Admitted.
+
+  Lemma Fubini_Step_eq : ∀ {f xa xb ya yb}, IsFubiniRR f →
+    RInt (fun x => RInt (fun y => f x y) ya yb) xa xb =  RInt (fun y => RInt (fun x => f x y) xa xb) ya yb.
+  Proof.
+  Admitted.
+
+End FubiniStep.
+
+
 
 (* Reduction: This implies Fubini's theorem holds for improper integrals? *)
+
 
 Section FubiniImproper.
   Import Hierarchy.

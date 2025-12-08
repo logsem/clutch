@@ -81,7 +81,7 @@ Section credits.
     auto_derive. OK.
   Qed.
 
-  Lemma NegExp_CreditV_nn {F : R -> R} (Hnn : ∀ r, 0 <= F r) {L : nat} (H : ∀ b, ex_RInt F 0 b) :
+  Lemma NegExp_CreditV_nn {F : R -> R} {M} (Hnn : ∀ r, 0 <= F r <= M) {L : nat} (H : ∀ b, ex_RInt F 0 b) :
     0 <= NegExp_CreditV F (L + 1).
   Proof.
     rewrite /NegExp_CreditV.
@@ -93,7 +93,10 @@ Section credits.
       { apply ex_RInt_mult; [apply H|apply NegExp_ρ_ex_RInt]. }
       { intros ??.  apply Rmult_le_pos; first apply Hnn. apply NegExp_ρ_nn. }
     }
-    (* Can we strengthen RInt_gen_pos so that existence is not needed? *)
+    (* apply (@ex_RInt_gen_Ici_compare 0 (λ x : R, M * NegExp_ρ (L + 1) x)). *)
+
+   
+
   Admitted.
 
   Theorem NegExp_CreditV_ub {F L M} (HF : ∀ x, 0 <= F x <= M) : NegExp_CreditV F L <= M.
@@ -246,8 +249,12 @@ Section credits.
              (RInt (λ x, SeriesC (λ n, RealDecrTrial_μ x 0 n * Iverson Zeven n * F (x + L))) 0 1)));
       last first.
     { rewrite RInt_add.
-      3: { eapply ex_RInt_SeriesC; admit. }
-      2: { eapply ex_RInt_SeriesC; admit. }
+      3: { eapply ex_RInt_SeriesC.
+        all: admit.
+      }
+      2: { eapply ex_RInt_SeriesC.
+        all: admit.
+      }
       apply RInt_ext.
       rewrite Rmin_left; OK.
       rewrite Rmax_right; OK.
@@ -344,7 +351,9 @@ Section credits.
         f_equal.
         funexti.
         rewrite RInt_Rmult.
-        2: { admit. }
+        2: {
+
+          admit. }
         apply RInt_ext.
         intros ??.
         rewrite -SeriesC_scal_l.
@@ -584,7 +593,10 @@ Section credits.
     }
     {
       apply RInt_gen_ext_eq_Ici.
-      2: { admit. }
+      2: {
+
+
+        admit. }
       intros x Hx.
       rewrite Rmult_assoc. f_equal.
       rewrite /NegExp_ρ.

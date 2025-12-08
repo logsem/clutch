@@ -8,6 +8,7 @@ From clutch.eris.examples Require Import lazy_real indicators half_bern_neg_exp.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
+
 Ltac OK := auto; try (intuition done); try (intuition lia); try (intuition lra).
 Ltac funext := apply functional_extensionality.
 Ltac funexti := apply functional_extensionality; intros ?.
