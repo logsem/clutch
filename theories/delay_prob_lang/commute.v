@@ -124,9 +124,21 @@ Proof.
     rewrite bool_decide_eq_true_2; last done.
     repeat smash.
     rename select (urn_subst_equal _ _ _) into H.
-    admit. 
+    inv_distr.
+    rewrite H; last by apply urns_f_distr_pos.
+    repeat smash.
+    unfolder.
+    assert (∃ e', urn_subst_expr a e2 = Some e') as [? Hrewrite] by expr_exists_solver.
+    rewrite Hrewrite.
+    repeat smash.
+    rewrite fill_prim_step_dbind; last done.
+    rewrite head_prim_step_eq.
+    simpl. rewrite bool_decide_eq_true_2.
+    + by rewrite dmap_dret.
+    + by apply urn_subst_equal_obv.
   - (** if false *)
     repeat smash.
+    rename select (urn_subst_equal _ _ _) into H.
     rewrite bool_decide_eq_false_2; last first.
     { intros H'.
       eapply urn_subst_equal_unique in H; last done.
@@ -134,8 +146,23 @@ Proof.
     }
     rewrite bool_decide_eq_true_2; last done.
     repeat smash.
-    (* same as if true *)
-    admit.
+    unfolder.
+    rewrite H; last by apply urns_f_distr_pos.
+    repeat smash.
+    unfolder.
+    assert (∃ e', urn_subst_expr a e1 = Some e') as [? Hrewrite] by expr_exists_solver.
+    rewrite Hrewrite.
+    repeat smash.
+    rewrite fill_prim_step_dbind; last done.
+    rewrite head_prim_step_eq.
+    simpl. rewrite bool_decide_eq_false_2.
+    + rewrite bool_decide_eq_true_2.
+      * by rewrite dmap_dret.
+      * by apply urn_subst_equal_obv.
+    + intros Hcontra.
+      eapply urn_subst_equal_not_unique; first done.
+      * by apply urn_subst_equal_obv.
+      * done.
   - (** fst *)
     repeat smash.
     inv_distr.
