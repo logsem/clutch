@@ -212,12 +212,17 @@ Proof.
   - (** allocN *)
     repeat smash.
     case_bool_decide; last lia.
+    rewrite !dret_id_left'/=.
     repeat smash.
     inv_distr.
     unfolder.
     assert (∃ v', urn_subst_val a v = Some v') as [? Hrewrite] by val_exists_solver.
     rewrite Hrewrite/=.
     rewrite !dret_id_left'.
+    rewrite -d_proj_Some_fmap.
+    rewrite dbind_assoc'.
+    rewrite -d_proj_Some_fmap.
+    rewrite -!/(urn_subst_heap _ _).
     admit.
   - (** load *)
     repeat smash.
@@ -281,6 +286,11 @@ Proof.
     assert (∃ v', urn_subst_val a w = Some v') as [? Hrewrite] by val_exists_solver.
     rewrite Hrewrite.
     smash.
+    rewrite dbind_assoc'.
+    rewrite -d_proj_Some_fmap.
+    rewrite dbind_assoc'.
+    rewrite -d_proj_Some_fmap.
+    rewrite -!/(urn_subst_heap _ _).
     admit.
   - (** rand *)
     repeat smash.
@@ -325,6 +335,6 @@ Proof.
     case_match; last first.
     { exfalso. naive_solver. }
     repeat smash.
-    
+    erewrite urn_subst_equal_epsilon_unique; last done.
     admit. 
 Admitted. 
