@@ -737,13 +737,161 @@ Qed.
     - bin_op_smash.
   Qed.
 
+  Lemma urn_subst_heap_nodup (l:list (loc * _)) l' f:
+    NoDup l.*1 -> 
+    (mapM (λ '(k, v), urn_subst_val f v ≫= λ v' : val, Some (k, v')) l) = Some l' ->
+    NoDup l'.*1.
+  Proof.
+    revert l'.
+    induction l; simpl.
+    - cbv. intros. by simplify_eq.
+    - intros ?. rewrite NoDup_cons.
+      intros [].
+      case_match. simplify_eq.
+      rewrite bind_Some.
+      intros [[][H1 H2]].
+      rewrite !bind_Some in H1 H2.
+      destruct!/=.
+      unfold mret, option_ret in *. simplify_eq.
+      simpl.
+      rewrite NoDup_cons.
+      split; last eapply IHl; try done.
+      rename select (mapM _ _ = _) into H'.
+      rewrite mapM_Some in H'.
+      assert (Forall2
+                (λ x y, x=y) l.*1 x.*1) as Hforall.
+      + apply Forall2_fmap.
+        eapply Forall2_impl; first done.
+        simpl. intros [][]. rewrite bind_Some.
+        intros. by destruct!/=.
+      + apply list_eq_Forall2 in Hforall.
+        by rewrite Hforall in H.
+  Qed. 
+
+  Lemma urn_subst_heap_permutate_lemma (l1:list (loc * _)) l2 l1' l2' f:
+    l1≡ₚ l2->
+    mapM (λ '(k, v), urn_subst_val f v ≫= λ v' : val, Some (k, v')) l1 = Some l1' ->
+    mapM (λ '(k, v), urn_subst_val f v ≫= λ v' : val, Some (k, v')) l2 = Some l2' ->
+    l1'≡ₚ l2'.
+  Proof.
+    intros H.
+    revert l1' l2'.
+    induction H.
+    - simpl. cbv.
+      intros. by simplify_eq.
+    - simpl.
+      intros l1' l2'.
+      case_match.
+      rewrite !bind_Some.
+      subst.
+      intros [[][H1 H2]][[][H3 H4]].
+      rewrite !bind_Some in H1 H2 H3 H4.
+      destruct H1 as [?[H1 ?]].
+      destruct H2 as [?[H2 H2']].
+      destruct H3 as [?[H3 ?]].
+      destruct H4 as [?[H4 H4']].
+      cbv in H2'.
+      cbv in H4'.
+      simplify_eq.
+      apply Permutation_skip.
+      by eapply IHPermutation.
+    - intros l1' l2'.
+      simpl.
+      case_match; subst.
+      case_match; subst.
+      repeat setoid_rewrite bind_Some.
+      intros. destruct!/=.
+      repeat (rename select (mret _ = Some _) into H'; cbv in H'; simplify_eq).
+      apply Permutation_swap.
+    - intros l1' l2' H1 H2.
+      assert (∃ l1', mapM (λ '(k, v), urn_subst_val f v ≫= λ v' : val, Some (k, v')) l' = Some l1') as []; last first.
+      + etrans; first eapply IHPermutation1; try done.
+        by eapply IHPermutation2.
+      + apply mapM_is_Some_2.
+        rewrite Forall_forall.
+        intros [] Hin.
+        simpl.
+        rewrite /is_Some.
+        setoid_rewrite bind_Some. subst.
+        rewrite elem_of_Permutation in Hin.
+        setoid_rewrite <-H in Hin.
+        rewrite -elem_of_Permutation in Hin.
+        rewrite mapM_Some in H1.
+        rewrite elem_of_list_lookup in Hin.
+        destruct!/=.
+        eapply Forall2_lookup_l in H1; last done.
+        destruct H1 as [[][? H1]].
+        rewrite bind_Some in H1.
+        destruct!/=.
+        naive_solver.
+  Qed. 
+                                                                             
+  Lemma urn_subst_heap_permutate f (l: list (loc * val)) l':
+    NoDup l.*1->
+    l≡ₚ l'->
+    ((list_to_map <$> mapM (λ '(k, v), urn_subst_val f v ≫= λ v' : val, Some (k, v')) l):option (gmap loc val)) =
+    ((list_to_map <$> mapM (λ '(k, v), urn_subst_val f v ≫= λ v' : val, Some (k, v')) l')).
+  Proof.
+    simpl.
+    intros Hnodup H.
+    destruct (list_to_map<$>_) eqn:Heqn; last first.
+    { symmetry.
+      rewrite !fmap_None !mapM_None !Exists_exists in Heqn *.
+      destruct Heqn as [?[H0]].
+      destruct!/=.
+      eexists (_,_); split; last done.
+      rewrite elem_of_Permutation.
+      setoid_rewrite <-H.
+      by rewrite elem_of_Permutation in H0.
+    }
+    symmetry.
+    rewrite /fmap/option_fmap/option_map in Heqn *.
+    destruct (mapM _ _) as [l0|] eqn:Heqn1; simplify_eq.
+    destruct (mapM _ l') as [l1|] eqn:Heqn2; simplify_eq.
+    - f_equal.
+      symmetry.
+      apply list_to_map_proper.
+      + by eapply urn_subst_heap_nodup. 
+      + eapply urn_subst_heap_permutate_lemma; last first; done.
+    - rewrite mapM_Some in Heqn1.
+      rewrite mapM_None in Heqn2.
+      exfalso.
+      rewrite Exists_exists in Heqn2.
+      destruct Heqn2 as [[l1 v][H1 H2]].
+      rewrite bind_None in H2.
+      destruct!/=.
+      rewrite elem_of_Permutation in H1.
+      setoid_rewrite <-H in H1.
+      rewrite -elem_of_Permutation in H1.
+      rewrite elem_of_list_lookup in H1.
+      destruct!/=.
+      eapply Forall2_lookup_l in Heqn1; last done.
+      setoid_rewrite bind_Some in Heqn1.
+      destruct!/=.
+  Qed. 
+  
   Lemma urn_subst_heap_insert f i x x' m m':
     i ∉ dom m ->
     urn_subst_val f x = Some x' ->
     urn_subst_heap f m = Some m' ->
     urn_subst_heap f (<[i:=x]> m) = Some (<[i:=x']> m').
   Proof.
-  Admitted.
+    rewrite /urn_subst_heap.
+    intros Hdom Hsome H.
+    erewrite urn_subst_heap_permutate; last first.
+    - apply map_to_list_insert.
+      by rewrite not_elem_of_dom in Hdom.
+    - apply NoDup_fst_map_to_list.
+    - simpl.
+      rewrite Hsome.
+      simpl.
+      apply fmap_Some in H.
+      destruct H as [?[? ->]].
+      apply fmap_Some.
+      setoid_rewrite bind_Some.
+      eexists _. split; first naive_solver.
+      by rewrite list_to_map_cons.
+  Qed. 
   
   Lemma urn_subst_heap_union m1 m2 m1' m2' f:
     dom m1 ## dom m2 ->
