@@ -736,4 +736,76 @@ Qed.
     - bin_op_smash.
     - bin_op_smash.
   Qed.
+
+  Lemma urn_subst_heap_insert f i x x' m m':
+    i ∉ dom m ->
+    urn_subst_val f x = Some x' ->
+    urn_subst_heap f m = Some m' ->
+    urn_subst_heap f (<[i:=x]> m) = Some (<[i:=x']> m').
+  Proof.
+  Admitted.
+  
+  Lemma urn_subst_heap_union m1 m2 m1' m2' f:
+    dom m1 ## dom m2 ->
+    urn_subst_heap f m1 = Some m1' ->
+    urn_subst_heap f m2 = Some m2' ->
+    (urn_subst_heap f (m1 ∪ m2)) = Some (m1' ∪ m2').
+  Proof.
+    revert m2 m1' m2'.
+    revert m1.
+    apply (map_ind (λ m1, ∀ m2 m1' m2', dom m1 ## dom m2
+    → urn_subst_heap f m1 = Some m1'
+    → urn_subst_heap f m2 = Some m2' → urn_subst_heap f (m1 ∪ m2) = Some (m1' ∪ m2'))).
+    { intros m2 m1' m2' Hdom.
+      rewrite {1}/urn_subst_heap.
+      rewrite map_to_list_empty/=.
+      intros. simplify_eq.
+      by rewrite !map_empty_union. }
+    intros i x m Hnone IH.
+    intros m2 m1' m2'.
+    rewrite dom_insert.
+    rewrite disjoint_union_l.
+    intros [Hdom1 Hdom2].
+    destruct (urn_subst_val f x) eqn:Heqn; last first.
+    { intros Hcontra.
+      assert (urn_subst_heap f (<[i:=x]> m) = None); last naive_solver.
+      rewrite /urn_subst_heap.
+      rewrite fmap_None.
+      apply mapM_None_2.
+      rewrite Exists_exists.
+      eexists (i, _).
+      rewrite elem_of_map_to_list.
+      rewrite lookup_insert.
+      split; first done.
+      rewrite bind_None.
+      naive_solver.
+    }
+    intros H.
+    destruct (urn_subst_heap f m) eqn:Heqn'; last first.
+    {
+      assert (urn_subst_heap f (<[i:=x]> m) = None); last naive_solver.
+      rewrite /urn_subst_heap in Heqn' *.
+      rewrite !fmap_None !mapM_None !Exists_exists in Heqn' *.
+      destruct Heqn' as [[l ][H1 H2]].
+      rewrite elem_of_map_to_list in H1.
+      rewrite bind_None in H2.
+      destruct!/=.
+      eexists (_,_).
+      rewrite elem_of_map_to_list.
+      erewrite (lookup_insert_ne _ _ l).
+      - split; first done.
+        rewrite bind_None. naive_solver.
+      - intros ->. naive_solver.
+    }
+    erewrite urn_subst_heap_insert in H; try done; last by rewrite not_elem_of_dom.
+    simplify_eq.
+    intros.
+    eapply IH in Hdom2; try done.
+    rewrite -insert_union_l.
+    erewrite urn_subst_heap_insert; try done; first by rewrite -insert_union_l.
+    rewrite not_elem_of_dom.
+    apply lookup_union_None_2; try done.
+    by apply disjoint_singleton_l, not_elem_of_dom in Hdom1.
+  Qed. 
+    
 End urn_subst.
