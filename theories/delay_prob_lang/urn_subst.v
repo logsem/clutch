@@ -678,19 +678,21 @@ Qed.
     rewrite {1}/un_op_eval; intros; match_solver;destruct!/=; repeat setoid_rewrite bind_Some; match_solver; bind_solver; match_solver; simpl; naive_solver.
   Qed.
 
-
   Local Ltac bin_op_smash:= intros K1 K2 K3; rewrite !bind_Some in K2 K3;
-      destruct K2 as [?[K2 ?]]; destruct K3 as [?[K3 ?]]; simplify_eq;
+      destruct K2 as [x1[K2 ?]]; destruct K3 as [x2[K3 ?]]; simplify_eq;
         apply urn_subst_well_typed in K2 as K2';
         destruct K2' as [? [? Hrewrite1]];
         apply urn_subst_well_typed in K3 as K3';
         destruct K3' as [? [? Hrewrite2]]; simplify_eq;
         rewrite Hrewrite1 Hrewrite2;
       apply urn_subst_is_simple in K2 as K2'';
-      apply urn_subst_is_simple in K3 as K3'';
+        apply urn_subst_is_simple in K3 as K3'';
+        destruct x1, x2; simplify_eq;
+                     setoid_rewrite bind_Some;
+                     eexists _; split;  [|naive_solver];
+                     apply bind_Some in K1 as [? [? ?]]; simplify_eq;
     bind_solver; match_solver;
-    simpl in *; simplify_eq;
-                            try rewrite K2; try rewrite K3; simpl; bind_solver; match_solver; try case_match; simplify_eq; naive_solver.
+    simpl in *; simplify_eq; try rewrite K2; try rewrite K3; done.
   
   Lemma urn_subst_val_bin_op op f v1 v2 v v1' v2':
     bin_op_eval op v1 v2 = Some v ->
@@ -704,36 +706,34 @@ Qed.
     destruct (base_lit_type_check l1) as [b1|] eqn:H1; 
       destruct (base_lit_type_check l2) as [b2|] eqn:H2; [|repeat (done||case_match)..].
     destruct op, b1, b2; simplify_eq; try done.
-  Admitted.
-  (** This proof is correct but SUPER SLOW *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (*   - bin_op_smash. *)
-  (* Qed.  *)
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+    - bin_op_smash.
+  Qed.
 End urn_subst.
