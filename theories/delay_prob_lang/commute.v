@@ -283,7 +283,39 @@ Proof.
     case_match; last first.
     { exfalso. naive_solver. }
     repeat smash.
-    admit. 
+    erewrite urn_subst_equal_epsilon_unique; last done.
+    erewrite (distr_ext (dbind _ (dunifP _))); last first.
+    { intros.
+      apply dbind_pmf_ext; [|done..].
+      intros. by rewrite !dret_id_left'/=.
+    }
+    rewrite dbind_comm.
+    apply dbind_ext_right_strong.
+    intros.
+    repeat smash.
+    setoid_rewrite urn_subst_expr_fill.
+    repeat smash.
+    setoid_rewrite d_proj_Some_bind.
+    rewrite (dbind_assoc' _ _ (dunifP _)).
+    rewrite (dbind_comm _ (dunifP _)).
+    repeat smash.
+    rewrite H; last by apply urns_f_distr_pos.
+    repeat smash.
+    erewrite (distr_ext (dbind _ (dunifP _))); last first.
+    { intros.
+      apply dbind_pmf_ext; [|done..].
+      intros. by rewrite !dret_id_left'/=.
+    }
+    rewrite dbind_comm.
+    repeat smash.
+    rewrite fill_prim_step_dbind; last done.
+    rewrite head_prim_step_eq.
+    simpl.
+    case_match; last (exfalso; naive_solver).
+    rewrite dmap_comp.
+    rewrite /dmap.
+    erewrite urn_subst_equal_epsilon_unique; last by apply urn_subst_equal_obv.
+    by repeat smash.
   - (** drand *)
     repeat smash.
     case_match; last first.
