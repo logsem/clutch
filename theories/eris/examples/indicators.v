@@ -1842,6 +1842,26 @@ Proof.
     apply ElemFct.is_derive_exp.
   Qed.
 
+
+  Lemma ex_RInt_gen_ext_eq_Ici {f g : R → R} {M : R} :
+    (∀ x : R, M <= x → f x = g x) →
+    ex_RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty) →
+    ex_RInt_gen g (at_point M) (Rbar_locally Rbar.p_infty).
+  Proof.
+    intros ??.
+    eapply ex_RInt_gen_ext; [|done].
+    simpl.
+    eapply (Filter_prod _ _ _ (fun x => x = M) (fun x => M <= x)).
+    { rewrite /at_point//=. }
+    { rewrite //=. exists M. intuition. lra. }
+    intros ??????.
+    apply H.
+    simpl in H3.
+    destruct H3.
+    rewrite H1 in H3.
+    rewrite Rmin_left in H3; lra.
+  Qed.
+
   Lemma RInt_gen_ext_eq_Ici {f g : R → R} {M : R} :
     (∀ x : R, M <= x → f x = g x) →
     ex_RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty) →
@@ -2258,18 +2278,121 @@ Proof.
   Definition LeftExtend (f : R → R) (L : R) : R → R :=
     fun x => Iverson (Iio L) x * f L + Iverson (Ici L) x * f x.
 
-  Lemma LeftExtend_continuous {f : R → R} {L : R}  :
-    (∀ x, L <= x → Continuity.continuous f x) →
-    (∀ x, Continuity.continuous (LeftExtend f L) x).
-  Proof. Admitted.
+  Lemma LeftExtend_eq_l {f : R → R} {L z : R} :
+    z <= L → LeftExtend f L z = f L.
+  Proof.
+    intros H.
+    rewrite /LeftExtend.
+    rewrite /Iio/Ici//=.
+    destruct (Rle_lt_or_eq _ _ H).
+    { rewrite Iverson_True; [|lra].
+      rewrite Iverson_False; [|lra].
+      lra.
+    }
+    { rewrite Iverson_False; [|lra].
+      rewrite Iverson_True; [|lra].
+      rewrite H0.
+      lra.
+    }
+  Qed.
 
   Lemma LeftExtend_eq_r {f : R → R} {L z : R} :
     L <= z → LeftExtend f L z = f z.
-  Proof. Admitted.
+  Proof.
+    intros H.
+    rewrite /LeftExtend.
+    rewrite Iverson_False.
+    2: { rewrite /Iio; lra. }
+    rewrite Iverson_True.
+    2: { rewrite /Ici; lra. }
+    lra.
+  Qed.
 
-  Lemma LeftExtend_eq_l {f : R → R} {L z : R} :
-    L <= z → LeftExtend f L z = f L.
-  Proof. Admitted.
+  Lemma LeftExtend_nn {f : R → R} {L z : R} :
+    (∀ x, L <= x → 0 <= f x) → 0 <= LeftExtend f L z.
+  Proof.
+    intros H.
+    rewrite /LeftExtend.
+    destruct (Rge_or_lt z L).
+    { rewrite /Iio/Ici.
+      rewrite Iverson_False.
+      2: { rewrite /Iio; lra. }
+      rewrite Iverson_True.
+      2: { rewrite /Ici; lra. }
+      rewrite Rmult_0_l Rplus_0_l Rmult_1_l.
+      apply H.
+      lra.
+    }
+    { rewrite /Iio/Ici.
+      rewrite Iverson_True.
+      2: { rewrite /Ici; lra. }
+      rewrite Iverson_False.
+      2: { rewrite /Iio; lra. }
+      rewrite Rmult_0_l Rplus_0_r Rmult_1_l.
+      apply H.
+      lra.
+    }
+  Qed.
+
+  Lemma LeftExtend_mono {f g : R → R} {L z : R} :
+    (∀ x, L <= x → g x <= f x) → LeftExtend g L z <= LeftExtend f L z.
+  Proof.
+    intros H.
+    rewrite /LeftExtend.
+    destruct (Rge_or_lt z L).
+    { rewrite /Iio/Ici.
+      rewrite Iverson_False.
+      2: { rewrite /Iio; lra. }
+      rewrite Iverson_True.
+      2: { rewrite /Ici; lra. }
+      do 2 rewrite Rmult_0_l Rplus_0_l Rmult_1_l.
+      apply H.
+      lra.
+    }
+    { rewrite /Iio/Ici.
+      rewrite Iverson_True.
+      2: { rewrite /Ici; lra. }
+      rewrite Iverson_False.
+      2: { rewrite /Iio; lra. }
+      do 2 rewrite Rmult_0_l Rplus_0_r Rmult_1_l.
+      apply H.
+      lra.
+    }
+  Qed.
+
+  Lemma LeftExtend_continuous {f : R → R} {L : R}  :
+    (∀ x, L <= x → Continuity.continuous f x) →
+    (∀ x, Continuity.continuous (LeftExtend f L) x).
+  Proof.
+    intros H x.
+    destruct (Rtotal_order L x) as [Hlt|[Heq|Hgt]].
+    { (* (LeftExtend f L) is equal to f on a neighbourhood of x which is continuous by hypotheses. *)
+      assert (Heps1 : 0 < (x - L) / 2) by lra.
+      apply Continuity.continuous_ext_loc with (g := f).
+      + rewrite /locally//=.
+        exists (mkposreal ((x - L) / 2) Heps1).
+        intros y Hy.
+        rewrite /ball/=/AbsRing_ball/= in Hy.
+        symmetry.
+        apply LeftExtend_eq_r.
+        admit.
+      + apply H. lra.
+    }
+    { (* At the transition point: LeftExtend is constant equal to (f L) on the left and approaches (f L) on the right *)
+      admit. }
+    { (* (LeftExtend f L) is equal to f on a neighbourhood of x which is continuous by hypotheses. *)
+      assert (Heps1 : 0 < (L - x) / 2) by lra.
+      apply Continuity.continuous_ext_loc with (g := (fun (z : R) => f L)).
+      + rewrite /locally//=.
+        exists (mkposreal ((L - x) / 2) Heps1).
+        intros y Hy.
+        rewrite /ball/=/AbsRing_ball/= in Hy.
+        symmetry.
+        apply LeftExtend_eq_l.
+        admit.
+      + apply Continuity.continuous_const.
+    }
+  Admitted.
 
   Lemma ex_RInt_gen_Ici_compare_strong {L : R} {F G : R → R} :
     (∀ x, L <= x → Continuity.continuous F x) →
@@ -2278,9 +2401,29 @@ Proof.
     ex_RInt_gen F (at_point L) (Rbar_locally Rbar.p_infty) →
     ex_RInt_gen G (at_point L) (Rbar_locally Rbar.p_infty).
   Proof.
-    intros Hf H.
-  Admitted.
-
+    intros Hf Hg Hfg Hex.
+    apply (@ex_RInt_gen_ext_eq_Ici (LeftExtend G L)).
+    { intros ??. by apply LeftExtend_eq_r. }
+    apply (@ex_RInt_gen_Ici_compare L (LeftExtend F L) (LeftExtend G L)).
+    { intros x; apply LeftExtend_continuous. intuition.  }
+    { intros x; apply LeftExtend_continuous. intuition.  }
+    { intros x.
+      split.
+      { apply LeftExtend_nn.
+        intros ??.
+        apply Hfg.
+        done.
+      }
+      { apply LeftExtend_mono.
+        intros ??.
+        apply Hfg.
+        done.
+      }
+    }
+    apply (@ex_RInt_gen_ext_eq_Ici F).
+    { intros ??. symmetry. by apply LeftExtend_eq_r. }
+    done.
+  Qed.
 
 End Lib.
 
