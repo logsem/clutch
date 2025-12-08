@@ -217,7 +217,7 @@ Proof.
     unfolder.
     assert (∃ v', urn_subst_val a v = Some v') as [? Hrewrite] by val_exists_solver.
     rewrite Hrewrite/=.
-    repeat smash.
+    rewrite !dret_id_left'.
     admit.
   - (** load *)
     repeat smash.
@@ -277,6 +277,10 @@ Proof.
     repeat smash.
     case_match; simplify_eq.
     repeat smash.
+    unfolder.
+    assert (∃ v', urn_subst_val a w = Some v') as [? Hrewrite] by val_exists_solver.
+    rewrite Hrewrite.
+    smash.
     admit.
   - (** rand *)
     repeat smash.
@@ -321,5 +325,6 @@ Proof.
     case_match; last first.
     { exfalso. naive_solver. }
     repeat smash.
+    
     admit. 
 Admitted. 

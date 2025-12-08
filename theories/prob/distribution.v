@@ -2913,6 +2913,15 @@ Section proj_Some_lemmas.
     - by rewrite dbind_dzero.
   Qed.
   
+  Lemma d_proj_Some_fmap `{Countable A} `{Countable B} (x : option A) (f : A -> B):
+    d_proj_Some (f <$> x) =
+    dbind (λ x', dret (f x')) (d_proj_Some x).
+  Proof.
+    destruct x; simpl.
+    - by rewrite dret_id_left'.
+    - by rewrite dbind_dzero.
+  Qed.
+  
 End proj_Some_lemmas.
 
 Ltac inv_distr :=
