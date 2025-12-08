@@ -986,6 +986,24 @@ Proof.
   }
 Qed.
 
+
+Lemma ex_SeriesC_nat_shiftN_r' {f : nat → R} (N : nat) : ex_seriesC f → ex_seriesC (f ∘ (fun n => (n + N))%nat).
+Proof.
+  induction N as [|N IH].
+  { replace (f ∘ λ n : nat, (n + 0)%nat) with f; [done|].
+    by rewrite /compose//=; apply functional_extensionality; intros ?; rewrite Nat.add_0_r.
+  }
+  { intros Hf.
+    replace (f ∘ λ n : nat, (n + S N)%nat) with ((f ∘ λ n : nat, (n + N)%nat) ∘ S).
+    2: { apply functional_extensionality. intros ?. simpl. f_equal. lia. }
+    rewrite -ex_seriesC_nat.
+    rewrite -Series.ex_series_incr_1.
+    rewrite ex_seriesC_nat.
+    apply IH.
+    apply Hf.
+  }
+Qed.
+
 Lemma Zeven_pow {x} {n : nat} (H : Zeven (Z.of_nat n)) : 0 <= x ^ n.
 Proof.
   destruct (Zeven_ex _ H) as [m Hm].
@@ -1329,33 +1347,79 @@ Proof.
     by apply ex_seriesC_scal_l.
   Qed.
 
+  Definition TailSeries (F : nat → R) (M : nat) :=
+    Series.Series (F ∘ (fun n => n + M)%nat).
+
+  (* TODO: What other hypotheses do we need here? Existence? Nonnegativity? *)
+  (* Key lemma in UnifomConverge_Series *)
+  Definition TailSeries_eq {F M} :
+    TailSeries F M = (minus (sum_n F M) (Series.Series F)).
+  Proof.
+  Admitted.
+
   (* Weierstrass M test, Rudin 7.10 *)
   Lemma UniformConverge_Series {F : R → nat → R} (UB : nat → R) :
     (Series.ex_series UB) →
     (forall x n, Rabs (F x n) <= UB n) →
     filterlim (fun (M : nat) (x : R) => sum_n (F x) M) eventually (locally (λ x : R, Series.Series (F x))).
-  Proof.
+ Proof.
     intros H1 H2.
-    (* It suffices to show the tails converge uniformly to zero. *)
-
-    (*
-    suffices HTail :
-      filterlim (λ (M : nat) (x : R), Series.Series (fun n => F x (n + M)%nat)) eventually (locally (fun _ => 0)).
-    {
-      rewrite /filterlim/filter_le//=/locally//=.
-      intros P.
-      rewrite /filterlim/filter_le//=/locally//= in HTail.
-      specialize (HTail P).
-      intros [eps Heps].
-      rewrite /filtermap/eventually//=.
-      rewrite /filtermap/eventually//= in HTail.
-    a dmit. }
-    (* This limit is uniformly bounded above by the sequence of upper bounds
-       These converge to 0 using h1 and ex_series_lim_0
-     *)
-     *)
-  Admitted.
-
+    rewrite filterlim_locally /eventually//=.
+    intro eps.
+    have H1' := H1.
+    destruct H1 as [l Hl].
+    have HS : Series.Series UB = l.
+    { apply Series.is_series_unique. apply Hl.  }
+    unfold Series.is_series in Hl.
+    rewrite filterlim_locally /eventually//= in Hl.
+    specialize (Hl eps).
+    destruct Hl as [N HN].
+    exists N.
+    intros n Hn.
+    rewrite /ball/=/fct_ball.
+    intros t.
+    specialize (HN n Hn).
+    rewrite /ball/=/AbsRing_ball//=.
+    rewrite /ball/=/AbsRing_ball//= in HN.
+    rewrite -HS in HN.
+    eapply Rle_lt_trans; [|apply HN].
+    clear HN eps.
+    do 2 rewrite -TailSeries_eq.
+    (* LHS term: use triangle inequality to avoid nonnegatiity hypothesis. *)
+    rewrite /TailSeries.
+    etrans; first eapply Series.Series_Rabs.
+    { rewrite ex_seriesC_nat.
+      apply (@ex_SeriesC_nat_shiftN_r' (fun n' => Rabs (F t n')) n).
+      eapply ex_seriesC_le.
+      2: { rewrite -ex_seriesC_nat. apply H1'. }
+      intros.
+      split; [apply Rabs_pos|].
+      apply H2.
+    }
+    (* RHS term: It's a series of nonnegative values. *)
+    rewrite /abs//=.
+    rewrite Rabs_right.
+    2: {
+      apply Rle_ge.
+      rewrite -SeriesC_nat.
+      apply SeriesC_ge_0'.
+      intros ?.
+      rewrite /compose//=.
+      etrans; [|eapply (H2 0%R)].
+      apply Rabs_pos.
+    }
+    do 2 rewrite -SeriesC_nat.
+    apply SeriesC_le.
+    2: {
+      rewrite /compose//=.
+      apply (@ex_SeriesC_nat_shiftN_r' UB n).
+      rewrite -ex_seriesC_nat.
+      apply H1'.
+    }
+    intros n'.
+    split; [apply Rabs_pos|].
+    by apply H2.
+  Qed.
 
   Lemma Exchange1 {f : nat → R → R_CompleteNormedModule} {a b : R} {F : R → R}
     (Hex : ∀ n, ex_RInt (f n) a b) (Hunif : filterlim f eventually (locally F)) :
@@ -2483,6 +2547,7 @@ End FubiniAx.
 
 (* Reduction: This implies Fubini's theorem holds for step functions by Chasales theorem *)
 
+
 Section FubiniStep.
   Import Hierarchy.
 
@@ -2648,8 +2713,28 @@ Section FubiniImproper.
       if for evey epsilon, there exists R such that the for every R' > R,
       the sup of f on [R, R'] is bounded above by epsilon *)
 
-
-
   Admitted.
 
 End FubiniImproper.
+
+
+Section PiecewiseCts.
+  Import Hierarchy.
+
+  (* There is simply too much going on with our functions for F to be generally integrable,
+     we will restritct F to being Piecewise Continuous for the neg exp and gauss parts.
+     This section reduces the lemmas
+     we have been using to use Piecewise Continuity. *)
+  (* A function on a rectangle *)
+  Definition IntervalFun_R : ((R → R) * R * R) → (R → R) :=
+    fun '(f, xa, xb) x => Iverson (Ioo xa xb) x * f x.
+
+  Definition IntervalFun_continuity : ((R → R) * R * R) → Prop :=
+    fun '(f, xa, xb) => ∀ x, Ioo xa xb x → Continuity.continuous f x.
+
+  (* Generalized: f is a finite sum of rectangle functions *)
+  Definition PCts (f : R → R) : Prop :=
+    ∃ L, f = fsum (IntervalFun_R <$> L) ∧ Forall IntervalFun_continuity L.
+
+
+End PiecewiseCts.
