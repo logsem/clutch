@@ -31,6 +31,9 @@ Class clutch_group_struct :=
     ; vmult : cval
     ; int_of_vg : cval
     ; vg_of_int : cval
+    ; vunit_closed : is_closed_val vunit
+    ; vinv_closed : is_closed_val vinv
+    ; vmult_closed : is_closed_val vmult
     }.
 
 (* In some cases (Zpˣ), we might want to use exponentiation to define
@@ -62,6 +65,7 @@ Coercion vg_of_cg : clutch_group >-> val_group.
 Class val_group_generator {vg : val_group} :=
   Val_group_generator
     { g : vgG
+    ; g_closed : is_closed_val g
     ; n'' : nat
     ; g_nontriv : #[g] = S (S n'')
     ; g_generator : generator [set: vgG] g

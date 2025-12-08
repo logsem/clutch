@@ -206,8 +206,8 @@ Section handlee_verification.
   
   Lemma DH_KE_C_DH_real f1 f2 γtoka γtokb γfraca γfracb γautha γauthb :
     let X' := X γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
-         (∀ s n, val_subst s n f1 = f1) →
-         (∀ s n, val_subst s n f2 = f2) →
+         is_closed_expr ∅ f1 →
+         is_closed_expr ∅ f2 →
          token γtoka -∗
          token γtokb -∗
            own γautha (to_dfrac_agree (DfracOwn 1) #()%V) -∗
@@ -221,7 +221,7 @@ Section handlee_verification.
     iApply rel_alloc_l. iIntros (la) "!> Hla".
     iApply rel_alloc_l. iIntros (lb) "!> Hlb".
     rel_pures_r. 
-    do 3 rewrite Hf1closed.
+    do 3 rewrite subst_is_closed_empty; try done.
     iDestruct "Hα" as (ns) "(%Hf & Hα)". apply map_eq_nil in Hf. simplify_eq.
     iApply rel_couple_TU; [done|]. iFrame. simpl. iIntros (a) "Hα".
     iDestruct "Hβ" as (ms) "(%Hf' & Hβ)". apply map_eq_nil in Hf'. simplify_eq.
@@ -230,8 +230,9 @@ Section handlee_verification.
     rel_pures_r. rewrite -Nat2Z.inj_mul.
     do 3 rel_exp_r.
     rel_pures_r.
-    do 3 rewrite Hf2closed.
-    rel_pures_l. do 1 rewrite Hf1closed.
+    do 3 rewrite subst_is_closed_empty; try done.
+    rel_pures_l.
+    rewrite subst_is_closed_empty; last done.
     
     iApply fupd_rel.
     iMod (auth_upd (g ^+ a)%g with "Ha") as "Ha".
@@ -562,8 +563,8 @@ Section handlee_verification.
 
   Lemma F_AUTH_F_AUTH f1 f2 γtoka γtokb γfraca γfracb γautha γauthb :
     let X' := X γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
-    (∀ s n, val_subst s n f1 = f1) →
-    (∀ s n, val_subst s n f2 = f2) →
+    is_closed_expr ∅ f1 →
+    is_closed_expr ∅ f2 →
     own γfraca (DfracOwn 1) -∗
     own γfracb (DfracOwn 1) -∗
      REL f1 ≤ f2 <|X'|> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }} -∗
@@ -572,10 +573,10 @@ Section handlee_verification.
     iIntros (X' Hf1closed Hf2closed) "Hfraca Hfracb Hff".
     iApply rel_alloc_l. iIntros (l1) "!> Hl1".
     iApply rel_alloc_l. iIntros (l2) "!> Hl2".
-    rel_pures_l. do 2 rewrite Hf1closed.
+    rel_pures_l. do 2 rewrite subst_is_closed_empty; try done.
     iApply rel_alloc_r. iIntros (l1') "Hl1s".
     iApply rel_alloc_r. iIntros (l2') "Hl2s".
-    rel_pures_r. do 2 rewrite Hf2closed.
+    rel_pures_r. do 2 rewrite subst_is_closed_empty; try done.
 
     iApply (rel_na_alloc
               ((l1 ↦ NONEV ∗ l1'  ↦ₛ NONEV ∗ own γfraca (DfracOwn 1))
@@ -793,11 +794,11 @@ Section handlee_verification.
   (* Verification of F_AUTH[DH_KE] ≤ F_AUTH[C[DH_real]] *)
 
   Lemma F_ATUH_DH_KE_FAUTH_C_DH_real f1 f2 :
-    (∀ s n, val_subst s n f1 = f1) →
-    (∀ s n, val_subst s n f2 = f2) →
+    is_closed_expr ∅ f1 →
+    is_closed_expr ∅ f2 →
     REL f1 ≤ f2 <|T|> {{ λ v1 v2, ⌜ v1 = #()%V ∧ v2 = #()%V ⌝ }} -∗
     REL F_AUTH channel1 (DH_KE getKey1 channel1 f1) ≤ F_AUTH channel2 (C getKey2 channel2 DH_real f2) <|Y|> {{ λ v1 v2, ⌜ v1 = v2 ⌝ }}.
-  Proof.
+  Proof using G inG1 inG2 inG3.
     iIntros (Hf1closed Hf2closed) "Hff".
     
     iApply fupd_rel.
@@ -809,14 +810,14 @@ Section handlee_verification.
     iMod dfrac_alloc as (γfracb) "Hfracb".                         
     iModIntro.
 
-    iApply (F_AUTH_F_AUTH with "[$][$]"); [admit|admit |].
-    1 : {
-      simpl. 
+    iApply (F_AUTH_F_AUTH with "[$][$]"); [| |].
+    1,2 : simpl; repeat (rewrite andb_True; split); try set_solver; eauto using vunit_closed, vmult_closed, g_closed;
+          by apply is_closed_weaken_empty. 
     iApply (DH_KE_C_DH_real with "[$][$][$][$]"); eauto.
 
     iApply (rel_wand with "[$]").
     iModIntro. by iIntros (v1 v2 Heq).
-  Admitted.                           
+  Qed.
     
     
   
