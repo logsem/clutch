@@ -28,7 +28,7 @@ Local Ltac expr_exists_solver :=
 Local Ltac val_exists_solver :=
   eapply urn_subst_val_exists; first done;
       erewrite <-urns_f_valid_support; first done;
-      by apply urns_f_distr_pos.
+  by apply urns_f_distr_pos.
 
 Lemma delay_prob_lang_commute e σ m: 
   is_well_constructed_expr e = true ->
@@ -75,17 +75,50 @@ Proof.
     by smash.
   - (** Application *)
     repeat smash.
-    admit.
+    unfolder.
+    rename select (gmap _ _) into a.
+    assert (∃ v', urn_subst_val a v2 = Some v') as [? Hrewrite] by val_exists_solver.
+    assert (∃ e', urn_subst_expr a e1 = Some e') as [? Hrewrite'] by expr_exists_solver.
+    erewrite urn_subst_expr_subst'; last first.
+    + done.
+    + erewrite urn_subst_expr_subst'; try done.
+      simpl. apply bind_Some. naive_solver.
+    + rewrite Hrewrite' Hrewrite. 
+    repeat smash.
+    rewrite fill_prim_step_dbind; last done.
+    rewrite head_prim_step_eq.
+    by repeat smash.
   - (** un op *)
     repeat smash.
     case_match; simplify_eq.
     repeat smash.
-    admit.
+    unfolder.
+    assert (∃ v', urn_subst_val a v = Some v') as [? Hrewrite] by val_exists_solver.
+    rewrite Hrewrite.
+    repeat smash.
+    rename select (un_op_eval _ _ = _) into Hop.
+    unshelve eapply urn_subst_val_un_op in Hop as Hop'; last done.
+    destruct Hop' as [?[Hrewrite' Hrewrite'']].
+    rewrite Hrewrite'. repeat smash.
+    rewrite fill_prim_step_dbind; last done.
+    rewrite head_prim_step_eq.
+    simpl. rewrite Hrewrite''. by repeat smash.
   - (** bin op *)
     repeat smash.
     case_match; simplify_eq.
     repeat smash.
-    admit.
+    unfolder.
+    assert (∃ v', urn_subst_val a v1 = Some v') as [? Hrewrite1] by val_exists_solver.
+    assert (∃ v', urn_subst_val a v2 = Some v') as [? Hrewrite2] by val_exists_solver.
+    rewrite Hrewrite1 Hrewrite2.
+    repeat smash.
+    rename select (bin_op_eval _ _ _=_) into Hop.
+    unshelve eapply urn_subst_val_bin_op in Hop as Hop'; [..|done|done].
+    destruct Hop' as [?[Hrewrite' Hrewrite'']].
+    rewrite Hrewrite'. repeat smash.
+    rewrite fill_prim_step_dbind; last done.
+    rewrite head_prim_step_eq.
+    simpl. rewrite Hrewrite''. by repeat smash. 
   - (** if true *)
     repeat smash.
     rewrite bool_decide_eq_true_2; last done.
@@ -231,4 +264,3 @@ Proof.
     repeat smash.
     admit. 
 Admitted. 
-
