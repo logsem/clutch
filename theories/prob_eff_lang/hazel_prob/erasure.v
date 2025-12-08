@@ -3,7 +3,7 @@ From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From stdpp Require Import fin_maps fin_map_dom.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.common Require Import exec language locations erasable.
-From clutch.prob_eff_lang Require Import lang notation metatheory.
+From clutch.prob_eff_lang.hazel_prob Require Import lang notation metatheory.
 From clutch.prob Require Import couplings couplings_app markov.
 
 Set Default Proof Using "Type*".

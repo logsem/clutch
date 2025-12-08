@@ -5,7 +5,7 @@ From iris.base_logic.lib Require Export ghost_map.
 From clutch.approxis Require Import  app_weakestpre.
 From clutch.base_logic Require Export error_credits.
 From clutch.common Require Import locations.
-From clutch.prob_eff_lang Require Import  weakestpre lang spec_ra lifting notation iEff class_instances spec_tactics.
+From clutch.prob_eff_lang.hazel_prob Require Import  weakestpre lang spec_ra lifting notation iEff class_instances spec_tactics.
 
 Class probeffGS Σ := HeapG {
   probeffGS_invG : invGS_gen HasNoLc Σ;

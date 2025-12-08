@@ -1,7 +1,7 @@
 From iris.algebra   Require Export list gmap.
 From iris.proofmode Require Export base tactics classes.
 
-From clutch.prob_eff_lang Require Import typed_lang model spec_ra metatheory.
+From clutch.prob_eff_lang.hazel_prob Require Import typed_lang model spec_ra metatheory.
 
 From Coq Require Import PeanoNat.
 (* interp.v *)

@@ -1,7 +1,7 @@
 From iris.proofmode       Require Import base tactics classes proofmode.
 From iris.base_logic.lib  Require Import ghost_map.
 From clutch.approxis      Require Import app_weakestpre adequacy primitive_laws.
-From clutch.prob_eff_lang Require Import weakestpre protocol_agreement iEff lang spec_ra erasure primitive_laws.
+From clutch.prob_eff_lang.hazel_prob Require Import weakestpre protocol_agreement iEff lang spec_ra erasure primitive_laws.
 Import uPred.
 
 Lemma ewp_imp_wp `{!spec_updateGS (lang_markov eff_prob_lang) Σ,

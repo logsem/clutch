@@ -2,8 +2,8 @@
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.common Require Import locations language.
-From clutch.prob_eff_lang Require Import lang notation.
-From clutch.prob_eff_lang Require Import spec_ra exec_lang tactics.
+From clutch.prob_eff_lang.hazel_prob Require Import lang notation.
+From clutch.prob_eff_lang.hazel_prob Require Import spec_ra exec_lang tactics.
 
 Section rules.
   Context `{!specG_prob_eff_lang Σ, invGS_gen hasLc Σ}.

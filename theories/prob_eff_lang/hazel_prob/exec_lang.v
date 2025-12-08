@@ -2,7 +2,7 @@
 From Coq Require Export Reals Psatz.
 From clutch.prob Require Export markov.
 From clutch.common Require Import language.
-From clutch.prob_eff_lang Require Import lang.
+From clutch.prob_eff_lang.hazel_prob Require Import lang.
 
 (* Lemma exec_det_step_ctx (K : ectx) n ρ (e1 e2 : expr) σ1 σ2 :
      prim_step e1 σ1 (e2, σ2) = 1%R →

@@ -6,7 +6,7 @@ From iris.prelude Require Import options.
 From iris.proofmode Require Import proofmode.
 From clutch.base_logic Require Export spec_update.
 From clutch.common Require Import language locations.
-From clutch.prob_eff_lang Require Import lang.
+From clutch.prob_eff_lang.hazel_prob Require Import lang.
 
 Definition progUR : ucmra := optionUR (exclR exprO).
 Definition cfgO : ofe := prodO exprO stateO.

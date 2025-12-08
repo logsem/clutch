@@ -1,7 +1,7 @@
 
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
-From clutch.prob_eff_lang Require Import interp model typed_lang spec_ra 
+From clutch.prob_eff_lang.hazel_prob Require Import interp model typed_lang spec_ra 
                             deep_handler iEff protocol_agreement
                             notation weakestpre lang spec_rules
                             primitive_laws spec_tactics class_instances

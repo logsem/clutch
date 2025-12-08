@@ -1,5 +1,5 @@
 From stdpp                Require Export gmap stringmap.
-From clutch.prob_eff_lang Require Export lang notation deep_handler.
+From clutch.prob_eff_lang.hazel_prob Require Export lang notation deep_handler.
 
 (* typed_lang.v *)
 

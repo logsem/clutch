@@ -1,8 +1,8 @@
 From Coq Require Import Reals Psatz.
 From clutch.prob Require Export distribution.
 From clutch.common Require Export language. 
-From clutch.prob_eff_lang Require Export lang.
-From clutch.prob_eff_lang Require Import tactics notation.
+From clutch.prob_eff_lang.hazel_prob Require Export lang.
+From clutch.prob_eff_lang.hazel_prob Require Import tactics notation.
 From iris.prelude Require Import options.
 
 Global Instance into_val_val v : IntoVal (Val v) v.

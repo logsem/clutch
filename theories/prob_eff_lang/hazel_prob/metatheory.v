@@ -1,7 +1,7 @@
 From Coq Require Import Reals Psatz.
 From clutch.common Require Import locations.
 From clutch.prob Require Import distribution couplings couplings_app.
-From clutch.prob_eff_lang Require Export lang notation.
+From clutch.prob_eff_lang.hazel_prob Require Export lang notation.
 
 Section subst_map.
   (** Parallel substitution *)

@@ -3,10 +3,10 @@ From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext fin.
 From clutch.common Require Import locations.
 From clutch.approxis Require Import app_weakestpre.
-From clutch.prob_eff_lang Require Import lifting.
-From clutch.prob_eff_lang Require Import notation tactics metatheory erasure.
-From clutch.prob_eff_lang Require Import spec_rules spec_ra.
-From clutch.prob_eff_lang Require Export primitive_laws weakestpre lang.
+From clutch.prob_eff_lang.hazel_prob Require Import lifting.
+From clutch.prob_eff_lang.hazel_prob Require Import notation tactics metatheory erasure.
+From clutch.prob_eff_lang.hazel_prob Require Import spec_rules spec_ra.
+From clutch.prob_eff_lang.hazel_prob Require Export primitive_laws weakestpre lang.
 
 Section rules.
   Context `{!probeffGS Σ}.

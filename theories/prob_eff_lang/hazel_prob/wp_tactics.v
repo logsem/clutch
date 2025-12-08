@@ -6,7 +6,7 @@ From clutch.approxis Require Import app_weakestpre.
 From clutch.common Require Import locations.
 
 (*From clutch.bi Require Import weakestpre.*)
-From clutch.prob_eff_lang Require Import  tactics notation spec_ra spec_rules primitive_laws
+From clutch.prob_eff_lang.hazel_prob Require Import  tactics notation spec_ra spec_rules primitive_laws
                                          class_instances weakestpre lifting lang.
 Set Default Proof Using "Type*".
 

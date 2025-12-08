@@ -5,7 +5,7 @@ From iris.proofmode Require Import tactics.
 From iris.prelude Require Import options.
 From clutch.prelude Require Import NNRbar.
 From clutch.approxis Require Import primitive_laws.
-From clutch.prob_eff_lang Require Import weakestpre lang protocol_agreement.
+From clutch.prob_eff_lang.hazel_prob Require Import weakestpre lang protocol_agreement.
 
 
 Section lifting.

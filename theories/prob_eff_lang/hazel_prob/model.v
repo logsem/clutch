@@ -7,7 +7,7 @@ From clutch.common Require Import language ectxi_language locations.
 From clutch.base_logic Require Export spec_update.
 From clutch.prob Require Export couplings_app distribution.
 From iris.base_logic Require Export na_invariants ghost_map.
-From clutch.prob_eff_lang          Require Import wp_tactics weakestpre shallow_handler typed_lang spec_ra
+From clutch.prob_eff_lang.hazel_prob          Require Import wp_tactics weakestpre shallow_handler typed_lang spec_ra
                                                   iEff spec_rules primitive_laws lang class_instances
                                                   spec_tactics.
 Import uPred.

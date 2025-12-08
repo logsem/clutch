@@ -3,7 +3,7 @@ From stdpp Require Import fin_maps.
 From iris.proofmode Require Import environments proofmode.
 From clutch.prob Require Import distribution.
 From clutch.common Require Import language.
-From clutch.prob_eff_lang Require Import lang.
+From clutch.prob_eff_lang.hazel_prob Require Import lang.
 From iris.prelude Require Import options.
 
 (** The tactic [reshape_expr e tac] decomposes the expression [e] into an

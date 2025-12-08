@@ -2,7 +2,7 @@ From iris.proofmode       Require Import tactics.
 From iris.base_logic      Require Export lib.iprop.
 From iris.algebra         Require Import excl_auth.
 From iris.base_logic      Require Import lib.own.
-From clutch.prob_eff_lang Require Import lang.
+From clutch.prob_eff_lang.hazel_prob Require Import lang.
 
 Set Default Proof Using "Type".
 

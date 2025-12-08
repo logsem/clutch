@@ -11,8 +11,8 @@ From clutch.prob Require Export couplings_app distribution.
 From clutch.approxis Require Import app_weakestpre.
 
 
-From clutch.prob_eff_lang Require Import iEff.
-From clutch.prob_eff_lang Require Import lang protocol_agreement.
+From clutch.prob_eff_lang.hazel_prob Require Import iEff.
+From clutch.prob_eff_lang.hazel_prob Require Import lang protocol_agreement.
 
 
 
