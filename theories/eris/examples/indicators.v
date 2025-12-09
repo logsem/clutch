@@ -2943,17 +2943,15 @@ Section PiecewiseCts.
   Definition PCts (f : R → R) : Prop :=
     ∃ L, f = fsum (IntervalFun_R <$> L) ∧ Forall IntervalFun_continuity L.
 
-  (*
   Lemma IntervalFun_RInt {f xa xb} {a b} :
     IntervalFun_continuity (f, xa, xb) →
     ex_RInt (IntervalFun_R (f, xa, xb)) a b.
   Proof.
-  A dmitted.
+  Admitted.
 
   Lemma PCts_RInt {f} (HP : PCts f) {a b} :
     ex_RInt f a b.
   Proof.
-  A dmitted.
-  *)
+  Admitted.
 
 End PiecewiseCts.

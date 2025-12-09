@@ -563,9 +563,11 @@ Section credits.
   Lemma G2_f_ex_seriesC {F M}
     (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M)
     (Hint : ∀ x' : nat, ex_RInt (F x') 0 1)
-    (Hcont : ∀ k x, Continuity.continuous (F k) x)
+    (Hcont : ∀ k, PCts (F k))
     : ex_seriesC (G2_f F).
   Proof.
+
+
     (*
 
     rewrite /G2_f.
@@ -1203,9 +1205,12 @@ Section credits.
   Qed.
 
 
-  Lemma HL3 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
+  Lemma HL3 {F M} (HPcs : ∀ x1, PCts (F x1) ) (Hbound : ∀ n x, 0 <= F n x <= M) :
     ex_seriesC (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1).
   Proof.
+    have Hex : ∀ x1, ex_RInt (F x1) 0 1.
+    { intros n. apply PCts_RInt. done. }
+
     (* Shuffle around inner terms *)
     suffices H1 :
       @ex_seriesC nat numbers.Nat.eq_dec nat_countable (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R,  G2_μ k x1 * F k x1 * @SeriesC nat numbers.Nat.eq_dec nat_countable (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1) 0 1).
@@ -1718,9 +1723,11 @@ Section credits.
         auto_derive; done.
   Qed.
 
-  Lemma G2_f_expectation {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
+  Lemma G2_f_expectation {F M} (HPcts : ∀ x1 : nat, PCts (F x1)) (Hbound : ∀ n x, 0 <= F n x <= M) :
     G2_CreditV F = G1_CreditV (G2_f F).
   Proof.
+    have Hex : ∀ x1, ex_RInt (F x1) 0 1.
+    { intros ?. apply PCts_RInt. done. }
     rewrite /G1_CreditV /G2_f.
     (* Split the sum and integral *)
     rewrite /G2_g.
@@ -1999,7 +2006,7 @@ Section credits.
       }
     }
     have HexLem3 : ex_seriesC (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1).
-    { eapply HL3; done. }
+    { eapply HL3; try done. }
     have HexLem5 : ∀ k, ex_RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1.
     { eapply HL5; done. }
     rewrite SeriesC_plus; OK.
@@ -2372,10 +2379,11 @@ Section program.
     }
   Qed.
 
-  Theorem wp_G2 {E F M} (Hnn : ∀ x k , 0 <= F x k <= M) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) :
+  Theorem wp_G2 {E F M} (Hnn : ∀ x k , 0 <= F x k <= M) (HPcs : ∀ k, PCts (F k)) :
     ↯(G2_CreditV F) -∗
     WP G2 #() @ E {{ vp, ∃ k : nat, ∃ r : R, ∃ l : val, lazy_real l r  ∗ ⌜vp = PairV l #k ⌝ ∗ ↯(F k r) }}.
   Proof.
+    have Hint := fun n => PCts_RInt (HPcs n).
     rewrite /G2.
     iLöb as "IH".
     iIntros "Hε".
@@ -2384,8 +2392,12 @@ Section program.
     iApply (pgl_wp_mono_frame (□ _) with "[Hε] IH"); last first.
     { iApply (wp_G1 (F := G2_f F) (M := M)).
       { intros ?; split; [apply G2_f_nn; OK; apply Hnn|]. apply G2_ub; OK. }
-      { apply (@G2_f_ex_seriesC _ M); try done. (* TODO: Reduce *) admit. }
-      { iApply (ec_eq with "Hε"). apply (G2_f_expectation Hint Hnn). }
+      { apply (@G2_f_ex_seriesC _ M); try done. }
+      { iApply (ec_eq with "Hε").
+        eapply G2_f_expectation.
+        { done. }
+        { apply Hnn. }
+      }
     }
     iIntros (v) "(#IH & [%k [-> Hε]])".
     wp_pures.
@@ -2456,23 +2468,6 @@ Section program.
       iApply (ec_eq with "Hε").
       rewrite Iverson_True; [lra|done].
     }
-  Admitted.
+  Qed.
 
 End program.
-
-(*
-{ apply Rexp_range.
-        apply Rcomplements.Rmult_le_0_r.
-        { apply Rcomplements.Rmult_le_0_r; [lra|].
-          apply Rplus_le_le_0_compat.
-          { apply Rmult_le_pos; [lra|]. apply pos_INR. }
-          { lra. }
-        }
-        rewrite -(Rmult_1_l (/ _)).
-        apply Rle_mult_inv_pos; [lra|].
-        rewrite -(Rplus_0_l 0).
-        apply Rplus_le_lt_compat; [|lra].
-        apply Rmult_le_pos; [lra|].
-        apply pos_INR.
-      }
-*)
