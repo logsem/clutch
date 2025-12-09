@@ -1305,7 +1305,7 @@ Section urn.
         apply union_subseteq_l.
       + rewrite size_singleton.
         lia.
-  Qed.  
+  Qed.
 
   Lemma elem_of_set_urns_f_valid m f :
       f ∈set_urns_f_valid m <->
@@ -1386,6 +1386,14 @@ Section urn.
     apply propositional_extensionality.
     by rewrite elem_of_set_urns_f_valid.
   Qed.
+
+  Lemma urns_f_valid_exists m:
+    ∃ f, urns_f_valid m f.
+  Proof.
+    setoid_rewrite <-elem_of_set_urns_f_valid.
+    apply size_pos_elem_of.
+    apply set_urns_f_nonempty.
+  Qed. 
   
   Lemma size_set_urns_f m:
     size (set_urns_f_valid m) = urns_subst_f_num m.
