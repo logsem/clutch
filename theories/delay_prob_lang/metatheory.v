@@ -988,5 +988,5 @@ Proof.
        destruct bl; simplify_eq; naive_solver.
   }
   all: naive_solver.
-Qed.   
+Qed.
   
