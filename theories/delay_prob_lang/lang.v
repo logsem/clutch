@@ -1548,28 +1548,29 @@ Section urn.
     by rewrite bool_decide_eq_false_2.
   Qed.
 
-  Lemma urns_f_distr_insert m s l N:
+  Lemma urns_f_distr_insert m lis l N:
+    NoDup lis -> 
     l∉dom m ->
-    size s = S N ->
-    urns_f_distr (<[l:=s]> m) =
+    length lis = S N ->
+    urns_f_distr (<[l:=list_to_set lis]> m) =
     dbind (λ f,
              dbind (λ n,
-                      match (elements s)!!(fin_to_nat n) with
+                      match lis!!(fin_to_nat n) with
                       | Some y => dret (<[l:=y]> f)
                       | None => dzero
                       end 
                ) (dunifP (N))
       ) (urns_f_distr m).
   Proof.
-    intros Hdom Hneq.
+    intros Hnodup Hdom Hneq.
     apply distr_ext.
     intros f.
-    destruct (pmf_pos (urns_f_distr (<[l:=s]> m)) f) as [H1|H1];
+    destruct (pmf_pos (urns_f_distr (<[l:=list_to_set lis]> m)) f) as [H1|H1];
       destruct (pmf_pos (dbind
                            (λ f0 : gmap loc nat,
                               dbind
                                 (λ n,
-                                   match elements s !! (fin_to_nat n) with
+                                   match lis !! (fin_to_nat n) with
                                    | Some y => dret (<[l:=y]> f0)
                                    | None => dzero
                                    end) (dunifP (N))) (urns_f_distr m)) f) as [H2|H2].
@@ -1599,8 +1600,7 @@ Section urn.
           + rewrite Hcontra; naive_solver.
           + rewrite !lookup_insert in Hcontra'.
             simplify_eq.
-            eapply NoDup_lookup in K1; last apply K2; first naive_solver.
-            apply NoDup_elements. 
+            eapply NoDup_lookup in K1; last apply K2; naive_solver.
         - rewrite SeriesC_singleton_dependent.
           apply Rmult_eq_0_compat_l.
           case_match; last done.
@@ -1629,7 +1629,7 @@ Section urn.
       rewrite urns_f_distr_is_pos_eval; last done.
       rewrite urns_subst_f_num_insert; last first.
       { by rewrite -not_elem_of_dom. }
-      { intros ->. set_solver. }
+      { destruct lis; set_solver. }
       rewrite !Rdiv_1_l.
       rewrite mult_INR.
       rewrite Rinv_mult.
@@ -1646,12 +1646,14 @@ Section urn.
         rewrite !lookup_insert in Hcontra. simplify_eq.
         eapply NoDup_lookup in K1.
         - by apply fin_to_nat_inj.
-        - apply NoDup_elements.
+        - done.
         - done. 
       }
       rewrite SeriesC_singleton_dependent.
-      rewrite /dunifP/dunif{1}/pmf Hneq.
+      rewrite /dunifP/dunif{1}/pmf.
       rewrite K1.
+      rewrite size_list_to_set; last done.
+      rewrite Hneq.
       rewrite dret_1_1; [lra|done].
     - exfalso.
       apply Rlt_gt in H1.
@@ -1660,7 +1662,7 @@ Section urn.
          (λ f0 : gmap loc nat,
             dbind
               (λ n : fin (S N),
-                 match elements s !! (fin_to_nat n) with
+                 match lis !! (fin_to_nat n) with
                  | Some y => dret (<[l:=y]> f0)
                  | None => dzero
                  end) (dunifP N)) (urns_f_distr m) f > 0); last lra.
@@ -1684,13 +1686,14 @@ Section urn.
       apply dbind_pos.
       rewrite /urns_f_valid in H1.
       pose proof H1 l as K.
-      case_match; rewrite lookup_insert in K; destruct!/=.
+      case_match; rewrite lookup_insert in K; destruct!/=; last first.
+      { destruct lis; set_solver. }
       rename select (_∈_) into H2.
-      rewrite -elem_of_elements in H2.
+      rewrite elem_of_list_to_set in H2.
       rewrite elem_of_list_lookup in H2.
       destruct H2 as [i H2].
       apply lookup_lt_Some in H2 as H3.
-      rewrite -length_elements_size_gset Hneq in H3.
+      rewrite Hneq in H3.
       exists (nat_to_fin H3).
       rewrite fin_to_nat_to_fin.
       rewrite H2.
@@ -1700,7 +1703,7 @@ Section urn.
       split; first lra.
       solve_distr.
     - exfalso.
-      assert (urns_f_distr (<[l:=s]> m) f > 0); last lra.
+      assert (urns_f_distr (<[l:=list_to_set lis]> m) f > 0); last lra.
       clear H1.
       apply Rlt_gt in H2.
       inv_distr.
@@ -1713,7 +1716,7 @@ Section urn.
       destruct (decide (l=l')).
       + subst. rewrite !lookup_insert.
         eexists _; split; first done.
-        rewrite -elem_of_elements.
+        rewrite elem_of_list_to_set.
         apply elem_of_list_lookup. naive_solver.
       + rewrite !lookup_insert_ne; try done.
         naive_solver.
