@@ -240,8 +240,8 @@ Lemma pupd_resolve_urn E l lis ε N (ε2 : _ -> nonnegreal):
 Proof.
   rewrite pupd_unseal/pupd_def.
   iIntros (HNoDup Hlen Hineq Hbound) "Herr Hl".
-  iIntros (? ε') "([Hs Ht]& Herr')".
-  iDestruct (ghost_map_lookup with "Ht [$]") as %?.
+  iIntros ([] ε') "([Hs Hu]& Herr')".
+  iDestruct (ghost_map_lookup with "Hu [$]") as %?.
   iDestruct (ec_supply_ec_inv with "[$][$]") as %(x&x'& -> & He).
   iApply fupd_mask_intro; first set_solver.
   iIntros "Hclose".
@@ -267,8 +267,30 @@ Proof.
     rewrite Rmult_1_r.
     apply Rplus_le_compat; by subst. 
   }
+  iIntros (x0).
+  pose proof fin_to_nat_lt x0.
+  case_match eqn:H'; last first.
+  { apply lookup_ge_None in H'. rewrite Hlen in H'. lia. }
   
-Admitted. 
+  iMod (ec_supply_decrease with "Herr' Herr") as (????) "Hε2".
+  iModIntro.
+  destruct (Rlt_decision ((ε2 (x0)) + nonneg x' )%R 1%R) as [Hdec|Hdec]; last first.
+  { apply Rnot_lt_ge, Rge_le in Hdec.
+    by iApply state_step_coupl_ret_err_ge_1.
+  }
+  iApply state_step_coupl_ret.
+  iMod (ghost_map_update with "Hu Hl") as "[$ Hl]".
+  rename select ((_+_)%NNR = _) into H1. apply (f_equal nonneg) in H1. 
+  unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 (x0)) _) with "[Hε2]") as "[Hε2 Hcr]"; first done.
+  { simpl. done. }
+  { simpl in *. lra. }
+  { iApply ec_supply_eq; [|done]. simplify_eq. lra. }
+  iFrame.
+  subst.
+  iMod "Hclose".
+  iModIntro. iSplit; last done.
+  iApply ec_supply_eq; [|done]. simplify_eq. simpl. simpl in *. lra.
+Qed. 
 
 (** Recursive functions: we do not use this lemmas as it is easier to use Löb *)
 (* induction directly, but this demonstrates that we can state the expected *)
