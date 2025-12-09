@@ -663,7 +663,15 @@ Qed.
     urn_subst_expr f' e = Some e'.
   Proof.
     intros H.
-  Admitted.
+    revert e e'.
+    eapply (expr_mut (λ e, ∀ e', 
+    urn_subst_expr f e = Some e' ->
+    urn_subst_expr f' e = Some e') (λ v, ∀ v', urn_subst_val f v = Some v' ->
+                                                urn_subst_val f' v = Some v')); simpl; repeat setoid_rewrite bind_Some; intros; destruct!/=.
+    19:{ eapply urn_subst_subset in H; last done.
+         naive_solver. }
+    all: naive_solver.
+  Qed. 
   
   Lemma urn_subst_val_subset f f' v v':
     f ⊆  f'->
@@ -671,28 +679,44 @@ Qed.
     urn_subst_val f' v = Some v'.
   Proof.
     intros H.
-  Admitted. 
+    revert v v'.
+    induction v; simpl; repeat setoid_rewrite bind_Some; simpl; intros; destruct!/=.
+    - eapply urn_subst_subset in H; last done.
+      naive_solver.
+    - eapply urn_subst_expr_subset in H; last done.
+      naive_solver.
+    - naive_solver.
+    - naive_solver.
+    - naive_solver.
+  Qed. 
     
   Lemma urn_subst_ectx_item_subset f f' Ki Ki':
     f ⊆ f'->
     urn_subst_ectx_item f Ki = Some Ki' ->
     urn_subst_ectx_item f' Ki = Some Ki'.
   Proof.
-  Admitted. 
+    pose proof urn_subst_val_subset.
+    pose proof urn_subst_expr_subset.
+    intros H1.
+    destruct Ki; simpl; repeat setoid_rewrite bind_Some; intros; destruct!/=.
+    all: naive_solver.
+  Qed. 
     
   Lemma urn_subst_ectx_subset f f' K K':
     f ⊆ f'->
     mapM (urn_subst_ectx_item f) K = Some K' ->
     mapM (urn_subst_ectx_item f') K = Some K'.
   Proof.
-  Admitted.
-  
-  Lemma urn_subst_heap_subset f f' m m':
-    f ⊆ f'->
-    urn_subst_heap f m = Some m' ->
-    urn_subst_heap f' m = Some m'.
-  Proof.
-  Admitted.                          
+    intros H.
+    revert K'.
+    induction K; simpl; first (cbv; naive_solver).
+    repeat setoid_rewrite bind_Some.
+    intros. destruct!/=.
+    rename select (mret _ = _) into Heq. cbv in Heq. simplify_eq.
+    eapply urn_subst_ectx_item_subset in H as H'; last done.
+    eexists _; split; first done.
+    naive_solver.
+  Qed. 
   
   Lemma urn_subst_expr_subst x v v' e e' f:
     urn_subst_expr f e = Some e'->
@@ -1170,5 +1194,35 @@ Qed.
     - rewrite not_elem_of_dom. apply lookup_delete.
     - by rewrite insert_delete_insert. 
   Qed. 
-    
+
+    Lemma urn_subst_heap_subset f f' m m':
+    f ⊆ f'->
+    urn_subst_heap f m = Some m' ->
+    urn_subst_heap f' m = Some m'.
+  Proof.
+    intros H.
+    revert m'.
+    revert m.
+    apply (map_ind (λ m, forall m', urn_subst_heap f m = Some m' → urn_subst_heap f' m = Some m')); simpl.
+    - intros ?. repeat rewrite urn_subst_heap_empty.
+      naive_solver.
+    - intros ??? Hnone IH.
+      intros ?.
+      intros H1.
+      apply urn_subst_heap_forall in H1 as H2.
+      assert (exists m', urn_subst_heap f (m) = Some m') as [? Hrewrite].
+      { apply urn_subst_heap_forall'.
+        by eapply map_Forall_insert_1_2.
+      }
+      assert (exists x', urn_subst_val f (x) = Some x') as [? Hrewrite'].
+      { eapply map_Forall_lookup_1 in H2; last apply lookup_insert. done. }
+      erewrite urn_subst_heap_insert; last first.
+      + by apply IH.
+      + by eapply urn_subst_val_subset.
+      + by rewrite not_elem_of_dom.
+      + f_equal.
+        eapply urn_subst_heap_insert in Hrewrite'; last done; last by rewrite not_elem_of_dom.
+        rewrite Hrewrite' in H1.
+        naive_solver.
+  Qed. 
 End urn_subst.
