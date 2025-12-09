@@ -940,33 +940,53 @@ Qed.
 (* Qed. *)
   
 
-(** * remove drand *)
+(** * remove drand 
+ ** * Note that this function also checks whether everything is simple
+      i.e. no thunks or urn labels.
+ *)
+From clutch.delay_prob_lang Require Export lang.
+
 Fixpoint remove_drand_expr e:=
   match e with
-  | Val v => Val $ remove_drand_val v
-  | Var x => Var x
-  | Rec f x e => Rec f x (remove_drand_expr e)
-  | App e1 e2 => App (remove_drand_expr e1) (remove_drand_expr e2)
-  | UnOp op e => UnOp op (remove_drand_expr e)
-  | BinOp op e1 e2 => BinOp op (remove_drand_expr e1) (remove_drand_expr e2)
-  | If e0 e1 e2 => If (remove_drand_expr e0) (remove_drand_expr e1) (remove_drand_expr e2)
-  | Pair e1 e2 => Pair (remove_drand_expr e1) (remove_drand_expr e2)
-  | Fst e => Fst (remove_drand_expr e)
-  | Snd e => Snd (remove_drand_expr e)
-  | InjL e => InjL (remove_drand_expr e)
-  | InjR e => InjR (remove_drand_expr e)
-  | Case e0 e1 e2 => Case (remove_drand_expr e0) (remove_drand_expr e1) (remove_drand_expr e2)
-  | AllocN e1 e2 => AllocN (remove_drand_expr e1) (remove_drand_expr e2)
-  | Load e => Load (remove_drand_expr e)
-  | Store e1 e2 => Store (remove_drand_expr e1) (remove_drand_expr e2)
-  | Rand e => Rand (remove_drand_expr e)
-  | DRand e => Rand (remove_drand_expr e)
+  | Val v => v' ← remove_drand_val v; Some $ Val v'
+  | Var x => Some $ Var x
+  | Rec f x e => e' ← (remove_drand_expr e); Some $ Rec f x e'
+  | App e1 e2 => e1' ← (remove_drand_expr e1); e2' ← (remove_drand_expr e2); Some $ App e1' e2'
+  | UnOp op e => e' ← (remove_drand_expr e); Some $ UnOp op e'
+  | BinOp op e1 e2 => e1' ← (remove_drand_expr e1); e2' ← (remove_drand_expr e2); Some $ BinOp op e1' e2'
+  | If e0 e1 e2 => e0' ← (remove_drand_expr e0); e1' ← (remove_drand_expr e1); e2' ← (remove_drand_expr e2); Some $ If e0' e1' e2'
+  | Pair e1 e2 => e1' ← (remove_drand_expr e1); e2' ← (remove_drand_expr e2); Some $ Pair e1' e2'
+  | Fst e => e' ← (remove_drand_expr e); Some $ Fst e'
+  | Snd e => e' ← (remove_drand_expr e); Some $ Snd e'
+  | InjL e => e' ← (remove_drand_expr e); Some $ InjL e'
+  | InjR e => e' ← (remove_drand_expr e); Some $ InjR e'
+  | Case e0 e1 e2 => e0' ← (remove_drand_expr e0); e1' ← (remove_drand_expr e1); e2' ← (remove_drand_expr e2); Some $ Case e0' e1' e2'
+  | AllocN e1 e2 => e1' ← (remove_drand_expr e1); e2' ← (remove_drand_expr e2); Some $ AllocN e1' e2'
+  | Load e => e' ← (remove_drand_expr e); Some $ Load e'
+  | Store e1 e2 => e1' ← (remove_drand_expr e1); e2' ← (remove_drand_expr e2); Some $ Store e1' e2'
+  | Rand e => e' ← (remove_drand_expr e); Some $ Rand e'
+  | DRand e => e' ← (remove_drand_expr e); Some $ Rand e'
   end
-with remove_drand_val v : val:= 
+with remove_drand_val v : option val:= 
   match v with
-  | LitV l => LitV l
-  | RecV f x e => RecV f x (remove_drand_expr e)
-  | PairV v1 v2 => PairV (remove_drand_val v1) (remove_drand_val v2)
-  | InjLV v => InjLV (remove_drand_val v)
-  | InjRV v => InjRV (remove_drand_val v)
+  | LitV l => if is_simple_base_lit l then Some $ LitV l else None
+  | RecV f x e => e' ← remove_drand_expr e; Some $ RecV f x e'
+  | PairV v1 v2 => v1' ← (remove_drand_val v1); v2' ← (remove_drand_val v2); Some $ PairV v1' v2'
+  | InjLV v => v' ← (remove_drand_val v); Some $ InjLV v'
+  | InjRV v => v' ← (remove_drand_val v); Some $ InjRV v'
   end.
+
+Lemma remove_drand_expr_urn_subst f e e':
+  remove_drand_expr e = Some e' ->
+  urn_subst_expr f e = Some e'.
+Proof.
+  revert e e'.
+  apply (expr_mut (λ e, ∀ e', remove_drand_expr e = Some e' → urn_subst_expr f e = Some e' ) (λ v, ∀ v', remove_drand_val v = Some v' → urn_subst_val f v = Some v')); simpl; repeat setoid_rewrite bind_Some; intros; destruct!/=.
+  19:{ case_match; last done.
+       simplify_eq.
+       rename select base_lit into bl.
+       destruct bl; simplify_eq; naive_solver.
+  }
+  all: naive_solver.
+Qed.   
+  
