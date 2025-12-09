@@ -783,7 +783,7 @@ Qed.
 Lemma ex_RInt_square (f  : R -> R) (a b : R) :
   ex_RInt f a b → ex_RInt (fun x => (f x) ^ 2) a b.
 Proof.
-Admitted.
+Admitted. (* G & E *)
 
 Lemma ex_RInt_mult (f g : R -> R) (a b : R) :
   ex_RInt f a b ->  ex_RInt g a b ->
@@ -1734,7 +1734,7 @@ Proof.
     ex_RInt (λ x : R, SeriesC (λ n' : nat, f n' x)) a b.
   Proof.
     (* I'm sure this is true *)
-  Admitted.
+  Admitted. (* G *)
 
 
   Lemma ex_RInt_dom {F : R → R} {a b : R} : ex_RInt (fun x => Iverson (Ioo a b) x * F x) a b ↔ ex_RInt F a b.
@@ -1900,6 +1900,7 @@ Proof.
   }
   Qed.
 
+
   Lemma Le_Nat_sum (N : nat) (v : R) : SeriesC (λ n : nat, if bool_decide (n ≤ N) then v else 0) = (N + 1)* v.
   Proof.
     rewrite SeriesC_nat_bounded'.
@@ -1921,7 +1922,7 @@ Proof.
       a dmit.
     }
     *)
-  Admitted.
+  Admitted. (* G *)
 
   Lemma even_pow_neg {x : R} {n : nat} : Zeven n → (- x) ^ n = x ^ n.
   Proof.
@@ -2196,6 +2197,7 @@ Proof.
       }
   Qed.
 
+  (*
   Lemma RInt_gen_pos_strong {F M}
     (Hpos : forall x, 0 <= F x)
     (Hex : ∀ b, ex_RInt F M b)
@@ -2204,7 +2206,8 @@ Proof.
     0 <= RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty).
   Proof.
     (* Reduces to RInt_gen_pos_ex by setting f to be 0 below M, so that the wrong direction integral is zero. *)
-  Admitted.
+  A dmitted. (* E, maybe G *)
+   *)
 
   Lemma ex_RInt_div (F : R → R) {a b c} : ex_RInt F a b → ex_RInt (fun x => F x / c) a b.
   Proof.
@@ -2507,6 +2510,9 @@ Proof.
     }
   Qed.
 
+  (*
+
+  (* Used by ex_RInt_gen_Ici_compare_strong *)
   Lemma LeftExtend_continuous {f : R → R} {L : R}  :
     (∀ x, L <= x → Continuity.continuous f x) →
     (∀ x, Continuity.continuous (LeftExtend f L) x).
@@ -2522,11 +2528,11 @@ Proof.
         rewrite /ball/=/AbsRing_ball/= in Hy.
         symmetry.
         apply LeftExtend_eq_r.
-        admit.
+        a dmit.
       + apply H. lra.
     }
     { (* At the transition point: LeftExtend is constant equal to (f L) on the left and approaches (f L) on the right *)
-      admit. }
+      a dmit. }
     { (* (LeftExtend f L) is equal to f on a neighbourhood of x which is continuous by hypotheses. *)
       assert (Heps1 : 0 < (L - x) / 2) by lra.
       apply Continuity.continuous_ext_loc with (g := (fun (z : R) => f L)).
@@ -2536,11 +2542,12 @@ Proof.
         rewrite /ball/=/AbsRing_ball/= in Hy.
         symmetry.
         apply LeftExtend_eq_l.
-        admit.
+        a dmit.
       + apply Continuity.continuous_const.
     }
-  Admitted.
+  A dmitted.
 
+  (* E, Maybe G *)
   Lemma ex_RInt_gen_Ici_compare_strong {L : R} {F G : R → R} :
     (∀ x, L <= x → Continuity.continuous F x) →
     (∀ x, L <= x → Continuity.continuous G x) →
@@ -2571,6 +2578,7 @@ Proof.
     { intros ??. symmetry. by apply LeftExtend_eq_r. }
     done.
   Qed.
+  *)
 
 End Lib.
 
@@ -2658,6 +2666,9 @@ Section FubiniStep.
   Definition IsFubiniRR (f : R → R → R) : Prop :=
     ∃ L, f = fsum2 (RectFun_RR <$> L) ∧ Forall RectFun_continuity L.
 
+  (*
+  (* E, maybe G  *)
+
   Lemma Fubini_Step_ex_x {f xa xb ya yb} : IsFubiniRR f →
     ex_RInt (fun x => RInt (fun y => f x y) ya yb) xa xb.
   Proof.
@@ -2681,27 +2692,28 @@ Section FubiniStep.
           intros ??.
           apply Continuity2_continuous_snd.
           apply HL.
-          { admit. }
-          { admit. }
+          { a dmit. }
+          { a dmit. }
         }
-        { admit. }
+        { a dmit. }
       }
-      admit.
+      a dmit.
     }
   apply (ex_RInt_plus (V := R_CompleteNormedModule)).
     2: { apply IHL. exact (Forall_inv_tail HL). }
-    admit.
-  Admitted.
+    a dmit.
+  A dmitted.
 
   Lemma Fubini_Step_ex_y {f xa xb ya yb} : IsFubiniRR f →
     ex_RInt (fun y => RInt (fun x => f x y) xa xb) ya yb.
   Proof.
-  Admitted.
+  A dmitted.
 
   Lemma Fubini_Step_eq : ∀ {f xa xb ya yb}, IsFubiniRR f →
     RInt (fun x => RInt (fun y => f x y) ya yb) xa xb =  RInt (fun y => RInt (fun x => f x y) xa xb) ya yb.
   Proof.
-  Admitted.
+  A dmitted.
+  *)
 
 End FubiniStep.
 
@@ -2712,6 +2724,11 @@ End FubiniStep.
 
 Section FubiniImproper.
   Import Hierarchy.
+
+  (*
+
+  (* E *)
+
 
   (* FubiniImproper_ex *)
   Theorem FubiniImproper_ex_x {f xa ya yb} (H : ∀ xb, FubiniCondition f xa xb ya yb) (HInt : True) :
@@ -2726,8 +2743,8 @@ Section FubiniImproper.
       apply H.
     }
     (* Side condition, the integrals needs to be finite? Is there a general theorem I can prove here? *)
-    admit.
-  Admitted.
+    a dmit.
+  A dmitted.
 
   Theorem FubiniImproper_ex_y {f xa ya yb} (H : ∀ xb, FubiniCondition f xa xb ya yb) (HInt : True) :
     ex_RInt (fun y => (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty))) ya yb.
@@ -2749,7 +2766,7 @@ Section FubiniImproper.
     Search RInt_gen.
     Check filterlim.
     *)
-  Admitted.
+  A dmitted.
 
   Theorem FubiniImproper_eq {f xa ya yb} (H : ∀ xb, FubiniCondition f xa xb ya yb)
     (HInt : True) :
@@ -2788,7 +2805,7 @@ Section FubiniImproper.
          intros xb. apply (@FubiniCondition_ex_RInt_x f xa xb ya yb (H xb) y).
          (* We can improve FubiniCondition to FubiniConditionU that applies on the entire x/y plane,
             and requires that the function be zero outside of the rectangle.  *)
-         admit.
+         a dmit.
     }
 
     (* I think we can prove this with something like the Cauchy Critereon
@@ -2797,7 +2814,8 @@ Section FubiniImproper.
       if for evey epsilon, there exists R such that the for every R' > R,
       the sup of f on [R, R'] is bounded above by epsilon *)
 
-  Admitted.
+  A dmitted.
+  *)
 
 End FubiniImproper.
 
@@ -2820,15 +2838,17 @@ Section PiecewiseCts.
   Definition PCts (f : R → R) : Prop :=
     ∃ L, f = fsum (IntervalFun_R <$> L) ∧ Forall IntervalFun_continuity L.
 
+  (*
   Lemma IntervalFun_RInt {f xa xb} {a b} :
     IntervalFun_continuity (f, xa, xb) →
     ex_RInt (IntervalFun_R (f, xa, xb)) a b.
   Proof.
-  Admitted.
+  A dmitted.
 
   Lemma PCts_RInt {f} (HP : PCts f) {a b} :
     ex_RInt f a b.
   Proof.
-  Admitted.
+  A dmitted.
+  *)
 
 End PiecewiseCts.

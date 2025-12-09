@@ -1,3 +1,5 @@
+(*
+
 From clutch.eris Require Export eris error_rules receipt_rules.
 From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
@@ -787,3 +789,4 @@ Section program.
   Qed.
 
 End program.
+*)
