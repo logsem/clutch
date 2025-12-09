@@ -129,11 +129,11 @@ Section credits.
 
   Lemma ExpAddSeries_RInt : ex_RInt (λ x : R, SeriesC (λ k : nat, exp (- (x + k) ^ 2 / 2))) 0 1.
   Proof.
-    apply (ex_RInt_SeriesC (fun n => exp (- (0 + n) ^ 2 / 2))).
+    eapply (ex_RInt_SeriesC (fun n => exp (- (0 + n) ^ 2 / 2))); OK.
     { rewrite ex_seriesC_nat. eapply Norm2_ex'. OK. }
     { intros ???.
-      rewrite Rabs_right.
-      2: { apply Rle_ge. apply Rexp_nn. }
+      split.
+      { apply Rexp_nn. }
       apply exp_mono.
       do 2 rewrite Rdiv_def.
       replace (- (x + n) ^ 2 * / 2) with ((-1 / 2) * (x + n) ^ 2) by OK.
@@ -1159,7 +1159,7 @@ Section credits.
             apply pos_INR.
           }
         }
-        apply (ex_RInt_SeriesC G1_μ).
+        apply (ex_RInt_SeriesC G1_μ); OK.
         { rewrite /G1_μ.
           rewrite ex_seriesC_nat.
           replace (λ k0 : nat, exp (- k0 ^ 2 / 2) / Norm1) with (λ k0 : nat, exp (- k0 ^ 2 / 2) * / Norm1) by (funexti; OK).
@@ -1167,9 +1167,8 @@ Section credits.
           apply Norm1_ex.
         }
         { intros ???.
-          rewrite Rabs_right.
-          2: { apply Rle_ge.
-               apply Rmult_le_pos; OK.
+          split.
+          { apply Rmult_le_pos; OK.
                { apply G1_μ_nn. }
                { apply HL. OK. }
           }
@@ -1775,7 +1774,7 @@ Section credits.
           apply pos_INR.
         }
       }
-      apply (ex_RInt_SeriesC G1_μ).
+      apply (ex_RInt_SeriesC G1_μ); OK.
       { rewrite /G1_μ.
         rewrite ex_seriesC_nat.
         replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
@@ -1783,8 +1782,8 @@ Section credits.
         apply Norm1_ex.
       }
       { intros ???.
-        rewrite Rabs_right.
-        2: { apply Rle_ge.
+        split.
+        {
              apply Rmult_le_pos; OK.
              { apply G1_μ_nn. }
              { apply HL. OK. }

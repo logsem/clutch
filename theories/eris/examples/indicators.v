@@ -1729,13 +1729,69 @@ Proof.
     apply HexU.
   Qed.
 
-  Lemma ex_RInt_SeriesC {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R)
-    (HexU : Series.ex_series UB) (Hub : forall x n, a < x < b → Rabs (f n x) <= UB n) (Hex : ∀ n, ex_RInt (f n) a b) :
+  Lemma ex_RInt_SeriesC {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R) (Hab : a < b)
+    (HexU : Series.ex_series UB)
+    (Hub : forall x n, a < x < b → 0 <= (f n x) <= UB n)
+    (Hex : ∀ n, ex_RInt (f n) a b) :
     ex_RInt (λ x : R, SeriesC (λ n' : nat, f n' x)) a b.
   Proof.
-    (* I'm sure this is true *)
-  Admitted. (* G *)
-
+    (* Internalize the domain as indicator function. *)
+    suffices H : ex_RInt (λ x : R, @SeriesC nat numbers.Nat.eq_dec nat_countable (λ n' : nat, Iverson (Ioo a b) x  * f n' x)) a b.
+    { eapply ex_RInt_ext; [|apply H].
+      intros x.
+      intros Hx.
+      apply SeriesC_ext; intros n.
+      rewrite Iverson_True; try lra.
+      rewrite /Ioo.
+      lra.
+    }
+    have H : ∀ n : nat, ex_RInt (λ x : R, sum_n (λ n' : nat, Iverson (Ioo a b) x * f n' x) n) a b.
+    { intros n; apply ex_RInt_sum_n.
+      intros ?.
+      apply ex_RInt_mult; [|apply Hex].
+      apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite Iverson_True; try lra.
+      rewrite /Ioo.
+      lra.
+    }
+    have HU : filterlim (λ (M : nat) (x : R), sum_n (λ n' : nat, Iverson (Ioo a b) x *  f n' x) M) eventually
+                (locally (λ x : R, Series.Series (λ n' : nat, Iverson (Ioo a b) x * f n' x))).
+    { apply (UniformConverge_Series UB); try done.
+      { intros ??.
+        rewrite /Iverson//=. case_decide; try lra.
+        rewrite Rmult_1_l.
+        apply Hub.
+        rewrite /Ioo in H0.
+        rewrite Rmin_left in H0; try lra.
+        rewrite Rmax_right in H0; try lra.
+      }
+      { intros ??.
+        rewrite /Iverson//=. case_decide; try lra.
+        2: { rewrite Rmult_0_l Rabs_R0.
+             specialize Hub with ((a+b)/2) n.
+             etrans; eapply Hub; lra.
+        }
+        rewrite Rmult_1_l.
+        rewrite /Ioo in H0.
+        rewrite Rmin_left in H0; try lra.
+        rewrite Rmax_right in H0; try lra.
+        rewrite Rabs_right.
+        { apply Hub. lra. }
+        apply Rle_ge.
+        apply Hub. lra.
+      }
+    }
+    apply ex_RInt_ext with (f := (λ x : R, Series.Series (λ n' : nat, Iverson (Ioo a b) x * f n' x))).
+    { intros x Hx. rewrite -SeriesC_nat. done. }
+    have Hrec (n : nat) : is_RInt (fun x => sum_n (fun n' => Iverson (Ioo a b) x * f n' x) n) a b
+                                   (RInt (fun x => sum_n (fun n' => Iverson (Ioo a b) x * f n' x) n) a b).
+    { apply @RInt_correct. apply H. }
+    destruct (filterlim_RInt (fun M x => sum_n (fun n' => Iverson (Ioo a b) x * f n' x) M) a b
+                             eventually eventually_filter _ _ Hrec HU) as [I [HL HF]].
+    exists I.
+    apply HF.
+  Qed.
 
   Lemma ex_RInt_dom {F : R → R} {a b : R} : ex_RInt (fun x => Iverson (Ioo a b) x * F x) a b ↔ ex_RInt F a b.
   Proof.
