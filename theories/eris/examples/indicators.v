@@ -1908,6 +1908,7 @@ Proof.
     replace ((S N + 1) * v) with ((N + 1) * v + v) by (rewrite S_INR; lra).
     rewrite -IHN //=.
     rewrite Rplus_assoc. f_equal. rewrite Rplus_comm.
+
     (*
     { replace ((S N + 1) * v) with ((N + 1) * v + v); last first.
       { rewrite S_INR. lra. }
@@ -2216,17 +2217,6 @@ Proof.
   Lemma ex_seriesC_finite_dec (M : nat) (F : nat → R) :
     ex_seriesC (λ x : nat, if bool_decide (x ≤ M) then F x else 0).
   Proof. apply ex_seriesC_nat_bounded. Qed.
-
-  (* Probably false.
-  Lemma ex_RInt_gen_Ici_mult {L : R} {F G : R → R} :
-    (∀ x, 0 <= F x) →
-    (∀ x, 0 <= G x) →
-    ex_RInt_gen F (at_point L) (Rbar_locally Rbar.p_infty) →
-    ex_RInt_gen G (at_point L) (Rbar_locally Rbar.p_infty) →
-    ex_RInt_gen (fun x => F x * G x) (at_point L) (Rbar_locally Rbar.p_infty).
-  Proof.
-  Admitted.
-  *)
 
   Lemma is_RInt_gen_bound_partial {F : R → R} {L : R} {lF : R} :
     (∀ x, 0 <= F x) →
@@ -2752,6 +2742,7 @@ Section FubiniImproper.
       apply (@FubiniCondition_ex_RInt_x f xa xb ya yb (H xb) y).
       lra.
     }
+
     (*
     Search RInt_gen iota.
     Check (iota (is_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty))).

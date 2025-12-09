@@ -114,12 +114,12 @@ Section credits.
       apply (@Continuity.continuous_mult R_UniformSpace R_AbsRing).
       { apply Continuity.continuous_const. }
       rewrite /NegExp_ρ0.
-      admit.
+       a dmit.
       *)
-    admit.}
-    { intros ??. (* Require that F be continuous *) admit. }
-    { intros ??. (* OK *) admit. }
-    { admit. }
+    a dmit.}
+    { intros ??. (* Require that F be continuous *) a dmit. }
+    { intros ??. (* OK *) a dmit. }
+    { a dmit. }
     *)
   Admitted.
 

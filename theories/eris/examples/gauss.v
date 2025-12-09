@@ -1209,7 +1209,32 @@ Section credits.
     apply (FubiniIntegralSeries_Strong (fun k => M * RInt (G2_μ k) 0 1)).
     - OK.
     - intros ???.
-      admit.
+      have L1 : ex_RInt (λ x1 : R, G1_μ n * (1 - exp (- x * (2 * n + x) / 2)) * G2_μ n0 x1 * F n0 x1) 0 1.
+      { apply ex_RInt_mult; OK.
+      replace (λ y : R, G1_μ n * (1 - exp (- x * (2 * n + x) / 2)) * G2_μ n0 y)
+         with (λ y : R, scal (G1_μ n * (1 - exp (- x * (2 * n + x) / 2))) (G2_μ n0 y)).
+      2: { apply functional_extensionality; intros. rewrite /scal/=/mult/=. done. }
+      apply (ex_RInt_scal (V := R_CompleteNormedModule)).
+      apply G2_exRInt.
+      }
+      have L2 :  ∀ x0 : R, 0 < x0 < 1 → 0 <= G1_μ n * (1 - exp (- x * (2 * n + x) / 2)) * G2_μ n0 x0 * F n0 x0.
+      { intros x1 Hx1.
+        apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
+        { apply G1_μ_nn. }
+        { suffices ? :  exp (- x * (2 * n + x) / 2) <= 1 by OK.
+          apply Rexp_range.
+          replace (- x * (2 * n + x) / 2) with ((-1 / 2) * (x * (2 * n + x))) by OK.
+          replace 0 with ((-1/2) * 0) by OK.
+          apply Rmult_le_compat_neg_l; OK.
+          apply Rmult_le_pos; OK.
+          apply Rplus_le_le_0_compat; OK.
+          apply Rmult_le_pos; OK.
+          apply pos_INR.
+          }
+        { apply G2_μ_nn. OK. }
+        { apply Hbound. }
+      }
+      apply RInt_ge_0; OK.
     - (* Goal 1: Series convergence - COMPLETED *)
       rewrite ex_seriesC_nat.
       apply ex_seriesC_scal_l.
@@ -1360,7 +1385,7 @@ Section credits.
           apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
           auto_derive; done.
         * apply ex_RInt_const.
-  Admitted.
+  Qed.
 
   Lemma HR2 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
   Series.Series
