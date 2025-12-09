@@ -51,13 +51,14 @@ Section modalities.
       ⌜(1<=ε)%R⌝ ∨
         Z σ1 ε ∨
         (∀ (ε':nonnegreal), ⌜(ε<ε')%R⌝ -∗ Φ (σ1, ε')) ∨
-        (∃ u s N (ε2 :_ -> nonnegreal),
-            ⌜σ1.(urns) !! u = Some s ⌝ ∗
-            ⌜size s = S N⌝ ∗
+        (∃ lis u N (ε2 :_ -> nonnegreal),
+            ⌜NoDup lis⌝ ∗
+            ⌜σ1.(urns) !! u = Some (list_to_set lis) ⌝ ∗
+            ⌜length lis = S N⌝ ∗
             ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
             ⌜ (Expval (dunifP N) ε2 <= ε)%R ⌝ ∗
             ∀ (x:fin (S N)),
-           match (elements s)!!(fin_to_nat x)
+           match (lis)!!(fin_to_nat x)
            with | Some y => |={∅}=> Φ (state_upd_urns <[u:={[y]}]> σ1, ε2 x)
            | None => False (* Not possible *)
            end
@@ -76,7 +77,7 @@ Section modalities.
   Proof.
     split; [|apply _].
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
-    iIntros ([??]) "[H|[?|[H|(%&%&%&%&%&%&%&%&H)]]]".
+    iIntros ([??]) "[H|[?|[H|(%&%&%&%&%&%&%&%&%&H)]]]".
     - by iLeft.
     - iRight; by iLeft.
     - iRight; iRight; iLeft.
@@ -100,13 +101,14 @@ Section modalities.
       (⌜(1 <= ε)%R⌝ ∨
          (Z σ1 ε) ∨
          (∀ ε', ⌜(ε<ε')%R⌝ -∗ state_step_coupl σ1 ε' Z) ∨
-        (∃ u s N (ε2 :_ -> nonnegreal),
-            ⌜σ1.(urns) !! u = Some s ⌝ ∗
-            ⌜size s = S N⌝ ∗
+         (∃ lis u N (ε2 :_ -> nonnegreal),
+             ⌜NoDup lis⌝ ∗
+            ⌜σ1.(urns) !! u = Some (list_to_set lis) ⌝ ∗
+            ⌜length lis = S N⌝ ∗
             ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
             ⌜ (Expval (dunifP N) ε2 <= ε)%R ⌝ ∗
             ∀ (x:fin (S N)),
-           match (elements s)!!(fin_to_nat x)
+           match lis!!(fin_to_nat x)
            with | Some y => |={∅}=>  state_step_coupl (state_upd_urns <[u:={[y]}]> σ1) (ε2 x) Z
            | None => False (* Not possible *)
            end
@@ -139,13 +141,14 @@ Section modalities.
   Qed. 
 
   Lemma state_step_coupl_rec σ1 (ε : nonnegreal) Z :
-    (∃ u s N (ε2 :_ -> nonnegreal),
-            ⌜σ1.(urns) !! u = Some s ⌝ ∗
-            ⌜size s = S N⌝ ∗
+    (∃ lis u N (ε2 :_ -> nonnegreal),
+             ⌜NoDup lis⌝ ∗
+            ⌜σ1.(urns) !! u = Some (list_to_set lis) ⌝ ∗
+            ⌜length lis = S N⌝ ∗
             ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
             ⌜ (Expval (dunifP N) ε2 <= ε)%R ⌝ ∗
             ∀ (x:fin (S N)),
-           match (elements s)!!(fin_to_nat x)
+           match (lis)!!(fin_to_nat x)
            with | Some y => |={∅}=>  state_step_coupl (state_upd_urns <[u:={[y]}]> σ1) (ε2 x) Z
            | None => False (* Not possible *)
            end
@@ -271,7 +274,7 @@ Section modalities.
     iRevert (σ1 ε) "Hs".
     iApply state_step_coupl_ind.
     iIntros "!#" (σ ε)
-      "[% | [? | [H|(% & % & % & % & % & % & % & % & H)]]] Hw".
+      "[% | [? | [H|(% & % & % & % & % & % & % & % & % & H)]]] Hw".
     - iApply state_step_coupl_ret_err_ge_1. lra.
     - iApply state_step_coupl_ret. by iApply "Hw".
     - iApply state_step_coupl_ampl.
@@ -314,7 +317,7 @@ Section modalities.
     iRevert (σ1 ε) "Hs".
     iApply state_step_coupl_ind.
     iIntros "!#" (σ ε)
-      "[% | [H | [H|(% & % & % & % & % & % & % & % & H)]]] HZ".
+      "[% | [H | [H|(% & % & % & % & % & % & % & % & % & H)]]] HZ".
     - by iApply state_step_coupl_ret_err_ge_1.
     - iApply ("HZ" with "H").
     - iApply state_step_coupl_ampl.
@@ -360,7 +363,7 @@ Section modalities.
       iIntros.
       iDestruct ("H" with "[//]") as "[H _]".
       by iApply "H".
-    - iDestruct "H" as "(%&%&%&%&%&%&%&%&H)".
+    - iDestruct "H" as "(%&%&%&%&%&%&%&%&%&H)".
       iApply state_step_coupl_rec.
       iExists _, _, _, _.
       repeat iSplit; try done.

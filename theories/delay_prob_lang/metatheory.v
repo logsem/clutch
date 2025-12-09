@@ -231,23 +231,26 @@ Proof. intros. apply subst_map_is_closed with (∅ : stringset); set_solver. Qed
 
 
 (** Lemma for resolving an urn. To be improved to allow partial resolvement *)  
-Lemma urns_f_distr_split (m:gmap loc urn) u s (N:nat):
-  m!!u=Some s ->
-  size s = S N ->
+Lemma urns_f_distr_split (m:gmap loc urn) u lis (N:nat):
+  NoDup lis ->
+  m!!u=Some (list_to_set lis) ->
+  length lis = S N ->
   urns_f_distr m =
-  dunifP N ≫= (λ n, (match (elements s)!!(fin_to_nat n) with
+  dunifP N ≫= (λ n, (match (lis)!!(fin_to_nat n) with
                      | Some y => dret (<[u:={[y]}]> m)
                      | None => dzero
                      end ) ≫= (λ m', urns_f_distr m')
     ).
 Proof.
-  intros Hsome Hsize.
+  intros Hnodup Hsome Hsize.
   apply distr_ext.
   intros f.
-  assert (s ≠ ∅) by (intros ?; set_solver). 
+  assert (list_to_set lis ≠ (∅:gset _)).
+  { destruct lis; first done.
+    simpl. set_solver. }
   destruct (decide (urns_f_valid m f)) as [H'|H'].
   - rewrite urns_f_distr_eval; last done.
-    replace m with (<[u:=s]> (delete u m)) at 1; last first.
+    replace m with (<[u:=(list_to_set lis)]> (delete u m)) at 1; last first.
     { rewrite insert_delete_insert.
       by rewrite insert_id.
     }
@@ -257,11 +260,11 @@ Proof.
     case_match; last destruct!/=.
     destruct H'' as (u'&?&Helem).
     destruct!/=.
-    rewrite -elem_of_elements in Helem.
+    rewrite elem_of_list_to_set in Helem.
     apply elem_of_list_lookup_1 in Helem.
     destruct Helem as [i Helem'].
     apply lookup_lt_Some in Helem' as Hlt.
-    rewrite -length_elements_size_gset Hsize in Hlt.
+    rewrite Hsize in Hlt.
     rewrite {1}/dbind{1}/dbind_pmf{1}/pmf.
     pose (a':= nat_to_fin Hlt).
     erewrite (SeriesC_ext _ (λ a, if bool_decide (a = a') then dunifP N a * _ else 0)); last first.
@@ -279,12 +282,11 @@ Proof.
       set_unfold; destruct!/=.
       apply H1.
       apply fin_to_nat_inj.
-      eapply NoDup_lookup; try done.
-      - apply NoDup_elements.
-      - by rewrite fin_to_nat_to_fin. 
+      eapply NoDup_lookup; try done. by rewrite fin_to_nat_to_fin. 
     }
     rewrite SeriesC_singleton_dependent.
     rewrite {1}/pmf{1}/dunifP/dunif.
+    rewrite size_list_to_set; last done.
     rewrite Hsize.
     rewrite fin_to_nat_to_fin.
     rewrite Helem'.
@@ -312,7 +314,7 @@ Proof.
     symmetry.
     destruct (pmf_pos (dunifP N
                          ≫= λ n : fin (S N),
-                         match elements s !! (fin_to_nat n) with
+                         match lis !! (fin_to_nat n) with
                          | Some y => dret (<[u:={[y]}]> m)
                          | None => dzero
                          end ≫= λ m' : gmap loc urn, urns_f_distr m') f) as [Hcontra|]; last lra.
@@ -331,7 +333,7 @@ Proof.
       case_match; destruct!/=.
       set_unfold; destruct!/=.
       eexists _; split; first done.
-      rewrite -elem_of_elements.
+      rewrite elem_of_list_to_set.
       by eapply elem_of_list_lookup_2.
     + rewrite lookup_insert_ne in K; last done.
       naive_solver.
