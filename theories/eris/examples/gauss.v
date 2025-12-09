@@ -514,6 +514,12 @@ Section credits.
       OK.
       Transparent pow.
     }
+    { OK. }
+    { intros ???.
+      apply Rcomplements.Rdiv_le_0_compat.
+      { apply Rexp_nn. }
+      { apply Norm2_nn. }
+    }
     { rewrite ex_seriesC_nat.
       replace (λ n : nat, exp (- (0 + n) ^ 2 / 2) / Norm2) with (λ n : nat, exp (- (0 + n) ^ 2 / 2) * / Norm2).
       { apply ex_seriesC_scal_r.
@@ -1201,6 +1207,9 @@ Section credits.
   Proof.
     apply Series.Series_ext; intros n.
     apply (FubiniIntegralSeries_Strong (fun k => M * RInt (G2_μ k) 0 1)).
+    - OK.
+    - intros ???.
+      admit.
     - (* Goal 1: Series convergence - COMPLETED *)
       rewrite ex_seriesC_nat.
       apply ex_seriesC_scal_l.
@@ -1351,7 +1360,7 @@ Section credits.
           apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
           auto_derive; done.
         * apply ex_RInt_const.
-  Qed.
+  Admitted.
 
   Lemma HR2 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
   Series.Series
@@ -1391,6 +1400,8 @@ Section credits.
   Proof.
     symmetry.
     apply (FubiniIntegralSeries_Strong (fun x => G1_μ x * M * RInt (G2_μ n) 0 1)).
+    - OK.
+    - admit.
     - rewrite ex_seriesC_nat.
       apply ex_seriesC_scal_r, ex_seriesC_scal_r.
       rewrite /G1_μ.
@@ -1428,6 +1439,21 @@ Section credits.
       apply pos_INR.
     }
     apply (FubiniIntegralSeries_Strong (fun x0 => G1_μ x0 * G2_μ n x * M)).
+    - OK.
+    - intros ???.
+      apply Rmult_le_pos; [|apply Hbound].
+      apply Rmult_le_pos.
+      2: { apply G2_μ_nn. OK. }
+      apply Rmult_le_pos.
+      { apply G1_μ_nn. }
+      { suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
+        apply Rexp_range.
+        suffices ? : ((- x0) * ((2 * n0) + x0)) <= 0 by OK.
+        apply Rcomplements.Rmult_le_0_r; OK.
+        apply Rplus_le_le_0_compat; OK.
+        apply Rmult_le_pos; OK.
+        apply pos_INR.
+      }
     - rewrite ex_seriesC_nat.
       apply ex_seriesC_scal_r, ex_seriesC_scal_r.
       rewrite /G1_μ.

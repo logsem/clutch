@@ -887,6 +887,9 @@ Qed.
 
 (* Sets *)
 
+Definition Ioo (a b : R) : R → Prop :=
+  fun x => Rmin a b < x < Rmax a b.
+
 Definition Icc (a b : R) : R -> Prop :=
   fun t => Rmin a b <= t <= Rmax a b.
 
@@ -1604,14 +1607,81 @@ Proof.
   Qed.
 
 
-  Lemma FubiniIntegralSeries_Strong {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R)
+  Lemma FubiniIntegralSeries_Strong {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R) (Hab : a < b)
+    (Hnn : ∀ (x : R) (n : nat), a < x < b → 0 <= f n x)
     (HexU : Series.ex_series UB) (Hub : forall x n, a < x < b → Rabs (f n x) <= UB n) (Hex : ∀ n, ex_RInt (f n) a b) :
     Series.Series (fun n => RInt (λ x : R, f n x) a b) = RInt (λ x : R, Series.Series (λ n' : nat, f n' x)) a b.
   Proof.
-    (* Reduce this to FubiniIntegralSeries by setting f to 0 outside the domain *)
-  Admitted.
+    replace (Series.Series (λ n : nat, RInt (λ x : R, f n x) a b))
+       with (Series.Series (λ n : nat, RInt (λ x : R, Iverson (Ioo a b) x * f n x) a b)).
+    2: {
+      apply Series.Series_ext.
+      intros n.
+      rewrite (RInt_ext _ (f n)); try done.
+      intros x.
+      rewrite /Ioo.
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros H.
+      rewrite /Iverson. case_decide; try lra.
+    }
+    replace (RInt (λ x : R, Series.Series (λ n' : nat, f n' x)) a b)
+       with (RInt (λ x : R, Series.Series (λ n' : nat, Iverson (Ioo a b) x * f n' x)) a b).
+    2: {
+      apply RInt_ext.
+      intros x.
+      rewrite /Ioo.
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intro H.
+      apply Series.Series_ext.
+      intros n.
+      rewrite /Iverson//=.
+      case_decide; try lra.
+    }
+    apply (FubiniIntegralSeries UB).
+    { intros ??.
+      rewrite /Iverson//=.
+      case_decide; try lra.
+      rewrite Rmult_1_l.
+      apply Hnn.
+      rewrite /Ioo//= in H.
+      rewrite Rmin_left in H; try lra.
+      rewrite Rmax_right in H; try lra.
+    }
+    { done. }
+    { intros ??.
+      rewrite /Iverson.
+      case_decide.
+      { rewrite Rmult_1_l.
+        apply Hub.
+        rewrite /Ioo//= in H.
+        rewrite Rmin_left in H; try lra.
+        rewrite Rmax_right in H; try lra.
+      }
+      { rewrite Rmult_0_l Rabs_R0.
+        etrans; [|apply (Hub ((a+b)/2) n)].
+        { apply Rabs_pos. }
+        { lra. }
+      }
+    }
+    { intro n.
+      apply ex_RInt_mult; [|done].
+      apply  (ex_RInt_ext (fun (_ : R) => 1)); [|apply ex_RInt_const].
+      intros x.
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros Hx.
+      rewrite /Iverson.
+      case_decide; try lra.
+      rewrite /Ioo in H.
+      rewrite Rmin_left in H; try lra.
+      rewrite Rmax_right in H; try lra.
+    }
+  Qed.
 
-  Lemma FubiniIntegralSeriesC_Strong {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R)
+  Lemma FubiniIntegralSeriesC_Strong {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R) (Hab : a < b)
+    (Hnn : ∀ (x : R) (n : nat), a < x < b → 0 <= f n x)
     (HexU : ex_seriesC UB) (Hub : forall x n, a < x < b → Rabs (f n x) <= UB n) (Hex : ∀ n, ex_RInt (f n) a b) :
     SeriesC (fun n => RInt (λ x : R, f n x) a b) = RInt (λ x : R, SeriesC (λ n' : nat, f n' x)) a b.
   Proof.
@@ -1666,7 +1736,6 @@ Proof.
     (* I'm sure this is true *)
   Admitted.
 
-  Definition Ioo (a b : R) : R → Prop := fun x => Rmin a b < x < Rmax a b.
 
   Lemma ex_RInt_dom {F : R → R} {a b : R} : ex_RInt (fun x => Iverson (Ioo a b) x * F x) a b ↔ ex_RInt F a b.
   Proof.
