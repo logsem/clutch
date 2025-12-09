@@ -37,3 +37,16 @@ Next Obligation. intros. by apply wp_store. Qed.
 #[global] Program Instance logic_wptactics_frame_wand `{!eltonGS Σ} : GwpTacticsFrameWand Σ unit true wp :=
   Build_GwpTacticsFrameWand _ _ _ _ _.
 Next Obligation. iIntros (???????) "H1 H2". by iApply (pgl_wp_frame_wand with "[H1][$]"). Qed.
+
+ 
+Section elton_test.
+  Context `{!eltonGS Σ}.
+
+  Local Lemma test_wp_tp_pures E l:
+    {{{ l ↪ ∅ }}} #3 + #3 @ E {{{ RET #6; l ↪ ∅ }}}.
+  Proof.
+    iIntros (Ψ) "Hs HΦ".
+    wp_pures.
+    by iApply "HΦ".
+  Qed.
+End elton_test.
