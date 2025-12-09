@@ -891,7 +891,7 @@ Qed.
       setoid_rewrite bind_Some.
       eexists _. split; first naive_solver.
       by rewrite list_to_map_cons.
-  Qed. 
+  Qed.
   
   Lemma urn_subst_heap_union m1 m2 m1' m2' f:
     dom m1 ## dom m2 ->
@@ -954,6 +954,171 @@ Qed.
     rewrite not_elem_of_dom.
     apply lookup_union_None_2; try done.
     by apply disjoint_singleton_l, not_elem_of_dom in Hdom1.
+  Qed.
+
+  Lemma urn_subst_heap_empty f:
+    urn_subst_heap f ∅ = Some ∅.
+  Proof.
+    rewrite /urn_subst_heap.
+    by rewrite map_to_list_empty.
+  Qed.
+
+  Lemma urn_subst_heap_forall f m m':
+    urn_subst_heap f m = Some m' ->
+    map_Forall (λ _ v, ∃ v', urn_subst_val f v = Some v') m.
+  Proof.
+    rewrite /urn_subst_heap.
+    rewrite fmap_Some.
+    setoid_rewrite mapM_Some.
+    intros.
+    destruct!/=.
+    rewrite map_Forall_to_list.
+    eapply Forall2_Forall_l; first done.
+    simpl.
+    apply Forall_true.
+    intros [][].
+    rewrite bind_Some.
+    intros. destruct!/=.
+    naive_solver.
+  Qed.
+
+  Lemma urn_subst_heap_forall' f m:
+    map_Forall (λ _ v, ∃ v', urn_subst_val f v = Some v') m ->
+    is_Some (urn_subst_heap f m).
+  Proof.
+    intros Hforall.
+    destruct (urn_subst_heap f m) eqn :H; first naive_solver.
+    exfalso.
+    rewrite /urn_subst_heap in H.
+    setoid_rewrite fmap_None in H.
+    setoid_rewrite mapM_None in H.
+    revert H.
+    apply Forall_Exists_neg.
+    rewrite Forall_forall.
+    intros [??].
+    rewrite elem_of_map_to_list.
+    intros ?.
+    destruct (mbind _ _) eqn:H'; first done.
+    rewrite bind_None in H'.
+    destruct!/=.
+    rewrite map_Forall_lookup in Hforall.
+    apply Hforall in H.
+    naive_solver.
+  Qed.
+  
+  
+  Lemma urn_subst_heap_dom f m m':
+    urn_subst_heap f m = Some m' ->
+    dom m = dom m'.
+  Proof.
+    revert m'.
+    revert m.
+    apply (map_ind (λ m, ∀ m', urn_subst_heap _ _ = _ -> _)).
+    - intros ?. rewrite urn_subst_heap_empty.
+      intros. by simplify_eq.
+    - intros ?????.
+      intros ?.
+      intros H'.
+      apply urn_subst_heap_forall in H' as H''.
+      eapply map_Forall_lookup_1 in H'' as K; last apply lookup_insert.
+      destruct!/=.
+      unshelve epose proof urn_subst_heap_forall' f m _ as []; first by eapply map_Forall_insert_1_2.
+      erewrite urn_subst_heap_insert in H'; [| |done|done].
+      + simplify_eq.
+        rewrite !dom_insert_L.
+        f_equal.
+        naive_solver.
+      + by rewrite not_elem_of_dom.
+  Qed. 
+
+  Lemma urn_subst_heap_replicate f l v v' n m:
+    urn_subst_val f v = Some v' ->
+    urn_subst_heap f (heap_array l (replicate n v)) =
+    Some m ->
+    (heap_array l (replicate n v')) = m.
+  Proof.
+    intros Hv.
+    revert l m.
+    induction n; simpl.
+    - setoid_rewrite urn_subst_heap_empty.
+      naive_solver.
+    - intros ??.
+      assert (∃ m', urn_subst_heap f (heap_array (l +ₗ 1) (replicate n v)) = Some m').
+      { apply urn_subst_heap_forall'.
+        apply map_Forall_lookup_2.
+        intros ??.
+        rewrite heap_array_lookup.
+        intros H.
+        destruct H as [?[?[? K]]].
+        rewrite lookup_replicate in K.
+        destruct!/=. naive_solver.
+      }
+      destruct!/=.
+      erewrite urn_subst_heap_union; last first.
+      + done.
+      + rewrite /urn_subst_heap.
+        rewrite fmap_Some.
+        setoid_rewrite mapM_Some.
+        eexists _.
+        rewrite map_to_list_singleton.
+        erewrite Forall2_cons_iff.
+        rewrite Hv. naive_solver.
+      + symmetry.
+        set_unfold.
+        intros ?.
+        intros [K]%dom_heap_array.
+        intros ->.
+        revert K.
+        rewrite /loc_add/loc_le.
+        simpl. lia. 
+      + simpl. rewrite insert_empty.
+        intros. simplify_eq.
+        f_equal.
+        naive_solver.
+  Qed.
+  
+  Lemma urn_subst_heap_delete f i m m':
+    i ∈ dom m ->
+    urn_subst_heap f m = Some m' ->
+    urn_subst_heap f (delete i m) = Some (delete i m').
+  Proof.
+    intros Hdom H1.
+    apply urn_subst_heap_forall in H1 as H2.
+    assert (∃ m', urn_subst_heap f (delete i m) = Some m') as H.
+    { eapply urn_subst_heap_forall'. by apply map_Forall_delete. }
+    destruct!/=.
+    rewrite H.
+    f_equal.
+    rewrite elem_of_dom in Hdom.
+    destruct Hdom as [? Hdom].
+    eapply map_Forall_lookup_1 in H2; last done.
+    destruct H2 as [? H2].
+    unshelve epose proof urn_subst_heap_insert _ _ _ _ _ _ _ H2 H as H'.
+    2:{ rewrite not_elem_of_dom. apply lookup_delete. }
+    rewrite insert_delete in H'; last done.
+    rewrite H1 in H'. simplify_eq.
+    rewrite delete_insert; first done.
+    rewrite -not_elem_of_dom.
+    erewrite <-urn_subst_heap_dom; last done.
+    rewrite not_elem_of_dom. apply lookup_delete. 
+  Qed. 
+
+  (** same as insert, but this is if i is in the domain *)
+  Lemma urn_subst_heap_insert' f i x x' m m':
+    i ∈ dom m ->
+    urn_subst_val f x = Some x' ->
+    urn_subst_heap f m = Some m' ->
+    urn_subst_heap f (<[i:=x]> m) = Some (<[i:=x']> m').
+  Proof.
+    intros Hdom H1 H2.
+    rewrite -insert_delete_insert.
+    apply urn_subst_heap_forall in H2 as H3.
+    eapply urn_subst_heap_delete in Hdom; last done.
+    erewrite urn_subst_heap_insert; last first.
+    - done.
+    - done.
+    - rewrite not_elem_of_dom. apply lookup_delete.
+    - by rewrite insert_delete_insert. 
   Qed. 
     
 End urn_subst.

@@ -993,6 +993,45 @@ Proof.
     rewrite map_union_empty replicate_length //.
 Qed.
 
+Lemma heap_array_disjoint (m:gmap loc val) n v:
+  dom (heap_array (fresh_loc m) (replicate n v)) ## dom m.
+Proof.
+  remember n as n' eqn:Heqn.
+  replace (fresh_loc m) with ((fresh_loc m +ₗ (n-n'))); last first.
+  { subst. rewrite Z.sub_diag. by rewrite loc_add_0. }
+  assert (n'<=n)%nat as H by lia.
+  clear Heqn.
+  revert H.
+  revert m.
+  induction n' as [|? IHn']; first set_solver.
+  simpl.
+  intros.
+  rewrite dom_union.
+  rewrite disjoint_union_l.
+  split.
+  - rewrite dom_singleton.
+    rewrite disjoint_singleton_l.
+    apply fresh_loc_offset_is_fresh.
+    lia.
+  - rewrite loc_add_assoc.
+    replace (_-_+_)%Z with (n-n')%Z by lia.
+    apply IHn'. lia.
+Qed. 
+
+Lemma dom_heap_array x l lis:
+  x ∈ dom (heap_array l lis) ->
+  loc_le l x /\ loc_lt x (loc_add l (length lis)).
+Proof.
+  rewrite elem_of_dom.
+  intros [? H].
+  rewrite heap_array_lookup in H.
+  destruct H as [? [? [? K]]].
+  subst.
+  rewrite -{1}(loc_add_0 l).
+  split; first by apply loc_add_le_mono.
+  apply Z.add_lt_mono_l.
+  apply lookup_lt_Some in K. lia.
+Qed. 
 #[local] Open Scope R.
 
 Section urn.

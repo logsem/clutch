@@ -30,6 +30,11 @@ Local Ltac val_exists_solver :=
       erewrite <-urns_f_valid_support; first done;
   by apply urns_f_distr_pos.
 
+Local Ltac heap_exists_solver :=
+  eapply urn_subst_heap_exists; first done;
+      erewrite <-urns_f_valid_support; first done;
+  by apply urns_f_distr_pos.
+
 Lemma delay_prob_lang_commute e σ m: 
   is_well_constructed_expr e = true ->
   expr_support_set e ⊆ urns_support_set (urns σ) ->
@@ -223,7 +228,38 @@ Proof.
     rewrite dbind_assoc'.
     rewrite -d_proj_Some_fmap.
     rewrite -!/(urn_subst_heap _ _).
-    admit.
+    assert (∃ h, urn_subst_heap a (heap σ) = Some h) as [? Hrewrite'] by heap_exists_solver.
+    assert (∃ h, urn_subst_heap a (heap_array (fresh_loc (heap σ)) (replicate (Z.to_nat z) v) ) = Some h) as [? Hrewrite''].
+    { eapply urn_subst_heap_exists.
+      - apply map_Forall_lookup_2.
+        intros ??. rewrite heap_array_lookup.
+        intros [?[K1 [K2 K3]]]. subst.
+        apply lookup_replicate in K3. by destruct!/=.
+      - apply map_Forall_lookup_2.
+        intros ??. rewrite heap_array_lookup.
+        intros [?[K1 [K2 K3]]]. subst.
+        apply lookup_replicate in K3.
+        destruct!/=.
+        etrans; first exact.
+        erewrite urns_f_valid_support; last by apply urns_f_distr_pos. done. }
+    erewrite urn_subst_heap_union; [..|done|done]; last first.
+    + apply heap_array_disjoint.
+    + rewrite Hrewrite'. smash.
+      rewrite fill_prim_step_dbind; last done.
+      rewrite head_prim_step_eq.
+      simpl.
+      rewrite bool_decide_eq_true_2; last done.
+      smash.
+      do 2 f_equal.
+      * do 4 f_equal.
+        apply fresh_loc_eq_dom.
+        symmetry. by eapply urn_subst_heap_dom.
+      * rewrite /state_upd_heap_N. simpl.
+        do 2 f_equal.
+        eapply urn_subst_heap_replicate; try done.
+        replace (fresh_loc _) with (fresh_loc (heap σ)); first done.
+        apply fresh_loc_eq_dom.
+        by eapply urn_subst_heap_dom.
   - (** load *)
     repeat smash.
     case_match; simplify_eq.
@@ -291,7 +327,23 @@ Proof.
     rewrite dbind_assoc'.
     rewrite -d_proj_Some_fmap.
     rewrite -!/(urn_subst_heap _ _).
-    admit.
+    assert (∃ h, urn_subst_heap a (heap σ) = Some h) as [h Hrewrite'] by heap_exists_solver.
+    assert (is_Some(h!!l) ) as [? K'].
+    { rewrite <-elem_of_dom. erewrite <-urn_subst_heap_dom; last done.
+      rewrite elem_of_dom. naive_solver.
+    }
+    destruct!/=.
+    rewrite Hrewrite'.
+    erewrite urn_subst_heap_insert'; [| |done|done]; last first.
+    { rewrite elem_of_dom. naive_solver. }
+    smash.
+    rewrite fill_prim_step_dbind; last done.
+    erewrite head_prim_step_eq; last first.
+    { rewrite -head_step_pred_head_reducible.
+      by eapply StoreHSP. }
+    smash.
+    rewrite K'.
+    by smash.
   - (** rand *)
     repeat smash.
     case_match; last first.
