@@ -1610,7 +1610,38 @@ Section credits.
        Series.Series
          (λ k : nat,
             RInt (λ x0 : R, RInt (λ x1 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1) 0 1) 0 1)).
-  Proof. Admitted.
+  Proof.
+    pose B : nat * nat → R := fun '(k, x) => RInt (λ x0 : R, RInt (λ x1 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1) 0 1) 0 1.
+    suffices H : Series.Series (λ k : nat, Series.Series (λ x : nat, B (x, k))) = Series.Series (λ x : nat, Series.Series (λ k : nat, B (x, k))).
+    { rewrite /B in H.
+      rewrite H.
+      apply Series.Series_ext; intros ?.
+      apply Series.Series_ext; intros ?.
+      reflexivity.
+    }
+    have HL3 : ∀ (a b : nat) (x x0 : R), 0 < x < 1 → 0 < x0 < 1 → 0 <= G1_μ b * (1 - exp (- x * (2 * b + x) / 2)) * G2_μ a x0 * F a x0.
+    { admit. }
+    have HL2 : ∀ (a b : nat) (x : R), 0 < x < 1 → ex_RInt (λ x1 : R, G1_μ b * (1 - exp (- x * (2 * b + x) / 2)) * G2_μ a x1 * F a x1) 0 1.
+    { admit. }
+    have HL1 : ∀ (a b : nat), ex_RInt (λ x0 : R, RInt (λ x1 : R, G1_μ b * (1 - exp (- x0 * (2 * b + x0) / 2)) * G2_μ a x1 * F a x1) 0 1) 0 1.
+    { admit. }
+
+    have HBpos : ∀ a b : nat, 0 <= B (a, b).
+    { intros a b.
+      rewrite /B.
+      apply RInt_ge_0; OK.
+      intros ??.
+      apply RInt_ge_0; OK.
+    }
+    apply (@fubini_pos_series B); OK.
+    { intros a.
+      rewrite ex_seriesC_nat.
+      rewrite /B.
+      (* eapply ex_seriesC_RInt. *)
+
+      admit. }
+    { admit. }
+  Admitted.
 
   Lemma HR3 {F M x n} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     RInt (λ x1 : R, RInt (λ x0 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1 =
