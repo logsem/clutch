@@ -388,5 +388,122 @@ Proof.
     { exfalso. naive_solver. }
     repeat smash.
     erewrite urn_subst_equal_epsilon_unique; last done.
+    erewrite urns_f_distr_insert; last first.
+    { rewrite size_list_to_set; last apply NoDup_seq.
+      rewrite seq_length.
+      instantiate (1:=Z.to_nat z). lia.
+    }
+    { apply fresh_loc_is_fresh. }
+    unfolder.
+    repeat smash.
+    assert (exists K', mapM (urn_subst_ectx_item a) K = Some K') as [? Hrewrite].
+    { apply mapM_is_Some_2.
+      rewrite Forall_forall.
+      setoid_rewrite elem_of_list_lookup.
+      intros. simpl. destruct!/=.
+      eapply urn_subst_ectx_item_exists.
+      - rewrite forallb_forall in H2.
+        apply H2.
+        rewrite -elem_of_list_In elem_of_list_lookup. naive_solver.
+      - erewrite <-urns_f_valid_support; last by apply urns_f_distr_pos.
+        etrans; last apply H3.
+        set_unfold.
+        setoid_rewrite elem_of_union_list.
+        intros ??.
+        eexists _; split; last done.
+        rewrite elem_of_list_fmap.
+        eexists _; split; first done.
+        rewrite elem_of_list_lookup. naive_solver.
+    }
+    rewrite Hrewrite.
+    smash.
+    rewrite H; last by apply urns_f_distr_pos.
+    smash.
+    rewrite dbind_assoc'.
+    rewrite -d_proj_Some_fmap.
+    rewrite -!/(urn_subst_heap _ _).
+    assert (∃ h, urn_subst_heap a (heap σ) = Some h) as [h Hrewrite'] by heap_exists_solver.
+    rewrite Hrewrite'.
+    smash.
+    rewrite fill_prim_step_dbind; last done.
+    unshelve epose proof H a _ as H'; first by apply urns_f_distr_pos. 
+    erewrite head_prim_step_eq; last first.
+    { rewrite -head_step_pred_head_reducible.
+      eapply RandHSP; first by eapply urn_subst_equal_obv.
+      done.
+    }
+    simpl.
+    case_match; last done.
+    case_match; last done.
+    case_match; last (exfalso; naive_solver).
+    erewrite urn_subst_equal_epsilon_unique; last done.
+    rewrite dmap_comp.
+    rewrite /dmap.
+    assert (∀ (x:fin(S (Z.to_nat z))), ∃ y, elements ((list_to_set (seq 0 (Z.to_nat z + 1))):gset _) !! y = Some (fin_to_nat x)) as Hf.
+    { clear.
+      intros x.
+      pose proof fin_to_nat_lt x.
+      rewrite -elem_of_list_lookup.
+      rewrite elem_of_elements.
+      rewrite elem_of_list_to_set elem_of_seq. lia. }
+    assert (∀ x, epsilon (Hf x)< S (Z.to_nat z))%nat as Hf'.
+    { clear -Hf.
+      intros a0.
+      epose proof epsilon_correct _ (Hf a0) as Hcorrect.
+      simpl in *.
+      apply lookup_lt_Some in Hcorrect.
+      rewrite -length_elements_size_gset in Hcorrect.
+      rewrite size_list_to_set in Hcorrect; last apply NoDup_seq.
+      rewrite seq_length in Hcorrect. lia. }
+    pose (f:=λ x, nat_to_fin (Hf' x)).
+    assert (Bij f) as Hbij.
+    { clear. split.
+      - intros x y. rewrite /f.
+        intros H.
+        apply (f_equal fin_to_nat) in H.
+        rewrite !fin_to_nat_to_fin in H.
+        epose proof epsilon_correct _ (Hf x) as Hcorrect.
+        epose proof epsilon_correct _ (Hf y) as Hcorrect'.
+        simpl in *.
+        rewrite H in Hcorrect.
+        rewrite Hcorrect' in Hcorrect. naive_solver.
+      - intros x.
+        rewrite /f.
+        assert (∃ (n:fin (S (Z.to_nat z))), elements (list_to_set (seq 0 (Z.to_nat z + 1)) : gset nat) !! (fin_to_nat x) = Some (fin_to_nat n)) as Hfound.
+        + assert (∃ n, elements (list_to_set (seq 0 (Z.to_nat z + 1)) : gset nat) !! (fin_to_nat x) = Some n /\ n < S $ Z.to_nat z)%nat as H; last first.
+          { destruct H as [?[? Hineq]].
+            exists (nat_to_fin Hineq).
+            by rewrite fin_to_nat_to_fin. }
+          assert (∃ n, elements (list_to_set (seq 0 (Z.to_nat z + 1)) : gset nat) !! (fin_to_nat x) = Some n)%nat as H.
+          * apply lookup_lt_is_Some_2.
+            rewrite -length_elements_size_gset size_list_to_set; last apply NoDup_seq.
+            pose proof fin_to_nat_lt x.
+            rewrite seq_length. lia.
+          * destruct!/=.
+            eexists _; split; first done.
+            apply elem_of_list_lookup_2 in H.
+            rewrite elem_of_elements elem_of_list_to_set elem_of_seq in H.
+            lia.
+        + destruct Hfound as [n H].
+          exists n.
+          apply fin_to_nat_inj.
+          rewrite fin_to_nat_to_fin. 
+          epose proof epsilon_correct _ (Hf (n)) as Hcorrect.
+          simpl in *.
+          eapply NoDup_alt in H; last apply Hcorrect; first done.
+          apply NoDup_elements.
+    } 
+    apply Rcoupl_eq_elim.
+    eapply Rcoupl_dbind; last first.
+    { apply (Rcoupl_dunif ). apply Hbij. }
+    simpl.
+    intros a0 ? ->.
+    rewrite /f.
+    rewrite fin_to_nat_to_fin.
+    epose proof epsilon_correct _ (Hf a0) as Hcorrect.
+    simpl in *.
+    rewrite Hcorrect.
+    rewrite dret_id_left'.
+    smash.
     admit. 
 Admitted. 
