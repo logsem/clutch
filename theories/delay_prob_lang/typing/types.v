@@ -332,3 +332,11 @@ Proof.
         repeat case_match; repeat rewrite dom_insert; set_solver.
     + naive_solver.
 Qed. 
+
+Lemma typed_remove_drand_expr Γ τ (x:expr) : Γ ⊢ₜ x : τ -> remove_drand_expr x= Some x
+  with typed_remove_drand_val τ v :
+    ⊢ᵥ v : τ → remove_drand_val v= Some v.
+Proof.
+  all: intros Ht; inversion Ht; subst; simpl; repeat setoid_rewrite bind_Some; naive_solver.
+Qed. 
+  
