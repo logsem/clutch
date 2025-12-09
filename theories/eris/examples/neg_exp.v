@@ -170,6 +170,16 @@ Section credits.
       (locally (λ x : R, Series.Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x 0 n * hx F x L n)))).
     { rewrite /s.
       apply (UniformConverge_Series (fun n => 2 * M * / (fact (n - 0)%nat))).
+      { intros ??.
+        rewrite /Iverson//=. case_decide; OK.
+        rewrite Rmult_1_l.
+        rewrite /Ioo//= in H.
+        rewrite Rmin_left in H; OK.
+        rewrite Rmax_right in H; OK.
+        apply Rmult_le_pos.
+        { apply RealDecrTrial_μnn; OK. }
+        { eapply hx_nonneg; OK. }
+      }
       { replace (λ n : nat, 2 * M * / fact (n - 0)) with (λ n : nat, / fact n * (2 * M)); last first.
         { funexti. rewrite Rmult_comm. repeat f_equal. OK. }
         apply Series.ex_series_scal_r.

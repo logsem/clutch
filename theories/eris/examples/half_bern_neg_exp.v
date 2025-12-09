@@ -125,6 +125,19 @@ Section credits.
         apply SeriesC_ext.
         intros ?; OK.
       }
+      { intros ??.
+        rewrite /Iverson//=.
+        case_decide; OK.
+        rewrite Rmult_1_l.
+        rewrite /Ioo//= in H.
+        rewrite Rmin_left in H; OK.
+        rewrite Rmax_right in H; OK.
+        apply Rmult_le_pos.
+        { apply RealDecrTrial_μnn. OK. }
+        { rewrite /LiftF.
+          apply HF.
+        }
+      }
       { apply ex_series_scal_r.
         apply ex_exp_series.
       }

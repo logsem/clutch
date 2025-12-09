@@ -215,6 +215,17 @@ Section credits.
     have HSLim : filterlim s eventually (locally (λ x : R, Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x N n * F n)))).
     { rewrite /s.
       apply (UniformConverge_Series (fun n => M * / (fact (n - N)%nat))).
+      { intros ??.
+        rewrite /Iverson//=.
+        case_decide; OK.
+        rewrite Rmult_1_l.
+        rewrite /Ioo//= in H.
+        rewrite Rmin_left in H; OK.
+        rewrite Rmax_right in H; OK.
+        apply Rmult_le_pos.
+        { apply RealDecrTrial_μnn. OK. }
+        { apply Hbound. }
+      }
       { apply (@ex_series_scal_l _ R_CompleteNormedModule).
         apply ex_exp_series'. }
       intros x n.
@@ -469,6 +480,19 @@ Section credits.
           intros n.
           rewrite Iverson_False; OK.
         }
+      }
+      { intros ??.
+        rewrite /Iverson//=.
+        case_decide; OK.
+        rewrite Rmult_1_l.
+        case_decide; OK.
+        rewrite Rmult_1_l.
+        rewrite /Ioo//= in H.
+        rewrite Rmin_left in H; OK.
+        rewrite Rmax_right  in H; OK.
+        apply Rmult_le_pos.
+        { apply RealDecrTrial_μnn; OK. }
+        { apply Hbound. }
       }
       { apply ex_series_scal_r.
         apply ex_seriesC_nat.

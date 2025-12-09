@@ -390,6 +390,16 @@ Section credits.
       (locally (λ x0 : R, Series.Series (λ n : nat, Iverson (Ioo 0 b) x0 * (S_μ k x x0 N n * F n)))).
     { rewrite /s.
       apply (UniformConverge_Series (fun n => M * / (fact (n - N)%nat))).
+      { intros ??.
+        rewrite /Iverson//=. case_decide; OK.
+        rewrite Rmult_1_l.
+        rewrite /Ioo//= in H.
+        rewrite Rmin_left in H; OK.
+        rewrite Rmax_right in H; OK.
+        apply Rmult_le_pos.
+        { apply S_μ_nn; OK. }
+        { apply Hf. }
+      }
       { apply (@Series.ex_series_scal_l _ R_CompleteNormedModule), ex_exp_series'. }
       intros x' n.
       rewrite Rabs_right; last first.
@@ -654,6 +664,16 @@ Section credits.
         rewrite SeriesC_Series_nat.
         rewrite Rmult_1_l.
         apply Series_ext; intros ?; OK.
+      }
+      { intros ??.
+        rewrite /Iverson//=. case_decide; OK.
+        rewrite Rmult_1_l.
+        rewrite /Ioo//= in H.
+        rewrite Rmin_left in H; OK.
+        rewrite Rmax_right in H; OK.
+        apply Rmult_le_pos.
+        { apply S_μ_nn; OK. }
+        { apply Hf. }
       }
       { apply ex_series_scal_r. apply ex_exp_series'. }
       { intros ??.

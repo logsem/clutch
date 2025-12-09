@@ -1348,22 +1348,32 @@ Proof.
   Qed.
 
   Definition TailSeries (F : nat → R) (M : nat) :=
-    Series.Series (F ∘ (fun n => n + M)%nat).
+    Series.Series (F ∘ (fun n => n + (S M))%nat).
 
   (* TODO: What other hypotheses do we need here? Existence? Nonnegativity? *)
   (* Key lemma in UnifomConverge_Series *)
   Definition TailSeries_eq {F M} :
-    TailSeries F M = (minus (sum_n F M) (Series.Series F)).
+    Series.ex_series F →
+    TailSeries F M = (minus (Series.Series F) (sum_n F M)).
   Proof.
-  Admitted.
+    intro H.
+    rewrite /TailSeries/minus//=/plus//=/opp//=.
+    symmetry.
+    rewrite (@Series.Series_incr_n _ (S M)); [| lia | done].
+    rewrite -sum_n_Reals -pred_Sn Rplus_comm -Rplus_assoc Rplus_opp_l Rplus_0_l.
+    rewrite /compose//=.
+    f_equal. apply functional_extensionality; intros ?. do 2 f_equal.
+    lia.
+  Qed.
 
   (* Weierstrass M test, Rudin 7.10 *)
   Lemma UniformConverge_Series {F : R → nat → R} (UB : nat → R) :
+    (∀ x n, 0 <= F x n) →
     (Series.ex_series UB) →
     (forall x n, Rabs (F x n) <= UB n) →
     filterlim (fun (M : nat) (x : R) => sum_n (F x) M) eventually (locally (λ x : R, Series.Series (F x))).
  Proof.
-    intros H1 H2.
+    intros H3 H1 H2.
     rewrite filterlim_locally /eventually//=.
     intro eps.
     have H1' := H1.
@@ -1384,12 +1394,25 @@ Proof.
     rewrite -HS in HN.
     eapply Rle_lt_trans; [|apply HN].
     clear HN eps.
-    do 2 rewrite -TailSeries_eq.
+    do 2 rewrite (abs_minus (sum_n _ _) ).
+    rewrite -TailSeries_eq.
+    2: {
+      rewrite ex_seriesC_nat.
+      apply (ex_seriesC_le _ UB).
+      { intros ?. split; [done|].
+        etrans; [apply Rle_abs|].
+        apply H2.
+      }
+      rewrite -ex_seriesC_nat.
+      done.
+    }
+    rewrite -TailSeries_eq.
+    2: { done. }
     (* LHS term: use triangle inequality to avoid nonnegatiity hypothesis. *)
     rewrite /TailSeries.
     etrans; first eapply Series.Series_Rabs.
     { rewrite ex_seriesC_nat.
-      apply (@ex_SeriesC_nat_shiftN_r' (fun n' => Rabs (F t n')) n).
+      apply (@ex_SeriesC_nat_shiftN_r' (fun n' => Rabs (F t n')) (S n)).
       eapply ex_seriesC_le.
       2: { rewrite -ex_seriesC_nat. apply H1'. }
       intros.
@@ -1412,7 +1435,7 @@ Proof.
     apply SeriesC_le.
     2: {
       rewrite /compose//=.
-      apply (@ex_SeriesC_nat_shiftN_r' UB n).
+      apply (@ex_SeriesC_nat_shiftN_r' UB (S n)).
       rewrite -ex_seriesC_nat.
       apply H1'.
     }
@@ -1530,6 +1553,7 @@ Proof.
   Qed.
 
   Lemma FubiniIntegralSeries {f : nat → R → R_CompleteNormedModule} {a b : R} (UB : nat → R)
+    (Hnn : ∀ (x : R) (n : nat), 0 <= f n x)
     (HexU : Series.ex_series UB) (Hub : forall x n, Rabs (f n x) <= UB n) (Hex : ∀ n, ex_RInt (f n) a b) :
     Series.Series (fun n => RInt (λ x : R, f n x) a b) = RInt (λ x : R, Series.Series (λ n' : nat, f n' x)) a b.
   Proof.
