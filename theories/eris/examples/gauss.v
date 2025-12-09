@@ -585,7 +585,7 @@ Section credits.
          apply (ex_RInt_scal (V := R_CompleteNormedModule)).
          eapply G2_exRInt. }
        { intros x Hx.
-         admit. }
+         a dmit. }
      }
      { rewrite RInt_scal.
        2: { apply G2_exRInt. }
@@ -609,7 +609,7 @@ Section credits.
     }
     apply ex_seriesC_scal_r.
     (* I think I can upper-bound this integral by its max value, which is e^-x^2, whose series converges. *)
-    admit.
+    a dmit.
   }
 *)
   Admitted.
@@ -1206,12 +1206,206 @@ Section credits.
   Lemma HL3 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     ex_seriesC (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1).
   Proof.
-    (*
-    apply (ex_seriesC_le _ (fun k => M * RInt (G2_μ k) 0 1)).
-    + a dmit.
-    + apply ex_seriesC_scal_l.
-      a dmit.
-    *)
+    (* Shuffle around inner terms *)
+    suffices H1 :
+      @ex_seriesC nat numbers.Nat.eq_dec nat_countable (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R,  G2_μ k x1 * F k x1 * @SeriesC nat numbers.Nat.eq_dec nat_countable (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1) 0 1).
+    { eapply ex_seriesC_ext; [|apply H1].
+      intros n. rewrite //=.
+      apply RInt_ext.
+      rewrite Rmin_left; OK.
+      rewrite Rmax_right; OK.
+      intros ??.
+      apply RInt_ext.
+      rewrite Rmin_left; OK.
+      rewrite Rmax_right; OK.
+      intros ??.
+      rewrite -SeriesC_scal_l.
+      apply SeriesC_ext.
+      intros ?; OK.
+    }
+
+    have HG2Le : ∀ k x, 0 <= x <= 1 → G2_μ k x <= exp (-k^2 / 2) / Norm2.
+    { intros ???.
+      rewrite /G2_μ.
+      rewrite Rdiv_def.
+      apply Rmult_le_compat_r.
+      { have ? := Norm2_nn.
+        rewrite -(Rmult_1_l (/ Norm2)).
+        apply Rle_mult_inv_pos; OK.
+      }
+      apply exp_mono.
+      rewrite Rdiv_def.
+      apply Rmult_le_compat_r; OK.
+      apply Ropp_le_contravar.
+      apply pow_incr.
+      have ? := (pos_INR k).
+      OK.
+    }
+
+    have HFubiniEx4 : ∀ x (x0 : nat), 0 <= x <= 1 → 0 <= 1 - exp (- x * (2 * x0 + x) / 2).
+    { intros ???.
+      suffices ? : exp (- x * (2 * x0 + x) / 2) <= 1 by OK.
+      apply Rexp_range.
+      apply Rcomplements.Rmult_le_0_r; OK.
+      apply Rcomplements.Rmult_le_0_r; OK.
+      have ? := pos_INR x0.
+      OK.
+    }
+
+    have HFubiniEx5 : ∀ n t, 0 <= t <= 1 → ex_RInt (λ x0 : R, G2_μ n t * F n t * SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1.
+    { intros ???.
+      apply ex_RInt_Rmult.
+      apply (ex_RInt_SeriesC G1_μ); OK.
+      { rewrite /G1_μ.
+        replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+        rewrite ex_seriesC_nat.
+        apply ex_seriesC_scal_r.
+        apply Norm1_ex.
+      }
+      { intros ???.
+        split.
+        { apply Rmult_le_pos; [apply G1_μ_nn|]. apply HFubiniEx4; OK. }
+        { rewrite -{2}(Rmult_1_r (G1_μ n0)).
+          apply Rmult_le_compat_l; OK.
+          { apply G1_μ_nn. }
+          suffices  ? : 0 <= exp (- x * (2 * n0 + x) / 2)  by OK.
+          apply Rexp_nn.
+        }
+      }
+      { intros ?.
+        apply ex_RInt_Rmult.
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros ??.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+    }
+
+    have FubiniEx3 : ∀ n t, 0 <= t <= 1 → 0 <= RInt (λ x0 : R, G2_μ n t * F n t * SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1.
+    { intros ???.
+      apply RInt_ge_0; OK.
+      intros ??.
+      apply Rmult_le_pos; [apply Rmult_le_pos|].
+      { apply G2_μ_nn; OK. }
+      { apply Hbound. }
+      { apply SeriesC_ge_0'.
+        intros ?.
+        apply Rmult_le_pos.
+        { apply G1_μ_nn. }
+        { apply HFubiniEx4.  OK. }
+      }
+    }
+
+    have HFubiniEx2 : ∀ n,  ex_RInt (λ x1 : R, RInt (λ x0 : R, G2_μ n x1 * F n x1 * SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1) 0 1.
+    { intros ?.
+      apply Fubini_ex_x.
+      (* TODO: This needs to generalize to piecewise continuity, but I believe it is true?
+        The tricky part is showing that the inner series is pcs continuous.
+      *)
+      rewrite /FubiniCondition.
+      admit. }
+
+    have HFubiniEx1 : ∀ n, 0 <= RInt (λ x1 : R, RInt (λ x0 : R, G2_μ n x1 * F n x1 * SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1) 0 1.
+    { intros ?. apply RInt_ge_0; OK.
+      intros ??.
+      apply FubiniEx3.
+      OK.
+    }
+
+    (* Bound the outer integral above *)
+    suffices H1 : (@ex_seriesC nat numbers.Nat.eq_dec nat_countable (λ k : nat, RInt (λ x0 : R, (exp (-k^2 / 2) / Norm2) * M * @SeriesC nat numbers.Nat.eq_dec nat_countable (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1)).
+    { eapply ex_seriesC_le; [|apply H1].
+      intros ?.
+      split; [apply HFubiniEx1|].
+      rewrite -(Rabs_right _ (Rle_ge _ _ (HFubiniEx1 n))).
+      etrans; first apply abs_RInt_le_const.
+      1, 2: OK.
+      2: { rewrite Rminus_0_r Rmult_1_l. right. done. }
+      intros ??.
+      rewrite Rabs_right.
+      2: { apply Rle_ge. apply FubiniEx3. OK. }
+      apply RInt_le; OK.
+      { apply ex_RInt_Rmult.
+        apply (ex_RInt_SeriesC G1_μ); OK.
+        { rewrite /G1_μ.
+          replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+          rewrite ex_seriesC_nat.
+          apply ex_seriesC_scal_r.
+          apply Norm1_ex.
+        }
+        { intros ???.
+          split.
+          { apply Rmult_le_pos; [apply G1_μ_nn|]. apply HFubiniEx4; OK. }
+          { rewrite -{2}(Rmult_1_r (G1_μ n0)).
+            apply Rmult_le_compat_l; OK.
+            { apply G1_μ_nn. }
+            suffices  ? : 0 <= exp (- x * (2 * n0 + x) / 2)  by OK.
+            apply Rexp_nn.
+          }
+        }
+        { intros ?.
+          apply ex_RInt_Rmult.
+          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+      }
+      { intros ??.
+        apply Rmult_le_compat_r; OK.
+        { apply SeriesC_ge_0'.
+          intros ?.
+          apply Rmult_le_pos; [apply G1_μ_nn|].
+          apply HFubiniEx4; OK.
+        }
+        { apply Rmult_le_compat; OK.
+          { apply G2_μ_nn. OK. }
+          { apply Hbound. }
+          { apply Hbound. }
+        }
+      }
+    }
+
+    (* Move k factor out *)
+    suffices H1 : @ex_seriesC nat numbers.Nat.eq_dec nat_countable (λ k : nat, exp (- k ^ 2 / 2) * / Norm2 * RInt (λ x0 : R, M * @SeriesC nat numbers.Nat.eq_dec nat_countable  (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1).
+    { eapply ex_seriesC_ext; last eapply H1.
+      intros ?. simpl.
+      rewrite RInt_Rmult.
+      2: {
+        apply ex_RInt_Rmult.
+        apply (ex_RInt_SeriesC G1_μ); OK.
+        { rewrite /G1_μ.
+          replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+          rewrite ex_seriesC_nat.
+          apply ex_seriesC_scal_r.
+          apply Norm1_ex.
+        }
+        { intros ???.
+          split.
+          { apply Rmult_le_pos; [apply G1_μ_nn|]. apply HFubiniEx4; OK. }
+          { rewrite -{2}(Rmult_1_r (G1_μ n0)).
+            apply Rmult_le_compat_l; OK.
+            { apply G1_μ_nn. }
+            suffices  ? : 0 <= exp (- x * (2 * n0 + x) / 2)  by OK.
+            apply Rexp_nn.
+          }
+        }
+        { intros ?.
+          apply ex_RInt_Rmult.
+          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+      }
+      apply RInt_ext.
+      intros ??; OK.
+    }
+
+    (* Now we can get rid of that integral entirely *)
+    apply ex_seriesC_scal_r.
+    apply ex_seriesC_scal_r.
+    apply Norm1_ex.
   Admitted.
 
   Lemma HR1 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :

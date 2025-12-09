@@ -780,10 +780,51 @@ Proof.
   }
 Qed.
 
+Lemma ex_RInt_comp_cts (f g : R → R) {a b : R}
+  (Hg : ∀ x, Continuity.continuous g x)
+  (Hf : ex_RInt f a b) :
+  ex_RInt (fun x => (g (f x))) a b.
+Proof.
+  (* Step 1: Get boundedness of f on [a,b] *)
+  destruct (ex_RInt_ub f a b Hf) as [M HM].
+
+  (* Step 2: Uniform continuity of g on the compact set [-M, M] *)
+  (* Heine-Cantor theorem: continuous on compact => uniformly continuous
+     This is a standard result that should be provable from Hg *)
+  assert (Hunif : ∀ eps : posreal,
+           ∃ delta : posreal,
+           ∀ x y : R,
+             Rabs x <= M → Rabs y <= M →
+             Rabs (x - y) < delta →
+             Rabs (g x - g y) < eps).
+  { (* TODO: Prove from Hg using compactness of [-M,M] *)
+    admit. }
+
+  (* Step 3: Prove g ∘ f is integrable *)
+
+  (* Boundedness of g on compact set *)
+  assert (Hgbound_compact : ∃ K, ∀ y, Rabs y <= M → Rabs (g y) <= K).
+  { (* TODO: Continuous function on compact set is bounded *)
+    admit. }
+  destruct Hgbound_compact as [K HK].
+
+  (* Therefore g ∘ f is bounded on [a,b] *)
+  assert (Hgbound : ∀ x, Rmin a b <= x <= Rmax a b → Rabs (g (f x)) <= K).
+  { intros x Hx. apply HK. apply HM. apply Hx. }
+
+  (* Main proof: Here we want to reduce ex_RInt to an epsilon-delta argument. *)
+
+Admitted.
+
 Lemma ex_RInt_square (f  : R -> R) (a b : R) :
   ex_RInt f a b → ex_RInt (fun x => (f x) ^ 2) a b.
 Proof.
-Admitted. (* G & E *)
+  intros ?.
+  apply (ex_RInt_comp_cts f (fun x => x ^ 2)); [|done].
+  intros ?.
+  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+  by auto_derive.
+Qed.
 
 Lemma ex_RInt_mult (f g : R -> R) (a b : R) :
   ex_RInt f a b ->  ex_RInt g a b ->
