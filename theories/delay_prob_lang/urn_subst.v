@@ -642,7 +642,57 @@ Qed.
     eapply (map_Forall_lookup_1 (λ (_ : loc) (v : val), val_support_set v ⊆ dom f)) in H2; last done.
     eapply urn_subst_val_exists in H1; last done.
     destruct!/=.
+  Qed.
+
+  Lemma urn_subst_subset f f' bl bl':
+    f ⊆  f'->
+    urn_subst f bl = Some bl' ->
+    urn_subst f' bl = Some bl'.
+  Proof.
+    intros H.
+    revert bl'.
+    induction bl; simpl; repeat setoid_rewrite bind_Some; intros; destruct!/=.
+    5:{ eexists _; split; last done.
+        by eapply lookup_weaken. }
+    all: naive_solver.
   Qed. 
+
+  Lemma urn_subst_expr_subset f f' e e':
+    f ⊆  f'->
+    urn_subst_expr f e = Some e' ->
+    urn_subst_expr f' e = Some e'.
+  Proof.
+    intros H.
+  Admitted.
+  
+  Lemma urn_subst_val_subset f f' v v':
+    f ⊆  f'->
+    urn_subst_val f v = Some v' ->
+    urn_subst_val f' v = Some v'.
+  Proof.
+    intros H.
+  Admitted. 
+    
+  Lemma urn_subst_ectx_item_subset f f' Ki Ki':
+    f ⊆ f'->
+    urn_subst_ectx_item f Ki = Some Ki' ->
+    urn_subst_ectx_item f' Ki = Some Ki'.
+  Proof.
+  Admitted. 
+    
+  Lemma urn_subst_ectx_subset f f' K K':
+    f ⊆ f'->
+    mapM (urn_subst_ectx_item f) K = Some K' ->
+    mapM (urn_subst_ectx_item f') K = Some K'.
+  Proof.
+  Admitted.
+  
+  Lemma urn_subst_heap_subset f f' m m':
+    f ⊆ f'->
+    urn_subst_heap f m = Some m' ->
+    urn_subst_heap f' m = Some m'.
+  Proof.
+  Admitted.                          
   
   Lemma urn_subst_expr_subst x v v' e e' f:
     urn_subst_expr f e = Some e'->

@@ -505,5 +505,23 @@ Proof.
     rewrite Hcorrect.
     rewrite dret_id_left'.
     smash.
-    admit. 
-Admitted. 
+    assert (a ⊆ <[fresh_loc (urns σ):=(fin_to_nat a0)]> a).
+    { apply insert_subseteq.
+      rewrite -not_elem_of_dom.
+      erewrite <-urns_f_valid_support; last by apply urns_f_distr_pos.
+      rewrite /urns_support_set.
+      rewrite elem_of_filter.
+      intros [].
+      pose proof fresh_loc_is_fresh (urns σ). naive_solver.
+    }
+    erewrite urn_subst_ectx_subset; [|done..].
+    smash.
+    rewrite lookup_insert.
+    smash.
+    rewrite dbind_assoc'.
+    rewrite -d_proj_Some_fmap.
+    rewrite -!/(urn_subst_heap _ _).
+    erewrite urn_subst_heap_subset; [|done..].
+    smash.
+    apply Rcoupl_eq.
+Qed. 
