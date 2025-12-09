@@ -271,8 +271,13 @@ Section credits.
   Qed.
 
 
-  Local Theorem g_expectation {F L M} (Hf : ∀ x, 0 <= F x <= M) (Hex : ∀ (a b : R), ex_RInt F a b) : is_RInt (g F L) 0 1 (NegExp_CreditV F L).
+  Local Theorem g_expectation {F L M}
+    (Hf : ∀ x, 0 <= F x <= M)
+    (HCts : PCts F) :
+    is_RInt (g F L) 0 1 (NegExp_CreditV F L).
   Proof.
+    have Hex : ∀ (a b : R), ex_RInt F a b.
+    { intros ??. by apply PCts_RInt. }
     suffices H : RInt (g F L) 0 1 = NegExp_CreditV F L.
     { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)), (g_ex_RInt (M := M)); first OK. apply Hex. }
     rewrite /g.
@@ -698,11 +703,13 @@ Section program.
       else
         "trial" ("L" + #1%Z).
 
-  Lemma wp_NegExp_gen {M} (F : R → R) (Hnn : ∀ n, 0 <= F n <= M) E (Hex : ∀ a b : R, ex_RInt F a b) :
+  Lemma wp_NegExp_gen {M} (F : R → R) (Hnn : ∀ n, 0 <= F n <= M) E (HPcts : PCts F) :
     ⊢ ∀ L, ↯ (NegExp_CreditV F L) -∗
            WP NegExp #L @ E
       {{ p, ∃ (vz : Z) (vr : R) (ℓ : val), ⌜p = PairV #vz ℓ⌝ ∗ lazy_real ℓ vr ∗ ↯(F (vr + IZR vz))}}.
   Proof.
+    have Hex : ∀ a b, ex_RInt F a b.
+    { intros ??. by apply PCts_RInt. }
     iLöb as "IH".
     iIntros (L) "Hε".
     rewrite {2}/NegExp.
