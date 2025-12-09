@@ -84,7 +84,7 @@ Section adequacy.
       + by iApply "H".
       + done.
       + pose proof cond_nonneg ε. lra.
-    - iDestruct "H" as "(%&%&%&%&%&%&%&%Hineq&H)".
+    - iDestruct "H" as "(%&%&%&%&%&%&%&%&%Hineq&H)".
       erewrite urns_f_distr_split; [|done..].
       rewrite -dbind_assoc'.
       iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
@@ -158,7 +158,7 @@ Section adequacy.
       + done.
       + pose proof cond_nonneg ε.
         simpl in *. lra. 
-    - iDestruct "H" as "(%&%&%&%&%&%&%&%Hineq&H)".
+    - iDestruct "H" as "(%&%&%&%&%&%&%&%&%Hineq&H)".
       erewrite urns_f_distr_split; [|done..].
       rewrite -dbind_assoc'.
       iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).

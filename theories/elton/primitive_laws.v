@@ -4,7 +4,7 @@ From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import auth excl.
 From iris.base_logic.lib Require Export ghost_map.
 From clutch.base_logic Require Export error_credits.
-From clutch.elton Require Export weakestpre ectx_lifting rupd.
+From clutch.elton Require Export weakestpre ectx_lifting rupd pupd.
 From clutch.delay_prob_lang Require Export class_instances.
 From clutch.delay_prob_lang Require Import tactics lang notation urn_subst.
 From iris.prelude Require Import options.
@@ -201,6 +201,74 @@ Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types σ : state.
 Implicit Types v : val.
 Implicit Types l : loc.
+
+Lemma pupd_epsilon_err E:
+  ⊢ pupd E E (∃ ε, ⌜(0<ε)%R⌝ ∗ ↯ ε)%I.
+Proof.
+  rewrite pupd_unseal/pupd_def.
+  iIntros (? ε) "(Hstate& Herr)".
+  iApply fupd_mask_intro; first set_solver.
+  iIntros "Hclose".
+  iApply state_step_coupl_ampl.
+  iIntros (ε' ?).
+  destruct (decide (ε'<1)%R); last first.
+  { iApply state_step_coupl_ret_err_ge_1.
+    simpl in *. lra.
+  }
+  iApply state_step_coupl_ret.
+  assert (ε<=ε')%R as H'; first (simpl; lra).
+  pose (diff :=((ε' - ε) H')%NNR).
+  replace (ε') with (ε + diff)%NNR; last (apply nnreal_ext; rewrite /diff; simpl; lra).
+  iMod (ec_supply_increase _ diff with "[$]") as "[??]".
+  { rewrite /diff. simpl. simpl in *. lra. }
+  iFrame. iMod "Hclose". iPureIntro.
+  rewrite /diff.
+  simpl.
+  lra.
+Qed.
+
+Lemma pupd_resolve_urn E l lis ε N (ε2 : _ -> nonnegreal):
+  NoDup lis ->
+  length lis = S N ->
+ (Expval (dunifP N) ε2 <= ε)%R ->
+  (exists r, forall ρ, (ε2 ρ <= r)%R) ->
+  ↯ ε -∗
+  l ↪ (list_to_set lis) -∗
+  pupd E E (∃ (x:fin (S N)) y,
+        ⌜lis!!(fin_to_nat x) = Some y⌝ ∗ l↪ {[y]} ∗ ↯ (ε2 (x))                                     
+    )%I.
+Proof.
+  rewrite pupd_unseal/pupd_def.
+  iIntros (HNoDup Hlen Hineq Hbound) "Herr Hl".
+  iIntros (? ε') "([Hs Ht]& Herr')".
+  iDestruct (ghost_map_lookup with "Ht [$]") as %?.
+  iDestruct (ec_supply_ec_inv with "[$][$]") as %(x&x'& -> & He).
+  iApply fupd_mask_intro; first set_solver.
+  iIntros "Hclose".
+  rewrite state_step_coupl_unfold.
+  do 3 iRight.
+  assert (∀ x, 0<=ε2 x + x')%R as Hnnr.
+  { intros. apply Rplus_le_le_0_compat; apply cond_nonneg. }
+  iExists _,_, _, (λ x, mknonnegreal _ (Hnnr x)).
+  iSplit; first done.
+  iSplit; first done.
+  iSplit; first done.
+  iSplit.
+  { iPureIntro.
+    destruct Hbound as [r ?].
+    exists (r+x')%R.
+    simpl. intros. real_solver.
+  }
+  iSplit; first iPureIntro.
+  { simpl.
+    rewrite Expval_plus; try apply ex_seriesC_finite.
+    rewrite Expval_const; last done.
+    rewrite dunifP_mass.
+    rewrite Rmult_1_r.
+    apply Rplus_le_compat; by subst. 
+  }
+  
+Admitted. 
 
 (** Recursive functions: we do not use this lemmas as it is easier to use Löb *)
 (* induction directly, but this demonstrates that we can state the expected *)
