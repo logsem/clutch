@@ -41,7 +41,7 @@ Section adequacy.
     expr_support_set e ⊆ urns_support_set (urns σ) ->
     map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
     map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
-    state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ v }} ⊢
+    state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ True v }} ⊢
     |={⊤,∅}=>|={∅}▷=>^n ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
                        d_proj_Some (urn_subst_expr f e) ≫= λ e',
                          d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
@@ -60,16 +60,18 @@ Section adequacy.
       iPureIntro. by apply pgl_1.
     - iMod "H" as "(?&?&H)".
       rewrite rupd_unseal/rupd_def.
-      iMod ("H" with "[$]") as "%Hsubst".
+      iMod ("H" with "[$]") as "[%Hsubst ?]".
       iApply step_fupdN_intro; first done.
       iPureIntro.
       apply pgl_dbind'; first done; intros ? H1.
       apply pgl_dbind'; first done; intros ? H2.
       apply pgl_dbind'; first done; intros ? H3.
       inv_distr.
-      unshelve epose proof Hsubst _ _ as (?&?&?); [|by apply urns_f_distr_pos|].
       rewrite bind_Some in H2. destruct!/=.
       erewrite exec_is_final; last done.
+      rewrite urns_f_distr_pos in H1.
+      apply Hsubst in H1.
+      destruct!/=.
       eapply pgl_mon_grading; last apply pgl_dret; done.
     - iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
       { iPureIntro.
@@ -261,7 +263,7 @@ Section adequacy.
     expr_support_set e ⊆ urns_support_set (urns σ) ->
     map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
     map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
-    state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ v }} ⊢
+    state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ True v }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n
                ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
                        d_proj_Some (urn_subst_expr f e) ≫= λ e',
@@ -339,7 +341,7 @@ Lemma elton_adequacy_stratified Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R) m
   map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
   map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
   (0<=ε)%R ->
-  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ v }}) ->
+  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ True v }}) ->
   pgl (urns_f_distr (σ.(urns)) ≫= λ f,
          d_proj_Some (urn_subst_expr f e) ≫= λ e',
            d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
@@ -374,7 +376,7 @@ Lemma elton_adequacy_with_conditions Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε
   map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
   map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
   (0<=ε)%R ->
-  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ v }}) ->
+  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ True v }}) ->
   pgl (urns_f_distr (σ.(urns)) ≫= λ f,
          d_proj_Some (urn_subst_expr f e) ≫= λ e',
            d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
@@ -454,7 +456,7 @@ Qed.
 
 Lemma elton_adequacy_without_conditions Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R) m ϕ:
   (0<=ε)%R ->
-  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ v }}) ->
+  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ True v }}) ->
   pgl (urns_f_distr (σ.(urns)) ≫= λ f,
          d_proj_Some (urn_subst_expr f e) ≫= λ e',
            d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
@@ -528,7 +530,7 @@ Qed.
 Lemma elton_adequacy_remove_drand Σ `{eltonGpreS Σ} (e e':expr) (ε:R) m ϕ:
   remove_drand_expr e = Some e' ->
   (0<=ε)%R ->
-  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ v }}) ->
+  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ True v }}) ->
   pgl (lim_exec (e', {|heap:=∅; urns:=m|})) ϕ ε.
 Proof.
   intros Hsome Hpos Hwp.

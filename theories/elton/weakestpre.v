@@ -887,7 +887,7 @@ Proof.
   by iApply "Hw".
 Qed.
 
-Lemma state_step_coupl_pgl_wp E e Φ s :
+Lemma state_step_coupl_wp E e Φ s :
   (∀ σ1 ε1, state_interp σ1 ∗ err_interp ε1 ={E, ∅}=∗
             state_step_coupl σ1 ε1
               (λ σ2 ε2, |={∅, E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e @ s ; E {{Φ}})) -∗

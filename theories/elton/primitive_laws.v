@@ -4,9 +4,9 @@ From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import auth excl.
 From iris.base_logic.lib Require Export ghost_map.
 From clutch.base_logic Require Export error_credits.
-From clutch.elton Require Export weakestpre ectx_lifting.
+From clutch.elton Require Export weakestpre ectx_lifting rupd.
 From clutch.delay_prob_lang Require Export class_instances.
-From clutch.delay_prob_lang Require Import tactics lang notation.
+From clutch.delay_prob_lang Require Import tactics lang notation urn_subst.
 From iris.prelude Require Import options.
 
 Class eltonGS Σ := HeapG {
@@ -335,6 +335,55 @@ Proof.
   Unshelve.
   4:{ done. }
   done. 
+Qed.
+
+Lemma wp_drand (N : nat) (z : Z) v E s P :
+  TCEq N (Z.to_nat z) →
+  {{{ P ∗ (P -∗ rupd (λ v,v= #N) P v)}}} drand v @ s; E {{{ l, RET LitV (LitLbl l); P ∗ l ↪ list_to_set (seq 0 (S N)) }}}.
+Proof.
+  iIntros (-> Φ) "[HP Hrupd] HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iDestruct ("Hrupd" with "[$]") as "H".
+  rewrite rupd_unseal/rupd_def.
+  iIntros (σ1) "Hσ !#".
+  iDestruct ("H" with "[$]") as "[% [HP [Hs Hu]]]".
+  iSplit.
+  { iPureIntro.
+    econstructor.
+    simpl.
+    destruct (urns_f_valid_exists (urns σ1)) as [f Hf].
+    apply H in Hf as H'.
+    destruct H' as [? [H' ->]].
+    case_match; simpl in *; simplify_eq; repeat setoid_rewrite bind_Some in H'; destruct!/=; last first.
+    case_match; last first.
+    - exfalso.
+      setoid_rewrite bind_Some in H.
+      rename select (¬ _) into Hcontra.
+      apply Hcontra.
+      eexists _.
+      intros ? H2.
+      apply H in H2.
+      by destruct!/=.
+    - erewrite urn_subst_equal_epsilon_unique; first solve_distr.
+      intros ? H2.
+      apply H in H2.
+      setoid_rewrite bind_Some in H2. by destruct!/=.
+  }
+  iIntros "!>" (e2 σ2 Hs).
+  inv_head_step.
+  iFrame.
+  iMod (ghost_map_insert (fresh_loc σ1.(urns)) with "Hu") as "[$ Hl]".
+  { apply not_elem_of_dom, fresh_loc_is_fresh. }
+  iModIntro.
+  iApply "HΦ".
+  iFrame.
+  rewrite (urn_subst_equal_epsilon_unique _ _ (Z.to_nat z) _ _); last first.
+  { intros ? H2.
+    apply H in H2.
+    setoid_rewrite bind_Some in H2. by destruct!/=.
+  }
+  rewrite Nat2Z.id.
+  rewrite Nat.add_1_r. iFrame. 
 Qed.
 
 (* (** Tapes  *) *)
