@@ -558,46 +558,60 @@ Section credits.
     }
   Qed.
 
-  Lemma G2_f_ex_seriesC {F M} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) : ex_seriesC (G2_f F).
+
+  (* TODO: Once this proof is done, reduce this to piecewise continuity *)
+  Lemma G2_f_ex_seriesC {F M}
+    (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M)
+    (Hint : ∀ x' : nat, ex_RInt (F x') 0 1)
+    (Hcont : ∀ k x, Continuity.continuous (F k) x)
+    : ex_seriesC (G2_f F).
   Proof.
-    (* Nope!
+    (*
+
     rewrite /G2_f.
-    apply (ex_seriesC_le _ (fun k => M)).
-    - intros n.
-      split.
-      + apply RInt_ge_0; [lra | | ].
-        * apply G2_g_exRInt, Hint.
-        * intros x Hx; apply G2_g_nn; [apply Hnn | lra | apply Hint].
-      + etrans; [apply RInt_le; [lra | | | ] | ].
-        * apply G2_g_exRInt, Hint.
-        * apply ex_RInt_const.
-        * intros x Hx.
-          rewrite /G2_g /G2_s.
-          rewrite Iverson_True; [| intuition].
-          rewrite Iverson_False; [| intuition].
-          rewrite Iverson_False; [| intuition].
-          rewrite Iverson_True; [| intuition].
-          replace (1 * F n x + 0 * G2_CreditV F) with (F n x) by lra.
-          replace (0 * F n x + 1 * G2_CreditV F) with (G2_CreditV F) by lra.
-          have HCreditV : G2_CreditV F <= M by apply G2_CreditV_ub; [apply Hnn | apply Hint].
-          have Hexp : 0 <= exp (- x * (2 * n + x) / 2) <= 1; first split.
-          { apply Rexp_nn. }
-          { apply Rexp_range.
-            rewrite Rdiv_def.
-            apply Rcomplements.Rmult_le_0_r; OK.
-            apply Rcomplements.Rmult_le_0_r; OK.
-            apply Rplus_le_le_0_compat; OK.
-            apply Rmult_le_pos; OK.
-            apply pos_INR.
-          }
-          etrans; [apply Rplus_le_compat | ].
-          { apply Rmult_le_compat_l; [apply Hexp | apply Hnn]. }
-          { apply Rmult_le_compat_l; [lra | apply HCreditV]. }
-          replace (exp (- x * (2 * n + x) / 2) * M + (1 - exp (- x * (2 * n + x) / 2)) * M) with M by lra.
-          reflexivity.
-        * rewrite RInt_const. rewrite /scal//=/mult//=. OK.
-    - a dmit.
-    *)
+    apply (ex_seriesC_le _ (fun k => M * RInt (G2_μ k) 0 1)).
+   { intros n. split.
+     { apply RInt_ge_0.
+       { lra. }
+       { apply G2_g_exRInt, Hint. }
+       { intros x Hx. apply G2_g_nn; [apply Hnn | lra | apply Hint]. }
+     }
+   { etrans.
+     { apply RInt_le.
+       { lra. }
+       { apply G2_g_exRInt, Hint. }
+       { replace (fun x => M * G2_μ n x) with (fun x => scal M (G2_μ n x)).
+         2: { apply functional_extensionality; intro; rewrite /scal/=/mult/=; reflexivity. }
+         apply (ex_RInt_scal (V := R_CompleteNormedModule)).
+         eapply G2_exRInt. }
+       { intros x Hx.
+         admit. }
+     }
+     { rewrite RInt_scal.
+       2: { apply G2_exRInt. }
+       rewrite /scal/=/mult/=.
+       apply Req_le.
+       reflexivity. }
+   }
+   }
+  { (* Need to prove: ex_seriesC (λ k, M * RInt (G2_μ k) 0 1) *)
+    apply ex_seriesC_scal_l.
+    rewrite /G2_μ.
+    replace (fun (x : nat) => (RInt (λ x0 : R, exp (- (x0 + x) ^ 2 / 2) / Norm2) 0 1))
+       with (fun (x : nat) => (RInt (λ x0 : R, exp (- (x0 + x) ^ 2 / 2)) 0 1 * / Norm2)).
+    2: {
+      funexti.
+      rewrite RInt_Rmult'; OK.
+      apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+      intros ??.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    }
+    apply ex_seriesC_scal_r.
+    (* I think I can upper-bound this integral by its max value, which is e^-x^2, whose series converges. *)
+    admit.
+  }
+*)
   Admitted.
 
 
@@ -2177,7 +2191,7 @@ Section program.
     iApply (pgl_wp_mono_frame (□ _) with "[Hε] IH"); last first.
     { iApply (wp_G1 (F := G2_f F) (M := M)).
       { intros ?; split; [apply G2_f_nn; OK; apply Hnn|]. apply G2_ub; OK. }
-      { by apply (@G2_f_ex_seriesC _ M). }
+      { apply (@G2_f_ex_seriesC _ M); try done. (* TODO: Reduce *) admit. }
       { iApply (ec_eq with "Hε"). apply (G2_f_expectation Hint Hnn). }
     }
     iIntros (v) "(#IH & [%k [-> Hε]])".
@@ -2249,7 +2263,7 @@ Section program.
       iApply (ec_eq with "Hε").
       rewrite Iverson_True; [lra|done].
     }
-  Qed.
+  Admitted.
 
 End program.
 

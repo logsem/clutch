@@ -1909,20 +1909,28 @@ Proof.
     replace ((S N + 1) * v) with ((N + 1) * v + v) by (rewrite S_INR; lra).
     rewrite -IHN //=.
     rewrite Rplus_assoc. f_equal. rewrite Rplus_comm.
-
-    (*
-    { replace ((S N + 1) * v) with ((N + 1) * v + v); last first.
-      { rewrite S_INR. lra. }
-      rewrite -IHN.
-      rewrite //=.
-      rewrite Rplus_assoc.
-      f_equal.
-      rewrite Rplus_comm.
-      repeat f_equal.
-      a dmit.
+    f_equal.
+    suffices HLenFold : ∀ L, foldr (Rplus ∘ (λ _ : nat, v) ∘ fin_to_nat) 0 L = length L *  v.
+    { rewrite HLenFold.
+      rewrite HLenFold.
+      rewrite fmap_length.
+      rewrite fin.length_enum_fin.
+      rewrite fmap_length.
+      rewrite fmap_length.
+      by rewrite fin.length_enum_fin.
     }
-    *)
-  Admitted. (* G *)
+    clear IHN.
+    intros M L.
+    induction L.
+    { simpl. lra. }
+    { rewrite foldr_cons.
+      rewrite IHL.
+      rewrite cons_length.
+      rewrite S_INR.
+      rewrite //=.
+      lra.
+    }
+  Qed.
 
   Lemma even_pow_neg {x : R} {n : nat} : Zeven n → (- x) ^ n = x ^ n.
   Proof.
