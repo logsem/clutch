@@ -35,7 +35,7 @@ Section adequacy.
   Qed.
 
   
-  Theorem wp_elton_adequacy_val (ε: nonnegreal) e σ ϕ n m (v:val):
+  Lemma wp_elton_adequacy_val (ε: nonnegreal) e σ ϕ n m (v:val):
     to_val e = Some v ->
     is_well_constructed_expr e = true ->
     expr_support_set e ⊆ urns_support_set (urns σ) ->
@@ -256,7 +256,7 @@ Section adequacy.
     by rewrite dret_id_left'.
   Qed. 
   
-  Theorem wp_elton_adequacy (ε: nonnegreal) e σ ϕ n m :
+  Lemma wp_elton_adequacy (ε: nonnegreal) e σ ϕ n m :
     is_well_constructed_expr e = true ->
     expr_support_set e ⊆ urns_support_set (urns σ) ->
     map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
@@ -333,7 +333,7 @@ Definition eltonΣ : gFunctors :=
 Global Instance subG_eltonGPreS {Σ} : subG eltonΣ Σ → eltonGpreS Σ.
 Proof. solve_inG. Qed.
 
-Theorem elton_adequacy_stratified Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R) m ϕ n:
+Lemma elton_adequacy_stratified Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R) m ϕ n:
   is_well_constructed_expr e = true ->
   expr_support_set e ⊆ urns_support_set (urns σ) ->
   map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
@@ -368,7 +368,7 @@ Proof.
   by iApply Hwp.
 Qed. 
 
-Theorem elton_adequacy_with_conditions Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R) m ϕ:
+Lemma elton_adequacy_with_conditions Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R) m ϕ:
   is_well_constructed_expr e = true ->
   expr_support_set e ⊆ urns_support_set (urns σ) ->
   map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
@@ -452,7 +452,7 @@ Proof.
     apply exec_mono.
 Qed. 
 
-Theorem elton_adequacy_without_conditions Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R) m ϕ:
+Lemma elton_adequacy_without_conditions Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R) m ϕ:
   (0<=ε)%R ->
   (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ v }}) ->
   pgl (urns_f_distr (σ.(urns)) ≫= λ f,
@@ -523,3 +523,24 @@ Proof.
 Qed. 
 
 
+
+
+Lemma elton_adequacy_remove_drand Σ `{eltonGpreS Σ} (e e':expr) (ε:R) m ϕ:
+  remove_drand_expr e = Some e' ->
+  (0<=ε)%R ->
+  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, |={⊤, ∅}=> rupd ϕ v }}) ->
+  pgl (lim_exec (e', {|heap:=∅; urns:=m|})) ϕ ε.
+Proof.
+  intros Hsome Hpos Hwp.
+  eapply (elton_adequacy_without_conditions _ _ ({|heap:= ∅; urns:= ∅|}) _ m) in Hwp; last done.
+  eassert (lim_exec _ = _) as ->; last done.
+  erewrite dbind_ext_right_strong; last first.
+  { intros ??. erewrite remove_drand_expr_urn_subst; last done.
+    simpl. rewrite dret_id_left'.
+    rewrite urn_subst_heap_empty.
+    simpl.
+    by rewrite dret_id_left'.
+  }
+  by rewrite dbind_const; last apply urns_f_distr_mass.
+Qed. 
+  
