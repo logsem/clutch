@@ -1711,8 +1711,96 @@ Section credits.
     { intros a.
       rewrite ex_seriesC_nat.
       rewrite /B.
-      (* Bounded above by the sum of G1_μ *)
-      admit. }
+      have Hex1 : ∀ {x : nat},  ex_RInt (λ x0 : R, RInt (λ x1 : R, (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ a x1 * F a x1) 0 1) 0 1.
+      { intros n.
+        apply Fubini_Step_ex_y.
+        apply IsFubiniRR_mult; [apply IsFubiniRR_mult|].
+        { apply PCts_const_y.
+          apply PCts_cts.
+          intros ??.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          auto_derive; done.
+        }
+        { apply PCts_const_x.
+          apply PCts_cts.
+          intros ??.
+          rewrite /G2_μ.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          auto_derive; done.
+        }
+        { apply PCts_const_x. apply HPcts. }
+      }
+      replace
+        (λ b : nat, RInt (λ x0 : R, RInt (λ x1 : R, G1_μ b * (1 - exp (- x0 * (2 * b + x0) / 2)) * G2_μ a x1 * F a x1) 0 1) 0 1)
+        with
+        (λ b : nat, G1_μ b * RInt (λ x0 : R, RInt (λ x1 : R, (1 - exp (- x0 * (2 * b + x0) / 2)) * G2_μ a x1 * F a x1) 0 1) 0 1).
+      2: {
+        funexti.
+        rewrite RInt_Rmult.
+        2: { apply Hex1. }
+        apply RInt_ext.
+        rewrite Rmin_left; OK.
+        rewrite Rmax_right; OK.
+        intros ??.
+        rewrite RInt_Rmult; OK.
+        { f_equal. funexti; OK. }
+        apply ex_RInt_mult; [|apply Hex].
+        apply ex_RInt_mult; [apply ex_RInt_const|].
+        apply G2_exRInt.
+      }
+      apply (ex_seriesC_le _ (λ b : nat, G1_μ b * RInt (λ x0 : R, RInt (λ x1 : R, 1 * G2_μ a x1 * F a x1) 0 1) 0 1)).
+      { intros ?.
+        have Hlem1 : 0 <= G1_μ n * RInt (λ x0 : R, RInt (λ x1 : R, (1 - exp (- x0 * (2 * n + x0) / 2)) * G2_μ a x1 * F a x1) 0 1) 0 1.
+        { apply Rmult_le_pos; [apply G1_μ_nn|].
+          apply RInt_ge_0; OK.
+          intros ??.
+          apply RInt_ge_0; OK.
+          { apply ex_RInt_mult; [|apply Hex].
+            apply ex_RInt_mult; [apply ex_RInt_const|].
+            apply G2_exRInt.
+          }
+          intros ??.
+          apply Rmult_le_pos; [|apply Hbound].
+          apply Rmult_le_pos; [|apply G2_μ_nn; OK].
+          suffices ? : exp (- x * (2 * n + x) / 2) <= 1 by OK.
+          apply Rexp_range.
+          replace (- x * (2 * n + x) / 2) with ((-1 / 2) * (x * (2 * n + x))) by OK.
+          replace 0 with ((-1/2) * 0) by OK.
+          apply Rmult_le_compat_neg_l; OK.
+          apply Rmult_le_pos; OK.
+          apply Rplus_le_le_0_compat; OK.
+          apply Rmult_le_pos; OK.
+          apply pos_INR.
+        }
+        split; first apply Hlem1.
+        apply Rmult_le_compat_l.
+        { apply G1_μ_nn. }
+        apply RInt_le; OK.
+        { apply ex_RInt_const. }
+        intros ??.
+        apply RInt_le; OK.
+        { apply ex_RInt_mult; [|apply Hex].
+          apply ex_RInt_mult; [apply ex_RInt_const|].
+          apply G2_exRInt.
+        }
+        { apply ex_RInt_mult; [|apply Hex].
+          apply ex_RInt_mult; [apply ex_RInt_const|].
+          apply G2_exRInt.
+        }
+        intros ??.
+        apply Rmult_le_compat_r.
+        { apply Hbound. }
+        apply Rmult_le_compat_r.
+        { apply G2_μ_nn. OK. }
+        suffices ? : 0 <= exp (- x * (2 * n + x) / 2) by OK.
+        apply Rexp_nn.
+      }
+      apply ex_seriesC_scal_r.
+      rewrite /G1_μ.
+      replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+      apply ex_seriesC_scal_r.
+      apply Norm1_ex.
+    }
     { rewrite /B.
       (* Internalize the domain functions to the integrand *)
 
