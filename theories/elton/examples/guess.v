@@ -131,4 +131,5 @@ Section encr.
   
 
 
+  Print Assumptions prog_correct.
 End encr.
