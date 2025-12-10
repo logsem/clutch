@@ -126,24 +126,24 @@ Notation "'#lbl:' α" := (# (LitLbl α)) (at level 8, format "#lbl: α").
 (* Notation tick := Tick.  *)
   
 Notation "e1 + e2" := (BinOp PlusOp e1%E e2%E) : expr_scope.
-Notation "v1 +ᵥ v2" := (PlusOp' v1 v2) (at level 7): val_scope.
+Notation "v1 +ᵥ v2" := (PlusOp' v1 v2) (at level 50): val_scope.
 Notation "e1 +ₗ e2" := (BinOp OffsetOp e1%E e2%E) : expr_scope.
-Notation "v1 +ₗᵥ v2" := (OffsetOp' v1 v2) (at level 7): val_scope.
+Notation "v1 +ₗᵥ v2" := (OffsetOp' v1 v2) (at level 50): val_scope.
 Notation "e1 - e2" := (BinOp MinusOp e1%E e2%E) : expr_scope.
-Notation "v1 -ᵥ v2" := (MinusOp' v1 v2) (at level 7): val_scope.
+Notation "v1 -ᵥ v2" := (MinusOp' v1 v2) (at level 50): val_scope.
 Notation "e1 * e2" := (BinOp MultOp e1%E e2%E) : expr_scope.
-Notation "v1 *ᵥ v2" := (MultOp' v1 v2) (at level 7): val_scope.
+Notation "v1 *ᵥ v2" := (MultOp' v1 v2) (at level 50): val_scope.
 Notation "e1 `quot` e2" := (BinOp QuotOp e1%E e2%E) : expr_scope.
 Notation "e1 `rem` e2" := (BinOp RemOp e1%E e2%E) : expr_scope.
 Notation "e1 ≪ e2" := (BinOp ShiftLOp e1%E e2%E) : expr_scope.
 Notation "e1 ≫ e2" := (BinOp ShiftROp e1%E e2%E) : expr_scope.
 
 Notation "e1 ≤ e2" := (BinOp LeOp e1%E e2%E) : expr_scope.
-Notation "v1 ≤ᵥ v2" := (LeOp' v1 v2) (at level 7): val_scope.
+Notation "v1 ≤ᵥ v2" := (LeOp' v1 v2) (at level 50): val_scope.
 Notation "e1 < e2" := (BinOp LtOp e1%E e2%E) : expr_scope.
-Notation "v1 <ᵥ v2" := (LtOp' v1 v2) (at level 7): val_scope.
+Notation "v1 <ᵥ v2" := (LtOp' v1 v2) (at level 50): val_scope.
 Notation "e1 = e2" := (BinOp EqOp e1%E e2%E) : expr_scope.
-Notation "v1 =ᵥ v2" := (EqOp' v1 v2) (at level 7): val_scope.
+Notation "v1 =ᵥ v2" := (EqOp' v1 v2) (at level 50): val_scope.
 Notation "e1 ≠ e2" := (UnOp NegOp (BinOp EqOp e1%E e2%E)) : expr_scope.
 
 Notation "e1 `and` e2" := (BinOp AndOp e1%E e2%E) (at level 77, right associativity) : expr_scope.

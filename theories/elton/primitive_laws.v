@@ -49,8 +49,8 @@ Notation "l ↦{# q } v" := (l ↦{ DfracOwn q } v)%I
 Notation "l ↦ v" := (l ↦{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↦  v") : bi_scope.
 
-(** Tapes *)
-Notation "l ↪{ dq } v" := (@ghost_map_elem _ _ _ _ _ eltonGS_urns eltonGS_urns_name l dq (v : urn))
+(** Urns *)
+Notation "l ↪{ dq } v" := (@ghost_map_elem _ _ _ _ _ eltonGS_urns eltonGS_urns_name l dq v)
   (at level 20, format "l  ↪{ dq }  v") : bi_scope.
 Notation "l ↪□ v" := (l ↪{ DfracDiscarded } v)%I
   (at level 20, format "l  ↪□  v") : bi_scope.
@@ -430,14 +430,13 @@ Qed.
 
 Lemma wp_drand_thunk (N : nat) (z : Z) v E s P :
   TCEq N (Z.to_nat z) →
-  {{{ P ∗ (P -∗ rupd (λ v,v= #N) P v)}}} drand v @ s; E {{{ l, RET LitV (LitLbl l); P ∗ l ↪ list_to_set (seq 0 (S N)) }}}.
+  {{{ (rupd (λ v,v= #N) P v)}}} drand v @ s; E {{{ l, RET LitV (LitLbl l); P ∗ l ↪ list_to_set (seq 0 (S N)) }}}.
 Proof.
-  iIntros (-> Φ) "[HP Hrupd] HΦ".
+  iIntros (-> Φ) "Hrupd HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iDestruct ("Hrupd" with "[$]") as "H".
   rewrite rupd_unseal/rupd_def.
   iIntros (σ1) "Hσ !#".
-  iDestruct ("H" with "[$]") as "[% [HP [Hs Hu]]]".
+  iDestruct ("Hrupd" with "[$]") as "[% [HP [Hs Hu]]]".
   iSplit.
   { iPureIntro.
     econstructor.
