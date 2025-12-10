@@ -1300,8 +1300,28 @@ Section credits.
       }
     }
 
-    have HFubiniEx2 : ∀ n,  ex_RInt (λ x1 : R, RInt (λ x0 : R, G2_μ n x1 * F n x1 * SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1) 0 1.
+    have HFubiniEx2 : ∀ n, ex_RInt (λ x1 : R, RInt (λ x0 : R, G2_μ n x1 * F n x1 * @SeriesC nat numbers.Nat.eq_dec nat_countable (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1) 0 1.
     { intros ?.
+      (* Internalize the domain into the function *)
+      suffices HH : ex_RInt (λ x1 : R, RInt (λ x0 : R, G2_μ n x1 * F n x1 * @SeriesC nat numbers.Nat.eq_dec nat_countable (λ x : nat, (Iverson (Icc 0 1) x0) * G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1) 0 1.
+      { eapply ex_RInt_ext; last eapply HH.
+        intros x.
+        rewrite Rmin_left; OK.
+        rewrite Rmax_right; OK.
+        intros H.
+        apply RInt_ext.
+        intros x0.
+        rewrite Rmin_left; OK.
+        rewrite Rmax_right; OK.
+        intros.
+        f_equal.
+        apply SeriesC_ext; intros ?.
+        rewrite Iverson_True; OK.
+        rewrite /Icc; OK.
+        rewrite Rmin_left; OK.
+        rewrite Rmax_right; OK.
+      }
+
       apply Fubini_Step_ex_x.
       apply IsFubiniRR_mult; [apply IsFubiniRR_mult|].
       { apply PCts_const_x.
@@ -1321,7 +1341,63 @@ Section credits.
         rewrite Rmin_left; OK.
         rewrite Rmax_right; OK.
         intros ??.
-        admit.
+        replace (λ y : R, @SeriesC nat numbers.Nat.eq_dec nat_countable (λ x0 : nat, Iverson (Icc 0 1) y * G1_μ x0 * (1 - exp (- y * (2 * x0 + y) / 2))))
+           with (λ y : R, Series.Series (λ x0 : nat, Iverson (Icc 0 1) y * G1_μ x0 * (1 - exp (- y * (2 * x0 + y) / 2)))); last first.
+        { funexti. by rewrite SeriesC_Series_nat. }
+        apply (@UniformLimitTheorem _ 0 1).
+        { rewrite /Icc//=; OK. rewrite Rmin_left; OK. rewrite Rmax_right; OK. }
+        have H1 : ∀ x0 (n0 : nat), 0 <= x0 → 0 <= 1 - exp (- x0 * (2 * n0 + x0) / 2).
+        { intros ???.
+          suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
+          apply Rexp_range; OK.
+          rewrite Rdiv_def.
+          rewrite Rmult_assoc.
+          apply Rcomplements.Rmult_le_0_r; OK.
+          apply Rle_mult_inv_pos; OK.
+          apply Rplus_le_le_0_compat; OK.
+          apply Rmult_le_pos; OK.
+          apply pos_INR.
+        }
+
+        apply (UniformConverge_Series G1_μ).
+        { intros ??.
+          rewrite /Iverson//=. case_decide; OK.
+          rewrite Rmult_1_l.
+          apply Rmult_le_pos.
+          { apply G1_μ_nn. }
+          { apply H1.
+            rewrite /Icc in H0.
+            rewrite Rmin_left in H0; OK.
+          }
+        }
+        { rewrite /G1_μ.
+          replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+          apply Series.ex_series_scal_r.
+          rewrite ex_seriesC_nat.
+          apply Norm1_ex.
+        }
+        { intros ??.
+          rewrite Rabs_right.
+          2: {
+            rewrite /Iverson//=. case_decide; OK.
+            rewrite Rmult_1_l.
+            apply Rle_ge.
+            apply Rmult_le_pos.
+            { apply G1_μ_nn. }
+            { apply H1.
+              rewrite /Icc in H0.
+              rewrite Rmin_left in H0; OK.
+            }
+          }
+          rewrite /Iverson//=. case_decide; OK.
+          2: { repeat rewrite Rmult_0_l. apply G1_μ_nn. }
+          rewrite -{2}(Rmult_1_r (G1_μ n0)).
+          rewrite Rmult_1_l.
+          apply Rmult_le_compat_l.
+          { apply G1_μ_nn. }
+          suffices ? : (0 <= exp (- x0 * (2 * n0 + x0) / 2)) by OK.
+          apply Rexp_nn.
+        }
       }
     }
 

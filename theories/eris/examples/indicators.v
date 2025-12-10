@@ -2783,12 +2783,54 @@ Section PiecewiseCts.
 
 End PiecewiseCts.
 
+Section UniformLimitTheorem.
+  Import Hierarchy.
+
+  (* Wrapper around the Coquelicot french definitions + some basic reductions *)
+  Theorem UniformLimitTheorem {f : nat → R → R} {a b x : R} :
+    Icc a b x →
+    (* Uniform convergence (TODO: Just on the interval [a,b], right? ) *)
+    filterlim (fun (M : nat) (x : R) => sum_n (fun n => f n x) M) eventually (locally (λ x : R, Series.Series (fun n => f n x))) →
+    (* The limit is continuous *)
+    Continuity.continuous (fun x' => (Series.Series (fun n => f n x'))) x.
+  Proof.
+    intros HB Hcvg.
+    (*
+    Search Seq_fct.CVU_dom .
+  Check Seq_fct.Dini.
+  Check Seq_fct.CVN_CVU_r.
+*)
+
+
+    (*
+  Search CVN_r.
+  Search CVU.
+  Check CVU_continuity.
+  Search Seq_fct.CVS_dom.
+  *)
+  Admitted.
+
+
+End UniformLimitTheorem.
+
 Section FubiniStep.
   Import Hierarchy.
 
   Lemma Continuity2_swap (f : R * R → R) (x y : R) :
     Continuity2 (fun '(x', y') => f (y', x')) y x → Continuity2 f x y.
-  Proof. Admitted.
+  Proof.
+    intros H P Hp.
+    have H' := H P Hp.
+    revert H'.
+    rewrite /filtermap//=/locally//=.
+    intros [e He].
+    exists e.
+    intros [zx zy] Hz.
+    apply (He (zy, zx)).
+    revert Hz.
+    rewrite /ball//=/prod_ball//=.
+    intuition.
+  Qed.
 
   (* Continuity.continuity_2d_pt_filterlim ???? *)
   Definition IsFubiniCoreRR (f : R → R → R) : Prop :=
