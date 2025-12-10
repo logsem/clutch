@@ -4,6 +4,6 @@ From clutch.delay_prob_lang Require Export lang.
 From clutch.elton Require Export weakestpre lifting ectx_lifting primitive_laws proofmode adequacy rupd.
 
 
-(* From clutch.foxtrot.unary_rel Require Export *)
-(*     unary_model unary_interp unary_fundamental. *)
+From clutch.elton.unary_rel Require Export
+    unary_model unary_interp unary_fundamental.
 
