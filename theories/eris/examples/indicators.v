@@ -3114,20 +3114,40 @@ Section FubiniStep.
     Forall RectFun_continuity L →
     ex_RInt (fun y => fsum2 (RectFun_RR <$> L) x y) ya yb.
   Proof.
-  Admitted.
+    induction L.
+    { simpl. intros ?. apply ex_RInt_const. }
+    intros H.
+    apply (@ex_RInt_ext _ (λ y : R, RectFun_RR a x y + fsum2 (RectFun_RR <$> L) x y)).
+    { intros ??. rewrite /fmap//=. }
+    apply (ex_RInt_plus (V := R_CompleteNormedModule)).
+    { apply RectFun_RR_ex_RInt_y. by eapply Forall_inv. }
+    { apply IHL. by eapply Forall_inv_tail. }
+  Qed.
 
   (* Integrability of fsum2 in x for fixed y *)
   Lemma fsum2_RectFun_ex_RInt_x (L : list ((R → R → R) * R * R * R * R)) y xa xb :
     Forall RectFun_continuity L →
     ex_RInt (fun x => fsum2 (RectFun_RR <$> L) x y) xa xb.
   Proof.
-  Admitted.
+    induction L.
+    { simpl. intros ?. apply ex_RInt_const. }
+    intros H.
+    apply (@ex_RInt_ext _ (λ x : R, RectFun_RR a x y + fsum2 (RectFun_RR <$> L) x y)).
+    { intros ??. rewrite /fmap//=. }
+    apply (ex_RInt_plus (V := R_CompleteNormedModule)).
+    { apply RectFun_RR_ex_RInt_x. by eapply Forall_inv. }
+    { apply IHL. by eapply Forall_inv_tail. }
+  Qed.
 
   (* Key lemma: integrability for a single rectangle function *)
   Lemma RectFun_RR_ex_RInt_iterated_x (rect : (R → R → R) * R * R * R * R) xa xb ya yb :
     RectFun_continuity rect →
     ex_RInt (fun x => RInt (fun y => RectFun_RR rect x y) ya yb) xa xb.
   Proof.
+    destruct rect as [[[[f xa'] xb'] ya'] yb'].
+    rewrite /RectFun_continuity//=.
+    intros H.
+    (* Also just a big case proof I think (ugh!) *)
   Admitted.
 
   Lemma RectFun_RR_ex_RInt_iterated_y (rect : (R → R → R) * R * R * R * R) xa xb ya yb :
