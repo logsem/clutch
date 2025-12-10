@@ -1502,7 +1502,7 @@ Section credits.
     apply ex_seriesC_scal_r.
     apply ex_seriesC_scal_r.
     apply Norm1_ex.
-  Admitted.
+  Qed.
 
   Lemma HR1 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     Series.Series (λ x : nat, Series.Series (λ k : nat, RInt (λ x0 : R, RInt (λ x1 : R, (G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1)) =
@@ -1690,7 +1690,12 @@ Section credits.
         * apply ex_RInt_const.
   Qed.
 
-  Lemma HR2 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
+  Lemma Continuity2_const {F : R * R → R} (v x y : R) :
+    (∀ z, F z = v) →
+    Continuity2 F x y.
+  Proof. Admitted.
+
+  Lemma HR2 {F M} (HPcts : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
   Series.Series
     (λ k : nat,
        Series.Series
@@ -1702,6 +1707,8 @@ Section credits.
          (λ k : nat,
             RInt (λ x0 : R, RInt (λ x1 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1) 0 1) 0 1)).
   Proof.
+    have Hex : ∀ x1, ex_RInt (F x1) 0 1.
+    {  intros ?. eapply PCts_RInt. exact (HPcts _). }
     pose B : nat * nat → R := fun '(k, x) => RInt (λ x0 : R, RInt (λ x1 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1) 0 1) 0 1.
     suffices H : Series.Series (λ k : nat, Series.Series (λ x : nat, B (x, k))) = Series.Series (λ x : nat, Series.Series (λ k : nat, B (x, k))).
     { rewrite /B in H.
@@ -1711,11 +1718,56 @@ Section credits.
       reflexivity.
     }
     have HL3 : ∀ (a b : nat) (x x0 : R), 0 < x < 1 → 0 < x0 < 1 → 0 <= G1_μ b * (1 - exp (- x * (2 * b + x) / 2)) * G2_μ a x0 * F a x0.
-    { admit. }
+    { intros ??????.
+      apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos | ] | ].
+      { apply G1_μ_nn. }
+      2: { apply G2_μ_nn; OK. }
+      2: { apply Hbound. }
+      suffices ? : exp (- x * (2 * b + x) / 2) <= 1 by OK.
+      apply Rexp_range.
+      replace (- x * (2 * b + x) / 2) with ((-1 / 2) * (x * (2 * b + x))) by OK.
+      replace 0 with ((-1/2) * 0) by OK.
+      apply Rmult_le_compat_neg_l; OK.
+      apply Rmult_le_pos; OK.
+      apply Rplus_le_le_0_compat; OK.
+      apply Rmult_le_pos; OK.
+      apply pos_INR.
+    }
     have HL2 : ∀ (a b : nat) (x : R), 0 < x < 1 → ex_RInt (λ x1 : R, G1_μ b * (1 - exp (- x * (2 * b + x) / 2)) * G2_μ a x1 * F a x1) 0 1.
-    { admit. }
+    { intros ????.
+      apply ex_RInt_mult.
+      2: apply Hex.
+      apply ex_RInt_mult.
+      { apply ex_RInt_const. }
+      apply G2_exRInt.
+    }
     have HL1 : ∀ (a b : nat), ex_RInt (λ x0 : R, RInt (λ x1 : R, G1_μ b * (1 - exp (- x0 * (2 * b + x0) / 2)) * G2_μ a x1 * F a x1) 0 1) 0 1.
-    { admit. }
+    { intros ??.
+      eapply Fubini_Step_ex_y.
+      apply IsFubiniRR_mult; [apply IsFubiniRR_mult; [apply IsFubiniRR_mult |] |].
+      { apply IsFubiniRR_continuous.
+        intros ??.
+        apply (Continuity2_const (G1_μ b)).
+        intros [??].
+        rewrite /uncurry//=.
+      }
+      { apply PCts_const_y.
+        apply PCts_cts.
+        intros ??.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        auto_derive; done.
+      }
+      { apply PCts_const_x.
+        apply PCts_cts.
+        intros ??.
+        rewrite /G2_μ.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        auto_derive; done.
+      }
+      { apply PCts_const_x.
+        apply HPcts.
+      }
+    }
 
     have HBpos : ∀ a b : nat, 0 <= B (a, b).
     { intros a b.
@@ -1729,24 +1781,39 @@ Section credits.
       rewrite ex_seriesC_nat.
       rewrite /B.
       (* eapply ex_seriesC_RInt. *)
-
       admit. }
     { admit. }
   Admitted.
 
-  Lemma HR3 {F M x n} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
+  Lemma HR3 {F x n} (HPcts : ∀ x1, PCts (F x1) 0 1)  :
     RInt (λ x1 : R, RInt (λ x0 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1 =
     RInt (λ x0 : R, RInt (λ x1 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1.
   Proof.
-    apply Fubini_eq.
-    rewrite /FubiniCondition.
-    intros x0 y Hx0 Hy.
-    rewrite /uncurry//=.
-    (* This is Continuity2 because it is the pointwise product of Continuity1 terms.
-
-        Actually, we want this to be the piecewise continuity thing not Continuity1. Finish that reduction first.
-     *)
-  Admitted.
+    apply Fubini_Step_eq.
+    apply IsFubiniRR_mult; [apply IsFubiniRR_mult; [apply IsFubiniRR_mult |] |].
+    { apply IsFubiniRR_continuous.
+      intros ??.
+      apply (Continuity2_const (G1_μ x)).
+      intros [??].
+      rewrite /uncurry//=.
+    }
+    { apply PCts_const_y.
+      apply PCts_cts.
+      intros ??.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      auto_derive; done.
+    }
+    { apply PCts_const_x.
+      apply PCts_cts.
+      intros ??.
+      rewrite /G2_μ.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      auto_derive; done.
+    }
+    { apply PCts_const_x.
+      apply HPcts.
+    }
+  Qed.
 
   Lemma HR4 {F M n} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
   RInt
@@ -2226,7 +2293,7 @@ Section credits.
       2: {
         apply Series.Series_ext; intros x.
         rewrite /B.
-        apply (@HR3 _ M); done.
+        apply (HR3 ); done.
       }
 
       replace (Series.Series (λ x : nat, RInt (λ x1 : R, RInt (λ x0 : R, B n x x0 x1) 0 1) 0 1))
