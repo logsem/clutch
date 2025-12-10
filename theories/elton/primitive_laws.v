@@ -406,6 +406,7 @@ Proof.
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
 
+(* Should also implement a version where the argument may be a thunk *)
 Lemma wp_rand (N : nat) (z : Z) E s :
   TCEq N (Z.to_nat z) →
   {{{ True }}} rand #z @ s; E {{{ (n : fin (S N)), RET #n; True }}}.
@@ -427,7 +428,7 @@ Proof.
   done. 
 Qed.
 
-Lemma wp_drand (N : nat) (z : Z) v E s P :
+Lemma wp_drand_thunk (N : nat) (z : Z) v E s P :
   TCEq N (Z.to_nat z) →
   {{{ P ∗ (P -∗ rupd (λ v,v= #N) P v)}}} drand v @ s; E {{{ l, RET LitV (LitLbl l); P ∗ l ↪ list_to_set (seq 0 (S N)) }}}.
 Proof.
