@@ -121,17 +121,17 @@ Section pure_exec.
     PureExec (bin_op_eval op v1 v2 = Some v') 1 (BinOp op (Val v1) (Val v2)) (Val v') | 10.
   Proof. solve_pure_exec. Qed.
 
-  (* Lower-cost instance for [EqOp]. *)
-  Global Instance pure_eqop bl1 bl2 :
-    PureExec (is_simple_base_lit bl1 = true /\ is_simple_base_lit bl2 = true) 1
-      (BinOp EqOp (Val $ LitV bl1) (Val $ LitV bl2))
-      (Val $ LitV $ LitBool $ bool_decide (bl1 = bl2)) | 1.
-  Proof.
-    intros [H1 H2].
-    apply nsteps_once, pure_head_step_pure_step; constructor; try solve_exec_safe.
-    - apply BinOpS; destruct bl1; by destruct bl2.
-    - intros. simpl. destruct bl1; destruct bl2; try done; simpl; rewrite dret_1_1//.
-  Qed.
+  (* (* Lower-cost instance for [EqOp]. *) *)
+  (* Global Instance pure_eqop bl1 bl2 : *)
+  (*   PureExec (is_simple_base_lit bl1 = true /\ is_simple_base_lit bl2 = true) 1 *)
+  (*     (BinOp EqOp (Val $ LitV bl1) (Val $ LitV bl2)) *)
+  (*     (Val $ LitV $ LitBool $ bool_decide (bl1 = bl2)) | 1. *)
+  (* Proof. *)
+  (*   intros [H1 H2]. *)
+  (*   apply nsteps_once, pure_head_step_pure_step; constructor; try solve_exec_safe. *)
+  (*   - apply BinOpS; destruct bl1; by destruct bl2. *)
+  (*   - intros. simpl. destruct bl1; destruct bl2; try done; simpl; rewrite dret_1_1//. *)
+  (* Qed. *)
 
   Global Instance pure_if_true e1 e2 :
     PureExec True 1 (If (Val $ LitV $ LitBool true) e1 e2) e1.

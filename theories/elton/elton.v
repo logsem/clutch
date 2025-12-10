@@ -1,7 +1,7 @@
 From stdpp Require Import namespaces.
 From clutch.delay_prob_lang Require Export notation tactics metatheory urn_subst.
-From clutch.delay_prob_lang Require Export lang.
 From clutch.elton Require Export weakestpre lifting ectx_lifting primitive_laws proofmode adequacy rupd.
+From clutch.delay_prob_lang Require Export lang.
 
 
 From clutch.elton.unary_rel Require Export
