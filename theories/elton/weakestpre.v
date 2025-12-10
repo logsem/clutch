@@ -900,7 +900,8 @@ Proof.
   erewrite pgl_wp_unfold. rewrite /pgl_wp_pre.
   iIntros (??) "[??]". 
   iSpecialize ("H" with "[$]").
-  iMod "H". iModIntro.
+  iApply fupd_mono; last done.
+  iIntros "H".
   iApply (state_step_coupl_bind with "[][$]").
   iIntros (??) "H".
   iApply fupd_state_step_coupl.
