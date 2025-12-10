@@ -24,12 +24,6 @@ End pmf.
 Section credits.
   Import Hierarchy.
 
-  (*
-  Lemma ex_seriesC_lemma1 : ex_seriesC (λ x : nat, exp (- (x * (x - 1))%nat / 2)).
-  Proof. A dmitted.
-
-   *)
-
   Definition G1_CreditV (F : nat → R) := SeriesC (fun (k : nat) => G1_μ k * F k).
 
   Definition G2_CreditV (F : nat → R → R) :=
@@ -557,37 +551,6 @@ Section credits.
       by auto_derive.
     }
   Qed.
-
-
-  (*
-  Lemma G2_f_ex_seriesC {F M}
-    (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M)
-    (Hcont : ∀ k, PCts (F k) 0 1)
-    : ex_seriesC (G2_f F).
-  Proof.
-    rewrite /G2_f.
-    rewrite /G2_g.
-    rewrite /G2_s //=.
-    replace
-      (λ k : nat,
-       RInt
-         (λ x : R,
-            exp (- x * (2 * k + x) / 2) * (Iverson is_true true * F k x + Iverson (not ∘ is_true) true * G2_CreditV F) +
-            (1 - exp (- x * (2 * k + x) / 2)) *
-            (Iverson is_true false * F k x + Iverson (not ∘ is_true) false * G2_CreditV F)) 0 1)
-        with
-      (λ k : nat, RInt (λ x : R, exp (- x * (2 * k + x) / 2) * (F k x) + (1 - exp (- x * (2 * k + x) / 2)) * (G2_CreditV F)) 0 1).
-    2: {
-      funexti. f_equal. funexti.
-      rewrite Iverson_True; OK.
-      rewrite Iverson_False; OK.
-      rewrite Iverson_False; OK.
-      rewrite Iverson_True; OK.
-    }
-    rewrite /G2_CreditV.
-  Admitted.
-  *)
-
 
   Lemma G2_g_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) {r t} (Ht : 0 <= t <= 1) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) : G2_g F r t <= M.
   Proof.
@@ -1748,9 +1711,15 @@ Section credits.
     { intros a.
       rewrite ex_seriesC_nat.
       rewrite /B.
-      (* eapply ex_seriesC_RInt. *)
+      (* Bounded above by the sum of G1_μ *)
       admit. }
-    { admit. }
+    { rewrite /B.
+      (* Internalize the domain functions to the integrand *)
+
+      (* Upper bound G2_μ by a term that depends only on A *)
+      (* Factor out G2_μ term *)
+
+      admit. }
   Admitted.
 
   Lemma HR3 {F x n} (HPcts : ∀ x1, PCts (F x1) 0 1)  :
@@ -1793,17 +1762,24 @@ Section credits.
        RInt (λ x1 : R, RInt (λ x0 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1).
   Proof.
     symmetry.
-    apply (FubiniIntegralSeries_Strong (fun x => G1_μ x * M * RInt (G2_μ n) 0 1)).
-    - OK.
-    - admit.
-    - rewrite ex_seriesC_nat.
-      apply ex_seriesC_scal_r, ex_seriesC_scal_r.
-      rewrite /G1_μ.
-      replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; lra).
-      apply ex_seriesC_scal_r, Norm1_ex.
-    - intros x n0 ?.
-      (* The bound of G2_μ is odd. Can I get a sup for it over the interval instead of using the integral...*)
+    apply (FubiniIntegralSeries_Strong (fun x => G1_μ x * M )).
+    { OK. }
+    { intros ???.
+      apply RInt_ge_0; OK.
+      { apply ex_RInt_mult; [|apply ex_RInt_const].
+        apply ex_RInt_mult; [|apply ex_RInt_const].
+        admit. }
       admit.
+    }
+    { (* UB series must exist *)
+      rewrite ex_seriesC_nat.
+      apply ex_seriesC_scal_r, ex_seriesC_scal_r.
+      apply Norm1_ex.
+      (* replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; lra).
+      apply ex_seriesC_scal_r, Norm1_ex. *) }
+    {
+
+      admit. }
     - intros n0.
       (* Need the ex_RInt of RInt.
 
@@ -2439,7 +2415,7 @@ Section program.
       let: "x" := init #() in
       if: IterTrial (λ: "_", B "k" "x") ("k" + #1) then ("x", "k") else "trial" #().
 
-  Theorem wp_G1 {E F M} (Hnn : ∀ r, 0 <= F r <= M) (Hex : ex_seriesC F) :
+  Theorem wp_G1 {E F M} (Hnn : ∀ r, 0 <= F r <= M) (* (Hex : ex_seriesC F) *) :
     ↯(G1_CreditV F) -∗ WP G1 #() @ E {{ vn, ∃ n : nat, ⌜vn = #n ⌝ ∗ ↯(F n) }}.
   Proof.
     iStartProof.
@@ -2549,7 +2525,6 @@ Section program.
     iApply (pgl_wp_mono_frame (□ _) with "[Hε] IH"); last first.
     { iApply (wp_G1 (F := G2_f F) (M := M)).
       { intros ?; split; [apply G2_f_nn; OK; apply Hnn|]. apply G2_ub; OK. }
-      { (* apply (@G2_f_ex_seriesC _ M); try done. *) admit.  }
       { iApply (ec_eq with "Hε").
         eapply G2_f_expectation.
         { done. }
@@ -2625,6 +2600,6 @@ Section program.
       iApply (ec_eq with "Hε").
       rewrite Iverson_True; [lra|done].
     }
-  Admitted.
+  Qed.
 
 End program.
