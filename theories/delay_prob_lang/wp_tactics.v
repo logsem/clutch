@@ -162,7 +162,7 @@ Ltac solve_vals_compare_safe :=
   (* The first branch is for when we have [vals_compare_safe] in the context.
      The other two branches are for when either one of the branches reduces to
      [True] or we have it in the context. *)
-  fast_done || (left; fast_done) || (right; fast_done).
+  fast_done || (left; fast_done) || (right; fast_done) || eauto.
 
 (** The argument [efoc] can be used to specify the construct that should be
 reduced. For example, you can write [wp_pure (EIf _ _ _)], which will search
