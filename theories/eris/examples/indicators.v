@@ -961,6 +961,9 @@ Definition Int {T} (S U : T -> Prop) : T -> Prop :=
 Definition Bounded (f : R * R -> R) (M : R) : R * R -> Prop :=
   fun t => Rabs (f t) <= M.
 
+Lemma Ioo_Icc {xa xb x} : Ioo xa xb x → Icc xa xb x.
+Proof. rewrite /Ioo/Icc//=. lra. Qed.
+
 (* I need either ex_SeriesC or maybe nn *)
 Lemma SeriesC_nat_shift {f : nat → R} (Hex :  Series.ex_series f) : SeriesC f = f 0%nat + SeriesC (f ∘ S).
 Proof.
@@ -2741,12 +2744,51 @@ Section FubiniAx.
 
 End FubiniAx.
 
-(* Reduction: This implies Fubini's theorem holds for step functions by Chasales theorem *)
 
+Section PiecewiseCts.
+  Import Hierarchy.
+
+  (* A function on a rectangle *)
+  Definition IntervalFun_R : ((R → R) * R * R) → (R → R) :=
+    fun '(f, xa, xb) x => Iverson (Ioo xa xb) x * f x.
+
+  Definition IntervalFun_continuity : ((R → R) * R * R) → Prop :=
+    fun '(f, xa, xb) => ∀ x, Ioo xa xb x → Continuity.continuous f x.
+
+  Definition fsum {T : Type} (L : list (T → R)) : T → R := fun t => foldr (fun f s => f t + s) 0 L.
+
+  (* Generalized: f is a finite sum of rectangle functions *)
+  Definition PCts (f : R → R) (xa xb : R) : Prop :=
+    ∃ L, (∀ x, Ioo xa xb x → f = fsum (IntervalFun_R <$> L)) ∧ Forall IntervalFun_continuity L.
+
+  Lemma IntervalFun_RInt {f xa xb} {a b} :
+    IntervalFun_continuity (f, xa, xb) →
+    ex_RInt (IntervalFun_R (f, xa, xb)) a b.
+  Proof.
+  Admitted.
+
+  Lemma PCts_RInt {f xa xb} (HP : PCts f xa xb) {a b} :
+    ex_RInt f a b.
+  Proof.
+  Admitted.
+
+  Lemma PCts_cts {f xa xb} : (∀ x, Ioo xa xb x → Continuity.continuous f x) → PCts f xa xb.
+  Proof. Admitted.
+
+  Lemma PCts_plus {f g xa xb} : PCts f xa xb → PCts g xa xb → PCts (fun x => f x + g x) xa xb.
+  Proof. Admitted.
+
+  Lemma PCts_mult {f g xa xb} : PCts f xa xb → PCts g xa xb → PCts (fun x => f x + g x) xa xb.
+  Proof. Admitted.
+
+End PiecewiseCts.
 
 Section FubiniStep.
   Import Hierarchy.
 
+  Lemma Continuity2_swap (f : R * R → R) (x y : R) :
+    Continuity2 (fun '(x', y') => f (y', x')) y x → Continuity2 f x y.
+  Proof. Admitted.
 
   (* Continuity.continuity_2d_pt_filterlim ???? *)
   Definition IsFubiniCoreRR (f : R → R → R) : Prop :=
@@ -2755,7 +2797,6 @@ Section FubiniStep.
   Definition IsFubiniCoreSR (f : nat → R → R) : Prop :=
     forall n x, Continuity.continuous (f n) x.
 
-  Definition fsum {T : Type} (L : list (T → R)) : T → R := fun t => foldr (fun f s => f t + s) 0 L.
 
   Definition fsum2 {T U : Type} (L : list (T → U → R)) : T → U → R :=
     fun t u => foldr (fun f s => f t u + s) 0 L.
@@ -2765,60 +2806,406 @@ Section FubiniStep.
     fun '(f, xa, xb, ya, yb) x y => Iverson (Ioo xa xb) x * Iverson (Ioo ya yb) y * f x y.
 
   Definition RectFun_continuity : ((R → R → R) * R * R * R * R) → Prop :=
-    fun '(f, xa, xb, ya, yb) => ∀ x y, Ioo xa xb x → Ioo ya yb y → Continuity2 (uncurry f) x y.
+    fun '(f, xa, xb, ya, yb) => ∀ x y, Icc xa xb x → Icc ya yb y → Continuity2 (uncurry f) x y.
 
-  (* Generalized: f is a finite sum of rectangle functions *)
-  Definition IsFubiniRR (f : R → R → R) : Prop :=
-    ∃ L, f = fsum2 (RectFun_RR <$> L) ∧ Forall RectFun_continuity L.
+  (* Generalized: f is a finite sum of rectangle functions on the rectangle [xa xb] [ya yb] *)
+  Definition IsFubiniRR (f : R → R → R) (xa xb ya yb : R) : Prop :=
+    ∃ L,
+      ∀ x y, (Ioo xa xb x → Ioo ya yb y → f x y = fsum2 (RectFun_RR <$> L) x y) ∧
+      Forall RectFun_continuity L.
 
-  (*
-  (* E, maybe G  *)
+  Lemma IsFubiniRR_continuous {f : R → R → R} {xa xb ya yb} :
+    (∀ x y, Continuity2 (uncurry f) x y) →
+    IsFubiniRR f xa xb ya yb.
+  Proof. Admitted.
 
-  Lemma Fubini_Step_ex_x {f xa xb ya yb} : IsFubiniRR f →
+  Lemma fsum2_app {T U : Type} (L1 L2 : list (T → U → R)) (t : T) (u : U) :
+    fsum2 (L1 ++ L2) t u = fsum2 L1 t u + fsum2 L2 t u.
+  Proof.
+    unfold fsum2.
+    induction L1 as [| f L1 IH].
+    { simpl. lra. }
+    { simpl. rewrite IH. lra. }
+  Qed.
+
+  Lemma IsFubiniRR_plus {f g : R → R → R} {xa xb ya yb} :
+    IsFubiniRR f xa xb ya yb → IsFubiniRR g xa xb ya yb → IsFubiniRR (fun (x y : R) => f x y + g x y) xa xb ya yb.
+  Proof.
+    intros [Lf Hf] [Lg Hg].
+    unfold IsFubiniRR.
+    exists (Lf ++ Lg).
+    intros x y.
+    split.
+    {
+      intros Hx Hy.
+      destruct (Hf x y) as [Hfeq _].
+      destruct (Hg x y) as [Hgeq _].
+      rewrite (Hfeq Hx Hy).
+      rewrite (Hgeq Hx Hy).
+      rewrite fmap_app.
+      rewrite fsum2_app.
+      reflexivity.
+    }
+    {
+      apply Forall_app.
+      split.
+      { destruct (Hf xa ya) as [_ HLf]. exact HLf. }
+      { destruct (Hg xa ya) as [_ HLg]. exact HLg. }
+    }
+  Qed.
+
+  Lemma IsFubiniRR_mult {f g : R → R → R} {xa xb ya yb} :
+    IsFubiniRR f xa xb ya yb → IsFubiniRR g xa xb ya yb → IsFubiniRR (fun (x y : R) => f x y * g x y) xa xb ya yb.
+  Proof.
+  Admitted.
+
+  (* Slice of 2D continuous function is integrable in y *)
+  Lemma ex_RInt_continuous_slice_y (f : R → R → R)x xa xb ya yb :
+    Ioo xa xb x →
+    (∀ y, Icc ya yb y → Continuity2 (uncurry f) x y) →
+    ex_RInt (fun y => f x y) ya yb.
+  Proof.
+    intros ??.
+    apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+    intros z Hz.
+    apply (@Continuity2_continuous_snd (uncurry f) x z).
+    apply H0.
+    rewrite /Ioo//=.
+  Qed.
+
+  (* Slice of 2D continuous function is integrable in x *)
+  Lemma ex_RInt_continuous_slice_x (f : R → R → R) y xa xb ya yb :
+    Ioo ya yb y →
+    (∀ x, Icc xa xb x → Continuity2 (uncurry f) x y) →
+    ex_RInt (fun x => f x y) xa xb.
+  Proof.
+    intros ??.
+    apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+    intros z Hz.
+    apply (@Continuity2_continuous_fst (uncurry f) z y).
+    apply H0.
+    rewrite /Ioo//=.
+  Qed.
+
+
+  (* Integrability of Iverson-masked continuous function in y *)
+  Lemma ex_RInt_Iverson_continuous_y (f : R → R → R) xa' xb' ya' yb' x ya yb :
+    Ioo xa' xb' x →
+    (∀ y, Icc ya' yb' y → Continuity2 (uncurry f) x y) →
+    ex_RInt (fun y => Iverson (Ioo ya' yb') y * f x y) ya yb.
+  Proof.
+    intros Hx Hcont.
+    (* Reduce to the case where the bounds are in order *)
+    suffices HH : ex_RInt (λ y : R, Iverson (Ioo ya' yb') y * f x y) (Rmin ya yb) (Rmax ya yb).
+    { destruct (Rle_lt_dec ya yb).
+      { rewrite Rmin_left in HH; try lra.
+        rewrite Rmax_right in HH; try lra.
+        apply HH. }
+      { rewrite Rmin_right in HH; try lra.
+        rewrite Rmax_left in HH; try lra.
+        apply ex_RInt_swap.
+        apply HH. }
+    }
+    have LraLem1 : Rmin ya yb <= Rmax ya yb := Rminmax _ _.
+    have LraLem2 : Rmin ya' yb' <= Rmax ya' yb' := Rminmax _ _.
+
+    (* Trivial: Upper bound of indicator is le lower bound of integral *)
+    destruct (Rle_lt_dec (Rmax ya' yb') (Rmin ya yb)).
+    { apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      rewrite /Ioo//=.
+      rewrite Iverson_False; try lra.
+    }
+
+    (* Trivial: Lower bound of indicator is le upper bound of integral *)
+    destruct (Rle_lt_dec (Rmin ya' yb') (Rmax ya yb)).
+    2: {
+      apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      rewrite /Ioo//=.
+      rewrite Iverson_False; try lra.
+    }
+
+    (* Case on the lower bound of the indicator being in range.*)
+    destruct (Rle_lt_dec (Rmin ya' yb') (Rmin ya yb));
+    destruct (Rle_lt_dec (Rmax ya' yb') (Rmax ya yb)).
+    { (* Case: ---____ *)
+      apply (ex_RInt_Chasles_0 _ _ (Rmax ya' yb') _).
+      { split; lra. }
+      { apply (ex_RInt_ext (fun y => f x y)).
+        { rewrite Rmin_left; try lra.
+          rewrite Rmax_right; try lra.
+          intros ??.
+          rewrite Iverson_True; try lra.
+          rewrite /Ioo//=. lra.
+        }
+        { apply (ex_RInt_continuous_slice_y _ _ _ _ _ _ Hx).
+          rewrite /Icc.
+          rewrite Rmin_left; try lra.
+          rewrite Rmax_right; try lra.
+          intros ??.
+          apply Hcont.
+          rewrite /Icc.
+          lra.
+        }
+      }
+      { apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
+        rewrite Rmin_left; try lra.
+        rewrite (Rmax_right (Rmax ya' yb') (Rmax ya yb)); try lra.
+        intros ??.
+        rewrite Iverson_False; try lra.
+        rewrite /Ioo//=. lra.
+      }
+    }
+    { (* Case: ------- *)
+      apply (ex_RInt_ext (fun y => f x y)).
+      {
+        rewrite Rmin_left; try lra.
+        rewrite (Rmax_right); try lra.
+        intros ??.
+        rewrite Iverson_True; try lra.
+        rewrite /Ioo//=. lra.
+      }
+      { apply (ex_RInt_continuous_slice_y _ _ _ _ _ _ Hx).
+        rewrite /Icc.
+        rewrite Rmin_left; try lra.
+        rewrite Rmax_right; try lra.
+        intros ??.
+        apply Hcont.
+        rewrite /Icc.
+        lra.
+      }
+    }
+
+    { (* Case : __----__*)
+      apply (ex_RInt_Chasles_0 _ _ (Rmin ya' yb') _).
+      { split; try lra. }
+      { apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
+        rewrite Rmin_left; try lra.
+        rewrite Rmax_right; try lra.
+        intros ??.
+        rewrite Iverson_False; try lra.
+        rewrite /Ioo//=. lra.
+      }
+      apply (ex_RInt_Chasles_0 _ _ (Rmax ya' yb') _).
+      { split; try lra.  }
+      { apply (ex_RInt_ext (fun y => f x y)).
+        { rewrite Rmin_left; try lra.
+          rewrite Rmax_right; try lra.
+          intros ??.
+          rewrite Iverson_True; try lra.
+          rewrite /Ioo//=.
+        }
+        apply (ex_RInt_continuous_slice_y _ _ _ _ _ _ Hx).
+        rewrite /Icc.
+        rewrite Rmin_left; try lra.
+        rewrite Rmax_right; try lra.
+        intros ??.
+        apply Hcont.
+        rewrite /Icc.
+        lra.
+      }
+      { apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
+        rewrite Rmin_left; try lra.
+        rewrite (Rmax_right (Rmax ya' yb') (Rmax ya yb)); try lra.
+        intros ??.
+        rewrite Iverson_False; try lra.
+        rewrite /Ioo//=. lra.
+      }
+    }
+    { (* Case: ____---- *)
+      apply (ex_RInt_Chasles_0 _ _ (Rmin ya' yb') _).
+      { split; lra. }
+      { apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
+        rewrite Rmin_left; try lra.
+        rewrite Rmax_right; try lra.
+        intros ??.
+        rewrite Iverson_False; try lra.
+        rewrite /Ioo//=. lra.
+      }
+      { apply (ex_RInt_ext (fun y => f x y)).
+        { rewrite Rmin_left; try lra.
+          rewrite (Rmax_right) ; try lra.
+          intros ??.
+          rewrite Iverson_True; try lra.
+          rewrite /Ioo//=.
+          split; try lra.
+        }
+        apply (ex_RInt_continuous_slice_y _ _ _ _ _ _ Hx).
+        rewrite /Icc.
+        rewrite Rmin_left; try lra.
+        rewrite Rmax_right; try lra.
+        intros ??.
+        apply Hcont.
+        rewrite /Icc.
+        lra.
+      }
+    }
+  Qed.
+
+
+  (* Integrability of Iverson-masked continuous function in y *)
+  (* Reduce to the continuous_y case instead of duplicating that horrifying proof *)
+  Lemma ex_RInt_Iverson_continuous_x (f : R → R → R) xa' xb' ya' yb' y xa xb :
+    Ioo ya' yb' y →
+    (∀ x, Icc xa' xb' x → Continuity2 (uncurry f) x y) →
+    ex_RInt (fun x => Iverson (Ioo xa' xb') x * f x y) xa xb.
+  Proof.
+    intros ??.
+    apply (@ex_RInt_Iverson_continuous_y (fun x' y' => f y' x') _ _ _ _ _ _ _ H).
+    intros z Hz.
+    apply Continuity2_swap.
+    exact (H0 z Hz).
+  Qed.
+
+  (* Integrability of a single rectangle function in y for fixed x *)
+  Lemma RectFun_RR_ex_RInt_y (rect : (R → R → R) * R * R * R * R) x ya yb :
+    RectFun_continuity rect →
+    ex_RInt (fun y => RectFun_RR rect x y) ya yb.
+  Proof.
+    intros Hcont.
+    destruct rect as [[[[f xa'] xb'] ya'] yb'].
+    unfold RectFun_RR.
+    (* Cases on if x is in the first interval *)
+    destruct (decide (Ioo xa' xb' x)) as [Hx | Hx].
+    2: { apply (@ex_RInt_ext _ (fun y => 0)).
+      { intros y _. rewrite (Iverson_False Hx). lra. }
+      apply ex_RInt_const.
+    }
+    { apply (@ex_RInt_ext _ (fun y => Iverson (Ioo ya' yb') y * f x y)).
+      { intros y _. rewrite (Iverson_True Hx). lra. }
+      eapply ex_RInt_Iverson_continuous_y.
+      { exact Hx. }
+      { intros y Hy.
+        apply Hcont.
+        { exact (Ioo_Icc Hx). }
+        { exact Hy. }
+      }
+    }
+  Qed.
+
+  (* Integrability of a single rectangle function in x for fixed y *)
+  Lemma RectFun_RR_ex_RInt_x (rect : (R → R → R) * R * R * R * R) y xa xb :
+    RectFun_continuity rect →
+    ex_RInt (fun x => RectFun_RR rect x y) xa xb.
+  Proof.
+    intros Hcont.
+    destruct rect as [[[[f xa'] xb'] ya'] yb'].
+    unfold RectFun_RR.
+    destruct (decide (Ioo ya' yb' y)) as [Hy | Hy].
+    { apply (@ex_RInt_ext _ (fun x => Iverson (Ioo xa' xb') x * f x y)).
+      { intros x _. rewrite (Iverson_True Hy). lra. }
+      eapply ex_RInt_Iverson_continuous_x.
+      { exact Hy. }
+      { intros x Hx. apply Hcont; [exact Hx|exact (Ioo_Icc Hy)]. }
+    }
+    { apply (@ex_RInt_ext _ (fun x => 0)).
+      { intros x _. rewrite (Iverson_False Hy). lra. }
+      apply ex_RInt_const.
+    }
+  Qed.
+
+  (* Integrability of fsum2 in y for fixed x *)
+  Lemma fsum2_RectFun_ex_RInt_y (L : list ((R → R → R) * R * R * R * R)) x ya yb :
+    Forall RectFun_continuity L →
+    ex_RInt (fun y => fsum2 (RectFun_RR <$> L) x y) ya yb.
+  Proof.
+  Admitted.
+
+  (* Integrability of fsum2 in x for fixed y *)
+  Lemma fsum2_RectFun_ex_RInt_x (L : list ((R → R → R) * R * R * R * R)) y xa xb :
+    Forall RectFun_continuity L →
+    ex_RInt (fun x => fsum2 (RectFun_RR <$> L) x y) xa xb.
+  Proof.
+  Admitted.
+
+  (* Key lemma: integrability for a single rectangle function *)
+  Lemma RectFun_RR_ex_RInt_iterated_x (rect : (R → R → R) * R * R * R * R) xa xb ya yb :
+    RectFun_continuity rect →
+    ex_RInt (fun x => RInt (fun y => RectFun_RR rect x y) ya yb) xa xb.
+  Proof.
+  Admitted.
+
+  Lemma RectFun_RR_ex_RInt_iterated_y (rect : (R → R → R) * R * R * R * R) xa xb ya yb :
+    RectFun_continuity rect →
+    ex_RInt (fun y => RInt (fun x => RectFun_RR rect x y) xa xb) ya yb.
+  Proof.
+  Admitted.
+
+  (* Helper lemma: integrability for lists of rectangle functions *)
+  Lemma fsum2_RectFun_ex_x (L : list ((R → R → R) * R * R * R * R)) xa xb ya yb :
+    Forall RectFun_continuity L →
+    ex_RInt (fun x => RInt (fun y => fsum2 (RectFun_RR <$> L) x y) ya yb) xa xb.
+  Proof.
+    intros HL.
+    induction L as [| rect L IH]; simpl.
+    { apply ex_RInt_const. }
+    apply (@ex_RInt_ext _ (fun x => RInt (fun y => RectFun_RR rect x y) ya yb + RInt (fun y => fsum2 (RectFun_RR <$> L) x y) ya yb)).
+    { intros x _. rewrite RInt_plus.
+      { reflexivity. }
+      { apply RectFun_RR_ex_RInt_y. apply Forall_inv in HL. exact HL. }
+      { apply fsum2_RectFun_ex_RInt_y.  apply Forall_inv_tail in HL. exact HL. } }
+    apply (ex_RInt_plus (V := R_CompleteNormedModule)).
+    { apply RectFun_RR_ex_RInt_iterated_x. apply Forall_inv in HL. exact HL. }
+    { apply IH. apply Forall_inv_tail in HL. exact HL. }
+  Qed.
+
+  (* Helper lemma: integrability for lists in y-direction *)
+  Lemma fsum2_RectFun_ex_y (L : list ((R → R → R) * R * R * R * R)) xa xb ya yb :
+    Forall RectFun_continuity L →
+    ex_RInt (fun y => RInt (fun x => fsum2 (RectFun_RR <$> L) x y) xa xb) ya yb.
+  Proof.
+    intros HL.
+    induction L as [| rect L IH]; simpl.
+    { apply ex_RInt_const. }
+    apply (@ex_RInt_ext _ (fun y => RInt (fun x => RectFun_RR rect x y) xa xb + RInt (fun x => fsum2 (RectFun_RR <$> L) x y) xa xb)).
+    { intros y _. rewrite RInt_plus.
+      { reflexivity. }
+      { apply RectFun_RR_ex_RInt_x. apply Forall_inv in HL. exact HL. }
+      { apply fsum2_RectFun_ex_RInt_x. apply Forall_inv_tail in HL. exact HL. } }
+    apply (ex_RInt_plus (V := R_CompleteNormedModule)).
+    { apply RectFun_RR_ex_RInt_iterated_y. apply Forall_inv in HL. exact HL. }
+    { apply IH. apply Forall_inv_tail in HL. exact HL. }
+  Qed.
+
+  Lemma Fubini_Step_ex_x {f xa xb ya yb} : IsFubiniRR f xa xb ya yb →
     ex_RInt (fun x => RInt (fun y => f x y) ya yb) xa xb.
   Proof.
-    intros [L [-> HL]].
-    induction L.
-    { simpl. apply ex_RInt_const. }
-    simpl.
-    replace (λ x : R, RInt (λ y : R, RectFun_RR a x y + fsum2 (list_fmap ((R → R → R) * R * R * R * R)%type (R → R → R) RectFun_RR L) x y) ya yb)
-       with (λ x : R, RInt (fun y : R => RectFun_RR a x y) ya yb + RInt (λ y : R, fsum2 (list_fmap ((R → R → R) * R * R * R * R)%type (R → R → R) RectFun_RR L) x y) ya yb).
-    2: {
-      apply functional_extensionality. intros x.
-      rewrite RInt_plus.
-      { done. }
-      { rewrite /RectFun_RR//=.
-        apply Forall_inv in HL.
-        destruct a as [[[[f xa'] xb'] ya'] yb'].
-        rewrite /RectFun_continuity//= in HL.
-        apply (@ex_RInt_ext _ (λ y',  (uncurry f) (x, y'))).
-        2: {
-          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply Continuity2_continuous_snd.
-          apply HL.
-          { a dmit. }
-          { a dmit. }
-        }
-        { a dmit. }
-      }
-      a dmit.
-    }
-  apply (ex_RInt_plus (V := R_CompleteNormedModule)).
-    2: { apply IHL. exact (Forall_inv_tail HL). }
-    a dmit.
-  A dmitted.
+    intros [L H].
+    apply (@ex_RInt_ext _ (fun x => RInt (fun y => fsum2 (RectFun_RR <$> L) x y) ya yb)).
+    { intros x Hx. apply RInt_ext. intros y Hy.
+      destruct (H x y) as [Heq _]. symmetry. apply Heq. { exact Hx. } { exact Hy. } }
+    destruct (H xa ya) as [_ HL].
+    apply fsum2_RectFun_ex_x. exact HL.
+  Qed.
 
-  Lemma Fubini_Step_ex_y {f xa xb ya yb} : IsFubiniRR f →
+  Lemma Fubini_Step_ex_y {f xa xb ya yb} : IsFubiniRR f xa xb ya yb →
     ex_RInt (fun y => RInt (fun x => f x y) xa xb) ya yb.
   Proof.
-  A dmitted.
+    intros [L H].
+    apply (@ex_RInt_ext _ (fun y => RInt (fun x => fsum2 (RectFun_RR <$> L) x y) xa xb)).
+    { intros y Hy. apply RInt_ext. intros x Hx.
+      destruct (H x y) as [Heq _]. symmetry. apply Heq. { exact Hx. } { exact Hy. } }
+    destruct (H xa ya) as [_ HL].
+    apply fsum2_RectFun_ex_y. exact HL.
+  Qed.
 
-  Lemma Fubini_Step_eq : ∀ {f xa xb ya yb}, IsFubiniRR f →
-    RInt (fun x => RInt (fun y => f x y) ya yb) xa xb =  RInt (fun y => RInt (fun x => f x y) xa xb) ya yb.
+  Lemma Fubini_Step_eq : ∀ {f xa xb ya yb}, IsFubiniRR f xa xb ya yb →
+    RInt (fun x => RInt (fun y => f x y) ya yb) xa xb = RInt (fun y => RInt (fun x => f x y) xa xb) ya yb.
   Proof.
-  A dmitted.
-  *)
+  Admitted.
+
+  Lemma PCts_const_x {f xa xb ya yb} : PCts f xa xb → IsFubiniRR (fun x _ => f x) xa xb ya yb.
+  Proof.
+  Admitted.
+
+  Lemma PCts_const_y {f xa xb ya yb} : PCts f ya yb → IsFubiniRR (fun _ y => f y) xa xb ya yb.
+  Proof.
+  Admitted.
 
 End FubiniStep.
 
@@ -2925,33 +3312,3 @@ Section FubiniImproper.
 End FubiniImproper.
 
 
-Section PiecewiseCts.
-  Import Hierarchy.
-
-  (* There is simply too much going on with our functions for F to be generally integrable,
-     we will restritct F to being Piecewise Continuous for the neg exp and gauss parts.
-     This section reduces the lemmas
-     we have been using to use Piecewise Continuity. *)
-  (* A function on a rectangle *)
-  Definition IntervalFun_R : ((R → R) * R * R) → (R → R) :=
-    fun '(f, xa, xb) x => Iverson (Ioo xa xb) x * f x.
-
-  Definition IntervalFun_continuity : ((R → R) * R * R) → Prop :=
-    fun '(f, xa, xb) => ∀ x, Ioo xa xb x → Continuity.continuous f x.
-
-  (* Generalized: f is a finite sum of rectangle functions *)
-  Definition PCts (f : R → R) : Prop :=
-    ∃ L, f = fsum (IntervalFun_R <$> L) ∧ Forall IntervalFun_continuity L.
-
-  Lemma IntervalFun_RInt {f xa xb} {a b} :
-    IntervalFun_continuity (f, xa, xb) →
-    ex_RInt (IntervalFun_R (f, xa, xb)) a b.
-  Proof.
-  Admitted.
-
-  Lemma PCts_RInt {f} (HP : PCts f) {a b} :
-    ex_RInt f a b.
-  Proof.
-  Admitted.
-
-End PiecewiseCts.

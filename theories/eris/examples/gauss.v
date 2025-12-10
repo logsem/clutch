@@ -562,8 +562,7 @@ Section credits.
   (* TODO: Once this proof is done, reduce this to piecewise continuity *)
   Lemma G2_f_ex_seriesC {F M}
     (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M)
-    (Hint : ∀ x' : nat, ex_RInt (F x') 0 1)
-    (Hcont : ∀ k, PCts (F k))
+    (Hcont : ∀ k, PCts (F k) 0 1)
     : ex_seriesC (G2_f F).
   Proof.
 
@@ -1205,11 +1204,11 @@ Section credits.
   Qed.
 
 
-  Lemma HL3 {F M} (HPcs : ∀ x1, PCts (F x1) ) (Hbound : ∀ n x, 0 <= F n x <= M) :
+  Lemma HL3 {F M} (HPcs : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     ex_seriesC (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1).
   Proof.
     have Hex : ∀ x1, ex_RInt (F x1) 0 1.
-    { intros n. apply PCts_RInt. done. }
+    { intros n. apply (@PCts_RInt _ 0 1). done. }
 
     (* Shuffle around inner terms *)
     suffices H1 :
@@ -1303,12 +1302,28 @@ Section credits.
 
     have HFubiniEx2 : ∀ n,  ex_RInt (λ x1 : R, RInt (λ x0 : R, G2_μ n x1 * F n x1 * SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1) 0 1.
     { intros ?.
-      apply Fubini_ex_x.
-      (* TODO: This needs to generalize to piecewise continuity, but I believe it is true?
-        The tricky part is showing that the inner series is pcs continuous.
-      *)
-      rewrite /FubiniCondition.
-      admit. }
+      apply Fubini_Step_ex_x.
+      apply IsFubiniRR_mult; [apply IsFubiniRR_mult|].
+      { apply PCts_const_x.
+        apply PCts_cts.
+        rewrite /Ioo//=.
+        rewrite Rmin_left; OK.
+        rewrite Rmax_right; OK.
+        intros ??.
+        rewrite /G2_μ.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      { apply PCts_const_x. apply HPcs. }
+      { apply PCts_const_y.
+        apply PCts_cts.
+        rewrite /Ioo//=.
+        rewrite Rmin_left; OK.
+        rewrite Rmax_right; OK.
+        intros ??.
+        admit.
+      }
+    }
 
     have HFubiniEx1 : ∀ n, 0 <= RInt (λ x1 : R, RInt (λ x0 : R, G2_μ n x1 * F n x1 * SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1) 0 1.
     { intros ?. apply RInt_ge_0; OK.
@@ -1754,11 +1769,11 @@ Section credits.
         auto_derive; done.
   Qed.
 
-  Lemma G2_f_expectation {F M} (HPcts : ∀ x1 : nat, PCts (F x1)) (Hbound : ∀ n x, 0 <= F n x <= M) :
+  Lemma G2_f_expectation {F M} (HPcts : ∀ x1 : nat, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     G2_CreditV F = G1_CreditV (G2_f F).
   Proof.
     have Hex : ∀ x1, ex_RInt (F x1) 0 1.
-    { intros ?. apply PCts_RInt. done. }
+    { intros ?. apply (@PCts_RInt _ 0 1). done. }
     rewrite /G1_CreditV /G2_f.
     (* Split the sum and integral *)
     rewrite /G2_g.
@@ -2410,11 +2425,11 @@ Section program.
     }
   Qed.
 
-  Theorem wp_G2 {E F M} (Hnn : ∀ x k , 0 <= F x k <= M) (HPcs : ∀ k, PCts (F k)) :
+  Theorem wp_G2 {E F M} (Hnn : ∀ x k , 0 <= F x k <= M) (HPcts : ∀ x1 : nat, PCts (F x1) 0 1) :
     ↯(G2_CreditV F) -∗
     WP G2 #() @ E {{ vp, ∃ k : nat, ∃ r : R, ∃ l : val, lazy_real l r  ∗ ⌜vp = PairV l #k ⌝ ∗ ↯(F k r) }}.
   Proof.
-    have Hint := fun n => PCts_RInt (HPcs n).
+    have Hint := fun n => @PCts_RInt _ 0 1 (HPcts n).
     rewrite /G2.
     iLöb as "IH".
     iIntros "Hε".
