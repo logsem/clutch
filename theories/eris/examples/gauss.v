@@ -1803,12 +1803,204 @@ Section credits.
     }
     { rewrite /B.
       (* Internalize the domain functions to the integrand *)
+      rewrite ex_seriesC_nat.
+      apply (ex_seriesC_le _ (λ a : nat, Series.Series (λ b : nat, RInt (λ x0 : R, RInt (λ x1 : R, G1_μ b * 1 * G2_μ a x1 * M) 0 1) 0 1))).
+      { intros ?.
+        rewrite -SeriesC_nat.
+        have Hlem1 : 0 <= SeriesC (λ b : nat, RInt (λ x0 : R, RInt (λ x1 : R, G1_μ b * (1 - exp (- x0 * (2 * b + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1).
+        {
+          apply SeriesC_ge_0'.
+          intros ?.
+          apply RInt_ge_0; OK.
+          intros ??.
+          apply RInt_ge_0; OK.
+        }
+        split; [apply Hlem1|].
+        rewrite -SeriesC_nat.
+        apply SeriesC_le.
+        { intros ?.
+          split.
+          { apply RInt_ge_0; OK. intros ??. apply RInt_ge_0; OK. }
+          { apply RInt_le; OK.
+            { apply ex_RInt_const. }
+            intros ??.
+            apply RInt_le; OK.
+            { apply ex_RInt_mult; [|apply ex_RInt_const].
+              apply ex_RInt_mult; [apply ex_RInt_const|].
+              apply G2_exRInt.
+            }
+            intros ??.
+            have Hlem2 : 0 <= (1 - exp (- x * (2 * n0 + x) / 2)).
+            { suffices ? : exp (- x * (2 * n0 + x) / 2) <= 1 by OK.
+              apply Rexp_range.
+              replace (- x * (2 * n0 + x) / 2) with ((-1 / 2) * (x * (2 * n0 + x))) by OK.
+              replace 0 with ((-1/2) * 0) by OK.
+              apply Rmult_le_compat_neg_l; OK.
+              apply Rmult_le_pos; OK.
+              apply Rplus_le_le_0_compat; OK.
+              apply Rmult_le_pos; OK.
+              apply pos_INR.
+            }
+            have Hlem3 : (1 - exp (- x * (2 * n0 + x) / 2)) <= 1.
+            { suffices ? : 0 <= exp (- x * (2 * n0 + x) / 2) by OK.
+              apply Rexp_nn.
+            }
+            apply Rmult_le_compat; OK.
+            { apply Rmult_le_pos; [|apply G2_μ_nn; OK].
+              apply Rmult_le_pos; OK.
+              apply G1_μ_nn. }
+            { apply Hbound. }
+            2: { apply Hbound. }
+            apply Rmult_le_compat; OK.
+            { apply Rmult_le_pos; OK. apply G1_μ_nn. }
+            { apply G2_μ_nn. OK. }
+            apply Rmult_le_compat; OK.
+            apply G1_μ_nn.
+          }
+        }
+        replace (λ b : nat, RInt (λ _ : R, RInt (λ x1 : R, G1_μ b * 1 * G2_μ n x1 * M) 0 1) 0 1)
+           with (λ b : nat, G1_μ b * RInt (λ _ : R, RInt (λ x1 : R, 1 * G2_μ n x1 * M) 0 1) 0 1).
+        2: {
+          funexti.
+          rewrite RInt_Rmult; [|apply ex_RInt_const].
+          f_equal; funexti.
+          rewrite RInt_Rmult; OK.
+          { f_equal; funexti. OK. }
+          apply ex_RInt_Rmult'.
+          apply ex_RInt_Rmult.
+          apply G2_exRInt.
+      }
+      apply ex_seriesC_scal_r.
+      rewrite /G1_μ.
+      replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+      apply ex_seriesC_scal_r.
+      apply Norm1_ex.
+    }
+    rewrite /G2_μ.
+    apply (ex_seriesC_le _ (λ a : nat, Series.Series (λ b : nat, RInt (λ _ : R, RInt (λ x1 : R, G1_μ b * 1 * (exp (- (a) ^ 2 / 2) / Norm2) * M) 0 1) 0 1))).
+    { intros ?.
+      split.
+      { rewrite -SeriesC_nat.
+        apply SeriesC_ge_0'.
+        intros ?.
+        apply RInt_ge_0; OK.
+        { apply ex_RInt_const. }
+        intros ??.
+        apply RInt_ge_0; OK.
+        { apply ex_RInt_mult; [|apply ex_RInt_const].
+          apply ex_RInt_mult; [apply ex_RInt_const|].
+          apply G2_exRInt.
+        }
+        intros ??.
+        apply Rmult_le_pos. 2: { specialize Hbound with 0%nat 0. OK.  }
+        apply Rmult_le_pos.
+        { rewrite Rmult_1_r. apply G1_μ_nn.  }
+        apply Rcomplements.Rdiv_le_0_compat; [|apply Norm2_nn].
+        apply Rexp_nn.
+      }
+      do 2 rewrite -SeriesC_nat.
+      apply SeriesC_le'; OK.
+      { intros ?.
+        apply RInt_le; OK.
+        2: { apply ex_RInt_const. }
+        { apply ex_RInt_const. }
+        intros ??.
+        apply RInt_le; OK.
+        2: { apply ex_RInt_const. }
+        { apply @ex_RInt_Rmult'.
+          apply @ex_RInt_Rmult.
+          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          auto_derive; done.
+        }
+        { intros ??.
+          apply Rmult_le_compat; OK.
+          2: { specialize Hbound with 0%nat 0; OK. }
+          { apply Rmult_le_pos; [rewrite Rmult_1_r; apply G1_μ_nn|].
+            apply Rcomplements.Rdiv_le_0_compat; [|apply Norm2_nn].
+            apply Rexp_nn.
+          }
+          apply Rmult_le_compat; OK.
+          { rewrite Rmult_1_r; apply G1_μ_nn. }
+          { apply Rcomplements.Rdiv_le_0_compat; [|apply Norm2_nn].
+            apply Rexp_nn. }
+          repeat rewrite Rdiv_def.
+          apply Rmult_le_compat_r.
+          { have ? := Norm2_nn.
+            apply Rlt_le.
+            apply Rinv_0_lt_compat.
+            done.
+          }
+          apply exp_mono.
+          suffices ? : (x0 + n) ^ 2  >=  n ^ 2 by OK.
+          apply Rle_ge.
+          apply pow_incr.
+          split; first apply pos_INR.
+          have ? := pos_INR n.
+          OK.
+        }
+      }
+      { replace (λ b : nat, RInt (λ _ : R, RInt (λ x1 : R, G1_μ b * 1 * (exp (- (x1 + n) ^ 2 / 2) / Norm2) * M) 0 1) 0 1)
+          with (λ b : nat, G1_μ b * RInt (λ _ : R, RInt (λ x1 : R, 1 * (exp (- (x1 + n) ^ 2 / 2) / Norm2) * M) 0 1) 0 1).
+        2: {
+          funexti.
+          rewrite RInt_Rmult; [|apply ex_RInt_const].
+          f_equal. funexti.
+          rewrite RInt_Rmult.
+          2: {
+            apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+            intros ??.
+            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+            auto_derive; done.
+          }
+          f_equal. funexti.
+          OK.
+        }
+        apply ex_seriesC_scal_r.
+        rewrite /G1_μ.
+        replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+        apply ex_seriesC_scal_r.
+        apply Norm1_ex.
+      }
+      { replace (λ b : nat, RInt (λ _ : R, RInt (λ _ : R, G1_μ b * 1 * (exp (- n ^ 2 / 2) / Norm2) * M) 0 1) 0 1)
+           with (λ b : nat, G1_μ b * RInt (λ _ : R, RInt (λ _ : R, 1 * (exp (- n ^ 2 / 2) / Norm2) * M) 0 1) 0 1).
+        2: {
+          funexti.
+          rewrite RInt_Rmult; [|apply ex_RInt_const].
+          f_equal. funexti.
+          rewrite RInt_Rmult; [|apply ex_RInt_const].
+          f_equal. funexti.
+          OK.
+        }
+        apply ex_seriesC_scal_r.
+        rewrite /G1_μ.
+        replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+        apply ex_seriesC_scal_r.
+        apply Norm1_ex.
+      }
+    }
 
-      (* Upper bound G2_μ by a term that depends only on A *)
-      (* Factor out G2_μ term *)
+    (* Now the series is separable *)
+    replace (λ a : nat, Series.Series (λ b : nat, RInt (λ _ : R, RInt (λ _ : R, G1_μ b * 1 * (exp (- a ^ 2 / 2) / Norm2) * M) 0 1) 0 1))
+       with (λ a : nat, (exp (- a ^ 2 / 2) * / Norm2) * Series.Series (λ b : nat, RInt (λ _ : R, RInt (λ _ : R, G1_μ b * 1 * M) 0 1) 0 1)).
+    2: {
+      funexti.
+      do 2 rewrite -SeriesC_nat.
+      rewrite -SeriesC_scal_l.
+      f_equal; funexti.
+      rewrite RInt_Rmult; [|apply ex_RInt_const].
+      f_equal. funexti.
+      rewrite RInt_Rmult; [|apply ex_RInt_const].
+      f_equal. funexti.
+      OK.
+    }
 
-      admit. }
-  Admitted.
+    apply ex_seriesC_scal_r.
+    apply ex_seriesC_scal_r.
+    apply Norm1_ex.
+  }
+  Qed.
 
   Lemma HR3 {F x n} (HPcts : ∀ x1, PCts (F x1) 0 1)  :
     RInt (λ x1 : R, RInt (λ x0 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1 =
