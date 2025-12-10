@@ -559,61 +559,34 @@ Section credits.
   Qed.
 
 
-  (* TODO: Once this proof is done, reduce this to piecewise continuity *)
+  (*
   Lemma G2_f_ex_seriesC {F M}
     (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M)
     (Hcont : ∀ k, PCts (F k) 0 1)
     : ex_seriesC (G2_f F).
   Proof.
-
-
-    (*
-
     rewrite /G2_f.
-    apply (ex_seriesC_le _ (fun k => M * RInt (G2_μ k) 0 1)).
-   { intros n. split.
-     { apply RInt_ge_0.
-       { lra. }
-       { apply G2_g_exRInt, Hint. }
-       { intros x Hx. apply G2_g_nn; [apply Hnn | lra | apply Hint]. }
-     }
-   { etrans.
-     { apply RInt_le.
-       { lra. }
-       { apply G2_g_exRInt, Hint. }
-       { replace (fun x => M * G2_μ n x) with (fun x => scal M (G2_μ n x)).
-         2: { apply functional_extensionality; intro; rewrite /scal/=/mult/=; reflexivity. }
-         apply (ex_RInt_scal (V := R_CompleteNormedModule)).
-         eapply G2_exRInt. }
-       { intros x Hx.
-         a dmit. }
-     }
-     { rewrite RInt_scal.
-       2: { apply G2_exRInt. }
-       rewrite /scal/=/mult/=.
-       apply Req_le.
-       reflexivity. }
-   }
-   }
-  { (* Need to prove: ex_seriesC (λ k, M * RInt (G2_μ k) 0 1) *)
-    apply ex_seriesC_scal_l.
-    rewrite /G2_μ.
-    replace (fun (x : nat) => (RInt (λ x0 : R, exp (- (x0 + x) ^ 2 / 2) / Norm2) 0 1))
-       with (fun (x : nat) => (RInt (λ x0 : R, exp (- (x0 + x) ^ 2 / 2)) 0 1 * / Norm2)).
+    rewrite /G2_g.
+    rewrite /G2_s //=.
+    replace
+      (λ k : nat,
+       RInt
+         (λ x : R,
+            exp (- x * (2 * k + x) / 2) * (Iverson is_true true * F k x + Iverson (not ∘ is_true) true * G2_CreditV F) +
+            (1 - exp (- x * (2 * k + x) / 2)) *
+            (Iverson is_true false * F k x + Iverson (not ∘ is_true) false * G2_CreditV F)) 0 1)
+        with
+      (λ k : nat, RInt (λ x : R, exp (- x * (2 * k + x) / 2) * (F k x) + (1 - exp (- x * (2 * k + x) / 2)) * (G2_CreditV F)) 0 1).
     2: {
-      funexti.
-      rewrite RInt_Rmult'; OK.
-      apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-      intros ??.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      funexti. f_equal. funexti.
+      rewrite Iverson_True; OK.
+      rewrite Iverson_False; OK.
+      rewrite Iverson_False; OK.
+      rewrite Iverson_True; OK.
     }
-    apply ex_seriesC_scal_r.
-    (* I think I can upper-bound this integral by its max value, which is e^-x^2, whose series converges. *)
-    a dmit.
-  }
-*)
+    rewrite /G2_CreditV.
   Admitted.
+  *)
 
 
   Lemma G2_g_ub {F} {M : R} (Hnn : ∀ (x : nat) (k : R), 0 <= F x k <= M) {r t} (Ht : 0 <= t <= 1) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) : G2_g F r t <= M.
@@ -1690,11 +1663,6 @@ Section credits.
         * apply ex_RInt_const.
   Qed.
 
-  Lemma Continuity2_const {F : R * R → R} (v x y : R) :
-    (∀ z, F z = v) →
-    Continuity2 F x y.
-  Proof. Admitted.
-
   Lemma HR2 {F M} (HPcts : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
   Series.Series
     (λ k : nat,
@@ -2581,7 +2549,7 @@ Section program.
     iApply (pgl_wp_mono_frame (□ _) with "[Hε] IH"); last first.
     { iApply (wp_G1 (F := G2_f F) (M := M)).
       { intros ?; split; [apply G2_f_nn; OK; apply Hnn|]. apply G2_ub; OK. }
-      { apply (@G2_f_ex_seriesC _ M); try done. }
+      { (* apply (@G2_f_ex_seriesC _ M); try done. *) admit.  }
       { iApply (ec_eq with "Hε").
         eapply G2_f_expectation.
         { done. }
@@ -2657,6 +2625,6 @@ Section program.
       iApply (ec_eq with "Hε").
       rewrite Iverson_True; [lra|done].
     }
-  Qed.
+  Admitted.
 
 End program.

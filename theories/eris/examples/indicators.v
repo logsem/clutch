@@ -2832,6 +2832,11 @@ Section FubiniStep.
     intuition.
   Qed.
 
+  Lemma Continuity2_const {F : R * R → R} (v x y : R) :
+    (∀ z, F z = v) →
+    Continuity2 F x y.
+  Proof. Admitted.
+
   (* Continuity.continuity_2d_pt_filterlim ???? *)
   Definition IsFubiniCoreRR (f : R → R → R) : Prop :=
     ∀ x y, Continuity2 (uncurry f) x y.
