@@ -2042,30 +2042,231 @@ Section credits.
        RInt (λ x1 : R, RInt (λ x0 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1).
   Proof.
     symmetry.
-    apply (FubiniIntegralSeries_Strong (fun x => G1_μ x * M )).
+    apply (FubiniIntegralSeries_Strong (fun x => G1_μ x * / Norm2 * M )).
     { OK. }
     { intros ???.
       apply RInt_ge_0; OK.
       { apply ex_RInt_mult; [|apply ex_RInt_const].
         apply ex_RInt_mult; [|apply ex_RInt_const].
-        admit. }
-      admit.
+        apply ex_RInt_mult; [apply ex_RInt_const|].
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros ??.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        auto_derive; done.
+      }
+      { intros ??.
+        apply Rmult_le_pos; [|apply Hbound].
+        apply Rmult_le_pos; [|apply G2_μ_nn; OK].
+        apply Rmult_le_pos; [apply G1_μ_nn|].
+        suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
+        apply Rexp_range.
+        replace (- x0 * (2 * n0 + x0) / 2) with ((-1 / 2) * (x0 * (2 * n0 + x0))) by OK.
+        replace 0 with ((-1/2) * 0) by OK.
+        apply Rmult_le_compat_neg_l; OK.
+        apply Rmult_le_pos; OK.
+        apply Rplus_le_le_0_compat; OK.
+        apply Rmult_le_pos; OK.
+        apply pos_INR.
+      }
     }
     { (* UB series must exist *)
       rewrite ex_seriesC_nat.
       apply ex_seriesC_scal_r, ex_seriesC_scal_r.
+      apply ex_seriesC_scal_r.
       apply Norm1_ex.
-      (* replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; lra).
-      apply ex_seriesC_scal_r, Norm1_ex. *) }
-    {
-
-      admit. }
-    - intros n0.
-      (* Need the ex_RInt of RInt.
-
-        Factor out the consant terms from the inner integral, the frist integral is constant wrt the outer integral so can be factored out. Then we have the product of integrable fns.
-       *)
-  Admitted.
+    }
+    { intros ???.
+      rewrite Rabs_right.
+      2: {
+        apply Rle_ge.
+        apply RInt_ge_0; OK.
+        { apply ex_RInt_mult; [|apply ex_RInt_const].
+          apply ex_RInt_mult; [|apply ex_RInt_const].
+          apply ex_RInt_mult; [apply ex_RInt_const|].
+          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          auto_derive; done.
+        }
+        { intros ??.
+          apply Rmult_le_pos; [|apply Hbound].
+          apply Rmult_le_pos; [|apply G2_μ_nn; OK].
+          apply Rmult_le_pos; [apply G1_μ_nn|].
+          suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
+          apply Rexp_range.
+          replace (- x0 * (2 * n0 + x0) / 2) with ((-1 / 2) * (x0 * (2 * n0 + x0))) by OK.
+          replace 0 with ((-1/2) * 0) by OK.
+          apply Rmult_le_compat_neg_l; OK.
+          apply Rmult_le_pos; OK.
+          apply Rplus_le_le_0_compat; OK.
+          apply Rmult_le_pos; OK.
+          apply pos_INR.
+        }
+      }
+      {
+        rewrite -@RInt_Rmult'.
+        2: {
+          apply ex_RInt_mult; [|apply ex_RInt_const].
+          apply ex_RInt_mult; [apply ex_RInt_const|].
+          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          auto_derive; done.
+        }
+        rewrite -@RInt_Rmult'.
+        2: {
+          apply ex_RInt_mult; [apply ex_RInt_const|].
+          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          auto_derive; done.
+        }
+        rewrite -@RInt_Rmult.
+        2: {
+          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          auto_derive; done.
+        }
+        apply Rmult_le_compat; OK.
+        2: { apply Hbound. }
+        3: { apply Hbound. }
+        { apply Rmult_le_pos; [|apply G2_μ_nn; OK].
+          apply Rmult_le_pos; [apply G1_μ_nn|].
+          apply RInt_ge_0; OK.
+          { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+            intros ??.
+            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+            auto_derive; done.
+          }
+          intros ??.
+          suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
+          apply Rexp_range.
+          replace (- x0 * (2 * n0 + x0) / 2) with ((-1 / 2) * (x0 * (2 * n0 + x0))) by OK.
+          replace 0 with ((-1/2) * 0) by OK.
+          apply Rmult_le_compat_neg_l; OK.
+          apply Rmult_le_pos; OK.
+          apply Rplus_le_le_0_compat; OK.
+          apply Rmult_le_pos; OK.
+          apply pos_INR.
+        }
+        rewrite -{2}(Rmult_1_r (G1_μ n0)).
+        apply Rmult_le_compat; OK.
+        2: { apply G2_μ_nn. OK. }
+        3: {
+          rewrite /G2_μ.
+          apply (Rmult_le_reg_r Norm2).
+          { apply Norm2_nn. }
+          rewrite Rdiv_def.
+          rewrite Rmult_assoc.
+          rewrite Rmult_inv_l.
+          2: { have ? := Norm2_nn. OK. }
+          rewrite Rmult_1_r.
+          apply Rexp_range.
+          suffices ? :  (x + n) ^ 2 >= 0 by OK.
+          apply Rle_ge.
+          apply pow2_ge_0.
+        }
+        { apply Rmult_le_pos.
+          { apply G1_μ_nn. }
+          apply RInt_ge_0; OK.
+          { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+            intros ??.
+            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+            auto_derive; done.
+          }
+          intros ??.
+          suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
+          apply Rexp_range.
+          replace (- x0 * (2 * n0 + x0) / 2) with ((-1 / 2) * (x0 * (2 * n0 + x0))) by OK.
+          replace 0 with ((-1/2) * 0) by OK.
+          apply Rmult_le_compat_neg_l; OK.
+          apply Rmult_le_pos; OK.
+          apply Rplus_le_le_0_compat; OK.
+          apply Rmult_le_pos; OK.
+          apply pos_INR.
+        }
+        { apply Rmult_le_compat; OK.
+          { apply G1_μ_nn. }
+          { apply RInt_ge_0; OK.
+            { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+              intros ??.
+              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+              auto_derive; done.
+            }
+            intros ??.
+            suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
+            apply Rexp_range.
+            replace (- x0 * (2 * n0 + x0) / 2) with ((-1 / 2) * (x0 * (2 * n0 + x0))) by OK.
+            replace 0 with ((-1/2) * 0) by OK.
+            apply Rmult_le_compat_neg_l; OK.
+            apply Rmult_le_pos; OK.
+            apply Rplus_le_le_0_compat; OK.
+            apply Rmult_le_pos; OK.
+            apply pos_INR.
+          }
+          replace (RInt (λ x0 : R, 1 - exp (- x0 * (2 * n0 + x0) / 2)) 0 1)
+             with (Rabs ( RInt (λ x0 : R, 1 - exp (- x0 * (2 * n0 + x0) / 2)) 0 1)).
+          2: {
+            rewrite Rabs_right; OK.
+            apply Rle_ge.
+            apply RInt_ge_0; OK.
+            { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+              intros ??.
+              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+              auto_derive; done.
+            }
+            intros ??.
+            suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
+            apply Rexp_range.
+            replace (- x0 * (2 * n0 + x0) / 2) with ((-1 / 2) * (x0 * (2 * n0 + x0))) by OK.
+            replace 0 with ((-1/2) * 0) by OK.
+            apply Rmult_le_compat_neg_l; OK.
+            apply Rmult_le_pos; OK.
+            apply Rplus_le_le_0_compat; OK.
+            apply Rmult_le_pos; OK.
+            apply pos_INR.
+          }
+          etrans; first eapply (abs_RInt_le_const  _ _ _ 1); OK.
+          { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+            intros ??.
+            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+            auto_derive; done.
+          }
+          intros ??.
+          rewrite Rabs_right.
+          { suffices ? : 0 <= exp (- t * (2 * n0 + t) / 2) by OK. apply Rexp_nn. }
+          apply Rle_ge.
+          suffices ? : exp (- t * (2 * n0 + t) / 2) <= 1 by OK.
+          apply Rexp_range.
+          replace (- t * (2 * n0 + t) / 2) with ((-1 / 2) * (t * (2 * n0 + t))) by OK.
+          replace 0 with ((-1/2) * 0) by OK.
+          apply Rmult_le_compat_neg_l; OK.
+          apply Rmult_le_pos; OK.
+          apply Rplus_le_le_0_compat; OK.
+          apply Rmult_le_pos; OK.
+          apply pos_INR.
+        }
+      }
+    }
+    intros ?.
+    replace (λ x : R, RInt (λ x0 : R, G1_μ n0 * (1 - exp (- x0 * (2 * n0 + x0) / 2)) * G2_μ n x * F n x) 0 1)
+       with (λ x : R, G2_μ n x * F n x * RInt (λ x0 : R, G1_μ n0 * (1 - exp (- x0 * (2 * n0 + x0) / 2)) ) 0 1).
+    2: {
+      funexti.
+      rewrite RInt_Rmult.
+      2: { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+            intros ??.
+            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+            auto_derive; done.
+      }
+      f_equal; funexti. OK.
+    }
+    apply ex_RInt_Rmult'.
+    apply ex_RInt_mult.
+    { apply G2_exRInt. }
+    { apply Hex. }
+  Qed.
 
   Lemma HR5 {F M n x} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) (Hx : 0 < x < 1) :
     RInt (λ x0 : R, Series.Series (λ x1 : nat, G1_μ x1 * (1 - exp (- x0 * (2 * x1 + x0) / 2)) * G2_μ n x * F n x)) 0 1 =
