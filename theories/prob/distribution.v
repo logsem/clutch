@@ -1176,6 +1176,16 @@ Section exp_val_prop.
     apply ex_seriesC_singleton.
   Qed.
 
+  Lemma Expval_support μ f c:
+    Expval μ f = Expval μ (λ a, if bool_decide (μ a > 0)%R then f a else c).
+  Proof.
+    rewrite /Expval.
+    apply SeriesC_ext.
+    intros. case_bool_decide; first lra.
+    pose proof pmf_pos μ n.
+    assert (μ n = 0) as ->; lra.
+  Qed. 
+
   Lemma Expval_dret f a :
     Expval (dret a) f = f a.
   Proof.

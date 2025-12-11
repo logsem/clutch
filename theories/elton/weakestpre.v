@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 From clutch.bi Require Export weakestpre.
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.prob Require Export couplings distribution graded_predicate_lifting.
-From clutch.delay_prob_lang Require Import lang urn_subst metatheory.
+From clutch.delay_prob_lang Require Import lang urn_subst metatheory urn_erasable.
 From clutch.common Require Export language.
 
 (** This file contains the definition of the weakest precondition of elton *)
@@ -51,17 +51,11 @@ Section modalities.
       ⌜(1<=ε)%R⌝ ∨
         Z σ1 ε ∨
         (∀ (ε':nonnegreal), ⌜(ε<ε')%R⌝ -∗ Φ (σ1, ε')) ∨
-        (∃ lis u N (ε2 :_ -> nonnegreal),
-            ⌜NoDup lis⌝ ∗
-            ⌜σ1.(urns) !! u = Some (list_to_set lis) ⌝ ∗
-            ⌜length lis = S N⌝ ∗
+        (∃ μ (ε2 :_ -> nonnegreal),
             ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-            ⌜ (Expval (dunifP N) ε2 <= ε)%R ⌝ ∗
-            ∀ (x:fin (S N)),
-           match (lis)!!(fin_to_nat x)
-           with | Some y => |={∅}=> Φ (state_upd_urns <[u:={[y]}]> σ1, ε2 x)
-           | None => False (* Not possible *)
-           end
+            ⌜ (Expval (μ) ε2 <= ε)%R ⌝ ∗
+            ⌜urn_erasable μ σ1.(urns)⌝ ∗
+            ∀ m', |={∅}=> Φ (state_upd_urns (λ _, m') σ1, ε2 m')
         )
     )%I.
 
@@ -77,7 +71,7 @@ Section modalities.
   Proof.
     split; [|apply _].
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
-    iIntros ([??]) "[H|[?|[H|(%&%&%&%&%&%&%&%&%&H)]]]".
+    iIntros ([??]) "[H|[?|[H|(%&%&%&%&%&H)]]]".
     - by iLeft.
     - iRight; by iLeft.
     - iRight; iRight; iLeft.
@@ -88,7 +82,6 @@ Section modalities.
       repeat iExists _; repeat (iSplit; [done|]).
       iIntros (x).
       iDestruct ("H" $! x) as "H".
-      case_match; last done.
       iApply "Hwand".
       by iApply "H".
   Qed.
@@ -101,17 +94,11 @@ Section modalities.
       (⌜(1 <= ε)%R⌝ ∨
          (Z σ1 ε) ∨
          (∀ ε', ⌜(ε<ε')%R⌝ -∗ state_step_coupl σ1 ε' Z) ∨
-         (∃ lis u N (ε2 :_ -> nonnegreal),
-             ⌜NoDup lis⌝ ∗
-            ⌜σ1.(urns) !! u = Some (list_to_set lis) ⌝ ∗
-            ⌜length lis = S N⌝ ∗
+         (∃ μ (ε2 :_ -> nonnegreal),
             ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-            ⌜ (Expval (dunifP N) ε2 <= ε)%R ⌝ ∗
-            ∀ (x:fin (S N)),
-           match lis!!(fin_to_nat x)
-           with | Some y => |={∅}=>  state_step_coupl (state_upd_urns <[u:={[y]}]> σ1) (ε2 x) Z
-           | None => False (* Not possible *)
-           end
+            ⌜ (Expval (μ) ε2 <= ε)%R ⌝ ∗
+            ⌜urn_erasable μ σ1.(urns)⌝ ∗
+            ∀ m', |={∅}=> state_step_coupl (state_upd_urns (λ _, m') σ1) (ε2 m') Z
         ))%I.
   Proof. rewrite /state_step_coupl /state_step_coupl' least_fixpoint_unfold //. Qed.
 
@@ -138,9 +125,19 @@ Section modalities.
     destruct (Rlt_or_le ε' 1)%R.
     - iApply "H". iPureIntro. lra.
     - by iApply state_step_coupl_ret_err_ge_1. 
-  Qed. 
+  Qed.
 
   Lemma state_step_coupl_rec σ1 (ε : nonnegreal) Z :
+    (∃ μ (ε2 :_ -> nonnegreal),
+            ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
+            ⌜ (Expval (μ) ε2 <= ε)%R ⌝ ∗
+            ⌜urn_erasable μ σ1.(urns)⌝ ∗
+            ∀ m', |={∅}=> state_step_coupl (state_upd_urns (λ _, m') σ1) (ε2 m') Z
+        )
+    ⊢ state_step_coupl σ1 ε Z.
+  Proof. iIntros "H". rewrite state_step_coupl_unfold. repeat iRight. done. Qed.
+  
+  Lemma state_step_coupl_rec_complete_split σ1 (ε : nonnegreal) Z :
     (∃ lis u N (ε2 :_ -> nonnegreal),
              ⌜NoDup lis⌝ ∗
             ⌜σ1.(urns) !! u = Some (list_to_set lis) ⌝ ∗
@@ -154,7 +151,30 @@ Section modalities.
            end
         )%I
     ⊢ state_step_coupl σ1 ε Z.
-  Proof. iIntros "H". rewrite state_step_coupl_unfold. repeat iRight. done. Qed.
+  Proof. iIntros "(%&%&%&%&%&%&%&[%r %]&%&H)".
+         iApply state_step_coupl_rec.
+         destruct σ1 as [? us]; simpl.
+         iExists _, (λ m, match ClassicalEpsilon.excluded_middle_informative
+                                  (∃ (x:fin (S N)) y, lis!!(fin_to_nat x) = Some y /\
+                                                      m=<[u:={[y]}]> us
+                                  ) with
+                          | left P =>ε2 (epsilon P)%NNR
+                          | right _ => 1%NNR
+                          end
+                    ).
+         repeat iSplit.
+         3:{ iPureIntro. by eapply complete_split_urn_erasable. }
+         - iPureIntro.
+           exists (Rmax 1 r).
+           intros. case_match.
+           + etrans; last apply Rmax_r. naive_solver.
+           + apply Rmax_l.
+         - iPureIntro.
+           etrans; last exact.
+           rewrite /Expval.
+           admit.
+         - admit. 
+  Admitted. 
 
   (* Lemma state_step_coupl_rec_equiv σ1 (ε : nonnegreal) Z : *)
   (*   (∃ μ (ε2 : state con_prob_lang -> nonnegreal), *)
@@ -274,7 +294,7 @@ Section modalities.
     iRevert (σ1 ε) "Hs".
     iApply state_step_coupl_ind.
     iIntros "!#" (σ ε)
-      "[% | [? | [H|(% & % & % & % & % & % & % & % & % & H)]]] Hw".
+      "[% | [? | [H|(% & % & % & % & % &  H)]]] Hw".
     - iApply state_step_coupl_ret_err_ge_1. lra.
     - iApply state_step_coupl_ret. by iApply "Hw".
     - iApply state_step_coupl_ampl.
@@ -285,7 +305,6 @@ Section modalities.
       repeat iSplit; try done.
       iIntros (x).
       iDestruct ("H" $! x) as "H".
-      case_match; last done.
       iMod "H" as "[IH _]".
       by iApply "IH".
   Qed.
@@ -294,18 +313,23 @@ Section modalities.
   Lemma state_step_coupl_mono_err ε1 ε2 σ1 Z :
     (ε1 <= ε2)%R → state_step_coupl σ1 ε1 Z -∗ state_step_coupl σ1 ε2 Z.
   Proof.
-  Admitted. 
-  (*   iIntros (Heps) "Hs". *)
-  (*   iApply state_step_coupl_rec'. *)
-  (*   set (ε' := nnreal_minus ε2 ε1 Heps). *)
-  (*   iExists (λ x, x=σ1), (dret σ1), nnreal_zero, (λ _, ε1). *)
-  (*   repeat iSplit. *)
-  (*   - iPureIntro. apply dret_sch_erasable. *)
-  (*   - iPureIntro; naive_solver. *)
-  (*   - iPureIntro. simpl. rewrite Expval_const; last done. rewrite dret_mass; lra. *)
-  (*   - iPureIntro. by apply pgl_dret. *)
-  (*   - by iIntros (?->). *)
-  (* Qed. *)
+    iIntros (Heps) "Hs".
+    iApply state_step_coupl_rec.
+    destruct σ1 as [? us].
+    iExists (dret us), (λ x, if bool_decide (x=us) then ε1 else 1%NNR).
+    repeat iSplit.
+    - iPureIntro.
+      exists (Rmax ε1 1).
+      intros.
+      case_bool_decide.
+      + apply Rmax_l.
+      + apply Rmax_r.
+    - rewrite Expval_dret. by rewrite bool_decide_eq_true_2.
+    - iPureIntro. apply dret_urn_erasable.
+    - iIntros (?).
+      iModIntro. case_bool_decide; subst; first done.
+      by iApply state_step_coupl_ret_err_ge_1.
+  Qed.
   
   Lemma state_step_coupl_bind σ1 Z1 Z2 ε :
     (∀ σ2 ε', Z1 σ2 ε' -∗ state_step_coupl σ2 ε' Z2) -∗
@@ -317,7 +341,7 @@ Section modalities.
     iRevert (σ1 ε) "Hs".
     iApply state_step_coupl_ind.
     iIntros "!#" (σ ε)
-      "[% | [H | [H|(% & % & % & % & % & % & % & % & % & H)]]] HZ".
+      "[% | [H | [H|(% & % & % & % & % &  H)]]] HZ".
     - by iApply state_step_coupl_ret_err_ge_1.
     - iApply ("HZ" with "H").
     - iApply state_step_coupl_ampl.
@@ -329,7 +353,6 @@ Section modalities.
       repeat iSplit; try done.
       iIntros (x).
       iDestruct ("H" $! x) as "H".
-      case_match; last done.
       iMod ("H") as "[H _]".
       by iApply "H".
   Qed.
@@ -363,24 +386,25 @@ Section modalities.
       iIntros.
       iDestruct ("H" with "[//]") as "[H _]".
       by iApply "H".
-    - iDestruct "H" as "(%&%&%&%&%&%&%&%&%&H)".
+    - iDestruct "H" as "(%&%&%&%&%&H)".
       iApply state_step_coupl_rec.
-      iExists _, _, _, _.
-      repeat iSplit; try done.
-      iIntros (x).
-      iDestruct ("H" $! x) as "H".
-      case_match; last done.
-      iMod "H" as "[H _]". iModIntro.
-      iApply "H"; iPureIntro.
-      + etrans; first exact.
-        by apply urns_support_set_insert_subset.
-      + done.
-      + simpl.
-        eapply map_Forall_impl; first done.
-        simpl.
-        intros. etrans; first exact.
-        by apply urns_support_set_insert_subset.
-  Qed. 
+  Admitted.  (* Need to ensure urn_erasble preserves domain *)
+  (*     iExists _, _. *)
+  (*     repeat iSplit; try done. *)
+  (*     iIntros (x). *)
+  (*     iDestruct ("H" $! x) as "H". *)
+  (*     iMod "H" as "[H _]". iModIntro. *)
+  (*     iApply "H"; iPureIntro. *)
+  (*     + etrans; first exact. *)
+  (*       destruct σ. *)
+  (*       by apply urns_support_set_insert_subset. *)
+  (*     + done. *)
+  (*     + simpl. *)
+  (*       eapply map_Forall_impl; first done. *)
+  (*       simpl. *)
+  (*       intros. etrans; first exact. *)
+  (*       by apply urns_support_set_insert_subset. *)
+  (* Qed.  *)
   
   (* Lemma state_step_coupl_state_step α σ1 Z (ε ε' : nonnegreal) : *)
   (*   α ∈ get_active σ1 → *)
