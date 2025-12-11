@@ -181,9 +181,47 @@ Section modalities.
            erewrite (SeriesC_ext _ (λ m, from_option (λ a, dunifP N a * ε2 a)%R 0 (h m))); last first. 
            { intros n.
              rewrite /h.
-             case_match; simpl.
-             - admit.
-             - admit. 
+             destruct (ClassicalEpsilon.excluded_middle_informative _) as [e|e].
+             - pose proof epsilon_correct _ e as H5.
+               simpl in *.
+               destruct H5 as [?[? ->]].
+               destruct e as [x'[?[K1 K2]]].
+               subst.
+               simpl. f_equal.
+               rewrite {1}/dbind{1}/dbind_pmf{1}/pmf/=.
+               erewrite (SeriesC_subset (λ x1,  (x1=x'))); last first.
+               + intros ? Hcontra.
+                 case_match; last real_solver.
+                 rewrite dret_0; first lra.
+                 intros Hcontra'.
+                 apply Hcontra.
+                 apply (f_equal (λ m,m!!u)) in Hcontra'.
+                 rewrite !lookup_insert in Hcontra'.
+                 simplify_eq.
+                 assert (<[u:={[n]}]> us !! u= <[u:={[x0]}]> us!!u) as Hlookup.
+                 { by f_equal. }
+                 rewrite !lookup_insert in Hlookup.
+                 simplify_eq.
+                 apply fin_to_nat_inj.
+                 by eapply NoDup_lookup.
+               + rewrite SeriesC_singleton_dependent.
+                 etrans.
+                 { rewrite K1. rewrite /dunifP/dunif{1}/pmf.
+                   rewrite K2. rewrite dret_1_1; last done.
+                   by rewrite Rmult_1_r.
+                 }
+                 done. 
+             - simpl.
+               rewrite Rmult_1_r.
+               rewrite {1}/dbind{1}/dbind_pmf{1}/pmf.
+               apply SeriesC_0.
+               intros ?.
+               apply Rmult_eq_0_compat_l.
+               case_match; last done.
+               rewrite dret_0; first done.
+               intros ->.
+               apply e.
+               naive_solver.
            }
            apply SeriesC_le_inj.
            + real_solver.
@@ -224,7 +262,7 @@ Section modalities.
            rewrite -H7.
            iDestruct ("H"$! _) as "H".
            by erewrite H9.
-  Admitted. 
+  Qed. 
 
   (* Lemma state_step_coupl_rec_equiv σ1 (ε : nonnegreal) Z : *)
   (*   (∃ μ (ε2 : state con_prob_lang -> nonnegreal), *)
