@@ -4,7 +4,17 @@ Import Hierarchy.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
-
+Theorem Fubini_ex_y : ∀ {f xa xb ya yb}, FubiniCondition f xa xb ya yb →
+  ex_RInt (fun y => RInt (fun x => f x y) xa xb) ya yb.
+Proof.
+  intros ??????.
+  apply Fubini_ex_x.
+  rewrite /FubiniCondition in H.
+  rewrite /FubiniCondition.
+  intros ????.
+  apply Continuity2_swap.
+  apply H; done.
+Qed.
 
 (* FubiniCondition implies integrability along any vertical line *)
 Theorem FubiniCondition_ex_RInt_x {f xa xb ya yb} :

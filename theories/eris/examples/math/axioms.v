@@ -27,10 +27,6 @@ Definition FubiniCondition (f : R → R → R_CompleteNormedModule) (xa xb ya yb
 Axiom Fubini_ex_x : ∀ {f xa xb ya yb}, FubiniCondition f xa xb ya yb →
   ex_RInt (fun x => RInt (fun y => f x y) ya yb) xa xb.
 
-(* TODO: Derive me *)
-Axiom Fubini_ex_y : ∀ {f xa xb ya yb}, FubiniCondition f xa xb ya yb →
-  ex_RInt (fun y => RInt (fun x => f x y) xa xb) ya yb.
-
 Axiom Fubini_eq : ∀ {f xa xb ya yb}, FubiniCondition f xa xb ya yb →
   RInt (fun x => RInt (fun y => f x y) ya yb) xa xb =  RInt (fun y => RInt (fun x => f x y) xa xb) ya yb.
 
