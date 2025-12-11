@@ -6,7 +6,7 @@ From iris.prelude Require Import options.
 From Coquelicot Require Import Rbar Lim_seq.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
-From clutch.delay_prob_lang Require Import notation metatheory urn_subst commute.
+From clutch.delay_prob_lang Require Import notation metatheory urn_subst commute urn_erasable.
 From clutch.common Require Export language.
 From clutch.base_logic Require Import error_credits.
 From clutch.elton Require Import weakestpre primitive_laws rupd.
@@ -84,35 +84,34 @@ Section adequacy.
       + by iApply "H".
       + done.
       + pose proof cond_nonneg ε. lra.
-    - iDestruct "H" as "(%&%&%&%&%&%&%&%&%Hineq&H)".
-      erewrite urns_f_distr_split; [|done..].
+    - iDestruct "H" as "(%&%&%&%Hineq&%Herasable&H)".
+      rewrite -Herasable.
       rewrite -dbind_assoc'.
-      iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
-      { iPureIntro.
-        intros H'.
-        eapply pgl_mon_grading; first apply Hineq.
-        exact H'.
-      }
-      iMod (pgl_dbind_adv'  with "[][-]"); [iPureIntro| |done]; first naive_solver.
-      simpl.
-      iIntros (x).
-      iDestruct ("H"$! x) as "H".
-      case_match; last done.
-      rewrite dret_id_left.
-      iMod ("H") as "[H _]".
-      iApply "H".
-      + iPureIntro.
-        simpl in *.
-        etrans; first exact.
-        by apply urns_support_set_insert_subset.
-      + done.
-      + iPureIntro.
-        eapply map_Forall_impl; first done.
-        simpl.
-        intros ?? H'.
-        etrans; first exact.
-        by apply urns_support_set_insert_subset.
-  Qed. 
+      admit. 
+      (* iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I). *)
+      (* { iPureIntro. *)
+      (*   intros H'. *)
+      (*   eapply pgl_mon_grading; first apply Hineq. *)
+      (*   exact H'. *)
+      (* } *)
+      (* iMod (pgl_dbind_adv'  with "[][-]"); [iPureIntro| |done]; first naive_solver. *)
+      (* simpl. *)
+      (* iIntros (x). *)
+      (* iDestruct ("H"$! x) as "H". *)
+      (* iMod ("H") as "[H _]". *)
+      (* iApply "H". *)
+      (* + iPureIntro. *)
+      (*   simpl in *. *)
+      (*   etrans; first exact. *)
+      (*   by apply urns_support_set_insert_subset. *)
+      (* + done. *)
+      (* + iPureIntro. *)
+      (*   eapply map_Forall_impl; first done. *)
+      (*   simpl. *)
+      (*   intros ?? H'. *)
+      (*   etrans; first exact. *)
+      (*   by apply urns_support_set_insert_subset. *)
+  Admitted. 
 
   
   Lemma state_step_coupl_erasure (ε:nonnegreal) e σ ϕ n m Z:
@@ -158,36 +157,41 @@ Section adequacy.
       + done.
       + pose proof cond_nonneg ε.
         simpl in *. lra. 
-    - iDestruct "H" as "(%&%&%&%&%&%&%&%&%Hineq&H)".
-      erewrite urns_f_distr_split; [|done..].
+    - iDestruct "H" as "(%&%&%&%Hineq&%Herasable&H)".
+      rewrite -Herasable.
       rewrite -dbind_assoc'.
-      iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
-      { iPureIntro.
-        intros H'.
-        eapply pgl_mon_grading; first apply Hineq.
-        exact H'.
-      }
-      iMod (pgl_dbind_adv'  with "[][-]"); [iPureIntro| |done]; first naive_solver.
-      simpl.
-      iIntros (x).
-      iDestruct ("H"$! x) as "H".
-      case_match; last done.
-      rewrite dret_id_left.
-      iMod ("H") as "[H _]".
-      iApply ("H" with "[-]").
-      + iIntros (??) "?".
-        by iMod ("HZ" with "[$]").
-      + iPureIntro. 
-        etrans; first exact.
-        by apply urns_support_set_insert_subset.
-      + done.
-      + iPureIntro.
-        eapply map_Forall_impl; first done.
-        simpl.
-        intros ?? H'.
-        etrans; first exact.
-        by apply urns_support_set_insert_subset.
-  Qed. 
+      (* same as before *)
+      admit.
+      (* iDestruct "H" as "(%&%&%&%Hineq&H)". *)
+      (* erewrite urns_f_distr_split; [|done..]. *)
+      (* rewrite -dbind_assoc'. *)
+      (* iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I). *)
+      (* { iPureIntro. *)
+      (*   intros H'. *)
+      (*   eapply pgl_mon_grading; first apply Hineq. *)
+      (*   exact H'. *)
+      (* } *)
+      (* iMod (pgl_dbind_adv'  with "[][-]"); [iPureIntro| |done]; first naive_solver. *)
+      (* simpl. *)
+      (* iIntros (x). *)
+      (* iDestruct ("H"$! x) as "H". *)
+      (* case_match; last done. *)
+      (* rewrite dret_id_left. *)
+      (* iMod ("H") as "[H _]". *)
+      (* iApply ("H" with "[-]"). *)
+      (* + iIntros (??) "?". *)
+      (*   by iMod ("HZ" with "[$]"). *)
+      (* + iPureIntro.  *)
+      (*   etrans; first exact. *)
+      (*   by apply urns_support_set_insert_subset. *)
+      (* + done. *)
+      (* + iPureIntro. *)
+      (*   eapply map_Forall_impl; first done. *)
+      (*   simpl. *)
+      (*   intros ?? H'. *)
+      (*   etrans; first exact. *)
+      (*   by apply urns_support_set_insert_subset. *)
+  Admitted. 
   
 
   Lemma prog_coupl_erasure (ε:nonnegreal) e σ ϕ n m Z:

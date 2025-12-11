@@ -245,8 +245,7 @@ Proof.
   iDestruct (ec_supply_ec_inv with "[$][$]") as %(x&x'& -> & He).
   iApply fupd_mask_intro; first set_solver.
   iIntros "Hclose".
-  rewrite state_step_coupl_unfold.
-  do 3 iRight.
+  iApply state_step_coupl_rec_complete_split.
   assert (∀ x, 0<=ε2 x + x')%R as Hnnr.
   { intros. apply Rplus_le_le_0_compat; apply cond_nonneg. }
   iExists _,_, _, (λ x, mknonnegreal _ (Hnnr x)).
