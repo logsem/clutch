@@ -66,7 +66,8 @@ Section implementation.
 
 
   Definition F_KE (getKey channel : label) f : expr :=
-    let: "key" := (sample #()%V) in
+    let: "c" := (sample #()%V) in
+    let: "key" := g ^ "c" in
 
     handle: f with
     | effect getKey "p", rec "k" =>
@@ -131,17 +132,29 @@ Section implementation.
    | return "y" => "y" end.
 
   Definition DH_SIM (channel : label) (f : expr) : expr :=
+    let: "α" := alloc #n in
+    let: "β" := alloc #n in
+    let: "l1" := ref NONEV in
+    let: "l2" := ref NONEV in
       handle: f with
     | effect channel "payload", rec "k" =>
         match: "payload" with
         | InjL "payload" =>
             let, ("m", "dst") := "payload" in
             match: "dst" with
-              InjL <> => let: "c" := sample #()%V in
+              InjL <> => let: "c" :=
+                           (match: !"l1" with
+                              NONE => let: "c" := (samplelbl "α" #()%V) in "l1" <- SOME "c";; "c"
+                            | SOME "c" => "c"
+                            end) in
                          let: "gC" := g^"c" in
                          (do: channel (Send ("gC", bob)));;
                          "k" #()%V
-            | InjR <> => let: "c" := sample #()%V in
+            | InjR <> => let: "c" :=
+                           (match: !"l2" with
+                              NONE => let: "c" := (samplelbl "β" #()%V) in "l2" <- SOME "c";; "c"
+                            | SOME "c" => "c"
+                            end) in
                          let: "gC" := g^"c" in
                          (do: channel (Send ("gC", alice)));;
                          "k" #()%V
