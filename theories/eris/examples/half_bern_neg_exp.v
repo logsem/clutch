@@ -5,8 +5,20 @@ From Coquelicot Require Import Coquelicot.
 From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real indicators real_decr_trial.
+From clutch.eris.examples Require Import math.
+
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
+
+Lemma LemDisj : forall (z : fin 2), z = 0%fin ∨ z = 1%fin.
+Proof.
+  intros z.
+  replace (0%fin) with (bool_to_fin false) by rewrite /bool_to_fin//=.
+  replace (1%fin) with (bool_to_fin true) by rewrite /bool_to_fin//=.
+  destruct (bool_to_fin_surj z).
+  destruct x; auto.
+Qed.
+
 
 Section pmf.
    Definition BNEHalf_μ (b : bool) : R :=

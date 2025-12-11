@@ -1,3 +1,19 @@
+From clutch.eris.examples.math Require Import prelude continuity2.
+From clutch.eris Require Import infinite_tape.
+Import Hierarchy.
+Set Default Proof Using "Type*".
+#[local] Open Scope R.
+
+(** WIP:
+An elementary proof of the Fubini axiom.
+This proof is following the proofs found in chapter 3 of Munkres, Analysis on Manifolds.
+ *)
+
+
+
+
+(*
+
 From clutch.eris Require Export eris error_rules receipt_rules.
 From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
@@ -353,4 +369,5 @@ Inequality along refinements
 Ineuqality between lower and upper sums
 
 I can also define the 2D Darboux lower and upper sums, similar lemmas
+*)
 *)

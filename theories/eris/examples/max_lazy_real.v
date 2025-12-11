@@ -7,6 +7,7 @@ From clutch.eris.examples Require Import lazy_real indicators half_bern_neg_exp.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
+(*
 Section max_lazy_real.
 Import Hierarchy.
 
@@ -79,16 +80,9 @@ Proof.
   { rewrite Rmax_left; nra. }
 Qed.
 
-(* Not sure if I have the hypotheses right for the double integrability
- so I'll use the placeholder True for now. *)
-Lemma weak_Fubini_bounded_integrable (F : R → R -> R)
-  (H : (∀ x y, 0 <= x <= 1 -> 0 <= y <= 1 -> 0 <= F x y <= 1)%R) (HF : True) :
-  RInt (fun x => RInt (fun y => F x y) 0 1) 0 1 =
-  RInt (fun y => RInt (fun x => F x y) 0 1) 0 1.
-Proof. Admitted.
 
 
-Lemma RInt_RInt_split_indicator (F : R -> R -> R) :
+Lemma RInt_RInt_split_indicator (F : R -> R -> R) (HF : IsFubiniRR F 0 1 0 1) :
   RInt (fun y => RInt (fun x => F x y) 0 1) 0 1 =
   RInt (fun y => RInt (fun x => IndicatorLe x y * F x y) 0 1) 0 1 +
   RInt (fun y => RInt (fun x => IndicatorLe y x * F x y) 0 1) 0 1.
@@ -99,7 +93,8 @@ Proof.
     0 1.
   rewrite /plus//= in Hplus; rewrite -Hplus; last first.
   all: clear Hplus.
-  { (* Integral is integrable *) admit. }
+  { apply Fubini_Step_ex_x.
+    (* Integral is integrable *) admit. }
   { (* Integral is integrable *) admit. }
   apply RInt_ext.
   rewrite Rmin_left; last nra.
@@ -194,10 +189,13 @@ Lemma max_presample_RInt ε (F : R → R) (HF : ex_RInt F 0 1)
     is_RInt (λ y : R, RInt (λ x : R, F (Rmax y x)) 0 1) 0 1 ε.
 Proof.
   apply is_RInt_of_RInt.
-  { (* Integral is integrable. Not sure if this is neccesary? *)  admit. }
+  {
+
+    (* Integral is integrable. Not sure if this is neccesary? *)  admit. }
   replace (RInt (λ y, RInt (λ x, F (Rmax y x)) 0 1) 0 1) with
           (RInt (λ y, RInt (λ x, F (Rmax x y)) 0 1) 0 1); last first.
   { do 2 (f_equal; apply functional_extensionality; intros ?). by rewrite Rmax_comm. }
+  (*
   rewrite RInt_RInt_split_indicator.
   rewrite Rplus_comm weak_Fubini_bounded_integrable; first rewrite Rplus_comm; last first.
   { (* Fubini integrability hypothesis *) admit. }
@@ -223,6 +221,7 @@ Proof.
   rewrite /scal //= /mult //= in Hscal.
   rewrite -Hscal.
   f_equal; apply functional_extensionality; intros ?; nra.
+  *)
 Admitted.
 
 Lemma comp_max_integrability (r1 : R) (F : R → R) (H : ex_RInt F 0 1) (Hr1 : (0 <= r1 <= 1)%R) :
@@ -299,3 +298,4 @@ Proof.
 Qed.
 
 End max_lazy_real.
+*)
