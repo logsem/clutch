@@ -172,8 +172,58 @@ Section modalities.
          - iPureIntro.
            etrans; last exact.
            rewrite /Expval.
-           admit.
-         - admit. 
+           pose (h m:= match ClassicalEpsilon.excluded_middle_informative
+                             (∃ (x : fin (S N)), ∃ (y : nat), lis !! (fin_to_nat x) = Some y ∧ m = <[u:={[y]}]> us)
+                       with
+                       | left P => Some (epsilon P)
+                     | right _ => None 
+                       end).
+           erewrite (SeriesC_ext _ (λ m, from_option (λ a, dunifP N a * ε2 a)%R 0 (h m))); last first. 
+           { intros n.
+             rewrite /h.
+             case_match; simpl.
+             - admit.
+             - admit. 
+           }
+           apply SeriesC_le_inj.
+           + real_solver.
+           + intros ???.
+             rewrite /h.
+             destruct (ClassicalEpsilon.excluded_middle_informative _) as [e|e]; last done.
+             destruct (ClassicalEpsilon.excluded_middle_informative _) as [e'|e']; last done.
+             pose proof epsilon_correct _ e as He.
+             pose proof epsilon_correct _ e' as He'.
+             simpl in *.
+             destruct e as [?[?[K1 ->]]].
+             destruct e' as [?[?[K2 ->]]].
+             destruct He as [? [K3 K3']].
+             destruct He' as [? [K4 K4']].
+             intros Hrewrite.
+             rewrite -Hrewrite.
+             intros H5.
+             simplify_eq.
+             rewrite H5 in K4.
+             rewrite K3 in K4.
+             simplify_eq.
+             apply (f_equal (λ m, m!!u)) in K3', K4'.
+             rewrite !lookup_insert in K3' K4'.
+             simplify_eq. 
+             repeat f_equal.
+           + apply ex_seriesC_finite.
+         - iIntros (?).
+           case_match; last by iApply state_step_coupl_ret_err_ge_1.
+           rename select (∃ _ _, _) into e.
+           pose proof epsilon_correct _ e as [?[H7 H8]].
+           destruct e as [?[?[H9 H10]]].
+           destruct!/=.
+           apply (f_equal (λ m, m!!u)) in H8.
+           rewrite !lookup_insert in H8.
+           simplify_eq.
+           eapply NoDup_lookup in H7; [|done|apply H9].
+           apply fin_to_nat_inj in H7.
+           rewrite -H7.
+           iDestruct ("H"$! _) as "H".
+           by erewrite H9.
   Admitted. 
 
   (* Lemma state_step_coupl_rec_equiv σ1 (ε : nonnegreal) Z : *)
