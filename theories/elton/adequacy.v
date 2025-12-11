@@ -87,31 +87,43 @@ Section adequacy.
     - iDestruct "H" as "(%&%&%&%Hineq&%Herasable&H)".
       rewrite -Herasable.
       rewrite -dbind_assoc'.
-      admit. 
-      (* iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I). *)
-      (* { iPureIntro. *)
-      (*   intros H'. *)
-      (*   eapply pgl_mon_grading; first apply Hineq. *)
-      (*   exact H'. *)
-      (* } *)
-      (* iMod (pgl_dbind_adv'  with "[][-]"); [iPureIntro| |done]; first naive_solver. *)
-      (* simpl. *)
-      (* iIntros (x). *)
-      (* iDestruct ("H"$! x) as "H". *)
-      (* iMod ("H") as "[H _]". *)
-      (* iApply "H". *)
-      (* + iPureIntro. *)
-      (*   simpl in *. *)
-      (*   etrans; first exact. *)
-      (*   by apply urns_support_set_insert_subset. *)
-      (* + done. *)
-      (* + iPureIntro. *)
-      (*   eapply map_Forall_impl; first done. *)
-      (*   simpl. *)
-      (*   intros ?? H'. *)
-      (*   etrans; first exact. *)
-      (*   by apply urns_support_set_insert_subset. *)
-  Admitted. 
+      iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
+      { iPureIntro.
+        intros H'.
+        eapply pgl_mon_grading; first apply Hineq.
+        rewrite (Expval_support _ _ 1%R).
+        exact H'.
+      }
+      iMod (pgl_dbind_adv'  with "[][-]"); [iPureIntro| |done].
+      { destruct H as [r H].
+        exists (Rmax r 1).
+        intros. case_bool_decide; split; try lra.
+        * done.
+        * etrans; last apply Rmax_l. naive_solver.
+        * apply Rmax_r. }
+      simpl.
+      iIntros (x).
+      case_bool_decide; last first.
+      { iModIntro.
+        iApply step_fupdN_intro; first done.
+        iPureIntro.
+        by apply pgl_1.
+      }
+      iDestruct ("H"$! x) as "H".
+      iMod ("H") as "[H _]".
+      iApply "H".
+      + iPureIntro.
+        simpl in *.
+        etrans; first exact.
+        by erewrite <-urn_erasable_same_support_set.
+      + done.
+      + iPureIntro.
+        eapply map_Forall_impl; first done.
+        simpl.
+        intros ?? H'.
+        etrans; first exact.
+        by erewrite <-urn_erasable_same_support_set.
+  Qed. 
 
   
   Lemma state_step_coupl_erasure (ε:nonnegreal) e σ ϕ n m Z:
@@ -160,39 +172,44 @@ Section adequacy.
     - iDestruct "H" as "(%&%&%&%Hineq&%Herasable&H)".
       rewrite -Herasable.
       rewrite -dbind_assoc'.
-      (* same as before *)
-      admit.
-      (* iDestruct "H" as "(%&%&%&%Hineq&H)". *)
-      (* erewrite urns_f_distr_split; [|done..]. *)
-      (* rewrite -dbind_assoc'. *)
-      (* iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I). *)
-      (* { iPureIntro. *)
-      (*   intros H'. *)
-      (*   eapply pgl_mon_grading; first apply Hineq. *)
-      (*   exact H'. *)
-      (* } *)
-      (* iMod (pgl_dbind_adv'  with "[][-]"); [iPureIntro| |done]; first naive_solver. *)
-      (* simpl. *)
-      (* iIntros (x). *)
-      (* iDestruct ("H"$! x) as "H". *)
-      (* case_match; last done. *)
-      (* rewrite dret_id_left. *)
-      (* iMod ("H") as "[H _]". *)
-      (* iApply ("H" with "[-]"). *)
-      (* + iIntros (??) "?". *)
-      (*   by iMod ("HZ" with "[$]"). *)
-      (* + iPureIntro.  *)
-      (*   etrans; first exact. *)
-      (*   by apply urns_support_set_insert_subset. *)
-      (* + done. *)
-      (* + iPureIntro. *)
-      (*   eapply map_Forall_impl; first done. *)
-      (*   simpl. *)
-      (*   intros ?? H'. *)
-      (*   etrans; first exact. *)
-      (*   by apply urns_support_set_insert_subset. *)
-  Admitted. 
-  
+      iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
+      { iPureIntro.
+        intros H'.
+        eapply pgl_mon_grading; first apply Hineq.
+        rewrite (Expval_support _ _ 1%R).
+        exact H'.
+      }
+      iMod (pgl_dbind_adv'  with "[][-]"); [iPureIntro| |done].
+      { destruct H as [r H].
+        exists (Rmax r 1).
+        intros. case_bool_decide; split; try lra.
+        * done.
+        * etrans; last apply Rmax_l. naive_solver.
+        * apply Rmax_r. }
+      simpl.
+      iIntros (x).
+      case_bool_decide; last first.
+      { iModIntro.
+        iApply step_fupdN_intro; first done.
+        iPureIntro.
+        by apply pgl_1.
+      }
+      iDestruct ("H"$! x) as "H".
+      iMod ("H") as "[H _]".
+      iApply ("H" with "[-]").
+      + iIntros (??) "?".
+        by iMod ("HZ" with "[$]").
+      + iPureIntro.
+        etrans; first exact.
+        by erewrite <-urn_erasable_same_support_set.
+      + done.
+      + iPureIntro.
+        eapply map_Forall_impl; first done.
+        simpl.
+        intros ?? H'.
+        etrans; first exact.
+        by erewrite <-urn_erasable_same_support_set.
+  Qed.   
 
   Lemma prog_coupl_erasure (ε:nonnegreal) e σ ϕ n m Z:
     is_well_constructed_expr e = true ->
