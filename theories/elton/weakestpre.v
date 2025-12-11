@@ -359,19 +359,21 @@ Section modalities.
   Lemma fupd_state_step_coupl σ1 Z (ε : nonnegreal) :
     (|={∅}=> state_step_coupl σ1 ε Z) ⊢ state_step_coupl σ1 ε Z.
   Proof.
-  Admitted. 
-  (*   iIntros "H". *)
-  (*   iApply state_step_coupl_rec'. *)
-  (*   iExists (λ x, x= σ1), (dret σ1), nnreal_zero, (λ _, ε). *)
-  (*   repeat iSplit. *)
-  (*   - iPureIntro. apply dret_sch_erasable. *)
-  (*   - iPureIntro. naive_solver. *)
-  (*   - simpl. iPureIntro. rewrite Expval_const; last done. *)
-  (*     rewrite dret_mass. lra. *)
-  (*   - iPureIntro. *)
-  (*     by apply pgl_dret. *)
-  (*   - by iIntros (? ->). *)
-  (* Qed. *)
+    iIntros "H".
+    iApply state_step_coupl_rec.
+    iExists (dret σ1.(urns)), (λ x, if bool_decide (x = σ1.(urns)) then ε else 1%NNR).
+    repeat iSplit.
+    - iExists (Rmax ε 1).
+      iPureIntro. intros. case_bool_decide; [apply Rmax_l|apply Rmax_r].
+    - iPureIntro. rewrite Expval_dret.
+      by case_bool_decide.
+    - iPureIntro. apply dret_urn_erasable. 
+    - iIntros (?).
+      iMod "H".
+      case_bool_decide.
+      + subst; by destruct σ1.
+      + by iApply state_step_coupl_ret_err_ge_1.
+  Qed.
   
   Lemma state_step_coupl_mono σ1 Z1 Z2 ε :
     (∀ σ2 ε', Z1 σ2 ε' -∗ Z2 σ2 ε') -∗
@@ -474,25 +476,34 @@ Section modalities.
       iIntros.
       iDestruct ("H" with "[//]") as "[H _]".
       by iApply "H".
-    - iDestruct "H" as "(%&%&%&%&%&H)".
+    - iDestruct "H" as "(%μ&%ε2&[%r %]&%H2&%&H)".
       iApply state_step_coupl_rec.
-  Admitted.  (* Need to ensure urn_erasble preserves domain *)
-  (*     iExists _, _. *)
-  (*     repeat iSplit; try done. *)
-  (*     iIntros (x). *)
-  (*     iDestruct ("H" $! x) as "H". *)
-  (*     iMod "H" as "[H _]". iModIntro. *)
-  (*     iApply "H"; iPureIntro. *)
-  (*     + etrans; first exact. *)
-  (*       destruct σ. *)
-  (*       by apply urns_support_set_insert_subset. *)
-  (*     + done. *)
-  (*     + simpl. *)
-  (*       eapply map_Forall_impl; first done. *)
-  (*       simpl. *)
-  (*       intros. etrans; first exact. *)
-  (*       by apply urns_support_set_insert_subset. *)
-  (* Qed.  *)
+      iExists μ, (λ m, if bool_decide (μ m > 0) then ε2 m else 1%NNR)%R.
+      repeat iSplit.
+      + iPureIntro. exists (Rmax r 1).
+        intros. case_bool_decide; [|apply Rmax_r].
+        etrans; last apply Rmax_l. naive_solver.
+      + iPureIntro. erewrite Expval_support in H2.
+        etrans; last exact.
+        rewrite /Expval.
+        right. 
+        apply SeriesC_ext.
+        intros. repeat f_equal.
+        by case_bool_decide.
+      + done.
+      +  iIntros (x). 
+         iDestruct ("H" $! x) as "H".
+         iMod "H" as "[H _]". iModIntro.
+         case_bool_decide; last by iApply state_step_coupl_ret_err_ge_1.
+         iApply "H"; iPureIntro.
+         * etrans; first exact.
+           by erewrite <-urn_erasable_same_support_set.
+         * done.
+         * eapply map_Forall_impl; first done.
+           simpl.
+           intros. etrans; first exact.
+           by erewrite <-urn_erasable_same_support_set.
+  Qed.
   
   (* Lemma state_step_coupl_state_step α σ1 Z (ε ε' : nonnegreal) : *)
   (*   α ∈ get_active σ1 → *)
