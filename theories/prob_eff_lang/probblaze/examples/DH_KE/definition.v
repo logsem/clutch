@@ -80,11 +80,12 @@ Section implementation.
             | SOME "w" => "k" (SOME "key")
             end
         | InjR <> =>
-            (do: channel Send (#0, alice));;
             let: "r" := do: channel Recv alice in
             match: "r" with
               NONE => "k" NONEV
-            | SOME "w" => "k" (SOME "key")
+            | SOME "w" => 
+                (do: channel Send (#0, alice));;
+                "k" (SOME "key")
             end
        end
     | return "y" => "y" end.
@@ -114,17 +115,18 @@ Section implementation.
                 "k" (SOME "key")
             end
         | InjR <> =>
-           let: "b" :=
-              match: !"l2" with
-                NONE => let: "b" := (samplelbl "β" #()%V) in "l2" <- SOME "b";; "b"
-              | SOME "b" => "b"
-              end in
-            let: "gB" := g^"b" in
-            (do: channel (Send ("gB", alice)));;
-            let: "r" := do: channel (Recv alice) in
+            let: "r" := (do: channel (Recv alice)) in
             match: "r" with
               NONE => "k" NONE
             | SOME "gA" =>
+                let: "b" :=
+                  match: !"l2" with
+                    NONE => let: "b" := (samplelbl "β" #()%V) in "l2" <- SOME "b";; "b"
+                  | SOME "b" => "b"
+                  end in
+                let: "gB" := g^"b" in
+                (do: channel (Send ("gB", alice)));;
+
                 let: "key" := "gA"^"b" in
                 "k" (SOME "key")
             end
@@ -182,11 +184,12 @@ Section implementation.
             | SOME "w" => "k" (SOME "gc")
             end
         | InjR <> =>
-            (do: channel (Send ("gb", alice)));;
             let: "r" := (do: channel (Recv alice)) in
             match: "r" with
               NONE => "k" NONE
-            | SOME "w" => "k" (SOME "gc")
+            | SOME "w" =>
+                (do: channel (Send ("gb", alice)));;
+                "k" (SOME "gc")
             end
         end
     | return "y" => "y" end.
