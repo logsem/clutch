@@ -7,4 +7,5 @@ Require Export clutch.eris.examples.math.sets.
 Require Export clutch.eris.examples.math.series.
 Require Export clutch.eris.examples.math.limit_exchanges.
 Require Export clutch.eris.examples.math.improper.
-Require Export clutch.eris.examples.indicators.
+Require Export clutch.eris.examples.math.derived_fubini.
+Require Export clutch.eris.examples.math.piecewise.

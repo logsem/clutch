@@ -31,6 +31,27 @@ Proof.
   intros ? [].
 Qed.
 
+Lemma Continuity2_swap (f : R * R → R) (x y : R) :
+  Continuity2 (fun '(x', y') => f (y', x')) y x → Continuity2 f x y.
+Proof.
+  intros H P Hp.
+  have H' := H P Hp.
+  revert H'.
+  rewrite /filtermap//=/locally//=.
+  intros [e He].
+  exists e.
+  intros [zx zy] Hz.
+  apply (He (zy, zx)).
+  revert Hz.
+  rewrite /ball//=/prod_ball//=.
+  intuition.
+Qed.
+
+Lemma Continuity2_const {F : R * R → R} (v x y : R) :
+  (∀ z, F z = v) →
+  Continuity2 F x y.
+Proof. Admitted.
+
 Lemma Continuity2_continuous_fst
   {f : R * R → R_CompleteNormedModule} {x y : R} :
   Continuity2 f x y →
@@ -74,3 +95,4 @@ Proof.
   split; try done.
   apply ball_center.
 Qed.
+

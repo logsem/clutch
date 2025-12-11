@@ -4,7 +4,7 @@ From Coquelicot Require SF_seq Hierarchy.
 From Coquelicot Require Import Coquelicot.
 From Coquelicot Require Import RInt RInt_analysis AutoDerive.
 From clutch.eris Require Import infinite_tape.
-From clutch.eris.examples Require Import lazy_real indicators.
+From clutch.eris.examples Require Import lazy_real.
 From clutch.eris.examples Require Import math.
 
 Set Default Proof Using "Type*".

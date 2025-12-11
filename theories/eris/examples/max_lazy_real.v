@@ -3,7 +3,7 @@ From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
 From Coquelicot Require Import RInt RInt_analysis AutoDerive.
 From clutch.eris Require Import infinite_tape lazy_real.
-From clutch.eris.examples Require Import lazy_real indicators half_bern_neg_exp.
+From clutch.eris.examples Require Import lazy_real half_bern_neg_exp.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 

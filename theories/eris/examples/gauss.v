@@ -3,7 +3,7 @@ From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
 From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
-From clutch.eris.examples Require Import lazy_real max_lazy_real indicators real_decr_trial bern_geo half_bern_neg_exp bern_iter selector.
+From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial bern_geo half_bern_neg_exp bern_iter selector.
 From clutch.eris.examples Require Import math.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
@@ -1260,7 +1260,7 @@ Section credits.
       }
 
       apply Fubini_Step_ex_x.
-      apply IsFubiniRR_mult; [apply IsFubiniRR_mult|].
+      apply PCts2_mult; [apply PCts2_mult|].
       { apply PCts_const_x.
         apply PCts_cts.
         rewrite /Ioo//=.
@@ -1716,8 +1716,8 @@ Section credits.
     have HL1 : ∀ (a b : nat), ex_RInt (λ x0 : R, RInt (λ x1 : R, G1_μ b * (1 - exp (- x0 * (2 * b + x0) / 2)) * G2_μ a x1 * F a x1) 0 1) 0 1.
     { intros ??.
       eapply Fubini_Step_ex_y.
-      apply IsFubiniRR_mult; [apply IsFubiniRR_mult; [apply IsFubiniRR_mult |] |].
-      { apply IsFubiniRR_continuous.
+      apply PCts2_mult; [apply PCts2_mult; [apply PCts2_mult |] |].
+      { apply PCts2_continuous.
         intros ??.
         apply (Continuity2_const (G1_μ b)).
         intros [??].
@@ -1755,7 +1755,7 @@ Section credits.
       have Hex1 : ∀ {x : nat},  ex_RInt (λ x0 : R, RInt (λ x1 : R, (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ a x1 * F a x1) 0 1) 0 1.
       { intros n.
         apply Fubini_Step_ex_y.
-        apply IsFubiniRR_mult; [apply IsFubiniRR_mult|].
+        apply PCts2_mult; [apply PCts2_mult|].
         { apply PCts_const_y.
           apply PCts_cts.
           intros ??.
@@ -2048,8 +2048,8 @@ Section credits.
     RInt (λ x0 : R, RInt (λ x1 : R, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ n x1 * F n x1) 0 1) 0 1.
   Proof.
     apply Fubini_Step_eq.
-    apply IsFubiniRR_mult; [apply IsFubiniRR_mult; [apply IsFubiniRR_mult |] |].
-    { apply IsFubiniRR_continuous.
+    apply PCts2_mult; [apply PCts2_mult; [apply PCts2_mult |] |].
+    { apply PCts2_continuous.
       intros ??.
       apply (Continuity2_const (G1_μ x)).
       intros [??].
