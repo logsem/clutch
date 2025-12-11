@@ -35,6 +35,23 @@ Section urn_erasable.
     - by rewrite H2.
   Qed.
 
+  Lemma urn_erasable_same_support_set μ m:
+    urn_erasable μ m ->
+    ∀ m', μ m' > 0 -> urns_support_set m' = urns_support_set m.
+  Proof.
+    rewrite /urn_erasable.
+    intros H m' Hpos.
+    pose proof urns_f_valid_exists m' as Hexists.
+    destruct Hexists as [f Hexists].
+    assert (urns_f_distr m f > 0) as Hpos'.
+    { rewrite -H. rewrite dbind_pos.
+      setoid_rewrite urns_f_distr_pos.
+      naive_solver. }
+    rewrite urns_f_distr_pos in Hpos'.
+    erewrite urns_f_valid_support; last done. 
+    by erewrite urns_f_valid_support.
+  Qed. 
+
 End urn_erasable.
 
 Section urn_erasable_functions.
