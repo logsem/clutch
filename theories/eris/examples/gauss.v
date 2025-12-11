@@ -1282,6 +1282,46 @@ Section credits.
         { funexti. by rewrite SeriesC_Series_nat. }
         apply (@UniformLimitTheorem _ 0 1).
         { rewrite /Icc//=; OK. rewrite Rmin_left; OK. rewrite Rmax_right; OK. }
+        {
+          intros ???.
+          apply (Continuity.continuous_ext_loc _ (λ x'0 : R_UniformSpace, G1_μ n0 * (1 - exp (- x'0 * (2 * n0 + x'0) / 2)))).
+          2: {
+            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+            by auto_derive.
+          }
+          rewrite Rmin_left in H0; OK.
+          rewrite Rmax_right in H0; OK.
+          (* In a neighbourhood of x', the indicator function is 1. *)
+          have Hpos_ball : 0 < (Rmin x' (1-x')).
+          { apply Rmin_glb_lt; OK. }
+          exists (mkposreal _ Hpos_ball).
+          intros y.
+          rewrite /ball//=.
+          rewrite /AbsRing_ball//=.
+          intros Hy.
+          have H1 : abs (minus y x') < x'.
+          { eapply Rlt_le_trans; [exact Hy|]. apply Rmin_l. }
+          have H2 : abs (minus y x') < (1 - x').
+          { eapply Rlt_le_trans; [exact Hy|]. apply Rmin_r. }
+          have ? : 0 < y.
+          { rewrite /abs//= in H1.
+            apply Rabs_def2 in H1.
+            destruct H1.
+            rewrite /minus/plus/opp//= in H3.
+            OK.
+          }
+          have ? : y < 1.
+          { rewrite /abs//= in H2.
+            apply Rabs_def2 in H2.
+            destruct H2.
+            rewrite /minus/plus/opp//= in H2.
+            OK.
+          }
+          rewrite Iverson_True; OK.
+          rewrite /Icc//=.
+          rewrite Rmin_left; OK.
+          rewrite Rmax_right; OK.
+        }
         have H1 : ∀ x0 (n0 : nat), 0 <= x0 → 0 <= 1 - exp (- x0 * (2 * n0 + x0) / 2).
         { intros ???.
           suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.

@@ -2789,6 +2789,8 @@ Section UniformLimitTheorem.
   (* Wrapper around the Coquelicot french definitions + some basic reductions *)
   Theorem UniformLimitTheorem {f : nat → R → R} {a b x : R} :
     Icc a b x →
+    (* Oh oops I need each to be continuous too *)
+    (∀ (n : nat) (x' : R), Rmin a b < x' < Rmax a b → (Continuity.continuous (f n) x')) →
     (* Uniform convergence (TODO: Just on the interval [a,b], right? ) *)
     filterlim (fun (M : nat) (x : R) => sum_n (fun n => f n x) M) eventually (locally (λ x : R, Series.Series (fun n => f n x))) →
     (* The limit is continuous *)
