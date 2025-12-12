@@ -2258,15 +2258,15 @@ Section basic_properties.
       + by iApply valid_r_to_iThy_bot.
   Qed.
 
-  Definition HandleCtxs (lhrs : list (label * expr * expr)) :=
-    map (λ '(l, h, r), HandleCtx l h r) lhrs.
+  Definition HandleCtxs (lhrs : list (handler_semantics * mode * label * expr * expr)) :=
+    map (λ '(hs, m, l, h, r), HandleCtx hs m l h r) lhrs.
 
   Lemma NeutralEctx_HandleCtxs_l l2s l1s' l2s' lhr1s X Y (L : iLblThy Σ) :
     ((l1s', l2s'), Y) ∈ L →
-    distinct_l ((lhr1s.*1.*1, l2s, X) :: L) →
+    distinct_l ((lhr1s.*1.*1.*2, l2s, X) :: L) →
     NeutralEctx l1s' (HandleCtxs lhr1s).
   Proof.
-    induction lhr1s as [|((l1, h1), r1) lhr1s IH].
+    induction lhr1s as [|((((hs, m), l1), h1), r1) lhr1s IH].
     { intros _ _; constructor; intros ??. set_solver. }
     intros Hin Hdistinct.
     apply NeutralEctx_cons.
@@ -2283,10 +2283,10 @@ Section basic_properties.
 
   Lemma NeutralEctx_HandleCtxs_r l1s l1s' l2s' lhr2s X Y (L : iLblThy Σ) :
     ((l1s', l2s'), Y) ∈ L →
-    distinct_r ((l1s, lhr2s.*1.*1, X) :: L) →
+    distinct_r ((l1s, lhr2s.*1.*1.*2, X) :: L) →
     NeutralEctx l2s' (HandleCtxs lhr2s).
   Proof.
-    induction lhr2s as [|((l2, h2), r2) lhr2s IH].
+    induction lhr2s as [|((((hs, m), l2), h2), r2) lhr2s IH].
     { intros _ _; constructor; intros ??. set_solver. }
     intros Hin Hdistinct.
     apply NeutralEctx_cons.
@@ -2352,20 +2352,20 @@ Section basic_properties.
           rewrite labels_r_cons. set_solver.
   Qed.
 
-  Lemma ectx_labels_HandleCtxs lhrs : ectx_labels (HandleCtxs lhrs) = lhrs.*1.*1.
+  Lemma ectx_labels_HandleCtxs lhrs : ectx_labels (HandleCtxs lhrs) = lhrs.*1.*1.*2.
   Proof.
-    induction lhrs as [|((l, h), r) lhrs IH]; [done|].
+    induction lhrs as [|((((hs, m), l), h), r) lhrs IH]; [done|].
     by rewrite !fmap_cons -IH.
   Qed.
 
   Lemma traversable_HandleCtxs (X : iThy Σ) L l1s l2s lhr1s lhr2s :
-    lhr1s.*1.*1 = l1s →
-    lhr2s.*1.*1 = l2s →
+    lhr1s.*1.*1.*2 = l1s →
+    lhr2s.*1.*1.*2 = l2s →
     distinct (((l1s, l2s), X) :: L) →
     ⊢ traversable (HandleCtxs lhr1s) (HandleCtxs lhr2s) (to_iThy L).
   Proof.
     intros <- <- Hdistinct.
-    apply (traversable_ectx_labels _ _ lhr1s.*1.*1 lhr2s.*1.*1 X); last done;
+    apply (traversable_ectx_labels _ _ lhr1s.*1.*1.*2 lhr2s.*1.*1.*2 X); last done;
     by rewrite ectx_labels_HandleCtxs.
   Qed.
 

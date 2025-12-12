@@ -19,6 +19,10 @@ Section eff_lang.
   
   Record label := Label { label_car : nat }.
 
+  Inductive mode : Set := OS | MS.
+
+  Inductive handler_semantics : Set := Deep | Shallow.
+
   Inductive eff_val : Set :=
   (* Effect name. *)
   | EffName (s : string)
@@ -71,7 +75,7 @@ Section eff_lang.
   (* Effects *)
   | Effect (s : string) (e : expr) (* let effect s in e *)
   | Do (n : eff_val) (e : expr)
-  | Handle (n : eff_val) (e1 e2 e3 : expr)
+  | Handle (hs : handler_semantics) (m : mode) (n : eff_val) (e1 e2 e3 : expr)
 
   with val :=
   (* Literals. *)
@@ -80,6 +84,7 @@ Section eff_lang.
   | RecV (f x : binder) (e : expr)
   (* Multi-shot continuations. *)
   | KontV (k : list frame)
+  | ContV (r : loc) (k : list frame)
   (* Products *)
   | PairV (v1 v2 : val)
   (* Sums *)
@@ -109,7 +114,7 @@ Section eff_lang.
   | RandLCtx (v2 : val)
   | RandRCtx (e1 : expr)
   | DoCtx (l : label) (* Do l [ ] *)
-  | HandleCtx (l : label) (e2 e3 : expr). (* Handle l [ ] e2 e3 *)
+  | HandleCtx (hs : handler_semantics) (m : mode) (l : label) (e2 e3 : expr). (* Handle hs m l [ ] e2 e3 *)
 
   (* Evaluation contexts. *)
   Definition ectx := list frame.
@@ -159,7 +164,7 @@ Section induction_principle.
     (* Effects. *)
     (Effect_case : ∀ s e, P e → P (Effect s e))
     (Do_case : ∀ n e, P e → P (Do n e))
-    (Handle_case : ∀ n e1 e2 e3, P e1 → P e2 → P e3 → P (Handle n e1 e2 e3))
+    (Handle_case : ∀ hs m n e1 e2 e3, P e1 → P e2 → P e3 → P (Handle hs m n e1 e2 e3))
     (* λ-calculus. *)
     (Var_case : ∀ b, P (Var b))
     (Rec_case : ∀ f x e, P e → P (Rec f x e))
@@ -191,6 +196,8 @@ Section induction_principle.
     (RecV_case : ∀ f x e, P e → Q (RecV f x e))
     (* Multi-shot continuations. *)
     (KontV_case : ∀ k, S k → Q (KontV k))
+    (* One-shot continuations. *)
+    (ContV_case : ∀ l k, S k → Q (ContV l k))
     (* Products *)
     (PairV_case : ∀ v1 v2, Q v1 → Q v2 → Q (PairV v1 v2))
     (* Sums *)
@@ -203,7 +210,7 @@ Section induction_principle.
     (AppRCtx_case : ∀ e1, P e1 → R (AppRCtx e1))
     (* Effects. *)
     (DoCtx_case : ∀ n, R (DoCtx n))
-    (HandleCtx_case : ∀ n e2 e3, P e2 → P e3 → R (HandleCtx n e2 e3))
+    (HandleCtx_case : ∀ hs m n e2 e3, P e2 → P e3 → R (HandleCtx hs m n e2 e3))
     (* Operations *)
     (UnOpCtx_case : ∀ op, R (UnOpCtx op))
     (BinOpLCtx_case : ∀ op v2, Q v2 → R (BinOpLCtx op v2))
@@ -245,8 +252,8 @@ Section induction_principle.
         Effect_case s e (expr_ind e)
     | Do n e =>
         Do_case n e (expr_ind e)
-    | Handle n e1 e2 e3 =>
-        Handle_case n e1 e2 e3 (expr_ind e1) (expr_ind e2) (expr_ind e3)
+    | Handle hs m n e1 e2 e3 =>
+        Handle_case hs m n e1 e2 e3 (expr_ind e1) (expr_ind e2) (expr_ind e3)
     | Var b =>
         Var_case b
     | Rec f x e =>
@@ -300,6 +307,13 @@ Section induction_principle.
             | [] => EmptyCtx_case
             | f :: k => ConsCtx_case f k (frame_ind f) (ectx_ind k)
           end) k)
+    | ContV l k =>
+        ContV_case l k (
+            (fix ectx_ind k {struct k} : S k :=
+               match k with
+               | [] => EmptyCtx_case
+               | f :: k => ConsCtx_case f k (frame_ind f) (ectx_ind k)
+               end) k)
     | PairV v1 v2 =>
         PairV_case v1 v2 (val_ind v1) (val_ind v2)
     | InjLV v =>
@@ -319,8 +333,8 @@ Section induction_principle.
         AppRCtx_case e1 (expr_ind e1)
     | DoCtx l =>
         DoCtx_case l
-    | HandleCtx n e2 e3 =>
-        HandleCtx_case n e2 e3 (expr_ind e2) (expr_ind e3)
+    | HandleCtx hs m n e2 e3 =>
+        HandleCtx_case hs m n e2 e3 (expr_ind e2) (expr_ind e3)
     | UnOpCtx op =>
         UnOpCtx_case op
     | BinOpLCtx op v2 =>
@@ -408,6 +422,12 @@ Proof. solve_decision. Defined.
 Global Instance label_eq_dec : EqDecision label.
 Proof. solve_decision. Defined.
 
+Global Instance mode_eq_dec : EqDecision mode.
+Proof. solve_decision. Defined.
+
+Global Instance handler_semantics_eq_dec : EqDecision handler_semantics.
+Proof. solve_decision. Defined.
+
 Global Instance eff_val_eq_dec : EqDecision eff_val.
 Proof. solve_decision. Defined.
 
@@ -451,13 +471,13 @@ Section eq_decidable.
       end); congruence.
   Defined.
 
-  Definition eq_dec_Handle_case n e1 e2 e3
-    (He1: P e1) (He2 : P e2) (He3 : P e3) : P (Handle n e1 e2 e3).
+  Definition eq_dec_Handle_case hs m n e1 e2 e3
+    (He1: P e1) (He2 : P e2) (He3 : P e3) : P (Handle hs m n e1 e2 e3).
     refine (λ e',
       match e' with
-      | Handle n' e1' e2' e3' =>
-          cast_if_and4
-            (decide (n = n'))
+      | Handle hs' m' n' e1' e2' e3' =>
+          cast_if_and6
+            (decide (hs = hs')) (decide (m = m')) (decide (n = n'))
             (He1 e1') (He2 e2') (He3 e3')
       | _ => right _
       end); congruence.
@@ -616,6 +636,14 @@ Section eq_decidable.
       end); congruence.
   Defined.
 
+  Definition eq_dec_ContV_case l k (Hk : S k) : Q (ContV l k).
+    refine (λ v',
+      match v' with
+      | ContV l' k' => cast_if_and (decide (l = l')) (Hk k')
+      | _ => right _
+      end); congruence.
+  Defined.
+
   Definition eq_dec_KontV_case k (Hk : S k) : Q (KontV k).
     refine (λ v',
       match v' with
@@ -673,13 +701,13 @@ Section eq_decidable.
       end); congruence.
   Defined.
 
-  Definition eq_dec_HandleCtx_case l e2 e3
-    (He2 : P e2) (He3 : P e3) : R (HandleCtx l e2 e3).
+  Definition eq_dec_HandleCtx_case hs m l e2 e3
+    (He2 : P e2) (He3 : P e3) : R (HandleCtx hs m l e2 e3).
     refine (λ f',
       match f' with
-      | HandleCtx l' e2' e3' =>
-          cast_if_and3
-            (decide (l = l')) (He2 e2') (He3 e3')
+      | HandleCtx hs' m' l' e2' e3' =>
+          cast_if_and5
+            (decide (hs = hs')) (decide (m = m')) (decide (l = l')) (He2 e2') (He3 e3')
       | _ => right _
       end); congruence.
   Defined.
@@ -862,7 +890,7 @@ Section eq_decidable.
       eq_dec_AllocN_case eq_dec_Load_case eq_dec_Store_case
       eq_dec_AllocTape_case eq_dec_Rand_Case
       (* Values. *)
-      eq_dec_LitV_case eq_dec_RecV_case eq_dec_KontV_case
+      eq_dec_LitV_case eq_dec_RecV_case eq_dec_KontV_case eq_dec_ContV_case
       eq_dec_PairV_case eq_dec_InjLV_case eq_dec_InjRV_case
       (* Frames. *)
       eq_dec_AppLCtx_case eq_dec_AppRCtx_case
@@ -888,7 +916,7 @@ Section eq_decidable.
       eq_dec_AllocN_case eq_dec_Load_case eq_dec_Store_case
       eq_dec_AllocTape_case eq_dec_Rand_Case
       (* Values. *)
-      eq_dec_LitV_case eq_dec_RecV_case eq_dec_KontV_case
+      eq_dec_LitV_case eq_dec_RecV_case eq_dec_KontV_case eq_dec_ContV_case
       eq_dec_PairV_case eq_dec_InjLV_case eq_dec_InjRV_case
       (* Frames. *)
       eq_dec_AppLCtx_case eq_dec_AppRCtx_case
@@ -914,7 +942,7 @@ Section eq_decidable.
       eq_dec_AllocN_case eq_dec_Load_case eq_dec_Store_case
       eq_dec_AllocTape_case eq_dec_Rand_Case
       (* Values. *)
-      eq_dec_LitV_case eq_dec_RecV_case eq_dec_KontV_case
+      eq_dec_LitV_case eq_dec_RecV_case eq_dec_KontV_case eq_dec_ContV_case
       eq_dec_PairV_case eq_dec_InjLV_case eq_dec_InjRV_case
       (* Frames. *)
       eq_dec_AppLCtx_case eq_dec_AppRCtx_case
@@ -940,7 +968,7 @@ Section eq_decidable.
       eq_dec_AllocN_case eq_dec_Load_case eq_dec_Store_case
       eq_dec_AllocTape_case eq_dec_Rand_Case
       (* Values. *)
-      eq_dec_LitV_case eq_dec_RecV_case eq_dec_KontV_case
+      eq_dec_LitV_case eq_dec_RecV_case eq_dec_KontV_case eq_dec_ContV_case
       eq_dec_PairV_case eq_dec_InjLV_case eq_dec_InjRV_case
       (* Frames. *)
       eq_dec_AppLCtx_case eq_dec_AppRCtx_case
@@ -1022,24 +1050,28 @@ Qed.
 
 Section countable.
   (* The set of generic trees. *)
-  Notation gtree :=
-    (gen_tree (bin_op + un_op + base_lit + string + binder + label + eff_val))
+ Notation gtree :=
+    (gen_tree (bin_op + un_op + base_lit + string + binder + label + eff_val + mode + handler_semantics))
     (only parsing).
 
+  Notation enc_handler_semantics hs :=
+    (GenLeaf (inr hs)) (only parsing).
+  Notation enc_mode m :=
+    (GenLeaf (inl (inr m))) (only parsing).
   Notation enc_eff_val n :=
-    (GenLeaf (inr n)) (only parsing).
+    (GenLeaf (inl (inl (inr n)))) (only parsing).
   Notation enc_label l :=
-    (GenLeaf (inl (inr l))) (only parsing).
+    (GenLeaf (inl (inl (inl (inr l))))) (only parsing).
   Notation enc_binder b :=
-    (GenLeaf (inl (inl (inr b)))) (only parsing).
+    (GenLeaf (inl (inl (inl (inl (inr b)))))) (only parsing).
   Notation enc_string s :=
-    (GenLeaf (inl (inl (inl (inr s))))) (only parsing).
+    (GenLeaf (inl (inl (inl (inl (inl (inr s))))))) (only parsing).
   Notation enc_base_lit l :=
-    (GenLeaf (inl (inl (inl (inl (inr l)))))) (only parsing).
+    (GenLeaf (inl (inl (inl (inl (inl (inl (inr l)))))))) (only parsing).
   Notation enc_un_op op :=
-    (GenLeaf (inl (inl (inl (inl (inl (inr op))))))) (only parsing).
+    (GenLeaf (inl (inl (inl (inl (inl (inl (inl (inr op))))))))) (only parsing).
   Notation enc_bin_op op :=
-    (GenLeaf (inl (inl (inl (inl (inl (inl op))))))) (only parsing).
+    (GenLeaf (inl (inl (inl (inl (inl (inl (inl (inl op))))))))) (only parsing).
 
   (* Encoding. *)
 
@@ -1050,8 +1082,8 @@ Section countable.
     GenNode 1 [enc_string s; ge].
   Definition encode_Do (n : eff_val) (e : expr) (ge : gtree) : gtree :=
     GenNode 2 [enc_eff_val n; ge].
-  Definition encode_Handle (n : eff_val) (e1 e2 e3 : expr) (ge1 ge2 ge3 : gtree) : gtree :=
-    GenNode 3 [enc_eff_val n; ge1; ge2; ge3].
+  Definition encode_Handle (hs : handler_semantics) (m : mode) (n : eff_val) (e1 e2 e3 : expr) (ge1 ge2 ge3 : gtree) : gtree :=
+    GenNode 3 [enc_handler_semantics hs; enc_mode m; enc_eff_val n; ge1; ge2; ge3].
   Definition encode_Var (x : string) : gtree :=
     GenNode 4 [enc_string x].
   Definition encode_Rec (f x : binder) (e : expr) (ge : gtree) : gtree :=
@@ -1092,6 +1124,8 @@ Section countable.
     GenNode 0 [enc_base_lit l].
   Definition encode_RecV (f x : binder) (e : expr) (ge : gtree) : gtree :=
     GenNode 1 [enc_binder f; enc_binder x; ge].
+  Definition encode_ContV (l : loc) (k : ectx) (gk : gtree) : gtree :=
+    GenNode 2 [enc_base_lit (LitLoc l); gk].
   Definition encode_KontV (k : ectx) (gk : gtree) : gtree :=
     GenNode 3 [gk].
   Definition encode_PairV (v1 v2 : val) (gv1 gv2 : gtree) : gtree :=
@@ -1108,8 +1142,8 @@ Section countable.
     GenNode 1 [ge1].
   Definition encode_DoCtx (l : label) : gtree :=
     GenNode 2 [enc_label l].
-  Definition encode_HandleCtx (l : label) (e2 e3 : expr) (ge2 ge3 : gtree) : gtree :=
-    GenNode 3 [enc_label l; ge2; ge3].
+  Definition encode_HandleCtx (hs : handler_semantics) (m : mode) (l : label) (e2 e3 : expr) (ge2 ge3 : gtree) : gtree :=
+    GenNode 3 [enc_handler_semantics hs; enc_mode m; enc_label l; ge2; ge3].
   Definition encode_UnOpCtx (op : un_op) : gtree :=
     GenNode 4 [enc_un_op op].
   Definition encode_BinOpLCtx (op : bin_op) (v2 : val) (gv2 : gtree) : gtree :=
@@ -1168,7 +1202,7 @@ Section countable.
       encode_AllocN encode_Load encode_Store
       encode_AllocTape encode_Rand
       (* Values. *)
-      encode_LitV encode_RecV encode_KontV
+      encode_LitV encode_RecV encode_KontV encode_ContV
       encode_PairV encode_InjLV encode_InjRV
       (* Frames. *)
       encode_AppLCtx encode_AppRCtx
@@ -1194,7 +1228,7 @@ Section countable.
       encode_AllocN encode_Load encode_Store
       encode_AllocTape encode_Rand
       (* Values. *)
-      encode_LitV encode_RecV encode_KontV
+      encode_LitV encode_RecV encode_KontV encode_ContV
       encode_PairV encode_InjLV encode_InjRV
       (* Frames. *)
       encode_AppLCtx encode_AppRCtx
@@ -1220,7 +1254,7 @@ Section countable.
       encode_AllocN encode_Load encode_Store
       encode_AllocTape encode_Rand
       (* Values. *)
-      encode_LitV encode_RecV encode_KontV
+      encode_LitV encode_RecV encode_KontV encode_ContV
       encode_PairV encode_InjLV encode_InjRV
       (* Frames. *)
       encode_AppLCtx encode_AppRCtx
@@ -1246,7 +1280,7 @@ Section countable.
       encode_AllocN encode_Load encode_Store
       encode_AllocTape encode_Rand
       (* Values. *)
-      encode_LitV encode_RecV encode_KontV
+      encode_LitV encode_RecV encode_KontV encode_ContV
       encode_PairV encode_InjLV encode_InjRV
       (* Frames. *)
       encode_AppLCtx encode_AppRCtx
@@ -1273,8 +1307,8 @@ Section countable.
         Effect s (decode_expr ge)
     | GenNode 2 [enc_eff_val n; ge] =>
         Do n (decode_expr ge)
-    | GenNode 3 [enc_eff_val n; ge1; ge2; ge3] =>
-        Handle n (decode_expr ge1) (decode_expr ge2) (decode_expr ge3)
+    | GenNode 3 [enc_handler_semantics hs; enc_mode m; enc_eff_val n; ge1; ge2; ge3] =>
+        Handle hs m n (decode_expr ge1) (decode_expr ge2) (decode_expr ge3)
     | GenNode 4 [enc_string x] =>
         Var x
     | GenNode 5 [enc_binder f; enc_binder x; ge] =>
@@ -1323,6 +1357,8 @@ Section countable.
         LitV l
     | GenNode 1 [enc_binder f; enc_binder x; ge] =>
         RecV f x (decode_expr ge)
+    | GenNode 2 [enc_base_lit (LitLoc l); gk] =>
+        ContV l (decode_ectx gk)
     | GenNode 3 [gk] =>
         KontV (decode_ectx gk)
     | GenNode 4 [gv1; gv2] =>
@@ -1346,8 +1382,8 @@ Section countable.
         AppRCtx (decode_expr ge1)
     | GenNode 2 [enc_label l] =>
         DoCtx l
-    | GenNode 3 [enc_label l; ge2; ge3] =>
-        HandleCtx l (decode_expr ge2) (decode_expr ge3)
+    | GenNode 3 [enc_handler_semantics hs; enc_mode m; enc_label l; ge2; ge3] =>
+        HandleCtx hs m l (decode_expr ge2) (decode_expr ge3)
     | GenNode 4 [enc_un_op op] =>
         UnOpCtx op
     | GenNode 5 [enc_bin_op op; gv2] =>
@@ -1435,7 +1471,7 @@ Section countable.
   Notation Q := (λ v, decode_val   (encode_val   v) = v) (only parsing).
   Notation R := (λ f, decode_frame (encode_frame f) = f) (only parsing).
   Notation S := (λ k, decode_ectx  (encode_ectx  k) = k) (only parsing).
-
+  (* TODO: finish this proof *)
   Global Instance expr_countable : Countable expr.
   Proof. Admitted.
   (*   refine (inj_countable' encode_expr decode_expr _). 

@@ -340,15 +340,28 @@ Inductive det_head_step_rel : expr → state → expr → state → Prop :=
   σ.(heap) !! l = Some v →
   det_head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
     (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
+| ContDS r k w e' σ :
+  e' = fill k (Val w) →
+  σ.(heap) !! r = Some #true →
+  det_head_step_rel (App (Val (ContV r k)) (Val w)) σ e' (state_upd_heap <[r:=#false]> σ)
 | KontDS k w e' σ :
   e' = fill k (Val w) → det_head_step_rel (App (Val (KontV k)) (Val w)) σ e' σ
 | EffectDS s e e' σ σ' :
   σ' = state_upd_next_label label_succ σ → e' = lbl_subst s (next_label σ) e → det_head_step_rel (Effect s e) σ e' σ'
-| HandleEffDS l v k e1 e2 e3 σ :
-  let k' := HandleCtx l e2 e3 :: k in
-                   l ∉ ectx_labels k → to_eff e1 = Some (l, v, k) → det_head_step_rel (Handle (EffLabel l) e1 e2 e3) σ (App (App e2 (Val v)) (Val (KontV k'))) σ
-| HandleRetDS l v e2 e3 σ :
-  det_head_step_rel (Handle (EffLabel l) (Val v) e2 e3) σ (App e3 (Val v)) σ.
+| HandleMSEffDS hs l v k e1 e2 e3 σ :
+  let k' :=
+    match hs with Deep => (HandleCtx hs MS l e2 e3 :: k) | Shallow => k end
+  in
+  l ∉ ectx_labels k → to_eff e1 = Some (l, v, k) → det_head_step_rel (Handle hs MS (EffLabel l) e1 e2 e3) σ (App (App e2 (Val v)) (Val (KontV k'))) σ
+| HandleOSEffDS hs l v k e1 e2 e3 σ :
+  let k' :=
+    match hs with Deep => (HandleCtx hs OS l e2 e3 :: k) | Shallow => k end
+  in
+  let r := fresh_loc σ.(heap) in
+  l ∉ ectx_labels k → to_eff e1 = Some (l, v, k) → 
+  det_head_step_rel (Handle hs OS (EffLabel l) e1 e2 e3) σ (App (App e2 (Val v)) (Val (ContV r k'))) (state_upd_heap <[r := LitV $ LitBool true]> σ)
+| HandleRetDS hs m l v e2 e3 σ :
+  det_head_step_rel (Handle hs m (EffLabel l) (Val v) e2 e3) σ (App e3 (Val v)) σ.
 
 
 Inductive det_head_step_pred : expr → state → Prop :=
@@ -393,12 +406,15 @@ Inductive det_head_step_pred : expr → state → Prop :=
   det_head_step_pred (Store (Val $ LitV $ LitLoc l) (Val w)) σ
 | KontDSP k w σ :
   det_head_step_pred (App (Val (KontV k)) (Val w)) σ
+| ContDSP r k w σ :
+  σ.(heap) !! r = Some (LitV (LitBool true)) → 
+  det_head_step_pred (App (Val (ContV r k)) (Val w)) σ
 | EffectDSP s e σ :
   det_head_step_pred (Effect s e) σ
-| HandleEffDSP l v k e1 e2 e3 σ :
-                   l ∉ ectx_labels k → to_eff e1 = Some (l, v, k) → det_head_step_pred (Handle (EffLabel l) e1 e2 e3) σ
-| HandleRetDSP l v e2 e3 σ :
-  det_head_step_pred (Handle (EffLabel l) (Val v) e2 e3) σ.
+| HandleEffDSP hs m l v k e1 e2 e3 σ :
+                   l ∉ ectx_labels k → to_eff e1 = Some (l, v, k) → det_head_step_pred (Handle hs m (EffLabel l) e1 e2 e3) σ
+| HandleRetDSP hs m l v e2 e3 σ :
+  det_head_step_pred (Handle hs m (EffLabel l) (Val v) e2 e3) σ.
 
 Definition is_det_head_step (e1 : expr) (σ1 : state)  : bool :=
   match e1 with
@@ -420,9 +436,10 @@ Definition is_det_head_step (e1 : expr) (σ1 : state)  : bool :=
       bool_decide (is_Some (σ1.(heap) !! l))
   | Store (Val (LitV (LitLoc l))) (Val w) =>
       bool_decide (is_Some (σ1.(heap) !! l))
+  | App (Val (ContV r k)) (Val w) => bool_decide ((σ1.(heap) !! r = Some #true))
   | App (Val (KontV k)) (Val w) => true
   | Effect s e => true
-  | Handle (EffLabel l) e1 e2 e3 => match to_val e1 with
+  | Handle hs m (EffLabel l) e1 e2 e3 => match to_val e1 with
                                     | Some v => true
                                     | None => match to_eff e1 with
                                               | None => false
@@ -473,7 +490,8 @@ Lemma det_step_pred_ex_rel e1 σ1 :
   det_head_step_pred e1 σ1 ↔ ∃ e2 σ2, det_head_step_rel e1 σ1 e2 σ2.
 Proof.
   split.
-  - intro H; inversion H; simplify_eq; eexists; eexists; econstructor; done.
+  - intro H; inversion H; try destruct m; simplify_eq; eexists; eexists; try (econstructor; done).
+    
   - intros (e2 & (σ2 & H)); inversion H ; econstructor; done.
 Qed.
 
@@ -499,7 +517,8 @@ Lemma is_det_head_step_true e1 σ1 :
 Proof.
   split; intro H.
   - destruct e1; inv_det_head_step; econstructor; done.
-  - inversion H; solve_step_det. inversion H1. done.
+  - inversion H; try by solve_step_det. 
+    simpl. rewrite to_eff_not_val; try done. rewrite H1. solve_step_det.
 Qed.
 
 Lemma det_head_step_singleton e1 σ1 e2 σ2 :
@@ -507,8 +526,8 @@ Lemma det_head_step_singleton e1 σ1 e2 σ2 :
 Proof.
   intros Hdet.
   apply pmf_1_eq_dret.
-  inversion Hdet; simplify_eq/=; try case_match;
-    simplify_option_eq; rewrite ?dret_1_1 //.
+  inversion Hdet; simplify_eq/=; try (try case_match;
+    simplify_option_eq; rewrite ?dret_1_1 //).
 Qed.
 
 Lemma val_not_head_step e1 σ1 :
@@ -522,7 +541,7 @@ Lemma head_step_pred_ex_rel e1 σ1 :
 Proof.
   split.
   - intros [Hdet | Hdet];
-      inversion Hdet; simplify_eq; do 2 eexists; try (by econstructor).
+      inversion Hdet; try destruct m; simplify_eq; do 2 eexists; try (by econstructor).
     Unshelve. all : apply 0%fin.
   - intros (?&?& H). inversion H; simplify_eq;
       (try by (left; econstructor));
@@ -715,12 +734,13 @@ Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
   | AllocTape e => is_closed_expr X e
   | Effect _ e => is_closed_expr X e
   | Do _ e => is_closed_expr X e
-  | Handle _ e1 e2 e3 => is_closed_expr X e1 && is_closed_expr X e2 && is_closed_expr X e3
+  | Handle _ _ _ e1 e2 e3 => is_closed_expr X e1 && is_closed_expr X e2 && is_closed_expr X e3
   end
 with is_closed_val (v : val) : bool :=
   match v with
   | LitV _ => true
   | RecV f x e => is_closed_expr (set_binder_insert f (set_binder_insert x ∅)) e
+  | ContV _ _ => true
   | KontV _ => true
   | PairV v1 v2 => is_closed_val v1 && is_closed_val v2
   | InjLV v | InjRV v => is_closed_val v
@@ -749,7 +769,7 @@ Fixpoint subst_map (vs : gmap string val) (e : expr)  : expr :=
   | Rand e1 e2 => Rand (subst_map vs e1) (subst_map vs e2)
   | Effect s e => Effect s (subst_map vs e)
   | Do s e => Do s (subst_map vs e)
-  | Handle s e1 e2 e3 => Handle s (subst_map vs e1) (subst_map vs e2) (subst_map vs e3)
+  | Handle hs m s e1 e2 e3 => Handle hs m s (subst_map vs e1) (subst_map vs e2) (subst_map vs e3)
   end.
 
 (* Properties *)

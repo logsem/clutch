@@ -33,8 +33,8 @@ Definition fill_frame (f : frame) (e : expr) : expr :=
       App e1 e
   | DoCtx l =>
       Do (EffLabel l) e
-  | HandleCtx l e2 e3 =>
-      Handle (EffLabel l) e e2 e3
+  | HandleCtx hs m l e2 e3 =>
+      Handle hs m (EffLabel l) e e2 e3
   | UnOpCtx op =>
       UnOp op e
   | BinOpLCtx op v2 =>
@@ -82,7 +82,7 @@ Definition get_frame (e : expr) : option (frame * expr) :=
   match e with
   | Var _ | Val _ | Rec _ _ _ | Effect _ _
   | Do (EffName _) _
-  | Handle (EffName _) _ _ _ => None
+  | Handle _ _ (EffName _) _ _ _ => None
 
   | App e1 e2 =>
       match to_val e2 with
@@ -93,8 +93,8 @@ Definition get_frame (e : expr) : option (frame * expr) :=
   | Do (EffLabel l') e' =>
       Some (DoCtx l', e')
 
-  | Handle (EffLabel l') e1 e2 e3 =>
-      Some (HandleCtx l' e2 e3, e1)
+  | Handle hs m (EffLabel l') e1 e2 e3 =>
+      Some (HandleCtx hs m l' e2 e3, e1)
 
   | UnOp op e =>
       Some (UnOpCtx op, e)
@@ -174,7 +174,7 @@ Fixpoint get_ectx (e : expr) : ectx * expr :=
   match e with
   | Var _ | Val _ | Rec _ _ _ | Effect _ _
   | Do (EffName _) _
-  | Handle (EffName _) _ _ _ => ([], e)
+  | Handle _ _ (EffName _) _ _ _ => ([], e)
 
   | App e1 e2 =>
       match to_val e2 with
@@ -185,8 +185,8 @@ Fixpoint get_ectx (e : expr) : ectx * expr :=
   | Do (EffLabel l') e =>
       let (k, e') := get_ectx e in (DoCtx l' :: k, e')
 
-  | Handle (EffLabel l') e1 e2 e3 =>
-      let (k, e') := get_ectx e1 in (HandleCtx l' e2 e3 :: k, e')
+  | Handle hs m (EffLabel l') e1 e2 e3 =>
+      let (k, e') := get_ectx e1 in (HandleCtx hs m l' e2 e3 :: k, e')
 
   | UnOp op e =>
       let (k, e') := get_ectx e in (UnOpCtx op :: k, e')
@@ -252,7 +252,7 @@ Fixpoint get_ectx (e : expr) : ectx * expr :=
 (** Neutral Contexts. *)
 
 Definition frame_label (f : frame) : option label :=
-  match f with HandleCtx l _ _ => Some l | _ => None end.
+  match f with HandleCtx _ _ l _ _ => Some l | _ => None end.
 
 Definition ectx_labels (k : ectx) : list label :=
   omap frame_label k.
@@ -303,10 +303,10 @@ Instance DoCtx_NeutralEctx (ls : list label) (l' : label) k :
   NeutralEctx ls k →  NeutralEctx ls (DoCtx l' :: k).
 Proof. by intros ?; apply NeutralEctx_cons. Qed.
 
-Instance HandleCtx_NeutralEctx (ls : list label) (l' : label) (e2 e3 : expr) k :
+Instance HandleCtx_NeutralEctx (ls : list label) (l' : label) (hs : handler_semantics) (m : mode) (e2 e3 : expr) k :
   l' ∉ ls →
   NeutralEctx ls k → 
-  NeutralEctx ls (HandleCtx l' e2 e3 :: k).
+  NeutralEctx ls (HandleCtx hs m l' e2 e3 :: k).
 Proof. by intros ?; apply NeutralEctx_cons. Qed.
 
 Instance UnOpCtx_NeutralEctx ls op k : NeutralEctx ls k → NeutralEctx ls (UnOpCtx op :: k).
@@ -749,8 +749,8 @@ Fixpoint val_subst (x : string) (v : val) (e : expr) : expr :=
       Effect s (val_subst x v e)
   | Do n e =>
       Do n (val_subst x v e)
-  | Handle n e1 e2 e3 =>
-      Handle n (val_subst x v e1) (val_subst x v e2) (val_subst x v e3)
+  | Handle hs m n e1 e2 e3 =>
+      Handle hs m n (val_subst x v e1) (val_subst x v e2) (val_subst x v e3)
   | Rec f y e =>
       Rec f y $ if decide (BNamed x ≠ f ∧ BNamed x ≠ y) then val_subst x v e else e
   | App e1 e2 =>
@@ -800,10 +800,10 @@ Fixpoint lbl_subst (s : string) (l : label) (e : expr) : expr :=
   | Do (EffName s' as n') e' =>
       Do (if decide (s = s') then (EffLabel l) else n') (lbl_subst s l e')
 
-  | Handle (EffLabel _ as n') e1 e2 e3 =>
-      Handle n' (lbl_subst s l e1) (lbl_subst s l e2) (lbl_subst s l e3)
-  | Handle (EffName s' as n') e1 e2 e3 =>
-      Handle (if decide (s = s') then (EffLabel l) else n')
+  | Handle hs m (EffLabel _ as n') e1 e2 e3 =>
+      Handle hs m n' (lbl_subst s l e1) (lbl_subst s l e2) (lbl_subst s l e3)
+  | Handle hs m (EffName s' as n') e1 e2 e3 =>
+      Handle hs m (if decide (s = s') then (EffLabel l) else n')
         (lbl_subst s l e1) (lbl_subst s l e2) (lbl_subst s l e3)
 
   | Rec f y e =>
@@ -852,7 +852,7 @@ Definition val_is_unboxed (v : val) : Prop :=
   end.
 
 Global Instance val_is_unboxed_dec v : Decision (val_is_unboxed v).
-Proof. destruct v as [ | | | | [] | [] ]; simpl; exact (decide _). Defined.
+Proof. destruct v as [| | | | | [] | [] ]; simpl; exact (decide _). Defined.
 
 (** We just compare the word-sized representation of two values, without looking
 into boxed data.  This works out fine if at least one of the to-be-compared
@@ -1033,7 +1033,6 @@ Proof.
   by rewrite /state_upd_tapes /state_init_heap /=.
 Qed.
 
-
 (* Heap-reduction relation. *)
 Inductive base_step : expr → state → expr → state → Prop :=
 (* Lambda. *)
@@ -1044,6 +1043,15 @@ Inductive base_step : expr → state → expr → state → Prop :=
 | BetaS f x e1 v2 e' σ :
   e' = val_subst' x v2 (val_subst' f (RecV f x e1) e1) →
   base_step (App (Val $ RecV f x e1) (Val v2)) σ e' σ
+
+(* Invoking a one-shot continuation. *)
+| ContS k r w e' σ :
+  σ.(heap) !! r = Some (LitV $ LitBool true) →
+  e' = fill k (Val w) →
+  base_step (App (Val (ContV r k)) (Val w))
+    σ
+    e'
+    (state_upd_heap <[r:= LitV $ LitBool false]> σ)
 
 (* Invoking a multi-shot continuation. *)
 | KontS k w e' σ :
@@ -1057,16 +1065,31 @@ Inductive base_step : expr → state → expr → state → Prop :=
   base_step (Effect s e) σ e' σ'
 
 (* Capturing a multi-shot continuation. *)
-| HandleEffS l v k e1 e2 e3 σ :
-  let k' := (HandleCtx l e2 e3 :: k) in
+| HandleMSEffS hs l v k e1 e2 e3 σ :
+  let k' :=
+    match hs with Deep => (HandleCtx hs MS l e2 e3 :: k) | Shallow => k end
+  in
   l ∉ ectx_labels k →
   to_eff e1 = Some (l, v, k) →
-  base_step (Handle (EffLabel l) e1 e2 e3)    σ
+  base_step (Handle hs MS (EffLabel l) e1 e2 e3)    σ
     (App (App e2 (Val v)) (Val $ KontV k')) σ
 
+(* Capturing a one-shot continuation. *)
+| HandleOSEffS hs l v k e1 e2 e3 σ :
+  let k' :=
+    match hs with Deep => (HandleCtx hs OS l e2 e3 :: k) | Shallow => k end
+  in
+  let r := fresh_loc σ.(heap) in
+  l ∉ ectx_labels k →
+  to_eff e1 = Some (l, v, k) →
+  base_step (Handle hs OS (EffLabel l) e1 e2 e3)
+    σ
+    (App (App e2 (Val v)) (Val $ ContV r k'))
+    (state_upd_heap <[r:= LitV $ LitBool $ true]> σ)
+
 (* Handle - Return branch. *)
-| HandleRetS l v e2 e3 σ :
-  base_step (Handle (EffLabel l) (Val v) e2 e3) σ (App e3 (Val v)) σ
+| HandleRetS hs m l v e2 e3 σ :
+  base_step (Handle hs m (EffLabel l) (Val v) e2 e3) σ (App e3 (Val v)) σ
 
 (* Operations *)
 | UnOpS op v v' σ :
@@ -1140,7 +1163,7 @@ Inductive base_step : expr → state → expr → state → Prop :=
 
 Global Instance eq_dec_state : EqDecision state.
 Proof. solve_decision. Qed. 
-
+(* TODO: finish this proof *)
 Global Instance state_countable : Countable state.
 Proof. Admitted.
 
@@ -1245,22 +1268,48 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
       | None => dzero
       end
   | (App (Val (KontV k)) (Val w))  => dret (fill k (Val w), σ1)
+  | (App (Val (ContV r k)) (Val w)) => 
+       match σ1.(heap) !! r with
+       | Some (LitV (LitBool true)) => dret (fill k (Val w), state_upd_heap <[r:= LitV $ LitBool false]> σ1)
+       | _ => dzero
+       end
   | Effect s e => dret (lbl_subst s σ1.(next_label) e, state_upd_next_label label_succ σ1)
-  | Handle (EffLabel l) e1 e2 e3 =>
+  | Handle hs MS (EffLabel l) e1 e2 e3 =>
       match to_eff e1 with
       | None => match to_val e1 with
                 | None => dzero
                 | Some v => dret (App e3 (Val v), σ1)
                 end
       | Some (l', v, k) => 
-          let k' := (HandleCtx l e2 e3 :: k) in
+          let k' :=
+            match hs with Deep => (HandleCtx hs MS l e2 e3 :: k) | Shallow => k end
+          in
           if decide (l' ∉ (ectx_labels k)) then
             if decide (l = l') then
-            dret (App (App e2 (Val v)) (Val $ KontV k'), σ1)
+              dret (App (App e2 (Val v)) (Val $ KontV k'), σ1)
             else dzero
           else dzero
            
       end
+  | Handle hs OS (EffLabel l) e1 e2 e3 =>
+      match to_eff e1 with 
+        | None => match to_val e1 with
+                  | None => dzero 
+                  | Some v => dret (App e3 (Val v), σ1)
+                  end
+      | Some (l', v, k) => 
+          let k' :=
+            match hs with Deep => (HandleCtx hs OS l e2 e3 :: k) | Shallow => k end
+          in
+          if decide (l' ∉ (ectx_labels k)) then
+            if decide (l = l') then
+              let r := fresh_loc σ1.(heap) in 
+              dret (App (App e2 (Val v)) (Val $ ContV r k'), state_upd_heap <[r:= LitV $ LitBool true]> σ1)
+            else dzero
+          else dzero
+           
+      end
+
   | _ => dzero
 end.
 
@@ -1296,7 +1345,11 @@ Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
 Proof.
   split.
   - intros ?. destruct e1; inv_head_step; eauto with head_step.
-  - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr; try real_solver.
+    + apply (HandleOSEffS Deep); done.
+    + apply (HandleOSEffS Shallow); done.
+    + apply (HandleMSEffS Deep); done.
+    + apply (HandleMSEffS Shallow); done.
+  - inversion 1; simplify_map_eq/=; try case_bool_decide; try (destruct m); try destruct hs; simplify_eq; solve_distr; try real_solver.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -1346,9 +1399,9 @@ Definition decomp_frame (e : expr) : option (frame * expr) :=
       | _            => Some (RandRCtx e1, e2)
       end
   | Do (EffLabel l) e             => noval e (DoCtx l)
-  | Handle (EffLabel l) e0 e1 e2 => match to_eff e0 with (* Consider this construction - only decomp if l' from to_eff is not equal to l from the handler *)
-                                    | Some (l', v, k) => if decide (l' = l ∧ l' ∉ ectx_labels k) then None else noval e0 (HandleCtx l e1 e2)
-                                    | None => noval e0 (HandleCtx l e1 e2)
+  | Handle hs m (EffLabel l) e0 e1 e2 => match to_eff e0 with (* Consider this construction - only decomp if l' from to_eff is not equal to l from the handler *)
+                                    | Some (l', v, k) => if decide (l' = l ∧ l' ∉ ectx_labels k) then None else noval e0 (HandleCtx hs m l e1 e2)
+                                    | None => noval e0 (HandleCtx hs m l e1 e2)
                                     end
   | _ => None
   end.
@@ -1375,7 +1428,7 @@ Fixpoint height (e : expr) : nat :=
   | Rand e1 e2 => 1 + height e1 + height e2
   | Do n e => 1 + height e
   | Effect s e => 1 + height e
-  | Handle n e1 e2 e3 => 1 + height e1 + height e2 + height e3
+  | Handle hs m n e1 e2 e3 => 1 + height e1 + height e2 + height e3
   end.
 
 Definition expr_ord (e1 e2 : expr) : Prop := (height e1 < height e2)%nat.
@@ -1621,7 +1674,7 @@ Proof.
     rewrite /= /prim_step. rewrite Hdecomp1.
     apply dmap_pos. exists (e2', σ2). simpl. rewrite Hfill2. eauto.
 Qed.
-
+(* TODO: solve this goal *)
 Lemma state_step_head_step_not_stuck e σ σ' α :
   state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0).
 Proof.
@@ -1691,11 +1744,16 @@ Lemma head_reducible_uncaught_eff e σ :
 Proof.
   destruct e; eauto; intros ((e', σ') & Hstep);
     apply head_step_support_equiv_rel in Hstep; inversion Hstep; eauto.
-  simplify_eq. unfold uncaught_eff. unfold to_eff. simpl. rewrite (to_eff_get_ectx e1 l v k H7).
-  rewrite reverse_cons. rewrite reverse_snoc. simpl.
-  rewrite -reverse_cons. rewrite reverse_involutive. simpl.
-  destruct (decide (l ∉ l :: ectx_labels k)); eauto. exfalso. apply n.
-  apply elem_of_list_here.
+  - simplify_eq. unfold uncaught_eff. unfold to_eff. simpl. rewrite (to_eff_get_ectx e1 l v k H9).
+    rewrite reverse_cons. rewrite reverse_snoc. simpl.
+    rewrite -reverse_cons. rewrite reverse_involutive. simpl.
+    destruct (decide (l ∉ l :: ectx_labels k)); eauto. exfalso. apply n.
+    apply elem_of_list_here.
+  - simplify_eq. unfold uncaught_eff. unfold to_eff. simpl. rewrite (to_eff_get_ectx e1 l v k H9).
+    rewrite reverse_cons. rewrite reverse_snoc. simpl.
+    rewrite -reverse_cons. rewrite reverse_involutive. simpl.
+    destruct (decide (l ∉ l :: ectx_labels k)); eauto. exfalso. apply n.
+    apply elem_of_list_here.
 Qed.
 
 Lemma head_step_uncaught_eff e σ ρ :
@@ -1714,23 +1772,30 @@ Proof.
   apply prim_step_iff in H as (K & e1' & e2' & Hdecomp & Hfill & Hstep).
   apply head_step_support_equiv_rel in Hstep. inversion Hstep; eauto; simplify_eq;
     try (assert (to_eff e = None) as <-; first (apply decomp_fill in Hdecomp as <-; apply fill_not_eff; eauto); done).
-   apply decomp_fill in Hdecomp as <-.
-   assert (fill K (Handle (EffLabel l0) e1 e2 e3) = fill (K ++ [HandleCtx l0 e2 e3]) e1) as Hfill.
-   { rewrite fill_app. simpl. done. }
-   rewrite Hfill in Heq.
-   erewrite (to_eff_fill l0 _ _ _ _ H0) in Heq.
-   inversion Heq. rewrite -H4 in n. do 2rewrite ectx_labels_app in n.
-   apply not_elem_of_app in n as [n _]. apply not_elem_of_app in n as [_ n].
-   simpl in n. apply not_elem_of_cons in n as [n _]. done.
+  - apply decomp_fill in Hdecomp as <-.
+    assert (fill K (Handle hs MS (EffLabel l0) e1 e2 e3) = fill (K ++ [HandleCtx hs MS l0 e2 e3]) e1) as Hfill.
+    { rewrite fill_app. simpl. done. }
+    rewrite Hfill in Heq.
+    erewrite (to_eff_fill l0 _ _ _ _ H0) in Heq.
+    inversion Heq. rewrite -H4 in n. do 2rewrite ectx_labels_app in n.
+    apply not_elem_of_app in n as [n _]. apply not_elem_of_app in n as [_ n].
+    simpl in n. apply not_elem_of_cons in n as [n _]. done.
+  - apply decomp_fill in Hdecomp as <-.
+    assert (fill K (Handle hs OS (EffLabel l0) e1 e2 e3) = fill (K ++ [HandleCtx hs OS l0 e2 e3]) e1) as Hfill.
+    { rewrite fill_app. simpl. done. }
+    rewrite Hfill in Heq.
+    erewrite (to_eff_fill l0 _ _ _ _ H0) in Heq.
+    inversion Heq. rewrite -H4 in n. do 2rewrite ectx_labels_app in n.
+    apply not_elem_of_app in n as [n _]. apply not_elem_of_app in n as [_ n].
+    simpl in n. apply not_elem_of_cons in n as [n _]. done.
 Qed.    
   
 Lemma head_reducible_decomp e σ :
   head_reducible e σ → decomp e = ([], e).
 Proof.
   intros ((e', σ') & Hstep). apply head_step_support_equiv_rel in Hstep.
-  inversion Hstep; simplify_eq; try done.
-  rewrite decomp_unfold. simpl. rewrite H0.
-  rewrite decide_True; try done.
+  inversion Hstep; simplify_eq; try done; rewrite decomp_unfold; simpl; rewrite H0;
+    rewrite decide_True; try done.
 Qed.
 
 Lemma head_ctxi_step_val Ki e σ ρ :
@@ -1886,3 +1951,4 @@ Qed.
 
 Canonical Structure blaze_prob_lang := Language blaze_prob_lang_mixin.
 
+7

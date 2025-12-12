@@ -144,9 +144,9 @@ Global Instance into_ctx_do e l P K :
   IntoCtx (Do (EffLabel l) e) P (DoCtx l :: K).
 Proof. solve_into_ctx. Qed.
 
-Global Instance into_handle_ctx e1 e2 e3 l P K :
+Global Instance into_handle_ctx e1 e2 e3 hs m l P K :
   IntoCtx e1 P K →
-  IntoCtx (Handle (EffLabel l) e1 e2 e3) P (HandleCtx l e2 e3 :: K).
+  IntoCtx (Handle hs m (EffLabel l) e1 e2 e3) P (HandleCtx hs m l e2 e3 :: K).
 Proof. solve_into_ctx. Qed.
 
 (* TODO : add into_ctx for rand *)
@@ -264,23 +264,25 @@ Global Instance do_pure_step_kont k v :
   DoPureStep True (App (Val $ KontV k) (Val v)) (fill k (Val v)).
 Proof. solve_do_pure_step. Qed.
 
-Global Instance do_pure_step_handle_ms_eff l k e v h r :
-  let k' := HandleCtx l h r :: k in
+Global Instance do_pure_step_handle_ms_eff hs l k e v h r :
+  let k' :=
+    match hs with Deep => (HandleCtx hs MS l h r :: k) | Shallow => k end
+  in
   IntoCtx e (TCEq (Do (EffLabel l) (Val v))) k →
   DoPureStep (l ∉ ectx_labels k)
-    (Handle (EffLabel l) e h r)
+    (Handle hs MS (EffLabel l) e h r)
     (App (App h (Val v)) (Val $ KontV k')).
 Proof. 
   intros ? [? -> <-]. unfold k'. 
   constructor. intros Hneutral. constructor.
-  - solve_exec_safe. by apply HandleEffS, to_of_eff.
+  - solve_exec_safe. by apply HandleMSEffS, to_of_eff.
   - intros. simpl in *. setoid_rewrite head_prim_step_pmf_eq.
     + erewrite det_head_step_singleton; [by apply dret_1|]. constructor; [done|by apply to_eff_of_eff'].
     + eexists. apply head_step_support_equiv_rel. constructor; [done|by apply to_eff_of_eff'].
 Qed.
 
-Global Instance do_pure_step_handle_ret l v h r :
-  DoPureStep True (Handle (EffLabel l) (Val v) h r) (App r (Val v)).
+Global Instance do_pure_step_handle_ret hs m l v h r :
+  DoPureStep True (Handle hs m (EffLabel l) (Val v) h r) (App r (Val v)).
 Proof.
   constructor. intros _.
   constructor.

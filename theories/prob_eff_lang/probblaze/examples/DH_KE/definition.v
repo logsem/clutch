@@ -32,7 +32,7 @@ Section implementation.
     let: "m2" := ref NONEV in
 
     handle: f with
-    | effect channel "message", rec "k" =>
+    | effect channel "message", rec "k" as multi =>
         match: "message" with
         | InjL "payload" =>
             let, ("m", "dst") := "payload" in
@@ -70,7 +70,7 @@ Section implementation.
     let: "key" := g ^ "c" in
 
     handle: f with
-    | effect getKey "p", rec "k" =>
+    | effect getKey "p", rec "k" as multi =>
         match: "p" with
           InjL <> =>
             (do: channel Send (#0, bob));;
@@ -97,7 +97,7 @@ Section implementation.
     let: "l1" := ref NONEV in
     let: "l2" := ref NONEV in
     handle: f with
-    | effect getKey "p", rec "k" =>
+    | effect getKey "p", rec "k" as multi =>
         match: "p" with
           InjL <> =>
             let: "a" :=
@@ -139,7 +139,7 @@ Section implementation.
     let: "l1" := ref NONEV in
     let: "l2" := ref NONEV in
       handle: f with
-    | effect channel "payload", rec "k" =>
+    | effect channel "payload", rec "k" as multi =>
         match: "payload" with
         | InjL "payload" =>
             let, ("m", "dst") := "payload" in
@@ -174,7 +174,7 @@ Section implementation.
     let, ("ga", "gb", "gc") := DH in
 
     handle: f with
-    | effect getKey "p", rec "k" =>
+    | effect getKey "p", rec "k" as multi =>
         match: "p" with
           InjL <> =>
             (do: channel (Send ("ga", bob)));;

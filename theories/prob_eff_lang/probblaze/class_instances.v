@@ -191,29 +191,30 @@ Section pure_exec.
     PureExec True 1 (App (Val $ KontV k) (Val v)) (semantics.fill k (Val v)).
   Proof. solve_pure_exec. Qed.
 
-  Global Instance pure_handle_eff l k v h r :
-    let k' := HandleCtx l h r :: k in
+  Global Instance pure_handle_eff_ms hs l k v h r :
+    let k' :=
+      match hs with Deep => (HandleCtx hs MS l h r :: k) | Shallow => k end
+    in
     PureExec (l ∉ ectx_labels k) 1
-      (Handle (EffLabel l) (fill k (Do (EffLabel l) (Val v))) h r)
+      (Handle hs MS (EffLabel l) (fill k (Do (EffLabel l) (Val v))) h r)
       (App (App h (Val v)) (Val $ KontV k')).
   Proof. 
     intros ?. unfold k'.
     subst; intros ?; apply nsteps_once; constructor.
     - intros; subst.  eexists. simpl. apply head_step_prim_step.
       apply head_step_support_equiv_rel.
-      apply HandleEffS; first done. by apply to_of_eff.
+      apply HandleMSEffS; first done. by apply to_of_eff.
     - intros. simpl. 
       rewrite /prim_step.
-      assert (decomp (Handle l (fill k (do: l v)) h r) = ([], Handle l (fill k (do: l v)) h r)) as ->.
+      assert (decomp (Handle hs MS l (fill k (do: l v)) h r) = ([], Handle hs MS l (fill k (do: l v)) h r)) as ->.
       { rewrite decomp_unfold. unfold decomp_frame. erewrite to_eff_fill; [|apply to_eff_eff]. rewrite app_nil_r.
         rewrite decide_True; eauto. }
       rewrite fill_lift_empty. rewrite dmap_id. simpl. erewrite to_eff_fill; [|apply to_eff_eff].
       rewrite app_nil_r. rewrite decide_True; [|done]. rewrite decide_True; [|done].
       by apply dret_1_1.
   Qed.
-      
 
-  Global Instance pure_handle_ret l v h r :
-    PureExec True 1 (Handle (EffLabel l) (Val v) h r) (App r (Val v)).
+  Global Instance pure_handle_ret hs m l v h r :
+    PureExec True 1 (Handle hs m (EffLabel l) (Val v) h r) (App r (Val v)).
   Proof. solve_pure_exec. Qed.
 End pure_exec.

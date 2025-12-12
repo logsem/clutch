@@ -16,6 +16,13 @@ Coercion App : expr >-> Funclass.
 Coercion Val : val >-> expr.
 Coercion Var : string >-> expr.
 
+(* Coercion to allow the syntax "□? m _" where "m" is a mode.
+   This notation is defined in the file [bi/derived_connectives.v]
+   of the Iris project. *)
+Definition mode_to_bool : mode → bool :=
+  λ m, match m with OS => false | MS => true end.
+Coercion mode_to_bool : mode >-> bool.
+
 (** Define some derived forms. *)
 Notation Lam x e := (Rec BAnon x e) (only parsing).
 Notation Let x e1 e2 := (App (Lam x e2) e1) (only parsing).
@@ -25,7 +32,7 @@ Notation LetCtx x e2 := (AppRCtx (LamV x e2)) (only parsing).
 Notation SeqCtx e2 := (LetCtx BAnon e2) (only parsing).
 Notation Alloc e := (AllocN (Val $ LitV $ LitInt 1) e) (only parsing).
 Notation Match e0 x1 e1 x2 e2 := (Case e0 (Lam x1 e1) (Lam x2 e2)) (only parsing).
-Notation Handle' e n x k h y r := (Handle n e (Lam x (Lam k h)) (Lam y r)) (only parsing).
+Notation Handle' hs m e n x k h y r := (Handle hs m n e (Lam x (Lam k h)) (Lam y r)) (only parsing).
 
 (* Skip should be atomic, we sometimes open invariants around
    it. Hence, we need to explicitly use LamV instead of e.g., Seq. *)
@@ -260,14 +267,55 @@ Notation "'do:' n e" := (Do n e%E)
    format "'[' 'do:'  n  e ']'") : expr_scope.
 (* ************************************************************************* *)
 (** Handling effects. *)
+
 (* ------------------------------------------------------------------------- *)
+(* Deep handler that captures multi-shot continuations. *)
+(* Single-line syntax: *)
+Notation "'handle:' e 'with' 'effect' n x ',' 'rec' k 'as' 'multi' => h | 'return' y => r 'end'" :=
+  (Handle' Deep MS e%E n x%binder k%binder h y%binder r)
+  (at level 200, e at level 200, n, x, k at level 1, h at level 200, y at level 1, r at level 200,
+   format "'handle:'  e  'with'  'effect'  n  x ','  'rec'  k  'as'  'multi'  =>   h   |  'return'  y  =>  r  'end'") : expr_scope.
+(* Multiple-lines syntax: *)
+Notation "'handle:' e 'with' | 'effect' n x ',' 'rec' k 'as' 'multi' => h | 'return' y => r 'end'" :=
+  (Handle' Deep MS e%E n x%binder k%binder h y%binder r)
+  (at level 200, e at level 200, n, x, k at level 1, h at level 200, y at level 1, r at level 200,
+   format "'handle:'  e  'with' '//' '[' |  'effect'  n  x ','  'rec'  k  'as'  'multi'  =>  '/  ' h ']'  '//' '[' |  'return'  y  =>  '/  ' r ']'  '//' 'end'") : expr_scope.
+
+(* ------------------------------------------------------------------------- *)
+(* Deep handler that captures one-shot continuations. *)
 (* Single-line syntax: *)
 Notation "'handle:' e 'with' 'effect' n x ',' 'rec' k => h | 'return' y => r 'end'" :=
-  (Handle' e%E n x%binder k%binder h y%binder r)
+  (Handle' Deep OS e%E n x%binder k%binder h y%binder r)
   (at level 200, e at level 200, n, x, k at level 1, h at level 200, y at level 1, r at level 200,
    format "'handle:'  e  'with'  'effect'  n  x ','  'rec'  k  =>   h   |  'return'  y  =>  r  'end'") : expr_scope.
 (* Multiple-lines syntax: *)
 Notation "'handle:' e 'with' | 'effect' n x ',' 'rec' k => h | 'return' y => r 'end'" :=
-  (Handle' e%E n x%binder k%binder h y%binder r)
+  (Handle' Deep OS e%E n x%binder k%binder h y%binder r)
   (at level 200, e at level 200, n, x, k at level 1, h at level 200, y at level 1, r at level 200,
    format "'handle:'  e  'with' '//' '[' |  'effect'  n  x ','  'rec'  k  =>  '/  ' h ']'  '//' '[' |  'return'  y  =>  '/  ' r ']'  '//' 'end'") : expr_scope.
+
+(* ------------------------------------------------------------------------- *)
+(* Shallow handler that captures multi-shot continuations. *)
+(* Single-line syntax: *)
+Notation "'handle:' e 'with' 'effect' n x ',' k 'as' 'multi' => h | 'return' y => r 'end'" :=
+  (Handle' Shallow MS e%E n x%binder k%binder h y%binder r)
+  (at level 200, e at level 200, n, x, k at level 1, h at level 200, y at level 1, r at level 200,
+   format "'handle:'  e  'with'  'effect'  n  x ','  k  'as'  'multi'  =>   h   |  'return'  y  =>  r  'end'") : expr_scope.
+(* Multiple-lines syntax: *)
+Notation "'handle:' e 'with' | 'effect' n x ',' k 'as' 'multi' => h | 'return' y => r 'end'" :=
+  (Handle' Shallow MS e%E n x%binder k%binder h y%binder r)
+  (at level 200, e at level 200, n, x, k at level 1, h at level 200, y at level 1, r at level 200,
+   format "'handle:'  e  'with' '//' '[' |  'effect'  n  x ','  k  'as'  'multi'  =>  '/  ' h ']'  '//' '[' |  'return'  y  =>  '/  ' r ']'  '//' 'end'") : expr_scope.
+
+(* ------------------------------------------------------------------------- *)
+(* Shallow handler that captures one-shot continuations. *)
+(* Single-line syntax: *)
+Notation "'handle:' e 'with' 'effect' n x ',' k => h | 'return' y => r 'end'" :=
+  (Handle' Shallow OS e%E n x%binder k%binder h y%binder r)
+  (at level 200, e at level 200, n, x, k at level 1, h at level 200, y at level 1, r at level 200,
+   format "'handle:'  e  'with'  'effect'  n  x ','  k  =>   h   |  'return'  y  =>  r  'end'") : expr_scope.
+(* Multiple-lines syntax: *)
+Notation "'handle:' e 'with' | 'effect' n x ',' k => h | 'return' y => r 'end'" :=
+  (Handle' Shallow OS e%E n x%binder k%binder h y%binder r)
+  (at level 200, e at level 200, n, x, k at level 1, h at level 200, y at level 1, r at level 200,
+   format "'handle:'  e  'with' '//' '[' |  'effect'  n  x ','  k  =>  '/  ' h ']'  '//' '[' |  'return'  y  =>  '/  ' r ']'  '//' 'end'") : expr_scope.
