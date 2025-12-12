@@ -105,6 +105,34 @@ Proof.
   apply (continuous_to_discrete_limit Hcont).
 Qed.
 
+(** Derivation lemmas for simplifying RInt_sep hypotheses *)
+
+(** Hypothesis 3 is derivable from Hypothesis 2 *)
+Lemma ex_RInt_unit_intervals_from_all (F : R → R) :
+  (∀ b : R, ex_RInt F 0 b) →
+  (∀ k : nat, ex_RInt F (INR k) (INR k + 1)).
+Proof.
+  intros Hex_b k.
+  apply (ex_RInt_Chasles_2 F 0 k (k + 1)).
+  { split. { apply pos_INR. } lra. }
+  apply Hex_b.
+Qed.
+
+(** Hypothesis 4 is derivable from Hypothesis 3 *)
+Lemma ex_RInt_shift_from_interval (F : R → R) :
+  (∀ k : nat, ex_RInt F (INR k) (INR k + 1)) →
+  (∀ k : nat, ex_RInt (fun x => F (x + INR k)) 0 1).
+Proof.
+  intros Hex_k k.
+  have Hcomp := ex_RInt_comp_lin F 1 k 0 1.
+  apply ex_RInt_ext with (f := (λ y : R, scal 1 (F (1 * y + k)))).
+  { intros x Hx. rewrite /scal//=/mult//= Rmult_1_l. f_equal. lra. }
+  apply Hcomp.
+  have -> : 1 * 0 + k = k by lra.
+  have -> : 1 * 1 + k = k + 1 by lra.
+  apply Hex_k.
+Qed.
+
 (** Step 2 helper: Change of variables for translation *)
 Lemma RInt_translation (F : R → R) (k : nat) :
   ex_RInt F (INR k) (INR k + 1) →
@@ -128,21 +156,23 @@ Proof.
 Qed.
 
 Theorem RInt_sep (F : R → R) (UB : nat → R) :
-  (* Step 1 hypotheses *)
   ex_RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) →
   (∀ b : R, ex_RInt F 0 b) →
-  (∀ k : nat, ex_RInt F (INR k) (INR k + 1)) →
-  (* Step 2 hypotheses *)
-  (∀ k : nat, ex_RInt (fun x => F (x + INR k)) 0 1) →
-  (* Step 3 hypotheses (Fubini) *)
   ex_seriesC UB →
   (∀ x n, 0 < x < 1 → 0 <= F (x + INR n)) →
   (∀ x n, 0 < x < 1 → Rabs (F (x + INR n)) <= UB n) →
-  (* Conclusion *)
   RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) =
   RInt (fun x => SeriesC (fun (k : nat) => F (x + k))) 0 1.
 Proof.
-  intros Hex_gen Hex_b Hex_k Hex_shift HexU Hnn Hub.
+  intros Hex_gen Hex_b HexU Hnn Hub.
+
+  (* Derive the redundant hypotheses *)
+  have Hex_k : ∀ k : nat, ex_RInt F (INR k) (INR k + 1).
+  { apply ex_RInt_unit_intervals_from_all. apply Hex_b. }
+  have Hex_shift : ∀ k : nat, ex_RInt (fun x => F (x + INR k)) 0 1.
+  { apply ex_RInt_shift_from_interval. apply Hex_k. }
+
+  (* Now proceed with the three-step proof *)
   rewrite (RInt_gen_as_series F Hex_gen Hex_b Hex_k).
   rewrite (SeriesC_ext _ (fun k => RInt (fun x => F (x + INR k)) 0 1)).
   2: { intro k. symmetry. rewrite RInt_translation; try done. }
