@@ -231,5 +231,52 @@ Section rules.
     - simplify_map_eq. apply dret_1_1.  done.
     - eexists. apply head_step_support_equiv_rel. constructor; eauto.
   Qed.
+
+  Lemma step_handle_os E K K' hs (l : label) (e : expr) (v : val) (h ret : expr) :
+    let C := match hs with Deep => HandleCtx hs OS l h ret :: K' | Shallow => K' end in
+    IntoVal e v →
+    l ∉ ectx_labels K' →
+    ⤇ fill K (Handle hs OS (EffLabel l) (fill K' (Do (EffLabel l) e)) h ret) ⊢
+    spec_update E ( ∃ (r : loc), ⤇ fill K (App (App h v) (ContV r C)) ∗ unshotₛ r).
+  Proof.
+    iIntros (? <- ?) "HK". 
+    rewrite spec_update_unseal.
+    iIntros ([? σ]) "Hs".
+    iDestruct (spec_auth_prog_agree with "[$] [$]") as "->".
+    iMod (spec_auth_heap_alloc with "Hs") as "[Hs Hl]".
+    iMod (spec_update_prog (fill K _) with "[$][$]") as "[HK Hs]".
+    iModIntro. iExists (fill K _, _), 1.
+    iFrame "HK".
+    iSplit; last first.
+    { iExists _. iFrame. }
+    iPureIntro. eapply stepN_det_step_ctx; [|by apply dret_1_1].
+    setoid_rewrite head_prim_step_eq.
+    - simplify_map_eq. rewrite to_of_eff. case_decide; [|done]. rewrite decide_True; last done.
+      apply dret_1_1.  done.
+    - eexists. apply head_step_support_equiv_rel. constructor; eauto.
+      by rewrite to_of_eff.
+  Qed.
+
+  Lemma step_cont E K K' (e : expr) (v : val) (r : loc) :
+    IntoVal e v →
+    unshotₛ r -∗
+    ⤇ fill K (App (ContV r K') e) -∗ spec_update E ( ⤇ fill K (fill K' v)).
+  Proof.
+    iIntros (<-) "Hr HK". 
+    rewrite spec_update_unseal.
+    iIntros ([? σ]) "Hs".
+    iDestruct (spec_auth_prog_agree with "[$] [$]") as "->".
+    iDestruct (spec_auth_lookup_heap with "[$][$]") as %?.
+    iMod (spec_update_prog (fill K _) with "[$][$]") as "[Hs HK]".
+    iMod (spec_auth_update_heap (#false)with "[$][$]") as "[Hs Hr]".
+    iModIntro. iExists (fill K _, _), 1.
+    iFrame "HK".
+    iSplit; last iFrame.
+    iPureIntro. eapply stepN_det_step_ctx; [|by apply dret_1_1].
+    setoid_rewrite head_prim_step_eq.
+    - simplify_map_eq. by apply dret_1_1. 
+    - eexists. apply head_step_support_equiv_rel. constructor; eauto.
+  Qed.
+
 End rules.
 

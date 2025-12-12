@@ -43,6 +43,32 @@ Section theories.
   Proof. apply: ne_proper_2. Qed.
 
   (* ----------------------------------------------------------------------- *)
+  (* One-shot operator. *)
+
+  Program Definition iThyMono (X : iThy Σ) : iThy Σ := (λ e1 e2, λne Q,
+    ∃ Q', X e1 e2 Q' ∗ ▷ ∀ s1 s2, Q' s1 s2 -∗ Q s1 s2
+  )%I.
+  Next Obligation. solve_proper. Qed.
+  Global Instance iThyMono_ne : NonExpansive iThyMono.
+  Proof.
+    rewrite /iThyMono=> n ?? H ?? Q /=.
+    do 4 f_equiv. apply (H _ _).
+  Qed.
+  Global Instance iThyMono_proper : Proper ((≡) ==> (≡)) iThyMono.
+  Proof. apply: ne_proper. Qed.
+
+  (* ----------------------------------------------------------------------- *)
+  (* Extended one-shot operator. *)
+
+  Definition iThyIfMono (m : mode) : iThy Σ → iThy Σ :=
+    match m with OS => iThyMono | MS => ssrfun.id end.
+  Global Instance iThyIfMono_ne (m : mode) : NonExpansive (iThyIfMono m).
+  Proof. by case m; simpl; apply _. Qed.
+  Global Instance iThyIfMono_proper (m : mode) : Proper ((≡) ==> (≡)) (iThyIfMono m).
+  Proof. apply: ne_proper. Qed.
+
+
+  (* ----------------------------------------------------------------------- *)
   (* Empty theory. *)
 
   Definition iThyBot : iThy Σ := λ _ _, λne _, False%I.
@@ -81,6 +107,24 @@ Section theories.
   Qed.
   Global Instance to_iThy_bot_proper : Proper ((≡) ==> (≡)) to_iThy_bot.
   Proof. apply: ne_proper. Qed.
+
+  (* ----------------------------------------------------------------------- *)
+  (* One-shot operator on theory lists. *)
+
+  Definition to_iThyIfMono (m : mode) (L : iLblThy Σ) : iLblThy Σ :=
+    map (λ '((l1s, l2s), X), ((l1s, l2s), iThyIfMono m X)) L.
+  Global Instance to_iThyIfMono_ne m : NonExpansive (to_iThyIfMono m).
+  Proof.
+    intros n ?? H. rewrite /to_iThyIfMono /=.
+    apply list_fmap_ne; last done.
+    intros [[? ?] ?] [[? ?] ?] [-> ?]%pair_dist_inj.
+    f_equiv; [done|]. by f_equiv.
+  Qed.
+  Global Instance to_iThyIfMono_proper (m : mode) : Proper ((≡) ==> (≡)) (to_iThyIfMono m).
+  Proof. apply: ne_proper. Qed.
+
+  Lemma to_iThyIfMonoMS L : to_iThyIfMono MS L = L.
+  Proof. by induction L as [|((?,?),?)]; [|rewrite //= IHL]. Qed.
 
   (* ----------------------------------------------------------------------- *)
   (* Interpretation of theory lists. *)
@@ -215,6 +259,50 @@ Section theories.
 
   Lemma iThy_le_iThyTraverse_bot X l1s l2s : ⊢ iThy_le (iThyTraverse l1s l2s iThyBot) X.
   Proof. iIntros "!> %%% ?". by rewrite iThyTraverse_bot. Qed.
+
+ Lemma iThy_le_iThyTraverse_iThyIfMono m l1s l2s X :
+    ⊢ iThy_le (iThyIfMono m (iThyTraverse l1s l2s X))
+               (iThyTraverse l1s l2s (iThyIfMono m X)).
+  Proof.
+    case m; simpl; [|apply iThy_le_refl].
+    iIntros "%e1 %e2 !> %Q [%Q'[[%e1'[%e2'[%k1[%k2[%S (->&%Hk1&->&%Hk2&HX&#HQ')]]]]] HQ]]".
+    iExists e1', e2', k1, k2, (λ s1 s2, Q (fill k1 s1) (fill k2 s2))%I.
+    repeat (iSplit; [done|]). iSplit; [|auto].
+    iExists S. iFrame. iIntros "!> %s1 %s2 HS".
+    iApply "HQ". by iApply "HQ'".
+  Qed.
+
+  Lemma iThy_le_iThyIfMono_iThyTraverse m l1s l2s X :
+    ⊢ iThy_le (iThyTraverse l1s l2s (iThyIfMono m X))
+               (iThyIfMono m (iThyTraverse l1s l2s X)).
+  Proof.
+    case m; simpl; [|apply iThy_le_refl].
+    iIntros "%e1 %e2 !> %Q [%e1'[%e2'[%k1[%k2[%S (->&%Hk1&->&%Hk2&[%Q' [HX HS]]&#HQ)]]]]]".
+    iExists (λ s1 s2, ∃ s1' s2', ⌜ s1 = fill k1 s1' ⌝ ∗ ⌜ s2 = fill k2 s2' ⌝ ∗ Q' s1' s2')%I.
+    iSplitR "HS"; last
+    by iIntros "!> %% [% [% (-> & -> & HQ')]]"; iApply "HQ"; iApply "HS".
+    iExists e1', e2', k1, k2, Q'. iFrame.
+    repeat (iSplit; [done|]).
+    iIntros "!> %s1 %s2 HQ'". iExists s1, s2.
+    repeat (iSplit; [done|]).
+    by iFrame.
+  Qed.
+
+  Lemma iThy_le_sum_iThyIfMono m X Y :
+    ⊢ iThy_le (iThyIfMono m (iThySum X Y))
+               (iThySum (iThyIfMono m X) (iThyIfMono m Y)).
+  Proof.
+    case m; simpl; [|apply iThy_le_refl].
+    by iIntros "%e1 %e2 !> %Q [%Q' [[HX|HY] HQ]]"; [iLeft|iRight]; iExists Q'; iFrame.
+  Qed.
+
+  Lemma iThy_le_iThyIfMono_sum m X Y :
+    ⊢ iThy_le (iThySum (iThyIfMono m X) (iThyIfMono m Y))
+               (iThyIfMono m (iThySum X Y)).
+  Proof.
+    case m; simpl; [|apply iThy_le_refl].
+    by iIntros "%e1 %e2 !> %Q [[%Q' [HX HQ]]|[%Q' [HY HQ]]]"; iExists Q'; iFrame.
+  Qed.
 
   Lemma to_iThy_nil : to_iThy [] ≡ iThyBot.
   Proof.
@@ -773,6 +861,37 @@ Lemma rel_inv_restore N P e1 e2 X R :
     REL e1 ≤ e2 <|X|> {{S}}.
   Proof. iApply rel_wand'. by iApply iThy_le_refl. Qed.
 
+Lemma rel_mono' (m : mode) e1 e2 X Y R S :
+    iThy_le X Y -∗
+    REL e1 ≤ e2 <|X|> {{R}} -∗
+    (□?m ∀ v1 v2, R v1 v2 -∗ S v1 v2) -∗
+    REL e1 ≤ e2 <|iThyIfMono m Y|> {{S}}.
+  Proof.
+    case m; [|by apply rel_wand']. simpl.
+    iLöb as "IH" forall (e1 e2).
+    iIntros "#HY Hrel HS".
+    rewrite !rel_unfold /rel_pre.
+    iIntros "%k1 %k2 %T Hkwp".
+    iApply "Hrel".
+    iSplit.
+    - iIntros (v1 v2) "HR". iApply "Hkwp". by iApply "HS".
+    - iIntros (e1' e2' Q) "HX #Hrel".
+      iDestruct "Hkwp" as "[_ Hkwp]".
+      set Q' := (λ s1 s2, REL s1 ≤ s2 <|iThyMono Y|> {{S}})%I.
+      iApply ("Hkwp" $! e1' e2' Q' with "[HS HX]"); last auto.
+      iExists Q. iSplitL "HX". { by iApply "HY". }
+      rewrite /Q'.
+      iIntros "!> %s1 %s2 HQ".
+      iApply ("IH" with "HY [HQ Hrel] HS").
+      by iApply "Hrel".
+  Qed.
+
+  Lemma rel_mono (m : mode) e1 e2 X R S :
+    REL e1 ≤ e2 <|X|> {{R}} -∗
+    (□?m ∀ v1 v2, R v1 v2 -∗ S v1 v2) -∗
+    REL e1 ≤ e2 <|iThyIfMono m X|> {{S}}.
+  Proof. iApply rel_mono'. by iApply iThy_le_refl. Qed.
+
   Lemma rel_introduction_sum_mono_l e1 e2 X Y Z R :
     REL e1 ≤ e2 <|iThySum X Z|> {{R}} -∗
     iThy_le X Y -∗
@@ -927,6 +1046,88 @@ Lemma rel_inv_restore N P e1 e2 X R :
         by iApply "Hfill".
       - iIntros (e1' e2' Q) "HX #Hk".
         iApply (rel_introduction_mono with "[HX Hfill Hk]"); last iApply iThy_le_sum_swap.
+        iApply ("Hfill" with "HX").
+        iIntros "!> !>" (s1 s2) "HQ".
+        iSpecialize ("Hk" with "HQ").
+        iApply (rel_introduction_mono with "Hk").
+        by iApply iThy_le_sum_swap.
+    }
+  Qed.
+
+Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
+    traversable k1 k2 X -∗
+
+    REL e1 ≤ e2 <|iThySum X Y|> {{R}} -∗
+
+    □?m (
+      (∀ v1 v2, R v1 v2 -∗ REL fill k1 v1 ≤ fill k2 v2 <|iThySum (iThyIfMono m X) Z|> {{S}})
+
+        ∧
+
+      (∀ e1' e2' Q,
+        Y e1' e2' Q -∗
+        □?m ▷ (∀ s1 s2, Q s1 s2 -∗ REL s1 ≤ s2 <|iThySum X Y|> {{R}}) -∗
+        REL fill k1 e1' ≤ fill k2 e2' <|iThySum (iThyIfMono m X) Z|> {{S}})
+    ) -∗
+
+    REL fill k1 e1 ≤ fill k2 e2 <|iThySum (iThyIfMono m X) Z|> {{S}}.
+  Proof.
+    case m; [|apply rel_exhaustion_sum_l]. simpl.
+    iLöb as "IH" forall (e1 e2).
+    iIntros "#HX' Hrel Hfill".
+    iApply (rel_exhaustion with "Hrel").
+    iSplit; [iIntros (??) "HS"; by iApply "Hfill"|].
+    clear e1 e2.
+    iIntros (e1 e2 Q) "[HX|HY] #Hk"; [|by iApply ("Hfill" with "HY")].
+    iDestruct ("HX'" with "HX") as "(%Q'&HX&#HQ)".
+    iApply rel_introduction'. iLeft. iExists Q'. iFrame.
+    iIntros "!> %s1 %s2 HQ'".
+    iDestruct ("HQ" with "HQ'") as "(%s1'&%s2'&%Hs1&%Hs2&H)".
+    rewrite Hs1 Hs2 //=.
+    iSpecialize ("Hk" with "H").
+    by iApply ("IH" with "[//] Hk").
+  Qed.
+
+  Lemma rel_exhaustion_sum_r' (m : mode) k1 k2 e1 e2 X Y Z R S :
+    traversable k1 k2 Y -∗
+
+    REL e1 ≤ e2 <|iThySum X Y|> {{R}} -∗
+
+    □?m (
+      (∀ v1 v2, R v1 v2 -∗ REL fill k1 v1 ≤ fill k2 v2 <|iThySum Z (iThyIfMono m Y)|> {{S}})
+
+        ∧
+
+      (∀ e1' e2' Q,
+        X e1' e2' Q -∗
+        □?m ▷ (∀ s1 s2, Q s1 s2 -∗ REL s1 ≤ s2 <|iThySum X Y|> {{R}}) -∗
+        REL fill k1 e1' ≤ fill k2 e2' <|iThySum Z (iThyIfMono m Y)|> {{S}})
+    ) -∗
+
+    REL fill k1 e1 ≤ fill k2 e2 <|iThySum Z (iThyIfMono m Y)|> {{S}}.
+  Proof.
+    iIntros "#Htraversable He12 Hfill".
+    iApply (rel_introduction_mono with "[He12 Hfill]"); last iApply iThy_le_sum_swap.
+    iApply (rel_exhaustion_sum_l' with "Htraversable [He12] [Hfill]").
+    { iApply (rel_introduction_mono with "He12").
+      by iApply iThy_le_sum_swap.
+    }
+    { case m; simpl; [|iDestruct "Hfill" as "#Hfill"; iModIntro]; iSplit.
+      - iIntros (v1 v2) "HR".
+        iApply (rel_introduction_mono with "[HR Hfill]"); last iApply iThy_le_sum_swap.
+        by iApply "Hfill".
+      - iIntros (e1' e2' Q) "HX Hk".
+        iApply (rel_introduction_mono with "[HX Hfill Hk]"); last iApply iThy_le_sum_swap.
+        iApply ("Hfill" with "HX").
+        iIntros "!>" (s1 s2) "HQ".
+        iSpecialize ("Hk" with "HQ").
+        iApply (rel_introduction_mono with "Hk").
+        by iApply iThy_le_sum_swap.
+      - iIntros (v1 v2) "HR".
+        iApply (rel_introduction_mono with "[HR]"); last iApply iThy_le_sum_swap.
+        by iApply "Hfill".
+      - iIntros (e1' e2' Q) "HX #Hk".
+        iApply (rel_introduction_mono with "[HX]"); last iApply iThy_le_sum_swap.
         iApply ("Hfill" with "HX").
         iIntros "!> !>" (s1 s2) "HQ".
         iSpecialize ("Hk" with "HQ").
@@ -1146,6 +1347,70 @@ Lemma rel_inv_restore N P e1 e2 X R :
     iMod ("Hrel" with "Hl") as "Hrel".
     rewrite rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
     by iApply ("Hrel" with "Hkwp Hj Hnais Herr").
+  Qed.
+
+  Lemma rel_handle_os_l k k' hs (l : label) (v : val) (h ret : expr) e2 X R :
+    let c := match hs with Deep => HandleCtx hs OS l h ret :: k' | Shallow => k' end in
+    l ∉ ectx_labels k' →
+    (▷ ∀ r, unshot r -∗ REL fill k (App (App h v) (ContV r c)) ≤ e2 <|X|> {{R}}) -∗
+    REL fill k (Handle hs OS (EffLabel l) (fill k' (Do (EffLabel l) v)) h ret) ≤ e2 <|X|> {{R}}.
+  Proof.
+    iIntros (? Hnot_in_k') "Hrel".
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros "%k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
+    iEval (rewrite -!fill_app). 
+    iApply wp_handle_os; first done. iModIntro.
+    iIntros "%r Hr".
+    iSpecialize ("Hrel" with "Hr").
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def fill_app.
+    iApply fupd_wp.
+    by iApply ("Hrel" with "Hkwp Hj Hnais Herr").
+  Qed.
+
+  Lemma rel_handle_os_r k k' hs (l : label) (v : val) (h ret : expr) e1 X R :
+    let c := match hs with Deep => HandleCtx hs OS l h ret :: k' | Shallow => k' end in
+    l ∉ ectx_labels k' →
+    (∀ r, unshotₛ r -∗ REL e1 ≤ fill k (App (App h v) (ContV r c)) <|X|> {{R}}) -∗
+    REL e1 ≤ fill k (Handle hs OS (EffLabel l) (fill k' (Do (EffLabel l) v)) h ret) <|X|> {{R}}.
+  Proof.
+    iIntros (? Hnot_in_k') "Hrel".
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros "%k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
+    rewrite -!fill_app.
+    iApply spec_update_wp.
+    iMod (step_handle_os ⊤ with "Hj") as "[%r [Hj Hr]]"; try done.
+    iSpecialize ("Hrel" with "Hr").
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def !fill_app.
+    iApply ("Hrel" with "Hkwp Hj Hnais Herr"). done.
+  Qed.
+
+  Lemma rel_cont_l k k' (v : val) r e2 X R :
+    ▷ unshot r -∗
+    ▷ REL fill k (fill k' v) ≤ e2 <|X|> {{R}} -∗
+    REL fill k (App (ContV r k') v) ≤ e2 <|X|> {{R}}.
+  Proof.
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros "Hr Hwp".
+    iIntros "%k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
+    iEval (rewrite -fill_app).
+    iApply (wp_cont with "Hr"). iModIntro. rewrite fill_app.
+    iApply fupd_wp.
+    by iApply ("Hwp" with "Hkwp Hj Hnais Herr").
+  Qed.
+
+  Lemma rel_cont_r k k' (v : val) r e1 X R :
+    unshotₛ r -∗ 
+    REL e1 ≤ fill k (fill k' v) <|X|> {{R}} -∗
+    REL e1 ≤ fill k (App (ContV r k') v) <|X|> {{R}}.
+  Proof.
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros "Hr Hwp".
+    iIntros "%k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
+    iEval (rewrite -!fill_app) in "Hj".
+    iApply spec_update_wp.
+    iMod (step_cont with "Hr Hj") as "Hj".
+    rewrite !fill_app.
+    by iApply ("Hwp" with "Hkwp Hj Hnais Herr").
   Qed.
 
   (* Lemma rel_allocN_l X R k1 (n1 : Z) v1 e2 :
@@ -1634,7 +1899,7 @@ End baze_rules.
 (* blaze: A Logic for Dynamic Labels. *)
 
 (* ------------------------------------------------------------------------- *)
-(* Model. *)
+(* Model. TODO: adapt brel to invariants and OS/Shallow handler *)
 
 Section brel.
   Context `{!probblazeRGS Σ}.

@@ -197,6 +197,8 @@ Global Instance probblazeGS_irisGS `{!probblazeGS Σ} : approxisWpGS blaze_prob_
 Definition is_label `{probblazeGS Σ} (l : label) (dq : dfrac) : iProp Σ :=
   @ghost_map_elem _ _ _ _ _ probblazeGS_labels probblazeGS_labels_name l dq ().
 
+
+
 (** Heap *)
 Notation "l ↦{ dq } v" := (@ghost_map_elem _ _ _ _ _ probblazeGS_heap probblazeGS_heap_name l dq v)
   (at level 20, format "l  ↦{ dq }  v") : bi_scope.
@@ -216,6 +218,9 @@ Notation "l ↪{# q } v" := (l ↪{ DfracOwn q } v)%I
   (at level 20, format "l  ↪{# q }  v") : bi_scope.
 Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
+
+(* unshot predicate for one-shot continuations *)
+Definition unshot `{probblazeGS Σ} r := (r ↦ #true)%I.
 
 (** User-level tapes *)
 Definition nat_tape `{probblazeGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
@@ -823,6 +828,34 @@ Proof.
                                    iModIntro.
                                    by iApply "IH".
 Qed.   
+
+(* TODO: finish these proofs *)
+Lemma wp_handle_os k k' E Φ hs (l : label) (v : syntax.val) (h ret : syntax.expr) :
+  let c := match hs with Deep => HandleCtx hs OS l h ret :: k' | Shallow => k' end in
+  l ∉ ectx_labels k' →
+  (▷ ∀ r, unshot r -∗ WP fill k (App (App h v) (ContV r c)) @ E {{ Φ }}) -∗
+  WP fill k (Handle hs OS (EffLabel l) (fill k' (Do (EffLabel l) (Val v))) h ret) @ E {{ Φ }}.
+Proof.
+Admitted. 
+
+Lemma wp_cont k E Φ r k' v :
+  ▷ unshot r -∗
+  ▷ WP fill k (fill k' v) @ E {{ Φ }} -∗
+  WP fill k (App (ContV r k') v) @ E {{ Φ }}.
+Proof.
+  iIntros ">Hr Hwp".
+  iApply wp_lift_step; eauto using semantics.fill_not_val.
+  iIntros (σ1) "[Hh [Ht Hlabs]]". iApply fupd_mask_intro; first set_solver. iIntros "Hclose".
+  rewrite /unshot.
+  iDestruct (ghost_map_lookup with "Hh Hr") as "%Hr". 
+  iSplit. { iPureIntro. eexists. simpl. apply semantics.fill_step.
+            apply head_step_prim_step.
+            apply head_step_support_equiv_rel. by apply ContS. }
+  iIntros "!>" (e2 σ2 Hstep).  
+(*   iMod (gen_heap_update  _ _ _ (Some #false) with "Hheap Hr") as "[$ Hr]".
+     by iFrame.
+   Qed. *)
+Admitted.
 
 End lifting.
 

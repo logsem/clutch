@@ -106,6 +106,9 @@ Notation "l ↪ₛ{# q } v" := (l ↪ₛ{ DfracOwn q } v)%I
 Notation "l ↪ₛ v" := (l ↪ₛ{ DfracOwn 1 } v)%I
                        (at level 20, format "l  ↪ₛ  v") : bi_scope.
 
+
+Definition unshotₛ `{specG_blaze_prob_lang Σ} (r : loc) := (r ↦ₛ LitV (LitBool true))%I.
+
 Section theory.
   Context `{!specG_blaze_prob_lang Σ}.
 
