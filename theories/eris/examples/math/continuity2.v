@@ -50,7 +50,12 @@ Qed.
 Lemma Continuity2_const {F : R * R → R} (v x y : R) :
   (∀ z, F z = v) →
   Continuity2 F x y.
-Proof. Admitted.
+Proof.
+  rewrite /Continuity2.
+  intros H.
+  replace F with (fun (_ : R * R) => v); last by (apply functional_extensionality; intros; rewrite H).
+  apply filterlim_const.
+Qed.
 
 Lemma Continuity2_continuous_fst
   {f : R * R → R_CompleteNormedModule} {x y : R} :

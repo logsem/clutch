@@ -611,3 +611,15 @@ Proof.
     by apply IFubini_Fubini_x.
   }
 Qed.
+
+(** Uniform convergence of improper integrals via dominated convergence.
+    Analogous to UniformConverge_Series (Weierstrass M-test) for series. *)
+Lemma UniformConverge_RInt (f : R → R → R) (g : R → R) (xa ya yb : R)
+  (Hbound : ∀ x y, Rmin ya yb <= y <= Rmax ya yb → xa <= x → Rabs (f x y) <= g x)
+  (Hg_ex : ex_RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty))
+  (Hf_ex : ∀ xb y, Rmin ya yb <= y <= Rmax ya yb → xa <= xb → ex_RInt (fun x => f x y) xa xb) :
+  filterlim (λ xb y, RInt (λ x, f x y) xa xb)
+            (Rbar_locally Rbar.p_infty)
+            (locally (λ y, RInt_gen (λ x, f x y) (at_point xa) (Rbar_locally Rbar.p_infty))).
+Proof.
+Admitted.
