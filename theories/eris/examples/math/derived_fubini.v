@@ -490,7 +490,17 @@ Lemma ex_RInt_filterlim_uniform {a b : R} {F : R → R → R} {G : R → R} :
   filterlim F (Rbar_locally Rbar.p_infty) (locally G) →
   ex_RInt G a b.
 Proof.
-Admitted.
+  intros Hex Hunif.
+  have HL := Exchange2 Hex Hunif.
+  unfold ex_RInt.
+  exists (RInt G a b).
+  have H (r : R) : is_RInt (F r) a b (RInt (F r) a b)
+    by apply (RInt_correct (V := R_CompleteNormedModule)), Hex.
+  destruct (filterlim_RInt F a b (Rbar_locally Rbar.p_infty)
+    (Rbar_locally_filter Rbar.p_infty) _ _ H Hunif) as [I [HLI HF]].
+  have Heq : I = RInt G a b by apply filterlim_locally_unique with (1 := HLI) (2 := HL); apply Rbar_locally_filter.
+  rewrite -Heq. exact HF.
+Qed.
 
 Theorem FubiniImproper_ex_y {f xa ya yb} (H : IFubiniCondition_x f ya yb)
   (Hunif : filterlim (λ xb y : R, RInt (λ x : R, Iverson (Ioo ya yb) y * f x y) xa xb) (Rbar_locally Rbar.p_infty)

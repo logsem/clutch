@@ -561,22 +561,18 @@ Section credits.
         symmetry.
         apply FubiniImproper_eq_x.
         { admit. }
-        (** HERE
-
-        rewrite /B//=.
-        (* Derive this from the fact that F is FubiniCondition.
-           and exp (the closed form for the inner series) is FubiniCondition.  *)
-        intros xb.
-        rewrite /FubiniCondition.
-         **)
-
+        (** Uniform convergence condition. *)
         admit.
       }
       apply RInt_ext.
       rewrite Rmin_left; OK.
       rewrite Rmax_right; OK.
       intros ??.
-      (* Punishment *)
+
+      (** New Fubini *)
+      (* TODO: I think a Series/RInt_gen Fubini should be derivable from the series/definite
+         case and a limit/series case. *)
+
       admit.
     }
     replace (RInt_gen (λ x0 : R, (F x0 * NegExp_ρ (L + 1) x0) * (RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n)) 0 1)) (at_point 0) (Rbar_locally Rbar.p_infty))
@@ -661,7 +657,7 @@ Section credits.
         { eapply Hex. }
         apply NegExp_ρ_ex_RInt.
       }
-      {
+      { (** Integrable + Bounded argument (Should be done somewhere) *)
         (* Upper bound this by M * ... * (exp -1) *)
         (* Probably need the inegral from (L + 1) to infinity of F to exist... *)
         admit. }
@@ -708,7 +704,9 @@ Section credits.
       }
       { apply ex_RInt_gen_at_point.
         apply ex_RInt_mult. { apply Hex. } { apply NegExp_ρ_ex_RInt. } }
-      { (* Upper bound this by M * ...
+      { (** Integrable + Bounded argument (Should be done somewhere) *)
+
+        (* Upper bound this by M * ...
            OK if f pcs continuous *)
         admit. }
     }
@@ -794,7 +792,7 @@ Section credits.
     }
     {
       apply RInt_gen_ext_eq_Ici.
-      2: {
+      2: {  (** Integrable + Bounded argument (Should be done somewhere) *)
 
 
         admit. }
