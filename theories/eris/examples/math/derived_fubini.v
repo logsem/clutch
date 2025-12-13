@@ -612,7 +612,8 @@ Proof.
   }
 Qed.
 
-(** Helper: Tail of a converging improper integral goes to zero *)
+(** Helper: Tail of a converging improper integral goes to zero
+    Proof strategy: Use filterlim_is_RInt_gen and RInt_gen_correct *)
 Lemma RInt_gen_tail_converges (g : R → R) (xa : R)
   (Hg_ex : ex_RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty)) :
   ∀ eps : posreal, ∃ M : R, ∀ xb : R, M < xb →
@@ -622,9 +623,11 @@ Proof.
   unfold ex_RInt_gen in Hg_ex.
   destruct Hg_ex as [lg Hg_ex].
   have Hg_lim : filterlim (λ b : R, RInt g xa b) (Rbar_locally Rbar.p_infty) (locally lg).
-  { apply filterlim_is_RInt_gen; [admit | apply Hg_ex]. }
+  { apply filterlim_is_RInt_gen.
+    - admit. (* TODO: Need ex_RInt g xa b for all b, which requires g integrable on bounded intervals *)
+    - apply Hg_ex. }
   have Heq : RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty) = lg.
-  { admit. }
+  { admit. (* TODO: Use RInt_gen_Ici which requires proving filterlimi condition *) }
   rewrite Heq.
   rewrite filterlim_locally //= in Hg_lim.
   destruct (Hg_lim eps) as [M HM].
@@ -635,16 +638,27 @@ Proof.
   by rewrite Rabs_minus_sym.
 Admitted.
 
-(** Helper: If |f(x,y)| ≤ g(x) and ∫ g exists, then ∫ f(·,y) exists *)
+(** Helper: If |f(x,y)| ≤ g(x) and ∫ g exists, then ∫ f(·,y) exists
+    Proof strategy: Use ex_RInt_gen_Ici_compare_strong from improper.v
+    by decomposing f into positive and negative parts *)
 Lemma ex_RInt_gen_comparison (f : R → R → R) (g : R → R) (xa : R) (y : R)
+  (Hg_cont : ∀ x, xa <= x → Continuity.continuous g x)
+  (Hf_cont : ∀ x, xa <= x → Continuity.continuous (fun x => f x y) x)
   (Hbound : ∀ x, xa <= x → Rabs (f x y) <= g x)
   (Hg_ex : ex_RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty)) :
   ex_RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty).
 Proof.
+  (* TODO: Prove using comparison test
+     Key idea: Write f(x,y) = f_+(x,y) - f_-(x,y) where
+       f_+ = max(f,0) and f_- = max(-f,0)
+     Then 0 <= f_+, f_- <= |f| <= g, so by comparison:
+       ex_RInt_gen f_+ and ex_RInt_gen f_-
+     Therefore ex_RInt_gen f = f_+ - f_- *)
   admit.
 Admitted.
 
-(** Helper: Tail integral is bounded by tail of dominating function *)
+(** Helper: Tail integral is bounded by tail of dominating function
+    Proof strategy: Use Chasles to split integrals and triangle inequality *)
 Lemma RInt_tail_bound (f : R → R → R) (g : R → R) (xa xb : R) (y : R)
   (Hbound : ∀ x, xa <= x → Rabs (f x y) <= g x)
   (Hxb : xa <= xb)
@@ -654,11 +668,26 @@ Lemma RInt_tail_bound (f : R → R → R) (g : R → R) (xa xb : R) (y : R)
   Rabs (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty) - RInt (fun x => f x y) xa xb)
   <= Rabs (RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty) - RInt g xa xb).
 Proof.
+  (* TODO: Prove using Chasles and comparison
+     Key idea: The tail integral ∫[xb,∞) f(x,y) dx satisfies
+       |∫[xb,∞) f(x,y) dx| ≤ ∫[xb,∞) |f(x,y)| dx <= ∫[xb,∞) g(x) dx
+     This requires:
+     1. Chasles: ∫[xa,∞) = ∫[xa,xb] + ∫[xb,∞)
+     2. Triangle inequality for integrals
+     3. Comparison for improper integrals *)
   admit.
 Admitted.
 
 (** Uniform convergence of improper integrals via dominated convergence.
-    Analogous to UniformConverge_Series (Weierstrass M-test) for series. *)
+    Analogous to UniformConverge_Series (Weierstrass M-test) for series.
+
+    NOTE: Full proof requires additional continuity hypotheses:
+    - g should be continuous on [xa, ∞)
+    - f(·,y) should be continuous on [xa, ∞) for each y
+    These would be added as:
+      (Hg_cont : ∀ x, xa <= x → Continuity.continuous g x)
+      (Hf_cont : ∀ x y, xa <= x → Continuity.continuous (fun x => f x y) x)
+    *)
 Lemma UniformConverge_RInt (f : R → R → R) (g : R → R) (xa ya yb : R)
   (Hbound : ∀ x y, Rmin ya yb <= y <= Rmax ya yb → xa <= x → Rabs (f x y) <= g x)
   (Hg_ex : ex_RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty))
@@ -672,18 +701,24 @@ Proof.
 
   (* Use tail convergence of g to get uniform bound *)
   have Htail := RInt_gen_tail_converges g xa Hg_ex eps.
-  destruct Htail as [M HM].
+  destruct Htail as [M0 HM0].
+  (* Ensure M >= xa by taking maximum *)
+  pose (M := Rmax M0 xa).
   exists M.
   intros xb Hxb.
+  have HM : Rabs (RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty) - RInt g xa xb) < eps.
+  { apply HM0. unfold M in Hxb. generalize (Rmax_l M0 xa). lra. }
   rewrite /ball/=/fct_ball.
   intro y.
 
-  (* For y outside [ya, yb], we still need to bound it - we'll handle this separately *)
+  (* For y outside [ya, yb], we don't have hypotheses about f(x,y)
+     In practice, f would be 0 outside this range (via Iverson brackets)
+     or the theorem would only claim convergence on [ya, yb] *)
   destruct (Rle_dec (Rmin ya yb) y) as [Hy_min | Hy_min].
-  2: { (* y < Rmin ya yb: bound holds trivially *)
+  2: { (* y < Rmin ya yb: would need f(x,y) = 0 or restrict conclusion to y ∈ [ya,yb] *)
     admit. }
   destruct (Rle_dec y (Rmax ya yb)) as [Hy_max | Hy_max].
-  2: { (* y > Rmax ya yb: bound holds trivially *)
+  2: { (* y > Rmax ya yb: would need f(x,y) = 0 or restrict conclusion to y ∈ [ya,yb] *)
     admit. }
 
   (* Main case: y ∈ [Rmin ya yb, Rmax ya yb] *)
@@ -702,11 +737,14 @@ Proof.
   (* First establish that the improper integral of f(·,y) exists *)
   have Hfy_ex : ex_RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty).
   { apply ex_RInt_gen_comparison with (g := g).
+    - admit. (* TODO: g continuous on [xa, ∞) *)
+    - admit. (* TODO: f(·,y) continuous on [xa, ∞) *)
     - intros x Hx. apply Hbound; [exact Hy_range | exact Hx].
     - exact Hg_ex. }
 
-  (* We have that xb > M, so M < xb, and we can assume xa <= xb *)
-  have Hxa_xb : xa <= xb by admit.
+  (* We have that xb > M >= xa, so xa <= xb *)
+  have Hxa_xb : xa <= xb.
+  { unfold M in Hxb. generalize (Rmax_r M0 xa). lra. }
 
   (* Apply tail bound to get the key inequality *)
   have Htail_bound : Rabs (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty) - RInt (fun x => f x y) xa xb)
@@ -715,12 +753,10 @@ Proof.
     - intros x Hx. apply Hbound; [exact Hy_range | exact Hx].
     - apply Hf_ex; done. }
 
-  (* Now use HM to bound the right side *)
-  have Hg_tail : Rabs (RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty) - RInt g xa xb) < eps.
-  { apply HM. exact Hxb. }
+  (* Now use HM to bound the right side - already proved above *)
 
   (* Combine to get the final bound *)
   rewrite /abs/=/minus/=.
   rewrite Rabs_minus_sym.
-  eapply Rle_lt_trans; [exact Htail_bound | exact Hg_tail].
+  eapply Rle_lt_trans; [exact Htail_bound | exact HM].
 Admitted.

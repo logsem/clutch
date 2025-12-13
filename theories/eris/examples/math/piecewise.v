@@ -17,7 +17,7 @@ Definition fsum {T : Type} (L : list (T → R)) : T → R := fun t => foldr (fun
 
 (* Generalized: f is a finite sum of rectangle functions *)
 Definition PCts (f : R → R) (xa xb : R) : Prop :=
-  ∃ L, (∀ x, Ioo xa xb x → f = fsum (IntervalFun_R <$> L)) ∧ Forall IntervalFun_continuity L.
+  ∃ L, (∀ x, Ioo xa xb x → f x = fsum (IntervalFun_R <$> L) x) ∧ Forall IntervalFun_continuity L.
 
 Lemma IntervalFun_RInt {f xa xb} {a b} :
   IntervalFun_continuity (f, xa, xb) →
@@ -34,7 +34,16 @@ Proof.
 Admitted.
 
 Lemma PCts_cts {f xa xb} : (∀ x, Ioo xa xb x → Continuity.continuous f x) → PCts f xa xb.
-Proof. Admitted.
+Proof.
+  exists [(f, xa, xb)].
+  split.
+  { rewrite /fsum//=.
+    intros ??.
+    rewrite Iverson_True; try done.
+    lra.
+  }
+  rewrite Forall_singleton //=.
+Qed.
 
 Lemma PCts_plus {f g xa xb} : PCts f xa xb → PCts g xa xb → PCts (fun x => f x + g x) xa xb.
 Proof. Admitted.
@@ -49,7 +58,10 @@ Definition IPCts (f : R → R) : Prop :=
   ∃ L, f = fsum (IntervalFun_R <$> L) ∧ Forall IntervalFun_continuity L.
 
 Lemma IPCts_PCts (f : R → R) : IPCts f → ∀ a b, PCts f a b.
-Proof. intros [L[??]] ??. exists L; split; done. Qed.
+Proof.
+  intros [L[??]] ??. exists L; split; try done.
+  intros ??. rewrite H //=.
+Qed.
 
 Lemma IPCts_RInt {f xa xb} (HP : IPCts f ) : ex_RInt f xa xb.
 Proof. by apply PCts_RInt, IPCts_PCts. Qed.
