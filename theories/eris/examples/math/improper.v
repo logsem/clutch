@@ -611,14 +611,6 @@ Qed.
 
 (** Helper lemmas for IPCts version *)
 
-Lemma fsum_app {T : Type} (L1 L2 : list (T → R)) (t : T) :
-  fsum (L1 ++ L2) t = fsum L1 t + fsum L2 t.
-Proof.
-  induction L1 as [|f L1 IH].
-  - simpl. lra.
-  - simpl. rewrite IH. lra.
-Qed.
-
 Lemma ex_RInt_gen_plus {F G : R → R} {M : R} :
   ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) →
   ex_RInt_gen G (at_point M) (Rbar_locally Rbar.p_infty) →

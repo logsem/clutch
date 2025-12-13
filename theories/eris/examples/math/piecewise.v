@@ -180,10 +180,39 @@ Proof.
   }
 Qed.
 
+Lemma fsum_app {T : Type} (L1 L2 : list (T → R)) (t : T) :
+  fsum (L1 ++ L2) t = fsum L1 t + fsum L2 t.
+Proof.
+  induction L1 as [|f L1 IH].
+  - simpl. lra.
+  - simpl. rewrite IH. lra.
+Qed.
+
 Lemma PCts_RInt {f xa xb} (HP : PCts f xa xb) :
   ex_RInt f xa xb.
 Proof.
-Admitted.
+  destruct HP as [L [HL1 HL2]].
+  apply (ex_RInt_ext (fsum (IntervalFun_R <$> L))).
+  { intros ??. rewrite HL1; try done. rewrite /Icc//=. lra.  }
+  clear HL1.
+  induction L.
+  { rewrite /fsum//=. apply ex_RInt_const. }
+  replace (a :: L) with ([a] ++ L); last by simpl.
+  rewrite fmap_app.
+  replace (fsum ((IntervalFun_R <$> [a]) ++ (IntervalFun_R <$> L)))
+     with (fun x => fsum ((IntervalFun_R <$> [a])) x + fsum (IntervalFun_R <$> L) x); last first.
+  { apply functional_extensionality. intros x. by rewrite fsum_app. }
+  apply (ex_RInt_plus (V := R_CompleteNormedModule)).
+  { rewrite /fsum//=.
+    replace (λ t : R, IntervalFun_R a t + 0) with (IntervalFun_R a); last first.
+    { apply functional_extensionality; intros ?; lra. }
+    destruct a as [[f' a'] b'].
+    apply (@IntervalFun_RInt f' a' b' xa xb).
+    apply Forall_inv in HL2.
+    done.
+  }
+  { apply IHL. eapply Forall_inv_tail; done. }
+Qed.
 
 Lemma PCts_cts {f xa xb} : (∀ x, Icc xa xb x → Continuity.continuous f x) → PCts f xa xb.
 Proof.
@@ -219,7 +248,13 @@ Lemma IPCts_RInt {f xa xb} (HP : IPCts f ) : ex_RInt f xa xb.
 Proof. by apply PCts_RInt, IPCts_PCts. Qed.
 
 Lemma IPCts_cts {f} : (∀ x, Continuity.continuous f x) → IPCts f.
-Proof. Admitted.
+Proof.
+  (** TODO: The definition is actually not right, since we need the intervals to possibly be infinite.
+      Easy fix though.  *)
+
+
+
+Admitted.
 
 Lemma IPCts_plus {f g} : IPCts f → IPCts g → IPCts (fun x => f x + g x).
 Proof. Admitted.
