@@ -464,19 +464,16 @@ Proof.
     RInt_gen (fun x => RInt (fun y => Iverson (Ioo ya yb) y * f x y) ya yb) (at_point xa) (Rbar_locally Rbar.p_infty) =
     RInt (fun y => (RInt_gen (fun x => Iverson (Ioo ya yb) y * f x y) (at_point xa) (Rbar_locally Rbar.p_infty))) ya yb.
   {
-    replace (RInt_gen (λ x : R, RInt (λ y : R, f x y) ya yb) (at_point xa) (Rbar_locally Rbar.p_infty))
-       with (RInt_gen (λ x : R, RInt (λ y : R, Iverson (Ioo ya yb) y * f x y) ya yb) (at_point xa) (Rbar_locally Rbar.p_infty)).
-    { replace (RInt (λ y : R, RInt_gen (λ x : R, f x y) (at_point xa) (Rbar_locally Rbar.p_infty)) ya yb)
-         with (RInt (λ y : R, RInt_gen (λ x : R, Iverson (Ioo ya yb) y * f x y) (at_point xa) (Rbar_locally Rbar.p_infty)) ya yb).
-      { apply Hred. }
-      { apply RInt_ext. intros y Hy. apply RInt_gen_ext. intros x.
-        rewrite /Iverson. case_decide. { lra. } rewrite /Ioo//= in H0. lra. }
-    }
-    { apply RInt_gen_ext. intros x. apply RInt_ext. intros y Hy.
-      rewrite /Iverson. case_decide. { lra. } rewrite /Ioo//= in H0. lra. }
+    have -> : (λ x : R, RInt (λ y : R, f x y) ya yb) = (λ x : R, RInt (λ y : R, Iverson (Ioo ya yb) y * f x y) ya yb).
+    { apply functional_extensionality. intros x. apply RInt_ext. intros y Hy.
+      rewrite /Iverson. case_decide; [lra | exfalso; rewrite /Ioo//= in H0; lra]. }
+    rewrite (RInt_ext (λ y : R, RInt_gen (λ x : R, f x y) (at_point xa) (Rbar_locally Rbar.p_infty))
+                       (λ y : R, RInt_gen (λ x : R, Iverson (Ioo ya yb) y * f x y) (at_point xa) (Rbar_locally Rbar.p_infty))
+                       ya yb).
+    2: { intros y Hy. f_equal. apply functional_extensionality. intros x.
+         rewrite /Iverson. case_decide; [lra | exfalso; rewrite /Ioo//= in H0; lra]. }
+    apply Hred.
   }
-
-
 
   (* Reuce this by changing f to be f times an indictor *)
   rewrite filterlim_RInt_gen.
@@ -535,4 +532,4 @@ Proof.
     rewrite -IFubini_x_Ioo in H.
     by apply IFubini_Fubini_x.
   }
-Admitted.
+Qed.

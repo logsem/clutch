@@ -281,6 +281,25 @@ Section credits.
             apply Rmult_le_pos; [apply RealDecrTrial_μnn; lra|].
             apply Iverson_nonneg.
           }
+          rewrite (Rmult_comm (Iverson _ _)).
+          apply Rmult_le_compat; OK.
+          { apply Rmult_le_pos; [apply RealDecrTrial_μnn; lra|].
+            apply Iverson_nonneg.
+          }
+          { apply Hf. }
+          2: { apply Hf. }
+          apply Rmult_le_compat; OK.
+          { apply RealDecrTrial_μnn; lra. }
+          { apply Iverson_nonneg. }
+          rewrite /RealDecrTrial_μ.
+          rewrite /Iverson.
+          case_decide.
+          2: {
+            rewrite Rmult_0_l.
+            admit.
+          }
+          rewrite Rmult_1_l.
+          rewrite /RealDecrTrial_μ0.
 
           admit. }
         { intros n.
