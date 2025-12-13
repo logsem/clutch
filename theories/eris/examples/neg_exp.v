@@ -1,11 +1,10 @@
-(*
-
 From clutch.eris Require Export eris error_rules receipt_rules.
 From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
 From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
-From clutch.eris.examples Require Import lazy_real max_lazy_real indicators real_decr_trial.
+From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial.
+From clutch.eris.examples Require Import math.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -275,7 +274,7 @@ Section credits.
 
   Local Theorem g_expectation {F L M}
     (Hf : ∀ x, 0 <= F x <= M)
-    (HCts : PCts F) :
+    (HCts : ∀ a b, PCts F a b) :
     is_RInt (g F L) 0 1 (NegExp_CreditV F L).
   Proof.
     have Hex : ∀ (a b : R), ex_RInt F a b.
@@ -397,6 +396,7 @@ Section credits.
         rewrite RInt_Rmult.
         2: {
           apply (ex_RInt_SeriesC (fun n => 1 / (fact n))). (* UB here might be wrong but I do think one exists *)
+          { admit. }
           { admit. }
           { admit. }
           { admit. }
@@ -705,7 +705,7 @@ Section program.
       else
         "trial" ("L" + #1%Z).
 
-  Lemma wp_NegExp_gen {M} (F : R → R) (Hnn : ∀ n, 0 <= F n <= M) E (HPcts : PCts F) :
+  Lemma wp_NegExp_gen {M} (F : R → R) (Hnn : ∀ n, 0 <= F n <= M) E (HPcts : ∀ a b, PCts F a b) :
     ⊢ ∀ L, ↯ (NegExp_CreditV F L) -∗
            WP NegExp #L @ E
       {{ p, ∃ (vz : Z) (vr : R) (ℓ : val), ⌜p = PairV #vz ℓ⌝ ∗ lazy_real ℓ vr ∗ ↯(F (vr + IZR vz))}}.
@@ -789,4 +789,3 @@ Section program.
   Qed.
 
 End program.
-*)

@@ -1,4 +1,4 @@
-From clutch.eris.examples.math Require Import prelude axioms iverson sets continuity2 piecewise.
+From clutch.eris.examples.math Require Import prelude axioms iverson sets continuity2 piecewise improper limit_exchanges.
 From clutch.eris Require Import infinite_tape.
 Import Hierarchy.
 Set Default Proof Using "Type*".
@@ -406,94 +406,90 @@ Lemma Fubini_Step_eq : ∀ {f xa xb ya yb}, PCts2 f xa xb ya yb →
 Proof.
 Admitted.
 
-
 (** Fubini's theorem holds for improper integrals *)
 (* WIP *)
-(*
+(* FubiniImproper_ex *)
+Theorem FubiniImproper_ex_x {f xa ya yb} (H : ∀ xb, FubiniCondition f xa xb ya yb) (HInt : True) :
+  ex_RInt_gen (fun x => RInt (fun y => f x y) ya yb) (at_point xa) (Rbar_locally Rbar.p_infty).
+Proof.
+  unfold ex_RInt_gen.
+  suffices Hlim : ∃ l, filterlim (λ b : R, RInt (λ x : R, RInt (λ y : R, f x y) ya yb) xa b) (Rbar_locally Rbar.p_infty) (locally l).
+  { destruct Hlim as [l Hl]; exists l.
+    apply is_RInt_gen_filterlim; [|exact Hl].
+    intros b.
+    apply Fubini_ex_x.
+    apply H.
+  }
+  (* Side condition, the integrals needs to be finite? Is there a general theorem I can prove here? *)
+  admit.
+Admitted.
 
-  (* FubiniImproper_ex *)
-  Theorem FubiniImproper_ex_x {f xa ya yb} (H : ∀ xb, FubiniCondition f xa xb ya yb) (HInt : True) :
-    ex_RInt_gen (fun x => RInt (fun y => f x y) ya yb) (at_point xa) (Rbar_locally Rbar.p_infty).
-  Proof.
-    unfold ex_RInt_gen.
-    suffices Hlim : ∃ l, filterlim (λ b : R, RInt (λ x : R, RInt (λ y : R, f x y) ya yb) xa b) (Rbar_locally Rbar.p_infty) (locally l).
-    { destruct Hlim as [l Hl]; exists l.
-      apply is_RInt_gen_filterlim; [|exact Hl].
-      intros b.
-      apply Fubini_ex_x.
-      apply H.
-    }
-    (* Side condition, the integrals needs to be finite? Is there a general theorem I can prove here? *)
-    a dmit.
-  A dmitted.
+Theorem FubiniImproper_ex_y {f xa ya yb} (H : ∀ xb, FubiniCondition f xa xb ya yb) (HInt : True) :
+  ex_RInt (fun y => (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty))) ya yb.
+Proof.
+  unfold ex_RInt.
+  suffices Hlim : ∃ l, is_RInt (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF))) ya yb l.
+  { destruct Hlim as [l Hl]; exists l.
+    eapply is_RInt_ext; [|exact Hl].
+    intros y Hy.
+    symmetry; apply filterlim_RInt_gen.
+    intros xb.
+    apply (@FubiniCondition_ex_RInt_x f xa xb ya yb (H xb) y).
+    lra.
+  }
 
-  Theorem FubiniImproper_ex_y {f xa ya yb} (H : ∀ xb, FubiniCondition f xa xb ya yb) (HInt : True) :
-    ex_RInt (fun y => (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty))) ya yb.
-  Proof.
-    unfold ex_RInt.
-    suffices Hlim : ∃ l, is_RInt (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF))) ya yb l.
-    { destruct Hlim as [l Hl]; exists l.
-      eapply is_RInt_ext; [|exact Hl].
-      intros y Hy.
-      symmetry; apply filterlim_RInt_gen.
-      intros xb.
-      apply (@FubiniCondition_ex_RInt_x f xa xb ya yb (H xb) y).
-      lra.
-    }
+  (*
+  Search RInt_gen iota.
+  Check (iota (is_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty))).
+  Search RInt_gen.
+  Check filterlim.
+  *)
+Admitted.
 
-    (*
-    Search RInt_gen iota.
-    Check (iota (is_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty))).
-    Search RInt_gen.
-    Check filterlim.
-    *)
-  A dmitted.
+Theorem FubiniImproper_eq {f xa ya yb} (H : ∀ xb, FubiniCondition f xa xb ya yb)
+  (HInt : True) :
+  RInt_gen (fun x => RInt (fun y => f x y) ya yb) (at_point xa) (Rbar_locally Rbar.p_infty) =
+  RInt (fun y => (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty))) ya yb.
+Proof.
+  rewrite filterlim_RInt_gen.
+  2: {
+    intros xb.
+    apply Fubini_ex_x.
+    apply H.
+  }
+  replace (RInt (λ y : R, RInt_gen (λ x : R, f x y) (at_point xa) (Rbar_locally Rbar.p_infty)) ya yb)
+     with (RInt (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF))) ya yb).
+  2: {
+    apply RInt_ext.
+    intros y Hy.
+    symmetry; apply filterlim_RInt_gen.
+    intros xb.
+    apply (@FubiniCondition_ex_RInt_x f xa xb ya yb (H xb) y).
+    lra.
+  }
+  apply @iota_filterlim_locally.
+  { apply Proper_StrongProper. apply Rbar_locally_filter. }
+  (* Apply Definite/Definite Fubini *)
+  replace (λ xb : R, RInt (λ x : R, RInt (λ y : R, f x y) ya yb) xa xb)
+    with  (λ xb : R, RInt (λ y : R, RInt (λ x : R, f x y) xa xb) ya yb).
+  2: { apply functional_extensionality. intros xb. rewrite -Fubini_eq; done. }
+  apply (@Exchange2 (λ xb y : R, RInt (λ x : R, f x y) xa xb) ya yb
+    (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF)))).
+  { intros xb. apply Fubini_ex_y. apply H.  }
 
-  Theorem FubiniImproper_eq {f xa ya yb} (H : ∀ xb, FubiniCondition f xa xb ya yb)
-    (HInt : True) :
-    RInt_gen (fun x => RInt (fun y => f x y) ya yb) (at_point xa) (Rbar_locally Rbar.p_infty) =
-    RInt (fun y => (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty))) ya yb.
-  Proof.
-    rewrite filterlim_RInt_gen.
-    2: {
-      intros xb.
-      apply Fubini_ex_x.
-      apply H.
-    }
-    replace (RInt (λ y : R, RInt_gen (λ x : R, f x y) (at_point xa) (Rbar_locally Rbar.p_infty)) ya yb)
-       with (RInt (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF))) ya yb).
-    2: {
-      apply RInt_ext.
-      intros y Hy.
-      symmetry; apply filterlim_RInt_gen.
-      intros xb.
-      apply (@FubiniCondition_ex_RInt_x f xa xb ya yb (H xb) y).
-      lra.
-    }
-    apply @iota_filterlim_locally.
-    { apply Proper_StrongProper. apply Rbar_locally_filter. }
-    (* Apply Definite/Definite Fubini *)
-    replace (λ xb : R, RInt (λ x : R, RInt (λ y : R, f x y) ya yb) xa xb)
-      with  (λ xb : R, RInt (λ y : R, RInt (λ x : R, f x y) xa xb) ya yb).
-    2: { apply functional_extensionality. intros xb. rewrite -Fubini_eq; done. }
-    apply (@Exchange2 (λ xb y : R, RInt (λ x : R, f x y) xa xb) ya yb
-      (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF)))).
-    { intros xb. apply Fubini_ex_y. apply H.  }
+  replace (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF)))
+     with (λ y : R, RInt_gen (λ x : R, f x y) (at_point xa) (Rbar_locally Rbar.p_infty)).
+  2: { apply functional_extensionality. intros y. apply filterlim_RInt_gen.
+       intros xb. apply (@FubiniCondition_ex_RInt_x f xa xb ya yb (H xb) y).
+       (* We can improve FubiniCondition to FubiniConditionU that applies on the entire x/y plane,
+          and requires that the function be zero outside of the rectangle.  *)
+       admit.
+  }
 
-    replace (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF)))
-       with (λ y : R, RInt_gen (λ x : R, f x y) (at_point xa) (Rbar_locally Rbar.p_infty)).
-    2: { apply functional_extensionality. intros y. apply filterlim_RInt_gen.
-         intros xb. apply (@FubiniCondition_ex_RInt_x f xa xb ya yb (H xb) y).
-         (* We can improve FubiniCondition to FubiniConditionU that applies on the entire x/y plane,
-            and requires that the function be zero outside of the rectangle.  *)
-         a dmit.
-    }
+  (* I think we can prove this with something like the Cauchy Critereon
 
-    (* I think we can prove this with something like the Cauchy Critereon
+    A family of functions indexed by a real number r converges as the r → ∞
+    if for evey epsilon, there exists R such that the for every R' > R,
+    the sup of f on [R, R'] is bounded above by epsilon *)
 
-      A family of functions indexed by a real number r converges as the r → ∞
-      if for evey epsilon, there exists R such that the for every R' > R,
-      the sup of f on [R, R'] is bounded above by epsilon *)
-
-  A dmitted.
-*)
+Admitted.

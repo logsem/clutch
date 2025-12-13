@@ -497,81 +497,79 @@ Proof.
 Qed.
 
 
-(* Some WIP lemmas
-
   (* Used by ex_RInt_gen_Ici_compare_strong *)
-  Lemma LeftExtend_continuous {f : R → R} {L : R}  :
-    (∀ x, L <= x → Continuity.continuous f x) →
-    (∀ x, Continuity.continuous (LeftExtend f L) x).
-  Proof.
-    intros H x.
-    destruct (Rtotal_order L x) as [Hlt|[Heq|Hgt]].
-    { (* (LeftExtend f L) is equal to f on a neighbourhood of x which is continuous by hypotheses. *)
-      assert (Heps1 : 0 < (x - L) / 2) by lra.
-      apply Continuity.continuous_ext_loc with (g := f).
-      + rewrite /locally//=.
-        exists (mkposreal ((x - L) / 2) Heps1).
-        intros y Hy.
-        rewrite /ball/=/AbsRing_ball/= in Hy.
-        symmetry.
-        apply LeftExtend_eq_r.
-        a dmit.
-      + apply H. lra.
-    }
-    { (* At the transition point: LeftExtend is constant equal to (f L) on the left and approaches (f L) on the right *)
-      a dmit. }
-    { (* (LeftExtend f L) is equal to f on a neighbourhood of x which is continuous by hypotheses. *)
-      assert (Heps1 : 0 < (L - x) / 2) by lra.
-      apply Continuity.continuous_ext_loc with (g := (fun (z : R) => f L)).
-      + rewrite /locally//=.
-        exists (mkposreal ((L - x) / 2) Heps1).
-        intros y Hy.
-        rewrite /ball/=/AbsRing_ball/= in Hy.
-        symmetry.
-        apply LeftExtend_eq_l.
-        a dmit.
-      + apply Continuity.continuous_const.
-    }
-  A dmitted.
+Lemma LeftExtend_continuous {f : R → R} {L : R}  :
+  (∀ x, L <= x → Continuity.continuous f x) →
+  (∀ x, Continuity.continuous (LeftExtend f L) x).
+Proof.
+  intros H x.
+  destruct (Rtotal_order L x) as [Hlt|[Heq|Hgt]].
+  { (* (LeftExtend f L) is equal to f on a neighbourhood of x which is continuous by hypotheses. *)
+    assert (Heps1 : 0 < (x - L) / 2) by lra.
+    apply Continuity.continuous_ext_loc with (g := f).
+    + rewrite /locally//=.
+      exists (mkposreal ((x - L) / 2) Heps1).
+      intros y Hy.
+      rewrite /ball/=/AbsRing_ball/= in Hy.
+      symmetry.
+      apply LeftExtend_eq_r.
+      admit.
+    + apply H. lra.
+  }
+  { (* At the transition point: LeftExtend is constant equal to (f L) on the left and approaches (f L) on the right *)
+    admit. }
+  { (* (LeftExtend f L) is equal to f on a neighbourhood of x which is continuous by hypotheses. *)
+    assert (Heps1 : 0 < (L - x) / 2) by lra.
+    apply Continuity.continuous_ext_loc with (g := (fun (z : R) => f L)).
+    + rewrite /locally//=.
+      exists (mkposreal ((L - x) / 2) Heps1).
+      intros y Hy.
+      rewrite /ball/=/AbsRing_ball/= in Hy.
+      symmetry.
+      apply LeftExtend_eq_l.
+      admit.
+    + apply Continuity.continuous_const.
+  }
+Admitted.
 
-  Lemma ex_RInt_gen_Ici_compare_strong {L : R} {F G : R → R} :
-    (∀ x, L <= x → Continuity.continuous F x) →
-    (∀ x, L <= x → Continuity.continuous G x) →
-    (∀ x, L <= x → 0 <= G x <= F x) →
-    ex_RInt_gen F (at_point L) (Rbar_locally Rbar.p_infty) →
-    ex_RInt_gen G (at_point L) (Rbar_locally Rbar.p_infty).
-  Proof.
-    intros Hf Hg Hfg Hex.
-    apply (@ex_RInt_gen_ext_eq_Ici (LeftExtend G L)).
-    { intros ??. by apply LeftExtend_eq_r. }
-    apply (@ex_RInt_gen_Ici_compare L (LeftExtend F L) (LeftExtend G L)).
-    { intros x; apply LeftExtend_continuous. intuition.  }
-    { intros x; apply LeftExtend_continuous. intuition.  }
-    { intros x.
-      split.
-      { apply LeftExtend_nn.
-        intros ??.
-        apply Hfg.
-        done.
-      }
-      { apply LeftExtend_mono.
-        intros ??.
-        apply Hfg.
-        done.
-      }
+Lemma ex_RInt_gen_Ici_compare_strong {L : R} {F G : R → R} :
+  (∀ x, L <= x → Continuity.continuous F x) →
+  (∀ x, L <= x → Continuity.continuous G x) →
+  (∀ x, L <= x → 0 <= G x <= F x) →
+  ex_RInt_gen F (at_point L) (Rbar_locally Rbar.p_infty) →
+  ex_RInt_gen G (at_point L) (Rbar_locally Rbar.p_infty).
+Proof.
+  intros Hf Hg Hfg Hex.
+  apply (@ex_RInt_gen_ext_eq_Ici (LeftExtend G L)).
+  { intros ??. by apply LeftExtend_eq_r. }
+  apply (@ex_RInt_gen_Ici_compare L (LeftExtend F L) (LeftExtend G L)).
+  { intros x; apply LeftExtend_continuous. intuition.  }
+  { intros x; apply LeftExtend_continuous. intuition.  }
+  { intros x.
+    split.
+    { apply LeftExtend_nn.
+      intros ??.
+      apply Hfg.
+      done.
     }
-    apply (@ex_RInt_gen_ext_eq_Ici F).
-    { intros ??. symmetry. by apply LeftExtend_eq_r. }
-    done.
-  Qed.
+    { apply LeftExtend_mono.
+      intros ??.
+      apply Hfg.
+      done.
+    }
+  }
+  apply (@ex_RInt_gen_ext_eq_Ici F).
+  { intros ??. symmetry. by apply LeftExtend_eq_r. }
+  done.
+Qed.
 
 
-  Lemma RInt_gen_pos_strong {F M}
-    (Hpos : forall x, 0 <= F x)
-    (Hex : ∀ b, ex_RInt F M b)
-    (Hnn : ∀ b, M <= b → 0 <= RInt F M b)
-    (Hex_L : ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty)) :
-    0 <= RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty).
-  Proof.
+Lemma RInt_gen_pos_strong {F M}
+  (Hpos : forall x, 0 <= F x)
+  (Hex : ∀ b, ex_RInt F M b)
+  (Hnn : ∀ b, M <= b → 0 <= RInt F M b)
+  (Hex_L : ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty)) :
+  0 <= RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty).
+Proof.
     (* I believe this reduces to RInt_gen_pos_ex by setting f to be 0 below M, so that the wrong direction integral is zero. *)
-*)
+Admitted.

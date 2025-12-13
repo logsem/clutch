@@ -25,8 +25,8 @@ Lemma IntervalFun_RInt {f xa xb} {a b} :
 Proof.
 Admitted.
 
-Lemma PCts_RInt {f xa xb} (HP : PCts f xa xb) {a b} :
-  ex_RInt f a b.
+Lemma PCts_RInt {f xa xb} (HP : PCts f xa xb) :
+  ex_RInt f xa xb.
 Proof.
 Admitted.
 

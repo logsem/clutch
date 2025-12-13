@@ -40,6 +40,7 @@ Definition is_smaller_prog : val :=
   λ: "l" "x" "y",
     let, ("α", "l'") := "l" in is_smaller_prog_aux "f" "x" "y" "α" "l'"
 .
+(*
 Section adeqaucy.
 
   (* Lemma wp_pow (n m:nat): *)
@@ -69,4 +70,5 @@ Section adeqaucy.
   (*         destruct m; try done. lia. *)
   (* Qed. *)
   
-End adequacy. 
+End adequacy.
+*)
