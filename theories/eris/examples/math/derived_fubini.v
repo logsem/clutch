@@ -422,6 +422,14 @@ Definition IFubiniCondition_y (f : R → R → R) (xa xb : R) :=
 Lemma IFubini_Fubini_x {f xa xb ya yb} : IFubiniCondition_x f ya yb → FubiniCondition f xa xb ya yb.
 Proof. intros H ????. apply H; lra. Qed.
 
+Lemma IFubini_x_Ioo {f xa xb ya yb} :
+  IFubiniCondition_x f ya yb <-> FubiniCondition (fun x y => Iverson (Ioo ya yb) y *  f x y) xa xb ya yb.
+Proof.
+  (* The indicator is constant 1 on a neighbourhood of (x, y) *)
+Admitted.
+
+
+
 Lemma IFubini_Fubini_y {f xa xb ya yb} : IFubiniCondition_y f xa xb → FubiniCondition f xa xb ya yb.
 Proof. intros H ????. apply H; lra. Qed.
 
@@ -446,52 +454,85 @@ Proof.
 Admitted.
 
 Theorem FubiniImproper_eq_x {f xa ya yb} (H : IFubiniCondition_x f ya yb)
-  (Hcauchy :  filterlim (λ xb y : R, RInt (λ x : R, f x y) xa xb) (Rbar_locally Rbar.p_infty)
-                (locally (λ y : R, RInt_gen (λ x : R, f x y) (at_point xa) (Rbar_locally Rbar.p_infty)))) :
+  (Hcauchy :  filterlim (λ xb y : R, RInt (λ x : R, Iverson (Ioo ya yb) y * f x y) xa xb) (Rbar_locally Rbar.p_infty)
+                (locally (λ y : R, RInt_gen (λ x : R, Iverson (Ioo ya yb) y * f x y) (at_point xa) (Rbar_locally Rbar.p_infty)))) :
   RInt_gen (fun x => RInt (fun y => f x y) ya yb) (at_point xa) (Rbar_locally Rbar.p_infty) =
   RInt (fun y => (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty))) ya yb.
 Proof.
+
+  suffices Hred :
+    RInt_gen (fun x => RInt (fun y => Iverson (Ioo ya yb) y * f x y) ya yb) (at_point xa) (Rbar_locally Rbar.p_infty) =
+    RInt (fun y => (RInt_gen (fun x => Iverson (Ioo ya yb) y * f x y) (at_point xa) (Rbar_locally Rbar.p_infty))) ya yb.
+  {
+    replace (RInt_gen (λ x : R, RInt (λ y : R, f x y) ya yb) (at_point xa) (Rbar_locally Rbar.p_infty))
+       with (RInt_gen (λ x : R, RInt (λ y : R, Iverson (Ioo ya yb) y * f x y) ya yb) (at_point xa) (Rbar_locally Rbar.p_infty)).
+    { replace (RInt (λ y : R, RInt_gen (λ x : R, f x y) (at_point xa) (Rbar_locally Rbar.p_infty)) ya yb)
+         with (RInt (λ y : R, RInt_gen (λ x : R, Iverson (Ioo ya yb) y * f x y) (at_point xa) (Rbar_locally Rbar.p_infty)) ya yb).
+      { apply Hred. }
+      { apply RInt_ext. intros y Hy. apply RInt_gen_ext. intros x.
+        rewrite /Iverson. case_decide. { lra. } rewrite /Ioo//= in H0. lra. }
+    }
+    { apply RInt_gen_ext. intros x. apply RInt_ext. intros y Hy.
+      rewrite /Iverson. case_decide. { lra. } rewrite /Ioo//= in H0. lra. }
+  }
+
+
+
+  (* Reuce this by changing f to be f times an indictor *)
   rewrite filterlim_RInt_gen.
   2: {
     intros xb.
     apply Fubini_ex_x.
-    apply IFubini_Fubini_x.
+    apply IFubini_x_Ioo.
     apply H.
   }
-  replace (RInt (λ y : R, RInt_gen (λ x : R, f x y) (at_point xa) (Rbar_locally Rbar.p_infty)) ya yb)
-     with (RInt (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF))) ya yb).
+  replace (RInt (λ y : R, RInt_gen (λ x : R, Iverson (Ioo ya yb) y * f x y) (at_point xa) (Rbar_locally Rbar.p_infty)) ya yb)
+     with (RInt (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, Iverson (Ioo ya yb) y * f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF))) ya yb).
   2: {
     apply RInt_ext.
     intros y Hy.
     symmetry; apply filterlim_RInt_gen.
     intros xb.
-    eapply (@FubiniCondition_ex_RInt_x f xa xb ya yb).
+    eapply (@FubiniCondition_ex_RInt_x (λ x y, Iverson (Ioo ya yb) y * f x y) xa xb ya yb).
     2: lra.
-    apply IFubini_Fubini_x.
+    apply IFubini_x_Ioo.
     apply H.
   }
   apply @iota_filterlim_locally.
   { apply Proper_StrongProper. apply Rbar_locally_filter. }
   (* Apply Definite/Definite Fubini *)
-  replace (λ xb : R, RInt (λ x : R, RInt (λ y : R, f x y) ya yb) xa xb)
-    with  (λ xb : R, RInt (λ y : R, RInt (λ x : R, f x y) xa xb) ya yb).
+  replace (λ xb : R, RInt (λ x : R, RInt (λ y : R, Iverson (Ioo ya yb) y * f x y) ya yb) xa xb)
+    with  (λ xb : R, RInt (λ y : R, RInt (λ x : R, Iverson (Ioo ya yb) y * f x y) xa xb) ya yb).
   2: { apply functional_extensionality. intros xb. rewrite -Fubini_eq; try lra.
-    apply IFubini_Fubini_x.
+    apply IFubini_x_Ioo.
     apply H.
   }
-  apply (@Exchange2 (λ xb y : R, RInt (λ x : R, f x y) xa xb) ya yb
-    (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF)))).
+  apply (@Exchange2 (λ xb y : R, RInt (λ x : R, Iverson (Ioo ya yb) y * f x y) xa xb) ya yb
+    (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, Iverson (Ioo ya yb) y * f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF)))).
   { intros xb. apply Fubini_ex_y.
-    apply IFubini_Fubini_x.
+    apply IFubini_x_Ioo.
     apply H.
   }
 
-  replace (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF)))
-     with (λ y : R, RInt_gen (λ x : R, f x y) (at_point xa) (Rbar_locally Rbar.p_infty)).
-  2: { apply functional_extensionality. intros y. apply filterlim_RInt_gen.
-       intros xb. apply (@FubiniCondition_ex_RInt_x f xa xb ya yb); try lra.
-       { admit. }
-       { admit. }
+  replace (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, Iverson (Ioo ya yb) y * f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF)))
+     with (λ y : R, RInt_gen (λ x : R, Iverson (Ioo ya yb) y * f x y) (at_point xa) (Rbar_locally Rbar.p_infty)).
+  { apply Hcauchy. }
+
+  apply functional_extensionality. intros y.
+  apply filterlim_RInt_gen.
+  intros xb.
+  apply (@IFubini_x_Ioo _ xa xb) in H.
+  rewrite /Iverson.
+  case_decide.
+  2: {
+    replace (λ x : R, 0 * f x y) with (λ x : R, 0) by (apply functional_extensionality; intros ?; lra).
+    apply ex_RInt_const.
   }
-  apply Hcauchy.
+  1: {
+    replace (λ x : R, 1 * f x y) with (λ x : R, f x y) by (apply functional_extensionality; intros ?; lra).
+    eapply (@FubiniCondition_ex_RInt_x _ _ _ ya yb).
+    2: {  rewrite /Ioo//= in H0. lra. }
+    rewrite -IFubini_x_Ioo in H.
+    by apply IFubini_Fubini_x.
+  }
 Admitted.

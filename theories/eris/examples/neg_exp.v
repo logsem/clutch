@@ -270,15 +270,33 @@ Section credits.
       last first.
     { rewrite RInt_add.
       3: {
-        (* Uniform bound above by one of the even or odd exponential sums, basically *)
-        (* eapply (ex_RInt_SeriesC (fun n => M / fact n)); OK. *)
-        all: admit.
+        eapply (ex_RInt_SeriesC (λ n : nat, (Iverson Zeven n * (1^n/(fact n) + 1^(n+1)%nat/(fact (n+1)%nat))) * M)); OK.
+        { rewrite ex_seriesC_nat.
+          apply ex_seriesC_scal_r.
+          apply Hexp_ex_even.
+        }
+        { intros ???.
+          split.
+          { apply Rmult_le_pos; [|apply Hf].
+            apply Rmult_le_pos; [apply RealDecrTrial_μnn; lra|].
+            apply Iverson_nonneg.
+          }
+
+          admit. }
+        { intros n.
+          apply ex_RInt_mult.
+          { admit. }
+          { admit. }
+        }
       }
       2: {
-
-        (* Uniform bound above by one of the even or odd exponential sums, basically *)
-        (* eapply (ex_RInt_SeriesC (fun n => M / fact n)); OK. *)
-        all: admit.
+        eapply (ex_RInt_SeriesC (λ n : nat, (Iverson (not ∘ Zeven) n * (1 ^ n / fact n + 1 ^ (n + 1) / fact (n + 1)) * M))); OK.
+        { rewrite ex_seriesC_nat.
+          apply ex_seriesC_scal_r.
+          apply Hexp_ex_odd.
+        }
+        { admit. }
+        { admit. }
       }
       apply RInt_ext.
       rewrite Rmin_left; OK.
