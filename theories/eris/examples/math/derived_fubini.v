@@ -406,10 +406,26 @@ Lemma Fubini_Step_eq : ∀ {f xa xb ya yb}, PCts2 f xa xb ya yb →
 Proof.
 Admitted.
 
-(** Fubini's theorem holds for improper integrals *)
-(* WIP *)
-(* FubiniImproper_ex *)
-Theorem FubiniImproper_ex_x {f xa ya yb} (H : ∀ xb, FubiniCondition f xa xb ya yb) (HInt : True) :
+
+
+
+(** Fubini's theorem holds for improper integrals of continuous functions *)
+
+Definition IFubiniCondition_x (f : R → R → R) (ya yb : R) :=
+  ∀ x y, Rmin ya yb <= y <= Rmax ya yb →
+  Continuity2 (uncurry f) x y.
+
+Definition IFubiniCondition_y (f : R → R → R) (xa xb : R) :=
+  ∀ x y, Rmin xa xb <= x <= Rmax xa xb →
+  Continuity2 (uncurry f) x y.
+
+Lemma IFubini_Fubini_x {f xa xb ya yb} : IFubiniCondition_x f ya yb → FubiniCondition f xa xb ya yb.
+Proof. intros H ????. apply H; lra. Qed.
+
+Lemma IFubini_Fubini_y {f xa xb ya yb} : IFubiniCondition_y f xa xb → FubiniCondition f xa xb ya yb.
+Proof. intros H ????. apply H; lra. Qed.
+
+Theorem FubiniImproper_ex_x {f xa ya yb} (H : IFubiniCondition_x f ya yb) :
   ex_RInt_gen (fun x => RInt (fun y => f x y) ya yb) (at_point xa) (Rbar_locally Rbar.p_infty).
 Proof.
   unfold ex_RInt_gen.
@@ -418,32 +434,15 @@ Proof.
     apply is_RInt_gen_filterlim; [|exact Hl].
     intros b.
     apply Fubini_ex_x.
-    apply H.
+    by apply IFubini_Fubini_x.
   }
   (* Side condition, the integrals needs to be finite? Is there a general theorem I can prove here? *)
   admit.
 Admitted.
 
-Theorem FubiniImproper_ex_y {f xa ya yb} (H : ∀ xb, FubiniCondition f xa xb ya yb) (HInt : True) :
+Theorem FubiniImproper_ex_y {f xa ya yb} (H : ∀ xb, IFubiniCondition_y f xa xb) :
   ex_RInt (fun y => (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty))) ya yb.
 Proof.
-  unfold ex_RInt.
-  suffices Hlim : ∃ l, is_RInt (λ y : R, iota (λ IF : R, filterlim (λ b : R, RInt (λ x : R, f x y) xa b) (Rbar_locally Rbar.p_infty) (locally IF))) ya yb l.
-  { destruct Hlim as [l Hl]; exists l.
-    eapply is_RInt_ext; [|exact Hl].
-    intros y Hy.
-    symmetry; apply filterlim_RInt_gen.
-    intros xb.
-    apply (@FubiniCondition_ex_RInt_x f xa xb ya yb (H xb) y).
-    lra.
-  }
-
-  (*
-  Search RInt_gen iota.
-  Check (iota (is_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty))).
-  Search RInt_gen.
-  Check filterlim.
-  *)
 Admitted.
 
 Theorem FubiniImproper_eq {f xa ya yb} (H : ∀ xb, FubiniCondition f xa xb ya yb)

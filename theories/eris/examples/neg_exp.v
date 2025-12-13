@@ -269,13 +269,16 @@ Section credits.
              (RInt (λ x, SeriesC (λ n, RealDecrTrial_μ x 0 n * Iverson Zeven n * F (x + L))) 0 1)));
       last first.
     { rewrite RInt_add.
-      3: { eapply ex_RInt_SeriesC.
+      3: {
+        (* Uniform bound above by one of the even or odd exponential sums, basically *)
+        (* eapply (ex_RInt_SeriesC (fun n => M / fact n)); OK. *)
         all: admit.
-        Unshelve. admit.
       }
-      2: { eapply ex_RInt_SeriesC.
+      2: {
+
+        (* Uniform bound above by one of the even or odd exponential sums, basically *)
+        (* eapply (ex_RInt_SeriesC (fun n => M / fact n)); OK. *)
         all: admit.
-        Unshelve. admit.
       }
       apply RInt_ext.
       rewrite Rmin_left; OK.
@@ -374,11 +377,15 @@ Section credits.
         funexti.
         rewrite RInt_Rmult.
         2: {
+          (* Similar to above, this upper bound is an even or odd exp series *)
+          (*
           apply (ex_RInt_SeriesC (fun n => 1 / (fact n))). (* UB here might be wrong but I do think one exists *)
           { admit. }
           { admit. }
           { admit. }
           { admit. }
+          *)
+          admit.
         }
         apply RInt_ext.
         intros ??.
