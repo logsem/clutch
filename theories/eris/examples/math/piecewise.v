@@ -247,23 +247,36 @@ Definition IPCts (f : R → R) : Prop :=
 Lemma IPCts_PCts (f : R → R) : IPCts f → ∀ a b, PCts f a b.
 Proof.
   intros [f0 [L[?[??]]]] ??.
-  (*  Need to add f0 to each rectangle, but otherwise it's easy.
-  exists L; split; try done.
-  intros ??. rewrite H //=.
-  *)
-Admitted.
+  exists ([(f0, a, b)] ++ L).
+  split.
+  { intros ??.
+    rewrite fmap_app.
+    rewrite fsum_app.
+    rewrite H; f_equal.
+    rewrite /fsum//=.
+    rewrite Iverson_True; try lra.
+    done.
+  }
+  { apply Forall_app_2; try done.
+    apply Forall_singleton.
+    intros ??.
+    apply H1.
+  }
+Qed.
 
 Lemma IPCts_RInt {f xa xb} (HP : IPCts f ) : ex_RInt f xa xb.
 Proof. by apply PCts_RInt, IPCts_PCts. Qed.
 
 Lemma IPCts_cts {f} : (∀ x, Continuity.continuous f x) → IPCts f.
 Proof.
-  (** TODO: The definition is actually not right, since we need the intervals to possibly be infinite.
-      Easy fix though.  *)
-
-
-
-Admitted.
+  intros H.
+  exists f. exists [].
+  rewrite /fsum//=.
+  split; last split.
+  { intros ?; lra. }
+  { apply Forall_nil_2. }
+  { done. }
+Qed.
 
 Lemma IPCts_plus {f g} : IPCts f → IPCts g → IPCts (fun x => f x + g x).
 Proof. Admitted.
