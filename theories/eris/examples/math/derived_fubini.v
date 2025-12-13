@@ -434,14 +434,13 @@ Proof.
   (* The indicator is constant 1 on a neighbourhood of (x, y) *)
 Admitted.
 
-
-
 Lemma IFubini_Fubini_y {f xa xb ya yb} : IFubiniCondition_y f xa xb → FubiniCondition f xa xb ya yb.
 Proof. intros H ????. apply H; lra. Qed.
 
 Theorem FubiniImproper_ex_x {f xa ya yb} (H : IFubiniCondition_x f ya yb)
-  (Hunif : filterlim (λ xb y : R, RInt (λ x : R, Iverson (Ioo ya yb) y * f x y) xa xb) (Rbar_locally Rbar.p_infty)
-                     (locally (λ y : R, RInt_gen (λ x : R, Iverson (Ioo ya yb) y * f x y) (at_point xa) (Rbar_locally Rbar.p_infty)))) :
+  (Hunif :
+    filterlim (λ xb y : R, RInt (λ x : R, Iverson (Ioo ya yb) y * f x y) xa xb) (Rbar_locally Rbar.p_infty)
+          (locally (λ y : R, RInt_gen (λ x : R, Iverson (Ioo ya yb) y * f x y) (at_point xa) (Rbar_locally Rbar.p_infty)))) :
   ex_RInt_gen (fun x => RInt (fun y => f x y) ya yb) (at_point xa) (Rbar_locally Rbar.p_infty).
 Proof.
   (* Reduce to indicator version using extensionality *)
@@ -470,6 +469,13 @@ Proof.
   apply Hunif.
 Qed.
 
+(* Helper lemma: extract pointwise convergence from uniform convergence *)
+Lemma filterlim_locally_eval {A : Type} {F : R → A → R} {G : A → R} {a : A} :
+  filterlim F (Rbar_locally Rbar.p_infty) (locally G) →
+  filterlim (λ r, F r a) (Rbar_locally Rbar.p_infty) (locally (G a)).
+Proof.
+Admitted.
+
 (* Helper lemma: uniform limits of integrable functions are integrable *)
 Lemma ex_RInt_filterlim_uniform {a b : R} {F : R → R → R} {G : R → R} :
   (∀ r, ex_RInt (F r) a b) →
@@ -485,7 +491,7 @@ Theorem FubiniImproper_ex_y {f xa ya yb} (H : IFubiniCondition_x f ya yb)
 Proof.
   (* Reduce to indicator version using extensionality *)
   apply (@ex_RInt_ext _ (λ y : R, RInt_gen (λ x : R, Iverson (Ioo ya yb) y * f x y) (at_point xa) (Rbar_locally Rbar.p_infty))).
-  { intros y Hy.
+  - intros y Hy.
     (* For y in (ya, yb), the indicator is 1 on [xa, ∞) *)
     apply RInt_gen_ext_eq_Ici.
     { intros x Hx. rewrite /Iverson. case_decide; [lra | exfalso; rewrite /Ioo//= in H0; lra]. }
@@ -496,14 +502,16 @@ Proof.
     { intros xb. apply (@FubiniCondition_ex_RInt_x (λ x y0, Iverson (Ioo ya yb) y0 * f x y0) xa xb ya yb).
       { apply IFubini_x_Ioo. done. }
       { lra. } }
-    admit.  (* Need: pointwise convergence from uniform *)
-  }
-
-  (* Show the indicator version is integrable using uniform convergence *)
-  apply (ex_RInt_filterlim_uniform (F := λ xb y, RInt (λ x, Iverson (Ioo ya yb) y * f x y) xa xb)).
-  { intros r. apply Fubini_ex_y. apply IFubini_x_Ioo. done. }
-  apply Hunif.
-Admitted.
+    (* Extract pointwise convergence from uniform: apply Hunif at fixed y *)
+    apply (filterlim_locally_eval (F := λ xb y0, RInt (λ x, Iverson (Ioo ya yb) y0 * f x y0) xa xb)
+                                   (G := λ y0, RInt_gen (λ x, Iverson (Ioo ya yb) y0 * f x y0) (at_point xa) (Rbar_locally Rbar.p_infty))
+                                   (a := y)).
+    apply Hunif.
+  - (* Show the indicator version is integrable using uniform convergence *)
+    apply (ex_RInt_filterlim_uniform (F := λ xb y, RInt (λ x, Iverson (Ioo ya yb) y * f x y) xa xb)).
+    { intros r. apply Fubini_ex_y. apply IFubini_x_Ioo. done. }
+    apply Hunif.
+Qed.
 
 Theorem FubiniImproper_eq_x {f xa ya yb} (H : IFubiniCondition_x f ya yb)
   (Hcauchy :  filterlim (λ xb y : R, RInt (λ x : R, Iverson (Ioo ya yb) y * f x y) xa xb) (Rbar_locally Rbar.p_infty)
