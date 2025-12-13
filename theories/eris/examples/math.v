@@ -10,3 +10,10 @@ Require Export clutch.eris.examples.math.improper.
 Require Export clutch.eris.examples.math.derived_fubini.
 Require Export clutch.eris.examples.math.piecewise.
 Require Export clutch.eris.examples.math.periodisation.
+
+
+From clutch.eris.examples.math Require Import prelude.
+From clutch.eris Require Import infinite_tape.
+Set Default Proof Using "Type*".
+#[local] Open Scope R.
+Import Hierarchy.

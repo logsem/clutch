@@ -1,7 +1,8 @@
-From clutch.eris.examples.math Require Import prelude iverson sets.
+From clutch.eris.examples.math Require Import prelude iverson sets piecewise.
 From clutch.eris Require Import infinite_tape.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
+Import Hierarchy.
 
 (** Improper integrals, AKA integrals where one bound is infinite.
 This is a special case of RInt_gen. *)
@@ -564,6 +565,16 @@ Proof.
 Qed.
 
 
+Lemma ex_RInt_gen_Ici_compare_PCts {L : R} {F G : R → R} :
+  (∀ x, L <= x → PCts F L x) →
+  (∀ x, L <= x → PCts G L x) →
+  (∀ x, L <= x → 0 <= G x <= F x) →
+  ex_RInt_gen F (at_point L) (Rbar_locally Rbar.p_infty) →
+  ex_RInt_gen G (at_point L) (Rbar_locally Rbar.p_infty).
+Proof.
+Admitted.
+
+
 Lemma RInt_gen_pos_strong {F M}
   (Hpos : forall x, 0 <= F x)
   (Hex : ∀ b, ex_RInt F M b)
@@ -573,3 +584,87 @@ Lemma RInt_gen_pos_strong {F M}
 Proof.
     (* I believe this reduces to RInt_gen_pos_ex by setting f to be 0 below M, so that the wrong direction integral is zero. *)
 Admitted.
+
+
+Lemma ex_RInt_gen_Ici_scal {M G} :
+  ex_RInt_gen G (at_point 0) (Rbar_locally Rbar.p_infty) →
+  ex_RInt_gen (λ x : R, M * G x) (at_point 0) (Rbar_locally Rbar.p_infty).
+Proof. Admitted.
+
+Lemma NegExp_prod_bounded_left {F G : R → R} {M}
+  (HFCts : ∀ x, Continuity.continuous F x)
+  (HGCts : ∀ x, Continuity.continuous G x)
+  (HFnn : ∀ x, 0 <= F x <= M)
+  (HGnn : ∀ x, 0 <= G x)
+  (HIntG : ex_RInt_gen G (at_point 0) (Rbar_locally Rbar.p_infty)) :
+  ex_RInt_gen (fun x => F x * G x) (at_point 0) (Rbar_locally Rbar.p_infty).
+Proof.
+  apply (@ex_RInt_gen_Ici_compare_strong 0 (fun x => M * G x) (fun x => F x * G x)).
+  - intros ??.
+    apply @Continuity.continuous_mult.
+    { apply Continuity.continuous_const. }
+    { done. }
+  - (* Continuity of F * G *)
+    intros ??.
+    apply @Continuity.continuous_mult; done.
+  - (* Bound: 0 ≤ F x * G x ≤ M * G x *)
+    intros x Hx.
+    split.
+    + apply Rmult_le_pos; [apply HFnn | apply HGnn].
+    + destruct (HFnn x) as [HF0 HFM].
+      apply Rmult_le_compat_r; [apply HGnn | apply HFM].
+  - (* M * G is integrable from 0 to infinity *)
+    apply (@ex_RInt_gen_ext_eq_Ici (fun x => scal M (G x)) (fun x => M * G x) 0).
+    + intros x Hx. rewrite /scal /= /mult /=.
+      lra.
+    + apply ex_RInt_gen_Ici_scal. apply HIntG.
+Qed.
+
+(** Helper lemmas for IPCts version *)
+
+Lemma fsum_app {T : Type} (L1 L2 : list (T → R)) (t : T) :
+  fsum (L1 ++ L2) t = fsum L1 t + fsum L2 t.
+Proof.
+  induction L1 as [|f L1 IH].
+  - simpl. lra.
+  - simpl. rewrite IH. lra.
+Qed.
+
+Lemma ex_RInt_gen_plus {F G : R → R} {M : R} :
+  ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) →
+  ex_RInt_gen G (at_point M) (Rbar_locally Rbar.p_infty) →
+  ex_RInt_gen (fun x => F x + G x) (at_point M) (Rbar_locally Rbar.p_infty).
+Proof. Admitted.
+
+Lemma ex_RInt_gen_fsum {L : list (R → R)} {M : R} :
+  Forall (fun f => ex_RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty)) L →
+  ex_RInt_gen (fsum L) (at_point M) (Rbar_locally Rbar.p_infty).
+Proof. Admitted.
+
+Lemma IntervalFun_product_bounded {f g : R → R} {af bf ag bg : R} {M : R} :
+  (∀ x, Ioo af bf x → 0 <= f x <= M) →
+  (∀ x, Ioo ag bg x → 0 <= g x) →
+  (∀ x, 0 <= IntervalFun_R (f, af, bf) x * IntervalFun_R (g, ag, bg) x
+        <= M * IntervalFun_R (g, ag, bg) x).
+Proof. Admitted.
+
+Lemma fsum_product {T : Type} (LF LG : list (T → R)) (x : T) :
+  fsum LF x * fsum LG x =
+  fsum (map (fun '(f, g) => fun t => f t * g t) (list_prod LF LG)) x.
+Proof.
+  induction LF as [|f LF IH]; simpl; [lra|].
+  rewrite Rmult_plus_distr_r. rewrite IH.
+  rewrite map_app fsum_app. f_equal.
+  induction LG as [|g LG IHLG]; simpl; first lra.
+  admit.
+Admitted.
+
+
+Lemma NegExp_prod_bounded_left_IPCts {F G : R → R} {M}
+  (HFIPCts : IPCts F)
+  (HGIPCts : IPCts G)
+  (HFnn : ∀ x, 0 <= F x <= M)
+  (HGnn : ∀ x, 0 <= G x)
+  (HIntG : ex_RInt_gen G (at_point 0) (Rbar_locally Rbar.p_infty)) :
+  ex_RInt_gen (fun x => F x * G x) (at_point 0) (Rbar_locally Rbar.p_infty).
+Proof. Admitted.

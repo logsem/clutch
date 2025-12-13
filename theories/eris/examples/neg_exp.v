@@ -82,46 +82,29 @@ Section credits.
     auto_derive. OK.
   Qed.
 
-  Lemma NegExp_CreditV_nn {F : R -> R} {M} (Hnn : ∀ r, 0 <= F r <= M) {L : nat} (H : ∀ b, ex_RInt F 0 b) :
+  Lemma NegExp_μ_ex_RInt_gen {a N} : ex_RInt_gen (NegExp_ρ N) (at_point a) (Rbar_locally Rbar.p_infty).
+  Proof. Admitted.
+
+  Lemma NegExp_CreditV_nn {F : R -> R} {M} (Hnn : ∀ r, 0 <= F r <= M) {L : nat} (H : IPCts F) :
     0 <= NegExp_CreditV F (L + 1).
   Proof.
     rewrite /NegExp_CreditV.
     apply RInt_gen_pos_strong.
     { intros ?. apply Rmult_le_pos; first apply Hnn. apply NegExp_ρ_nn. }
-    { intros b. apply ex_RInt_mult; [apply H|apply NegExp_ρ_ex_RInt]. }
+    { intros b. apply ex_RInt_mult; [ | apply NegExp_ρ_ex_RInt]. apply PCts_RInt.
+      by apply IPCts_PCts.
+    }
     { intros b Hb.
       apply RInt_ge_0; try done.
-      { apply ex_RInt_mult; [apply H|apply NegExp_ρ_ex_RInt]. }
+      { apply ex_RInt_mult; [ | apply NegExp_ρ_ex_RInt].
+        apply PCts_RInt.
+        by apply IPCts_PCts. }
       { intros ??.  apply Rmult_le_pos; first apply Hnn. apply NegExp_ρ_nn. }
     }
-
-    (* We need stronger assumptions on F here.
-
-       Split at L (for NegExp_ρ)
-       Split at every discontinuity of F.
-       Then on all intervals, it is the multiplication of constant functions.
-       Comparison not needed.
-
-    *)
-
-    (*
-    apply (@ex_RInt_gen_Ici_compare_strong 0 (λ x : R, M * NegExp_ρ (L + 1) x)).
-    { (* OK this might not be exactly right (might need to split again at L) but something will work for this goal *)
-      (*
-      intros ??.
-      apply (@Continuity.continuous_mult R_UniformSpace R_AbsRing).
-      { apply Continuity.continuous_const. }
-      rewrite /NegExp_ρ.
-      apply (@Continuity.continuous_mult R_UniformSpace R_AbsRing).
-      { apply Continuity.continuous_const. }
-      rewrite /NegExp_ρ0.
-       a dmit.
-      *)
-    a dmit.}
-    { intros ??. (* Require that F be continuous *) a dmit. }
-    { intros ??. (* OK *) a dmit. }
-    { a dmit. }
-    *)
+    eapply NegExp_prod_bounded_left_IPCts; try done.
+    { admit. }
+    { intros ?. apply NegExp_ρ_nn. }
+    { apply NegExp_μ_ex_RInt_gen. }
   Admitted.
 
   Theorem NegExp_CreditV_ub {F L M} (HF : ∀ x, 0 <= F x <= M) : NegExp_CreditV F L <= M.
@@ -139,7 +122,7 @@ Section credits.
   Local Definition g (F : R -> R) (L : nat) : R -> R := fun x =>
     RealDecrTrial_CreditV (hx F x L) 0 x.
 
-  Lemma hx_nonneg {F M xr L} (Hnn : ∀ r, 0 <= F r <= M) (Hb : ∀ b : R, ex_RInt F 0 b) : ∀ n : nat, 0 <= hx F xr L n.
+  Lemma hx_nonneg {F M xr L} (Hnn : ∀ r, 0 <= F r <= M) (Hb : IPCts F) : ∀ n : nat, 0 <= hx F xr L n.
   Proof.
     rewrite /hx.
     intros ?.
@@ -148,7 +131,7 @@ Section credits.
     { eapply NegExp_CreditV_nn; auto. }
   Qed.
 
-  Lemma g_nonneg {F M L r} (Hnn : ∀ r, 0 <= F r <= M) (Hr : 0 <= r <= 1) (Hb : ∀ b : R, ex_RInt F 0 b) : 0 <= g F L r.
+  Lemma g_nonneg {F M L r} (Hnn : ∀ r, 0 <= F r <= M) (Hr : 0 <= r <= 1) (Hb : IPCts F) : 0 <= g F L r.
   Proof.
     rewrite /g.
     apply CreditV_nonneg; auto.
@@ -156,7 +139,7 @@ Section credits.
     eapply hx_nonneg; auto.
   Qed.
 
-  Local Lemma g_ex_RInt {F L M} (Hbound : ∀ x, 0 <= F x <= M) (Hb : ∀ a b : R, ex_RInt F a b) : ex_RInt (g F L) 0 1.
+  Local Lemma g_ex_RInt {F L M} (Hbound : ∀ x, 0 <= F x <= M) (Hb : IPCts F) : ex_RInt (g F L) 0 1.
   Proof.
     rewrite -ex_RInt_dom /ex_RInt /g /RealDecrTrial_CreditV.
     replace (λ x : R, Iverson (Ioo 0 1) x * SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * hx F x L n))
@@ -262,6 +245,8 @@ Section credits.
         2: { funexti. rewrite /scal//=/mult//= Rmult_1_l; f_equal; OK. }
         apply (ex_RInt_comp_lin F 1 L 0 1).
         repeat rewrite Rmult_1_l.
+        apply PCts_RInt.
+        apply IPCts_PCts.
         apply Hb.
       }
     }
@@ -274,13 +259,13 @@ Section credits.
 
   Local Theorem g_expectation {F L M}
     (Hf : ∀ x, 0 <= F x <= M)
-    (HCts : ∀ a b, PCts F a b) :
+    (HCts : IPCts F) :
     is_RInt (g F L) 0 1 (NegExp_CreditV F L).
   Proof.
     have Hex : ∀ (a b : R), ex_RInt F a b.
-    { intros ??. by apply PCts_RInt. }
+    { intros ??. apply PCts_RInt. by apply IPCts_PCts. }
     suffices H : RInt (g F L) 0 1 = NegExp_CreditV F L.
-    { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)), (g_ex_RInt (M := M)); first OK. apply Hex. }
+    { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)), (g_ex_RInt (M := M)); OK. }
     rewrite /g.
     rewrite /RealDecrTrial_CreditV.
     rewrite /hx.
@@ -350,10 +335,10 @@ Section credits.
           { apply Iverson_nonneg. }
           { apply RealDecrTrial_μ0nn. OK. }
           { apply Iverson_nonneg. }
-          { eapply NegExp_CreditV_nn; last apply Hex. intros ?. eapply Hf. }
+          { eapply NegExp_CreditV_nn; last OK. intros ?. eapply Hf. }
         }
         { apply Rmult_le_compat.
-          2: { eapply NegExp_CreditV_nn; last apply Hex. intros ?. apply Hf. }
+          2: { eapply NegExp_CreditV_nn; last OK. intros ?. apply Hf. }
           3: { apply NegExp_CreditV_ub. intros ?. apply Hf. }
           1: { apply Rmult_le_pos; [apply Rmult_le_pos|].
                { apply Iverson_nonneg. }
@@ -705,13 +690,13 @@ Section program.
       else
         "trial" ("L" + #1%Z).
 
-  Lemma wp_NegExp_gen {M} (F : R → R) (Hnn : ∀ n, 0 <= F n <= M) E (HPcts : ∀ a b, PCts F a b) :
+  Lemma wp_NegExp_gen {M} (F : R → R) (Hnn : ∀ n, 0 <= F n <= M) E (HPcts : IPCts F) :
     ⊢ ∀ L, ↯ (NegExp_CreditV F L) -∗
            WP NegExp #L @ E
       {{ p, ∃ (vz : Z) (vr : R) (ℓ : val), ⌜p = PairV #vz ℓ⌝ ∗ lazy_real ℓ vr ∗ ↯(F (vr + IZR vz))}}.
   Proof.
     have Hex : ∀ a b, ex_RInt F a b.
-    { intros ??. by apply PCts_RInt. }
+    { intros ??. apply PCts_RInt. by apply IPCts_PCts. }
     iLöb as "IH".
     iIntros (L) "Hε".
     rewrite {2}/NegExp.
@@ -736,7 +721,7 @@ Section program.
         split.
         { apply Rplus_le_le_0_compat; apply Rmult_le_pos; try apply Iverson_nonneg.
           { apply Hnn.  }
-          { eapply NegExp_CreditV_nn; last apply Hex. intro r. apply Hnn. }
+          { eapply NegExp_CreditV_nn; last OK. intro r. apply Hnn. }
         }
         { apply Rplus_le_compat.
           { rewrite -{2}(Rmult_1_l (F (xr + L))).
@@ -745,7 +730,7 @@ Section program.
           }
           { rewrite -{2}(Rmult_1_l (NegExp_CreditV F (L + 1))).
             apply Rmult_le_compat_r; [|apply Iverson_le_1].
-            eapply NegExp_CreditV_nn; last apply Hex. intro r. apply Hnn.
+            eapply NegExp_CreditV_nn; last OK. intro r. apply Hnn.
           }
         }
       }
