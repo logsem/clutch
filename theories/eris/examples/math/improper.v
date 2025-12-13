@@ -653,7 +653,7 @@ Admitted.
 Lemma ex_RInt_gen_Ici_compare_IPCts {L : R} {F G : R → R} :
   IPCts F →
   IPCts G →
-  (∀ x, L <= x → 0 <= G x <= F x) →
+  (∀ x, 0 <= G x <= F x) →
   ex_RInt_gen F (at_point L) (Rbar_locally Rbar.p_infty) →
   ex_RInt_gen G (at_point L) (Rbar_locally Rbar.p_infty).
 Proof.
@@ -683,7 +683,7 @@ Proof.
     apply Rle_trans with (r2 := RInt F L b).
     { apply RInt_le; try lra; [apply HGint; done | apply HFint; done | intros x Hx; apply Hbound; lra]. }
     { apply is_RInt_gen_bound_partial; try done.
-      { intros x. admit. }
+      { intros x. specialize Hbound with x. lra. }
       { intros bl bu. rewrite HeqF. apply IPCts_RInt. exists LF. split; done. } }
   }
 
@@ -737,7 +737,7 @@ Proof.
     have : - eps < RInt G L x - Rbar.real lG < eps by lra.
     intros [H1 H2].
     by apply Rabs_def1.
-Admitted.
+Qed.
 
 Lemma NegExp_prod_bounded_left_IPCts {F G : R → R} {M}
   (HFIPCts : IPCts F)
@@ -750,7 +750,7 @@ Proof.
   apply (@ex_RInt_gen_Ici_compare_IPCts 0 (fun x => M * G x) (fun x => F x * G x)).
   - apply IPCts_scal_mult. done.
   - apply IPCts_mult; done.
-  - intros x Hx. split; [apply Rmult_le_pos; [apply HFnn | apply HGnn] |].
+  - intros x. split; [apply Rmult_le_pos; [apply HFnn | apply HGnn] |].
     destruct (HFnn x) as [HF0 HFM]. apply Rmult_le_compat_r; [apply HGnn | apply HFM].
   - apply ex_RInt_gen_Ici_scal. apply HIntG.
 Qed.
