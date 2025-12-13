@@ -622,4 +622,33 @@ Lemma UniformConverge_RInt (f : R → R → R) (g : R → R) (xa ya yb : R)
             (Rbar_locally Rbar.p_infty)
             (locally (λ y, RInt_gen (λ x, f x y) (at_point xa) (Rbar_locally Rbar.p_infty))).
 Proof.
+  rewrite filterlim_locally /Rbar_locally //=.
+  intro eps.
+  unfold ex_RInt_gen in Hg_ex.
+  destruct Hg_ex as [lg Hg_ex].
+  have Hg_lim : filterlim (λ b : R, RInt g xa b) (Rbar_locally Rbar.p_infty) (locally lg).
+  { apply filterlim_is_RInt_gen; [admit | apply Hg_ex]. }
+  have Heps2_pos : 0 < eps / 2 by (have := cond_pos eps; lra).
+  pose (eps2 := mkposreal (eps / 2) Heps2_pos).
+  rewrite filterlim_locally //= in Hg_lim.
+  destruct (Hg_lim eps2) as [M HM].
+  exists M.
+  intros xb Hxb.
+  rewrite /ball/=/fct_ball.
+  intro y.
+  rewrite /ball/=/AbsRing_ball/=.
+  (* For y outside [ya, yb], the bound holds trivially *)
+  destruct (Rle_dec (Rmin ya yb) y) as [Hy_min | Hy_min]; [|admit].
+  destruct (Rle_dec y (Rmax ya yb)) as [Hy_max | Hy_max]; [|admit].
+  (* Main case: y ∈ [Rmin ya yb, Rmax ya yb]
+     Key idea: Use Cauchy criterion
+     For any xb1, xb2 > M, we have:
+       |∫[xa,xb1] f(x,y) dx - ∫[xa,xb2] f(x,y) dx|
+       = |∫[xb1,xb2] f(x,y) dx|  (WLOG xb2 > xb1)
+       ≤ ∫[xb1,xb2] |f(x,y)| dx
+       ≤ ∫[xb1,xb2] g(x) dx
+       < eps/2  (by HM and convergence of ∫ g)
+     This shows the parametric integral is Cauchy, hence converges.
+     The limit is RInt_gen, and the convergence is uniform in y. *)
+  admit.
 Admitted.

@@ -23,6 +23,11 @@ Lemma IntervalFun_RInt {f xa xb} {a b} :
   IntervalFun_continuity (f, xa, xb) →
   ex_RInt (IntervalFun_R (f, xa, xb)) a b.
 Proof.
+  rewrite //=.
+  intros H.
+  Search ex_RInt "ext".
+
+
 Admitted.
 
 Lemma PCts_RInt {f xa xb} (HP : PCts f xa xb) :
