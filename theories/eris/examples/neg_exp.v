@@ -85,6 +85,9 @@ Section credits.
   Lemma NegExp_μ_ex_RInt_gen {a N} : ex_RInt_gen (NegExp_ρ N) (at_point a) (Rbar_locally Rbar.p_infty).
   Proof. Admitted.
 
+  Lemma NegExp_μ_IPcts {L} : IPCts (NegExp_ρ L).
+  Admitted.
+
   Lemma NegExp_CreditV_nn {F : R -> R} {M} (Hnn : ∀ r, 0 <= F r <= M) {L : nat} (H : IPCts F) :
     0 <= NegExp_CreditV F (L + 1).
   Proof.
@@ -102,18 +105,10 @@ Section credits.
       { intros ??.  apply Rmult_le_pos; first apply Hnn. apply NegExp_ρ_nn. }
     }
     eapply NegExp_prod_bounded_left_IPCts; try done.
-    { admit. }
+    { apply NegExp_μ_IPcts. }
     { intros ?. apply NegExp_ρ_nn. }
     { apply NegExp_μ_ex_RInt_gen. }
-  Admitted.
-
-  Theorem NegExp_CreditV_ub {F L M} (HF : ∀ x, 0 <= F x <= M) : NegExp_CreditV F L <= M.
-  Proof.
-    rewrite /NegExp_CreditV.
-    (* Bounded above by M times the body *)
-    (* The integral of the body is 1 (I think). If not just change the constant. *)
-  Admitted.
-
+  Qed.
 
   Local Definition hx (F : R → R) (x : R) (L : nat) : nat → R := fun z =>
     Iverson Zeven z * F (x + INR L) +
@@ -153,7 +148,7 @@ Section credits.
     have HSLim : filterlim s eventually
       (locally (λ x : R, Series.Series (λ n : nat, Iverson (Ioo 0 1) x * (RealDecrTrial_μ x 0 n * hx F x L n)))).
     { rewrite /s.
-      apply (UniformConverge_Series (fun n => 2 * M * / (fact (n - 0)%nat))).
+      apply (UniformConverge_Series (fun n => (M + NegExp_CreditV F (L + 1)) * / (fact (n - 0)%nat))).
       { intros ??.
         rewrite /Iverson//=. case_decide; OK.
         rewrite Rmult_1_l.
@@ -164,7 +159,7 @@ Section credits.
         { apply RealDecrTrial_μnn; OK. }
         { eapply hx_nonneg; OK. }
       }
-      { replace (λ n : nat, 2 * M * / fact (n - 0)) with (λ n : nat, / fact n * (2 * M)); last first.
+      { replace (λ n : nat, (M + NegExp_CreditV F (L + 1)) * / fact (n - 0)) with (λ n : nat, / fact n * (M + NegExp_CreditV F (L + 1))); last first.
         { funexti. rewrite Rmult_comm. repeat f_equal. OK. }
         apply Series.ex_series_scal_r.
         apply ex_exp_series.
@@ -181,30 +176,29 @@ Section credits.
       rewrite /Iverson. case_decide; last first.
       { rewrite Rmult_0_l.
         apply Rle_mult_inv_pos; last apply INR_fact_lt_0.
-        have ? := Hbound 0. lra.
+        have ? := Hbound 0.
+        apply Rplus_le_le_0_compat; OK.
+        eapply NegExp_CreditV_nn; OK.
       }
       rewrite /Ioo in H. rewrite Rmin_left in H; OK. rewrite Rmax_right in H; OK.
       rewrite Rmult_1_l Rmult_comm.
-      have Hhx : hx F x L n <= 2 * M.
+      have Hhx : hx F x L n <= M + NegExp_CreditV F (L + 1).
       { rewrite /hx.
-        apply (Rle_trans _ (M + M)).
-        { apply Rplus_le_compat.
-          { rewrite -(Rmult_1_l M).
-            apply Rmult_le_compat; OK.
-            { apply Iverson_nonneg. }
-            { apply Hbound. }
-            { apply Iverson_le_1. }
-            { apply Hbound. }
-          }
-          { rewrite -(Rmult_1_l M).
-            apply Rmult_le_compat; OK.
-            { apply Iverson_nonneg. }
-            { eapply NegExp_CreditV_nn; OK. }
-            { apply Iverson_le_1. }
-            { apply NegExp_CreditV_ub; OK. }
-          }
+        apply Rplus_le_compat.
+        { rewrite -(Rmult_1_l M).
+          apply Rmult_le_compat; OK.
+          { apply Iverson_nonneg. }
+          { apply Hbound. }
+          { apply Iverson_le_1. }
+          { apply Hbound. }
         }
-        lra. }
+        { rewrite -{2}(Rmult_1_l (NegExp_CreditV F (L + 1))).
+          apply Rmult_le_compat; OK.
+          { apply Iverson_nonneg. }
+          { eapply NegExp_CreditV_nn; done. }
+          { rewrite /Iverson//=. case_decide; OK. }
+        }
+      }
       apply Rmult_le_compat.
       { eapply hx_nonneg; OK. }
       { apply RealDecrTrial_μnn. OK. }
@@ -327,7 +321,7 @@ Section credits.
       }
       2: {
         rewrite /RealDecrTrial_μ.
-        eapply (ex_seriesC_le _ (λ n : nat, RealDecrTrial_μ0 x (n + 0) * M)).
+        eapply (ex_seriesC_le _ (λ n : nat, RealDecrTrial_μ0 x (n + 0) * (NegExp_CreditV F (L + 1)))).
         2: { apply ex_seriesC_scal_r. apply (RealDecrTrial_μ0_ex_seriesC (x := x) (M := 0)). OK. }
         intros n.
         split.
@@ -339,7 +333,7 @@ Section credits.
         }
         { apply Rmult_le_compat.
           2: { eapply NegExp_CreditV_nn; last OK. intros ?. apply Hf. }
-          3: { apply NegExp_CreditV_ub. intros ?. apply Hf. }
+          3: { done. }
           1: { apply Rmult_le_pos; [apply Rmult_le_pos|].
                { apply Iverson_nonneg. }
                { apply RealDecrTrial_μ0nn. OK. }
