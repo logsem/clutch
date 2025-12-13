@@ -279,7 +279,12 @@ Section credits.
         }
         { intros ???.
           have HL : 0 <= 1 ^ n / fact n * M.
-          { admit. }
+          { apply Rmult_le_pos; OK.
+            2: { specialize Hf with 0; OK. }
+            apply Rcomplements.Rdiv_le_0_compat.
+            { apply pow_le; OK. }
+            { apply INR_fact_lt_0. }
+          }
           split.
           { apply Rmult_le_pos; [|apply Hf].
             apply Rmult_le_pos; [apply RealDecrTrial_μnn; lra|].
@@ -313,18 +318,82 @@ Section credits.
           apply ex_RInt_mult.
           2: { by apply ex_RInt_shift. }
           apply ex_RInt_mult.
-          { admit. }
-          { admit. }
+          { apply RealDecrTrial_μ_ex_RInt; OK. }
+          { apply ex_RInt_const. }
         }
       }
       2: {
-        eapply (ex_RInt_SeriesC (λ n : nat, (Iverson (not ∘ Zeven) n * (1 ^ n / fact n + 1 ^ (n + 1) / fact (n + 1)) * M))); OK.
+        eapply (ex_RInt_SeriesC (λ n : nat, 1^n/(fact n) * (NegExp_CreditV F (L + 1)))); OK.
         { rewrite ex_seriesC_nat.
           apply ex_seriesC_scal_r.
-          apply Hexp_ex_odd.
+          apply Hpow_ex.
         }
-        { admit. }
-        { admit. }
+        { intros ???.
+          have HL : 0 <= 1 ^ n / fact n * M.
+          { apply Rmult_le_pos; OK.
+            2: { specialize Hf with 0; OK. }
+            apply Rcomplements.Rdiv_le_0_compat.
+            { apply pow_le; OK. }
+            { apply INR_fact_lt_0. }
+          }
+          split.
+          { apply Rmult_le_pos.
+            2: { eapply NegExp_CreditV_nn; OK. }
+            apply Rmult_le_pos; [apply RealDecrTrial_μnn; lra|].
+            apply Iverson_nonneg.
+          }
+          rewrite /Iverson//=.
+          case_decide; OK.
+          2: {
+            rewrite Rmult_0_r.
+            rewrite Rmult_0_l.
+            apply Rmult_le_pos.
+            { apply Rcomplements.Rdiv_le_0_compat.
+              { apply pow_le; OK. }
+              { apply INR_fact_lt_0. }
+            }
+            eapply NegExp_CreditV_nn; OK.
+          }
+
+          rewrite Rmult_1_r.
+          rewrite /RealDecrTrial_μ.
+          rewrite /Iverson.
+          case_decide; OK.
+          2: {
+            rewrite Rmult_0_l.
+            rewrite Rmult_0_l.
+            apply Rmult_le_pos.
+            { apply Rcomplements.Rdiv_le_0_compat.
+              { apply pow_le; OK. }
+              { apply INR_fact_lt_0. }
+            }
+            eapply NegExp_CreditV_nn; OK.
+          }
+          rewrite Rmult_1_l.
+          apply Rmult_le_compat; OK.
+          { apply RealDecrTrial_μ0nn; OK. }
+          1: { eapply NegExp_CreditV_nn; OK. }
+          rewrite /RealDecrTrial_μ0.
+          have ? : 0 <= x ^ (n - 0 + 1) / fact (n - 0 + 1).
+          { apply Rcomplements.Rdiv_le_0_compat.
+            { apply pow_le; OK. }
+            { apply INR_fact_lt_0. }
+          }
+          suffices ? : x ^ (n - 0) / fact (n - 0) <= 1 ^ n / fact n by OK.
+          rewrite Nat.sub_0_r.
+          rewrite Rdiv_def.
+          apply Rmult_le_compat; OK.
+          { apply pow_le; OK. }
+          { apply Rlt_le, Rinv_0_lt_compat, INR_fact_lt_0. }
+          { apply pow_incr; OK. }
+        }
+        { intros n.
+          apply ex_RInt_mult.
+          2: { apply ex_RInt_const. }
+          apply ex_RInt_mult.
+          2: { apply ex_RInt_const. }
+          apply RealDecrTrial_μ_ex_RInt; OK.
+        }
       }
       apply RInt_ext.
       rewrite Rmin_left; OK.
