@@ -615,6 +615,7 @@ Qed.
 (** Helper: Tail of a converging improper integral goes to zero
     Proof strategy: Use filterlim_is_RInt_gen and RInt_gen_correct *)
 Lemma RInt_gen_tail_converges (g : R → R) (xa : R)
+  (Hex_fin : ∀ b, ex_RInt g xa b)
   (Hg_ex : ex_RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty)) :
   ∀ eps : posreal, ∃ M : R, ∀ xb : R, M < xb →
     Rabs (RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty) - RInt g xa xb) < eps.
@@ -623,11 +624,9 @@ Proof.
   unfold ex_RInt_gen in Hg_ex.
   destruct Hg_ex as [lg Hg_ex].
   have Hg_lim : filterlim (λ b : R, RInt g xa b) (Rbar_locally Rbar.p_infty) (locally lg).
-  { apply filterlim_is_RInt_gen.
-    - admit. (* TODO: Need ex_RInt g xa b for all b, which requires g integrable on bounded intervals *)
-    - apply Hg_ex. }
+  { apply filterlim_is_RInt_gen; [apply Hex_fin | apply Hg_ex]. }
   have Heq : RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty) = lg.
-  { admit. (* TODO: Use RInt_gen_Ici which requires proving filterlimi condition *) }
+  { apply is_RInt_gen_unique. apply Hg_ex. }
   rewrite Heq.
   rewrite filterlim_locally //= in Hg_lim.
   destruct (Hg_lim eps) as [M HM].
@@ -636,7 +635,7 @@ Proof.
   specialize (HM xb Hxb).
   rewrite /ball/=/AbsRing_ball/= in HM.
   by rewrite Rabs_minus_sym.
-Admitted.
+Qed.
 
 (** Helper: If |f(x,y)| ≤ g(x) and ∫ g exists, then ∫ f(·,y) exists
     Proof strategy: Use ex_RInt_gen_Ici_compare_strong from improper.v
@@ -700,7 +699,8 @@ Proof.
   intro eps.
 
   (* Use tail convergence of g to get uniform bound *)
-  have Htail := RInt_gen_tail_converges g xa Hg_ex eps.
+  have Hex_g_fin : ∀ b, ex_RInt g xa b by admit.
+  have Htail := RInt_gen_tail_converges g xa Hex_g_fin Hg_ex eps.
   destruct Htail as [M0 HM0].
   (* Ensure M >= xa by taking maximum *)
   pose (M := Rmax M0 xa).

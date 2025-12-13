@@ -8,16 +8,16 @@ Set Default Proof Using "Type*".
 
 (* A function on a rectangle *)
 Definition IntervalFun_R : ((R → R) * R * R) → (R → R) :=
-  fun '(f, xa, xb) x => Iverson (Ioo xa xb) x * f x.
+  fun '(f, xa, xb) x => Iverson (Icc xa xb) x * f x.
 
 Definition IntervalFun_continuity : ((R → R) * R * R) → Prop :=
-  fun '(f, xa, xb) => ∀ x, Ioo xa xb x → Continuity.continuous f x.
+  fun '(f, xa, xb) => ∀ x, Icc xa xb x → Continuity.continuous f x.
 
 Definition fsum {T : Type} (L : list (T → R)) : T → R := fun t => foldr (fun f s => f t + s) 0 L.
 
 (* Generalized: f is a finite sum of rectangle functions *)
 Definition PCts (f : R → R) (xa xb : R) : Prop :=
-  ∃ L, (∀ x, Ioo xa xb x → f x = fsum (IntervalFun_R <$> L) x) ∧ Forall IntervalFun_continuity L.
+  ∃ L, (∀ x, Icc xa xb x → f x = fsum (IntervalFun_R <$> L) x) ∧ Forall IntervalFun_continuity L.
 
 Lemma IntervalFun_RInt {f xa xb} {a b} :
   IntervalFun_continuity (f, xa, xb) →
@@ -25,15 +25,167 @@ Lemma IntervalFun_RInt {f xa xb} {a b} :
 Proof.
   rewrite //=.
   intros H.
-  (* Chasles *)
-Admitted.
+
+  (* Reduce to the case where the bounds are in order *)
+  suffices HH : ex_RInt (λ x : R, Iverson (Icc xa xb) x * f x) (Rmin a b) (Rmax a b).
+  { destruct (Rle_lt_dec a b).
+    { rewrite Rmin_left in HH; try lra.
+      rewrite Rmax_right in HH; try lra.
+      apply HH. }
+    { rewrite Rmin_right in HH; try lra.
+      rewrite Rmax_left in HH; try lra.
+      apply ex_RInt_swap.
+      apply HH. }
+  }
+
+  have LraLem1 : Rmin a b <= Rmax a b := Rminmax _ _.
+  have LraLem2 : Rmin xa xb <= Rmax xa xb := Rminmax _ _.
+
+  (* Trivial: Upper bound of indicator is le lower bound of integral *)
+  destruct (Rle_lt_dec (Rmax xa xb) (Rmin a b)).
+  { apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
+    rewrite Rmin_left; try lra.
+    rewrite Rmax_right; try lra.
+    intros ??.
+    rewrite /Icc//=.
+    rewrite Iverson_False; try lra.
+  }
+
+  (* Trivial: Lower bound of indicator is le upper bound of integral *)
+  destruct (Rle_lt_dec (Rmin xa xb) (Rmax a b)).
+  2: {
+    apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
+    rewrite Rmin_left; try lra.
+    rewrite Rmax_right; try lra.
+    intros ??.
+    rewrite /Icc//=.
+    rewrite Iverson_False; try lra.
+  }
+
+  (* Case on the lower bound of the indicator being in range.*)
+  destruct (Rle_lt_dec (Rmin xa xb) (Rmin a b));
+  destruct (Rle_lt_dec (Rmax xa xb) (Rmax a b)).
+  { (* Case: ---____ *)
+    apply (ex_RInt_Chasles_0 _ _ (Rmax xa xb) _).
+    { split; lra. }
+    { apply (ex_RInt_ext f).
+      { rewrite Rmin_left; try lra.
+        rewrite Rmax_right; try lra.
+        intros ??.
+        rewrite Iverson_True; try lra.
+        rewrite /Icc//=. lra.
+      }
+      {
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        rewrite Rmin_left; try lra.
+        rewrite Rmax_right; try lra.
+        intros ??.
+        apply H.
+        rewrite /Icc.
+        lra.
+      }
+    }
+    { apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right (Rmax xa xb) (Rmax a b)); try lra.
+      intros ??.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc//=. lra.
+    }
+  }
+  { (* Case: ------- *)
+    apply (ex_RInt_ext f).
+    {
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right); try lra.
+      intros ??.
+      rewrite Iverson_True; try lra.
+      rewrite /Icc//=. lra.
+    }
+    {
+     apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+     rewrite Rmin_left; try lra.
+     rewrite Rmax_right; try lra.
+     intros ??.
+     apply H.
+     rewrite /Icc.
+     lra.
+    }
+  }
+
+  { (* Case : __----__*)
+    apply (ex_RInt_Chasles_0 _ _ (Rmin xa xb) _).
+    { split; try lra. }
+    { apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc//=. lra.
+    }
+    apply (ex_RInt_Chasles_0 _ _ (Rmax xa xb) _).
+    { split; try lra.  }
+    { apply (ex_RInt_ext f).
+      { rewrite Rmin_left; try lra.
+        rewrite Rmax_right; try lra.
+        intros ??.
+        rewrite Iverson_True; try lra.
+        rewrite /Icc//=.
+        lra.
+      }
+
+      apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      apply H.
+      rewrite /Icc.
+      lra.
+    }
+    { apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right (Rmax xa xb) (Rmax a b)); try lra.
+      intros ??.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc//=. lra.
+    }
+  }
+  { (* Case: ____---- *)
+    apply (ex_RInt_Chasles_0 _ _ (Rmin xa xb) _).
+    { split; lra. }
+    { apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc//=. lra.
+    }
+    { apply (ex_RInt_ext f).
+      { rewrite Rmin_left; try lra.
+        rewrite (Rmax_right) ; try lra.
+        intros ??.
+        rewrite Iverson_True; try lra.
+        rewrite /Icc//=.
+        split; try lra.
+      }
+
+      apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      apply H.
+      rewrite /Icc.
+      lra.
+    }
+  }
+Qed.
 
 Lemma PCts_RInt {f xa xb} (HP : PCts f xa xb) :
   ex_RInt f xa xb.
 Proof.
 Admitted.
 
-Lemma PCts_cts {f xa xb} : (∀ x, Ioo xa xb x → Continuity.continuous f x) → PCts f xa xb.
+Lemma PCts_cts {f xa xb} : (∀ x, Icc xa xb x → Continuity.continuous f x) → PCts f xa xb.
 Proof.
   exists [(f, xa, xb)].
   split.

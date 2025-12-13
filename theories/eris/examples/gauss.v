@@ -1263,7 +1263,7 @@ Section credits.
       apply PCts2_mult; [apply PCts2_mult|].
       { apply PCts_const_x.
         apply PCts_cts.
-        rewrite /Ioo//=.
+        rewrite /Icc//=.
         rewrite Rmin_left; OK.
         rewrite Rmax_right; OK.
         intros ??.
@@ -1274,12 +1274,12 @@ Section credits.
       { apply PCts_const_x. apply HPcs. }
       { apply PCts_const_y.
         apply PCts_cts.
-        rewrite /Ioo//=.
+        rewrite /Icc//=.
         rewrite Rmin_left; OK.
         rewrite Rmax_right; OK.
         intros ??.
-        replace (λ y : R, @SeriesC nat numbers.Nat.eq_dec nat_countable (λ x0 : nat, Iverson (Icc 0 1) y * G1_μ x0 * (1 - exp (- y * (2 * x0 + y) / 2))))
-           with (λ y : R, Series.Series (λ x0 : nat, Iverson (Icc 0 1) y * G1_μ x0 * (1 - exp (- y * (2 * x0 + y) / 2)))); last first.
+        replace (λ y : R, @SeriesC nat numbers.Nat.eq_dec nat_countable (λ x0 : nat, Iverson (fun t => 0 <= t <= 1) y * G1_μ x0 * (1 - exp (- y * (2 * x0 + y) / 2))))
+           with (λ y : R, Series.Series (λ x0 : nat, Iverson (fun t => 0 <= t <= 1) y * G1_μ x0 * (1 - exp (- y * (2 * x0 + y) / 2)))); last first.
         { funexti. by rewrite SeriesC_Series_nat. }
         apply (@UniformLimitTheorem _ 0 1).
         { rewrite /Icc//=; OK. rewrite Rmin_left; OK. rewrite Rmax_right; OK. }
@@ -1319,9 +1319,6 @@ Section credits.
             OK.
           }
           rewrite Iverson_True; OK.
-          rewrite /Icc//=.
-          rewrite Rmin_left; OK.
-          rewrite Rmax_right; OK.
         }
         have H1 : ∀ x0 (n0 : nat), 0 <= x0 → 0 <= 1 - exp (- x0 * (2 * n0 + x0) / 2).
         { intros ???.
@@ -1344,7 +1341,7 @@ Section credits.
           { apply G1_μ_nn. }
           { apply H1.
             rewrite /Icc in H0.
-            rewrite Rmin_left in H0; OK.
+            OK.
           }
         }
         { rewrite /G1_μ.
@@ -1363,7 +1360,7 @@ Section credits.
             { apply G1_μ_nn. }
             { apply H1.
               rewrite /Icc in H0.
-              rewrite Rmin_left in H0; OK.
+              OK.
             }
           }
           rewrite /Iverson//=. case_decide; OK.
