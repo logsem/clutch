@@ -25,9 +25,7 @@ Lemma IntervalFun_RInt {f xa xb} {a b} :
 Proof.
   rewrite //=.
   intros H.
-  Search ex_RInt "ext".
-
-
+  (* Chasles *)
 Admitted.
 
 Lemma PCts_RInt {f xa xb} (HP : PCts f xa xb) :
