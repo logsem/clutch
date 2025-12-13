@@ -412,12 +412,16 @@ Section credits.
       2: {
         (* Fubini *)
         symmetry.
-        apply FubiniImproper_eq; [|done].
+        apply FubiniImproper_eq_x.
+        { admit. }
+        (** HERE
+
         rewrite /B//=.
         (* Derive this from the fact that F is FubiniCondition.
            and exp (the closed form for the inner series) is FubiniCondition.  *)
         intros xb.
         rewrite /FubiniCondition.
+         **)
 
         admit.
       }
