@@ -650,35 +650,34 @@ Lemma ex_RInt_gen_Ici_compare_IPCts {L : R} {F G : R → R} :
   ex_RInt_gen G (at_point L) (Rbar_locally Rbar.p_infty).
 Proof.
   intros HF HG Hbound HFex.
-  destruct HF as [LF [HeqF HcontF]].
-  destruct HG as [LG [HeqG HcontG]].
+  destruct HF as [F0 [LF [HeqF [HcontF HcontF0]]]].
+  destruct HG as [G0 [LG [HeqG [HcontG HcontG0]]]].
   unfold ex_RInt_gen in *. destruct HFex as [lF HFex].
-
+  have HeqF' : F = (fun x => F0 x + fsum (IntervalFun_R <$> LF) x).
+  { apply functional_extensionality. intros ?. by rewrite HeqF. }
+  have HeqG' : G = (fun x => G0 x + fsum (IntervalFun_R <$> LG) x).
+  { apply functional_extensionality. intros ?. by rewrite HeqG. }
   assert (HGint : ∀ b, L <= b → ex_RInt G L b).
-  { intros b Hb. rewrite HeqG. apply IPCts_RInt. exists LG. split; done. }
-
+  { intros b Hb. rewrite HeqG'.  apply IPCts_RInt. exists G0. exists LG. split; done. }
   assert (HFint : ∀ b, L <= b → ex_RInt F L b).
-  { intros b Hb. rewrite HeqF. apply IPCts_RInt. exists LF. split; done. }
-
+  { intros b Hb. rewrite HeqF'. apply IPCts_RInt. exists F0. exists LF. split; done. }
   assert (Hmono : ∀ b1 b2, L <= b1 <= b2 → RInt G L b1 <= RInt G L b2).
   { intros b1 b2 [Hb1 Hb2].
     have Hexb1b2 : ex_RInt G b1 b2.
-    { rewrite HeqG. apply IPCts_RInt. exists LG. split; done. }
+    { rewrite HeqG'. apply IPCts_RInt. exists G0. exists LG. split; done. }
     rewrite -(RInt_Chasles G L b1 b2); [|apply HGint; lra|exact Hexb1b2].
     assert (0 <= RInt G b1 b2) as H0.
     { apply RInt_ge_0; try lra; [exact Hexb1b2 | intros x Hx; apply Hbound; lra]. }
     rewrite /plus//=. lra.
   }
-
   assert (Hbound_F : ∀ b, L <= b → RInt G L b <= lF).
   { intros b Hb.
     apply Rle_trans with (r2 := RInt F L b).
     { apply RInt_le; try lra; [apply HGint; done | apply HFint; done | intros x Hx; apply Hbound; lra]. }
     { apply is_RInt_gen_bound_partial; try done.
       { intros x. specialize Hbound with x. lra. }
-      { intros bl bu. rewrite HeqF. apply IPCts_RInt. exists LF. split; done. } }
+      { intros bl bu. rewrite HeqF'. apply IPCts_RInt. exists F0. exists LF. split; done. } }
   }
-
   pose (lG := Lub_Rbar (fun r => ∃ b, L <= b ∧ r = RInt G L b)).
   assert (HlG_finite : Rbar.is_finite lG).
   { apply is_finite_bounded with (p := 0) (q := lF); rewrite /lG; apply Lub_Rbar_correct.
@@ -688,7 +687,7 @@ Proof.
 
   exists (Rbar.real lG).
   apply is_RInt_gen_filterlim.
-  { intros b. rewrite HeqG. apply IPCts_RInt. exists LG. split; done. }
+  { intros b. rewrite HeqG'. apply IPCts_RInt. exists G0. exists LG. split; done. }
   intros P HP.
     rewrite /Rbar_locally/filtermap//=.
     rewrite /locally //= in HP.

@@ -234,15 +234,24 @@ Proof. Admitted.
 
 (** Piecewise continuity over the enture real line *)
 
-(* Generalized: f is a finite sum of rectangle functions *)
+(* I'm writing infintie piecewise continuity as being a continuous function +
+   finitely many interval functions.
+
+    Doing it this way means we can reuse some super annoying intervalfun lemmas. *)
 Definition IPCts (f : R → R) : Prop :=
-  ∃ L, f = fsum (IntervalFun_R <$> L) ∧ Forall IntervalFun_continuity L.
+  ∃ f0 L,
+    (∀ x, f x = f0 x + fsum (IntervalFun_R <$> L) x) ∧
+    Forall IntervalFun_continuity L ∧
+    (∀ x, Continuity.continuous f0 x).
 
 Lemma IPCts_PCts (f : R → R) : IPCts f → ∀ a b, PCts f a b.
 Proof.
-  intros [L[??]] ??. exists L; split; try done.
+  intros [f0 [L[?[??]]]] ??.
+  (*  Need to add f0 to each rectangle, but otherwise it's easy.
+  exists L; split; try done.
   intros ??. rewrite H //=.
-Qed.
+  *)
+Admitted.
 
 Lemma IPCts_RInt {f xa xb} (HP : IPCts f ) : ex_RInt f xa xb.
 Proof. by apply PCts_RInt, IPCts_PCts. Qed.
