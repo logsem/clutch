@@ -564,17 +564,6 @@ Proof.
   done.
 Qed.
 
-
-Lemma ex_RInt_gen_Ici_compare_PCts {L : R} {F G : R → R} :
-  (∀ x, L <= x → PCts F L x) →
-  (∀ x, L <= x → PCts G L x) →
-  (∀ x, L <= x → 0 <= G x <= F x) →
-  ex_RInt_gen F (at_point L) (Rbar_locally Rbar.p_infty) →
-  ex_RInt_gen G (at_point L) (Rbar_locally Rbar.p_infty).
-Proof.
-Admitted.
-
-
 Lemma RInt_gen_pos_strong {F M}
   (Hpos : forall x, 0 <= F x)
   (Hex : ∀ b, ex_RInt F M b)
@@ -660,6 +649,96 @@ Proof.
 Admitted.
 
 
+(** IPCts version of comparison test *)
+Lemma ex_RInt_gen_Ici_compare_IPCts {L : R} {F G : R → R} :
+  IPCts F →
+  IPCts G →
+  (∀ x, L <= x → 0 <= G x <= F x) →
+  ex_RInt_gen F (at_point L) (Rbar_locally Rbar.p_infty) →
+  ex_RInt_gen G (at_point L) (Rbar_locally Rbar.p_infty).
+Proof.
+  intros HF HG Hbound HFex.
+  destruct HF as [LF [HeqF HcontF]].
+  destruct HG as [LG [HeqG HcontG]].
+  unfold ex_RInt_gen in *. destruct HFex as [lF HFex].
+
+  assert (HGint : ∀ b, L <= b → ex_RInt G L b).
+  { intros b Hb. rewrite HeqG. apply IPCts_RInt. exists LG. split; done. }
+
+  assert (HFint : ∀ b, L <= b → ex_RInt F L b).
+  { intros b Hb. rewrite HeqF. apply IPCts_RInt. exists LF. split; done. }
+
+  assert (Hmono : ∀ b1 b2, L <= b1 <= b2 → RInt G L b1 <= RInt G L b2).
+  { intros b1 b2 [Hb1 Hb2].
+    have Hexb1b2 : ex_RInt G b1 b2.
+    { rewrite HeqG. apply IPCts_RInt. exists LG. split; done. }
+    rewrite -(RInt_Chasles G L b1 b2); [|apply HGint; lra|exact Hexb1b2].
+    assert (0 <= RInt G b1 b2) as H0.
+    { apply RInt_ge_0; try lra; [exact Hexb1b2 | intros x Hx; apply Hbound; lra]. }
+    rewrite /plus//=. lra.
+  }
+
+  assert (Hbound_F : ∀ b, L <= b → RInt G L b <= lF).
+  { intros b Hb.
+    apply Rle_trans with (r2 := RInt F L b).
+    { apply RInt_le; try lra; [apply HGint; done | apply HFint; done | intros x Hx; apply Hbound; lra]. }
+    { apply is_RInt_gen_bound_partial; try done.
+      { intros x. admit. }
+      { intros bl bu. rewrite HeqF. apply IPCts_RInt. exists LF. split; done. } }
+  }
+
+  pose (lG := Lub_Rbar (fun r => ∃ b, L <= b ∧ r = RInt G L b)).
+  assert (HlG_finite : Rbar.is_finite lG).
+  { apply is_finite_bounded with (p := 0) (q := lF); rewrite /lG; apply Lub_Rbar_correct.
+    { exists L. split; [lra|]. have -> : RInt G L L = zero by apply RInt_point. rewrite /zero/=. done. }
+    { intros r [b [Hb ->]]. apply Hbound_F. done. }
+  }
+
+  exists (Rbar.real lG).
+  apply is_RInt_gen_filterlim.
+  { intros b. rewrite HeqG. apply IPCts_RInt. exists LG. split; done. }
+  intros P HP.
+    rewrite /Rbar_locally/filtermap//=.
+    rewrite /locally //= in HP.
+    destruct HP as [eps HP].
+    have HlG_lub : is_lub_Rbar (fun r => ∃ b, L <= b ∧ r = RInt G L b) lG.
+    { rewrite /lG. apply Lub_Rbar_correct. }
+    destruct HlG_lub as [HlG_ub HlG_least].
+    have HlG_val : lG = Rbar.Finite (Rbar.real lG).
+    { apply Rbar.is_finite_correct in HlG_finite as [y Heq].
+      rewrite Heq. simpl. done. }
+    have Hnot_ub : ¬ is_ub_Rbar (fun r => ∃ b, L <= b ∧ r = RInt G L b) (Rbar.Finite (Rbar.real lG - eps / 2)).
+    { intros Hub.
+      have Hle : Rbar.Rbar_le lG (Rbar.Finite (Rbar.real lG - eps / 2)) by apply HlG_least; apply Hub.
+      rewrite HlG_val in Hle. simpl in Hle.
+      have Heps_pos : 0 < eps by apply cond_pos.
+      lra. }
+    rewrite /is_ub_Rbar in Hnot_ub.
+    apply Classical_Pred_Type.not_all_ex_not in Hnot_ub as [r Hr].
+    apply Classical_Prop.imply_to_and in Hr as [Hexists Hnot_le].
+    destruct Hexists as [M [HM Hr_eq]].
+    have Hgt : Rbar.real lG - eps / 2 < r.
+    { apply Rnot_le_lt. intros Hle. apply Hnot_le.
+      subst r. simpl. apply Hle. }
+    exists M.
+    intros x Hx.
+    apply HP.
+    rewrite /ball/=/AbsRing_ball/=.
+    have HRInt_x_le_lG : RInt G L x <= Rbar.real lG.
+    { have : Rbar.Rbar_le (Rbar.Finite (RInt G L x)) lG.
+      { apply HlG_ub. exists x. split; [lra|done]. }
+      rewrite HlG_val. simpl. done. }
+    have HRInt_M_le_x : RInt G L M <= RInt G L x.
+    { apply Hmono. split; [done|lra]. }
+    subst r.
+    have Hlower : Rbar.real lG - eps / 2 < RInt G L x.
+    { apply Rlt_le_trans with (r2 := RInt G L M); [apply Hgt | apply HRInt_M_le_x]. }
+    have Heps_pos : 0 < eps by apply cond_pos.
+    have : - eps < RInt G L x - Rbar.real lG < eps by lra.
+    intros [H1 H2].
+    by apply Rabs_def1.
+Admitted.
+
 Lemma NegExp_prod_bounded_left_IPCts {F G : R → R} {M}
   (HFIPCts : IPCts F)
   (HGIPCts : IPCts G)
@@ -667,4 +746,11 @@ Lemma NegExp_prod_bounded_left_IPCts {F G : R → R} {M}
   (HGnn : ∀ x, 0 <= G x)
   (HIntG : ex_RInt_gen G (at_point 0) (Rbar_locally Rbar.p_infty)) :
   ex_RInt_gen (fun x => F x * G x) (at_point 0) (Rbar_locally Rbar.p_infty).
-Proof. Admitted.
+Proof.
+  apply (@ex_RInt_gen_Ici_compare_IPCts 0 (fun x => M * G x) (fun x => F x * G x)).
+  - apply IPCts_scal_mult. done.
+  - apply IPCts_mult; done.
+  - intros x Hx. split; [apply Rmult_le_pos; [apply HFnn | apply HGnn] |].
+    destruct (HFnn x) as [HF0 HFM]. apply Rmult_le_compat_r; [apply HGnn | apply HFM].
+  - apply ex_RInt_gen_Ici_scal. apply HIntG.
+Qed.

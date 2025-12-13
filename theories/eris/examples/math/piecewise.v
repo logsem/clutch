@@ -57,9 +57,12 @@ Proof. Admitted.
 Lemma IPCts_plus {f g} : IPCts f → IPCts g → IPCts (fun x => f x + g x).
 Proof. Admitted.
 
-Lemma IPCts_mult {f g} : IPCts f → IPCts g → IPCts (fun x => f x + g x).
+Lemma IPCts_mult {f g} : IPCts f → IPCts g → IPCts (fun x => f x * g x).
 Proof. Admitted.
 
+Lemma IPCts_scal_mult {c : R} {G : R → R} :
+  IPCts G → IPCts (fun x => c * G x).
+Proof. Admitted.
 
 (** Piecewise continuous 2D functions *)
 
