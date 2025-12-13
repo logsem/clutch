@@ -474,7 +474,15 @@ Lemma filterlim_locally_eval {A : Type} {F : R → A → R} {G : A → R} {a : A
   filterlim F (Rbar_locally Rbar.p_infty) (locally G) →
   filterlim (λ r, F r a) (Rbar_locally Rbar.p_infty) (locally (G a)).
 Proof.
-Admitted.
+  intro H. intros P HP.
+  destruct HP as [eps Heps].
+  unfold filtermap.
+  apply (H (fun g => P (g a))).
+  exists eps. intros g Hg.
+  apply Heps.
+  unfold fct_ball in Hg.
+  apply Hg.
+Qed.
 
 (* Helper lemma: uniform limits of integrable functions are integrable *)
 Lemma ex_RInt_filterlim_uniform {a b : R} {F : R → R → R} {G : R → R} :

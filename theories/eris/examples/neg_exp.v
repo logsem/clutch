@@ -492,15 +492,47 @@ Section credits.
         funexti.
         rewrite RInt_Rmult.
         2: {
-          (* Similar to above, this upper bound is an even or odd exp series *)
-          (*
-          apply (ex_RInt_SeriesC (fun n => 1 / (fact n))). (* UB here might be wrong but I do think one exists *)
-          { admit. }
-          { admit. }
-          { admit. }
-          { admit. }
-          *)
-          admit.
+          eapply (ex_RInt_SeriesC (λ n : nat, 1^n/(fact n))); OK.
+          { rewrite ex_seriesC_nat.
+            apply Hpow_ex.
+          }
+          { intros ???.
+            have HL : 0 <= 1 ^ n / fact n.
+            { apply Rcomplements.Rdiv_le_0_compat.
+              { apply pow_le; OK. }
+              { apply INR_fact_lt_0. }
+            }
+            split.
+            {
+              apply Rmult_le_pos; [apply RealDecrTrial_μnn; lra|].
+              apply Iverson_nonneg.
+            }
+            rewrite /Iverson//=.
+            case_decide; OK.
+            rewrite Rmult_1_r.
+            rewrite /RealDecrTrial_μ.
+            rewrite /Iverson.
+            case_decide; OK.
+            rewrite Rmult_1_l.
+            rewrite /RealDecrTrial_μ0.
+            have ? : 0 <= x0 ^ (n - 0 + 1) / fact (n - 0 + 1).
+            { apply Rcomplements.Rdiv_le_0_compat.
+              { apply pow_le; OK. }
+              { apply INR_fact_lt_0. }
+            }
+            suffices ? : x0 ^ (n - 0) / fact (n - 0) <= 1 ^ n / fact n by OK.
+            rewrite Nat.sub_0_r.
+            rewrite Rdiv_def.
+            apply Rmult_le_compat; OK.
+            { apply pow_le; OK. }
+            { apply Rlt_le, Rinv_0_lt_compat, INR_fact_lt_0. }
+            { apply pow_incr; OK. }
+          }
+          { intros n.
+            apply ex_RInt_mult.
+            2: { apply ex_RInt_const. }
+            apply RealDecrTrial_μ_ex_RInt; OK.
+          }
         }
         apply RInt_ext.
         intros ??.
