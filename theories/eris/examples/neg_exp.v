@@ -250,6 +250,8 @@ Section credits.
     by exists IF.
   Qed.
 
+  Lemma ex_RInt_shift {F} (H : ∀ a b, ex_RInt F a b) {x y L : R} : (ex_RInt (V := R_CompleteNormedModule) (λ y : R, F (y + L)) x y).
+  Proof. Admitted.
 
   Local Theorem g_expectation {F L M}
     (Hf : ∀ x, 0 <= F x <= M)
@@ -270,39 +272,46 @@ Section credits.
       last first.
     { rewrite RInt_add.
       3: {
-        eapply (ex_RInt_SeriesC (λ n : nat, (Iverson Zeven n * (1^n/(fact n) + 1^(n+1)%nat/(fact (n+1)%nat))) * M)); OK.
+        eapply (ex_RInt_SeriesC (λ n : nat, 1^n/(fact n) * M)); OK.
         { rewrite ex_seriesC_nat.
           apply ex_seriesC_scal_r.
-          apply Hexp_ex_even.
+          apply Hpow_ex.
         }
         { intros ???.
+          have HL : 0 <= 1 ^ n / fact n * M.
+          { admit. }
           split.
           { apply Rmult_le_pos; [|apply Hf].
             apply Rmult_le_pos; [apply RealDecrTrial_μnn; lra|].
             apply Iverson_nonneg.
           }
-          rewrite (Rmult_comm (Iverson _ _)).
-          apply Rmult_le_compat; OK.
-          { apply Rmult_le_pos; [apply RealDecrTrial_μnn; lra|].
-            apply Iverson_nonneg.
-          }
-          { apply Hf. }
-          2: { apply Hf. }
-          apply Rmult_le_compat; OK.
-          { apply RealDecrTrial_μnn; lra. }
-          { apply Iverson_nonneg. }
+          rewrite /Iverson//=.
+          case_decide; OK.
+          rewrite Rmult_1_r.
           rewrite /RealDecrTrial_μ.
           rewrite /Iverson.
-          case_decide.
-          2: {
-            rewrite Rmult_0_l.
-            admit.
-          }
+          case_decide; OK.
           rewrite Rmult_1_l.
+          apply Rmult_le_compat; OK.
+          { apply RealDecrTrial_μ0nn; OK. }
+          1,3: apply Hf.
           rewrite /RealDecrTrial_μ0.
-
-          admit. }
+          have ? : 0 <= x ^ (n - 0 + 1) / fact (n - 0 + 1).
+          { apply Rcomplements.Rdiv_le_0_compat.
+            { apply pow_le; OK. }
+            { apply INR_fact_lt_0. }
+          }
+          suffices ? : x ^ (n - 0) / fact (n - 0) <= 1 ^ n / fact n by OK.
+          rewrite Nat.sub_0_r.
+          rewrite Rdiv_def.
+          apply Rmult_le_compat; OK.
+          { apply pow_le; OK. }
+          { apply Rlt_le, Rinv_0_lt_compat, INR_fact_lt_0. }
+          { apply pow_incr; OK. }
+        }
         { intros n.
+          apply ex_RInt_mult.
+          2: { by apply ex_RInt_shift. }
           apply ex_RInt_mult.
           { admit. }
           { admit. }
