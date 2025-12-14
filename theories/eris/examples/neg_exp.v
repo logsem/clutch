@@ -560,9 +560,16 @@ Section credits.
         (* Fubini *)
         symmetry.
         apply FubiniImproper_eq_x.
-        { admit. }
-        (** Uniform convergence condition. *)
-        admit.
+        { rewrite /IFubiniCondition_x.
+          rewrite Rmin_left; OK.
+          rewrite Rmax_right; OK.
+          intros ???.
+          (* Uniform integral condition for Continuity2D *)
+          admit. }
+        { (* Uniform convergence *)
+          eapply @UniformConverge_RInt.
+          all: admit.
+        }
       }
       apply RInt_ext.
       rewrite Rmin_left; OK.
@@ -657,10 +664,25 @@ Section credits.
         { eapply Hex. }
         apply NegExp_ρ_ex_RInt.
       }
-      { (** Integrable + Bounded argument (Should be done somewhere) *)
-        (* Upper bound this by M * ... * (exp -1) *)
-        (* Probably need the inegral from (L + 1) to infinity of F to exist... *)
-        admit. }
+      { replace (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * exp (-1))
+           with (λ x0 : R, exp (-1) * (F x0 * NegExp_ρ (L + 1) x0)) by (funexti; OK).
+        apply ex_RInt_gen_Ici_scal.
+        eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, M * NegExp_ρ (L + 1) x)).
+        { apply IPCts_scal_mult, NegExp_μ_IPcts. }
+        { apply IPCts_mult; first done. apply NegExp_μ_IPcts. }
+        { intros ?.
+          split.
+          { apply Rmult_le_pos; [apply Hf|]. apply NegExp_ρ_nn. }
+          { apply Rmult_le_compat.
+            { apply Hf. }
+            { apply NegExp_ρ_nn. }
+            { apply Hf. }
+            { lra. }
+          }
+        }
+        apply ex_RInt_gen_Ici_scal.
+        apply NegExp_μ_ex_RInt_gen.
+      }
     }
     rewrite RInt_gen_at_point.
     2: {

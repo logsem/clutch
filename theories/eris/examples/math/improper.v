@@ -575,9 +575,9 @@ Proof.
 Admitted.
 
 
-Lemma ex_RInt_gen_Ici_scal {M G} :
-  ex_RInt_gen G (at_point 0) (Rbar_locally Rbar.p_infty) →
-  ex_RInt_gen (λ x : R, M * G x) (at_point 0) (Rbar_locally Rbar.p_infty).
+Lemma ex_RInt_gen_Ici_scal {M G L} :
+  ex_RInt_gen G L (Rbar_locally Rbar.p_infty) →
+  ex_RInt_gen (λ x : R, M * G x) L (Rbar_locally Rbar.p_infty).
 Proof. Admitted.
 
 Lemma NegExp_prod_bounded_left {F G : R → R} {M}
