@@ -665,42 +665,63 @@ Proof.
   - (* ∫ g exists *) exact Hg_ex.
 Qed.
 
+(* Dead code *)
+Lemma ex_RInt_gen_indic (f : R → R) (xa xb : R) (Hxb : xa <= xb) :
+  ex_RInt_gen (fun x => Iverson (Ici xb) x * f x) (at_point xa) (Rbar_locally Rbar.p_infty) →
+  ex_RInt_gen f (at_point xb) (Rbar_locally Rbar.p_infty).
+Proof.
+  (* Convert both bodies to indicator functions *)
+  intros [L HL].
+  apply (ex_RInt_gen_ext_eq_Ici (f := fun x => Iverson (Ici xb) x * f x) (M := xb)).
+  { intros x Hx.
+    rewrite /Iverson.
+    case_decide.
+    { lra. }
+    rewrite /Ici in H.
+    lra. }
+  exists L.
+  have HFilter1 : ∀ (xa : R), Filter (at_point xa).
+  { intros ?. apply Proper_StrongProper. apply at_point_filter. }
+  have HFilter2 : Filter (Rbar_locally Rbar.p_infty).
+  { apply Proper_StrongProper. apply Rbar_locally_filter. }
+  replace L with (plus 0 L).
+  2: { rewrite /plus//=. lra. }
+  apply
+    ((@is_RInt_gen_Chasles R_CompleteNormedModule (at_point xb) (Rbar_locally Rbar.p_infty))
+    (HFilter1 _) HFilter2 (λ x : R, Iverson (Ici xb) x * f x) xa 0 L).
+  2: { done. }
+  replace 0 with (scal (xa - xb) 0).
+  2: { rewrite /scal//=. rewrite /mult//=. lra. }
+  rewrite is_RInt_gen_at_point.
+  apply (is_RInt_ext (fun _ => 0)).
+  2: { eapply @is_RInt_const. }
+  intros ?.
+  rewrite Rmin_right; try lra.
+  rewrite Rmax_left; try lra.
+  intros ?.
+  rewrite Iverson_False; [lra|].
+  rewrite /Ici//=.
+  lra.
+Qed.
+
 (** Reverse Chasles for existence: if full integral exists and finite piece exists,
     then tail exists. *)
-Lemma ex_RInt_gen_Chasles_exists {V : CompleteNormedModule R_AbsRing}
-  (f : R → V) (xa xb : R)
+Lemma ex_RInt_gen_Chasles_exists
+  (f : R → R) (xa xb : R)
   (Hxb : xa <= xb)
   (Hfull : ex_RInt_gen f (at_point xa) (Rbar_locally Rbar.p_infty))
   (Hfin : ex_RInt_gen f (at_point xa) (at_point xb)) :
   ex_RInt_gen f (at_point xb) (Rbar_locally Rbar.p_infty).
 Proof.
-  (* Strategy: Use filterlim properties to show the tail converges.
-     For any b >= xb, we have ∫[xa,b] f = ∫[xa,xb] f + ∫[xb,b] f by RInt_Chasles.
-     As b→∞, ∫[xa,b] f → L_full (by Hfull) and ∫[xa,xb] f = L_fin (by Hfin).
-     Therefore ∫[xb,b] f → L_full - L_fin, showing the tail exists. *)
-
-  destruct Hfull as [L_full HL_full].
-  destruct Hfin as [L_fin HL_fin].
-
-  (* We need to show: ex_RInt_gen f (at_point xb) (Rbar_locally p_infty)
-     i.e., there exists L_tail such that is_RInt_gen f (at_point xb) (Rbar_locally p_infty) L_tail *)
-
-  (* The candidate value is L_tail := L_full - L_fin *)
-  exists (plus L_full (opp L_fin)).
-
-  (* Now prove: is_RInt_gen f (at_point xb) (Rbar_locally p_infty) (L_full - L_fin) *)
-  rewrite /is_RInt_gen.
-  rewrite /filterlimi /filter_le /filtermapi //=.
-  intros P HP.
-
-  (* From HL_full, we know ∫[xa,b] f → L_full as b→∞ *)
-  rewrite /is_RInt_gen /filterlimi /filter_le /filtermapi //= in HL_full.
-  (* From HL_fin, we know ∫[xa,xb] f = L_fin *)
-  rewrite /is_RInt_gen /filterlimi /filter_le /filtermapi //= in HL_fin.
-
-  (* Use HL_full to get convergence in the neighborhood P *)
-  admit. (* This requires showing that the difference of limits converges to the difference *)
-Admitted.
+  destruct Hfull as [L1 H1].
+  destruct Hfin as [L2 H2].
+  exists (plus (opp L2) L1).
+  eapply (is_RInt_gen_Chasles f xa (opp L2) L1).
+  2: { done. }
+  rewrite is_RInt_gen_at_point.
+  rewrite is_RInt_gen_at_point in H2.
+  apply is_RInt_swap; done.
+Qed.
 
 (** Absolute value of improper integral is bounded by integral of absolute value bound.
     If |f(x,y)| ≤ g(x) for all x ≥ M, and g ≥ 0, then |∫[M,∞) f(·,y)| ≤ ∫[M,∞) g. *)
@@ -795,12 +816,12 @@ Proof.
   have Hfy_tail : ex_RInt_gen (fun x => f x y) (at_point xb) (Rbar_locally Rbar.p_infty).
   { have Hexf : ex_RInt_gen (fun x => f x y) (at_point xa) (at_point xb).
     { apply (proj2 (@ex_RInt_gen_at_point R_CompleteNormedModule (fun x => f x y) xa xb)). exact Hf_fin. }
-    apply (@ex_RInt_gen_Chasles_exists R_CompleteNormedModule (fun x => f x y) xa xb Hxb Hfy_ex Hexf). }
+    apply (@ex_RInt_gen_Chasles_exists (fun x => f x y) xa xb Hxb Hfy_ex Hexf). }
   have Hg_tail : ex_RInt_gen g (at_point xb) (Rbar_locally Rbar.p_infty).
   { have Hexg : ex_RInt_gen g (at_point xa) (at_point xb).
     { apply (proj2 (@ex_RInt_gen_at_point R_CompleteNormedModule g xa xb)).
       apply Hg_fin. }
-    apply (@ex_RInt_gen_Chasles_exists R_CompleteNormedModule g xa xb Hxb Hg_ex Hexg). }
+    apply (@ex_RInt_gen_Chasles_exists g xa xb Hxb Hg_ex Hexg). }
 
   (* Apply Chasles to decompose: ∫[xa,∞) = ∫[xa,xb] + ∫[xb,∞) *)
   have Hchasles_f : RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty) - RInt (fun x => f x y) xa xb

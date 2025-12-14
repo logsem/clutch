@@ -395,6 +395,13 @@ Proof.
     intros ?????.
     rewrite /uncurry//=.
     rewrite /Continuity2.
+    rewrite /filterlim/filtermap//=/filter_le//=.
+    intros P [e He].
+    exists e.
+    intros [y1 y2].
+    rewrite /ball//=/prod_ball//=.
+    intros [Hy1 Hy2].
+
     admit.
   }
 Admitted.
