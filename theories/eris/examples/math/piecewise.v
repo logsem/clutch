@@ -188,6 +188,26 @@ Proof.
   - simpl. rewrite IH. lra.
 Qed.
 
+Lemma fsum_scal_r {T : Type} (L : list (T → R)) (h : T → R) (t : T) :
+  fsum L t * h t = fsum (map (fun f => fun x => f x * h x) L) t.
+Proof.
+  induction L as [|f L' IH].
+  { rewrite //=. lra. }
+  rewrite /fsum//=.
+  rewrite Rmult_plus_distr_r.
+  f_equal. apply IH.
+Qed.
+
+Lemma fsum_scal_l {T : Type} (L : list (T → R)) (h : T → R) (t : T) :
+  h t * fsum L t = fsum (map (fun f => fun x => h x * f x) L) t.
+Proof.
+  induction L as [|f L' IH].
+  { rewrite //=. lra. }
+  rewrite /fsum//=.
+  rewrite Rmult_plus_distr_l.
+  f_equal. apply IH.
+Qed.
+
 Lemma PCts_RInt {f xa xb} (HP : PCts f xa xb) :
   ex_RInt f xa xb.
 Proof.
@@ -227,10 +247,60 @@ Proof.
 Qed.
 
 Lemma PCts_plus {f g xa xb} : PCts f xa xb → PCts g xa xb → PCts (fun x => f x + g x) xa xb.
-Proof. Admitted.
+Proof.
+  intros [Lf [Hfeq HfC]] [Lg [Hgeq HgC]].
+  exists (Lf ++ Lg).
+  split.
+  { intros x Hx. rewrite Hfeq; try done. rewrite Hgeq; try done. rewrite fmap_app. rewrite fsum_app. done. }
+  apply Forall_app_2; done.
+Qed.
+
+Lemma IntervalFun_continuity_mult {f g xa xb ya yb} :
+  IntervalFun_continuity (f, xa, xb) →
+  IntervalFun_continuity (g, ya, yb) →
+  IntervalFun_continuity ((fun x => f x * g x), (Rmax xa ya), (Rmin xb yb)).
+Proof.
+  rewrite /IntervalFun_continuity//=.
+  intros Hf Hg x Hx.
+  apply (@Continuity.continuous_mult R_CompleteNormedModule).
+  - apply Hf.
+    revert Hx.
+    rewrite /Icc//=.
+    intros [??]. split.
+    { etrans; [|apply H].
+      admit.
+    }
+    { etrans; [apply H0|].
+      admit.
+    }
+  - apply Hg.
+    revert Hx.
+    rewrite /Icc//=.
+    intros [??]. split.
+    { etrans; [|apply H].
+      admit.
+    }
+    { etrans; [apply H0|].
+      admit.
+    }
+Admitted.
 
 Lemma PCts_mult {f g xa xb} : PCts f xa xb → PCts g xa xb → PCts (fun x => f x * g x) xa xb.
-Proof. Admitted.
+Proof.
+  intros [Lf [Hfeq HfC]] [Lg [Hgeq HgC]].
+  pose mult_interval := fun '((f1, xa1, xb1), (f2, xa2, xb2)) => ((fun x => f1 x * f2 x), Rmax xa1 xa2, Rmin xb1 xb2).
+  exists (flat_map (fun f_elem => map (fun g_elem => mult_interval R (f_elem, g_elem)) Lg) Lf).
+  split.
+  { intros x Hx. rewrite Hfeq; try done. rewrite Hgeq; try done. clear Hfeq Hgeq HfC HgC.
+    rewrite fsum_scal_r.
+    admit.
+  }
+  { clear Hfeq Hgeq. induction Lf as [|f_elem Lf' IH]; rewrite //=. apply Forall_app_2.
+    { rewrite Forall_map. clear IH. induction Lg as [|g_elem Lg' IH]; rewrite //=. apply Forall_cons_2.
+      { destruct f_elem as [[??]?]. destruct g_elem as [[??]?]. apply Forall_inv in HfC. apply Forall_inv in HgC. apply IntervalFun_continuity_mult; done. }
+      { apply IH. eapply Forall_inv_tail; done. } }
+    { apply IH. eapply Forall_inv_tail; done. } }
+Admitted.
 
 (** Piecewise continuity over the enture real line *)
 
@@ -279,7 +349,16 @@ Proof.
 Qed.
 
 Lemma IPCts_plus {f g} : IPCts f → IPCts g → IPCts (fun x => f x + g x).
-Proof. Admitted.
+Proof.
+  intros [f0 [Lf [Hfeq [HfC Hf0]]]] [g0 [Lg [Hgeq [HgC Hg0]]]].
+  exists (fun x => f0 x + g0 x), (Lf ++ Lg).
+  split; last split.
+  { intros x. rewrite Hfeq Hgeq. rewrite fmap_app fsum_app. lra. }
+  { apply Forall_app_2; done. }
+  intros x.
+  apply (@Continuity.continuous_plus R_CompleteNormedModule).
+  - apply Hf0. - apply Hg0.
+Qed.
 
 Lemma IPCts_mult {f g} : IPCts f → IPCts g → IPCts (fun x => f x * g x).
 Proof. Admitted.

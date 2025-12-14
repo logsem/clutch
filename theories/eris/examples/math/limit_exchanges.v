@@ -422,6 +422,9 @@ Proof.
 Qed.
 
 
+(** The Uniform Limit Theorem *)
+
+
 (* Wrapper around the Coquelicot french definitions + some basic reductions *)
 Theorem UniformLimitTheorem {f : nat → R → R} {a b x : R} :
   Icc a b x →
