@@ -676,31 +676,84 @@ Admitted.
 
 (** Absolute value of improper integral is bounded by integral of absolute value bound.
     If |f(x,y)| ≤ g(x) for all x ≥ M, and g ≥ 0, then |∫[M,∞) f(·,y)| ≤ ∫[M,∞) g. *)
+
+(* Strategy:
+     1. Use RInt_gen_norm from Coquelicot: norm lf <= lg where
+        lf = RInt_gen f ... and lg = RInt_gen g ...
+     2. For reals, norm = Rabs
+     3. Show lg >= 0 (since g >= 0 everywhere), so |lg| = lg
+     4. Conclude |lf| <= lg = |lg|
+  *)
+
 Lemma RInt_gen_abs_bound (f : R → R) (g : R → R) (M : R)
-  (Hbound : ∀ x, M <= x → Rabs (f x) <= g x)
-  (Hg_pos : ∀ x, M <= x → 0 <= g x)
+  (Hbound : ∀ x, Rabs (f x) <= g x)
+  (Hg_pos : ∀ x, 0 <= g x)
   (Hf_ex : ex_RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty))
-  (Hg_ex : ex_RInt_gen g (at_point M) (Rbar_locally Rbar.p_infty)) :
+  (Hg_ex : ex_RInt_gen g (at_point M) (Rbar_locally Rbar.p_infty))
+  (Hg_ex' : ∀ b, ex_RInt g M b) :
   Rabs (RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty)) <=
   Rabs (RInt_gen g (at_point M) (Rbar_locally Rbar.p_infty)).
 Proof.
-  (* The idea: Since |f(x)| ≤ g(x) and g ≥ 0, we have -g(x) ≤ f(x) ≤ g(x).
-     By monotonicity of improper integrals:
-       -∫[M,∞) g ≤ ∫[M,∞) f ≤ ∫[M,∞) g
-     Since g ≥ 0, we have ∫[M,∞) g ≥ 0, so |∫[M,∞) g| = ∫[M,∞) g.
-     Therefore |∫[M,∞) f| ≤ ∫[M,∞) g = |∫[M,∞) g|. *)
-  admit.
-Admitted.
+  (* Extract the limits from the existence hypotheses *)
+  destruct Hf_ex as [lf Hf_is].
+  destruct Hg_ex as [lg Hg_is].
+  (* Rewrite goal in terms of lf and lg *)
+  have -> : RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty) = lf.
+  { apply is_RInt_gen_unique. exact Hf_is. }
+  have -> : RInt_gen g (at_point M) (Rbar_locally Rbar.p_infty) = lg.
+  { apply is_RInt_gen_unique. exact Hg_is. }
+
+  (* Apply RInt_gen_norm: norm lf <= lg *)
+  have Hnorm : norm lf <= lg.
+  {
+    eapply (@RInt_gen_norm R_CompleteNormedModule (at_point M) (Rbar_locally Rbar.p_infty)
+          _ _ _ _ lf lg _ _ Hf_is Hg_is).
+    Unshelve.
+    { apply (Filter_prod _ _ _ (fun x => x = M) (fun y => M <= y)).
+      { rewrite /at_point//=. }
+      { rewrite /Rbar_locally//=. exists M. intros ??; lra. }
+      { intros ????. simpl. lra. }
+    }
+    { apply (Filter_prod _ _ _ (fun x => x = M) (fun y => M <= y)).
+      { rewrite /at_point//=. }
+      { rewrite /Rbar_locally//=. exists M. intros ??; lra. }
+      rewrite /norm//=/abs//=.
+    }
+  }
+
+  (* For reals, norm = Rabs *)
+  rewrite /norm/=/abs/= in Hnorm.
+
+  (* Show lg >= 0 *)
+  have Hlg_pos : 0 <= lg.
+  { have H := (RInt_gen_pos_strong (F := g) (M := M)).
+    rewrite -[lg](is_RInt_gen_unique _ _ Hg_is).
+    apply H.
+    - intros x. apply Hg_pos.
+    - intros b. apply Hg_ex'.
+    - intros b Hb.
+      apply RInt_ge_0; try lra.
+      { apply Hg_ex'. }
+      intros ??.
+      apply Hg_pos.
+    - exists lg. exact Hg_is.
+  }
+
+  etrans; first eapply Hnorm.
+  right.
+  rewrite Rabs_right; lra.
+Qed.
 
 (** Helper: Tail integral is bounded by tail of dominating function *)
 Lemma RInt_tail_bound (f : R → R → R) (g : R → R) (xa xb : R) (y : R)
-  (Hbound : ∀ x, xa <= x → Rabs (f x y) <= g x)
-  (Hg_pos : ∀ x, xa <= x → 0 <= g x)
+  (Hbound : ∀ x, Rabs (f x y) <= g x)
+  (Hg_pos : ∀ x, 0 <= g x)
   (Hxb : xa <= xb)
   (Hfy_ex : ex_RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty))
   (Hg_ex : ex_RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty))
   (Hf_fin : ex_RInt (fun x => f x y) xa xb)
-  (Hg_fin : ∀ b, ex_RInt g xa b) :
+  (Hg_fin : ∀ b, ex_RInt g xa b)
+  (Hg_fin' : ∀ b : R, ex_RInt g xb b) :
   Rabs (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty) - RInt (fun x => f x y) xa xb)
   <= Rabs (RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty) - RInt g xa xb).
 Proof.
@@ -748,23 +801,18 @@ Proof.
   (* Rewrite using Chasles decomposition *)
   rewrite Hchasles_f Hchasles_g.
 
-  (* Show bound holds on tail [xb, ∞) *)
-  have Hbound_tail : forall x, xb <= x -> Rabs (f x y) <= g x.
-  { intros x Hx. apply Hbound. lra. }
-  have Hg_pos_tail : forall x, xb <= x -> 0 <= g x.
-  { intros x Hx. apply Hg_pos. lra. }
-
   (* Apply the general absolute value bound for improper integrals *)
-  apply (@RInt_gen_abs_bound (fun x => f x y) g xb Hbound_tail Hg_pos_tail Hfy_tail Hg_tail).
+  apply (@RInt_gen_abs_bound); try done.
+
 Qed.
 
 (** Uniform convergence of improper integrals via dominated convergence.
     Analogous to UniformConverge_Series (Weierstrass M-test) for series. *)
 Lemma UniformConverge_RInt (f : R → R → R) (g : R → R) (xa ya yb : R)
-  (Hbound : ∀ x y, Rmin ya yb <= y <= Rmax ya yb → xa <= x → Rabs (f x y) <= g x)
-  (Hg_pos : ∀ x, xa <= x → 0 <= g x)
+  (Hbound : ∀ x y, Rabs (f x y) <= g x)
+  (Hg_pos : ∀ x,  0 <= g x)
   (Hg_ex : ex_RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty))
-  (Hf_ex : ∀ xb y, Rmin ya yb <= y <= Rmax ya yb → xa <= xb → ex_RInt (fun x => f x y) xa xb)
+  (Hf_ex : ∀ xb y, ex_RInt (fun x => f x y) xa xb)
   (Hg_cont : ∀ x, xa <= x → Continuity.continuous g x)
   (Hf_cont : ∀ x y, xa <= x → Continuity.continuous (fun x => f x y) x) :
   filterlim (λ xb y, RInt (λ x, f x y) xa xb)
@@ -775,8 +823,11 @@ Proof.
   intro eps.
 
   (* Use tail convergence of g to get uniform bound *)
-  have Hex_g_fin : ∀ b, ex_RInt g xa b.
+
+  have Hex_g_fin' : ∀ a b, ex_RInt g a b.
   { intro b. admit. (* Follows from Hg_cont and ex_RInt_continuous *) }
+  have Hex_g_fin : ∀ b, ex_RInt g xa b.
+  { intro b. apply Hex_g_fin'. }
   have Htail := RInt_gen_tail_converges g xa Hex_g_fin Hg_ex eps.
   destruct Htail as [M0 HM0].
   (* Ensure M >= xa by taking maximum *)
@@ -818,14 +869,7 @@ Proof.
   (* Apply tail bound to get the key inequality *)
   have Htail_bound : Rabs (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty) - RInt (fun x => f x y) xa xb)
                      <= Rabs (RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty) - RInt g xa xb).
-  { apply RInt_tail_bound with (xa := xa).
-    - intros x Hx. apply Hbound; done.
-    - intros x Hx. apply Hg_pos; done.
-    - done.
-    - done.
-    - done.
-    - apply Hf_ex; done.
-    - done. }
+  { apply RInt_tail_bound with (xa := xa); done. }
 
   (* Combine to get the final bound *)
   rewrite /abs/=/minus/=.
