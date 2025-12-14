@@ -1,4 +1,4 @@
-From clutch.eris.examples.math Require Import prelude axioms series iverson sets integrals improper.
+From clutch.eris.examples.math Require Import prelude axioms series iverson sets integrals improper continuity2.
 From clutch.eris Require Import infinite_tape.
 Import Hierarchy.
 Set Default Proof Using "Type*".
@@ -450,6 +450,25 @@ Proof.
   *)
 Admitted.
 
+
+(** 2D Uniform Limit Theorem *)
+
+Theorem UniformLimitTheorem2 {f : nat → R → R → R} {xa xb ya yb x y : R} :
+  xa <= xb →
+  ya <= yb →
+  Icc xa xb x →
+  Icc ya yb x →
+  (∀ (n : nat) (x' y' : R),
+     Icc xa xb x' →
+     Icc ya yb y' →
+     Continuity2 (uncurry (λ x0 y0, f n x0 y0)) x' y') →
+  filterlim (fun (M : nat) (x y : R) => sum_n (fun n => f n x y) M) eventually
+    (locally (λ x y : R, SeriesC (fun n => f n x y))) →
+  Continuity2 (uncurry (λ x0 y0 : R, SeriesC (λ n : nat, f n x0 x0))) x y.
+Proof. Admitted.
+
+
+(** Uniform convergence of improper integrals *)
 
 (** Helper: Tail of a converging improper integral goes to zero
     Proof strategy: Use filterlim_is_RInt_gen and RInt_gen_correct *)

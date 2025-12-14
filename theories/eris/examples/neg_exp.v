@@ -82,10 +82,82 @@ Section credits.
     auto_derive. OK.
   Qed.
 
-  Lemma NegExp_μ_ex_RInt_gen {a N} : ex_RInt_gen (NegExp_ρ N) (at_point a) (Rbar_locally Rbar.p_infty).
-  Proof. Admitted.
-
   Lemma NegExp_μ_IPcts {L} : IPCts (NegExp_ρ L).
+  Proof.
+    rewrite /NegExp_ρ.
+    apply IPCts_mult.
+    { apply IPCts_cts. intros ?. apply Continuity.continuous_const. }
+    rewrite /NegExp_ρ0.
+    apply IPCts_mult.
+    2: {
+      apply IPCts_cts.
+      intros ?.
+      eapply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      auto_derive. OK.
+    }
+    (* Decompose this indicator function into
+                 ______
+            ____/            (step function, continuous, as the right tails)
+
+        +       \            (correction for the diagonal part)
+
+
+        Then the diagonal step just has to be proven continuous
+    *)
+
+    (*
+    exists (fun _ => 1).
+    exists (List.cons ((fun _ => -1), 0, INR L) (List.cons ((fun _ => 1), INR L, INR L) List.nil)).
+    split; [|split].
+    { intros.
+      rewrite /fsum//=.
+      rewrite {1}/Iverson//=.
+      case_decide.
+      { have HH : L <= x by OK.
+        rewrite {2}/Iverson//=.
+        case_decide.
+        { rewrite Iverson_True; OK.
+          rewrite /Icc in H0.
+          rewrite Rmin_left in H0; OK.
+          rewrite Rmax_right in H0; OK.
+          rewrite /Icc//=; OK.
+          rewrite Rmin_left.
+          2: { apply pos_INR. }
+          rewrite Rmax_right.
+          2: { apply pos_INR. }
+          split; OK.
+          etrans; [|eapply HH].
+          apply pos_INR.
+        }
+        { rewrite Iverson_False; OK.
+          revert H0.
+          rewrite /Icc.
+          rewrite Rmin_left; OK.
+          rewrite Rmax_right; OK.
+          rewrite Rmin_left.
+          2: { apply pos_INR. }
+          rewrite Rmax_right.
+          2: { apply pos_INR. }
+          intros H1 H2; OK.
+        }
+      }
+      { have HH : x < L by OK.
+        rewrite Iverson_True; OK.
+        2: {
+          rewrite /Icc.
+          rewrite Rmin_left.
+          2: { apply pos_INR. }
+          rewrite Rmax_right.
+          2: { apply pos_INR. }
+          split.
+
+    *)
+  Admitted.
+
+  Lemma NegExp_μ_ex_RInt_gen {a N} : ex_RInt_gen (NegExp_ρ N) (at_point a) (Rbar_locally Rbar.p_infty).
+  Proof.
+    rewrite /NegExp_ρ.
+    (* Compare to a version without the indicator *)
   Admitted.
 
   Lemma NegExp_CreditV_nn {F : R -> R} {M} (Hnn : ∀ r, 0 <= F r <= M) {L : nat} (H : IPCts F) :
@@ -249,9 +321,6 @@ Section credits.
       h HSInt HSLim) as [IF [HIf1 HIf2]].
     by exists IF.
   Qed.
-
-  Lemma ex_RInt_shift {F} (H : ∀ a b, ex_RInt F a b) {x y L : R} : (ex_RInt (V := R_CompleteNormedModule) (λ y : R, F (y + L)) x y).
-  Proof. Admitted.
 
   Local Theorem g_expectation {F L M}
     (Hf : ∀ x, 0 <= F x <= M)
@@ -550,9 +619,23 @@ Section credits.
         apply SeriesC_ext.
         intros ?.
         rewrite /B//=.
-        (* Scaling a RInt_gen *)
-
-        admit.
+        rewrite  RInt_gen_Ici_scal.
+        { f_equal; funexti; OK. }
+        eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, M * NegExp_ρ (L + 1) x)).
+        { apply IPCts_scal_mult, NegExp_μ_IPcts. }
+        { apply IPCts_mult; first done. apply NegExp_μ_IPcts. }
+        { intros ?.
+          split.
+          { apply Rmult_le_pos; [apply Hf|]. apply NegExp_ρ_nn. }
+          { apply Rmult_le_compat.
+            { apply Hf. }
+            { apply NegExp_ρ_nn. }
+            { apply Hf. }
+            { lra. }
+          }
+        }
+        apply ex_RInt_gen_Ici_scal.
+        apply NegExp_μ_ex_RInt_gen.
       }
       replace (RInt_gen (λ x0 : R, RInt (λ x : R, SeriesC (λ n : nat, B x n x0)) 0 1) (at_point 0) (Rbar_locally Rbar.p_infty))
          with (RInt (λ x : R, RInt_gen (λ x0 : R,SeriesC (λ n : nat, B x n x0)) (at_point 0) (Rbar_locally Rbar.p_infty)) 0 1).
@@ -564,10 +647,12 @@ Section credits.
           rewrite Rmin_left; OK.
           rewrite Rmax_right; OK.
           intros ???.
-          (* Uniform integral condition for Continuity2D *)
+          (* (@UniformLimitTheorem2 (fun n x y => B x n y)) *)
+          (* Okay wait, this could be a problem.
+             Try to simplify Fubini. *)
           admit. }
         { (* Uniform convergence *)
-          eapply @UniformConverge_RInt.
+          apply (UniformConverge_RInt _ (fun x0 => F x0 * NegExp_ρ (L + 1) x0)).
           all: admit.
         }
       }
@@ -576,11 +661,10 @@ Section credits.
       rewrite Rmax_right; OK.
       intros ??.
 
-      (** New Fubini *)
-      (* TODO: I think a Series/RInt_gen Fubini should be derivable from the series/definite
-         case and a limit/series case. *)
 
-      admit.
+      (** New Fubini *)
+      eapply @FubiniImproper_Series.
+      all: admit.
     }
     replace (RInt_gen (λ x0 : R, (F x0 * NegExp_ρ (L + 1) x0) * (RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n)) 0 1)) (at_point 0) (Rbar_locally Rbar.p_infty))
        with (RInt_gen (λ x0 : R, (F x0 * NegExp_ρ (L + 1) x0) * (RInt (λ x : R, 1 - exp (-x)) 0 1)) (at_point 0) (Rbar_locally Rbar.p_infty));
@@ -727,10 +811,22 @@ Section credits.
       { apply ex_RInt_gen_at_point.
         apply ex_RInt_mult. { apply Hex. } { apply NegExp_ρ_ex_RInt. } }
       { (** Integrable + Bounded argument (Should be done somewhere) *)
-
-        (* Upper bound this by M * ...
-           OK if f pcs continuous *)
-        admit. }
+        eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, M * NegExp_ρ L x)).
+        { apply IPCts_scal_mult, NegExp_μ_IPcts. }
+        { apply IPCts_mult; first done. apply NegExp_μ_IPcts. }
+        { intros ?.
+          split.
+          { apply Rmult_le_pos; [apply Hf|]. apply NegExp_ρ_nn. }
+          { apply Rmult_le_compat.
+            { apply Hf. }
+            { apply NegExp_ρ_nn. }
+            { apply Hf. }
+            { lra. }
+          }
+        }
+        apply ex_RInt_gen_Ici_scal.
+        apply NegExp_μ_ex_RInt_gen.
+      }
     }
     rewrite RInt_gen_at_point.
     2: { apply ex_RInt_mult. { apply Hex. } { apply NegExp_ρ_ex_RInt. } }
@@ -815,9 +911,25 @@ Section credits.
     {
       apply RInt_gen_ext_eq_Ici.
       2: {  (** Integrable + Bounded argument (Should be done somewhere) *)
-
-
-        admit. }
+        replace (λ x0 : R, F x0 * NegExp_ρ (L + 1) x0 * exp (-1))
+           with (λ x0 : R, exp (-1) * (F x0 * NegExp_ρ (L + 1) x0)) by (funexti; OK).
+        apply ex_RInt_gen_Ici_scal.
+        eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, M * NegExp_ρ (L + 1) x)).
+        { apply IPCts_scal_mult, NegExp_μ_IPcts. }
+        { apply IPCts_mult; first done. apply NegExp_μ_IPcts. }
+        { intros ?.
+          split.
+          { apply Rmult_le_pos; [apply Hf|]. apply NegExp_ρ_nn. }
+          { apply Rmult_le_compat.
+            { apply Hf. }
+            { apply NegExp_ρ_nn. }
+            { apply Hf. }
+            { lra. }
+          }
+        }
+        apply ex_RInt_gen_Ici_scal.
+        apply NegExp_μ_ex_RInt_gen.
+      }
       intros x Hx.
       rewrite Rmult_assoc. f_equal.
       rewrite /NegExp_ρ.

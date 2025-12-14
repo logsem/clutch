@@ -610,3 +610,13 @@ Proof.
     by apply IFubini_Fubini_x.
   }
 Qed.
+
+Theorem FubiniImproper_Series {f UB L}
+  (HexU : Series.ex_series UB)
+  (Hub : forall x n, Rabs (f n x) <= UB n)
+  (Hex : ∀ n, ex_RInt_gen (f n) (at_point L) (Rbar_locally Rbar.p_infty)) :
+  (* (Hcauchy :  filterlim (λ xb y : R, RInt (λ x : R, Iverson (Ioo ya yb) y * f x y) xa xb) (Rbar_locally Rbar.p_infty)
+                (locally (λ y : R, RInt_gen (λ x : R, Iverson (Ioo ya yb) y * f x y) (at_point xa) (Rbar_locally Rbar.p_infty)))) : *)
+  RInt_gen (λ x : R, SeriesC (λ n : nat, f n x)) (at_point L) (Rbar_locally Rbar.p_infty) =
+  SeriesC (λ n : nat, RInt_gen (λ x : R, f n x) (at_point L) (Rbar_locally Rbar.p_infty)).
+Proof. Admitted.

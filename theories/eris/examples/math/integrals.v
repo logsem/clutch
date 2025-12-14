@@ -208,3 +208,7 @@ Proof.
   { apply functional_extensionality; intros ?; rewrite Rdiv_def//=. }
   by apply ex_RInt_Rmult'.
 Qed.
+
+Lemma ex_RInt_shift {F} (H : ∀ a b, ex_RInt F a b) {x y L : R} :
+  (ex_RInt (V := R_CompleteNormedModule) (λ y : R, F (y + L)) x y).
+Proof. Admitted.
