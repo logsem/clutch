@@ -229,7 +229,7 @@ Qed.
 Lemma PCts_plus {f g xa xb} : PCts f xa xb → PCts g xa xb → PCts (fun x => f x + g x) xa xb.
 Proof. Admitted.
 
-Lemma PCts_mult {f g xa xb} : PCts f xa xb → PCts g xa xb → PCts (fun x => f x + g x) xa xb.
+Lemma PCts_mult {f g xa xb} : PCts f xa xb → PCts g xa xb → PCts (fun x => f x * g x) xa xb.
 Proof. Admitted.
 
 (** Piecewise continuity over the enture real line *)
@@ -294,7 +294,7 @@ Definition fsum2 {T U : Type} (L : list (T → U → R)) : T → U → R :=
   fun t u => foldr (fun f s => f t u + s) 0 L.
 
 Definition RectFun_RR : ((R → R → R) * R * R * R * R) → (R → R → R) :=
-  fun '(f, xa, xb, ya, yb) x y => Iverson (Ioo xa xb) x * Iverson (Ioo ya yb) y * f x y.
+  fun '(f, xa, xb, ya, yb) x y => Iverson (Icc xa xb) x * Iverson (Icc ya yb) y * f x y.
 
 Definition RectFun_continuity : ((R → R → R) * R * R * R * R) → Prop :=
   fun '(f, xa, xb, ya, yb) => ∀ x y, Icc xa xb x → Icc ya yb y → Continuity2 (uncurry f) x y.
@@ -302,7 +302,7 @@ Definition RectFun_continuity : ((R → R → R) * R * R * R * R) → Prop :=
 (* f is a finite sum of rectangle functions on the rectangle [xa xb] [ya yb] *)
 Definition PCts2 (f : R → R → R) (xa xb ya yb : R) : Prop :=
   ∃ L,
-    ∀ x y, (Ioo xa xb x → Ioo ya yb y → f x y = fsum2 (RectFun_RR <$> L) x y) ∧
+    ∀ x y, (Icc xa xb x → Icc ya yb y → f x y = fsum2 (RectFun_RR <$> L) x y) ∧
     Forall RectFun_continuity L.
 
 Lemma PCts2_continuous {f : R → R → R} {xa xb ya yb} :
@@ -352,8 +352,97 @@ Admitted.
 
 Lemma PCts_const_x {f xa xb ya yb} : PCts f xa xb → PCts2 (fun x _ => f x) xa xb ya yb.
 Proof.
+  intros [L [Hf HC]].
+  pose LiftP : ((R → R) * R * R) → ((R → R → R) * R * R * R * R) :=
+    fun '(f, xa1, xb1) => (fun x _ : R => f x, xa1, xb1, ya, yb).
+  exists (LiftP <$> L).
+  intros ??.
+  split.
+  { intros ??.
+    rewrite Hf; try done.
+    rewrite /fsum/fsum2//=.
+    clear HC Hf.
+    suffices HH :  ∀ (k : R),
+    @eq R
+      (@fold_right R (forall _ : R, R) (fun (f0 : forall _ : R, R) (s : R) => Rplus (f0 x) s) k
+         (@fmap list list_fmap (prod (prod (forall _ : R, R) R) R) (forall _ : R, R) IntervalFun_R L))
+      (@fold_right R (forall (_ : R) (_ : R), R) (fun (f0 : forall (_ : R) (_ : R), R) (s : R) => Rplus (f0 x y) s)
+         k
+         (@fmap list list_fmap (prod (prod (prod (prod (forall (_ : R) (_ : R), R) R) R) R) R)
+            (forall (_ : R) (_ : R), R) RectFun_RR
+            (@fmap list list_fmap (prod (prod (forall _ : R, R) R) R)
+               (prod (prod (prod (prod (forall (_ : R) (_ : R), R) R) R) R) R) LiftP L))) by intuition.
+    induction L; [rewrite //=|].
+    intros k.
+    do 3 rewrite fmap_cons.
+    rewrite foldr_cons.
+    rewrite foldr_cons.
+    f_equal; [|apply IHL].
+    destruct a as [[??]?].
+    rewrite /IntervalFun_R/RectFun_RR//=.
+    symmetry.
+    rewrite (Rmult_comm (Iverson _ _)).
+    rewrite Iverson_True; [lra|done].
+  }
+  { clear Hf.
+    induction L; [rewrite //=|].
+    rewrite fmap_cons.
+    apply Forall_cons_2.
+    2: { apply IHL. eapply Forall_inv_tail; done. }
+    apply Forall_inv in HC; revert HC.
+    destruct a as [[??]?].
+    rewrite /IntervalFun_continuity/RectFun_continuity/LiftP//=.
+    intros ?????.
+    rewrite /uncurry//=.
+    rewrite /Continuity2.
+    admit.
+  }
 Admitted.
 
 Lemma PCts_const_y {f xa xb ya yb} : PCts f ya yb → PCts2 (fun _ y => f y) xa xb ya yb.
 Proof.
+  intros [L [Hf HC]].
+  pose LiftP : ((R → R) * R * R) → ((R → R → R) * R * R * R * R) :=
+    fun '(f, ya1, yb1) => (fun _ y : R => f y, xa, xb, ya1, yb1).
+  exists (LiftP <$> L).
+  intros ??.
+  split.
+  { intros ??.
+    rewrite Hf; try done.
+    rewrite /fsum/fsum2//=.
+    clear HC Hf.
+    suffices HH :  ∀ (k : R),
+       @eq R
+         (@fold_right R (forall _ : R, R) (fun (f0 : forall _ : R, R) (s : R) => Rplus (f0 y) s) k
+            (@fmap list list_fmap (prod (prod (forall _ : R, R) R) R) (forall _ : R, R) IntervalFun_R L))
+         (@fold_right R (forall (_ : R) (_ : R), R) (fun (f0 : forall (_ : R) (_ : R), R) (s : R) => Rplus (f0 x y) s)
+            k
+            (@fmap list list_fmap (prod (prod (prod (prod (forall (_ : R) (_ : R), R) R) R) R) R)
+               (forall (_ : R) (_ : R), R) RectFun_RR
+               (@fmap list list_fmap (prod (prod (forall _ : R, R) R) R)
+                  (prod (prod (prod (prod (forall (_ : R) (_ : R), R) R) R) R) R) LiftP L))) by intuition.
+    induction L; [rewrite //=|].
+    intros k.
+    do 3 rewrite fmap_cons.
+    rewrite foldr_cons.
+    rewrite foldr_cons.
+    f_equal; [|apply IHL].
+    destruct a as [[??]?].
+    rewrite /IntervalFun_R/RectFun_RR//=.
+    symmetry.
+    rewrite Iverson_True; [lra|done].
+  }
+  { clear Hf.
+    induction L; [rewrite //=|].
+    rewrite fmap_cons.
+    apply Forall_cons_2.
+    2: { apply IHL. eapply Forall_inv_tail; done. }
+    apply Forall_inv in HC; revert HC.
+    destruct a as [[??]?].
+    rewrite /IntervalFun_continuity/RectFun_continuity/LiftP//=.
+    intros ?????.
+    rewrite /uncurry//=.
+    rewrite /Continuity2.
+    admit.
+  }
 Admitted.
