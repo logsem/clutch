@@ -38,20 +38,24 @@ Definition is_smaller_prog_aux : val :=
   )%V.
 
 Definition is_smaller_prog : val :=
-  λ: "l" "x" "y",
-    let, ("α", "l'") := "l" in is_smaller_prog_aux "α" "l'" "x" "y" 
+  λ: "p" "n" "x" "y",
+    let, ("l","k") := "p" in
+    if: "k"< "n" then #true
+    else if: "n"<"k" then #false 
+         else let, ("α", "l'") := "l" in
+              is_smaller_prog_aux "α" "l'" "x" "y" 
 .
 
-Local Lemma ineq_lemma (x y:nat): (x<2^y)%nat -> 0<=x/2^y <=1.
+Local Lemma ineq_lemma (x y:nat): (x<2^y)%nat -> 0<=x/2^y <1.
 Proof.
   split.
   - apply Rcomplements.Rdiv_le_0_compat.
     + apply pos_INR.
     + apply pow_lt. lra. 
-  - rewrite -Rcomplements.Rdiv_le_1; last (apply pow_lt; lra).
+  - rewrite -Rcomplements.Rdiv_lt_1; last (apply pow_lt; lra).
     replace 2 with (INR 2) by done.
     rewrite -pow_INR.
-    apply le_INR. lia.
+    apply lt_INR. lia.
 Qed.
 
 (* move this lemma? *)
@@ -129,30 +133,39 @@ Section adequacy.
           destruct n; try done. lia.
   Qed.
 
-  Lemma wp_e x y μ e:
+  Lemma wp_e x y μ e (n:nat):
     (∀ x, 0<=μ x)->
-    ex_RInt μ 0 1 ->
+    ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
     (x<2^y)%nat ->
     (∀ (F : R -> R), (⌜∃ M, ∀ x , 0 <= F x <= M⌝) -∗
-       ↯ (RInt (fun (x:R) => μ x * F x) 0 1)%R -∗
-       WP e {{ l, ∃ r : R,  lazy_real l r ∗ ↯(F r) }}) -∗
-    ↯ (RInt μ (x / 2 ^ y) 1) -∗
-    WP e {{ l, ∃ r : R,  lazy_real l r ∗ ↯(if (bool_decide (r<=(x/2^y))%R) then 0 else 1)%R }}.
+       ↯ (RInt_gen (fun (x:R) => μ x * F x) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
+       WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗ ↯(F (r+k)%R) }}) -∗
+    ↯ (RInt_gen μ (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)) -∗
+    WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗
+                                          ↯(Iverson (λ r', (x/2^y)+n<r') (r+k)%R) }}.
   Proof.
     iIntros (Hpos Hex Hineq) "Hwp Herr".
     iApply "Hwp".
     - iPureIntro.
-      exists 1. intros; case_bool_decide; lra.
+      exists 1. intros; rewrite /Iverson; case_match; lra.
     - iApply (ec_eq with "[$]").
-      etrans; first (rewrite -RInt_Iverson_ge'; first done).
-      + by apply ineq_lemma.
-      + apply: ex_RInt_Chasles_2; first by apply ineq_lemma. done.
-      + apply RInt_ext.
-        intros.
-        rewrite Rmult_comm. f_equal.
-        rewrite /Iverson.
-        case_match; case_bool_decide; lra.
-  Qed. 
+      erewrite <-(RInt_gen_Chasles _ (x/2^y+n)(Fa := (at_point 0))); last first.
+      + admit.
+      + apply ex_RInt_gen_at_point.
+        eapply (ex_RInt_ext (λ _, 0)).
+        * intros ? [H' H].
+          rewrite Iverson_False; first lra.
+          apply Rlt_asym.
+          rewrite /Rmax in H.
+          rewrite /Rmin in H'.
+          case_match; first lra.
+          exfalso.
+          assert (0<=x/2^y+n); last lra.
+          apply Rplus_le_le_0_compat; last apply pos_INR.
+          apply ineq_lemma. lia.
+        * apply ex_RInt_const.
+      +
+  Admitted. 
 
   Lemma wp_is_zero α l f:
     seq_bin_to_R f = 0 ->
@@ -290,49 +303,66 @@ Section adequacy.
         apply le_INR. lia.
   Qed. 
   
-  Lemma wp_is_smaller_prog x y μ e:
+  Lemma wp_is_smaller_prog n x y μ e:
     (∀ x, 0<=μ x)->
-    ex_RInt μ 0 1 ->
+    ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
     (x<2^y)%nat ->
     (∀ (F : R -> R), (⌜∃ M, ∀ x , 0 <= F x <= M⌝) -∗
-       ↯ (RInt (fun (x:R) => μ x * F x) 0 1)%R -∗
-       WP e {{ l, ∃ r : R,  lazy_real l r ∗ ↯(F r) }}) -∗
-    ↯ (RInt μ (x / 2 ^ y) 1) -∗
-    WP is_smaller_prog e #x #y {{ v, ⌜v = #true⌝ }}.
+       ↯ (RInt_gen (fun (x:R) => μ x * F x) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
+       WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗ ↯(F (r+k)%R) }}) -∗
+    ↯ (RInt_gen μ (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)) -∗
+    WP is_smaller_prog e #n #x #y {{ v, ⌜v = #true⌝ }}.
   Proof.
     iIntros (Hpos Hex Hineq) "Hwp Herr".
     rewrite /is_smaller_prog.
     wp_bind e.
     wp_apply (pgl_wp_wand with "[-]"); first by iApply (wp_e with "[Hwp][$]").
     simpl.
-    iIntros (?) "(%&Hl&Herr)".
+    iIntros (?) "(%r&%k&%&->&Hl&Herr)".
     rewrite /lazy_real.
-    iDestruct "Hl" as "(%&%&%&->&->&H)".
+    iDestruct "Hl" as "(%&%&%f&->&->&H)".
     wp_pures.
-    case_bool_decide; last by iDestruct (ec_contradict with "[$]") as "[]".
-    by wp_apply wp_is_smaller_prog_aux.
+    pose proof seq_bin_to_R_range f.
+    case_bool_decide; first by wp_pures.
+    wp_pures.
+    case_bool_decide.
+    { iDestruct (ec_contradict with "[$]") as "[]".
+      rewrite Iverson_True; first done.
+      assert ( x / 2 ^ y + n <  k); last lra.
+      rewrite -Rcomplements.Rlt_minus_r.
+      rewrite -minus_INR; last lia.
+      apply Rlt_le_trans with (1).
+      - by apply ineq_lemma.
+      - replace 1 with (INR 1) by done.
+        apply le_INR. lia.
+    }
+    wp_pures.
+    rewrite /Iverson.
+    case_match; first by iDestruct (ec_contradict with "[$]") as "[]".
+    wp_apply wp_is_smaller_prog_aux; try done.
+    assert (n=k)%nat as -> by lia.
+    lra.
   Qed.
 End adequacy.
 
 Theorem lazy_real_adeqaucy Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
   (∀ x, 0<=μ x)->
-  ex_RInt μ 0 1 ->
+    ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
   (∀ `{erisGS Σ} (F : R -> R) (Hnn : ∃ M, ∀ x , 0 <= F x <= M),
-      ↯ (RInt (fun (x:R) => μ x * F x) 0 1)%R ⊢
-     WP e {{ l, ∃ r : R,  lazy_real l r ∗ ↯(F r) }}) →
-  ∀ (x y:nat), (x<2^y)%nat ->
-  pgl (lim_exec (is_smaller_prog e #x #y, σ)) (λ x, x=#true) (RInt μ (x/2^y) 1).
+      ↯ (RInt_gen (fun (x:R) => μ x * F x) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
+       WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗ ↯(F (r+k)%R) }}) →
+  ∀ (x y n:nat), (x<2^y)%nat ->
+  pgl (lim_exec (is_smaller_prog e #n #x #y, σ)) (λ x, x=#true) (RInt_gen μ (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)).
 Proof.
-  intros Hpos Hbound Hwp x y Hineq.
+  intros Hpos Hbound Hwp x y n Hineq.
   apply ineq_lemma in Hineq as Hineq'.
   eapply (wp_pgl_lim Σ).
-  { apply RInt_ge_0; first naive_solver.
-    - by apply: ex_RInt_Chasles_2.
-    - intros; apply Hpos.
-  }
+  { (* RInt_gen_pos_ex is stated wrongly *)
+    admit.
+  } 
   iIntros (?) "Herr".
   iPoseProof (wp_is_smaller_prog with "[][$]") as "$"; [done..|].
   iIntros (? H2) "Herr".
   by iApply Hwp.
-Qed. 
+Admitted. 
   
