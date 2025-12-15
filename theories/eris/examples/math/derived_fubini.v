@@ -619,34 +619,35 @@ Theorem FubiniImproper_Series {f UB L}
   RInt_gen (λ x : R, SeriesC (λ n : nat, f n x)) (at_point L) (Rbar_locally Rbar.p_infty) =
   SeriesC (λ n : nat, RInt_gen (λ x : R, f n x) (at_point L) (Rbar_locally Rbar.p_infty)).
 Proof.
-  (* Step 1: Establish that for each b, the finite integral of the series exists *)
-  have Hex_finite : ∀ b, ex_RInt (λ x, SeriesC (λ n, f n x)) L b.
-  { admit. }
-
   (* Step 2: Establish that for each n, the finite integral exists *)
   have Hex_n : ∀ n b, ex_RInt (f n) L b.
+  { intros n b.
+    (* We need continuity or local integrability assumptions.
+       Ex_RInt_gen alone doesn't guarantee ex_RInt on finite intervals without regularity. *)
+    admit. }
+
+  (* Step 1: Establish that for each b, the finite integral of the series exists *)
+  have Hex_finite : ∀ b, ex_RInt (λ x, SeriesC (λ n, f n x)) L b.
   { admit. }
 
   (* Step 3: Exchange finite integral and series at each cutoff b
      RInt (λ x, SeriesC (λ n, f n x)) L b = SeriesC (λ n, RInt (f n) L b) *)
   have Hfubini_finite : ∀ b, L < b →
     RInt (λ x, SeriesC (λ n, f n x)) L b = SeriesC (λ n, RInt (f n) L b).
-  { admit. }
+  { intros b Hb. admit. }
 
   (* Step 4: The series of improper integrals converges *)
   have Hex_series_improper : ex_seriesC (λ n, RInt_gen (f n) (at_point L) (Rbar_locally Rbar.p_infty)).
-  { admit. }
+  { have HexU' : ex_seriesC UB. { rewrite -ex_seriesC_nat. apply HexU. }
+    (* Need to show: |RInt_gen (f n) ...| <= C * UB(n) for some constant C.
+       This requires bounding the integral by the L^infinity norm times the measure. *)
+    admit. }
 
   (* Step 5: The improper integral of the series exists *)
   have Hex_improper_series : ex_RInt_gen (λ x, SeriesC (λ n, f n x)) (at_point L) (Rbar_locally Rbar.p_infty).
-  { admit. }
-
-  (* Step 6: Key limit exchange - lim[b→∞] SeriesC (λ n, RInt (f n) L b) = SeriesC (λ n, lim[b→∞] RInt (f n) L b)
-     This uses uniform convergence from the M-test *)
-  have Hlimit_exchange :
-    filterlim (λ b, SeriesC (λ n, RInt (f n) L b)) (Rbar_locally Rbar.p_infty)
-              (locally (SeriesC (λ n, RInt_gen (f n) (at_point L) (Rbar_locally Rbar.p_infty)))).
-  { admit. }
+  { (* This follows from monotone/dominated convergence: the partial sums converge
+       pointwise and are bounded by SeriesC UB. *)
+    admit. }
 
   (* Step 7: Compute LHS using filterlim_RInt_gen *)
   have HLHS : RInt_gen (λ x, SeriesC (λ n, f n x)) (at_point L) (Rbar_locally Rbar.p_infty) =
@@ -657,6 +658,18 @@ Proof.
   have HLHS' : RInt_gen (λ x, SeriesC (λ n, f n x)) (at_point L) (Rbar_locally Rbar.p_infty) =
                iota (λ I, filterlim (λ b, SeriesC (λ n, RInt (f n) L b)) (Rbar_locally Rbar.p_infty) (locally I)).
   { admit. }
+
+  (* Step 6: Key limit exchange - lim[b→∞] SeriesC (λ n, RInt (f n) L b) = SeriesC (λ n, lim[b→∞] RInt (f n) L b)
+     This uses uniform convergence from the M-test *)
+  have Hlimit_exchange :
+    filterlim (λ b, SeriesC (λ n, RInt (f n) L b)) (Rbar_locally Rbar.p_infty)
+              (locally (SeriesC (λ n, RInt_gen (f n) (at_point L) (Rbar_locally Rbar.p_infty)))).
+  { have Hlim_n : ∀ n, filterlim (λ b, RInt (f n) L b) (Rbar_locally Rbar.p_infty)
+                                  (locally (RInt_gen (f n) (at_point L) (Rbar_locally Rbar.p_infty))).
+    { intros n. apply filterlim_is_RInt_gen. { apply Hex_n. } apply RInt_gen_correct. apply Hex. }
+    (* Need to exchange lim with SeriesC using dominated convergence.
+       The series tail must vanish uniformly in b. *)
+    admit. }
 
   (* Step 9: Use Hlimit_exchange to identify the iota as RHS *)
   rewrite HLHS'.
