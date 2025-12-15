@@ -1,0 +1,19 @@
+(include_subdirs qualified)
+(coq.theory
+ (name discprob)
+ (package coq-clutch)
+ (theories
+   ; TODO these two should not be needed; looks like a Coquelicot packaging bug
+   elpi HB
+
+   stdpp
+   Coquelicot Autosubst
+   mathcomp
+   mathcomp.ssreflect mathcomp.analysis)
+ (flags
+   -w -notation-overridden
+   -w -redundant-canonical-projection
+   -w -convert_concl_no_check
+   -w -undeclared-scope
+   -w -ambiguous-paths
+   -w -ssr-search-moved))
