@@ -649,18 +649,94 @@ Section credits.
           intros ???.
           (* (@UniformLimitTheorem2 (fun n x y => B x n y)) *)
           (* Okay wait, this could be a problem.
-             Try to simplify Fubini. *)
+             Try to simplify Fubini, or more likely, come up with IPCts version of the Fubini's theorem. *)
           admit. }
-        { (* Uniform convergence *)
-          eapply (UniformConverge_RInt_weak _ (fun x0 => F x0 * NegExp_ρ (L + 1) x0)).
-          all: admit.
+        { apply (UniformConverge_RInt_weak _ (fun x0 => F x0 * NegExp_ρ (L + 1) x0) _ 0 1).
+          { intros ??.
+            split.
+            { rewrite /Iverson//=. case_decide; OK.
+              rewrite Rmult_1_l.
+              apply SeriesC_ge_0'.
+              intros ?.
+              rewrite /B.
+              apply Rmult_le_pos; [|apply NegExp_ρ_nn].
+              apply Rmult_le_pos; [|apply Hf].
+              apply Rmult_le_pos; [|apply Iverson_nonneg].
+              apply RealDecrTrial_μnn.
+              rewrite /Ioo in H; OK.
+              rewrite Rmin_left in H; OK.
+              rewrite Rmax_right in H; OK.
+            }
+            rewrite /Iverson//=.
+            case_decide.
+            2: { rewrite Rmult_0_l.
+              apply Rmult_le_pos; [|apply NegExp_ρ_nn].
+              apply Hf.
+            }
+            rewrite Rmult_1_l.
+            rewrite /B.
+            replace ((λ n : nat, RealDecrTrial_μ y 0 n * Iverson (not ∘ Zeven) n * F x * NegExp_ρ (L + 1) x))
+               with (λ n : nat, RealDecrTrial_μ y 0 n * Iverson (not ∘ Zeven) n * (F x * NegExp_ρ (L + 1) x)).
+            2: { funexti; OK. }
+            rewrite SeriesC_scal_r.
+            rewrite -{2}(Rmult_1_l (F x * NegExp_ρ (L + 1) x)).
+            apply Rmult_le_compat; OK.
+            2: {
+              apply Rmult_le_pos; [|apply NegExp_ρ_nn].
+              apply Hf.
+            }
+            { apply SeriesC_ge_0'.
+              intros ?.
+              apply Rmult_le_pos; [|apply Iverson_nonneg].
+              apply RealDecrTrial_μnn.
+              rewrite /Ioo in H; OK.
+              rewrite Rmin_left in H; OK.
+              rewrite Rmax_right in H; OK.
+            }
+            { rewrite /RealDecrTrial_μ.
+              replace (λ x0 : nat, Iverson (uncurry le) (0%nat, x0) * RealDecrTrial_μ0 y (x0 - 0) * Iverson (not ∘ Zeven) x0)
+                  with (λ x0 : nat, Iverson (not ∘ Zeven) x0 * RealDecrTrial_μ0 y x0).
+              2: {
+                funexti.
+                symmetry.
+                rewrite Iverson_True; OK.
+                { rewrite Rmult_1_l Rmult_comm. repeat f_equal. OK. }
+                rewrite /uncurry//=.
+                OK.
+              }
+              rewrite /RealDecrTrial_μ0.
+              have HSeries := (@ExpSeriesOdd y).
+              (* can upper bound this by (exp 1 - 1) or whatever instead of 1 *)
+              admit.
+            }
+          }
+          { apply IPCts_mult; OK. apply NegExp_μ_IPcts. }
+          { (* Not sure. IPCts version of Uniform limit theorem? *)
+            admit. }
+          { eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, M * NegExp_ρ (L + 1) x)).
+            { apply IPCts_scal_mult, NegExp_μ_IPcts. }
+            { apply IPCts_mult; first done. apply NegExp_μ_IPcts. }
+            { intros ?.
+              split.
+              { apply Rmult_le_pos; [apply Hf|]. apply NegExp_ρ_nn. }
+              { apply Rmult_le_compat.
+                { apply Hf. }
+                { apply NegExp_ρ_nn. }
+                { apply Hf. }
+                { lra. }
+              }
+            }
+            apply ex_RInt_gen_Ici_scal.
+            apply NegExp_μ_ex_RInt_gen.
+          }
+          { intros ???. rewrite Iverson_False; OK. rewrite /Ioo//=; OK. }
+          { intros ???. rewrite Iverson_False; OK. rewrite /Ioo//=; OK. }
         }
       }
       apply RInt_ext.
       rewrite Rmin_left; OK.
       rewrite Rmax_right; OK.
       intros ??.
-
 
       (** New Fubini *)
       eapply @FubiniImproper_Series.
