@@ -6,10 +6,12 @@ Set Default Proof Using "Type*".
 
 (** Additional lemmas about Riemann integration *)
 
+(** Sum of integrals *)
 Lemma RInt_add {F1 F2 : R → R} {a b : R} (H1 : ex_RInt F1 a b) (H2 : ex_RInt F2 a b) :
   RInt F1 a b  + RInt F2 a b = RInt (fun x => F1 x + F2 x) a b.
 Proof. rewrite RInt_plus; done. Qed.
 
+(** Left scaling of integrand *)
 Lemma RInt_Rmult {F : R → R} {a b r : R} (Hex : ex_RInt F a b) : r * RInt F a b = RInt (fun x => r * F x) a b.
 Proof.
   replace (λ x : R, r * F x) with (λ x : R, scal r (F x)) by (rewrite /scal//=/mult//=; lra).
@@ -18,6 +20,7 @@ Proof.
   done.
 Qed.
 
+(** Right scaling of integrand *)
 Lemma RInt_Rmult' {F : R → R} {a b r : R} (Hex : ex_RInt F a b) : (RInt F a b) * r = RInt (fun x => F x * r) a b.
 Proof.
   replace (λ x : R, F x * r) with (λ x : R, scal r (F x)); last (rewrite /scal//=/mult//=; apply functional_extensionality; intros ?; lra).
@@ -26,6 +29,7 @@ Proof.
   done.
 Qed.
 
+(** Integrability of left scaling *)
 Lemma ex_RInt_Rmult {F : R → R} {a b r : R} : ex_RInt F a b → ex_RInt (fun x => r * F x) a b.
 Proof.
   intro H.
@@ -34,6 +38,7 @@ Proof.
   apply H.
 Qed.
 
+(** Integrability of right scaling *)
 Lemma ex_RInt_Rmult' {F : R → R} {a b r : R} : ex_RInt F a b → ex_RInt (fun x => F x * r) a b.
 Proof.
   intro H.
@@ -42,6 +47,7 @@ Proof.
   apply H.
 Qed.
 
+(** Integrability of monomial *)
 Lemma ex_RInt_pow {a b N} : ex_RInt (λ y : R, y ^ N) a b.
 Proof.
   apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
@@ -50,6 +56,7 @@ Proof.
   by auto_derive.
 Qed.
 
+(** Integrability of sum *)
 Lemma ex_RInt_add' (f g : R → R) {h : R → R} {a b : R} (Ha : ex_RInt f a b) (Hb : ex_RInt g a b)
    (Hab : a <= b)
    (Hext : ∀ x, a <= x <= b → f x + g x = h x) : ex_RInt h a b.
@@ -64,10 +71,12 @@ Proof.
   apply (ex_RInt_plus _ _ _ _ Ha Hb).
 Qed.
 
+(** Integrability of sum *)
 Lemma ex_RInt_add  {f g : R → R} {a b : R} (Ha : ex_RInt f a b) (Hb : ex_RInt g a b) :
   ex_RInt (fun x => f x + g x) a b.
 Proof. apply (ex_RInt_plus _ _ _ _ Ha Hb). Qed.
 
+(** Integrability of square *)
 Lemma ex_RInt_square (f  : R -> R) (a b : R) :
   ex_RInt f a b → ex_RInt (fun x => (f x) ^ 2) a b.
 Proof.
@@ -78,6 +87,7 @@ Proof.
   by auto_derive.
 Qed.
 
+(** Integrability of product *)
 Lemma ex_RInt_mult (f g : R -> R) (a b : R) :
   ex_RInt f a b ->  ex_RInt g a b ->
   ex_RInt (λ y : R, f y * g y) a b.
@@ -91,6 +101,7 @@ Proof.
   { apply ex_RInt_square. by apply (ex_RInt_minus (V := R_CompleteNormedModule)). }
 Qed.
 
+(** Integral of monomial *)
 Lemma RInt_pow {a b N} : RInt (λ x : R, x ^ N) a b = b ^ (N + 1)%nat / (N + 1)%nat - a ^ (N + 1)%nat / (N + 1)%nat.
 Proof.
   have H : (λ x : R, x ^ N) = (Derive.Derive (λ x : R, x ^ (N+1)%nat * / (N +1)%nat)).
@@ -114,6 +125,7 @@ Proof.
   }
 Qed.
 
+(** Integrability of finite sum *)
 Lemma ex_RInt_sum_n {a b M} {F : nat → R → R} :
   (∀ n, ex_RInt (F n) a b) → ex_RInt (λ x : R, sum_n (λ n : nat, F n x) M) a b .
 Proof.
@@ -135,6 +147,7 @@ Proof.
 Qed.
 
 
+(** Integrability of function with internalized domain *)
 Lemma ex_RInt_dom {F : R → R} {a b : R} : ex_RInt (fun x => Iverson (Ioo a b) x * F x) a b ↔ ex_RInt F a b.
 Proof.
 intros.
@@ -154,10 +167,11 @@ split.
 }
 Qed.
 
-
+(** Alter a function at one point *)
 Definition poke (f : R → R) (a z : R) : R → R := fun x =>
   if (decide (x = a)) then z else f x.
 
+(** Integrability of function with one point different *)
 Lemma ex_RInt_poke {a b c z : R} (f : R → R) (Hf : ex_RInt f a b) (Hi : a < c < b):
   ex_RInt (poke f c z) a b.
 Proof.
@@ -174,6 +188,7 @@ Proof.
   }
 Qed.
 
+(** Integral of function with one point different *)
 Lemma RInt_poke {a b c z : R} (f : R → R) (Hf : ex_RInt f a b) (Hi : a < c < b) :
   RInt f a b = RInt (poke f c z) a b.
 Proof.
@@ -201,6 +216,7 @@ Proof.
 Qed.
 
 
+(** Integrability of scalar division *)
 Lemma ex_RInt_div (F : R → R) {a b c} : ex_RInt F a b → ex_RInt (fun x => F x / c) a b.
 Proof.
   intro H.
@@ -209,6 +225,7 @@ Proof.
   by apply ex_RInt_Rmult'.
 Qed.
 
+(** Integrability of change of variables *)
 Lemma ex_RInt_shift {F} (H : ∀ a b, ex_RInt F a b) {x y L : R} :
   (ex_RInt (V := R_CompleteNormedModule) (λ y : R, F (y + L)) x y).
 Proof. Admitted.
