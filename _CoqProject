@@ -1,5 +1,5 @@
--Q _build/default/theories clutch
--Q _build/default/external/proba discprob
+-Q theories clutch
+-Q external/proba discprob
 
 -arg -w -arg -notation-overridden
 -arg -w -arg -redundant-canonical-projection
