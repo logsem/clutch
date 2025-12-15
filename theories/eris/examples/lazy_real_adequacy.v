@@ -151,8 +151,26 @@ Section adequacy.
       exists 1. intros; rewrite /Iverson; case_match; lra.
     - iPureIntro.
       intros n'.
+      rewrite /PCts.
       admit.
+      (* eexists ([(λ _, 0, 0, (x/2^y +n-n'));(λ _, 1, (x/2^y +n-n'), 1)]). *)
+      (* split. *)
+      (* + simpl. intros ? H. *)
+      (*   rewrite Rmult_0_r. rewrite Rplus_0_l Rplus_0_r. *)
+      (*   rewrite Rmult_1_r. *)
+      (*   rewrite /Iverson. rewrite /Icc in H *. *)
+      (*   rewrite /Rmin in H *. rewrite /Rmax in H *. *)
+      (*   repeat case_match; try lra. *)
+      (*   *  *)
+        
+      (*   admit. *)
+      (* + rewrite !Forall_cons_iff. repeat split; last by apply Forall_nil. *)
+      (*   * rewrite /IntervalFun_continuity. *)
+      (*     intros. *)
+      (*     apply Continuity.continuous_const. *)
+      (*   * rewrite /IntervalFun_continuity. intros. apply Continuity.continuous_const. *)
     - iApply (ec_eq with "[$]").
+      (* erewrite RInt_sep. *)
       erewrite <-(RInt_gen_Chasles _ (x/2^y+n)(Fa := (at_point 0))); last first.
       + admit.
       + apply ex_RInt_gen_at_point.
@@ -168,7 +186,20 @@ Section adequacy.
           apply Rplus_le_le_0_compat; last apply pos_INR.
           apply ineq_lemma. lia.
         * apply ex_RInt_const.
-      + admit.
+      + rewrite RInt_gen_at_point.
+        * admit.
+        * eapply ex_RInt_ext; last apply ex_RInt_const.
+          simpl.
+          intros.
+          rewrite Iverson_False; first by rewrite Rmult_0_r.
+          rewrite /Rmax in H.
+          rewrite /Rmin in H.
+          repeat case_match; try lra.
+          exfalso.
+          assert (0<=x/2^y+n); last lra.
+          apply Rplus_le_le_0_compat; last apply pos_INR.
+          apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR.
+          apply pow_lt. lra.
   Admitted. 
 
   Lemma wp_is_zero α l f:
