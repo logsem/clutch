@@ -138,6 +138,7 @@ Section adequacy.
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
     (x<2^y)%nat ->
     (∀ (F : R -> R), (⌜∃ M, ∀ x , 0 <= F x <= M⌝) -∗
+                    (⌜(∀ (n' : nat), PCts (λ (r:R), F (r+n')%R) 0 1)⌝) -∗
        ↯ (RInt_gen (fun (x:R) => μ x * F x) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
        WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗ ↯(F (r+k)%R) }}) -∗
     ↯ (RInt_gen μ (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)) -∗
@@ -148,6 +149,9 @@ Section adequacy.
     iApply "Hwp".
     - iPureIntro.
       exists 1. intros; rewrite /Iverson; case_match; lra.
+    - iPureIntro.
+      intros n'.
+      admit.
     - iApply (ec_eq with "[$]").
       erewrite <-(RInt_gen_Chasles _ (x/2^y+n)(Fa := (at_point 0))); last first.
       + admit.
@@ -164,7 +168,7 @@ Section adequacy.
           apply Rplus_le_le_0_compat; last apply pos_INR.
           apply ineq_lemma. lia.
         * apply ex_RInt_const.
-      +
+      + admit.
   Admitted. 
 
   Lemma wp_is_zero α l f:
@@ -307,7 +311,7 @@ Section adequacy.
     (∀ x, 0<=μ x)->
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
     (x<2^y)%nat ->
-    (∀ (F : R -> R), (⌜∃ M, ∀ x , 0 <= F x <= M⌝) -∗
+    (∀ (F : R -> R), (⌜∃ M, ∀ x , 0 <= F x <= M⌝) -∗(⌜(∀ (n' : nat), PCts (λ (r:R), F (r+n')%R) 0 1)⌝) -∗
        ↯ (RInt_gen (fun (x:R) => μ x * F x) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
        WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗ ↯(F (r+k)%R) }}) -∗
     ↯ (RInt_gen μ (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)) -∗
@@ -348,7 +352,7 @@ End adequacy.
 Theorem lazy_real_adeqaucy Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
   (∀ x, 0<=μ x)->
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
-  (∀ `{erisGS Σ} (F : R -> R) (Hnn : ∃ M, ∀ x , 0 <= F x <= M),
+  (∀ `{erisGS Σ} (F : R -> R) (Hnn : ∃ M, ∀ x , 0 <= F x <= M) (HPCts: (∀ (n' : nat), PCts (λ (r:R), F (r+n')%R) 0 1)),
       ↯ (RInt_gen (fun (x:R) => μ x * F x) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
        WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗ ↯(F (r+k)%R) }}) →
   ∀ (x y n:nat), (x<2^y)%nat ->
@@ -362,7 +366,7 @@ Proof.
   } 
   iIntros (?) "Herr".
   iPoseProof (wp_is_smaller_prog with "[][$]") as "$"; [done..|].
-  iIntros (? H2) "Herr".
+  iIntros (? H2 H3) "Herr".
   by iApply Hwp.
 Admitted. 
   
