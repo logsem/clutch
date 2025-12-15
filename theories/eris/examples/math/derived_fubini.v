@@ -4,6 +4,7 @@ Import Hierarchy.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
+(** Existence of iterated integral *)
 Theorem Fubini_ex_y : ∀ {f xa xb ya yb}, FubiniCondition f xa xb ya yb →
   ex_RInt (fun y => RInt (fun x => f x y) xa xb) ya yb.
 Proof.
@@ -16,7 +17,7 @@ Proof.
   apply H; done.
 Qed.
 
-(* FubiniCondition implies integrability along any vertical line *)
+(** FubiniCondition implies Integrability along horizontal lines *)
 Theorem FubiniCondition_ex_RInt_x {f xa xb ya yb} :
   FubiniCondition f xa xb ya yb →
   ∀ y, Rmin ya yb <= y <= Rmax ya yb → ex_RInt (fun x => f x y) xa xb.
@@ -30,7 +31,7 @@ Proof.
   apply (Continuity2_continuous_fst W).
 Qed.
 
-(* FubiniCondition implies integrability along any horizontal line *)
+(** FubiniCondition implies Integrability along vertical lines *)
 Theorem FubiniCondition_ex_RInt_y {f xa xb ya yb} :
   FubiniCondition f xa xb ya yb →
   ∀ x, Rmin xa xb <= x <= Rmax xa xb → ex_RInt (fun y => f x y) ya yb.

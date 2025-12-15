@@ -5,38 +5,42 @@ Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
 
-(** Composition of a continuous function with an integrable function is integrable.
+(** AXIOM: Composition of a continuous function with an integrable function is integrable.
 
 There are elementary proofs of this fact, but broadly speaking, they depend on more complex machinery
-that is not yet mechanized in Coquelicot.  For example, that comtinuous functions on closed intervals
-are uniformly continuous.
-*)
+that is not yet mechanized in Coquelicot.  For example, that continuous functions on closed intervals
+are uniformly continuous. *)
 Axiom ex_RInt_comp_cts : ∀ (f g : R → R) {a b : R} (Hg : ∀ x, Continuity.continuous g x) (Hf : ex_RInt f a b),
   ex_RInt (fun x => (g (f x))) a b.
 
 
-(** The weak variant of Fubini's theorem:
-  Fubini's theorem holds when a function is 2D continuous on a rectangle.
-  This is the variant of Fubini's theorem used by the Gaussian development.
- *)
+(** Precondition for the ∫∫ Fubini's theorem
+
+Our Fubini's theorem axiom holds when a function is 2D continuous on a rectangle.
+This variant of Fubini's theorem used by the Gaussian development. *)
 Definition FubiniCondition (f : R → R → R_CompleteNormedModule) (xa xb ya yb : R) : Prop := forall x y,
   Rmin xa xb <= x <= Rmax xa xb →
   Rmin ya yb <= y <= Rmax ya yb →
   Continuity2 (uncurry f) x y.
 
+(** AXIOM: Existence of ∫∫ integrals for 2D continuous functions *)
 Axiom Fubini_ex_x : ∀ {f xa xb ya yb}, FubiniCondition f xa xb ya yb →
   ex_RInt (fun x => RInt (fun y => f x y) ya yb) xa xb.
 
+(** AXIOM: Exchange of ∫∫ integrals for 2D continuous functions *)
 Axiom Fubini_eq : ∀ {f xa xb ya yb}, FubiniCondition f xa xb ya yb →
   RInt (fun x => RInt (fun y => f x y) ya yb) xa xb =  RInt (fun y => RInt (fun x => f x y) xa xb) ya yb.
 
-(** A stronger variant of Fubini's theorem: the integrand is permitted to be
+
+
+
+(* Below:
+ A stronger variant of Fubini's theorem: the integrand is permitted to be
   discontinuous along a line in 2D. This variant is neccessary for the
   maximum of two uniforms example.
 
   This is true because the set of discontinuities, namely a line, has measure zero.
-  It does not reduce to our prior axiomatiziation in general.
- *)
+  It does not reduce to our prior axiomatiziation in general. *)
 
 (*
 Section max_lazy_real_ax.
