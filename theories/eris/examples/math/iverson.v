@@ -5,23 +5,23 @@ Import Hierarchy.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
-
-
-(** A basic theory of Indicator functions*)
-
 Section Indicators.
 
+(** An indicator function, ie. Iverson bracket *)
 Definition Iverson {T : Type} (P : T → Prop) : T → R :=
   fun t => if decide (P t) then 1 else 0.
 
 Notation "⟦ x ⟧" := (Iverson x).
 
+(** An Indicator is true *)
 Lemma Iverson_True {T : Type} {P : T → Prop} {t : T} (H : P t) : ⟦ P ⟧ t = 1.
 Proof. rewrite /Iverson; case_decide; [done | by intuition]. Qed.
 
+(** An Indicator is false *)
 Lemma Iverson_False {T : Type} {P : T → Prop} {t : T} (H : ¬ P t) : ⟦ P ⟧ t = 0.
 Proof. rewrite /Iverson; case_decide; [by intuition | done]. Qed.
 
+(** Split a value based on the truth of a predicate *)
 Lemma Iverson_add_neg {T : Type} {P : T → Prop} {t : T} :
   ⟦ P ⟧ t + ⟦ not ∘ P ⟧ t = 1.
 Proof.
@@ -29,12 +29,15 @@ Proof.
   all: simpl in H0; intuition.
 Qed.
 
+(** Indicators are nonnegative *)
 Lemma Iverson_nonneg {T : Type} {P : T → Prop} {t : T} : (0 <= ⟦ P ⟧ t)%R.
 Proof. rewrite /Iverson; case_decide; lra. Qed.
 
+(** Indicators are at most 1 *)
 Lemma Iverson_le_1 {T : Type} {P : T → Prop} {t : T} : (⟦ P ⟧ t <= 1)%R.
 Proof. rewrite /Iverson; case_decide; lra. Qed.
 
+(** Singleton sum written in terms of indicator *)
 Lemma SeriesC_Iverson_singleton {T} `{Countable T} {F : T → R} {P : T → Prop} (N0 : T)
     (HN0 : ∀ N, P N <-> N = N0) :
     SeriesC (fun n : T => Iverson P n * F n) = F N0.
@@ -46,6 +49,7 @@ Proof.
   { rewrite Iverson_False; [|rewrite HN0; done]. lra. }
 Qed.
 
+(** Product of indicators is conjunction of their predicates*)
 Lemma Iverson_mul_and {T : Type} {P Q : T → Prop} {t : T} :
   ⟦ P ⟧ t * ⟦ Q ⟧ t = ⟦ fun t => P t ∧ Q t ⟧ t.
 Proof.
@@ -59,6 +63,7 @@ End Indicators.
 
 Section Pairity.
 
+(** Shifed indicator for odd nats *)
 Lemma Iverson_Zeven_Sn n : Iverson (not ∘ Zeven) (S n) = Iverson Zeven n.
 Proof.
   rewrite /Iverson.
@@ -77,6 +82,7 @@ Proof.
   Transparent Zeven.
 Qed.
 
+(** Shifed indicator for even nats *)
 Lemma Iverson_Zeven_Sn' n : Iverson Zeven (S n) = Iverson (not ∘ Zeven) n.
 Proof.
   rewrite /Iverson.
@@ -105,6 +111,7 @@ Section Integral.
 Ltac replace_ext X Y :=
   replace X with Y; [| apply functional_extensionality; intros; auto].
 
+(** Integral of indicator times a function *)
 Lemma RInt_Iverson_ge {rx F} (Hrx : 0 <= rx <= 1) (Hex : ex_RInt (λ x : R, F x) rx 1) :
   RInt (λ x : R, Iverson (uncurry Rge) (x, rx) * F x) 0 1 = RInt (λ x : R, F x) rx 1.
 Proof.
@@ -140,6 +147,7 @@ Proof.
   }
 Qed.
 
+(** Integral of indicator times a function *)
 Lemma RInt_Iverson_ge' {rx F} (Hrx : 0 <= rx <= 1) (Hex : ex_RInt (λ x : R, F x) rx 1) :
   RInt (λ x : R, Iverson (fun x  => not (Rle x rx)) x * F x) 0 1 =  RInt (λ x : R, F x) rx 1.
 Proof.
@@ -175,6 +183,7 @@ Proof.
   }
 Qed.
 
+(** Integral of indicator times a function *)
 Lemma RInt_Iverson_le {rx F} (Hrx : 0 <= rx <= 1) (Hex : ex_RInt (λ x : R, F x) 0 rx):
   RInt (λ x : R, Iverson (uncurry Rle) (x, rx) * F x) 0 1 = RInt (λ x : R, F x) 0 rx.
 Proof.
@@ -210,6 +219,7 @@ Proof.
   }
 Qed.
 
+(** Integral of indicator times a function *)
 Lemma RInt_Iverson_le'' {rx F} (Hrx : 0 <= rx <= 1) (Hex : ex_RInt (λ x : R, F x) 0 rx) :
   RInt (λ x : R, Iverson (Rle x) rx * F x) 0 1 =  RInt (λ x : R, F x) 0 rx.
 Proof.
@@ -245,6 +255,7 @@ Proof.
   }
 Qed.
 
+(** Integral of indicator times a function *)
 Lemma RInt_Iverson_ge'' {rx F} (Hrx : 0 <= rx <= 1) (Hex : ex_RInt (λ x : R, F x) rx 1) :
   RInt (λ x : R, Iverson (Rge x) rx * F x) 0 1 =  RInt (λ x : R, F x) rx 1.
 Proof.
@@ -280,6 +291,7 @@ Proof.
   }
 Qed.
 
+(** Integral of indicator *)
 Lemma RInt_Iverson_le''' {x} (Hx : 0 <= x <= 1) : RInt (Iverson (Rle x)) 0 1 = 1 - x.
 Proof.
   rewrite -(RInt_Chasles (Iverson (Rle x)) 0 x 1).
@@ -318,6 +330,7 @@ Proof.
   }
 Qed.
 
+(** Integral of indicator *)
 Lemma RInt_Iverson_ge''' {x} (Hx : 0 <= x <= 1) : RInt (Iverson (Rge x)) 0 1 = x.
 Proof.
   rewrite -(RInt_Chasles (Iverson (Rge x)) 0 x 1).
@@ -356,6 +369,7 @@ Proof.
   }
 Qed.
 
+(** Integral of indicator times a function *)
 Lemma RInt_Iverson_ge'''' {F y} (Hy : 0 <= y <= 1) (Hex : ex_RInt (λ x : R, F x) 0 y) :
   RInt (λ x0 : R, F x0) 0 y = RInt (λ x0 : R, Iverson (Rge y) x0 * F x0) 0 1.
 Proof.
@@ -392,6 +406,7 @@ Proof.
   }
 Qed.
 
+(** Integral of indicator *)
 Lemma ex_RInt_Iverson_le {x a b}  : ex_RInt (Iverson (Rle x)) a b.
 Proof.
   apply (ex_RInt_Chasles _ a x b).
@@ -433,6 +448,7 @@ Proof.
   }
 Qed.
 
+(** Integral of indicator *)
 Lemma ex_RInt_Iverson_ge {x a b}  : ex_RInt (Iverson (Rge x)) a b.
 Proof.
   apply (ex_RInt_Chasles _ a x b).
@@ -474,6 +490,7 @@ Proof.
   }
 Qed.
 
+(** Integral of indicator *)
 Lemma ex_RInt_Iverson_eq {x a b}  : ex_RInt (Iverson (eq x)) a b.
 Proof.
   apply (ex_RInt_Chasles _ a x b).
@@ -515,6 +532,7 @@ Proof.
   }
 Qed.
 
+(** Integral of indicator *)
 Lemma ex_RInt_Iverson_le' {z a b}  : ex_RInt (Iverson (fun x : R => x <= z)) a b.
 Proof.
   apply (ex_RInt_Chasles _ a z b).
@@ -556,6 +574,7 @@ Proof.
   }
 Qed.
 
+(** Integral of indicator *)
 Lemma ex_RInt_Iverson_nle' {z a b}  : ex_RInt (Iverson (fun x : R => ¬ x <= z)) a b.
 Proof.
   apply (ex_RInt_Chasles _ a z b).
@@ -597,6 +616,7 @@ Proof.
   }
 Qed.
 
+(** Integral of indicator *)
 Lemma ex_RInt_Iverson_le_uncurry {rx} : ex_RInt (λ y : R, Iverson (uncurry Rle) (y, rx)) 0 1.
 Proof.
   apply (ex_RInt_Chasles _ 0 rx 1).
@@ -642,6 +662,7 @@ Proof.
   }
 Qed.
 
+(** Integral of indicator *)
 Lemma ex_RInt_Iverson_ge_uncurry {rx} : ex_RInt (λ y : R, Iverson (uncurry Rge) (y, rx)) 0 1.
 Proof.
   apply (ex_RInt_Chasles _ 0 rx 1).
@@ -687,7 +708,7 @@ Proof.
   }
 Qed.
 
-
+(** Singleton series existence in terms of indicator *)
 Lemma ex_seriesC_single {F N} : ex_seriesC (λ n : nat, Iverson (eq N) n * (F n)).
 Proof.
   replace (λ n : nat, Iverson (eq N) n * (F n)) with (λ n : nat, if bool_decide (n = N) then F N else 0).
