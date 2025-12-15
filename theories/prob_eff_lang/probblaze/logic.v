@@ -73,6 +73,8 @@ Section theories.
 
   Definition iThyBot : iThy Σ := λ _ _, λne _, False%I.
 
+  Global Instance iThy_bot_instance : Bottom (iThy Σ) := iThyBot.
+
   (* ----------------------------------------------------------------------- *)
   (* Domain of theory list. *)
 
@@ -102,7 +104,7 @@ Section theories.
   Global Instance to_iThy_bot_ne : NonExpansive to_iThy_bot.
   Proof.
     intros n ?? H. rewrite /to_iThy_bot /=.
-    apply list_fmap_ne; last done.
+    apply list_fmap_ne; last done. 
     by intros [[? ?] ?] [[? ?] ?] [-> ?]%pair_dist_inj.
   Qed.
   Global Instance to_iThy_bot_proper : Proper ((≡) ==> (≡)) to_iThy_bot.
@@ -195,7 +197,19 @@ Section theories.
   Lemma iThy_le_bot (X : iThy Σ) : ⊢ iThy_le iThyBot X.
   Proof. by iIntros (???) "!> ?". Qed.
 
-
+  Lemma iThy_le_iThyIfMono (X Y : iThy Σ) (m : mode) :
+    iThy_le X Y -∗ iThy_le (iThyIfMono m X) (iThyIfMono m Y).
+  Proof.
+    iIntros "#Hle !> %%%". destruct m.
+    - iIntros "(%Q' & HX & HQ')". simpl.
+      iExists Q'. iSplitL "HX"; [by iApply "Hle"|done].
+    - simpl. done.
+  Qed. 
+      
+  Lemma iThy_le_iThyMono (X Y : iThy Σ) :
+    iThy_le X Y -∗ iThy_le (iThyMono X) (iThyMono Y).
+  Proof. by iApply (iThy_le_iThyIfMono _ _ OS).  Qed. 
+    
   Lemma iThy_le_sum_swap (X Y : iThy Σ) :
     ⊢ iThy_le (iThySum X Y) (iThySum Y X).
   Proof. by iIntros "!> %%% [?|?]"; [iRight|iLeft]. Qed.
