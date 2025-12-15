@@ -1,4 +1,4 @@
-From clutch.eris.examples.math Require Import prelude axioms series iverson sets integrals improper continuity2.
+From clutch.eris.examples.math Require Import prelude axioms series iverson sets integrals improper continuity2 piecewise.
 From clutch.eris Require Import infinite_tape.
 Import Hierarchy.
 Set Default Proof Using "Type*".
@@ -436,18 +436,6 @@ Theorem UniformLimitTheorem {f : nat → R → R} {a b x : R} :
   Continuity.continuous (fun x' => (Series.Series (fun n => f n x'))) x.
 Proof.
   intros HB Hcvg.
-(*
-    Search Seq_fct.CVU_dom .
-  Check Seq_fct.Dini.
-  Check Seq_fct.CVN_CVU_r.
-*)
-
-    (*
-  Search CVN_r.
-  Search CVU.
-  Check CVU_continuity.
-  Search Seq_fct.CVS_dom.
-  *)
 Admitted.
 
 
@@ -495,36 +483,197 @@ Proof.
   by rewrite Rabs_minus_sym.
 Qed.
 
-(** Helper: If |f(x,y)| ≤ g(x) and ∫ g exists, then ∫ f(·,y) exists
-    Proof strategy: Use ex_RInt_gen_Ici_compare_strong from improper.v
-    by decomposing f into positive and negative parts *)
-Lemma ex_RInt_gen_comparison (f : R → R → R) (g : R → R) (xa : R) (y : R)
-  (Hg_cont : ∀ x, xa <= x → Continuity.continuous g x)
-  (Hf_cont : ∀ x, xa <= x → Continuity.continuous (fun x => f x y) x)
-  (Hbound : ∀ x, xa <= x → Rabs (f x y) <= g x)
-  (Hpos : ∀ x y, 0 <= f x y)
-  (Hg_ex : ex_RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty)) :
-  ex_RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty).
+(** If a full integral exists and finite piece exists, then the tail exists. *)
+Lemma ex_RInt_gen_Chasles_exists {f : R → R} {xa xb : R}
+  (Hfull : ex_RInt_gen f (at_point xa) (Rbar_locally Rbar.p_infty))
+  (Hfin : ex_RInt_gen f (at_point xa) (at_point xb)) :
+  ex_RInt_gen f (at_point xb) (Rbar_locally Rbar.p_infty).
 Proof.
-  (* With non-negativity, we can directly apply the comparison test.
-     We have: 0 <= f(x,y) <= |f(x,y)| <= g(x) for all x >= xa *)
-
-  apply (@ex_RInt_gen_Ici_compare_strong xa g (fun x => f x y)).
-  - (* g is continuous *) exact Hg_cont.
-  - (* f(·,y) is continuous *) exact Hf_cont.
-  - (* Bound: 0 <= f(x,y) <= g(x) *)
-    intros x Hx.
-    split.
-    + (* 0 <= f(x,y) *) apply Hpos.
-    + (* f(x,y) <= g(x) *)
-      (* We have f(x,y) <= |f(x,y)| <= g(x) *)
-      eapply Rle_trans.
-      * apply Rle_abs.
-      * apply Hbound. exact Hx.
-  - (* ∫ g exists *) exact Hg_ex.
+  destruct Hfull as [L1 H1].
+  destruct Hfin as [L2 H2].
+  exists (plus (opp L2) L1).
+  eapply (is_RInt_gen_Chasles f xa (opp L2) L1).
+  2: { done. }
+  rewrite is_RInt_gen_at_point.
+  rewrite is_RInt_gen_at_point in H2.
+  apply is_RInt_swap; done.
 Qed.
 
-(* Dead code *)
+(** Absolute value of improper integral is bounded by integral of absolute value bound.
+    If |f(x,y)| ≤ g(x) for all x ≥ M, and g ≥ 0, then |∫[M,∞) f(·,y)| ≤ ∫[M,∞) g. *)
+Lemma RInt_gen_abs_bound {f g : R → R} (M : R)
+  (Hbound : ∀ x, 0 <= f x <= g x)
+  (Hf_ex : ex_RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty))
+  (Hg_ex : ex_RInt_gen g (at_point M) (Rbar_locally Rbar.p_infty))
+  (Hg_ex' : ∀ b, ex_RInt g M b) :
+  Rabs (RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty)) <= Rabs (RInt_gen g (at_point M) (Rbar_locally Rbar.p_infty)).
+Proof.
+  destruct Hf_ex as [lf Hf_is].
+  destruct Hg_ex as [lg Hg_is].
+  have -> : RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty) = lf.
+  { apply is_RInt_gen_unique. exact Hf_is. }
+  have -> : RInt_gen g (at_point M) (Rbar_locally Rbar.p_infty) = lg.
+  { apply is_RInt_gen_unique. exact Hg_is. }
+  have Hnorm : norm lf <= lg.
+  { eapply (@RInt_gen_norm R_CompleteNormedModule (at_point M) (Rbar_locally Rbar.p_infty)
+          _ _ _ _ lf lg _ _ Hf_is Hg_is).
+    Unshelve.
+    { apply (Filter_prod _ _ _ (fun x => x = M) (fun y => M <= y)).
+      { rewrite /at_point//=. }
+      { rewrite /Rbar_locally//=. exists M. intros ??; lra. }
+      { intros ????. simpl. lra. }
+    }
+    { apply (Filter_prod _ _ _ (fun x => x = M) (fun y => M <= y)).
+      { rewrite /at_point//=. }
+      { rewrite /Rbar_locally//=. exists M. intros ??; lra. }
+      rewrite /norm//=/abs//=.
+      intros ??->??[??].
+      rewrite Rabs_right; try lra.
+      { apply Hbound. }
+      { apply Rle_ge, Hbound. }
+    }
+  }
+  rewrite /norm/=/abs/= in Hnorm.
+  have Hlg_pos : 0 <= lg.
+  { have H := (RInt_gen_pos_strong (F := g) (M := M)).
+    rewrite -[lg](is_RInt_gen_unique _ _ Hg_is).
+    apply H.
+    - intros x. specialize Hbound with x. etrans; apply Hbound.
+    - intros b. apply Hg_ex'.
+    - intros b Hb.
+      apply RInt_ge_0; try lra.
+      { apply Hg_ex'. }
+      intros ??.
+      specialize Hbound with x. etrans; apply Hbound.
+    - exists lg. exact Hg_is.
+  }
+  etrans; first eapply Hnorm.
+  right.
+  rewrite Rabs_right; lra.
+Qed.
+
+(** Helper: Tail integral is bounded by tail of dominating function *)
+Lemma RInt_tail_bound (f : R → R → R) (g : R → R) (xa xb : R) (y : R)
+  (Hbound : ∀ x, 0 <= f x y <= g x)
+  (Hfy_ex : ex_RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty))
+  (Hg_ex : ex_RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty))
+  (Hf_fin : ex_RInt (fun x => f x y) xa xb)
+  (Hg_fin : ∀ b, ex_RInt g xa b)
+  (Hg_fin' : ∀ b : R, ex_RInt g xb b) :
+  Rabs (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty) - RInt (fun x => f x y) xa xb)
+  <= Rabs (RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty) - RInt g xa xb).
+Proof.
+  have HFilter1 : ∀ (xa : R), ProperFilter' (at_point xa).
+  { intros ?. apply Proper_StrongProper. apply at_point_filter. }
+  have HFilter2 : ProperFilter' (Rbar_locally Rbar.p_infty).
+  { apply Proper_StrongProper. apply Rbar_locally_filter. }
+  (* Establish existence of tail integrals *)
+  have Hfy_tail : ex_RInt_gen (fun x => f x y) (at_point xb) (Rbar_locally Rbar.p_infty).
+  { have Hexf : ex_RInt_gen (fun x => f x y) (at_point xa) (at_point xb).
+    { apply (proj2 (@ex_RInt_gen_at_point R_CompleteNormedModule (fun x => f x y) xa xb)). exact Hf_fin. }
+    apply (@ex_RInt_gen_Chasles_exists (fun x => f x y) xa xb Hfy_ex Hexf). }
+  have Hg_tail : ex_RInt_gen g (at_point xb) (Rbar_locally Rbar.p_infty).
+  { have Hexg : ex_RInt_gen g (at_point xa) (at_point xb).
+    { apply (proj2 (@ex_RInt_gen_at_point R_CompleteNormedModule g xa xb)).
+      apply Hg_fin. }
+    apply (@ex_RInt_gen_Chasles_exists g xa xb Hg_ex Hexg). }
+  (* Apply Chasles to decompose: ∫[xa,∞) = ∫[xa,xb] + ∫[xb,∞) *)
+  have Hchasles_f : RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty) - RInt (fun x => f x y) xa xb
+                  = RInt_gen (fun x => f x y) (at_point xb) (Rbar_locally Rbar.p_infty).
+  { have Hexf : ex_RInt_gen (fun x => f x y) (at_point xa) (at_point xb).
+    { apply (proj2 (@ex_RInt_gen_at_point R_CompleteNormedModule (fun x => f x y) xa xb)). exact Hf_fin. }
+    have HC := @RInt_gen_Chasles R_CompleteNormedModule (at_point xa) (Rbar_locally Rbar.p_infty)
+      (HFilter1 _) HFilter2 (fun x => f x y) xb Hexf Hfy_tail.
+    rewrite RInt_gen_at_point in HC.
+    2: { done. }
+    rewrite /plus//= in HC.
+    lra. }
+  have Hchasles_g : RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty) - RInt g xa xb
+                  = RInt_gen g (at_point xb) (Rbar_locally Rbar.p_infty).
+  { have Hexg : ex_RInt_gen g (at_point xa) (at_point xb).
+    { apply (proj2 (@ex_RInt_gen_at_point R_CompleteNormedModule g xa xb)).
+      apply Hg_fin. }
+    have HC := @RInt_gen_Chasles R_CompleteNormedModule (at_point xa) (Rbar_locally Rbar.p_infty)
+      (HFilter1 _) HFilter2 g xb Hexg Hg_tail.
+    rewrite RInt_gen_at_point in HC.
+    2: { apply Hg_fin. }
+    rewrite /plus//= in HC.
+    lra. }
+  rewrite Hchasles_f Hchasles_g.
+  apply (@RInt_gen_abs_bound); try done.
+Qed.
+
+(** Uniform convergence of improper integrals via dominated convergence.
+    Analogous to UniformConverge_Series (Weierstrass M-test) for series. *)
+Lemma UniformConverge_RInt_weak (f : R → R → R) (g : R → R) (xa ya yb : R)
+  (Hbound  : ∀ x y, 0 <= f x y <= g x)
+  (Hg_cont : IPCts g)
+  (Hf_cont : forall y, IPCts (fun x => f x y))
+  (Hg_ex : ex_RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty))
+  (Hf_lo : forall x y, y < Rmin ya yb -> f x y = 0)
+  (Hf_hi : forall x y, Rmax ya yb < y -> f x y = 0) :
+  filterlim (λ xb y, RInt (λ x, f x y) xa xb)
+            (Rbar_locally Rbar.p_infty)
+            (locally (λ y, RInt_gen (λ x, f x y) (at_point xa) (Rbar_locally Rbar.p_infty))).
+Proof.
+  rewrite filterlim_locally /Rbar_locally //=.
+  intro eps.
+  have Hex_g_fin' : ∀ a b, ex_RInt g a b.
+  { intros ??. by eapply IPCts_RInt. }
+  have Hex_g_fin : ∀ b, ex_RInt g xa b.
+  { intro b. apply Hex_g_fin'. }
+  have Htail := RInt_gen_tail_converges g xa Hex_g_fin Hg_ex eps.
+  destruct Htail as [M0 HM0].
+  (* Ensure M >= xa by taking maximum *)
+  pose (M := Rmax M0 xa).
+  exists M.
+  intros xb Hxb.
+  have HM : Rabs (RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty) - RInt g xa xb) < eps.
+  { apply HM0. unfold M in Hxb. generalize (Rmax_l M0 xa). lra. }
+  rewrite /ball/=/fct_ball.
+  intro y.
+  destruct (Rle_dec (Rmin ya yb) y) as [Hy_min | Hy_min].
+  2: {
+    rewrite (RInt_ext _ (fun _ : R => 0)).
+    2: { intros ??. apply Hf_lo. lra. }
+    replace (λ x : R, f x y) with (λ x : R, 0).
+    2: { apply functional_extensionality. intros ?. symmetry. apply Hf_lo. lra. }
+    rewrite RInt_gen_0.
+    rewrite RInt_const.
+    rewrite /scal//=/mult//= Rmult_0_r.
+    apply ball_center.
+  }
+  destruct (Rle_dec y (Rmax ya yb)) as [Hy_max | Hy_max].
+  2: {
+    rewrite (RInt_ext _ (fun _ : R => 0)).
+    2: { intros ??. apply Hf_hi. lra. }
+    replace (λ x : R, f x y) with (λ x : R, 0).
+    2: { apply functional_extensionality. intros ?. symmetry. apply Hf_hi. lra. }
+    rewrite RInt_gen_0.
+    rewrite RInt_const.
+    rewrite /scal//=/mult//= Rmult_0_r.
+    apply ball_center.
+  }
+  rewrite /ball/=/AbsRing_ball/=.
+  have Hy_range : Rmin ya yb <= y <= Rmax ya yb by lra.
+  (* First establish that the improper integral of f(·,y) exists *)
+  have Hfy_ex : ex_RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty).
+  { apply (@ex_RInt_gen_Ici_compare_IPCts xa g (fun x => f x y)); try done. }
+  (* We have that xb > M >= xa, so xa <= xb *)
+  have Hxa_xb : xa <= xb.
+  { unfold M in Hxb. generalize (Rmax_r M0 xa). lra. }
+  (* Apply tail bound to get the key inequality *)
+  have Htail_bound : Rabs (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty) - RInt (fun x => f x y) xa xb)
+                     <= Rabs (RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty) - RInt g xa xb).
+  { apply RInt_tail_bound with (xa := xa); try done.
+    by apply IPCts_RInt.
+  }
+  rewrite /abs/=/minus/=.
+  rewrite Rabs_minus_sym.
+  eapply Rle_lt_trans; [exact Htail_bound | exact HM].
+Qed.
+
+(* NB. Dead code *)
 Lemma ex_RInt_gen_indic (f : R → R) (xa xb : R) (Hxb : xa <= xb) :
   ex_RInt_gen (fun x => Iverson (Ici xb) x * f x) (at_point xa) (Rbar_locally Rbar.p_infty) →
   ex_RInt_gen f (at_point xb) (Rbar_locally Rbar.p_infty).
@@ -562,227 +711,3 @@ Proof.
   rewrite /Ici//=.
   lra.
 Qed.
-
-(** Reverse Chasles for existence: if full integral exists and finite piece exists,
-    then tail exists. *)
-Lemma ex_RInt_gen_Chasles_exists
-  (f : R → R) (xa xb : R)
-  (Hxb : xa <= xb)
-  (Hfull : ex_RInt_gen f (at_point xa) (Rbar_locally Rbar.p_infty))
-  (Hfin : ex_RInt_gen f (at_point xa) (at_point xb)) :
-  ex_RInt_gen f (at_point xb) (Rbar_locally Rbar.p_infty).
-Proof.
-  destruct Hfull as [L1 H1].
-  destruct Hfin as [L2 H2].
-  exists (plus (opp L2) L1).
-  eapply (is_RInt_gen_Chasles f xa (opp L2) L1).
-  2: { done. }
-  rewrite is_RInt_gen_at_point.
-  rewrite is_RInt_gen_at_point in H2.
-  apply is_RInt_swap; done.
-Qed.
-
-(** Absolute value of improper integral is bounded by integral of absolute value bound.
-    If |f(x,y)| ≤ g(x) for all x ≥ M, and g ≥ 0, then |∫[M,∞) f(·,y)| ≤ ∫[M,∞) g. *)
-
-(* Strategy:
-     1. Use RInt_gen_norm from Coquelicot: norm lf <= lg where
-        lf = RInt_gen f ... and lg = RInt_gen g ...
-     2. For reals, norm = Rabs
-     3. Show lg >= 0 (since g >= 0 everywhere), so |lg| = lg
-     4. Conclude |lf| <= lg = |lg|
-  *)
-
-Lemma RInt_gen_abs_bound (f : R → R) (g : R → R) (M : R)
-  (Hbound : ∀ x, Rabs (f x) <= g x)
-  (Hg_pos : ∀ x, 0 <= g x)
-  (Hf_ex : ex_RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty))
-  (Hg_ex : ex_RInt_gen g (at_point M) (Rbar_locally Rbar.p_infty))
-  (Hg_ex' : ∀ b, ex_RInt g M b) :
-  Rabs (RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty)) <=
-  Rabs (RInt_gen g (at_point M) (Rbar_locally Rbar.p_infty)).
-Proof.
-  (* Extract the limits from the existence hypotheses *)
-  destruct Hf_ex as [lf Hf_is].
-  destruct Hg_ex as [lg Hg_is].
-  (* Rewrite goal in terms of lf and lg *)
-  have -> : RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty) = lf.
-  { apply is_RInt_gen_unique. exact Hf_is. }
-  have -> : RInt_gen g (at_point M) (Rbar_locally Rbar.p_infty) = lg.
-  { apply is_RInt_gen_unique. exact Hg_is. }
-
-  (* Apply RInt_gen_norm: norm lf <= lg *)
-  have Hnorm : norm lf <= lg.
-  {
-    eapply (@RInt_gen_norm R_CompleteNormedModule (at_point M) (Rbar_locally Rbar.p_infty)
-          _ _ _ _ lf lg _ _ Hf_is Hg_is).
-    Unshelve.
-    { apply (Filter_prod _ _ _ (fun x => x = M) (fun y => M <= y)).
-      { rewrite /at_point//=. }
-      { rewrite /Rbar_locally//=. exists M. intros ??; lra. }
-      { intros ????. simpl. lra. }
-    }
-    { apply (Filter_prod _ _ _ (fun x => x = M) (fun y => M <= y)).
-      { rewrite /at_point//=. }
-      { rewrite /Rbar_locally//=. exists M. intros ??; lra. }
-      rewrite /norm//=/abs//=.
-    }
-  }
-
-  (* For reals, norm = Rabs *)
-  rewrite /norm/=/abs/= in Hnorm.
-
-  (* Show lg >= 0 *)
-  have Hlg_pos : 0 <= lg.
-  { have H := (RInt_gen_pos_strong (F := g) (M := M)).
-    rewrite -[lg](is_RInt_gen_unique _ _ Hg_is).
-    apply H.
-    - intros x. apply Hg_pos.
-    - intros b. apply Hg_ex'.
-    - intros b Hb.
-      apply RInt_ge_0; try lra.
-      { apply Hg_ex'. }
-      intros ??.
-      apply Hg_pos.
-    - exists lg. exact Hg_is.
-  }
-
-  etrans; first eapply Hnorm.
-  right.
-  rewrite Rabs_right; lra.
-Qed.
-
-(** Helper: Tail integral is bounded by tail of dominating function *)
-Lemma RInt_tail_bound (f : R → R → R) (g : R → R) (xa xb : R) (y : R)
-  (Hbound : ∀ x, Rabs (f x y) <= g x)
-  (Hg_pos : ∀ x, 0 <= g x)
-  (Hxb : xa <= xb)
-  (Hfy_ex : ex_RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty))
-  (Hg_ex : ex_RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty))
-  (Hf_fin : ex_RInt (fun x => f x y) xa xb)
-  (Hg_fin : ∀ b, ex_RInt g xa b)
-  (Hg_fin' : ∀ b : R, ex_RInt g xb b) :
-  Rabs (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty) - RInt (fun x => f x y) xa xb)
-  <= Rabs (RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty) - RInt g xa xb).
-Proof.
-  have HFilter1 : ∀ (xa : R), ProperFilter' (at_point xa).
-  { intros ?. apply Proper_StrongProper. apply at_point_filter. }
-  have HFilter2 : ProperFilter' (Rbar_locally Rbar.p_infty).
-  { apply Proper_StrongProper. apply Rbar_locally_filter. }
-
-
-  (* Establish existence of tail integrals *)
-  have Hfy_tail : ex_RInt_gen (fun x => f x y) (at_point xb) (Rbar_locally Rbar.p_infty).
-  { have Hexf : ex_RInt_gen (fun x => f x y) (at_point xa) (at_point xb).
-    { apply (proj2 (@ex_RInt_gen_at_point R_CompleteNormedModule (fun x => f x y) xa xb)). exact Hf_fin. }
-    apply (@ex_RInt_gen_Chasles_exists (fun x => f x y) xa xb Hxb Hfy_ex Hexf). }
-  have Hg_tail : ex_RInt_gen g (at_point xb) (Rbar_locally Rbar.p_infty).
-  { have Hexg : ex_RInt_gen g (at_point xa) (at_point xb).
-    { apply (proj2 (@ex_RInt_gen_at_point R_CompleteNormedModule g xa xb)).
-      apply Hg_fin. }
-    apply (@ex_RInt_gen_Chasles_exists g xa xb Hxb Hg_ex Hexg). }
-
-  (* Apply Chasles to decompose: ∫[xa,∞) = ∫[xa,xb] + ∫[xb,∞) *)
-  have Hchasles_f : RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty) - RInt (fun x => f x y) xa xb
-                  = RInt_gen (fun x => f x y) (at_point xb) (Rbar_locally Rbar.p_infty).
-  { have Hexf : ex_RInt_gen (fun x => f x y) (at_point xa) (at_point xb).
-    { apply (proj2 (@ex_RInt_gen_at_point R_CompleteNormedModule (fun x => f x y) xa xb)). exact Hf_fin. }
-    have HC := @RInt_gen_Chasles R_CompleteNormedModule (at_point xa) (Rbar_locally Rbar.p_infty)
-      (HFilter1 _) HFilter2 (fun x => f x y) xb Hexf Hfy_tail.
-    rewrite RInt_gen_at_point in HC.
-    2: { done. }
-    rewrite /plus//= in HC.
-    lra. }
-
-  have Hchasles_g : RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty) - RInt g xa xb
-                  = RInt_gen g (at_point xb) (Rbar_locally Rbar.p_infty).
-  { have Hexg : ex_RInt_gen g (at_point xa) (at_point xb).
-    { apply (proj2 (@ex_RInt_gen_at_point R_CompleteNormedModule g xa xb)).
-      apply Hg_fin. }
-    have HC := @RInt_gen_Chasles R_CompleteNormedModule (at_point xa) (Rbar_locally Rbar.p_infty)
-      (HFilter1 _) HFilter2 g xb Hexg Hg_tail.
-    rewrite RInt_gen_at_point in HC.
-    2: { apply Hg_fin. }
-    rewrite /plus//= in HC.
-    lra. }
-
-  (* Rewrite using Chasles decomposition *)
-  rewrite Hchasles_f Hchasles_g.
-
-  (* Apply the general absolute value bound for improper integrals *)
-  apply (@RInt_gen_abs_bound); try done.
-
-Qed.
-
-(** Uniform convergence of improper integrals via dominated convergence.
-    Analogous to UniformConverge_Series (Weierstrass M-test) for series. *)
-Lemma UniformConverge_RInt (f : R → R → R) (g : R → R) (xa ya yb : R)
-  (Hpos : ∀ x y, 0 <= f x y)
-  (Hbound : ∀ x y, Rabs (f x y) <= g x)
-  (Hg_pos : ∀ x,  0 <= g x)
-  (Hg_ex : ex_RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty))
-  (Hf_ex : ∀ xb y, ex_RInt (fun x => f x y) xa xb)
-  (Hg_cont : ∀ x, xa <= x → Continuity.continuous g x)
-  (Hf_cont : ∀ x y, xa <= x → Continuity.continuous (fun x => f x y) x) :
-  filterlim (λ xb y, RInt (λ x, f x y) xa xb)
-            (Rbar_locally Rbar.p_infty)
-            (locally (λ y, RInt_gen (λ x, f x y) (at_point xa) (Rbar_locally Rbar.p_infty))).
-Proof.
-  rewrite filterlim_locally /Rbar_locally //=.
-  intro eps.
-
-  (* Use tail convergence of g to get uniform bound *)
-
-  have Hex_g_fin' : ∀ a b, ex_RInt g a b.
-  { intro b. admit. (* Follows from Hg_cont and ex_RInt_continuous *) }
-  have Hex_g_fin : ∀ b, ex_RInt g xa b.
-  { intro b. apply Hex_g_fin'. }
-  have Htail := RInt_gen_tail_converges g xa Hex_g_fin Hg_ex eps.
-  destruct Htail as [M0 HM0].
-  (* Ensure M >= xa by taking maximum *)
-  pose (M := Rmax M0 xa).
-  exists M.
-  intros xb Hxb.
-  have HM : Rabs (RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty) - RInt g xa xb) < eps.
-  { apply HM0. unfold M in Hxb. generalize (Rmax_l M0 xa). lra. }
-  rewrite /ball/=/fct_ball.
-  intro y.
-
-  (* For y outside [ya, yb], we don't have hypotheses about f(x,y)
-     In practice, f would be 0 outside this range (via Iverson brackets)
-     or the theorem would only claim convergence on [ya, yb] *)
-  destruct (Rle_dec (Rmin ya yb) y) as [Hy_min | Hy_min].
-  2: { (* y < Rmin ya yb: would need f(x,y) = 0 or restrict conclusion to y ∈ [ya,yb] *)
-    admit. }
-  destruct (Rle_dec y (Rmax ya yb)) as [Hy_max | Hy_max].
-  2: { (* y > Rmax ya yb: would need f(x,y) = 0 or restrict conclusion to y ∈ [ya,yb] *)
-    admit. }
-
-  (* Main case: y ∈ [Rmin ya yb, Rmax ya yb] *)
-  rewrite /ball/=/AbsRing_ball/=.
-
-  have Hy_range : Rmin ya yb <= y <= Rmax ya yb by lra.
-
-  (* First establish that the improper integral of f(·,y) exists *)
-  have Hfy_ex : ex_RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty).
-  { apply ex_RInt_gen_comparison with (g := g).
-    { exact Hg_cont. }
-    { intros x Hx. apply Hf_cont. done. }
-    { intros x Hx. apply Hbound; done. }
-    { apply Hpos. }
-    { apply Hg_ex. } }
-
-  (* We have that xb > M >= xa, so xa <= xb *)
-  have Hxa_xb : xa <= xb.
-  { unfold M in Hxb. generalize (Rmax_r M0 xa). lra. }
-
-  (* Apply tail bound to get the key inequality *)
-  have Htail_bound : Rabs (RInt_gen (fun x => f x y) (at_point xa) (Rbar_locally Rbar.p_infty) - RInt (fun x => f x y) xa xb)
-                     <= Rabs (RInt_gen g (at_point xa) (Rbar_locally Rbar.p_infty) - RInt g xa xb).
-  { apply RInt_tail_bound with (xa := xa); done. }
-
-  (* Combine to get the final bound *)
-  rewrite /abs/=/minus/=.
-  rewrite Rabs_minus_sym.
-  eapply Rle_lt_trans; [exact Htail_bound | exact HM].
-Admitted.

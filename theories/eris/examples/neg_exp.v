@@ -652,7 +652,7 @@ Section credits.
              Try to simplify Fubini. *)
           admit. }
         { (* Uniform convergence *)
-          apply (UniformConverge_RInt _ (fun x0 => F x0 * NegExp_ρ (L + 1) x0)).
+          eapply (UniformConverge_RInt_weak _ (fun x0 => F x0 * NegExp_ρ (L + 1) x0)).
           all: admit.
         }
       }

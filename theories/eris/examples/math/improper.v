@@ -751,3 +751,6 @@ Proof.
     destruct (HFnn x) as [HF0 HFM]. apply Rmult_le_compat_r; [apply HGnn | apply HFM].
   - apply ex_RInt_gen_Ici_scal. apply HIntG.
 Qed.
+
+Lemma RInt_gen_0 {F G : ((R → Prop) → Prop)} : RInt_gen (fun (x : R) => (0 : R)) F G = 0.
+Proof. Admitted.
