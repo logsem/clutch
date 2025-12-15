@@ -138,7 +138,7 @@ Section adequacy.
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
     (x<2^y)%nat ->
     (∀ (F : R -> R), (⌜∃ M, ∀ x , 0 <= F x <= M⌝) -∗
-                    (⌜(∀ (n' : nat), PCts (λ (r:R), F (r+n')%R) 0 1)⌝) -∗
+                    (⌜(IPCts F)⌝) -∗
        ↯ (RInt_gen (fun (x:R) => μ x * F x) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
        WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗ ↯(F (r+k)%R) }}) -∗
     ↯ (RInt_gen μ (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)) -∗
@@ -150,8 +150,6 @@ Section adequacy.
     - iPureIntro.
       exists 1. intros; rewrite /Iverson; case_match; lra.
     - iPureIntro.
-      intros n'.
-      rewrite /PCts.
       admit.
       (* eexists ([(λ _, 0, 0, (x/2^y +n-n'));(λ _, 1, (x/2^y +n-n'), 1)]). *)
       (* split. *)
@@ -342,7 +340,7 @@ Section adequacy.
     (∀ x, 0<=μ x)->
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
     (x<2^y)%nat ->
-    (∀ (F : R -> R), (⌜∃ M, ∀ x , 0 <= F x <= M⌝) -∗(⌜(∀ (n' : nat), PCts (λ (r:R), F (r+n')%R) 0 1)⌝) -∗
+    (∀ (F : R -> R), (⌜∃ M, ∀ x , 0 <= F x <= M⌝) -∗(⌜IPCts F⌝) -∗
        ↯ (RInt_gen (fun (x:R) => μ x * F x) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
        WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗ ↯(F (r+k)%R) }}) -∗
     ↯ (RInt_gen μ (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)) -∗
@@ -383,7 +381,7 @@ End adequacy.
 Theorem lazy_real_adeqaucy Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
   (∀ x, 0<=μ x)->
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
-  (∀ `{erisGS Σ} (F : R -> R) (Hnn : ∃ M, ∀ x , 0 <= F x <= M) (HPCts: (∀ (n' : nat), PCts (λ (r:R), F (r+n')%R) 0 1)),
+  (∀ `{erisGS Σ} (F : R -> R) (Hnn : ∃ M, ∀ x , 0 <= F x <= M) (HPCts: IPCts F),
       ↯ (RInt_gen (fun (x:R) => μ x * F x) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
        WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗ ↯(F (r+k)%R) }}) →
   ∀ (x y n:nat), (x<2^y)%nat ->
@@ -392,8 +390,15 @@ Proof.
   intros Hpos Hbound Hwp x y n Hineq.
   apply ineq_lemma in Hineq as Hineq'.
   eapply (wp_pgl_lim Σ).
-  { (* RInt_gen_pos_ex is stated wrongly *)
-    admit.
+  { 
+    apply RInt_gen_pos_strong.
+    - done.
+    - admit.
+    - intros.
+      apply RInt_ge_0; try done.
+    (* same as before *)
+      admit. 
+    - admit.
   } 
   iIntros (?) "Herr".
   iPoseProof (wp_is_smaller_prog with "[][$]") as "$"; [done..|].
