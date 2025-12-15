@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From iris.base_logic.lib Require Import na_invariants.
 From clutch.prob_lang Require Import lang notation.
 From clutch.caliper Require Import seq_weakestpre primitive_laws proofmode adequacy.

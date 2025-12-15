@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From stdpp Require Import fin_maps.
 From iris.proofmode Require Import environments proofmode.
 From clutch.prob Require Import distribution.

@@ -1,4 +1,4 @@
-From Coq Require Import QArith Reals Psatz.
+From Stdlib Require Import QArith Reals Psatz.
 From Coquelicot Require Import Rcomplements.
 From clutch.prelude Require Import base.
 

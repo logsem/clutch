@@ -2,7 +2,7 @@
 From clutch.tachis Require Import ert_weakestpre lifting ectx_lifting primitive_laws expected_time_credits cost_models problang_wp proofmode ert_rules.
 From clutch.common Require Import inject.
 From iris.proofmode Require Export tactics.
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 From stdpp Require Import sorting.
 Require Coq.Program.Tactics.
 Require Coq.Program.Wf.

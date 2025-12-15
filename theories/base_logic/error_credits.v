@@ -1,5 +1,5 @@
 (** This file implements error credits *)
-From Coq Require Import Reals RIneq Psatz.
+From Stdlib Require Import Reals RIneq Psatz.
 From Coquelicot Require Import Lim_seq.
 From clutch.prelude Require Export base classical Reals_ext NNRbar.
 From iris.prelude Require Import options.

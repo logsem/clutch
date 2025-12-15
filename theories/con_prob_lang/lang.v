@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From Coquelicot Require Import Rbar Lim_seq.
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.

@@ -1,6 +1,6 @@
 Require Import Coq.Reals.Reals.
 Require Import Coq.Logic.Classical_Pred_Type.
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From Coquelicot Require Import Series Lim_seq Rbar Rcomplements.
 From stdpp Require Export countable sets.
 From clutch.prelude Require Import base Coquelicot_ext stdpp_ext classical.

@@ -1,6 +1,6 @@
  (** An axiomatization of evaluation-context based CONCURRENT languages, including a proof
     that this gives rise to a "language" in our sense. *)
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From iris.prelude Require Export prelude.
 From clutch.common Require Import con_language.
 From clutch.prob Require Import distribution.

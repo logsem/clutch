@@ -1,14 +1,15 @@
 (** Definition of the Giry Monad type (a sigma algebra for subdistributions) *)
 
-From mathcomp Require Import all_ssreflect all_algebra finmap.
-From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
+#[warning="-notation-incompatible-prefix"] From mathcomp Require Import all_boot all_algebra finmap.
+#[warning="-notation-incompatible-prefix"] From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
 From mathcomp Require Import cardinality fsbigop.
-From mathcomp.analysis Require Import reals ereal signed normedtype esum numfun measure lebesgue_measure lebesgue_integral.
+From mathcomp.reals Require Import reals signed.
+From mathcomp.analysis Require Import ereal normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
-Import Coq.Logic.FunctionalExtensionality.
-Import Coq.Relations.Relation_Definitions.
-Import Coq.Classes.RelationClasses.
+From Stdlib.Logic Require Import FunctionalExtensionality.
+From Stdlib.Relations Require Import Relation_Definitions.
+From Stdlib.Classes Require Import RelationClasses.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

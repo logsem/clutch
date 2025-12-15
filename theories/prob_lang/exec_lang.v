@@ -1,6 +1,6 @@
 (* TODO move into metatheory.v ? *)
 
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 From clutch.prob_lang Require Import lang.
 
 Lemma exec_det_step_ctx K `{!LanguageCtx K} n ρ (e1 e2 : expr) σ1 σ2 :

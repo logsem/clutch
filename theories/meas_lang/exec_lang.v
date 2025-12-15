@@ -1,6 +1,6 @@
 (* TODO move into metatheory.v ? *)
 
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 From clutch.meas_lang Require Import lang.
 
 (*

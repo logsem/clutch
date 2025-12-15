@@ -1,10 +1,10 @@
 From stdpp Require Import tactics.
 From discprob.basic Require Import base order nify.
-Require Import Ranalysis5.
-Require Import Reals Fourier FunctionalExtensionality.
+From Stdlib Require Import Ranalysis5.
+From Stdlib Require Import Reals Fourier FunctionalExtensionality.
 From Coquelicot Require Export Rcomplements Rbar Series Lim_seq Hierarchy Markov Continuity ElemFct.
-Require Import List.
-Require Import Psatz Lia.
+From Stdlib Require Import List.
+From Stdlib Require Import Psatz Lia.
 
 
 Local Notation "x ≤ y" := (Rle x y) (at level 70, no associativity).

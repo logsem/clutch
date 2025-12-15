@@ -1,7 +1,7 @@
  (** An axiomatization of evaluation-context based languages, including a proof
     that this gives rise to a "language" in our sense. *)
 From HB Require Import structures.
-From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Reals.
+From Stdlib Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Reals.
 From stdpp Require Import base numbers binders strings gmap.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
 From iris.prelude Require Import options.

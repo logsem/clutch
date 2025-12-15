@@ -1,5 +1,5 @@
-From Coq Require Import Reals Psatz.
-From Coq.ssr Require Import ssreflect ssrfun.
+From Stdlib Require Import Reals Psatz.
+From Stdlib.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements.
 From stdpp Require Export countable.
 From clutch.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.

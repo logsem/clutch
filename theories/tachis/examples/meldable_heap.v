@@ -3,7 +3,7 @@ From clutch.tachis Require Import ert_weakestpre lifting ectx_lifting primitive_
 From clutch.tachis Require Import min_heap_spec.
 From clutch.common Require Import inject.
 From iris.proofmode Require Export tactics.
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 From stdpp Require Import sorting.
 Require Coq.Program.Tactics.
 Require Coq.Program.Wf.

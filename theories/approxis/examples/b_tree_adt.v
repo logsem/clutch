@@ -5,7 +5,7 @@
    b_tree.v *)
 
 
-From Coq.Program Require Import Wf.
+From Stdlib.Program Require Import Wf.
 From stdpp Require Import list.
 From clutch.approxis Require Import approxis list.
 From clutch.approxis Require adequacy.

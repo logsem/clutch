@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From clutch.prob Require Import distribution couplings couplings_app couplings_exp couplings_dp mdp.
 Set Default Proof Using "Type*".

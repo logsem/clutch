@@ -19,7 +19,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 COPYING file for more details.
 *)
 
-From Coq Require Import Reals ssreflect.
+From Stdlib Require Import Reals ssreflect.
 From clutch.prelude Require Export classical.
 
 (*Require Import Rcomplements.*)

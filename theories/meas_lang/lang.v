@@ -1,5 +1,5 @@
 From HB Require Import structures.
-From Coq Require Import Logic.ClassicalEpsilon Psatz.
+From Stdlib Require Import Logic.ClassicalEpsilon Psatz.
 From stdpp Require Import base numbers binders strings gmap.
 From mathcomp.analysis Require Import reals measure itv lebesgue_measure.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
@@ -8,7 +8,7 @@ From clutch.prelude Require Export stdpp_ext.
 From clutch.common Require Export locations.
 From clutch.meas_lang Require Import ectxi_language ectx_language.
 
-From Coq Require Export Reals.
+From Stdlib Require Export Reals.
 From clutch.prob.monad Require Export laws.
 From mathcomp.analysis Require Export Rstruct.
 
@@ -18,7 +18,7 @@ From mathcomp Require Import classical_sets.
 Notation giryM := (giryM (R := R)).
 
 (*
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From stdpp Require Export binders strings.
 From stdpp Require Import fin.
 From stdpp Require Import gmap fin_maps countable fin.

@@ -1,4 +1,4 @@
-From Coq Require Import Reals RIneq Psatz.
+From Stdlib Require Import Reals RIneq Psatz.
 From clutch.prelude Require Export classical Reals_ext base NNRbar.
 From iris.prelude Require Import options.
 From iris.proofmode Require Import tactics.

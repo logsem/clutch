@@ -1,4 +1,4 @@
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 From clutch.common Require Import inject.
 From clutch.prob_lang Require Export lang.
 From clutch.diffpriv.examples Require Import list.

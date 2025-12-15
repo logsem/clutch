@@ -1,9 +1,9 @@
 (* Some facts about series that are not in Coquelicot *)
 From discprob.basic Require Import base order bigop_ext.
-Require Import Reals Fourier Psatz.
+From Stdlib Require Import Reals Fourier Psatz.
 #[warning="-hiding-delimiting-key,-overwriting-delimiting-key"] From mathcomp Require Import ssrnat.
 From mathcomp Require Import ssreflect ssrbool ssrfun eqtype seq div choice fintype.
-Require Import ClassicalEpsilon.
+From Stdlig Require Import ClassicalEpsilon.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy Markov.
 
 Lemma Rbar_le_fin x y: 0 <= y → Rbar_le x (Finite y) → Rle (real x) y.

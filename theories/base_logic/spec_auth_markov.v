@@ -1,4 +1,4 @@
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 
 From iris.base_logic.lib Require Export fancy_updates own.
 From iris.proofmode Require Import base tactics classes.

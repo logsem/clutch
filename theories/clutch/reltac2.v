@@ -15,7 +15,7 @@ invoking `iredl` will introduce `c : loc` and `"c" : c ↦ #42`. If `e` occurs a
 part of the spec, i.e. on the right, the names are instead sub-scripted with
 "ₛ", and we get `cₛ : loc` and `"cₛ" : cₛ ↦ₛ #42`. *)
 
-From Coq Require Import ZArith String.
+From Stdlib Require Import ZArith String.
 
 From clutch.prelude Require Import stdpp_ext.
 From clutch.prob_lang Require Import lang notation.

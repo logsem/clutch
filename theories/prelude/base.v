@@ -13,9 +13,9 @@ that bullets and curly braces must be used to structure the proof. *)
 #[export] Set Default Goal Selector "!".
 Global Set Bullet Behavior "Strict Subproofs".
 
-From Coq.Unicode Require Export Utf8.
-From Coq.Classes Require Export Morphisms RelationClasses.
-From Coq.ssr Require Export ssreflect.
+From Stdlib Require Export Classes.Morphisms RelationClasses List Bool Setoid Peano Utf8.
+From Stdlib Require Import Permutation.
+From Stdlib Require ssreflect.
 From stdpp Require Export base tactics countable.
 
 (* TODO: find a better solution *)

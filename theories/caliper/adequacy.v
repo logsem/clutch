@@ -1,4 +1,4 @@
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 From iris.proofmode Require Import base proofmode.
 From iris.bi Require Import bi derived_laws_later.
 From iris.bi.lib Require Export fixpoint.

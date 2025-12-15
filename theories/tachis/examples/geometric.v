@@ -5,7 +5,7 @@ From clutch.tachis Require Export expected_time_credits ert_weakestpre problang_
 From iris.proofmode Require Export proofmode.
 From Coquelicot Require Export Hierarchy.
 
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 Require Import Lra.
 
 

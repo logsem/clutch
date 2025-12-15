@@ -8,7 +8,7 @@ From clutch.prob_lang.spec Require Import spec_ra spec_rules spec_tactics.
 From clutch.approxis Require Import ectx_lifting app_weakestpre model.
 From clutch.approxis Require Export proofmode primitive_laws coupling_rules app_rel_rules.
 From clutch.base_logic Require Export spec_update.
-From Coq.Logic Require Import ClassicalEpsilon.
+From Stdlib.Logic Require Import ClassicalEpsilon.
 From clutch.pure_complete Require Import pure term prob_additional samples_one.
 
 Local Open Scope R.

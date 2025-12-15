@@ -3,7 +3,7 @@ From clutch.tachis Require Export expected_time_credits ert_weakestpre problang_
   derived_laws cost_models ert_rules.
 From clutch.prob_lang Require Import notation tactics metatheory lang.
 From iris.proofmode Require Export proofmode.
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 From Coquelicot Require Export Hierarchy.
 Require Import Lra.
 

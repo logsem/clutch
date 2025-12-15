@@ -1,5 +1,5 @@
 (** Resources required to track a [ProbLang] spec configuration. *)
-From Coq Require Import Reals.
+From Stdlib Require Import Reals.
 From iris.algebra Require Import auth excl gmap.
 From iris.base_logic.lib Require Import invariants ghost_map.
 From iris.prelude Require Import options.

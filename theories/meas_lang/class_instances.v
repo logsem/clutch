@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From clutch.common Require Export language.
 From clutch.meas_lang Require Export lang tactics notation.
 From iris.prelude Require Import options.

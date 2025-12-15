@@ -9,7 +9,7 @@ From clutch.approxis Require Import ectx_lifting app_weakestpre model.
 From clutch.approxis Require Export proofmode primitive_laws coupling_rules.
 From clutch.base_logic Require Export spec_update.
 From clutch.pure_complete Require Import pure tachis_ert prob_additional.
-From Coq.Logic Require Import ClassicalEpsilon.
+From Stdlib.Logic Require Import ClassicalEpsilon.
 Local Open Scope R.
 
 Inductive SamplesOneTape : loc -> expr -> Prop :=

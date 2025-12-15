@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From clutch.prelude Require Import Series_ext.
 From clutch.con_prob_lang Require Import lang.
