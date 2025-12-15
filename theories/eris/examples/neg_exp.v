@@ -8,10 +8,18 @@ From clutch.eris.examples Require Import math.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
+
 Section pmf.
 
-  Local Definition NegExp_ρ0 (x : R) : R :=
-    Iverson (Rle 0%R) x * exp (-x)%R.
+  (** PMF of the negative exponential distribution *)
+  Local Definition NegExp_ρ0 (k : nat) (x : R) : R :=
+    Iverson (Icc 0 1) x * exp (-(x + k))%R.
+
+  (** Shift the distribution to the right by (L : Nat) *)
+  Local Definition NegExp_ρ (L : nat) (k : nat) (x : R) : R :=
+    Iverson (le L) k * NegExp_ρ0 (k - L) x.
+
+(*
 
   Theorem NegExp_ρ0_not_supp {x} (H : Rlt x 0%R) : NegExp_ρ0 x = 0.
   Proof. rewrite /NegExp_ρ0 Iverson_False //=; [lra|lra]. Qed.
@@ -19,24 +27,295 @@ Section pmf.
   Theorem NegExp_ρ0_supp {x} (H : Rlt 0%R x) : NegExp_ρ0 x = exp (-x)%R.
   Proof. rewrite /NegExp_ρ0 Iverson_True //=; [lra|lra]. Qed.
 
-  Local Definition NegExp_ρ (L : nat) (x : R) : R :=
-    Iverson (le 0) L * NegExp_ρ0 (x - INR L).
 
   Theorem NegExp_ρ_not_supp {x L} (H : lt L 0) : NegExp_ρ L x = 0.
   Proof. rewrite /NegExp_ρ Iverson_False //=; [lra|lia]. Qed.
 
   Theorem NegExp_ρ_supp {x L} (H : le 0 L) : NegExp_ρ L x = NegExp_ρ0 (x - INR L).
   Proof. rewrite /NegExp_ρ Iverson_True //=; lra. Qed.
+*)
 
 End pmf.
+
 
 Section credits.
   Import Hierarchy.
 
-  Definition NegExp_CreditV (F : R → R) (L : nat) : R :=
-    RInt_gen (fun x : R => F x * NegExp_ρ L x) (at_point 0%R) (Rbar_locally Rbar.p_infty).
+  Definition NegExp_CreditV (F : nat → R → R) (L : nat) : R :=
+    SeriesC (fun (k : nat) => RInt (fun x => NegExp_ρ L k x * F k x) 0 1).
 
-  Lemma NegExp_ρ0_nn {x} : 0 <= NegExp_ρ0 x.
+  Local Definition hx (F : nat → R → R) (x : R) (L : nat) : nat → R :=
+    fun z => Iverson Zeven z * F L x  + Iverson (not ∘ Zeven) z * NegExp_CreditV F (L + 1).
+
+  Local Definition g (F : nat → R -> R) (L : nat) : R -> R := fun x =>
+    RealDecrTrial_CreditV (hx F x L) 0 x.
+
+  Local Lemma g_nonneg {F : nat → R -> R} {L : nat} : ∀ r : R, 0 <= r <= 1 → 0 <= g F L r.
+  Proof. Admitted.
+
+
+  Local Lemma g_ex_RInt {F : nat → R → R} {L} : ex_RInt (g F L) 0 1.
+  Proof. Admitted.
+
+
+  Local Definition B (F : nat → R → R) (L : nat) (x : R) (n : nat) (k : nat) (x0 : R) :=
+      RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n * NegExp_ρ (L + 1) k x0 * F k x0.
+
+
+  Local Lemma QuadExchange1 {F L} :
+    (RInt (λ x : R, SeriesC (λ n : nat, SeriesC (λ k : nat, RInt (λ x0 : R, B F L x n k x0) 0 1))) 0 1) =
+    (SeriesC (λ n : nat, RInt (λ x : R, SeriesC (λ k : nat, RInt (λ x0 : R, B F L x n k x0) 0 1)) 0 1)).
+  Proof. Admitted.
+
+  Local Lemma QuadExchange2 {F L} :
+    (SeriesC (λ n : nat, RInt (λ x : R, SeriesC (λ k : nat, RInt (λ x0 : R, B F L x n k x0) 0 1)) 0 1)) =
+    (SeriesC (λ n : nat, SeriesC (λ k : nat, RInt (λ x : R, RInt (λ x0 : R, B F L x n k x0) 0 1) 0 1))).
+  Proof. Admitted.
+
+  Local Lemma QuadExchange3 {F L} :
+    (SeriesC (λ n : nat, SeriesC (λ k : nat, RInt (λ x : R, RInt (λ x0 : R, B F L x n k x0) 0 1) 0 1))) =
+    (SeriesC (λ n : nat, SeriesC (λ k : nat, RInt (λ x0 : R, RInt (λ x : R, B F L x n k x0) 0 1) 0 1))).
+  Proof. Admitted.
+
+  Local Lemma QuadExchange4 {F L} :
+    (SeriesC (λ n : nat, SeriesC (λ k : nat, RInt (λ x0 : R, RInt (λ x : R, B F L x n k x0) 0 1) 0 1))) =
+    (SeriesC (λ k : nat, SeriesC (λ n : nat, RInt (λ x0 : R, RInt (λ x : R, B F L x n k x0) 0 1) 0 1))).
+  Proof. Admitted.
+
+  Local Lemma QuadExchange5 {F L} :
+    (SeriesC (λ k : nat, SeriesC (λ n : nat, RInt (λ x0 : R, RInt (λ x : R, B F L x n k x0) 0 1) 0 1))) =
+    (SeriesC (λ k : nat, RInt (λ x0 : R, SeriesC (λ n : nat, RInt (λ x : R, B F L x n k x0) 0 1)) 0 1)).
+  Proof. Admitted.
+
+  Local Lemma g_expectation {F : nat → R → R} {L} : is_RInt (g F L) 0 1 (NegExp_CreditV F L).
+  Proof.
+    (* have Hex : ∀ (a b : R), ex_RInt F a b.
+    { intros ??. apply PCts_RInt. by apply IPCts_PCts. } *)
+    suffices H : RInt (g F L) 0 1 = NegExp_CreditV F L.
+    { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)). apply (g_ex_RInt); OK. }
+
+    (* Unfold everything that involves F *)
+    rewrite /g.
+    rewrite /hx.
+    rewrite /RealDecrTrial_CreditV.
+    rewrite /NegExp_CreditV.
+
+    (* Step 1: Split the series *)
+    replace
+      (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * (Iverson Zeven n * F L x + Iverson (not ∘ Zeven) n * SeriesC (λ k : nat, RInt (λ x0 : R, NegExp_ρ (L + 1) k x0 * F k x0) 0 1))))
+        with
+      (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * Iverson Zeven n * F L x) +
+                SeriesC (λ n : nat, SeriesC (λ k : nat, RInt (λ x0 : R, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n * NegExp_ρ (L + 1) k x0 * F k x0) 0 1))); last first.
+    { admit. }
+    rewrite RInt_plus.
+    2: { admit. }
+    2: { admit. }
+    rewrite /plus//=.
+
+    (* Step 2: Quadruple limit exchange *)
+    replace (RInt (λ x : R, SeriesC (λ n : nat, SeriesC (λ k : nat, RInt (λ x0 : R, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n * NegExp_ρ (L + 1) k x0 * F k x0) 0 1))) 0 1)
+       with (RInt (λ x : R, SeriesC (λ n : nat, SeriesC (λ k : nat, RInt (λ x0 : R, B F L x n k x0) 0 1))) 0 1); last first.
+    { repeat f_equal. }
+
+    rewrite QuadExchange1.
+    rewrite QuadExchange2.
+    rewrite QuadExchange3.
+    rewrite QuadExchange4.
+    rewrite QuadExchange5.
+
+    (* Step 3: Exchange on the RHS *)
+    replace (RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * Iverson Zeven n * F L x)) 0 1)
+       with (SeriesC (λ n : nat, RInt (λ x : R, RealDecrTrial_μ x 0 n * Iverson Zeven n * F L x) 0 1)); last first.
+    { admit. }
+
+    (* Step 4: Combine the outer two series *)
+    rewrite -SeriesC_plus.
+    2: { admit. }
+    2: { admit. }
+
+    (* Step 5: Combine the outer two integrals *)
+    replace (λ x : nat,
+       RInt (λ x0 : R, RealDecrTrial_μ x0 0 x * Iverson Zeven x * F L x0) 0 1 +
+       RInt (λ x0 : R, @SeriesC nat numbers.Nat.eq_dec nat_countable (λ n : nat, RInt (λ x1 : R, B F L x1 n x x0) 0 1)) 0 1) with
+      (λ x : nat,
+       RInt (λ x0 : R, RealDecrTrial_μ x0 0 x * Iverson Zeven x * F L x0 + SeriesC (λ n : nat, RInt (λ x1 : R, B F L x1 n x x0) 0 1)) 0 1); last first.
+    { funexti.
+      rewrite (RInt_plus (V := R_CompleteNormedModule)); OK.
+      { admit. }
+      { admit. }
+    }
+
+    (* Step 6: Factor constant terms out of B *)
+    rewrite /B.
+    replace
+      (λ x : nat,
+       RInt
+         (λ x0 : R,
+            RealDecrTrial_μ x0 0 x * Iverson Zeven x * F L x0 +
+            SeriesC
+              (λ n : nat,
+                 RInt (λ x1 : R, RealDecrTrial_μ x1 0 n * Iverson (not ∘ Zeven) n * NegExp_ρ (L + 1) x x0 * F x x0) 0 1))
+         0 1) with
+      (λ x : nat, RInt (λ x0 : R,
+            RealDecrTrial_μ x0 0 x * Iverson Zeven x * F L x0 +
+            NegExp_ρ (L + 1) x x0 * F x x0 *
+            SeriesC
+              (λ n : nat,
+                 RInt (λ x1 : R, RealDecrTrial_μ x1 0 n * Iverson (not ∘ Zeven) n) 0 1))
+         0 1); last first.
+    { admit. }
+
+    (* Step 7: compute a closed form for that inner series *)
+    Search RInt RealDecrTrial_μ.
+
+
+
+    (*
+
+    replace (SeriesC (λ n0 : nat, RInt (λ x0 : R, RealDecrTrial_μ x0 0 n0 * Iverson (not ∘ Zeven) n0 * NegExp_ρ (L + 1) n x * F n x) 0 1))
+       with (SeriesC (λ n0 : nat, RInt (λ x0 : R, RealDecrTrial_μ x0 0 n0 * Iverson (not ∘ Zeven) n0) 0 1) * NegExp_ρ (L + 1) n x * F n x); last first.
+    { admit. }
+
+    (* Step 7: Split the RHS into two terms, the L term, and the L+1 and onwards terms *)
+    rewrite /NegExp_ρ.
+    replace (Iverson (le L) n * NegExp_ρ0 (n - L) x * F n x)
+       with (NegExp_ρ0 0 x * F L x + Iverson (le (L + 1)) n * NegExp_ρ0 (n - L) x * F n x); last first.
+    { admit. }
+
+    (* Step 8: Finish by math *)
+    f_equal.
+    { f_equal.
+      rewrite /RealDecrTrial_μ.
+      rewrite Iverson_True.
+      2: { rewrite //=. OK. }
+      rewrite Rmult_1_l.
+      rewrite Nat.sub_0_r.
+      rewrite /NegExp_ρ0.
+      symmetry.
+      rewrite Iverson_True.
+      2: { rewrite /Icc; OK.
+        rewrite Rmin_left; OK.
+        rewrite Rmax_right; OK.
+      }
+      rewrite Rmult_1_l.
+
+
+
+
+
+    }
+    { admit. }
+    *)
+  Admitted.
+
+
+End credits.
+
+Section program.
+  Context `{!erisGS Σ}.
+  Import Hierarchy.
+
+  (* Tail-recursive Negative Exponential sampling*)
+  Definition NegExp : val :=
+    rec: "trial" "L" :=
+      let: "x" := init #() in
+      let: "y" := lazyDecrR #Nat.zero "x" in
+      if: ("y" `rem` #2%Z = #0%Z) then
+        ("L", "x")
+      else
+        "trial" ("L" + #1%Z).
+
+  Lemma wp_NegExp_gen E (F : nat → R → R) (* (Hnn : ∀ n, 0 <= F n <= M) E (HPcts : IPCts F) *) :
+    ⊢ ∀ L, ↯ (NegExp_CreditV F L) -∗
+           WP NegExp #L @ E
+      {{ p, ∃ (vz : Z) (vr : R) (ℓ : val), ⌜p = PairV #vz ℓ⌝ ∗ lazy_real ℓ vr ∗ ↯(F (Z.to_nat vz) vr)}}.
+  Proof.
+    (* have Hex : ∀ a b, ex_RInt F a b.
+    { intros ??. apply PCts_RInt. by apply IPCts_PCts. } *)
+    iLöb as "IH".
+    iIntros (L) "Hε".
+    rewrite {2}/NegExp.
+    wp_pure.
+    wp_apply wp_init; first done.
+    iIntros (x) "Hx".
+    iApply (wp_lazy_real_presample_adv_comp _ _ x _ (NegExp_CreditV F L) (g F L)); auto.
+    { intros ??. apply g_nonneg; eauto. }
+    { (* eapply g_expectation; first apply Hnn.  OK. *) admit. }
+    iFrame.
+    iIntros (xr) "(%Hrange & Hε & Hx)".
+    do 2 wp_pure.
+    wp_bind (lazyDecrR _ _).
+    iApply (pgl_wp_mono_frame (□ _) with "[Hx Hε] IH"); last first.
+    { iApply (wp_lazyDecrR_gen (hx F xr L) _ E $! _ x xr).
+      by rewrite /g; iFrame.
+      Unshelve.
+      1: admit.
+      1: admit.
+      (* 1: { exact ((F (xr + L)) + (NegExp_CreditV F (L + 1))). }
+      1: {
+        rewrite /hx.
+        intro n.
+        split.
+        { apply Rplus_le_le_0_compat; apply Rmult_le_pos; try apply Iverson_nonneg.
+          { apply Hnn.  }
+          { eapply NegExp_CreditV_nn; last OK. intro r. apply Hnn. }
+        }
+        { apply Rplus_le_compat.
+          { rewrite -{2}(Rmult_1_l (F (xr + L))).
+            apply Rmult_le_compat_r; [|apply Iverson_le_1].
+            apply Hnn.
+          }
+          { rewrite -{2}(Rmult_1_l (NegExp_CreditV F (L + 1))).
+            apply Rmult_le_compat_r; [|apply Iverson_le_1].
+            eapply NegExp_CreditV_nn; last OK. intro r. apply Hnn.
+          }
+        }
+      } *)
+    }
+    iIntros (v) "(#IH & [%l (%Hv & Hε & Hx)])"; rewrite Hv.
+    wp_pures.
+    case_bool_decide.
+    { have Heven : Zeven l.
+      { inversion H as [H'].
+        apply Z.rem_mod_eq_0 in H'; [|lia].
+        by apply Zeven_bool_iff; rewrite Zeven_mod H' //. }
+      wp_pures.
+      iModIntro.
+      iExists L, xr, x.
+      iFrame.
+      iSplitR; first done.
+      unfold hx.
+      iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
+      { admit. (* apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. *) }
+      { (* apply Rmult_le_pos; [apply Iverson_nonneg | eapply NegExp_CreditV_nn; OK]. *) admit. }
+      rewrite Iverson_True; last done.
+      by rewrite Rmult_1_l Nat2Z.id.
+    }
+    { do 2 wp_pure.
+      rewrite {1}/NegExp.
+      iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
+      { (* apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. *) admit. }
+      { (* apply Rmult_le_pos; [apply Iverson_nonneg | eapply NegExp_CreditV_nn; OK ]. *) admit. }
+      rewrite Iverson_True; last first.
+      { intro Hk; apply H. f_equal.
+        apply Zeven_bool_iff in Hk.
+        rewrite Zeven_mod in Hk.
+        apply Zeq_bool_eq in Hk.
+        apply (Z.rem_mod_eq_0 l 2 ) in Hk; [by f_equal|lia].
+      }
+      rewrite Rmult_1_l.
+      iSpecialize ("IH" $! (Nat.add L 1) with "Hε").
+      rewrite Nat2Z.inj_add.
+      iApply "IH".
+    }
+  Admitted.
+
+End program.
+
+
+(*
+
+  Lemma NegExp_ρ0_nn {k x} : 0 <= NegExp_ρ0 k x.
   Proof.
     rewrite /NegExp_ρ0.
     apply Rmult_le_pos; first apply Iverson_nonneg.
@@ -49,6 +328,13 @@ Section credits.
     apply Rmult_le_pos; first apply Iverson_nonneg.
     apply NegExp_ρ0_nn.
   Qed.
+
+
+
+
+
+
+
 
 
   Theorem NegExp_ρ0_ex_RInt {F : R → R} {a b} (Hex : ∀ b : R, ex_RInt F a b) :
@@ -182,12 +468,6 @@ Section credits.
     { apply NegExp_μ_ex_RInt_gen. }
   Qed.
 
-  Local Definition hx (F : R → R) (x : R) (L : nat) : nat → R := fun z =>
-    Iverson Zeven z * F (x + INR L) +
-    Iverson (not ∘ Zeven) z * NegExp_CreditV F (L + 1).
-
-  Local Definition g (F : R -> R) (L : nat) : R -> R := fun x =>
-    RealDecrTrial_CreditV (hx F x L) 0 x.
 
   Lemma hx_nonneg {F M xr L} (Hnn : ∀ r, 0 <= F r <= M) (Hb : IPCts F) : ∀ n : nat, 0 <= hx F xr L n.
   Proof.
@@ -1036,101 +1316,4 @@ Section credits.
 End credits.
 
 
-Section program.
-  Context `{!erisGS Σ}.
-  Import Hierarchy.
-
-  (* Tail-recursive Negative Exponential sampling*)
-  Definition NegExp : val :=
-    rec: "trial" "L" :=
-      let: "x" := init #() in
-      let: "y" := lazyDecrR #Nat.zero "x" in
-      if: ("y" `rem` #2%Z = #0%Z) then
-        ("L", "x")
-      else
-        "trial" ("L" + #1%Z).
-
-  Lemma wp_NegExp_gen {M} (F : R → R) (Hnn : ∀ n, 0 <= F n <= M) E (HPcts : IPCts F) :
-    ⊢ ∀ L, ↯ (NegExp_CreditV F L) -∗
-           WP NegExp #L @ E
-      {{ p, ∃ (vz : Z) (vr : R) (ℓ : val), ⌜p = PairV #vz ℓ⌝ ∗ lazy_real ℓ vr ∗ ↯(F (vr + IZR vz))}}.
-  Proof.
-    have Hex : ∀ a b, ex_RInt F a b.
-    { intros ??. apply PCts_RInt. by apply IPCts_PCts. }
-    iLöb as "IH".
-    iIntros (L) "Hε".
-    rewrite {2}/NegExp.
-    wp_pure.
-    wp_apply wp_init; first done.
-    iIntros (x) "Hx".
-    iApply (wp_lazy_real_presample_adv_comp _ _ x _ (NegExp_CreditV F L) (g F L)); auto.
-    { intros ??; eapply g_nonneg; auto. }
-    { eapply g_expectation; first apply Hnn.  OK. }
-    iFrame.
-    iIntros (xr) "(%Hrange & Hε & Hx)".
-    do 2 wp_pure.
-    wp_bind (lazyDecrR _ _).
-    iApply (pgl_wp_mono_frame (□ _) with "[Hx Hε] IH"); last first.
-    { iApply (wp_lazyDecrR_gen (hx F xr L) _ E $! _ x xr).
-      by rewrite /g; iFrame.
-      Unshelve.
-      1: { exact ((F (xr + L)) + (NegExp_CreditV F (L + 1))). }
-      1: {
-        rewrite /hx.
-        intro n.
-        split.
-        { apply Rplus_le_le_0_compat; apply Rmult_le_pos; try apply Iverson_nonneg.
-          { apply Hnn.  }
-          { eapply NegExp_CreditV_nn; last OK. intro r. apply Hnn. }
-        }
-        { apply Rplus_le_compat.
-          { rewrite -{2}(Rmult_1_l (F (xr + L))).
-            apply Rmult_le_compat_r; [|apply Iverson_le_1].
-            apply Hnn.
-          }
-          { rewrite -{2}(Rmult_1_l (NegExp_CreditV F (L + 1))).
-            apply Rmult_le_compat_r; [|apply Iverson_le_1].
-            eapply NegExp_CreditV_nn; last OK. intro r. apply Hnn.
-          }
-        }
-      }
-    }
-    iIntros (v) "(#IH & [%l (%Hv & Hε & Hx)])"; rewrite Hv.
-    wp_pures.
-    case_bool_decide.
-    { have Heven : Zeven l.
-      { inversion H as [H'].
-        apply Z.rem_mod_eq_0 in H'; [|lia].
-        by apply Zeven_bool_iff; rewrite Zeven_mod H' //. }
-      wp_pures.
-      iModIntro.
-      iExists L, xr, x.
-      iFrame.
-      iSplitR; first done.
-      unfold hx.
-      iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | eapply NegExp_CreditV_nn; OK]. }
-      rewrite Iverson_True; last done.
-      by rewrite Rmult_1_l INR_IZR_INZ.
-    }
-    { do 2 wp_pure.
-      rewrite {1}/NegExp.
-      iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | eapply NegExp_CreditV_nn; OK ]. }
-      rewrite Iverson_True; last first.
-      { intro Hk; apply H. f_equal.
-        apply Zeven_bool_iff in Hk.
-        rewrite Zeven_mod in Hk.
-        apply Zeq_bool_eq in Hk.
-        apply (Z.rem_mod_eq_0 l 2 ) in Hk; [by f_equal|lia].
-      }
-      rewrite Rmult_1_l.
-      iSpecialize ("IH" $! (Nat.add L 1) with "Hε").
-      rewrite Nat2Z.inj_add.
-      iApply "IH".
-    }
-  Qed.
-
-End program.
+*)
