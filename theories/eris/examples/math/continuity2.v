@@ -5,24 +5,25 @@ Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
 (** Definition and lemmas about 2D continuity.
-Some of these facts could be used to state the generalized version of Fubini's theorem
-(that Fubini's theorem holds when the set of 2D discontinuities is negligible)
-*)
+NB. This is used to state Fubini's axiom. *)
 
-(** Two-dimensional continuity.
-IMPORTANT: This definition is used in the axiomatization of Fubini's theorem. *)
+(** 2D continuity *)
 Definition Continuity2 (f : (R * R) -> R) (x y : R) : Prop :=
   filterlim f (locally (x, y)) (locally (f (x, y))).
 
+(** The set of 2D discontinuities of a function *)
 Definition Discontinuities2 (f : R * R -> R) : R * R -> Prop :=
   fun '(x, y) => ¬ Continuity2 f x y.
 
-(* A set is negligible if it can be covered by countably many balls of arbitrarily small total volume. *)
+(** A Negligible set in 2D
+
+The set can be covered by families of balls with arbitrarily small area. *)
 Definition Negligible (S : R * R -> Prop) : Prop :=
   ∀ (ε : posreal), ∃ (c : nat -> R * R) (r : nat -> nonnegreal),
     (SeriesC (fun n => r n * r n) < ε) /\
     (∀ x, S x -> ∃ n, ball (c n) (r n) x).
 
+(** The empty set is negligible *)
 Theorem Negligible_Empty : Negligible (fun _ => False).
 Proof.
   intro ε.
@@ -31,6 +32,7 @@ Proof.
   intros ? [].
 Qed.
 
+(** 2D Continuity when arguments are exchanged *)
 Lemma Continuity2_swap (f : R * R → R) (x y : R) :
   Continuity2 (fun '(x', y') => f (y', x')) y x → Continuity2 f x y.
 Proof.
@@ -47,6 +49,7 @@ Proof.
   intuition.
 Qed.
 
+(** Constant functions are 2D continuous *)
 Lemma Continuity2_const {F : R * R → R} (v x y : R) :
   (∀ z, F z = v) →
   Continuity2 F x y.
@@ -57,6 +60,7 @@ Proof.
   apply filterlim_const.
 Qed.
 
+(** 2D continuty projects to 1D continuity along a horizontal line *)
 Lemma Continuity2_continuous_fst
   {f : R * R → R_CompleteNormedModule} {x y : R} :
   Continuity2 f x y →
@@ -79,6 +83,7 @@ Proof.
   apply ball_center.
 Qed.
 
+(** 2D continuty projects to 1D continuity along a vertical line *)
 Lemma Continuity2_continuous_snd
   {f : R * R → R_CompleteNormedModule} {x y : R} :
   Continuity2 f x y →
