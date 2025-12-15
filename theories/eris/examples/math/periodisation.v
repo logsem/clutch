@@ -5,7 +5,7 @@ Import Hierarchy.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
-(** Helper: Decompose RInt F 0 (S N) into sum of unit intervals *)
+(** Decompose the integral over [0, N+1] into the sum of unit integrals *)
 Lemma RInt_decompose_nat (F : R → R) (N : nat) :
   (∀ k : nat, (k <= N)%nat → ex_RInt F (INR k) (INR k + 1)) →
   ex_RInt F 0 (INR (S N)) →
@@ -33,7 +33,7 @@ Proof.
     + exact Hex_total.
 Qed.
 
-(** Key lemma: If a function converges as x→∞, then the discrete sequence f(S n) also converges *)
+(** Convergence of the Nat subsequence of a function R → R which converges as x → ∞ *)
 Lemma continuous_to_discrete_limit {f : R → R} {L : R} :
   filterlim f (Rbar_locally Rbar.p_infty) (locally L) →
   filterlim (λ n : nat, f (INR (S n))) eventually (locally L).
@@ -58,13 +58,36 @@ Proof.
   { apply Rle_trans with (r2 := 0). { have : IZR (up M) < IZR 0 by (apply IZR_lt; lia). simpl in *. lra. } apply pos_INR. }
 Qed.
 
-(** Step 1: The improper integral equals the series of proper integrals over unit intervals *)
+Lemma ex_RInt_unit_intervals_from_all (F : R → R) :
+  (∀ b : R, ex_RInt F 0 b) →
+  (∀ k : nat, ex_RInt F (INR k) (INR k + 1)).
+Proof.
+  intros Hex_b k.
+  apply (ex_RInt_Chasles_2 F 0 k (k + 1)).
+  { split. { apply pos_INR. } lra. }
+  apply Hex_b.
+Qed.
+
+Lemma ex_RInt_shift_from_interval (F : R → R) :
+  (∀ k : nat, ex_RInt F (INR k) (INR k + 1)) →
+  (∀ k : nat, ex_RInt (fun x => F (x + INR k)) 0 1).
+Proof.
+  intros Hex_k k.
+  have Hcomp := ex_RInt_comp_lin F 1 k 0 1.
+  apply ex_RInt_ext with (f := (λ y : R, scal 1 (F (1 * y + k)))).
+  { intros x Hx. rewrite /scal//=/mult//= Rmult_1_l. f_equal. lra. }
+  apply Hcomp.
+  have -> : 1 * 0 + k = k by lra.
+  have -> : 1 * 1 + k = k + 1 by lra.
+  apply Hex_k.
+Qed.
+
+(** Convert improper integral into sum of unit integrals *)
 Lemma RInt_gen_as_series (F : R → R) :
   ex_RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) →
-  (∀ b : R, ex_RInt F 0 b) →
-  (∀ k : nat, ex_RInt F (INR k) (INR k + 1)) →
-  RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) =
-  SeriesC (fun k => RInt F (INR k) (INR k + 1)).
+  (∀ b : R, ex_RInt F 0 b) →                 (* TODO: This is redundant, it follows from the first assumption *)
+  (∀ k : nat, ex_RInt F (INR k) (INR k + 1)) → (* TODO: This is redundant, it follows from the first assumption *)
+  RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) = SeriesC (fun k => RInt F (INR k) (INR k + 1)).
 Proof.
   intros Hex_gen Hex_b Hex_k.
   rewrite (filterlim_RInt_gen Hex_b).
@@ -93,38 +116,11 @@ Proof.
   apply (continuous_to_discrete_limit Hcont).
 Qed.
 
-(** Derivation lemmas for simplifying RInt_sep hypotheses *)
 
-(** Hypothesis 3 is derivable from Hypothesis 2 *)
-Lemma ex_RInt_unit_intervals_from_all (F : R → R) :
-  (∀ b : R, ex_RInt F 0 b) →
-  (∀ k : nat, ex_RInt F (INR k) (INR k + 1)).
-Proof.
-  intros Hex_b k.
-  apply (ex_RInt_Chasles_2 F 0 k (k + 1)).
-  { split. { apply pos_INR. } lra. }
-  apply Hex_b.
-Qed.
-
-(** Hypothesis 4 is derivable from Hypothesis 3 *)
-Lemma ex_RInt_shift_from_interval (F : R → R) :
-  (∀ k : nat, ex_RInt F (INR k) (INR k + 1)) →
-  (∀ k : nat, ex_RInt (fun x => F (x + INR k)) 0 1).
-Proof.
-  intros Hex_k k.
-  have Hcomp := ex_RInt_comp_lin F 1 k 0 1.
-  apply ex_RInt_ext with (f := (λ y : R, scal 1 (F (1 * y + k)))).
-  { intros x Hx. rewrite /scal//=/mult//= Rmult_1_l. f_equal. lra. }
-  apply Hcomp.
-  have -> : 1 * 0 + k = k by lra.
-  have -> : 1 * 1 + k = k + 1 by lra.
-  apply Hex_k.
-Qed.
-
-(** Step 2 helper: Change of variables for translation *)
+(** Change of variables *)
 Lemma RInt_translation (F : R → R) (k : nat) :
   ex_RInt F (INR k) (INR k + 1) →
-  ex_RInt (fun x => F (x + INR k)) 0 1 →
+  ex_RInt (fun x => F (x + INR k)) 0 1 →     (* TODO: This is redundant, follows form the first assumption *)
   RInt F (INR k) (INR k + 1) = RInt (fun x => F (x + INR k)) 0 1.
 Proof.
   intros Hex_F Hex_shift.
@@ -143,28 +139,31 @@ Proof.
   rewrite Heq Heq2. apply Hex_F.
 Qed.
 
+(** Periodisation: Convert an improper integral into the integral of the sum of all numbers with the same fractional part.
+This can be thought of as wrapping the function around a circle, and integrating over the circle. *)
 Theorem RInt_sep (F : R → R) (UB : nat → R) :
   ex_RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) →
-  (∀ b : R, ex_RInt F 0 b) →
   ex_seriesC UB →
-  (∀ x n, 0 < x < 1 → 0 <= F (x + INR n)) →
-  (∀ x n, 0 < x < 1 → Rabs (F (x + INR n)) <= UB n) →
-  RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) =
-  RInt (fun x => SeriesC (fun (k : nat) => F (x + k))) 0 1.
+  (∀ x n, 0 < x < 1 → 0 <= F (x + INR n) <= UB n) →
+  (∀ b : R, ex_RInt F 0 b) →   (* TODO: This is redundant, follows from the first assumption *)
+  RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) = RInt (fun x => SeriesC (fun (k : nat) => F (x + k))) 0 1.
 Proof.
-  intros Hex_gen Hex_b HexU Hnn Hub.
+  intros Hex_gen HexU Hbound Hex_b.
 
-  (* Derive the redundant hypotheses *)
   have Hex_k : ∀ k : nat, ex_RInt F (INR k) (INR k + 1).
   { apply ex_RInt_unit_intervals_from_all. apply Hex_b. }
   have Hex_shift : ∀ k : nat, ex_RInt (fun x => F (x + INR k)) 0 1.
   { apply ex_RInt_shift_from_interval. apply Hex_k. }
 
-  (* Now proceed with the three-step proof *)
   rewrite (RInt_gen_as_series F Hex_gen Hex_b Hex_k).
   rewrite (SeriesC_ext _ (fun k => RInt (fun x => F (x + INR k)) 0 1)).
   2: { intro k. symmetry. rewrite RInt_translation; try done. }
   symmetry.
-  rewrite (FubiniIntegralSeriesC_Strong UB); try done.
-  lra.
+  rewrite (FubiniIntegralSeriesC_Strong UB); try done; try lra.
+  { intros ??; apply Hbound. }
+  { intros ???.
+    rewrite Rabs_right; [by apply Hbound|].
+    apply Rle_ge.
+    by apply Hbound.
+  }
 Qed.
