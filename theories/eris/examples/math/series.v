@@ -4,9 +4,7 @@ Import Hierarchy.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
-(** Series shifting lemmas *)
-
-(* I need either ex_SeriesC or maybe nn *)
+(** Shift out first term of series *)
 Lemma SeriesC_nat_shift {f : nat → R} (Hex :  Series.ex_series f) : SeriesC f = f 0%nat + SeriesC (f ∘ S).
 Proof.
   rewrite SeriesC_nat.
@@ -15,10 +13,12 @@ Proof.
   f_equal.
 Qed.
 
+(** Shift out first term of series *)
 Lemma SeriesC_nat_shift_rev {f : nat → R} (Hex :  Series.ex_series f) : SeriesC (f ∘ S) = - f 0%nat + SeriesC f.
 Proof. pose proof (SeriesC_nat_shift Hex); lra. Qed.
 (* Proof. have ? := SeriesC_nat_shift Hex. lra. Qed. *)
 
+(** Summability of shifted series *)
 Lemma ex_SeriesC_nat_shift {f : nat → R} : ex_seriesC f → ex_seriesC (f ∘ S).
 Proof.
   intro H.
@@ -28,6 +28,7 @@ Proof.
   apply H.
 Qed.
 
+(** Summability of shifted series *)
 Lemma ex_SeriesC_nat_shiftN_l {f : nat → R} (N : nat) : ex_seriesC (f ∘ (fun n => (n - N))%nat) → ex_seriesC f.
 Proof.
   revert f.
@@ -56,6 +57,7 @@ Proof.
   }
 Qed.
 
+(** Summability of shifted series *)
 Lemma ex_SeriesC_nat_shiftN_r {f : nat → R} (N : nat) : ex_seriesC (f ∘ (fun n => (n + N))%nat) → ex_seriesC f.
 Proof.
   induction N as [|N IH].
@@ -76,6 +78,7 @@ Proof.
 Qed.
 
 
+(** Summability of shifted series *)
 Lemma ex_SeriesC_nat_shiftN_r' {f : nat → R} (N : nat) : ex_seriesC f → ex_seriesC (f ∘ (fun n => (n + N))%nat).
 Proof.
   induction N as [|N IH].
@@ -93,7 +96,7 @@ Proof.
   }
 Qed.
 
-
+(** Each term in a series of nonnegative numbers is dominated by the sum *)
 Lemma SeriesC_term_le {h : nat → R} (Hh : ∀ n, 0 <= h n) (Hex : ex_seriesC h) :
   ∀ n, h n <= SeriesC h.
 Proof.
@@ -114,6 +117,7 @@ Proof.
   lra.
 Qed.
 
+(** Summability of product *)
 Lemma ex_seriesC_mult {f g : nat → R} (Hf : ∀ n : nat, 0 <= f n) (Hg : ∀ n : nat, 0 <= g n) :
   ex_seriesC f → ex_seriesC g → ex_seriesC (fun n => f n * g n).
 Proof.
@@ -128,11 +132,11 @@ Qed.
 
 Section TailSeries.
 
+(** THe tail of a series *)
 Definition TailSeries (F : nat → R) (M : nat) :=
   Series.Series (F ∘ (fun n => n + (S M))%nat).
 
-(* TODO: What other hypotheses do we need here? Existence? Nonnegativity? *)
-(* Key lemma in UnifomConverge_Series *)
+(** The tail series equals the enture series minus a partial sum *)
 Definition TailSeries_eq {F M} :
   Series.ex_series F →
   TailSeries F M = (minus (Series.Series F) (sum_n F M)).
@@ -150,6 +154,7 @@ Qed.
 End TailSeries.
 
 
+(** Finite constant series closed form *)
 Lemma Le_Nat_sum (N : nat) (v : R) : SeriesC (λ n : nat, if bool_decide (n ≤ N) then v else 0) = (N + 1)* v.
 Proof.
   rewrite SeriesC_nat_bounded'.
@@ -181,6 +186,7 @@ Proof.
   }
 Qed.
 
+(** Even powers of negatives are positive *)
 Lemma even_pow_neg {x : R} {n : nat} : Zeven n → (- x) ^ n = x ^ n.
 Proof.
   intro H.
@@ -199,6 +205,7 @@ Proof.
   done.
 Qed.
 
+(** Odd powers of negatives are odd *)
 Lemma not_even_pow_neg {x : R} {n : nat} : ¬ Zeven n → (- x) ^ n = - x ^ n.
 Proof.
   intro H.
@@ -230,7 +237,7 @@ Proof.
   done.
 Qed.
 
-
+(** Geometric series existence *)
 Lemma Geo_ex_SeriesC {𝛾 : R} (H𝛾 : 0 <= 𝛾 <= 1) : ex_seriesC (λ x : nat, 𝛾 ^ x * (1 - 𝛾)).
 Proof.
   destruct H𝛾.
@@ -246,6 +253,7 @@ Proof.
   { apply ex_seriesC_0. }
 Qed.
 
+(** Existence of finite constant series *)
 Lemma ex_seriesC_finite_dec (M : nat) (F : nat → R) :
   ex_seriesC (λ x : nat, if bool_decide (x ≤ M) then F x else 0).
 Proof. apply ex_seriesC_nat_bounded. Qed.
