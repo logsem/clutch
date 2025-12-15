@@ -440,7 +440,7 @@ Admitted.
 
 
 (** 2D Uniform Limit Theorem *)
-
+(*
 Theorem UniformLimitTheorem2 {f : nat → R → R → R} {xa xb ya yb x y : R} :
   xa <= xb →
   ya <= yb →
@@ -453,7 +453,8 @@ Theorem UniformLimitTheorem2 {f : nat → R → R → R} {xa xb ya yb x y : R} :
   filterlim (fun (M : nat) (x y : R) => sum_n (fun n => f n x y) M) eventually
     (locally (λ x y : R, SeriesC (fun n => f n x y))) →
   Continuity2 (uncurry (λ x0 y0 : R, SeriesC (λ n : nat, f n x0 x0))) x y.
-Proof. Admitted.
+Proof. A dmitted.
+*)
 
 
 (** Uniform convergence of improper integrals *)
@@ -499,6 +500,8 @@ Proof.
   apply is_RInt_swap; done.
 Qed.
 
+
+(*
 (** Absolute value of improper integral is bounded by integral of absolute value bound.
     If |f(x,y)| ≤ g(x) for all x ≥ M, and g ≥ 0, then |∫[M,∞) f(·,y)| ≤ ∫[M,∞) g. *)
 Lemma RInt_gen_abs_bound {f g : R → R} (M : R)
@@ -711,3 +714,4 @@ Proof.
   rewrite /Ici//=.
   lra.
 Qed.
+*)

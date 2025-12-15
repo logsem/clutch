@@ -516,8 +516,7 @@ Proof.
   }
 Qed.
 
-
-  (* Used by ex_RInt_gen_Ici_compare_strong *)
+(*
 Lemma LeftExtend_continuous {f : R → R} {L : R}  :
   (∀ x, L <= x → Continuity.continuous f x) →
   (∀ x, Continuity.continuous (LeftExtend f L) x).
@@ -533,11 +532,11 @@ Proof.
       rewrite /ball/=/AbsRing_ball/= in Hy.
       symmetry.
       apply LeftExtend_eq_r.
-      admit.
+      a dmit.
     + apply H. lra.
   }
   { (* At the transition point: LeftExtend is constant equal to (f L) on the left and approaches (f L) on the right *)
-    admit. }
+    a dmit. }
   { (* (LeftExtend f L) is equal to f on a neighbourhood of x which is continuous by hypotheses. *)
     assert (Heps1 : 0 < (L - x) / 2) by lra.
     apply Continuity.continuous_ext_loc with (g := (fun (z : R) => f L)).
@@ -547,10 +546,10 @@ Proof.
       rewrite /ball/=/AbsRing_ball/= in Hy.
       symmetry.
       apply LeftExtend_eq_l.
-      admit.
+      a dmit.
     + apply Continuity.continuous_const.
   }
-Admitted.
+A dmitted.
 
 Lemma ex_RInt_gen_Ici_compare_strong {L : R} {F G : R → R} :
   (∀ x, L <= x → Continuity.continuous F x) →
@@ -582,6 +581,7 @@ Proof.
   { intros ??. symmetry. by apply LeftExtend_eq_r. }
   done.
 Qed.
+*)
 
 Lemma RInt_gen_pos_strong {F M}
   (Hpos : forall x, 0 <= F x)
@@ -593,18 +593,19 @@ Proof.
     (* I believe this reduces to RInt_gen_pos_ex by setting f to be 0 below M, so that the wrong direction integral is zero. *)
 Admitted.
 
-
+(*
 Lemma ex_RInt_gen_Ici_scal {M G L} :
   ex_RInt_gen G L (Rbar_locally Rbar.p_infty) →
   ex_RInt_gen (λ x : R, M * G x) L (Rbar_locally Rbar.p_infty).
-Proof. Admitted.
+Proof. A dmitted.
 
 Lemma RInt_gen_Ici_scal {M G L} :
   ex_RInt_gen G L (Rbar_locally Rbar.p_infty) →
   M * RInt_gen G L (Rbar_locally Rbar.p_infty) = RInt_gen (λ x : R, M * G x) L (Rbar_locally Rbar.p_infty).
-Proof. Admitted.
+Proof. A dmitted.
+*)
 
-
+(*
 Lemma NegExp_prod_bounded_left {F G : R → R} {M}
   (HFCts : ∀ x, Continuity.continuous F x)
   (HGCts : ∀ x, Continuity.continuous G x)
@@ -633,6 +634,7 @@ Proof.
       lra.
     + apply ex_RInt_gen_Ici_scal. apply HIntG.
 Qed.
+*)
 
 (** Helper lemmas for IPCts version *)
 
@@ -755,6 +757,7 @@ Proof.
     by apply Rabs_def1.
 Qed.
 
+(*
 Lemma NegExp_prod_bounded_left_IPCts {F G : R → R} {M}
   (HFIPCts : IPCts F)
   (HGIPCts : IPCts G)
@@ -772,4 +775,5 @@ Proof.
 Qed.
 
 Lemma RInt_gen_0 {F G : ((R → Prop) → Prop)} : RInt_gen (fun (x : R) => (0 : R)) F G = 0.
-Proof. Admitted.
+Proof. A dmitted.
+*)

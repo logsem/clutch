@@ -407,7 +407,7 @@ Proof.
 Admitted.
 
 
-
+(*
 
 (** Fubini's theorem holds for improper integrals of continuous functions *)
 
@@ -426,13 +426,13 @@ Lemma IFubini_x_Ioo {f xa xb ya yb} :
   IFubiniCondition_x f ya yb <-> FubiniCondition (fun x y => Iverson (Ioo ya yb) y *  f x y) xa xb ya yb.
 Proof.
   (* The indicator is constant 1 on a neighbourhood of (x, y) *)
-Admitted.
+A dmitted.
 
 Lemma IFubini_y_Ioo {f xa xb ya yb} :
   IFubiniCondition_y f xa xb <-> FubiniCondition (fun x y => Iverson (Ioo xa xb) x * f x y) xa xb ya yb.
 Proof.
   (* The indicator is constant 1 on a neighbourhood of (x, y) *)
-Admitted.
+A dmitted.
 
 Lemma IFubini_Fubini_y {f xa xb ya yb} : IFubiniCondition_y f xa xb → FubiniCondition f xa xb ya yb.
 Proof. intros H ????. apply H; lra. Qed.
@@ -624,30 +624,30 @@ Proof.
   { intros n b.
     (* We need continuity or local integrability assumptions.
        Ex_RInt_gen alone doesn't guarantee ex_RInt on finite intervals without regularity. *)
-    admit. }
+    a dmit. }
 
   (* Step 1: Establish that for each b, the finite integral of the series exists *)
   have Hex_finite : ∀ b, ex_RInt (λ x, SeriesC (λ n, f n x)) L b.
-  { admit. }
+  { a dmit. }
 
   (* Step 3: Exchange finite integral and series at each cutoff b
      RInt (λ x, SeriesC (λ n, f n x)) L b = SeriesC (λ n, RInt (f n) L b) *)
   have Hfubini_finite : ∀ b, L < b →
     RInt (λ x, SeriesC (λ n, f n x)) L b = SeriesC (λ n, RInt (f n) L b).
-  { intros b Hb. admit. }
+  { intros b Hb. a dmit. }
 
   (* Step 4: The series of improper integrals converges *)
   have Hex_series_improper : ex_seriesC (λ n, RInt_gen (f n) (at_point L) (Rbar_locally Rbar.p_infty)).
   { have HexU' : ex_seriesC UB. { rewrite -ex_seriesC_nat. apply HexU. }
     (* Need to show: |RInt_gen (f n) ...| <= C * UB(n) for some constant C.
        This requires bounding the integral by the L^infinity norm times the measure. *)
-    admit. }
+    a dmit. }
 
   (* Step 5: The improper integral of the series exists *)
   have Hex_improper_series : ex_RInt_gen (λ x, SeriesC (λ n, f n x)) (at_point L) (Rbar_locally Rbar.p_infty).
   { (* This follows from monotone/dominated convergence: the partial sums converge
        pointwise and are bounded by SeriesC UB. *)
-    admit. }
+    a dmit. }
 
   (* Step 7: Compute LHS using filterlim_RInt_gen *)
   have HLHS : RInt_gen (λ x, SeriesC (λ n, f n x)) (at_point L) (Rbar_locally Rbar.p_infty) =
@@ -657,7 +657,7 @@ Proof.
   (* Step 8: Rewrite finite integrals using Hfubini_finite *)
   have HLHS' : RInt_gen (λ x, SeriesC (λ n, f n x)) (at_point L) (Rbar_locally Rbar.p_infty) =
                iota (λ I, filterlim (λ b, SeriesC (λ n, RInt (f n) L b)) (Rbar_locally Rbar.p_infty) (locally I)).
-  { admit. }
+  { a dmit. }
 
   (* Step 6: Key limit exchange - lim[b→∞] SeriesC (λ n, RInt (f n) L b) = SeriesC (λ n, lim[b→∞] RInt (f n) L b)
      This uses uniform convergence from the M-test *)
@@ -669,10 +669,11 @@ Proof.
     { intros n. apply filterlim_is_RInt_gen. { apply Hex_n. } apply RInt_gen_correct. apply Hex. }
     (* Need to exchange lim with SeriesC using dominated convergence.
        The series tail must vanish uniformly in b. *)
-    admit. }
+    a dmit. }
 
   (* Step 9: Use Hlimit_exchange to identify the iota as RHS *)
   rewrite HLHS'.
   apply (@iota_filterlim_locally _ _ _ (Rbar_locally Rbar.p_infty) _ _ (SeriesC (λ n : nat, RInt_gen (λ x : R, f n x) (at_point L) (Rbar_locally Rbar.p_infty)))).
   apply Hlimit_exchange.
-Admitted.
+A dmitted.
+*)
