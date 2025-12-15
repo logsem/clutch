@@ -4,11 +4,12 @@ Import Hierarchy.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
-
+(** exp is nonnegative *)
 Lemma Rexp_nn {z} : 0 <= exp z.
 Proof. pose proof (exp_pos z); lra. Qed.
 (* Proof. have ? := exp_pos z. lra. Qed. *)
 
+(** exp x ∈ [0, 1] for x ≤ 0 *)
 Lemma Rexp_range {z : R} : z <= 0 -> 0 <= exp z <= 1.
 Proof.
   split; [apply Rexp_nn|].
@@ -31,9 +32,11 @@ Proof.
   lra.
 Qed.
 
+(** Strict monotonicity of exp *)
 Lemma exp_mono_strict {x y : R} : x < y → exp x < exp y.
 Proof. apply exp_increasing. Qed.
 
+(** Monotonicity of exp *)
 Lemma exp_mono {x y : R} : x <= y → exp x <= exp y.
 Proof.
   intros H.
@@ -47,6 +50,7 @@ Section ExpPowerSeries.
 
 (** Even and odd subseries of the exponential series *)
 
+(** Even powers are nonnegative *)
 Lemma Zeven_pow {x} {n : nat} (H : Zeven (Z.of_nat n)) : 0 <= x ^ n.
 Proof.
   destruct (Zeven_ex _ H) as [m Hm].
@@ -57,6 +61,7 @@ Proof.
   apply pow2_ge_0.
 Qed.
 
+(** Odd powers of (-1) are (-1) *)
 Lemma Zodd_neg_pow {n : nat} (H : Zodd (Z.of_nat n)) : (-1) ^ n = (-1).
 Proof.
   destruct (Zodd_ex _ H) as [m Hm].
@@ -71,23 +76,33 @@ Proof.
   simpl. lra.
 Qed.
 
+(** Power series of exp *)
 Definition Hpow x : R := @SeriesC _ numbers.Nat.eq_dec nat_countable (λ k : nat, x ^ k / fact k).
+
+(** Even subseries of exp *)
 Definition HpowE x : R := @SeriesC _ numbers.Nat.eq_dec nat_countable (λ k : nat, Iverson Zeven k * x ^ k / fact k).
+
+(** Odd subseries of exp *)
 Definition HpowO x : R := @SeriesC _ numbers.Nat.eq_dec nat_countable (λ k : nat, Iverson (not ∘ Zeven) k * x ^ k / fact k).
+
+(** Shifted odd subseries of exp *)
 Definition HpowOS x : R := @SeriesC _ numbers.Nat.eq_dec nat_countable ((λ k : nat, Iverson (not ∘ Zeven) k * x ^ k / fact k) ∘ S).
+
+(** Shifted even subseries of exp *)
 Definition HpowES x : R := @SeriesC _ numbers.Nat.eq_dec nat_countable ((λ k : nat, Iverson Zeven k * x ^ k / fact k) ∘ S).
 
+(** Closed form for power series of exp *)
 Lemma Hpow_cf {x} : Hpow x = exp x.
 Proof. by rewrite /Hpow SeriesC_Series_nat -PSeries.PSeries_eq ElemFct.exp_Reals. Qed.
 
+(** Existence of the exp power series *)
 Lemma Hpow_ex : forall y, ex_seriesC (λ k : nat, y ^ k / fact k).
 Proof.
   intro y.
   replace (λ k : nat, y ^ k / fact k) with (λ k : nat, / fact k * y ^ k); last first.
   { apply functional_extensionality. intros ?. lra. }
   have Hex : PSeries.ex_pseries (fun k => / fact k) y.
-  { (* I'm shocked this isn't proven somewhere...*)
-    apply PSeries.CV_disk_correct.
+  { apply PSeries.CV_disk_correct.
     apply (PSeries.CV_disk_DAlembert _ _ 0); [| | intuition].
     { intros n.
       have ? : 0 < / fact n; [|lra].
@@ -101,6 +116,7 @@ Proof.
 Qed.
 
 
+(** Existence of even subseries of exp *)
 Lemma HpowE_ex {x} : ex_seriesC (λ k : nat, Iverson Zeven k * x ^ k / fact k).
 Proof.
   apply (ex_seriesC_le _ (λ k : nat, (Rabs x) ^ k / fact k)); last apply Hpow_ex.
@@ -130,6 +146,7 @@ Proof.
 Qed.
 
 
+(** Existence of odd subseries of exp *)
 Lemma HpowO_ex {x} : ex_seriesC (λ k : nat, Iverson (not ∘ Zeven) k * x ^ k / fact k).
 Proof.
   destruct (decide (Rle 0 x)).
@@ -201,12 +218,15 @@ Proof.
   }
 Qed.
 
+(** Existence of odd shifted subseries of exp *)
 Lemma HpowOS_ex {x} : ex_seriesC ((λ k : nat, Iverson (not ∘ Zeven) k * x ^ k / fact k) ∘ S).
 Proof. apply ex_SeriesC_nat_shift. apply HpowO_ex. Qed.
 
+(** Existence of even shifted subseries of exp *)
 Lemma HpowES_ex {x} : ex_seriesC ((λ k : nat, Iverson Zeven k * x ^ k / fact k) ∘ S).
 Proof. apply ex_SeriesC_nat_shift. apply HpowE_ex. Qed.
 
+(** The power series for exp can be split into series for its odd and even subseries *)
 Lemma Hpow_eq {x} : Hpow x = HpowE x + HpowO x.
 Proof.
   rewrite /Hpow/HpowE/HpowO.
@@ -220,6 +240,7 @@ Proof.
   by rewrite Iverson_add_neg.
 Qed.
 
+(** The odd subseries of exp equals the odd shifted subseries *)
 Lemma HpowO_eq {x} : HpowO x = HpowOS x.
 Proof.
   rewrite /HpowO/HpowOS.
@@ -229,6 +250,7 @@ Proof.
   by rewrite Rmult_0_l Rdiv_def Rmult_0_l Rplus_0_l.
 Qed.
 
+(** The even subseries of exp equals the even shifted subseries plus the first term *)
 Lemma HpowE_eq {x} : HpowE x = 1 + HpowES x.
 Proof.
   rewrite /HpowE/HpowES.
@@ -239,6 +261,7 @@ Proof.
   rewrite //=. lra.
 Qed.
 
+(** Closed form for even subseries of real decr trial series *)
 Lemma ExpSeriesEven {x} : SeriesC (λ n : nat, Iverson Zeven n * (x^n/(fact n) + x^(n+1)%nat/(fact (n+1)%nat))) = exp x.
 Proof.
     rewrite -Hpow_cf.
@@ -257,6 +280,7 @@ Proof.
     { f_equal. by rewrite -{1}(Nat.mul_1_l (fact n)) -Nat.mul_add_distr_r Nat.add_1_l Nat.add_1_r -fact_simpl. }
   Qed.
 
+(** Closed form for odd subseries of real decr trial series *)
   Lemma ExpSeriesOdd {x} : SeriesC (λ n : nat, Iverson (not ∘ Zeven) n * (x^n/(fact n) + x^(n+1)%nat/(fact (n+1)%nat))) = -1 + exp x .
   Proof.
     rewrite -Hpow_cf.
@@ -280,6 +304,7 @@ Proof.
     { f_equal. by rewrite -{1}(Nat.mul_1_l (fact n)) -Nat.mul_add_distr_r Nat.add_1_l Nat.add_1_r -fact_simpl. }
   Qed.
 
+(** Existence for even subseries of real decr trial series *)
   Lemma Hexp_ex_even {x} : ex_seriesC (λ n : nat, Iverson Zeven n * (x ^ n / fact n + x ^ (n + 1) / fact (n + 1))).
   Proof.
     apply (ex_seriesC_ext (λ n : nat, Iverson Zeven n * x ^ n / fact n + Iverson Zeven n * x ^ (n + 1) / fact (n + 1))).
@@ -313,6 +338,7 @@ Proof.
     }
   Qed.
 
+(** Existence for odd subseries of real decr trial series *)
   Lemma Hexp_ex_odd {x} : ex_seriesC (λ n : nat, Iverson (not ∘ Zeven) n * (x ^ n / fact n + x ^ (n + 1) / fact (n + 1))).
   Proof.
     apply (ex_seriesC_ext (λ n : nat, Iverson (not ∘ Zeven) n * x ^ n / fact n + Iverson (not ∘ Zeven) n * x ^ (n + 1) / fact (n + 1))).
@@ -349,6 +375,7 @@ Proof.
 
 End ExpPowerSeries.
 
+(** Factorial reciprocal series exists *)
 Lemma ex_exp_series : Series.ex_series (λ n : nat, / fact n).
 Proof.
   apply ex_seriesC_nat.
@@ -358,6 +385,7 @@ Proof.
   lra.
 Qed.
 
+(** Shifted factorial reciprocal series exists *)
 Lemma ex_exp_series' {M : nat} : Series.ex_series (λ n : nat, / fact (n - M)).
 Proof.
   apply ex_seriesC_nat.
@@ -372,7 +400,7 @@ Proof.
   lia.
 Qed.
 
-(* Geometric series *)
+(** Geometric series involving exp exists *)
 Lemma exp_neg_RInt : ex_RInt (λ x : R, exp (- x ^ 2 / 2)) 0 1.
 Proof.
   eapply (ex_RInt_continuous (V := R_CompleteNormedModule)).
@@ -381,6 +409,7 @@ Proof.
   by auto_derive.
 Qed.
 
+(** Definite integral of terms in the exp power series *)
 Lemma RInt_pow_fact {a b : R} (M : nat) :
   RInt (fun x1 : R => x1 ^ M / fact M) a b = b ^ (M + 1) / fact (M + 1) - a ^ (M + 1) / fact (M + 1).
 Proof.
@@ -439,9 +468,11 @@ rewrite RInt_Derive.
 }
 Qed.
 
+(** Exp is injective *)
 Lemma exp_inj {x y : R} : exp x = exp y → x = y.
 Proof. apply exp_inv. Qed.
 
+(** Derivative of the negative exponential *)
 Lemma Derive_exp_neg {x : R} : Derive.Derive (λ x1 : R, exp (- x1)) x = - exp (- x).
 Proof.
   rewrite Derive.Derive_comp; try by auto_derive.
