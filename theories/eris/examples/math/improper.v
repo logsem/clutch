@@ -45,6 +45,25 @@ Proof.
   rewrite Rmin_left in H3; lra.
 Qed.
 
+Lemma RInt_gen_ext_eq_Ioi {f g : R → R} {M : R} :
+  (∀ x : R, M < x → f x = g x) →
+  ex_RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty) →
+  RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty) = RInt_gen g (at_point M) (Rbar_locally Rbar.p_infty).
+Proof.
+  intros ??.
+  apply RInt_gen_ext; [|done].
+  simpl.
+  eapply (Filter_prod _ _ _ (fun x => x = M) (fun x => M < x)).
+  { rewrite /at_point//=. }
+  { rewrite //=. exists M. intuition. }
+  intros ??????.
+  apply H.
+  simpl in H3.
+  destruct H3.
+  rewrite H1 in H3.
+  rewrite Rmin_left in H3; lra.
+Qed.
+
 Lemma RInt_gen_ex_Ici {M : R} {F : R → R}
   (Hlimit : exists L : R_NormedModule, (filterlimi (λ b : R, is_RInt F M b) (Rbar_locally Rbar.p_infty)) (locally L))
   (Hex : ∀ b, ex_RInt F M b) :

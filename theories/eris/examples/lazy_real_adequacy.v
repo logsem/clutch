@@ -185,7 +185,10 @@ Section adequacy.
           apply ineq_lemma. lia.
         * apply ex_RInt_const.
       + rewrite RInt_gen_at_point.
-        * admit.
+        * erewrite (RInt_gen_ext_eq_Ioi (f:=λ x, μ x*_)%R).
+          -- admit.
+          -- admit.
+          -- (* same case as before *) admit. 
         * eapply ex_RInt_ext; last apply ex_RInt_const.
           simpl.
           intros.
@@ -398,7 +401,7 @@ Proof.
       apply RInt_ge_0; try done.
     (* same as before *)
       admit. 
-    - admit.
+    - (* see before *) admit.
   } 
   iIntros (?) "Herr".
   iPoseProof (wp_is_smaller_prog with "[][$]") as "$"; [done..|].
