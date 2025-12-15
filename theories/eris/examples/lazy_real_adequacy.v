@@ -255,8 +255,40 @@ Section adequacy.
         replace (x / 2 / 2 ^ y' * 2 ) with (x / 2 ^ y' * 2/2 ) by lra.
         by rewrite Rmult_div_l.
     - (* Second digit of RHS is a 1*)
-      admit.
-  Admitted.
+      wp_pures.
+      case_bool_decide; first by wp_pures.
+      assert (hd = 1%fin) as ->.
+      { inv_fin hd; first done.
+        intros i; inv_fin i; first done.
+        intros i; inv_fin i.
+      }
+      wp_pures.
+      rewrite -Nat2Z.inj_sub; last lia.
+      iApply ("IH" with "[][][$]").
+      + iPureIntro.
+        simpl in *. lia.
+      + iPureIntro. simpl in *.
+        assert (seq_bin_to_R f'  <= 2*(x / (2 * 2 ^ y') - 1/2)) by lra.
+        etrans; first exact.
+        rewrite -Rcomplements.Rle_div_r; last (apply pow_lt; lra).
+        replace 2 with (INR 2) by done.
+        rewrite (Rmult_comm (INR 2) (_^_)).
+        rewrite Rdiv_mult_distr.
+        rewrite Rmult_minus_distr_l.
+        rewrite !Rmult_div_assoc.
+        rewrite !Rmult_div_r; last (simpl; lra).
+        replace (INR 2 * INR x / INR 2 ^ y' / INR 2) with ((INR 2 / INR 2)*INR x / INR 2 ^ y') by lra.
+        rewrite Rdiv_diag; last (simpl; lra).
+        rewrite Rmult_1_l.
+        rewrite Rmult_minus_distr_r.
+        rewrite Rmult_1_l.
+        rewrite -Rmult_div_swap.
+        rewrite Rmult_div_l; last first.
+        { unshelve epose proof pow_lt (INR 2) y' _; simpl in *; lra. }
+        rewrite -pow_INR.
+        rewrite -minus_INR; last lia.
+        apply le_INR. lia.
+  Qed. 
   
   Lemma wp_is_smaller_prog x y μ e:
     (∀ x, 0<=μ x)->
@@ -282,7 +314,7 @@ Section adequacy.
   Qed.
 End adequacy.
 
-Theorem wp_pgl_lim Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
+Theorem lazy_real_adeqaucy Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
   (∀ x, 0<=μ x)->
   ex_RInt μ 0 1 ->
   (∀ `{erisGS Σ} (F : R -> R) (Hnn : ∃ M, ∀ x , 0 <= F x <= M),
