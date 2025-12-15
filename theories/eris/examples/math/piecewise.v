@@ -6,19 +6,22 @@ Set Default Proof Using "Type*".
 
 (** Piecewise continuous 1D functions *)
 
-(* A function on a rectangle *)
+(** A function on an interval *)
 Definition IntervalFun_R : ((R → R) * R * R) → (R → R) :=
   fun '(f, xa, xb) x => Iverson (Icc xa xb) x * f x.
 
+(** An IntervalFun is continuous on its interval *)
 Definition IntervalFun_continuity : ((R → R) * R * R) → Prop :=
   fun '(f, xa, xb) => ∀ x, Icc xa xb x → Continuity.continuous f x.
 
+(** Finite sum of functions *)
 Definition fsum {T : Type} (L : list (T → R)) : T → R := fun t => foldr (fun f s => f t + s) 0 L.
 
-(* Generalized: f is a finite sum of rectangle functions *)
+(** 1D piecewise compactly-supported continuity: The function is a sum of continuous IntervalFuns *)
 Definition PCts (f : R → R) (xa xb : R) : Prop :=
   ∃ L, (∀ x, Icc xa xb x → f x = fsum (IntervalFun_R <$> L) x) ∧ Forall IntervalFun_continuity L.
 
+(** IntervalFun integrablility *)
 Lemma IntervalFun_RInt {f xa xb} {a b} :
   IntervalFun_continuity (f, xa, xb) →
   ex_RInt (IntervalFun_R (f, xa, xb)) a b.
@@ -180,6 +183,7 @@ Proof.
   }
 Qed.
 
+(** Finite function sums distribute over list appending *)
 Lemma fsum_app {T : Type} (L1 L2 : list (T → R)) (t : T) :
   fsum (L1 ++ L2) t = fsum L1 t + fsum L2 t.
 Proof.
@@ -188,6 +192,7 @@ Proof.
   - simpl. rewrite IH. lra.
 Qed.
 
+(** Right scale a finite function sum *)
 Lemma fsum_scal_r {T : Type} (L : list (T → R)) (h : T → R) (t : T) :
   fsum L t * h t = fsum (map (fun f => fun x => f x * h x) L) t.
 Proof.
@@ -198,6 +203,7 @@ Proof.
   f_equal. apply IH.
 Qed.
 
+(** Left scale a finite function sum *)
 Lemma fsum_scal_l {T : Type} (L : list (T → R)) (h : T → R) (t : T) :
   h t * fsum L t = fsum (map (fun f => fun x => h x * f x) L) t.
 Proof.
@@ -208,6 +214,7 @@ Proof.
   f_equal. apply IH.
 Qed.
 
+(** Integrability of 1D compactly-supported piecewise continuous functions, on any interval *)
 Lemma PCts_RInt {f xa xb} (HP : PCts f xa xb) :
   ex_RInt f xa xb.
 Proof.
@@ -234,6 +241,7 @@ Proof.
   { apply IHL. eapply Forall_inv_tail; done. }
 Qed.
 
+(** Continuous functions are piecewise continous *)
 Lemma PCts_cts {f xa xb} : (∀ x, Icc xa xb x → Continuity.continuous f x) → PCts f xa xb.
 Proof.
   exists [(f, xa, xb)].
@@ -246,6 +254,7 @@ Proof.
   rewrite Forall_singleton //=.
 Qed.
 
+(** Piecewise continuity of addition *)
 Lemma PCts_plus {f g xa xb} : PCts f xa xb → PCts g xa xb → PCts (fun x => f x + g x) xa xb.
 Proof.
   intros [Lf [Hfeq HfC]] [Lg [Hgeq HgC]].
@@ -255,6 +264,7 @@ Proof.
   apply Forall_app_2; done.
 Qed.
 
+(** IntervalFun continuity of multiplication *)
 Lemma IntervalFun_continuity_mult {f g xa xb ya yb} :
   IntervalFun_continuity (f, xa, xb) →
   IntervalFun_continuity (g, ya, yb) →
@@ -285,6 +295,7 @@ Proof.
     }
 Admitted.
 
+(** Piecewise continuity continuity of multiplication *)
 Lemma PCts_mult {f g xa xb} : PCts f xa xb → PCts g xa xb → PCts (fun x => f x * g x) xa xb.
 Proof.
   intros [Lf [Hfeq HfC]] [Lg [Hgeq HgC]].
@@ -302,18 +313,14 @@ Proof.
     { apply IH. eapply Forall_inv_tail; done. } }
 Admitted.
 
-(** Piecewise continuity over the enture real line *)
-
-(* I'm writing infintie piecewise continuity as being a continuous function +
-   finitely many interval functions.
-
-    Doing it this way means we can reuse some super annoying intervalfun lemmas. *)
+(** Infinitely supported 1D piecewise continuity *)
 Definition IPCts (f : R → R) : Prop :=
   ∃ f0 L,
     (∀ x, f x = f0 x + fsum (IntervalFun_R <$> L) x) ∧
     Forall IntervalFun_continuity L ∧
     (∀ x, Continuity.continuous f0 x).
 
+(** Infinitely supported 1D piecewise continuity is compactly supported *)
 Lemma IPCts_PCts (f : R → R) : IPCts f → ∀ a b, PCts f a b.
 Proof.
   intros [f0 [L[?[??]]]] ??.
@@ -334,9 +341,11 @@ Proof.
   }
 Qed.
 
+(** Integrablility of infinitely supported 1D piecewise continuity *)
 Lemma IPCts_RInt {f xa xb} (HP : IPCts f ) : ex_RInt f xa xb.
 Proof. by apply PCts_RInt, IPCts_PCts. Qed.
 
+(** Continuous functions are infinitely supported 1D piecewise continuous *)
 Lemma IPCts_cts {f} : (∀ x, Continuity.continuous f x) → IPCts f.
 Proof.
   intros H.
@@ -348,6 +357,7 @@ Proof.
   { done. }
 Qed.
 
+(** Addtion of 1D infinitely supported piecewise continuity *)
 Lemma IPCts_plus {f g} : IPCts f → IPCts g → IPCts (fun x => f x + g x).
 Proof.
   intros [f0 [Lf [Hfeq [HfC Hf0]]]] [g0 [Lg [Hgeq [HgC Hg0]]]].
@@ -360,35 +370,40 @@ Proof.
   - apply Hf0. - apply Hg0.
 Qed.
 
+(** Product of 1D infinitely supported piecewise continuity *)
 Lemma IPCts_mult {f g} : IPCts f → IPCts g → IPCts (fun x => f x * g x).
 Proof. Admitted.
 
+(** Left scaling of 1D infinitely supported piecewise continuity *)
 Lemma IPCts_scal_mult {c : R} {G : R → R} :
   IPCts G → IPCts (fun x => c * G x).
 Proof. Admitted.
 
-(** Piecewise continuous 2D functions *)
-
+(** Finite sum of 2D functions *)
 Definition fsum2 {T U : Type} (L : list (T → U → R)) : T → U → R :=
   fun t u => foldr (fun f s => f t u + s) 0 L.
 
+(** A function over a rectangle *)
 Definition RectFun_RR : ((R → R → R) * R * R * R * R) → (R → R → R) :=
   fun '(f, xa, xb, ya, yb) x y => Iverson (Icc xa xb) x * Iverson (Icc ya yb) y * f x y.
 
+(** A function over a rectangle which is continuous on that rectange *)
 Definition RectFun_continuity : ((R → R → R) * R * R * R * R) → Prop :=
   fun '(f, xa, xb, ya, yb) => ∀ x y, Icc xa xb x → Icc ya yb y → Continuity2 (uncurry f) x y.
 
-(* f is a finite sum of rectangle functions on the rectangle [xa xb] [ya yb] *)
+(** 2D compactly supported piecewise continuity: The function is a finite sum of 2D rectangle functions *)
 Definition PCts2 (f : R → R → R) (xa xb ya yb : R) : Prop :=
   ∃ L,
     ∀ x y, (Icc xa xb x → Icc ya yb y → f x y = fsum2 (RectFun_RR <$> L) x y) ∧
     Forall RectFun_continuity L.
 
+(** 2D continous functions are piecewise continuous *)
 Lemma PCts2_continuous {f : R → R → R} {xa xb ya yb} :
   (∀ x y, Continuity2 (uncurry f) x y) →
   PCts2 f xa xb ya yb.
 Proof. Admitted.
 
+(** Fsum2 distributes over app *)
 Lemma fsum2_app {T U : Type} (L1 L2 : list (T → U → R)) (t : T) (u : U) :
   fsum2 (L1 ++ L2) t u = fsum2 L1 t u + fsum2 L2 t u.
 Proof.
@@ -398,6 +413,7 @@ Proof.
   { simpl. rewrite IH. lra. }
 Qed.
 
+(** Addition of 2D picewise continuous functions *)
 Lemma PCts2_plus {f g : R → R → R} {xa xb ya yb} :
   PCts2 f xa xb ya yb → PCts2 g xa xb ya yb → PCts2 (fun (x y : R) => f x y + g x y) xa xb ya yb.
 Proof.
@@ -424,11 +440,13 @@ Proof.
   }
 Qed.
 
+(** Product of 2D picewise continuous functions *)
 Lemma PCts2_mult {f g : R → R → R} {xa xb ya yb} :
   PCts2 f xa xb ya yb → PCts2 g xa xb ya yb → PCts2 (fun (x y : R) => f x y * g x y) xa xb ya yb.
 Proof.
 Admitted.
 
+(** 2D Piecewise continuity of functions piecewise continuous in x and constant in y *)
 Lemma PCts_const_x {f xa xb ya yb} : PCts f xa xb → PCts2 (fun x _ => f x) xa xb ya yb.
 Proof.
   intros [L [Hf HC]].
@@ -485,6 +503,7 @@ Proof.
   }
 Admitted.
 
+(** 2D Piecewise continuity of functions constant in x and piecewise continuous in y  *)
 Lemma PCts_const_y {f xa xb ya yb} : PCts f ya yb → PCts2 (fun _ y => f y) xa xb ya yb.
 Proof.
   intros [L [Hf HC]].
