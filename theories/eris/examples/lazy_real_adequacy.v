@@ -695,7 +695,52 @@ Proof.
   iPoseProof (wp_is_smaller_prog1 with "[][$]") as "$"; [done..|].
   iIntros (? H2 H3) "Herr".
   by iApply Hwp.
-Qed. 
+Qed.
+
+Theorem lazy_real_adeqaucy1' Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
+  (∀ x, 0<=μ x)->
+    (∀ r, 0<=r -> ex_RInt μ (0) r) →
+    ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
+  (∀ `{erisGS Σ} (F : nat -> R -> R) (Hnn : ∃ M, ∀ x k , 0 <= F k x <= M) (HPCts: ∀ k, IPCts (F k)),
+      ↯ (RInt_gen (fun (x:R) => let k:=Z.to_nat (Int_part x) in μ x * F (k) (x-k)) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
+       WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗ ↯(F k (r)%R) }}) →
+  ∀ (x y n:nat), (x<2^y)%nat ->
+  pgl (lim_exec (is_smaller_prog e #n #x #y, σ)) (λ x, x=#true) (RInt_gen μ (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)).
+Proof.
+  intros Hpos Hbound Hbound' Hwp x y n Hineq.
+  apply: lazy_real_adeqaucy1; try done.
+  iIntros (??[M ]?) "Herr".
+  set (F':= (λ (k:nat) r, F (k+r))).
+  iApply (pgl_wp_wand with "[-]").
+  - iApply (Hwp _ F').
+    + rewrite /F'.
+      naive_solver.
+    + admit.
+    + iApply (ec_eq with "[$]").
+      apply RInt_gen_ext_eq_Ioi.
+      * intros x0 ?. f_equal.
+        rewrite /F'.
+        f_equal.
+        rewrite {1}(Rplus_Int_part_frac_part x0).
+        f_equal.
+        -- rewrite INR_IZR_INZ.
+           rewrite Z2Nat.id; first done.
+           pose proof base_Int_part x0 as [].
+           assert (-1< IZR (Int_part x0)) as K by lra.
+           assert (-1<Int_part x0)%Z; last lia.
+           by apply lt_IZR.
+        -- pose proof base_Int_part x0 as [].
+           rewrite INR_IZR_INZ.
+           rewrite /frac_part.
+           rewrite Z2Nat.id; first done.
+           pose proof base_Int_part x0 as [].
+           assert (-1< IZR (Int_part x0)) as K by lra.
+           assert (-1<Int_part x0)%Z; last lia.
+           by apply lt_IZR.
+      * admit. 
+  - simpl. rewrite /F'. setoid_rewrite (Rplus_comm (INR _)).
+    by iIntros. 
+Admitted.
 
 Theorem lazy_real_adeqaucy2 Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
   (∀ x, 0<=μ x)->
