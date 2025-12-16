@@ -1161,16 +1161,50 @@ Section AccuracyBound.
   (* A function which is 1 outside of the range [0, L] *)
   Definition AccF (L : R) : R → R := (fun x => Iverson (Iio 0) x + Iverson (Ioi L) x).
 
-  Lemma AccF_IPCts L : IPCts (AccF L).
-  Proof. Admitted.
+  Lemma AccF_IPCts L (HL : 0 <= L) : IPCts (AccF L).
+  Proof.
+    rewrite /IPCts.
+    exists (fun _ => 1).
+    exists (List.cons (fun _ => -1, 0, L) List.nil).
+    split; last split.
+    { intros ?.
+      rewrite /fsum//=.
+      rewrite /AccF.
+      symmetry.
+      rewrite {1}/Iverson.
+      case_decide; rewrite /Icc//= in H; rewrite Rmin_left in H; OK; rewrite Rmax_right in H; OK.
+      { rewrite Iverson_False.
+        2: { rewrite /Iio. OK. }
+        rewrite Iverson_False.
+        2: { rewrite /Ioi. OK. }
+        OK.
+      }
+      { rewrite {1} /Iverson.
+        rewrite /Ioi//=.
+        case_decide; rewrite /Iio in H0.
+        { rewrite Iverson_False; OK. }
+        { rewrite Iverson_True; OK. }
+      }
+    }
+    { apply Forall_singleton.
+      rewrite /IntervalFun_continuity.
+      intros ??.
+      apply Continuity.continuous_const.
+    }
+    {
+      intros ?.
+      apply Continuity.continuous_const.
+    }
+  Qed.
 
   Lemma NegExp_Int_AccF {L} :
     RInt_gen (λ r : R, AccF L r * exp (- r)) (at_point 0) (Rbar_locally Rbar.p_infty) = exp (- L).
   Proof.
+    rewrite -NegExp_Int.
     (* Chasles *)
   Admitted.
 
-  Lemma wp_NegExp_Accuracy E (β : R) (Hβ : 0 < β) :
+  Lemma wp_NegExp_Accuracy E (β : R) (Hβ : 0 < β <= 1) :
     ⊢ ↯ β -∗ WP NegExp #0 @ E
         {{ p, ∃ (r : R) (ℓ : val), ⌜p = PairV #(Int_part r) ℓ⌝ ∗ lazy_real ℓ (frac_part r) ∗ ⌜0 <= r <= ln ( / β) ⌝}}.
   Proof.
@@ -1183,7 +1217,12 @@ Section AccuracyBound.
         { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
         { apply Rplus_le_compat; apply Iverson_le_1. }
       }
-      { apply AccF_IPCts. }
+      { apply AccF_IPCts.
+        rewrite ln_Rinv; OK.
+        suffices ? : ln β <= 0 by OK.
+        rewrite -ln_1.
+        apply Rcomplements.ln_le; OK.
+      }
       { iApply (ec_eq with "Hε").
         rewrite /NegExp_CreditV'.
         rewrite NegExp_Int_AccF.
