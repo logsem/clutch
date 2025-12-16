@@ -110,6 +110,10 @@ Section credits.
   Definition NegExp_CreditV (F : nat → R → R) (L : nat) : R :=
     SeriesC (fun (k : nat) => RInt (fun x => NegExp_ρ L k x * F k x) 0 1).
 
+  (* NegExp_CreditV but no integers *)
+  Definition NegExp_CreditV'' (F : nat → R → R) (L : nat) : R :=
+    SeriesC (fun (k : nat) => RInt (fun x => Iverson (Ioo 0 1) x * NegExp_ρ L k x * F k x) 0 1).
+
   Lemma NegExp_CreditV_nn {F L} (HP : ∀ x, PCts (F x) 0 1) (HB : ∀ x y, (0 <= y <= 1) → 0 <= F x y) : 0 <= NegExp_CreditV F L.
   Proof.
     rewrite /NegExp_CreditV.
@@ -252,6 +256,10 @@ Qed.
 
   Local Definition g (F : nat → R -> R) (L : nat) : R -> R := fun x =>
     RealDecrTrial_CreditV (hx F x L) 0 x.
+
+  (* g, but with all integers poked to be 1 *)
+  Local Definition g' (F : nat → R -> R) (L : nat) : R -> R :=
+    poke (poke (g F L) 1 1) 0 1.
 
   Local Lemma hx_nonneg {F : nat → R → R} {L n r} (HP : ∀ x : nat, PCts (F x) 0 1) (HB : ∀ x y, (0 <= y <= 1) → 0 <= F x y) : 0 <= r <= 1 → 0 <= hx F r L n.
   Proof.
@@ -957,6 +965,21 @@ Qed.
     by apply Zodd_Sn.
   Admitted.
 
+  Local Lemma g'_expectation M {F : nat → R → R} {L}
+    (HPcts : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= x <= 1 → 0 <= F n x <= M) :
+    is_RInt (g' F L) 0 1 (NegExp_CreditV F L).
+  Proof.
+    apply (is_RInt_ext (g F L)).
+    2: { eapply g_expectation; OK. }
+    intros ??.
+    rewrite /g'.
+    rewrite Rmin_left in H; OK.
+    rewrite Rmax_right in H; OK.
+    rewrite /poke.
+    case_decide; OK.
+    case_decide; OK.
+  Qed.
+
 End credits.
 
 Section program.
@@ -976,7 +999,7 @@ Section program.
   Lemma wp_NegExp_gen E (F : nat → R → R) {M} (Hnn : ∀ a b, 0 <= b <= 1 → 0 <= F a b <= M) (HP : ∀ x1 : nat, PCts (F x1) 0 1)  :
     ⊢ ∀ L, ↯ (NegExp_CreditV F L) -∗
            WP NegExp #L @ E
-      {{ p, ∃ (vz : nat) (vr : R) (ℓ : val), ⌜p = PairV #(Z.of_nat vz)ℓ⌝ ∗ lazy_real ℓ vr ∗ ↯(F vz vr)}}.
+      {{ p, ∃ (vz : nat) (vr : R) (ℓ : val), ⌜p = PairV #(Z.of_nat vz)ℓ⌝ ∗ lazy_real ℓ vr ∗ ⌜0 < vr < 1 ⌝ ∗ ↯(F vz vr)}}.
   Proof.
     (* have Hex : ∀ a b, ex_RInt F a b.
     { intros ??. apply PCts_RInt. by apply IPCts_PCts. } *)
@@ -986,13 +1009,26 @@ Section program.
     wp_pure.
     wp_apply wp_init; first done.
     iIntros (x) "Hx".
-    iApply (wp_lazy_real_presample_adv_comp _ _ x _ (NegExp_CreditV F L) (g F L)); auto.
-    { intros ??. apply g_nonneg; eauto.
-      intros ???. apply Hnn. OK. }
-    { eapply g_expectation; OK. }
-
+    iApply (wp_lazy_real_presample_adv_comp _ _ x _ (NegExp_CreditV F L) (g' F L)); auto.
+    { intros ??.
+      rewrite /g'/poke.
+      case_decide; OK.
+      case_decide; OK.
+      apply g_nonneg; eauto.
+      intros ???.
+      apply Hnn.
+      OK.
+    }
+    { eapply g'_expectation; OK. }
     iFrame.
     iIntros (xr) "(%Hrange & Hε & Hx)".
+
+    (* Now: poke out the cases where we sampled 0 or 1 *)
+    rewrite /g'/poke//=.
+    case_decide.
+    { iExFalso. iApply (ec_contradict with "Hε"). OK. }
+    case_decide.
+    { iExFalso. iApply (ec_contradict with "Hε"). OK. }
     do 2 wp_pure.
     wp_bind (lazyDecrR _ _).
     iApply (pgl_wp_mono_frame (□ _) with "[Hx Hε] IH"); last first.
@@ -1028,7 +1064,7 @@ Section program.
     wp_pures.
     case_bool_decide.
     { have Heven : Zeven l.
-      { inversion H as [H'].
+      { inversion H1 as [H'].
         apply Z.rem_mod_eq_0 in H'; [|lia].
         by apply Zeven_bool_iff; rewrite Zeven_mod H' //. }
       wp_pures.
@@ -1043,7 +1079,8 @@ Section program.
         intros ???. apply Hnn; OK.
       }
       rewrite Iverson_True; last done.
-      by rewrite Rmult_1_l .
+      rewrite Rmult_1_l; iFrame.
+      iPureIntro. OK.
     }
     { do 2 wp_pure.
       rewrite {1}/NegExp.
@@ -1053,7 +1090,7 @@ Section program.
         intros ???. apply Hnn; OK.
       }
       rewrite Iverson_True; last first.
-      { intro Hk; apply H. f_equal.
+      { intro Hk; apply H1. f_equal.
         apply Zeven_bool_iff in Hk.
         rewrite Zeven_mod in Hk.
         apply Zeq_bool_eq in Hk.
@@ -1088,10 +1125,9 @@ Section program.
     }
     intros v.
     rewrite //=.
-    iIntros "[%vz [%vr [%l [%Hl3 [H4 H5]]]]]".
+    iIntros "[%vz [%vr [%l [%Hl3 [H4 [%H6 H5]]]]]]".
     iExists (Z.to_nat vz + vr).
     iExists l.
-    iDestruct (lazy_real_range with "H4") as %HR.
     iFrame.
     iSplitR.
     { iPureIntro.
@@ -1102,27 +1138,27 @@ Section program.
         rewrite -(Int_part_spec vr 0%Z).
         { rewrite Z2Nat.id; OK. }
         split; OK.
-        { admit.
-          (* Dammit! I think it's probably easiest to prove that an
-             improper integral is equal to one which pokes each integer to 1,
-             and then do the credit argument before.
-
-            Alternatively, I could change the PMF to avoid sampling 1.
-            We'd still get the same RInt_gen version, so I think this is still alright.
-           *)
-        }
       }
       { have Hm : 0 <= 0 < 1 by OK.
-        admit.
+        have Hm' : INR (Z.to_nat (Z.of_nat vz)) = IZR (Z.of_nat vz) + 0.
+        { rewrite Nat2Z.id Rplus_0_r INR_IZR_INZ. OK. }
+        destruct (Int_part_frac_part_spec (INR (Z.to_nat (Z.of_nat vz))) vz 0%R Hm Hm').
+        rewrite -H0 Rplus_0_l.
+        apply base_fp.
       }
     }
     { replace (frac_part (Z.to_nat vz + vr)) with vr.
-      2: { admit. }
+      2: {
+        destruct (Int_part_frac_part_spec (INR (Z.to_nat (Z.of_nat vz)) + vr) vz vr); OK.
+        rewrite Nat2Z.id INR_IZR_INZ. OK.
+      }
       iFrame.
       iApply (ec_eq with "H5").
-      admit.
+      f_equal.
+      f_equal.
+      rewrite Nat2Z.id INR_IZR_INZ. OK.
     }
-  Admitted.
+  Qed.
 
 End program.
 
