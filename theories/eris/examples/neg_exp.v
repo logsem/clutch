@@ -502,7 +502,7 @@ Qed.
       }
       2: {
         (** ************** **)
-        apply (ex_seriesC_le _ (λ n : nat, SeriesC (λ k : nat, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n * (exp (-(k-L)%nat)) * M) )).
+        apply (ex_seriesC_le _ (λ n : nat, SeriesC (λ k : nat, (1 / fact n) * (exp (-(k-(L + 1))%nat)) * M) )).
         { intros ?.
           split.
           { apply SeriesC_ge_0'.
@@ -517,18 +517,93 @@ Qed.
               apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
               { apply RealDecrTrial_μnn; OK. }
               { apply Iverson_nonneg. }
-              { admit. }
-              { admit. }
+              { apply NegExp_ρ_nn. }
+              { apply Hbound; OK. }
             }
           }
           apply SeriesC_le.
-          {
-            admit. }
-          { admit. }
-
+          { intros n0.
+            have HH : (0 <= RInt (λ x0 : R, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n * NegExp_ρ (L + 1) n0 x0 * F n0 x0) 0 1).
+            { apply RInt_ge_0; OK.
+              { apply ex_RInt_mult; [apply ex_RInt_mult|].
+                { apply ex_RInt_const. }
+                { apply PCts_RInt, NegExp_ρ_PCts. }
+                { apply PCts_RInt, HPcts. }
+              }
+              { intros ??.
+                apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
+                { apply RealDecrTrial_μnn; OK. }
+                { apply Iverson_nonneg. }
+                { apply NegExp_ρ_nn. }
+                { apply Hbound; OK. }
+              }
+            }
+            split; OK.
+            rewrite -(Rabs_right _ (Rle_ge _ _ HH)).
+            etrans.
+            { eapply (abs_RInt_le_const _ _ _ ((1 / fact n) * exp (- (n0 - (L + 1))%nat) * M)); OK.
+              { apply ex_RInt_mult; [apply ex_RInt_mult|].
+                { apply ex_RInt_const. }
+                { apply PCts_RInt, NegExp_ρ_PCts. }
+                { apply PCts_RInt, HPcts. }
+              }
+              { intros ??.
+                rewrite (Rabs_right _ (Rle_ge _ _ _)).
+                2: {
+                  apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
+                  { apply RealDecrTrial_μnn; OK. }
+                  { apply Iverson_nonneg. }
+                  { apply NegExp_ρ_nn. }
+                  { apply Hbound; OK. }
+                }
+                apply Rmult_le_compat.
+                2: apply Hbound; OK.
+                3: apply Hbound; OK.
+                { apply Rmult_le_pos; [apply Rmult_le_pos|].
+                  { apply RealDecrTrial_μnn; OK. }
+                  { apply Iverson_nonneg. }
+                  { apply NegExp_ρ_nn. }
+                }
+                apply Rmult_le_compat.
+                2: apply NegExp_ρ_nn.
+                3: apply NegExp_ρ_ub.
+                { apply Rmult_le_pos.
+                  { apply RealDecrTrial_μnn; OK. }
+                  { apply Iverson_nonneg. }
+                }
+                rewrite -(Rmult_1_r (1 / _)).
+                apply Rmult_le_compat.
+                { apply RealDecrTrial_μnn; OK. }
+                { apply Iverson_nonneg. }
+                { apply RealDecrTrial_μ_ub; OK. }
+                { apply Iverson_le_1; OK. }
+              }
+            }
+            { rewrite Rminus_0_r Rmult_1_l. right. OK. }
+          }
+          { apply ex_seriesC_scal_r.
+            apply ex_seriesC_scal_l.
+            apply (ex_SeriesC_nat_shiftN_r (L + 1)%nat).
+            rewrite /compose//=.
+            replace (λ x0 : nat, exp (- (x0 + (L + 1) - (L + 1))%nat))
+               with (λ x0 : nat, exp (- x0)%nat).
+            { apply ex_exp_geo_series. }
+            funexti.
+            do 3 f_equal.
+            OK.
+          }
         }
-        { admit. }
-
+        { replace (λ n : nat, SeriesC (λ k : nat, 1 / fact n * exp (- (k - (L + 1))%nat) * M))
+             with (λ n : nat,  / fact n * SeriesC (λ k : nat, exp (- (k - (L + 1))%nat) * M)).
+          2: {
+            funexti.
+            rewrite -SeriesC_scal_l.
+            apply SeriesC_ext; intros ?; OK.
+          }
+          apply ex_seriesC_scal_r.
+          rewrite -ex_seriesC_nat.
+          apply ex_exp_series.
+        }
         (** ************** **)
       }
       apply SeriesC_ext.
@@ -577,21 +652,59 @@ Qed.
     (* Step 4: Combine the outer two series *)
     rewrite -SeriesC_plus.
     2: {
-
-      (** ************** **)
       apply (ex_seriesC_le _ (λ n : nat, (/ fact n) * M)).
       { intros ?.
-        split.
+        have HH : (0 <= RInt (λ x : R, RealDecrTrial_μ x 0 n * Iverson (Zeven) n * F L x) 0 1).
         { apply RInt_ge_0; OK.
-          { admit. }
-          { admit. }
+          { apply ex_RInt_mult; [apply ex_RInt_mult|].
+            { apply RealDecrTrial_μ_ex_RInt. }
+            { apply ex_RInt_const. }
+            { apply PCts_RInt, HPcts. }
+          }
+          { intros ??.
+            apply Rmult_le_pos; [apply Rmult_le_pos|].
+            { apply RealDecrTrial_μnn; OK. }
+            { apply Iverson_nonneg. }
+            { apply Hbound; OK. }
+          }
         }
-        { admit. }
-      }
-      apply ex_seriesC_scal_r.
-      rewrite -ex_seriesC_nat.
-      apply ex_exp_series.
-      (** ************** **)
+        split; OK.
+        rewrite -(Rabs_right _ (Rle_ge _ _ HH)).
+        etrans.
+        { eapply (abs_RInt_le_const _ _ _ ((1 / fact n) * 1 * M)); OK.
+          { apply ex_RInt_mult; [apply ex_RInt_mult|].
+            { apply RealDecrTrial_μ_ex_RInt. }
+            { apply ex_RInt_const. }
+            { apply PCts_RInt, HPcts. }
+          }
+          { intros ??.
+            rewrite (Rabs_right _ (Rle_ge _ _ _)).
+            2: {
+              apply Rmult_le_pos; [apply Rmult_le_pos|].
+              { apply RealDecrTrial_μnn; OK. }
+              { apply Iverson_nonneg. }
+              { apply Hbound; OK. }
+            }
+            apply Rmult_le_compat.
+            2: apply Hbound; OK.
+            3: apply Hbound; OK.
+            { apply Rmult_le_pos.
+              { apply RealDecrTrial_μnn; OK. }
+              { apply Iverson_nonneg. }
+            }
+            apply Rmult_le_compat.
+            { apply RealDecrTrial_μnn; OK. }
+            { apply Iverson_nonneg. }
+            { apply RealDecrTrial_μ_ub; OK. }
+            { apply Iverson_le_1; OK. }
+          }
+        }
+        { rewrite Rminus_0_r Rmult_1_l. right. OK. }
+        }
+        { apply ex_seriesC_scal_r.
+          rewrite -ex_seriesC_nat.
+          apply ex_exp_series.
+        }
     }
     2: {
       (** ************** **)
