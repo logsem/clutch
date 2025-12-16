@@ -113,59 +113,129 @@ Arguments pmono_protO : clear implicits.
 
 (** * Semantic Effect Signatures. *)
 
-Definition sem_sig Σ := (pmono_prot Σ)%type.
+Definition sem_sig_val_prop {Σ} (Ψ : iThy Σ) : iProp Σ := 
+  ∀ (e1 e2 : expr) Φ, Ψ e1 e2 Φ -∗ ∃ (op1 op2 : label) (v1 v2 : val), ⌜ e1 = (do: op1 v1)%E ⌝ ∗ ⌜ e2 = (do: op2 v2)%E ⌝.
 
+Record sem_sig Σ := SemSig {
+                            sem_sig_car :> pmono_prot Σ;
+                            sem_sig_prop : ⊢ sem_sig_val_prop (pmono_prot_car sem_sig_car)
+                          }.
+Arguments SemSig {_} _%_I {_}.
+Arguments sem_sig_car {_} _ : simpl never.
 Declare Scope sem_sig_scope.
 Delimit Scope sem_sig_scope with S.
 
+Section sem_sig_cofe.
+  Context {Σ : gFunctors}.
+
+  Instance sem_sig_equiv : Equiv (sem_sig Σ) := λ σ1 σ2, sem_sig_car σ1 ≡ sem_sig_car σ2.
+  Instance sem_sig_dist : Dist (sem_sig Σ) := λ n σ1 σ2, sem_sig_car σ1 ≡{n}≡ sem_sig_car σ2.
+  Lemma sem_sig_ofe_mixin : OfeMixin (sem_sig Σ).
+  Proof. by apply (iso_ofe_mixin sem_sig_car). Qed.
+  Canonical Structure sem_sigO := Ofe (sem_sig Σ) sem_sig_ofe_mixin.
+  Global Instance sem_sig_cofe : Cofe sem_sigO.
+  Proof.
+    (* apply (iso_cofe_subtype' (λ Ψ, ⊢ sem_row_val_prop (to_iThy Ψ)) (@SemRow _ _) sem_row_car)=> //.
+       - by intros [].
+       - apply bi.limit_preserving_emp_valid.
+         intros ????. rewrite /sem_row_val_prop. 
+         do 6 f_equiv. apply non_dep_fun_dist.  *)
+  Admitted.
+ 
+  Global Program Instance sem_sig_inhabited : Inhabited (sem_sig Σ) := 
+    populate (@SemSig Σ ⊥ _).
+  Next Obligation. iIntros (???) "? /=". done. Qed.
+  
+  Global Instance sem_sig_car_ne n : Proper (dist n ==> dist n) sem_sig_car.
+  Proof. by intros Ψ1 Ψ2 ?. Qed.
+  Global Instance sem_sig_car_proper : Proper ((≡) ==> (≡)) (@sem_sig_car Σ).
+  Proof. by intros Ψ1 Ψ2 ?. Qed.
+  
+  Global Instance sem_sig_ne n Ψ : Proper ((λ _ _, True) ==> dist n) (@SemSig Σ Ψ).
+  Proof. intros P1 P2 _ ?. apply non_dep_fun_dist. rewrite /sem_sig_car //. Qed.
+  Global Instance sem_sig_proper Ψ : Proper ((λ _ _, True) ==> (≡)) (@SemSig Σ Ψ).
+  Proof. intros P1 P2 _ ?. apply non_dep_fun_equiv. rewrite /sem_sig_car //. Qed.
+
+End sem_sig_cofe.
+
+  
 (** * Semantic Effect Row. *)
 
-Definition sem_row_val_prop {Σ} (Ψ : pmono_prot Σ) : iProp Σ := 
-  ∀ (e1 e2 : expr) Φ, (pmono_prot_car Ψ) e1 e2 Φ -∗ ∃ (op : label) (v1 v2 : val), ⌜ e1 = (do: op v1)%E ⌝ ∗ ⌜ e2 = (do: op v2)%E ⌝.
+Record iLblSig Σ := LblSig {
+  iLblSig_car :>
+    list (list label * list label * sem_sig Σ)
+                      }.
+Arguments LblSig {_} _%_I.
+Arguments iLblSig_car {_} _ : simpl never.
+
+Definition iLblSig_to_iLblThy {Σ} (s : iLblSig Σ) : iLblThy Σ :=
+  map (fun '(l1, l2, ss) => (l1, l2, pmono_prot_car (sem_sig_car ss))) (iLblSig_car s).
+
+Coercion iLblSig_to_iLblThy : iLblSig >-> iLblThy.
+
+Instance iLblSig_bot {Σ} : Bottom (iLblSig Σ) := @LblSig Σ [].
+
+Definition sem_row_val_prop {Σ} (Ψ : iLblSig Σ) : iProp Σ := 
+  ∀ (e1 e2 : expr) Φ, (to_iThy Ψ) e1 e2 Φ -∗ ∃ k1 k2 (op1 op2 : label) (v1 v2 : val), ⌜ e1 = fill k1 (do: op1 v1)%E ⌝ ∗ ⌜ e2 = fill k2 (do: op2 v2)%E ⌝.
 
 (* Semantic effect rows are also defined as persistently monotonic protocols 
    with the additional requirement that it can only be called with effect values of the form (effect op, v'). 
    Thus effect rows can be seen as morphisms from operations to sem_sig.
 *)
 
+
+
 Record sem_row Σ := SemRow {
-  sem_row_car :> pmono_prot Σ;
-  sem_row_prop : ⊢ sem_row_val_prop sem_row_car
+                        sem_row_car :> iLblSig Σ;
+                        sem_row_mono : ⊢ pers_mono (to_iThy sem_row_car);
+                        sem_row_prop : ⊢ sem_row_val_prop sem_row_car
 }.
 Arguments SemRow {_} _%_I {_}.
 Arguments sem_row_car {_} _ : simpl never.
 
 (** * The COFE structure on semantic rows *)
+(* TODO: proof COFE structure of sem_row *)
 Section sem_row_cofe.
   Context {Σ : gFunctors}.
 
-  Instance sem_row_equiv : Equiv (sem_row Σ) := λ ρ1 ρ2, sem_row_car ρ1 ≡ sem_row_car ρ2.
-  Instance sem_row_dist : Dist (sem_row Σ) := λ n ρ1 ρ2, sem_row_car ρ1 ≡{n}≡ sem_row_car ρ2.
+  Instance sem_row_equiv : Equiv (sem_row Σ) := λ ρ1 ρ2, (sem_row_car ρ1 : iLblThy Σ) ≡ sem_row_car ρ2.
+  Instance sem_row_dist : Dist (sem_row Σ) := λ n ρ1 ρ2, (sem_row_car ρ1 : iLblThy Σ) ≡{n}≡ sem_row_car ρ2.
+  Instance iLblSig_equiv : Equiv (iLblSig Σ) := λ ρ1 ρ2, (ρ1 : iLblThy Σ) ≡ ρ2.
+  Instance iLblSig_dist : Dist (iLblSig Σ) := λ n ρ1 ρ2, (ρ1 : iLblThy Σ) ≡{n}≡ ρ2.
+
+  Lemma iLblSig_ofe_mixin : OfeMixin (iLblSig Σ).
+  Proof.
+    by apply (iso_ofe_mixin iLblSig_to_iLblThy). 
+  Qed.
+
+  Canonical Structure iLblSigO := Ofe (iLblSig Σ) iLblSig_ofe_mixin.
+  
   Lemma sem_row_ofe_mixin : OfeMixin (sem_row Σ).
   Proof. by apply (iso_ofe_mixin sem_row_car). Qed.
   Canonical Structure sem_rowO := Ofe (sem_row Σ) sem_row_ofe_mixin.
   Global Instance sem_row_cofe : Cofe sem_rowO.
   Proof.
-    apply (iso_cofe_subtype' (λ Ψ, ⊢ sem_row_val_prop Ψ) (@SemRow _) sem_row_car)=> //.
-    - by intros [].
-    - apply bi.limit_preserving_emp_valid.
-      intros ????. rewrite /sem_row_val_prop. 
-      do 6 f_equiv. apply non_dep_fun_dist. 
+    (* apply (iso_cofe_subtype' (λ Ψ, ⊢ sem_row_val_prop (to_iThy Ψ)) (@SemRow _ _) sem_row_car)=> //.
+       - by intros [].
+       - apply bi.limit_preserving_emp_valid.
+         intros ????. rewrite /sem_row_val_prop. 
+         do 6 f_equiv. apply non_dep_fun_dist.  *)
   Admitted. 
 
   Global Program Instance sem_row_inhabited : Inhabited (sem_row Σ) := 
-    populate (@SemRow Σ ⊥ _).
-  Next Obligation. rewrite /sem_row /=. iIntros (???) "[] /=". Qed.
+    populate (@SemRow Σ ⊥ _ _).
+  Next Obligation. iIntros (????) "? (%l1 & %l2 & %X & %Hcontra & ?)". by apply elem_of_nil in Hcontra. Qed.
+  Next Obligation. iIntros (???) "(%l1 & %l2 & %X & %Hcontra & ?)". by apply elem_of_nil in Hcontra. Qed.
 
   Global Instance sem_row_car_ne n : Proper (dist n ==> dist n) sem_row_car.
   Proof. by intros Ψ1 Ψ2 ?. Qed.
   Global Instance sem_row_car_proper : Proper ((≡) ==> (≡)) (@sem_row_car Σ).
   Proof. by intros Ψ1 Ψ2 ?. Qed.
-
-  Global Instance sem_row_ne n Ψ : Proper ((λ _ _, True) ==> dist n) (@SemRow Σ Ψ).
-  Proof. intros P1 P2 _ ?. apply non_dep_fun_dist. rewrite /sem_row_car //. Qed.
-  Global Instance sem_row_proper Ψ : Proper ((λ _ _, True) ==> (≡)) (@SemRow Σ Ψ).
-  Proof. intros P1 P2 _ ?. apply non_dep_fun_equiv. rewrite /sem_row_car //. Qed.
+  
+  (* Global Instance sem_row_ne n Ψ : Proper ((λ _ _, True) ==> dist n) (@SemRow Σ Ψ).
+     Proof. intros P1 P2 _ ?. apply non_dep_fun_dist. rewrite /sem_row_car //. Qed.
+     Global Instance sem_row_proper Ψ : Proper ((λ _ _, True) ==> (≡)) (@SemRow Σ Ψ).
+     Proof. intros P1 P2 _ ?. apply non_dep_fun_equiv. rewrite /sem_row_car //. Qed. *)
 
 End sem_row_cofe.
 
@@ -197,10 +267,10 @@ Proof.
 Qed.
 
 
-Definition row_le {Σ} (ρ ρ' : sem_row Σ) := tc_opaque (iThy_le ρ ρ')%I.
+Definition row_le `{probblazeRGS Σ} (ρ ρ' : sem_row Σ) := tc_opaque (to_iThy_le ρ ρ')%I.
 
-Global Instance row_le_persistent {Σ} ρ ρ' :
-  Persistent (@row_le Σ ρ ρ').
+Global Instance row_le_persistent `{probblazeRGS Σ} ρ ρ' :
+  Persistent (row_le ρ ρ').
 Proof.
   unfold row_le, tc_opaque. apply _.
 Qed.
@@ -247,20 +317,21 @@ Global Instance sig_le_ne {Σ} :
   NonExpansive2 (@sig_le Σ).
 Proof.
   intros n σ₁ σ₂ Hequiv σ₁' σ₂' Hequiv'. 
-  rewrite /sig_le /tc_opaque. by repeat f_equiv.
+  rewrite /sig_le /tc_opaque. by apply iThy_le_ne. 
 Qed.
 
+(* TODO: Proof cofe structure of SemSig *)
 Global Instance sig_le_proper {Σ} :
   Proper ((≡) ==> (≡) ==> (≡)) (@sig_le Σ).
-Proof. apply ne_proper_2. apply _. Qed.
+Proof. Admitted. (* apply ne_proper_2. apply _. Qed. *) 
 
-Global Instance row_le_ne {Σ} :
-  NonExpansive2 (@row_le Σ).
+Global Instance row_le_ne `{probblazeRGS Σ} :
+  NonExpansive2 (row_le).
 Proof.
   intros n ρ₁ ρ₂ Hequiv ρ₁' ρ₂' Hequiv'.
-  rewrite /row_le /tc_opaque. by repeat f_equiv.
+  rewrite /row_le /tc_opaque. unfold to_iThy_le. do 3 f_equiv; try done; do 2 f_equiv; done.
 Qed.
 
-Global Instance row_le_proper {Σ} :
-  Proper ((≡) ==> (≡) ==> (≡)) (@row_le Σ).
+Global Instance row_le_proper `{probblazeRGS Σ} :
+  Proper ((≡) ==> (≡) ==> (≡)) (row_le).
 Proof. apply ne_proper_2. apply _. Qed.

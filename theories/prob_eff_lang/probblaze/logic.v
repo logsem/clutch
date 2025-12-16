@@ -2185,11 +2185,26 @@ Section to_iThy.
 
   Section to_iThy_le.
 
+    Global Instance iLblThy_bot : Bottom (iLblThy Σ) := [].
+
     Definition to_iThy_le (L M : iLblThy Σ) : iProp Σ :=
       iThy_le (to_iThy L) (to_iThy M) ∗
       □ (valid M -∗ valid L) ∗
       □ (distinct' M -∗ distinct' L).
 
+    Lemma to_iThy_le_refl (L : iLblThy Σ) :
+      ⊢ to_iThy_le L L.
+    Proof.
+      iSplitL; [iApply iThy_le_refl|].
+      eauto.
+    Qed.
+
+    (* TODO: Proof this theorem *)
+    Lemma to_iThy_le_bot (L : iLblThy Σ) :
+      ⊢ to_iThy_le ⊥ L.
+    Proof.
+    Admitted. 
+    
     Lemma to_iThy_le_trans (L M N : iLblThy Σ) :
       to_iThy_le L M -∗ to_iThy_le M N -∗ to_iThy_le L N.
     Proof.

@@ -6,27 +6,30 @@ From iris.proofmode Require Import base tactics.
 From iris.algebra Require Import ofe list.
 From iris.base_logic Require Export iprop upred invariants.
 
-From clutch.prob_eff_lang.probblaze Require Import logic sem_def syntax semantics mode.
+From clutch.prob_eff_lang.probblaze Require Import logic sem_def syntax semantics mode notation.
 
 (* Universally Quantified Effect Signature *)
 (* TODO: generalize αs to a list of types -- in affect they use a tele *)
 Program Definition sem_sig_eff {Σ} {αs : sem_ty Σ} : (sem_ty Σ -d> sem_ty Σ) -d> (sem_ty Σ -d> sem_ty Σ) -d> sem_sig Σ :=
   λ A B,
-  @PMonoProt Σ (λ e1 e2, λne Φ, ∃ αs, ∃ v1 v2, ⌜ e1 = Val v1 ⌝ ∗ ⌜ e2 = Val v2 ⌝ ∗  A αs v1 v2 
-                                               ∗ □ (∀ w1 w2, ∃ v1 v2, ⌜ w1 = Val v1 ⌝ ∗ ⌜ w2 = Val v2 ⌝ ∗ B αs v1 v2 -∗ Φ w1 w2))%I _.
+  (@SemSig Σ (@PMonoProt Σ (λ e1 e2, λne Φ, ∃ αs, ∃ (op1 op2 : label) v1 v2, ⌜ e1 = (do: op1 (Val v1))%E ⌝ ∗ ⌜ e2 = (do: op2 (Val v2))%E ⌝ ∗  A αs v1 v2 
+                                               ∗ □ (∀ w1 w2, ∃ v1 v2, ⌜ w1 = Val v1 ⌝ ∗ ⌜ w2 = Val v2 ⌝ ∗ B αs v1 v2 -∗ Φ w1 w2))%I _) _).
 Next Obligation.
-  iIntros (??????????). 
-Admitted.
+  iIntros (??????????). repeat f_equiv.
+Qed.
 Next Obligation.
   iIntros (????????) "#HΦ Hσ".
-  f_equal /=. iDestruct "Hσ" as (αs' v1' v2' -> ->) "(HA & #Hσ)". iExists _, _, _.
+  f_equal /=. iDestruct "Hσ" as (αs' op1' op2' v1' v2' -> ->) "(HA & #Hσ)". iExists _, _, _,_,_.
   do 2 (iSplit; try done). iFrame "HA".
   iModIntro. iIntros (??). iDestruct ("Hσ" $! w1 w2) as (v1 v2) "HB". iExists _, _.
   iIntros "H". iApply "HΦ". by iApply "HB".
 Qed.
+Next Obligation.
+  iIntros (???????) "(%&%&%&%&%&->&->&_)". iExists _,_,_,_. iSplit; iPureIntro; reflexivity.
+Qed. 
 
 (* Flip-Bang Signature *)
-Program Definition sem_sig_flip_mbang {Σ} (m : mode) (σ : sem_sig Σ) : sem_sig Σ := @PMonoProt Σ (iThyIfMono m σ) _.
+Program Definition sem_sig_flip_mbang {Σ} (m : mode) (σ : sem_sig Σ) : sem_sig Σ := @SemSig Σ (@PMonoProt Σ (iThyIfMono m σ) _) _.
 Next Obligation.
   iIntros (???????) "#HΦ Hσ". 
   destruct m.
@@ -35,7 +38,11 @@ Next Obligation.
     iIntros (??) "Q". iApply "HΦ". by iApply "HQ".
   - simpl. by iApply (pmono_prot_prop with "[][$Hσ]").
 Qed.
-
+Next Obligation.
+  iIntros (???). destruct m; simpl.
+  - iIntros (???) "(% & H & _)". destruct σ. iDestruct sem_sig_prop as "H1". by iApply "H1".
+  - iIntros (???) "H". destruct σ. iDestruct sem_sig_prop as "H1". by iApply "H1".
+Qed.                                                           
 (* TODO: Import the rest from sem_sig *)
 
 (* (* Notations. *)
@@ -95,35 +102,44 @@ Proof. iIntros (?????). by f_equiv. Qed.
 
 (* Global Instance sem_sig_eff_pers_mono_prot {Σ} {αs : sem_ty Σ} A B :
      PersMonoProt (@sem_sig_eff Σ αs A B).
-   Proof. constructor. iApply pmono_prot_prop. Qed.
-   
-   Lemma upcl_sem_sig_eff {Σ} {TT : tele} A B v Φ :
+   Proof. constructor. iApply pmono_prot_prop. Qed. *)
+
+(* Lemma upcl_sem_sig_eff {Σ} {TT : tele} A B v Φ :
      iEff_car (upcl MS (@sem_sig_eff Σ TT A B)) v Φ ⊣⊢
        (∃.. αs, ∃ a, ⌜ a = v ⌝ ∗ (A αs a) ∗ □ (∀ b, (B αs b) -∗ Φ b))%I.
    Proof.
      assert (Hequiv: iEff_car (upcl MS (sem_sig_eff A B)) v Φ ≡ iEff_car (sem_sig_eff A B) v Φ).
      { f_equiv. apply non_dep_fun_equiv. by rewrite pers_upcl_id. }
      rewrite Hequiv. by apply sem_sig_eff_eq.
-   Qed.
-   
-   Global Instance sem_sig_flip_mbang_mono_prot {Σ} σ :
-     MonoProt (@sem_sig_flip_mbang Σ OS σ).
-   Proof. constructor. apply upcl_mono_prot. Qed.
-   
-   Global Instance sem_sig_flip_mbang_ne {Σ} m : NonExpansive (@sem_sig_flip_mbang Σ m).
-   Proof.
-     rewrite /sem_sig_flip_mbang. 
-     intros ?????.
-     apply non_dep_fun_dist. simpl.
-     intros ??. apply non_dep_fun_dist. simpl.
-     intros ?. do 3 f_equiv. apply non_dep_fun_dist.
+   Qed. *)
+
+Global Instance sem_sig_flip_mbang_mono_prot {Σ} σ :
+  MonoProt (@sem_sig_flip_mbang Σ OS σ).
+Proof.
+  constructor.
+  iIntros (????) "HΦimp (%&H&Himp)".
+  iExists _.  iFrame. iIntros (??) "!> HQ".
+  iDestruct ("Himp" with "HQ") as "HΦ".
+  by iApply "HΦimp".
+Qed. 
+
+Global Instance sem_sig_flip_mbang_ne {Σ} m : NonExpansive (@sem_sig_flip_mbang Σ m).
+Proof.
+(*   rewrite /sem_sig_flip_mbang. 
+     intros ???????.
+     apply non_dep_fun_dist. 
+     intros ?. 
+     apply non_dep_fun_dist.
+     destruct m; simpl.
+     - admit.
+     - apply non_dep_fun_dist.
      by apply iEff_car_ne.
-   Qed.
-   
-   Global Instance sem_sig_flip_mbang_proper {Σ} m : Proper ((≡) ==> (≡)) (@sem_sig_flip_mbang Σ m).
-   Proof. apply ne_proper. apply _. Qed.
-   
-   Global Instance sem_sig_eff_mbang_ne2 {Σ} {TT : tele} m :
+   Qed. *)
+Admitted.
+Global Instance sem_sig_flip_mbang_proper {Σ} m : Proper ((≡) ==> (≡)) (@sem_sig_flip_mbang Σ m).
+Proof. apply ne_proper. apply _. Qed.
+
+(* Global Instance sem_sig_eff_mbang_ne2 {Σ} {TT : tele} m :
      NonExpansive2 (λ A B, @sem_sig_flip_mbang Σ m (@sem_sig_eff Σ TT A B)).
    Proof.
      iIntros (???????). by repeat f_equiv.
@@ -131,7 +147,6 @@ Proof. iIntros (?????). by f_equiv. Qed.
 
 End sig_properties.
 
-(* TODO: figure out why sig_le is out of scope *)
 Section once_sig.
 
   (* Once Constraint *)
