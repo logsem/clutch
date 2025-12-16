@@ -133,7 +133,7 @@ Section adequacy.
           destruct n; try done. lia.
   Qed.
 
-  Lemma wp_e x y μ e (n:nat):
+  Lemma wp_e1 x y μ e (n:nat):
     (∀ x, 0<=μ x)->
     (∀ r, 0<=r -> ex_RInt μ (0) r) →
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
@@ -235,7 +235,7 @@ Section adequacy.
           apply pow_lt. lra.
   Qed. 
 
-  Lemma wp_is_zero α l f:
+  Lemma wp_is_zero1 α l f:
     seq_bin_to_R f = 0 ->
     chunk_and_tape_seq α l f -∗
     WP is_zero #lbl:α #l {{ v, ⌜v = #true⌝ }}.
@@ -265,7 +265,7 @@ Section adequacy.
     lra.
   Qed.
   
-  Lemma wp_is_smaller_prog_aux (x y:nat) f α l:
+  Lemma wp_is_smaller_prog_aux1 (x y:nat) f α l:
     (x<2^y)%nat -> 
     seq_bin_to_R f <= x/2^y ->
     chunk_and_tape_seq α l f -∗
@@ -284,7 +284,7 @@ Section adequacy.
       simpl in *.
       pose proof seq_bin_to_R_range f as Hrange.
       assert (seq_bin_to_R f=0) by lra.
-      by wp_apply wp_is_zero.
+      by wp_apply wp_is_zero1.
     }
     wp_pure.
     destruct (bin_seq_hd f) as [hd [f' ->]].
@@ -371,7 +371,7 @@ Section adequacy.
         apply le_INR. lia.
   Qed. 
   
-  Lemma wp_is_smaller_prog n x y μ e:
+  Lemma wp_is_smaller_prog1 n x y μ e:
     (∀ x, 0<=μ x)->
     (∀ r, 0<=r -> ex_RInt μ (0) r) →
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
@@ -385,7 +385,7 @@ Section adequacy.
     iIntros (Hpos Hex Hex' Hineq) "Hwp Herr".
     rewrite /is_smaller_prog.
     wp_bind e.
-    wp_apply (pgl_wp_wand with "[-]"); first by iApply (wp_e with "[Hwp][$]").
+    wp_apply (pgl_wp_wand with "[-]"); first by iApply (wp_e1 with "[Hwp][$]").
     simpl.
     iIntros (?) "(%r&%k&%&->&Hl&Herr)".
     rewrite /lazy_real.
@@ -408,13 +408,13 @@ Section adequacy.
     wp_pures.
     rewrite /Iverson.
     case_match; first by iDestruct (ec_contradict with "[$]") as "[]".
-    wp_apply wp_is_smaller_prog_aux; try done.
+    wp_apply wp_is_smaller_prog_aux1; try done.
     assert (n=k)%nat as -> by lia.
     lra.
   Qed.
 End adequacy.
 
-Theorem lazy_real_adeqaucy Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
+Theorem lazy_real_adeqaucy1 Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
   (∀ x, 0<=μ x)->
     (∀ r, 0<=r -> ex_RInt μ (0) r) →
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
@@ -456,8 +456,7 @@ Proof.
       apply pos_INR.
   } 
   iIntros (?) "Herr".
-  iPoseProof (wp_is_smaller_prog with "[][$]") as "$"; [done..|].
+  iPoseProof (wp_is_smaller_prog1 with "[][$]") as "$"; [done..|].
   iIntros (? H2 H3) "Herr".
   by iApply Hwp.
 Qed. 
-  
