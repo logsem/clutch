@@ -35,6 +35,25 @@ Section pmf.
   Theorem NegExp_ρ_supp {x k L} (H : L ≤ k) : NegExp_ρ L k x = NegExp_ρ0 (k - L) x.
   Proof. rewrite /NegExp_ρ Iverson_True //=; OK. Qed.
 
+  Theorem NegExp_ρ_ub {L k x0} : NegExp_ρ L k x0 <= exp (-(k-L)%nat).
+  Proof.
+    rewrite /NegExp_ρ.
+    rewrite /Iverson//=; case_decide; OK.
+    2: { rewrite Rmult_0_l. apply Rexp_nn. }
+    rewrite Rmult_1_l.
+    rewrite /NegExp_ρ0.
+    rewrite /Iverson//=; case_decide; OK.
+    2: { rewrite Rmult_0_l. apply Rexp_nn. }
+    rewrite Rmult_1_l.
+    apply exp_mono.
+    suffices ? : (k-L)%nat <= (x0 + (k - L)%nat) by  OK.
+    have H1 : (k - L)%nat <= (k - L)%nat + x0.
+    { rewrite /Icc in H0. rewrite Rmin_left in H0; OK. }
+    etrans; first apply H1.
+    rewrite Rplus_comm.
+    apply Rplus_le_compat; OK.
+  Qed.
+
 
   Lemma NegExp_ρ_PCts {L k} : PCts (NegExp_ρ L k) 0 1.
   Proof.
@@ -362,8 +381,26 @@ Section credits.
         }
       }
       2: {
+        (** ************** **)
+        apply (ex_seriesC_le _ (λ n : nat, SeriesC (λ k : nat, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n * (exp (-(k-L)%nat)) * M) )).
+        { intros ?.
+          split.
+          { apply SeriesC_ge_0'.
+            intros ?.
+            apply RInt_ge_0; OK.
+            { admit. }
+            { admit. }
+          }
+          apply SeriesC_le.
+          {
+            admit. }
+          { admit. }
 
-        (* apply RealDecrTrial_NegExp_ex_seriesC. apply HPcts. *) admit.  }
+        }
+        { admit. }
+
+        (** ************** **)
+      }
       apply SeriesC_ext.
       intros n.
       rewrite Rmult_plus_distr_l.
@@ -372,14 +409,23 @@ Section credits.
       rewrite -SeriesC_scal_l.
       apply SeriesC_ext; intros ?.
       rewrite RInt_Rmult.
-      2: { (* apply NegExp_ρ_ex_RInt_mult. apply HPcts. *) admit.  }
+      2: {
+        apply ex_RInt_mult.
+        { apply PCts_RInt, NegExp_ρ_PCts. }
+        { apply PCts_RInt, HPcts. }
+      }
       rewrite RInt_Rmult.
-      2: { (* eapply NegExp_ρ_ex_RInt_mult_Iverson. apply HPcts. *) admit.  }
+      2: {
+        apply ex_RInt_Rmult.
+        apply ex_RInt_mult.
+        { apply PCts_RInt, NegExp_ρ_PCts. }
+        { apply PCts_RInt, HPcts. }
+      }
       apply RInt_ext; intros ??. OK.
     }
     rewrite RInt_plus.
-    2: { (* apply RealDecrTrial_μ_ex_RInt_seriesC. *) admit.  }
-    2: { (* apply RealDecrTrial_NegExp_ex_RInt_seriesC. apply HPcts. *) admit. }
+    2: { admit.  }
+    2: { admit. }
     rewrite /plus//=.
 
     (* Step 2: Quadruple limit exchange *)
@@ -396,12 +442,49 @@ Section credits.
     (* Step 3: Exchange on the RHS *)
     replace (RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * Iverson Zeven n * F L x)) 0 1)
        with (SeriesC (λ n : nat, RInt (λ x : R, RealDecrTrial_μ x 0 n * Iverson Zeven n * F L x) 0 1)); last first.
-    { admit. } (* TODO: Need FubiniIntegralSeries_Strong application *)
+    {  admit. } (* TODO: Need FubiniIntegralSeries_Strong application *)
 
     (* Step 4: Combine the outer two series *)
     rewrite -SeriesC_plus.
-    2: { admit. } (* TODO: Need appropriate ex_seriesC lemma *)
-    2: { admit. } (* TODO: Need appropriate ex_seriesC lemma *)
+    2: {
+
+      (** ************** **)
+      apply (ex_seriesC_le _ (λ n : nat, (/ fact n) * M)).
+      { intros ?.
+        split.
+        { apply RInt_ge_0; OK.
+          { admit. }
+          { admit. }
+        }
+        { admit. }
+      }
+      apply ex_seriesC_scal_r.
+      rewrite -ex_seriesC_nat.
+      apply ex_exp_series.
+      (** ************** **)
+    }
+    2: {
+      (** ************** **)
+      rewrite /B.
+      apply (ex_seriesC_le _ (λ k : nat, SeriesC (λ n : nat, / fact n * exp (-(k-(L + 1))) * M))).
+      { intros ?.
+        split.
+        { admit. }
+        { admit. }
+      }
+      { replace (λ k : nat, SeriesC (λ n : nat, / fact n * exp (- (k - (L + 1))) * M))
+           with (λ k : nat, SeriesC (λ n : nat, / fact n) * (exp (- (k - (L + 1))) * M)).
+        2: {
+          funexti.
+          do 2 rewrite SeriesC_scal_r.
+          OK.
+        }
+        apply ex_seriesC_scal_l.
+        apply ex_seriesC_scal_r.
+        admit.
+      }
+      (** ************** **)
+    }
 
     (* Step 5: Combine the outer two integrals *)
     replace (λ x : nat,
@@ -411,8 +494,12 @@ Section credits.
        RInt (λ x0 : R, RealDecrTrial_μ x0 0 x * Iverson Zeven x * F L x0 + SeriesC (λ n : nat, RInt (λ x1 : R, B F L x1 n x x0) 0 1)) 0 1); last first.
     { funexti.
       rewrite (RInt_plus (V := R_CompleteNormedModule)); OK.
-      { admit. } (* TODO: ex_RInt for RealDecrTrial_μ0 * Iverson Zeven * F L *)
-      { admit. } (* TODO: ex_RInt for SeriesC of B *)
+      { apply ex_RInt_mult.
+        2: { apply PCts_RInt, HPcts. }
+        apply ex_RInt_Rmult'.
+        apply RealDecrTrial_μ_ex_RInt.
+      }
+      { admit. }
     }
 
     (* Step 6: Factor constant terms out of B *)
@@ -443,7 +530,10 @@ Section credits.
       rewrite -SeriesC_scal_l.
       apply SeriesC_ext; intros ?.
       rewrite RInt_Rmult.
-      2: { admit. }
+      2: {
+        apply ex_RInt_Rmult'.
+        apply RealDecrTrial_μ_ex_RInt.
+      }
       apply RInt_ext.
       intros ??.
       lra.
@@ -502,7 +592,12 @@ Section credits.
         repeat rewrite Rmult_1_l.
         rewrite even_pow_neg; OK.
         rewrite Zodd_neg_pow.
-        2: { admit. }
+        2: {
+          replace (x + 1)%nat with (S x) by OK.
+          rewrite Nat2Z.inj_succ.
+          apply Zodd_Sn.
+          done.
+        }
         rewrite //=.
         rewrite Rminus_def.
         f_equal.
@@ -511,7 +606,10 @@ Section credits.
         lra.
       }
       rewrite SeriesC_nat_shift_rev.
-      2: { admit. }
+      2: {
+        rewrite ex_seriesC_nat.
+        apply Hexp_ex_even.
+      }
       rewrite Iverson_True; OK.
       rewrite Rmult_1_l.
       rewrite pow_O.
@@ -582,13 +680,47 @@ Section credits.
            SeriesC (λ x : nat, RInt (λ x0 : R, Iverson (le (L + 1)) x * exp (- (x0 + (x - L)%nat)) * F x x0) 0 1)).
     2: {
       rewrite -SeriesC_plus.
-      2: { admit. } (* apply RealDecrTrial_μ0_ex_seriesC_RInt. *)
-      2: { admit. } (* apply exp_Iverson_ex_seriesC_RInt; apply HPcts. *)
+      2: {
+        (** ************** **)
+        apply (ex_seriesC_le _ (λ x : nat, / (fact x) * M)).
+        2: { apply ex_seriesC_scal_r. rewrite -ex_seriesC_nat. apply ex_exp_series. }
+        intros ?.
+        split.
+        { admit. }
+        { admit. }
+        (** ************** **)
+      }
+      2: {
+        (** Goal A ************** **)
+        apply (ex_seriesC_le _ (λ x : nat, exp (- ((x - L)%nat)) * M)).
+        2: {
+          apply ex_seriesC_scal_r.
+          admit.
+        }
+        intros ?.
+        split.
+        { admit. }
+        { admit. }
+        (** ************** **)
+        }
       apply SeriesC_ext.
       intros ?.
       rewrite RInt_plus.
-      2: { admit. }
-      2: { admit. }
+      2: {
+        apply ex_RInt_mult.
+        2: { apply PCts_RInt, HPcts. }
+        apply ex_RInt_Rmult'.
+        apply RealDecrTrial_μ0_ex_RInt.
+      }
+      2: {
+        apply ex_RInt_mult.
+        2: { apply PCts_RInt, HPcts. }
+        apply ex_RInt_Rmult.
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros ??.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
       done.
     }
 
@@ -598,16 +730,56 @@ Section credits.
              SeriesC (λ k : nat, RInt (λ x : R, Iverson (eq L) k * exp (- (x + (k - L)%nat)) * F k x) 0 1)).
     2: {
       rewrite -SeriesC_plus.
-      2: { admit. }
-      2: { admit. }
+      2: {
+        (** See Goal A ************** **)
+        apply (ex_seriesC_le _ (λ x : nat, exp (- ((x - L)%nat)) * M)).
+        2: {
+          apply ex_seriesC_scal_r.
+          admit.
+        }
+        intros ?.
+        split.
+        { admit. }
+        { admit. }
+        (** ************** **)
+      }
+      2: {
+        (** See Goal A ************** **)
+        apply (ex_seriesC_le _ (λ x : nat, exp (- ((x - L)%nat)) * M)).
+        2: {
+          apply ex_seriesC_scal_r.
+          admit.
+        }
+        intros ?.
+        split.
+        { admit. }
+        { admit. }
+        (** ************** **)
+      }
       apply SeriesC_ext.
       intros ?.
       replace (RInt (λ x : R, Iverson (le (L + 1)) n * exp (- (x + (n - L)%nat)) * F n x) 0 1 + RInt (λ x : R, Iverson (eq L) n * exp (- (x + (n - L)%nat)) * F n x) 0 1)
         with  (plus (RInt (λ x : R, Iverson (le (L + 1)) n * exp (- (x + (n - L)%nat)) * F n x) 0 1) (RInt (λ x : R, Iverson (eq L) n * exp (- (x + (n - L)%nat)) * F n x) 0 1)).
       2: { by rewrite //=. }
       rewrite -(RInt_plus (V := R_CompleteNormedModule)).
-      2: { admit. }
-      2: { admit. }
+      2: {
+        apply ex_RInt_mult.
+        2: { apply PCts_RInt, HPcts. }
+        apply ex_RInt_Rmult.
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros ??.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      2: {
+        apply ex_RInt_mult.
+        2: { apply PCts_RInt, HPcts. }
+        apply ex_RInt_Rmult.
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros ??.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
       apply RInt_ext.
       rewrite Rmin_left; OK.
       rewrite Rmax_right; OK.
