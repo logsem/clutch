@@ -250,7 +250,7 @@ Qed.
 
   (* g, but with all integers poked to be 1 *)
   Local Definition g' (F : nat → R -> R) (L : nat) : R -> R :=
-    poke (poke (g F L) 1 1) 0 1.
+    poke (g F L) 1 1.
 
   Local Lemma hx_nonneg {F : nat → R → R} {L n r} (HP : ∀ x : nat, PCts (F x) 0 1) (HB : ∀ x y, (0 <= y <= 1) → 0 <= F x y) : 0 <= r <= 1 → 0 <= hx F r L n.
   Proof.
@@ -968,7 +968,6 @@ Qed.
     rewrite Rmax_right in H; OK.
     rewrite /poke.
     case_decide; OK.
-    case_decide; OK.
   Qed.
 
 End credits.
@@ -990,7 +989,7 @@ Section program.
   Lemma wp_NegExp_gen E (F : nat → R → R) {M} (Hnn : ∀ a b, 0 <= b <= 1 → 0 <= F a b <= M) (HP : ∀ x1 : nat, PCts (F x1) 0 1)  :
     ⊢ ∀ L, ↯ (NegExp_CreditV F L) -∗
            WP NegExp #L @ E
-      {{ p, ∃ (vz : nat) (vr : R) (ℓ : val), ⌜p = PairV #(Z.of_nat vz)ℓ⌝ ∗ lazy_real ℓ vr ∗ ⌜0 < vr < 1 ⌝ ∗ ↯(F vz vr)}}.
+      {{ p, ∃ (vz : nat) (vr : R) (ℓ : val), ⌜p = PairV #(Z.of_nat vz)ℓ⌝ ∗ lazy_real ℓ vr ∗ ⌜0 <= vr < 1 ⌝ ∗ ↯(F vz vr)}}.
   Proof.
     (* have Hex : ∀ a b, ex_RInt F a b.
     { intros ??. apply PCts_RInt. by apply IPCts_PCts. } *)
@@ -1004,7 +1003,6 @@ Section program.
     { intros ??.
       rewrite /g'/poke.
       case_decide; OK.
-      case_decide; OK.
       apply g_nonneg; eauto.
       intros ???.
       apply Hnn.
@@ -1016,8 +1014,6 @@ Section program.
 
     (* Now: poke out the cases where we sampled 0 or 1 *)
     rewrite /g'/poke//=.
-    case_decide.
-    { iExFalso. iApply (ec_contradict with "Hε"). OK. }
     case_decide.
     { iExFalso. iApply (ec_contradict with "Hε"). OK. }
     do 2 wp_pure.
@@ -1055,7 +1051,7 @@ Section program.
     wp_pures.
     case_bool_decide.
     { have Heven : Zeven l.
-      { inversion H1 as [H'].
+      { inversion H0 as [H'].
         apply Z.rem_mod_eq_0 in H'; [|lia].
         by apply Zeven_bool_iff; rewrite Zeven_mod H' //. }
       wp_pures.
@@ -1081,7 +1077,7 @@ Section program.
         intros ???. apply Hnn; OK.
       }
       rewrite Iverson_True; last first.
-      { intro Hk; apply H1. f_equal.
+      { intro Hk; apply H0. f_equal.
         apply Zeven_bool_iff in Hk.
         rewrite Zeven_mod in Hk.
         apply Zeq_bool_eq in Hk.
