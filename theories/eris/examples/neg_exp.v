@@ -678,17 +678,172 @@ Qed.
   Local Lemma QuadExchange6  M {F : nat → R → R} {L} (HPcts : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= x <= 1 → 0 <= F n x <= M) :
     RInt (λ x0 : R, SeriesC (λ x : nat, RealDecrTrial_μ0 x0 x * Iverson Zeven x * F L x0)) 0 1 =
     SeriesC (λ x : nat, RInt (λ x0 : R, RealDecrTrial_μ0 x0 x * Iverson Zeven x * F L x0) 0 1).
-  Proof. Admitted.
+  Proof.
+    have HP : ∀ (x : R) (n : nat), 0 < x < 1 → 0 <= RealDecrTrial_μ0 x n * Iverson Zeven n * F L x.
+    { intros ???.
+      apply Rmult_le_pos; [apply Rmult_le_pos|].
+      { apply RealDecrTrial_μ0nn; OK. }
+      { apply Iverson_nonneg. }
+      { apply Hbound; OK. }
+    }
+    symmetry.
+    apply (FubiniIntegralSeriesC_Strong (fun n => 1 / (fact n) * 1 * M)); OK.
+    2: {
+      intros ???.
+      rewrite Rabs_right.
+      { apply Rmult_le_compat.
+        2: apply Hbound; OK.
+        3: apply Hbound; OK.
+        { apply Rmult_le_pos.
+          { apply RealDecrTrial_μ0nn; OK. }
+          { apply Iverson_nonneg. }
+        }
+        apply Rmult_le_compat.
+        { apply RealDecrTrial_μ0nn; OK. }
+        { apply Iverson_nonneg. }
+        { apply RealDecrTrial_μ0_ub; OK. }
+        { apply Iverson_le_1. }
+      }
+      { apply Rle_ge.
+        apply Rmult_le_pos; [apply Rmult_le_pos|].
+        { apply RealDecrTrial_μ0nn; OK. }
+        { apply Iverson_nonneg. }
+        { apply Hbound; OK. }
+      }
+    }
+    { setoid_rewrite Rdiv_def.
+      apply ex_seriesC_scal_r.
+      apply ex_seriesC_scal_r.
+      apply ex_seriesC_scal_l.
+      rewrite -ex_seriesC_nat.
+      apply ex_exp_series.
+    }
+    { intros ?.
+      apply ex_RInt_mult.
+      2: { apply PCts_RInt; apply HPcts. }
+      apply ex_RInt_Rmult'.
+      apply PCts_RInt.
+      apply RealDecrTrial_μ0_PCts.
+    }
+  Qed.
 
   Local Lemma QuadExchange7 M {F L} (HPcts : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= x <= 1 → 0 <= F n x <= M) :
     (SeriesC (λ k : nat, RInt (λ x : R, Iverson (eq L) k * exp (- (x + (k - L)%nat)) * F k x) 0 1)) =
     (RInt (λ x : R, SeriesC (λ k : nat, Iverson (eq L) k * (exp (- (x + (k - L)%nat)) * F k x))) 0 1).
-  Proof. Admitted.
+  Proof.
+    have HP : ∀ (x : R) (k : nat), 0 < x < 1 → 0 <= Iverson (eq L) k * exp (- (x + (k - L)%nat)) * F k x.
+    { intros ???.
+      apply Rmult_le_pos; [apply Rmult_le_pos|].
+      { apply Iverson_nonneg. }
+      { apply Rexp_nn. }
+      { apply Hbound; OK. }
+    }
+    symmetry.
+    replace (λ x : R, SeriesC (λ k : nat, Iverson (eq L) k * (exp (- (x + (k - L)%nat)) * F k x)))
+       with (λ x : R, SeriesC (λ k : nat, Iverson (eq L) k * exp (- (x + (k - L)%nat)) * F k x)).
+    2: { funexti. f_equal; funexti; OK. }
+    symmetry.
+    apply (FubiniIntegralSeriesC_Strong (fun n => 1 * exp (- ((n - L)%nat)) * M)); OK.
+    2: {
+      intros ???.
+      rewrite Rabs_right.
+      { apply Rmult_le_compat.
+        2: apply Hbound; OK.
+        3: apply Hbound; OK.
+        { apply Rmult_le_pos.
+          { apply Iverson_nonneg. }
+          { apply Rexp_nn. }
+        }
+        apply Rmult_le_compat.
+        { apply Iverson_nonneg. }
+        { apply Rexp_nn. }
+        { apply Iverson_le_1. }
+        { apply exp_mono.
+          suffices ? : 0 <= x by OK.
+          OK.
+        }
+      }
+      { apply Rle_ge.
+        apply Rmult_le_pos; [apply Rmult_le_pos|].
+        { apply Iverson_nonneg. }
+        { apply Rexp_nn. }
+        { apply Hbound; OK. }
+      }
+    }
+    { apply ex_seriesC_scal_r.
+      apply ex_seriesC_scal_l.
+      apply (ex_SeriesC_nat_shiftN_r (L)%nat).
+      rewrite /compose//=.
+      replace (λ x0 : nat, exp (- (x0 + (L) - (L))%nat))
+        with (λ x0 : nat, exp (- x0)%nat).
+      { apply ex_exp_geo_series. }
+      funexti.
+      do 3 f_equal.
+      OK.
+    }
+    { intros ?.
+      apply ex_RInt_mult.
+      2: { apply PCts_RInt; apply HPcts. }
+      apply ex_RInt_Rmult.
+      apply PCts_RInt.
+      apply PCts_cts.
+      intros ??.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    }
+  Qed.
 
   Local Lemma QuadExchange8 M {F : nat → R → R} {L} (HPcts : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= x <= 1 → 0 <= F n x <= M) :
     (RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * Iverson Zeven n * F L x)) 0 1) =
     (SeriesC (λ n : nat, RInt (λ x : R, RealDecrTrial_μ x 0 n * Iverson Zeven n * F L x) 0 1)).
-  Proof. Admitted.
+  Proof.
+    have HP : ∀ (x : R) (n : nat), 0 < x < 1 → 0 <= RealDecrTrial_μ x 0 n * Iverson Zeven n * F L x.
+    { intros ???.
+      apply Rmult_le_pos; [apply Rmult_le_pos|].
+      { apply RealDecrTrial_μnn; OK. }
+      { apply Iverson_nonneg. }
+      { apply Hbound; OK. }
+    }
+    symmetry.
+    apply (FubiniIntegralSeriesC_Strong (fun n => 1 / (fact n) * 1 * M)); OK.
+    2: {
+      intros ???.
+      rewrite Rabs_right.
+      { apply Rmult_le_compat.
+        2: apply Hbound; OK.
+        3: apply Hbound; OK.
+        { apply Rmult_le_pos.
+          { apply RealDecrTrial_μnn; OK. }
+          { apply Iverson_nonneg. }
+        }
+        apply Rmult_le_compat.
+        { apply RealDecrTrial_μnn; OK. }
+        { apply Iverson_nonneg. }
+        { apply RealDecrTrial_μ_ub; OK. }
+        { apply Iverson_le_1. }
+      }
+      { apply Rle_ge.
+        apply Rmult_le_pos; [apply Rmult_le_pos|].
+        { apply RealDecrTrial_μnn; OK. }
+        { apply Iverson_nonneg. }
+        { apply Hbound; OK. }
+      }
+    }
+    { setoid_rewrite Rdiv_def.
+      apply ex_seriesC_scal_r.
+      apply ex_seriesC_scal_r.
+      apply ex_seriesC_scal_l.
+      rewrite -ex_seriesC_nat.
+      apply ex_exp_series.
+    }
+    { intros ?.
+      apply ex_RInt_mult.
+      2: { apply PCts_RInt; apply HPcts. }
+      apply ex_RInt_Rmult'.
+      apply PCts_RInt.
+      apply RealDecrTrial_μ_PCts.
+    }
+  Qed.
 
   Local Lemma g_expectation M {F : nat → R → R} {L} (HPcts : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= x <= 1 → 0 <= F n x <= M) :
     is_RInt (g F L) 0 1 (NegExp_CreditV F L).

@@ -483,13 +483,55 @@ Proof.
   apply ElemFct.is_derive_exp.
 Qed.
 
-Lemma ex_RInt_gen_exp {M} : ex_RInt_gen (λ x : R, M * exp (- x)) (at_point 0) (Rbar_locally Rbar.p_infty).
+(** Key lemma: exp(-b) → 0 as b → ∞ *)
+Lemma is_lim_exp_neg_infty : Continuity.is_lim (λ b : R, exp (- b)) Rbar.p_infty (Rbar.Finite 0).
 Proof. Admitted.
+
+Lemma ex_RInt_gen_exp {M} : ex_RInt_gen (λ x : R, M * exp (- x)) (at_point 0) (Rbar_locally Rbar.p_infty).
+Proof.
+  have Hex : ∀ b, 0 < b -> ex_RInt (λ x : R, M * exp (- x)) 0 b.
+  { intros b Hb.
+    apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+    intros z Hz.
+    apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+    by auto_derive. }
+  have Hlimit : exists L : R_NormedModule, (filterlimi (λ b : R, is_RInt (λ x : R, M * exp (- x)) 0 b) (Rbar_locally Rbar.p_infty)) (locally L).
+  { exists M.
+    rewrite /filterlimi /= /filter_le /= /filtermapi /=.
+    (* By FTC: ∫[0,b] M·exp(-x) dx = M·(1 - exp(-b))
+       By is_lim_exp_neg_infty: exp(-b) → 0 as b → ∞
+       Therefore: integral → M·1 = M *)
+    admit. }
+  admit.
+Admitted.
 
 Lemma NegExp_Int {L} :
  RInt_gen (fun r => exp (-r)) (at_point L) (Rbar_locally Rbar.p_infty) = exp (- L).
-Proof. Admitted.
+Proof.
+  have Hex : ∀ b, L < b -> ex_RInt (λ r : R, exp (- r)) L b.
+  { intros b Hb.
+    apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+    intros z Hz.
+    apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+    by auto_derive. }
+  have Hlimit : filterlimi (λ b : R, is_RInt (λ r : R, exp (- r)) L b) (Rbar_locally Rbar.p_infty) (locally (exp (- L))).
+  { (* By FTC: ∫[L,b] exp(-r) dr = exp(-L) - exp(-b)
+       By is_lim_exp_neg_infty: exp(-b) → 0 as b → ∞
+       Therefore: integral → exp(-L) - 0 = exp(-L) *)
+    admit. }
+  admit.
+Admitted.
 
 
 Lemma ex_exp_geo_series : ex_seriesC (λ x : nat, exp (- x)).
-Proof. Admitted.
+Proof.
+  apply (ex_seriesC_ext (λ n : nat, (exp (-1)) ^ n)).
+  { intros n. rewrite exp_pow. f_equal. lra. }
+  have H : Rabs (exp (-1)) < 1.
+  { rewrite Rabs_pos_eq.
+    - replace 1 with (exp 0) by apply exp_0.
+      apply exp_mono_strict. lra.
+    - apply Rexp_nn. }
+  have H' := Series.ex_series_geom (exp (-1)) H.
+  by rewrite -ex_seriesC_nat.
+Qed.
