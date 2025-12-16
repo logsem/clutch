@@ -701,7 +701,7 @@ Theorem lazy_real_adeqaucy1' Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R 
   (∀ x, 0<=μ x)->
     (∀ r, 0<=r -> ex_RInt μ (0) r) →
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
-  (∀ `{erisGS Σ} (F : nat -> R -> R) (Hnn : ∃ M, ∀ x k , 0 <= F k x <= M) (HPCts: ∀ k, IPCts (F k)),
+  (∀ `{erisGS Σ} (F : nat -> R -> R) (Hnn : ∃ M, ∀ x k , 0 <= F k x <= M) (HPCts: ∀ k, PCts (F k) 0 1),
       ↯ (RInt_gen (fun (x:R) => let k:=Z.to_nat (Int_part x) in μ x * F (k) (x-k)) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
        WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗ ↯(F k (r)%R) }}) →
   ∀ (x y n:nat), (x<2^y)%nat ->
