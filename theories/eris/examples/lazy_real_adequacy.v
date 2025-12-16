@@ -248,95 +248,76 @@ Section adequacy.
     WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗
                                           ↯(Iverson (λ r', r'<= (x/2^y)+n) (r+k)%R) }}.
   Proof.
+    iIntros (Hpos Hex Hex' Hineq) "Hwp Herr".
+    iApply "Hwp".
+    - iPureIntro.
+      exists 1. intros; rewrite /Iverson; case_match; lra.
+    - iPureIntro.
+      rewrite /IPCts.
+      remember (x/2^y+n) as k.
+      exists (λ r, if bool_decide (r<=k-1) then 1 else
+                if bool_decide (r<=k) then (1-(r-k+1)) else 0
+        ).
+      exists (((λ r, r-(k-1)), k-1, k)::nil).
+      repeat split.
+      + simpl. rewrite /Icc/Iverson/Rmin/Rmax.
+        intros. repeat (case_bool_decide||case_match); lra.
+      + apply Forall_singleton.
+        intros ??.
+        apply: continuous_minus; first apply continuous_id.
+        apply continuous_const.
+      + intros ??[eps Heps].
+        exists eps.
+        intros.
+        apply Heps.
+        clear -H.
+        revert H.
+        rewrite /ball//=/AbsRing_ball/abs/=.
+        intros H%Rabs_def2.
+        rewrite /minus/plus/opp/= in H *.
+        apply Rabs_def1; repeat case_bool_decide; lra.
+    - iApply (ec_eq with "[$]").
+      (* erewrite RInt_sep. *)
+      erewrite <-(RInt_gen_Chasles _ (x/2^y+n)(Fa := (at_point 0))); last first.
+      + eapply (ex_RInt_gen_ext_eq_Ioi (f:=(λ _, 0))).
+        * intros. rewrite Iverson_False; lra. 
+        * admit.
+      + apply ex_RInt_gen_at_point.
+        eapply (ex_RInt_ext μ).
+        * intros ? [H' H].
+          rewrite Iverson_True; first lra.
+          unfold Rmax in *.
+          case_match; try lra.
+          trans 0; first lra.
+          apply Rplus_le_le_0_compat; last apply pos_INR.
+          apply ineq_lemma. lia.
+        * apply Hex.
+          apply Rplus_le_le_0_compat; last apply pos_INR.
+          apply ineq_lemma. lia.
+      + rewrite RInt_gen_at_point; last first.
+        * apply ex_RInt_ext with μ; last apply Hex; last first.
+          -- apply Rplus_le_le_0_compat; last apply pos_INR.
+             apply ineq_lemma. lia.
+          -- rewrite /Rmin/Rmax.
+             intros. rewrite Iverson_True; first lra.
+             assert (0<=x / 2 ^ y + n); last (case_match; lra).
+             apply Rplus_le_le_0_compat; last apply pos_INR.
+             apply ineq_lemma. lia.
+        * erewrite (RInt_gen_ext_eq_Ioi (g:= λ _, 0) (f:=λ x, μ x*_)%R ); last first.
+          -- eapply (ex_RInt_gen_ext_eq_Ioi (f:=(λ _, 0))).
+             ++ intros. rewrite Iverson_False; lra. 
+             ++ admit.
+          -- intros. rewrite Iverson_False; lra.
+          -- erewrite (RInt_ext (λ _,_*_) μ); last first.
+             ++ rewrite /Rmin/Rmax.
+                intros.
+                rewrite Iverson_True; first lra.
+                case_match; try lra.
+                assert (0<=x / 2 ^ y + n); last (lra).
+                apply Rplus_le_le_0_compat; last apply pos_INR.
+                apply ineq_lemma. lia.
+             ++ admit.
   Admitted. 
-  (*   iIntros (Hpos Hex Hex' Hineq) "Hwp Herr". *)
-  (*   iApply "Hwp". *)
-  (*   - iPureIntro. *)
-  (*     exists 1. intros; rewrite /Iverson; case_match; lra. *)
-  (*   - iPureIntro. *)
-  (*     rewrite /IPCts. *)
-  (*     remember (x/2^y+n) as k. *)
-  (*     exists (λ r, if bool_decide (k<r) then 1 else *)
-  (*               if bool_decide (k-1<r) then (r-(k-1)) else 0 *)
-  (*       ). *)
-  (*     exists (((λ r, k-1-r), k-1, k)::nil). *)
-  (*     repeat split. *)
-  (*     + simpl. rewrite /Icc/Iverson/Rmin/Rmax. *)
-  (*       intros. repeat (case_bool_decide||case_match); lra. *)
-  (*     + apply Forall_singleton. *)
-  (*       intros ??. *)
-  (*       apply: continuous_minus; last apply continuous_id. *)
-  (*       apply continuous_const. *)
-  (*     + intros ??[eps Heps]. *)
-  (*       exists eps. *)
-  (*       intros. *)
-  (*       apply Heps. *)
-  (*       clear -H. *)
-  (*       revert H. *)
-  (*       rewrite /ball//=/AbsRing_ball/abs/=. *)
-  (*       intros H%Rabs_def2. *)
-  (*       rewrite /minus/plus/opp/= in H *. *)
-  (*       apply Rabs_def1; repeat case_bool_decide; lra. *)
-  (*   - iApply (ec_eq with "[$]"). *)
-  (*     (* erewrite RInt_sep. *) *)
-  (*     erewrite <-(RInt_gen_Chasles _ (x/2^y+n)(Fa := (at_point 0))); last first. *)
-  (*     + eapply (ex_RInt_gen_ext_eq_Ioi (f:=μ)). *)
-  (*       * intros. rewrite Iverson_True; [lra|done]. *)
-  (*       * eapply ex_RInt_gen_Chasles_exists; first done. *)
-  (*         rewrite ex_RInt_gen_at_point. *)
-  (*         apply Hex. *)
-  (*         apply Rplus_le_le_0_compat; last apply pos_INR. *)
-  (*         apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR. *)
-  (*         apply pow_lt. lra. *)
-  (*     + apply ex_RInt_gen_at_point. *)
-  (*       eapply (ex_RInt_ext (λ _, 0)). *)
-  (*       * intros ? [H' H]. *)
-  (*         rewrite Iverson_False; first lra. *)
-  (*         apply Rlt_asym. *)
-  (*         rewrite /Rmax in H. *)
-  (*         rewrite /Rmin in H'. *)
-  (*         case_match; first lra. *)
-  (*         exfalso. *)
-  (*         assert (0<=x/2^y+n); last lra. *)
-  (*         apply Rplus_le_le_0_compat; last apply pos_INR. *)
-  (*         apply ineq_lemma. lia. *)
-  (*       * apply ex_RInt_const. *)
-  (*     + rewrite RInt_gen_at_point. *)
-  (*       * erewrite (RInt_gen_ext_eq_Ioi (g:= μ) (f:=λ x, μ x*_)%R ). *)
-  (*         -- replace (RInt _ _ _) with 0; first by rewrite plus_zero_l. *)
-  (*            symmetry. *)
-  (*            erewrite (RInt_ext _ (λ _, 0)). *)
-  (*            ++ rewrite RInt_const. by rewrite scal_zero_r. *)
-  (*            ++ intros ? H. *)
-  (*               rewrite Iverson_False; first lra. *)
-  (*               rewrite /Rmin/Rmax in H. *)
-  (*               case_match; try lra. *)
-  (*               assert (0<=x/2^y+n); last lra. *)
-  (*               apply Rplus_le_le_0_compat; last apply pos_INR. *)
-  (*               apply Rcomplements.Rdiv_le_0_compat; last apply pow_lt; last lra. *)
-  (*               apply pos_INR. *)
-  (*         -- intros. rewrite Iverson_True; [lra|done]. *)
-  (*         -- eapply (ex_RInt_gen_ext_eq_Ioi (f:=μ)). *)
-  (*            ++ intros. rewrite Iverson_True; [lra|done]. *)
-  (*            ++ eapply ex_RInt_gen_Chasles_exists; first done. *)
-  (*               rewrite ex_RInt_gen_at_point. *)
-  (*               apply Hex. *)
-  (*               apply Rplus_le_le_0_compat; last apply pos_INR. *)
-  (*               apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR. *)
-  (*               apply pow_lt. lra. *)
-  (*       * eapply ex_RInt_ext; last apply ex_RInt_const. *)
-  (*         simpl. *)
-  (*         intros. *)
-  (*         rewrite Iverson_False; first by rewrite Rmult_0_r. *)
-  (*         rewrite /Rmax in H. *)
-  (*         rewrite /Rmin in H. *)
-  (*         repeat case_match; try lra. *)
-  (*         exfalso. *)
-  (*         assert (0<=x/2^y+n); last lra. *)
-  (*         apply Rplus_le_le_0_compat; last apply pos_INR. *)
-  (*         apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR. *)
-  (*         apply pow_lt. lra. *)
-  (* Qed.  *)
 
   Lemma wp_is_zero1 α l f:
     seq_bin_to_R f = 0 ->
