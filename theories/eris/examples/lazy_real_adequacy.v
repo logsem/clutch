@@ -373,31 +373,25 @@ Section adequacy.
     chunk_and_tape_seq α l f -∗
     WP is_zero #lbl:α #l {{ v, ⌜v = #false⌝ }}.
   Proof.
-  Admitted. 
-  (*   iLöb as "IH" forall (f α l). *)
-  (*   iIntros (Hzero) "H". *)
-  (*   rewrite /is_zero. *)
-  (*   wp_pures. *)
-  (*   pose proof seq_bin_to_R_0 _ Hzero as H. *)
-  (*   destruct (bin_seq_hd f) as [hd [f' ->]]. *)
-  (*   wp_apply (wp_get_chunk_cons with "[$]"). *)
-  (*   iIntros (?) "[??]". *)
-  (*   rewrite -/is_zero. *)
-  (*   wp_pures. *)
-  (*   rewrite bool_decide_eq_true_2; last first. *)
-  (*   { specialize (H 0%nat). *)
-  (*     simpl in *. by subst.  *)
-  (*   } *)
-  (*   wp_pures. *)
-  (*   iApply "IH"; last done. *)
-  (*   iPureIntro. *)
-  (*   rewrite seq_bin_to_R_cons in Hzero. *)
-  (*   specialize (H 0%nat). *)
-  (*   simpl in *. subst. *)
-  (*   replace (_/_) with 0 in Hzero; last (simpl; lra). *)
-  (*   rewrite Rplus_0_l in Hzero. *)
-  (*   lra. *)
-  (* Qed. *)
+    iLöb as "IH" forall (f α l).
+    iIntros (Hzero) "H".
+    rewrite /is_zero.
+    wp_pures.
+    destruct (bin_seq_hd f) as [hd [f' ->]].
+    wp_apply (wp_get_chunk_cons with "[$]").
+    iIntros (?) "[??]".
+    rewrite -/is_zero.
+    wp_pures.
+    case_bool_decide; last by wp_pures.
+    wp_pures.
+    iApply ("IH" with "[][$]").
+    iPureIntro.
+    intros Hcontra.
+    assert (hd = 0%fin) as ->.
+    { simplify_eq. apply fin_to_nat_inj. simpl. lia. }
+    rewrite seq_bin_to_R_cons in Hzero.
+    rewrite Hcontra in Hzero. simpl in *. lra.
+  Qed.
   
   Lemma wp_is_smaller_prog_aux1 (x y:nat) f α l:
     (x<2^y)%nat -> 
