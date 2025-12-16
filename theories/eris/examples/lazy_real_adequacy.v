@@ -171,7 +171,14 @@ Section adequacy.
     - iApply (ec_eq with "[$]").
       (* erewrite RInt_sep. *)
       erewrite <-(RInt_gen_Chasles _ (x/2^y+n)(Fa := (at_point 0))); last first.
-      + admit. 
+      + eapply (ex_RInt_gen_ext_eq_Ioi (f:=μ)).
+        * intros. rewrite Iverson_True; [lra|done].
+        * eapply ex_RInt_gen_Chasles_exists; first done.
+          rewrite ex_RInt_gen_at_point.
+          apply Hex.
+          apply Rplus_le_le_0_compat; last apply pos_INR.
+          apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR.
+          apply pow_lt. lra.
       + apply ex_RInt_gen_at_point.
         eapply (ex_RInt_ext (λ _, 0)).
         * intros ? [H' H].
@@ -200,7 +207,14 @@ Section adequacy.
                 apply Rcomplements.Rdiv_le_0_compat; last apply pow_lt; last lra.
                 apply pos_INR.
           -- intros. rewrite Iverson_True; [lra|done].
-          -- admit.
+          -- eapply (ex_RInt_gen_ext_eq_Ioi (f:=μ)).
+             ++ intros. rewrite Iverson_True; [lra|done].
+             ++ eapply ex_RInt_gen_Chasles_exists; first done.
+                rewrite ex_RInt_gen_at_point.
+                apply Hex.
+                apply Rplus_le_le_0_compat; last apply pos_INR.
+                apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR.
+                apply pow_lt. lra.
         * eapply ex_RInt_ext; last apply ex_RInt_const.
           simpl.
           intros.
