@@ -133,15 +133,6 @@ Section credits.
   Definition NegExp_CreditV' (F : R → R) : R :=
     RInt_gen (fun r => F r * exp (-r)) (at_point 0) (Rbar_locally Rbar.p_infty).
 
-  Lemma IPCts_shift (F : R → R) (r : R) : IPCts F → IPCts (fun x => F (r + x)).
-  Proof. Admitted.
-
-  Lemma ex_exp_geo_series : ex_seriesC (λ x : nat, exp (- x)).
-  Proof. Admitted.
-
-  Lemma ex_RInt_gen_exp {M} : ex_RInt_gen (λ x : R, M * exp (- x)) (at_point 0) (Rbar_locally Rbar.p_infty).
-  Proof. Admitted.
-
   Lemma NegExp_CreditV_NegExp_CreditV' {M} {F : R → R} (HF : IPCts F) (HBound : ∀ x, 0 <= F x <= M):
     NegExp_CreditV' F = NegExp_CreditV (fun n x => F (n+x)) 0.
   Proof.
@@ -1171,10 +1162,6 @@ Section AccuracyBound.
   Definition AccF (L : R) : R → R := (fun x => Iverson (Iio 0) x + Iverson (Ioi L) x).
 
   Lemma AccF_IPCts L : IPCts (AccF L).
-  Proof. Admitted.
-
-  Lemma NegExp_Int {L} :
-    RInt_gen (fun r => exp (-r)) (at_point L) (Rbar_locally Rbar.p_infty) = exp (- L).
   Proof. Admitted.
 
   Lemma NegExp_Int_AccF {L} :

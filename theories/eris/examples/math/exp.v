@@ -482,3 +482,14 @@ Proof.
   rewrite (Derive.is_derive_unique exp (- x) (exp (- x))); first done.
   apply ElemFct.is_derive_exp.
 Qed.
+
+Lemma ex_RInt_gen_exp {M} : ex_RInt_gen (λ x : R, M * exp (- x)) (at_point 0) (Rbar_locally Rbar.p_infty).
+Proof. Admitted.
+
+Lemma NegExp_Int {L} :
+ RInt_gen (fun r => exp (-r)) (at_point L) (Rbar_locally Rbar.p_infty) = exp (- L).
+Proof. Admitted.
+
+
+Lemma ex_exp_geo_series : ex_seriesC (λ x : nat, exp (- x)).
+Proof. Admitted.

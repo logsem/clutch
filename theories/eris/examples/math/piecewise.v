@@ -379,6 +379,9 @@ Lemma IPCts_scal_mult {c : R} {G : R → R} :
   IPCts G → IPCts (fun x => c * G x).
 Proof. Admitted.
 
+Lemma IPCts_shift (F : R → R) (r : R) : IPCts F → IPCts (fun x => F (r + x)).
+Proof. Admitted.
+
 
 (** Finite sum of 2D functions *)
 Definition fsum2 {T U : Type} (L : list (T → U → R)) : T → U → R :=
@@ -552,3 +555,5 @@ Proof.
     admit.
   }
 Admitted.
+
+
