@@ -151,23 +151,18 @@ Section adequacy.
     - iPureIntro.
       exists 1. intros; rewrite /Iverson; case_match; lra.
     - iPureIntro.
-      admit.
-      (* eexists ([(λ _, 0, 0, (x/2^y +n-n'));(λ _, 1, (x/2^y +n-n'), 1)]). *)
-      (* split. *)
-      (* + simpl. intros ? H. *)
-      (*   rewrite Rmult_0_r. rewrite Rplus_0_l Rplus_0_r. *)
-      (*   rewrite Rmult_1_r. *)
-      (*   rewrite /Iverson. rewrite /Icc in H *. *)
-      (*   rewrite /Rmin in H *. rewrite /Rmax in H *. *)
-      (*   repeat case_match; try lra. *)
-      (*   *  *)
-        
-      (*   admit. *)
-      (* + rewrite !Forall_cons_iff. repeat split; last by apply Forall_nil. *)
-      (*   * rewrite /IntervalFun_continuity. *)
-      (*     intros. *)
-      (*     apply Continuity.continuous_const. *)
-      (*   * rewrite /IntervalFun_continuity. intros. apply Continuity.continuous_const. *)
+      rewrite /IPCts.
+      remember (x/2^y+n) as k.
+      exists (λ r, if bool_decide (k<r) then 1 else
+                if bool_decide (k-1<r) then (r-(k-1)) else 0
+        ).
+      exists (((λ r, k-1-r), k-1, k)::nil).
+      repeat split.
+      + simpl. rewrite /Icc/Iverson/Rmin/Rmax.
+        intros. repeat (case_bool_decide||case_match); lra.
+      + apply Forall_singleton.
+        admit.
+      + admit.
     - iApply (ec_eq with "[$]").
       (* erewrite RInt_sep. *)
       erewrite <-(RInt_gen_Chasles _ (x/2^y+n)(Fa := (at_point 0))); last first.
