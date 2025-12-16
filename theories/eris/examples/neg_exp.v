@@ -508,8 +508,18 @@ Qed.
           { apply SeriesC_ge_0'.
             intros ?.
             apply RInt_ge_0; OK.
-            { admit. }
-            { admit. }
+            { apply ex_RInt_mult; [apply ex_RInt_mult|].
+              { apply ex_RInt_const. }
+              { apply PCts_RInt, NegExp_ρ_PCts. }
+              { apply PCts_RInt, HPcts. }
+            }
+            { intros ??.
+              apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
+              { apply RealDecrTrial_μnn; OK. }
+              { apply Iverson_nonneg. }
+              { admit. }
+              { admit. }
+            }
           }
           apply SeriesC_le.
           {
