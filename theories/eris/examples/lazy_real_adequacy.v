@@ -668,34 +668,32 @@ Section adequacy.
     iIntros (Hpos Hex Hex' Hineq) "Hwp Herr".
     rewrite /is_smaller_prog.
     wp_bind e.
-  Admitted.
-  (*   wp_apply (pgl_wp_wand with "[-]"); first by iApply (wp_e1 with "[Hwp][$]"). *)
-  (*   simpl. *)
-  (*   iIntros (?) "(%r&%k&%&->&Hl&Herr)". *)
-  (*   rewrite /lazy_real. *)
-  (*   iDestruct "Hl" as "(%&%&%f&->&->&H)". *)
-  (*   wp_pures. *)
-  (*   pose proof seq_bin_to_R_range f. *)
-  (*   case_bool_decide; first by wp_pures. *)
-  (*   wp_pures. *)
-  (*   case_bool_decide. *)
-  (*   { iDestruct (ec_contradict with "[$]") as "[]". *)
-  (*     rewrite Iverson_True; first done. *)
-  (*     assert ( x / 2 ^ y + n <  k); last lra. *)
-  (*     rewrite -Rcomplements.Rlt_minus_r. *)
-  (*     rewrite -minus_INR; last lia. *)
-  (*     apply Rlt_le_trans with (1). *)
-  (*     - by apply ineq_lemma. *)
-  (*     - replace 1 with (INR 1) by done. *)
-  (*       apply le_INR. lia. *)
-  (*   } *)
-  (*   wp_pures. *)
-  (*   rewrite /Iverson. *)
-  (*   case_match; first by iDestruct (ec_contradict with "[$]") as "[]". *)
-  (*   wp_apply wp_is_smaller_prog_aux1; try done. *)
-  (*   assert (n=k)%nat as -> by lia. *)
-  (*   lra. *)
-  (* Qed. *)
+    wp_apply (pgl_wp_wand with "[-]"); first by iApply (wp_e2 with "[Hwp][$]").
+    simpl.
+    iIntros (?) "(%r&%k&%&->&Hl&Herr)".
+    rewrite /lazy_real.
+    iDestruct "Hl" as "(%&%&%f&->&->&H)".
+    wp_pures.
+    pose proof seq_bin_to_R_range f.
+    pose proof ineq_lemma _ _ Hineq.
+    case_bool_decide.
+    { rewrite Iverson_True; first by iDestruct (ec_contradict with "[$]") as "[]".
+      assert (seq_bin_to_R f + k <=  n); last lra.
+      assert (1+k<=n); last lra.
+      replace (1) with (INR 1) by done.
+      rewrite -plus_INR.
+      apply le_INR. lia.
+    }
+    wp_pures.
+    case_bool_decide; first by wp_pures.
+    wp_pures.
+    assert (k=n) as -> by lia.
+    wp_pures.
+    rewrite /Iverson.
+    case_match; first by iDestruct (ec_contradict with "[$]") as "[]".
+    wp_apply wp_is_smaller_prog_aux2; try done.
+    lra.
+  Qed.
 End adequacy.
 
 Theorem lazy_real_adeqaucy1 Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
