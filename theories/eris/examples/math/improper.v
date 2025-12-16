@@ -7,6 +7,42 @@ Import Hierarchy.
 (** Improper integrals, AKA integrals where one bound is infinite.
 This is a special case of RInt_gen. *)
 
+Lemma ex_RInt_gen_0 M:
+  ex_RInt_gen (λ _, 0) (at_point M) (Rbar_locally Rbar.p_infty).
+Proof.
+  eexists 0.
+  intros ??.
+  rewrite /filtermapi/=.
+  econstructor.
+  - by instantiate (1:=λ _, True).
+  - simpl. instantiate (1:=λ _, True). exists 1. naive_solver.
+  - intros x y ? ?.
+    exists 0.
+    split.
+    + pose proof is_RInt_const x y 0 as H2.
+      simpl.
+      by rewrite scal_zero_r in H2.
+    + by apply locally_singleton.
+Qed.
+
+Lemma RInt_gen_0 M:
+  RInt_gen (λ _, 0) (at_point M) (Rbar_locally Rbar.p_infty) = 0.
+Proof.
+  apply is_RInt_gen_unique.
+  intros ??.
+  rewrite /filtermapi/=.
+  econstructor.
+  - by instantiate (1:=λ _, True).
+  - simpl. instantiate (1:=λ _, True). exists 1. naive_solver.
+  - intros x y ? ?.
+    exists 0.
+    split.
+    + pose proof is_RInt_const x y 0 as H2.
+      simpl.
+      by rewrite scal_zero_r in H2.
+    + by apply locally_singleton.
+Qed. 
+
 Lemma ex_RInt_gen_ext_eq_Ici {f g : R → R} {M : R} :
   (∀ x : R, M <= x → f x = g x) →
   ex_RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty) →

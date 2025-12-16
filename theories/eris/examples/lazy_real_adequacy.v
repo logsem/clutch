@@ -249,6 +249,9 @@ Section adequacy.
                                           ↯(Iverson (λ r', r'<= (x/2^y)+n) (r+k)%R) }}.
   Proof.
     iIntros (Hpos Hex Hex' Hineq) "Hwp Herr".
+    assert (0<=x / 2 ^ y + n) as K1.
+    { apply Rplus_le_le_0_compat; last apply pos_INR.
+      apply ineq_lemma. lia. }
     iApply "Hwp".
     - iPureIntro.
       exists 1. intros; rewrite /Iverson; case_match; lra.
@@ -281,43 +284,31 @@ Section adequacy.
       erewrite <-(RInt_gen_Chasles _ (x/2^y+n)(Fa := (at_point 0))); last first.
       + eapply (ex_RInt_gen_ext_eq_Ioi (f:=(λ _, 0))).
         * intros. rewrite Iverson_False; lra. 
-        * admit.
+        * apply ex_RInt_gen_0. 
       + apply ex_RInt_gen_at_point.
         eapply (ex_RInt_ext μ).
         * intros ? [H' H].
           rewrite Iverson_True; first lra.
           unfold Rmax in *.
-          case_match; try lra.
-          trans 0; first lra.
-          apply Rplus_le_le_0_compat; last apply pos_INR.
-          apply ineq_lemma. lia.
-        * apply Hex.
-          apply Rplus_le_le_0_compat; last apply pos_INR.
-          apply ineq_lemma. lia.
+          case_match; lra.
+        * by apply Hex.
       + rewrite RInt_gen_at_point; last first.
-        * apply ex_RInt_ext with μ; last apply Hex; last first.
-          -- apply Rplus_le_le_0_compat; last apply pos_INR.
-             apply ineq_lemma. lia.
+        * apply ex_RInt_ext with μ; last by apply Hex; last first.
           -- rewrite /Rmin/Rmax.
-             intros. rewrite Iverson_True; first lra.
-             assert (0<=x / 2 ^ y + n); last (case_match; lra).
-             apply Rplus_le_le_0_compat; last apply pos_INR.
-             apply ineq_lemma. lia.
+             intros. rewrite Iverson_True; first lra. case_match; lra.
         * erewrite (RInt_gen_ext_eq_Ioi (g:= λ _, 0) (f:=λ x, μ x*_)%R ); last first.
           -- eapply (ex_RInt_gen_ext_eq_Ioi (f:=(λ _, 0))).
              ++ intros. rewrite Iverson_False; lra. 
-             ++ admit.
+             ++ apply ex_RInt_gen_0. 
           -- intros. rewrite Iverson_False; lra.
           -- erewrite (RInt_ext (λ _,_*_) μ); last first.
              ++ rewrite /Rmin/Rmax.
                 intros.
                 rewrite Iverson_True; first lra.
-                case_match; try lra.
-                assert (0<=x / 2 ^ y + n); last (lra).
-                apply Rplus_le_le_0_compat; last apply pos_INR.
-                apply ineq_lemma. lia.
-             ++ admit.
-  Admitted. 
+                case_match; lra.
+             ++ rewrite RInt_gen_0.
+                by rewrite plus_zero_r.
+  Qed. 
 
   Lemma wp_is_zero1 α l f:
     seq_bin_to_R f = 0 ->
