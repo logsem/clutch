@@ -3,7 +3,7 @@ From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
 From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
-From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial bern_geo half_bern_neg_exp bern_iter selector.
+From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial bern_geo half_bern_neg_exp bern_iter selector lazy_real_adequacy.
 From clutch.eris.examples Require Import math.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
@@ -3122,3 +3122,27 @@ Section program.
   Qed.
 
 End program.
+
+Section adequacy.
+  Context `{!erisGS Σ}.
+  Import Hierarchy.
+
+  Theorem Gauss_adequate_1 (σ : state) (x y n : nat) : (x<2^y)%nat  →
+  pgl (lim_exec (is_smaller_prog (G2 #()) #n #x #y, σ)) (λ x, x = #true)
+      (RInt_gen (fun r => exp ((-r^2)/2) / Norm2) (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)).
+  Proof.
+    intro H.
+    Check lazy_real_adeqaucy1'.
+    (* Yup. Still needs periodisation to actually apply this thing.
+
+      Definition G2_CreditV (F : nat → R → R) :=
+        SeriesC (fun (k : nat) => RInt (fun x => G2_μ k x * F k x) 0 1).
+
+       TODO apply the periodisation lemma just like I did in neg_exp,
+       adding in an (Ico) to the PMF to and g' to poke out duplicated integers.
+     *)
+  Admitted.
+
+  (* TODO: Can the two adequacy staements be combined (Chasles) *)
+
+End adequacy.
