@@ -505,106 +505,94 @@ Section adequacy.
     chunk_and_tape_seq α l f -∗
     WP is_smaller_prog_aux #lbl:α #l #x #y  {{ v, ⌜v = #false⌝ }}.
   Proof.
-  Admitted.
-  (*   iLöb as "IH" forall (x y f α l). *)
-  (*   iIntros (Hineq Hineq') "H". *)
-  (*   rewrite /is_smaller_prog_aux. *)
-  (*   wp_pures. *)
-  (*   case_bool_decide. *)
-  (*   { simplify_eq. *)
-  (*     wp_pures. *)
-  (*     assert (y = 0)%nat as -> by lia. *)
-  (*     simpl in *. *)
-  (*     assert (x=0)%nat as -> by lia. *)
-  (*     simpl in *. *)
-  (*     pose proof seq_bin_to_R_range f as Hrange. *)
-  (*     assert (seq_bin_to_R f=0) by lra. *)
-  (*     by wp_apply wp_is_zero1. *)
-  (*   } *)
-  (*   wp_pure. *)
-  (*   destruct (bin_seq_hd f) as [hd [f' ->]]. *)
-  (*   wp_apply (wp_get_chunk_cons with "[$]"). *)
-  (*   iIntros (?) "[H1 H2]". *)
-  (*   wp_pures. *)
-  (*   destruct y as [|y']; first done. *)
-  (*   replace (Z.of_nat (S y') - 1)%Z with (Z.of_nat (y')); last lia. *)
-  (*   wp_apply (wp_pow2 with "[//][-]"). *)
-  (*   iNext. *)
-  (*   iIntros (? ->). *)
-  (*   wp_pures. *)
-  (*   rewrite -/is_smaller_prog_aux. *)
-  (*   rewrite seq_bin_to_R_cons in Hineq'. *)
-  (*   case_bool_decide. *)
-  (*   - (* First digit of RHS is a 0*) *)
-  (*     assert (hd = 0%fin) as ->. *)
-  (*     { inv_fin hd; first done. *)
-  (*       intros i; inv_fin i; last (intros i; inv_fin i). *)
-  (*       pose proof seq_bin_to_R_range f'. *)
-  (*       intros Hcontra. *)
-  (*       simpl in *. *)
-  (*       assert (1 / 2   <= x / (2 * 2 ^ y')) as H2; first lra. *)
-  (*       rewrite Rcomplements.Rle_div_l in H2; last lra. *)
-  (*       rewrite -Rmult_div_swap in H2. *)
-  (*       rewrite -Rcomplements.Rle_div_r in H2; last first. *)
-  (*       - apply Rlt_gt. *)
-  (*         apply Rmult_lt_0_compat; first lra. *)
-  (*         apply pow_lt. lra. *)
-  (*       - rewrite Rmult_1_l in H2. *)
-  (*         replace 2 with (INR 2) in H2 by done. *)
-  (*         rewrite -pow_INR -!mult_INR in H2. *)
-  (*         apply INR_le in H2. *)
-  (*         lia. } *)
-  (*     wp_pures. *)
-  (*     wp_pures. *)
-  (*     iApply "IH"; last done. *)
-  (*     + iPureIntro. simpl in Hineq. *)
-  (*       lia. *)
-  (*     + iPureIntro. *)
-  (*       assert (seq_bin_to_R f' / 2 * 2 <= (x / 2 ^ S y')*2) as H'. *)
-  (*       { apply Rmult_le_compat_r; first lra. simpl in *; lra. } *)
-  (*       rewrite -Rmult_div_swap in H'. *)
-  (*       rewrite Rmult_div_l in H'; last done. *)
-  (*       etrans; first exact. *)
-  (*       right. *)
-  (*       simpl. *)
-  (*       rewrite Rdiv_mult_distr. *)
-  (*       replace (x / 2 / 2 ^ y' * 2 ) with (x / 2 ^ y' * 2/2 ) by lra. *)
-  (*       by rewrite Rmult_div_l. *)
-  (*   - (* Second digit of RHS is a 1*) *)
-  (*     wp_pures. *)
-  (*     case_bool_decide; first by wp_pures. *)
-  (*     assert (hd = 1%fin) as ->. *)
-  (*     { inv_fin hd; first done. *)
-  (*       intros i; inv_fin i; first done. *)
-  (*       intros i; inv_fin i. *)
-  (*     } *)
-  (*     wp_pures. *)
-  (*     rewrite -Nat2Z.inj_sub; last lia. *)
-  (*     iApply ("IH" with "[][][$]"). *)
-  (*     + iPureIntro. *)
-  (*       simpl in *. lia. *)
-  (*     + iPureIntro. simpl in *. *)
-  (*       assert (seq_bin_to_R f'  <= 2*(x / (2 * 2 ^ y') - 1/2)) by lra. *)
-  (*       etrans; first exact. *)
-  (*       rewrite -Rcomplements.Rle_div_r; last (apply pow_lt; lra). *)
-  (*       replace 2 with (INR 2) by done. *)
-  (*       rewrite (Rmult_comm (INR 2) (_^_)). *)
-  (*       rewrite Rdiv_mult_distr. *)
-  (*       rewrite Rmult_minus_distr_l. *)
-  (*       rewrite !Rmult_div_assoc. *)
-  (*       rewrite !Rmult_div_r; last (simpl; lra). *)
-  (*       replace (INR 2 * INR x / INR 2 ^ y' / INR 2) with ((INR 2 / INR 2)*INR x / INR 2 ^ y') by lra. *)
-  (*       rewrite Rdiv_diag; last (simpl; lra). *)
-  (*       rewrite Rmult_1_l. *)
-  (*       rewrite Rmult_minus_distr_r. *)
-  (*       rewrite Rmult_1_l. *)
-  (*       rewrite -Rmult_div_swap. *)
-  (*       rewrite Rmult_div_l; last first. *)
-  (*       { unshelve epose proof pow_lt (INR 2) y' _; simpl in *; lra. } *)
-  (*       rewrite -pow_INR. *)
-  (*       rewrite -minus_INR; last lia. *)
-  (*       apply le_INR. lia. *)
-  (* Qed.  *)
+    iLöb as "IH" forall (x y f α l).
+    iIntros (Hineq Hineq') "H".
+    rewrite /is_smaller_prog_aux.
+    wp_pures.
+    case_bool_decide.
+    { wp_pures.
+      wp_apply wp_is_zero2; last done.
+      pose proof ineq_lemma _ _ Hineq. lra.
+    }
+    wp_pure.
+    destruct (bin_seq_hd f) as [hd [f' ->]].
+    wp_apply (wp_get_chunk_cons with "[$]").
+    iIntros (?) "[H1 H2]".
+    wp_pures.
+    destruct y as [|y']; first done.
+    replace (Z.of_nat (S y') - 1)%Z with (Z.of_nat (y')); last lia.
+    wp_apply (wp_pow2 with "[//][-]").
+    iNext.
+    iIntros (? ->).
+    wp_pures.
+    rewrite -/is_smaller_prog_aux.
+    rewrite seq_bin_to_R_cons in Hineq'.
+    case_bool_decide.
+    - (* First digit of RHS is a 0*)
+      wp_pures.
+      case_bool_decide; first by wp_pures.
+      assert (hd = 0%fin) as ->.
+      { inv_fin hd; first done.
+        intros i; inv_fin i; first done.
+        intros i; inv_fin i.
+      }
+      wp_pures.
+      iApply ("IH" with "[][][$]"); iPureIntro; first lia.
+      simpl in *.
+      assert (x / (2* 2 ^ y') < seq_bin_to_R f' / 2) as K; first lra.
+      rewrite Rdiv_mult_distr in K.
+      rewrite (Rdiv_def x) (Rdiv_def (seq_bin_to_R _)) in K.
+      assert (x / (2 ^ y')*/2 < seq_bin_to_R f'* / 2) as K'; first lra.
+      apply Rmult_lt_reg_r in K'; first done.
+      apply pos_half_prf.
+    - (* Second digit of RHS is a 1*)
+      wp_pures.
+      pose proof ineq_lemma _ _ Hineq as Hineq''.
+      case_bool_decide.
+      + assert (hd = 0%fin) as ->.
+        { inv_fin hd; first done.
+          intros i; inv_fin i; first done.
+          intros i; inv_fin i.
+        }
+        wp_pures.
+        exfalso.
+        simpl in *.
+        assert (seq_bin_to_R f' / 2 <= x / (2 * 2 ^ y')); last lra.
+        rewrite Rdiv_mult_distr.
+        rewrite (Rdiv_def) (Rdiv_def x).
+        assert (seq_bin_to_R f' * / 2 <= (x / 2 ^ y') * / 2 ); last lra.
+        apply Rmult_le_compat_r; first (left; apply pos_half_prf).
+        pose proof seq_bin_to_R_range f'.
+        assert (1<=x/2^y'); last lra.
+        apply Rcomplements.Rle_div_r; first (apply pow_lt; lra).
+        rewrite Rmult_1_l.
+        replace 2 with (INR 2) by done.
+        rewrite -pow_INR. apply le_INR.
+        lia.
+      + wp_pures.
+        rewrite -Nat2Z.inj_sub; last lia.
+        iApply ("IH" with "[][][$]"); iPureIntro.
+        * simpl in *. lia.
+        * assert (hd=1%fin) as ->.
+          { inv_fin hd; first done.
+            intros i; inv_fin i; first done.
+            intros i; inv_fin i.
+          }
+          simpl in *.
+          rewrite Rplus_comm in Hineq'.
+          apply Rcomplements.Rlt_minus_l in Hineq'.
+          apply Rcomplements.Rlt_div_r in Hineq'; last lra.
+          eapply Rle_lt_trans; last exact.
+          replace ((x / (2 * 2 ^ y') - 1 / 2) * 2) with (x/(2*2^y')*2-1) by lra.
+          rewrite Rdiv_mult_distr.
+          replace (_/_/_*_) with (x/2^y'*2/2) by lra.
+          rewrite Rmult_div_l; last done.
+          rewrite minus_INR; last lia.
+          rewrite Rdiv_minus_distr.
+          rewrite pow_INR. replace (INR 2) with 2 by done.
+          rewrite Rdiv_diag; first done.
+          by apply pow_nonzero.
+  Qed. 
   
   Lemma wp_is_smaller_prog1 n x y μ e:
     (∀ x, 0<=μ x)->
