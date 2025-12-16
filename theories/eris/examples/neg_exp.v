@@ -126,6 +126,127 @@ Section credits.
     { apply HB. OK. }
   Qed.
 
+  Definition NegExp_CreditV' (F : R → R) : R :=
+    RInt_gen (fun r => F r * exp (-r)) (at_point 0) (Rbar_locally Rbar.p_infty).
+
+  Lemma IPCts_shift (F : R → R) (r : R) : IPCts F → IPCts (fun x => F (r + x)).
+  Proof. Admitted.
+
+  Lemma ex_exp_geo_series : ex_seriesC (λ x : nat, exp (- x)).
+  Proof. Admitted.
+
+  Lemma ex_RInt_gen_exp {M} : ex_RInt_gen (λ x : R, M * exp (- x)) (at_point 0) (Rbar_locally Rbar.p_infty).
+  Proof. Admitted.
+
+  Lemma NegExp_CreditV_NegExp_CreditV' {M} {F : R → R} (HF : IPCts F) (HBound : ∀ x, 0 <= F x <= M):
+    NegExp_CreditV' F = NegExp_CreditV (fun n x => F (n+x)) 0.
+  Proof.
+    rewrite /NegExp_CreditV'.
+    rewrite (RInt_sep (fun r => F r * exp (-r)) (fun n => M * exp (-n))).
+    { rewrite /NegExp_CreditV.
+      rewrite (FubiniIntegralSeriesC_Strong (fun n => M * exp (-n))); OK.
+      { apply RInt_ext.
+        intros ??.
+        apply SeriesC_ext.
+        intros n.
+        rewrite Rmult_comm.
+        f_equal; [| f_equal; OK].
+        rewrite /NegExp_ρ.
+        rewrite Iverson_True; OK.
+        rewrite Rmult_1_l.
+        rewrite /NegExp_ρ0.
+        rewrite Iverson_True; OK.
+        2: { rewrite /Icc; OK. }
+        rewrite Rmult_1_l.
+        repeat f_equal.
+        OK.
+      }
+      { intros ???.
+        apply Rmult_le_pos.
+        { apply NegExp_ρ_nn. }
+        { apply HBound. }
+      }
+      { apply ex_seriesC_scal_l.
+        apply ex_exp_geo_series.
+      }
+      { intros ???.
+        rewrite Rabs_right.
+        2: {
+          apply Rle_ge.
+          apply Rmult_le_pos.
+          { apply NegExp_ρ_nn. }
+          { apply HBound. }
+        }
+      { rewrite Rmult_comm.
+        apply Rmult_le_compat.
+        { apply HBound. }
+        { apply NegExp_ρ_nn. }
+        { apply HBound. }
+        etrans; first apply NegExp_ρ_ub.
+        right.
+        repeat f_equal; OK.
+      }
+    }
+    { intros n.
+      apply ex_RInt_mult.
+      { apply PCts_RInt. apply NegExp_ρ_PCts. }
+      { apply IPCts_RInt. apply IPCts_shift. apply HF. }
+    }
+  }
+  { apply (@ex_RInt_gen_Ici_compare_IPCts _ (fun x => M * exp (- x))).
+    { apply IPCts_cts.
+      intros ?.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    }
+    { apply IPCts_mult; OK.
+      apply IPCts_cts.
+      intros ?.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    }
+    { intros ?.
+      split.
+      { apply Rmult_le_pos.
+        { apply HBound. }
+        { apply Rexp_nn. }
+      }
+      apply Rmult_le_compat; OK.
+      { apply HBound. }
+      { apply Rexp_nn. }
+      { apply HBound. }
+    }
+    { apply ex_RInt_gen_exp. }
+  }
+  { apply ex_seriesC_scal_l.
+    apply ex_exp_geo_series.
+  }
+  { intros ?.
+    split.
+    { apply Rmult_le_pos.
+      { apply HBound. }
+      { apply Rexp_nn. }
+    }
+    apply Rmult_le_compat; OK.
+    { apply HBound. }
+    { apply Rexp_nn. }
+    { apply HBound. }
+    apply exp_mono.
+    suffices ? : n <= (x + n) by OK.
+    OK.
+  }
+  { intros b.
+    apply ex_RInt_mult.
+    { apply IPCts_RInt; OK. }
+    { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+      intros ??.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    }
+  }
+Qed.
+
+
   Local Definition hx (F : nat → R → R) (x : R) (L : nat) : nat → R :=
     fun z => Iverson Zeven z * F L x + Iverson (not ∘ Zeven) z * NegExp_CreditV F (L + 1).
 
@@ -855,7 +976,7 @@ Section program.
   Lemma wp_NegExp_gen E (F : nat → R → R) {M} (Hnn : ∀ a b, 0 <= b <= 1 → 0 <= F a b <= M) (HP : ∀ x1 : nat, PCts (F x1) 0 1)  :
     ⊢ ∀ L, ↯ (NegExp_CreditV F L) -∗
            WP NegExp #L @ E
-      {{ p, ∃ (vz : Z) (vr : R) (ℓ : val), ⌜p = PairV #vz ℓ⌝ ∗ lazy_real ℓ vr ∗ ↯(F (Z.to_nat vz) vr)}}.
+      {{ p, ∃ (vz : nat) (vr : R) (ℓ : val), ⌜p = PairV #(Z.of_nat vz)ℓ⌝ ∗ lazy_real ℓ vr ∗ ↯(F vz vr)}}.
   Proof.
     (* have Hex : ∀ a b, ex_RInt F a b.
     { intros ??. apply PCts_RInt. by apply IPCts_PCts. } *)
@@ -922,7 +1043,7 @@ Section program.
         intros ???. apply Hnn; OK.
       }
       rewrite Iverson_True; last done.
-      by rewrite Rmult_1_l Nat2Z.id.
+      by rewrite Rmult_1_l .
     }
     { do 2 wp_pure.
       rewrite {1}/NegExp.
@@ -945,4 +1066,125 @@ Section program.
     }
   Qed.
 
+  (* NB. If this works, we don't need to generalize the theorem (or Gauss) to IPCts. *)
+  Lemma wp_NegExp_gen' E (F : R → R) {M} (Hnn : ∀ x, 0 <= F x <= M) (HP : IPCts F)  :
+    ⊢ ↯ (NegExp_CreditV' F) -∗ WP NegExp #0 @ E
+      {{ p, ∃ (r : R) (ℓ : val), ⌜p = PairV #(Int_part r) ℓ⌝ ∗ lazy_real ℓ (frac_part r) ∗ ↯(F r)}}.
+  Proof.
+    iIntros "Hε".
+    have H1 : (∀ (a : nat) (b : R), 0 <= b <= 1 → 0 <= F (a + b) <= M).
+    { intros ???. apply Hnn.  }
+    have H2 : (∀ x1 : nat, PCts (λ r : R, F (x1 + r)) 0 1).
+    { intros ?.
+      apply IPCts_PCts.
+      by apply IPCts_shift.
+    }
+    (* Here, we actually also want to use the credits to avoid any integer *)
+    iApply (pgl_wp_mono with "[Hε]").
+    2: {
+      iApply (wp_NegExp_gen E (fun n r => F (n+r)) H1 H2 $! 0%nat).
+      iApply (ec_eq with "Hε").
+      rewrite (@NegExp_CreditV_NegExp_CreditV' M); OK.
+    }
+    intros v.
+    rewrite //=.
+    iIntros "[%vz [%vr [%l [%Hl3 [H4 H5]]]]]".
+    iExists (Z.to_nat vz + vr).
+    iExists l.
+    iDestruct (lazy_real_range with "H4") as %HR.
+    iFrame.
+    iSplitR.
+    { iPureIntro.
+      rewrite Hl3 //=.
+      repeat f_equal.
+      rewrite plus_Int_part2.
+      { rewrite Int_part_INR.
+        rewrite -(Int_part_spec vr 0%Z).
+        { rewrite Z2Nat.id; OK. }
+        split; OK.
+        { admit.
+          (* Dammit! I think it's probably easiest to prove that an
+             improper integral is equal to one which pokes each integer to 1,
+             and then do the credit argument before.
+
+            Alternatively, I could change the PMF to avoid sampling 1.
+            We'd still get the same RInt_gen version, so I think this is still alright.
+           *)
+        }
+      }
+      { have Hm : 0 <= 0 < 1 by OK.
+        admit.
+      }
+    }
+    { replace (frac_part (Z.to_nat vz + vr)) with vr.
+      2: { admit. }
+      iFrame.
+      iApply (ec_eq with "H5").
+      admit.
+    }
+  Admitted.
+
 End program.
+
+
+Section AccuracyBound.
+  Context `{!erisGS Σ}.
+  Import Hierarchy.
+
+  (* A function which is 1 outside of the range [0, L] *)
+  Definition AccF (L : R) : R → R := (fun x => Iverson (Iio 0) x + Iverson (Ioi L) x).
+
+  Lemma AccF_IPCts L : IPCts (AccF L).
+  Proof. Admitted.
+
+  Lemma NegExp_Int {L} :
+    RInt_gen (fun r => exp (-r)) (at_point L) (Rbar_locally Rbar.p_infty) = exp (- L).
+  Proof. Admitted.
+
+  Lemma NegExp_Int_AccF {L} :
+    RInt_gen (λ r : R, AccF L r * exp (- r)) (at_point 0) (Rbar_locally Rbar.p_infty) = exp (- L).
+  Proof.
+    (* Chasles *)
+  Admitted.
+
+  Lemma wp_NegExp_Accuracy E (β : R) (Hβ : 0 < β) :
+    ⊢ ↯ β -∗ WP NegExp #0 @ E
+        {{ p, ∃ (r : R) (ℓ : val), ⌜p = PairV #(Int_part r) ℓ⌝ ∗ lazy_real ℓ (frac_part r) ∗ ⌜0 <= r <= ln ( / β) ⌝}}.
+  Proof.
+    iIntros "Hε".
+    iApply (pgl_wp_mono with "[Hε]").
+    2: {
+      iApply (wp_NegExp_gen' (M := (1 + 1)) E (AccF (ln (/ β)))).
+      { intros x. rewrite /AccF.
+        split.
+        { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        { apply Rplus_le_compat; apply Iverson_le_1. }
+      }
+      { apply AccF_IPCts. }
+      { iApply (ec_eq with "Hε").
+        rewrite /NegExp_CreditV'.
+        rewrite NegExp_Int_AccF.
+        rewrite ln_Rinv; OK.
+        rewrite Ropp_involutive.
+        rewrite exp_ln; OK.
+      }
+    }
+    intros v.
+    iIntros "[%r [%l [%H1 [H2 H3]]]]".
+    iExists r.
+    iExists l.
+    iFrame.
+    iSplitR.
+    { rewrite H1. done. }
+    rewrite /AccF/Iverson.
+    case_decide.
+    { iExFalso. iApply (ec_contradict with "H3"). case_decide; OK. }
+    case_decide.
+    { iExFalso. iApply (ec_contradict with "H3"). OK. }
+    rewrite /Iio//= in H.
+    rewrite /Ioi//= in H0.
+    iPureIntro.
+    split; OK.
+  Qed.
+
+End AccuracyBound.
