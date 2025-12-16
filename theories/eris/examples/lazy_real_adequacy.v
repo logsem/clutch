@@ -1,7 +1,7 @@
 From clutch.eris Require Export eris error_rules receipt_rules.
 From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
-From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
+From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen Continuity.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial.
 From clutch.eris.examples Require Import math.
@@ -161,8 +161,19 @@ Section adequacy.
       + simpl. rewrite /Icc/Iverson/Rmin/Rmax.
         intros. repeat (case_bool_decide||case_match); lra.
       + apply Forall_singleton.
-        admit.
-      + admit.
+        intros ??.
+        apply: continuous_minus; last apply continuous_id.
+        apply continuous_const.
+      + intros ??[eps Heps].
+        exists eps.
+        intros.
+        apply Heps.
+        clear -H.
+        revert H.
+        rewrite /ball//=/AbsRing_ball/abs/=.
+        intros H%Rabs_def2.
+        rewrite /minus/plus/opp/= in H *.
+        apply Rabs_def1; repeat case_bool_decide; lra.
     - iApply (ec_eq with "[$]").
       (* erewrite RInt_sep. *)
       erewrite <-(RInt_gen_Chasles _ (x/2^y+n)(Fa := (at_point 0))); last first.
@@ -222,7 +233,7 @@ Section adequacy.
           apply Rplus_le_le_0_compat; last apply pos_INR.
           apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR.
           apply pow_lt. lra.
-  Admitted. 
+  Qed. 
 
   Lemma wp_is_zero α l f:
     seq_bin_to_R f = 0 ->
