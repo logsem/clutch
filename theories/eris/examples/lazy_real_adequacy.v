@@ -697,6 +697,7 @@ Proof.
   by iApply Hwp.
 Qed.
 
+(**  TODO: Also prove lazy_real_adequacy2', i.e. generalize lazy_real_adequacy2 to F:nat->R->R *)
 Theorem lazy_real_adeqaucy1' Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
   (∀ x, 0<=μ x)->
     (∀ r, 0<=r -> ex_RInt μ (0) r) →
@@ -715,7 +716,7 @@ Proof.
   - iApply (Hwp _ F').
     + rewrite /F'.
       naive_solver.
-    + admit.
+    + intros k. by apply IPCts_PCts, IPCts_shift.
     + iApply (ec_eq with "[$]").
       apply RInt_gen_ext_eq_Ioi.
       * intros x0 ?. f_equal.
@@ -737,7 +738,11 @@ Proof.
            assert (-1< IZR (Int_part x0)) as K by lra.
            assert (-1<Int_part x0)%Z; last lia.
            by apply lt_IZR.
-      * admit. 
+      * (** Tricky *)
+        apply: RInt_gen_ex_Ici'; last first.
+        -- intros. apply ex_RInt_mult; first apply Hbound; first lra.
+           by apply IPCts_RInt.
+        -- admit. 
   - simpl. rewrite /F'. setoid_rewrite (Rplus_comm (INR _)).
     by iIntros. 
 Admitted.

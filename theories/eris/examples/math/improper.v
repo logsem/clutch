@@ -140,6 +140,27 @@ Proof.
   by apply HM0.
 Qed.
 
+Lemma RInt_gen_ex_Ici' {M : R} {F : R → R}
+  (Hlimit : exists L : R_NormedModule, (filterlimi (λ b : R, is_RInt F M b) (Rbar_locally Rbar.p_infty)) (locally L))
+  (Hex : ∀ b, M<b ->ex_RInt F M b) :
+  ex_RInt_gen F (at_point M) (Rbar_locally (Rbar.p_infty)).
+Proof.
+  rewrite /ex_RInt_gen.
+  rewrite /is_RInt_gen.
+  destruct Hlimit as [L HL].
+  exists L.
+  rewrite /filterlimi//=/filter_le//=/filtermapi//=.
+  rewrite /filterlimi//=/filter_le//=/filtermapi//= in HL.
+  intros P HP.
+  destruct (HL P HP) as [M0 HM0].
+  eapply (Filter_prod _ _ _ (fun x => x = M) (fun x => M0 < x)).
+  { rewrite /at_point//=. }
+  { rewrite /Rbar_locally/=. exists M0; intuition. }
+  intros ?? -> H.
+  simpl.
+  by apply HM0.
+Qed.
+
 Lemma RInt_gen_Ici {M : R} {F : R → R} {L}
   (Hlimit : filterlimi (λ b : R, is_RInt F M b) (Rbar_locally Rbar.p_infty) (locally L))
   (Hex : ∀ b, ex_RInt F M b) :
