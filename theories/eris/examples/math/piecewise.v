@@ -377,10 +377,39 @@ Proof. Admitted.
 (** Left scaling of 1D infinitely supported piecewise continuity *)
 Lemma IPCts_scal_mult {c : R} {G : R → R} :
   IPCts G → IPCts (fun x => c * G x).
-Proof. Admitted.
+Proof.
+  intros [g0 [L [HG [HLC Hg0cont]]]].
+  exists (fun x => c * g0 x), (map (fun '(f, xa, xb) => (fun x => c * f x, xa, xb)) L).
+  split; last split.
+  - intros x. rewrite HG. rewrite Rmult_plus_distr_l. f_equal.
+    rewrite fsum_scal_l.
+    clear HG Hg0cont. induction L as [|[[f xa] xb] L' IH].
+    + rewrite //=.
+    + rewrite !fmap_cons. rewrite /fsum//=. f_equal.
+      { rewrite /IntervalFun_R//=. ring. }
+      apply IH. by eapply Forall_inv_tail.
+  - rewrite Forall_map. induction L as [|[[f xa] xb] L' IH].
+    + apply Forall_nil. done.
+    + apply Forall_cons. split.
+      * rewrite /IntervalFun_continuity//=. intros x Hx.
+        apply (@Continuity.continuous_mult R_CompleteNormedModule).
+        { apply Continuity.continuous_const. }
+        { apply Forall_inv in HLC. apply HLC. done. }
+      * { apply IH. { intros ?. admit. } { by eapply Forall_inv_tail. } }
+  - intros x. apply (@Continuity.continuous_mult R_CompleteNormedModule).
+    { apply Continuity.continuous_const. }
+    { apply Hg0cont. }
+Admitted.
 
 Lemma IPCts_shift (F : R → R) (r : R) : IPCts F → IPCts (fun x => F (r + x)).
-Proof. Admitted.
+Proof.
+  intros [f0 [L [HF [HLC Hf0cont]]]].
+  exists (fun x => f0 (r + x)), (map (fun '(f, xa, xb) => (fun x => f (r + x), xa - r, xb - r)) L).
+  split; last split.
+  - intros x. rewrite HF. f_equal. admit.
+  - admit.
+  - intros x. admit.
+Admitted.
 
 
 (** Finite sum of 2D functions *)
@@ -405,7 +434,18 @@ Definition PCts2 (f : R → R → R) (xa xb ya yb : R) : Prop :=
 Lemma PCts2_continuous {f : R → R → R} {xa xb ya yb} :
   (∀ x y, Continuity2 (uncurry f) x y) →
   PCts2 f xa xb ya yb.
-Proof. Admitted.
+Proof.
+  intros Hcont.
+  exists [(f, xa, xb, ya, yb)].
+  intros x y. split.
+  - intros Hx Hy.
+    rewrite /fsum2//=.
+    rewrite Iverson_True; try done.
+    rewrite Iverson_True; try done.
+    lra.
+  - apply Forall_singleton.
+    rewrite /RectFun_continuity//=.
+Qed.
 
 (** Fsum2 distributes over app *)
 Lemma fsum2_app {T U : Type} (L1 L2 : list (T → U → R)) (t : T) (u : U) :
@@ -485,27 +525,31 @@ Proof.
     rewrite (Rmult_comm (Iverson _ _)).
     rewrite Iverson_True; [lra|done].
   }
-  { clear Hf.
-    induction L; [rewrite //=|].
-    rewrite fmap_cons.
-    apply Forall_cons_2.
-    2: { apply IHL. eapply Forall_inv_tail; done. }
-    apply Forall_inv in HC; revert HC.
-    destruct a as [[??]?].
-    rewrite /IntervalFun_continuity/RectFun_continuity/LiftP//=.
-    intros ?????.
-    rewrite /uncurry//=.
-    rewrite /Continuity2.
-    rewrite /filterlim/filtermap//=/filter_le//=.
-    intros P [e He].
-    exists e.
-    intros [y1 y2].
-    rewrite /ball//=/prod_ball//=.
-    intros [Hy1 Hy2].
-
-    admit.
-  }
-Admitted.
+  clear Hf.
+  induction L; [rewrite //=|].
+  rewrite fmap_cons.
+  apply Forall_cons_2.
+  2: { apply IHL. eapply Forall_inv_tail; done. }
+  apply Forall_inv in HC; revert HC.
+  destruct a as [[??]?].
+  rewrite /IntervalFun_continuity/RectFun_continuity/LiftP//=.
+  intros HC x0 y0 Hx Hy.
+  rewrite /uncurry//=.
+  rewrite /Continuity2.
+  rewrite /filterlim/filtermap//=/filter_le//=.
+  intros P [e He].
+  specialize (HC x0 Hx).
+  rewrite /Continuity.continuous /filterlim /filter_le /filtermap in HC.
+  specialize (HC (ball (r x0) e)).
+  assert (Hloc : locally (r x0) (ball (r x0) e)). { exists e. intros. done. }
+  specialize (HC Hloc).
+  destruct HC as [eps HC].
+  exists eps.
+  intros [x1 y1].
+  rewrite /ball//=/prod_ball//=.
+  intros [Hx1 Hy1].
+  apply He. apply HC. apply Hx1.
+Qed.
 
 (** 2D Piecewise continuity of functions constant in x and piecewise continuous in y  *)
 Lemma PCts_const_y {f xa xb ya yb} : PCts f ya yb → PCts2 (fun _ y => f y) xa xb ya yb.
@@ -541,19 +585,30 @@ Proof.
     symmetry.
     rewrite Iverson_True; [lra|done].
   }
-  { clear Hf.
-    induction L; [rewrite //=|].
-    rewrite fmap_cons.
-    apply Forall_cons_2.
-    2: { apply IHL. eapply Forall_inv_tail; done. }
-    apply Forall_inv in HC; revert HC.
-    destruct a as [[??]?].
-    rewrite /IntervalFun_continuity/RectFun_continuity/LiftP//=.
-    intros ?????.
-    rewrite /uncurry//=.
-    rewrite /Continuity2.
-    admit.
-  }
-Admitted.
+  clear Hf.
+  induction L; [rewrite //=|].
+  rewrite fmap_cons.
+  apply Forall_cons_2.
+  2: { apply IHL. eapply Forall_inv_tail; done. }
+  apply Forall_inv in HC; revert HC.
+  destruct a as [[??]?].
+  rewrite /IntervalFun_continuity/RectFun_continuity/LiftP//=.
+  intros HC x0 y0 Hx Hy.
+  rewrite /uncurry//=.
+  rewrite /Continuity2.
+  rewrite /filterlim/filtermap//=/filter_le//=.
+  intros P [e He].
+  specialize (HC y0 Hy).
+  rewrite /Continuity.continuous /filterlim /filter_le /filtermap in HC.
+  specialize (HC (ball (r y0) e)).
+  assert (Hloc : locally (r y0) (ball (r y0) e)). { exists e. intros. done. }
+  specialize (HC Hloc).
+  destruct HC as [eps HC].
+  exists eps.
+  intros [x1 y1].
+  rewrite /ball//=/prod_ball//=.
+  intros [Hx1 Hy1].
+  apply He. apply HC. apply Hy1.
+Qed.
 
 
