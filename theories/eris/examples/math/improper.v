@@ -187,6 +187,31 @@ Proof.
   rewrite Heq; exact Py.
 Qed.
 
+Lemma filterlim_is_RInt_gen' {F : R → R_CompleteNormedModule} {M : R} {l : R_CompleteNormedModule} :
+  (∀ b, M<b -> ex_RInt F M b) →
+  is_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) l →
+  filterlim (λ b : R, RInt F M b) (Rbar_locally Rbar.p_infty) (locally l).
+Proof.
+  intros Hex Hgen.
+  intros P HP.
+  have Hext : Rbar_locally Rbar.p_infty (fun b => exists y, is_RInt F M b y /\ P y).
+  { rewrite /Rbar_locally//=.
+    unfold filtermapi in Hgen.
+    destruct (Hgen P HP) as [P1 P2 H3 H4 H5].
+    rewrite /at_point//= in H3.
+    destruct H4 as [M' HM'].
+    simpl in H5.
+    exists M'. intros ??.
+    apply H5; [done|].
+    by apply HM'.
+  }
+  unfold filtermap.
+  eapply filter_imp; [|apply Hext].
+  intros x [y [Hy Py]].
+  have Heq : RInt F M x = y by apply is_RInt_unique.
+  rewrite Heq; exact Py.
+Qed.
+
 (** Key lemma: An improper integral is the limit of proper integrals *)
 Lemma filterlim_RInt_gen {F : R → R_CompleteNormedModule} {M : R} :
   (∀ b, ex_RInt F M b) →
@@ -222,7 +247,25 @@ Proof.
       apply RInt_gen_correct.
       done.
     }
-Qed.
+Qed. 
+
+Lemma RInt_gen_pos_ex' {F M}
+  (Hpos : forall x, M<x -> 0 <= F x)
+  (Hex : ∀ b, M<b -> ex_RInt F M b)
+  (Hnn : ∀ b, M<b -> 0 <= RInt F M b)
+  (Hex_L : ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty)) :
+  0 <= RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty).
+Proof.
+  apply (Lim_seq.filterlim_le (F := Rbar_locally Rbar.p_infty) (fun _ => 0)
+           (fun b => RInt F M b) (Rbar.Finite 0) (Rbar.Finite (RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty)))).
+  { simpl. naive_solver. }
+    { apply filterlim_const. }
+    { intros P HP.
+      unfold Rbar_locally in HP. simpl in HP.
+      eapply (filterlim_is_RInt_gen'); last exact; last by apply RInt_gen_correct.
+      intros. naive_solver.
+    }
+Qed. 
 
 (*
 *)

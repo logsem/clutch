@@ -135,6 +135,7 @@ Section adequacy.
 
   Lemma wp_e x y μ e (n:nat):
     (∀ x, 0<=μ x)->
+    (∀ r, 0<=r -> ex_RInt μ (0) r) →
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
     (x<2^y)%nat ->
     (∀ (F : R -> R), (⌜∃ M, ∀ x , 0 <= F x <= M⌝) -∗
@@ -145,7 +146,7 @@ Section adequacy.
     WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗
                                           ↯(Iverson (λ r', (x/2^y)+n<r') (r+k)%R) }}.
   Proof.
-    iIntros (Hpos Hex Hineq) "Hwp Herr".
+    iIntros (Hpos Hex Hex' Hineq) "Hwp Herr".
     iApply "Hwp".
     - iPureIntro.
       exists 1. intros; rewrite /Iverson; case_match; lra.
@@ -170,7 +171,7 @@ Section adequacy.
     - iApply (ec_eq with "[$]").
       (* erewrite RInt_sep. *)
       erewrite <-(RInt_gen_Chasles _ (x/2^y+n)(Fa := (at_point 0))); last first.
-      + admit.
+      + admit. 
       + apply ex_RInt_gen_at_point.
         eapply (ex_RInt_ext (λ _, 0)).
         * intros ? [H' H].
@@ -185,10 +186,21 @@ Section adequacy.
           apply ineq_lemma. lia.
         * apply ex_RInt_const.
       + rewrite RInt_gen_at_point.
-        * erewrite (RInt_gen_ext_eq_Ioi (f:=λ x, μ x*_)%R).
+        * erewrite (RInt_gen_ext_eq_Ioi (g:= μ) (f:=λ x, μ x*_)%R ).
+          -- replace (RInt _ _ _) with 0; first by rewrite plus_zero_l.
+             symmetry.
+             erewrite (RInt_ext _ (λ _, 0)).
+             ++ rewrite RInt_const. by rewrite scal_zero_r.
+             ++ intros ? H.
+                rewrite Iverson_False; first lra.
+                rewrite /Rmin/Rmax in H.
+                case_match; try lra.
+                assert (0<=x/2^y+n); last lra.
+                apply Rplus_le_le_0_compat; last apply pos_INR.
+                apply Rcomplements.Rdiv_le_0_compat; last apply pow_lt; last lra.
+                apply pos_INR.
+          -- intros. rewrite Iverson_True; [lra|done].
           -- admit.
-          -- admit.
-          -- (* same case as before *) admit. 
         * eapply ex_RInt_ext; last apply ex_RInt_const.
           simpl.
           intros.
@@ -341,6 +353,7 @@ Section adequacy.
   
   Lemma wp_is_smaller_prog n x y μ e:
     (∀ x, 0<=μ x)->
+    (∀ r, 0<=r -> ex_RInt μ (0) r) →
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
     (x<2^y)%nat ->
     (∀ (F : R -> R), (⌜∃ M, ∀ x , 0 <= F x <= M⌝) -∗(⌜IPCts F⌝) -∗
@@ -349,7 +362,7 @@ Section adequacy.
     ↯ (RInt_gen μ (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)) -∗
     WP is_smaller_prog e #n #x #y {{ v, ⌜v = #true⌝ }}.
   Proof.
-    iIntros (Hpos Hex Hineq) "Hwp Herr".
+    iIntros (Hpos Hex Hex' Hineq) "Hwp Herr".
     rewrite /is_smaller_prog.
     wp_bind e.
     wp_apply (pgl_wp_wand with "[-]"); first by iApply (wp_e with "[Hwp][$]").
@@ -383,6 +396,7 @@ End adequacy.
 
 Theorem lazy_real_adeqaucy Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
   (∀ x, 0<=μ x)->
+    (∀ r, 0<=r -> ex_RInt μ (0) r) →
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
   (∀ `{erisGS Σ} (F : R -> R) (Hnn : ∃ M, ∀ x , 0 <= F x <= M) (HPCts: IPCts F),
       ↯ (RInt_gen (fun (x:R) => μ x * F x) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
@@ -390,22 +404,40 @@ Theorem lazy_real_adeqaucy Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R ->
   ∀ (x y n:nat), (x<2^y)%nat ->
   pgl (lim_exec (is_smaller_prog e #n #x #y, σ)) (λ x, x=#true) (RInt_gen μ (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)).
 Proof.
-  intros Hpos Hbound Hwp x y n Hineq.
+  intros Hpos Hbound Hbound' Hwp x y n Hineq.
   apply ineq_lemma in Hineq as Hineq'.
   eapply (wp_pgl_lim Σ).
   { 
-    apply RInt_gen_pos_strong.
+    apply RInt_gen_pos_ex'.
     - done.
-    - admit.
     - intros.
-      apply RInt_ge_0; try done.
-    (* same as before *)
-      admit. 
-    - (* see before *) admit.
+      eapply ex_RInt_Chasles; last apply Hbound.
+      + apply ex_RInt_swap. apply Hbound.
+        apply Rplus_le_le_0_compat; first naive_solver.
+        apply pos_INR.
+      + etrans; destruct Hineq'; first exact.
+        etrans; last by left.
+        apply Rplus_le_0_compat.
+        apply pos_INR.
+    - intros.
+      apply RInt_ge_0; try done; first lra.
+      eapply ex_RInt_Chasles; last apply Hbound.
+      + apply ex_RInt_swap. apply Hbound.
+        apply Rplus_le_le_0_compat; first naive_solver.
+        apply pos_INR.
+      + etrans; destruct Hineq'; first exact.
+        etrans; last by left.
+        apply Rplus_le_0_compat.
+        apply pos_INR.
+    - eapply ex_RInt_gen_Chasles_exists; first done.
+      rewrite ex_RInt_gen_at_point.
+      apply Hbound.
+      apply Rplus_le_le_0_compat; first naive_solver.
+      apply pos_INR.
   } 
   iIntros (?) "Herr".
   iPoseProof (wp_is_smaller_prog with "[][$]") as "$"; [done..|].
   iIntros (? H2 H3) "Herr".
   by iApply Hwp.
-Admitted. 
+Qed. 
   
