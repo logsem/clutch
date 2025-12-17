@@ -784,3 +784,16 @@ Proof. Admitted.
 
 Lemma clamp_le {x} : clamp x <= 1.
 Proof. Admitted.
+
+
+Lemma Icc_PCts : PCts (Iverson (Icc 0 1)) 0 1.
+Proof.
+  rewrite /PCts.
+  exists (cons ((fun _ => 1), 0, 1) nil).
+  split; rewrite //=.
+  { rewrite /Icc//=. rewrite Rmin_left; try lra. intuition. lra. }
+  apply Forall_singleton.
+  intros ??.
+  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+  by auto_derive.
+Qed.

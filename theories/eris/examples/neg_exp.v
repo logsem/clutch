@@ -76,10 +76,6 @@ Section pmf.
     apply Rplus_le_compat; OK.
   Qed.
 
-  (* TODO: Move *)
-  Lemma Icc_PCts : PCts (Iverson (Icc 0 1)) 0 1.
-  Proof. Admitted.
-
   Lemma NegExp_ρ0_PCts {L k} : PCts (λ x : R, NegExp_ρ0 (k - L) x) 0 1.
     rewrite /NegExp_ρ0.
     apply PCts_mult.
@@ -2998,8 +2994,9 @@ Section AccuracyBound.
     RInt_gen (λ r : R, AccF L r * exp (- r)) (at_point 0) (Rbar_locally Rbar.p_infty) = exp (- L).
   Proof.
     rewrite -NegExp_Int.
-    (* Chasles *)
-  Admitted.
+    rewrite /AccF.
+    apply neg_exp_accuracy_chasles.
+  Qed.
 
   Lemma wp_NegExp_Accuracy E (β : R) (Hβ : 0 < β <= 1) :
     ⊢ ↯ β -∗ WP NegExp #0 @ E

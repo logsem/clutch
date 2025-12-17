@@ -1,4 +1,4 @@
-From clutch.eris.examples.math Require Import prelude series iverson.
+From clutch.eris.examples.math Require Import prelude series iverson sets.
 From clutch.eris Require Import infinite_tape.
 Import Hierarchy.
 Set Default Proof Using "Type*".
@@ -562,6 +562,10 @@ Proof.
   admit.
 Admitted.
 
+Lemma neg_exp_accuracy_chasles {L} :
+  RInt_gen (λ r : R, (Iverson (Iio 0) r + Iverson (Ioi L) r) * exp (- r)) (at_point 0) (Rbar_locally Rbar.p_infty) =
+  RInt_gen (λ r : R, exp (- r)) (at_point L) (Rbar_locally Rbar.p_infty).
+Proof. Admitted.
 
 Lemma ex_exp_geo_series : ex_seriesC (λ x : nat, exp (- x)).
 Proof.
