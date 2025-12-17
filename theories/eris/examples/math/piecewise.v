@@ -214,6 +214,97 @@ Proof.
   f_equal. apply IH.
 Qed.
 
+
+Definition PCts' (f : R → R) (xa xb : R) : Prop :=
+  ∃ L, (∀ x, Icc xa xb x → f x = fsum (IntervalFun_R <$> L) x) ∧ Forall IntervalFun_continuity L /\
+       (∀ x, ¬ Icc xa xb x → fsum (IntervalFun_R <$> L) x = 0)
+.
+
+Lemma PCts_PCts' f xa xb :
+  PCts f xa xb -> PCts' f xa xb.
+Proof.
+  intros [L [H1 H2]].
+  exists ((λ '(f, xa', xb'), (f, Rmax (Rmin xa xb) (Rmin xa' xb'), Rmin (Rmax xa xb) (Rmax xa' xb')))<$>
+       (filter (λ '(f, xa', xb'),  Rmin xa' xb' <= Rmax xa xb /\  Rmin xa xb <= Rmax xa' xb' ) L)).
+  repeat split.
+  - clear H2.
+    intros.
+    rewrite H1; last done.
+    clear -H.
+    induction L as [|hd L' IHL]; first done.
+    simpl.
+    rewrite filter_cons/=.
+    destruct hd as [[]]. simpl.
+    case_match.
+    + simpl.
+      rewrite IHL. f_equal.
+      unfold Iverson, Icc, Rmin, Rmax in *. repeat case_match; lra.
+    + rewrite Iverson_False; first (rewrite IHL; lra).
+      unfold Iverson, Icc, Rmin, Rmax in *. repeat case_match; lra.
+  - clear H1.
+    revert H2.
+    induction L as [|hd tl IHL]; first (intros; by apply Forall_nil).
+    rewrite Forall_cons.
+    intros [H1 H2].
+    destruct hd as [[]].
+    rewrite filter_cons.
+    case_match; last naive_solver.
+    simpl.
+    rewrite Forall_cons. split; last naive_solver.
+    unfold IntervalFun_continuity.
+    intros.
+    apply H1.
+    clear H1.
+    simpl in *. 
+    unfold Icc, Rmin, Rmax in *.
+    repeat case_match; lra.
+  - clear.
+    induction L as [|hd tl IHL]; first (simpl; by intros).
+    intros.
+    rewrite filter_cons.
+    destruct hd as [[]].
+    case_match; last naive_solver.
+    simpl.
+    rewrite IHL; last done.
+    rewrite Iverson_False; first lra.
+    unfold Icc, Rmin, Rmax in *.
+    repeat case_match; lra.
+Qed.   
+  
+Lemma PCts_split f xa xb xc: xa<=xb<=xc -> PCts f xa xb -> PCts f xb xc -> PCts f xa xc.
+Proof.
+  
+  intros H [l1 [H1[H2 H3]]]%PCts_PCts' [l2 [H4[H5 H6]]]%PCts_PCts'.
+  exists ((λ _, - f xb, xb, xb)::l1++l2).
+  split.
+  - rewrite /Icc.
+    rewrite /Rmin/Rmax.
+    intros.
+    repeat case_match; try lra.
+    rewrite fmap_cons fmap_app.
+    simpl.
+    rewrite fsum_app.
+    rewrite /Icc.
+    rewrite /Iverson.
+    rewrite /Rmin/Rmax.
+    repeat case_match; try lra.
+    + rewrite -H1; last (rewrite /Icc/Rmax/Rmin; repeat case_match; lra).
+      rewrite -H4; last (rewrite /Icc/Rmax/Rmin; repeat case_match; lra).
+      replace x with xb; lra.
+    + destruct (decide (x<=xb)).
+      * rewrite -H1; last (rewrite /Icc/Rmax/Rmin; repeat case_match; lra).
+        rewrite H6; first lra.
+        unfold Icc, Rmin, Rmax. repeat case_match; lra.
+      * rewrite -H4; last (rewrite /Icc/Rmax/Rmin; repeat case_match; lra).
+        rewrite H3; first lra.
+        unfold Icc, Rmin, Rmax. repeat case_match; lra.
+  - apply Forall_cons.
+    split.
+    + intros ??. apply Continuity.continuous_const.
+    + by apply Forall_app.
+Qed. 
+
+
 (** Integrability of 1D compactly-supported piecewise continuous functions, on any interval *)
 Lemma PCts_RInt {f xa xb} (HP : PCts f xa xb) :
   ex_RInt f xa xb.
