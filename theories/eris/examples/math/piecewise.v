@@ -819,6 +819,14 @@ Lemma Ioo_PCts {a b} : IPCts (Iverson (Ioo a b)).
 Proof. Admitted.
 Hint Resolve Ioo_PCts : ipcts.
 
+Lemma LeH_PCts : IPCts (Iverson (λ x : R, x <= 0.5)).
+Proof. Admitted.
+Hint Resolve LeH_PCts : ipcts.
+
+Lemma NLeH_PCts : IPCts (Iverson (λ x : R, ¬ x <= 0.5)).
+Proof. Admitted.
+Hint Resolve NLeH_PCts : ipcts.
+
 Ltac cts :=
   OK;
   try (apply IPCts_PCts; auto with ipcts).
