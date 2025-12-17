@@ -13,7 +13,6 @@ From mathcomp Require fingroup.fingroup.
 Set Default Proof Using "All".
 Import ElGamal_bijection.bij_nat.
 Import valgroup_notation.
-Import fingroup.Notations.
 Import map.
 
 Section Hybrid_scheme.
@@ -341,7 +340,7 @@ Section logrel.
       pubkey_class.keygen := keygen
     ; pubkey_class.enc := enc
     ; pubkey_class.dec := dec
-    ; pubkey_class.rand_cipher := (λ: <>, let: "a" := rand #N in let: "b" := rand #N in (g^"a", g^"b"))
+    ; pubkey_class.rand_cipher := (λ: <>, let: "a" := rand #N in let: "b" := rand #N in (vgval g^"a", vgval g^"b"))
   |}.
 
   Ltac simpl_exp := try (rel_apply refines_exp_l; rel_pures_l);
@@ -945,6 +944,7 @@ Section logrel.
       iExists i; iPureIntro; repeat split; lia.
     Qed.
 
+    #[warnings="-notation-incompatible-prefix"]
     Import fingroup.
 
     Lemma asym_key_lr_l_r :

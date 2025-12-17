@@ -6,7 +6,7 @@ From iris.proofmode Require Export proofmode.
 From Coquelicot Require Export Hierarchy.
 
 From Stdlib Require Export Reals Psatz.
-Require Import Lra.
+From Stdlib Require Import Lra.
 
 
 Set Default Proof Using "Type*".

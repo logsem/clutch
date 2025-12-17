@@ -1,14 +1,15 @@
 (** join *)
-
-From mathcomp Require Import all_ssreflect all_algebra finmap.
-From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
+#[warning="-notation-incompatible-prefix -hiding-delimiting-key"]
+From mathcomp Require Import all_boot all_algebra finmap.
+#[warning="-notation-incompatible-prefix"]
+From mathcomp Require Import mathcomp_extra boolp classical_sets functions reals interval_inference.
 From mathcomp Require Import cardinality fsbigop.
-From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
+From mathcomp.analysis Require Import ereal normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
 From clutch.prob.monad Require Export types eval compose integrate.
 
-Import Coq.Logic.FunctionalExtensionality.
+From Stdlib.Logic Require Import FunctionalExtensionality.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -66,10 +67,10 @@ Section giryM_join_definition.
       *)
 
       (* Setoid lemmas for the next step: *)
-      have Setoid1 (S1 S2 S3 : topology.set_system (extended (Real.sort R))) :
-        (S1 = S2) -> topology.cvg_to S1 S3 -> topology.cvg_to S2 S3 by move=>->.
-      have Setoid2 G H : (G = H) -> (topology.nbhs G) = (topology.nbhs H) by move=>->.
-      have Setoid3 (G H : nat -> (extended (Real.sort R))) S : (G = H) -> topology.fmap G S = topology.fmap H S by move=>->.
+      have Setoid1 (S1 S2 S3 : filter.set_system (extended (Real.sort R))) :
+        (S1 = S2) -> filter.cvg_to S1 S3 -> filter.cvg_to S2 S3 by move=>->.
+      have Setoid2 G H : (G = H) -> (filter.nbhs G) = (filter.nbhs H) by move=>->.
+      have Setoid3 (G H : nat -> (extended (Real.sort R))) S : (G = H) -> filter.fmap G S = filter.fmap H S by move=>->.
       have Setoid4 (G H : types.giryM T -> \bar R) : (G = H) ->  (integral m setT G)%E =  (integral m setT H)%E by admit.
 
       (* Perform rewrites underneath the cvg_to and nbhs *)
@@ -115,7 +116,7 @@ Section giryM_join_definition.
         }
 
         (* Rewrite with fmap_comp*)
-        rewrite topology.fmap_comp.
+        rewrite filter.fmap_comp.
         reflexivity.
       }
 
@@ -125,10 +126,10 @@ Section giryM_join_definition.
 
 
       (* Finish using one of these:
-      Check topology.cvg_fmap.
-      Search (topology.fmap _ (topology.nbhs _)).
-      Check topology.cvg_fmap2.
-      Search (topology.nbhs (topology.fmap _ _)).
+      Check filter.cvg_fmap.
+      Search (filter.fmap _ (filter.nbhs _)).
+      Check filter.cvg_fmap2.
+      Search (filter.nbhs (filter.fmap _ _)).
        *)
     Admitted.
 
@@ -155,7 +156,7 @@ Section giryM_join_definition.
           by apply sprobability_setT.
       }
       rewrite integral_cst/= in H; last by apply (@measurableT _ (giryM T)).
-      apply (Order.le_trans H).
+      apply (le_trans_ereal H).
       rewrite mul1e.
       apply sprobability_setT.
     Qed.

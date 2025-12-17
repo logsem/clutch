@@ -595,9 +595,23 @@ Proof.
   rewrite (IHxs _ Hxs), list_count_app. lia.
 Qed.
 
+(** ** Properties of the [filter] function that need permutation *)
+Section filter.
+  
+  Context {A} (P : A → Prop) `{∀ x, Decision (P x)}.
+  Local Arguments filter {_ _ _} _ {_} !_ /.
+
+  Lemma filter_app_complement l : filter P l ++ filter (λ x, ¬P x) l ≡ₚ l.
+  Proof.
+    induction l as [|x l IH]; simpl; [done|]. case_decide.
+    - rewrite decide_False by naive_solver. simpl. by rewrite IH.
+    - rewrite decide_True by done. by rewrite <-Permutation_middle, IH.
+  Qed.
+End filter.
+
 Lemma list_count_filter_split `{Countable A} P `{!∀ a, Decision (P a)} (xs : list A) (x : A) :
   (list_count x (filter P xs) = list_count x xs - list_count x (filter (λ a, ¬ P a) xs))%nat.
-Proof.  
+Proof.
   rewrite <-(filter_app_complement P xs) at 2.
   rewrite list_count_app. lia.
 Qed.

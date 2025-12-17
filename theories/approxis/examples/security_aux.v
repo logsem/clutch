@@ -9,10 +9,10 @@ Module LR_bounded.
   Export LR_tac.
 
   Ltac2 bounded x :=
-    let s := constr:(append "(%" ($x ++ "&->&->&%" ++ $x ++ "_min&%" ++ $x ++ "_max)")) in
+    let s := constr:(String.append "(%" ($x ++ "&->&->&%" ++ $x ++ "_min&%" ++ $x ++ "_max)")) in
     eval vm_compute in $s.
 
-  Ltac2 int_bounded_intro (typ : constr) xs k :=
+  Ltac2 int_bounded_intro (typ : constr) xs _ :=
     (* printf "entering int_bounded_intro, typ: %t" typ ; *)
     lazy_match! typ with
     | lrel_int_bounded _ _ =>
@@ -22,10 +22,10 @@ Module LR_bounded.
     end.
   Ltac2 Set Basic.lrintro_tacs as prev := fun () => FMap.add "int_bounded" int_bounded_intro (prev ()).
 
-  Ltac2 int_bounded_val typ k :=
+  Ltac2 int_bounded_val typ _ :=
     (* printf "entering int_bounded_val, typ: %t" typ ; *)
     lazy_match! typ with
-    | (lrel_car (lrel_int_bounded _ _) ?v1 ?v2) =>
+    | (lrel_car (lrel_int_bounded _ _) _ _) =>
         (* printf "found `lrel_int_bounded %t %t`, trying lia" v1 v2 ; *)
         ltac1:(iExists _ ; iPureIntro ; (intuition lia || eauto)) ; Progressed
     | _ => Stuck

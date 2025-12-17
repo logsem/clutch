@@ -706,7 +706,7 @@ Proof.
   - rewrite replicate_S_end
      heap_array_app
      IHn /=.
-    rewrite map_union_empty replicate_length //.
+    rewrite map_union_empty length_replicate //.
 Qed.
 
 #[local] Open Scope R.
@@ -943,7 +943,7 @@ Proof.
       rewrite state_upd_tapes_twice in H2.
       apply state_upd_tapes_same in H2. rewrite -app_assoc in H2. simplify_eq.
       rewrite take_app_length'; first done.
-      rewrite app_length in Hlen. simpl in *; lia.
+      rewrite length_app in Hlen. simpl in *; lia.
   - (* σ' is not reachable, i.e. both sides are zero *)
     rewrite SeriesC_0; last first.
     { intros x.
@@ -983,7 +983,7 @@ Proof.
     apply K. rewrite dmap_pos in H2. destruct H2 as [x[-> H2]]. subst.
     setoid_rewrite state_upd_tapes_twice.
     rewrite -app_assoc.
-    exists (v++[x]); rewrite app_length; simpl; split; first lia. done.
+    exists (v++[x]); rewrite length_app; simpl; split; first lia. done.
     Unshelve.
     simpl.
     intros. case_bool_decide; last real_solver.

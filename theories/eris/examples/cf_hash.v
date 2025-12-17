@@ -524,7 +524,7 @@ Section coll_free_hash.
     rewrite lookup_fmap Hlookup /=. wp_pures.
     wp_bind (rand _)%E.
     wp_apply (wp_rand_err_list_nat _ (vsval - 1) (map (λ p, snd p) (map_to_list m))); auto.
-    rewrite map_length -Hlen.
+    rewrite length_map -Hlen.
     iPoseProof (cf_update_potential _ _ _ _ _ _
                  with "[Herr2 //] [Htot_err //] [Herr //]")
       as (ε') "((Herr3 & Herr4) & %Hupdp)".
@@ -658,7 +658,7 @@ Section coll_free_hash.
     wp_bind (rand _)%E.
     wp_apply (wp_rand_err_list_nat _ (vsval - 1) (map (λ p, snd p) (map_to_list m))); auto.
 
-    rewrite map_length -Hlen.
+    rewrite length_map -Hlen.
     iPoseProof (cf_update_potential_resize vsval sval rval _ _ Hvspos
                  with "[Herr2 //] [//] [] [Herr //]")
       as "((Herr3 & Herr4) & %Hupdp)".

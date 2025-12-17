@@ -152,7 +152,7 @@ Proof.
       apply not_elem_of_singleton_2.
       intros H2.
       apply loc_add_inj in H2.
-      rewrite replicate_length in H1.
+      rewrite length_replicate in H1.
       lia.
 Qed.
 

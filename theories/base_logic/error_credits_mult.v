@@ -36,7 +36,7 @@ Section nonnegreal.
     - destruct x, y => /=.
       destruct H as ((z & Hz) & H).
       rewrite nonnegreal_op /nnreal_plus in H.
-      simplify_eq. lra.
+      inversion H. lra.
     - destruct x as (x & Hx), y as (y & Hy).
       simpl in H.
       eexists ({| nonneg := y - x ; cond_nonneg := Rle_0_le_minus x y H |}).

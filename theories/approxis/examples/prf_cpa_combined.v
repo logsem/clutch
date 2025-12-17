@@ -574,7 +574,7 @@ Proof with (rel_pures_l ; rel_pures_r).
           { apply NoDup_fmap with fin_to_nat; first apply fin_to_nat_inj.
             rewrite Hl'. apply NoDup_elements. }
           replace (length l') with q; last first.
-          { erewrite <-fmap_length, Hl'.
+          { erewrite <-length_fmap, Hl'.
             by replace (length (elements (dom M))) with (size (dom M)).
           }
           pose proof pos_INR_S (Input).

@@ -2436,7 +2436,7 @@ Section uniform.
       + rewrite SeriesC_scal_l.
         rewrite SeriesC_fin_in_set.
         * rewrite size_list_to_set.
-          -- rewrite fmap_length.
+          -- rewrite length_fmap.
              rewrite fin.length_enum_fin. rewrite Rinv_l; first lra.
              replace 0 with (INR 0) by done.
              move => /INR_eq. lia.

@@ -2,7 +2,7 @@
 From clutch.eris Require Export eris error_rules.
 From clutch.eris Require Export examples.approximate_samplers.approx_sampler_lib.
 From Coquelicot Require Import Series.
-Require Import Lra.
+From Stdlib Require Import Lra.
 
 
 Section spec.

@@ -668,7 +668,7 @@ Proof.
   - rewrite replicate_S_end
      heap_array_app
      IHn /=.
-    rewrite map_union_empty replicate_length //.
+    rewrite map_union_empty length_replicate //.
 Qed.
 
 #[local] Open Scope R.

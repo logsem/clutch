@@ -134,7 +134,7 @@ Section list_dist.
     (list_dist (filter P xs) (filter P ys) ≤ list_dist xs ys)%Z.
   Proof.
     rewrite /list_dist.
-    rewrite -list.filter_app.
+    rewrite -list_basics.filter_app.
     rewrite /list_dist.
     rewrite (sum_list_with_split P (remove_dups (xs ++ ys))).
     apply Z_add_le_mono_nonneg_r.

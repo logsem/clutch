@@ -1,7 +1,7 @@
 From Stdlib Require Export Reals Psatz.
 From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Export fancy_updates.
-From iris.bi Require Export fixpoint big_op.
+From iris.bi Require Export lib.fixpoint_mono big_op.
 From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.

@@ -203,6 +203,7 @@ End test.
 
 Local Open Scope R.
 
+Section foo.
 Context `{!erisGS Σ}.
 
 Definition foo N (m : nat) : expr :=
@@ -370,3 +371,4 @@ Proof.
     done.
 Qed.
 
+End foo. 

@@ -1,7 +1,7 @@
 (** An axiomatization of languages based on evaluation context items, including
     a proof that these are instances of general ectx-based languages. *)
 From Stdlib Require Import Reals.
-From Stdlib.Program Require Import Wf.
+From Stdlib.Program Require Import Wf WfExtensionality.
 From iris.prelude Require Export prelude.
 From clutch.common Require Import language ectx_language.
 From clutch.prob Require Import distribution.

@@ -109,7 +109,7 @@ Section dataset_operators.
   Proof.
     etrans.
     { eapply (sum_list_upper_bound b) => z. intros ?%elem_of_drop%elem_of_clip_fun; lia. }
-    rewrite drop_length !clip_length.
+    rewrite length_drop !clip_length.
     lia.
   Qed.
 
@@ -513,9 +513,9 @@ Section queries.
         {
           destruct Hneigh; simplify_eq.
           - apply Z.eq_le_incl.
-            rewrite !app_length. simpl. apply Zabs_ind ; intros ; lia.
+            rewrite !length_app. simpl. apply Zabs_ind ; intros ; lia.
           - apply Z.eq_le_incl.
-            rewrite !app_length. simpl. apply Zabs_ind ; intros ; lia.
+            rewrite !length_app. simpl. apply Zabs_ind ; intros ; lia.
         }
         iApply ecm_weaken. 2: iFrame. split.
         - apply Rmult_le_pos. 2: lra. apply IZR_le. lia.
@@ -557,7 +557,7 @@ Section queries.
       ring_simplify (z + 0).
       simplify_eq.
       assert ((Z.abs (length ds1 - length ds2)) <= 1).
-      1: destruct Hneigh ; simplify_eq ; rewrite !app_length /= ; lia.
+      1: destruct Hneigh ; simplify_eq ; rewrite !length_app /= ; lia.
       (* private length for ε *)
       tp_bind (Laplace _ _ _).
       wp_pures.

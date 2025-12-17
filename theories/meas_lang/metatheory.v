@@ -158,7 +158,7 @@ Proof.
     apply map_Forall_insert_2; auto.
     apply lookup_union_Some in Hix; last first.
     { eapply heap_array_map_disjoint;
-        rewrite replicate_length Z2Nat.id; auto with lia. }
+        rewrite length_replicate Z2Nat.id; auto with lia. }
     destruct Hix as [(?&?&?&[-> Hlt%inj_lt]%lookup_replicate_1)%heap_array_lookup|
                       [j Hj]%elem_of_map_to_list%elem_of_list_lookup_1].
     + simplify_eq/=. rewrite !Z2Nat.id in Hlt; eauto with lia.
@@ -1039,8 +1039,8 @@ Proof.
       destruct H2 as [a [H2?]].
       rewrite state_upd_tapes_twice in H2.
       apply state_upd_tapes_same in H2. rewrite -app_assoc in H2. simplify_eq.
-      rewrite take_app_length'; first done.
-      rewrite app_length in Hlen. simpl in *; lia.
+      rewrite length_take_app'; first done.
+      rewrite length_app in Hlen. simpl in *; lia.
   - (* σ' is not reachable, i.e. both sides are zero *)
     rewrite SeriesC_0; last first.
     { intros x.
@@ -1080,7 +1080,7 @@ Proof.
     apply K. rewrite dmap_pos in H2. destruct H2 as [x[-> H2]]. subst.
     setoid_rewrite state_upd_tapes_twice.
     rewrite -app_assoc.
-    exists (v++[x]); rewrite app_length; simpl; split; first lia. done.
+    exists (v++[x]); rewrite length_app; simpl; split; first lia. done.
     Unshelve.
     simpl.
     intros. case_bool_decide; last real_solver.
@@ -1144,12 +1144,12 @@ Proof.
           + intros v1 v2 Hf.
             apply vec_to_list_inj2.
             apply Hinj; last done.
-            * by rewrite vec_to_list_length.
-            * by rewrite vec_to_list_length.
+            * by rewrite length_vec_to_list.
+            * by rewrite length_vec_to_list.
         - pose proof K a as [v K'].
           subst.
           exists (vec_to_list v). split; last done.
-          apply vec_to_list_length.
+          apply length_vec_to_list.
       }
       rewrite (SeriesC_subset (λ x', x' = x)).
       * rewrite SeriesC_singleton_dependent. rewrite dmap_unfold_pmf.
@@ -1247,7 +1247,7 @@ Proof.
                                   else 0)).
         -- erewrite (SeriesC_ext _ (λ x : fin (S N), / S M * if bool_decide (x∈f<$> enum (fin (S M))) then 1 else 0)).
            { rewrite SeriesC_scal_l. rewrite SeriesC_list_1.
-             - rewrite fmap_length. rewrite length_enum_fin. rewrite Rinv_l; first lra.
+             - rewrite length_fmap. rewrite length_enum_fin. rewrite Rinv_l; first lra.
                replace 0 with (INR 0) by done.
                move => /INR_eq. lia.
              - apply NoDup_fmap_2; try done.

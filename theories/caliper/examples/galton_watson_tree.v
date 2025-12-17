@@ -94,7 +94,8 @@ Section task_loop_spec.
       iIntros (f) "[Hq Hf]".
       wp_pures.
       iApply (rwp_couple_tape _ (λ s m, s = n + m)%nat); [| |iFrame "Hspec Hα"].
-      { eapply Rcoupl_reducible_l in Hcpl as [? ?]; [|eauto using (dunifP_pos _ 0%fin)].
+      { eapply Rcoupl_reducible_l in Hcpl as [? ?].
+        2 : { eexists. eapply (dunifP_pos _ 0%fin). }
         eexists ((_ + _)%nat). apply dbind_pos. eexists. split; [|done].
         rewrite dret_1_1 //. lra. }
       (** Notice how the model step in the preceding line introduces a later in the goal. *)

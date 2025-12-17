@@ -1,5 +1,5 @@
 From iris.proofmode Require Import base proofmode.
-From iris.bi Require Import weakestpre fixpoint big_op.
+From iris.bi Require Import lib.fixpoint_mono big_op.
 From iris.base_logic.lib Require Import ghost_map invariants fancy_updates.
 From iris.algebra Require Import excl.
 From iris.prelude Require Import options.

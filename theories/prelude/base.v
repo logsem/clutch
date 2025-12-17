@@ -15,7 +15,7 @@ Global Set Bullet Behavior "Strict Subproofs".
 
 From Stdlib Require Export Classes.Morphisms RelationClasses List Bool Setoid Peano Utf8.
 From Stdlib Require Import Permutation.
-From Stdlib Require ssreflect.
+From Stdlib.ssr Require Export ssreflect.
 From stdpp Require Export base tactics countable.
 
 (* TODO: find a better solution *)

@@ -1,4 +1,4 @@
-Require Import FinFun.
+From Stdlib Require Import FinFun.
 From stdpp Require Import fin countable finite.
 From clutch.prelude Require Import base classical stdpp_ext.
 Set Default Proof Using "Type*".
@@ -20,7 +20,7 @@ Section fin.
   Lemma length_enum_fin n: length (fin_enum n) = n.
   Proof.
     induction n; [done|simpl].
-    rewrite fmap_length. naive_solver.
+    rewrite length_fmap. naive_solver.
   Qed.
 
   Lemma seq_enum_fin (n:nat) :
@@ -42,7 +42,7 @@ Section fin.
       simpl.
       repeat case_match; try rewrite fin_to_nat_to_fin; lia.
     - rewrite !lookup_ge_None_2; last done.
-      + rewrite fmap_length. rewrite seq_length. lia.
+      + rewrite length_fmap. rewrite length_seq. lia.
       + rewrite length_enum_fin. lia.
   Qed.
   
@@ -307,7 +307,7 @@ Proof.
   split; last apply restrictListNM_f2n.
   intros ? ? ? ? H.
   apply (list_fmap_eq_inj fin_to_nat); first apply fin_to_nat_inj.
-  apply Hinj; [apply fin_forall_leq|apply fin_forall_leq|by rewrite fmap_length|by rewrite fmap_length|..].
+  apply Hinj; [apply fin_forall_leq|apply fin_forall_leq|by rewrite length_fmap|by rewrite length_fmap|..].
   erewrite <-!restrictListNM_f2n.
   by erewrite H.
 Qed.
@@ -345,7 +345,7 @@ Context {N:nat}.
     decoder_nat (reverse l) = decoder_nat_lr l.
   Proof.
     induction l; auto.
-    rewrite reverse_cons decoder_nat_app reverse_length IHl /=.
+    rewrite reverse_cons decoder_nat_app length_reverse IHl /=.
     lia.
   Qed.
 
@@ -367,7 +367,7 @@ Context {N:nat}.
     apply Forall_cons_1 in Hfa as [Hhead Htail].
     specialize (IHl Htail).
     rewrite /decoder_nat.
-    rewrite cons_length.
+    rewrite length_cons.
     rewrite -/decoder_nat.
     apply Nat.lt_le_trans with (S N + S N * decoder_nat l)%nat; first lia.
     assert (1<=S N ^ length l)%nat.
@@ -393,7 +393,7 @@ Context {N:nat}.
     (decoder_nat_lr l < (S N)^ (length l))%nat.
   Proof.
     intros.
-    rewrite -decoder_nat_reverse -reverse_length.
+    rewrite -decoder_nat_reverse -length_reverse.
     apply decoder_aux_ineq.
     by apply Forall_reverse.
   Qed.
@@ -427,8 +427,8 @@ Context {N:nat}.
   Proof.
     rewrite -(Forall_reverse _ l1).
     rewrite -(Forall_reverse _ l2).
-    rewrite -(decoder_nat_reverse l1) -(reverse_length l1).
-    rewrite -(decoder_nat_reverse l2) -(reverse_length l2).
+    rewrite -(decoder_nat_reverse l1) -(length_reverse l1).
+    rewrite -(decoder_nat_reverse l2) -(length_reverse l2).
     intros.
     apply Inj_instance_2.
     apply decoder_aux_inj; auto.

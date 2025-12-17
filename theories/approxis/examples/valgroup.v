@@ -8,6 +8,7 @@ From clutch.approxis.examples Require Import iterable_expression.
 From mathcomp Require Import solvable.cyclic choice eqtype finset fintype seq
   ssrbool ssreflect zmodp.
 From mathcomp Require ssralg.
+#[warning="-notation-incompatible-prefix"]
 Import fingroup.
 Set Bullet Behavior "Strict Subproofs".
 
@@ -20,12 +21,17 @@ Class val_group :=
             ; vgval : vgG → cval
             ; vgval_inj : Inj eq eq vgval }.
 
-(* Both of the below seem necessary since there is a subtle difference in the
-   domain type DOM, despite the two being convertible. *)
+(* This doesn't seem right.... *)
 #[warning="-uniform-inheritance"] Coercion vgval_as {vg : val_group}
   (x : FinGroup.sort vgG) : cval := vgval x.
-#[warning="-uniform-inheritance"] Coercion vgval_s {vg : val_group}
+#[warning="-uniform-inheritance -deprecated-syntactic-definition-since-mathcomp-2.5.0"] Coercion vgval_s {vg : val_group}
   (x : BaseFinGroup.sort vgG) : cval := vgval x.
+#[warning="-uniform-inheritance"] Coercion vgval_s' {vg : val_group}
+  (x : BaseGroup.sort vgG) : cval := vgval x.
+#[warning="-uniform-inheritance"] Coercion vgval_s'' {vg : val_group}
+  (x : BaseUMagma.sort vgG) : cval := vgval x.
+#[warning="-uniform-inheritance"] Coercion vgval_s''' {vg : val_group}
+  (x : Magma.sort vgG) : cval := vgval x.
 
 Class clutch_group_struct :=
   Clutch_group_struct
@@ -51,20 +57,20 @@ Definition vexp' (vunit : cval) (vmult : cval) : cval := λ:"a", rec: "vexp" "n"
 Definition vexp `{!clutch_group_struct} : cval := vexp' vunit vmult.
 
 Definition lrel_G `{approxisRGS Σ} {vg : val_group} : lrel Σ
-  := LRel (λ w1 w2, ∃ a : vgG, ⌜ w1 = a ∧ w2 = a ⌝)%I.
+  := LRel (λ w1 w2, ∃ a : vgG, ⌜ w1 = vgval a ∧ w2 = vgval a ⌝)%I.
 
 Class clutch_group `{approxisRGS Σ} {vg : val_group} {cg : clutch_group_struct} :=
   Clutch_group
     { int_of_vg_lrel_G : ⊢ (lrel_G → lrel_int)%lrel int_of_vg int_of_vg
     ; vg_of_int_lrel_G : ⊢ (lrel_int → (() + lrel_G))%lrel vg_of_int vg_of_int
     ; τG_subtype v1 v2 Δ : lrel_G v1 v2 ⊢ interp τG Δ v1 v2
-    ; is_unit : vunit = 1
-    ; is_inv (x : vgG) : ⊢ WP vinv x {{ λ (v : cval), ⌜v = x^-1⌝ }}
+    ; is_unit : vunit = vgval 1
+    ; is_inv (x : vgG) : ⊢ WP vinv (vgval x) {{ λ (v : cval), ⌜v = (vgval (x^-1))⌝ }}
     ; is_spec_inv (x : vgG) K :
-      ⤇ fill K (vinv x) -∗ spec_update ⊤ (⤇ fill K (x^-1))
-    ; is_mult (x y : vgG) : ⊢ WP vmult x y {{ λ (v : cval), ⌜v = (x * y)%g⌝ }}
+      ⤇ fill K (vinv (vgval x)) -∗ spec_update ⊤ (⤇ fill K (vgval (x^-1)))
+    ; is_mult (x y : vgG) : ⊢ WP vmult (vgval x) (vgval y) {{ λ (v : cval), ⌜v = vgval (x * y)%g⌝ }}
     ; is_spec_mult (x y : vgG) K :
-      ⤇ fill K (vmult x y) -∗ spec_update ⊤ (⤇ fill K (x * y)%g)
+      ⤇ fill K (vmult (vgval x) (vgval y)) -∗ spec_update ⊤ (⤇ fill K (vgval (x * y)%g))
     ; int_of_vg_sem : vgG → Z
     ; vg_of_int_sem : Z → option vgG
     ; vg_of_int_of_vg_sem : ∀ (n : Z) (xg : vgG),
@@ -104,10 +110,10 @@ Class val_group_generator {vg : val_group} :=
 
 Class clutch_group_generator {vg : val_group} {cg : clutch_group_struct} {vgg : @val_group_generator vg} :=
   Clutch_group_generator {
-      g_typed : val_typed g τG
+      g_typed : val_typed (vgval g) τG
     }.
 
-#[export] Hint Extern 0 (val_typed (vgval_as g) _) => apply g_typed : core.
+#[export] Hint Extern 0 (val_typed (vgval _) _) => apply g_typed : core.
 
 Set Default Proof Using "Type*".
 
@@ -121,8 +127,8 @@ Context {G : clutch_group (vg:=vg) (cg:=cg)}.
 Context {vgg : @val_group_generator vg}.
 
 Lemma refines_inv_l E K A (a : vgG) t :
-  (refines E (ectxi_language.fill K (Val (a^-1)%g)) t A)
-    ⊢ refines E (ectxi_language.fill K (vinv a)) t A.
+  (refines E (ectxi_language.fill K (Val (vgval (a^-1)%g))) t A)
+    ⊢ refines E (ectxi_language.fill K (vinv (vgval a))) t A.
 Proof.
   iIntros "H". rel_apply_l refines_wp_l.
   iApply (wp_frame_wand with "H"). iApply (wp_mono $! (is_inv a)).
@@ -130,8 +136,8 @@ Proof.
 Qed.
 
 Lemma refines_inv_r E K A (a : vgG) t :
-  (refines E t (ectxi_language.fill K (Val (a^-1)%g)) A)
-    ⊢ refines E t (ectxi_language.fill K (vinv a)) A.
+  (refines E t (ectxi_language.fill K (Val (vgval (a^-1)%g))) A)
+    ⊢ refines E t (ectxi_language.fill K (vinv (vgval a))) A.
 Proof.
   iIntros "H".
   rel_apply_r refines_steps_r => //.
@@ -139,8 +145,8 @@ Proof.
 Qed.
 
 Lemma refines_mult_l E K A (a b : vgG) t :
-  (refines E (ectxi_language.fill K (Val (a * b)%g)) t A)
-    ⊢ refines E (ectxi_language.fill K (vmult a b)) t A.
+  (refines E (ectxi_language.fill K (Val (vgval (a * b)%g))) t A)
+    ⊢ refines E (ectxi_language.fill K (vmult (vgval a) (vgval b))) t A.
 Proof.
   iIntros "H". rel_apply_l refines_wp_l.
   iApply (wp_frame_wand with "H"). iApply (wp_mono $! (is_mult a b)).
@@ -148,15 +154,15 @@ Proof.
 Qed.
 
 Lemma refines_mult_r E K A (a b : vgG) t :
-  (refines E t (ectxi_language.fill K (Val (a * b)%g)) A)
-    ⊢ refines E t (ectxi_language.fill K (vmult a b)) A.
+  (refines E t (ectxi_language.fill K (Val (vgval (a * b)%g))) A)
+    ⊢ refines E t (ectxi_language.fill K (vmult (vgval a) (vgval b))) A.
 Proof.
   iIntros "H". rel_apply_r refines_steps_r => //.
   iIntros (?). iApply is_spec_mult.
 Qed.
 
 Fact is_exp (b : vgG) (x : nat) :
-  {{{ True }}} vexp b #x {{{ v, RET (v : cval); ⌜v = (b ^+ x)%g⌝ }}}.
+  {{{ True }}} vexp (vgval b) #x {{{ v, RET (v : cval); ⌜v = vgval (b ^+ x)%g⌝ }}}.
 Proof.
   unfold vexp, vexp'. iIntros (? _) "hlog".
   wp_pure. wp_pure.
@@ -170,13 +176,15 @@ Proof.
     replace (S x - 1)%Z with (Z.of_nat x) by lia.
     iApply "IH".
     iIntros. wp_pures.
-    iApply (wp_frame_wand with "hlog"). iApply (wp_mono $! (is_mult b v)).
+    iApply (wp_frame_wand with "hlog").
+    rewrite H.
+    iApply (wp_mono $! (is_mult b (b ^+ x))).
     iIntros (??) "hlog" ; subst. iApply "hlog".
     by rewrite expgS.
 Qed.
 
 Fact is_spec_exp (b : vgG) (x : nat) K :
-  ⤇ fill K (vexp b #x) ⊢ spec_update ⊤ (⤇ fill K (b ^+ x)%g).
+  ⤇ fill K (vexp (vgval b) #x) ⊢ spec_update ⊤ (⤇ fill K (vgval (b ^+ x)%g)).
 Proof.
   unfold vexp, vexp'. iIntros "hlog".
   tp_pure. tp_pure.
@@ -194,16 +202,16 @@ Proof.
 Qed.
 
 Lemma refines_exp_l E K A (b : vgG) (p : nat) t :
-  (refines E (ectxi_language.fill K (Val (b ^+ p)%g)) t A)
-    ⊢ refines E (ectxi_language.fill K (vexp b #p)) t A.
+  (refines E (ectxi_language.fill K (Val (vgval (b ^+ p)%g))) t A)
+    ⊢ refines E (ectxi_language.fill K (vexp (vgval b) #p)) t A.
 Proof.
   iIntros "H". rel_apply_l refines_wp_l.
   iApply (is_exp b p) => //. iModIntro ; iIntros (v) "->" => //.
 Qed.
 
 Lemma refines_exp_r E K A (b : vgG) (p : nat) t :
-  (refines E t (ectxi_language.fill K (Val (b ^+ p)%g)) A)
-    ⊢ refines E t (ectxi_language.fill K (vexp b #p)) A.
+  (refines E t (ectxi_language.fill K (Val (vgval (b ^+ p)%g))) A)
+    ⊢ refines E t (ectxi_language.fill K (vexp (vgval b) #p)) A.
 Proof.
   iIntros "H". rel_apply_r refines_steps_r => //.
   iIntros (?). iApply (is_spec_exp b).

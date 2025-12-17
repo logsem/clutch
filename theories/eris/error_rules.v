@@ -984,7 +984,7 @@ Proof.
             eapply is_seriesC_filter_union.
             2: { apply SeriesC_correct, ex_seriesC_finite. }
             intro; simpl; lra.
-          * rewrite cons_length S_INR /=.
+          * rewrite length_cons S_INR /=.
             assert (SeriesC (λ n : fin (S N), if bool_decide (fin_to_nat n = a) then 1 else 0) <= 1)%R as Haux2.
             {
               destruct (decide (a < S N)).
@@ -1007,7 +1007,7 @@ Proof.
             ** apply IHns.
                etrans; eauto.
                apply Rmult_le_compat_l; [auto |].
-               rewrite cons_length S_INR; lra.
+               rewrite length_cons S_INR; lra.
             **
               apply Rcomplements.Rle_minus_l.
               rewrite <- (Rplus_0_r) at 1.
@@ -1083,7 +1083,7 @@ Proof.
   intro HMN.
   induction HMN.
   - rewrite forallb_filter_id.
-    + rewrite seq_length. lia.
+    + rewrite length_seq. lia.
     + apply Is_true_eq_true.
       apply forallb_True.
       apply Forall_seq.
@@ -1091,7 +1091,7 @@ Proof.
       rewrite bool_decide_eq_true_2; auto.
       lia.
   - rewrite seq_S List.filter_app.
-    rewrite app_length IHHMN.
+    rewrite length_app IHHMN.
     simpl.
     rewrite bool_decide_eq_false_2 /=; first by lia.
     intro H.
@@ -1109,7 +1109,7 @@ Proof.
       with
       ((S M) - length (List.filter (λ x : nat, bool_decide (x <= M)) (seq 0 (S M)))).
     + rewrite forallb_filter_id.
-      * rewrite seq_length. lia.
+      * rewrite length_seq. lia.
       * apply Is_true_eq_true.
         apply forallb_True.
         apply Forall_seq.
@@ -1117,7 +1117,7 @@ Proof.
         rewrite bool_decide_eq_true_2; auto.
         lia.
     + replace (S M) with (length (seq 0 (S M))) at 1;
-        last by rewrite seq_length; auto.
+        last by rewrite length_seq; auto.
       rewrite -(List.filter_length (λ x, bool_decide (x <= M))).
       rewrite Nat.add_sub'.
       f_equal.
@@ -1125,7 +1125,7 @@ Proof.
       intro a.
       case_bool_decide; case_bool_decide; auto; lia.
   - rewrite seq_S List.filter_app.
-    rewrite app_length IHHMN.
+    rewrite length_app IHHMN.
     simpl.
     rewrite bool_decide_eq_true_2 /=; first by lia.
     lia.
@@ -1883,7 +1883,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     induction n as [|n' IH].
     - intros h ? ?. exists h; by simpl.
     - intros h H HL.
-      rewrite cons_length in HL. apply PeanoNat.lt_S_n in HL.
+      rewrite length_cons in HL. apply PeanoNat.lt_S_n in HL.
       destruct H as [|h' H']; [simpl in HL; lia|].
       replace ((h :: h' :: H') !! S n') with ((h' :: H') !! n'); last by simpl.
       by apply IH.
@@ -2004,7 +2004,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     - iApply "Hwp". iLeft. rewrite app_nil_r. iFrame.
     - remember (s0 :: sr) as suffix.
       assert (Hl_pos : (0 < L)%nat).
-      { rewrite Hl Heqsuffix cons_length. lia. }
+      { rewrite Hl Heqsuffix length_cons. lia. }
       iApply (twp_presample_amplify' with "[Htape Hcr]"); eauto; [iFrame|].
       iIntros "[H|(H&_)]"; iApply "Hwp".
       + iRight. by iFrame.
@@ -2027,7 +2027,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
     - iApply "Hwp". iLeft. rewrite app_nil_r. iFrame.
     - remember (s0 :: sr) as suffix'.
       assert (Hl_pos : (0 < L)%nat).
-      { rewrite Hl Heqsuffix' cons_length. lia. }
+      { rewrite Hl Heqsuffix' length_cons. lia. }
       iApply (presample_amplify' with "[Htape Hcr]"); eauto; [iFrame|].
       iIntros "[H|(H&_)]"; iApply "Hwp".
       + iRight. by iFrame.
@@ -2323,8 +2323,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
       do 2 rewrite app_nil_r; iFrame.
     - iApply (twp_presample_planner_sync _ _ _ _ _ _ _ (length suffix + length suffix) _ (fun samples => block_pad N (length suffix) samples ++ suffix)); eauto.
       + intros. split.
-        * rewrite app_length HS /=. lia.
-        * rewrite app_length /=.
+        * rewrite length_app HS /=. lia.
+        * rewrite length_app /=.
           apply Nat.add_le_mono_r, block_pad_ub.
           rewrite HS /=. lia.
       + rewrite HS.
@@ -2347,8 +2347,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
       do 2 rewrite app_nil_r; iFrame.
     - iApply (presample_planner_sync _ _ _ _ _ _ _ (length suffix + length suffix) _ (fun samples => block_pad N (length suffix) samples ++ suffix)); eauto.
       + intros. split.
-        * rewrite app_length HS /=. lia.
-        * rewrite app_length /=.
+        * rewrite length_app HS /=. lia.
+        * rewrite length_app /=.
           apply Nat.add_le_mono_r, block_pad_ub.
           rewrite HS /=. lia.
       + rewrite HS.

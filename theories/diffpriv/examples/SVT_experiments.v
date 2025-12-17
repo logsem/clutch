@@ -263,31 +263,31 @@ Section svt_experiments.
       (* case 1 *)
       - assert hoare_couple_laplace_pw as lap_pw by admit.
         unshelve iApply (lap_pw vq_l vq_r 1%Z 2%Z with "[$rhs $ε]") => //.
-        1: exact z_l.
-        1: apply Zabs_ind ; lia.
-        { subst ε. replace (IZR (4 * den)) with (4 * IZR den). 2: qify_r ; zify_q ; lia. field. done. }
-        iIntros "!> %v_l (%v_r & rhs & %h_pw)" => /=...
+    (*     1: apply Zabs_ind ; lia. *)
+    (*     { subst ε. replace (IZR (4 * den)) with (4 * IZR den). 2: qify_r ; zify_q ; lia. admit. } *)
+        
+    (*     iIntros "!> %v_l (%v_r & rhs & %h_pw)" => /=... *)
 
-        opose proof (case1 _ _ res_l _) as res_r => //.
-        assert (v_l = z_l) as -> by admit.
-        rewrite (bool_decide_eq_true_2 _ res_l).
-        rewrite h_pw => //.
-        rewrite (bool_decide_eq_true_2 _ res_r)...
-        tp_store ; wp_store... iFrame. iModIntro ; iSplitR ; iIntros ; done.
+    (*     opose proof (case1 _ _ res_l _) as res_r => //. *)
+    (*     assert (v_l = z_l) as -> by admit. *)
+    (*     rewrite (bool_decide_eq_true_2 _ res_l). *)
+    (*     rewrite h_pw => //. *)
+    (*     rewrite (bool_decide_eq_true_2 _ res_r)... *)
+    (*     tp_store ; wp_store... iFrame. iModIntro ; iSplitR ; iIntros ; done. *)
 
-      (* case 2 *)
-      - iMod ecm_zero as "ε0".
-        iApply (hoare_couple_laplace vq_l vq_r (vq_r - vq_l)%Z 0%Z with "[$rhs $ε0]") => //.
-        1: apply Zabs_ind ; lia.
-        1: lra.
-        iIntros "!> %v_l rhs" => /=...
-        assert (v_l = z_l) as -> by admit.
-        destruct_decide (@bool_decide_reflect (T' ≤ z_l)%Z _) as res_l' ; [lia|].
-        eapply case2 in res_l'. 2: eauto.
-        rewrite (bool_decide_eq_false_2 _ res_l')...
-        iFrame. done.
-    }
-    Fail Qed.
+    (*   (* case 2 *) *)
+    (*   - iMod ecm_zero as "ε0". *)
+    (*     iApply (hoare_couple_laplace vq_l vq_r (vq_r - vq_l)%Z 0%Z with "[$rhs $ε0]") => //. *)
+    (*     1: apply Zabs_ind ; lia. *)
+    (*     1: lra. *)
+    (*     iIntros "!> %v_l rhs" => /=... *)
+    (*     assert (v_l = z_l) as -> by admit. *)
+    (*     destruct_decide (@bool_decide_reflect (T' ≤ z_l)%Z _) as res_l' ; [lia|]. *)
+    (*     eapply case2 in res_l'. 2: eauto. *)
+    (*     rewrite (bool_decide_eq_false_2 _ res_l')... *)
+    (*     iFrame. done. *)
+    (* } *)
+    (* Fail Qed. *)
   Abort.
 
   (* Question: If we had a WP rule for pointwise equality, could we use it to strengthen the

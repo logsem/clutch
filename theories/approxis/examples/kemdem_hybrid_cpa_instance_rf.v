@@ -13,7 +13,6 @@ From mathcomp Require fingroup.fingroup.
 Set Default Proof Using "All".
 Import ElGamal_bijection.bij_nat.
 Import valgroup_notation.
-Import fingroup.Notations.
 Import map.
 
 Section Hybrid_scheme.
@@ -130,7 +129,7 @@ Variable xor_struct : XOR (Key := SymOutput) (Support := SymOutput).
         pubkey_class.keygen := keygen
       ; pubkey_class.enc := enc
       ; pubkey_class.dec := dec
-      ; pubkey_class.rand_cipher := (λ: <>, let: "a" := rand #N in let: "b" := rand #N in (g^"a", g^"b"))
+      ; pubkey_class.rand_cipher := (λ: <>, let: "a" := rand #N in let: "b" := rand #N in (vgval g^"a", vgval g^"b"))
     |}.
 
     Ltac simpl_exp := try (rel_apply refines_exp_l; rel_pures_l);
@@ -259,7 +258,7 @@ Variable xor_struct : XOR (Key := SymOutput) (Support := SymOutput).
       rel_apply xor_correct_l; try lia.
       rel_apply xor_correct_r; try lia...
       rewrite /lrel_output.
-      rel_vals; iExists _; rewrite /card_input; simpl; iPureIntro; repeat split; try lia.
+      rel_vals; rewrite /card_input; simpl; repeat split; try lia.
       apply Nat2Z.inj_le. apply le_S_n. apply xor_dom; lia.
     Qed.
 
@@ -1040,7 +1039,7 @@ Variable xor_struct : XOR (Key := SymOutput) (Support := SymOutput).
 
     Definition lrel_sk {Σ} := @lrel_int_bounded Σ 0 n''.
     Definition lrel_pk `{!approxisRGS Σ} : lrel Σ := lrel_G.
-
+    #[warnings="-notation-incompatible-prefix"]
     Import fingroup.
 
     Definition elgamal_is_asym_key_l  (sk pk : val) : iProp Σ :=
@@ -1262,8 +1261,7 @@ Variable xor_struct : XOR (Key := SymOutput) (Support := SymOutput).
       iIntros (i Hibound); iModIntro...
       rel_apply refines_couple_UU; first done.
       iIntros (o Hobound); iModIntro... rewrite /Input in Hibound.
-      rel_vals; iExists _; iPureIntro; repeat split;
-      rewrite /card_input; simpl; lia.
+      rel_vals; rewrite /card_input; simpl; lia.
     Qed.
 
     #[local] Instance rf_enc_lrel : @kemdem_hybrid_cpa_generic.lrel_sym_scheme Σ.

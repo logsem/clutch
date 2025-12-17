@@ -5,6 +5,7 @@ From clutch.clutch.examples.crypto Require Import valgroup advantage_laws.
 From clutch.clutch.examples.crypto Require ElGamal_bijection.
 
 From mathcomp Require ssrnat.
+#[warnings="-notation-incompatible-prefix"]
 From mathcomp Require Import zmodp finset ssrbool fingroup.fingroup solvable.cyclic.
 Import valgroup_notation.
 From clutch.clutch.examples.crypto Require Import ElGamal.

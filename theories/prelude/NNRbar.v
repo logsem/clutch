@@ -121,14 +121,14 @@ Definition to_decimal (n : INNR) : option Decimal.decimal :=
   match n with
   | INNRN n =>
     match IN_to_N n with
-    | Some n => Some (Decimal.Decimal (N.to_int n) Decimal.Nil)
+    | Some n => Some (Decimal.Decimal (BinNat.N.to_int n) Decimal.Nil)
     | None => None
     end
   | INNRQ (QArith_base.Qmake num den) _ => IQmake_to_decimal num den
   | INNRmult (INNRN z) (INNRN (INpow_pos 10 e)) =>
     match IN_to_N z with
     | Some z =>
-      Some (Decimal.DecimalExp (N.to_int z) Decimal.Nil (Pos.to_int e))
+      Some (Decimal.DecimalExp (BinNat.N.to_int z) Decimal.Nil (Pos.to_int e))
     | None => None
     end
   | INNRmult (INNRQ (QArith_base.Qmake num den) _) (INNRN (INpow_pos 10 e)) =>
@@ -140,7 +140,7 @@ Definition to_decimal (n : INNR) : option Decimal.decimal :=
   | INNRdiv (INNRN n) (INNRN (INpow_pos 10 e)) =>
     match IN_to_N n with
     | Some n =>
-      Some (Decimal.DecimalExp (N.to_int n) Decimal.Nil (Decimal.Neg (Pos.to_uint e)))
+      Some (Decimal.DecimalExp (BinNat.N.to_int n) Decimal.Nil (Decimal.Neg (Pos.to_uint e)))
     | None => None
     end
   | INNRdiv (INNRQ (QArith_base.Qmake num den) _) (INNRN (INpow_pos 10 e)) =>
@@ -168,11 +168,11 @@ Definition of_decimal (d : Decimal.decimal) : option INNR :=
   | Decimal.Neg _ => None
   | Decimal.Pos i =>
       let zq := match f with
-                | Decimal.Nil => INNRN (IN_of_N (N.of_uint i))
+                | Decimal.Nil => INNRN (IN_of_N (BinNat.N.of_uint i))
                 | _ =>
                     let num := Nat.of_uint (Decimal.app i f) in
                     let den := Nat.iter (Decimal.nb_digits f) (Pos.mul 10) 1%positive in
-                    INNRQ (QArith_base.Qmake (Z.of_nat num) den) (Zle_0_nat num) end in
+                    INNRQ (QArith_base.Qmake (Z.of_nat num) den) (Zorder.Zle_0_nat num) end in
       let e := Z.of_int e in
       match e with
       | Z0 => Some zq
@@ -187,7 +187,7 @@ Definition of_number (n : Number.number) : option INNR :=
   | Number.Hexadecimal h => None
   end.
 
-Definition nnreal_N (n : N) : nonnegreal := nnreal_nat (N.to_nat n).
+Definition nnreal_N (n : N) : nonnegreal := nnreal_nat (BinNat.N.to_nat n).
 
 Fact Qnum_pos (q : QArith_base.Q) : (0 <= QArith_base.Qnum q)%Z -> (0 <= Q2R q)%R.
   intros.
@@ -201,8 +201,9 @@ Qed.
 Definition Q2NNR (q : QArith_base.Q) (qpos : Z.le 0 (QArith_base.Qnum q)) : nonnegreal :=
   (mknonnegreal (Q2R q) (Qnum_pos q qpos)).
 
+Import BinNat. 
 Definition N_pow_pos (n : nat) (p : positive) : N :=
-  Pos.iter (N.mul (N.of_nat n)) 1%N p.
+  Pos.iter (BinNat.N.mul (BinNat.N.of_nat n)) 1%N p.
 
 (* TODO upstream to Coq's RIneq.v? *)
 Declare Scope NNR_scope.

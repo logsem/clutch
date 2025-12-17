@@ -11,7 +11,7 @@ From mathcomp Require fingroup.fingroup.
 Set Default Proof Using "All".
 Import ElGamal_bijection.bij_nat.
 Import valgroup_notation.
-Import fingroup.Notations.
+(* Import fingroup_Notations. *)
 Import map.
 
 Section ElGamal_KEM.
@@ -86,10 +86,10 @@ Section ElGamal_KEM.
         | NONE => "rejection_sampler" #() 
       end. *)
     Definition rand_group_elt : val :=
-      λ: <>, let: "a" := rand #N in g ^ "a".
+      λ: <>, let: "a" := rand #N in vgval g ^ "a".
     Definition rand_cipher_elgamal : val :=
       λ: <>, let: "a" := rand #N in
-        let: "b" := rand #N in (g ^ "a", g ^ "b").
+        let: "b" := rand #N in (vgval g ^ "a", vgval g ^ "b").
 
   Lemma rand_bounded_sem_typed (n : nat) (Σ : gFunctors) (A : approxisRGS Σ) :
     ⊢ REL rand_bound n << rand_bound n : () → lrel_int_bounded 0 n.

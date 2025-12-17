@@ -1,7 +1,7 @@
 From Stdlib Require Export Reals Psatz.
 From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Export fancy_updates.
-From iris.bi Require Export fixpoint big_op.
+From iris.bi Require Export lib.fixpoint_mono big_op.
 From iris.prelude Require Import options.
 
 From clutch.bi Require Export weakestpre.
@@ -667,9 +667,11 @@ Proof.
   f_contractive.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /state_step_coupl_pre.
-  do 5 f_equiv. 
-  rewrite IH; [done|lia|].
-  intros ?. eapply dist_le; first apply HΦ. lia. 
+  do 5 f_equiv.
+  simpl in Hlt. 
+  rewrite IH; [done|done|].
+  intros ?. eapply dist_le; first apply HΦ.
+  simpl. lia. 
 Qed.
 
 Global Instance pgl_wp_proper s E e :

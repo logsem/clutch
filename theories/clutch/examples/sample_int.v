@@ -324,7 +324,7 @@ Section int.
     iApply wp_couple_int_tapes_eq; auto. iFrame "#∗".
     iDestruct 1 as (z Hrange) "(H2&H3)".
     iApply "Hwp". iExists (zsnew ++ [z]). rewrite ?app_assoc; iFrame.
-    iPureIntro. rewrite ?app_length /=; split; last by lia.
+    iPureIntro. rewrite ?length_app /=; split; last by lia.
     apply Forall_app; auto.
   Qed.
 

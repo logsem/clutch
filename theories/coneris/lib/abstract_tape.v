@@ -14,6 +14,7 @@ Definition abstract_tapesΣ := ghost_mapΣ val (nat*list nat).
 Notation "α ◯↪N ( M ; ns ) @ γ":= (α ↪[ γ ] (M,ns))%I
                                     (at level 20, format "α ◯↪N ( M ; ns ) @ γ") : bi_scope.
 
+#[warning="-notation-incompatible-prefix"]
 Notation "● m @ γ" := (ghost_map_auth γ 1 m) (at level 20) : bi_scope.
 
 Section tapes_lemmas.

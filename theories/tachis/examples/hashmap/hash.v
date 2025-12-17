@@ -5,7 +5,7 @@ From clutch.prob_lang Require Import notation tactics metatheory lang.
 From iris.proofmode Require Export proofmode.
 From Stdlib Require Export Reals Psatz.
 From Coquelicot Require Export Hierarchy.
-Require Import Lra.
+From Stdlib Require Import Lra.
 From clutch.tachis.examples.hashmap Require Export map.
 
 Set Default Proof Using "Type*".

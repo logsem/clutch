@@ -5,6 +5,7 @@ From clutch.clutch.examples.crypto Require Import valgroup advantage_laws.
 From clutch.clutch.examples.crypto Require ElGamal_bijection.
 
 From mathcomp Require ssrnat.
+#[warning="-notation-incompatible-prefix"]
 From mathcomp Require Import zmodp finset ssrbool fingroup.fingroup solvable.cyclic.
 Import valgroup_notation.
 From clutch.clutch.examples.crypto Require Import ElGamal.
@@ -97,6 +98,9 @@ Proof. iStartProof. rewrite /DL; rewrite /C_toDL_DHcomp.
   rel_pures_l. rel_pures_r.
   rel_apply refines_randU_r. iIntros (b).
   rel_pures_r. rel_pures. unfold T_comp_to_dl. unfold τ_comp_to_dl.
+  rel_apply_l refines_exp_l.
+  rel_apply_r refines_exp_r. rel_apply_r refines_exp_r.
+  rel_pures_r. 
   rel_vals.
 Qed.
 
@@ -108,6 +112,8 @@ Proof. iStartProof. rewrite /DL. rewrite /C_toDL_DHcomp.
   rel_pures_l. rel_pures_r.
   rel_apply refines_randU_l. iIntros (b).
   rel_pures_l. rel_pures. unfold T_comp_to_dl. unfold τ_comp_to_dl.
+  rel_apply_l refines_exp_l. rel_apply_l refines_exp_l.
+  rel_apply_r refines_exp_r. rel_pures. 
   rel_vals.
 Qed.
 
@@ -123,7 +129,10 @@ Proof. rewrite /DH_computational. rewrite /C_toDHcomp_DHdecreal.
   rel_couple_UU.
   rel_pures_l. rel_pures_r.
   rewrite -Nat2Z.inj_mul. rel_pures.
-  rel_pures_l. rel_vals.
+  rel_pures_l.
+  rel_apply_l refines_exp_l. rel_apply_l refines_exp_l.
+  rel_apply_r refines_exp_r. rel_apply_r refines_exp_r. rel_apply_r refines_exp_r. rel_pures. 
+  rel_vals.
 Qed.
 
 Lemma C_toDHcomp_DHdecreal_DHcomp :
@@ -136,7 +145,10 @@ Proof. rewrite /DH_computational. rewrite /C_toDHcomp_DHdecreal.
   rel_couple_UU.
   rel_pures_l. rel_pures_r. ireds.
   rewrite -Nat2Z.inj_mul. rel_pures.
-  rel_pures_l. rel_vals.
+  rel_pures_l.
+  rel_apply_r refines_exp_r. rel_apply_r refines_exp_r.
+  rel_apply_l refines_exp_l. rel_apply_l refines_exp_l. rel_apply_l refines_exp_l. rel_pures. 
+  rel_vals.
 Qed.
 
 Lemma DHcomp_C_toDHcomp_DHdecrand :
@@ -150,6 +162,8 @@ Proof. rewrite /DH_computational. rewrite /C_toDHcomp_DHdecrand.
   rel_pures_l. rel_pures_r.
   rel_apply refines_randU_r. iIntros (c).
   rel_pures_r. rel_pures.
+  rel_apply_l refines_exp_l. rel_apply_l refines_exp_l.
+  rel_apply_r refines_exp_r. rel_apply_r refines_exp_r. rel_apply_r refines_exp_r. rel_pures.   
   rel_vals.
 Qed.
 
@@ -164,6 +178,8 @@ Proof. rewrite /DH_computational. rewrite /C_toDHcomp_DHdecrand.
   rel_pures_l. rel_pures_r.
   rel_apply refines_randU_l. iIntros (c).
   rel_pures_r. rel_pures.
+  rel_apply_r refines_exp_r. rel_apply_r refines_exp_r.
+  rel_apply_l refines_exp_l. rel_apply_l refines_exp_l. rel_apply_l refines_exp_l. rel_pures.   
   rel_vals.
 Qed.
 

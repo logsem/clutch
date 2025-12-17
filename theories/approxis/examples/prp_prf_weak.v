@@ -164,9 +164,9 @@ Section Approxis.
     }
     {
       apply Permutation_length in Hperm.
-      rewrite app_length in Hperm.
-      do 2 rewrite fmap_length in Hperm.
-      rewrite seq_length Hvl in Hperm.
+      rewrite length_app in Hperm.
+      do 2 rewrite length_fmap in Hperm.
+      rewrite length_seq Hvl in Hperm.
       lia.
     }
     { rewrite -Hvl. done. }
@@ -327,9 +327,9 @@ Section Approxis.
     }
     {
       apply Permutation_length in Hperm.
-      rewrite app_length in Hperm.
-      do 2 rewrite fmap_length in Hperm.
-      rewrite seq_length Hvl in Hperm.
+      rewrite length_app in Hperm.
+      do 2 rewrite length_fmap in Hperm.
+      rewrite length_seq Hvl in Hperm.
       lia.
     }
     { rewrite -Hvl. done. }
@@ -499,7 +499,7 @@ Section Approxis.
           rewrite elem_of_set_seq in H2. lia.
         * pose proof list_pigeonhole _ _ Hsubseteq as H0.
           pose proof Nat.lt_ge_cases  (S val_size) (length l) as [H1|H1]; try lia.
-          rewrite fmap_length seq_length in H0.
+          rewrite length_fmap length_seq in H0.
           specialize (H0 H1).
           destruct H0 as (?&?&?&?&?&?).
           eapply NoDup_lookup in HNoDup; [|exact H2|exact H3].
@@ -534,7 +534,7 @@ Section Approxis.
              apply le_S_n.
              replace (S (S _ - _)) with (S val_size - (n - S Q')) by lia.
              trans (length l); try done.
-             subst. rewrite !app_length cons_length. lia.
+             subst. rewrite !length_app length_cons. lia.
           -- iPureIntro. subst. apply NoDup_app. apply NoDup_app in HNoDup.
              destruct HNoDup as [?[? HNoDup]]. apply NoDup_cons in HNoDup. set_solver.
           -- iPureIntro. rewrite list_subseteq_app_iff_l. split; set_solver.
@@ -661,7 +661,7 @@ Section Approxis.
           rewrite elem_of_set_seq in H2. lia.
         * pose proof list_pigeonhole _ _ Hsubseteq as H0.
           pose proof Nat.lt_ge_cases  (S val_size) (length l) as [H1|H1]; try lia.
-          rewrite fmap_length seq_length in H0.
+          rewrite length_fmap length_seq in H0.
           specialize (H0 H1).
           destruct H0 as (?&?&?&?&?&?).
           eapply NoDup_lookup in HNoDup; [|exact H2|exact H3].
@@ -696,7 +696,7 @@ Section Approxis.
              apply le_S_n.
              replace (S (S _ - _)) with (S val_size - (n - S Q')) by lia.
              trans (length l); try done.
-             subst. rewrite !app_length cons_length. lia.
+             subst. rewrite !length_app length_cons. lia.
           -- iPureIntro. subst. apply NoDup_app. apply NoDup_app in HNoDup.
              destruct HNoDup as [?[? HNoDup]]. apply NoDup_cons in HNoDup. set_solver.
           -- iPureIntro. rewrite list_subseteq_app_iff_l. split; set_solver.
@@ -760,7 +760,7 @@ Section Approxis.
 
     iApply (wp_wPRF_wPRP_err_ind with "[-HΦ $ε $rf $rp $spec]").
     - split; first lia. done.
-    - simpl. rewrite fmap_length seq_length. lia.
+    - simpl. rewrite length_fmap length_seq. lia.
     - intros.
       replace (Z.of_nat 0 :: list_fmap nat Z Z.of_nat (seq 1 val_size)) with (Z.of_nat <$> seq 0 (S val_size)) by easy.
       apply NoDup_fmap_2; last apply NoDup_seq. apply Nat2Z.inj'.
@@ -809,7 +809,7 @@ Section Approxis.
     fold (loop' rp res).
     iApply (wp_wPRP_wPRF_err_ind with "[-HΦ $ε $rf $rp $spec]").
     - split; first lia. done.
-    - simpl. rewrite fmap_length seq_length. lia.
+    - simpl. rewrite length_fmap length_seq. lia.
     - intros.
       replace (Z.of_nat 0 :: list_fmap nat Z Z.of_nat (seq 1 val_size)) with (Z.of_nat <$> seq 0 (S val_size)) by easy.
       apply NoDup_fmap_2; last apply NoDup_seq. apply Nat2Z.inj'.

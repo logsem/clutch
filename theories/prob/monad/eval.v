@@ -1,14 +1,16 @@
 (** Definition of eval; characterization of A -> G B measurability *)
 
-From mathcomp Require Import all_ssreflect all_algebra finmap.
-From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
+#[warning="-notation-incompatible-prefix -hiding-delimiting-key"]
+  From mathcomp Require Import all_boot all_algebra finmap.
+#[warning="-notation-incompatible-prefix"]
+From mathcomp Require Import mathcomp_extra boolp classical_sets functions reals interval_inference.
 From mathcomp Require Import cardinality fsbigop.
-From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
+From mathcomp.analysis Require Import ereal normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
 From clutch.prob.monad Require Export types extras.
 
-Import Coq.Logic.FunctionalExtensionality.
+From Stdlib.Logic Require Import FunctionalExtensionality.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -112,10 +114,10 @@ Section giryM_eval_char.
 
     have G1 : d1.-measurable [set: T1] by auto.
     specialize (Hm Y HY G1).
-    rewrite /salgebraType/= in Hm.
+    rewrite /= in Hm.
     clear G1.
 
-    rewrite /preimage_class_of_measures/preimage_class/= in HX.
+    rewrite /preimage_class_of_measures/= in HX.
     destruct HX as [B HB HBf].
     rewrite setTI in HBf.
 

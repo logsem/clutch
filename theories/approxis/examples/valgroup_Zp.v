@@ -1,8 +1,7 @@
 From clutch.approxis Require Import approxis.
 From clutch.prob_lang.typing Require Import tychk.
 
-#[warning="-hiding-delimiting-key,-overwriting-delimiting-key"] From mathcomp Require Import ssrnat.
-
+#[warning="-notation-incompatible-prefix"]
 From mathcomp Require Import fingroup solvable.cyclic eqtype fintype ssrbool zmodp.
 From clutch.prelude Require Import mc_stdlib.
 From clutch.approxis.examples Require Import valgroup iterable_expression.
@@ -66,7 +65,7 @@ Section Z_p.
   Qed.
 
   Definition vg_of_int_unpacked (x : Z) (vmin : (0 ≤ x)%Z) (vmax : (x < p)%Z) : z_p.
-  Proof. exists (Z.to_nat x). rewrite Zp_cast //. apply /leP. lia.
+  Proof. exists (Z.to_nat x). rewrite Zp_cast //. apply /ssrnat.leP. lia.
   Defined.
 
   Fact vg_of_int_lrel_G_p :
@@ -102,7 +101,7 @@ Section Z_p.
       rewrite /vgval_p. rewrite /inZp. simpl.
       rewrite div.modn_small.
       2:{ rewrite /Zp_trunc. simpl. apply Z.ltb_lt in Hargbound2.
-        pose proof (reflect_iff _ _ (@leP (S (Z.to_nat arg)) (S (S p'')))) as H'.
+        pose proof (reflect_iff _ _ (@ssrnat.leP (S (Z.to_nat arg)) (S (S p'')))) as H'.
         rewrite <- H'. lia. }
       rewrite Z2Nat.id; last lia. rel_apply "H".
     - rewrite /vg_of_int. simpl. rewrite /vg_of_int_p...
@@ -121,7 +120,7 @@ Section Z_p.
       rewrite /vgval_p. rewrite /inZp. simpl.
       rewrite div.modn_small.
       2:{ rewrite /Zp_trunc. simpl. apply Z.ltb_lt in Hargbound2.
-        pose proof (reflect_iff _ _ (@leP (S (Z.to_nat arg)) (S (S p'')))) as H'.
+        pose proof (reflect_iff _ _ (@ssrnat.leP (S (Z.to_nat arg)) (S (S p'')))) as H'.
         rewrite <- H'. lia. } rewrite Z2Nat.id; last lia. rel_apply "H".
   Qed.
 
@@ -147,7 +146,7 @@ Section Z_p.
     rewrite /Zp_trunc in Hxgbound'. simpl in Hxgbound'.
     assert (Hxgbound : (xg < p)%Z).
     { rewrite /Zp_trunc. simpl.
-      apply (reflect_iff _ _ (@leP xg (S p''))) in Hxgbound'.
+      apply (reflect_iff _ _ (@ssrnat.leP xg (S p''))) in Hxgbound'.
       apply inj_lt.
       apply PeanoNat.le_lt_n_Sm. apply Hxgbound'. }
     clear Hxgbound'.
@@ -168,7 +167,7 @@ Section Z_p.
     rewrite /inZp. simpl.
     rewrite div.modn_small.
     2:{ rewrite /Zp_trunc. simpl.
-      pose proof (reflect_iff _ _ (@leP (S (Z.to_nat n)) (S (S p'')))) as H'.
+      pose proof (reflect_iff _ _ (@ssrnat.leP (S (Z.to_nat n)) (S (S p'')))) as H'.
       rewrite <- H'. apply Z.ltb_lt in Hnbound2. lia. }
     rewrite Z2Nat.id; lia.
   Qed.
@@ -179,14 +178,14 @@ Section Z_p.
     rewrite /lrel_car. iExists x; done.
   Qed.
 
-  Fact is_inv_p (x : vgG) : ⊢ WP vinv x {{ λ (v : cval), ⌜v = x^-1⌝ }}.
+  Fact is_inv_p (x : vgG) : ⊢ WP vinv (vgval x) {{ λ (v : cval), ⌜v = vgval (x^-1)⌝ }}.
   Proof.
     simpl. unfold vinv_p, vgval_p. cbn -[Zp_opp]. wp_pures.
     rewrite /Zp_trunc -(Nat2Z.inj_sub _ _ (leq_zmodp _ _)). simpl.
     by rewrite rem_modn.
   Qed.
 
-  Fact is_spec_inv_p (x : vgG) K : ⤇ fill K (vinv x) -∗ spec_update ⊤ (⤇ fill K x^-1).
+  Fact is_spec_inv_p (x : vgG) K : ⤇ fill K (vinv (vgval x)) -∗ spec_update ⊤ (⤇ fill K (vgval x^-1)).
   Proof.
     iIntros => /=. unfold vinv_p, vgval_p. tp_pures => /=.
     rewrite /Zp_trunc -(Nat2Z.inj_sub _ _ (leq_zmodp _ _)) => /=.
@@ -194,14 +193,14 @@ Section Z_p.
     by rewrite rem_modn.
   Qed.
 
-  Fact is_mult_p (x y : vgG) : ⊢ WP vmult x y {{ λ (v : cval), ⌜v = (x * y)%g⌝ }}.
+  Fact is_mult_p (x y : vgG) : ⊢ WP vmult (vgval x) (vgval y) {{ λ (v : cval), ⌜v = vgval (x * y)%g⌝ }}.
   Proof.
     rewrite /vmult /= /vmult_p /vgval_p /=. wp_pures.
     by rewrite -Nat2Z.inj_add rem_modn // -ssrnat.plusE.
   Qed.
 
   Fact is_spec_mult_p (x y : vgG) K :
-    ⤇ fill K (vmult x y) -∗ spec_update ⊤ (⤇ fill K (x * y)%g).
+    ⤇ fill K (vmult (vgval x) (vgval y)) -∗ spec_update ⊤ (⤇ fill K (vgval (x * y)%g)).
   Proof.
     iIntros. rewrite /vmult /cgs_p /vmult_p /= /vgval_p. tp_pures => /=.
     iModIntro. 

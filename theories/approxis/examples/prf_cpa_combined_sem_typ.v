@@ -79,9 +79,9 @@ Hypothesis refines_tape_couple_avoid : forall `{!approxisRGS Σ} (N:nat) α l z 
 
   Ltac2 prf_cpa_val typ k :=
     lazy_match! typ with
-    | (lrel_car lrel_message ?v1 ?v2) =>
+    | (lrel_car lrel_message _ _) =>
         let typ := eval unfold lrel_message in $typ in k typ
-    | (lrel_car lrel_cipher ?v1 ?v2) =>
+    | (lrel_car lrel_cipher _ _) =>
         let typ := eval unfold lrel_cipher in $typ in k typ
     | _ => Stuck
     end.
@@ -500,7 +500,7 @@ Hypothesis refines_tape_couple_avoid : forall `{!approxisRGS Σ} (N:nat) α l z 
       { apply NoDup_fmap with fin_to_nat; first apply fin_to_nat_inj.
         rewrite Hl'. apply NoDup_elements. }
       replace (length l') with q; last first.
-      { erewrite <-fmap_length, Hl'.
+      { erewrite <-length_fmap, Hl'.
         by replace (length (elements (dom M))) with (size (dom M)).
       }
       pose proof pos_INR_S (card_input).

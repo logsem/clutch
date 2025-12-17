@@ -140,7 +140,7 @@ Proof.
   {
     eapply IHn.
     - apply Hde2.
-    - rewrite app_length Nat.add_1_r in Heqn. by inversion Heqn.
+    - rewrite length_app Nat.add_1_r in Heqn. by inversion Heqn.
     - simpl in *.
       eapply SamplesOneTape_head; eauto.
   }
@@ -177,7 +177,7 @@ Proof.
   inversion Hde. subst.
   assert (n = length l1).
   { 
-    rewrite app_length in Heqn. 
+    rewrite length_app in Heqn. 
     rewrite Nat.add_1_r in Heqn. auto.
   }
   apply (IHn _ _ _ Hde2 H0).

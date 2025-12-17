@@ -319,7 +319,7 @@ Section logrel.
     e "scheme".
 
   Section Correctness.
-
+    #[warnings="-notation-incompatible-prefix"]
     Import mathcomp.fingroup.fingroup.
 
     Lemma hybrid_scheme_correct :

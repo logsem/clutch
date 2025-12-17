@@ -857,7 +857,7 @@ Section list_specs.
         iExists e, (inject ((a :: l1) ++ l2)), (a :: l1), l2.
         iPureIntro.
         split; auto.
-        split; [rewrite cons_length Hlen // |].
+        split; [rewrite length_cons Hlen // |].
         split.
         * by apply is_list_inject in Hcons as ->.
         * by apply is_list_inject.
@@ -920,7 +920,7 @@ Section list_specs.
         iSplit.
         { iPureIntro; auto. }
         iPureIntro.
-        split; [rewrite cons_length Hlen // |].
+        split; [rewrite length_cons Hlen // |].
         split; auto.
         * simpl. by apply is_list_inject in Hv'' as ->.
         * by apply is_list_inject.
@@ -965,7 +965,7 @@ Section list_specs.
         iExists e, (inject ((a :: l1) ++ l2)), (a :: l1), l2.
         iPureIntro.
         split; auto.
-        split; [rewrite cons_length Hlen // |].
+        split; [rewrite length_cons Hlen // |].
         split.
         * by apply is_list_inject in Hcons.
         * by apply is_list_inject.

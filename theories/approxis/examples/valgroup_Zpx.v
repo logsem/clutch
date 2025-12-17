@@ -1,9 +1,9 @@
 From clutch.approxis Require Import approxis.
 From clutch.prob_lang.typing Require Import tychk.
 
-#[warning="-hiding-delimiting-key,-overwriting-delimiting-key"] From mathcomp Require Import ssrnat.
+#[warning="-hiding-delimiting-key,-overwriting-delimiting-key,-notation-incompatible-prefix"]
 From mathcomp Require Import fingroup solvable.cyclic choice eqtype finset
-  fintype seq ssrbool ssrnat zmodp.
+  fintype seq ssrbool zmodp.
 
 From clutch.prelude Require Import mc_stdlib.
 From clutch.approxis.examples Require Import valgroup iterable_expression.
@@ -75,7 +75,7 @@ Section Zpx.
     rewrite /div.coprime.
     destruct (zerop x) as [eq|ineq].
     - rewrite eq. rewrite /div.gcdn.
-      rewrite /div.gcdn_rec. simpl.
+      rewrite /div.egcdn_rec. simpl.
       intro contra.
       discriminate contra.
     - intro H; clear H.
@@ -106,7 +106,7 @@ Section Zpx.
         intro contra. lia.
       + rewrite -(Z2Nat.id n) in Hnbound; last lia.
         apply Nat2Z.inj_lt in Hnbound.
-        apply (reflect_iff _ _ (@ltP _ _)) in Hnbound.
+        apply (reflect_iff _ _ (@ssrnat.ltP _ _)) in Hnbound.
         apply Hnbound.
     - apply p_prime.
   Qed.
@@ -121,7 +121,7 @@ Section Zpx.
     - apply Hnnonzero.
     - apply inj_lt.
       pose proof (ltn_ord n) as Hnlep.
-      apply (reflect_iff _ _ (@ltP _ _)) in Hnlep.
+      apply (reflect_iff _ _ (@ssrnat.ltP _ _)) in Hnlep.
       rewrite /Zp_trunc in Hnlep. simpl in Hnlep.
       apply Hnlep.
   Defined.
@@ -144,7 +144,7 @@ Section Zpx.
     rewrite /Zp_to_unit.
     assert (eqtmp : (Z.of_nat (nat_of_ord n) <? Z.of_nat p)%Z = true).
     { apply Z.ltb_lt. apply inj_lt.
-      apply (reflect_iff _ _ (@ltP _ _)).
+      apply (reflect_iff _ _ (@ssrnat.ltP _ _)).
       apply ltn_ord. }
     rewrite eqtmp; clear eqtmp.
     destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord n))) as [Hnonzero'|contra].
@@ -198,7 +198,7 @@ Section Zpx.
   Proof. rewrite /Zp_to_unit.
     assert (eqtmp : (Z.of_nat (nat_of_ord n) <? Z.of_nat p)%Z = true).
     { apply Z.ltb_lt. apply inj_lt.
-      apply (reflect_iff _ _ (@ltP _ _)).
+      apply (reflect_iff _ _ (@ssrnat.ltP _ _)).
       apply ltn_ord. }
     rewrite eqtmp; clear eqtmp.
     destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord n))) as [Hnonzero'|contra].
@@ -215,7 +215,7 @@ Section Zpx.
     rewrite /Zp_to_unit.
     assert (eqtmp : (Z.of_nat (nat_of_ord (FinRing.uval g)) <? Z.of_nat p)%Z = true).
     { apply Z.ltb_lt. apply inj_lt.
-      apply (reflect_iff _ _ (@ltP _ _)).
+      apply (reflect_iff _ _ (@ssrnat.ltP _ _)).
       apply ltn_ord. }
     rewrite eqtmp; clear eqtmp.
     destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord (FinRing.uval g)))) as [Hnonzero'|contra].
@@ -246,7 +246,7 @@ Section Zpx.
   Definition vg_of_int_unpacked (x : Z) (vmin : (1 ≤ x)%Z) (vmax : (x < p)%Z) : Zpx.
   Proof.
     unshelve econstructor.
-    - exists (Z.to_nat x). rewrite Zp_cast //. apply /leP. lia.
+    - exists (Z.to_nat x). rewrite Zp_cast //. apply /ssrnat.leP. lia.
     - rewrite qualifE /=. rewrite Zp_cast //.
       destruct x as [|xpos | xneg] eqn:hx ; [|shelve|].
       { exfalso. destruct vmin. simpl. by reflexivity. }
@@ -255,8 +255,8 @@ Section Zpx.
       rewrite prime.prime_coprime //.
       rewrite -hx. rewrite -hx in vmin, vmax.
       apply /negP => h.
-      unshelve epose proof (div.dvdn_leq _ h) as lepx => // ; [apply /leP ; lia|].
-      move /leP : lepx. lia.
+      unshelve epose proof (div.dvdn_leq _ h) as lepx => // ; [apply /ssrnat.leP ; lia|].
+      move /ssrnat.leP : lepx. lia.
   Defined.
 
   Fact vg_of_int_lrel_G_p :
@@ -279,8 +279,8 @@ Section Zpx.
     assert (eqargmodp : (arg < p)%Z → div.modn (Z.to_nat arg) p = Z.to_nat arg).
     { intro Hbound. rewrite div.modn_small; first lia.
       rewrite /Zp_trunc. simpl.
-      assert (Hbound' : (Z.to_nat arg < p)%coq_nat) by lia.
-      apply (reflect_iff _ _ (@ltP _ _)) in Hbound'.
+      assert (Hbound' : (Z.to_nat arg < p)%nat) by lia.
+      apply (reflect_iff _ _ (@ssrnat.ltP _ _)) in Hbound'.
       apply Hbound'. }
     iSplit; iIntros "Hsem".
     - rewrite /vg_of_int. simpl. rewrite /vg_of_int_p...
@@ -289,7 +289,7 @@ Section Zpx.
       + destruct (bool_decide (arg < p)%Z) eqn:Hargbound...
         * apply bool_decide_eq_true in Hargnonzero.
           apply bool_decide_eq_true in Hargbound.
-          assert (Hargnonzero' : (1 ≤ (@inZp p'''.+2 (Z.to_nat arg)))%Z).
+          assert (Hargnonzero' : (1 ≤ (@inZp (S (S p''')) (Z.to_nat arg)))%Z).
           { rewrite /Zp_trunc. simpl.
             rewrite eqargmodp; lia. }
           pose proof (Zp_to_unit_nonzero (inZp (Z.to_nat arg)) Hargnonzero') as
@@ -321,7 +321,7 @@ Section Zpx.
       + destruct (bool_decide (arg < p)%Z) eqn:Hargbound...
         * apply bool_decide_eq_true in Hargnonzero.
           apply bool_decide_eq_true in Hargbound.
-          assert (Hargnonzero' : (1 ≤ (@inZp p'''.+2 (Z.to_nat arg)))%Z).
+          assert (Hargnonzero' : (1 ≤ (@inZp (S (S p''')) (Z.to_nat arg)))%Z).
           { rewrite /Zp_trunc. simpl.
             rewrite eqargmodp; lia. }
           pose proof (Zp_to_unit_nonzero (inZp (Z.to_nat arg)) Hargnonzero') as
@@ -398,8 +398,8 @@ Section Zpx.
       apply Z.ltb_lt in Hnbound.
       rewrite /Zp_trunc. simpl.
       rewrite div.modn_small; first apply Z2Nat.id; first lia.
-      assert (Hbound' : (Z.to_nat n < p)%coq_nat) by lia.
-      apply (reflect_iff _ _ (@ltP _ _)) in Hbound'.
+      assert (Hbound' : (Z.to_nat n < p)%nat) by lia.
+      apply (reflect_iff _ _ (@ssrnat.ltP _ _)) in Hbound'.
       apply Hbound'.
     - apply H.
   Qed.
@@ -410,14 +410,14 @@ Section Zpx.
     rewrite /lrel_car. iExists x; done.
   Qed.
 
-  Fact is_mult_p (x y : vgG) : ⊢ WP vmult x y {{ λ (v : cval), ⌜v = (x * y)%g⌝ }}.
+  Fact is_mult_p (x y : vgG) : ⊢ WP vmult (vgval x) (vgval y) {{ λ (v : cval), ⌜v = vgval (x * y)%g⌝ }}.
   Proof.
     rewrite /vmult /= /vmult_p /vgval_p /=. wp_pures. iPureIntro.
     rewrite -Nat2Z.inj_mul. rewrite rem_modn //.
   Qed.
 
   Fact is_spec_mult_p (x y : vgG) K :
-    ⤇ fill K (vmult x y) -∗ spec_update ⊤ (⤇ fill K (x * y)%g).
+    ⤇ fill K (vmult (vgval x) (vgval y)) -∗ spec_update ⊤ (⤇ fill K (vgval (x * y)%g)).
   Proof.
     iIntros. rewrite /vmult /cgs_p /vmult_p /= /vgval_p. tp_pures => /=.
     iModIntro.
@@ -425,7 +425,7 @@ Section Zpx.
   Qed.
 
   Fact is_exp' (b : vgG) (x : nat) :
-    {{{ True }}} vexp' vunit_p vmult_p b #x {{{ v, RET (v : cval); ⌜v = (b ^+ x)%g⌝ }}}.
+    {{{ True }}} vexp' vunit_p vmult_p (vgval b) #x {{{ v, RET (v : cval); ⌜v = vgval (b ^+ x)%g⌝ }}}.
   Proof.
     unfold vexp, vexp'. iIntros (? _) "hlog".
     wp_pure. wp_pure.
@@ -439,13 +439,15 @@ Section Zpx.
       replace (S x - 1)%Z with (Z.of_nat x) by lia.
       iApply "IH".
       iIntros. wp_pures.
-      iApply (wp_frame_wand with "hlog"). iApply (wp_mono $! (is_mult_p b v)).
+      iApply (wp_frame_wand with "hlog").
+      rewrite H.
+      iApply (wp_mono $! (is_mult_p b (b ^+ x))).      
       iIntros (??) "hlog" ; subst. iApply "hlog".
       by rewrite expgS.
   Qed.
 
   Fact is_spec_exp' (b : vgG) (x : nat) K :
-    ⤇ fill K (vexp' vunit_p vmult_p b #x) ⊢ spec_update ⊤ (⤇ fill K (b ^+ x)%g).
+    ⤇ fill K (vexp' vunit_p vmult_p (vgval b) #x) ⊢ spec_update ⊤ (⤇ fill K (vgval (b ^+ x)%g)).
   Proof.
     unfold vexp, vexp'. iIntros "hlog".
     tp_pure. tp_pure.
@@ -470,10 +472,11 @@ Section Zpx.
     eapply (mulIg x) ; rewrite mulVg ; rewrite -expgSr.
     assert (S p'' = prime.totient p) as -> by rewrite prime.totient_prime => //.
     rewrite -card_units_Zp => //=.
-    simpl in x. apply expg_cardG. apply in_setT.
+    apply expg_cardG. apply in_setT.
   Qed.
 
-  Fact is_inv_p (x : vgG) : ⊢ WP x^-1 {{ λ (v : cval), ⌜v = (x^-1)%g⌝ }}.
+
+  Fact is_inv_p (x : vgG) : ⊢ WP vinv (vgval x)  {{ λ (v : cval), ⌜v = vgval (x^-1)%g⌝ }}.
   Proof.
     simpl. rewrite /vinv_p {1}/vgval_p. wp_pures => /=.
     wp_apply is_exp' => //.
@@ -482,7 +485,7 @@ Section Zpx.
   Qed.
 
   Fact is_spec_inv_p (x : vgG) K :
-    ⤇ fill K x^-1 -∗ spec_update ⊤ (⤇ fill K (x^-1)%g).
+    ⤇ fill K (vinv (vgval x)) -∗ spec_update ⊤ (⤇ fill K (vgval (x^-1)%g)).
   Proof.
     iIntros "hlog" => /=. rewrite /vinv_p {2}/vgval_p. tp_pures => /=.
     tp_bind (vexp' _ _ _ _)%E.

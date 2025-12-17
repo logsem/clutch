@@ -23,13 +23,13 @@ Definition τ_DDH := (τG * τG * τG)%ty.
 Definition DDH_real : expr :=
   let: "a" := rand #n in
   let: "b" := rand #n in
-  (g^"a", g^"b", g^("a"*"b")).
+  (vgval g^"a", vgval g^"b", vgval g^("a"*"b")).
 
 Definition DDH_rand : expr :=
   let: "a" := rand #n in
   let: "b" := rand #n in
   let: "c" := rand #n in
-  (g^"a", g^"b", g^"c").
+  (vgval g^"a", vgval g^"b", vgval g^"c").
 
 Context {cgg : @clutch_group_generator vg cg vgg}. (* g is well-typed *)
 
@@ -69,6 +69,10 @@ Proof with rel_red.
   rel_apply (refines_couple_UU n). 1: intuition auto ; lia.
   iIntros "!> %b %le_b_n"...
   replace (Z.of_nat a * Z.of_nat b)%Z with (Z.of_nat (a * b)) by lia...
+  rel_pures_l.
+  do 3 (rel_apply_l refines_exp_l; rel_pures_l).
+  rel_pures_r. 
+  do 3 (rel_apply_r refines_exp_r; rel_pures_r).    
   rel_vals.
 Qed.
 
@@ -81,6 +85,10 @@ Proof with rel_red.
   iIntros "!> %b %le_b_n"...
   rel_apply (refines_couple_UU n). 1: intuition auto ; lia.
   iIntros "!> %c %le_c_n"...
+  rel_pures_l.
+  do 3 (rel_apply_l refines_exp_l; rel_pures_l).
+  rel_pures_r. 
+  do 3 (rel_apply_r refines_exp_r; rel_pures_r).      
   rel_vals.
 Qed.
 

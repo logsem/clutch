@@ -1,7 +1,7 @@
 (** * Higher order specification for incremental sampling algorithms *)
 From clutch.eris Require Export eris error_rules.
 From Coquelicot Require Import Series.
-Require Import Lra.
+From Stdlib Require Import Lra.
 
 Set Default Proof Using "Type*".
 

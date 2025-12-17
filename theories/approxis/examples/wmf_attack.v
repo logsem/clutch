@@ -420,7 +420,7 @@ Section defs.
         rel_apply (refines_couple_couple_avoid N l_fin N).
         { apply (NoDup_fmap fin_to_nat). rewrite Hlst.
           constructor; last constructor. apply not_elem_of_nil. }
-        erewrite <-fmap_length, Hlst. simpl.
+        erewrite <-length_fmap, Hlst. simpl.
         iSplitL "Herr".
         { rewrite /N. iAssumption. }
         iModIntro.
@@ -573,7 +573,7 @@ Section defs.
         rel_apply (refines_couple_couple_avoid N l_fin N).
         { apply (NoDup_fmap fin_to_nat). rewrite Hlst.
           constructor; last constructor. apply not_elem_of_nil. }
-        erewrite <-fmap_length, Hlst. simpl.
+        erewrite <-length_fmap, Hlst. simpl.
         iSplitL "Herr".
         { rewrite /N. iAssumption. }
         iModIntro.

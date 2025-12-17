@@ -540,7 +540,7 @@ Proof.
   pose proof (state_stepN_tape _ _ _ _ _ H H1) as [t' [Ht Hst]].
   eapply presamples_exec_det_part; eauto.
   - rewrite Hst. apply lookup_insert. 
-  - rewrite app_length Ht. lia.
+  - rewrite length_app Ht. lia.
 Qed.
 
 Lemma SamplesOneTape_state_stepN_exec_det l σ σ' n t e:
@@ -885,7 +885,7 @@ Proof.
       by rewrite Ht2' lookup_insert. 
     }
     assert (m ≤ length (t2 ++ t2')) as _H2. {
-      rewrite app_length. lia.
+      rewrite length_app. lia.
     }
     eapply presamples_exec_det_pexec in Hex2 as [σ' Hs']; eauto. 
     pose proof Hs' as Hs''.
@@ -965,12 +965,12 @@ Proof.
     try by rewrite Ht1' lookup_insert Hvt.
     destruct Ht' as [-> | ->].
     - exists (t1 ++ t :: t1'). split; auto.
-      simpl. rewrite app_length. lia. 
+      simpl. rewrite length_app. lia. 
     - exists tt; split; eauto. 
       { by rewrite Ht1' insert_insert.  }
       apply le_S_n. 
       apply (f_equal length) in Hvt.  
-      simpl in *. rewrite -Hvt app_length. 
+      simpl in *. rewrite -Hvt length_app. 
       simpl. lia.
   }
   assert (exec n (e', σ') = dret v1). {
@@ -1013,7 +1013,7 @@ Proof.
   iFrame. 
   iPoseProof ((det_result_rel_wp e' _ σ' s2 l1 l2 n m) with "[Hl1 Hl2 Hsp]") as "Hwp";
   try iFrame; eauto. 
-  { rewrite app_length Hlt2; lia. }
+  { rewrite length_app Hlt2; lia. }
   { by rewrite Ht1'' lookup_insert. } 
   { by rewrite Ht2' lookup_insert. } 
   iApply (wp_mono with "Hwp"). 

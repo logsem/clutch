@@ -857,12 +857,12 @@ Section oscheduler.
             by simpl in *. }
           destruct n.
           * rewrite lookup_app_l; last first. 
-            { rewrite insert_length. lia.
+            { rewrite length_insert. lia.
             }
             rewrite list_lookup_insert; try done.
             rewrite Heqn1 in H0.
             simplify_eq.
-          * rewrite lookup_app_l; last (rewrite insert_length; lia).
+          * rewrite lookup_app_l; last (rewrite length_insert; lia).
             rewrite list_lookup_insert_ne; last lia.
             by rewrite Heqn1.
         + rewrite -Hrewrite.

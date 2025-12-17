@@ -430,7 +430,7 @@ Section ub_instances.
       rewrite SeriesC_0; auto.
       apply Rdiv_le_0_compat; [lra |].
       apply (Rle_lt_trans _ n); [apply pos_INR | lra].
-    - rewrite cons_length.
+    - rewrite length_cons.
       assert (S (length l) / (n + 1) = 1 / (n + 1) + (length l) / (n + 1)) as ->.
       {
         rewrite -Rdiv_plus_distr //.
@@ -460,7 +460,7 @@ Section ub_instances.
       rewrite SeriesC_0; auto.
       apply Rdiv_le_0_compat; [lra |].
       apply (Rle_lt_trans _ n); [apply pos_INR | lra].
-    - rewrite cons_length.
+    - rewrite length_cons.
       assert (S (length l) / (n + 1) = 1 / (n + 1) + (length l) / (n + 1)) as ->.
       {
         rewrite -Rdiv_plus_distr //.

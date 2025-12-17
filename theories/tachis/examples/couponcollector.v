@@ -5,7 +5,7 @@ From clutch.prob_lang Require Import notation tactics metatheory lang.
 From iris.proofmode Require Export proofmode.
 From Stdlib Require Export Reals Psatz.
 From Coquelicot Require Export Hierarchy.
-Require Import Lra.
+From Stdlib Require Import Lra.
 
 
 Set Default Proof Using "Type*".
@@ -192,7 +192,7 @@ Section proofs.
             wp_apply (wp_coupon_helper_end); auto.
           -- iApply ("IH" with "[][][][][][$Hx1][$Hl]").
              ++ iPureIntro; lia.
-             ++ iPureIntro. by rewrite insert_length.
+             ++ iPureIntro. by rewrite length_insert.
              ++ iPureIntro. instantiate (1:= true_set ∪ {[c]}).
                 rewrite size_union.
                 { rewrite size_singleton. lia. }
@@ -242,7 +242,7 @@ Section proofs.
     rewrite -/(INR (S coupon')).
     wp_apply (wp_coupon_helper_ind with "[$Hx $Hl][$]").
     - lia.
-    - rewrite replicate_length. by rewrite Nat2Z.id. 
+    - rewrite length_replicate. by rewrite Nat2Z.id. 
     - replace (_-_)%nat with 0%nat by lia. instantiate (1:= ∅).
       done.
     - intros. split; last set_solver.

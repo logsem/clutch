@@ -1,6 +1,6 @@
 From clutch.eris Require Export eris error_rules.
 From Coquelicot Require Import Series.
-Require Import Lra.
+From Stdlib Require Import Lra.
 
 Section golden_toss.
   Context `{!erisGS Σ}.

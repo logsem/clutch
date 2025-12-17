@@ -59,7 +59,7 @@ Proof.
     destruct (decide (i < length tp)).
     + by rewrite tpool_lookup lookup_app_l.
     + rewrite tpool_lookup !lookup_ge_None_2; first done.
-      * rewrite app_length; simpl; lia.
+      * rewrite length_app; simpl; lia.
       * lia.
 Qed.
 

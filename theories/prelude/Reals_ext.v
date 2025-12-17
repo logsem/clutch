@@ -199,7 +199,7 @@ Ltac2 split_le_le _ :=
   let rename_prod old prod :=
     let extract_prod_name t :=
       match Constr.Unsafe.kind t with
-      | Constr.Unsafe.Prod b t => Constr.Binder.name b
+      | Constr.Unsafe.Prod b _ => Constr.Binder.name b
       | _ => None
       end in
     let name := extract_prod_name old in

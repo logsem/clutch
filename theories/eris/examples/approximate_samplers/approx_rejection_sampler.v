@@ -2,7 +2,7 @@
 From clutch.eris Require Export eris error_rules.
 From clutch.eris Require Export examples.approximate_samplers.approx_sampler_lib.
 From Coquelicot Require Import Series.
-Require Import Lra.
+From Stdlib Require Import Lra.
 
 Set Default Proof Using "Type*".
 
@@ -56,7 +56,7 @@ Section basic.
       + iApply (ec_eq with "[$]").
         Opaque INR.
         rewrite /= Rmult_1_r.
-        rewrite seq_length; apply Rmult_eq_compat_l.
+        rewrite length_seq; apply Rmult_eq_compat_l.
         rewrite S_INR //.
 
       + iIntros (sample'') "%Hsample''".
@@ -106,7 +106,7 @@ Section basic.
       iSplitL "Hcr".
       + iApply (ec_eq with "[$]").
         rewrite /= Rmult_1_r.
-        rewrite seq_length; apply Rmult_eq_compat_l.
+        rewrite length_seq; apply Rmult_eq_compat_l.
         rewrite S_INR //.
       + iIntros (sample'') "%Hsample''".
         wp_pures.

@@ -30,7 +30,7 @@ Section NNR.
       rewrite /included in H.
       destruct H as ((z & Hz) & H).
       rewrite NNR_op /nnreal_plus in H.
-      simplify_eq.
+      inversion H.
       lra.
     - rewrite /included.
       destruct x as (x & Hx).
@@ -288,7 +288,7 @@ Section etc_credit_theory.
     iIntros (?) "Hxs".
     iInduction xs as [|x xs] "IH"; [auto|].
     assert (length (x :: xs) * r = r + length xs * r)%R as ->.
-    { rewrite cons_length S_INR. lra. }
+    { rewrite length_cons S_INR. lra. }
     iDestruct (etc_split with "Hxs") as "[$ Hr]"; [done| |].
     { assert (0 <= length xs)%R by eauto with real. real_solver. }
     by iApply "IH".

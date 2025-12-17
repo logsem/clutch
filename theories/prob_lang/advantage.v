@@ -1,4 +1,4 @@
-Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From clutch.prelude Require Import NNRbar.
 From clutch.prob Require Import distribution markov.
 From clutch.prob_lang Require Import notation typing.tychk typing.contextual_refinement.

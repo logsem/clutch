@@ -3,7 +3,7 @@ From discprob.basic Require Import base order bigop_ext.
 From Stdlib Require Import Reals Fourier Psatz.
 #[warning="-hiding-delimiting-key,-overwriting-delimiting-key"] From mathcomp Require Import ssrnat.
 From mathcomp Require Import ssreflect ssrbool ssrfun eqtype seq div choice fintype.
-From Stdlig Require Import ClassicalEpsilon.
+From Stdlib.Logic Require Import ClassicalEpsilon.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy Markov.
 
 Lemma Rbar_le_fin x y: 0 <= y → Rbar_le x (Finite y) → Rle (real x) y.
@@ -240,6 +240,8 @@ Proof.
       rewrite /norm//=/abs//=/scal//=/mult/=; rewrite Rabs_right; nra.
     + exists (scal 2 v). by apply: is_series_scal.
 Qed.
+
+From Stdlib.Arith Require Import Peano_dec.
 
 Lemma is_series_bump_hd v:
   is_series (λ x, if eq_nat_dec x 0 then v else 0) v.

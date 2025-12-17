@@ -106,7 +106,7 @@ Section faulty_allocator.
       iExists l, (sval + 1)%nat, rval.
       destruct xs as [| x xs].
       {
-        rewrite app_length /= in Hlen2.
+        rewrite length_app /= in Hlen2.
         lia.
       }
       iExists xs, (nnreal_plus p (nnreal_mult (nnreal_nat 2) ε)).
@@ -123,7 +123,7 @@ Section faulty_allocator.
         rewrite cons_middle app_assoc insert_app_l.
         - rewrite -(Nat.add_0_r sval) Hlen1.
           rewrite insert_app_r //.
-        - rewrite app_length /=.
+        - rewrite length_app /=.
           lia.
       }
       iSplit.
@@ -134,18 +134,18 @@ Section faulty_allocator.
       iSplit.
       {
         iPureIntro.
-        rewrite app_length Hlen1 /= //.
+        rewrite length_app Hlen1 /= //.
       }
       iSplit.
       {
         iPureIntro.
         rewrite Hlen2.
-        do 3 rewrite app_length /=.
+        do 3 rewrite length_app /=.
         lia.
       }
       iPureIntro.
       simpl.
-      rewrite -Hpot cons_length S_INR.
+      rewrite -Hpot length_cons S_INR.
       rewrite Rmult_plus_distr_r Rmult_1_l.
       rewrite Rplus_assoc.
       rewrite Rmult_plus_distr_r Rmult_1_l.
@@ -168,7 +168,7 @@ Section faulty_allocator.
       }
       assert (length xs = 1%nat) as Hxs.
       {
-        rewrite app_length -Hlen1 in Hlen2. lia.
+        rewrite length_app -Hlen1 in Hlen2. lia.
       }
       rewrite bool_decide_eq_true_2; last first.
       {
@@ -212,7 +212,7 @@ Section faulty_allocator.
           rewrite insert_app_r /=.
           rewrite app_nil_r.
           iFrame.
-        - rewrite app_length /=.
+        - rewrite length_app /=.
           lia.
       }
       iSplit.
@@ -226,7 +226,7 @@ Section faulty_allocator.
       iSplit.
       {
         iPureIntro.
-        rewrite app_length /=.
+        rewrite length_app /=.
         apply INR_eq.
         do 2 rewrite plus_INR.
         rewrite Hlen1. lra.
@@ -234,9 +234,9 @@ Section faulty_allocator.
       iSplit.
       {
         iPureIntro.
-        do 2 rewrite app_length /=.
+        do 2 rewrite length_app /=.
         rewrite -Hyes.
-        rewrite replicate_length /=.
+        rewrite length_replicate /=.
         rewrite -Hlen1.
         apply INR_eq.
         rewrite Nat2Z.id.
@@ -245,7 +245,7 @@ Section faulty_allocator.
       }
       iPureIntro.
       simpl.
-      rewrite Hyes replicate_length /=.
+      rewrite Hyes length_replicate /=.
       rewrite Nat2Z.id.
       do 2 rewrite plus_INR /=.
       lra.

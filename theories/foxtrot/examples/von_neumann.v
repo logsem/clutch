@@ -13,8 +13,8 @@ Proof.
   induction l1; first done. 
   simpl.
   intros.
-  rewrite app_length.
-  rewrite fmap_length.
+  rewrite length_app.
+  rewrite length_fmap.
   by f_equal.
 Qed. 
   
@@ -269,10 +269,10 @@ Section von_neumann.
       { rewrite /l1/l2.
         rewrite !length_bind. lia. }
       { rewrite !length_bind. rewrite /small/large.
-        rewrite !seq_length. destruct!/=.
+        rewrite !length_seq. destruct!/=.
         apply Nat.mul_pos_pos; lia.
       }
-      { rewrite !length_bind/small/large !seq_length. subst.
+      { rewrite !length_bind/small/large !length_seq. subst.
         assert (∀ x N', x<= N' -> 2* ((x+1) * (S N' - x)) <= (S (S N'))* (S (S N')))%nat as H'.
         - clear.
           intros x N.
@@ -481,11 +481,11 @@ Section von_neumann.
           + intros ???. by simplify_eq.
           + apply NoDup_seq.
       }
-      { by rewrite !fmap_length seq_length. }
-      { rewrite fmap_length seq_length. lia. }
-      { rewrite fmap_length seq_length. lia. }
+      { by rewrite !length_fmap length_seq. }
+      { rewrite length_fmap length_seq. lia. }
+      { rewrite length_fmap length_seq. lia. }
       { done. }
-      rewrite fmap_length seq_length.
+      rewrite length_fmap length_seq.
       iDestruct "H" as "(%&%&%&%&Hspec1&Hspec2&Hα)".
       case_bool_decide as C1.
       { (* return true *)
