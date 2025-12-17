@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         image:
-          - mathcomp/mathcomp:2.2.0-coq-8.19
+          - mathcomp/mathcomp:2.4.0-rocq-prover-9.0
       max-parallel: 4
       # don't cancel all in-progress jobs if one matrix job fails:
       fail-fast: false
@@ -30,7 +30,6 @@ jobs:
               sudo apt-get update -y -q
               opam repo remove coq-released
               opam repo add rocq-released https://rocq-prover.org/opam/released
-              opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
               opam pin add -n -y -k path $PACKAGE $WORKDIR
               opam update -y
               opam reinstall --forget-pending --yes
