@@ -44,7 +44,7 @@ Section giryM_join_definition.
       rewrite integral_cst.
       - by rewrite (mul0e _).
       - rewrite /=.
-        by apply (@measurableT _ (salgebraType _)).
+        by apply (@measurableT _ (g_sigma_algebraType _)).
     Qed.
 
     Definition giryM_join_ge0 A : (0 <= giryM_join_def m A)%E.

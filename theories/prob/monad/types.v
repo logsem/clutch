@@ -1,9 +1,9 @@
 (** Definition of the Giry Monad type (a sigma algebra for subdistributions) *)
 
-#[warning="-notation-incompatible-prefix"] From mathcomp Require Import all_boot all_algebra finmap.
+#[warning="-notation-incompatible-prefix -hiding-delimiting-key"] From mathcomp Require Import all_boot all_algebra finmap.
 #[warning="-notation-incompatible-prefix"] From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
-From mathcomp Require Import cardinality fsbigop.
-From mathcomp.reals Require Import reals signed.
+From mathcomp Require Import cardinality fsbigop interval_inference.
+From mathcomp.reals Require Import reals.
 From mathcomp.analysis Require Import ereal normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
@@ -118,7 +118,7 @@ Section giry_space.
   HB.instance Definition _ := isPointed.Build (giryType T) mzero.
 
   Definition preimage_class_of_measures (S : set T) : set (set (giryType T)) :=
-    @preimage_class (giryType T)
+    @preimage_set_system (giryType T)
       (\bar R)                  (* Range type *)
       setT                      (* Domain set *)
       (fun μ => μ S)              (* Evaluation function *)
@@ -136,7 +136,7 @@ Global Arguments giryM_display {_} {_} {_}.
 
 (** Use giryM for any Giry Monad type *)
 Definition giryM (R : realType) (d : measure_display) (T : measurableType d) : measurableType giryM_display :=
-  [the measurableType _ of salgebraType (@giry_subbase R d T)].
+  [the measurableType _ of g_sigma_algebraType (@giry_subbase R d T)].
 Global Arguments giryM {_} {_} _.
 
 
@@ -235,7 +235,7 @@ End giryNotation.
 
 
 Reserved Notation "'<<discr' G '>>'"
-  (at level 2, format "'<<discr'  G  '>>'").
+  (at level 0, format "'<<discr'  G  '>>'").
 
 
 Section discrete_space.
@@ -279,6 +279,7 @@ Section fin_pointed.
   (* The finite type of > 0 elements is pointed *)
   Program Definition Ism_inhabitant : 'I_(S m). eapply (@Ordinal _), leqnn. Defined.
 
+  #[warnings="-HB.no-new-instance"]
   HB.instance Definition _ := gen_eqMixin ('I_m).
   HB.instance Definition _ := gen_choiceMixin ('I_m).
   HB.instance Definition _ N := isPointed.Build ('I_(S m)) Ism_inhabitant.
