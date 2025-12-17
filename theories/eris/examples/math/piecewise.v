@@ -271,22 +271,20 @@ Proof.
     repeat case_match; lra.
 Qed.   
   
-Lemma PCts_split f xa xb xc: xa<=xb<=xc -> PCts f xa xb -> PCts f xb xc -> PCts f xa xc.
+Lemma PCts_split f xa xb xc: Rmin xa xc<=xb<=Rmax xa xc -> PCts f xa xb -> PCts f xb xc -> PCts f xa xc.
 Proof.
-  
   intros H [l1 [H1[H2 H3]]]%PCts_PCts' [l2 [H4[H5 H6]]]%PCts_PCts'.
   exists ((λ _, - f xb, xb, xb)::l1++l2).
   split.
   - rewrite /Icc.
     rewrite /Rmin/Rmax.
     intros.
-    repeat case_match; try lra.
     rewrite fmap_cons fmap_app.
     simpl.
     rewrite fsum_app.
     rewrite /Icc.
     rewrite /Iverson.
-    rewrite /Rmin/Rmax.
+    unfold Rmin, Rmax in *.
     repeat case_match; try lra.
     + rewrite -H1; last (rewrite /Icc/Rmax/Rmin; repeat case_match; lra).
       rewrite -H4; last (rewrite /Icc/Rmax/Rmin; repeat case_match; lra).
@@ -298,12 +296,74 @@ Proof.
       * rewrite -H4; last (rewrite /Icc/Rmax/Rmin; repeat case_match; lra).
         rewrite H3; first lra.
         unfold Icc, Rmin, Rmax. repeat case_match; lra.
+    + rewrite -H1; last (rewrite /Icc/Rmax/Rmin; repeat case_match; lra).
+      rewrite -H4; last (rewrite /Icc/Rmax/Rmin; repeat case_match; lra).
+      replace x with xb; lra.
+    + destruct (decide (x<=xb)).
+      * rewrite -H4; last (rewrite /Icc/Rmax/Rmin; repeat case_match; lra).
+        rewrite H3; first lra.
+        unfold Icc, Rmin, Rmax. repeat case_match; lra.
+      * rewrite -H1; last (rewrite /Icc/Rmax/Rmin; repeat case_match; lra).
+        rewrite H6; first lra.
+        unfold Icc, Rmin, Rmax. repeat case_match; lra.
   - apply Forall_cons.
     split.
     + intros ??. apply Continuity.continuous_const.
     + by apply Forall_app.
 Qed. 
 
+Lemma PCts_subset f xa xa' xb xb': Rmin xa xb<=xa'<=Rmax xa xb ->
+                                   Rmin xa xb<=xb'<=Rmax xa xb ->
+                                   PCts f xa xb -> PCts f xa' xb'.
+Proof.
+  intros H1 H2 [x [K1 K2]].
+  exists x.
+  split; last done.
+  intros.
+  apply K1.
+  unfold Icc, Rmin, Rmax in *.
+  repeat case_match; lra.
+Qed.
+
+Lemma PCts_shift f f' xa xb xa' xb' r:
+  xa' = xa + r -> xb' = xb + r ->
+  (∀ x, Icc xa xb x-> f x = f' (x+r)) ->
+  PCts f xa xb -> 
+  PCts f' xa' xb'.
+Proof.
+  intros -> -> H1 [l[K1 K2]].
+  exists ((λ '(g, y, z), (λ x, g(x-r), y+r, z+r))<$>l).
+  assert (∀ x, Icc (xa+r) (xb+r) x-> f (x-r) = f' (x)) as H1'.
+  { intros.
+    rewrite H1; first (f_equal; lra).
+    unfold Icc, Rmax, Rmin in *. repeat case_match; lra.
+  }
+  split.
+  - intros.
+    rewrite -H1'; last done.
+    rewrite K1; last first.
+    { unfold Icc, Rmax, Rmin in *. repeat case_match; lra. }
+    clear.
+    induction l as [|hd tl IHL]; first done.
+    simpl. rewrite IHL.
+    f_equal.
+    repeat case_match. subst.
+    unfold IntervalFun_R, Iverson, Icc, Rmin, Rmax.
+    repeat case_match; lra.
+  - clear -K2.
+    revert K2.
+    induction l as [|hd tl IHL]; first done.
+    rewrite !Forall_cons.
+    intros [].
+    split; last naive_solver.
+    destruct hd as [[]].
+    intros x ?.
+    unshelve epose proof H (x-r) _.
+    { unfold Icc, Rmin, Rmax in *. repeat case_match; lra. }
+    apply Continuity.continuous_comp; last done.
+    apply: Derive.ex_derive_continuous.
+    by auto_derive.
+Qed. 
 
 (** Integrability of 1D compactly-supported piecewise continuous functions, on any interval *)
 Lemma PCts_RInt {f xa xb} (HP : PCts f xa xb) :

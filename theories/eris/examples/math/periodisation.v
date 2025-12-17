@@ -59,13 +59,14 @@ Proof.
 Qed.
 
 Lemma ex_RInt_unit_intervals_from_all (F : R → R) :
-  (∀ b : R, ex_RInt F 0 b) →
+  (∀ b : R, 0<b -> ex_RInt F 0 b) →
   (∀ k : nat, ex_RInt F (INR k) (INR k + 1)).
 Proof.
   intros Hex_b k.
   apply (ex_RInt_Chasles_2 F 0 k (k + 1)).
   { split. { apply pos_INR. } lra. }
   apply Hex_b.
+  pose proof pos_INR k. lra.
 Qed.
 
 Lemma ex_RInt_shift_from_interval (F : R → R) :
@@ -151,7 +152,7 @@ Proof.
   intros Hex_gen HexU Hbound Hex_b.
 
   have Hex_k : ∀ k : nat, ex_RInt F (INR k) (INR k + 1).
-  { apply ex_RInt_unit_intervals_from_all. apply Hex_b. }
+  { apply ex_RInt_unit_intervals_from_all. intros. apply Hex_b. }
   have Hex_shift : ∀ k : nat, ex_RInt (fun x => F (x + INR k)) 0 1.
   { apply ex_RInt_shift_from_interval. apply Hex_k. }
 
