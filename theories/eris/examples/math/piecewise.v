@@ -612,3 +612,18 @@ Proof.
 Qed.
 
 
+
+Definition clamp (x : R) : R := Rmin 0 (Rmax 1 x).
+
+Lemma clamp_continuous {f : R → R} {x} :
+  Continuity.continuous f x → Continuity.continuous (λ x0 : R_UniformSpace, clamp (f x0)) x.
+Proof. Admitted.
+
+Lemma clamp_eq {x} : 0 <= x <= 1 → clamp x = x.
+Proof. Admitted.
+
+Lemma le_clamp {x} : 0 <= clamp x.
+Proof. Admitted.
+
+Lemma clamp_le {x} : clamp x <= 1.
+Proof. Admitted.

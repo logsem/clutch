@@ -1140,7 +1140,6 @@ Section credits.
       { apply ex_RInt_const. }
   Qed.
 
-
   Lemma HL3 {F M} (HPcs : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     ex_seriesC (λ k : nat, RInt (λ x1 : R, RInt (λ x0 : R, SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1).
   Proof.
@@ -1259,6 +1258,31 @@ Section credits.
         rewrite Rmax_right; OK.
       }
 
+      replace (λ x1 : R, RInt (λ x0 : R, G2_μ n x1 * F n x1 * SeriesC (λ x : nat, Iverson (Icc 0 1) x0 * G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1)
+        with  (λ x1 : R, RInt (λ x0 : R, G2_μ n x1 * F n x1 * SeriesC (λ x : nat, G1_μ x * clamp (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1); last first.
+      { funexti.
+        apply RInt_ext.
+        intros ??.
+        f_equal.
+        f_equal.
+        funexti.
+        rewrite Iverson_True; OK.
+        2: rewrite /Icc; OK.
+        rewrite Rmult_1_l.
+        f_equal.
+        rewrite clamp_eq; OK.
+        split.
+        { suffices ? : exp (- x0 * (2 * x1 + x0) / 2) <= 1 by OK.
+          apply Rexp_range.
+          have ? : 0 <= INR x1 by apply pos_INR.
+          rewrite Rmin_left in H; OK.
+          rewrite Rmax_right in H; OK.
+          suffices ? : - x0 * (2 * x1 + x0) <= 0 by OK.
+          apply Rcomplements.Rmult_le_0_r; OK.
+        }
+        { suffices ? : 0 <= exp (- x0 * (2 * x1 + x0) / 2) by OK.
+          apply Rexp_nn. }
+      }
       apply Fubini_Step_ex_x.
       apply PCts2_mult; [apply PCts2_mult|].
       { apply PCts_const_x.
@@ -1278,77 +1302,23 @@ Section credits.
         rewrite Rmin_left; OK.
         rewrite Rmax_right; OK.
         intros ??.
-        replace (λ y : R, @SeriesC nat numbers.Nat.eq_dec nat_countable (λ x0 : nat, Iverson (fun t => 0 <= t <= 1) y * G1_μ x0 * (1 - exp (- y * (2 * x0 + y) / 2))))
-           with (λ y : R, Series.Series (λ x0 : nat, Iverson (fun t => 0 <= t <= 1) y * G1_μ x0 * (1 - exp (- y * (2 * x0 + y) / 2)))); last first.
+        replace (λ y : R, @SeriesC nat numbers.Nat.eq_dec nat_countable (λ x0 : nat, G1_μ x0 * clamp (1 - exp (- y * (2 * x0 + y) / 2))))
+           with (λ y : R, Series.Series (λ x0 : nat, G1_μ x0 * clamp (1 - exp (- y * (2 * x0 + y) / 2)))); last first.
         { funexti. by rewrite SeriesC_Series_nat. }
         apply (@UniformLimitTheorem _ 0 1).
         { rewrite /Icc//=; OK. rewrite Rmin_left; OK. rewrite Rmax_right; OK. }
         { intros ???.
-
-
-          apply (Continuity.continuous_ext_loc _ (λ x'0 : R_UniformSpace, G1_μ n0 * (1 - exp (- x'0 * (2 * n0 + x'0) / 2)))).
-          2: {
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            by auto_derive.
-          }
-          rewrite Rmin_left in H0; OK.
-          rewrite Rmax_right in H0; OK.
-          (* FIXME Not true *)
-          admit.
-          (*
-
-          (* In a neighbourhood of x', the indicator function is 1. *)
-          have Hpos_ball : 0 < (Rmin x' (1-x') / 2).
-          { apply Rmin_glb_lt. OK. }
-          exists (mkposreal _ Hpos_ball).
-          intros y.
-          rewrite /ball//=.
-          rewrite /AbsRing_ball//=.
-          intros Hy.
-          have H1 : abs (minus y x') < x'.
-          { eapply Rlt_le_trans; [exact Hy|]. apply Rmin_l. }
-          have H2 : abs (minus y x') < (1 - x').
-          { eapply Rlt_le_trans; [exact Hy|]. apply Rmin_r. }
-          have ? : 0 < y.
-          { rewrite /abs//= in H1.
-            apply Rabs_def2 in H1.
-            destruct H1.
-            rewrite /minus/plus/opp//= in H3.
-            OK.
-          }
-          have ? : y < 1.
-          { rewrite /abs//= in H2.
-            apply Rabs_def2 in H2.
-            destruct H2.
-            rewrite /minus/plus/opp//= in H2.
-            OK.
-          }
-          rewrite Iverson_True; OK.
-          *)
+          apply @Continuity.continuous_mult.
+          { apply Continuity.continuous_const. }
+          apply clamp_continuous.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
         }
-        have H1 : ∀ x0 (n0 : nat), 0 <= x0 → 0 <= 1 - exp (- x0 * (2 * n0 + x0) / 2).
-        { intros ???.
-          suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
-          apply Rexp_range; OK.
-          rewrite Rdiv_def.
-          rewrite Rmult_assoc.
-          apply Rcomplements.Rmult_le_0_r; OK.
-          apply Rle_mult_inv_pos; OK.
-          apply Rplus_le_le_0_compat; OK.
-          apply Rmult_le_pos; OK.
-          apply pos_INR.
-        }
-
         apply (UniformConverge_Series G1_μ).
         { intros ??.
-          rewrite /Iverson//=. case_decide; OK.
-          rewrite Rmult_1_l.
           apply Rmult_le_pos.
           { apply G1_μ_nn. }
-          { apply H1.
-            rewrite /Icc in H0.
-            OK.
-          }
+          { apply le_clamp. }
         }
         { rewrite /G1_μ.
           replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
@@ -1359,24 +1329,15 @@ Section credits.
         { intros ??.
           rewrite Rabs_right.
           2: {
-            rewrite /Iverson//=. case_decide; OK.
-            rewrite Rmult_1_l.
             apply Rle_ge.
             apply Rmult_le_pos.
             { apply G1_μ_nn. }
-            { apply H1.
-              rewrite /Icc in H0.
-              OK.
-            }
+            { apply le_clamp. }
           }
-          rewrite /Iverson//=. case_decide; OK.
-          2: { repeat rewrite Rmult_0_l. apply G1_μ_nn. }
           rewrite -{2}(Rmult_1_r (G1_μ n0)).
-          rewrite Rmult_1_l.
           apply Rmult_le_compat_l.
           { apply G1_μ_nn. }
-          suffices ? : (0 <= exp (- x0 * (2 * n0 + x0) / 2)) by OK.
-          apply Rexp_nn.
+          apply clamp_le.
         }
       }
     }
@@ -1482,7 +1443,7 @@ Section credits.
     apply ex_seriesC_scal_r.
     apply ex_seriesC_scal_r.
     apply Norm1_ex.
-  Admitted.
+  Qed.
 
   Lemma HR1 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     Series.Series (λ x : nat, Series.Series (λ k : nat, RInt (λ x0 : R, RInt (λ x1 : R, (G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1)) =
