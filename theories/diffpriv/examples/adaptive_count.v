@@ -730,11 +730,13 @@ Definition lvpredicates : list val :=
   [(λ:"x", "x" < #30) ; (λ:"x", #30 <= "x") ; (λ:"x", "x" `rem` #2 = #0)]%V.
 
 Lemma foo : is_list_HO lvpredicates vpredicates.
+Proof.
   repeat (eexists ; split ; eauto).
 Qed.
 
 Lemma bar :
-    ⊢ ([∗ list] pred;vpred ∈ predicates;lvpredicates, is_predicate pred vpred ∗ is_spec_predicate pred vpred).
+  ⊢ ([∗ list] pred;vpred ∈ predicates;lvpredicates, is_predicate pred vpred ∗ is_spec_predicate pred vpred).
+Proof.
 repeat iSplit. 7: done.
     - iIntros (??) "!> _ HΦ". wp_pures.
       iApply "HΦ". iPureIntro. simpl. repeat f_equal. 
