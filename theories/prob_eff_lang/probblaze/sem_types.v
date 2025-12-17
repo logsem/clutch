@@ -805,3 +805,35 @@ Section sub_typing.
   Proof. apply ty_le_mbang_elim. Qed.
 
 End sub_typing.
+
+Section row_type_sub.
+
+  (* Subsumption relation on rows wrt to types *)
+  
+  Global Instance row_type_sub_multi_ty {Σ} (ρ : sem_row Σ) (τ : sem_ty Σ) `{! MultiT τ} : ρ ᵣ⪯ₜ τ.
+  Proof.
+    constructor.
+    iIntros "% % % % %Φ !# Hρ #Hτ".
+    iApply (sem_row_mono _ ρ with "[] Hρ").
+    iIntros "!# % % H". iFrame. rewrite /sem_ty_mbang /= //.
+  Qed.
+  
+  Global Instance row_type_sub_mfbang_mbang `{probblazeRGS Σ} (m : mode) (ρ : sem_row Σ) (τ : sem_ty Σ) : ¡[ m ] ρ ᵣ⪯ₜ (![ m ] τ).
+  Proof. 
+    destruct m; first apply _. 
+    apply row_type_sub_multi_ty. apply _.
+  Qed.
+ 
+  Global Instance row_type_sub_ty_equiv `{probblazeRGS Σ} (ρ : sem_row Σ) (τ τ' : sem_ty Σ) : 
+    (⊢ τ ≤ₜ τ') → (⊢ τ' ≤ₜ τ) → ρ ᵣ⪯ₜ τ → ρ ᵣ⪯ₜ τ'.
+  Proof.
+    constructor.
+    iIntros "% % % % %Φ !# Hρ Hτ'".
+    iDestruct (sem_row_mono _ ρ) as "H".
+    iApply ("H" $! _ _ (λ u1 u2, Φ u1 u2 ∗ τ v1 v2)%I with "[] [Hτ' Hρ]").
+    { iIntros "!# % % [$ Hτ]". by iApply H0. }
+    iDestruct (H1 with "Hτ'") as "Hτ".
+    iApply (row_type_sub with "Hρ Hτ").
+  Qed.
+
+End row_type_sub.
