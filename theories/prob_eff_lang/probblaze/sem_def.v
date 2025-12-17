@@ -244,8 +244,64 @@ Delimit Scope sem_row_scope with R.
 
 (* TODO: import the rest of sem_def from Affect *)
 
-(* Missing things here *)
+(** The Type Environment
 
+The type environment is represented as a list.
+Due to the requirement that a type environment Γ is env_sem_typed,
+we can utilize the seperation logic's disjointness to argue about
+variables occuring twice in the environment.
+
+Thus if we have a `env_sem_typed Γ γ` assumption and
+the same variable occurs twice in Γ we get that:
+
+∙ They cannot be of the same non-persistent type (e.g. ref nat):
+  So if we have `env_typed (l : ref nat; l : ref nat) γ`,  
+  since the variables l are the same, we would have
+  that l, v ∈ γ, and that  ref nat ⊨ v ∗  ref nat ⊨ v
+  But that means we would need to provide that l ↦ w ∗ l ↦ w
+  which would be impossible.
+
+∙ If they have the same type which is a persistent type (e.g. nat):
+  Then it is fine, in fact it must be allowed to allow for Multi types
+
+∙ If they don't have the same type:
+  Then `γ` would still have only 1 value for the variable `l` so
+  it would be impossible to provide env_sem_typed proof.
+*)
+
+Definition env Σ := (list (string * sem_ty Σ)).
+
+Declare Scope sem_env_scope.
+Delimit Scope sem_env_scope with EN.
+
+(** The domain of the environment. *)
+Definition env_dom {Σ} (Γ : env Σ) : list string := (map fst Γ).
+Global Opaque env_dom.
+
+Fixpoint env_sem_typed {Σ} (Γ : env Σ) (γ : gmap string (val*val)) : iProp Σ :=
+  match Γ with
+   | [] => emp
+    | (x,A) :: Γ' => (∃ v1 v2, ⌜ γ !! x = Some (v1, v2) ⌝ ∗ A v1 v2) ∗ 
+                     env_sem_typed Γ' γ
+  end.
+
+Notation "Γ ⊨ₑ γ" := (env_sem_typed Γ γ) (at level 70).
+
+Global Instance env_sem_typed_into_exist {Σ} x τ (Γ : env Σ) γ : 
+  IntoExist ((x, τ) :: Γ ⊨ₑ γ) (λ vv, ⌜ γ !! x = Some vv ⌝ ∗ τ vv.1 vv.2 ∗ Γ ⊨ₑ γ)%I (to_ident_name vv).
+Proof.
+  rewrite /IntoExist /=. iIntros "[(% & % & Hrw & Hτ) HΓ]". 
+  iExists (v1,v2). iFrame.
+Qed.
+
+Global Instance env_sem_typed_from_exist {Σ} x τ (Γ : env Σ) γ: 
+  FromExist ((x, τ) :: Γ ⊨ₑ γ) (λ vv, ⌜ γ !! x = Some vv ⌝ ∗ τ vv.1 vv.2 ∗ Γ ⊨ₑ γ)%I .
+Proof.
+  rewrite /FromExist /=. iIntros "[% (Hrw & Hτ & HΓ)]".
+  iFrame.   rewrite -(surjective_pairing x0). iFrame.
+Qed.
+
+Global Opaque env_sem_typed.
 (* Sub-typing and relations *)
 
 (* Relation on mode *)
@@ -274,14 +330,14 @@ Global Instance row_le_persistent `{probblazeRGS Σ} ρ ρ' :
 Proof.
   unfold row_le, tc_opaque. apply _.
 Qed.
-(* TODO: define row and env *)
-(* Definition env_le {Σ} (Γ₁ Γ₂ : env Σ) :=
-     tc_opaque (□ (∀ γ,  Γ₁ ⊨ₑ γ -∗  Γ₂ ⊨ₑ γ))%I.
-   Global Instance env_le_persistent {Σ} (Γ Γ' : env Σ) :
-     Persistent (env_le Γ Γ').
-   Proof.
-     unfold env_le, tc_opaque. apply _.
-   Qed. *)
+
+Definition env_le {Σ} (Γ₁ Γ₂ : env Σ) :=
+  tc_opaque (□ (∀ γ,  Γ₁ ⊨ₑ γ -∗  Γ₂ ⊨ₑ γ))%I.
+Global Instance env_le_persistent {Σ} (Γ Γ' : env Σ) :
+  Persistent (env_le Γ Γ').
+Proof.
+  unfold env_le, tc_opaque. apply _.
+Qed.
 
 Notation "m '≤ₘ' m'" := (mode_le m m') (at level 98).
 Notation "m '≤ₘ@{' Σ '}' m'" := (@mode_le Σ m m') (at level 98).
@@ -291,8 +347,8 @@ Notation "σ '≤ₛ' σ'" := (sig_le σ%S σ'%S) (at level 98).
 Notation "σ '≤ₛ@{' Σ '}' σ'" := (@sig_le Σ σ%S σ'%S) (at level 98).
 Notation "ρ '≤ᵣ' ρ'" := (row_le ρ%R ρ'%R) (at level 98).
 Notation "ρ '≤ᵣ@{' Σ '}' ρ'" := (@row_le Σ ρ%R ρ'%R) (at level 98).
-(* Notation "Γ₁ '≤ₑ' Γ₂" := (env_le Γ₁%EN Γ₂%EN) (at level 98).
-   Notation "Γ₁ '≤ₑ@{' Σ '}' Γ₂" := (@env_le Σ Γ₁%EN Γ₂%EN) (at level 98). *)
+Notation "Γ₁ '≤ₑ' Γ₂" := (env_le Γ₁%EN Γ₂%EN) (at level 98).
+Notation "Γ₁ '≤ₑ@{' Σ '}' Γ₂" := (@env_le Σ Γ₁%EN Γ₂%EN) (at level 98).
 
 Global Instance mode_le_ne {Σ} :
   NonExpansive2 (@mode_le Σ).
