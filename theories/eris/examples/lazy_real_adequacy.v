@@ -697,8 +697,9 @@ Proof.
   by iApply Hwp.
 Qed.
 
-(**  TODO: Also prove lazy_real_adequacy2', i.e. generalize lazy_real_adequacy2 to F:nat->R->R *)
+(**  For applying Gauss *)
 Theorem lazy_real_adeqaucy1' Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
+  IPCts μ ->
   (∀ x, 0<=μ x)->
     (∀ r, 0<=r -> ex_RInt μ (0) r) →
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
@@ -708,7 +709,7 @@ Theorem lazy_real_adeqaucy1' Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R 
   ∀ (x y n:nat), (x<2^y)%nat ->
   pgl (lim_exec (is_smaller_prog e #n #x #y, σ)) (λ x, x=#true) (RInt_gen μ (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)).
 Proof.
-  intros Hpos Hbound Hbound' Hwp x y n Hineq.
+  intros Hcts Hpos Hbound Hbound' Hwp x y n Hineq.
   apply: lazy_real_adeqaucy1; try done.
   iIntros (??[M ]?) "Herr".
   set (F':= (λ (k:nat) r, F (k+r))).
@@ -738,14 +739,19 @@ Proof.
            assert (-1< IZR (Int_part x0)) as K by lra.
            assert (-1<Int_part x0)%Z; last lia.
            by apply lt_IZR.
-      * (** Tricky *)
-        apply: RInt_gen_ex_Ici'; last first.
-        -- intros. apply ex_RInt_mult; first apply Hbound; first lra.
-           by apply IPCts_RInt.
-        -- admit.
+      * eapply (@ex_RInt_gen_Ici_compare_IPCts 0 (λ x0 : R, M * μ x0)).
+        -- by apply IPCts_scal_mult.
+        -- by apply IPCts_mult.
+        -- intros.
+           split; first real_solver.
+           rewrite Rmult_comm. real_solver.
+        -- destruct Hbound' as [x0 Hbound'].
+           apply (is_RInt_gen_scal _ M) in Hbound'.
+           rewrite /scal/=/mult/= in Hbound'.
+           by eexists _.
   - simpl. rewrite /F'. setoid_rewrite (Rplus_comm (INR _)).
-    by iIntros. 
-Admitted.
+    by iIntros.
+Qed. 
 
 Theorem lazy_real_adeqaucy2 Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
   (∀ x, 0<=μ x)->
@@ -775,3 +781,58 @@ Proof.
   by iApply Hwp.
 Qed. 
 
+(**  For applying Gauss *)
+Theorem lazy_real_adeqaucy2' Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
+  IPCts μ ->
+  (∀ x, 0<=μ x)->
+    (∀ r, 0<=r -> ex_RInt μ (0) r) →
+    ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
+  (∀ `{erisGS Σ} (F : nat -> R -> R) (Hnn : ∃ M, ∀ x k , 0 <= F k x <= M) (HPCts: ∀ k, PCts (F k) 0 1),
+      ↯ (RInt_gen (fun (x:R) => let k:=Z.to_nat (Int_part x) in μ x * F (k) (x-k)) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
+       WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗ ↯(F k (r)%R) }}) →
+  ∀ (x y n:nat), (x<2^y)%nat ->
+  pgl (lim_exec (is_smaller_prog e #n #x #y, σ)) (λ x, x=#false) (RInt μ 0 (x / 2 ^ y + INR n)).
+Proof.
+  intros Hcts Hpos Hbound Hbound' Hwp x y n Hineq.
+  apply: lazy_real_adeqaucy2; try done.
+  iIntros (??[M ]?) "Herr".
+  set (F':= (λ (k:nat) r, F (k+r))).
+  iApply (pgl_wp_wand with "[-]").
+  - iApply (Hwp _ F').
+    + rewrite /F'.
+      naive_solver.
+    + intros k. by apply IPCts_PCts, IPCts_shift.
+    + iApply (ec_eq with "[$]").
+      apply RInt_gen_ext_eq_Ioi.
+      * intros x0 ?. f_equal.
+        rewrite /F'.
+        f_equal.
+        rewrite {1}(Rplus_Int_part_frac_part x0).
+        f_equal.
+        -- rewrite INR_IZR_INZ.
+           rewrite Z2Nat.id; first done.
+           pose proof base_Int_part x0 as [].
+           assert (-1< IZR (Int_part x0)) as K by lra.
+           assert (-1<Int_part x0)%Z; last lia.
+           by apply lt_IZR.
+        -- pose proof base_Int_part x0 as [].
+           rewrite INR_IZR_INZ.
+           rewrite /frac_part.
+           rewrite Z2Nat.id; first done.
+           pose proof base_Int_part x0 as [].
+           assert (-1< IZR (Int_part x0)) as K by lra.
+           assert (-1<Int_part x0)%Z; last lia.
+           by apply lt_IZR.
+      * eapply (@ex_RInt_gen_Ici_compare_IPCts 0 (λ x0 : R, M * μ x0)).
+        -- by apply IPCts_scal_mult.
+        -- by apply IPCts_mult.
+        -- intros.
+           split; first real_solver.
+           rewrite Rmult_comm. real_solver.
+        -- destruct Hbound' as [x0 Hbound'].
+           apply (is_RInt_gen_scal _ M) in Hbound'.
+           rewrite /scal/=/mult/= in Hbound'.
+           by eexists _.
+  - simpl. rewrite /F'. setoid_rewrite (Rplus_comm (INR _)).
+    by iIntros.
+Qed. 
