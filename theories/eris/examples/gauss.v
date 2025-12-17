@@ -3212,6 +3212,7 @@ Section adequacy.
              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
              by auto_derive. 
           -- apply PCts_RInt.
+             
              (* Annoying PCTs condition *)
              admit.
       + simpl. iIntros (?) "(%&%&%&?&%&?)". by iFrame.
