@@ -13,10 +13,25 @@ Section pmf.
   Import Hierarchy.
 
   Lemma RealDecrTrial_μ0_PCts {n} : PCts (λ y : R, RealDecrTrial_μ0 y n) 0 1.
-  Proof. Admitted.
+  Proof.
+    rewrite /RealDecrTrial_μ0.
+    apply PCts_cts.
+    intros ??.
+    apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+    by auto_derive.
+  Qed.
 
   Lemma RealDecrTrial_μ_PCts {n} : PCts (λ y : R, RealDecrTrial_μ y 0 n) 0 1.
-  Proof. Admitted.
+  Proof.
+    rewrite /RealDecrTrial_μ.
+    apply PCts_mult.
+    { apply PCts_cts.
+      intros ??.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    }
+    apply RealDecrTrial_μ0_PCts.
+  Qed.
 
   (** PMF of the negative exponential distribution *)
   Local Definition NegExp_ρ0 (k : nat) (x : R) : R :=
@@ -61,12 +76,34 @@ Section pmf.
     apply Rplus_le_compat; OK.
   Qed.
 
+  (* TODO: Move *)
+  Lemma Icc_PCts : PCts (Iverson (Icc 0 1)) 0 1.
+  Proof. Admitted.
+
+  Lemma NegExp_ρ0_PCts {L k} : PCts (λ x : R, NegExp_ρ0 (k - L) x) 0 1.
+    rewrite /NegExp_ρ0.
+    apply PCts_mult.
+    2: {
+      apply PCts_cts.
+      intros ??.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    }
+    apply Icc_PCts.
+  Qed.
 
   Lemma NegExp_ρ_PCts {L k} : PCts (NegExp_ρ L k) 0 1.
   Proof.
     rewrite /NegExp_ρ.
-    rewrite /NegExp_ρ0.
-  Admitted.
+    apply PCts_mult.
+    {
+      apply PCts_cts.
+      intros ??.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    }
+    apply NegExp_ρ0_PCts.
+  Qed.
 
   Lemma NegExp_ρ0_nn {L x} : 0 <= (NegExp_ρ0 L x).
   Proof.
@@ -282,10 +319,6 @@ Qed.
     intros ?.
     apply hx_nonneg; OK.
   Qed.
-
-  Local Lemma g_ex_RInt {F : nat → R → R} {L} : ex_RInt (g F L) 0 1.
-  Proof. Admitted.
-
   Local Definition B (F : nat → R → R) (L : nat) (x : R) (n : nat) (k : nat) (x0 : R) :=
       RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n * NegExp_ρ (L + 1) k x0 * F k x0.
 
@@ -405,6 +438,64 @@ Qed.
     { apply PCts_const_y. apply HPcts. }
   Qed.
 
+
+  Local Lemma g_ex_RInt M {F : nat → R → R} {L} (HPcts : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= x <= 1 → 0 <= F n x <= M) :
+    ex_RInt (g F L) 0 1.
+  Proof.
+    rewrite /g/hx.
+    rewrite /RealDecrTrial_CreditV.
+    eapply (ex_RInt_SeriesC (fun n => (1 / fact n) * (1 * M + 1 * NegExp_CreditV F (L + 1)))); OK.
+    { rewrite ex_seriesC_nat.
+      apply ex_seriesC_scal_r.
+      setoid_rewrite Rdiv_def.
+      apply ex_seriesC_scal_l.
+      rewrite -ex_seriesC_nat.
+      apply ex_exp_series.
+    }
+    { intros ???.
+      split.
+      { apply Rmult_le_pos; [apply Rmult_le_pos|].
+        { apply Iverson_nonneg. }
+        { apply RealDecrTrial_μ0nn. OK. }
+        apply Rplus_le_le_0_compat; apply Rmult_le_pos.
+        { apply Iverson_nonneg. }
+        { apply Hbound; OK. }
+        { apply Iverson_nonneg. }
+        { apply NegExp_CreditV_nn; OK. intros ???. apply Hbound. OK. }
+      }
+      apply Rmult_le_compat.
+      { apply RealDecrTrial_μnn. OK. }
+      2: { apply RealDecrTrial_μ_ub. OK. }
+      { apply Rplus_le_le_0_compat; apply Rmult_le_pos.
+        { apply Iverson_nonneg. }
+        { apply Hbound; OK. }
+        { apply Iverson_nonneg. }
+        { apply NegExp_CreditV_nn; OK. intros ???. apply Hbound. OK. }
+      }
+      apply Rplus_le_compat.
+      { apply Rmult_le_compat.
+        { apply Iverson_nonneg. }
+        { apply Hbound; OK. }
+        { apply Iverson_le_1. }
+        { apply Hbound; OK. }
+      }
+      { apply Rmult_le_compat.
+        { apply Iverson_nonneg. }
+        { apply NegExp_CreditV_nn; OK. intros ???. apply Hbound. OK. }
+        { apply Iverson_le_1. }
+        { OK. }
+      }
+    }
+    { intros ?.
+      apply ex_RInt_mult.
+      { apply RealDecrTrial_μ_ex_RInt. }
+      apply (ex_RInt_plus (V := R_CompleteNormedModule)).
+      2: { apply ex_RInt_const. }
+      apply ex_RInt_Rmult.
+      apply PCts_RInt.
+      apply HPcts.
+    }
+  Qed.
 
   Lemma QuadExists2 M {F L} {x} (HPcts : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= x <= 1 → 0 <= F n x <= M) :
     ex_RInt (λ x0 : R, SeriesC (λ n : nat, RInt (λ x1 : R, B F L x1 n x x0) 0 1)) 0 1.
@@ -851,7 +942,8 @@ Qed.
     (* have Hex : ∀ (a b : R), ex_RInt F a b.
     { intros ??. apply PCts_RInt. by apply IPCts_PCts. } *)
     suffices H : RInt (g F L) 0 1 = NegExp_CreditV F L.
-    { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)). apply (g_ex_RInt); OK. }
+    { rewrite -H. apply (RInt_correct (V := R_CompleteNormedModule)).
+      eapply (g_ex_RInt); OK. }
 
     (* Unfold everything that involves F *)
     rewrite /g.

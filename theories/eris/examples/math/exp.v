@@ -485,7 +485,16 @@ Qed.
 
 (** Key lemma: exp(-b) → 0 as b → ∞ *)
 Lemma is_lim_exp_neg_infty : Continuity.is_lim (λ b : R, exp (- b)) Rbar.p_infty (Rbar.Finite 0).
-Proof. Admitted.
+Proof.
+  have H : filterlim exp (Rbar_locally Rbar.m_infty) (Rbar_locally (Rbar.Finite 0)).
+  { apply ElemFct.is_lim_exp_m. }
+  have Hopp : Continuity.is_lim (λ b, - b) Rbar.p_infty Rbar.m_infty.
+  { admit. }
+  rewrite /Continuity.is_lim in Hopp.
+  apply (filterlim_comp R R R (λ b, - b) exp (Rbar_locally' Rbar.p_infty) (Rbar_locally Rbar.m_infty) (Rbar_locally (Rbar.Finite 0))).
+  - apply Hopp.
+  - apply H.
+Admitted.
 
 Lemma ex_RInt_gen_exp {M} : ex_RInt_gen (λ x : R, M * exp (- x)) (at_point 0) (Rbar_locally Rbar.p_infty).
 Proof.
@@ -514,11 +523,42 @@ Proof.
     intros z Hz.
     apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
     by auto_derive. }
+  have Hint : ∀ b, L < b -> is_RInt (λ r : R, exp (- r)) L b (exp (- L) - exp (- b)).
+  { intros b Hb.
+    replace (exp (- L) - exp (- b)) with (- exp (- b) - - exp (- L)) by lra.
+    apply (is_RInt_derive (V := R_CompleteNormedModule) (λ r : R, - exp (- r)) (λ r : R, exp (- r))).
+    - intros x0 Hx0. auto_derive; [done | lra].
+    - intros x0 Hx0. apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)). by auto_derive. }
   have Hlimit : filterlimi (λ b : R, is_RInt (λ r : R, exp (- r)) L b) (Rbar_locally Rbar.p_infty) (locally (exp (- L))).
   { (* By FTC: ∫[L,b] exp(-r) dr = exp(-L) - exp(-b)
        By is_lim_exp_neg_infty: exp(-b) → 0 as b → ∞
        Therefore: integral → exp(-L) - 0 = exp(-L) *)
-    admit. }
+    rewrite /filterlimi /= /filter_le /= /filtermapi /=.
+    intros P HP.
+    rewrite /locally in HP. destruct HP as [eps HP].
+    have Hlim := is_lim_exp_neg_infty.
+    rewrite /Continuity.is_lim in Hlim.
+    have Hball : Rbar_locally (Rbar.Finite 0) (ball 0 eps).
+    { exists eps. intros ?. done. }
+    specialize (Hlim (ball 0 eps) Hball).
+    rewrite /filtermap in Hlim.
+    rewrite /Rbar_locally' in Hlim.
+    destruct Hlim as [M0 Hlim].
+    exists (Rmax M0 L).
+    intros x Hx.
+    exists (exp (- L) - exp (- x)).
+    split.
+    - apply Hint. apply Rmax_Rlt in Hx. lra.
+    - apply HP.
+      rewrite /ball /= /AbsRing_ball /= /abs /= /minus /plus /opp /=.
+      replace (exp (- L) - exp (- x) + - exp (- L)) with (- exp (- x)) by lra.
+      rewrite Rabs_Ropp.
+      have : M0 < x by (apply Rmax_Rlt in Hx; lra).
+      intros Hx0.
+      specialize (Hlim x Hx0).
+      rewrite /ball /= /AbsRing_ball /= /abs /= /minus /plus /opp /= in Hlim.
+      replace (exp (- x) + - 0) with (exp (- x)) in Hlim by lra.
+      apply Hlim. }
   admit.
 Admitted.
 
