@@ -372,16 +372,436 @@ Section sub_typing.
     ⊢ ⊥ ≤ₜ τ.
   Proof. iIntros "% % !# []". Qed.
 
-  (* Lemma ty_le_arr (τ₁ κ₁ τ₂ κ₂ : sem_ty Σ) (ρ ρ' : sem_row Σ) :
-       ρ ≤ᵣ ρ' -∗
-       τ₂ ≤ₜ τ₁ -∗
-       κ₁ ≤ₜ κ₂ -∗
-       (τ₁ -{ ρ }-∘ κ₁) ≤ₜ (τ₂ -{ ρ' }-∘ κ₂).
-     Proof.
-       iIntros "#Hρ  #Hτ₂₁ #Hκ₁₂ !# %v1 %v2 Hτκ₁". 
-       rewrite /sem_ty_arr /=. iIntros "% % Hτ₂".
-       iApply (ewpw_sub with "Hρ").
-       iApply (ewpw_mono with "[Hτκ₁ Hτ₂]").
-       { iApply ("Hτκ₁" with "[Hτ₂]"); by iApply "Hτ₂₁". }
-       iIntros "!# % Hκ !>". by iApply "Hκ₁₂".
-     Qed. *)
+  Lemma ty_le_arr (τ₁ κ₁ τ₂ κ₂ : sem_ty Σ) (ρ ρ' : sem_row Σ) :
+    ρ ≤ᵣ ρ' -∗
+    τ₂ ≤ₜ τ₁ -∗
+    κ₁ ≤ₜ κ₂ -∗
+    (τ₁ -{ ρ }-∘ κ₁) ≤ₜ (τ₂ -{ ρ' }-∘ κ₂).
+  Proof.
+    iIntros "#Hρ  #Hτ₂₁ #Hκ₁₂ !# %v1 %v2 Hτκ₁". 
+    rewrite /sem_ty_arr /=. iIntros "% % Hτ₂".
+    unfold row_le. simpl.
+    iApply (brel_introduction_mono with "Hρ").
+    iApply (brel_wand with "[Hτκ₁ Hτ₂]").
+    { iApply "Hτκ₁". by iApply "Hτ₂₁". }
+    iIntros "!# % % Hκ". by iApply "Hκ₁₂".
+  Qed.
+
+   Lemma ty_le_ref (τ₁ τ₂ : sem_ty Σ) :
+    τ₁ ≤ₜ τ₂ -∗
+    (Ref τ₁) ≤ₜ (Ref τ₂).
+  Proof.
+    iIntros "#Hτ₁₂ !# %v1 %v2 (%l1 & %l2 & -> & -> & (%w1 & %w2 & Hl1 & Hl2 & Hτw))".
+    iExists l1, l2. do 2 (iSplit; first done).
+    iExists w1, w2. iFrame. by iApply "Hτ₁₂".
+  Qed.
+
+  Lemma ty_le_prod (τ₁ τ₂ κ₁ κ₂ : sem_ty Σ) :
+    τ₁ ≤ₜ τ₂ -∗
+    κ₁ ≤ₜ κ₂ -∗
+    (τ₁ × κ₁) ≤ₜ (τ₂ × κ₂).
+  Proof.
+    iIntros "#Hτ₁₂ #Hκ₁₂ !# %v1 %v2 (%w1 & %w1' & %w2 & %w2' & -> & -> & Hw1 & Hw2)".
+    iExists w1, w1', w2, w2'. do 2 (iSplit; [iPureIntro; done |]). iSplitL "Hw1".
+    { by iApply "Hτ₁₂". }
+    by iApply "Hκ₁₂".
+  Qed.
+  
+  Lemma ty_le_sum (τ₁ τ₂ κ₁ κ₂ : sem_ty Σ) :
+    τ₁ ≤ₜ τ₂ -∗
+    κ₁ ≤ₜ κ₂ -∗
+    (τ₁ + κ₁) ≤ₜ (τ₂ + κ₂).
+  Proof.
+    iIntros "#Hτ₁₂ #Hκ₁₂ !# %v1 %v2 (%v1' & %v2' & [(-> & -> & Hτ₁)|(-> & -> & Hκ₁)])"; iExists v1', v2'. 
+    - iLeft. repeat (iSplit; first done). by iApply "Hτ₁₂".
+    - iRight. repeat (iSplit; first done). by iApply "Hκ₁₂". 
+  Qed.
+
+  Corollary ty_le_option (τ₁ τ₂ : sem_ty Σ) :
+    τ₁ ≤ₜ τ₂ -∗
+    (Option τ₁) ≤ₜ (Option τ₂).
+  Proof. iIntros "#?". iApply ty_le_sum; last done. iIntros "!# % % $". Qed.
+
+  Lemma ty_le_type_forall (τ₁ τ₂ : sem_ty Σ → sem_ty Σ) :
+    (∀ α, τ₁ α ≤ₜ τ₂ α) -∗
+    (∀ₜ α, τ₁ α)%T ≤ₜ (∀ₜ α, τ₂ α).
+  Proof. iIntros "#Hτ₁₂ !# %v1 %v2 Hτ₁ %τ /=". by iApply "Hτ₁₂". Qed.
+
+  Lemma ty_le_row_forall (τ₁ τ₂ : sem_row Σ → sem_ty Σ) :
+    (∀ θ, τ₁ θ ≤ₜ τ₂ θ) -∗
+    (∀ᵣ θ, τ₁ θ) ≤ₜ (∀ᵣ θ, τ₂ θ).
+  Proof. iIntros "#Hτ₁₂ !# %v1 %v2 Hτ₁ %τ /=". by iApply "Hτ₁₂". Qed.
+
+  Lemma ty_le_mode_forall (τ₁ τ₂ : mode → sem_ty Σ) :
+    (∀ ν, τ₁ ν ≤ₜ τ₂ ν) -∗
+    (∀ₘ ν, τ₁ ν) ≤ₜ (∀ₘ ν, τ₂ ν).
+  Proof. iIntros "#Hτ₁₂ !# %v1 %v2 Hτ₁ %τ /=". by iApply "Hτ₁₂". Qed.
+
+  Lemma ty_le_exists (τ₁ τ₂ : sem_ty Σ → sem_ty Σ) :
+    (∀ α, τ₁ α ≤ₜ τ₂ α) -∗
+    (∃ₜ α, τ₁ α) ≤ₜ (∃ₜ α, τ₂ α).
+  Proof.
+    iIntros "#Hτ₁₂ !# %v1 %v2 (%α & Hα) //=".
+    iExists α. by iApply "Hτ₁₂".
+  Qed.
+
+  Lemma ty_le_rec (τ₁ τ₂ : sem_ty Σ -> sem_ty Σ) `{NonExpansive τ₁, NonExpansive τ₂} :
+    □ (∀ α α', (α ≤ₜ α') -∗ τ₁ α ≤ₜ τ₂ α') -∗
+    (μₜ α, τ₁ α) ≤ₜ (μₜ α, τ₂ α).
+  Proof.
+    iIntros "#Hτ₁₂ !#". iLöb as "IH". iIntros "%v1 %v2 Hτ₁".
+    iApply sem_ty_rec_unfold.
+    rewrite sem_ty_rec_unfold. iNext.
+    iApply ("Hτ₁₂" with "[] Hτ₁").
+    rewrite /ty_le /tc_opaque. iApply "IH".
+  Qed.
+  
+  Corollary ty_le_list (τ₁ τ₂ : sem_ty Σ) :
+    τ₁ ≤ₜ τ₂ -∗
+    List τ₁ ≤ₜ List τ₂.
+  Proof.
+    rewrite /sem_ty_list. iIntros "#Hτ₁₂".
+    iApply ty_le_rec. iIntros "!# % % Hαα'".
+    iApply ty_le_sum; first iApply ty_le_refl.
+    by iApply ty_le_prod.
+  Qed.
+
+  Lemma ty_le_mbang_intro_os τ : ⊢ τ ≤ₜ ![OS] τ.
+  Proof. iIntros "!# %v1 %v2 H". rewrite /sem_ty_mbang //. Qed.
+
+  Corollary ty_le_mbang_intro_void m τ : ⊢ ⊥ ≤ₜ ![m] τ.
+  Proof. iApply ty_le_bot. Qed.
+
+  Global Instance multi_ty_void : @MultiT Σ ⊥.
+  Proof. constructor. iApply ty_le_mbang_intro_void. Qed.
+
+  Lemma ty_le_mbang_intro_unit m : ⊢ 𝟙 ≤ₜ@{ Σ } ![m] 𝟙.
+  Proof. 
+    iIntros "!# %v1 %v2 (-> & ->)". 
+    iApply bi.intuitionistically_intuitionistically_if. 
+    iIntros "!# //".
+  Qed.
+
+  Global Instance multi_ty_unit : @MultiT Σ 𝟙.
+  Proof. constructor. iApply ty_le_mbang_intro_unit. Qed.
+  
+  Lemma ty_le_mbang_intro_bool m : ⊢ 𝔹 ≤ₜ@{ Σ } ![m] 𝔹.
+  Proof. 
+    iIntros "!# %v1 %v2 (% & -> & ->)". 
+    iApply bi.intuitionistically_intuitionistically_if. 
+    iIntros "!#". by iExists b.
+  Qed.
+
+  Global Instance multi_ty_bool : @MultiT Σ 𝔹.
+  Proof. constructor. iApply ty_le_mbang_intro_bool. Qed.
+
+  Lemma ty_le_mbang_intro_int m : ⊢ ℤ ≤ₜ@{ Σ } ![m] ℤ.
+    iIntros "!# % % (% & -> & ->)". 
+    iApply bi.intuitionistically_intuitionistically_if. 
+    iIntros "!#". by iExists n.
+  Qed.
+
+  Global Instance multi_ty_int : @MultiT Σ ℤ.
+  Proof. constructor. iApply ty_le_mbang_intro_int. Qed.
+  
+  Lemma ty_le_mbang_intro_top m : ⊢ ⊤ ≤ₜ@{ Σ } ![m] ⊤.
+  Proof. 
+    iIntros "!# % % _". 
+    iApply bi.intuitionistically_intuitionistically_if. 
+    by iIntros "!#".
+  Qed.
+
+  Global Instance multi_ty_top : @MultiT Σ ⊤.
+  Proof. constructor. iApply ty_le_mbang_intro_top. Qed.
+
+  Lemma ty_le_mbang_idemp m τ : ⊢ (![m] τ ≤ₜ ![m] (![m] τ)).
+  Proof. 
+    iIntros "!# % % H".
+    iApply bi.intuitionistically_if_idemp. 
+    iApply "H".
+  Qed.
+
+  Global Instance multi_ty_mbang τ : MultiT (![MS] τ).
+  Proof. constructor. iApply ty_le_mbang_idemp. Qed.
+
+  Corollary ty_le_mbang_intro_uarr τ ρ κ : ⊢ (τ -{ ρ }-> κ) ≤ₜ (![MS] (τ -{ ρ }-> κ)).
+  Proof. iApply ty_le_mbang_idemp. Qed.
+
+  Corollary multi_ty_uarr τ ρ κ : MultiT (τ -{ ρ }-> κ).
+  Proof. apply _. Qed.
+
+  Lemma ty_le_mbang_intro_prod τ κ m : τ ≤ₜ ![m] τ -∗ κ ≤ₜ ![m] κ -∗ (τ × κ) ≤ₜ ![m] (τ × κ).
+  Proof. 
+    iIntros "#Hτle #Hκle !# % % (% & % & % & % & -> & -> &Hτ & Hκ)". 
+    iDestruct ("Hτle" with "Hτ") as "Hτ".
+    iDestruct ("Hκle" with "Hκ") as "Hκ". 
+    iDestruct (bi.intuitionistically_if_sep_2 with "[Hτ Hκ]") as "H"; first iFrame.
+    iApply (bi.intuitionistically_if_mono with "H").
+    iIntros "[Hκ Hτ]". iExists w1, w1', w2, w2'. by iFrame.
+  Qed.
+
+  Global Instance multi_ty_prod τ κ `{!MultiT τ} `{!MultiT κ} : MultiT (τ × κ).
+  Proof. constructor. inv MultiT0. inv MultiT1. by iApply ty_le_mbang_intro_prod. Qed.
+
+  Lemma ty_le_mbang_intro_sum τ κ m : τ ≤ₜ ![m] τ -∗ κ ≤ₜ ![m] κ -∗ (τ + κ) ≤ₜ ![m] (τ + κ).
+  Proof.
+    iIntros "#Hτle #Hκle !# % % (% & % & [(-> & -> & Hτ)|(-> & -> & Hκ)])". 
+    - iDestruct ("Hτle" with "Hτ") as "Hτ". 
+      iApply (bi.intuitionistically_if_mono with "Hτ").
+      iIntros "Hτ". iExists _,_. iLeft. by iFrame.
+    - iDestruct ("Hκle" with "Hκ") as "Hκ".
+      iApply (bi.intuitionistically_if_mono with "Hκ").
+      iIntros "Hκ". iExists _,_. iRight. by iFrame.
+  Qed.
+
+  Global Instance multi_ty_sum τ κ `{!MultiT τ} `{!MultiT κ} : MultiT (τ + κ).
+  Proof. constructor. inv MultiT0. inv MultiT1. by iApply ty_le_mbang_intro_sum. Qed.
+  
+  Lemma ty_le_mbang_intro_ref_cpy τ m : ⊢ (Refᶜ τ) ≤ₜ ![m] (Refᶜ τ).
+  Proof. 
+    iIntros "!# % % #H". 
+    iApply bi.intuitionistically_intuitionistically_if. 
+    iIntros "!# //".
+  Qed.
+
+  Global Instance multi_ty_ref_cpy τ : MultiT (Refᶜ τ).
+  Proof. constructor. iApply ty_le_mbang_intro_ref_cpy. Qed.
+
+  Lemma ty_le_mbang_intro_exists A m : (∀ α, (A α) ≤ₜ ![m] (A α)) -∗ (∃ₜ α, A α) ≤ₜ ![m] (∃ₜ α, A α).
+  Proof. 
+    iIntros "#H !# % % [%α Hτ']". 
+    iDestruct ("H" with "Hτ'") as "Hτ".
+    iApply (bi.intuitionistically_if_mono with "Hτ").
+    iIntros "HA". by iExists α.
+  Qed.
+
+  Global Instance multi_ty_exists A `{ ∀ α, MultiT (A α) } : MultiT (∃ₜ α, A α).
+  Proof. 
+    constructor. iApply ty_le_mbang_intro_exists.
+    iIntros (τ). specialize (H τ). inv H. iApply multi_ty0.
+  Qed.
+
+  Corollary ty_le_mbang_intro_option τ m : τ ≤ₜ ![m] τ -∗ (Option τ) ≤ₜ ![m] (Option τ).
+  Proof. 
+    iIntros "#H". 
+    iApply ty_le_mbang_intro_sum; [iApply ty_le_mbang_intro_unit|done]. 
+  Qed.
+
+  Corollary multi_ty_option τ `{! MultiT τ } : MultiT (Option τ). 
+  Proof. apply _. Qed. 
+
+  Lemma ty_le_mbang_intro_rec m (C : sem_ty Σ → sem_ty Σ) `{NonExpansive C} :
+    □ (∀ α, (α ≤ₜ ![m] α) -∗ C α ≤ₜ ![m] (C α)) -∗
+    (μₜ α, C α) ≤ₜ ![m] (μₜ α, C α).
+  Proof. 
+    iIntros "#H". destruct m; simpl; first iApply ty_le_refl.
+    iIntros "!# % % Hτα".
+    iLöb as "IH" forall (v1 v2).
+    rewrite {1} sem_ty_rec_unfold.
+    assert (fixpoint (sem_ty_rec_pre C) v1 v2 ≡ sem_ty_rec_pre C (fixpoint (sem_ty_rec_pre C)) v1 v2).
+    { do 2 apply non_dep_fun_equiv. apply fixpoint_unfold. }
+    rewrite {4} /sem_ty_rec /sem_ty_mbang H {1} /sem_ty_rec_pre. simpl.
+    iApply bi.later_intuitionistically. iNext. iExists (fixpoint (sem_ty_rec_pre C)).
+    iSpecialize ("H" $! (μₜ α, C α)%T with "[IH]").
+    { iIntros "% % !# //". }
+    iDestruct ("H" $! v1 v2 with "Hτα") as "#Hτα'". iIntros "!#".
+    iSplit; first done. iApply "Hτα'".
+  Qed.
+
+  (* The premise uses the unfolded ty_le definition instead of MultiT because it lives in iProp.
+     As a result, to prove MultiT for rec types we have to manually prove the instance 
+     using the ty_le_mbang_intro_* instances *)
+  Global Instance multi_ty_rec (C : sem_ty Σ → sem_ty Σ) `{NonExpansive C} : 
+    (∀ α, (α ≤ₜ ![MS] α) -∗ C α ≤ₜ ![MS] (C α)) →
+    MultiT (μₜ α, C α).
+  Proof. 
+    constructor. iApply ty_le_mbang_intro_rec. 
+    iIntros "!# % H". specialize (H α).
+    by iApply H.
+  Qed.
+
+  Corollary ty_le_mbang_intro_list τ m : τ ≤ₜ ![m] τ -∗ (List τ) ≤ₜ ![m] (List τ).
+  Proof.
+    iIntros "#Hτ". iApply ty_le_mbang_intro_rec.
+    iIntros "!# % #Hα". 
+    iApply ty_le_mbang_intro_sum; [iApply ty_le_mbang_intro_unit|].
+    by iApply ty_le_mbang_intro_prod.
+  Qed.
+
+  Global Instance multi_ty_list τ `{! MultiT τ } : MultiT (List τ).
+  Proof. constructor. inv MultiT0. by iApply ty_le_mbang_intro_list. Qed.
+
+  Lemma ty_le_list_mbang m τ :
+    ⊢ ![m] (List τ) ≤ₜ List (![m] τ).
+  Proof. 
+    destruct m; simpl; first iApply ty_le_refl.
+    iIntros "!# % % Hτα".
+    rewrite /sem_ty_mbang /= /sem_ty_list /ListF.
+    rewrite sem_ty_rec_unfold bi.later_intuitionistically_2.
+    iLöb as "IH" forall (v1 v2).
+    iApply sem_ty_rec_unfold. 
+    iNext. 
+    iDestruct "Hτα" as "#(% & % & [(-> & -> & -> & ->)|(-> & -> & % & % &% &%& -> & -> & Hτ & Hrec)])".
+    { iExists _,_. iLeft. repeat iSplit; try done. }
+    iExists (_, _)%V, (_, _)%V. iRight; repeat (iSplit; first done).
+    iExists _, _,_,_. repeat (iSplit; first done). 
+    iApply "IH". rewrite sem_ty_rec_unfold. iNext. iApply "Hrec".
+  Qed.
+
+  Lemma ty_le_mbang_elim (m : mode) (τ : sem_ty Σ) :
+    ⊢ (![m] τ) ≤ₜ τ.
+  Proof. iIntros "!# % %  H". iDestruct (bi.intuitionistically_if_elim with "H") as "$". Qed.
+
+  Lemma ty_le_mbang_comp m m' (τ τ' : sem_ty Σ) :
+    m' ≤ₘ m -∗ τ ≤ₜ τ' -∗ 
+    (![m] τ) ≤ₜ (![m'] τ').
+  Proof. 
+    iIntros "#Hmm' #Hττ'". 
+    iIntros "!# % % Hτ". destruct m.
+    - iDestruct (mode_le_OS_inv with "Hmm'") as "->".
+      rewrite /sem_ty_mbang /=. by iApply "Hττ'".
+    - rewrite /sem_ty_mbang /=. iDestruct "Hτ" as "#Hτ".
+      iApply bi.intuitionistically_intuitionistically_if. iIntros "!#".
+      by iApply "Hττ'". 
+  Qed.
+
+  Lemma ty_le_mbang_comm m m' (τ : sem_ty Σ) :
+    ⊢ ![m] (![m'] τ) ≤ₜ ![m'] (![m] τ). 
+  Proof.
+    destruct m, m'.
+    - iApply ty_le_refl.
+    - iApply ty_le_trans; first iApply ty_le_mbang_elim. 
+      iApply ty_le_mbang_comp.
+      { iApply mode_le_refl. }
+      iApply ty_le_mbang_intro_os.
+    - iApply ty_le_trans; first iApply ty_le_mbang_comp.
+      { iApply mode_le_refl. }
+      { iApply ty_le_mbang_elim. }
+      iApply ty_le_mbang_intro_os.
+    - iApply ty_le_refl.
+  Qed.
+
+  (* TODO: move to an appropriate file *)
+  (* ------------------------------------------------------------ *)
+  Lemma intuitionistically_if_forall {PROP : bi} {A : Type} (Φ : A → PROP) m : 
+    □?m (∀ x : A, Φ x) ⊢ ∀ x : A, □?m Φ x.
+  Proof. destruct m; simpl; last done. iApply bi.intuitionistically_forall. Qed.
+  
+  Lemma forall_intuitionistically {A : Type} (Φ : A → iProp Σ) : 
+    (∀ x : A, □ Φ x) ⊢ □ (∀ x : A, Φ x).
+  Proof. iIntros "#H !# %". iApply "H". Qed.
+
+  Lemma forall_intuitionistically_if {A : Type} (Φ : A → iProp Σ) m : 
+    (∀ x : A, □? m (Φ x)) ⊢ □? m (∀ x : A, Φ x).
+  Proof. destruct m; simpl; last done. iApply forall_intuitionistically. Qed.
+  (* ------------------------------------------------------------ *)
+  
+  Lemma ty_le_mbang_type_forall (C : sem_ty Σ → sem_ty Σ) m :
+    ⊢ (∀ₜ α, ![m] (C α))%T ≤ₜ ![m] (∀ₜ α, C α).
+  Proof. 
+    iIntros "!# % % Hτ". 
+    iApply forall_intuitionistically_if. iIntros (τ).
+    iApply "Hτ".
+  Qed.
+
+  Lemma ty_le_type_forall_mbang (C : sem_ty Σ → sem_ty Σ) m :
+    ⊢ ![m] (∀ₜ α, C α) ≤ₜ (∀ₜ α, ![m] (C α))%T.
+  Proof. 
+    iIntros "!# % % Hτ".  
+    iDestruct (intuitionistically_if_forall with "Hτ") as "Hτ". 
+    iApply "Hτ".
+  Qed.
+
+  Lemma ty_le_mbang_row_forall (C : sem_row Σ → sem_ty Σ) m :
+    ⊢ (∀ᵣ θ, ![m] (C θ))%T ≤ₜ ![m] (∀ᵣ θ, C θ).
+  Proof. 
+    iIntros "!# % % Hτ". 
+    iApply forall_intuitionistically_if. iIntros (τ).
+    iApply "Hτ".
+  Qed.
+
+  Lemma ty_le_row_forall_mbang (C : sem_row Σ → sem_ty Σ) m :
+    ⊢ ![m] (∀ᵣ θ, C θ) ≤ₜ (∀ᵣ θ, ![m] (C θ))%T.
+  Proof. 
+    iIntros "!# % % Hτ".  
+    iDestruct (intuitionistically_if_forall with "Hτ") as "Hτ". 
+    iApply "Hτ".
+  Qed.
+
+  Lemma ty_le_mbang_mode_forall (C : mode → sem_ty Σ) m :
+    ⊢ (∀ₘ ν, ![m] (C ν))%T ≤ₜ ![m] (∀ₘ ν, C ν).
+  Proof. 
+    iIntros "!# % % Hτ". 
+    iApply forall_intuitionistically_if. iIntros (τ).
+    iApply "Hτ".
+  Qed.
+
+  Lemma ty_le_mode_forall_mbang (C : mode → sem_ty Σ) m :
+    ⊢ ![m] (∀ₘ ν, C ν) ≤ₜ (∀ₘ ν, ![m] (C ν))%T.
+  Proof. 
+    iIntros "!# % % Hτ".  
+    iDestruct (intuitionistically_if_forall with "Hτ") as "Hτ". 
+    iApply "Hτ".
+  Qed.
+
+  Corollary ty_le_mbang_intro_type_forall (C : sem_ty Σ → sem_ty Σ) m :
+    (∀ α, (C α) ≤ₜ ![m] (C α)) -∗ (∀ₜ α, C α) ≤ₜ ![m] (∀ₜ α, C α).
+  Proof. 
+    iIntros "#Hle". iApply ty_le_trans.
+    { iApply ty_le_type_forall. iIntros (α). iApply "Hle". }
+    simpl. iApply ty_le_mbang_type_forall.
+  Qed.
+
+  Global Instance multi_ty_type_forall (C : sem_ty Σ → sem_ty Σ) `{! ∀ α, MultiT (C α) } : 
+    MultiT (∀ₜ α, C α).
+  Proof. 
+    constructor. iApply ty_le_mbang_intro_type_forall. 
+    iIntros (τ). specialize (H τ). inv H. iApply multi_ty0.
+  Qed.
+
+  Corollary ty_le_mbang_intro_row_forall (C : sem_row Σ → sem_ty Σ) m :
+    (∀ θ, (C θ) ≤ₜ ![m] (C θ)) -∗ (∀ᵣ θ, C θ) ≤ₜ ![m] (∀ᵣ θ, C θ).
+  Proof. 
+    iIntros "#Hle". iApply ty_le_trans.
+    { iApply ty_le_row_forall. iIntros (α). iApply "Hle". }
+    simpl. iApply ty_le_mbang_row_forall.
+  Qed.
+  
+  Global Instance multi_ty_row_forall (C : sem_row Σ → sem_ty Σ) `{! ∀ θ, MultiT (C θ) } : 
+    MultiT (∀ᵣ θ, C θ).
+  Proof. 
+    constructor. iApply ty_le_mbang_intro_row_forall. 
+    iIntros (τ). specialize (H τ). inv H. iApply multi_ty0.
+  Qed.
+
+  Lemma ty_le_mbang_intro_mode_forall (C : mode → sem_ty Σ) m :
+    (∀ ν, (C ν) ≤ₜ ![m] (C ν)) -∗ (∀ₘ ν, C ν) ≤ₜ ![m] (∀ₘ ν, C ν).
+  Proof. 
+    iIntros "#Hle". iApply ty_le_trans.
+    { iApply ty_le_mode_forall. iIntros (α). iApply "Hle". }
+    simpl. iApply ty_le_mbang_mode_forall.
+  Qed.
+
+  Global Instance multi_ty_mode_forall (C : mode → sem_ty Σ) `{ ∀ ν, MultiT (C ν) } : 
+    MultiT (∀ₘ ν, C ν).
+  Proof. 
+    constructor. iApply ty_le_mbang_intro_mode_forall. 
+    iIntros (τ). specialize (H τ). inv H. iApply multi_ty0.
+  Qed.
+  
+  Corollary ty_le_uarr (τ₁ κ₁ τ₂ κ₂ : sem_ty Σ) (ρ ρ' : sem_row Σ) :
+    ρ ≤ᵣ ρ' -∗
+    τ₂ ≤ₜ τ₁ -∗
+    κ₁ ≤ₜ κ₂ -∗
+    (τ₁ -{ ρ }-> κ₁) ≤ₜ (τ₂ -{ ρ' }-> κ₂).
+  Proof.
+    iIntros "#Hρ  #Hτ₂₁ #Hκ₁₂". 
+    iApply ty_le_mbang_comp; first iApply mode_le_refl. 
+    by iApply ty_le_arr.
+  Qed.
+      
+  Corollary ty_le_u2aarr (τ κ : sem_ty Σ) (ρ : sem_row Σ) :
+    ⊢ (τ -{ ρ }-> κ) ≤ₜ (τ -{ ρ }-∘ κ).
+  Proof. apply ty_le_mbang_elim. Qed.
+
+End sub_typing.

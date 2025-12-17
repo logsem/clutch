@@ -3001,6 +3001,16 @@ Section brel_effect_rules.
     { iIntros "!> %% Hbrel". by iApply "Hbrel". }
   Qed.
 
+  Lemma brel_introduction_mono (L M : iLblThy Σ) R e1 e2 :
+    to_iThy_le L M -∗
+    BREL e1 ≤ e2 <|L|> {{ R }} -∗
+    BREL e1 ≤ e2 <|M|> {{ R }}.
+  Proof.
+    iIntros "(#Hle & #HvalidLM & #HdistinctLM) Hbrel #Hvalid %Hdistinct".
+    iApply (rel_introduction_mono with "[Hbrel]"); [|iApply "Hle"].
+    iApply "Hbrel"; [by iApply "HvalidLM"|by iApply "HdistinctLM"].
+  Qed. 
+    
   Lemma distinct_l_app_NeutralEctx k1 l1s l2s X (L M : iLblThy Σ) :
     distinct_l (L ++ M) →
     ectx_labels k1 ⊆ labels_l M →
