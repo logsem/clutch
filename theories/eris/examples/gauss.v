@@ -3122,7 +3122,7 @@ Section adequacy.
       apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
       by auto_derive.
     - (* show improper integral exists *) admit.
-    - iIntros (??[]?) "?".
+    - iIntros (??[M ]?) "?".
       wp_apply (pgl_wp_wand with "[-]").
       + wp_apply (wp_G2); [done..|].
         iApply (ec_eq with "[$]").
@@ -3147,8 +3147,31 @@ Section adequacy.
              apply Rmult_le_pos; last naive_solver.
              apply Rcomplements.Rdiv_le_0_compat; last apply Norm2_nn.
              apply Rexp_nn.
-          -- (* find ex_seriesC UB *) admit.
-          -- (* show UB bounded *)admit.
+          -- instantiate (1:= λ n, (exp (- n^2/2))/Norm2  * M).
+             apply ex_seriesC_scal_r.
+             setoid_rewrite Rdiv_def.
+             apply ex_seriesC_scal_r.
+             apply Norm1_ex.
+          -- intros.
+             simpl.
+             rewrite Rabs_right; last first.
+             { apply Rle_ge. apply: Rmult_le_pos; last naive_solver.
+               apply Rcomplements.Rdiv_le_0_compat; last apply Norm2_nn.
+               apply Rexp_nn.
+             }
+             apply Rmult_le_compat; [|naive_solver| |naive_solver].
+             { apply Rcomplements.Rdiv_le_0_compat; last apply Norm2_nn.
+               apply Rexp_nn. }
+             rewrite !Rdiv_def.
+             apply Rmult_le_compat_r.
+             { rewrite -Rdiv_1_l.
+               apply Rcomplements.Rdiv_le_0_compat; first lra.
+               apply Norm2_nn.
+             }
+             apply exp_mono.
+             apply Rmult_le_compat_r; first lra.
+             apply Ropp_le_contravar.
+             real_solver.
           -- intros.
              apply ex_RInt_mult.
              ++ apply: ex_RInt_continuous.
@@ -3157,8 +3180,31 @@ Section adequacy.
                 by auto_derive. 
              ++ by apply PCts_RInt.
         * (* show improper integral exists *) admit.
-        * (* find ex_seriesC UB, see above *) admit.
-        * (* show UB bounded, see above *) admit.
+        * instantiate (1:= λ n, (exp (- n^2/2))/Norm2  * M).
+          apply ex_seriesC_scal_r.
+          setoid_rewrite Rdiv_def.
+          apply ex_seriesC_scal_r.
+          apply Norm1_ex.
+        * intros.
+          simpl.
+          split.
+          { apply Rmult_le_pos; last naive_solver.
+            apply Rcomplements.Rdiv_le_0_compat; first apply Rexp_nn.
+            apply Norm2_nn.
+          }
+          apply Rmult_le_compat; [|naive_solver| |naive_solver].
+          { apply Rcomplements.Rdiv_le_0_compat; last apply Norm2_nn.
+            apply Rexp_nn. }
+          rewrite !Rdiv_def.
+          apply Rmult_le_compat_r.
+          { rewrite -Rdiv_1_l.
+            apply Rcomplements.Rdiv_le_0_compat; first lra.
+            apply Norm2_nn.
+          }
+          apply exp_mono.
+          apply Rmult_le_compat_r; first lra.
+          apply Ropp_le_contravar.
+          real_solver.
         * intros.
           apply ex_RInt_mult.
           -- apply: ex_RInt_continuous.
