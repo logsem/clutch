@@ -587,6 +587,7 @@ Qed.
     { apply PCts_const_x. apply HPcts. }
   Qed.
 
+  (* Like quadExists 3 once I factor out all those terms from B *)
   Lemma QuadExists1  M {F L} (HPcts : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= x <= 1 → 0 <= F n x <= M) :
     ex_seriesC (λ k : nat, RInt (λ x0 : R, SeriesC (λ n : nat, RInt (λ x : R, B F L x n k x0) 0 1)) 0 1).
   Proof.
@@ -690,11 +691,49 @@ Qed.
 
   Lemma QuadExists3 M {F : nat → R → R} {L} (HPcts : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= x <= 1 → 0 <= F n x <= M) :
     ex_RInt (λ x : R, SeriesC (λ n : nat, RealDecrTrial_μ x 0 n * Iverson Zeven n * F L x)) 0 1.
-  Proof. Admitted.
+  Proof.
+    apply (ex_RInt_SeriesC (fun n => (1 / fact n) * 1 * M)); OK.
+    { rewrite ex_seriesC_nat.
+      apply ex_seriesC_scal_r.
+      apply ex_seriesC_scal_r.
+      setoid_rewrite Rdiv_def.
+      apply ex_seriesC_scal_l.
+      rewrite -ex_seriesC_nat.
+      apply ex_exp_series.
+    }
+    2: {
+      intros n.
+      apply ex_RInt_mult; [apply ex_RInt_mult|].
+      { apply RealDecrTrial_μ_ex_RInt. }
+      { apply ex_RInt_const. }
+      { apply PCts_RInt. apply HPcts.  }
+    }
+    intros ???.
+    split.
+    { apply Rmult_le_pos; [apply Rmult_le_pos|].
+      { apply RealDecrTrial_μnn. OK. }
+      { apply Iverson_nonneg. }
+      { apply Hbound; OK. }
+    }
+    { apply Rmult_le_compat.
+      2: apply Hbound; OK.
+      3: apply Hbound; OK.
+      { apply Rmult_le_pos.
+        { apply RealDecrTrial_μnn. OK. }
+        { apply Iverson_nonneg. }
+      }
+      apply Rmult_le_compat.
+      { apply RealDecrTrial_μnn. OK. }
+      { apply Iverson_nonneg. }
+      { apply RealDecrTrial_μ_ub; OK. }
+      { apply Iverson_le_1. }
+    }
+  Qed.
 
   Lemma QuadExists4 M {F : nat → R → R} {L} (HPcts : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= x <= 1 → 0 <= F n x <= M) :
     (ex_RInt (λ x : R, SeriesC (λ n : nat, SeriesC (λ k : nat, RInt (λ x0 : R, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n * NegExp_ρ (L + 1) k x0 * F k x0) 0 1))) 0 1).
-  Proof. Admitted.
+  Proof.
+  Admitted.
 
   (** QuadExchange1: Corresponds to HR4 in gauss.v.
       Exchanges the outermost integral with the outermost series.
@@ -748,13 +787,6 @@ Qed.
     (SeriesC (λ n : nat, SeriesC (λ k : nat, RInt (λ x0 : R, RInt (λ x : R, B F L x n k x0) 0 1) 0 1))) =
     (SeriesC (λ k : nat, SeriesC (λ n : nat, RInt (λ x0 : R, RInt (λ x : R, B F L x n k x0) 0 1) 0 1))).
   Proof.
-    pose B' : nat * nat → R := fun '(n, k) => RInt (λ x0 : R, RInt (λ x : R, B F L x n k x0) 0 1) 0 1.
-    suffices H : SeriesC (λ n : nat, SeriesC (λ k : nat, B' (n, k))) = SeriesC (λ k : nat, SeriesC (λ n : nat, B' (n, k))).
-    { rewrite /B' in H. apply H. }
-    intros ????????.
-    replace (SeriesC (λ n : nat, SeriesC (λ k : nat, B' (n, k)))) with (Series.Series (λ n : nat, Series.Series (λ k : nat, B' (n, k)))).
-    2: { admit. } (* Convert SeriesC to Series.Series *)
-    admit. (* Apply fubini_pos_series with appropriate conditions *)
   Admitted.
 
   (** QuadExchange5: Corresponds to HR5 in gauss.v.
@@ -764,7 +796,8 @@ Qed.
   Local Lemma QuadExchange5 M {F L} (HPcts : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= x <= 1 → 0 <= F n x <= M) :
     (SeriesC (λ k : nat, SeriesC (λ n : nat, RInt (λ x0 : R, RInt (λ x : R, B F L x n k x0) 0 1) 0 1))) =
     (SeriesC (λ k : nat, RInt (λ x0 : R, SeriesC (λ n : nat, RInt (λ x : R, B F L x n k x0) 0 1)) 0 1)).
-  Proof. Admitted.
+  Proof.
+  Admitted.
 
   Local Lemma QuadExchange6  M {F : nat → R → R} {L} (HPcts : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= x <= 1 → 0 <= F n x <= M) :
     RInt (λ x0 : R, SeriesC (λ x : nat, RealDecrTrial_μ0 x0 x * Iverson Zeven x * F L x0)) 0 1 =

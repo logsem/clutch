@@ -429,14 +429,96 @@ Qed.
 Theorem UniformLimitTheorem {f : nat → R → R} {a b x : R} :
   Icc a b x →
   (* Oh oops I need each to be continuous too *)
-  (∀ (n : nat) (x' : R), Rmin a b < x' < Rmax a b → (Continuity.continuous (f n) x')) →
+  (∀ (n : nat) (x' : R), Rmin a b <= x' <= Rmax a b → (Continuity.continuous (f n) x')) →
   (* Uniform convergence (TODO: Just on the interval [a,b], right? ) *)
   filterlim (fun (M : nat) (x : R) => sum_n (fun n => f n x) M) eventually (locally (λ x : R, Series.Series (fun n => f n x))) →
   (* The limit is continuous *)
   Continuity.continuous (fun x' => (Series.Series (fun n => f n x'))) x.
 Proof.
-  intros HB Hcvg.
-Admitted.
+  intros HB Hcts Hunif.
+  (* Classic ε/3 argument *)
+  rewrite /Continuity.continuous.
+  apply filterlim_locally.
+  intro eps.
+  (* Set up ε/3 *)
+  have Heps3_pos : 0 < eps / 3.
+  { apply Rdiv_lt_0_compat; [apply cond_pos | lra]. }
+  pose (eps3 := mkposreal (eps / 3) Heps3_pos).
+  (* Extract N from uniform convergence *)
+  have Hunif_eps : eventually (λ M : nat, ∀ x0 : R, ball (Series.Series (λ n : nat, f n x0)) eps3 (sum_n (λ n : nat, f n x0) M)).
+  { rewrite filterlim_locally in Hunif.
+    rewrite /ball /= /fct_ball in Hunif.
+    apply Hunif. }
+  rewrite /eventually /= in Hunif_eps.
+  destruct Hunif_eps as [N HN].
+  (* The finite sum is continuous (finite sum of continuous functions) *)
+  have Hcts_sum : Continuity.continuous (λ x' : R, sum_n (λ n : nat, f n x') N) x.
+  { rewrite /Icc in HB.
+    clear HN.
+    induction N.
+    { replace (λ x' : R, sum_n (λ n : nat, f n x') 0) with (λ x' : R, f 0%nat x').
+      2: { apply functional_extensionality. intros ?. by rewrite sum_O. }
+      { apply Hcts. done. }
+    }
+    { replace (λ x' : R, sum_n (λ n : nat, f n x') (S N)) with (λ x' : R, sum_n (λ n : nat, f n x') N + f (S N) x').
+      2: { apply functional_extensionality. intros ?. rewrite sum_Sn /plus//=. }
+      apply (Continuity.continuous_plus (V := R_CompleteNormedModule)).
+      { apply IHN. }
+      { apply Hcts. done. }
+    }
+  }
+  (* Get delta from continuity of finite sum *)
+  rewrite /Continuity.continuous filterlim_locally in Hcts_sum.
+  specialize (Hcts_sum eps3).
+  rewrite /locally in Hcts_sum.
+  destruct Hcts_sum as [delta Hdelta].
+  (* Show the limit is continuous at x with this delta *)
+  exists delta.
+  intros y Hy.
+  rewrite /ball /= /AbsRing_ball /abs /= /minus /plus /opp /=.
+  (* Decompose into three parts for ε/3 argument *)
+  replace (Series.Series (λ n : nat, f n y) + - Series.Series (λ n : nat, f n x))
+     with ((Series.Series (λ n : nat, f n y) - sum_n (λ n : nat, f n y) N) +
+           (sum_n (λ n : nat, f n y) N - sum_n (λ n : nat, f n x) N) +
+           (sum_n (λ n : nat, f n x) N - Series.Series (λ n : nat, f n x))) by lra.
+  (* Prove each part is < ε/3 *)
+  have H1 : Rabs (Series.Series (λ n : nat, f n y) - sum_n (λ n : nat, f n y) N) < eps / 3.
+  { have HNy := HN N ltac:(lia) y.
+    rewrite /ball /= /AbsRing_ball /= in HNy.
+    rewrite /abs /= /minus /plus /opp /= in HNy.
+    replace (Series.Series (λ n0 : nat, f n0 y) - sum_n (λ n0 : nat, f n0 y) N)
+       with (-(sum_n (λ n0 : nat, f n0 y) N - Series.Series (λ n0 : nat, f n0 y))) by lra.
+    rewrite Rabs_Ropp.
+    apply HNy. }
+  have H2 : Rabs (sum_n (λ n : nat, f n y) N - sum_n (λ n : nat, f n x) N) < eps / 3.
+  { specialize (Hdelta y Hy).
+    rewrite /ball /= /AbsRing_ball /= in Hdelta.
+    rewrite /abs /= /minus /plus /opp /= in Hdelta.
+    apply Hdelta. }
+  have H3 : Rabs (sum_n (λ n : nat, f n x) N - Series.Series (λ n : nat, f n x)) < eps / 3.
+  { have HNx := HN N ltac:(lia) x.
+    rewrite /ball /= /AbsRing_ball /= in HNx.
+    rewrite /abs /= /minus /plus /opp /= in HNx.
+    apply HNx. }
+  (* Combine using triangle inequality *)
+  pose (term1 := Series.Series (λ n : nat, f n y) - sum_n (λ n : nat, f n y) N).
+  pose (term2 := sum_n (λ n : nat, f n y) N - sum_n (λ n : nat, f n x) N).
+  pose (term3 := sum_n (λ n : nat, f n x) N - Series.Series (λ n : nat, f n x)).
+  replace (Series.Series (λ n : nat, f n y) - sum_n (λ n : nat, f n y) N +
+     (sum_n (λ n : nat, f n y) N - sum_n (λ n : nat, f n x) N) +
+     (sum_n (λ n : nat, f n x) N - Series.Series (λ n : nat, f n x))) with (term1 + term2 + term3) by (rewrite /term1 /term2 /term3; lra).
+  have Hbound : Rabs (term1 + term2 + term3) <= Rabs term1 + Rabs term2 + Rabs term3.
+  { have H_step1 := Rabs_triang term1 (term2 + term3).
+    replace (term1 + term2 + term3) with (term1 + (term2 + term3)) by lra.
+    eapply Rle_trans; [apply H_step1|].
+    have H_step2 := Rabs_triang term2 term3.
+    lra. }
+  eapply Rle_lt_trans; [apply Hbound|].
+  fold term1 in H1.
+  fold term2 in H2.
+  fold term3 in H3.
+  lra.
+Qed.
 
 
 (** 2D Uniform Limit Theorem *)

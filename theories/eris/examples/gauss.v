@@ -1283,8 +1283,9 @@ Section credits.
         { funexti. by rewrite SeriesC_Series_nat. }
         apply (@UniformLimitTheorem _ 0 1).
         { rewrite /Icc//=; OK. rewrite Rmin_left; OK. rewrite Rmax_right; OK. }
-        {
-          intros ???.
+        { intros ???.
+
+
           apply (Continuity.continuous_ext_loc _ (λ x'0 : R_UniformSpace, G1_μ n0 * (1 - exp (- x'0 * (2 * n0 + x'0) / 2)))).
           2: {
             apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
@@ -1292,9 +1293,13 @@ Section credits.
           }
           rewrite Rmin_left in H0; OK.
           rewrite Rmax_right in H0; OK.
+          (* FIXME Not true *)
+          admit.
+          (*
+
           (* In a neighbourhood of x', the indicator function is 1. *)
-          have Hpos_ball : 0 < (Rmin x' (1-x')).
-          { apply Rmin_glb_lt; OK. }
+          have Hpos_ball : 0 < (Rmin x' (1-x') / 2).
+          { apply Rmin_glb_lt. OK. }
           exists (mkposreal _ Hpos_ball).
           intros y.
           rewrite /ball//=.
@@ -1319,6 +1324,7 @@ Section credits.
             OK.
           }
           rewrite Iverson_True; OK.
+          *)
         }
         have H1 : ∀ x0 (n0 : nat), 0 <= x0 → 0 <= 1 - exp (- x0 * (2 * n0 + x0) / 2).
         { intros ???.
@@ -1476,7 +1482,7 @@ Section credits.
     apply ex_seriesC_scal_r.
     apply ex_seriesC_scal_r.
     apply Norm1_ex.
-  Qed.
+  Admitted.
 
   Lemma HR1 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     Series.Series (λ x : nat, Series.Series (λ k : nat, RInt (λ x0 : R, RInt (λ x1 : R, (G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1)) =
