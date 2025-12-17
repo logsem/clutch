@@ -1,4 +1,4 @@
-From clutch.eris.examples.math Require Import prelude axioms iverson sets.
+From clutch.eris.examples.math Require Import prelude axioms iverson sets piecewise.
 From clutch.eris Require Import infinite_tape.
 Import Hierarchy.
 Set Default Proof Using "Type*".
@@ -100,6 +100,16 @@ Proof.
   { apply ex_RInt_square. by apply (ex_RInt_plus (V := R_CompleteNormedModule)). }
   { apply ex_RInt_square. by apply (ex_RInt_minus (V := R_CompleteNormedModule)). }
 Qed.
+
+Lemma ex_RInt_mult_PCts (f g : R -> R) (a b : R) :
+  PCts f a b -> PCts g a b ->
+  ex_RInt (λ y : R, f y * g y) a b.
+Proof. intros ??. apply PCts_RInt. apply PCts_mult; done. Qed.
+
+Lemma ex_RInt_mult_IPCts (f g : R -> R) (a b : R) :
+  IPCts f -> IPCts g ->
+  ex_RInt (λ y : R, f y * g y) a b.
+Proof. intros ??. apply PCts_RInt. apply PCts_mult; apply IPCts_PCts; done. Qed.
 
 (** Integral of monomial *)
 Lemma RInt_pow {a b N} : RInt (λ x : R, x ^ N) a b = b ^ (N + 1)%nat / (N + 1)%nat - a ^ (N + 1)%nat / (N + 1)%nat.

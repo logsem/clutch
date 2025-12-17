@@ -785,6 +785,11 @@ Proof. Admitted.
 Lemma clamp_le {x} : clamp x <= 1.
 Proof. Admitted.
 
+Ltac OK := auto; try (intuition done); try (intuition lia); try (intuition lra).
+Ltac funext := apply functional_extensionality.
+Ltac funexti := apply functional_extensionality; intros ?.
+
+Create HintDb ipcts.
 
 Lemma Icc_PCts : PCts (Iverson (Icc 0 1)) 0 1.
 Proof.
@@ -797,3 +802,23 @@ Proof.
   apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
   by auto_derive.
 Qed.
+
+Lemma Rle_PCts {k : R} : IPCts (Iverson (Rle k)).
+Proof. Admitted.
+Hint Resolve Rle_PCts : ipcts.
+
+Lemma cst_PCts {k : R} : IPCts (fun _ => k).
+Proof. Admitted.
+Hint Resolve cst_PCts : ipcts.
+
+Lemma Rge_PCts {k : R} : IPCts (Iverson (Rge k)).
+Proof. Admitted.
+Hint Resolve Rge_PCts : ipcts.
+
+Lemma Ioo_PCts {a b} : IPCts (Iverson (Ioo a b)).
+Proof. Admitted.
+Hint Resolve Ioo_PCts : ipcts.
+
+Ltac cts :=
+  OK;
+  try (apply IPCts_PCts; auto with ipcts).
