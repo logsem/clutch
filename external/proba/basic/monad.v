@@ -30,7 +30,8 @@ Notation "x ← y ; z" := (y ≫= (λ x : _, z))
 Infix "<$>" := fmap (at level 61, left associativity) : stdpp_scope.
 Notation "' ( x1 , x2 ) ← y ; z" :=
   (y ≫= (λ x : _, let ' (x1, x2) := x in z))
-  (at level 65, right associativity) : stdpp_scope.
+    (at level 65, right associativity) : stdpp_scope.
+#[warnings="-notation-incompatible-prefix"]
 Notation "' ( x1 , x2 , x3 ) ← y ; z" :=
   (y ≫= (λ x : _, let ' (x1,x2,x3) := x in z))
   (at level 65, only parsing, right associativity) : stdpp_scope.
