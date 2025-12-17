@@ -704,7 +704,7 @@ Theorem lazy_real_adequacy1' Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R 
     (∀ r, 0<=r -> ex_RInt μ (0) r) →
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
   (∀ `{erisGS Σ} (F : nat -> R -> R) (Hnn : ∃ M, ∀ x k , 0 <= F k x <= M) (HPCts: ∀ k, PCts (F k) 0 1),
-      ↯ (RInt_gen (fun (x:R) => let k:=Z.to_nat (Int_part x) in μ x * F (k) (x-k)) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
+      ↯ (RInt_gen (fun (x:R) => μ x * F (Z.to_nat (Int_part x)) (frac_part x)) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
        WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗ ↯(F k (r)%R) }}) →
   ∀ (x y n:nat), (x<2^y)%nat ->
   pgl (lim_exec (is_smaller_prog e #n #x #y, σ)) (λ x, x=#true) (RInt_gen μ (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)).
@@ -725,20 +725,12 @@ Proof.
         f_equal.
         rewrite {1}(Rplus_Int_part_frac_part x0).
         f_equal.
-        -- rewrite INR_IZR_INZ.
-           rewrite Z2Nat.id; first done.
-           pose proof base_Int_part x0 as [].
-           assert (-1< IZR (Int_part x0)) as K by lra.
-           assert (-1<Int_part x0)%Z; last lia.
-           by apply lt_IZR.
-        -- pose proof base_Int_part x0 as [].
-           rewrite INR_IZR_INZ.
-           rewrite /frac_part.
-           rewrite Z2Nat.id; first done.
-           pose proof base_Int_part x0 as [].
-           assert (-1< IZR (Int_part x0)) as K by lra.
-           assert (-1<Int_part x0)%Z; last lia.
-           by apply lt_IZR.
+        rewrite INR_IZR_INZ.
+        rewrite Z2Nat.id; first done.
+        pose proof base_Int_part x0 as [].
+        assert (-1< IZR (Int_part x0)) as K by lra.
+        assert (-1<Int_part x0)%Z; last lia.
+        by apply lt_IZR.
       * eapply (@ex_RInt_gen_Ici_compare_IPCts 0 (λ x0 : R, M * μ x0)).
         -- by apply IPCts_scal_mult.
         -- by apply IPCts_mult.
@@ -788,7 +780,7 @@ Theorem lazy_real_adequacy2' Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R 
     (∀ r, 0<=r -> ex_RInt μ (0) r) →
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
   (∀ `{erisGS Σ} (F : nat -> R -> R) (Hnn : ∃ M, ∀ x k , 0 <= F k x <= M) (HPCts: ∀ k, PCts (F k) 0 1),
-      ↯ (RInt_gen (fun (x:R) => let k:=Z.to_nat (Int_part x) in μ x * F (k) (x-k)) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
+      ↯ (RInt_gen (fun (x:R) => μ x * F (Z.to_nat $ Int_part x) (frac_part x)) (at_point 0) (Rbar_locally Rbar.p_infty) )%R -∗
        WP e {{ vp, ∃ (r : R) (k:nat) (l:val),  ⌜vp=(l, #k)%V⌝ ∗ lazy_real l r ∗ ↯(F k (r)%R) }}) →
   ∀ (x y n:nat), (x<2^y)%nat ->
   pgl (lim_exec (is_smaller_prog e #n #x #y, σ)) (λ x, x=#false) (RInt μ 0 (x / 2 ^ y + INR n)).
@@ -809,20 +801,12 @@ Proof.
         f_equal.
         rewrite {1}(Rplus_Int_part_frac_part x0).
         f_equal.
-        -- rewrite INR_IZR_INZ.
-           rewrite Z2Nat.id; first done.
-           pose proof base_Int_part x0 as [].
-           assert (-1< IZR (Int_part x0)) as K by lra.
-           assert (-1<Int_part x0)%Z; last lia.
-           by apply lt_IZR.
-        -- pose proof base_Int_part x0 as [].
-           rewrite INR_IZR_INZ.
-           rewrite /frac_part.
-           rewrite Z2Nat.id; first done.
-           pose proof base_Int_part x0 as [].
-           assert (-1< IZR (Int_part x0)) as K by lra.
-           assert (-1<Int_part x0)%Z; last lia.
-           by apply lt_IZR.
+        rewrite INR_IZR_INZ.
+        rewrite Z2Nat.id; first done.
+        pose proof base_Int_part x0 as [].
+        assert (-1< IZR (Int_part x0)) as K by lra.
+        assert (-1<Int_part x0)%Z; last lia.
+        by apply lt_IZR.
       * eapply (@ex_RInt_gen_Ici_compare_IPCts 0 (λ x0 : R, M * μ x0)).
         -- by apply IPCts_scal_mult.
         -- by apply IPCts_mult.

@@ -365,6 +365,12 @@ Proof.
     by auto_derive.
 Qed. 
 
+Lemma PCts_unit_implies_all (F:nat -> R -> R) r:
+  (∀ k, PCts (F k) 0 1) ->
+  PCts (λ y0 : R, F (Z.to_nat (Int_part y0)) (frac_part y0)) (0) r.
+Proof.
+Admitted.
+  
 (** Integrability of 1D compactly-supported piecewise continuous functions, on any interval *)
 Lemma PCts_RInt {f xa xb} (HP : PCts f xa xb) :
   ex_RInt f xa xb.

@@ -3137,11 +3137,12 @@ Section adequacy.
              pose proof base_Int_part (x'+n') as [K1 K2].
              assert (0<x'<1).
              { rewrite /Rmin/Rmax in Hx'. repeat case_match; lra. }
-             rewrite /Int_part.
+             rewrite /frac_part/Int_part.
              rewrite -(tech_up _ (n'+1)); try (rewrite plus_IZR; rewrite -INR_IZR_INZ; lra).
              repeat f_equal; first lia.
              replace (_+_-_)%Z with (Z.of_nat n') by lia.
-             rewrite Nat2Z.id. lra.
+             rewrite INR_IZR_INZ.
+             lra.
           -- lra.
           -- intros.
              apply Rmult_le_pos; last naive_solver.
@@ -3212,9 +3213,7 @@ Section adequacy.
              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
              by auto_derive. 
           -- apply PCts_RInt.
-             
-             (* Annoying PCTs condition *)
-             admit.
+             by apply PCts_unit_implies_all.
       + simpl. iIntros (?) "(%&%&%&?&%&?)". by iFrame.
   Admitted.
 
