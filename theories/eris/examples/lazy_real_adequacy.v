@@ -650,7 +650,7 @@ Section adequacy.
   Qed.
 End adequacy.
 
-Theorem lazy_real_adeqaucy1 Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
+Theorem lazy_real_adequacy1 Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
   (∀ x, 0<=μ x)->
     (∀ r, 0<=r -> ex_RInt μ (0) r) →
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
@@ -698,7 +698,7 @@ Proof.
 Qed.
 
 (**  For applying Gauss *)
-Theorem lazy_real_adeqaucy1' Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
+Theorem lazy_real_adequacy1' Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
   IPCts μ ->
   (∀ x, 0<=μ x)->
     (∀ r, 0<=r -> ex_RInt μ (0) r) →
@@ -710,7 +710,7 @@ Theorem lazy_real_adeqaucy1' Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R 
   pgl (lim_exec (is_smaller_prog e #n #x #y, σ)) (λ x, x=#true) (RInt_gen μ (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)).
 Proof.
   intros Hcts Hpos Hbound Hbound' Hwp x y n Hineq.
-  apply: lazy_real_adeqaucy1; try done.
+  apply: lazy_real_adequacy1; try done.
   iIntros (??[M ]?) "Herr".
   set (F':= (λ (k:nat) r, F (k+r))).
   iApply (pgl_wp_wand with "[-]").
@@ -753,7 +753,7 @@ Proof.
     by iIntros.
 Qed. 
 
-Theorem lazy_real_adeqaucy2 Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
+Theorem lazy_real_adequacy2 Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
   (∀ x, 0<=μ x)->
     (∀ r, 0<=r -> ex_RInt μ (0) r) →
     ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty) →
@@ -782,7 +782,7 @@ Proof.
 Qed. 
 
 (**  For applying Gauss *)
-Theorem lazy_real_adeqaucy2' Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
+Theorem lazy_real_adequacy2' Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R -> R):
   IPCts μ ->
   (∀ x, 0<=μ x)->
     (∀ r, 0<=r -> ex_RInt μ (0) r) →
@@ -794,7 +794,7 @@ Theorem lazy_real_adeqaucy2' Σ `{erisGpreS Σ} (e : expr) (σ : state) (μ : R 
   pgl (lim_exec (is_smaller_prog e #n #x #y, σ)) (λ x, x=#false) (RInt μ 0 (x / 2 ^ y + INR n)).
 Proof.
   intros Hcts Hpos Hbound Hbound' Hwp x y n Hineq.
-  apply: lazy_real_adeqaucy2; try done.
+  apply: lazy_real_adequacy2; try done.
   iIntros (??[M ]?) "Herr".
   set (F':= (λ (k:nat) r, F (k+r))).
   iApply (pgl_wp_wand with "[-]").

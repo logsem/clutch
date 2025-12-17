@@ -3091,23 +3091,84 @@ Section program.
 End program.
 
 Section adequacy.
-  Context `{!erisGS Σ}.
+  (* Context `{!erisGS Σ}. *)
   Import Hierarchy.
-
-  Theorem Gauss_adequate_1 (σ : state) (x y n : nat) : (x<2^y)%nat  →
-  pgl (lim_exec (is_smaller_prog (G2 #()) #n #x #y, σ)) (λ x, x = #true)
-      (RInt_gen (fun r => exp ((-r^2)/2) / Norm2) (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)).
-  Proof.
-    intro H.
-    Check lazy_real_adeqaucy1'.
-    (* Yup. Still needs periodisation to actually apply this thing.
+  (* Yup. Still needs periodisation to actually apply this thing.
 
       Definition G2_CreditV (F : nat → R → R) :=
         SeriesC (fun (k : nat) => RInt (fun x => G2_μ k x * F k x) 0 1).
 
        TODO apply the periodisation lemma just like I did in neg_exp,
        adding in an (Ico) to the PMF to and g' to poke out duplicated integers.
-     *)
+   *)
+  Theorem Gauss_adequate_1 (σ : state) (x y n : nat) : (x<2^y)%nat  →
+  pgl (lim_exec (is_smaller_prog (G2 #()) #n #x #y, σ)) (λ x, x = #true)
+      (RInt_gen (fun r => exp ((-r^2)/2) / Norm2) (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)).
+  Proof.
+    intro H.
+    apply (lazy_real_adequacy1' erisΣ); last done.
+    - eexists (λ r : R, exp (- r ^ 2 / 2) / Norm2), [].
+      repeat split.
+      + intros; simpl; lra.
+      + by apply Forall_nil.
+      + intros. 
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+    - intros.
+      apply Rcomplements.Rdiv_le_0_compat; last apply Norm2_nn.
+      apply Rexp_nn.
+    - intros. apply: ex_RInt_continuous.
+      intros.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    - (* show improper integral exists *) admit.
+    - iIntros (??[]?) "?".
+      wp_apply (pgl_wp_wand with "[-]").
+      + wp_apply (wp_G2); [done..|].
+        iApply (ec_eq with "[$]").
+        rewrite /G2_CreditV.
+        rewrite /G2_μ.
+        erewrite RInt_sep.
+        * erewrite FubiniIntegralSeriesC_Strong.
+          -- apply RInt_ext.
+             intros x' Hx'.
+             apply SeriesC_ext.
+             intros n'.
+             pose proof base_Int_part (x'+n') as [K1 K2].
+             assert (0<x'<1).
+             { rewrite /Rmin/Rmax in Hx'. repeat case_match; lra. }
+             rewrite /Int_part.
+             rewrite -(tech_up _ (n'+1)); try (rewrite plus_IZR; rewrite -INR_IZR_INZ; lra).
+             repeat f_equal; first lia.
+             replace (_+_-_)%Z with (Z.of_nat n') by lia.
+             rewrite Nat2Z.id. lra.
+          -- lra.
+          -- intros.
+             apply Rmult_le_pos; last naive_solver.
+             apply Rcomplements.Rdiv_le_0_compat; last apply Norm2_nn.
+             apply Rexp_nn.
+          -- (* find ex_seriesC UB *) admit.
+          -- (* show UB bounded *)admit.
+          -- intros.
+             apply ex_RInt_mult.
+             ++ apply: ex_RInt_continuous.
+                intros.
+                apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+                by auto_derive. 
+             ++ by apply PCts_RInt.
+        * (* show improper integral exists *) admit.
+        * (* find ex_seriesC UB, see above *) admit.
+        * (* show UB bounded, see above *) admit.
+        * intros.
+          apply ex_RInt_mult.
+          -- apply: ex_RInt_continuous.
+             intros.
+             apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+             by auto_derive. 
+          -- apply PCts_RInt.
+             (* Annoying PCTs condition *)
+             admit.
+      + simpl. iIntros (?) "(%&%&%&?&%&?)". by iFrame.
   Admitted.
 
   (* TODO: Can the two adequacy staements be combined (Chasles) *)
