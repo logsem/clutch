@@ -837,3 +837,21 @@ Section row_type_sub.
   Qed.
 
 End row_type_sub.
+
+Section mode_type_sub.
+
+  (* Subsumption relation on modes wrt to types *)
+
+  Global Instance mode_type_sub_multi_ty {Σ} m (τ : sem_ty Σ) `{! MultiT τ } : m ₘ⪯ₜ τ.
+  Proof. 
+    constructor. iIntros "% % #Hτ". 
+    by iApply bi.intuitionistically_intuitionistically_if.
+  Qed.
+
+  Global Instance mode_type_sub_mbang {Σ} m (τ : sem_ty Σ) : m ₘ⪯ₜ (![m] τ).
+  Proof. 
+    constructor. iIntros "% % Hτ". 
+    iApply bi.intuitionistically_if_idemp. iApply "Hτ".
+  Qed.
+  
+End mode_type_sub.
