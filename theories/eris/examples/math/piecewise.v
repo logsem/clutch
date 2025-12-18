@@ -852,20 +852,28 @@ Qed.
 
 
 
-Definition clamp (x : R) : R := Rmin 0 (Rmax 1 x).
+Definition clamp (x : R) : R := Rmax 0 (Rmin 1 x).
 
 Lemma clamp_continuous {f : R → R} {x} :
   Continuity.continuous f x → Continuity.continuous (λ x0 : R_UniformSpace, clamp (f x0)) x.
 Proof. Admitted.
 
 Lemma clamp_eq {x} : 0 <= x <= 1 → clamp x = x.
-Proof. Admitted.
+Proof.
+  intros ?. rewrite /clamp.
+  rewrite Rmin_right; try lra.
+  rewrite Rmax_right; try lra.
+Qed.
 
 Lemma le_clamp {x} : 0 <= clamp x.
-Proof. Admitted.
+Proof. rewrite /clamp. apply Rmax_l. Qed.
 
 Lemma clamp_le {x} : clamp x <= 1.
-Proof. Admitted.
+Proof.
+  rewrite /clamp.
+  apply Rmax_lub; try lra.
+  apply Rmin_l.
+Qed.
 
 Ltac OK := auto; try (intuition done); try (intuition lia); try (intuition lra).
 Ltac funext := apply functional_extensionality.
