@@ -241,8 +241,13 @@ Section credits.
   Proof.
     rewrite /Bii_g.
     apply ex_RInt_add.
-    { apply ex_RInt_mult_PCts; cts. }
-    { apply ex_RInt_mult_PCts; cts. }
+    { apply ex_RInt_mult; first apply ex_RInt_Iverson_le.
+      apply ex_RInt_const.
+    }
+    { apply ex_RInt_mult; first apply ex_RInt_Iverson_ge.
+      apply ex_RInt_const.
+    }
+
   Qed.
 
   Lemma Bii_g_nn {F k x} (Hnn : ∀ r, 0 <= F r) : 0 <= x <= 1 → 0 <= Bii_g F k x.
@@ -288,8 +293,8 @@ Section credits.
     rewrite /Bii_g.
     (* Evaluate the inner integral *)
     rewrite -RInt_add.
-    2: { apply ex_RInt_mult_PCts; cts. }
-    2: { apply ex_RInt_mult_PCts; cts. }
+    2: { apply ex_RInt_mult; first apply ex_RInt_Iverson_le. apply ex_RInt_const. }
+    2: { apply ex_RInt_mult; first apply ex_RInt_Iverson_ge. apply ex_RInt_const. }
     rewrite -RInt_Rmult'.
     2: { apply ex_RInt_Iverson_le. }
     rewrite -RInt_Rmult'.
@@ -552,8 +557,7 @@ Section credits.
   Proof.
     rewrite /S_hz.
     apply ex_RInt_add; first apply ex_RInt_const.
-    apply ex_RInt_mult.
-    { apply PCts_RInt; cts. }
+    apply ex_RInt_mult; first apply ex_RInt_const.
     eapply ex_RInt_S_CreditV; OK.
   Qed.
 
@@ -561,9 +565,8 @@ Section credits.
   Proof.
     rewrite /S_g.
     apply ex_RInt_add.
-    { apply IPCts_RInt. apply IPCts_mult; auto with ipcts. }
-    apply ex_RInt_mult.
-    { apply IPCts_RInt. auto with ipcts. }
+    { apply ex_RInt_mult; first apply ex_RInt_Iverson_le. apply ex_RInt_const. }
+    apply ex_RInt_mult; first apply ex_RInt_Iverson_ge.
     apply ex_RInt_add.
     { apply ex_RInt_mult; first apply ex_RInt_const. eapply ex_RInt_S_hz; OK. }
     { apply ex_RInt_mult; first apply ex_RInt_const. eapply ex_RInt_S_hz; OK. }
@@ -578,13 +581,14 @@ Section credits.
     (* Split the series; compute the first term *)
     rewrite -RInt_add.
     3: {
-      apply ex_RInt_mult; first apply IPCts_RInt; auto with ipcts.
+      apply ex_RInt_mult; first apply ex_RInt_Iverson_ge.
       apply ex_RInt_add.
       { apply ex_RInt_mult; first apply ex_RInt_const. eapply ex_RInt_S_hz; OK. }
       { apply ex_RInt_mult; first apply ex_RInt_const. eapply ex_RInt_S_hz; OK. }
     }
     2: {
-      apply ex_RInt_mult_PCts; cts.
+      apply ex_RInt_mult; first apply ex_RInt_Iverson_le.
+      apply ex_RInt_const.
     }
     rewrite -RInt_Rmult'.
     2: { apply ex_RInt_Iverson_le. }
@@ -625,9 +629,8 @@ Section credits.
     { apply functional_extensionality; intros ?.
       rewrite Rmult_0_l Rmult_1_l Rplus_0_l Rplus_0_r. done. }
     rewrite -RInt_add.
-    3: { apply ex_RInt_mult_PCts; cts. }
-    2: { apply ex_RInt_mult.
-         { apply IPCts_RInt; eauto with ipcts. }
+    3: { apply ex_RInt_mult; apply ex_RInt_const. }
+    2: { apply ex_RInt_mult; first apply ex_RInt_const.
          eapply ex_RInt_S_CreditV; last done; OK.
     }
     rewrite RInt_const.
@@ -729,12 +732,13 @@ Section credits.
         { rewrite -(pow1 (n - (N + 1))). apply pow_incr; OK. }
       }
       { intros ?.
-        apply ex_RInt_mult.
-        { apply ex_RInt_mult.
-          { apply PCts_RInt; cts. }
-          { apply ex_RInt_S_μ. }
+        apply ex_RInt_mult; [apply ex_RInt_mult|].
+        { apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+          intros ??.
+          rewrite Iverson_True; OK.
         }
-        { apply PCts_RInt; cts. }
+        { apply ex_RInt_S_μ. }
+        { apply ex_RInt_const. }
       }
     }
     rewrite -SeriesC_scal_l.

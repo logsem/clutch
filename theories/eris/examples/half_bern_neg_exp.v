@@ -89,10 +89,13 @@ Section credits.
     rewrite /g.
     apply ex_RInt_add.
     { apply ex_RInt_mult.
-      { apply PCts_RInt; cts. }
+      { apply ex_RInt_Iverson_le'. }
       { apply ex_RInt_RealDecrTrial_CreditV. done. }
     }
-    { apply ex_RInt_mult_PCts; cts. }
+    { apply ex_RInt_mult.
+      { apply ex_RInt_Iverson_nle'. }
+      { apply ex_RInt_const. }
+    }
   Qed.
 
   Local Lemma g_expectation {F M} (HF : ∀ x, 0 <= F x <= M) : RInt (g F) 0 1 = BNEHalf_CreditV F.
@@ -100,11 +103,11 @@ Section credits.
     rewrite /g.
     rewrite -RInt_add.
     3: {
-      apply ex_RInt_mult_PCts; cts.
+      apply ex_RInt_mult; [apply ex_RInt_Iverson_nle'|].
+      apply ex_RInt_const.
     }
     2: {
-      apply ex_RInt_mult.
-      { apply PCts_RInt; cts. }
+      apply ex_RInt_mult; [apply ex_RInt_Iverson_le'|].
       apply ex_RInt_RealDecrTrial_CreditV.
       apply HF.
     }
@@ -208,10 +211,13 @@ Section credits.
       }
       { intros ?.
         apply ex_RInt_mult.
-        { apply PCts_RInt; cts. }
-        apply ex_RInt_mult.
-        { apply RealDecrTrial_μ_ex_RInt. }
-        { apply PCts_RInt; cts. }
+        { apply (ex_RInt_ext (fun _ => 1)); [|apply ex_RInt_const].
+          intros ??.
+          rewrite Iverson_True /Ioo; OK.
+        }
+        apply ex_RInt_mult; [|apply ex_RInt_const].
+        apply ex_RInt_mult; [apply ex_RInt_const|].
+        apply RealDecrTrial_μ0_ex_RInt.
       }
     }
     replace (λ n : nat, RInt (λ x : R, RealDecrTrial_μ x 0 n * LiftF F n) 0 0.5)
