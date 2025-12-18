@@ -20,7 +20,7 @@ Definition fsum {T : Type} (L : list (T → R)) : T → R := fun t => foldr (fun
 (** 1D piecewise compactly-supported continuity: The function is a sum of continuous IntervalFuns *)
 Definition PCts (f : R → R) (xa xb : R) : Prop :=
   ∃ L, (∀ x, Icc xa xb x → f x = fsum (IntervalFun_R <$> L) x) ∧ Forall IntervalFun_continuity L.
-
+  
 Lemma PCts_point f xa :
   PCts f xa xa.
 Proof.
@@ -360,6 +360,19 @@ Proof.
   - repeat rewrite Forall_cons; repeat split; last done.
     + intros ??. apply Continuity.continuous_const.
     + intros ??. apply Continuity.continuous_const.
+Qed.
+
+Lemma PCts_ext f f' xa xb:
+  (∀ x, Ioo xa xb x-> f x = f' x) ->
+  PCts f xa xb ->
+  PCts f' xa xb.
+Proof.
+  intros H [L [H1 H2]].
+  apply PCts''_PCts.
+  exists L.
+  split; last done.
+  intros. rewrite -H; last done.
+  apply H1. by apply Ioo_Icc.
 Qed. 
 
 Lemma PCts_shift f f' xa xb xa' xb' r:

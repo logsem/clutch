@@ -3121,7 +3121,7 @@ Section adequacy.
       intros.
       apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
       by auto_derive.
-    - (* show improper integral exists *) admit.
+    - (* show improper integral exists, TODO ex_RInt_gen_Ici_compare_PCts' *) admit.
     - iIntros (??[M ]?) "?".
       wp_apply (pgl_wp_wand with "[-]").
       + wp_apply (wp_G2); [done..|].
