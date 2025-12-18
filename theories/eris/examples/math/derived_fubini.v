@@ -340,6 +340,14 @@ Lemma RectFun_RR_ex_RInt_iterated_y (rect : (R → R → R) * R * R * R * R) xa 
 Proof.
 Admitted.
 
+(* Key lemma: Fubini for a single rectangle function *)
+Lemma RectFun_RR_Fubini (rect : (R → R → R) * R * R * R * R) xa xb ya yb :
+  RectFun_continuity rect →
+  RInt (fun x => RInt (fun y => RectFun_RR rect x y) ya yb) xa xb =
+  RInt (fun y => RInt (fun x => RectFun_RR rect x y) xa xb) ya yb.
+Proof.
+Admitted.
+
 (* Helper lemma: integrability for lists of rectangle functions *)
 Lemma fsum2_RectFun_ex_x (L : list ((R → R → R) * R * R * R * R)) xa xb ya yb :
   Forall RectFun_continuity L →
@@ -401,10 +409,42 @@ Proof.
   apply fsum2_RectFun_ex_y. exact HL.
 Qed.
 
+
+Lemma fsum2_Fubini (L : list ((R → R → R) * R * R * R * R)) xa xb ya yb :
+  Forall RectFun_continuity L →
+  RInt (fun x => RInt (fun y => fsum2 (RectFun_RR <$> L) x y) ya yb) xa xb =
+  RInt (fun y => RInt (fun x => fsum2 (RectFun_RR <$> L) x y) xa xb) ya yb.
+Proof.
+  intros HL.
+  induction L as [| rect L IH].
+  - simpl. rewrite /fsum2. simpl. rewrite !RInt_const. rewrite /scal /= /mult /=. lra.
+  - simpl. rewrite /fmap. simpl.
+    rewrite (RInt_ext (fun x => RInt (fun y => RectFun_RR rect x y + fsum2 (RectFun_RR <$> L) x y) ya yb) (fun x => RInt (fun y => RectFun_RR rect x y) ya yb + RInt (fun y => fsum2 (RectFun_RR <$> L) x y) ya yb) xa xb).
+    2: { intros x Hx. rewrite RInt_plus. { reflexivity. } { apply RectFun_RR_ex_RInt_y. apply Forall_inv in HL. exact HL. } { apply fsum2_RectFun_ex_RInt_y. apply Forall_inv_tail in HL. exact HL. } }
+    rewrite (RInt_ext (fun y => RInt (fun x => RectFun_RR rect x y + fsum2 (RectFun_RR <$> L) x y) xa xb) (fun y => RInt (fun x => RectFun_RR rect x y) xa xb + RInt (fun x => fsum2 (RectFun_RR <$> L) x y) xa xb) ya yb).
+    2: { intros y Hy. rewrite RInt_plus. { reflexivity. } { apply RectFun_RR_ex_RInt_x. apply Forall_inv in HL. exact HL. } { apply fsum2_RectFun_ex_RInt_x. apply Forall_inv_tail in HL. exact HL. } }
+    rewrite (RInt_plus (V := R_CompleteNormedModule) (fun x => RInt (fun y => RectFun_RR rect x y) ya yb) (fun x => RInt (fun y => fsum2 (RectFun_RR <$> L) x y) ya yb) xa xb).
+    2: { apply RectFun_RR_ex_RInt_iterated_x. apply Forall_inv in HL. exact HL. }
+    2: { apply fsum2_RectFun_ex_x. apply Forall_inv_tail in HL. exact HL. }
+    rewrite (RInt_plus (V := R_CompleteNormedModule) (fun y => RInt (fun x => RectFun_RR rect x y) xa xb) (fun y => RInt (fun x => fsum2 (RectFun_RR <$> L) x y) xa xb) ya yb).
+    2: { apply RectFun_RR_ex_RInt_iterated_y. apply Forall_inv in HL. exact HL. }
+    2: { apply fsum2_RectFun_ex_y. apply Forall_inv_tail in HL. exact HL. }
+    rewrite /plus /=. f_equal.
+    + apply RectFun_RR_Fubini. apply Forall_inv in HL. exact HL.
+    + apply IH. apply Forall_inv_tail in HL. exact HL.
+Qed.
+
 Lemma Fubini_Step_eq : ∀ {f xa xb ya yb}, PCts2 f xa xb ya yb →
   RInt (fun x => RInt (fun y => f x y) ya yb) xa xb = RInt (fun y => RInt (fun x => f x y) xa xb) ya yb.
 Proof.
-Admitted.
+  intros f xa xb ya yb [L H].
+  rewrite (RInt_ext (fun x => RInt (fun y => f x y) ya yb) (fun x => RInt (fun y => fsum2 (RectFun_RR <$> L) x y) ya yb) xa xb).
+  2: { intros x Hx. apply RInt_ext. intros y Hy. destruct (H x y) as [Heq _]. apply Heq; rewrite /Icc; lra. }
+  rewrite (RInt_ext (fun y => RInt (fun x => f x y) xa xb) (fun y => RInt (fun x => fsum2 (RectFun_RR <$> L) x y) xa xb) ya yb).
+  2: { intros y Hy. apply RInt_ext. intros x Hx. destruct (H x y) as [Heq _]. apply Heq; rewrite /Icc; lra. }
+  apply fsum2_Fubini.
+  destruct (H xa ya) as [_ HL]. exact HL.
+Qed.
 
 
 (*
