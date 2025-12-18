@@ -674,7 +674,23 @@ Lemma RectFun_RR_ex_RInt_iterated_y (rect : (R → R → R) * R * R * R * R) xa 
   RectFun_continuity rect →
   ex_RInt (fun y => RInt (fun x => RectFun_RR rect x y) xa xb) ya yb.
 Proof.
-Admitted.
+  intros ?.
+  have H' : ex_RInt (λ x : R, RInt (λ y : R, RectFun_RR (rect_swap rect) x y) xa xb) ya yb.
+  { apply RectFun_RR_ex_RInt_iterated_x. by apply rect_swap_cts.  }
+  eapply ex_RInt_ext; [|apply H'].
+  intros ??.
+  apply RInt_ext.
+  intros ??.
+  destruct rect as [[[[??]?]?]?].
+  rewrite /rect_swap//=.
+  lra.
+Qed.
+
+Lemma opp_is_mult (x : R) : opp x = (-1) * x.
+Proof. rewrite /opp//=. lra. Qed.
+
+Local Ltac izero := rewrite (RInt_ext _ (fun _ => 0)); first (rewrite RInt_const /scal//=/mult//=; try lra).
+
 
 (* Key lemma: Fubini for a single rectangle function *)
 Lemma RectFun_RR_Fubini (rect : (R → R → R) * R * R * R * R) xa xb ya yb :
@@ -682,6 +698,602 @@ Lemma RectFun_RR_Fubini (rect : (R → R → R) * R * R * R * R) xa xb ya yb :
   RInt (fun x => RInt (fun y => RectFun_RR rect x y) ya yb) xa xb =
   RInt (fun y => RInt (fun x => RectFun_RR rect x y) xa xb) ya yb.
 Proof.
+  destruct rect as [[[[f xa'] xb'] ya'] yb'].
+  rewrite /RectFun_continuity//=.
+  intros H.
+  suffices HH :
+    RInt (λ x : R, RInt (λ y : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) ya yb) (Rmin xa xb) (Rmax xa xb) =
+    RInt (λ y : R, RInt (λ x : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) (Rmin xa xb) (Rmax xa xb)) ya yb.
+  { destruct (Rle_lt_dec xa xb).
+    { rewrite Rmin_left in HH; try lra.
+      rewrite Rmax_right in HH; try lra.
+    }
+    { have X := @RectFun_RR_ex_RInt_iterated_x (f, xa', xb', ya', yb') xb xa ya yb.
+      have Y := @RectFun_RR_ex_RInt_iterated_y (f, xa', xb', ya', yb') xb xa ya yb.
+      rewrite /RectFun_RR//= in X.
+      rewrite Rmin_right in HH; try lra.
+      rewrite Rmax_left in HH; try lra.
+      rewrite -opp_RInt_swap.
+      2: { apply X;  intros ????. apply H; done. }
+      replace (RInt (λ y : R, RInt (λ x : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) xa xb) ya yb)
+         with (RInt (λ y : R, (-1) * (RInt (λ x : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) xb xa)) ya yb).
+      2: {
+        (* Need to restrict the domain to ya' yb' by Chasles here *)
+        (*
+        apply RInt_ext.
+        intros ??.
+        symmetry.
+        rewrite -opp_RInt_swap.
+        2: {
+
+          replace (λ x0 : R, Iverson (Icc xa' xb') x0 * Iverson (Icc ya' yb') x * f x0 x)
+             with  (λ x0 : R, Iverson (Icc ya' yb') x * (Iverson (Icc xa' xb') x0 * f x0 x)) by (funexti; lra).
+          apply ex_RInt_Rmult.
+
+          apply (ex_RInt_Iverson_continuous_x _ xa' xb' ya' yb').
+          { rewrite /Icc. lra. }
+
+
+        admit. }
+      rewrite -RInt_Rmult.
+      2: { admit. }
+      rewrite /opp//=.
+      rewrite HH.
+      lra.
+      *)
+      admit.
+      }
+      rewrite opp_is_mult.
+      rewrite -RInt_Rmult.
+      2: { apply Y; intros ????. apply H; done. }
+      rewrite HH.
+      done.
+    }
+  }
+
+  suffices HH :
+    RInt (λ x : R, RInt (λ y : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) (Rmin ya yb) (Rmax ya yb)) (Rmin xa xb) (Rmax xa xb) =
+    RInt (λ y : R, RInt (λ x : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) (Rmin xa xb) (Rmax xa xb)) (Rmin ya yb) (Rmax ya yb).
+  { admit. }
+
+  have LraLem1 : Rmin xa xb <= Rmax xa xb := Rminmax _ _.
+  have LraLem2 : Rmin xa' xb' <= Rmax xa' xb' := Rminmax _ _.
+  have LraLem3 : Rmin ya yb <= Rmax ya yb := Rminmax _ _.
+  have LraLem4 : Rmin ya' yb' <= Rmax ya' yb' := Rminmax _ _.
+
+  (* Trivial: Upper bound of indicator is le lower bound of integral *)
+  destruct (Rle_lt_dec (Rmax xa' xb') (Rmin xa xb)).
+  { (* Zero *)
+    izero; first izero.
+    { rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      izero.
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc; lra.
+    }
+    { rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      izero.
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc; lra.
+    }
+  }
+
+  (* Trivial: Lower bound of indicator is ge upper bound of integral *)
+  destruct (Rle_lt_dec (Rmax xa xb) (Rmin xa' xb')).
+  { (* Zero *)
+    izero; first izero.
+    { rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      izero.
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc; lra.
+    }
+    { rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      izero.
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc; lra.
+    }
+  }
+
+
+  (*
+  (* Now there is at least some overlap between the two in x. *)
+
+  have HRed2 : ∀ A B C D,
+    Rmin xa' xb' <= Rmin A B → Rmax A B <= Rmax xa' xb' →
+    Rmin ya' yb' <= Rmin C D → Rmax C D <= Rmax ya' yb' →
+    ex_RInt (λ x : R, RInt (λ y : R, Iverson (Icc ya' yb') y * f x y) C D) A B.
+  { intros ????????.
+    apply (ex_RInt_ext (λ x : R, RInt (λ y : R, f x y) C D)).
+    { intros ??.
+      apply RInt_ext; intros ??.
+      rewrite Iverson_True; try lra.
+      rewrite /Icc.
+      destruct H5 as [HL HU].
+      split.
+      { etrans; [eapply H2|]. apply Rlt_le. done. }
+      { etrans; [|eapply H3]. apply Rlt_le. done. }
+    }
+    apply Fubini_ex_x.
+    rewrite /FubiniCondition.
+    intros ????.
+    apply H.
+    { rewrite /Icc. lra. }
+    { rewrite /Icc. lra. }
+  }
+  *)
+
+  have HRed : ∀ A B, Rmin xa' xb' <= Rmin A B → Rmax A B <= Rmax xa' xb' →
+    RInt (λ x : R, RInt (λ y : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) (Rmin ya yb) (Rmax ya yb)) A B =
+    RInt (λ y : R, RInt (λ x : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) A B) (Rmin ya yb) (Rmax ya yb).
+  { admit. }
+  (* { intros A B HB1 HB2.
+    apply (ex_RInt_ext (λ x : R, RInt (λ y : R, Iverson (Icc ya' yb') y * f x y) ya yb)).
+    { intros ?[??].
+      apply RInt_ext.
+      intros ??.
+      symmetry.
+      rewrite Iverson_True; try lra.
+      rewrite /Icc.
+      split.
+      { etrans; [|eapply Rlt_le, H0]. apply HB1. }
+      { etrans; [eapply Rlt_le, H1|]. apply HB2. }
+    }
+
+    suffices HH : ex_RInt (λ x : R, RInt (λ y : R, Iverson (Icc ya' yb') y * f x y) (Rmin ya yb) (Rmax ya yb)) A B.
+    { destruct (Rle_lt_dec ya yb).
+      { rewrite Rmin_left in HH; try lra.
+        rewrite Rmax_right in HH; try lra.
+        apply HH. }
+      { rewrite Rmin_right in HH; try lra.
+        rewrite Rmax_left in HH; try lra.
+        apply (ex_RInt_ext (λ x : R, opp (RInt (λ y : R, Iverson (Icc ya' yb') y * f x y) yb ya))).
+        { intros.
+          rewrite opp_RInt_swap; try lra.
+          eapply (ex_RInt_Iverson_continuous_y _ xa' xb' _ _).
+          { rewrite /Icc. lra. }
+          { intros ??. apply H; try done; rewrite /Icc; try lra. }
+        }
+        replace (λ x : R, opp (RInt (λ y : R, Iverson (Icc ya' yb') y * f x y) yb ya))
+           with (λ x : R, (-1) * (RInt (λ y : R, Iverson (Icc ya' yb') y * f x y) yb ya)).
+        { apply ex_RInt_Rmult, HH. }
+        funexti.
+        replace (RInt (λ y : R, Iverson (Icc ya' yb') y * f x y) yb ya)
+          with  (1 * RInt (λ y : R, Iverson (Icc ya' yb') y * f x y) yb ya) by lra.
+        rewrite /opp//=.
+        rewrite Ropp_mult_distr_l.
+        lra.
+      }
+    }
+    (* Trivial: *)
+    destruct (Rle_lt_dec (Rmax ya' yb') (Rmin ya yb)).
+    { apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite -(RInt_ext (fun y => 0)).
+      { rewrite RInt_const. rewrite /scal//=. rewrite /mult///=. lra. }
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      rewrite /Icc//=.
+      rewrite Iverson_False; try lra.
+    }
+    (* Trivial: Lower bound of indicator is ge upper bound of integral *)
+    destruct (Rle_lt_dec (Rmax ya yb) (Rmin ya' yb')).
+    { apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
+      intros ??.
+      rewrite -(RInt_ext (fun y => 0)).
+      { rewrite RInt_const. rewrite /scal//=. rewrite /mult///=. lra. }
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      rewrite /Icc//=.
+      rewrite Iverson_False; try lra.
+    }
+
+    (* Case on the lower bound of the indicator being in range.*)
+    destruct (Rle_lt_dec (Rmin ya' yb') (Rmin ya yb));
+    destruct (Rle_lt_dec (Rmax ya' yb') (Rmax ya yb)).
+    { (* Case: ---____ *)
+      apply (ex_RInt_ext (λ x : R, RInt (λ y : R, Iverson (Icc ya' yb') y * f x y) (Rmin ya yb) (Rmax ya' yb'))).
+      2: {
+        apply HRed2; OK.
+        { apply Rmin_glb; lra. }
+        { apply Rmax_lub; lra. }
+      }
+      intros ??.
+      symmetry.
+      rewrite -(RInt_Chasles _ _ (Rmax ya' yb')); rewrite /plus//=.
+      2: {
+        apply (ex_RInt_Iverson_continuous_y _ xa' xb').
+        { rewrite /Icc. lra. }
+        { intros ??. apply H; try done. rewrite /Icc. lra. }
+      }
+      2: {
+        apply (ex_RInt_Iverson_continuous_y _ xa' xb').
+        { rewrite /Icc. lra. }
+        { intros ??. apply H; try done. rewrite /Icc. lra. }
+      }
+      suffices ? : RInt (λ y : R, Iverson (Icc ya' yb') y * f x y) (Rmax ya' yb') (Rmax ya yb) = 0 by lra.
+      rewrite (RInt_ext _ (fun _ => 0)).
+      { rewrite RInt_const. rewrite /scal//=. rewrite /mult///=. lra. }
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right (Rmax ya' yb') (Rmax ya yb)); try lra.
+      intros ??.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc.
+      intros ?.
+      lra.
+    }
+    { (* Case: ------- *)
+      eapply HRed2; try done; try lra.
+      { apply Rmin_glb; lra. }
+      { apply Rmax_lub; lra. }
+    }
+    { (* Case : __----__*)
+      apply (ex_RInt_ext (λ x : R, RInt (λ y : R, Iverson (Icc ya' yb') y * f x y) (Rmin ya' yb') (Rmax ya' yb'))).
+      2: {
+        apply HRed2; OK.
+        { apply Rmin_glb; lra. }
+        { apply Rmax_lub; lra. }
+      }
+      intros ??.
+      symmetry.
+      rewrite -(RInt_Chasles _ _ (Rmax ya' yb')); rewrite /plus//=.
+      2: {
+        apply (ex_RInt_Iverson_continuous_y _ xa' xb').
+        { rewrite /Icc. lra. }
+        { intros ??. apply H; try done. rewrite /Icc. lra. }
+      }
+      2: {
+        apply (ex_RInt_Iverson_continuous_y _ xa' xb').
+        { rewrite /Icc. lra. }
+        { intros ??. apply H; try done. rewrite /Icc. lra. }
+      }
+      replace (RInt (λ y : R, Iverson (Icc ya' yb') y * f x y) (Rmax ya' yb') (Rmax ya yb)) with 0.
+      2: {
+        rewrite (RInt_ext _ (fun _ => 0)).
+        { rewrite RInt_const. rewrite /scal//=. rewrite /mult///=. lra. }
+        rewrite Rmin_left; try lra.
+        rewrite (Rmax_right (Rmax ya' yb') (Rmax ya yb)); try lra.
+        intros ??.
+        rewrite Iverson_False; try lra.
+        rewrite /Icc.
+        intros ?.
+        lra.
+      }
+      rewrite Rplus_0_r.
+      rewrite -(RInt_Chasles _ _ (Rmin ya' yb')); rewrite /plus//=.
+      2: {
+        apply (ex_RInt_Iverson_continuous_y _ xa' xb').
+        { rewrite /Icc. lra. }
+        { intros ??. apply H; try done. rewrite /Icc. lra. }
+      }
+      2: {
+        apply (ex_RInt_Iverson_continuous_y _ xa' xb').
+        { rewrite /Icc. lra. }
+        { intros ??. apply H; try done. rewrite /Icc. lra. }
+      }
+      replace (RInt (λ y : R, Iverson (Icc ya' yb') y * f x y) (Rmin ya yb) (Rmin ya' yb')) with 0.
+      2: {
+        rewrite (RInt_ext _ (fun _ => 0)).
+        { rewrite RInt_const. rewrite /scal//=. rewrite /mult///=. lra. }
+        rewrite Rmin_left; try lra.
+        rewrite (Rmax_right (Rmin ya yb) (Rmin ya' yb')); try lra.
+        intros ??.
+        rewrite Iverson_False; try lra.
+        rewrite /Icc.
+        intros ?.
+        lra.
+      }
+      lra.
+    }
+
+    { (* Case: ____---- *)
+      apply (ex_RInt_ext (λ x : R, RInt (λ y : R, Iverson (Icc ya' yb') y * f x y) (Rmin ya' yb') (Rmax ya yb))).
+      2: {
+        apply HRed2; OK.
+        { apply Rmin_glb; lra. }
+        { apply Rmax_lub; lra. }
+      }
+      intros ??.
+      symmetry.
+      rewrite -(RInt_Chasles _ _ (Rmin ya' yb')); rewrite /plus//=.
+      2: {
+        apply (ex_RInt_Iverson_continuous_y _ xa' xb').
+        { rewrite /Icc. lra. }
+        { intros ??. apply H; try done. rewrite /Icc. lra. }
+      }
+      2: {
+        apply (ex_RInt_Iverson_continuous_y _ xa' xb').
+        { rewrite /Icc. lra. }
+        { intros ??. apply H; try done. rewrite /Icc. lra. }
+      }
+      suffices ? : RInt (λ y : R, Iverson (Icc ya' yb') y * f x y) (Rmin ya yb) (Rmin ya' yb') = 0 by lra.
+      rewrite (RInt_ext _ (fun _ => 0)).
+      { rewrite RInt_const. rewrite /scal//=. rewrite /mult///=. lra. }
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right (Rmin ya yb) (Rmin ya' yb')); try lra.
+      intros ??.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc.
+      intros ?.
+      lra.
+    }
+  }
+*)
+
+  (* Case on the lower bound of the indicator being in range.*)
+  destruct (Rle_lt_dec (Rmin xa' xb') (Rmin xa xb));
+  destruct (Rle_lt_dec (Rmax xa' xb') (Rmax xa xb)).
+  { (* Case: ---____ *)
+    rewrite -(RInt_Chasles _ _ (Rmax xa' xb')).
+    2: { apply (@RectFun_RR_ex_RInt_iterated_x (f, xa', xb', ya', yb')). intros ????. apply H; done. }
+    2: { apply (@RectFun_RR_ex_RInt_iterated_x (f, xa', xb', ya', yb')). intros ????. apply H; done. }
+    rewrite /plus//=.
+    rewrite Rplus_comm.
+    izero.
+    2: {
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right (Rmax xa' xb') (Rmax xa xb)); try lra.
+      intros ??.
+      izero.
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc; lra.
+    }
+    rewrite Rmult_0_r Rplus_0_l.
+    replace (RInt (λ y : R, RInt (λ x : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) (Rmin xa xb) (Rmax xa xb)) (Rmin ya yb) (Rmax ya yb))
+       with (RInt (λ y : R, RInt (λ x : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) (Rmin xa xb) (Rmax xa' xb')) (Rmin ya yb) (Rmax ya yb)).
+    2: {
+      apply RInt_ext.
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right (Rmin ya yb) (Rmax ya yb)); try lra.
+      intros ??.
+      symmetry.
+      replace (λ x0 : R, Iverson (Icc xa' xb') x0 * Iverson (Icc ya' yb') x * f x0 x)
+         with (λ x0 : R, Iverson (Icc ya' yb') x * (Iverson (Icc xa' xb') x0 * f x0 x)) by (funexti; OK).
+      rewrite {1}/Iverson.
+      rewrite {2}/Iverson.
+      case_decide; try lra.
+      2: {
+        izero; first izero.
+        all: intros ??; lra.
+      }
+      replace (λ x0 : R, 1 * (Iverson (Icc xa' xb') x0 * f x0 x))
+         with (λ x0 : R, (Iverson (Icc xa' xb') x0 * f x0 x)) by (funexti; OK).
+      rewrite -(RInt_Chasles _ _ (Rmax xa' xb')).
+      2: {
+        eapply @ex_RInt_Iverson_continuous_x; first done.
+        intros ??. by apply H.
+      }
+      2: {
+        eapply @ex_RInt_Iverson_continuous_x; first done.
+        intros ??. by apply H.
+      }
+      rewrite /plus//=.
+      rewrite Rplus_comm.
+      izero.
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right (Rmax xa' xb') (Rmax xa xb)); try lra.
+      intros ??.
+      rewrite Rmult_comm.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc//=. lra.
+    }
+    apply HRed.
+    { apply Rmin_glb; lra. }
+    { apply Rmax_lub; lra. }
+  }
+  { (* Case: ------- *)
+    apply HRed.
+    { apply Rmin_glb; lra. }
+    { apply Rmax_lub; lra. }
+  }
+
+  { (* Case : __----__*)
+    rewrite -(RInt_Chasles _ _ (Rmax xa' xb')).
+    2: { apply (@RectFun_RR_ex_RInt_iterated_x (f, xa', xb', ya', yb')). intros ????. apply H; done. }
+    2: { apply (@RectFun_RR_ex_RInt_iterated_x (f, xa', xb', ya', yb')). intros ????. apply H; done. }
+    rewrite /plus//=.
+    rewrite Rplus_comm.
+    izero.
+    2: {
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right (Rmax xa' xb') (Rmax xa xb)); try lra.
+      intros ??.
+      izero.
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc; lra.
+    }
+    rewrite Rmult_0_r Rplus_0_l.
+    replace (RInt (λ y : R, RInt (λ x : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) (Rmin xa xb) (Rmax xa xb)) (Rmin ya yb) (Rmax ya yb))
+       with (RInt (λ y : R, RInt (λ x : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) (Rmin xa xb) (Rmax xa' xb')) (Rmin ya yb) (Rmax ya yb)).
+    2: {
+      apply RInt_ext.
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right (Rmin ya yb) (Rmax ya yb)); try lra.
+      intros ??.
+      symmetry.
+      replace (λ x0 : R, Iverson (Icc xa' xb') x0 * Iverson (Icc ya' yb') x * f x0 x)
+         with (λ x0 : R, Iverson (Icc ya' yb') x * (Iverson (Icc xa' xb') x0 * f x0 x)) by (funexti; OK).
+      rewrite {1}/Iverson.
+      rewrite {2}/Iverson.
+      case_decide; try lra.
+      2: {
+        izero; first izero.
+        all: intros ??; lra.
+      }
+      replace (λ x0 : R, 1 * (Iverson (Icc xa' xb') x0 * f x0 x))
+         with (λ x0 : R, (Iverson (Icc xa' xb') x0 * f x0 x)) by (funexti; OK).
+      rewrite -(RInt_Chasles _ _ (Rmax xa' xb')).
+      2: {
+        eapply @ex_RInt_Iverson_continuous_x; first done.
+        intros ??. by apply H.
+      }
+      2: {
+        eapply @ex_RInt_Iverson_continuous_x; first done.
+        intros ??. by apply H.
+      }
+      rewrite /plus//=.
+      rewrite Rplus_comm.
+      izero.
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right (Rmax xa' xb') (Rmax xa xb)); try lra.
+      intros ??.
+      rewrite Rmult_comm.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc//=. lra.
+    }
+
+    rewrite -(RInt_Chasles _ _ (Rmin xa' xb')).
+    2: { apply (@RectFun_RR_ex_RInt_iterated_x (f, xa', xb', ya', yb')). intros ????. apply H; done. }
+    2: { apply (@RectFun_RR_ex_RInt_iterated_x (f, xa', xb', ya', yb')). intros ????. apply H; done. }
+    rewrite /plus//=.
+    izero.
+    2: {
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right (Rmin xa xb) (Rmin xa' xb')); try lra.
+      intros ??.
+      izero.
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc.
+      intros ?.
+      lra.
+    }
+    symmetry.
+    rewrite Rmult_0_r Rplus_0_l.
+    replace (RInt (λ y : R, RInt (λ x : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) (Rmin xa xb) (Rmax xa' xb')) (Rmin ya yb) (Rmax ya yb))
+       with (RInt (λ y : R, RInt (λ x : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) (Rmin xa' xb') (Rmax xa' xb')) (Rmin ya yb) (Rmax ya yb)).
+    2: {
+      apply RInt_ext.
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right (Rmin ya yb) (Rmax ya yb)); try lra.
+      intros ??.
+      symmetry.
+      replace (λ x0 : R, Iverson (Icc xa' xb') x0 * Iverson (Icc ya' yb') x * f x0 x)
+         with (λ x0 : R, Iverson (Icc ya' yb') x * (Iverson (Icc xa' xb') x0 * f x0 x)) by (funexti; OK).
+      rewrite {1}/Iverson.
+      rewrite {2}/Iverson.
+      case_decide; try lra.
+      2: {
+        izero; first izero.
+        all: intros ??; lra.
+      }
+      replace (λ x0 : R, 1 * (Iverson (Icc xa' xb') x0 * f x0 x))
+         with (λ x0 : R, (Iverson (Icc xa' xb') x0 * f x0 x)) by (funexti; OK).
+      rewrite -(RInt_Chasles _ _ (Rmin xa' xb')).
+      2: {
+        eapply @ex_RInt_Iverson_continuous_x; first done.
+        intros ??. by apply H.
+      }
+      2: {
+        eapply @ex_RInt_Iverson_continuous_x; first done.
+        intros ??. by apply H.
+      }
+      rewrite /plus//=.
+      izero.
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right (Rmin xa xb) (Rmin xa' xb')); try lra.
+      intros ??.
+      rewrite Rmult_comm.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc//=. lra.
+    }
+    symmetry.
+    apply HRed.
+    { apply Rmin_glb; lra. }
+    { apply Rmax_lub; lra. }
+  }
+
+  { (* Case: ____---- *)
+    rewrite -(RInt_Chasles _ _ (Rmin xa' xb')).
+    2: { apply (@RectFun_RR_ex_RInt_iterated_x (f, xa', xb', ya', yb')). intros ????. apply H; done. }
+    2: { apply (@RectFun_RR_ex_RInt_iterated_x (f, xa', xb', ya', yb')). intros ????. apply H; done. }
+    rewrite /plus//=.
+    izero.
+    2: {
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right (Rmin xa xb) (Rmin xa' xb')); try lra.
+      intros ??.
+      izero.
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc.
+      intros ?.
+      lra.
+    }
+    symmetry.
+    rewrite Rmult_0_r Rplus_0_l.
+    replace (RInt (λ y : R, RInt (λ x : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) (Rmin xa xb) (Rmax xa xb)) (Rmin ya yb) (Rmax ya yb))
+       with (RInt (λ y : R, RInt (λ x : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) (Rmin xa' xb') (Rmax xa xb)) (Rmin ya yb) (Rmax ya yb)).
+    2: {
+      apply RInt_ext.
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right (Rmin ya yb) (Rmax ya yb)); try lra.
+      intros ??.
+      symmetry.
+      replace (λ x0 : R, Iverson (Icc xa' xb') x0 * Iverson (Icc ya' yb') x * f x0 x)
+         with (λ x0 : R, Iverson (Icc ya' yb') x * (Iverson (Icc xa' xb') x0 * f x0 x)) by (funexti; OK).
+      rewrite {1}/Iverson.
+      rewrite {2}/Iverson.
+      case_decide; try lra.
+      2: {
+        izero; first izero.
+        all: intros ??; lra.
+      }
+      replace (λ x0 : R, 1 * (Iverson (Icc xa' xb') x0 * f x0 x))
+         with (λ x0 : R, (Iverson (Icc xa' xb') x0 * f x0 x)) by (funexti; OK).
+      rewrite -(RInt_Chasles _ _ (Rmin xa' xb')).
+      2: {
+        eapply @ex_RInt_Iverson_continuous_x; first done.
+        intros ??. by apply H.
+      }
+      2: {
+        eapply @ex_RInt_Iverson_continuous_x; first done.
+        intros ??. by apply H.
+      }
+      rewrite /plus//=.
+      izero.
+      rewrite Rmin_left; try lra.
+      rewrite (Rmax_right (Rmin xa xb) (Rmin xa' xb')); try lra.
+      intros ??.
+      rewrite Rmult_comm.
+      rewrite Iverson_False; try lra.
+      rewrite /Icc//=. lra.
+    }
+    symmetry.
+    apply HRed.
+    { apply Rmin_glb; lra. }
+    { apply Rmax_lub; lra. }
+  }
 Admitted.
 
 (* Helper lemma: integrability for lists of rectangle functions *)

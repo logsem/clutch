@@ -16,7 +16,6 @@ Definition Discontinuities2 (f : R * R -> R) : R * R -> Prop :=
   fun '(x, y) => ¬ Continuity2 f x y.
 
 (** A Negligible set in 2D
-
 The set can be covered by families of balls with arbitrarily small area. *)
 Definition Negligible (S : R * R -> Prop) : Prop :=
   ∀ (ε : posreal), ∃ (c : nat -> R * R) (r : nat -> nonnegreal),
@@ -105,4 +104,3 @@ Proof.
   split; try done.
   apply ball_center.
 Qed.
-

@@ -890,3 +890,17 @@ Proof.
   apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
   by auto_derive.
 Qed.
+
+Definition rect_swap (rect : (R → R → R) * R * R * R * R) : (R → R → R) * R * R * R * R :=
+  let '(f, xa, xb, ya, yb) := rect in
+  (fun x y => f y x, ya, yb, xa, xb).
+
+Lemma rect_swap_cts {rect} : RectFun_continuity rect → RectFun_continuity (rect_swap rect).
+Proof.
+  destruct rect as [[[[??]?]?]?].
+  rewrite /RectFun_continuity//=.
+  intros ?????.
+  rewrite //=.
+  apply Continuity2_swap.
+  by apply H.
+Qed.
