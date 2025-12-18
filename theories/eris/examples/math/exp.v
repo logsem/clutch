@@ -501,21 +501,73 @@ Qed.
 
 Lemma ex_RInt_gen_exp {M} : ex_RInt_gen (λ x : R, M * exp (- x)) (at_point 0) (Rbar_locally Rbar.p_infty).
 Proof.
-  have Hex : ∀ b, 0 < b -> ex_RInt (λ x : R, M * exp (- x)) 0 b.
-  { intros b Hb.
+  have Hex : ∀ b, ex_RInt (λ x : R, M * exp (- x)) 0 b.
+  { intros b.
     apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
     intros z Hz.
     apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
     by auto_derive. }
-  have Hlimit : exists L : R_NormedModule, (filterlimi (λ b : R, is_RInt (λ x : R, M * exp (- x)) 0 b) (Rbar_locally Rbar.p_infty)) (locally L).
-  { exists M.
-    rewrite /filterlimi /= /filter_le /= /filtermapi /=.
-    (* By FTC: ∫[0,b] M·exp(-x) dx = M·(1 - exp(-b))
-       By is_lim_exp_neg_infty: exp(-b) → 0 as b → ∞
-       Therefore: integral → M·1 = M *)
-    admit. }
-  admit.
-Admitted.
+  apply RInt_gen_ex_Ici.
+  2: { intros b. apply Hex. }
+  exists M.
+  have Hint : ∀ b, is_RInt (λ x : R, M * exp (- x)) 0 b (M * (1 - exp (- b))).
+  { intros b.
+    replace (M * (1 - exp (- b))) with (M - M * exp (- b)) by lra.
+    have E0 : exp (- 0) = 1 by (rewrite Ropp_0; apply exp_0).
+    replace (M - M * exp (- b)) with (- M * exp (- b) - - M * exp (- 0)) by (rewrite E0; lra).
+    apply (is_RInt_derive (V := R_CompleteNormedModule) (λ x : R, - M * exp (- x)) (λ x : R, M * exp (- x))).
+    - intros x0 Hx0. auto_derive; [done | lra].
+    - intros x0 Hx0. apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)). by auto_derive.
+  }
+  rewrite /filterlimi /= /filter_le /= /filtermapi /=.
+  intros P HP.
+  rewrite /locally in HP. destruct HP as [eps HP].
+  have Hlim := is_lim_exp_neg_infty.
+  rewrite /Continuity.is_lim in Hlim.
+  destruct (Req_dec M 0) as [HM0|HMnz].
+  - exists 0. intros x Hx.
+    exists (M * (1 - exp (- x))).
+    split.
+    + apply Hint.
+    + apply HP.
+      subst M.
+      replace (0 * (1 - exp (- x))) with 0 by lra.
+      rewrite /ball /= /AbsRing_ball /= /abs /= /minus /plus /opp /=.
+      replace (0 + - 0) with 0 by lra.
+      rewrite Rabs_R0. apply cond_pos.
+  - have Heps' : 0 < eps / Rabs M.
+    { apply Rdiv_lt_0_compat; [apply cond_pos | apply Rabs_pos_lt; apply HMnz]. }
+    have Hball : Rbar_locally (Rbar.Finite 0) (ball 0 (mkposreal (eps / Rabs M) Heps')).
+    { exists (mkposreal (eps / Rabs M) Heps'). intros ?. done. }
+    specialize (Hlim (ball 0 (mkposreal (eps / Rabs M) Heps')) Hball).
+    rewrite /filtermap in Hlim.
+    rewrite /Rbar_locally' in Hlim.
+    destruct Hlim as [M0 Hlim].
+    exists (Rmax M0 0).
+    intros x Hx.
+    exists (M * (1 - exp (- x))).
+    split.
+    + apply Hint.
+    + apply HP.
+      rewrite /ball /= /AbsRing_ball /= /abs /= /minus /plus /opp /=.
+      replace (M * (1 - exp (- x)) + - M) with (- M * exp (- x)) by lra.
+      have HexpBall : Rabs (exp (- x)) < eps / Rabs M.
+      { have H := Hlim x.
+        have Hx0 : M0 < x by (apply Rmax_Rlt in Hx; lra).
+        specialize (H Hx0).
+        rewrite /ball /= /AbsRing_ball /= /abs /= /minus /plus /opp /= in H.
+        replace (exp (- x) + - 0) with (exp (- x)) in H by lra.
+        simpl in H. apply H. }
+      rewrite Rabs_mult.
+      replace (Rabs (- M)) with (Rabs M) by (rewrite Rabs_Ropp; done).
+      rewrite Rmult_comm.
+      apply Rmult_lt_reg_r with (r := / Rabs M).
+      { apply Rinv_0_lt_compat, Rabs_pos_lt, HMnz. }
+      rewrite Rmult_assoc Rinv_r; [|apply Rgt_not_eq, Rabs_pos_lt, HMnz].
+      rewrite Rmult_1_r.
+      field_simplify; [|apply Rgt_not_eq, Rabs_pos_lt, HMnz].
+      apply HexpBall.
+Qed.
 
 Lemma NegExp_Int {L} :
  RInt_gen (fun r => exp (-r)) (at_point L) (Rbar_locally Rbar.p_infty) = exp (- L).
