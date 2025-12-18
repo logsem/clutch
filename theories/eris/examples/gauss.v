@@ -3101,6 +3101,53 @@ Section adequacy.
        TODO apply the periodisation lemma just like I did in neg_exp,
        adding in an (Ico) to the PMF to and g' to poke out duplicated integers.
    *)
+
+  Lemma ex_RInt_gen_gauss : ex_RInt_gen (λ x0 : R, exp (- x0 ^ 2 / 2)) (at_point 0) (Rbar_locally Rbar.p_infty).
+  Proof.
+    apply (ex_RInt_gen_Chasles_exists (xa := 2)); last first.
+    { rewrite ex_RInt_gen_at_point.
+      apply IPCts_RInt.
+      apply IPCts_cts.
+      intros.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive. 
+    }
+    apply (ex_RInt_gen_Ici_compare_PCts' (F:= λ x, exp (-x))).
+    - intros. apply IPCts_PCts.
+      apply IPCts_cts.
+      intros.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive. 
+    - intros. apply IPCts_PCts.
+      apply IPCts_cts.
+      intros.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    - intros.
+      split.
+      + left. apply exp_pos.
+      + apply exp_mono.
+        apply Rcomplements.Rle_div_l; first lra.
+        simpl. replace (-_*_) with (-(x*2)) by lra.
+        apply Ropp_le_contravar.
+        real_solver.
+    - eapply ex_RInt_gen_Chasles_exists.
+      + pose proof ex_RInt_gen_exp (M:=1).
+        eapply ex_RInt_gen_ext; last done.
+        simpl.
+        eapply (Filter_prod _ _ _ (λ _, True) (λ _, True)); try done.
+        * simpl. exists 0; naive_solver.
+        * intros. lra.
+      + rewrite ex_RInt_gen_at_point.
+      apply IPCts_RInt.
+      apply IPCts_cts.
+      intros.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+      Unshelve.
+      apply _.
+  Qed. 
+    
   Theorem Gauss_adequate_1 (σ : state) (x y n : nat) : (x<2^y)%nat  →
   pgl (lim_exec (is_smaller_prog (G2 #()) #n #x #y, σ)) (λ x, x = #true)
       (RInt_gen (fun r => exp ((-r^2)/2) / Norm2) (at_point (x / 2 ^ y + INR n)) (Rbar_locally Rbar.p_infty)).
@@ -3123,7 +3170,7 @@ Section adequacy.
       by auto_derive.
     - (* show improper integral exists,  *)
       apply ex_RInt_gen_div.
-      admit.
+      apply ex_RInt_gen_gauss.
     - iIntros (??[M ]?) "?".
       wp_apply (pgl_wp_wand with "[-]").
       + wp_apply (wp_G2); [done..|].
@@ -3197,11 +3244,17 @@ Section adequacy.
                 intros.
                 apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
                 by auto_derive.
-             ++ admit.
-          -- intros. admit.
+             ++ apply PCts_unit_implies_all; [lra|done].
+          -- intros. split.
+             ++ apply Rmult_le_pos; last naive_solver.
+                apply Rcomplements.Rdiv_le_0_compat; last apply Norm2_nn.
+                left. apply exp_pos.
+             ++ apply Rmult_le_compat_l; last naive_solver.
+                apply Rcomplements.Rdiv_le_0_compat; last apply Norm2_nn.
+                left. apply exp_pos.
           -- apply ex_RInt_gen_scal_r.
              apply ex_RInt_gen_div.
-             admit. 
+             apply ex_RInt_gen_gauss.
         * instantiate (1:= λ n, (exp (- n^2/2))/Norm2  * M).
           apply ex_seriesC_scal_r.
           setoid_rewrite Rdiv_def.
@@ -3237,8 +3290,8 @@ Section adequacy.
              apply PCts_unit_implies_all; last done.
              lra.
       + simpl. iIntros (?) "(%&%&%&?&%&?)". by iFrame.
-  Admitted.
-
+  Qed.
+  
   (* TODO: Can the two adequacy staements be combined (Chasles) *)
 
 End adequacy.

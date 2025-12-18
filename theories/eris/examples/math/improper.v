@@ -1010,7 +1010,7 @@ Qed.
 Lemma ex_RInt_gen_Ici_compare_PCts' {L : R} {F G : R → R} :
   (∀ x, L<x -> PCts F L x) →
   (∀ x, L<x -> PCts G L x) →
-  (∀ x, 0 <= G x <= F x) →
+  (∀ x, L<x -> 0 <= G x <= F x) →
   ex_RInt_gen F (at_point L) (Rbar_locally Rbar.p_infty) →
   ex_RInt_gen G (at_point L) (Rbar_locally Rbar.p_infty).
 Proof.
