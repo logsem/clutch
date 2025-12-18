@@ -1,4 +1,4 @@
-From clutch.eris.examples.math Require Import prelude series iverson sets.
+From clutch.eris.examples.math Require Import prelude series iverson sets improper.
 From clutch.eris Require Import infinite_tape.
 Import Hierarchy.
 Set Default Proof Using "Type*".
@@ -520,23 +520,20 @@ Admitted.
 Lemma NegExp_Int {L} :
  RInt_gen (fun r => exp (-r)) (at_point L) (Rbar_locally Rbar.p_infty) = exp (- L).
 Proof.
-  have Hex : ∀ b, L < b -> ex_RInt (λ r : R, exp (- r)) L b.
-  { intros b Hb.
+  have Hex : ∀ b,  ex_RInt (λ r : R, exp (- r)) L b.
+  { intros b.
     apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
     intros z Hz.
     apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
     by auto_derive. }
-  have Hint : ∀ b, L < b -> is_RInt (λ r : R, exp (- r)) L b (exp (- L) - exp (- b)).
+  have Hint : ∀ b,  is_RInt (λ r : R, exp (- r)) L b (exp (- L) - exp (- b)).
   { intros b Hb.
     replace (exp (- L) - exp (- b)) with (- exp (- b) - - exp (- L)) by lra.
     apply (is_RInt_derive (V := R_CompleteNormedModule) (λ r : R, - exp (- r)) (λ r : R, exp (- r))).
     - intros x0 Hx0. auto_derive; [done | lra].
     - intros x0 Hx0. apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)). by auto_derive. }
   have Hlimit : filterlimi (λ b : R, is_RInt (λ r : R, exp (- r)) L b) (Rbar_locally Rbar.p_infty) (locally (exp (- L))).
-  { (* By FTC: ∫[L,b] exp(-r) dr = exp(-L) - exp(-b)
-       By is_lim_exp_neg_infty: exp(-b) → 0 as b → ∞
-       Therefore: integral → exp(-L) - 0 = exp(-L) *)
-    rewrite /filterlimi /= /filter_le /= /filtermapi /=.
+  { rewrite /filterlimi /= /filter_le /= /filtermapi /=.
     intros P HP.
     rewrite /locally in HP. destruct HP as [eps HP].
     have Hlim := is_lim_exp_neg_infty.
@@ -551,7 +548,7 @@ Proof.
     intros x Hx.
     exists (exp (- L) - exp (- x)).
     split.
-    - apply Hint. apply Rmax_Rlt in Hx. lra.
+    - apply Hint.
     - apply HP.
       rewrite /ball /= /AbsRing_ball /= /abs /= /minus /plus /opp /=.
       replace (exp (- L) - exp (- x) + - exp (- L)) with (- exp (- x)) by lra.
@@ -562,8 +559,24 @@ Proof.
       rewrite /ball /= /AbsRing_ball /= /abs /= /minus /plus /opp /= in Hlim.
       replace (exp (- x) + - 0) with (exp (- x)) in Hlim by lra.
       apply Hlim. }
-  admit.
-Admitted.
+  rewrite filterlim_RInt_gen.
+  2: { intros b. apply Hex. }
+  have Hlim2 : filterlim (λ b : R, RInt (λ r : R, exp (- r)) L b) (Rbar_locally Rbar.p_infty) (locally (exp (- L))).
+  { rewrite /filterlim /= /filter_le /= /filtermap /=.
+    intros P HP.
+    rewrite /filterlimi /= /filter_le /= /filtermapi /= in Hlimit.
+    destruct (Hlimit P HP) as [M0 HM0].
+    exists M0.
+    intros x Hx.
+    specialize (HM0 x Hx).
+    destruct HM0 as [y [Hisy Py]].
+    rewrite (is_RInt_unique (λ r : R, exp (- r)) L x y Hisy).
+    apply Py.
+  }
+  apply (@iota_filterlim_locally R_AbsRing R_CompleteNormedModule R (Rbar_locally Rbar.p_infty)).
+  - apply Proper_StrongProper, Rbar_locally_filter.
+  - apply Hlim2.
+Qed.
 
 Lemma neg_exp_accuracy_chasles {L} :
   RInt_gen (λ r : R, (Iverson (Iio 0) r + Iverson (Ioi L) r) * exp (- r)) (at_point 0) (Rbar_locally Rbar.p_infty) =

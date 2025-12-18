@@ -343,6 +343,8 @@ Proof.
   }
   have LraLem1 : Rmin xa xb <= Rmax xa xb := Rminmax _ _.
   have LraLem2 : Rmin xa' xb' <= Rmax xa' xb' := Rminmax _ _.
+  have LraLem3 : Rmin ya yb <= Rmax ya yb := Rminmax _ _.
+  have LraLem4 : Rmin ya' yb' <= Rmax ya' yb' := Rminmax _ _.
   (* Trivial: Upper bound of indicator is le lower bound of integral *)
   destruct (Rle_lt_dec (Rmax xa' xb') (Rmin xa xb)).
   { apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
@@ -369,8 +371,45 @@ Proof.
     { rewrite RInt_const. rewrite /scal//=. rewrite /mult///=. lra. }
     intros ??. lra.
   }
+  (* Now there is at least some overlap between the two in x. *)
 
+  (* Trivial: Upper bound of indicator is le lower bound of integral *)
+  destruct (Rle_lt_dec (Rmax ya' yb') (Rmin ya yb)).
+  { apply (ex_RInt_ext (fun x => 0)); [|apply ex_RInt_const].
+    intros ??.
+    symmetry.
+    rewrite (RInt_ext _ (fun y => 0)).
+    { rewrite RInt_const. rewrite /scal//=. rewrite /mult///=. lra. }
+    intros ??.
+    rewrite /Icc//=.
+    rewrite (@Iverson_False _ (λ t : R, Rmin ya' yb' <= t <= Rmax ya' yb')); try lra.
+  }
+  (* Trivial: Lower bound of indicator is ge upper bound of integral *)
+  destruct (Rle_lt_dec (Rmax ya yb) (Rmin ya' yb')).
+  { apply (ex_RInt_ext (fun x => 0)); [|apply ex_RInt_const].
+    intros ??.
+    symmetry.
+    rewrite (RInt_ext _ (fun y => 0)).
+    { rewrite RInt_const. rewrite /scal//=. rewrite /mult///=. lra. }
+    intros ??.
+    rewrite /Icc//=.
+    rewrite (@Iverson_False _ (λ t : R, Rmin ya' yb' <= t <= Rmax ya' yb')); try lra.
+  }
 
+  (* Now there is at least some overlap in x and y *)
+
+  (* 1/4: It suffices to integrate from the maximum of the lower bounds in x *)
+  suffices HLB1 :
+    ex_RInt (λ x : R, RInt (λ y : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) ya yb)
+      (Rmax (Rmin xa xb) (Rmin xa' xb')) (Rmax xa xb).
+  { destruct (Rle_lt_dec (Rmin xa xb) (Rmin xa' xb')).
+    { rewrite Rmax_right in HLB1; try lra.
+      admit.
+    }
+    { rewrite Rmax_left in HLB1; try lra.
+      admit.
+    }
+  }
 
 Admitted.
 
