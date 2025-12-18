@@ -1,5 +1,5 @@
-; version in current ci image
 (lang dune 3.17)
+; version in current ci image
 
 ; update to rocq 0.11 with dune 3.21
 (using coq 0.10)
