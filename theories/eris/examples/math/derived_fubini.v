@@ -422,33 +422,6 @@ Proof.
     { rewrite Rmax_left in HB; try lra. done. }
   }
 
-  (* 2/4: It suffices to integrate from the minimum of the lower bounds in x *)
-  suffices HB :
-    ex_RInt (λ x : R, RInt (λ y : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) ya yb)
-      (Rmax (Rmin xa xb) (Rmin xa' xb')) (Rmin (Rmax xa xb) (Rmax xa' xb')).
-  { destruct (Rle_lt_dec (Rmax xa xb) (Rmax xa' xb')).
-    { rewrite (Rmin_left (Rmax xa xb) (Rmax xa' xb')) in HB; try lra. done. }
-    { rewrite (Rmin_right (Rmax xa xb) (Rmax xa' xb')) in HB; try lra.
-      (* apply (ex_RInt_Chasles_0 _ _ (Rmax xa' xb') _).
-      { lra. }
-      { apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
-        rewrite Rmin_left; try lra.
-        rewrite Rmax_right; try lra.
-        intros ??.
-        rewrite /Icc//=.
-        rewrite Iverson_False; try lra.
-        symmetry.
-        rewrite (RInt_ext _ (fun y => 0)).
-        { rewrite RInt_const. rewrite /scal//=. rewrite /mult///=. lra. }
-        intros ??. lra.
-      }
-      { done. }
-    }
-    *)
-      admit.
-  }
-
-
 Admitted.
 
 Lemma RectFun_RR_ex_RInt_iterated_y (rect : (R → R → R) * R * R * R * R) xa xb ya yb :

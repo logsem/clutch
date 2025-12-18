@@ -633,7 +633,40 @@ Qed.
 Lemma neg_exp_accuracy_chasles {L} :
   RInt_gen (λ r : R, (Iverson (Iio 0) r + Iverson (Ioi L) r) * exp (- r)) (at_point 0) (Rbar_locally Rbar.p_infty) =
   RInt_gen (λ r : R, exp (- r)) (at_point L) (Rbar_locally Rbar.p_infty).
-Proof. Admitted.
+Proof.
+  (* Step 1: Simplify LHS: on [0,∞), Iverson (Iio 0) r = 0 *)
+  erewrite (@RInt_gen_ext_eq_Ici
+    (λ r : R, (Iverson (Iio 0) r + Iverson (Ioi L) r) * exp (- r))
+    (λ r : R, Iverson (Ioi L) r * exp (- r)) 0).
+  2: { intros x Hx. rewrite Iverson_False. { lra. } rewrite /Iio. lra. }
+  2: { admit. } (* TODO: ex_RInt_gen for LHS - need to prove existence *)
+
+  (* Step 2: Now prove: ∫[0,∞) Iverson (Ioi L) r * exp(-r) = ∫[L,∞) exp(-r) *)
+  (* Split into cases based on whether L >= 0 *)
+  case (decide (0 <= L)); intros HL.
+
+  - (* Case 1: L >= 0 *)
+    (* Strategy: Show RHS = ∫[L,∞) Iverson (Ioi L) r * exp(-r) on [L,∞)
+       Then relate this to LHS using Chasles to show ∫[0,L] part is 0 *)
+    symmetry.
+    erewrite (@RInt_gen_ext_eq_Ici
+      (λ r : R, exp (- r))
+      (λ r : R, Iverson (Ioi L) r * exp (- r)) L).
+
+    (* Need to prove: exp(-x) = Iverson (Ioi L) x * exp(-x) for x >= L *)
+    2: admit. (* TODO: intros x Hx. rewrite Iverson_True. { lra. } rewrite /Ioi. lra. - this should work *)
+
+    (* Need existence of ∫[L,∞) exp(-r) *)
+    2: admit. (* TODO: prove ex_RInt_gen exp from L *)
+
+    (* Main goal: ∫[L,∞) Iverson (Ioi L) r * exp(-r) = ∫[0,∞) Iverson (Ioi L) r * exp(-r) *)
+    (* Key insight: on [0,L], Iverson (Ioi L) r = 0, so these integrals differ by 0 *)
+    admit. (* TODO: Use Chasles to show ∫[0,∞) = ∫[0,L] + ∫[L,∞), and ∫[0,L] Iverson (Ioi L) = 0 *)
+
+  - (* Case 2: L < 0 *)
+    (* When L < 0, on [0,∞) we always have r > L, so Iverson (Ioi L) r = 1 *)
+    admit. (* TODO: Show that the integrals are equal by extensionality and Chasles *)
+Admitted.
 
 Lemma ex_exp_geo_series : ex_seriesC (λ x : nat, exp (- x)).
 Proof.
