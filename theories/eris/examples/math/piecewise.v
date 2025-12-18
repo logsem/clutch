@@ -363,14 +363,47 @@ Proof.
     apply Continuity.continuous_comp; last done.
     apply: Derive.ex_derive_continuous.
     by auto_derive.
-Qed. 
+Qed.
+
+Lemma PCts_unit_implies_all1 (F:nat -> R -> R) (n:nat):
+  (∀ k, PCts (F k) 0 1) ->
+  PCts (λ y0 : R, F (Z.to_nat (Int_part y0)) (frac_part y0)) (0) n.
+Proof.
+Admitted. 
+
+Lemma PCts_unit_implies_all2 (F:nat -> R -> R) (n:nat):
+  (∀ k, PCts (F k) 0 1) ->
+  PCts (λ y0 : R, F (Z.to_nat (Int_part y0)) (frac_part y0)) (0) (- n).
+Proof.
+Admitted. 
 
 Lemma PCts_unit_implies_all (F:nat -> R -> R) r:
   (∀ k, PCts (F k) 0 1) ->
   PCts (λ y0 : R, F (Z.to_nat (Int_part y0)) (frac_part y0)) (0) r.
 Proof.
-Admitted.
-  
+  intros.
+  pose proof archimed r.
+  destruct (decide (0<=r)).
+  - (* r is positive *)
+    assert (PCts (λ y0 : R, F (Z.to_nat (Int_part y0)) (frac_part y0)) 0 (IZR (up r))).
+    + rewrite -(Z2Nat.id (up r)). 
+      * rewrite -INR_IZR_INZ.
+        by apply PCts_unit_implies_all1.
+      * apply le_IZR.
+        lra.
+    + eapply PCts_subset; last done; unfold Rmin, Rmax; repeat case_match; lra.
+  - (* r is negative *)
+    assert (PCts (λ y0 : R, F (Z.to_nat (Int_part y0)) (frac_part y0)) 0 (IZR (up r - 1))) as H'.
+    + replace (up r - 1)%Z with (- (1-up r))%Z by lia.
+      rewrite opp_IZR.
+      rewrite -(Z2Nat.id ((1-up r))).
+      * rewrite -INR_IZR_INZ.
+        by apply PCts_unit_implies_all2.
+      * apply le_IZR. rewrite minus_IZR. lra.
+    + rewrite minus_IZR in H'. eapply PCts_subset; last done;
+      unfold Rmin, Rmax; repeat case_match; lra.
+Qed.
+
 (** Integrability of 1D compactly-supported piecewise continuous functions, on any interval *)
 Lemma PCts_RInt {f xa xb} (HP : PCts f xa xb) :
   ex_RInt f xa xb.
