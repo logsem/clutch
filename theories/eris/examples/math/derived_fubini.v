@@ -718,43 +718,77 @@ Proof.
       replace (RInt (λ y : R, RInt (λ x : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) xa xb) ya yb)
          with (RInt (λ y : R, (-1) * (RInt (λ x : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) xb xa)) ya yb).
       2: {
-        (* Need to restrict the domain to ya' yb' by Chasles here *)
-        (*
         apply RInt_ext.
         intros ??.
         symmetry.
         rewrite -opp_RInt_swap.
         2: {
-
           replace (λ x0 : R, Iverson (Icc xa' xb') x0 * Iverson (Icc ya' yb') x * f x0 x)
              with  (λ x0 : R, Iverson (Icc ya' yb') x * (Iverson (Icc xa' xb') x0 * f x0 x)) by (funexti; lra).
-          apply ex_RInt_Rmult.
-
-          apply (ex_RInt_Iverson_continuous_x _ xa' xb' ya' yb').
-          { rewrite /Icc. lra. }
-
-
-        admit. }
+          rewrite {1}/Iverson//=.
+          case_decide.
+          2: {
+            replace (λ x0 : R, 0 * (Iverson (Icc xa' xb') x0 * f x0 x)) with (λ x0 : R, 0) by (funexti; lra).
+            apply ex_RInt_const.
+          }
+          replace (λ x0 : R, 1 * (Iverson (Icc xa' xb') x0 * f x0 x)) with (λ x0 : R, (Iverson (Icc xa' xb') x0 * f x0 x)) by (funexti; lra).
+          apply (ex_RInt_Iverson_continuous_x _ xa' xb' ya' yb'); try done.
+          intros ??.
+          apply H; try done.
+        }
+        by rewrite opp_is_mult.
+      }
       rewrite -RInt_Rmult.
-      2: { admit. }
+      2: { apply (@RectFun_RR_ex_RInt_iterated_y (f, xa', xb', ya', yb')). intros ????. apply H; done. }
       rewrite /opp//=.
       rewrite HH.
       lra.
-      *)
-      admit.
-      }
-      rewrite opp_is_mult.
-      rewrite -RInt_Rmult.
-      2: { apply Y; intros ????. apply H; done. }
-      rewrite HH.
-      done.
     }
   }
 
   suffices HH :
     RInt (λ x : R, RInt (λ y : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) (Rmin ya yb) (Rmax ya yb)) (Rmin xa xb) (Rmax xa xb) =
     RInt (λ y : R, RInt (λ x : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) (Rmin xa xb) (Rmax xa xb)) (Rmin ya yb) (Rmax ya yb).
-  { admit. }
+  { destruct (Rle_lt_dec ya yb).
+    { rewrite Rmin_left in HH; try lra.
+      rewrite Rmax_right in HH; try lra.
+    }
+    { have X := @RectFun_RR_ex_RInt_iterated_x (f, xa', xb', ya', yb') xb xa ya yb.
+      have Y := @RectFun_RR_ex_RInt_iterated_y (f, xa', xb', ya', yb') xb xa ya yb.
+      rewrite /RectFun_RR//= in X.
+      rewrite Rmin_right in HH; try lra.
+      rewrite Rmax_left in HH; try lra.
+      symmetry.
+      rewrite -opp_RInt_swap.
+      2: { apply (@RectFun_RR_ex_RInt_iterated_y (f, xa', xb', ya', yb')). intros ????. apply H; done. }
+      replace (RInt (λ x : R, RInt (λ y : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) ya yb) (Rmin xa xb) (Rmax xa xb))
+         with (RInt (λ x : R, (-1) * RInt (λ y : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) yb ya) (Rmin xa xb) (Rmax xa xb)).
+      2: {
+        apply RInt_ext.
+        intros ??.
+        symmetry.
+        rewrite -opp_RInt_swap.
+        2: {
+          rewrite {1}/Iverson//=.
+          case_decide.
+          2: {
+            replace (λ y : R, 0 * Iverson (Icc ya' yb') y * f x y) with (λ x0 : R, 0) by (funexti; lra).
+            apply ex_RInt_const.
+          }
+          replace (λ y : R, 1 * Iverson (Icc ya' yb') y * f x y) with (λ y : R, Iverson (Icc ya' yb') y * f x y) by (funexti; lra).
+          apply (ex_RInt_Iverson_continuous_y _ xa' xb' ya' yb'); try done.
+          intros ??.
+          apply H; try done.
+        }
+        by rewrite opp_is_mult.
+      }
+      rewrite -RInt_Rmult.
+      2: { apply (@RectFun_RR_ex_RInt_iterated_x (f, xa', xb', ya', yb')). intros ????. apply H; done. }
+      rewrite /opp//=.
+      rewrite HH.
+      lra.
+    }
+  }
 
   have LraLem1 : Rmin xa xb <= Rmax xa xb := Rminmax _ _.
   have LraLem2 : Rmin xa' xb' <= Rmax xa' xb' := Rminmax _ _.
@@ -1391,7 +1425,7 @@ Proof.
     { apply Rmin_glb; lra. }
     { apply Rmax_lub; lra. }
   }
-Admitted.
+Qed.
 
 (* Helper lemma: integrability for lists of rectangle functions *)
 Lemma fsum2_RectFun_ex_x (L : list ((R → R → R) * R * R * R * R)) xa xb ya yb :
