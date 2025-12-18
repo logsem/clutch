@@ -331,6 +331,26 @@ Proof.
   destruct rect as [[[[f xa'] xb'] ya'] yb'].
   rewrite /RectFun_continuity//=.
   intros H.
+  suffices HH : ex_RInt (λ x : R, RInt (λ y : R, Iverson (Icc xa' xb') x * Iverson (Icc ya' yb') y * f x y) ya yb) (Rmin xa xb) (Rmax xa xb).
+  { destruct (Rle_lt_dec xa xb).
+    { rewrite Rmin_left in HH; try lra.
+      rewrite Rmax_right in HH; try lra.
+      apply HH. }
+    { rewrite Rmin_right in HH; try lra.
+      rewrite Rmax_left in HH; try lra.
+      apply ex_RInt_swap.
+      apply HH. }
+  }
+
+
+
+
+
+  (* Start by cases on x *)
+
+
+
+
   (* Also just a big case proof I think (ugh!) *)
 Admitted.
 

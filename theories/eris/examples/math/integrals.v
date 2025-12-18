@@ -238,4 +238,12 @@ Qed.
 (** Integrability of change of variables *)
 Lemma ex_RInt_shift {F} (H : ∀ a b, ex_RInt F a b) {x y L : R} :
   (ex_RInt (V := R_CompleteNormedModule) (λ y : R, F (y + L)) x y).
-Proof. Admitted.
+Proof.
+  apply (ex_RInt_ext (λ y0 : R, scal 1 (F (1 * y0 + L)))).
+  - intros x0 Hx0.
+    replace (1 * x0 + L) with (x0 + L) by lra.
+    rewrite scal_one.
+    reflexivity.
+  - apply (ex_RInt_comp_lin F 1 L x y).
+    apply H.
+Qed.
