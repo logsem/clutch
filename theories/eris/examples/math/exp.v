@@ -489,12 +489,15 @@ Proof.
   have H : filterlim exp (Rbar_locally Rbar.m_infty) (Rbar_locally (Rbar.Finite 0)).
   { apply ElemFct.is_lim_exp_m. }
   have Hopp : Continuity.is_lim (λ b, - b) Rbar.p_infty Rbar.m_infty.
-  { admit. }
+  { have Hid := Continuity.is_lim_id Rbar.p_infty.
+    have Hopp' := Continuity.is_lim_opp (λ y, y) Rbar.p_infty Rbar.p_infty Hid.
+    replace (Rbar.Rbar_opp Rbar.p_infty) with Rbar.m_infty in Hopp' by done.
+    apply Hopp'. }
   rewrite /Continuity.is_lim in Hopp.
   apply (filterlim_comp R R R (λ b, - b) exp (Rbar_locally' Rbar.p_infty) (Rbar_locally Rbar.m_infty) (Rbar_locally (Rbar.Finite 0))).
   - apply Hopp.
   - apply H.
-Admitted.
+Qed.
 
 Lemma ex_RInt_gen_exp {M} : ex_RInt_gen (λ x : R, M * exp (- x)) (at_point 0) (Rbar_locally Rbar.p_infty).
 Proof.

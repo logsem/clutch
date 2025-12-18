@@ -341,17 +341,37 @@ Proof.
       apply ex_RInt_swap.
       apply HH. }
   }
+  have LraLem1 : Rmin xa xb <= Rmax xa xb := Rminmax _ _.
+  have LraLem2 : Rmin xa' xb' <= Rmax xa' xb' := Rminmax _ _.
+  (* Trivial: Upper bound of indicator is le lower bound of integral *)
+  destruct (Rle_lt_dec (Rmax xa' xb') (Rmin xa xb)).
+  { apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
+    rewrite Rmin_left; try lra.
+    rewrite Rmax_right; try lra.
+    intros ??.
+    rewrite /Icc//=.
+    rewrite Iverson_False; try lra.
+    symmetry.
+    rewrite (RInt_ext _ (fun y => 0)).
+    { rewrite RInt_const. rewrite /scal//=. rewrite /mult///=. lra. }
+    intros ??. lra.
+  }
+  (* Trivial: Lower bound of indicator is ge upper bound of integral *)
+  destruct (Rle_lt_dec (Rmax xa xb) (Rmin xa' xb')).
+  { apply (ex_RInt_ext (fun y => 0)); [|apply ex_RInt_const].
+    rewrite Rmin_left; try lra.
+    rewrite Rmax_right; try lra.
+    intros ??.
+    rewrite /Icc//=.
+    rewrite Iverson_False; try lra.
+    symmetry.
+    rewrite (RInt_ext _ (fun y => 0)).
+    { rewrite RInt_const. rewrite /scal//=. rewrite /mult///=. lra. }
+    intros ??. lra.
+  }
 
 
 
-
-
-  (* Start by cases on x *)
-
-
-
-
-  (* Also just a big case proof I think (ugh!) *)
 Admitted.
 
 Lemma RectFun_RR_ex_RInt_iterated_y (rect : (R → R → R) * R * R * R * R) xa xb ya yb :
