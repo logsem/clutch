@@ -519,51 +519,37 @@ Qed.
 
 (** IntervalFun continuity of multiplication *)
 Lemma IntervalFun_continuity_mult {f g xa xb ya yb} :
+  Rmin xa xb <= Rmax ya yb ->
+  Rmin ya yb <= Rmax xa xb ->
   IntervalFun_continuity (f, xa, xb) →
   IntervalFun_continuity (g, ya, yb) →
-  IntervalFun_continuity ((fun x => f x * g x), (Rmax xa ya), (Rmin xb yb)).
+  IntervalFun_continuity ((fun x => f x * g x), Rmax (Rmin xa xb) (Rmin ya yb), Rmin (Rmax xa xb) (Rmax ya yb)).
 Proof.
   rewrite /IntervalFun_continuity//=.
-  intros Hf Hg x Hx.
+  intros H1 H2 Hf Hg x Hx.
   apply (@Continuity.continuous_mult R_CompleteNormedModule).
-  - apply Hf.
-    revert Hx.
-    rewrite /Icc//=.
-    intros [??]. split.
-    { etrans; [|apply H].
-      admit.
-    }
-    { etrans; [apply H0|].
-      admit.
-    }
-  - apply Hg.
-    revert Hx.
-    rewrite /Icc//=.
-    intros [??]. split.
-    { etrans; [|apply H].
-      admit.
-    }
-    { etrans; [apply H0|].
-      admit.
-    }
-Admitted.
+  - unfold Icc, Rmin, Rmax in *. apply Hf.
+    repeat case_match; lra.
+  - unfold Icc, Rmin, Rmax in *. apply Hg.
+    repeat case_match; lra.
+Qed.
 
 (** Piecewise continuity continuity of multiplication *)
 Lemma PCts_mult {f g xa xb} : PCts f xa xb → PCts g xa xb → PCts (fun x => f x * g x) xa xb.
 Proof.
-  intros [Lf [Hfeq HfC]] [Lg [Hgeq HgC]].
-  pose mult_interval := fun '((f1, xa1, xb1), (f2, xa2, xb2)) => ((fun x => f1 x * f2 x), Rmax xa1 xa2, Rmin xb1 xb2).
-  exists (flat_map (fun f_elem => map (fun g_elem => mult_interval R (f_elem, g_elem)) Lg) Lf).
-  split.
-  { intros x Hx. rewrite Hfeq; try done. rewrite Hgeq; try done. clear Hfeq Hgeq HfC HgC.
-    rewrite fsum_scal_r.
-    admit.
-  }
-  { clear Hfeq Hgeq. induction Lf as [|f_elem Lf' IH]; rewrite //=. apply Forall_app_2.
-    { rewrite Forall_map. clear IH. induction Lg as [|g_elem Lg' IH]; rewrite //=. apply Forall_cons_2.
-      { destruct f_elem as [[??]?]. destruct g_elem as [[??]?]. apply Forall_inv in HfC. apply Forall_inv in HgC. apply IntervalFun_continuity_mult; done. }
-      { apply IH. eapply Forall_inv_tail; done. } }
-    { apply IH. eapply Forall_inv_tail; done. } }
+  (* intros [Lf [Hfeq HfC]] [Lg [Hgeq HgC]]. *)
+  (* pose mult_interval := fun '((f1, xa1, xb1), (f2, xa2, xb2)) => ((fun x => f1 x * f2 x), Rmax xa1 xa2, Rmin xb1 xb2). *)
+  (* exists (flat_map (fun f_elem => map (fun g_elem => mult_interval R (f_elem, g_elem)) Lg) Lf). *)
+  (* split. *)
+  (* { intros x Hx. rewrite Hfeq; try done. rewrite Hgeq; try done. clear Hfeq Hgeq HfC HgC. *)
+  (*   rewrite fsum_scal_r. *)
+  (*   admit. *)
+  (* } *)
+  (* { clear Hfeq Hgeq. induction Lf as [|f_elem Lf' IH]; rewrite //=. apply Forall_app_2. *)
+  (*   { rewrite Forall_map. clear IH. induction Lg as [|g_elem Lg' IH]; rewrite //=. apply Forall_cons_2. *)
+  (*     { destruct f_elem as [[??]?]. destruct g_elem as [[??]?]. apply Forall_inv in HfC. apply Forall_inv in HgC. apply IntervalFun_continuity_mult; done. } *)
+  (*     { apply IH. eapply Forall_inv_tail; done. } } *)
+  (*   { apply IH. eapply Forall_inv_tail; done. } } *)
 Admitted.
 
 (** Infinitely supported 1D piecewise continuity *)
