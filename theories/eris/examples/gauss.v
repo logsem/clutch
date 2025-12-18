@@ -3128,7 +3128,7 @@ Section adequacy.
         iApply (ec_eq with "[$]").
         rewrite /G2_CreditV.
         rewrite /G2_μ.
-        erewrite RInt_sep.
+        erewrite RInt_sep'.
         * erewrite FubiniIntegralSeriesC_Strong.
           -- apply RInt_ext.
              intros x' Hx'.
@@ -3213,7 +3213,8 @@ Section adequacy.
              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
              by auto_derive. 
           -- apply PCts_RInt.
-             by apply PCts_unit_implies_all.
+             apply PCts_unit_implies_all; last done.
+             lra.
       + simpl. iIntros (?) "(%&%&%&?&%&?)". by iFrame.
   Admitted.
 

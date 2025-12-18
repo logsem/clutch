@@ -21,6 +21,23 @@ Definition fsum {T : Type} (L : list (T → R)) : T → R := fun t => foldr (fun
 Definition PCts (f : R → R) (xa xb : R) : Prop :=
   ∃ L, (∀ x, Icc xa xb x → f x = fsum (IntervalFun_R <$> L) x) ∧ Forall IntervalFun_continuity L.
 
+Lemma PCts_point f xa :
+  PCts f xa xa.
+Proof.
+  exists ([(λ _, f xa , xa, xa)]).
+  simpl.
+  split.
+  - intros.
+    rewrite Iverson_True; last done.
+    unfold Icc, Rmin, Rmax in *.
+    case_match; try lra.
+    rewrite Rmult_1_l Rplus_0_r.
+    f_equal. lra.
+  - rewrite Forall_singleton.
+    intros ? ? .
+    apply Continuity.continuous_const.
+Qed. 
+  
 (** IntervalFun integrablility *)
 Lemma IntervalFun_RInt {f xa xb} {a b} :
   IntervalFun_continuity (f, xa, xb) →
@@ -325,24 +342,45 @@ Proof.
   repeat case_match; lra.
 Qed.
 
+Definition PCts'' (f : R → R) (xa xb : R) : Prop :=
+  ∃ L, (∀ x, Ioo xa xb x → f x = fsum (IntervalFun_R <$> L) x) ∧ Forall IntervalFun_continuity L.
+
+Lemma PCts''_PCts f xa xb:
+  PCts'' f xa xb -> PCts f xa xb.
+Proof.
+  destruct (decide (xa = xb)); first (subst; intros; apply PCts_point).
+  intros [L[H1 H2]].
+  exists ((λ _, f xa - fsum (IntervalFun_R <$> L) xa, xa, xa)::(λ _, f xb - fsum (IntervalFun_R <$> L) xb, xb, xb)::L).
+  split.
+  - simpl.
+    intros x ?.
+    rewrite /fmap.
+    unfold Iverson, Icc, Ioo, Rmin, Rmax in *; repeat case_match; try lra;
+                                    try replace x with xa by lra; try replace x with xb by lra; try lra; rewrite H1; rewrite /fmap; lra.
+  - repeat rewrite Forall_cons; repeat split; last done.
+    + intros ??. apply Continuity.continuous_const.
+    + intros ??. apply Continuity.continuous_const.
+Qed. 
+
 Lemma PCts_shift f f' xa xb xa' xb' r:
   xa' = xa + r -> xb' = xb + r ->
-  (∀ x, Icc xa xb x-> f x = f' (x+r)) ->
+  (∀ x, Ioo xa xb x-> f x = f' (x+r)) ->
   PCts f xa xb -> 
   PCts f' xa' xb'.
 Proof.
   intros -> -> H1 [l[K1 K2]].
+  apply PCts''_PCts.
   exists ((λ '(g, y, z), (λ x, g(x-r), y+r, z+r))<$>l).
-  assert (∀ x, Icc (xa+r) (xb+r) x-> f (x-r) = f' (x)) as H1'.
+  assert (∀ x, Ioo (xa+r) (xb+r) x-> f (x-r) = f' (x)) as H1'.
   { intros.
     rewrite H1; first (f_equal; lra).
-    unfold Icc, Rmax, Rmin in *. repeat case_match; lra.
+    unfold Ioo, Rmax, Rmin in *. repeat case_match; lra.
   }
   split.
   - intros.
     rewrite -H1'; last done.
     rewrite K1; last first.
-    { unfold Icc, Rmax, Rmin in *. repeat case_match; lra. }
+    { unfold Ioo, Icc, Rmax, Rmin in *. repeat case_match; lra. }
     clear.
     induction l as [|hd tl IHL]; first done.
     simpl. rewrite IHL.
@@ -365,44 +403,56 @@ Proof.
     by auto_derive.
 Qed.
 
-Lemma PCts_unit_implies_all1 (F:nat -> R -> R) (n:nat):
+Lemma PCts_unit_implies_all_nat (F:nat -> R -> R) (n:nat):
   (∀ k, PCts (F k) 0 1) ->
   PCts (λ y0 : R, F (Z.to_nat (Int_part y0)) (frac_part y0)) (0) n.
 Proof.
-Admitted. 
-
-Lemma PCts_unit_implies_all2 (F:nat -> R -> R) (n:nat):
-  (∀ k, PCts (F k) 0 1) ->
-  PCts (λ y0 : R, F (Z.to_nat (Int_part y0)) (frac_part y0)) (0) (- n).
-Proof.
-Admitted. 
+  intros ?.
+  induction n as [|n' IHn].
+  - replace (INR 0) with 0 by done.
+    apply PCts_point.
+  - rewrite S_INR.
+    eapply PCts_split; [|done|].
+    + pose proof pos_INR n'. unfold Rmin, Rmax; case_match; lra.
+    + eapply (PCts_shift (F n') _ 0 1  _ _ (INR n')); try lra; last done.
+      intros.
+      rewrite /frac_part.
+      f_equal.
+      * erewrite <-(Int_part_spec _ (Z.of_nat n')); first lia.
+        rewrite -INR_IZR_INZ.
+        unfold Ioo, Rmin, Rmax in *. case_match; lra.
+      * erewrite <-(Int_part_spec _ (Z.of_nat n')).
+        -- rewrite -INR_IZR_INZ. lra.
+        -- rewrite -INR_IZR_INZ.
+           unfold Ioo, Rmin, Rmax in *. case_match; lra.
+Qed. 
 
 Lemma PCts_unit_implies_all (F:nat -> R -> R) r:
+  (0<=r) ->
   (∀ k, PCts (F k) 0 1) ->
   PCts (λ y0 : R, F (Z.to_nat (Int_part y0)) (frac_part y0)) (0) r.
 Proof.
   intros.
   pose proof archimed r.
-  destruct (decide (0<=r)).
-  - (* r is positive *)
-    assert (PCts (λ y0 : R, F (Z.to_nat (Int_part y0)) (frac_part y0)) 0 (IZR (up r))).
-    + rewrite -(Z2Nat.id (up r)). 
-      * rewrite -INR_IZR_INZ.
-        by apply PCts_unit_implies_all1.
-      * apply le_IZR.
-        lra.
-    + eapply PCts_subset; last done; unfold Rmin, Rmax; repeat case_match; lra.
-  - (* r is negative *)
-    assert (PCts (λ y0 : R, F (Z.to_nat (Int_part y0)) (frac_part y0)) 0 (IZR (up r - 1))) as H'.
-    + replace (up r - 1)%Z with (- (1-up r))%Z by lia.
-      rewrite opp_IZR.
-      rewrite -(Z2Nat.id ((1-up r))).
-      * rewrite -INR_IZR_INZ.
-        by apply PCts_unit_implies_all2.
-      * apply le_IZR. rewrite minus_IZR. lra.
-    + rewrite minus_IZR in H'. eapply PCts_subset; last done;
-      unfold Rmin, Rmax; repeat case_match; lra.
-Qed.
+  assert (PCts (λ y0 : R, F (Z.to_nat (Int_part y0)) (frac_part y0)) 0 (IZR (up r))).
+  - rewrite -(Z2Nat.id (up r)). 
+    + rewrite -INR_IZR_INZ.
+      by apply PCts_unit_implies_all_nat.
+    + apply le_IZR.
+      lra.
+  - eapply PCts_subset; last done; unfold Rmin, Rmax; repeat case_match; lra.
+Qed. 
+(*   - (* r is negative *) *)
+(*     assert (PCts (λ y0 : R, F (Z.to_nat (Int_part y0)) (frac_part y0)) 0 (IZR (up r - 1))) as H'. *)
+(*     + replace (up r - 1)%Z with (- (1-up r))%Z by lia. *)
+(*       rewrite opp_IZR. *)
+(*       rewrite -(Z2Nat.id ((1-up r))). *)
+(*       * rewrite -INR_IZR_INZ. *)
+(*         by apply PCts_unit_implies_all2. *)
+(*       * apply le_IZR. rewrite minus_IZR. lra. *)
+(*     + rewrite minus_IZR in H'. eapply PCts_subset; last done; *)
+(*       unfold Rmin, Rmax; repeat case_match; lra. *)
+(* Qed. *)
 
 (** Integrability of 1D compactly-supported piecewise continuous functions, on any interval *)
 Lemma PCts_RInt {f xa xb} (HP : PCts f xa xb) :

@@ -168,3 +168,44 @@ Proof.
     by apply Hbound.
   }
 Qed.
+
+(* Same as before, but we relax the last obligation*)
+Theorem RInt_sep' (F : R → R) (UB : nat → R) :
+  ex_RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) →
+  ex_seriesC UB →
+  (∀ x n, 0 < x < 1 → 0 <= F (x + INR n) <= UB n) →
+  (∀ b : R, 0<b -> ex_RInt F 0 b) →   (* TODO: This is redundant, follows from the first assumption *)
+  RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) = RInt (fun x => SeriesC (fun (k : nat) => F (x + k))) 0 1.
+Proof.
+  intros.
+  set (F' x:= if bool_decide (0<=x) then F x else 0).
+  erewrite (RInt_gen_ext_eq_Ioi (g:=F')); [..|done]; last first. 
+  { intros. rewrite /F'. case_bool_decide; lra. }
+  erewrite RInt_sep.
+  - apply RInt_ext.
+    intros.
+    apply SeriesC_ext.
+    intros.
+    rewrite /F'.
+    rewrite bool_decide_eq_true_2; first done.
+    apply Rplus_le_le_0_compat; last apply pos_INR.
+    unfold Rmin in *. case_match; lra.
+  - eapply ex_RInt_gen_ext_eq_Ioi; last done.
+    intros. rewrite /F'. case_bool_decide; lra.
+  - done.
+  - rewrite /F'.
+    intros. rewrite bool_decide_eq_true_2; first naive_solver.
+    apply Rplus_le_le_0_compat; last apply pos_INR. lra.
+  - intros b.
+    destruct (decide (0<b)).
+    + intros.
+      eapply ex_RInt_ext; last naive_solver.
+      intros. rewrite /F'.
+      rewrite bool_decide_eq_true_2; first lra.
+      unfold Rmin in *. case_match; lra.
+    + apply (ex_RInt_ext (λ _, 0)).
+      * intros. rewrite /F'.
+        unfold Rmax in *.
+        case_match; rewrite bool_decide_eq_false_2; lra.
+      * apply ex_RInt_const.
+Qed. 
