@@ -177,6 +177,25 @@ split.
 }
 Qed.
 
+Lemma ex_RInt_dom' {F : R → R} {a b : R} : ex_RInt (fun x => Iverson (Icc a b) x * F x) a b ↔ ex_RInt F a b.
+Proof.
+intros.
+unfold Icc, Iverson.
+split.
+{ intros H.
+  eapply ex_RInt_ext; [|apply H].
+  intros ??.
+  simpl.
+  rewrite decide_True; lra.
+}
+{ intros H.
+  eapply ex_RInt_ext; [|apply H].
+  intros ??.
+  simpl.
+  rewrite decide_True; lra.
+}
+Qed.
+
 (** Alter a function at one point *)
 Definition poke (f : R → R) (a z : R) : R → R := fun x =>
   if (decide (x = a)) then z else f x.
