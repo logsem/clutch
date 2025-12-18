@@ -976,23 +976,133 @@ Lemma ex_RInt_gen_Ici_compare_PCts' {L : R} {F G : R → R} :
 Proof.
   pose (F' := λ x, if bool_decide (L<x) then F x else 0).
   pose (G' := λ x, if bool_decide (L<x) then G x else 0).
-  intros.
+  intros H1 H2 H3 H4.
   apply (ex_RInt_gen_ext_eq_Ioi (f:=G')).
   { intros. rewrite /G'. by rewrite bool_decide_eq_true_2. }
   apply: (ex_RInt_gen_Ici_compare_PCts (F:=F')).
   - intros.
     destruct (decide (Rmax x y <= L)).
-    { (* negative territory *) admit. }
+    { apply (PCts_ext (λ _, 0)).
+      - rewrite /F'.
+        intros.
+        case_bool_decide; last done.
+        unfold Ioo, Rmax, Rmin in *. lra.
+      - apply IPCts_PCts. apply IPCts_cts.
+        intros. apply Continuity.continuous_const.
+    } 
     destruct (decide (L<=Rmin x y)).
-    { (* positive territory *) admit. }
-  (* need to split between both *)
-    admit. 
-  - admit.
+    { (* positive territory *)
+      apply (PCts_ext F).
+      - rewrite /F'.
+        intros.
+        case_bool_decide; first done.
+        unfold Ioo, Rmax, Rmin in *. lra.
+      - eapply (PCts_subset _ L _ (Rmax x y)).
+        + unfold Rmin, Rmax in *. repeat case_match; lra.
+        + unfold Rmin, Rmax in *. repeat case_match; lra.
+        + apply H1. unfold Rmin, Rmax in *. repeat case_match; lra.
+    }
+    (* need to split between both *)
+    eapply PCts_split with L.
+    + unfold Rmin, Rmax in *. repeat case_match; lra.
+    + destruct (decide (x<=y)).
+      * apply (PCts_ext (λ _, 0)).
+        -- rewrite /F'.
+           intros.
+           case_bool_decide; last done.
+           unfold Ioo, Rmax, Rmin in *. repeat case_match; lra.
+        -- apply IPCts_PCts. apply IPCts_cts.
+           intros. apply Continuity.continuous_const.
+      * apply (PCts_ext F).
+        -- rewrite /F'.
+           intros.
+           case_bool_decide; first done.
+           unfold Ioo, Rmax, Rmin in *. repeat case_match; lra.
+        -- eapply (PCts_subset _ L _ (Rmax x y)).
+           ++ unfold Rmin, Rmax in *. repeat case_match; lra.
+           ++ unfold Rmin, Rmax in *. repeat case_match; lra.
+           ++ apply H1. unfold Rmin, Rmax in *. repeat case_match; lra.
+    + destruct (decide (x<=y)).
+      * apply (PCts_ext F).
+        -- rewrite /F'.
+           intros.
+           case_bool_decide; first done.
+           unfold Ioo, Rmax, Rmin in *. repeat case_match; lra.
+        -- eapply (PCts_subset _ L _ (Rmax x y)).
+           ++ unfold Rmin, Rmax in *. repeat case_match; lra.
+           ++ unfold Rmin, Rmax in *. repeat case_match; lra.
+           ++ apply H1. unfold Rmin, Rmax in *. repeat case_match; lra.
+      * apply (PCts_ext (λ _, 0)).
+        -- rewrite /F'.
+           intros.
+           case_bool_decide; last done.
+           unfold Ioo, Rmax, Rmin in *. repeat case_match; lra.
+        -- apply IPCts_PCts. apply IPCts_cts.
+           intros. apply Continuity.continuous_const.
+  - intros.
+    destruct (decide (Rmax x y <= L)).
+    { apply (PCts_ext (λ _, 0)).
+      - rewrite /G'.
+        intros.
+        case_bool_decide; last done.
+        unfold Ioo, Rmax, Rmin in *. lra.
+      - apply IPCts_PCts. apply IPCts_cts.
+        intros. apply Continuity.continuous_const.
+    } 
+    destruct (decide (L<=Rmin x y)).
+    { (* positive territory *)
+      apply (PCts_ext G).
+      - rewrite /G'.
+        intros.
+        case_bool_decide; first done.
+        unfold Ioo, Rmax, Rmin in *. lra.
+      - eapply (PCts_subset _ L _ (Rmax x y)).
+        + unfold Rmin, Rmax in *. repeat case_match; lra.
+        + unfold Rmin, Rmax in *. repeat case_match; lra.
+        + apply H2. unfold Rmin, Rmax in *. repeat case_match; lra.
+    }
+    (* need to split between both *)
+    eapply PCts_split with L.
+    + unfold Rmin, Rmax in *. repeat case_match; lra.
+    + destruct (decide (x<=y)).
+      * apply (PCts_ext (λ _, 0)).
+        -- rewrite /G'.
+           intros.
+           case_bool_decide; last done.
+           unfold Ioo, Rmax, Rmin in *. repeat case_match; lra.
+        -- apply IPCts_PCts. apply IPCts_cts.
+           intros. apply Continuity.continuous_const.
+      * apply (PCts_ext G).
+        -- rewrite /G'.
+           intros.
+           case_bool_decide; first done.
+           unfold Ioo, Rmax, Rmin in *. repeat case_match; lra.
+        -- eapply (PCts_subset _ L _ (Rmax x y)).
+           ++ unfold Rmin, Rmax in *. repeat case_match; lra.
+           ++ unfold Rmin, Rmax in *. repeat case_match; lra.
+           ++ apply H2. unfold Rmin, Rmax in *. repeat case_match; lra.
+    + destruct (decide (x<=y)).
+      * apply (PCts_ext G).
+        -- rewrite /G'.
+           intros.
+           case_bool_decide; first done.
+           unfold Ioo, Rmax, Rmin in *. repeat case_match; lra.
+        -- eapply (PCts_subset _ L _ (Rmax x y)).
+           ++ unfold Rmin, Rmax in *. repeat case_match; lra.
+           ++ unfold Rmin, Rmax in *. repeat case_match; lra.
+           ++ apply H2. unfold Rmin, Rmax in *. repeat case_match; lra.
+      * apply (PCts_ext (λ _, 0)).
+        -- rewrite /G'.
+           intros.
+           case_bool_decide; last done.
+           unfold Ioo, Rmax, Rmin in *. repeat case_match; lra.
+        -- apply IPCts_PCts. apply IPCts_cts.
+           intros. apply Continuity.continuous_const.
   - intros. rewrite /G'/F'. case_bool_decide; naive_solver.
   - 
   apply (ex_RInt_gen_ext_eq_Ioi (f:=F)); last done.
   intros. rewrite /F'. by rewrite bool_decide_eq_true_2.
-Admitted. 
+Qed. 
   
 (*
 Lemma NegExp_prod_bounded_left_IPCts {F G : R → R} {M}
