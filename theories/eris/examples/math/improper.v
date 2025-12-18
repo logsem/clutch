@@ -763,6 +763,46 @@ Lemma ex_RInt_gen_plus {F G : R → R} {M : R} :
   ex_RInt_gen (fun x => F x + G x) (at_point M) (Rbar_locally Rbar.p_infty).
 Proof. Admitted.
 
+Lemma ex_RInt_gen_scal_l {F : R → R} {M : R} r:
+  ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) →
+  ex_RInt_gen (fun x => r * F x) (at_point M) (Rbar_locally Rbar.p_infty).
+Proof.
+  intros [x H].
+  exists (r*x).
+  apply (is_RInt_gen_scal _ r) in H.
+  rewrite /scal/=/mult/= in H.
+  eapply is_RInt_gen_ext; last done.
+  apply (Filter_prod _ _ _ (λ _, True) (λ _, True)); try done.
+  simpl.
+  by exists 0.
+Qed. 
+
+Lemma ex_RInt_gen_scal_r {F : R → R} {M : R} r:
+  ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) →
+  ex_RInt_gen (fun x => F x * r) (at_point M) (Rbar_locally Rbar.p_infty).
+Proof. 
+  intros [x H].
+  exists (r*x).
+  apply (is_RInt_gen_scal _ r) in H.
+  rewrite /scal/=/mult/= in H.
+  eapply is_RInt_gen_ext; last done.
+  apply (Filter_prod _ _ _ (λ _, True) (λ _, True)); try done; last (intros; lra).
+  simpl. by exists 0.
+Qed.
+
+Lemma ex_RInt_gen_div {F : R → R} {M : R} r:
+  ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) →
+  ex_RInt_gen (fun x => F x / r) (at_point M) (Rbar_locally Rbar.p_infty).
+Proof. 
+  intros [x H].
+  exists (/r * x).
+  apply (is_RInt_gen_scal _ (/r)) in H.
+  rewrite /scal/=/mult/= in H.
+  eapply is_RInt_gen_ext; last done.
+  apply (Filter_prod _ _ _ (λ _, True) (λ _, True)); try done; last (intros; lra).
+  simpl. by exists 0.
+Qed. 
+
 Lemma ex_RInt_gen_fsum {L : list (R → R)} {M : R} :
   Forall (fun f => ex_RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty)) L →
   ex_RInt_gen (fsum L) (at_point M) (Rbar_locally Rbar.p_infty).

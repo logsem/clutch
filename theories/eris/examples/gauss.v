@@ -3121,7 +3121,9 @@ Section adequacy.
       intros.
       apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
       by auto_derive.
-    - (* show improper integral exists, TODO ex_RInt_gen_Ici_compare_PCts' *) admit.
+    - (* show improper integral exists,  *)
+      
+      admit.
     - iIntros (??[M ]?) "?".
       wp_apply (pgl_wp_wand with "[-]").
       + wp_apply (wp_G2); [done..|].
@@ -3180,7 +3182,7 @@ Section adequacy.
                 apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
                 by auto_derive. 
              ++ by apply PCts_RInt.
-        * (* show improper integral exists *) admit.
+        * (* show improper integral exists, use ex_RInt_gen_Ici_compare_PCts' *) admit.
         * instantiate (1:= λ n, (exp (- n^2/2))/Norm2  * M).
           apply ex_seriesC_scal_r.
           setoid_rewrite Rdiv_def.
