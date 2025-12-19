@@ -627,18 +627,18 @@ Proof.
     + rewrite !fmap_cons. rewrite /fsum//=. f_equal.
       { rewrite /IntervalFun_R//=. ring. }
       apply IH. by eapply Forall_inv_tail.
-  - rewrite Forall_map. induction L as [|[[f xa] xb] L' IH].
+  - rewrite Forall_map. clear HG. induction L as [|[[f xa] xb] L' IH].
     + apply Forall_nil. done.
     + apply Forall_cons. split.
       * rewrite /IntervalFun_continuity//=. intros x Hx.
         apply (@Continuity.continuous_mult R_CompleteNormedModule).
         { apply Continuity.continuous_const. }
         { apply Forall_inv in HLC. apply HLC. done. }
-      * { apply IH. { intros ?. admit. } { by eapply Forall_inv_tail. } }
+      * { apply IH. { by eapply Forall_inv_tail. } }
   - intros x. apply (@Continuity.continuous_mult R_CompleteNormedModule).
     { apply Continuity.continuous_const. }
     { apply Hg0cont. }
-Admitted.
+Qed. 
 
 Lemma IPCts_shift (F : R → R) (r : R) : IPCts F → IPCts (fun x => F (r + x)).
 Proof.
