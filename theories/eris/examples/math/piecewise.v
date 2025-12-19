@@ -537,20 +537,65 @@ Qed.
 (** Piecewise continuity continuity of multiplication *)
 Lemma PCts_mult {f g xa xb} : PCts f xa xb → PCts g xa xb → PCts (fun x => f x * g x) xa xb.
 Proof.
-  (* intros [Lf [Hfeq HfC]] [Lg [Hgeq HgC]]. *)
-  (* pose mult_interval := fun '((f1, xa1, xb1), (f2, xa2, xb2)) => ((fun x => f1 x * f2 x), Rmax xa1 xa2, Rmin xb1 xb2). *)
-  (* exists (flat_map (fun f_elem => map (fun g_elem => mult_interval R (f_elem, g_elem)) Lg) Lf). *)
-  (* split. *)
-  (* { intros x Hx. rewrite Hfeq; try done. rewrite Hgeq; try done. clear Hfeq Hgeq HfC HgC. *)
-  (*   rewrite fsum_scal_r. *)
-  (*   admit. *)
-  (* } *)
-  (* { clear Hfeq Hgeq. induction Lf as [|f_elem Lf' IH]; rewrite //=. apply Forall_app_2. *)
-  (*   { rewrite Forall_map. clear IH. induction Lg as [|g_elem Lg' IH]; rewrite //=. apply Forall_cons_2. *)
-  (*     { destruct f_elem as [[??]?]. destruct g_elem as [[??]?]. apply Forall_inv in HfC. apply Forall_inv in HgC. apply IntervalFun_continuity_mult; done. } *)
-  (*     { apply IH. eapply Forall_inv_tail; done. } } *)
-  (*   { apply IH. eapply Forall_inv_tail; done. } } *)
-Admitted.
+  intros [Lf [Hfeq HfC]] [Lg [Hgeq HgC]].
+  pose (mult_interval := fun '((f1, xa1, xb1), (f2, xa2, xb2)) =>
+                          if bool_decide (Rmin xa1 xb1 <= Rmax xa2 xb2 /\ Rmin xa2 xb2 <= Rmax xa1 xb1)
+                          then ((fun (x:R) => f1 x * f2 x), Rmax (Rmin xa1 xb1) (Rmin xa2 xb2), Rmin (Rmax xa1 xb1) (Rmax xa2 xb2)) else (λ x, 0, 0 ,0)).
+  exists (flat_map (fun f_elem => map (fun g_elem => mult_interval (f_elem, g_elem)) Lg) Lf).
+  split.
+  { intros x Hx. rewrite Hfeq; try done. rewrite Hgeq; try done. clear Hfeq Hgeq HfC HgC.
+    revert Lf.
+    induction Lg as [|hd ? IHg].
+    { intros Lf. induction Lf; simpl; first lra.
+      rewrite -IHLf. simpl. lra. }
+    intros Lf. induction Lf as [|hd' ? IHf]; first (simpl; lra). 
+    rewrite {1}/flat_map.
+    rewrite -/(flat_map _ _).
+    rewrite fmap_app.
+    rewrite fsum_app.
+    rewrite -IHf.
+    etrans.
+    - rewrite !fmap_cons.
+      rewrite /fsum.
+      rewrite !foldr_cons.
+      rewrite -!/(fsum _ _).
+      rewrite Rmult_plus_distr_r.
+      by rewrite !Rmult_plus_distr_l.
+    - etrans; last first.
+      + rewrite map_cons fmap_cons {1}/fsum foldr_cons -/(fsum _ _).
+        by rewrite fmap_cons {3}/fsum foldr_cons -/(fsum _ _).
+      + assert (IntervalFun_R hd' x * IntervalFun_R hd x + IntervalFun_R hd' x * fsum (IntervalFun_R <$> Lg) x =
+  IntervalFun_R (mult_interval (hd', hd)) x +
+    fsum (IntervalFun_R <$> map (λ g_elem : (R → R) * R * R, mult_interval (hd', g_elem)) Lg) x); last lra.
+        f_equal.
+        * rewrite /mult_interval.
+          do 4 case_match; subst.
+          unfold IntervalFun_R, Iverson, Icc, Rmin, Rmax.
+          case_bool_decide; repeat (lra||case_match).
+        * clear -Hx.
+          induction Lg as [|hd ? IHL]; first (simpl; lra).
+          rewrite fmap_cons.
+          rewrite /fsum foldr_cons.
+          rewrite -/(fsum _ _).
+          rewrite map_cons fmap_cons.
+          rewrite foldr_cons.
+          rewrite -/(fsum _ _).
+          rewrite -IHL.
+          assert (IntervalFun_R hd' x * (IntervalFun_R hd x) =
+                  IntervalFun_R (mult_interval (hd', hd)) x ); last lra.
+          rewrite /mult_interval.
+          do 4 case_match; subst.
+          unfold IntervalFun_R, Iverson, Icc, Rmin, Rmax.
+          case_bool_decide; repeat (lra||case_match).
+  }
+  { clear Hfeq Hgeq. induction Lf as [|f_elem Lf' IH]; rewrite //=. apply Forall_app_2.
+    { rewrite Forall_map. clear IH. induction Lg as [|g_elem Lg' IH]; rewrite //=. apply Forall_cons_2.
+      { destruct f_elem as [[??]?]. destruct g_elem as [[??]?]. apply Forall_inv in HfC. apply Forall_inv in HgC. case_bool_decide; first apply IntervalFun_continuity_mult; try (done||lra).
+        intros ??. apply Continuity.continuous_const.
+      }
+      { apply IH. eapply Forall_inv_tail; done. } }
+    { apply IH. eapply Forall_inv_tail; done. } }
+Qed.
 
 (** Infinitely supported 1D piecewise continuity *)
 Definition IPCts (f : R → R) : Prop :=
