@@ -673,7 +673,7 @@ Section rules.
     induction n as [|n' IH].
     - intros h ? ?. exists h; by simpl.
     - intros h H HL.
-      rewrite cons_length in HL. apply PeanoNat.lt_S_n in HL.
+      rewrite length_cons in HL. apply PeanoNat.lt_S_n in HL.
       destruct H as [|h' H']; [simpl in HL; lia|].
       replace ((h :: h' :: H') !! S n') with ((h' :: H') !! n'); last by simpl.
       by apply IH.
@@ -794,7 +794,7 @@ Section rules.
     - iApply "Hwp". iLeft. rewrite app_nil_r. iFrame.
     - remember (s0 :: sr) as suffix.
       assert (Hl_pos : (0 < L)%nat).
-      { rewrite Hl Heqsuffix cons_length. lia. }
+      { rewrite Hl Heqsuffix length_cons. lia. }
       iApply (twp_presample_amplify' with "[Htape Hcr]"); eauto; [iFrame|].
       iIntros "[H|(H&_)]"; iApply "Hwp".
       + iRight. by iFrame.
@@ -817,7 +817,7 @@ Section rules.
     - iApply "Hwp". iLeft. rewrite app_nil_r. iFrame.
     - remember (s0 :: sr) as suffix'.
       assert (Hl_pos : (0 < L)%nat).
-      { rewrite Hl Heqsuffix' cons_length. lia. }
+      { rewrite Hl Heqsuffix' length_cons. lia. }
       iApply (presample_amplify' with "[Htape Hcr]"); eauto; [iFrame|].
       iIntros "[H|(H&_)]"; iApply "Hwp".
       + iRight. by iFrame.
@@ -1113,8 +1113,8 @@ Section rules.
       do 2 rewrite app_nil_r; iFrame.
     - iApply (twp_presample_planner_sync _ _ _ _ _ _ _ (length suffix + length suffix) _ (fun samples => block_pad N (length suffix) samples ++ suffix)); eauto.
       + intros. split.
-        * rewrite app_length HS /=. lia.
-        * rewrite app_length /=.
+        * rewrite length_app HS /=. lia.
+        * rewrite length_app /=.
           apply Nat.add_le_mono_r, block_pad_ub.
           rewrite HS /=. lia.
       + rewrite HS.
@@ -1137,8 +1137,8 @@ Section rules.
       do 2 rewrite app_nil_r; iFrame.
     - iApply (presample_planner_sync _ _ _ _ _ _ _ (length suffix + length suffix) _ (fun samples => block_pad N (length suffix) samples ++ suffix)); eauto.
       + intros. split.
-        * rewrite app_length HS /=. lia.
-        * rewrite app_length /=.
+        * rewrite length_app HS /=. lia.
+        * rewrite length_app /=.
           apply Nat.add_le_mono_r, block_pad_ub.
           rewrite HS /=. lia.
       + rewrite HS.
