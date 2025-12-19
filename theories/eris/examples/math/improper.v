@@ -787,7 +787,13 @@ Lemma ex_RInt_gen_plus {F G : R → R} {M : R} :
   ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) →
   ex_RInt_gen G (at_point M) (Rbar_locally Rbar.p_infty) →
   ex_RInt_gen (fun x => F x + G x) (at_point M) (Rbar_locally Rbar.p_infty).
-Proof. Admitted.
+Proof.
+  intros [x1 H1].
+  intros [x2 H2].
+  eapply is_RInt_gen_plus in H2; last apply H1.
+  eexists _.
+  by rewrite /plus/= in H2.
+Qed. 
 
 Lemma ex_RInt_gen_scal_l {F : R → R} {M : R} r:
   ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) →
