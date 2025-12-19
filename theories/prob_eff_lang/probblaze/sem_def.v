@@ -192,13 +192,15 @@ Definition sem_row_val_prop {Σ} (Ψ : iLblSig Σ) : iProp Σ :=
 (* Semantic effect rows are also defined as persistently monotonic protocols 
    with the additional requirement that it can only be called with effect values of the form (effect op, v'). 
    Thus effect rows can be seen as morphisms from operations to sem_sig.
-*)
+ *)
 
-
+Definition pers_mono_row {Σ} (Ψ : iLblThy Σ) : iProp Σ :=
+  (∀ (v1 v2 : expr) (Φ Φ' : expr → expr → iPropI Σ),
+      □ (∀ w1 w2 : expr, Φ w1 w2 -∗ Φ' w1 w2) -∗ ∀ l1s l2s X, (⌜ (l1s, l2s, X) ∈ Ψ ⌝ ∗ iThyTraverse l1s l2s X v1 v2 Φ) -∗ (⌜ (l1s, l2s, X) ∈ Ψ ⌝ ∗ iThyTraverse l1s l2s X v1 v2 Φ'))%I.
 
 Record sem_row Σ := SemRow {
                         sem_row_car :> iLblSig Σ;
-                        sem_row_mono : ⊢ pers_mono (to_iThy (iLblSig_to_iLblThy sem_row_car));
+                        sem_row_mono : ⊢ pers_mono_row (iLblSig_to_iLblThy sem_row_car);
                         sem_row_prop : ⊢ sem_row_val_prop sem_row_car
 }.
 Arguments SemRow {_} _%_I {_}.
@@ -235,7 +237,7 @@ Section sem_row_cofe.
 
   Global Program Instance sem_row_inhabited : Inhabited (sem_row Σ) := 
     populate (@SemRow Σ ⊥ _ _).
-  Next Obligation. iIntros (????) "? (%l1 & %l2 & %X & %Hcontra & ?)". by apply elem_of_nil in Hcontra. Qed.
+  Next Obligation. iIntros (????) "?". iIntros (???) "(%Hcontra & _)". by apply elem_of_nil in Hcontra. Qed.
   Next Obligation. iIntros (???) "(%l1 & %l2 & %X & %Hcontra & ?)". by apply elem_of_nil in Hcontra. Qed.
 
   Global Instance sem_row_car_ne n : Proper (dist n ==> dist n) sem_row_car.

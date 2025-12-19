@@ -56,7 +56,7 @@ Definition sem_ty_arr `{probblazeRGS Σ}
   (κ : sem_ty Σ) : sem_ty Σ :=
   (λ (v1 v2 : val),
     ∀ (w1 w2 : val),
-      τ w1 w2 -∗ BREL (v1 w1) ≤ (v2 w2) <| ρ |> {{ (λ u1 u2, κ u1 u2) }})%I.
+      τ w1 w2 -∗ BREL (v1 w1) ≤ (v2 w2) <| iLblSig_to_iLblThy ρ |> {{ (λ u1 u2, κ u1 u2) }})%I.
 
 (* Polymorphic type. *)
 Definition sem_ty_type_forall {Σ} 
@@ -815,8 +815,10 @@ Section row_type_sub.
   Proof.
     constructor.
     iIntros "% % % % %Φ !# Hρ #Hτ".
-    iApply (sem_row_mono _ ρ with "[] Hρ").
-    iIntros "!# % % H". iFrame. rewrite /sem_ty_mbang /= //.
+    iDestruct "Hρ" as (????) "H". iExists _,_,_.
+    iApply (sem_row_mono with "[] [H]"); last first.
+    { iFrame. by iPureIntro. }
+    iIntros "!# % % HΦ". by iFrame. 
   Qed.
   
   Global Instance row_type_sub_mfbang_mbang `{probblazeRGS Σ} (m : mode) (ρ : sem_row Σ) (τ : sem_ty Σ) : ¡[ m ] ρ ᵣ⪯ₜ (![ m ] τ).
@@ -830,11 +832,16 @@ Section row_type_sub.
   Proof.
     constructor.
     iIntros "% % % % %Φ !# Hρ Hτ'".
-    iDestruct (sem_row_mono _ ρ) as "H".
-    iApply ("H" $! _ _ (λ u1 u2, Φ u1 u2 ∗ τ v1 v2)%I with "[] [Hτ' Hρ]").
-    { iIntros "!# % % [$ Hτ]". by iApply H0. }
+    iPoseProof row_type_sub as "#Hm".
     iDestruct (H1 with "Hτ'") as "Hτ".
-    iApply (row_type_sub with "Hρ Hτ").
+    iDestruct ("Hm" with "[Hρ] [$]") as "Hnew".
+    { iDestruct "Hρ" as (????) "Hρ". iExists _,_,_. by iFrame. }
+    iDestruct (sem_row_mono _ ρ) as "H".
+    iDestruct "Hnew" as (????) "Hρ". unfold pers_mono_row.
+    iDestruct ("H" $! _ _ (λ u1 u2, Φ u1 u2 ∗ τ v1 v2)%I with "[] [Hρ]") as "H1"; last first.
+    { iExists _,_,_. iFrame. }
+    2 : { iIntros "!# % % [$ Hτ]". by iApply H0. }
+    by iFrame.
   Qed.
 
 End row_type_sub.

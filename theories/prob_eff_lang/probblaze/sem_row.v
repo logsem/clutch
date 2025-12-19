@@ -12,7 +12,7 @@ From clutch.prob_eff_lang.probblaze Require Import logic notation sem_def mode s
 
 (* Nil Row *)
 Program Definition sem_row_nil {Σ} : sem_row Σ := @SemRow Σ ⊥ _ _. 
-Next Obligation. iIntros (?????) "? (%l1 & %l2 & %X & %Hcontra & ?)". by apply elem_of_nil in Hcontra. Qed.
+Next Obligation. iIntros (?????) "?". iIntros (???) "(%Hcontra & _)". by apply elem_of_nil in Hcontra. Qed.
 Next Obligation. iIntros (????) "(%l1 & %l2 & %X & %Hcontra & ?)". by apply elem_of_nil in Hcontra. Qed.
 
 Global Instance sem_row_bottom {Σ} : Bottom (sem_row Σ) := sem_row_nil.
@@ -27,16 +27,11 @@ Program Definition sem_row_cons {Σ} (op1 op2 : label) : sem_sig Σ -d> sem_row 
                                else
                                  (pmono_prot_car (sem_row_car ρ)) (do: op' v1)%E (do: op' v2)%E Φ)%I) _). *)
 Next Obligation.
-  intros ?????. iIntros (????) "#H1 H2". iApply to_iThy_cons. iDestruct (to_iThy_cons with "H2") as "H2".
-  iDestruct "H2" as "[(%&%&%&%&%&->&%&->&%&Hσ&#Hcont)|(%&%&%&%&%&%&%&%&%&->&%&->&%&Hσ&#Hcont)]"; [iLeft|iRight].
-  - iExists _,_,_,_,_. do 4 (iSplit; [iPureIntro;done|]). iFrame.
-    iModIntro. iIntros (??) "HS". iDestruct ("Hcont" with "HS") as "HΦ".
-    by iApply "H1".
-  - simpl. iExists _,_,_. iFrame. iSplit; [iPureIntro; done|].
-    iExists _,_. do 4 (iSplit;[iPureIntro;done|]).
-    iIntros "!# % % HS". iDestruct ("Hcont" with "HS") as "HΦ".
-    by iApply "H1".
-Qed.
+  intros ?????. iIntros (????) "#H1 % % % (%Hin & H2)". iSplit; first done.
+  iDestruct "H2" as "(%&%&%&%&%&->&%&->&%&Hσ&#Hcont)".
+  iExists _,_,_,_,_. repeat (iSplit; first done).
+  iIntros (??) "!# HS". iApply "H1". by iApply "Hcont".
+Qed. 
 Next Obligation.
   iIntros (????????) "H". 
   iDestruct (to_iThy_cons with "H") as "H". 
@@ -79,10 +74,10 @@ Definition iThyIfMono_iLblSig {Σ} (m: mode) (L : iLblSig Σ) : iLblSig Σ :=
 Program Definition sem_row_flip_mbang {Σ} (m : mode) (ρ : sem_row Σ) : sem_row Σ := 
   @SemRow Σ (iThyIfMono_iLblSig m ρ) _ _.
 Next Obligation.
-  iIntros (???????) "#HΦ Hσ". 
-  iDestruct "Hσ" as (????????? -> ? -> ?) "(HX & #Hcont)".
-  iExists _, _, _. iFrame. iSplit; [iPureIntro;done|].
-  iExists _,_. repeat (iSplit; [iPureIntro; done|]).
+  iIntros (???????) "#HΦ".
+  iIntros (???) "($ & H2)".
+  iDestruct "H2" as "(%&%&%&%&%&->&%&->&%&Hσ&#Hcont)".
+  iExists _,_,_,_,_. repeat (iSplit; first done).
   iIntros (??) "!# HS". iApply "HΦ". by iApply "Hcont".
 Qed.
 Next Obligation.
@@ -141,12 +136,7 @@ Section once_row.
     row_le_mfbang_elim : (⊢ (¡ ρ%R) ≤ᵣ ρ%R)
   }.
 
-  Lemma iLblSig_car_thing {Σ} (ρ : iLblSig Σ) :
-   ∃ ρ' : iLblThy Σ, iLblSig_to_iLblThy ρ = ρ'
-  Proof.
-    simpl. done.
-  Qed. 
-    
+  
   (* TODO: This should be provable, but the records and coercions are annoying*)
   Lemma iThyIfMono_iLblSig_to_iThyIfMono {Σ} (m : mode) (ρ : sem_row Σ) :
     iLblSig_to_iLblThy (sem_row_flip_mbang m ρ) = to_iThyIfMono m (iLblSig_to_iLblThy ρ).
@@ -155,19 +145,26 @@ Section once_row.
     (* case m; last first.
        { rewrite to_iThyIfMonoMS. unfold sem_row_flip_mbang. destruct ρ. simpl. rewrite (iThyIfMono_iLblSigMS ρ). *)
     destruct ρ as [l Hmono Hprop].
-    induction l; first done. intros.
+    induction l; first done. 
     simpl. destruct a as [[l1s l2s] σ]. rewrite IHl; last done.
-    - iIntros (????) "#HΦ HlΨ".
+    - iIntros (????) "#H1 % % % (%Hin & H2)". iSplit; first done.
+      (* iDestruct "H2" as "(%&%&%&%&%&->&%&->&%&Hσ&#Hcont)".
+         iExists _,_,_,_,_. repeat (iSplit; first done).
+         iIntros (??) "!# HS". iApply "HΦ". by iApply "Hcont".
+         iIntros (????) "#HΦ HlΨ". *)
       iPoseProof Hmono as "Hmcons".
-      iDestruct "HlΨ" as (l1s' l2s' X) "(%Hin & HXΦ)".
+      (* iDestruct "HlΨ" as (l1s' l2s' X) "(%Hin & HXΦ)". *)
       (* iExists _,_,_. iSplit; first done. *)
-      iDestruct ("Hmcons" with "HΦ") as "HΨ".
-      iAssert (to_iThy (iLblSig_to_iLblThy ((l1s,l2s,σ) :: l)) v1 v2 Φ) with "[HXΦ]" as "Htemp".
-      { iExists _,_,_. iSplit; [iPureIntro; by apply elem_of_list_further|]. done. }
-      iDestruct ("HΨ" with "Htemp") as "HΦ'".
-      iDestruct "HΦ'" as (l1s'' l2s'' X') "H".
-      iExists _,_,_.
-  Admitted.         
+      iDestruct ("Hmcons" $! v1 v2 Φ Φ' with "H1") as "HΨ".
+      iAssert (⌜(l1s0, l2s0, X) ∈ iLblSig_to_iLblThy ((l1s, l2s, σ) :: l)⌝ ∗ iThyTraverse l1s0 l2s0 X v1 v2 Φ)%I with "[H2]" as "Htemp".
+      { iSplit; last done. iPureIntro. by apply elem_of_list_further. }
+      iDestruct ("HΨ" with "Htemp") as "(% & $)".
+    - iIntros (???) "HΦ".
+      iPoseProof Hprop as "Hprop". 
+      iAssert (to_iThy (iLblSig_to_iLblThy ((l1s, l2s, σ) :: l)) e1 e2 Φ) with "[HΦ]" as "HΦ".
+      { iDestruct "HΦ" as (????) "HΦ". iExists _,_,_. iSplit; [iPureIntro; by apply elem_of_list_further |done]. }
+      iDestruct ("Hprop" with "HΦ") as "HΦ". done.
+  Qed. 
 
   Definition mono_prot_on_prop {Σ} (Ψ : sem_row Σ) (P : iProp Σ) : iProp Σ :=
     □ (∀ e1 e2 Φ, (to_iThy (iLblSig_to_iLblThy Ψ)) e1 e2 Φ -∗ P -∗ (to_iThy (iLblSig_to_iLblThy Ψ)) e1 e2 (λ w1 w2, Φ w1 w2 ∗ P))%I.
@@ -178,7 +175,8 @@ Section once_row.
     split.
     - iIntros (H). constructor. iIntros (v1 v2 Φ Φ') "Hpost HΨ".
       iDestruct (H with "HΨ Hpost") as "H".
-      iApply (sem_row_mono _ σ with "[] H").
+      iDestruct "H" as (????) "H".
+      iDestruct (sem_row_mono with "[] [H]") as "H"; try by iFrame.
       iIntros "!# % % [HΦ HPost]". by iApply "HPost".
     - iIntros (H) "%P %v1 %v2 %Φ !# Hσ HP". inv H.
       iApply (monotonic_prot with "[HP] Hσ"). iIntros (??) "$ //".
