@@ -161,22 +161,33 @@ End sem_sig_cofe.
   
 (** * Semantic Effect Row. *)
 
-Record iLblSig Σ := LblSig {
-  iLblSig_car :>
-    list (list label * list label * sem_sig Σ)
-                      }.
-Arguments LblSig {_} _%_I.
-Arguments iLblSig_car {_} _ : simpl never.
+(* Record iLblSig Σ := LblSig {
+     iLblSig_car :>
+       list (list label * list label * sem_sig Σ)
+                         }.
+   Arguments LblSig {_} _%_I.
+   Arguments iLblSig_car {_} _ : simpl never. *)
+Definition iLblSig Σ : Type := list (list label * list label * sem_sig Σ).
 
 Definition iLblSig_to_iLblThy {Σ} (s : iLblSig Σ) : iLblThy Σ :=
-  map (fun '(l1, l2, ss) => (l1, l2, pmono_prot_car (sem_sig_car ss))) (iLblSig_car s).
+  map (fun '(l1, l2, ss) => (l1, l2, pmono_prot_car (sem_sig_car ss))) s.
 
-Coercion iLblSig_to_iLblThy : iLblSig >-> iLblThy.
+Lemma in_iLblSig {Σ} (s : iLblSig Σ) (X : iThy Σ) l1s l2s:
+  (l1s, l2s, X) ∈ iLblSig_to_iLblThy s → ∃ ss : sem_sig Σ, X = ss.
+Proof. 
+  induction s.
+  - intros. by apply elem_of_nil in H.
+  - intros. 
+    apply elem_of_cons in H as [H | H]; [|by apply IHs].
+    destruct a. destruct p. inversion H. eexists. done.
+Qed.
+    
+(* Coercion iLblSig_to_iLblThy : iLblSig >-> iLblThy. *)
 
-Instance iLblSig_bot {Σ} : Bottom (iLblSig Σ) := @LblSig Σ [].
+Instance iLblSig_bot {Σ} : Bottom (iLblSig Σ) := [].
 
 Definition sem_row_val_prop {Σ} (Ψ : iLblSig Σ) : iProp Σ := 
-  ∀ (e1 e2 : expr) Φ, (to_iThy Ψ) e1 e2 Φ -∗ ∃ k1 k2 (op1 op2 : label) (v1 v2 : val), ⌜ e1 = fill k1 (do: op1 v1)%E ⌝ ∗ ⌜ e2 = fill k2 (do: op2 v2)%E ⌝.
+  ∀ (e1 e2 : expr) Φ, (to_iThy (iLblSig_to_iLblThy Ψ)) e1 e2 Φ -∗ ∃ k1 k2 (op1 op2 : label) (v1 v2 : val), ⌜ e1 = fill k1 (do: op1 v1)%E ⌝ ∗ ⌜ e2 = fill k2 (do: op2 v2)%E ⌝.
 
 (* Semantic effect rows are also defined as persistently monotonic protocols 
    with the additional requirement that it can only be called with effect values of the form (effect op, v'). 
@@ -187,7 +198,7 @@ Definition sem_row_val_prop {Σ} (Ψ : iLblSig Σ) : iProp Σ :=
 
 Record sem_row Σ := SemRow {
                         sem_row_car :> iLblSig Σ;
-                        sem_row_mono : ⊢ pers_mono (to_iThy sem_row_car);
+                        sem_row_mono : ⊢ pers_mono (to_iThy (iLblSig_to_iLblThy sem_row_car));
                         sem_row_prop : ⊢ sem_row_val_prop sem_row_car
 }.
 Arguments SemRow {_} _%_I {_}.
@@ -198,10 +209,10 @@ Arguments sem_row_car {_} _ : simpl never.
 Section sem_row_cofe.
   Context {Σ : gFunctors}.
 
-  Instance sem_row_equiv : Equiv (sem_row Σ) := λ ρ1 ρ2, (sem_row_car ρ1 : iLblThy Σ) ≡ sem_row_car ρ2.
-  Instance sem_row_dist : Dist (sem_row Σ) := λ n ρ1 ρ2, (sem_row_car ρ1 : iLblThy Σ) ≡{n}≡ sem_row_car ρ2.
-  Instance iLblSig_equiv : Equiv (iLblSig Σ) := λ ρ1 ρ2, (ρ1 : iLblThy Σ) ≡ ρ2.
-  Instance iLblSig_dist : Dist (iLblSig Σ) := λ n ρ1 ρ2, (ρ1 : iLblThy Σ) ≡{n}≡ ρ2.
+  Instance sem_row_equiv : Equiv (sem_row Σ) := λ ρ1 ρ2, iLblSig_to_iLblThy (sem_row_car ρ1) ≡ iLblSig_to_iLblThy (sem_row_car ρ2).
+  Instance sem_row_dist : Dist (sem_row Σ) := λ n ρ1 ρ2, iLblSig_to_iLblThy (sem_row_car ρ1) ≡{n}≡ iLblSig_to_iLblThy (sem_row_car ρ2).
+  Instance iLblSig_equiv : Equiv (iLblSig Σ) := λ ρ1 ρ2, iLblSig_to_iLblThy ρ1 ≡ iLblSig_to_iLblThy ρ2.
+  Instance iLblSig_dist : Dist (iLblSig Σ) := λ n ρ1 ρ2, iLblSig_to_iLblThy ρ1 ≡{n}≡ iLblSig_to_iLblThy ρ2.
 
   Lemma iLblSig_ofe_mixin : OfeMixin (iLblSig Σ).
   Proof.
@@ -248,8 +259,8 @@ Delimit Scope sem_row_scope with R.
 
 The type environment is represented as a list.
 Due to the requirement that a type environment Γ is env_sem_typed,
-we can utilize the seperation logic's disjointness to argue about
-variables occuring twice in the environment.
+we can utilize the separation logic's disjointness to argue about
+variables occurring twice in the environment.
 
 Thus if we have a `env_sem_typed Γ γ` assumption and
 the same variable occurs twice in Γ we get that:
@@ -323,7 +334,7 @@ Proof.
 Qed.
 
 
-Definition row_le `{probblazeRGS Σ} (ρ ρ' : sem_row Σ) := tc_opaque (to_iThy_le ρ ρ')%I.
+Definition row_le `{probblazeRGS Σ} (ρ ρ' : sem_row Σ) := tc_opaque (to_iThy_le (iLblSig_to_iLblThy ρ) (iLblSig_to_iLblThy ρ'))%I.
 
 Global Instance row_le_persistent `{probblazeRGS Σ} ρ ρ' :
   Persistent (row_le ρ ρ').

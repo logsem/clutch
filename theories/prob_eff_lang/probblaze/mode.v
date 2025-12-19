@@ -102,17 +102,17 @@ Section mode_type_sub.
 
 End mode_type_sub.
   
-(* Section mode_env_sub.
-   
-     Class ModeEnvSub {Σ} (m : mode) (Γ : env Σ) := {
-       mode_env_sub : ⊢ (∀ γ, Γ ⊨ₑ γ -∗ □? m (Γ ⊨ₑ γ))
-     }.
-   
-     Global Instance mode_env_sub_os {Σ} (Γ : env Σ) : ModeEnvSub OS Γ.
-     Proof. constructor. iIntros "% /= $ //". Qed.
-     
-   End mode_env_sub. *)
+Section mode_env_sub.
+
+  Class ModeEnvSub {Σ} (m : mode) (Γ : env Σ) := {
+    mode_env_sub : ⊢ (∀ γ, Γ ⊨ₑ γ -∗ □? m (Γ ⊨ₑ γ))
+  }.
+
+  Global Instance mode_env_sub_os {Σ} (Γ : env Σ) : ModeEnvSub OS Γ.
+  Proof. constructor. iIntros "% /= $ //". Qed.
+  
+End mode_env_sub.
 
 (* Notations *)
 Notation "m ₘ⪯ₜ τ" := (ModeTypeSub m τ%T) (at level 80).
-(* Notation "m ₘ⪯ₑ Γ" := (ModeEnvSub m Γ%T) (at level 80). *)
+Notation "m ₘ⪯ₑ Γ" := (ModeEnvSub m Γ%T) (at level 80).

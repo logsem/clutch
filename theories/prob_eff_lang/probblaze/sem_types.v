@@ -496,6 +496,7 @@ Section sub_typing.
   Proof. constructor. iApply ty_le_mbang_intro_bool. Qed.
 
   Lemma ty_le_mbang_intro_int m : ⊢ ℤ ≤ₜ@{ Σ } ![m] ℤ.
+  Proof. 
     iIntros "!# % % (% & -> & ->)". 
     iApply bi.intuitionistically_intuitionistically_if. 
     iIntros "!#". by iExists n.

@@ -875,7 +875,7 @@ Lemma rel_inv_restore N P e1 e2 X R :
     REL e1 ≤ e2 <|X|> {{S}}.
   Proof. iApply rel_wand'. by iApply iThy_le_refl. Qed.
 
-Lemma rel_mono' (m : mode) e1 e2 X Y R S :
+  Lemma rel_mono' (m : mode) e1 e2 X Y R S :
     iThy_le X Y -∗
     REL e1 ≤ e2 <|X|> {{R}} -∗
     (□?m ∀ v1 v2, R v1 v2 -∗ S v1 v2) -∗
@@ -2168,6 +2168,37 @@ Section to_iThy.
     - by iApply (iThy_le_to_iThy_bot L).
   Qed.
 
+  Lemma iThy_le_to_iThy_to_iThyIfMono m L :
+    ⊢ iThy_le (iThyIfMono m (to_iThy L)) (to_iThy (to_iThyIfMono m L)).
+  Proof.
+    case m; simpl; [|rewrite to_iThyIfMonoMS; iApply iThy_le_refl].
+    induction L as [|((l1s,l2s),X) L].
+    - iIntros "%e1 %e2 !> %Q [% [[% [% [% [% _]]]] _]]". set_solver.
+    - iApply iThy_le_trans; last iApply iThy_le_sum_to_iThy.
+      iApply iThy_le_trans; last
+                              (iApply iThy_le_sum_map; last iApply IHL;
+                               iApply iThy_le_iThyTraverse_iThyIfMono).
+      iApply iThy_le_trans; last iApply (iThy_le_sum_iThyIfMono OS).
+      iApply (iThy_le_iThyIfMono _ _ OS).
+      iApply iThy_le_to_iThy_sum.
+  Qed.
+
+  Lemma iThy_le_to_iThyIfMono_to_iThy m L :
+    ⊢ iThy_le (to_iThy (to_iThyIfMono m L)) (iThyIfMono m (to_iThy L)).
+  Proof.
+    case m; simpl; [|rewrite to_iThyIfMonoMS; iApply iThy_le_refl].
+    induction L as [|((l1s,l2s),X) L].
+    - iIntros "%e1 %e2 !> %Q [%l1s [%l2s [%X [%H _]]]]". set_solver.
+    - iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
+      iApply iThy_le_trans.
+      { iApply iThy_le_sum_map; first iApply iThy_le_iThyIfMono_iThyTraverse.
+        iApply IHL.
+      }
+      iApply iThy_le_trans; first iApply (iThy_le_iThyIfMono_sum OS).
+      iApply (iThy_le_iThyIfMono _ _ OS).
+      iApply iThy_le_sum_to_iThy.
+  Qed.
+
   Lemma traversable_to_iThy (L : iLblThy Σ) k1 k2 :
     (∀ l1s, NeutralEctx l1s k1) →
     (∀ l2s, NeutralEctx l2s k2) →
@@ -2203,7 +2234,9 @@ Section to_iThy.
     Lemma to_iThy_le_bot (L : iLblThy Σ) :
       ⊢ to_iThy_le ⊥ L.
     Proof.
-    Admitted. 
+    Admitted.
+
+    
     
     Lemma to_iThy_le_trans (L M N : iLblThy Σ) :
       to_iThy_le L M -∗ to_iThy_le M N -∗ to_iThy_le L N.
@@ -2412,6 +2445,39 @@ Section basic_properties.
       + injection Heq as -> -> ->. by left.
       + right. by apply (IH _ l1s l2s X).
   Qed.
+
+  Lemma labels_l_to_iThyIfMono m (L : iLblThy Σ) :
+    labels_l (to_iThyIfMono m L) = labels_l L.
+  Proof.
+    induction L as [|((l1s, l2s), X) L IH]; [done|].
+    by rewrite //= !labels_l_cons IH.
+  Qed.
+
+  Lemma labels_r_to_iThyIfMono m (L : iLblThy Σ) :
+    labels_r (to_iThyIfMono m L) = labels_r L.
+  Proof.
+    induction L as [|((l1s, l2s), X) L IH]; [done|].
+    by rewrite //= !labels_r_cons IH.
+  Qed.
+
+  Lemma valid_to_iThyIfMono m (L : iLblThy Σ) :
+    valid L ⊣⊢ valid (to_iThyIfMono m L).
+  Proof.
+    rewrite /valid /valid_l /valid_r.
+    rewrite labels_l_to_iThyIfMono.
+    rewrite labels_r_to_iThyIfMono.
+    done.
+  Qed.
+
+  Lemma distinct_to_iThyIfMono m (L : iLblThy Σ) :
+    distinct L = distinct (to_iThyIfMono m L).
+  Proof.
+    rewrite /distinct /distinct_l /distinct_r.
+    rewrite labels_l_to_iThyIfMono.
+    rewrite labels_r_to_iThyIfMono.
+    done.
+  Qed.
+
 
   Lemma distinct_nil : distinct ([] : iLblThy Σ).
   Proof. by split; apply NoDup_nil_2. Qed.
@@ -2714,6 +2780,24 @@ Section blaze_rules.
     BREL e1 ≤ e2 <|L|> {{R}} -∗
     BREL e1 ≤ e2 <|L|> {{S}}.
   Proof. by iIntros "#HR Hbrel"; iApply (brel_wand with "Hbrel HR"). Qed.
+
+  Lemma brel_mono (m : mode) e1 e2 L M R S :
+    to_iThy_le L M -∗
+    BREL e1 ≤ e2 <|L|> {{R}} -∗
+    □?m (∀ v1 v2, R v1 v2 -∗ S v1 v2) -∗
+    BREL e1 ≤ e2 <|to_iThyIfMono m M|> {{S}}.
+  Proof.
+    iIntros "(#Hle & #Hvalid_le & #Hdistinct_le) Hbrel HS #Hvalid %Hdistinct".
+    iApply (rel_introduction_mono with "[Hbrel HS]"); last iApply iThy_le_to_iThy_to_iThyIfMono.
+    iApply (rel_mono with "[Hbrel]"); last by iApply "HS".
+    iSpecialize ("Hbrel" with "[] []").
+    { iApply "Hvalid_le". by iApply valid_to_iThyIfMono. }
+    { iApply "Hdistinct_le"; iPureIntro.
+      by rewrite -distinct_to_iThyIfMono in Hdistinct.
+    }
+    by iApply (rel_introduction_mono with "Hbrel"); last iApply "Hle".
+  Qed.
+
 
   Lemma brel_introduction l1s l2s X Q e1 e2 L R :
     ((l1s, l2s), X) ∈ L →
