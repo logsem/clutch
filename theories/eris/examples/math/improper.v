@@ -869,9 +869,11 @@ Proof.
   induction LF as [|f LF IH]; simpl; [lra|].
   rewrite Rmult_plus_distr_r. rewrite IH.
   rewrite map_app fsum_app. f_equal.
+  clear.
   induction LG as [|g LG IHLG]; simpl; first lra.
-  admit.
-Admitted.
+  rewrite Rmult_plus_distr_l.
+  rewrite IHLG. lra.
+Qed.
 
 
 (** IPCts version of comparison test *)
