@@ -709,8 +709,34 @@ Lemma RInt_gen_pos_strong {F M}
   (Hex_L : ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty)) :
   0 <= RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty).
 Proof.
-    (* I believe this reduces to RInt_gen_pos_ex by setting f to be 0 below M, so that the wrong direction integral is zero. *)
-Admitted.
+  rewrite (RInt_gen_ext_eq_Ioi (g:=λ x, if bool_decide (M<=x) then F x else 0)); try done; last (intros; case_bool_decide; lra).
+  apply RInt_gen_pos_ex.
+  - intros; case_bool_decide; naive_solver.
+  - intros.
+    destruct (decide (M<=b)).
+    + eapply ex_RInt_ext; last done.
+      unfold Rmin, Rmax.
+      intros. rewrite bool_decide_eq_true_2; first done.
+      case_match; lra.
+    + eapply (ex_RInt_ext (λ _, 0)); last apply ex_RInt_const.
+      unfold Rmin, Rmax.
+      intros. rewrite bool_decide_eq_false_2; first done.
+      case_match; lra.
+  - intros. 
+    destruct (decide (M<=b)).
+    + erewrite RInt_ext; first naive_solver.
+      unfold Rmin, Rmax.
+      intros. rewrite bool_decide_eq_true_2; first done.
+      case_match; lra.
+    + erewrite (RInt_ext _ (λ _, 0)).
+      * rewrite RInt_const. rewrite /scal/=/mult/=. lra.
+      * unfold Rmin, Rmax.
+        intros. rewrite bool_decide_eq_false_2; first done.
+        case_match; lra.
+  - eapply ex_RInt_gen_ext_eq_Ioi; last done.
+    intros.
+    case_bool_decide; lra.
+Qed. 
 
 (*
 Lemma ex_RInt_gen_Ici_scal {M G L} :
