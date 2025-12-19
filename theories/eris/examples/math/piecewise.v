@@ -856,7 +856,19 @@ Definition clamp (x : R) : R := Rmax 0 (Rmin 1 x).
 
 Lemma clamp_continuous {f : R → R} {x} :
   Continuity.continuous f x → Continuity.continuous (λ x0 : R_UniformSpace, clamp (f x0)) x.
-Proof. Admitted.
+Proof.
+  intros. 
+  apply Continuity.continuous_comp; first done.
+  intros ? [x' H1].
+  exists x'.
+  rewrite /clamp.
+  intros ? H2.
+  apply H1.
+  rewrite /ball/=/AbsRing_ball/abs/= in H2 *.
+  eapply Rle_lt_trans; last exact.
+  rewrite /minus/=/plus/=/opp/=/clamp/Rmin/Rmax/Rabs.
+  repeat case_match; lra.
+Qed.
 
 Lemma clamp_eq {x} : 0 <= x <= 1 → clamp x = x.
 Proof.
