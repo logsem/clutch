@@ -838,7 +838,15 @@ Qed.
 Lemma ex_RInt_gen_fsum {L : list (R → R)} {M : R} :
   Forall (fun f => ex_RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty)) L →
   ex_RInt_gen (fsum L) (at_point M) (Rbar_locally Rbar.p_infty).
-Proof. Admitted.
+Proof.
+  induction L as [|a ? IHL].
+  - simpl. intros.
+    eapply ex_RInt_gen_ext_eq_Ioi; [done|apply ex_RInt_gen_0].
+  - rewrite Forall_cons.
+    intros [H1 H2].
+    apply (ex_RInt_gen_ext_eq_Ioi (f:= λ x, a x + fsum L x)); first done.
+    apply ex_RInt_gen_plus; naive_solver.
+Qed. 
 
 Lemma IntervalFun_product_bounded {f g : R → R} {af bf ag bg : R} {M : R} :
   (∀ x, Ioo af bf x → 0 <= f x <= M) →
