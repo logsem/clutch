@@ -205,7 +205,7 @@ Section simple_bit_hash.
     rewrite length_map.
     rewrite plus_INR INR_1.
     iFrame.
-    iIntros "%x %HForall".
+    iIntros "%x [%Hx %HForall]".
     wp_pures.
     wp_apply (wp_set with "Hhash").
     iIntros "Hlist".
@@ -220,10 +220,7 @@ Section simple_bit_hash.
       + rewrite fmap_insert //.
       + iPureIntro.
         apply map_Forall_insert_2; last done.
-        split.
-        * lia.
-        * pose proof (fin_to_nat_lt x).
-          lia.
+        split; lia.
     - iPureIntro.
       apply coll_free_insert; auto.
       apply (Forall_map (λ p : nat * nat, p.2)) in HForall; auto.

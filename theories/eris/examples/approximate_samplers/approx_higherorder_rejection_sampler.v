@@ -213,7 +213,7 @@ Section higherorder_rand.
     rewrite /sampling_scheme_spec.
     iStartProof.
     iIntros (ε Φ) "!> Hcr HΦ"; wp_pures.
-    iApply (twp_couple_rand_adv_comp1 m' _ _ ε (rand_ε2 n' m' ε) _ with "Hcr").
+    iApply (twp_rand_exp_fin1 m' _ _ ε (rand_ε2 n' m' ε) _ with "Hcr").
     { intros; apply cond_nonneg. }
     { by apply sample_err_mean_higherorder. }
     iIntros (s) "Hcr".
@@ -275,7 +275,7 @@ Section higherorder_flip2.
     [[{ v, RET #v; ⌜(v = 0%nat) \/ (v = 1%nat) ⌝ ∗ ↯ (scale_flip ε1 εh εt #v) }]].
   Proof.
     iIntros (Φ) "Hcr HΦ".
-    iApply (twp_couple_rand_adv_comp1 1%nat  _ _ ε1 (ε2_flip1 ε1 εh εt) _ with "Hcr").
+    iApply (twp_rand_exp_fin1 1%nat  _ _ ε1 (ε2_flip1 ε1 εh εt) _ with "Hcr").
     - intros; apply cond_nonneg.
     - (* series mean *)
       rewrite SeriesC_finite_foldr /enum /fin_finite /fin_enum /ε2_flip1 /=.

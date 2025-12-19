@@ -234,7 +234,7 @@ Section uniform_random_walk.
   Theorem unif_rw_1d_AST  E :
      ⊢ WP unif_rw_1d @ E [{ v, ⌜ True ⌝ }].
   Proof.
-    iApply twp_rand_err_pos; auto.
+    iApply twp_err_pos; auto.
     iIntros (ε Hpos) "Herr".
     assert (0 <= ε) as Hge0 by lra.
     rewrite /unif_rw_1d.

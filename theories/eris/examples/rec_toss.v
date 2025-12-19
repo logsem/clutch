@@ -60,7 +60,7 @@ Section toss_rec.
     iIntros "!>".
     (* merge the error credits together *)
     iIntros (Φ) "[Herr Herr1] Hwp".
-    iApply (twp_rand_err_pos).
+    iApply (twp_err_pos).
     { done. }
     iIntros (ε) "%Hεge0 Hε".
     (* We want to use the toss_rec_spec_aux for induction *)
@@ -98,7 +98,7 @@ Section toss_rec.
     iIntros "Herr".
     wp_rec.
     set (ε2 := λ n : fin (S 2), if (fin_to_nat n <=? 0) then 0%R else (3 / 4)%R).
-    wp_apply (twp_couple_rand_adv_comp1 _ _ _ _ ε2 with "[$]").
+    wp_apply (twp_rand_exp_fin1 _ _ _ _ ε2 with "[$]").
     { intros; rewrite /ε2; case_match; lra. }
     { rewrite SeriesC_finite_foldr /ε2. simpl. lra. }
     iIntros (n) "Herr".

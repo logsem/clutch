@@ -18,7 +18,7 @@ Record mlift := MkMLift {
   mlift_dzero : ∀ A `{Countable A} (P : A → Prop), mlift_funct dzero P;
 }.
 
-Record ord_monoid {A : Type} (e : A) (op : A -> A -> A) (leq : A -> A -> Prop) := MkOrdMonoid {
+Record ord_monoid {A : Type} (e : A) (leq : A -> A -> Prop) (op : A -> A -> A)  := MkOrdMonoid {
    ord_refl : forall (a : A), leq a a;
    ord_antisym : forall (a b : A), leq a b -> leq b a -> a = b;
    ord_trans : forall (a b c : A), leq a b -> leq b c -> leq a c;
@@ -28,7 +28,7 @@ Record ord_monoid {A : Type} (e : A) (op : A -> A -> A) (leq : A -> A -> Prop) :
    op_mono : forall (a b c d : A), leq a c -> leq b d -> leq (op a b) (op c d);
 }.
 
-Record graded_mlift {M : Type} `{M_ord_mon : @ord_monoid M e op leq} := MkGradedMLift {
+Record graded_mlift {M : Type} `{M_ord_mon : @ord_monoid M e leq op} := MkGradedMLift {
     gmlift_funct :> forall {A : Type} `{Countable A}, M -> distr A -> (A → Prop) -> Prop;
     gmlift_unit : ∀ A `{Countable A} (P : A → Prop) (a : A), P a -> gmlift_funct e (dret a) P;
     gmlift_bind : ∀ A B `{Countable A, Countable B} (m1 m2 : M) (P : A → Prop) (Q : B -> Prop) (μ : distr A) (f : A -> distr B),

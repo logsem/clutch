@@ -312,6 +312,30 @@ Proof.
   by erewrite H.
 Qed.
 
+Lemma fin_to_nat_prop_nat_switch N (P : nat -> Prop) :
+  (forall (x : fin N), P (fin_to_nat x)) <-> (forall n, (n < N)%nat -> P n).
+Proof.
+  split.
+  - intros H n Hn.
+    rewrite -(fin_to_nat_to_fin _ _ Hn).
+    apply H.
+  - intros H x.
+    apply H.
+    apply fin_to_nat_lt.
+Qed.
+
+Lemma fin_to_nat_prop_fin_switch N (P : fin N -> Prop) :
+  (forall (x : fin N), P x) <-> (forall (n : nat) (Hlt : (n < N)%nat), P (nat_to_fin Hlt)).
+Proof.
+  split.
+  - intros H n Hn.
+    apply H.
+  - intros H x.
+    rewrite -(Fin2Restrict.n2f_f2n x).
+    apply H.
+Qed.
+
+
 End fin.
 
 Section decodings.

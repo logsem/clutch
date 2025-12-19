@@ -36,15 +36,13 @@ Section test.
   Proof.
     iIntros "Herr".
     rewrite /e'.
-    wp_apply (twp_rand_err_nat _ _ 1).
+    wp_apply (twp_rand_err_int _ _ 1).
     iSplitL.
     - iApply (ec_eq with "[$]").
       simpl. lra.
-    - iIntros (x) "%".
+    - iIntros (x) "[% %]".
       wp_pures.
-      pose proof (fin_to_nat_lt x).
-      destruct (fin_to_nat x); last lia.
-      case_bool_decide; last lia.
+      case_bool_decide; last by lia.
       by wp_pures.
   Qed.
 
@@ -76,9 +74,7 @@ Section test.
       simpl. lra.
     - iIntros (x) "%".
       wp_pures.
-      pose proof (fin_to_nat_lt x).
-      destruct (fin_to_nat x); first lia.
-      assert (n=0) as -> by lia.
+      assert (x=1) as -> by lia.
       case_bool_decide; first lia.
       wp_pures.
       wp_apply loop_lemma.
@@ -90,60 +86,40 @@ Section test.
   Proof.
     iIntros "Herr".
     rewrite /e.
-    set (ε2 := λ n : fin (S 3), if (fin_to_nat n <? 2) then 0%R else
-                      if (fin_to_nat n =? 2) then (1/2)%R else 1%R)
-        .
-        wp_apply (twp_couple_rand_adv_comp1 _ _ _ _ ε2 with "[$]").
-        { intros; rewrite /ε2.
-          case_match; [lra |].
-          case_match; lra.
-        }
-        { rewrite SeriesC_finite_foldr /ε2. simpl. lra. }
-        iIntros (n) "Herr".
-        wp_pures.
-        case_bool_decide; wp_pures; first done.
-        pose proof (fin_to_nat_lt n).
-        eassert (n=nat_to_fin (_:2<4) \/ n = nat_to_fin (_ :3<4)) as [-> | ->].
-        { Unshelve.
-          all: try lia.
-          simpl.
-          destruct (fin_to_nat n) as [|[|[|[|]]]] eqn:Hn; [lia|lia|left|right| lia].
-          - by repeat (inv_fin n; [done|intros n ?]).
-          - by repeat (inv_fin n; [done|intros n ?]).
-        }
+    set (ε2 := λ n : nat, if (n <? 2) then 0%R else
+                      if (n =? 2) then (1/2)%R else 1%R).
+    wp_apply (twp_rand_exp_nat _ _ _ ε2 with "[$]").
+    { intros; rewrite /ε2.
+      case_match; [lra |].
+      case_match; lra.
+    }
+    { rewrite SeriesC_nat_bounded_to_foldr /ε2. simpl. lra. }
+    iIntros (n) "[%Hn Herr]".
+    wp_pures.
+    case_bool_decide; wp_pures; first done.
+    assert (n = 2 \/ n = 3) as [-> | ->] by lia.
     - by wp_apply twp_e'_two.
     - by wp_apply twp_e'_three.
   Qed.
 
   Lemma wp_e E:
     ⊢ ↯ ((1/4)%R) -∗
-    WP e @ E {{φ}}.
+       WP e @ E {{φ}}.
   Proof.
     iIntros "Herr".
     rewrite /e.
-    set (ε2 := λ n : fin (S 3), if (fin_to_nat n <? 2) then 0%R else
-                      if (fin_to_nat n =? 2) then (1/2)%R else (1/2)%R)
-        .
-        wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ ε2 with "[$]").
+    set (ε2 := λ n : nat, if (n <? 2) then 0%R else (1/2)%R).
+    wp_apply (wp_rand_exp_nat _ _ _ ε2 with "[$]").
         {
           intros; rewrite /ε2.
           case_match; [lra |].
           real_solver.
         }
-        { rewrite SeriesC_finite_foldr. simpl.
-          rewrite /ε2 /=. lra. }
-        iIntros (n) "Herr".
+        { rewrite SeriesC_nat_bounded_to_foldr /ε2. simpl. lra. }
+        iIntros (n) "[%Hn Herr]".
         wp_pures.
         case_bool_decide; wp_pures; first done.
-        pose proof (fin_to_nat_lt n).
-        eassert (n=nat_to_fin (_:2<4) \/ n = nat_to_fin (_ :3<4)) as [-> | ->].
-        { Unshelve.
-          all: try lia.
-          simpl.
-          destruct (fin_to_nat n) as [|[|[|[|]]]] eqn:Hn; [lia|lia|left|right| lia].
-          - by repeat (inv_fin n; [done|intros n ?]).
-          - by repeat (inv_fin n; [done|intros n ?]).
-        }
+        assert (n = 2 \/ n = 3) as [-> | ->] by lia.
     - rewrite /ε2/=.
       by wp_apply wp_e'_two.
     - rewrite /ε2/=.
@@ -164,7 +140,7 @@ Section test.
     wp_pures.
     wp_bind (rand #3)%E.
     set (ε1 := λ n : fin 4, if fin_to_nat n =? 0 then (1/4)%R else 0%R).
-    wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ ε1 with "Herr").
+    wp_apply (wp_rand_exp_fin1 _ _ _ _ ε1 with "Herr").
     { intros; rewrite /ε1/=.
       real_solver.
     }
@@ -185,7 +161,7 @@ Section test.
     - replace (ε1 0%fin) with (1/4)%R; last first.
       { rewrite /ε1 /=. done. }
       set (ε2 := λ n : fin 4, if fin_to_nat n =? 0 then 1%R else 0%R).
-      wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ ε2 with "Herr").
+      wp_apply (wp_rand_exp_fin1 _ _ _ _ ε2 with "Herr").
       { intros. rewrite /ε2. real_solver. }
       { rewrite SeriesC_finite_foldr.
         rewrite /ε2 /=. lra. }
@@ -221,7 +197,7 @@ Proof.
   wp_bind (rand _)%E.
   wp_apply (wp_rand_err_nat _ _ m).
   iFrame.
-  iIntros.
+  iIntros (?) "[% %]".
   wp_pures.
   rewrite bool_decide_eq_false_2; auto; [ | intro; simplify_eq ].
   wp_if_false.
@@ -248,7 +224,7 @@ Proof.
   wp_pures.
   wp_apply (wp_rand_err_nat _ _ m).
   iFrame.
-  iIntros.
+  iIntros (?) "[% %]".
   wp_pures.
   rewrite bool_decide_eq_false_2; auto; [ | intro; simplify_eq ].
   wp_if_false.
@@ -276,7 +252,7 @@ Proof.
                 then 0%R
                 else if bool_decide (n = 1%fin) then 1%R
                                             else (1/2)).
-  unshelve wp_apply (wp_couple_rand_adv_comp _ _ _ _ f with "Herr").
+  unshelve wp_apply (wp_rand_exp_fin _ _ _ _ f with "Herr").
   {
     intros; rewrite /f.
     real_solver.
@@ -324,7 +300,7 @@ Proof.
                 then F(0%nat)
                 else if bool_decide (n = 1%fin) then F(1%nat)
                      else ((1/2 * F(0%nat) + 1/2 * F(1%nat)))).
-  unshelve wp_apply (wp_couple_rand_adv_comp _ _ _ _ f with "Herr").
+  unshelve wp_apply (wp_rand_exp_fin _ _ _ _ f with "Herr").
   {
     intros; rewrite /f.
     case_bool_decide; auto.

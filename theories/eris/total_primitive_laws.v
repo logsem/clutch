@@ -128,6 +128,19 @@ Proof.
 Qed.
 
 
+Lemma twp_rand_nat (N : nat) (z : Z) E s :
+  TCEq N (Z.to_nat z) →
+  [[{ True }]] rand #z @ s; E [[{ (n : nat), RET #n; ⌜n < S N⌝ }]].
+Proof.
+  iIntros (-> Φ) "_ HΦ".
+  iApply twp_rand; auto.
+  iIntros (n) "_".
+  iApply "HΦ".
+  iPureIntro.
+  by apply fin_to_nat_lt.
+Qed.
+
+
 (** Tapes  *)
 Lemma twp_alloc_tape N z E s :
   TCEq N (Z.to_nat z) →
