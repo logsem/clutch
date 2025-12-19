@@ -645,11 +645,31 @@ Proof.
   intros [f0 [L [HF [HLC Hf0cont]]]].
   exists (fun x => f0 (r + x)), (map (fun '(f, xa, xb) => (fun x => f (r + x), xa - r, xb - r)) L).
   split; last split.
-  - intros x. rewrite HF. f_equal. admit.
-  - admit.
-  - intros x. admit.
-Admitted.
-
+  - intros x. rewrite HF. f_equal.
+    clear.
+    induction L as [|? ? IHL]; first done.
+    simpl. rewrite IHL.
+    f_equal.
+    do 2 case_match. subst.
+    rewrite /IntervalFun_R.
+    unfold Icc, Iverson, Rmin, Rmax. repeat case_match; lra.
+  - clear -HLC.
+    induction L as [|? ? IHL]; first done.
+    apply Forall_cons.
+    split; last (apply IHL; by eapply Forall_inv_tail).
+    repeat case_match; subst.
+    unfold IntervalFun_continuity in *.
+    apply Forall_cons in HLC as [H1 H2].
+    intros. 
+    apply Continuity.continuous_comp; last apply H1.
+    + apply: Derive.ex_derive_continuous.
+      by auto_derive.
+    + unfold Icc, Rmin, Rmax in *. repeat case_match; lra.
+  - intros x. 
+    apply Continuity.continuous_comp; last done.
+    apply: Derive.ex_derive_continuous.
+    by auto_derive.
+Qed. 
 
 (** Finite sum of 2D functions *)
 Definition fsum2 {T U : Type} (L : list (T → U → R)) : T → U → R :=
