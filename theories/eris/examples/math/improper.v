@@ -848,12 +848,19 @@ Proof.
     apply ex_RInt_gen_plus; naive_solver.
 Qed. 
 
-Lemma IntervalFun_product_bounded {f g : R → R} {af bf ag bg : R} {M : R} :
-  (∀ x, Ioo af bf x → 0 <= f x <= M) →
-  (∀ x, Ioo ag bg x → 0 <= g x) →
-  (∀ x, 0 <= IntervalFun_R (f, af, bf) x * IntervalFun_R (g, ag, bg) x
-        <= M * IntervalFun_R (g, ag, bg) x).
-Proof. Admitted.
+(** THIS IS WRONG, but luckily no lemma needs this. 
+Note that the problem is that we do not have any inequalities on f and g on the boundary, e.g. af *)
+(* Lemma IntervalFun_product_bounded {f g : R → R} {af bf ag bg : R} {M : R} : *)
+(*   (∀ x, Ioo af bf x → 0 <= f x <= M) → *)
+(*   (∀ x, Ioo ag bg x → 0 <= g x) → *)
+(*   (∀ x, 0 <= IntervalFun_R (f, af, bf) x * IntervalFun_R (g, ag, bg) x *)
+(*         <= M * IntervalFun_R (g, ag, bg) x). *)
+(* Proof. *)
+(*   intros H1 H2 x. *)
+(*   split. *)
+(*   - unfold IntervalFun_R, Iverson, Icc, Ioo, Rmin, Rmax in *. *)
+(*     repeat case_match; try lra. *)
+    
 
 Lemma fsum_product {T : Type} (LF LG : list (T → R)) (x : T) :
   fsum LF x * fsum LG x =
