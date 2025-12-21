@@ -37,10 +37,9 @@ jobs:
             sudo chown -R rocq:rocq . # workaround a permission issue
           script: |
             startGroup Build
-              dune build -j 2
-            endGroup
-            startGroup HTML Build
-              make -f Makefile.ci -j2
+              dune build @doc -j 2
+              cp -r coqdocjs/extra/resources _build/default/theories/clutch.html/
+              cp -r _build/default/theories/clutch.html html
             endGroup
             startGroup Also deploy clutch POPL24
               cd html/
