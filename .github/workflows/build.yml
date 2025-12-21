@@ -32,6 +32,7 @@ jobs:
               opam update -y
               opam reinstall --forget-pending --yes
               opam install --confirm-level=unsafe-yes -j 2 $PACKAGE --deps-only
+              opam install odoc
             endGroup
           before_script: |
             sudo chown -R rocq:rocq . # workaround a permission issue
