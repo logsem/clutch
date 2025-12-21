@@ -182,7 +182,7 @@ Section coll_free_hashmap.
         iSplitL "Hl"; [done | ].
         iSplit.
         { iPureIntro.
-          rewrite insert_length //.
+          rewrite length_insert //.
         }
         iSplit.
         { iSplit; [ done |].
@@ -272,7 +272,7 @@ Section coll_free_hashmap.
         wp_pures.
         wp_bind (array_resize _ _ _).
         wp_apply (wp_array_resize _ l _ (<[k:=#n]> img) _ _ with "[Hl]"); auto; try lia.
-        { rewrite insert_length. lia. }
+        { rewrite length_insert. lia. }
         { by apply INR_lt. }
         { by apply INR_lt. }
         iIntros (l') "(Hl & Hl')".
@@ -301,7 +301,7 @@ Section coll_free_hashmap.
         iSplit.
         {
           iPureIntro.
-          rewrite app_length insert_length replicate_length.
+          rewrite length_app length_insert length_replicate.
           lia.
         }
         iSplit.
@@ -351,7 +351,7 @@ Section coll_free_hashmap.
         * intros i v. split; intros H.
           ** destruct (decide (k = i)) as [-> | Hneqki].
              *** rewrite lookup_app_l; last first.
-                 { rewrite insert_length. apply INR_lt. rewrite Hlen //. }
+                 { rewrite length_insert. apply INR_lt. rewrite Hlen //. }
                  rewrite list_lookup_insert; [ | apply INR_lt; rewrite Hlen // ].
                  destruct (decide (n = v)) as [-> | Hneqnv]; auto.
                  rewrite lookup_insert_ne in H; auto.
@@ -363,7 +363,7 @@ Section coll_free_hashmap.
                  **** rewrite lookup_insert_ne in H; auto.
                       rewrite lookup_app_l; last first.
                       {
-                       rewrite insert_length. apply INR_lt.
+                       rewrite length_insert. apply INR_lt.
                        rewrite /is_bounded_prf in Hprf_pre.
                        destruct Hprf_pre as (H3 & H4).
                        rewrite Hlen.
@@ -377,11 +377,11 @@ Section coll_free_hashmap.
              *** rewrite lookup_insert.
                  destruct (decide (k = i)) as [-> | Hneqki]; auto.
                  assert ((i < length img \/ length img <= i)%nat) as [?|?] by lia.
-                 **** rewrite lookup_app_l in H; [ | rewrite insert_length // ].
+                 **** rewrite lookup_app_l in H; [ | rewrite length_insert // ].
                       rewrite list_lookup_insert_ne in H; auto.
                       exfalso. apply Hkimg.
                       set_solver.
-                 **** rewrite lookup_app_r in H; [ | rewrite insert_length // ].
+                 **** rewrite lookup_app_r in H; [ | rewrite length_insert // ].
                       rewrite lookup_replicate in H.
                       destruct H as (?&?).
                       simplify_eq.
@@ -389,12 +389,12 @@ Section coll_free_hashmap.
              *** rewrite lookup_insert_ne; auto.
                  apply HimgN.
                  assert ((i < length img \/ length img <= i)%nat) as [?|?] by lia.
-                 **** rewrite lookup_app_l in H; [ | rewrite insert_length // ].
+                 **** rewrite lookup_app_l in H; [ | rewrite length_insert // ].
                       destruct (decide (k = i)) as [-> | Hneqki]; auto.
                       ***** rewrite list_lookup_insert in H; [inversion H; simplify_eq | ].
                       rewrite Hlen. apply INR_lt; auto.
                       ***** rewrite list_lookup_insert_ne in H; auto.
-                 **** rewrite lookup_app_r in H; [ | rewrite insert_length // ].
+                 **** rewrite lookup_app_r in H; [ | rewrite length_insert // ].
                       rewrite lookup_replicate in H.
                       destruct H as (?&?).
                       simplify_eq.
@@ -406,7 +406,7 @@ Section coll_free_hashmap.
              eapply elem_of_map_img.
              exists n. rewrite lookup_insert //.
           ** assert ((i < length img \/ length img <= i)%nat) as [?|?] by lia.
-             *** rewrite lookup_app_l; [ | rewrite insert_length // ].
+             *** rewrite lookup_app_l; [ | rewrite length_insert // ].
                  rewrite list_lookup_insert_ne; eauto.
                  apply HimgU; auto.
                  { apply lt_INR. lia. }
@@ -414,9 +414,9 @@ Section coll_free_hashmap.
                  apply Hiimg.
                  rewrite map_img_insert_notin; auto.
                  set_solver.
-             *** rewrite lookup_app_r; [ | rewrite insert_length // ].
+             *** rewrite lookup_app_r; [ | rewrite length_insert // ].
                  rewrite lookup_replicate; split; auto.
-                 rewrite insert_length -Hlen.
+                 rewrite length_insert -Hlen.
                  apply INR_lt in Hi.
                  lia.
         * rewrite dom_insert_L.

@@ -1,4 +1,4 @@
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 
 From iris.base_logic.lib Require Export fancy_updates own.
 From iris.proofmode Require Import base tactics classes.
@@ -50,7 +50,7 @@ Section spec_auth.
     iDestruct (spec_auth_agree with "Ha Hf") as %->.
     iMod (own_update_2 with "Ha Hf") as "[Ha Hf]".
     { eapply auth_update .
-      eapply (@option_local_update _ _ _ (Excl a'' : exclR (leibnizO (mstate δ)))).
+      eapply (option_local_update _ _ (Excl a'' : exclR (leibnizO (mstate δ)))). 
       by eapply exclusive_local_update. }
     by iFrame.
   Qed.

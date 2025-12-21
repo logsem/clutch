@@ -1,14 +1,15 @@
 (** Expectations *)
-
-From mathcomp Require Import all_ssreflect all_algebra finmap.
-From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
+#[warning="-notation-incompatible-prefix -hiding-delimiting-key"]
+  From mathcomp Require Import all_boot all_algebra finmap.
+#[warning="-notation-incompatible-prefix"]
+From mathcomp Require Import mathcomp_extra boolp classical_sets functions reals interval_inference.
 From mathcomp Require Import cardinality fsbigop.
-From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
+From mathcomp.analysis Require Import ereal normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
 From clutch.prob.monad Require Export types.
 
-Import Coq.Logic.FunctionalExtensionality.
+From Stdlib.Logic Require Import FunctionalExtensionality.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -32,8 +33,9 @@ Section giryM_integrate_laws.
     have Setoid1 (d1 d2: measure_display) (X : measurableType d1) (Y : measurableType d2) (S : set X) (f1 f2 : X -> Y) (Hfg : f1 = f2) :
       measurable_fun S f1 =  measurable_fun S f2.
     { by rewrite Hfg. }
-    have Setoid2 S1 S2 (HSS : S1 = S2): topology.lim S1 = topology.lim S2 by rewrite HSS.
-    have Setoid3 f1 f2 S (Hff : f1 = f2): topology.fmap f1 S = topology.fmap f2 S by rewrite Hff.
+
+    have Setoid2 S1 S2 (HSS : S1 = S2): filter.lim S1 = filter.lim S2 by rewrite HSS.
+    have Setoid3 f1 f2 S (Hff : f1 = f2): filter.fmap f1 S = filter.fmap f2 S by rewrite Hff.
 
     (* Search (topology.lim _ _ = topology.lim _ _). *)
 

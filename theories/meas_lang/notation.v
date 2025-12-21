@@ -1,4 +1,4 @@
-From Coq.Strings Require Import String.
+From Stdlib.Strings Require Import String.
 From clutch.common Require Import locations.
 From clutch.meas_lang Require Export lang.
 From stdpp Require Import binders.

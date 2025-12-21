@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap fin_sets.
 From clutch.prelude Require Import stdpp_ext NNRbar fin uniform_list.
 From clutch.prob Require Import distribution couplings couplings_app.
@@ -31,6 +31,7 @@ Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
   | If e0 e1 e2 | Case e0 e1 e2 =>
      is_closed_expr X e0 && is_closed_expr X e1 && is_closed_expr X e2
   | AllocTape e => is_closed_expr X e
+  | Laplace e1 e2 e3 => is_closed_expr X e1 && is_closed_expr X e2 && is_closed_expr X e3
   | Tick e => is_closed_expr X e
   end
 with is_closed_val (v : val) : bool :=
@@ -62,6 +63,7 @@ Fixpoint subst_map (vs : gmap string val) (e : expr)  : expr :=
   | Store e1 e2 => Store (subst_map vs e1) (subst_map vs e2)
   | AllocTape e => AllocTape (subst_map vs e)
   | Rand e1 e2 => Rand (subst_map vs e1) (subst_map vs e2)
+  | Laplace e1 e2 e3 => Laplace (subst_map vs e1) (subst_map vs e2) (subst_map vs e3)
   | Tick e => Tick (subst_map vs e)
   end.
 
@@ -158,7 +160,7 @@ Proof.
     apply map_Forall_insert_2; auto.
     apply lookup_union_Some in Hix; last first.
     { eapply heap_array_map_disjoint;
-        rewrite replicate_length Z2Nat.id; auto with lia. }
+        rewrite length_replicate Z2Nat.id; auto with lia. }
     destruct Hix as [(?&?&?&[-> Hlt%inj_lt]%lookup_replicate_1)%heap_array_lookup|
                       [j Hj]%elem_of_map_to_list%elem_of_list_lookup_1].
     + simplify_eq/=. rewrite !Z2Nat.id in Hlt; eauto with lia.
@@ -1040,7 +1042,7 @@ Proof.
       rewrite state_upd_tapes_twice in H2.
       apply state_upd_tapes_same in H2. rewrite -app_assoc in H2. simplify_eq.
       rewrite take_app_length'; first done.
-      rewrite app_length in Hlen. simpl in *; lia.
+      rewrite length_app in Hlen. simpl in *; lia.
   - (* σ' is not reachable, i.e. both sides are zero *)
     rewrite SeriesC_0; last first.
     { intros x.
@@ -1080,7 +1082,7 @@ Proof.
     apply K. rewrite dmap_pos in H2. destruct H2 as [x[-> H2]]. subst.
     setoid_rewrite state_upd_tapes_twice.
     rewrite -app_assoc.
-    exists (v++[x]); rewrite app_length; simpl; split; first lia. done.
+    exists (v++[x]); rewrite length_app; simpl; split; first lia. done.
     Unshelve.
     simpl.
     intros. case_bool_decide; last real_solver.
@@ -1144,12 +1146,12 @@ Proof.
           + intros v1 v2 Hf.
             apply vec_to_list_inj2.
             apply Hinj; last done.
-            * by rewrite vec_to_list_length.
-            * by rewrite vec_to_list_length.
+            * by rewrite length_vec_to_list.
+            * by rewrite length_vec_to_list.
         - pose proof K a as [v K'].
           subst.
           exists (vec_to_list v). split; last done.
-          apply vec_to_list_length.
+          apply length_vec_to_list.
       }
       rewrite (SeriesC_subset (λ x', x' = x)).
       * rewrite SeriesC_singleton_dependent. rewrite dmap_unfold_pmf.
@@ -1247,7 +1249,7 @@ Proof.
                                   else 0)).
         -- erewrite (SeriesC_ext _ (λ x : fin (S N), / S M * if bool_decide (x∈f<$> enum (fin (S M))) then 1 else 0)).
            { rewrite SeriesC_scal_l. rewrite SeriesC_list_1.
-             - rewrite fmap_length. rewrite length_enum_fin. rewrite Rinv_l; first lra.
+             - rewrite length_fmap. rewrite length_enum_fin. rewrite Rinv_l; first lra.
                replace 0 with (INR 0) by done.
                move => /INR_eq. lia.
              - apply NoDup_fmap_2; try done.
@@ -1467,7 +1469,13 @@ Inductive prob_head_step_pred : expr -> state -> Prop :=
   prob_head_step_pred (rand(#lbl:α) #z) σ
 | RandNoTapePSP (N : nat) σ z :
   N = Z.to_nat z →
-  prob_head_step_pred (rand #z) σ.
+  prob_head_step_pred (rand #z) σ
+| LaplacePSP (num den loc : Z) σ :
+  (0 < IZR num / IZR den) →
+  prob_head_step_pred (Laplace #num #den #loc) σ
+| LaplacePSP' (num den loc : Z) σ :
+  (not (0 < IZR num / IZR den)) →
+  prob_head_step_pred (Laplace #num #den #loc) σ.
 
 Definition head_step_pred e1 σ1 :=
   det_head_step_pred e1 σ1 ∨ prob_head_step_pred e1 σ1.
@@ -1535,7 +1543,7 @@ Proof.
   split.
   - intros [Hdet | Hdet];
       inversion Hdet; simplify_eq; do 2 eexists; try (by econstructor).
-    Unshelve. all : apply 0%fin.
+    Unshelve. 4: apply 0%Z. all: apply 0%fin.
   - intros (?&?& H). inversion H; simplify_eq;
       (try by (left; econstructor));
       (try by (right; econstructor)).
@@ -1600,11 +1608,12 @@ Proof.
       by apply not_elem_of_dom_2 in H5.
     + rewrite lookup_insert_ne // in H6.
       rewrite H5 in H6. done.
+  - rewrite Hz. apply dmap_dzero.
 Qed.
 
 Lemma det_head_step_upd_tapes N e1 σ1 e2 σ2 α z zs :
   det_head_step_rel e1 σ1 e2 σ2 →
-  tapes σ1 !! α = Some (N; zs) →
+  tapes σ1 !! α = Some ((N; zs) : tape) →
   det_head_step_rel
     e1 (state_upd_tapes <[α := (N; zs ++ [z])]> σ1)
     e2 (state_upd_tapes <[α := (N; zs ++ [z])]> σ2).
@@ -1615,7 +1624,7 @@ Proof.
 Qed.
 
 Lemma upd_tape_some σ α N n ns :
-  tapes σ !! α = Some (N; ns) →
+  tapes σ !! α = Some ((N; ns) : tape) →
   tapes (state_upd_tapes <[α:= (N; ns ++ [n])]> σ) !! α = Some (N; ns ++ [n]).
 Proof.
   intros H. rewrite /state_upd_tapes /=. rewrite lookup_insert //.
@@ -1688,7 +1697,8 @@ Proof.
 Qed.
 
 Lemma prim_step_empty_tape σ α (z:Z) K N :
-  (tapes σ) !! α = Some (N; []) -> prim_step (fill K (rand(#lbl:α) #z)) σ = prim_step (fill K (rand #z)) σ.
+  (tapes σ) !! α = Some ((N; []) : tape) ->
+  prim_step (fill K (rand(#lbl:α) #z)) σ = prim_step (fill K (rand #z)) σ.
 Proof.
   intros H.
   rewrite !fill_dmap; [|done|done].

@@ -245,9 +245,10 @@ Qed.
     rename k' into k.
     assert (k<=n) as Hk.
     { rewrite <- H2.
-      erewrite <- size_set_seq.
-      apply subseteq_size.
-      intro. apply H3.
+      etrans. 
+      - apply subseteq_size.
+        intro. apply H3.
+      - rewrite size_set_seq //.
     }
     pose (f' := λ x: fin n,
             let x' := fin_to_nat x in
@@ -417,8 +418,6 @@ Qed.
       eapply elem_of_list_lookup_2. done.
     - apply finite_inj_surj; try done.
     - done. 
-      Unshelve.
-      all: apply _.
 Qed.
 
     
@@ -764,9 +763,8 @@ Qed.
     rename k' into k.
     assert (k<=n) as Hk.
     { rewrite <- H2.
-      erewrite <- size_set_seq.
-      apply subseteq_size.
-      intro. apply H3.
+      etrans; [apply subseteq_size => ?; apply H3|].
+      rewrite size_set_seq //.
     }
     pose (f' := λ x: fin n,
             let x' := fin_to_nat x in
@@ -887,7 +885,6 @@ Qed.
            apply fin_to_nat_inj. lia. 
       + split; try done.
         apply finite_inj_surj; try done.
-        Unshelve. all: apply _.
   Qed.
 
   Lemma spec_refines_coupon_collection_helper n lm (k:Z) cnt cnt':

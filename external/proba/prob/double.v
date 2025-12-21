@@ -9,7 +9,7 @@
 From discprob.basic Require Import base order bigop_ext nify Series_Ext.
 From discprob.prob Require Import countable rearrange.
 From stdpp Require tactics.
-Require Import Reals Lia Psatz.
+From Stdlib Require Import Reals Lia Psatz.
 #[warning="-hiding-delimiting-key,-overwriting-delimiting-key"] From mathcomp Require Import ssrnat.
 From mathcomp Require Import ssreflect ssrbool ssrfun eqtype seq bigop fintype choice.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy Markov.
@@ -24,7 +24,7 @@ Lemma double_summable_mono_cond a:
 Proof.
   intros (r&N&Hcond).
   exists r => n.
-  destruct (le_ge_dec N n) as [Hle|Hge].
+  destruct (Compare_dec.le_ge_dec N n) as [Hle|Hge].
   - apply Hcond. lia.
   - transitivity (sum_n (λ j, sum_n (λ k, Rabs (a (j, k))) N) N).
     { clear Hcond.
@@ -362,7 +362,7 @@ Proof.
   rewrite -(@big_mkord _ 0 Rplus (S (max n N)) (λ i, (leq (fst (σ i)) l) && (leq (snd (σ i)) m))
              (a \o σ)).
   assert (S N <= S (max n N))%nat as Hsplit by (nify; lia).
-  rewrite (big_cat_nat _ _ _ _ Hsplit) //=.
+  rewrite (big_cat_nat _  Hsplit) //=.
   rewrite big_mkord.
   assert (∀ a b, a + b - a = b) as -> by (intros; field).
   done.

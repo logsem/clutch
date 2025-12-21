@@ -308,9 +308,9 @@ Section PRP.
     }
     move => /nil_length_inv. intros ->. rewrite app_nil_r in Hp.
     apply Permutation_length in Hp.
-    rewrite !fmap_length seq_length in Hp.
+    rewrite !length_fmap length_seq in Hp.
     cut (length (map_to_list m) <= val_size); first lia.
-    clear Hp. rewrite map_to_list_length.
+    clear Hp. rewrite length_map_to_list.
     replace (val_size) with (size (gset_to_gmap (0)%Z (set_seq 0 (S val_size) ∖ {[n]}))); last first.
     { rewrite -size_dom dom_gset_to_gmap size_difference.
       - rewrite size_set_seq size_singleton. lia.

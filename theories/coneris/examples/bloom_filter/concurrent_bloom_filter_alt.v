@@ -235,7 +235,7 @@ Section conc_bloom_filter.
       iPoseProof (big_sepS_list_to_set with "Hks") as "Hks"; auto.
       iApply "HΞ".
       iSplitL; auto.
-      rewrite /Ψ cons_length.
+      rewrite /Ψ length_cons.
       assert (num_hash ≤ length l \/ num_hash > length l) as [Haux|?] by lia.
       {
         iModIntro.
@@ -273,7 +273,7 @@ Section conc_bloom_filter.
    - rewrite /Ψ.
      iRight.
      iExists ∅.
-     rewrite size_empty nil_length Nat.sub_0_r.
+     rewrite size_empty length_nil Nat.sub_0_r.
      iFrame.
      iSplit; [iPureIntro; set_solver |].
      done.
@@ -377,7 +377,7 @@ Section conc_bloom_filter.
         iFrame.
         iPureIntro.
         repeat split.
-        - rewrite insert_length //.
+        - rewrite length_insert //.
         - intros i Hi.
           destruct (decide (i = v)) as [-> | Hneq]; auto.
           + rewrite list_lookup_insert; [auto|lia].

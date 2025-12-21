@@ -1,0 +1,24 @@
+(include_subdirs qualified)
+(coq.theory
+ (name clutch)
+ (package rocq-clutch)
+ (theories
+   ; local
+   discprob
+
+   ; external
+   Stdlib
+   Ltac2 iris stdpp
+   
+   Coquelicot
+   Autosubst
+   HB
+   mathcomp
+   mathcomp.ssreflect mathcomp.solvable mathcomp.analysis)
+ (flags
+   -w -notation-overridden
+   -w -redundant-canonical-projection
+   -w -convert_concl_no_check
+   -w -undeclared-scope
+   -w -ambiguous-paths
+   -w -ssr-search-moved))

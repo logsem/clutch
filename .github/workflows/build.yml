@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         image:
-          - mathcomp/mathcomp:2.2.0-coq-8.19
+          - mathcomp/mathcomp:2.5.0-rocq-prover-9.0
       max-parallel: 4
       # don't cancel all in-progress jobs if one matrix job fails:
       fail-fast: false
@@ -23,24 +23,21 @@ jobs:
       - uses: actions/checkout@v3
       - uses: coq-community/docker-coq-action@v1
         with:
-          opam_file: 'clutch.opam'
+          opam_file: 'rocq-clutch.opam'
           custom_image: ${{ matrix.image }}
           install : |
             startGroup "Install dependencies"
               sudo apt-get update -y -q
-              opam repo remove coq-released
-              opam repo add rocq-released https://rocq-prover.org/opam/released
-              opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
               opam pin add -n -y -k path $PACKAGE $WORKDIR
               opam update -y
               opam reinstall --forget-pending --yes
               opam install --confirm-level=unsafe-yes -j 2 $PACKAGE --deps-only
             endGroup
           before_script: |
-            sudo chown -R coq:coq . # workaround a permission issue
+            sudo chown -R rocq:rocq . # workaround a permission issue
           script: |
             startGroup Build
-              make -j2
+              dune build -j 2
             endGroup
             startGroup HTML Build
               make -f Makefile.ci -j2
@@ -54,7 +51,7 @@ jobs:
               cd ..
             endGroup
           uninstall: |
-            make clean
+            dune clean
       - name: Revert permissions
         # to avoid a warning at cleanup time
         if: ${{ always() }}

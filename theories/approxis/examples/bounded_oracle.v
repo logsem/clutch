@@ -132,3 +132,29 @@ End bounded_oracle.
         Check λ A F G : expr, A ∘ (G ∘ F^q)^q = (A ∘ G^q) ∘ F^q . *)
 
    End link_test. *)
+
+Section bounded_oracle_general_test.
+  Local Opaque INR.
+
+  (** Bounded Oracles. [q_calls test Q f x] calls [f x] for the first [Q] invocations
+      if `x` pass the `test`, and returns `None` otherwise. *)
+
+  Definition q_calls_general_test : val :=
+    λ:"test" "Q" "f",
+      let: "counter" := ref #0 in
+      λ:"x", if: (BinOp AndOp (! "counter" < "Q") ("test" "x"))
+             then ("counter" <- !"counter" + #1 ;; SOME ("f" "x"))
+             else NONEV.
+
+  Definition q_calls_general_test_eager : val :=
+    λ:"test" "Q" "f",
+      let: "counter" := ref #0 in
+      λ:"x", let: "res" := if: "test" "x"
+              then SOME ("f" "x")
+              else NONEV
+             in
+             if: (! "counter" < "Q")
+             then ("counter" <- !"counter" + #1 ;; "res")
+             else NONEV.
+
+End bounded_oracle_general_test.

@@ -8,6 +8,7 @@
       We also fix the tape bound
  *)
 From iris.algebra Require Import excl_auth gmap.
+#[warning="-notation-incompatible-prefix"]
 From clutch.coneris Require Import coneris abstract_tape.
 
 Set Default Proof Using "Type*".

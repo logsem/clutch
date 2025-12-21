@@ -9,7 +9,7 @@ From clutch.approxis Require Import ectx_lifting app_weakestpre model.
 From clutch.approxis Require Export proofmode primitive_laws coupling_rules.
 From clutch.base_logic Require Export spec_update.
 From clutch.pure_complete Require Import pure tachis_ert prob_additional.
-From Coq.Logic Require Import ClassicalEpsilon.
+From Stdlib.Logic Require Import ClassicalEpsilon.
 Local Open Scope R.
 
 Inductive SamplesOneTape : loc -> expr -> Prop :=
@@ -33,6 +33,8 @@ Inductive SamplesOneTape : loc -> expr -> Prop :=
     SamplesOneTape t (Case e2 e3 e4)
   | SamplesOneTapeRec f x t e2 (H : SamplesOneTape t e2) :
     SamplesOneTape t (Rec f x e2)
+  (* | SamplesOneTapeLaplace  t e2 e3 e4 (H1 : SamplesOneTape t e2) (H2 : SamplesOneTape t e3) (H3 : SamplesOneTape t e4) :
+       SamplesOneTape t (Laplace e2 e3 e4) *)
   | SamplesOneTapeApp t e2 e3 (H : SamplesOneTape t e2) (H1 : SamplesOneTape t e3) :
     SamplesOneTape t (App e2 e3)
   | SamplesOneTapeTick t e2 (H : SamplesOneTape t e2) :
@@ -70,6 +72,9 @@ Inductive SamplesOneTapeItem (t : loc) : ectx_item -> Prop :=
   | SamplesOneTapeItemInjLCtx : SamplesOneTapeItem t InjLCtx
   | SamplesOneTapeItemInjRCtx : SamplesOneTapeItem t InjRCtx
   | SamplesOneTapeItemCaseCtx e1 e2 : SamplesOneTape t e1 -> SamplesOneTape t e2 -> SamplesOneTapeItem t (CaseCtx e1 e2)
+  (* | SamplesOneTapeLaplaceNumCtx v1 v2 : SamplesOneTapeV t v1 -> SamplesOneTapeV t v2 -> SamplesOneTapeItem t (LaplaceNumCtx v1 v2)
+     | SamplesOneTapeLaplaceDenCtx e1 v3 : SamplesOneTape t e1 -> SamplesOneTapeV t v3 -> SamplesOneTapeItem t (LaplaceDenCtx e1 v3) *)
+  (* | SamplesOneTapeLaplaceLocCtx  *)
   | SamplesOneTapeItemTickCtx : SamplesOneTapeItem t TickCtx.
 
 Lemma SamplesOneTape_fill_item Ki e l :
@@ -135,7 +140,7 @@ Proof.
   {
     eapply IHn.
     - apply Hde2.
-    - rewrite app_length Nat.add_1_r in Heqn. by inversion Heqn.
+    - rewrite length_app Nat.add_1_r in Heqn. by inversion Heqn.
     - simpl in *.
       eapply SamplesOneTape_head; eauto.
   }
@@ -172,7 +177,7 @@ Proof.
   inversion Hde. subst.
   assert (n = length l1).
   { 
-    rewrite app_length in Heqn. 
+    rewrite length_app in Heqn. 
     rewrite Nat.add_1_r in Heqn. auto.
   }
   apply (IHn _ _ _ Hde2 H0).

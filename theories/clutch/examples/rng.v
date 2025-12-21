@@ -43,7 +43,7 @@ Section rng.
 
   Definition init_hash_rng : val :=
     λ: "_",
-      let: "f" := init_hash #MAX in
+      let: "f" := init_hash' #MAX in
       let: "c" := ref #0 in
       (λ: "_",
         let: "n" := !"c" in
@@ -64,21 +64,21 @@ Section rng.
   Definition hash_rng (n: nat) (g: val) : iProp Σ :=
     ∃ h c m, ⌜ g = hash_rng_specialized h c ⌝ ∗
              ⌜ ∀ x, n <= x → x ∉ dom m ⌝ ∗
-             hashfun MAX h m ∗
+             hashfun' MAX h m ∗
              c ↦ #n.
 
   Definition shash_rng (n: nat) (g: val) : iProp Σ :=
     ∃ h c m, ⌜ g = hash_rng_specialized h c ⌝ ∗
              ⌜ ∀ x, n <= x → x ∉ dom m ⌝ ∗
-             shashfun MAX h m ∗
+             shashfun' MAX h m ∗
              c ↦ₛ #n.
 
-  Existing Instances timeless_hashfun.
+  Existing Instances timeless_hashfun'.
   Lemma timeless_hash_rng n g :
     Timeless (hash_rng n g).
   Proof. apply _. Qed.
 
-  Existing Instances timeless_shashfun.
+  Existing Instances timeless_shashfun'.
   Lemma timeless_shash_rng n g :
     Timeless (shash_rng n g).
   Proof. apply _. Qed.
@@ -95,7 +95,7 @@ Section rng.
   Proof.
     iIntros (Φ) "_ HΦ".
     rewrite /init_hash_rng. wp_pures.
-    wp_apply (wp_init_hash with "[//]").
+    wp_apply (wp_init_hash' with "[//]").
     iIntros (f) "Hhash".
     wp_pures.
 
@@ -113,8 +113,8 @@ Section rng.
     iIntros "HK".
     rewrite /init_hash_rng.
     tp_pures.
-    tp_bind (init_hash _)%E.
-    iMod (spec_init_hash with "[$HK]") as (f) "(HK&Hhash) /=".
+    tp_bind (init_hash' _)%E.
+    iMod (spec_init_hash' with "[$HK]") as (f) "(HK&Hhash) /=".
     tp_pures.
     tp_alloc as c "Hc".
     tp_pures.
@@ -138,7 +138,7 @@ Section rng.
     { apply not_elem_of_dom. auto. }
     iApply (impl_couplable_elim with "[$Hcoup $HK Hc HΦ]").
     iIntros (b) "Hhash HK".
-    wp_apply (wp_hashfun_prev with "[$]").
+    wp_apply (wp_hashfun_prev' with "[$]").
     { rewrite lookup_insert //. }
     iIntros "Hhash". wp_pures.
     wp_store. iModIntro. iApply "HΦ".
@@ -183,7 +183,7 @@ Section rng.
     iApply (spec_couplable_wand with "Hhash").
     iIntros (b) "Hhash".
     tp_bind (h _)%E.
-    iMod (spec_hashfun_prev with "Hhash HK") as "(HK&Hhash) /=".
+    iMod (spec_hashfun_prev' with "Hhash HK") as "(HK&Hhash) /=".
     { rewrite lookup_insert //. }
     tp_pures.
     tp_store.

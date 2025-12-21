@@ -1,5 +1,5 @@
-From Coq Require Import Reals Psatz.
-From Coq.ssr Require Import ssreflect ssrfun.
+From Stdlib Require Import Reals Psatz.
+From Stdlib.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Lim_seq Rbar.
 From stdpp Require Export countable.
 From clutch.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
@@ -1379,7 +1379,7 @@ Proof.
   eapply ARcoupl_dunif_no_coll_r.
 Qed.
 
-Lemma UB_to_ARcoupl `{Countable A, Countable B} (μ1 : distr A) (P : A -> Prop) (ε : R) :
+Lemma UB_to_ARcoupl `{Countable A} (μ1 : distr A) (P : A -> Prop) (ε : R) :
   pgl μ1 P ε ->
   ARcoupl μ1 (dret tt) (λ a _, P a) ε.
 Proof.

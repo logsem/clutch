@@ -1,7 +1,7 @@
 # Clutch Project
 
-This repository contains the formal development of multiple higher-order probabilistic separation logics for proving properties of higher-order probabilistic programs.
-All of the logics are built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Coq proof assistant](https://coq.inria.fr/).
+This repository contains the formal development of a number of higher-order probabilistic separation logics for proving properties of higher-order probabilistic programs.
+All of the logics are built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Roc prover](https://rocq-prover.org/).
 
 ## Publications
 
@@ -33,12 +33,13 @@ In POPL 2024: ACM SIGPLAN Symposium on Principles of Programming Languages
 
 The project is known to compile with
 
-- [Coq](https://coq.inria.fr/) 8.19.1
-- [std++](https://gitlab.mpi-sws.org/iris/stdpp) 1.10.0
-- [Iris](https://gitlab.mpi-sws.org/iris/iris/) 4.2.0
-- [Coquelicot](https://gitlab.inria.fr/coquelicot/coquelicot/) 3.4.1
-- [Autosubst](https://github.com/coq-community/autosubst) 1.8
-- [Mathcomp-solvable](https://github.com/math-comp/math-comp) 2.2.0
+- [Rocq](https://rocq-prover.org/) 9.0
+- [std++](https://gitlab.mpi-sws.org/iris/stdpp) 1.12.0
+- [Iris](https://gitlab.mpi-sws.org/iris/iris/) 4.4.0
+- [Coquelicot](https://gitlab.inria.fr/coquelicot/coquelicot/) 3.4.4
+- [Autosubst](https://github.com/coq-community/autosubst) 1.9
+- [Mathcomp](https://github.com/math-comp/math-comp) 2.5.0
+- [Mathcomp Analysis](https://github.com/math-comp/analysis) 1.14
 
 The recommended way to install the dependencies is through [opam](https://opam.ocaml.org/doc/Install.html).
 
@@ -50,8 +51,7 @@ opam switch link clutch .
 ```
 3. Add the Coq and Iris `opam` repositories.
 ```
-opam repo add rocq-released https://coq.inria.fr/opam/released
-opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
+opam repo add rocq-released https://rocq-prover.org/opam/released
 opam update
 ```
 4. Install the right version of the dependencies as specified in the `clutch.opam` file.

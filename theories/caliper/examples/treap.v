@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From clutch.prob_lang Require Import lang notation.
 From clutch.caliper Require Import primitive_laws proofmode adequacy.
 From clutch.caliper.examples Require Import lazy_real.

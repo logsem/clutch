@@ -1,5 +1,5 @@
 From mathcomp Require Import ssreflect ssrbool ssrnat div eqtype.
-Require Import Lia.
+From Stdlib Require Import Lia.
 
 Ltac nify :=
     repeat match goal with

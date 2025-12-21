@@ -2,6 +2,7 @@ From clutch.eris Require Export eris.
 Import Hierarchy.
 
 From mathcomp Require ssrnat.
+#[warnings="-notation-incompatible-prefix"]
 From mathcomp Require Import div prime zmodp finset fintype ssrbool fingroup.fingroup solvable.cyclic.
 
 
@@ -196,7 +197,7 @@ Section miller_rabin_code.
         rewrite Z2Nat.id; last by lia.
         rewrite Hi2.
         f_equal. lia.
-      * rewrite seq_length. lia.
+      * rewrite length_seq. lia.
   Qed.
 
 

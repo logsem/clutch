@@ -356,7 +356,7 @@ Section bloom_filter.
     iIntros "Hbfp".
     iDestruct "Hbfp" as (hfuns ms_new ms_old arr idxs)
                           "(Hl & Herr & %Hhfuns & %Hlenhs & Hhs_new & Hhs_old & %HlenA & %HsizeIdxs & Ha & %Hms_old & %Hms_new & %Hidxs_old & %Hidxs_new & %Htrue & %Hbd & %Hfalse)".
-    rewrite nil_length -plus_n_O.
+    rewrite length_nil -plus_n_O.
     rewrite /is_bloom_filter.
     iExists hfuns, hs, ms_new, a, arr, idxs.
     iFrame.
@@ -539,7 +539,7 @@ Section bloom_filter.
           repeat split.
           ** rewrite -app_assoc //.
           ** rewrite -app_assoc //.
-          ** rewrite insert_length //.
+          ** rewrite length_insert //.
           ** assert (idxs' ⊆ (set_seq 0 (filter_size + 1) ∖ {[v]} )) as H3.
              {
                apply elem_of_subseteq.
@@ -620,7 +620,7 @@ Section bloom_filter.
           repeat split.
           ** rewrite -app_assoc //.
           ** rewrite -app_assoc //.
-          ** rewrite insert_length //.
+          ** rewrite length_insert //.
           ** auto.
           ** auto.
           ** apply Forall_app_2; auto.

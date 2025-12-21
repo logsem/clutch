@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From stdpp Require Import fin_maps.
 From iris.proofmode Require Import environments proofmode.
 From clutch.prob Require Import distribution.
@@ -35,6 +35,10 @@ Ltac reshape_expr e tac :=
   | AllocTape ?e => go (AllocTapeCtx :: K) e
   | Rand ?e (Val ?v) => go (RandLCtx v :: K) e
   | Rand ?e1 ?e2 => go (RandRCtx e1 :: K) e2
+  | Laplace (Val _) (Val _) (Val _) => fail
+  | Laplace ?e1 (Val ?v2) (Val ?v3) => go (LaplaceNumCtx v2 v3 :: K) e1
+  | Laplace ?e1 ?e2 (Val ?v3) => go (LaplaceDenCtx e1 v3 :: K) e2
+  | Laplace ?e1 ?e2 ?e3 => go (LaplaceLocCtx e1 e2 :: K) e3
   | Tick ?e => go (TickCtx :: K) e
   end in go (@nil ectx_item) e.
 

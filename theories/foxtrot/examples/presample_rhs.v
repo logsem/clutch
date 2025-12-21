@@ -23,18 +23,18 @@ Proof.
   destruct H as [H _].
   apply H.
   rewrite /termination_prob'.
-  eexists ( (_;(_,(_;(_;(_;_)))))).
+  eexists. 
   simpl.
   rewrite /prog0.
   rewrite /termination_prob.
   erewrite sch_lim_exec_final; first apply dret_mass.
   done.
   Unshelve.
-  - apply unit.
-  - done.
-  - apply {|scheduler_f := λ _, dzero|}.
-  - simpl.
-    by rewrite /TapeOblivious.
+  eexists unit.
+  constructor; [constructor|]. 
+  econstructor. econstructor. 
+  eexists {|scheduler_f := λ _, dzero|}.
+  by rewrite /TapeOblivious.
 Qed.
 
 Lemma prog3_termination σ : Rbar_le (lub_termination_prob prog3 σ) (1/2)%R.

@@ -386,7 +386,7 @@ Section list.
     Inj (=) (=) f -> f<$>l1=f<$>l2 -> l1 = l2.
   Proof.
     intros H.
-    revert l2. 
+    revert l2.
     induction l1.
     - intros ? K. simpl in *.
       by erewrite fmap_nil_inv.
@@ -397,7 +397,7 @@ Section list.
       + rewrite fmap_cons in K.
         by simplify_eq.
   Qed.
-  
+
 End list.
 
 Section gset.
@@ -405,7 +405,7 @@ Section gset.
   Lemma length_elements_size_gset (s:gset A): size (s) = length (elements s).
     done.
   Qed.
-End gset. 
+End gset.
 
 Tactic Notation "case_match" "in" ident(H) "eqn" ":" ident(Hd) :=
   match type of H with
@@ -436,3 +436,679 @@ Ltac destruct_match :=
   | |- context [ match ?x with _ => _ end ] => destruct x
   | H : context [ match ?x with _ => _ end ] |- _ => destruct x
   end.
+
+
+(* (** * [gmultiset]  *) *)
+
+(* Lemma gmultiset_difference_empty_l `{Countable A} (X : gmultiset A) : *)
+(*   ∅ ∖ X = ∅. *)
+(* Proof. multiset_solver. Qed. *)
+
+(* Lemma gmultiset_difference_empty_r `{Countable A} (X : gmultiset A) : *)
+(*   X ∖ ∅ = X. *)
+(* Proof. multiset_solver. Qed. *)
+
+(* Lemma gmultiset_difference_disj_union `{Countable A} (X Y Z : gmultiset A) : *)
+(*   X ∖ (Y ⊎ Z)  = (X ∖ Y) ∖ Z. *)
+(* Proof. multiset_solver. Qed. *)
+
+(* Lemma gmultiset_difference_disj `{Countable A} (X Y : gmultiset A): *)
+(*   X ## Y → X ∖ Y = X. *)
+(* Proof. multiset_solver. Qed. *)
+
+(* Lemma gmultiset_union_alt `{Countable A} (X Y : gmultiset A) : *)
+(*   X ∪ Y = (X ∖ Y) ⊎ (Y ∖ X) ⊎ (X ∩ Y). *)
+(* Proof. multiset_solver. Qed. *)
+
+(* Lemma gmultiset_size_difference_singleton_le `{Countable A} (X : gmultiset A) x : *)
+(*   size X - 1 ≤ size (X ∖ {[+ x +]}) ≤ size X. *)
+(* Proof. *)
+(*   destruct (decide (x ∈ X)) as [He|Hne]. *)
+(*   - rewrite gmultiset_size_difference; [|multiset_solver]. *)
+(*     rewrite gmultiset_size_singleton. lia. *)
+(*   - rewrite gmultiset_difference_disj; [lia | multiset_solver]. *)
+(* Qed. *)
+
+(* Lemma gmultiset_size_difference_le `{Countable A} (X Y : gmultiset A) : *)
+(*   size X - size Y ≤ size (X ∖ Y) ≤ size X. *)
+(* Proof. *)
+(*   induction Y using gmultiset_ind. *)
+(*   { rewrite gmultiset_size_difference; [|multiset_solver]. lia. } *)
+(*   rewrite gmultiset_disj_union_comm. *)
+(*   rewrite gmultiset_difference_disj_union. *)
+(*   pose proof (gmultiset_size_difference_singleton_le (X ∖ Y) x) as [? ?]. *)
+(*   rewrite gmultiset_size_disj_union. *)
+(*   rewrite gmultiset_size_singleton. *)
+(*   lia. *)
+(* Qed. *)
+
+(* Lemma size_list_to_set_disj `{Countable T} (xs : list T) : *)
+(*   size (list_to_set_disj xs : gmultiset _) = length xs. *)
+(* Proof. *)
+(*   induction xs. *)
+(*   - rewrite list_to_set_disj_nil. done. *)
+(*   - rewrite list_to_set_disj_cons. *)
+(*     rewrite gmultiset_size_disj_union, gmultiset_size_singleton, IHxs. done. *)
+(* Qed. *)
+
+(* Lemma size_multiplicity_le `{Countable A} (X Y : gmultiset A) : *)
+(*   (∀ z, multiplicity z X ≤ multiplicity z Y) → size X ≤ size Y. *)
+(* Proof. intros ?. by eapply gmultiset_subseteq_size. Qed. *)
+
+
+(** * list  *)
+Fixpoint list_count `{Countable T} (x : T) (l : list T) : nat :=
+  match l with
+  | [] => 0
+  | y :: l => (if decide (x = y) then 1%nat else 0%nat) + list_count x l
+  end.
+
+Fixpoint list_delete `{EqDecision A} (x : A) (l : list A) : list A :=
+  match l with
+  | [] => []
+  | y :: l => if decide (x = y) then l else y :: list_delete x l
+  end.
+
+Lemma list_difference_app `{Countable T} (xs ys zs : list T) :
+  list_difference (xs ++ ys) zs = list_difference xs zs ++ list_difference ys zs.
+Proof.
+  induction xs => /=; [done|].
+  case_decide; [done|].
+  by rewrite IHxs.
+Qed.
+
+Lemma list_difference_cons `{Countable T} (xs : list T) x :
+  list_difference (x :: xs) [x] = list_difference xs [x].
+Proof. simpl. case_decide; [done|]. set_solver. Qed.
+
+Lemma list_count_not_elem_of  `{Countable T} (xs : list T) x :
+  x ∉ xs → list_count x xs = 0%nat.
+Proof.
+  induction xs; [done|].
+  intros [? ?]%not_elem_of_cons => /=.
+  rewrite decide_False; [|done].
+  by rewrite IHxs.
+Qed.
+
+Lemma list_delete_not_elem_of `{Countable T} x (xs : list T) :
+  x ∉ xs → list_delete x xs = xs.
+Proof.
+  induction xs; [done|].
+  intros [? ?]%not_elem_of_cons => /=.
+  by rewrite decide_False, IHxs.
+Qed.
+
+
+
+Lemma list_count_hd `{Countable T} (xs : list T) x :
+  list_count x (x :: xs) = (1 + list_count x xs)%nat.
+Proof. simpl. rewrite decide_True; done. Qed.
+
+Lemma list_count_hd_neq `{Countable T} (xs : list T) x y :
+  x ≠ y → list_count x (y :: xs) = list_count x xs%nat.
+Proof. intros => /=. by rewrite decide_False. Qed.
+
+Lemma list_count_app `{Countable T} (xs ys : list T) x :
+  list_count x (xs ++ ys) = (list_count x xs + list_count x ys)%nat.
+Proof. induction xs => /=; [done|]. rewrite IHxs. lia. Qed.
+
+Lemma list_count_elem_of `{Countable T} (xs : list T) x :
+  x ∈ xs ↔ (list_count x xs > 0)%nat.
+Proof.
+  induction xs => /=.
+  - split; lia || set_solver.
+  - split.
+    + intros [-> | ?]%elem_of_cons.
+      * rewrite decide_True; [|done]. lia.
+      * rewrite IHxs in H0. lia.
+    + case_decide => ?; subst; [left|].
+      right. apply IHxs. lia.
+Qed.
+
+Lemma list_count_filter_alt `{Countable T} `{!∀ a, Decision (P a)} (xs : list T) z :
+  (list_count z (filter P xs) = if bool_decide (P z) then list_count z xs else 0)%nat.
+Proof.
+  induction xs => /=; [by case_bool_decide|].
+  case_decide; case_bool_decide; subst. 
+  - rewrite filter_cons_True, list_count_hd; [|done]. lia.
+  - rewrite filter_cons_False; done.
+  - destruct (decide (P a)).
+    { rewrite filter_cons_True; [|done]. rewrite list_count_hd_neq; done.  }
+    by rewrite filter_cons_False. 
+  - destruct (decide (P a)).
+    { by rewrite filter_cons_True, list_count_hd_neq. }
+    by rewrite filter_cons_False.
+Qed.
+
+Lemma list_count_le_length `{Countable A} (xs : list A) (x : A) :
+  list_count x xs ≤ length xs.
+Proof. induction xs => /=; [done|]. case_decide; lia. Qed. 
+
+#[global] Instance list_count_proper `{Countable T} (x : T) :
+  Proper ((≡ₚ) ==> (=)) (list_count x).
+Proof.
+  intros xs xs' Hxs.
+  induction xs in xs', Hxs |-*.
+  { rewrite Permutation_nil_l in Hxs. rewrite <-Hxs. done. }
+  apply Permutation_cons_inv_l in Hxs as (? & ? & -> & Hxs).
+  rewrite list_count_app. simpl.
+  rewrite (IHxs _ Hxs), list_count_app. lia.
+Qed.
+
+(** ** Properties of the [filter] function that need permutation *)
+Section filter.
+  
+  Context {A} (P : A → Prop) `{∀ x, Decision (P x)}.
+  Local Arguments filter {_ _ _} _ {_} !_ /.
+
+  Lemma filter_app_complement l : filter P l ++ filter (λ x, ¬P x) l ≡ₚ l.
+  Proof.
+    induction l as [|x l IH]; simpl; [done|]. case_decide.
+    - rewrite decide_False by naive_solver. simpl. by rewrite IH.
+    - rewrite decide_True by done. by rewrite <-Permutation_middle, IH.
+  Qed.
+End filter.
+
+Lemma list_count_filter_split `{Countable A} P `{!∀ a, Decision (P a)} (xs : list A) (x : A) :
+  (list_count x (filter P xs) = list_count x xs - list_count x (filter (λ a, ¬ P a) xs))%nat.
+Proof.
+  rewrite <-(filter_app_complement P xs) at 2.
+  rewrite list_count_app. lia.
+Qed.
+
+Lemma remove_dups_list_remove `{Countable T} x (xs : list T) :
+  x ∈ remove_dups xs → x ∉ list_delete x (remove_dups xs).
+Proof.
+  induction xs => /=; [set_solver|].
+  case_decide; [done|].
+  intros [-> | ?]%elem_of_cons => /=.
+  - rewrite decide_True; [|done]. intros ?. apply H0.
+    rewrite <-elem_of_remove_dups. done.
+  - case_decide.
+    + subst. rewrite elem_of_remove_dups. done.
+    + apply not_elem_of_cons. split; [done|]. by apply IHxs.
+Qed.
+
+Lemma filter_remove_dups `{Countable A} `{!∀ a, Decision (P a)} (zs : list A) :
+  remove_dups (filter P zs) = filter P (remove_dups zs).
+Proof.
+  induction zs as [|x xs IH]; [done|].
+  destruct (decide (P x)).
+  - rewrite filter_cons_True; [|done]. 
+    destruct (decide (x ∈ xs)) as [Hx | Hx].
+    + simpl; case_decide as Hd.
+      * by case_decide.
+      * exfalso; apply Hd. by apply elem_of_list_filter.       
+    + simpl; case_decide.
+      * exfalso; apply Hx. by eapply elem_of_list_filter.
+      * case_decide; [done|].
+        by rewrite filter_cons_True, IH. 
+  - rewrite filter_cons_False; [|done]. 
+    destruct (decide (x ∈ xs)); simpl. 
+    + by case_decide. 
+    + case_decide; [done|]. by rewrite filter_cons_False.
+Qed.
+
+Lemma remove_dups_permute_swap `{Countable T} y x (l : list T) :
+  remove_dups (x :: y :: l) ≡ₚ remove_dups (y :: x :: l).
+Proof.
+  apply NoDup_Permutation; [apply NoDup_remove_dups|apply NoDup_remove_dups|].
+  intros ?. rewrite !elem_of_remove_dups.
+  split; intros; set_solver.
+Qed.
+
+Lemma remove_dups_permute_cons `{Countable T} x (l l' : list T) :
+  remove_dups l ≡ₚ remove_dups l' → remove_dups (x :: l) ≡ₚ remove_dups (x :: l').
+Proof.
+  intros Hl => /=.
+  case_decide.
+  - assert (x ∈ l').
+    { rewrite <-elem_of_remove_dups, <-Hl, elem_of_remove_dups. done. }
+    by case_decide.
+  - assert (x ∉ l').
+    { rewrite <-elem_of_remove_dups, <-Hl, elem_of_remove_dups. done. }
+    case_decide; [done|].
+    by f_equiv.
+Qed.
+
+Lemma remove_dups_fmap_permutation `{Countable T} (zs : list T) (f : T → T) :
+  remove_dups (f <$> zs) ≡ₚ remove_dups (f <$> remove_dups zs).
+Proof.
+  apply NoDup_Permutation; [apply NoDup_remove_dups|apply NoDup_remove_dups|].
+  intros ?. split.
+  - rewrite elem_of_remove_dups, elem_of_list_fmap.
+    intros (y & -> & Hy).
+    rewrite elem_of_remove_dups, elem_of_list_fmap.
+    eexists. split; [done|].
+    by apply elem_of_remove_dups.
+  - rewrite elem_of_remove_dups, elem_of_list_fmap.
+    intros (y & -> & Hy).
+    rewrite elem_of_remove_dups, elem_of_list_fmap.
+    eexists. split; [done|].
+    by apply elem_of_remove_dups.
+Qed.
+
+Lemma remove_dups_Permutation `{Countable T} (xs ys : list T) :
+  Permutation xs ys → remove_dups xs ≡ₚ remove_dups ys.
+Proof.
+  revert xs ys.
+  apply Permutation_ind_bis; intros.
+  - done.
+  - by apply remove_dups_permute_cons.
+  - rewrite remove_dups_permute_swap. by do 2 apply remove_dups_permute_cons.
+  - by etrans.
+Qed.
+
+#[global] Instance remove_dups_proper `{Countable A} :
+  Proper ((≡ₚ) ==> (≡ₚ)) (remove_dups (A := A)).
+Proof. intros ???. by apply remove_dups_Permutation. Qed.
+
+
+(** * sum_list *)
+
+Section list.
+#[local] Open Scope Z.
+
+Definition sum_list (X : list Z) : Z := foldr Z.add 0 X.
+Definition sum_list_with `{Countable T} (f : T → Z) (X : list T) : Z := sum_list (f <$> X).
+
+Lemma sum_list_with_add `{Countable T} (f f' : T → Z) (zs : list T) :
+  sum_list_with (λ z, f z + f' z) zs = sum_list_with f zs + sum_list_with f' zs.
+Proof.
+  unfold sum_list_with, sum_list.
+  induction zs; [done|].
+  rewrite !fmap_cons. simpl. rewrite IHzs. lia.
+Qed.
+
+Lemma sum_list_with_sub `{Countable T} (f f' : T → Z) (zs : list T) :
+  sum_list_with (λ z, f z - f' z) zs = sum_list_with f zs - sum_list_with f' zs.
+Proof.
+  unfold sum_list_with, sum_list.
+  induction zs; [done|].
+  rewrite !fmap_cons. simpl. rewrite IHzs. lia.
+Qed.
+
+Lemma sum_list_with_cons `{Countable T} (xs : list T) x (f : T → Z) :
+  sum_list_with f (x :: xs) = f x + sum_list_with f xs.
+Proof. done. Qed.
+
+Lemma sum_list_with_nil `{Countable T} (xs : list T) (f : T → Z) :
+  sum_list_with f [] = 0.
+Proof. done. Qed.
+
+Lemma sum_list_with_app `{Countable T} (xs ys : list T) (f : T → Z) :
+  sum_list_with f (xs ++ ys) = sum_list_with f xs + sum_list_with f ys.
+Proof.
+  unfold sum_list_with, sum_list.
+  rewrite Z.add_comm.
+  rewrite fmap_app. rewrite foldr_app.
+  rewrite <-foldr_comm_acc, ?Z.add_0_r.
+  { done. }
+  intros ??. lia.
+Qed.
+
+Lemma sum_list_with_ext `{Countable T} (zs : list T) f1 f2 :
+  (∀ z, z ∈ zs → f1 z = f2 z) →
+  sum_list_with f1 zs = sum_list_with f2 zs.
+Proof.
+  unfold sum_list_with, sum_list.
+  induction zs => Hb; [simpl; lia|].
+  rewrite 2!fmap_cons. simpl.
+  rewrite Hb; [|left].
+  rewrite IHzs. done.
+  intros ??. apply Hb. by right.
+Qed.
+
+Lemma sum_list_with_0 `{Countable T} (xs : list T) :
+  sum_list_with (λ _ : T, 0) xs = 0.
+Proof. induction xs => /=; [done|]. rewrite sum_list_with_cons, IHxs. done. Qed.
+
+Lemma sum_list_with_le `{Countable T} (zs : list T) f1 f2 :
+  (∀ z, z ∈ zs → f1 z ≤ f2 z) →
+  sum_list_with f1 zs ≤ sum_list_with f2 zs.
+Proof.
+  unfold sum_list_with, sum_list.
+  induction zs => Hb; [simpl; lia|].
+  rewrite 2!fmap_cons. simpl.
+  apply Z.add_le_mono.
+  { apply Hb. by left. }
+  apply IHzs.
+  intros ??. apply Hb. by right.
+Qed.
+
+Lemma sum_list_with_le_constant b (zs : list Z) f :
+  (∀ z, z ∈ zs → 0 ≤ f z) →
+  (∀ z, z ∈ zs → z ≤ b) →
+  sum_list_with (λ z, z * f z) zs ≤ sum_list_with (λ z, b * f z) zs.
+Proof.
+  intros Hf Hb.
+  apply sum_list_with_le.
+  intros ??.
+  specialize (Hf _ H).
+  specialize (Hb _ H).
+  by apply Z.mul_le_mono_nonneg_r.
+Qed.
+
+Lemma sum_list_with_pos `{Countable T} (ts : list T) (f : T → Z) :
+  (∀ t, t ∈ ts → 0 ≤ f t) → 0 ≤ sum_list_with f ts.
+Proof.
+  intros ?.
+  rewrite <-(sum_list_with_0 ts).
+  by apply sum_list_with_le.
+Qed.
+
+Lemma sum_list_with_mul b (zs : list Z) f :
+  sum_list_with (λ z, b * f z) zs = b * sum_list_with f zs.
+Proof.
+  unfold sum_list_with, sum_list.
+  induction zs; [simpl; lia|].
+  rewrite 2!fmap_cons. simpl.
+  lia.
+Qed.
+
+Lemma sum_list_with_elem_of `{Countable T} (x : T) (xs : list T) (f : T → Z)  :
+  x ∈ xs →
+  sum_list_with f xs = f x + sum_list_with f (list_delete x xs).
+Proof.
+  intros (xs1 & ys & ->)%elem_of_list_split.
+  induction xs1 => /=.
+  - rewrite decide_True; done.
+  - rewrite sum_list_with_cons.
+    case_decide; subst; [done|].
+    rewrite sum_list_with_cons.
+    rewrite IHxs1. lia.
+Qed.
+
+Lemma sum_list_with_weaken f (xs ys zs us : list Z) :
+  ys ## us →
+  zs ## us →
+  sum_list_with (λ z : Z, f z * Z.of_nat (list_count z (ys ++ xs ++ zs))) us =
+  sum_list_with (λ z : Z, f z * Z.of_nat (list_count z xs)) us.
+Proof.
+  intros ??.
+  apply sum_list_with_ext => z Hz.
+  rewrite !list_count_app.
+  rewrite list_count_not_elem_of; [|set_solver].
+  rewrite (list_count_not_elem_of zs); [|set_solver].
+  lia.
+Qed.
+
+Lemma sum_list_with_multiplicity (xs ys : list Z) f :
+  sum_list_with f xs = sum_list_with (λ z, f z * Z.of_nat (list_count z xs)) (remove_dups (xs ++ ys)).
+Proof.
+  simpl.
+  induction xs as [|x xs IH].
+  { unfold sum_list_with, sum_list.
+    induction ys as [|?? IH]=> /=; [done|].
+    case_decide; [done|].
+    rewrite fmap_cons, foldr_cons.
+    simpl in IH.
+    rewrite <-IH. lia. }
+  simpl (sum_list _). simpl (remove_dups _).
+  case_decide as Hel.
+  - rewrite <-elem_of_remove_dups in Hel.
+    rewrite (sum_list_with_elem_of x _ _ Hel).
+    rewrite list_count_hd.
+    rewrite Nat2Z.inj_add.
+    rewrite Z.mul_add_distr_l, Z.mul_1_r.
+    rewrite sum_list_with_cons.
+    rewrite IH.
+    rewrite (sum_list_with_elem_of x _ _ Hel).
+    apply remove_dups_list_remove in Hel.
+    rewrite <-(sum_list_with_weaken _ _ [x] []); [|set_solver|set_solver].
+    rewrite Z.add_assoc. f_equal.
+    apply sum_list_with_ext.
+    intros ??. rewrite !list_count_app. simpl.
+    lia.
+  - rewrite !sum_list_with_cons.
+    rewrite list_count_hd.
+    rewrite Nat2Z.inj_add, Z.mul_add_distr_l. simpl. rewrite Z.mul_1_r.
+    destruct (Nat.eq_0_gt_0_cases (list_count x xs)) as [->| He]; last first.
+    { apply list_count_elem_of in He. set_solver. }
+    rewrite Z.mul_0_r, Z.add_0_r.
+    rewrite IH.
+    f_equal.
+    apply sum_list_with_ext.
+    intros ?. rewrite elem_of_remove_dups => ?.
+    case_decide; subst; [done|].
+    lia.
+Qed.
+
+Lemma sum_list_multiplicity' (xs ys : list Z) :
+  sum_list xs = sum_list_with (λ z, z * Z.of_nat (list_count z xs)) (remove_dups (xs ++ ys)).
+Proof.
+  pose proof (sum_list_with_multiplicity xs ys id). simpl in H. rewrite <-H.
+  unfold sum_list_with. rewrite list_fmap_id. done.
+Qed.
+
+Lemma sum_list_multiplicity (xs : list Z) :
+  sum_list xs = sum_list_with (λ z, z * Z.of_nat (list_count z xs)) (remove_dups xs).
+Proof. rewrite (sum_list_multiplicity' xs []), app_nil_r. done. Qed.
+
+Lemma sum_list_with_compose (zs : list Z) (f g : Z → Z) :
+  sum_list_with (g ∘ f) zs = sum_list_with g (f <$> zs).
+Proof. induction zs; [done|]. rewrite fmap_cons, !sum_list_with_cons, IHzs. done. Qed.
+
+Lemma sum_list_with_split `{Countable T} (P : T → Prop) `{!∀ a, Decision (P a)} (zs : list T) (f : T → Z) :
+  sum_list_with f zs = sum_list_with f (filter P zs) + sum_list_with f (filter (λ z, ¬ P z) zs).
+Proof.
+  induction zs; [done|].
+  rewrite !filter_cons, !sum_list_with_cons.
+  case_decide.
+  - case_decide; [done|]. rewrite sum_list_with_cons, IHzs. lia.
+  - rewrite decide_True; [|done]. rewrite sum_list_with_cons, IHzs. lia.
+Qed.
+
+Lemma elem_of_list_remove `{Countable T} x y (xs : list T) :
+  x ∈ list_delete y (remove_dups xs) → x ≠ y.
+Proof.
+  induction xs in x, y |-* => /=; [set_solver|].
+  case_decide => /=.
+  - intros ?. by apply IHxs.
+  - case_decide; subst.
+    + intros ?. intros ->. by rewrite elem_of_remove_dups in H1.
+    + intros [-> | ?]%elem_of_cons; [done|].
+      by apply IHxs.
+Qed.
+
+Lemma list_remove_remove_dups `{Countable T} z (zs : list T) :
+  list_delete z (remove_dups (z :: zs)) =
+    if decide (z ∈ zs) then list_delete z (remove_dups zs) else remove_dups zs.
+Proof.
+  induction zs as [|x xs IH] => /=.
+  { rewrite decide_True; done. }
+  destruct (decide (z = x)) as [<- |].
+  - rewrite decide_True; [|by left].
+    (* TODO fix *)
+    (* why does [rewrite decide_True] not work?! *)
+    destruct (decide_rel elem_of z (z :: xs)); [|set_solver].
+    by case_decide.
+  - case_decide.
+    + rewrite decide_True; [|set_solver].
+      (* why does [rewrite decide_True] not work?! *)
+      destruct (decide_rel elem_of z (z :: xs)); [|set_solver].
+      destruct (decide_rel elem_of z (x :: xs)); [|set_solver].
+      done.
+    + rewrite decide_False; [|set_solver].
+      destruct (decide_rel elem_of z (x :: xs)); [set_solver|].
+      case_decide; simpl; rewrite decide_True; done.
+Qed.
+
+Lemma sum_list_with_Permutation `{Countable T} (f : T → Z) (xs ys : list T) :
+  Permutation xs ys → sum_list_with f xs = sum_list_with f ys.
+Proof.
+  revert xs ys.
+  apply Permutation_ind_bis; intros.
+  - done.
+  - rewrite !sum_list_with_cons. f_equal. auto.
+  - rewrite !sum_list_with_cons, !Z.add_assoc, (Z.add_comm (f _)). f_equal. auto.
+  - etrans; [apply H1|]. done.
+Qed.
+
+#[global] Instance sum_list_with_proper `{Countable T} (f : T → Z) :
+  Proper ((≡ₚ) ==> (=)) (sum_list_with f).
+Proof. intros ???. by apply sum_list_with_Permutation. Qed.
+
+Lemma sum_difference_multiplicity (xs ys : list Z) :
+  (∀ z, z ∈ xs ++ ys → 0 ≤ z) →
+  sum_list xs - sum_list ys ≤
+  sum_list_with (λ z, z * 0 `max` (Z.of_nat (list_count z xs) - Z.of_nat (list_count z ys))) (remove_dups (xs ++ ys)).
+Proof.
+  intros Hz.
+  rewrite (sum_list_multiplicity' _ ys), (sum_list_multiplicity' _ xs).
+  erewrite (sum_list_with_Permutation _ (remove_dups (ys ++ _))); last first.
+  { apply remove_dups_Permutation, app_Permutation_comm. }
+  rewrite <-sum_list_with_sub.
+  eapply sum_list_with_le => z.
+  rewrite elem_of_remove_dups => Hin.
+  rewrite <-(Z.mul_sub_distr_l z).
+  apply Z.mul_le_mono_nonneg_l; [by apply Hz|].
+  lia.
+Qed.
+
+Lemma sum_difference_multiplicity' (b : Z) (xs ys : list Z) :
+  (∀ z : Z, z ∈ xs ++ ys → 0 ≤ z ≤ b) →
+  sum_list xs - sum_list ys ≤
+  b * sum_list_with (λ z, 0 `max` (Z.of_nat (list_count z xs) - Z.of_nat (list_count z ys))) (remove_dups (xs ++ ys)).
+Proof.
+  intros Hb.
+  etrans; [apply sum_difference_multiplicity|].
+  { intros. by apply Hb. }
+  etrans; [apply (sum_list_with_le_constant b)|].
+  { lia. }
+  { intros ? ?%(elem_of_remove_dups (_ ++ _)). by apply Hb. }
+  rewrite sum_list_with_mul. done.
+Qed.
+
+Definition list_preimage `{!EqDecision A} (f : A → A) (zs : list A) (x : A) :=
+  filter (λ z, x = f z) zs.
+
+Lemma list_preimage_nil `{EqDecision T} (g : T → T) xs x :
+  g x ∉ g <$> xs → list_preimage g xs (g x) = [].
+Proof.
+  unfold list_preimage => ?.
+  induction xs; [done|].
+  rewrite filter_cons_False; [|set_solver].
+  rewrite IHxs; [done|]. set_solver.
+Qed.
+
+Lemma sum_list_map_list_preimage (g f : Z → Z) (zs : list Z) :
+  sum_list_with f zs =
+  sum_list_with (λ y : Z, sum_list_with f (list_preimage g zs y)) (remove_dups (g <$> zs)).
+Proof.
+  induction zs as [|x xs IH]; [done|].
+
+  (* pull out the sum of [x] *)
+  rewrite (sum_list_with_elem_of x); last first.
+  { left. }
+  simpl (list_delete _ _).
+  rewrite decide_True; [|done].
+
+  (* pull out the sum for the list_preimage of [g x] *)
+  rewrite (sum_list_with_elem_of (g x) (remove_dups (g <$> _))) ;last first.
+  { apply elem_of_remove_dups. set_solver. }
+
+  (* split sum of list_preimage of [g x] into the part about [x] and sum of the rest *)
+  rewrite (sum_list_with_split (λ z, z = x) (list_preimage _ _ _)).
+  unfold list_preimage at 1.
+  rewrite list_filter_filter.
+  rewrite filter_cons_True; [|done].
+  rewrite sum_list_with_cons.
+
+  (* [z] is accounted for on both sides *)
+  rewrite <-!Z.add_assoc. f_equal. rewrite !Z.add_assoc.
+
+  (* putting the leftovers back together *)
+  unfold list_preimage.
+  rewrite list_filter_filter.
+  rewrite filter_cons_False; [|by intros []].
+  rewrite <-!list_filter_filter.
+  rewrite <-(sum_list_with_split (λ z, z = x)).
+  fold (list_preimage g xs (g x)).
+
+  (* [x] does not contribute to the image sum anymore *)
+  erewrite (sum_list_with_ext (list_delete _ _)); last first.
+  { intros ? ?%elem_of_list_remove. rewrite filter_cons_False; done. }
+
+  (* either we have duplicates of [g x] or not *)
+  rewrite fmap_cons, list_remove_remove_dups.
+  case_decide.
+  - rewrite IH.
+    erewrite sum_list_with_elem_of; [done|].
+    by apply elem_of_remove_dups.
+  - rewrite IH, list_preimage_nil; done.
+Qed.
+
+(** Triangle equality  *)
+Lemma Z_abs_sum_le `{Countable T} (l : list T) (f : T → Z) :
+  Z.abs (sum_list_with f l) <= sum_list_with (λ x, Z.abs (f x)) l.
+Proof.
+  induction l; [done|].
+  rewrite !sum_list_with_cons.
+  etrans; [apply Z.abs_triangle|].
+  lia.
+Qed.
+
+Lemma elem_of_list_remove_filter `{Countable T} x y (xs : list T) `{!∀ a, Decision (P a)} :
+  x ∈ list_delete y (filter P (remove_dups xs)) → x ≠ y.
+Proof.
+  induction xs in x, y |-* => /=; [set_solver|].
+  case_decide => /=.
+  - intros ?. by apply IHxs.
+  - rewrite filter_cons.
+    case_decide; subst; [|auto].
+    simpl.
+    case_decide; subst.
+    + rewrite elem_of_list_filter.
+      intros [? Hin] ->. rewrite elem_of_remove_dups in Hin. done.
+    + intros [-> | ?]%elem_of_cons; [done|]. by apply IHxs.
+Qed.
+
+Lemma list_count_sum_list_preimage `{Countable A} (zs1 zs2 : list A) (f : A → A) z :
+  Z.of_nat (list_count z (f <$> zs1)) =
+    sum_list_with (λ z, Z.of_nat (list_count z zs1)) (list_preimage f (remove_dups (zs1 ++ zs2)) z).
+Proof.
+  unfold list_preimage.
+  induction zs1 as [|x xs IH].
+  { rewrite sum_list_with_0. done. }
+  rewrite fmap_cons. simpl.
+  case_decide.
+  - case_decide.
+    + rewrite (sum_list_with_elem_of x); last first.
+      { apply elem_of_list_filter. split; [done|]. by apply elem_of_remove_dups. }
+      rewrite decide_True; [|done].
+      rewrite !Nat2Z.inj_add, <-Z.add_assoc.
+      erewrite (sum_list_with_ext _ _ (λ z, Z.of_nat (list_count z xs))); last first.
+      { intros ??.
+        rewrite decide_False; [done|].
+        by eapply elem_of_list_remove_filter. }
+      rewrite IH.
+      erewrite sum_list_with_elem_of; [done|].
+      apply elem_of_list_filter. split; [done|].
+      by apply elem_of_remove_dups.
+    + rewrite filter_cons_True; [|done].
+      rewrite sum_list_with_cons.
+      rewrite decide_True; [|done].
+      rewrite !Nat2Z.inj_add, <-Z.add_assoc.
+      erewrite (sum_list_with_ext _ _ (λ z, Z.of_nat (list_count z xs))); last first.
+      { intros ? [-> Hin]%elem_of_list_filter.
+        rewrite decide_False; [done|].
+        intros ->. rewrite elem_of_remove_dups in Hin. done. }
+      rewrite (list_count_not_elem_of xs); [|set_solver].
+      lia.
+  - case_decide.
+    + erewrite (sum_list_with_ext _ _ (λ z, Z.of_nat (list_count z xs))); last first.
+      { intros ? [-> Hin]%elem_of_list_filter.
+        rewrite decide_False; [done|].
+        intros ->. rewrite elem_of_remove_dups in Hin. done. }
+      lia.
+    + rewrite filter_cons_False; [|done].
+      erewrite (sum_list_with_ext _ _ (λ z, Z.of_nat (list_count z xs))); last first.
+      { intros ? [-> Hin]%elem_of_list_filter.
+        rewrite decide_False; [done|].
+        intros ->. rewrite elem_of_remove_dups in Hin. done. }
+      lia.
+Qed.
+
+
+End list.

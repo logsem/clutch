@@ -18,7 +18,6 @@ Lemma tgl_gt_lim (e : expr) σ φ ε ε' :
 Proof.
   rewrite /tgl //= /prob.  
   intros. 
-  Check lim_exec_unfold.
   assert ((λ a : val, if bool_decide (φ a) then lim_exec (e, σ) a else 0) = (λ a : val, Rbar.real $ Sup_seq (λ n, Rbar.Finite $ if bool_decide (φ a) then exec n (e,σ) a else 0))). {
     apply functional_extensionality => a //=.
     case_bool_decide; last by rewrite sup_seq_const.

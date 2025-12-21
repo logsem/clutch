@@ -561,7 +561,7 @@ Section list_specs.
         { apply cond_nonneg. }
         { apply Rmult_le_pos; [apply cond_nonneg|].
           apply pos_INR. }
-        rewrite cons_length.
+        rewrite length_cons.
         assert (err *nnreal_nat (S(length t)) = err + err * nnreal_nat (length t))%R as ->.
         - simpl. case_match; destruct err; simpl; lra.
         - done.
@@ -808,7 +808,7 @@ Section list_specs.
         iExists e, (inject ((a :: l1) ++ l2)), (a :: l1), l2.
         iPureIntro.
         split; auto.
-        split; [rewrite cons_length Hlen // |].
+        split; [rewrite length_cons Hlen // |].
         split.
         * by apply is_list_inject in Hcons as ->.
         * by apply is_list_inject.
@@ -854,7 +854,7 @@ Section list_specs.
         iExists e, (inject ((a :: l1) ++ l2)), (a :: l1), l2.
         iPureIntro.
         split; auto.
-        split; [rewrite cons_length Hlen // |].
+        split; [rewrite length_cons Hlen // |].
         split.
         * by apply is_list_inject in Hcons.
         * by apply is_list_inject.
@@ -1106,7 +1106,7 @@ Section list_specs.
     { iPureIntro. split; first done. lia. }
     iIntros (lv' ?). wp_pures.
     wp_apply wp_list_update.
-    { iPureIntro. split; first done. rewrite insert_length. lia. }
+    { iPureIntro. split; first done. rewrite length_insert. lia. }
     iIntros (lv'' ?).
     iApply "HΦ".
     iExists _, _.
@@ -1226,7 +1226,7 @@ Section list_specs_extra.
       { iApply ec_split.
         { apply cond_nonneg. }
         { apply Rmult_le_pos; [apply cond_nonneg|]. apply pos_INR. }
-        rewrite cons_length.
+        rewrite length_cons.
         assert (err *nnreal_nat (S(length t)) = err + err * nnreal_nat (length t))%R as ->.
         - simpl. case_match; destruct err; simpl; lra.
         - done.

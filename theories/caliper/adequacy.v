@@ -1,7 +1,7 @@
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 From iris.proofmode Require Import base proofmode.
 From iris.bi Require Import bi derived_laws_later.
-From iris.bi.lib Require Export fixpoint.
+From iris.bi.lib Require Export fixpoint_mono.
 From iris.base_logic Require Import derived.
 From iris.base_logic.lib Require Import fancy_updates ghost_map.
 From clutch.prelude Require Import stdpp_ext iris_ext.

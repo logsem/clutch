@@ -87,7 +87,7 @@ Section proof.
     wp_lam.
     wp_alloc dst as "Hdst"; first by auto.
     wp_smart_apply (wp_array_copy_to with "[$Hdst $Hvl]"); auto.
-    - rewrite replicate_length Z2Nat.id; lia.
+    - rewrite length_replicate Z2Nat.id; lia.
     - iIntros "[Hdst Hl]".
       wp_pures.
       iApply "HΦ"; by iFrame.
@@ -111,12 +111,12 @@ Section proof.
     rewrite replicate_add.
     iPoseProof (array_app dst with "Hdst") as "[Hdst1 Hdst2]".
     wp_smart_apply (wp_array_copy_to with "[$Hdst1 $Hvl]"); auto.
-    - rewrite replicate_length; lia.
+    - rewrite length_replicate; lia.
     - iIntros "[Hdst Hl]".
       wp_pures.
       iApply "HΦ". iFrame.
       iApply array_app. iFrame.
-      by rewrite replicate_length Hvl.
+      by rewrite length_replicate Hvl.
   Qed.
 
 
@@ -207,7 +207,7 @@ Section proof.
       iIntros (Hn Φ) "Hf HΦ". iApply (wp_array_init with "Hf"); first done.
       iIntros "!>" (l vs). iDestruct 1 as (<-) "[Hl Hvs]".
       iDestruct (big_sepL_exists_eq with "Hvs") as (xs ->) "Hxs".
-      iApply "HΦ". iFrame "Hl Hxs". by rewrite fmap_length.
+      iApply "HΦ". iFrame "Hl Hxs". by rewrite length_fmap.
     Qed.
   End array_init_fmap.
 End proof.

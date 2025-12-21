@@ -119,6 +119,27 @@ Section tape_interface.
     iExists xs; auto.
   Qed.
 
+  
+  Lemma tapeN_tapeN_contradict l N M ns ms:
+    l ↪N ( N;ns ) -∗ l↪N (M;ms) -∗ False.
+  Proof.
+    iIntros "(%&<-&H1) (%&<-&H2)".
+    by iDestruct (ghost_map_elem_ne with "[$][$]") as "%".
+  Qed.
+  
+  Lemma tapeN_ineq α N ns:
+    α↪N (N; ns) -∗ ⌜Forall (λ n, n<=N)%nat ns⌝.
+  Proof.
+    iIntros "(% & <- & H)".
+    iPureIntro.
+    eapply Forall_impl.
+    - apply fin.fin_forall_leq.
+    - simpl. intros.
+      lia.
+  Qed.
+
+
+
   (*
   Lemma spec_tapeN_to_empty l M :
     (l ↪ₛN ( M ; [] ) -∗ l ↪ₛ ( M ; [] )).
@@ -344,7 +365,7 @@ Section lifting.
         apply not_elem_of_singleton_2.
         intros H2.
         apply loc_add_inj in H2.
-        rewrite replicate_length in H1.
+        rewrite length_replicate in H1.
         lia.
   Qed.
 
@@ -817,6 +838,63 @@ Section lifting.
       iFrame. 
       rewrite app_nil_r.
       by iFrame.
+  Qed.
+
+  
+  Lemma pupd_rand_tape_empty j K N z E α:
+    TCEq N (Z.to_nat z) →
+    j⤇ fill K (rand(#lbl:α) #z) -∗
+    α ↪ₛN (N; []) -∗
+    pupd E E (∃ n, ⌜(n<=N)%nat⌝ ∗ j⤇ fill K #n ∗ α ↪ₛN (N; [])).
+  Proof.
+    iIntros (->) "HK Htape".
+    rewrite pupd_unseal/pupd_def.
+    iIntros (σ1 [?[]] ε1) "(H1 & H2 & H3)".
+    iDestruct (spec_auth_prog_agree with "[$][$]") as "%".
+    iDestruct "H2" as "[Hb [Ha H2]]".
+    simpl.
+    iDestruct "Htape" as "(%&%&Htape)".
+    iDestruct (ghost_map_lookup with "H2 Htape") as %H1.
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    destruct fs; last simplify_eq.
+    iApply spec_coupl_step_r; [|done|..].
+    - apply reducible_fill. simpl. apply head_prim_reducible.
+      solve_red.
+    - instantiate (2:=0%NNR). instantiate (1:= ε1). simpl.
+      lra.
+    - simpl in *.
+      instantiate (2 := (λ '(e', σ', efs), ∃ (n:fin (S (Z.to_nat z))), e' = fill K #n /\ σ' = {| heap := _ ; tapes :=  _ |} /\ efs = [])).
+      rewrite fill_dmap //=.
+      rewrite head_prim_step_eq.
+      simpl.
+      rewrite H1. case_bool_decide; last done.
+      rewrite dmap_comp.
+      rewrite /dmap.
+      replace 0%R with (0+0)%R; last lra.
+      eapply pgl_dbind; last first.
+      + by apply pgl_trivial.
+      + simpl.
+        intros a ?. apply pgl_dret.
+        repeat split; try done.
+        eexists _; by repeat split.
+      + lra.
+      + lra.
+    - simpl. iIntros (???) "[[%n %] %]".
+      destruct!/=.
+      iMod (spec_update_prog with "[H2 Ha Hb][$HK]") as "[HK Hs]".
+      { iSplitL "Hb"; first done.
+        instantiate (1:= {| heap := _; tapes := _ |}).
+        simpl.
+        iFrame. }
+      iApply spec_coupl_ret.
+      iModIntro.
+      iMod "Hclose".
+      iFrame. 
+      rewrite app_nil_r.
+      iFrame. iModIntro. iPureIntro.
+      simpl. split; last done.
+      pose proof fin_to_nat_lt n. lia.
   Qed. 
 
 
