@@ -512,7 +512,8 @@ Section row_env_sub.
 
   Global Instance row_env_sub_nil {Σ} (ρ : sem_row Σ) : ρ ᵣ⪯ₑ ([] : env Σ).
   Proof. 
-    constructor. iIntros "% % % % !# Hρ _". 
+    constructor. iIntros "% % % % !# (%&%&%&Hρ) _".
+    iExists _,_,_.
     iApply (sem_row_mono _ ρ with "[] Hρ").
     iIntros "!# % % $".
   Qed.
@@ -523,7 +524,8 @@ Section row_env_sub.
     intros HρΓ Hρτ. constructor.
     iIntros "%γ % % %Φ !# Hρ (% & %Heq & Hτ & HΓ)".
     inv HρΓ. iDestruct (row_env_sub with "Hρ HΓ") as "HρΓ".
-    inv Hρτ. iDestruct (row_type_sub with "HρΓ Hτ") as "Hρτ".
+    inv Hρτ. iDestruct (row_type_sub with "HρΓ Hτ") as "(%&%&%&Hρτ)".
+    iExists _,_,_.
     iApply (sem_row_mono Σ ρ with "[] Hρτ"). 
     iIntros "!# % % [[$ HΓ] Hτ]".
     iExists vv. by iFrame.
@@ -531,7 +533,8 @@ Section row_env_sub.
 
   Global Instance row_env_sub_copy {Σ} (ρ : sem_row Σ) (Γ : env Σ) `{! MultiE Γ } : ρ ᵣ⪯ₑ Γ.
   Proof.
-    constructor. iIntros "%γ % % %Φ !# Hρ #HΓ".
+    constructor. iIntros "%γ % % %Φ !# (%&%&%&Hρ) #HΓ".
+    iExists _,_,_.
     iApply (sem_row_mono Σ ρ); last iApply "Hρ".  
     iIntros "!# % % $ //".
   Qed.

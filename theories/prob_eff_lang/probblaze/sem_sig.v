@@ -10,23 +10,25 @@ From clutch.prob_eff_lang.probblaze Require Import logic sem_def syntax semantic
 
 (* Universally Quantified Effect Signature *)
 (* TODO: generalize αs to a list of types -- in affect they use a tele *)
-Program Definition sem_sig_eff {Σ} {αs : sem_ty Σ} : (sem_ty Σ -d> sem_ty Σ) -d> (sem_ty Σ -d> sem_ty Σ) -d> sem_sig Σ :=
+Program Definition sem_sig_eff {Σ} : (sem_ty Σ -d> sem_ty Σ) -d> (sem_ty Σ -d> sem_ty Σ) -d> sem_sig Σ :=
   λ A B,
   (@SemSig Σ (@PMonoProt Σ (λ e1 e2, λne Φ, ∃ αs, ∃ (op1 op2 : label) v1 v2, ⌜ e1 = (do: op1 (Val v1))%E ⌝ ∗ ⌜ e2 = (do: op2 (Val v2))%E ⌝ ∗  A αs v1 v2 
                                                ∗ □ (∀ w1 w2, ∃ v1 v2, ⌜ w1 = Val v1 ⌝ ∗ ⌜ w2 = Val v2 ⌝ ∗ B αs v1 v2 -∗ Φ w1 w2))%I _) _).
 Next Obligation.
-  iIntros (??????????). repeat f_equiv.
+  iIntros (?????????). repeat f_equiv.
 Qed.
 Next Obligation.
-  iIntros (????????) "#HΦ Hσ".
+  iIntros (???????) "#HΦ Hσ".
   f_equal /=. iDestruct "Hσ" as (αs' op1' op2' v1' v2' -> ->) "(HA & #Hσ)". iExists _, _, _,_,_.
   do 2 (iSplit; try done). iFrame "HA".
   iModIntro. iIntros (??). iDestruct ("Hσ" $! w1 w2) as (v1 v2) "HB". iExists _, _.
   iIntros "H". iApply "HΦ". by iApply "HB".
 Qed.
 Next Obligation.
-  iIntros (???????) "(%&%&%&%&%&->&->&_)". iExists _,_,_,_. iSplit; iPureIntro; reflexivity.
-Qed. 
+  iIntros (??????) "(%&%&%&%&%&->&->&_)". iExists _,_,_,_. iSplit; iPureIntro; reflexivity.
+Qed.
+
+Global Instance sem_sig_bottom {Σ} : Bottom (sem_sig Σ) := @sem_sig_eff Σ (λ _, (λ v1 v2, False)%I) (λ _, (λ v1 v2, True)%I).
 
 (* Flip-Bang Signature *)
 Program Definition sem_sig_flip_mbang {Σ} (m : mode) (σ : sem_sig Σ) : sem_sig Σ := @SemSig Σ (@PMonoProt Σ (iThyIfMono m σ) _) _.
@@ -87,17 +89,17 @@ Notation "κ '=[' m ']=>' ι" :=
 
 Section sig_properties.
 
-Global Instance sem_sig_eff_ne2 {Σ} {αs : sem_ty Σ} :
-  NonExpansive2 (@sem_sig_eff Σ αs).
+Global Instance sem_sig_eff_ne2 {Σ}:
+  NonExpansive2 (@sem_sig_eff Σ).
 Proof.
 Admitted. 
 
-Global Instance sem_sig_eff_ne {Σ} {αs : sem_ty Σ} A :
-  NonExpansive (@sem_sig_eff Σ αs A).
+Global Instance sem_sig_eff_ne {Σ} A :
+  NonExpansive (@sem_sig_eff Σ A).
 Proof. iIntros (????). by f_equiv. Qed.
 
-Global Instance sem_sig_eff_alt_ne {Σ} {αs : sem_ty Σ} :
-  NonExpansive (@sem_sig_eff Σ αs).
+Global Instance sem_sig_eff_alt_ne {Σ}:
+  NonExpansive (@sem_sig_eff Σ).
 Proof. iIntros (?????). by f_equiv. Qed.
 
 (* Global Instance sem_sig_eff_pers_mono_prot {Σ} {αs : sem_ty Σ} A B :

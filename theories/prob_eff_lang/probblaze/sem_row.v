@@ -60,16 +60,6 @@ Proof. rewrite /sem_row_rec {1} fixpoint_unfold //. Qed.
 (* This is essentially to_iThyIfMono *)
 Definition iThyIfMono_iLblSig {Σ} (m: mode) (L : iLblSig Σ) : iLblSig Σ :=
   (map (λ '(l1s, l2s, X), (l1s, l2s, sem_sig_flip_mbang m X)) L).
-
-(* TODO: does this hold? What if I forget the sem_sig structure? *)
-(* Lemma iThyIfMono_iLblSigMS {Σ} (L : iLblSig Σ) : 
-     iThyIfMono_iLblSig MS L = L.
-   Proof.
-     (* induction L as [|((?,?),?)]; [done|rewrite //= IHL].
-        unfold sem_sig_flip_mbang. simpl. done.
-          destruct L.
-        by induction L as [|((?,?),?)]; [|rewrite //= IHL]. Q. *)
-   Admitted.  *)
   
 Program Definition sem_row_flip_mbang {Σ} (m : mode) (ρ : sem_row Σ) : sem_row Σ := 
   @SemRow Σ (iThyIfMono_iLblSig m ρ) _ _.
@@ -142,19 +132,11 @@ Section once_row.
     iLblSig_to_iLblThy (sem_row_flip_mbang m ρ) = to_iThyIfMono m (iLblSig_to_iLblThy ρ).
   Proof.
     unfold iLblSig_to_iLblThy.
-    (* case m; last first.
-       { rewrite to_iThyIfMonoMS. unfold sem_row_flip_mbang. destruct ρ. simpl. rewrite (iThyIfMono_iLblSigMS ρ). *)
     destruct ρ as [l Hmono Hprop].
     induction l; first done. 
     simpl. destruct a as [[l1s l2s] σ]. rewrite IHl; last done.
     - iIntros (????) "#H1 % % % (%Hin & H2)". iSplit; first done.
-      (* iDestruct "H2" as "(%&%&%&%&%&->&%&->&%&Hσ&#Hcont)".
-         iExists _,_,_,_,_. repeat (iSplit; first done).
-         iIntros (??) "!# HS". iApply "HΦ". by iApply "Hcont".
-         iIntros (????) "#HΦ HlΨ". *)
       iPoseProof Hmono as "Hmcons".
-      (* iDestruct "HlΨ" as (l1s' l2s' X) "(%Hin & HXΦ)". *)
-      (* iExists _,_,_. iSplit; first done. *)
       iDestruct ("Hmcons" $! v1 v2 Φ Φ' with "H1") as "HΨ".
       iAssert (⌜(l1s0, l2s0, X) ∈ iLblSig_to_iLblThy ((l1s, l2s, σ) :: l)⌝ ∗ iThyTraverse l1s0 l2s0 X v1 v2 Φ)%I with "[H2]" as "Htemp".
       { iSplit; last done. iPureIntro. by apply elem_of_list_further. }

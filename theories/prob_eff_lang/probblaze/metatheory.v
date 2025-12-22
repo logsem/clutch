@@ -938,3 +938,9 @@ Qed.
 
 Lemma subst_map_is_closed_empty e vs : is_closed_expr ∅ e → subst_map vs e = e.
 Proof. intros. apply subst_map_is_closed with (∅ : stringset); set_solver. Qed.
+
+Lemma subst_map_lbl_subst s l vs e :
+  lbl_subst s l (subst_map vs e) = subst_map vs (lbl_subst s l e).
+Proof.
+  revert vs. induction e => vs; simpl; try rewrite IHe; try (rewrite IHe1; rewrite IHe2); try rewrite IHe3; try case_match; try done.
+Qed.
