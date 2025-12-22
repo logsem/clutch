@@ -1469,12 +1469,12 @@ Proof.
   intros [L H].
   apply (@ex_RInt_ext _ (fun x => RInt (fun y => fsum2 (RectFun_RR <$> L) x y) ya yb)).
   { intros x Hx. apply RInt_ext. intros y Hy.
-    destruct (H x y) as [Heq _]. symmetry. apply Heq.
+    destruct H as [Heq ?]. rewrite Heq; first done.
     { rewrite /Icc; lra. }
     { rewrite /Icc; lra. }
   }
-  destruct (H xa ya) as [_ HL].
-  apply fsum2_RectFun_ex_x. exact HL.
+  destruct H.
+  by apply fsum2_RectFun_ex_x. 
 Qed.
 
 Lemma Fubini_Step_ex_y {f xa xb ya yb} : PCts2 f xa xb ya yb →
@@ -1483,8 +1483,8 @@ Proof.
   intros [L H].
   apply (@ex_RInt_ext _ (fun y => RInt (fun x => fsum2 (RectFun_RR <$> L) x y) xa xb)).
   { intros y Hy. apply RInt_ext. intros x Hx.
-    destruct (H x y) as [Heq _]. symmetry. apply Heq; rewrite /Icc; lra. }
-  destruct (H xa ya) as [_ HL].
+    destruct H as [Heq _]. rewrite Heq; first done; rewrite /Icc; lra. }
+  destruct (H) as [_ HL].
   apply fsum2_RectFun_ex_y. exact HL.
 Qed.
 
@@ -1518,11 +1518,12 @@ Lemma Fubini_Step_eq : ∀ {f xa xb ya yb}, PCts2 f xa xb ya yb →
 Proof.
   intros f xa xb ya yb [L H].
   rewrite (RInt_ext (fun x => RInt (fun y => f x y) ya yb) (fun x => RInt (fun y => fsum2 (RectFun_RR <$> L) x y) ya yb) xa xb).
-  2: { intros x Hx. apply RInt_ext. intros y Hy. destruct (H x y) as [Heq _]. apply Heq; rewrite /Icc; lra. }
+  2: { intros x Hx. apply RInt_ext. intros y Hy.
+       destruct (H) as [Heq _]. rewrite Heq; first done; rewrite /Icc; lra. }
   rewrite (RInt_ext (fun y => RInt (fun x => f x y) xa xb) (fun y => RInt (fun x => fsum2 (RectFun_RR <$> L) x y) xa xb) ya yb).
-  2: { intros y Hy. apply RInt_ext. intros x Hx. destruct (H x y) as [Heq _]. apply Heq; rewrite /Icc; lra. }
+  2: { intros y Hy. apply RInt_ext. intros x Hx. destruct (H) as [Heq _]. apply Heq; rewrite /Icc; lra. }
   apply fsum2_Fubini.
-  destruct (H xa ya) as [_ HL]. exact HL.
+  destruct (H) as [_ HL]. exact HL.
 Qed.
 
 

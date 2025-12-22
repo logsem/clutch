@@ -847,7 +847,7 @@ Definition RectFun_continuity : ((R → R → R) * R * R * R * R) → Prop :=
 (** 2D compactly supported piecewise continuity: The function is a finite sum of 2D rectangle functions *)
 Definition PCts2 (f : R → R → R) (xa xb ya yb : R) : Prop :=
   ∃ L,
-    ∀ x y, (Icc xa xb x → Icc ya yb y → f x y = fsum2 (RectFun_RR <$> L) x y) ∧
+    (∀ x y, (Icc xa xb x → Icc ya yb y → f x y = fsum2 (RectFun_RR <$> L) x y)) ∧
     Forall RectFun_continuity L.
 
 (** 2D continous functions are piecewise continuous *)
@@ -857,8 +857,8 @@ Lemma PCts2_continuous {f : R → R → R} {xa xb ya yb} :
 Proof.
   intros Hcont.
   exists [(f, xa, xb, ya, yb)].
-  intros x y. split.
-  - intros Hx Hy.
+  split.
+  - intros x y Hx Hy.
     rewrite /fsum2//=.
     rewrite Iverson_True; try done.
     rewrite Iverson_True; try done.
@@ -888,15 +888,14 @@ Qed.
 Lemma PCts2_plus {f g : R → R → R} {xa xb ya yb} :
   PCts2 f xa xb ya yb → PCts2 g xa xb ya yb → PCts2 (fun (x y : R) => f x y + g x y) xa xb ya yb.
 Proof.
-  intros [Lf Hf] [Lg Hg].
+  intros [Lf [Hf]] [Lg [Hg]].
   unfold PCts2.
   exists (Lf ++ Lg).
-  intros x y.
   split.
   {
-    intros Hx Hy.
-    destruct (Hf x y) as [Hfeq _].
-    destruct (Hg x y) as [Hgeq _].
+    intros x y Hx Hy.
+    pose proof (Hf x y) as Hfeq.
+    pose proof (Hg x y) as Hgeq.
     rewrite (Hfeq Hx Hy).
     rewrite (Hgeq Hx Hy).
     rewrite fmap_app.
@@ -905,9 +904,7 @@ Proof.
   }
   {
     apply Forall_app.
-    split.
-    { destruct (Hf xa ya) as [_ HLf]. exact HLf. }
-    { destruct (Hg xa ya) as [_ HLg]. exact HLg. }
+    split; naive_solver.
   }
 Qed.
 
@@ -915,6 +912,8 @@ Qed.
 Lemma PCts2_mult {f g : R → R → R} {xa xb ya yb} :
   PCts2 f xa xb ya yb → PCts2 g xa xb ya yb → PCts2 (fun (x y : R) => f x y * g x y) xa xb ya yb.
 Proof.
+  intros [L [H1 H2]].
+  
 Admitted.
 
 (** 2D Piecewise continuity of functions piecewise continuous in x and constant in y *)
@@ -924,9 +923,8 @@ Proof.
   pose LiftP : ((R → R) * R * R) → ((R → R → R) * R * R * R * R) :=
     fun '(f, xa1, xb1) => (fun x _ : R => f x, xa1, xb1, ya, yb).
   exists (LiftP <$> L).
-  intros ??.
   split.
-  { intros ??.
+  { intros ????.
     rewrite Hf; try done.
     rewrite /fsum/fsum2//=.
     clear HC Hf.
@@ -985,9 +983,8 @@ Proof.
   pose LiftP : ((R → R) * R * R) → ((R → R → R) * R * R * R * R) :=
     fun '(f, ya1, yb1) => (fun _ y : R => f y, xa, xb, ya1, yb1).
   exists (LiftP <$> L).
-  intros ??.
   split.
-  { intros ??.
+  { intros ????.
     rewrite Hf; try done.
     rewrite /fsum/fsum2//=.
     clear HC Hf.
