@@ -52,6 +52,13 @@ Section lazy_real.
       else
         cmp_list (Fst "lz1") (Snd "lz1") (Fst "lz2") (Snd "lz2").
 
+  Definition get_bit : val :=
+    rec: "force" "lazyR" "n" :=
+      let: "cn" := get_chunk (Fst "lazyR") (Snd "lazyR") in
+      if: ("n" ≤ #0)
+        then (Fst "cn")
+        else "force" ((Fst "lazyR"), (Snd "cn")) ("n" - #1).
+
   Context `{!erisGS Σ}.
 
   Definition comparison2z c : Z :=
@@ -375,6 +382,91 @@ Section lazy_real.
     iDestruct "H" as (??? -> ->) "H".
     iPureIntro.
     apply seq_bin_to_R_range.
+  Qed.
+
+  Lemma seq_bin_to_R_cons_eq {h f1 f2} :
+    seq_bin_to_R f1 = seq_bin_to_R f2 →
+    seq_bin_to_R (cons_bin_seq h f1) = seq_bin_to_R (cons_bin_seq h f2).
+  Proof. Admitted.
+
+  Lemma get_bit_corect v r E (z : Z) :
+    ⟨⟨⟨ ⌜ (0 <= z)%Z ⌝ ∗ lazy_real v r ⟩⟩⟩
+      get_bit v #z @ E
+    ⟨⟨⟨ (zr : Z), RET #zr; lazy_real v r ∗
+          ∃ (bf : nat → (fin 2)), ⌜r = seq_bin_to_R bf ⌝ ∗ ⌜zr = (bf (Z.to_nat z)) ⌝ ⟩⟩⟩.
+  Proof.
+    iIntros (Φ) "H HΦ".
+    rewrite /get_bit//=.
+    iLöb as "IH" forall (v z r).
+    iDestruct "H" as "[%Hz Hr]".
+    iDestruct "Hr" as "[%l [%α [%f [-> [-> Hseq]]]]]".
+    wp_pures.
+    destruct (bin_seq_hd f) as (f_head & f_rest & ->).
+    wp_bind (get_chunk _ _).
+    wp_apply (wp_get_chunk_cons with "Hseq [HΦ]").
+    iIntros (l_rest) "[Hseq Hcont]".
+    wp_pures.
+    case_bool_decide.
+    { iClear "IH".
+      have -> : z = 0%Z by lia.
+      wp_pures.
+      iApply "HΦ".
+      iModIntro.
+      rewrite /lazy_real//=.
+      iSplitL "Hseq Hcont".
+      { iExists l, α, (cons_bin_seq f_head f_rest).
+        iSplitR; [done|].
+        iSplitR; [done|].
+        by iApply "Hcont".
+      }
+      iExists (cons_bin_seq f_head f_rest).
+      iSplitR; [done|].
+      iPureIntro.
+      by rewrite Z2Nat.inj_0 //=.
+    }
+    { do 5 wp_pure.
+      wp_apply ("IH" $! _ _ (seq_bin_to_R f_rest) with "[Hseq] [Hcont HΦ]").
+      { iSplitR; [iPureIntro; lia|].
+        rewrite /lazy_real.
+        iExists l_rest, α, f_rest.
+        by iFrame.
+      }
+      { iClear "IH".
+        iIntros (zr) "[H1 [%bf [%Hseq %Hcont]]]".
+        rewrite /lazy_real.
+        iApply "HΦ".
+        iSplitL.
+        2: {
+          iExists (cons_bin_seq f_head bf).
+          iSplit; iPureIntro.
+          2: {
+            rewrite /cons_bin_seq.
+            destruct (Z.to_nat z) as [|] eqn:HZn.
+            2: {
+              rewrite Hcont.
+              rewrite Z2Nat.inj_sub; [|lia].
+              rewrite HZn.
+              repeat f_equal.
+              rewrite //=.
+              lia.
+          }
+          { exfalso. lia. }
+        }
+        by apply seq_bin_to_R_cons_eq.
+      }
+      iDestruct "H1" as "[%l' [%α' [%f' [%H1 [%H2 H3]]]]]".
+      inversion H1; subst. clear H1.
+      iExists l, α', _.
+      iSplitR; [done|].
+      iSplitR.
+      2: {
+        iApply "Hcont".
+        iExact "H3".
+      }
+      iPureIntro.
+      by apply seq_bin_to_R_cons_eq.
+    }
+  }
   Qed.
 
   (* TODO should make this more concise, also use notation for it? *)
