@@ -181,28 +181,133 @@ Definition Npow : val :=
       then #(1%nat)
       else "x" * ("pow" "x" ("y" - #1)).
 
+
 (* Constant functions at integer Z. *)
+Definition VDiv4Rounded : val :=
+  λ: "z", (("z" `quot` #4) + (("z" `rem` #4) `quot` #2)).
+
 Definition R_ofZ : val :=
   λ: "vZ",
-    λ: "prec", "vZ" * (Npow #2 "prec").
+    λ: "prec", ("vZ" ≫ "prec").
+
+Definition R_mulPow : val :=
+  λ: "f" "vZ",
+    λ: "prec", "f" ("vZ" + "prec").
+
+Definition R_plus : val :=
+  λ: "f" "g",
+    λ: "prec", VDiv4Rounded ("f" ("prec" - #2) + "g" ("prec" - #2)).
+
+Definition R_neg : val :=
+  λ: "f",
+    λ: "prec", #(- 1) * "f" "prec".
 
 
 Section Lib.
   Context `{!erisGS Σ}.
 
-
-
   Lemma wp_Npow {x y : Z} {E} : ⌜(0 ≤ y)%Z ⌝ ⊢ WP (Npow #x #y) @ E {{ fun v => ⌜v = #(x ^ y)%Z ⌝ }}.
   Proof.
   Admitted.
+
+  Lemma wp_VDiv4Rounded {z : Z} {E} :
+    ⊢ WP (VDiv4Rounded #z) @ E {{ fun v => ⌜v = #(RoundedDiv4 z) ⌝}}.
+  Proof. rewrite /VDiv4Rounded/RoundedDiv4. wp_pures. done. Qed.
 
 
   (** Approximation Sequence Proofs *)
 
   (* The value v refines the function f, optionally preserving an invariant I. *)
-  Definition IsSeq (v : val) (f : nat → Z) E (I : iProp Σ) : iProp Σ :=
-    □ (∀ (prec : nat), I -∗ WP (v #prec) @ E {{ fun zv => ⌜zv = #(f prec)⌝ ∗ I }})%I.
+  Definition IsSeq (v : val) (f : Z → Z) E (I : iProp Σ) : iProp Σ :=
+    □ (∀ (prec : Z), I -∗ WP (v #prec) @ E {{ fun zv => ⌜zv = #(f prec)⌝ ∗ I }})%I.
 
+  Lemma wp_R_ofZ {z : Z} {E} :
+    ⊢ WP (R_ofZ #z) @ E {{ fun cont => IsSeq cont (ApproxZ z) E True}}.
+  Proof.
+    rewrite /R_ofZ.
+    wp_pures.
+    rewrite /IsSeq.
+    iModIntro.
+    iModIntro.
+    iIntros (??).
+    wp_pures.
+    iModIntro.
+    iSplitL; done.
+  Qed.
+
+  Lemma wp_R_mulPow {vf : val} {f E I} {z : Z} :
+    IsSeq vf f E I ⊢ WP (R_mulPow vf #z) @ E {{ fun cont => IsSeq cont (ApproxScal f z) E I}}.
+  Proof.
+    iIntros "#Hcont".
+    rewrite /R_mulPow/IsSeq/ApproxScal//=.
+    wp_pures.
+    iModIntro.
+    iModIntro.
+    iIntros (?) "HI".
+    rewrite (Z.add_comm prec).
+    wp_pures.
+    by iApply "Hcont".
+  Qed.
+
+  Lemma wp_R_neg {vf : val} {f E I} :
+    IsSeq vf f E I ⊢ WP (R_neg vf) @ E {{ fun cont => IsSeq cont (ApproxNeg f) E I}}.
+  Proof.
+    iIntros "#Hcont".
+    rewrite /R_neg/IsSeq/ApproxNeg.
+    wp_pures.
+    iModIntro.
+    iModIntro.
+    iIntros (?) "HI".
+    wp_pures.
+    wp_bind (vf _).
+    iApply pgl_wp_mono.
+    2: { by iApply ("Hcont" with "[HI]"). }
+    iIntros (?) "[-> ?]".
+    wp_pures.
+    iModIntro.
+    iFrame.
+    done.
+  Qed.
+
+  Lemma wp_R_plus {vf vg : val} {f g E If Ig}  :
+    IsSeq vf f E If ∗ IsSeq vg g E Ig ⊢
+      WP (R_plus vf vg) @ E {{ fun cont => IsSeq cont (ApproxAdd f g) E (If ∗ Ig)}}.
+  Proof.
+    iIntros "[#Hf #Hg]".
+    rewrite /R_plus/IsSeq/ApproxAdd//=/VDiv4Rounded//=/RoundedDiv4//=.
+    wp_pures.
+    iModIntro.
+    iModIntro.
+    iIntros (prec) "[HIf HIg]".
+    wp_pures.
+    wp_bind (vg _).
+    (* Yikes *)
+    iApply (pgl_wp_mono_frame
+            ((□ ∀ prec0 : Z, If -∗ WP vf #prec0 @ E {{ zv, ⌜zv = #(f prec0)⌝ ∗ If }})
+              ∗ (□ ∀ prec0 : Z, Ig -∗ WP vg #prec0 @ E {{ zv, ⌜zv = #(g prec0)⌝ ∗ Ig }})
+              ∗ If)
+             with "[HIg] [HIf Hf Hg]").
+    2: { by iApply ("Hg" with "[HIg]"). }
+    2: { iSplitR; [|iSplitR]; iFrame; done. }
+    iIntros (?) "[[#Hf [#Hg HIf]] [-> HIg]]".
+    wp_pures.
+    wp_bind (vf _).
+    iApply (pgl_wp_mono_frame
+            ((□ ∀ prec0 : Z, If -∗ WP vf #prec0 @ E {{ zv, ⌜zv = #(f prec0)⌝ ∗ If }})
+              ∗ (□ ∀ prec0 : Z, Ig -∗ WP vg #prec0 @ E {{ zv, ⌜zv = #(g prec0)⌝ ∗ Ig }})
+              ∗ Ig)
+             with "[HIf] [HIg Hg Hf]").
+    2: { by iApply ("Hf" with "[HIf]"). }
+    2: { iSplitR; [|iSplitR]; iFrame; done. }
+    iIntros (?) "[[#Hf [#Hg HIf]] [-> HIg]]".
+    wp_pures.
+    iModIntro.
+    iFrame.
+    done.
+  Qed.
+
+  (* TODO Compare two CReal numbers *)
+  (* TODO: Lift a lazy real to A CReal real *)
 
 End Lib.
 
@@ -222,40 +327,6 @@ Definition R_cmp : val :=
                           else "cmp_loop" ("prec" + #1))
   "cmp_loop" #0.
 
-
-Definition R_addZ : val :=
-  λ: "vR" "vZ",
-    λ: "prec", (R_ofZ "vZ" "prec") + ("vR" "prec").
-
-(* TODO *)
-Definition R_addR : val :=
-  λ: "vR1 vR2" ,
-    λ: "prec",
-      let: "z1" := "vR1" ("prec" + #1) in
-      let: "z2" := "vR2" ("prec" + #1) in
-      ("z1" + "z2") ≫ #1.
-
-Definition R_neg : val :=
-  λ: "vR",
-    λ: "prec",  #(-1) * ("vR" "prec").
-
-Definition Z_sgn : val :=
-  λ: "vZ", if: "vZ" < #0 then #(-1) else #1.
-
-Definition Z_abs : val :=
-  λ: "vZ", (Z_sgn "vZ") * "vZ".
-
-(* Multiplication by repeated addition *)
-Definition R_mulZ_nonneg : val :=
-  λ: "vR",
-    (rec: "loop_pos" "i" :=
-       if: "i" = #0
-         then R_ofZ #0
-         else R_addR "vR" ("loop_pos" ("i" - #1)))
-    "loop_pos".
-
-Definition R_mulZ : val :=
-  λ: "vR" "z", (Z_sgn "vZ") * R_mulZ_nonneg "vR" (Z_abs "z").
 
 (* Likely some off-by-ones. *)
 Definition R_ofRand : val :=
@@ -278,8 +349,6 @@ Context `{!erisGS Σ}.
 (* TODO: How to specify that a value behaves like a given pure function in Eris?  *)
 Definition BehavesAsSequence (v : val) (f : nat → Z) E (I : iProp Σ) : iProp Σ :=
   □ (∀ (prec : nat), I -∗ WP (v #prec) @ E {{ fun zv => ⌜zv = #(f prec)⌝ ∗ I }})%I.
-
-
 
 
 (* Can I prove this using chunk_and_tape_seq for lazy_real? *)
