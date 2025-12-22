@@ -11,6 +11,44 @@ NB. This is used to state Fubini's axiom. *)
 Definition Continuity2 (f : (R * R) -> R) (x y : R) : Prop :=
   filterlim f (locally (x, y)) (locally (f (x, y))).
 
+Lemma Continuity2_continuity_2d_pt f x y:
+  Continuity2 f x y <-> Continuity.continuity_2d_pt (curry f) x y.
+Proof.
+  split.
+  - rewrite /Continuity2/Continuity.continuity_2d_pt.
+    intros H eps.
+    rewrite /filtermap//=/locally//= in H.
+    rewrite /filterlim/=/filter_le/= /filtermap//= in H.
+    pose (P:=(λ u, Rabs (u  - f (x, y)) < eps)).
+    unshelve epose proof H P _ as [ep' H0].
+    { exists eps.
+      rewrite /P/=.
+      rewrite /ball/=/AbsRing_ball/abs/=/minus/=/plus/opp/=/Rabs.
+      intros. 
+      repeat case_match; lra.
+    }
+    exists ep'.
+    intros u v ? ?.
+    unshelve epose proof H0 (u, v) _ as H3.
+    { rewrite /ball/=/AbsRing_ball/prod_ball/=/ball/=/AbsRing_ball/abs/=/minus/=/plus/opp/=.
+      unfold Rabs in *.
+      repeat case_match; lra.
+    }
+    rewrite /P in H3.
+    by rewrite /curry.
+  - rewrite /Continuity2/Continuity.continuity_2d_pt.
+    intros H P [eps H'].
+    pose proof H eps as [delta H''].
+    rewrite /filtermap.
+    exists delta.
+    intros [u v] H0.
+    rewrite /ball/=/AbsRing_ball/prod_ball/=/ball/=/AbsRing_ball/abs/=/minus/=/plus/opp/= in H0.
+    unshelve epose proof H'' u v _ _.
+    + unfold Rabs in *; repeat case_match; lra.
+    + unfold Rabs in *; repeat case_match; lra.
+    + by apply H'.
+Qed. 
+
 (** The set of 2D discontinuities of a function *)
 Definition Discontinuities2 (f : R * R -> R) : R * R -> Prop :=
   fun '(x, y) => ¬ Continuity2 f x y.
@@ -65,11 +103,14 @@ Lemma Continuity2_mult {F f1 f2: R * R → R} (x y : R) :
   (∀ z, F z = f1 z * f2 z) →
   Continuity2 F x y.
 Proof.
-  (* rewrite /Continuity2. *)
-  (* intros H. *)
-  (* replace F with (fun (_ : R * R) => v); last by (apply functional_extensionality; intros; rewrite H). *)
-  (* apply filterlim_const. *)
-Admitted.
+  rewrite !Continuity2_continuity_2d_pt.
+  intros H1 H2 H3.
+  eapply Continuity.continuity_2d_pt_mult in H1; last apply H2.
+  eapply Continuity.continuity_2d_pt_ext; last apply H1.
+  intros. simpl.
+  rewrite /curry.
+  rewrite H3. lra.
+Qed. 
 
 (** 2D continuty projects to 1D continuity along a horizontal line *)
 Lemma Continuity2_continuous_fst
