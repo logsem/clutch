@@ -908,6 +908,25 @@ Proof.
   }
 Qed.
 
+(** Rect continuity of multiplication *)
+Lemma RectFun_continuity_mult {f g xa1 xb1 ya1 yb1 xa2 xb2 ya2 yb2} :
+  Rmin xa1 xb1 <= Rmax xa2 xb2 ->
+  Rmin xa2 xb2 <= Rmax xa1 xb1 ->
+  Rmin ya1 yb1 <= Rmax ya2 yb2 ->
+  Rmin ya2 yb2 <= Rmax ya1 yb1 ->
+  RectFun_continuity (f, xa1, xb1, ya1, yb1) →
+  RectFun_continuity (g, xa2, xb2, ya2, yb2) →
+  RectFun_continuity ((fun x y=> f x y * g x y ), Rmax (Rmin xa1 xb1) (Rmin xa2 xb2), Rmin (Rmax xa1 xb1) (Rmax xa2 xb2), Rmax (Rmin ya1 yb1) (Rmin ya2 yb2), Rmin (Rmax ya1 yb1) (Rmax ya2 yb2)).
+Proof.
+  (* rewrite /IntervalFun_continuity//=. *)
+  (* intros H1 H2 Hf Hg x Hx. *)
+  (* apply (@Continuity.continuous_mult R_CompleteNormedModule). *)
+  (* - unfold Icc, Rmin, Rmax in *. apply Hf. *)
+  (*   repeat case_match; lra. *)
+  (* - unfold Icc, Rmin, Rmax in *. apply Hg. *)
+  (*   repeat case_match; lra. *)
+Admitted. 
+
 (** Product of 2D picewise continuous functions *)
 Lemma PCts2_mult {f g : R → R → R} {xa xb ya yb} :
   PCts2 f xa xb ya yb → PCts2 g xa xb ya yb → PCts2 (fun (x y : R) => f x y * g x y) xa xb ya yb.
@@ -994,8 +1013,27 @@ Proof.
       clear K2.
       unfold Rmin, Rmax in *.
       repeat case_match; lra.
-  - clear H1 H3. admit.
-Admitted.
+  - clear H1 H3.
+    revert Lg H4.
+    induction Lf as [|a ? IHLf]; first (intros; by apply Forall_nil).
+    intros Lg.
+    intros.
+    rewrite /flat_map -/(flat_map _).
+    apply Forall_app. 
+    apply Forall_cons in H2.
+    split; last naive_solver.
+    induction Lg as [|b ? IHLg]; first by apply Forall_nil.
+    rewrite map_cons.
+    rewrite Forall_cons in H4.
+    apply Forall_cons; split; last naive_solver.
+    rewrite /mult_interval.
+    do 8 case_match; subst.
+    case_bool_decide.
+    + apply RectFun_continuity_mult; try lra; naive_solver.
+    + intros ????.
+      eapply (Continuity2_const 0).
+      by intros [].
+Qed. 
 
 (** 2D Piecewise continuity of functions piecewise continuous in x and constant in y *)
 Lemma PCts_const_x {f xa xb ya yb} : PCts f xa xb → PCts2 (fun x _ => f x) xa xb ya yb.
