@@ -1,4 +1,4 @@
-From clutch.eris.examples.math Require Import prelude series iverson sets improper.
+From clutch.eris.examples.math Require Import prelude series iverson sets improper piecewise.
 From clutch.eris Require Import infinite_tape.
 Import Hierarchy.
 Set Default Proof Using "Type*".
@@ -635,11 +635,64 @@ Lemma neg_exp_accuracy_chasles {L} :
   RInt_gen (λ r : R, exp (- r)) (at_point L) (Rbar_locally Rbar.p_infty).
 Proof.
   (* Step 1: Simplify LHS: on [0,∞), Iverson (Iio 0) r = 0 *)
+  assert (ex_RInt_gen (λ r, Iverson (Iio 0) r  * exp (- r)) (at_point 0) (Rbar_locally Rbar.p_infty)).
+  { eapply (ex_RInt_gen_Ici_compare_PCts (F:=λ x, 1* exp (-x))).
+    - intros.
+      apply IPCts_PCts.
+      apply IPCts_cts.
+      intros.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    - intros.
+      apply PCts_mult.
+      + admit.
+      + apply IPCts_PCts.
+        apply IPCts_cts.
+        intros.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+    - intros.
+      split.
+      + apply Rmult_le_pos.
+        * apply Iverson_nonneg.
+        * apply Rexp_nn.
+      + apply Rmult_le_compat_r.
+        * apply Rexp_nn.
+        * apply Iverson_le_1.
+    - apply ex_RInt_gen_exp. }
+  assert (ex_RInt_gen (λ x : R, Iverson (Ioi L) x * exp (- x)) (at_point 0) (Rbar_locally Rbar.p_infty)).
+  { eapply (ex_RInt_gen_Ici_compare_PCts (F:=λ x, 1* exp (-x))).
+    - intros.
+      apply IPCts_PCts.
+      apply IPCts_cts.
+      intros.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    - intros.
+      apply PCts_mult.
+      + admit.
+      + apply IPCts_PCts.
+        apply IPCts_cts.
+        intros.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+    - intros.
+      split.
+      + apply Rmult_le_pos.
+        * apply Iverson_nonneg.
+        * apply Rexp_nn.
+      + apply Rmult_le_compat_r.
+        * apply Rexp_nn.
+        * apply Iverson_le_1.
+    - apply ex_RInt_gen_exp. }
   erewrite (@RInt_gen_ext_eq_Ici
     (λ r : R, (Iverson (Iio 0) r + Iverson (Ioi L) r) * exp (- r))
     (λ r : R, Iverson (Ioi L) r * exp (- r)) 0).
   2: { intros x Hx. rewrite Iverson_False. { lra. } rewrite /Iio. lra. }
-  2: { admit. } (* TODO: ex_RInt_gen for LHS - need to prove existence *)
+  2: {
+    eapply (ex_RInt_gen_ext_eq_Ioi (f:=(λ r : R, Iverson (Iio 0) r  * exp (- r) + Iverson (Ioi L) r * exp (- r)) )); first (intros; lra).
+    by apply ex_RInt_gen_plus.
+  } 
 
   (* Step 2: Now prove: ∫[0,∞) Iverson (Ioi L) r * exp(-r) = ∫[L,∞) exp(-r) *)
   (* Split into cases based on whether L >= 0 *)
@@ -649,21 +702,61 @@ Proof.
     (* Strategy: Show RHS = ∫[L,∞) Iverson (Ioi L) r * exp(-r) on [L,∞)
        Then relate this to LHS using Chasles to show ∫[0,L] part is 0 *)
     symmetry.
-    erewrite (@RInt_gen_ext_eq_Ici
+    erewrite (@RInt_gen_ext_eq_Ioi
       (λ r : R, exp (- r))
       (λ r : R, Iverson (Ioi L) r * exp (- r)) L).
 
     (* Need to prove: exp(-x) = Iverson (Ioi L) x * exp(-x) for x >= L *)
-    2: admit. (* TODO: intros x Hx. rewrite Iverson_True. { lra. } rewrite /Ioi. lra. - this should work *)
+    2: { intros. rewrite Iverson_True; first lra.
+         by rewrite /Ioi. 
+    } 
 
     (* Need existence of ∫[L,∞) exp(-r) *)
-    2: admit. (* TODO: prove ex_RInt_gen exp from L *)
-
-    (* Main goal: ∫[L,∞) Iverson (Ioi L) r * exp(-r) = ∫[0,∞) Iverson (Ioi L) r * exp(-r) *)
-    (* Key insight: on [0,L], Iverson (Ioi L) r = 0, so these integrals differ by 0 *)
-    admit. (* TODO: Use Chasles to show ∫[0,∞) = ∫[0,L] + ∫[L,∞), and ∫[0,L] Iverson (Ioi L) = 0 *)
-
+    2: {
+      apply: (ex_RInt_gen_ext_eq_Ici (f:= λ r, 1*exp (-r))); first (intros; lra).
+      eapply ex_RInt_gen_Chasles; last apply ex_RInt_gen_exp.
+      rewrite ex_RInt_gen_at_point.
+      apply IPCts_RInt.
+      apply IPCts_cts.
+      intros.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    }
+    erewrite <-RInt_gen_Chasles; last done; last first.
+    { apply ex_RInt_gen_at_point.
+      apply PCts_RInt.
+      apply PCts_mult.
+      - admit.
+      - apply IPCts_PCts.
+        apply IPCts_cts.
+        intros.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive. }
+    replace (RInt_gen _ (at_point _) (at_point _)) with 0; first by rewrite plus_zero_l.
+    symmetry.
+    erewrite (RInt_gen_ext _ (λ _, 0)).
+    + rewrite RInt_gen_at_point.
+      * rewrite RInt_const.
+        rewrite /scal/=/mult/=. lra.
+      * apply ex_RInt_const.
+    + eapply (Filter_prod _ _ _ (λ x, x<=L) (λ x, 0<=x<=L)); try done.
+      * by rewrite /at_point.
+      * intros.
+        rewrite Iverson_False; first lra.
+        simpl in *.
+        unfold Ioi, Rmin, Rmax in *. simpl in *.
+        case_match; lra.
+    + apply ex_RInt_gen_at_point.
+      apply PCts_RInt.
+      apply PCts_mult.
+      * admit.
+      * apply IPCts_PCts.
+        apply IPCts_cts.
+        intros.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive. 
   - (* Case 2: L < 0 *)
+    (** I DONT THINK THIS IS TRUE *)
     (* When L < 0, on [0,∞) we always have r > L, so Iverson (Ioi L) r = 1 *)
     admit. (* TODO: Show that the integrals are equal by extensionality and Chasles *)
 Admitted.
