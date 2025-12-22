@@ -389,6 +389,7 @@ Section lazy_real.
     seq_bin_to_R (cons_bin_seq h f1) = seq_bin_to_R (cons_bin_seq h f2).
   Proof. intros H. by rewrite seq_bin_to_R_cons seq_bin_to_R_cons H. Qed.
 
+  (* Trivial *)
   Lemma seq_bin_to_R_range' x n {bf : nat → fin 2} (d : fin 2)  :
     bf n = d → x = seq_bin_to_R bf →
     ∃ (k : nat), (k < 2^n)%nat ∧ (k / 2^n <= x <= (k + 1) / 2^n).
@@ -442,6 +443,256 @@ Section lazy_real.
       }
     }
   Qed.
+
+  (*
+  Lemma seq_bin_to_R_range'' x n {bf : nat → fin 2} (d : fin 2)  :
+    bf n = d → x = seq_bin_to_R bf →
+    ∃ (k : nat), (k < 2^n)%nat ∧ ((2*k+d)%nat / 2^(n+1) <= x <= ((2*k+d) + 1)%nat / 2^(n+1)).
+  Proof.
+    revert bf x d.
+    induction n.
+    { simpl. intros ?????. exists 0%nat. split; [lia|]. simpl.
+      rewrite Rmult_1_r.
+      rewrite plus_INR //=.
+      destruct (bin_seq_hd bf) as (bf_head & bf_rest & ->).
+      simpl in H; rewrite -H.
+      rewrite H0.
+      rewrite seq_bin_to_R_cons.
+      have ? := seq_bin_to_R_range bf_rest.
+      lra.
+    }
+    intros bf x d.
+    destruct (bin_seq_hd bf) as (bf_head & bf_rest & ->).
+    intros ??.
+    have H1 : bf_rest n = d.
+    { rewrite -H //=. }
+    have H2 : 2 * x - bf_head = seq_bin_to_R bf_rest.
+    { rewrite H0 seq_bin_to_R_cons. lra. }
+    destruct (IHn bf_rest _ d H1 H2) as [k' [Hk'b Hb]].
+    replace (S n + 1)%nat with (S (n+1))%nat by lia.
+    exists (k' + (2^n) * bf_head)%nat; split.
+    { admit. }
+    split.
+    { admit. }
+    { admit. }
+
+
+
+    (*
+    exists (k' + 2^(n+1)%nat * bf_head)%nat; split.
+    { rewrite Nat.pow_succ_r; [|lia].
+      replace (2 * 2 ^ (n+1))%nat with (2^(n+1) + 2^(n+1))%nat by lia.
+      apply Nat.add_lt_le_mono; [done|].
+      replace (n + 1)%nat with (S n)%nat by lia.
+      rewrite Nat.pow_succ_r; [|lia].
+      have ? : 0 <= 2 ^ n.
+      { apply pow_le; lra. }
+      destruct (bin_fin_to_nat_cases bf_head) as [-> | ->]; lia.
+    }
+    { split.
+      { apply (Rmult_le_reg_r 2); [lra|].
+        rewrite -tech_pow_Rmult (Rmult_comm _ (2 ^ _)).
+        rewrite Rdiv_mult_distr Rdiv_def Rmult_assoc Rinv_l; [rewrite Rmult_1_r|lra].
+        rewrite Rmult_comm.
+        replace (k' + 2 ^ (n+1) * bf_head + d)%nat with ((k' + d) + 2 ^ (n+1) * bf_head)%nat by lia.
+        rewrite plus_INR Rdiv_plus_distr.
+        rewrite mult_INR.
+        rewrite (Rmult_comm _ bf_head)  Rdiv_def Rdiv_def Rmult_assoc.
+        rewrite pow_INR.
+        replace (INR 2) with 2; [|by simpl].
+        rewrite Rinv_r; [lra|].
+        suffices ? : 0 <  2 ^ (n+1) by lra.
+        apply pow_lt; lra.
+      }
+      { apply (Rmult_le_reg_r 2); [lra|].
+        rewrite -tech_pow_Rmult (Rmult_comm _ (2 ^ _)).
+        rewrite Rdiv_mult_distr Rdiv_def Rmult_assoc Rinv_l; [rewrite Rmult_1_r|lra].
+        rewrite Rmult_comm.
+        replace (k' + 2 ^ (n+1) * bf_head + d + 1)%nat with ((k' + d + 1) + 2 ^ (n+1) * bf_head)%nat by lia.
+        rewrite plus_INR.
+        rewrite Rdiv_plus_distr.
+        rewrite mult_INR pow_INR.
+        rewrite (Rmult_comm _ bf_head) Rdiv_def Rdiv_def Rmult_assoc.
+        replace (INR 2) with 2; [|by simpl].
+        rewrite Rinv_r; [lra|].
+        suffices ? : 0 <  2 ^ (n +1) by lra.
+        apply pow_lt; lra.
+      }
+    }
+    *)
+  Admitted.
+*)
+
+  (* Update the bound on a real number using knowledge of the next digit *)
+  Lemma seq_bin_to_R_update x n {k : nat} {bf : nat → fin 2} (d : fin 2) :
+    (* Some bit function exists with knowledge of digit n *)
+    bf n = d →
+    x = seq_bin_to_R bf →
+    (* We know a priori a range for x *)
+    (* (k < 2^n)%nat → *)
+    (k / 2^n <= x <= (k + 1) / 2^n) →
+    (* Then we get a bound for x+1*)
+    (* ((2 * k + d)%nat / 2^(n+1) <= x <= ((2 * k + d) + 1)%nat / 2^(n+1)). *)
+    ((∃ p : nat, x * 2^p = 1) ∨ ((2 * k + d)%nat / 2^(n+1) <= x <= ((2 * k + d) + 1)%nat / 2^(n+1))).
+  Proof.
+    revert bf x d k.
+    induction n.
+    { intros ????.
+      repeat rewrite plus_O_n.
+      repeat rewrite Rplus_0_l.
+      repeat rewrite pow_O.
+      repeat rewrite pow_1.
+      repeat rewrite Rdiv_1_r.
+      intros ???.
+      destruct k.
+      2: {
+        have Hrange := seq_bin_to_R_range bf.
+        rewrite -H0 in Hrange.
+        have ? : 1 <= S k.
+        { rewrite S_INR. have ? := pos_INR k. lra. }
+        left.
+        exists 0%nat.
+        simpl.
+        lra.
+      }
+      right.
+      repeat rewrite -mult_n_O.
+      repeat rewrite plus_O_n.
+      destruct (bin_seq_hd bf) as (bf_head & bf_rest & ->).
+      simpl in H.
+      rewrite H0.
+      rewrite seq_bin_to_R_cons.
+      rewrite H.
+      split.
+      { suffices ? : 0 <= seq_bin_to_R bf_rest by lra.
+        apply seq_bin_to_R_range.
+      }
+      { rewrite plus_INR //=.
+        rewrite Rdiv_plus_distr.
+        suffices  ? : seq_bin_to_R bf_rest <= 1 by lra.
+        apply seq_bin_to_R_range.
+      }
+    }
+    intros bf x d k ?.
+    destruct (bin_seq_hd bf) as (bf_head & bf_rest & ->).
+    intros ??.
+    have HR1 : bf_rest n = d by rewrite -H //=.
+    have HR2 : 2 * x - bf_head = seq_bin_to_R bf_rest by (rewrite H0 seq_bin_to_R_cons; lra).
+    destruct (bin_fin_to_nat_cases bf_head) as [HHlower | HHupper].
+    + rewrite HHlower in HR2 H.
+      rewrite H0 seq_bin_to_R_cons.
+      have Hbound : k / 2^n <= seq_bin_to_R bf_rest <= (k+1) / 2^n.
+      { have Hlo := proj1 H1.
+        have Hhi := proj2 H1.
+        rewrite -HR2.
+        split.
+        - apply (Rmult_le_compat_l 2) in Hlo; [|lra].
+          simpl in Hlo.
+          replace (0%nat : R) with 0 by done.
+          rewrite Rminus_0_r.
+          have : k / 2^n = 2 * (k / (2 * 2^n)).
+          { field. apply pow_nonzero. lra. }
+          intros ->.
+          done.
+        - apply (Rmult_le_compat_l 2) in Hhi; [|lra].
+          simpl in Hhi.
+          replace (0%nat : R) with 0 by done.
+          rewrite Rminus_0_r.
+          have : (k+1) / 2^n = 2 * ((k+1) / (2 * 2^n)).
+          { field. apply pow_nonzero. lra. }
+          intros ->.
+          done.
+      }
+      destruct (IHn bf_rest (seq_bin_to_R bf_rest) d k HR1 eq_refl Hbound) as [Hbad | [Hlo Hhi]].
+      { left.
+        destruct Hbad as [p Hp].
+        rewrite HHlower.
+        rewrite INR_0.
+        repeat rewrite Rdiv_0_l.
+        repeat rewrite Rplus_0_l.
+        exists (S p).
+        rewrite -Hp.
+        repeat rewrite Rdiv_def.
+        rewrite -tech_pow_Rmult.
+        lra.
+      }
+      right.
+      replace (S n + 1)%nat with (S (n + 1))%nat by lia.
+      rewrite HHlower.
+      simpl.
+      rewrite Rdiv_0_l Rplus_0_l.
+      split.
+      { rewrite Rmult_comm.
+        rewrite Rdiv_mult_distr.
+        repeat rewrite Rdiv_def.
+        apply Rmult_le_compat_r; try lra.
+        etrans; [|apply Hlo].
+        by simpl.
+      }
+      { rewrite Rmult_comm.
+        rewrite Rdiv_mult_distr.
+        repeat rewrite Rdiv_def.
+        apply Rmult_le_compat_r; try lra.
+        etrans; [apply Hhi|].
+        by simpl.
+      }
+    + (* Upper half: k >= 2^n, so bf_head = 1 *)
+
+      (*
+
+      have Hk_upper : (2^n <= k)%nat by admit.
+
+      have Hbf_head : (fin_to_nat bf_head = 1)%nat.
+      { admit. }
+      replace (fin_to_nat bf_head) with 1%nat in * by done.
+      pose (k' := (k - 2^n)%nat).
+      have Hk'_bound : (k' < 2^n)%nat.
+      { admit. }
+      have Hbound : k' / 2^n <= seq_bin_to_R bf_rest <= (k'+1) / 2^n.
+      { (* We have: k / 2^(S n) <= x <= (k+1) / 2^(S n) *)
+        (* Since bf_head = 1, we have: x = 1/2 + seq_bin_to_R bf_rest / 2 *)
+        (* So: 2*x - 1 = seq_bin_to_R bf_rest *)
+        (* We need to show: (k - 2^n) / 2^n <= seq_bin_to_R bf_rest <= (k - 2^n + 1) / 2^n *)
+        have Hlo := proj1 H2.
+        have Hhi := proj2 H2.
+        rewrite -HR2.
+        split.
+        - apply (Rmult_le_compat_l 2) in Hlo; [|lra].
+          simpl in Hlo.
+          replace (1%nat : R) with 1 by done.
+          have : k' / 2^n = 2 * (k / (2 * 2^n)) - 1.
+          { admit. }
+          intros ->.
+          lra.
+        - apply (Rmult_le_compat_l 2) in Hhi; [|lra].
+          simpl in Hhi.
+          replace (1%nat : R) with 1 by done.
+          have : (k'+1) / 2^n = 2 * ((k+1) / (2 * 2^n)) - 1.
+          { admit. }
+          intros ->.
+          lra. }
+      specialize (IHn bf_rest (seq_bin_to_R bf_rest) d k' HR1 eq_refl Hk'_bound Hbound).
+      (* From IH: (2*k' + d) / 2^(n+1) <= seq_bin_to_R bf_rest <= (2*k'+d+1) / 2^(n+1) *)
+      (* We have: x = 1/2 + seq_bin_to_R bf_rest / 2 *)
+      rewrite H0 seq_bin_to_R_cons.
+      simpl.
+      replace (S n + 1)%nat with (S (n + 1))%nat by lia.
+      simpl.
+      (* Now show the goal using IH and the fact that k = k' + 2^n *)
+      have : (bf_head : R) = 1.
+      { admit. }
+      intros ->.
+      simpl in IHn.
+      simpl.
+      have Hlo := proj1 IHn.
+      have Hhi := proj2 IHn.
+      (* Goal: (2k+d)/(2·2^(n+1)) <= 1/2 + seq_bin_to_R bf_rest/2 <= (2k+d+1)/(2·2^(n+1)) *)
+      (* From IH: (2k'+d)/2^(n+1) <= seq_bin_to_R bf_rest <= (2k'+d+1)/2^(n+1) *)
+      (* Note: 2k + d = 2(k'+2^n) + d = 2k' + 2·2^n + d *)
+      admit.
+      *)
+  Abort.
+
 
   Lemma get_bit_corect v r E (z : Z) :
     ⟨⟨⟨ ⌜ (0 <= z)%Z ⌝ ∗ lazy_real v r ⟩⟩⟩
