@@ -200,6 +200,12 @@ Proof.
   }
 Qed.
 
+Lemma fsum_cons {T : Type} hd (L : list (T → R)) (t : T) :
+  fsum (hd :: L) t = hd t + fsum L t.
+Proof.
+  done.
+Qed.
+
 (** Finite function sums distribute over list appending *)
 Lemma fsum_app {T : Type} (L1 L2 : list (T → R)) (t : T) :
   fsum (L1 ++ L2) t = fsum L1 t + fsum L2 t.
@@ -656,7 +662,117 @@ Qed.
 
 (** Product of 1D infinitely supported piecewise continuity *)
 Lemma IPCts_mult {f g} : IPCts f → IPCts g → IPCts (fun x => f x * g x).
-Proof. Admitted.
+Proof.
+  intros [f1[L1[H1[H2 H3]]]][f2[L2[H4[H5 H6]]]].
+  pose (mult_interval := fun '((f1, xa1, xb1), (f2, xa2, xb2)) =>
+                          if bool_decide (Rmin xa1 xb1 <= Rmax xa2 xb2 /\ Rmin xa2 xb2 <= Rmax xa1 xb1)
+                          then ((fun (x:R) => f1 x * f2 x), Rmax (Rmin xa1 xb1) (Rmin xa2 xb2), Rmin (Rmax xa1 xb1) (Rmax xa2 xb2)) else (λ x, 0, 0 ,0)).
+  exists (λ x, f1 x * f2 x).
+  exists ((flat_map (fun f_elem => map (fun g_elem => mult_interval (f_elem, g_elem)) L2) L1) ++
+    ((λ '(f', a', b'), (λ x', f1 x' * f' x',a',b'))<$>L2) ++
+    ((λ '(f', a', b'), (λ x', f' x' * f2 x' ,a',b'))<$>L1))
+  .
+  repeat split; last first.
+  { intros.
+    by apply: Continuity.continuous_mult.
+  }
+  { apply Forall_app; split; last (apply Forall_app; split).
+    - clear -H2 H5.
+      rewrite Forall_flat_map.
+      setoid_rewrite Forall_map.
+      generalize dependent L2.
+      induction L1 as [|? ? IHL1]; first (intros; by apply Forall_nil).
+      intros ? H5.
+      rewrite Forall_cons.
+      split; last first.
+      + apply IHL1; last done.
+        by eapply Forall_inv_tail.
+      + rewrite Forall_cons in H2.
+        destruct H2 as [H2 ?]. clear -H5 H2.
+        revert H5.
+        induction L2; first (intros; by apply Forall_nil).
+        rewrite Forall_cons.
+        intros [H' ?].
+        rewrite Forall_cons.
+        split; last naive_solver.
+        rewrite /mult_interval.
+        do 4 case_match; subst.
+        case_bool_decide.
+        * intros ??.
+          unfold IntervalFun_continuity in *.
+          apply: Continuity.continuous_mult.
+          -- apply H2. unfold Icc, Rmax, Rmin in *. repeat case_match; lra.
+          -- apply H'. unfold Icc, Rmax, Rmin in *. repeat case_match; lra.
+        * intros ??. apply Continuity.continuous_const.
+    - clear -H5 H3.
+      revert H5.
+      induction L2; first (intros; by apply Forall_nil).
+      rewrite Forall_cons.
+      intros [K1 K2].
+      rewrite fmap_cons Forall_cons; split; last naive_solver.
+      do 2 case_match; subst.
+      intros ??.
+      apply: Continuity.continuous_mult; naive_solver.
+    - clear -H2 H6.
+      revert H2.
+      induction L1; first (intros; by apply Forall_nil).
+      rewrite Forall_cons.
+      intros [K1 K2].
+      rewrite fmap_cons Forall_cons; split; last naive_solver.
+      do 2 case_match; subst.
+      intros ??.
+      apply: Continuity.continuous_mult; naive_solver.
+  }
+  clear -H1 H4.
+  intros x.
+  rewrite H1 H4.
+  clear H1 H4.
+  revert L2.
+  induction L1 as [|a L1 IHL1].
+  { intros L2.
+    rewrite app_nil_r.
+    simpl.
+    induction L2.
+    - simpl. lra.
+    - do 3 rewrite fmap_cons.
+      do 2 rewrite fsum_cons.
+      assert (f1 x * IntervalFun_R a x = IntervalFun_R (let '(f', a', b') := a in (λ x' : R, f1 x' * f' x', a', b')) x); last lra.
+      do 2 case_match; subst.
+      unfold IntervalFun_R, Iverson, Icc, Rmin, Rmax.
+      repeat case_match; lra.
+  }
+  intros L2.
+  rewrite fmap_cons fsum_cons.
+  trans ((f1 x + fsum (IntervalFun_R <$> L1) x) * (f2 x + fsum (IntervalFun_R <$> L2) x) +
+           IntervalFun_R a x * (f2 x + fsum (IntervalFun_R <$> L2) x)); first lra.
+  rewrite IHL1.
+  clear IHL1.
+  rewrite Rplus_assoc.
+  f_equal.
+  rewrite /flat_map-/(flat_map _).
+  rewrite fmap_cons.
+  rewrite !fmap_app !fsum_app fmap_cons fsum_cons.
+  assert (
+  IntervalFun_R a x * (f2 x + fsum (IntervalFun_R <$> L2) x) =
+  fsum (IntervalFun_R <$> map (λ g_elem : (R → R) * R * R, mult_interval (a, g_elem)) L2) x +
+  ((IntervalFun_R (let '(f', a', b') := a in (λ x' : R, f' x' * f2 x', a', b')) x ))
+    ); last lra.
+  destruct a as [[r0 r1 ]r].
+  induction L2 as [|a L2 IHL2]; first (simpl; lra).
+  rewrite fmap_cons.
+  rewrite fmap_cons.
+  rewrite -/(map _ _).
+  rewrite !fsum_cons.
+  assert (IntervalFun_R (r0, r1, r) x *(IntervalFun_R a x) = IntervalFun_R (mult_interval (r0, r1, r, a)) x); last lra.
+  clear.
+  unfold mult_interval.
+  destruct a as [[s0 s1] s].
+  unfold IntervalFun_R, Iverson, Icc, Rmin, Rmax.
+  case_bool_decide; repeat case_match; lra.
+Qed. 
+  
+  
+  
 
 (** Left scaling of 1D infinitely supported piecewise continuity *)
 Lemma IPCts_scal_mult {c : R} {G : R → R} :
