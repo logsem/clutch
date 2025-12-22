@@ -387,7 +387,61 @@ Section lazy_real.
   Lemma seq_bin_to_R_cons_eq {h f1 f2} :
     seq_bin_to_R f1 = seq_bin_to_R f2 →
     seq_bin_to_R (cons_bin_seq h f1) = seq_bin_to_R (cons_bin_seq h f2).
-  Proof. Admitted.
+  Proof. intros H. by rewrite seq_bin_to_R_cons seq_bin_to_R_cons H. Qed.
+
+  Lemma seq_bin_to_R_range' x n {bf : nat → fin 2} (d : fin 2)  :
+    bf n = d → x = seq_bin_to_R bf →
+    ∃ (k : nat), (k < 2^n)%nat ∧ (k / 2^n <= x <= (k + 1) / 2^n).
+  Proof.
+    revert bf x d.
+    induction n.
+    { simpl. intros ?????. exists 0%nat. split; [lia|]. simpl.
+      rewrite Rplus_0_l Rdiv_0_l Rdiv_1_r.
+      rewrite H0.
+      apply seq_bin_to_R_range.
+    }
+    intros bf x d.
+    destruct (bin_seq_hd bf) as (bf_head & bf_rest & ->).
+    intros ??.
+    have H1 : bf_rest n = d.
+    { rewrite -H //=. }
+    have H2 : 2 * x - bf_head = seq_bin_to_R bf_rest.
+    { rewrite H0 seq_bin_to_R_cons. lra. }
+    destruct (IHn bf_rest _ d H1 H2) as [k' [Hk'b Hb]].
+    exists (k' + 2^n * bf_head)%nat; split.
+    { rewrite Nat.pow_succ_r'.
+      replace (2 * 2 ^ n)%nat with (2^n + 2^n)%nat by lia.
+      apply Nat.add_lt_le_mono; [done|].
+      destruct (bin_fin_to_nat_cases bf_head) as [-> | ->]; lia.
+    }
+    { split.
+      { apply (Rmult_le_reg_r 2); [lra|].
+        rewrite -tech_pow_Rmult (Rmult_comm _ (2 ^ _)).
+        rewrite Rdiv_mult_distr Rdiv_def Rmult_assoc Rinv_l; [rewrite Rmult_1_r|lra].
+        rewrite Rmult_comm.
+        rewrite plus_INR Rdiv_plus_distr.
+        rewrite mult_INR pow_INR.
+        rewrite (Rmult_comm _ bf_head) Rdiv_def Rdiv_def Rmult_assoc.
+        replace (INR 2) with 2; [|by simpl].
+        rewrite Rinv_r; [lra|].
+        suffices ? : 0 <  2 ^ n by lra.
+        apply pow_lt; lra.
+      }
+      { apply (Rmult_le_reg_r 2); [lra|].
+        rewrite -tech_pow_Rmult (Rmult_comm _ (2 ^ _)).
+        rewrite Rdiv_mult_distr Rdiv_def Rmult_assoc Rinv_l; [rewrite Rmult_1_r|lra].
+        rewrite Rmult_comm.
+        rewrite plus_INR Rplus_assoc Rplus_comm Rplus_assoc -Rplus_comm.
+        rewrite Rdiv_plus_distr.
+        rewrite mult_INR pow_INR.
+        rewrite (Rmult_comm _ bf_head) Rdiv_def Rdiv_def Rmult_assoc.
+        replace (INR 2) with 2; [|by simpl].
+        rewrite Rinv_r; [lra|].
+        suffices ? : 0 <  2 ^ n by lra.
+        apply pow_lt; lra.
+      }
+    }
+  Qed.
 
   Lemma get_bit_corect v r E (z : Z) :
     ⟨⟨⟨ ⌜ (0 <= z)%Z ⌝ ∗ lazy_real v r ⟩⟩⟩
@@ -468,6 +522,9 @@ Section lazy_real.
     }
   }
   Qed.
+
+
+
 
   (* TODO should make this more concise, also use notation for it? *)
   Lemma wp_lazy_real_presample2_adv_comp E e v1 v2 Φ (ε1 : R) (ε2 : R → R -> R) :
