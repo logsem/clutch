@@ -912,8 +912,89 @@ Qed.
 Lemma PCts2_mult {f g : R → R → R} {xa xb ya yb} :
   PCts2 f xa xb ya yb → PCts2 g xa xb ya yb → PCts2 (fun (x y : R) => f x y * g x y) xa xb ya yb.
 Proof.
-  intros [L [H1 H2]].
-  
+  intros [Lf [H1 H2]][Lg [H3 H4]].
+  pose (mult_interval := fun '((f1, xa1, xb1, ya1, yb1), (f2, xa2, xb2, ya2, yb2)) =>
+                           if bool_decide (Rmin xa1 xb1 <= Rmax xa2 xb2 /\ Rmin xa2 xb2 <= Rmax xa1 xb1 /\
+                                           Rmin ya1 yb1 <= Rmax ya2 yb2 /\ Rmin ya2 yb2 <= Rmax ya1 yb1
+                                )
+                           then ((fun (x y:R) => f1 x y* f2 x y), Rmax (Rmin xa1 xb1) (Rmin xa2 xb2), Rmin (Rmax xa1 xb1) (Rmax xa2 xb2), Rmax (Rmin ya1 yb1) (Rmin ya2 yb2), Rmin (Rmax ya1 yb1) (Rmax ya2 yb2)) else (λ x y, 0, 0 ,0,0,0)).
+  exists (flat_map (fun f_elem => map (fun g_elem => mult_interval (f_elem, g_elem)) Lg) Lf).
+  split.
+  - intros x y.
+    intros.
+    rewrite H1; try done.
+    rewrite H3; try done.
+    clear.
+    revert Lg.
+    induction Lf as [|a ? IHLf]; first (simpl; intros; lra).
+    intros Lg.
+    rewrite fmap_cons.
+    rewrite /flat_map-/(flat_map _ _).
+    rewrite fmap_app fsum2_app.
+    rewrite fsum2_cons.
+    rewrite -IHLf.
+    assert (RectFun_RR a x y * fsum2 (RectFun_RR <$> Lg) x y =
+  fsum2 (RectFun_RR <$> map (λ g_elem : (R → R → R) * R * R * R * R, mult_interval (a, g_elem)) Lg) x
+    y); last lra.
+    clear.
+    induction Lg as [|a' ? IHLg]; first (simpl; lra).
+    rewrite fmap_cons map_cons fmap_cons !fsum2_cons.
+    rewrite -IHLg.
+    assert ( RectFun_RR a x y * (RectFun_RR a' x y) =
+             RectFun_RR (mult_interval (a, a')) x y ); last lra.
+    unfold RectFun_RR.
+    do 4 case_match; subst.
+    do 4 case_match; subst.
+    clear.
+    unfold mult_interval.
+    case_bool_decide as H; last (trans 0; last lra;
+                            unfold Iverson, Icc; repeat case_match; lra).
+    symmetry.
+    rewrite {1}/Iverson.
+    case_match; last first.
+    { trans 0; first lra.
+      rewrite {1 3}/Iverson.
+      case_match; last lra.
+      case_match; last lra.
+      exfalso.
+      unfold Icc, Rmin, Rmax in *.
+      repeat (lra||case_match).
+    }
+    rewrite {1}/Iverson.
+    case_match; last first.
+    { trans 0; first lra.
+      rewrite {2 4}/Iverson.
+      case_match; last lra.
+      case_match; last lra.
+      exfalso.
+      unfold Icc, Rmin, Rmax in *.
+      repeat (lra||case_match).
+    }
+    rename select (Icc _ _ x) into K1.
+    rename select (Icc _ _ y) into K2.
+    clear -K1 K2 H.
+    rewrite /(Rmin (Rmax _ _)) in K1.
+    rewrite /(Rmin (Rmax _ _)) in K2.
+    rewrite /(Rmax (Rmin _ _)) in K1.
+    rewrite /(Rmax (Rmin _ _)) in K2.
+    rewrite !Iverson_True; first lra.
+    + unfold Icc in *.
+      clear K1.
+      unfold Rmin, Rmax in *.
+      repeat case_match; lra.
+    + unfold Icc in *.
+      clear K2.
+      unfold Rmin, Rmax in *.
+      repeat case_match; lra.
+    + unfold Icc in *.
+      clear K1.
+      unfold Rmin, Rmax in *.
+      repeat case_match; lra.
+    + unfold Icc in *.
+      clear K2.
+      unfold Rmin, Rmax in *.
+      repeat case_match; lra.
+  - clear H1 H3. admit.
 Admitted.
 
 (** 2D Piecewise continuity of functions piecewise continuous in x and constant in y *)
