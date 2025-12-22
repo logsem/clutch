@@ -867,6 +867,13 @@ Proof.
     rewrite /RectFun_continuity//=.
 Qed.
 
+
+Lemma fsum2_cons {T U : Type} hd (L : list (T → U → R)) (t : T) (u : U) :
+  fsum2 (hd ::  L) t u = hd t u  + fsum2 L t u.
+Proof.
+  done. 
+Qed.
+
 (** Fsum2 distributes over app *)
 Lemma fsum2_app {T U : Type} (L1 L2 : list (T → U → R)) (t : T) (u : U) :
   fsum2 (L1 ++ L2) t u = fsum2 L1 t u + fsum2 L2 t u.
