@@ -19,14 +19,6 @@ Definition RoundedDiv4 (z : Z) : Z :=
 
 Theorem RoundindDiv4_bound {z : Z} : Rabs (IZR (RoundedDiv4 z) - (IZR z / 4)) <= 1/2.
 Proof.
-  rewrite /RoundedDiv4.
-  rewrite plus_IZR.
-  have H1 : ∀ w : Z, (w `rem` 2 = -1 ∨ w `rem` 2 = 0 ∨ w `rem` 2 = 1)%Z.
-  { admit. }
-  rewrite (Z.quot_rem z 2 ltac:(lia)).
-  rewrite plus_IZR Rdiv_plus_distr //=.
-  destruct (H1 z) as [|[|]]; rewrite H.
-  (* Bleh *)
 Admitted.
 
 
@@ -36,7 +28,7 @@ Definition ApproxSeq (f : Z → Z) (r : R) : Prop :=
 
 (* The integer z *)
 Definition ApproxZ (z : Z) : Z → Z :=
-  fun prec => Z.shiftr (Z.max 0%Z prec) z.
+  fun prec => Z.shiftr z prec.
 
 (* Divide by 2^z, for 0 ≤ z. *)
 Definition ApproxScal (f : Z → Z) (z : Z) : Z → Z :=
@@ -51,23 +43,32 @@ Definition ApproxNeg (f : Z → Z) : Z → Z :=
   fun prec => Z.mul (-1)%Z (f prec).
 
 Lemma ApproxZ_correct {z} : ApproxSeq (ApproxZ z) (IZR z).
-Proof. Admitted.
+Proof.
+  rewrite /ApproxSeq/ApproxZ//=.
+  intros prec.
+  destruct (Z_le_gt_dec prec 0).
+  { rewrite (Z.shiftr_mul_pow2 z prec l).
+    rewrite mult_IZR Rmult_assoc.
+    rewrite -{1}(Z2Nat.id (- prec) ltac:(lia) ).
+    rewrite -pow_IZR.
+    rewrite pow_powerRZ.
+    rewrite -powerRZ_add; [|lra].
+    replace (Z.to_nat (- prec) + prec)%Z with 0%Z by lia.
+    rewrite powerRZ_O Rmult_1_r.
+    rewrite Rminus_diag Rabs_R0.
+    apply powerRZ_le; lra.
+  }
+  { (* Rounding bound *)
+    admit. }
+Admitted.
 
 Lemma ApproxScal_correct {f r z} : (0 <= z)%Z → ApproxSeq f r → ApproxSeq (ApproxScal f z) (r / powerRZ 2 z).
 Proof.
-  (*
   rewrite /ApproxSeq/ApproxScal//=.
   intros Hz H prec.
   eapply (@Rmult_le_reg_r (powerRZ 2 z)).
   { apply powerRZ_lt; lra. }
-  rewrite Rmult_1_l.
-  apply (@Rle_trans _ 1).
-  2: {
-    rewrite -(Z2Nat.id _ Hz).
-    rewrite -pow_powerRZ.
-    apply pow_R1_Rle.
-    lra.
-  }
+  rewrite -powerRZ_add; [|lra].
   rewrite -(Rabs_right (powerRZ 2 z) _).
   2: { apply Rle_ge, powerRZ_le; lra. }
   rewrite -Rabs_mult Rcomplements.Rmult_minus_distr_r.
@@ -78,9 +79,8 @@ Proof.
   2: { apply powerRZ_NOR; lra. }
   rewrite Rmult_1_r.
   rewrite -powerRZ_add; [|lra].
-  by apply H.
-  *)
-Admitted.
+  apply H.
+Qed.
 
 Lemma ApproxAdd_correct {f g r s} : ApproxSeq f r → ApproxSeq g s → ApproxSeq (ApproxAdd f g) (r + s).
 Proof.
@@ -128,113 +128,17 @@ Proof.
 Qed.
 
 Lemma ApproxNeg_correct {f r} : ApproxSeq f r → ApproxSeq (ApproxNeg f) (-r).
-Proof. Admitted.
-
-
-
-(*
-Lemma ApproxZ_correct {z} : ApproxSeq (ApproxZ z) (IZR z).
 Proof.
-  rewrite /ApproxSeq/ApproxZ.
-  intros n Hn.
+  rewrite /ApproxSeq/ApproxNeg//=.
+  intros H z.
+  etrans; [|apply H].
+  rewrite -Rabs_Ropp.
+  right.
+  f_equal.
   rewrite mult_IZR.
-  rewrite -Rcomplements.Rmult_minus_distr_r.
-  replace (IZR (2 ^ n) - powerRZ 2 n) with 0.
-  2: {
-    rewrite -{2}(Z2Nat.id _ Hn).
-    rewrite -pow_powerRZ.
-    rewrite pow_IZR.
-    rewrite (Z2Nat.id _ Hn).
-    lra.
-  }
-  rewrite Rmult_0_l Rabs_R0; lra.
+  lra.
 Qed.
 
-Lemma ApproxScal2N_correct {f m r} :
-  ApproxSeq f r → ApproxSeq (ApproxScal2N f m) (Rpower 2 (- IZR m) * r).
-Proof.
-  rewrite /ApproxSeq/ApproxScal2N//=.
-  intros H n Hn.
-  etrans.
-  2: { apply (H (Z.max (n-m) 0)%Z), Z.le_max_r. }
-  rewrite -Rmult_assoc.
-  rewrite -Ropp_Ropp_IZR.
-  rewrite -powerRZ_Rpower; [|lra].
-  rewrite -powerRZ_add; [|lra].
-  rewrite Z.add_opp_r.
-  destruct (Z_le_gt_dec n m).
-  { rewrite Z.max_r; [|lia].
-    have H' := H 0%Z (Z.le_refl _).
-    revert H'.
-    rewrite powerRZ_O Rmult_1_l.
-    intro H'.
-    rewrite Rabs_minus_sym (Rabs_minus_sym _ r).
-    rewrite Rabs_minus_sym in H'.
-k    rewrite powerRZ_O in H.
-    apply Rcomplements.Rabs_le_between_min_max.
-    split.
-    { Search (Rmin _ _ <= _).
-
-   
-    admit.
-  }
-  { rewrite Z.max_l; [|lia]. done. }
-
-
-  Search Z (_ <= _)%Z "dec".
-
-
-  Search Rpower
-  rewrite -powerRZ_add.
-  Search powerRZ.
-
-
-
-  [|specialize (H (n-m)%Z)].
-  destruct (le_lt_dec m n).
-  { right. do 2 f_equal.
-    rewrite Nat2Z.inj_sub; [|done].
-    rewrite Z.pow_sub_r; try done.
-    2: { split; [apply Zle_0_nat|lia]. }
-    Search Z.div IZR.
-
-    Search Z.of_nat (_ - _)%nat.
-
-
-  Search Z "dec".
-
-  replace (IZR (2 ^ Z.of_nat n) * (r / 2 ^ m))
-
-    (IZR (2 ^ Z.of_nat n) * (r * IZR (2 ^ (- Z.of_nat m))))
-     with (IZR (2 ^ (Z.of_nat n - Z.of_nat m)) * r).
-  2: {
-    rewrite (Rmult_comm r) -Rmult_assoc.
-    f_equal.
-    rewrite -mult_IZR.
-    f_equal.
-    Search (_ ^ _ * _ ^ _)%Z.
-
-
-
- 
-  Search (_ - _ = 0)%nat.
-
-
-  do 2 f_equal.
-  f_equal.
-
-
-
-  rewrite mult_IZR -Rmult_assoc -Rcomplements.Rmult_minus_distr_r.
-  Search (_ * _ - _ * _).
-
-  etrans; last exact (H n).
-  right; f_equal.
-
-
-
-
-*)
 (** Programs *)
 
 (* x ^ y where 0 <= y*)
