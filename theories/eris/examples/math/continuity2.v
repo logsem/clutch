@@ -59,6 +59,18 @@ Proof.
   apply filterlim_const.
 Qed.
 
+Lemma Continuity2_mult {F f1 f2: R * R → R} (x y : R) :
+  Continuity2 f1 x y ->
+  Continuity2 f2 x y ->
+  (∀ z, F z = f1 z * f2 z) →
+  Continuity2 F x y.
+Proof.
+  (* rewrite /Continuity2. *)
+  (* intros H. *)
+  (* replace F with (fun (_ : R * R) => v); last by (apply functional_extensionality; intros; rewrite H). *)
+  (* apply filterlim_const. *)
+Admitted.
+
 (** 2D continuty projects to 1D continuity along a horizontal line *)
 Lemma Continuity2_continuous_fst
   {f : R * R → R_CompleteNormedModule} {x y : R} :

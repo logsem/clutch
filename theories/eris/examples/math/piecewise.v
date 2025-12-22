@@ -918,14 +918,18 @@ Lemma RectFun_continuity_mult {f g xa1 xb1 ya1 yb1 xa2 xb2 ya2 yb2} :
   RectFun_continuity (g, xa2, xb2, ya2, yb2) →
   RectFun_continuity ((fun x y=> f x y * g x y ), Rmax (Rmin xa1 xb1) (Rmin xa2 xb2), Rmin (Rmax xa1 xb1) (Rmax xa2 xb2), Rmax (Rmin ya1 yb1) (Rmin ya2 yb2), Rmin (Rmax ya1 yb1) (Rmax ya2 yb2)).
 Proof.
-  (* rewrite /IntervalFun_continuity//=. *)
-  (* intros H1 H2 Hf Hg x Hx. *)
-  (* apply (@Continuity.continuous_mult R_CompleteNormedModule). *)
-  (* - unfold Icc, Rmin, Rmax in *. apply Hf. *)
-  (*   repeat case_match; lra. *)
-  (* - unfold Icc, Rmin, Rmax in *. apply Hg. *)
-  (*   repeat case_match; lra. *)
-Admitted. 
+  rewrite /RectFun_continuity.
+  intros H1 H2 H3 H4 Hf Hg.
+  intros x y K1 K2.
+  unshelve epose proof Hf x y _ _ as Hf'.
+  { clear H3 H4 K2. unfold Icc, Rmin, Rmax in *. repeat case_match; lra. }
+  { clear H1 H2 K1. unfold Icc, Rmin, Rmax in *. repeat case_match; lra. }
+  unshelve epose proof Hg x y _ _ as Hg'.
+  { clear H3 H4 K2. unfold Icc, Rmin, Rmax in *. repeat case_match; lra. }
+  { clear H1 H2 K1. unfold Icc, Rmin, Rmax in *. repeat case_match; lra. }
+  eapply Continuity2_mult; [apply Hf'| apply Hg'|].
+  intros []. simpl. lra.
+Qed. 
 
 (** Product of 2D picewise continuous functions *)
 Lemma PCts2_mult {f g : R → R → R} {xa xb ya yb} :
