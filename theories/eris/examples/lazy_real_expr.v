@@ -15,11 +15,26 @@ Unset Printing Coercions.
 
 (* The nearest integer to z/4 *)
 Definition RoundedDiv4 (z : Z) : Z :=
-  ((z `rem` 2) + (z `quot` 4))%Z.
+  ((z `quot` 4) + ((z `rem` 4) `quot` 2))%Z.
 
 Theorem RoundindDiv4_bound {z : Z} : Rabs (IZR (RoundedDiv4 z) - (IZR z / 4)) <= 1/2.
 Proof.
-Admitted.
+  unfold RoundedDiv4.
+  set (q := Z.quot z 4).
+  set (r := Z.rem z 4).
+  assert (z = 4 * q + r)%Z as Hdiv.
+  { subst q r; apply Z.quot_rem'; lia. }
+  assert (-4 < r < 4)%Z as Hbound.
+  { subst r. assert (Z.abs (z `rem` 4) < 4)%Z; [apply Z.rem_bound_abs; lia | lia]. }
+  rewrite Hdiv.
+  rewrite plus_IZR.
+  replace (IZR (4 * q + r) / 4) with (IZR q + IZR r / 4) by (rewrite plus_IZR mult_IZR; lra).
+  replace (IZR q + IZR (r ÷ 2) - (IZR q + IZR r / 4)) with (IZR (r ÷ 2) - IZR r / 4) by lra.
+  assert (r = -3 \/ r = -2 \/ r = -1 \/ r = 0 \/ r = 1 \/ r = 2 \/ r = 3)%Z as Hcases by lia.
+  destruct Hcases as [Hr|[Hr|[Hr|[Hr|[Hr|[Hr|Hr]]]]]].
+  1: rewrite Hr; vm_compute; destruct Rcase_abs; lra.
+  all: rewrite Hr; vm_compute; destruct Rcase_abs; lra.
+Qed.
 
 
 (* More negative is more precise *)
@@ -59,8 +74,26 @@ Proof.
     apply powerRZ_le; lra.
   }
   { (* Rounding bound *)
-    admit. }
-Admitted.
+    assert (0 <= prec)%Z as Hprec by lia.
+    rewrite (Z.shiftr_div_pow2 z prec Hprec).
+    set (q := (z / 2 ^ prec)%Z).
+    set (r := (z mod 2 ^ prec)%Z).
+    assert (z = (2 ^ prec * q + r))%Z as Hdiv.
+    { subst q r. pose proof (Z_div_mod_eq_full z (2 ^ prec)). lia. }
+    assert (0 <= r < 2 ^ prec)%Z as Hbound.
+    { subst r. apply Z.mod_pos_bound. apply Z.pow_pos_nonneg; lia. }
+    rewrite Hdiv.
+    rewrite plus_IZR mult_IZR.
+    replace (IZR (2 ^ prec)) with (powerRZ 2 prec).
+    2: { symmetry. replace (2 ^ prec)%Z with (Zpower_nat 2 (Z.abs_nat prec)) by (rewrite Zpower_nat_Zpower; [reflexivity|lia]). rewrite Zpower_nat_powerRZ_absolu; [|lia]. simpl. reflexivity. }
+    replace (IZR q * powerRZ 2 prec - (powerRZ 2 prec * IZR q + IZR r)) with (- IZR r) by lra.
+    rewrite Rabs_Ropp Rabs_right.
+    2: { apply Rle_ge. replace 0 with (IZR 0) by reflexivity. apply IZR_le. lia. }
+    replace (powerRZ 2 prec) with (IZR (2 ^ prec)).
+    2: { symmetry. replace (2 ^ prec)%Z with (Zpower_nat 2 (Z.abs_nat prec)) by (rewrite Zpower_nat_Zpower; [reflexivity|lia]). rewrite Zpower_nat_powerRZ_absolu; [|lia]. simpl. reflexivity. }
+    apply IZR_le. lia.
+  }
+Qed.
 
 Lemma ApproxScal_correct {f r z} : (0 <= z)%Z → ApproxSeq f r → ApproxSeq (ApproxScal f z) (r / powerRZ 2 z).
 Proof.
