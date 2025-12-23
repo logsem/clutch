@@ -60,11 +60,11 @@ Section lazy_real.
         else "force" ((Fst "lazyR"), (Snd "cn")) ("n" - #1).
 
   Definition get_bits : val :=
-    rec: "force" "lazyR" "digitsLeft" "digitsSoFar" "approxSoFar" :=
+    rec: "force" "lazyR" "digitsLeft" "approxSoFar" :=
       let: "cn" := get_chunk (Fst "lazyR") (Snd "lazyR") in
       if: ("digitsLeft" = #0)
         then "approxSoFar"
-        else "force" ((Fst "lazyR"), (Snd "cn")) ("digitsLeft" - #1) ("digitsSoFar" + #1) (#2 * "approxSoFar" + (Fst "cn")).
+        else "force" ((Fst "lazyR"), (Snd "cn")) ("digitsLeft" - #1) (#2 * "approxSoFar" + (Fst "cn")).
 
   Context `{!erisGS Σ}.
 
@@ -451,256 +451,6 @@ Section lazy_real.
     }
   Qed.
 
-  (*
-  Lemma seq_bin_to_R_range'' x n {bf : nat → fin 2} (d : fin 2)  :
-    bf n = d → x = seq_bin_to_R bf →
-    ∃ (k : nat), (k < 2^n)%nat ∧ ((2*k+d)%nat / 2^(n+1) <= x <= ((2*k+d) + 1)%nat / 2^(n+1)).
-  Proof.
-    revert bf x d.
-    induction n.
-    { simpl. intros ?????. exists 0%nat. split; [lia|]. simpl.
-      rewrite Rmult_1_r.
-      rewrite plus_INR //=.
-      destruct (bin_seq_hd bf) as (bf_head & bf_rest & ->).
-      simpl in H; rewrite -H.
-      rewrite H0.
-      rewrite seq_bin_to_R_cons.
-      have ? := seq_bin_to_R_range bf_rest.
-      lra.
-    }
-    intros bf x d.
-    destruct (bin_seq_hd bf) as (bf_head & bf_rest & ->).
-    intros ??.
-    have H1 : bf_rest n = d.
-    { rewrite -H //=. }
-    have H2 : 2 * x - bf_head = seq_bin_to_R bf_rest.
-    { rewrite H0 seq_bin_to_R_cons. lra. }
-    destruct (IHn bf_rest _ d H1 H2) as [k' [Hk'b Hb]].
-    replace (S n + 1)%nat with (S (n+1))%nat by lia.
-    exists (k' + (2^n) * bf_head)%nat; split.
-    { admit. }
-    split.
-    { admit. }
-    { admit. }
-
-
-
-    (*
-    exists (k' + 2^(n+1)%nat * bf_head)%nat; split.
-    { rewrite Nat.pow_succ_r; [|lia].
-      replace (2 * 2 ^ (n+1))%nat with (2^(n+1) + 2^(n+1))%nat by lia.
-      apply Nat.add_lt_le_mono; [done|].
-      replace (n + 1)%nat with (S n)%nat by lia.
-      rewrite Nat.pow_succ_r; [|lia].
-      have ? : 0 <= 2 ^ n.
-      { apply pow_le; lra. }
-      destruct (bin_fin_to_nat_cases bf_head) as [-> | ->]; lia.
-    }
-    { split.
-      { apply (Rmult_le_reg_r 2); [lra|].
-        rewrite -tech_pow_Rmult (Rmult_comm _ (2 ^ _)).
-        rewrite Rdiv_mult_distr Rdiv_def Rmult_assoc Rinv_l; [rewrite Rmult_1_r|lra].
-        rewrite Rmult_comm.
-        replace (k' + 2 ^ (n+1) * bf_head + d)%nat with ((k' + d) + 2 ^ (n+1) * bf_head)%nat by lia.
-        rewrite plus_INR Rdiv_plus_distr.
-        rewrite mult_INR.
-        rewrite (Rmult_comm _ bf_head)  Rdiv_def Rdiv_def Rmult_assoc.
-        rewrite pow_INR.
-        replace (INR 2) with 2; [|by simpl].
-        rewrite Rinv_r; [lra|].
-        suffices ? : 0 <  2 ^ (n+1) by lra.
-        apply pow_lt; lra.
-      }
-      { apply (Rmult_le_reg_r 2); [lra|].
-        rewrite -tech_pow_Rmult (Rmult_comm _ (2 ^ _)).
-        rewrite Rdiv_mult_distr Rdiv_def Rmult_assoc Rinv_l; [rewrite Rmult_1_r|lra].
-        rewrite Rmult_comm.
-        replace (k' + 2 ^ (n+1) * bf_head + d + 1)%nat with ((k' + d + 1) + 2 ^ (n+1) * bf_head)%nat by lia.
-        rewrite plus_INR.
-        rewrite Rdiv_plus_distr.
-        rewrite mult_INR pow_INR.
-        rewrite (Rmult_comm _ bf_head) Rdiv_def Rdiv_def Rmult_assoc.
-        replace (INR 2) with 2; [|by simpl].
-        rewrite Rinv_r; [lra|].
-        suffices ? : 0 <  2 ^ (n +1) by lra.
-        apply pow_lt; lra.
-      }
-    }
-    *)
-  Admitted.
-*)
-
-  (* Update the bound on a real number using knowledge of the next digit *)
-  Lemma seq_bin_to_R_update x n {k : nat} {bf : nat → fin 2} (d : fin 2) :
-    (* Some bit function exists with knowledge of digit n *)
-    bf n = d →
-    x = seq_bin_to_R bf →
-    (* We know a priori a range for x *)
-    (* (k < 2^n)%nat → *)
-    (k / 2^n <= x <= (k + 1) / 2^n) →
-    (* Then we get a bound for x+1*)
-    (* ((2 * k + d)%nat / 2^(n+1) <= x <= ((2 * k + d) + 1)%nat / 2^(n+1)). *)
-    ((∃ p : nat, x * 2^p = 1) ∨ ((2 * k + d)%nat / 2^(n+1) <= x <= ((2 * k + d) + 1)%nat / 2^(n+1))).
-  Proof.
-    revert bf x d k.
-    induction n.
-    { intros ????.
-      repeat rewrite plus_O_n.
-      repeat rewrite Rplus_0_l.
-      repeat rewrite pow_O.
-      repeat rewrite pow_1.
-      repeat rewrite Rdiv_1_r.
-      intros ???.
-      destruct k.
-      2: {
-        have Hrange := seq_bin_to_R_range bf.
-        rewrite -H0 in Hrange.
-        have ? : 1 <= S k.
-        { rewrite S_INR. have ? := pos_INR k. lra. }
-        left.
-        exists 0%nat.
-        simpl.
-        lra.
-      }
-      right.
-      repeat rewrite -mult_n_O.
-      repeat rewrite plus_O_n.
-      destruct (bin_seq_hd bf) as (bf_head & bf_rest & ->).
-      simpl in H.
-      rewrite H0.
-      rewrite seq_bin_to_R_cons.
-      rewrite H.
-      split.
-      { suffices ? : 0 <= seq_bin_to_R bf_rest by lra.
-        apply seq_bin_to_R_range.
-      }
-      { rewrite plus_INR //=.
-        rewrite Rdiv_plus_distr.
-        suffices  ? : seq_bin_to_R bf_rest <= 1 by lra.
-        apply seq_bin_to_R_range.
-      }
-    }
-    intros bf x d k ?.
-    destruct (bin_seq_hd bf) as (bf_head & bf_rest & ->).
-    intros ??.
-    have HR1 : bf_rest n = d by rewrite -H //=.
-    have HR2 : 2 * x - bf_head = seq_bin_to_R bf_rest by (rewrite H0 seq_bin_to_R_cons; lra).
-    destruct (bin_fin_to_nat_cases bf_head) as [HHlower | HHupper].
-    + rewrite HHlower in HR2 H.
-      rewrite H0 seq_bin_to_R_cons.
-      have Hbound : k / 2^n <= seq_bin_to_R bf_rest <= (k+1) / 2^n.
-      { have Hlo := proj1 H1.
-        have Hhi := proj2 H1.
-        rewrite -HR2.
-        split.
-        - apply (Rmult_le_compat_l 2) in Hlo; [|lra].
-          simpl in Hlo.
-          replace (0%nat : R) with 0 by done.
-          rewrite Rminus_0_r.
-          have : k / 2^n = 2 * (k / (2 * 2^n)).
-          { field. apply pow_nonzero. lra. }
-          intros ->.
-          done.
-        - apply (Rmult_le_compat_l 2) in Hhi; [|lra].
-          simpl in Hhi.
-          replace (0%nat : R) with 0 by done.
-          rewrite Rminus_0_r.
-          have : (k+1) / 2^n = 2 * ((k+1) / (2 * 2^n)).
-          { field. apply pow_nonzero. lra. }
-          intros ->.
-          done.
-      }
-      destruct (IHn bf_rest (seq_bin_to_R bf_rest) d k HR1 eq_refl Hbound) as [Hbad | [Hlo Hhi]].
-      { left.
-        destruct Hbad as [p Hp].
-        rewrite HHlower.
-        rewrite INR_0.
-        repeat rewrite Rdiv_0_l.
-        repeat rewrite Rplus_0_l.
-        exists (S p).
-        rewrite -Hp.
-        repeat rewrite Rdiv_def.
-        rewrite -tech_pow_Rmult.
-        lra.
-      }
-      right.
-      replace (S n + 1)%nat with (S (n + 1))%nat by lia.
-      rewrite HHlower.
-      simpl.
-      rewrite Rdiv_0_l Rplus_0_l.
-      split.
-      { rewrite Rmult_comm.
-        rewrite Rdiv_mult_distr.
-        repeat rewrite Rdiv_def.
-        apply Rmult_le_compat_r; try lra.
-        etrans; [|apply Hlo].
-        by simpl.
-      }
-      { rewrite Rmult_comm.
-        rewrite Rdiv_mult_distr.
-        repeat rewrite Rdiv_def.
-        apply Rmult_le_compat_r; try lra.
-        etrans; [apply Hhi|].
-        by simpl.
-      }
-    + (* Upper half: k >= 2^n, so bf_head = 1 *)
-
-      (*
-
-      have Hk_upper : (2^n <= k)%nat by admit.
-
-      have Hbf_head : (fin_to_nat bf_head = 1)%nat.
-      { admit. }
-      replace (fin_to_nat bf_head) with 1%nat in * by done.
-      pose (k' := (k - 2^n)%nat).
-      have Hk'_bound : (k' < 2^n)%nat.
-      { admit. }
-      have Hbound : k' / 2^n <= seq_bin_to_R bf_rest <= (k'+1) / 2^n.
-      { (* We have: k / 2^(S n) <= x <= (k+1) / 2^(S n) *)
-        (* Since bf_head = 1, we have: x = 1/2 + seq_bin_to_R bf_rest / 2 *)
-        (* So: 2*x - 1 = seq_bin_to_R bf_rest *)
-        (* We need to show: (k - 2^n) / 2^n <= seq_bin_to_R bf_rest <= (k - 2^n + 1) / 2^n *)
-        have Hlo := proj1 H2.
-        have Hhi := proj2 H2.
-        rewrite -HR2.
-        split.
-        - apply (Rmult_le_compat_l 2) in Hlo; [|lra].
-          simpl in Hlo.
-          replace (1%nat : R) with 1 by done.
-          have : k' / 2^n = 2 * (k / (2 * 2^n)) - 1.
-          { admit. }
-          intros ->.
-          lra.
-        - apply (Rmult_le_compat_l 2) in Hhi; [|lra].
-          simpl in Hhi.
-          replace (1%nat : R) with 1 by done.
-          have : (k'+1) / 2^n = 2 * ((k+1) / (2 * 2^n)) - 1.
-          { admit. }
-          intros ->.
-          lra. }
-      specialize (IHn bf_rest (seq_bin_to_R bf_rest) d k' HR1 eq_refl Hk'_bound Hbound).
-      (* From IH: (2*k' + d) / 2^(n+1) <= seq_bin_to_R bf_rest <= (2*k'+d+1) / 2^(n+1) *)
-      (* We have: x = 1/2 + seq_bin_to_R bf_rest / 2 *)
-      rewrite H0 seq_bin_to_R_cons.
-      simpl.
-      replace (S n + 1)%nat with (S (n + 1))%nat by lia.
-      simpl.
-      (* Now show the goal using IH and the fact that k = k' + 2^n *)
-      have : (bf_head : R) = 1.
-      { admit. }
-      intros ->.
-      simpl in IHn.
-      simpl.
-      have Hlo := proj1 IHn.
-      have Hhi := proj2 IHn.
-      (* Goal: (2k+d)/(2·2^(n+1)) <= 1/2 + seq_bin_to_R bf_rest/2 <= (2k+d+1)/(2·2^(n+1)) *)
-      (* From IH: (2k'+d)/2^(n+1) <= seq_bin_to_R bf_rest <= (2k'+d+1)/2^(n+1) *)
-      (* Note: 2k + d = 2(k'+2^n) + d = 2k' + 2·2^n + d *)
-      admit.
-      *)
-  Abort.
-
-
   Lemma get_bit_corect v r E (z : Z) :
     ⟨⟨⟨ ⌜ (0 <= z)%Z ⌝ ∗ lazy_real v r ⟩⟩⟩
       get_bit v #z @ E
@@ -781,96 +531,178 @@ Section lazy_real.
   }
   Qed.
 
+  (* A is an approximation of r to prec bits of precision *)
+  Definition ApproxTo (A : Z) (prec : Z) (r : R) :=
+    IZR A <= r * 2 ^ (Z.to_nat prec) <= IZR A + 1.
 
-  Lemma get_bits_corect v r E (precLeft precSoFar precTotal acc : Z) :
-    ⟨⟨⟨ ⌜ (precLeft + precSoFar = precTotal)%Z ⌝ ∗
-        ⌜ (0 <= precLeft)%Z ⌝ ∗
-        ⌜ (0 <= precSoFar)%Z ⌝ ∗
+  Lemma ApproxTo_Base (r : R) : 0 <= r <= 1 → ApproxTo 0%Z 0%Z r.
+  Proof. intros ?. rewrite /ApproxTo//=. lra. Qed.
+
+
+  Definition ApproxComp (A B : Z) (precB : nat) :=
+    (A * 2 ^ precB + B)%Z.
+
+  Lemma ApproxComp_1 {A B : Z} : ApproxComp A B 1%nat = (2 * A + B)%Z.
+  Proof. rewrite /ApproxComp//=. lia. Qed.
+
+  Lemma ApproxComp_Comp_l {A B C : Z} {p1 p2 : nat} :
+    ApproxComp (ApproxComp A B p1) C p2 = ApproxComp A (2 ^ p2 * B + C) (p1 + p2)%nat .
+  Proof.
+    rewrite /ApproxComp//=.
+    rewrite Z.mul_add_distr_r.
+    rewrite -Z.mul_assoc.
+    rewrite -Z.pow_add_r; lia.
+  Qed.
+
+  Lemma get_bits_corect_loop vx vy x y E (precLeft precTotal acc : Z) :
+    ⟨⟨⟨ ⌜ (0 <= precLeft)%Z ⌝ ∗
+        ⌜ (0 <= precTotal)%Z ⌝ ∗
         ⌜ (0 <= acc)%Z ⌝ ∗
-        lazy_real v r ∗
-        ⌜(IZR acc <= r * 2 ^ (Z.to_nat precSoFar) <= (IZR acc + 1)) ⌝ ⟩⟩⟩
-      get_bits v #precLeft #precSoFar #acc @ E
-    ⟨⟨⟨ (R : Z), RET #R;
-        ⌜ (0 <= R)%Z ⌝ ∗
-        lazy_real v r ∗
-        ⌜(IZR R <= r * 2 ^ (Z.to_nat precTotal) <= IZR R + 1) ⌝ ⟩⟩⟩.
+        lazy_real vy y ∗
+        (lazy_real vy y -∗ lazy_real vx x) ∗
+        ⌜∀ (A prec' : Z),
+              (0 <= prec')%Z →
+              ApproxTo A prec' y ->
+              ApproxTo (ApproxComp acc A (Z.to_nat prec')) (precTotal - precLeft + prec')%Z x ⌝ ⟩⟩⟩
+      get_bits vy #precLeft #acc @ E
+    ⟨⟨⟨ (R : Z), RET #R; ⌜ (0 <= R)%Z ⌝ ∗ lazy_real vx x ∗ ⌜ApproxTo R precTotal x ⌝ ⟩⟩⟩.
   Proof.
     iIntros (Φ) "H HΦ".
     rewrite /get_bits//=.
-    iLöb as "IH" forall (precLeft precSoFar acc v r).
-    iDestruct "H" as "[%HprecSum [%HprecLeft [%HprecSoFar [%Hacc [Hr %Happrox]]]]]".
+    iLöb as "IH" forall (precLeft acc vy y).
+    iDestruct "H" as "[%HprecLeft [%HprecTotal [%Hacc [Hr [HcontX %Happrox]]]]]".
     iDestruct "Hr" as "[%l [%α [%f [-> [-> Hseq]]]]]".
     wp_pures.
     destruct (bin_seq_hd f) as (f_head & f_rest & ->).
     wp_bind (get_chunk _ _).
-    wp_apply (wp_get_chunk_cons with "Hseq [HΦ]").
+    wp_apply (wp_get_chunk_cons with "Hseq [HcontX HΦ]").
     iIntros (l_rest) "[Hseq Hcont]".
     wp_pures.
     case_bool_decide.
     { iClear "IH".
-      inversion H.
       wp_pures.
       iModIntro.
       iApply "HΦ".
       iSplitR; [done|].
+      inversion H.
       iSplitL.
       2: {
         iPureIntro.
-        have -> : precTotal = precSoFar by lia.
-        done.
+        have Happrox' := Happrox 0%Z 0%Z.
+        rewrite H1 //= Z.sub_0_r Z.add_0_r //= /ApproxComp Z2Nat.inj_0 //= in Happrox'.
+        rewrite Nat2Z.inj_0 Z.pow_0_r Z.mul_1_r Z.add_0_r //= in Happrox'.
+        apply Happrox'; [lia|].
+        apply ApproxTo_Base.
+        apply seq_bin_to_R_range.
       }
+      iApply "HcontX".
       rewrite /lazy_real//=.
       iExists l, α, (cons_bin_seq f_head f_rest).
       iSplitR; [done|].
       iSplitR; [done|].
       by iApply "Hcont".
     }
-    { do 9 wp_pure.
-      wp_apply ("IH" $! _ _ _ _ (seq_bin_to_R f_rest) with "[Hseq] [Hcont HΦ]").
-      { iSplitR.
-        { iPureIntro. lia. }
-        iSplitR.
-        { iPureIntro. (* True *) admit. }
-        iSplitR. {iPureIntro. lia. }
-        iSplitR. {iPureIntro. lia. }
-        iSplitL.
+    { do 8 wp_pure.
+      destruct (Z.eq_dec precLeft 0).
+      { exfalso. apply H. f_equal. rewrite e. done. }
+      have ? : (0 < precLeft)%Z by lia.
+      wp_apply ("IH" $! _ _ _ (seq_bin_to_R f_rest) with "[HcontX Hseq Hcont] [HΦ]"); iClear "IH".
+      { iSplitR. {iPureIntro; lia. }
+        iSplitR; [done|].
+        iSplitR. {iPureIntro; lia. }
+        iSplitL "Hseq".
         { rewrite /lazy_real//=.
           iExists l_rest, α, f_rest.
           iFrame. iPureIntro; done.
         }
-        iPureIntro.
-        admit.
-      }
-      {
-        iIntros (R) "[%Hv [HR %HaccFinal]]".
-        iApply "HΦ".
-        iSplitR; [done|].
         iSplitL.
-        { rewrite /lazy_real//=.
-          iDestruct "HR" as "[%l' [%a' [%f' [%H1 [%H2 ?]]]]]".
+        { iIntros "[%l' [%α' [%f' [%H1 [%H2 Hseq']]]]]".
+          inversion H1.
+          iApply "HcontX".
+          rewrite -H3 -H4.
+          rewrite /lazy_real//=.
           iExists l, α, (cons_bin_seq f_head f').
           iSplitR; [done|].
-          iSplitR.
-          { iPureIntro. by apply seq_bin_to_R_cons_eq. }
+          iSplitR. { iPureIntro. by apply seq_bin_to_R_cons_eq. }
           iApply "Hcont".
-          inversion H1.
-          subst.
-          iFrame.
+          iApply "Hseq'".
         }
-        iPureIntro.
-        (* Something funky in my IH *)
-        (* I'm calling the IH with (x << 1) and saying the return value should approximate (x << 1)
-           This is not good enough because I'm doing tail recursion now.
-
-           The problematic relationship is that the x in my postcondition is the same as the x I am
-           calling it with. I should call it with (x << precSoFar) basically.
-         *)
-        admit.
+        { iPureIntro.
+          intros A prec' Hprec' Happrox1.
+          rewrite -ApproxComp_1.
+          rewrite ApproxComp_Comp_l.
+          replace (1 + Z.to_nat prec')%Z with (1 + prec')%Z.
+          2: { f_equal. rewrite Z2Nat.id; lia. }
+          replace (precTotal - (precLeft - 1) + prec')%Z with (precTotal - precLeft + (1 + Z.to_nat prec'))%Z by lia.
+          have Happrox' := Happrox (2 ^ Z.to_nat prec' * f_head + A)%Z (1 + Z.to_nat prec')%nat.
+          rewrite Z2Nat.id in Happrox'; try lia.
+          rewrite Z2Nat.id; try lia.
+          replace (1 + Z.to_nat prec')%nat with (Z.to_nat (Z.of_nat (1 + Z.to_nat prec'))) by lia.
+          replace (1 + prec')%Z with (Z.of_nat (1 + Z.to_nat prec')) by lia.
+          apply Happrox'; try lia.
+          clear Happrox'.
+          revert Happrox1.
+          rewrite /ApproxTo//=.
+          intros Happrox1.
+          rewrite seq_bin_to_R_cons.
+          replace (Z.to_nat (S (Z.to_nat prec'))) with (1 + Z.to_nat prec')%nat by lia.
+          rewrite pow_add //= Rmult_1_r -Rmult_assoc.
+          rewrite Rmult_plus_distr_r.
+          do 2 rewrite Rdiv_def.
+          do 2 rewrite (Rmult_assoc _ _ 2).
+          rewrite Rinv_l; [|lra].
+          do 2 rewrite Rmult_1_r.
+          rewrite Rmult_plus_distr_r.
+          rewrite plus_IZR.
+          rewrite Rplus_assoc.
+          rewrite (Rmult_comm f_head).
+          split; apply Rplus_le_compat.
+          { rewrite mult_IZR.
+            rewrite INR_IZR_INZ.
+            rewrite pow_IZR.
+            rewrite Z2Nat.id; try lia.
+            done.
+          }
+          { apply Happrox1. }
+          { rewrite mult_IZR.
+            rewrite INR_IZR_INZ.
+            rewrite pow_IZR.
+            rewrite Z2Nat.id; try lia.
+            done.
+          }
+          { apply Happrox1. }
+        }
+      }
+      { iIntros (R) "[%Hv [HR %HaccFinal]]".
+        iApply "HΦ".
+        iSplitR; [|iSplitL]; done.
       }
     }
-  Admitted.
+  Qed.
 
-
+  Lemma get_bits_corect vx x E (precTotal : Z) (HT : (0 <= precTotal)%Z) :
+    ⟨⟨⟨ lazy_real vx x ⟩⟩⟩
+       get_bits vx #precTotal #0 @ E
+    ⟨⟨⟨ (R : Z), RET #R; ⌜ (0 <= R)%Z ⌝ ∗ lazy_real vx x ∗ ⌜ApproxTo R precTotal x ⌝ ⟩⟩⟩.
+  Proof.
+    iIntros (Φ) "H HΦ".
+    wp_apply (get_bits_corect_loop vx vx x x E precTotal precTotal with "[H] [HΦ]").
+    { iSplitR; [done|].
+      iSplitR; [done|].
+      iSplitR; [done|].
+      iFrame.
+      iSplit. { iIntros "?"; iFrame. }
+      iPureIntro.
+      intros A prec' Hprec' ?.
+      by rewrite /ApproxComp//= Z.mul_0_l Z.add_0_l Z.sub_diag Z.add_0_l.
+    }
+    { iIntros (R) "[% [HR %]]".
+      iApply "HΦ".
+      iSplitR; [done|].
+      iFrame.
+      iPureIntro; done.
+    }
+  Qed.
 
   (* TODO should make this more concise, also use notation for it? *)
   Lemma wp_lazy_real_presample2_adv_comp E e v1 v2 Φ (ε1 : R) (ε2 : R → R -> R) :
