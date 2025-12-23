@@ -394,7 +394,7 @@ Definition R_neg : val :=
 
 Definition R_ofUnif : val :=
   λ: "v",
-    λ: "prec", if: ("prec" ≤ #0) then #0 else  get_bits "v" "prec".
+    λ: "prec", if: (#0 ≤ "prec") then #0 else  get_bits "v" (#(-1) * "prec") #0.
 
 Section Lib.
   Context `{!erisGS Σ}.
@@ -536,7 +536,6 @@ Section Lib.
     by apply ApproxAdd_correct'.
   Qed.
 
-  (*
   Lemma wp_R_ofUnif {v : val} (x : R) {E}  :
     ⊢ WP (R_ofUnif v) @ E {{ fun cont =>  IsApprox cont x E (lazy_real v x)}}.
   Proof.
@@ -544,97 +543,32 @@ Section Lib.
     wp_pures.
     iModIntro.
     rewrite /IsApprox.
-  *)
-
-  (*
-  Lemma get_bits_corect vx x E (precTotal : Z) (HT : (0 <= precTotal)%Z) :
-    ⟨⟨⟨ lazy_real vx x ⟩⟩⟩
-       get_bits vx #precTotal #0 @ E
-    ⟨⟨⟨ (R : Z), RET #R; ⌜ (0 <= R)%Z ⌝ ∗ lazy_real vx x ∗ ⌜ApproxTo R precTotal x ⌝ ⟩⟩⟩.
-  Proof.
-    iIntros (Φ) "H HΦ".
-    wp_apply (get_bits_corect_loop vx vx x x E precTotal precTotal with "[H] [HΦ]").
-    { iSplitR; [done|].
-      iSplitR; [done|].
-      iSplitR; [done|].
-      iFrame.
-      iSplit. { iIntros "?"; iFrame. }
+    iModIntro.
+    iIntros (prec) "Hr".
+    wp_pures.
+    case_bool_decide.
+    { wp_pures.
+      iModIntro.
+      iExists 0%Z.
+      iSplit; [done|].
+      iSplit; [done|].
+      iPoseProof (lazy_real_range with "Hr") as "%".
       iPureIntro.
-      intros A prec' Hprec' ?.
-      by rewrite /ApproxComp//= Z.mul_0_l Z.add_0_l Z.sub_diag Z.add_0_l.
+      apply ApproxTo'_triv; [|lia].
+      done.
     }
-    { iIntros (R) "[% [HR %]]".
-      iApply "HΦ".
-      iSplitR; [done|].
+    { wp_pures.
+      wp_apply (get_bits_corect with "Hr"); [lia|].
+      iIntros (R) "[%HR [Hr %Happrox]]".
+      iExists R.
+      iSplit; [done|].
       iFrame.
-      iPureIntro; done.
+      iPureIntro.
+      apply ApproxTo_ApproxTo'; [lia|].
+      done.
     }
   Qed.
-*)
 
   (* TODO Compare two CReal numbers *)
-  (* TODO: Lift a lazy real to A CReal real *)
 
 End Lib.
-
-
-
-
-(*
-
-(* Given two values that behave as (Z → Z), compare them starting from 0. *)
-Definition R_cmp : val :=
-  λ: "v1" "v2",
-  (rec: "cmp_loop" "prec" :=
-     let: "z1" := "v1" "prec" in
-     let: "z2" := "v2" "prec" in
-     if:      "z1" < "z2" then #(-1)
-     else if: "z2" < "z1" then #1
-                          else "cmp_loop" ("prec" + #1))
-  "cmp_loop" #0.
-
-
-(* Likely some off-by-ones. *)
-Definition R_ofRand : val :=
-  (rec: "loop" "α" "chnk" "prec" :=
-     if: "prec" = #0
-       then
-         #0
-       else
-         let: "V" := get_chunk "α" "chnk" in
-         let: "r" := "loop" "α" (Snd "V") ("prec" - #1) in
-         (Fst "V") * (Zpow #2 "prec") + "r").
-
-
-(* Specify that a value behaves like a particular function Z → Z
-   Then, specify that it behaves like a real number similarly to lazy_real
-      R as Z -> Z functions *)
-
-Context `{!erisGS Σ}.
-
-(* TODO: How to specify that a value behaves like a given pure function in Eris?  *)
-Definition BehavesAsSequence (v : val) (f : nat → Z) E (I : iProp Σ) : iProp Σ :=
-  □ (∀ (prec : nat), I -∗ WP (v #prec) @ E {{ fun zv => ⌜zv = #(f prec)⌝ ∗ I }})%I.
-
-
-(* Can I prove this using chunk_and_tape_seq for lazy_real? *)
-(* It is the case for I = True and the constatnt real... *)
-
-(* Convert between bitstreams and partial power streams
-
-   Partial power streams are how I implemented the above, because they are way easier
-   for aruthmetic operations. The way to convert them is to get the n'th digit of the binary
-   expansion.
-
-    PPS to BS doesn't really make sense outside of the interval [0, 1].
-
-    This might be easier to specify using the CReal-like interval spec (which works
-    on PPS on any range natively) and then prove that the BitStream representation plus a
-    lazy_real predicate satisfies that.  *)
-Definition BS_to_PPS (bs : nat → (fin 2)) : nat → Z. Admitted.
-Definition PPS_to_BS (ps : nat → Z) : nat → (fin 2). Admitted.
-
-Definition BehavesAsLazyReal (v : val) (r : R) E (I : iProp Σ) : iProp Σ :=
-  ∃ (z : R) (f : nat → (fin 2)),
-    ⌜ r = seq_bin_to_R f ⌝ ∗ (BehavesAsSequence v (BS_to_PPS f) E I).
-*)
