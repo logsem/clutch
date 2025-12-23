@@ -1,3 +1,4 @@
+From Coquelicot Require Import Continuity.
 From clutch.eris.examples.math Require Import prelude continuity2 iverson sets.
 From clutch.eris Require Import infinite_tape.
 Import Hierarchy.
@@ -835,12 +836,54 @@ Qed.
 Lemma IPCts_Iio L:
   IPCts (Iverson (Iio L)).
 Proof.
-Admitted.
+  exists (λ r, if bool_decide (r<L) then 1 else
+            if bool_decide (r<L+1) then 1-(r-L) else 0
+    ).
+  exists (((λ r, r-(1+L)), L, L+1)::nil).
+  repeat split.
+  + simpl. rewrite /Iio/Icc/Iverson/Rmin/Rmax.
+    intros. repeat (case_bool_decide||case_match); lra.
+  + apply Forall_singleton.
+    intros ??.
+    apply: Derive.ex_derive_continuous.
+    by auto_derive.
+  + intros ??[eps Heps].
+    exists eps.
+    intros.
+    apply Heps.
+    clear -H.
+    revert H.
+    rewrite /ball//=/AbsRing_ball/abs/=.
+    intros H%Rabs_def2.
+    rewrite /minus/plus/opp/= in H *.
+    apply Rabs_def1; repeat case_bool_decide; lra.
+Qed. 
 
 Lemma IPCts_Ioi L:
   IPCts (Iverson (Ioi L)).
 Proof.
-Admitted.
+  exists (λ r, if bool_decide (r<L-1) then 0 else
+            if bool_decide (r<L) then (r-(L-1)) else 1
+    ).
+  exists (((λ r, -(r-(L-1))), L-1, L)::nil).
+  repeat split.
+  + simpl. rewrite /Ioi/Icc/Iverson/Rmin/Rmax.
+    intros. repeat (case_bool_decide||case_match); lra.
+  + apply Forall_singleton.
+    intros ??.
+    apply: Derive.ex_derive_continuous.
+    by auto_derive.
+  + intros ??[eps Heps].
+    exists eps.
+    intros.
+    apply Heps.
+    clear -H.
+    revert H.
+    rewrite /ball//=/AbsRing_ball/abs/=.
+    intros H%Rabs_def2.
+    rewrite /minus/plus/opp/= in H *.
+    apply Rabs_def1; repeat case_bool_decide; lra.
+Qed. 
 
 (** Finite sum of 2D functions *)
 Definition fsum2 {T U : Type} (L : list (T → U → R)) : T → U → R :=
