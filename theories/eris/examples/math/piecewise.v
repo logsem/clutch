@@ -832,6 +832,16 @@ Proof.
     by auto_derive.
 Qed. 
 
+Lemma IPCts_Iio L:
+  IPCts (Iverson (Iio L)).
+Proof.
+Admitted.
+
+Lemma IPCts_Ioi L:
+  IPCts (Iverson (Ioi L)).
+Proof.
+Admitted.
+
 (** Finite sum of 2D functions *)
 Definition fsum2 {T U : Type} (L : list (T → U → R)) : T → U → R :=
   fun t u => foldr (fun f s => f t u + s) 0 L.

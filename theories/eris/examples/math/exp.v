@@ -646,7 +646,8 @@ Proof.
       by auto_derive.
     - intros.
       apply PCts_mult.
-      + admit.
+      + apply IPCts_PCts.
+        apply IPCts_Iio.
       + apply IPCts_PCts.
         apply IPCts_cts.
         intros.
@@ -671,7 +672,8 @@ Proof.
       by auto_derive.
     - intros.
       apply PCts_mult.
-      + admit.
+      + apply IPCts_PCts.
+        apply IPCts_Ioi.
       + apply IPCts_PCts.
         apply IPCts_cts.
         intros.
@@ -724,7 +726,8 @@ Proof.
   { apply ex_RInt_gen_at_point.
     apply PCts_RInt.
     apply PCts_mult.
-    - admit.
+    - apply IPCts_PCts.
+      apply IPCts_Ioi.
     - apply IPCts_PCts.
       apply IPCts_cts.
       intros.
@@ -747,13 +750,14 @@ Proof.
   - apply ex_RInt_gen_at_point.
     apply PCts_RInt.
     apply PCts_mult.
-    + admit.
+    + apply IPCts_PCts.
+      apply IPCts_Ioi.
     + apply IPCts_PCts.
       apply IPCts_cts.
       intros.
       apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive. 
-Admitted.
+      by auto_derive.
+Qed. 
 
 Lemma ex_exp_geo_series : ex_seriesC (λ x : nat, exp (- x)).
 Proof.
