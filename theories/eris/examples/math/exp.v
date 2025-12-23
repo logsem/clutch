@@ -631,6 +631,7 @@ Proof.
 Qed.
 
 Lemma neg_exp_accuracy_chasles {L} :
+  0<=L ->
   RInt_gen (λ r : R, (Iverson (Iio 0) r + Iverson (Ioi L) r) * exp (- r)) (at_point 0) (Rbar_locally Rbar.p_infty) =
   RInt_gen (λ r : R, exp (- r)) (at_point L) (Rbar_locally Rbar.p_infty).
 Proof.
@@ -695,70 +696,63 @@ Proof.
   } 
 
   (* Step 2: Now prove: ∫[0,∞) Iverson (Ioi L) r * exp(-r) = ∫[L,∞) exp(-r) *)
-  (* Split into cases based on whether L >= 0 *)
-  case (decide (0 <= L)); intros HL.
 
-  - (* Case 1: L >= 0 *)
-    (* Strategy: Show RHS = ∫[L,∞) Iverson (Ioi L) r * exp(-r) on [L,∞)
+  (* Strategy: Show RHS = ∫[L,∞) Iverson (Ioi L) r * exp(-r) on [L,∞)
        Then relate this to LHS using Chasles to show ∫[0,L] part is 0 *)
-    symmetry.
-    erewrite (@RInt_gen_ext_eq_Ioi
-      (λ r : R, exp (- r))
-      (λ r : R, Iverson (Ioi L) r * exp (- r)) L).
+  symmetry.
+  erewrite (@RInt_gen_ext_eq_Ioi
+              (λ r : R, exp (- r))
+              (λ r : R, Iverson (Ioi L) r * exp (- r)) L).
 
-    (* Need to prove: exp(-x) = Iverson (Ioi L) x * exp(-x) for x >= L *)
-    2: { intros. rewrite Iverson_True; first lra.
-         by rewrite /Ioi. 
-    } 
+  (* Need to prove: exp(-x) = Iverson (Ioi L) x * exp(-x) for x >= L *)
+  2: { intros. rewrite Iverson_True; first lra.
+       by rewrite /Ioi. 
+  } 
 
-    (* Need existence of ∫[L,∞) exp(-r) *)
-    2: {
-      apply: (ex_RInt_gen_ext_eq_Ici (f:= λ r, 1*exp (-r))); first (intros; lra).
-      eapply ex_RInt_gen_Chasles; last apply ex_RInt_gen_exp.
-      rewrite ex_RInt_gen_at_point.
-      apply IPCts_RInt.
+  (* Need existence of ∫[L,∞) exp(-r) *)
+  2: {
+    apply: (ex_RInt_gen_ext_eq_Ici (f:= λ r, 1*exp (-r))); first (intros; lra).
+    eapply ex_RInt_gen_Chasles; last apply ex_RInt_gen_exp.
+    rewrite ex_RInt_gen_at_point.
+    apply IPCts_RInt.
+    apply IPCts_cts.
+    intros.
+    apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+    by auto_derive.
+  }
+  erewrite <-RInt_gen_Chasles; last done; last first.
+  { apply ex_RInt_gen_at_point.
+    apply PCts_RInt.
+    apply PCts_mult.
+    - admit.
+    - apply IPCts_PCts.
       apply IPCts_cts.
       intros.
       apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
-    }
-    erewrite <-RInt_gen_Chasles; last done; last first.
-    { apply ex_RInt_gen_at_point.
-      apply PCts_RInt.
-      apply PCts_mult.
-      - admit.
-      - apply IPCts_PCts.
-        apply IPCts_cts.
-        intros.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive. }
-    replace (RInt_gen _ (at_point _) (at_point _)) with 0; first by rewrite plus_zero_l.
-    symmetry.
-    erewrite (RInt_gen_ext _ (λ _, 0)).
-    + rewrite RInt_gen_at_point.
-      * rewrite RInt_const.
-        rewrite /scal/=/mult/=. lra.
-      * apply ex_RInt_const.
-    + eapply (Filter_prod _ _ _ (λ x, x<=L) (λ x, 0<=x<=L)); try done.
-      * by rewrite /at_point.
-      * intros.
-        rewrite Iverson_False; first lra.
-        simpl in *.
-        unfold Ioi, Rmin, Rmax in *. simpl in *.
-        case_match; lra.
-    + apply ex_RInt_gen_at_point.
-      apply PCts_RInt.
-      apply PCts_mult.
-      * admit.
-      * apply IPCts_PCts.
-        apply IPCts_cts.
-        intros.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive. 
-  - (* Case 2: L < 0 *)
-    (** I DONT THINK THIS IS TRUE *)
-    (* When L < 0, on [0,∞) we always have r > L, so Iverson (Ioi L) r = 1 *)
-    admit. (* TODO: Show that the integrals are equal by extensionality and Chasles *)
+      by auto_derive. }
+  replace (RInt_gen _ (at_point _) (at_point _)) with 0; first by rewrite plus_zero_l.
+  symmetry.
+  erewrite (RInt_gen_ext _ (λ _, 0)).
+  - rewrite RInt_gen_at_point.
+    + rewrite RInt_const.
+      rewrite /scal/=/mult/=. lra.
+    + apply ex_RInt_const.
+  - eapply (Filter_prod _ _ _ (λ x, x<=L) (λ x, 0<=x<=L)); try done.
+    + by rewrite /at_point.
+    + intros.
+      rewrite Iverson_False; first lra.
+      simpl in *.
+      unfold Ioi, Rmin, Rmax in *. simpl in *.
+      case_match; lra.
+  - apply ex_RInt_gen_at_point.
+    apply PCts_RInt.
+    apply PCts_mult.
+    + admit.
+    + apply IPCts_PCts.
+      apply IPCts_cts.
+      intros.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive. 
 Admitted.
 
 Lemma ex_exp_geo_series : ex_seriesC (λ x : nat, exp (- x)).

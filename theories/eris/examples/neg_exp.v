@@ -2991,6 +2991,7 @@ Section AccuracyBound.
   Qed.
 
   Lemma NegExp_Int_AccF {L} :
+    0<=L ->
     RInt_gen (λ r : R, AccF L r * exp (- r)) (at_point 0) (Rbar_locally Rbar.p_infty) = exp (- L).
   Proof.
     rewrite -NegExp_Int.
@@ -3020,9 +3021,13 @@ Section AccuracyBound.
       { iApply (ec_eq with "Hε").
         rewrite /NegExp_CreditV'.
         rewrite NegExp_Int_AccF.
-        rewrite ln_Rinv; OK.
-        rewrite Ropp_involutive.
-        rewrite exp_ln; OK.
+        - rewrite ln_Rinv; OK.
+          rewrite Ropp_involutive.
+          rewrite exp_ln; OK.
+        - rewrite -ln_1.
+          apply Rcomplements.ln_le; first lra.
+          rewrite -Rdiv_1_l.
+          apply Rcomplements.Rle_div_r; lra.
       }
     }
     intros v.
