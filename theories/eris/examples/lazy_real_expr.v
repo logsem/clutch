@@ -41,6 +41,91 @@ Qed.
 Definition ApproxSeq (f : Z → Z) (r : R) : Prop :=
   ∀ (z : Z), Rabs (IZR (f z) * powerRZ 2 z - r) <= powerRZ 2 z.
 
+(* Looser than ApproxTo (symmetric) but compatible with ApproxSeq *)
+Definition ApproxTo' (A : Z) (prec : Z) (r : R) :=
+  Rabs (IZR A - r * powerRZ 2 prec) <= 1.
+
+Lemma ApproxTo_ApproxTo' {A prec r} :
+  (0 <= prec)%Z → ApproxTo A prec r → ApproxTo' A prec r.
+Proof.
+  rewrite /ApproxTo/ApproxTo'.
+  intros Hz ?.
+  rewrite Rabs_minus_sym.
+  replace prec with (Z.of_nat (Z.to_nat prec)) by lia.
+  rewrite -pow_powerRZ.
+  apply Rabs_le.
+  lra.
+Qed.
+
+Lemma ApproxTo'_triv {r} {prec : Z} :
+  (0 <= r <= 1) → (prec <= 0)%Z → ApproxTo' 0%Z prec r.
+Proof.
+  intros ??.
+  rewrite /ApproxTo'.
+  rewrite Rabs_minus_sym.
+  rewrite Rminus_0_r.
+  rewrite Rabs_mult.
+  rewrite -(Rmult_1_l 1).
+  apply Rmult_le_compat; try apply Rabs_pos.
+  { rewrite Rabs_right; lra. }
+  { rewrite Rabs_right.
+    2: { apply Rle_ge. apply powerRZ_le; lra. }
+    replace prec with (- (-prec))%Z by lia.
+    rewrite powerRZ_neg'.
+    replace 1 with (/ 1) by lra.
+    apply Rcomplements.Rinv_le_contravar; try lra.
+    replace (- prec)%Z with (Z.of_nat (Z.to_nat (- prec))) by lia.
+    rewrite -pow_powerRZ.
+    apply pow_R1_Rle.
+    lra.
+ }
+Qed.
+
+Lemma ApproxSeq_ApproxTo' (f : Z → Z) (r : R) :
+  ApproxSeq f r <-> ∀ (prec : Z), ApproxTo' (f prec) (-prec)%Z r.
+Proof.
+  split.
+  { rewrite /ApproxSeq/ApproxTo'.
+    intros H prec.
+    specialize H with (prec)%Z.
+    apply (Rmult_le_compat_r (powerRZ 2 (- prec)%Z)) in H.
+    2: { apply powerRZ_le; lra. }
+    rewrite -powerRZ_add in H; [|lra].
+    rewrite -(Rabs_right (powerRZ 2 (- prec)%Z)) in H.
+    2: { apply Rle_ge. apply powerRZ_le; lra. }
+    rewrite -Rabs_mult in H.
+    rewrite Rcomplements.Rmult_minus_distr_r in H.
+    rewrite Rmult_assoc in H.
+    rewrite -powerRZ_add in H; [|lra].
+    rewrite Z.add_opp_diag_r in H.
+    rewrite powerRZ_O in H.
+    rewrite Rmult_1_r in H.
+    etrans; last eapply H.
+    right.
+    done.
+  }
+  { rewrite /ApproxSeq/ApproxTo'.
+    intros H prec.
+    specialize H with (prec)%Z.
+    apply (Rmult_le_reg_r (powerRZ 2 (- prec)%Z)).
+    { apply powerRZ_lt; lra. }
+    rewrite -powerRZ_add; [|lra].
+    rewrite -(Rabs_right (powerRZ 2 (- prec)%Z)).
+    2: { apply Rle_ge. apply powerRZ_le; lra. }
+    rewrite -Rabs_mult.
+    rewrite Rcomplements.Rmult_minus_distr_r.
+    rewrite Rmult_assoc.
+    rewrite -powerRZ_add; [|lra].
+    rewrite Z.add_opp_diag_r.
+    rewrite powerRZ_O.
+    rewrite Rmult_1_r.
+    etrans; last eapply H.
+    right.
+    do 4 f_equal.
+  }
+Qed.
+
+
 (* The integer z *)
 Definition ApproxZ (z : Z) : Z → Z :=
   fun prec => Z.shiftr z prec.
@@ -172,6 +257,110 @@ Proof.
   lra.
 Qed.
 
+Lemma ApproxZ_correct' {z} : ∀ prec, ApproxTo' ((ApproxZ z) prec) (-prec) (IZR z).
+Proof.
+  rewrite -ApproxSeq_ApproxTo'.
+  apply ApproxZ_correct.
+Qed.
+
+Lemma ApproxScal_correct' {A r z prec} :
+  (0 <= z)%Z → ApproxTo' A (- (z + prec)) r → ApproxTo' A (-prec) (r / powerRZ 2 z).
+Proof.
+  rewrite /ApproxTo'.
+  intros Hz H.
+  etrans; last eapply H.
+  clear H.
+  right.
+  f_equal.
+  f_equal.
+  rewrite Rdiv_def Rmult_assoc.
+  f_equal.
+  rewrite -powerRZ_neg'.
+  rewrite -powerRZ_add; [|lra].
+  f_equal.
+  lia.
+Qed.
+
+Lemma ApproxNeg_correct' {A prec x} : ApproxTo' A (-prec) x → ApproxTo' (-A) (-prec) (-x).
+Proof.
+  rewrite /ApproxTo'.
+  intros H.
+  etrans; [|apply H].
+  right.
+  replace (Rabs (IZR (- A) - - x * powerRZ 2 (- prec)))
+     with (Rabs ((-1) * (IZR (- A) - - x * powerRZ 2 (- prec)))).
+  2: {
+    rewrite Rabs_minus_sym.
+    f_equal.
+    lra.
+  }
+  f_equal.
+  rewrite Rmult_minus_distr_l.
+  f_equal; try lra.
+  rewrite Ropp_Ropp_IZR.
+  lra.
+Qed.
+
+
+Lemma ApproxAdd_correct' {R1 R2 r s prec} :
+  ApproxTo' R1 (- (prec - 2)) r → ApproxTo' R2 (- (prec - 2)) s →
+  ApproxTo' (RoundedDiv4 (R1 + R2)) (- prec) (r + s).
+Proof.
+  rewrite /ApproxTo'/ApproxAdd//=.
+  intros Hf Hg.
+  (* Step 1: bound the rounding error (triangle inequality) *)
+  replace  (IZR (RoundedDiv4 (R1 + R2)) - (r + s) * powerRZ 2 (- prec))
+    with  ((IZR (RoundedDiv4 (R1 + R2)) - IZR (R1 + R2) / 4) +
+           (IZR (R1 + R2) / 4 - (r + s) * powerRZ 2 (- prec)))
+    by lra.
+  etrans; first eapply Rabs_triang.
+  replace 1 with (1/2 + (1/4 + 1/4)) by lra.
+  apply Rplus_le_compat.
+  { apply RoundindDiv4_bound. }
+
+  (* Step 2: separate the bound (triangle inequality) *)
+  rewrite plus_IZR.
+  replace ((IZR R1 + IZR R2) / 4 - (r + s) * powerRZ 2 (- prec))
+     with ((IZR R1 / 4 - r * powerRZ 2 (- prec)) + (IZR R2 / 4 - s * powerRZ 2 (- prec))) by lra.
+  etrans; first eapply Rabs_triang.
+  apply Rplus_le_compat.
+  { apply (Rmult_le_reg_r 4); [lra|].
+    replace (1 / 4 * 4) with 1 by lra.
+    replace 4 with (Rabs 4); [|rewrite Rabs_right; lra].
+    rewrite -Rabs_mult.
+    rewrite (Rabs_right 4); [|lra].
+    etrans; [|eapply Hf].
+    right.
+    f_equal.
+    rewrite Rcomplements.Rmult_minus_distr_r.
+    f_equal; try lra.
+    rewrite Rmult_assoc.
+    f_equal.
+    replace ((- (prec - 2)))%Z with (-prec + 2)%Z by lia.
+    rewrite powerRZ_add; [|lra].
+    f_equal.
+    rewrite //=. lra.
+  }
+  { apply (Rmult_le_reg_r 4); [lra|].
+    replace (1 / 4 * 4) with 1 by lra.
+    replace 4 with (Rabs 4); [|rewrite Rabs_right; lra].
+    rewrite -Rabs_mult.
+    rewrite (Rabs_right 4); [|lra].
+    etrans; [|eapply Hg].
+    right.
+    f_equal.
+    rewrite Rcomplements.Rmult_minus_distr_r.
+    f_equal; try lra.
+    rewrite Rmult_assoc.
+    f_equal.
+    replace ((- (prec - 2)))%Z with (-prec + 2)%Z by lia.
+    rewrite powerRZ_add; [|lra].
+    f_equal.
+    rewrite //=. lra.
+  }
+Qed.
+
+
 (** Programs *)
 
 (*
@@ -226,86 +415,85 @@ Section Lib.
   Definition IsSeq (v : val) (f : Z → Z) E (I : iProp Σ) : iProp Σ :=
     □ (∀ (prec : Z), I -∗ WP (v #prec) @ E {{ fun zv => ⌜zv = #(f prec)⌝ ∗ I }})%I.
 
+
   (* The value v refines some approximation sequence for the real number r (using an invariant I) *)
   (* This is useful for approximation functions with a known closed form *)
+
+  (* If we had prophecy variables, we could prophsize an approximation sequence
+     for v, and then use the IsSeq machinery easily. However that is not availiable to us
+     so we must use a lower-level strategy. *)
+
   Definition IsApprox (v : val) (x : R) E (I : iProp Σ) : iProp Σ :=
-    ∃ bf : Z → Z, IsSeq v bf E I ∗ ⌜ApproxSeq bf x ⌝.
-
-
+    □ (∀ (prec : Z), I -∗ WP (v #prec) @ E {{ fun zv => ∃ (R : Z), ⌜zv = #R ⌝ ∗ I ∗ ⌜ApproxTo' R (-prec) x ⌝ }}).
 
   Lemma wp_R_ofZ {z : Z} {E} :
     ⊢ WP (R_ofZ #z) @ E {{ fun cont => IsApprox cont (IZR z) E True}}.
   Proof.
     rewrite /R_ofZ.
     wp_pures.
-    rewrite /IsApprox/IsSeq.
+    rewrite /IsApprox.
     iModIntro.
-    iExists (ApproxZ z).
+    iModIntro.
+    iIntros (prec) "_".
+    wp_pures.
+    iModIntro.
+    iExists (ApproxZ z (prec))%Z.
     iSplit.
-    { iModIntro.
-      iIntros (??).
-      wp_pures.
-      iModIntro.
-      iSplitL; done.
-    }
-    { iPureIntro.
-      apply ApproxZ_correct.
-    }
+    { iPureIntro. rewrite /ApproxZ. done. }
+    iSplit; [done|].
+    iPureIntro.
+    apply ApproxZ_correct'.
   Qed.
 
   Lemma wp_R_mulPow {vf : val} {x E I} {z : Z} (Hz : (0 <= z)%Z):
     IsApprox vf x E I ⊢ WP (R_mulPow vf #z) @ E {{ fun cont => IsApprox cont (x / powerRZ 2 z) E I}}.
   Proof.
     rewrite /IsApprox.
-    iIntros "[%bf [#Hcont %Hcorr]]".
+    iIntros "#Hcont".
     rewrite /R_mulPow/IsSeq/ApproxScal//=.
     wp_pures.
     iModIntro.
-    iExists (ApproxScal bf z).
-    iSplit.
-    { iModIntro.
-      iIntros (?) "HI".
-      wp_pures.
-      iApply pgl_wp_mono.
-      2: { iApply "Hcont". iFrame. }
-      rewrite //=.
-      iIntros (v) "[-> ?]".
-      iFrame.
-      iPureIntro.
-      rewrite /ApproxScal//=.
-      do 3 f_equal.
-      lia.
-    }
-    { iPureIntro.
-      by apply ApproxScal_correct.
-    }
+    iModIntro.
+    iIntros (?) "HI".
+    wp_pures.
+    iApply pgl_wp_mono.
+    2: { iApply "Hcont". iFrame. }
+    rewrite //=.
+    iIntros (v) "[% [-> [HI %]]]".
+    iFrame.
+    iExists R2.
+    iSplit; [done|].
+    iPureIntro.
+    rewrite /ApproxScal//=.
+    do 3 f_equal.
+    apply ApproxScal_correct'; done.
   Qed.
 
   Lemma wp_R_neg {vf : val} {x E I} :
     IsApprox vf x E I ⊢ WP (R_neg vf) @ E {{ fun cont => IsApprox cont (-x) E I}}.
   Proof.
     rewrite /IsApprox.
-    iIntros "[%bf [#Hcont %Hcorr]]".
+    iIntros "#Hcont".
     rewrite /R_neg/IsSeq/ApproxNeg.
     wp_pures.
     iModIntro.
-    iExists (ApproxNeg bf).
-    iSplit.
-    { iModIntro.
-      iIntros (?) "HI".
-      wp_pures.
-      wp_bind (vf _).
-      iApply pgl_wp_mono.
-      2: { by iApply ("Hcont" with "[HI]"). }
-      iIntros (?) "[-> ?]".
-      wp_pures.
-      iModIntro.
-      iFrame.
-      done.
-    }
-    { iPureIntro.
-      by apply ApproxNeg_correct.
-    }
+    iModIntro.
+    iIntros (?) "HI".
+    wp_pures.
+    wp_bind (vf _).
+    iApply pgl_wp_mono.
+    2: { by iApply ("Hcont" with "[HI]"). }
+    rewrite //=.
+    iIntros (v) "[% [-> [HI %]]]".
+    iFrame.
+    wp_pures.
+    iModIntro.
+    iExists (-R2)%Z.
+    iSplit; [done|].
+    iPureIntro.
+    rewrite /ApproxScal//=.
+    do 3 f_equal.
+    apply ApproxNeg_correct'; done.
   Qed.
 
   Lemma wp_R_plus {vf vg : val} {x y E If Ig}  :
@@ -313,42 +501,39 @@ Section Lib.
       WP (R_plus vf vg) @ E {{ fun cont => IsApprox cont (x + y) E (If ∗ Ig)}}.
   Proof.
     rewrite /IsApprox.
-    iIntros "[[%xbf [#Hf %Hxcorr]] [%ybf [#Hg %Hycorr]]]".
+    iIntros "[#Hf #Hg]".
     rewrite /R_plus/IsSeq/ApproxAdd//=/VDiv4Rounded//=/RoundedDiv4//=.
     wp_pures.
     iModIntro.
-    iExists (ApproxAdd xbf ybf).
-    iSplit.
-    { iModIntro.
-      iIntros (prec) "[HIf HIg]".
-      wp_pures.
-      wp_bind (vg _).
-      iApply (pgl_wp_mono_frame
-              ((□ ∀ prec0 : Z, If -∗ WP vf #prec0 @ E {{ zv, ⌜zv = #(xbf prec0)⌝ ∗ If }})
-                ∗ (□ ∀ prec0 : Z, Ig -∗ WP vg #prec0 @ E {{ zv, ⌜zv = #(ybf prec0)⌝ ∗ Ig }})
-                ∗ If)
-               with "[HIg] [HIf Hf Hg]").
-      2: { by iApply ("Hg" with "[HIg]"). }
-      2: { iSplitR; [|iSplitR]; iFrame; done. }
-      iIntros (?) "[[#Hf [#Hg HIf]] [-> HIg]]".
-      wp_pures.
-      wp_bind (vf _).
-      iApply (pgl_wp_mono_frame
-              ((□ ∀ prec0 : Z, If -∗ WP vf #prec0 @ E {{ zv, ⌜zv = #(xbf prec0)⌝ ∗ If }})
-                ∗ (□ ∀ prec0 : Z, Ig -∗ WP vg #prec0 @ E {{ zv, ⌜zv = #(ybf prec0)⌝ ∗ Ig }})
-                ∗ Ig)
-               with "[HIf] [HIg Hg Hf]").
-      2: { by iApply ("Hf" with "[HIf]"). }
-      2: { iSplitR; [|iSplitR]; iFrame; done. }
-      iIntros (?) "[[#Hf [#Hg HIf]] [-> HIg]]".
-      wp_pures.
-      iModIntro.
-      iFrame.
-      done.
-    }
-    { iPureIntro.
-      by apply ApproxAdd_correct.
-    }
+    iModIntro.
+    iIntros (prec) "[HIf HIg]".
+    wp_pures.
+    wp_bind (vg _).
+    iApply (pgl_wp_mono_frame
+            ((□ ∀ prec0 : Z, If -∗ WP vf #prec0 @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ If ∗ ⌜ApproxTo' R2 (- prec0) x⌝ }})
+              ∗ (□ ∀ prec0 : Z, Ig -∗ WP vg #prec0 @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ig ∗ ⌜ApproxTo' R2 (- prec0) y⌝ }})
+              ∗ If)%I
+             with "[HIg] [HIf Hf Hg]").
+    2: { by iApply ("Hg" with "[HIg]"). }
+    2: { iSplitR; [|iSplitR]; iFrame; done. }
+    iIntros (?) "[[#Hf [#Hg HIf]] [%R1 [-> [HIg %]]]]".
+    wp_pures.
+    wp_bind (vf _).
+    iApply (pgl_wp_mono_frame
+            ((□ ∀ prec0 : Z, If -∗ WP vf #prec0 @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ If ∗ ⌜ApproxTo' R2 (- prec0) x⌝ }})
+              ∗ (□ ∀ prec0 : Z, Ig -∗ WP vg #prec0 @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ig ∗ ⌜ApproxTo' R2 (- prec0) y⌝ }})
+              ∗ Ig)
+             with "[HIf] [HIg Hg Hf]").
+    2: { by iApply ("Hf" with "[HIf]"). }
+    2: { iSplitR; [|iSplitR]; iFrame; done. }
+    iIntros (?) "[[#Hf [#Hg HIf]] [%R2 [-> [HIg %]]]]".
+    wp_pures.
+    iModIntro.
+    iFrame.
+    iExists _.
+    iSplit; [done|].
+    iPureIntro.
+    by apply ApproxAdd_correct'.
   Qed.
 
   (*
