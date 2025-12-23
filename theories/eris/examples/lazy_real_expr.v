@@ -174,13 +174,14 @@ Qed.
 
 (** Programs *)
 
+(*
 (* x ^ y where 0 <= y*)
 Definition Npow : val :=
   rec: "pow" "x" "y" :=
     if: "y" ≤ #0%nat
       then #(1%nat)
       else "x" * ("pow" "x" ("y" - #1)).
-
+*)
 
 (* Constant functions at integer Z. *)
 Definition VDiv4Rounded : val :=
@@ -202,18 +203,22 @@ Definition R_neg : val :=
   λ: "f",
     λ: "prec", #(- 1) * "f" "prec".
 
+Definition R_ofUnif : val :=
+  λ: "v",
+    λ: "prec", if: ("prec" ≤ #0) then #0 else  get_bits "v" "prec".
 
 Section Lib.
   Context `{!erisGS Σ}.
 
+  (*
   Lemma wp_Npow {x y : Z} {E} : ⌜(0 ≤ y)%Z ⌝ ⊢ WP (Npow #x #y) @ E {{ fun v => ⌜v = #(x ^ y)%Z ⌝ }}.
   Proof.
   Admitted.
+  *)
 
   Lemma wp_VDiv4Rounded {z : Z} {E} :
     ⊢ WP (VDiv4Rounded #z) @ E {{ fun v => ⌜v = #(RoundedDiv4 z) ⌝}}.
   Proof. rewrite /VDiv4Rounded/RoundedDiv4. wp_pures. done. Qed.
-
 
   (** Approximation Sequence Proofs *)
 
@@ -221,90 +226,166 @@ Section Lib.
   Definition IsSeq (v : val) (f : Z → Z) E (I : iProp Σ) : iProp Σ :=
     □ (∀ (prec : Z), I -∗ WP (v #prec) @ E {{ fun zv => ⌜zv = #(f prec)⌝ ∗ I }})%I.
 
+  (* The value v refines some approximation sequence for the real number r (using an invariant I) *)
+  (* This is useful for approximation functions with a known closed form *)
+  Definition IsApprox (v : val) (x : R) E (I : iProp Σ) : iProp Σ :=
+    ∃ bf : Z → Z, IsSeq v bf E I ∗ ⌜ApproxSeq bf x ⌝.
+
+
+
   Lemma wp_R_ofZ {z : Z} {E} :
-    ⊢ WP (R_ofZ #z) @ E {{ fun cont => IsSeq cont (ApproxZ z) E True}}.
+    ⊢ WP (R_ofZ #z) @ E {{ fun cont => IsApprox cont (IZR z) E True}}.
   Proof.
     rewrite /R_ofZ.
     wp_pures.
-    rewrite /IsSeq.
+    rewrite /IsApprox/IsSeq.
     iModIntro.
-    iModIntro.
-    iIntros (??).
-    wp_pures.
-    iModIntro.
-    iSplitL; done.
+    iExists (ApproxZ z).
+    iSplit.
+    { iModIntro.
+      iIntros (??).
+      wp_pures.
+      iModIntro.
+      iSplitL; done.
+    }
+    { iPureIntro.
+      apply ApproxZ_correct.
+    }
   Qed.
 
-  Lemma wp_R_mulPow {vf : val} {f E I} {z : Z} :
-    IsSeq vf f E I ⊢ WP (R_mulPow vf #z) @ E {{ fun cont => IsSeq cont (ApproxScal f z) E I}}.
+  Lemma wp_R_mulPow {vf : val} {x E I} {z : Z} (Hz : (0 <= z)%Z):
+    IsApprox vf x E I ⊢ WP (R_mulPow vf #z) @ E {{ fun cont => IsApprox cont (x / powerRZ 2 z) E I}}.
   Proof.
-    iIntros "#Hcont".
+    rewrite /IsApprox.
+    iIntros "[%bf [#Hcont %Hcorr]]".
     rewrite /R_mulPow/IsSeq/ApproxScal//=.
     wp_pures.
     iModIntro.
-    iModIntro.
-    iIntros (?) "HI".
-    rewrite (Z.add_comm prec).
-    wp_pures.
-    by iApply "Hcont".
+    iExists (ApproxScal bf z).
+    iSplit.
+    { iModIntro.
+      iIntros (?) "HI".
+      wp_pures.
+      iApply pgl_wp_mono.
+      2: { iApply "Hcont". iFrame. }
+      rewrite //=.
+      iIntros (v) "[-> ?]".
+      iFrame.
+      iPureIntro.
+      rewrite /ApproxScal//=.
+      do 3 f_equal.
+      lia.
+    }
+    { iPureIntro.
+      by apply ApproxScal_correct.
+    }
   Qed.
 
-  Lemma wp_R_neg {vf : val} {f E I} :
-    IsSeq vf f E I ⊢ WP (R_neg vf) @ E {{ fun cont => IsSeq cont (ApproxNeg f) E I}}.
+  Lemma wp_R_neg {vf : val} {x E I} :
+    IsApprox vf x E I ⊢ WP (R_neg vf) @ E {{ fun cont => IsApprox cont (-x) E I}}.
   Proof.
-    iIntros "#Hcont".
+    rewrite /IsApprox.
+    iIntros "[%bf [#Hcont %Hcorr]]".
     rewrite /R_neg/IsSeq/ApproxNeg.
     wp_pures.
     iModIntro.
-    iModIntro.
-    iIntros (?) "HI".
-    wp_pures.
-    wp_bind (vf _).
-    iApply pgl_wp_mono.
-    2: { by iApply ("Hcont" with "[HI]"). }
-    iIntros (?) "[-> ?]".
-    wp_pures.
-    iModIntro.
-    iFrame.
-    done.
+    iExists (ApproxNeg bf).
+    iSplit.
+    { iModIntro.
+      iIntros (?) "HI".
+      wp_pures.
+      wp_bind (vf _).
+      iApply pgl_wp_mono.
+      2: { by iApply ("Hcont" with "[HI]"). }
+      iIntros (?) "[-> ?]".
+      wp_pures.
+      iModIntro.
+      iFrame.
+      done.
+    }
+    { iPureIntro.
+      by apply ApproxNeg_correct.
+    }
   Qed.
 
-  Lemma wp_R_plus {vf vg : val} {f g E If Ig}  :
-    IsSeq vf f E If ∗ IsSeq vg g E Ig ⊢
-      WP (R_plus vf vg) @ E {{ fun cont => IsSeq cont (ApproxAdd f g) E (If ∗ Ig)}}.
+  Lemma wp_R_plus {vf vg : val} {x y E If Ig}  :
+    IsApprox vf x E If ∗ IsApprox vg y E Ig ⊢
+      WP (R_plus vf vg) @ E {{ fun cont => IsApprox cont (x + y) E (If ∗ Ig)}}.
   Proof.
-    iIntros "[#Hf #Hg]".
+    rewrite /IsApprox.
+    iIntros "[[%xbf [#Hf %Hxcorr]] [%ybf [#Hg %Hycorr]]]".
     rewrite /R_plus/IsSeq/ApproxAdd//=/VDiv4Rounded//=/RoundedDiv4//=.
     wp_pures.
     iModIntro.
-    iModIntro.
-    iIntros (prec) "[HIf HIg]".
-    wp_pures.
-    wp_bind (vg _).
-    (* Yikes *)
-    iApply (pgl_wp_mono_frame
-            ((□ ∀ prec0 : Z, If -∗ WP vf #prec0 @ E {{ zv, ⌜zv = #(f prec0)⌝ ∗ If }})
-              ∗ (□ ∀ prec0 : Z, Ig -∗ WP vg #prec0 @ E {{ zv, ⌜zv = #(g prec0)⌝ ∗ Ig }})
-              ∗ If)
-             with "[HIg] [HIf Hf Hg]").
-    2: { by iApply ("Hg" with "[HIg]"). }
-    2: { iSplitR; [|iSplitR]; iFrame; done. }
-    iIntros (?) "[[#Hf [#Hg HIf]] [-> HIg]]".
-    wp_pures.
-    wp_bind (vf _).
-    iApply (pgl_wp_mono_frame
-            ((□ ∀ prec0 : Z, If -∗ WP vf #prec0 @ E {{ zv, ⌜zv = #(f prec0)⌝ ∗ If }})
-              ∗ (□ ∀ prec0 : Z, Ig -∗ WP vg #prec0 @ E {{ zv, ⌜zv = #(g prec0)⌝ ∗ Ig }})
-              ∗ Ig)
-             with "[HIf] [HIg Hg Hf]").
-    2: { by iApply ("Hf" with "[HIf]"). }
-    2: { iSplitR; [|iSplitR]; iFrame; done. }
-    iIntros (?) "[[#Hf [#Hg HIf]] [-> HIg]]".
-    wp_pures.
-    iModIntro.
-    iFrame.
-    done.
+    iExists (ApproxAdd xbf ybf).
+    iSplit.
+    { iModIntro.
+      iIntros (prec) "[HIf HIg]".
+      wp_pures.
+      wp_bind (vg _).
+      iApply (pgl_wp_mono_frame
+              ((□ ∀ prec0 : Z, If -∗ WP vf #prec0 @ E {{ zv, ⌜zv = #(xbf prec0)⌝ ∗ If }})
+                ∗ (□ ∀ prec0 : Z, Ig -∗ WP vg #prec0 @ E {{ zv, ⌜zv = #(ybf prec0)⌝ ∗ Ig }})
+                ∗ If)
+               with "[HIg] [HIf Hf Hg]").
+      2: { by iApply ("Hg" with "[HIg]"). }
+      2: { iSplitR; [|iSplitR]; iFrame; done. }
+      iIntros (?) "[[#Hf [#Hg HIf]] [-> HIg]]".
+      wp_pures.
+      wp_bind (vf _).
+      iApply (pgl_wp_mono_frame
+              ((□ ∀ prec0 : Z, If -∗ WP vf #prec0 @ E {{ zv, ⌜zv = #(xbf prec0)⌝ ∗ If }})
+                ∗ (□ ∀ prec0 : Z, Ig -∗ WP vg #prec0 @ E {{ zv, ⌜zv = #(ybf prec0)⌝ ∗ Ig }})
+                ∗ Ig)
+               with "[HIf] [HIg Hg Hf]").
+      2: { by iApply ("Hf" with "[HIf]"). }
+      2: { iSplitR; [|iSplitR]; iFrame; done. }
+      iIntros (?) "[[#Hf [#Hg HIf]] [-> HIg]]".
+      wp_pures.
+      iModIntro.
+      iFrame.
+      done.
+    }
+    { iPureIntro.
+      by apply ApproxAdd_correct.
+    }
   Qed.
+
+  (*
+  Lemma wp_R_ofUnif {v : val} (x : R) {E}  :
+    ⊢ WP (R_ofUnif v) @ E {{ fun cont =>  IsApprox cont x E (lazy_real v x)}}.
+  Proof.
+    rewrite /R_ofUnif.
+    wp_pures.
+    iModIntro.
+    rewrite /IsApprox.
+  *)
+
+  (*
+  Lemma get_bits_corect vx x E (precTotal : Z) (HT : (0 <= precTotal)%Z) :
+    ⟨⟨⟨ lazy_real vx x ⟩⟩⟩
+       get_bits vx #precTotal #0 @ E
+    ⟨⟨⟨ (R : Z), RET #R; ⌜ (0 <= R)%Z ⌝ ∗ lazy_real vx x ∗ ⌜ApproxTo R precTotal x ⌝ ⟩⟩⟩.
+  Proof.
+    iIntros (Φ) "H HΦ".
+    wp_apply (get_bits_corect_loop vx vx x x E precTotal precTotal with "[H] [HΦ]").
+    { iSplitR; [done|].
+      iSplitR; [done|].
+      iSplitR; [done|].
+      iFrame.
+      iSplit. { iIntros "?"; iFrame. }
+      iPureIntro.
+      intros A prec' Hprec' ?.
+      by rewrite /ApproxComp//= Z.mul_0_l Z.add_0_l Z.sub_diag Z.add_0_l.
+    }
+    { iIntros (R) "[% [HR %]]".
+      iApply "HΦ".
+      iSplitR; [done|].
+      iFrame.
+      iPureIntro; done.
+    }
+  Qed.
+*)
 
   (* TODO Compare two CReal numbers *)
   (* TODO: Lift a lazy real to A CReal real *)
