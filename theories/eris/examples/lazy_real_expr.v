@@ -125,6 +125,100 @@ Proof.
   }
 Qed.
 
+(* Cmp will never early return in the wrong branch *)
+Definition ApproxTo'_mono_term {x y : R} (Hxy : x < y) :
+  ∀ prec A B : Z, ApproxTo' A prec x → ApproxTo' B prec y → ¬(B + 2 < A)%Z.
+Proof.
+  intros prec A B.
+  rewrite /ApproxTo'.
+  intros HA HB.
+  suffices ? : (A < B + 2)%Z by lia.
+  rewrite Rcomplements.Rabs_le_between in HA.
+  rewrite Rcomplements.Rabs_le_between in HB.
+  suffices HS : (IZR A < IZR B + 2).
+  { by apply lt_IZR; rewrite plus_IZR. }
+  have HI1 : IZR A <= 1 + x * powerRZ 2 prec by lra.
+  have HI2 : 1 + y * powerRZ 2 prec <= IZR B + 2  by lra.
+  eapply Rle_lt_trans; [|eapply Rlt_le_trans].
+  { exact HI1. }
+  2: { exact HI2. }
+  apply Rplus_le_lt_compat; try lra.
+  apply Rmult_lt_compat_r; try lra.
+  apply powerRZ_lt; lra.
+Qed.
+
+Definition ApproxTo'_cmp_lt {x y : R} {A B prec} :
+  ApproxTo' A prec x → ApproxTo' B prec y → (A + 2 < B)%Z → x < y.
+Proof.
+  rewrite /ApproxTo'.
+  intros HA HB HAB.
+  rewrite Rabs_minus_sym in HA.
+  rewrite Rabs_minus_sym in HB.
+  rewrite Rcomplements.Rabs_le_between in HA.
+  rewrite Rcomplements.Rabs_le_between in HB.
+  apply (Rmult_lt_reg_r (powerRZ 2 prec)).
+  { apply powerRZ_lt; lra. }
+  have HI1 : x * powerRZ 2 prec <= (1 + IZR A) by lra.
+  have HI2 : - 1 + IZR B <= y * powerRZ 2 prec by lra.
+  eapply Rle_lt_trans; [|eapply Rlt_le_trans].
+  { exact HI1. }
+  2: { exact HI2. }
+  apply IZR_lt in HAB.
+  rewrite plus_IZR in HAB.
+  lra.
+Qed.
+
+Definition ApproxTo'_lt_cmp {x y : R} :
+  (x < y) →
+  ∃ (prec : Z), ∀ (A B : Z), ApproxTo' A prec x → ApproxTo' B prec y → (A + 2 < B)%Z.
+Proof.
+  intros Hxy.
+  pose PR : R := Rlog 2 (Rmax (4 / (y - x)) 666%R).
+  pose P : Z := 1 + up PR.
+  eexists P.
+  rewrite /ApproxTo'.
+  intros A B HA HB.
+  rewrite Rcomplements.Rabs_le_between in HA.
+  rewrite Rcomplements.Rabs_le_between in HB.
+  have HI1 : IZR A  + 2 <= 3 + x * powerRZ 2 P by lra.
+  have HI2 : -1 + y * powerRZ 2 P <= IZR B by lra.
+  apply lt_IZR.
+  rewrite plus_IZR.
+  eapply Rle_lt_trans; [|eapply Rlt_le_trans].
+  { exact HI1. }
+  2: { exact HI2. }
+  suffices ? : (4 < (y - x) * powerRZ 2 P) by lra.
+  suffices HH : (4 / (y - x) < powerRZ 2 P).
+  { apply (Rmult_lt_reg_r (/ (y-x))).
+    { apply Rinv_0_lt_compat; lra. }
+    eapply Rlt_le_trans; first exact HH.
+    right.
+    rewrite Rmult_comm -Rmult_assoc.
+    rewrite Rinv_l; lra.
+  }
+  rewrite powerRZ_Rpower; [|lra].
+  rewrite /P.
+  rewrite plus_IZR.
+  rewrite Rpower_plus //=.
+  rewrite Rpower_1; [|lra].
+  suffices ? : 4 / (y - x) <= Rpower 2 (IZR (up PR)).
+  { replace 2 with (1+1)%R; [|lra].
+    rewrite Rmult_plus_distr_r.
+    rewrite -(Rplus_0_l (4 / (y - x))).
+    rewrite Rmult_1_l.
+    apply Rplus_lt_le_compat; [|done].
+    rewrite -powerRZ_Rpower; [|lra].
+    apply powerRZ_lt. lra.
+  }
+  have HPR : PR <= IZR (up PR).
+  { have ? := archimed PR. lra. }
+  etrans.
+  2: { eapply Rle_Rpower; [lra|]. exact HPR. }
+  unfold PR.
+  rewrite Rpower_Rlog; try lra.
+  { apply Rmax_l. }
+  { eapply Rlt_le_trans; [|apply Rmax_r]. lra. }
+Qed.
 
 (* The integer z *)
 Definition ApproxZ (z : Z) : Z → Z :=
@@ -395,6 +489,12 @@ Definition R_neg : val :=
 Definition R_ofUnif : val :=
   λ: "v",
     λ: "prec", if: (#0 ≤ "prec") then #0 else  get_bits "v" (#(-1) * "prec") #0.
+
+Definition R_cmp : val :=
+  rec: "cmp" "x" "y" "n" :=
+    if: ("x" "n" + #2 < "y" "n") then #(-1) else
+    if: ("y" "n" + #2 < "x" "n") then #(1) else
+    "cmp" "x" "y" ("n" + #1).
 
 Section Lib.
   Context `{!erisGS Σ}.
