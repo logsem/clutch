@@ -2783,6 +2783,12 @@ Section program.
       else
         "trial" ("L" + #1%Z).
 
+  Definition NegExpSymm : val :=
+    λ: "e",
+      let: "v" := NegExp #() in
+      let: "b" := rand (#1) in
+      ("b", "v").
+
   Lemma wp_NegExp_gen E (F : nat → R → R) {M} (Hnn : ∀ a b, 0 <= b <= 1 → 0 <= F a b <= M) (HP : ∀ x1 : nat, PCts (F x1) 0 1)  :
     ⊢ ∀ L, ↯ (NegExp_CreditV F L) -∗
            WP NegExp #L @ E
@@ -3049,3 +3055,76 @@ Section AccuracyBound.
   Qed.
 
 End AccuracyBound.
+
+
+(*
+
+
+Section spec.
+  Context `{!erisGS Σ}.
+  Import Hierarchy.
+
+  (* Sampler returning N * [0,1] samples *)
+  Context (sampler : val).
+  Context (distrib : nat → R → R).
+  Context (distrib_nn : ∀ n r, r < 0 → distrib n r = 0).
+  Context (spec : ∀ E F M, (∀ x k, 0 <= F x k <= M) → (∀ x1 : nat, PCts (F x1) 0 1) →
+                  ⊢ ↯(SeriesC (fun (k : nat) => RInt (fun x => distrib k x * F k x) 0 1)) -∗
+                     WP sampler #() @ E {{ vp, ∃ k : nat, ∃ r : R, ∃ l : val, lazy_real l r  ∗ ⌜vp = PairV l #k ⌝ ∗ ↯(F k r) }}).
+
+  Definition Symm_μ : bool → nat → R → R :=
+    fun b n r => distrib n r / 2.
+
+  Theorem SymmCreditV E (F : bool → nat → R → R) M :
+    (∀ x k b, 0 <= F b k x <= M) → (∀ b1 : bool, ∀ x1 : nat, PCts (F b1 x1) 0 1) →
+    ⊢ ↯(SeriesC (fun (b : bool) => SeriesC (fun (k : nat) => RInt (fun x => Symm_μ b k x * F b k x) 0 1))) -∗
+       WP SampleSymmetric sampler @ E
+         {{ vp, ∃ b : fin 2, ∃ k : nat, ∃ r : R, ∃ l : val, lazy_real l r  ∗
+                 ⌜vp = PairV #(fin_to_nat b) (PairV l #k) ⌝ ∗ ↯(F (fin_to_bool b) k r) }}.
+  Proof.
+    intros HF HC.
+    iIntros "Hε".
+    rewrite /SampleSymmetric.
+    wp_pures.
+    wp_bind (sampler _).
+    iApply (pgl_wp_mono).
+    2: {
+      wp_apply (spec E (fun n r => (F true n r + F false n r) / 2) M).
+      { intros ??.
+        split.
+        { admit. }
+        { admit. }
+      }
+      { admit. }
+      { iApply (ec_eq with "Hε").
+        rewrite /Symm_μ.
+        rewrite SeriesC_bool.
+        rewrite -SeriesC_plus.
+        2: admit.
+        2: admit.
+        apply SeriesC_ext.
+        intros n.
+        rewrite RInt_add.
+        2: admit.
+        2: admit.
+        apply RInt_ext.
+        intros ??.
+        lra.
+      }
+    }
+    simpl.
+    iIntros (v) "[%k [%r [%l [Hr [-> Hec]]]]]".
+    wp_pures.
+    wp_apply (wp_couple_rand_adv_comp _ _ _ _ (fun (s : fin 2) => F (fin_to_bool s) k r) with "Hec").
+    { intros n. apply HF. }
+    { rewrite SeriesC_fin2 //=. lra. }
+    iIntros (b) "Hec".
+    wp_pures.
+    iModIntro.
+    iExists b, k, r, l.
+    iFrame.
+    iPureIntro; done.
+  Admitted.
+
+End spec.
+*)

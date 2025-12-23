@@ -11,8 +11,6 @@ Set Default Proof Using "Type*".
 
 (** Approximation sequences *)
 
-Unset Printing Coercions.
-
 (* The nearest integer to z/4 *)
 Definition RoundedDiv4 (z : Z) : Z :=
   ((z `quot` 4) + ((z `rem` 4) `quot` 2))%Z.
