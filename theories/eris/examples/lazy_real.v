@@ -59,6 +59,13 @@ Section lazy_real.
         then (Fst "cn")
         else "force" ((Fst "lazyR"), (Snd "cn")) ("n" - #1).
 
+  Definition get_bits : val :=
+    rec: "force" "lazyR" "digitsLeft" "digitsSoFar" "approxSoFar" :=
+      let: "cn" := get_chunk (Fst "lazyR") (Snd "lazyR") in
+      if: ("digitsLeft" = #0)
+        then "approxSoFar"
+        else "force" ((Fst "lazyR"), (Snd "cn")) ("digitsLeft" - #1) ("digitsSoFar" + #1) (#2 * "approxSoFar" + (Fst "cn")).
+
   Context `{!erisGS Σ}.
 
   Definition comparison2z c : Z :=
@@ -774,6 +781,94 @@ Section lazy_real.
   }
   Qed.
 
+
+  Lemma get_bits_corect v r E (precLeft precSoFar precTotal acc : Z) :
+    ⟨⟨⟨ ⌜ (precLeft + precSoFar = precTotal)%Z ⌝ ∗
+        ⌜ (0 <= precLeft)%Z ⌝ ∗
+        ⌜ (0 <= precSoFar)%Z ⌝ ∗
+        ⌜ (0 <= acc)%Z ⌝ ∗
+        lazy_real v r ∗
+        ⌜(IZR acc <= r * 2 ^ (Z.to_nat precSoFar) <= (IZR acc + 1)) ⌝ ⟩⟩⟩
+      get_bits v #precLeft #precSoFar #acc @ E
+    ⟨⟨⟨ (R : Z), RET #R;
+        ⌜ (0 <= R)%Z ⌝ ∗
+        lazy_real v r ∗
+        ⌜(IZR R <= r * 2 ^ (Z.to_nat precTotal) <= IZR R + 1) ⌝ ⟩⟩⟩.
+  Proof.
+    iIntros (Φ) "H HΦ".
+    rewrite /get_bits//=.
+    iLöb as "IH" forall (precLeft precSoFar acc v r).
+    iDestruct "H" as "[%HprecSum [%HprecLeft [%HprecSoFar [%Hacc [Hr %Happrox]]]]]".
+    iDestruct "Hr" as "[%l [%α [%f [-> [-> Hseq]]]]]".
+    wp_pures.
+    destruct (bin_seq_hd f) as (f_head & f_rest & ->).
+    wp_bind (get_chunk _ _).
+    wp_apply (wp_get_chunk_cons with "Hseq [HΦ]").
+    iIntros (l_rest) "[Hseq Hcont]".
+    wp_pures.
+    case_bool_decide.
+    { iClear "IH".
+      inversion H.
+      wp_pures.
+      iModIntro.
+      iApply "HΦ".
+      iSplitR; [done|].
+      iSplitL.
+      2: {
+        iPureIntro.
+        have -> : precTotal = precSoFar by lia.
+        done.
+      }
+      rewrite /lazy_real//=.
+      iExists l, α, (cons_bin_seq f_head f_rest).
+      iSplitR; [done|].
+      iSplitR; [done|].
+      by iApply "Hcont".
+    }
+    { do 9 wp_pure.
+      wp_apply ("IH" $! _ _ _ _ (seq_bin_to_R f_rest) with "[Hseq] [Hcont HΦ]").
+      { iSplitR.
+        { iPureIntro. lia. }
+        iSplitR.
+        { iPureIntro. (* True *) admit. }
+        iSplitR. {iPureIntro. lia. }
+        iSplitR. {iPureIntro. lia. }
+        iSplitL.
+        { rewrite /lazy_real//=.
+          iExists l_rest, α, f_rest.
+          iFrame. iPureIntro; done.
+        }
+        iPureIntro.
+        admit.
+      }
+      {
+        iIntros (R) "[%Hv [HR %HaccFinal]]".
+        iApply "HΦ".
+        iSplitR; [done|].
+        iSplitL.
+        { rewrite /lazy_real//=.
+          iDestruct "HR" as "[%l' [%a' [%f' [%H1 [%H2 ?]]]]]".
+          iExists l, α, (cons_bin_seq f_head f').
+          iSplitR; [done|].
+          iSplitR.
+          { iPureIntro. by apply seq_bin_to_R_cons_eq. }
+          iApply "Hcont".
+          inversion H1.
+          subst.
+          iFrame.
+        }
+        iPureIntro.
+        (* Something funky in my IH *)
+        (* I'm calling the IH with (x << 1) and saying the return value should approximate (x << 1)
+           This is not good enough because I'm doing tail recursion now.
+
+           The problematic relationship is that the x in my postcondition is the same as the x I am
+           calling it with. I should call it with (x << precSoFar) basically.
+         *)
+        admit.
+      }
+    }
+  Admitted.
 
 
 
