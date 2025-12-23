@@ -3,7 +3,7 @@ From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
 From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
-From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial neg_exp.
+From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial neg_exp lazy_real_expr.
 From clutch.eris.examples Require Import math.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
@@ -290,6 +290,80 @@ Section Symmetric.
     iPureIntro; done.
   Qed.
 
+End Symmetric.
 
+Definition bzu_to_R : fin 2 → nat → R → R :=
+  fun b z u => (-1) ^ b * (z + u).
+
+Definition ToLazyReal : val :=
+  λ: "e",
+    let: "U" := R_ofUnif (Snd (Snd "e")) in
+    let: "Z" := R_ofZ (Fst (Snd "e")) in
+    let: "ZU" := R_plus "U" "Z" in
+    if: (Fst "e" = #1) then R_neg "ZU" else "ZU".
+
+Section Symmetric.
+  Import Hierarchy.
+  Context `{!erisGS Σ}.
+
+  Theorem wp_ToLazyReal E {ℓ : loc} {vr vz} {b : fin 2} :
+    ⊢ ⌜0 <= vr < 1 ⌝ -∗
+      WP ToLazyReal (#(fin_to_nat b), (#(Z.of_nat vz), #ℓ)) @ E
+        {{ fun cont => IsApprox cont (bzu_to_R b vz vr) E (lazy_real #ℓ vr) }}.
+  Proof.
+    iIntros "%".
+    rewrite /ToLazyReal.
+    wp_pures.
+    wp_bind (R_ofUnif _).
+    iApply pgl_wp_mono.
+    2: { iApply (wp_R_ofUnif vr). }
+    rewrite //=.
+    iIntros (?) "Happrox".
+    wp_pures.
+    wp_bind (R_ofZ _).
+    iApply (pgl_wp_mono_frame (IsApprox v vr E (lazy_real #ℓ vr)) with "[] Happrox").
+    2: { iApply wp_R_ofZ. }
+    rewrite //=.
+    iIntros (?) "[Hvr Hvz]".
+    wp_pures.
+    wp_bind (R_plus _ _).
+    iApply pgl_wp_mono.
+    2: { iApply wp_R_plus; iFrame. }
+    rewrite //=.
+    iIntros (?) "Hadd".
+    wp_pures.
+    iAssert (IsApprox v1 (vr + IZR vz) E (lazy_real #ℓ vr))%I with "[Hadd]" as "Hadd'".
+    { iDestruct "Hadd" as "#Hadd'".
+      iModIntro.
+      iIntros (prec) "HLR".
+      iSpecialize ("Hadd'" $! prec with "[HLR]"); iFrame.
+      iApply pgl_wp_mono.
+      2: iApply "Hadd'".
+      rewrite //=.
+      iIntros (?) "[% [?[[??]?]]]".
+      iExists R2.
+      iFrame.
+    }
+    rewrite -INR_IZR_INZ.
+    destruct (bin_fin_to_nat_cases b).
+    { rewrite /bzu_to_R.
+      rewrite H0 //=.
+      wp_pures.
+      rewrite Rmult_1_l.
+      iModIntro.
+      rewrite Rplus_comm.
+      iFrame.
+    }
+    { rewrite /bzu_to_R.
+      rewrite H0 //=.
+      wp_pures.
+      iApply pgl_wp_mono.
+      2: { iApply wp_R_neg; iFrame. }
+      rewrite //=.
+      replace (-1 * 1 * (vz + vr)) with (- (vr + vz)) by lra.
+      iIntros (?) "?".
+      iFrame.
+    }
+  Qed.
 
 End Symmetric.
