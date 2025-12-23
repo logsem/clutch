@@ -492,8 +492,10 @@ Definition R_ofUnif : val :=
 
 Definition R_cmp : val :=
   rec: "cmp" "x" "y" "n" :=
-    if: ("x" "n" + #2 < "y" "n") then #(-1) else
-    if: ("y" "n" + #2 < "x" "n") then #(1) else
+    let: "cx" := "x" "n" in
+    let: "cy" := "y" "n" in
+    if: ("cx" + #2 < "cy") then #(-1) else
+    if: ("cy" + #2 < "cx") then #(1) else
     "cmp" "x" "y" ("n" + #1).
 
 Section Lib.
@@ -669,6 +671,88 @@ Section Lib.
     }
   Qed.
 
-  (* TODO Compare two CReal numbers *)
+
+  Lemma wp_R_cmp_lt {vx vy : val} {x y : R} {n : Z} {E} {Ix Iy : iProp Σ}
+    (Hxy : x < y) :
+    IsApprox vx x E Ix ∗
+    IsApprox vy y E Iy ∗
+    Ix ∗ Iy ⊢ WP (R_cmp vx vy #n) @ E {{ fun r => ⌜r = #(-1) ⌝ ∗ Ix ∗ Iy }}.
+  Proof.
+    iIntros "[#HappX [#HappY [IX IY]]]".
+    rewrite /R_cmp.
+    iLöb as "IH" forall (n).
+    wp_pures.
+    wp_bind (vx _).
+    (* FIXME *)
+    iApply (pgl_wp_mono_frame
+              (   (□  ∀ prec : Z, Ix -∗ WP vx #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ix ∗ ⌜ApproxTo' R2 (- prec) x⌝ }})
+                ∗ (□  ∀ prec : Z, Iy -∗ WP vy #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Iy ∗ ⌜ApproxTo' R2 (- prec) y⌝ }})
+                ∗ (□  ∀ n0 : Z,
+                        Ix -∗
+                        Iy -∗
+                        WP (rec: "cmp" "x" "y" "n" :=
+                              let: "cx" := "x" "n" in
+                              let: "cy" := "y" "n" in
+                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" + #1))%V vx vy
+                             #n0
+                        @ E
+                        {{ r, ⌜r = #(-1)⌝ ∗ Ix ∗ Iy }})
+                ∗ Iy)
+              with "[HappX IX] [HappX HappY IH IY]").
+    3 : {
+      iSplit; [iExact "HappX"|].
+      iSplit; [iExact "HappY"|].
+      iSplit; [iExact "IH"|].
+      iFrame.
+    }
+    2 : {
+      iApply "HappX".
+      iApply "IX".
+    }
+    iIntros (?) "[[#HappX [#HappY [#IH IY]]] [%cx [-> [IX %Hcx]]]]".
+    wp_pures.
+    wp_bind (vy _).
+    (* FIXME *)
+    iApply (pgl_wp_mono_frame
+              (   (□  ∀ prec : Z, Ix -∗ WP vx #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ix ∗ ⌜ApproxTo' R2 (- prec) x⌝ }})
+                ∗ (□  ∀ prec : Z, Iy -∗ WP vy #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Iy ∗ ⌜ApproxTo' R2 (- prec) y⌝ }})
+                ∗ (□  ∀ n0 : Z,
+                        Ix -∗
+                        Iy -∗
+                        WP (rec: "cmp" "x" "y" "n" :=
+                              let: "cx" := "x" "n" in
+                              let: "cy" := "y" "n" in
+                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" + #1))%V vx vy
+                             #n0
+                        @ E
+                        {{ r, ⌜r = #(-1)⌝ ∗ Ix ∗ Iy }})
+                ∗ Ix)
+              with "[HappY IY] [HappX HappY IH IX]").
+    3 : {
+      iSplit; [iExact "HappX"|].
+      iSplit; [iExact "HappY"|].
+      iSplit; [iExact "IH"|].
+      iFrame.
+    }
+    2 : {
+      iApply "HappY".
+      iApply "IY".
+    }
+    iIntros (?) "[[#HappX [#HappY [#IH IX]]] [%cy [-> [IY %Hcy]]]]".
+    wp_pures.
+    case_bool_decide.
+    { wp_pures. iFrame. iModIntro. done. }
+    wp_pures.
+    rewrite bool_decide_eq_false_2.
+    2: {
+      eapply ApproxTo'_mono_term.
+      { exact Hxy. }
+      { exact Hcx. }
+      { exact Hcy. }
+    }
+    do 2 wp_pure.
+    iApply ("IH" with "IX IY").
+  Qed.
+
 
 End Lib.
