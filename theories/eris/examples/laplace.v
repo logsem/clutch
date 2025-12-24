@@ -101,6 +101,11 @@ Section Symmetric.
   Definition NegExpSymm_CreditV (F : fin 2 → nat → R → R)  :=
     (SeriesC (fun (b : fin 2) => SeriesC (fun (k : nat) => RInt (fun x => NegExpSymm_ρ b k x * F b k x) 0 1))).
 
+  (* TODO: Move *)
+  Lemma IPCts_opp {F : R → R} :
+    IPCts F → IPCts (λ x0 : R, F (- x0)).
+  Proof. Admitted.
+
   Lemma wp_NegExp_sym E (F : fin 2 → nat → R → R) {M}
       (Hnn : ∀ c a b, 0 <= b <= 1 → 0 <= F c a b <= M) (HP : ∀ x x1, PCts (F x x1) 0 1)  :
     ⊢ ↯ (NegExpSymm_CreditV F) -∗
@@ -379,7 +384,70 @@ Section Symmetric.
                _ _ (λ x : R, NegExpSymm_Closed x * F x) 0).
     2: {
       rewrite /NegExpSymm_Closed.
-      admit. }
+      replace (λ x : R, exp (- Rabs x) / 2 * F x) with (λ x : R, exp (- Rabs (- (- x))) / 2 * F (- (- x))).
+      2: { funexti. repeat f_equal; OK. }
+      apply (@ex_RInt_gen_neg_change_of_var_rev (λ x : R, exp (- Rabs (- x)) / 2 * F (- x))).
+      { intros ??.
+        apply ex_RInt_mult.
+        2: {
+          apply ex_RInt_neg; OK.
+          apply PCts_RInt.
+          apply IPCts_PCts.
+          done.
+        }
+        apply (@ex_RInt_ext _ (λ y : R, exp (- y) / 2)).
+        { rewrite Rmin_left; OK.  rewrite Rmax_right; OK.
+          intros ??.
+          repeat f_equal.
+          rewrite Rabs_left; OK.
+        }
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros ??.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      replace (λ x : R, exp (- Rabs (- x)) / 2 * F (- x)) with (λ x : R, exp (- Rabs x) / 2 * F (- x)).
+      2: { funexti; do 3 f_equal; OK. rewrite Rabs_Ropp. done. }
+      eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp ( - x) * (/ 2 * M))).
+      { apply IPCts_mult.
+        2: {
+          apply IPCts_cts. intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        { apply IPCts_cts.
+          intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+      }
+      { apply IPCts_mult.
+        { apply IPCts_cts. intros ?. apply Laplace_continuous. }
+        by apply IPCts_opp.
+      }
+      { intros ?.
+        split.
+        { apply Rmult_le_pos; [|apply HBound].
+          apply Rcomplements.Rdiv_le_0_compat; OK.
+          apply Rexp_nn.
+        }
+        { rewrite Rdiv_def.
+          rewrite Rmult_assoc.
+          apply Rmult_le_compat.
+          { apply Rexp_nn. }
+          { apply Rmult_le_pos; OK. apply HBound. }
+          { apply exp_mono.
+            apply Ropp_le_contravar.
+            apply RRle_abs.
+          }
+          { apply Rmult_le_compat; OK; apply HBound. }
+        }
+      }
+      { apply ex_RInt_gen_scal_r.
+        replace (λ x : R, exp (- x)) with (λ x : R, 1 * exp (- x)) by (funexti; OK).
+        apply ex_RInt_gen_exp.
+      }
+    }
     2: {
       rewrite /NegExpSymm_Closed.
       eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp (- x) * (/ 2 * M))).
@@ -398,7 +466,7 @@ Section Symmetric.
       { apply IPCts_mult; [|done].
         apply IPCts_cts.
         intros ?.
-        admit.
+        apply Laplace_continuous.
       }
       { intros ?.
         split.
@@ -468,7 +536,9 @@ Section Symmetric.
       apply ex_RInt_mult; [|by apply IPCts_RInt].
       apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
       intros ??.
+
       admit.
+
     }
     { intros ???.
       split.

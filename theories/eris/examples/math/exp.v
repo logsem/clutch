@@ -771,3 +771,15 @@ Proof.
   have H' := Series.ex_series_geom (exp (-1)) H.
   by rewrite -ex_seriesC_nat.
 Qed.
+
+Lemma Laplace_continuous {z : R} : Continuity.continuous (λ y : R, exp (- Rabs y) / 2) z.
+Proof.
+  apply Continuity.continuous_ext with (f := λ y, scal (exp (- Rabs y)) (/2)).
+  { intro x. unfold scal. simpl. unfold Rdiv. reflexivity. }
+  apply Continuity.continuous_ext with (f := λ y, scal (/2) (exp (- Rabs y))).
+  { intro x. unfold scal. simpl. apply Rmult_comm. }
+  apply (@Continuity.continuous_scal_r R_UniformSpace R_AbsRing R_NormedModule (/2) (λ y, exp (- Rabs y)) z).
+  apply ElemFct.continuous_exp_comp.
+  apply (@Continuity.continuous_opp R_UniformSpace R_AbsRing R_NormedModule (λ x, Rabs x) z).
+  apply ElemFct.continuous_Rabs.
+Qed.
