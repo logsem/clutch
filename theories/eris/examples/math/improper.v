@@ -1525,3 +1525,105 @@ Proof.
         { apply Proper_StrongProper, Rbar_locally_filter. } } }
   - intros b Hb. apply HexFscal. done.
 Qed.
+
+(** ** Change of variables: negative reflection [0,∞) ↔ (-∞,0] *)
+
+(** Finite versions *)
+Lemma ex_RInt_neg {F : R → R} {b : R} :
+  0 < b →
+  ex_RInt F (- b) 0 →
+  ex_RInt (λ x, F (- x)) 0 b.
+Proof.
+Admitted.
+
+Lemma RInt_neg {F : R → R} {b : R} :
+  0 < b →
+  ex_RInt F (- b) 0 →
+  RInt (λ x, F (- x)) 0 b = RInt F (- b) 0.
+Proof.
+Admitted.
+
+(** Infinite versions *)
+Lemma ex_RInt_gen_neg_change_of_var {F : R → R} :
+  (∀ b, 0 < b → ex_RInt F (- b) 0) →
+  ex_RInt_gen F (Rbar_locally Rbar.m_infty) (at_point 0) →
+  ex_RInt_gen (λ x, F (- x)) (at_point 0) (Rbar_locally Rbar.p_infty).
+Proof.
+  intros HexF HexFgen.
+  have Hex_finite : ∀ b, 0 < b → ex_RInt (λ x, F (- x)) 0 b.
+  { intros b Hb. apply ex_RInt_neg; [done | apply HexF; done]. }
+  apply RInt_gen_ex_Ici'; last done.
+  destruct HexFgen as [LF HisRIntF].
+  exists LF.
+  rewrite /is_RInt_gen in HisRIntF.
+  rewrite /filterlimi/=/filter_le/=/filtermapi/=.
+  intros P HP.
+  unfold filterlimi, filter_le, filtermapi in HisRIntF. simpl in HisRIntF.
+  have HisRIntF' := HisRIntF P HP.
+  destruct HisRIntF' as [P1 P2 HP1 HP2 HP3].
+  rewrite /Rbar_locally in HP1. simpl in HP1. destruct HP1 as [M HP1].
+  rewrite /at_point in HP2. simpl in HP2.
+  exists (Rmax 1 (- M)).
+  intros b Hb.
+  have Hb_pos : 0 < b.
+  { apply Rlt_le_trans with (r2 := 1).
+    { lra. }
+    { apply Rle_trans with (r2 := Rmax 1 (- M)); [apply Rmax_l | lra]. } }
+  have Hneg_M : - b < M.
+  { rewrite Rmax_Rlt in Hb. destruct Hb as [_ Hb]. lra. }
+  specialize (HP3 (- b) 0 (HP1 (- b) Hneg_M) HP2).
+  simpl in HP3.
+  destruct HP3 as [yF [HisRIntF_nb HpyF]].
+  have HexF_nb : ex_RInt F (- b) 0.
+  { exists yF. done. }
+  exists (RInt F (- b) 0).
+  split.
+  - rewrite -RInt_neg; [|done|done].
+    apply @RInt_correct. apply Hex_finite. done.
+  - rewrite (is_RInt_unique _ _ _ _ HisRIntF_nb). done.
+Qed.
+
+Lemma RInt_gen_neg_change_of_var {F : R → R} :
+  (∀ b, 0 < b → ex_RInt F (- b) 0) →
+  (∀ b, 0 < b → ex_RInt (λ x, F (- x)) 0 b) →
+  ex_RInt_gen F (Rbar_locally Rbar.m_infty) (at_point 0) →
+  RInt_gen (λ x, F (- x)) (at_point 0) (Rbar_locally Rbar.p_infty) =
+    RInt_gen F (Rbar_locally Rbar.m_infty) (at_point 0).
+Proof.
+  intros HexF HexFneg HexFgen.
+  apply RInt_gen_Ici_strong.
+  - rewrite /filterlimi/=/filter_le/=/filtermapi/=.
+    intros P HP.
+    destruct HexFgen as [LF HisRIntF].
+    have HLF_eq : RInt_gen F (Rbar_locally Rbar.m_infty) (at_point 0) = LF.
+    { apply (@is_RInt_gen_unique R_CompleteNormedModule).
+      { apply Proper_StrongProper, Rbar_locally_filter. }
+      { apply Proper_StrongProper, at_point_filter. }
+      done. }
+    rewrite HLF_eq in HP.
+    rewrite /is_RInt_gen in HisRIntF.
+    unfold filterlimi, filter_le, filtermapi in HisRIntF. simpl in HisRIntF.
+    have HisRIntF' := HisRIntF P HP.
+    destruct HisRIntF' as [P1 P2 HP1 HP2 HP3].
+    rewrite /Rbar_locally in HP1. simpl in HP1. destruct HP1 as [M HP1].
+    rewrite /at_point in HP2. simpl in HP2.
+    exists (Rmax 1 (- M)).
+    intros b Hb.
+    have Hb_pos : 0 < b.
+    { apply Rlt_le_trans with (r2 := 1).
+      { lra. }
+      { apply Rle_trans with (r2 := Rmax 1 (- M)); [apply Rmax_l | lra]. } }
+    have Hneg_M : - b < M.
+    { rewrite Rmax_Rlt in Hb. destruct Hb as [_ Hb]. lra. }
+    specialize (HP3 (- b) 0 (HP1 (- b) Hneg_M) HP2).
+    simpl in HP3.
+    destruct HP3 as [yF [HisRIntF_nb HpyF]].
+    have HexF_nb : ex_RInt F (- b) 0.
+    { exists yF. done. }
+    exists (RInt F (- b) 0).
+    split.
+    { rewrite -RInt_neg; [|done|done].
+      apply @RInt_correct. apply HexFneg. done. }
+    { rewrite (is_RInt_unique _ _ _ _ HisRIntF_nb). done. }
+  - intros b Hb. apply HexFneg. done.
+Qed.
