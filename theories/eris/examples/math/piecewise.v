@@ -1277,3 +1277,28 @@ Proof.
   apply Continuity2_swap.
   by apply H.
 Qed.
+
+Lemma IPCts_opp {F : R → R} :
+  IPCts F → IPCts (λ x0 : R, F (- x0)).
+Proof.
+  intros H.
+  unfold IPCts in H.
+  destruct H as [f0 [L [Heq [Hcont Hf0]]]].
+  unfold IPCts.
+  exists (λ x, f0 (- x)).
+  exists (map (λ '(f, xa, xb), (λ y, f (- y), - xb, - xa)) L).
+  split; [|split].
+  - intros x.
+    rewrite (Heq (- x)).
+    f_equal.
+    induction L as [|[[f_i xa] xb] L' IH].
+    + done.
+    + simpl.
+      f_equal.
+      * rewrite /Iverson /Icc.
+        f_equal.
+        case_decide; case_decide; try done.
+        { rewrite /Rmin /Rmax in H, H0. destruct (Rle_dec xa xb); destruct (Rle_dec (-xb) (-xa)); lra. }
+        { rewrite /Rmin /Rmax in H, H0. destruct (Rle_dec xa xb); destruct (Rle_dec (-xb) (-xa)); lra. }
+      * apply IH.
+Admitted.

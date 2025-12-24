@@ -101,11 +101,6 @@ Section Symmetric.
   Definition NegExpSymm_CreditV (F : fin 2 → nat → R → R)  :=
     (SeriesC (fun (b : fin 2) => SeriesC (fun (k : nat) => RInt (fun x => NegExpSymm_ρ b k x * F b k x) 0 1))).
 
-  (* TODO: Move *)
-  Lemma IPCts_opp {F : R → R} :
-    IPCts F → IPCts (λ x0 : R, F (- x0)).
-  Proof. Admitted.
-
   Lemma wp_NegExp_sym E (F : fin 2 → nat → R → R) {M}
       (Hnn : ∀ c a b, 0 <= b <= 1 → 0 <= F c a b <= M) (HP : ∀ x x1, PCts (F x x1) 0 1)  :
     ⊢ ↯ (NegExpSymm_CreditV F) -∗
@@ -531,14 +526,12 @@ Section Symmetric.
       lra.
     }
 
-    rewrite (@RInt_sep (λ x : R, exp (- Rabs x) / 2 * F x) (fun n => exp (- n) * M)); first last.
+    rewrite (@RInt_sep (λ x : R, exp (- Rabs x) / 2 * F x) (fun n => exp (- n) * (/ 2 * M))); first last.
     { intros b.
       apply ex_RInt_mult; [|by apply IPCts_RInt].
       apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
       intros ??.
-
-      admit.
-
+      apply Laplace_continuous.
     }
     { intros ???.
       split.
@@ -546,27 +539,32 @@ Section Symmetric.
         apply Rcomplements.Rdiv_le_0_compat; OK.
         apply Rexp_nn.
       }
-      { apply Rmult_le_compat.
-        { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
-        { apply HBound. }
-        { admit. }
-        { apply HBound. }
+      { rewrite Rdiv_def Rmult_assoc.
+        apply Rmult_le_compat.
+        { apply Rexp_nn. }
+        { apply Rmult_le_pos; OK.
+          apply HBound. }
+        { apply exp_mono.
+          apply Ropp_le_contravar.
+          etrans; last eapply RRle_abs.
+          lra.
+        }
+        { apply Rmult_le_compat; OK; apply HBound. }
       }
     }
     { apply ex_seriesC_scal_r.
       apply ex_exp_geo_series.
       }
-    { apply (@ex_RInt_gen_Ici_compare_PCts' _ (fun x => exp (- Rabs x) / 2 * M)).
-      { intros ??.
-        apply PCts_cts.
-        intros ??.
-        admit. }
-      { intros ??.
-        apply PCts_mult; [|by apply IPCts_PCts].
-        apply PCts_cts.
-        intros ??.
-        admit. }
-      { intros ??.
+    { apply (@ex_RInt_gen_Ici_compare_IPCts _ (fun x => exp (- x) / 2 * M)).
+      { apply IPCts_cts. intros ?.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      { apply IPCts_mult; [|done].
+        apply IPCts_cts. intros ?.
+        apply Laplace_continuous.
+      }
+      { intros ?.
         split.
         { apply Rmult_le_pos; [|apply HBound].
           apply Rcomplements.Rdiv_le_0_compat; OK.
@@ -575,16 +573,21 @@ Section Symmetric.
         { apply Rmult_le_compat.
           { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
           { apply HBound. }
-          { admit. }
+          { apply Rmult_le_compat_r; OK.
+            apply exp_mono.
+            apply Ropp_le_contravar.
+            apply RRle_abs.
+          }
           { apply HBound. }
         }
       }
       { apply ex_RInt_gen_scal_r.
-        admit.
+        replace (λ x : R, exp (- x) / 2) with (λ x : R, /2 * exp (- x)) by (funexti; OK).
+        apply ex_RInt_gen_exp.
       }
     }
 
-    rewrite -(FubiniIntegralSeriesC_Strong (fun n => M * exp (- n))); first last.
+    rewrite -(FubiniIntegralSeriesC_Strong (fun n => M * /2 *  exp (- n))); first last.
     { intros ?.
       apply ex_RInt_mult.
       { apply (ex_RInt_ext (λ y : R, exp (-(y + n)) / 2)).
@@ -616,11 +619,20 @@ Section Symmetric.
         { apply HBound. }
       }
       rewrite Rmult_comm.
-     apply Rmult_le_compat.
-     { apply HBound. }
-     { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
-     { apply HBound. }
-     { admit. }
+      rewrite Rdiv_def.
+      rewrite (Rmult_comm _ (/ 2)).
+      rewrite Rmult_assoc.
+      apply Rmult_le_compat.
+      { apply HBound. }
+      { apply Rmult_le_pos; OK. apply Rexp_nn. }
+      { apply HBound. }
+      { apply Rmult_le_compat; OK.
+        { apply Rexp_nn. }
+        apply exp_mono.
+        apply Ropp_le_contravar.
+        etrans; last eapply RRle_abs.
+        lra.
+      }
     }
     { apply ex_seriesC_scal_l.
       apply ex_exp_geo_series.
