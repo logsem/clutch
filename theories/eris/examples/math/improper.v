@@ -1300,44 +1300,55 @@ Step 4: Apply RInt_gen_ex_Ici
 (** Auxiliary lemmas: Finite change of variables for scalar transformations
     These should be provable from is_RInt primitives, but we admit them for now. *)
 
-Lemma ex_RInt_scal_change_of_var_finite {F : R → R} {a b : R} :
+Lemma ex_RInt_scal_cov {F : R → R} {a b : R} :
   0 < a →
   0 < b →
   ex_RInt F 0 (a * b) →
   ex_RInt (λ x, F (a * x)) 0 b.
 Proof.
   intros Ha Hb HexF.
-  eapply ex_RInt_ext.
-  2: { apply (@ex_RInt_scal R_CompleteNormedModule (λ y, scal a (F (a * y + 0))) 0 b (/a)).
-       apply (@ex_RInt_comp_lin R_CompleteNormedModule F a 0 0 b).
-       replace (a * 0 + 0) with 0 by lra.
-       replace (a * b + 0) with (a * b) by lra.
-       done. }
-  { intros x Hx. simpl. rewrite /scal/=/mult/=.
-    replace (a * x + 0) with (a * x) by lra.
-    field_simplify; lra. }
+  replace (λ x : R, F (a * x)) with (λ y : R, scal (/ a) (scal a (F (a * y + 0)))).
+  2 : {
+    funext.
+    intros x.
+    rewrite /scal/=/mult/=.
+    field_simplify; try lra.
+    f_equal; lra.
+  }
+  apply (ex_RInt_scal (λ y, scal a (F (a * y + 0))) 0 b (/a)).
+  apply (ex_RInt_comp_lin F a 0 0 b).
+  replace (a * 0 + 0) with 0 by lra.
+  replace (a * b + 0) with (a * b) by lra.
+  done.
 Qed.
 
-Lemma RInt_scal_change_of_var_finite {F : R → R} {a b : R} :
+Lemma RInt_scal_cov {F : R → R} {a b : R} :
   0 < a →
   0 < b →
   ex_RInt F 0 (a * b) →
   RInt (λ x, F (a * x)) 0 b = / a * RInt F 0 (a * b).
 Proof.
   intros Ha Hb HexF.
-  erewrite (RInt_ext _ (λ x, scal (/a) (scal a (F (a * x + 0))))).
-  2: { intros x Hx. simpl. rewrite /scal/=/mult/=.
-       replace (a * x + 0) with (a * x) by lra.
-       field_simplify; lra. }
+  rewrite (RInt_ext _ (λ x, scal (/a) (scal a (F (a * x + 0))))).
+  2: {
+    intros x Hx.
+    rewrite /scal/=/mult/=.
+    field_simplify; try lra.
+    f_equal; lra.
+  }
   rewrite RInt_scal.
-  2: { apply (@ex_RInt_comp_lin R_CompleteNormedModule F a 0 0 b).
-       replace (a * 0 + 0) with 0 by lra.
-       replace (a * b + 0) with (a * b) by lra.
-       done. }
-  rewrite (@RInt_comp_lin R_CompleteNormedModule F a 0 0 b).
-  2: { replace (a * 0 + 0) with 0 by lra.
-       replace (a * b + 0) with (a * b) by lra.
-       done. }
+  2: {
+    apply (ex_RInt_comp_lin F a 0 0 b).
+    replace (a * 0 + 0) with 0 by lra.
+    replace (a * b + 0) with (a * b) by lra.
+    done.
+  }
+  rewrite (RInt_comp_lin F a 0 0 b).
+  2: {
+    replace (a * 0 + 0) with 0 by lra.
+    replace (a * b + 0) with (a * b) by lra.
+    done.
+  }
   replace (a * 0 + 0) with 0 by lra.
   replace (a * b + 0) with (a * b) by lra.
   rewrite /scal/=/mult/=. done.
@@ -1352,9 +1363,10 @@ Proof.
   intros Ha HexF HexFgen.
   have Hex_finite : ∀ b, 0 < b → ex_RInt (λ x, F (a * x)) 0 b.
   { intros b Hb.
-    apply ex_RInt_scal_change_of_var_finite; try done.
+    apply ex_RInt_scal_cov; try done.
     apply HexF.
-    apply Rmult_lt_0_compat; done. }
+    apply Rmult_lt_0_compat; done.
+  }
   apply RInt_gen_ex_Ici'; last done.
   destruct HexFgen as [LF HisRIntF].
   exists (/ a * LF).
@@ -1401,7 +1413,7 @@ Proof.
   exists (/ a * RInt F 0 (a * b)).
   split.
   - (* is_RInt (λ x, F (a*x)) 0 b (/ a * RInt F 0 (a*b)) *)
-    rewrite -RInt_scal_change_of_var_finite; try lra.
+    rewrite -RInt_scal_cov; try lra.
     { apply @RInt_correct.
       apply Hex_finite.
       done.
@@ -1414,7 +1426,7 @@ Proof.
     rewrite Rabs_mult.
     rewrite /ball/=/AbsRing_ball/=/abs/=/minus/plus/opp/= in HballF.
     have Ha_pos : 0 < Rabs a by (apply Rabs_pos_lt; lra).
-    rewrite Rabs_Rinv; [|lra].
+    rewrite Rabs_inv.
     apply Rmult_lt_reg_r with (r := Rabs a); [done|].
     rewrite Rmult_assoc.
     rewrite Rmult_comm.
@@ -1435,15 +1447,15 @@ Lemma RInt_gen_scal_change_of_var {F : R → R} {a : R} :
   RInt_gen (λ x, F (a * x)) (at_point 0) (Rbar_locally Rbar.p_infty) =
     / a * RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty).
 Proof.
-  intros Ha HexF Hexscal HexFgen.
-  destruct HexFgen as [LF HisRIntF].
+  intros Ha HexF HexFscal HexFgen.
   apply RInt_gen_Ici_strong.
-  - (* Prove the limit condition *)
-    rewrite /filterlimi/=/filter_le/=/filtermapi/=.
+  - rewrite /filterlimi/=/filter_le/=/filtermapi/=.
     intros P HP.
     rewrite /locally in HP. destruct HP as [eps HP].
     have Heps' : 0 < eps * Rabs a.
     { apply Rmult_lt_0_compat; [apply cond_pos | apply Rabs_pos_lt; lra]. }
+    rewrite /is_RInt_gen in HexFgen.
+    destruct HexFgen as [LF HisRIntF].
     rewrite /is_RInt_gen in HisRIntF.
     unfold filterlimi, filter_le, filtermapi in HisRIntF. simpl in HisRIntF.
     have HlimF_ball : ∃ M, ∀ b, M < b → ∃ y, is_RInt F 0 b y ∧ ball LF (mkposreal (eps * Rabs a) Heps') y.
@@ -1469,68 +1481,47 @@ Proof.
       field_simplify.
       { rewrite Rmax_Rlt in Hb; apply Hb. }
       { lra. }
-      { lra. }
-    }
+      { lra. } }
     specialize (HlimF_ball (a * b) Hab).
     destruct HlimF_ball as [yF [HisRIntF_ab HballF]].
     have HexF_ab : ex_RInt F 0 (a * b).
     { exists yF. done. }
-    exists yF.
+    exists (/ a * RInt F 0 (a * b)).
     split.
-    + (* is_RInt (λ x, F (a*x)) 0 b (/ a * RInt F 0 (a*b)) *)
-      rewrite -(is_RInt_unique _ _ _ _ HisRIntF_ab).
-      admit.
-      (*
-      rewrite RInt_scal_change_of_var_finite; try lra.
-      Search is_RInt RInt.
-      {
-        apply Hex_finite.
-        done.
-      }
-      { exists yF; done. }
-      *)
-    + (* P (/ a * RInt F 0 (a*b)) *)
-      apply HP.
+    { rewrite -RInt_scal_cov; try lra.
+      { apply @RInt_correct. apply HexFscal. done. }
+      { exists yF; done. } }
+    { apply HP.
       rewrite /ball/=/AbsRing_ball/=/abs/=/minus/plus/opp/=.
-      replace (/ a * RInt F 0 (a * b) + - (/ a * LF)) with (/ a * (RInt F 0 (a * b) + - LF)) by lra.
-      rewrite /ball/=/AbsRing_ball/=/abs/=/minus/plus/opp/= in HballF.
+      replace (/ a * RInt F 0 (a * b) + - (/ a * RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty)))
+        with (/ a * (RInt F 0 (a * b) + - RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty))) by lra.
+      rewrite Rabs_mult.
+      rewrite Rabs_inv.
       have Ha_pos : 0 < Rabs a by (apply Rabs_pos_lt; lra).
-      (*
-      rewrite Rabs_Rinv; [|lra].
       apply Rmult_lt_reg_r with (r := Rabs a); [done|].
       rewrite Rmult_assoc.
-      rewrite Rmult_comm.
-      rewrite Rmult_assoc.
-      rewrite Rinv_r; [|apply Rgt_not_eq; done].
-      rewrite Rmult_1_r.
+      rewrite (Rmult_comm (Rabs _) (Rabs a)).
+      rewrite -Rmult_assoc.
+      rewrite Rinv_l; [|apply Rgt_not_eq; done].
+      rewrite Rmult_1_l.
       eapply Rle_lt_trans; [|exact HballF].
+      rewrite /abs/=/minus/plus/opp/=.
       right.
       do 2 f_equal.
-      by apply is_RInt_unique.
-      *)
-
-      (*
-    apply HP.
-    rewrite /ball/=/AbsRing_ball/=/abs/=/minus/plus/opp/=.
-    rewrite -RInt_scal_change_of_var_finite; try lra; [|exists yF; done].
-    replace (/ a * RInt F 0 (a * b) + - (/ a * LF)) with (/ a * (RInt F 0 (a * b) + - LF)) by lra.
-    rewrite Rabs_mult.
-    rewrite /ball/=/AbsRing_ball/=/abs/=/minus/plus/opp/= in HballF.
-    have Ha_pos : 0 < Rabs a by (apply Rabs_pos_lt; lra).
-    rewrite Rabs_Rinv; [|lra].
-    apply Rmult_lt_reg_r with (r := Rabs a); [done|].
-    rewrite Rmult_assoc.
-    rewrite Rmult_comm with (r1 := / Rabs a).
-    rewrite Rmult_assoc.
-    rewrite Rinv_l; [|apply Rgt_not_eq; done].
-    rewrite Rmult_1_r.
-    eapply Rle_lt_trans; [|exact HballF].
-    right.
-    do 2 f_equal.
-    by apply is_RInt_unique.
-  - (* Prove the existence condition *)
-    intros b Hb.
-    apply Hexscal.
-    done.
-    *)
-Admitted.
+      { by apply is_RInt_unique. }
+      { f_equal.
+        symmetry.
+        have Hcorr : is_RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty)
+                       (RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty)).
+        { eapply (@RInt_gen_correct R_CompleteNormedModule).
+          { apply Proper_StrongProper, at_point_filter. }
+          { apply Proper_StrongProper, Rbar_locally_filter. }
+          exists LF. rewrite /is_RInt_gen. done. }
+        rewrite /is_RInt_gen in HisRIntF.
+        have HisRIntF_LF : is_RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) LF
+          by (rewrite /is_RInt_gen; done).
+        apply eq_sym, (@is_RInt_gen_unique R_CompleteNormedModule); eauto.
+        { apply Proper_StrongProper, at_point_filter. }
+        { apply Proper_StrongProper, Rbar_locally_filter. } } }
+  - intros b Hb. apply HexFscal. done.
+Qed.
