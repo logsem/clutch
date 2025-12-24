@@ -1,4 +1,4 @@
-From clutch.eris.examples.math Require Import prelude iverson sets piecewise.
+From clutch.eris.examples.math Require Import prelude iverson sets piecewise integrals.
 From clutch.eris Require Import infinite_tape.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
@@ -1188,93 +1188,193 @@ Proof.
         -- apply IPCts_PCts. apply IPCts_cts.
            intros. apply Continuity.continuous_const.
   - intros. rewrite /G'/F'. case_bool_decide; naive_solver.
-  - 
+  -
   apply (ex_RInt_gen_ext_eq_Ioi (f:=F)); last done.
   intros. rewrite /F'. by rewrite bool_decide_eq_true_2.
-Qed. 
-  
-(*
-Lemma NegExp_prod_bounded_left_IPCts {F G : R → R} {M}
-  (HFIPCts : IPCts F)
-  (HGIPCts : IPCts G)
-  (HFnn : ∀ x, 0 <= F x <= M)
-  (HGnn : ∀ x, 0 <= G x)
-  (HIntG : ex_RInt_gen G (at_point 0) (Rbar_locally Rbar.p_infty)) :
-  ex_RInt_gen (fun x => F x * G x) (at_point 0) (Rbar_locally Rbar.p_infty).
-Proof.
-  apply (@ex_RInt_gen_Ici_compare_IPCts 0 (fun x => M * G x) (fun x => F x * G x)).
-  - apply IPCts_scal_mult. done.
-  - apply IPCts_mult; done.
-  - intros x. split; [apply Rmult_le_pos; [apply HFnn | apply HGnn] |].
-    destruct (HFnn x) as [HF0 HFM]. apply Rmult_le_compat_r; [apply HGnn | apply HFM].
-  - apply ex_RInt_gen_Ici_scal. apply HIntG.
 Qed.
 
-Lemma RInt_gen_0 {F G : ((R → Prop) → Prop)} : RInt_gen (fun (x : R) => (0 : R)) F G = 0.
-Proof. A dmitted.
+(** Scalar change of variables for improper integrals
+
+Proof plan for ex_RInt_gen_scal_change_of_var:
+
+Goal: Show that if ∫[0,∞) F exists, then ∫[0,∞) F(a·x) exists for a > 0.
+
+Main Strategy: Use substitution u = a·x to relate the two integrals.
+
+Concrete approach using available Coquelicot techniques:
+
+Step 1: State and admit finite change of variables lemma
+  Need: ∫[0,b] F(a·x) dx = (1/a) · ∫[0,a·b] F(u) du
+
+  Observation: No built-in change of variables in Coquelicot or this codebase
+  Action: State as auxiliary admitted lemma (can prove later from is_RInt primitives)
+
+  Potential techniques for future proof:
+    - is_RInt_derive (fundamental theorem, used in exp.v:518)
+    - RInt_Derive (inverse direction)
+    - ex_RInt_comp_cts axiom (axioms.v:13) for composition
+
+Step 2: Show finite integrals exist
+  Prove: ∀ b, 0 < b → ex_RInt (λ x, F (a * x)) 0 b
+  Approach: Use admitted change of variables + hypothesis ex_RInt F 0 (a*b)
+  Could potentially use ex_RInt_scal (integrals.v:37) if needed
+
+Step 3: Establish the limit
+  Show: filterlimi (λ b, is_RInt (λ x, F (a*x)) 0 b) (Rbar_locally Rbar.p_infty)
+                   (locally ((1/a) * L))
+  where L is the limit of ∫[0,b] F as b → ∞
+
+  Technique: Use filterlim composition (see exp.v:587, is_lim_exp_neg_infty)
+  Key: As b → ∞:
+    - ∫[0,b] F(a·x) dx = (1/a)·∫[0,a·b] F(u) du (by Step 1)
+    - a·b → ∞ since a > 0 (need filterlim for λ b, a*b)
+    - ∫[0,a·b] F → L (by hypothesis)
+    - Compose limits: (1/a)·∫[0,a·b] F → (1/a)·L
+  Use RInt_scal (integrals.v:18) for pulling out scalar (1/a)
+
+Step 4: Apply RInt_gen_ex_Ici
+  Use RInt_gen_ex_Ici (improper.v:122) to construct ex_RInt_gen
+  Inputs:
+    - Existence proof from Step 3: exists L, filterlimi ... (locally L)
+    - Finite integrability from Step 2: ∀ b, ex_RInt (λ x, F (a*x)) 0 b
 *)
 
-(** Helper: Finite integral substitution u = -x *)
-Lemma RInt_subst_neg (f : R → R) (a : R) :
-  a < 0 →
-  ex_RInt f a 0 →
-  RInt f a 0 = RInt (fun u => f (-u)) 0 (-a).
-Proof.
-  intros Ha Hex.
-  symmetry.
-  apply is_RInt_unique.
-  (* Need to apply is_RInt_comp_lin with u=-1, v=0
-     But the scaling creates issues for real functions.
-     Strategy: use is_RInt_comp_opp or derive custom substitution. *)
-Abort.
+(** Auxiliary lemmas: Finite change of variables for scalar transformations
+    These should be provable from is_RInt primitives, but we admit them for now. *)
 
-(** Change of variables: reversing integral bounds from -∞ to 0 becomes 0 to ∞ with negated variable *)
-Lemma RInt_gen_change_var (f : R → R) :
-  ex_RInt_gen f (Rbar_locally Rbar.m_infty) (at_point 0) →
-  RInt_gen f (Rbar_locally Rbar.m_infty) (at_point 0) =
-  RInt_gen (fun x => f (-x)) (at_point 0) (Rbar_locally Rbar.p_infty).
+Lemma ex_RInt_scal_change_of_var_finite {F : R → R} {a b : R} :
+  0 < a →
+  0 < b →
+  ex_RInt F 0 (a * b) →
+  ex_RInt (λ x, F (a * x)) 0 b.
 Proof.
-  intros Hex.
-  destruct Hex as [L HL].
-  have -> : RInt_gen f (Rbar_locally Rbar.m_infty) (at_point 0) = L
-    by (eapply is_RInt_gen_unique; apply HL).
-  symmetry.
-  apply is_RInt_gen_unique.
-  rewrite /is_RInt_gen.
-  rewrite /is_RInt_gen in HL.
-  rewrite /filterlimi /= /filter_le /= /filtermapi /= in HL.
-  rewrite /filterlimi /= /filter_le /= /filtermapi /=.
+  intros Ha Hb HexF.
+  eapply ex_RInt_ext.
+  2: { apply (@ex_RInt_scal R_CompleteNormedModule (λ y, scal a (F (a * y + 0))) 0 b (/a)).
+       apply (@ex_RInt_comp_lin R_CompleteNormedModule F a 0 0 b).
+       replace (a * 0 + 0) with 0 by lra.
+       replace (a * b + 0) with (a * b) by lra.
+       done. }
+  { intros x Hx. simpl. rewrite /scal/=/mult/=.
+    replace (a * x + 0) with (a * x) by lra.
+    field_simplify; lra. }
+Qed.
+
+Lemma RInt_scal_change_of_var_finite {F : R → R} {a b : R} :
+  0 < a →
+  0 < b →
+  ex_RInt F 0 (a * b) →
+  RInt (λ x, F (a * x)) 0 b = / a * RInt F 0 (a * b).
+Proof.
+  intros Ha Hb HexF.
+  erewrite (RInt_ext _ (λ x, scal (/a) (scal a (F (a * x + 0))))).
+  2: { intros x Hx. simpl. rewrite /scal/=/mult/=.
+       replace (a * x + 0) with (a * x) by lra.
+       field_simplify; lra. }
+  rewrite RInt_scal.
+  2: { apply (@ex_RInt_comp_lin R_CompleteNormedModule F a 0 0 b).
+       replace (a * 0 + 0) with 0 by lra.
+       replace (a * b + 0) with (a * b) by lra.
+       done. }
+  rewrite (@RInt_comp_lin R_CompleteNormedModule F a 0 0 b).
+  2: { replace (a * 0 + 0) with 0 by lra.
+       replace (a * b + 0) with (a * b) by lra.
+       done. }
+  replace (a * 0 + 0) with 0 by lra.
+  replace (a * b + 0) with (a * b) by lra.
+  rewrite /scal/=/mult/=. done.
+Qed.
+
+Lemma ex_RInt_gen_scal_change_of_var {F : R → R} {a : R} :
+  0 < a →
+  (∀ b, 0 < b → ex_RInt F 0 b) →
+  ex_RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) →
+  ex_RInt_gen (λ x, F (a * x)) (at_point 0) (Rbar_locally Rbar.p_infty).
+Proof.
+  intros Ha HexF HexFgen.
+  have Hex_finite : ∀ b, 0 < b → ex_RInt (λ x, F (a * x)) 0 b.
+  { intros b Hb.
+    apply ex_RInt_scal_change_of_var_finite; try done.
+    apply HexF.
+    apply Rmult_lt_0_compat; done. }
+  apply RInt_gen_ex_Ici'; last done.
+  destruct HexFgen as [LF HisRIntF].
+  exists (/ a * LF).
+  rewrite /filterlimi/=/filter_le/=/filtermapi/=.
   intros P HP.
-  specialize (HL P HP).
-  revert HL.
-  apply filter_prod_ind.
-  intros Q R2 HQ HR2 Hint.
-  rewrite /at_point in HR2.
-  rewrite /Rbar_locally in HQ.
-  destruct HQ as [M HM].
-  econstructor.
-  - apply HR2.
-  - rewrite /Rbar_locally. exists (-M). move => b Hb. apply Hb.
-  - rewrite //=.
-    simpl in Hint.
-    intros a b Ha Hb.
-    destruct (Hint (-b) a ).
-    (* False *)
+  rewrite /locally in HP. destruct HP as [eps HP].
+  have Heps' : 0 < eps * Rabs a.
+  { apply Rmult_lt_0_compat; [apply cond_pos | apply Rabs_pos_lt; lra]. }
+  rewrite /is_RInt_gen in HisRIntF.
+  unfold filterlimi, filter_le, filtermapi in HisRIntF. simpl in HisRIntF.
+  have HlimF_ball : ∃ M, ∀ b, M < b → ∃ y, is_RInt F 0 b y ∧ ball LF (mkposreal (eps * Rabs a) Heps') y.
+  { have HisRIntF' := HisRIntF (ball LF (mkposreal (eps * Rabs a) Heps')).
+    have HballLocal : locally LF (ball LF (mkposreal (eps * Rabs a) Heps')).
+    { exists (mkposreal (eps * Rabs a) Heps'). simpl. intros y Hy. apply Hy. }
+    specialize (HisRIntF' HballLocal).
+    destruct HisRIntF' as [P1 P2 HP1 HP2 HP3].
+    rewrite /at_point in HP1. simpl in HP1.
+    rewrite /Rbar_locally in HP2. simpl in HP2. destruct HP2 as [M HP2].
+    exists M. intros b Hb.
+    specialize (HP3 0 b HP1 (HP2 b Hb)).
+    simpl in HP3. apply HP3. }
+  destruct HlimF_ball as [M HlimF_ball].
+  (* Pick witness Rmax 1 (M / a) to ensure b > 0 *)
+  exists (Rmax 1 (M / a)).
+  intros b Hb.
+  (* Prove b > 0 *)
+  have Hb_pos : 0 < b.
+  { apply Rlt_le_trans with (r2 := 1).
+    { lra. }
+    { apply Rle_trans with (r2 := Rmax 1 (M / a)); [apply Rmax_l | lra]. } }
+  (* Prove M < a * b *)
+  have Hab : M < a * b.
+  { apply Rmult_lt_reg_r with (r := / a); [apply Rinv_0_lt_compat; lra|].
+    field_simplify.
+    { rewrite Rmax_Rlt in Hb; apply Hb. }
+    { lra. }
+    { lra. }
+  }
+  specialize (HlimF_ball (a * b) Hab).
+  destruct HlimF_ball as [yF [HisRIntF_ab HballF]].
+  (* We need RInt F 0 (a*b), which equals yF by uniqueness *)
+  have HexF_ab : ex_RInt F 0 (a * b).
+  { exists yF. done. }
+  exists (/ a * RInt F 0 (a * b)).
+  split.
+  - (* is_RInt (λ x, F (a*x)) 0 b (/ a * RInt F 0 (a*b)) *)
+    rewrite -RInt_scal_change_of_var_finite; try lra.
+    { apply @RInt_correct.
+      apply Hex_finite.
+      done.
+    }
+    { exists yF; done. }
+  - (* P (/ a * RInt F 0 (a*b)) *)
+    apply HP.
+    rewrite /ball/=/AbsRing_ball/=/abs/=/minus/plus/opp/=.
+    replace (/ a * RInt F 0 (a * b) + - (/ a * LF)) with (/ a * (RInt F 0 (a * b) + - LF)) by lra.
+    rewrite Rabs_mult.
+    rewrite /ball/=/AbsRing_ball/=/abs/=/minus/plus/opp/= in HballF.
+    have Ha_pos : 0 < Rabs a by (apply Rabs_pos_lt; lra).
+    rewrite Rabs_Rinv; [|lra].
+    apply Rmult_lt_reg_r with (r := Rabs a); [done|].
+    rewrite Rmult_assoc.
+    rewrite Rmult_comm.
+    rewrite Rmult_assoc.
+    rewrite Rinv_r; [|apply Rgt_not_eq; done].
+    rewrite Rmult_1_r.
+    eapply Rle_lt_trans; [|exact HballF].
+    right.
+    do 2 f_equal.
+    by apply is_RInt_unique.
+Qed.
 
-    (*
-    move => a b Ha Hb /=; move: Ha => ->.
-    have Hnb : -b < M by lra.
-    specialize (HM (-b) Hnb).
-    specialize (Hint (-b) 0 HM HR2). simpl in Hint.
-    destruct Hint as [v [Hv Pv]].
-    exists v. split; [|exact Pv].
-    apply is_RInt_ext with (fun y => opp (opp (f (-y)))).
-    { move => x _. rewrite opp_opp. reflexivity. }
-    apply is_RInt_opp.
-    apply is_RInt_swap.
-    replace (-b) with (-b) in Hv by reflexivity.
-    replace 0 with (-0) in Hv by (rewrite Ropp_0; reflexivity).
-    apply is_RInt_comp_opp.
-    rewrite Ropp_involutive Ropp_0. exact Hv.
-    *)
-Abort.
+Lemma RInt_gen_scal_change_of_var {F : R → R} {a : R} :
+  0 < a →
+  (∀ b, 0 < b → ex_RInt F 0 b) →
+  (∀ b, 0 < b → ex_RInt (λ x, F (a * x)) 0 b) →
+  ex_RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) →
+  RInt_gen (λ x, F (a * x)) (at_point 0) (Rbar_locally Rbar.p_infty) =
+    / a * RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty).
+Proof.
+Admitted.
