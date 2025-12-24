@@ -880,10 +880,44 @@ Proof.
   simpl. by exists 0.
 Qed.
 
+Lemma RInt_gen_scal_l {F : R → R} {M : R} r:
+  ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) →
+  r * RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) =
+    RInt_gen (fun x => r * F x) (at_point M) (Rbar_locally Rbar.p_infty).
+Proof.
+  intros Hex.
+  have Hex_scal := ex_RInt_gen_scal_l r Hex.
+  destruct Hex as [l Hl].
+  rewrite (@is_RInt_gen_unique R_CompleteNormedModule (at_point M) (Rbar_locally Rbar.p_infty) _ _ _ _ Hl).
+  symmetry.
+  apply (@is_RInt_gen_unique R_CompleteNormedModule (at_point M) (Rbar_locally Rbar.p_infty) _ _ _ _ ).
+  apply (is_RInt_gen_scal _ r) in Hl.
+  rewrite /scal/=/mult/= in Hl.
+  apply Hl.
+Qed.
+
+Lemma RInt_gen_scal_r {F : R → R} {M : R} r:
+  ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) →
+  r * RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) =
+    RInt_gen (fun x => F x * r) (at_point M) (Rbar_locally Rbar.p_infty).
+Proof.
+  intros Hex.
+  have Hex_scal := ex_RInt_gen_scal_r r Hex.
+  destruct Hex as [l Hl].
+  rewrite (@is_RInt_gen_unique R_CompleteNormedModule (at_point M) (Rbar_locally Rbar.p_infty) _ _ _ _ Hl).
+  symmetry.
+  apply (@is_RInt_gen_unique R_CompleteNormedModule (at_point M) (Rbar_locally Rbar.p_infty) _ _ _ _ ).
+  apply (is_RInt_gen_scal _ r) in Hl.
+  rewrite /scal/=/mult/= in Hl.
+  eapply is_RInt_gen_ext; last apply Hl.
+  apply (Filter_prod _ _ _ (λ _, True) (λ _, True)); try done; last (intros; lra).
+  simpl. by exists 0.
+Qed.
+
 Lemma ex_RInt_gen_div {F : R → R} {M : R} r:
   ex_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) →
   ex_RInt_gen (fun x => F x / r) (at_point M) (Rbar_locally Rbar.p_infty).
-Proof. 
+Proof.
   intros [x H].
   exists (/r * x).
   apply (is_RInt_gen_scal _ (/r)) in H.
