@@ -196,10 +196,6 @@ split.
 }
 Qed.
 
-(** Alter a function at one point *)
-Definition poke (f : R → R) (a z : R) : R → R := fun x =>
-  if (decide (x = a)) then z else f x.
-
 (** Integrability of function with one point different *)
 Lemma ex_RInt_poke {a b c z : R} (f : R → R) (Hf : ex_RInt f a b) (Hi : a < c < b):
   ex_RInt (poke f c z) a b.
@@ -244,6 +240,9 @@ Proof.
   }
 Qed.
 
+Lemma RInt_PokeOut (F : R → R) (L : list R) (a b : R) (HI : IPCts F) :
+  RInt (PokeOut F L) a b = RInt F a b.
+Proof. Admitted.
 
 (** Integrability of scalar division *)
 Lemma ex_RInt_div (F : R → R) {a b c} : ex_RInt F a b → ex_RInt (fun x => F x / c) a b.

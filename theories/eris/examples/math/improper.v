@@ -1802,3 +1802,14 @@ Proof.
     lra.
   - rewrite (is_RInt_unique _ _ _ _ HisRIntF_na). done.
 Qed.
+
+Lemma ex_RInt_gen_shift {F : R → R} (u : R) :
+  ex_RInt_gen F (at_point 0) (Rbar_locally Rbar.m_infty) →
+  ex_RInt_gen (fun x => F (u + x)) (at_point (-u)) (Rbar_locally Rbar.m_infty).
+Proof. Admitted.
+
+Lemma RInt_gen_shift {F : R → R} (u : R) :
+  ex_RInt_gen F (at_point (-u)) (Rbar_locally Rbar.m_infty) →
+  RInt_gen F (at_point 0) (Rbar_locally Rbar.m_infty) =
+  RInt_gen (fun x => F (u + x)) (at_point (-u)) (Rbar_locally Rbar.m_infty).
+Proof. Admitted.

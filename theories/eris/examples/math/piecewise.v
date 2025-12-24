@@ -1408,3 +1408,16 @@ Proof.
       by auto_derive.
     + apply Hf0.
 Qed.
+
+(** Alter a function at one point *)
+Definition poke (f : R → R) (a z : R) : R → R := fun x =>
+  if (decide (x = a)) then z else f x.
+
+Program Definition PokeOut (F : R → R) (L : list R) : R → R :=
+  foldl (fun Facc x => poke Facc x 1) F L.
+
+Lemma poke_IPCts (F : R → R) (a z : R) : IPCts F → IPCts (poke F a z).
+Proof. Admitted.
+
+Lemma PokeOut_IPCts (F : R → R) (L : list R) : IPCts F → IPCts (PokeOut F L).
+Proof. Admitted.
