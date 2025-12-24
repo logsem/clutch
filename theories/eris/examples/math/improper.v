@@ -1213,3 +1213,68 @@ Qed.
 Lemma RInt_gen_0 {F G : ((R → Prop) → Prop)} : RInt_gen (fun (x : R) => (0 : R)) F G = 0.
 Proof. A dmitted.
 *)
+
+(** Helper: Finite integral substitution u = -x *)
+Lemma RInt_subst_neg (f : R → R) (a : R) :
+  a < 0 →
+  ex_RInt f a 0 →
+  RInt f a 0 = RInt (fun u => f (-u)) 0 (-a).
+Proof.
+  intros Ha Hex.
+  symmetry.
+  apply is_RInt_unique.
+  (* Need to apply is_RInt_comp_lin with u=-1, v=0
+     But the scaling creates issues for real functions.
+     Strategy: use is_RInt_comp_opp or derive custom substitution. *)
+Abort.
+
+(** Change of variables: reversing integral bounds from -∞ to 0 becomes 0 to ∞ with negated variable *)
+Lemma RInt_gen_change_var (f : R → R) :
+  ex_RInt_gen f (Rbar_locally Rbar.m_infty) (at_point 0) →
+  RInt_gen f (Rbar_locally Rbar.m_infty) (at_point 0) =
+  RInt_gen (fun x => f (-x)) (at_point 0) (Rbar_locally Rbar.p_infty).
+Proof.
+  intros Hex.
+  destruct Hex as [L HL].
+  have -> : RInt_gen f (Rbar_locally Rbar.m_infty) (at_point 0) = L
+    by (eapply is_RInt_gen_unique; apply HL).
+  symmetry.
+  apply is_RInt_gen_unique.
+  rewrite /is_RInt_gen.
+  rewrite /is_RInt_gen in HL.
+  rewrite /filterlimi /= /filter_le /= /filtermapi /= in HL.
+  rewrite /filterlimi /= /filter_le /= /filtermapi /=.
+  intros P HP.
+  specialize (HL P HP).
+  revert HL.
+  apply filter_prod_ind.
+  intros Q R2 HQ HR2 Hint.
+  rewrite /at_point in HR2.
+  rewrite /Rbar_locally in HQ.
+  destruct HQ as [M HM].
+  econstructor.
+  - apply HR2.
+  - rewrite /Rbar_locally. exists (-M). move => b Hb. apply Hb.
+  - rewrite //=.
+    simpl in Hint.
+    intros a b Ha Hb.
+    destruct (Hint (-b) a ).
+    (* False *)
+
+    (*
+    move => a b Ha Hb /=; move: Ha => ->.
+    have Hnb : -b < M by lra.
+    specialize (HM (-b) Hnb).
+    specialize (Hint (-b) 0 HM HR2). simpl in Hint.
+    destruct Hint as [v [Hv Pv]].
+    exists v. split; [|exact Pv].
+    apply is_RInt_ext with (fun y => opp (opp (f (-y)))).
+    { move => x _. rewrite opp_opp. reflexivity. }
+    apply is_RInt_opp.
+    apply is_RInt_swap.
+    replace (-b) with (-b) in Hv by reflexivity.
+    replace 0 with (-0) in Hv by (rewrite Ropp_0; reflexivity).
+    apply is_RInt_comp_opp.
+    rewrite Ropp_involutive Ropp_0. exact Hv.
+    *)
+Abort.
