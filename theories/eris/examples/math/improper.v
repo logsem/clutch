@@ -1554,7 +1554,20 @@ Lemma ex_RInt_neg_rev {F : R → R} {b : R} :
   ex_RInt F 0 b →
   ex_RInt (λ x, F (- x)) (- b) 0.
 Proof.
-Admitted.
+  intros Hb HexF.
+  replace (λ x : R, F (- x)) with (λ x : R, (-1) * ((-1) * F (- x))).
+  2: { funexti. lra. }
+  apply ex_RInt_Rmult.
+  eapply ex_RInt_ext.
+  2: apply ex_RInt_swap.
+  2: apply ex_RInt_comp_opp.
+  2: rewrite Ropp_0.
+  2: rewrite Ropp_involutive.
+  2: apply HexF.
+  intros x Hx.
+  rewrite //= /opp//=.
+  lra.
+Qed.
 
 Lemma RInt_neg_rev {F : R → R} {b : R} :
   0 < b →

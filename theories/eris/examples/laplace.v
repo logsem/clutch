@@ -691,16 +691,151 @@ Section Symmetric.
     }
 
     rewrite (@RInt_sep _ (fun n => exp (- n) * (/ 2 * M))); first last.
-    { admit. }
-    { admit. }
-    { admit. }
-    { rewrite /NegExpSymm_Closed. admit. }
+    { intros ?.
+      apply ex_RInt_mult.
+      2: { apply IPCts_RInt. apply IPCts_opp. done. }
+      rewrite /NegExpSymm_Closed.
+      apply (ex_RInt_ext (λ x : R, exp (- (Rabs x)) / 2)).
+      2: {
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros ??.
+        apply Laplace_continuous.
+      }
+      intros ??.
+      do 3 f_equal.
+      rewrite Rabs_Ropp; OK.
+    }
+    { rewrite /NegExpSymm_Closed.
+      intros ???.
+      split.
+      { apply Rmult_le_pos; [|apply HBound].
+        apply Rcomplements.Rdiv_le_0_compat; OK.
+        apply Rexp_nn.
+      }
+      { rewrite Rdiv_def Rmult_assoc.
+        apply Rmult_le_compat.
+        { apply Rexp_nn. }
+        { apply Rmult_le_pos; OK.
+          apply HBound. }
+        {
+          apply exp_mono.
+          apply Ropp_le_contravar.
+          rewrite Rabs_Ropp.
+          etrans; last eapply RRle_abs.
+          lra.
+        }
+        { apply Rmult_le_compat; OK; apply HBound. }
+      }
+    }
+    { apply ex_seriesC_scal_r.
+      apply ex_exp_geo_series.
+      }
+    { rewrite /NegExpSymm_Closed.
+      apply (@ex_RInt_gen_Ici_compare_IPCts _ (fun x => exp (- x) / 2 * M)).
+      { apply IPCts_cts. intros ?.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      { apply IPCts_mult.
+        2: { apply IPCts_opp. done. }
+        apply IPCts_cts. intros ?.
+        replace (λ x0 : R, exp (- Rabs (- x0)) / 2) with (λ x0 : R, exp (- Rabs x0) / 2).
+        { apply Laplace_continuous. }
+        funexti.
+        do 3 f_equal.
+        by rewrite Rabs_Ropp.
+      }
+      { intros ?.
+        split.
+        { apply Rmult_le_pos; [|apply HBound].
+          apply Rcomplements.Rdiv_le_0_compat; OK.
+          apply Rexp_nn.
+        }
+        { apply Rmult_le_compat.
+          { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
+          { apply HBound. }
+          { apply Rmult_le_compat_r; OK.
+            apply exp_mono.
+            apply Ropp_le_contravar.
+            rewrite Rabs_Ropp.
+            apply RRle_abs.
+          }
+          { apply HBound. }
+        }
+      }
+      { apply ex_RInt_gen_scal_r.
+        replace (λ x : R, exp (- x) / 2) with (λ x : R, /2 * exp (- x)) by (funexti; OK).
+        apply ex_RInt_gen_exp.
+      }
+    }
 
     rewrite -(FubiniIntegralSeriesC_Strong (fun n => M * /2 *  exp (- n))); first last.
-    { admit. }
-    { admit. }
-    { admit. }
-    { admit. }
+    { rewrite /NegExpSymm_Closed.
+      intros ?.
+      apply ex_RInt_mult.
+      { apply (ex_RInt_ext (λ y : R, exp (-(y + n)) / 2)).
+        { rewrite Rmin_left; OK. rewrite Rmax_right; OK.
+          intros ??.
+          rewrite Rabs_Ropp.
+          f_equal. f_equal. f_equal.
+          rewrite Rabs_right;  OK.
+          apply Rle_ge.
+          apply Rplus_le_le_0_compat; try lra.
+          apply pos_INR.
+        }
+        { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+      }
+      { replace (λ y : R, F (- (y + n))) with (λ y : R, F ((-y) + -n)).
+        2: { funexti. f_equal. lra.  }
+        replace (λ y : R, F (- y + - n)) with (λ y : R, (-1) * ((-1) * F (- y + - n))) by (funexti; OK).
+        apply ex_RInt_Rmult.
+        replace (λ x : R, -1 * F (- x + - n)) with (λ x : R, scal (-1) (F ((-1) * x + - n))).
+        2: { funexti. rewrite /scal//=/mult//=. f_equal. f_equal. lra.  }
+        apply (@ex_RInt_comp_lin ).
+        rewrite Rmult_0_r Rplus_0_l.
+        apply IPCts_RInt.
+        done.
+      }
+    }
+    { rewrite /NegExpSymm_Closed.
+      intros ???.
+      rewrite Rabs_right.
+      2: {
+        apply Rle_ge.
+        apply Rmult_le_pos.
+        { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
+        { apply HBound. }
+      }
+      rewrite Rmult_comm.
+      rewrite Rdiv_def.
+      rewrite (Rmult_comm _ (/ 2)).
+      rewrite Rmult_assoc.
+      apply Rmult_le_compat.
+      { apply HBound. }
+      { apply Rmult_le_pos; OK. apply Rexp_nn. }
+      { apply HBound. }
+      { apply Rmult_le_compat; OK.
+        { apply Rexp_nn. }
+        rewrite Rabs_Ropp.
+        apply exp_mono.
+        apply Ropp_le_contravar.
+        etrans; last eapply RRle_abs.
+        lra.
+      }
+    }
+    { apply ex_seriesC_scal_l.
+      apply ex_exp_geo_series.
+    }
+    { rewrite /NegExpSymm_Closed.
+      intros ???.
+      apply Rmult_le_pos.
+      { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
+      { apply HBound. }
+    }
     { lra. }
 
     f_equal.
