@@ -872,9 +872,31 @@ Section Symmetric.
       iApply (@wp_NegExp_sym E (fun b z r => F (bzu_to_R b z r)) M).
       { intros ????. apply Hnn. }
       { intros ??.
-        have HIP := (@IPCts_PCts _ HP 0 1).
-        (* It's a different inteval but you get the point *)
-        admit.
+        rewrite /bzu_to_R.
+        destruct (bin_fin_to_nat_cases x).
+        { rewrite H //=.
+          replace (λ r : R, F (1 * (x1 + r))) with (λ r : R, F (x1 + r)).
+          2:{ funexti; f_equal; OK. }
+          eapply (PCts_shift F (λ r : R, F (x1 + r)) x1 (1 + x1) _ _ (- x1)); OK.
+          2: { by apply IPCts_PCts. }
+          intros ?.
+          rewrite /Ioo//=.
+          rewrite Rmin_left; OK.
+          rewrite Rmax_right; OK.
+          intros ?.
+          f_equal; OK.
+        }
+        { rewrite H //=.
+          replace (λ r : R, F (-1 * 1 * (x1 + r))) with (λ r : R, F (((- x1) + - r))).
+          2 : { funexti; f_equal; OK. }
+          eapply (PCts_shift (fun r => F (-r)) (λ r : R, F (- x1 + - r)) x1 (1 + x1) _ _ (-x1)); OK.
+          2: {
+            apply IPCts_PCts.
+            by apply IPCts_opp.
+          }
+          intros ??.
+          f_equal; OK.
+        }
       }
       rewrite (NegExpSymm_CreditV_eq HP Hnn).
       iFrame.
@@ -890,7 +912,7 @@ Section Symmetric.
     iIntros (?) "[[Hr He] Happrox]".
     iExists (lazy_real l r), (bzu_to_R b z r).
     iFrame.
-  Admitted.
+  Qed.
 
 End Symmetric.
 
