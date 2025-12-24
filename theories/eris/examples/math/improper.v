@@ -1549,6 +1549,20 @@ Proof.
   rewrite //= /opp//=. lra.
 Qed.
 
+Lemma ex_RInt_neg_rev {F : R → R} {b : R} :
+  0 < b →
+  ex_RInt F 0 b →
+  ex_RInt (λ x, F (- x)) (- b) 0.
+Proof.
+Admitted.
+
+Lemma RInt_neg_rev {F : R → R} {b : R} :
+  0 < b →
+  ex_RInt F 0 b →
+  RInt (λ x, F (- x)) (- b) 0 = RInt F 0 b.
+Proof.
+Admitted.
+
 Lemma RInt_neg {F : R → R} {b : R} :
   0 < b →
   ex_RInt F (- b) 0 →
@@ -1665,4 +1679,50 @@ Proof.
       apply @RInt_correct. apply HexFneg. done. }
     { rewrite (is_RInt_unique _ _ _ _ HisRIntF_nb). done. }
   - intros b Hb. apply HexFneg. done.
+Qed.
+
+(** Reverse direction: from [0, ∞) to (-∞, 0] *)
+Lemma ex_RInt_gen_neg_change_of_var_rev {F : R → R} :
+  (∀ b, 0 < b → ex_RInt F 0 b) →
+  ex_RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) →
+  ex_RInt_gen (λ x, F (- x)) (Rbar_locally Rbar.m_infty) (at_point 0).
+Proof.
+  intros HexF HexFgen.
+  have Hex_finite : ∀ b, 0 < b → ex_RInt (λ x, F (- x)) (- b) 0.
+  { intros b Hb. apply ex_RInt_neg_rev; [done | apply HexF; done]. }
+  rewrite /ex_RInt_gen /is_RInt_gen.
+  destruct HexFgen as [LF HisRIntF].
+  exists LF.
+  rewrite /filterlimi/=/filter_le/=/filtermapi/=.
+  intros P HP.
+  rewrite /is_RInt_gen in HisRIntF.
+  unfold filterlimi, filter_le, filtermapi in HisRIntF. simpl in HisRIntF.
+  have HisRIntF' := HisRIntF P HP.
+  destruct HisRIntF' as [P1 P2 HP1 HP2 HP3].
+  rewrite /at_point in HP1. simpl in HP1.
+  rewrite /Rbar_locally in HP2. simpl in HP2. destruct HP2 as [M HP2].
+  eapply (Filter_prod _ _ _ (fun a => a < Rmin (- M) (- 1)) (fun b => b = 0)).
+  { rewrite /Rbar_locally/=. exists (Rmin (- M) (- 1)). intros x Hx. done. }
+  { rewrite /at_point//=. }
+  intros a b Ha Hb. simpl. subst b.
+  have Ha_neg : M < - a.
+  { have : a < - M by (apply Rlt_le_trans with (r2 := Rmin (- M) (- 1)); [apply Ha | apply Rmin_l]).
+    lra. }
+  have Ha_pos : 0 < - a.
+  { have : a < - 1 by (apply Rlt_le_trans with (r2 := Rmin (- M) (- 1)); [apply Ha | apply Rmin_r]).
+    lra. }
+  specialize (HP3 0 (- a) HP1 (HP2 (- a) Ha_neg)).
+  simpl in HP3.
+  destruct HP3 as [yF [HisRIntF_na HpyF]].
+  have HexF_na : ex_RInt F 0 (- a).
+  { exists yF. done. }
+  exists (RInt F 0 (- a)).
+  split.
+  - rewrite -(RInt_neg_rev Ha_pos HexF_na).
+    rewrite Ropp_involutive.
+    apply @RInt_correct.
+    replace a with (- (- a)) by lra.
+    apply Hex_finite.
+    lra.
+  - rewrite (is_RInt_unique _ _ _ _ HisRIntF_na). done.
 Qed.

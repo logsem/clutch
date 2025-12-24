@@ -378,13 +378,51 @@ Section Symmetric.
     rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty)
                _ _ (λ x : R, NegExpSymm_Closed x * F x) 0).
     2: {
-
-
+      rewrite /NegExpSymm_Closed.
       admit. }
     2: {
       rewrite /NegExpSymm_Closed.
-
-      admit. }
+      eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp (- x) * (/ 2 * M))).
+      { apply IPCts_mult.
+        2: {
+          apply IPCts_cts. intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        { apply IPCts_cts.
+          intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+      }
+      { apply IPCts_mult; [|done].
+        apply IPCts_cts.
+        intros ?.
+        admit.
+      }
+      { intros ?.
+        split.
+        { apply Rmult_le_pos; [|apply HBound].
+          apply Rcomplements.Rdiv_le_0_compat; OK.
+          apply Rexp_nn.
+        }
+        { rewrite Rdiv_def.
+          rewrite Rmult_assoc.
+          apply Rmult_le_compat.
+          { apply Rexp_nn. }
+          { apply Rmult_le_pos; OK. apply HBound. }
+          { apply exp_mono.
+            apply Ropp_le_contravar.
+            apply RRle_abs.
+          }
+          { apply Rmult_le_compat; OK; apply HBound. }
+        }
+      }
+      { apply ex_RInt_gen_scal_r.
+        replace (λ x : R, exp (- x)) with (λ x : R, 1 * exp (- x)) by (funexti; OK).
+        apply ex_RInt_gen_exp.
+      }
+    }
     rewrite /plus//=.
     rewrite /NegExpSymm_CreditV.
     rewrite SeriesC_fin2.
