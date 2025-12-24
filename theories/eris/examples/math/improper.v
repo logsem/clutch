@@ -1534,14 +1534,53 @@ Lemma ex_RInt_neg {F : R → R} {b : R} :
   ex_RInt F (- b) 0 →
   ex_RInt (λ x, F (- x)) 0 b.
 Proof.
-Admitted.
+  intros ??.
+  replace (λ x : R, F (- x)) with (λ x : R, (-1) * ((-1) * F (- x))).
+  2: { funexti.  OK. }
+  apply ex_RInt_Rmult.
+  eapply ex_RInt_ext.
+  2: {
+    apply ex_RInt_swap.
+    apply ex_RInt_comp_opp.
+    rewrite Ropp_0.
+    apply H0.
+  }
+  intros ??.
+  rewrite //= /opp//=. lra.
+Qed.
 
 Lemma RInt_neg {F : R → R} {b : R} :
   0 < b →
   ex_RInt F (- b) 0 →
   RInt (λ x, F (- x)) 0 b = RInt F (- b) 0.
 Proof.
-Admitted.
+  intros ??.
+  symmetry.
+  rewrite -opp_RInt_swap.
+  2: { by apply ex_RInt_swap. }
+  have X := RInt_comp_lin (λ x : R, F x) (-1) 0 0 b.
+  rewrite Rmult_0_r Rplus_0_r Rplus_0_r in X.
+  replace (-1 * b) with (- b) in X; OK.
+  rewrite -X.
+  2: { by apply ex_RInt_swap. }
+  rewrite /opp//=.
+  rewrite /scal//=/mult//=.
+  rewrite -RInt_Rmult.
+  2: {
+    eapply ex_RInt_ext.
+    2: { eapply ex_RInt_neg; [done|]. apply H0. }
+    intros ??.
+    rewrite //=.
+    f_equal; OK.
+  }
+  have HH : ∀ (r : R), Ropp r = (-1) * r by OK.
+  rewrite HH.
+  rewrite -Rmult_assoc.
+  replace (-1 * -1) with 1 by OK.
+  rewrite Rmult_1_l.
+  f_equal.
+  funexti; f_equal; OK.
+Qed.
 
 (** Infinite versions *)
 Lemma ex_RInt_gen_neg_change_of_var {F : R → R} :

@@ -377,9 +377,13 @@ Section Symmetric.
     rewrite /NegExpSymm_Closed_CreditV.
     rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty)
                _ _ (λ x : R, NegExpSymm_Closed x * F x) 0).
-    2: { admit. }
+    2: {
+
+
+      admit. }
     2: {
       rewrite /NegExpSymm_Closed.
+
       admit. }
     rewrite /plus//=.
     rewrite /NegExpSymm_CreditV.
@@ -495,10 +499,30 @@ Section Symmetric.
         by apply IPCts_RInt.
       }
     }
-    { admit. }
-    { admit. }
-    { admit. }
-    { admit. }
+    { intros ???.
+      rewrite Rabs_right.
+      2: {
+        apply Rle_ge.
+        apply Rmult_le_pos.
+        { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
+        { apply HBound. }
+      }
+      rewrite Rmult_comm.
+     apply Rmult_le_compat.
+     { apply HBound. }
+     { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
+     { apply HBound. }
+     { admit. }
+    }
+    { apply ex_seriesC_scal_l.
+      apply ex_exp_geo_series.
+    }
+    { intros ???.
+      apply Rmult_le_pos.
+      { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
+      { apply HBound. }
+    }
+    { lra. }
 
     f_equal.
     { f_equal. funexti.
