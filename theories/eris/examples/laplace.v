@@ -1,0 +1,602 @@
+From clutch.eris Require Export eris error_rules receipt_rules.
+From clutch.eris Require Import presample_many.
+From Coquelicot Require SF_seq Hierarchy.
+From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
+From clutch.eris Require Import infinite_tape.
+From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial neg_exp lazy_real_expr.
+From clutch.eris.examples Require Import math.
+Set Default Proof Using "Type*".
+#[local] Open Scope R.
+
+Definition bzu_to_R : fin 2 → nat → R → R :=
+  fun b z u => (-1) ^ b * (z + u).
+
+Definition ToLazyReal : val :=
+  λ: "e",
+    let: "U" := R_ofUnif (Snd (Snd "e")) in
+    let: "Z" := R_ofZ (Fst (Snd "e")) in
+    let: "ZU" := R_plus "U" "Z" in
+    if: (Fst "e" = #1) then R_neg "ZU" else "ZU".
+
+Section ToReal.
+  Import Hierarchy.
+  Context `{!erisGS Σ}.
+
+  Theorem wp_ToLazyReal E {ℓ : val} {vr vz} {b : fin 2} :
+    ⊢ ⌜0 <= vr < 1 ⌝ -∗
+      WP ToLazyReal (PairV (#(fin_to_nat b)) (PairV #(Z.of_nat vz) ℓ)) @ E
+        {{ fun cont => IsApprox cont (bzu_to_R b vz vr) E (lazy_real ℓ vr) }}.
+  Proof.
+    iIntros "%".
+    rewrite /ToLazyReal.
+    wp_pures.
+    wp_bind (R_ofUnif _).
+    iApply pgl_wp_mono.
+    2: { iApply (wp_R_ofUnif vr). }
+    rewrite //=.
+    iIntros (?) "Happrox".
+    wp_pures.
+    wp_bind (R_ofZ _).
+    iApply (pgl_wp_mono_frame (IsApprox v vr E (lazy_real ℓ vr)) with "[] Happrox").
+    2: { iApply wp_R_ofZ. }
+    rewrite //=.
+    iIntros (?) "[Hvr Hvz]".
+    wp_pures.
+    wp_bind (R_plus _ _).
+    iApply pgl_wp_mono.
+    2: { iApply wp_R_plus; iFrame. }
+    rewrite //=.
+    iIntros (?) "Hadd".
+    wp_pures.
+    iAssert (IsApprox v1 (vr + IZR vz) E (lazy_real ℓ vr))%I with "[Hadd]" as "Hadd'".
+    { iDestruct "Hadd" as "#Hadd'".
+      iModIntro.
+      iIntros (prec) "HLR".
+      iSpecialize ("Hadd'" $! prec with "[HLR]"); iFrame.
+      iApply pgl_wp_mono.
+      2: iApply "Hadd'".
+      rewrite //=.
+      iIntros (?) "[% [?[[??]?]]]".
+      iExists R2.
+      iFrame.
+    }
+    rewrite -INR_IZR_INZ.
+    destruct (bin_fin_to_nat_cases b).
+    { rewrite /bzu_to_R.
+      rewrite H0 //=.
+      wp_pures.
+      rewrite Rmult_1_l.
+      iModIntro.
+      rewrite Rplus_comm.
+      iFrame.
+    }
+    { rewrite /bzu_to_R.
+      rewrite H0 //=.
+      wp_pures.
+      iApply pgl_wp_mono.
+      2: { iApply wp_R_neg; iFrame. }
+      rewrite //=.
+      replace (-1 * 1 * (vz + vr)) with (- (vr + vz)) by lra.
+      iIntros (?) "?".
+      iFrame.
+    }
+  Qed.
+
+End ToReal.
+
+
+Definition NegExpSymm : val :=
+  λ: "e",
+    let: "v" := NegExp #(Z.of_nat 0) in
+    let: "b" := rand (#1) in
+    ("b", "v").
+
+Section Symmetric.
+  Import Hierarchy.
+  Context `{!erisGS Σ}.
+
+  Definition NegExpSymm_ρ (_ : fin 2) (k : nat) (x : R) : R :=
+    exp (-(x + k))%R / 2.
+
+  Definition NegExpSymm_CreditV (F : fin 2 → nat → R → R)  :=
+    (SeriesC (fun (b : fin 2) => SeriesC (fun (k : nat) => RInt (fun x => NegExpSymm_ρ b k x * F b k x) 0 1))).
+
+  Lemma wp_NegExp_sym E (F : fin 2 → nat → R → R) {M}
+      (Hnn : ∀ c a b, 0 <= b <= 1 → 0 <= F c a b <= M) (HP : ∀ x x1, PCts (F x x1) 0 1)  :
+    ⊢ ↯ (NegExpSymm_CreditV F) -∗
+           WP NegExpSymm #() @ E
+      {{ p, ∃ (b : fin 2) (vz : nat) (vr : R) (ℓ : val),
+            ⌜p = PairV #(fin_to_nat b) (PairV #(Z.of_nat vz) ℓ)⌝ ∗
+            lazy_real ℓ vr ∗ ⌜0 <= vr < 1 ⌝ ∗
+            ↯(F b vz vr)}}.
+  Proof.
+    iIntros "Hε".
+    rewrite /NegExpSymm.
+    wp_pures.
+    wp_bind (NegExp _).
+    iApply (pgl_wp_mono).
+    2: {
+      iApply ((@wp_NegExp_gen _ _ E (fun n r => (F (0)%fin n r + F (1)%fin n r) / 2) M) with "[Hε]").
+      { intros ???.
+        split.
+        { apply Rcomplements.Rdiv_le_0_compat; try lra.
+          apply Rplus_le_le_0_compat.
+          { apply Hnn. lra. }
+          { apply Hnn. lra. }
+        }
+        { suffices  ? :  (F 0%fin a b + F 1%fin a b) <= M + M by lra.
+          apply Rplus_le_compat.
+          { apply Hnn. lra. }
+          { apply Hnn. lra. }
+        }
+      }
+      { intros ?.
+        replace (λ r : R, (F 0%fin x1 r + F 1%fin x1 r) / 2)
+          with (λ r : R, F 0%fin x1 r * / 2 + F 1%fin x1 r * / 2).
+        2: (funexti; lra).
+        apply PCts_plus.
+        { apply PCts_mult; [apply HP|].
+          apply PCts_cts. intros ??. apply Continuity.continuous_const.
+        }
+        { apply PCts_mult; [apply HP|].
+          apply PCts_cts. intros ??. apply Continuity.continuous_const.
+        }
+      }
+      { iApply (ec_eq with "Hε").
+        rewrite /NegExpSymm_CreditV.
+        rewrite SeriesC_fin2.
+        rewrite -SeriesC_plus.
+        2: {
+          rewrite /NegExpSymm_ρ.
+          eapply (ex_seriesC_le _ (λ k : nat, (RInt (λ x : R, exp (- (x + k)) / 2) 0 1) * M)).
+          { intros ?.
+            split.
+            { apply RInt_ge_0; try lra.
+              { apply ex_RInt_mult.
+                { rewrite /NegExpSymm_ρ//=.
+                  apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+                  intros ??.
+                  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+                  by auto_derive.
+                }
+                { apply PCts_RInt, HP. }
+              }
+              { intros ??.
+                apply Rmult_le_pos.
+                {  apply Rcomplements.Rdiv_le_0_compat; try lra.
+                   apply Rexp_nn.
+                }
+                { apply Hnn; lra. }
+              }
+            }
+            { rewrite RInt_Rmult'.
+              2: {
+                apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+                intros ??.
+                apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+                by auto_derive.
+              }
+              apply RInt_le; try lra.
+              { apply ex_RInt_mult.
+                { rewrite /NegExpSymm_ρ//=.
+                  apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+                  intros ??.
+                  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+                  by auto_derive.
+                }
+                { apply PCts_RInt, HP. }
+              }
+              { apply ex_RInt_mult.
+                { rewrite /NegExpSymm_ρ//=.
+                  apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+                  intros ??.
+                  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+                  by auto_derive.
+                }
+                { apply ex_RInt_const. }
+              }
+              { intros ??.
+                apply Rmult_le_compat_l; [|apply Hnn; lra].
+                apply Rcomplements.Rdiv_le_0_compat; try lra.
+                apply Rexp_nn.
+              }
+            }
+          }
+          { apply ex_seriesC_scal_r.
+            apply (ex_seriesC_RInt (fun n => exp (-n) * / 2)); try lra.
+            { intros ???.
+              apply Rcomplements.Rdiv_le_0_compat; try lra.
+              apply Rexp_nn.
+            }
+            { apply ex_seriesC_scal_r.
+              apply ex_exp_geo_series. }
+            { intros ???.
+              rewrite Rabs_right.
+              2: { apply Rle_ge.
+                   apply Rcomplements.Rdiv_le_0_compat; try lra.
+                   apply Rexp_nn.
+              }
+              { rewrite Rdiv_def.
+                apply Rmult_le_compat_r; try lra.
+                apply exp_mono.
+                apply Ropp_le_contravar.
+                have ? := pos_INR n. lra.
+              }
+            }
+            { intros ?.
+              apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+              intros ??.
+              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+              by auto_derive.
+            }
+          }
+        }
+        2: {
+          rewrite /NegExpSymm_ρ.
+          eapply (ex_seriesC_le _ (λ k : nat, (RInt (λ x : R, exp (- (x + k)) / 2) 0 1) * M)).
+          { intros ?.
+            split.
+            { apply RInt_ge_0; try lra.
+              { apply ex_RInt_mult.
+                { rewrite /NegExpSymm_ρ//=.
+                  apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+                  intros ??.
+                  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+                  by auto_derive.
+                }
+                { apply PCts_RInt, HP. }
+              }
+              { intros ??.
+                apply Rmult_le_pos.
+                {  apply Rcomplements.Rdiv_le_0_compat; try lra.
+                   apply Rexp_nn.
+                }
+                { apply Hnn; lra. }
+              }
+            }
+            { rewrite RInt_Rmult'.
+              2: {
+                apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+                intros ??.
+                apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+                by auto_derive.
+              }
+              apply RInt_le; try lra.
+              { apply ex_RInt_mult.
+                { rewrite /NegExpSymm_ρ//=.
+                  apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+                  intros ??.
+                  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+                  by auto_derive.
+                }
+                { apply PCts_RInt, HP. }
+              }
+              { apply ex_RInt_mult.
+                { rewrite /NegExpSymm_ρ//=.
+                  apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+                  intros ??.
+                  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+                  by auto_derive.
+                }
+                { apply ex_RInt_const. }
+              }
+              { intros ??.
+                apply Rmult_le_compat_l; [|apply Hnn; lra].
+                apply Rcomplements.Rdiv_le_0_compat; try lra.
+                apply Rexp_nn.
+              }
+            }
+          }
+          { apply ex_seriesC_scal_r.
+            apply (ex_seriesC_RInt (fun n => exp (-n) * / 2)); try lra.
+            { intros ???.
+              apply Rcomplements.Rdiv_le_0_compat; try lra.
+              apply Rexp_nn.
+            }
+            { apply ex_seriesC_scal_r.
+              apply ex_exp_geo_series. }
+            { intros ???.
+              rewrite Rabs_right.
+              2: { apply Rle_ge.
+                   apply Rcomplements.Rdiv_le_0_compat; try lra.
+                   apply Rexp_nn.
+              }
+              { rewrite Rdiv_def.
+                apply Rmult_le_compat_r; try lra.
+                apply exp_mono.
+                apply Ropp_le_contravar.
+                have ? := pos_INR n. lra.
+              }
+            }
+            { intros ?.
+              apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+              intros ??.
+              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+              by auto_derive.
+            }
+          }
+        }
+        rewrite /NegExp_CreditV.
+        apply SeriesC_ext.
+        intros n.
+        rewrite RInt_add.
+        2: {
+          apply ex_RInt_mult.
+          { rewrite /NegExpSymm_ρ//=.
+            apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+            intros ??.
+            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+            by auto_derive.
+          }
+          { apply PCts_RInt, HP. }
+        }
+        2: {
+          apply ex_RInt_mult.
+          { rewrite /NegExpSymm_ρ//=.
+            apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+            intros ??.
+            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+            by auto_derive.
+          }
+          { apply PCts_RInt, HP. }
+        }
+        apply RInt_ext.
+        intros ??.
+        rewrite /NegExpSymm_ρ//=.
+        rewrite /NegExp_ρ/NegExp_ρ0//=.
+        rewrite Iverson_True.
+        2: { lia. }
+        rewrite Iverson_True.
+        2: { rewrite /Icc. lra. }
+        rewrite Nat.sub_0_r.
+        lra.
+      }
+    }
+    simpl.
+    iIntros (v) "[%k [%r [%l [-> [Hr [% Hec]]]]]]".
+    wp_pures.
+    wp_apply (wp_couple_rand_adv_comp _ _ _ _ (fun (s : fin 2) => F s k r) with "Hec").
+    { intros n. apply Hnn. lra. }
+    { rewrite SeriesC_fin2 //=. lra. }
+    iIntros (b) "Hec".
+    wp_pures.
+    iModIntro.
+    iExists b, k, r, l.
+    iFrame.
+    iPureIntro; done.
+  Qed.
+
+  Definition NegExpSymm_Closed : R → R := fun x => exp (- Rabs x)%R / 2.
+
+  Definition NegExpSymm_Closed_CreditV (F : R → R) : R :=
+    RInt_gen (fun x => NegExpSymm_Closed x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty).
+
+  Lemma NegExpSymm_CreditV_eq {M} {F : R → R} (HF : IPCts F) (HBound : ∀ x, 0 <= F x <= M) :
+    NegExpSymm_Closed_CreditV F = NegExpSymm_CreditV (fun b n x => F (bzu_to_R b n x)).
+  Proof.
+    rewrite /NegExpSymm_Closed_CreditV.
+    rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty)
+               _ _ (λ x : R, NegExpSymm_Closed x * F x) 0).
+    2: { admit. }
+    2: {
+      rewrite /NegExpSymm_Closed.
+      admit. }
+    rewrite /plus//=.
+    rewrite /NegExpSymm_CreditV.
+    rewrite SeriesC_fin2.
+    rewrite Rplus_comm.
+    replace (λ k : nat, RInt (λ x : R, NegExpSymm_ρ 0 k x * F (bzu_to_R 0 k x)) 0 1)
+      with  (λ k : nat, RInt (λ x : R, / 2 * exp (- Rabs (x+k)) * F (k + x)) 0 1).
+    2: {
+      funext.
+      intros k.
+      apply RInt_ext.
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      rewrite /bzu_to_R//= Rmult_1_l.
+      f_equal.
+      rewrite /NegExpSymm_ρ.
+      rewrite Rabs_right; first lra.
+      apply Rle_ge.
+      have ? := pos_INR k.
+      lra.
+    }
+    replace (λ k : nat, RInt (λ x : R, NegExpSymm_ρ 1 k x * F (bzu_to_R 1 k x)) 0 1)
+      with  (λ k : nat, RInt (λ x : R, / 2 * exp (- Rabs (- (x+k))) * F (- (k + x))) 0 1).
+    2: {
+      funext.
+      intros k.
+      apply RInt_ext.
+      rewrite Rmin_left; try lra.
+      rewrite Rmax_right; try lra.
+      intros ??.
+      rewrite /bzu_to_R//=.
+      replace (-1 * 1 * (k + x)) with (- (k + x)) by lra.
+      f_equal.
+      rewrite /NegExpSymm_ρ//=.
+      have ? := pos_INR k.
+      rewrite Rabs_left; last lra.
+      rewrite Ropp_involutive.
+      lra.
+    }
+
+    rewrite (@RInt_sep (λ x : R, exp (- Rabs x) / 2 * F x) (fun n => exp (- n) * M)); first last.
+    { intros b.
+      apply ex_RInt_mult; [|by apply IPCts_RInt].
+      apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+      intros ??.
+      admit.
+    }
+    { intros ???.
+      split.
+      { apply Rmult_le_pos; [|apply HBound].
+        apply Rcomplements.Rdiv_le_0_compat; OK.
+        apply Rexp_nn.
+      }
+      { apply Rmult_le_compat.
+        { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
+        { apply HBound. }
+        { admit. }
+        { apply HBound. }
+      }
+    }
+    { apply ex_seriesC_scal_r.
+      apply ex_exp_geo_series.
+      }
+    { apply (@ex_RInt_gen_Ici_compare_PCts' _ (fun x => exp (- Rabs x) / 2 * M)).
+      { intros ??.
+        apply PCts_cts.
+        intros ??.
+        admit. }
+      { intros ??.
+        apply PCts_mult; [|by apply IPCts_PCts].
+        apply PCts_cts.
+        intros ??.
+        admit. }
+      { intros ??.
+        split.
+        { apply Rmult_le_pos; [|apply HBound].
+          apply Rcomplements.Rdiv_le_0_compat; OK.
+          apply Rexp_nn.
+        }
+        { apply Rmult_le_compat.
+          { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
+          { apply HBound. }
+          { admit. }
+          { apply HBound. }
+        }
+      }
+      { apply ex_RInt_gen_scal_r.
+        admit.
+      }
+    }
+
+    rewrite -(FubiniIntegralSeriesC_Strong (fun n => M * exp (- n))); first last.
+    { intros ?.
+      apply ex_RInt_mult.
+      { apply (ex_RInt_ext (λ y : R, exp (-(y + n)) / 2)).
+        { rewrite Rmin_left; OK. rewrite Rmax_right; OK.
+          intros ??.
+          f_equal. f_equal. f_equal. rewrite Rabs_right;  OK.
+          apply Rle_ge.
+          apply Rplus_le_le_0_compat; try lra.
+          apply pos_INR.
+        }
+        { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+      }
+      { replace (λ y : R, F (y + n)) with (λ y : R, scal 1 (F (1 * y + n))).
+        2: { funexti. rewrite /scal//=/mult//= Rmult_1_l. f_equal; lra.  }
+        apply (ex_RInt_comp_lin F 1 n 0 1).
+        by apply IPCts_RInt.
+      }
+    }
+    { admit. }
+    { admit. }
+    { admit. }
+    { admit. }
+
+    f_equal.
+    { f_equal. funexti.
+      apply RInt_ext.
+      intros ??.
+      f_equal; [lra|f_equal; lra].
+    }
+    { admit. }
+  Admitted.
+
+
+  Definition NegExpSymmC : val :=
+    λ: "_",
+      let: "sample_bzu" := NegExpSymm #() in
+      ToLazyReal "sample_bzu".
+
+  Lemma wp_NegExp_Closed_sym E (F : R → R) {M} (Hnn : ∀ c, 0 <= F c <= M) (HP : IPCts F) :
+    ⊢ ↯ (NegExpSymm_Closed_CreditV F) -∗
+           WP NegExpSymmC #() @ E
+      {{ cont, ∃ I r, I ∗ IsApprox cont r E I ∗ ↯(F r) }}.
+  Proof.
+    iIntros "Hε".
+    rewrite /NegExpSymmC.
+    wp_pures.
+    wp_bind (NegExpSymm _).
+    iApply pgl_wp_mono.
+    2: {
+      iApply (@wp_NegExp_sym E (fun b z r => F (bzu_to_R b z r)) M).
+      { intros ????. apply Hnn. }
+      { intros ??.
+        have HIP := (@IPCts_PCts _ HP 0 1).
+        (* It's a different inteval but you get the point *)
+        admit.
+      }
+      rewrite (NegExpSymm_CreditV_eq HP Hnn).
+      iFrame.
+    }
+    rewrite //=.
+    iIntros (v) "[%b [%z [%r [%l [-> [Hr [% Hec]]]]]]]".
+    wp_pures.
+    wp_bind (ToLazyReal _).
+    iApply (pgl_wp_mono_frame (lazy_real l r ∗ ↯ (F (bzu_to_R b z r))) with "[] [Hr Hec]").
+    3: { iFrame. }
+    2: { iApply (@wp_ToLazyReal _ _ E _ r); iPureIntro. done. }
+    rewrite //=.
+    iIntros (?) "[[Hr He] Happrox]".
+    iExists (lazy_real l r), (bzu_to_R b z r).
+    iFrame.
+  Admitted.
+
+End Symmetric.
+
+
+Definition Laplace : val :=
+  λ: "logε",
+    let: "sample_R" := NegExpSymmC #() in
+    R_mulPow "sample_R" "logε" .
+
+Section Laplace.
+  Import Hierarchy.
+  Context `{!erisGS Σ}.
+
+  Definition Laplace_μ (ε : R) : R → R :=
+    fun x => exp (- Rabs (ε * x)).
+
+  (* Credits required by the API *)
+  Definition Laplace_CreditV (ε : R) (F : R → R) : R :=
+    RInt_gen (fun x => Laplace_μ ε x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty).
+
+  Lemma wp_Laplace E (F : R → R) {M} (logε : Z) (Hnn : ∀ r, 0 <= F r <= M) (HP : IPCts F) :
+    ⊢ ↯ (Laplace_CreditV (powerRZ 2 logε) F) -∗
+          WP Laplace #logε @ E {{ cont, ∃ I r, I ∗ IsApprox cont r E I ∗ ↯(F r) }}.
+  Proof.
+    iIntros "Hε".
+    rewrite /Laplace.
+    wp_pures.
+    wp_bind (NegExpSymmC _).
+    iApply pgl_wp_mono.
+    2: {
+      iApply (wp_NegExp_Closed_sym E (fun r => F (r / powerRZ 2 logε))).
+      { admit. }
+      { admit. }
+      iApply (ec_eq with "Hε").
+      rewrite /Laplace_CreditV.
+      rewrite /NegExpSymm_Closed_CreditV.
+      admit.
+    }
+    rewrite //=.
+    iIntros (?) "[%I [%r [I [HA He]]]]".
+    wp_pures.
+    wp_bind (R_mulPow _ _).
+    iApply (pgl_wp_mono_frame (I ∗ ↯ (F (r / powerRZ 2 logε))) with "[HA] [I He]").
+    3: { iFrame. }
+    2: { iApply wp_R_mulPow; iExact "HA". }
+    rewrite //=.
+    iIntros (?) "[[I HA] He]".
+    iExists I, (r / powerRZ 2 logε).
+    iFrame.
+  Admitted.
+
+End Laplace.
