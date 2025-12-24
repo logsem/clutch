@@ -927,11 +927,164 @@ Section Laplace.
   Context `{!erisGS Σ}.
 
   Definition Laplace_μ (ε : R) : R → R :=
-    fun x => exp (- Rabs (ε * x)).
+    fun x => ε * exp (- Rabs (ε * x)).
 
   (* Credits required by the API *)
   Definition Laplace_CreditV (ε : R) (F : R → R) : R :=
     RInt_gen (fun x => Laplace_μ ε x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty).
+
+  Lemma Laplace_CreditV_Scale {M} (ε : R) (F : R → R) (Hnn : ∀ r, 0 <= F r <= M) (HP : IPCts F) (He : 0 < ε) :
+    Laplace_CreditV ε F = NegExpSymm_Closed_CreditV (λ r : R, F (r / ε)).
+  Proof.
+    rewrite /Laplace_CreditV.
+    rewrite /NegExpSymm_Closed_CreditV.
+
+    rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty)
+           _ _ (λ x : R, Laplace_μ ε x * F x) 0).
+    2: {
+      admit.
+    }
+    2: {
+      admit.
+    }
+
+    rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty)
+           _ _ (λ x : R, NegExpSymm_Closed x * F (x / ε)) 0).
+    2: {
+
+(*
+    { replace (λ x : R, exp (- Rabs x) / 2 * F x) with (λ x : R, exp (- Rabs (- (- x))) / 2 * F (- (- x))).
+      2: { funexti. repeat f_equal; OK. }
+      apply (@ex_RInt_gen_neg_change_of_var_rev (λ x : R, exp (- Rabs (- x)) / 2 * F (- x))).
+      { intros ??.
+        apply ex_RInt_mult.
+        2: {
+          apply ex_RInt_neg; OK.
+          apply PCts_RInt.
+          apply IPCts_PCts.
+          done.
+        }
+        apply (@ex_RInt_ext _ (λ y : R, exp (- y) / 2)).
+        { rewrite Rmin_left; OK.  rewrite Rmax_right; OK.
+          intros ??.
+          repeat f_equal.
+          rewrite Rabs_left; OK.
+        }
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros ??.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      replace (λ x : R, exp (- Rabs (- x)) / 2 * F (- x)) with (λ x : R, exp (- Rabs x) / 2 * F (- x)).
+      2: { funexti; do 3 f_equal; OK. rewrite Rabs_Ropp. done. }
+      eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp ( - x) * (/ 2 * M))).
+      { apply IPCts_mult.
+        2: {
+          apply IPCts_cts. intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        { apply IPCts_cts.
+          intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+      }
+      { apply IPCts_mult.
+        { apply IPCts_cts. intros ?. apply Laplace_continuous. }
+        by apply IPCts_opp.
+      }
+      { intros ?.
+        split.
+        { apply Rmult_le_pos; [|apply HBound].
+          apply Rcomplements.Rdiv_le_0_compat; OK.
+          apply Rexp_nn.
+        }
+        { rewrite Rdiv_def.
+          rewrite Rmult_assoc.
+          apply Rmult_le_compat.
+          { apply Rexp_nn. }
+          { apply Rmult_le_pos; OK. apply HBound. }
+          { apply exp_mono.
+            apply Ropp_le_contravar.
+            apply RRle_abs.
+          }
+          { apply Rmult_le_compat; OK; apply HBound. }
+        }
+      }
+      { apply ex_RInt_gen_scal_r.
+        replace (λ x : R, exp (- x)) with (λ x : R, 1 * exp (- x)) by (funexti; OK).
+        apply ex_RInt_gen_exp.
+      }
+    }
+     *)
+
+      admit.
+    }
+    2: {
+      rewrite /NegExpSymm_Closed.
+      eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp (- x) * (/ 2 * M))).
+      { apply IPCts_mult.
+        2: {
+          apply IPCts_cts. intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        { apply IPCts_cts.
+          intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+      }
+      { apply IPCts_mult.
+        { apply IPCts_cts.
+          intros ?.
+          apply Laplace_continuous.
+        }
+        by apply IPCts_scale.
+      }
+      { intros ?.
+        split.
+        { apply Rmult_le_pos; [|apply Hnn ].
+          apply Rcomplements.Rdiv_le_0_compat; OK.
+          apply Rexp_nn.
+        }
+        { rewrite Rdiv_def.
+          rewrite Rmult_assoc.
+          apply Rmult_le_compat.
+          { apply Rexp_nn. }
+          { apply Rmult_le_pos; OK. apply Hnn. }
+          { apply exp_mono.
+            apply Ropp_le_contravar.
+            apply RRle_abs.
+          }
+          { apply Rmult_le_compat; OK; apply Hnn. }
+        }
+      }
+      { apply ex_RInt_gen_scal_r.
+        replace (λ x : R, exp (- x)) with (λ x : R, 1 * exp (- x)) by (funexti; OK).
+        apply ex_RInt_gen_exp.
+      }
+    }
+
+
+    f_equal.
+    { symmetry.
+      admit.
+    }
+    { symmetry.
+      rewrite /Laplace_μ.
+      replace (λ x : R, ε * exp (- Rabs (ε * x)) * F x) with (λ x : R, ε * exp (- Rabs (ε * x)) * (fun r => F (r / ε)) (ε * x)).
+      2: { funexti. f_equal. f_equal. rewrite Rdiv_def Rmult_comm -Rmult_assoc Rmult_inv_l; lra. }
+      rewrite (@RInt_gen_scal_change_of_var (λ x : R, ε * exp (- Rabs (x)) * F (x / ε))); first last.
+      { admit. }
+      { admit. }
+      { admit. }
+      { admit. }
+      rewrite /NegExpSymm_Closed.
+      (* Yep *)
+      admit.
+  Admitted.
 
   Lemma wp_Laplace E (F : R → R) {M} (logε : Z) (Hnn : ∀ r, 0 <= F r <= M) (HP : IPCts F) :
     ⊢ ↯ (Laplace_CreditV (powerRZ 2 logε) F) -∗
@@ -943,13 +1096,15 @@ Section Laplace.
     wp_bind (NegExpSymmC _).
     iApply pgl_wp_mono.
     2: {
-      iApply (wp_NegExp_Closed_sym E (fun r => F (r / powerRZ 2 logε))).
-      { admit. }
-      { admit. }
+      iApply (@wp_NegExp_Closed_sym _ _ E (fun r => F (r / powerRZ 2 logε)) M).
+      { intros ?. apply Hnn. }
+      { apply IPCts_scale; try done.
+        apply powerRZ_lt.
+        lra.
+      }
       iApply (ec_eq with "Hε").
-      rewrite /Laplace_CreditV.
-      rewrite /NegExpSymm_Closed_CreditV.
-      admit.
+      erewrite Laplace_CreditV_Scale; try done.
+      apply powerRZ_lt. lra.
     }
     rewrite //=.
     iIntros (?) "[%I [%r [I [HA He]]]]".
@@ -962,6 +1117,6 @@ Section Laplace.
     iIntros (?) "[[I HA] He]".
     iExists I, (r / powerRZ 2 logε).
     iFrame.
-  Admitted.
+  Qed.
 
 End Laplace.

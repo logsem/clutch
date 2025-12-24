@@ -1331,3 +1331,80 @@ Proof.
       done.
     + apply Hf0.
 Qed.
+
+Lemma IPCts_scale  {F : R → R} {S} (Hs : 0 < S) : IPCts F → IPCts (λ r : R, F (r / S)).
+Proof.
+  intros H.
+  unfold IPCts in H.
+  destruct H as [f0 [L [Heq [Hcont Hf0]]]].
+  unfold IPCts.
+  exists (λ x, f0 (x / S)).
+  exists (map (λ '(f, xa, xb), (λ y, f (y / S), S * xa, S * xb)) L).
+  split; [|split].
+  - intros x.
+    rewrite (Heq (x / S)).
+    f_equal.
+    clear Heq Hf0 f0.
+    induction L as [|[[f_i xa] xb] L' IH].
+    + done.
+    + simpl.
+      f_equal.
+      * rewrite /Iverson /Icc.
+        f_equal.
+        case_decide; case_decide; try done.
+        all: exfalso.
+        { apply H0.
+          rewrite -Rcomplements.Rmult_min_distr_l; OK.
+          rewrite -Rcomplements.Rmult_max_distr_l; OK.
+          split.
+          { apply (Rmult_le_reg_l (/ S)); OK.
+            { apply Rinv_0_lt_compat; OK. }
+            rewrite -Rmult_assoc Rmult_inv_l; OK.
+          }
+          { apply (Rmult_le_reg_l (/ S)); OK.
+            { apply Rinv_0_lt_compat; OK. }
+            rewrite -Rmult_assoc Rmult_inv_l; OK.
+          }
+        }
+        { apply H.
+          rewrite -Rcomplements.Rmult_min_distr_l in H0; OK.
+          rewrite -Rcomplements.Rmult_max_distr_l in H0; OK.
+          split.
+          { apply (Rmult_le_reg_l S); OK.
+            rewrite (Rmult_comm _ (_ / _)) Rmult_assoc Rmult_inv_l; OK.
+          }
+          { apply (Rmult_le_reg_l S); OK.
+            rewrite (Rmult_comm _ (_ / _)) Rmult_assoc Rmult_inv_l; OK.
+          }
+        }
+      * apply IH.
+        eapply Forall_inv_tail; exact Hcont.
+  - clear Heq Hf0 f0.
+    induction L as [|[[f_i xa] xb] L' IH].
+    + done.
+    + simpl.
+      apply Forall_cons.
+      split.
+      * apply Forall_inv in Hcont.
+        revert Hcont.
+        rewrite /IntervalFun_continuity/Icc//=.
+        intros ???.
+        specialize Hcont with (x / S).
+        clear IH.
+        apply Continuity.continuous_comp.
+        ** apply: Derive.ex_derive_continuous.
+           by auto_derive.
+        ** apply Hcont.
+           rewrite /Rmin /Rmax in H |- *.
+           assert (x = S * (x / S)) by (field; lra).
+           rewrite H0 in H.
+           destruct (Rle_dec xa xb); destruct (Rle_dec (S * xa) (S * xb)).
+           all: split; nra.
+      * apply IH.
+        by inversion Hcont.
+  - intros x.
+    apply Continuity.continuous_comp.
+    + apply: Derive.ex_derive_continuous.
+      by auto_derive.
+    + apply Hf0.
+Qed.
