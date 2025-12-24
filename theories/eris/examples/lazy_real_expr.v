@@ -356,10 +356,10 @@ Proof.
 Qed.
 
 Lemma ApproxScal_correct' {A r z prec} :
-  (0 <= z)%Z → ApproxTo' A (- (z + prec)) r → ApproxTo' A (-prec) (r / powerRZ 2 z).
+  ApproxTo' A (- (z + prec)) r → ApproxTo' A (-prec) (r / powerRZ 2 z).
 Proof.
   rewrite /ApproxTo'.
-  intros Hz H.
+  intros H.
   etrans; last eapply H.
   clear H.
   right.
@@ -545,7 +545,7 @@ Section Lib.
     apply ApproxZ_correct'.
   Qed.
 
-  Lemma wp_R_mulPow {vf : val} {x E I} {z : Z} (Hz : (0 <= z)%Z):
+  Lemma wp_R_mulPow {vf : val} {x E I} {z : Z} :
     IsApprox vf x E I ⊢ WP (R_mulPow vf #z) @ E {{ fun cont => IsApprox cont (x / powerRZ 2 z) E I}}.
   Proof.
     rewrite /IsApprox.
