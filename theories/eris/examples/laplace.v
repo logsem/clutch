@@ -941,7 +941,105 @@ Section Laplace.
 
     rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty)
            _ _ (λ x : R, Laplace_μ ε x * F x) 0).
-    2: { admit. }
+    2: {
+      rewrite /Laplace_μ.
+      replace (λ x : R, ε * (exp (- Rabs (ε * x)) / 2) * F x)
+         with (λ x : R, ε * (exp (- Rabs (- (ε * (- x)))) / 2) * F (- (- x))).
+      2: {
+        funexti.
+        do 3 f_equal; OK.
+        do 3 f_equal.
+        lra.
+      }
+      apply (@ex_RInt_gen_neg_change_of_var_rev (λ x : R, ε * (exp (- Rabs (- (ε * x))) / 2) * F (- x))).
+      { intros ??.
+        apply ex_RInt_mult.
+        2: {
+          apply ex_RInt_neg; OK.
+          apply PCts_RInt.
+          apply IPCts_PCts.
+          done.
+        }
+        apply ex_RInt_Rmult.
+        apply (@ex_RInt_ext _ (λ y : R, exp (- (ε * y)) / 2)).
+        { rewrite Rmin_left; OK.  rewrite Rmax_right; OK.
+          intros ??.
+          repeat f_equal.
+          rewrite Rabs_Ropp.
+          rewrite Rabs_right; OK.
+          apply Rle_ge.
+          apply Rmult_le_pos; OK.
+        }
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros ??.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      replace (λ x : R, ε * (exp (- Rabs (- (ε * x))) / 2) * F (- x))
+        with (λ x : R, ε * ((exp (- Rabs ((ε * x))) / 2) * F (- x))).
+      2: {
+        funexti.
+        rewrite Rmult_assoc.
+        f_equal.
+        f_equal.
+        f_equal.
+        f_equal.
+        f_equal.
+        by rewrite Rabs_Ropp.
+      }
+      apply @ex_RInt_gen_scal_l.
+      eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp ( - (ε * x)) * (/ 2 * M))).
+      { apply IPCts_mult.
+        2: {
+          apply IPCts_cts. intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        { apply IPCts_cts.
+          intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+      }
+      { apply IPCts_mult.
+        2: by apply IPCts_opp.
+        replace (λ x : R, exp (- Rabs (ε * x)) / 2)
+           with (λ x : R, exp (- Rabs (x / (/ ε))) / 2).
+        2: { funexti; do 4 f_equal. rewrite Rdiv_def Rinv_inv. lra. }
+        apply (@IPCts_scale (λ x : R, exp (- Rabs (x)) / 2)).
+        { by apply Rinv_0_lt_compat. }
+        apply IPCts_cts. intros ?. apply Laplace_continuous.
+      }
+      { intros ?.
+        split.
+        { apply Rmult_le_pos; [|apply Hnn].
+          apply Rcomplements.Rdiv_le_0_compat; OK.
+          apply Rexp_nn.
+        }
+        { rewrite Rdiv_def.
+          rewrite Rmult_assoc.
+          apply Rmult_le_compat.
+          { apply Rexp_nn. }
+          { apply Rmult_le_pos; OK. apply Hnn. }
+          { apply exp_mono.
+            apply Ropp_le_contravar.
+            apply RRle_abs.
+          }
+          { apply Rmult_le_compat; OK; apply Hnn. }
+        }
+      }
+      { apply ex_RInt_gen_scal_r.
+        apply (@ex_RInt_gen_scal_change_of_var (λ x : R, exp (- (x)))); OK.
+        { intros ??.
+          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        replace (λ x : R, exp (- x)) with (λ x : R, 1 * exp (- x)) by (funexti; OK).
+        apply ex_RInt_gen_exp.
+      }
+    }
     2: {
       rewrite /Laplace_μ.
       eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, ε * exp (- (ε * x)) * (/ 2 * M))).
@@ -964,9 +1062,16 @@ Section Laplace.
             apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
             by auto_derive.
           }
-          replace (λ x : R, exp (- Rabs (ε * x)) / 2) with (λ x : R, exp (- Rabs (x / (/ ε))) / 2)  by admit.
+          replace (λ x : R, exp (- Rabs (ε * x)) / 2) with (λ x : R, exp (- Rabs (x / (/ ε))) / 2).
+          2: {
+            funexti.
+            do 4 f_equal.
+            rewrite Rdiv_def.
+            rewrite Rinv_inv.
+            lra.
+          }
           apply (@IPCts_scale (λ x : R, exp (- Rabs (x)) / 2)).
-          { admit. }
+          { by apply Rinv_0_lt_compat. }
           apply IPCts_cts.
           intros ?.
           apply Laplace_continuous.
@@ -1001,11 +1106,17 @@ Section Laplace.
           { apply Rmult_le_compat; OK; apply Hnn. }
         }
       }
-      { apply ex_RInt_gen_scal_r.
-        (* replace (λ x : R, exp (- x)) with (λ x : R, 1 * exp (- x)) by (funexti; OK).
+      { replace (λ x : R, ε * exp (- (ε * x)) * (/ 2 * M))
+          with (λ x : R, ε * (/2 * M * exp (- (ε * x)))) by (funexti; lra).
+        apply (@ex_RInt_gen_scal_change_of_var (λ x : R, ε * (/ 2 * M * exp (- (x))))); OK.
+        { intros ??.
+          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        apply ex_RInt_gen_scal_l.
         apply ex_RInt_gen_exp.
-        *)
-        admit.
       }
     }
 
@@ -1128,25 +1239,212 @@ Section Laplace.
       }
     }
 
+    have HF1 : ex_RInt_gen (λ x : R, exp (- Rabs (ε * x)) / 2 * F x) (at_point 0) (Rbar_locally Rbar.p_infty).
+    { eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp (- (ε * x)) * (/ 2 * M))).
+      { apply IPCts_mult.
+        2: {
+          apply IPCts_cts. intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        { apply IPCts_cts.
+          intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+      }
+      { apply IPCts_mult; [|done].
+        replace (λ x : R, exp (- Rabs (ε * x)) / 2) with (λ x : R, exp (- Rabs (x / (/ ε))) / 2).
+        2: {
+          funexti.
+          do 4 f_equal.
+          rewrite Rdiv_def.
+          rewrite Rinv_inv.
+          lra.
+        }
+        apply (@IPCts_scale (λ x : R, exp (- Rabs (x)) / 2)).
+        { by apply Rinv_0_lt_compat. }
+        apply IPCts_cts.
+        intros ?.
+        apply Laplace_continuous.
+      }
+      { intros ?.
+        rewrite Rdiv_def.
+        rewrite Rmult_assoc.
+        split.
+        { apply Rmult_le_pos; [apply Rexp_nn|].
+          apply Rmult_le_pos; OK.
+          apply Hnn.
+        }
+        { apply Rmult_le_compat; OK.
+          { apply Rexp_nn. }
+          { apply Rmult_le_pos; OK. apply Hnn. }
+          { apply exp_mono.
+            apply Ropp_le_contravar.
+            apply RRle_abs.
+          }
+          apply Rmult_le_compat; OK; apply Hnn.
+        }
+      }
+      { replace (λ x : R, exp (- (ε * x)) * (/ 2 * M))
+          with (λ x : R,  (/2 * M * exp (- (ε * x)))) by (funexti; lra).
+        apply (@ex_RInt_gen_scal_change_of_var (λ x : R, (/ 2 * M * exp (- (x))))); OK.
+        { intros ??.
+          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        apply ex_RInt_gen_exp.
+      }
+    }
+
+    have HF2 : ex_RInt_gen (λ x : R, exp (- Rabs (- (ε * x))) / 2 * F (- ε * (x / ε))) (at_point 0) (Rbar_locally Rbar.p_infty).
+    { admit.
+
+    }
+
     f_equal.
     { symmetry.
-      admit.
+      rewrite /Laplace_μ.
+      rewrite /NegExpSymm_Closed.
+      rewrite -RInt_gen_neg_change_of_var; first last.
+      { admit. }
+      { admit. }
+      { admit. }
+      rewrite -RInt_gen_neg_change_of_var; first last.
+      { admit. }
+      { admit. }
+      { admit. }
+
+      replace (λ x : R, ε * (exp (- Rabs (ε * - x)) / 2) * F (- x))
+         with (λ x : R, ε * ((exp (- Rabs (- (ε * x))) / 2) * F (- ε * (x / ε)))).
+      2: {
+        funexti.
+        repeat rewrite Rmult_assoc.
+        do 3 f_equal.
+        { do 2 f_equal; OK. }
+        f_equal.
+        rewrite -Ropp_mult_distr_l.
+        f_equal.
+        rewrite Rmult_comm.
+        rewrite Rmult_assoc.
+        rewrite Rmult_inv_l; OK.
+      }
+      rewrite -RInt_gen_scal_l.
+      2: { OK. }
+      rewrite -{2}(Rinv_inv ε).
+
+      rewrite -(@RInt_gen_scal_change_of_var (λ x : R, exp (- Rabs (- (ε * x))) / 2 * F (- ε * (x / ε))) (/ε)).
+      { f_equal.
+        funexti.
+        f_equal; [|f_equal; OK].
+        2: {
+          replace (- x / ε) with (-1 * (x / ε)) by OK.
+          replace (- ε * (/ ε * x / ε)) with (-1 * (ε * (/ ε * x / ε))) by OK.
+          f_equal.
+          repeat rewrite -Rmult_assoc.
+          rewrite Rdiv_def.
+          rewrite Rmult_inv_r; OK.
+        }
+        do 4 f_equal.
+        do 2 rewrite Ropp_mult_distr_r.
+        rewrite -Rmult_assoc.
+        rewrite Rmult_inv_r; OK.
+      }
+      { apply Rinv_0_lt_compat; OK. }
+      { intros ??.
+        apply IPCts_RInt.
+        apply IPCts_mult; [|].
+        2: {
+          replace (λ x : R, F (- ε * (x / ε))) with (λ x : R, F (- x)).
+          2: {
+            funexti.
+            f_equal.
+            rewrite Rdiv_def.
+            rewrite -Ropp_mult_distr_l; f_equal.
+            rewrite Rmult_comm Rmult_assoc Rmult_inv_l; OK.
+          }
+          by apply IPCts_opp.
+        }
+        replace (λ x : R, exp (- Rabs (- (ε * x))) / 2) with
+          (λ x : R, exp (- Rabs (- (x / (/ ε)))) / 2).
+        2: {
+          funexti.
+          do 5 f_equal.
+          rewrite Rdiv_def Rinv_inv.
+          lra.
+        }
+        apply (@IPCts_scale (λ x : R, exp (- Rabs (- x)) / 2)).
+        {  apply Rinv_0_lt_compat; OK. }
+        replace (λ x : R, exp (- Rabs (- x)) / 2) with (λ x : R, exp (- Rabs x) / 2).
+        2: { funexti. do 3 f_equal. by rewrite Rabs_Ropp. }
+        apply IPCts_cts.
+        intros ?.
+        apply Laplace_continuous.
+      }
+      { intros ??.
+        apply IPCts_RInt.
+        apply IPCts_mult.
+        { replace
+            (λ x : R, exp (- Rabs (- (ε * (/ ε * x)))) / 2) with
+            (λ x : R, exp (- Rabs x) / 2).
+          2: { funexti. do 3 f_equal. rewrite Rabs_Ropp. rewrite -Rmult_assoc. rewrite Rmult_inv_r; OK. f_equal; OK. }
+          apply IPCts_cts.
+          intros ?.
+          apply Laplace_continuous.
+        }
+        replace (λ x : R, F (- ε * (/ ε * x / ε)))
+           with (λ x : R, F ((- x) / ε)).
+        2: { funexti; f_equal. rewrite Rdiv_def; OK.
+             do 2 rewrite -Ropp_mult_distr_l.
+             f_equal.
+             repeat rewrite -Rmult_assoc.
+             rewrite Rmult_inv_r; OK.
+        }
+        apply (@IPCts_opp (λ x : R, F (x / ε))).
+        apply IPCts_scale; OK.
+      }
+      done.
     }
     { symmetry.
       rewrite /Laplace_μ.
-      (*
-      replace (λ x : R, ε * exp (- Rabs (ε * x)) * F x) with (λ x : R, ε * exp (- Rabs (ε * x)) * (fun r => F (r / ε)) (ε * x)).
-      2: { funexti. f_equal. f_equal. rewrite Rdiv_def Rmult_comm -Rmult_assoc Rmult_inv_l; lra. }
-      rewrite (@RInt_gen_scal_change_of_var (λ x : R, (ε * exp (- Rabs (x)) / 2) * F (x / ε))); first last.
-      { admit. }
-      { admit. }
-      { admit. }
-      { admit. }
       rewrite /NegExpSymm_Closed.
-      (* Yep *)
-      admit.
-      *)
-      admit.
+      replace (λ x : R, ε * (exp (- Rabs (ε * x)) / 2) * F x)
+         with (λ x : R, ε * ((exp (- Rabs (ε * x)) / 2) * F x)) by (funexti; OK).
+      rewrite -RInt_gen_scal_l.
+      2:  done.
+      rewrite -{2}(Rinv_inv ε).
+      rewrite -(@RInt_gen_scal_change_of_var (λ x : R, (exp (- Rabs (ε * x)) / 2) * F (x)) (/ε)).
+      { f_equal.
+        funexti.
+        f_equal; [|f_equal; OK].
+        do 4 f_equal.
+        rewrite -Rmult_assoc.
+        rewrite Rmult_inv_r; OK.
+      }
+      { apply Rinv_0_lt_compat; OK. }
+      { intros ??.
+        apply IPCts_RInt.
+        apply IPCts_mult; [|done].
+        apply IPCts_cts.
+        intros ?.
+        apply Laplace_continuous_scaled.
+      }
+      { intros ??.
+        apply IPCts_RInt.
+        apply IPCts_mult.
+        { replace (λ x : R, exp (- Rabs (ε * (/ ε * x))) / 2) with (λ x : R, exp (- Rabs x) / 2).
+          2: { funexti. do 4 f_equal. rewrite -Rmult_assoc. rewrite Rmult_inv_r; OK. }
+          apply IPCts_cts.
+          intros ?.
+          apply Laplace_continuous.
+        }
+        replace (λ x : R, F (/ ε * x)) with (λ x : R, F (x / ε)).
+        2: { funexti; f_equal. rewrite Rdiv_def; OK. }
+        apply IPCts_scale; OK.
+      }
+      done.
     }
   Admitted.
 

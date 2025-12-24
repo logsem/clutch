@@ -783,3 +783,18 @@ Proof.
   apply (@Continuity.continuous_opp R_UniformSpace R_AbsRing R_NormedModule (λ x, Rabs x) z).
   apply ElemFct.continuous_Rabs.
 Qed.
+
+
+Lemma Laplace_continuous_scaled {z e : R} : Continuity.continuous (λ y : R, exp (- Rabs (e * y)) / 2) z.
+Proof.
+  apply Continuity.continuous_ext with (f := λ y, scal (exp (- Rabs (e * y))) (/2)).
+  { intro x. unfold scal. simpl. unfold Rdiv. reflexivity. }
+  apply Continuity.continuous_ext with (f := λ y, scal (/2) (exp (- Rabs (e * y)))).
+  { intro x. unfold scal. simpl. apply Rmult_comm. }
+  apply (@Continuity.continuous_scal_r R_UniformSpace R_AbsRing R_NormedModule (/2) (λ y, exp (- Rabs (e * y))) z).
+  apply ElemFct.continuous_exp_comp.
+  apply (@Continuity.continuous_opp R_UniformSpace R_AbsRing R_NormedModule (λ x, Rabs (e * x)) z).
+  apply @ElemFct.continuous_Rabs_comp.
+  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+  by auto_derive.
+Qed.
