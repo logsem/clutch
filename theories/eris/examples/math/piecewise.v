@@ -1291,6 +1291,7 @@ Proof.
   - intros x.
     rewrite (Heq (- x)).
     f_equal.
+    clear Heq.
     induction L as [|[[f_i xa] xb] L' IH].
     + done.
     + simpl.
@@ -1301,4 +1302,32 @@ Proof.
         { rewrite /Rmin /Rmax in H, H0. destruct (Rle_dec xa xb); destruct (Rle_dec (-xb) (-xa)); lra. }
         { rewrite /Rmin /Rmax in H, H0. destruct (Rle_dec xa xb); destruct (Rle_dec (-xb) (-xa)); lra. }
       * apply IH.
-Admitted.
+        eapply Forall_inv_tail; exact Hcont.
+  - clear Heq.
+    induction L as [|[[f_i xa] xb] L' IH].
+    + done.
+    + simpl.
+      apply Forall_cons.
+      split.
+      * apply Forall_inv in Hcont.
+        revert Hcont.
+        rewrite /IntervalFun_continuity/Icc//=.
+        intros ???.
+        specialize Hcont with (-x).
+        clear IH.
+        apply Continuity.continuous_comp.
+        ** apply: Derive.ex_derive_continuous.
+           auto_derive.
+           done.
+        ** apply Hcont.
+           rewrite /Rmin /Rmax in H |- *.
+           destruct (Rle_dec xa xb); destruct (Rle_dec (-xb) (-xa)); lra.
+      * apply IH.
+        by inversion Hcont.
+  - intros x.
+    apply Continuity.continuous_comp.
+    + apply: Derive.ex_derive_continuous.
+      auto_derive.
+      done.
+    + apply Hf0.
+Qed.

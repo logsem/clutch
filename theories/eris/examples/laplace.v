@@ -375,11 +375,9 @@ Section Symmetric.
     NegExpSymm_Closed_CreditV F = NegExpSymm_CreditV (fun b n x => F (bzu_to_R b n x)).
   Proof.
     rewrite /NegExpSymm_Closed_CreditV.
-    rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty)
-               _ _ (λ x : R, NegExpSymm_Closed x * F x) 0).
-    2: {
-      rewrite /NegExpSymm_Closed.
-      replace (λ x : R, exp (- Rabs x) / 2 * F x) with (λ x : R, exp (- Rabs (- (- x))) / 2 * F (- (- x))).
+
+    have Lem1 : ex_RInt_gen (λ x : R, exp (- Rabs x) / 2 * F x) (Rbar_locally Rbar.m_infty) (at_point 0).
+    { replace (λ x : R, exp (- Rabs x) / 2 * F x) with (λ x : R, exp (- Rabs (- (- x))) / 2 * F (- (- x))).
       2: { funexti. repeat f_equal; OK. }
       apply (@ex_RInt_gen_neg_change_of_var_rev (λ x : R, exp (- Rabs (- x)) / 2 * F (- x))).
       { intros ??.
@@ -443,9 +441,9 @@ Section Symmetric.
         apply ex_RInt_gen_exp.
       }
     }
-    2: {
-      rewrite /NegExpSymm_Closed.
-      eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp (- x) * (/ 2 * M))).
+
+    have Lem2 : ex_RInt_gen (λ x : R, exp (- Rabs x) / 2 * F x) (at_point 0) (Rbar_locally Rbar.p_infty).
+    { eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp (- x) * (/ 2 * M))).
       { apply IPCts_mult.
         2: {
           apply IPCts_cts. intros ?.
@@ -486,6 +484,11 @@ Section Symmetric.
         apply ex_RInt_gen_exp.
       }
     }
+
+    rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty)
+               _ _ (λ x : R, NegExpSymm_Closed x * F x) 0).
+    2: { rewrite /NegExpSymm_Closed. apply Lem1.  }
+    2: { rewrite /NegExpSymm_Closed. apply Lem2. }
     rewrite /plus//=.
     rewrite /NegExpSymm_CreditV.
     rewrite SeriesC_fin2.
@@ -644,13 +647,74 @@ Section Symmetric.
     }
     { lra. }
 
+    rewrite -RInt_gen_neg_change_of_var; first last.
+    { rewrite /NegExpSymm_Closed. done. }
+    { intros ??.
+      rewrite /NegExpSymm_Closed.
+      apply (ex_RInt_ext (λ x : R, exp (- x) / 2 * F (- x))).
+      2: {
+        apply ex_RInt_mult.
+        { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        { apply IPCts_RInt; by apply IPCts_opp. }
+      }
+      { rewrite Rmin_left; OK.
+        rewrite Rmax_right; OK.
+        intros ??.
+        f_equal.
+        f_equal.
+        f_equal.
+        f_equal.
+        rewrite Rabs_left; OK.
+      }
+    }
+    { intros ??.
+      apply ex_RInt_mult.
+      2: { apply IPCts_RInt; done. }
+      rewrite /NegExpSymm_Closed.
+      apply (ex_RInt_ext (λ x : R, exp (x) / 2)).
+      2: {
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros ??.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      rewrite Rmin_left; OK.
+      rewrite Rmax_right; OK.
+      intros ??.
+      f_equal.
+      rewrite Rabs_left; OK.
+      f_equal; OK.
+    }
+
+    rewrite (@RInt_sep _ (fun n => exp (- n) * (/ 2 * M))); first last.
+    { admit. }
+    { admit. }
+    { admit. }
+    { rewrite /NegExpSymm_Closed. admit. }
+
+    rewrite -(FubiniIntegralSeriesC_Strong (fun n => M * /2 *  exp (- n))); first last.
+    { admit. }
+    { admit. }
+    { admit. }
+    { admit. }
+    { lra. }
+
     f_equal.
     { f_equal. funexti.
       apply RInt_ext.
       intros ??.
       f_equal; [lra|f_equal; lra].
     }
-    { admit. }
+    { f_equal. funexti.
+      apply RInt_ext.
+      intros ??.
+      rewrite /NegExpSymm_Closed//=.
+      f_equal; [lra|f_equal; lra].
+    }
   Admitted.
 
 
