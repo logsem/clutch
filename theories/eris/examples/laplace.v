@@ -917,32 +917,32 @@ Section Symmetric.
 End Symmetric.
 
 
-Definition Laplace : val :=
+Definition Laplace0 : val :=
   λ: "logε",
     let: "sample_R" := NegExpSymmC #() in
     R_mulPow "sample_R" "logε" .
 
-Section Laplace.
+Section Laplace0.
   Import Hierarchy.
   Context `{!erisGS Σ}.
 
-  Definition Laplace_μ (ε : R) : R → R :=
+  Definition Laplace0_μ (ε : R) : R → R :=
     fun x => ε * (exp (- Rabs (ε * x)) / 2).
 
   (* Credits required by the API *)
-  Definition Laplace_CreditV (ε : R) (F : R → R) : R :=
-    RInt_gen (fun x => Laplace_μ ε x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty).
+  Definition Laplace0_CreditV (ε : R) (F : R → R) : R :=
+    RInt_gen (fun x => Laplace0_μ ε x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty).
 
   Lemma Laplace_CreditV_Scale {M} (ε : R) (F : R → R) (Hnn : ∀ r, 0 <= F r <= M) (HP : IPCts F) (He : 0 < ε) :
-    Laplace_CreditV ε F = NegExpSymm_Closed_CreditV (λ r : R, F (r / ε)).
+    Laplace0_CreditV ε F = NegExpSymm_Closed_CreditV (λ r : R, F (r / ε)).
   Proof.
-    rewrite /Laplace_CreditV.
+    rewrite /Laplace0_CreditV.
     rewrite /NegExpSymm_Closed_CreditV.
 
     rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty)
-           _ _ (λ x : R, Laplace_μ ε x * F x) 0).
+           _ _ (λ x : R, Laplace0_μ ε x * F x) 0).
     2: {
-      rewrite /Laplace_μ.
+      rewrite /Laplace0_μ.
       replace (λ x : R, ε * (exp (- Rabs (ε * x)) / 2) * F x)
          with (λ x : R, ε * (exp (- Rabs (- (ε * (- x)))) / 2) * F (- (- x))).
       2: {
@@ -1041,7 +1041,7 @@ Section Laplace.
       }
     }
     2: {
-      rewrite /Laplace_μ.
+      rewrite /Laplace0_μ.
       eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, ε * exp (- (ε * x)) * (/ 2 * M))).
       { apply IPCts_mult.
         2: {
@@ -1379,7 +1379,7 @@ Section Laplace.
 
     f_equal.
     { symmetry.
-      rewrite /Laplace_μ.
+      rewrite /Laplace0_μ.
       rewrite /NegExpSymm_Closed.
       rewrite -RInt_gen_neg_change_of_var; first last.
       { replace (λ x : R, exp (- Rabs x) / 2 * F (x / ε))
@@ -1766,7 +1766,7 @@ Section Laplace.
       done.
     }
     { symmetry.
-      rewrite /Laplace_μ.
+      rewrite /Laplace0_μ.
       rewrite /NegExpSymm_Closed.
       replace (λ x : R, ε * (exp (- Rabs (ε * x)) / 2) * F x)
          with (λ x : R, ε * ((exp (- Rabs (ε * x)) / 2) * F x)) by (funexti; OK).
@@ -1806,12 +1806,12 @@ Section Laplace.
     }
   Qed.
 
-  Lemma wp_Laplace E (F : R → R) {M} (logε : Z) (Hnn : ∀ r, 0 <= F r <= M) (HP : IPCts F) :
-    ⊢ ↯ (Laplace_CreditV (powerRZ 2 logε) F) -∗
-          WP Laplace #logε @ E {{ cont, ∃ I r, I ∗ IsApprox cont r E I ∗ ↯(F r) }}.
+  Lemma wp_Laplace0 E (F : R → R) {M} (logε : Z) (Hnn : ∀ r, 0 <= F r <= M) (HP : IPCts F) :
+    ⊢ ↯ (Laplace0_CreditV (powerRZ 2 logε) F) -∗
+          WP Laplace0 #logε @ E {{ cont, ∃ I r, I ∗ IsApprox cont r E I ∗ ↯(F r) }}.
   Proof.
     iIntros "Hε".
-    rewrite /Laplace.
+    rewrite /Laplace0.
     wp_pures.
     wp_bind (NegExpSymmC _).
     iApply pgl_wp_mono.
@@ -1836,6 +1836,61 @@ Section Laplace.
     rewrite //=.
     iIntros (?) "[[I HA] He]".
     iExists I, (r / powerRZ 2 logε).
+    iFrame.
+  Qed.
+
+End Laplace0.
+
+Definition Laplace : val :=
+  λ: "logε" "μ",
+    let: "sample" := Laplace0 "logε" in
+    R_plus "μ" "sample" .
+
+Section Laplace.
+  Import Hierarchy.
+  Context `{!erisGS Σ}.
+
+  Definition Laplace_μ (ε μ : R) : R → R :=
+    fun x => Laplace0_μ ε (x - μ).
+
+  Definition Laplace_CreditV (ε μ : R) (F : R → R) : R :=
+    RInt_gen (fun x => Laplace_μ ε μ x  * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty).
+
+  Lemma Laplace_CreditV_eq {M} (ε μ : R) (F : R → R) (Hnn : ∀ r, 0 <= F r <= M) (HP : IPCts F) (* (He : 0 < ε) *) :
+    Laplace_CreditV ε μ F = Laplace0_CreditV ε (λ r : R, F (μ + r)).
+  Proof.
+    rewrite /Laplace_CreditV/Laplace0_CreditV.
+    rewrite /Laplace_μ.
+    (* TODO: Prove the shifting lemma, and then probably the existence of the RInt_gen sadly *)
+  Admitted.
+
+  Lemma wp_Laplace E (F : R → R) {M} (logε : Z) (μcont : val) μI (μ : R) (Hnn : ∀ r, 0 <= F r <= M) (HP : IPCts F) :
+    ⊢ ↯ (Laplace_CreditV (powerRZ 2 logε) μ F) -∗
+      IsApprox μcont μ E μI -∗
+      WP Laplace #logε μcont @ E {{ cont, ∃ I r, I ∗ IsApprox cont r E (μI ∗ I) ∗ ↯(F r) }}.
+  Proof.
+    iIntros "Hε Hcont".
+    rewrite /Laplace.
+    wp_pures.
+    wp_bind (Laplace0 _).
+    iApply (pgl_wp_mono_frame (IsApprox μcont μ E μI) with "[Hε] Hcont").
+    2: {
+      iApply (@wp_Laplace0 _ _ E (fun r => F (μ + r)) M).
+      { intros ?. apply Hnn. }
+      { by apply IPCts_shift. }
+      iApply (ec_eq with "Hε").
+      erewrite Laplace_CreditV_eq; done.
+    }
+    rewrite //=.
+    iIntros (?) "[Hcont [%I [%r [I [HA He]]]]]".
+    wp_pures.
+    wp_bind (R_plus _ _).
+    iApply (pgl_wp_mono_frame (I ∗ ↯ (F (μ + r))) with "[HA Hcont] [I He]").
+    3: { iFrame. }
+    2: { iApply wp_R_plus. iFrame. }
+    rewrite //=.
+    iIntros (?) "[[I HA] He]".
+    iExists I, (μ + r).
     iFrame.
   Qed.
 
