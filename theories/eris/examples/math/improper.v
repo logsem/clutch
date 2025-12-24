@@ -219,6 +219,64 @@ Proof.
   }
 Qed.
 
+Lemma RInt_gen_Ici_strong {M : R} {F : R → R} {L}
+  (Hlimit : filterlimi (λ b : R, is_RInt F M b) (Rbar_locally Rbar.p_infty) (locally L))
+  (Hex : ∀ b, M < b → ex_RInt F M b) :
+  RInt_gen F (at_point M) (Rbar_locally (Rbar.p_infty)) = L.
+Proof.
+  have Hcorr : is_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) (RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty)).
+  { eapply (@RInt_gen_correct R_CompleteNormedModule).
+    { apply Proper_StrongProper, at_point_filter. }
+    { apply Proper_StrongProper, Rbar_locally_filter. }
+    apply RInt_gen_ex_Ici'.
+    { exists L. done. }
+    { by apply Hex. }
+  }
+  rewrite /RInt_gen//=.
+  have Hsc1 : ProperFilter' (Rbar_locally Rbar.p_infty).
+  { apply Proper_StrongProper, Rbar_locally_filter. }
+  have Hsc2 : Rbar_locally Rbar.p_infty (λ x : R, ∀ y1 y2 : R_CompleteNormedModule, is_RInt F M x y1 → is_RInt F M x y2 → y1 = y2).
+  { rewrite /Rbar_locally.
+    exists 0%R.
+    intros ???? Hint1 Hint2.
+    rewrite -(@is_RInt_unique R_CompleteNormedModule F M x y1 Hint1).
+    rewrite -(@is_RInt_unique R_CompleteNormedModule F M x y2 Hint2).
+    done.
+  }
+  have H := @iota_filterlimi_locally _ R_CompleteNormedModule R (Rbar_locally Rbar.p_infty) _ (λ b : R, is_RInt F M b) _ _ Hlimit.
+  have H' := H Hsc1 Hsc2; clear H.
+  rewrite -H'.
+  f_equal.
+  apply functional_extensionality.
+  intro x.
+  rewrite /is_RInt_gen.
+  apply propositional_extensionality.
+  split.
+  { rewrite /filterlimi//=/filter_le//=/filtermapi//=.
+    intros HP P Hl.
+    have HP' := HP P Hl; clear HP.
+    inversion HP'.
+    simpl in H1.
+    rewrite /at_point//= in H.
+    rewrite /Rbar_locally//= in H0.
+    destruct H0 as [M' HM'].
+    exists M'.
+    intros b Hb.
+    apply H1; [done|].
+    by apply HM'.
+  }
+  { rewrite /filterlimi//=/filter_le//=/filtermapi//=.
+    intros HP P Hl.
+    destruct (HP P Hl) as [M' HM'].
+    eapply (Filter_prod _ _ _ (fun x => x = M) (fun x => M' < x)).
+    { rewrite /at_point//=. }
+    { rewrite /Rbar_locally/=. exists M'; intuition. }
+    intros ?? -> H.
+    simpl.
+    by apply HM'.
+  }
+Qed.
+
 (** Key lemma: An improper integral is the limit of proper integrals *)
 Lemma is_RInt_gen_filterlim {F : R → R_CompleteNormedModule} {M : R} {l : R_CompleteNormedModule} :
   (∀ b, ex_RInt F M b) →
@@ -1377,4 +1435,102 @@ Lemma RInt_gen_scal_change_of_var {F : R → R} {a : R} :
   RInt_gen (λ x, F (a * x)) (at_point 0) (Rbar_locally Rbar.p_infty) =
     / a * RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty).
 Proof.
+  intros Ha HexF Hexscal HexFgen.
+  destruct HexFgen as [LF HisRIntF].
+  apply RInt_gen_Ici_strong.
+  - (* Prove the limit condition *)
+    rewrite /filterlimi/=/filter_le/=/filtermapi/=.
+    intros P HP.
+    rewrite /locally in HP. destruct HP as [eps HP].
+    have Heps' : 0 < eps * Rabs a.
+    { apply Rmult_lt_0_compat; [apply cond_pos | apply Rabs_pos_lt; lra]. }
+    rewrite /is_RInt_gen in HisRIntF.
+    unfold filterlimi, filter_le, filtermapi in HisRIntF. simpl in HisRIntF.
+    have HlimF_ball : ∃ M, ∀ b, M < b → ∃ y, is_RInt F 0 b y ∧ ball LF (mkposreal (eps * Rabs a) Heps') y.
+    { have HisRIntF' := HisRIntF (ball LF (mkposreal (eps * Rabs a) Heps')).
+      have HballLocal : locally LF (ball LF (mkposreal (eps * Rabs a) Heps')).
+      { exists (mkposreal (eps * Rabs a) Heps'). simpl. intros y Hy. apply Hy. }
+      specialize (HisRIntF' HballLocal).
+      destruct HisRIntF' as [P1 P2 HP1 HP2 HP3].
+      rewrite /at_point in HP1. simpl in HP1.
+      rewrite /Rbar_locally in HP2. simpl in HP2. destruct HP2 as [M HP2].
+      exists M. intros b Hb.
+      specialize (HP3 0 b HP1 (HP2 b Hb)).
+      simpl in HP3. apply HP3. }
+    destruct HlimF_ball as [M HlimF_ball].
+    exists (Rmax 1 (M / a)).
+    intros b Hb.
+    have Hb_pos : 0 < b.
+    { apply Rlt_le_trans with (r2 := 1).
+      { lra. }
+      { apply Rle_trans with (r2 := Rmax 1 (M / a)); [apply Rmax_l | lra]. } }
+    have Hab : M < a * b.
+    { apply Rmult_lt_reg_r with (r := / a); [apply Rinv_0_lt_compat; lra|].
+      field_simplify.
+      { rewrite Rmax_Rlt in Hb; apply Hb. }
+      { lra. }
+      { lra. }
+    }
+    specialize (HlimF_ball (a * b) Hab).
+    destruct HlimF_ball as [yF [HisRIntF_ab HballF]].
+    have HexF_ab : ex_RInt F 0 (a * b).
+    { exists yF. done. }
+    exists yF.
+    split.
+    + (* is_RInt (λ x, F (a*x)) 0 b (/ a * RInt F 0 (a*b)) *)
+      rewrite -(is_RInt_unique _ _ _ _ HisRIntF_ab).
+      admit.
+      (*
+      rewrite RInt_scal_change_of_var_finite; try lra.
+      Search is_RInt RInt.
+      {
+        apply Hex_finite.
+        done.
+      }
+      { exists yF; done. }
+      *)
+    + (* P (/ a * RInt F 0 (a*b)) *)
+      apply HP.
+      rewrite /ball/=/AbsRing_ball/=/abs/=/minus/plus/opp/=.
+      replace (/ a * RInt F 0 (a * b) + - (/ a * LF)) with (/ a * (RInt F 0 (a * b) + - LF)) by lra.
+      rewrite /ball/=/AbsRing_ball/=/abs/=/minus/plus/opp/= in HballF.
+      have Ha_pos : 0 < Rabs a by (apply Rabs_pos_lt; lra).
+      (*
+      rewrite Rabs_Rinv; [|lra].
+      apply Rmult_lt_reg_r with (r := Rabs a); [done|].
+      rewrite Rmult_assoc.
+      rewrite Rmult_comm.
+      rewrite Rmult_assoc.
+      rewrite Rinv_r; [|apply Rgt_not_eq; done].
+      rewrite Rmult_1_r.
+      eapply Rle_lt_trans; [|exact HballF].
+      right.
+      do 2 f_equal.
+      by apply is_RInt_unique.
+      *)
+
+      (*
+    apply HP.
+    rewrite /ball/=/AbsRing_ball/=/abs/=/minus/plus/opp/=.
+    rewrite -RInt_scal_change_of_var_finite; try lra; [|exists yF; done].
+    replace (/ a * RInt F 0 (a * b) + - (/ a * LF)) with (/ a * (RInt F 0 (a * b) + - LF)) by lra.
+    rewrite Rabs_mult.
+    rewrite /ball/=/AbsRing_ball/=/abs/=/minus/plus/opp/= in HballF.
+    have Ha_pos : 0 < Rabs a by (apply Rabs_pos_lt; lra).
+    rewrite Rabs_Rinv; [|lra].
+    apply Rmult_lt_reg_r with (r := Rabs a); [done|].
+    rewrite Rmult_assoc.
+    rewrite Rmult_comm with (r1 := / Rabs a).
+    rewrite Rmult_assoc.
+    rewrite Rinv_l; [|apply Rgt_not_eq; done].
+    rewrite Rmult_1_r.
+    eapply Rle_lt_trans; [|exact HballF].
+    right.
+    do 2 f_equal.
+    by apply is_RInt_unique.
+  - (* Prove the existence condition *)
+    intros b Hb.
+    apply Hexscal.
+    done.
+    *)
 Admitted.
