@@ -850,7 +850,7 @@ Section Symmetric.
       rewrite /NegExpSymm_Closed//=.
       f_equal; [lra|f_equal; lra].
     }
-  Admitted.
+  Qed.
 
 
   Definition NegExpSymmC : val :=

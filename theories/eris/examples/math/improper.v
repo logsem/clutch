@@ -1574,7 +1574,36 @@ Lemma RInt_neg_rev {F : R → R} {b : R} :
   ex_RInt F 0 b →
   RInt (λ x, F (- x)) (- b) 0 = RInt F 0 b.
 Proof.
-Admitted.
+  intros ??.
+  replace (λ x : R, F (- x)) with  (λ y : R, ((-1) * scal (-1) (F (-1 * y + 0)))).
+  2: {
+    funexti.
+    rewrite /scal//=/mult//=.
+    rewrite -Rmult_assoc.
+    replace (-1 * -1) with 1 by lra.
+    rewrite Rmult_1_l.
+    f_equal; lra. }
+  rewrite -RInt_Rmult.
+  2: {
+    apply @ex_RInt_comp_lin.
+    rewrite Rplus_0_r Rplus_0_r Rmult_0_r.
+    replace ((-1 * - b)) with b; OK.
+    by apply ex_RInt_swap.
+  }
+  rewrite (RInt_comp_lin F (-1) 0 (- b) 0).
+  2: {
+    rewrite Rplus_0_r Rplus_0_r Rmult_0_r.
+    replace ((-1 * - b)) with b; OK.
+    by apply ex_RInt_swap.
+  }
+  symmetry.
+  rewrite -opp_RInt_swap.
+  2: { by apply ex_RInt_swap. }
+  rewrite /opp//=.
+  rewrite Rmult_0_r Rplus_0_r Rplus_0_r.
+  replace ((-1 * - b)) with b by lra.
+  lra.
+Qed.
 
 Lemma RInt_neg {F : R → R} {b : R} :
   0 < b →
