@@ -2201,35 +2201,371 @@ Section AccuracyBound.
 
   Lemma Laplace_Int_AccF {L} {μ ε} :
     0 <= L ->
-    RInt_gen (λ r : R, Laplace_μ ε μ r * AccF L (r - μ)) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty) = exp (- L).
+    0 < ε →
+    RInt_gen (λ r : R, Laplace_μ ε μ r * AccF L (r - μ)) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty)
+    = exp (- (ε * L)).
   Proof.
-    (*
-    rewrite -NegExp_Int.
-    rewrite /AccF.
-    apply neg_exp_accuracy_chasles.
-    *)
-  Admitted.
+    intros ??.
+    rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty) _ _  (λ r : R, Laplace_μ ε μ r * AccF L (r - μ)) μ); first last.
+    {
+      rewrite /Laplace_μ.
+      replace (λ r : R, Laplace0_μ ε (r - μ) * AccF L (r - μ))
+        with (λ x : R, Laplace0_μ ε (- μ + x) * AccF L (- μ + x)) by (funexti; repeat (f_equal; OK)).
+      replace (at_point μ) with (at_point (- (- μ))) by (f_equal; OK).
+      eapply (@ex_RInt_gen_shift (λ x : R, Laplace0_μ ε x * AccF L (x)) (- μ)).
+      { intros ?.
+        apply IPCts_RInt.
+        apply IPCts_mult.
+        { apply Laplace0_IPCts. }
+        { by apply AccF_IPCts. }
+      }
+      replace (λ x : R, Laplace0_μ ε x * AccF L x) with (λ x : R, Laplace0_μ ε x * AccF L (x + 0)) by (funexti; repeat (f_equal; OK)).
+      eapply (@Laplace_exist1 (1+1) _ _ (λ x : R, AccF L (x))); OK.
+      { intros x. rewrite /AccF.
+        split.
+        { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        { apply Rplus_le_compat; apply Iverson_le_1. }
+      }
+      by apply AccF_IPCts.
+    }
+    { rewrite /Laplace_μ.
+      replace (at_point μ) with (at_point (- (- μ))) by (f_equal; OK).
+      replace (λ r : R, Laplace0_μ ε (r - μ) * AccF L (r - μ))
+        with (λ x : R, Laplace0_μ ε (- μ + x) * AccF L (- μ + x)) by (funexti; repeat (f_equal; OK)).
+      apply (@ex_RInt_gen_shift_neg (λ x : R, Laplace0_μ ε x * AccF L (x)) (- μ)).
+      { intros ?.
+        apply IPCts_RInt.
+        apply IPCts_mult.
+        { apply Laplace0_IPCts. }
+        { by apply AccF_IPCts. }
+      }
+      replace (λ x : R, Laplace0_μ ε x * AccF L x)
+         with (λ x : R, Laplace0_μ ε (- - x) * AccF L (- - x)) by (funexti; repeat (f_equal; OK)).
+      apply (@ex_RInt_gen_neg_change_of_var_rev (λ x : R, Laplace0_μ ε (- x) * AccF L (- x))).
+      { intros ??.
+        apply IPCts_RInt.
+        apply (@IPCts_opp (λ x : R, Laplace0_μ ε x * AccF L x)).
+        apply IPCts_mult.
+        { apply Laplace0_IPCts. }
+        { by apply AccF_IPCts. }
+      }
+      replace (λ x : R, Laplace0_μ ε (- x) * AccF L (- x))
+          with (λ x : R, Laplace0_μ ε (x) * AccF L (- x + 0)).
+      2: { funexti. rewrite /Laplace0_μ. rewrite -Rabs_Ropp. repeat (f_equal; OK). }
+      apply (@Laplace_exist2 (1+1) _ _ (λ x : R, AccF L (x))); OK.
+      { intros x. rewrite /AccF.
+        split.
+        { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        { apply Rplus_le_compat; apply Iverson_le_1. }
+      }
+      by apply AccF_IPCts.
+    }
+    rewrite /plus//=.
+    (* Flip the negative one, manipulate them together, apply *)
+    (* Check neg_exp_accuracy_chasles. *)
+
+    replace (at_point μ) with (at_point (- (-μ))) by (funexti; f_equal; OK).
+    replace (λ r : R, Laplace_μ ε μ r * AccF L (r - μ))
+       with (λ r : R, Laplace_μ ε μ (μ + (- μ + r)) * AccF L (- μ + r)) by (funexti; repeat (f_equal; OK)).
+
+    rewrite -(@RInt_gen_shift_neg (λ r : R, Laplace_μ ε μ (μ + r) * AccF L (r)) (- μ)); first last.
+    { replace (λ r : R, Laplace_μ ε μ (μ + r) * AccF L r) with (λ r : R, Laplace_μ ε μ (μ + - - r) * AccF L (- - r)) by (funexti; repeat (f_equal; OK)).
+      apply (@ex_RInt_gen_neg_change_of_var_rev (λ r : R, Laplace_μ ε μ (μ + - r) * AccF L (- r))).
+      { intros ??.
+        apply IPCts_RInt.
+        apply IPCts_mult.
+        { apply (@IPCts_opp (λ x : R, Laplace_μ ε μ (μ + x))).
+          apply IPCts_shift.
+          rewrite /Laplace_μ.
+          replace (λ x : R, Laplace0_μ ε (x - μ)) with (λ x : R, Laplace0_μ ε (- μ + x)) by (funexti; repeat (f_equal; OK)).
+          apply IPCts_shift.
+          apply Laplace0_IPCts. }
+        { apply (@IPCts_opp).
+          by apply AccF_IPCts. }
+      }
+      replace (λ r : R, Laplace_μ ε μ (μ + - r) * AccF L (- r))
+         with (λ r : R, Laplace0_μ ε r * AccF L (- r + 0)).
+      2: { funexti. rewrite /Laplace_μ. rewrite /Laplace0_μ.
+           rewrite -Rabs_Ropp.
+           repeat (f_equal; OK).
+      }
+      apply (@Laplace_exist2 (1+1) _ 0 (λ x : R, AccF L (x))); OK.
+      { intros x. rewrite /AccF.
+        split.
+        { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        { apply Rplus_le_compat; apply Iverson_le_1. }
+      }
+      by apply AccF_IPCts.
+    }
+    { intros ?.
+      apply IPCts_RInt.
+      apply IPCts_mult.
+      { rewrite /Laplace_μ.
+        replace (λ x : R, Laplace0_μ ε (μ + x - μ)) with  (λ x : R, Laplace0_μ ε x)  by (funexti; repeat (f_equal; OK)).
+        apply Laplace0_IPCts.
+      }
+      { by apply AccF_IPCts. }
+    }
+
+    rewrite -(@RInt_gen_shift (λ r : R, Laplace_μ ε μ (μ + r) * AccF L (r)) (- μ)); first last.
+    { replace (λ r : R, Laplace_μ ε μ (μ + r) * AccF L (r))
+         with (λ r : R, Laplace0_μ ε (- r) * AccF L (r + 0)).
+      2: { funexti. rewrite /Laplace_μ. rewrite /Laplace0_μ.
+           rewrite -Rabs_Ropp.
+           repeat (f_equal; OK).
+      }
+      replace  (λ r : R, Laplace0_μ ε (- r) * AccF L (r + 0))
+         with  (λ r : R, Laplace0_μ ε (r) * AccF L (r + 0)).
+      2: { funexti. rewrite /Laplace_μ. rewrite /Laplace0_μ.
+           rewrite -Rabs_Ropp.
+           repeat (f_equal; OK).
+      }
+      apply (@Laplace_exist1 (1+1) _ 0 (λ x : R, AccF L (x))); OK.
+      { intros x. rewrite /AccF.
+        split.
+        { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        { apply Rplus_le_compat; apply Iverson_le_1. }
+      }
+      by apply AccF_IPCts.
+    }
+    { intros ?.
+      apply IPCts_RInt.
+      apply IPCts_mult.
+      { rewrite /Laplace_μ.
+        replace (λ x : R, Laplace0_μ ε (μ + x - μ)) with  (λ x : R, Laplace0_μ ε x)  by (funexti; repeat (f_equal; OK)).
+        apply Laplace0_IPCts.
+      }
+      { by apply AccF_IPCts. }
+    }
+
+    rewrite -RInt_gen_neg_change_of_var; first last.
+    { replace (λ r : R, Laplace_μ ε μ (μ + r) * AccF L r) with (λ r : R, Laplace_μ ε μ (μ + - - r) * AccF L (- - r)) by (funexti; repeat (f_equal; OK)).
+      apply (@ex_RInt_gen_neg_change_of_var_rev (λ r : R, Laplace_μ ε μ (μ + - r) * AccF L (- r))).
+      { intros ??.
+        apply IPCts_RInt.
+        apply IPCts_mult.
+        { apply (@IPCts_opp (λ x : R, Laplace_μ ε μ (μ + x))).
+          apply IPCts_shift.
+          rewrite /Laplace_μ.
+          replace (λ x : R, Laplace0_μ ε (x - μ)) with (λ x : R, Laplace0_μ ε (- μ + x)) by (funexti; repeat (f_equal; OK)).
+          apply IPCts_shift.
+          apply Laplace0_IPCts. }
+        { apply (@IPCts_opp).
+          by apply AccF_IPCts. }
+      }
+      replace (λ r : R, Laplace_μ ε μ (μ + - r) * AccF L (- r))
+         with (λ r : R, Laplace0_μ ε r * AccF L (- r + 0)).
+      2: { funexti. rewrite /Laplace_μ. rewrite /Laplace0_μ.
+           rewrite -Rabs_Ropp.
+           repeat (f_equal; OK).
+      }
+      apply (@Laplace_exist2 (1+1) _ 0 (λ x : R, AccF L (x))); OK.
+      { intros x. rewrite /AccF.
+        split.
+        { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        { apply Rplus_le_compat; apply Iverson_le_1. }
+      }
+      by apply AccF_IPCts.
+    }
+    { intros ??.
+      apply IPCts_RInt.
+      apply IPCts_mult.
+      { rewrite /Laplace_μ.
+        replace (λ x : R, Laplace0_μ ε (μ + - x - μ)) with  (λ x : R, Laplace0_μ ε (- x))  by (funexti; repeat (f_equal; OK)).
+        apply IPCts_opp.
+        apply Laplace0_IPCts.
+      }
+      { apply IPCts_opp.
+        by apply AccF_IPCts. }
+    }
+    { intros ??.
+      apply IPCts_RInt.
+      apply IPCts_mult.
+      { rewrite /Laplace_μ.
+        replace (λ x : R, Laplace0_μ ε (μ + x - μ)) with  (λ x : R, Laplace0_μ ε (x))  by (funexti; repeat (f_equal; OK)).
+        apply Laplace0_IPCts.
+      }
+      {  by apply AccF_IPCts. }
+    }
+
+    replace (RInt_gen (λ x : R, Laplace_μ ε μ (μ + - x) * AccF L (- x)) (at_point 0) (Rbar_locally Rbar.p_infty))
+        with (RInt_gen (λ x : R, Laplace_μ ε μ (μ + x) * AccF L x) (at_point 0) (Rbar_locally Rbar.p_infty)).
+    2: {
+      f_equal.
+      funexti.
+      rewrite /Laplace_μ/Laplace0_μ/AccF//=.
+      f_equal.
+      2: {
+        rewrite Rplus_comm.
+        rewrite /Iverson//=/Iio/Ioi//=; f_equal.
+        { case_decide; case_decide; OK. }
+        { case_decide; case_decide; OK. }
+      }
+      do 4 (f_equal; OK).
+      rewrite -Rabs_Ropp.
+      f_equal; OK.
+    }
+    rewrite Rplus_diag.
+
+    have H1 : ex_RInt_gen (λ x : R, Laplace_μ ε μ (μ + x) * AccF L x) (at_point 0) (Rbar_locally Rbar.p_infty).
+    { replace (λ r : R, Laplace_μ ε μ (μ + r) * AccF L (r))
+         with (λ r : R, Laplace0_μ ε (- r) * AccF L (r + 0)).
+      2: { funexti. rewrite /Laplace_μ. rewrite /Laplace0_μ.
+           rewrite -Rabs_Ropp.
+           repeat (f_equal; OK).
+      }
+      replace  (λ r : R, Laplace0_μ ε (- r) * AccF L (r + 0))
+         with  (λ r : R, Laplace0_μ ε (r) * AccF L (r + 0)).
+      2: { funexti. rewrite /Laplace_μ. rewrite /Laplace0_μ.
+           rewrite -Rabs_Ropp.
+           repeat (f_equal; OK).
+      }
+      apply (@Laplace_exist1 (1+1) _ 0 (λ x : R, AccF L (x))); OK.
+      { intros x. rewrite /AccF.
+        split.
+        { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        { apply Rplus_le_compat; apply Iverson_le_1. }
+      }
+      by apply AccF_IPCts.
+    }
+    rewrite RInt_gen_scal_l; [|done].
+
+    rewrite (@RInt_gen_ext_eq_Ici _ ((λ x : R, ε * (exp (- (ε * x)) * (Iverson (Iio 0) (ε * x) + Iverson (Ioi (ε * L)) (ε * x)))))); first last.
+    { apply ex_RInt_gen_scal_l. done. }
+    { intros ??.
+      rewrite /Laplace_μ/Laplace0_μ//=.
+      replace (2 * (ε * (exp (- Rabs (ε * (μ + x - μ))) / 2) * AccF L x))
+         with ((ε * (exp (- Rabs (ε * (μ + x - μ)))) * AccF L x)) by OK.
+      rewrite Rmult_assoc.
+      f_equal.
+      rewrite /AccF.
+      replace (μ + x - μ) with x by OK.
+      rewrite Rabs_right.
+      2: { apply Rle_ge; apply Rmult_le_pos; OK. }
+      f_equal.
+      f_equal.
+      { rewrite /Iio//=.
+        rewrite Iverson_False; OK.
+        rewrite Iverson_False; OK.
+        suffices ? : 0 <= ε * x by OK.
+        apply Rmult_le_pos; OK.
+      }
+      { rewrite /Iverson//=.
+        rewrite /Ioi/Ici//=.
+        case_decide; case_decide; OK.
+        { exfalso; apply H4.
+          apply Rmult_lt_compat_l; OK.
+        }
+        { exfalso.
+          apply H3.
+          apply (Rmult_lt_reg_l ε); OK.
+        }
+      }
+    }
+    have H2 : ex_RInt_gen (λ x : R, exp (- x) * (Iverson (Iio 0) x + Iverson (Ioi (ε * L)) x)) (at_point 0) (Rbar_locally Rbar.p_infty).
+    { eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp (- x) * (1 + 1))).
+      { apply IPCts_cts; intros ?.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      { apply IPCts_mult.
+        { apply IPCts_cts; intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        apply IPCts_plus.
+        { apply IPCts_Iio. }
+        { apply IPCts_Ioi. }
+      }
+      { intros ?; split.
+        { apply Rmult_le_pos.
+          { apply Rexp_nn. }
+          { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        }
+        { apply Rmult_le_compat; OK.
+          { apply Rexp_nn. }
+          { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+          { apply Rplus_le_compat; apply Iverson_le_1. }
+        }
+      }
+      { replace (λ x : R, exp (- x) * (1 + 1)) with (λ x : R, (1 + 1) * exp (- x)) by (funexti; OK).
+        apply ex_RInt_gen_exp.
+      }
+    }
+    rewrite (@RInt_gen_scal_change_of_var (λ x : R, ε * (exp (- (x)) * (Iverson (Iio 0) (x) + Iverson (Ioi (ε * L)) (x))))); OK; first last.
+    { by apply ex_RInt_gen_scal_l. }
+    { intros ??.
+      apply IPCts_RInt.
+      apply IPCts_mult.
+      { apply IPCts_cts; intros ?. apply Continuity.continuous_const. }
+      apply IPCts_mult.
+      { apply IPCts_cts; intros ?.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      apply IPCts_plus.
+      { replace (λ x : R, Iverson (Iio 0) (ε * x)) with (λ x : R, Iverson (Iio 0) ( x / / ε)).
+        2: { funexti. f_equal. rewrite Rdiv_def.  rewrite Rinv_inv. OK. }
+        apply IPCts_scale.
+        { apply Rinv_0_lt_compat. OK. }
+        apply IPCts_Iio.
+      }
+      { replace (λ x : R, Iverson (Ioi (ε * L)) (ε * x)) with (λ x : R, Iverson (Ioi (ε * L)) ( x / / ε)).
+        2: { funexti. f_equal; rewrite Rdiv_def; rewrite Rinv_inv; OK. }
+        apply IPCts_scale.
+        { apply Rinv_0_lt_compat. OK. }
+        apply IPCts_Ioi.
+      }
+    }
+    { intros ??.
+      apply ex_RInt_Rmult.
+      apply IPCts_RInt.
+      apply IPCts_mult.
+      { apply IPCts_cts; intros ?.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      apply IPCts_plus.
+      { apply IPCts_Iio. }
+      { apply IPCts_Ioi. }
+    }
+
+    rewrite RInt_gen_scal_l.
+    2: { apply ex_RInt_gen_scal_l. done. }
+    replace (λ x : R, / ε * (ε * (exp (- x) * (Iverson (Iio 0) x + Iverson (Ioi (ε * L)) x))))
+       with (λ x : R, ((Iverson (Iio 0) x + Iverson (Ioi (ε * L)) x) * exp (- x) )).
+    2:  {
+      funexti.
+      rewrite -Rmult_assoc.
+      rewrite Rinv_l; OK.
+    }
+    rewrite neg_exp_accuracy_chasles.
+    2: { apply Rmult_le_pos; OK. }
+    by rewrite NegExp_Int.
+  Qed.
 
 
   Lemma wp_Laplace_Accuracy E (β : R) (Hβ : 0 < β <= 1) (logε : Z) (μcont : val) μI (μ : R) :
     ⊢ ↯ β -∗
     IsApprox μcont μ E μI -∗
       WP Laplace #logε μcont @ E
-        {{ cont, ∃ I r, I ∗ IsApprox cont r E (μI ∗ I) ∗ ⌜Rabs (r - μ) <= ln (/ β) ⌝}}.
+        {{ cont, ∃ I r, I ∗ IsApprox cont r E (μI ∗ I) ∗ ⌜Rabs (r - μ) <= ln (/ β) / (powerRZ 2 logε) ⌝}}.
   Proof.
     iIntros "Hε Happrox".
     iApply (pgl_wp_mono with "[Hε Happrox]").
     2: {
-      iApply (wp_Laplace E (M := (1 + 1)) (fun r => AccF ((ln (/ β))) (r - μ)) _ _ _ μ with "[Hε]").
+      iApply (wp_Laplace E (M := (1 + 1)) (fun r => AccF ((ln (/ β)) / powerRZ 2 logε) (r - μ)) _ _ _ μ with "[Hε]").
       { intros x. rewrite /AccF.
         split.
         { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
         { apply Rplus_le_compat; apply Iverson_le_1. }
       }
-      { replace (λ r : R, AccF (ln (/ β)) (r - μ)) with (λ r : R, AccF (ln (/ β)) ( - μ + r)) by (funexti; f_equal; OK).
+      { replace (λ r : R, AccF (ln (/ β) / powerRZ 2 logε) (r - μ)) with (λ r : R, AccF (ln (/ β) / powerRZ 2 logε ) (- μ + r)) by (funexti; f_equal; OK).
         apply IPCts_shift.
         apply AccF_IPCts.
         rewrite ln_Rinv; OK.
+        apply Rcomplements.Rdiv_le_0_compat.
+        2: {  apply powerRZ_lt; OK. }
         suffices ? : ln β <= 0 by OK.
         rewrite -ln_1.
         apply Rcomplements.ln_le; OK.
@@ -2238,12 +2574,27 @@ Section AccuracyBound.
         rewrite /Laplace_CreditV.
         rewrite Laplace_Int_AccF.
         - rewrite ln_Rinv; OK.
+          rewrite Rmult_comm Rdiv_def.
+          rewrite Rmult_assoc.
+          rewrite Rinv_l.
+          2 : {
+            suffices ? : 0 <  powerRZ 2 logε by OK.
+            apply powerRZ_lt; OK.
+          }
+          rewrite Rmult_1_r.
           rewrite Ropp_involutive.
           rewrite exp_ln; OK.
-        - rewrite -ln_1.
+        - apply Rmult_le_pos.
+          2: {
+            apply Rlt_le.
+            apply Rinv_0_lt_compat.
+            apply powerRZ_lt; OK.
+          }
+          rewrite -ln_1.
           apply Rcomplements.ln_le; first lra.
           rewrite -Rdiv_1_l.
           apply Rcomplements.Rle_div_r; lra.
+        - apply powerRZ_lt; OK.
       }
       { iApply "Happrox". }
     }
