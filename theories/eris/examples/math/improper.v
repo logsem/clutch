@@ -1804,12 +1804,98 @@ Proof.
 Qed.
 
 Lemma ex_RInt_gen_shift {F : R → R} (u : R) :
-  ex_RInt_gen F (at_point 0) (Rbar_locally Rbar.m_infty) →
-  ex_RInt_gen (fun x => F (u + x)) (at_point (-u)) (Rbar_locally Rbar.m_infty).
-Proof. Admitted.
+  (∀ b, ex_RInt F 0 b) →
+  ex_RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) →
+  ex_RInt_gen (fun x => F (u + x)) (at_point (-u)) (Rbar_locally Rbar.p_infty).
+Proof.
+  intros HexF Hex. destruct Hex as [l Hl]. exists l. apply is_RInt_gen_filterlim.
+  - intro b. apply ex_RInt_ext with (f := fun y => scal 1 (F (1 * y + u))).
+    + intros x Hx. rewrite /scal/=/mult/= Rmult_1_l. f_equal. lra.
+    + apply (ex_RInt_comp_lin F 1 u (-u) b). replace (1 * - u + u) with 0 by lra. replace (1 * b + u) with (b + u) by lra. apply HexF.
+  - apply filterlim_ext with (f := fun b => RInt F 0 (b + u)).
+    + intro x. rewrite (RInt_ext (λ x0 : R, F (u + x0)) (λ y : R, scal 1 (F (1 * y + u)))).
+      * rewrite (RInt_comp_lin F 1 u (-u) x).
+        { replace (1 * - u + u) with 0 by lra. replace (1 * x + u) with (x + u) by lra. reflexivity. }
+        { replace (1 * - u + u) with 0 by lra. replace (1 * x + u) with (x + u) by lra. apply HexF. }
+      * intros x0 Hx0. rewrite /scal/=/mult/= Rmult_1_l. f_equal. lra.
+    + apply filterlim_comp with (G := Rbar_locally Rbar.p_infty).
+      * intros P HP. rewrite /Rbar_locally//= in HP. destruct HP as [M HM]. exists (M - u). intros b Hb. apply HM. lra.
+      * apply filterlim_is_RInt_gen; done.
+Qed.
 
 Lemma RInt_gen_shift {F : R → R} (u : R) :
-  ex_RInt_gen F (at_point (-u)) (Rbar_locally Rbar.m_infty) →
-  RInt_gen F (at_point 0) (Rbar_locally Rbar.m_infty) =
-  RInt_gen (fun x => F (u + x)) (at_point (-u)) (Rbar_locally Rbar.m_infty).
-Proof. Admitted.
+  (∀ b, ex_RInt F 0 b) →
+  ex_RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) →
+  RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) =
+  RInt_gen (fun x => F (u + x)) (at_point (-u)) (Rbar_locally Rbar.p_infty).
+Proof.
+  intros HexF Hex. destruct Hex as [l Hl]. symmetry. apply is_RInt_gen_unique.
+  have -> : RInt_gen F (at_point 0) (Rbar_locally Rbar.p_infty) = l by apply is_RInt_gen_unique.
+  apply is_RInt_gen_filterlim.
+  - intro b. apply ex_RInt_ext with (f := fun y => scal 1 (F (1 * y + u))).
+    + intros x Hx. rewrite /scal/=/mult/= Rmult_1_l. f_equal. lra.
+    + apply (ex_RInt_comp_lin F 1 u (-u) b). replace (1 * - u + u) with 0 by lra. replace (1 * b + u) with (b + u) by lra. apply HexF.
+  - apply filterlim_ext with (f := fun b => RInt F 0 (b + u)).
+    + intro x. rewrite (RInt_ext (λ x0 : R, F (u + x0)) (λ y : R, scal 1 (F (1 * y + u)))).
+      all: swap 1 2.
+      * intros x0 Hx0. rewrite /scal/=/mult/= Rmult_1_l. f_equal. lra.
+      * rewrite (RInt_comp_lin F 1 u (-u) x).
+        { replace (1 * - u + u) with 0 by lra. replace (1 * x + u) with (x + u) by lra. reflexivity. }
+        { replace (1 * - u + u) with 0 by lra. replace (1 * x + u) with (x + u) by lra. apply HexF. }
+    + apply filterlim_comp with (G := Rbar_locally Rbar.p_infty).
+      * intros P HP. rewrite /Rbar_locally//= in HP. destruct HP as [M HM]. exists (M - u). intros b Hb. apply HM. lra.
+      * apply filterlim_is_RInt_gen; done.
+Qed.
+
+Lemma ex_RInt_gen_shift_neg {F : R → R} (u : R) :
+  (∀ b, ex_RInt F (b) 0) →
+  ex_RInt_gen F (Rbar_locally Rbar.m_infty) (at_point 0) →
+  ex_RInt_gen (fun x => F (u + x)) (Rbar_locally Rbar.m_infty) (at_point (-u)) .
+Proof.
+  intros HexF Hex.
+  have Hex_finite : ∀ b, b < -u → ex_RInt (λ x, F (u + x)) b (-u).
+  { intros b Hb. apply ex_RInt_ext with (f := fun y => scal 1 (F (1 * y + u))).
+    - intros x Hx. rewrite /scal/=/mult/= Rmult_1_l. f_equal. lra.
+    - apply (ex_RInt_comp_lin F 1 u b (-u)). replace (1 * b + u) with (b + u) by lra. replace (1 * - u + u) with 0 by lra. apply HexF. }
+  rewrite /ex_RInt_gen /is_RInt_gen. destruct Hex as [l Hl]. exists l.
+  rewrite /filterlimi/=/filter_le/=/filtermapi/=. intros P HP.
+  rewrite /is_RInt_gen in Hl. unfold filterlimi, filter_le, filtermapi in Hl. simpl in Hl.
+  have Hl' := Hl P HP. destruct Hl' as [P1 P2 HP1 HP2 HP3].
+  rewrite /Rbar_locally in HP1. simpl in HP1. destruct HP1 as [M HP1]. rewrite /at_point in HP2. simpl in HP2.
+  eapply (Filter_prod _ _ _ (fun a => a < M - u) (fun b => b = -u)).
+  - rewrite /Rbar_locally/=. exists (M - u). intros x Hx. done.
+  - rewrite /at_point//=.
+  - intros a b Ha Hb. simpl. subst b.
+    have Ha_u : a + u < M by lra.
+    specialize (HP3 (a + u) 0 (HP1 (a + u) Ha_u) HP2). simpl in HP3. destruct HP3 as [yF [HisRIntF HpyF]].
+    have HexF_au : ex_RInt F (a + u) 0 by (exists yF; done).
+    exists yF. split; [|done].
+    apply is_RInt_ext with (f := fun y => scal 1 (F (1 * y + u))).
+    + intros x Hx. rewrite /scal/=/mult/= Rmult_1_l. f_equal. lra.
+    + apply (is_RInt_comp_lin F 1 u a (-u)). replace (1 * a + u) with (a + u) by lra. replace (1 * - u + u) with 0 by lra. done.
+Qed.
+
+Lemma RInt_gen_shift_neg {F : R → R} (u : R) :
+  (∀ b, ex_RInt F b 0) →
+  ex_RInt_gen F (Rbar_locally Rbar.m_infty) (at_point 0)  →
+  RInt_gen F (Rbar_locally Rbar.m_infty) (at_point 0)  =
+  RInt_gen (fun x => F (u + x)) (Rbar_locally Rbar.m_infty) (at_point (-u)).
+Proof.
+  intros HexF Hex. destruct Hex as [l Hl]. symmetry. apply is_RInt_gen_unique.
+  have -> : RInt_gen F (Rbar_locally Rbar.m_infty) (at_point 0) = l by apply is_RInt_gen_unique.
+  rewrite /is_RInt_gen. rewrite /filterlimi/=/filter_le/=/filtermapi/=. intros P HP.
+  rewrite /is_RInt_gen in Hl. unfold filterlimi, filter_le, filtermapi in Hl. simpl in Hl.
+  have Hl' := Hl P HP. destruct Hl' as [P1 P2 HP1 HP2 HP3].
+  rewrite /Rbar_locally in HP1. simpl in HP1. destruct HP1 as [M HP1]. rewrite /at_point in HP2. simpl in HP2.
+  eapply (Filter_prod _ _ _ (fun a => a < M - u) (fun b => b = -u)).
+  - rewrite /Rbar_locally/=. exists (M - u). intros x Hx. done.
+  - rewrite /at_point//=.
+  - intros a b Ha Hb. simpl. subst b.
+    have Ha_u : a + u < M by lra.
+    specialize (HP3 (a + u) 0 (HP1 (a + u) Ha_u) HP2). simpl in HP3. destruct HP3 as [yF [HisRIntF HpyF]].
+    have HexF_au : ex_RInt F (a + u) 0 by (exists yF; done).
+    exists yF. split; [|done].
+    apply is_RInt_ext with (f := fun y => scal 1 (F (1 * y + u))).
+    + intros x Hx. rewrite /scal/=/mult/= Rmult_1_l. f_equal. lra.
+    + apply (is_RInt_comp_lin F 1 u a (-u)). replace (1 * a + u) with (a + u) by lra. replace (1 * - u + u) with 0 by lra. done.
+Qed.

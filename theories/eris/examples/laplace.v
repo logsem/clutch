@@ -1856,12 +1856,119 @@ Section Laplace.
   Definition Laplace_CreditV (ε μ : R) (F : R → R) : R :=
     RInt_gen (fun x => Laplace_μ ε μ x  * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty).
 
+  Lemma Laplace0_IPCts {ε} : IPCts (Laplace0_μ ε).
+  Proof.
+    rewrite /Laplace0_μ.
+    apply IPCts_cts.
+    intros x.
+    eapply @Continuity.continuous_mult; [apply Continuity.continuous_const|].
+    eapply @Laplace_continuous_scaled.
+  Qed.
+
   Lemma Laplace_CreditV_eq {M} (ε μ : R) (F : R → R) (Hnn : ∀ r, 0 <= F r <= M) (HP : IPCts F) (* (He : 0 < ε) *) :
     Laplace_CreditV ε μ F = Laplace0_CreditV ε (λ r : R, F (μ + r)).
   Proof.
     rewrite /Laplace_CreditV/Laplace0_CreditV.
     rewrite /Laplace_μ.
-    (* TODO: Prove the shifting lemma, and then probably the existence of the RInt_gen sadly *)
+    (* 1. Chasles to split the positive and negative integrals *)
+
+    rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty) _ _  (λ x : R, Laplace0_μ ε (x - μ) * F x) μ); first last.
+    { replace μ with (- (- μ)) by OK.
+      replace (λ x : R, Laplace0_μ ε (x - - - μ) * F x)
+         with (λ x : R, Laplace0_μ ε (- μ + x) * F (- μ + x + μ)).
+      2: { funexti; OK. repeat (f_equal; OK). }
+      apply (@ex_RInt_gen_shift (λ x : R, Laplace0_μ ε x * F (x + μ)) (- μ)).
+      { intros ?.
+        apply IPCts_RInt.
+        apply IPCts_mult.
+        { apply Laplace0_IPCts. }
+        { replace (λ x : R, F (x + μ)) with (λ x : R, F (μ + x)) by (funexti; f_equal; OK).
+          by apply IPCts_shift.
+        }
+      }
+      (* Existence *)
+      admit.
+    }
+    { replace μ with (- (- μ)) by OK.
+      replace (λ x : R, Laplace0_μ ε (x - - - μ) * F x)
+         with (λ x : R, Laplace0_μ ε (- μ + x) * F (- μ + x + μ)).
+      2: { funexti; OK. repeat (f_equal; OK). }
+      apply (@ex_RInt_gen_shift_neg (λ x : R, Laplace0_μ ε x * F (x + μ)) (- μ)).
+      { intros ?.
+        apply IPCts_RInt.
+        apply IPCts_mult.
+        { apply Laplace0_IPCts. }
+        { replace (λ x : R, F (x + μ)) with (λ x : R, F (μ + x)) by (funexti; f_equal; OK).
+          by apply IPCts_shift.
+        }
+      }
+      (* Flip the negative side *)
+      replace (λ x : R, Laplace0_μ ε x * F (x + μ))
+         with (λ x : R, Laplace0_μ ε (- - x) * F (- -x + μ)) by (funexti; repeat (f_equal; OK)).
+      eapply (@ex_RInt_gen_neg_change_of_var_rev (λ x : R, Laplace0_μ ε (- x) * F (- x + μ))).
+      { intros ??.
+        apply IPCts_RInt.
+        apply IPCts_mult.
+        { apply IPCts_opp.
+          apply Laplace0_IPCts. }
+        { eapply (@IPCts_opp (λ x : R, F (x + μ))).
+          replace (λ x : R, F (x + μ)) with (λ x : R, F (μ + x)) by (funexti; f_equal; OK).
+          by apply IPCts_shift.
+        }
+      }
+      { replace (λ x : R, Laplace0_μ ε (- x) * F (- x + μ))
+           with (λ x : R, Laplace0_μ ε (x) * F (- x + μ)).
+        2: {
+          funexti. f_equal; OK.
+          rewrite /Laplace0_μ//=.
+          rewrite -Rabs_Ropp.
+          repeat (f_equal; OK).
+        }
+        admit.
+      }
+    }
+
+    rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty) _ _  (λ x : R, Laplace0_μ ε x * F (μ + x)) 0); first last.
+    { (* Existence *)
+      admit. }
+    { (* Flip the negative side *)
+      replace (λ x : R, Laplace0_μ ε x * F (μ + x))
+         with (λ x : R, Laplace0_μ ε (- - x) * F (- -x + μ)) by (funexti; repeat (f_equal; OK)).
+      eapply (@ex_RInt_gen_neg_change_of_var_rev (λ x : R, Laplace0_μ ε (- x) * F (- x + μ))).
+      { intros ??.
+        apply IPCts_RInt.
+        apply IPCts_mult.
+        { apply IPCts_opp.
+          apply Laplace0_IPCts. }
+        { eapply (@IPCts_opp (λ x : R, F (x + μ))).
+          replace (λ x : R, F (x + μ)) with (λ x : R, F (μ + x)) by (funexti; f_equal; OK).
+          by apply IPCts_shift.
+        }
+      }
+      replace (λ x : R, Laplace0_μ ε (- x) * F (- x + μ))
+         with (λ x : R, Laplace0_μ ε (x) * F (- x + μ)).
+      2: {
+        funexti. f_equal; OK.
+        rewrite /Laplace0_μ//=.
+        rewrite -Rabs_Ropp.
+        repeat (f_equal; OK).
+      }
+      admit.
+    }
+
+    f_equal.
+    {
+
+
+      (* Apply the shifting lemma *)
+      admit. }
+    { (* Apply the shifting lemma *)
+      rewrite (RInt_gen_shift (-μ)).
+      2: { admit. }
+      2: { admit. }
+      rewrite Ropp_involutive.
+      f_equal; funexti; f_equal; f_equal; OK.
+    }
   Admitted.
 
   Lemma wp_Laplace E (F : R → R) {M} (logε : Z) (μcont : val) μI (μ : R) (Hnn : ∀ r, 0 <= F r <= M) (HP : IPCts F) :
