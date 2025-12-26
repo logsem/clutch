@@ -2154,3 +2154,115 @@ Section Laplace.
   Qed.
 
 End Laplace.
+
+
+Section AccuracyBound.
+  Context `{!erisGS Σ}.
+  Import Hierarchy.
+
+  (* A function which is 1 outside of the range [-L, L] *)
+  Definition AccF (L : R) : R → R := (fun x => Iverson (Iio (-L)) x + Iverson (Ioi L) x).
+
+  Lemma AccF_IPCts L (HL : 0 <= L) : IPCts (AccF L).
+  Proof.
+    rewrite /IPCts.
+    exists (fun _ => 1).
+    exists (List.cons (fun _ => -1, -L, L) List.nil).
+    split; last split.
+    { intros ?.
+      rewrite /fsum//=.
+      rewrite /AccF.
+      symmetry.
+      rewrite {1}/Iverson.
+      case_decide; rewrite /Icc//= in H; rewrite Rmin_left in H; OK; rewrite Rmax_right in H; OK.
+      { rewrite Iverson_False.
+        2: { rewrite /Iio. OK. }
+        rewrite Iverson_False.
+        2: { rewrite /Ioi. OK. }
+        OK.
+      }
+      { rewrite {1} /Iverson.
+        rewrite /Ioi//=.
+        case_decide; rewrite /Iio in H0.
+        { rewrite Iverson_False; OK. }
+        { rewrite Iverson_True; OK. }
+      }
+    }
+    { apply Forall_singleton.
+      rewrite /IntervalFun_continuity.
+      intros ??.
+      apply Continuity.continuous_const.
+    }
+    {
+      intros ?.
+      apply Continuity.continuous_const.
+    }
+  Qed.
+
+  Lemma Laplace_Int_AccF {L} {μ ε} :
+    0 <= L ->
+    RInt_gen (λ r : R, Laplace_μ ε μ r * AccF L (r - μ)) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty) = exp (- L).
+  Proof.
+    (*
+    rewrite -NegExp_Int.
+    rewrite /AccF.
+    apply neg_exp_accuracy_chasles.
+    *)
+  Admitted.
+
+
+  Lemma wp_Laplace_Accuracy E (β : R) (Hβ : 0 < β <= 1) (logε : Z) (μcont : val) μI (μ : R) :
+    ⊢ ↯ β -∗
+    IsApprox μcont μ E μI -∗
+      WP Laplace #logε μcont @ E
+        {{ cont, ∃ I r, I ∗ IsApprox cont r E (μI ∗ I) ∗ ⌜Rabs (r - μ) <= ln (/ β) ⌝}}.
+  Proof.
+    iIntros "Hε Happrox".
+    iApply (pgl_wp_mono with "[Hε Happrox]").
+    2: {
+      iApply (wp_Laplace E (M := (1 + 1)) (fun r => AccF ((ln (/ β))) (r - μ)) _ _ _ μ with "[Hε]").
+      { intros x. rewrite /AccF.
+        split.
+        { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        { apply Rplus_le_compat; apply Iverson_le_1. }
+      }
+      { replace (λ r : R, AccF (ln (/ β)) (r - μ)) with (λ r : R, AccF (ln (/ β)) ( - μ + r)) by (funexti; f_equal; OK).
+        apply IPCts_shift.
+        apply AccF_IPCts.
+        rewrite ln_Rinv; OK.
+        suffices ? : ln β <= 0 by OK.
+        rewrite -ln_1.
+        apply Rcomplements.ln_le; OK.
+      }
+      { iApply (ec_eq with "Hε").
+        rewrite /Laplace_CreditV.
+        rewrite Laplace_Int_AccF.
+        - rewrite ln_Rinv; OK.
+          rewrite Ropp_involutive.
+          rewrite exp_ln; OK.
+        - rewrite -ln_1.
+          apply Rcomplements.ln_le; first lra.
+          rewrite -Rdiv_1_l.
+          apply Rcomplements.Rle_div_r; lra.
+      }
+      { iApply "Happrox". }
+    }
+    intros v.
+    rewrite //=.
+    iIntros "[%I [%r [? [? He]]]]".
+    iExists I.
+    iExists r.
+    iFrame.
+    rewrite /AccF/Iverson.
+    case_decide.
+    { iExFalso. iApply (ec_contradict with "He"). case_decide; OK. }
+    case_decide.
+    { iExFalso. iApply (ec_contradict with "He"). OK. }
+    rewrite /Iio//= in H.
+    rewrite /Ioi//= in H0.
+    iPureIntro.
+    apply Rabs_le.
+    split; OK.
+  Qed.
+
+End AccuracyBound.
