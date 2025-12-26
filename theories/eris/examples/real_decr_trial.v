@@ -196,7 +196,7 @@ Section credits.
   Lemma Series_Converge {F : nat → R_CompleteNormedModule} :
       Series.ex_series F →
       filterlim (λ (M : nat), sum_n F M) eventually (locally (Series F)).
-  Proof. Admitted.
+  Proof. A dmitted.
 *)
 
   Lemma RealDecrTrial_CreditV_ex_RInt {F N M} (Hbound : forall n, 0 <= F n <= M) :

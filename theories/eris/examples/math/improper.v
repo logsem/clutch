@@ -1285,55 +1285,6 @@ Proof.
   intros. rewrite /F'. by rewrite bool_decide_eq_true_2.
 Qed.
 
-(** Scalar change of variables for improper integrals
-
-Proof plan for ex_RInt_gen_scal_change_of_var:
-
-Goal: Show that if ∫[0,∞) F exists, then ∫[0,∞) F(a·x) exists for a > 0.
-
-Main Strategy: Use substitution u = a·x to relate the two integrals.
-
-Concrete approach using available Coquelicot techniques:
-
-Step 1: State and admit finite change of variables lemma
-  Need: ∫[0,b] F(a·x) dx = (1/a) · ∫[0,a·b] F(u) du
-
-  Observation: No built-in change of variables in Coquelicot or this codebase
-  Action: State as auxiliary admitted lemma (can prove later from is_RInt primitives)
-
-  Potential techniques for future proof:
-    - is_RInt_derive (fundamental theorem, used in exp.v:518)
-    - RInt_Derive (inverse direction)
-    - ex_RInt_comp_cts axiom (axioms.v:13) for composition
-
-Step 2: Show finite integrals exist
-  Prove: ∀ b, 0 < b → ex_RInt (λ x, F (a * x)) 0 b
-  Approach: Use admitted change of variables + hypothesis ex_RInt F 0 (a*b)
-  Could potentially use ex_RInt_scal (integrals.v:37) if needed
-
-Step 3: Establish the limit
-  Show: filterlimi (λ b, is_RInt (λ x, F (a*x)) 0 b) (Rbar_locally Rbar.p_infty)
-                   (locally ((1/a) * L))
-  where L is the limit of ∫[0,b] F as b → ∞
-
-  Technique: Use filterlim composition (see exp.v:587, is_lim_exp_neg_infty)
-  Key: As b → ∞:
-    - ∫[0,b] F(a·x) dx = (1/a)·∫[0,a·b] F(u) du (by Step 1)
-    - a·b → ∞ since a > 0 (need filterlim for λ b, a*b)
-    - ∫[0,a·b] F → L (by hypothesis)
-    - Compose limits: (1/a)·∫[0,a·b] F → (1/a)·L
-  Use RInt_scal (integrals.v:18) for pulling out scalar (1/a)
-
-Step 4: Apply RInt_gen_ex_Ici
-  Use RInt_gen_ex_Ici (improper.v:122) to construct ex_RInt_gen
-  Inputs:
-    - Existence proof from Step 3: exists L, filterlimi ... (locally L)
-    - Finite integrability from Step 2: ∀ b, ex_RInt (λ x, F (a*x)) 0 b
-*)
-
-(** Auxiliary lemmas: Finite change of variables for scalar transformations
-    These should be provable from is_RInt primitives, but we admit them for now. *)
-
 Lemma ex_RInt_scal_cov {F : R → R} {a b : R} :
   0 < a →
   0 < b →

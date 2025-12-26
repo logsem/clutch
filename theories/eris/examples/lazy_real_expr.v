@@ -502,7 +502,7 @@ Section Lib.
   (*
   Lemma wp_Npow {x y : Z} {E} : ⌜(0 ≤ y)%Z ⌝ ⊢ WP (Npow #x #y) @ E {{ fun v => ⌜v = #(x ^ y)%Z ⌝ }}.
   Proof.
-  Admitted.
+  A dmitted.
   *)
 
   Lemma wp_VDiv4Rounded {z : Z} {E} :

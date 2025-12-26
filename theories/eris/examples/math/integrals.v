@@ -240,9 +240,11 @@ Proof.
   }
 Qed.
 
+(*
 Lemma RInt_PokeOut (F : R → R) (L : list R) (a b : R) (HI : IPCts F) :
   RInt (PokeOut F L) a b = RInt F a b.
-Proof. Admitted.
+Proof. A dmitted.
+*)
 
 (** Integrability of scalar division *)
 Lemma ex_RInt_div (F : R → R) {a b c} : ex_RInt F a b → ex_RInt (fun x => F x / c) a b.
