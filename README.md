@@ -1,7 +1,7 @@
 # Clutch Project
 
 This repository contains the formal development of a number of higher-order probabilistic separation logics for proving properties of higher-order probabilistic programs.
-All of the logics are built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Roc prover](https://rocq-prover.org/).
+All of the logics are built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Rocq prover](https://rocq-prover.org/).
 
 ## Publications
 
