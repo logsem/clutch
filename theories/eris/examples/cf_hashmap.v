@@ -123,9 +123,7 @@ Section coll_free_hashmap.
       rewrite /cf_hashfun_raw.
       iDestruct "Hhf" as (??) "(?&?&?&?&?&?&?&?& %Hprf)".
       iFrame.
-      (* TODO: Notation *)
       iSplit; auto.
-      iSplitL "Hl"; [done| ].
       iSplit; [done|].
       iSplit; [done|].
       iPureIntro.
@@ -179,7 +177,6 @@ Section coll_free_hashmap.
           f_equal.
           auto.
         }
-        iSplitL "Hl"; [done | ].
         iSplit.
         { iPureIntro.
           rewrite length_insert //.
