@@ -663,7 +663,6 @@ Section bloom_filter_single.
       lra.
     }
     (*
-
       We now use the spec for hasing a fresh element.
       We have enough credits to completely avoid idxs
      *)

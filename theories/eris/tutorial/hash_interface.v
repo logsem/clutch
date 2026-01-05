@@ -89,12 +89,50 @@ Qed.
    into a value in the avoid set
 *)
 
+
+Lemma hash_query_spec_fresh_avoid_aux (k : nat) (avoid : gset nat) (ε : R) (val_size : nat) f m:
+  m !! k = None →
+  (∀ x, x ∈ avoid → x < S val_size) →
+  (size avoid <= ε * (val_size + 1))%R →
+  {{{ hashfun val_size f m ∗ ↯ ε }}}
+    f #k
+    {{{ (v : nat), RET #v; ⌜ (v < S val_size)%nat ⌝ ∗
+                             hashfun val_size f (<[ k := v ]>m) ∗
+                             ⌜ v ∉ avoid ⌝ }}}.
+Proof.
+  iIntros (Hlookup Hav Hε Φ) "(Hhash & Herr) HΦ".
+  wp_apply (hash_query_spec_fresh  _ avoid
+              _ 1 0 val_size _ m
+             with "[$]"); auto.
+  - lra.
+  - lra.
+  - rewrite Rmult_1_l Rmult_0_l Rplus_0_r //.
+  - iIntros (v) "(%Hv & Hhfw & Herr)".
+     iDestruct "Herr" as "[(%Hvout & Herr) | (%Hvin & Herr)]".
+     + iApply "HΦ".
+       iFrame.
+       iPureIntro.
+       split; auto.
+     + iPoseProof (ec_contradict with "[$Herr]") as "?"; [lra|].
+       done.
+Qed.
+
+(*
+    We can actually get rid of the hypothesis
+    (∀ x, x ∈ avoid → x < S val_size)
+    This is used to ensure we have the right multiplier
+    for credits whenever we fall outside of the avoid
+    set, but since we are giving 0 credits to that
+    case it does not matter
+
+ *)
+
 Lemma hash_query_spec_fresh_avoid (k : nat) (avoid : gset nat) (ε : R) (val_size : nat) f m:
-    m !! k = None →
-    (size avoid <= ε * (val_size + 1))%R →
-    {{{ hashfun val_size f m ∗ ↯ ε }}}
-      f #k
-      {{{ (v : nat), RET #v; ⌜ (v < S val_size)%nat ⌝ ∗
+  m !! k = None →
+  (size avoid <= ε * (val_size + 1))%R →
+  {{{ hashfun val_size f m ∗ ↯ ε }}}
+    f #k
+    {{{ (v : nat), RET #v; ⌜ (v < S val_size)%nat ⌝ ∗
                            hashfun val_size f (<[ k := v ]>m) ∗
                            ⌜ v ∉ avoid ⌝ }}}.
 Proof.
@@ -107,38 +145,30 @@ Proof.
 
    *)
   set (avoid' := avoid ∩ (set_seq 0 (val_size + 1))).
-  wp_apply (hash_query_spec_fresh  _ avoid'
-              _ 1 0 val_size _ m
+  wp_apply (hash_query_spec_fresh_avoid_aux _ avoid' _ val_size _ m
              with "[$]"); auto.
-  - lra.
-  - lra.
   - rewrite /avoid'.
     intros x Hx.
     rewrite elem_of_intersection in Hx.
     destruct Hx as [Hx1 Hx2].
     rewrite elem_of_set_seq in Hx2.
     lia.
-  - rewrite Rmult_1_l Rmult_0_l Rplus_0_r.
-    rewrite /avoid'.
-    transitivity (size avoid); auto.
+  - transitivity (size avoid); auto.
     apply le_INR.
     apply subseteq_size.
     set_solver.
-  - iIntros (v) "(%Hv & Hhfw & Herr)".
-     iDestruct "Herr" as "[(%Hvout & Herr) | (%Hvin & Herr)]".
-     + iApply "HΦ".
-       iFrame.
-       iPureIntro.
-       split; auto.
-       intros Hv2.
-       apply Hvout.
-       rewrite /avoid'.
-       rewrite elem_of_intersection.
-       split; auto.
-       rewrite elem_of_set_seq.
-       lia.
-     + iPoseProof (ec_contradict with "[$Herr]") as "?"; [lra|].
-       done.
+  - iIntros (v) "(%Hv & Hhfw & %Hvout)".
+    iApply "HΦ".
+    iFrame.
+    iPureIntro.
+    split; auto.
+    intros Hv2.
+    apply Hvout.
+    rewrite /avoid'.
+    rewrite elem_of_intersection.
+    split; auto.
+    rewrite elem_of_set_seq.
+    lia.
 Qed.
 
 
