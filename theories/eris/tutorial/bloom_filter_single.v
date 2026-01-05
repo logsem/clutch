@@ -146,6 +146,13 @@ Section bloom_filter_single.
   Qed.
 
 
+  (*
+
+     Code for initializing the bloom filter. It first
+     initializes a hash function hf, then it creates an array arr
+     and sets every element to false. The result is the pair (hf, arr)
+
+   *)
 
   Definition init_bloom_filter : expr :=
     λ: "_" ,
@@ -154,11 +161,24 @@ Section bloom_filter_single.
       let: "l" := ref ("hf", "arr") in
       "l".
 
+
+    (*
+      The insertion method receives a bloom filter (hf, arr) and a value v
+      to be inserted. Then, an index i is computed by computing hf v,
+      and arr[i] is set to true
+    *)
+
   Definition insert_bloom_filter : expr :=
     λ: "l" "v" ,
       let, ("hf", "arr") := !"l" in
       let: "i" := "hf" "v" in
       "arr" +ₗ "i" <- #true.
+
+   (*
+      The lookup method receives a bloom filter (hf, arr) and a value v
+      to be looked up. Then, an index i is computed by computing hf v,
+      and the value of arr[i] is looked up and returned.
+   *)
 
 
   Definition lookup_bloom_filter : expr :=
@@ -167,17 +187,55 @@ Section bloom_filter_single.
       let: "i" := "hf" "v" in
       !("arr" +ₗ "i").
 
+
+  (*
+     Before introducing the representation predicate for the bloom filter,
+     we define an auxiliary predicate that states that the contents of the
+     array are correct. Here the arguments are:
+     - m : the abstract map representing the current view of the hash function
+     - arr : the bloom filter array
+     - els : the set of natural numbers currently represented by the bloom filter
+     - idxs : the set of indices currently set to true in the array
+  *)
+
   Definition bloom_filter_correct_content
     (m : gmap nat nat) (arr : list val) (els : gset nat) (idxs : gset nat) :=
+    (* The set of elements coincides with the domain of m *)
     (els = dom m) /\
+    (* The image of every element is in idxs *)
     (forall e, e ∈ els -> (m !!! e) ∈ idxs) /\
     (length arr = S filter_size) /\
     (size idxs ≤ filter_size + 1) /\
+    (* Every arr[i] in idxs is set to true *)
     (forall i, i ∈ idxs -> arr !! i = Some #true) /\
+    (* Every idx is smaller than the size of the filter array *)
     (forall i, i ∈ idxs -> (i < S filter_size)%nat) /\
+    (* Every arr[i[] within bounds not in is set to false *)
     (forall i, i < length arr -> i ∉ idxs -> arr !! i = Some #false).
 
+
+  (*
+
+     The representation predicate for the bloom filter. We expose:
+     - l : the location containing the bloom filter
+     - els : the set currently represented by the bloom filter
+     - rem : the number of remaining insertions. Although this limits
+     the expressivity of the spec, it simplifies the proof by allowing
+     us to use amortized error reasoning
+
+   *)
+
   Definition is_bloom_filter (l : loc) (els : gset nat) (rem : nat) : iProp Σ :=
+    (* A bloom filter logically consists of:
+       - hf: a hash function
+       - m : an abstract map that represents the hash function
+       - a : a reference to the array
+       - arr : the array
+       - idxs : the set of indices currently set to true in arr. Note
+         that we expose them at this point for convenience, when hashing
+         a new element we will want to distribute credits depending on
+         whether the new index falls or not in idxs
+    *)
     ∃ hf m a arr (idxs : gset nat),
       ↯ (fp_error rem (size idxs)) ∗
       l ↦ (hf, LitV (LitLoc a))%V ∗
@@ -185,6 +243,10 @@ Section bloom_filter_single.
       hashfun filter_size hf m ∗
       ⌜bloom_filter_correct_content m arr els idxs⌝.
 
+  (*
+     We will now prove a series of lemmas that will allow us to work
+     with the representation predicates in a more abstractn fashion
+  *)
 
   Lemma bloom_filter_init_content (arr : list val) :
     length arr = S filter_size ->
@@ -277,6 +339,20 @@ Section bloom_filter_single.
     apply Hidxs; auto.
   Qed.
 
+
+  (*
+
+     We will use this lemma to update the content of the bloom
+     filter with a new element k when there is no collision for
+     the new index v. This means:
+     - The map gets updated with key-value pair (k,v)
+     - The array gets updated by setting arr[v] to true
+     - k gets added to the set of elements
+     - v gets added to the set of indices
+
+   *)
+
+
   Lemma bloom_filter_update_content_no_coll (m : gmap nat nat)
     (arr : list val) (els : gset nat) (idxs : gset nat) (k : nat) (v : nat) :
     v < S filter_size ->
@@ -340,6 +416,22 @@ Section bloom_filter_single.
       rewrite list_lookup_insert_ne; auto.
   Qed.
 
+
+  (*
+
+     We will use this lemma to update the content of the bloom
+     filter with a new element k when there is a collision for
+     the new index v. This means:
+     - The map gets updated with key-value pair (k,v)
+     - The array gets updated by setting arr[v] to true (though note
+       it must have been true before)
+     - k gets added to the set of elements
+
+     However, the set of indices does not need be updated
+
+   *)
+
+
   Lemma bloom_filter_update_content_coll (m : gmap nat nat)
     (arr : list val) (els : gset nat) (idxs : gset nat) (k : nat) (v : nat) :
     v < S filter_size ->
@@ -373,6 +465,18 @@ Section bloom_filter_single.
       + rewrite list_lookup_insert //.
       + rewrite list_lookup_insert_ne //; auto.
   Qed.
+
+
+ (*
+
+    We will now prove specs for all the bloom filter methods
+
+    When initializing the bloom tilter we will choose how many
+    insertions (rem) we plan to do, and will have to pay
+    ↯ (fp_error rem 0). The result will be an empty bloom filter
+    that still allows rem insertions.
+  *)
+
 
 
  Lemma bloom_filter_init_spec (rem : nat) :
@@ -410,11 +514,18 @@ Section bloom_filter_single.
   Qed.
 
 
-  Lemma bloom_filter_insert_spec (l : loc) (s : gset nat) (x rem : nat) :
-    {{{ is_bloom_filter l s (S rem) ∗ ⌜ x ∉ s ⌝
+  (*
+       The spec below describes inserting a new element, not in the current
+       filter. Note that we require that at least 1 extra insertion must
+       be possible, i.e. the number of remaining insertions must be a successor
+
+   *)
+
+  Lemma bloom_filter_insert_spec (l : loc) (els : gset nat) (x rem : nat) :
+    {{{ is_bloom_filter l els (S rem) ∗ ⌜ x ∉ els ⌝
     }}}
       insert_bloom_filter #l #x
-      {{{ RET #() ; is_bloom_filter l (s ∪ {[x]}) rem
+      {{{ RET #() ; is_bloom_filter l (els ∪ {[x]}) rem
       }}}.
   Proof using erisGS0 filter_size hash_function0 key_size Σ.
     iIntros (Φ) "(Hbf & %Hx ) HΦ".
@@ -423,6 +534,14 @@ Section bloom_filter_single.
     iDestruct "Hbf" as (hf m a arr idxs) "(Herr & Hl & Ha & Hhf & %Hcont)".
     wp_load.
     wp_pures.
+    (*
+        We now get to the point in the proof where error credits are used.
+        Note here how useful the recurrence relation is. We can simply assign
+        ↯ (fp_error rem (size idxs)) to the branch where the new index falls in
+        idxs (i.e. the set of indices set to 1 does not grow) and we assign
+        ↯ (fp_error rem (size idxs)) to the branch where the new index falls
+        outside of idxs.
+    *)
     wp_apply (hash_query_spec_fresh x idxs
        (fp_error (S rem) (size idxs))
        (fp_error rem (size idxs))
@@ -433,9 +552,13 @@ Section bloom_filter_single.
     + apply fp_error_bounded.
     + apply fp_error_bounded.
     + intros. eapply bfcc_idx_bd; eauto.
-    + apply fp_error_step.
-    + simpl.
-      iIntros (v) "(% & ? & [(% & ?) | (% &? )])".
+    +
+      (* The previously procen lemma for distributing error credits for
+         on insertion of the bloom filter clears this goal in one line
+      *)
+      apply fp_error_step.
+    +iIntros (v) "(% & ? & [(% & ?) | (% &? )])".
+      (* We first consider the case where v does not fall in idxs *)
       * wp_pures.
         wp_apply (wp_store_offset with "Ha").
         {
@@ -444,6 +567,7 @@ Section bloom_filter_single.
         iIntros "Ha".
         iApply "HΦ".
         rewrite /is_bloom_filter.
+        (* We now have to reconstruct the bloom filter predicate *)
         iExists hf, (<[x:=v]> m), a, (<[v:=#true]> arr), (idxs ∪ {[v]}).
         iFrame.
         rewrite size_union; [|set_solver].
@@ -451,8 +575,11 @@ Section bloom_filter_single.
         replace (S (size idxs)) with (size idxs + 1) by lia.
         iFrame.
         iPureIntro.
+        (* Finally, we have to prove that the new contents of the bloom filter
+           are correct *)
         by apply bloom_filter_update_content_no_coll.
 
+      (* We now have the case where v falls in idxs *)
       * wp_pures.
         wp_apply (wp_store_offset with "Ha").
         {
@@ -469,8 +596,16 @@ Section bloom_filter_single.
   Qed.
 
 
-  Lemma bloom_filter_lookup_in_spec (l : loc) (s : gset nat) (x rem : nat) :
-    {{{ is_bloom_filter l s rem ∗ ⌜ x ∈ s ⌝
+  (*
+     We prove two specs for lookups. First, we prove a spec for the case
+     where the elements we lookup x is in the set of elements els.
+     In this case, we should deterministically return true, since the element
+     must have been hashed before, and thus can be queried without spending
+     error credits
+   *)
+
+  Lemma bloom_filter_lookup_in_spec (l : loc) (els : gset nat) (x rem : nat) :
+    {{{ is_bloom_filter l els rem ∗ ⌜ x ∈ els ⌝
     }}}
       lookup_bloom_filter #l #x
       {{{ v, RET v ; ⌜v = #true⌝ }}}.
@@ -481,8 +616,9 @@ Section bloom_filter_single.
     wp_pures.
     wp_load.
     wp_pures.
-    destruct (bfcc_map_els m arr s idxs x Hcont) as [H1 H2].
+    destruct (bfcc_map_els m arr els idxs x Hcont) as [H1 H2].
     destruct (H1 Hx) as [v Hv].
+    (* Here we use the spec for querying a previously hashed element *)
     wp_apply (hash_query_spec_prev x _ _ hf m with "Hhf"); eauto.
     iIntros "Hhf".
     wp_pures.
@@ -496,8 +632,18 @@ Section bloom_filter_single.
     done.
  Qed.
 
+
+  (*
+     Finally we have the spec for looking up an element x that is not in the
+     bloom filter. The error credits that we will use are inside the representation
+     predicate, and currently equal ↯ (size idxs / (filter_size + 1)). This means
+     we can spend them to avoid hashing x to a value in idxs, and thus we can
+     ensure we return false
+  *)
+
+
   Lemma bloom_filter_lookup_not_in_spec (l : loc) (s : gset nat) (x rem : nat) :
-    {{{ is_bloom_filter l s (S rem) ∗ ⌜ x ∉ s ⌝
+    {{{ is_bloom_filter l s 0 ∗ ⌜ x ∉ s ⌝
     }}}
       lookup_bloom_filter #l #x
       {{{ v, RET v ; ⌜v = #false⌝ }}}.
@@ -508,19 +654,39 @@ Section bloom_filter_single.
     wp_pures.
     wp_load.
     wp_pures.
-    iPoseProof (ec_weaken _ (fp_error 0 (size idxs)) with "Herr") as "Herr".
-    {
-      split.
-      - apply fp_error_bounded.
-      - apply fp_error_weaken.
-    }
     simpl.
+    (* We get rid of a trivial case where size idxs = filter_size + 1 *)
     case_bool_decide.
     {
       iExFalso.
       iApply (ec_contradict with "[$]").
       lra.
     }
+    (*
+
+      We now use the spec for hasing a fresh element.
+      We have enough credits to completely avoid idxs
+     *)
+    wp_apply (hash_query_spec_fresh_avoid  _ idxs
+                _ filter_size _ m
+               with "[$]"); auto.
+    - rewrite eq_None_not_Some.
+      rewrite <- bfcc_map_els; eauto.
+    - rewrite -Rmult_div_swap.
+      rewrite Rmult_div_l //.
+      real_solver.
+    - iIntros (v) "(%Hv & Hhfw & %Hidxs)".
+      wp_pures.
+      wp_apply (wp_load_offset _ _ _ _ _ #false with "Ha").
+      {
+        eapply bfcc_idxs_arr_false; eauto.
+      }
+      iIntros "Ha".
+      iApply "HΦ".
+      done.
+  Qed.
+
+  (*
     wp_apply (hash_query_spec_fresh  _ idxs
                 _ 1 0 filter_size _ m
                         with "[$]"); auto.
@@ -548,6 +714,7 @@ Section bloom_filter_single.
      + iPoseProof (ec_contradict with "[$Herr]") as "?"; [lra|].
         done.
  Qed.
+  *)
 
 End bloom_filter_single.
 

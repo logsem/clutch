@@ -709,7 +709,7 @@ Section bloom_filter.
         simpl.
         iDestruct "Hms_old_hf" as "[Hmcur Hms_tail]".
         wp_bind (w _).
-        wp_apply (wp_insert_basic _ _ m x with "Hmcur").
+        wp_apply (hash_query_spec_fresh_basic x _ w m with "Hmcur").
         * apply not_elem_of_dom_1.
           apply Forall_cons in Hms_old_dom as [-> ?].
           done.

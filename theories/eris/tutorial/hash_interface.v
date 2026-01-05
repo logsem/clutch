@@ -54,15 +54,23 @@ Class hash_function Σ `{!erisGS Σ} := Hash_Function
 Section derived_lemmas.
   Context `{!erisGS Σ, !hash_function Σ}.
 
-Lemma wp_insert_basic f val_size m (n : nat)  :
-    m !! n = None →
+(*
+   We derive some lemmas that will allow us to work with the hash
+   function. First, one can always query a fresh element without
+   spending error credits, and then one gets no information about
+   the value, besides that it is within range
+
+ *)
+
+Lemma hash_query_spec_fresh_basic (k : nat) val_size f m :
+    m !! k = None →
     {{{ hashfun val_size f m }}}
-      f #n
-      {{{ (v : nat), RET #v; ⌜ (v < S val_size)%nat ⌝ ∗ hashfun val_size f (<[ n := v ]>m) }}}.
+      f #k
+      {{{ (v : nat), RET #v; ⌜ (v < S val_size)%nat ⌝ ∗ hashfun val_size f (<[ k := v ]>m) }}}.
 Proof.
   iIntros (Hlookup Φ) "Hhash HΦ".
   iMod (ec_zero) as "Herr".
-  iApply (hash_query_spec_fresh n ∅ 0%R 0%R 0%R val_size with "[$]"); eauto.
+  iApply (hash_query_spec_fresh k ∅ 0%R 0%R 0%R val_size with "[$]"); eauto.
   - lra.
   - lra.
   - intro x.
@@ -74,5 +82,64 @@ Proof.
     iApply ("HΦ" with "[-]").
     by iFrame.
 Qed.
+
+
+(*
+   Second, if one has enough error credits, one can avoid hashing a fresh element
+   into a value in the avoid set
+*)
+
+Lemma hash_query_spec_fresh_avoid (k : nat) (avoid : gset nat) (ε : R) (val_size : nat) f m:
+    m !! k = None →
+    (size avoid <= ε * (val_size + 1))%R →
+    {{{ hashfun val_size f m ∗ ↯ ε }}}
+      f #k
+      {{{ (v : nat), RET #v; ⌜ (v < S val_size)%nat ⌝ ∗
+                           hashfun val_size f (<[ k := v ]>m) ∗
+                           ⌜ v ∉ avoid ⌝ }}}.
+Proof.
+  iIntros (Hlookup Hε Φ) "(Hhash & Herr) HΦ".
+  (*
+     For technical reasons, the avoid set in hash_query_spec_fresh
+     hash to satisfy (∀ x, x ∈ avoid → x < S val_size). Since it
+     may not be the case here, we first compute the intersection
+     of avoid with [0,...,val_size]
+
+   *)
+  set (avoid' := avoid ∩ (set_seq 0 (val_size + 1))).
+  wp_apply (hash_query_spec_fresh  _ avoid'
+              _ 1 0 val_size _ m
+             with "[$]"); auto.
+  - lra.
+  - lra.
+  - rewrite /avoid'.
+    intros x Hx.
+    rewrite elem_of_intersection in Hx.
+    destruct Hx as [Hx1 Hx2].
+    rewrite elem_of_set_seq in Hx2.
+    lia.
+  - rewrite Rmult_1_l Rmult_0_l Rplus_0_r.
+    rewrite /avoid'.
+    transitivity (size avoid); auto.
+    apply le_INR.
+    apply subseteq_size.
+    set_solver.
+  - iIntros (v) "(%Hv & Hhfw & Herr)".
+     iDestruct "Herr" as "[(%Hvout & Herr) | (%Hvin & Herr)]".
+     + iApply "HΦ".
+       iFrame.
+       iPureIntro.
+       split; auto.
+       intros Hv2.
+       apply Hvout.
+       rewrite /avoid'.
+       rewrite elem_of_intersection.
+       split; auto.
+       rewrite elem_of_set_seq.
+       lia.
+     + iPoseProof (ec_contradict with "[$Herr]") as "?"; [lra|].
+       done.
+Qed.
+
 
 End derived_lemmas.
