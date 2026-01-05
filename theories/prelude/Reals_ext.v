@@ -193,6 +193,76 @@ Proof. intros ; lra. Qed.
 
 Hint Resolve Rminus_le_0_compat : real.
 
+
+Lemma pow_le_1_compat (x : R) (n : nat):
+    (0 <= x <= 1)%R → 0 ≤ n → (0 <= x ^ n <= 1)%R.
+  Proof.
+    intros Hx Hn.
+    destruct (le_lt_eq_dec _ _ Hn) as [Hn_lt | <-]; last first.
+    {
+      rewrite pow_O; lra.
+    }
+    destruct (decide (x < 1)%R) as [H | H].
+    - split.
+      + apply pow_le; lra.
+      + left.
+        apply pow_lt_1_compat; auto.
+        lra.
+    - split.
+      + apply pow_le; lra.
+      + apply Rnot_gt_le in H.
+        assert (x = 1) as ->.
+        * destruct Hx.
+          apply Rle_antisym; auto.
+        * rewrite pow1; lra.
+  Qed.
+
+  Lemma convex_sum_conv (x a b : R) :
+    (0 <= x <= 1)%R ->
+    (a <= b)%R ->
+    (a <= x * a + (1-x)*b <= b)%R.
+  Proof.
+    intros Hx Hab.
+    split.
+    - assert (a = x * a + (1 - x) * a)%R as Haux by lra.
+      rewrite {1}Haux.
+      apply Rplus_le_compat_l.
+      apply Rmult_le_compat_l; lra.
+    - assert (b = x * b + (1 - x) * b)%R as Haux by lra.
+      rewrite {2}Haux.
+      apply Rplus_le_compat_r.
+      apply Rmult_le_compat_l; lra.
+  Qed.
+
+
+  Lemma convex_sum_conv_alt (x a a' b b' : R) :
+    (0 <= x <= 1)%R ->
+    (a <= a' <= b)%R ->
+    (a <= b' <= b)%R ->
+    (a <= x * a' + (1-x)*b' <= b)%R.
+  Proof.
+    intros Hx Ha' Hb'.
+    destruct (Rle_lt_dec a' b').
+    - split.
+      + transitivity a'; [lra|].
+        apply convex_sum_conv; auto.
+      + transitivity b'; [|lra].
+        apply convex_sum_conv; auto.
+    - set (y := (1-x)%R).
+      replace x with (1-y)%R; last first.
+      {
+        rewrite /y. lra.
+      }
+      rewrite Rplus_comm.
+      split.
+      + transitivity b'; [lra|].
+        apply convex_sum_conv; [|lra].
+        rewrite /y; lra.
+      + transitivity a'; [|lra].
+        apply convex_sum_conv; [|lra].
+        rewrite /y; lra.
+   Qed.
+
 From Ltac2 Require Import Ltac2.
 
 Ltac2 split_le_le _ :=
