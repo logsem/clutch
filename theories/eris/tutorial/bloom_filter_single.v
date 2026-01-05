@@ -128,15 +128,17 @@ Section bloom_filter_single.
 
   Lemma fp_error_step (m b: nat) :
     (fp_error m b * b +
-    fp_error m (S b) * (filter_size + 1 - b) <=
-    fp_error (S m) b * (filter_size + 1))%R.
+    fp_error m (b + 1) * (filter_size + 1 - b) <=
+    fp_error (m + 1) b * (filter_size + 1))%R.
   Proof.
+    replace (m+1) with (S m) by lia.
     simpl.
     case_bool_decide.
     * rewrite fp_error_max /=; auto.
-      rewrite fp_error_max /=; auto.
+      rewrite fp_error_max /=; [|lia].
       lra.
     * right.
+      replace (S b) with (b + 1) by lia.
       rewrite (Rmult_comm (b / (filter_size + 1))).
       rewrite (Rmult_comm ((filter_size + 1 - b) / (filter_size + 1))).
       rewrite Rmult_plus_distr_r.
@@ -522,11 +524,9 @@ Section bloom_filter_single.
    *)
 
   Lemma bloom_filter_insert_spec (l : loc) (els : gset nat) (x rem : nat) :
-    {{{ is_bloom_filter l els (S rem) ∗ ⌜ x ∉ els ⌝
-    }}}
+    {{{ is_bloom_filter l els (rem + 1) ∗ ⌜ x ∉ els ⌝ }}}
       insert_bloom_filter #l #x
-      {{{ RET #() ; is_bloom_filter l (els ∪ {[x]}) rem
-      }}}.
+    {{{ RET #() ; is_bloom_filter l (els ∪ {[x]}) rem }}}.
   Proof using erisGS0 filter_size hash_function0 key_size Σ.
     iIntros (Φ) "(Hbf & %Hx ) HΦ".
     rewrite /insert_bloom_filter {1}/is_bloom_filter.
@@ -543,9 +543,9 @@ Section bloom_filter_single.
         outside of idxs.
     *)
     wp_apply (hash_query_spec_fresh x idxs
-       (fp_error (S rem) (size idxs))
+       (fp_error (rem + 1) (size idxs))
        (fp_error rem (size idxs))
-       (fp_error rem (S (size idxs)))
+       (fp_error rem (size idxs + 1))
        filter_size hf m with "[$]"); auto.
     + rewrite eq_None_not_Some.
       rewrite <- bfcc_map_els; eauto.
@@ -553,7 +553,7 @@ Section bloom_filter_single.
     + apply fp_error_bounded.
     + intros. eapply bfcc_idx_bd; eauto.
     +
-      (* The previously procen lemma for distributing error credits for
+      (* The previously proven lemma for distributing error credits for
          on insertion of the bloom filter clears this goal in one line
       *)
       apply fp_error_step.
@@ -572,7 +572,6 @@ Section bloom_filter_single.
         iFrame.
         rewrite size_union; [|set_solver].
         rewrite size_singleton.
-        replace (S (size idxs)) with (size idxs + 1) by lia.
         iFrame.
         iPureIntro.
         (* Finally, we have to prove that the new contents of the bloom filter
@@ -605,8 +604,7 @@ Section bloom_filter_single.
    *)
 
   Lemma bloom_filter_lookup_in_spec (l : loc) (els : gset nat) (x rem : nat) :
-    {{{ is_bloom_filter l els rem ∗ ⌜ x ∈ els ⌝
-    }}}
+    {{{ is_bloom_filter l els rem ∗ ⌜ x ∈ els ⌝ }}}
       lookup_bloom_filter #l #x
       {{{ v, RET v ; ⌜v = #true⌝ }}}.
   Proof using erisGS0 filter_size hash_function0 key_size Σ.
@@ -643,8 +641,7 @@ Section bloom_filter_single.
 
 
   Lemma bloom_filter_lookup_not_in_spec (l : loc) (s : gset nat) (x rem : nat) :
-    {{{ is_bloom_filter l s 0 ∗ ⌜ x ∉ s ⌝
-    }}}
+    {{{ is_bloom_filter l s 0 ∗ ⌜ x ∉ s ⌝ }}}
       lookup_bloom_filter #l #x
       {{{ v, RET v ; ⌜v = #false⌝ }}}.
   Proof using erisGS0 filter_size hash_function0 key_size Σ.

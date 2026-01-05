@@ -3,7 +3,13 @@ From stdpp Require Export fin_maps.
 Set Default Proof Using "Type*".
 
 
-(** An interface for hash functions *)
+(*
+  An abstract interface for hash functions. At the code level,
+  the hash will be accessed through a function f, which is a value.
+  Our logical view of the hash function will be given by a partial
+  map m from keys to values.
+
+*)
 Class hash_function Σ `{!erisGS Σ} := Hash_Function
 {
 
@@ -13,19 +19,38 @@ Class hash_function Σ `{!erisGS Σ} := Hash_Function
   (** * Predicates *)
   hashfun (val_size : nat) (f : val) (m : gmap nat nat): iProp Σ;
 
-  (** * General properties of the predicates
-  #[global] hashkey_timeless γs k v :: Timeless (hashkey γs k v);
-  #[global] conhashfun_persistent γs vs f :: Persistent (hashfun γs vs f);
-  #[global] hashkey_Some_persistent γs k v :: Persistent (hashkey γs k (Some v));
-  *)
-
-
   hash_init_spec key_size val_size :
   {{{ True }}}
     init_hash #key_size #val_size
   {{{ h, RET h;
         hashfun val_size h ∅  }}} ;
 
+  (*
+
+     The key spec for working with hash functions is below. Here
+     we are hashing a fresh key k, and we want its value v to fall outside
+     of a set avoid. Instead of directly specifying that v∉avoid, we will
+     distribute our current error budget ↯ε depending on whether v falls inside
+     or outside avoid, giving ↯εI to the former and ↯εO to the latter.
+
+     Since we assume that values for the hash are distributed uniformly, we
+     will impose the condition
+
+     (εI * size avoid + εO * (val_size + 1 - size avoid) <= ε * (val_size + 1))
+
+     Note that
+     (1) The probability of falling in avoid is (size avoid / (val_size + 1))
+     (2) The probability of falling outside of avoid is
+         (val_size + 1 - size avoid) / (val_size + 1)
+
+     Therefore the inequality above states that the ε is at least equal or larger
+     to the expected amount of error credits we will have after hashing
+
+     On returning, we will get a value n, an updated view on the hash, where
+     the partial map now contains the key-value pair (k,n) and an amount
+     of error credits depending on whether n ∈ avoid or n ∉ avoid.
+
+   *)
   hash_query_spec_fresh (k : nat) (avoid : gset nat) (ε εI εO: R) val_size
     f (m : gmap nat nat) :
      m !! k = None ->
@@ -42,6 +67,14 @@ Class hash_function Σ `{!erisGS Σ} := Hash_Function
                    hashfun val_size f (<[k := n]> m) ∗
         ((⌜n ∉ avoid⌝ ∗ ↯ εO) ∨ (⌜n ∈ avoid⌝ ∗ ↯ εI))
     }}} ;
+
+
+   (*
+
+     If we are hashing a previously hashed elem, then we simply return
+     its assigned value, which is in the map
+
+   *)
 
   hash_query_spec_prev (k : nat) val_size (v :nat) f (m : gmap nat nat) :
   m !! k = Some v ->
@@ -60,7 +93,7 @@ Section derived_lemmas.
    spending error credits, and then one gets no information about
    the value, besides that it is within range
 
- *)
+*)
 
 Lemma hash_query_spec_fresh_basic (k : nat) val_size f m :
     m !! k = None →
@@ -101,12 +134,16 @@ Lemma hash_query_spec_fresh_avoid_aux (k : nat) (avoid : gset nat) (ε : R) (val
                              ⌜ v ∉ avoid ⌝ }}}.
 Proof.
   iIntros (Hlookup Hav Hε Φ) "(Hhash & Herr) HΦ".
+  (* The key to this proof is the following step,
+     where we assign ↯ 1 to the case where we sample
+     an index in avoid and ↯ 0 otherwise.
+   *)
   wp_apply (hash_query_spec_fresh  _ avoid
               _ 1 0 val_size _ m
              with "[$]"); auto.
   - lra.
   - lra.
-  - rewrite Rmult_1_l Rmult_0_l Rplus_0_r //.
+  - real_solver.
   - iIntros (v) "(%Hv & Hhfw & Herr)".
      iDestruct "Herr" as "[(%Hvout & Herr) | (%Hvin & Herr)]".
      + iApply "HΦ".
@@ -138,17 +175,17 @@ Lemma hash_query_spec_fresh_avoid (k : nat) (avoid : gset nat) (ε : R) (val_siz
 Proof.
   iIntros (Hlookup Hε Φ) "(Hhash & Herr) HΦ".
   (*
-     For technical reasons, the avoid set in hash_query_spec_fresh
-     hash to satisfy (∀ x, x ∈ avoid → x < S val_size). Since it
-     may not be the case here, we first compute the intersection
-     of avoid with [0,...,val_size]
-
+     We first compute the intersection of avoid with
+     with [0,...,val_size] to obtain a new set avoid'
+     satisfying the premise of hash_query_spec_fresh_avoid_aux
    *)
   set (avoid' := avoid ∩ (set_seq 0 (val_size + 1))).
   wp_apply (hash_query_spec_fresh_avoid_aux _ avoid' _ val_size _ m
-             with "[$]"); auto.
-  - rewrite /avoid'.
-    intros x Hx.
+             with "[$]"); auto; rewrite /avoid'.
+  (*
+    The rest of the proof is mostly simple reasoning about sets
+   *)
+  - intros x Hx.
     rewrite elem_of_intersection in Hx.
     destruct Hx as [Hx1 Hx2].
     rewrite elem_of_set_seq in Hx2.
@@ -164,7 +201,6 @@ Proof.
     split; auto.
     intros Hv2.
     apply Hvout.
-    rewrite /avoid'.
     rewrite elem_of_intersection.
     split; auto.
     rewrite elem_of_set_seq.
