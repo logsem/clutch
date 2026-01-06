@@ -3,7 +3,11 @@ From stdpp Require Export fin_maps.
 Set Default Proof Using "Type*".
 
 
-(*
+(**  * Hash Functions  *)
+
+(** ** Hash interface *)
+
+(**
   An abstract interface for hash functions. This will allow us to work with
   hashes using a random oracle model, i.e. the first time we hash a key it will
   return a uniformly sampled value, and subsequent times will return the same
@@ -17,12 +21,12 @@ Set Default Proof Using "Type*".
 Class hash_function Σ `{!erisGS Σ} := Hash_Function
 {
 
-  (** * Operations *)
+  (** *** Operations *)
   init_hash : val;
 
-  (** * Predicates *)
+  (** *** Predicates *)
 
-  (*
+  (**
      The hashfun predicate connects the code level function f with its abstract
      representation m. Here val_size is a bound on the codomain of the hash,
      i.e., the hash should return values in [0,...,val_size]
@@ -30,7 +34,7 @@ Class hash_function Σ `{!erisGS Σ} := Hash_Function
 
   hashfun (val_size : nat) (f : val) (m : gmap nat nat): iProp Σ;
 
-  (** * Properties *)
+  (** *** Properties *)
 
   (*
      All values must be within [0,...,val_size]
@@ -40,7 +44,7 @@ Class hash_function Σ `{!erisGS Σ} := Hash_Function
     m !! k = Some v ->
     hashfun vs f m ⊢ ⌜ v < S vs ⌝;
 
-  (** * Specifications *)
+  (** *** Specifications *)
 
   hash_init_spec key_size val_size :
   {{{ True }}}
@@ -48,8 +52,7 @@ Class hash_function Σ `{!erisGS Σ} := Hash_Function
   {{{ h, RET h;
         hashfun val_size h ∅  }}} ;
 
-  (*
-
+  (**
      The key spec for working with hash functions is below. Here
      we are hashing a fresh key k, and we want its value v to fall outside
      of a set avoid. Instead of directly specifying that v∉avoid, we will
@@ -72,8 +75,8 @@ Class hash_function Σ `{!erisGS Σ} := Hash_Function
      On returning, we will get a value n, an updated view on the hash, where
      the partial map now contains the key-value pair (k,n) and an amount
      of error credits depending on whether n ∈ avoid or n ∉ avoid.
-
    *)
+
   hash_query_spec_fresh (k : nat) (avoid : gset nat) (ε εI εO: R) val_size
     f (m : gmap nat nat) :
      m !! k = None ->
@@ -92,11 +95,9 @@ Class hash_function Σ `{!erisGS Σ} := Hash_Function
     }}} ;
 
 
-   (*
-
+   (**
      If we are hashing a previously hashed elem, then we simply return
      its assigned value, which is in the map
-
    *)
 
   hash_query_spec_prev (k : nat) val_size (v :nat) f (m : gmap nat nat) :
@@ -110,12 +111,13 @@ Class hash_function Σ `{!erisGS Σ} := Hash_Function
 Section derived_lemmas.
   Context `{!erisGS Σ, !hash_function Σ}.
 
-(*
+(**  ** Derived lemmas about hash functions *)
+
+(**
    We derive some lemmas that will allow us to work with the hash
    function. First, one can always query a fresh element without
    spending error credits, and then one gets no information about
    the value, besides that it is within range
-
 *)
 
 Lemma hash_query_spec_fresh_basic (k : nat) val_size f m :
@@ -140,7 +142,7 @@ Proof.
 Qed.
 
 
-(*
+(**
    Second, if one has enough error credits, one can avoid hashing a fresh element
    into a value in the avoid set
 *)
@@ -157,7 +159,7 @@ Lemma hash_query_spec_fresh_avoid_aux (k : nat) (avoid : gset nat) (ε : R) (val
                              ⌜ v ∉ avoid ⌝ }}}.
 Proof.
   iIntros (Hlookup Hav Hε Φ) "(Hhash & Herr) HΦ".
-  (* The key to this proof is the following step,
+  (** The key to this proof is the following step,
      where we assign ↯ 1 to the case where we sample
      an index in avoid and ↯ 0 otherwise.
    *)
@@ -177,7 +179,7 @@ Proof.
        done.
 Qed.
 
-(*
+(**
     We can actually get rid of the hypothesis
     (∀ x, x ∈ avoid → x < S val_size)
     This is used to ensure we have the right multiplier
@@ -197,7 +199,7 @@ Lemma hash_query_spec_fresh_avoid (k : nat) (avoid : gset nat) (ε : R) (val_siz
                            ⌜ v ∉ avoid ⌝ }}}.
 Proof.
   iIntros (Hlookup Hε Φ) "(Hhash & Herr) HΦ".
-  (*
+  (**
      We first compute the intersection of avoid with
      with [0,...,val_size] to obtain a new set avoid'
      satisfying the premise of hash_query_spec_fresh_avoid_aux
@@ -230,7 +232,9 @@ Proof.
     lia.
 Qed.
 
-(*
+(** ** An example program *)
+
+(**
    As a first use of our hash specifications, we will consider a simple
    example, where initialize a hash, hash two different integers, and check
    that their outputs are different
@@ -250,12 +254,12 @@ Qed.
  Proof.
     iIntros (Φ) "Herr HΦ".
     rewrite /two_hash.
-    (* We first initialize the hash, with size 31 for keys
+    (** We first initialize the hash, with size 31 for keys
        and 7 for values *)
     wp_apply (hash_init_spec 31 7); auto.
     iIntros (h) "Hhf".
     wp_pures.
-    (* We now hash 1. The map is currently empty, and any
+    (** We now hash 1. The map is currently empty, and any
        result is valid at this point. Therefore, we do not
        need to spend any amount of error credits *)
     wp_apply (hash_query_spec_fresh_basic 1 with "[$]").
@@ -264,7 +268,7 @@ Qed.
     }
     iIntros (v1) "(%Hv1 & Hhf)".
     wp_pures.
-    (* We now hash 2. At this point, we want to avoid a collision
+    (** We now hash 2. At this point, we want to avoid a collision
        with 1, that is, we want the result to not be v1. Since this
        is a singleton set, we can spend ↯(1/8) to avoid it *)
     wp_apply (hash_query_spec_fresh_avoid 2 {[v1]} with "[$]").
