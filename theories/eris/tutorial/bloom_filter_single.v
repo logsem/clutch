@@ -681,6 +681,12 @@ Section bloom_filter_single.
         by apply bloom_filter_update_content_coll.
   Qed.
 
+   (*
+      For completeness, let's also prove a spec where we insert a previously
+      inserted element. In principle, there is no need to spend credits here,
+      but we will do it nevertheless to facilitate reasoning about a sequence
+      of insertions.
+   *)
 
   Lemma bloom_filter_insert_old_spec (l : loc) (els : gset nat) (x rem : nat) :
     {{{ is_bloom_filter l els (rem + 1) ∗ ⌜ x ∈ els ⌝ }}}
@@ -695,6 +701,9 @@ Section bloom_filter_single.
     wp_pures.
     rewrite bfcc_map_els in Hx; eauto.
     destruct Hx as [v Hv].
+    (*
+        We are hashing a previously queried element
+     *)
     wp_apply (hash_query_spec_prev x _ v hf m with "[$]"); eauto.
     iIntros "Hhf".
     wp_pures.

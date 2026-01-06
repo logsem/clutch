@@ -4,10 +4,14 @@ Set Default Proof Using "Type*".
 
 
 (*
-  An abstract interface for hash functions. At the code level,
-  the hash will be accessed through a function f, which is a value.
-  Our logical view of the hash function will be given by a partial
-  map m from keys to values.
+  An abstract interface for hash functions. This will allow us to work with
+  hashes using a random oracle model, i.e. the first time we hash a key it will
+  return a uniformly sampled value, and subsequent times will return the same
+  value.
+
+  At the code level, the hash will be accessed through a function f, which is a
+  value. Our logical view of the hash function will be given by a partial map m
+  from keys to values.
 
 *)
 Class hash_function Σ `{!erisGS Σ} := Hash_Function
@@ -17,14 +21,24 @@ Class hash_function Σ `{!erisGS Σ} := Hash_Function
   init_hash : val;
 
   (** * Predicates *)
+
+  (*
+     The hashfun predicate connects the code level function f with its abstract
+     representation m. Here val_size is a bound on the codomain of the hash,
+     i.e., the hash should return values in [0,...,val_size]
+  *)
+
   hashfun (val_size : nat) (f : val) (m : gmap nat nat): iProp Σ;
 
   (** * Properties *)
 
+  (*
+     All values must be within [0,...,val_size]
+  *)
   hash_val_in_bd :
   ∀ vs f m k v,
     m !! k = Some v ->
-    hashfun vs f m ⊢ ⌜ v < vs ⌝;
+    hashfun vs f m ⊢ ⌜ v < S vs ⌝;
 
   (** * Specifications *)
 
@@ -215,6 +229,58 @@ Proof.
     rewrite elem_of_set_seq.
     lia.
 Qed.
+
+(*
+   As a first use of our hash specifications, we will consider a simple
+   example, where initialize a hash, hash two different integers, and check
+   that their outputs are different
+ *)
+
+
+  Definition two_hash : expr :=
+         let: "hf" := init_hash #31 #7 in
+         let: "v1" := "hf" #1 in
+         let: "v2" := "hf" #2 in
+         ("v1", "v2").
+
+  Lemma two_hash_spec :
+    {{{ ↯ (1/8) }}}
+      two_hash
+      {{{ v1 v2, RET (#v1,#v2) ; ⌜ v1 ≠ v2 ⌝ }}}.
+ Proof.
+    iIntros (Φ) "Herr HΦ".
+    rewrite /two_hash.
+    (* We first initialize the hash, with size 31 for keys
+       and 7 for values *)
+    wp_apply (hash_init_spec 31 7); auto.
+    iIntros (h) "Hhf".
+    wp_pures.
+    (* We now hash 1. The map is currently empty, and any
+       result is valid at this point. Therefore, we do not
+       need to spend any amount of error credits *)
+    wp_apply (hash_query_spec_fresh_basic 1 with "[$]").
+    {
+      set_solver.
+    }
+    iIntros (v1) "(%Hv1 & Hhf)".
+    wp_pures.
+    (* We now hash 2. At this point, we want to avoid a collision
+       with 1, that is, we want the result to not be v1. Since this
+       is a singleton set, we can spend ↯(1/8) to avoid it *)
+    wp_apply (hash_query_spec_fresh_avoid 2 {[v1]} with "[$]").
+    {
+      set_solver.
+    }
+    - rewrite size_singleton /=.
+      lra.
+    - iIntros (v2) "(%Hv2 & Hhf & %Hnelem)".
+      wp_pures.
+      iApply "HΦ".
+      iPureIntro.
+      set_solver.
+  Qed.
+
+
 
 
 End derived_lemmas.
