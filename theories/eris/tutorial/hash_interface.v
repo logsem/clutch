@@ -19,6 +19,15 @@ Class hash_function Σ `{!erisGS Σ} := Hash_Function
   (** * Predicates *)
   hashfun (val_size : nat) (f : val) (m : gmap nat nat): iProp Σ;
 
+  (** * Properties *)
+
+  hash_val_in_bd :
+  ∀ vs f m k v,
+    m !! k = Some v ->
+    hashfun vs f m ⊢ ⌜ v < vs ⌝;
+
+  (** * Specifications *)
+
   hash_init_spec key_size val_size :
   {{{ True }}}
     init_hash #key_size #val_size

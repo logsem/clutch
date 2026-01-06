@@ -43,6 +43,15 @@ Section bloom_filter_single.
     - case_bool_decide; done.
   Qed.
 
+  Lemma fp_error_unfold_S (m b : nat)  :
+    fp_error (S m) b =
+      if bool_decide (b >= filter_size + 1) then 1 else
+        ((b / (filter_size + 1)) * fp_error m b +
+               ((filter_size + 1 - b) / (filter_size + 1)) * fp_error m (S b))%R.
+  Proof.
+    auto.
+  Qed.
+
 
   Lemma fp_error_bounded (m b : nat) :
     (0 <= fp_error m b <= 1)%R.
@@ -81,10 +90,88 @@ Section bloom_filter_single.
   Qed.
 
 
-  Lemma fp_error_weaken (m b : nat):
-    (fp_error 0 b <= fp_error m b)%R.
+
+  Lemma fp_error_mon_2 (m b : nat):
+    (fp_error m b <= fp_error m (S b))%R.
   Proof.
     revert b.
+    induction m; intros b.
+    - rewrite {2}/fp_error.
+      case_bool_decide.
+      + apply fp_error_bounded.
+      + rewrite /fp_error.
+        rewrite bool_decide_eq_false_2.
+        * apply Rmult_le_compat_r.
+          ** real_solver.
+          ** rewrite S_INR.
+             lra.
+        * lia.
+    - rewrite (fp_error_unfold_S _ (S b)).
+      case_bool_decide as H.
+      + apply fp_error_bounded.
+      + rewrite fp_error_unfold_S.
+        rewrite bool_decide_eq_false_2; last by lia.
+        assert(
+            (filter_size + 1 - b) / (filter_size + 1) * fp_error m (S b) =
+            (filter_size + 1 - S b) / (filter_size + 1) * fp_error m (S b) +
+              1 / (filter_size + 1) * fp_error m (S b) )%R as ->.
+        { rewrite S_INR. lra. }
+        assert(
+            S b / (filter_size + 1) * fp_error m (S b) =
+            b / (filter_size + 1) * fp_error m (S b) +
+            1 / (filter_size + 1) * fp_error m (S b))%R as ->.
+        { rewrite S_INR. lra. }
+        rewrite Rplus_assoc.
+        * apply Rplus_le_compat.
+          ** apply Rmult_le_compat.
+             *** real_solver.
+             *** apply fp_error_bounded.
+             *** apply Rmult_le_compat_r; [real_solver|].
+                 lra.
+             *** apply IHm.
+          ** rewrite Rplus_comm.
+             apply Rplus_le_compat_l.
+             apply Rmult_le_compat_l; [|apply IHm].
+             *** left.
+                 apply Rdiv_lt_0_compat.
+                 **** apply not_ge, lt_INR in H.
+                      rewrite S_INR plus_INR /= in H.
+                      rewrite S_INR.
+                      lra.
+                 **** real_solver.
+    Qed.
+
+
+  Lemma fp_error_mon_1 (m b : nat):
+    (fp_error m b <= fp_error (S m) b)%R.
+  Proof.
+    rewrite fp_error_unfold_S.
+    case_bool_decide.
+    - apply fp_error_bounded.
+    - transitivity
+        (b / (filter_size + 1) * fp_error m b +
+           (filter_size + 1 - b) / (filter_size + 1) * fp_error m b)%R.
+      + rewrite -Rmult_plus_distr_r.
+        rewrite -{1}(Rmult_1_l (fp_error m b)).
+        apply Rmult_le_compat_r; [apply fp_error_bounded|].
+        rewrite -Rmult_plus_distr_r.
+        replace (b + (filter_size + 1 - b))%R with
+          (filter_size + 1)%R by lra.
+        rewrite -Rdiv_def.
+        rewrite Rdiv_diag; real_solver.
+      + apply Rplus_le_compat_l.
+        apply Rmult_le_compat_l; [|apply fp_error_mon_2].
+        left.
+        apply Rdiv_lt_0_compat; [|real_solver].
+        apply not_ge, lt_INR in H.
+        rewrite plus_INR /= in H.
+        real_solver.
+  Qed.
+
+    Lemma fp_error_weaken (m b : nat):
+      (fp_error 0 b <= fp_error m b)%R.
+    Proof.
+      revert b.
     induction m; intros b; [lra |].
     pose proof (IHm (S b)) as H2.
     assert (fp_error 0 b <= fp_error 0 (S b))%R as H3.
@@ -523,7 +610,7 @@ Section bloom_filter_single.
 
    *)
 
-  Lemma bloom_filter_insert_spec (l : loc) (els : gset nat) (x rem : nat) :
+  Lemma bloom_filter_insert_fresh_spec (l : loc) (els : gset nat) (x rem : nat) :
     {{{ is_bloom_filter l els (rem + 1) ∗ ⌜ x ∉ els ⌝ }}}
       insert_bloom_filter #l #x
     {{{ RET #() ; is_bloom_filter l (els ∪ {[x]}) rem }}}.
@@ -595,6 +682,67 @@ Section bloom_filter_single.
   Qed.
 
 
+  Lemma bloom_filter_insert_old_spec (l : loc) (els : gset nat) (x rem : nat) :
+    {{{ is_bloom_filter l els (rem + 1) ∗ ⌜ x ∈ els ⌝ }}}
+      insert_bloom_filter #l #x
+      {{{ RET #() ; is_bloom_filter l els rem }}}.
+  Proof using erisGS0 filter_size hash_function0 key_size Σ.
+    iIntros (Φ) "(Hbf & %Hx ) HΦ".
+    rewrite /insert_bloom_filter {1}/is_bloom_filter.
+    wp_pures.
+    iDestruct "Hbf" as (hf m a arr idxs) "(Herr & Hl & Ha & Hhf & %Hcont)".
+    wp_load.
+    wp_pures.
+    rewrite bfcc_map_els in Hx; eauto.
+    destruct Hx as [v Hv].
+    wp_apply (hash_query_spec_prev x _ v hf m with "[$]"); eauto.
+    iIntros "Hhf".
+    wp_pures.
+    iPoseProof (hash_val_in_bd with "Hhf") as "%Hvbd"; eauto.
+    wp_apply (wp_store_offset with "Ha").
+    {
+       eapply bfcc_lookup_arr; eauto.
+    }
+    iIntros "Ha".
+    iApply "HΦ".
+    rewrite /is_bloom_filter.
+    (* We now have to reconstruct the bloom filter predicate *)
+    iExists hf, m, a, arr, idxs.
+    iFrame.
+    iPoseProof (ec_weaken with "Herr") as "Herr".
+    {
+      split; last first.
+      - replace (rem+1) with (S rem) by lia.
+        apply fp_error_mon_1.
+      - apply fp_error_bounded.
+    }
+    iFrame.
+    iSplit; auto.
+    assert (<[v:=#true]> arr = arr) as ->; auto.
+    apply list_insert_id.
+    eapply bfcc_idxs_arr_true; eauto.
+    eapply bfcc_map_to_idx; eauto.
+  Qed.
+
+
+  (* For simplicity, we will unify both specs into one *)
+
+  Lemma bloom_filter_insert_spec (l : loc) (els : gset nat) (x rem : nat) :
+    {{{ is_bloom_filter l els (rem + 1) }}}
+      insert_bloom_filter #l #x
+    {{{ RET #() ; is_bloom_filter l (els ∪ {[x]}) rem }}}.
+  Proof using erisGS0 filter_size hash_function0 key_size Σ.
+    iIntros (Φ) "Hbf HΦ".
+    destruct (decide (x∈els)).
+    - wp_apply (bloom_filter_insert_old_spec with "[$Hbf]"); auto.
+      iIntros "Hbf".
+      iApply "HΦ".
+      replace (els ∪ {[x]}) with els by set_solver.
+      done.
+    - wp_apply (bloom_filter_insert_fresh_spec with "[$Hbf]"); done.
+  Qed.
+
+
   (*
      We prove two specs for lookups. First, we prove a spec for the case
      where the elements we lookup x is in the set of elements els.
@@ -640,7 +788,7 @@ Section bloom_filter_single.
   *)
 
 
-  Lemma bloom_filter_lookup_not_in_spec (l : loc) (s : gset nat) (x rem : nat) :
+  Lemma bloom_filter_lookup_not_in_spec (l : loc) (s : gset nat) (x : nat) :
     {{{ is_bloom_filter l s 0 ∗ ⌜ x ∉ s ⌝ }}}
       lookup_bloom_filter #l #x
       {{{ v, RET v ; ⌜v = #false⌝ }}}.
@@ -711,6 +859,94 @@ Section bloom_filter_single.
         done.
  Qed.
   *)
+
+
+  (*
+     For completeness, let's write a  client of the bloom filter. This will
+     create an empty bloom filter, execute a sequence of insertions
+     and then execute a single lookup. The main loop, which takes
+     care of the insertions is shown below
+   *)
+
+
+  Definition insert_bloom_filter_loop_seq : val :=
+    (rec: "aux" "bfl" "ks" :=
+       match: "ks" with
+         NONE => #()
+       | SOME "p" =>
+           let: "h" := Fst "p" in
+           let: "t" := Snd "p" in
+           (insert_bloom_filter "bfl" "h") ;; ("aux" "bfl" "t")
+       end).
+
+  Definition main_bloom_filter_seq (ksv ktest : val) : expr :=
+      let: "bfl" := init_bloom_filter #() in
+      insert_bloom_filter_loop_seq "bfl" ksv ;;
+      lookup_bloom_filter "bfl" ktest.
+
+
+  Lemma insert_bloom_filter_loop_seq_spec bfl els
+          (ks : list nat) (ksv : val) :
+    is_list ks ksv ->
+    {{{ is_bloom_filter bfl els (length ks) }}}
+      insert_bloom_filter_loop_seq #bfl ksv
+    {{{ v, RET v; is_bloom_filter bfl (els ∪ (list_to_set ks)) 0 }}}.
+  Proof using erisGS0 filter_size hash_function0 key_size Σ.
+    iInduction ks as [|k ks'] "IH" forall (els ksv).
+    - iIntros (Hksv Φ) "Hbf HΦ".
+      simpl in Hksv.
+      simplify_eq.
+      rewrite /insert_bloom_filter_loop_seq.
+      wp_pures.
+      iApply "HΦ".
+      simpl.
+      replace (els ∪ ∅) with els by set_solver.
+      done.
+    - iIntros (Hksv Φ) "Hbf HΦ".
+      destruct Hksv as [kv [-> Htail]].
+      rewrite {2}/insert_bloom_filter_loop_seq.
+      do 12 wp_pure.
+      fold insert_bloom_filter.
+      wp_bind (insert_bloom_filter _ _).
+      simpl.
+      replace (S (length ks')) with (length ks' + 1) by lia.
+      wp_apply (bloom_filter_insert_spec with "Hbf").
+      iIntros "Hbf".
+      do 2 wp_pure.
+      fold insert_bloom_filter_loop_seq.
+      iApply ("IH" with "[] Hbf"); auto.
+      iModIntro.
+      iIntros (v) "Hbf".
+      iApply "HΦ".
+      replace (els ∪ ({[k]} ∪ list_to_set ks'))
+        with (els ∪ {[k]} ∪ list_to_set ks') by set_solver.
+      by iFrame.
+  Qed.
+
+
+ Lemma main_bloom_filter_seq_spec (ks : list nat) (ksv : val) (ktest : nat) :
+      is_list ks ksv ->
+      ktest ∉ ks ->
+      {{{  ↯ (fp_error (length ks) 0) }}}
+        main_bloom_filter_seq ksv #ktest
+      {{{ v, RET v; ⌜ v = #false ⌝ }}}.
+ Proof using erisGS0 filter_size hash_function0 key_size Σ.
+   iIntros (Hksv Hktest Φ) "Herr HΦ".
+   rewrite /main_bloom_filter_seq.
+   wp_apply (bloom_filter_init_spec with "Herr"); auto.
+   iIntros (bfl) "Hbf".
+   wp_pures.
+   wp_bind (insert_bloom_filter_loop_seq _ _).
+   wp_apply (insert_bloom_filter_loop_seq_spec with "Hbf"); eauto.
+   iIntros (?) "Hbf".
+   do 2 wp_pure.
+   wp_apply (bloom_filter_lookup_not_in_spec with "[$Hbf]"); auto.
+   iPureIntro.
+   set_solver.
+ Qed.
+
+
+
 
 End bloom_filter_single.
 
