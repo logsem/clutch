@@ -54,18 +54,17 @@ Definition and_success (P Q : iProp Σ) := (P ∧ Q)%I.
 Definition and_success' (P Q : iProp Σ) : iProp Σ := P ∧ Q.
 
 (* ================================================================= *)
-(** ** Basic Separation Logic *)
+(** ** Separation Logic Connectives *)
 
 (** The core connective in separation logic is the `separating conjunction',
     written [P ∗ Q] (type \sep or \star), for propositions [P] and [Q].
     Separating conjunction differs from regular conjunction, particularly in its
     introduction rule:
 
-[[
       P1 ⊢ Q1        P2 ⊢ Q2
       ----------------------
         P1 ∗ P2 ⊢ Q1 ∗ Q2
-]]
+
     That is, if we want to prove [Q1 ∗ Q2], we must decide which of our owned
     resources we use to prove [Q1] and which we use to prove [Q2]. To see this
     in action, let us prove that separating conjunction is commutative. *)
@@ -76,8 +75,7 @@ Proof.
       the usual destruction pattern. *)
   iDestruct "H" as "[HP HQ]".
   (** Alternatively, we can introduce and destruct resources simultaneously. *)
-  Restart.
-  iIntros "[HP HQ]".
+  (* Restart. iIntros "[HP HQ]" *)
 
   (** Unlike [∧], the separating conjunction [∗] is not idempotent. That is,
       there are Iris propositions for which [P ⊢ P ∗ P] is not the case. Because
@@ -165,7 +163,7 @@ Admitted.
 (** We can even prove the usual elimination rule for or-elimination written with
     separation. This version is, however, not very useful, as it does not allow
     the two cases to share resources. *)
-Lemma or_elim (P Q R : iProp Σ) : (P -∗ R) -∗ (Q -∗ R) -∗ P ∨ Q -∗ R.
+Lemma or_elim (P Q R : iProp Σ) : ⊢ (P -∗ R) -∗ (Q -∗ R) -∗ P ∨ Q -∗ R.
 Proof.
   (* exercise *)
 Admitted.
@@ -204,7 +202,7 @@ Admitted.
     %y %z"]. These patterns are interchangeable. To specify the parameters of
     hypotheses, we write [iApply ("H" $! x y z)]. (type \forall) *)
 Lemma sep_all_distr {A} (P Q : A → iProp Σ) :
-  (∀ x, P x) ∗ (∀ x, Q x) -∗ (∀ x, P x ∗ Q x).
+  ⊢ (∀ x, P x) ∗ (∀ x, Q x) -∗ (∀ x, P x ∗ Q x).
 Proof.
   (* exercise *)
 Admitted.
@@ -222,70 +220,143 @@ End separation_logic_introduction.
 (** * Eris *)
 
 (** Now we have enough basic separation logic under our belt to do what we're
-    here for: verifying probabilistic programs! *)
+    actually here for: verify probabilistic programs! *)
 
 Section eris_introduction.
-  Context `{!erisGS Σ}.
+  (** As before, we assume some [Σ] .. *)
+  Context {Σ : gFunctors}.
 
-  (*
+  (** ... but we also assume [Σ] contains whatever Eris needs. The details will
+      not be important. *)
+  Context {Heris : erisGS Σ}.
 
-     Eris is a higher-order separation logic to reason about
-     probabilistic programs. The core concept of Eris is
-     "error credits", a novel separation logic resource.
-     Ownership of ε ∈ [0,1] error credits is denoted ↯ ε.
-     When specifying a program e through a triple
+  (** Eris is a separation logic that can be used to specify and reason about
+      stateful probabilistic programs.
 
-     {{{ ↯ ε }}} e @ E {{{ v, RET v; φ v }}}
+      The Eris separation logic has two core concepts:
 
-     the intended meaning of the specification is that the
-     probability of e terminating in a value v that does not
-     satisfy φ v, is at most ε.
+      1. Error credits [↯ ε], and
+      2. Hoares triple [{{{ P }}} e {{{ v, Q v }}}].
 
-     Let's begin with a simple example
+      that we will use to reason about said programs. *)
 
-  *)
-
-  Definition φ v :iProp Σ:= (⌜v = #true⌝)%I.
-
-  Definition coin_flip_prog : expr :=
-    if: rand #2 <= #0 then #false else #true.
-
-  (*
-
-     Here, rand #2 samples uniformly from the set {0,1,2}.
-     The program therefore returns #false with probability
-     1/3, and #true with probability 2/3. Let's write a
-     specification that captures this idea.
-
-  *)
-
-
-  Lemma coin_flip_spec E :
-    {{{ ↯ (/3) }}} coin_flip_prog @ E {{{ v, RET v; φ v}}}.
+  (** An error credit is separation logic resource, written [↯ ε], where [ε] is
+      (non-negative) real number. Error credits can be split additively. *)
+  Lemma error_credit_split :
+    ↯ (1/4 + 1/4) ⊢ ↯ (1/4) ∗ ↯ (1/4).
   Proof.
-    (* In Eris, as in Iris, triples are defined in terms
-       of a primitive WP notion.
-    *)
-    iIntros (Ψ) "Herr HΨ".
-    rewrite /coin_flip_prog.
-    wp_apply (wp_rand_err_int _ _ 0 with "[-]").
-    iSplitL "Herr".
+    iIntros "H".
+    (** The [ec_split] lemma tells us that [↯ (n + m)] can be split into [↯ n]
+        and [↯ m] as long as [0 <= n] and [0 <= m]. We apply it directly. *)
+    iApply ec_split.
+    { lra. }
+    { lra. }
+    iExact "H".
+  Qed.
+
+  (** Similarly, error credits can be combined. *)
+  Lemma error_credit_combine :
+    ↯ (1/4) ∗ ↯ (1/4) ⊢ ↯ (1/2).
+  Proof.
+    iIntros "[H1 H2]".
+    iDestruct (ec_combine with "[H1 H2]") as "H".
+    { iFrame. }
+    assert (1/4 + 1/4 = 1/2)%R as -> by lra.
+    iExact "H".
+  Qed.
+
+  (** Interestingly, if we own [↯ ε] and [1 <= ε] then we can prove [False]! *)
+  Lemma error_credit_False ε :
+    (1 <= ε)%R →
+    ↯ ε ⊢ False.
+  Proof.
+    intros Hr.
+    iApply ec_contradict.
+    exact Hr.
+  Qed.
+
+  (** We use Hoares triples to specify programs. Intuitively, a Hoare triple
+
+        {{{ P }}} e {{{ v, Q v }}}
+
+      usually means that, if [P] holds, and [e] terminates in a value [v],
+      then the postconidtion [Q v] holds. Here both the precondition [P] and the
+      postcondition [Q v] are arbitrary separation logic propositions.
+
+      However, in Eris, we also have error credits that can be spent to prove
+      "wrong" things. Intuitively, an Eris Hoare triple
+
+        {{{ ↯ ε }}} e {{{ v, Q v }}}
+
+      means that probability of [e] terminating in a value [v] that *does not*
+      satisfy [Q], is at most [ε]. This may seem somewhat counterintutive but
+      will be clearer in just a moment. *)
+
+  (** The programming language [ProbLang] we consider in this tutorial has a
+      single probabilistic connective [rand N]. The expression [rand N]
+      evalautes uniformly at random to a value in the set [{0, 1, ..., N}]. For
+      example, the expression [rand 1] corresponds to a coin flip, reducing with
+      probability [1/2] to either [0] or [1]. Let's prove it. *)
+
+  Lemma coin_flip :
+    {{{ True }}} rand #1%nat {{{ (n : nat), RET #n; ⌜n = 0 ∨ n = 1⌝ }}}.
+  Proof.
+    (** Under the hood, Hoare triples in Eris are defined in terms of weakest
+        precondition connectives.
+
+        The triple [ {{{ P }}} e {{{ RET v, Q }}} ] is syntactic sugar for:
+
+            ∀ Φ, P -∗ (Q -∗ Φ v) -∗ WP e {{ v, Φ v }}
+
+        which is logically equivalent to [ P -∗ WP e {{ x, x = v ∗ Q }} ]
+
+        Hoare triples are not more difficult to prove, but usually easier to use
+        in other proofs, because the post-condition does not have to
+        syntactically match [Q]. Using this way of stating specifications, the
+        consequence and framing rule is implicitly applied in the
+        post-condition. *)
+    iIntros "%Φ HP HΦ".
+    iApply wp_rand_nat.
+    { trivial. }
+    (** Eris is a step-indexed logic but that won't be important for now. We
+        will just seemlessly step past the later modality [▷] using the
+        [iModIntro] tactic. *)
+    iModIntro.
+    iIntros (n) "%Hn".
+    iApply "HΦ".
+    iPureIntro.
+    lia.
+  Qed.
+
+  (** Let's try another example: The expression [rand #2] samples uniformly from
+      the set [{0, 1, 2}]. The program therefore returns [false] with probability
+      [1/3], and [true] with probability [2/3]. *)
+  Definition unif_3_eq : expr :=
+    if: rand #2 = #0 then #false else #true.
+
+  (** Let's write a spec using error credits that captures this idea. *)
+  Lemma unif_3_spec :
+    {{{ ↯ (/3) }}} unif_3_eq {{{ RET #true; True }}}.
+  Proof.
+    iIntros (Φ) "Hε HΦ".
+    unfold unif_3_eq.
+    wp_apply (wp_rand_err_nat _ _ 0 with "[-]").
+    iSplitL "Hε".
     - simpl.
       assert (1 + 1 + 1 = 3)%R as -> by lra.
       iFrame.
-    - iIntros (x) "[[%Hx1  %Hx2] %Hx3]".
-      wp_pures.
-      rewrite bool_decide_eq_false_2; last by lia.
-      wp_pures.
-      iApply "HΨ".
-      done.
+    - iIntros (x) "[% %]".
+      wp_binop.
+      rewrite bool_decide_eq_false_2; last first.
+      { inversion 1. lia. }
+      wp_if.
+      iModIntro.
+      iApply "HΦ".
+      trivial.
   Qed.
 
+  (* TODO(SG): give som more intuition for what we just proved *)
+  (* TODO(SG): advanced composition *)
+  (* TODO(SG): Somethings with functional lists, induction? *)
 
 End eris_introduction.
-
-(* - simple flips, advanced composition *)
-(* - Somethings with functional lists, induction *)
-(* - *)
-
-(* Docker *)
