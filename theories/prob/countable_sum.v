@@ -1105,6 +1105,28 @@ End finite.
     by rewrite SeriesC_finite_foldr.
   Qed.
 
+
+  Lemma SeriesC_nat_bounded_to_foldr' (f : nat -> R) (N : nat) :
+    SeriesC (λ (n : nat), if bool_decide ((n <= N)%nat) then f n else 0) = foldr (Rplus ∘ f) 0%R (seq 0 (S N)).
+  Proof.
+    rewrite SeriesC_nat_bounded_fin.
+    rewrite -enum_fin_seq.
+    rewrite SeriesC_finite_foldr.
+    assert (forall {A B} (l : list A) (h2 : B -> R) (h1 : A -> B),
+               foldr (Rplus ∘ h2 ∘ h1 ) 0 l = foldr (Rplus ∘ h2) 0 (h1 <$> l)) as Haux.
+    {
+      induction l.
+      - intros l.
+        simpl. done.
+      - intros h1 h2.
+        simpl.
+        f_equal.
+        auto.
+    }
+    rewrite -Haux.
+    apply foldr_ext; auto.
+  Qed.
+
 (** Results about positive (non-negative) series *)
 Section positive.
   Context `{Countable A}.
