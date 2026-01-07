@@ -197,6 +197,20 @@ Proof.
 Qed.
 
 
+Lemma wp_rand_nat (N : nat) (z : Z) E s :
+  TCEq N (Z.to_nat z) →
+  {{{ True }}} rand #z @ s; E {{{ (n : nat), RET #n; ⌜ n < S N ⌝ }}}.
+Proof.
+  iIntros (-> Φ) "_ HΦ".
+  iApply wp_rand; auto.
+  iModIntro.
+  iIntros (n) "_".
+  iApply "HΦ".
+  iPureIntro.
+  apply fin_to_nat_lt.
+Qed.
+
+
 (** Tapes  *)
 Lemma wp_alloc_tape N z E s :
   TCEq N (Z.to_nat z) →
