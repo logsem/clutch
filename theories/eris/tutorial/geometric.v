@@ -1,4 +1,4 @@
-From clutch.eris Require Export eris.
+From clutch.eris.tutorial Require Export eris_tutorial.
 
 
 Section geometric.
@@ -13,7 +13,7 @@ Section geometric.
 
   Definition geometric : val :=
     rec: "geo" "n" :=
-      if: rand #1 <= #0 then #0 else "geo" "n" + #1.
+      if: rand #1%nat <= #0 then #0 else "geo" "n" + #1.
 
 
   (** First, we want to show that the result is always non-negative. Note that
@@ -29,7 +29,6 @@ Section geometric.
     wp_lam.
     wp_bind (rand _)%E.
     iApply wp_rand_nat; auto.
-    iModIntro.
     iIntros (n) "%Hn".
     destruct n.
     - wp_pures.
@@ -52,14 +51,17 @@ Section geometric.
       probability that the program returns 0 or less is (1/2). *)
 
   Lemma geo_gt0 :
-    {{{ ↯(/(1+1)) }}} geometric #() {{{ m, RET #m; ⌜0 < m⌝%Z }}}.
+    {{{ ↯(1/2) }}} geometric #() {{{ m, RET #m; ⌜0 < m⌝%Z }}}.
   Proof.
     iIntros (Φ) "Herr HΦ".
     wp_lam.
     wp_bind (rand _)%E.
     (** Since we only want to avoid one single outcome, we can use
         wp_rand_err_nat and spend ↯ to ensure we do not get 0 *)
-    iApply (wp_rand_err_nat _ _ 0).
+    iApply (wp_rand_err_nat _ 0 with "[Herr]").
+    {
+      simpl. iFrame.
+    }
     iFrame.
     (* Exercise *)
   Admitted.
@@ -83,7 +85,7 @@ Section geometric.
       return 0 or less is (1/2). *)
 
   Lemma geo_le0 :
-    {{{ ↯(/(1+1)) }}} geometric #() {{{ m, RET #m; ⌜m <= 0⌝%Z }}}.
+    {{{ ↯(1/2) }}} geometric #() {{{ m, RET #m; ⌜m <= 0⌝%Z }}}.
   Proof.
     iIntros (Φ) "Herr HΦ".
     wp_lam.
@@ -132,14 +134,13 @@ Section geometric.
         a simple calculation, we get that we can give ↯(1/2) to the branch. To
         simplify the proof script, however, we will give it ↯(/(1+1)). *)
 
-    set (F (n:nat) := if bool_decide (n=0) then 0%R else (/(1+1)%R)).
-    iApply (wp_rand_exp_nat 1 _ _ F with "Herr").
+    set (F (n:nat) := if bool_decide (n=0) then 0%R else (1/2)%R).
+    iApply (wp_rand_exp_nat 1 _ F with "Herr").
     - intro n.
       unfold F.
       real_solver.
-    - (** Instead of working with SeriesC, we will unfold it into an actual sum
-          so that Coq can compute with it. This is done by the lemma below *)
-      rewrite SeriesC_nat_bounded_to_foldr.
+    - (** The goal gives us a fold for a finite list, so we can actually
+          compute with it *)
       unfold F.
       simpl.
       lra.
@@ -158,7 +159,7 @@ Section geometric.
             We will then spend our error credits to use the spec given by geo_le0
          *)
         wp_bind (geometric #()).
-        iApply (geo_le0 with "[Herr]"); auto.
+        iApply (geo_le0 with "Herr").
         iModIntro.
         iIntros (m) "%Hm".
         wp_pures.
@@ -187,7 +188,7 @@ Section geometric.
   (** We write and prove some lemmas to work with this construct. *)
 
   Lemma geo_tail_mass_0  :
-    geo_tail_mass 0 = (/(1+1))%R.
+    geo_tail_mass 0 = (1/2)%R.
   Proof.
     unfold geo_tail_mass.
     simpl.
@@ -209,7 +210,7 @@ Section geometric.
   Qed.
 
   Lemma geo_tail_mass_S (m : nat) :
-    (1 / 2 * geo_tail_mass m = geo_tail_mass (S m))%R.
+    (geo_tail_mass (S m) = (1 / 2) * geo_tail_mass m)%R.
   Proof.
     unfold geo_tail_mass.
     simpl.
@@ -241,20 +242,20 @@ Section geometric.
           simplify this task. *)
 
       (* Exercise *)
-  Admitted.
 
-  (* Sample solution:
+   Admitted.
+
+      (* Sample solution:
       set (F (n:nat) := if bool_decide (n=0)
                       then 0%R
                       else geo_tail_mass m %R).
       wp_bind (rand _)%E.
-      iApply (wp_rand_exp_nat 1 _ _ F with "Herr").
+      iApply (wp_rand_exp_nat 1 _ F with "Herr").
       + intro n.
         unfold F.
         case_bool_decide; [real_solver|].
         apply geo_tail_mass_bounded.
-      + rewrite SeriesC_nat_bounded_to_foldr.
-        unfold F.
+      + unfold F.
         simpl.
         rewrite geo_tail_mass_S.
         lra.
@@ -285,13 +286,12 @@ Section geometric.
     iIntros (Φ) "Herr HΦ".
     wp_lam.
     wp_bind (rand _)%E.
-    set (F (n:nat) := if bool_decide (n=0) then 1%R else (/(1+1)%R)).
-    iApply (wp_rand_exp_nat 1 _ _ F with "Herr").
+    set (F (n:nat) := if bool_decide (n=0) then 1%R else (1/2)%R).
+    iApply (wp_rand_exp_nat 1 _ F with "Herr").
     - intro n.
       unfold F.
       real_solver.
-    - rewrite SeriesC_nat_bounded_to_foldr.
-      unfold F.
+    - unfold F.
       simpl.
       lra.
     - iIntros (n) "(%Hn & Herr)".
@@ -300,7 +300,7 @@ Section geometric.
       + do 2 wp_pure.
         simpl.
         wp_bind (geometric #()).
-        iApply (geo_gt0 with "[Herr]"); auto.
+        iApply (geo_gt0 with "[$Herr]").
         iModIntro.
         iIntros (m) "%Hm".
         wp_pures.

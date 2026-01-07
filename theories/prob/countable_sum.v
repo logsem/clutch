@@ -1107,7 +1107,7 @@ End finite.
 
 
   Lemma SeriesC_nat_bounded_to_foldr' (f : nat -> R) (N : nat) :
-    SeriesC (λ (n : nat), if bool_decide ((n <= N)%nat) then f n else 0) = foldr (Rplus ∘ f) 0%R (seq 0 (S N)).
+    SeriesC (λ (n : nat), if bool_decide ((n <= N)%nat) then f n else 0) = foldr Rplus 0%R ( f <$> seq 0 (S N)).
   Proof.
     rewrite SeriesC_nat_bounded_fin.
     rewrite -enum_fin_seq.
@@ -1123,6 +1123,7 @@ End finite.
         f_equal.
         auto.
     }
+    rewrite -Haux.
     rewrite -Haux.
     apply foldr_ext; auto.
   Qed.
