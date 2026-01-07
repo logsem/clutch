@@ -32,14 +32,191 @@ Section Symmetric.
   Definition GaussNorm : R :=
     RInt_gen (fun x => exp (-x^2 / 2)) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty).
 
+  Lemma GaussNorm_nn : 0 < GaussNorm.
+  Proof.
+    rewrite /GaussNorm.
+  Admitted.
+
+  Lemma GaussNorm_Norm2 : GaussNorm = 2 * Norm2.
+  Proof.
+  Admitted.
+
   Definition Gauss_ρ (x : R) : R :=
     exp (-x^2 / 2) / GaussNorm.
 
   Definition Gauss_CreditV (F : R → R)  :=
     RInt_gen (fun x => Gauss_ρ x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty).
 
+  Lemma Gauss_Closed_ex_pos (F : R → R) {M} (Hnn : ∀ x, 0 <= F x <= M) (HP : IPCts F)  :
+    ex_RInt_gen (λ x : R, Gauss_ρ x * F x) (at_point 0) (Rbar_locally Rbar.p_infty).
+  Proof.
+    apply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, Gauss_ρ x * M)).
+    { apply IPCts_cts.
+      rewrite /Gauss_ρ//=.
+      intros ?.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    }
+    { apply IPCts_mult.
+      { apply IPCts_cts.
+        rewrite /Gauss_ρ//=.
+        intros ?.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      apply HP.
+    }
+    { intros ?.
+      split.
+      { apply Rmult_le_pos.
+        { rewrite /Gauss_ρ.
+          apply Rcomplements.Rdiv_le_0_compat; [apply Rexp_nn |apply GaussNorm_nn].
+        }
+        { apply Hnn. }
+      }
+      apply Rmult_le_compat.
+      { rewrite /Gauss_ρ.
+        apply Rcomplements.Rdiv_le_0_compat; [apply Rexp_nn |apply GaussNorm_nn].
+      }
+      { apply Hnn. }
+      { OK. }
+      { apply Hnn. }
+    }
+    apply ex_RInt_gen_scal_r.
+    rewrite /Gauss_ρ.
+    replace (λ x : R, exp (- x ^ 2 / 2) / GaussNorm) with (λ x : R, exp (- x ^ 2 / 2) * / GaussNorm) by (funexti; OK).
+    apply ex_RInt_gen_scal_r.
+    apply ex_RInt_gen_gauss.
+  Qed.
+
+  Lemma Gauss_Closed_ex_neg (F : R → R) {M} (Hnn : ∀ x, 0 <= F x <= M) (HP : IPCts F) :
+    ex_RInt_gen (λ x : R, Gauss_ρ x * F x) (Rbar_locally Rbar.m_infty) (at_point 0).
+  Proof.
+    replace (λ x : R, Gauss_ρ x * F x) with (λ x : R, Gauss_ρ (- x) * F (- (- x))).
+    2: {
+      funexti.
+      f_equal; [|f_equal; OK].
+      rewrite /Gauss_ρ.
+      do 4 f_equal.
+      OK.
+    }
+    apply (@ex_RInt_gen_neg_change_of_var_rev (λ x : R, Gauss_ρ x * F (- x))).
+    { intros ??.
+      apply IPCts_RInt.
+      apply IPCts_mult.
+      { apply IPCts_cts.
+        rewrite /Gauss_ρ//=.
+        intros ?.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      apply IPCts_opp, HP.
+    }
+    eapply (Gauss_Closed_ex_pos (M := M) (fun x => F (- x))).
+    { intros ?; apply Hnn. }
+    { apply IPCts_opp, HP. }
+  Qed.
+
+  Lemma Gauss_Closed_Symm (F : R → R) {M} (Hnn : ∀ x, 0 <= F x <= M) (HP : IPCts F)  :
+    RInt_gen (λ x : R, Gauss_ρ x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty) =
+    plus (RInt_gen (λ x : R, Gauss_ρ x * F x) (Rbar_locally Rbar.m_infty) (at_point 0))
+         (RInt_gen (λ x : R, Gauss_ρ x * F x) (at_point 0) (Rbar_locally Rbar.p_infty)).
+  Proof.
+    symmetry.
+    apply RInt_gen_Chasles.
+    { eapply Gauss_Closed_ex_neg; OK. }
+    { eapply Gauss_Closed_ex_pos; OK. }
+  Qed.
+
+
   Lemma Gauss_Closed (F : R → R) {M} (Hnn : ∀ x, 0 <= F x <= M) (HP : IPCts F)  :
     Gauss_CreditV F = GaussSymm_CreditV (λ (b : fin 2) (z : nat) (u : R), F (bzu_to_R b z u)).
+  Proof.
+    rewrite /Gauss_CreditV.
+    rewrite /GaussSymm_CreditV.
+    erewrite Gauss_Closed_Symm; OK.
+    rewrite SeriesC_fin2 //=.
+    rewrite Rplus_comm.
+    f_equal.
+    { (* Flip the improper integral *)
+      rewrite -RInt_gen_neg_change_of_var; first last.
+      { eapply Gauss_Closed_ex_neg; OK. }
+      { intros ??.
+        apply IPCts_RInt.
+        apply IPCts_mult.
+        { apply IPCts_cts.
+          rewrite /Gauss_ρ//=.
+          intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        apply IPCts_opp, HP.
+      }
+      { intros ??.
+        apply IPCts_RInt.
+        apply IPCts_mult.
+        { apply IPCts_cts.
+          rewrite /Gauss_ρ//=.
+          intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        apply HP.
+      }
+      (* Apply Sep *)
+      rewrite (@RInt_sep _ (fun _ => 666)); first last.
+      { admit. }
+      { admit. }
+      { admit. }
+      { admit. }
+      (* Apply Fubini *)
+      rewrite (FubiniIntegralSeriesC_Strong (fun _ => 666)); first last.
+      { admit. }
+      { admit. }
+      { admit. }
+      { admit. }
+      { admit. }
+      rewrite /bzu_to_R//=.
+      rewrite /Gauss_ρ/GaussSymm_ρ//=.
+      apply RInt_ext.
+      rewrite Rmin_left; OK.
+      rewrite Rmax_right; OK.
+      intros ??.
+      apply SeriesC_ext.
+      intros ?.
+      f_equal; [|f_equal; OK].
+      rewrite -Rdiv_mult_distr.
+      rewrite GaussNorm_Norm2.
+      f_equal; OK.
+      do 3 f_equal.
+      OK.
+    }
+    { (* Apply Sep *)
+      rewrite (@RInt_sep _ (fun _ => 666)); first last.
+      { admit. }
+      { admit. }
+      { admit. }
+      { admit. }
+      (* Apply Fubini *)
+      rewrite (FubiniIntegralSeriesC_Strong (fun _ => 666)); first last.
+      { admit. }
+      { admit. }
+      { admit. }
+      { admit. }
+      { admit. }
+      rewrite /bzu_to_R//=.
+      rewrite /Gauss_ρ/GaussSymm_ρ//=.
+      apply RInt_ext.
+      rewrite Rmin_left; OK.
+      rewrite Rmax_right; OK.
+      intros ??.
+      apply SeriesC_ext.
+      intros ?.
+      f_equal; [|f_equal; OK].
+      rewrite -Rdiv_mult_distr.
+      rewrite GaussNorm_Norm2.
+      f_equal; OK.
+    }
   Admitted.
 
   Lemma wp_GaussSymm E (F : fin 2 → nat → R → R) {M}
