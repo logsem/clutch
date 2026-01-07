@@ -1,0 +1,60 @@
+This tutorial is an introduction to probabilistic program verification in modern separation logic.
+
+The tutorial comprises a list of interactive exercises in the form of incomplete proofs with hints.
+
+More information can be found at
+- the [POPL tutorial website](https://popl26.sigplan.org/details/POPL-2026-tutorials/8/Verifying-Probabilistic-Programs-Using-Separation-Logic)
+- the [Clutch project readme](https://github.com/logsem/clutch/)
+
+
+# Prerequesites
+
+## Background Knowledge
+
+Basic knowledge of the Rocq prover is assumed. Consult, e.g., [Software Foundations](https://softwarefoundations.cis.upenn.edu/lf-current/toc.html) for an introduction to basic logic and tactics in Rocq.
+
+We do not assume familiarity with the Iris separation logic framework. We will only introduce as much Iris as required to understand the examples; for more information see the [Iris tutorial](https://github.com/logsem/iris-tutorial) and the Iris proof mode [cheatsheet](https://gitlab.mpi-sws.org/iris/iris/-/blob/master/docs/proof_mode.md).
+
+## Software
+
+### The Rocq prover
+
+To work through the tutorial, a working Rocq setup and IDE / text editor is required ([instructions](https://rocq-prover.org/install)).
+
+### Rocq libraries
+
+The recommended way to install the Rocq libraries we depend on is through [opam](https://opam.ocaml.org/doc/Install.html).
+
+0. Clone this repository. Run the subsequent shell commands from the root of the repository (not this folder).
+1. Install [opam](https://opam.ocaml.org/doc/Install.html) if not already installed with Rocq (a version greater than 2.0 is required).
+2. Create a new "switch" (self-contained set of Rocq and OCaml libraries) and link it to the project.
+```
+opam switch create clutch 4.14.2
+opam switch link clutch .
+```
+3. Add the Rocq and Iris `opam` repositories.
+```
+opam repo add rocq-released https://rocq-prover.org/opam/released
+opam update
+```
+4. Install the right version of the dependencies as specified in the `rocq-clutch.opam` file.
+```
+opam install ./rocq-clutch.opam --deps-only
+```
+
+You should now be able to build the development by using `dune build`, or `dune build theories/eris/tutorial/tutorial.vo` to build only the files required for the tutorial.
+
+# Contents
+
+The tutorial will feature a mix of lectures from the organizers and exercises. The plan is to progress as follows.
+
+1. [logic.v](./logic.v): background on (separation) logic in Rocq.
+2. [quicksort.v](./quicksort.v): correctness of randomized quicksort.
+3. [basic.v](./basic.v): "error credits" as separation logic resource; manipulating error credits; simple random sampling.
+4. [geometric.v](./geometric.v): sampling from the geometric distribution.
+5. [hash_interface.v](./hash_interface.v), [bloom_filter_single.v](./bloom_filter_single.v): Bloom filters based on hash functions. Bound on probability of false positives.
+
+
+# Contact information
+
+Please feel free to contact the POPL'26 tutors via email at alejandro@cs.au.dk gregersen@cispa.de philipp@haselwarter.org
