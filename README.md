@@ -46,7 +46,7 @@ The recommended way to install the dependencies is through [opam](https://opam.o
 1. Install [opam](https://opam.ocaml.org/doc/Install.html) if not already installed (a version greater than 2.0 is required).
 2. Install a new switch and link it to the project.
 ```
-opam switch create clutch 4.14.1
+opam switch create clutch 4.14.2
 opam switch link clutch .
 ```
 3. Add the Coq and Iris `opam` repositories.
