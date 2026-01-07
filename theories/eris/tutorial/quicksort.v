@@ -20,7 +20,7 @@ Section quicksort.
   Definition qs : val :=
     rec: "qs" "l" :=
       let: "n" := list_length "l" in
-      if: "n" ≤ #1 then "l" else
+      if: "n" <= #1 then "l" else
         let: "ip" := rand ("n" - #1) in
         let, ("p", "r") := list_remove_nth_unsafe "l" "ip" in
         let, ("le", "gt") := partition "r" "p" in
