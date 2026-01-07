@@ -1,5 +1,5 @@
-From clutch.eris.tutorial Require Export eris_tutorial.
-
+From clutch.eris Require Import eris tutorial.eris_rules.
+From clutch.eris.tutorial Require Import eris_rules.
 
 Section geometric.
   Context `{!erisGS Σ}.
@@ -13,7 +13,7 @@ Section geometric.
 
   Definition geometric : val :=
     rec: "geo" "n" :=
-      if: rand #1%nat <= #0 then #0 else "geo" "n" + #1.
+      if: rand #1 <= #0 then #0 else "geo" "n" + #1.
 
 
   (** First, we want to show that the result is always non-negative. Note that
@@ -28,7 +28,7 @@ Section geometric.
     iIntros (Φ) "_ HΦ".
     wp_lam.
     wp_bind (rand _)%E.
-    iApply wp_rand_nat; auto.
+    wp_apply wp_rand_nat; auto.
     iIntros (n) "%Hn".
     destruct n.
     - wp_pures.
@@ -58,7 +58,8 @@ Section geometric.
     wp_bind (rand _)%E.
     (** Since we only want to avoid one single outcome, we can use
         wp_rand_err_nat and spend ↯ to ensure we do not get 0 *)
-    iApply (wp_rand_err_nat 1 0 with "Herr").
+    iApply (wp_rand_err_nat 0 with "[Herr]").
+    { iApply "Herr". }
     (* Exercise *)
   Admitted.
 
@@ -131,7 +132,7 @@ Section geometric.
         simplify the proof script, however, we will give it ↯(/(1+1)). *)
 
     set (F (n:nat) := if bool_decide (n=0) then 0%R else (1/2)%R).
-    iApply (wp_rand_exp_nat 1 _ F with "Herr").
+    wp_apply (wp_rand_exp_nat 1 _ F with "Herr").
     - intro n.
       unfold F.
       real_solver.
@@ -283,7 +284,7 @@ Section geometric.
     wp_lam.
     wp_bind (rand _)%E.
     set (F (n:nat) := if bool_decide (n=0) then 1%R else (1/2)%R).
-    iApply (wp_rand_exp_nat 1 _ F with "Herr").
+    wp_apply (wp_rand_exp_nat 1 _ F with "Herr").
     - intro n.
       unfold F.
       real_solver.

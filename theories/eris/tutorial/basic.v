@@ -1,4 +1,5 @@
-From clutch.eris Require Export eris.
+From clutch.eris Require Import eris tutorial.eris_rules.
+From clutch.eris.tutorial Require Import eris_rules.
 
 (* ###################################################################### *)
 (** * Separation logic in Rocq*)
@@ -293,13 +294,13 @@ Section eris_introduction.
       will be clearer in just a moment. *)
 
   (** The programming language [ProbLang] we consider in this tutorial has a
-      single probabilistic connective [rand N]. The expression [rand N]
+      single probabilistic connective [rand #N]. The expression [rand #N]
       evalautes uniformly at random to a value in the set [{0, 1, ..., N}]. For
-      example, the expression [rand 1] corresponds to a coin flip, reducing with
-      probability [1/2] to either [0] or [1]. Let's prove it. *)
+      example, the expression [rand #1] corresponds to a coin flip, reducing
+      with to either [0] or [1]. *)
 
   Lemma coin_flip :
-    {{{ True }}} rand #1%nat {{{ (n : nat), RET #n; ⌜n = 0 ∨ n = 1⌝ }}}.
+    {{{ True }}} rand #1 {{{ (n : nat), RET #n; ⌜n = 0 ∨ n = 1⌝ }}}.
   Proof.
     (** Under the hood, Hoare triples in Eris are defined in terms of weakest
         precondition connectives.
@@ -316,12 +317,7 @@ Section eris_introduction.
         consequence and framing rule is implicitly applied in the
         post-condition. *)
     iIntros "%Φ HP HΦ".
-    iApply wp_rand_nat.
-    { trivial. }
-    (** Eris is a step-indexed logic but that won't be important for now. We
-        will just seemlessly step past the later modality [▷] using the
-        [iModIntro] tactic. *)
-    iModIntro.
+    wp_apply wp_rand_nat.
     iIntros (n) "%Hn".
     iApply "HΦ".
     iPureIntro.
@@ -336,23 +332,20 @@ Section eris_introduction.
 
   (** Let's write a spec using error credits that captures this idea. *)
   Lemma unif_3_spec :
-    {{{ ↯ (/3) }}} unif_3_eq {{{ RET #true; True }}}.
+    {{{ ↯ (1 / 3) }}} unif_3_eq {{{ RET #true; True }}}.
   Proof.
     iIntros (Φ) "Hε HΦ".
     unfold unif_3_eq.
-    wp_apply (wp_rand_err_nat _ _ 0 with "[-]").
-    iSplitL "Hε".
-    - simpl.
-      assert (1 + 1 + 1 = 3)%R as -> by lra.
-      iFrame.
-    - iIntros (x) "[% %]".
-      wp_binop.
-      rewrite bool_decide_eq_false_2; last first.
-      { inversion 1. lia. }
-      wp_if.
-      iModIntro.
-      iApply "HΦ".
-      trivial.
+    wp_apply (wp_rand_err_nat 0%nat with "[Hε]").
+    { iApply (ec_eq with "Hε"). simpl. lra. }
+    iIntros (x) "[% %]".
+    wp_binop.
+    rewrite bool_decide_eq_false_2; last first.
+    { inversion 1. lia. }
+    wp_if.
+    iModIntro.
+    iApply "HΦ".
+    trivial.
   Qed.
 
   (* TODO(SG): give som more intuition for what we just proved *)

@@ -72,7 +72,7 @@ Section test.
     iSplitL.
     - iApply (ec_eq with "[$]").
       simpl. lra.
-    - iIntros (x) "%".
+    - iIntros (x) "% !>".      
       wp_pures.
       assert (x=1) as -> by lia.
       case_bool_decide; first lia.
@@ -197,7 +197,7 @@ Proof.
   wp_bind (rand _)%E.
   wp_apply (wp_rand_err_nat _ _ m).
   iFrame.
-  iIntros (?) "[% %]".
+  iIntros (?) "!> [% %]".
   wp_pures.
   rewrite bool_decide_eq_false_2; auto; [ | intro; simplify_eq ].
   wp_if_false.
@@ -224,7 +224,7 @@ Proof.
   wp_pures.
   wp_apply (wp_rand_err_nat _ _ m).
   iFrame.
-  iIntros (?) "[% %]".
+  iIntros (?) "!> [% %]".
   wp_pures.
   rewrite bool_decide_eq_false_2; auto; [ | intro; simplify_eq ].
   wp_if_false.

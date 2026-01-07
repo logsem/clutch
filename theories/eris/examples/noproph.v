@@ -54,7 +54,7 @@ Section counter_example.
 
     destruct Hz as (z&->).
     wp_apply (wp_rand_err_nat 99 _ (Z.to_nat z)); iFrame "Hcred".
-    iIntros (x Hneq). wp_pures.
+    iIntros (x Hneq) "!>". wp_pures.
     wp_apply (wp_resolve_proph with "[$]").
     iIntros (?) "(%Heq&Hproph)".
     inversion Heq. subst. lia.

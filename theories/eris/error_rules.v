@@ -408,12 +408,14 @@ Lemma wp_rand_exp_nat (N : nat) z (ε1 : R) (ε2 : nat -> R) E Φ :
   TCEq N (Z.to_nat z) →
   (∀ n, (0 <= ε2 n <= 1)%R) →
   (SeriesC (λ n : nat, if bool_decide (n <= N)%nat then (1 / (S N)) * ε2 n else 0)%R <= ε1 )%R →
-  ↯ ε1 -∗ (∀ (n : nat), ⌜ n <= N ⌝ ∗ ↯ (ε2 n) -∗ Φ #n) -∗
+  ↯ ε1 -∗
+  ▷ (∀ (n : nat), ⌜ n <= N ⌝ ∗ ↯ (ε2 n) -∗ Φ #n) -∗
   WP rand #z @ E {{ Φ }}.
 Proof.
-  iIntros.
-  iApply tgl_wp_pgl_wp'.
-  wp_apply (twp_rand_exp_nat with "[$]"); try done.
+  iIntros (-> ??) "H HΦ".
+  iApply (tgl_wp_wp_step with "HΦ").
+  wp_apply (twp_rand_exp_nat with "H"); auto.
+  iIntros (?) "[% ?] H". iApply "H". iFrame. done.
 Qed.
 
 
@@ -783,21 +785,25 @@ Qed.
 Lemma wp_rand_err_int (N : nat) (z : Z) (m : Z) E Φ :
   TCEq N (Z.to_nat z) →
   ↯ (/ (N + 1)) ∗
-    (∀ x, ⌜(0 <= x <= N)%Z /\ x ≠ m⌝ -∗ Φ #x)
+    ▷ (∀ x, ⌜(0 <= x <= N)%Z /\ x ≠ m⌝ -∗ Φ #x)
     ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
-  iIntros. iApply tgl_wp_pgl_wp'.
-  iApply (twp_rand_err_int with "[$]").
+  iIntros (?) "[H HΦ]".
+  iApply (tgl_wp_wp_step with "HΦ").
+  iApply twp_rand_err_int. iFrame.
+  iIntros (??) "H". by iApply "H".
 Qed.
 
 Lemma wp_rand_err_fin (N : nat) (z : Z) (m : fin (S N)) E Φ :
   TCEq N (Z.to_nat z) →
   ↯ (/ (N + 1)) ∗
-    (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
-    ⊢ WP rand #z @ E {{ Φ }}.
+  ▷ (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
+  ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
-  iIntros. iApply tgl_wp_pgl_wp'.
-  iApply (twp_rand_err_fin with "[$]").
+  iIntros (?) "[H HΦ]".
+  iApply (tgl_wp_wp_step with "HΦ").
+  iApply (twp_rand_err_fin). iFrame.
+  iIntros (??) "H". by iApply "H".
 Qed.
 
 Lemma twp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ s :
@@ -860,11 +866,13 @@ Qed.
 Lemma wp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ :
   TCEq N (Z.to_nat z) →
   ↯ (/ (N+1)) ∗
-  (∀ x : nat, ⌜(x ≤ N) /\ x ≠ m⌝ -∗ Φ #x)
+  ▷ (∀ x : nat, ⌜(x ≤ N) /\ x ≠ m⌝ -∗ Φ #x)
   ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
-  iIntros. iApply tgl_wp_pgl_wp'.
-  iApply (twp_rand_err_nat with "[$]").
+  iIntros (?) "[H HΦ]".
+  iApply (tgl_wp_wp_step with "HΦ").
+  iApply twp_rand_err_nat. iFrame.
+  iIntros (??) "H". by iApply "H".
 Qed.
 
 
