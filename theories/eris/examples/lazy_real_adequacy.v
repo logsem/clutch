@@ -3,7 +3,7 @@ From clutch.eris Require Import presample_many.
 From Coquelicot Require SF_seq Hierarchy.
 From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen Continuity.
 From clutch.eris Require Import infinite_tape.
-From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial.
+From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial lazy_real_expr.
 From clutch.eris.examples Require Import math.
 Import Hierarchy.
 Set Default Proof Using "Type*".
@@ -820,3 +820,113 @@ Proof.
   - simpl. rewrite /F'. setoid_rewrite (Rplus_comm (INR _)).
     by iIntros.
 Qed. 
+
+Section CReal.
+
+Definition lazy_real_cdf_checker (sampler : expr) (B C : Z) : expr :=
+  let: "sample" := sampler in
+  let: "num" := R_ofZ #B in
+  let: "bound" := R_mulPow "num" #C in
+  R_cmp "sample" "bound" #0%nat.
+
+
+(* The checker program will observe that a sample is less than B*2^C, with error ∫_(B*2^C)^∞ μ(x) dx *)
+Theorem lazy_real_expr_adequacy_below Σ `{erisGpreS Σ} {M} (e : expr) (σ : state) (μ : R -> R)
+    (Hnn : ∀ x, 0 <= μ x <= M) (HC : IPCts μ)
+    (Hlo : ex_RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point 0))
+    (Hhi : ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty))
+    (Hspec :
+      ∀ `{erisGS Σ} E (F : R -> R) (Hnn : ∃ M, ∀ x , 0 <= F x <= M) (HPC : IPCts F),
+      ↯ (RInt_gen (fun (x : R) => μ x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty))%R -∗
+       WP e @ E {{ cont, ∃ I r, I ∗ IsApprox cont r E (I) ∗ ↯(F r) }}) :
+    ∀ B C : Z,
+      pgl
+        (lim_exec (lazy_real_cdf_checker e B C, σ))
+        (fun x => x = #(-1)%Z)
+        (RInt_gen μ (at_point (IZR B / powerRZ 2 C)) (Rbar_locally Rbar.p_infty)).
+Proof.
+  intros B C.
+  apply (wp_pgl_lim Σ).
+  { admit. }
+  iIntros (?) "He".
+  rewrite /lazy_real_cdf_checker.
+  wp_pures.
+  wp_bind e.
+  iApply pgl_wp_mono.
+  2: {
+    iApply (@Hspec _ _ (Iverson (Ici (IZR B / powerRZ 2 C)))).
+    { exists 1. intros ?. split; [apply Iverson_nonneg|apply Iverson_le_1]. }
+    { admit. }
+    { iApply (ec_eq with "He").
+      rewrite //=.
+      admit.
+    }
+  }
+  rewrite //=.
+  iIntros (sample) "[%I [%r HI]]".
+  remember (I ∗ IsApprox sample r ⊤ I ∗ ↯ (Iverson (Ici (IZR B / powerRZ 2 C)) r))%I as Hcrs.
+  wp_pures.
+  wp_bind (R_ofZ _).
+  iApply (pgl_wp_mono_frame Hcrs with "[] HI").
+  2: { wp_apply wp_R_ofZ. }
+  rewrite //=.
+  iIntros (num) "[HI Hnum]".
+  wp_pures.
+  wp_bind (R_mulPow _ _).
+  iApply (pgl_wp_mono_frame Hcrs with "[Hnum] HI").
+  2: { wp_apply (wp_R_mulPow with "Hnum"). }
+  rewrite //=.
+  iIntros (bound) "[HI Hbound]".
+  rewrite HeqHcrs.
+  iDestruct "HI" as "[HI [Hsample He]]".
+  rewrite /Iverson//=.
+  case_decide.
+  { iExFalso. by iApply (ec_contradict with "He"). }
+  wp_pures.
+  iApply pgl_wp_mono.
+  2: {
+    iApply (@wp_R_cmp_lt _ _ sample bound r (IZR B / powerRZ 2 C)).
+    2:{ iFrame. }
+    rewrite /Ici in H1.
+    OK.
+  }
+  rewrite //=.
+  iIntros (?) "(?&?)".
+  iFrame.
+Admitted.
+
+(* The checker program will observe that a sample is above B*2^C, with error ∫_(-∞)^(B*2^C) μ(x) dx *)
+(* TODO: Is this necessary? *)
+Theorem lazy_real_expr_adequacy_above Σ `{erisGpreS Σ} {M} (e : expr) (σ : state) (μ : R -> R)
+    (Hnn : ∀ x, 0 <= μ x <= M) (HC : IPCts μ)
+    (Hlo : ex_RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point 0))
+    (Hhi : ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty))
+    (Hspec :
+      ∀ `{erisGS Σ} E (F : R -> R) (Hnn : ∃ M, ∀ x , 0 <= F x <= M) (HPC : IPCts F),
+      ↯ (RInt_gen (fun (x : R) => μ x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty))%R -∗
+       WP e @ E {{ cont, ∃ I r, I ∗ IsApprox cont r E (I) ∗ ↯(F r) }}) :
+    ∀ B C : Z,
+      pgl
+        (lim_exec (lazy_real_cdf_checker e B C, σ))
+        (fun x => x = #(1)%Z)
+        (RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point (IZR B / powerRZ 2 C))).
+Proof.
+Admitted.
+
+(*
+
+    (Hnn : ∀ x, 0 <= μ x) (HC : IPCts μ)
+    (Hlo : ex_RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point 0))
+    (Hhi : ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty))
+    (Hspec :
+      ∀ `{erisGS Σ} E (F : R -> R) (Hnn : ∃ M, ∀ x , 0 <= F x <= M) (HPC : IPCts F),
+      ↯ (RInt_gen (fun (x:R) => μ x * F x) (at_point 0) (Rbar_locally Rbar.p_infty))%R -∗
+       WP e @ E {{ cont, ∃ I r, I ∗ IsApprox cont r E (I) ∗ ↯(F r) }}) :
+    ∀ B C : Z,
+      pgl
+        (lim_exec (lazy_real_cdf_checker B C e, σ))
+        (fun x => x = #(1)%Z)
+        (RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point (IZR B * powerRZ 2 C))).
+*)
+
+End CReal.
