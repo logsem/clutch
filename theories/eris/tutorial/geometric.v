@@ -58,11 +58,7 @@ Section geometric.
     wp_bind (rand _)%E.
     (** Since we only want to avoid one single outcome, we can use
         wp_rand_err_nat and spend ↯ to ensure we do not get 0 *)
-    iApply (wp_rand_err_nat _ 0 with "[Herr]").
-    {
-      simpl. iFrame.
-    }
-    iFrame.
+    iApply (wp_rand_err_nat 1 0 with "Herr").
     (* Exercise *)
   Admitted.
 
