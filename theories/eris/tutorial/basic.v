@@ -282,7 +282,7 @@ Section eris_introduction.
   Qed.
 
 
-End warmup.
+End eris_introduction.
 
 (* - simple flips, advanced composition *)
 (* - Somethings with functional lists, induction *)
