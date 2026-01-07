@@ -30,16 +30,21 @@ Section Symmetric.
     (SeriesC (fun (b : fin 2) => SeriesC (fun (k : nat) => RInt (fun x => GaussSymm_ρ b k x * F b k x) 0 1))).
 
   Definition GaussNorm : R :=
-    RInt_gen (fun x => exp (-x^2 / 2)) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty).
+    2 * Norm2.
+    (* I think there's no reason to compute this. *)
+    (* RInt_gen (fun x => exp (-x^2 / 2)) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty). *)
 
   Lemma GaussNorm_nn : 0 < GaussNorm.
   Proof.
     rewrite /GaussNorm.
-  Admitted.
+    apply Rmult_lt_0_compat; OK.
+    apply Norm2_nn.
+  Qed.
 
   Lemma GaussNorm_Norm2 : GaussNorm = 2 * Norm2.
   Proof.
-  Admitted.
+    rewrite /GaussNorm//=.
+  Qed.
 
   Definition Gauss_ρ (x : R) : R :=
     exp (-x^2 / 2) / GaussNorm.
@@ -165,17 +170,72 @@ Section Symmetric.
       }
       (* Apply Sep *)
       rewrite (@RInt_sep _ (fun _ => 666)); first last.
+      { intros ?.
+        apply IPCts_RInt.
+        apply IPCts_mult.
+        { apply IPCts_cts.
+          rewrite /Gauss_ρ//=.
+          intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        apply IPCts_opp, HP.
+      }
       { admit. }
       { admit. }
-      { admit. }
-      { admit. }
+      { replace (λ x : R, Gauss_ρ (- x) * F (- x)) with (λ x : R, Gauss_ρ x * F (- x)).
+        2: {
+          funexti.
+          f_equal.
+          rewrite /Gauss_ρ.
+          do 4 f_equal.
+          OK.
+        }
+        eapply Gauss_Closed_ex_pos; OK.
+        apply IPCts_opp, HP.
+      }
       (* Apply Fubini *)
       rewrite (FubiniIntegralSeriesC_Strong (fun _ => 666)); first last.
+      { intros ?.
+        apply ex_RInt_mult.
+        { rewrite /GaussSymm_ρ//=.
+          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        { rewrite /bzu_to_R//=.
+          (* Change of variables, then IPCts *)
+          replace (λ y : R, F (-1 * 1 * (n + y)))
+             with (λ y : R, -1 * (scal (-1) (F (-1 * y + -n)))).
+          2: {
+            funexti.
+            rewrite /scal//=/mult//= -Rmult_assoc.
+            replace (-1 * -1) with 1 by OK.
+            rewrite Rmult_1_l; f_equal.
+            OK.
+          }
+          apply ex_RInt_mult; [apply ex_RInt_const|].
+          apply (@ex_RInt_comp_lin R_CompleteNormedModule _ (-1) (- n) 0 1).
+          apply PCts_RInt.
+          by apply IPCts_PCts.
+        }
+      }
       { admit. }
       { admit. }
-      { admit. }
-      { admit. }
-      { admit. }
+      { intros ???.
+        apply Rmult_le_pos.
+        2: { apply Hnn. }
+        rewrite /GaussSymm_ρ.
+        rewrite -Rdiv_mult_distr.
+        apply Rmult_le_pos; OK.
+        { apply Rexp_nn. }
+        apply Rlt_le.
+        apply Rinv_0_lt_compat.
+        apply Rmult_lt_0_compat; OK.
+        apply Norm2_nn.
+      }
+      { OK. }
       rewrite /bzu_to_R//=.
       rewrite /Gauss_ρ/GaussSymm_ρ//=.
       apply RInt_ext.
@@ -193,17 +253,60 @@ Section Symmetric.
     }
     { (* Apply Sep *)
       rewrite (@RInt_sep _ (fun _ => 666)); first last.
+      { intros ?.
+        apply IPCts_RInt.
+        apply IPCts_mult.
+        { apply IPCts_cts.
+          rewrite /Gauss_ρ//=.
+          intros ?.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        apply HP.
+      }
       { admit. }
       { admit. }
-      { admit. }
-      { admit. }
+      { eapply Gauss_Closed_ex_pos; OK. }
       (* Apply Fubini *)
       rewrite (FubiniIntegralSeriesC_Strong (fun _ => 666)); first last.
+      { intros ?.
+        apply ex_RInt_mult.
+        { rewrite /GaussSymm_ρ//=.
+          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+          by auto_derive.
+        }
+        { rewrite /bzu_to_R//=.
+          (* Change of variables, then IPCts *)
+          replace (λ y : R, F (1 * (n + y)))
+             with (λ y : R, (scal 1 (F (1 * y + n)))).
+          2: {
+            funexti.
+            rewrite /scal//=/mult//=.
+            rewrite Rmult_1_l; f_equal.
+            OK.
+          }
+          apply (@ex_RInt_comp_lin R_CompleteNormedModule _ (1) (n) 0 1).
+          apply PCts_RInt.
+          by apply IPCts_PCts.
+        }
+      }
       { admit. }
       { admit. }
-      { admit. }
-      { admit. }
-      { admit. }
+      { intros ???.
+        apply Rmult_le_pos.
+        2: { apply Hnn. }
+        rewrite /GaussSymm_ρ.
+        rewrite -Rdiv_mult_distr.
+        apply Rmult_le_pos; OK.
+        { apply Rexp_nn. }
+        apply Rlt_le.
+        apply Rinv_0_lt_compat.
+        apply Rmult_lt_0_compat; OK.
+        apply Norm2_nn.
+      }
+      { OK. }
       rewrite /bzu_to_R//=.
       rewrite /Gauss_ρ/GaussSymm_ρ//=.
       apply RInt_ext.
