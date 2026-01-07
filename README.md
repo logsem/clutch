@@ -54,9 +54,9 @@ opam switch link clutch .
 opam repo add rocq-released https://rocq-prover.org/opam/released
 opam update
 ```
-4. Install the right version of the dependencies as specified in the `clutch.opam` file.
+4. Install the right version of the dependencies as specified in the `rocq-clutch.opam` file.
 ```
-opam install . --deps-only
+opam install ./rocq-clutch.opam --deps-only
 ```
 
 You should now be able to build the development by using `dune build`, or `dune build theories/eris/tutorial/tutorial.vo` to build only the files required for the tutorial.
