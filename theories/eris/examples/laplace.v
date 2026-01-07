@@ -784,7 +784,7 @@ Section Symmetric.
   Lemma wp_NegExp_Closed_sym E (F : R → R) {M} (Hnn : ∀ c, 0 <= F c <= M) (HP : IPCts F) :
     ⊢ ↯ (NegExpSymm_Closed_CreditV F) -∗
            WP NegExpSymmC #() @ E
-      {{ cont, ∃ I r, I ∗ IsApprox cont r E I ∗ ↯(F r) }}.
+      {{ cont, ∃ r, IsApprox cont r E ∗ ↯(F r) }}.
   Proof.
     iIntros "Hε".
     rewrite /NegExpSymmC.
@@ -828,12 +828,12 @@ Section Symmetric.
     iIntros (v) "[%b [%z [%r [%l [-> [Hr [% Hec]]]]]]]".
     wp_pures.
     wp_bind (ToLazyReal _).
-    iApply (pgl_wp_mono_frame (lazy_real l r ∗ ↯ (F (bzu_to_R b z r))) with "[] [Hr Hec]").
+    iApply (pgl_wp_mono_frame (↯ (F (bzu_to_R b z r))) with "[Hr] [Hec]").
     3: { iFrame. }
-    2: { iApply (@wp_ToLazyReal _ _ E _ r); iPureIntro. done. }
+    2: { iApply (@wp_ToLazyReal _ _ E _ r); try done. }
     rewrite //=.
-    iIntros (?) "[[Hr He] Happrox]".
-    iExists (lazy_real l r), (bzu_to_R b z r).
+    iIntros (?) "[He Happrox]".
+    iExists  (bzu_to_R b z r).
     iFrame.
   Qed.
 
@@ -1731,7 +1731,7 @@ Section Laplace0.
 
   Lemma wp_Laplace0 E (F : R → R) {M} (logε : Z) (Hnn : ∀ r, 0 <= F r <= M) (HP : IPCts F) :
     ⊢ ↯ (Laplace0_CreditV (powerRZ 2 logε) F) -∗
-          WP Laplace0 #logε @ E {{ cont, ∃ I r, I ∗ IsApprox cont r E I ∗ ↯(F r) }}.
+          WP Laplace0 #logε @ E {{ cont, ∃ r, IsApprox cont r E ∗ ↯(F r) }}.
   Proof.
     iIntros "Hε".
     rewrite /Laplace0.
@@ -1750,15 +1750,15 @@ Section Laplace0.
       apply powerRZ_lt. lra.
     }
     rewrite //=.
-    iIntros (?) "[%I [%r [I [HA He]]]]".
+    iIntros (?) "[%r [HA He]]".
     wp_pures.
     wp_bind (R_mulPow _ _).
-    iApply (pgl_wp_mono_frame (I ∗ ↯ (F (r / powerRZ 2 logε))) with "[HA] [I He]").
+    iApply (pgl_wp_mono_frame (↯ (F (r / powerRZ 2 logε))) with "[HA] [He]").
     3: { iFrame. }
     2: { iApply wp_R_mulPow; iExact "HA". }
     rewrite //=.
-    iIntros (?) "[[I HA] He]".
-    iExists I, (r / powerRZ 2 logε).
+    iIntros (?) "[HA He]".
+    iExists (r / powerRZ 2 logε).
     iFrame.
   Qed.
 
@@ -2045,16 +2045,16 @@ Section Laplace.
     }
   Qed.
 
-  Lemma wp_Laplace E (F : R → R) {M} (logε : Z) (μcont : val) μI (μ : R) (Hnn : ∀ r, 0 <= F r <= M) (HP : IPCts F) :
+  Lemma wp_Laplace E (F : R → R) {M} (logε : Z) (μcont : val) (μ : R) (Hnn : ∀ r, 0 <= F r <= M) (HP : IPCts F) :
     ⊢ ↯ (Laplace_CreditV (powerRZ 2 logε) μ F) -∗
-      IsApprox μcont μ E μI -∗
-      WP Laplace #logε μcont @ E {{ cont, ∃ I r, I ∗ IsApprox cont r E (μI ∗ I) ∗ ↯(F r) }}.
+      IsApprox μcont μ E -∗
+      WP Laplace #logε μcont @ E {{ cont, ∃ r, IsApprox cont r E ∗ ↯(F r) }}.
   Proof.
     iIntros "Hε Hcont".
     rewrite /Laplace.
     wp_pures.
     wp_bind (Laplace0 _).
-    iApply (pgl_wp_mono_frame (IsApprox μcont μ E μI) with "[Hε] Hcont").
+    iApply (pgl_wp_mono_frame (IsApprox μcont μ E) with "[Hε] Hcont").
     2: {
       iApply (@wp_Laplace0 _ _ E (fun r => F (μ + r)) M).
       { intros ?. apply Hnn. }
@@ -2064,15 +2064,15 @@ Section Laplace.
       apply powerRZ_lt. OK.
     }
     rewrite //=.
-    iIntros (?) "[Hcont [%I [%r [I [HA He]]]]]".
+    iIntros (?) "[Hcont [%r [HA He]]]".
     wp_pures.
     wp_bind (R_plus _ _).
-    iApply (pgl_wp_mono_frame (I ∗ ↯ (F (μ + r))) with "[HA Hcont] [I He]").
+    iApply (pgl_wp_mono_frame (↯ (F (μ + r))) with "[HA Hcont] [He]").
     3: { iFrame. }
     2: { iApply wp_R_plus. iFrame. }
     rewrite //=.
-    iIntros (?) "[[I HA] He]".
-    iExists I, (μ + r).
+    iIntros (?) "[He HA]".
+    iExists  (μ + r).
     iFrame.
   Qed.
 
@@ -2468,16 +2468,16 @@ Section AccuracyBound.
   Qed.
 
 
-  Lemma wp_Laplace_Accuracy E (β : R) (Hβ : 0 < β <= 1) (logε : Z) (μcont : val) μI (μ : R) :
+  Lemma wp_Laplace_Accuracy E (β : R) (Hβ : 0 < β <= 1) (logε : Z) (μcont : val) (μ : R) :
     ⊢ ↯ β -∗
-    IsApprox μcont μ E μI -∗
+    IsApprox μcont μ E -∗
       WP Laplace #logε μcont @ E
-        {{ cont, ∃ I r, I ∗ IsApprox cont r E (μI ∗ I) ∗ ⌜Rabs (r - μ) <= ln (/ β) / (powerRZ 2 logε) ⌝}}.
+        {{ cont, ∃ r, IsApprox cont r E ∗ ⌜Rabs (r - μ) <= ln (/ β) / (powerRZ 2 logε) ⌝}}.
   Proof.
     iIntros "Hε Happrox".
     iApply (pgl_wp_mono with "[Hε Happrox]").
     2: {
-      iApply (wp_Laplace E (M := (1 + 1)) (fun r => AccF ((ln (/ β)) / powerRZ 2 logε) (r - μ)) _ _ _ μ with "[Hε]").
+      iApply (wp_Laplace E (M := (1 + 1)) (fun r => AccF ((ln (/ β)) / powerRZ 2 logε) (r - μ)) _ _ μ with "[Hε]").
       { intros x. rewrite /AccF.
         split.
         { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
@@ -2523,8 +2523,7 @@ Section AccuracyBound.
     }
     intros v.
     rewrite //=.
-    iIntros "[%I [%r [? [? He]]]]".
-    iExists I.
+    iIntros "[%r [? He]]".
     iExists r.
     iFrame.
     rewrite /AccF/Iverson.

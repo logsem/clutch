@@ -838,7 +838,7 @@ Theorem lazy_real_expr_adequacy_below Σ `{erisGpreS Σ} {M} (e : expr) (σ : st
     (Hspec :
       ∀ `{erisGS Σ} E (F : R -> R) (Hnn : ∃ M, ∀ x , 0 <= F x <= M) (HPC : IPCts F),
       ↯ (RInt_gen (fun (x : R) => μ x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty))%R -∗
-       WP e @ E {{ cont, ∃ I r, I ∗ IsApprox cont r E (I) ∗ ↯(F r) }}) :
+       WP e @ E {{ cont, ∃ r, IsApprox cont r E ∗ ↯(F r) }}) :
     ∀ B C : Z,
       pgl
         (lim_exec (lazy_real_cdf_checker e B C, σ))
@@ -863,8 +863,8 @@ Proof.
     }
   }
   rewrite //=.
-  iIntros (sample) "[%I [%r HI]]".
-  remember (I ∗ IsApprox sample r ⊤ I ∗ ↯ (Iverson (Ici (IZR B / powerRZ 2 C)) r))%I as Hcrs.
+  iIntros (sample) "[%r HI]".
+  remember (IsApprox sample r ⊤ ∗ ↯ (Iverson (Ici (IZR B / powerRZ 2 C)) r))%I as Hcrs.
   wp_pures.
   wp_bind (R_ofZ _).
   iApply (pgl_wp_mono_frame Hcrs with "[] HI").
@@ -878,7 +878,7 @@ Proof.
   rewrite //=.
   iIntros (bound) "[HI Hbound]".
   rewrite HeqHcrs.
-  iDestruct "HI" as "[HI [Hsample He]]".
+  iDestruct "HI" as "[Hsample He]".
   rewrite /Iverson//=.
   case_decide.
   { iExFalso. by iApply (ec_contradict with "He"). }
@@ -904,7 +904,7 @@ Theorem lazy_real_expr_adequacy_above Σ `{erisGpreS Σ} {M} (e : expr) (σ : st
     (Hspec :
       ∀ `{erisGS Σ} E (F : R -> R) (Hnn : ∃ M, ∀ x , 0 <= F x <= M) (HPC : IPCts F),
       ↯ (RInt_gen (fun (x : R) => μ x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty))%R -∗
-       WP e @ E {{ cont, ∃ I r, I ∗ IsApprox cont r E (I) ∗ ↯(F r) }}) :
+       WP e @ E {{ cont, ∃ r, IsApprox cont r E ∗ ↯(F r) }}) :
     ∀ B C : Z,
       pgl
         (lim_exec (lazy_real_cdf_checker e B C, σ))

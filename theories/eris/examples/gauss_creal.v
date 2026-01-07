@@ -691,7 +691,7 @@ Section Symmetric.
 
   Lemma wp_Gauss E (F : R → R) {M} (Hnn : ∀ x, 0 <= F x <= M) (HP : IPCts F)  :
     ⊢ ↯ (Gauss_CreditV F) -∗
-      WP Gauss #() @ E {{ cont, ∃ I r, I ∗ IsApprox cont r E (I) ∗ ↯(F r) }}.
+      WP Gauss #() @ E {{ cont, ∃ r, IsApprox cont r E ∗ ↯(F r) }}.
   Proof.
     iIntros "He".
     rewrite /Gauss.
@@ -735,12 +735,12 @@ Section Symmetric.
     simpl.
     iIntros (v) "[%[%[%[%[-> [H1 [% H2]]]]]]]".
     wp_pures.
-    iApply (pgl_wp_mono_frame (lazy_real ℓ vr ∗ ↯ (F (bzu_to_R b vz vr))) with "[] [H1 H2]").
+    iApply (pgl_wp_mono_frame (↯ (F (bzu_to_R b vz vr))) with "[H1] [H2]").
     3: { iFrame. }
-    2: { iApply (@wp_ToLazyReal _ _ E _ _); iPureIntro. done. }
+    2: { iApply (@wp_ToLazyReal _ _ E _ _); done. }
     rewrite //=.
-    iIntros (?) "[[Hr He] Happrox]".
-    iExists (lazy_real ℓ vr), (bzu_to_R b vz vr).
+    iIntros (?) "[He Happrox]".
+    iExists (bzu_to_R b vz vr).
     iFrame.
   Qed.
 

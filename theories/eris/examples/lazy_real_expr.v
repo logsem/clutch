@@ -523,16 +523,19 @@ Section Lib.
      for v, and then use the IsSeq machinery easily. However that is not availiable to us
      so we must use a lower-level strategy. *)
 
-  Definition IsApprox (v : val) (x : R) E (I : iProp Σ) : iProp Σ :=
-    □ (∀ (prec : Z), I -∗ WP (v #prec) @ E {{ fun zv => ∃ (R : Z), ⌜zv = #R ⌝ ∗ I ∗ ⌜ApproxTo' R (-prec) x ⌝ }}).
+  Definition IsApprox (v : val) (x : R) E  : iProp Σ :=
+    (∃ (I : iProp Σ), I ∗
+    □ (∀ (prec : Z), I -∗ WP (v #prec) @ E {{ fun zv => ∃ (R : Z), ⌜zv = #R ⌝ ∗ I ∗ ⌜ApproxTo' R (-prec) x ⌝ }})).
 
   Lemma wp_R_ofZ {z : Z} {E} :
-    ⊢ WP (R_ofZ #z) @ E {{ fun cont => IsApprox cont (IZR z) E True}}.
+    ⊢ WP (R_ofZ #z) @ E {{ fun cont => IsApprox cont (IZR z) E}}.
   Proof.
     rewrite /R_ofZ.
     wp_pures.
     rewrite /IsApprox.
     iModIntro.
+    iExists True%I.
+    iSplitR; try done.
     iModIntro.
     iIntros (prec) "_".
     wp_pures.
@@ -545,14 +548,16 @@ Section Lib.
     apply ApproxZ_correct'.
   Qed.
 
-  Lemma wp_R_mulPow {vf : val} {x E I} {z : Z} :
-    IsApprox vf x E I ⊢ WP (R_mulPow vf #z) @ E {{ fun cont => IsApprox cont (x / powerRZ 2 z) E I}}.
+  Lemma wp_R_mulPow {vf : val} {x E} {z : Z} :
+    IsApprox vf x E ⊢ WP (R_mulPow vf #z) @ E {{ fun cont => IsApprox cont (x / powerRZ 2 z) E}}.
   Proof.
     rewrite /IsApprox.
-    iIntros "#Hcont".
+    iIntros "[%I [HI #Hcont]]".
     rewrite /R_mulPow/IsSeq/ApproxScal//=.
     wp_pures.
     iModIntro.
+    iExists I.
+    iFrame.
     iModIntro.
     iIntros (?) "HI".
     wp_pures.
@@ -569,14 +574,16 @@ Section Lib.
     apply ApproxScal_correct'; done.
   Qed.
 
-  Lemma wp_R_neg {vf : val} {x E I} :
-    IsApprox vf x E I ⊢ WP (R_neg vf) @ E {{ fun cont => IsApprox cont (-x) E I}}.
+  Lemma wp_R_neg {vf : val} {x E} :
+    IsApprox vf x E ⊢ WP (R_neg vf) @ E {{ fun cont => IsApprox cont (-x) E}}.
   Proof.
     rewrite /IsApprox.
-    iIntros "#Hcont".
+    iIntros "[%I [HI #Hcont]]".
     rewrite /R_neg/IsSeq/ApproxNeg.
     wp_pures.
     iModIntro.
+    iExists I.
+    iFrame.
     iModIntro.
     iIntros (?) "HI".
     wp_pures.
@@ -596,15 +603,17 @@ Section Lib.
     apply ApproxNeg_correct'; done.
   Qed.
 
-  Lemma wp_R_plus {vf vg : val} {x y E If Ig}  :
-    IsApprox vf x E If ∗ IsApprox vg y E Ig ⊢
-      WP (R_plus vf vg) @ E {{ fun cont => IsApprox cont (x + y) E (If ∗ Ig)}}.
+  Lemma wp_R_plus {vf vg : val} {x y E} :
+    IsApprox vf x E ∗ IsApprox vg y E ⊢
+      WP (R_plus vf vg) @ E {{ fun cont => IsApprox cont (x + y) E}}.
   Proof.
     rewrite /IsApprox.
-    iIntros "[#Hf #Hg]".
+    iIntros "[[%If [HIf #Hf]] [%Ig [HIg #Hg]]]".
     rewrite /R_plus/IsSeq/ApproxAdd//=/VDiv4Rounded//=/RoundedDiv4//=.
     wp_pures.
     iModIntro.
+    iExists (If ∗ Ig)%I.
+    iFrame.
     iModIntro.
     iIntros (prec) "[HIf HIg]".
     wp_pures.
@@ -637,12 +646,15 @@ Section Lib.
   Qed.
 
   Lemma wp_R_ofUnif {v : val} (x : R) {E}  :
-    ⊢ WP (R_ofUnif v) @ E {{ fun cont =>  IsApprox cont x E (lazy_real v x)}}.
+    lazy_real v x ⊢ WP (R_ofUnif v) @ E {{ fun cont =>  IsApprox cont x E}}.
   Proof.
     rewrite /R_ofUnif.
+    iIntros "H".
     wp_pures.
     iModIntro.
     rewrite /IsApprox.
+    iExists (lazy_real v x).
+    iFrame.
     iModIntro.
     iIntros (prec) "Hr".
     wp_pures.
@@ -669,19 +681,16 @@ Section Lib.
     }
   Qed.
 
-
-  Lemma wp_R_cmp_lt {vx vy : val} {x y : R} {n : Z} {E} {Ix Iy : iProp Σ}
+  Lemma wp_R_cmp_lt {vx vy : val} {x y : R} {n : Z} {E}
     (Hxy : x < y) :
-    IsApprox vx x E Ix ∗
-    IsApprox vy y E Iy ∗
-    Ix ∗ Iy ⊢ WP (R_cmp vx vy #n) @ E {{ fun r => ⌜r = #(-1) ⌝ ∗ Ix ∗ Iy }}.
+    IsApprox vx x E ∗ IsApprox vy y E
+    ⊢ WP (R_cmp vx vy #n) @ E {{ fun r => ⌜r = #(-1) ⌝ ∗ IsApprox vx x E ∗ IsApprox vy y E }}.
   Proof.
-    iIntros "[#HappX [#HappY [IX IY]]]".
+    iIntros "[[%Ix [IX #HappX]] [%Iy [IY #HappY]]]".
     rewrite /R_cmp.
     iLöb as "IH" forall (n).
     wp_pures.
     wp_bind (vx _).
-    (* FIXME *)
     iApply (pgl_wp_mono_frame
               (   (□  ∀ prec : Z, Ix -∗ WP vx #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ix ∗ ⌜ApproxTo' R2 (- prec) x⌝ }})
                 ∗ (□  ∀ prec : Z, Iy -∗ WP vy #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Iy ∗ ⌜ApproxTo' R2 (- prec) y⌝ }})
@@ -694,7 +703,7 @@ Section Lib.
                               if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" + #1))%V vx vy
                              #n0
                         @ E
-                        {{ r, ⌜r = #(-1)⌝ ∗ Ix ∗ Iy }})
+                        {{ r, ⌜r = #(-1)⌝ ∗ IsApprox vx x E ∗ IsApprox vy y E  }})
                 ∗ Iy)
               with "[HappX IX] [HappX HappY IH IY]").
     3 : {
@@ -707,6 +716,7 @@ Section Lib.
       iApply "HappX".
       iApply "IX".
     }
+    rewrite //=.
     iIntros (?) "[[#HappX [#HappY [#IH IY]]] [%cx [-> [IX %Hcx]]]]".
     wp_pures.
     wp_bind (vy _).
@@ -723,7 +733,7 @@ Section Lib.
                               if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" + #1))%V vx vy
                              #n0
                         @ E
-                        {{ r, ⌜r = #(-1)⌝ ∗ Ix ∗ Iy }})
+                        {{ r, ⌜r = #(-1)⌝ ∗ IsApprox vx x E ∗ IsApprox vy y E }})
                 ∗ Ix)
               with "[HappY IY] [HappX HappY IH IX]").
     3 : {
@@ -739,7 +749,12 @@ Section Lib.
     iIntros (?) "[[#HappX [#HappY [#IH IX]]] [%cy [-> [IY %Hcy]]]]".
     wp_pures.
     case_bool_decide.
-    { wp_pures. iFrame. iModIntro. done. }
+    { wp_pures. iFrame. iModIntro.
+      iSplitR; [done|].
+      iSplitL "IX".
+      { iExists Ix. iFrame. iApply "HappX". }
+      { iExists Iy. iFrame. iApply "HappY". }
+    }
     wp_pures.
     rewrite bool_decide_eq_false_2.
     2: {
@@ -753,13 +768,12 @@ Section Lib.
   Qed.
 
 
-  Lemma wp_R_cmp_gt {vx vy : val} {x y : R} {n : Z} {E} {Ix Iy : iProp Σ}
+  Lemma wp_R_cmp_gt {vx vy : val} {x y : R} {n : Z} {E}
     (Hxy : y < x) :
-    IsApprox vx x E Ix ∗
-    IsApprox vy y E Iy ∗
-    Ix ∗ Iy ⊢ WP (R_cmp vx vy #n) @ E {{ fun r => ⌜r = #1 ⌝ ∗ Ix ∗ Iy }}.
+    IsApprox vx x E ∗ IsApprox vy y E
+    ⊢ WP (R_cmp vx vy #n) @ E {{ fun r => ⌜r = #1 ⌝ ∗ IsApprox vx x E ∗ IsApprox vy y E }}.
   Proof.
-    iIntros "[#HappX [#HappY [IX IY]]]".
+    iIntros "[[%Ix [IX #HappX]] [%Iy [IY #HappY]]]".
     rewrite /R_cmp.
     iLöb as "IH" forall (n).
     wp_pures.
@@ -777,7 +791,7 @@ Section Lib.
                               if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" + #1))%V vx vy
                              #n0
                         @ E
-                        {{ r, ⌜r = #1⌝ ∗ Ix ∗ Iy }})
+                        {{ r, ⌜r = #1⌝ ∗ IsApprox vx x E ∗ IsApprox vy y E }})
                 ∗ Iy)
               with "[HappX IX] [HappX HappY IH IY]").
     3 : {
@@ -806,7 +820,7 @@ Section Lib.
                               if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" + #1))%V vx vy
                              #n0
                         @ E
-                        {{ r, ⌜r = #1⌝ ∗ Ix ∗ Iy }})
+                        {{ r, ⌜r = #1⌝ ∗ IsApprox vx x E ∗ IsApprox vy y E }})
                 ∗ Ix)
               with "[HappY IY] [HappX HappY IH IX]").
     3 : {
@@ -830,7 +844,12 @@ Section Lib.
     }
     wp_pures.
     case_bool_decide.
-    { wp_pures. iFrame. iModIntro. done. }
+    { wp_pures. iFrame. iModIntro.
+      iSplitR; [done|].
+      iSplitL "IX".
+      { iExists Ix. iFrame. iApply "HappX". }
+      { iExists Iy. iFrame. iApply "HappY". }
+    }
     do 2 wp_pure.
     iApply ("IH" with "IX IY").
   Qed.
@@ -853,21 +872,21 @@ Section ToReal.
   Context `{!erisGS Σ}.
 
   Theorem wp_ToLazyReal E {ℓ : val} {vr vz} {b : fin 2} :
-    ⊢ ⌜0 <= vr < 1 ⌝ -∗
+    ⊢ ⌜0 <= vr < 1 ⌝ -∗ lazy_real ℓ vr -∗
       WP ToLazyReal (PairV (#(fin_to_nat b)) (PairV #(Z.of_nat vz) ℓ)) @ E
-        {{ fun cont => IsApprox cont (bzu_to_R b vz vr) E (lazy_real ℓ vr) }}.
+        {{ fun cont => IsApprox cont (bzu_to_R b vz vr) E }}.
   Proof.
-    iIntros "%".
+    iIntros "% HLR".
     rewrite /ToLazyReal.
     wp_pures.
     wp_bind (R_ofUnif _).
     iApply pgl_wp_mono.
-    2: { iApply (wp_R_ofUnif vr). }
+    2: { iApply (wp_R_ofUnif vr). done. }
     rewrite //=.
     iIntros (?) "Happrox".
     wp_pures.
     wp_bind (R_ofZ _).
-    iApply (pgl_wp_mono_frame (IsApprox v vr E (lazy_real ℓ vr)) with "[] Happrox").
+    iApply (pgl_wp_mono_frame (IsApprox v vr E) with "[] Happrox").
     2: { iApply wp_R_ofZ. }
     rewrite //=.
     iIntros (?) "[Hvr Hvz]".
@@ -878,17 +897,14 @@ Section ToReal.
     rewrite //=.
     iIntros (?) "Hadd".
     wp_pures.
-    iAssert (IsApprox v1 (vr + IZR vz) E (lazy_real ℓ vr))%I with "[Hadd]" as "Hadd'".
-    { iDestruct "Hadd" as "#Hadd'".
+    iAssert (IsApprox v1 (vr + IZR vz) E)%I with "[Hadd]" as "Hadd'".
+    { iDestruct "Hadd" as "[%I [HI #Hadd']]".
+      iExists I.
+      iFrame.
       iModIntro.
       iIntros (prec) "HLR".
-      iSpecialize ("Hadd'" $! prec with "[HLR]"); iFrame.
-      iApply pgl_wp_mono.
-      2: iApply "Hadd'".
-      rewrite //=.
-      iIntros (?) "[% [?[[??]?]]]".
-      iExists R2.
-      iFrame.
+      iApply "Hadd'".
+      done.
     }
     rewrite -INR_IZR_INZ.
     destruct (bin_fin_to_nat_cases b).
