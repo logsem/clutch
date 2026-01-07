@@ -15,6 +15,13 @@ Basic knowledge of the Rocq prover is assumed. Consult, e.g., [Software Foundati
 
 We do not assume familiarity with the Iris separation logic framework. We will only introduce as much Iris as required to understand the examples; for more information see the [Iris tutorial](https://github.com/logsem/iris-tutorial) and the Iris proof mode [cheatsheet](https://gitlab.mpi-sws.org/iris/iris/-/blob/master/docs/proof_mode.md).
 
+The probabilistic separation logic this tutorial is based on was published in
+
+[**Error Credits: Resourceful Reasoning about Error Bounds for Higher-Order Probabilistic Programs**](https://doi.org/10.1145/3674635)<br>
+*Alejandro Aguirre, Philipp G. Haselwarter, Markus de Medeiros, Kwing Hei Li, Simon Oddershede Gregersen, Joseph Tassarotti, Lars Birkedal*<br>
+In ICFP 2024: ACM SIGPLAN International Conference on Functional Programming
+
+
 ## Software
 
 ### The Rocq prover
