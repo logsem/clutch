@@ -21,10 +21,7 @@
    -w -convert_concl_no_check
    -w -undeclared-scope
    -w -ambiguous-paths
-   -w -ssr-search-moved
-   ; only here to silence the spurious warning about Coqulicot not being found...
-   -w -module-not-found
-   )
+   -w -ssr-search-moved)
  (coqdoc_flags
    :standard
    --toc-depth 2 --interpolate --index indexpage --no-lib-name --parse-comments
