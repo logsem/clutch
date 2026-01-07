@@ -133,6 +133,51 @@ Section Symmetric.
     { eapply Gauss_Closed_ex_pos; OK. }
   Qed.
 
+  Lemma Gauss_ρ_mono_neg {n : nat} {x : R} : 0 < x < 1 → Gauss_ρ (- (x + n)) <= Gauss_ρ n.
+  Proof.
+    intros ?.
+    rewrite /Gauss_ρ.
+    rewrite Rdiv_def.
+    rewrite Rdiv_def.
+    repeat rewrite Rmult_assoc.
+    apply Rmult_le_compat; OK.
+    { apply Rexp_nn. }
+    { apply Rlt_le, Rinv_0_lt_compat, GaussNorm_nn. }
+    apply exp_mono.
+    rewrite Rdiv_def.
+    do 2 rewrite Ropp_mult_distr_l_reverse.
+    apply Ropp_le_contravar.
+    apply Rmult_le_compat; OK.
+    { apply pow2_ge_0. }
+    replace ((- (x + n)) ^ 2) with (((x + n)) ^ 2).
+    2: { rewrite //=; OK. }
+    apply pow_incr.
+    have ? := pos_INR n.
+    OK.
+  Qed.
+
+  Lemma Gauss_ρ_mono_pos {n : nat} {x : R} : 0 < x < 1 → Gauss_ρ (x + n) <= Gauss_ρ n.
+  Proof.
+    intros ?.
+    rewrite /Gauss_ρ.
+    rewrite Rdiv_def.
+    rewrite Rdiv_def.
+    repeat rewrite Rmult_assoc.
+    apply Rmult_le_compat; OK.
+    { apply Rexp_nn. }
+    { apply Rlt_le, Rinv_0_lt_compat, GaussNorm_nn. }
+    apply exp_mono.
+    rewrite Rdiv_def.
+    do 2 rewrite Ropp_mult_distr_l_reverse.
+    apply Ropp_le_contravar.
+    apply Rmult_le_compat; OK.
+    { apply pow2_ge_0. }
+    replace ((- (x + n)) ^ 2) with (((x + n)) ^ 2).
+    2: { rewrite //=; OK. }
+    apply pow_incr.
+    have ? := pos_INR n.
+    OK.
+  Qed.
 
   Lemma Gauss_Closed (F : R → R) {M} (Hnn : ∀ x, 0 <= F x <= M) (HP : IPCts F)  :
     Gauss_CreditV F = GaussSymm_CreditV (λ (b : fin 2) (z : nat) (u : R), F (bzu_to_R b z u)).
@@ -169,7 +214,7 @@ Section Symmetric.
         apply HP.
       }
       (* Apply Sep *)
-      rewrite (@RInt_sep _ (fun _ => 666)); first last.
+      rewrite (@RInt_sep _ (fun n => Gauss_ρ n * M)); first last.
       { intros ?.
         apply IPCts_RInt.
         apply IPCts_mult.
@@ -181,8 +226,25 @@ Section Symmetric.
         }
         apply IPCts_opp, HP.
       }
-      { admit. }
-      { admit. }
+      { intros ???; split.
+        { apply Rmult_le_pos; [|apply Hnn].
+          rewrite /Gauss_ρ.
+          apply Rcomplements.Rdiv_le_0_compat; [apply Rexp_nn |apply GaussNorm_nn].
+        }
+        apply Rmult_le_compat.
+        { rewrite /Gauss_ρ.
+          apply Rcomplements.Rdiv_le_0_compat; [apply Rexp_nn |apply GaussNorm_nn].
+        }
+        { apply Hnn. }
+        2: { apply Hnn. }
+        by apply Gauss_ρ_mono_neg.
+      }
+      { apply ex_seriesC_scal_r.
+        rewrite /Gauss_ρ.
+        replace (λ x : nat, exp (- x ^ 2 / 2) / GaussNorm) with (λ x : nat, exp (- x ^ 2 / 2) * / GaussNorm) by (funexti; OK).
+        apply ex_seriesC_scal_r.
+        apply Norm1_ex.
+      }
       { replace (λ x : R, Gauss_ρ (- x) * F (- x)) with (λ x : R, Gauss_ρ x * F (- x)).
         2: {
           funexti.
@@ -195,7 +257,7 @@ Section Symmetric.
         apply IPCts_opp, HP.
       }
       (* Apply Fubini *)
-      rewrite (FubiniIntegralSeriesC_Strong (fun _ => 666)); first last.
+      rewrite (FubiniIntegralSeriesC_Strong (fun k => (exp (- (k) ^ 2 / 2) * / Norm2 * / 2) * M)); first last.
       { intros ?.
         apply ex_RInt_mult.
         { rewrite /GaussSymm_ρ//=.
@@ -221,8 +283,50 @@ Section Symmetric.
           by apply IPCts_PCts.
         }
       }
-      { admit. }
-      { admit. }
+      { intros ???.
+        rewrite Rabs_right.
+        2: {
+          apply Rle_ge.
+          apply Rmult_le_pos; [|apply Hnn].
+          rewrite /GaussSymm_ρ.
+          rewrite -Rdiv_mult_distr.
+          apply Rmult_le_pos; OK.
+          { apply Rexp_nn. }
+          apply Rlt_le.
+          apply Rinv_0_lt_compat.
+          apply Rmult_lt_0_compat; OK.
+          apply Norm2_nn.
+        }
+        apply Rmult_le_compat; [|apply Hnn | | apply Hnn].
+        { rewrite /GaussSymm_ρ.
+          rewrite -Rdiv_mult_distr.
+          apply Rmult_le_pos; OK.
+          { apply Rexp_nn. }
+          apply Rlt_le.
+          apply Rinv_0_lt_compat.
+          apply Rmult_lt_0_compat; OK.
+          apply Norm2_nn.
+        }
+        rewrite /GaussSymm_ρ.
+        do 2 rewrite Rdiv_def.
+        repeat rewrite Rmult_assoc.
+        apply Rmult_le_compat_r.
+        { apply Rmult_le_pos; OK.
+          apply Rlt_le, Rinv_0_lt_compat, Norm2_nn.
+        }
+        apply exp_mono.
+        do 2 rewrite Rdiv_def.
+        do 2 rewrite Ropp_mult_distr_l_reverse.
+        apply Ropp_le_contravar.
+        apply Rmult_le_compat; OK.
+        { apply pow2_ge_0. }
+        replace ((- (x + n)) ^ 2) with (((x + n)) ^ 2).
+        2: { rewrite //=; OK. }
+        apply pow_incr.
+        have ? := pos_INR n.
+        OK.
+      }
+      { do 3 apply ex_seriesC_scal_r. apply Norm1_ex. }
       { intros ???.
         apply Rmult_le_pos.
         2: { apply Hnn. }
@@ -252,7 +356,7 @@ Section Symmetric.
       OK.
     }
     { (* Apply Sep *)
-      rewrite (@RInt_sep _ (fun _ => 666)); first last.
+      rewrite (@RInt_sep _ (fun n => Gauss_ρ n * M)); first last.
       { intros ?.
         apply IPCts_RInt.
         apply IPCts_mult.
@@ -264,11 +368,28 @@ Section Symmetric.
         }
         apply HP.
       }
-      { admit. }
-      { admit. }
+      { intros ???; split.
+        { apply Rmult_le_pos; [|apply Hnn].
+          rewrite /Gauss_ρ.
+          apply Rcomplements.Rdiv_le_0_compat; [apply Rexp_nn |apply GaussNorm_nn].
+        }
+        apply Rmult_le_compat.
+        { rewrite /Gauss_ρ.
+          apply Rcomplements.Rdiv_le_0_compat; [apply Rexp_nn |apply GaussNorm_nn].
+        }
+        { apply Hnn. }
+        2: { apply Hnn. }
+        by apply Gauss_ρ_mono_pos.
+      }
+      { apply ex_seriesC_scal_r.
+        rewrite /Gauss_ρ.
+        replace (λ x : nat, exp (- x ^ 2 / 2) / GaussNorm) with (λ x : nat, exp (- x ^ 2 / 2) * / GaussNorm) by (funexti; OK).
+        apply ex_seriesC_scal_r.
+        apply Norm1_ex.
+      }
       { eapply Gauss_Closed_ex_pos; OK. }
       (* Apply Fubini *)
-      rewrite (FubiniIntegralSeriesC_Strong (fun _ => 666)); first last.
+      rewrite (FubiniIntegralSeriesC_Strong (fun k => (exp (- (k) ^ 2 / 2) * / Norm2 * / 2) * M)); first last.
       { intros ?.
         apply ex_RInt_mult.
         { rewrite /GaussSymm_ρ//=.
@@ -292,8 +413,50 @@ Section Symmetric.
           by apply IPCts_PCts.
         }
       }
-      { admit. }
-      { admit. }
+      { intros ???.
+        rewrite Rabs_right.
+        2: {
+          apply Rle_ge.
+          apply Rmult_le_pos; [|apply Hnn].
+          rewrite /GaussSymm_ρ.
+          rewrite -Rdiv_mult_distr.
+          apply Rmult_le_pos; OK.
+          { apply Rexp_nn. }
+          apply Rlt_le.
+          apply Rinv_0_lt_compat.
+          apply Rmult_lt_0_compat; OK.
+          apply Norm2_nn.
+        }
+        apply Rmult_le_compat; [|apply Hnn | | apply Hnn].
+        { rewrite /GaussSymm_ρ.
+          rewrite -Rdiv_mult_distr.
+          apply Rmult_le_pos; OK.
+          { apply Rexp_nn. }
+          apply Rlt_le.
+          apply Rinv_0_lt_compat.
+          apply Rmult_lt_0_compat; OK.
+          apply Norm2_nn.
+        }
+        rewrite /GaussSymm_ρ.
+        do 2 rewrite Rdiv_def.
+        repeat rewrite Rmult_assoc.
+        apply Rmult_le_compat_r.
+        { apply Rmult_le_pos; OK.
+          apply Rlt_le, Rinv_0_lt_compat, Norm2_nn.
+        }
+        apply exp_mono.
+        do 2 rewrite Rdiv_def.
+        do 2 rewrite Ropp_mult_distr_l_reverse.
+        apply Ropp_le_contravar.
+        apply Rmult_le_compat; OK.
+        { apply pow2_ge_0. }
+        replace ((- (x + n)) ^ 2) with (((x + n)) ^ 2).
+        2: { rewrite //=; OK. }
+        apply pow_incr.
+        have ? := pos_INR n.
+        OK.
+      }
+      { do 3 apply ex_seriesC_scal_r. apply Norm1_ex. }
       { intros ???.
         apply Rmult_le_pos.
         2: { apply Hnn. }
@@ -320,7 +483,7 @@ Section Symmetric.
       rewrite GaussNorm_Norm2.
       f_equal; OK.
     }
-  Admitted.
+  Qed.
 
   Lemma wp_GaussSymm E (F : fin 2 → nat → R → R) {M}
       (Hnn : ∀ c a b, 0 <= F c a b <= M) (HP : ∀ x x1, PCts (F x x1) 0 1)  :
