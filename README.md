@@ -59,7 +59,7 @@ opam update
 opam install . --deps-only
 ```
 
-You should now be able to build the development by using `make -j N` where `N` is the number of cores available on your machine.
+You should now be able to build the development by using `dune build`, or `dune build theories/eris/tutorial/tutorial.vo` to build only the files required for the tutorial.
 
 ## Axioms
 
