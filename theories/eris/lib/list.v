@@ -138,6 +138,13 @@ Definition list_remove_nth : val :=
     | NONE => list_nil
     end.
 
+Definition list_remove_nth_unsafe : val :=
+  λ:"l" "i",
+    match: list_remove_nth "l" "i" with
+    | NONE => #()
+    | SOME "v" => "v"
+    end.
+
 Definition list_remove_nth_total : val :=
   rec: "list_remove_nth_total" "l" "i" :=
     match: "l" with
@@ -820,6 +827,22 @@ Section list_specs.
         * by apply is_list_inject.
   Qed.
 
+  Lemma wp_remove_nth_unsafe E (l : list A) (lv : val) (i : nat) :
+    {{{ ⌜ is_list l lv /\ i < length l ⌝ }}}
+      list_remove_nth_unsafe lv #i @ E
+    {{{ v, RET v;
+        ∃ e lv' l1 l2,
+          ⌜ l = l1 ++ e :: l2 ∧
+          length l1 = i /\
+          v = ((inject e), lv')%V ∧
+          is_list (l1 ++ l2) lv' ⌝ }}}.
+  Proof.
+    iIntros (φ (llv & il)) "hφ".
+    rewrite /list_remove_nth_unsafe. wp_pures.
+    wp_apply wp_remove_nth => //.
+    iIntros (?(?&?&?&?&?&?&?&?)) ; subst. wp_pures.
+    iApply "hφ". iModIntro. iExists _,_,_,_. intuition eauto.
+  Qed.
 
   Lemma wp_remove_nth_total E (l : list A) lv (i : nat) :
     {{{ ⌜is_list l lv /\ i < length l⌝ }}}
