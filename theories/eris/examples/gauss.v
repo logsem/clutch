@@ -3000,7 +3000,7 @@ Section program.
 
   Theorem wp_G2 {E F M} (Hnn : ∀ x k , 0 <= F x k <= M) (HPcts : ∀ x1 : nat, PCts (F x1) 0 1) :
     ↯(G2_CreditV F) -∗
-    WP G2 #() @ E {{ vp, ∃ k : nat, ∃ r : R, ∃ l : val, lazy_real l r  ∗ ⌜vp = PairV l #k ⌝ ∗ ↯(F k r) }}.
+    WP G2 #() @ E {{ vp, ∃ k : nat, ∃ r : R, ∃ l : val, lazy_real l r  ∗ ⌜0 <= r < 1 ⌝ ∗ ⌜vp = PairV l #k ⌝ ∗ ↯(F k r) }}.
   Proof.
     have Hint := fun n => @PCts_RInt _ 0 1 (HPcts n).
     rewrite /G2.
@@ -3021,11 +3021,22 @@ Section program.
     wp_pures.
     wp_apply wp_init; first done.
     iIntros (x) "Hx".
-    iApply (wp_lazy_real_presample_adv_comp _ _ x _ (G2_f F k) (G2_g F k)); auto.
-    { intros ??. apply G2_g_nn; auto. apply Hnn. }
-    { apply G2_g_RInt. apply Hint. }
+    iApply (wp_lazy_real_presample_adv_comp _ _ x _ (G2_f F k) (poke (G2_g F k) 1 1)); auto.
+    { intros ??.
+      rewrite /poke//=. case_decide; OK.
+      apply G2_g_nn; auto. apply Hnn. }
+    { apply (is_RInt_ext (G2_g F k)).
+      { rewrite Rmin_left; OK. rewrite Rmax_right; OK.
+        intros ??.
+        rewrite /poke//=.
+        case_decide; OK.
+      }
+      apply G2_g_RInt. apply Hint. }
     iFrame.
     iIntros (z) "(% & Hε & Hx)".
+    rewrite /poke.
+    case_decide.
+    { iExFalso. iApply (ec_contradict with "Hε"). done. }
     wp_pures.
     wp_bind (IterTrial _ _).
     iApply (pgl_wp_mono_frame (□ _) with "[Hε Hx] IH"); last first.
@@ -3069,6 +3080,7 @@ Section program.
     { wp_pures.
       iModIntro; iExists k, z, x.
       iFrame.
+      iSplitR; first (iPureIntro; OK).
       iSplitR; first done.
       rewrite /G2_s.
       iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
@@ -3289,9 +3301,10 @@ Section adequacy.
           -- apply PCts_RInt.
              apply PCts_unit_implies_all; last done.
              lra.
-      + simpl. iIntros (?) "(%&%&%&?&%&?)". by iFrame.
+      + simpl. iIntros (?) "(%&%&%&?&%&%&?)". by iFrame.
   Qed.
   
   (* TODO: Can the two adequacy staements be combined (Chasles) *)
 
 End adequacy.
+
