@@ -28,7 +28,7 @@ Section geometric.
     iIntros (Φ) "_ HΦ".
     wp_lam.
     wp_bind (rand _)%E.
-    wp_apply wp_rand_nat; auto.
+    wp_apply wp_rand; auto.
     iIntros (n) "%Hn".
     destruct n.
     - wp_pures.
@@ -57,8 +57,8 @@ Section geometric.
     wp_lam.
     wp_bind (rand _)%E.
     (** Since we only want to avoid one single outcome, we can use
-        wp_rand_err_nat and spend ↯ to ensure we do not get 0 *)
-    iApply (wp_rand_err_nat 0 with "[Herr]").
+        wp_rand_err and spend ↯ to ensure we do not get 0 *)
+    iApply (wp_rand_err 0 with "[Herr]").
     { iApply "Herr". }
     (* Exercise *)
   Admitted.
@@ -92,7 +92,7 @@ Section geometric.
 
 
  (* Sample solution:
-    iApply (wp_rand_err_nat _ _ 1).
+    iApply (wp_rand_err _ _ 1).
     iFrame.
     iIntros (n) "(%Hn1 & %Hn2)".
     inversion Hn1 as [Hn3|? Hn3].
@@ -132,7 +132,7 @@ Section geometric.
         simplify the proof script, however, we will give it ↯(/(1+1)). *)
 
     set (F (n:nat) := if bool_decide (n=0) then 0%R else (1/2)%R).
-    wp_apply (wp_rand_exp_nat 1 _ F with "Herr").
+    wp_apply (wp_rand_exp F 1 with "Herr").
     - intro n.
       unfold F.
       real_solver.
@@ -247,7 +247,7 @@ Section geometric.
                       then 0%R
                       else geo_tail_mass m %R).
       wp_bind (rand _)%E.
-      iApply (wp_rand_exp_nat 1 _ F with "Herr").
+      iApply (wp_rand_exp F 1 with "Herr").
       + intro n.
         unfold F.
         case_bool_decide; [real_solver|].
@@ -284,7 +284,7 @@ Section geometric.
     wp_lam.
     wp_bind (rand _)%E.
     set (F (n:nat) := if bool_decide (n=0) then 1%R else (1/2)%R).
-    wp_apply (wp_rand_exp_nat 1 _ F with "Herr").
+    wp_apply (wp_rand_exp F 1 with "Herr").
     - intro n.
       unfold F.
       real_solver.

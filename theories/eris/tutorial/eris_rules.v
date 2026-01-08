@@ -11,7 +11,7 @@ Section rules.
 (** The basic sampling rule essentially acts as a nondeterministic choice,
     no credits are used and the only information we get is that the output
     x is in the range [0...N] *)
-Lemma wp_rand_nat (N : nat) E Φ :
+Lemma wp_rand (N : nat) E Φ :
   ▷ (∀ x : nat, ⌜x < S N⌝ -∗ Φ #x) -∗
   WP rand #N @ E {{ Φ }}.
 Proof.
@@ -22,7 +22,7 @@ Qed.
 (** We have a rule for spending ↯(1/(N+1)) to avoid one concrete outcome in the
     range [0..N]. Note that this rule can actually be derived from the more
     general wp_rand_exp_nat, that is below *)
-Lemma wp_rand_err_nat (m : nat) (N : nat) E Φ :
+Lemma wp_rand_err (m : nat) (N : nat) E Φ :
   ↯ (1 / (N + 1)) -∗
   ▷ (∀ x : nat, ⌜x ≤ N ∧ x ≠ m⌝ -∗ Φ #x) -∗
   WP rand #N @ E {{ Φ }}.
@@ -38,7 +38,7 @@ Qed.
     function ε2, as long as (1) it's codomain is the real interval [0,1] and (2)
     it's expected value is no more than ε1. After sampling, we will get a
     natural number n in the range [0..N], and ↯ (ε2 n) error credits. *)
-Lemma wp_rand_exp_nat (N : nat) (ε1 : R) (ε2 : nat → R) E Φ :
+Lemma wp_rand_exp (ε2 : nat → R) (N : nat) (ε1 : R) E Φ :
   (∀ n, (0 <= ε2 n <= 1)%R) →
   (foldr Rplus 0 (ε2 <$> seq 0 (S N)) <= (S N) * ε1 )%R →
   ↯ ε1 -∗

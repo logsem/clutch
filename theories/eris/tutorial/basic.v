@@ -297,7 +297,7 @@ Section eris_introduction.
       single probabilistic connective [rand #N]. The expression [rand #N]
       evalautes uniformly at random to a value in the set [{0, 1, ..., N}]. For
       example, the expression [rand #1] corresponds to a coin flip, reducing
-      with to either [0] or [1]. *)
+      with probability [1/2] to either [0] or [1]. *)
 
   Lemma coin_flip :
     {{{ True }}} rand #1 {{{ (n : nat), RET #n; ⌜n = 0 ∨ n = 1⌝ }}}.
@@ -317,7 +317,7 @@ Section eris_introduction.
         consequence and framing rule is implicitly applied in the
         post-condition. *)
     iIntros "%Φ HP HΦ".
-    wp_apply wp_rand_nat.
+    wp_apply wp_rand.
     iIntros (n) "%Hn".
     iApply "HΦ".
     iPureIntro.
@@ -331,21 +331,66 @@ Section eris_introduction.
     if: rand #2 = #0 then #false else #true.
 
   (** Let's write a spec using error credits that captures this idea. *)
-  Lemma unif_3_spec :
+  Lemma wp_unif_3 :
     {{{ ↯ (1 / 3) }}} unif_3_eq {{{ RET #true; True }}}.
   Proof.
     iIntros (Φ) "Hε HΦ".
     unfold unif_3_eq.
-    wp_apply (wp_rand_err_nat 0%nat with "[Hε]").
+    (** Here we apply [wp_rand_err] that allows us "spend" [1 / (N + 1)] error
+        credits to avoid a concrete outcome in the range [0..N]. We choose [0]
+        to be the outcome we want to avoid. *)
+    wp_apply (wp_rand_err 0 with "[Hε]").
     { iApply (ec_eq with "Hε"). simpl. lra. }
     iIntros (x) "[% %]".
-    wp_binop.
+    (** the [wp_pures] tactic progresses the proof by stepping through pure
+        evaluations steps such as equality tests *)
+    wp_pures.
     rewrite bool_decide_eq_false_2; last first.
     { inversion 1. lia. }
-    wp_if.
+    wp_pures.
+    (** The update modality allows us to update ghost resources—we won't need
+        this here and will just introduce it using the [iModIntro] tactic. *)
     iModIntro.
     iApply "HΦ".
-    trivial.
+    done.
+  Qed.
+
+  (** For proving tight bounds, [wp_rand_err] is not always enough.  *)
+
+  Definition twoflip : expr :=
+    if: rand #1 = #1 then #true
+    else
+      if: rand #1 = #1 then #true
+      else #false.
+
+  Lemma wp_twoflip :
+    {{{ ↯ (1 / 4) }}} twoflip {{{ RET #true; True }}}.
+  Proof.
+    iIntros (Φ) "Hε HΦ".
+    unfold twoflip.
+    set (F (n : nat) := if bool_decide (n = 1) then 0%R else (1/2)%R).
+    wp_apply (wp_rand_exp F 1 with "Hε").
+    { intros n. unfold F. real_solver. }
+    { unfold F. simpl. lra. }
+    iIntros (n) "[%Hn Hε]".
+    wp_pures.
+    case_bool_decide; simplify_eq.
+    - wp_pures.
+      iApply "HΦ".
+      done.
+    - unfold F.
+      rewrite bool_decide_eq_false_2; last first.
+      { intros ->. done. }
+      wp_pures.
+      wp_apply (wp_rand_err 0 with "[Hε]").
+      { iApply (ec_eq with "Hε"). simpl. lra. }
+      iIntros (m) "[%Hm %Hm']".
+      wp_pures.
+      assert (m = 1) as -> by lia.
+      rewrite bool_decide_eq_true_2; [|done].
+      wp_pures.
+      iApply "HΦ".
+      done.
   Qed.
 
   (* TODO(SG): give som more intuition for what we just proved *)
