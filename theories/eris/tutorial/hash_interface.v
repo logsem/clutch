@@ -125,8 +125,11 @@ Proof.
   - lra.
   - lra.
   - intro x.
-    rewrite elem_of_empty //.
-  - rewrite size_empty /=.
+    rewrite elem_of_empty.
+    intros F.
+    exfalso.
+    apply F.
+  - rewrite size_empty.
     lra.
   - iModIntro.
     iIntros (n0) "(%Hsize & Hf & Hset)".
@@ -194,9 +197,7 @@ Proof.
   set (avoid' := avoid ∩ (set_seq 0 (val_size + 1))).
   wp_apply (hash_query_spec_fresh_avoid_aux _ avoid' _ val_size _ m
              with "[$]"); auto; rewrite /avoid'.
-  (**
-    The rest of the proof is mostly simple reasoning about sets
-   *)
+  (** The rest of the proof is mostly simple reasoning about sets *)
   - intros x Hx.
     rewrite elem_of_intersection in Hx.
     destruct Hx as [Hx1 Hx2].
@@ -237,7 +238,7 @@ Qed.
       {{{ v1 v2, RET (#v1,#v2) ; ⌜ v1 ≠ v2 ⌝ }}}.
   Proof.
     iIntros (Φ) "Herr HΦ".
-    rewrite /two_hash.
+    unfold two_hash.
     (** We first initialize the hash, with size 31 for keys
        and 7 for values *)
     wp_apply (hash_init_spec 31 7); auto.
@@ -252,9 +253,14 @@ Qed.
     }
     iIntros (v1) "(%Hv1 & Hhf)".
     wp_pures.
-    (** We now hash 2. At this point, we want to avoid a collision
-       with 1, that is, we want the result to not be v1. Since this
-       is a singleton set, we can spend ↯(1/8) to avoid it *)
+    (** We now hash 2. At this point, we want to avoid a collision with 1, that
+       is, we want the result to not be v1. Since this is a singleton set, and
+       the size of the value space is 8, we can spend ↯(1/8) to avoid it *)
+    (* Exercise *)
+
+ Admitted.
+
+  (*  Sample solution 
     wp_apply (hash_query_spec_fresh_avoid 2 {[v1]} with "[$]").
     {
       set_solver.
@@ -267,6 +273,7 @@ Qed.
       iPureIntro.
       set_solver.
   Qed.
+  *)
 
 
 

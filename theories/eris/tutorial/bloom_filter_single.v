@@ -8,13 +8,22 @@ Set Default Proof Using "Type*".
 
 (** * Bloom filters *)
 
-(**
-   Our main case study will be bloom filters. Here we will consider a simple
-   version, where the bloom filter uses a single hash function. We will consider
-   a scenario of a client that executes a sequence of insertions followed by a
-   single membership query for an element not in the filter, and want to reason
-   about the probability of a false positive
- *)
+(** Our main case study will be bloom filters. A bloom filter is a probabilistic
+    data structure to represent sets with constant time insertion and membership
+    queries. It consists of a boolean array a, initially set to [false]
+    everywhere and a set of hash functions h1,...,hn. When inserting a new
+    element e, it computes for every i∈{1,...n} the hash hi[e], and sets
+    a[hi[e]%(size a)]=true. Queries work similarly, except that we just compute
+    ⋀_{i∈{1,...,n}} a[hi[e]%(size a)] and return it. Therefore, there is a small
+    probability of a false positive for membership queries if all indices
+    collide with previously inserted elements
+
+    Here we will work with a simplified version, where the bloom filter uses a
+    single hash function and the size of the array is equal to the size of the
+    hash function value space. We will consider a scenario of a client that
+    executes a sequence of insertions followed by a single membership query for
+    an element not in the filter, and want to reason about the probability of a
+    false positive *)
 
 Section bloom_filter_single.
 
@@ -25,24 +34,29 @@ Section bloom_filter_single.
 
   Context `{!erisGS Σ, !hash_function Σ}.
 
-  (**
-     Instead of computing the probability of false positive explicitly, we will
-     use a recurrence relation, which will simplify the math in the proof.
+  (** Instead of computing the probability of false positive explicitly, we will
+      use a recurrence relation, which will simplify the math in the proof.
 
-     The recurrence below computes the probability of false positive of one
-     insertion after hashing m elements into a Bloom filter containing b bits
-     set to 1
-   *)
+      The recurrence below corresponds to the probability of false positive of one
+      membership query after inserting m elements into a Bloom filter that
+      initially contains b bits set to 1 *)
 
   Fixpoint fp_error (m b : nat) : R :=
     if bool_decide (b >= filter_size + 1) then 1 else
       (match m with
+      (** If we are not inserting any more elements, then the probability of false
+          positive is the probability of hitting one of the bits set to 1 *)
       | 0 => b/(filter_size + 1)
+      (** If we are inserting S m' elements, then the first one will be hashed
+          into a bit set to 1 with probability (b / (filter_size + 1)) and to a
+          bit set to 0 with probability (filter_size + 1 - b), and we keep
+          computing recurively
+      *)
       | S m' => (b / (filter_size + 1)) * fp_error m' b +
                ((filter_size + 1 - b) / (filter_size + 1)) * fp_error m' (S b)
        end)%R.
 
-  (** Auxiliary lemmas about fp_error *)
+  (** Some auxiliary lemmas about fp_error *)
 
   Lemma fp_error_max (m b : nat) :
     (filter_size + 1 ≤ b) ->
@@ -154,8 +168,9 @@ Section bloom_filter_single.
 
 
   Lemma fp_error_mon_1 (m b : nat):
-    (fp_error m b <= fp_error (S m) b)%R.
+    (fp_error m b <= fp_error (m + 1) b)%R.
   Proof.
+    replace (m+1) with (S m) by lia.
     rewrite fp_error_unfold_S.
     case_bool_decide.
     - apply fp_error_bounded.
@@ -246,11 +261,12 @@ Section bloom_filter_single.
   Qed.
 
 
-  (**
-     Code for initializing the bloom filter. It first
-     initializes a hash function hf, then it creates an array arr
-     and sets every element to false. The result is the pair (hf, arr)
-   *)
+  (** Below we present the code for the Bloom filter. It consists of three
+      methods: initialization, insertion and querying
+
+      Code for initializing the bloom filter. It first initializes a hash
+      function hf, then it creates an array arr and sets every element to false.
+      The result is the pair (hf, arr) *)
 
   Definition init_bloom_filter : expr :=
     λ: "_" ,
@@ -260,11 +276,9 @@ Section bloom_filter_single.
       "l".
 
 
-  (**
-      The insertion method receives a bloom filter (hf, arr) and a value v
-      to be inserted. Then, an index i is computed by computing hf v,
-      and arr[i] is set to true
-    *)
+  (** The insertion method receives a bloom filter (hf, arr) and a value v to be
+      inserted. Then, an index i is computed by computing hf v, and arr[i] is
+      set to true *)
 
   Definition insert_bloom_filter : expr :=
     λ: "l" "v" ,
@@ -272,11 +286,9 @@ Section bloom_filter_single.
       let: "i" := "hf" "v" in
       "arr" +ₗ "i" <- #true.
 
-   (**
-      The lookup method receives a bloom filter (hf, arr) and a value v
-      to be looked up. Then, an index i is computed by computing hf v,
-      and the value of arr[i] is looked up and returned.
-   *)
+   (** The lookup method receives a bloom filter (hf, arr) and a value v to be
+       looked up. Then, an index i is computed by computing hf v, and the value
+       of arr[i] is looked up and returned. *)
 
 
   Definition lookup_bloom_filter : expr :=
@@ -287,14 +299,16 @@ Section bloom_filter_single.
 
   (**  ** Representation predicate for Bloom filters *)
 
-  (**
-     Before introducing the representation predicate for the bloom filter,
-     we define an auxiliary predicate that states that the contents of the
-     array are correct. Here the arguments are:
-     - m : the abstract map representing the current view of the hash function
-     - arr : the bloom filter array
-     - els : the set of natural numbers currently represented by the bloom filter
-     - idxs : the set of indices currently set to true in the array
+  (** Before introducing the representation predicate for the Bloom filter, we
+      define an auxiliary predicate that states that the contents of the array
+      are correct. Here the arguments are:
+      - m : the abstract map representing the current view of the hash function
+      - arr : the bloom filter array
+      - els : the set of natural numbers currently represented by the Bloom
+        filter
+      - idxs : the set of indices currently set to true in the array
+
+      Note that this is a pure Rocq proposition.
   *)
 
   Definition bloom_filter_correct_content
@@ -313,15 +327,12 @@ Section bloom_filter_single.
     (forall i, i < length arr -> i ∉ idxs -> arr !! i = Some #false).
 
 
-  (**
-
-     The representation predicate for the bloom filter. We expose:
-     - l : the location containing the bloom filter
-     - els : the set currently represented by the bloom filter
-     - rem : the number of remaining insertions. Although this limits
-     the expressivity of the spec, it simplifies the proof by allowing
-     us to use amortized error reasoning
-
+  (** The representation predicate for the bloom filter. We expose:
+      - l : the location containing the bloom filter
+      - els : the set currently represented by the bloom filter
+      - rem : the number of remaining insertions. Although this limits the
+        expressivity of the spec, it simplifies the proof by allowing us to use
+        amortized error reasoning
    *)
 
   Definition is_bloom_filter (l : loc) (els : gset nat) (rem : nat) : iProp Σ :=
@@ -342,9 +353,101 @@ Section bloom_filter_single.
       hashfun filter_size hf m ∗
       ⌜bloom_filter_correct_content m arr els idxs⌝.
 
-  (**
-     We will now prove a series of lemmas that will allow us to work
-     with the representation predicates in a more abstractn fashion
+  (** We will now prove a series of lemmas that will allow us to work with the
+      representation predicates in a more abstract fashion. *)
+
+
+  (** The set of elements coindices with the domain of the map *)
+
+  Lemma bfcc_map_els (m : gmap nat nat)
+    (arr : list val) (els : gset nat) (idxs : gset nat) (k : nat) :
+    bloom_filter_correct_content m arr els idxs ->
+    (k ∈ els <-> is_Some (m !! k)).
+  Proof.
+    intros Hbf.
+    destruct Hbf as (-> & Hels & Hlen & Hsize & Ht & Hidxs & Hf); split.
+    - intros Hk.
+      rewrite <- elem_of_dom; auto.
+    - intros Hk.
+      rewrite elem_of_dom; auto.
+  Qed.
+
+  (** All indices within range are in the domain of the array *)
+
+  Lemma bfcc_lookup_arr (m : gmap nat nat)
+    (arr : list val) (els : gset nat) (idxs : gset nat) (i : nat) :
+    i < S filter_size ->
+    bloom_filter_correct_content m arr els idxs ->
+    is_Some (arr !! i).
+  Proof.
+    intros Hi Hbf.
+    destruct Hbf as (-> & Hels & Hlen & Hsize & Ht & Hidxs & Hf).
+    apply lookup_lt_is_Some_2.
+    rewrite Hlen //.
+  Qed.
+
+  (** All indices in idxs are set to [true] in the array *)
+
+  Lemma bfcc_idxs_arr_true (m : gmap nat nat)
+    (arr : list val) (els : gset nat) (idxs : gset nat) (i : nat) :
+    i ∈ idxs ->
+    bloom_filter_correct_content m arr els idxs ->
+    arr !! i = Some #true.
+  Proof.
+    intros Hi Hbf.
+    destruct Hbf as (-> & Hels & Hlen & Hsize & Ht & Hidxs & Hf).
+    by apply Ht.
+  Qed.
+
+  (** All indices within range not in idxs are set to [false] in the array *)
+
+  Lemma bfcc_idxs_arr_false (m : gmap nat nat)
+    (arr : list val) (els : gset nat) (idxs : gset nat) (i : nat) :
+    i ∉ idxs ->
+    i < S filter_size ->
+    bloom_filter_correct_content m arr els idxs ->
+    arr !! i = Some #false.
+  Proof.
+    intros Hi1 Hi2 Hbf.
+    destruct Hbf as (-> & Hels & Hlen & Hsize & Ht & Hidxs & Hf).
+    apply Hf; auto.
+    rewrite Hlen //.
+  Qed.
+
+  (** All elements in the codomain of the map are in idxs *)
+
+  Lemma bfcc_map_to_idx (m : gmap nat nat)
+    (arr : list val) (els : gset nat) (idxs : gset nat) (k i : nat) :
+    m !! k = Some i ->
+    bloom_filter_correct_content m arr els idxs ->
+    i ∈ idxs.
+  Proof.
+    intros Hki Hbf.
+    destruct Hbf as (-> & Hels & Hlen & Hsize & Ht & Hidxs & Hf).
+    rewrite <- (lookup_total_correct _ _ _ Hki).
+    apply Hels.
+    eapply elem_of_dom_2; eauto.
+  Qed.
+
+  (** All elements in idxs are within range *)
+
+  Lemma bfcc_idx_bd (m : gmap nat nat)
+    (arr : list val) (els : gset nat) (idxs : gset nat) (i : nat) :
+    i ∈ idxs ->
+    bloom_filter_correct_content m arr els idxs ->
+    i < S filter_size.
+  Proof.
+    intros Hki Hbf.
+    destruct Hbf as (-> & Hels & Hlen & Hsize & Ht & Hidxs & Hf).
+    apply Hidxs; auto.
+  Qed.
+
+
+  (** Below, we define some lemmas to initialize and update the Bloom
+      filter representation predicate.
+
+      First, an empty Bloom filter is correctly represented by an empty map, an
+      array set to [false] everywhere, and empty sets of elements and indices
   *)
 
   Lemma bloom_filter_init_content (arr : list val) :
@@ -365,90 +468,12 @@ Section bloom_filter_single.
   Qed.
 
 
-  Lemma bfcc_map_els (m : gmap nat nat)
-    (arr : list val) (els : gset nat) (idxs : gset nat) (k : nat) :
-    bloom_filter_correct_content m arr els idxs ->
-    (k ∈ els <-> is_Some (m !! k)).
-  Proof.
-    intros Hbf.
-    destruct Hbf as (-> & Hels & Hlen & Hsize & Ht & Hidxs & Hf); split.
-    - intros Hk.
-      rewrite <- elem_of_dom; auto.
-    - intros Hk.
-      rewrite elem_of_dom; auto.
-  Qed.
-
-  Lemma bfcc_lookup_arr (m : gmap nat nat)
-    (arr : list val) (els : gset nat) (idxs : gset nat) (i : nat) :
-    i < S filter_size ->
-    bloom_filter_correct_content m arr els idxs ->
-    is_Some (arr !! i).
-  Proof.
-    intros Hi Hbf.
-    destruct Hbf as (-> & Hels & Hlen & Hsize & Ht & Hidxs & Hf).
-    apply lookup_lt_is_Some_2.
-    rewrite Hlen //.
-  Qed.
-
-  Lemma bfcc_idxs_arr_true (m : gmap nat nat)
-    (arr : list val) (els : gset nat) (idxs : gset nat) (i : nat) :
-    i ∈ idxs ->
-    bloom_filter_correct_content m arr els idxs ->
-    arr !! i = Some #true.
-  Proof.
-    intros Hi Hbf.
-    destruct Hbf as (-> & Hels & Hlen & Hsize & Ht & Hidxs & Hf).
-    by apply Ht.
-  Qed.
-
-  Lemma bfcc_idxs_arr_false (m : gmap nat nat)
-    (arr : list val) (els : gset nat) (idxs : gset nat) (i : nat) :
-    i ∉ idxs ->
-    i < S filter_size ->
-    bloom_filter_correct_content m arr els idxs ->
-    arr !! i = Some #false.
-  Proof.
-    intros Hi1 Hi2 Hbf.
-    destruct Hbf as (-> & Hels & Hlen & Hsize & Ht & Hidxs & Hf).
-    apply Hf; auto.
-    rewrite Hlen //.
-  Qed.
-
-  Lemma bfcc_map_to_idx (m : gmap nat nat)
-    (arr : list val) (els : gset nat) (idxs : gset nat) (k i : nat) :
-    m !! k = Some i ->
-    bloom_filter_correct_content m arr els idxs ->
-    i ∈ idxs.
-  Proof.
-    intros Hki Hbf.
-    destruct Hbf as (-> & Hels & Hlen & Hsize & Ht & Hidxs & Hf).
-    rewrite <- (lookup_total_correct _ _ _ Hki).
-    apply Hels.
-    eapply elem_of_dom_2; eauto.
-  Qed.
-
-  Lemma bfcc_idx_bd (m : gmap nat nat)
-    (arr : list val) (els : gset nat) (idxs : gset nat) (i : nat) :
-    i ∈ idxs ->
-    bloom_filter_correct_content m arr els idxs ->
-    i < S filter_size.
-  Proof.
-    intros Hki Hbf.
-    destruct Hbf as (-> & Hels & Hlen & Hsize & Ht & Hidxs & Hf).
-    apply Hidxs; auto.
-  Qed.
-
-
-  (**
-
-     We will use this lemma to update the content of the bloom
-     filter with a new element k when there is no collision for
-     the new index v. This means:
+  (** We will use this lemma to update the content of the bloom filter with a
+     new element k when there is no collision for the new index v. This means:
      - The map gets updated with key-value pair (k,v)
      - The array gets updated by setting arr[v] to true
      - k gets added to the set of elements
      - v gets added to the set of indices
-
    *)
 
 
@@ -516,18 +541,14 @@ Section bloom_filter_single.
   Qed.
 
 
-  (**
-
-     We will use this lemma to update the content of the bloom
-     filter with a new element k when there is a collision for
-     the new index v. This means:
+  (** We will use this lemma to update the content of the bloom filter with a
+     new element k when there is a collision for the new index v. This means:
      - The map gets updated with key-value pair (k,v)
      - The array gets updated by setting arr[v] to true (though note
        it must have been true before)
      - k gets added to the set of elements
 
      However, the set of indices does not need be updated
-
    *)
 
 
@@ -567,17 +588,11 @@ Section bloom_filter_single.
 
  (**  ** Proving the specifications for the Bloom filter  *)
 
- (**
+ (** We will now prove specs for all the Bloom filter methods.
 
-    We will now prove specs for all the bloom filter methods
-
-    When initializing the bloom tilter we will choose how many
-    insertions (rem) we plan to do, and will have to pay
-    ↯ (fp_error rem 0). The result will be an empty bloom filter
-    that still allows rem insertions.
-  *)
-
-
+    When initializing the bloom tilter we will choose how many insertions (rem)
+    we plan to do, and will have to pay ↯ (fp_error rem 0). The result will be
+    an empty bloom filter that still allows rem insertions. *)
 
  Lemma bloom_filter_init_spec (rem : nat) :
     {{{ ↯ (fp_error rem 0) }}}
@@ -585,7 +600,7 @@ Section bloom_filter_single.
       {{{ (l:loc), RET #l ; is_bloom_filter l ∅ rem }}}.
  Proof.
     iIntros (Φ) "Herr HΦ".
-    rewrite /init_bloom_filter.
+    unfold init_bloom_filter.
     wp_pures.
     wp_apply hash_init_spec; auto.
     iIntros (hf) "Hhf".
@@ -603,7 +618,7 @@ Section bloom_filter_single.
       wp_pures.
       iModIntro.
       iApply "HΦ".
-      rewrite /is_bloom_filter.
+      unfold is_bloom_filter.
       iExists hf, ∅, a, arr, ∅.
       rewrite size_empty.
       iFrame.
@@ -614,11 +629,9 @@ Section bloom_filter_single.
   Qed.
 
 
-  (**
-       The spec below describes inserting a new element, not in the current
+  (**  The spec below describes inserting a new element, not in the current
        filter. Note that we require that at least 1 extra insertion must
        be possible, i.e. the number of remaining insertions must be a successor
-
    *)
 
   Lemma bloom_filter_insert_fresh_spec (l : loc) (els : gset nat) (x rem : nat) :
@@ -627,19 +640,17 @@ Section bloom_filter_single.
     {{{ RET #() ; is_bloom_filter l (els ∪ {[x]}) rem }}}.
   Proof using erisGS0 filter_size hash_function0 key_size Σ.
     iIntros (Φ) "(Hbf & %Hx ) HΦ".
-    rewrite /insert_bloom_filter {1}/is_bloom_filter.
     wp_pures.
+    unfold is_bloom_filter at 1.
     iDestruct "Hbf" as (hf m a arr idxs) "(Herr & Hl & Ha & Hhf & %Hcont)".
     wp_load.
     wp_pures.
-    (**
-        We now get to the point in the proof where error credits are used.
-        Note here how useful the recurrence relation is. We can simply assign
-        ↯ (fp_error rem (size idxs)) to the branch where the new index falls in
-        idxs (i.e. the set of indices set to 1 does not grow) and we assign
-        ↯ (fp_error rem (size idxs)) to the branch where the new index falls
-        outside of idxs.
-    *)
+    (** We now get to the point in the proof where error credits are used. Note
+        here how useful the recurrence relation is. We can simply assign ↯
+        (fp_error rem (size idxs)) to the branch where the new index falls in
+        idxs (i.e. the set of indices set to 1 does not grow) and we assign ↯
+        (fp_error rem (size idxs)) to the branch where the new index falls
+        outside of idxs. *)
     wp_apply (hash_query_spec_fresh x idxs
        (fp_error (rem + 1) (size idxs))
        (fp_error rem (size idxs))
@@ -664,7 +675,7 @@ Section bloom_filter_single.
         }
         iIntros "Ha".
         iApply "HΦ".
-        rewrite /is_bloom_filter.
+        unfold is_bloom_filter.
         (** We now have to reconstruct the bloom filter predicate *)
         iExists hf, (<[x:=v]> m), a, (<[v:=#true]> arr), (idxs ∪ {[v]}).
         iFrame.
@@ -677,27 +688,29 @@ Section bloom_filter_single.
         by apply bloom_filter_update_content_no_coll.
 
       (** We now have the case where v falls in idxs *)
-      * wp_pures.
+      * (* Exercise *)
+  Admitted.
+
+  (* Sample solution:
+        wp_pures.
         wp_apply (wp_store_offset with "Ha").
         {
           eapply bfcc_lookup_arr; eauto.
         }
         iIntros "Ha".
         iApply "HΦ".
-        rewrite /is_bloom_filter.
+        unfold is_bloom_filter.
         iExists hf, (<[x:=v]> m), a, (<[v:=#true]> arr), idxs.
         simpl.
         iFrame.
         iPureIntro.
         by apply bloom_filter_update_content_coll.
-  Qed.
+  Qed. *)
 
-   (**
-      For completeness, let's also prove a spec where we insert a previously
+   (** For completeness, let's also prove a spec where we insert a previously
       inserted element. In principle, there is no need to spend credits here,
-      but we will do it nevertheless to facilitate reasoning about a sequence
-      of insertions.
-   *)
+      but we will do it nevertheless to facilitate reasoning about a sequence of
+      insertions. *)
 
   Lemma bloom_filter_insert_old_spec (l : loc) (els : gset nat) (x rem : nat) :
     {{{ is_bloom_filter l els (rem + 1) ∗ ⌜ x ∈ els ⌝ }}}
@@ -705,16 +718,17 @@ Section bloom_filter_single.
       {{{ RET #() ; is_bloom_filter l els rem }}}.
   Proof using erisGS0 filter_size hash_function0 key_size Σ.
     iIntros (Φ) "(Hbf & %Hx ) HΦ".
-    rewrite /insert_bloom_filter {1}/is_bloom_filter.
     wp_pures.
+    unfold is_bloom_filter at 1.
     iDestruct "Hbf" as (hf m a arr idxs) "(Herr & Hl & Ha & Hhf & %Hcont)".
     wp_load.
     wp_pures.
     rewrite bfcc_map_els in Hx; eauto.
     destruct Hx as [v Hv].
-    (**
-        We are hashing a previously queried element
-     *)
+    (* Exercise *)
+  Admitted.
+
+  (* Sample solution:
     wp_apply (hash_query_spec_prev x _ v hf m with "[$]"); eauto.
     iIntros "Hhf".
     wp_pures.
@@ -732,8 +746,7 @@ Section bloom_filter_single.
     iPoseProof (ec_weaken with "Herr") as "Herr".
     {
       split; last first.
-      - replace (rem+1) with (S rem) by lia.
-        apply fp_error_mon_1.
+      - apply fp_error_mon_1.
       - apply fp_error_bounded.
     }
     iFrame.
@@ -743,6 +756,7 @@ Section bloom_filter_single.
     eapply bfcc_idxs_arr_true; eauto.
     eapply bfcc_map_to_idx; eauto.
   Qed.
+  *)
 
 
   (** For simplicity, we will unify both specs into one *)
@@ -763,13 +777,10 @@ Section bloom_filter_single.
   Qed.
 
 
-  (**
-     We prove two specs for lookups. First, we prove a spec for the case
-     where the elements we lookup x is in the set of elements els.
-     In this case, we should deterministically return true, since the element
-     must have been hashed before, and thus can be queried without spending
-     error credits
-   *)
+  (** We also prove two specs for lookups. First, we prove a spec for the case
+      where the elements we lookup x is in the set of elements els. In this case,
+      we should deterministically return true, since the element must have been
+      hashed before, and thus can be queried without spending error credits *)
 
   Lemma bloom_filter_lookup_in_spec (l : loc) (els : gset nat) (x rem : nat) :
     {{{ is_bloom_filter l els rem ∗ ⌜ x ∈ els ⌝ }}}
@@ -777,7 +788,7 @@ Section bloom_filter_single.
       {{{ v, RET v ; ⌜v = #true⌝ }}}.
   Proof using erisGS0 filter_size hash_function0 key_size Σ.
     iIntros (Φ) "(Hbf & %Hx ) HΦ".
-    rewrite /insert_bloom_filter {1}/is_bloom_filter.
+    unfold is_bloom_filter.
     iDestruct "Hbf" as (hf m a arr idxs) "(Herr & Hl & Ha & Hhf & %Hcont)".
     wp_pures.
     wp_load.
@@ -814,7 +825,7 @@ Section bloom_filter_single.
       {{{ v, RET v ; ⌜v = #false⌝ }}}.
   Proof using erisGS0 filter_size hash_function0 key_size Σ.
     iIntros (Φ) "(Hbf & %Hx) HΦ".
-    rewrite /insert_bloom_filter {1}/is_bloom_filter.
+    unfold is_bloom_filter.
     iDestruct "Hbf" as (hf m a arr idxs) "(Herr & Hl & Ha & Hhf & %Hcont)".
     wp_pures.
     wp_load.
@@ -827,10 +838,12 @@ Section bloom_filter_single.
       iApply (ec_contradict with "[$]").
       lra.
     }
-    (**
-      We now use the spec for hasing a fresh element.
-      We have enough credits to completely avoid idxs
-     *)
+    (** We now use the spec for hasing a fresh element. We have enough credits
+      to completely avoid idxs *)
+    (* Exercise *)
+  Admitted.
+
+  (* Sample solution:
     wp_apply (hash_query_spec_fresh_avoid  _ idxs
                 _ filter_size _ m
                with "[$]"); auto.
@@ -848,46 +861,14 @@ Section bloom_filter_single.
       iIntros "Ha".
       iApply "HΦ".
       done.
-  Qed.
-
-  (*
-    wp_apply (hash_query_spec_fresh  _ idxs
-                _ 1 0 filter_size _ m
-                        with "[$]"); auto.
-   - rewrite eq_None_not_Some.
-     rewrite <- bfcc_map_els; eauto.
-   - lra.
-   - lra.
-   - intros.
-     eapply bfcc_idx_bd; eauto.
-   - rewrite Rmult_1_l Rmult_0_l Rplus_0_r.
-     rewrite -Rmult_div_swap.
-     rewrite Rmult_div_l //.
-     real_solver.
-   - iIntros (v) "(%Hv & Hhfw & Herr)".
-     iDestruct "Herr" as "[(%Hvout & Herr) | (%Hvin & Herr)]"; wp_pures.
-
-     + wp_apply (wp_load_offset _ _ _ _ _ #false with "Ha").
-       {
-         eapply bfcc_idxs_arr_false; eauto.
-       }
-        iIntros "Ha".
-        iApply "HΦ".
-        done.
-
-     + iPoseProof (ec_contradict with "[$Herr]") as "?"; [lra|].
-        done.
- Qed.
-  *)
+  Qed. *)
 
   (** ** A client of the Bloom filter *)
 
-  (**
-     To conclude, let's write a  client of the bloom filter. This will
-     create an empty bloom filter, execute a sequence of insertions
-     and then execute a single lookup. The main loop, which takes
-     care of the insertions is shown below.
-   *)
+  (** To conclude, let's write a client of the bloom filter. This will create an
+     empty bloom filter, execute a sequence of insertions and then execute a
+     single lookup. The main loop, which takes care of the insertions is shown
+     below. *)
 
 
   Definition insert_bloom_filter_loop_seq : val :=
@@ -908,16 +889,14 @@ Section bloom_filter_single.
       lookup_bloom_filter "bfl" ktest.
 
 
-  (**
-    Let's now prove a spec for the loop. We will prove one with a
-    stronger premise to get a stronger induction hypothesis. Assuming
-    that we start with elements els, and we still have budget for
-    (length ks) insertions left, we can insert all of the elements
-    in ks and at the end get a bloom filter containing els ∪ ks.
+  (** Let's now prove a spec for the loop. We will prove one with a stronger
+    premise to get a stronger induction hypothesis. Assuming that we start with
+    elements els, and we still have budget for (length ks) insertions left, we
+    can insert all of the elements in ks and at the end get a bloom filter
+    containing els ∪ ks.
 
-    The proof follows by induction on ks and relatively simple separation
-    logic reasoning, using the specs we have proven above.
-   *)
+    The proof follows by induction on ks and relatively simple separation logic
+    reasoning, using the specs we have proven above. *)
 
   Lemma insert_bloom_filter_loop_seq_spec bfl els
           (ks : list nat) (ksv : val) :
@@ -930,15 +909,16 @@ Section bloom_filter_single.
     - iIntros (Hksv Φ) "Hbf HΦ".
       simpl in Hksv.
       simplify_eq.
-      rewrite /insert_bloom_filter_loop_seq.
+      unfold insert_bloom_filter_loop_seq.
       wp_pures.
       iApply "HΦ".
       simpl.
       replace (els ∪ ∅) with els by set_solver.
       done.
     - iIntros (Hksv Φ) "Hbf HΦ".
-      destruct Hksv as [kv [-> Htail]].
-      rewrite {2}/insert_bloom_filter_loop_seq.
+      destruct Hksv as [kv [Hrw Htail]].
+      rewrite Hrw.
+      unfold insert_bloom_filter_loop_seq at 2.
       do 12 wp_pure.
       fold insert_bloom_filter.
       wp_bind (insert_bloom_filter _ _).
@@ -957,12 +937,11 @@ Section bloom_filter_single.
       by iFrame.
   Qed.
 
- (**
-   Finally, the spec for the main program. If we own ↯ (fp_error (length ks) 0),
-   and ktest ∉ ks, then we can create a Bloom filter, insert all elements in ks
-   in the filter, lookup ktest, and get false as a result. In other words, the
-   probability of a false positive is upper bounded by ↯ (fp_error (length ks) 0)
-  *)
+ (** Finally, the spec for the main program. If we own ↯ (fp_error (length ks) 0),
+     and ktest ∉ ks, then we can create a Bloom filter, insert all elements in
+     ks in the filter, lookup ktest, and get false as a result. In other words,
+     the probability of a false positive is upper bounded by
+     ↯ (fp_error (length ks) 0) *)
 
  Lemma main_bloom_filter_seq_spec (ks : list nat) (ksv : val) (ktest : nat) :
       is_list ks ksv ->
