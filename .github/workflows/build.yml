@@ -18,13 +18,19 @@ jobs:
     strategy:
       matrix:
         image:
-          - mathcomp/mathcomp:2.5.0-rocq-prover-9.0
+          - ghcr.io/logsem/clutch/docker-x86-64
       max-parallel: 4
       # don't cancel all in-progress jobs if one matrix job fails:
       fail-fast: false
 
     steps:
       - uses: actions/checkout@v3
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - uses: coq-community/docker-coq-action@v1
         with:
           opam_file: 'rocq-clutch.opam'
