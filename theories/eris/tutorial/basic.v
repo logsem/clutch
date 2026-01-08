@@ -6,7 +6,7 @@ From clutch.eris.tutorial Require Import eris_rules.
 
 (** In this chapter, we introduce the basic separation logic facilities of Eris.
     By virtue of building on Iris, Eris inherits a lot of technical machinery
-    and many concepts are directly transferrable
+    and many concepts are directly transferable.
 
     The core Iris separation logic framework is parameterized by the type of
     ghost state that is needed to carry out a proof. This manifest in the
