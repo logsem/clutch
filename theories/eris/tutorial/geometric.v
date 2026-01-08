@@ -42,7 +42,7 @@ Section geometric.
       wp_pures.
       iApply "HΦ".
       iPureIntro.
-      lia.
+      nat_solver.
   Qed.
 
   (** We can use the specification above to reason about the probability that
@@ -72,7 +72,7 @@ Section geometric.
     wp_pures.
     iApply "HΦ".
     iPureIntro.
-    lia.
+    nat_solver.
   Qed.
 
 
@@ -90,7 +90,7 @@ Section geometric.
     (* Sample solution: *)
     wp_apply (wp_rand_err 1 1 with "Herr").
     iIntros (n) "(%Hn1 & %Hn2)".
-    assert (n = 0) as -> by lia.
+    assert (n = 0) as -> by nat_solver.
     wp_pures.
     iApply "HΦ".
     done.
@@ -132,7 +132,7 @@ Section geometric.
     iIntros (n) "(%Hn & Herr)".
     unfold F.
     (** We now have two disjuncts: either [n = 1] or [n = 0]. *)
-    assert (n = 1 ∨ n = 0) as Hndisj by lia.
+    assert (n = 1 ∨ n = 0) as Hndisj by nat_solver.
     destruct Hndisj as [-> | ->].
     - (** In the case [n = 1], we execute the program until the recursive call *)
       wp_pures.
@@ -146,12 +146,12 @@ Section geometric.
       wp_pures.
       iApply "HΦ".
       iPureIntro.
-      lia.
+      nat_solver.
     - simpl.
       wp_pures.
       iApply "HΦ".
       iPureIntro.
-      lia.
+      nat_solver.
   Qed.
 
   (** Let us now try to generalize these results. It is well-known that the mass
@@ -230,7 +230,7 @@ Section geometric.
         real_solver. }
       iIntros (n) "(%Hn & Herr)".
       unfold F.
-      assert (n = 1 ∨ n = 0) as Hndisj by lia.
+      assert (n = 1 ∨ n = 0) as Hndisj by nat_solver.
       destruct Hndisj as [-> | ->].
       + wp_pures.
         wp_apply ("IH" with "Herr").
@@ -238,12 +238,12 @@ Section geometric.
         wp_pures.
         iApply "HΦ".
         iPureIntro.
-        lia.
+        nat_solver.
       + wp_pures.
         simpl.
         iApply "HΦ".
         iPureIntro.
-        lia.
+        nat_solver.
   Qed.
 
   Lemma geo_gt1 :
@@ -262,7 +262,7 @@ Section geometric.
       real_solver. }
     iIntros (n) "(%Hn & Herr)".
     unfold F.
-    assert (n = 0 ∨ n = 1) as Hndisj by lia.
+    assert (n = 0 ∨ n = 1) as Hndisj by nat_solver.
     destruct Hndisj as [-> | ->].
     - simpl.
       iExFalso.
@@ -275,7 +275,7 @@ Section geometric.
       wp_pures.
       iApply "HΦ".
       iPureIntro.
-      lia.
+      nat_solver.
   Qed.
 
 End geometric.

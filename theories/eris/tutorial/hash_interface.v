@@ -122,15 +122,15 @@ Proof.
   iIntros (Hlookup Φ) "Hhash HΦ".
   iMod (ec_zero) as "Herr".
   iApply (hash_query_spec_fresh k ∅ 0%R 0%R 0%R val_size with "[$]"); eauto.
-  - lra.
-  - lra.
+  - real_solver.
+  - real_solver.
   - intro x.
     rewrite elem_of_empty.
     intros F.
     exfalso.
     apply F.
   - rewrite size_empty.
-    lra.
+    real_solver.
   - iModIntro.
     iIntros (n0) "(%Hsize & Hf & Hset)".
     iApply ("HΦ" with "[-]").
@@ -160,8 +160,8 @@ Proof.
   wp_apply (hash_query_spec_fresh  _ avoid
               _ 1 0 val_size _ m
              with "[$]"); auto.
-  - lra.
-  - lra.
+  - real_solver.
+  - real_solver.
   - real_solver.
   - iIntros (v) "(%Hv & Hhfw & Herr)".
      iDestruct "Herr" as "[(%Hvout & Herr) | (%Hvin & Herr)]".
@@ -169,7 +169,7 @@ Proof.
        iFrame.
        iPureIntro.
        split; auto.
-     + iPoseProof (ec_contradict with "[$Herr]") as "?"; [lra|].
+     + iPoseProof (ec_contradict with "[$Herr]") as "?"; [real_solver|].
        done.
 Qed.
 
@@ -202,7 +202,7 @@ Proof.
     rewrite elem_of_intersection in Hx.
     destruct Hx as [Hx1 Hx2].
     rewrite elem_of_set_seq in Hx2.
-    lia.
+    nat_solver.
   - transitivity (size avoid); auto.
     apply le_INR.
     apply subseteq_size.
@@ -217,7 +217,7 @@ Proof.
     rewrite elem_of_intersection.
     split; auto.
     rewrite elem_of_set_seq.
-    lia.
+    nat_solver.
 Qed.
 
 (** ** An example program *)

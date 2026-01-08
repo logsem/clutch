@@ -84,7 +84,7 @@ Section bloom_filter_single.
     revert b.
     induction m; intros b.
     - simpl.
-      case_bool_decide as H; [lra |].
+      case_bool_decide as H; [real_solver |].
       split.
       + apply Rcomplements.Rdiv_le_0_compat; real_solver.
       + apply not_ge in H.
@@ -94,7 +94,7 @@ Section bloom_filter_single.
         rewrite plus_INR /= in H.
         real_solver.
    - simpl.
-     case_bool_decide as H; [lra |].
+     case_bool_decide as H; [real_solver |].
      replace ((filter_size + 1 - b) / (filter_size + 1))%R with
        ( 1 - b / (filter_size + 1))%R; last first.
      {
@@ -102,7 +102,7 @@ Section bloom_filter_single.
        rewrite (Rmult_plus_distr_r).
        rewrite Rmult_inv_r; [real_solver |].
        pose proof (pos_INR filter_size).
-       lra.
+       real_solver.
      }
      apply (convex_sum_conv_alt); auto.
      split.
@@ -129,30 +129,30 @@ Section bloom_filter_single.
         * apply Rmult_le_compat_r.
           ** real_solver.
           ** rewrite S_INR.
-             lra.
-        * lia.
+             real_solver.
+        * nat_solver.
     - rewrite (fp_error_unfold_S _ (S b)).
       case_bool_decide as H.
       + apply fp_error_bounded.
       + rewrite fp_error_unfold_S.
-        rewrite bool_decide_eq_false_2; last by lia.
+        rewrite bool_decide_eq_false_2; last by nat_solver.
         assert(
             (filter_size + 1 - b) / (filter_size + 1) * fp_error m (S b) =
             (filter_size + 1 - S b) / (filter_size + 1) * fp_error m (S b) +
               1 / (filter_size + 1) * fp_error m (S b) )%R as ->.
-        { rewrite S_INR. lra. }
+        { rewrite S_INR. real_solver. }
         assert(
             S b / (filter_size + 1) * fp_error m (S b) =
             b / (filter_size + 1) * fp_error m (S b) +
             1 / (filter_size + 1) * fp_error m (S b))%R as ->.
-        { rewrite S_INR. lra. }
+        { rewrite S_INR. real_solver. }
         rewrite Rplus_assoc.
         * apply Rplus_le_compat.
           ** apply Rmult_le_compat.
              *** real_solver.
              *** apply fp_error_bounded.
              *** apply Rmult_le_compat_r; [real_solver|].
-                 lra.
+                 real_solver.
              *** apply IHm.
           ** rewrite Rplus_comm.
              apply Rplus_le_compat_l.
@@ -162,7 +162,7 @@ Section bloom_filter_single.
                  **** apply not_ge, lt_INR in H.
                       rewrite S_INR plus_INR /= in H.
                       rewrite S_INR.
-                      lra.
+                      real_solver.
                  **** real_solver.
     Qed.
 
@@ -170,7 +170,7 @@ Section bloom_filter_single.
   Lemma fp_error_mon_1 (m b : nat):
     (fp_error m b <= fp_error (m + 1) b)%R.
   Proof.
-    replace (m+1) with (S m) by lia.
+    replace (m+1) with (S m) by nat_solver.
     rewrite fp_error_unfold_S.
     case_bool_decide.
     - apply fp_error_bounded.
@@ -182,7 +182,7 @@ Section bloom_filter_single.
         apply Rmult_le_compat_r; [apply fp_error_bounded|].
         rewrite -Rmult_plus_distr_r.
         replace (b + (filter_size + 1 - b))%R with
-          (filter_size + 1)%R by lra.
+          (filter_size + 1)%R by real_solver.
         rewrite -Rdiv_def.
         rewrite Rdiv_diag; real_solver.
       + apply Rplus_le_compat_l.
@@ -198,14 +198,14 @@ Section bloom_filter_single.
       (fp_error 0 b <= fp_error m b)%R.
     Proof.
       revert b.
-    induction m; intros b; [lra |].
+    induction m; intros b; [real_solver |].
     pose proof (IHm (S b)) as H2.
     assert (fp_error 0 b <= fp_error 0 (S b))%R as H3.
     {
       rewrite /fp_error.
       case_bool_decide as H4; case_bool_decide as H5.
-      - lra.
-      - lia.
+      - real_solver.
+      - nat_solver.
       - apply not_ge in H4.
         apply (Rcomplements.Rdiv_le_1 b); [real_solver |].
         left.
@@ -231,7 +231,7 @@ Section bloom_filter_single.
       apply Rplus_le_compat.
       + apply Rmult_le_compat_l; auto.
         apply Rcomplements.Rdiv_le_0_compat; real_solver.
-      + apply Rmult_le_compat_l; [|lra].
+      + apply Rmult_le_compat_l; [|real_solver].
         apply Rcomplements.Rdiv_le_0_compat; [|real_solver].
         apply not_ge in H.
         apply lt_INR in H.
@@ -244,19 +244,19 @@ Section bloom_filter_single.
     fp_error m (b + 1) * (filter_size + 1 - b) <=
     fp_error (m + 1) b * (filter_size + 1))%R.
   Proof.
-    replace (m+1) with (S m) by lia.
+    replace (m+1) with (S m) by nat_solver.
     simpl.
     case_bool_decide.
     * rewrite fp_error_max /=; auto.
-      rewrite fp_error_max /=; [|lia].
-      lra.
+      rewrite fp_error_max /=; [|nat_solver].
+      real_solver.
     * right.
-      replace (S b) with (b + 1) by lia.
+      replace (S b) with (b + 1) by nat_solver.
       rewrite (Rmult_comm (b / (filter_size + 1))).
       rewrite (Rmult_comm ((filter_size + 1 - b) / (filter_size + 1))).
       rewrite Rmult_plus_distr_r.
       rewrite !(Rmult_assoc _ _ (filter_size + 1)).
-      rewrite !Rinv_l; [lra|].
+      rewrite !Rinv_l; [real_solver|].
       real_solver.
   Qed.
 
@@ -458,7 +458,7 @@ Section bloom_filter_single.
     intros Hlen Hf.
     repeat split; auto.
     - rewrite size_empty.
-      lia.
+      nat_solver.
     - set_solver.
     - set_solver.
     - intros i Hi Hi2.
@@ -509,9 +509,9 @@ Section bloom_filter_single.
         apply elem_of_difference.
         split; [|set_solver].
         apply elem_of_set_seq.
-        split; [lia|].
+        split; [nat_solver|].
         simpl.
-        replace (filter_size + 1) with (S filter_size) by lia.
+        replace (filter_size + 1) with (S filter_size) by nat_solver.
         apply Hidxs.
         set_solver.
       }
@@ -519,10 +519,10 @@ Section bloom_filter_single.
       *** apply subseteq_size, Hsub.
       *** rewrite size_difference.
           **** rewrite size_set_seq size_singleton.
-               lia.
+               nat_solver.
           **** apply singleton_subseteq_l.
                apply elem_of_set_seq.
-               split; lia.
+               split; nat_solver.
     - intros i Hi.
       apply elem_of_union in Hi as [Hi|Hi]; auto.
       + rewrite list_lookup_insert_ne; auto.
@@ -624,7 +624,7 @@ Section bloom_filter_single.
       iFrame.
       iPureIntro.
       eapply bloom_filter_init_content.
-      - lia.
+      - nat_solver.
       - auto.
   Qed.
 
@@ -835,7 +835,7 @@ Section bloom_filter_single.
     {
       iExFalso.
       iApply (ec_contradict with "[$]").
-      lra.
+      real_solver.
     }
     (** We now use the spec for hasing a fresh element. We have enough credits
       to completely avoid idxs *)
@@ -922,7 +922,7 @@ Section bloom_filter_single.
       fold insert_bloom_filter.
       wp_bind (insert_bloom_filter _ _).
       simpl.
-      replace (S (length ks')) with (length ks' + 1) by lia.
+      replace (S (length ks')) with (length ks' + 1) by nat_solver.
       wp_apply (bloom_filter_insert_spec with "Hbf").
       iIntros "Hbf".
       do 2 wp_pure.
