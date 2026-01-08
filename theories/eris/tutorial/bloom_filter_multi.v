@@ -6,82 +6,26 @@ From clutch.eris.lib Require Import list array.
 
 Set Default Proof Using "Type*".
 
-(*
-Class bloom_filter `{!conerisGS Σ} := BloomFilter
-{
-  (** * Operations *)
-  init_filter : val;
-  insert_elem : val;
-  lookup_elem : val;
-
-  (** * Ghost state *)
-  name: Type;
-
-  (** * Predicates *)
-  is_bloom_filter (N:namespace) (γs:name) (v : val)  : iProp Σ;
-  bf_content_auth (γs:name) (s: gset nat) : iProp Σ;
-  bf_content_frag (γs:name) (s: gset nat) : iProp Σ;
-  bf_init_cond (sz nh : nat) : iProp Σ;
-
-  is_bf_persistent N γs v : Persistent (is_bloom_filter N γs v);
-  bf_content_frag_timeless γs s : Timeless (bf_content_frag γs s);
-  bf_content_auth_timeless γs s : Timeless (bf_content_auth γs s);
-  bf_content_frag_exclusive γs s1 s2 :
-  bf_content_frag γs s1 -∗ bf_content_frag γs s2 -∗ False;
-  bf_content_auth_exclusive γs s1 s2 :
-  bf_content_auth γs s1 -∗ bf_content_auth γs s2 -∗ False;
-  bf_content_agree γs s1 s2 :
-  bf_content_frag γs s1 -∗ bf_content_auth γs s2 -∗ ⌜s1 ≡ s2⌝;
-  bf_content_update γs s s' :
-  bf_content_frag γs s -∗ bf_content_auth γs s -∗
-    |==> bf_content_frag γs s' ∗ bf_content_auth γs s';
-
-
-  (** Specs *)
-  bf_init_spec N (filter_size num_hash : nat)  :
-    {{{ bf_init_cond filter_size num_hash }}}
-      init_filter #()
-      {{{ (γs : name) (v:val), RET v;  is_bloom_filter N γs v ∗ bf_content_frag γs ∅  }}};
-
-  bf_insert_spec N γs s (n : nat) (Φ : val → iProp Σ) :
-      is_bloom_filter N γs s -∗
-          (∀ s, bf_content_auth γs s ={⊤∖↑N}=∗ bf_content_auth γs (s ∪ {[n]}) ∗ Φ #()) -∗
-              WP insert_elem s #n {{ Φ }};
-
-  bf_lookup_spec_hit N γs s (n : nat) (Φ : val → iProp Σ) :
-      is_bloom_filter N γs s -∗
-          (∀ s, ⌜n ∈ s⌝ -∗ bf_content_auth γs s ={⊤∖↑N}=∗ bf_content_auth γs s ∗ Φ (#true)) -∗
-              WP lookup_elem s #n {{ Φ }};
-
-  bf_lookup_spec_miss N γs s (n : nat) (Φ : val → iProp Σ) :
-      is_bloom_filter N γs s -∗
-          (∀ s, ⌜n ∉ s⌝ -∗ bf_content_auth γs s ={⊤∖↑N}=∗ bf_content_auth γs s ∗ Φ (#false)) -∗
-              WP lookup_elem s #n {{ Φ }};
-
-}.
-
-*)
-
 Section bloom_filter.
 
 
+  (**  * Bloom filter with multiple hash functions *)
+
+  (** This file presents a generalization of bloom_filter_single where
+      the bloom filter uses [num_hash] many hashes.
+
+      NB: The specs and proofs in this file are less streamlined than
+      the ones in bloom_filter_single.v, but we include them for
+      completeness and to show that our approach generalizes
+   *)
 
   Variable filter_size : nat.
   Variable key_size : nat.
   Variable num_hash : nat.
-  (* Variable insert_num : nat. *)
-  (* Variable max_hash_size : nat.*)
-  (* Hypothesis max_hash_size_pos: (0<max_hash_size)%nat. *)
 
-  (* Context `{!erisGS Σ, HinG: inG Σ (gset_bijR nat nat)}. *)
   Context `{!erisGS Σ, !hash_function Σ}.
 
-  (*
-     Instead of computing the probability of false positive explicitly, we will
-     use a recurrence relation, which will simplify the math in the proof.
-
-     Probability of false positive of one insertion after hashing m elements into a
-     Bloom filter containing b bits set to 1 *)
+  (** The recurrence relation can be generalized to this setting **)
 
   Fixpoint fp_error (m b : nat) : R :=
     if bool_decide (b >= filter_size + 1) then 1 else
@@ -199,6 +143,9 @@ Section bloom_filter.
   Qed.
 
 
+  (** The code for the methods of the bloom filter. Note that now
+      we are iterating over the list of hash functions for initializing
+      them, inserting elements and looking up elements *)
 
   Definition init_bloom_filter : expr :=
     λ: "_" ,
@@ -224,6 +171,7 @@ Section bloom_filter.
           if: !("arr" +ₗ "i") then #() else "res" <- #false) "hfuns";;
       !"res".
 
+  (** The representation predicate for Bloom filters *)
 
   Definition is_bloom_filter (l : loc) (els : gset nat) (rem : nat) : iProp Σ :=
     ∃ hfuns hs ms a arr (idxs : gset nat),
@@ -241,6 +189,11 @@ Section bloom_filter.
         ⌜ forall i, i ∈ idxs -> (i < S filter_size)%nat  ⌝ ∗
         ⌜ forall i, i < S filter_size -> i ∉ idxs -> arr !! i = Some #false  ⌝.
 
+  (** During insertion, we will have a partially updated Bloom filter, where
+      the current element has been hashed and written to the array only for
+      a prefix of the lists of hashes. The [is_bloom_filter] predicate can
+      only be reestablished once all the hashes are processed. In order to
+      reason about these intermediate states, we introduce a new predicate *)
 
   Definition is_bloom_filter_partial (l : loc) (e_new : nat)
     (els : gset nat) (rem : nat) hs_new hs_old a : iProp Σ :=
@@ -263,6 +216,8 @@ Section bloom_filter.
         ⌜ forall i, i ∈ idxs -> (i < S filter_size)%nat  ⌝ ∗
         ⌜ forall i, i < S filter_size -> i ∉ idxs -> arr !! i = Some #false  ⌝.
 
+  (**  Lemmas to go from the normal version of the representation predicate to
+       the partial one, and back *)
   Definition bloom_filter_to_partial l e_new els rem :
     is_bloom_filter l els (S rem) -∗
      ∃ hs a , is_bloom_filter_partial l e_new els rem [] hs a.
@@ -297,6 +252,7 @@ Section bloom_filter.
     repeat split; auto.
   Qed.
 
+  (**  We now prove the specs for the Bloom filter operations *)
 
   Lemma bloom_filter_init_spec (rem : nat) :
     {{{ ↯ (fp_error (num_hash * rem) 0) }}}
@@ -811,42 +767,3 @@ Section bloom_filter.
  Qed.
 
 End bloom_filter.
-
-
-(*
-
-Section bloom_filter_par.
-
-  Variable filter_size : nat.
-  Variable num_hash : nat.
-  (* Variable insert_num : nat. *)
-  (* Variable max_hash_size : nat.*)
-  (* Hypothesis max_hash_size_pos: (0<max_hash_size)%nat. *)
-
-  Context `{!conerisGS Σ, !spawnG Σ, HinG: inG Σ (gset_bijR nat nat)}.
-
-  Definition parallel_test : expr :=
-    (λ: "qs" "q" ,
-      let: "bf" := init_bloom_filter filter_size num_hash #() in
-      letrec: "ins" "l" :=
-         (match: "l" with
-           SOME "a" => (insert_bloom_filter "bf" (Fst "a") ||| "ins" (Snd "a"))
-         | NONE => #()
-         end) in
-      "ins" "qs" ;; lookup_bloom_filter "bf" "q").
-
-
-  Lemma parallel_test_spec (lqs : list nat) (q : nat) (qs : val) :
-    {{{ ⌜ is_list lqs qs ⌝ ∗ ↯ (fp_error filter_size num_hash (num_hash * length lqs) 0) }}}
-      parallel_test qs #q
-      {{{ v, RET v ; ⌜v = #false⌝ }}}.
-  Proof.
-
-
-
-
-
-
-End bloom_filter_par.
-
-*)

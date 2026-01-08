@@ -35,7 +35,7 @@ Qed.
 
 (** Finally we present the rule for general expectation-preserving composition.
     The user needs to provide ↯ ε1, and gets to choose a credit distribution
-    function ε2, as long as (1) it's codomain is the real interval [0,1] and (2)
+    function ε2, as long as (1) it's codomain is the non-negative reals and (2)
     it's expected value is no more than ε1. After sampling, we will get a
     natural number n in the range [0..N], and ↯ (ε2 n) error credits. *)
 Lemma wp_rand_exp (ε2 : nat → R) (N : nat) (ε1 : R) E Φ :
@@ -92,6 +92,8 @@ Proof.
      eapply (Rmin_case_strong); real_solver.
 Qed.
 
+(** Below we have the total WP version of the rules above. Note
+    the lack of a later [▷] in all of the premises *)
 
 Lemma twp_rand (N : nat) E Φ :
   (∀ x : nat, ⌜x < S N⌝ -∗ Φ #x) -∗
@@ -166,6 +168,7 @@ Proof.
      eapply (Rmin_case_strong); real_solver.
 Qed.
 
+(** The error induction rule *)
 
 Lemma ec_induction (ε ε' : R) P :
     (0 < ε)%R →
@@ -190,6 +193,8 @@ Proof.
   rewrite -Rmult_div_swap.
   rewrite Rmult_div_l; real_solver.
 Qed.
+
+(** Rules to obtain positive error credits *)
 
 Lemma twp_err_pos e s E Φ :
   to_val e = None ->
