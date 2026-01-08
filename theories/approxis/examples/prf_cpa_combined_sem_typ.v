@@ -512,7 +512,9 @@ Hypothesis refines_tape_couple_avoid : forall `{!approxisRGS Σ} (N:nat) α l z 
       assert (q * (q + 1) <= (Q - 1) * Q)%R.
       {
         rewrite -INR_1.
-        apply Rmult_le_compat ; try real_solver.
+        apply Rmult_le_compat.
+        - real_solver.
+        - rewrite -S_INR. real_solver.
         - rewrite -minus_INR. 2: lia. apply le_INR. lia.
         - rewrite -plus_INR. apply le_INR. lia.
       }

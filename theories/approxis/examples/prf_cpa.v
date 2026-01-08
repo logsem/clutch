@@ -311,7 +311,9 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
       1: { iExists 0.
            iFrame. iSplitL. 2: iPureIntro ; set_solver.
            iApply (ec_eq with "[$]").
-           field_simplify_eq ; try real_solver. nify_r. nat_solver. }
+           field_simplify_eq.
+           - nify_r. nat_solver.
+           - rewrite S_INR. real_solver. }
       iIntros "#Hinv".
       rel_arrow_val ; lrintro "msg"...
       iApply (refines_na_inv with "[$Hinv]"); [done|].
