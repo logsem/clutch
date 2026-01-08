@@ -24,6 +24,6 @@ RUN opam install coq-coquelicot.3.4.4 coq-autosubst.1.9 coq-hierarchy-builder.1.
 RUN opam install vsrocq-language-server.2.3.4
 
 RUN git clone https://gitlab.inria.fr/coquelicot/coquelicot.git
-RUN cp coquelicot/theories/* ~/.opam/stable/lib/coq/user-contrib/Coquelicot & rm -rf coquelicot
+RUN cp coquelicot/theories/* ~/.opam/stable/lib/coq/user-contrib/Coquelicot && rm -rf coquelicot
 
 RUN echo 'eval $(opam env)' >> ~/.bashrc
