@@ -119,8 +119,7 @@ Section geometric.
         outcomes of [rand #1]. Note that in the case v=0, we can immediately
         prove the postcondition, since 0 <= 1. That branch then needs 0 error
         credits. Therefore, we can give all other credits to the branch v=1. By
-        a simple calculation, we get that we can give ↯(1/2) to the branch. To
-        simplify the proof script, however, we will give it ↯(/(1+1)). *)
+        a simple calculation, we get that we can give ↯(1/2) to the branch. *)
 
     set (F (n:nat) := if bool_decide (n=0) then 0%R else (1/2)%R).
     wp_apply (wp_rand_exp F 1 with "Herr").
@@ -194,9 +193,9 @@ Section geometric.
 
   (** Let us now prove a specification about the mass of the tails of the
       geometric process. Namely, we will show that the probability that the
-      output is not [n] is less than [geo_tail_mass n] for every [n]. The proof
-      goes by induction on [n], and uses the specifications and lemmas we
-      introduced above. *)
+      output is not larger than [n] is less than [geo_tail_mass n] for every
+      [n]. The proof goes by induction on [n], and uses the specifications and
+      lemmas we introduced above. *)
   Lemma geo_le_n (n : nat) :
     {{{ ↯ (geo_tail_mass n) }}} geometric #() {{{ m, RET #m; ⌜m <= n⌝%Z }}}.
   Proof.

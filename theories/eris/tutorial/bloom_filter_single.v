@@ -688,10 +688,10 @@ Section bloom_filter_single.
         by apply bloom_filter_update_content_no_coll.
 
       (** We now have the case where v falls in idxs *)
-      * (* Exercise *)
-  Admitted.
+      * (* exercise *)
+        (* Admitted. *)
 
-  (* Sample solution:
+        (* Sample solution *)
         wp_pures.
         wp_apply (wp_store_offset with "Ha").
         {
@@ -705,7 +705,7 @@ Section bloom_filter_single.
         iFrame.
         iPureIntro.
         by apply bloom_filter_update_content_coll.
-  Qed. *)
+  Qed.
 
    (** For completeness, let's also prove a spec where we insert a previously
       inserted element. In principle, there is no need to spend credits here,
@@ -725,10 +725,10 @@ Section bloom_filter_single.
     wp_pures.
     rewrite bfcc_map_els in Hx; eauto.
     destruct Hx as [v Hv].
-    (* Exercise *)
-  Admitted.
+    (* exercise *)
+    (* Admitted. *)
 
-  (* Sample solution:
+    (* Sample solution: *)
     wp_apply (hash_query_spec_prev x _ v hf m with "[$]"); eauto.
     iIntros "Hhf".
     wp_pures.
@@ -756,7 +756,6 @@ Section bloom_filter_single.
     eapply bfcc_idxs_arr_true; eauto.
     eapply bfcc_map_to_idx; eauto.
   Qed.
-  *)
 
 
   (** For simplicity, we will unify both specs into one *)
@@ -840,10 +839,10 @@ Section bloom_filter_single.
     }
     (** We now use the spec for hasing a fresh element. We have enough credits
       to completely avoid idxs *)
-    (* Exercise *)
-  Admitted.
+    (* exercise *)
+    (* Admitted. *)
 
-  (* Sample solution:
+    (* Sample solution: *)
     wp_apply (hash_query_spec_fresh_avoid  _ idxs
                 _ filter_size _ m
                with "[$]"); auto.
@@ -861,7 +860,7 @@ Section bloom_filter_single.
       iIntros "Ha".
       iApply "HΦ".
       done.
-  Qed. *)
+  Qed.
 
   (** ** A client of the Bloom filter *)
 
