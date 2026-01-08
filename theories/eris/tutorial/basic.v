@@ -299,7 +299,7 @@ Section eris_introduction.
       example, the expression [rand #1] corresponds to a coin flip, reducing
       with probability [1/2] to either [0] or [1]. *)
 
-  Lemma coin_flip :
+  Lemma wp_coin_flip :
     {{{ True }}} rand #1 {{{ (n : nat), RET #n; ⌜n = 0 ∨ n = 1⌝ }}}.
   Proof.
     (** Under the hood, Hoare triples in Eris are defined in terms of weakest
@@ -356,20 +356,23 @@ Section eris_introduction.
   Qed.
 
   (** For proving tight bounds, [wp_rand_err] is not always enough.  *)
-
   Definition twoflip : expr :=
     if: rand #1 = #1 then #true
     else
       if: rand #1 = #1 then #true
       else #false.
 
+  (** Notice how in the [twoflip] program, the program returns [false] with
+      probability [1/4]. However, to "avoid" this erroneous outcome, we need
+      [1/2] error credits. As such, we need to "scale" the initial error budget
+      using expectation-preserving composition *)
   Lemma wp_twoflip :
     {{{ ↯ (1 / 4) }}} twoflip {{{ RET #true; True }}}.
   Proof.
     iIntros (Φ) "Hε HΦ".
     unfold twoflip.
     set (F (n : nat) := if bool_decide (n = 1) then 0%R else (1/2)%R).
-    wp_apply (wp_rand_exp F 1 with "Hε").
+    wp_apply (wp_rand_exp F with "Hε").
     { intros n. unfold F. real_solver. }
     { unfold F. simpl. lra. }
     iIntros (n) "[%Hn Hε]".
@@ -381,6 +384,8 @@ Section eris_introduction.
     - unfold F.
       rewrite bool_decide_eq_false_2; last first.
       { intros ->. done. }
+      (** Now we have [1 / 2] error credits and we progress like in the previous
+          example using [wp_rand_err]. *)
       wp_pures.
       wp_apply (wp_rand_err 0 with "[Hε]").
       { iApply (ec_eq with "Hε"). simpl. lra. }
@@ -389,12 +394,9 @@ Section eris_introduction.
       assert (m = 1) as -> by lia.
       rewrite bool_decide_eq_true_2; [|done].
       wp_pures.
+      iModIntro.
       iApply "HΦ".
       done.
   Qed.
-
-  (* TODO(SG): give som more intuition for what we just proved *)
-  (* TODO(SG): advanced composition *)
-  (* TODO(SG): Somethings with functional lists, induction? *)
 
 End eris_introduction.
