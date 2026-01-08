@@ -40,7 +40,7 @@
   (coq-mathcomp-ssreflect (= "2.5.0"))
   (coq-mathcomp-solvable (= "2.5.0"))
   (coq-mathcomp-analysis (= "1.14.0"))  
-  (coq-elpi (= 3.2.0))
+  (rocq-elpi (= 3.2.0))
   (elpi (= 3.4.2)))
  (tags
   ("awesome" "separation logic" probabilities)))
