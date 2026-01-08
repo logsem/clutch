@@ -1353,7 +1353,11 @@ Section sch_typeclasses.
     induction n; first (intros []; by rewrite dzero_0).
     simpl. intros [].
     rewrite {1 2}/dbind/dbind_pmf{1 4}/pmf.
-    apply SeriesC_le; [real_solver|apply pmf_ex_seriesC_mult_fn; exists 1; real_solver].
+    apply SeriesC_le.
+    { real_solver. }
+    apply pmf_ex_seriesC_mult_fn; exists 1.
+    intros []. simpl.
+    real_solver. 
   Qed.
 
   Lemma non_stutter_step'_property n ζ ρ ζ' tid:
@@ -1428,7 +1432,7 @@ Section sch_typeclasses.
       rewrite /dbind/dbind_pmf{4}/pmf.
       erewrite SeriesC_ext; first apply SeriesC_correct.
       + apply pmf_ex_seriesC_mult_fn.
-        exists 1. real_solver.
+        exists 1. intros [] => /=. real_solver.
       + intros []. simpl. f_equal.
         by case_bool_decide.
     - rewrite non_stutter_step_unfold.
@@ -1550,8 +1554,3 @@ Section sch_typeclasses.
     
   
 End sch_typeclasses.
-
-(* Program Instance TapeOblivious_inhabitant `{Countable sch_int_σ}: TapeOblivious sch_int_σ (@inhabitant _ scheduler_inhabited). *)
-(* Next Obligation. *)
-(*   naive_solver. *)
-(* Qed. *)
