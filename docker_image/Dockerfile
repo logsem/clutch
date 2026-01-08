@@ -21,10 +21,9 @@ RUN eval $(opam env)
 RUN opam update
 RUN opam install dune rocq-core.9.0.0 rocq-stdlib.9.0.0 coq-iris.4.4.0
 RUN opam install coq-coquelicot.3.4.4 coq-autosubst.1.9 coq-hierarchy-builder.1.10.1 coq-mathcomp-ssreflect.2.5.0 coq-mathcomp-analysis.1.14.0
-RUN opam install vsrocq-language-server
+RUN opam install vsrocq-language-server.2.3.4
 
-RUN opam switch stable
-RUN eval $(opam env)
-RUN opam update
+RUN git clone https://gitlab.inria.fr/coquelicot/coquelicot.git
+RUN cp coquelicot/theories/* ~/.opam/stable/lib/coq/user-contrib/Coquelicot & rm -rf coquelicot
 
 RUN echo 'eval $(opam env)' >> ~/.bashrc
