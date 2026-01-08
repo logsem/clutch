@@ -37,11 +37,12 @@ jobs:
           custom_image: ${{ matrix.image }}
           install : |
             startGroup "Install dependencies"
-              opam install odoc
-              # opam pin add -n -y -k path $PACKAGE $WORKDIR
-              # opam update -y
-              # opam reinstall --forget-pending --yes
-              # opam install --confirm-level=unsafe-yes -j 2 $PACKAGE --deps-only --with-doc
+              opam install odoc -y
+              apt-get install rsync -y
+              opam pin add -n -y -k path $PACKAGE $WORKDIR
+              opam update -y
+              opam reinstall --forget-pending --yes
+              opam install --confirm-level=unsafe-yes -j 2 $PACKAGE --deps-only --with-doc
             endGroup
           script: |
             startGroup Build
