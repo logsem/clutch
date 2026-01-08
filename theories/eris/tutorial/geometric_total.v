@@ -43,7 +43,20 @@ Section geometric_total.
       In this case, divergence is considered an erroneous behavior.
 
       Triples for total correctness use the syntax
+
              [[{ P }]] e [[{ v, RET #v; Q }]]
+
+      Total correctness triples have a different soundness result. Suppose we
+      prove
+             [[{ ↯ ε }]] e [[{ v, RET #v; Q }]]
+
+      Then, the probability that the program diverges or terminates in a value v
+      that does not satisfy Q is at most 1-ε. In particular,
+
+             [[{ True }]] e [[{ v, RET #v; Q }]]
+
+      implies that the program terminates with probability 1, and all possible
+      results satisfy Q.
 
       Let us now try to prove the specification above with a total triple, and
       show what happenens
