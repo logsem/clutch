@@ -7,17 +7,19 @@ Set Default Proof Using "Type*".
 
 (** ** Hash interface *)
 
-(**
-  An abstract interface for hash functions. This will allow us to work with
-  hashes using a random oracle model, i.e. the first time we hash a key it will
-  return a uniformly sampled value, and subsequent times will return the same
-  value.
+(** Here we construct an abstract interface for hash functions. This will allow
+  us to work with hashes using a random oracle model, i.e. the first time we
+  hash a key it will return a uniformly sampled value, and subsequent times will
+  return the same value. Note that this is not how real world hashes work, but
+  it is a common model to reason about hash-based data structures and algorithms.
+  One can actually implement a data structure that behaves like this by using
+  a map/dictionary whose values are sampled at random, but for the purpose of
+  this tutorial we will work with the abstract interface.
 
   At the code level, the hash will be accessed through a function f, which is a
   value. Our logical view of the hash function will be given by a partial map m
-  from keys to values.
+  from keys to values. *)
 
-*)
 Class hash_function Σ `{!erisGS Σ} := Hash_Function
 {
 
@@ -26,19 +28,16 @@ Class hash_function Σ `{!erisGS Σ} := Hash_Function
 
   (** *** Predicates *)
 
-  (**
-     The hashfun predicate connects the code level function f with its abstract
+  (** The hashfun predicate connects the code level function f with its abstract
      representation m. Here val_size is a bound on the codomain of the hash,
-     i.e., the hash should return values in [0,...,val_size]
-  *)
+     i.e., the hash should return values in [0,...,val_size] *)
 
   hashfun (val_size : nat) (f : val) (m : gmap nat nat): iProp Σ;
 
   (** *** Properties *)
 
-  (*
-     All values must be within [0,...,val_size]
-  *)
+  (** All values must be within [0,...,val_size] *)
+
   hash_val_in_bd :
   ∀ vs f m k v,
     m !! k = Some v ->
@@ -52,30 +51,28 @@ Class hash_function Σ `{!erisGS Σ} := Hash_Function
   {{{ h, RET h;
         hashfun val_size h ∅  }}} ;
 
-  (**
-     The key spec for working with hash functions is below. Here
-     we are hashing a fresh key k, and we want its value v to fall outside
-     of a set avoid. Instead of directly specifying that v∉avoid, we will
-     distribute our current error budget ↯ε depending on whether v falls inside
-     or outside avoid, giving ↯εI to the former and ↯εO to the latter.
+  (** The key spec for working with hash functions is below. Here we are hashing
+     a fresh key k, and we want its value v to fall outside of a set avoid.
+     Instead of directly specifying that v∉avoid, we will distribute our current
+     error budget ↯ε depending on whether v falls inside or outside avoid,
+     giving ↯εI to the former and ↯εO to the latter.
 
-     Since we assume that values for the hash are distributed uniformly, we
-     will impose the condition
+     Since we assume that values for the hash are distributed uniformly, we will
+     impose the condition
 
      (εI * size avoid + εO * (val_size + 1 - size avoid) <= ε * (val_size + 1))
 
-     Note that
-     (1) The probability of falling in avoid is (size avoid / (val_size + 1))
-     (2) The probability of falling outside of avoid is
-         (val_size + 1 - size avoid) / (val_size + 1)
+     Note that:
+       (1) The probability of falling in avoid is (size avoid / (val_size + 1))
+       (2) The probability of falling outside of avoid is
+           (val_size + 1 - size avoid) / (val_size + 1)
 
-     Therefore the inequality above states that the ε is at least equal or larger
-     to the expected amount of error credits we will have after hashing
+     Therefore the inequality above states that the ε is at least equal or
+     larger to the expected amount of error credits we will have after hashing
 
-     On returning, we will get a value n, an updated view on the hash, where
-     the partial map now contains the key-value pair (k,n) and an amount
-     of error credits depending on whether n ∈ avoid or n ∉ avoid.
-   *)
+     On returning, we will get a value n, an updated view on the hash, where the
+     partial map now contains the key-value pair (k,n) and an amount of error
+     credits depending on whether n ∈ avoid or n ∉ avoid. *)
 
   hash_query_spec_fresh (k : nat) (avoid : gset nat) (ε εI εO: R) val_size
     f (m : gmap nat nat) :
@@ -95,10 +92,8 @@ Class hash_function Σ `{!erisGS Σ} := Hash_Function
     }}} ;
 
 
-   (**
-     If we are hashing a previously hashed elem, then we simply return
-     its assigned value, which is in the map
-   *)
+   (** If we are hashing a previously hashed elem, then we simply return its
+     assigned value, which is in the map *)
 
   hash_query_spec_prev (k : nat) val_size (v :nat) f (m : gmap nat nat) :
   m !! k = Some v ->
@@ -113,12 +108,10 @@ Section derived_lemmas.
 
 (**  ** Derived lemmas about hash functions *)
 
-(**
-   We derive some lemmas that will allow us to work with the hash
-   function. First, one can always query a fresh element without
-   spending error credits, and then one gets no information about
-   the value, besides that it is within range
-*)
+(** We derive some lemmas that will allow us to work with the hash function.
+   First, one can always query a fresh element without spending error credits,
+   and then one gets no information about the value, besides that it is within
+   range *)
 
 Lemma hash_query_spec_fresh_basic (k : nat) val_size f m :
     m !! k = None →
@@ -142,10 +135,8 @@ Proof.
 Qed.
 
 
-(**
-   Second, if one has enough error credits, one can avoid hashing a fresh element
-   into a value in the avoid set
-*)
+(** Second, if one has enough error credits, one can avoid hashing a fresh
+   element into a value in the avoid set *)
 
 
 Lemma hash_query_spec_fresh_avoid_aux (k : nat) (avoid : gset nat) (ε : R) (val_size : nat) f m:
@@ -179,14 +170,10 @@ Proof.
        done.
 Qed.
 
-(**
-    We can actually get rid of the hypothesis
-    (∀ x, x ∈ avoid → x < S val_size)
-    This is used to ensure we have the right multiplier
-    for credits whenever we fall outside of the avoid
-    set, but since we are giving 0 credits to that
+(** We can actually get rid of the hypothesis (∀ x, x ∈ avoid → x < S val_size)
+    This is used to ensure we have the right multiplier for credits whenever we
+    fall outside of the avoid set, but since we are giving 0 credits to that
     case it does not matter
-
  *)
 
 Lemma hash_query_spec_fresh_avoid (k : nat) (avoid : gset nat) (ε : R) (val_size : nat) f m:
@@ -199,15 +186,15 @@ Lemma hash_query_spec_fresh_avoid (k : nat) (avoid : gset nat) (ε : R) (val_siz
                            ⌜ v ∉ avoid ⌝ }}}.
 Proof.
   iIntros (Hlookup Hε Φ) "(Hhash & Herr) HΦ".
-  (**
-     We first compute the intersection of avoid with
-     with [0,...,val_size] to obtain a new set avoid'
-     satisfying the premise of hash_query_spec_fresh_avoid_aux
-   *)
+
+  (** We first compute the intersection of avoid with with [0,...,val_size] to
+     obtain a new set avoid' satisfying the premise of
+     hash_query_spec_fresh_avoid_aux *)
+
   set (avoid' := avoid ∩ (set_seq 0 (val_size + 1))).
   wp_apply (hash_query_spec_fresh_avoid_aux _ avoid' _ val_size _ m
              with "[$]"); auto; rewrite /avoid'.
-  (*
+  (**
     The rest of the proof is mostly simple reasoning about sets
    *)
   - intros x Hx.
@@ -234,12 +221,9 @@ Qed.
 
 (** ** An example program *)
 
-(**
-   As a first use of our hash specifications, we will consider a simple
-   example, where initialize a hash, hash two different integers, and check
-   that their outputs are different
- *)
-
+(** As a first use of our hash specifications, we will consider a simple
+   example, where initialize a hash, hash two different integers, and check that
+   their outputs are different *)
 
   Definition two_hash : expr :=
          let: "hf" := init_hash #31 #7 in
@@ -251,7 +235,7 @@ Qed.
     {{{ ↯ (1/8) }}}
       two_hash
       {{{ v1 v2, RET (#v1,#v2) ; ⌜ v1 ≠ v2 ⌝ }}}.
- Proof.
+  Proof.
     iIntros (Φ) "Herr HΦ".
     rewrite /two_hash.
     (** We first initialize the hash, with size 31 for keys
