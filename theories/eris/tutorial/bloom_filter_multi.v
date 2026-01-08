@@ -34,7 +34,7 @@ Section bloom_filter.
       | S m' => (b / (filter_size + 1)) * fp_error m' b + ((filter_size + 1 - b) / (filter_size + 1)) * fp_error m' (S b)
        end)%R.
 
-  (* Auxiliary lemmas about fp_error *)
+  (** Auxiliary lemmas about fp_error *)
 
   Lemma fp_error_max (m b : nat) :
     (filter_size + 1 ≤ b) ->

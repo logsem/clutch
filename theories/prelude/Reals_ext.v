@@ -349,6 +349,10 @@ Ltac real_simpl :=
          (* simplifications *)
          | |- context[?a * (?b * ?c)] => rewrite -Rmult_assoc
          | |- context[_ > _] => rewrite /Rgt
+         | |- context[INR (S _)] => rewrite S_INR
+         | |- context[INR O] => rewrite INR_0
+         | H : context[INR (S _)] |- _ => rewrite S_INR in H
+         | H : context[INR O] |- _ => rewrite INR_0 in H
          | H : context[_ > _] |- _ => rewrite /Rgt in H
          | H : _ <= _ <= _ |-  _  => destruct H
          | H : forall _, _ <= _ <= _ |- _ => progress repeat ltac2:(split_le_le ())

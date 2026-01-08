@@ -91,7 +91,7 @@ Section geometric_total.
 
   Definition geometric : val :=
     rec: "geo" "n" :=
-      if: rand #1 <= #0 then #0 else "geo" "n" + #1.
+      if: rand #2 <= #0 then #0 else "geo" "n" + #1.
 
   (** Let's now show that it terminates with probability 1, and when it
       does it returns a non-negative number. We will first try the proof
@@ -150,11 +150,11 @@ Section geometric_total.
          this point, we have to choose ε'. We now from previous examples
          that the inductive hypothesis will be used in the case where
          [rand #1] returns 1, which happens with probability 1/2. By using
-         the sampling rules, we can actually get [↯(2*ε)] in that branch,
+         the sampling rules, we can actually get [↯(3/2)*ε] in that branch,
          so let us try that.
      *)
     iRevert (Φ).
-    iApply (ec_induction ε (2*ε)); auto.
+    iApply (ec_induction ε ((3/2)*ε)); auto.
     {
       (** We are required to show that the amount of error credits guarding the
           inductive hypothesis is larger than the amount we own *)
@@ -164,8 +164,8 @@ Section geometric_total.
     iIntros (Φ) "HΦ".
     unfold geometric.
     wp_lam.
-    set (F (n:nat) := if bool_decide (n=0) then 0%R else (2*ε)%R).
-    wp_apply (twp_rand_exp F 1 with "Herr").
+    set (F (n:nat) := if bool_decide (n=0) then 0%R else ((3/2)*ε)%R).
+    wp_apply (twp_rand_exp F 2 with "Herr").
     { intro n.
       unfold F.
       real_solver. }
