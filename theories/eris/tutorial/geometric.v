@@ -129,7 +129,7 @@ Section geometric.
       real_solver. }
     { unfold F.
       simpl.
-      lra. }
+      real_solver. }
     iIntros (n) "(%Hn & Herr)".
     unfold F.
     (** We now have two disjuncts: either [n = 1] or [n = 0]. *)
@@ -166,7 +166,7 @@ Section geometric.
   Proof.
     unfold geo_tail_mass.
     simpl.
-    lra.
+    real_solver.
   Qed.
 
   Lemma geo_tail_mass_bounded (m : nat) :
@@ -189,7 +189,7 @@ Section geometric.
     unfold geo_tail_mass.
     simpl.
     rewrite Rdiv_mult_distr.
-    lra.
+    real_solver.
   Qed.
 
   (** Let us now prove a specification about the mass of the tails of the
@@ -223,12 +223,12 @@ Section geometric.
       { intro n.
         unfold F.
         case_bool_decide.
-        { lra. }
+        { real_solver. }
         apply geo_tail_mass_bounded. }
       { unfold F.
         simpl.
         rewrite geo_tail_mass_S.
-        lra. }
+        real_solver. }
       iIntros (n) "(%Hn & Herr)".
       unfold F.
       assert (n = 1 ∨ n = 0) as Hndisj by lia.
@@ -260,7 +260,7 @@ Section geometric.
       real_solver. }
     { unfold F.
       simpl.
-      lra. }
+      real_solver. }
     iIntros (n) "(%Hn & Herr)".
     unfold F.
     assert (n = 0 ∨ n = 1) as Hndisj by lia.

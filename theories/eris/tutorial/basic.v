@@ -250,8 +250,8 @@ Section eris_introduction.
     (** The [ec_split] lemma tells us that [↯ (n + m)] can be split into [↯ n]
         and [↯ m] as long as [0 <= n] and [0 <= m]. We apply it directly. *)
     iApply ec_split.
-    { lra. }
-    { lra. }
+    { real_solver. }
+    { real_solver. }
     iExact "H".
   Qed.
 
@@ -262,7 +262,7 @@ Section eris_introduction.
     iIntros "[H1 H2]".
     iDestruct (ec_combine with "[H1 H2]") as "H".
     { iFrame. }
-    assert (1/4 + 1/4 = 1/2)%R as -> by lra.
+    assert (1/4 + 1/4 = 1/2)%R as -> by real_solver.
     iExact "H".
   Qed.
 
@@ -340,7 +340,7 @@ Section eris_introduction.
         credits to avoid a concrete outcome in the range [0..N]. We choose [0]
         to be the outcome we want to avoid. *)
     wp_apply (wp_rand_err 0 with "[Hε]").
-    { iApply (ec_eq with "Hε"). simpl. lra. }
+    { iApply (ec_eq with "Hε"). simpl. real_solver. }
     iIntros (x) "[% %]".
     (** the [wp_pures] tactic progresses the proof by stepping through pure
         evaluations steps such as equality tests *)
@@ -374,7 +374,7 @@ Section eris_introduction.
     set (F (n : nat) := if bool_decide (n = 1) then 0%R else (1/2)%R).
     wp_apply (wp_rand_exp F with "Hε").
     { intros n. unfold F. real_solver. }
-    { unfold F. simpl. lra. }
+    { unfold F. simpl. real_solver. }
     iIntros (n) "[%Hn Hε]".
     wp_pures.
     case_bool_decide; simplify_eq.
@@ -388,7 +388,7 @@ Section eris_introduction.
           example using [wp_rand_err]. *)
       wp_pures.
       wp_apply (wp_rand_err 0 with "[Hε]").
-      { iApply (ec_eq with "Hε"). simpl. lra. }
+      { iApply (ec_eq with "Hε"). simpl. real_solver. }
       iIntros (m) "[%Hm %Hm']".
       wp_pures.
       assert (m = 1) as -> by lia.
