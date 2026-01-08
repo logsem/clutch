@@ -257,10 +257,9 @@ Qed.
        is, we want the result to not be v1. Since this is a singleton set, and
        the size of the value space is 8, we can spend ↯(1/8) to avoid it *)
     (* Exercise *)
+    (* Admitted. *)
 
- Admitted.
-
-  (*  Sample solution 
+    (*  Sample solution: *)
     wp_apply (hash_query_spec_fresh_avoid 2 {[v1]} with "[$]").
     {
       set_solver.
@@ -273,7 +272,6 @@ Qed.
       iPureIntro.
       set_solver.
   Qed.
-  *)
 
 
 
