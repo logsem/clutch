@@ -37,14 +37,11 @@ jobs:
           custom_image: ${{ matrix.image }}
           install : |
             startGroup "Install dependencies"
-              sudo apt-get update -y -q
-              opam pin add -n -y -k path $PACKAGE $WORKDIR
-              opam update -y
-              opam reinstall --forget-pending --yes
-              opam install --confirm-level=unsafe-yes -j 2 $PACKAGE --deps-only --with-doc
+              # opam pin add -n -y -k path $PACKAGE $WORKDIR
+              # opam update -y
+              # opam reinstall --forget-pending --yes
+              # opam install --confirm-level=unsafe-yes -j 2 $PACKAGE --deps-only --with-doc
             endGroup
-          before_script: |
-            sudo chown -R rocq:rocq . # workaround a permission issue
           script: |
             startGroup Build
               dune build @doc -j 2
@@ -61,10 +58,6 @@ jobs:
             endGroup
           uninstall: |
             dune clean
-      - name: Revert permissions
-        # to avoid a warning at cleanup time
-        if: ${{ always() }}
-        run: sudo chown -R 1001:116 .
       - name: Upload html as artifact
         uses: actions/upload-pages-artifact@v3
         with:
