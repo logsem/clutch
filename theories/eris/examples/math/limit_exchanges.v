@@ -583,6 +583,24 @@ Proof.
 Qed.
 
 
+Lemma ex_RInt_gen_Chasles_exists_neg {f : R → R} {xa xb : R}
+  (Hfull : ex_RInt_gen f (Rbar_locally Rbar.m_infty) (at_point xb))
+  (Hfin : ex_RInt_gen f (at_point xa) (at_point xb)) :
+  ex_RInt_gen f (Rbar_locally Rbar.m_infty) (at_point xa).
+Proof.
+  destruct Hfull as [L1 H1].
+  destruct Hfin as [L2 H2].
+  exists (plus L1 (opp L2)).
+  eapply (is_RInt_gen_Chasles f xb L1 (opp L2) ).
+  2: {
+    rewrite is_RInt_gen_at_point.
+    rewrite is_RInt_gen_at_point in H2.
+    by apply is_RInt_swap.
+  }
+  done.
+Qed.
+
+
 (*
 (** Absolute value of improper integral is bounded by integral of absolute value bound.
     If |f(x,y)| ≤ g(x) for all x ≥ M, and g ≥ 0, then |∫[M,∞) f(·,y)| ≤ ∫[M,∞) g. *)

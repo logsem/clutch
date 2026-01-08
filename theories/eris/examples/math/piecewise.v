@@ -883,7 +883,7 @@ Proof.
     intros H%Rabs_def2.
     rewrite /minus/plus/opp/= in H *.
     apply Rabs_def1; repeat case_bool_decide; lra.
-Qed. 
+Qed.
 
 (** Finite sum of 2D functions *)
 Definition fsum2 {T U : Type} (L : list (T → U → R)) : T → U → R :=

@@ -841,16 +841,39 @@ Qed.
 
 Theorem RInt_gen_ex_neg {μ X}
     (HC : IPCts μ)
-    (Hlo : ex_RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point 0))
-    (Hhi : ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty)) :
+    (Hlo : ex_RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point 0)) :
     ex_RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point X).
 Proof.
-  (* apply (@ex_RInt_gen_Chasles_exists _ 0); OK. *) (* Generalize this *)
-Admitted.
+  apply (@ex_RInt_gen_Chasles_exists_neg _ _ 0); OK.
+  rewrite ex_RInt_gen_at_point.
+  by apply IPCts_RInt.
+Qed.
 
 Theorem IPCts_Ici {X} : IPCts (Iverson (Ici X)).
 Proof.
-Admitted.
+  destruct (IPCts_Ioi X) as [F [L [H1 [H2 H3]]]].
+  exists F.
+  exists (((fun _ : R => 1), X, X) :: L).
+  split; [|split].
+  { intros x.
+    rewrite fmap_cons fsum_cons.
+    rewrite (Rplus_comm _ (fsum _ _)) -Rplus_assoc.
+    rewrite -H1.
+    rewrite /IntervalFun_R.
+    rewrite /Iverson.
+    rewrite /Ici/Ioi/Icc//=.
+    rewrite Rmin_left; OK.
+    rewrite Rmax_right; OK.
+    case_decide; case_decide; case_decide; OK.
+  }
+  { apply Forall_cons.
+    split; OK.
+    rewrite /IntervalFun_continuity.
+    intros ??.
+    apply continuous_const.
+  }
+  { done. }
+Qed.
 
 Theorem RInt_gen_split_pos {μ X}
     (HC : IPCts μ)
@@ -869,7 +892,20 @@ Proof.
     }
     apply RInt_gen_ex_pos; OK.
   }
-  { admit. (* Generalize ex_RInt_gen_ext_eq_Ioi *)
+  { apply (@ex_RInt_gen_ext_eq_Iio (fun _ => 0)).
+    { intros ??.
+      rewrite Iverson_False; OK.
+      rewrite /Ici//=. OK.
+    }
+    apply RInt_gen_ex_neg.
+    { apply IPCts_cts. intros ?. apply continuous_const. }
+    apply (@ex_RInt_gen_neg_change_of_var_rev (λ _ : R, 0)).
+    { intros ??.
+      apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+      intros ??.
+      apply continuous_const.
+    }
+    apply ex_RInt_gen_0.
   }
   rewrite /plus//=.
   replace (RInt_gen (λ x : R, μ x * Iverson (Ici X) x) (at_point X) (Rbar_locally Rbar.p_infty))
@@ -885,10 +921,69 @@ Proof.
   replace (RInt_gen (λ x : R, μ x * Iverson (Ici X) x) (Rbar_locally Rbar.m_infty) (at_point X))
      with (0).
   2: {
-    admit.
+    rewrite (@RInt_gen_ext_eq_Iio _ (fun _ => 0)).
+    { symmetry.
+      replace X with (- -X) by OK.
+      rewrite -(@RInt_gen_shift_neg (fun _ => 0) (-X)); first last.
+      { apply RInt_gen_ex_neg.
+        { apply IPCts_cts. intros ?. apply continuous_const. }
+        apply (@ex_RInt_gen_neg_change_of_var_rev (λ _ : R, 0)).
+        { intros ??.
+          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply continuous_const.
+        }
+        apply ex_RInt_gen_0.
+      }
+      { intros ?.
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros ??.
+        apply continuous_const.
+      }
+      rewrite -RInt_gen_neg_change_of_var.
+      { by rewrite RInt_gen_0. }
+      { intros ??.
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros ??.
+        apply continuous_const.
+      }
+      { intros ??.
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros ??.
+        apply continuous_const.
+      }
+      { apply RInt_gen_ex_neg.
+        { apply IPCts_cts. intros ?. apply continuous_const. }
+        apply (@ex_RInt_gen_neg_change_of_var_rev (λ _ : R, 0)).
+        { intros ??.
+          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+          intros ??.
+          apply continuous_const.
+        }
+        apply ex_RInt_gen_0.
+      }
+    }
+    { intros ??.
+      rewrite Iverson_False; OK.
+      rewrite /Ici//=. OK.
+    }
+    apply (@ex_RInt_gen_ext_eq_Iio (fun _ => 0)).
+    { intros ??.
+      rewrite Iverson_False; OK.
+      rewrite /Ici//=. OK.
+    }
+    apply RInt_gen_ex_neg.
+    { apply IPCts_cts. intros ?. apply continuous_const. }
+    apply (@ex_RInt_gen_neg_change_of_var_rev (λ _ : R, 0)).
+    { intros ??.
+      apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+      intros ??.
+      apply continuous_const.
+    }
+    apply ex_RInt_gen_0.
   }
   OK.
-Admitted.
+Qed.
 
 (* The checker program will observe that a sample is less than B*2^C, with error ∫_(B*2^C)^∞ μ(x) dx *)
 Theorem lazy_real_expr_adequacy_below Σ `{erisGpreS Σ} {M} (e : expr) (σ : state) (μ : R -> R)

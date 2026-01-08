@@ -81,6 +81,26 @@ Proof.
   rewrite Rmin_left in H3; lra.
 Qed.
 
+Lemma ex_RInt_gen_ext_eq_Iio {f g : R → R} {M : R} :
+  (∀ x : R, x < M → f x = g x) →
+  ex_RInt_gen f (Rbar_locally Rbar.m_infty) (at_point M) →
+  ex_RInt_gen g (Rbar_locally Rbar.m_infty) (at_point M).
+Proof.
+  intros ??.
+  eapply ex_RInt_gen_ext; [|done].
+  simpl.
+  eapply (Filter_prod _ _ _ (fun x => x <= M) (fun x => x = M)).
+  { rewrite //=. exists M. intuition. lra. }
+  { rewrite /at_point//=. }
+  intros ??????.
+  apply H.
+  simpl in H3.
+  subst y.
+  rewrite Rmin_left in H3; OK.
+  rewrite Rmax_right in H3; OK.
+Qed.
+
+
 Lemma RInt_gen_ext_eq_Ici {f g : R → R} {M : R} :
   (∀ x : R, M <= x → f x = g x) →
   ex_RInt_gen f (at_point M) (Rbar_locally Rbar.p_infty) →
@@ -117,6 +137,24 @@ Proof.
   destruct H3.
   rewrite H1 in H3.
   rewrite Rmin_left in H3; lra.
+Qed.
+
+Lemma RInt_gen_ext_eq_Iio {f g : R → R} {M : R} :
+  (∀ x : R, x < M → f x = g x) →
+  ex_RInt_gen f (Rbar_locally Rbar.m_infty) (at_point M) →
+  RInt_gen f (Rbar_locally Rbar.m_infty) (at_point M) = RInt_gen g (Rbar_locally Rbar.m_infty) (at_point M).
+Proof.
+  intros ??.
+  apply RInt_gen_ext; [|done].
+  simpl.
+  eapply (Filter_prod _ _ _ (fun x => x < M) (fun x => x = M)).
+  { rewrite //=. exists M. intuition. }
+  { rewrite /at_point//=. }
+  intros ??????.
+  apply H.
+  simpl in H3.
+  rewrite Rmin_left in H3; OK.
+  rewrite Rmax_right in H3; OK.
 Qed.
 
 Lemma RInt_gen_ex_Ici {M : R} {F : R → R}
