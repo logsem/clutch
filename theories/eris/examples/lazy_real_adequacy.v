@@ -875,6 +875,33 @@ Proof.
   { done. }
 Qed.
 
+
+Theorem IPCts_Iic {X} : IPCts (Iverson (Iic X)).
+Proof.
+  destruct (IPCts_Iio X) as [F [L [H1 [H2 H3]]]].
+  exists F.
+  exists (((fun _ : R => 1), X, X) :: L).
+  split; [|split].
+  { intros x.
+    rewrite fmap_cons fsum_cons.
+    rewrite (Rplus_comm _ (fsum _ _)) -Rplus_assoc.
+    rewrite -H1.
+    rewrite /IntervalFun_R.
+    rewrite /Iverson.
+    rewrite /Iic/Iio/Icc//=.
+    rewrite Rmin_left; OK.
+    rewrite Rmax_right; OK.
+    case_decide; case_decide; case_decide; OK.
+  }
+  { apply Forall_cons.
+    split; OK.
+    rewrite /IntervalFun_continuity.
+    intros ??.
+    apply continuous_const.
+  }
+  { done. }
+Qed.
+
 Theorem RInt_gen_split_pos {μ X}
     (HC : IPCts μ)
     (Hlo : ex_RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point 0))
@@ -985,6 +1012,63 @@ Proof.
   OK.
 Qed.
 
+Theorem RInt_gen_split_neg {μ X}
+    (HC : IPCts μ)
+    (Hlo : ex_RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point 0))
+    (Hhi : ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty)) :
+  RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point X) =
+  RInt_gen (λ x : R, μ x * Iverson (Iic X) x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty).
+Proof.
+  rewrite
+    -(@RInt_gen_Chasles R_CompleteNormedModule (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty) _ _
+        (λ x : R, μ x * Iverson (Iic X) x) X); first last.
+  { apply (@ex_RInt_gen_ext_eq_Ioi (fun _ => 0)).
+    { intros ??.
+      rewrite Iverson_False; OK.
+      rewrite /Iic//=. OK.
+    }
+    apply ex_RInt_gen_0.
+  }
+  { apply (@ex_RInt_gen_ext_eq_Iio μ).
+    { intros ??.
+      rewrite Iverson_True; OK.
+      rewrite /Iic//=. OK.
+    }
+    apply RInt_gen_ex_neg; OK.
+  }
+  rewrite /plus//=.
+  replace (RInt_gen (λ x : R, μ x * Iverson (Iic X) x) (at_point X) (Rbar_locally Rbar.p_infty))
+     with (0).
+  2: {
+    rewrite (@RInt_gen_ext_eq_Ioi _ (fun _ => 0)).
+    { by rewrite RInt_gen_0. }
+    { intros ??.
+      rewrite Iverson_False; OK.
+      rewrite /Iic//=; OK.
+    }
+    apply (@ex_RInt_gen_ext_eq_Ioi (fun _ => 0)).
+    { intros ??.
+      rewrite Iverson_False; OK.
+      rewrite /Iic//=; OK.
+    }
+    apply ex_RInt_gen_0.
+  }
+  replace (RInt_gen (λ x : R, μ x * Iverson (Iic X) x) (Rbar_locally Rbar.m_infty) (at_point X))
+     with (RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point X)).
+  2: {
+   apply (@RInt_gen_ext_eq_Iio μ).
+   { intros ??.
+     rewrite Iverson_True; OK.
+     rewrite /Iic//=. OK.
+   }
+   apply RInt_gen_ex_neg; OK.
+  }
+  OK.
+Qed.
+
+
+
+
 (* The checker program will observe that a sample is less than B*2^C, with error ∫_(B*2^C)^∞ μ(x) dx *)
 Theorem lazy_real_expr_adequacy_below Σ `{erisGpreS Σ} {M} (e : expr) (σ : state) (μ : R -> R)
     (Hnn : ∀ x, 0 <= μ x <= M) (HC : IPCts μ)
@@ -1076,22 +1160,64 @@ Theorem lazy_real_expr_adequacy_above Σ `{erisGpreS Σ} {M} (e : expr) (σ : st
         (fun x => x = #(1)%Z)
         (RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point (IZR B / powerRZ 2 C))).
 Proof.
-Admitted.
-
-(*
-
-    (Hnn : ∀ x, 0 <= μ x) (HC : IPCts μ)
-    (Hlo : ex_RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point 0))
-    (Hhi : ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty))
-    (Hspec :
-      ∀ `{erisGS Σ} E (F : R -> R) (Hnn : ∃ M, ∀ x , 0 <= F x <= M) (HPC : IPCts F),
-      ↯ (RInt_gen (fun (x:R) => μ x * F x) (at_point 0) (Rbar_locally Rbar.p_infty))%R -∗
-       WP e @ E {{ cont, ∃ I r, I ∗ IsApprox cont r E (I) ∗ ↯(F r) }}) :
-    ∀ B C : Z,
-      pgl
-        (lim_exec (lazy_real_cdf_checker B C e, σ))
-        (fun x => x = #(1)%Z)
-        (RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point (IZR B * powerRZ 2 C))).
-*)
+  intros B C.
+  apply (wp_pgl_lim Σ).
+  { apply RInt_gen_pos_strong_neg.
+    { apply Hnn. }
+    { intros ?. by apply IPCts_RInt. }
+    { intros ??.
+      apply RInt_ge_0; OK.
+      { by apply IPCts_RInt. }
+      intros ??.
+      apply Hnn.
+    }
+    { by apply RInt_gen_ex_neg. }
+  }
+  iIntros (?) "He".
+  rewrite /lazy_real_cdf_checker.
+  wp_pures.
+  wp_bind e.
+  iApply pgl_wp_mono.
+  2: {
+    iApply (@Hspec _ _ (Iverson (Iic (IZR B / powerRZ 2 C)))).
+    { exists 1. intros ?. split; [apply Iverson_nonneg|apply Iverson_le_1]. }
+    { apply IPCts_Iic. }
+    { iApply (ec_eq with "He").
+      rewrite //=.
+      by apply RInt_gen_split_neg.
+    }
+  }
+  rewrite //=.
+  iIntros (sample) "[%r HI]".
+  remember (IsApprox sample r ⊤ ∗ ↯ (Iverson (Iic (IZR B / powerRZ 2 C)) r))%I as Hcrs.
+  wp_pures.
+  wp_bind (R_ofZ _).
+  iApply (pgl_wp_mono_frame Hcrs with "[] HI").
+  2: { wp_apply wp_R_ofZ. }
+  rewrite //=.
+  iIntros (num) "[HI Hnum]".
+  wp_pures.
+  wp_bind (R_mulPow _ _).
+  iApply (pgl_wp_mono_frame Hcrs with "[Hnum] HI").
+  2: { wp_apply (wp_R_mulPow with "Hnum"). }
+  rewrite //=.
+  iIntros (bound) "[HI Hbound]".
+  rewrite HeqHcrs.
+  iDestruct "HI" as "[Hsample He]".
+  rewrite /Iverson//=.
+  case_decide.
+  { iExFalso. by iApply (ec_contradict with "He"). }
+  wp_pures.
+  iApply pgl_wp_mono.
+  2: {
+    iApply (@wp_R_cmp_gt _ _ sample bound r (IZR B / powerRZ 2 C)).
+    2:{ iFrame. }
+    rewrite /Iic in H1.
+    OK.
+  }
+  rewrite //=.
+  iIntros (?) "(?&?)".
+  iFrame.
+Qed.
 
 End CReal.

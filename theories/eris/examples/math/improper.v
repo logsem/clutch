@@ -359,6 +359,34 @@ Proof.
   rewrite Heq; exact Py.
 Qed.
 
+
+Lemma filterlim_is_RInt_gen_neg {F : R → R_CompleteNormedModule} {M : R} {l : R_CompleteNormedModule} :
+  (∀ b, ex_RInt F b M) →
+  is_RInt_gen F (Rbar_locally Rbar.m_infty) (at_point M) l →
+  filterlim (λ b : R, RInt F b M) (Rbar_locally Rbar.m_infty) (locally l).
+Proof.
+  intros Hex Hgen.
+  intros P HP.
+  have Hext : Rbar_locally Rbar.m_infty (fun b => exists y, is_RInt F b M y /\ P y).
+  { rewrite /Rbar_locally//=.
+    unfold filtermapi in Hgen.
+    destruct (Hgen P HP) as [P1 P2 H3 H4 H5].
+    rewrite /at_point//= in H3.
+    destruct H3 as [M' HM'].
+    simpl in H5.
+    exists M'. intros ??.
+    apply H5; [|].
+    { by apply HM'. }
+    { by apply H4.  }
+  }
+  unfold filtermap.
+  eapply filter_imp; [|apply Hext].
+  intros x [y [Hy Py]].
+  have Heq : RInt F x M = y by apply is_RInt_unique.
+  rewrite Heq; exact Py.
+Qed.
+
+
 Lemma filterlim_is_RInt_gen' {F : R → R_CompleteNormedModule} {M : R} {l : R_CompleteNormedModule} :
   (∀ b, M<b -> ex_RInt F M b) →
   is_RInt_gen F (at_point M) (Rbar_locally Rbar.p_infty) l →
@@ -419,7 +447,27 @@ Proof.
       apply RInt_gen_correct.
       done.
     }
-Qed. 
+Qed.
+
+Lemma RInt_gen_pos_ex_neg {F M}
+  (Hpos : forall x, 0 <= F x)
+  (Hex : ∀ b, ex_RInt F b M)
+  (Hnn : ∀ b, 0 <= RInt F b M)
+  (Hex_L : ex_RInt_gen F (Rbar_locally Rbar.m_infty) (at_point M)) :
+  0 <= RInt_gen F (Rbar_locally Rbar.m_infty) (at_point M).
+Proof.
+  apply (Lim_seq.filterlim_le (F := Rbar_locally Rbar.m_infty) (fun _ => 0)
+           (fun b => RInt F b M) (Rbar.Finite 0) (Rbar.Finite (RInt_gen F (Rbar_locally Rbar.m_infty) (at_point M)))).
+    { apply filter_forall; apply Hnn. }
+    { apply filterlim_const. }
+    { intros P HP.
+      unfold Rbar_locally in HP. simpl in HP.
+      eapply (filterlim_is_RInt_gen_neg Hex).
+      2: eapply HP.
+      apply RInt_gen_correct.
+      done.
+    }
+Qed.
 
 Lemma RInt_gen_pos_ex' {F M}
   (Hpos : forall x, M<x -> 0 <= F x)
@@ -832,7 +880,45 @@ Proof.
   - eapply ex_RInt_gen_ext_eq_Ioi; last done.
     intros.
     case_bool_decide; lra.
-Qed. 
+Qed.
+
+
+Lemma RInt_gen_pos_strong_neg {F M}
+  (Hpos : forall x, 0 <= F x)
+  (Hex : ∀ b, ex_RInt F b M)
+  (Hnn : ∀ b, b <= M → 0 <= RInt F b M)
+  (Hex_L : ex_RInt_gen F (Rbar_locally Rbar.m_infty) (at_point M)) :
+  0 <= RInt_gen F  (Rbar_locally Rbar.m_infty) (at_point M).
+Proof.
+  rewrite (RInt_gen_ext_eq_Iio (g:=λ x, if bool_decide (x <= M) then F x else 0)); try done; last (intros; case_bool_decide; lra).
+  apply RInt_gen_pos_ex_neg.
+  - intros; case_bool_decide; naive_solver.
+  - intros.
+    destruct (decide (b<=M)).
+    + eapply ex_RInt_ext; last done.
+      unfold Rmin, Rmax.
+      intros. rewrite bool_decide_eq_true_2; first done.
+      case_match; lra.
+    + eapply (ex_RInt_ext (λ _, 0)); last apply ex_RInt_const.
+      unfold Rmin, Rmax.
+      intros. rewrite bool_decide_eq_false_2; first done.
+      case_match; lra.
+  - intros.
+    destruct (decide (b<=M)).
+    + erewrite RInt_ext; first naive_solver.
+      unfold Rmin, Rmax.
+      intros. rewrite bool_decide_eq_true_2; first done.
+      case_match; lra.
+    + erewrite (RInt_ext _ (λ _, 0)).
+      * rewrite RInt_const. rewrite /scal/=/mult/=. lra.
+      * unfold Rmin, Rmax.
+        intros. rewrite bool_decide_eq_false_2; first done.
+        case_match; lra.
+  - eapply ex_RInt_gen_ext_eq_Iio; last done.
+    intros.
+    case_bool_decide; lra.
+Qed.
+
 
 (*
 Lemma ex_RInt_gen_Ici_scal {M G L} :
