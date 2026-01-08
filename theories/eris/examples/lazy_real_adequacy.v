@@ -830,6 +830,66 @@ Definition lazy_real_cdf_checker (sampler : expr) (B C : Z) : expr :=
   R_cmp "sample" "bound" #0%nat.
 
 
+Theorem RInt_gen_ex_pos {μ X} (HC : IPCts μ)
+    (Hhi : ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty)) :
+    ex_RInt_gen μ (at_point X) (Rbar_locally Rbar.p_infty).
+Proof.
+  apply (@ex_RInt_gen_Chasles_exists _ 0); OK.
+  rewrite ex_RInt_gen_at_point.
+  by apply IPCts_RInt.
+Qed.
+
+Theorem RInt_gen_ex_neg {μ X}
+    (HC : IPCts μ)
+    (Hlo : ex_RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point 0))
+    (Hhi : ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty)) :
+    ex_RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point X).
+Proof.
+  (* apply (@ex_RInt_gen_Chasles_exists _ 0); OK. *) (* Generalize this *)
+Admitted.
+
+Theorem IPCts_Ici {X} : IPCts (Iverson (Ici X)).
+Proof.
+Admitted.
+
+Theorem RInt_gen_split_pos {μ X}
+    (HC : IPCts μ)
+    (Hlo : ex_RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point 0))
+    (Hhi : ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty)) :
+  RInt_gen μ (at_point X) (Rbar_locally Rbar.p_infty) =
+  RInt_gen (λ x : R, μ x * Iverson (Ici X) x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty).
+Proof.
+  rewrite
+    -(@RInt_gen_Chasles R_CompleteNormedModule (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty) _ _
+        (λ x : R, μ x * Iverson (Ici X) x) X); first last.
+  { apply (@ex_RInt_gen_ext_eq_Ioi μ).
+    { intros ??.
+      rewrite Iverson_True; OK.
+      rewrite /Ici//=. OK.
+    }
+    apply RInt_gen_ex_pos; OK.
+  }
+  { admit. (* Generalize ex_RInt_gen_ext_eq_Ioi *)
+  }
+  rewrite /plus//=.
+  replace (RInt_gen (λ x : R, μ x * Iverson (Ici X) x) (at_point X) (Rbar_locally Rbar.p_infty))
+     with (RInt_gen μ (at_point X) (Rbar_locally Rbar.p_infty)).
+  2: {
+   apply (@RInt_gen_ext_eq_Ioi μ).
+   { intros ??.
+     rewrite Iverson_True; OK.
+     rewrite /Ici//=. OK.
+   }
+   apply RInt_gen_ex_pos; OK.
+  }
+  replace (RInt_gen (λ x : R, μ x * Iverson (Ici X) x) (Rbar_locally Rbar.m_infty) (at_point X))
+     with (0).
+  2: {
+    admit.
+  }
+  OK.
+Admitted.
+
 (* The checker program will observe that a sample is less than B*2^C, with error ∫_(B*2^C)^∞ μ(x) dx *)
 Theorem lazy_real_expr_adequacy_below Σ `{erisGpreS Σ} {M} (e : expr) (σ : state) (μ : R -> R)
     (Hnn : ∀ x, 0 <= μ x <= M) (HC : IPCts μ)
@@ -847,7 +907,17 @@ Theorem lazy_real_expr_adequacy_below Σ `{erisGpreS Σ} {M} (e : expr) (σ : st
 Proof.
   intros B C.
   apply (wp_pgl_lim Σ).
-  { admit. }
+  { apply RInt_gen_pos_strong.
+    { apply Hnn. }
+    { intros ?. by apply IPCts_RInt. }
+    { intros ??.
+      apply RInt_ge_0; OK.
+      { by apply IPCts_RInt. }
+      intros ??.
+      apply Hnn.
+    }
+    { by apply RInt_gen_ex_pos. }
+  }
   iIntros (?) "He".
   rewrite /lazy_real_cdf_checker.
   wp_pures.
@@ -856,10 +926,10 @@ Proof.
   2: {
     iApply (@Hspec _ _ (Iverson (Ici (IZR B / powerRZ 2 C)))).
     { exists 1. intros ?. split; [apply Iverson_nonneg|apply Iverson_le_1]. }
-    { admit. }
+    { apply IPCts_Ici. }
     { iApply (ec_eq with "He").
       rewrite //=.
-      admit.
+      by apply RInt_gen_split_pos.
     }
   }
   rewrite //=.
@@ -893,7 +963,7 @@ Proof.
   rewrite //=.
   iIntros (?) "(?&?)".
   iFrame.
-Admitted.
+Qed.
 
 (* The checker program will observe that a sample is above B*2^C, with error ∫_(-∞)^(B*2^C) μ(x) dx *)
 (* TODO: Is this necessary? *)
