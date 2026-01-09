@@ -45,9 +45,9 @@ Class hash_function Σ `{!erisGS Σ} := Hash_Function
 
   (** *** Specifications *)
 
-  hash_init_spec key_size val_size :
+  hash_init_spec val_size :
   {{{ True }}}
-    init_hash #key_size #val_size
+    init_hash #val_size
   {{{ h, RET h;
         hashfun val_size h ∅  }}} ;
 
@@ -227,7 +227,7 @@ Qed.
    their outputs are different *)
 
   Definition two_hash : expr :=
-         let: "hf" := init_hash #31 #7 in
+         let: "hf" := init_hash #7 in
          let: "v1" := "hf" #1 in
          let: "v2" := "hf" #2 in
          ("v1", "v2").
@@ -239,9 +239,8 @@ Qed.
   Proof.
     iIntros (Φ) "Herr HΦ".
     unfold two_hash.
-    (** We first initialize the hash, with size 31 for keys
-       and 7 for values *)
-    wp_apply (hash_init_spec 31 7); auto.
+    (** We first initialize the hash, with size 7 for values *)
+    wp_apply (hash_init_spec 7); auto.
     iIntros (h) "Hhf".
     wp_pures.
     (** We now hash 1. The map is currently empty, and any

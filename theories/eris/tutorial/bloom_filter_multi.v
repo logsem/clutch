@@ -20,7 +20,6 @@ Section bloom_filter.
    *)
 
   Variable filter_size : nat.
-  Variable key_size : nat.
   Variable num_hash : nat.
 
   Context `{!erisGS Σ, !hash_function Σ}.
@@ -149,7 +148,7 @@ Section bloom_filter.
 
   Definition init_bloom_filter : expr :=
     λ: "_" ,
-      let: "hfuns" := list_seq_fun #0 #num_hash (λ: "_", init_hash #key_size #filter_size)%E in
+      let: "hfuns" := list_seq_fun #0 #num_hash (λ: "_", init_hash #filter_size)%E in
       let: "arr" := array_init #(S filter_size) (λ: "x", #false)%E in
       let: "l" := ref ("hfuns", "arr") in
       "l".

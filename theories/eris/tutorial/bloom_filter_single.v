@@ -30,7 +30,6 @@ Section bloom_filter_single.
 
 
   Variable filter_size : nat.
-  Variable key_size : nat.
 
   Context `{!erisGS Σ, !hash_function Σ}.
 
@@ -270,7 +269,7 @@ Section bloom_filter_single.
 
   Definition init_bloom_filter : expr :=
     λ: "_" ,
-      let: "hf" := init_hash #key_size #filter_size in
+      let: "hf" := init_hash #filter_size in
       let: "arr" := array_init #(S filter_size) (λ: "x", #false)%E in
       let: "l" := ref ("hf", "arr") in
       "l".
@@ -650,7 +649,7 @@ Section bloom_filter_single.
     {{{ is_bloom_filter l els (rem + 1) ∗ ⌜ x ∉ els ⌝ }}}
       insert_bloom_filter #l #x
     {{{ RET #() ; is_bloom_filter l (els ∪ {[x]}) rem }}}.
-  Proof using erisGS0 filter_size hash_function0 key_size Σ.
+  Proof using erisGS0 filter_size hash_function0 Σ.
     iIntros (Φ) "(Hbf & %Hx ) HΦ".
     wp_pures.
     unfold is_bloom_filter at 1.
@@ -728,7 +727,7 @@ Section bloom_filter_single.
     {{{ is_bloom_filter l els (rem + 1) ∗ ⌜ x ∈ els ⌝ }}}
       insert_bloom_filter #l #x
       {{{ RET #() ; is_bloom_filter l els rem }}}.
-  Proof using erisGS0 filter_size hash_function0 key_size Σ.
+  Proof using erisGS0 filter_size hash_function0 Σ.
     iIntros (Φ) "(Hbf & %Hx ) HΦ".
     wp_pures.
     unfold is_bloom_filter at 1.
@@ -776,7 +775,7 @@ Section bloom_filter_single.
     {{{ is_bloom_filter l els (rem + 1) }}}
       insert_bloom_filter #l #x
     {{{ RET #() ; is_bloom_filter l (els ∪ {[x]}) rem }}}.
-  Proof using erisGS0 filter_size hash_function0 key_size Σ.
+  Proof using erisGS0 filter_size hash_function0 Σ.
     iIntros (Φ) "Hbf HΦ".
     destruct (decide (x∈els)).
     - wp_apply (bloom_filter_insert_old_spec with "[$Hbf]"); auto.
@@ -797,7 +796,7 @@ Section bloom_filter_single.
     {{{ is_bloom_filter l els rem ∗ ⌜ x ∈ els ⌝ }}}
       lookup_bloom_filter #l #x
       {{{ v, RET v ; ⌜v = #true⌝ }}}.
-  Proof using erisGS0 filter_size hash_function0 key_size Σ.
+  Proof using erisGS0 filter_size hash_function0 Σ.
     iIntros (Φ) "(Hbf & %Hx ) HΦ".
     unfold is_bloom_filter.
     iDestruct "Hbf" as (hf m a arr idxs) "(Herr & Hl & Ha & Hhf & %Hcont)".
@@ -834,7 +833,7 @@ Section bloom_filter_single.
     {{{ is_bloom_filter l s 0 ∗ ⌜ x ∉ s ⌝ }}}
       lookup_bloom_filter #l #x
       {{{ v, RET v ; ⌜v = #false⌝ }}}.
-  Proof using erisGS0 filter_size hash_function0 key_size Σ.
+  Proof using erisGS0 filter_size hash_function0 Σ.
     iIntros (Φ) "(Hbf & %Hx) HΦ".
     unfold is_bloom_filter.
     iDestruct "Hbf" as (hf m a arr idxs) "(Herr & Hl & Ha & Hhf & %Hcont)".
@@ -915,7 +914,7 @@ Section bloom_filter_single.
     {{{ is_bloom_filter bfl els (length ks) }}}
       insert_bloom_filter_loop_seq #bfl ksv
     {{{ v, RET v; is_bloom_filter bfl (els ∪ (list_to_set ks)) 0 }}}.
-  Proof using erisGS0 filter_size hash_function0 key_size Σ.
+  Proof using erisGS0 filter_size hash_function0 Σ.
     iInduction ks as [|k ks'] "IH" forall (els ksv).
     - iIntros (Hksv Φ) "Hbf HΦ".
       simpl in Hksv.
@@ -960,7 +959,7 @@ Section bloom_filter_single.
       {{{  ↯ (fp_error (length ks) 0) }}}
         main_bloom_filter_seq ksv #ktest
       {{{ v, RET v; ⌜ v = #false ⌝ }}}.
- Proof using erisGS0 filter_size hash_function0 key_size Σ.
+ Proof using erisGS0 filter_size hash_function0 Σ.
    iIntros (Hksv Hktest Φ) "Herr HΦ".
    rewrite /main_bloom_filter_seq.
    wp_apply (bloom_filter_init_spec with "Herr"); auto.
