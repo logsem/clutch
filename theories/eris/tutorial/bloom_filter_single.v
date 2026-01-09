@@ -327,9 +327,17 @@ Section bloom_filter_single.
     (forall i, i < length arr -> i ∉ idxs -> arr !! i = Some #false).
 
 
-  (** The representation predicate for the bloom filter. We expose:
-      - l : the location containing the bloom filter
-      - els : the set currently represented by the bloom filter
+  (** Representing probabilistic error as a separation logic resource has the
+      advantage that it enables new reasoning principles. Here, we will show a
+      form of "amortized error". Instead of spending error credits on every
+      operation of the array, we will only pay once on initialization. The error
+      credits will then be stored in the representation predicate for the Bloom
+      filter, as a form of "error potential". The operations we will later run
+      on the Bloom filter will have access to that error budget as they need.
+
+     The representation predicate for the Bloom filter is below. We expose:
+      - l : the location containing the Bloom filter
+      - els : the set currently represented by the Bloom filter
       - rem : the number of remaining insertions. Although this limits the
         expressivity of the spec, it simplifies the proof by allowing us to use
         amortized error reasoning
@@ -345,6 +353,10 @@ Section bloom_filter_single.
          that we expose them at this point for convenience, when hashing
          a new element we will want to distribute credits depending on
          whether the new index falls or not in idxs
+
+        Additionally, the Bloom filter owns ↯ (fp_error rem (size idxs)), which
+        is the error budget we need to avoid a false positive on an insertion
+        query after inserting rem elements.
     *)
     ∃ hf m a arr (idxs : gset nat),
       ↯ (fp_error rem (size idxs)) ∗
