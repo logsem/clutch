@@ -51,7 +51,9 @@ Section geometric_total.
              [[{ ↯ ε }]] e [[{ v, RET #v; Q }]]
 
       Then, the probability that the program diverges or terminates in a value v
-      that does not satisfy Q is at most 1-ε. In particular,
+      that does not satisfy Q is at most [ε]. In other words, with probability
+      at least 1-ε, [e] will terminate in a result that satisfies Q. In
+      particular,
 
              [[{ True }]] e [[{ v, RET #v; Q }]]
 
@@ -117,8 +119,8 @@ Section geometric_total.
   Abort.
 
   (** One now might wonder how to prove the specification above. In the
-      determinstic setting, we use some form of induction on the argument of a
-      recursive function to prove that it terminates, but this function does not
+      determinstic setting, we can use some form of induction on the argument of
+      a recursive function to prove that it terminates, but [geometric] does not
       have an argument, and it is not clear what to induct on.
 
       Eris introduces a new kind of induction we call "error induction". Namely,
@@ -130,13 +132,13 @@ Section geometric_total.
                               ↯ ε ⊢ P
 
       Let's explain this step by step. Suppose we own [↯ ε] for a strictly
-      positive ε, and we are trying to prove P. Then it is sound to choose
-      another ε' such that ε < ε', and assume that (↯ ε' -∗ P). One can think of
+      positive [ε], and we are trying to prove P. Then it is sound to choose
+      another [ε'] such that [ε < ε'], and assume that (↯ ε' -∗ P). One can think of
       this as an inductive hypothesis that is "guarded" by some amount of error
       credits, in a similar manner as our inductive hypothesis from [iLöb] was
       guarded by ▷. Instead of taking program steps, the way we can get access
-      to the hypothesis is by amplifying ε into ε', which we can do by using the
-      sampling rules
+      to the hypothesis is by amplifying [ε] into [ε'], which we can do by using the
+      sampling rules.
    *)
 
   (** Let's now try to prove the previous specification again. First let's assume
@@ -157,13 +159,14 @@ Section geometric_total.
     iApply (ec_induction ε ((3/2)*ε)); auto.
     {
       (** We are required to show that the amount of error credits guarding the
-          inductive hypothesis is larger than the amount we own *)
+          inductive hypothesis is strictly larger than the amount we own *)
       real_solver.
     }
     iIntros "(IH & Herr)".
     iIntros (Φ) "HΦ".
     unfold geometric.
     wp_lam.
+    (**  We choose the same error distribution function *)
     set (F (n:nat) := if bool_decide (n=0) then 0%R else ((3/2)*ε)%R).
     wp_apply (twp_rand_exp F 2 with "Herr").
     { intro n.
@@ -175,13 +178,17 @@ Section geometric_total.
     iIntros (n) "[%Hn Herr]".
     unfold F.
     destruct n.
-    - wp_pures.
+    - (** The case n=0 does not make any recursive call, so we can conclude
+          by symbolic execution *)
+      wp_pures.
       iModIntro.
       by iApply ("HΦ").
     - do 2 wp_pure.
+      (** The case 1 <= n calls #geometric recursively *)
       wp_bind (geometric #()).
       simpl.
-      (** We now have enough credits to apply IH *)
+      (** Note that now, we have amplified our error credits to [3/2 * ε],
+          so we have enough credits to apply IH *)
       iApply ("IH" with "Herr [HΦ]").
       iIntros (m) "%Hm".
       wp_pures.
@@ -193,12 +200,13 @@ Section geometric_total.
   (** The specification above assumed initial ownership of a strictly positive
       amount of error credits [↯ε]. By the soundness result for total Hoare
       triples, we get that the probability of returning a non-negative number is
-      at least 1-ε. However, since ε is arbitrary, we can use a limiting
-      argument to conclude that the probability is actually 1. However, this is
-      not entirely satisfactory. It would be better to be able to write and
-      prove the spec in the logic. Fortunately, it is sound in Eris to assume
-      ownership of an arbitrary positive amount of error credits whenever we are
-      proving a WP (either total or partial). Indeed, the following rules are sound:
+      at least 1-ε. Since ε is arbitrary, we can use a limiting argument to
+      conclude that the probability is actually 1. However, this is not entirely
+      satisfactory, because this is only proven in the ambient logic (Rocq), and
+      outside of Eris. It would be better to be able to write and prove the spec
+      entirely within Eris. Fortunately, it is sound in Eris to assume ownership
+      of an arbitrary positive amount of error credits whenever we are proving a
+      WP (either total or partial). Indeed, the following rules are sound:
 
          (∀ ε, ⌜ 0 < ε ⌝ ∗ ↯ ε -∗ WP e {{ Φ }}) -∗ WP e {{ Φ }})
 
