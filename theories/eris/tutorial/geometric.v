@@ -34,10 +34,8 @@ Section geometric.
       iModIntro.
       by iApply ("HΦ").
     - do 2 wp_pure.
-      wp_bind (geometric #()).
-      iApply "IH".
+      wp_apply "IH".
       { done. }
-      iModIntro.
       iIntros (m) "%Hm".
       wp_pures.
       iApply "HΦ".
@@ -67,7 +65,6 @@ Section geometric.
     iIntros (n) "(%Hn1 & %Hn2)".
     destruct n; [done|].
     do 2 wp_pure.
-    wp_bind (geometric #()).
     wp_apply geo_nonneg.
     { done. }
     iIntros (m) "%Hm".

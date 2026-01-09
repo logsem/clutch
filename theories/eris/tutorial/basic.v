@@ -74,7 +74,7 @@ Proof.
   iIntros "H".
   (** To eliminate a separating conjunction we use the tactic [iDestruct] with
       the usual destruction pattern. *)
-  iDestruct "H" as "[HP HQ]".
+  iDestruct "H" as "(HP & HQ)".
   (** Alternatively, we can introduce and destruct resources simultaneously. *)
   (* Restart. iIntros "[HP HQ]" *)
 
@@ -252,7 +252,7 @@ Section eris_introduction.
     iApply ec_split.
     { real_solver. }
     { real_solver. }
-    iExact "H".
+    iApply "H".
   Qed.
 
   (** Similarly, error credits can be combined. *)
@@ -263,7 +263,7 @@ Section eris_introduction.
     iDestruct (ec_combine with "[H1 H2]") as "H".
     { iFrame. }
     assert (1/4 + 1/4 = 1/2)%R as -> by real_solver.
-    iExact "H".
+    iApply "H".
   Qed.
 
   (** Interestingly, if we own [↯ ε] and [1 <= ε] then we can prove [False]! *)
@@ -273,7 +273,7 @@ Section eris_introduction.
   Proof.
     intros Hr.
     iApply ec_contradict.
-    exact Hr.
+    apply Hr.
   Qed.
 
   (** We use Hoares triples to specify programs. Intuitively, a Hoare triple
@@ -332,7 +332,7 @@ Section eris_introduction.
 
   (** Let's write a spec using error credits that captures this idea. *)
   Lemma wp_unif_3 :
-    {{{ ↯ (1 / 3) }}} unif_3_eq {{{ RET #true; True }}}.
+    {{{ ↯ (1 / 3) }}} unif_3_eq {{{ (b : bool), RET #b; ⌜b = true⌝ }}}.
   Proof.
     iIntros (Φ) "Hε HΦ".
     unfold unif_3_eq.
@@ -365,9 +365,9 @@ Section eris_introduction.
   (** Notice how in the [twoflip] program, the program returns [false] with
       probability [1/4]. However, to "avoid" this erroneous outcome, we need
       [1/2] error credits. As such, we need to "scale" the initial error budget
-      using expectation-preserving composition *)
+      using expectation-preserving composition via [wp_rand_exp] *)
   Lemma wp_twoflip :
-    {{{ ↯ (1 / 4) }}} twoflip {{{ RET #true; True }}}.
+    {{{ ↯ (1 / 4) }}} twoflip {{{ (b : bool), RET #b; ⌜b = true⌝ }}}.
   Proof.
     iIntros (Φ) "Hε HΦ".
     unfold twoflip.

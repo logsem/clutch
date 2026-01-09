@@ -68,7 +68,7 @@ Section quicksort.
     (* filter the xs greater than e *)
     wp_apply (wp_list_filter xs (λ x, bool_decide (e < x)%Z)).
     { iSplit ; auto. iIntros (x ψ) "_ !> hψ".
-      simpl. wp_pures. iApply "hψ". eauto. }
+      simpl. wp_pures. iApply "hψ". done. }
     iIntros (l_xs_gt H_xs_gt). wp_pures.
     (* filter the xs smaller/equal to e *)
     wp_apply (wp_list_filter _ (λ x, negb $ bool_decide (e < x)%Z)).
@@ -109,7 +109,7 @@ Section quicksort.
       destruct xs as [|x xs]; [|destruct xs as [|y zs]].
       - constructor.            (* [] is sorted. *)
       - do 2 constructor.       (* [x] is sorted. *)
-      - cbn in hn. lia.         (* If len xs ≤ 1 then xs can't be x::y::zs. *)
+      - simpl in hn. lia.       (* If len xs ≤ 1 then xs can't be x::y::zs. *)
     }
     (* pick a pivot index at random *)
     wp_apply wp_rand. 1: auto. iIntros (ip) "_". wp_pures.

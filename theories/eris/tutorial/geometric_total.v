@@ -164,7 +164,6 @@ Section geometric_total.
     }
     iIntros "(IH & Herr)".
     iIntros (Φ) "HΦ".
-    unfold geometric.
     wp_lam.
     (**  We choose the same error distribution function *)
     set (F (n:nat) := if bool_decide (n=0) then 0%R else ((3/2)*ε)%R).
