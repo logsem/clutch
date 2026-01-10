@@ -56,9 +56,9 @@ You should now be able to build the development by using `dune build`, or `dune 
 The repository contains configuration files and pre-built Docker images for use with the Visual Studio Code [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension.
 The Dev Containers extension lets you use a pre-built Docker image as a full-featured development environment. This means you that you do not have to worry about installing dependencies and polluting your file system.
 
-1. Install [Docker](https://www.docker.com/) and [Visual Studio Code](https://code.visualstudio.com/). (The Dev Containers extension unfortunately does not support VSCodium)
+1. Install [Docker](https://www.docker.com/) and [Visual Studio Code](https://code.visualstudio.com/). (The Dev Containers extension unfortunately does not support VSCodium or the open source build of VSCode, so Microsoft's release of VSCode is required)
 2. Make sure Docker is running.
-3. Install the DevContainers and VsRocq extensions in Visual Studio Code.
+3. Install the "Dev Containers" and "VsRocq" extensions in Visual Studio Code.
 4. Open the Clutch repository in Visual Studio Code. A pop-up should now ask you if you want to reopen the project in a container. Select `clutch arm64 container` or `clutch x86-64 container`, depending on the architecture of your machine.
 5. After the container has been loaded, open a terminal window in Visual Studio Code (`Terminal` > `New Terminal` in the toolbar). This terminal is running inside the Docker container.
 6. Run `dune build` to build the development. (Be aware that VsRocq does not automatically re-build dependencies)
