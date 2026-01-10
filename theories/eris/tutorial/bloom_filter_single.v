@@ -55,27 +55,42 @@ Section bloom_filter_single.
                ((filter_size + 1 - b) / (filter_size + 1)) * fp_error m' (S b)
        end)%R.
 
-  (** Some auxiliary lemmas about fp_error *)
+  (** Some auxiliary lemmas about fp_error. Familiarize yourself with the
+      statements of the first two, [fp_error_step] and [fp_error_bounded], as
+      they will be needed in the proofs of the specifications. The proofs can
+      be skipped on a first read, as it is mostly reasoning about reals *)
 
-  Lemma fp_error_max (m b : nat) :
-    (filter_size + 1 ≤ b) ->
-    fp_error m b = 1.
+  (** The lemma [fp_error_step] will be used to distribute error credits after
+      every insertion. *)
+
+  Lemma fp_error_step (m b: nat) :
+    (fp_error m b * b +
+    fp_error m (b + 1) * (filter_size + 1 - b) <=
+    fp_error (m + 1) b * (filter_size + 1))%R.
   Proof.
-    intros Hb.
-    destruct m; simpl.
-    - case_bool_decide; done.
-    - case_bool_decide; done.
+    replace (m+1) with (S m) by nat_solver.
+    simpl.
+    case_bool_decide.
+    * rewrite /fp_error.
+      destruct m; simpl.
+      - rewrite bool_decide_eq_true_2; auto.
+        rewrite bool_decide_eq_true_2; [|nat_solver].
+        real_solver.
+      - rewrite bool_decide_eq_true_2; auto.
+        rewrite bool_decide_eq_true_2; [|nat_solver].
+        real_solver.
+    * apply Req_le.
+      replace (S b) with (b + 1) by nat_solver.
+      rewrite (Rmult_comm (b / (filter_size + 1))).
+      rewrite (Rmult_comm ((filter_size + 1 - b) / (filter_size + 1))).
+      rewrite Rmult_plus_distr_r.
+      rewrite !(Rmult_assoc _ _ (filter_size + 1)).
+      rewrite !Rinv_l; [real_solver|].
+      real_solver.
   Qed.
 
-  Lemma fp_error_unfold_S (m b : nat)  :
-    fp_error (S m) b =
-      if bool_decide (b >= filter_size + 1) then 1 else
-        ((b / (filter_size + 1)) * fp_error m b +
-               ((filter_size + 1 - b) / (filter_size + 1)) * fp_error m (S b))%R.
-  Proof.
-    auto.
-  Qed.
-
+  (** Lemma [fp_error_bounded] is mostly used to discharge side conditions about
+      error credits being non-negative *)
 
   Lemma fp_error_bounded (m b : nat) :
     (0 <= fp_error m b <= 1)%R.
@@ -113,6 +128,18 @@ Section bloom_filter_single.
        real_solver.
   Qed.
 
+  (**  The rest of these lemmas can be ignored in a first read *)
+
+  (**  ----------------------------------------------------------------------- *)
+
+  Lemma fp_error_unfold_S (m b : nat)  :
+    fp_error (S m) b =
+      if bool_decide (b >= filter_size + 1) then 1 else
+        ((b / (filter_size + 1)) * fp_error m b +
+               ((filter_size + 1 - b) / (filter_size + 1)) * fp_error m (S b))%R.
+  Proof.
+    auto.
+  Qed.
 
 
   Lemma fp_error_mon_2 (m b : nat):
@@ -193,36 +220,7 @@ Section bloom_filter_single.
         real_solver.
   Qed.
 
-  Lemma fp_error_weaken (m b : nat):
-    (fp_error 0 b <= fp_error m b)%R.
-  Proof.
-    induction m ; etrans => //.
-    replace (S m) with (m + 1) by nat_solver. apply fp_error_mon_1.
-  Qed.
-
-  (** The lemma below will be used to distribute error credits after every
-      insertion. *)
-
-  Lemma fp_error_step (m b: nat) :
-    (fp_error m b * b +
-    fp_error m (b + 1) * (filter_size + 1 - b) <=
-    fp_error (m + 1) b * (filter_size + 1))%R.
-  Proof.
-    replace (m+1) with (S m) by nat_solver.
-    simpl.
-    case_bool_decide.
-    * rewrite fp_error_max /=; auto.
-      rewrite fp_error_max /=; [|nat_solver].
-      real_solver.
-    * apply Req_le.
-      replace (S b) with (b + 1) by nat_solver.
-      rewrite (Rmult_comm (b / (filter_size + 1))).
-      rewrite (Rmult_comm ((filter_size + 1 - b) / (filter_size + 1))).
-      rewrite Rmult_plus_distr_r.
-      rewrite !(Rmult_assoc _ _ (filter_size + 1)).
-      rewrite !Rinv_l; [real_solver|].
-      real_solver.
-  Qed.
+  (**  ----------------------------------------------------------------------- *)
 
 
   (** Below we present the code for the Bloom filter. It consists of three
@@ -563,7 +561,12 @@ Section bloom_filter_single.
       + rewrite list_lookup_insert_ne //; auto.
   Qed.
 
- (**  ** Proving the specifications for the Bloom filter  *)
+  Hint Resolve bfcc_map_els bfcc_lookup_arr bfcc_idxs_arr_true
+    bfcc_idxs_arr_false bfcc_map_to_idx bfcc_idx_bd bloom_filter_init_content
+    bloom_filter_update_content_no_coll bloom_filter_update_content_coll : core.
+
+
+  (**  ** Proving the specifications for the Bloom filter  *)
 
  (** We will now prove specs for all the Bloom filter methods.
 
@@ -638,7 +641,7 @@ Section bloom_filter_single.
       rewrite <- bfcc_map_els; eauto.
     + apply fp_error_bounded.
     + apply fp_error_bounded.
-    + intros. eapply bfcc_idx_bd; eauto.
+    + intros. eauto.
     +
       (** The previously proven lemma for distributing error credits for
           on insertion of the Bloom filter clears this goal in one line
@@ -648,9 +651,7 @@ Section bloom_filter_single.
       (** We first consider the case where v does not fall in idxs *)
       * wp_pures.
         wp_apply (wp_store_offset with "Ha").
-        {
-          eapply bfcc_lookup_arr; eauto.
-        }
+        { eauto. }
         iIntros "Ha".
         iApply "HΦ".
         unfold is_bloom_filter.
@@ -664,7 +665,7 @@ Section bloom_filter_single.
         iPureIntro.
         (** Finally, we have to prove that the new contents of the Bloom filter
            are correct *)
-        by apply bloom_filter_update_content_no_coll.
+        eauto.
 
       (** We now have the case where v falls in idxs *)
       * (* exercise *)
@@ -673,9 +674,7 @@ Section bloom_filter_single.
         (* Sample solution *)
         wp_pures.
         wp_apply (wp_store_offset with "Ha").
-        {
-          eapply bfcc_lookup_arr; eauto.
-        }
+        { eauto. }
         iIntros "Ha".
         iApply "HΦ".
         unfold is_bloom_filter.
@@ -683,8 +682,9 @@ Section bloom_filter_single.
         iFrame "Herr_coll".
         iFrame.
         iPureIntro.
-        by apply bloom_filter_update_content_coll.
+        eauto.
   Qed.
+
 
    (** For completeness, let's also prove a spec where we insert a previously
       inserted element. In principle, there is no need to spend credits here,
@@ -713,9 +713,7 @@ Section bloom_filter_single.
     wp_pures.
     iPoseProof (hash_val_in_bd with "Hhf") as "%Hvbd"; eauto.
     wp_apply (wp_store_offset with "Ha").
-    {
-       eapply bfcc_lookup_arr; eauto.
-    }
+    { eauto. }
     iIntros "Ha".
     iApply "HΦ".
     rewrite /is_bloom_filter.
@@ -732,8 +730,7 @@ Section bloom_filter_single.
     iSplit; auto.
     assert (<[v:=#true]> arr = arr) as ->; auto.
     apply list_insert_id.
-    eapply bfcc_idxs_arr_true; eauto.
-    eapply bfcc_map_to_idx; eauto.
+    eauto.
   Qed.
 
 
@@ -778,10 +775,7 @@ Section bloom_filter_single.
     iIntros "Hhf".
     wp_pures.
     wp_apply (wp_load_offset with "Ha").
-    {
-      eapply bfcc_idxs_arr_true; eauto.
-      eapply bfcc_map_to_idx; eauto.
-    }
+    { eauto. }
     iIntros "Ha".
     iApply "HΦ".
     done.
@@ -830,9 +824,7 @@ Section bloom_filter_single.
     - iIntros (v) "(%Hv & Hhfw & %Hidxs)".
       wp_pures.
       wp_apply (wp_load_offset _ _ _ _ _ #false with "Ha").
-      {
-        eapply bfcc_idxs_arr_false; eauto.
-      }
+      { eauto. }
       iIntros "Ha".
       iApply "HΦ".
       done.
