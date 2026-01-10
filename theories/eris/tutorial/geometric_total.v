@@ -229,7 +229,23 @@ Section geometric_total.
   Qed.
 
 
-  (** Correctness of geometric sampler *)
+  (** ** Correctness of the geometric sampler
+
+      In our CPP26 paper, we propose a method to use Eris to design specs for
+      samplers that allows us to show that they are correct, and also that can
+      be used in larger proofs to treat the sampler as if it was a primitive.
+      They key idea is to generalize the principle behind expectation preserving
+      error distribution. Suppose we have a sampler that is implementing a
+      distribution [μ]. Then, the sampler should satisfy that, for every error
+      distribution function [F : nat -> [0,1]], if we own [↯ E_μ[F]], where [E_μ]
+      denotes expected value over [μ], we can sample n and get [↯(F n)] in our
+      postcondition.
+
+      We will exercise this with the geometric sampler we defined above. Recall
+      that the expected value for [F] under a geometric with parameter [1/3] is
+      given by [Σ_n (1/3)*(2/3)^n*(F n)]
+
+   *)
 
   Lemma geo_correct (F : nat -> R):
     (forall n, 0 <= F n <= 1)%R ->
@@ -241,6 +257,7 @@ Section geometric_total.
     iApply twp_err_pos; auto.
     iIntros (ε) "%Hε Herr2".
     iRevert (Φ F HF) "Herr HΦ".
+    (**  The proof goes by error induction *)
     iApply (ec_induction ε ((3/2)*ε)); auto.
     {
       real_solver.
@@ -250,11 +267,21 @@ Section geometric_total.
     rewrite /geometric.
     iPoseProof (ec_combine with "[$Herr $Herr2]") as "Herr".
     wp_pures.
+    (**  The key idea is the following: we need to send [↯ (F 0)] to the
+         branch where we sample 0. Otherwise, we will sample from the geometric
+         recursively and add 1 to the result. Therefore, that case requires:
+         - [↯ (3/2)*ε] to pay for the IH
+         - [↯ Σ_{n} (1/3)*(2/3)^n*(F (S n))] to be used in the precondition of
+         the recursive call. This ensures that if the recursive call returns
+         n, it will also have [↯ (F (S n))] in the postcondition, and the overall
+         execution will return n+1, so we have the right amount of credits.
+     *)
     set G := (λ n, if bool_decide (n = 0)
                    then F(0)
                    else ((3/2)*(SeriesC (λ k, 1 / 3 * (2 / 3) ^ (S k) * F (S k)) + ε))%R
              ).
     wp_apply (twp_rand_exp G 2 with "Herr").
+    (** We prove the side conditions of twp_rand_exp *)
     { unfold G.
       intros n.
       series.
@@ -301,13 +328,17 @@ Section geometric_total.
       }
      iIntros (n) "(%Hn & Herr)".
      unfold G.
+     (** Now we are back to reasoning about the program. Again, we do
+         a case distinction on whether we sample 0 or not *)
      destruct n.
      - simpl.
+       (** The case for 0 is easy *)
        wp_pures.
        iApply "HΦ".
        auto.
      - simpl.
        rewrite Rmult_plus_distr_l.
+       (**  In the case for >0, we begin by splitting our credits *)
        iPoseProof (ec_split with "Herr") as "(Herr1 & Herr2)".
        {
          apply Rmult_le_pos; [real_solver|].
@@ -321,8 +352,9 @@ Section geometric_total.
        do 2 wp_pure.
        wp_bind (geometric _).
        iSpecialize ("IH" with "Herr2").
-
        set H := (λ (n:nat), F (S n)).
+       (**  We instantiate our IH with the error distributing function [H].
+            In order to do so, we have to give up [↯(3/2)*ε]*)
        wp_apply ("IH" $! _ H with "[][Herr1]").
        + iPureIntro.
          unfold H.
