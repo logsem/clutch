@@ -608,12 +608,63 @@ Section bloom_filter_single.
       - auto.
   Qed.
 
+   (** As a warm up, let's prove a spec where we insert a previously inserted
+      element. In principle, there is no need to spend credits here, but we will
+      do it nevertheless to facilitate reasoning about a sequence of insertions.
+      *)
 
-  (**  The spec below describes inserting a new element [x], which is not currently
-       in the filter. This requires that at least 1 extra insertion must be
-       possible, i.e. the number of remaining insertions must be (rem+1) for some
-       value of rem.
-   *)
+  Lemma bloom_filter_insert_previous_spec (l : loc) (els : gset nat) (x rem : nat) :
+    {{{ is_bloom_filter l els (rem + 1) ∗ ⌜ x ∈ els ⌝ }}}
+      insert_bloom_filter #l #x
+      {{{ RET #() ; is_bloom_filter l els rem }}}.
+  Proof using erisGS0 filter_size hash_function0 Σ.
+    iIntros (Φ) "(Hbf & %Hx ) HΦ".
+    wp_pures.
+    unfold is_bloom_filter at 1.
+    iDestruct "Hbf" as (hf m a arr idxs) "(Herr & Hl & Ha & Hhf & %Hcont)".
+    wp_load.
+    wp_pures.
+    (** If the element we are inserting is in the Bloom filter already, then it
+        must be in the domain of the abstract partial map associated to the hash
+        function. We use the following lemma to extract the value it maps to *)
+    rewrite bfcc_map_els in Hx; eauto.
+    destruct Hx as [v Hv].
+    (** We are now querying an element present in the hash, so we use the hash
+        specification for that case *)
+    wp_apply (hash_query_spec_prev x _ v hf m with "[$]"); eauto.
+    iIntros "Hhf".
+    wp_pures.
+    (** Before writing into the array, we need to make sure the index is within
+        the array bounds *)
+    iPoseProof (hash_val_in_bd with "Hhf") as "%Hvbd"; eauto.
+    (** We now use [wp_store_offset], which generalizes [wp_store] to arrays *)
+    wp_apply (wp_store_offset with "Ha").
+    { eauto. }
+    iIntros "Ha".
+    iApply "HΦ".
+    rewrite /is_bloom_filter.
+    (** We now have to reconstruct the bloom filter predicate *)
+    iExists hf, m, a, arr, idxs.
+    iFrame.
+    iPoseProof (ec_weaken with "Herr") as "Herr".
+    {
+      split; last first.
+      - apply fp_error_mon_1.
+      - apply fp_error_bounded.
+    }
+    iFrame.
+    iSplit; auto.
+    assert (<[v:=#true]> arr = arr) as ->; auto.
+    apply list_insert_id.
+    eauto.
+  Qed.
+
+
+  (** Now let's look at the most interesting case for insertion. The spec below
+      describes inserting a new element [x], which is not currently in the
+      filter. This requires that at least 1 extra insertion must be possible,
+      i.e. the number of remaining insertions must be (rem+1) for some value of
+      rem. *)
 
   Lemma bloom_filter_insert_fresh_spec (l : loc) (els : gset nat) (x rem : nat) :
     {{{ is_bloom_filter l els (rem + 1) ∗ ⌜ x ∉ els ⌝ }}}
@@ -626,12 +677,42 @@ Section bloom_filter_single.
     iDestruct "Hbf" as (hf m a arr idxs) "(Herr & Hl & Ha & Hhf & %Hcont)".
     wp_load.
     wp_pures.
-    (** We now get to the point in the proof where error credits are used. Note
-        here how useful the recurrence relation is. We can simply
+    (** We now get to the point in the proof where error credits are used.
+        We want to do a case distinction on whether the new index we sample
+        falls inside or outside of the set [idxs] of indices set to 1.
+        We will send some amount of error credits [↯εI] to the former,
+        and some other amount [↯εO] to the latter. We provide a proof skeleton.
+        You should try to fill in the gaps and finish the proof. If you need
+        a [HINT], you can look below the [Admitted] *)
+
+    (* Exercise *)
+    assert (e1: R). { (* exact _  *) admit. }
+    assert (e2: R). { (* exact _  *) admit. }
+    wp_apply (hash_query_spec_fresh x idxs _ e1 e2 with "[$]"); auto.
+    + rewrite eq_None_not_Some.
+      rewrite <- bfcc_map_els; eauto.
+    + admit.
+    + admit.
+    + intros. eauto.
+    + admit.
+    + iIntros (v) "(% & ? & [(% & Herr_no_coll) | (% & Herr_coll )])".
+      (** We first consider the case where v does not fall in idxs *)
+      * admit.
+      (** We now have the case where v falls in idxs *)
+      * admit.
+  Admitted.
+
+  (** [HINT]: Exploit the recursive nature of [fp_error]. We can simply:
         - assign ↯ (fp_error rem (size idxs)) to the branch where the new index
           falls in idxs (i.e. the set of indices set to 1 does not grow) and we
         - assign ↯ (fp_error rem (size idxs)) to the branch where the new index
           falls outside of idxs. *)
+
+
+
+  (* Sample solution:
+
+
     wp_apply (hash_query_spec_fresh x idxs
        (fp_error (rem + 1) (size idxs))
        (fp_error rem (size idxs))
@@ -668,11 +749,7 @@ Section bloom_filter_single.
         eauto.
 
       (** We now have the case where v falls in idxs *)
-      * (* exercise *)
-        (* Admitted. *)
-
-        (* Sample solution *)
-        wp_pures.
+      * wp_pures.
         wp_apply (wp_store_offset with "Ha").
         { eauto. }
         iIntros "Ha".
@@ -685,53 +762,9 @@ Section bloom_filter_single.
         eauto.
   Qed.
 
+  *)
 
-   (** For completeness, let's also prove a spec where we insert a previously
-      inserted element. In principle, there is no need to spend credits here,
-      but we will do it nevertheless to facilitate reasoning about a sequence of
-      insertions. *)
 
-  Lemma bloom_filter_insert_previous_spec (l : loc) (els : gset nat) (x rem : nat) :
-    {{{ is_bloom_filter l els (rem + 1) ∗ ⌜ x ∈ els ⌝ }}}
-      insert_bloom_filter #l #x
-      {{{ RET #() ; is_bloom_filter l els rem }}}.
-  Proof using erisGS0 filter_size hash_function0 Σ.
-    iIntros (Φ) "(Hbf & %Hx ) HΦ".
-    wp_pures.
-    unfold is_bloom_filter at 1.
-    iDestruct "Hbf" as (hf m a arr idxs) "(Herr & Hl & Ha & Hhf & %Hcont)".
-    wp_load.
-    wp_pures.
-    rewrite bfcc_map_els in Hx; eauto.
-    destruct Hx as [v Hv].
-    (* exercise *)
-    (* Admitted. *)
-
-    (* Sample solution: *)
-    wp_apply (hash_query_spec_prev x _ v hf m with "[$]"); eauto.
-    iIntros "Hhf".
-    wp_pures.
-    iPoseProof (hash_val_in_bd with "Hhf") as "%Hvbd"; eauto.
-    wp_apply (wp_store_offset with "Ha").
-    { eauto. }
-    iIntros "Ha".
-    iApply "HΦ".
-    rewrite /is_bloom_filter.
-    (** We now have to reconstruct the bloom filter predicate *)
-    iExists hf, m, a, arr, idxs.
-    iFrame.
-    iPoseProof (ec_weaken with "Herr") as "Herr".
-    {
-      split; last first.
-      - apply fp_error_mon_1.
-      - apply fp_error_bounded.
-    }
-    iFrame.
-    iSplit; auto.
-    assert (<[v:=#true]> arr = arr) as ->; auto.
-    apply list_insert_id.
-    eauto.
-  Qed.
 
 
   (** For simplicity, we will unify both specs into one *)
