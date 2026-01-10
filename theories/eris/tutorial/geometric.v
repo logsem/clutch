@@ -14,7 +14,7 @@ Section geometric.
 
   Definition geometric : val :=
     rec: "geo" "n" :=
-      if: rand #2 <= #0 then #0 else "geo" "n" + #1.
+      if: rand #2 = #0 then #0 else "geo" "n" + #1.
 
   (** First, we want to show that the result is always non-negative. Note that
       below we are proving a partial correctness specification, divergence is a
