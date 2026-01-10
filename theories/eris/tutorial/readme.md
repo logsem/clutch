@@ -1,3 +1,5 @@
+# Tutorial: Verifying Probabilistic Programs Using Separation Logic
+
 This tutorial is an introduction to probabilistic program verification in modern separation logic.
 
 The tutorial comprises a list of interactive exercises in the form of incomplete proofs with hints.
@@ -7,9 +9,9 @@ More information can be found at
 - the [Clutch project readme](https://github.com/logsem/clutch/)
 
 
-# Prerequesites
+## Prerequesites
 
-## Background Knowledge
+### Background Knowledge
 
 Basic knowledge of the Rocq prover is assumed. Consult, e.g., [Software Foundations](https://softwarefoundations.cis.upenn.edu/lf-current/toc.html) for an introduction to basic logic and tactics in Rocq.
 
@@ -22,13 +24,13 @@ The probabilistic separation logic this tutorial is based on was published in
 In ICFP 2024: ACM SIGPLAN International Conference on Functional Programming
 
 
-## Software
+### Software
 
-### The Rocq prover
+#### The Rocq prover
 
 To work through the tutorial, a working Rocq setup and IDE / text editor is required ([instructions](https://rocq-prover.org/install)).
 
-### Rocq libraries
+#### Rocq libraries
 
 The recommended way to install the Rocq libraries we depend on is through [opam](https://opam.ocaml.org/doc/Install.html).
 
@@ -51,7 +53,7 @@ opam install ./rocq-clutch.opam --deps-only
 
 You should now be able to build the development by using `dune build`, or `dune build theories/eris/tutorial/tutorial.vo` to build only the files required for the tutorial.
 
-## Visual Studio Code
+### Visual Studio Code
 
 The repository contains configuration files and pre-built Docker images for use with the Visual Studio Code [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension.
 The Dev Containers extension lets you use a pre-built Docker image as a full-featured development environment. This means you that you do not have to worry about installing dependencies and polluting your file system.
@@ -65,7 +67,7 @@ The Dev Containers extension lets you use a pre-built Docker image as a full-fea
 
 See more about the Dev Containers extension at [this link](https://code.visualstudio.com/docs/devcontainers/containers)
 
-# Contents
+## Contents
 
 The tutorial will feature a mix of lectures from the organizers and exercises. The plan is to progress as follows.
 
@@ -76,6 +78,6 @@ The tutorial will feature a mix of lectures from the organizers and exercises. T
 5. [geometric_total.v](./geometric_total.v): reasoning about total correctness and almost sure termination of geometric samplers.
 
 
-# Contact information
+## Contact information
 
 Please feel free to contact the POPL'26 tutors via email at alejandro@cs.au.dk gregersen@cispa.de philipp@haselwarter.org

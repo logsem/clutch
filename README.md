@@ -3,6 +3,10 @@
 This repository contains the formal development of a number of higher-order probabilistic separation logics for proving properties of higher-order probabilistic programs.
 All of the logics are built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Rocq prover](https://rocq-prover.org/).
 
+## Tutorial
+
+If you want to work through our tutorial material, follow the instructions in the [link](https://github.com/logsem/clutch/blob/main/theories/eris/tutorial/readme.md).
+
 ## Publications
 
 [**Modular Reasoning about Error Bounds for Concurrent Probabilistic Programs**](https://dl.acm.org/doi/10.1145/3747514)<br>
