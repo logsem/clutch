@@ -228,4 +228,120 @@ Section geometric_total.
     iApply (geo_nonneg_pos_err with "[$Herr]"); auto.
   Qed.
 
+
+  (** Correctness of geometric sampler *)
+
+  Lemma geo_correct (F : nat -> R):
+    (forall n, 0 <= F n <= 1)%R ->
+    [[{ ↯ (SeriesC (λ n, (1/3)*(2/3)^n*(F n)))%R }]]
+      geometric #()
+      [[{ m, RET #m; ↯(F m) }]].
+  Proof.
+    iIntros (HF Φ) "Herr HΦ".
+    iApply twp_err_pos; auto.
+    iIntros (ε) "%Hε Herr2".
+    iRevert (Φ F HF) "Herr HΦ".
+    iApply (ec_induction ε ((3/2)*ε)); auto.
+    {
+      real_solver.
+    }
+    iIntros "(IH & Herr2)".
+    iIntros (Φ F HF) "Herr HΦ".
+    rewrite /geometric.
+    iPoseProof (ec_combine with "[$Herr $Herr2]") as "Herr".
+    wp_pures.
+    set G := (λ n, if bool_decide (n = 0)
+                   then F(0)
+                   else ((3/2)*(SeriesC (λ k, 1 / 3 * (2 / 3) ^ (S k) * F (S k)) + ε))%R
+             ).
+    wp_apply (twp_rand_exp G 2 with "Herr").
+    { unfold G.
+      intros n.
+      series.
+      apply Rplus_le_le_0_compat; [|real_solver].
+      series.
+      apply pow_le.
+      real_solver.
+    }
+    { unfold G.
+      simpl.
+      rewrite Rplus_0_r.
+      assert (forall (x: R), 3 / 2 * x + 3 / 2 * x = 3 * x)%R as Haux;
+       [intros; lra |].
+      rewrite Haux.
+      rewrite (SeriesC_split_first (λ n : nat, 1 / 3 * (2 / 3) ^ n * F n)%R);
+             first last.
+      - setoid_rewrite Rmult_assoc.
+        apply ex_seriesC_scal_l.
+        apply (ex_seriesC_le _ (λ x : nat, ((2 / 3) ^ x)%R)).
+        + intros n; split.
+          * apply Rmult_le_pos; [|real_solver].
+            apply pow_le; real_solver.
+          * rewrite <- (Rmult_1_r ((2 / 3) ^ n)%R) at 2.
+            apply Rmult_le_compat_l; [|real_solver].
+            apply pow_le; real_solver.
+        + rewrite <- ex_seriesC_nat.
+          apply Series.ex_series_geom.
+          apply Rabs_def1; real_solver.
+      - intros m.
+        apply Rmult_le_pos; [|real_solver].
+        apply Rmult_le_pos; [real_solver|].
+        apply pow_le; real_solver.
+      - rewrite Rmult_plus_distr_l.
+        rewrite Rmult_plus_distr_l.
+        rewrite Rmult_plus_distr_l.
+        rewrite Rplus_assoc.
+        apply Rplus_le_compat; [real_solver|].
+        apply Rplus_le_compat; [|real_solver].
+        replace (1+1+1)%R with 3%R by lra.
+        apply Rmult_le_compat_l; [real_solver|].
+        right.
+        apply SeriesC_ext.
+        real_solver.
+      }
+     iIntros (n) "(%Hn & Herr)".
+     unfold G.
+     destruct n.
+     - simpl.
+       wp_pures.
+       iApply "HΦ".
+       auto.
+     - simpl.
+       rewrite Rmult_plus_distr_l.
+       iPoseProof (ec_split with "Herr") as "(Herr1 & Herr2)".
+       {
+         apply Rmult_le_pos; [real_solver|].
+         series.
+         apply pow_le.
+         real_solver.
+       }
+       {
+         real_solver.
+       }
+       do 2 wp_pure.
+       wp_bind (geometric _).
+       iSpecialize ("IH" with "Herr2").
+
+       set H := (λ (n:nat), F (S n)).
+       wp_apply ("IH" $! _ H with "[][Herr1]").
+       + iPureIntro.
+         unfold H.
+         real_solver.
+       + iApply (ec_eq with "Herr1").
+         rewrite <- SeriesC_scal_l.
+         apply SeriesC_ext.
+         intros k.
+         unfold H.
+         real_solver.
+       + iIntros (m) "Herr".
+         wp_pures.
+         iModIntro.
+         simpl.
+         replace (Z.add (Z.of_nat m) (Z.of_nat (S O)))
+           with (Z.of_nat (S m)) by lia.
+         iApply ("HΦ" with "[Herr]").
+         unfold H.
+         iFrame.
+  Qed.
+
 End geometric_total.

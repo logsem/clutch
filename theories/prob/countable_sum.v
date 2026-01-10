@@ -859,6 +859,25 @@ Proof.
 Qed.
 
 
+Lemma SeriesC_split_first (f : nat -> R) :
+  (∀ n, 0 <= f n) →           (* TODO: this requirements should not be necessary? *)
+  ex_seriesC f →
+  SeriesC f = (f 0%nat) + SeriesC (λ n, f (S n)).
+Proof.
+  intros Hle Hex.
+  rewrite (SeriesC_split_elem f 0%nat); auto.
+  rewrite SeriesC_singleton_dependent.
+  f_equal; auto.
+  rewrite SeriesC_nat.
+  rewrite SeriesC_nat.
+  rewrite Series_incr_1_aux.
+  - apply Series_ext.
+    intro n.
+    rewrite bool_decide_eq_true_2; [done|lia].
+  - rewrite bool_decide_eq_false_2; [done|lia].
+Qed.
+
+
 Section strict.
   Context `{Countable A}.
 

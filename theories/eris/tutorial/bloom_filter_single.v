@@ -200,6 +200,9 @@ Section bloom_filter_single.
     replace (S m) with (m + 1) by lia. apply fp_error_mon_1.
   Qed.
 
+  (** The lemma below will be used to distribute error credits after every
+      insertion. *)
+
   Lemma fp_error_step (m b: nat) :
     (fp_error m b * b +
     fp_error m (b + 1) * (filter_size + 1 - b) <=
@@ -291,10 +294,11 @@ Section bloom_filter_single.
   (** Representing probabilistic error as a separation logic resource has the
       advantage that it enables new reasoning principles. Here, we will show a
       form of "amortized error". Instead of spending error credits on every
-      operation of the array, we will only pay once on initialization. The error
-      credits will then be stored in the representation predicate for the Bloom
-      filter, as a form of "error potential". The operations we will later run
-      on the Bloom filter will have access to that error budget as they need.
+      operation of the array, we will only pay everything at once on
+      initialization. The error credits will then be stored in the
+      representation predicate for the Bloom filter, as a form of "error
+      potential". The operations we will later run on the Bloom filter will have
+      access to that error budget as they need.
 
      The representation predicate for the Bloom filter is below. We expose:
       - l : the location containing the Bloom filter
@@ -922,6 +926,10 @@ Section bloom_filter_single.
  Proof using erisGS0 filter_size hash_function0 Σ.
    iIntros (Hksv Hktest Φ) "Herr HΦ".
    rewrite /main_bloom_filter_seq.
+   (* exercise *)
+   (* Admitted. *)
+
+   (* Sample solution: *)
    wp_apply (bloom_filter_init_spec with "Herr"); auto.
    iIntros (bfl) "Hbf".
    wp_pures.
