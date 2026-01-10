@@ -93,7 +93,7 @@ Section geometric_total.
 
   Definition geometric : val :=
     rec: "geo" "n" :=
-      if: rand #2 <= #0 then #0 else "geo" "n" + #1.
+      if: rand #2 = #0 then #0 else "geo" "n" + #1.
 
   (** Let's now show that it terminates with probability 1, and when it
       does it returns a non-negative number. We will first try the proof
@@ -294,7 +294,7 @@ Section geometric_total.
       simpl.
       rewrite Rplus_0_r.
       assert (forall (x: R), 3 / 2 * x + 3 / 2 * x = 3 * x)%R as Haux;
-       [intros; lra |].
+       [intros; real_solver |].
       rewrite Haux.
       rewrite (SeriesC_split_first (λ n : nat, 1 / 3 * (2 / 3) ^ n * F n)%R);
              first last.
@@ -320,7 +320,7 @@ Section geometric_total.
         rewrite Rplus_assoc.
         apply Rplus_le_compat; [real_solver|].
         apply Rplus_le_compat; [|real_solver].
-        replace (1+1+1)%R with 3%R by lra.
+        replace (1+1+1)%R with 3%R by real_solver.
         apply Rmult_le_compat_l; [real_solver|].
         right.
         apply SeriesC_ext.
@@ -370,7 +370,7 @@ Section geometric_total.
          iModIntro.
          simpl.
          replace (Z.add (Z.of_nat m) (Z.of_nat (S O)))
-           with (Z.of_nat (S m)) by lia.
+           with (Z.of_nat (S m)) by nat_solver.
          iApply ("HΦ" with "[Herr]").
          unfold H.
          iFrame.

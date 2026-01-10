@@ -197,7 +197,7 @@ Section bloom_filter_single.
     (fp_error 0 b <= fp_error m b)%R.
   Proof.
     induction m ; etrans => //.
-    replace (S m) with (m + 1) by lia. apply fp_error_mon_1.
+    replace (S m) with (m + 1) by nat_solver. apply fp_error_mon_1.
   Qed.
 
   (** The lemma below will be used to distribute error credits after every

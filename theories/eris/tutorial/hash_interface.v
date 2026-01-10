@@ -264,7 +264,7 @@ Qed.
       set_solver.
     }
     - rewrite size_singleton /=.
-      lra.
+      real_solver.
     - iIntros (v2) "(%Hv2 & Hhf & %Hnelem)".
       wp_pures.
       iApply "HΦ".

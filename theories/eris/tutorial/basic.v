@@ -321,7 +321,7 @@ Section eris_introduction.
     iIntros (n) "%Hn".
     iApply "HΦ".
     iPureIntro.
-    lia.
+    nat_solver.
   Qed.
 
   (** Let's try another example: The expression [rand #2] samples uniformly from
@@ -346,7 +346,7 @@ Section eris_introduction.
         evaluations steps such as equality tests *)
     wp_pures.
     rewrite bool_decide_eq_false_2; last first.
-    { inversion 1. lia. }
+    { inversion 1. nat_solver. }
     wp_pures.
     (** The update modality allows us to update ghost resources—we won't need
         this here and will just introduce it using the [iModIntro] tactic. *)
@@ -391,7 +391,7 @@ Section eris_introduction.
       { iApply (ec_eq with "Hε"). simpl. real_solver. }
       iIntros (m) "[%Hm %Hm']".
       wp_pures.
-      assert (m = 1) as -> by lia.
+      assert (m = 1) as -> by nat_solver.
       rewrite bool_decide_eq_true_2; [|done].
       wp_pures.
       iModIntro.
