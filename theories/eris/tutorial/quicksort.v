@@ -1,4 +1,4 @@
-(* We prove functional correctness of randomised quicksort. *)
+(** We prove functional correctness of randomised quicksort. *)
 
 From stdpp Require Import sorting.
 From clutch.common Require Import inject.
@@ -12,6 +12,9 @@ Section quicksort.
 
   Context `{!erisGS Σ}.
 
+  (** We define two recursive functions on list:
+      - [partition l e] splits [l] into elements smaller than or larger than [e]
+      - [qs l] sorts [l], using [partition] as sub-procedure xx *)
   Definition partition : expr :=
     let: "negb" := λ:"b", if: "b" then #false else #true in
     λ:"l" "e",
@@ -29,6 +32,7 @@ Section quicksort.
         let, ("les", "gts") := ("qs" "le", "qs" "gt") in
         list_append "les" (list_cons "p"  "gts").
 
+  (** Auxiliary lemmas about sorting, partitioning, and permutations. *)
   Lemma filter_split_perm {A} (l : list A) f :
     l ≡ₚ List.filter f l ++ List.filter (fun x=>negb (f x)) l.
   Proof.
@@ -51,6 +55,9 @@ Section quicksort.
       apply Z.lt_le_incl, ppost. assumption.
   Qed.
 
+  (** This specification formalizes the intuition for [partition]. This is just
+      standard separation logic reasoning, the probabilistic part of Eris does
+      not interfere. xx *)
   Lemma Partition (xs : list Z) (l_xs : val) (e : Z) :
     {{{ ⌜is_list xs l_xs⌝ }}}
       partition l_xs (Val #e)
@@ -94,44 +101,48 @@ Section quicksort.
       by apply bool_decide_eq_true in hgt.
   Qed.
 
+  (** We can prove that [qs] indeed sorts. *)
   Lemma qs_sorted : ∀ (xs : list Z) (l : val),
     {{{ ⌜is_list xs l⌝ }}}
       qs l
     {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ∧ xs' ≡ₚ xs ∧ sorted xs' ⌝ }}}.
   Proof.
+    (** Set up the recursion. xx *)
     iLöb as "Hqs". iIntros (xs l φ hl) "hφ".
     unfold qs at 2. wp_pures. fold qs.
     wp_bind (list_length _). iApply (wp_list_length $! hl).
     iIntros "!>" (n) "->". wp_pures.
+    (** The definition of quicksort cases on the length of [l]. xx *)
     case_bool_decide as hn ; wp_pures.
-    (* A list of length ≤ 1 is already sorted. *)
-    { iApply "hφ". iExists xs. iPureIntro. intuition auto.
+    { (** A list of length ≤ 1 is already sorted. xx **)
+      iApply "hφ". iExists xs. iPureIntro. intuition auto.
       destruct xs as [|x xs]; [|destruct xs as [|y zs]].
       - constructor.            (* [] is sorted. *)
       - do 2 constructor.       (* [x] is sorted. *)
       - simpl in hn. lia.       (* If len xs ≤ 1 then xs can't be x::y::zs. *)
     }
-    (* pick a pivot index at random *)
-    wp_apply wp_rand. 1: auto. iIntros (ip) "_". wp_pures.
-    (* pop the pivot from xs *)
+    (** Otherwise, we pick a pivot index [ip] at random xx *)
+    wp_apply wp_rand ; [done|]. iIntros (ip) "_". wp_pures.
+    (** Next, we pop the pivot at index [ip] from [l] xx *)
     wp_apply (wp_remove_nth_unsafe _ xs l ip).
     { iPureIntro. split => //. apply (Nat.lt_le_trans _ _ _ (fin_to_nat_lt ip)).
       destruct xs => /= ; simpl in hn ; lia. }
     iIntros (pr_opt (p & r & pre & post & hpart & hpos & hpr & hr)).
     rewrite hpr.
     repeat (wp_pure ; unfold partition ; progress fold partition).
-    (* partition xs \ p into smaller and larger elements *)
+    (** We partition xs \ p into smaller and larger elements xx *)
     wp_apply Partition => //.
     iIntros (le gt (xs_le & xs_gt & (hle & hgt & hperm) & ple & pgt)). wp_pures.
-    (* sort xs_gt *)
+    (** Recursive call: sort xs_gt xx *)
     wp_apply "Hqs" => //. iIntros (gts (xs_gt_sorted & Lgts & Pgts & Sgts)).
-    (* sort xs_le *)
+    (** Recursive call: sort xs_le *)
     wp_apply "Hqs" => //. iIntros (les (xs_le_sorted & Lles & Ples & Sles)). wp_pures.
-    (* re-assemble the sorted results *)
+    (** Finally, re-assemble the sorted results xx *)
     replace (#p) with (inject p) by auto.
     wp_apply wp_list_cons => //. iIntros (p_xs_gt_sorted h_p_xs_gt).
     iApply wp_list_append => //. iIntros "!>" (xs_le_p_gt_s L).
     iApply "hφ".
+    (** The result is indeed sorted. xx *)
     iExists (xs_le_sorted ++ p :: xs_gt_sorted). iPureIntro. repeat split => //.
     - clear -Ples Pgts hperm hpart.
       rewrite Pgts Ples. rewrite -Permutation_middle.
