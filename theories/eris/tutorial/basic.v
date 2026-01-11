@@ -46,14 +46,6 @@ Proof.
   iApply "H".
 Qed.
 
-(** Iris propositions include many of the usual logical connectives such as
-    conjunction [P ∧ Q] (type \and). As such, Iris uses a notation scope to
-    overload the usual logical notation in Rocq. This scope is delimited by [I]
-    and bound to [iProp Σ]. *)
-Fail Definition and_fail (P Q : iProp Σ) := P ∧ Q.
-Definition and_success (P Q : iProp Σ) := (P ∧ Q)%I.
-Definition and_success' (P Q : iProp Σ) : iProp Σ := P ∧ Q.
-
 (* ================================================================= *)
 (** ** Separation Logic Connectives *)
 
