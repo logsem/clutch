@@ -60,6 +60,30 @@ Section eris_introduction.
     apply Hr.
   Qed.
 
+  (** If we can combine enough error credits to get above 1, any conclusion follows. *)
+  Lemma error_credit_accumulate P Q :
+    ↯ (2/3) ∗ (P -∗ ↯ (1/2)) -∗ P -∗ Q.
+  Proof.
+    (* exercise *)
+    (* 1. Introduce the error credits and the assumption that [P] gives us half a credit, and [P]. *)
+    (* 2. Use forward-reasoning to get the error credits out of the implication. *)
+    (* 3. Combine the credits. *)
+    (* 4. Derive a contradiction *)
+    (* Admitted. *)
+
+
+    (* Sample solution: *)
+    iIntros "(err1 & Perr) HP".
+    iDestruct ("Perr" with "HP") as "err2".
+    iDestruct (ec_combine with "[err1 err2]") as "err".
+    - iFrame.
+    - iApply falso_seq.
+      iSplitL.
+      + iApply "err".
+      + iApply error_credit_False.
+        real_solver.
+  Qed.
+
   (** We use Hoares triples to specify programs. Intuitively, a Hoare triple
 
         {{{ P }}} e {{{ v, Q v }}}

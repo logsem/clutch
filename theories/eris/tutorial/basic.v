@@ -35,10 +35,10 @@ Context {Σ : gFunctors}.
     [apply H] we use [iApply "H"]. For technical reasons, identifiers for
     hypotheses in the spatial context are strings
 
-    Let us start by provin prove the statement [P ⊢ P], for all [P]. *)
-Lemma asm (P : iProp Σ) : P ⊢ P.
+    Let us start by provin prove the statement [⊢ P -∗ P], for all [P]. *)
+Lemma asm (P : iProp Σ) : ⊢ P -∗ P.
 Proof.
-  (** We start by introducing [P]. *)
+  (** We start by introducing the assumption [P]. *)
   iIntros "H".
   (** This adds [P] to the spatial context with the identifier ["H"] and we are
       left with the goal [P]. In a typical Rocq proof, we would continue by
@@ -143,10 +143,38 @@ Proof.
   - iApply "HQ".
 Qed.
 
+(** Here is another proof strategy based on forward-reasoning instead. *)
+Lemma wand_adj_2 (P Q R : iProp Σ) : (P -∗ Q -∗ R) ∗ P ∗ Q ⊢ R.
+Proof.
+  iIntros "H".
+  iDestruct "H" as "(H & HP & HQ)".
+  (** Instead of applying "H", we can also just "feed the arguments" to the
+      implication. This allows us to deducing more assertions from our
+      assumptions instead of working backwards from the goal. *)
+  iDestruct ("H" with "[HP] [HQ]") as "HR".
+  - iApply "HP".
+  - iApply "HQ".
+  - (** Finally, we can use the specialized implication, now exactly matching
+    our goal. *)
+    iApply "HR".
+Qed.
+
 (** Hypotheses that fit arguments exactly can be supplied directly without a
     square bracket to avoid trivial subgoals, as in the above. Try this in the
     following exercise. *)
 Lemma wand_adj (P Q R : iProp Σ) : (P -∗ Q -∗ R) ⊢ (P ∗ Q -∗ R).
+Proof.
+  (* exercise *)
+Admitted.
+
+(** As usual, from a contradiction, any assertion [P] follows. *)
+Lemma ex_falso (P : iProp Σ) : (⌜False⌝) ⊢ P.
+Proof.
+  iIntros "%contradiction". contradiction.
+Qed.
+
+(** In particular, if [P] is contradictory, then [Q] follows from [P]. *)
+Lemma falso_seq (P Q : iProp Σ) : (P ∗ (P -∗ ⌜False⌝)) ⊢ Q.
 Proof.
   (* exercise *)
 Admitted.
@@ -215,4 +243,3 @@ Admitted.
 *)
 
 End separation_logic_introduction.
-
