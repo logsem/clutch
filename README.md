@@ -9,6 +9,10 @@ If you want to work through our tutorial material, follow the instructions in th
 
 ## Publications
 
+[**Modular Specifications and Implementations of Random Samplers in Higher-Order Separation Logic**](https://doi.org/10.1145/3779031.3779109)<br>
+*Virgil Marionneau, Félix Sassus-Bourda, Alejandro Aguirre, Lars Birkedal*<br>
+In CPP 2026: Certified Programs and Proofs
+
 [**Modular Reasoning about Error Bounds for Concurrent Probabilistic Programs**](https://dl.acm.org/doi/10.1145/3747514)<br>
 *Kwing Hei Li, Alejandro Aguirre, Simon Oddershede Gregersen, Philipp G. Haselwarter, Joseph Tassarotti, Lars Birkedal*<br>
 In ICFP 2025: ACM SIGPLAN International Conference on Functional Programming
