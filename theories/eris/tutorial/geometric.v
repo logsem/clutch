@@ -10,8 +10,7 @@ Section geometric.
   (** In this example we will prove some properties about the geometric
       distribution. The program below simulates a geometric process with
       parameter [1/3]. On every step it generates a random bit, and it returns
-      the number of failed attempts before returning [0] *)
-
+      the number of failed attempts before returning [0]. xx *)
   Definition geometric : val :=
     rec: "geo" "n" :=
       if: rand #2 = #0 then #0 else "geo" "n" + #1.
@@ -19,44 +18,53 @@ Section geometric.
   (** First, we want to show that the result is always non-negative. Note that
       below we are proving a partial correctness specification, divergence is a
       valid behavior, so the specification just says that the probability that
-      the program terminates in a value that is negative is zero *)
+      the program terminates in a value that is negative is zero. xx *)
 
   Lemma geo_nonneg :
     {{{ True }}} geometric #() {{{ m, RET #m; ⌜0 ≤ m⌝%Z }}}.
   Proof.
+    (* xx *)
     iLöb as "IH".
     iIntros (Φ) "_ HΦ".
+    (* xx *)
     wp_lam.
-    wp_apply wp_rand.
-    iIntros (n) "%Hn".
+    (* xx *)
+    wp_apply wp_rand ; iIntros (n) "%Hn".
+    (* xx *)
     destruct n.
-    - wp_pures.
+    - (* xx *)
+      wp_pures.
       iModIntro.
       by iApply ("HΦ").
-    - do 2 wp_pure.
+    - (* xx *)
+      do 2 wp_pure.
+      (* xx *)
       wp_apply "IH".
       { done. }
       iIntros (m) "%Hm".
+      (* xx *)
       wp_pures.
       iApply "HΦ".
       iPureIntro.
+      (* xx *)
       nat_solver.
   Qed.
 
   (** We can use the specification above to reason about the probability that
       the program returns a strictly positive result. Again, in a partial
       correctness logic, the only thing we can actually prove is that the
-      probability that the program returns 0 or less is (2/3). *)
+      probability that the program returns 0 or less is (2/3). xx *)
   Lemma geo_gt0 :
     {{{ ↯ (1/3) }}} geometric #() {{{ m, RET #m; ⌜0 < m⌝%Z }}}.
   Proof.
     iIntros (Φ) "Herr HΦ".
     wp_lam.
-    wp_bind (rand _)%E.
     (** Since we only want to avoid one single outcome, we can use [wp_rand_err]
-        and spend the error credit to ensure we do not get 0 *)
+        and spend the error credit to ensure we do not get 0. xx *)
     wp_apply (wp_rand_err 0 2 with "[Herr]").
-    { iApply (ec_eq with "Herr").
+    {
+      (* xx *)
+      iApply (ec_eq with "Herr").
       real_solver. }
     (* exercise *)
     (* Admitted. *)
