@@ -1,5 +1,5 @@
 From clutch.eris Require Import eris tutorial.eris_rules.
-From clutch.eris.tutorial Require Import eris_rules.
+From clutch.eris.tutorial Require Import eris_rules basic.
 
 (* ###################################################################### *)
 (** * Eris *)
