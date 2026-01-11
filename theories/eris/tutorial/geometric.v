@@ -10,61 +10,53 @@ Section geometric.
   (** In this example we will prove some properties about the geometric
       distribution. The program below simulates a geometric process with
       parameter [1/3]. On every step it generates a random bit, and it returns
-      the number of failed attempts before returning [0]. xx *)
+      the number of failed attempts before returning [0] *)
+
   Definition geometric : val :=
     rec: "geo" "n" :=
-      if: rand #2 = #0 then #0 else "geo" "n" + #1.
+      if: rand #2 <= #0 then #0 else "geo" "n" + #1.
 
   (** First, we want to show that the result is always non-negative. Note that
       below we are proving a partial correctness specification, divergence is a
       valid behavior, so the specification just says that the probability that
-      the program terminates in a value that is negative is zero. xx *)
+      the program terminates in a value that is negative is zero *)
 
   Lemma geo_nonneg :
     {{{ True }}} geometric #() {{{ m, RET #m; ⌜0 ≤ m⌝%Z }}}.
   Proof.
-    (* xx *)
     iLöb as "IH".
     iIntros (Φ) "_ HΦ".
-    (* xx *)
     wp_lam.
-    (* xx *)
-    wp_apply wp_rand ; iIntros (n) "%Hn".
-    (* xx *)
+    wp_apply wp_rand.
+    iIntros (n) "%Hn".
     destruct n.
-    - (* xx *)
-      wp_pures.
+    - wp_pures.
       iModIntro.
       by iApply ("HΦ").
-    - (* xx *)
-      do 2 wp_pure.
-      (* xx *)
+    - do 2 wp_pure.
       wp_apply "IH".
       { done. }
       iIntros (m) "%Hm".
-      (* xx *)
       wp_pures.
       iApply "HΦ".
       iPureIntro.
-      (* xx *)
       nat_solver.
   Qed.
 
   (** We can use the specification above to reason about the probability that
       the program returns a strictly positive result. Again, in a partial
       correctness logic, the only thing we can actually prove is that the
-      probability that the program returns 0 or less is (2/3). xx *)
+      probability that the program returns 0 or less is (2/3). *)
   Lemma geo_gt0 :
     {{{ ↯ (1/3) }}} geometric #() {{{ m, RET #m; ⌜0 < m⌝%Z }}}.
   Proof.
     iIntros (Φ) "Herr HΦ".
     wp_lam.
+    wp_bind (rand _)%E.
     (** Since we only want to avoid one single outcome, we can use [wp_rand_err]
-        and spend the error credit to ensure we do not get 0. xx *)
+        and spend the error credit to ensure we do not get 0 *)
     wp_apply (wp_rand_err 0 2 with "[Herr]").
-    {
-      (* xx *)
-      iApply (ec_eq with "Herr").
+    { iApply (ec_eq with "Herr").
       real_solver. }
     (* exercise *)
     (* Admitted. *)
@@ -136,7 +128,7 @@ Section geometric.
         outcomes of [rand #1]. Note that in the case v=0, we can immediately
         prove the postcondition, since 0 <= 1. That branch then needs 0 error
         credits. Therefore, we can give all other credits to the other branch
-        By a simple calculation, we get that we can give ↯(2/3) to each branch. *)
+        By a simple calculation, we get that we can give ↯(2/3) to that branch. *)
 
     set (F (n:nat) := if bool_decide (n=0) then 0%R else (2/3)%R).
     wp_apply (wp_rand_exp F 2 with "Herr").

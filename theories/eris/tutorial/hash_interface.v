@@ -239,6 +239,13 @@ Qed.
   Proof.
     iIntros (Φ) "Herr HΦ".
     unfold two_hash.
+    (* Exercise *)
+    (* Admitted. *)
+
+
+
+
+    (*  Sample solution: *)
     (** We first initialize the hash, with size 7 for values *)
     wp_apply (hash_init_spec 7); auto.
     iIntros (h) "Hhf".
@@ -255,10 +262,6 @@ Qed.
     (** We now hash 2. At this point, we want to avoid a collision with 1, that
        is, we want the result to not be v1. Since this is a singleton set, and
        the size of the value space is 8, we can spend ↯(1/8) to avoid it *)
-    (* Exercise *)
-    (* Admitted. *)
-
-    (*  Sample solution: *)
     wp_apply (hash_query_spec_fresh_avoid 2 {[v1]} with "[$]").
     {
       set_solver.
