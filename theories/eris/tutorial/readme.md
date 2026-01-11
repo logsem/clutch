@@ -71,11 +71,12 @@ See more about the Dev Containers extension at [this link](https://code.visualst
 
 The tutorial will feature a mix of lectures from the organizers and exercises. The plan is to progress as follows.
 
-1. [basic.v](./basic.v): basic separation logic; "error credits" as separation logic resource; manipulating error credits; simple random sampling.
-2. [quicksort.v](./quicksort.v): correctness of randomized quicksort.
-3. [geometric.v](./geometric.v): sampling from the geometric distribution.
-4. [hash_interface.v](./hash_interface.v), [bloom_filter_single.v](./bloom_filter_single.v): Bloom filters based on hash functions. Bound on probability of false positives.
-5. [geometric_total.v](./geometric_total.v): reasoning about total correctness and almost sure termination of geometric samplers.
+1. [basic.v](./basic.v): basic separation logic.
+2. [basic_eris.v](./basic_eris.v): "error credits" as separation logic resource; manipulating error credits; simple random sampling.
+3. [quicksort.v](./quicksort.v): correctness of randomized quicksort.
+4. [geometric.v](./geometric.v): sampling from the geometric distribution.
+5. [hash_interface.v](./hash_interface.v), [bloom_filter_single.v](./bloom_filter_single.v): Bloom filters based on hash functions. Bound on probability of false positives.
+6. [geometric_total.v](./geometric_total.v): reasoning about total correctness and almost sure termination of geometric samplers.
 
 
 ## Contact information
