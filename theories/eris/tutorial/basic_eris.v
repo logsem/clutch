@@ -137,7 +137,7 @@ Section eris_introduction.
     iModIntro.
     iApply "HΦ".
     done.
-  Qed.w
+  Qed.
 
   (** For proving tight bounds, [wp_rand_err] is not always enough.  *)
   Definition twoflip : expr :=
