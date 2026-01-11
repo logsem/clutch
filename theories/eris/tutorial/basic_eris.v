@@ -207,4 +207,37 @@ Section eris_introduction.
       done.
   Qed.
 
+
+  (** Eris is a partial correctness logic, which means that we get no guarantees
+      for diverging (non-terminating) program runs. For instance, we can prove
+      that the program below which just loops forever satisfies any
+      specification, even one with False as postcondition. *)
+
+  Definition loop : val :=
+    rec: "loop" "n" := if: rand #0 = #0 then "loop" "n" else #42.
+
+
+  Lemma loop_false :
+    {{{ True }}} loop #() {{{ m, RET #m; False }}}.
+  Proof.
+    iIntros (Φ) "_ HΦ".
+    (** We use "Löb induction" to reason about recursion. *)
+    iLöb as "IH".
+    (** There is a later modality in front of our IH *)
+    (** Let's take a single execution step *)
+    unfold loop.
+    wp_pure.
+    (** Two things have happened. First, the program has taken an execution
+        Second, the ▷ in front of our IH has been removed.
+        We continue the execution *)
+    wp_apply (wp_rand_nat); auto.
+    iIntros (n) "%Hn".
+    inversion Hn; [|nat_solver].
+    do 2 wp_pure.
+    (** We now apply the IH and conclude *)
+    iApply "IH".
+    iModIntro.
+    iApply "HΦ".
+  Qed.
+
 End eris_introduction.
