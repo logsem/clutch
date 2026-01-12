@@ -745,3 +745,131 @@ Section Symmetric.
   Qed.
 
 End Symmetric.
+
+Section Adequacy.
+  Import Hierarchy.
+
+
+  Theorem Gauss_Adequate_Above :
+     ∀ σ : state, ∀ B C : Z,
+      pgl (lim_exec (lazy_real_cdf_checker (Gauss #()) B C, σ))
+        (λ x : mstate_ret (lang_markov prob_lang), x = #1)
+        (RInt_gen (λ x : R, exp (- x ^ 2 / 2) / GaussNorm) (Rbar_locally Rbar.m_infty) (at_point (IZR B / powerRZ 2 C))).
+  Proof.
+    intros ?.
+    apply (@lazy_real_expr_adequacy_above erisΣ _ (1 / GaussNorm) (Gauss #()) _ (fun x => exp (-x^2 / 2) / GaussNorm)).
+    { intros ?; split.
+      { apply Rcomplements.Rdiv_le_0_compat.
+        { apply Rexp_nn. }
+        { apply GaussNorm_nn. }
+      }
+      { repeat rewrite Rdiv_def.
+        apply Rmult_le_compat.
+        { apply Rexp_nn. }
+        { apply Rlt_le.
+          apply Rinv_0_lt_compat.
+          apply GaussNorm_nn.
+        }
+        { apply Rexp_range.
+          suffices ? : 0 <= x ^ 2 by OK.
+          apply pow2_ge_0.
+        }
+        { OK. }
+      }
+    }
+    { apply IPCts_cts.
+      intros ?.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    }
+    { replace (λ x : R, exp (- x ^ 2 / 2) / GaussNorm)
+         with (λ x : R, exp (- (- x) ^ 2 / 2) * / GaussNorm).
+      2: { funexti. repeat rewrite Rdiv_def. do 4 f_equal. OK. }
+      apply (@ex_RInt_gen_neg_change_of_var_rev (λ x : R, exp (- (x) ^ 2 / 2) * / GaussNorm)).
+      { intros ??.
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros  ??.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      apply ex_RInt_gen_scal_r.
+      apply ex_RInt_gen_gauss.
+    }
+    { replace (λ x : R, exp (- x ^ 2 / 2) / GaussNorm)
+         with (λ x : R, exp (- x ^ 2 / 2) * / GaussNorm).
+      2: { funexti. repeat rewrite Rdiv_def. do 4 f_equal. }
+      apply ex_RInt_gen_scal_r.
+      apply ex_RInt_gen_gauss.
+    }
+    { intros ?????.
+      destruct Hnn.
+      iIntros "He".
+      iApply (@wp_Gauss _ _ _ _ x); [done|done|].
+      iApply (ec_eq with "He").
+      by rewrite /Gauss_CreditV/Gauss_ρ .
+    }
+  Qed.
+
+  Theorem Gauss_Adequate_Below :
+     ∀ σ : state, ∀ B C : Z,
+      pgl
+        (lim_exec (lazy_real_cdf_checker (Gauss #()) B C, σ))
+        (λ x : mstate_ret (lang_markov prob_lang), x = #(-1))
+        (RInt_gen (λ x : R, exp (- x ^ 2 / 2) / GaussNorm) (at_point (IZR B / powerRZ 2 C)) (Rbar_locally Rbar.p_infty)).
+  Proof.
+    intros ?.
+    apply (@lazy_real_expr_adequacy_below erisΣ _ (1 / GaussNorm) (Gauss #()) _ (fun x => exp (-x^2 / 2) / GaussNorm)).
+    { intros ?; split.
+      { apply Rcomplements.Rdiv_le_0_compat.
+        { apply Rexp_nn. }
+        { apply GaussNorm_nn. }
+      }
+      { repeat rewrite Rdiv_def.
+        apply Rmult_le_compat.
+        { apply Rexp_nn. }
+        { apply Rlt_le.
+          apply Rinv_0_lt_compat.
+          apply GaussNorm_nn.
+        }
+        { apply Rexp_range.
+          suffices ? : 0 <= x ^ 2 by OK.
+          apply pow2_ge_0.
+        }
+        { OK. }
+      }
+    }
+    { apply IPCts_cts.
+      intros ?.
+      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+      by auto_derive.
+    }
+    { replace (λ x : R, exp (- x ^ 2 / 2) / GaussNorm)
+         with (λ x : R, exp (- (- x) ^ 2 / 2) * / GaussNorm).
+      2: { funexti. repeat rewrite Rdiv_def. do 4 f_equal. OK. }
+      apply (@ex_RInt_gen_neg_change_of_var_rev (λ x : R, exp (- (x) ^ 2 / 2) * / GaussNorm)).
+      { intros ??.
+        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
+        intros  ??.
+        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
+        by auto_derive.
+      }
+      apply ex_RInt_gen_scal_r.
+      apply ex_RInt_gen_gauss.
+    }
+    { replace (λ x : R, exp (- x ^ 2 / 2) / GaussNorm)
+         with (λ x : R, exp (- x ^ 2 / 2) * / GaussNorm).
+      2: { funexti. repeat rewrite Rdiv_def. do 4 f_equal. }
+      apply ex_RInt_gen_scal_r.
+      apply ex_RInt_gen_gauss.
+    }
+    { intros ?????.
+      destruct Hnn.
+      iIntros "He".
+      iApply (@wp_Gauss _ _ _ _ x); [done|done|].
+      iApply (ec_eq with "He").
+      by rewrite /Gauss_CreditV/Gauss_ρ .
+    }
+  Qed.
+
+
+End Adequacy.
