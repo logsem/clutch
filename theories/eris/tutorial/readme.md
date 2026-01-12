@@ -4,6 +4,8 @@ This tutorial is an introduction to probabilistic program verification in modern
 
 The tutorial comprises a list of interactive exercises in the form of incomplete proofs with hints.
 
+The [slides](./eris-slides.pdf) for the tutorial are available.
+
 More information can be found at
 - the [POPL tutorial website](https://popl26.sigplan.org/details/POPL-2026-tutorials/8/Verifying-Probabilistic-Programs-Using-Separation-Logic)
 - the [Clutch project readme](https://github.com/logsem/clutch/)
