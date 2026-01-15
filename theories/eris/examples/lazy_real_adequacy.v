@@ -1404,4 +1404,194 @@ Proof.
   rewrite Hmass. OK.
 Qed.
 
+Lemma prob_negb_0_mass {T} `{EqDecision T} `{Countable T} (μ : distr T) (P : T → bool) :
+   prob μ (fun x => negb (P x)) = 0 → prob μ P = prob μ (fun _ => true).
+Proof.
+  intros H'.
+  have L1 : (∀ a : T, ¬ (P a ∧ negb (P a))).
+  { intros ?. destruct (P a); rewrite //=; intuition. }
+  have X := prob_indep μ P (fun x => negb (P x)) L1.
+  rewrite H' Rplus_0_r in X.
+  rewrite -X.
+  f_equal.
+  funext; intro a.
+  destruct (P a); rewrite //=; intuition.
+Qed.
+
+
+(*
+Lemma ProbLem1 {T} `{EqDecision T} `{Countable T} (μ : distr T) (t1 t2 : T) (v1 v2 :R) :
+  t1 ≠ t2 →
+  prob μ (fun x => negb (bool_decide (x = t1 ∨ x = t2))) = 0 →
+  prob μ (fun x => negb (bool_decide (x = t1))) <= v1 →
+  prob μ (fun x => negb (bool_decide (x = t2))) <= v2 →
+  prob μ (fun _ => true) <= v1 + v2.
+Proof.
+  intros Hne HA HB HC.
+  rewrite -(prob_negb_0_mass _ (fun t : T => (bool_decide (t = t1 ∨ t = t2)))); [|exact HA].
+  replace
+    (@prob T EqDecision1 H μ
+       (fun t : T =>
+        @bool_decide (or (@eq T t t1) (@eq T t t2))
+          (@or_dec (@eq T t t1) (@decide_rel T T (@eq T) EqDecision1 t t1) (@eq T t t2)
+             (@decide_rel T T (@eq T) EqDecision1 t t2)))) with
+    (@prob T EqDecision1 H μ
+        (fun t : T =>
+           orb
+             (@bool_decide (@eq T t t1) (@decide_rel T T (@eq T) EqDecision1 t t1))
+             (@bool_decide (@eq T t t2) (@decide_rel T T (@eq T) EqDecision1 t t2)))).
+  2: { f_equal. funexti. repeat case_bool_decide; OK. }
+  rewrite prob_indep.
+  2: {
+    intros ?.
+    repeat case_bool_decide; OK.
+    exfalso.
+    apply Hne.
+    by rewrite -H0 -H1.
+  }
+A dmitted.
+*)
+
+(*
+   prob μ (fun x => negb (P x)) = 0 → prob μ P = prob μ (fun _ => true).
+Proof.
+  H1 : prob (lim_exec (lazy_real_cdf_checker e B C, σ))
+         (λ x : mstate_ret (lang_markov prob_lang), negb (bool_decide (x = #1 ∨ x = #(-1)))) = 0
+  H2 : prob (lim_exec (lazy_real_cdf_checker e B C, σ))
+         (λ a : mstate_ret (lang_markov prob_lang), negb (bool_decide (a = #(-1)))) <=
+       RInt_gen μ (at_point (IZR B / powerRZ 2 C)) (Rbar_locally Rbar.p_infty)
+  H3 : prob (lim_exec (lazy_real_cdf_checker e B C, σ))
+         (λ a : mstate_ret (lang_markov prob_lang), negb (bool_decide (a = #1))) <=
+       RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point (IZR B / powerRZ 2 C))
+*)
+
+Theorem lazy_real_expr_adequacy_cdf_prob  Σ `{erisGpreS Σ} {M} (e : expr) (σ : state) (μ : R -> R)
+    (Hnn : ∀ x, 0 <= μ x <= M) (HC : IPCts μ)
+    (Hlo : ex_RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point 0))
+    (Hhi : ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty))
+    (Hspec :
+      ∀ `{erisGS Σ} E (F : R -> R) (Hnn : ∃ M, ∀ x , 0 <= F x <= M) (HPC : IPCts F),
+      ↯ (RInt_gen (fun (x : R) => μ x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty))%R -∗
+       WP e @ E {{ cont, ∃ r, IsApprox cont r E ∗ ↯(F r) }})
+    (Hmass : RInt_gen μ (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty) = 1)
+    (Hterm : ∀ B C : Z, prob (lim_exec (lazy_real_cdf_checker e B C, σ)) (fun _ => true) = 1) :
+    ∀ B C : Z,
+      prob
+        (lim_exec (lazy_real_cdf_checker e B C, σ))
+        (fun x => bool_decide (x = #(-1)%Z)) =
+        (RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point (IZR B / powerRZ 2 C))).
+Proof.
+  intros ??.
+  have H1 := @lazy_real_expr_adequacy_mass_prob Σ H M e σ μ Hnn HC Hlo Hhi Hspec Hmass B C.
+  have H2 := @lazy_real_expr_adequacy_below Σ H M e σ μ Hnn HC Hlo Hhi Hspec B C.
+  have H3 := @lazy_real_expr_adequacy_above Σ H M e σ μ Hnn HC Hlo Hhi Hspec B C.
+  rewrite /pgl in H2.
+  rewrite /pgl in H3.
+  have H1' := @prob_negb_0_mass _ (mstate_ret_eqdec (lang_markov prob_lang)) _ _ _ _ H1; clear H1.
+  rewrite Hterm in H1'.
+  have H1'' :
+    prob (lim_exec (lazy_real_cdf_checker e B C, σ)) (λ x : mstate_ret (lang_markov prob_lang), bool_decide (x = #1)) +
+    prob (lim_exec (lazy_real_cdf_checker e B C, σ)) (λ x : mstate_ret (lang_markov prob_lang), bool_decide (x = #(-1))) =
+    1.
+  { rewrite -H1'.
+    rewrite -prob_indep.
+    2: {
+      intros ?.
+      repeat case_bool_decide; OK.
+      exfalso.
+      rewrite H0 in H1.
+      inversion H1.
+    }
+    repeat f_equal.
+    funext. intros a.
+    repeat case_bool_decide; OK.
+  }
+  clear H1'.
+
+  (* Convert negative probabilities to positive *)
+  have H2' :
+    prob (lim_exec (lazy_real_cdf_checker e B C, σ)) (λ x : mstate_ret (lang_markov prob_lang), bool_decide (x = #1)) +
+    prob (lim_exec (lazy_real_cdf_checker e B C, σ)) (λ x : mstate_ret (lang_markov prob_lang), negb (bool_decide (x = #1))) =
+    1.
+  { rewrite -prob_indep.
+    2: { intros ?. case_bool_decide; OK. }
+    rewrite -(Hterm B C).
+    repeat f_equal.
+    funext. intros a.
+    repeat case_bool_decide; OK.
+  }
+  have H3' :
+    prob (lim_exec (lazy_real_cdf_checker e B C, σ)) (λ x : mstate_ret (lang_markov prob_lang), bool_decide (x = #(-1))) +
+    prob (lim_exec (lazy_real_cdf_checker e B C, σ)) (λ x : mstate_ret (lang_markov prob_lang), negb (bool_decide (x = #(-1)))) =
+    1.
+  { rewrite -prob_indep.
+    2: { intros ?. case_bool_decide; OK. }
+    rewrite -(Hterm B C).
+    repeat f_equal.
+    funext. intros a.
+    repeat case_bool_decide; OK.
+  }
+  have Lem1 : ∀ (X Y : R), X + Y = 1 → X = 1 - Y.
+   { intros. OK. }
+  have Lem1S: ∀ (X Y : R), Y + X = 1 → X = 1 - Y.
+   { intros. OK. }
+  have Lem2 : ∀ (X Y Z : R), X + Y = 1 → X = (1 - Z) → Y = Z.
+  { intros X Y Z HL1 HL2. OK. }
+  have H2'' := Lem2 _ _ _ H2' (Lem1 _ _ H1'').
+  have H3'' := Lem2 _ _ _ H3' (Lem1S _ _ H1'').
+  have H3_negated :
+    prob (lim_exec (lazy_real_cdf_checker e B C, σ))
+         (λ a : mstate_ret (lang_markov prob_lang), (bool_decide (a = #(-1)))) <=
+       RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point (IZR B / powerRZ 2 C)).
+  { etrans; [|eapply H3].
+    right.
+    rewrite -(Lem2 _ _ _ H2' (Lem1 _ _ H1'')).
+    repeat f_equal.
+    funexti.
+    destruct (ClassicalEpsilon.excluded_middle_informative (x = #1)).
+    { do 2 (rewrite bool_decide_true; OK). }
+    { do 2 (rewrite bool_decide_false; OK). }
+  }
+  have H2_negated :
+    prob (lim_exec (lazy_real_cdf_checker e B C, σ))
+         (λ a : mstate_ret (lang_markov prob_lang), (bool_decide (a = #(1)))) <=
+       RInt_gen μ (at_point (IZR B / powerRZ 2 C)) (Rbar_locally Rbar.p_infty).
+  { etrans; [|eapply H2].
+    right.
+    rewrite -(Lem2 _ _ _ H3' (Lem1S _ _ H1'')).
+    repeat f_equal.
+    funexti.
+    destruct (ClassicalEpsilon.excluded_middle_informative (x = #(-1))).
+    { do 2 (rewrite bool_decide_true; OK). }
+    { do 2 (rewrite bool_decide_false; OK). }
+  }
+  destruct H3_negated.
+  2: { done. }
+  exfalso.
+  clear Lem1 Lem1S.
+  have Lem3 : ∀ X Y Z W : R, X < Y → Z <= W → X + Z < Y + W.
+  { intros ?. OK. }
+  have Hcontra := Lem3 _ _ _ _ H0 H2_negated.
+  clear H0 H2_negated Lem3 Lem2 H2'' H3'' H2' H3' H2 H3.
+  have HS :
+    RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point (IZR B / powerRZ 2 C)) +
+    RInt_gen μ (at_point (IZR B / powerRZ 2 C)) (Rbar_locally Rbar.p_infty) = 1.
+  { rewrite -Hmass.
+    symmetry.
+    rewrite -(RInt_gen_Chasles _ (IZR B / powerRZ 2 C) (Fa := (Rbar_locally Rbar.m_infty))); first rewrite /plus//=.
+    { eapply (ex_RInt_gen_Chasles_exists_neg (xb := 0)); OK.
+      rewrite ex_RInt_gen_at_point.
+      by apply IPCts_RInt.
+    }
+    { eapply (ex_RInt_gen_Chasles_exists (xa := 0)); OK.
+      rewrite ex_RInt_gen_at_point.
+      by apply IPCts_RInt.
+    }
+  }
+  rewrite HS in Hcontra.
+  clear HS.
+  rewrite -H1'' in Hcontra.
+  OK.
+Qed.
+
 End CReal.
