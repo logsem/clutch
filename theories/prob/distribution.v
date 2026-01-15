@@ -845,6 +845,24 @@ Section probability_lemmas.
     - by apply ex_seriesC_filter_bool_pos.
   Qed.
 
+  Lemma prob_indep (μ : distr A) (P Q : A → bool) :
+    (∀ a, ¬ (P a ∧ Q a)) →
+    prob μ (λ a, orb (P a) (Q a)) = prob μ P + prob μ Q.
+  Proof.
+    intros HA.
+    rewrite /prob.
+    rewrite -SeriesC_plus.
+    2, 3 : by apply ex_seriesC_filter_bool_pos.
+    apply SeriesC_ext.
+    intros a.
+    symmetry.
+    destruct (P a) as [|] eqn:HP; destruct (Q a) as [|] eqn:HQ; rewrite //=; try lra.
+    exfalso.
+    specialize HA with a.
+    rewrite HP HQ //= in HA.
+    intuition.
+  Qed.
+
 End probability_lemmas.
 
 

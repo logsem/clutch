@@ -1220,4 +1220,188 @@ Proof.
   iFrame.
 Qed.
 
+Lemma IPCts_poke1 {A B C} : IPCts (poke (fun _ => A) B C).
+Proof.
+  exists (fun _ => A), (List.cons ((fun _ => C - A), B, B) List.nil).
+  split; [|split].
+  { intros ?.
+    rewrite /poke/fsum//=/Iverson/Icc//=.
+    rewrite Rmin_left; OK.
+    rewrite Rmax_right; OK.
+    case_decide.
+    { rewrite decide_True; OK. }
+    { rewrite decide_False; OK. }
+  }
+  { rewrite Forall_singleton.
+    intros ??.
+    apply continuous_const.
+  }
+  { intros ?.
+    apply continuous_const.
+  }
+Qed.
+
+Theorem lazy_real_expr_adequacy_mass Σ `{erisGpreS Σ} {M} (e : expr) (σ : state) (μ : R -> R)
+    (Hnn : ∀ x, 0 <= μ x <= M) (HC : IPCts μ)
+    (Hlo : ex_RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point 0))
+    (Hhi : ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty))
+    (Hspec :
+      ∀ `{erisGS Σ} E (F : R -> R) (Hnn : ∃ M, ∀ x , 0 <= F x <= M) (HPC : IPCts F),
+      ↯ (RInt_gen (fun (x : R) => μ x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty))%R -∗
+       WP e @ E {{ cont, ∃ r, IsApprox cont r E ∗ ↯(F r) }})
+    (Hmass : RInt_gen μ (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty) <= 1) :
+    ∀ B C : Z,
+     prob (lim_exec (lazy_real_cdf_checker e B C, σ)) (fun x => negb (bool_decide (x = #(1)%Z \/ x = #(-1)%Z))) <=
+       1 - RInt_gen μ (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty).
+Proof.
+  intros ??.
+  suffices HS :
+      pgl
+        (lim_exec (lazy_real_cdf_checker e B C, σ))
+        (fun x => x = #(1)%Z \/ x = #(-1)%Z)
+        (1 - RInt_gen μ (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty)).
+  { rewrite /pgl in HS.
+    etrans; last eapply HS.
+    right.
+    f_equal.
+    funexti.
+    f_equal.
+    case_bool_decide.
+    { rewrite bool_decide_true; OK. }
+    { rewrite bool_decide_false; OK. }
+  }
+  apply (wp_pgl_lim Σ).
+  { lra. }
+  iIntros (?) "He".
+  rewrite /lazy_real_cdf_checker.
+  wp_pures.
+  wp_bind e.
+  iApply pgl_wp_mono.
+  2: {
+    iApply (@Hspec _ _ (poke (fun _ => 0) (IZR B / powerRZ 2 C) 1)).
+    { exists 1. intros ?. rewrite /poke. case_decide; OK. }
+    { apply IPCts_poke1. }
+    { (* The integral is zero *)
+      replace (RInt_gen (λ x0 : R, μ x0 * poke (λ _ : R, 0) (IZR B / powerRZ 2 C) 1 x0) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty))
+          with 0.
+      { iApply (ec_weaken with "He"). split; OK. }
+      erewrite <-(RInt_gen_Chasles _ (IZR B / powerRZ 2 C) (Fa := (Rbar_locally Rbar.m_infty))); last first.
+      { apply (@ex_RInt_gen_ext_eq_Ioi (fun _ => 0)).
+        { intros ??. rewrite /poke. rewrite decide_False; OK. }
+        apply ex_RInt_gen_0.
+      }
+      { apply (@ex_RInt_gen_ext_eq_Iio (fun _ => 0)).
+        { intros ??. rewrite /poke. rewrite decide_False; OK. }
+        replace (IZR B / powerRZ 2 C) with (- (- (IZR B / powerRZ 2 C))) by OK.
+        apply (ex_RInt_gen_shift_neg (F := fun _ => 0)).
+        { intros ?. apply @ex_RInt_const. }
+        apply (ex_RInt_gen_neg_change_of_var_rev (F := fun _ => 0)).
+        { intros ??. apply @ex_RInt_const. }
+        apply ex_RInt_gen_0.
+      }
+      rewrite /plus//=.
+      rewrite (RInt_gen_ext_eq_Ioi (g := fun _ => 0)); first last.
+      { apply (@ex_RInt_gen_ext_eq_Ioi (fun _ => 0)).
+        { intros ??. rewrite /poke. rewrite decide_False; OK. }
+        apply ex_RInt_gen_0.
+      }
+      { intros ??. rewrite /poke. rewrite decide_False; OK. }
+      rewrite (RInt_gen_ext_eq_Iio (g := fun _ => 0)); first last.
+      { apply (@ex_RInt_gen_ext_eq_Iio (fun _ => 0)).
+        { intros ??. rewrite /poke. rewrite decide_False; OK. }
+        replace (IZR B / powerRZ 2 C) with (- (- (IZR B / powerRZ 2 C))) by OK.
+        apply (ex_RInt_gen_shift_neg (F := fun _ => 0)).
+        { intros ?. apply @ex_RInt_const. }
+        apply (ex_RInt_gen_neg_change_of_var_rev (F := fun _ => 0)).
+        { intros ??. apply @ex_RInt_const. }
+        apply ex_RInt_gen_0.
+      }
+      { intros ??. rewrite /poke. rewrite decide_False; OK. }
+      rewrite RInt_gen_0.
+      replace (IZR B / powerRZ 2 C) with (- (- (IZR B / powerRZ 2 C))) by OK.
+      rewrite -(RInt_gen_shift_neg (F := fun _ => 0)); first last.
+      { apply (ex_RInt_gen_neg_change_of_var_rev (F := fun _ => 0)).
+        { intros ??. apply @ex_RInt_const. }
+        apply ex_RInt_gen_0.
+      }
+      { intros ?. apply @ex_RInt_const. }
+      rewrite -(RInt_gen_neg_change_of_var (F := (fun _ => 0))).
+      2: { intros ??. apply @ex_RInt_const. }
+      2: { intros ??. apply @ex_RInt_const. }
+      2: { apply (ex_RInt_gen_neg_change_of_var_rev (F := fun _ => 0)).
+          { intros ??. apply @ex_RInt_const. }
+          apply ex_RInt_gen_0.
+      }
+      rewrite RInt_gen_0.
+      OK.
+    }
+  }
+  rewrite //=.
+  iIntros (sample) "[%r HI]".
+  remember (IsApprox sample r ⊤ ∗ ↯ (poke (λ _ : R, 0) (IZR B / powerRZ 2 C) 1 r))%I as Hcrs.
+  wp_pures.
+  wp_bind (R_ofZ _).
+  iApply (pgl_wp_mono_frame Hcrs with "[] HI").
+  2: { wp_apply wp_R_ofZ. }
+  rewrite //=.
+  iIntros (num) "[HI Hnum]".
+  wp_pures.
+  wp_bind (R_mulPow _ _).
+  iApply (pgl_wp_mono_frame Hcrs with "[Hnum] HI").
+  2: { wp_apply (wp_R_mulPow with "Hnum"). }
+  rewrite //=.
+  iIntros (bound) "[HI Hbound]".
+  rewrite HeqHcrs.
+  iDestruct "HI" as "[Hsample He]".
+  rewrite /poke.
+  case_decide.
+  { iExFalso. by iApply (ec_contradict with "He"). }
+  apply Rdichotomy in H1.
+  destruct H1.
+  { wp_pures.
+    iApply pgl_wp_mono.
+    2: {
+      iApply (@wp_R_cmp_lt _ _ sample bound r (IZR B / powerRZ 2 C)).
+      2:{ iFrame. }
+      OK.
+    }
+    rewrite //=.
+    iIntros (?) "(%&?)".
+    iPureIntro; OK.
+  }
+  { wp_pures.
+    iApply pgl_wp_mono.
+    2: {
+      iApply (@wp_R_cmp_gt _ _ sample bound r (IZR B / powerRZ 2 C)).
+      2:{ iFrame. }
+      OK.
+    }
+    rewrite //=.
+    iIntros (?) "(%&?)".
+    iPureIntro; OK.
+  }
+Qed.
+
+
+Theorem lazy_real_expr_adequacy_mass_prob Σ `{erisGpreS Σ} {M} (e : expr) (σ : state) (μ : R -> R)
+    (Hnn : ∀ x, 0 <= μ x <= M) (HC : IPCts μ)
+    (Hlo : ex_RInt_gen μ (Rbar_locally Rbar.m_infty) (at_point 0))
+    (Hhi : ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty))
+    (Hspec :
+      ∀ `{erisGS Σ} E (F : R -> R) (Hnn : ∃ M, ∀ x , 0 <= F x <= M) (HPC : IPCts F),
+      ↯ (RInt_gen (fun (x : R) => μ x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty))%R -∗
+       WP e @ E {{ cont, ∃ r, IsApprox cont r E ∗ ↯(F r) }})
+    (Hmass : RInt_gen μ (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty) = 1) :
+    ∀ B C : Z,
+     prob (lim_exec (lazy_real_cdf_checker e B C, σ)) (fun x => negb (bool_decide (x = #(1)%Z \/ x = #(-1)%Z))) = 0.
+Proof.
+  intros ??.
+  have Lem1 : ∀ X : R, 0 <= X → X <= 0 → X = 0 by OK.
+  apply Lem1; clear Lem1.
+  { apply prob_ge_0. }
+  etrans.
+  { eapply lazy_real_expr_adequacy_mass; OK. }
+  rewrite Hmass. OK.
+Qed.
+
 End CReal.
