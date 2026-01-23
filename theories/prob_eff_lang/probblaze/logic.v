@@ -1978,7 +1978,8 @@ Section brel.
     f_equiv. by apply leibniz_equiv.
   Qed.
   Global Instance labels_l_proper : Proper ((≡) ==> (=)) labels_l.
-  Proof. intros ???. by apply (labels_l_ne 0), equiv_dist. Qed.
+  Proof. intros ???. by eapply (labels_l_ne 0%nat), equiv_dist.
+  Qed.
 
   (* labels_r. *)
   Global Instance labels_r_ne n : Proper (dist n ==> (=)) labels_r.
@@ -1990,19 +1991,19 @@ Section brel.
     f_equiv. by apply leibniz_equiv.
   Qed.
   Global Instance labels_r_proper : Proper ((≡) ==> (=)) labels_r.
-  Proof. intros ???. by apply (labels_r_ne 0), equiv_dist. Qed.
+  Proof. intros ???. by apply (labels_r_ne 0%nat), equiv_dist. Qed.
 
   (* valid_l. *)
   Global Instance valid_l_ne n : Proper (dist n ==> (≡)) valid_l.
   Proof. intros ?? H. rewrite /valid_l. by rewrite H. Qed.
   Global Instance valid_l_proper : Proper ((≡) ==> (≡)) valid_l.
-  Proof. intros ???. by apply (valid_l_ne 0), equiv_dist. Qed.
+  Proof. intros ???. by apply (valid_l_ne 0%nat), equiv_dist. Qed.
 
   (* valid_r. *)
   Global Instance valid_r_ne n : Proper (dist n ==> (≡)) valid_r.
   Proof. intros ?? H. rewrite /valid_r. by rewrite H. Qed.
   Global Instance valid_r_proper : Proper ((≡) ==> (≡)) valid_r.
-  Proof. intros ???. by apply (valid_r_ne 0), equiv_dist. Qed.
+  Proof. intros ???. by apply (valid_r_ne 0%nat), equiv_dist. Qed.
 
   (* valid. *)
   Global Instance valid_ne : NonExpansive valid.
@@ -2014,19 +2015,19 @@ Section brel.
   Global Instance distinct_l_ne n : Proper (dist n ==> (↔)) distinct_l.
   Proof. intros ?? H. by rewrite /distinct_l H. Qed.
   Global Instance distinct_l_proper : Proper ((≡) ==> (↔)) distinct_l.
-  Proof. intros ???. by apply (distinct_l_ne 0), equiv_dist. Qed.
+  Proof. intros ???. by apply (distinct_l_ne 0%nat), equiv_dist. Qed.
 
   (* distinct_r. *)
   Global Instance distinct_r_ne n : Proper (dist n ==> (↔)) distinct_r.
   Proof. intros ?? H. by rewrite /distinct_r H. Qed.
   Global Instance distinct_r_proper : Proper ((≡) ==> (↔)) distinct_r.
-  Proof. intros ???. by apply (distinct_r_ne 0), equiv_dist. Qed.
+  Proof. intros ???. by apply (distinct_r_ne 0%nat), equiv_dist. Qed.
 
   (* distinct. *)
   Global Instance distinct_ne n : Proper (dist n ==> (↔)) distinct.
   Proof. intros ?? H. by rewrite /distinct H. Qed.
   Global Instance distinct_proper : Proper ((≡) ==> (↔)) distinct.
-  Proof. intros ???. by apply (distinct_ne 0), equiv_dist. Qed.
+  Proof. intros ???. by apply (distinct_ne 0%nat), equiv_dist. Qed.
 
   (* distinct'. *)
   Global Instance distinct'_ne : NonExpansive distinct'.

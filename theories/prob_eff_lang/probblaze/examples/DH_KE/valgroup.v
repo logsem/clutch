@@ -46,14 +46,14 @@ Definition vexp `{!clutch_group_struct} : cval := vexp' vunit vmult.
 
 Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct} :=
   Clutch_group
-    { is_unit : vunit = 1
-    ; is_inv (x : vgG) : ⊢ WP vinv x {{ λ (v : cval), ⌜v = x^-1⌝ }}
+    { is_unit : vunit = vgval 1
+    ; is_inv (x : vgG) : ⊢ WP vinv x {{ λ (v : cval), ⌜v = vgval $ x^-1⌝ }}
     ; is_spec_inv (x : vgG) K :
       ⤇ fill K (
-          vinv x) -∗ spec_update ⊤ (⤇ fill K (x^-1))
-    ; is_mult (x y : vgG) : ⊢ WP vmult x y {{ λ (v : cval), ⌜v = (x * y)%g⌝ }}
+          vinv x) -∗ spec_update ⊤ (⤇ fill K (vgval $ x^-1))
+    ; is_mult (x y : vgG) : ⊢ WP vmult (vgval x) (vgval y) {{ λ (v : cval), ⌜v = vgval (x * y)%g⌝ }}
     ; is_spec_mult (x y : vgG) K :
-      ⤇ fill K (vmult x y) -∗ spec_update ⊤ (⤇ fill K (x * y)%g)
+      ⤇ fill K (vmult x y) -∗ spec_update ⊤ (⤇ fill K (vgval (x * y)%g))
     }.
 
 Definition vg_of_cg := λ {Σ HΣ} vg cg (G : @clutch_group Σ HΣ vg cg), vg.
@@ -84,7 +84,7 @@ Context {G : clutch_group (vg:=vg) (cg:=cg)}.
 Context {vgg : @val_group_generator vg}.
 
 Lemma rel_inv_l E K X R (a : vgG) t :
-  (REL (fill K (Val (a^-1)%g)) ≤ t @ E <|X|> {{R}})
+  (REL (fill K (Val (vgval $ a^-1)%g)) ≤ t @ E <|X|> {{R}})
     ⊢ REL  (fill K (vinv a)) ≤ t @ E <|X|> {{R}}.
 Proof.
   iIntros "H".
@@ -98,7 +98,7 @@ Proof.
 Qed.
 
 Lemma rel_inv_r E K X R (a : vgG) t :
-  (REL t ≤ (fill K (Val (a^-1)%g)) @ E <|X|> {{R}})
+  (REL t ≤ (fill K (Val (vgval $ a^-1)%g)) @ E <|X|> {{R}})
     ⊢ REL t ≤ (fill K (vinv a)) @ E <|X|> {{R}}.
 Proof.
   iIntros "H".
@@ -109,7 +109,7 @@ Proof.
 Qed.
 
 Lemma rel_mult_l E K X R (a b : vgG) t :
-  (REL (fill K (Val (a * b)%g)) ≤ t @ E <|X|> {{R}})
+  (REL (fill K (Val (vgval (a * b)%g))) ≤ t @ E <|X|> {{R}})
     ⊢ REL (fill K (vmult a b)) ≤ t @ E <|X|> {{R}}.
 Proof.
   iIntros "H".
@@ -123,7 +123,7 @@ Proof.
 Qed.
 
 Lemma rel_mult_r E K X R (a b : vgG) t :
-  (REL t ≤ (fill K (Val (a * b)%g)) @ E <|X|> {{R}})
+  (REL t ≤ (fill K (Val (vgval (a * b)%g))) @ E <|X|> {{R}})
     ⊢ REL t ≤ (fill K (vmult a b)) @ E <|X|> {{R}}.
 Proof.
   iIntros "H".
@@ -134,7 +134,7 @@ Proof.
 Qed.
 
 Fact is_exp (b : vgG) (x : nat) :
-  {{{ True }}} vexp b #x {{{ v, RET (v : cval); ⌜v = (b ^+ x)%g⌝ }}}.
+  {{{ True }}} vexp b #x {{{ v, RET (v : cval); ⌜v = vgval (b ^+ x)%g⌝ }}}.
 Proof.
   unfold vexp, vexp'. iIntros (? _) "hlog". 
   wp_pure. wp_pure.
@@ -148,14 +148,16 @@ Proof.
     replace (S x - 1)%Z with (Z.of_nat x) by lia.
     iApply "IH".
     iIntros. wp_pures.
-    iApply (wp_frame_wand with "hlog"). iApply (wp_mono $! (is_mult b v)).
+    iApply (wp_frame_wand with "hlog").
+    rewrite H.
+    iApply (wp_mono $! (is_mult b (b ^+ x))).
     iIntros (??) "hlog" ; subst. iApply "hlog".
     by rewrite expgS.
 Qed.
 
 
 Fact is_spec_exp (b : vgG) (x : nat) K :
-  ⤇ fill K (vexp b #x) ⊢ spec_update ⊤ (⤇ fill K (b ^+ x)%g).
+  ⤇ fill K (vexp b #x) ⊢ spec_update ⊤ (⤇ fill K (vgval (b ^+ x)%g)).
 Proof.
   unfold vexp, vexp'. iIntros "hlog".
   iMod (step_pure _ _ _ _ True with "hlog") as "hlog"; [done| |].
@@ -190,7 +192,7 @@ Proof.
 Qed.
 
 Lemma rel_exp_l E K X R (b : vgG) (p : nat) t :
-  (REL (fill K (Val (b ^+ p)%g)) ≤ t @ E <|X|> {{R}})
+  (REL (fill K (Val (vgval $ b ^+ p)%g)) ≤ t @ E <|X|> {{R}})
     ⊢ REL (fill K (vexp b #p)) ≤ t @ E <|X|> {{R}}.
 Proof.
   iIntros "H".
@@ -201,12 +203,12 @@ Proof.
   rewrite !fill_app. 
   iDestruct ("H" with "[$][$][$][$][$]") as "H".
   iApply (wp_frame_wand with "H"). iApply (wp_mono).
-  2 : { iApply (is_exp _ _ (λ v : cval, ⌜ v = b ^+ p ⌝)%I); first done. iIntros "!> %v %H". setoid_rewrite H. done. }
+  2 : { iApply (is_exp _ _ (λ v : cval, ⌜ v = vgval (b ^+ p) ⌝)%I); first done. iIntros "!> %v %H". setoid_rewrite H. done. }
   iIntros (v ->) "Hwp". rewrite !fill_app. simpl. done.
 Qed.
 
 Lemma rel_exp_r E K X R (b : vgG) (p : nat) t :
-  (REL t ≤ (fill K (Val (b ^+ p)%g)) @ E <|X|> {{R}})
+  (REL t ≤ (fill K (Val $ vgval (b ^+ p)%g)) @ E <|X|> {{R}})
     ⊢ REL t ≤ (fill K (vexp b #p)) @ E <|X|> {{R}}.
 Proof.
   iIntros "H".

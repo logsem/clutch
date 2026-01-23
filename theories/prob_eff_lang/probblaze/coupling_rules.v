@@ -405,14 +405,14 @@ Section rules.
         rewrite !SeriesC_list_2; last first.
         { apply NoDup_fmap_2; [done|apply NoDup_enum]. }
         { rewrite /diff. eapply NoDup_elements. }
-        rewrite fmap_length. rewrite fin.length_enum_fin.
+        rewrite length_fmap. rewrite fin.length_enum_fin.
         rewrite /diff.
         replace (length _) with (S M - S N)%nat; last first.
         { erewrite <-size_list_to_set; last apply NoDup_elements.
           erewrite list_to_set_elements.
           rewrite size_difference.
           - rewrite !size_list_to_set; [|apply NoDup_fmap; [auto|apply NoDup_enum]|apply NoDup_enum]; auto.
-            rewrite fmap_length.
+            rewrite length_fmap.
             rewrite !fin.length_enum_fin. done.
           - intros ??. apply elem_of_list_to_set. apply elem_of_enum.
         }

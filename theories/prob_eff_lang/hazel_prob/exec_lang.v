@@ -1,5 +1,5 @@
 
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 From clutch.prob Require Export markov.
 From clutch.common Require Import language.
 From clutch.prob_eff_lang.hazel_prob Require Import lang.

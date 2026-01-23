@@ -1,5 +1,5 @@
-From Coq Require Import Reals Psatz.
-From Coq.Program Require Import Wf.
+From Stdlib Require Import Reals Psatz.
+From Stdlib.Program Require Import Wf WfExtensionality.
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
@@ -839,7 +839,7 @@ Proof.
   - rewrite replicate_S_end
      heap_array_app
      IHn /=.
-    rewrite map_union_empty replicate_length //.
+    rewrite map_union_empty length_replicate //.
 Qed.
 
 #[local] Open Scope R.
@@ -1655,9 +1655,10 @@ End eff_prob_lang_sec.
 (* Prefer prob_lang names over ectx_language names. *)
 
 
-Canonical Structure eff_prob_lang := Language eff_prob_lang_sec.eff_prob_lang_mixin.  
+Canonical Structure eff_prob_lang := Language eff_prob_lang_sec.eff_prob_lang_mixin
+                                       (def_val := eff_prob_lang_sec.LitV eff_prob_lang_sec.LitUnit).
 
-Export eff_prob_lang_sec. 
+Export eff_prob_lang_sec.
 
 Definition cfg : Type := expr * state.
 

@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From clutch.common Require Import locations.
 From clutch.prob Require Import distribution couplings couplings_app.
 From clutch.prob_eff_lang.hazel_prob Require Export lang notation.
@@ -630,7 +630,7 @@ Qed.
 
 Lemma det_head_step_upd_tapes N e1 σ1 e2 σ2 α z zs :
   det_head_step_rel e1 σ1 e2 σ2 →
-  tapes σ1 !! α = Some (N; zs) →
+  tapes σ1 !! α = Some ((N; zs) : tape) →
   det_head_step_rel
     e1 (state_upd_tapes <[α := (N; zs ++ [z])]> σ1)
     e2 (state_upd_tapes <[α := (N; zs ++ [z])]> σ2).
@@ -641,7 +641,7 @@ Proof.
 Qed.
 
 Lemma upd_tape_some σ α N n ns :
-  tapes σ !! α = Some (N; ns) →
+  tapes σ !! α = Some ((N; ns) : tape) →
   tapes (state_upd_tapes <[α:= (N; ns ++ [n])]> σ) !! α = Some (N; ns ++ [n]).
 Proof.
   intros H. rewrite /state_upd_tapes /=. rewrite lookup_insert //.
@@ -718,7 +718,7 @@ Lemma head_step_support_eq e1 e2 σ1 σ2 r :
 Proof. intros ? <-. by eapply head_step_support_equiv_rel. Qed.
 
 Lemma prim_step_empty_tape σ α (z:Z) K N :
-  (tapes σ) !! α = Some (N; []) -> prim_step (fill K (rand(#lbl:α) #z)) σ = prim_step (fill K (rand #z)) σ.
+  (tapes σ) !! α = Some ((N; []) : tape) -> prim_step (fill K (rand(#lbl:α) #z)) σ = prim_step (fill K (rand #z)) σ.
 Proof.
   intros H.
   rewrite !fill_dmap; [|done|done|done|done].

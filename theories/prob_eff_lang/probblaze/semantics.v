@@ -1,6 +1,7 @@
 From clutch.common Require Import language.
 From clutch.prob_eff_lang.probblaze Require Export syntax.
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
+From Stdlib.Program Require Import WfExtensionality.
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
@@ -368,9 +369,9 @@ Proof. by apply NeutralEctx_cons. Qed.
 
 Instance NeutralEctx_dec ls k : Decision (NeutralEctx ls k).
 Proof.
-  ecase (stdpp.list.Forall_dec (λ l, l ∉ ectx_labels k)); [left|right].
-  - constructor. by apply stdpp.list.Forall_forall. 
-  - intros Habsurd. apply n. rewrite stdpp.list.Forall_forall. by apply neutral_ectx.
+  ecase (stdpp.list_relations.Forall_dec (λ l, l ∉ ectx_labels k)); [left|right].
+  - constructor. by apply stdpp.list_relations.Forall_forall.
+  - intros Habsurd. apply n. rewrite stdpp.list_relations.Forall_forall. by apply neutral_ectx.
 Qed.
 
 Lemma Permutation_NeutralEctx ls k k' :
@@ -1488,7 +1489,6 @@ Definition prim_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
     let '(K, e1') := decomp e1 in
     dmap (fill_lift K) (head_step e1' σ1).
 
-
 Lemma decomp_unfold e :
     decomp e =
       match decomp_frame e with
@@ -1496,7 +1496,7 @@ Lemma decomp_unfold e :
       | None => ([], e)
       end.
 Proof.
-  rewrite /decomp Wf.WfExtensionality.fix_sub_eq_ext /= -/decomp.
+  rewrite /decomp WfExtensionality.fix_sub_eq_ext /= -/decomp.
   repeat case_match; try done.
 Qed.
 
@@ -1940,7 +1940,7 @@ Qed.
 
 
 (* ------------------------------------------------------------*)
-(* blazeprob is a prob lang *)
+(* blaze_prob_lang is a prob language *)
 
   
 Lemma blaze_prob_lang_mixin :
@@ -1949,6 +1949,4 @@ Proof.
   split; eauto using to_of_val, of_to_val, val_prim_stuck, state_step_prim_step_not_stuck, state_step_get_active_mass, prim_step_mass.
 Qed.  
 
-Canonical Structure blaze_prob_lang := Language blaze_prob_lang_mixin.
-
-
+Canonical Structure blaze_prob_lang := Language blaze_prob_lang_mixin (def_val := LitV LitUnit).

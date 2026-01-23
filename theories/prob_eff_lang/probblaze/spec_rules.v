@@ -1,5 +1,5 @@
 (** Rules for updating the specification program. *)
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.common Require Import locations.

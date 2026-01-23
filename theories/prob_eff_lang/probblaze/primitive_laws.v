@@ -62,7 +62,7 @@ Section past_labels.
     rewrite /past_labels /label_succ.
     destruct l as [n].
     rewrite replicate_S_end.
-    by rewrite imap_app //= replicate_length Nat.add_0_r.
+    by rewrite imap_app //= length_replicate Nat.add_0_r.
   Qed.
 
   Lemma NoDup_past_labels l : NoDup (past_labels l).
@@ -101,7 +101,7 @@ Section past_labels.
   Proof.
     intros Hi.
     apply lookup_ge_None_2.
-    by rewrite imap_length replicate_length.
+    by rewrite length_imap length_replicate.
   Qed.
 
   Lemma elem_of_past_labels l l' :
@@ -336,7 +336,7 @@ Proof.
   - rewrite replicate_S_end
      heap_array_app
      IHn /=.
-    rewrite map_union_empty replicate_length //.
+    rewrite map_union_empty length_replicate //.
 Qed.
 
 
@@ -392,7 +392,7 @@ Proof.
       apply not_elem_of_singleton_2.
       intros H2.
       apply loc_add_inj in H2.
-      rewrite replicate_length in H1.
+      rewrite length_replicate in H1.
       lia.
 Qed.
 

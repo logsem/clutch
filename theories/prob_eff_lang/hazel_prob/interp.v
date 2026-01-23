@@ -3,7 +3,7 @@ From iris.proofmode Require Export base tactics classes.
 
 From clutch.prob_eff_lang.hazel_prob Require Import typed_lang model spec_ra metatheory.
 
-From Coq Require Import PeanoNat.
+From Stdlib Require Import PeanoNat.
 (* interp.v *)
 
 (* Mentions:

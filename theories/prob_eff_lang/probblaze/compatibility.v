@@ -268,7 +268,7 @@ Section compatibility.
 
   (* TODO: type-related rules -- figure out where to place these *)
   Lemma brel_mono_on_prop e1 e2 ρ P R :
-    mono_prot_on_prop ρ P -∗ P -∗
+    ⊢ mono_prot_on_prop ρ P -∗ P -∗
     BREL e1 ≤ e2 <| iLblSig_to_iLblThy ρ |> {{ R }} -∗
     BREL e1 ≤ e2 <| iLblSig_to_iLblThy ρ |> {{ λ v1 v2, R v1 v2 ∗ P }}.
   Proof.

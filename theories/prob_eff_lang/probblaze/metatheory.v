@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap fin_sets.
 From clutch.prelude Require Import stdpp_ext NNRbar fin uniform_list.
 From clutch.prob Require Import distribution couplings couplings_app.
@@ -167,7 +167,7 @@ Set Default Proof Using "Type*".
                                     else 0)).
           -- erewrite (SeriesC_ext _ (λ x : fin (S N), / S M * if bool_decide (x∈f<$> enum (fin (S M))) then 1 else 0)).
              { rewrite SeriesC_scal_l. rewrite SeriesC_list_1.
-               - rewrite fmap_length. rewrite length_enum_fin. rewrite Rinv_l; first lra.
+               - rewrite length_fmap. rewrite length_enum_fin. rewrite Rinv_l; first lra.
                  replace 0 with (INR 0) by done.
                  move => /INR_eq. lia.
                - apply NoDup_fmap_2; try done.
@@ -611,7 +611,7 @@ Qed.
 
 Lemma det_head_step_upd_tapes N e1 σ1 e2 σ2 α z zs :
   det_head_step_rel e1 σ1 e2 σ2 →
-  tapes σ1 !! α = Some (N; zs) →
+  tapes σ1 !! α = Some ((N; zs) : tape) →
   det_head_step_rel
     e1 (state_upd_tapes <[α := (N; zs ++ [z])]> σ1)
     e2 (state_upd_tapes <[α := (N; zs ++ [z])]> σ2).
@@ -622,7 +622,7 @@ Proof.
 Qed.
 
 Lemma upd_tape_some σ α N n ns :
-  tapes σ !! α = Some (N; ns) →
+  tapes σ !! α = Some ((N; ns) : tape) →
   tapes (state_upd_tapes <[α:= (N; ns ++ [n])]> σ) !! α = Some (N; ns ++ [n]).
 Proof.
   intros H. rewrite /state_upd_tapes /=. rewrite lookup_insert //.
@@ -695,7 +695,7 @@ Proof.
 Qed.
 
 Lemma prim_step_empty_tape σ α (z:Z) K N :
-  (tapes σ) !! α = Some (N; []) -> prim_step (fill K (rand(#lbl:α) #z)) σ = prim_step (fill K (rand #z)) σ.
+  (tapes σ) !! α = Some ((N; []) : tape) -> prim_step (fill K (rand(#lbl:α) #z)) σ = prim_step (fill K (rand #z)) σ.
 Proof.
   intros H.
   rewrite !fill_dmap_uncaught';[|done|done|done|done].
@@ -865,7 +865,7 @@ Proof.
     apply map_Forall_insert_2; auto.
     apply lookup_union_Some in Hix; last first.
     { eapply heap_array_map_disjoint;
-        rewrite replicate_length Z2Nat.id; auto with lia. }
+        rewrite length_replicate Z2Nat.id; auto with lia. }
     destruct Hix as [(?&?&?&[-> Hlt%inj_lt]%lookup_replicate_1)%heap_array_lookup|
                       [j Hj]%elem_of_map_to_list%elem_of_list_lookup_1].
     + simplify_eq/=. rewrite !Z2Nat.id in Hlt; eauto with lia.

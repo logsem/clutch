@@ -4,7 +4,6 @@
 
 From iris.proofmode Require Import base tactics classes.
 From iris.algebra Require Import list.
-From iris.program_logic Require Import weakestpre.
 
 From stdpp Require Import base gmap.
 

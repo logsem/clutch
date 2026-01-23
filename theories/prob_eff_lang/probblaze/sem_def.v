@@ -4,7 +4,6 @@
 
 From iris.proofmode Require Import base tactics classes.
 From iris.algebra Require Import list ofe gmap.
-From iris.program_logic Require Import weakestpre.
 
 From clutch.prob_eff_lang.probblaze Require Import logic notation.
 

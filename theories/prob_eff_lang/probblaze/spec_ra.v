@@ -1,5 +1,5 @@
 (** Resources required to track a [ProbEffLang] spec configuration. *)
-From Coq Require Import Reals.
+From Stdlib Require Import Reals.
 From iris.algebra Require Import auth excl.
 From iris.bi Require Export fractional.
 From iris.base_logic.lib Require Import invariants ghost_map.
