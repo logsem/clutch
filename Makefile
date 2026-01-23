@@ -40,6 +40,8 @@ clean:
 		-o -name ".*.aux" -o -name ".*.cache" -o -name "*.glob" \) -delete
 	$(Q)rm -f .lia.cache
 	rm -f .coqdeps.d
+	rm -f Makefile.coq
+	rm -f Makefile.coq.conf
 
 tar:
 	git archive --format=tar.gz -o coq-clutch.tar.gz HEAD

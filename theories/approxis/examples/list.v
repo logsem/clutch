@@ -765,7 +765,7 @@ Section list_specs.
       simpl in Ha; subst; rewrite /list_nth; tp_pures; rewrite -/list_nth.
     - iApply spec_update_ret. iFrame. iLeft. iPureIntro. split; [done|simpl; lia].
     - destruct Ha as [lv' [Hlv Hlcoh]]; subst.
-      tp_pures; first naive_solver. case_bool_decide; tp_pures.
+      tp_pures. case_bool_decide; tp_pures.
       + iApply spec_update_ret. iFrame. iRight. iPureIntro. simplify_eq.
         replace i with 0%nat; last lia. simpl. naive_solver.
       + destruct i; first done.
@@ -857,7 +857,7 @@ Section list_specs.
         iExists e, (inject ((a :: l1) ++ l2)), (a :: l1), l2.
         iPureIntro.
         split; auto.
-        split; [rewrite cons_length Hlen // |].
+        split; [rewrite length_cons Hlen // |].
         split.
         * by apply is_list_inject in Hcons as ->.
         * by apply is_list_inject.
@@ -882,7 +882,6 @@ Section list_specs.
     - destruct Hl as [lv' [Hlv Hlcoh]]; subst.
       rewrite /list_remove_nth.
       tp_pures.
-      { rewrite /vals_compare_safe /val_is_unboxed /lit_is_unboxed. auto. }
       fold list_remove_nth.
       case_bool_decide; tp_pures.
       + iModIntro.
@@ -921,7 +920,7 @@ Section list_specs.
         iSplit.
         { iPureIntro; auto. }
         iPureIntro.
-        split; [rewrite cons_length Hlen // |].
+        split; [rewrite length_cons Hlen // |].
         split; auto.
         * simpl. by apply is_list_inject in Hv'' as ->.
         * by apply is_list_inject.
@@ -966,7 +965,7 @@ Section list_specs.
         iExists e, (inject ((a :: l1) ++ l2)), (a :: l1), l2.
         iPureIntro.
         split; auto.
-        split; [rewrite cons_length Hlen // |].
+        split; [rewrite length_cons Hlen // |].
         split.
         * by apply is_list_inject in Hcons.
         * by apply is_list_inject.

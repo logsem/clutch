@@ -196,9 +196,9 @@ Section int.
   Proof.
     intros Hle.
     iInduction n as [| n'] "IH" forall (K); rewrite /sample_int_aux; iIntros "Hα HK".
-    - tp_pures; first solve_vals_compare_safe. rewrite Z.land_ones //= Z.mod_1_r //.
+    - tp_pures. rewrite Z.land_ones //= Z.mod_1_r //.
       iExists _. by iFrame.
-    - tp_pures; first solve_vals_compare_safe. simpl.
+    - tp_pures. simpl.
       tp_bind (flipL _ )%E.
       iMod (spec_flipL with "Hα HK") as "[HK Hα] /=".
       tp_bind (bool_to_int _).
@@ -324,7 +324,7 @@ Section int.
     iApply wp_couple_int_tapes_eq; auto. iFrame "#∗".
     iDestruct 1 as (z Hrange) "(H2&H3)".
     iApply "Hwp". iExists (zsnew ++ [z]). rewrite ?app_assoc; iFrame.
-    iPureIntro. rewrite ?app_length /=; split; last by lia.
+    iPureIntro. rewrite ?length_app /=; split; last by lia.
     apply Forall_app; auto.
   Qed.
 
@@ -632,10 +632,10 @@ Section sample_wide.
   Proof.
     rewrite /sample_wide_aux.
     iInduction n as [| n] "IH" forall (K zs1); iIntros (Hlength) "Hα HK".
-    - tp_pures; first solve_vals_compare_safe.
+    - tp_pures.
       iModIntro. iExists _. iFrame. destruct zs1; last by inversion Hlength.
       iFrame. eauto.
-    - tp_pures; first solve_vals_compare_safe.
+    - tp_pures.
       destruct zs1 as [| z1 zs1]; first by inversion Hlength.
       iEval (simpl) in "Hα".
       tp_bind (sample_int _ _)%E.

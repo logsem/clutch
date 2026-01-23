@@ -8,6 +8,7 @@
 *.cmxa
 *.cmxs
 *.glob
+*.html
 *.ml.d
 *.ml4.d
 *.mli.d
@@ -36,6 +37,7 @@ nra.cache
 _opam
 .DS_Store
 *.zip
+.vscode
 
 # Emacs
 *~
@@ -85,3 +87,6 @@ flycheck_*.el
 
 # network security
 /network-security.data
+
+# dune
+_build

@@ -2,7 +2,7 @@
 From clutch.eris Require Export eris error_rules.
 From clutch.eris Require Export examples.approximate_samplers.approx_sampler_lib.
 From Coquelicot Require Import Series.
-Require Import Lra.
+From Stdlib Require Import Lra.
 
 Set Default Proof Using "Type*".
 
@@ -56,7 +56,7 @@ Section basic.
       + iApply (ec_eq with "[$]").
         Opaque INR.
         rewrite /= Rmult_1_r.
-        rewrite seq_length; apply Rmult_eq_compat_l.
+        rewrite length_seq; apply Rmult_eq_compat_l.
         rewrite S_INR //.
 
       + iIntros (sample'') "%Hsample''".
@@ -70,12 +70,12 @@ Section basic.
           rewrite in_seq.
           split; first lia.
           replace (S n' + (S m' - S n'))%nat with (S m') by lia.
-          apply fin_to_nat_lt.
+          lia.
     - wp_pures.
       replace (bool_decide _) with false; last (symmetry; apply bool_decide_eq_false; lia).
       wp_pures.
-      wp_apply (wp_couple_rand_adv_comp _ _ _ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
-      { exists 1. intros s. apply sample_err_wf; try lia. }
+      wp_apply (wp_rand_exp_fin _ _ _ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
+      { intros. apply cond_nonneg. }
       { by apply sample_err_mean. }
       iIntros (sample') "Hcr".
       wp_pures.
@@ -106,23 +106,23 @@ Section basic.
       iSplitL "Hcr".
       + iApply (ec_eq with "[$]").
         rewrite /= Rmult_1_r.
-        rewrite seq_length; apply Rmult_eq_compat_l.
+        rewrite length_seq; apply Rmult_eq_compat_l.
         rewrite S_INR //.
-      + iIntros (sample'') "%Hsample''".
+      + iIntros (sample'') "[%Hleq %Hsample'']".
         wp_pures.
         case_bool_decide; wp_pures.
         * iApply "HΦ"; iModIntro; iPureIntro; eexists _. split; [auto|lia].
         * exfalso.
           rewrite List.Forall_forall in Hsample''.
-          specialize Hsample'' with (fin_to_nat sample'').
+          specialize Hsample'' with (sample'').
           apply Hsample''; last reflexivity.
           rewrite in_seq.
           split; first lia.
           replace (S n' + (S m'-S n'))%nat with (S m') by lia.
-          specialize (fin_to_nat_lt sample''); by lia.
+          lia.
     - wp_pures.
-      wp_apply (wp_couple_rand_adv_comp _ _ _ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
-      { eexists _. intros s. apply sample_err_wf; try lia. }
+      wp_apply (wp_rand_exp_fin _ _ _ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
+      { intros. apply cond_nonneg. }
       { pose P := (sample_err_mean n' m' Hnm' (bdd_cf_error (S n') (S m') _ Hnm)). by eapply P. }
       iIntros (sample') "Hcr".
       wp_pures.
@@ -257,6 +257,7 @@ Section basic.
           Rmult_inv_r_id_l //.
         apply lt_INR in Hnm.
         lra.
+     + apply cond_nonneg.
      + lia.
   Qed.
 

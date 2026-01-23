@@ -113,11 +113,11 @@ Section impl3.
   Lemma incr_counter_spec3 N E c γ1 (Q:_->_->nat->nat->iProp Σ)  :
     ↑N⊆E ->
     {{{ is_counter3 N c γ1 ∗
-        |={E,∅}=>
+        |={E∖↑N,∅}=>
           (∃ ε (ε2 : fin 4%nat -> R),
               ↯ ε ∗ ⌜(∀ x, 0<=ε2 x)%R⌝∗
               ⌜(SeriesC (λ n, 1 / 4 * ε2 n)%R <= ε)%R ⌝ ∗
-              (∀ n, ↯ (ε2 n) ={∅, E}=∗
+              (∀ n, ↯ (ε2 n) ={∅, E∖↑N}=∗
           (∀ (z:nat), own γ1 (●F z) ={E∖↑N}=∗
                     own γ1 (●F (z+n)%nat) ∗ Q ε ε2 z n)))
            
@@ -130,7 +130,7 @@ Section impl3.
     wp_pures.
     wp_apply rand_allocate_tape_spec as (α) "Htape"; first done.
     do 3 wp_pure.
-    iAssert (state_update E E (∃ n,
+    iAssert (state_update (E∖↑N) (E∖↑N) (∃ n,
                    (∃ ls, ⌜filter filter_f ls = ([fin_to_nat n])⌝ ∗ rand_tapes (L:=L) α (4, ls)) ∗
                                  ∃ ε ε2,  (∀ z : nat, own γ1 (●F z) ={E ∖ ↑N}=∗ own γ1 (●F (z + n)) ∗ Q ε ε2 z n)
             ))%I with "[Hvs Htape]" as ">(%n & Htape &%&%&Hvs)".

@@ -212,7 +212,7 @@ Section lib_code.
     { iPureIntro. split; first done. lia. }
     iIntros (lv' ?). wp_pures.
     wp_apply wp_list_update.
-    { iPureIntro. split; first done. rewrite insert_length. lia. }
+    { iPureIntro. split; first done. rewrite length_insert. lia. }
     iIntros (lv'' ?).
     iApply "HΦ".
     iExists _, _.
@@ -284,14 +284,14 @@ Section fisher_yates.
     replace (_-_)%Z with (Z.of_nat i'); last lia.
     wp_apply ("IH" with "[][][Hx2]").
     - done.
-    - rewrite !insert_length. iPureIntro. lia.
+    - rewrite !length_insert. iPureIntro. lia.
     - iApply etc_irrel; last done. repeat f_equal. lia.
     - iIntros (?) "(%&%&%)".
       iApply "HΦ".
       iExists l'. iPureIntro; split; first done.
       etrans; first exact.
       rewrite Permutation_inj. split.
-      { rewrite !insert_length. lia. }
+      { rewrite !length_insert. lia. }
       exists (λ x, if (bool_decide (x=fin_to_nat n)) then (S i')
               else if (bool_decide (x=S i')) then (fin_to_nat n)
                    else x
@@ -301,11 +301,11 @@ Section fisher_yates.
       + intros. repeat case_bool_decide; subst.
         * destruct (decide (fin_to_nat n=S i')) as [Heq|Heq].
           -- rewrite Heq in H2. rewrite Heq. rewrite list_lookup_insert; first naive_solver.
-             rewrite !insert_length. lia.
+             rewrite !length_insert. lia.
           -- rewrite list_lookup_insert_ne; last done. rewrite list_lookup_insert; first naive_solver.
              pose proof fin_to_nat_lt n. lia.
         * rewrite list_lookup_insert; first naive_solver.
-          rewrite insert_length. lia.
+          rewrite length_insert. lia.
         * repeat (rewrite list_lookup_insert_ne; last done). done.
   Qed.
   

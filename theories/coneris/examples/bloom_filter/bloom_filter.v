@@ -84,81 +84,6 @@ Section bloom_filter.
        end)%R.
 
 
-  Lemma pow_le_1_compat (x : R) (n : nat):
-    (0 <= x <= 1)%R → 0 ≤ n → (0 <= x ^ n <= 1)%R.
-  Proof.
-    intros Hx Hn.
-    destruct (le_lt_eq_dec _ _ Hn) as [Hn_lt | <-]; last first.
-    {
-      rewrite pow_O; lra.
-    }
-    destruct (decide (x < 1)%R) as [H | H].
-    - split.
-      + apply pow_le; lra.
-      + left.
-        apply pow_lt_1_compat; auto.
-        lra.
-    - split.
-      + apply pow_le; lra.
-      + apply Rnot_gt_le in H.
-        assert (x = 1) as ->.
-        * destruct Hx.
-          apply Rle_antisym; auto.
-        * rewrite pow1; lra.
-  Qed.
-
-  Lemma convex_sum_conv (x a b : R) :
-    (0 <= x <= 1)%R ->
-    (a <= b)%R ->
-    (a <= x * a + (1-x)*b <= b)%R.
-  Proof.
-    intros Hx Hab.
-    split.
-    - assert (a = x * a + (1 - x) * a)%R as Haux.
-      {
-        real_solver.
-      }
-      rewrite {1}Haux.
-      apply Rplus_le_compat_l.
-      real_solver.
-    - assert (b = x * b + (1 - x) * b)%R as Haux.
-      {
-        real_solver.
-      }
-      rewrite {2}Haux.
-      apply Rplus_le_compat_r.
-      real_solver.
-  Qed.
-
-
-  Lemma convex_sum_conv_alt (x a a' b b' : R) :
-    (0 <= x <= 1)%R ->
-    (a <= a' <= b)%R ->
-    (a <= b' <= b)%R ->
-    (a <= x * a' + (1-x)*b' <= b)%R.
-  Proof.
-    intros Hx Ha' Hb'.
-    destruct (Rle_lt_dec a' b').
-    - split.
-      + transitivity a'; [lra|].
-        apply convex_sum_conv; auto.
-      + transitivity b'; [|lra].
-        apply convex_sum_conv; auto.
-    - set (y := (1-x)%R).
-      replace x with (1-y)%R; last first.
-      {
-        rewrite /y. lra.
-      }
-      rewrite Rplus_comm.
-      split.
-      + transitivity b'; [lra|].
-        apply convex_sum_conv; [|lra].
-        rewrite /y; lra.
-      + transitivity a'; [|lra].
-        apply convex_sum_conv; [|lra].
-        rewrite /y; lra.
-   Qed.
-
 
   Lemma fp_error_max (m b : nat) :
     (filter_size + 1 ≤ b) ->
@@ -356,7 +281,7 @@ Section bloom_filter.
     iIntros "Hbfp".
     iDestruct "Hbfp" as (hfuns ms_new ms_old arr idxs)
                           "(Hl & Herr & %Hhfuns & %Hlenhs & Hhs_new & Hhs_old & %HlenA & %HsizeIdxs & Ha & %Hms_old & %Hms_new & %Hidxs_old & %Hidxs_new & %Htrue & %Hbd & %Hfalse)".
-    rewrite nil_length -plus_n_O.
+    rewrite length_nil -plus_n_O.
     rewrite /is_bloom_filter.
     iExists hfuns, hs, ms_new, a, arr, idxs.
     iFrame.
@@ -539,7 +464,7 @@ Section bloom_filter.
           repeat split.
           ** rewrite -app_assoc //.
           ** rewrite -app_assoc //.
-          ** rewrite insert_length //.
+          ** rewrite length_insert //.
           ** assert (idxs' ⊆ (set_seq 0 (filter_size + 1) ∖ {[v]} )) as H3.
              {
                apply elem_of_subseteq.
@@ -620,7 +545,7 @@ Section bloom_filter.
           repeat split.
           ** rewrite -app_assoc //.
           ** rewrite -app_assoc //.
-          ** rewrite insert_length //.
+          ** rewrite length_insert //.
           ** auto.
           ** auto.
           ** apply Forall_app_2; auto.

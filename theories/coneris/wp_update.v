@@ -2,6 +2,14 @@ From iris.base_logic.lib Require Export fancy_updates invariants.
 From iris.proofmode Require Import base tactics classes.
 From clutch.coneris Require Import weakestpre primitive_laws.
 
+(** This file defines the probabilistic update modality from the Coneris paper, 
+    which is called state_update in this development
+    
+    state_update implies wp_update, which is a weaker modality that describes that it 
+    can be eliminated if the goal is a wp.
+
+*)
+
 (** A [wp_update] modality for Coneris that captures propositions that can be elimnated against an
     arbitrary weakest precondition. This includes, e.g., state steps.
 
@@ -610,3 +618,54 @@ Section state_update.
   Qed.
   
 End state_update.
+
+Section alt_wp.
+  Context `{conerisGS Σ}.
+  
+  Definition pgl_wp_pre' 
+    (wp : coPset -d> expr -d> (val  -d> iPropO Σ) -d> iPropO Σ) :
+    coPset -d> expr -d> (val -d> iPropO Σ) -d> iPropO Σ :=
+    (λ E e1 Φ,
+       state_update E ∅
+         (∀ σ2 ε2, state_interp σ2 ∗ err_interp ε2-∗
+                   match to_val e1 with
+                   | Some v => |={∅, E}=> state_interp σ2 ∗ err_interp ε2 ∗ Φ v
+                   | None => prog_coupl e1 σ2 ε2
+                              (λ e3 σ3 efs ε3,
+                                 ▷ state_interp σ3 ∗ err_interp ε3 ∗
+                                 state_update ∅ E
+                                   (wp E e3 Φ ∗
+                                    [∗ list] ef ∈efs, wp ⊤ ef fork_post)
+                              )
+                   end   
+         )
+    )%I.
+
+  Lemma pgl_wp_pre'_implies_pgl_wp_pre wp E e Φ:
+    ⊢(pgl_wp_pre' wp E e Φ -∗ pgl_wp_pre wp E e Φ)%I.
+  Proof.
+    rewrite /pgl_wp_pre'/pgl_wp_pre.
+    rewrite state_update_unseal.
+    rewrite /state_update_def.
+    iIntros "H" (??) "[??]".
+    iMod ("H" with "[$]") as "H".
+    iModIntro.
+    iApply (state_step_coupl_bind with "[][$]").
+    iIntros (??) "H".
+    iApply fupd_state_step_coupl.
+    iMod "H" as "(?&?&H)".
+    iModIntro.
+    iApply state_step_coupl_ret.
+    simpl.
+    iDestruct ("H" with "[$]") as "H".
+    case_match; first done.
+    iApply (prog_coupl_mono with "[][$]").
+    iIntros (????) "H".
+    iNext.
+    iDestruct "H" as "(?&?&H)".
+    iApply fupd_state_step_coupl.
+    iMod ("H" with "[$]") as "H".
+    by iModIntro.
+  Qed.
+
+End alt_wp.

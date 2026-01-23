@@ -1,17 +1,19 @@
 From clutch Require Import clutch.
 From clutch.prob_lang.typing Require Import tychk.
 
-#[warning="-hiding-delimiting-key,-overwriting-delimiting-key"] From mathcomp Require Import ssrnat.
-From mathcomp Require Import fingroup solvable.cyclic eqtype fintype ssrbool zmodp.
+#[warning="-hiding-delimiting-key,-overwriting-delimiting-key -notation-incompatible-prefix"]
+From mathcomp Require Import fingroup solvable.cyclic choice eqtype finset
+  fintype seq ssrbool zmodp.
 
 From clutch.prelude Require Import mc_stdlib.
 From clutch.clutch.examples.crypto Require Import valgroup.
 
 Local Open Scope group_scope.
 Import fingroup.fingroup.
-
+Import finalg.FinRing.Theory.
 Set Default Proof Using "Type*".
 Set Bullet Behavior "Strict Subproofs".
+
 
 Section Z_p.
 
@@ -62,7 +64,7 @@ Section Z_p.
   Qed.
 
   Definition vg_of_int_unpacked (x : Z) (vmin : (0 ≤ x)%Z) (vmax : (x < p)%Z) : z_p.
-  Proof. exists (Z.to_nat x). rewrite Zp_cast //. apply /leP. lia.
+  Proof. exists (Z.to_nat x). rewrite Zp_cast //. apply /ssrnat.leP. lia.
   Defined.
 
   Fact vg_of_int_lrel_G_p :
@@ -120,7 +122,7 @@ Section Z_p.
         |}).
   Defined.
 
-  Definition cgg_p : clutch_group_generator (vg:=vg_p).
+  Definition vgg_p : val_group_generator (vg:=vg_p).
   Proof.
     unshelve econstructor.
     - exact (Zp1 : z_p).
@@ -128,6 +130,11 @@ Section Z_p.
     - by rewrite ?(order_Zp1 (S p'')).
     - rewrite /= /generator.
       rewrite Zp_cycle. apply Is_true_eq_left. apply eq_refl.
+  Defined.
+
+  Definition cgg_p : @clutch_group_generator vg_p cgs_p vgg_p.
+  Proof.
+    constructor. constructor.
   Defined.
 
 End Z_p.

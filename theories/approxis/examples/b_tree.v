@@ -1,4 +1,4 @@
-From Coq.Program Require Import Wf.
+From Stdlib.Program Require Import Wf WfExtensionality.
 From stdpp Require Import list.
 From clutch.approxis Require Import approxis list.
 From clutch.approxis Require adequacy.
@@ -81,11 +81,11 @@ Section aux_lemmas.
           -- naive_solver.
   Qed.
 
-  Lemma combine_length_same {A B} (l1:list A) (l2:list B):
+  Lemma length_combine_same {A B} (l1:list A) (l2:list B):
     length l1 = length l2 -> length (combine l1 l2) = length l1.
   Proof.
     intros.
-    rewrite combine_length.
+    rewrite length_combine.
     rewrite H. rewrite Nat.min_id. done.
   Qed.
 
@@ -464,7 +464,7 @@ Section stage2.
   Proof.
     induction l; first (simpl; lia).
     pose proof fin_to_nat_lt a. rewrite /decoder_aux.
-    rewrite cons_length.
+    rewrite length_cons.
     rewrite -/decoder_aux.
     apply Nat.lt_le_trans with (S N + S N * decoder_aux l)%nat; first lia.
     assert (1<=S N ^ length l)%nat.
@@ -515,7 +515,7 @@ Section stage2.
     - pose (n:=S N). rewrite -/n in IHl.
       rewrite /decoder_aux. rewrite -/n.
       rewrite -/decoder_aux.
-      rewrite cons_length.
+      rewrite length_cons.
       replace (S _)%nat with (1+length l)%nat; last first.
       { simpl. done. }
       rewrite Nat.pow_add_r.
@@ -544,13 +544,13 @@ Section stage2.
   Proof.
     intros Hlen1 Hlen2. rewrite /decoder.
     case_match eqn:Heq1; case_match eqn:Heq2; last first.
-    - pose proof decoder_aux_ineq (rev l1) as H. rewrite rev_length Hlen1 Heq in H. lia.
-    - pose proof decoder_aux_ineq (rev l1) as H. rewrite rev_length Hlen1 Heq in H. lia.
-    - pose proof decoder_aux_ineq (rev l2) as H. rewrite rev_length Hlen2 Heq in H. lia.
+    - pose proof decoder_aux_ineq (rev l1) as H. rewrite length_rev Hlen1 Heq in H. lia.
+    - pose proof decoder_aux_ineq (rev l1) as H. rewrite length_rev Hlen1 Heq in H. lia.
+    - pose proof decoder_aux_ineq (rev l2) as H. rewrite length_rev Hlen2 Heq in H. lia.
     - intros H. apply (f_equal fin_to_nat) in H. rewrite !fin_to_nat_to_fin in H.
       apply rev_inj.
       apply decoder_aux_inj; last done.
-      rewrite !rev_length. trans p; done.
+      rewrite !length_rev. trans p; done.
   Qed.
 
 End stage2.
@@ -581,7 +581,7 @@ Proof.
     { pose proof decoder_aux_lt (rev (x::xs)).
       exfalso. apply n.
       rewrite -H2.
-      rewrite rev_length in H. simpl in H. done.
+      rewrite length_rev in H. simpl in H. done.
     }
     rewrite fin_to_nat_to_fin.
     rewrite /decoder_aux'.
@@ -589,7 +589,7 @@ Proof.
     + simpl. rewrite decoder_aux_app.
       rewrite Nat.add_comm.
       f_equal.
-      * simpl. f_equal; last lia. rewrite rev_length. done.
+      * simpl. f_equal; last lia. rewrite length_rev. done.
       * rewrite /decoder. case_match; first by rewrite fin_to_nat_to_fin.
         exfalso. apply n.
         pose proof decoder_aux_lt (rev xs).
@@ -597,7 +597,7 @@ Proof.
         replace (S _) with (S N ^length (rev xs))%nat; first done.
         cut (0<S N ^ length (rev xs))%nat; first lia.
         apply pow_pos. lia.
-    + rewrite rev_length.
+    + rewrite length_rev.
       cut (0<S N ^ length (xs))%nat; first lia.
       apply pow_pos. lia.
 Qed.
@@ -610,7 +610,7 @@ Lemma decoder_aux'_lt N (l:list (fin (S N))):
     - pose (n:=S N). rewrite -/n in IHl.
       rewrite /decoder_aux'. rewrite -/n.
       rewrite -/decoder_aux'.
-      rewrite cons_length.
+      rewrite length_cons.
       replace (S _)%nat with (1+length l)%nat; last first.
       { simpl. done. }
       rewrite Nat.pow_add_r.
@@ -716,15 +716,15 @@ Section b_tree.
   Proof.
     clear. intros H. induction H.
     - by simpl.
-    - rewrite app_length.
+    - rewrite length_app.
       erewrite flat_map_constant_length; last first.
       { apply List.Forall_forall. rewrite Forall_fmap. eapply Forall_impl; first done.
         simpl. done.
       }
-      rewrite replicate_length.
+      rewrite length_replicate.
       rewrite Nat.pow_succ_r'.
       rewrite -Nat.mul_add_distr_r.
-      rewrite fmap_length.
+      rewrite length_fmap.
       rewrite -Nat.le_add_sub; lia.
   Qed.
 
@@ -737,7 +737,7 @@ Section b_tree.
     - rewrite Forall_cons.
       intros [??].
       simpl. rewrite -IHl; last done.
-      rewrite app_length; f_equal.
+      rewrite length_app; f_equal.
       erewrite ab_b_tree_list_length; done.
   Qed.
 
@@ -877,7 +877,7 @@ Section b_tree.
     is_ab_b_tree n l t -> children_num t = length (filter (λ x, is_Some x) l).
   Proof.
     intros H. induction H; first done.
-    rewrite filter_app app_length.
+    rewrite filter_app length_app.
     replace (length (filter _(replicate _ _))) with 0%nat; last first.
     { symmetry. rewrite length_zero_iff_nil.
       eapply filter_replicate_is_nil. done.
@@ -888,7 +888,7 @@ Section b_tree.
     - simpl. done.
     - rewrite !Forall_cons.
       intros [] [].
-      simpl. rewrite filter_app app_length.
+      simpl. rewrite filter_app length_app.
       rewrite H1.
       rewrite Nat.add_0_r.
       f_equal.
@@ -906,7 +906,7 @@ Section b_tree.
     - rewrite Forall_cons. simpl.
       intros [??].
       rewrite IHl; last done.
-      rewrite filter_app app_length.
+      rewrite filter_app length_app.
       erewrite ab_tree_children_num; last done. done.
   Qed.
 
@@ -1518,7 +1518,7 @@ Section b_tree.
       destruct num_lis.
       + simpl. lia.
       + intros ? [??] ?.
-        simpl. rewrite filter_app app_length. f_equal.
+        simpl. rewrite filter_app length_app. f_equal.
         * erewrite <-ab_tree_children_num; last done.
           replace (a.2) with ((a.2), n).1; last done.
           erewrite H2; first done.
@@ -1631,7 +1631,7 @@ Section b_tree.
       combine_lookup_slam. simplify_eq. simpl in *.
       wp_apply (wp_list_nth with "[//]").
       iIntros (?) "[[% %]|(%&->&%)]"; subst.
-      { exfalso. rewrite combine_length_same in H8; last rewrite fmap_length in Hlen3, Hlen1; lia.
+      { exfalso. rewrite length_combine_same in H8; last rewrite length_fmap in Hlen3, Hlen1; lia.
       }
       subst.
       apply nth_error_lookup in H4.
@@ -1664,7 +1664,7 @@ Section b_tree.
         assert (length (filter (λ x : option val, is_Some x) (flat_map (λ x, x) (l2.*1))) =
                 list_sum (take (length l2) num_lis))%nat as K.
         { eapply flat_map_num_lis_relate.
-          - rewrite -Hlen3. rewrite fmap_length app_length. lia.
+          - rewrite -Hlen3. rewrite length_fmap length_app. lia.
           - apply Forall_app in H0. naive_solver.
           - intros ? []?. eapply H2.
             rewrite combine_lookup in H5.
@@ -1681,14 +1681,14 @@ Section b_tree.
           replace a with (a, n0).1; last done.
           erewrite H2; last first.
           { rewrite combine_lookup. split; last done.
-            rewrite fmap_app. rewrite lookup_app_r; rewrite fmap_length; last done.
+            rewrite fmap_app. rewrite lookup_app_r; rewrite length_fmap; last done.
             rewrite Nat.sub_diag. simpl. done.
           }
           simpl. lia.
         * rewrite K. lia.
           Unshelve.
-          all: try rewrite combine_length_same; try lia.
-          rewrite fmap_length in Hlen3. lia.
+          all: try rewrite length_combine_same; try lia.
+          rewrite length_fmap in Hlen3. lia.
   Qed.
 
   Lemma spec_naive_sampler_list_search_prog v (n:nat) (l:list loc) num_lis E K:
@@ -1799,7 +1799,7 @@ Section b_tree.
       combine_lookup_slam. simplify_eq. simpl in *.
       tp_bind (list_nth _ _).
       iMod (spec_list_nth with "[$]") as "(%&Hspec&[[% %]|(%&->&%)])"; first done.
-      { exfalso. rewrite combine_length_same in H8; last rewrite fmap_length in Hlen3, Hlen1; lia.
+      { exfalso. rewrite length_combine_same in H8; last rewrite length_fmap in Hlen3, Hlen1; lia.
       }
       subst.
       apply nth_error_lookup in H4.
@@ -1832,7 +1832,7 @@ Section b_tree.
         assert (length (filter (λ x : option val, is_Some x) (flat_map (λ x, x) (l2.*1))) =
                 list_sum (take (length l2) num_lis))%nat as K.
         { eapply flat_map_num_lis_relate.
-          - rewrite -Hlen3. rewrite fmap_length app_length. lia.
+          - rewrite -Hlen3. rewrite length_fmap length_app. lia.
           - apply Forall_app in H0. naive_solver.
           - intros ? []?. eapply H2.
             rewrite combine_lookup in H5.
@@ -1849,14 +1849,14 @@ Section b_tree.
           replace a with (a, n0).1; last done.
           erewrite H2; last first.
           { rewrite combine_lookup. split; last done.
-            rewrite fmap_app. rewrite lookup_app_r; rewrite fmap_length; last done.
+            rewrite fmap_app. rewrite lookup_app_r; rewrite length_fmap; last done.
             rewrite Nat.sub_diag. simpl. done.
           }
           simpl. lia.
         * rewrite K. lia.
           Unshelve.
-          all: try rewrite combine_length_same; try lia.
-          rewrite fmap_length in Hlen3. lia.
+          all: try rewrite length_combine_same; try lia.
+          rewrite length_fmap in Hlen3. lia.
   Qed.
 
   Ltac notHyp P :=
@@ -2034,7 +2034,7 @@ Section b_tree.
         rewrite lookup_app_r in Hlookup.
         - rewrite lookup_replicate in Hlookup. naive_solver.
         - trans (length loc_lis * (max_child_num ^ depth'))%nat.
-          + rewrite -Hlen1 fmap_length. lia.
+          + rewrite -Hlen1 length_fmap. lia.
           + apply div_mult; [done|apply pow_max_child_num].
       }
       simpl.
@@ -2087,8 +2087,8 @@ Section b_tree.
         { exploit_elem_of; eauto. }
         iPureIntro. naive_solver.
         Unshelve.
-        all: apply lookup_lt_Some in H5; try rewrite combine_length_same; try lia.
-        rewrite fmap_length in Hlen1. lia.
+        all: apply lookup_lt_Some in H5; try rewrite length_combine_same; try lia.
+        rewrite length_fmap in Hlen1. lia.
   Qed.
 
   Lemma spec_intermediate_sampler_rec_prog_Some Kctx (depth: nat) (n:nat) l tree treev E v:
@@ -2145,7 +2145,7 @@ Section b_tree.
         rewrite lookup_app_r in Hlookup.
         - rewrite lookup_replicate in Hlookup. naive_solver.
         - trans (length loc_lis * (max_child_num ^ depth'))%nat.
-          + rewrite -Hlen1 fmap_length. lia.
+          + rewrite -Hlen1 length_fmap. lia.
           + apply div_mult; [done|apply pow_max_child_num].
       }
       simpl.
@@ -2200,8 +2200,8 @@ Section b_tree.
         { exploit_elem_of; eauto. }
         naive_solver.
         Unshelve.
-        all: apply lookup_lt_Some in H5; try rewrite combine_length_same; try lia.
-        rewrite fmap_length in Hlen1. lia.
+        all: apply lookup_lt_Some in H5; try rewrite length_combine_same; try lia.
+        rewrite length_fmap in Hlen1. lia.
   Qed.
 
   Lemma wp_intermediate_sampler_rec_prog_None (depth: nat) (n:nat) l tree treev:
@@ -2293,8 +2293,8 @@ Section b_tree.
         rewrite relate_ab_tree_with_v_Br. iFrame.
         iPureIntro. naive_solver.
         Unshelve.
-        all: apply lookup_lt_Some in H5; try rewrite combine_length_same; try lia.
-        rewrite fmap_length in Hlen1. lia.
+        all: apply lookup_lt_Some in H5; try rewrite length_combine_same; try lia.
+        rewrite length_fmap in Hlen1. lia.
   Qed.
 
   Lemma spec_intermediate_sampler_rec_prog_None Kctx (depth: nat) (n:nat) l tree treev E:
@@ -2394,8 +2394,8 @@ Section b_tree.
         rewrite relate_ab_tree_with_v_Br'. iFrame.
         iPureIntro. naive_solver.
         Unshelve.
-        all: apply lookup_lt_Some in H5; try rewrite combine_length_same; try lia.
-        rewrite fmap_length in Hlen1. lia.
+        all: apply lookup_lt_Some in H5; try rewrite length_combine_same; try lia.
+        rewrite length_fmap in Hlen1. lia.
   Qed.
 
   Lemma annotated_naive_intermediate_refinement Kctx depth tree l treev treev' (ε:nonnegreal):
@@ -2430,7 +2430,7 @@ Section b_tree.
     assert (children_num tree <= max_child_num^depth)%nat as Hineq.
     { pose proof ab_b_tree_list_length _ _ _ Htree as K'.
       rewrite <-K'.
-      rewrite H. apply filter_length.
+      rewrite H. apply length_filter.
     }
     tp_pure.
     rewrite Nat.lt_eq_cases in Hineq.
@@ -2592,7 +2592,7 @@ Section b_tree.
     assert (children_num tree <= max_child_num^depth)%nat as Hineq.
     { pose proof ab_b_tree_list_length _ _ _ Htree as K.
       rewrite <-K.
-      rewrite H. apply filter_length.
+      rewrite H. apply length_filter.
     }
     replace (Z.to_nat (Z.of_nat (max_child_num ^ depth) - 1)) with (max_child_num ^ depth - 1)%nat; last first.
     { pose proof pow_max_child_num depth. lia. }
@@ -2701,7 +2701,7 @@ Section b_tree.
           trans (S (max_child_num-1)^height' * length loc_lis)%nat.
           + replace (S (max_child_num-1)) with max_child_num; last first.
             { pose proof max_child_num_pos. lia. }
-            rewrite fmap_length in Hlen1. rewrite Hlen1. lia.
+            rewrite length_fmap in Hlen1. rewrite Hlen1. lia.
           + trans (S (max_child_num-1) ^ height' * x)%nat; last lia.
             apply Nat.mul_le_mono_l. done.
       }
@@ -2759,8 +2759,8 @@ Section b_tree.
         exploit_elem_of; auto.
         Unshelve.
         all: apply lookup_lt_Some in H3.
-        all: try rewrite combine_length_same; try lia.
-        rewrite fmap_length in Hlen1. lia.
+        all: try rewrite length_combine_same; try lia.
+        rewrite length_fmap in Hlen1. lia.
   Qed.
 
   Lemma spec_optimized_sampler_rec_annotated_prog_Some K (height:nat) l tree treev E v α' xs:
@@ -2817,7 +2817,7 @@ Section b_tree.
           trans (S (max_child_num-1)^height' * length loc_lis)%nat.
           + replace (S (max_child_num-1)) with max_child_num; last first.
             { pose proof max_child_num_pos. lia. }
-            rewrite fmap_length in Hlen1. rewrite Hlen1. lia.
+            rewrite length_fmap in Hlen1. rewrite Hlen1. lia.
           + trans (S (max_child_num-1) ^ height' * x)%nat; last lia.
             apply Nat.mul_le_mono_l. done.
       }
@@ -2873,8 +2873,8 @@ Section b_tree.
         split_and!; try naive_solver. exploit_elem_of; auto.
         Unshelve.
         all: apply lookup_lt_Some in H3.
-        all: try rewrite combine_length_same; try lia.
-        rewrite fmap_length in Hlen1. lia.
+        all: try rewrite length_combine_same; try lia.
+        rewrite length_fmap in Hlen1. lia.
   Qed.
 
   Lemma wp_optimized_sampler_rec_annotated_prog_None xs (height:nat) l tree treev α:
@@ -2969,8 +2969,8 @@ Section b_tree.
         naive_solver.
         Unshelve.
         all: apply lookup_lt_Some in H3.
-        all: try rewrite combine_length_same; try lia.
-        rewrite fmap_length in Hlen1. lia.
+        all: try rewrite length_combine_same; try lia.
+        rewrite length_fmap in Hlen1. lia.
   Qed.
 
   Lemma spec_optimized_sampler_rec_annotated_prog_None K (height:nat) l tree treev E α' xs:
@@ -3068,8 +3068,8 @@ Section b_tree.
         naive_solver.
         Unshelve.
         all: apply lookup_lt_Some in H3.
-        all: try rewrite combine_length_same; try lia.
-        rewrite fmap_length in Hlen1. lia.
+        all: try rewrite length_combine_same; try lia.
+        rewrite length_fmap in Hlen1. lia.
   Qed.
 
   Lemma intermediate_annotated_optimized_refinement Kctx depth tree l treev treev':
@@ -3283,13 +3283,13 @@ Section b_tree.
         subst.
         apply nth_error_split in K2 as (l1 & l2 & ? & ?). subst.
         cut (length l1<length loc_lis)%nat; first lia.
-        rewrite -H2 H6. rewrite app_length. simpl. lia.
+        rewrite -H2 H6. rewrite length_app. simpl. lia.
       + (* contradiction *)
         subst.
         exfalso.
         apply nth_error_split in K1 as (l1 & l2 & ? & ?). subst.
         cut (length l1<length loc_lis0)%nat; first lia.
-        rewrite -H6 H2. rewrite app_length. simpl. lia.
+        rewrite -H6 H2. rewrite length_app. simpl. lia.
       + subst.
         do 5 tp_pure.
         do 5 wp_pure.
@@ -3330,8 +3330,8 @@ Section b_tree.
           { naive_solver. }
           Unshelve.
           all: pose proof lookup_lt_Some _ _ _ K1;
-            try rewrite combine_length_same; try done; try lia.
-          rewrite fmap_length in H2. lia.
+            try rewrite length_combine_same; try done; try lia.
+          rewrite length_fmap in H2. lia.
   Qed.
 
   Lemma optimized_annotated_optimized_refinement Kctx depth tree l treev treev':
@@ -3426,13 +3426,13 @@ Section b_tree.
         subst.
         apply nth_error_split in K2 as (l1 & l2 & ? & ?). subst.
         cut (length l1<length loc_lis)%nat; first lia.
-        rewrite -H2 H6. rewrite app_length. simpl. lia.
+        rewrite -H2 H6. rewrite length_app. simpl. lia.
       + (* contradiction *)
         subst.
         exfalso.
         apply nth_error_split in K1 as (l1 & l2 & ? & ?). subst.
         cut (length l1<length loc_lis0)%nat; first lia.
-        rewrite -H6 H2. rewrite app_length. simpl. lia.
+        rewrite -H6 H2. rewrite length_app. simpl. lia.
       + subst.
         do 5 tp_pure.
         do 5 wp_pure.
@@ -3473,8 +3473,8 @@ Section b_tree.
           { naive_solver. }
           Unshelve.
           all: pose proof lookup_lt_Some _ _ _ K1;
-            try rewrite combine_length_same; try done; try lia.
-          rewrite fmap_length in H2. lia.
+            try rewrite length_combine_same; try done; try lia.
+          rewrite length_fmap in H2. lia.
   Qed.
 
   Lemma annotated_optimized_optimized_refinement K depth tree l treev treev':

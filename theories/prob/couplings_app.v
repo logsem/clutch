@@ -1,5 +1,5 @@
-From Coq Require Import Reals Psatz.
-From Coq.ssr Require Import ssreflect ssrfun.
+From Stdlib Require Import Reals Psatz.
+From Stdlib.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Lim_seq Rbar.
 From stdpp Require Export countable.
 From clutch.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
@@ -848,6 +848,75 @@ Section ARcoupl.
 
 End ARcoupl.
 
+Section ARcoupl_sets.
+
+  Context `{Countable A, Countable B, Countable A', Countable B'}.
+  Context (μ1 : distr A) (μ2 : distr B) (S : A -> B -> Prop).
+
+  Definition ARcoupl_sets (ε : R) :=
+    forall (P1: A → Prop) (P2: B -> Prop),
+      (forall a b, S a b -> P1 a -> P2 b) ->
+      prob μ1 (λ a, bool_decide (P1 a)) <= prob μ2 (λ b, bool_decide (P2 b)) + ε.
+
+  (**
+     Auxiliary lemma to prove the equivalence.
+     Note: we explicitly instantiate the Decision typeclass with
+     make_decision, even though the default is Rle_decision because in
+     general ARcoupl_sets will instantiate it to make_decision. I think
+     that the ideal solution would be to prove an extensional equality
+     lemma for prob to change the instance of the Decision typeclass.
+   *)
+  Lemma exp_val_from_interval (f : A -> R) (g : B -> R) ε:
+    (forall a, 0 <= f a <= 1) ->
+    (forall b, 0 <= g b <= 1) ->
+    (forall r, 0 <= r <= 1 ->
+        prob μ1 (λ a, @bool_decide (r <= f a) (make_decision (r <= f a))) <=
+          prob μ2 (λ b, @bool_decide (r <= g b) (make_decision (r <= g b))) + ε) ->
+    SeriesC (λ a, μ1 a * f a) <= SeriesC (λ b, μ2 b * g b) + ε.
+  Admitted.
+
+  Lemma equiv_ARcoupl_sets_1 (ε : R) :
+    ARcoupl_sets ε -> ARcoupl μ1 μ2 S ε.
+  Proof using A A' B B' EqDecision0 EqDecision1 EqDecision2 EqDecision3 H H0 H1 H2 S μ1 μ2.
+    intros Hcoupl f g Hf Hg Hfg.
+    apply exp_val_from_interval; auto.
+    intros r Hr.
+    rewrite /ARcoupl_sets in Hcoupl.
+    apply (Hcoupl (λ a, r <= f a) (λ b, r <= g b)).
+    intros a b HSab Hrfa.
+    specialize (Hfg a b HSab).
+    real_solver.
+  Qed.
+
+  Lemma equiv_ARcoupl_sets_2 (ε : R) :
+    ARcoupl μ1 μ2 S ε -> ARcoupl_sets ε .
+  Proof using A A' B B' EqDecision0 EqDecision1 EqDecision2 EqDecision3 H H0 H1 H2 S μ1 μ2.
+    intros Hcoupl P1 P2 HP12.
+    rewrite /prob.
+    rewrite /ARcoupl in Hcoupl.
+    rewrite (SeriesC_ext _ (λ a : A, μ1 a * (if bool_decide (P1 a) then 1 else 0)));
+      last by real_solver.
+    rewrite (SeriesC_ext _ (λ b : B, μ2 b * (if bool_decide (P2 b) then 1 else 0)));
+      last by real_solver.
+    apply Hcoupl; [real_solver | real_solver |].
+    intros a b HSab.
+    case_bool_decide; case_bool_decide.
+    - real_solver.
+    - specialize (HP12 a b HSab).
+      exfalso. auto.
+    - real_solver.
+    - real_solver.
+  Qed.
+
+
+  Lemma equiv_ARcoupl_sets (ε : R) :
+    ARcoupl_sets ε <-> ARcoupl μ1 μ2 S ε.
+  Proof using A A' B B' EqDecision0 EqDecision1 EqDecision2 EqDecision3 H H0 H1 H2 S μ1 μ2.
+    split; [apply equiv_ARcoupl_sets_1 | apply equiv_ARcoupl_sets_2].
+  Qed.
+
+End ARcoupl_sets.
+
 Lemma ARcoupl_dzero_dzero `{Countable A, Countable B} (R : A → B → Prop) :
   ARcoupl dzero dzero R 0.
 Proof.
@@ -898,7 +967,59 @@ Proof.
   rewrite -(Rplus_0_r ε).
   eapply (ARcoupl_dbind _ _ _ _ (λ (a : A) (a' : B), R (f a) (g a')) _ ε 0); auto; [lra |].
   intros a b Hab.
-  by eapply ARcoupl_dret. 
+  by eapply ARcoupl_dret.
+Qed.
+
+
+Lemma ARcoupl_map_inv `{Countable A, Countable B, Countable A', Countable B'}
+  (f : A → A') (g : B → B') (μ1 : distr A) (μ2 : distr B) (R : A' → B' → Prop) ε :
+  (0 <= ε) ->
+  ARcoupl (dmap f μ1) (dmap g μ2) R ε ->
+  ARcoupl μ1 μ2 (λ a a', R (f a) (g a')) ε.
+Proof.
+  intros Hleq Hcoupl.
+  eapply equiv_ARcoupl_sets_1.
+  eapply equiv_ARcoupl_sets_2 in Hcoupl.
+  intros P1 P2 HP12.
+  set (Q1 := (λ a', exists a, f a = a' /\ P1 a)).
+  set (Q2 := (λ b', exists a, R (f a) b' /\ P1 a)).
+  assert ((∀ (a : A') (b : B'), R a b → Q1 a → Q2 b)) as HQ1Q2.
+  {
+    rewrite /Q1/Q2.
+    intros a' b' Hab' [a [Ha1 Ha2]].
+    exists a. rewrite Ha1. done.
+  }
+  specialize (Hcoupl Q1 Q2 HQ1Q2).
+  etransitivity.
+  1: etransitivity; [|apply Hcoupl].
+  - rewrite prob_dmap.
+    (* TODO: Prove prob monotonicity lemma *)
+    rewrite /prob.
+    apply SeriesC_le.
+    + intro a.
+      case_bool_decide.
+      * split; [real_solver|].
+        rewrite bool_decide_eq_true_2; [real_solver|].
+        by exists a.
+      * split; [real_solver|].
+        case_bool_decide; real_solver.
+    + apply (ex_seriesC_le _ μ1); auto.
+      intros; real_solver.
+  - apply Rplus_le_compat_r.
+    rewrite prob_dmap.
+    apply SeriesC_le.
+    + intro b.
+      case_bool_decide as Hcase.
+      * split; [real_solver|].
+        destruct Hcase as [a [Ha1 Ha2]].
+        rewrite bool_decide_eq_true_2; [real_solver|].
+        apply (HP12 a); auto.
+      * split; [real_solver|].
+        case_bool_decide; real_solver.
+    + apply (ex_seriesC_le _ μ2); auto.
+      intros; real_solver.
+   (*TODO: Fix typeclass instantiations *)
+   Unshelve. all:eauto.
 Qed.
 
 Lemma ARcoupl_eq_trans_l `{Countable A, Countable B} μ1 μ2 μ3 (R: A → B → Prop) ε1 ε2 :
@@ -942,6 +1063,17 @@ Proof.
   rewrite (Rcoupl_eq_elim μ1 μ2); auto.
   apply (ARcoupl_mon_grading _ _ _ 0); auto.
   apply ARcoupl_eq.
+Qed.
+
+Lemma ARcoupl_eq_0 `{Countable A} (μ1 μ2: distr A):
+  (∀ x, μ1 x <= μ2 x)%R -> ARcoupl μ1 μ2 (=) 0.
+Proof.
+  rewrite /ARcoupl.
+  intros.
+  rewrite Rplus_0_r.
+  apply SeriesC_le; last first.
+  { apply pmf_ex_seriesC_mult_fn; naive_solver. }
+  intros. real_solver.
 Qed.
 
 Lemma ARcoupl_dunif (N : nat) f `{Bij (fin N) (fin N) f} :
@@ -1247,7 +1379,7 @@ Proof.
   eapply ARcoupl_dunif_no_coll_r.
 Qed.
 
-Lemma UB_to_ARcoupl `{Countable A, Countable B} (μ1 : distr A) (P : A -> Prop) (ε : R) :
+Lemma UB_to_ARcoupl `{Countable A} (μ1 : distr A) (P : A -> Prop) (ε : R) :
   pgl μ1 P ε ->
   ARcoupl μ1 (dret tt) (λ a _, P a) ε.
 Proof.

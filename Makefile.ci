@@ -1,0 +1,62 @@
+# run coqdoc by default (our CI entrypoint)
+.DEFAULT_GOAL := ci
+
+SRC_DIRS := 'theories'
+EXT_DIRS := 'external'
+ALL_VFILES := $(shell find $(EXT_DIRS) $(SRC_DIRS) -name '*.v' -a '!' -name '*'.\#'*')
+
+BUILD_DIRS := $(SRC_DIRS)
+VFILES := $(shell find $(BUILD_DIRS) -name '*.v' -a '!' -name '*'.\#'*')
+
+COQC := coqc
+Q:=@
+
+# extract global arguments for Coq from _CoqProject
+COQPROJECT_ARGS := $(shell sed -E -e '/^\#/d' -e 's/-arg ([^ ]*)/\1/g' _CoqProject)
+
+Makefile.coq: _CoqProject $(ALL_VFILES)
+	$(Q)coq_makefile -f _CoqProject $(ALL_VFILES) -o Makefile.coq -docroot .
+
+include coqdocjs/Makefile.doc
+
+# ensure coqdoc won't run before Makefile.coq is generated
+coqdoc: Makefile.coq
+
+.PHONY: all ci
+
+all:
+	$(MAKE) -f Makefile.coq
+
+ci: Makefile.coq coqdoc
+
+.coqdeps.d: $(ALL_VFILES) _CoqProject
+	@echo "COQDEP $@"
+	$(Q)coqdep -vos -f _CoqProject $(ALL_VFILES) > $@
+
+# do not try to build dependencies if cleaning or just building _CoqProject
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
+include .coqdeps.d
+endif
+
+%.vo: %.v _CoqProject | .coqdeps.d
+	@echo "COQC $<"
+	$(Q)$(COQC) $(COQPROJECT_ARGS) $(COQ_ARGS) -o $@ $<
+
+%.vos: %.v _CoqProject | .coqdeps.d
+	@echo "COQC -vos $<"
+	$(Q)$(COQC) $(COQPROJECT_ARGS) -vos $(COQ_ARGS) $< -o $@
+
+%.vok: %.v _CoqProject | .coqdeps.d
+	@echo "COQC -vok $<"
+	$(Q)$(COQC) $(COQPROJECT_ARGS) -vok $(COQ_ARGS) $< -o $@
+
+clean:
+	@echo "CLEAN vo glob aux"
+	$(Q)find $(EXT_DIRS) $(SRC_DIRS) \( -name "*.vo" -o -name "*.vo[sk]" \
+		-o -name ".*.aux" -o -name ".*.cache" -o -name "*.glob" \) -delete
+	$(Q)rm -f .lia.cache
+	rm -f Makefile.coq Makefile.coq.conf
+	rm -f .coqdeps.d
+
+tar:
+	git archive --format=tar.gz -o coq-clutch.tar.gz HEAD

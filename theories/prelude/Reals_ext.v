@@ -1,5 +1,57 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import QArith Reals Psatz.
+From Coquelicot Require Import Rcomplements.
 From clutch.prelude Require Import base.
+
+Ltac nat_solver :=
+  by (match goal with |- context [(?m ^ ?n)%nat] => unfold Nat.pow
+                 | _ => idtac
+      end ; lia || nia).
+
+(* try pushing expressions from R to nat *)
+Ltac nify_r :=
+  repeat match goal with
+    | |- context [0%R] => rewrite -INR_0
+    | |- context [1%R] => rewrite -INR_1
+    | |- context [((INR ?m) ^ ?n)%R] => rewrite -pow_INR
+    (* | |- context [exp (?x * INR ?n)%R] => rewrite -(exp_pow x n) *)
+    | |- context [(INR ?n - INR ?m)%R] =>
+        rewrite -(minus_INR n m) ; [|try nat_solver]
+    | |- context [(INR ?n + INR ?m)%R] => rewrite -(plus_INR n m)
+    (* | |- context [(INR ?n + 1)%R] => rewrite -(S_INR n) *)
+    | |- context [(INR ?n * INR ?m)%R] => rewrite -(mult_INR n m)
+    | |- context [IPR ?p] => rewrite -(INR_IPR p)
+    | |- INR _ = INR _ => f_equal
+    | |- not (INR _ = INR _) => apply not_INR
+    | |- (INR _ <= INR _)%R => apply le_INR
+    | |- (INR _ < INR _)%R => apply lt_INR
+    end.
+
+(* Local Coercion inject_Z : Z >-> QArith_base.Q. *)
+Ltac zify_q := unfold Qeq, Qlt, Qle ; simpl Qden ; simpl Qnum.
+
+Lemma IZR_Q2R_inject_Z (z : Z) : IZR z = Q2R (inject_Z z).
+Proof. rewrite /Q2R. simpl Qden. simpl Qnum. rewrite RMicromega.Rinv_1. reflexivity. Qed.
+
+Lemma INR_Q2R_of_nat (n : nat) : INR n = Q2R (inject_Z (Z.of_nat n)).
+Proof. rewrite ?INR_IZR_INZ ?IZR_Q2R_inject_Z. reflexivity. Qed.
+
+Ltac qify_r :=
+  repeat rewrite
+    ?IZR_Q2R_inject_Z ?INR_Q2R_of_nat
+  -?INR_IPR
+  -?RMicromega.Q2R_0 -?RMicromega.Q2R_1
+  -?Qreals.Q2R_plus -?Qreals.Q2R_mult
+  -?Qreals.Q2R_opp -?Qreals.Q2R_minus
+  -?Qreals.Q2R_inv -?Qreals.Q2R_div
+  ;
+    repeat (apply Qreals.Qle_Rle || apply Qreals.Qlt_Rlt || apply Qreals.Qeq_eqR).
+
+Lemma Qminus_0_r x : (x - 0 == x)%Q.
+Proof. zify_q. nia. Qed.
+
+Lemma Qdiv_0_l x : (0 / x == 0)%Q.
+Proof. zify_q. nia. Qed.
+
 
 (* Notation "x ≤ y" := (Rle x y) (at level 70, no associativity) : R_scope. *)
 (* Notation "x ≥ y" := (Rge x y) (at level 70, no associativity) : R_scope. *)
@@ -141,13 +193,83 @@ Proof. intros ; lra. Qed.
 
 Hint Resolve Rminus_le_0_compat : real.
 
+
+Lemma pow_le_1_compat (x : R) (n : nat):
+    (0 <= x <= 1)%R → 0 ≤ n → (0 <= x ^ n <= 1)%R.
+  Proof.
+    intros Hx Hn.
+    destruct (le_lt_eq_dec _ _ Hn) as [Hn_lt | <-]; last first.
+    {
+      rewrite pow_O; lra.
+    }
+    destruct (decide (x < 1)%R) as [H | H].
+    - split.
+      + apply pow_le; lra.
+      + left.
+        apply pow_lt_1_compat; auto.
+        lra.
+    - split.
+      + apply pow_le; lra.
+      + apply Rnot_gt_le in H.
+        assert (x = 1) as ->.
+        * destruct Hx.
+          apply Rle_antisym; auto.
+        * rewrite pow1; lra.
+  Qed.
+
+  Lemma convex_sum_conv (x a b : R) :
+    (0 <= x <= 1)%R ->
+    (a <= b)%R ->
+    (a <= x * a + (1-x)*b <= b)%R.
+  Proof.
+    intros Hx Hab.
+    split.
+    - assert (a = x * a + (1 - x) * a)%R as Haux by lra.
+      rewrite {1}Haux.
+      apply Rplus_le_compat_l.
+      apply Rmult_le_compat_l; lra.
+    - assert (b = x * b + (1 - x) * b)%R as Haux by lra.
+      rewrite {2}Haux.
+      apply Rplus_le_compat_r.
+      apply Rmult_le_compat_l; lra.
+  Qed.
+
+
+  Lemma convex_sum_conv_alt (x a a' b b' : R) :
+    (0 <= x <= 1)%R ->
+    (a <= a' <= b)%R ->
+    (a <= b' <= b)%R ->
+    (a <= x * a' + (1-x)*b' <= b)%R.
+  Proof.
+    intros Hx Ha' Hb'.
+    destruct (Rle_lt_dec a' b').
+    - split.
+      + transitivity a'; [lra|].
+        apply convex_sum_conv; auto.
+      + transitivity b'; [|lra].
+        apply convex_sum_conv; auto.
+    - set (y := (1-x)%R).
+      replace x with (1-y)%R; last first.
+      {
+        rewrite /y. lra.
+      }
+      rewrite Rplus_comm.
+      split.
+      + transitivity b'; [lra|].
+        apply convex_sum_conv; [|lra].
+        rewrite /y; lra.
+      + transitivity a'; [|lra].
+        apply convex_sum_conv; [|lra].
+        rewrite /y; lra.
+   Qed.
+
 From Ltac2 Require Import Ltac2.
 
 Ltac2 split_le_le _ :=
   let rename_prod old prod :=
     let extract_prod_name t :=
       match Constr.Unsafe.kind t with
-      | Constr.Unsafe.Prod b t => Constr.Binder.name b
+      | Constr.Unsafe.Prod b _ => Constr.Binder.name b
       | _ => None
       end in
     let name := extract_prod_name old in
@@ -197,6 +319,8 @@ Ltac real_simpl :=
          | |- ?a * ?b <= ?c * ?b => apply Rmult_le_compat_r
          | |- ?a * ?b <= ?c * ?d => apply Rmult_le_compat
          | |- ?a * ?b * ?c <= ?b => rewrite -{2}(Rmult_1_r b)
+         | |- (0 <= ?r1 / ?r2)%R => apply Rcomplements.Rdiv_le_0_compat
+         | |- (INR 0 <= ?r1 / ?r2)%R => apply Rcomplements.Rdiv_le_0_compat
 
          | |- ?x <= ?x + ?y => apply Rplus_le_0_compat
          | |- ?x - ?y <= ?x => apply Rminus_le_0_compat
@@ -211,6 +335,7 @@ Ltac real_simpl :=
          | |- 0 <= INR _ => apply pos_INR
          | |- INR _ <= INR _ => apply le_INR
          | |- INR _ < INR _ => apply lt_INR
+         | |- INR _ = INR _ => f_equal
                                   
          (* = *)
          | H : ?r1 + ?r = ?r2 + ?r |- _ =>
@@ -224,6 +349,10 @@ Ltac real_simpl :=
          (* simplifications *)
          | |- context[?a * (?b * ?c)] => rewrite -Rmult_assoc
          | |- context[_ > _] => rewrite /Rgt
+         | |- context[INR (S _)] => rewrite S_INR
+         | |- context[INR O] => rewrite INR_0
+         | H : context[INR (S _)] |- _ => rewrite S_INR in H
+         | H : context[INR O] |- _ => rewrite INR_0 in H
          | H : context[_ > _] |- _ => rewrite /Rgt in H
          | H : _ <= _ <= _ |-  _  => destruct H
          | H : forall _, _ <= _ <= _ |- _ => progress repeat ltac2:(split_le_le ())
@@ -231,7 +360,8 @@ Ltac real_simpl :=
 
          (* general solving patterns *)
          | |- ∀ _, _ => intros
-         | _ => done || lra || eauto with real || lia
+         | _ => ( done || lra || eauto with real || lia || nat_solver )
+                || fail "real_simpl: no applicable clauses"
          end.
 
 Ltac real_solver_partial :=

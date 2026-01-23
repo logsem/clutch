@@ -1,9 +1,9 @@
 From clutch Require Import clutch.
 From clutch.prob_lang.typing Require Import tychk.
 
-#[warning="-hiding-delimiting-key,-overwriting-delimiting-key"] From mathcomp Require Import ssrnat.
+#[warning="-hiding-delimiting-key,-overwriting-delimiting-key -notation-incompatible-prefix"]
 From mathcomp Require Import fingroup solvable.cyclic choice eqtype finset
-  fintype seq ssrbool ssrnat zmodp.
+  fintype seq ssrbool zmodp.
 
 From clutch.prelude Require Import mc_stdlib.
 From clutch.clutch.examples.crypto Require Import valgroup.
@@ -75,7 +75,7 @@ Section Zpx.
   Definition vg_of_int_unpacked (x : Z) (vmin : (1 ≤ x)%Z) (vmax : (x < p)%Z) : Zpx.
   Proof.
     unshelve econstructor.
-    - exists (Z.to_nat x). rewrite Zp_cast //. apply /leP. lia.
+    - exists (Z.to_nat x). rewrite Zp_cast //. apply /ssrnat.leP. lia.
     - rewrite qualifE /=. rewrite Zp_cast //.
       destruct x as [|xpos | xneg] eqn:hx ; [|shelve|].
       { exfalso. destruct vmin. simpl. by reflexivity. }
@@ -84,8 +84,8 @@ Section Zpx.
       rewrite prime.prime_coprime //.
       rewrite -hx. rewrite -hx in vmin, vmax.
       apply /negP => h.
-      unshelve epose proof (div.dvdn_leq _ h) as lepx => // ; [apply /leP ; lia|].
-      move /leP : lepx. lia.
+      unshelve epose proof (div.dvdn_leq _ h) as lepx => // ; [apply /ssrnat.leP ; lia|].
+      move /ssrnat.leP : lepx. lia.
   Defined.
 
   Fact vg_of_int_lrel_G_p :
@@ -196,17 +196,9 @@ Section Zpx.
         |}).
   Defined.
 
-  (* TODO remove once https://github.com/math-comp/math-comp/pull/1041/files is
-     merged and we use mathcomp from the future. *)
-  Lemma units_Zp_cyclic : is_true (cyclic (units_Zp p)).
+  Definition vgg_p : val_group_generator (vg:=vg_p).
   Proof.
-    suff: is_true (cyclic [set: {unit 'F_p}]) by rewrite prime.pdiv_id.
-    exact: field_unit_group_cyclic.
-  Qed.
-
-  Definition cgg_p : clutch_group_generator (vg:=vg_p).
-  Proof.
-    move /cyclicP : units_Zp_cyclic => /= h.
+    move /cyclicP : (units_Zp_cyclic p_prime) => /= h.
     pose ((λ x, units_Zp p == cycle x) : pred {unit 'Z_p}) as P ; simpl in P.
     assert (zpgen : (∃ x, units_Zp p = cycle x) →
                     ∃ x, is_true (units_Zp p == cycle x)).
@@ -221,6 +213,11 @@ Section Zpx.
       apply prime.totient_prime => //.
     - rewrite /generator /=. unfold units_Zp in hg.
       apply Is_true_eq_left. by rewrite hg.
+  Defined.
+
+  Definition cgg_p : @clutch_group_generator vg_p cgs_p vgg_p.
+  Proof.
+    constructor. constructor.
   Defined.
 
 End Zpx.

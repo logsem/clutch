@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From stdpp Require Import fin_maps.
 From iris.proofmode Require Import environments proofmode.
 From clutch.prob Require Import distribution.
@@ -85,9 +85,9 @@ Ltac solve_red :=
       iSplitR ; [ by (iPureIntro ; solve_red) | ]
   | |- (environments.envs_entails _ ( _ ∗ ⌜ _ ⌝)) =>
       iSplitL ; [ by (iPureIntro ; solve_red) | ]
-  | |- reducible ((fill _ _), _) =>
+  | |- reducible (fill _ _) _ =>
       apply reducible_fill ; solve_red
-  | |- reducible _ =>
+  | |- reducible _ _ =>
       apply head_prim_reducible ; solve_red
   | |- (head_reducible _ _) =>
       by eauto with head_step

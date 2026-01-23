@@ -3,7 +3,7 @@ Set Default Proof Using "Type*".
 
 (* Prophecy variables are unsound with up-to-bad reasoning *)
 
-Module counter_example.
+Section counter_example.
   Context `{!erisGS Σ}.
 
   Axiom NewProph : val.
@@ -43,7 +43,7 @@ Module counter_example.
       iIntros (?) "(%Hbad&?)". congruence.
     }
     assert ((∃ z : Z, v = LitV $ LitInt $ z) ∨ (∀ z : Z, v ≠ LitV $ LitInt $ z)) as Hcases.
-    { destruct v; firstorder. destruct l; firstorder. eauto. }
+    { destruct v; eauto. destruct l; eauto. }
     destruct Hcases as [Hz|Hnz]; last first.
     {
       wp_apply (wp_rand with "[//]").
@@ -54,7 +54,7 @@ Module counter_example.
 
     destruct Hz as (z&->).
     wp_apply (wp_rand_err_nat 99 _ (Z.to_nat z)); iFrame "Hcred".
-    iIntros (x Hneq). wp_pures.
+    iIntros (x Hneq) "!>". wp_pures.
     wp_apply (wp_resolve_proph with "[$]").
     iIntros (?) "(%Heq&Hproph)".
     inversion Heq. subst. lia.

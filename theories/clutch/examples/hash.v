@@ -2,7 +2,7 @@ From clutch Require Export clutch.
 From clutch.clutch.lib Require Import map flip.
 Set Default Proof Using "Type*".
 
-Module simple_bit_hash.
+Section simple_bit_hash.
 
   Context `{!clutchRGS Σ}.
 
@@ -192,7 +192,7 @@ Section tape_bit_hash.
          set "tm" ("n" - #1) "α";;
         "alloc_tapes" "tm" ("n" - #1)).
 
-  Definition init_hash_state : val :=
+  Definition init_hash_state' : val :=
    λ: "max_val",
       let: "val_map" := init_map #() in
       let: "tape_map" := init_map #() in
@@ -202,7 +202,7 @@ Section tape_bit_hash.
   (* To hash a value v, we check whether it is in the map (i.e. it has been previously hashed).
      If it has we return the saved hash value, otherwise we look up the tape for this value
      flip a bit with that tape, and save it in the map *)
-  Definition compute_hash_specialized vm tm : val :=
+  Definition compute_hash_specialized' vm tm : val :=
     λ: "v",
       match: get vm "v" with
       | SOME "b" => "b"
@@ -216,7 +216,7 @@ Section tape_bit_hash.
             end
       end.
 
-  Definition compute_hash : val :=
+  Definition compute_hash' : val :=
     λ: "vm" "tm" "v",
       match: get "vm" "v" with
       | SOME "b" => "b"
@@ -232,21 +232,21 @@ Section tape_bit_hash.
 
   (* init_hash returns a hash as a function, basically wrapping the internal state
      in the returned function *)
-  Definition init_hash : val :=
+  Definition init_hash' : val :=
     λ: "max_val",
-      let: "ms" := init_hash_state "max_val" in
-      compute_hash (Fst "ms") (Snd "ms").
+      let: "ms" := init_hash_state' "max_val" in
+      compute_hash' (Fst "ms") (Snd "ms").
 
   (* for each k <= max, it's in tm, and either:
      (1) it's in vm and has value given by m,
      (2) the tape given by tm has a value b and m !! k = Some b
      (3) the tape given by tm is empty and m !! k = None
    *)
-  Definition hashfun (max : nat) f (m : gmap nat bool) : iProp Σ :=
+  Definition hashfun' (max : nat) f (m : gmap nat bool) : iProp Σ :=
     ∃ (lvm ltm: loc) (vm: gmap nat bool) (tm: gmap nat loc),
        ⌜ (∀ i : nat, i <= max ↔ i ∈ dom tm) ⌝ ∗
        ⌜ dom m ⊆ dom tm ∧ dom vm ⊆ dom tm ⌝ ∗
-       ⌜ f = compute_hash_specialized #lvm #ltm ⌝ ∗
+       ⌜ f = compute_hash_specialized' #lvm #ltm ⌝ ∗
        map_list lvm ((λ v, LitV (LitBool v)) <$> vm) ∗
        map_list ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
        ([∗ map] i ↦ α ∈ tm,
@@ -254,11 +254,11 @@ Section tape_bit_hash.
           (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪B (b :: nil) ) ∨
           (⌜ m !! i = None ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪B nil)).
 
-  Definition shashfun (max : nat) f (m : gmap nat bool) : iProp Σ :=
+  Definition shashfun' (max : nat) f (m : gmap nat bool) : iProp Σ :=
     ∃ (lvm ltm: loc) (vm: gmap nat bool) (tm: gmap nat loc),
        ⌜ (∀ i : nat, i <= max ↔ i ∈ dom tm) ⌝ ∗
        ⌜ dom m ⊆ dom tm ∧ dom vm ⊆ dom tm ⌝ ∗
-       ⌜ f = compute_hash_specialized #lvm #ltm ⌝ ∗
+       ⌜ f = compute_hash_specialized' #lvm #ltm ⌝ ∗
        map_slist lvm ((λ v, LitV (LitBool v)) <$> vm) ∗
        map_slist ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
        ([∗ map] i ↦ α ∈ tm,
@@ -266,12 +266,12 @@ Section tape_bit_hash.
           (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪ₛB (b :: nil) ) ∨
           (⌜ m !! i = None ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪ₛB nil)).
 
-  #[global] Instance timeless_hashfun n f m :
-    Timeless (hashfun n f m).
+  #[global] Instance timeless_hashfun' n f m :
+    Timeless (hashfun' n f m).
   Proof. apply _. Qed.
 
-  #[global] Instance timeless_shashfun n f m :
-    Timeless (shashfun n f m).
+  #[global] Instance timeless_shashfun' n f m :
+    Timeless (shashfun' n f m).
   Proof.
     rewrite /shashfun.
     (* Strange that just doing apply _ here is slow, but after exist_timeless it's fast *)
@@ -395,13 +395,13 @@ Section tape_bit_hash.
       iFrame.
   Qed.
 
-  Lemma wp_init_hash_state max E :
+  Lemma wp_init_hash_state' max E :
     {{{ True }}}
-      init_hash_state #max @ E
-    {{{ (lvm ltm : loc), RET (#lvm, #ltm); hashfun max (compute_hash_specialized #lvm #ltm) ∅ }}}.
+      init_hash_state' #max @ E
+    {{{ (lvm ltm : loc), RET (#lvm, #ltm); hashfun' max (compute_hash_specialized' #lvm #ltm) ∅ }}}.
   Proof.
     iIntros (Φ) "_ HΦ".
-    rewrite /init_hash_state.
+    rewrite /init_hash_state'.
     wp_pures.
     wp_apply (wp_init_map with "[//]").
     iIntros (lvm) "Hvm". wp_pures.
@@ -422,27 +422,27 @@ Section tape_bit_hash.
     { iIntros (k α Hlookup) "Htape". iRight. iRight. rewrite ?lookup_empty; iFrame; auto. }
   Qed.
 
-  Lemma wp_init_hash max E :
+  Lemma wp_init_hash' max E :
     {{{ True }}}
-      init_hash #max @ E
-    {{{ f, RET f; hashfun max f ∅ }}}.
+      init_hash' #max @ E
+    {{{ f, RET f; hashfun' max f ∅ }}}.
   Proof.
-    rewrite /init_hash.
+    rewrite /init_hash'.
     iIntros (Φ) "_ HΦ".
-    wp_pures. wp_apply (wp_init_hash_state with "[//]").
+    wp_pures. wp_apply (wp_init_hash_state' with "[//]").
     iIntros (lvm ltm) "H". wp_pures.
-    rewrite /compute_hash. wp_pures.
+    rewrite /compute_hash'. wp_pures.
     iApply "HΦ".
     eauto.
   Qed.
 
-  Lemma spec_init_hash (max : nat) E K :
-    ⤇ fill K (init_hash #max) -∗ spec_update E (∃ f, ⤇ fill K (of_val f) ∗ shashfun max f ∅).
+  Lemma spec_init_hash' (max : nat) E K :
+    ⤇ fill K (init_hash' #max) -∗ spec_update E (∃ f, ⤇ fill K (of_val f) ∗ shashfun' max f ∅).
   Proof.
     iIntros "H".
-    rewrite /init_hash.
+    rewrite /init_hash'.
     tp_pures.
-    rewrite /init_hash_state.
+    rewrite /init_hash_state'.
     tp_pures.
     tp_bind (init_map #()).
     iMod (spec_init_map with "[$]") as (lvm) "(HK&Hvm) /=".
@@ -457,7 +457,7 @@ Section tape_bit_hash.
     iMod (spec_alloc_tapes with "[$] [$]") as "(HK&Htm) /=".
     iDestruct "Htm" as (tm) "(Htm&%Hdom&Htapes)".
     tp_pures.
-    rewrite /compute_hash. tp_pures.
+    rewrite /compute_hash'. tp_pures.
     iModIntro. iExists _.
     iFrame "HK".
     iExists lvm, ltm, ∅, tm.
@@ -470,15 +470,15 @@ Section tape_bit_hash.
   Qed.
 
 
-  Lemma wp_hashfun_prev E f m (max n : nat) (b : bool) :
+  Lemma wp_hashfun_prev' E f m (max n : nat) (b : bool) :
     m !! n = Some b →
-    {{{ hashfun max f m }}}
+    {{{ hashfun' max f m }}}
       f #n @ E
-    {{{ RET #b; hashfun max f m }}}.
+    {{{ RET #b; hashfun' max f m }}}.
   Proof.
     iIntros (Hlookup Φ) "Hhash HΦ".
     iDestruct "Hhash" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(Hvm&Htm&Htapes)".
-    rewrite /compute_hash_specialized.
+    rewrite /compute_hash_specialized'.
     wp_pures.
     wp_apply (wp_get with "Hvm").
     iIntros (vret) "(Hhash&->)".
@@ -536,13 +536,13 @@ Section tape_bit_hash.
 
   Lemma wp_hashfun_out_of_range E f m (max : nat) (z : Z) :
     (z < 0 ∨ max < z)%Z →
-    {{{ hashfun max f m }}}
+    {{{ hashfun' max f m }}}
       f #z @ E
-    {{{ RET #false; hashfun max f m }}}.
+    {{{ RET #false; hashfun' max f m }}}.
   Proof.
     iIntros (Hrange Φ) "Hhash HΦ".
     iDestruct "Hhash" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(Hvm&Htm&Htapes)".
-    rewrite /compute_hash_specialized.
+    rewrite /compute_hash_specialized'.
     wp_pures.
     wp_apply (wp_get_Z with "Hvm").
     iIntros (vret) "(Hhash&->)".
@@ -561,14 +561,14 @@ Section tape_bit_hash.
     iApply "HΦ". iModIntro. iExists _, _, _, _. iFrame. auto.
   Qed.
 
-  Lemma spec_hashfun_prev E K f m max (n : nat) (b: bool) :
+  Lemma spec_hashfun_prev' E K f m max (n : nat) (b: bool) :
     m !! n = Some b →
-    shashfun max f m -∗
-    ⤇ fill K (f #n) -∗ spec_update E (⤇ fill K (of_val #b) ∗ shashfun max f m).
+    shashfun' max f m -∗
+    ⤇ fill K (f #n) -∗ spec_update E (⤇ fill K (of_val #b) ∗ shashfun' max f m).
   Proof.
     iIntros (Hlookup) "Hhash HΦ".
     iDestruct "Hhash" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(Hvm&Htm&Htapes)".
-    rewrite /compute_hash_specialized.
+    rewrite /compute_hash_specialized'.
     tp_pures.
 
     tp_bind (get _ _).
@@ -632,12 +632,12 @@ Section tape_bit_hash.
 
   Lemma spec_hashfun_out_of_range E K f m (max : nat) (z : Z) :
     (z < 0 ∨ max < z)%Z →
-    shashfun max f m -∗
-    ⤇ fill K (f #z) -∗ spec_update E (⤇ fill K (of_val #false) ∗ shashfun max f m).
+    shashfun' max f m -∗
+    ⤇ fill K (f #z) -∗ spec_update E (⤇ fill K (of_val #false) ∗ shashfun' max f m).
   Proof.
     iIntros (Hrange) "Hhash HΦ".
     iDestruct "Hhash" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(Hvm&Htm&Htapes)".
-    rewrite /compute_hash_specialized.
+    rewrite /compute_hash_specialized'.
     tp_pures.
     tp_bind (get _ _).
     iMod (spec_get_Z with "Hvm [$]") as "(HK&Hvm_all) /=".
@@ -667,7 +667,7 @@ Section tape_bit_hash.
   Lemma hashfun_couplable k max f m :
     k ≤ max →
     m !! k = None →
-    hashfun max f m -∗ impl_couplable (λ b, hashfun max f (<[k:=b]>m)).
+    hashfun' max f m -∗ impl_couplable (λ b, hashfun' max f (<[k:=b]>m)).
   Proof.
     iIntros (Hmax Hlookup) "Hhashfun".
     iDestruct "Hhashfun" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(Hvm&Htm&Htapes)".
@@ -702,7 +702,7 @@ Section tape_bit_hash.
   Lemma shashfun_couplable k max f m :
     k ≤ max →
     m !! k = None →
-    shashfun max f m -∗ spec_couplable (λ b, shashfun max f (<[k:=b]>m)).
+    shashfun' max f m -∗ spec_couplable (λ b, shashfun' max f (<[k:=b]>m)).
   Proof.
     iIntros (Hmax Hlookup) "Hhashfun".
     iDestruct "Hhashfun" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(Hvm&Htm&Htapes)".
@@ -785,8 +785,8 @@ Section tape_bit_hash.
     (* Cannot have queried the key in either hash *)
     m !! k = None →
     sm !! sk = None →
-    hashfun max f m ∗ shashfun max sf sm ∗
-    ((∃ b, hashfun max f (<[k:=b]>m) ∗ shashfun max sf (<[sk:=b]>sm)) -∗ WP e @ E {{ Φ }})
+    hashfun' max f m ∗ shashfun' max sf sm ∗
+    ((∃ b, hashfun' max f (<[k:=b]>m) ∗ shashfun' max sf (<[sk:=b]>sm)) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (Hmax Hsmax Hlookup Hslookup) "(Hhashfun&Hshashfun&Hwp)".
@@ -861,12 +861,12 @@ Section eager_hash.
 
   (* Couples the eager key sampling with a spec lazy hash table *)
   Lemma wp_sample_keys E lvm f max :
-    {{{ map_list lvm ∅ ∗ shashfun (max - 1)%nat f ∅ }}}
+    {{{ map_list lvm ∅ ∗ shashfun' (max - 1)%nat f ∅ }}}
       sample_keys #lvm #max @ E
     {{{ RET #(); ∃ bm,
             map_list lvm ((λ v, LitV (LitBool v)) <$> bm) ∗
             ⌜ (∀ i : nat, i < max ↔ i ∈ dom bm) ⌝ ∗
-            shashfun (max - 1)%nat f bm }}}.
+            shashfun' (max - 1)%nat f bm }}}.
   Proof.
     iIntros (Φ) "Htm HΦ".
     rewrite /sample_keys.
@@ -875,7 +875,7 @@ Section eager_hash.
     iEval (setoid_rewrite Heqk) in "HΦ".
     iAssert (∃ bm, ⌜ (∀ i : nat, (k <= i < max)%nat ↔ i ∈ dom bm) ⌝ ∗
                    map_list lvm ((λ v, LitV (LitBool v)) <$> bm) ∗
-                   shashfun (max - 1)%nat f bm)%I with "[Htm]" as "Htm".
+                   shashfun' (max - 1)%nat f bm)%I with "[Htm]" as "Htm".
     { iExists ∅. rewrite fmap_empty. iFrame.
       iPureIntro. subst. intros; split; try lia. rewrite dom_empty_L. inversion 1. }
     assert (Hlek: k <= max) by lia.
@@ -917,12 +917,12 @@ Section eager_hash.
   Qed.
 
   Lemma wp_eager_init_hash_couple (max : nat) E K :
-    {{{ ⤇ fill K (init_hash #max) }}}
+    {{{ ⤇ fill K (init_hash' #max) }}}
       eager_init_hash #max @ E
-    {{{ f, RET f; ∃ sf m, ⤇ fill K (of_val sf) ∗ eager_hashfun max f m ∗ shashfun max sf m }}}.
+    {{{ f, RET f; ∃ sf m, ⤇ fill K (of_val sf) ∗ eager_hashfun max f m ∗ shashfun' max sf m }}}.
   Proof.
     iIntros (Φ) "HK HΦ".
-    iMod (spec_init_hash with "[$]") as "Hf".
+    iMod (spec_init_hash' with "[$]") as "Hf".
     rewrite /eager_init_hash/eager_init_hash_state.
     wp_pures.
     wp_apply (wp_init_map with "[//]").
@@ -946,11 +946,11 @@ Section eager_hash.
 
   (* Couples the spec eager key sampling with an impl tape hash table *)
   Lemma spec_sample_keys E K lvm f max e Φ :
-    (map_slist lvm ∅ ∗ hashfun (max - 1)%nat f ∅) -∗
+    (map_slist lvm ∅ ∗ hashfun' (max - 1)%nat f ∅) -∗
     ⤇ fill K (sample_keys #lvm #max) -∗
     ((∃ bm, map_slist lvm ((λ v, LitV (LitBool v)) <$> bm) ∗
             ⌜ (∀ i : nat, i < max ↔ i ∈ dom bm) ⌝ ∗
-            hashfun (max - 1)%nat f bm ∗
+            hashfun' (max - 1)%nat f bm ∗
             ⤇ fill K (of_val #())) -∗ WP e @ E {{ Φ }}) -∗
     WP e @ E {{ Φ }}.
   Proof.
@@ -961,7 +961,7 @@ Section eager_hash.
     iEval (setoid_rewrite Heqk) in "HΦ".
     iAssert (∃ bm, ⌜ (∀ i : nat, (k <= i < max)%nat ↔ i ∈ dom bm) ⌝ ∗
                    map_slist lvm ((λ v, LitV (LitBool v)) <$> bm) ∗
-                   hashfun (max - 1)%nat f bm)%I with "[Htm]" as "Htm".
+                   hashfun' (max - 1)%nat f bm)%I with "[Htm]" as "Htm".
     { iExists ∅. rewrite fmap_empty. iFrame.
       iPureIntro. subst. intros; split; try lia. rewrite dom_empty_L. inversion 1. }
     assert (Hlek: k <= max) by lia.
@@ -1008,13 +1008,13 @@ Section eager_hash.
   (* TODO: The TODO above is not true anymore. Fix :-) *)
   Lemma spec_eager_init_hash_couple (max : nat) E K :
     {{{ ⤇ fill K (eager_init_hash #max) }}}
-      init_hash #max @ E
-    {{{ f, RET f; ∃ sf m, ⤇ fill K (of_val sf) ∗ eager_shashfun max sf m ∗ hashfun max f m }}}.
+      init_hash' #max @ E
+    {{{ f, RET f; ∃ sf m, ⤇ fill K (of_val sf) ∗ eager_shashfun max sf m ∗ hashfun' max f m }}}.
   Proof.
     iIntros (Φ) "HK HΦ".
-    rewrite /init_hash.
+    rewrite /init_hash'.
     wp_pures.
-    wp_apply (wp_init_hash_state with "[//]").
+    wp_apply (wp_init_hash_state' with "[//]").
     iIntros (??) "Hhash".
     rewrite /eager_init_hash.
     rewrite /eager_init_hash_state.
@@ -1028,7 +1028,7 @@ Section eager_hash.
     { iFrame "Hm". simpl. assert (max - 0 = max) as -> by lia. iFrame. }
     { iApply "HK". }
     iDestruct 1 as (bm) "(Hvm&%Hdom&Hshash&HK) /=".
-    rewrite /compute_hash/eager_compute_hash.
+    rewrite /compute_hash'/eager_compute_hash.
     tp_pures.
     wp_pures.
     iModIntro. iApply "HΦ". iExists _, _.
@@ -1133,13 +1133,13 @@ Section eager_hash.
   Qed.
 
   Lemma eager_lazy_refinement (max: nat) :
-    ⊢ REL eager_init_hash #max << init_hash #max : lrel_int → lrel_bool.
+    ⊢ REL eager_init_hash #max << init_hash' #max : lrel_int → lrel_bool.
   Proof.
     rewrite refines_eq. iIntros (K) "HK Hown".
     iApply wp_fupd.
     wp_apply (wp_eager_init_hash_couple with "HK").
     iIntros (f) "H". iDestruct "H" as (sf m) "(HK&Hsf)".
-    set (P := (∃ m, eager_hashfun max f m ∗ shashfun max sf m)%I).
+    set (P := (∃ m, eager_hashfun max f m ∗ shashfun' max sf m)%I).
     iMod (na_inv_alloc clutchRGS_nais _ hashN P with "[Hsf]") as "#Hinv".
     { iNext. iExists m. iFrame. }
     iModIntro. iExists _. iFrame.
@@ -1160,7 +1160,7 @@ Section eager_hash.
       iExists _. iFrame. iExists _. auto.
     - assert (z = Z.to_nat z) as -> by lia.
       iDestruct (eager_hashfun_dom with "[$]") as (b) "%Hb"; first eassumption.
-      iMod (spec_hashfun_prev with "[$] [$]") as "(HK&Hsf)"; try eassumption; auto.
+      iMod (spec_hashfun_prev' with "[$] [$]") as "(HK&Hsf)"; try eassumption; auto.
       iApply wp_fupd.
       wp_apply (wp_eager_hashfun_prev with "[$]"); try eassumption.
       iIntros "Hf".
@@ -1170,13 +1170,13 @@ Section eager_hash.
   Qed.
 
   Lemma lazy_eager_refinement (max: nat) :
-    ⊢ REL init_hash #max << eager_init_hash #max : lrel_int → lrel_bool.
+    ⊢ REL init_hash' #max << eager_init_hash #max : lrel_int → lrel_bool.
   Proof.
     rewrite refines_eq. iIntros (K) "HK Hown".
     iApply wp_fupd.
     wp_apply (spec_eager_init_hash_couple with "HK").
     iIntros (f) "H". iDestruct "H" as (sf m) "(HK&Hsf)".
-    set (P := (∃ m, eager_shashfun max sf m ∗ hashfun max f m)%I).
+    set (P := (∃ m, eager_shashfun max sf m ∗ hashfun' max f m)%I).
     iMod (na_inv_alloc clutchRGS_nais _ hashN P with "[Hsf]") as "#Hinv".
     { iNext. iExists m. iFrame. }
     iModIntro. iExists _. iFrame.
@@ -1189,7 +1189,7 @@ Section eager_hash.
     iDestruct "HP" as (m) "(Hsf&Hf)".
     iDestruct "Hsf" as ">Hsf".
     (* TODO: why is TC inference so slow for timeless_hashfun? having to rewrite manually *)
-    rewrite timeless_hashfun.
+    rewrite timeless_hashfun'.
     iDestruct "Hf" as ">Hf".
     destruct (decide (z < 0 ∨ max < z)%Z).
     - iApply wp_fupd.
@@ -1203,7 +1203,7 @@ Section eager_hash.
       iDestruct (eager_shashfun_dom with "[$]") as (b) "%Hb"; first eassumption.
       iMod (spec_eager_hashfun_prev with "[$] [$]") as "(HK&Hsf)"; try eassumption; auto.
       iApply wp_fupd.
-      wp_apply (wp_hashfun_prev with "[$]"); try eassumption.
+      wp_apply (wp_hashfun_prev' with "[$]"); try eassumption.
       iIntros "Hf".
       iMod ("Hclose" with "[-HK]").
       { iFrame. }
@@ -1211,4 +1211,3 @@ Section eager_hash.
   Qed.
 
 End eager_hash.
-

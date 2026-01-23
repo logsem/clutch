@@ -8,41 +8,74 @@ on:
     branches:
       - '**'
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         image:
-          - mathcomp/mathcomp:2.2.0-coq-8.19
+          - ghcr.io/logsem/clutch/docker-x86-64
       max-parallel: 4
       # don't cancel all in-progress jobs if one matrix job fails:
       fail-fast: false
 
     steps:
       - uses: actions/checkout@v3
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - uses: coq-community/docker-coq-action@v1
         with:
-          opam_file: 'clutch.opam'
+          opam_file: 'rocq-clutch.opam'
           custom_image: ${{ matrix.image }}
           install : |
             startGroup "Install dependencies"
-              sudo apt-get update -y -q
-              opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
+              opam install odoc -y
+              apt-get install rsync -y
               opam pin add -n -y -k path $PACKAGE $WORKDIR
               opam update -y
               opam reinstall --forget-pending --yes
-              opam install --confirm-level=unsafe-yes -j 2 $PACKAGE --deps-only
+              opam install --confirm-level=unsafe-yes -j 2 $PACKAGE --deps-only --with-doc
             endGroup
-          before_script: |
-            sudo chown -R coq:coq . # workaround a permission issue
           script: |
             startGroup Build
-              make -j2
+              dune build @doc -j 2
+              cp -r coqdocjs/extra/resources _build/default/theories/clutch.html/
+              cp -r _build/default/theories/clutch.html html
+            endGroup
+            startGroup Also deploy clutch POPL24
+              cd html/
+              git clone https://github.com/ahuoguo/clutch.git -b gh-pages
+              mv clutch/popl24/ ./popl24/
+              mv clutch/eris/ ./eris/
+              mv clutch/tachis/ ./tachis/
+              cd ..
             endGroup
           uninstall: |
-            make clean
-      - name: Revert permissions
-        # to avoid a warning at cleanup time
-        if: ${{ always() }}
-        run: sudo chown -R 1001:116 .
+            dune clean
+      - name: Upload html as artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: html
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: deploy to github pages
+        id: deployment
+        uses: actions/deploy-pages@v4

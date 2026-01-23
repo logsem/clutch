@@ -1,5 +1,7 @@
-(** This file extends the Clutch program logic with some derived laws (not
+(** This file extends the Coneris program logic with some derived laws (not
 using the lifting lemmas) about arrays
+
+Most of these are taken from the Clutch program logic
 
 For utility functions on arrays (e.g., freeing/copying an array), see
 [lib.array].  *)
@@ -89,13 +91,13 @@ Proof.
   iDestruct (array_app with "Hl") as "[Hl1 Hl]".
   iDestruct (array_cons with "Hl") as "[Hl2 Hl3]".
   assert (off < length vs) as H by (apply lookup_lt_is_Some; by eexists).
-  rewrite take_length min_l; last by lia. iFrame "Hl2".
+  rewrite length_take min_l; last by lia. iFrame "Hl2".
   iIntros (w) "Hl2".
   clear Hlookup. assert (<[off:=w]> vs !! off = Some w) as Hlookup.
   { apply list_lookup_insert. lia. }
   rewrite -[in (l ↦∗{_} <[off:=w]> vs)%I](take_drop_middle (<[off:=w]> vs) off w Hlookup).
   iApply array_app. rewrite take_insert; last by lia. iFrame.
-  iApply array_cons. rewrite take_length min_l; last by lia. iFrame.
+  iApply array_cons. rewrite length_take min_l; last by lia. iFrame.
   rewrite drop_insert_gt; last by lia. done.
 Qed.
 

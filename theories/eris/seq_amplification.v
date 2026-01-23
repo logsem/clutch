@@ -3,8 +3,8 @@ From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext NNRbar.
 From clutch.prob_lang Require Import lang notation tactics metatheory.
-From Coq Require Export Reals Psatz.
-Require Import Lra.
+From Stdlib Require Export Reals Psatz.
+From Stdlib Require Import Lra.
 
 
 Section seq_ampl.
@@ -144,6 +144,34 @@ Section seq_ampl.
       lra.
     - apply Rlt_pow_R1; try lia.
       apply lt_1_INR. lia.
+  Qed.
+
+  Lemma fR_mon_dec N L i fRwf fRwf' : (fR N L (S i) fRwf <= fR N L i fRwf')%R.
+  Proof.
+    destruct fRwf' as [[HN HL] HiL].
+    rewrite fR_closed_2.
+    rewrite fR_closed_2.
+    apply Rplus_le_compat_l.
+    apply Ropp_le_contravar.
+    apply Rmult_le_compat_r.
+    - left.
+      apply Rinv_pos.
+      apply Rcomplements.Rlt_minus_r.
+      rewrite Rplus_0_l.
+      apply Rlt_pow_R1; auto.
+      rewrite S_INR.
+      apply lt_INR in HN.
+      rewrite INR_0 in HN.
+      lra.
+    - apply Rplus_le_compat_r.
+      simpl.
+      rewrite -{1}(Rmult_1_l (S N ^ i)).
+      apply Rmult_le_compat_r.
+      + apply pow_le.
+        apply pos_INR.
+      + rewrite S_INR.
+        pose proof (pos_INR N).
+        lra.
   Qed.
 
   (* fR will have the mean property we need *)

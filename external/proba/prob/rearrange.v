@@ -8,7 +8,7 @@
 
 From discprob.basic Require Import base order bigop_ext nify sval.
 From discprob.prob Require Import countable.
-Require Import Reals Fourier Lia Psatz ClassicalEpsilon.
+From Stdlib Require Import Reals Fourier Lia Psatz ClassicalEpsilon.
 #[warning="-hiding-delimiting-key,-overwriting-delimiting-key"] From mathcomp Require Import ssrnat.
 From mathcomp Require Import ssreflect ssrbool ssrfun eqtype seq bigop fintype choice.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy Markov.
@@ -193,7 +193,7 @@ Proof.
   }
   rewrite -(big_mkord (λ i, exC (λ m0, (m0 <= m')%nat && (σ m0 == i)))).
   assert (S n <= S N)%nat as Hsplit by (nify; lia).
-  rewrite (big_cat_nat _ _ _ _ Hsplit) //=.
+  rewrite (big_cat_nat _ Hsplit) //=.
   rewrite big_mkord.
   assert (∀ a b, a + b - a = b) as -> by (intros; field).
   done.
@@ -398,7 +398,7 @@ Proof.
   }
   rewrite -(big_mkord (λ i, exC (λ m0, (m0 <= m')%nat && (σ m0 == i)))).
   assert (S n <= S N)%nat as Hsplit by (nify; lia).
-  rewrite (big_cat_nat _ _ _ _ Hsplit) //=.
+  rewrite (big_cat_nat _ Hsplit) //=.
   rewrite big_mkord.
   assert (∀ a b, a + b - a = b) as -> by (intros; field).
   done.

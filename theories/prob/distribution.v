@@ -1,5 +1,5 @@
-From Coq Require Import Reals Psatz.
-From Coq.ssr Require Import ssreflect.
+From Stdlib Require Import Reals Psatz.
+From Stdlib.ssr Require Import ssreflect.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Export countable finite.
 From clutch.prelude Require Export base stdpp_ext Reals_ext Coquelicot_ext Series_ext classical uniform_list.
@@ -137,6 +137,14 @@ Section distributions.
   Lemma pmf_eq_0_not_gt_0 (μ : distr A) (a : A):
     ¬ (μ a > 0) → μ a = 0.
   Proof. intros ?%Rnot_gt_ge%Rge_le. by apply pmf_eq_0_le. Qed.
+
+  Context `{Countable B}.
+  Lemma pmf_mult_eq_0 (μ : distr A) (μ' : distr B) a b:
+    (μ a > 0 -> μ a * μ' b = 0) -> μ a * μ' b = 0.
+  Proof.
+    intros. destruct (pmf_pos μ a) as [|<-]; last lra.
+    naive_solver.
+  Qed.
 
 End distributions.
 
@@ -277,6 +285,10 @@ Next Obligation. intros. rewrite SeriesC_singleton //. Qed.
 Section dret.
   Context `{Countable A}.
 
+  Lemma dret_pmf_unfold (a a':A):
+    dret a a' = if bool_decide (a' = a) then 1%R else 0%R.
+  Proof. done. Qed. 
+
   Lemma dret_1 (a a' : A) :
     a = a' ↔ dret a a' = 1.
   Proof.
@@ -387,6 +399,19 @@ Proof.
   rewrite Heq //.
 Qed.
 
+Lemma dbind_ext_right_strong `{Countable A, Countable B} (μ : distr A) (f g : A → distr B) :
+  (∀ a, μ a > 0 -> f a = g a) →
+  dbind f μ = dbind g μ.
+Proof.
+  intro Heq.
+  apply distr_ext=> a.
+  rewrite /dbind/dbind_pmf{1 4}/pmf.
+  apply SeriesC_ext.
+  intros n.
+  pose proof pmf_pos μ n as [|<-]; last lra.
+  by rewrite Heq.
+Qed.
+
 Lemma dbind_ext_right' `{Countable A, Countable B} (μ1 μ2 : distr A) (f g : A → distr B) :
   (∀ a, f a = g a) →
   μ1 = μ2 ->
@@ -394,6 +419,17 @@ Lemma dbind_ext_right' `{Countable A, Countable B} (μ1 μ2 : distr A) (f g : A 
 Proof.
   intros Heq ->.
   by apply dbind_ext_right.
+Qed.
+
+Lemma dbind_const `{Countable A, Countable B} (μ1:distr A) (μ2:distr B) :
+  SeriesC μ1 = 1 ->
+  dbind (λ _, μ2) μ1 = μ2.
+Proof.
+  intros Hmass. 
+  apply distr_ext => b.
+  rewrite /dbind/dbind_pmf{1}/pmf.
+  rewrite SeriesC_scal_r Hmass.
+  lra.
 Qed. 
 
 #[global] Instance Proper_dbind `{Countable A, Countable B} :
@@ -768,7 +804,7 @@ Section probability_lemmas.
     rewrite /prob{1}/pmf/=/dbind_pmf/=.
     assert (∀ a,
                (if P a then SeriesC (λ a0 : A, μ a0 * f a0 a) else 0) =
-               SeriesC (λ a0 : A, if P a then μ a0 * f a0 a else 0)) as Haux.
+                 SeriesC (λ a0 : A, if P a then μ a0 * f a0 a else 0)) as Haux.
     {intro a. destruct (P a); [done|]. rewrite SeriesC_0 //. }
     setoid_rewrite Haux.
     rewrite -(fubini_pos_seriesC (λ '(a, a0), if P a then μ a0 * f a0 a else 0)).
@@ -788,6 +824,8 @@ Section probability_lemmas.
           exists 1. real_solver.
       + apply (pmf_ex_seriesC (dbind f μ)).
   Qed.
+
+
 
   Lemma union_bound (μ : distr A) (P Q : A → bool) :
     prob μ (λ a, orb (P a) (Q a)) <= prob μ P + prob μ Q.
@@ -1211,6 +1249,15 @@ Section exp_val_prop.
     intros; real_solver.
   Qed.
 
+  Lemma Expval_ge_0' μ f :
+    (forall a, 0 <= f a) ->
+    0 <= Expval μ f.
+  Proof.
+    intros Hleq.
+    rewrite /Expval; apply SeriesC_ge_0'.
+    real_solver.
+  Qed.
+
   Lemma Expval_convex_le μ f r :
     (forall a, 0 <= r <= f a) ->
     ex_expval μ f ->
@@ -1431,6 +1478,8 @@ Section dmap.
       intros [=]. eauto.
   Qed.
 
+
+
   Lemma Expval_dmap (μ : distr A) (f : A → B) (g : B → R) :
     (∀ b, 0 <= g b) →
     ex_expval μ (g ∘ f) →
@@ -1445,9 +1494,91 @@ Section dmap.
         intros ?. rewrite Expval_dret //.
       + intros a. apply ex_expval_dret.
   Qed.
-  
+
+  Lemma prob_dmap `{Countable B} (μ : distr A) (f : A → B) (P : B → bool) :
+    prob (dmap f μ) P = prob μ (λ a, P (f a)).
+  Proof.
+    rewrite /dmap prob_dbind.
+    apply SeriesC_ext => a.
+    case (P (f a)) eqn:HP.
+    - rewrite prob_dret_true; auto.
+      real_solver.
+    - rewrite prob_dret_false; auto.
+      real_solver.
+  Qed.
+
 End dmap.
 
+Lemma dbind_dmap_inj_rearrange `{Countable A}`{Countable B} {C:Type} `{Countable C} `{Countable D} (μ : distr A) (μ' : distr C) (f : A -> B) (g: (B*C) -> D) :
+  Inj (=) (=) f-> Inj (=) (=) (λ '(a,c), g(f a, c)) ->
+  (dmap f μ)≫= (λ b, dmap (λ c, g (b, c)) μ')=
+  μ ≫= (λ a, dmap (λ c, g ((f a), c)) μ').
+Proof.
+  intros Hinj1 Hinj2.
+  apply distr_ext => d.
+  set (λ '(a,c), g (f a, c)) as j.
+  assert (∀ x y, g (f x,y) = j (x, y)) as Hrewrite by done.
+  rewrite -/j in Hinj2.
+  destruct (@decide (∃ a c, d = g(f a, c)) (make_decision _)) as [H'|H'].
+  - destruct H' as (a & c & ->).
+    rewrite {1}/dbind{1}/dbind_pmf{1}/pmf.
+    erewrite SeriesC_ext; first by erewrite (SeriesC_singleton (f a)).
+    simpl.
+    intros b.
+    case_bool_decide as H'.
+    + subst.
+      erewrite dmap_elem_eq; [|done..].
+      erewrite dmap_elem_eq; last done; last first.
+      { intros ??.
+        rewrite !Hrewrite.
+        move => /Hinj2. intros; by simplify_eq.
+      }
+      rewrite /dmap.
+      rewrite {1}/dbind{1}/dbind_pmf{3}/pmf.
+      erewrite SeriesC_ext; first by erewrite (SeriesC_singleton (a)).
+      simpl.
+      intros a'.
+      case_bool_decide as H''.
+      * subst.
+        rewrite -/(dmap (λ c, g(f a, c)) μ').
+        erewrite dmap_elem_eq; try done.
+        intros ??.
+        rewrite !Hrewrite. move =>/Hinj2. intros. by simplify_eq.
+      * rewrite -/(dmap (λ c, g(f a', c)) μ').
+        rewrite Hrewrite.
+        erewrite dmap_elem_ne; first lra.
+        -- intros ??. rewrite !Hrewrite. intros. by simplify_eq.
+        -- setoid_rewrite Hrewrite.
+           intros (?&?&?). simplify_eq.
+    + apply pmf_mult_eq_0.
+      move => /dmap_pos.
+      intros (?&?&?). subst.
+      rewrite Rmult_eq_0_compat_l; first done.
+      erewrite dmap_elem_ne; first done.
+      * intros ??. rewrite !Hrewrite. intros. by simplify_eq.
+      * setoid_rewrite Hrewrite. intros (?&?&?). simplify_eq.
+   - trans 0.
+    + rewrite /dbind/dbind_pmf{1}/pmf.
+      apply SeriesC_0.
+      intros.
+      apply pmf_mult_eq_0.
+      move => /dmap_pos.
+      intros (?&?&?). subst.
+      rewrite Rmult_eq_0_compat_l; first done.
+      erewrite dmap_elem_ne; first done.
+      * intros ??. rewrite !Hrewrite. intros. by simplify_eq.
+      * setoid_rewrite Hrewrite. intros (?&?&?). simplify_eq.
+        apply H'. setoid_rewrite Hrewrite. naive_solver.
+    + symmetry.
+      rewrite /dbind/dbind_pmf{1}/pmf.
+      apply SeriesC_0.
+      intros.
+      apply pmf_mult_eq_0.
+      intros Hpos.
+      erewrite (dmap_elem_ne μ'); first lra.
+      * intros ??. rewrite !Hrewrite. intros. by simplify_eq.
+      * intros (?&?&?). simplify_eq. apply H'. naive_solver.
+Qed. 
 
 
 (** * Monadic strength  *)
@@ -1719,7 +1850,9 @@ Next Obligation. intros. rewrite SeriesC_0 //. lra. Qed.
 
 Section dzero.
   Context `{Countable A}.
-
+  
+  Global Instance distr_inhabited : Inhabited (distr A) := populate (dzero).
+  
   Lemma dzero_ext (μ : distr A) :
     (∀ a, μ a = 0) → μ = dzero.
   Proof. intros ?; by apply distr_ext. Qed.
@@ -2245,6 +2378,127 @@ Section uniform.
     lra.
   Qed.
 
+  Lemma dunifP_decompose N M x (f:(_*_) -> _)`{HBij: !Bij f}:
+    (x=(S N)*(S M)-1)%nat->
+    dunifP x = dbind (λ n, dmap (λ m, f (n, m)) (dunifP M)) (dunifP N).
+  Proof.
+    intros ->.
+    apply distr_ext => x.
+    rewrite /dunifP.
+    rewrite dunif_pmf.
+    rewrite /dmap/dbind/dbind_pmf{1 3}/pmf.
+    setoid_rewrite dunif_pmf.
+    destruct HBij as [H1 H2].
+    pose proof H2 x as [[n m] <-].
+    setoid_rewrite SeriesC_scal_l.
+    erewrite SeriesC_ext; last (intros; by setoid_rewrite SeriesC_scal_l).
+    rewrite SeriesC_scal_l.
+    rewrite (SeriesC_ext _ (λ n', if bool_decide (n=n') then SeriesC (λ m', if bool_decide (m=m') then 1 else 0) else 0)); last first.
+    { intros. case_bool_decide; last first.
+      - apply SeriesC_0.
+        intros m'.
+        apply dret_0.
+        intro Heq.
+        apply H1 in Heq. simplify_eq.
+      - apply SeriesC_ext.
+        intros m'. subst.
+        case_bool_decide; subst.
+        + by apply dret_1_1.
+        + rewrite dret_0; first done.
+          intro Heq. apply H1 in Heq. naive_solver.
+    }
+    do 2 rewrite SeriesC_singleton'.
+    rewrite Rmult_1_r -Rinv_mult -mult_INR.
+    do 2 f_equal. lia.
+  Qed.
+
+  Lemma dunif_fragmented N M f {Hinj : Inj (=) (=) f} (Hbound:(forall n : nat, (n < S M)%nat -> (f n < S N)%nat)):
+    (M<=N)%nat -> 
+    dunifP N = dbind (λ n, if bool_decide (∃ (m:fin (S M)), f (fin_to_nat m) = fin_to_nat n)%nat
+                           then dmap (λ m', nat_to_fin (Hbound _ (fin_to_nat_lt m'))) (dunifP M)
+                                     else dret n
+                 ) (dunifP N).
+  Proof.
+    intros Hineq.
+    apply distr_ext => n.
+    rewrite dunif_pmf.
+    rewrite /dbind/dbind_pmf{1}/pmf.
+    setoid_rewrite dunif_pmf.
+    rewrite SeriesC_scal_l.
+    etrans; last apply Rmult_eq_compat_l; first by erewrite Rmult_1_r.
+    symmetry.
+    destruct (decide (∃ m: fin (S M), f m = n)) as [H|H].
+    - destruct H as [m ?].
+      erewrite (SeriesC_ext _ (λ n', /(S M) * if bool_decide (fin_to_nat n' ∈ (list_to_set ((f∘fin_to_nat) <$> fin_enum (S M)):gset _))
+                                     then 1
+                                     else 0
+               )).
+      + rewrite SeriesC_scal_l.
+        rewrite SeriesC_fin_in_set.
+        * rewrite size_list_to_set.
+          -- rewrite length_fmap.
+             rewrite fin.length_enum_fin. rewrite Rinv_l; first lra.
+             replace 0 with (INR 0) by done.
+             move => /INR_eq. lia.
+          -- apply NoDup_fmap_2.
+             ++ eapply compose_inj; last done. apply fin_to_nat_inj.
+             ++ replace (fin_enum _) with (enum (fin (S M))); last done.
+                apply NoDup_enum.
+        * intros ?. rewrite elem_of_list_to_set elem_of_list_fmap.
+          intros [?[]]. subst.
+          simpl. apply Hbound. apply fin_to_nat_lt.
+      + intros n'.
+        case_bool_decide as H'.
+        * destruct H' as [m' H'].
+          rewrite bool_decide_eq_true_2; last first.
+          { rewrite elem_of_list_to_set elem_of_list_fmap.
+            eexists m'. split; first naive_solver.
+            replace (fin_enum _) with (enum (fin (S M))); last done.
+            apply elem_of_enum.
+          }
+          rewrite Rmult_1_r.
+          rewrite /dmap/dbind/dbind_pmf{1}/pmf.
+          setoid_rewrite dunif_pmf.
+          rewrite SeriesC_scal_l.
+          replace (SeriesC _) with 1; first lra.
+          symmetry.
+          erewrite (SeriesC_ext _ (dret m)); first apply dret_mass.
+          intros m''.
+          rewrite /dret/dret_pmf/pmf.
+          destruct (decide (m=m'')) as [|H''].
+          -- subst.
+             repeat rewrite bool_decide_eq_true_2; try done.
+             apply fin_to_nat_inj.
+             by rewrite fin_to_nat_to_fin.
+          -- repeat rewrite bool_decide_eq_false_2; try done.
+             intros Heq. apply (f_equal fin_to_nat) in Heq.
+             rewrite fin_to_nat_to_fin in Heq.
+             apply H''. rewrite Heq in H.
+             apply Hinj in H. by apply fin_to_nat_inj. 
+        * rewrite dret_0; last first.
+          { intro H''. apply H'. subst. naive_solver. }
+          rewrite bool_decide_eq_false_2; first lra.
+          rewrite elem_of_list_to_set elem_of_list_fmap.
+          intros [?[]].
+          apply H'. naive_solver.
+    - erewrite (SeriesC_ext _ (dret n)); first apply dret_mass.
+      intros n'.
+      destruct (decide(n=n')) as [->|H'].
+      + rewrite dret_1_1; last done.
+        rewrite bool_decide_eq_false_2; first apply dret_1_1; naive_solver.
+      + rewrite dret_0; last done.
+        case_bool_decide as H''; last by apply dret_0.
+        rewrite /dmap/dbind/dbind_pmf{1}/pmf.
+        apply SeriesC_0.
+        destruct H''.
+        intros m.
+        apply Rmult_eq_0_compat_l.
+        apply dret_0.
+        intro Heq.
+        apply (f_equal fin_to_nat) in Heq.
+        rewrite fin_to_nat_to_fin in Heq. naive_solver.
+  Qed.
+  
 End uniform.
 
 (** Uniform fin lists *)
@@ -2405,7 +2659,7 @@ Section laplace.
   Program Definition laplace' ε : distr (Z) :=
     MkDistr (λ z, laplace_f ε z / SeriesC (λ z, laplace_f ε z)) _ _ _.
   Next Obligation.
-    intros. rewrite /laplace_f.
+    intros.
     apply Rdiv_le_0_compat.
     - left. apply exp_pos.
     - eapply Rlt_le_trans; last eapply (SeriesC_ge_elem _ 0%Z).
@@ -2479,6 +2733,55 @@ Section laplace.
       erewrite (SeriesC_ext _ (λ b, if bool_decide (b=n-m)%Z then laplace' ε b else 0)); first by rewrite SeriesC_singleton_dependent.
       intros. repeat case_bool_decide; try lia; done.
   Qed.
+
+  Lemma laplace_mass ε loc :
+    SeriesC (laplace ε loc) = 1.
+  Proof.
+    rewrite /laplace/pmf/laplace'.
+    rewrite SeriesC_scal_r.
+    cut (SeriesC (λ z0 : Z, laplace_f ε (z0 - loc)) = SeriesC (λ z1 : Z, laplace_f ε z1)).
+    { intros ->. apply Rdiv_diag.
+      cut (0 < SeriesC (λ z0 : Z, laplace_f ε z0)) ; [lra|].
+      opose proof (ex_seriesC_laplace_f ε).
+      rewrite /laplace_f/laplace_f_nat.
+      rewrite -(@dzero_mass Z _ _).
+      apply SeriesC_lt.
+      -- intros. split.
+         ++ rewrite dzero_0. done.
+         ++ rewrite dzero_0. left. apply exp_pos.
+      -- simpl. exists 0%Z. rewrite dzero_0. apply exp_pos.
+      -- done.
+    }
+    apply SeriesC_translate.
+    { intros. rewrite /laplace_f/laplace_f_nat. left. apply exp_pos. }
+    apply ex_seriesC_laplace_f.
+  Qed.
+
+  Definition laplace_rat (num den loc : Z) (εpos : (0 < IZR num / IZR den)%R) : distr Z
+    := laplace (mkposreal (IZR num / IZR den) εpos) loc.
+
+  Lemma laplace_rat_pos (num den loc : Z) (εpos : (0 < IZR num / IZR den)%R) z :
+    laplace_rat num den loc εpos z > 0.
+  Proof.
+    rewrite /laplace_rat. rewrite /laplace. rewrite /pmf. rewrite /laplace'.
+    apply Rdiv_lt_0_compat.
+    - rewrite /laplace_f/laplace_f_nat. apply exp_pos.
+    - pose proof (ex_seriesC_laplace_f {| cond_pos := εpos |}).
+      rewrite /laplace_f/laplace_f_nat.
+      rewrite -(@dzero_mass Z _ _). apply SeriesC_lt.
+      + intros. split.
+        * rewrite dzero_0. done.
+        * rewrite dzero_0. left. apply exp_pos.
+      + simpl. exists 0%Z. rewrite dzero_0. apply exp_pos.
+      + assumption.
+  Qed.
+
+  Corollary laplace_rat_mass num den loc (εpos : (0 < IZR num / IZR den)%R) :
+    SeriesC (laplace_rat num den loc εpos) = 1.
+  Proof.
+    apply laplace_mass.
+  Qed.
+
 End laplace.
 
 Ltac inv_distr :=
@@ -2500,6 +2803,7 @@ Ltac solve_distr :=
         apply dmap_pos; eexists; (split; [done|]); try done
     | |- (dunifP _).(pmf) _ > 0 => apply dunifP_pos
     | |- (dunifv _ _).(pmf) _ > 0 => apply dunifv_pos
+    | |- (laplace_rat _ _ _ _).(pmf) _ > 0 => apply laplace_rat_pos
     end.
 
 Ltac solve_distr_mass :=
@@ -2510,6 +2814,7 @@ Ltac solve_distr_mass :=
   | |- SeriesC (dunif _).(pmf) = 1 => rewrite dunif_mass //
   | |- SeriesC (dunifP _).(pmf) = 1 => rewrite dunifP_mass //
   | |- SeriesC (dunifv _ _).(pmf) = 1 => rewrite dunifv_mass //
+  | |- SeriesC (laplace_rat _ _ _ _).(pmf) = 1 => rewrite laplace_rat_mass //
   end .
 
 Ltac inv_dzero :=

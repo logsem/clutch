@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap fin_sets.
 From clutch.prelude Require Import stdpp_ext NNRbar fin uniform_list.
 From clutch.prob Require Import distribution couplings couplings_app.
@@ -166,7 +166,7 @@ Proof.
     apply map_Forall_insert_2; auto.
     apply lookup_union_Some in Hix; last first.
     { eapply heap_array_map_disjoint;
-        rewrite replicate_length Z2Nat.id; auto with lia. }
+        rewrite length_replicate Z2Nat.id; auto with lia. }
     destruct Hix as [(?&?&?&[-> Hlt%inj_lt]%lookup_replicate_1)%heap_array_lookup|
                       [j Hj]%elem_of_map_to_list%elem_of_list_lookup_1].
     + simplify_eq/=. rewrite !Z2Nat.id in Hlt; eauto with lia.
@@ -581,9 +581,9 @@ Proof.
   by eapply head_step_get_active.
 Qed.
 
-Lemma det_head_step_upd_tapes N e1 σ1 e2 σ2 efs α z zs :
+Lemma det_head_step_upd_tapes N e1 (σ1 : state) e2 σ2 efs (α : loc) z zs :
   det_head_step_rel e1 σ1 e2 σ2 efs →
-  tapes σ1 !! α = Some (N; zs) →
+  tapes σ1 !! α = Some ((N; zs) : tape) →
   det_head_step_rel
     e1 (state_upd_tapes <[α := (N; zs ++ [z])]> σ1)
     e2 (state_upd_tapes <[α := (N; zs ++ [z])]> σ2) efs.
@@ -598,7 +598,7 @@ Proof.
 Qed.
 
 Lemma upd_tape_some σ α N n ns :
-  tapes σ !! α = Some (N; ns) →
+  tapes σ !! α = Some ((N; ns) : tape) →
   tapes (state_upd_tapes <[α:= (N; ns ++ [n])]> σ) !! α = Some (N; ns ++ [n]).
 Proof.
   intros H. rewrite /state_upd_tapes /=. rewrite lookup_insert //.
@@ -670,8 +670,8 @@ Proof.
   by rewrite lookup_insert_ne.
 Qed.
 
-Lemma prim_step_empty_tape σ α (z:Z) K N :
-  (tapes σ) !! α = Some (N; []) -> prim_step (fill K (rand(#lbl:α) #z)) σ = prim_step (fill K (rand #z)) σ.
+Lemma prim_step_empty_tape σ  α (z:Z) K N :
+  (tapes σ) !! α = Some ((N; []) : tape) -> prim_step (fill K (rand(#lbl:α) #z)) σ = prim_step (fill K (rand #z)) σ.
 Proof.
   intros H.
   rewrite !fill_dmap; [|done|done].
@@ -828,6 +828,31 @@ Proof.
   - exfalso. apply H0. apply H. simpl in *. lra.
   - rewrite -H'. lra.
 Qed.
+
+Definition empty_lists_state σ:= forall α ls, σ.(tapes)!!α=Some ls -> ∃ N, ls = ((N; []) : tape).
+                                   
+Lemma prim_step_empty_tape_preserve e σ:
+  empty_lists_state σ -> forall e' σ' efs, prim_step e σ (e', σ', efs) > 0 -> empty_lists_state σ'.
+Proof.
+  simpl.
+  intros Hempty ??? H.
+  rewrite /prim_step/= in H.
+  destruct (decomp e) as [? e1] eqn : Heqn.
+  rewrite Heqn in H.
+  apply dmap_pos in H as (([? s]&?)&?&?).
+  simpl in *. simplify_eq.
+  destruct (det_or_prob_or_dzero e1 σ) as [H'|[H'|]].
+  - rewrite /empty_lists_state in Hempty *.
+    replace (tapes s) with (tapes σ); first done.
+    inversion H'; subst; simpl in *; repeat case_match; by inv_distr.
+  - rewrite /empty_lists_state in Hempty *; inversion H'; subst; simpl in *; repeat case_match; inv_distr; simpl; intros ? ?; try rewrite lookup_insert_Some; try naive_solver.
+    + apply Hempty in H1. naive_solver.
+    + apply Hempty in H. naive_solver.
+    + apply Hempty in H2. naive_solver.
+  - rewrite H in H0. inv_distr.
+Qed.
+
+(* Show a coupling between taking steps of an empty tape state, and one whic has no tapes *)
   
 
 (** * commenting out couplings atm *)
@@ -1580,12 +1605,12 @@ Qed.
 (*           + intros v1 v2 Hf. *)
 (*             apply vec_to_list_inj2. *)
 (*             apply Hinj; last done. *)
-(*             * by rewrite vec_to_list_length. *)
-(*             * by rewrite vec_to_list_length. *)
+(*             * by rewrite length_vec_to_list. *)
+(*             * by rewrite length_vec_to_list. *)
 (*         - pose proof K a as [v K']. *)
 (*           subst. *)
 (*           exists (vec_to_list v). split; last done. *)
-(*           apply vec_to_list_length. *)
+(*           apply length_vec_to_list. *)
 (*       } *)
 (*       rewrite (SeriesC_subset (λ x', x' = x)). *)
 (*       * rewrite SeriesC_singleton_dependent. rewrite dmap_unfold_pmf. *)
@@ -1683,7 +1708,7 @@ Qed.
 (*                                   else 0)). *)
 (*         -- erewrite (SeriesC_ext _ (λ x : fin (S N), / S M * if bool_decide (x∈f<$> enum (fin (S M))) then 1 else 0)). *)
 (*            { rewrite SeriesC_scal_l. rewrite SeriesC_list_1. *)
-(*              - rewrite fmap_length. rewrite length_enum_fin. rewrite Rinv_l; first lra. *)
+(*              - rewrite length_fmap. rewrite length_enum_fin. rewrite Rinv_l; first lra. *)
 (*                replace 0 with (INR 0) by done. *)
 (*                move => /INR_eq. lia. *)
 (*              - apply NoDup_fmap_2; try done. *)

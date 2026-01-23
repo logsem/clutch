@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From Coquelicot Require Import Series Lim_seq Rbar Rcomplements.
 From stdpp Require Export countable sets.
 From clutch.prelude Require Import base Coquelicot_ext stdpp_ext classical.
@@ -296,6 +296,29 @@ Proof.
   intro; apply Rbar_mult_comm.
 Qed.
 
+Lemma Sup_seq_scal_l' (a:R) (u : nat -> R) :
+  0<=a -> is_finite (Sup_seq u) -> real (Sup_seq (λ n, a* u n)) = a* (real (Sup_seq u)).
+Proof.
+  intros H H'.
+  apply eq_rbar_finite'.
+  rewrite rmult_finite.
+  rewrite rbar_finite_real_eq; last done.
+  rewrite -Sup_seq_scal_l; last done.
+  apply Sup_seq_ext.
+  intros.
+  by rewrite rmult_finite.
+Qed.
+
+Lemma Sup_seq_scal_r' (a:R) (u : nat -> R) :
+  0<=a -> is_finite (Sup_seq u) -> real (Sup_seq (λ n, u n * a)) = (real (Sup_seq u)) * a.
+Proof.
+  intros.
+  rewrite Rmult_comm.
+  rewrite -Sup_seq_scal_l'; try done.
+  f_equal.
+  apply Sup_seq_ext. intros. rewrite Rmult_comm. done.
+Qed.
+
 Lemma sum_n_plus f g n:
   sum_n f n + sum_n g n = sum_n (λ x, f x + g x) n.
 Proof.
@@ -472,6 +495,19 @@ Fixpoint max_seq (f : nat -> nat) n :=
   | 0 => f 0%nat
   | S m => max (f (S m)) (max_seq f m)
   end.
+
+Lemma le_max_seq (f : nat -> nat) n m :
+  m ≤ n ->
+  f m ≤ max_seq f n.
+Proof.
+  intros Hleq.
+  induction Hleq.
+  - destruct m; simpl; [lia|].
+    apply Nat.le_max_l.
+  - simpl.
+    etrans; eauto.
+    apply Nat.le_max_r.
+Qed.
 
 Lemma sum_max_seq (f : nat -> R) h n `{Inj nat nat eq eq h}:
   (forall n, 0 <= f n) ->

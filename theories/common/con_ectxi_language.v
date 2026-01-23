@@ -1,7 +1,7 @@
 (** An axiomatization of CONCURRENT languages based on evaluation context items, including
     a proof that these are instances of general ectx-based CONCURRENT languages. *)
-From Coq Require Import Reals.
-From Coq.Program Require Import Wf.
+From Stdlib Require Import Reals.
+From Stdlib.Program Require Import Wf WfExtensionality.
 From iris.prelude Require Export prelude.
 From clutch.common Require Import con_language con_ectx_language.
 From clutch.prob Require Import distribution.
@@ -167,7 +167,7 @@ Section con_ectxi_language.
       | None => ([], e)
       end.
   Proof.
-    rewrite /decomp WfExtensionality.fix_sub_eq_ext /= -/decomp.
+    rewrite /decomp WfExtensionality .fix_sub_eq_ext /= -/decomp.
     repeat case_match; try done.
   Qed.
 

@@ -2,6 +2,7 @@ From clutch.eris Require Export eris.
 Import Hierarchy.
 
 From mathcomp Require ssrnat.
+#[warnings="-notation-incompatible-prefix"]
 From mathcomp Require Import div prime zmodp finset fintype ssrbool fingroup.fingroup solvable.cyclic.
 
 
@@ -196,7 +197,7 @@ Section miller_rabin_code.
         rewrite Z2Nat.id; last by lia.
         rewrite Hi2.
         f_equal. lia.
-      * rewrite seq_length. lia.
+      * rewrite length_seq. lia.
   Qed.
 
 
@@ -649,19 +650,21 @@ Section miller_rabin_code.
   Qed.
 
 
-  Lemma MR_round_composite_error_amplify (m t u : Z) (ε : nonnegreal) E :
+  Lemma MR_round_composite_error_amplify (m t u : Z) (ε : R) E :
     {{{ ⌜(1 < m)%Z /\ (0 <= t)%Z /\
           (m = 2^t * u + 1 /\ 0 <= u /\ Z.Odd u )%Z /\ ¬ Znumtheory.prime m ⌝ ∗
        ↯ ε }}}
       MR_round #m #t #u @ E
       {{{ (b : bool) , RET #b;
-          ⌜ (b = false) ⌝ ∨ ( ↯ (nnreal_mult (nnreal_nat 2) ε) ) }}}.
+          ⌜ (b = false) ⌝ ∨ ( ↯ (2*ε) ) }}}.
   Proof.
     iIntros (Φ) "((%Hm & %Ht & (%Heq & (%Hpos & %Hodd)) & %Hcomp )& Herr) HΦ".
     wp_rec.
     wp_pures.
     wp_bind (rand _)%E.
-    wp_apply (wp_rand_err_filter_adv _ _ (λ x, is_MR_nonwitness t u (1 + x)) ε (nnreal_mult (nnreal_nat 2) ε)); eauto.
+    iDestruct (ec_valid with "Herr") as "(%Hεpos & %Hεleq1)".
+    wp_apply (wp_rand_err_filter_adv _ _ (λ x, is_MR_nonwitness t u (1 + x)) ε (2*ε)); eauto.
+    { lra. }
     {
       replace (S (Z.to_nat (m - 2))) with (Z.to_nat (m-1)); last first.
       {
@@ -670,7 +673,7 @@ Section miller_rabin_code.
       }
       simpl.
       rewrite Rmult_assoc Rmult_comm Rmult_assoc.
-      apply Rmult_le_compat_l; [apply cond_nonneg| ].
+      apply Rmult_le_compat_l; [auto| ].
       pose proof (MR_witness_card m) as Haux.
       apply Rcomplements.Rle_div_r; [lra |].
       etrans; eauto.
@@ -738,8 +741,7 @@ Section miller_rabin_code.
       }
       simpl.
       split; [|lra].
-      apply Rmult_le_pos; [lra|].
-      apply cond_nonneg.
+      apply Rmult_le_pos; lra.
      }
       wp_pures.
       wp_bind (fast_mod_exp _ _ _).
@@ -809,7 +811,7 @@ Section miller_rabin_code.
 
   Lemma MR_main_composite_error (m : Z) E :
     {{{ ⌜ ¬ Znumtheory.prime m ⌝ ∗
-          ↯ (nnreal_div (nnreal_nat 1) (nnreal_nat 2))
+          ↯ (1/2)
     }}}
       MR_main #m @ E
       {{{ (b : bool) , RET #b;
@@ -904,7 +906,7 @@ Lemma MR_main_looped_correct_prime (m : Z) E :
 
   Lemma MR_main_looped_composite_error (m : Z) E :
     {{{ ⌜ ¬ Znumtheory.prime m ⌝ ∗
-          ↯ (nnreal_div (nnreal_nat 1) (nnreal_nat (2^num_iter)))
+          ↯ (1/(2^num_iter))
     }}}
       MR_main_looped #m @ E
       {{{ (b : bool) , RET #b;
@@ -948,20 +950,13 @@ Lemma MR_main_looped_correct_prime (m : Z) E :
           iDestruct "Hpost" as "[% |Herr]"; [done |].
           iApply (ec_eq with "[$Herr]").
           simpl.
-          rewrite Nat.add_0_r.
-          replace (2 ^ k + 2 ^ k)%nat with (2 * 2^k)%nat by lia.
-          do 2 rewrite Rmult_1_l.
-          rewrite mult_INR pow_INR /=.
-          rewrite Rinv_mult. lra.
+          rewrite Rmult_div_assoc.
+          rewrite Rmult_1_r.
+          rewrite Rdiv_mult_distr.
+          rewrite Rdiv_diag; lra.
         * wp_pures. iApply "HΦ"; auto.
   Qed.
 
 
 
 End miller_rabin_code.
-
-
-
-
-
-

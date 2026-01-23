@@ -208,11 +208,11 @@ Section impl2.
 Lemma incr_counter_spec2 N E c γ1 (Q:_-> _->nat->nat->iProp Σ)  :
     ↑N⊆E ->
     {{{ is_counter2 N c γ1 ∗
-        |={E, ∅}=>
+        |={E∖↑N, ∅}=>
           (∃ ε (ε2 : fin 4%nat -> R),
               ↯ ε ∗ ⌜(∀ x, 0<=ε2 x)%R⌝∗
               ⌜(SeriesC (λ n, 1 / 4 * ε2 n)%R <= ε)%R ⌝ ∗
-              (∀ n, ↯ (ε2 n) ={∅, E}=∗
+              (∀ n, ↯ (ε2 n) ={∅, E∖↑N}=∗
           (∀ (z:nat), own γ1 (●F z) ={E∖↑N}=∗
                     own γ1 (●F (z+n)%nat) ∗ Q ε ε2 z n)))
     }}}
@@ -227,7 +227,8 @@ Lemma incr_counter_spec2 N E c γ1 (Q:_-> _->nat->nat->iProp Σ)  :
     iAssert (state_update E E (∃ n, (flip_tapes (L:=L) α (expander ([fin_to_nat n])) ∗ ⌜Forall (λ x, x<4) ([fin_to_nat n])⌝) ∗
                               ∃ ε ε2, (∀ z : nat, own γ1 (●F z) ={E ∖ ↑N}=∗ own γ1 (●F (z + n)) ∗ Q ε ε2 z n)
             ))%I with "[Hvs Htape]" as ">(%n & (Htape&%) &%&%&Hvs)".
-    { iMod "Hvs" as "(%&%&?&%&%&Hvs)".
+    { iApply state_update_mono_fupd'; last iMod "Hvs" as "(%&%&?&%&%&Hvs)".
+      { by apply namespaces.coPset_subseteq_difference_l. }
       iMod (counter_tapes_presample2 with "[$][Htape][$]") as "(%&?&(?&%))"; [try done..|].
       - simpl. iFrame. iPureIntro. by rewrite Forall_nil.
       - iMod ("Hvs" with "[$]").

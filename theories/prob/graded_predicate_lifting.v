@@ -1,5 +1,5 @@
-From Coq Require Import Reals Psatz.
-From Coq.ssr Require Import ssreflect ssrfun.
+From Stdlib Require Import Reals Psatz.
+From Stdlib.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements.
 From stdpp Require Export countable.
 From clutch.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
@@ -430,7 +430,7 @@ Section ub_instances.
       rewrite SeriesC_0; auto.
       apply Rdiv_le_0_compat; [lra |].
       apply (Rle_lt_trans _ n); [apply pos_INR | lra].
-    - rewrite cons_length.
+    - rewrite length_cons.
       assert (S (length l) / (n + 1) = 1 / (n + 1) + (length l) / (n + 1)) as ->.
       {
         rewrite -Rdiv_plus_distr //.
@@ -460,7 +460,7 @@ Section ub_instances.
       rewrite SeriesC_0; auto.
       apply Rdiv_le_0_compat; [lra |].
       apply (Rle_lt_trans _ n); [apply pos_INR | lra].
-    - rewrite cons_length.
+    - rewrite length_cons.
       assert (S (length l) / (n + 1) = 1 / (n + 1) + (length l) / (n + 1)) as ->.
       {
         rewrite -Rdiv_plus_distr //.

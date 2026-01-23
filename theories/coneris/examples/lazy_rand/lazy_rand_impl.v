@@ -219,9 +219,10 @@ Section impl.
       lazy_rand_spec:=lazy_rand_spec_impl
     |}
   .
-  Next Obligation.
-    intros [[]|]?; rewrite /rand_auth/=; apply _.
-  Qed.
+  (* Next Obligation. *)
+  (*   intros ???. *)
+  (*   intros [[]|]?; rewrite /rand_auth/=; apply _. *)
+  (* Qed. *)
   Next Obligation.
     rewrite /rand_tape_frag/=.
     iIntros (???) "?".

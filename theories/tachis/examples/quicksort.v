@@ -2,13 +2,13 @@
 From clutch.tachis Require Import ert_weakestpre lifting ectx_lifting primitive_laws expected_time_credits cost_models problang_wp proofmode ert_rules.
 From clutch.common Require Import inject.
 From iris.proofmode Require Export tactics.
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 From stdpp Require Import sorting.
-Require Coq.Program.Tactics.
-Require Coq.Program.Wf.
+From Stdlib.Program Require Tactics.
+From Stdlib.Program Require Import Wf WfExtensionality.
 
 Set Default Proof Using "Type*".
-Require Import Lra.
+From Stdlib Require Import Lra.
 
 
 Section log_lib.
@@ -227,8 +227,8 @@ Section sorting.
   Proof.
     induction N as [|N' IH].
     - simpl. constructor.
-    - rewrite /reverse_order seq_length.
-      rewrite /reverse_order seq_length in IH.
+    - rewrite /reverse_order length_seq.
+      rewrite /reverse_order length_seq in IH.
       rewrite {2}index_space_cons fmap_cons.
       rewrite {1}index_space_snoc.
       rewrite -Permutation_cons_append.
@@ -252,7 +252,7 @@ Section sorting.
   Proof.
     induction L as [|L' LS IH] using rev_ind.
     - by rewrite /= index_space_emp /=.
-    - rewrite app_length /= Nat.add_1_r index_space_snoc.
+    - rewrite length_app /= Nat.add_1_r index_space_snoc.
       rewrite fmap_app /=.
       apply Permutation_app.
       + rewrite -{3}IH.
@@ -287,18 +287,18 @@ Section sorting.
 
     induction L as [|L0 L' IH] using rev_ind.
     - rewrite /= index_space_emp. done.
-    - rewrite app_length /= Nat.add_1_r index_space_snoc.
-      rewrite IH; [ | eapply NoDup_app_remove_r, HU |eapply StronglySorted_app_inv_l, HS'].
+    - rewrite length_app /= Nat.add_1_r index_space_snoc.
+      rewrite IH; [ | eapply NoDup_app_remove_r, HU |eapply StronglySorted_app_1_l, HS'].
       clear IH.
       rewrite fmap_app.
       f_equal.
       + apply list_fmap_ext.
         intros i x Hi.
         rewrite /rank.
-        rewrite List.filter_app app_length /=.
+        rewrite List.filter_app length_app /=.
         rewrite bool_decide_false; [rewrite /=; lia| ].
         assert (R x L0).
-        { eapply elem_of_StronglySorted_app; eauto.
+        { eapply StronglySorted_app_1_elem_of; eauto.
           - eapply elem_of_list_lookup_2. eauto.
           - by apply elem_of_list_singleton.
         }
@@ -319,14 +319,14 @@ Section sorting.
           -- replace (L'0 :: L's ++ [L0]) with ([L'0] ++ (L's ++ [L0])); last by simpl.
             rewrite /rank.
             symmetry.
-            rewrite List.filter_app app_length.
+            rewrite List.filter_app length_app.
             replace (length (List.filter (λ y : A, bool_decide (strict R y L0)) [L'0]) )
               with 1; [lia|].
             simpl.
             rewrite bool_decide_true; [done|].
 
             apply strict_spec_alt; split.
-            --- eapply elem_of_StronglySorted_app; first eapply HS'; apply elem_of_list_here.
+            --- eapply StronglySorted_app_1_elem_of; first eapply HS'; apply elem_of_list_here.
             --- rewrite /not.
                 intros ->.
                 apply NoDup_remove in HU.
@@ -1063,7 +1063,7 @@ Section list.
           iExists e, (inject ((a :: l1) ++ l2)), (a :: l1), l2.
           iPureIntro.
           split; auto.
-          split; [rewrite cons_length Hlen // |].
+          split; [rewrite length_cons Hlen // |].
           split.
           * by apply is_list_inject in Hcons as ->.
           * by apply is_list_inject.
@@ -1103,7 +1103,7 @@ Section list.
         do 7 (wp_pure _).
         fold list_filter.
         iAssert (⧖ k ∗ ⧖ (k * length t))%I with "[H⧖]" as "(H⧖ & H⧖IH)".
-        { rewrite cons_length S_INR Rmult_plus_distr_l Rmult_1_r Rplus_comm.
+        { rewrite length_cons S_INR Rmult_plus_distr_l Rmult_1_r Rplus_comm.
           iApply etc_split; eauto.
           apply Rmult_le_pos; auto.
           apply pos_INR.
@@ -1244,7 +1244,8 @@ Section program.
 
     wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _ (tc_distr _ xs (2 * k) 0%R) with "[$]").
     { intros. apply tc_distr_nonneg; try lia; try lra; eauto. }
-    { rewrite /= tc_distr_equiv; try lra; try lia; try done.
+
+    { erewrite tc_distr_equiv; try lra; try lia; try done.
       rewrite Rplus_0_l. rewrite index_space_unfold. done. }
 
     iIntros (ip) "H⧖"...
@@ -1292,7 +1293,7 @@ Section program.
         + apply Rmult_le_compat_l; try lra.
           rewrite Hxs.
           apply le_INR.
-          do 2 rewrite app_length.
+          do 2 rewrite length_app.
           simpl. lia.
     }
     iIntros (rv) "%Hrv".
@@ -1314,7 +1315,7 @@ Section program.
         + apply Rmult_le_compat_l; try lra.
           rewrite Hxs.
           apply le_INR.
-          do 2 rewrite app_length.
+          do 2 rewrite length_app.
           simpl. lia.
     }
     iIntros (lv) "%Hlv".
@@ -1334,7 +1335,7 @@ Section program.
 
       iApply etc_irrel; [|iFrame].
       f_equal.
-      rewrite /reverse_order /index_space seq_length.
+      rewrite /reverse_order /index_space length_seq.
       rewrite /index_to_rank /rank /=.
       rewrite {14}Hxs.
 
@@ -1344,7 +1345,7 @@ Section program.
       apply Nat.add_sub_eq_l.
       replace (length (@List.filter A (fun y : A => @bool_decide (strict f y _) _) _))
          with (length (List.filter (∽ (λ x : A, (bool_decide (f xp x))))%P (xsL ++ xsR))); last first.
-      { do 2 rewrite List.filter_app app_length /=.
+      { do 2 rewrite List.filter_app length_app /=.
         replace(@bool_decide _ _) with false; last first.
         { symmetry; apply bool_decide_eq_false_2.
           replace (@lookup_total _ _ _ _ _ _) with xp; last first.
@@ -1416,7 +1417,7 @@ Section program.
       rewrite Nat.add_comm.
       rewrite (List.filter_length (λ x : A, bool_decide (f xp x))).
       rewrite Hxs.
-      repeat rewrite app_length /=.
+      repeat rewrite length_app /=.
       lia.
     }
     iIntros (lR) "(% & % & %Hp1 & %)".
@@ -1437,7 +1438,7 @@ Section program.
         f_equal.
         rewrite /index_to_rank /rank /=.
         rewrite {13}Hxs.
-        do 2 rewrite List.filter_app app_length /=.
+        do 2 rewrite List.filter_app length_app /=.
         replace(@bool_decide _ _) with false; last first.
         { symmetry; apply bool_decide_eq_false_2.
           replace (@lookup_total _ _ _ _ _ _) with xp; last first.
@@ -1744,7 +1745,7 @@ Section ent_list.
           iExists e, (inject ((a :: l1) ++ l2)), (a :: l1), l2.
           iPureIntro.
           split; auto.
-          split; [rewrite cons_length Hlen // |].
+          split; [rewrite length_cons Hlen // |].
           split.
           * by apply is_list_inject in Hcons as ->.
           * by apply is_list_inject.
@@ -2067,7 +2068,7 @@ Section program_ent.
 
       iApply etc_irrel; [|iFrame].
       f_equal.
-      rewrite /reverse_order /index_space seq_length.
+      rewrite /reverse_order /index_space length_seq.
       rewrite /index_to_rank /rank /=.
       rewrite {14}Hxs.
 
@@ -2075,7 +2076,7 @@ Section program_ent.
       apply Nat.add_sub_eq_l.
       replace (length (@List.filter A (fun y : A => @bool_decide (strict f y _) _) _))
          with (length (List.filter (∽ (λ x : A, (bool_decide (f xp x))))%P (xsL ++ xsR))); last first.
-      { do 2 rewrite List.filter_app app_length /=.
+      { do 2 rewrite List.filter_app length_app /=.
         replace(@bool_decide _ _) with false; last first.
         { symmetry; apply bool_decide_eq_false_2.
           replace (@lookup_total _ _ _ _ _ _) with xp; last first.
@@ -2147,7 +2148,7 @@ Section program_ent.
       rewrite Nat.add_comm.
       rewrite (List.filter_length (λ x : A, bool_decide (f xp x))).
       rewrite Hxs.
-      repeat rewrite app_length /=.
+      repeat rewrite length_app /=.
       lia.
     }
     iIntros (lR) "(% & %)".
@@ -2168,7 +2169,7 @@ Section program_ent.
         f_equal.
         rewrite /index_to_rank /rank /=.
         rewrite {13}Hxs.
-        do 2 rewrite List.filter_app app_length /=.
+        do 2 rewrite List.filter_app length_app /=.
         replace(@bool_decide _ _) with false; last first.
         { symmetry; apply bool_decide_eq_false_2.
           replace (@lookup_total _ _ _ _ _ _) with xp; last first.

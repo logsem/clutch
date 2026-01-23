@@ -1,4 +1,4 @@
-(** * Union bound rules  *)
+(** * Coneris error bound rules rules  *)
 From stdpp Require Import namespaces finite fin_sets.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext.
@@ -399,14 +399,56 @@ Proof.
     + apply ex_seriesC_finite.
 Qed.
 
+
+(* TODO: Move somwhere else to avoid duplications *)
+
+#[local] Fixpoint Rmax_seq (f : nat -> R) n :=
+  match n with
+  | 0 => f 0%nat
+  | S m => Rmax (f (S m)) (Rmax_seq f m)
+  end.
+
+#[local] Lemma le_Rmax_seq (f : nat -> R) n m :
+  (m ≤ n) ->
+  (f m <= Rmax_seq f n)%R.
+Proof.
+  intros Hleq.
+  induction Hleq.
+  - destruct m; simpl; [lra|].
+    apply Rmax_l.
+  - simpl.
+    etrans; eauto.
+    apply Rmax_r.
+Qed.
+
+#[local] Lemma fin_function_bounded (N : nat) (f : fin N -> R) :
+  exists r, forall n, (f n <= r)%R.
+Proof.
+  induction N as [|M].
+  - exists 0.
+    intros.
+    by apply Fin.case0.
+  - set (g := (λ (n : nat), f (fin.fin_force _ n))).
+    exists (Rmax_seq g M).
+    intros n.
+    pose proof (fin_to_nat_lt n).
+    transitivity (g n).
+    + rewrite /g /=.
+      right.
+      f_equal.
+      apply fin_to_nat_inj.
+      rewrite fin.fin_force_to_nat_le; lia.
+    + apply le_Rmax_seq; lia.
+Qed.
+
 Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> R) :
   TCEq N (Z.to_nat z) →
-  (∀ n, (0<=ε2 n)%R) ->
-  (∃ r, ∀ n, (ε2 n <= r)%R) →
+  (∀ n, (0 <= ε2 n)%R) ->
   (SeriesC (λ n, (1 / (S N)) * ε2 n)%R = ε1)%R →
   {{{ ↯ ε1 }}} rand #z @ E {{{ n, RET #n; ↯ (ε2 n) }}}.
 Proof.
-  iIntros (-> Hineq (r & Hε2) Hε1 Ψ) "Herr HΨ".
+  iIntros (-> Hε2leq Hε1 Ψ) "Herr HΨ".
+  destruct (fin_function_bounded _ ε2) as [r Hε2].
   iApply wp_lift_step_fupd_glm.
   iIntros (σ1 ε_now) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
@@ -640,8 +682,7 @@ Proof.
     + done.
     + done.
     + by erewrite H2.
-    + eexists _; eapply H4.
-  - apply H2.
+    + apply H2.
   - done.
 Qed.
 
@@ -732,7 +773,7 @@ Proof.
             eapply is_seriesC_filter_union.
             2: { apply SeriesC_correct, ex_seriesC_finite. }
             intro; simpl; lra.
-          * rewrite cons_length S_INR /=.
+          * rewrite length_cons S_INR /=.
             assert (SeriesC (λ n : fin (S N), if bool_decide (fin_to_nat n = a) then 1 else 0) <= 1)%R as Haux2.
             {
               destruct (decide (a < S N)).
@@ -755,7 +796,7 @@ Proof.
             ** apply IHns.
                etrans; eauto.
                apply Rmult_le_compat_l; [lra |].
-               rewrite cons_length S_INR; lra.
+               rewrite length_cons S_INR; lra.
             **
               apply Rcomplements.Rle_minus_l.
               rewrite <- (Rplus_0_r) at 1.

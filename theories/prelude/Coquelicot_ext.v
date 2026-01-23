@@ -1,5 +1,5 @@
-From Coq Require Import Reals Psatz.
-From Coquelicot Require Import Rcomplements Rbar Series Lim_seq.
+From Stdlib Require Import Reals Psatz.
+From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Lub.
 From stdpp Require Import numbers.
 From clutch.prelude Require Import base Reals_ext.
 Import Hierarchy.
@@ -455,3 +455,73 @@ Proof.
   - by rewrite Rmult_0_r exp_0/=.
   - rewrite S_INR/=Rmult_plus_distr_l exp_plus IHn. rewrite Rmult_1_r. lra.
 Qed.
+
+Lemma Rbar_le_plus_epsilon:
+  ∀ r1 r2 : Rbar, (∀ eps : R, 0 < eps → Rbar_le r1 (Rbar_plus r2 eps)) → Rbar_le r1 r2.
+Proof.
+  intros r1 r2 Hr.
+  destruct r1 as [r1| |]; destruct r2 as [r2| |]; try done.
+  - simpl. apply Rle_plus_epsilon.
+    naive_solver.
+  - exfalso.
+    unshelve epose proof (Hr 1 _); [lra|done].
+  - exfalso.
+    unshelve epose proof (Hr 1 _); [lra|done].
+  - exfalso.
+    unshelve epose proof (Hr 1 _); [lra|done].
+Qed.
+
+
+Lemma Rbar_le_lub R S : (∀ r, R r -> ∀ ε, (ε > 0)%R -> ∃ r', r-ε<= r' /\ S r') ->
+                        Rbar_le (Lub_Rbar R) (Lub_Rbar S).
+Proof.
+  intros H.
+  apply Lub_Rbar_correct.
+  rewrite /is_ub_Rbar.
+  intros r Hr.
+  apply Rbar_le_plus_epsilon.
+  intros eps Heps.
+  replace eps with (- - eps) by lra.
+  apply Rbar_le_opp.
+  pose proof (H _ Hr eps Heps) as (r' & Hr' & Hs).
+  trans r'.
+  { simpl. lra. }
+  by apply Lub_Rbar_correct.
+Qed.
+
+Lemma finite_plus (r1 r2:R):
+  Finite (r1 + r2) = Rbar_plus r1 r2.
+Proof.
+  done.
+Qed. 
+
+Lemma lub_plus_const (r:R) R :
+  Rbar_plus (Lub_Rbar R) r = Lub_Rbar (λ x, ∃ y, R y /\ x =y+r).
+Proof.
+  symmetry.
+  apply is_lub_Rbar_unique.
+  split.
+  - intros ? [?[H ]]. subst.
+    simpl.
+    case_match eqn:Heqn; [|done|].
+    + rewrite -rbar_le_rle -Heqn finite_plus.
+      apply Rbar_plus_le_compat; last done.
+      pose proof Lub_Rbar_correct R as H0.
+      by apply H0.
+    + pose proof Lub_Rbar_correct R as H0.
+      apply H0 in H.
+      assert (Rbar_le (Rbar_plus (Lub_Rbar R) (Finite r)) m_infty) as Heqn'.
+      { by rewrite -Heqn. }
+      rewrite Rbar_le_opp/= in Heqn'.
+      eapply Rbar_le_trans in Heqn'; last apply H.
+      done.
+  - intros b ?.
+    rewrite Rbar_le_opp.
+    pose proof Lub_Rbar_correct R as H0.
+    apply H0.
+    intros ? HR.
+    rewrite -Rbar_le_opp.
+    apply H.
+    naive_solver.
+Qed. 
+    
