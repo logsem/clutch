@@ -3,7 +3,7 @@ From stdpp Require Import functions gmap stringmap fin_sets.
 From clutch.prelude Require Import stdpp_ext NNRbar fin uniform_list.
 From clutch.prob Require Import distribution couplings couplings_app.
 From clutch.common Require Import ectx_language.
-From clutch.delay_prob_lang Require Import tactics notation.
+From clutch.delay_prob_lang Require Import tactics notation urn_subst.
 From clutch.delay_prob_lang Require Export lang.
 From clutch.prob Require Import distribution couplings.
 From iris.prelude Require Import options.
@@ -688,6 +688,11 @@ with is_well_constructed_val v :=
   | InjRV v => is_well_constructed_val v
              end
 .
+
+Lemma is_well_constructed_expr_false e f:
+  is_well_constructed_expr e = false -> urn_subst_expr f e = None.
+Proof.
+Admitted. 
 
 (** * remove drand *)
 Fixpoint remove_drand_expr e:=

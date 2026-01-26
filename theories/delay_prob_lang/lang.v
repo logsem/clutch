@@ -71,6 +71,9 @@ with val :=
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
+Scheme expr_mut := Induction for expr Sort Prop
+    with val_mut := Induction for val Sort Prop.
+
 Notation of_val := Val (only parsing).
 
 Definition to_val (e : expr) : option val :=
@@ -1064,67 +1067,6 @@ Section urn.
                          end
                         )
     end.
-
-  Fixpoint expr_urn_subst (f: gmap loc nat) e :=
-    match e with
-    | Val v => v' ← val_urn_subst f v; Some $ Val v'
-    | Var x => Some $ Var x
-    | Rec f' x e => e' ← (expr_urn_subst f e);
-                   Some $ Rec f' x e'
-    | App e1 e2 => e1' ← (expr_urn_subst f e1);
-                   e2' ← (expr_urn_subst f e2);
-                   Some $ App e1' e2'
-    | UnOp op e => e' ← (expr_urn_subst f e);
-                   Some $ UnOp op e'
-    | BinOp op e1 e2 => e1' ← (expr_urn_subst f e1);
-                        e2' ← (expr_urn_subst f e2);
-                        Some $ BinOp op e1' e2'
-    | If e0 e1 e2 => e0' ← (expr_urn_subst f e0);
-                     e1' ← (expr_urn_subst f e1);
-                     e2' ← (expr_urn_subst f e2);
-                     Some $ If e0' e1' e2'
-    | Pair e1 e2 => e1' ← (expr_urn_subst f e1);
-                    e2' ← (expr_urn_subst f e2);
-                    Some $ Pair e1' e2'
-    | Fst e => e' ← (expr_urn_subst f e);
-               Some $ Fst e'
-    | Snd e => e' ← (expr_urn_subst f e);
-               Some $ Snd e'
-    | InjL e => e' ← (expr_urn_subst f e);
-               Some $ InjL e'
-    | InjR e => e' ← (expr_urn_subst f e);
-               Some $ InjR e'
-    | Case e0 e1 e2 => e0' ← (expr_urn_subst f e0);
-                       e1' ← (expr_urn_subst f e1);
-                       e2' ← (expr_urn_subst f e2);
-                       Some $ Case e0' e1' e2'
-    | AllocN e1 e2 => e1' ← (expr_urn_subst f e1);
-                        e2' ← (expr_urn_subst f e2);
-                        Some $ AllocN e1' e2'
-    | Load e => e' ← (expr_urn_subst f e);
-               Some $ Load e'
-    | Store e1 e2 => e1' ← (expr_urn_subst f e1);
-                        e2' ← (expr_urn_subst f e2);
-                        Some $ Store e1' e2'
-    | Rand e => e' ← (expr_urn_subst f e);
-               Some $ Rand e'
-    | DRand e => e' ← (expr_urn_subst f e);
-               Some $ DRand e'
-    end
-  with val_urn_subst f v : option val :=
-         match v with
-         | LitV l => l'←urn_subst f l;
-                     Some $ LitV l'
-         | RecV f' x e => e' ← expr_urn_subst f e;
-                          Some $ RecV f' x e'   
-         | PairV v1 v2 => v1' ← (val_urn_subst f v1);
-                          v2' ← (val_urn_subst f v2);
-                          Some $ PairV v1' v2'
-         | InjLV v => v'←val_urn_subst f v;
-                     Some $ InjLV v'
-         | InjRV v => v'←val_urn_subst f v;
-                     Some $ InjRV v'
-         end.
 
   Definition urns_support_set (m:gmap loc urn):=
     filter (λ l, m!!l≠Some ∅) (dom m).

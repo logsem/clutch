@@ -1,4 +1,4 @@
-From Stdlib Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz Classical.
 From Stdlib.ssr Require Import ssreflect.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Export countable finite.
@@ -120,7 +120,14 @@ Section distributions.
     f_equal; apply proof_irrelevance.
   Qed.
 
-
+  Lemma is_finite_Sup_seq_distr (f: nat -> distr A) (a:A):
+    is_finite (Sup_seq (λ n, f n a)).
+  Proof.
+    apply (Rbar_le_sandwich 0 1).
+    * by (apply (Sup_seq_minor_le _ _ 0%nat); simpl). 
+    * by (apply upper_bound_ge_sup; simpl).
+  Qed.
+  
   Lemma distr_ext_pmf (d1 d2 : distr A) :
     d1.(pmf)  = d2.(pmf) → d1 = d2.
   Proof.
@@ -755,6 +762,41 @@ Section monadic.
         real_solver.
   Qed.
 
+  
+  Lemma dbind_Sup_seq (f: nat -> A -> distr B) (f': A -> distr B) (μ:distr A) (b:B):
+    (∀ a, is_sup_seq (λ n, f n a b) (f' a b)) ->
+    (∀ n a, f n a b <= f (S n) a b) ->
+    (μ ≫= f') b = Sup_seq (λ n, (μ≫= λ a, f n a) b).
+  Proof.
+    intros H1 H2.
+    rewrite {1}/dbind{1}/dbind_pmf{1}/pmf.
+    trans (SeriesC (λ a, μ a * Sup_seq (λ n, f n a b))).
+    { apply SeriesC_ext.
+      intros a. f_equal.
+      pose proof H1 a.
+      symmetry.
+      apply eq_rbar_finite'.
+      by apply: is_sup_seq_unique.
+    }
+    trans (SeriesC (λ a, Sup_seq (λ n, μ a *  f n a b))).
+    { apply SeriesC_ext.
+      intros a.
+      apply eq_rbar_finite.
+      rewrite rmult_finite.
+      rewrite rbar_finite_real_eq; last apply is_finite_Sup_seq_distr.
+      by rewrite -Sup_seq_scal_l.
+    }
+    eapply MCT_seriesC.
+    - real_solver.
+    - intros. apply Rmult_le_compat_l; naive_solver.
+    - intros. exists 1. real_solver.
+    - intros. apply SeriesC_correct.
+      apply pmf_ex_seriesC_mult_fn.
+      naive_solver.
+    - rewrite rbar_finite_real_eq; first apply: Sup_seq_correct.
+      apply is_finite_Sup_seq_distr.
+  Qed.
+  
 End monadic.
 
 Section probabilities.
@@ -844,6 +886,41 @@ Section probability_lemmas.
     - by apply ex_seriesC_filter_bool_pos.
     - by apply ex_seriesC_filter_bool_pos.
   Qed.
+
+  Lemma prob_Sup_seq (μ: distr A) (μ': nat -> distr A) ϕ:
+    (∀ a, is_sup_seq (λ n, μ' n a) (μ a)) ->
+    (∀ n a, μ' n a <= μ' (S n) a) ->
+    prob μ ϕ = Sup_seq (λ n, prob (μ' n) ϕ).
+  Proof.
+    rewrite /prob.
+    intros H1 H2.
+    trans (SeriesC (λ a, Sup_seq (λ n, if ϕ a then μ' n a else 0))).
+    { apply SeriesC_ext.
+      intros a.
+      case_match.
+      - apply eq_rbar_finite.
+        symmetry.
+        by apply is_sup_seq_unique.
+      - by rewrite sup_seq_const.
+    }
+    eapply MCT_seriesC.
+    - intros. by case_match.
+    - intros. case_match; naive_solver.
+    - intros. exists 1. intros. case_match; [naive_solver|lra].
+    - intros.
+      apply SeriesC_correct.
+      by apply ex_seriesC_filter_bool_pos.
+    - rewrite rbar_finite_real_eq; first apply Sup_seq_correct.
+      apply (Rbar_le_sandwich 0 1).
+      + (apply (Sup_seq_minor_le _ _ 0%nat); simpl).
+        apply SeriesC_ge_0'. intros. by case_match.
+      + (apply upper_bound_ge_sup; simpl).
+        intros.
+        trans (SeriesC (μ' n)); last done.
+        apply SeriesC_le; last done.
+        intros.
+        by case_match.
+  Qed.    
 
 End probability_lemmas.
 
@@ -2802,8 +2879,13 @@ Section proj_Some.
       + intros. simplify_eq.
         rewrite dret_1_1; [lra|done].
     - rewrite dzero_0; split; [lra|done].
+  Qed.
+
+  Lemma d_proj_Some_None :
+    d_proj_Some None = dzero.
+  Proof.
+    done.
   Qed. 
-  
   End proj_Some.
 
 Ltac inv_distr :=
