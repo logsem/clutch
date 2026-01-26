@@ -33,9 +33,92 @@ Section adequacy.
     }
     by iIntros (?) "/=".
   Qed.
+
+  
+  Theorem wp_elton_adequacy_val (ε: nonnegreal) e σ ϕ n m (v:val):
+    to_val e = Some v ->
+    is_well_constructed_expr e = true ->
+    expr_support_set e ⊆ urns_support_set (urns σ) ->
+    map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
+    map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
+    state_interp σ ∗ err_interp (ε) ∗ WP e {{ rupd ⊤ ∅ ϕ }} ⊢
+    |={⊤,∅}=> ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
+                       d_proj_Some (urn_subst_expr f e) ≫= λ e',
+                         d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
+                           exec n (e', {|heap:=hm; urns:=m|})) ϕ ε⌝.
+  Proof.
+    iIntros (<-%of_to_val He Hset Hforall1 Hforall2) "(?&?&Hwp)".
+    rewrite pgl_wp_unfold/pgl_wp_pre.
+    iMod ("Hwp" with "[$]") as "H"; simpl.
+    iRevert (Hset Hforall1 Hforall2).
+    iRevert "H".
+    iRevert (σ ε).
+    iApply state_step_coupl_ind.
+    iModIntro.
+    iIntros (??) "[%|[H|[H|H]]] %Hset %Hforall1 %Hforall2".
+    - iPureIntro. by apply pgl_1.
+    - iMod "H" as "(?&?&H)".
+      rewrite rupd_unseal/rupd_def.
+      iMod ("H" with "[$]") as "%Hsubst".
+      iPureIntro.
+      apply pgl_dbind'; first done; intros ? H1.
+      apply pgl_dbind'; first done; intros ? H2.
+      apply pgl_dbind'; first done; intros ? H3.
+      inv_distr.
+      unshelve epose proof Hsubst _ _ as (?&?&?); [|by apply urns_f_distr_pos|].
+      rewrite bind_Some in H2. destruct!/=.
+      erewrite exec_is_final; last done.
+      eapply pgl_mon_grading; last apply pgl_dret; done.
+    - iApply (fupd_mono _ _ (⌜_⌝)%I).
+      { iPureIntro.
+        intros H'.
+        apply pgl_epsilon_limit; last exact.
+        by apply Rle_ge. 
+      }
+      iIntros (ε' ?).
+      unshelve iDestruct ("H" $! (mknonnegreal ε' _) with "[]") as "[H _]"; last first. 
+      + by iApply "H".
+      + done.
+      + pose proof cond_nonneg ε. lra.
+    - admit. 
+  Admitted. 
+
+  Theorem wp_elton_adequacy (ε: nonnegreal) e σ ϕ n m :
+    is_well_constructed_expr e = true ->
+    expr_support_set e ⊆ urns_support_set (urns σ) ->
+    map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
+    map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
+    state_interp σ ∗ err_interp (ε) ∗ WP e {{ rupd ⊤ ∅ ϕ }} ⊢
+    |={⊤,∅}=> |={∅}▷=>^n
+               ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
+                       d_proj_Some (urn_subst_expr f e) ≫= λ e',
+                         d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
+                           exec n (e', {|heap:=hm; urns:=m|})) ϕ ε⌝.
+  Proof.
+    iIntros (He Hsubset Hforall1 Hforall2).
+    iInduction n as [|n] "IH" forall (e σ ε He Hsubset Hforall1 Hforall2);
+      iIntros "((Hσh & Hσt) & Hε & Hwp)".
+    - destruct (to_val e) eqn:Heqn.
+      + apply of_to_val in Heqn as <-.
+        iApply wp_elton_adequacy_val; [done..|iFrame].
+      + iApply fupd_mask_intro; first set_solver.
+        iIntros.
+        iPureIntro.
+        replace (dbind _ _) with (dzero: distr val); first (apply pgl_dzero, Rle_ge, cond_nonneg).
+        symmetry.
+        apply dbind_dzero_strong.
+        intros ? H1.
+        apply dbind_dzero_strong.
+        intros ? H2.
+        apply dbind_dzero_strong.
+        intros ? H3.
+        simpl.
+        inv_distr.
+        by erewrite urn_subst_expr_not_val.
+    - admit. 
+  Admitted. 
   
 End adequacy.
-
 
 Class eltonGpreS Σ := EltonGpreS {
   eltonGpreS_iris  :: invGpreS Σ;
@@ -54,6 +137,7 @@ Proof. solve_inG. Qed.
 Theorem elton_adequacy_stratified Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R) m ϕ n:
   is_well_constructed_expr e = true ->
   expr_support_set e ⊆ urns_support_set (urns σ) ->
+  map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
   map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
   (0<=ε)%R ->
   (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ rupd ⊤ ∅ ϕ }}) ->
@@ -63,11 +147,32 @@ Theorem elton_adequacy_stratified Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R)
             exec n (e', {|heap:=hm; urns:=m|})) ϕ ε
 .
 Proof.
-Admitted. 
+  intros Htrue Hsubset Hforall1 Hforall2 Hε Hwp.
+  eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
+  iIntros (Hinv) "_".
+  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
+  iMod (ghost_map_alloc σ.(urns)) as "[%γU [Hu _]]".
+  destruct (decide (ε < 1)) as [Hcr|Hcr]; last first.
+  { iClear "Hh Hu".
+    iApply (fupd_mask_intro); [eauto|].
+    iIntros "_".
+    iApply step_fupdN_intro; [eauto|].
+    iApply laterN_intro; iPureIntro.
+    apply not_Rlt, Rge_le in Hcr.
+    rewrite /pgl; intros.
+    eapply Rle_trans; [eapply prob_le_1|done]. }
+  set ε' := mknonnegreal _ Hε.
+  iMod (ec_alloc ε') as (?) "[? ?]"; [done|].
+  set (HeltonGS := HeapG Σ _ _ _ γH γU _).
+  iApply (wp_elton_adequacy ε'); try done.
+  iFrame.
+  by iApply Hwp.
+Qed. 
 
 Theorem elton_adequacy_with_conditions Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R) m ϕ:
   is_well_constructed_expr e = true ->
   expr_support_set e ⊆ urns_support_set (urns σ) ->
+  map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
   map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
   (0<=ε)%R ->
   (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ rupd ⊤ ∅ ϕ }}) ->
@@ -182,6 +287,23 @@ Proof.
     rewrite expr_support_set_not_support.
     - rewrite d_proj_Some_None. by rewrite dbind_dzero.
     - by rewrite -H'.
+  }
+  destruct (decide (map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ))); last first.
+  {
+    erewrite (distr_ext _ _); first (apply pgl_dzero; lra).
+    simpl.
+    intros ?.
+    rewrite dzero_0.
+    erewrite dbind_eq; [by erewrite dzero_dbind| |done].
+    simpl. intros f.
+    rewrite urns_f_distr_pos.
+    intros H'%urns_f_valid_support.
+    erewrite dbind_eq; [by erewrite dzero_dbind| |done].
+    intros ?.
+    intros.
+    simpl.
+    rewrite heap_not_well_constructed; last done. 
+    rewrite d_proj_Some_None. by rewrite dbind_dzero.
   }
   destruct (decide (  map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ))); first by eapply elton_adequacy_with_conditions.
   erewrite (distr_ext _ _); first (apply pgl_dzero; lra).

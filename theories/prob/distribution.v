@@ -1995,6 +1995,20 @@ Section dzero.
     (a ← dzero; f a) = dzero.
   Proof. apply distr_ext, dbind_dzero_pmf. Qed.
 
+  Lemma dbind_dzero_strong `{Countable B} (μ : distr A) (f : A → distr B):
+    (∀ a, μ a > 0 -> f a = dzero) ->
+    (a ← μ; f a) = dzero.
+  Proof.
+    intros H1.
+    apply distr_ext.
+    intros.
+    rewrite {2}/pmf/=.
+    apply: SeriesC_0 => x.
+    destruct (pmf_pos μ x) as [|<-]; last lra.
+    rewrite H1; last lra.
+    rewrite /dzero{2}/pmf. lra.
+  Qed. 
+
   Lemma dmap_dzero `{Countable B} (f : A → B):
     dmap f dzero = dzero.
   Proof.
@@ -2895,6 +2909,7 @@ Ltac inv_distr :=
     | H : (dret _).(pmf) _ > 0 |- _ => apply dret_pos in H; simplify_eq
     | H : (dbind _ _).(pmf) _ > 0 |- _ => apply dbind_pos in H as (?&?&?)
     | H : (dmap _ _).(pmf) _ > 0 |- _ => apply dmap_pos in H as (?&?&?); simplify_eq
+    | H:  (d_proj_Some _).(pmf) _ > 0 |- _ => apply d_proj_Some_pos in H
     end.
 
 Ltac solve_distr :=
@@ -2908,6 +2923,7 @@ Ltac solve_distr :=
     | |- (dunifP _).(pmf) _ > 0 => apply dunifP_pos
     | |- (dunifv _ _).(pmf) _ > 0 => apply dunifv_pos
     | |- (laplace_rat _ _ _ _).(pmf) _ > 0 => apply laplace_rat_pos
+    | |- (d_proj_Some _).(pmf) _ > 0 => rewrite d_proj_Some_pos
     end.
 
 Ltac solve_distr_mass :=
