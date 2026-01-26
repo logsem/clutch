@@ -28,7 +28,7 @@ Record valRel Σ := ValRel {
   valRel_car :> val → val → iProp Σ;
   valRel_persistent v₁ v₂ : Persistent (valRel_car v₁ v₂)
 }.
-Arguments ValRel {_} _%I {_}.
+Arguments ValRel {_} _%_I {_}.
 Arguments valRel_car {_} _ _ _ : simpl never.
 Declare Scope valRel_scope.
 Bind Scope valRel_scope with valRel.
@@ -91,8 +91,8 @@ Arguments valRelO : clear implicits.
 Record exprRel Σ := ExprRel {
   exprRel_car :> expr -d> expr -d> iPropO Σ;
 }.
-Arguments ExprRel {_} _%I.
-Arguments exprRel_car {_} _ _%E _%E : simpl never.
+Arguments ExprRel {_} _%_I.
+Arguments exprRel_car {_} _ _%_E _%_E : simpl never.
 Declare Scope exprRel_scope.
 Bind Scope exprRel_scope with exprRel.
 Delimit Scope exprRel_scope with exprRel.
@@ -129,8 +129,8 @@ Proof. by intros ???. Qed.
 Record ectxRel Σ := EctxRel {
   ectxRel_car :> ectx -d> ectx -d> iPropO Σ;
 }.
-Arguments EctxRel {_} _%I.
-Arguments ectxRel_car {_} _ _%E _%E : simpl never.
+Arguments EctxRel {_} _%_I.
+Arguments ectxRel_car {_} _ _%_E _%_E : simpl never.
 Declare Scope ectxRel_scope.
 Bind Scope ectxRel_scope with ectxRel.
 Delimit Scope ectxRel_scope with ectxRel.
@@ -373,8 +373,8 @@ Notation "∀ A1 .. An , C" :=
   (valRel_forall (λ A1, .. (valRel_forall (λ An, C%valRel)) ..)) : valRel_scope.
 Notation noEffs := (eff_refines ⊥ ())%valRel.
 
-Arguments expr_refines {_ _} _%valRel _%valRel.
-Arguments eff_refines {_ _} _%valRel _%valRel.
+Arguments expr_refines {_ _} _%_valRel _%_valRel.
+Arguments eff_refines {_ _} _%_valRel _%_valRel.
 
 
 (** * Properties of Semantic Types. *)
@@ -920,7 +920,7 @@ Record semEffSig Σ `{probeffRGS Σ} := SemEffSig {
   semEffSig_car :> (valRelO Σ -n> exprRelO Σ);
   semEffSig_compatible : Compatible semEffSig_car
 }.
-Arguments SemEffSig {_} {_} _%I {_}.
+Arguments SemEffSig {_} {_} _%_I {_}.
 Arguments semEffSig_car {_} {_} _ : simpl never.
 Declare Scope semEffSig_scope.
 Bind Scope semEffSig_scope with semEffSig.
