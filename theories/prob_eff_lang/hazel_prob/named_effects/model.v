@@ -256,7 +256,7 @@ Section lrel_ectx_and_expr.
     rewrite !eff_refines_unfold /eff_refines_pre.
     simpl. repeat f_equiv. intros ??.
     do 17f_equiv.
-    { admit.}
+    { admit. }
     do 11 f_equiv.
     f_contractive.
     do 2f_equiv; [|eapply dist_lt; done].

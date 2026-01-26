@@ -229,7 +229,7 @@ let mk_query b db = (clip_sum b db) - (clip_sum (b + 1) db)
 (* eps-dp if qs are 1-sens *)
 let at_list eps t db qs =
   let at = above_threshold eps t in
-  List.find (fun (bound, q) -> at q db) qs
+  List.find (fun (_bound, q) -> at q db) qs
 
 (* eps-dp (makes one call to AT, qs are 1-sens) *)
 let get_clip_bound bnds eps db =
@@ -280,9 +280,9 @@ let mk_filter (budget : Q.t) : try_run * (unit -> Q.t) =
 (** Privacy Filter Client: Adaptive Counting *)
 
 (* Simple private count where budget management is handled by a privacy filter; not adaptive. *)
-let count_preds_simple eps_coarse eps_precise threshold budget predicates data =
+let count_preds_simple eps_coarse _eps_precise _threshold budget predicates data =
   let counts = ref [] in
-  let (try_run, budget_remaining) = mk_filter budget in
+  let (try_run, _budget_remaining) = mk_filter budget in
   List.iter
     (fun pred ->
       let count_exact = list_count pred data in
@@ -297,7 +297,7 @@ let count_preds_simple eps_coarse eps_precise threshold budget predicates data =
 let iter_adaptive_acc_indexed eps_coarse eps_precise threshold budget predicates data =
   let counts = ref [] in
   let index = ref 0 in
-  let (try_run, budget_remaining) = mk_filter budget in
+  let (try_run, _budget_remaining) = mk_filter budget in
   List.iter
     (fun pred ->
       let count_exact = list_count pred data in
@@ -447,11 +447,11 @@ Format.set_margin 100 ;;
 
 print_endline "count_preds_simple:" ;;
 let xs = count_preds_simple eps_coarse eps_precise threshold budget predicates data
-let ys = list_round xs ;;
+let _ys = list_round xs ;;
 
 print_endline "iter_adaptive_acc_indexed:" ;;
 let xs = iter_adaptive_acc_indexed eps_coarse eps_precise threshold budget predicates data
-let ys = list_round' xs ;;
+let _ys = list_round' xs ;;
 
 print_endline "map_adaptive_acc:" ;;
 let _ =
