@@ -405,7 +405,42 @@ Section gset.
   Lemma length_elements_size_gset (s:gset A): size (s) = length (elements s).
     done.
   Qed.
-End gset.
+
+  Lemma size_set_bind_const `{Countable B} (s:gset A) (f:A->gset B) c :
+    (∀ x, x∈s -> size (f x) = c) ->
+    (∀ x y, x ∈ s -> y ∈ s -> x≠ y -> f x##f y) ->
+    size ((set_bind f s):gset _) = (size s * c)%nat.
+  Proof.
+    revert s.
+    apply (set_ind (λ s, (∀ x : A, x ∈ s → size (f x) = c) → _ -> size (set_bind f s : gset B) = size s * c)).
+    - intros ?? H' ?.
+      apply leibniz_equiv in H'. by subst.
+    - intros.
+      rewrite size_empty.
+      unfold set_bind.
+      set_solver.
+    - intros x X H1 H2 H3 H4. rewrite size_union; last set_solver.
+      rewrite size_singleton.
+      simpl. rewrite <-H2; last first.
+      + intros. apply H4; set_solver.
+      + intros. apply H3; set_solver.
+      + rewrite set_bind_disj_union; last set_solver.
+        rewrite size_union; last first.
+        { unfold set_bind. rewrite elements_singleton.
+          simpl. rewrite union_empty_r_L.
+          rewrite elem_of_disjoint.
+          setoid_rewrite elem_of_union_list.
+          setoid_rewrite elem_of_list_fmap.
+          setoid_rewrite elem_of_elements.
+          intros ? ?[?[[?[]]]].
+          subst.
+          setoid_rewrite elem_of_disjoint in H4.
+          eapply (H4 x x2); set_solver.
+        }
+        rewrite set_bind_singleton.
+        rewrite H3; set_solver.
+  Qed. 
+End gset. 
 
 Tactic Notation "case_match" "in" ident(H) "eqn" ":" ident(Hd) :=
   match type of H with
