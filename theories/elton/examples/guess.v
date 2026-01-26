@@ -60,7 +60,7 @@ Section encr.
           { intros. rewrite /ε2'. case_bool_decide; lra. }
           iMod (pupd_resolve_urn _ _ _ _ N (λ x, mknonnegreal _ (Hε2 x)) with "[$][$]") as "Hres".
           { apply NoDup_seq. }
-          { rewrite seq_length. lia. }
+          { rewrite length_seq. lia. }
           { simpl.
             rewrite /Expval.
             erewrite (SeriesC_ext _ (λ (x:fin (S N)), if bool_decide (x=nat_to_fin K) then _ else 0)); last first.
@@ -121,7 +121,7 @@ Section encr.
             apply (f_equal size) in K'.
             rewrite size_empty in K'.
             rewrite size_list_to_set in K'; last apply NoDup_seq.
-            rewrite seq_length in K'. lia.
+            rewrite length_seq in K'. lia.
           }
           eexists _; split; last done.
           rewrite bool_decide_eq_false_2; first done.

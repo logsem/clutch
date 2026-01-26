@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap fin_sets.
 From clutch.prelude Require Import stdpp_ext NNRbar fin uniform_list.
 From clutch.prob Require Import distribution couplings couplings_app.
@@ -389,7 +389,7 @@ Proof.
     repeat smash.
     erewrite urn_subst_equal_epsilon_unique; last done.
     erewrite urns_f_distr_insert; last first.
-    { rewrite seq_length.
+    { rewrite length_seq.
       instantiate (1:=Z.to_nat z). lia.
     }
     { apply fresh_loc_is_fresh. }
@@ -444,7 +444,7 @@ Proof.
     { rename select (fin _) into a0.
       pose proof fin_to_nat_lt a0.
       apply lookup_ge_None_1 in Hlookup.
-      rewrite seq_length in Hlookup. lia.
+      rewrite length_seq in Hlookup. lia.
     }
     apply lookup_seq in Hlookup.
     destruct!/=.

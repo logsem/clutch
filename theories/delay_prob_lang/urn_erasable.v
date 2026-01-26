@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From stdpp Require Import gmap countable.
 From clutch.delay_prob_lang Require Import lang metatheory.
 From clutch.prob Require Export couplings distribution mdp.

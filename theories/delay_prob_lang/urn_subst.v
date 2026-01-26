@@ -1,5 +1,4 @@
-From Coq Require Import Reals Psatz.
-Require Import Btauto. 
+From Stdlib Require Import Reals Psatz Btauto. 
 From stdpp Require Import countable gmap stringmap fin_sets.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.delay_prob_lang Require Import tactics notation.

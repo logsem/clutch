@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz ClassicalEpsilon.
+From Stdlib Require Import Reals Psatz ClassicalEpsilon.
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
@@ -81,6 +81,8 @@ Definition to_val (e : expr) : option val :=
   | Val v => Some v
   | _ => None
   end.
+
+Definition def_val : val := LitV LitUnit.
 
 (** Removing vals_compare_safe for simplify computation :p *)
 (* Definition val_is_unboxed (v : val) : Prop := *)
@@ -990,7 +992,7 @@ Proof.
   - rewrite replicate_S_end
      heap_array_app
      IHn /=.
-    rewrite map_union_empty replicate_length //.
+    rewrite map_union_empty length_replicate //.
 Qed.
 
 Lemma heap_array_disjoint (m:gmap loc val) n v:
@@ -1283,7 +1285,7 @@ Section urn.
   Lemma set_urns_f_nonempty m:
     (0< size (set_urns_f_valid m))%nat.
   Proof.
-    rewrite /set_urns_f_valid. apply (map_fold_ind (λ x _, 0<size x)%nat).
+    rewrite /set_urns_f_valid. apply (map_fold_weak_ind (λ x _, 0<size x)%nat).
     { rewrite size_singleton. lia. }
     intros ? x ? r ??.
     case_bool_decide; first done.
@@ -1314,7 +1316,7 @@ Section urn.
     symmetry.
     rewrite /set_urns_f_valid.
     revert f.
-    apply (map_fold_ind (λ x m, forall f, urns_f_valid m f <-> f ∈ x)).
+    apply (map_fold_weak_ind (λ x m, forall f, urns_f_valid m f <-> f ∈ x)).
     - intros f. rewrite elem_of_singleton.
       split.
       + rewrite /urns_f_valid.
@@ -2508,7 +2510,7 @@ Qed.
 End d_prob_lang.
 
 (** Language *)
-Canonical Structure d_prob_ectxi_lang := EctxiLanguage d_prob_lang.get_active d_prob_lang.d_prob_lang_mixin.
+Canonical Structure d_prob_ectxi_lang := EctxiLanguage d_prob_lang.get_active d_prob_lang.d_prob_lang_mixin (def_val := d_prob_lang.def_val).
 Canonical Structure d_prob_ectx_lang := EctxLanguageOfEctxi d_prob_ectxi_lang.
 Canonical Structure d_prob_lang := LanguageOfEctx d_prob_ectx_lang.
 

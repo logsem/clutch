@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From clutch.prob Require Export distribution.
 From clutch.common Require Export language. 
 From clutch.delay_prob_lang Require Export lang.
