@@ -1438,7 +1438,6 @@ Section urn.
                      end
            ) 1 m
     else 0.
-    
       
   (* Definition set_urns_f_valid (m:gmap loc urn) : gset (gmap loc nat):= *)
   (*   map_fold (λ k u l, *)
@@ -1653,6 +1652,27 @@ Section urn.
       by apply Rmult_le_pos.
   Qed.
   Next Obligation.
+    intros m.
+    induction m as [|i x m Hx Hfirst] using map_first_key_ind.
+    - rewrite /urns_f_distr_f.
+      eapply (ex_seriesC_ext (λ f, if bool_decide (f=∅) then 1 else _)); last apply ex_seriesC_singleton.
+      intros.
+      case_bool_decide as H0.
+      + rewrite bool_decide_eq_true_2.
+        * by vm_compute.
+        * subst.
+          rewrite /urns_f_valid.
+          intros.
+          repeat case_match; set_solver.
+      + rewrite bool_decide_eq_false_2; first done.
+        intros ?.
+        apply map_choose in H0.
+        destruct!/=.
+        rewrite /urns_f_valid in H.
+        epose proof H _ as H1.
+        erewrite H0 in H1.
+        case_match; set_solver.
+    - destruct (decide (is_valid_urn x)) as [H|H].
   Admitted. 
     (* intros. *)
   (*   setoid_rewrite bool_decide_ext; last by rewrite -elem_of_set_urns_f_valid. *)
