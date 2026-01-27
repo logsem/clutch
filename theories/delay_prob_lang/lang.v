@@ -107,28 +107,30 @@ Definition def_val : val := LitV LitUnit.
 (* Global Arguments vals_compare_safe !_ !_ /. *)
 
 Inductive urn :=
-| urn_unif (s : gset nat)
-| urn_laplace (s : Z) (l : nat)
+| urn_unif (s : gset Z)
+| urn_laplace (num:nat) (den : Z) (l : Z)
 .
 
 Global Instance urn_inhabited : Inhabited urn. Proof. exact (populate (urn_unif ∅)). Qed. 
 Global Instance urn_eq_dec : EqDecision urn.
 Proof.
   solve_decision.
-Qed. 
+Qed.
+
+
 Global Instance urn_countable : Countable urn.
 Proof.
   set (enc :=
          (λ u, 
            match u with
            | urn_unif s => inl s
-           | urn_laplace s l => inr (s, l)
+           | urn_laplace num den l => inr (num, den, l)
            end)).
   set (dec :=
          (λ x,
             match x with
             | inl s => urn_unif s
-            | inr (s, l) => urn_laplace s l
+            | inr (num, den, l) => urn_laplace num den l
             end
          )).
   refine (inj_countable' enc dec _).
@@ -1117,13 +1119,13 @@ Qed.
 Section urn.
   (** Definitions for relating delayed program with nondelayed one *)
   (** Note here after the urn_subst, we completely remove all delayed unop binop operations*)
-  Fixpoint urn_subst (f: gmap loc nat) (bl : base_lit) : option base_lit :=
+  Fixpoint urn_subst (f: gmap loc Z) (bl : base_lit) : option base_lit :=
     match bl with
     | LitInt n => Some $ LitInt n
     | LitBool b => Some $ LitBool b
     | LitUnit => Some LitUnit
     | LitLoc l => Some $ LitLoc l
-    | LitLbl l => (x ← f !! l; Some $ LitInt (Z.of_nat x))
+    | LitLbl l => (x ← f !! l; Some $ LitInt (x))
     | NegOp' x => (i ← urn_subst f x;
                   match i with
                   | LitBool b => Some $ LitBool (negb b)
@@ -1244,59 +1246,67 @@ Section urn.
                         )
     end.
 
+  Definition is_valid_urn (u: urn) :=
+    match u with
+    | urn_unif s => s ≠ ∅
+    | urn_laplace num den l => (0<num/den)%Z
+    end.
+
+  Global Instance is_valid_urn_dec u : Decision (is_valid_urn u).
+  Proof.
+    destruct u; simpl; first solve_decision.
+    apply Z.lt_dec.
+  Qed. 
+  
   Definition urns_support_set (m:gmap loc urn):=
-    filter (λ l, m!!l≠Some ∅) (dom m).
+    dom (filter (λ '(k, u), is_valid_urn u) m).
 
   Lemma elem_of_urns_support_set x m:
-    x ∈ urns_support_set m <-> (∃ s, m!!x = Some s /\ s≠∅).
+    x ∈ urns_support_set m <-> (∃ s, m!!x = Some s /\ is_valid_urn s).
   Proof.
     rewrite /urns_support_set.
-    rewrite elem_of_filter elem_of_dom.
-    split.
-    - intros [?[]].
+    rewrite elem_of_dom.
+    split; intros [a Ha].
+    - apply map_lookup_filter_Some in Ha.
       naive_solver.
-    - intros [?[]].
+    - eexists _.
+      apply map_lookup_filter_Some.
       naive_solver.
   Qed.
 
   Lemma urns_support_set_insert_subset m u s:
-    s≠∅ ->
+    is_valid_urn s ->
     urns_support_set m ⊆ urns_support_set (<[u:=s]> m).
   Proof.
     intros.
     rewrite /urns_support_set.
     intros x.
     repeat rewrite elem_of_filter.
+    rewrite map_filter_insert_True; last done.
     rewrite dom_insert_L.
-    intros [H1 H2].
-    destruct!/=.
-    split; last set_solver.
-    destruct (decide (u=x)).
-    - subst. simplify_map_eq.
-      naive_solver.
-    - by rewrite lookup_insert_ne.
+    set_solver.
   Qed. 
+  
+  (* Definition urns_subst_f_num (m:gmap loc urn):= *)
+  (*   map_fold (λ _ u n, *)
+  (*               if bool_decide (u=∅) *)
+  (*               then n else size u * n *)
+  (*     )%nat 1%nat m. *)
 
-  Definition urns_subst_f_num (m:gmap loc urn):=
-    map_fold (λ _ u n,
-                if bool_decide (u=∅)
-                then n else size u * n
-      )%nat 1%nat m.
-
-  Lemma urns_subst_f_num_insert m u s:
-    s≠∅->
-    m!!u=None ->
-    urns_subst_f_num (<[u:=s]> m) =
-    (urns_subst_f_num m * size s)%nat.
-  Proof.
-    intros.
-    rewrite /urns_subst_f_num.
-    rewrite map_fold_insert; last done.
-    - rewrite bool_decide_eq_false_2; last done.
-      lia.
-    - intros.
-      repeat case_bool_decide; lia.
-  Qed.  
+  (* Lemma urns_subst_f_num_insert m u s: *)
+  (*   s≠∅-> *)
+  (*   m!!u=None -> *)
+  (*   urns_subst_f_num (<[u:=s]> m) = *)
+  (*   (urns_subst_f_num m * size s)%nat. *)
+  (* Proof. *)
+  (*   intros. *)
+  (*   rewrite /urns_subst_f_num. *)
+  (*   rewrite map_fold_insert; last done. *)
+  (*   - rewrite bool_decide_eq_false_2; last done. *)
+  (*     lia. *)
+  (*   - intros. *)
+  (*     repeat case_bool_decide; lia. *)
+  (* Qed.   *)
 
   Fixpoint base_lit_support_set bl : gset loc :=
     match bl with
@@ -1323,11 +1333,22 @@ Section urn.
     | OffsetOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
     end.
 
-  Definition urns_f_valid (m : gmap loc urn) (f:gmap loc nat) :=
+  Definition urns_f_valid (m : gmap loc urn) (f:gmap loc Z) :=
     forall l, match f !! l with
          | Some x =>
-             ∃ u, m!!l=Some u /\ x ∈ u
-| None => m!!l = None \/ m!!l = Some ∅
+             match m!!l with
+               | Some u => 
+                  match u with
+                  | urn_unif s => x ∈ s
+                  | urn_laplace _ _ _ => is_valid_urn u
+                  end
+             | None =>
+                 False
+             end
+         | None => match m!!l with
+                  | None => True
+                  | Some s => ¬ is_valid_urn s
+                  end
   end
   .
 
@@ -1344,211 +1365,278 @@ Section urn.
     - intros [?[]].
       pose proof H l.
       case_match; first done.
-      naive_solver.
+      case_match; naive_solver.
     - intros [? H'].
       pose proof H l as H.
       rewrite H' in H.
-      destruct!/=.
-      set_unfold. naive_solver.
-  Qed. 
-      
-  Definition set_urns_f_valid (m:gmap loc urn) : gset (gmap loc nat):=
-    map_fold (λ k u l,
-                if bool_decide (u=∅)
-                then l
-                else
-                  set_bind (λ a, set_bind (λ b, {[<[k:=a]> b]}) l) u
-      ) {[∅]} m.
-             
-  Lemma set_urns_f_nonempty m:
-    (0< size (set_urns_f_valid m))%nat.
-  Proof.
-    rewrite /set_urns_f_valid. apply (map_fold_weak_ind (λ x _, 0<size x)%nat).
-    { rewrite size_singleton. lia. }
-    intros ? x ? r ??.
-    case_bool_decide; first done.
-    rewrite /set_bind.
-    destruct (elements x) eqn:Heqn.
-    { apply elements_empty_inv in Heqn. apply leibniz_equiv in Heqn. naive_solver. }
-    simpl.
-    eapply (Nat.lt_le_trans _ (size _)); last first.
-    - apply subseteq_size.
-      apply union_subseteq_l.
-    - destruct (elements r) eqn:Heqn'.
-      { assert (size r = 0)%nat; last lia.
-        apply elements_empty_inv in Heqn'. apply leibniz_equiv in Heqn'.
-        subst. set_solver.
-      }
-      simpl. 
-      eapply (Nat.lt_le_trans _ (size _)); last first.
-      + apply subseteq_size.
-        apply union_subseteq_l.
-      + rewrite size_singleton.
-        lia.
-  Qed.
-
-  Lemma elem_of_set_urns_f_valid m f :
-      f ∈set_urns_f_valid m <->
-        urns_f_valid m f .
-  Proof.
-    symmetry.
-    rewrite /set_urns_f_valid.
-    revert f.
-    apply (map_fold_weak_ind (λ x m, forall f, urns_f_valid m f <-> f ∈ x)).
-    - intros f. rewrite elem_of_singleton.
-      split.
-      + rewrite /urns_f_valid.
-        intros.
-        apply map_eq.
-        intros i.
-        simplify_map_eq.
-        pose proof H i as H'.
-        case_match eqn:Heqn; last done.
-        destruct H' as [?[H0 ?]].
-        simplify_map_eq.
-      + intros ->. rewrite /urns_f_valid. intros. rewrite !lookup_empty.
+      repeat case_match.
+      + eexists _; split; first done.
+        intros ?. simplify_eq.
+        set_solver.
+      + subst.
         naive_solver.
-    - intros i ???? H0 f. split.
-      + intros H'.
-        case_bool_decide as H1.
-        * subst.
-          apply H0.
-          rewrite /urns_f_valid in H' *.
-          intros l.
-          pose proof H' l as H'.
-          case_match.
-          -- destruct H' as [? [K1 K2]].
-             destruct (decide (i=l)).
-             ++ subst.
-                simplify_map_eq. set_solver.
-             ++ simplify_map_eq.
-                naive_solver.
-          -- destruct (decide (i=l)); simplify_map_eq; naive_solver.
-        * rewrite elem_of_set_bind.
-          destruct (f!!i) as [n'|] eqn :Hf.
-          -- exists n'.
-             rewrite elem_of_set_bind.
-             split; last first. 
-             ++ eexists (delete i f).
-                split; last first. 
-                ** rewrite insert_delete; [set_solver|done].
-                ** apply H0.
-                   intros i'.
-                   destruct (decide (i=i')); simplify_map_eq; first naive_solver.
-                   pose proof H' i'.
-                   by simplify_map_eq.
-             ++ pose proof H' i as H2.
-                rewrite Hf in H2.
-                destruct!/=. by simplify_map_eq.
-          -- exfalso.
-             pose proof H' i as H2.
-             rewrite Hf in H2.
-             simplify_map_eq. naive_solver.
-      + case_bool_decide.
-        * subst. rewrite -H0.
-          rewrite /urns_f_valid.
-          intros H' l.
-          pose proof H' l as H'.
-          case_match; destruct (decide (i=l)); subst; simplify_map_eq; destruct!/=; naive_solver.
-        * rewrite elem_of_set_bind.
-          setoid_rewrite elem_of_set_bind.
-          intros [y [H4[y' [H3 H2]]]].
-          rewrite - H0 in H3.
-          apply elem_of_singleton in H2.
-          subst. 
-          intros l.
-          pose proof H3 l as H5.
-          destruct (decide (i=l)); simplify_map_eq; naive_solver.
-  Qed. 
-  Global Instance urn_f_valid_dec m f: Decision (urns_f_valid m f).
-  Proof.
-    replace (urns_f_valid _ _) with (f∈set_urns_f_valid m); first apply _.
-    apply propositional_extensionality.
-    by rewrite elem_of_set_urns_f_valid.
+      + naive_solver.
   Qed.
 
-  Lemma urns_f_valid_exists m:
-    ∃ f, urns_f_valid m f.
+  Global Instance urns_f_valid_dec m f : Decision (urns_f_valid m f). 
   Proof.
-    setoid_rewrite <-elem_of_set_urns_f_valid.
-    apply size_pos_elem_of.
-    apply set_urns_f_nonempty.
-  Qed. 
-  
-  Lemma size_set_urns_f m:
-    size (set_urns_f_valid m) = urns_subst_f_num m.
-  Proof.
-    revert m.
-    apply map_ind; first set_solver.
-    intros i x m Hnone Hind.
-    rewrite /set_urns_f_valid/urns_subst_f_num. 
-    rewrite !map_fold_insert; try done; last first.
-    - intros. repeat case_bool_decide; try done.
-      apply set_eq.
-      intros. repeat setoid_rewrite elem_of_set_bind.
-      split; intros; destruct!/=; set_unfold; subst; eexists _; split; first done; try done; rewrite insert_commute; naive_solver.
-    - intros. repeat case_bool_decide; try done.
-      lia. 
-    - case_bool_decide as H; first done.
-      rewrite /urns_subst_f_num in Hind.
-      rewrite -Hind.
-      rewrite -/(set_urns_f_valid m).
-      rewrite (size_set_bind_const _ _ (size (set_urns_f_valid m))); first done.
-      + intros.
-        erewrite (size_set_bind_const); first by erewrite Nat.mul_1_r.
-        * intros. apply size_singleton.
-        * intros ??.
-          rewrite !elem_of_set_urns_f_valid.
-          intros H1 H2 H3.
-          set_unfold.
-          intros ? -> ?.
-          apply H3.
-          apply map_eq.
-          intros l.
-          destruct (decide (i=l)).
-          -- pose proof H1 l as H1.
-             pose proof H2 l as H2.
-             repeat case_match; by destruct!/=.
-          -- apply (f_equal (λ x, x!!l)) in H4. by simplify_map_eq.
-      + intros.
-        rewrite /set_bind.
-        set_unfold.
-        setoid_rewrite elem_of_union_list.
-        setoid_rewrite elem_of_list_fmap.
-        setoid_rewrite elem_of_elements.
-        intros.
+    replace (urns_f_valid _ _) with
+      (urns_support_set m = dom f /\
+       map_Forall (λ l x,
+            match m!!l with
+               | Some u => 
+                  match u with
+                  | urn_unif s => x ∈ s
+                  | urn_laplace  _ _ _ => is_valid_urn u
+                  end
+             | None =>
+                 False
+             end
+         ) f); last (intros; apply propositional_extensionality).
+    - apply and_dec; first solve_decision.
+      apply map_Forall_dec.
+      intros ??.
+      repeat case_match; solve_decision.
+    - rewrite /urns_f_valid. split.
+      + rewrite /urns_support_set.
+        intros [H1 H2].
+        intros l.
+        rewrite map_Forall_lookup in H2.
+        case_match eqn:H3; first by apply H2 in H3.
+        case_match eqn:H; last done.
+        rewrite /is_valid_urn.
+        assert (l ∉ dom (filter (λ '(_, u), is_valid_urn u) m)) as Hin.
+        { rewrite H1.
+          by rewrite not_elem_of_dom. 
+        }
+        rewrite not_elem_of_dom in Hin.
+        rewrite map_lookup_filter_None in Hin.
         destruct!/=.
-        set_unfold.
-        subst.
-        rename select (<[_:=_]> _ = _) into H'.
-        apply (f_equal (λ x,x!!i)) in H'.
-        simplify_map_eq.
-  Qed.
+        naive_solver.
+      + intros.
+        split; first by apply urns_f_valid_support.
+        apply map_Forall_lookup.
+        intros i x Hx.
+        pose proof H i as H'.
+        case_match; by simplify_eq.
+  Qed. 
+
+  Definition urns_f_distr_f (m: gmap loc urn) (f:gmap loc Z) :=
+    if bool_decide (urns_f_valid m f)
+    then map_fold (λ lo u r,
+                     match u with
+                     | urn_unif s => r/size (s)
+                     | urn_laplace num den l =>
+                         match f!!lo with
+                         | Some z =>
+                             (match decide (0 < IZR num / IZR den) with
+                              | left εpos => r * laplace_rat num den l εpos z
+                              | right _ => 0 (* not possible *)
+                              end)
+                         | None => 0 (* not possible *)
+                         end
+                     end
+           ) 1 m
+    else 0.
+    
+      
+  (* Definition set_urns_f_valid (m:gmap loc urn) : gset (gmap loc nat):= *)
+  (*   map_fold (λ k u l, *)
+  (*               if bool_decide (u=∅) *)
+  (*               then l *)
+  (*               else *)
+  (*                 set_bind (λ a, set_bind (λ b, {[<[k:=a]> b]}) l) u *)
+  (*     ) {[∅]} m. *)
+             
+  (* Lemma set_urns_f_nonempty m: *)
+  (*   (0< size (set_urns_f_valid m))%nat. *)
+  (* Proof. *)
+  (*   rewrite /set_urns_f_valid. apply (map_fold_weak_ind (λ x _, 0<size x)%nat). *)
+  (*   { rewrite size_singleton. lia. } *)
+  (*   intros ? x ? r ??. *)
+  (*   case_bool_decide; first done. *)
+  (*   rewrite /set_bind. *)
+  (*   destruct (elements x) eqn:Heqn. *)
+  (*   { apply elements_empty_inv in Heqn. apply leibniz_equiv in Heqn. naive_solver. } *)
+  (*   simpl. *)
+  (*   eapply (Nat.lt_le_trans _ (size _)); last first. *)
+  (*   - apply subseteq_size. *)
+  (*     apply union_subseteq_l. *)
+  (*   - destruct (elements r) eqn:Heqn'. *)
+  (*     { assert (size r = 0)%nat; last lia. *)
+  (*       apply elements_empty_inv in Heqn'. apply leibniz_equiv in Heqn'. *)
+  (*       subst. set_solver. *)
+  (*     } *)
+  (*     simpl.  *)
+  (*     eapply (Nat.lt_le_trans _ (size _)); last first. *)
+  (*     + apply subseteq_size. *)
+  (*       apply union_subseteq_l. *)
+  (*     + rewrite size_singleton. *)
+  (*       lia. *)
+  (* Qed. *)
+
+  (* Lemma elem_of_set_urns_f_valid m f : *)
+  (*     f ∈set_urns_f_valid m <-> *)
+  (*       urns_f_valid m f . *)
+  (* Proof. *)
+  (*   symmetry. *)
+  (*   rewrite /set_urns_f_valid. *)
+  (*   revert f. *)
+  (*   apply (map_fold_weak_ind (λ x m, forall f, urns_f_valid m f <-> f ∈ x)). *)
+  (*   - intros f. rewrite elem_of_singleton. *)
+  (*     split. *)
+  (*     + rewrite /urns_f_valid. *)
+  (*       intros. *)
+  (*       apply map_eq. *)
+  (*       intros i. *)
+  (*       simplify_map_eq. *)
+  (*       pose proof H i as H'. *)
+  (*       case_match eqn:Heqn; last done. *)
+  (*       destruct H' as [?[H0 ?]]. *)
+  (*       simplify_map_eq. *)
+  (*     + intros ->. rewrite /urns_f_valid. intros. rewrite !lookup_empty. *)
+  (*       naive_solver. *)
+  (*   - intros i ???? H0 f. split. *)
+  (*     + intros H'. *)
+  (*       case_bool_decide as H1. *)
+  (*       * subst. *)
+  (*         apply H0. *)
+  (*         rewrite /urns_f_valid in H' *. *)
+  (*         intros l. *)
+  (*         pose proof H' l as H'. *)
+  (*         case_match. *)
+  (*         -- destruct H' as [? [K1 K2]]. *)
+  (*            destruct (decide (i=l)). *)
+  (*            ++ subst. *)
+  (*               simplify_map_eq. set_solver. *)
+  (*            ++ simplify_map_eq. *)
+  (*               naive_solver. *)
+  (*         -- destruct (decide (i=l)); simplify_map_eq; naive_solver. *)
+  (*       * rewrite elem_of_set_bind. *)
+  (*         destruct (f!!i) as [n'|] eqn :Hf. *)
+  (*         -- exists n'. *)
+  (*            rewrite elem_of_set_bind. *)
+  (*            split; last first.  *)
+  (*            ++ eexists (delete i f). *)
+  (*               split; last first.  *)
+  (*               ** rewrite insert_delete; [set_solver|done]. *)
+  (*               ** apply H0. *)
+  (*                  intros i'. *)
+  (*                  destruct (decide (i=i')); simplify_map_eq; first naive_solver. *)
+  (*                  pose proof H' i'. *)
+  (*                  by simplify_map_eq. *)
+  (*            ++ pose proof H' i as H2. *)
+  (*               rewrite Hf in H2. *)
+  (*               destruct!/=. by simplify_map_eq. *)
+  (*         -- exfalso. *)
+  (*            pose proof H' i as H2. *)
+  (*            rewrite Hf in H2. *)
+  (*            simplify_map_eq. naive_solver. *)
+  (*     + case_bool_decide. *)
+  (*       * subst. rewrite -H0. *)
+  (*         rewrite /urns_f_valid. *)
+  (*         intros H' l. *)
+  (*         pose proof H' l as H'. *)
+  (*         case_match; destruct (decide (i=l)); subst; simplify_map_eq; destruct!/=; naive_solver. *)
+  (*       * rewrite elem_of_set_bind. *)
+  (*         setoid_rewrite elem_of_set_bind. *)
+  (*         intros [y [H4[y' [H3 H2]]]]. *)
+  (*         rewrite - H0 in H3. *)
+  (*         apply elem_of_singleton in H2. *)
+  (*         subst.  *)
+  (*         intros l. *)
+  (*         pose proof H3 l as H5. *)
+  (*         destruct (decide (i=l)); simplify_map_eq; naive_solver. *)
+  (* Qed.  *)
+  (* Global Instance urn_f_valid_dec m f: Decision (urns_f_valid m f). *)
+  (* Proof. *)
+  (*   replace (urns_f_valid _ _) with (f∈set_urns_f_valid m); first apply _. *)
+  (*   apply propositional_extensionality. *)
+  (*   by rewrite elem_of_set_urns_f_valid. *)
+  (* Qed. *)
+
+  (* Lemma urns_f_valid_exists m: *)
+  (*   ∃ f, urns_f_valid m f. *)
+  (* Proof. *)
+  (*   setoid_rewrite <-elem_of_set_urns_f_valid. *)
+  (*   apply size_pos_elem_of. *)
+  (*   apply set_urns_f_nonempty. *)
+  (* Qed.  *)
+  
+  (* Lemma size_set_urns_f m: *)
+  (*   size (set_urns_f_valid m) = urns_subst_f_num m. *)
+  (* Proof. *)
+  (*   revert m. *)
+  (*   apply map_ind; first set_solver. *)
+  (*   intros i x m Hnone Hind. *)
+  (*   rewrite /set_urns_f_valid/urns_subst_f_num.  *)
+  (*   rewrite !map_fold_insert; try done; last first. *)
+  (*   - intros. repeat case_bool_decide; try done. *)
+  (*     apply set_eq. *)
+  (*     intros. repeat setoid_rewrite elem_of_set_bind. *)
+  (*     split; intros; destruct!/=; set_unfold; subst; eexists _; split; first done; try done; rewrite insert_commute; naive_solver. *)
+  (*   - intros. repeat case_bool_decide; try done. *)
+  (*     lia.  *)
+  (*   - case_bool_decide as H; first done. *)
+  (*     rewrite /urns_subst_f_num in Hind. *)
+  (*     rewrite -Hind. *)
+  (*     rewrite -/(set_urns_f_valid m). *)
+  (*     rewrite (size_set_bind_const _ _ (size (set_urns_f_valid m))); first done. *)
+  (*     + intros. *)
+  (*       erewrite (size_set_bind_const); first by erewrite Nat.mul_1_r. *)
+  (*       * intros. apply size_singleton. *)
+  (*       * intros ??. *)
+  (*         rewrite !elem_of_set_urns_f_valid. *)
+  (*         intros H1 H2 H3. *)
+  (*         set_unfold. *)
+  (*         intros ? -> ?. *)
+  (*         apply H3. *)
+  (*         apply map_eq. *)
+  (*         intros l. *)
+  (*         destruct (decide (i=l)). *)
+  (*         -- pose proof H1 l as H1. *)
+  (*            pose proof H2 l as H2. *)
+  (*            repeat case_match; by destruct!/=. *)
+  (*         -- apply (f_equal (λ x, x!!l)) in H4. by simplify_map_eq. *)
+  (*     + intros. *)
+  (*       rewrite /set_bind. *)
+  (*       set_unfold. *)
+  (*       setoid_rewrite elem_of_union_list. *)
+  (*       setoid_rewrite elem_of_list_fmap. *)
+  (*       setoid_rewrite elem_of_elements. *)
+  (*       intros. *)
+  (*       destruct!/=. *)
+  (*       set_unfold. *)
+  (*       subst. *)
+  (*       rename select (<[_:=_]> _ = _) into H'. *)
+  (*       apply (f_equal (λ x,x!!i)) in H'. *)
+  (*       simplify_map_eq. *)
+  (* Qed. *)
 
   
-  Lemma set_urns_f_valid_singleton m:
-    map_Forall (λ _ v, v= ∅ \/ size v = 1)%nat m->
-    size (set_urns_f_valid m) = 1%nat.
-  Proof.
-    rewrite size_set_urns_f.
-    revert m.
-    apply (map_ind (λ m, _ -> _)); first by rewrite /urns_subst_f_num map_fold_empty.
-    intros i x m Hnone IH H.
-    rewrite /urns_subst_f_num.
-    rewrite map_fold_insert_L; last done; last first.
-    { intros.
-      repeat case_bool_decide; lia. 
-    }
-    rewrite map_Forall_insert in H; last done.
-    destruct H as [H1 H2].
-    destruct!/=.
-    - rewrite bool_decide_eq_true_2; naive_solver.
-    - rewrite bool_decide_eq_false_2; last (intros ->; set_solver).
-      rewrite H1. setoid_rewrite IH; [lia|done].
-  Qed.
+  (* Lemma set_urns_f_valid_singleton m: *)
+  (*   map_Forall (λ _ v, v= ∅ \/ size v = 1)%nat m-> *)
+  (*   size (set_urns_f_valid m) = 1%nat. *)
+  (* Proof. *)
+  (*   rewrite size_set_urns_f. *)
+  (*   revert m. *)
+  (*   apply (map_ind (λ m, _ -> _)); first by rewrite /urns_subst_f_num map_fold_empty. *)
+  (*   intros i x m Hnone IH H. *)
+  (*   rewrite /urns_subst_f_num. *)
+  (*   rewrite map_fold_insert_L; last done; last first. *)
+  (*   { intros. *)
+  (*     repeat case_bool_decide; lia.  *)
+  (*   } *)
+  (*   rewrite map_Forall_insert in H; last done. *)
+  (*   destruct H as [H1 H2]. *)
+  (*   destruct!/=. *)
+  (*   - rewrite bool_decide_eq_true_2; naive_solver. *)
+  (*   - rewrite bool_decide_eq_false_2; last (intros ->; set_solver). *)
+  (*     rewrite H1. setoid_rewrite IH; [lia|done]. *)
+  (* Qed. *)
   
   (** We define a distribution, where given a urn map, 
-      produces a uniform distribution of urn subst f *)
+      produces a distribution of urn subst functions *)
 
   Program Definition urns_f_distr m := MkDistr (λ f, if bool_decide (urns_f_valid m f) then 1/size (set_urns_f_valid m) else 0) _ _ _.
   Next Obligation.
