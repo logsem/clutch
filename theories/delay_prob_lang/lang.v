@@ -1,6 +1,6 @@
 From Stdlib Require Import Reals Psatz ClassicalEpsilon.
 From stdpp Require Export binders strings.
-From stdpp Require Import gmap fin_maps countable fin.
+From stdpp Require Import gmap countable fin fin_maps.
 From iris.algebra Require Export ofe.
 From clutch.prelude Require Export stdpp_ext tactics.
 From iris.prelude Require Import options.
@@ -1638,32 +1638,43 @@ Section urn.
   (** We define a distribution, where given a urn map, 
       produces a distribution of urn subst functions *)
 
-  Program Definition urns_f_distr m := MkDistr (λ f, if bool_decide (urns_f_valid m f) then 1/size (set_urns_f_valid m) else 0) _ _ _.
+  Program Definition urns_f_distr m := MkDistr (λ f, urns_f_distr_f m f) _ _ _.
   Next Obligation.
-    intros. simpl. case_bool_decide; last done.
-    apply Rdiv_INR_ge_0.
-  Qed.
-  Next Obligation.
-    intros.
-    setoid_rewrite bool_decide_ext; last by rewrite -elem_of_set_urns_f_valid.
-    eapply ex_seriesC_ext; last apply (ex_seriesC_list (elements (set_urns_f_valid m))).
     intros. simpl.
-    erewrite bool_decide_ext; last by rewrite elem_of_elements. done.
-    Unshelve.
-    apply _.
+    rewrite /urns_f_distr_f.
+    case_bool_decide; last done.
+    apply (map_fold_weak_ind (λ m' m, 0<=m')); first lra.
+    intros.
+    case_match.
+    - replace (_/size _) with (r * (1/size s)) by lra.
+      apply Rmult_le_pos; first done.
+      apply Rdiv_INR_ge_0.
+    - repeat case_match; try done.
+      by apply Rmult_le_pos.
   Qed.
   Next Obligation.
-    intros.
-    setoid_rewrite bool_decide_ext; last first.
-    { rewrite -elem_of_set_urns_f_valid. by rewrite -elem_of_elements. }
-    erewrite SeriesC_ext; first erewrite SeriesC_list_2; last done.
-    - rewrite -length_elements_size_gset.
-      rewrite Rdiv_1_l.
-      rewrite Rinv_l; first done.
-      apply not_0_INR.
-      pose proof set_urns_f_nonempty m. lia.
-    - apply NoDup_elements.
-  Qed.
+  Admitted. 
+    (* intros. *)
+  (*   setoid_rewrite bool_decide_ext; last by rewrite -elem_of_set_urns_f_valid. *)
+  (*   eapply ex_seriesC_ext; last apply (ex_seriesC_list (elements (set_urns_f_valid m))). *)
+  (*   intros. simpl. *)
+  (*   erewrite bool_decide_ext; last by rewrite elem_of_elements. done. *)
+  (*   Unshelve. *)
+  (*   apply _. *)
+  (* Qed. *)
+  Next Obligation.
+  Admitted. 
+  (*   intros. *)
+  (*   setoid_rewrite bool_decide_ext; last first. *)
+  (*   { rewrite -elem_of_set_urns_f_valid. by rewrite -elem_of_elements. } *)
+  (*   erewrite SeriesC_ext; first erewrite SeriesC_list_2; last done. *)
+  (*   - rewrite -length_elements_size_gset. *)
+  (*     rewrite Rdiv_1_l. *)
+  (*     rewrite Rinv_l; first done. *)
+  (*     apply not_0_INR. *)
+  (*     pose proof set_urns_f_nonempty m. lia. *)
+  (*   - apply NoDup_elements. *)
+  (* Qed. *)
 
   Lemma urns_f_distr_mass m:
     SeriesC (urns_f_distr m) = 1.
