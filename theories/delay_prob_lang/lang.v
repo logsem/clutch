@@ -60,7 +60,9 @@ Inductive expr :=
   (* Probabilistic choice *)
   (* | AllocTape (e : expr) *)
   | Rand (e : expr)
-  | DRand (e : expr)     
+  | DRand (e : expr)
+  | Laplace (e1 e2 e3: expr) 
+  | DLaplace (e1 e2 e3: expr) 
 with val :=
   | LitV (l : base_lit)
   | RecV (f x : binder) (e : expr)
@@ -104,17 +106,39 @@ Definition def_val : val := LitV LitUnit.
 (*   val_is_unboxed vl ∨ val_is_unboxed v1. *)
 (* Global Arguments vals_compare_safe !_ !_ /. *)
 
+Inductive urn :=
+| urn_unif (s : gset nat)
+| urn_laplace (s : Z) (l : nat)
+.
 
-Definition urn :=  gset nat .
+Global Instance urn_inhabited : Inhabited urn. Proof. exact (populate (urn_unif ∅)). Qed. 
+Global Instance urn_eq_dec : EqDecision urn.
+Proof.
+  solve_decision.
+Qed. 
+Global Instance urn_countable : Countable urn.
+Proof.
+  set (enc :=
+         (λ u, 
+           match u with
+           | urn_unif s => inl s
+           | urn_laplace s l => inr (s, l)
+           end)).
+  set (dec :=
+         (λ x,
+            match x with
+            | inl s => urn_unif s
+            | inr (s, l) => urn_laplace s l
+            end
+         )).
+  refine (inj_countable' enc dec _).
+  by intros []; simpl.
+Qed. 
 
-Global Instance urn_inhabited : Inhabited urn. Proof. apply _. Qed. 
-Global Instance urn_eq_dec : EqDecision urn. Proof. apply _. Defined.
-Global Instance urn_countable : EqDecision urn. Proof. apply _. Qed.
-
-Global Instance urn_lookup_total : LookupTotal loc urn (gmap loc urn).
-Proof. apply map_lookup_total. Defined.
-Global Instance urn_insert : Insert loc urn (gmap loc urn).
-Proof. apply map_insert. Defined.
+(* Global Instance urn_lookup_total : LookupTotal loc urn (gmap loc urn). *)
+(* Proof. apply map_lookup_total. Defined. *)
+(* Global Instance urn_insert : Insert loc urn (gmap loc urn). *)
+(* Proof. apply map_insert. Defined. *)
 
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed gmap of urns. *)
 Record state : Type := {
@@ -167,6 +191,10 @@ Proof.
          cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | Rand e, Rand e' => cast_if (decide (e=e'))
      | DRand e, DRand e' => cast_if (decide (e=e'))
+     | Laplace e0 e1 e2, Laplace e0' e1' e2' =>
+        cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
+     | DLaplace e0 e1 e2, DLaplace e0' e1' e2' =>
+        cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
      | _, _ => right _
      end
    with gov (v1 v2 : val) {struct v1} : Decision (v1 = v2) :=
@@ -285,6 +313,8 @@ Proof.
      | Store e1 e2 => GenNode 14 [go e1; go e2]
      | Rand e => GenNode 15 [go e]
      | DRand e => GenNode 16 [go e]
+     | Laplace e0 e1 e2 => GenNode 17 [go e0; go e1; go e2]
+     | DLaplace e0 e1 e2 => GenNode 18 [go e0; go e1; go e2]
      end
    with gov v :=
      match v with
@@ -317,6 +347,8 @@ Proof.
      | GenNode 14 [e1; e2] => Store (go e1) (go e2)
      | GenNode 15 [e] => Rand (go e)
      | GenNode 16 [e] => DRand (go e)
+     | GenNode 17 [e0; e1; e2] => Laplace (go e0) (go e1) (go e2)
+     | GenNode 18 [e0; e1; e2] => DLaplace (go e0) (go e1) (go e2)
      | _ => Val $ LitV LitUnit (* dummy *)
      end
    with gov v :=
@@ -331,7 +363,7 @@ Proof.
    for go).
  refine (inj_countable' enc dec _).
  refine (fix go (e : expr) {struct e} := _ with gov (v : val) {struct v} := _ for go).
- - destruct e as [v| | | | | | | | | | | | | | | | | ]; simpl; f_equal;
+ - destruct e as [v| | | | | | | | | | | | | | | | | | |]; simpl; f_equal;
      [exact (gov v)|done..].
  - destruct v; by f_equal.
 Qed.
@@ -373,7 +405,13 @@ Inductive ectx_item :=
   | StoreLCtx (v2 : val)
   | StoreRCtx (e1 : expr)
   | RandCtx
-  | DRandCtx  
+  | DRandCtx
+  | LaplaceNumCtx (v2 : val) (v3 : val)
+  | LaplaceDenCtx (e1 : expr) (v3 : val)
+  | LaplaceLocCtx (e1 : expr) (e2 : expr)
+  | DLaplaceNumCtx (v2 : val) (v3 : val)
+  | DLaplaceDenCtx (e1 : expr) (v3 : val)
+  | DLaplaceLocCtx (e1 : expr) (e2 : expr)
 .
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
@@ -398,6 +436,12 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | StoreRCtx e1 => Store e1 e
   | RandCtx => Rand e
   | DRandCtx => DRand e
+  | LaplaceNumCtx v2 v3 => Laplace e (Val v2) (Val v3)
+  | LaplaceDenCtx e1 v3 => Laplace e1 e (Val v3)
+  | LaplaceLocCtx e1 e2 => Laplace e1 e2 e
+  | DLaplaceNumCtx v2 v3 => DLaplace e (Val v2) (Val v3)
+  | DLaplaceDenCtx e1 v3 => DLaplace e1 e (Val v3)
+  | DLaplaceLocCtx e1 e2 => DLaplace e1 e2 e
   end.
 
 Definition decomp_item (e : expr) : option (ectx_item * expr) :=
@@ -440,6 +484,24 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
       end
   | Rand e => noval e RandCtx
   | DRand e => noval e DRandCtx
+  | Laplace e1 e2 e3 =>
+      match e3 with
+      | Val v3 =>
+          match e2 with
+          | Val v2 => noval e1 (LaplaceNumCtx v2 v3)
+          | _ => Some (LaplaceDenCtx e1 v3, e2)
+          end
+      | _ => Some (LaplaceLocCtx e1 e2, e3)
+      end
+  | DLaplace e1 e2 e3 =>
+      match e3 with
+      | Val v3 =>
+          match e2 with
+          | Val v2 => noval e1 (DLaplaceNumCtx v2 v3)
+          | _ => Some (DLaplaceDenCtx e1 v3, e2)
+          end
+      | _ => Some (DLaplaceLocCtx e1 e2, e3)
+      end
   | _              => None
   end.
 
@@ -471,6 +533,12 @@ Proof.
            | StoreRCtx e1 => GenNode 17 [GenLeaf (inl $ inr e1)]
            | RandCtx => GenNode 18 []
            | DRandCtx => GenNode 19 []
+           | LaplaceNumCtx v2 v3 => GenNode 20 [GenLeaf (inl $ inl v2); (GenLeaf (inl $ inl v3))]
+           | LaplaceDenCtx e1 v3 => GenNode 21 [GenLeaf (inl $ inr e1); (GenLeaf (inl $ inl v3))]
+           | LaplaceLocCtx e1 e2 => GenNode 22 [GenLeaf (inl $ inr e1); (GenLeaf (inl $ inr e2))]
+           | DLaplaceNumCtx v2 v3 => GenNode 23 [GenLeaf (inl $ inl v2); (GenLeaf (inl $ inl v3))]
+           | DLaplaceDenCtx e1 v3 => GenNode 24 [GenLeaf (inl $ inr e1); (GenLeaf (inl $ inl v3))]
+           | DLaplaceLocCtx e1 e2 => GenNode 25 [GenLeaf (inl $ inr e1); (GenLeaf (inl $ inr e2))]
            end).
   set (dec :=
          λ e, 
@@ -495,6 +563,12 @@ Proof.
            | GenNode 17 [GenLeaf (inl (inr e1))] => StoreRCtx e1  
            | GenNode 18 [] => RandCtx 
            | GenNode 19 [] => DRandCtx
+           | GenNode 20 [GenLeaf (inl (inl v2)); GenLeaf (inl (inl v3))] => LaplaceNumCtx v2 v3
+           | GenNode 21 [GenLeaf (inl (inr e1)); GenLeaf (inl (inl v3))] => LaplaceDenCtx e1 v3
+           | GenNode 22 [GenLeaf (inl (inr e1)); GenLeaf (inl (inr e2))] => LaplaceLocCtx e1 e2
+           | GenNode 23 [GenLeaf (inl (inl v2)); GenLeaf (inl (inl v3))] => DLaplaceNumCtx v2 v3
+           | GenNode 24 [GenLeaf (inl (inr e1)); GenLeaf (inl (inl v3))] => DLaplaceDenCtx e1 v3
+           | GenNode 25 [GenLeaf (inl (inr e1)); GenLeaf (inl (inr e2))] => DLaplaceLocCtx e1 e2
            | _ => DRandCtx
            end).
   refine (inj_countable' enc dec _).
@@ -522,6 +596,8 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | Store e1 e2 => Store (subst x v e1) (subst x v e2)
   | Rand e => Rand (subst x v e)
   | DRand e => DRand (subst x v e)
+  | Laplace e0 e1 e2 => Laplace (subst x v e0) (subst x v e1) (subst x v e2)
+  | DLaplace e0 e1 e2 => DLaplace (subst x v e0) (subst x v e1) (subst x v e2)
   end.
 
 Definition subst' (mx : binder) (v : val) : expr → expr :=
@@ -659,6 +735,8 @@ Fixpoint well_formed_expr (e:expr) :=
   | Store e1 e2 => well_formed_expr e1 && well_formed_expr e2
   | Rand e => well_formed_expr e
   | DRand e => well_formed_expr e
+  | Laplace e0 e1 e2 => well_formed_expr e0 && well_formed_expr e1 && well_formed_expr e2
+  | DLaplace e0 e1 e2 => well_formed_expr e0 && well_formed_expr e1 && well_formed_expr e2
   end
 with
 well_formed_val (v:val) :=
