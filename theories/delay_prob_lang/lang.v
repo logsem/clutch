@@ -1876,9 +1876,10 @@ Section urn.
         erewrite H0 in H1.
         case_match; set_solver.
     - destruct (decide (is_valid_urn x)) as [H|H].
-      + destruct x; simpl in *.
-        * admit.
-        * admit.
+      + rewrite urns_f_distr_f3_insert; last first.
+        * done.
+        * by rewrite Hx.
+        * admit. 
       + eapply ex_seriesC_ext; last done.
         simpl.
         intros f.
@@ -1886,6 +1887,39 @@ Section urn.
         by rewrite Hx.
   Admitted. 
   Next Obligation.
+    intros m.
+    induction m as [|i x m Hx Hfirst] using map_first_key_ind.
+    - erewrite (SeriesC_ext _ (λ f, if bool_decide (f=∅) then 1 else _)); first by erewrite SeriesC_singleton.
+      intros.
+      rewrite /urns_f_distr_f3.
+      symmetry. 
+      case_bool_decide as H0.
+      + rewrite bool_decide_eq_true_2.
+        * subst.
+          rewrite /urns_f_valid.
+          intros.
+          repeat case_match; set_solver.
+        * subst. intros ?.
+          repeat case_match; set_solver.
+      + rewrite bool_decide_eq_false_2; first done.
+        intros ?.
+        apply map_choose in H0.
+        destruct!/=.
+        rewrite /urns_f_valid in H.
+        epose proof H _ as H1.
+        erewrite H0 in H1.
+        case_match; set_solver.
+    - destruct (decide (is_valid_urn x)) as [H|H].
+      + rewrite urns_f_distr_f3_insert; last first.
+        * done.
+        * by rewrite Hx.
+        * admit. 
+      + etrans; last exact.
+        right.
+        apply SeriesC_ext.
+        intros f.
+        rewrite urns_f_distr_f3_insert_no_change; try done.
+        by rewrite Hx.
   Admitted. 
   (*   intros. *)
   (*   setoid_rewrite bool_decide_ext; last first. *)
