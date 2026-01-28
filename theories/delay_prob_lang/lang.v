@@ -1439,8 +1439,27 @@ Section urn.
     rewrite {1 3}/urns_f_distr_f1.
     by rewrite H; last set_solver.
   Qed. 
-                                         
-  
+
+  Lemma urns_f_distr_f2_insert l u m f z:
+    urns_f_valid (<[l:=u]> m) f ->
+    f !! l = Some z ->
+    is_valid_urn u -> 
+    urns_f_distr_f2 (<[l:=u]> m) f = urns_f_distr_f2 m (delete l f) * urns_f_distr_compute u z.
+  Proof.
+    rewrite {1}/urns_f_distr_f2.
+    intros H1 H2 H3.
+    replace (f) with (<[l:=z]> (delete l f)) at 1; last by rewrite insert_delete.
+    rewrite map_fold_insert; last by simplify_map_eq.
+    - rewrite -/(urns_f_distr_f2 _ (delete _ _)).
+      erewrite (urns_f_distr_f2_agree _ m); last first.
+      { intros x. rewrite elem_of_dom. intros []. simplify_map_eq.
+        destruct (decide (x=l)); subst; by simplify_map_eq. }
+      rewrite /urns_f_distr_f1.
+      by simplify_map_eq.
+    - intros.
+      rewrite /urns_f_distr_f1.
+      lra.
+  Qed.
   
   (* Lemma urns_f_distr_f_insert (m:gmap loc urn) i u: *)
   (*   m!!i=None -> *)
@@ -1774,7 +1793,8 @@ Section urn.
       pose proof Hn l'.
       destruct (decide (l=l')); subst; by simplify_map_eq. 
     }
-  Admitted. 
+    by apply urns_f_distr_f2_insert.
+  Qed. 
   
   Lemma urns_f_distr_f3_insert_no_change m l u:
     (match m!!l with
