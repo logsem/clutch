@@ -2534,7 +2534,18 @@ Section gmap.
       }
       setoid_rewrite SeriesC_scal_l.
       by apply ex_seriesC_scal_r.
-  Qed. 
+  Qed.
+
+  Lemma SeriesC_gmap_insert_le_1 `{Countable X} `{Countable Y} f g l:
+    SeriesC f<=1 ->
+    SeriesC (g) <=1 ->
+    SeriesC (λ (m : gmap X Y), match m!!l with
+                     | Some z => f (delete l m) * g z
+                     | None => 0
+                     end
+      ) <= 1.
+  Proof.
+  Admitted. 
 End gmap.
 
 

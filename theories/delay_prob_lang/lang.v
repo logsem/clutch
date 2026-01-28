@@ -1425,6 +1425,25 @@ Section urn.
     - by case_match.
   Qed.
 
+  Lemma urns_f_distr_compute_le_1 x: SeriesC (urns_f_distr_compute x) <= 1.
+  Proof.
+    rewrite /urns_f_distr_compute.
+    case_match; subst.
+    - erewrite (SeriesC_ext _ (λ z, if bool_decide (z∈elements s) then /size s else 0)).
+      + rewrite SeriesC_list_2.
+        * rewrite length_elements_size_gset.
+          destruct (length (_)) as [|n].
+          -- vm_compute. lra.
+          -- replace (_*_) with (S n / S n) by lra.
+             rewrite Rdiv_diag; first done.
+             apply not_0_INR.
+             lia.
+        * apply NoDup_elements.
+      + intros.
+        repeat case_bool_decide; set_solver.
+    - case_match; last rewrite SeriesC_0; try (intros; lra); done.
+  Qed. 
+
   Lemma ex_seriesC_urns_f_distr_compute x: ex_seriesC (urns_f_distr_compute x).
   Proof.
     rewrite /urns_f_distr_compute.
@@ -1958,25 +1977,16 @@ Section urn.
       + rewrite urns_f_distr_f3_insert; last first.
         * done.
         * by rewrite Hx.
-        * admit. 
+        * apply SeriesC_gmap_insert_le_1.
+          -- done.
+          -- apply urns_f_distr_compute_le_1.
       + etrans; last exact.
         right.
         apply SeriesC_ext.
         intros f.
         rewrite urns_f_distr_f3_insert_no_change; try done.
         by rewrite Hx.
-  Admitted. 
-  (*   intros. *)
-  (*   setoid_rewrite bool_decide_ext; last first. *)
-  (*   { rewrite -elem_of_set_urns_f_valid. by rewrite -elem_of_elements. } *)
-  (*   erewrite SeriesC_ext; first erewrite SeriesC_list_2; last done. *)
-  (*   - rewrite -length_elements_size_gset. *)
-  (*     rewrite Rdiv_1_l. *)
-  (*     rewrite Rinv_l; first done. *)
-  (*     apply not_0_INR. *)
-  (*     pose proof set_urns_f_nonempty m. lia. *)
-  (*   - apply NoDup_elements. *)
-  (* Qed. *)
+  Qed.
   
   Lemma urns_f_distr_mass m:
     SeriesC (urns_f_distr m) = 1.
