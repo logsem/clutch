@@ -566,6 +566,13 @@ Section filter.
     done.
   Qed.
 
+  Lemma ex_seriesC_from_option h f:
+    (∀ n, 0 <= f n) ->
+    (∀ (n1 n2:A) (m : B), h n1 = Some m → h n2 = Some m → n1 = n2) ->
+    ex_seriesC f → ex_seriesC (λ a : A, from_option f 0 (h a)).
+  Proof.
+  Admitted.
+
   Lemma is_seriesC_filter_pos f v P `{∀ x, Decision (P x)} :
     (∀ n, 0 <= f n) →
     is_seriesC f v →
@@ -2363,6 +2370,65 @@ Section Inj_finite.
   Qed. 
 
 End Inj_finite.
+
+
+Section gmap.
+  (* very specialized lemmas for elton *)
+  Lemma ex_seriesC_gmap_insert `{Countable X} `{Countable Y} l g f:
+    (∀ x, 0<= f x) -> (∀ x, 0 <= g x) ->
+    ex_seriesC f ->
+    ex_seriesC g ->
+    ex_seriesC (λ (m : gmap X Y), match m!!l with
+                     | Some z => f (delete l m) * g z
+                     | None => 0
+                     end
+      ).
+  Proof.
+    intros H1 H2 H3 H4.
+    pose (f' := (λ '(m, z),
+                   match z with
+                   | Some z => f m * g z
+                   | None => 0
+                   end
+         )).
+    pose (g' := (λ (m:gmap X Y), (delete l m, m!!l))).
+    apply (ex_seriesC_ext (λ m, f' (g' m))); first done.
+    apply ex_seriesC_inj.
+    { intros ??.
+      rewrite /g'.
+      intros. simplify_eq.
+      apply map_eq.
+      intros i.
+      destruct (decide (i=l)); subst; simplify_map_eq; first done.
+      erewrite <-lookup_delete_ne; last done.
+      erewrite <-(lookup_delete_ne y); last done.
+      by f_equal.
+    }
+    { intros.
+      rewrite /f'.
+      case_match.
+      subst.
+      case_match; real_solver. 
+    }
+    rewrite /f'.
+    apply ex_seriesC_prod.
+    - intros. case_match; real_solver.
+    - intros a.
+      apply (ex_seriesC_le _ (λ b, f a * from_option g 0 b)).
+      { intros. case_match; real_solver. }
+      apply ex_seriesC_scal_l.
+      apply ex_seriesC_from_option; naive_solver.
+    - apply (ex_seriesC_le _ (λ a, SeriesC (λ b, f a * from_option g 0 b))).
+      { intros. split.
+        - apply SeriesC_ge_0'. real_solver.
+        - right.
+          apply SeriesC_ext.
+          intros. case_match; real_solver.
+      }
+      setoid_rewrite SeriesC_scal_l.
+      by apply ex_seriesC_scal_r.
+  Qed. 
+End gmap.
 
 
 Ltac series_solver_partial :=

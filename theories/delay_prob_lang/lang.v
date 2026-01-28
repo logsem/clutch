@@ -1415,6 +1415,29 @@ Section urn.
          end)   
     end.
   
+  Lemma urns_f_distr_compute_pos u x : 0<=urns_f_distr_compute u x.
+  Proof.
+    rewrite /urns_f_distr_compute.
+    case_match.
+    - case_bool_decide; last done.
+      rewrite -Rdiv_1_l.
+      apply Rdiv_INR_ge_0.
+    - by case_match.
+  Qed.
+
+  Lemma ex_seriesC_urns_f_distr_compute x: ex_seriesC (urns_f_distr_compute x).
+  Proof.
+    rewrite /urns_f_distr_compute.
+    case_match.
+    - subst.
+      apply (ex_seriesC_ext  (λ z, if bool_decide (z∈elements s) then /size s else 0)); last apply ex_seriesC_list.
+      intros.
+      repeat case_bool_decide; set_solver.
+    - case_match; try done.
+      apply ex_seriesC_0.
+  Qed. 
+      
+  
   Definition urns_f_distr_f1 (m: gmap loc urn):=
     (λ lo z r, r*match m!!lo with
                 | None => 0 (* Not possible *)
@@ -1425,6 +1448,17 @@ Section urn.
   Definition urns_f_distr_f2 (m: gmap loc urn) (f:gmap loc Z) :=
     map_fold (urns_f_distr_f1 m) 1 f.
 
+  Lemma urns_f_distr_f2_pos m x : 0<=urns_f_distr_f2 m x.
+  Proof.
+    rewrite /urns_f_distr_f2.
+    induction x as [|i x m' Hx Hfirst] using map_first_key_ind; first (vm_compute; lra).
+    rewrite map_fold_insert_first_key; try done.
+    rewrite {1}/urns_f_distr_f1.
+    case_match; last real_solver.
+    apply Rmult_le_pos; first done.
+    apply urns_f_distr_compute_pos.
+  Qed. 
+  
   Lemma urns_f_distr_f2_agree m1 m2 f :
     (∀ x, x ∈ dom f-> m1!!x = m2!!x) ->
     urns_f_distr_f2 m1 f = urns_f_distr_f2 m2 f.
@@ -1751,6 +1785,13 @@ Section urn.
   Definition urns_f_distr_f3 m:= (λ f, if bool_decide (urns_f_valid m f)
                                        then urns_f_distr_f2 m f else 0).
 
+  Lemma urns_f_distr_f3_pos m x : 0<=urns_f_distr_f3 m x.
+  Proof.
+    rewrite /urns_f_distr_f3.
+    case_bool_decide; last done.
+    apply urns_f_distr_f2_pos.
+  Qed.
+  
   Lemma urns_f_distr_f3_insert m l u:
     (match m!!l with
      | None => True
@@ -1879,13 +1920,17 @@ Section urn.
       + rewrite urns_f_distr_f3_insert; last first.
         * done.
         * by rewrite Hx.
-        * admit. 
+        * apply ex_seriesC_gmap_insert.
+          -- intros. apply urns_f_distr_f3_pos.
+          -- apply urns_f_distr_compute_pos.
+          -- done.
+          -- apply ex_seriesC_urns_f_distr_compute. 
       + eapply ex_seriesC_ext; last done.
         simpl.
         intros f.
         rewrite urns_f_distr_f3_insert_no_change; try done.
         by rewrite Hx.
-  Admitted. 
+  Qed. 
   Next Obligation.
     intros m.
     induction m as [|i x m Hx Hfirst] using map_first_key_ind.
@@ -1932,7 +1977,6 @@ Section urn.
   (*     pose proof set_urns_f_nonempty m. lia. *)
   (*   - apply NoDup_elements. *)
   (* Qed. *)
-
   
   Lemma urns_f_distr_mass m:
     SeriesC (urns_f_distr m) = 1.
