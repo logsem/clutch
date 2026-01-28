@@ -1334,24 +1334,13 @@ Section urn.
     end.
 
   Definition urns_f_valid (m : gmap loc urn) (f:gmap loc Z) :=
-    forall l, match f !! l with
-         | Some x =>
-             match m!!l with
-               | Some u => 
-                  match u with
-                  | urn_unif s => x ∈ s
-                  | urn_laplace _ _ _ => is_valid_urn u
-                  end
-             | None =>
-                 False
-             end
-         | None => match m!!l with
-                  | None => True
-                  | Some s => ¬ is_valid_urn s
-                  end
-  end
-  .
-
+    forall l, match (m!!l), (f!!l)with
+         | Some u, Some _ => is_valid_urn u
+         | Some u, None => ¬ is_valid_urn u
+         | None, Some _ => False
+         | None, None => True
+         end.
+  
   Lemma urns_f_valid_support m f:
     urns_f_valid m f -> urns_support_set m = dom f.
   Proof.
@@ -1364,18 +1353,11 @@ Section urn.
     split.
     - intros [?[]].
       pose proof H l.
-      case_match; first done.
-      case_match; naive_solver.
+      repeat case_match; destruct!/=; naive_solver.
     - intros [? H'].
       pose proof H l as H.
       rewrite H' in H.
-      repeat case_match.
-      + eexists _; split; first done.
-        intros ?. simplify_eq.
-        set_solver.
-      + subst.
-        naive_solver.
-      + naive_solver.
+      repeat case_match; naive_solver.
   Qed.
 
   Global Instance urns_f_valid_dec m f : Decision (urns_f_valid m f). 
@@ -1384,13 +1366,8 @@ Section urn.
       (urns_support_set m = dom f /\
        map_Forall (λ l x,
             match m!!l with
-               | Some u => 
-                  match u with
-                  | urn_unif s => x ∈ s
-                  | urn_laplace  _ _ _ => is_valid_urn u
-                  end
-             | None =>
-                 False
+            | Some u => is_valid_urn u
+            | None => False
              end
          ) f); last (intros; apply propositional_extensionality).
     - apply and_dec; first solve_decision.
@@ -1402,43 +1379,47 @@ Section urn.
         intros [H1 H2].
         intros l.
         rewrite map_Forall_lookup in H2.
-        case_match eqn:H3; first by apply H2 in H3.
-        case_match eqn:H; last done.
-        rewrite /is_valid_urn.
-        assert (l ∉ dom (filter (λ '(_, u), is_valid_urn u) m)) as Hin.
-        { rewrite H1.
-          by rewrite not_elem_of_dom. 
-        }
-        rewrite not_elem_of_dom in Hin.
-        rewrite map_lookup_filter_None in Hin.
-        destruct!/=.
-        naive_solver.
+        pose proof H2 l as H2.
+        case_match.
+        * case_match; first naive_solver.
+          intro.
+          assert (l∈ dom f) as H4.
+          { rewrite -H1.
+            rewrite elem_of_dom.
+            by setoid_rewrite map_lookup_filter_Some_2.
+          }
+          apply elem_of_dom in H4 as []. naive_solver.
+        * case_match; naive_solver.
       + intros.
-        split; first by apply urns_f_valid_support.
-        apply map_Forall_lookup.
-        intros i x Hx.
-        pose proof H i as H'.
-        case_match; by simplify_eq.
+        split.
+        * apply set_eq.
+          intros l.
+          rewrite elem_of_urns_support_set elem_of_dom.
+          pose proof H l as H.
+          repeat case_match; split; intros H'; destruct!/=; try naive_solver; by destruct H'.
+        * apply map_Forall_lookup.
+          intros l x.
+          pose proof H l as H.
+          intros H'. by rewrite H' in H.
   Qed. 
 
-  Definition urns_f_distr_f (m: gmap loc urn) (f:gmap loc Z) :=
-    if bool_decide (urns_f_valid m f)
-    then map_fold (λ lo u r,
-                     match u with
-                     | urn_unif s =>
-                         if bool_decide (s ≠ ∅) then r/size (s) else r
-                     | urn_laplace num den l =>
-                         match f!!lo with
-                         | Some z =>
-                             (match decide (0 < IZR num / IZR den) with
-                              | left εpos => r * laplace_rat num den l εpos z
-                              | right _ => 0 (* not possible *)
-                              end)
-                         | None => 0 (* not possible *)
-                         end
-                     end
-           ) 1 m
-    else 0.
+  (* We always assume (urns_f_valid m f) for this function *)
+  Definition urns_f_distr_f1 (m: gmap loc urn):=
+    (λ lo z r,
+                match m!!lo with
+                | None => 0 (* Not possible *)
+                | Some (urn_unif s) =>
+                    if bool_decide (z∈s) then r/size(s) else 0
+                | Some (urn_laplace num den l) =>
+                    (match decide (0 < IZR num / IZR den) with
+                     | left εpos => r * laplace_rat num den l εpos z
+                     | right _ => 0 (* not possible *)
+                     end)   
+                end
+    ).
+  
+  Definition urns_f_distr_f2 (m: gmap loc urn) (f:gmap loc Z) :=
+    map_fold (urns_f_distr_f1 m) 1 f.
   
   Lemma urns_f_distr_f_insert (m:gmap loc urn) i u:
     m!!i=None ->
