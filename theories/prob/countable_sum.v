@@ -2537,6 +2537,9 @@ Section gmap.
   Qed.
 
   Lemma SeriesC_gmap_insert_le_1 `{Countable X} `{Countable Y} f g l:
+    (∀ x, 0<= f x) -> (∀ x, 0 <= g x) ->
+    ex_seriesC f ->
+    ex_seriesC g ->
     SeriesC f<=1 ->
     SeriesC (g) <=1 ->
     SeriesC (λ (m : gmap X Y), match m!!l with
@@ -2545,7 +2548,48 @@ Section gmap.
                      end
       ) <= 1.
   Proof.
-  Admitted. 
+    intros H1 H2 H3 H4 H5 H6.
+    pose (f' := (λ '(m, z),f m * g z
+         )).
+    pose (g' := (λ (m:gmap X Y), match m!!l with
+                                 | Some z => Some (delete l m, z)
+                                 | None => None
+                                 end
+         )).
+    erewrite (SeriesC_ext _ (λ m, from_option f' 0 (g' m))); last first.
+    { intros. rewrite /g'/f'. by case_match. }
+    etrans; first apply SeriesC_le_inj.
+    - intros. rewrite /f'.
+      case_match.
+      real_solver.
+    - rewrite /g'.
+      intros. repeat case_match; simplify_eq.
+      apply map_eq.
+      intros i.
+      destruct (decide (i=l)); subst; simplify_map_eq; first done.
+      erewrite <-lookup_delete_ne; last done.
+      erewrite <-(lookup_delete_ne n2); last done.
+      by f_equal.
+    - rewrite /f'.
+      apply ex_seriesC_prod.
+      + real_solver.
+      + intros.
+        by apply ex_seriesC_scal_l.
+      + setoid_rewrite SeriesC_scal_l.
+        by apply ex_seriesC_scal_r.
+    - rewrite /f'.
+      rewrite fubini_pos_seriesC_prod_lr; last first.
+      + apply ex_seriesC_prod.
+        * real_solver.
+        * intros. by apply ex_seriesC_scal_l.
+        * setoid_rewrite SeriesC_scal_l.
+          by apply ex_seriesC_scal_r.
+      + real_solver.
+      + setoid_rewrite (SeriesC_scal_l _ (f _)).
+        setoid_rewrite (SeriesC_scal_r).
+        replace (1) with (1*1) by lra.
+        apply Rmult_le_compat; try done; by apply SeriesC_ge_0'.
+  Qed. 
 End gmap.
 
 

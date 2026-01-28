@@ -1854,7 +1854,7 @@ Section urn.
       destruct (decide (l=l')); subst; by simplify_map_eq. 
     }
     by apply urns_f_distr_f2_insert.
-  Qed. 
+  Qed.
   
   Lemma urns_f_distr_f3_insert_no_change m l u:
     (match m!!l with
@@ -1896,25 +1896,9 @@ Section urn.
       case_match; case_match; naive_solver.
   Qed. 
   
-  Program Definition urns_f_distr m := MkDistr (urns_f_distr_f3 m) _ _ _.
-  Next Obligation.
-    intros m f. simpl.
-    rewrite /urns_f_distr_f3.
-    case_bool_decide; last done.
-    rewrite /urns_f_distr_f2.
-    clear.
-    induction f using map_first_key_ind; first (vm_compute; lra).
-    rewrite map_fold_insert_first_key; [|done..].
-    rewrite {1}/urns_f_distr_f1.
-    rewrite /urns_f_distr_compute.
-    case_match; last lra.
-    case_match; first case_match; [|real_solver..].
-    rewrite -Rdiv_1_l.
-    apply Rmult_le_pos; first done.
-    apply Rdiv_INR_ge_0.
-  Qed.
-  Next Obligation.
-    intros m.
+  
+  Lemma ex_seriesC_urns_f_distr_f3 m: ex_seriesC (urns_f_distr_f3 m).
+  Proof.
     induction m as [|i x m Hx Hfirst] using map_first_key_ind.
     - eapply (ex_seriesC_ext (λ f, if bool_decide (f=∅) then 1 else _)); last apply ex_seriesC_singleton.
       intros.
@@ -1950,6 +1934,27 @@ Section urn.
         rewrite urns_f_distr_f3_insert_no_change; try done.
         by rewrite Hx.
   Qed. 
+  
+  Program Definition urns_f_distr m := MkDistr (urns_f_distr_f3 m) _ _ _.
+  Next Obligation.
+    intros m f. simpl.
+    rewrite /urns_f_distr_f3.
+    case_bool_decide; last done.
+    rewrite /urns_f_distr_f2.
+    clear.
+    induction f using map_first_key_ind; first (vm_compute; lra).
+    rewrite map_fold_insert_first_key; [|done..].
+    rewrite {1}/urns_f_distr_f1.
+    rewrite /urns_f_distr_compute.
+    case_match; last lra.
+    case_match; first case_match; [|real_solver..].
+    rewrite -Rdiv_1_l.
+    apply Rmult_le_pos; first done.
+    apply Rdiv_INR_ge_0.
+  Qed.
+  Next Obligation.
+    apply ex_seriesC_urns_f_distr_f3.
+  Qed. 
   Next Obligation.
     intros m.
     induction m as [|i x m Hx Hfirst] using map_first_key_ind.
@@ -1978,6 +1983,10 @@ Section urn.
         * done.
         * by rewrite Hx.
         * apply SeriesC_gmap_insert_le_1.
+          -- apply urns_f_distr_f3_pos.
+          -- apply urns_f_distr_compute_pos.
+          -- apply ex_seriesC_urns_f_distr_f3.
+          -- apply ex_seriesC_urns_f_distr_compute.
           -- done.
           -- apply urns_f_distr_compute_le_1.
       + etrans; last exact.
