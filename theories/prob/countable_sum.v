@@ -482,7 +482,7 @@ Section filter.
     + apply SeriesC_singleton.
     + intro a'; rewrite (bool_decide_ext (a = a') (a' = a)); done.
   Qed.
-
+ 
   Lemma ex_seriesC_list (l : list A) (f : A -> R):
     ex_seriesC (λ (a : A), if bool_decide(a ∈ l) then f a else 0).
   Proof.
@@ -568,10 +568,117 @@ Section filter.
 
   Lemma ex_seriesC_from_option h f:
     (∀ n, 0 <= f n) ->
-    (∀ (n1 n2:A) (m : B), h n1 = Some m → h n2 = Some m → n1 = n2) ->
-    ex_seriesC f → ex_seriesC (λ a : A, from_option f 0 (h a)).
+    (∀ (n1 n2:B) (m : A), h n1 = Some m → h n2 = Some m → n1 = n2) ->
+    ex_seriesC f → ex_seriesC (λ a : B, from_option f 0 (h a)).
   Proof.
-  Admitted.
+    intros Hpos Hinj H1.
+    apply ex_seriesC_ex_series.
+    apply ex_pos_bounded_series.
+    { intros n.
+      rewrite /countable_sum.
+      rewrite /from_option.
+      repeat case_match; real_solver. }
+    exists (SeriesC f).
+    intros n.
+    assert (∃ l : list _,
+               (∀ m, m∈l->(∃ k a, (k<=n)%nat /\ (@encode_inv_nat B _ _ k%nat) = Some a /\
+                                              h a = Some m)) /\
+                   sum_n (countable_sum (λ a : B, from_option f 0 (h a))) n <=
+                    SeriesC (λ a, if bool_decide(a ∈ l) then f a else 0)
+           ) as H'; last first.
+    { destruct H' as [?[??]].
+        etrans; first exact.
+        apply SeriesC_le'; try done.
+        - intros. case_bool_decide; naive_solver.
+        - apply ex_seriesC_list.
+      }
+    induction n.
+      + destruct (@encode_inv_nat B _ _ 0%nat) as [a|]eqn:Ha.
+        * destruct (h a) as [b|] eqn : Hb.
+          -- exists [b]. split.
+             ++ intros. exists 0%nat, a.
+                repeat split; try lia; try done.
+                rewrite Hb. f_equal. set_solver.
+             ++ rewrite sum_O. rewrite /countable_sum.
+                rewrite Ha. simpl. rewrite Hb. simpl.
+                erewrite SeriesC_ext.
+                ** erewrite SeriesC_singleton_dependent. done.
+                ** intro. simpl.
+                   repeat case_bool_decide; set_solver.
+          -- exists []. split.
+             ++ intros; set_solver.
+             ++ rewrite sum_O. rewrite /countable_sum.
+                rewrite Ha. simpl. rewrite Hb. simpl.
+                rewrite SeriesC_0; intros; lra.
+        * exists []. split.
+          ++ intros; set_solver.
+          ++ rewrite sum_O. rewrite /countable_sum.
+             rewrite Ha. simpl.
+             rewrite SeriesC_0; intros; lra.
+      + assert (0<=n)%nat as Hge0.
+        * lia.
+        * destruct IHn as [l[H2 H3]].
+          destruct (@encode_inv_nat B _ _ (S n)%nat) as [a|] eqn:Ha.
+          -- destruct (h a) as [b|] eqn : Hb.
+             ++ exists (b::l). split.
+                ** intros. set_unfold.
+                   destruct H4; subst.
+                   --- exists (S n), a. split; try lia. split; done.
+                   --- specialize (H2 m H4).
+                       destruct H2 as [?[?[?[??]]]].
+                       exists x, x0. split; try lia. by split.
+                ** rewrite sum_Sn. rewrite {2}/countable_sum.
+                   rewrite Ha. simpl. rewrite Hb. simpl.
+                   rewrite (SeriesC_ext _ (λ x, (if bool_decide (x=b) then f b else 0) +
+                                                  if bool_decide (x∈l) then f x else 0
+                           )); last first.
+                   { intros.
+                     case_bool_decide.
+                     - set_unfold. destruct H4.
+                       + case_bool_decide; last done.
+                         case_bool_decide.
+                         * subst. specialize (H2 b H6).
+                           destruct H2 as [?[?[?[??]]]].
+                           rewrite -H7 in Hb.
+                           assert (a = x0).
+                           { eapply Hinj; try done. rewrite Hb. done. }
+                           subst. exfalso.
+                           rewrite -H4 in Ha. assert (x≠ (S n)) by lia.
+                           apply H8. by eapply encode_inv_nat_some_inj.
+                         * subst. lra.
+                       + case_bool_decide.
+                         { subst. specialize (H2 b H4) as [?[?[?[??]]]].
+                           assert (x ≠ S n) by lia.
+                           exfalso. apply H7. eapply encode_inv_nat_some_inj; try done.
+                           rewrite Ha H5. f_equal.
+                           by eapply Hinj.
+                         }
+                         case_bool_decide; try done. lra.
+                     - repeat case_bool_decide.
+                       + set_solver.
+                       + set_solver.
+                       + set_solver.
+                       + lra.
+                   }
+                   rewrite SeriesC_plus; last first.
+                   { by apply ex_seriesC_list. }
+                   { by apply ex_seriesC_singleton. }
+                   rewrite Rplus_comm. rewrite SeriesC_singleton.
+                   trans ((sum_n (countable_sum (λ a0 : B, from_option f 0 (h a0))) n) + f b); try lra.
+                   done.
+             ++ exists l. split.
+                ** intros. specialize (H2 _ H4) as [?[?[?[??]]]].
+                   exists x, x0. repeat split; try done. lia.
+                ** rewrite sum_Sn. rewrite {2}/countable_sum. rewrite Ha. simpl.
+                   rewrite Hb. simpl. etrans; last exact.
+                   by rewrite plus_zero_r.
+          -- exists l. split.
+             ++ intros. specialize (H2 _ H4) as [?[?[?[??]]]].
+                exists x, x0. repeat split; try done. lia.
+             ++ rewrite sum_Sn. rewrite {2}/countable_sum. rewrite Ha. simpl.
+                etrans; last exact.
+                by rewrite plus_zero_r.
+  Qed. 
 
   Lemma is_seriesC_filter_pos f v P `{∀ x, Decision (P x)} :
     (∀ n, 0 <= f n) →
