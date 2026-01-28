@@ -1249,13 +1249,13 @@ Section urn.
   Definition is_valid_urn (u: urn) :=
     match u with
     | urn_unif s => s ≠ ∅
-    | urn_laplace num den l => (0<num/den)%Z
+    | urn_laplace num den l => (0<IZR num/IZR den)
     end.
 
   Global Instance is_valid_urn_dec u : Decision (is_valid_urn u).
   Proof.
     destruct u; simpl; first solve_decision.
-    apply Z.lt_dec.
+    apply make_decision.
   Qed. 
   
   Definition urns_support_set (m:gmap loc urn):=
@@ -1454,9 +1454,44 @@ Section urn.
       repeat case_bool_decide; set_solver.
     - case_match; try done.
       apply ex_seriesC_0.
+  Qed.
+
+  Program Definition urns_f_distr_compute_distr u := MkDistr (urns_f_distr_compute u) _ _ _.
+  Next Obligation.
+    apply urns_f_distr_compute_pos.
+  Qed.
+  Next Obligation.
+    apply ex_seriesC_urns_f_distr_compute.
+  Qed.
+  Next Obligation.
+    apply urns_f_distr_compute_le_1.
+  Qed.  
+
+
+  Lemma urns_f_distr_compute_distr_mass u:
+    is_valid_urn u ->
+    SeriesC (urns_f_distr_compute u) = 1.
+  Proof.
+    intros H.
+    rewrite /urns_f_distr_compute.
+    unfold is_valid_urn in *.
+    case_match.
+    - erewrite (SeriesC_ext _ (λ z, if bool_decide (z ∈elements s) then /size s else 0)).
+      + rewrite SeriesC_list_2; last apply NoDup_elements.
+        rewrite -length_elements_size_gset.
+        replace (_*_) with ((size s)/ (size s)) by lra.
+        apply Rdiv_diag.
+        apply not_0_INR.
+        rewrite size_non_empty_iff.
+        set_solver.
+      + intros.
+        repeat case_bool_decide; set_solver.
+    - case_match eqn:Hn.
+      + apply laplace_mass.
+      + done.
   Qed. 
-      
-  
+
+        
   Definition urns_f_distr_f1 (m: gmap loc urn):=
     (λ lo z r, r*match m!!lo with
                 | None => 0 (* Not possible *)
@@ -1996,22 +2031,102 @@ Section urn.
         rewrite urns_f_distr_f3_insert_no_change; try done.
         by rewrite Hx.
   Qed.
+
+  Lemma urns_f_distr_empty :
+    urns_f_distr ∅ = dret ∅.
+  Proof.
+    apply distr_ext.
+    intros.
+    destruct (decide(a = ∅)) as [|Hn].
+    { subst.
+      rewrite dret_1_1; last done.
+      rewrite /urns_f_distr/pmf/=.
+      rewrite /urns_f_distr_f3.
+      rewrite bool_decide_eq_true_2.
+      - rewrite /urns_f_distr_f2.
+        by vm_compute.
+      - intros ?. repeat case_match; set_solver.
+    }
+    rewrite dret_0; last done.
+    rewrite /urns_f_distr/pmf.
+    rewrite /urns_f_distr_f3.
+    rewrite bool_decide_eq_false_2; first done.
+    apply map_choose in Hn.
+    destruct Hn as [i []].
+    intros Hcontra.
+    pose proof Hcontra i.
+    repeat case_match; set_solver.
+  Qed.
+
+  Lemma urns_f_distr_insert m l u:
+    (match m!!l with
+     | None => True
+     | Some u' => ¬ is_valid_urn u'
+     end) ->
+    is_valid_urn u ->
+    urns_f_distr (<[l:=u]> m) =
+    dbind
+      (λ f,
+         dbind (λ z, dret (<[l:=z]> f)) (urns_f_distr_compute_distr u)
+      )
+      (urns_f_distr m).
+  Proof.
+    intros H1 H2.
+    apply distr_ext.
+    intros a.
+    rewrite {1}/urns_f_distr{1}/pmf.
+    rewrite urns_f_distr_f3_insert; try done.
+    destruct (a!!_) eqn:Ha.
+    - rewrite {1}/dbind{1}/dbind_pmf{1 }/pmf.
+      rewrite /dbind/dbind_pmf{2}/pmf.
+      admit.
+    - symmetry.
+      apply: SeriesC_0.
+      intros.
+      apply Rmult_eq_0_compat_l.
+      apply:SeriesC_0.
+      intros.
+      rewrite dret_0; first lra.
+      intros ->.
+      simplify_map_eq.
+  Admitted.
+
+  Lemma urns_f_distr_insert_no_change m l u:
+    (match m!!l with
+     | None => True
+     | Some u' => ¬ is_valid_urn u'
+    end) ->
+    ¬ is_valid_urn u ->
+    urns_f_distr (<[l:=u]> m) = urns_f_distr m.
+  Proof.
+    intros.
+    apply distr_ext.
+    intros.
+    rewrite /urns_f_distr/pmf.
+    by rewrite urns_f_distr_f3_insert_no_change.
+  Qed. 
   
   Lemma urns_f_distr_mass m:
     SeriesC (urns_f_distr m) = 1.
   Proof.
-  Admitted. 
-  (*   rewrite /urns_f_distr/pmf/=. *)
-  (*   setoid_rewrite bool_decide_ext; last first. *)
-  (*   { rewrite -elem_of_set_urns_f_valid. by rewrite -elem_of_elements. } *)
-  (*   erewrite SeriesC_ext; first erewrite SeriesC_list_2; last done. *)
-  (*   - rewrite -length_elements_size_gset. *)
-  (*     rewrite Rdiv_1_l. *)
-  (*     rewrite Rinv_l; first done. *)
-  (*     apply not_0_INR. *)
-  (*     pose proof set_urns_f_nonempty m. lia.  *)
-  (*   - apply NoDup_elements. *)
-  (* Qed. *)
+    induction m as [|i x m Hx Hfirst] using map_first_key_ind.
+    { rewrite urns_f_distr_empty.
+      by rewrite dret_mass.
+    }
+    destruct (decide (is_valid_urn x)).
+    - setoid_rewrite urns_f_distr_insert; try done; last by rewrite Hx.
+      rewrite dbind_mass.
+      erewrite SeriesC_ext; last first.
+      + intros. rewrite dbind_mass.
+        erewrite SeriesC_ext; last first.
+        * intros. rewrite dret_mass. by rewrite Rmult_1_r.
+        * rewrite urns_f_distr_compute_distr_mass; last done.
+          by rewrite Rmult_1_r.
+      + done. 
+    - rewrite urns_f_distr_insert_no_change; try done.
+      by case_match.
+  Qed.
+  Print Assumptions urns_f_distr_mass.
 
   (** Not true *)
   (* Lemma urns_f_distr_pos m f: *)

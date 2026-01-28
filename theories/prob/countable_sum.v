@@ -2589,7 +2589,8 @@ Section gmap.
         setoid_rewrite (SeriesC_scal_r).
         replace (1) with (1*1) by lra.
         apply Rmult_le_compat; try done; by apply SeriesC_ge_0'.
-  Qed. 
+  Qed.
+  
 End gmap.
 
 
