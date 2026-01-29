@@ -108,7 +108,7 @@ Definition def_val : val := LitV LitUnit.
 
 Inductive urn :=
 | urn_unif (s : gset Z)
-| urn_laplace (num:nat) (den : Z) (l : Z)
+| urn_laplace (num: Z) (den : Z) (l : Z)
 .
 
 Global Instance urn_inhabited : Inhabited urn. Proof. exact (populate (urn_unif ∅)). Qed. 
@@ -2741,7 +2741,39 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
           let s := list_to_set (Z.of_nat <$>seq 0 (N'+1)) in
           dret (Val $ LitV $ LitLbl l, state_upd_urns <[l:=(urn_unif s)]> σ1)
       | _ => dzero
-      end 
+      end
+  | Laplace (Val (LitV bl0)) (Val (LitV bl1)) (Val (LitV bl2)) =>
+      match excluded_middle_informative (∃ (N:Z), urn_subst_equal σ1 bl0 (LitInt N)),
+              excluded_middle_informative (∃ (N:Z), urn_subst_equal σ1 bl1 (LitInt N)),
+                excluded_middle_informative (∃ (N:Z), urn_subst_equal σ1 bl2 (LitInt N)) with
+      | left P0, left P1, left P2 =>
+          let num := epsilon P0 in
+          let den := epsilon P1 in
+          let loc := epsilon P2 in
+          dmap (λ z : Z, (Val $ LitV $ LitInt z, σ1))
+            (match decide (0 < IZR num / IZR den) with
+             | left εpos => laplace_rat num den loc εpos
+             | right _ => dret loc
+             end)
+      | _, _, _ => dzero
+      end
+  | DLaplace (Val (LitV bl0)) (Val (LitV bl1)) (Val (LitV bl2)) =>
+      match excluded_middle_informative (∃ (N:Z), urn_subst_equal σ1 bl0 (LitInt N)),
+              excluded_middle_informative (∃ (N:Z), urn_subst_equal σ1 bl1 (LitInt N)),
+                excluded_middle_informative (∃ (N:Z), urn_subst_equal σ1 bl2 (LitInt N)) with
+      | left P0, left P1, left P2 =>
+          let num := epsilon P0 in
+          let den := epsilon P1 in
+          let loc := epsilon P2 in
+          let l := fresh_loc σ1.(urns) in
+          (match decide (0 < IZR num / IZR den) with
+           | left εpos =>
+               dret (Val $ LitV $ LitLbl l, state_upd_urns <[l:=(urn_laplace num den loc)]> σ1)
+             | right _ => 
+                 dret (Val $ LitV $ LitLbl l, state_upd_urns <[l:=(urn_unif {[loc]})]> σ1)
+             end)
+      | _, _, _ => dzero
+      end
   | _ => dzero
   end.
 
