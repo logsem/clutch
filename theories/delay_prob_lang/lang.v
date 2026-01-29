@@ -2058,6 +2058,13 @@ Section urn.
     repeat case_match; set_solver.
   Qed.
 
+  Lemma urns_f_distr_pos m f:
+    urns_f_distr m f > 0 -> urns_f_valid m f.
+  Proof.
+    rewrite /urns_f_distr/pmf/urns_f_distr_f3.
+    case_bool_decide; [done|lra].
+  Qed. 
+
   Lemma urns_f_distr_insert m l u:
     (match m!!l with
      | None => True
@@ -2079,7 +2086,33 @@ Section urn.
     destruct (a!!_) eqn:Ha.
     - rewrite {1}/dbind{1}/dbind_pmf{1 }/pmf.
       rewrite /dbind/dbind_pmf{2}/pmf.
-      admit.
+      erewrite (SeriesC_ext _ (λ a0, if bool_decide (a0 = (delete l a)) then _ else 0)); last first.
+      + intros n.
+        case_bool_decide as H; first done.
+        destruct (pmf_pos (urns_f_distr m) n) as [Hineq|<-]; last lra.
+        apply (Rlt_gt) in Hineq.
+        apply urns_f_distr_pos in Hineq as Hineq'.
+        apply Rmult_eq_0_compat_l.
+        apply SeriesC_0.
+        intros.
+        apply Rmult_eq_0_compat_l.
+        rewrite dret_0; first done.
+        intros ->.
+        apply H.
+        simplify_map_eq.
+        rewrite delete_insert; first done.
+        pose proof Hineq' l.
+        repeat case_match; naive_solver.
+      + rewrite SeriesC_singleton_dependent.
+        f_equal.
+        erewrite (SeriesC_ext _ (λ a0, if bool_decide (a0 = (z)) then _ else 0)); last first.
+        { intros. case_bool_decide; first done.
+          rewrite dret_0; first lra.
+          intros H'. rewrite H' in Ha. simplify_map_eq.
+        }
+        rewrite SeriesC_singleton_dependent.
+        rewrite /urns_f_distr_compute_distr{1}/pmf dret_1_1; first lra.
+        by rewrite insert_delete.
     - symmetry.
       apply: SeriesC_0.
       intros.
@@ -2089,7 +2122,7 @@ Section urn.
       rewrite dret_0; first lra.
       intros ->.
       simplify_map_eq.
-  Admitted.
+  Qed. 
 
   Lemma urns_f_distr_insert_no_change m l u:
     (match m!!l with
@@ -2126,7 +2159,6 @@ Section urn.
     - rewrite urns_f_distr_insert_no_change; try done.
       by case_match.
   Qed.
-  Print Assumptions urns_f_distr_mass.
 
   (** Not true *)
   (* Lemma urns_f_distr_pos m f: *)
