@@ -2374,3 +2374,16 @@ Proof.
   2: apply Rplus_eq_compat_r; apply Rmult_eq_compat_l.
   all: apply SeriesC_ext ; intros ; case_bool_decide ; field.
 Qed.
+
+Lemma DPcoupl_pweq' `{Countable A} `{Countable B} `{Countable X}
+  (μ : distr A) (μ' : distr B) (f:A -> X) g
+  ε δ (εpos : 0 <= ε) (δpos : forall a, 0 <= δ a)
+  (δconv : ex_seriesC δ)
+  (pw : ∀ x, DPcoupl μ μ' (λ a b, f a = x → g b = x) ε (δ x)) :
+  DPcoupl μ μ' (λ a b, f a = g b) ε (SeriesC δ).
+Proof.
+  cut (DPcoupl (dmap f μ) (dmap g μ') eq ε (SeriesC δ)); first by intros ?%DPcoupl_map_inv.
+  apply DPcoupl_pweq; [done..|].
+  intros.
+  by apply DPcoupl_map.
+Qed. 
