@@ -253,7 +253,9 @@ Section lrel_ectx_and_expr.
     f_contractive.
     apply expr_refines_ne; try done.
     intros ?? ?.
-    apply IH; try lia; try eapply dist_le; eauto with lia. 
+    apply IH; try lia; try eapply dist_le; eauto with lia.
+    - by apply SIdx.lt_le_incl.
+    - by apply SIdx.lt_le_incl.
   Qed.
   Global Instance eff_refines_proper :
     Proper ((≡) ==> (≡) ==> (≡)) eff_refines.

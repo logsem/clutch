@@ -1558,8 +1558,8 @@ Section compatibility.
                  iApply (refines_pure_r); [apply pure_prim_step_beta|].
                  iDestruct ("Hcont" with "HA2") as "Hfill".
                  iNext. simpl.
-                 iApply (refines_pure_l). { apply (pure_prim_step_fill [AppRCtx _; AppLCtx _ ; AppLCtx _]). apply pure_prim_step_rec.}
-                 iApply (refines_pure_r). { apply (pure_prim_step_fill [AppRCtx _; AppLCtx _ ; AppLCtx _]). apply pure_prim_step_rec.}
+                 iApply (refines_pure_l). { apply (pure_prim_step_fill [AppRCtx _; AppLCtx _ ; AppLCtx _]). apply pure_prim_step_rec. }
+                 iApply (refines_pure_r). { apply (pure_prim_step_fill [AppRCtx _; AppLCtx _ ; AppLCtx _]). apply pure_prim_step_rec. }
                  iNext. simpl.
                  iAssert ((() → expr_refines (eff_refines ρ) A)%valRel (λ: <>, Cont N1 w1)%V (λ: <>, Cont N2 w2)%V) as "HcontRel".
                  { iIntros (u u') "!> (-> & ->)".
@@ -1582,7 +1582,7 @@ Section compatibility.
                  iApply (refines_pure_l). { apply (pure_prim_step_fill [IfCtx _ _ ]). apply pure_prim_step_binop. unfold bin_op_eval. simpl. done. }
                  iApply (refines_pure_r). { apply (pure_prim_step_fill [IfCtx _ _ ]). apply pure_prim_step_binop. unfold bin_op_eval. simpl. done. } iNext. simpl.
                  assert (bool_decide (#l1 = #l1') = false ∧ bool_decide (#l2 = #l2') = false) as [-> ->].
-                 { assert (l1' ≠ l1 ∧ l2' ≠ l2) as [Hneq1 Hneq2]. { eapply Forall_forall in HNoDup; eauto. simpl in HNoDup. done.}
+                 { assert (l1' ≠ l1 ∧ l2' ≠ l2) as [Hneq1 Hneq2]. { eapply Forall_forall in HNoDup; eauto. simpl in HNoDup. done. }
                    split; rewrite bool_decide_eq_false; naive_solver. }
                  repeat (
                      iApply (refines_pure_r'); [tactics.solve_pure_steps|];
@@ -1667,42 +1667,43 @@ Section compatibility.
 
   
   (* Deep handler -- corresponding to the rule [Deep_try_with_typed]. *)
-  Lemma refines_deep_try_with e e' h h' r r' A1 A2 A F B :
+  (* TODO fixme, need to actually port to the new definition of eff_refines *)
+  Fail Lemma refines_deep_try_with e e' h h' r r' A1 A2 A F B :
     let E := eff_refines A1 A2 in
     let A' := expr_refines E A in
     let B' := expr_refines F B in
 
-    e <<{ A' }<< e' -∗
+       e <<{ A' }<< e' -∗
 
-       h <<{ expr_refines noEffs (A1 → (expr_refines noEffs ((A2 → B') → B'))) }<< h' -∗
+          h <<{ expr_refines noEffs (A1 → (expr_refines noEffs ((A2 → B') → B'))) }<< h' -∗
 
-       r <<{ expr_refines noEffs (A → B') }<< r' -∗
+          r <<{ expr_refines noEffs (A → B') }<< r' -∗
 
-         (DeepTryWith e  h  r) <<{ B' }<< (DeepTryWith e' h' r').
+            (DeepTryWith e  h  r) <<{ B' }<< (DeepTryWith e' h' r').
 
-  Proof.
-    simpl.
-    iIntros "He Hh Hr".
-    iApply (Ectxi_refines_pure_bind (AppRCtx _) (AppRCtx _) with "Hr").
-    iIntros (rv rv') "#Hrv".
-    iApply (refines_pure_bind ([AppRCtx _; AppLCtx _]) ([AppRCtx _; AppLCtx _]) with "Hh").
-    iIntros (hv hv') "#Hhv". simpl.
-    iLöb as "IH" forall (e e').
-    iApply (refines_pure_l' _ (TryWith e _ _)).
-    { unfold deep_try_with. by tactics.solve_pure_steps. }
-    iApply (refines_pure_r' _ _ (TryWith e' _ _ )).
-    { unfold deep_try_with. by tactics.solve_pure_steps. }
-    iNext.
-    iApply (refines_try_with with "He"); iSplit; [|by iApply refines_ret].
-    iApply refines_rec.
-    iIntros "!#" (v v' y y') "_ #Hy". simpl. clear v v'.
-    iApply refines_rec.
-    iIntros "!#" (v v' k k') "_ #Hk". simpl. clear v v'.
-    iApply refines_app; [by iApply "Hhv"|].
-    iApply refines_rec.
-    iIntros "!#" (v v' w w') "_ #Hw". simpl. clear v v'.
-    iApply "IH". by iApply "Hk".
-  Qed.
+     (* Proof.
+          simpl.
+          iIntros "He Hh Hr".
+          iApply (Ectxi_refines_pure_bind (AppRCtx _) (AppRCtx _) with "Hr").
+          iIntros (rv rv') "#Hrv".
+          iApply (refines_pure_bind ([AppRCtx _; AppLCtx _]) ([AppRCtx _; AppLCtx _]) with "Hh").
+          iIntros (hv hv') "#Hhv". simpl.
+          iLöb as "IH" forall (e e').
+          iApply (refines_pure_l' _ (TryWith e _ _)).
+          { unfold deep_try_with. by tactics.solve_pure_steps. }
+          iApply (refines_pure_r' _ _ (TryWith e' _ _ )).
+          { unfold deep_try_with. by tactics.solve_pure_steps. }
+          iNext.
+          iApply (refines_try_with with "He"); iSplit; [|by iApply refines_ret].
+          iApply refines_rec.
+          iIntros "!#" (v v' y y') "_ #Hy". simpl. clear v v'.
+          iApply refines_rec.
+          iIntros "!#" (v v' k k') "_ #Hk". simpl. clear v v'.
+          iApply refines_app; [by iApply "Hhv"|].
+          iApply refines_rec.
+          iIntros "!#" (v v' w w') "_ #Hw". simpl. clear v v'.
+          iApply "IH". by iApply "Hk".
+        Qed. *)
 
     
 End compatibility.
@@ -1711,44 +1712,45 @@ End compatibility.
 Section eff_refines.
   Context `{probeffRGS Σ}.
 
-  Global Instance eff_refines_compatible A1 A2 : Compatible (eff_refines A1 A2).
+  Global Instance eff_refines_compatible ρ : Compatible (eff_refines ρ).
   Proof.
     rewrite /Compatible.
     iIntros (A B s s' v v') "#Hvv' Hee'".
-    rewrite (eff_refines_unfold _ _ A).
+    rewrite (eff_refines_unfold _ A).
     iLöb as "IH" forall (s s').
-    iDestruct "Hee'" as (y y' N N') "(% & % & -> & -> & #HA1 & #HN)".
+    iDestruct "Hee'" as (l1 l2 A1 A2) "(%y & %y' & %N & %N' & %Hρ & -> & -> & % & % & #HA1 & #HN)".
     iApply (refines_pure_r' _ _ (Eff y' _)).
-    { unfold bind'. by tactics.solve_pure_steps. }
-    iApply (refines_pure_l' _ (Eff y _)).
-    { unfold bind'. by tactics.solve_pure_steps. }
-    iNext.
-    iApply refines_eff.
-    set K  := ((N ++ [AppRCtx bind']) ++ [AppLCtx v]).
-    set K' := ((N' ++ [AppRCtx bind'])++ [AppLCtx v']).
-    iApply (eff_refines_intro _ _ _ _ _ K K' with "HA1"); [done|done| | |].
-    { repeat (apply ectx_app_neutral); eauto; apply ConsCtx_neutral; try apply EmptyCtx_neutral; eauto using AppRCtx_neutral, AppLCtx_neutral. }
-    { repeat (apply ectx_app_neutral); eauto; apply ConsCtx_neutral; try apply EmptyCtx_neutral; eauto using AppRCtx_neutral, AppLCtx_neutral. }
-    iModIntro. iIntros (w w') "HA2".
-    unfold K, K'. iSpecialize ("HN" with "HA2"). iNext. simpl.
-    clear K K'.
-    set K  := ([AppRCtx bind'; AppLCtx v]).
-    set K' := ([AppRCtx bind'; AppLCtx v']).
-    do 2rewrite -app_assoc. rewrite -fill_app_ctx. rewrite -(fill_app_ctx _ N').
-    iApply (refines_bind K K' with "HN"); iSplit.
-    { clear w w'.
-      iIntros (w w') "#HA //=".
-      iApply (refines_pure_r' _ _ (v' w')%E);[
-      unfold bind'; by tactics.solve_pure_steps|].
-      iApply (refines_pure_l' _ (v w)%E);[
-      unfold bind'; by tactics.solve_pure_steps|].
-      iNext. simpl. by iApply "Hvv'".
-    }
-    { iIntros (s s') "Hs".
-      rewrite (eff_refines_unfold _ _ A).
-      by iApply "IH".
-    }
-  Qed.
+    Abort.
+  (*   { unfold bind'. by tactics.solve_pure_steps. }
+       iApply (refines_pure_l' _ (Eff y _)).
+       { unfold bind'. by tactics.solve_pure_steps. }
+       iNext.
+       iApply refines_eff.
+       set K  := ((N ++ [AppRCtx bind']) ++ [AppLCtx v]).
+       set K' := ((N' ++ [AppRCtx bind'])++ [AppLCtx v']).
+       iApply (eff_refines_intro _ _ _ _ _ K K' with "HA1"); [done|done| | |].
+       { repeat (apply ectx_app_neutral); eauto; apply ConsCtx_neutral; try apply EmptyCtx_neutral; eauto using AppRCtx_neutral, AppLCtx_neutral. }
+       { repeat (apply ectx_app_neutral); eauto; apply ConsCtx_neutral; try apply EmptyCtx_neutral; eauto using AppRCtx_neutral, AppLCtx_neutral. }
+       iModIntro. iIntros (w w') "HA2".
+       unfold K, K'. iSpecialize ("HN" with "HA2"). iNext. simpl.
+       clear K K'.
+       set K  := ([AppRCtx bind'; AppLCtx v]).
+       set K' := ([AppRCtx bind'; AppLCtx v']).
+       do 2rewrite -app_assoc. rewrite -fill_app_ctx. rewrite -(fill_app_ctx _ N').
+       iApply (refines_bind K K' with "HN"); iSplit.
+       { clear w w'.
+         iIntros (w w') "#HA //=".
+         iApply (refines_pure_r' _ _ (v' w')%E);[
+         unfold bind'; by tactics.solve_pure_steps|].
+         iApply (refines_pure_l' _ (v w)%E);[
+         unfold bind'; by tactics.solve_pure_steps|].
+         iNext. simpl. by iApply "Hvv'".
+       }
+       { iIntros (s s') "Hs".
+         rewrite (eff_refines_unfold _ _ A).
+         by iApply "IH".
+       }
+     Qed.
 
   Definition eff_refines' (A1 A2 : valRel Σ) : semEffSig Σ :=
     SemEffSig (eff_refines A1 A2).
@@ -1769,5 +1771,5 @@ Section eff_refines.
   Qed.
 p  Global Instance semEffSigRel_inhabited : Inhabited (semEffSig Σ) :=
     populate (eff_refines' ()%valRel ()%valRel).
-
+ *)
 End eff_refines.

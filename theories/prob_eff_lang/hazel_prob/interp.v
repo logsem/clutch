@@ -145,8 +145,8 @@ Section properties.
       rewrite (IHα _ _ Hlen).
       rewrite (IHβ _ _ Hlen).
       destruct (m <? n) eqn:Heq.
-      + rewrite lookup_delete_lt; [done|simpl]. by apply Coq.Arith.PeanoNat.Nat.ltb_lt. 
-      + rewrite lookup_delete_ge; try done. by apply Coq.Arith.PeanoNat.Nat.ltb_ge. 
+      + rewrite lookup_delete_lt; [done|simpl]. by apply Stdlib.Arith.PeanoNat.Nat.ltb_lt.
+      + rewrite lookup_delete_ge; try done. by apply Stdlib.Arith.PeanoNat.Nat.ltb_ge.
     - intros α IHα n ρ Hlen. simpl.
       apply valRel_forall_proper=> R R' ->.
       rewrite IHα; simpl; try done; simpl; lia.
@@ -186,21 +186,21 @@ Section properties.
     - intros α m β IHα IHβ α₁ α₂ n ρ Hlen. simpl.
       destruct (m <? n) eqn:Heq.
       + rewrite lookup_app_l.
-        2 : { rewrite take_length. rewrite min_l; [| done]. by apply Coq.Arith.PeanoNat.Nat.ltb_lt. }
-        rewrite lookup_take; last by apply Coq.Arith.PeanoNat.Nat.ltb_lt. 
+        2 : { rewrite length_take. rewrite min_l; [| done]. by apply Stdlib.Arith.PeanoNat.Nat.ltb_lt. }
+        rewrite lookup_take; last by apply Stdlib.Arith.PeanoNat.Nat.ltb_lt.
         rewrite (IHα _ _ _ _ Hlen) (IHβ _ _ _ _ Hlen). done.
       + destruct (m =? n) eqn:Heq'.
         * rewrite list_lookup_middle.
-          2 : { rewrite take_length. rewrite min_l; [| done]. by apply Coq.Arith.PeanoNat.Nat.eqb_eq.  }
+          2 : { rewrite length_take. rewrite min_l; [| done]. by apply Stdlib.Arith.PeanoNat.Nat.eqb_eq.  }
           rewrite (IHα _ _ _ _ Hlen) (IHβ _ _ _ _ Hlen). done.
         * rewrite lookup_app_r.
-          2 : { rewrite take_length. rewrite min_l; [|done]. by apply Coq.Arith.PeanoNat.Nat.ltb_ge. }
-          rewrite take_length lookup_cons_ne_0.
-          2 : { rewrite min_l; [| done]. apply ArithProp.minus_neq_O. apply Coq.Arith.PeanoNat.Nat.ltb_ge in Heq. apply Coq.Arith.PeanoNat.Nat.eqb_neq in Heq'. lia. }
+          2 : { rewrite length_take. rewrite min_l; [|done]. by apply Stdlib.Arith.PeanoNat.Nat.ltb_ge. }
+          rewrite length_take lookup_cons_ne_0.
+          2 : { rewrite min_l; [| done]. apply ArithProp.minus_neq_O. apply Stdlib.Arith.PeanoNat.Nat.ltb_ge in Heq. apply Stdlib.Arith.PeanoNat.Nat.eqb_neq in Heq'. lia. }
           rewrite lookup_drop. 
           rewrite (IHα _ _ _ _ Hlen) (IHβ _ _ _ _ Hlen). do 3 f_equiv; try done.
           rewrite (_ : Init.Nat.pred m = (n + Init.Nat.pred (m - n `min` length ρ))%nat); try done.
-          apply Coq.Arith.PeanoNat.Nat.ltb_ge in Heq. apply Coq.Arith.PeanoNat.Nat.eqb_neq in Heq'. 
+          apply Stdlib.Arith.PeanoNat.Nat.ltb_ge in Heq. apply Stdlib.Arith.PeanoNat.Nat.eqb_neq in Heq'.
           lia.
     - intros α IHα α₁ α₂ n ρ Hlen. simpl.
       apply valRel_forall_proper=> R R' ->.

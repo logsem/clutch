@@ -505,15 +505,15 @@ Global Arguments ewp' {Σ _}.
    Proof. rewrite -wp_aux.(seal_eq) //. Qed. *)
 
 
-Notation "'EWP' e @ E <| Ψ '|' '>' {{ v , Φ }}" :=
+Notation "'EWP' e @ E <| Ψ '|' '>' {{ v , Φ } }" :=
   (ewp_def E e%E Ψ%ieff (λ v, Φ)%I)
   (at level 20, e, E, Ψ, v, Φ at level 200,
-     format "'[' 'EWP'  e  '/' '[' @ E <|  Ψ  '|' '>'  {{  v ,  Φ  }} ']' ']'") : bi_scope.
+     format "'[' 'EWP'  e  '/' '[' @ E <|  Ψ  '|' '>'  {{  v ,  Φ  } } ']' ']'") : bi_scope.
 
-Notation "'EWP' e @ E <| Ψ '|' '>' {{ Φ }}" :=
+Notation "'EWP' e @ E <| Ψ '|' '>' {{ Φ } }" :=
   (ewp_def E e%E Ψ%ieff Φ)
   (at level 20, e, E, Ψ, Φ at level 200,
-   format "'[' 'EWP'  e  '/' '[' @ E <|  Ψ  '|' '>'  {{ Φ }} ']' ']'") : bi_scope.
+   format "'[' 'EWP'  e  '/' '[' @ E <|  Ψ  '|' '>'  {{  Φ  } } ']' ']'") : bi_scope.
 
 Section ewp.
 Context `{!spec_updateGS (lang_markov eff_prob_lang) Σ, !approxisWpGS eff_prob_lang Σ}.

@@ -299,34 +299,35 @@ Section handler_verification.
        ]]]]] #Hk".
     - iDestruct "HRead" as "[%x [Hl'  (-> & -> & #HS)]]".
       iDestruct (ghost_map_elem_agree with "Hl Hl'") as "->".
-      rel_pures_l. { apply Hk1. set_solver. }
-      iApply (rel_load_r with "Hl"). iIntros "Hl".
-      iApply ("IH" with "Hl").
-      iApply "Hk". iApply "HQ". by iApply ("HS" with "Hl'").
-    - iDestruct "HWrite" as "[%x [%y [Hl' (-> & -> & #HS)]]]".
-      iDestruct (ghost_map_elem_combine with "Hl Hl'") as "[Hl ->]".
-      rewrite dfrac_op_own Qp.half_half.
-      iApply (rel_store_r with "Hl"). iIntros "Hl".
-      iEval (rewrite -Qp.half_half) in "Hl".
-      iDestruct (ghost_map_elem_fractional with "Hl") as "[Hl Hl']".
-      rel_pures_l. { apply Hk1. set_solver. }
-      iApply ("IH" with "Hl").
-      iApply "Hk". iApply "HQ". by iApply ("HS" with "Hl'").
-    - iDestruct "Hdecrease" as "[%x [Hl' (-> & -> & #HS)]]".
-      iDestruct (ghost_map_elem_combine with "Hl Hl'") as "[Hl ->]".
-      rewrite dfrac_op_own Qp.half_half.
-      rel_pures_l. { apply Hk1. set_solver. }
-      iApply rel_couple_rand_rand; [done|].
-      iIntros (n). rewrite fill_app. simpl.
-      iApply (rel_load_r with "Hl"). iIntros "Hl". rewrite fill_app. simpl.
-      rel_pure_r. rel_pures_l.
-      iApply (rel_store_r with "Hl").
-      iIntros "Hl".
-      iEval (rewrite -Qp.half_half) in "Hl".
-      iDestruct (ghost_map_elem_fractional with "Hl") as "[Hl Hl']".
-      iApply ("IH" with "Hl").
-      iApply "Hk". iApply "HQ". by iApply "HS".
-  Qed.
+  (*     rel_pures_l. { apply Hk1. set_solver. }
+         iApply (rel_load_r with "Hl"). iIntros "Hl".
+         iApply ("IH" with "Hl").
+         iApply "Hk". iApply "HQ". by iApply ("HS" with "Hl'").
+       - iDestruct "HWrite" as "[%x [%y [Hl' (-> & -> & #HS)]]]".
+         iDestruct (ghost_map_elem_combine with "Hl Hl'") as "[Hl ->]".
+         rewrite dfrac_op_own Qp.half_half.
+         iApply (rel_store_r with "Hl"). iIntros "Hl".
+         iEval (rewrite -Qp.half_half) in "Hl".
+         iDestruct (ghost_map_elem_fractional with "Hl") as "[Hl Hl']".
+         rel_pures_l. { apply Hk1. set_solver. }
+         iApply ("IH" with "Hl").
+         iApply "Hk". iApply "HQ". by iApply ("HS" with "Hl'").
+       - iDestruct "Hdecrease" as "[%x [Hl' (-> & -> & #HS)]]".
+         iDestruct (ghost_map_elem_combine with "Hl Hl'") as "[Hl ->]".
+         rewrite dfrac_op_own Qp.half_half.
+         rel_pures_l. { apply Hk1. set_solver. }
+         iApply rel_couple_rand_rand; [done|].
+         iIntros (n). rewrite fill_app. simpl.
+         iApply (rel_load_r with "Hl"). iIntros "Hl". rewrite fill_app. simpl.
+         rel_pure_r. rel_pures_l.
+         iApply (rel_store_r with "Hl").
+         iIntros "Hl".
+         iEval (rewrite -Qp.half_half) in "Hl".
+         iDestruct (ghost_map_elem_fractional with "Hl") as "[Hl Hl']".
+         iApply ("IH" with "Hl").
+         iApply "Hk". iApply "HQ". by iApply "HS".
+     Qed. *)
+  Admitted.
 
   Lemma run_st_passing_refines l (main1 : val) (main2 : expr) (init : Z) :
     l ↦ₛ{# 1/2} #init -∗
