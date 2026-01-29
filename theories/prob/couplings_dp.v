@@ -2,7 +2,7 @@ From Stdlib Require Import Reals Psatz.
 From Stdlib.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Lim_seq Rbar.
 From stdpp Require Export countable.
-From clutch.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
+From clutch.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext fiber_bounds.
 From clutch.prob Require Export countable_sum distribution couplings graded_predicate_lifting couplings_app couplings_exp.
 
 Open Scope R.
@@ -1907,6 +1907,105 @@ Section couplings_theory.
     by eapply DPcoupl_dret.
   Qed.
 
+  
+  Lemma DPcoupl_map_inv `{Countable A, Countable B, Countable A', Countable B'} 
+    (μ1 : distr A) (μ2 : distr B) (f1 : A → A') (f2 : B → B') ψ ε δ :
+    0 <= ε ->
+    DPcoupl (dmap f1 μ1) (dmap f2 μ2) ψ ε δ -> 
+    DPcoupl μ1 μ2 (fun x y =>  ψ (f1 x) (f2 y)) ε δ.
+  Proof.
+    rewrite /DPcoupl.
+    intro He.
+    intros H3 f g H4 H5 H6. 
+    assert (∀ a, f a <= 1). {
+      intros. by destruct (H4 a).
+    } 
+    assert (∀ b, 0 <= g b). {
+      intros. by destruct (H5 b).
+    } 
+    set F := sup_fiber f1 f H7.
+    set G := inf_fiber f2 g H8.
+    epose proof (H3 F G _ _ _).
+    Unshelve.
+    2 : {
+      unfold F. 
+      apply sup_fiber_range.
+    }
+    2 : {
+      unfold G. 
+      apply inf_fiber_range.
+    }
+    2 : {
+      intros a' b'.
+      destruct (ExcludedMiddle (∃ a, f1 a = a')). 2 : {
+                                                  pose proof (not_exists_forall_not _ _ H9) as H9'.
+                                                  simpl in H9'.
+                                                  intros.
+                                                  rewrite /F sup_fiber_empty; auto.
+                                                  epose proof (inf_fiber_range _ _ _ _ ) as [??]. 
+                                                  apply H11.
+                                                }
+                                                destruct (ExcludedMiddle (∃ b, b' = f2 b)). 2 : {
+                                                                                            pose proof (not_exists_forall_not _ _ H10) as H10'.
+                                                                                            simpl in H10'.
+                                                                                            intros.
+                                                                                            rewrite /G inf_fiber_empty; auto.
+                                                                                            epose proof (sup_fiber_range _ _ _ _ ) as [??]. 
+                                                                                            apply H13. 
+                                                                                          }
+                                                                                          destruct H9 as [a H9], H10 as [b H10].
+      intros.
+      eapply sup_fiber_is_lub.
+      move => x [Hx | Hx]; subst; eauto.
+      {
+        epose proof (inf_fiber_range _ _ _ _ ) as [??]. 
+        apply H9.
+      }
+      destruct Hx as [a0 [Ha0 Ha1]]; subst.
+      eapply inf_fiber_is_glb.
+      move => x [Hx | Hx]; subst; eauto.
+      destruct Hx as [b0 [Hb0 Hb1]]; subst.
+      apply H6.
+      by rewrite Ha0 Hb0. 
+    }
+    epose proof (Expval_dmap μ1 f1 F _ _).
+    epose proof (Expval_dmap μ2 f2 G _ _).
+    unfold Expval in *.
+    rewrite H11 H10 in H9.
+    trans (SeriesC (λ a : A, μ1 a * (F ∘ f1) a)).
+    { 
+      apply SeriesC_le.
+      2: { apply ex_expval_unit. intros. simpl. by apply sup_fiber_range. }
+      intros.
+      split.
+      - apply Rmult_le_pos; real_solver. 
+      - apply Rmult_le_compat_l; auto. simpl. 
+        apply sup_fiber_is_lub. right. econstructor; eauto.
+    }
+    etrans.
+    { apply H9. } 
+    apply Rplus_le_compat_r. 
+    apply Rmult_le_compat_l. 
+    { specialize (exp_pos ε). lra. }
+    apply SeriesC_le.
+    2: by apply ex_expval_unit.
+    intros.
+    split. 
+    - apply Rmult_le_pos; try real_solver. 
+      epose proof (inf_fiber_range _ _ _ _ ) as [??]. 
+      apply H12.
+    - apply Rmult_le_compat_l; auto. simpl. 
+      apply inf_fiber_is_glb. right. econstructor; eauto. 
+      Unshelve.
+      + intros. epose proof (sup_fiber_range _ _ _ _ ) as [??]. 
+        apply H10.
+      + apply ex_expval_unit. intros. simpl. by apply sup_fiber_range. 
+      + intros. epose proof (inf_fiber_range _ _ _ _ ) as [??]. 
+        apply H11.
+      + apply ex_expval_unit. intros. simpl. by apply inf_fiber_range. 
+  Qed.
+
+  
   Lemma DPcoupl_mass_leq `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) ε δ :
     DPcoupl μ1 μ2 R ε δ → SeriesC μ1 <= exp ε * SeriesC μ2 + δ.
   Proof.
