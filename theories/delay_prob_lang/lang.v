@@ -2407,18 +2407,13 @@ Section urn.
   Lemma urn_subst_equal_unique σ bl bl1 bl2:
     urn_subst_equal σ bl bl1 -> urn_subst_equal σ bl bl2 -> bl1=bl2.
   Proof.
-  Admitted. 
-  (*   rewrite /urn_subst_equal. *)
-  (*   intros H1 H2. *)
-  (*   setoid_rewrite <-elem_of_set_urns_f_valid in H1. *)
-  (*   setoid_rewrite <-elem_of_set_urns_f_valid in H2. *)
-  (*   pose proof set_urns_f_nonempty ( (urns σ)) as H. *)
-  (*   apply size_pos_elem_of in H as [x ?]. *)
-  (*   epose proof H1 x H as H1. *)
-  (*   epose proof H2 x H as H2. *)
-  (*   rewrite H1 in H2. by simplify_eq. *)
-  (* Qed. *)
-
+    intros H1.
+    apply urn_subst_equal_witness in H1 as [f [H1 H2]].
+    intros H3.
+    apply H3 in H1.
+    naive_solver.
+  Qed.
+  
   Lemma urn_subst_equal_epsilon_correct σ bl (e:∃ N : Z, urn_subst_equal σ bl (LitInt N)):
     urn_subst_equal σ bl (LitInt (epsilon e)).
   Proof.
@@ -2510,6 +2505,7 @@ Section urn.
     intros H.
     apply urn_subst_equal_witness in H.
     destruct H as [?[H1 H2]].
+    apply urns_f_distr_pos in H1.
     apply urns_f_valid_support in H1.
     rewrite H1.
     by eapply urn_subst_f_support.
