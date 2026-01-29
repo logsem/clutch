@@ -2884,8 +2884,38 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   urn_subst_equal σ bl (LitInt z) ->
   l = fresh_loc σ.(urns) →
   N = Z.to_nat z →
-  s = list_to_set (seq 0 (N+1)) ->
-  head_step_rel (DRand (Val $ LitV bl)) σ (Val $ LitV $ LitLbl l) (state_upd_urns <[l:=s]> σ).
+  s = list_to_set (Z.of_nat <$> (seq 0 (N+1))) ->
+  head_step_rel (DRand (Val $ LitV bl)) σ (Val $ LitV $ LitLbl l) (state_upd_urns <[l:=urn_unif s]> σ)
+| LaplaceS σ bl0 bl1 bl2 num den loc z:
+  urn_subst_equal σ bl0 (LitInt num) ->
+  urn_subst_equal σ bl1 (LitInt den) ->
+  urn_subst_equal σ bl2 (LitInt loc) ->
+  (0<IZR num / IZR den) ->
+  head_step_rel (Laplace (Val $ LitV bl0) (Val $ LitV bl0) (Val $ LitV bl0))
+    σ (Val $ LitV $ LitInt z) σ
+| LaplaceS' σ bl0 bl1 bl2 num den loc :
+  urn_subst_equal σ bl0 (LitInt num) ->
+  urn_subst_equal σ bl1 (LitInt den) ->
+  urn_subst_equal σ bl2 (LitInt loc) ->
+  ¬ (0<IZR num / IZR den) ->
+  head_step_rel (Laplace (Val $ LitV bl0) (Val $ LitV bl0) (Val $ LitV bl0))
+    σ (Val $ LitV $ LitInt loc) σ
+| DLaplaceS σ bl0 bl1 bl2 num den loc l:
+  urn_subst_equal σ bl0 (LitInt num) ->
+  urn_subst_equal σ bl1 (LitInt den) ->
+  urn_subst_equal σ bl2 (LitInt loc) ->
+  (0<IZR num / IZR den) ->
+  l=fresh_loc σ.(urns) ->
+  head_step_rel (DLaplace (Val $ LitV bl0) (Val $ LitV bl0) (Val $ LitV bl0))
+    σ (Val $ LitV $ LitLbl l) (state_upd_urns <[l:=urn_laplace num den loc]> σ)
+| DLaplaceS' σ bl0 bl1 bl2 num den loc l:
+  urn_subst_equal σ bl0 (LitInt num) ->
+  urn_subst_equal σ bl1 (LitInt den) ->
+  urn_subst_equal σ bl2 (LitInt loc) ->
+  ¬ (0<IZR num / IZR den) ->
+  l=fresh_loc σ.(urns) ->
+  head_step_rel (DLaplace (Val $ LitV bl0) (Val $ LitV bl0) (Val $ LitV bl0))
+    σ (Val $ LitV $ LitLbl l) (state_upd_urns <[l:=urn_unif {[loc]}]> σ).
 (* | AllocTapeS z N σ l : *)
 (*   l = fresh_loc σ.(tapes) → *)
 (*   N = Z.to_nat z → *)
