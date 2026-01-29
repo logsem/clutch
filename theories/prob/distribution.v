@@ -1221,6 +1221,20 @@ Section exp_val_prop.
     intro x; specialize (Hleq x); real_solver.
   Qed.
 
+  
+  Lemma ex_expval_unit (μ : distr A) (f : A -> R):
+    (∀ a, 0 <= f a <= 1) ->
+    ex_expval μ f.
+  Proof.
+    intros H1.
+    eapply ex_expval_le.
+    - exact H1.
+    - unfold ex_expval. 
+      eapply ex_seriesC_ext.
+      { intros. by rewrite Rmult_1_r. }
+      done.
+  Qed.
+
 
   Lemma Expval_le μ f g :
     (forall x, 0 <= f x <= g x) ->

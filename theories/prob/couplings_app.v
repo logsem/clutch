@@ -82,6 +82,29 @@ Section couplings_theory.
     specialize (Hfg _ _ HR). lra. 
   Qed.
 
+  
+  Lemma ARcoupl_ret_inv (a : A) (b : B) ψ ɛ :
+    ɛ < 1 ->
+    ARcoupl (dret a) (dret b) ψ ɛ ->
+    ψ a b.
+  Proof.
+    rewrite /ARcoupl.
+    intros.
+    destruct (ExcludedMiddle (ψ a b)); auto.
+    epose proof (H4 (fun x => if bool_decide (x = a) then 1 else 0) (fun x => if bool_decide (x = b) then 0 else 1) _ _ _).
+    epose proof (Expval_dret (fun x => if bool_decide (x = a) then 1 else 0) a).
+    epose proof (Expval_dret (fun x => if bool_decide (x = b) then 0 else 1) b).
+    unfold Expval in *. 
+    rewrite H7 H8 in H6.
+    case_bool_decide; case_bool_decide; try lra; done.
+    Unshelve.
+    - intros. simpl. case_bool_decide; split; lra.
+    - intros. simpl. case_bool_decide; split; lra.
+    - intros. simpl. 
+      case_bool_decide; case_bool_decide; try lra.
+      subst. done.
+  Qed.
+
 
   (* The hypothesis (0 ≤ ε1) is not really needed, I just kept it for symmetry *)
   Lemma ARcoupl_dbind (f : A → distr A') (g : B → distr B')
