@@ -2160,6 +2160,14 @@ Section urn.
       by case_match.
   Qed.
 
+  Lemma urns_f_distr_witness m :
+    ∃ f, urns_f_distr m f > 0.
+  Proof.
+    apply: SeriesC_gtz_ex; first done.
+    rewrite urns_f_distr_mass.
+    lra.
+  Qed. 
+
   (** Not true *)
   (* Lemma urns_f_distr_pos m f: *)
   (*   urns_f_distr m f > 0 <-> urns_f_valid m f. *)
@@ -2194,12 +2202,11 @@ Section urn.
   Lemma urns_f_distr_eval' m f :
     ¬ urns_f_valid m f -> urns_f_distr m f = 0.
   Proof.
-  Admitted. 
-  (*   intros. *)
-  (*   rewrite /urns_f_distr/pmf. *)
-  (*   by rewrite bool_decide_eq_false_2. *)
-  (* Qed. *)
-
+    intros.
+    rewrite /urns_f_distr/pmf/urns_f_distr_f3.
+    case_bool_decide; naive_solver.
+  Qed.
+  
   (** Need to be restated *)
   (* Lemma urns_f_distr_insert m lis l N: *)
   (*   NoDup lis ->  *)
@@ -2377,12 +2384,17 @@ Section urn.
   (* Qed.  *)
   
   Definition urn_subst_equal σ (bl bl':base_lit) :=
-    ∀ f, urns_f_valid (urns σ) f -> urn_subst f bl = Some bl'.
+    ∀ f, urns_f_distr (urns σ) f >0 -> urn_subst f bl = Some bl'.
 
   Lemma urn_subst_equal_witness σ bl bl':
-    urn_subst_equal σ bl bl' -> ∃ f, urns_f_valid (urns σ) f /\ urn_subst f bl = Some bl'.
+    urn_subst_equal σ bl bl' -> ∃ f, urns_f_distr (urns σ) f > 0 /\ urn_subst f bl = Some bl'.
   Proof.
-  Admitted. 
+    destruct (urns_f_distr_witness (urns σ)) as [f].
+    intros H'.
+    exists f.
+    split; first done.
+    by apply H'.
+  Qed. 
   (*   rewrite /urn_subst_equal. *)
   (*   setoid_rewrite <-elem_of_set_urns_f_valid. *)
   (*   pose proof set_urns_f_nonempty (urns σ). *)
