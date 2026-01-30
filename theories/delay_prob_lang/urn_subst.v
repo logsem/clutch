@@ -29,6 +29,8 @@ Section urn_subst.
     | Store e1 e2 => expr_support_set e1 ∪ expr_support_set e2
     | Rand e => expr_support_set e
     | DRand e => expr_support_set e
+    | Laplace e0 e1 e2 => expr_support_set e0 ∪ expr_support_set e1 ∪ expr_support_set e2
+    | DLaplace e0 e1 e2 => expr_support_set e0 ∪ expr_support_set e1 ∪ expr_support_set e2
     end
   with val_support_set v :=
          match v with
@@ -62,6 +64,12 @@ Section urn_subst.
     | StoreRCtx e1 => expr_support_set e1
     | RandCtx => ∅
     | DRandCtx => ∅
+    | LaplaceNumCtx v2 v3 => val_support_set v2 ∪ val_support_set v3
+    | LaplaceDenCtx e1 v3 => expr_support_set e1 ∪ val_support_set v3
+    | LaplaceLocCtx e1 e2 => expr_support_set e1 ∪ expr_support_set e2
+    | DLaplaceNumCtx v2 v3 => val_support_set v2 ∪ val_support_set v3
+    | DLaplaceDenCtx e1 v3 => expr_support_set e1 ∪ val_support_set v3
+    | DLaplaceLocCtx e1 e2 => expr_support_set e1 ∪ expr_support_set e2
     end.
 
   Lemma support_set_fill_item Ki e:
@@ -127,7 +135,7 @@ Section urn_subst.
    now we do it for expressions and values*)
 (** We also replace DRands with Rands *)
 
-  Fixpoint urn_subst_expr (f: gmap loc nat) (e : expr) : option expr :=
+  Fixpoint urn_subst_expr (f: gmap loc Z) (e : expr) : option expr :=
     match e with
     | Val v => v' ← urn_subst_val f v; Some (Val v') 
 | Var x => Some $ Var x
@@ -147,6 +155,8 @@ Section urn_subst.
 | Store e1 e2 => e1' ← urn_subst_expr f e1; e2' ← urn_subst_expr f e2; Some (Store e1' e2')
 | Rand e => e' ← urn_subst_expr f e; Some (Rand e')
 | DRand e => e' ← urn_subst_expr f e; Some (Rand e')
+| Laplace e0 e1 e2 => e0' ← urn_subst_expr f e0; e1' ← urn_subst_expr f e1; e2' ← urn_subst_expr f e2; Some (Laplace e0' e1' e2')
+| DLaplace e0 e1 e2 => e0' ← urn_subst_expr f e0; e1' ← urn_subst_expr f e1; e2' ← urn_subst_expr f e2; Some (Laplace e0' e1' e2')
   end
   with urn_subst_val f v : option val :=
          match v with
@@ -158,7 +168,7 @@ Section urn_subst.
   end
   .
 
-  Definition urn_subst_ectx_item (f:gmap loc nat) K : option ectx_item :=
+  Definition urn_subst_ectx_item (f:gmap loc Z) K : option ectx_item :=
     match K with
     | AppLCtx v2 => v2' ← urn_subst_val f v2; Some $ AppLCtx v2'
     | AppRCtx e1 => e1' ← urn_subst_expr f e1; Some $ AppRCtx e1'
@@ -180,6 +190,12 @@ Section urn_subst.
     | StoreRCtx e1 => e1' ← urn_subst_expr f e1; Some $ StoreRCtx e1'
     | RandCtx => Some RandCtx
     | DRandCtx => Some RandCtx
+    | LaplaceNumCtx v2 v3 => v2' ← urn_subst_val f v2; v3' ← urn_subst_val f v3; Some $ LaplaceNumCtx v2' v3'
+    | LaplaceDenCtx e1 v3 => e1' ← urn_subst_expr f e1; v3' ← urn_subst_val f v3; Some $ LaplaceDenCtx e1' v3'
+    | LaplaceLocCtx e1 e2 => e1' ← urn_subst_expr f e1; e2' ← urn_subst_expr f e2; Some $ LaplaceLocCtx e1' e2'
+    | DLaplaceNumCtx v2 v3 => v2' ← urn_subst_val f v2; v3' ← urn_subst_val f v3; Some $ LaplaceNumCtx v2' v3'
+    | DLaplaceDenCtx e1 v3 => e1' ← urn_subst_expr f e1; v3' ← urn_subst_val f v3; Some $ LaplaceDenCtx e1' v3'
+    | DLaplaceLocCtx e1 e2 => e1' ← urn_subst_expr f e1; e2' ← urn_subst_expr f e2; Some $ LaplaceLocCtx e1' e2'
     end.
 
   Lemma base_lit_support_set_not_support bl f:
@@ -230,6 +246,36 @@ Section urn_subst.
            destruct!/=; first naive_solver.
          right. naive_solver.
     } 
+    1:{ repeat setoid_rewrite union_subseteq.
+        intros ?????? H.
+        apply not_and_or_not in H.
+        destruct!/=; last first.
+        - destruct (urn_subst_expr _ _); last naive_solver.
+          right.
+          eexists _; split; first done.
+          destruct (urn_subst_expr _ _); last naive_solver.
+          right.
+          naive_solver.
+        - apply not_and_or_not in H.
+         destruct (urn_subst_expr _ _); last naive_solver;
+           destruct!/=; first naive_solver.
+         right. naive_solver.
+    }
+    1:{ repeat setoid_rewrite union_subseteq.
+        intros ?????? H.
+        apply not_and_or_not in H.
+        destruct!/=; last first.
+        - destruct (urn_subst_expr _ _); last naive_solver.
+          right.
+          eexists _; split; first done.
+          destruct (urn_subst_expr _ _); last naive_solver.
+          right.
+          naive_solver.
+        - apply not_and_or_not in H.
+         destruct (urn_subst_expr _ _); last naive_solver;
+           destruct!/=; first naive_solver.
+         right. naive_solver.
+    }
     1:{ repeat setoid_rewrite union_subseteq.
         intros ?????? H.
         apply not_and_or_not in H.
@@ -309,13 +355,7 @@ Section urn_subst.
   Some $ fill_item Ki' e'.
   Proof.
     destruct Ki; simpl; try done;
-    try (rewrite option_bind_comm !option_bind_assoc;
-         by apply option_bind_ext_fun);
-      try (rewrite option_bind_assoc; by apply option_bind_ext_fun);
-    rewrite option_bind_comm !option_bind_assoc;
-      apply option_bind_ext_fun;
-      intros; simpl; rewrite option_bind_comm option_bind_assoc;
-      by apply option_bind_ext_fun.
+      repeat (done||intros; simpl||apply option_bind_ext_fun||rewrite !option_bind_assoc||rewrite option_bind_comm).
   Qed.
   
   Lemma urn_subst_expr_fill f (K : list _) e:
@@ -360,6 +400,8 @@ Fixpoint is_well_constructed_expr e:=
   | Store e1 e2 => is_well_constructed_expr e1 && is_well_constructed_expr e2
   | Rand e => is_well_constructed_expr e
   | DRand e => is_well_constructed_expr e
+  | Laplace e0 e1 e2 => is_well_constructed_expr e0 && is_well_constructed_expr e1 && is_well_constructed_expr e2
+  | DLaplace e0 e1 e2 => is_well_constructed_expr e0 && is_well_constructed_expr e1 && is_well_constructed_expr e2
   end
 with is_well_constructed_val v :=
   match v with
@@ -393,6 +435,12 @@ Definition is_well_constructed_ectx_item K :=
   | StoreRCtx e1 => is_well_constructed_expr e1
   | RandCtx => true
   | DRandCtx => true
+  | LaplaceNumCtx v2 v3 => is_well_constructed_val v2 && is_well_constructed_val v3
+  | LaplaceDenCtx e1 v3 => is_well_constructed_expr e1 && is_well_constructed_val v3
+  | LaplaceLocCtx e1 e2 => is_well_constructed_expr e1 && is_well_constructed_expr e2
+  | DLaplaceNumCtx v2 v3 => is_well_constructed_val v2 && is_well_constructed_val v3
+  | DLaplaceDenCtx e1 v3 => is_well_constructed_expr e1 && is_well_constructed_val v3
+  | DLaplaceLocCtx e1 e2 => is_well_constructed_expr e1 && is_well_constructed_expr e2
   end.
 
 Lemma is_well_constructed_expr_false e f:
@@ -400,10 +448,10 @@ Lemma is_well_constructed_expr_false e f:
 Proof.
   revert e.
   apply (expr_mut (λ e, is_well_constructed_expr e = false -> urn_subst_expr f e = None) (λ v, is_well_constructed_val v = false -> urn_subst_val f v = None)); simpl; repeat setoid_rewrite bind_None; repeat setoid_rewrite andb_false_iff.
-  1, 2, 3, 5, 9, 10, 11, 12, 15, 17, 18, 20, 22, 23: naive_solver.
+  1, 2, 3, 5, 9, 10, 11, 12, 15, 17, 18, 22, 24, 25: naive_solver.
   1, 2, 4, 6, 7: intros; destruct!/=; first naive_solver;
               destruct (urn_subst_expr _ _); naive_solver.
-  1, 2: intros; destruct!/=; first naive_solver;
+  1, 2, 3, 4: intros; destruct!/=; first naive_solver;
      first (destruct (urn_subst_expr _ _); naive_solver);
      destruct (urn_subst_expr _ _); last naive_solver; right; eexists _; split; first done;
      destruct (urn_subst_expr _ _); naive_solver.
@@ -559,7 +607,7 @@ Qed.
     is_well_constructed_val v = true ->
     val_support_set v ⊆ dom f ->
     (∃ v', urn_subst_expr f v = Some v'))); simpl; repeat setoid_rewrite bind_Some; intros; andb_solver; smash.
-    19: { repeat case_match; simplify_eq.
+    21: { repeat case_match; simplify_eq.
       rename select (base_lit_type_check _ = _) into H.
       eapply urn_subst_base_lit_exists in H; last done.
       destruct!/=. naive_solver. }
@@ -611,9 +659,10 @@ Qed.
                                                        bind_solver; naive_solver).
     all: try (intros H1 H2;
         smash;
-        rewrite andb_true_iff in H1; destruct H1 as [K1 K2];
-        eapply urn_subst_expr_exists in K1, K2; last done; destruct!/=;
-                                                             bind_solver; naive_solver).
+              rewrite andb_true_iff in H1; destruct H1 as [K1 K2];
+              (eapply urn_subst_val_exists in K1||eapply urn_subst_expr_exists in K1);
+              (eapply urn_subst_val_exists in K2||eapply urn_subst_expr_exists in K2); last done; destruct!/=;
+                                                                                                   bind_solver; naive_solver).
     all: naive_solver.
   Qed.
   
@@ -667,7 +716,7 @@ Qed.
     urn_subst_expr f e = Some e' ->
     urn_subst_expr f' e = Some e') (λ v, ∀ v', urn_subst_val f v = Some v' ->
                                                 urn_subst_val f' v = Some v')); simpl; repeat setoid_rewrite bind_Some; intros; destruct!/=.
-    19:{ eapply urn_subst_subset in H; last done.
+    21:{ eapply urn_subst_subset in H; last done.
          naive_solver. }
     all: naive_solver.
   Qed. 
