@@ -41,15 +41,14 @@ Section urn_erasable.
   Proof.
     rewrite /urn_erasable.
     intros H m' Hpos.
-    pose proof urns_f_valid_exists m' as Hexists.
+    pose proof urns_f_distr_witness m' as Hexists.
     destruct Hexists as [f Hexists].
     assert (urns_f_distr m f > 0) as Hpos'.
     { rewrite -H. rewrite dbind_pos.
-      setoid_rewrite urns_f_distr_pos.
       naive_solver. }
-    rewrite urns_f_distr_pos in Hpos'.
-    erewrite urns_f_valid_support; last done. 
-    by erewrite urns_f_valid_support.
+    apply urns_f_distr_pos in Hpos', Hexists.
+    apply urns_f_valid_support in Hpos', Hexists.
+    set_solver.
   Qed. 
 
 End urn_erasable.
@@ -64,16 +63,17 @@ Section urn_erasable_functions.
     intros. rewrite dret_id_left'. done.
   Qed.
 
-  Lemma complete_split_urn_erasable (m:gmap loc urn) u lis (N:nat):
-  NoDup lis ->
-  m!!u=Some (list_to_set lis) ->
-  length lis = S N ->
-  urn_erasable (dunifP N ≫= (λ n, (match (lis)!!(fin_to_nat n) with
-                     | Some y => dret (<[u:={[y]}]> m)
-                     | None => dzero
-                                   end ))) m.
-  Proof.
-    rewrite /urn_erasable.
-    intros. rewrite -dbind_assoc'. by erewrite urns_f_distr_split.
-  Qed. 
+  (** * TODO restate this lemma *)
+  (* Lemma complete_split_urn_erasable (m:gmap loc urn) u lis (N:nat): *)
+  (* NoDup lis -> *)
+  (* m!!u=Some (list_to_set lis) -> *)
+  (* length lis = S N -> *)
+  (* urn_erasable (dunifP N ≫= (λ n, (match (lis)!!(fin_to_nat n) with *)
+  (*                    | Some y => dret (<[u:={[y]}]> m) *)
+  (*                    | None => dzero *)
+  (*                                  end ))) m. *)
+  (* Proof. *)
+  (*   rewrite /urn_erasable. *)
+  (*   intros. rewrite -dbind_assoc'. by erewrite urns_f_distr_split. *)
+  (* Qed.  *)
 End urn_erasable_functions.

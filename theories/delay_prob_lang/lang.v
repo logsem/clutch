@@ -1750,14 +1750,6 @@ Section urn.
   (*   apply propositional_extensionality. *)
   (*   by rewrite elem_of_set_urns_f_valid. *)
   (* Qed. *)
-
-  (* Lemma urns_f_valid_exists m: *)
-  (*   ∃ f, urns_f_valid m f. *)
-  (* Proof. *)
-  (*   setoid_rewrite <-elem_of_set_urns_f_valid. *)
-  (*   apply size_pos_elem_of. *)
-  (*   apply set_urns_f_nonempty. *)
-  (* Qed.  *)
   
   (* Lemma size_set_urns_f m: *)
   (*   size (set_urns_f_valid m) = urns_subst_f_num m. *)
@@ -2167,6 +2159,12 @@ Section urn.
     rewrite urns_f_distr_mass.
     lra.
   Qed. 
+  
+  Lemma urns_f_valid_exists m:
+    ∃ f, urns_f_valid m f.
+  Proof.
+    pose proof urns_f_distr_witness m as [? ?%urns_f_distr_pos]. naive_solver.
+  Qed.
 
   (** Not true *)
   (* Lemma urns_f_distr_pos m f: *)
