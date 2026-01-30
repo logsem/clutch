@@ -227,18 +227,19 @@ Proof.
   lra.
 Qed.
 
-(** TODO: restate this lemma *)
-(* Lemma pupd_resolve_urn E l lis ε N (ε2 : _ -> nonnegreal): *)
-(*   NoDup lis -> *)
-(*   length lis = S N -> *)
-(*  (Expval (dunifP N) ε2 <= ε)%R -> *)
-(*   (exists r, forall ρ, (ε2 ρ <= r)%R) -> *)
-(*   ↯ ε -∗ *)
-(*   l ↪ (list_to_set lis) -∗ *)
-(*   pupd E E (∃ (x:fin (S N)) y, *)
-(*         ⌜lis!!(fin_to_nat x) = Some y⌝ ∗ l↪ {[y]} ∗ ↯ (ε2 (x))                                      *)
-(*     )%I. *)
-(* Proof. *)
+(** * Finish this proof
+    Make sure to choose ε2' that fixes all elements not in s to be 1
+ *)
+Lemma pupd_resolve_urn s ε (ε2 : _ -> nonnegreal) l E:
+  s ≠ ∅ ->
+ (SeriesC (λ x, if bool_decide (x ∈ elements s) then ε2 x else 0)/ size s <= ε)%R ->
+  (exists r, forall ρ, (ε2 ρ <= r)%R) ->
+  ↯ ε -∗ l ↪ urn_unif s -∗
+  pupd E E (∃ x,
+        ↯ (ε2 x) ∗ l↪ urn_unif {[x]} ∗ ⌜x ∈ s⌝
+    )%I.
+Proof.
+Admitted. 
 (*   rewrite pupd_unseal/pupd_def. *)
 (*   iIntros (HNoDup Hlen Hineq Hbound) "Herr Hl". *)
 (*   iIntros ([] ε') "([Hs Hu]& Herr')". *)
