@@ -390,9 +390,15 @@ Proof.
     erewrite urn_subst_equal_epsilon_unique; last done.
     erewrite urns_f_distr_insert; last first.
     { simpl.
-      admit.
+      eapply (non_empty_inhabited_L 0%Z).
+      rewrite elem_of_list_to_set elem_of_list_fmap.
+      setoid_rewrite elem_of_seq.
+      exists 0%nat. lia.
     }
-    { admit. (* apply fresh_loc_is_fresh. *) }
+    { case_match eqn:H1; last done.
+      rewrite not_elem_of_dom_1 in H1; first done.
+      apply fresh_loc_is_fresh.
+    } 
     unfolder.
     repeat smash.
     assert (exists K', mapM (urn_subst_ectx_item a) K = Some K') as [? Hrewrite].
@@ -439,34 +445,70 @@ Proof.
     rewrite dmap_comp.
     rewrite /dmap.
     repeat smash.
-    admit. 
-    (* case_match eqn:Hlookup; last first. *)
-    (* { rename select (fin _) into a0. *)
-    (*   pose proof fin_to_nat_lt a0. *)
-    (*   apply lookup_ge_None_1 in Hlookup. *)
-    (*   rewrite length_seq in Hlookup. lia. *)
-    (* } *)
-    (* apply lookup_seq in Hlookup. *)
-    (* destruct!/=. *)
-    (* repeat smash. *)
-    (* assert (a ⊆ <[fresh_loc (urns σ):=(fin_to_nat a0)]> a). *)
-    (* { apply insert_subseteq. *)
-    (*   rewrite -not_elem_of_dom. *)
-    (*   erewrite <-urns_f_valid_support; last by apply urns_f_distr_pos. *)
-    (*   rewrite /urns_support_set. *)
-    (*   rewrite elem_of_filter. *)
-    (*   intros []. *)
-    (*   pose proof fresh_loc_is_fresh (urns σ). naive_solver. *)
-    (* } *)
-    (* erewrite urn_subst_ectx_subset; [|done..]. *)
-    (* smash. *)
-    (* rewrite lookup_insert. *)
-    (* smash. *)
-    (* rewrite dbind_assoc'. *)
-    (* rewrite -d_proj_Some_fmap. *)
-    (* rewrite -!/(urn_subst_heap _ _). *)
-    (* erewrite urn_subst_heap_subset; [|done..]. *)
-    (* by smash. *)
+    replace (urns_f_distr_compute_distr _) with (dmap (Z.of_nat ∘ fin_to_nat) (dunifP (Z.to_nat z))); last first.
+    { apply distr_ext.
+      clear.
+      intros x.
+      rewrite /dmap/urns_f_distr_compute_distr{2}/pmf/urns_f_distr_compute.
+      case_bool_decide as H.
+      - rewrite elem_of_list_to_set elem_of_list_fmap in H.
+        setoid_rewrite elem_of_seq in H.
+        destruct H as [y].
+        destruct!/=.
+        rewrite size_list_to_set; last apply NoDup_fmap_2; last first.
+        + apply NoDup_seq.
+        + apply _.
+        + rewrite length_fmap length_seq.
+          rewrite /dbind/dbind_pmf{1}/pmf.
+          assert (y< S(Z.to_nat z))%nat as H' by lia.
+          erewrite (SeriesC_ext _ (λ x, if bool_decide (x= nat_to_fin H') then _ else 0)); last first.
+          * intros. case_bool_decide as H0; first done.
+            rewrite dret_0; first lra.
+            intros ?.
+            apply H0.
+            apply fin_to_nat_inj. rewrite fin_to_nat_to_fin.
+            naive_solver.
+          * rewrite SeriesC_singleton_dependent.
+            rewrite fin_to_nat_to_fin.
+            rewrite dret_1_1; last done.
+            rewrite /dunifP/dunif/pmf.
+            rewrite Rmult_1_r.
+            f_equal.
+            f_equal. lia.
+      - rewrite /dbind/dbind_pmf{1}/pmf.
+        apply SeriesC_0.
+        intros x'.
+        rewrite dret_0; first lra.
+        intros ->.
+        apply H.
+        rewrite elem_of_list_to_set elem_of_list_fmap.
+        eexists _; split; first done.
+        rewrite elem_of_seq.
+        pose proof fin_to_nat_lt x'. lia.
+    }
+    rewrite /dmap.
+    repeat smash.
+    rename select (fin (S _)) into a0.
+    assert (a ⊆ <[fresh_loc (urns σ):=Z.of_nat (fin_to_nat a0)]> a).
+    { apply insert_subseteq.
+      rewrite -not_elem_of_dom.
+      erewrite <-urns_f_valid_support; last by apply urns_f_distr_pos.
+      rewrite /urns_support_set.
+      rewrite elem_of_dom.
+      pose proof fresh_loc_is_fresh (urns σ).
+      apply eq_None_not_Some.
+      rewrite map_lookup_filter_None; left.
+      by apply not_elem_of_dom.
+    }
+    erewrite urn_subst_ectx_subset; [|done..].
+    smash.
+    rewrite lookup_insert.
+    smash.
+    rewrite dbind_assoc'.
+    rewrite -d_proj_Some_fmap.
+    rewrite -!/(urn_subst_heap _ _).
+    erewrite urn_subst_heap_subset; [|done..].
+    by smash.
   - admit.
   - admit.
   - admit.
