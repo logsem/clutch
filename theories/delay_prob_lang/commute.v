@@ -509,8 +509,93 @@ Proof.
     rewrite -!/(urn_subst_heap _ _).
     erewrite urn_subst_heap_subset; [|done..].
     by smash.
-  - admit.
-  - admit.
+  - (** laplace *)
+    repeat smash.
+    case_match; last first.
+    { exfalso. naive_solver. }
+    case_match; last first.
+    { exfalso. naive_solver. }
+    case_match; last first.
+    { exfalso. naive_solver. }
+    repeat (erewrite urn_subst_equal_epsilon_unique; last done).
+    case_match; last (exfalso; naive_solver).
+    repeat smash.
+    erewrite (distr_ext (dbind _ (laplace_rat _ _ _ _))); last first.
+    { intros.
+      apply dbind_pmf_ext; [|done..].
+      intros. by rewrite !dret_id_left'/=.
+    }
+    rewrite dbind_comm.
+    apply dbind_ext_right_strong.
+    intros.
+    repeat smash.
+    setoid_rewrite urn_subst_expr_fill.
+    repeat smash.
+    setoid_rewrite d_proj_Some_bind.
+    repeat smash.
+    rewrite (dbind_assoc' _ _ (laplace_rat _ _ _ _)).
+    rewrite (dbind_comm _ (laplace_rat _ _ _ _)).
+    repeat smash.
+    rewrite H; last done.
+    rewrite H0; last done.
+    rewrite H1; last done.
+    repeat smash.
+    erewrite (distr_ext (dbind _ (laplace_rat _ _ _ _))); last first.
+    { intros.
+      apply dbind_pmf_ext; [|done..].
+      intros. by rewrite !dret_id_left'/=.
+    }
+    rewrite dbind_comm.
+    repeat smash.
+    rewrite fill_prim_step_dbind; last done.
+    erewrite head_prim_step_eq; last first.
+    { rewrite -head_step_pred_head_reducible.
+      by eapply LaplaceHSP.
+    }
+    simpl.
+    case_match; last (exfalso; naive_solver).
+    case_match; last (exfalso; naive_solver).
+    case_match; last (exfalso; naive_solver).
+    erewrite urn_subst_equal_epsilon_unique; last done.
+    erewrite urn_subst_equal_epsilon_unique; last done.
+    erewrite urn_subst_equal_epsilon_unique; last done.
+    case_match; last (exfalso; lra).
+    rewrite dmap_comp.
+    rewrite /dmap.
+    repeat smash.
+    f_equal.
+    apply distr_ext. f_equal. 
+  - (** laplace' *)
+    repeat smash.
+    case_match; last first.
+    { exfalso. naive_solver. }
+    case_match; last first.
+    { exfalso. naive_solver. }
+    case_match; last first.
+    { exfalso. naive_solver. }
+    repeat (erewrite urn_subst_equal_epsilon_unique; last done).
+    case_match; first (exfalso; naive_solver).
+    repeat smash.
+    rewrite H; last done.
+    rewrite H0; last done.
+    rewrite H1; last done.
+    repeat smash.
+    rewrite fill_prim_step_dbind; last done.
+    erewrite head_prim_step_eq; last first.
+    { rewrite -head_step_pred_head_reducible.
+      by eapply LaplaceHSP'.
+    }
+    simpl.
+    case_match; last (exfalso; naive_solver).
+    case_match; last (exfalso; naive_solver).
+    case_match; last (exfalso; naive_solver).
+    erewrite urn_subst_equal_epsilon_unique; last done.
+    erewrite urn_subst_equal_epsilon_unique; last done.
+    erewrite urn_subst_equal_epsilon_unique; last done.
+    case_match; first (exfalso; lra).
+    rewrite dmap_comp.
+    rewrite /dmap.
+    by repeat smash.
   - admit.
   - admit.
 Admitted. 
