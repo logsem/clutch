@@ -615,8 +615,30 @@ Inductive head_step_pred : expr → state → Prop :=
   urn_subst_equal σ bl z ->
   N = Z.to_nat z →
   head_step_pred (drand #bl) σ
-| LaplaceHSP :
-  
+| LaplaceHSP σ (z0 z1 z2:Z) bl0 bl1 bl2 :
+  urn_subst_equal σ bl0 z0 ->
+  urn_subst_equal σ bl1 z1 ->
+  urn_subst_equal σ bl2 z2 ->
+  0 < (IZR z0 / IZR z1) ->
+  head_step_pred (Laplace #bl0 #bl1 #bl2) σ
+| LaplaceHSP' σ (z0 z1 z2:Z) bl0 bl1 bl2 :
+  urn_subst_equal σ bl0 z0 ->
+  urn_subst_equal σ bl1 z1 ->
+  urn_subst_equal σ bl2 z2 ->
+  ¬ 0 < (IZR z0 / IZR z1) ->
+  head_step_pred (Laplace #bl0 #bl1 #bl2) σ
+| DLaplaceHSP σ (z0 z1 z2:Z) bl0 bl1 bl2 :
+  urn_subst_equal σ bl0 z0 ->
+  urn_subst_equal σ bl1 z1 ->
+  urn_subst_equal σ bl2 z2 ->
+  0 < (IZR z0 / IZR z1) ->
+  head_step_pred (DLaplace #bl0 #bl1 #bl2) σ
+| DLaplaceHSP' σ (z0 z1 z2:Z) bl0 bl1 bl2 :
+  urn_subst_equal σ bl0 z0 ->
+  urn_subst_equal σ bl1 z1 ->
+  urn_subst_equal σ bl2 z2 ->
+  ¬ 0 < (IZR z0 / IZR z1) ->
+  head_step_pred (DLaplace #bl0 #bl1 #bl2) σ
 .
 
 (* Definition is_det_head_step (e1 : expr) (σ1 : state)  : bool := *)
@@ -739,7 +761,9 @@ Lemma head_step_pred_ex_rel e1 σ1 :
 Proof.
   split.
   - intros H; inversion H; simplify_eq; try by (do 2 eexists; (by econstructor)).
-    Unshelve. all : apply 0%fin.
+    Unshelve.
+    + apply 0%fin.
+    + apply inhabitant.
   (* - pose proof set_urns_f_nonempty (urns σ1) as Hnonempty. *)
     (* apply size_pos_elem_of in Hnonempty as [f Hnonempty]. *)
     (* rewrite elem_of_set_urns_f_valid in Hnonempty. *)
@@ -980,6 +1004,7 @@ Qed.
  *)
 From clutch.delay_prob_lang Require Export lang.
 
+(* Removes dlaplace as well :p *)
 Fixpoint remove_drand_expr e:=
   match e with
   | Val v => v' ← remove_drand_val v; Some $ Val v'
@@ -999,7 +1024,9 @@ Fixpoint remove_drand_expr e:=
   | Load e => e' ← (remove_drand_expr e); Some $ Load e'
   | Store e1 e2 => e1' ← (remove_drand_expr e1); e2' ← (remove_drand_expr e2); Some $ Store e1' e2'
   | Rand e => e' ← (remove_drand_expr e); Some $ Rand e'
-  | DRand e => e' ← (remove_drand_expr e); Some $ Rand e'
+| DRand e => e' ← (remove_drand_expr e); Some $ Rand e'
+| Laplace e0 e1 e2 => e0' ← (remove_drand_expr e0); e1' ← (remove_drand_expr e1); e2' ← (remove_drand_expr e2); Some $ Laplace e0' e1' e2'
+| DLaplace e0 e1 e2 => e0' ← (remove_drand_expr e0); e1' ← (remove_drand_expr e1); e2' ← (remove_drand_expr e2); Some $ Laplace e0' e1' e2'
   end
 with remove_drand_val v : option val:= 
   match v with
@@ -1016,7 +1043,7 @@ Lemma remove_drand_expr_urn_subst f e e':
 Proof.
   revert e e'.
   apply (expr_mut (λ e, ∀ e', remove_drand_expr e = Some e' → urn_subst_expr f e = Some e' ) (λ v, ∀ v', remove_drand_val v = Some v' → urn_subst_val f v = Some v')); simpl; repeat setoid_rewrite bind_Some; intros; destruct!/=.
-  19:{ case_match; last done.
+  21:{ case_match; last done.
        simplify_eq.
        rename select base_lit into bl.
        destruct bl; simplify_eq; naive_solver.
