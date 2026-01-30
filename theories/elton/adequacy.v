@@ -69,7 +69,6 @@ Section adequacy.
       inv_distr.
       rewrite bind_Some in H2. destruct!/=.
       erewrite exec_is_final; last done.
-      rewrite urns_f_distr_pos in H1.
       apply Hsubst in H1.
       destruct!/=.
       eapply pgl_mon_grading; last apply pgl_dret; done.
@@ -423,7 +422,7 @@ Proof.
   - intros.
     eassert (dbind _ _ a = Sup_seq (λ n : nat,
        (urns_f_distr (urns σ)
-        ≫= λ f : gmap loc nat,
+        ≫= λ f : gmap loc Z,
              d_proj_Some (urn_subst_expr f e)
              ≫= λ e' : language.expr d_prob_lang,
                   d_proj_Some (urn_subst_heap f (heap σ))
@@ -504,8 +503,8 @@ Proof.
     rewrite dzero_0.
     erewrite dbind_eq; [by erewrite dzero_dbind| |done].
     simpl. intros f.
-    rewrite urns_f_distr_pos.
-    intros H'%urns_f_valid_support.
+    intros H'%urns_f_distr_pos.
+    apply urns_f_valid_support in H'.
     rewrite expr_support_set_not_support.
     - rewrite d_proj_Some_None. by rewrite dbind_dzero.
     - by rewrite -H'.
@@ -518,8 +517,8 @@ Proof.
     rewrite dzero_0.
     erewrite dbind_eq; [by erewrite dzero_dbind| |done].
     simpl. intros f.
-    rewrite urns_f_distr_pos.
-    intros H'%urns_f_valid_support.
+    intros H'%urns_f_distr_pos.
+    apply urns_f_valid_support in H'.
     erewrite dbind_eq; [by erewrite dzero_dbind| |done].
     intros ?.
     intros.
@@ -534,8 +533,8 @@ Proof.
   rewrite dzero_0.
   erewrite dbind_eq; [by erewrite dzero_dbind| |done].
   simpl. intros f.
-  rewrite urns_f_distr_pos.
-  intros H'%urns_f_valid_support.
+  intros H'%urns_f_distr_pos.
+  apply urns_f_valid_support in H'.
   erewrite dbind_eq; [by erewrite dzero_dbind| |done].
   intros ?.
   intros.

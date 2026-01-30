@@ -9,7 +9,7 @@ Section rupd.
   (* Do we need to open invariants? *)
   Definition rupd_def (P: val -> Prop) Q v : iProp Σ:=
     (∀ σ1, state_interp σ1 -∗ 
-           ⌜∀ f, urns_f_valid (urns σ1) f -> ∃ v', urn_subst_val f v = Some v' /\ P v'⌝ ∗ (Q ∗ state_interp σ1)).
+           ⌜∀ f, (urns_f_distr (urns σ1) f > 0)%R -> ∃ v', urn_subst_val f v = Some v' /\ P v'⌝ ∗ (Q ∗ state_interp σ1)).
   
   Local Definition rupd_aux : seal (@rupd_def). Proof. by eexists. Qed.
   Definition rupd := rupd_aux.(unseal).
