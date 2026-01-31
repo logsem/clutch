@@ -1,5 +1,5 @@
-From Coq Require Import Reals Psatz.
-From Coq.ssr Require Import ssreflect ssrfun.
+From Stdlib Require Import Reals Psatz.
+From Stdlib.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Lim_seq Rbar.
 From stdpp Require Export countable.
 From clutch.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
@@ -80,6 +80,29 @@ Section couplings_theory.
       rewrite /pmf/=/dret_pmf ; series.
     }
     specialize (Hfg _ _ HR). lra. 
+  Qed.
+
+  
+  Lemma ARcoupl_ret_inv (a : A) (b : B) ψ ɛ :
+    ɛ < 1 ->
+    ARcoupl (dret a) (dret b) ψ ɛ ->
+    ψ a b.
+  Proof.
+    rewrite /ARcoupl.
+    intros.
+    destruct (ExcludedMiddle (ψ a b)); auto.
+    epose proof (H4 (fun x => if bool_decide (x = a) then 1 else 0) (fun x => if bool_decide (x = b) then 0 else 1) _ _ _).
+    epose proof (Expval_dret (fun x => if bool_decide (x = a) then 1 else 0) a).
+    epose proof (Expval_dret (fun x => if bool_decide (x = b) then 0 else 1) b).
+    unfold Expval in *. 
+    rewrite H7 H8 in H6.
+    case_bool_decide; case_bool_decide; try lra; done.
+    Unshelve.
+    - intros. simpl. case_bool_decide; split; lra.
+    - intros. simpl. case_bool_decide; split; lra.
+    - intros. simpl. 
+      case_bool_decide; case_bool_decide; try lra.
+      subst. done.
   Qed.
 
 
@@ -1379,7 +1402,7 @@ Proof.
   eapply ARcoupl_dunif_no_coll_r.
 Qed.
 
-Lemma UB_to_ARcoupl `{Countable A, Countable B} (μ1 : distr A) (P : A -> Prop) (ε : R) :
+Lemma UB_to_ARcoupl `{Countable A} (μ1 : distr A) (P : A -> Prop) (ε : R) :
   pgl μ1 P ε ->
   ARcoupl μ1 (dret tt) (λ a _, P a) ε.
 Proof.

@@ -213,7 +213,7 @@ Section keyed_hash.
 
   Definition init_keyed_hash : val :=
     λ: "_",
-      let: "f" := init_hash #MAX_HASH_DOM in
+      let: "f" := init_hash' #MAX_HASH_DOM in
       (λ: "k" "v", "f" (enc "k" "v")).
 
   Context `{!clutchRGS Σ}.
@@ -295,22 +295,22 @@ Section keyed_hash.
     ∃ (f0 : val) (mphys : gmap nat bool) (mghost : gmap fin_hash_dom_space (option bool)),
       keyed_hash_auth_pure f f0 mphys mghost ∗
       ghost_map_auth γ 1 mghost ∗
-      hashfun MAX_HASH_DOM f0 mphys.
+      hashfun' MAX_HASH_DOM f0 mphys.
 
   Definition skeyed_hash_auth (γ : gname) (f : val) : iProp Σ :=
     ∃ (f0 : val) (mphys : gmap nat bool) (mghost : gmap fin_hash_dom_space (option bool)),
       keyed_hash_auth_pure f f0 mphys mghost ∗
       ghost_map_auth γ 1 mghost ∗
-      shashfun MAX_HASH_DOM f0 mphys.
+      shashfun' MAX_HASH_DOM f0 mphys.
 
   Section timeless_spec.
-    Existing Instance timeless_shashfun.
+    Existing Instance timeless_shashfun'.
     Lemma timeless_skeyed_hash_auth γ f :
       Timeless (skeyed_hash_auth γ f).
     Proof. apply _. Qed.
   End timeless_spec.
 
-  Existing Instance timeless_hashfun.
+  Existing Instance timeless_hashfun'.
   #[global] Instance timeless_keyed_hash_auth γ f :
     Timeless (keyed_hash_auth γ f).
   Proof. apply _. Qed.
@@ -407,7 +407,7 @@ Section keyed_hash.
     iIntros (Φ) "_ HΦ".
     rewrite /init_keyed_hash.
     wp_pures.
-    wp_apply (wp_init_hash with "[//]").
+    wp_apply (wp_init_hash' with "[//]").
     iIntros (f0) "Hf0".
     wp_pures. iApply "HΦ".
     set (m := gset_to_gmap None (fin_to_set (fin_hash_dom_space)) : gmap _ (option bool)).
@@ -426,8 +426,8 @@ Section keyed_hash.
     iIntros "HK".
     rewrite /init_keyed_hash.
     tp_pures.
-    tp_bind (init_hash _).
-    iMod (spec_init_hash with "[$]") as (f0) "(HK&Hf0) /=".
+    tp_bind (init_hash' _).
+    iMod (spec_init_hash' with "[$]") as (f0) "(HK&Hf0) /=".
     tp_pures.
     set (m := gset_to_gmap None (fin_to_set (fin_hash_dom_space)) : gmap _ (option bool)).
     iApply fupd_spec_update.
@@ -626,7 +626,7 @@ Section keyed_hash.
     iDestruct (khashfun_own_acc_lookup _ _ v' with "Hown") as "(Hkv&Hclo)".
     iDestruct (ghost_map_lookup with "[$] [$]") as %Hlook.
     eapply ghost_phys_dom_rev in Hlook; last by (split; eauto).
-    wp_apply (wp_hashfun_prev with "H").
+    wp_apply (wp_hashfun_prev' with "H").
     { rewrite Hlook. rewrite ?fin_to_nat_to_fin //. }
     iIntros "H".
     iApply "HΦ". iSplitL "Hauth H".
@@ -656,7 +656,7 @@ Section keyed_hash.
     iDestruct (khashfun_own_acc_lookup _ _ v' with "Hown") as "(Hkv&Hclo)".
     iDestruct (ghost_map_lookup with "[$] [$]") as %Hlook.
     eapply ghost_phys_dom_rev in Hlook; last by (split; eauto).
-    iMod (spec_hashfun_prev with "H HK") as "(HK&H)".
+    iMod (spec_hashfun_prev' with "H HK") as "(HK&H)".
     { rewrite Hlook. rewrite ?fin_to_nat_to_fin //. }
     iFrame "HK".
     iModIntro.

@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From clutch.common Require Import con_language.
 From clutch.prob Require Export couplings distribution mdp.
 

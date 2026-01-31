@@ -1,4 +1,4 @@
-From Coq Require Import QArith Reals Psatz.
+From Stdlib Require Import QArith Reals Psatz.
 From Coquelicot Require Import Rcomplements.
 From clutch.prelude Require Import base.
 
@@ -193,13 +193,83 @@ Proof. intros ; lra. Qed.
 
 Hint Resolve Rminus_le_0_compat : real.
 
+
+Lemma pow_le_1_compat (x : R) (n : nat):
+    (0 <= x <= 1)%R → 0 ≤ n → (0 <= x ^ n <= 1)%R.
+  Proof.
+    intros Hx Hn.
+    destruct (le_lt_eq_dec _ _ Hn) as [Hn_lt | <-]; last first.
+    {
+      rewrite pow_O; lra.
+    }
+    destruct (decide (x < 1)%R) as [H | H].
+    - split.
+      + apply pow_le; lra.
+      + left.
+        apply pow_lt_1_compat; auto.
+        lra.
+    - split.
+      + apply pow_le; lra.
+      + apply Rnot_gt_le in H.
+        assert (x = 1) as ->.
+        * destruct Hx.
+          apply Rle_antisym; auto.
+        * rewrite pow1; lra.
+  Qed.
+
+  Lemma convex_sum_conv (x a b : R) :
+    (0 <= x <= 1)%R ->
+    (a <= b)%R ->
+    (a <= x * a + (1-x)*b <= b)%R.
+  Proof.
+    intros Hx Hab.
+    split.
+    - assert (a = x * a + (1 - x) * a)%R as Haux by lra.
+      rewrite {1}Haux.
+      apply Rplus_le_compat_l.
+      apply Rmult_le_compat_l; lra.
+    - assert (b = x * b + (1 - x) * b)%R as Haux by lra.
+      rewrite {2}Haux.
+      apply Rplus_le_compat_r.
+      apply Rmult_le_compat_l; lra.
+  Qed.
+
+
+  Lemma convex_sum_conv_alt (x a a' b b' : R) :
+    (0 <= x <= 1)%R ->
+    (a <= a' <= b)%R ->
+    (a <= b' <= b)%R ->
+    (a <= x * a' + (1-x)*b' <= b)%R.
+  Proof.
+    intros Hx Ha' Hb'.
+    destruct (Rle_lt_dec a' b').
+    - split.
+      + transitivity a'; [lra|].
+        apply convex_sum_conv; auto.
+      + transitivity b'; [|lra].
+        apply convex_sum_conv; auto.
+    - set (y := (1-x)%R).
+      replace x with (1-y)%R; last first.
+      {
+        rewrite /y. lra.
+      }
+      rewrite Rplus_comm.
+      split.
+      + transitivity b'; [lra|].
+        apply convex_sum_conv; [|lra].
+        rewrite /y; lra.
+      + transitivity a'; [|lra].
+        apply convex_sum_conv; [|lra].
+        rewrite /y; lra.
+   Qed.
+
 From Ltac2 Require Import Ltac2.
 
 Ltac2 split_le_le _ :=
   let rename_prod old prod :=
     let extract_prod_name t :=
       match Constr.Unsafe.kind t with
-      | Constr.Unsafe.Prod b t => Constr.Binder.name b
+      | Constr.Unsafe.Prod b _ => Constr.Binder.name b
       | _ => None
       end in
     let name := extract_prod_name old in
@@ -279,6 +349,10 @@ Ltac real_simpl :=
          (* simplifications *)
          | |- context[?a * (?b * ?c)] => rewrite -Rmult_assoc
          | |- context[_ > _] => rewrite /Rgt
+         | |- context[INR (S _)] => rewrite S_INR
+         | |- context[INR O] => rewrite INR_0
+         | H : context[INR (S _)] |- _ => rewrite S_INR in H
+         | H : context[INR O] |- _ => rewrite INR_0 in H
          | H : context[_ > _] |- _ => rewrite /Rgt in H
          | H : _ <= _ <= _ |-  _  => destruct H
          | H : forall _, _ <= _ <= _ |- _ => progress repeat ltac2:(split_le_le ())

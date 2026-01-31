@@ -296,7 +296,35 @@ Section adequacy.
       iRevert (H).
       iApply (glm_strong_ind (λ e σ ε, ⌜language.to_val e = None⌝ ={∅}=∗  ⌜tgl (lim_exec (e, σ)) φ ε⌝)%I with "[][$H]").
       iModIntro. clear e σ ε. iIntros (e σ ε) "H %Hval".
-      iDestruct "H" as "[H|H]".
+      iDestruct "H" as "[H|[H | H]]".
+      + iAssert (|={∅}=>  ⌜∀ ε' : nonnegreal,
+                             (ε < ε') -> tgl (lim_exec (e, σ)) φ ε'⌝)%I with "[H]" as "H".
+        {
+          iIntros (ε') "%Hε'".
+          iMod ("H" $! ε' (Hε')) as "H".
+          iDestruct "H" as "(%R' & %ε1' & %ε2' & %Hineq' & %Hub' & H)".
+          iApply fupd_mono.
+          { iApply pure_mono. intros. eapply tgl_mon_grading; [eapply Hineq'|eauto]. }
+          rewrite -{2}(dret_id_left' (fun _ : () => (lim_exec (e, σ))) tt).
+          iApply tgl_dbind'.
+          - iPureIntro; apply cond_nonneg.
+          - iPureIntro; apply cond_nonneg.
+          - iPureIntro; eapply Hub'.
+          - iIntros. destruct a.
+            iSpecialize ("H" with "[//]").
+            iDestruct "H" as "[H _]".
+            iApply ("H" with "[//]").
+        }
+        iApply fupd_mono; [|done].
+        apply pure_mono.
+        intro H.
+        apply tgl_epsilon_limit; [apply Rle_ge, cond_nonneg|].
+        intros ε' Hε'.
+        eapply (H (mknonnegreal ε' _)); eauto.
+        Unshelve.
+        apply Rgt_lt in Hε'.
+        etrans; [|left;eauto].
+        apply cond_nonneg.
       + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hbound & %Hineq & %Hub & H)".
         rewrite lim_exec_step step_or_final_no_final.
         2: { by apply reducible_not_final. }

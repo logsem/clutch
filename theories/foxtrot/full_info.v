@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From clutch.prelude Require Import Series_ext.
 From clutch.con_prob_lang Require Import lang.
@@ -786,7 +786,7 @@ Section full_info.
     assert (l1 = []) as ->; last by rewrite app_nil_r.
     destruct l1; first done.
     apply (f_equal length) in H.
-    exfalso. simpl in H. rewrite app_length/= in H. lia.
+    exfalso. simpl in H. rewrite length_app/= in H. lia.
   Qed.
 
   Lemma full_info_append_osch_exec_not_prefix l osch n ρ f: 

@@ -169,7 +169,7 @@ Section kway_merge_spec.
     0 <= length xs.
   Proof.
     induction xs; [done|].
-    rewrite cons_length S_INR. lra.
+    rewrite length_cons S_INR. lra.
   Qed.
 
   Lemma list_list_non_empty {A} (zss : list (list A)) :
@@ -293,9 +293,9 @@ Section kway_merge_spec.
             eapply Forall_impl; [done|]. by intros ? []. }
         { iApply (etc_weaken with "Hrest").
           split; [auto with real|].
-          rewrite Hp cons_length.
+          rewrite Hp length_cons.
           rewrite {2}/repeat_remove_cost.
-          rewrite concat_cons app_length !cons_length nil_length.
+          rewrite concat_cons length_app !length_cons length_nil.
           rewrite plus_INR !Rmult_plus_distr_r !Rmult_1_l.
           rewrite /repeat_remove_cost.
 
@@ -379,7 +379,7 @@ Section kway_merge_spec.
         { iApply (etc_irrel with "Hrest").
           rewrite Hp Hp'.
           rewrite /repeat_remove_cost.
-          rewrite !concat_cons !app_length !cons_length.
+          rewrite !concat_cons !length_app !length_cons.
           rewrite !plus_INR !S_INR.
           remember (heap_remove_cost (S (length zss'))) as R.
           remember (heap_insert_cost (S (length zss'))) as I.
@@ -453,8 +453,8 @@ Section kway_merge_spec.
           - iSplit; [done|]. by apply Forall_app in Hzss as [_ [? ?]%Forall_cons].
           - iApply (etc_weaken with "Hc"). split; [auto with real|].
             apply heap_insert_cost_mono.
-            etrans; [apply filter_length|].
-            rewrite app_length. lia. }
+            etrans; [apply length_filter|].
+            rewrite length_app. lia. }
         iIntros (zss'') "[Hh ->]".
         iApply "HΨ'".
         rewrite Permutation_cons_append.
@@ -477,10 +477,10 @@ Section kway_merge_spec.
       rewrite concat_filter_nempty.
       assert (heap_remove_cost (length (filter (λ y : list Z, [] ≠ y) zss))
               <= heap_remove_cost (length zss)).
-      { apply heap_remove_cost_mono. apply filter_length. }
+      { apply heap_remove_cost_mono. apply length_filter. }
       assert (heap_insert_cost (length (filter (λ y : list Z, [] ≠ y) zss))
               <= heap_insert_cost (length zss)).
-      { apply heap_insert_cost_mono. apply filter_length. }
+      { apply heap_insert_cost_mono. apply length_filter. }
       eauto with real. }
     iIntros (zs) "(Hh & Hout & %Hp & %Hsorted)".
     wp_pures.

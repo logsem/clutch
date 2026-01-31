@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From Coquelicot Require Import Series Hierarchy Lim_seq Rbar Lub.
 From stdpp Require Import option.
 From stdpp Require Export countable finite gmap fin_sets.
@@ -781,6 +781,26 @@ Proof.
     + intros; do 3 case_bool_decide; simplify_eq; try lia; try lra.
 Qed.
 
+
+Lemma ex_seriesC_nat_bounded_Zle (f : nat -> R) (z : Z) :
+  ex_seriesC (λ (n : nat), if bool_decide (Z.of_nat n <= z)%Z then f n else 0).
+Proof.
+  destruct (Z_lt_ge_dec z 0) as [H|H].
+  - eapply ex_seriesC_ext; [ | apply ex_seriesC_0].
+    intro n.
+    rewrite bool_decide_eq_false_2; auto.
+    lia.
+  - eapply ex_seriesC_ext; [ | apply (ex_seriesC_nat_bounded f (Z.to_nat z))].
+    intro n.
+    case_bool_decide.
+    + rewrite bool_decide_eq_true_2; auto.
+      zify.
+      lia.
+    + rewrite bool_decide_eq_false_2; auto.
+      zify.
+      lia.
+Qed.
+
 Lemma ex_seriesC_nat_bounded_Rle (f : nat -> R) (N : nat) :
   ex_seriesC (λ (n : nat), if bool_decide (n <= N) then f n else 0).
 Proof.
@@ -793,6 +813,19 @@ Proof.
     apply Nat.lt_nge.
     apply INR_lt.
     lra.
+Qed.
+
+Lemma ex_seriesC_nat_eventually_zero (f : nat -> R) (N : nat) (M : nat) :
+  (forall n : nat, M <= n -> f n = 0) ->
+  ex_seriesC f.
+Proof.
+  intros H.
+  eapply ex_seriesC_ext; last first.
+  { eapply (ex_seriesC_nat_bounded_Rle f M). }
+  intros n.
+  simpl; case_bool_decide; auto.
+  rewrite H //.
+  lra.
 Qed.
 
 
@@ -823,6 +856,25 @@ Proof.
       do 3 case_bool_decide; simplify_eq; try lia; try lra.
     + apply ex_seriesC_nat_bounded.
     + apply ex_seriesC_singleton.
+Qed.
+
+
+Lemma SeriesC_split_first (f : nat -> R) :
+  (∀ n, 0 <= f n) →           (* TODO: this requirements should not be necessary? *)
+  ex_seriesC f →
+  SeriesC f = (f 0%nat) + SeriesC (λ n, f (S n)).
+Proof.
+  intros Hle Hex.
+  rewrite (SeriesC_split_elem f 0%nat); auto.
+  rewrite SeriesC_singleton_dependent.
+  f_equal; auto.
+  rewrite SeriesC_nat.
+  rewrite SeriesC_nat.
+  rewrite Series_incr_1_aux.
+  - apply Series_ext.
+    intro n.
+    rewrite bool_decide_eq_true_2; [done|lia].
+  - rewrite bool_decide_eq_false_2; [done|lia].
 Qed.
 
 
@@ -953,6 +1005,44 @@ Section finite.
     apply ex_seriesC_finite.
   Qed.
 
+#[local] Fixpoint Rmax_seq (f : nat -> R) n :=
+  match n with
+  | 0 => f 0%nat
+  | S m => Rmax (f (S m)) (Rmax_seq f m)
+  end.
+
+#[local] Lemma le_Rmax_seq (f : nat -> R) n m :
+  (m ≤ n) ->
+  (f m <= Rmax_seq f n)%R.
+Proof.
+  intros Hleq.
+  induction Hleq.
+  - destruct m; simpl; [lra|].
+    apply Rmax_l.
+  - simpl.
+    etrans; eauto.
+    apply Rmax_r.
+Qed.
+
+Lemma fin_function_bounded (N : nat) (f : fin N -> R) :
+  exists r, forall n, (f n <= r)%R.
+Proof.
+  induction N as [|M].
+  - exists 0.
+    intros.
+    by apply Fin.case0.
+  - set (g := (λ (n : nat), f (fin.fin_force _ n))).
+    exists (Rmax_seq g M).
+    intros n.
+    pose proof (fin_to_nat_lt n).
+    transitivity (g n).
+    + rewrite /g /=.
+      right.
+      f_equal.
+      apply fin_to_nat_inj.
+      rewrite fin.fin_force_to_nat_le; lia.
+    + apply le_Rmax_seq; lia.
+Qed.
 
 End finite.
 
@@ -1027,11 +1117,34 @@ End finite.
   Qed.
 
   
-  Lemma SeriesC_nat_bounded' (f : nat -> R) (N : nat) :
+  Lemma SeriesC_nat_bounded_to_foldr (f : nat -> R) (N : nat) :
     SeriesC (λ (n : nat), if bool_decide ((n <= N)%nat) then f n else 0) = foldr (Rplus ∘ f ∘ fin_to_nat) 0%R (enum (fin (S N))).
   Proof.
     rewrite SeriesC_nat_bounded_fin.
     by rewrite SeriesC_finite_foldr.
+  Qed.
+
+
+  Lemma SeriesC_nat_bounded_to_foldr' (f : nat -> R) (N : nat) :
+    SeriesC (λ (n : nat), if bool_decide ((n <= N)%nat) then f n else 0) = foldr Rplus 0%R ( f <$> seq 0 (S N)).
+  Proof.
+    rewrite SeriesC_nat_bounded_fin.
+    rewrite -enum_fin_seq.
+    rewrite SeriesC_finite_foldr.
+    assert (forall {A B} (l : list A) (h2 : B -> R) (h1 : A -> B),
+               foldr (Rplus ∘ h2 ∘ h1 ) 0 l = foldr (Rplus ∘ h2) 0 (h1 <$> l)) as Haux.
+    {
+      induction l.
+      - intros l.
+        simpl. done.
+      - intros h1 h2.
+        simpl.
+        f_equal.
+        auto.
+    }
+    rewrite -Haux.
+    rewrite -Haux.
+    apply foldr_ext; auto.
   Qed.
 
 (** Results about positive (non-negative) series *)
@@ -1978,6 +2091,20 @@ Section inj.
 
 End inj.
 
+Lemma SeriesC_translate f loc (fpos : ∀ z, 0 <= f z) (fex : ex_seriesC f) :
+  (SeriesC (λ z : Z, f (z + loc)) = SeriesC f)%Z.
+Proof.
+  opose proof (SeriesC_le_inj f (λ z, Some (z + loc))%Z _ _ _) as lb => //.
+  { intros ??? h h'. inversion h ; inversion h'. lia. }
+  simpl in lb.
+  opose proof (SeriesC_le_inj (λ z, f (z + loc))%Z (λ z, Some (z - loc))%Z _ _ _) as ub => //.
+  { intros ??? h h'. inversion h ; inversion h'. lia. }
+  1: apply ex_seriesC_inj => //.
+  { intros ?? h. inversion h. lia. }
+  simpl in ub.
+  setoid_rewrite Z.sub_simpl_r in ub. apply Rle_antisym => //.
+Qed.
+
 
 Section Inj_finite.
 
@@ -2192,6 +2319,16 @@ Section Inj_finite.
        Unshelve. solve_decision.
   Qed.
 
+  Lemma SeriesC_fin_in_set' (N : nat) (ns : gset nat) v:
+    (forall x, x ∈ ns -> (x < S N)%nat ) ->
+    (SeriesC (λ x : fin (S N), if bool_decide (fin_to_nat x ∈ ns) then v else 0) = v* size ns).
+  Proof.
+    erewrite (SeriesC_ext _ (λ x : fin (S N), v* if bool_decide (fin_to_nat x ∈ ns) then 1 else 0)).
+    - intros. rewrite SeriesC_scal_l.
+      by rewrite SeriesC_fin_in_set.
+    - intros.
+      case_bool_decide; lra.
+  Qed. 
 
   Lemma SeriesC_fin_not_in_set (N : nat) (ns : gset nat) :
     (forall x, x ∈ ns -> (x < S N)%nat ) ->
@@ -2214,6 +2351,16 @@ Section Inj_finite.
     lra.
   Qed.
 
+  Lemma SeriesC_fin_not_in_set' (N : nat) (ns : gset nat) v:
+    (forall x, x ∈ ns -> (x < S N)%nat ) ->
+    (SeriesC (λ x : fin (S N), if bool_decide (fin_to_nat x ∉ ns) then v else 0) = v*(N + 1 - size ns))%R.
+  Proof.
+    erewrite (SeriesC_ext _ (λ x : fin (S N), v* if bool_decide (fin_to_nat x ∉ ns) then 1 else 0)).
+    - intros. rewrite SeriesC_scal_l.
+      by rewrite SeriesC_fin_not_in_set.
+    - intros.
+      case_bool_decide; lra.
+  Qed. 
 
 End Inj_finite.
 

@@ -313,7 +313,7 @@ Section simple_bit_hash.
     rewrite lookup_fmap Hlookup /=. wp_pures.
     wp_bind (rand _)%E.
     wp_apply (wp_rand_err_list_nat _ val_size (map (λ p, snd p) (map_to_list m))); auto.
-    rewrite map_length.
+    rewrite length_map.
     rewrite plus_INR INR_1.
     iFrame.
     iIntros "%x %HForall".
@@ -696,7 +696,7 @@ Section amortized_hash.
         rewrite -Rmult_plus_distr_l.
         f_equal.
     - wp_apply (wp_insert_no_coll with "[H Hε Hview]"); [done|..].
-      + rewrite map_to_list_length. iFrame. 
+      + rewrite length_map_to_list. iFrame. 
       + iIntros (v) "[[??] ?]".
         iApply "HΦ".
         iCombine "Hfrag Htoken" as "Hfrag".

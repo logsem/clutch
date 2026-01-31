@@ -1,6 +1,6 @@
 From stdpp Require Import finite list sets.
 From clutch.prelude Require Import base classical fin.
-Require Import Coq.Program.Equality.
+From Stdlib.Program Require Import Equality.
 Set Default Proof Using "Type*".
 
 Section uniform_list.
@@ -58,7 +58,7 @@ Section uniform_list.
     induction l.
     - done.
     - rewrite bind_cons.
-      rewrite app_length. simpl. f_equal. done.
+      rewrite length_app. simpl. f_equal. done.
   Qed.
   
   Lemma bind_length2 (l1 : list A) l2:
@@ -68,7 +68,7 @@ Section uniform_list.
     induction l1.
     - done.
     - intros l2.
-      rewrite bind_cons. rewrite app_length.
+      rewrite bind_cons. rewrite length_app.
       rewrite IHl1. rewrite bind_length1.
       simpl. lia.
   Qed.

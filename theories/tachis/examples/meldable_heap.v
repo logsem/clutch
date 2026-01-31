@@ -3,13 +3,13 @@ From clutch.tachis Require Import ert_weakestpre lifting ectx_lifting primitive_
 From clutch.tachis Require Import min_heap_spec.
 From clutch.common Require Import inject.
 From iris.proofmode Require Export tactics.
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 From stdpp Require Import sorting.
-Require Coq.Program.Tactics.
-Require Coq.Program.Wf.
+From Stdlib.Program Require Import Tactics.
+From Stdlib.Program Require Import Wf WfExtensionality.
 
 Set Default Proof Using "Type*".
-Require Import Lra.
+From Stdlib Require Import Lra.
 
 Section log.
 
@@ -646,7 +646,7 @@ Section program.
       { rewrite /= Rplus_0_l.
         rewrite SeriesC_fin2.
         simpl.
-        rewrite app_length -(Nat.add_1_l (length _ + length _)) Nat.add_assoc.
+        rewrite length_app -(Nat.add_1_l (length _ + length _)) Nat.add_assoc.
         pose P := (cmp_nonneg _ _ cmp).
         etrans; last eapply tc_meld_ind; [|done].
         lra.
@@ -779,7 +779,7 @@ Section program.
       { rewrite /= Rplus_0_l.
         rewrite SeriesC_fin2.
         simpl.
-        rewrite app_length -(Nat.add_1_l (length _ + length _)) Nat.add_assoc.
+        rewrite length_app -(Nat.add_1_l (length _ + length _)) Nat.add_assoc.
         pose P := (cmp_nonneg _ _ cmp).
         etrans; last eapply tc_meld_ind; [|done].
         lra.
@@ -1002,8 +1002,8 @@ Section program.
           replace 2%R with (1 + 1)%R by lra.
           rewrite Rmult_plus_distr_r ?Rmult_1_l.
           apply Rplus_le_compat; apply tc_meld_mono.
-          + rewrite Hl /= app_length. lia.
-          + rewrite Hl /= app_length. lia.
+          + rewrite Hl /= length_app. lia.
+          + rewrite Hl /= length_app. lia.
       }
       iIntros (h') "(%L & (%b & Hb & %Hb_heap & %HL) & %HL')".
       wp_store.
@@ -1079,7 +1079,7 @@ Section interface.
   Qed.
   Next Obligation.
     (* is_meld_heap respects permutations *)
-    intros ? ? ? ? ? Hequiv ? ? -> .
+    intros ? ? ? ? ? ->.
     rewrite /is_meld_heap_ref.
     iStartProof; iSplit.
     - iIntros "(% & % & ? & ? & ? )".
@@ -1093,17 +1093,17 @@ Section interface.
   Qed.
   Next Obligation.
     (* New heap *)
-    iIntros (? ? ? ?) "_ H".
+    iIntros "_ H".
     wp_apply (spec_meld_heap_new cmp); auto.
   Qed.
   Next Obligation.
     (* Insert *)
-    iIntros (? ? ? ? ? ? ? ?) "H ?".
+    iIntros "H ?".
     wp_apply (spec_meld_heap_insert with "H"); iFrame.
   Qed.
   Next Obligation.
     (* Remove *)
-    iIntros (? ? ? ? ? ? ) "H ?".
+    iIntros "H ?".
     wp_apply (spec_meld_heap_remove with "H"); iFrame.
   Qed.
 

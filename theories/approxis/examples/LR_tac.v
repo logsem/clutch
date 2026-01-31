@@ -19,7 +19,7 @@ Module Basic.
 
   Ltac2 printst st :=
     printf "current state is:" ;
-    List.iter (fun (s, f) => printf "%s, " s) st.
+    List.iter (fun (s, _) => printf "%s, " s) st.
 
   Ltac2 lr_printst () :=
     let m := lrintro_tacs () in
@@ -29,9 +29,9 @@ Module Basic.
   Ltac2 rec lr_intro typ xs :=
     (* printf "entering lr_intro, typ: %t" typ ; *)
     FMap.fold
-      (fun name f finished =>
+      (fun _ f finished =>
          match finished with
-         | Some s => finished
+         | Some _ => finished
          | None =>
              ((* printf "trying %s" name ; *)
               f typ xs lr_intro)
@@ -52,7 +52,7 @@ Module Basic.
   Ltac2 rec f_rel_vals typ :=
     (* printf "entering lr_intro, typ: %t" typ ; *)
     FMap.fold
-      (fun name f finished =>
+      (fun _ f finished =>
          match finished with
          | Progressed => finished
          | Stuck =>
@@ -63,7 +63,7 @@ Module Basic.
       Stuck.
 
   Ltac2 rel_vals (lr : constr) : unit :=
-    let prog := f_rel_vals lr in
+    let _ := f_rel_vals lr in
     ().
 
   Ltac2 rec list_of_glist l :=
@@ -76,7 +76,7 @@ Module Basic.
       ltac2val:
         (lr xs |-
            let xs := Option.get (Ltac1.to_constr xs) in
-           let xs := (eval vm_compute in (words $xs)) in
+           let xs := (eval vm_compute in (String.words $xs)) in
            let xs := list_of_glist xs in
            let lr := Option.get (Ltac1.to_constr lr) in
            let pat := (Option.get (lr_intro lr xs)) in
@@ -120,7 +120,7 @@ Export Basic.
 Ltac2 get_head_name xs := match xs with [] => '"" | x :: _ => x end.
 
 Module LR_unit.
-  Ltac2 unit_intro typ xs k :=
+  Ltac2 unit_intro typ _ _ :=
     (* printf "entering unit_intro, typ: %t" typ ; *)
     lazy_match! typ with
     | lrel_unit =>
@@ -133,13 +133,13 @@ End LR_unit.
 Export LR_unit.
 
 Module LR_prod.
-    Ltac2 prod_intro (typ : constr) xs k :=
+    Ltac2 prod_intro (typ : constr) xs _ :=
       (* printf "entering prod_intro, typ: %t" typ ; *)
       lazy_match! typ with
-      | lrel_prod ?t1 ?t2 =>
+      | lrel_prod _ _ =>
           match xs with
           | x :: (y :: _) =>
-              let s := '(append "(%" ($x ++ "_l & %" ++ $x ++ "_r & %" ++
+              let s := '(String.append "(%" ($x ++ "_l & %" ++ $x ++ "_r & %" ++
                                         $y ++ "_l & %" ++ $y ++ "_r & ->&->&#" ++
                                         $x ++ "&#" ++ $y ++ ")" )) in
                       Some (eval vm_compute in $s)
@@ -147,13 +147,13 @@ Module LR_prod.
           end
       | _ => None
       end.
-  Ltac2 prod_val typ k :=
+  Ltac2 prod_val typ _ :=
     (* printf "entering prod_val, typ: %t" typ ; *)
     lazy_match! typ with
-    | (lrel_car lrel_prod ?v1 ?v2) =>
+    | (lrel_car lrel_prod _ _) =>
         (* printf "found `lrel_prod %t %t`, splitting" v1 v2 ; *)
         ltac1:(iExists _,_,_,_ ; iSplit ; [eauto|iSplit ; [eauto | iSplit]]) ; Progressed
-    | (lrel_car _ (?v1 , ?v2)%V (?v3 , ?v4)%V) =>
+    | (lrel_car _ (_ , _)%V (_ , _)%V) =>
         (* printf "found `_ (%t, %t) (%t, %t)`, splitting" v1 v2 v3 v4 ; *)
         ltac1:(iExists _,_,_,_ ; iSplit ; [eauto|iSplit ; [eauto | iSplit]]) ; Progressed
     | _ => Stuck
@@ -164,14 +164,14 @@ End LR_prod.
 Export LR_prod.
 
 Module LR_bool.
-  Ltac2 bool_intro (typ : constr) xs k :=
+  Ltac2 bool_intro (typ : constr) xs _ :=
     (* printf "entering bool_intro, typ: %t" typ ; *)
     lazy_match! typ with
     | lrel_bool =>
         (* printf "found `lrel_bool`, done" ; *)
         match xs with
         | [] => Some '"(%&->&->)"
-        | x :: _ => let s := '(append "(%" ($x ++ "&->&->)")) in
+        | x :: _ => let s := '(String.append "(%" ($x ++ "&->&->)")) in
                     Some (eval vm_compute in $s)
         end
     | _ => None
@@ -181,25 +181,24 @@ End LR_bool.
 Export LR_bool.
 
 Module LR_int.
-  Ltac2 int_intro typ xs k :=
+  Ltac2 int_intro typ xs _ :=
     (* printf "entering int_intro, typ: %t" typ ; *)
     lazy_match! typ with
     | lrel_int =>
         (* printf "found `lrel_int`, done" ; *)
         match xs with
         | [] => Some '"(%&->&->)"
-        | x :: _ => let s := '(append "(%" ($x ++ "&->&->)")) in
+        | x :: _ => let s := '(String.append "(%" ($x ++ "&->&->)")) in
                     Some (eval vm_compute in $s)
         end
     | _ => None
     end.
   Ltac2 Set Basic.lrintro_tacs as prev := fun () => FMap.add "int" int_intro (prev ()).
 
-  Ltac2 int_val typ k :=
+  Ltac2 int_val typ _ :=
     (* printf "entering int_val, typ: %t" typ ; *)
     lazy_match! typ with
-    | (lrel_car lrel_int ?v1 ?v2) =>
-        (* printf "found `lrel_int %t %t`, trying lia" v1 v2 ; *)
+    | (lrel_car lrel_int _ _) => (* printf "found `lrel_int %t %t`, trying lia" v1 v2 ; *)
         ltac1:(iExists _ ; iPureIntro ; (intuition lia || eauto)) ; Progressed
     | _ => Stuck
     end.
@@ -218,13 +217,13 @@ Module LR_option.
           (fun aa =>
              Option.bind (k 'lrel_unit [])
                (fun u =>
-                  let s := '(append "#(%" (" " ++ "&% &[(->&->&" ++ $u ++ ") | (->&->&"++$aa++")])")) in
+                  let s := '(String.append "#(%" (" " ++ "&% &[(->&->&" ++ $u ++ ") | (->&->&"++$aa++")])")) in
                   Option.ret (eval vm_compute in $s)))
     | _ => None
     end.
   Ltac2 Set Basic.lrintro_tacs as prev := fun () => FMap.add "option" option_intro (prev ()).
 
-  Ltac2 option_val typ k :=
+  Ltac2 option_val typ _ :=
     (* printf "entering option_val, typ: %t" typ ; *)
     lazy_match! typ with
     | (lrel_car _ (InjLV _) (InjLV _)) =>

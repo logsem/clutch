@@ -574,7 +574,7 @@ Proof with (rel_pures_l ; rel_pures_r).
           { apply NoDup_fmap with fin_to_nat; first apply fin_to_nat_inj.
             rewrite Hl'. apply NoDup_elements. }
           replace (length l') with q; last first.
-          { erewrite <-fmap_length, Hl'.
+          { erewrite <-length_fmap, Hl'.
             by replace (length (elements (dom M))) with (size (dom M)).
           }
           pose proof pos_INR_S (Input).
@@ -1046,8 +1046,6 @@ Section foo.
                          (lim_exec
                             (RED Q adversary (PRF_rand PRF_scheme_F #Q),
                                σ)) eq (Q * Q / (2 * S card_input))).
-
-  Check λ Q adversary adversary_typed, CPA_bound' Q prf_typed keygen_typed H_in_out xor_typed adversary adversary_typed (red1 Q adversary) (red2 Q adversary) xor_spec_struct.
 
   (* We could assume that the adversary only makes Q calls by requiring that the following
     equivalence holds:

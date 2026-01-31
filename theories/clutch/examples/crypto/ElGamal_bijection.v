@@ -2,10 +2,10 @@
    bijection on `fin n`. This fact is used in the ElGamal security proof. *)
 
 From Coquelicot Require Rcomplements.
-From mathcomp Require all_ssreflect ssrnat zmodp fingroup.
+From mathcomp Require all_boot ssrnat zmodp fingroup.
 From stdpp Require fin.
-From clutch.prelude Require Import base zmodp_fin stdpp_ext.
 
+From clutch.prelude Require Import zmodp_fin.
 Set Default Proof Using "Type*".
 
 Module bij_fin.
@@ -15,7 +15,7 @@ Section bij_fin.
   Local Notation "'p'" := (S (S n)).
   Variable k : Fin.t p.
 
-  Import all_ssreflect ssrnat zmodp fingroup.
+  Import all_boot zmodp fingroup.
 
   Let f' (x : 'Z_p) : 'Z_p := (Zp_add (ord_of_fin k) x)%g.
   Let g' (x : 'Z_p) : 'Z_p := Zp_add (Zp_opp (ord_of_fin k)) x.
@@ -41,20 +41,23 @@ Section bij_fin.
   Global Instance f_surj : base.Surj eq f.
   Proof. intros x. exists (g x). by rewrite f_g. Qed.
 
-  Global Instance bij_f : Bij f | 1.
-  Proof. constructor; apply _. Qed.
-
   Global Instance g_inj : base.Inj eq eq g.
   Proof. intros x y hg. rewrite -(f_g x) -(f_g y) hg => //. Qed.
 
   Global Instance g_surj : base.Surj eq g.
   Proof. intros x. exists (f x). by rewrite g_f. Qed.
+  #[warning="-require-in-module -require-in-section"]
+  From clutch.prelude Require Import stdpp_ext.
+  Global Instance bij_f : Bij f | 1.
+  Proof. constructor; apply _. Qed.
 
   Global Instance bij_g : Bij g | 1.
   Proof. constructor; apply _. Qed.
 
 End bij_fin.
 End bij_fin.
+
+From clutch.prelude Require Import base stdpp_ext. 
 
 Module bij_nat.
 Section bij_nat.

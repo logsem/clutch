@@ -212,7 +212,7 @@ Section unreliable_storage.
           etrans; last exact. simpl. lia.
         * replace (2^ S height) with (2^height + 2 ^ height) in Hlength; last first.
           { simpl. lia. }
-          rewrite app_length in Hlength. lia.
+          rewrite length_app in Hlength. lia.
         * rewrite Forall_app in Hforall. set_solver.
         * iIntros (hashb lb) "(%m'' & %treeb & %&%&H&%&%)".
           wp_pures.

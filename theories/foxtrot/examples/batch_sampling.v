@@ -2,19 +2,21 @@ From clutch.foxtrot Require Import foxtrot par spawn.
 
 Section batch.
   Variable N M:nat.
-  Definition batch_prog : expr :=
+  Definition batch_prog :val:=
+    λ: "_", 
     let, ("x", "y") := ((rand #N) ||| rand #M) in
     "x" * (#(M+1)) + "y".
 
   
-  Definition batch_prog' : expr :=
+  Definition batch_prog' : val :=
+    λ: "_",
     let: "α" := alloc #N in
     let: "α'" := alloc #M in
     let, ("x", "y") := ((rand("α") #N) ||| rand("α'") #M) in
     "x" * (#(M+1)) + "y".
 
 
-  Definition rand_prog : expr := rand #((S N) * (S M)-1).
+  Definition rand_prog : val := λ: "_", rand #((S N) * (S M)-1).
 
   Definition coupling_f n m:= n*(S M) +m.
 
@@ -47,13 +49,14 @@ Section batch.
     Context `{!foxtrotRGS Σ, Hspawn: !spawnG Σ}.
     
     Lemma wp_batch_prog_batch_prog' K j:
-    {{{ j ⤇ fill K batch_prog' }}}
-      batch_prog
+    {{{ j ⤇ fill K (batch_prog' #()) }}}
+      batch_prog #()
       {{{ v, RET v; ∃ v' : val, j ⤇ fill K v' ∗ lrel_nat v v' }}}.
     Proof using Hspawn.
       iIntros (Φ) "Hspec HΦ".
       rewrite /batch_prog'/batch_prog.
       wp_pures.
+      tp_pures j.
       tp_allocnattape j α as "Hα".
       tp_pures j.
       tp_allocnattape j α' as "Hα'".
@@ -79,11 +82,11 @@ Section batch.
         iPureIntro.
         simpl.
         eexists (n*(M+1)+m); split; repeat f_equal; lia.
-    Qed. 
+    Qed.
     
     Lemma wp_batch_prog'_rand_prog K j:
-    {{{ j ⤇ fill K rand_prog }}}
-      batch_prog'
+    {{{ j ⤇ fill K (rand_prog #()) }}}
+      batch_prog' #()
       {{{ v, RET v; ∃ v' : val, j ⤇ fill K v' ∗ lrel_nat v v' }}}.
     Proof using Hspawn.
       iIntros (Φ) "Hspec HΦ".
@@ -93,6 +96,7 @@ Section batch.
       wp_pures.
       wp_alloctape α' as "Hα'".
       wp_pures.
+      tp_pures j.
       iMod (pupd_couple_two_tapes_rand _ _ coupling_f with "[$Hα][$][$]") as "(%n&%m&Hα&Hα'&Hspec &%&%)".
       - rewrite TCEq_eq. by erewrite Nat2Z.id.
       - rewrite TCEq_eq. by erewrite Nat2Z.id.
@@ -112,19 +116,21 @@ Section batch.
           simpl. eexists _.
           split; last done.
           repeat f_equal; lia.
-    Qed. 
+    Qed.
   End proof.
   
   Section proof'.
     Context `{!foxtrotRGS Σ}.
 
     Lemma wp_rand_prog_batch_prog K j:
-    {{{ j ⤇ fill K batch_prog }}}
-      rand_prog
+    {{{ j ⤇ fill K (batch_prog #()) }}}
+      rand_prog #()
       {{{ v, RET v; ∃ v' : val, j ⤇ fill K v' ∗ lrel_nat v v' }}}.
     Proof.
       iIntros (Φ) "Hspec HΦ".
       rewrite /batch_prog/rand_prog.
+      wp_pures.
+      tp_pure j.
       iApply wp_pupd.
       tp_bind j (_|||_)%E.
       iMod (tp_par with "[$]") as "(%j1&%j2&%K1&%K2&Hspec1&Hspec2&Hcont)".
@@ -146,36 +152,60 @@ Section batch.
         simpl.
         eexists _; split; first done.
         repeat f_equal; lia.
-    Qed. 
+    Qed.
   End proof'.
 
   Lemma batch_prog_refines_rand_prog :
-    ∅ ⊨ batch_prog ≤ctx≤ rand_prog : TNat.
+    ∅ ⊨ batch_prog ≤ctx≤ rand_prog : (TUnit → TNat).
   Proof.
     eapply ctx_refines_transitive with batch_prog';
       apply (refines_sound (#[spawnΣ; foxtrotRΣ])); rewrite /interp/=.
     - iIntros. unfold_rel.
       iIntros (K j) "Hspec".
+      wp_pures.
+      iFrame.
+      iModIntro.
+      iModIntro.
+      iIntros (??[->->]).
+      unfold_rel.
+      clear K j.
+      iIntros (K j) "Hspec".
       wp_apply (wp_batch_prog_batch_prog' with "[$]").
       iIntros (v) "(%&?&?)". iFrame. 
     - iIntros. unfold_rel.
       iIntros (K j) "Hspec".
+      wp_pures.
+      iFrame.
+      iModIntro.
+      iIntros (??[->->]).
+      unfold_rel.
+      iModIntro.
+      clear K j.
+      iIntros (K j) "Hspec". 
       wp_apply (wp_batch_prog'_rand_prog with "[$]").
       iIntros (v) "(%&?&?)". iFrame.
   Qed. 
 
   Lemma rand_prog_refines_batch_prog :
-    ∅ ⊨ rand_prog ≤ctx≤ batch_prog : TNat.
+    ∅ ⊨ rand_prog ≤ctx≤ batch_prog : (TUnit →TNat).
   Proof.
     apply (refines_sound (foxtrotRΣ)).
     iIntros. unfold_rel.
     iIntros (K j) "Hspec".
+    wp_pures.
+    iFrame.
+    iModIntro.
+    iIntros (??[->->]).
+    unfold_rel.
+    iModIntro.
+    clear K j.
+    iIntros (K j) "Hspec". 
     wp_apply (wp_rand_prog_batch_prog with "[$]").
     iIntros (v) "(%&?&?)". iFrame.
   Qed. 
 
   Lemma batch_prog_eq_rand_prog :
-    ∅ ⊨ batch_prog =ctx= rand_prog : TNat.
+    ∅ ⊨ batch_prog =ctx= rand_prog : (TUnit →TNat).
   Proof.
     split; [apply batch_prog_refines_rand_prog|apply rand_prog_refines_batch_prog].
   Qed. 

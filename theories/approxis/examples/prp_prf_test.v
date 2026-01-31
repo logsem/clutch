@@ -127,7 +127,7 @@ Section prp_prf_test.
           rewrite elem_of_set_seq in H2. lia.
         * pose proof list_pigeonhole _ _ Hsubseteq as H0.
           pose proof Nat.lt_ge_cases  (S val_size) (length l) as [H1|H1]; try lia.
-          rewrite fmap_length seq_length in H0.
+          rewrite length_fmap length_seq in H0.
           specialize (H0 H1).
           destruct H0 as (?&?&?&?&?&?).
           eapply NoDup_lookup in HNoDup; [|exact H2|exact H3].
@@ -158,7 +158,7 @@ Section prp_prf_test.
              apply le_S_n.
              replace (S (S _ - _)) with (S val_size - (n - S k')) by lia.
              trans (length l); try done.
-             subst. rewrite !app_length cons_length. lia.
+             subst. rewrite !length_app length_cons. lia.
           -- iPureIntro. subst. apply NoDup_app. apply NoDup_app in HNoDup.
              destruct HNoDup as [?[? HNoDup]]. apply NoDup_cons in HNoDup. set_solver.
           -- iPureIntro. rewrite list_subseteq_app_iff_l. split; set_solver.
@@ -209,7 +209,7 @@ Section prp_prf_test.
     do 3 wp_pure.
     wp_apply (wp_prf_prp_test_err_ind with "[$Herr $Hf $HK $Hg]"); [..|done].
     - split; first lia. done.
-    - simpl. rewrite fmap_length seq_length. lia.
+    - simpl. rewrite length_fmap length_seq. lia.
     - intros. apply NoDup_fmap_2; last apply NoDup_seq. apply Nat2Z.inj'.
     - intros; set_solver.
     - set_solver.

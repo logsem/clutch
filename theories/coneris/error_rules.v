@@ -773,7 +773,7 @@ Proof.
             eapply is_seriesC_filter_union.
             2: { apply SeriesC_correct, ex_seriesC_finite. }
             intro; simpl; lra.
-          * rewrite cons_length S_INR /=.
+          * rewrite length_cons S_INR /=.
             assert (SeriesC (λ n : fin (S N), if bool_decide (fin_to_nat n = a) then 1 else 0) <= 1)%R as Haux2.
             {
               destruct (decide (a < S N)).
@@ -796,7 +796,7 @@ Proof.
             ** apply IHns.
                etrans; eauto.
                apply Rmult_le_compat_l; [lra |].
-               rewrite cons_length S_INR; lra.
+               rewrite length_cons S_INR; lra.
             **
               apply Rcomplements.Rle_minus_l.
               rewrite <- (Rplus_0_r) at 1.

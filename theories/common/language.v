@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Export weakestpre.
@@ -53,6 +53,7 @@ Structure language := Language {
 
   of_val : val → expr;
   to_val : expr → option val;
+  def_val : val;
   prim_step : expr → state → distr (expr * state);
   state_step : state → state_idx → distr state;
   get_active : state → list state_idx;
@@ -63,9 +64,10 @@ Structure language := Language {
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments Language {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ } _.
+Global Arguments Language {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ } _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
+Global Arguments def_val {_}.
 Global Arguments state_step {_}.
 Global Arguments prim_step {_} _ _.
 Global Arguments get_active {_} _.

@@ -524,7 +524,7 @@ Section coll_free_hash.
     rewrite lookup_fmap Hlookup /=. wp_pures.
     wp_bind (rand _)%E.
     wp_apply (wp_rand_err_list_nat _ (vsval - 1) (map (λ p, snd p) (map_to_list m))); auto.
-    rewrite map_length -Hlen.
+    rewrite length_map -Hlen.
     iPoseProof (cf_update_potential _ _ _ _ _ _
                  with "[Herr2 //] [Htot_err //] [Herr //]")
       as (ε') "((Herr3 & Herr4) & %Hupdp)".
@@ -539,7 +539,7 @@ Section coll_free_hash.
         assert (S vsval - 1 = vsval)%Z as -> by lia.
         rewrite Nat2Z.id //. }
     iFrame.
-    iIntros "%x %HForall".
+    iIntros "%x [%Hxle %HForall]".
     wp_pures.
     wp_apply (wp_set with "Hhash").
     iIntros "Hlist".
@@ -557,7 +557,7 @@ Section coll_free_hash.
     {
       iPureIntro.
       eapply (Rlt_le_trans _ (S (Z.to_nat (Z.sub (Z.of_nat vsval) (Zpos xH))))); eauto.
-      { apply lt_INR. apply fin_to_nat_lt. }
+      { apply lt_INR. lia. }
       right.
       f_equal.
       destruct vsval; [simpl in Hvsval_pos; lra |].
@@ -619,7 +619,7 @@ Section coll_free_hash.
                  destruct (decide(n = i)) as [-> | Hneq].
                  **** rewrite lookup_insert in Hi. inversion Hi.
                      eapply (Rlt_le_trans _ (S (Z.to_nat (Z.sub (Z.of_nat vsval) (Zpos xH))))); eauto.
-                     { apply lt_INR. apply fin_to_nat_lt. }
+                     { apply lt_INR. lia.  }
                      right. f_equal.
                      destruct vsval; [simpl in Hvsval_pos; lra |].
                      rewrite Z2Nat.inj_sub; last by lia.
@@ -658,7 +658,7 @@ Section coll_free_hash.
     wp_bind (rand _)%E.
     wp_apply (wp_rand_err_list_nat _ (vsval - 1) (map (λ p, snd p) (map_to_list m))); auto.
 
-    rewrite map_length -Hlen.
+    rewrite length_map -Hlen.
     iPoseProof (cf_update_potential_resize vsval sval rval _ _ Hvspos
                  with "[Herr2 //] [//] [] [Herr //]")
       as "((Herr3 & Herr4) & %Hupdp)".
@@ -684,7 +684,7 @@ Section coll_free_hash.
 
     iFrame.
 
-    iIntros "%x %HForall".
+    iIntros "%x [%Hxle %HForall]".
     wp_pures.
     wp_apply (wp_set with "Hhash").
     iIntros "Hlist".
@@ -701,7 +701,7 @@ Section coll_free_hash.
     {
       iPureIntro.
       eapply (Rlt_le_trans _ (S (Z.to_nat (Z.sub (Z.of_nat vsval) (Zpos xH))))); eauto.
-      { apply lt_INR. apply fin_to_nat_lt. }
+      { apply lt_INR. lia. }
       right.
       f_equal.
       destruct vsval; [simpl in Hvsval_pos; lra |].
@@ -795,7 +795,7 @@ Section coll_free_hash.
                  destruct (decide(n = i)) as [-> | Hneq].
                  ++ rewrite lookup_insert in Hi. inversion Hi.
                      eapply (Rlt_le_trans _ (S (Z.to_nat (Z.sub (Z.of_nat vsval) (Zpos xH))))); eauto.
-                     { apply lt_INR. apply fin_to_nat_lt. }
+                     { apply lt_INR. lia. }
                      transitivity vsval.
                      { right. f_equal.
                      destruct vsval; [simpl in Hvsval_pos; lra |].

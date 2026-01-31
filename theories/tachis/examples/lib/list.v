@@ -437,12 +437,12 @@ Section list_specs.
         iPureIntro. destruct Hin' as [b Hin']. exists b.
         by rewrite -app_assoc in Hin'. }
       { iSplit; eauto. iFrame.
-        rewrite app_length /=.
+        rewrite length_app /=.
         iApply (big_sepL_impl with "Hl'").
         iIntros "!#" (???) "Hl".
         rewrite -Nat.add_1_l Nat.add_assoc //. }
       iNext. iIntros "(HP & Hl & Hlp)". iApply "Hk". iFrame.
-      rewrite -app_assoc /= Nat.add_0_r app_length /=.
+      rewrite -app_assoc /= Nat.add_0_r length_app /=.
       iFrame.
       iApply (big_sepL_impl with "Hlp").
       iIntros "!#" (???) "Hl".
@@ -765,7 +765,7 @@ Section list_specs.
         iExists e, (inject ((a :: l1) ++ l2)), (a :: l1), l2.
         iPureIntro.
         split; auto.
-        split; [rewrite cons_length Hlen // |].
+        split; [rewrite length_cons Hlen // |].
         split.
         * by apply is_list_inject in Hcons as ->.
         * by apply is_list_inject.
@@ -810,7 +810,7 @@ Section list_specs.
         iExists e, (inject ((a :: l1) ++ l2)), (a :: l1), l2.
         iPureIntro.
         split; auto.
-        split; [rewrite cons_length Hlen // |].
+        split; [rewrite length_cons Hlen // |].
         split.
         * by apply is_list_inject in Hcons.
         * by apply is_list_inject.

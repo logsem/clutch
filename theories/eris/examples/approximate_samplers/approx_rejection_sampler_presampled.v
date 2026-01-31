@@ -2,7 +2,7 @@
 From clutch.eris Require Export eris error_rules.
 From clutch.eris Require Export examples.approximate_samplers.approx_sampler_lib.
 From Coquelicot Require Import Series.
-Require Import Lra.
+From Stdlib Require Import Lra.
 
 Set Default Proof Using "Type*".
 
@@ -35,7 +35,7 @@ Section presampled_flip2.
     { rewrite /flip2_junk_inv app_assoc.
       iExists _; iFrame; iPureIntro.
       apply Nat.Div0.div_exact.
-      rewrite app_length.
+      rewrite length_app.
       apply (blocks_aligned (Z.to_nat 0%nat) 2%nat).
       lia.
     }
@@ -58,7 +58,7 @@ Section presampled_flip2.
       wp_bind (Rand _ _); wp_apply (twp_rand_tape with "Hα"); iIntros "Hα".
       wp_bind (Rand _ _); wp_apply (twp_rand_tape with "Hα"); iIntros "Hα".
       iSpecialize ("IH" with "[Hα]").
-      { iExists _; iFrame; iPureIntro. do 2 rewrite cons_length in Hl. congruence. }
+      { iExists _; iFrame; iPureIntro. do 2 rewrite length_cons in Hl. congruence. }
       wp_pures.
       case_bool_decide; [wp_pures; case_bool_decide|].
       + wp_pures. iModIntro; iPureIntro.

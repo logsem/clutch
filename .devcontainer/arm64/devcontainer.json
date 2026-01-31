@@ -1,0 +1,18 @@
+{
+	"name": "clutch arm64 container",
+	"image": "ghcr.io/logsem/clutch/docker-arm64",
+	"customizations": {
+		"vscode": {
+		  "extensions": ["maximedenes.vscoq"]
+		},
+		"settings": {
+			"terminal.integrated.profiles.linux": {
+				"bash": {
+					"path": "bash",
+					"icon": "terminal-bash"
+				}
+			},
+			"terminal.integrated.defaultProfile.linux": "bash"
+		}
+	}
+}

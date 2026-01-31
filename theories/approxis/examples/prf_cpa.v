@@ -225,7 +225,7 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
           pose proof nat_to_fin_list _ (elements(dom M)) dom_range as [l' Hl'].
           rel_apply (refines_couple_couple_avoid _ l').
           { apply (NoDup_fmap fin_to_nat). rewrite Hl'. apply NoDup_elements. }
-          replace (length l') with q. 2: by erewrite <-fmap_length, Hl'.
+          replace (length l') with q. 2: by erewrite <-length_fmap, Hl'.
           pose proof pos_INR_S (Input).
           rewrite split_credit_step.
           iDestruct (ec_split with "[$]") as "[ε ε']".
@@ -311,7 +311,9 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
       1: { iExists 0.
            iFrame. iSplitL. 2: iPureIntro ; set_solver.
            iApply (ec_eq with "[$]").
-           field_simplify_eq ; try real_solver. nify_r. nat_solver. }
+           field_simplify_eq.
+           - nify_r. nat_solver.
+           - rewrite S_INR. real_solver. }
       iIntros "#Hinv".
       rel_arrow_val ; lrintro "msg"...
       iApply (refines_na_inv with "[$Hinv]"); [done|].
@@ -327,7 +329,7 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
           rel_apply (refines_couple_couple_avoid _ l').
           { apply NoDup_fmap with fin_to_nat; [apply fin_to_nat_inj|].
             rewrite Hl'. apply NoDup_elements. }
-          replace (length l') with q. 2: by erewrite <-fmap_length, Hl'.
+          replace (length l') with q. 2: by erewrite <-length_fmap, Hl'.
           pose proof pos_INR_S (Input).
           rewrite split_credit_step.
           iDestruct (ec_split with "[$]") as "[ε ε']".
@@ -445,13 +447,13 @@ Section implementation.
   Variable Q : nat.
   Variable adv : val.
   Variable adv_typed : (∅ ⊢ₜ adv : TAdv).
-
+  
   Definition Output' := xor.Output' bit.
   Definition Input' := xor.Output' bit.
   Definition Key' := xor.Output' bit.
 
-  #[local] Instance XOR_mod : @xor.XOR Output' Output' := xor.XOR_mod bit.
-  #[local] Instance XOR_spec_mod `{!approxisRGS Σ} : @xor.XOR_spec _ _ _ _ XOR_mod := xor.XOR_spec_mod bit.
+  #[local] Instance XOR_minus_mod : @xor.XOR Output' Output' := xor.XOR_minus_mod bit.
+  #[local] Instance XOR_spec_mod `{!approxisRGS Σ} : @xor.XOR_spec _ _ _ _ XOR_minus_mod := xor.XOR_spec_minus_mod bit.
 
 
   Lemma CPA_bound_realistic σ σ' :

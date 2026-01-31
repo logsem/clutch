@@ -1,7 +1,6 @@
-From Coq Require Import ZArith.
+From Stdlib Require Import ZArith.
 From clutch.prelude Require Import base.
 
-#[warning="-hiding-delimiting-key,-overwriting-delimiting-key"] From mathcomp Require Import ssrnat.
 From mathcomp Require Import fintype ssrbool zmodp.
 
 Fact rem_modn (x p : nat) (_ : p <> 0) :
@@ -22,8 +21,9 @@ Proof.
   rewrite ssrnat.plusE ssrnat.multE ssrnat.mulnC div.modnMDl.
   rewrite div.modn_small ; [reflexivity|].
   unshelve epose proof (PeanoNat.Nat.mod_upper_bound x p _) ; [lia|].
-  apply /leP ; lia.
+  apply /ssrnat.leP.
+  lia.
 Qed.
 
 Fact leq_zmodp p'' : ∀ (x : 'Z_(S (S p''))), @nat_of_ord (S (S p'')) x ≤ S (S p'').
-Proof. rewrite ?Zp_cast // ; intros. move /leP : (leq_ord x). lia. Qed.
+Proof. rewrite ?Zp_cast // ; intros. move /ssrnat.leP : (leq_ord x). lia. Qed.

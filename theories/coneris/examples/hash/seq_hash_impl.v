@@ -1,5 +1,6 @@
 From stdpp Require Export fin_maps.
 From iris.algebra Require Import excl_auth numbers gset_bij.
+#[warning="-notation-incompatible-prefix"]
 From clutch.coneris Require Export coneris lib.map hocap_rand abstract_tape coll_free_hash_view_interface seq_hash_interface.
 Set Default Proof Using "Type*".
 
@@ -322,7 +323,7 @@ Section seq_hash_impl.
         * rewrite SeriesC_list_2; last apply NoDup_elements.
           rewrite -length_elements_size_gset size_difference.
           -- rewrite size_set_seq size_list_to_set; last done.
-             rewrite app_length fmap_length S_INR/= plus_INR/=.
+             rewrite length_app length_fmap S_INR/= plus_INR/=.
              right. rewrite -!Rmult_assoc. rewrite (Rmult_comm _ (val_size+1)).
              rewrite Rdiv_1_l Rmult_inv_r; last first.
              { pose proof pos_INR val_size. lra. }
@@ -377,7 +378,7 @@ Section seq_hash_impl.
         -- rewrite /f. rewrite S_INR.
            rewrite SeriesC_list_2; last done.
            simpl.
-           rewrite app_length fmap_length. right. rewrite Nat.add_comm.
+           rewrite length_app length_fmap. right. rewrite Nat.add_comm.
            rewrite !plus_INR/=. lra.
         -- rewrite /f.
            intros. case_bool_decide; first done.

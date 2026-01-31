@@ -277,9 +277,9 @@ Section con_hash_impl.
 
   Definition compute_con_hash_specialized (lk hash : val) : val :=
     λ: "v",
-      acquire (lock := con_hash_lock) lk;;
+      acquire (lock0 := con_hash_lock) lk;;
       let: "output" := hash "v" in
-      release (lock := con_hash_lock) lk;;
+      release (lock0 := con_hash_lock) lk;;
       "output".
 
   Definition init_con_hash : val :=

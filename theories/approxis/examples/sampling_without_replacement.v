@@ -106,8 +106,8 @@ Section sampling_without_replacement.
     { iExists _. iPureIntro. simpl.
       repeat split; try done.
       - apply NoDup_seq.
-      - by rewrite seq_length.
-      - by rewrite seq_length.
+      - by rewrite length_seq.
+      - by rewrite length_seq.
       - intros ?. rewrite elem_of_seq. lia. }
     clear vunused Hunused K. iIntros "#Hinv".
     rel_arrow_val ; iIntros (??) "_"...
@@ -211,10 +211,10 @@ Section sampling_without_replacement.
         rewrite -NoDup_ListNoDup.
         done.
       - done.
-      - rewrite app_length.
-        rewrite app_length cons_length in Hlen. lia.
+      - rewrite length_app.
+        rewrite length_app length_cons in Hlen. lia.
       - transitivity (length (l1 ++ e :: l2)) ; try lia.
-        rewrite ?app_length. simpl. lia.
+        rewrite ?length_app. simpl. lia.
       - set_unfold ; naive_solver.
         Unshelve.
         rewrite -Rdiv_def.
@@ -257,8 +257,8 @@ Section sampling_without_replacement.
     { iExists _. iPureIntro. simpl.
       repeat split; try done.
       - apply NoDup_seq.
-      - by rewrite seq_length.
-      - by rewrite seq_length.
+      - by rewrite length_seq.
+      - by rewrite length_seq.
       - intros ?. rewrite elem_of_seq. lia. }
     clear vunused Hunused. iIntros "#Hinv".
     rel_arrow_val ; iIntros (??) "_"...
@@ -362,10 +362,10 @@ Section sampling_without_replacement.
         rewrite -NoDup_ListNoDup.
         done.
       - done.
-      - rewrite app_length.
-        rewrite app_length cons_length in Hlen. lia.
+      - rewrite length_app.
+        rewrite length_app length_cons in Hlen. lia.
       - transitivity (length (l1 ++ e :: l2)) ; try lia.
-        rewrite ?app_length. simpl. lia.
+        rewrite ?length_app. simpl. lia.
       - set_unfold ; naive_solver.
         Unshelve.
         rewrite -Rdiv_def.

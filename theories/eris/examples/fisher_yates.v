@@ -206,7 +206,7 @@ Section lib_code.
     { iPureIntro. split; first done. lia. }
     iIntros (lv' ?). wp_pures.
     wp_apply wp_list_update.
-    { iPureIntro. split; first done. rewrite insert_length. lia. }
+    { iPureIntro. split; first done. rewrite length_insert. lia. }
     iIntros (lv'' ?).
     iApply "HΦ".
     iExists _, _.
@@ -357,7 +357,7 @@ Qed.
         symmetry.
         by apply permutation_insert_swap.
       * auto.
-      * rewrite !insert_length. iPureIntro.
+      * rewrite !length_insert. iPureIntro.
         lia.
       * iPureIntro.
         rewrite -(permutation_insert_swap l (S i') x x0 y H1 H2) //.
@@ -369,7 +369,7 @@ Qed.
         (*
         etrans; first exact.
         rewrite Permutation_inj. split.
-        { rewrite !insert_length. lia. }
+        { rewrite !length_insert. lia. }
         exists (λ x, if (bool_decide (x=fin_to_nat n)) then (S i')
                 else if (bool_decide (x=S i')) then (fin_to_nat n)
                      else x
@@ -379,11 +379,11 @@ Qed.
         + intros. repeat case_bool_decide; subst.
           * destruct (decide (fin_to_nat n=S i')) as [Heq|Heq].
             -- rewrite Heq in H2. rewrite Heq. rewrite list_lookup_insert; first naive_solver.
-               rewrite !insert_length. lia.
+               rewrite !length_insert. lia.
             -- rewrite list_lookup_insert_ne; last done. rewrite list_lookup_insert; first naive_solver.
                pose proof fin_to_nat_lt n. lia.
           * rewrite list_lookup_insert; first naive_solver.
-            rewrite insert_length. lia.
+            rewrite length_insert. lia.
           * repeat (rewrite list_lookup_insert_ne; last done). done.
           *)
       + wp_pures.
@@ -397,7 +397,7 @@ Qed.
       wp_apply ("IH" $! (<[S i':=y]> (<[x:=x0]> l)) lav with "[][][][][Herr]").
       * admit.
       * admit.
-      * rewrite !insert_length. iPureIntro.
+      * rewrite !length_insert. iPureIntro.
         admit.
       * admit.
       * iLeft.

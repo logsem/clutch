@@ -1,5 +1,5 @@
 (** Autosubst helper lemmata *)
-From Autosubst Require Export Autosubst.
+#[warning="-deprecated-from-Coq"] From Autosubst Require Export Autosubst.
 From iris.prelude Require Export prelude.
 
 Section Autosubst_Lemmas.

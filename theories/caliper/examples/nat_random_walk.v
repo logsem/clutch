@@ -1,5 +1,5 @@
 (** Almost-sure termination of a simple random walk over the natural numbers *)
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From iris.base_logic.lib Require Import invariants.
 From clutch.prob_lang Require Import lang notation.
 From clutch.caliper Require Import weakestpre primitive_laws proofmode adequacy.

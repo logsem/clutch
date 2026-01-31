@@ -1,5 +1,5 @@
 (** Resources required to track a [ProbLang] spec configuration. *)
-From Coq Require Import Reals.
+From Stdlib Require Import Reals.
 From iris.algebra Require Import auth excl gmap.
 From iris.base_logic.lib Require Import invariants ghost_map.
 From iris.prelude Require Import options.
@@ -59,7 +59,7 @@ Proof.
     destruct (decide (i < length tp)).
     + by rewrite tpool_lookup lookup_app_l.
     + rewrite tpool_lookup !lookup_ge_None_2; first done.
-      * rewrite app_length; simpl; lia.
+      * rewrite length_app; simpl; lia.
       * lia.
 Qed.
 
@@ -263,6 +263,14 @@ Section spec_tape_interface.
     iIntros.
     iExists xs; auto.
   Qed.
+  
+  Lemma spec_tapeN_tapeN_contradict l N M ns ms:
+    l ↪ₛN ( N;ns ) -∗ l↪ₛN (M;ms) -∗ False.
+  Proof.
+    iIntros "(%&<-&H1) (%&<-&H2)".
+    by iDestruct (ghost_map_elem_ne with "[$][$]") as "%".
+  Qed.
+
 
 End spec_tape_interface.
 

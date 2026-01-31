@@ -3,7 +3,7 @@ From iris.base_logic.lib Require Import invariants.
 From iris.proofmode Require Import coq_tactics ltac_tactics reduction.
 From clutch.common Require Import language ectx_language ectxi_language.
 From clutch.base_logic Require Export spec_update.
-From clutch.prob_lang Require Import notation tactics metatheory lang class_instances.
+From clutch.prob_lang Require Import notation tactics metatheory lang class_instances wp_tactics.
 From clutch.prob_lang.spec Require Export spec_rules.
 Set Default Proof Using "Type".
 
@@ -104,7 +104,7 @@ Tactic Notation "tp_pure_at" open_constr(ef) :=
   [tc_solve || fail "tp_pure: cannot eliminate modality in the goal"
   |iAssumptionCore || fail "tp_pure: cannot find the RHS" (* TODO fix error message *)
   |try (exact I || reflexivity) (* ψ *)
-  |try (exact I || reflexivity) (* ϕ *)
+  |try (exact I || reflexivity || solve_vals_compare_safe) (* ϕ *)
   |simpl; reflexivity ||  fail "tp_pure: this should not happen" (* e' = fill K' e2 *)
   |pm_reduce (* new goal *)].
 

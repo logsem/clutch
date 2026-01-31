@@ -1,4 +1,5 @@
-From iris.bi Require Export bi fixpoint.
+
+From iris.bi Require Export bi lib.fixpoint_mono.
 From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Export fancy_updates wsat.
 From clutch.prelude Require Import classical.

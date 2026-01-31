@@ -1,4 +1,4 @@
-From mathcomp Require Import all_ssreflect ssrnat zmodp.
+From mathcomp Require Import all_boot ssrnat zmodp.
 
 From stdpp Require fin.
 

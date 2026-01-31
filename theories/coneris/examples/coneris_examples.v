@@ -100,11 +100,13 @@ End test.
 
 Local Open Scope R.
 
-Context `{!conerisGS Σ}.
+Section foo.
+  Context `{!conerisGS Σ}.
 
 Definition foo N (m : nat) : expr :=
   let: "n" := rand #N in
   if: "n" = #m then #false else #true.
+
 
 
 Lemma wp_foo (N : nat) m E :
@@ -123,7 +125,6 @@ Proof.
   wp_if_false.
   by iApply "HΦ".
 Qed.
-
 
 Definition bar N : expr :=
   let: "m" := rand #N in
@@ -229,3 +230,4 @@ Proof.
   wp_faa.
   iModIntro. by iApply "HΦ".
 Qed.
+End foo. 

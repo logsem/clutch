@@ -1,6 +1,6 @@
  (** An axiomatization of evaluation-context based languages, including a proof
     that this gives rise to a "language" in our sense. *)
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From iris.prelude Require Export prelude.
 From clutch.common Require Import language.
 From clutch.prob Require Import distribution.
@@ -86,6 +86,7 @@ Structure ectxLanguage := EctxLanguage {
 
   of_val : val → expr;
   to_val : expr → option val;
+  def_val : val;
 
   empty_ectx : ectx;
   comp_ectx : ectx → ectx → ectx;
@@ -113,9 +114,10 @@ Structure ectxLanguage := EctxLanguage {
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments EctxLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _.
+Global Arguments EctxLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ } _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
+Global Arguments def_val {_}.
 Global Arguments empty_ectx {_}.
 Global Arguments comp_ectx {_} _ _.
 Global Arguments decomp {_} _.
@@ -239,7 +241,7 @@ Section ectx_language.
       rewrite dmap_mass //.
   Qed.
 
-  Canonical Structure ectx_lang : language := Language (get_active := get_active) ectx_lang_mixin.
+  Canonical Structure ectx_lang : language := Language (get_active := get_active) (def_val := def_val) ectx_lang_mixin.
 
   Definition head_atomic (a : atomicity) (e : expr Λ) : Prop :=
     ∀ σ e' σ',
@@ -429,6 +431,26 @@ Section ectx_language.
     by simplify_eq; rewrite fill_empty.
   Qed.
 
+  (** Stronger lemma of prim_step_iff*)
+  Lemma prim_step_iff' e1 σ1:
+    (∃ x, prim_step e1 σ1 x > 0) ->
+    ∃ K e1', fill K e1' = e1 /\
+             (∃ x, head_step e1' σ1 x > 0) /\
+             prim_step e1 σ1 =
+             dmap (fill_lift K) (head_step e1' σ1).
+  Proof.
+    intros [[] H].
+    rewrite prim_step_iff in H.
+    destruct H as (K&e1'&e2'&<-&<-&H).
+    eexists _, _.
+    split; first done.
+    split; first naive_solver.
+    rewrite fill_prim_step_dbind.
+    - erewrite head_prim_step_eq; first done.
+      by eexists _.
+    - by eapply val_head_stuck.
+  Qed. 
+  
   Lemma not_head_reducible_dzero e σ :
     head_irreducible e σ → head_step e σ = dzero.
   Proof.
@@ -486,8 +508,8 @@ work.
 Note that this trick no longer works when we switch to canonical projections
 because then the pattern match [let '...] will be desugared into projections. *)
 Definition LanguageOfEctx (Λ : ectxLanguage) : language :=
-  let '@EctxLanguage E V C St StI _ _ _ _ _ _ _ _ of_val to_val empty comp fill decomp head state act mix := Λ in
-  @Language E V St StI _ _ _ _ _ _ _ _ of_val to_val _ state act
-    (@ectx_lang_mixin (@EctxLanguage E V C St StI _ _ _ _ _ _ _ _ of_val to_val empty comp fill decomp head state act mix )).
+  let '@EctxLanguage E V C St StI _ _ _ _ _ _ _ _ of_val to_val def_val empty comp fill decomp head state act mix := Λ in
+  @Language E V St StI _ _ _ _ _ _ _ _ of_val to_val def_val _ state act
+    (@ectx_lang_mixin (@EctxLanguage E V C St StI _ _ _ _ _ _ _ _ of_val to_val def_val empty comp fill decomp head state act mix )).
 
 Global Arguments LanguageOfEctx : simpl never.

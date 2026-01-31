@@ -1,5 +1,5 @@
-From Coq.Logic Require Import ClassicalEpsilon.
-From Coq.Logic Require Export FunctionalExtensionality PropExtensionality.
+From Stdlib.Logic Require Import ClassicalEpsilon.
+From Stdlib.Logic Require Export FunctionalExtensionality PropExtensionality.
 From stdpp Require Import prelude.
 
 Lemma ExcludedMiddle (P : Prop) : P ∨ ¬ P.

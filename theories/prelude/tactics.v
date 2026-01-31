@@ -244,3 +244,11 @@ Ltac iSplit_tac tac :=
   repeat (simpl; repeat iSplit_step tac).
 
 Tactic Notation "iSplit!" := iSplit_tac ltac:(fail).
+
+Ltac andb_solver :=
+  repeat match goal with
+  | H : ?b1 && ?b2 = true |- _ =>
+      apply andb_true_iff in H; destruct H as [? ?]
+    | |- context [_ && _ =true] =>
+        rewrite andb_true_iff
+  end.

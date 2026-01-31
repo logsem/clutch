@@ -1,5 +1,5 @@
-From Coq Require Import Reals Psatz.
-From Coq.ssr Require Import ssreflect ssrfun.
+From Stdlib Require Import Reals Psatz.
+From Stdlib.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements.
 From stdpp Require Export countable.
 From clutch.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
@@ -149,6 +149,24 @@ Section pgl_theory.
         apply Rmult_le_compat_r; auto.
   Qed.
 
+  Lemma pgl_dbind' (h : A → distr A')
+    (μ1 : distr A) (g : A' → Prop) ε :
+    0 <= ε →
+    (∀ a, μ1 a > 0 → pgl (h a) g ε) → pgl (dbind h μ1) g (ε).
+  Proof.
+    intros ? H'.
+    replace (ε) with (0+ε) by lra.
+    eapply pgl_dbind; [done|done|apply H'|].
+    rewrite /pgl/prob.
+    right.
+    apply SeriesC_0.
+    intros x.
+    case_bool_decide; first done.
+    simpl.
+    pose proof pmf_pos μ1 x.
+    lra.
+  Qed. 
+    
   Lemma pgl_dbind_adv_aux (h : A → distr A')
     (μ : distr A) (g : A' → Prop) (ε : A → R) :
     (∀ a, 0 <= ε a) →
@@ -430,7 +448,7 @@ Section ub_instances.
       rewrite SeriesC_0; auto.
       apply Rdiv_le_0_compat; [lra |].
       apply (Rle_lt_trans _ n); [apply pos_INR | lra].
-    - rewrite cons_length.
+    - rewrite length_cons.
       assert (S (length l) / (n + 1) = 1 / (n + 1) + (length l) / (n + 1)) as ->.
       {
         rewrite -Rdiv_plus_distr //.
@@ -460,7 +478,7 @@ Section ub_instances.
       rewrite SeriesC_0; auto.
       apply Rdiv_le_0_compat; [lra |].
       apply (Rle_lt_trans _ n); [apply pos_INR | lra].
-    - rewrite cons_length.
+    - rewrite length_cons.
       assert (S (length l) / (n + 1) = 1 / (n + 1) + (length l) / (n + 1)) as ->.
       {
         rewrite -Rdiv_plus_distr //.

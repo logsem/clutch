@@ -1,5 +1,5 @@
 From discprob.basic Require Import base Series_Ext.
-Require Import Reals Fourier Lia Psatz.
+From Stdlib Require Import Reals Fourier Lia Psatz.
 From mathcomp Require Import ssreflect ssrbool ssrfun eqtype choice fintype bigop.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy Markov.
 From HB Require Import structures.
@@ -129,7 +129,7 @@ Proof.
   apply bool_irrelevance.
 Qed.
 
-HB.instance Definition foo {A: countType} {B: eqType} (f: A → B) : isCountable _ :=
+#[warning="-HB.no-new-instance"] HB.instance Definition foo {A: countType} {B: eqType} (f: A → B) : isCountable _ :=
   PCanIsCountable (pickle_imgK f).
 
 
@@ -431,7 +431,7 @@ Lemma is_seriesC_bump (x' : A) v:
 Proof.
   eapply is_series_ext; last apply (is_series_bump (pickle x')).
   intros n => //=.
-  destruct (eq_nat_dec n (pickle x')) as [Heq|Hneq].
+  destruct (Peano_dec.eq_nat_dec n (pickle x')) as [Heq|Hneq].
   - rewrite /countable_sum. subst. by rewrite pickleK_inv //= eq_refl.
   - rewrite /countable_sum//=. case_eq (@pickle_inv A n).
     * intros s Heq => //=. case: ifP.
